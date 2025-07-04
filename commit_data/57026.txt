@@ -1,21 +1,20 @@
-commit 4f237ffd16ef1ff11f8fb80083457a47028954ff
-Author: David Chase <drchase@google.com>
-Date:   Tue Jul 2 12:45:30 2024 -0400
+commit 19b814b80b7082f28dbd1f383ce9387407ffdf9f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 8 17:21:56 2023 -0700
 
-    cmd/compile: verify that rangefunc assigning to no vars works
+    net: update SOCK_CLOEXEC comment
     
-    This adds a test for
-       for range seq2rangefunc { ... }
-    and
-       for onevar := range seq2rangefunc { ... }
+    For #45964
+    For #59359
     
-    For #65236.
-    
-    Change-Id: I083f8e4c19eb4ba0d6024d5314ac29d941141778
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596135
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I7fd295a096e5776102e057789d157da681df9073
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501939
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/rangefunc/rangefunc_test.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/net/sock_cloexec.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

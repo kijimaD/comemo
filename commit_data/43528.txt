@@ -1,24 +1,14 @@
-commit 36c5edd8d9e6c13af26733e5c820eae0598203fe
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Aug 6 20:36:49 2020 +0000
+commit 0505e8a3a3eb2b420b9183decf6fd8c14da397ef
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 9 19:45:48 2020 -0400
 
-    runtime: add timeHistogram type
+    [dev.link] cmd/link: use new-style Reloc accessors in loadelf
     
-    This change adds a concurrent HDR time histogram to the runtime with
-    tests. It also adds a function to generate boundaries for use by the
-    metrics package.
-    
-    For #37112.
-    
-    Change-Id: Ifbef8ddce8e3a965a0dcd58ccd4915c282ae2098
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247046
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I9c283aa2631dc21c0567a0708b26cdf95a6dc9fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227897
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/export_test.go    |  24 +++++++
- src/runtime/histogram.go      | 148 ++++++++++++++++++++++++++++++++++++++++++
- src/runtime/histogram_test.go |  58 +++++++++++++++++
- src/runtime/metrics.go        |   2 +
- 4 files changed, 232 insertions(+)
+ src/cmd/link/internal/loadelf/ldelf.go | 53 +++++++++++++++++-----------------
+ 1 file changed, 27 insertions(+), 26 deletions(-)

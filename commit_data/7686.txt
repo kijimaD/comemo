@@ -1,12 +1,12 @@
-commit 89930bda9dcda11d1c4a09f18894efc7cc071a8d
+commit 6892155dedeb041db0d0e0f912dabe5b9c72f8f8
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 7 15:30:51 2011 -0800
+Date:   Mon Mar 7 15:30:25 2011 -0800
 
-    os: adjust test: /bin is a symlink, not a directory, on Solaris.
+    runtime: remove unused declarations from mgc0.c.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4239066
+    https://golang.org/cl/4252063
 
- src/pkg/os/os_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c | 3 ---
+ 1 file changed, 3 deletions(-)

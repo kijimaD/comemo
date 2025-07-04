@@ -1,13 +1,26 @@
-commit 52abddb71273cd439a5ea6670270a165f08aba8c
-Author: Emil Hessman <c.emil.hessman@gmail.com>
-Date:   Wed May 21 14:34:20 2014 -0700
+commit eb34288ad17bd624cfb4f40a3ab3095698624d95
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed May 21 23:24:38 2014 +0200
 
-    doc: fix typo in sharemem codewalk
+    cmd/objdump: fix dissasembly of Plan 9 object files
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Ignore symbols that aren't text, data, or bss since they cause
+    problems when dissassembling instructions with small immediate
+    values.
+    
+    Before:
+            build.go:142    0x10ee  83ec50      SUBL $text/template/parse.autotmp_1293(SB), SP
+    
+    After:
+            build.go:142    0x10ee  83ec50      SUBL $0x50, SP
+    
+    Fixes #7947.
+    
+    LGTM=rsc
+    R=rsc, 0intro
     CC=golang-codereviews
-    https://golang.org/cl/98460045
+    https://golang.org/cl/93520045
 
- doc/codewalk/sharemem.xml | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/objdump/objdump_test.go |  4 ----
+ src/cmd/objdump/plan9obj.go     | 15 +++++++++++++++
+ 2 files changed, 15 insertions(+), 4 deletions(-)

@@ -1,17 +1,22 @@
-commit b0ba0b49a023100151ec4b562163615f37b57ad9
-Author: Tom Levy <tomlevy93@gmail.com>
-Date:   Fri Aug 25 17:13:34 2017 +1200
+commit e10af2e8625666a70292cdf1801f4f1ebddb3ca6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 25 18:12:18 2017 +0900
 
-    sync/atomic: remove references to old atomic pointer hammer tests
+    vendor: update vendored route
     
-    The tests were removed in https://golang.org/cl/2311 but some
-    references to them were missed.
+    Updates golang_org/x/net/route to rev da118f7 for:
+    - route: don't fail test when at least one version of INET protocols is available
     
-    Change-Id: I163e554a0cc99401a012deead8fda813ad74dbfe
-    Reviewed-on: https://go-review.googlesource.com/58870
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #19298.
+    Updates #19967.
+    
+    Change-Id: I46948f1bd4ac6e6afd424623233f90e2b6b954c6
+    Reviewed-on: https://go-review.googlesource.com/41652
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/sync/atomic/atomic_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ .../golang_org/x/net/route/message_darwin_test.go  | 31 ++++---
+ .../golang_org/x/net/route/message_freebsd_test.go | 94 +++++++++-------------
+ src/vendor/golang_org/x/net/route/message_test.go  | 36 +++++----
+ 3 files changed, 80 insertions(+), 81 deletions(-)

@@ -1,12 +1,14 @@
-commit f5dce6c85339fff4c7328e21b8676eae4fee6ef2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 25 12:21:12 2013 -0500
+commit a411b104f0a32f7c859d63c4fbd46919c2036910
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 25 08:29:46 2013 -0800
 
-    cmd/5g: fix arm build
+    go/parser: more precise comment
     
-    R=ken2
+    See also CL 7383051 for details.
+    
+    R=adonovan, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7365057
+    https://golang.org/cl/7378063
 
- src/cmd/5g/gg.h | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/go/parser/parser.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

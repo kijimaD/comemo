@@ -1,29 +1,31 @@
-commit 13be616e560411f6f252f728deed3c0b3e145fed
-Author: Rob Pike <r@golang.org>
-Date:   Tue Sep 15 14:14:44 2015 -0700
+commit dcc905ecf9f00c55fbc9848c45f62d677cb9bf29
+Author: Paul Marks <pmarks@google.com>
+Date:   Mon Jul 20 16:04:25 2015 -0700
 
-    bufio: allow Scanner to accept a user-provided buffer
+    net: compute the Dialer deadline exactly once.
     
-    Add Scanner.Buffer, which lets the user give a buffer to
-    the scanner and set the maximum token size.
+    When dialing with a relative Timeout instead of an absolute Deadline,
+    the deadline function only makes sense if called before doing any
+    time-consuming work.
     
-    We call it Buffer not SetBuffer for consistency with Split, which
-    perhaps should have been called SetSplit; too late regardless.
+    This change calls deadline exactly once, storing the result until the
+    Dial operation completes.  The partialDeadline implementation is
+    reverted to the following patch set 3:
+    https://go-review.googlesource.com/#/c/8768/3..4/src/net/dial.go
     
-    Both Buffer and Split panic if they are called after Scan. The
-    panic in Split is new, but the comment on the method already
-    said it needed to be called first, so we might as well add the
-    verification while we're doing it for Buffer.
+    Otherwise, when dialing a name with multiple IP addresses, or when DNS
+    is slow, the recomputed deadline causes the total Timeout to exceed that
+    requested by the user.
     
-    This method allows precise user control of storage.
+    Fixes #11796
     
-    Fixes #11702.
-    
-    Change-Id: I80e3d0e3830562fdabd4f7b08f322e1378248c39
-    Reviewed-on: https://go-review.googlesource.com/14599
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    Change-Id: I5e1f0d545f9e86a4e0e2ac31a9bd108849cf0fdf
+    Reviewed-on: https://go-review.googlesource.com/12442
+    Run-TryBot: Paul Marks <pmarks@google.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bufio/scan.go      | 45 ++++++++++++++++++++++++++++++++++++++++-----
- src/bufio/scan_test.go | 16 ++++++++++++++++
- 2 files changed, 56 insertions(+), 5 deletions(-)
+ src/net/dial.go      | 16 +++++++++-------
+ src/net/dial_test.go | 40 ++++++++++++++++++++++------------------
+ 2 files changed, 31 insertions(+), 25 deletions(-)

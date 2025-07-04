@@ -1,18 +1,62 @@
-commit 52fdd624a4087342f529cd7e52c92f44adf2e2bf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jul 17 14:31:48 2019 -0400
+commit 4c3f26076b6a9853bcc3c7d7e43726c044ac028a
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Sat Nov 10 08:28:44 2018 +0900
 
-    cmd/go/internal/mvs: in Req, omit versions implied by older-than-selected versions already in the graph
+    sync: allow inlining the Mutex.Unlock fast path
     
-    Fixes #31248
+    Make use of the newly-enabled limited midstack inlining.
+    Similar changes will be done in followup CLs.
     
-    Change-Id: Ia54f2098c3b85549681198a487a31e8ce8fc59eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186557
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    name                    old time/op  new time/op  delta
+    MutexUncontended        19.3ns ± 1%  18.9ns ± 0%   -1.92%  (p=0.000 n=20+19)
+    MutexUncontended-4      5.24ns ± 0%  4.75ns ± 1%   -9.25%  (p=0.000 n=20+20)
+    MutexUncontended-16     2.10ns ± 0%  2.05ns ± 0%   -2.38%  (p=0.000 n=15+19)
+    Mutex                   19.6ns ± 0%  19.3ns ± 1%   -1.92%  (p=0.000 n=20+17)
+    Mutex-4                 54.6ns ± 5%  52.4ns ± 4%   -4.09%  (p=0.000 n=20+20)
+    Mutex-16                 133ns ± 5%   139ns ± 2%   +4.23%  (p=0.000 n=20+16)
+    MutexSlack              33.4ns ± 2%  18.9ns ± 1%  -43.56%  (p=0.000 n=19+20)
+    MutexSlack-4             206ns ± 5%   225ns ± 8%   +9.12%  (p=0.000 n=20+18)
+    MutexSlack-16           89.4ns ± 1%  98.4ns ± 1%  +10.10%  (p=0.000 n=18+17)
+    MutexWork               60.5ns ± 0%  58.2ns ± 3%   -3.75%  (p=0.000 n=12+20)
+    MutexWork-4              105ns ± 5%   103ns ± 7%   -1.68%  (p=0.007 n=20+20)
+    MutexWork-16             157ns ± 1%   163ns ± 2%   +3.90%  (p=0.000 n=18+18)
+    MutexWorkSlack          70.2ns ± 5%  57.7ns ± 1%  -17.81%  (p=0.000 n=19+20)
+    MutexWorkSlack-4         277ns ±13%   276ns ±13%     ~     (p=0.682 n=20+19)
+    MutexWorkSlack-16        156ns ± 0%   147ns ± 0%   -5.62%  (p=0.000 n=16+14)
+    MutexNoSpin              966ns ± 0%   968ns ± 0%   +0.11%  (p=0.029 n=15+20)
+    MutexNoSpin-4            269ns ± 4%   270ns ± 2%     ~     (p=0.807 n=20+19)
+    MutexNoSpin-16           122ns ± 0%   120ns ± 4%   -1.63%  (p=0.000 n=19+19)
+    MutexSpin               3.13µs ± 0%  3.13µs ± 1%   +0.16%  (p=0.004 n=18+20)
+    MutexSpin-4              826ns ± 1%   832ns ± 2%   +0.74%  (p=0.000 n=19+16)
+    MutexSpin-16             397ns ± 1%   395ns ± 0%   -0.50%  (p=0.000 n=19+17)
+    RWMutexUncontended      71.4ns ± 0%  69.5ns ± 0%   -2.72%  (p=0.000 n=16+20)
+    RWMutexUncontended-4    18.4ns ± 4%  17.5ns ± 0%   -4.92%  (p=0.000 n=20+18)
+    RWMutexUncontended-16   8.01ns ± 0%  7.92ns ± 0%   -1.15%  (p=0.000 n=18+18)
+    RWMutexWrite100         24.9ns ± 0%  24.9ns ± 1%     ~     (p=0.099 n=19+20)
+    RWMutexWrite100-4       46.5ns ± 3%  46.2ns ± 4%     ~     (p=0.253 n=17+19)
+    RWMutexWrite100-16      68.9ns ± 3%  69.9ns ± 5%   +1.46%  (p=0.012 n=18+20)
+    RWMutexWrite10          27.1ns ± 0%  27.0ns ± 2%     ~     (p=0.128 n=17+20)
+    RWMutexWrite10-4        34.8ns ± 1%  34.7ns ± 2%     ~     (p=0.180 n=20+18)
+    RWMutexWrite10-16       37.5ns ± 2%  37.2ns ± 4%   -0.89%  (p=0.023 n=20+20)
+    RWMutexWorkWrite100      164ns ± 0%   164ns ± 0%     ~     (p=0.106 n=12+20)
+    RWMutexWorkWrite100-4    186ns ± 3%   193ns ± 3%   +3.46%  (p=0.000 n=20+20)
+    RWMutexWorkWrite100-16   204ns ± 2%   210ns ± 3%   +2.96%  (p=0.000 n=18+20)
+    RWMutexWorkWrite10       153ns ± 0%   153ns ± 0%   -0.20%  (p=0.017 n=20+19)
+    RWMutexWorkWrite10-4     179ns ± 1%   178ns ± 2%     ~     (p=0.215 n=19+20)
+    RWMutexWorkWrite10-16    191ns ± 1%   192ns ± 2%     ~     (p=0.166 n=15+19)
+    
+    linux/amd64 bin/go 14630572 (previous commit 14605947, +24625/+0.17%)
+    
+    Change-Id: I3f9d1765801fe0b8deb1bc2728b8bba8a7508e23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/148958
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/mvs/mvs.go                   |  8 ++--
- src/cmd/go/internal/mvs/mvs_test.go              |  8 ++++
- src/cmd/go/testdata/script/mod_indirect_tidy.txt | 60 ++++++++++++++++++++++++
- 3 files changed, 72 insertions(+), 4 deletions(-)
+ src/runtime/sema.go           | 12 ++++++------
+ src/sync/mutex.go             | 12 ++++++++++--
+ src/sync/mutex_test.go        |  2 +-
+ src/sync/runtime.go           |  4 +++-
+ src/sync/runtime_sema_test.go |  6 +++---
+ src/sync/rwmutex.go           |  4 ++--
+ src/sync/waitgroup.go         |  2 +-
+ test/inline_sync.go           | 24 ++++++++++++++++++++++++
+ 8 files changed, 50 insertions(+), 16 deletions(-)

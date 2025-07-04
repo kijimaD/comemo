@@ -1,14 +1,14 @@
-commit 6c3736a527f6c71de0c6503ce3aa948fef592393
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 14 11:01:27 2013 -0800
+commit 1590be9e6f18a06734f84365589d3ab10ef79732
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Mon Jan 14 12:11:22 2013 +0000
 
-    go/types: mark completely imported packages as such
+    html/template: Clarifying references to "text/template" in the documentation.
     
-    R=adonovan
+    Fixes #4634.
+    
+    R=adg, kevlar
     CC=golang-dev
-    https://golang.org/cl/7103055
+    https://golang.org/cl/7066053
 
- src/pkg/go/types/check.go      | 14 +-------------
- src/pkg/go/types/gcimporter.go | 24 ++++++++++++++----------
- src/pkg/go/types/objects.go    |  9 +++++----
- 3 files changed, 20 insertions(+), 27 deletions(-)
+ src/pkg/html/template/template.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

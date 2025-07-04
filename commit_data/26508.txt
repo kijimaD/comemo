@@ -1,16 +1,19 @@
-commit 2e79d7fbee7d635f93940c482cd366ad4ae551a1
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Mar 23 17:22:09 2016 +0100
+commit 8a961aee286cc7c891d5e0a49ed362fe500f81f4
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 28 17:43:45 2016 -0800
 
-    cmd/go: update alldocs.go
+    [dev.ssa] cmd/compile: fix -N build
     
-    Also added go:generate directive.
+    The OpSB hack didn't quite work.  We need to really
+    CSE these ops to make regalloc happy.
     
-    Change-Id: Ib1f0eddc75e3c47a4d904786a29b964a35b18456
-    Reviewed-on: https://go-review.googlesource.com/21042
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: I9f4d7bfb0929407c84ee60c9e25ff0c0fbea84af
+    Reviewed-on: https://go-review.googlesource.com/19083
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/doc.go       | 2 ++
- src/cmd/go/mkalldocs.sh | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/compile.go  |  2 +-
+ src/cmd/compile/internal/ssa/cse.go      | 28 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go |  6 ------
+ 3 files changed, 29 insertions(+), 7 deletions(-)

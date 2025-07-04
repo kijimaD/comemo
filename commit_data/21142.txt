@@ -1,18 +1,19 @@
-commit 281ae9288133a8880d910b96a1c0c96585ae3974
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Jan 2 16:30:08 2015 -0500
+commit f4627d1b05cdc0b9401f6582423f1cbbeadd705a
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 18 15:50:36 2014 -0500
 
-    liblink: fix encoding of SETcc for amd64
+    [dev.cc] runtime: merge power64 onM/onM_signalok into systemstack
     
-    liblink used to encode both SETEQ BP and SETEQ CH as 0f 94 c5,
-    however, SETEQ BP should have used a REX prefix.
+    This is the power64 component of CL 174950043.
     
-    Fixes #8545.
+    With this, dev.cc compiles on power64 and power64le and passes
+    most tests if GOGC=off (but crashes in go_bootstrap if GC is
+    on).
     
-    Change-Id: Ie59c990cdd0ec506cffe4318e9ad1b48db5e57dd
-    Reviewed-on: https://go-review.googlesource.com/2270
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/175290043
 
- src/liblink/asm6.c | 32 ++++++++++++++++----------------
- 1 file changed, 16 insertions(+), 16 deletions(-)
+ src/runtime/asm_power64x.s | 52 +++++++++++++++++-----------------------------
+ 1 file changed, 19 insertions(+), 33 deletions(-)

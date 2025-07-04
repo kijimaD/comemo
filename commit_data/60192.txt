@@ -1,0 +1,25 @@
+commit 960cd141248b3e61ab651038097523a02dfa427b
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri May 24 11:18:15 2024 -0400
+
+    doc/README: suggest a way to preview next content, tweak release steps
+    
+    Smaller edits are usually fine to do without previewing, since Markdown
+    can be intuitive. But for larger changes including re-ordering sections
+    and such, it can be helpful to quickly see the end result. Write down a
+    way to do that.
+    
+    Update the release steps to capture that the doc/next content will move
+    to x/website before RC 1, when the complete release note draft is ready.
+    
+    For #64169.
+    
+    Change-Id: Ie554ed5294ce819fd0689e2249e6013826f0c71f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587922
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ doc/README.md | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

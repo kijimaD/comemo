@@ -1,15 +1,21 @@
-commit 7114e9997b8f5975bea544cb6f7b85b1cdb4c8ef
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 4 10:17:33 2018 -0800
+commit 26d62b4ca9bb8f7342d337ba43b0cc1aedaf7852
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Aug 8 04:10:19 2018 +0000
 
-    go/types: use new importer.ForCompiler for gotype command
+    cmd/internal/obj/arm64: add SWPALD/SWPALW/SWPALH/SWPALB
     
-    This will produce better error messages (position information)
-    for errors referring to imported objects.
+    Those new instructions have acquire/release semantics, besides
+    normal atomic SWPD/SWPW/SWPH/SWPB.
     
-    Change-Id: I24646ae803e6b8f78e9240310a858d4095e9463d
-    Reviewed-on: https://go-review.googlesource.com/c/152538
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I24821a4d21aebc342897ae52903aef612c8d8a4a
+    Reviewed-on: https://go-review.googlesource.com/128476
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/gotype.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arm64.go        |  1 +
+ src/cmd/asm/internal/asm/testdata/arm64.s |  8 ++++++++
+ src/cmd/internal/obj/arm64/a.out.go       |  4 ++++
+ src/cmd/internal/obj/arm64/anames.go      |  4 ++++
+ src/cmd/internal/obj/arm64/asm7.go        | 16 ++++++++++------
+ 5 files changed, 27 insertions(+), 6 deletions(-)

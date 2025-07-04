@@ -1,32 +1,23 @@
-commit 1c6288f7e1005a1217859c20e4892a9f2cfd8091
-Author: xzhang39 <xzhang39@tesla.com>
-Date:   Fri Oct 11 03:58:57 2024 +0000
+commit 63ab68ddc5f1307e552cf27ae7a6f0dfda2bb962
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Jun 28 16:45:07 2023 +0800
 
-    cmd/go: add file names for cyclic import error
+    cmd/compile: add single-precision FMA code generation for riscv64
     
-    The PR is to add more details for the error, so that it would be easier to troubleshoot the cyclic imports error.
+    This CL adds FMADDS,FMSUBS,FNMADDS,FNMSUBS SSA support for riscv
     
-    The change for the error looks like the following:
-    
-    package cyclic-import-example
-            imports cyclic-import-example/packageA from /Users/personal/cyclic-import-example/main.go:4:5
-            imports cyclic-import-example/packageB from /Users/personal/cyclic-import-example/packageA/a.go:5:2
-            imports cyclic-import-example/packageA from /Users/personal/cyclic-import-example/packageB/bb.go:5:2: import cycle not allowed
-    
-    Fixes #66078
-    
-    Change-Id: I162cd348004bf4e4774b195f8355151c1bf0a652
-    GitHub-Last-Rev: c5a16256d1b5bb4d720c72624a44477be20da743
-    GitHub-Pull-Request: golang/go#68337
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597035
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I1e7dd322b46b9e0f4923dbba256303d69ed12066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506616
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
 
- src/cmd/go/internal/list/list.go                |  2 +-
- src/cmd/go/internal/load/pkg.go                 | 94 ++++++++++++++++++-------
- src/cmd/go/internal/load/test.go                | 22 ++++--
- src/cmd/go/internal/work/action.go              |  2 +-
- src/cmd/go/testdata/script/list_test_cycle.txt  |  6 +-
- src/cmd/go/testdata/script/mod_import_cycle.txt |  2 +-
- 6 files changed, 90 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/riscv64/ssa.go         |   3 +-
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |   9 +-
+ src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |   4 +
+ src/cmd/compile/internal/ssa/opGen.go           |  68 +++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 256 ++++++++++++++++++++++++
+ test/codegen/floats.go                          |   3 +
+ 6 files changed, 339 insertions(+), 4 deletions(-)

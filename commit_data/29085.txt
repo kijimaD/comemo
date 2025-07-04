@@ -1,24 +1,17 @@
-commit 3202aa7800aeb523a7af2015241f96e9ae46bfbc
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Oct 21 08:39:39 2016 -0400
+commit 9be2a279ee12d0e17646c0b0b12d8dff9b157a59
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Aug 24 13:22:54 2016 +0900
 
-    cmd/compile: improve s390x SSA rules for logical ops
+    internal/testenv: make MustHaveSymlink message friendly
     
-    This CL introduces some minor changes to match rules more closely
-    to the instructions they are targeting. s390x logical operation
-    with immediate instructions typically leave some bits in the
-    target register unchanged. This means for example that an XOR
-    with -1 requires 2 instructions. It is better in cases such as
-    this to create a constant and leave it visible to the compiler
-    so that it can be reused rather than hiding it in the assembler.
-    
-    This CL also tweaks the rules a bit to ensure that constants are
-    folded when possible.
-    
-    Change-Id: I1c6dee31ece00fc3c5fdf6a24f1abbc91dd2db2a
-    Reviewed-on: https://go-review.googlesource.com/31754
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If6e12ebc41152bc0534d3d383df80e960efe97f0
+    Reviewed-on: https://go-review.googlesource.com/27577
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  51 ++-
- src/cmd/compile/internal/ssa/rewriteS390X.go | 466 +++++++++++----------------
- 2 files changed, 214 insertions(+), 303 deletions(-)
+ src/internal/testenv/testenv.go         |  8 +++++---
+ src/internal/testenv/testenv_notwin.go  |  6 +++---
+ src/internal/testenv/testenv_windows.go | 17 +++++++++++++----
+ 3 files changed, 21 insertions(+), 10 deletions(-)

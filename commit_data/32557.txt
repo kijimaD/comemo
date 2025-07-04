@@ -1,17 +1,22 @@
-commit 0e2cde7c69f2b9786b0f2fb92626d47f67cd286a
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Aug 28 15:00:49 2017 +0900
+commit 3bcb481aa30caaf01bfcb2cf4696dad899084725
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 28 12:22:50 2017 +1200
 
-    cmd/link: refactor container()
+    cmd/link: rename AttrHidden to AttrNotInSymbolTable
     
-    * rename to emitPcln because I'd like to skip not only container types,
-      but also something like "go.buildid" in the future.
-    * return bool instead of int.
+    I want to move the SHIDDEN type bit into Attribute, but AttrHidden is already
+    there and means something completely different, so rename it. (I'll give the
+    SHIDDEN bit a better name when it moves too).
     
-    Change-Id: I029adb81292f7dd2fe98e69f3877c5c27f32ec30
-    Reviewed-on: https://go-review.googlesource.com/59415
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I075403d9542b7626d4c1f6db9094329c4181aad3
+    Reviewed-on: https://go-review.googlesource.com/42024
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/pcln.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go  |  6 +++---
+ src/cmd/link/internal/ld/go.go     |  2 +-
+ src/cmd/link/internal/ld/lib.go    |  2 +-
+ src/cmd/link/internal/ld/link.go   |  6 +++---
+ src/cmd/link/internal/ld/symtab.go | 12 ++++++------
+ 5 files changed, 14 insertions(+), 14 deletions(-)

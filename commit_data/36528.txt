@@ -1,21 +1,30 @@
-commit 2975914a1a0b60132352cf0c34a39bea1197d789
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jul 17 14:38:34 2018 -0400
+commit 150b728675c64addd24d79ad3bb68fec4c137940
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 14 14:51:39 2018 -0500
 
-    cmd/link: move Localentry field in sym.Symbol to cold section
+    runtime: use native CAS and memory barrier on ARMv7
     
-    The sym.Symbol 'Localentry' field is used only with cgo and/or
-    external linking on MachoPPC. Relocate it to sym.AuxSymbol since it is
-    infrequently used, so as to shrink the main Symbol struct.
+    This gets us around the kernel helpers on ARMv7.
     
-    Updates #26186
+    It is slightly faster than using the kernel helper.
     
-    Change-Id: I5872aa3f059270c2a091016d235a1a732695e411
-    Reviewed-on: https://go-review.googlesource.com/125477
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    name           old time/op  new time/op  delta
+    AtomicLoad-4   72.5ns ± 0%  69.5ns ± 0%  -4.08%  (p=0.000 n=9+9)
+    AtomicStore-4  57.6ns ± 1%  54.4ns ± 0%  -5.58%  (p=0.000 n=10+9)
+    [Geo mean]     64.6ns       61.5ns       -4.83%
+    
+    If performance is really critical, we can even do compiler intrinsics
+    on GOARM=7.
+    
+    Fixes #23792.
+    
+    Change-Id: I36497d880890b26bdf01e048b542bd5fd7b17d23
+    Reviewed-on: https://go-review.googlesource.com/94076
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/loadelf/ldelf.go   |  2 +-
- src/cmd/link/internal/ppc64/asm.go       |  2 +-
- src/cmd/link/internal/sym/sizeof_test.go |  2 +-
- src/cmd/link/internal/sym/symbol.go      | 19 ++++++++++++++++++-
- 4 files changed, 21 insertions(+), 4 deletions(-)
+ src/runtime/internal/atomic/bench_test.go   | 16 ++++++++++++++++
+ src/runtime/internal/atomic/sys_linux_arm.s |  9 ++++++++-
+ src/runtime/sys_linux_arm.s                 | 13 +++++++++----
+ 3 files changed, 33 insertions(+), 5 deletions(-)

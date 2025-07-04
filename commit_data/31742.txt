@@ -1,15 +1,25 @@
-commit 660200528afbcf203d5cdc53a46fd3be7d2bd35c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 7 13:10:05 2017 -0700
+commit 2e7c3b3f555853202fe0bdf2ea5ce37d7a56a7f7
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Mar 13 20:35:07 2017 +0100
 
-    cmd/compile: don't implicitly dereference pointer to arrays for real/imag
+    encoding/gob: add Encode-Decode Int slices tests
     
-    Fixes #20602.
+    Tinkering with the gob package shows that is currently possible to
+    *completely destroy* Int slices encoding without triggering a single
+    test failure.
     
-    Change-Id: Iac1589484dec626c018314e0cea7efce091fd87d
-    Reviewed-on: https://go-review.googlesource.com/45075
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    The various encInt{8,16,32,64}Slice methods are only called during the
+    execution of the GobMapInterfaceEncode test, which only encodes a few
+    slices of length exactly 1 and then just checks that the error
+    returned by Encode is nil (without trying to Decode back the data).
+    
+    This patch adds a few tests for signed integer slices encoding.
+    
+    Change-Id: Ifaaee2f32132873118b241f79aa8203e4ad31416
+    Reviewed-on: https://go-review.googlesource.com/38066
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  4 +++-
- test/fixedbugs/issue20602.go             | 14 ++++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/encoding/gob/encoder_test.go | 65 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)

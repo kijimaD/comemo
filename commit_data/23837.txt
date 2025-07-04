@@ -1,16 +1,18 @@
-commit a2cf0568e853a22a50110e43d5185a096f3145c6
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 27 16:53:35 2015 +0000
+commit 73054f572940c8d4c905f2ba996a3c6aaeeb28df
+Author: Michael Matloob <matloob@google.com>
+Date:   Sun Jun 14 11:38:46 2015 -0700
 
-    Revert "test: do not run external linking test on ppc64le"
+    [dev.ssa] cmd/compile/internal/ssa: adds for 8,16,32 bit ints
     
-    Broke most builders.
-    
-    This reverts commit a60c5366f91934a36793bde74556f4b637954665.
-    
-    Change-Id: Iae952cfcc73ef5da621616a0b3d586b60d1ce9c9
-    Reviewed-on: https://go-review.googlesource.com/12684
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I33025a4a41fd91f6ee317d33a6eebf27fa00ab51
+    Reviewed-on: https://go-review.googlesource.com/11115
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- test/fixedbugs/issue10607.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go           |  73 ++++--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  22 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  30 ++-
+ src/cmd/compile/internal/ssa/opGen.go        | 131 ++++++++++
+ src/cmd/compile/internal/ssa/rewrite.go      |   8 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 359 +++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/stackalloc.go   |   5 +-
+ 7 files changed, 565 insertions(+), 63 deletions(-)

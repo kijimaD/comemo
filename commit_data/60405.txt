@@ -1,0 +1,30 @@
+commit 8b48290895d362417124bcc18f0e6b6476ddc99e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jan 31 14:47:40 2024 +0700
+
+    cmd/compile: fix recursive generic interface instantiation
+    
+    When shapifying recursive instantiated types, the compiler ends up
+    leaving the type as-is if it already has been a shape type. However, if
+    both of type arguments are interfaces, and one of them is a recursive
+    one, it ends up being shaped as-is, while the other is shaped to its
+    underlying, causing mismatch in function signature.
+    
+    Fixing this by shapifying an interface type as-is, if it is fully
+    instantiated and already been a shape type.
+    
+    Fixes #65362
+    Fixes #66663
+    
+    Change-Id: I839d266e0443b41238b1b7362aca09adc0177362
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559656
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/reader.go |  5 +++++
+ test/fixedbugs/issue65362.go             | 31 +++++++++++++++++++++++++++++
+ test/fixedbugs/issue66663.go             | 34 ++++++++++++++++++++++++++++++++
+ 3 files changed, 70 insertions(+)

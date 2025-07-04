@@ -1,19 +1,20 @@
-commit 6f59c11155d75024985d4827a7fe155cd6561df9
-Author: Robert Griesemer <gri@google.com>
-Date:   Wed Oct 30 15:57:42 2024 -0700
+commit 2b3c1c5937f41cda7650c78fcf1f8e7d28d8c9c2
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Thu Sep 7 00:09:31 2023 +0800
 
-    go/types, types2: better error message when selecting on a built-in
+    cmd/internal/obj: mark unspill code in prologue preemptible
     
-    Fixes #43285.
+    The UnspillReg code should always be preemptible because all the arg registers will be saved by runtime.asyncpreempt.
     
-    Change-Id: Iddadf76e2dc10fcf77f588c865a68125ebeda290
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623756
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ie36b5d0cdd1275efcb95661354d83be2e1b00a86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526235
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/call.go             | 2 +-
- src/go/types/call.go                                | 2 +-
- src/internal/types/testdata/fixedbugs/issue51360.go | 6 +++---
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/arm64/obj7.go | 7 ++++---
+ src/cmd/internal/obj/ppc64/obj9.go | 5 +++--
+ src/cmd/internal/obj/riscv/obj.go  | 3 ++-
+ src/cmd/internal/obj/x86/obj6.go   | 7 ++++---
+ 4 files changed, 13 insertions(+), 9 deletions(-)

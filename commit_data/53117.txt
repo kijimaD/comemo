@@ -1,20 +1,41 @@
-commit 3ca52f4c319e56986586e3d519924876320b29fb
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Feb 16 11:02:12 2023 -0500
+commit c006b7ac2765252f397dec40fef610a3c17d956d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 13 11:48:04 2022 -0400
 
-    slices: add in-place Reverse function
+    runtime: clear timerModifiedEarliest when last timer is deleted
     
-    Fixes #58565
+    timerModifiedEarliest contains the lowest possible expiration for a
+    modified earlier timer, which may be earlier than timer0When because we
+    haven't yet updated the heap. Note "may", as the modified earlier timer
+    that set timerModifiedEarliest may have since been modified later or
+    deleted.
     
-    Change-Id: I583f8380c12386178fb18e553322bbb019d9fae0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468855
-    Run-TryBot: Alan Donovan <adonovan@google.com>
+    We can clear timerModifiedEarliest when the last timer is deleted
+    because by definition there must not be any modified earlier timers.
+    
+    Why does this matter? checkTimersNoP claims that there is work to do if
+    timerModifiedEarliest has passed, causing findRunnable to loop back
+    around to checkTimers. But the code to clean up timerModifiedEarliest in
+    checkTimers (i.e., the call to adjusttimers) is conditional behind a
+    check that len(pp.timers) > 0.
+    
+    Without clearing timerModifiedEarliest, a spinning M that would
+    otherwise go to sleep will busy loop in findRunnable until some other
+    work is available.
+    
+    Note that changing the condition on the call to adjusttimers would also
+    be a valid fix. I took this approach because it feels a bit cleaner to
+    clean up timerModifiedEarliest as soon as it is known to be irrelevant.
+    
+    Fixes #51654.
+    
+    Change-Id: I3f3787c67781cac7ce87939c5706cef8db927dd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417434
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Shay Nehmad <dude500@gmail.com>
 
- api/next/58565.txt        |  1 +
- doc/go1.21.html           | 10 ++++++++++
- src/slices/slices.go      |  7 +++++++
- src/slices/slices_test.go | 28 ++++++++++++++++++++++++++++
- 4 files changed, 46 insertions(+)
+ src/runtime/time.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

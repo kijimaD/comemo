@@ -1,15 +1,17 @@
-commit 9e60c371473ff15eb4b13981721b29f62e1d862c
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Aug 17 07:24:31 2021 -0500
+commit 0b0d004983b5f06d7e8ae2084fc7d6612f1aa869
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 4 14:06:29 2021 -0800
 
-    cmd/compile: document register-based ABI for ppc64
+    cmd/go: pass embedcfg to gccgo if supported
     
-    This adds the ppc64 information to the ABI doc.
+    For #41191
     
-    Change-Id: I55ce77a59a8b50309d02e3e0de0cea3fc62ad003
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342869
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I75d327759c3d9ef061c19a80b9b2619038dedf68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281492
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/abi-internal.md | 99 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 99 insertions(+)
+ src/cmd/go/internal/work/gccgo.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

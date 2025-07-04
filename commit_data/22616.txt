@@ -1,25 +1,12 @@
-commit 0fc582e87942b2e52bed751b6c56660ba99e9a7d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Apr 19 20:54:01 2015 +0900
+commit ff1f3a11e4f1b0eee87225aec1aaaf2e74972ae0
+Author: Jeremy Schlatter <jeremy.schlatter@gmail.com>
+Date:   Fri Mar 27 03:29:06 2015 +0000
 
-    net: fix inconsistent error values on Lookup
+    math/big: fix copy-paste mistake in int_test.go
     
-    This change fixes inconsistent error values on
-    Lookup{Addr,CNAME,Host,IP.MX,NS,Port,SRV,TXT}.
-    
-    Updates #4856.
-    
-    Change-Id: I059bc8ffb96ee74dff8a8c4e8e6ae3e4a462a7ef
-    Reviewed-on: https://go-review.googlesource.com/9108
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If986ed2cf94efba92763d00a3182047c05d6f805
+    Reviewed-on: https://go-review.googlesource.com/8133
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/cgo_unix.go       |  14 +++---
- src/net/dnsclient.go      |  52 +++-----------------
- src/net/dnsclient_unix.go |  10 ++--
- src/net/lookup.go         |   8 ++--
- src/net/lookup_unix.go    | 120 ++++++++++++++++++++++------------------------
- src/net/lookup_windows.go | 112 +++++++++++++++++++++++--------------------
- src/net/net.go            |  49 ++++++++++++++-----
- src/net/port.go           |   2 +-
- src/net/port_unix.go      |   2 +-
- 9 files changed, 177 insertions(+), 192 deletions(-)
+ src/math/big/int_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

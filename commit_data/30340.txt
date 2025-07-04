@@ -1,25 +1,28 @@
-commit 8ccd007f24673adca90feb5fd23f2131b42b99d0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 13 16:11:13 2017 -0800
+commit b2c54afe1451f93e1fbbad257a151d8425cd308d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 1 15:24:11 2016 +0000
 
-    cmd/vet/all: work around vet printf checker deficiencies
+    net/http, net/http/httptest: make http2's TrailerPrefix work for http1
     
-    cmd/vet has a known deficiency in its handling of fmt.Formatters.
-    This causes a spurious printf error only for non-host platforms.
-    Since cmd/vet/all may get run on any given platform,
-    whitelists cannot help here.
+    Go's http1 implementation originally had a mechanism to send HTTP
+    trailers based on pre-declaring the trailer keys whose values you'd
+    later let after the header was written.
     
-    Work around the issue by skipping printf tests entirely
-    for non-host platforms.
+    http2 copied the same mechanism, but it was found to be unsufficient
+    for gRPC's wire protocol. A second trailer mechanism was added later
+    (but only to http2) for handlers that want to send a trailer without
+    knowing in advance they'd need to.
     
-    Work around the one known acceptable false positive from vet
-    by whitelisting the file that contains it.
+    Copy the same mechanism back to http1 and document it.
     
-    Change-Id: Id74b3d4db0519cf9a670a065683715f856266e45
-    Reviewed-on: https://go-review.googlesource.com/36936
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #15754
+    
+    Change-Id: I8c40d55e28b0e5b7087d3d1a904a392c56ee1f9b
+    Reviewed-on: https://go-review.googlesource.com/32479
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/all/main.go           | 26 +++++++++++++++++++++++---
- src/cmd/vet/all/whitelist/all.txt |  1 -
- 2 files changed, 23 insertions(+), 4 deletions(-)
+ src/net/http/clientserver_test.go      | 31 +++++++++++++
+ src/net/http/httptest/recorder.go      | 11 +++++
+ src/net/http/httptest/recorder_test.go |  2 +
+ src/net/http/server.go                 | 79 ++++++++++++++++++++++++++++------
+ 4 files changed, 111 insertions(+), 12 deletions(-)

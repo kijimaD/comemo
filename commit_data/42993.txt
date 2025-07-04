@@ -1,24 +1,22 @@
-commit 790fa1c546a05936406f6bbf24f6a6ddeb6ec6ad
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Sep 14 16:30:43 2020 +0200
+commit d8b03c467831eeb12d0b7de0ea5e0b46c992f9b5
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Feb 24 21:03:54 2020 -0500
 
-    cmd/compile: unify reflect, string and slice copy runtime functions
+    [dev.link] cmd/link: remove some dependence on *Link
     
-    Use a common runtime slicecopy function to copy strings or slices
-    into slices. This deduplicates similar code previously used in
-    reflect.slicecopy and runtime.stringslicecopy.
+    In an effort to make relocation application thread-safe remove another
+    dependence on context.
     
-    Change-Id: I09572ff0647a9e12bb5c6989689ce1c43f16b7f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254658
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic53ea122cce72117fcebe56e386b710755f6eb68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220838
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         | 408 ++++++++++++-------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   3 +-
- src/cmd/compile/internal/gc/subr.go            |  12 +-
- src/cmd/compile/internal/gc/walk.go            |  60 ++--
- src/runtime/mbarrier.go                        |  23 +-
- src/runtime/slice.go                           |  44 +--
- 6 files changed, 247 insertions(+), 303 deletions(-)
+ src/cmd/link/internal/ld/data.go   |  6 ++--
+ src/cmd/link/internal/ld/errors.go | 61 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/link.go   | 48 +-----------------------------
+ src/cmd/link/internal/ld/xcoff.go  |  4 +--
+ src/cmd/link/internal/ppc64/asm.go |  2 +-
+ 5 files changed, 68 insertions(+), 53 deletions(-)

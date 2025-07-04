@@ -1,12 +1,14 @@
-commit 6d86d064e5b060ef7ab665ec5d6e3772090a7694
-Author: Jeff Sickel <jas@corpus-callosum.com>
-Date:   Wed Oct 23 10:28:28 2013 -0400
+commit 08a561459763181649c35eb7191c945b5a10c933
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 22 18:33:37 2013 -0400
 
-    plan9: correct create permissions with union directory
+    test/mapnan: use time.Now instead of syscall.Getrusage
     
-    R=golang-dev, rsc
+    Avoids a dependency on a somewhat nonstandard part of package syscall.
+    
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/15360045
+    https://golang.org/cl/15570046
 
- lib/codereview/codereview.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/mapnan.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

@@ -1,18 +1,21 @@
-commit 4e7c83848332861859d414c833e0b4bd6f375d0b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 4 10:09:30 2023 -0500
+commit d93cc8cb9639212ee674ecbc9149fb897dd8fd77
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Feb 17 19:43:49 2022 -0500
 
-    crypto/internal/boring: add dev.boringcrypto README.md text
+    runtime: define racefuncenter and racefuncexit as ABIInternal
     
-    Add the text from dev.boringcrypto's README making clear what
-    this code is and that it is unsupported.
+    They are called from compiler instrumented code as ABIInternal.
+    Define them as ABIInternal to avoid the wrappers and save some
+    stack space, to avoid nosplit overflow in -race -N -l build.
     
-    Change-Id: Ie49e8ccff10436f5d27ed422f159b4899193c9a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460515
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    For #51247.
+    
+    Change-Id: Iadad7d6da8ac03780a7b02b03b004c52d34e020a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386715
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/crypto/internal/boring/README.md | 22 +++++++++++++++++++++-
- 1 file changed, 21 insertions(+), 1 deletion(-)
+ src/runtime/race_arm64.s | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,35 +1,30 @@
-commit 103f37497f2927eeb510789f63fe2a0319b6a49a
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Feb 3 09:59:55 2023 -0800
+commit b95d332c7e876eb8de8e0df84894c934a3f5cbde
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 23 14:24:26 2022 -0700
 
-    cmd/compile: ensure first instruction in a function is not inlined
+    test: compile source files as if from "test" module
     
-    People are using this to get the name of the function from a function type:
+    This CL updates test/run.go to compile xxx.dir/x.go with a package
+    path of "test/x" instead of just "x". This prevents collisions with
+    standard library packages.
     
-    runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
+    It also requires updating a handful of tests to account for the
+    updated package paths.
     
-    Unfortunately, this technique falls down when the first instruction
-    of the function is from an inlined callee. Then the expression above
-    gets you the name of the inlined function instead of the function itself.
+    Fixes #25693.
     
-    To fix this, ensure that the first instruction is never from an inlinee.
-    Normally functions have prologs so those are already fine. In just the
-    cases where a function is a leaf with no local variables, and an instruction
-    from an inlinee appears first in the prog list, add a nop at the start
-    of the function to hold a non-inlined position.
-    
-    Consider the nop a "mini-prolog" for leaf functions.
-    
-    Fixes #58300
-    
-    Change-Id: Ie37092f4ac3167fe8e5ef4a2207b14abc1786897
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465076
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I49208c56ab3cb229ed667d547cd6e004d2175fcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395258
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 44 ++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue58300.go           | 29 ++++++++++++++++++++++
- test/fixedbugs/issue58300.out          |  2 ++
- 3 files changed, 75 insertions(+)
+ test/fixedbugs/bug345.go           |  5 +----
+ test/fixedbugs/issue19467.dir/z.go |  7 ++++---
+ test/fixedbugs/issue29919.dir/a.go |  4 ++--
+ test/fixedbugs/issue42401.dir/b.go |  5 +++--
+ test/fixedbugs/issue5957.dir/c.go  |  6 +++---
+ test/linkname.dir/linkname2.go     |  2 +-
+ test/run.go                        | 32 ++++++++++++++------------------
+ 7 files changed, 28 insertions(+), 33 deletions(-)

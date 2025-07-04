@@ -1,17 +1,26 @@
-commit dc27d68936767277984ac731a06cb15c4f64c997
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Dec 1 12:57:57 2017 +0000
+commit ca8c361d867d62bd46013c5abbaaad0b2ca6077f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Sep 28 10:26:39 2017 -0400
 
-    syscall: reuse BSD forkExecPipe for Solaris
+    cmd/dist: use -buildmode=pie for pie testing
     
-    The function was duplicated for Solaris. Reuse the BSD version instead.
+    Some tests in misc/cgo/test are run with various options including
+    '-linkmode=external "-extldflags=-pie"'. On ppc64x passing -pie to
+    the external linker with code that was not compiled as position
+    independent is incorrect. This works by luck in many cases but is
+    not guaranteed to work. I suspect it is an issue on other targets
+    as well.
     
-    Change-Id: Ibc812bcf36d21f4a7ceeef7b4fb091fa9479bfa8
-    Reviewed-on: https://go-review.googlesource.com/81395
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    This will now run the tests using -buildmode=pie for the platforms
+    that support that buildmode option.
+    
+    Fixes #21954
+    
+    Change-Id: I25fc7573f2d3cb5b0d1c691a0ac91aef7715404f
+    Reviewed-on: https://go-review.googlesource.com/66870
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_solaris.go                  | 14 --------------
- src/syscall/{forkpipe_bsd.go => forkpipe.go} |  3 ++-
- 2 files changed, 2 insertions(+), 15 deletions(-)
+ src/cmd/dist/test.go | 41 ++++++++++++++---------------------------
+ 1 file changed, 14 insertions(+), 27 deletions(-)

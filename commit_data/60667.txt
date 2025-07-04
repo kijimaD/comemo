@@ -1,0 +1,32 @@
+commit 18fc547b21a5eb66e27bd1cd4e73a2b92609a0a9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 13 11:25:31 2024 -0700
+
+    runtime/cgo: create C pthreads in detached state
+    
+    Rather than explicitly calling pthread_detach.
+    
+    Fixes #68850
+    
+    Change-Id: I7b4042283f9feb5383bffd40fae6db6d23217f97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605257
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/cgo/gcc_darwin_amd64.c    | 1 +
+ src/runtime/cgo/gcc_darwin_arm64.c    | 1 +
+ src/runtime/cgo/gcc_dragonfly_amd64.c | 1 +
+ src/runtime/cgo/gcc_freebsd.c         | 1 +
+ src/runtime/cgo/gcc_freebsd_amd64.c   | 1 +
+ src/runtime/cgo/gcc_libinit.c         | 7 +++++--
+ src/runtime/cgo/gcc_linux.c           | 1 +
+ src/runtime/cgo/gcc_linux_amd64.c     | 1 +
+ src/runtime/cgo/gcc_linux_arm64.c     | 1 +
+ src/runtime/cgo/gcc_linux_s390x.c     | 1 +
+ src/runtime/cgo/gcc_netbsd.c          | 1 +
+ src/runtime/cgo/gcc_openbsd.c         | 1 +
+ src/runtime/cgo/gcc_ppc64x.c          | 1 +
+ 13 files changed, 17 insertions(+), 2 deletions(-)

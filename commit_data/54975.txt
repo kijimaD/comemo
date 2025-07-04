@@ -1,19 +1,24 @@
-commit c32362125ba694d62a3f28ac35bb2734daf2056a
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Nov 13 14:51:33 2023 +0000
+commit 483f3dc39fb187dadd28a0d06a92084a207715b3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 29 19:37:10 2022 +0000
 
-    cmd/link/internal/loadpe: remove unused dynimports in peImportSymsState
+    Revert "encoding/xml: disallow empty namespace when prefix is set"
     
-    dynimports is a leftover from a previous implementation, so remove it
-    for now.
+    This reverts CL 105636.
     
-    Change-Id: I6419e3fa35ce6a9e46aa387377e436415221e3a2
-    GitHub-Last-Rev: ba429bfb122b75cc759d69a41615cb1ddbd18f6c
-    GitHub-Pull-Request: golang/go#64097
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541895
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reason for revert: Fails with existing XML data.  At this stage in the release cycle we should revert, and try again next time with some way to support existing XML.
+    
+    For #8068
+    
+    Change-Id: Ia84cbf3a84878ac7190f72998545dee22c36c45e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453996
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/loadpe/ldpe.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/encoding/xml/xml.go      |  4 ----
+ src/encoding/xml/xml_test.go | 29 -----------------------------
+ 2 files changed, 33 deletions(-)

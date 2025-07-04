@@ -1,23 +1,20 @@
-commit 4160ebf28f69a738203571bba6abab6ec0913080
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 9 13:04:51 2025 -0800
+commit 5239c913510633ce9fdfaf993ab5f31d7ba7e83e
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 3 14:04:57 2023 -0400
 
-    net: permit Interface with no Name
+    cmd/compile/internal/inline: minor compile time improvements in func flags
     
-    On darwin the utun interface sometimes has no name.
+    Some small changes to help reduce compile time for function flags
+    computation. The current implementation of panic path detection adds
+    an entry to a map for every node in the function, which is wasteful
+    (and shows up in cpu profiles). Switch to only adding entries where
+    they are useful. This is especially important for functions with large
+    map literals and other constructs with many non-statement nodes.
     
-    Fixes #71064
-    
-    Change-Id: Iec51641880515f8bd3f97bd892c26f68fd588fa3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641855
+    Change-Id: I9cfb2cd1cbf480f21298e6102aa99e2d77219f3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539696
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/internal/routebsd/interface_classic.go | 21 +++++++++++++--------
- src/net/interface.go                       | 10 ++++++----
- src/net/interface_test.go                  | 14 ++++++++------
- 3 files changed, 27 insertions(+), 18 deletions(-)
+ .../internal/inline/inlheur/analyze_func_flags.go  | 32 +++++++---------------
+ 1 file changed, 10 insertions(+), 22 deletions(-)

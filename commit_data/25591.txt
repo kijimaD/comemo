@@ -1,24 +1,23 @@
-commit 1556c317f1eb3df4f41e9a69cb4192dc27d09d82
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 14 16:43:40 2016 -0500
+commit 053c75411fbc3b6cf7689e3bfa5a46680c20e76f
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:32:49 2015 -0400
 
-    runtime: use at least "system" traceback level for runtime tests
+    cmd/link: added support for mips64{,le}
     
-    While the default behavior of eliding runtime frames from tracebacks
-    usually makes sense, this is not the case when you're trying to test
-    the runtime itself. Fix this by forcing the traceback level to at
-    least "system" in the runtime tests.
+    Only internal linking without cgo is supported for now.
     
-    This will specifically help with debugging issue #13645, which has
-    proven remarkably resistant to reproduction outside of the build
-    dashboard itself.
-    
-    Change-Id: I2a8356ba6c3c5badba8bb3330fc527357ec0d296
-    Reviewed-on: https://go-review.googlesource.com/18648
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ie6074a8ff3ec13605b72028f2d60758034f87185
+    Reviewed-on: https://go-review.googlesource.com/14444
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/export_test.go  | 8 ++++++++
- src/runtime/runtime_test.go | 7 +++++++
- 2 files changed, 15 insertions(+)
+ src/cmd/link/internal/ld/arch.go    |  18 +++
+ src/cmd/link/internal/ld/dwarf.go   |   4 +-
+ src/cmd/link/internal/ld/elf.go     |  27 ++--
+ src/cmd/link/internal/ld/ldelf.go   |   6 +
+ src/cmd/link/internal/ld/lib.go     |   4 +-
+ src/cmd/link/internal/ld/symtab.go  |   2 +-
+ src/cmd/link/internal/mips64/asm.go | 248 ++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/mips64/l.go   |  75 +++++++++++
+ src/cmd/link/internal/mips64/obj.go | 158 +++++++++++++++++++++++
+ src/cmd/link/main.go                |   3 +
+ 10 files changed, 529 insertions(+), 16 deletions(-)

@@ -1,12 +1,38 @@
-commit 73e2ad20220050f88b1ea79bf5a2e4c4fbee0533
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 13 11:33:42 2016 -0700
+commit a3c258a56763c9d697ab3b95e81b8df68599014a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 2 07:59:49 2016 -0500
 
-    runtime: rename os1_darwin.go to os_darwin.go
+    cmd/link: pack LSym boolean attributes
     
-    Change-Id: If0e0bc5a85101db1e70faaab168fc2d12024eb93
-    Reviewed-on: https://go-review.googlesource.com/22005
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    No performance improvement, but possibly more readable.
+    
+    Linking juju:
+            tip:  real 0m5.470s user 0m6.131s
+            this: real 0m5.392s user 0m6.087s
+    
+    Change-Id: I578e94fbe6c11b19d79034c33b3db31d9689d439
+    Reviewed-on: https://go-review.googlesource.com/20108
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/{os1_darwin.go => os_darwin.go} | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/link/internal/amd64/asm.go  | 12 +++----
+ src/cmd/link/internal/arm/asm.go    | 12 +++----
+ src/cmd/link/internal/arm64/asm.go  | 12 +++----
+ src/cmd/link/internal/ld/data.go    | 50 +++++++++++++-------------
+ src/cmd/link/internal/ld/dwarf.go   | 16 ++++-----
+ src/cmd/link/internal/ld/elf.go     | 48 ++++++++++++-------------
+ src/cmd/link/internal/ld/go.go      | 30 ++++++++--------
+ src/cmd/link/internal/ld/ldelf.go   | 18 +++++-----
+ src/cmd/link/internal/ld/ldmacho.go | 18 +++++-----
+ src/cmd/link/internal/ld/ldpe.go    | 16 ++++-----
+ src/cmd/link/internal/ld/lib.go     | 63 ++++++++++++++++----------------
+ src/cmd/link/internal/ld/link.go    | 71 ++++++++++++++++++++++++++-----------
+ src/cmd/link/internal/ld/macho.go   | 24 ++++++-------
+ src/cmd/link/internal/ld/objfile.go | 40 ++++++++++-----------
+ src/cmd/link/internal/ld/pcln.go    |  6 ++--
+ src/cmd/link/internal/ld/pe.go      | 16 ++++-----
+ src/cmd/link/internal/ld/symtab.go  | 52 +++++++++++++--------------
+ src/cmd/link/internal/ppc64/asm.go  | 14 ++++----
+ src/cmd/link/internal/x86/asm.go    | 16 ++++-----
+ src/cmd/link/internal/x86/obj.go    |  2 +-
+ 20 files changed, 283 insertions(+), 253 deletions(-)

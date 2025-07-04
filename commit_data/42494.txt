@@ -1,22 +1,24 @@
-commit bdcf33f1c0597bf18924c17ab2644310d204bf23
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Jun 9 14:26:09 2020 +0000
+commit 57b22c51162035a52fdf09f043b1fed63faa28bc
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Dec 26 15:03:12 2019 -0500
 
-    doc/go1.15: remove TODO in minor library changes section
+    cmd/go: parallellize more test cases
     
-    The minor changes to the library section has been populated
-    with TODOs for individual packages using relnote in CL 235757,
-    and they've been resolved in the following CLs.
+    Sprinkle in some more calls to tg.Parallel in the cmd/go
+    tests. These are the easy cases that don't operate in the
+    testdata directory.
     
-    We will look things over as part of finishing touches on
-    the release notes, but this TODO is resolved for beta 1.
+    I think the best thing to do for those tests that do operate
+    in testdata is to use the script tests. They're easier to
+    read and write, and jump into t.Parallel immediately.
     
-    For #37419.
+    Updates #17751
     
-    Change-Id: I942f81a957fe8df8f630b4406ca29f73602d080a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237157
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: If8aeb8129cfdc0a9aa91f5a540f179790077fce5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212618
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.15.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/go/go_test.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

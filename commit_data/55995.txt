@@ -1,26 +1,34 @@
-commit 81a32eff7161ad6c15ace141b8e9dba8f81feac2
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Mon Mar 18 23:05:12 2024 -0700
+commit e539461e34b1c5163220f9910b2c0360fb9f21e4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Dec 23 03:37:43 2022 +0700
 
-    net/http: validate outgoing/client request trailers
+    cmd/compile: emit ODCL node for autotmp during RewriteNonNameCall
     
-    This change validates outbound client request trailers
-    just like we do for headers. This helps prevent header
-    injection or other sorts of smuggling from easily being
-    performed using the standard HTTP client.
+    For f()() call, the compiler rewrite it roughly to:
     
-    Fixes #64766
+            autotmp := f()
+            autotmp()
     
-    Change-Id: Idb34df876a0c308b1f57e9ae2695b118ac6bcc2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572615
-    Reviewed-by: David Chase <drchase@google.com>
+    However, if f() were inlined, escape analysis will confuse about the
+    lifetime of autotmp, leading to bad escaping decision.
+    
+    This CL fixes this issue by rewriting f()() to:
+    
+            var autotmp
+            autotmp = f()
+            autotmp()
+    
+    This problem also happens with Unified IR, until CL 421821 land.
+    
+    Fixes #57434
+    
+    Change-Id: I159a7e4c93bbc172f0eae60e7d40fc64ba70b236
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459295
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/net/http/transport.go      | 38 ++++++++++++++++++++++++++------------
- src/net/http/transport_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 65 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

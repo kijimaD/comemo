@@ -1,21 +1,23 @@
-commit b4f3c9339e77e70cbd5b81ef7f2a4dec557d40de
-Author: Simon Rawet <simon@rawet.se>
-Date:   Sat May 28 16:46:45 2016 +0200
+commit ad82f2cf4b7e8e5f5398b5546b7d834432347355
+Author: Tom Bergan <tombergan@google.com>
+Date:   Wed Jun 29 07:45:23 2016 -0700
 
-    time: fix AddDate with nil location
+    crypto/tls: Use the same buffer size in the client and server in the TLS throughput benchmark
     
-    AddDate now retrieves location from t.Location() to ensure that
-    it never calls Date with a nil location.
+    I believe it's necessary to use a buffer size smaller than 64KB because
+    (at least some versions of) Window using a TCP receive window less than
+    64KB. Currently the client and server use buffer sizes of 16KB and 32KB,
+    respectively (the server uses io.Copy, which defaults to 32KB internally).
+    Since the server has been using 32KB, it should be safe for the client to
+    do so as well.
     
-    Added test for this bug on all Time's methods
+    Fixes #15899
     
-    Fixes #15852
-    
-    Change-Id: Id2a222af56993f741ad0b802a2c3b89e8e463926
-    Reviewed-on: https://go-review.googlesource.com/23561
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I36d44b29f2a5022c03fc086213d3c1adf153e983
+    Reviewed-on: https://go-review.googlesource.com/24581
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/time.go      |  2 +-
- src/time/time_test.go | 92 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 93 insertions(+), 1 deletion(-)
+ src/crypto/tls/tls_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

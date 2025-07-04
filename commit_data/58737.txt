@@ -1,27 +1,17 @@
-commit a0029e95e5d6f15cab70e533d447c75aa4211636
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Nov 23 10:58:47 2024 -0800
+commit 3b8b550a35965245657ea204865baa6ee727297d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 15:43:41 2023 -0500
 
-    cmd/compile: regalloc: handle desired registers of 2-output insns
+    doc: document runtimecontentionstacks
     
-    Particularly with 2-word load instructions, this becomes important.
-    Classic example is:
+    For #57071.
     
-        func f(p *string) string {
-            return *p
-        }
-    
-    We want the two loads to put the return values directly into
-    the two ABI return registers.
-    
-    At this point in the stack, cmd/go is 1.1% smaller.
-    
-    Change-Id: I51fd1710238e81d15aab2bfb816d73c8e7c207b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631137
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ic1645af57aa589917c67154a5e4ad0b4edd7ba90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547058
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/ssa/regalloc.go | 21 ++++++++++++++++++++-
- test/codegen/memcombine.go               | 10 ++++++++++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ doc/godebug.md | 7 +++++++
+ 1 file changed, 7 insertions(+)

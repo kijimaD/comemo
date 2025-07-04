@@ -1,17 +1,17 @@
-commit a76627774272c7278819f3e5a9990c7a00183882
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 6 10:35:05 2014 -0800
+commit aea99eda0f88987e06c4ce9e0cf5bdee23b12a98
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 6 21:33:00 2014 +0400
 
-    spec: clarify value passed for final parameter of variadic functions
+    runtime: fix runaway memory usage
+    It was caused by mstats.heap_alloc skew.
+    Fixes #7430.
     
-    NOT A LANGUAGE CHANGE.
-    
-    Fixes #7073.
-    
-    LGTM=r
-    R=r, rsc, iant, ken
-    CC=golang-codereviews
-    https://golang.org/cl/68840045
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/69870055
 
- doc/go_spec.html | 25 +++++++++++++++----------
- 1 file changed, 15 insertions(+), 10 deletions(-)
+ src/pkg/runtime/malloc.goc | 1 +
+ src/pkg/runtime/mcache.c   | 1 -
+ src/pkg/runtime/mgc0.c     | 6 +++++-
+ 3 files changed, 6 insertions(+), 2 deletions(-)

@@ -1,20 +1,19 @@
-commit 81592c298b3b55bda7eaeedc000f02eecc7a2165
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 28 23:04:08 2011 +1000
+commit 5c15f8710cb570e27d1ccf04143d31c7bff52581
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jun 28 08:14:54 2011 -0400
 
-    Add the beginnings of the template execution code.  Lots still to do,
-    including evaluation up the data tree (in this code all fields must be
-    in dot itself), plus more control structure, but the basics are in place.
+    sync: replace Mutex benchmarks
+    For both contended and uncontended case:
+     - support arbitrary number of cpus (not just 2)
+     - dynamic load balancing (improves stability)
+     - periodic execution of Gosched() to work around non-preemptiviness
+    For uncontended case eliminates possible false-sharing.
+    For contended case includes additional variation with some
+    amount of local work between mutex operations.
     
-    R=rsc, r
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4665041
+    https://golang.org/cl/4634093
 
- src/pkg/exp/template/Makefile      |   1 +
- src/pkg/exp/template/exec.go       | 316 +++++++++++++++++++++++++++++++++++++
- src/pkg/exp/template/exec_test.go  | 160 +++++++++++++++++++
- src/pkg/exp/template/lex.go        |   6 +-
- src/pkg/exp/template/lex_test.go   |  11 +-
- src/pkg/exp/template/parse.go      | 127 ++++++++++-----
- src/pkg/exp/template/parse_test.go |  21 ++-
- 7 files changed, 587 insertions(+), 55 deletions(-)
+ src/pkg/sync/mutex_test.go | 99 +++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 81 insertions(+), 18 deletions(-)

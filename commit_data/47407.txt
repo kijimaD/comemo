@@ -1,28 +1,23 @@
-commit c49627e81b05f23f97544fc6bfae3347296b4a06
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Nov 10 15:36:25 2021 -0500
+commit 13a0f7b50299f9ab40dad7c855539af65e34d132
+Author: nobishino <nobishii11@gmail.com>
+Date:   Tue Mar 16 19:49:13 2021 +0000
 
-    cmd/compile: use canonical stringslice/ representations in abiutils
+    spec: clarify that signed integers>=0 are permitted as shift counts
     
-    A chunk of code in abiutils was synthesizing the internals of a Go
-    string type as "struct { unsafe.Pointer, uintptr }" instead of the
-    more canonical representation "struct { *uint8, int }" used elsewhere
-    in the compiler. The abiutils type was being pulled into the code
-    during late call expansion, which resulted in two different entries in
-    the SSA named value table for the same variable piece, each with
-    different types; this then confused DWARF location list generation.
-    This patch changes the abiutils synthesized type to be consistent with
-    other parts of the back end, and makes a similar change for
-    synthesized slice types (use "struct { *uint8, int, int }").
+    In Go1.13 and above, signed integers are permitted as shift counts as long as they are >=0.
+    However, the comments in the "Arithmetic operators" section says shift operators accept "unsigned integer" as of right operands. Replacing this with "integer>=0" resolves the misunderstanding that shift
+    operators permit only unsigned integers.
     
-    Fixes #47354.
+    Reference: Go1.13 Release Notes: https://golang.org/doc/go1.13
     
-    Change-Id: If789031cdc7abaf215bc75ee6eb863defbe530be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362715
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Icd3c7734d539ab702590e992a618c9251c653c37
+    GitHub-Last-Rev: 4f263a48d3b19ca06a277c5fef78df55e9a92b10
+    GitHub-Pull-Request: golang/go#44664
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297249
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

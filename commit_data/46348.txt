@@ -1,44 +1,55 @@
-commit 9295723079f21d5ff6282e8bd59fd3175341ebc2
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 23 15:52:49 2021 -0500
+commit de454eef5f47212dc8a9d9c2c8b598fa343d2c2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:51:28 2020 -0500
 
-    cmd/link: rework .TOC. handling for ppc64le
+    [dev.regabi] cmd/compile: split out package escape [generated]
     
-    Setup .TOC. to point to the same place for all objects. Today, the linker
-    assumes all call relocations can use the local function entry point of
-    imported object files. This requires a consistent pointer across all
-    objects.
+    [git-generate]
     
-    This intentionally computes the .TOC. pointer in all linking configurations.
-    In some cases the .TOC. is not used today (e.g linking position-dependent go
-    only code). It is harmless and simple to compute in all cases, so just
-    do it for easier maintenance.
+    cd src/cmd/compile/internal/gc
+    rf '
+            # Trivial min, max defined in escape.go but only used in ssa.go.
+            mv min8 max8 ssa.go
     
-    Notably, .TOC. is used in some cases when static linking is requested on
-    ppc64le/linux:
+            # Export package escape API.
+            mv escapes Funcs
+            mv escapeFuncs Batch
+            mv escFmt Fmt
+            mv unsafeUintptrTag UnsafeUintptrNote
+            mv uintptrEscapesTag UintptrEscapesNote
+            mv heapAllocReason HeapAllocReason
     
-    * Position-independent C code using a PC-rel relocation against .TOC.. cgo
-      generated C object files are usually compiled PIC even if the go binary
-      itself is not.
+            # Unexport non-API.
+            mv EscEdge edge
+            mv EscHole hole
+            mv EscLeaks leaks
+            mv ParseLeaks parseLeaks
+            mv EscLocation location
+            mv EscNote note
+            mv Escape _escape # leave room for escape import, fixed below
+            mv EscFuncUnknown escFuncUnknown
+            mv EscFuncPlanned escFuncPlanned
+            mv EscFuncStarted escFuncStarted
+            mv EscFuncTagged escFuncTagged
     
-    * Anything which causes PLT stub generation. The stubs always generate
-      a .TOC. relative relocation.
+            mv escape.go cmd/compile/internal/escape
+    '
+    cd ../escape
+    rf '
+            mv _escape escape
+    '
     
-    * The race detector. Today, this links in an externally compiled archive which
-      contains position-independent object files.
-    
-    Similarly, position-independent linking is always punted to the external
-    linker on ppc64 today.
-    
-    Updates #21961
-    Fixes #15409
-    
-    Change-Id: Ifd8294b9249e16ba8b92eaf876d15d162f9c61fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304458
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I3a6d1bfb6eba12bea936354ea1fe9813cbde425c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279472
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/data.go    | 34 ++++++++++++++++++++--------------
- src/cmd/link/internal/ld/lib.go     | 11 ++---------
- src/cmd/link/internal/sym/symbol.go |  1 +
- 3 files changed, 23 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/{gc => escape}/escape.go | 275 +++++++++++-----------
+ src/cmd/compile/internal/gc/gsubr.go              |   3 +-
+ src/cmd/compile/internal/gc/main.go               |   5 +-
+ src/cmd/compile/internal/gc/order.go              |   3 +-
+ src/cmd/compile/internal/gc/ssa.go                |  14 ++
+ src/cmd/compile/internal/gc/subr.go               |   3 +-
+ src/cmd/compile/internal/gc/walk.go               |   3 +-
+ 7 files changed, 156 insertions(+), 150 deletions(-)

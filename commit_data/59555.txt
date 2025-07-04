@@ -1,59 +1,44 @@
-commit ce88e341b90a0878385535bcb54206ec97bcc518
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Apr 9 14:38:03 2025 -0700
+commit 051e99292f0b3551936e841e6aa6484ec66dd906
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 25 12:19:47 2024 +0100
 
-    cmd/compile: allocate backing store for append on the stack
+    os: reuse buffer pool more aggressively in readdir
     
-    When appending, if the backing store doesn't escape and a
-    constant-sized backing store is big enough, use a constant-sized
-    stack-allocated backing store instead of allocating it from the heap.
+    We can reuse the buffer pool more aggressively when reading a directory
+    by returning the buffer to the pool as soon as we get to the end of the
+    directory, rather than waiting until the the os.File is closed.
     
-    cmd/go is <0.1% bigger.
+    This yields a significant memory usage reduction when traversing
+    nested directories recursively via os.File#ReadDir (and friends),
+    as the file pointers tends to be closed only after the entire
+    traversal is done. For example, this pattern is used in os.RemoveAll.
+    These are the improvements observed in BenchmarkRemoveAll:
     
-    As an example of how this helps, if you edit strings/strings.go:FieldsFunc
-    to replace
-        spans := make([]span, 0, 32)
-    with
-        var spans []span
+    goos: linux
+    goarch: amd64
+    pkg: os
+    cpu: AMD EPYC 7763 64-Core Processor
+                │   old.txt   │            new.txt            │
+                │   sec/op    │   sec/op     vs base          │
+    RemoveAll-4   3.847m ± 2%   3.823m ± 1%  ~ (p=0.143 n=10)
     
-    then this CL removes the first 2 allocations that are part of the growth sequence:
+                │   old.txt    │               new.txt                │
+                │     B/op     │     B/op      vs base                │
+    RemoveAll-4   39.77Ki ± 2%   17.63Ki ± 1%  -55.68% (p=0.000 n=10)
     
-                                │    base      │                 exp                  │
-                                │  allocs/op   │  allocs/op   vs base                 │
-    FieldsFunc/ASCII/16-24         3.000 ± ∞ ¹   2.000 ± ∞ ¹  -33.33% (p=0.008 n=5)
-    FieldsFunc/ASCII/256-24        7.000 ± ∞ ¹   5.000 ± ∞ ¹  -28.57% (p=0.008 n=5)
-    FieldsFunc/ASCII/4096-24      11.000 ± ∞ ¹   9.000 ± ∞ ¹  -18.18% (p=0.008 n=5)
-    FieldsFunc/ASCII/65536-24      18.00 ± ∞ ¹   16.00 ± ∞ ¹  -11.11% (p=0.008 n=5)
-    FieldsFunc/ASCII/1048576-24    30.00 ± ∞ ¹   28.00 ± ∞ ¹   -6.67% (p=0.008 n=5)
-    FieldsFunc/Mixed/16-24         2.000 ± ∞ ¹   2.000 ± ∞ ¹        ~ (p=1.000 n=5)
-    FieldsFunc/Mixed/256-24        7.000 ± ∞ ¹   5.000 ± ∞ ¹  -28.57% (p=0.008 n=5)
-    FieldsFunc/Mixed/4096-24      11.000 ± ∞ ¹   9.000 ± ∞ ¹  -18.18% (p=0.008 n=5)
-    FieldsFunc/Mixed/65536-24      18.00 ± ∞ ¹   16.00 ± ∞ ¹  -11.11% (p=0.008 n=5)
-    FieldsFunc/Mixed/1048576-24    30.00 ± ∞ ¹   28.00 ± ∞ ¹   -6.67% (p=0.008 n=5)
+                │  old.txt   │              new.txt              │
+                │ allocs/op  │ allocs/op   vs base               │
+    RemoveAll-4   510.0 ± 0%   503.0 ± 0%  -1.37% (p=0.000 n=10)
     
-    (Of course, people have spotted and fixed a bunch of allocation sites
-    like this, but now we're ~automatically doing it everywhere going forward.)
-    
-    No significant increases in frame sizes in cmd/go.
-    
-    Change-Id: I301c4d9676667eacdae0058960321041d173751a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664299
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I70e1037378a02f1d670ccb7b275ee55f0caa6d0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573358
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/escape/call.go   |   8 ++
- src/cmd/compile/internal/escape/escape.go |  12 ++-
- src/cmd/compile/internal/ssagen/ssa.go    | 123 +++++++++++++++++++++++++++++-
- src/cmd/compile/internal/types/size.go    | 105 ++++++++++++++-----------
- src/runtime/runtime_test.go               |  26 ++++++-
- test/escape2.go                           |   8 +-
- test/escape2n.go                          |   8 +-
- test/escape_calls.go                      |   2 +-
- test/escape_map.go                        |   4 +-
- test/escape_slice.go                      |  20 ++---
- test/fixedbugs/issue12006.go              |   4 +-
- test/fixedbugs/issue13799.go              |   4 +-
- test/inline_endian.go                     |  12 +--
- 13 files changed, 255 insertions(+), 81 deletions(-)
+ src/os/dir_unix.go       |  7 ++++++-
+ src/os/dir_windows.go    |  7 ++++++-
+ src/os/removeall_test.go | 17 +++++++++++++++++
+ 3 files changed, 29 insertions(+), 2 deletions(-)

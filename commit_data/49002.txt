@@ -1,30 +1,54 @@
-commit d24c65d8bfb24b7064d49ec49b418ef273dc17f2
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue May 3 08:33:42 2022 -0500
+commit 5c42b6a953036b906626f5b25b7655641fbad060
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 8 11:57:11 2021 -0700
 
-    cmd/internal/notsha256: revert PPC64 removal, and fix PPC64 asm
+    [dev.typeparams] test: add regress tests that fail(ed) with -G=3
     
-    This reverts commit a41e37f56a4fc2523ac88a76bf54ba3e45dcf533, and
-    updates the ASM usage to be go1.8 compliant. go 1.18 added support
-    for using VR's in place of VSR arguments.
+    This CL includes multiple test cases that exercise unique failures
+    with -G=3 mode that did not affect unified IR mode. Most of these were
+    found over a period of about 3 hours of manual experimentation.
     
-    The following transformations are made:
+    Thanks to Cuong Manh Le for test cases 11 and 12.
     
-      XXLOR Vx, Vx, VSy  -> XXLORQ VSx+32, VSx+32, VSy
-      XXLOR VSx, VSx, Vy -> XXLORQ VSx, VSx, VSy+32
+    Updates #46704.
     
-    XXLOR is broken on 1.8, but XXLORQ is identical and still supported
-    today.
-    
-    Change-Id: Icc9cd5511b412c30a14e6afd07a51839aaaf6021
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403734
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ia2fa619536732b121b6c929329065c85b9384511
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326169
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/notsha256/sha256block_decl.go    |   4 +-
- src/cmd/internal/notsha256/sha256block_generic.go |   4 +-
- src/cmd/internal/notsha256/sha256block_ppc64x.s   | 430 ++++++++++++++++++++++
- 3 files changed, 434 insertions(+), 4 deletions(-)
+ test/run.go                            | 15 +++++++++++++-
+ test/typeparam/mdempsky/1.dir/a.go     |  9 ++++++++
+ test/typeparam/mdempsky/1.dir/b.go     |  9 ++++++++
+ test/typeparam/mdempsky/1.go           |  7 +++++++
+ test/typeparam/mdempsky/10.dir/a.go    |  7 +++++++
+ test/typeparam/mdempsky/10.dir/b.go    | 17 +++++++++++++++
+ test/typeparam/mdempsky/10.go          |  7 +++++++
+ test/typeparam/mdempsky/11.go          | 16 ++++++++++++++
+ test/typeparam/mdempsky/12.dir/a.go    | 11 ++++++++++
+ test/typeparam/mdempsky/12.dir/main.go | 13 ++++++++++++
+ test/typeparam/mdempsky/12.go          |  9 ++++++++
+ test/typeparam/mdempsky/13.go          | 38 ++++++++++++++++++++++++++++++++++
+ test/typeparam/mdempsky/14.go          | 37 +++++++++++++++++++++++++++++++++
+ test/typeparam/mdempsky/2.go           | 20 ++++++++++++++++++
+ test/typeparam/mdempsky/3.dir/a.go     |  7 +++++++
+ test/typeparam/mdempsky/3.dir/b.go     |  9 ++++++++
+ test/typeparam/mdempsky/3.go           |  7 +++++++
+ test/typeparam/mdempsky/4.dir/a.go     | 12 +++++++++++
+ test/typeparam/mdempsky/4.dir/b.go     |  9 ++++++++
+ test/typeparam/mdempsky/4.go           |  7 +++++++
+ test/typeparam/mdempsky/5.go           | 15 ++++++++++++++
+ test/typeparam/mdempsky/6.go           | 11 ++++++++++
+ test/typeparam/mdempsky/7.dir/a.go     |  9 ++++++++
+ test/typeparam/mdempsky/7.dir/b.go     |  9 ++++++++
+ test/typeparam/mdempsky/7.go           |  7 +++++++
+ test/typeparam/mdempsky/8.dir/a.go     |  7 +++++++
+ test/typeparam/mdempsky/8.dir/b.go     | 11 ++++++++++
+ test/typeparam/mdempsky/8.go           |  7 +++++++
+ test/typeparam/mdempsky/9.go           | 11 ++++++++++
+ 29 files changed, 352 insertions(+), 1 deletion(-)

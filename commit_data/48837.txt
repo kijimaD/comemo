@@ -1,30 +1,25 @@
-commit aa242555412c29f8af3da7d92067577c6b089c3a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Apr 19 15:54:50 2022 -0400
+commit 9401172166ee6ac64a5a74b4a8f2aa6d3f936ea1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 17 22:12:24 2021 -0700
 
-    os/exec: preserve original order of entries in dedupEnv
+    runtime: clarify Frames.Next documentation
     
-    Once #50599 is implemented, the entries will be observable via the
-    Environ method. I find it confusing for later entries in the list to
-    jump arbitrarily far forward based on entries for the same key that no
-    longer exist.
+    I wrote code that relied on this API, but I misunderstood the original
+    description of the "more" result. As a consequence, my code always
+    stopped one frame early.
     
-    This also fixes the deduplication logic for the degenerate Windows
-    keys observed in #49886, which were previously deduplicated as empty
-    keys.
+    This CL expands the documentation to be more explicit and specifically
+    call out my confusion (i.e., that the "more" result indicates whether
+    the *next* Next call will return a valid Frame, and not whether this
+    call did).
     
-    (It does not do anything about the even-more-degenerate keys observed
-    in #52436.)
-    
-    For #50599.
-    
-    Change-Id: Ia7cd2200ec34ccc4b9d18631cb513194dc420c25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401339
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If135f8f8c05425073d45377c4179e4f79e6bd6ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329389
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/os/exec/env_test.go | 16 ++++++++++++++--
- src/os/exec/exec.go     | 39 +++++++++++++++++++++++++++++++--------
- 2 files changed, 45 insertions(+), 10 deletions(-)
+ src/runtime/example_test.go | 16 ++++++++++++----
+ src/runtime/symtab.go       | 11 +++++++++--
+ 2 files changed, 21 insertions(+), 6 deletions(-)

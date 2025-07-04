@@ -1,17 +1,12 @@
-commit 3b000b3eaebced151dd80d6c5d37263606368390
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 20 23:53:31 2015 +0000
+commit f1401f1a1084327c4f24a4403dbc7003867ee009
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 5 16:07:13 2015 -0700
 
-    net/http: update copy of http2
+    [dev.ssa] cmd/compile: schedule phi control values first
     
-    Updates to x/net git revision 9946ad7
-    
-    Change-Id: I95c03daf382667002a5b22f184bd9b7d18144913
-    Reviewed-on: https://go-review.googlesource.com/16066
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I684440dc316625d5572cc12179adbc206e306429
+    Reviewed-on: https://go-review.googlesource.com/13263
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/h2_bundle.go                        | 224 +++++++++++++++--------
- src/vendor/golang.org/x/net/http2/hpack/hpack.go |   6 +
- 2 files changed, 157 insertions(+), 73 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,17 +1,14 @@
-commit 9bf62783d2fc3804fd31f68092e779ef52f26cf9
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Jun 25 14:06:14 2019 +0200
+commit b47f31f68ce7a00ce9432e656014d72f1e94734e
+Author: cia-rana <kiwamura0314@gmail.com>
+Date:   Thu Feb 28 01:04:58 2019 +0900
 
-    syscall: fix nil pointer dereference in Getdirentries on 32-bit freebsd 12
+    image/png: delete unused statement
     
-    Don't attempt to dereference basep if it's nil, just pass it to
-    getdirentries_freebsd12 as is.
-    
-    Ported from x/sys/unix CL 183223
-    
-    Change-Id: Id1c4e0eb6ff36dd39524da8194fed9a5957bce61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183797
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I91378d5d5ecc1fc6741127a3924c631904da736b
+    Reviewed-on: https://go-review.googlesource.com/c/164199
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/syscall_freebsd.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/image/png/writer.go | 1 -
+ 1 file changed, 1 deletion(-)

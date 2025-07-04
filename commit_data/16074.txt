@@ -1,13 +1,14 @@
-commit e0f338cca5085dd860358eb8c2091de335e6a13a
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 3 10:59:36 2013 -0700
+commit 3c0a5b8636409ca69f6afa8309e6cbe299a5af1d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 3 10:41:28 2013 -0700
 
-    doc/go1.1.html: document os/signal.Stop
-    Also fix the sort order of the laundry list.
+    api: update next.txt.
     
-    R=golang-dev, bradfitz
+    Update #4871
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8325044
+    https://golang.org/cl/8287044
 
- doc/go1.1.html | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ api/next.txt | 28 ++++++++++++++++++----------
+ 1 file changed, 18 insertions(+), 10 deletions(-)

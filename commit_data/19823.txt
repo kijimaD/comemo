@@ -1,16 +1,15 @@
-commit f5037ee127ed3b92b46f96ba6d033fa11683fee2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Jul 27 23:30:53 2014 -0700
+commit faa223459a931a3fcd94264ba586120f6bd1ad97
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Jul 26 17:45:45 2014 -0400
 
-    net/http: make ServeContent support dates in If-Range headers
+    cmd/ld: remove duplicated nuxiinit() call.
     
-    Fixes #8367
+    It is already called by linknew().
     
-    LGTM=adg
-    R=adg
+    LGTM=dave
+    R=rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/116300044
+    https://golang.org/cl/120760043
 
- src/pkg/net/http/fs.go      | 25 +++++++++++++++++--------
- src/pkg/net/http/fs_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 8 deletions(-)
+ src/cmd/ld/pobj.c | 1 -
+ 1 file changed, 1 deletion(-)

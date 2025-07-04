@@ -1,20 +1,14 @@
-commit da094f19f1aea32d0469d01a4c5a53fc9379569f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 27 10:43:53 2015 -0400
+commit 125ed11c0abac7580125cb745b725a6fdd8be207
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 30 13:24:58 2015 -0700
 
-    cmd/compile: move OCASE/OXCASE Node.Nname into Node.Rlist (type switch variable)
+    net/http: document ServeFile and FileServer index.html redirect behavior
     
-    $ sizeof -p cmd/compile/internal/gc Node
-    Node 168
-    $
+    Fixes #9876
     
-    Change-Id: I22bcea8099f308298c9db75c937f35e7fca906f1
-    Reviewed-on: https://go-review.googlesource.com/10535
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I97a354fde827dfccc9e373fadea2e37d094439b0
+    Reviewed-on: https://go-review.googlesource.com/9538
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 14 ++++++++------
- src/cmd/compile/internal/gc/go.y   |  4 ++--
- src/cmd/compile/internal/gc/swt.go | 19 ++++++++++---------
- src/cmd/compile/internal/gc/y.go   |  4 ++--
- 4 files changed, 22 insertions(+), 19 deletions(-)
+ src/net/http/fs.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

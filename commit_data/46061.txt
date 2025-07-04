@@ -1,17 +1,16 @@
-commit cf12b0d1f96242eefbe64dbf449f30cce2756560
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Tue Jul 20 00:05:16 2021 +0800
+commit 555797058ae41e3cc0825831520dee7fb77b3ce5
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Oct 6 17:13:26 2020 -0400
 
-    cmd/trace: use newTaskDesc to create taskDesc
+    [dev.fuzz] testing: fix error message checked in tests
     
-    Change-Id: I9bec8e2c4a9e1b9aa2baf883504200b5674844f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/335609
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie40bcca896b95f575d7edd054fbe7a8029d2fc5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259977
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/trace/annotations.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

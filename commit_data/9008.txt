@@ -1,15 +1,14 @@
-commit d1f4e0d14e4a86ca7d35d569e3d20555b14da4ab
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 11 14:46:46 2011 -0700
+commit 2f69a7359159171c0fe2ddede22a1328f71bc4ef
+Author: Evan Martin <evan.martin@gmail.com>
+Date:   Mon Jul 11 07:31:08 2011 -0700
 
-    exec: closeAfterWait append bug
+    json: encode \r and \n in strings as e.g. "\n", not "\u000A"
     
-    Wasn't actually eager closing the fds as a result of the
-    copy/paste bug. (GC was doing it instead)
+    This is allowed by the JSON spec and is shorter/easier to read.
     
-    R=rsc
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4671057
+    https://golang.org/cl/4678046
 
- src/pkg/exec/exec.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/json/encode.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

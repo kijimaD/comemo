@@ -1,18 +1,23 @@
-commit 3dcdc09c85bb07be0bbef6d6acc9e0e2534205be
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 23 14:42:42 2024 -0500
+commit d939b3717f8eb68adb949132a6f334d6cc31045b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Feb 7 14:53:48 2023 +0100
 
-    maps: correct use of linkname
+    runtime: use explicit NOFRAME on darwin/amd64
     
-    Linkname should have uses at both ends,
-    and then no fake assembly file is needed.
+    This CL marks some darwin assembly functions as NOFRAME to avoid relying
+    on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
     
-    Change-Id: Ia2066be7b1e08d71a6db622d2a167f1b09cb7d9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558297
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This is a second attempt after CL 460235 was reverted.
+    
+    Change-Id: I790f2108fc01ec193aa32b0bc82362c2344a9f3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466055
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/maps/maps.go | 5 +++++
- src/maps/maps.s  | 5 -----
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go |   4 +-
+ src/runtime/sys_darwin_amd64.s   | 179 +++------------------------------------
+ 2 files changed, 16 insertions(+), 167 deletions(-)

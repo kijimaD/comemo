@@ -1,20 +1,20 @@
-commit 741dad28cb50b7cdbd4b6fd46114541aa73b15be
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Jan 6 18:10:30 2018 +0900
+commit ad87a67cdf24c2ac7bfb0958c506e148e7390d0c
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Mar 6 16:11:59 2018 +0100
 
-    cmd/cgo: avoid name confliction for C functions
+    cmd/dist: default to GOARM=7 on android
     
-    Use more cryptic names for local variables inside C function wrappers.
+    Auto-detecting GOARM on Android makes as little sense as for nacl/arm
+    and darwin/arm.
     
-    Fixes #23356
+    Also update androidtest.sh to not require GOARM set.
     
-    Change-Id: Ia6a0218f27a13be14f589b1a0facc9683d22ff56
-    Reviewed-on: https://go-review.googlesource.com/86495
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id409ce1573d3c668d00fa4b7e3562ad7ece6fef5
+    Reviewed-on: https://go-review.googlesource.com/98875
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue23356.go | 19 +++++++++++++++++++
- src/cmd/cgo/out.go          | 22 +++++++++++-----------
- 3 files changed, 31 insertions(+), 11 deletions(-)
+ src/androidtest.bash | 5 +----
+ src/cmd/dist/util.go | 6 +++---
+ 2 files changed, 4 insertions(+), 7 deletions(-)

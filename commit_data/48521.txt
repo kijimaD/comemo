@@ -1,22 +1,28 @@
-commit 8ab42a945aef7c09189a60263c4450a65bc00a47
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue Nov 3 17:31:04 2020 +0800
+commit 6da1661371410c46af84c578d644052894226314
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 25 20:14:33 2021 -0700
 
-    cmd/compile: merge ANDconst and UBFX into UBFX on arm64
+    [dev.typeparams] cmd/compile: simplify inlining variadic calls
     
-    Add a new rewrite rule to merge ANDconst and UBFX into
-    UBFX.
+    We already have and use FixVariadicCall to normalize non-dotted calls
+    to variadic functions elsewhere in the compiler to simplify rewriting
+    of function calls. This CL updates inl.go to use it too.
     
-    Add test cases.
+    A couple tests need to be updated to (correctly) expect diagnostics
+    about "... argument" instead of a slice literal. This is because
+    inl.go previously failed to set Implicit on the slice literal node.
     
-    Change-Id: I24d6442d0c956d7ce092c3a3858d4a3a41771670
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377054
-    Trust: Fannie Zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I76bd79b95ae1f16e3b26ff7e9e1c468f538fd1f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323009
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 ++++-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 36 ++++++++++++++++++++++++++++
- test/codegen/bitfield.go                     |  6 +++++
- 3 files changed, 47 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inl.go     | 51 +++---------------------------
+ src/cmd/compile/internal/typecheck/func.go | 13 ++++----
+ src/cmd/compile/internal/walk/convert.go   |  2 +-
+ test/fixedbugs/issue30898.go               |  2 +-
+ test/inline_variadic.go                    |  2 +-
+ 5 files changed, 14 insertions(+), 56 deletions(-)

@@ -1,21 +1,23 @@
-commit e0b04fa508d6117f217a25e1868740a6a39d5605
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Mon Feb 29 12:19:26 2016 +0200
+commit 423b0cc25ad8f75825db70a370ea9b696a17074d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 7 02:12:12 2015 -0800
 
-    cmd/link: Preallocate Lsym map
+    cmd/compile: base mapaccess optimizations on algtype
     
-    Preallocate ~2MB for Lsym map (size calculation from http://play.golang.org/p/9L7F5naXRr).
-    Reduces best of 10 link time of cmd/go by ~4%.
-    On cmd/go max resident size unaffected, on println hello world max resident size grows by 4mb from 18mb->22mb. Performance improves in both cases.
+    algtype already controls the behavior of the normal map access code
+    paths, so it makes sense to base the decision on which optimized paths
+    are applicable on it too.
     
-    tip:  real  0m1.283s user  0m1.502s sys 0m0.144s
-    this: real  0m1.341s user  0m1.598s sys 0m0.136s
+    Enables use of optimized paths for key types like [8]byte and struct{s
+    string}.
     
-    Change-Id: I4a95e45fe552f1f64f53e868421b9f45a34f8b96
-    Reviewed-on: https://go-review.googlesource.com/19979
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #13271.
+    
+    Change-Id: I48c52d97abaa7259ad5aba9641ea996a967cd359
+    Reviewed-on: https://go-review.googlesource.com/17464
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/sym.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

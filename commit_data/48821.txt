@@ -1,26 +1,15 @@
-commit 3ae414c31e59c9ee210fa3606f36cf0ea36b9906
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Fri Mar 4 21:03:53 2022 +0100
+commit 2e600fb8b3c97572eec7f04c44684151122e4ee4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jun 17 19:49:42 2021 +0000
 
-    crypto/rand: remove all buffering
+    [dev.typeparams] runtime/internal/sys: remove unused Goarch* and Goos* constants
     
-    The kernel's RNG is fast enough, and buffering means taking locks, which
-    we don't want to do. So just remove all buffering. This also means the
-    randomness we get is "fresher". That also means we don't need any
-    locking, making this potentially faster if multiple cores are hitting
-    GetRandom() at the same time on newer Linuxes.
-    
-    Also, change the build tag of the tests to be 'unix' instead of
-    enumerating them.
-    
-    Change-Id: Ia773fab768270d2aa20c0649f4171c5326b71d02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390038
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
-    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ibc8381662242c6754f34edce9c0ad81681f55940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329192
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/crypto/rand/rand_batched_test.go |  2 +-
- src/crypto/rand/rand_unix.go         | 62 +++++++++++-------------------------
- 2 files changed, 19 insertions(+), 45 deletions(-)
+ src/runtime/internal/sys/consts.go | 46 --------------------------------------
+ 1 file changed, 46 deletions(-)

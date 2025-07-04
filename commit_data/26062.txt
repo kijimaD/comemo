@@ -1,34 +1,17 @@
-commit 9ab9053344598598913ba6f93c7f2945182be8d1
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 1 15:09:24 2016 -0500
+commit 479c47e47801fe6af6fd11c203f5150d8b70581e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 15 17:20:05 2015 +0000
 
-    runtime: reset mark state before stopping the world
+    net/http: maybe deflake TestCancelRequestMidBody_h2 on linux-noopt builder
     
-    Currently we reset the mark state during STW sweep termination. This
-    involves looping over all of the goroutines. Each iteration of this
-    loop takes ~25ns, so at around 400k goroutines, we'll exceed our 10ms
-    pause goal.
+    This might deflake it. Or it'll at least give us more debugging clues.
     
-    However, it's safe to do this before we stop the world for sweep
-    termination because nothing is consuming this state yet. Hence, move
-    the reset to just before STW.
+    Fixes #13626 maybe
     
-    This isn't perfect: a long reset can still delay allocating goroutines
-    that block on GC starting. But it's certainly better to block some
-    things eventually than to block everything immediately.
-    
-    For 1.6.x.
-    
-    Fixes #14420.
-    
-    name \ 95%ile-time/sweepTerm           old          new  delta
-    500kIdleGs-12                 11312µs ± 6%  18.9µs ± 6%  -99.83%  (p=0.000 n=16+20)
-    
-    Change-Id: I9815c4d8d9b0d3c3e94dfdab78049cefe0dcc93c
-    Reviewed-on: https://go-review.googlesource.com/20147
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie8cd0375d60dad033ec6a64830a90e7b9152a3d9
+    Reviewed-on: https://go-review.googlesource.com/17825
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/net/http/clientserver_test.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

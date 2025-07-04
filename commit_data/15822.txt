@@ -1,12 +1,15 @@
-commit b89a2bcf0186477b4f5070604920dfd156f50613
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 18 22:50:32 2013 -0700
+commit 3a2fe62f44a8a8513a087f75798425db7f9cc7bd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 18 15:33:04 2013 -0700
 
-    doc/go1.1.html: document the surrogate and BOM changes
+    database/sql: add DB.SetMaxIdleConns
     
-    R=golang-dev, adg
+    Update #4805
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7853048
+    https://golang.org/cl/7634045
 
- doc/go1.1.html | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 53 insertions(+), 6 deletions(-)
+ src/pkg/database/sql/sql.go      | 47 +++++++++++++++++++++++++++++++++++-----
+ src/pkg/database/sql/sql_test.go | 29 +++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 6 deletions(-)

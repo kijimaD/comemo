@@ -1,31 +1,15 @@
-commit 45395b5ad6d59f418cbe8b93950c9bae6e6f2196
-Author: griesemer <gri@golang.org>
-Date:   Fri Sep 22 16:24:25 2017 +0200
+commit 90b39f33c40e8d4ae085426313be69473f304e7d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 6 22:03:45 2017 +0000
 
-    go/types: don't accept incorrect shift expression arguments
+    doc: add type aliases to go1.9.html
     
-    Under certain circumstances involving shifts, go/types didn't verify
-    that untyped constant values were representable by the relevant type,
-    leading to the acceptance of incorrect programs (see the issue).
+    Updates #20587
     
-    Fixing this code exposed another problem with int-to-string conversions
-    which suddenly failed because now the type-checker complained that a
-    (constant) integer argument wasn't representable as a string. Fixed that
-    as well.
-    
-    Added many additional tests covering the various scenarious.
-    
-    Found two cmd/compile bugs in the process (#21979, #21981) and filed
-    a go/types TODO (#21982).
-    
-    Fixes #21727.
-    
-    Change-Id: If443ee0230979cd7d45d2fc669e623648caa70da
-    Reviewed-on: https://go-review.googlesource.com/65370
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I5df603505ae1d4b65687bec1e973a4ab318b34f1
+    Reviewed-on: https://go-review.googlesource.com/45014
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/types/api_test.go         | 18 ++++++++++++++----
- src/go/types/conversions.go      | 17 +++++++++++++++--
- src/go/types/expr.go             | 28 +++++++++++++++++++---------
- src/go/types/testdata/shifts.src |  9 +++++++++
- 4 files changed, 57 insertions(+), 15 deletions(-)
+ doc/go1.9.html | 43 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 36 insertions(+), 7 deletions(-)

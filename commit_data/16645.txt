@@ -1,14 +1,12 @@
-commit 15790204768b9cbea056150e530d4c39d2e62b47
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Jun 26 21:20:53 2013 +0400
+commit 1761e250117e9917c3927fec06475fe98651c564
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 26 08:23:52 2013 -0700
 
-    misc/dashboard: show all race builders as "race"
-    race is more important than arch (moreover race implies x64)
-    don't know how to test it
+    test/shift1.go: recognize gccgo errors
     
-    R=golang-dev, dave, r
+    R=golang-dev, remyoudompheng, iant
     CC=golang-dev
-    https://golang.org/cl/10484046
+    https://golang.org/cl/10524045
 
- misc/dashboard/app/build/ui.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/shift1.go | 185 +++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 93 insertions(+), 92 deletions(-)

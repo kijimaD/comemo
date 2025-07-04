@@ -1,31 +1,15 @@
-commit 2169deb35247a80794519589e7cd845c6ebf4e5a
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun May 30 15:35:06 2021 +0700
+commit af814af6e7b48e0aa2784203297c0ba69fe9de5c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 13 18:04:13 2020 +0100
 
-    cmd/compile: use t.AllMethods when sorting typesByString
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    For interface types, t.Methods contains only unexpanded method set, i.e
-    exclusive of interface embedding. Thus, we can't use it to detect an
-    interface contains embedding empty interface, like in:
+    Fixes #42589
     
-            type EI interface{}
-    
-            func f() interface{ EI } {
-                    return nil
-            }
-    
-    At the time we generate runtime types, we want to check against the full
-    method set of interface instead.
-    
-    Fixes #46386
-    
-    Change-Id: Idff53ad39276be6632eb5932b76e855c15cbdd2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323649
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ieba62381d6561d4803448c123ce1f1d5980b8a76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269762
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  4 ++--
- test/fixedbugs/issue46386.go                    | 32 +++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 2 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

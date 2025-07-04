@@ -1,19 +1,52 @@
-commit 79e1505e3b328e3623bd2e0c563fac65ac771612
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Wed Jun 21 00:35:18 2017 -0600
+commit b87fcc6e0641b351fb5a0daa5537baf4d0c7316e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 28 10:36:18 2017 -0700
 
-    reflect: match MakeMapWithSize docs about initial capacity with spec
+    cmd/compile: number autotmps per-func, not per-package
     
-    Following the spec clarification in CL 40393, copy that text
-    to reflect docs to state that the initial capacity of MakeMapWithSize
-    is a hint/approximate.
+    Prior to this CL, autotmps were global to a package.
+    They also shared numbering with static variables.
+    Switch autotmp numbering to be per-function instead,
+    and do implicit numbering based on len(Func.Dcl).
+    This eliminates a dependency on a global variable
+    from the backend without adding to the Func struct.
+    While we're here, move statuniqgen closer to its
+    sole remaining user.
     
-    Fixes #19903
+    This actually improves compiler performance,
+    because the autotmp_* names can now be
+    reused across functions.
     
-    Change-Id: I6b3315b8183cafaa61fbb2839a4e42b76fd71544
-    Reviewed-on: https://go-review.googlesource.com/46270
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    name       old alloc/op    new alloc/op    delta
+    Template      40.6MB ± 0%     40.1MB ± 0%  -1.38%  (p=0.000 n=10+10)
+    Unicode       29.9MB ± 0%     29.9MB ± 0%    ~     (p=0.912 n=10+10)
+    GoTypes        116MB ± 0%      114MB ± 0%  -1.53%  (p=0.000 n=10+10)
+    SSA            865MB ± 0%      856MB ± 0%  -1.04%  (p=0.000 n=10+10)
+    Flate         25.8MB ± 0%     25.4MB ± 0%  -1.36%  (p=0.000 n=10+10)
+    GoParser      32.2MB ± 0%     32.0MB ± 0%  -0.72%  (p=0.000 n=10+10)
+    Reflect       80.3MB ± 0%     79.0MB ± 0%  -1.65%  (p=0.000 n=9+10)
+    Tar           27.0MB ± 0%     26.7MB ± 0%  -0.86%  (p=0.000 n=10+9)
+    XML           42.8MB ± 0%     42.4MB ± 0%  -0.95%  (p=0.000 n=10+10)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        398k ± 1%       396k ± 1%  -0.59%  (p=0.002 n=10+10)
+    Unicode         321k ± 1%       321k ± 0%    ~     (p=0.912 n=10+10)
+    GoTypes        1.17M ± 0%      1.16M ± 0%  -0.77%  (p=0.000 n=10+10)
+    SSA            7.65M ± 0%      7.62M ± 0%  -0.40%  (p=0.000 n=10+10)
+    Flate           240k ± 1%       238k ± 1%  -0.56%  (p=0.001 n=10+10)
+    GoParser        323k ± 1%       320k ± 1%  -0.65%  (p=0.002 n=10+10)
+    Reflect        1.01M ± 0%      1.00M ± 0%  -0.37%  (p=0.001 n=9+10)
+    Tar             256k ± 1%       255k ± 0%    ~     (p=0.101 n=10+8)
+    XML             400k ± 1%       398k ± 1%    ~     (p=0.063 n=10+10)
+    
+    
+    Change-Id: I3c23ca98129137d373106990b1a3e1507bbe0cc3
+    Reviewed-on: https://go-review.googlesource.com/38729
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/value.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/gen.go   | 22 ++++++++++++++++------
+ src/cmd/compile/internal/gc/go.go    |  2 --
+ src/cmd/compile/internal/gc/sinit.go |  2 ++
+ 3 files changed, 18 insertions(+), 8 deletions(-)

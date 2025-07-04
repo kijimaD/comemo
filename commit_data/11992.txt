@@ -1,15 +1,24 @@
-commit a52027a491c27a057ed7413607393f5f0a256c8d
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Feb 17 14:39:50 2012 +1100
+commit 3d8ebefbbe5c271b9b97904d87c4fa970c035f17
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 17 14:36:40 2012 +1100
 
-    fix: walk ast.Ellipsis values.
+    runtime: Permit default behaviour of SIGTSTP, SIGTTIN, SIGTTOU.
     
-    Fixes #2583.
+    Fixes #3037.
     
-    R=rsc, r
+    R=rsc, minux.ma, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5671078
+    https://golang.org/cl/5674072
 
- src/cmd/fix/error_test.go | 8 ++++++++
- src/cmd/fix/fix.go        | 1 +
- 2 files changed, 9 insertions(+)
+ src/pkg/runtime/runtime.h              |  8 +++++---
+ src/pkg/runtime/signal_plan9_386.c     |  5 +++++
+ src/pkg/runtime/signal_unix.c          | 22 ++++++++++++++++++++--
+ src/pkg/runtime/signal_windows_386.c   |  5 +++++
+ src/pkg/runtime/signal_windows_amd64.c |  5 +++++
+ src/pkg/runtime/signals_darwin.h       |  8 +++++---
+ src/pkg/runtime/signals_freebsd.h      |  8 +++++---
+ src/pkg/runtime/signals_linux.h        |  8 +++++---
+ src/pkg/runtime/signals_netbsd.h       |  8 +++++---
+ src/pkg/runtime/signals_openbsd.h      |  8 +++++---
+ src/pkg/runtime/sigqueue.goc           |  2 ++
+ 11 files changed, 67 insertions(+), 20 deletions(-)

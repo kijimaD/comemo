@@ -1,21 +1,19 @@
-commit 9fde86b0124b8c75000eb5d05887eff922a24566
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Aug 4 21:34:06 2016 -0400
+commit e0611b16645dba6768cab405f1ec1b3fce83334a
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Apr 13 10:58:38 2016 +0200
 
-    runtime, syscall: fix kernel gettimeofday ABI change on iOS 10
+    cmd/compile: use shared dom tree for cse, too
     
-    Fixes #16570 on iOS.
+    Missed this in the previous CL where the shared
+    dom tree was introduced.
     
-    Thanks Daniel Burhans for reporting the bug and testing the fix.
-    
-    Change-Id: I43ae7b78c8f85a131ed3d93ea59da9f32a02cd8f
-    Reviewed-on: https://go-review.googlesource.com/25481
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If0bd85d4b4567d7e87814ed511603b1303ab3903
+    Reviewed-on: https://go-review.googlesource.com/21970
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/sys_darwin_arm.s        | 15 ++++++++++++---
- src/runtime/sys_darwin_arm64.s      | 14 ++++++++++++--
- src/syscall/syscall_darwin_arm.go   | 13 +++++++++----
- src/syscall/syscall_darwin_arm64.go | 13 +++++++++----
- src/syscall/syscall_darwin_test.go  |  2 +-
- 5 files changed, 43 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go  | 5 +++--
+ src/cmd/compile/internal/ssa/cse.go      | 8 +++-----
+ src/cmd/compile/internal/ssa/cse_test.go | 1 +
+ 3 files changed, 7 insertions(+), 7 deletions(-)

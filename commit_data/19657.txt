@@ -1,19 +1,13 @@
-commit 372f399e00693b1d49bc1243feb66f2c9bf0dd5c
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Jul 2 15:28:57 2014 -0700
+commit 4fedb59aec525faadaa5dcdd55c9798f6b4468ae
+Author: Preetam Jinka <pj@preet.am>
+Date:   Wed Jul 2 10:46:54 2014 -0700
 
-    crypto/rsa: fix out-of-bound access with short session keys.
+    crypto/cipher: fix typo in example comment
     
-    Thanks to Cedric Staub for noting that a short session key would lead
-    to an out-of-bounds access when conditionally copying the too short
-    buffer over the random session key.
-    
-    LGTM=davidben, bradfitz
-    R=davidben, bradfitz
+    LGTM=josharian
+    R=golang-codereviews, josharian
     CC=golang-codereviews
-    https://golang.org/cl/102670044
+    https://golang.org/cl/110330043
 
- src/pkg/crypto/rsa/pkcs1v15.go         | 43 ++++++++++++++++++++++------------
- src/pkg/crypto/rsa/pkcs1v15_test.go    | 20 ++++++++++++++++
- src/pkg/crypto/subtle/constant_time.go |  9 +++++--
- 3 files changed, 55 insertions(+), 17 deletions(-)
+ src/pkg/crypto/cipher/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

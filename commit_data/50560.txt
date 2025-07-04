@@ -1,35 +1,15 @@
-commit d11c58eedbee29b4912dd50508b36ad15ebb739e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 20 12:24:07 2022 -0700
+commit c1ea3395a6fdb2b66e6f445358ca40b78882adce
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 1 22:25:55 2021 -0700
 
-    runtime: treat SI_TKILL like SI_USER on Linux
+    doc/go1.18: add net/netip
     
-    On Linux a signal sent using tgkill will have si_code == SI_TKILL,
-    not SI_USER. Treat the two cases the same. Add a Linux-specific test.
+    Updates #46518
     
-    Change the test to use the C pause function rather than sleeping
-    for a second, as that achieves the same effect.
-    
-    This is a roll forward of CL 431255 which was rolled back in CL 431715.
-    This new version skips flaky tests on more systems, and marks a new method
-    nosplit.
-    
-    Change-Id: Ibf2d3e6fc43d63d0a71afa8fcca6a11fda03f291
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432136
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iefc2fec93becc7b36ba2b933ae79f7c9424317fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360634
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/crash_cgo_test.go                  | 19 ++++++++--
- src/runtime/os_linux.go                        | 14 +++++++
- src/runtime/os_linux_be64.go                   |  1 -
- src/runtime/os_linux_generic.go                |  1 -
- src/runtime/os_linux_mips64x.go                |  1 -
- src/runtime/os_linux_mipsx.go                  |  1 -
- src/runtime/os_unix_nonlinux.go                | 15 ++++++++
- src/runtime/signal_unix.go                     | 14 +++----
- src/runtime/testdata/testprogcgo/segv.go       | 18 ++++-----
- src/runtime/testdata/testprogcgo/segv_linux.go | 51 ++++++++++++++++++++++++++
- 10 files changed, 110 insertions(+), 25 deletions(-)
+ doc/go1.18.html | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

@@ -1,21 +1,18 @@
-commit 5f7a03e148b9a37f2c61f7d428abc6b360897a0c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 21 17:32:32 2017 +0000
+commit 877574725ba251be743c47ecbe49958b6cf8b814
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 31 18:06:19 2017 -0700
 
-    sync: delete a sentence from the Map docs
+    cmd/compile: enforce that all nodes are used when generating DWARF
     
-    From Josh's comments on https://golang.org/cl/50310
+    No particular need for this,
+    but it's nice to enforce invariants
+    when they are available.
     
-    Once I removed the "from the Go standard library" bit, the beginning
-    wasn't worth keeping. It also wasn't clear whether what it meant by
-    "cache contention". Processor caches, or user-level caches built with
-    sync.Map? It didn't seem worth clarifying and didn't convey any useful
-    information, so deleted.
-    
-    Change-Id: Id1d76105a3081d0855f6a64540700932bb83d98e
-    Reviewed-on: https://go-review.googlesource.com/50632
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ia6fa88dc4116f65dac2879509746e123e2c1862a
+    Reviewed-on: https://go-review.googlesource.com/39201
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/sync/map.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

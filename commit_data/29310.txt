@@ -1,15 +1,15 @@
-commit 47c1715ba5ea7d5ecc9eff846f448d8a3b62808d
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Nov 2 09:10:29 2016 -0400
+commit a0d2010208199d2cfca0581348efde4e04d0ab06
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 14:12:35 2016 -0700
 
-    runtime: address comments from CL 32357
+    cmd/compile: implement fmt.Formatter for *Sym formats %s, %v
     
-    Change-Id: I174d7307bfdd8ec57bb4266dab8569fd2234abb4
-    Reviewed-on: https://go-review.googlesource.com/32610
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0c362edba66c763e84990e3c5508013021f3e6fe
+    Reviewed-on: https://go-review.googlesource.com/28334
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/proc.go   | 2 +-
- src/runtime/symtab.go | 5 +----
- 2 files changed, 2 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 90 ++++++++++++++++++--------------
+ src/cmd/compile/internal/gc/typecheck.go |  4 +-
+ 4 files changed, 54 insertions(+), 44 deletions(-)

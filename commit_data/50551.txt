@@ -1,35 +1,25 @@
-commit 4c414c7673af6b2aedee276d2e62cb2910eb19f3
-Author: eric fang <eric.fang@arm.com>
-Date:   Thu Aug 18 09:59:35 2022 +0000
+commit a45457df82263c292e2c66c152a12b5df0f27f15
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Nov 1 02:04:13 2021 +0700
 
-    cmd/compile: enable carry chain scheduling for arm64
+    cmd/compile: fix panic when refer to method of imported instantiated type
     
-    This is a follow up of CL 393656 on arm64.
+    In case of reference to method call of an imported fully-instantiated
+    type, nameNode.Func will be nil causes checkFetchBody panic. To fix
+    this, make sure checkFetchBody is only called when Func is not nil.
     
-    Benchmarks:
-    name                                  old time/op    new time/op    delta
-    ScalarMult/P256-8                       42.0µs ± 0%    42.0µs ± 0%   -0.13%  (p=0.032 n=5+5)
-    ScalarMult/P224-8                        135µs ± 0%      96µs ± 0%  -29.04%  (p=0.008 n=5+5)
-    ScalarMult/P384-8                        573µs ± 1%     355µs ± 0%  -38.05%  (p=0.008 n=5+5)
-    ScalarMult/P521-8                       1.50ms ± 4%    0.77ms ± 0%  -48.78%  (p=0.008 n=5+5)
-    MarshalUnmarshal/P256/Uncompressed-8     505ns ± 1%     506ns ± 0%     ~     (p=0.460 n=5+5)
-    MarshalUnmarshal/P256/Compressed-8      6.75µs ± 0%    6.73µs ± 0%   -0.27%  (p=0.016 n=5+5)
-    MarshalUnmarshal/P224/Uncompressed-8     927ns ± 0%     818ns ± 0%  -11.76%  (p=0.008 n=5+5)
-    MarshalUnmarshal/P224/Compressed-8       136µs ± 0%      96µs ± 0%  -29.58%  (p=0.008 n=5+5)
-    MarshalUnmarshal/P384/Uncompressed-8    1.77µs ± 0%    1.36µs ± 1%  -23.14%  (p=0.008 n=5+5)
-    MarshalUnmarshal/P384/Compressed-8      56.5µs ± 0%    31.9µs ± 0%  -43.59%  (p=0.016 n=5+4)
-    MarshalUnmarshal/P521/Uncompressed-8    2.91µs ± 0%    2.03µs ± 1%  -30.32%  (p=0.008 n=5+5)
-    MarshalUnmarshal/P521/Compressed-8       148µs ± 0%      68µs ± 1%  -54.28%  (p=0.008 n=5+5)
+    Fixes #49246
     
-    Change-Id: I33170360eb8279b998e3c559f7136717fe32e07d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424907
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I32e9208385a86d4600d8ebf6f5efd8fca571ea16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360056
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/ssa/schedule.go      | 70 ++++++++++++++++++---------
- src/cmd/compile/internal/ssa/schedule_test.go | 59 ++++++++++++++++++++++
- 2 files changed, 107 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 15 +++++++++++++--
+ test/typeparam/issue49246.dir/a.go        | 20 ++++++++++++++++++++
+ test/typeparam/issue49246.dir/b.go        |  9 +++++++++
+ test/typeparam/issue49246.go              |  7 +++++++
+ 4 files changed, 49 insertions(+), 2 deletions(-)

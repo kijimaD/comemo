@@ -1,16 +1,19 @@
-commit b3bf38e79d71784d98a79f2c2e3af003f48c8052
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 31 15:07:44 2015 -0400
+commit 2bcdb5a5d9220f919413ce90ec92ba4ba9167fb7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 23 11:36:57 2015 -0700
 
-    cmd/go: clean up installHeader action
+    net/http: sync Get and Head's documentation
     
-    This was confusing when I was trying to fix go build -o.
-    Perhaps due to that fix, this can now be simplified from
-    three functions to one.
+    Instead of ambiguously referring to "the Client's CheckRedirect
+    function" in Head, describe the default behavior like for Get as users
+    aren't expected to change DefaultClient.CheckRedirect.
     
-    Change-Id: I878a6d243b14132a631e7c62a3bb6d101bc243ea
-    Reviewed-on: https://go-review.googlesource.com/13027
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    While here, use consistent punctuation for the Get and Head Client
+    method documentation.
+    
+    Change-Id: I9e7046c73b0d0bc4de002234924d9e7c59aceb41
+    Reviewed-on: https://go-review.googlesource.com/11362
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/build.go | 67 +++++++++++++----------------------------------------
- 1 file changed, 16 insertions(+), 51 deletions(-)
+ src/net/http/client.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

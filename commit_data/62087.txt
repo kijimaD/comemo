@@ -1,0 +1,20 @@
+commit 52e32ad79e50742f0d793d60eb52caab53a67061
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Jan 22 12:26:10 2025 +0100
+
+    crypto/x509/internal/macos: remove unused types and functions
+    
+    Some of the types and functions in the macos package are unused since
+    CL 353132. They can be removed.
+    
+    Change-Id: Ifb7c9619d3c77b83852e785b82877dfa3ca8fe6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643277
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/crypto/x509/internal/macos/security.go | 92 ------------------------------
+ src/crypto/x509/internal/macos/security.s  |  6 --
+ 2 files changed, 98 deletions(-)

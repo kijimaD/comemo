@@ -1,0 +1,43 @@
+commit 44cdbc2dacd7a40414730d271d54cb197787c669
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jul 22 15:02:06 2024 +0000
+
+    cmd: relocate cmd/go/internal/par to cmd/internal/par
+    
+    Relocate cmd/go's internal/par package up a level into
+    cmd/internal/par, so that it can be used by other cmd/internal
+    packages. No change in functionality. This change is intended to be in
+    support of making the cmd/go script test framework available to other
+    commands in addition to just the Go command.
+    
+    Updates #68606.
+    
+    Change-Id: I920a5d5c9b362584fabdbb2305414325b42856a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/base/tool.go             | 2 +-
+ src/cmd/go/internal/cfg/lookpath.go          | 2 +-
+ src/cmd/go/internal/load/pkg.go              | 2 +-
+ src/cmd/go/internal/modfetch/cache.go        | 2 +-
+ src/cmd/go/internal/modfetch/codehost/git.go | 2 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go | 2 +-
+ src/cmd/go/internal/modfetch/fetch.go        | 2 +-
+ src/cmd/go/internal/modfetch/repo.go         | 2 +-
+ src/cmd/go/internal/modget/get.go            | 2 +-
+ src/cmd/go/internal/modindex/read.go         | 2 +-
+ src/cmd/go/internal/modload/buildlist.go     | 2 +-
+ src/cmd/go/internal/modload/edit.go          | 2 +-
+ src/cmd/go/internal/modload/import.go        | 2 +-
+ src/cmd/go/internal/modload/load.go          | 2 +-
+ src/cmd/go/internal/modload/modfile.go       | 2 +-
+ src/cmd/go/internal/modload/search.go        | 2 +-
+ src/cmd/go/internal/mvs/mvs.go               | 2 +-
+ src/cmd/go/internal/work/shell.go            | 2 +-
+ src/cmd/go/proxy_test.go                     | 2 +-
+ src/cmd/{go => }/internal/par/queue.go       | 0
+ src/cmd/{go => }/internal/par/queue_test.go  | 0
+ src/cmd/{go => }/internal/par/work.go        | 0
+ src/cmd/{go => }/internal/par/work_test.go   | 0
+ 23 files changed, 19 insertions(+), 19 deletions(-)

@@ -1,36 +1,34 @@
-commit 3b040b7e8088ad2c02e413a4abf7effcd62373d0
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Jun 26 20:07:14 2019 -0400
+commit 820ad17303e42665fbe9d38d79f07ed218e86302
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 20 15:15:18 2019 -0800
 
-    cmd/doc: provide working directory to build.Import calls
+    cmd/go: remove work directory on usage error
     
-    The current cmd/doc implementation uses go/build.Import in a few
-    places to check whether a package is findable and importable.
-    go/build has limited support for finding packages in modules,
-    but to do so, build.Import requires knowing the source directory
-    to use when performing the lookup (so it can find the go.mod file).
-    Otherwise, it only looks inside the GOPATH workspace.
+    Ensure that cmd/go consistently calls base.Exit rather than os.Exit,
+    so that we don't incorrectly leave the work directory around on exit.
     
-    Start passing the current working directory to build.Import calls,
-    so that it can correctly look for packages in modules when in cmd/doc
-    is executed in module mode.
+    Test this by modifying the testsuite to run all the tests with TMPDIR
+    set to a temporary directory, and then check that no files are left
+    behind in that temporary directory. Adjust a couple of tests to make
+    this approach work.
     
-    Before this change, cmd/doc in module mode could mistakenly find and
-    use a package in the GOPATH workspace, instead of the current module.
+    Updates #30500
+    Updates https://gcc.gnu.org/PR89406
     
-    Since the result of os.Getwd is needed in even more places, assign it
-    to a local variable in parseArgs now.
-    
-    Fixes #28992
-    Updates #26504
-    
-    Change-Id: I7571618e18420d2d3b3890cc69ade2d97b1962bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183991
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ib6a5fc8a288a6cf4713022baa2b8dfefad62ba34
+    Reviewed-on: https://go-review.googlesource.com/c/163237
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/doc/doc_test.go                |  7 +++++--
- src/cmd/doc/main.go                    | 25 ++++++++++---------------
- src/cmd/go/testdata/script/mod_doc.txt | 27 +++++++++++++++++++++++++--
- 3 files changed, 40 insertions(+), 19 deletions(-)
+ src/cmd/go/go_test.go               | 39 +++++++++++++++++++++++++++++++++++--
+ src/cmd/go/internal/base/base.go    |  3 ++-
+ src/cmd/go/internal/cmdflag/flag.go |  3 ++-
+ src/cmd/go/internal/help/help.go    |  6 ++++--
+ src/cmd/go/internal/vet/vetflag.go  | 12 ++++++++----
+ src/cmd/go/internal/work/action.go  |  6 ++++--
+ src/cmd/go/internal/work/exec.go    |  2 +-
+ src/cmd/go/internal/work/gccgo.go   |  3 ++-
+ src/cmd/go/internal/work/init.go    | 15 +++++++++-----
+ src/cmd/go/script_test.go           |  1 +
+ 10 files changed, 71 insertions(+), 19 deletions(-)

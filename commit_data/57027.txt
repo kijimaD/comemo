@@ -1,24 +1,21 @@
-commit 7b867b9bb7e7c20803a7168faaf9c87e11f88cef
-Author: David Chase <drchase@google.com>
-Date:   Wed May 22 15:00:20 2024 -0700
+commit 39effbc105f5c54117a6011af3c48e3c8f14eca9
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Jun 9 10:08:27 2023 +0800
 
-    cmd/compile/internal/ir: add DoChildrenWithHidden
+    all: fix function names in comments
     
-    Analogous to EditChildrenWithHidden.
-    A commit written by Matthew Dempsky
-    
-    Old-Change-Id: I9fe0d3ee98d9dbe5f77eb02d666b9f317ee5b6af
-    Change-Id: I41aacb1545ab3142862b156bd1767fe4a3df4ca0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600497
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I915eff34fcfe82f3514254f7d8998baa88a91da6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501997
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ir/func.go      |   9 +-
- src/cmd/compile/internal/ir/mknode.go    |   8 +
- src/cmd/compile/internal/ir/name.go      |   9 +-
- src/cmd/compile/internal/ir/node.go      |   1 +
- src/cmd/compile/internal/ir/node_gen.go  | 638 ++++++++++++++++++++++++++++++-
- src/cmd/compile/internal/ir/op_string.go |   4 +-
- src/cmd/compile/internal/ir/visit.go     |  12 +
- 7 files changed, 670 insertions(+), 11 deletions(-)
+ src/cmd/cgo/gcc.go                     | 2 +-
+ src/cmd/link/internal/loader/loader.go | 2 +-
+ src/crypto/x509/sec1.go                | 2 +-
+ src/go/printer/printer.go              | 2 +-
+ src/internal/godebug/godebug.go        | 3 ++-
+ 5 files changed, 6 insertions(+), 5 deletions(-)

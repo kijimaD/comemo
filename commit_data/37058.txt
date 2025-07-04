@@ -1,18 +1,25 @@
-commit 956af978806749448af86d7e2878405ee0bef94d
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 23 07:01:35 2018 +1100
+commit 78a579316b84f68eaf8ee401e77fdb85bb13483f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 21 10:59:19 2018 -0400
 
-    encoding/gob: delete out of memory test
+    cmd/compile: convert uint32 to int32 in ARM constant folding rules
     
-    Now that the library allows much larger data, it can kill
-    machines with less memory.
+    MOVWconst's AuxInt is Int32. SSA check complains if the AuxInt
+    does not fit in int32. Convert uint32 to int32 to make it happy.
     
-    Fixes #28321
+    The generated code is unchanged. MOVW only cares low 32 bits.
     
-    Change-Id: I98e1a5fdf812fd75adfb22bf01542423de405fe2
-    Reviewed-on: https://go-review.googlesource.com/c/143817
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Passes "toolstash -cmp" std cmd for ARM.
+    
+    Fixes #25993.
+    
+    Change-Id: I2b6532c9c285ea6d89652505fb7c553f85a98864
+    Reviewed-on: https://go-review.googlesource.com/120335
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/gob/encoder_test.go | 22 ----------------------
- 1 file changed, 22 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 10 +++++-----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 20 ++++++++++----------
+ test/fixedbugs/issue25993.go               | 21 +++++++++++++++++++++
+ 3 files changed, 36 insertions(+), 15 deletions(-)

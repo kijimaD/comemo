@@ -1,21 +1,20 @@
-commit 25b51810014cefb8dba31321fcf40eb1a008fc3e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 20 13:08:26 2017 -0700
+commit 2b1abf75945508a602daa29a87b7a45e0b6b04af
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Nov 29 09:57:17 2016 -0800
 
-    cmd/gofmt: clarify doc string even more
+    database/sql: rename NamedParam to NamedArg and Param to Named
     
-    Since "columns of alignment" are terminated whenever indentation
-    changes from one line to the next, alignment with spaces will work
-    independent of the actually chosen tab width. Don't mention tab width
-    anymore.
+    Be consistent with the argument names already provided. Also
+    parameter is the variable, argument is the value.
     
-    Follow-up on https://golang.org/cl/38374/.
+    Fixes #18099
     
-    For #19618.
-    
-    Change-Id: I58e47dfde57834f56a98d9119670757a12fb9c41
-    Reviewed-on: https://go-review.googlesource.com/38379
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Idb3f4e9ffc214036c721ddb4f614ec6c95bb7778
+    Reviewed-on: https://go-review.googlesource.com/33660
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/gofmt/doc.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/database/sql/convert.go  |  4 ++--
+ src/database/sql/sql.go      | 25 ++++++++++++++++++-------
+ src/database/sql/sql_test.go |  6 +++---
+ 3 files changed, 23 insertions(+), 12 deletions(-)

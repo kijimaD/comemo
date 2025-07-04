@@ -1,34 +1,22 @@
-commit c510cd92cf69df3cdc224b930490274ce1b6e2ac
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 16 07:59:23 2022 -0700
+commit 541612b9746c1c314884af4079bfe8d340aaf953
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jun 21 20:12:20 2021 -0400
 
-    net: permit use of Resolver.PreferGo, netgo on Windows and Plan 9
+    [dev.typeparams] cmd/gofmt: remove typeparams guards
     
-    Fixes #33097
+    Remove logic related to guarding against allowing type parameters from
+    cmd/gofmt. At this point, it was only restricting tests.
     
-    Change-Id: I2e55c7c113683814521f2068e0922b63c62ea5d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400654
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Idd198389aaa422636d61af547a37be49f3be6c97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329931
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/addrselect.go            |   2 -
- src/net/cgo_stub.go              |   2 -
- src/net/conf.go                  |  36 ++++-
- src/net/dnsclient_unix.go        |  24 ++-
- src/net/dnsconfig.go             |  43 +++++
- src/net/dnsconfig_unix.go        |  36 +----
- src/net/dnsconfig_windows.go     |  58 +++++++
- src/net/lookup.go                | 226 +++++++++++++++++++++++++++
- src/net/lookup_plan9.go          |  52 ++++++-
- src/net/lookup_unix.go           | 205 +-----------------------
- src/net/lookup_windows.go        |  93 +++++++----
- src/net/net.go                   |   9 +-
- src/net/net_fake.go              |   6 +
- src/net/netgo.go                 |   9 ++
- src/net/nss.go                   |   2 -
- src/net/resolverdialfunc_test.go | 328 +++++++++++++++++++++++++++++++++++++++
- 16 files changed, 838 insertions(+), 293 deletions(-)
+ src/cmd/gofmt/doc.go                     |  3 ---
+ src/cmd/gofmt/gofmt_test.go              |  7 -------
+ src/cmd/gofmt/gofmt_typeparams_test.go   | 12 ------------
+ src/cmd/gofmt/testdata/typeparams.golden |  2 +-
+ src/cmd/gofmt/testdata/typeparams.input  |  2 +-
+ 5 files changed, 2 insertions(+), 24 deletions(-)

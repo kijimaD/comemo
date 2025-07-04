@@ -1,15 +1,15 @@
-commit cfe336770b684ba1a4806772d23e9d178f9b4003
+commit 77354c39f9b9b35537951c4d98868b88214bf8dd
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Apr 6 20:02:03 2013 -0700
+Date:   Sat Apr 6 20:00:45 2013 -0700
 
-    runtime: replace union in MHeap with a struct
-    Unions break precise GC.
+    runtime: reset typed dangling pointer
+    If for whatever reason seh points into Go heap region,
+    the dangling pointer will cause memory corruption during GC.
     Update #5193.
     
-    R=golang-dev, iant
+    R=golang-dev, alex.brainman, iant
     CC=golang-dev
-    https://golang.org/cl/8368044
+    https://golang.org/cl/8402045
 
- src/pkg/runtime/malloc.h  | 4 ++--
- src/pkg/runtime/mprof.goc | 2 ++
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/runtime/proc.c | 1 +
+ 1 file changed, 1 insertion(+)

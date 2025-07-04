@@ -1,15 +1,19 @@
-commit ce5d91baa5df81f88161f3eb42b5dab7d829461c
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Jun 24 10:59:41 2013 -0400
+commit ecdbcaf4495a002bf26c562c4c601d38e5b9f004
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Jun 24 14:19:00 2013 +1000
 
-    compress/bzip2: don't panic on invalid input.
+    misc/notepadplus: add missing operator keyword
     
-    Fixes 5747.
+    In general the description should describe what is added or fixed,
+    not how it was done (the code does this), but in this
+    case the cause were "/ /= ;" was missing,
+    so the fix is to add it.
     
-    R=golang-dev, r, bradfitz
+    Fixes #5761.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/10401050
+    https://golang.org/cl/10479043
 
- src/pkg/compress/bzip2/bzip2.go      |   6 ++
- src/pkg/compress/bzip2/bzip2_test.go | 164 +++++++++++++++++++++++++++++++++++
- 2 files changed, 170 insertions(+)
+ misc/notepadplus/userDefineLang.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

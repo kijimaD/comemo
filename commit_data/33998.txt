@@ -1,13 +1,20 @@
-commit 594668a5a96267a46282ce3007a584ec07adf705
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Thu Jan 11 11:30:49 2018 -0500
+commit ff3123d1f66992f51d326c844d8ecf1f5ab8e75d
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Sep 23 22:29:42 2017 +0530
 
-    doc, api: add type Srcset string change to go1.10 notes and API
+    sort: update main example to use Slice along with Sort
     
-    Change-Id: I13afaa894292bd566510b40a5e4bbbe4d72d4d08
-    Reviewed-on: https://go-review.googlesource.com/87395
+    This is to let sort.Slice get more prominence since
+    it's the most common use case.
+    
+    Fixes #21989
+    
+    Change-Id: I0b180cc20256f5f09065b722e191c508c872f4f7
+    Reviewed-on: https://go-review.googlesource.com/65710
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/go1.10.txt  | 1 +
- doc/go1.10.html | 6 ++++++
- 2 files changed, 7 insertions(+)
+ src/sort/example_interface_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

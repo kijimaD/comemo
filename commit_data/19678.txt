@@ -1,14 +1,13 @@
-commit cb2355bbb36adb18348368d3e2b9481ca5ecd2aa
+commit e50d059862dbb14225a4e1a17df42be984b93404
 Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Tue Jul 8 13:44:06 2014 -0400
+Date:   Tue Jul 8 13:43:02 2014 -0400
 
-    os: adjust tests for android file system
+    crypto/x509: skip test on android (no Go tool)
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=minux
+    R=golang-codereviews, minux
     CC=golang-codereviews
-    https://golang.org/cl/108460043
+    https://golang.org/cl/111970043
 
- src/pkg/os/os_test.go   | 39 +++++++++++++++++++++++++++------------
- src/pkg/os/path_test.go |  5 +++--
- 2 files changed, 30 insertions(+), 14 deletions(-)
+ src/pkg/crypto/x509/x509_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

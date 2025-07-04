@@ -1,15 +1,14 @@
-commit e393efc499b17d6dd13ebf558f57c3cb6a484595
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 29 10:11:33 2011 -0700
+commit 536531769b73fcc7517d9756a8b28b5f56ccd2df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 29 09:08:23 2011 -0700
 
-    ngotest: a new gotest command, written in Go.
-    It runs all tests correctly and saves significant time by avoiding the shell script.
-    However, this is just the code for the command, for review.
-    A separate CL will move this into the real gotest, which will take some dancing.
+    CL 4291070: incorporating rsc's feedback
     
-    R=rsc, peterGo, bsiegert, albert.strasheim, rog, niemeyer, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4281073
+    https://golang.org/cl/4313054
 
- src/cmd/gotest/ngotest.go | 435 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 435 insertions(+)
+ src/cmd/govet/govet.go        | 4 ++--
+ src/pkg/go/printer/nodes.go   | 2 +-
+ src/pkg/go/printer/printer.go | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

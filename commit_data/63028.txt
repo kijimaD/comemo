@@ -1,0 +1,24 @@
+commit 11fa0de475f9446870bc086bfb42cb67bac40634
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 24 14:34:10 2025 -0700
+
+    cmd/compile: use OpMove instead of memmove more on arm64
+    
+    OpMove is faster for small moves of fixed size.
+    
+    For safety, we have to rewrite the Move rewrite rules a bit so that
+    all the loads are done before any stores happen.
+    
+    Also use an 8-byte move instead of a 16-byte move if the tail is
+    at most 8 bytes.
+    
+    Change-Id: I7f6c7496ac6d5eb2e0706fd59ca4b5d797c51101
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672997
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  29 +++--
+ src/cmd/compile/internal/ssa/rewrite.go       |   4 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 155 ++++++++++++++++++++++----
+ 3 files changed, 160 insertions(+), 28 deletions(-)

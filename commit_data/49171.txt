@@ -1,24 +1,25 @@
-commit 27ace7ab9e1b690a672d0f7720680cb99e559854
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Apr 5 18:47:23 2022 -0400
+commit b93f646125882fc59a6dd5a9c83813dce674bc6b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 21 16:36:49 2021 -0700
 
-    cmd/go: make modifications to copies of go/build files for index
+    [dev.typeparams] cmd/compile/internal/types2: fix a bug in package qualification logic
     
-    This change makes the modifications to the copies of the files of
-    go/build used by the modindex package needed for them to be used by
-    modindex. It also removes the parts of the files not needed by the
-    modindex package.
+    This is a partial port of https://golang.org/cl/330629, containing
+    only the actual bug fix and adjustements to another test file.
     
-    Change-Id: I72607868bd7e1ca5fc7c5a496cc836e7922e3786
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403974
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    The respective test case has not been ported yet as it requires
+    some bigger adjustments.
+    
+    For #46905
+    
+    Change-Id: Ibd20658b8a31855da20cf56e24bcce9560656ca0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336350
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/modindex/build.go        | 1083 +-------------------------
- src/cmd/go/internal/modindex/build_read.go   |    5 +-
- src/cmd/go/internal/modindex/stubs.go        |   10 -
- src/cmd/go/internal/modindex/syslist.go      |    4 +-
- src/cmd/go/internal/modindex/syslist_test.go |    7 +-
- 5 files changed, 45 insertions(+), 1064 deletions(-)
+ src/cmd/compile/internal/types2/errors.go                 | 2 +-
+ src/cmd/compile/internal/types2/testdata/check/issues.src | 4 ++--
+ test/run.go                                               | 1 -
+ 3 files changed, 3 insertions(+), 4 deletions(-)

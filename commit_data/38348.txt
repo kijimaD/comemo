@@ -1,22 +1,30 @@
-commit 0fc89a72edc2c73651f7f6841b1146af723f517f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 20 18:25:37 2019 -0500
+commit 05166bf54d053fcc833cf862b7cfb1fbf05b42ba
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 16 00:27:42 2018 +0200
 
-    cmd,std: add go.mod files
+    runtime: use multiplication with overflow check for makeslice
     
-    Updates #30241
-    Updates #30228
+    This improves performance for slices with an element size larger
+    than 32 bytes and removes loading a value from the maxElems
+    array for smaller element sizes.
     
-    Change-Id: Ida0fe8263bf44e0498fed2048e22283ba5716835
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164622
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    name                 old time/op  new time/op  delta
+    MakeSlice/Byte       18.0ns ± 4%  18.0ns ± 2%     ~     (p=0.575 n=20+17)
+    MakeSlice/Int16      21.8ns ± 2%  21.6ns ± 1%   -0.63%  (p=0.035 n=20+19)
+    MakeSlice/Int        42.0ns ± 2%  41.6ns ± 1%     ~     (p=0.121 n=20+18)
+    MakeSlice/Ptr        62.6ns ± 2%  62.4ns ± 2%     ~     (p=0.491 n=20+18)
+    MakeSlice/Struct/24  57.4ns ± 3%  56.0ns ± 2%   -2.40%  (p=0.000 n=19+19)
+    MakeSlice/Struct/32  62.1ns ± 2%  60.6ns ± 3%   -2.43%  (p=0.000 n=20+20)
+    MakeSlice/Struct/40  77.3ns ± 3%  68.9ns ± 3%  -10.91%  (p=0.000 n=20+20)
+    
+    Updates #21588
+    
+    Change-Id: Ie12807bf8f77c0e15453413f47e3d7de771b798f
+    Reviewed-on: https://go-review.googlesource.com/c/142377
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go.mod                              | 12 ++++++++++++
- src/cmd/go/testdata/script/mod_list_std.txt |  4 ++--
- src/go.mod                                  |  3 +++
- src/make.bash                               |  2 +-
- src/make.bat                                |  1 +
- src/make.rc                                 |  2 +-
- 6 files changed, 20 insertions(+), 4 deletions(-)
+ src/runtime/slice.go      | 24 +++++++++---------
+ src/runtime/slice_test.go | 64 +++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 68 insertions(+), 20 deletions(-)

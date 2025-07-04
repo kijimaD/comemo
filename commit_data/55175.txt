@@ -1,19 +1,26 @@
-commit 446a5dcf5a3230ce9832682d8f521071d8a34a2b
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Oct 5 12:20:11 2023 -0700
+commit 6fcbd0369d3ac9002e2b46229f90ce64ce0539e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 10:37:04 2023 -0500
 
-    bytes: add a boundary test for Count of 1 byte
+    cmd: update x/tools to latest internal Go 1.20 branch
     
-    This bottoms out in internal/bytealg.Count, which does a fair amount
-    of avx shenanigans. Make sure we're not reading out of bounds.
+    Import x/tools as of CL 462596 (070db2996ebe, Jan 18 2022),
+    to bring in two vet analysis fixes (printf and loopclosure).
     
-    Change-Id: Ied0e461f536f75acc24c6797f7fc74e3f3901c10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533116
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    For #57911.
+    Fixes #57903.
+    Fixes #57904.
+    
+    Change-Id: I82fe4e9bd56fb8e64394ee8618c155316942a517
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462555
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/bytes/boundary_test.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/go.mod                                                       | 2 +-
+ src/cmd/go.sum                                                       | 4 ++--
+ .../golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go | 5 +++++
+ .../vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go    | 2 +-
+ src/cmd/vendor/modules.txt                                           | 2 +-
+ 5 files changed, 10 insertions(+), 5 deletions(-)

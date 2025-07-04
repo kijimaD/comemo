@@ -1,38 +1,18 @@
-commit 5b42f89e394a9e9fbd28fa93cc8a09186db0f233
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Thu Jan 6 13:57:05 2022 -0500
+commit 6b609110fdfab4a496c246889f1e67fd7cba61df
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Dec 5 22:09:32 2021 -0500
 
-    context: add APIs for writing and reading cancelation cause
+    cmd/compile/internal/types2: sort to reduce computational complexity of initOrder
     
-    Extend the context package to allow users to specify why a context was
-    canceled in the form of an error, the "cause". Users write the cause
-    by calling WithCancelCause to construct a derived context, then
-    calling cancel(cause) to cancel the context with the provided cause.
-    Users retrieve the cause by calling context.Cause(ctx), which returns
-    the cause of the first cancelation for ctx or any of its parents.
+    This is a clean port of CL 369434 to types2.
     
-    The cause is implemented as a field of cancelCtx, since only cancelCtx
-    can be canceled. Calling cancel copies the cause to all derived (child)
-    cancelCtxs. Calling Cause(ctx) finds the nearest parent cancelCtx by
-    looking up the context value keyed by cancelCtxKey.
-    
-    API changes:
-    +pkg context, func Cause(Context) error
-    +pkg context, func WithCancelCause(Context) (Context, CancelCauseFunc)
-    +pkg context, type CancelCauseFunc func(error)
-    
-    Fixes #26356
-    Fixes #51365
-    
-    Change-Id: I15b62bd454c014db3f4f1498b35204451509e641
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375977
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I3f9f80757bfbefb7b0417eef9e7b7c74c4c100b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369474
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Sameer Ajmani <sameer@golang.org>
-    Auto-Submit: Sameer Ajmani <sameer@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- api/next/51365.txt          |   3 +
- src/context/context.go      |  94 +++++++++++++++++++++------
- src/context/context_test.go | 153 +++++++++++++++++++++++++++++++++++++++++++-
- src/context/x_test.go       |   1 +
- 4 files changed, 231 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/types2/initorder.go | 62 ++++++++++++++++++----------
+ src/cmd/compile/internal/types2/self_test.go |  1 +
+ 2 files changed, 42 insertions(+), 21 deletions(-)

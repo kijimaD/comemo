@@ -1,13 +1,14 @@
-commit 08a1631cda0e94188e584fe846a93d05ef2528df
+commit 418dd410db78d7f3034464db55440d89a08d9318
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 1 11:57:50 2013 -0500
+Date:   Fri Mar 1 11:51:32 2013 -0500
 
-    runtime: fix build on openbsd, plan9
+    syscall: disable TestPassFD on openbsd
+    
+    Update #4956.
     
     R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7438052
+    https://golang.org/cl/7417048
 
- src/pkg/runtime/thread_openbsd.c | 4 ++--
- src/pkg/runtime/thread_plan9.c   | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/syscall/passfd_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,13 +1,16 @@
-commit 610dc92eac5ac3cb4d626982e954f37843573042
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Jan 28 06:17:38 2014 +0100
+commit 96471b65d5cbff81d47288dad5fc49ec136ccc80
+Author: Fredrik Enestad <fredrik.enestad@soundtrackyourbrand.com>
+Date:   Mon Jan 27 15:24:58 2014 -0800
 
-    build: fix typos in run.rc
+    httputil: in ReverseProxy, strip hop-by-hop headers from the backend response
+    
+    Fixes #5967.
     
     LGTM=bradfitz
-    R=jas, bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/52940044
+    https://golang.org/cl/57370043
 
- src/run.rc | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/httputil/reverseproxy.go      |  4 ++++
+ src/pkg/net/http/httputil/reverseproxy_test.go | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+)

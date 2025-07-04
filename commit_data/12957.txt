@@ -1,18 +1,24 @@
-commit e456d015fb670b82554284d74c5b88ee278b6f08
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Apr 25 13:15:48 2012 +0200
+commit 733b51d996a2b270c2ccfcee149db0583fade879
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Apr 25 02:32:51 2012 -0300
 
-    exp/locale/collate: implementation of trie that is used for detecting contractions.
-    (See http://www.unicode.org/reports/tr10/#Contractions.)  Each rune that is at the
-    start of any contraction is associated a trie. This trie, in turn, may be shared
-    by other runes that have the same set of suffixes.
+    net/http: revert 97d027b3aa68
     
-    R=r, r
+    Revert the following change set:
+    
+            changeset:   13018:97d027b3aa68
+            user:        Gustavo Niemeyer <gustavo@niemeyer.net>
+            date:        Mon Apr 23 22:00:16 2012 -0300
+            summary:     net/http: allow clients to disable keep-alive
+    
+    This broke a test on Windows 64 and somebody else
+    will have to check.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5970066
+    https://golang.org/cl/6112054
 
- src/pkg/exp/locale/collate/build/contract.go      | 301 ++++++++++++++++++++++
- src/pkg/exp/locale/collate/build/contract_test.go | 264 +++++++++++++++++++
- src/pkg/exp/locale/collate/contract.go            |  81 ++++++
- src/pkg/exp/locale/collate/contract_test.go       | 132 ++++++++++
- 4 files changed, 778 insertions(+)
+ src/pkg/net/http/request.go    | 16 ++--------------
+ src/pkg/net/http/serve_test.go | 15 ++++-----------
+ src/pkg/net/http/server.go     |  3 ++-
+ 3 files changed, 8 insertions(+), 26 deletions(-)

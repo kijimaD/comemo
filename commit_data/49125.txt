@@ -1,22 +1,62 @@
-commit 1284cc24955487192fb7fb5aea934cb13fd1ae73
-Author: David Chase <drchase@google.com>
-Date:   Tue May 10 12:52:52 2022 -0400
+commit d5f6ba943c4e8f39d1bd20c79f4e9274ad10c103
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jul 17 00:15:07 2021 +0700
 
-    cmd/compile: be sure to export types mentioned in f.i.g. method signature
+    [dev.typeparams] test: add regression test for go/defer wrapper
     
-    When a fully instantiated generic method is exported, be sure to also
-    export the types in its signature.
+    CL 330330 moved logic for wrapping go/defer from order to esacpe
+    analysis. It introduced a bug involves go/defer statement with ABI0
+    functions.
     
-    Fixes #52279.
+    Consider this following code:
     
-    Change-Id: Icc6bca05b01f914cf67faaf1bf184eaa5484f521
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405118
-    Run-TryBot: David Chase <drchase@google.com>
+            package p
+    
+            //go:cgo_unsafe_args
+            func g(*int) (r1 struct{}) {
+                    return
+            }
+    
+            func f() {
+                    defer g(new(int))
+            }
+    
+    g is a cgo-like generated function with ABI0. While compiling g, we set
+    the offset per ABI0.
+    
+    The function f is rewritten into:
+    
+            func f() {
+                    _0, _1 := g, new(int)
+                    defer func() { _0(_1) }()
+            }
+    
+    The temporary _0 hold function value with the same type as g, but with
+    class PAUTO. Thus ssagen/ssa.go:state.call cannot handle it and use
+    ABIDefault to set the offset, causes the offset of r1 changed
+    
+    CL 330332 intended to optimize code generated for wrapping function, by
+    rewriting the wrapper function into:
+    
+            func f() {
+                    _0 := new(int)
+                    defer func() { g(_0) }()
+            }
+    
+    So it fixed the bug unintentionally.
+    
+    This CL add regression test for this bug, and also add a comment to
+    explain while not wrapping declared function is important.
+    
+    Updates #47227
+    
+    Change-Id: I75c83d1d9cc7fd4699e6b218a295d0c0a10ef471
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334882
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/typecheck/crawler.go |  4 +++-
- test/fixedbugs/issue52279.dir/lib.go          | 23 +++++++++++++++++++++++
- test/fixedbugs/issue52279.dir/main.go         |  5 +++++
- test/fixedbugs/issue52279.go                  |  7 +++++++
- 4 files changed, 38 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/escape/call.go |  2 ++
+ test/fixedbugs/issue47227.go            | 23 +++++++++++++++++++++++
+ 2 files changed, 25 insertions(+)

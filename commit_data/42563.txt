@@ -1,17 +1,16 @@
-commit 334752dc8207d6d19d9fb1a99d2e97f7d326c82a
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Thu Jun 25 01:15:42 2020 -0400
+commit ee55dd6b647aab616b0819410563767f8552c082
+Author: yah01 <kagaminehuan@gmail.com>
+Date:   Wed Jan 15 01:34:43 2020 +0000
 
-    os: return *PathError error in File.Sync on Plan 9
+    spec: add missing space in EBNF
     
-    File.Sync was returning *SyscallError instead of *PathError on Plan 9.
-    Adjust the error type to match other systems.
+    Fixes #36520
     
-    Fixes #39800
-    
-    Change-Id: I844e716eb61c193ef78d29cb0b4a3ef790bb3320
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239857
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Change-Id: I698ab235f82f7c81caa09318c954847cf3833153
+    GitHub-Last-Rev: 368a1dc7889c2370fba272bcb45d94822b60d7b9
+    GitHub-Pull-Request: golang/go#36559
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214821
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/file_plan9.go | 4 ++--
+ doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

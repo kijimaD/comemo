@@ -1,29 +1,31 @@
-commit 9f26d35fac2958cb6cbaafe676bb438584bcfbd0
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Oct 22 14:56:13 2024 +0000
+commit 071aed2aaa0ed819582c5bff44b70d43c61f504a
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Aug 26 16:43:17 2023 +0000
 
-    encoding/json: clarify omitempty option for {array,slice,map,string}
+    net: centralize resolver selection logic
     
-    This CL is inspired by:
-    https://github.com/golang/go/issues/29310#issuecomment-758768325
+    This change removes the per GOOS hostLookupOrder wrappers.
+    passes the correct hostname to hostLookupOrder (windows,
+    plan9), so that the netdns+2 GODEBUG doesn't show empty
+    hostnames.
     
-    When I read omitempty option in encoding/xml package, I find it's
-    a bit different than encoding/json package.
+    Uses the mustUseGoResolver instead of hostLookupOrder,
+    hostLookupOrder should only be used for hostname resolution,
+    not for lookups that do only DNS.
     
-    I think it's more precise to say:
-    "any array, slice, map, or string of length zero."
-    
-    Update #29310
-    
-    Change-Id: Ia77167c3155411640224b349d4b34d0bb91ee11e
-    GitHub-Last-Rev: a4cf00dcc75067bd259bc600f288c9de4b5393cf
-    GitHub-Pull-Request: golang/go#69984
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621835
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I18bbff06957910ae25c2bc78dfa9a46da76529fd
+    GitHub-Last-Rev: a27545dc25fffb3a51da9d943ffa9bd1a09182ee
+    GitHub-Pull-Request: golang/go#61525
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512215
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/json/encode.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/conf.go           | 19 ++++++++++++++++++-
+ src/net/dnsclient_unix.go |  3 +--
+ src/net/lookup_plan9.go   | 38 +++++++++-----------------------------
+ src/net/lookup_unix.go    |  3 ---
+ src/net/lookup_windows.go | 28 ++++++++++------------------
+ 5 files changed, 38 insertions(+), 53 deletions(-)

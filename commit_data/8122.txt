@@ -1,12 +1,14 @@
-commit b7065c5da4794e4d5d4b68cce06acd527a7a605a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 15 11:21:29 2011 -0400
+commit 9b8d4e0977073b28a9094213358dd808f66e88a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 15 08:14:34 2011 -0700
 
-    net: disable one more external network test
+    json: keep track of error offset in SyntaxError
     
-    R=golang-dev, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4442042
+    https://golang.org/cl/4430043
 
- src/pkg/net/srv_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/json/decode_test.go |  6 +++---
+ src/pkg/json/scanner.go     | 16 +++++++++++-----
+ src/pkg/json/stream.go      |  5 +++--
+ 3 files changed, 17 insertions(+), 10 deletions(-)

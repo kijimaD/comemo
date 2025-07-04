@@ -1,22 +1,23 @@
-commit 033390d9adb0e7a96d0558bb1702e270ef986c90
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Nov 8 02:48:09 2020 +0100
+commit b3c0fe1d14485d34acc402f795eff32b36d6c4e2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Apr 30 12:41:28 2020 +0200
 
-    cmd/link: recognize arm header of PE objects
+    cmd/compile: use typed aux in arm64 MOVstore rules
     
-    The linker recognizes headers for 386 and amd64 PE objects, but not arm
-    objects. This is easily overlooked, since its the same as the 386 header
-    value, except the two nibbles of the first word are swapped. This commit
-    simply adds the check for this. Without it, .syso objects are rejected,
-    which means Windows binaries can't have resources built into them. At
-    the same time, we add comments to better indicate which condition
-    applies to which arch.
+    Introduces a few casts, mostly to fix rules that mix int64 and int32
+    off1 and off2.
     
-    Change-Id: I210411d978504c1a9540e23abc5a180e24f159ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268237
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Passes
+    
+      GOARCH=arm64 gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: I1ec75211f3bb8e521dcc5217cf29ab0655a84d79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230840
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  429 ++++-----
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |    2 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 1296 +++++++++++++++-----------
+ 3 files changed, 942 insertions(+), 785 deletions(-)

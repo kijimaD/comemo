@@ -1,19 +1,16 @@
-commit e8636a64a2dd0f7c2821d97d5331d7a34e959ad5
+commit 2b8bc93f323bd5e161f70cc2a730dcd206b38a00
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 13 11:00:11 2012 +1100
+Date:   Tue Mar 13 10:17:10 2012 +1100
 
-    godoc: change link styles, add 'pop out' button
+    godoc: use elastic layout for most pages
     
-    Remove underlines from all links, show underline on link hover.
-    Change all non-link headings to h4, a slight visual cue.
+    We use the absence of a Title to detect the front page.
+    I can't find other pages without titles, so this seems reasonable.
     
-    R=golang-dev, gri
+    R=golang-dev, bradfitz, gri
     CC=golang-dev
-    https://golang.org/cl/5783088
+    https://golang.org/cl/5797076
 
- doc/docs.html      |  13 +++++--------
- doc/reference.html |   2 +-
- doc/root.html      |  17 +++++++++--------
- doc/share.png      | Bin 0 -> 2993 bytes
- doc/style.css      |  20 +++++++++-----------
- 5 files changed, 24 insertions(+), 28 deletions(-)
+ doc/style.css        | 10 +++++++++-
+ lib/godoc/godoc.html | 10 +++-------
+ 2 files changed, 12 insertions(+), 8 deletions(-)

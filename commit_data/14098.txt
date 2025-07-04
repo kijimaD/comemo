@@ -1,13 +1,22 @@
-commit 49a5c28a183bbcdf4a9f89377391db1b9c4ed60f
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Oct 9 21:08:53 2012 +0400
+commit fa563ae82e2d1038656be21c52831e7ad42108a8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Oct 10 00:55:48 2012 +0800
 
-    io/ioutil: fix data race on rand
-    Fixes #4212.
+    cmd/ld, cmd/6l, cmd/8l: sort exported dynamic symbols for Darwin
+    Also corrected cmd/8l's .dynsym handling (differentiate between exported symbols and imported symbols)
+    
+            Fixes #4029.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6641050
+    https://golang.org/cl/6620075
 
- src/pkg/io/ioutil/tempfile.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue4029.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/6l/asm.c           | 39 ++++++++++++++++++++++---------
+ src/cmd/8l/asm.c           | 48 +++++++++++++++++++++++++++++++++-----
+ src/cmd/ld/data.c          | 27 ++++++++++++++++++++++
+ src/cmd/ld/go.c            | 25 ++++++++++++++++++++
+ src/cmd/ld/lib.c           |  1 +
+ src/cmd/ld/lib.h           |  4 ++++
+ 8 files changed, 185 insertions(+), 17 deletions(-)

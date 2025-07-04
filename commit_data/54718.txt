@@ -1,21 +1,21 @@
-commit 416bc85f6111ad25aa5e25e2d2fe3cbad2a16758
-Author: bestgopher <84328409@qq.com>
-Date:   Wed Oct 18 00:13:21 2023 +0000
+commit 1309f0c51d730c87337a167acb70c86da4bb04be
+Author: Richard Tweed <RichardoC@users.noreply.github.com>
+Date:   Thu Nov 10 00:04:07 2022 +0000
 
-    runtime: fix comments for itab
+    os: document that WriteFile is not atomic
     
-    The function WriteTabs has been renamed WritePluginTable.
+    Fixes #56173
     
-    Change-Id: I5f04b99b91498c41121f898cb7774334a730d7b4
-    GitHub-Last-Rev: c98ab3f87210cef9146a1aec97e2f1f4a2bc0593
-    GitHub-Pull-Request: golang/go#63595
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535996
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I03a3ad769c99c0bdb78b1d757173d630879fd4dd
+    GitHub-Last-Rev: e3e31fa0b95aba363b13c45f562e3a4c8b31f2cc
+    GitHub-Pull-Request: golang/go#56282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443495
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/runtime/runtime2.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/file.go | 2 ++
+ 1 file changed, 2 insertions(+)

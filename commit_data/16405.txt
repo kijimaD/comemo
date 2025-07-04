@@ -1,17 +1,17 @@
-commit ffe8a3c5e2996d3c017c5eb74e94515382b204a5
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri May 24 13:55:19 2013 -0700
+commit ddc8679128bae2c730e59f86880a3de96cf2c7d5
+Author: Adam Langley <agl@golang.org>
+Date:   Fri May 24 16:23:13 2013 -0400
 
-    build: fix make.rc on Plan 9
+    crypto/x509: harmonise error prefixes.
     
-    Set $status as null to prevent rc from exiting
-    on the last --no-banner argument checking when
-    used with rc -e. It allows all.rc to not exit
-    before executing run.rc
+    crypto/x509 has ended up with a variety of error formats. This change makes them all start with "x509: ".
     
-    R=golang-dev, lucio.dere, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9611045
+    https://golang.org/cl/9736043
 
- src/make.rc | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/crypto/x509/pkcs1.go |  4 ++--
+ src/pkg/crypto/x509/pkcs8.go |  6 +++---
+ src/pkg/crypto/x509/sec1.go  |  8 ++++----
+ src/pkg/crypto/x509/x509.go  | 26 +++++++++++++-------------
+ 4 files changed, 22 insertions(+), 22 deletions(-)

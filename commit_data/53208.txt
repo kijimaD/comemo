@@ -1,52 +1,21 @@
-commit 6c024a4cf13f66b9a65616491340b33e0f7b099d
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat May 20 16:53:13 2023 -0400
+commit 8666d89ca85fb0be4e41917dee31ad487e0f4ee6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 11 11:19:59 2021 -0500
 
-    cmd/go/internal/gover: add new Go version package
+    runtime: tricky replacements of _g_ in signal_unix.go
     
-    Clean up Go version comparison.
+    sighandler has gp, the goroutine running when the signal arrived, and
+    gsignal, the goroutine executing the signal handler. The latter is
+    usually mp.gsignal, except in the case noted by the delayedSignal check.
     
-    CL 494436 added an ad hoc version comparison for the toolchain switch.
+    Like previous CLs, cases where the getg() G is used only to access the M
+    are replaced with direct uses of mp.
     
-    There are also other version comparisons scattered throughout the code,
-    assuming that using semver.Compare with a "v" prefix gives the right answer.
-    As we start to allow versions like "go 1.21rc1" in the go.mod file,
-    those comparisons will not work properly.
-    
-    A future CL will need to inject Go versions into semver for use with MVS,
-    so do what Bryan suggested in the review of CL 494436 and rewrite the
-    comparison in terms of that conversion.
-    
-    For #57001.
-    
-    Change-Id: Ia1d441f1bc259874c6c1b3b9349bdf9823a707d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496735
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I2dc7894da7004af17682712e07a0be5f9a235d81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418580
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/go_test.go                              |   8 +-
- src/cmd/go/gotoolchain.go                          |  38 ++--
- src/cmd/go/gotoolchain_port.go                     | 117 -----------
- src/cmd/go/gotoolchain_test.go                     |  49 -----
- src/cmd/go/internal/gover/gomod.go                 |  43 ++++
- src/cmd/go/internal/gover/gover.go                 | 225 +++++++++++++++++++++
- src/cmd/go/internal/gover/gover_test.go            | 137 +++++++++++++
- src/cmd/go/internal/gover/latest.go                |  30 +++
- src/cmd/go/internal/gover/mod.go                   |  75 +++++++
- src/cmd/go/internal/gover/mod_test.go              |  71 +++++++
- src/cmd/go/internal/modcmd/download.go             |   4 +-
- src/cmd/go/internal/modcmd/edit.go                 |   3 +-
- src/cmd/go/internal/modcmd/tidy.go                 |   6 +-
- src/cmd/go/internal/modcmd/vendor.go               |   8 +-
- src/cmd/go/internal/modload/init.go                |  55 +----
- src/cmd/go/internal/modload/load.go                |  18 +-
- src/cmd/go/internal/modload/modfile.go             |  35 ++--
- src/cmd/go/internal/modload/vendor.go              |   3 +-
- src/cmd/go/internal/work/build.go                  |   2 -
- src/cmd/go/internal/work/gc.go                     |   7 +-
- src/cmd/go/internal/workcmd/edit.go                |   3 +-
- .../go/testdata/script/mod_load_missing_std.txt    |   1 +
- src/cmd/go/testdata/script/mod_tidy_too_new.txt    |   2 +
- 23 files changed, 662 insertions(+), 278 deletions(-)
+ src/runtime/signal_unix.go | 36 +++++++++++++++++++-----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)

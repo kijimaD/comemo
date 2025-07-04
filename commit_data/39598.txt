@@ -1,26 +1,24 @@
-commit 5f45a3337ec78f303fbbcadd89d459af56183724
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Aug 14 09:50:51 2019 -0400
+commit 9586c093a2e65cb8edd73a4dd0a6a18823249cf4
+Author: Philipp Stephani <phst@google.com>
+Date:   Wed Jan 23 20:14:30 2019 +0000
 
-    reflect: align first argument in callMethod
+    cmd/cgo: add missing parameter list for function _cgo_wait_runtime_init_done
     
-    When calling a function obtained from reflect.Value.Method (or
-    MethodByName), we copy the arguments from the caller frame, which
-    does not include the receiver, to a new frame to call the actual
-    method, which does include the receiver. Here we need to align
-    the first (non-receiver) argument. As the receiver is pointer
-    sized, it is generally naturally aligned, except on amd64p32,
-    where the argument can have larger alignment, and this aligning
-    becomes necessary.
+    Fixes #29879
     
-    Fixes #33628.
-    
-    Change-Id: I5bea0e20173f06d1602c5666d4f334e3d0de5c1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190297
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Id2061a5eab67bb90a8116dc4f16073be1c9a09a9
+    GitHub-Last-Rev: 186863ab6aa9481744f276a7afbd87bd53c9f863
+    GitHub-Pull-Request: golang/go#29900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/159178
+    Reviewed-by: Philipp Stephani <phst@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/reflect/all_test.go | 21 +++++++++++++++++++++
- src/reflect/value.go    | 16 +++++++++++-----
- 2 files changed, 32 insertions(+), 5 deletions(-)
+ src/cmd/cgo/doc.go                    | 2 +-
+ src/cmd/cgo/out.go                    | 8 ++++----
+ src/runtime/cgo/gcc_libinit.c         | 2 +-
+ src/runtime/cgo/gcc_libinit_windows.c | 2 +-
+ src/runtime/cgo/libcgo.h              | 2 +-
+ 5 files changed, 8 insertions(+), 8 deletions(-)

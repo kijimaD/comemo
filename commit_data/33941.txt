@@ -1,17 +1,26 @@
-commit 5d647f2b51d9f54ee990fdd04fd8bc036c43e8de
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 4 12:27:32 2018 -0500
+commit e06a64a4768445f2fcea1cb6b5a04abe0c4d9d12
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 19 14:28:03 2017 -0700
 
-    cmd/go: fix compile -p flag for building test of main package
+    cmd/compile/internal/syntax: fix source buffer refilling
     
-    Fixes #23180.
+    The previous code seems to have an off-by-1 in it somewhere, the
+    consequence being that we didn't properly preserve all of the old
+    buffer contents that we intended to.
     
-    Change-Id: I52404ee98dcc60b96972d4242c13db0ec4340d0d
-    Reviewed-on: https://go-review.googlesource.com/86235
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    After spending a while looking at the existing window-shifting logic,
+    I wasn't able to understand exactly how it was supposed to work or
+    where the issue was, so I rewrote it to be (at least IMO) more
+    obviously correct.
+    
+    Fixes #21938.
+    
+    Change-Id: I1ed7bbc1e1751a52ab5f7cf0411ae289586dc345
+    Reviewed-on: https://go-review.googlesource.com/64830
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_test.go          | 13 +++++++++++++
- src/cmd/go/internal/work/gc.go |  2 +-
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/scanner_test.go | 13 +++++++++++++
+ src/cmd/compile/internal/syntax/source.go       | 11 ++++++-----
+ 2 files changed, 19 insertions(+), 5 deletions(-)

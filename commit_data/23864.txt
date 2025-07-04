@@ -1,15 +1,23 @@
-commit 669f5be2ac6f761f8c917baa2ba899ed7f64bc14
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 02:04:21 2015 -0400
+commit e72f5f67a1ba523ad647fe1c8c0e49e6aeb4141a
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Apr 20 15:57:52 2015 +0300
 
-    cmd/go: prefer <meta> tags on launchpad.net to the hard-coded logic
+    runtime: fix tracing of syscallexit
     
-    Fixes #11436.
+    There were two issues.
+    1. Delayed EvGoSysExit could have been emitted during TraceStart,
+    while it had not yet emitted EvGoInSyscall.
+    2. Delayed EvGoSysExit could have been emitted during next tracing session.
     
-    Change-Id: I5c4455e9b13b478838f23ac31e6343672dfc60af
-    Reviewed-on: https://go-review.googlesource.com/12143
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #10476
+    Fixes #11262
+    
+    Change-Id: Iab68eb31cf38eb6eb6eee427f49c5ca0865a8c64
+    Reviewed-on: https://go-review.googlesource.com/9132
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/vcs.go | 51 ++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 34 insertions(+), 17 deletions(-)
+ src/runtime/pprof/trace_test.go |  1 -
+ src/runtime/proc1.go            | 25 ++++++---------
+ src/runtime/runtime2.go         | 69 +++++++++++++++++++++--------------------
+ src/runtime/trace.go            | 20 ++++++++++--
+ 4 files changed, 64 insertions(+), 51 deletions(-)

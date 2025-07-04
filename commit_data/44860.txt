@@ -1,15 +1,26 @@
-commit bb2fc21c3b818c45fad23fdf5f8bd83bbc074dce
-Author: Lizzzcai <lizzzcai1@gmail.com>
-Date:   Mon Mar 29 18:51:06 2021 +0800
+commit b4944ef310ed43fad53c6128344e4bed2b346c88
+Author: Tzu-Chiao Yeh <su3g4284zo6y7@gmail.com>
+Date:   Sun Sep 6 09:43:34 2020 +0800
 
-    runtime: fix typos in comments
+    cmd: update golang.org/x/tools to v0.0.0-20200901153117-6e59e24738da
     
-    Change-Id: Ia70e8bdc6d2cf1195d7a3b5d33f180ae2db73e29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305369
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ben Shi <powerman1st@163.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Includes the latest fix on vet to warn unused context.WithValue result.
+    
+    Fixes #41149
+    
+    Change-Id: I06c204f40ef12b0f62f59b1bbdf1fe06ccd6565d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252941
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/malloc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |  15 +-
+ .../go/analysis/passes/structtag/structtag.go      |   6 +-
+ .../go/analysis/passes/unmarshal/unmarshal.go      |   7 +-
+ .../analysis/passes/unusedresult/unusedresult.go   |   2 +-
+ .../x/tools/internal/analysisinternal/analysis.go  | 343 +++++++++++++++++-
+ .../golang.org/x/tools/internal/lsp/fuzzy/input.go | 168 +++++++++
+ .../x/tools/internal/lsp/fuzzy/matcher.go          | 398 +++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   3 +-
+ 9 files changed, 912 insertions(+), 32 deletions(-)

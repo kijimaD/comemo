@@ -1,0 +1,27 @@
+commit d45d502fbb989e140c979b16837b1c2126dd18ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 20 15:01:36 2025 -0800
+
+    go/types, types2: better error messages for for-range clauses
+    
+    Provide the exact error cause instead of reporting a missing
+    core type.
+    
+    For #70128.
+    
+    Change-Id: I835698fa1f22382711bd54b974d2c87ee17e9065
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651215
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/compilersupport.go |  2 +-
+ src/cmd/compile/internal/types2/stmt.go            | 23 +++++-----
+ src/cmd/compile/internal/types2/under.go           | 51 ++++++++++++++++++++++
+ src/go/types/stmt.go                               | 23 +++++-----
+ src/go/types/under.go                              | 51 ++++++++++++++++++++++
+ src/internal/types/testdata/check/typeparams.go    |  8 ++--
+ src/internal/types/testdata/spec/range.go          | 14 +++++-
+ src/internal/types/testdata/spec/range_int.go      |  4 +-
+ 8 files changed, 145 insertions(+), 31 deletions(-)

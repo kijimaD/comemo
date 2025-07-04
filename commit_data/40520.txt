@@ -1,19 +1,34 @@
-commit 4a09a9b054bf9ffe7bcd1ecb90837ff5dc04aea6
-Author: Audrius Butkevicius <audrius.butkevicius@gmail.com>
-Date:   Thu Oct 31 23:24:26 2019 +0000
+commit 6105e8b4193401cf3344471924025c8a293c8e40
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Tue May 21 01:01:12 2019 -0400
 
-    os: allow case only renames on case-insensitive filesystems
+    runtime: revert init order changes
     
-    Fixes #35222
+    First, remove the randomization of initialization order.
     
-    Change-Id: I8be45092ac4079d21ff54661637a3aa8ec4eb9bc
-    GitHub-Last-Rev: 954a016c9bb749268e97489911ea577a6df9fb4c
-    GitHub-Pull-Request: golang/go#35298
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204601
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Then, revert to source code order instead of sorted package path order.
+    
+    This restores the behavior that was in 1.12.
+    
+    A larger change which will implement the suggestion in #31636 will
+    wait for 1.14. It's too complicated for 1.13 at this point (it has
+    tricky interactions with plugins).
+    
+    Fixes #31636
+    
+    Change-Id: I35b48e8cc21cf9f93c0973edd9193d2eac197628
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178297
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/file_unix.go |  8 +++++--
- src/os/os_test.go   | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 67 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/init.go   |  6 ++----
+ src/cmd/compile/internal/types/pkg.go |  3 ++-
+ src/runtime/proc.go                   |  9 ---------
+ test/fixedbugs/issue31636.dir/a.go    |  9 +++++++++
+ test/fixedbugs/issue31636.dir/b.go    |  9 +++++++++
+ test/fixedbugs/issue31636.dir/c.go    |  9 +++++++++
+ test/fixedbugs/issue31636.dir/main.go | 20 ++++++++++++++++++++
+ test/fixedbugs/issue31636.go          |  7 +++++++
+ test/fixedbugs/issue31636.out         |  3 +++
+ 9 files changed, 61 insertions(+), 14 deletions(-)

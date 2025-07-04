@@ -1,16 +1,13 @@
-commit c21b343438dfd26a56e89278522b03ac6417926c
-Author: James P. Cooper <jamespcooper@gmail.com>
-Date:   Wed Jan 25 17:47:32 2012 -0800
+commit 75e9d24213992ea2077283383cb8705fefc2973a
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jan 25 23:42:36 2012 -0200
 
-    database/sql: add NullInt64, NullFloat64, NullBool
+    doc/go1: fix urls
     
-    Fixes #2699
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5557063
+    https://golang.org/cl/5577051
 
- src/pkg/database/sql/fakedb_test.go |  14 ++++
- src/pkg/database/sql/sql.go         |  79 ++++++++++++++++++++++-
- src/pkg/database/sql/sql_test.go    | 125 +++++++++++++++++++++++++-----------
- 3 files changed, 181 insertions(+), 37 deletions(-)
+ doc/go1.html | 20 ++++++++++----------
+ doc/go1.tmpl | 20 ++++++++++----------
+ 2 files changed, 20 insertions(+), 20 deletions(-)

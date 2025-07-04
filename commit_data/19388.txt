@@ -1,13 +1,15 @@
-commit d021d982daa3f12701722bcb5420675fd2295d6a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon May 19 10:04:34 2014 +1000
+commit ae6cbd4fcf35471996c35018ec0ff908c0a59728
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat May 17 00:06:56 2014 +0000
 
-    C: add Burcu Dogan (Google CLA)
+    syscall: fix arm build
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Rename Seek to seek in asm file, was overlooked in CL 99320043.
+    
+    LGTM=bradfitz, r
+    R=r, rsc, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/94610043
+    https://golang.org/cl/99320044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/syscall/asm_linux_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

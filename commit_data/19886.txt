@@ -1,21 +1,11 @@
-commit f6f2f77142fcf0a4ec317bff6850ffb6ee6f0bb2
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 6 01:50:37 2014 +0400
+commit 1d371a0ed2f3d10c7b64c0de08d98e1ac194b8af
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Aug 5 12:00:14 2014 -0700
 
-    runtime: cache one GC workbuf in thread-local storage
-    We call scanblock for lots of small root pieces
-    e.g. for every stack frame args and locals area.
-    Every scanblock invocation calls getempty/putempty,
-    which accesses lock-free stack shared among all worker threads.
-    One-element local cache allows most scanblock calls
-    to proceed without accessing the shared stack.
+    doc/go1.4.txt: document ASN.1 behaviour change.
     
-    LGTM=rsc
-    R=golang-codereviews, rlh
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/121250043
+    CC=golang-codereviews
+    https://golang.org/cl/116710043
 
- src/pkg/runtime/malloc.h |  3 +++
- src/pkg/runtime/mcache.c |  1 +
- src/pkg/runtime/mgc0.c   | 25 ++++++++++++++++++++++++-
- 3 files changed, 28 insertions(+), 1 deletion(-)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

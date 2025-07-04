@@ -1,15 +1,14 @@
-commit 17264df11223436a3b05f47f58a233961b43c3f6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 15 10:47:09 2011 -0500
+commit c5fce3310165eda30642a41ce43387a882900b0e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 15 17:17:39 2011 +1100
 
-    gc: implement and test \r in raw strings
+    doc: remove an errant dot.
     
-    For issue 680.
+    Curses!
     
-    R=ken2
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5492046
+    https://golang.org/cl/5489048
 
- src/cmd/gc/lex.c |  2 ++
- test/crlf.go     | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+)
+ doc/devel/weekly.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

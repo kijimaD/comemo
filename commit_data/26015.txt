@@ -1,31 +1,33 @@
-commit 4b92cd4ec101e8d69e01e9ed5f3a6db12e2a55a0
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Mar 2 15:59:38 2016 -0500
+commit 617c93ce740c3c3cc28cdd1a0d712be183d0b328
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 12:43:25 2015 -0500
 
-    cmd/link: make Allsym a slice
+    net/url: reject space in host; do not escape < > " in host
     
-    Looks a tiny bit faster, which is a surprise. Probably noise.
-    Motivation is making the LSym structure a little easier to understand.
+    Host names in URLs must not use %-escaping for ASCII bytes, per RFC 3986.
     
-    Linking juju, best of 10:
+    url.Parse has historically allowed spaces and < > " in the URL host.
+    In Go 1.5, URL's String method started escaping those,
+    but then Parse would rejects the escaped form.
+    This CL is an attempt at some consistency between Parse and String
+    as far as the accepted host characters and the encoding of host characters,
+    so that if Parse succeeds, then Parse -> String -> Parse also succeeds.
     
-    before: real 0m4.811s user 0m5.582s
-    after:  real 0m4.611s user 0m5.267s
+    Allowing space seems like a mistake, so reject that in Parse.
+    (Similarly, reject \t, \x01, and so on, all of which were being allowed.)
     
-    Change-Id: Idbedaf4a6e6e199036a1bbb6760e98c94ed2c282
-    Reviewed-on: https://go-review.googlesource.com/20142
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Allowing < > " doesn't seem awful, so continue to do that,
+    and go back to the Go 1.4 behavior of not escaping them in String.
+    
+    Fixes #11302.
+    
+    Change-Id: I0bf65b874cd936598f20694574364352a5abbe5f
+    Reviewed-on: https://go-review.googlesource.com/17387
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/ar.go     |  2 +-
- src/cmd/link/internal/ld/data.go   |  4 ++--
- src/cmd/link/internal/ld/elf.go    |  8 +++-----
- src/cmd/link/internal/ld/go.go     | 17 +++++++----------
- src/cmd/link/internal/ld/lib.go    |  6 +++---
- src/cmd/link/internal/ld/link.go   |  3 +--
- src/cmd/link/internal/ld/macho.go  |  2 +-
- src/cmd/link/internal/ld/pe.go     |  4 ++--
- src/cmd/link/internal/ld/sym.go    | 20 ++++++++------------
- src/cmd/link/internal/ld/symtab.go |  2 +-
- 10 files changed, 29 insertions(+), 39 deletions(-)
+ src/net/http/request_test.go |  4 +++-
+ src/net/url/url.go           | 17 +++++++++++++++--
+ src/net/url/url_test.go      | 11 +++++++++++
+ 3 files changed, 29 insertions(+), 3 deletions(-)

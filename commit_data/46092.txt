@@ -1,23 +1,16 @@
-commit 700743137462471189f58ee85fe64754cd340322
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Aug 19 16:36:38 2021 +0200
+commit 8d3458517199f5aa2be0ec0f316fd406c9ca6cbb
+Author: Austin Clements <austin@google.com>
+Date:   Sun Dec 6 21:28:36 2020 -0500
 
-    crypto/rand, internal/syscall/unix: don't use getentropy on iOS
+    doc/go1.16: announce openbsd/mips64 port
     
-    CL 302489 switched crypto/rand to use getentropy on darwin, however this
-    function is not available on iOS. Enable getentropy only on macOS and
-    disable it on iOS.
+    Updates #40995.
+    For #40700.
     
-    Fixes #47812
-    
-    Change-Id: Ib7ba5d77346aee87904bb93d60cacc845f5c0089
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343609
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I4dced8d70e2f1fa2da98e2eb1a5f1f829f55bb6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275787
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/crypto/rand/rand_getentropy.go             | 4 ++--
- src/internal/syscall/unix/getentropy_darwin.go | 3 +++
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ doc/go1.16.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

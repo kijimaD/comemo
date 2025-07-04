@@ -1,35 +1,24 @@
-commit c67a27bf7520ae9440a665e80c7c3891bafb33d4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 8 14:48:41 2023 -0500
+commit 115852077f45141b293727558e61c0804661d328
+Author: Bryan Mills <bcmills@google.com>
+Date:   Thu Apr 21 13:22:59 2022 +0000
 
-    cmd/dist: omit DWARF in build release toolchain binaries
+    Revert "cmd/go/internal/test: wrap os.Stdout always"
     
-    The vast majority of users of Go toolchains have no need for
-    binaries like the go command and compiler to include DWARF
-    information, and the DWARF information is 34% of the size of
-    the overall Go toolchain zip files (14% when the toolchain is
-    unzipped on disk, because other parts get bigger).
+    This reverts CL 400877.
     
-    To save network and disk, disable DWARF in build release binaries.
-    DWARF remains enabled when developing in the main branch
-    (signaled by no VERSION file existing), for better debuggability
-    when actually working on the compiler and go command.
+    Reason for revert: broke TestScript/test_output_wait and the
+    regression test for #18153 on certain builders.
     
-    Note that removing DWARF does not break the backtraces shown
-    when a binary panics, nor does it break other uses of stack traces
-    from within a Go program, such as runtime.Callers.
+    Fixes #52461.
     
-    To build a release toolchain with DWARF included, people can use
-    
-            GO_LDFLAGS=-w=0 ./make.bash
-    
-    Change-Id: Ib0bbe1446adca4599066b2fb2f2734e6825c1106
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475378
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I98627ce5e22088b0784be502c459480c41ba353a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401494
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/ssa/stmtlines_test.go | 9 ++++++++-
- src/cmd/dist/build.go                          | 2 +-
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/test/test.go                |  6 +----
+ src/cmd/go/testdata/script/test_output_wait.txt | 35 -------------------------
+ 2 files changed, 1 insertion(+), 40 deletions(-)

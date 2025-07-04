@@ -1,21 +1,21 @@
-commit 9eac1c87a60de7b2b9a4fba01e31a852c01aaf97
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 1 15:35:24 2017 -0800
+commit 2925427a47f41622f28f84889ad7aade27581144
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 8 01:06:06 2016 +0000
 
-    go/types: gotype to always report the same first error now
+    os: on Windows, don't fix long paths that aren't long
     
-    The old code may have reported different errors given an
-    erroneous package depending on the order in which files
-    were parsed concurrently. The new code always reports
-    errors in "file order", independent of processing order.
+    Notably, don't allocate.
     
-    Also:
-    - simplified parsing code and internal concurrency control
-    - removed -seq flag which didn't really add useful functionality
+    Follow-up to https://golang.org/cl/32451 which added long path
+    cleaning.
     
-    Change-Id: I18e24e630f458f2bc107a7b83926ae761d63c334
-    Reviewed-on: https://go-review.googlesource.com/37655
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Updates #3358
+    
+    Change-Id: I89c59cbd660d0a030f31b6acd070fa9f3250683b
+    Reviewed-on: https://go-review.googlesource.com/32886
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/gotype.go | 71 ++++++++++++++++++++------------------------------
- 1 file changed, 28 insertions(+), 43 deletions(-)
+ src/os/path_windows.go      | 32 +++++++++++++++++++++++---------
+ src/os/path_windows_test.go | 37 +++++++++++++++++++++++++++----------
+ 2 files changed, 50 insertions(+), 19 deletions(-)

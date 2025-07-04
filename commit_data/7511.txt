@@ -1,12 +1,12 @@
-commit 90847a85774a5c340266576f6b5a538f1fed7129
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Feb 18 13:48:13 2011 -0500
+commit 7e6488f9ad22c5d0d978bbb807575d27e976b54d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 18 10:47:38 2011 -0800
 
-    net: fix multicast tests
+    crypto/openpgp/packet: fix testing print (missing arg)
     
-    R=rsc, mikioh, rsc1, dho
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/4174056
+    https://golang.org/cl/4173062
 
- src/pkg/net/multicast_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

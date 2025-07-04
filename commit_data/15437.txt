@@ -1,22 +1,24 @@
-commit 3f132a82365f49cda015b8c3ac694947d3ca54ae
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 25 20:43:35 2013 -0800
+commit d6a057c90ed0746ae394efc0345b53f97d781b64
+Author: Cosmos Nicolaou <cnicolaou@google.com>
+Date:   Mon Feb 25 20:34:09 2013 -0800
 
-    go/types: more robust imports
+    cmd/godoc: add support for display Notes parsed by pkg/go/doc
+    pkg/go/doc: move BUG notes from Package.Bugs to the general Package.Notes field.
+    Removing .Bugs would break existing code so it's left in for now.
     
-    - imported objects don't have position information
-    - gc exported data contains non-exported objects at
-      the top-level, guard against them
-    - better error message when dot-imports conflict
-      with local declarations
-    
-    R=adonovan, r
+    R=gri, gri, gary.burd, dsymonds, rsc, kevlar
     CC=golang-dev
-    https://golang.org/cl/7379052
+    https://golang.org/cl/7341053
 
- src/pkg/go/types/expr.go             |  7 +++++--
- src/pkg/go/types/objects.go          | 23 ++++++++++++++++++++---
- src/pkg/go/types/resolve.go          | 27 +++++++++++++++++++++++----
- src/pkg/go/types/testdata/decls0.src | 10 ++++++++++
- src/pkg/go/types/testdata/decls1.src |  2 +-
- 5 files changed, 59 insertions(+), 10 deletions(-)
+ lib/godoc/package.html               | 19 +++++--------------
+ lib/godoc/package.txt                |  8 ++------
+ src/cmd/godoc/godoc.go               | 29 ++++++++++++++++++++++++-----
+ src/cmd/godoc/main.go                |  7 +++++++
+ src/pkg/go/doc/doc.go                |  5 ++++-
+ src/pkg/go/doc/reader.go             |  6 +-----
+ src/pkg/go/doc/testdata/a.0.golden   |  8 ++++++--
+ src/pkg/go/doc/testdata/a.1.golden   |  8 ++++++--
+ src/pkg/go/doc/testdata/a.2.golden   |  8 ++++++--
+ src/pkg/go/doc/testdata/a0.go        |  4 ++++
+ src/pkg/go/doc/testdata/template.txt |  4 ++--
+ 11 files changed, 67 insertions(+), 39 deletions(-)

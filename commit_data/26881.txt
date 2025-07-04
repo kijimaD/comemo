@@ -1,14 +1,16 @@
-commit e46b00a43b62bd67ec13ca75c51037db3b312043
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 12 14:44:49 2016 -0700
+commit 59681802ad3af66f86b9526e0e1c985e1485d1f5
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 1 13:47:48 2016 -0800
 
-    cmd/internal/obj: remove unused Pciter type
+    cmd/compile: remove _ssa print trigger
     
-    Change-Id: Ie8323cfcd1193f390729d0d3dd67863aedf47d13
-    Reviewed-on: https://go-review.googlesource.com/21906
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    SSA is a real compiler now, don't trigger on function names.
+    
+    Change-Id: Iaf6dd78248c1b6ca2630275bd59f7ea7b7576497
+    Reviewed-on: https://go-review.googlesource.com/20088
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/link.go | 13 -------------
- 1 file changed, 13 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,23 +1,22 @@
-commit af517da2f918835176862aec8690ddc6bb783af1
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 31 09:34:35 2016 -0700
+commit 3e23442518d9c66def2ae48f83026e29c5f26609
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 22:51:50 2016 -0500
 
-    cmd/compile: Add more idx1 load/store instructions
+    cmd/go: remove GO15VENDOREXPERIMENT variable
     
-    Helpful for indexed loads and stores when the stride is not equal to
-    the size being loaded/stored.
+    The Go 1.6 release notes say that Go 1.7 will remove support
+    for the GO15VENDOREXPERIMENT environment variable,
+    making vendoring always on. Do that.
     
-    Update #7927
-    
-    Change-Id: I8714dd4c7b18a96a611bf5647ee21f753d723945
-    Reviewed-on: https://go-review.googlesource.com/21346
-    Run-TryBot: Todd Neal <todd@tneal.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Todd Neal <todd@tneal.org>
+    Change-Id: Iba8b79532455828869c1a8076a82edce84259468
+    Reviewed-on: https://go-review.googlesource.com/19615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |   35 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |   75 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   14 +-
- src/cmd/compile/internal/ssa/opGen.go        |  141 +++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 1476 +++++++++++++++++++++++++-
- 5 files changed, 1668 insertions(+), 73 deletions(-)
+ doc/go1.7.txt             |  3 ++-
+ src/cmd/go/alldocs.go     |  8 --------
+ src/cmd/go/env.go         |  6 ------
+ src/cmd/go/help.go        |  8 --------
+ src/cmd/go/pkg.go         | 19 +++----------------
+ src/cmd/go/vcs.go         |  8 ++++----
+ src/cmd/go/vendor_test.go | 14 --------------
+ 7 files changed, 9 insertions(+), 57 deletions(-)

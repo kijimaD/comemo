@@ -1,17 +1,13 @@
-commit 5471e02338becccdd5df76c96bfeb467c25f003c
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Mar 10 18:44:41 2015 +0300
+commit 10a4696fb8d080b334a31f0cf43a7ffe3c588ad7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Feb 16 15:10:50 2015 +1100
 
-    runtime/pprof: fix trace test
+    image/jpeg: remove the (temporary) dependency on image/draw.
     
-    Some of the trace stacks are OS-dependent due to OS-specific code
-    in net package. Check these stacks only on subset of OSes.
-    
-    Change-Id: If95e4485839f4120fd6395725374c3a2f8706dfc
-    Reviewed-on: https://go-review.googlesource.com/7300
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Idd66f9c3c9eaa4ff1f950fb90e4800dc625dec08
+    Reviewed-on: https://go-review.googlesource.com/4916
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/pprof/trace_stack_test.go | 31 ++++++++++++++++++-------------
- 1 file changed, 18 insertions(+), 13 deletions(-)
+ src/image/draw/draw.go   |  2 ++
+ src/image/jpeg/reader.go | 82 +++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 79 insertions(+), 5 deletions(-)

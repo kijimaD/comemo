@@ -1,22 +1,28 @@
-commit beed0a784415c2e20c2530e1898c0fa4c00d1ac8
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Thu Oct 13 13:31:26 2011 +1100
+commit c64e8e327ec706c4ac9ac767273e08a5175b5ec8
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Oct 13 12:40:48 2011 +1100
 
-    image/tiff: Implement PackBits decoding.
+    html: insert implied <p> and </p> tags
     
-    The decompression routine is in its own file because
-    G3 encoding (which is more complicated) will be put
-    there.
+    (test # 25 in tests1.dat)
+    #data
+    <p><b><div></p></b></div>X
+    #document
+    | <html>
+    |   <head>
+    |   <body>
+    |     <p>
+    |       <b>
+    |     <div>
+    |       <b>
+    |
+    |           <p>
+    |           "X"
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5177047
+    https://golang.org/cl/5254060
 
- src/pkg/image/tiff/Makefile                      |   1 +
- src/pkg/image/tiff/compress.go                   |  60 ++++++++++++++++++++
- src/pkg/image/tiff/reader.go                     |   2 +
- src/pkg/image/tiff/reader_test.go                |  69 +++++++++++++++++++++++
- src/pkg/image/tiff/testdata/bw-deflate.tiff      | Bin 0 -> 594 bytes
- src/pkg/image/tiff/testdata/bw-packbits.tiff     | Bin 0 -> 890 bytes
- src/pkg/image/tiff/testdata/bw-uncompressed.tiff | Bin 0 -> 1396 bytes
- 7 files changed, 132 insertions(+)
+ src/pkg/html/parse.go      | 60 ++++++++++++++++++++++++++++------------------
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 38 insertions(+), 24 deletions(-)

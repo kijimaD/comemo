@@ -1,23 +1,27 @@
-commit d5138e580c2404f2b8f03d2e1e32b2226cb6bbbc
-Author: Kirill Che <g4s8.public@gmail.com>
-Date:   Fri Sep 8 07:51:47 2023 +0000
+commit 99862cd57dd9406180f238e8fa2fcc1d435fb163
+Author: Raj Barik <rajbarik@uber.com>
+Date:   Fri Sep 9 11:29:32 2022 -0700
 
-    cmd/go: improve go build documentation
+    cmd/compile: Enables PGO in Go and performs profile-guided inlining
+    For #55022
     
-    The existing documentation for `go help build` does not match the current behavior of `go build`. This commit fixes inconsistency between documentation and behavior as suggested in #60836 ticket.
-    
-    Fixes #60836
-    
-    Change-Id: I22f24f84815f50fecfa8c51b7f1c24e8e0cd8bc8
-    GitHub-Last-Rev: 7613930a3d6eb10fc61f29e4bf1b7b0fc9584cf8
-    GitHub-Pull-Request: golang/go#61438
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511015
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I51f1ba166d5a66dcaf4b280756be4a6bf9545c5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429863
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/alldocs.go             | 15 ++++++++++-----
- src/cmd/go/internal/work/build.go | 15 ++++++++++-----
- 2 files changed, 20 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/base/debug.go             |   62 +-
+ src/cmd/compile/internal/base/flag.go              |    1 +
+ src/cmd/compile/internal/gc/main.go                |   17 +
+ src/cmd/compile/internal/inline/inl.go             |  169 +++-
+ src/cmd/compile/internal/pgo/graph.go              | 1033 ++++++++++++++++++++
+ src/cmd/compile/internal/pgo/irgraph.go            |  480 +++++++++
+ src/cmd/compile/internal/test/pgo_inl_test.go      |  148 +++
+ .../test/testdata/pgo/inline/inline_hot.go         |   86 ++
+ .../test/testdata/pgo/inline/inline_hot.pprof      |  Bin 0 -> 1423 bytes
+ .../test/testdata/pgo/inline/inline_hot_test.go    |   47 +
+ src/cmd/dist/buildtool.go                          |    1 +
+ src/internal/profile/legacy_profile.go             |   16 +-
+ 12 files changed, 2015 insertions(+), 45 deletions(-)

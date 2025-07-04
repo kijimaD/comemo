@@ -1,17 +1,20 @@
-commit ef639b0936161bfb2a024acc05ec7beffcb08d56
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 26 09:45:11 2014 -0700
+commit 2565b5c06086488b2b23d48929803c8c3cec4400
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 25 09:57:48 2014 -0400
 
-    go/parser: permit parentheses in receiver types
+    cmd/gc: drop parenthesization restriction for receiver types
     
-    Pending acceptance of CL 101500044
-    and adjustment of test/fixedbugs/bug299.go.
+    Matches CL 101500044.
     
-    LGTM=adonovan
-    R=golang-codereviews, adonovan
+    LGTM=gri
+    R=gri
     CC=golang-codereviews
-    https://golang.org/cl/110160043
+    https://golang.org/cl/110160044
 
- src/pkg/go/parser/parser.go     | 4 ++--
- src/pkg/go/parser/short_test.go | 3 +++
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/gc/fmt.c         |  4 ----
+ src/cmd/gc/go.h          |  1 -
+ src/cmd/gc/go.y          |  6 ++----
+ src/cmd/gc/typecheck.c   | 10 ----------
+ src/cmd/gc/y.tab.c       | 40 +++++++++++++++++++---------------------
+ test/fixedbugs/bug299.go | 10 ++++++----
+ 6 files changed, 27 insertions(+), 44 deletions(-)

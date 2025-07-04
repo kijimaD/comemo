@@ -1,20 +1,22 @@
-commit 71575a97ab085695e1debd371fb3b33671cd810a
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 14 16:26:47 2014 -0800
+commit 9f0008bb93694410ccde7f44a86648ef1117e069
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Feb 14 17:17:19 2014 -0500
 
-    text/template: don't panic when function call evaluates a nil pointer
-    Catch the error instead and return it to the user. Before this fix,
-    the template package panicked. Now you get:
-            template: bug11:1:14: executing "bug11" at <.PS>: dereference of nil pointer of type *string
-    Extended example at http://play.golang.org/p/uP6pCW3qKT
+    compress/bzip2: support superfluous Huffman levels.
     
-    Fixes #7333.
+    These should never be found in a bzip2 file but it does appear that
+    there's a buggy encoder that is producing them. Since the official
+    bzip2 handles this case, this change makes the Go code do likewise.
     
-    LGTM=rsc
-    R=rsc
+    With this change, the code produces the same output as the official
+    bzip2 code on the invalid example given in the bug.
+    
+    Fixes #7279.
+    
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/64150043
+    https://golang.org/cl/64010043
 
- src/pkg/text/template/exec.go      |  3 +++
- src/pkg/text/template/exec_test.go | 30 +++++++++++++++++++-----------
- 2 files changed, 22 insertions(+), 11 deletions(-)
+ src/pkg/compress/bzip2/huffman.go | 32 +++++++++++++++++++++++++++++++-
+ 1 file changed, 31 insertions(+), 1 deletion(-)

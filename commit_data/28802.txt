@@ -1,13 +1,22 @@
-commit ab019da7272285fb4f634e7fca00c3fa973c76c4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Feb 17 23:06:56 2016 -0800
+commit b11fff3886705bd98aec4923f43216ed8e13cb1a
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 25 13:41:07 2016 -0400
 
-    cmd/internal/obj: document Prog
+    runtime/pprof: document use of pprof package
     
-    Change-Id: Iafc392ba06452419542ec85e91d44991839eb6f8
-    Reviewed-on: https://go-review.googlesource.com/19593
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Currently the pprof package gives almost no guidance for how to use it
+    and, despite the standard boilerplate used to create CPU and memory
+    profiles, this boilerplate appears nowhere in the pprof documentation.
+    
+    Update the pprof package documentation to give the standard
+    boilerplate in a form people can copy, paste, and tweak. This
+    boilerplate is based on rsc's 2011 blog post on profiling Go programs
+    at https://blog.golang.org/profiling-go-programs, which is where I
+    always go when I need to copy-paste the boilerplate.
+    
+    Change-Id: I74021e494ea4dcc6b56d6fb5e59829ad4bb7b0be
+    Reviewed-on: https://go-review.googlesource.com/25182
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/obj/link.go | 73 +++++++++++++++++++++++++++++---------------
- 1 file changed, 48 insertions(+), 25 deletions(-)
+ src/runtime/pprof/pprof.go | 63 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 62 insertions(+), 1 deletion(-)

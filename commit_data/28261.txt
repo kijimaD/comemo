@@ -1,12 +1,12 @@
-commit 0510f0dfe72ff9488c9c9aa23dbbc700837acfba
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 16:02:36 2016 -0700
+commit 256a9670cc9a0acd1fd70ad53ba7ab032d5b2933
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 9 15:03:15 2016 -0400
 
-    cmd/compile: use fmt.State in exprfmt
+    runtime: fix some out of date comments in bitmap code
     
-    Change-Id: If6c2d469c66a7aa8471bf54310354efdac3e0235
-    Reviewed-on: https://go-review.googlesource.com/28337
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4613aa6d62baba01686bbab10738a7de23daae30
+    Reviewed-on: https://go-review.googlesource.com/22971
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 238 +++++++++++++++++++++++--------------
- 1 file changed, 150 insertions(+), 88 deletions(-)
+ src/runtime/mbitmap.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

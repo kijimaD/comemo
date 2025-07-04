@@ -1,25 +1,21 @@
-commit 2c424edd91a07ef200ff639c205ddf6f51a17351
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Tue Nov 21 22:57:59 2023 +0000
+commit c0799f7015e6cae37c21294bb94f56050fda5f4e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Jan 17 11:30:48 2023 -0500
 
-    internal/abi, runtime,  reflect, cmd: merge maxZero const into internal/abi
+    os: document that Rename is not atomic on non-Unix platforms
     
-    For #59670
+    Windows provides no reliable way to rename files atomically.
     
-    Change-Id: If38a74ad067a3ea3ff551c0c25c8ef41abec114b
-    GitHub-Last-Rev: fb1f2f3c9f320017627bc3342b061e1e7f6f7fad
-    GitHub-Pull-Request: golang/go#64268
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543655
-    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    The Plan 9 implementation of os.Rename performs a deletion
+    if the target exists.
+    
+    Change-Id: Ife5f9c97b21f48c11e300cd76d8c7f715db09fd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462395
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/walk/assign.go |  3 ++-
- src/cmd/compile/internal/walk/expr.go   |  3 ++-
- src/cmd/compile/internal/walk/walk.go   |  1 -
- src/internal/abi/map.go                 |  3 +++
- src/reflect/value.go                    | 11 ++++-------
- src/runtime/map.go                      |  3 +--
- 6 files changed, 12 insertions(+), 12 deletions(-)
+ src/os/file.go | 1 +
+ 1 file changed, 1 insertion(+)

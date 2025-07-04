@@ -1,18 +1,15 @@
-commit 41f9c430f3cc8c991981e5c6daa63f8718c800b9
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Tue Mar 24 18:33:37 2015 +0100
+commit e4791066c8a46131462f3af4135dd401651c16b9
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Feb 26 09:44:41 2015 -0500
 
-    runtime, syscall: fix Solaris exec tests
+    os/exec: disable tests on darwin/arm
     
-    Also fixes a long-existing problem in the fork/exec path.
+    There is only one process under the iOS sandboxd.
     
-    Change-Id: Idec40b1cee0cfb1625fe107db3eafdc0d71798f2
-    Reviewed-on: https://go-review.googlesource.com/8030
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I21b5528366a0248a034801a717f24c60f0733c5f
+    Reviewed-on: https://go-review.googlesource.com/6101
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/syscall2_solaris.go  |  2 +-
- src/syscall/exec_solaris_test.go | 29 +++++++++++++++++++++++++++++
- src/syscall/exec_unix_test.go    | 15 +++------------
- src/syscall/export_unix_test.go  | 12 ++++++++++++
- 4 files changed, 45 insertions(+), 13 deletions(-)
+ src/os/exec/exec_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

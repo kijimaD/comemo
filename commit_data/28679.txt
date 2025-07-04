@@ -1,38 +1,16 @@
-commit 4c9a372946347304094cbf5306cce6336d11e64b
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Oct 2 17:10:13 2016 -0400
+commit c0e5d445066a4c6417aa9e54fde4a3cb9d9c2c05
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Mon Jun 27 09:43:14 2016 -0700
 
-    runtime, cmd/internal/obj: get rid of rewindmorestack
+    runtime/pprof: update comments to point to new pprof
     
-    In the function prologue, we emit a jump to the beginning of
-    the function immediately after calling morestack. And in the
-    runtime stack growing code, it decodes and emulates that jump.
-    This emulation was necessary before we had per-PC SP deltas,
-    since the traceback code assumed that the frame size was fixed
-    for the whole function, except on the first instruction where
-    it was 0. Since we now have per-PC SP deltas and PCDATA, we
-    can correctly record that the frame size is 0. This makes the
-    emulation unnecessary.
+    In the comments for this file there is a reference to gperftools
+    for more info on pprof. pprof now live on its own repo on github,
+    and the version in gperftools is deprecated.
     
-    This may be helpful for registerized calling convention, where
-    there may be unspills of arguments after calling morestack. It
-    also simplifies the runtime.
-    
-    Change-Id: I7ebee31eaee81795445b33f521ab6a79624c4ceb
-    Reviewed-on: https://go-review.googlesource.com/30138
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I8a188f129534f73edd132ef4e5a2d566e69df7e9
+    Reviewed-on: https://go-review.googlesource.com/24502
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go   | 14 +++++++++++++-
- src/cmd/internal/obj/arm64/obj7.go | 14 +++++++++++++-
- src/cmd/internal/obj/pcln.go       | 17 ++++++++++++-----
- src/cmd/internal/obj/ppc64/obj9.go | 35 +++++++++++++++++++++++++++++++++--
- src/cmd/internal/obj/s390x/objz.go | 21 ++++++++++++++++++---
- src/cmd/internal/obj/x86/obj6.go   | 14 +++++++++++++-
- src/runtime/stack.go               |  3 +--
- src/runtime/sys_arm.go             | 17 -----------------
- src/runtime/sys_arm64.go           | 18 ------------------
- src/runtime/sys_mips64x.go         | 23 -----------------------
- src/runtime/sys_ppc64x.go          | 17 -----------------
- src/runtime/sys_s390x.go           | 27 ---------------------------
- src/runtime/sys_x86.go             | 30 ------------------------------
- 13 files changed, 103 insertions(+), 147 deletions(-)
+ src/runtime/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

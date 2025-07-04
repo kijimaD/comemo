@@ -1,31 +1,24 @@
-commit 75c839af22a50cb027766ea54335e234dac32836
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Nov 10 13:18:06 2019 -0500
+commit 43e53beba53547f2846a18e373c9205ededc20d2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 24 10:16:12 2019 -0400
 
-    runtime: don't save G during VDSO if we're handling signal
+    cmd/go/internal/modfetch: treat a missing go.mod file as a “not exist” error
     
-    On some platforms (currently ARM and ARM64), when calling into
-    VDSO we store the G to the gsignal stack, if there is one, so if
-    we receive a signal during VDSO we can find the G.
+    If we have found a repository at the requested version but it does not
+    contain a go.mod file in an appropriate subdirectory, then the module
+    with the given path does not exist at that version. Therefore, we
+    should report it with an error equivalent to os.ErrNotExist so that
+    modload.Query will continue to check other possible module paths.
     
-    If we receive a signal during VDSO, and within the signal handler
-    we call nanotime again (e.g. when handling profiling signal),
-    we'll save/clear the G slot on the gsignal stack again, which
-    clobbers the original saved G. If we receive a second signal
-    during the same VDSO execution, we will fetch a nil G, which will
-    lead to bad things such as deadlock.
+    Updates #27173
     
-    Don't save G if we're calling VDSO code from the gsignal stack.
-    Saving G is not necessary as we won't receive a nested signal.
-    
-    Fixes #35473.
-    
-    Change-Id: Ibfd8587a3c70c2f1533908b056e81b94d75d65a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206397
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ica73f4bb97f58e611a7f7d38183ee52fef5ee69a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183618
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/sys_linux_arm.s   | 8 ++++++++
- src/runtime/sys_linux_arm64.s | 8 ++++++++
- 2 files changed, 16 insertions(+)
+ src/cmd/go/internal/modfetch/coderepo.go           |  8 +++++++-
+ src/cmd/go/internal/modfetch/coderepo_test.go      |  2 +-
+ src/cmd/go/testdata/script/mod_invalid_version.txt | 11 +++++++++--
+ 3 files changed, 17 insertions(+), 4 deletions(-)

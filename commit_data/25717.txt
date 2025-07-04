@@ -1,23 +1,22 @@
-commit 0ed70efc6b7ec096603c58f27c2668af3862bb3c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 2 09:19:47 2016 -0500
+commit 90e26f52c6d2012d293ebfe8d272f03462213045
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Nov 17 20:00:20 2015 +1300
 
-    cmd/go: fix rebuild after installation of new Go release
+    runtime, syscall: use int $0x80 to invoke syscalls on android/386
     
-    The loading of zversion.go was expecting it to be in
-    package runtime, but it moved to runtime/internal/sys.
-    Worse, the load was not checking the error.
+    golang.org/cl/16796 broke android/386 by assuming behaviour specific to glibc's
+    dynamic linker. Copy bionic by using int $0x80 to invoke syscalls on
+    android/386 as the old alternative (CALL *runtime_vdso(SB)) cannot be compiled
+    without text relocations, which we want to get rid of on android.
     
-    Update the path, check the error, add a test.
+    Also remove "CALL *runtime_vdso(SB)" variant from the syscall package.
     
-    Fixes #14176.
-    
-    Change-Id: I203c40afe1448875581415d5e42c29f09b14545d
-    Reviewed-on: https://go-review.googlesource.com/19180
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6c01849f8dcbd073d000ddc8f13948a836b8b261
+    Reviewed-on: https://go-review.googlesource.com/16996
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/go/go_test.go | 86 ++++++++++++++++++++++++++++++++++++++++++++++-----
- src/cmd/go/pkg.go     |  9 ++++--
- 2 files changed, 85 insertions(+), 10 deletions(-)
+ src/runtime/sys_linux_386.s | 93 ++++++++++++++++++++++++++-------------------
+ src/syscall/asm_linux_386.s | 27 +++++++++----
+ 2 files changed, 73 insertions(+), 47 deletions(-)

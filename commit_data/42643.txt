@@ -1,20 +1,25 @@
-commit ba9e10889976025ee1d027db6b1cad383ec56de8
-Author: Alexander Rakoczy <alex@golang.org>
-Date:   Thu Aug 6 14:57:38 2020 -0400
+commit b8dd33b2f69729b7fba01fd398514e7671bbdf0a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jan 30 14:18:42 2020 -0800
 
-    cmd: update golang.org/x/xerrors
+    cmd/go.mod: sync x/crypto with std
     
-    This pulls in CL 247217.
+        go get golang.org/x/crypto@v0.0.0-20200128174031-69ecbb4d6d5d
+        go mod vendor
+        git checkout -- vendor/golang.org/x/sys/unix/asm_linux_riscv64.s \
+            vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
     
-    Fixes #40573
+    Updates #36851
     
-    Change-Id: I89eeebb5da9a4668adc6b5c5155651e5da421d59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247186
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Change-Id: I95c0584ede599f600da927a04f135fe64a85037e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217118
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go.mod             | 1 +
- src/cmd/go.sum             | 2 ++
- src/cmd/vendor/modules.txt | 3 ++-
- 3 files changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/go.mod                                                  | 2 +-
+ src/cmd/go.sum                                                  | 2 ++
+ src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go     | 4 ++++
+ src/cmd/vendor/golang.org/x/crypto/ssh/terminal/util_windows.go | 4 ++--
+ src/cmd/vendor/modules.txt                                      | 2 +-
+ 5 files changed, 10 insertions(+), 4 deletions(-)

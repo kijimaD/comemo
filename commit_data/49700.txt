@@ -1,14 +1,33 @@
-commit 54a0ab3f7b240dcd6829d636cff3a40d19d5b266
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 11:45:26 2022 -0400
+commit 2a4845257fea627da8b30444a498576ea90b5401
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Sep 5 20:50:54 2021 +0700
 
-    runtime: tricky replacements of _g_ in os3_plan9.go
+    cmd/compile: fix deadlock in (*Named).load
     
-    Change-Id: I2a3ec71a33380b1215b9ab1ceb0a9b0e2bf7835b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418582
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    For lazy import resolution, there's reentrancy issue with (*Named).load
+    method, when "t.resolve(t)" can lead us to the same named type, thus
+    (*Named).load is called recursively, causing the deadlock.
+    
+    The main problem is that when instantinate a type, we calculate the type
+    hashing, including TParams. Calling t.TParams().Len() triggers the
+    reentrancy call to "(*Named).load".
+    
+    To fix this, just not checking TParams().Len() if we are hashing.
+    
+    Updates #48185
+    
+    Change-Id: Ie34842d7b10fad5d11fbcf75bb1c64a89deac6b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347534
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/os3_plan9.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/typestring.go |  2 +-
+ test/typeparam/issue48185a.dir/p.go           | 19 +++++++++++++++++++
+ test/typeparam/issue48185a.dir/p_test.go      | 11 +++++++++++
+ test/typeparam/issue48185a.go                 |  7 +++++++
+ 4 files changed, 38 insertions(+), 1 deletion(-)

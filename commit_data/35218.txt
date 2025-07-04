@@ -1,30 +1,29 @@
-commit 9ecf899b295c3661bb6ad0e7345fb479986d13f0
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Apr 29 22:17:23 2018 +0900
+commit c13e0e8ceed4395e9ec8176579346ca6a5db269f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 11 10:41:03 2018 -0800
 
-    cmd: remove some unnecessary gotos
+    spec: remove example explaining that type B0 and B0 are identical
     
-    Pick the low-hanging fruit, which are the gotos that don't go very far
-    and labels that aren't used often. All of them have easy replacements
-    with breaks and returns.
+    Every few months we get a new error report claiming that there
+    is a typo in the spec related to this specific example. Clearly,
+    the fact that two types with the same identifier are identical
+    seems exceedingly obvious to readers; thus the example seems not
+    worth the trouble. Removing it.
     
-    One slightly tricky rewrite is defaultlitreuse. We cannot use a defer
-    func to reset lineno, because one of its return paths does not reset
-    lineno, and thus broke toolstash -cmp.
+    For #9226.
+    For #22202.
+    For #22495.
+    For #23096.
+    For #23409.
     
-    Passes toolstash -cmp on std cmd.
+    There may be more.
     
-    Change-Id: Id1c0967868d69bb073addc7c5c3017ca91ff966f
-    Reviewed-on: https://go-review.googlesource.com/110063
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I003ba79dc460ffb028a4ecb5f29efd60f2551912
+    Reviewed-on: https://go-review.googlesource.com/87417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/const.go | 15 ++++-----------
- src/cmd/compile/internal/gc/walk.go  |  5 ++---
- src/cmd/internal/obj/arm64/asm7.go   | 10 ++++------
- src/cmd/internal/obj/mips/asm0.go    | 10 ++++------
- src/cmd/internal/obj/mips/obj0.go    |  7 +++----
- src/cmd/internal/obj/ppc64/asm9.go   | 10 ++++------
- src/cmd/internal/obj/s390x/asmz.go   |  9 ++++-----
- 7 files changed, 25 insertions(+), 41 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

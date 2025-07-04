@@ -1,19 +1,18 @@
-commit af991a6d28949cd27a41a93b46abf42cbf07023d
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Wed Aug 31 09:06:41 2022 +0800
+commit f2141a71c6619617d32c224bd2e272a07904b8e9
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Mon Oct 11 00:05:09 2021 +0300
 
-    cmd/compile: reorder rotate lowering rules in AMD64.rules
+    doc/go1.18: document FreeBSD 11.x will no longer be supported
     
-    These rules should belong to lowering rules not optimizations.
+    Mention future versions will require the COMPAT_FREEBSD12 kernel option
+    set in the kernel.
     
-    Change-Id: I964d2c4b1d9bef0ede572978aff01cb11bf050ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426197
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    For #47694.
+    
+    Change-Id: Ia94c4f9dbb38c68025d3c1d12dd2e241a5480a6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354971
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ doc/go1.18.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

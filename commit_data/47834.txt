@@ -1,24 +1,15 @@
-commit a2004de0885cc3796fed6dff54678efb8ffa4d01
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 15 16:13:05 2021 -0800
+commit 3bf645a6338d0699116f58f5ae5b0f2a0f0dca65
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 12 17:30:36 2021 -0700
 
-    go/types, types2: delay "does not satisfy comparable" error until needed
+    cmd/link: force external linking for DragonFly cgo programs
     
-    Fixes #49112.
-    
-    Change-Id: I8effbca7bcbb257b18fd4d3d1914fd10d4afaaae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372594
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Idce4eec2a4698a94aa7b40590dffb6bf9bd45342
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309571
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/types2/instantiate.go     | 25 ++++++++++------------
- .../internal/types2/testdata/check/issues.go2      |  6 +++---
- .../types2/testdata/fixedbugs/issue47411.go2       |  6 +++---
- .../types2/testdata/fixedbugs/issue49112.go2       | 15 +++++++++++++
- src/go/types/instantiate.go                        | 25 ++++++++++------------
- src/go/types/testdata/check/issues.go2             |  6 +++---
- src/go/types/testdata/fixedbugs/issue47411.go2     |  6 +++---
- src/go/types/testdata/fixedbugs/issue49112.go2     | 15 +++++++++++++
- 8 files changed, 64 insertions(+), 40 deletions(-)
+ src/cmd/link/internal/ld/config.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

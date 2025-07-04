@@ -1,24 +1,26 @@
-commit aa5d483f25e89f3bf399362ccc9a5b146cae5c79
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Sun Aug 13 14:04:53 2023 +0000
+commit f15582c477a4df03c4793db3c82547bd2956c1ab
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 13 12:15:02 2022 +0200
 
-    runtime: mark traceEnabled and traceShuttingDown as no:split
+    syscall: use fcntl F_DUP2FD_CLOEXEC in forkAndExecInChild on dragonfly
     
-    This fixes a regression from CL 494181.
-    The traceEnabled function splits the stack and is being
-    called by reentersyscall that shouldn't call anything
-    that splits the stack. Same with traceShuttingDown.
+    Use fcntl(oldfd, F_DUP2FD_CLOEXEC, newfd) to duplicate the file
+    descriptor and mark is as close-on-exec instead of dup2 & fcntl.
     
-    Fixes #61975
+    DragonFly BSD implements dup3 like this in libc since version 5.4.
     
-    Change-Id: I5eca0ba74cfa6acb0259e8400b03c2093cd59dd1
-    GitHub-Last-Rev: 9e55ae9d7cc700de9757d32a7905127a349d973a
-    GitHub-Pull-Request: golang/go#61981
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519055
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I80c765faa288add8ffb236284c9e8c4f8e6c6769
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430535
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/trace.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/syscall/exec_bsd.go               | 4 ++++
+ src/syscall/syscall_dragonfly.go      | 5 ++++-
+ src/syscall/syscall_netbsd.go         | 5 ++++-
+ src/syscall/syscall_openbsd_mips64.go | 5 ++++-
+ 4 files changed, 16 insertions(+), 3 deletions(-)

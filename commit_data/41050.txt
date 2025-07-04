@@ -1,21 +1,18 @@
-commit 3a6cd4c72d5c8fc6c86f074eadaaf3972e591973
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Jan 1 01:44:54 2020 +1100
+commit 8c5de667d3b1349a3058e4c57b01f0309502a118
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Aug 30 05:36:14 2019 +0000
 
-    cmd/internal/obj/riscv: correct CALL reloc symbol handling
+    cmd/compile: update README for rulegen
     
-    Move the CALL reloc symbol back to p.From.Sym, rather than p.To.Sym - while
-    p.To.Sym is the correct final location, the call to lowerJALR flips the p.To
-    and p.From addresses (and proves that this form of obj.Prog rewriting is not
-    a good idea).
+    Update cmd/compile/internal/ssa/gen/README, suggest using go-1.13
+    and above for rulegen.
     
-    Updates #27532
-    
-    Change-Id: Iaf9fa24b05bda32b963f8d243401c6cd82c1355c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212759
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I5256d6f1bb4273b5eb7d5122a4364add52fc42c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192517
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/riscv/obj.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/README | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

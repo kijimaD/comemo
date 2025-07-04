@@ -1,32 +1,73 @@
-commit 1de46564a766f9647b22ebab0f35bccd14291460
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Feb 8 08:46:24 2024 +0100
+commit e2f413402527505144beea443078649380e0c545
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun Feb 19 17:37:02 2023 -0800
 
-    runtime: make netpoll events sources identifiable on Windows
+    encoding/json: unify encodeState.string and encodeState.stringBytes
     
-    This is another attempt at CL 558895, but without adding stale pollDescs
-    protection, which deviates from the original goal of the CL and adds
-    complexity without proper testing.
+    This is part of the effort to reduce direct reliance on bytes.Buffer
+    so that we can use a buffer with better pooling characteristics.
     
-    It is currently not possible to distinguish between a netpollBreak,
-    an internal/poll WSA operation, and an external WSA operation (as
-    in #58870). This can cause spurious wakeups when external WSA operations
-    are retrieved from the queue, as they are treated as netpollBreak
-    events.
+    Unify these two methods as a single version that uses generics
+    to reduce duplicated logic. Unfortunately, we lack a generic
+    version of utf8.DecodeRune (see #56948), so we cast []byte to string.
+    The []byte variant is slightly slower for multi-byte unicode since
+    casting results in a stack-allocated copy operation.
+    Fortunately, this code path is used only for TextMarshalers.
+    We can also delete TestStringBytes, which exists to ensure
+    that the two duplicate implementations remain in sync.
     
-    This CL makes use of completion keys to identify the source of the
-    event.
+    Performance:
     
-    While here, fix TestWSASocketConflict, which was not properly
-    exercising the "external WSA operation" case.
+        name              old time/op    new time/op    delta
+        CodeEncoder          399µs ± 2%     409µs ± 2%   +2.59%  (p=0.000 n=9+9)
+        CodeEncoderError     450µs ± 1%     451µs ± 2%     ~     (p=0.684 n=10+10)
+        CodeMarshal          553µs ± 2%     562µs ± 3%     ~     (p=0.075 n=10+10)
+        CodeMarshalError     733µs ± 3%     737µs ± 2%     ~     (p=0.400 n=9+10)
+        EncodeMarshaler     24.9ns ±12%    24.1ns ±13%     ~     (p=0.190 n=10+10)
+        EncoderEncode       12.3ns ± 3%    14.7ns ±20%     ~     (p=0.315 n=8+10)
     
-    Change-Id: I91f746d300d32eb7fed3c8f27266fef379360d98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561895
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+        name              old speed      new speed      delta
+        CodeEncoder       4.87GB/s ± 2%  4.74GB/s ± 2%   -2.53%  (p=0.000 n=9+9)
+        CodeEncoderError  4.31GB/s ± 1%  4.30GB/s ± 2%     ~     (p=0.684 n=10+10)
+        CodeMarshal       3.51GB/s ± 2%  3.46GB/s ± 3%     ~     (p=0.075 n=10+10)
+        CodeMarshalError  2.65GB/s ± 3%  2.63GB/s ± 2%     ~     (p=0.400 n=9+10)
+    
+        name              old alloc/op   new alloc/op   delta
+        CodeEncoder          327B ±347%     447B ±232%  +36.93%  (p=0.034 n=9+10)
+        CodeEncoderError      142B ± 1%      143B ± 0%     ~     (p=1.000 n=8+7)
+        CodeMarshal         1.96MB ± 2%    1.96MB ± 2%     ~     (p=0.468 n=10+10)
+        CodeMarshalError    2.04MB ± 3%    2.03MB ± 1%     ~     (p=0.971 n=10+10)
+        EncodeMarshaler      4.00B ± 0%     4.00B ± 0%     ~     (all equal)
+        EncoderEncode        0.00B          0.00B          ~     (all equal)
+    
+        name              old allocs/op  new allocs/op  delta
+        CodeEncoder           0.00           0.00          ~     (all equal)
+        CodeEncoderError      4.00 ± 0%      4.00 ± 0%     ~     (all equal)
+        CodeMarshal           1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+        CodeMarshalError      6.00 ± 0%      6.00 ± 0%     ~     (all equal)
+        EncodeMarshaler       1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+        EncoderEncode         0.00           0.00          ~     (all equal)
+    
+    There is a very slight performance degradation for CodeEncoder
+    due to an increase in allocation sizes. However, the number of allocations
+    did not change. This is likely due to remote effects of the growth rate
+    differences between bytes.Buffer and the builtin append function.
+    We shouldn't overly rely on the growth rate of bytes.Buffer anyways
+    since that is subject to possibly change in #51462.
+    As the benchtime increases, the alloc/op goes down indicating
+    that the amortized memory cost is fixed.
+    
+    Updates #27735
+    
+    Change-Id: Ie35e480e292fe082d7986e0a4d81212c1d4202b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469556
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
 
- src/internal/poll/fd_windows_test.go |  25 +++------
- src/runtime/netpoll_windows.go       | 101 ++++++++++++++++++++++++++++++-----
- 2 files changed, 93 insertions(+), 33 deletions(-)
+ src/encoding/json/encode.go      | 146 ++++++++++-----------------------------
+ src/encoding/json/encode_test.go |  49 -------------
+ 2 files changed, 35 insertions(+), 160 deletions(-)

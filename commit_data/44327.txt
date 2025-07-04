@@ -1,34 +1,15 @@
-commit e78e04ce39b9df316edda08f43f253f5e9ac509e
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Feb 19 10:09:15 2021 -0500
+commit 5adaa1290ec4a7507c0be56743c237d9bf311055
+Author: Vee Zhang <veezhang@126.com>
+Date:   Thu Jun 11 04:39:49 2020 +0000
 
-    cmd/compile: fix panic in DWARF-gen handling obfuscated code
+    A+C: add Vee Zhang (individual CLA)
     
-    DWARF generation uses variable source positions (file/line/col) as a
-    way to uniquely identify locals and parameters, as part of the process
-    of matching up post-optimization variables with the corresponding
-    pre-optimization versions (since the DWARF needs to be in terms of the
-    original source constructs).
-    
-    This strategy can run into problems when compiling obfuscated or
-    machine-generated code, where you can in some circumstances wind up
-    with two local variables that appear to have the same name, file,
-    line, and column. This patch changes DWARF generation to skip over
-    such duplicates as opposed to issuing a fatal error (if an
-    obfuscation tool is in use, it is unlikely that a human being will be
-    able to make much sense of DWARF info in any case).
-    
-    Fixes #44378.
-    
-    Change-Id: I198022d184701aa9ec3dce42c005d29b72d2e321
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294289
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Id52c5fef2e5b65056d3c87e70e176b67998cea90
+    GitHub-Last-Rev: b88e3afa38d96a5a51334100bb29108c5f2618f4
+    GitHub-Pull-Request: golang/go#39520
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237223
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/dwarfgen/dwinl.go |  3 ++-
- test/fixedbugs/issue44378.go               | 40 ++++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

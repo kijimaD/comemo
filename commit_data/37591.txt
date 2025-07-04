@@ -1,20 +1,34 @@
-commit 09f541173e6901a5fc86917561a2eb7c43572edf
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Dec 5 20:59:42 2018 +0100
+commit edae0ff8c13d607aee3fca7fb80faa1dfc2a2944
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Aug 20 17:28:55 2018 +0100
 
-    net: skip TestVariousDeadlines on Plan 9
+    math: use s390x mnemonics rather than binary encodings
     
-    This test is regularly failing on the plan9/386
-    builder running on GCE, but we haven't figured
-    out the issue yet.
+    TMLL, LGDR and LDGR have all been added to the Go assembler
+    previously, so we don't need to encode them using WORD and BYTE
+    directives anymore. This is purely a cosmetic change, it does not
+    change the contents of any object files.
     
-    Updates #26945.
-    
-    Change-Id: I8cbe0df43c0757e7bc68e370311f4a28cd7b049b
-    Reviewed-on: https://go-review.googlesource.com/c/152721
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I93f815b91be310858297d8a0dc9e6d8e3f09dd65
+    Reviewed-on: https://go-review.googlesource.com/129895
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/timeout_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/math/acos_s390x.s  |  2 +-
+ src/math/acosh_s390x.s |  8 ++++----
+ src/math/asin_s390x.s  |  2 +-
+ src/math/asinh_s390x.s |  8 ++++----
+ src/math/atan2_s390x.s |  6 +++---
+ src/math/atan_s390x.s  |  2 +-
+ src/math/atanh_s390x.s |  6 +++---
+ src/math/cbrt_s390x.s  |  6 +++---
+ src/math/erf_s390x.s   |  6 +++---
+ src/math/erfc_s390x.s  |  8 ++++----
+ src/math/exp_s390x.s   | 10 +++++-----
+ src/math/expm1_s390x.s | 10 +++++-----
+ src/math/log1p_s390x.s | 10 +++++-----
+ src/math/log_s390x.s   | 10 +++++-----
+ src/math/pow_s390x.s   | 20 ++++++++++----------
+ src/math/tan_s390x.s   |  4 ++--
+ 16 files changed, 59 insertions(+), 59 deletions(-)

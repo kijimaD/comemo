@@ -1,14 +1,21 @@
-commit 66fa4fc8b9feb7f636955e630977b8862c0862aa
-Author: Guilherme Rezende <guilhermebr@gmail.com>
-Date:   Mon Sep 4 09:28:27 2017 -0300
+commit 2f7fbf8851e4c45f7e0d207836a3c7a97eaa1823
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 13 22:55:33 2017 +0000
 
-    net/http: use canonicalAddr on shouldCopyHeaderOnRedirect
+    path, path/filepath: clarify and cross-reference packages
     
-    Change-Id: Ic3f7f575d3640706adb7d64545ed8027add6c58f
-    Reviewed-on: https://go-review.googlesource.com/61350
-    Run-TryBot: Tom Bergan <tombergan@google.com>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    The path package has a reference to the path/filepath package, so add
+    a reverse reference.
+    
+    And clarify the path package doesn't do Windows paths.
+    
+    Fixes #20117
+    
+    Change-Id: I65c5ce24e600b32ea20c5821b744bd89f6aff98c
+    Reviewed-on: https://go-review.googlesource.com/45653
+    Reviewed-by: Jaana Burcu Dogan <jbd@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/client.go      | 12 ++----------
- src/net/http/client_test.go |  8 ++++++--
- 2 files changed, 8 insertions(+), 12 deletions(-)
+ src/path/filepath/path.go | 5 +++++
+ src/path/path.go          | 5 ++++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

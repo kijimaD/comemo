@@ -1,12 +1,14 @@
-commit 30985c1203d52cc03282dea32779ba060f77ed23
+commit 956cd0059c49870161a31ed7403199e3f0e19ad2
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 31 07:53:18 2013 -0800
+Date:   Thu Jan 31 07:49:23 2013 -0800
 
-    os: use signal strings where possible in ProcessState.String
+    encoding/json: document case-insensitive Unmarshal key matching
     
-    R=golang-dev, bradfitz
+    Fixes #4664.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7228067
+    https://golang.org/cl/7237060
 
- src/pkg/os/exec_posix.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/encoding/json/decode.go | 4 ++++
+ 1 file changed, 4 insertions(+)

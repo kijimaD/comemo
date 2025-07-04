@@ -1,28 +1,37 @@
-commit 0eb38f2b164ec5b0094c5895cfe1b3a40c183d50
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Wed May 12 12:09:18 2021 +0200
+commit ac766e37182f36cd0a3247e44a4143d2d2132e42
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 2 16:58:38 2020 +0000
 
-    cmd/go/internal/load: override Package.Root in module mode
+    runtime: make getMCache inlineable
     
-    The Context.ImportDir method in the go/build package sets Package.Root
-    to $GOPATH, if a package is inside a GOPATH workspace.  The
-    loadPackageData function keeps this value even when modules are enabled.
+    This change moves the responsibility of throwing if an mcache is not
+    available to the caller, because the inlining cost of throw is set very
+    high in the compiler. Even if it was reduced down to the cost of a usual
+    function call, it would still be too expensive, so just move it out.
     
-    Override Package.Root when modules are enabled, instead of just set its
-    value when Context.ImportDir was unable to set it.
+    This choice also makes sense in the context of #42339 since we're going
+    to have to handle the case where we don't have an mcache to update stats
+    in a few contexts anyhow.
     
-    Add a regression test.
+    Also, add getMCache to the list of functions that should be inlined to
+    prevent future regressions.
     
-    Fixes #46119
+    getMCache is called on the allocation fast path and because its not
+    inlined actually causes a significant regression (~10%) in some
+    microbenchmarks.
     
-    Change-Id: I900a33fe13a445cb771e2952d0d830f1b4a5921f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319209
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Fixes #42305.
+    
+    Change-Id: I64ac5e4f26b730bd4435ea1069a4a50f55411ced
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267157
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/load/pkg.go                    |  4 +++-
- .../go/testdata/script/list_gomod_in_gopath.txt    | 23 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/inl_test.go |  1 +
+ src/runtime/malloc.go                   |  9 ++++++++-
+ src/runtime/mcache.go                   |  7 ++-----
+ src/runtime/mgcscavenge.go              |  3 +++
+ src/runtime/mheap.go                    | 12 ++++++++++++
+ 5 files changed, 26 insertions(+), 6 deletions(-)

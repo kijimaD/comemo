@@ -1,17 +1,18 @@
-commit 3b85f9b7e184be17c411152f6b010aa279a85dcf
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Feb 12 21:50:58 2014 +0400
+commit 6b29f7bfbe9ca985ce2419285f0b56b5428e1ffe
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 12 11:20:01 2014 -0500
 
-    encoding/json: fix test failure
-    $ go test -cpu=1,1,1,1,1,1,1,1,1 encoding/json
-    --- FAIL: TestIndentBig (0.00 seconds)
-            scanner_test.go:131: Indent(jsonBig) did not get bigger
-    On 4-th run initBig generates an empty array.
+    crypto/tls: better error messages.
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/49930051
+    https://golang.org/cl/60580046
 
- src/pkg/encoding/json/scanner_test.go | 22 +++++++++-------------
- 1 file changed, 9 insertions(+), 13 deletions(-)
+ src/pkg/crypto/tls/common.go                |  5 ++++
+ src/pkg/crypto/tls/conn.go                  | 23 ++++++++++------
+ src/pkg/crypto/tls/handshake_client.go      | 41 +++++++++++++++++++----------
+ src/pkg/crypto/tls/handshake_server.go      | 40 +++++++++++++++++++---------
+ src/pkg/crypto/tls/handshake_server_test.go | 15 ++++++-----
+ src/pkg/crypto/tls/key_agreement.go         | 15 ++++++-----
+ 6 files changed, 90 insertions(+), 49 deletions(-)

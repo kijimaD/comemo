@@ -1,18 +1,12 @@
-commit 64f00fb150fff62a144e188e00f59f044ffb7d23
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 2 19:12:19 2017 -0700
+commit ea53e61c6c7ba2c7528b3e0a8d4680475897d679
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 5 18:35:06 2017 +0000
 
-    cmd/compile: len(n.List.Slice()) -> n.List.Len()
+    doc: add go get -insecure change to go1.8.html
     
-    Minor cleanup.
-    
-    This is the only such instance in the compiler.
-    
-    Change-Id: I4e8ecde57d71867c7e1ac4d17e2154a91dd262b0
-    Reviewed-on: https://go-review.googlesource.com/39209
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I184c86edaaaa71c26bc7360c8b995015f30fe137
+    Reviewed-on: https://go-review.googlesource.com/34819
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.8.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

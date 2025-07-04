@@ -1,18 +1,28 @@
-commit bf833ead6250290dce039ffeee88f20a086b5dbe
-Author: David Chase <drchase@google.com>
-Date:   Fri Aug 28 14:32:15 2020 -0400
+commit a9f1ea4a83da919acc254107661b99d0d6f8c7ec
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 25 14:36:38 2020 +0000
 
-    cmd/compile: ensure that ssa.Func constant cache is consistent
+    Revert "cmd/compile: don't allow NaNs in floating-point constant ops"
     
-    It was not necessarily consistent before, we were just lucky.
+    This reverts CL 213477.
     
-    Change-Id: I3a92dc724e0af7b4d810a6a0b7b1d58844eb8f87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251440
-    Run-TryBot: David Chase <drchase@google.com>
+    Reason for revert: tests are failing on linux-mips*-rtrk builders.
+    
+    Change-Id: I8168f7450890233f1bd7e53930b73693c26d4dc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220897
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/func.go      | 59 ++++++++++++++++++++++++-------
- src/cmd/compile/internal/ssa/softfloat.go |  1 +
- src/cmd/compile/internal/ssa/value.go     |  9 +++++
- 3 files changed, 56 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/float_test.go      | 60 --------------------------
+ src/cmd/compile/internal/ssa/check.go          | 10 +----
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/Wasm.rules    | 21 +++++----
+ src/cmd/compile/internal/ssa/gen/generic.rules | 14 +++---
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  7 +--
+ src/cmd/compile/internal/ssa/rewrite.go        |  6 ---
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  4 --
+ src/cmd/compile/internal/ssa/rewriteWasm.go    | 41 ------------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 28 ++----------
+ test/codegen/math.go                           | 33 +-------------
+ 11 files changed, 26 insertions(+), 200 deletions(-)

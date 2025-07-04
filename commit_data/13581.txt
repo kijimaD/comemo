@@ -1,12 +1,16 @@
-commit 8b5d4c3c0310c1669f8abd0b159985d80771e9f7
-Author: Alexey Borzenkov <snaury@gmail.com>
-Date:   Mon Aug 6 16:24:08 2012 -0400
+commit 2d2866ee8454d096d0dc8b5906324a36cfb3cc6e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 6 14:12:23 2012 +1000
 
-    syscall: fix plan9 build broken by CL 6458050
+    net: fix TCPListener file leak to child processes
     
-    R=golang-dev, rsc
-    CC=golang-dev, r, yarikos
-    https://golang.org/cl/6454104
+    Hold ForkLock during dup of fd + cloexec in the net pkg,
+    per the locking policy documented in syscall/exec_unix.go.
+    
+    R=golang-dev, dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/6457080
 
- src/pkg/syscall/exec_plan9.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/pkg/net/fd.go            |  4 +++
+ src/pkg/os/exec/exec_test.go | 60 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+)

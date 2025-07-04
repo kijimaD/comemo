@@ -1,28 +1,18 @@
-commit ff07b73faced25076548b8d916ff19de1844650a
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sun Nov 12 23:27:31 2023 +0000
+commit 660d4815ea4229f96cede86f396017ebf5ca4bb0
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 6 13:40:33 2022 -0800
 
-    internal/trace/traceviewer: make the mmu handler more self-contained
+    cmd/compile: describe how Go maps to wasm implementation
     
-    The last change made the MMU rendering code common and introduced a new
-    API, but it was kind of messy. Part of the problem was that some of the
-    Javascript in the template for the main page referred to specific
-    endpoints on the server.
-    
-    Fix this by having the Javascript access the same endpoint but with a
-    different query variable. Now the Javascript code doesn't depend on
-    specific endpoints, just on query variables for the current endpoint.
-    
-    For #60773.
-    For #63960.
-    
-    Change-Id: I1c559d9859c3a0d62e2094c9d4ab117890b63b31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541259
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie4d8e1ae9c4c6046d27a27a61ef1147bc0ff373c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455715
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/trace/main.go                 |  4 ++--
- src/cmd/trace/v2/main.go              | 11 +++++------
- src/internal/trace/traceviewer/mmu.go | 22 +++++++++++++---------
- 3 files changed, 20 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/wasm/ssa.go | 113 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 113 insertions(+)

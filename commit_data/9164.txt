@@ -1,45 +1,29 @@
-commit 6b2ec065871019d07dcbe6ca527fbd4c600e1c19
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jul 21 13:57:13 2011 -0400
+commit 17d9093bf214f3461815410c298006bac8427c0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 21 13:25:55 2011 -0400
 
-    runtime: faster select
+    undo CL 4808044 / 1bd754e69ce7
     
-    Make selectsend() accept pointer to the element,
-    it makes it possible to make Scase fixed-size
-    and allocate/free Select, all Scase's and all SudoG at once.
-    As a consequence SudoG freelist die out.
+    ServeMux depends on having a URL
+    in order to mux.  It might be that the right
+    fix is to have CONNECT handlers just not
+    look at URL.
     
-    benchmark                       old,ns/op  new,ns/op
-    BenchmarkSelectUncontended           1080        558
-    BenchmarkSelectUncontended-2          675        264
-    BenchmarkSelectUncontended-4          459        205
-    BenchmarkSelectContended             1086        560
-    BenchmarkSelectContended-2           1775       1672
-    BenchmarkSelectContended-4           2668       2149
-    (on Intel Q6600, 4 cores, 2.4GHz)
+    ««« original CL description
+    http: do not parse req.URL for CONNECT
     
-    benchmark                       old ns/op    new ns/op    delta
-    BenchmarkSelectUncontended         517.00       326.00  -36.94%
-    BenchmarkSelectUncontended-2       281.00       166.00  -40.93%
-    BenchmarkSelectUncontended-4       250.00        83.10  -66.76%
-    BenchmarkSelectUncontended-8       107.00        47.40  -55.70%
-    BenchmarkSelectUncontended-16       67.80        41.30  -39.09%
-    BenchmarkSelectContended           513.00       325.00  -36.65%
-    BenchmarkSelectContended-2         699.00       628.00  -10.16%
-    BenchmarkSelectContended-4        1085.00      1092.00   +0.65%
-    BenchmarkSelectContended-8        3253.00      2477.00  -23.85%
-    BenchmarkSelectContended-16       5313.00      5116.00   -3.71%
-    (on Intel E5620, 8 HT cores, 2.4 GHz)
+    CONNECT's argument is not a URL.
     
-    R=rsc, ken
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4811041
+    https://golang.org/cl/4808044
+    
+    »»»
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4798046
 
- src/cmd/gc/builtin.c.boot |   2 +-
- src/cmd/gc/go.h           |   1 +
- src/cmd/gc/runtime.go     |   2 +-
- src/cmd/gc/select.c       |   7 +-
- src/cmd/gc/subr.c         |  37 ++++++--
- src/cmd/ld/dwarf.c        |   1 -
- src/pkg/runtime/chan.c    | 236 +++++++++++++++++-----------------------------
- 7 files changed, 124 insertions(+), 162 deletions(-)
+ src/pkg/http/readrequest_test.go | 22 ----------------------
+ src/pkg/http/request.go          | 11 +++--------
+ 2 files changed, 3 insertions(+), 30 deletions(-)

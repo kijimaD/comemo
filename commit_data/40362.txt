@@ -1,16 +1,14 @@
-commit 7416315e3358b0bc2774c92f39d8f7c4b33790ad
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 10 18:13:24 2019 -0700
+commit 49ad7bc67cbf44688cdc72fab49e9a267d43c037
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun May 5 18:34:18 2019 -0700
 
-    runtime: add new deltimer function
+    cmd/compile: note that some rules know the name of the opt pass
     
-    Updates #27707
-    
-    Change-Id: I720e8af9e183c75abcb63ccc30466734c8dba74f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171831
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4a70f4a52f84cf50f99939351319504b1c5dff76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175777
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/time.go | 57 +++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 51 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,13 +1,12 @@
-commit bbf952c3b4c5d7beb15c5c2a0ffb20f02323e6ea
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 18 00:16:15 2011 -0500
+commit 0bbbb44e997b3a61576ed8fc4b1c021134c27c4c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 18 15:22:48 2011 +1100
 
-    codereview: cleanup + basic tests
+    doc: link to Chinese translation of A Tour of Go
     
-    R=adg, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5395044
+    https://golang.org/cl/5415046
 
- lib/codereview/codereview.py | 1240 +++++++++++++++++++++++-------------------
- lib/codereview/test.sh       |  198 +++++++
- 2 files changed, 869 insertions(+), 569 deletions(-)
+ doc/docs.html | 1 +
+ 1 file changed, 1 insertion(+)

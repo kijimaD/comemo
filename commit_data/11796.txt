@@ -1,15 +1,18 @@
-commit 896f0c61c8fbdaf4f6fa6007da8c03bbb818d85d
+commit 7ae1fe420e708acc62cdacb81a2eec7ed3250277
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 10 23:10:45 2012 -0500
+Date:   Fri Feb 10 22:46:56 2012 -0500
 
-    gc: diagnose init loop involving func
+    gc: eliminate duplicate ambiguous selector message
     
-    Fixes #2295.
+    Also show actual expression in message when possible.
+    
+    Fixes #2599.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/5655057
+    https://golang.org/cl/5654059
 
- src/cmd/gc/sinit.c       |  4 ++--
- test/fixedbugs/bug413.go | 11 +++++++++++
- 2 files changed, 13 insertions(+), 2 deletions(-)
+ src/cmd/gc/subr.c        |  7 +++++--
+ src/cmd/gc/typecheck.c   | 25 +++++++++++++++++--------
+ test/fixedbugs/bug412.go | 16 ++++++++++++++++
+ 3 files changed, 38 insertions(+), 10 deletions(-)

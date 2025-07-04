@@ -1,25 +1,31 @@
-commit 3b8c804164e26bdec6ca94a5ab1b5c35fa119e5e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri May 10 11:49:08 2019 -0400
+commit 374546d800124e9ab4d51b75e335a71f866f3ef8
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed Sep 19 14:45:45 2018 +0200
 
-    cmd/go: force -coverpkg main packages to be built as libraries
+    cmd/go: respect gcflags, ldflags in 'go test'
     
-    This fixes TestScript/cover_pkgall_multiple_mains, which started
-    failing after CL 174657.
+    Fixes bug introduced by https://golang.org/cl/129059 where
+    gcflags='all=...' and ldflags='all=...' would not be applied to some
+    packages built by 'go test'.
     
-    When compiling main packages with coverage instrumentation
-    (e.g., for -coverpkg all), we now pass -p with the full import path
-    instead of '-p main'. This avoids link errors
-    'duplicate symbol main.main (types 1 and 1)'.
+    LoadImport used to set gcflags/ldflags for the Package objects it
+    created, in https://golang.org/cl/129059 this code was factored out to
+    setToolFlags. The codepath of `go build` was updated to call
+    setToolFlags appropriatley, but the codepath of `go test -c` wasn't,
+    resulting in gcflags/ldflags being applied inconsistently when building
+    tests.
     
-    Fixes #31946
+    This commit changes TestPackagesFor to call setToolFlags on the package
+    objects it creates.
     
-    Change-Id: Id147527b1dbdc14bb33ac133c30d50c250b4365c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176558
+    Fixes #27681
+    
+    Change-Id: Idcbec0c989ee96ec066207184611f08818873e8d
+    Reviewed-on: https://go-review.googlesource.com/c/136275
     Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/load/test.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/load/test.go                | 6 ++++++
+ src/cmd/go/testdata/script/gcflags_patterns.txt | 8 ++++++++
+ 2 files changed, 14 insertions(+)

@@ -1,43 +1,29 @@
-commit 186c4734247594fe7b27389b0233ece940a1d6f0
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Nov 22 16:54:29 2023 +0000
+commit cf5dbd44591ca885fe8deb14c1500447c915e6b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 14:29:11 2022 -0800
 
-    api: promote next to go1.22
+    go/types, types2: do not abort constraint type inference eagerly
     
-    Change-Id: Ib9d1eabfe6199575ea57183ccb21f62c40e11d84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544555
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    During constraint type inference, unification may fail because it
+    operates with limited information (core types) even if the actual
+    type argument satisfies the type constraint in question.
+    
+    On the other hand, it is safe to ignore failing unification during
+    constraint type inference because if the failure is true, an error
+    will be reported when checking instantiation.
+    
+    Fixes #53650.
+    
+    Change-Id: Ia76b21ff779bfb1282c1c55f4174847b29cc6f3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454655
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/go1.22.txt     | 134 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next/50102.txt |   9 ----
- api/next/50489.txt |   1 -
- api/next/51246.txt |   6 ---
- api/next/51971.txt |   3 --
- api/next/53693.txt |   6 ---
- api/next/54898.txt |   1 -
- api/next/56353.txt |   1 -
- api/next/57178.txt |   1 -
- api/next/58000.txt |   1 -
- api/next/58808.txt |   2 -
- api/next/59599.txt |   1 -
- api/next/60061.txt |   1 -
- api/next/60088.txt |   1 -
- api/next/60204.txt |   1 -
- api/next/60370.txt |   5 --
- api/next/60665.txt |   6 ---
- api/next/61410.txt |   2 -
- api/next/61619.txt |   1 -
- api/next/61642.txt |   2 -
- api/next/61716.txt |  48 -------------------
- api/next/61758.txt |   1 -
- api/next/61870.txt |   1 -
- api/next/61974.txt |   2 -
- api/next/62037.txt |   2 -
- api/next/62039.txt |   3 --
- api/next/62418.txt |   1 -
- api/next/62605.txt |   1 -
- api/next/63223.txt |   6 ---
- api/next/63725.txt |  18 -------
- 30 files changed, 134 insertions(+), 134 deletions(-)
+ src/cmd/compile/internal/types2/infer.go           | 30 ++++++-----
+ src/go/types/infer.go                              | 30 ++++++-----
+ .../types/testdata/fixedbugs/issue45985.go         |  2 +-
+ .../types/testdata/fixedbugs/issue53650.go         | 59 ++++++++++++++++++++++
+ 4 files changed, 96 insertions(+), 25 deletions(-)

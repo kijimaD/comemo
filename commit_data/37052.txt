@@ -1,21 +1,27 @@
-commit ffbf479ae1cc8d85022fd74b6ad35b419279b162
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Wed Oct 17 09:36:06 2018 +0200
+commit bedfa4e1c37bd08063865da628f242d27ca06ec4
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Jun 21 10:41:26 2018 -0700
 
-    cmd/compile,cmd/link: remove statictmp variables from symbol table.
+    text/template/parse: undo breaking API changes
     
-    Removes statictmp variables from debug_info and the final symbol table.
+    golang.org/cl/84480 altered the API for the parse package for
+    clarity and consistency. However, the changes also broke the
+    API for consumers of the package. This CL reverts the API
+    to the previous spelling, adding only a single new exported
+    symbol.
     
-    Fixes #27800
+    Fixes #25968
     
-    Change-Id: I302c59a04bc3f460e7085fef241f937bbf30421d
-    Reviewed-on: https://go-review.googlesource.com/c/142577
-    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ieb81054b61eeac7df3bc3864ef446df43c26b80f
+    Reviewed-on: https://go-review.googlesource.com/120355
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/link/internal/ld/dwarf.go      |  4 +-
- src/cmd/link/internal/ld/dwarf_test.go | 73 ++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/symtab.go     | 11 +++++
- 3 files changed, 87 insertions(+), 1 deletion(-)
+ api/except.txt                   |  9 ---------
+ src/html/template/escape.go      |  2 +-
+ src/text/template/exec.go        | 22 +++++++++++-----------
+ src/text/template/parse/node.go  | 40 ++++++++++++++++++++--------------------
+ src/text/template/parse/parse.go |  4 ++--
+ 5 files changed, 34 insertions(+), 43 deletions(-)

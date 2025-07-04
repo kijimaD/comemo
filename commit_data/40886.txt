@@ -1,23 +1,19 @@
-commit f29e53d66419713f011cda50a3001cc20950bc7e
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Nov 22 15:27:01 2019 -0500
+commit 46f99ce7ea97d11b0a1a079da8dda0f51df2a2d2
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Aug 6 13:12:23 2019 -0400
 
-    cmd/link: fix bug with -newobj and "ld -r" ELF host objects
+    cmd/go: look for __go_buildinfo section when looking for Mach-O version
     
-    When the ELF host object loader encounters a static/hidden symbol, it
-    creates a sym.Symbol for it but does not enter it into the sym.Symbols
-    lookup table. Under -newobj mode, this was not happening correctly; we
-    were adding the sym via loader.LookupOrCreate, which resulted in
-    collisions when it encountered symbols with the same name + version +
-    section (this can happen for "ld -r" objects).
+    This mirrors the ELF fix in CL 188957. TestScript/version failed on
+    darwin after that change.
     
-    Fixes #35779.
+    Fixes #31861
     
-    Change-Id: I36d40fc1efc03fc1cd8ae6b76cb6a0d2a957389c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208479
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4ce953ebec8dd5fa47e26d373c59d7e290b75a34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189159
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/loadelf/ldelf.go |  8 +++++++-
- src/cmd/link/internal/loader/loader.go | 33 ++++++++++++++++++++++++++++++---
- 2 files changed, 37 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/version/exe.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,18 +1,18 @@
-commit 108dbd0dc759181ac31513a855d1e77c5df37d9d
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Dec 23 10:57:37 2014 -0800
+commit 60f66aa817790ee55956552540ca49ea76fc9077
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 12 14:58:43 2014 -0500
 
-    reflect: more function layout tests
+    [dev.power64] 9g: proginfo fixes
     
-    Test more stuff:
-    1) flagNoPointers, an incorrect value was the cause of #9425
-    2) Total function layout size
-    3) gc program
+    For D_OREG addresses, store the used registers in regindex
+    instead of reguse because they're really part of addressing.
     
-    Change-Id: I73f65fe740215938fa930d2f096febd9db0a0021
-    Reviewed-on: https://go-review.googlesource.com/2090
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Add implicit register use/set for DUFFZERO/DUFFCOPY.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/174050044
 
- src/reflect/all_test.go    | 68 ++++++++++++++++++++++++++++++++++++++++++----
- src/reflect/export_test.go | 10 ++++++-
- 2 files changed, 72 insertions(+), 6 deletions(-)
+ src/cmd/9g/prog.c | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

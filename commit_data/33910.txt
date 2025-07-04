@@ -1,23 +1,16 @@
-commit 0504cd68e6561b962354821bccf04f5cf080662e
-Author: elpinal <6elpinal@gmail.com>
-Date:   Sat Dec 16 15:04:05 2017 +0900
+commit 8bdf0b72b0b53c877525a608fed6a7b01fd4fd17
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 18 15:20:31 2017 +0200
 
-    cmd/doc: suppress the error message for *package.ident embedded in struct type
+    cmd/compile: simplify range expression
     
-    The current implementation prints a log, "invalid program: unexpected
-    type for embedded field", when the form *package.ident is embedded in
-    a struct declaration.
+    Found by running gofmt -s on the file in question.
     
-    Note that since valid qualified identifiers must be exported, the result
-    for a valid program does not change.
-    
-    Change-Id: If8b9d7056c56b6a6c5482eb749168a63c65ef685
-    Reviewed-on: https://go-review.googlesource.com/84436
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I84511bd2bc75dff196930a7a87ecf5a2aca2fbb8
+    Reviewed-on: https://go-review.googlesource.com/64310
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/doc/doc_test.go     |  1 +
- src/cmd/doc/pkg.go          | 17 +++++++++--------
- src/cmd/doc/testdata/pkg.go | 17 +++++++++--------
- 3 files changed, 19 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

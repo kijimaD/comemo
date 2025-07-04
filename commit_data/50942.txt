@@ -1,20 +1,24 @@
-commit bfcc3a755cbd9b5c38a4961f1df76c4db0d41442
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 19 14:22:25 2022 -0700
+commit 14c3f749bebafe10d60cf5a9b1f4ae6663ff862a
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 12 13:20:07 2021 -0500
 
-    go/types, types2: remove global goVersion flag (cleanup)
+    cmd/link: relocate dwarf examiner helper to separate package
     
-    Now that we have an easy mechanism to set the Go version with a comment
-    line directly in test files, we don't need this flag anymore.
+    The linker DWARF test includes an "examiner" helper type (with
+    associated methods) that is used to help linker DWARF tests read DWARF
+    info in a higher level and more structured way than just raw
+    debug/dwarf operations. This patch extracts out "examiner" and
+    relocates it to a separate package, so that it can be used in other
+    package tests as well, if need be.
     
-    Change-Id: Ic1f1a6fdf2c6c692512bff49650916ec43645aee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444275
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: Iec66061e2719ee698c12d8fa17b11698442b336d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364036
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/check_test.go | 1 -
- src/go/types/check_test.go                    | 6 ------
- 2 files changed, 7 deletions(-)
+ src/cmd/link/internal/dwtest/dwtest.go | 197 ++++++++++++++++++++++++
+ src/cmd/link/internal/ld/dwarf_test.go | 266 ++++++---------------------------
+ 2 files changed, 241 insertions(+), 222 deletions(-)

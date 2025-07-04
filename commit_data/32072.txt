@@ -1,12 +1,23 @@
-commit b3188e99fd1a77403a2f827e0dbccac9f813661c
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Thu Jul 20 18:16:03 2017 -0700
+commit 78f6622b818cb0198a9c7c45eca58ba6f9f235c5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 29 14:21:50 2017 +1100
 
-    doc: minor fixes to the editor guide
+    cmd/internal/obj/*: rename Rconv to rconv
     
-    Change-Id: I8f6bcfab27251ef6962306d56e40d306ef85fe60
-    Reviewed-on: https://go-review.googlesource.com/50472
-    Reviewed-by: Rob Pike <r@golang.org>
+    Each architecture's Rconv function is only used inside its
+    respective package, so it does not need to be exported.
+    
+    Change-Id: Ifbd629964d7a9edd66501d7cdf4750621d66d646
+    Reviewed-on: https://go-review.googlesource.com/39110
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/editors.html | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/internal/obj/arm/list5.go   | 4 ++--
+ src/cmd/internal/obj/arm64/list7.go | 4 ++--
+ src/cmd/internal/obj/mips/list0.go  | 4 ++--
+ src/cmd/internal/obj/ppc64/list9.go | 4 ++--
+ src/cmd/internal/obj/s390x/listz.go | 4 ++--
+ src/cmd/internal/obj/x86/asm6.go    | 4 ++--
+ src/cmd/internal/obj/x86/list6.go   | 4 ++--
+ src/cmd/internal/obj/x86/obj6.go    | 2 +-
+ 8 files changed, 15 insertions(+), 15 deletions(-)

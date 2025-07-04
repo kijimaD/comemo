@@ -1,18 +1,15 @@
-commit a9a49fe9625194395d9eb791de7c2674d7b6f8d8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 12 13:08:35 2012 -0800
+commit be5ce4e0277f4514a21217095bd388a1706e4665
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 12 11:36:44 2012 -0800
 
-    spec: calling delete on a nil map is a no-op
+    net/http: remove a stale cookie TODO comment, add a test
     
-    This is language change. It is a backward-compatible
-    change but for code that relies on a run-time panic
-    when calling delete on a nil map (unlikely).
+    Fixes #4528
     
-    Fixes #4253.
-    
-    R=rsc, r, iant, ken, bradfitz, rogpeppe
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6909060
+    https://golang.org/cl/6922054
 
- doc/go_spec.html | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/pkg/net/http/client.go      |  2 --
+ src/pkg/net/http/client_test.go | 63 +++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 61 insertions(+), 4 deletions(-)

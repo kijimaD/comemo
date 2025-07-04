@@ -1,35 +1,17 @@
-commit 2edd559223f3b3fd54e354c9a9703248a935c91a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 28 20:21:32 2019 +1100
+commit 30c1ed7d0bd4a7bdb544bf8c190668d647b4faac
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Oct 5 03:19:03 2018 +0000
 
-    os: make Readlink work with symlinks with target like \??\Volume{ABCD}\
+    cmd/compile: simplify 386's rules
     
-    windows-arm TMP directory live inside such link (see
-    https://github.com/golang/go/issues/29746#issuecomment-456526811 for
-    details), so symlinks like that will be common at least on windows-arm.
+    This CL combines several rules together via regular expression,
+    but won't impact generated 386 code.
     
-    This CL builds on current syscall.Readlink implementation. Main
-    difference between the two is how new code handles symlink targets,
-    like \??\Volume{ABCD}\.
-    
-    New implementation uses Windows CreateFile API with
-    FILE_FLAG_OPEN_REPARSE_POINT flag to get \??\Volume{ABCD}\ file handle.
-    And then it uses Windows GetFinalPathNameByHandle with VOLUME_NAME_DOS
-    flag to convert that handle into standard Windows path.
-    FILE_FLAG_OPEN_REPARSE_POINT flag ensures that symlink is not followed
-    when CreateFile opens the file.
-    
-    Fixes #30463
-    
-    Change-Id: I33b18227ce36144caed694169ef2e429fd995fb4
-    Reviewed-on: https://go-review.googlesource.com/c/164201
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I354006fe801fc952e3a9431cae63229922c9ba48
+    Reviewed-on: https://go-review.googlesource.com/c/139957
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/syscall/windows/reparse_windows.go |  24 +++++
- src/os/file_posix.go                            |  20 ----
- src/os/file_unix.go                             |  19 ++++
- src/os/file_windows.go                          | 120 ++++++++++++++++++++++++
- src/os/os_windows_test.go                       | 115 +++++++++++++++++++++++
- 5 files changed, 278 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules | 122 +++++++----------------------
+ 1 file changed, 30 insertions(+), 92 deletions(-)

@@ -1,23 +1,22 @@
-commit 51885c1fa2eff36c421d6669816f971b54b63a33
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jun 15 09:14:03 2023 -0400
+commit 75cdd2c75dfa3f8095f9e9304513445d461580d4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 14 00:35:24 2022 +0700
 
-    cmd/{go,cover}: enable response file args for cmd/cover
+    internal/singleflight: make DoChan only return Result channel
     
-    Change the cover command to accept arguments via response files, using
-    the same mechanism employed for the compiler and the assembler. This
-    is needed now that the cover tool accepts a list of all source files
-    in a package, as opposed to just a single source file, and as a result
-    can run into system-dependent command line length limits.
+    So next CL can delete "internal/singleflight" and vendor
+    "golang.org/x/sync/singleflight" instead.
     
-    Fixes #60785.
+    For #31697
     
-    Change-Id: I67dbc96ad9fc5c6f43d5c1e4e903e4b8589b154f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503735
+    Change-Id: I020da1e5a48d484637b538c010029218f5a4a744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423655
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/cmd/cover/cover.go           | 2 +-
- src/cmd/go/internal/work/exec.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/internal/singleflight/singleflight.go | 10 ++++------
+ src/net/lookup.go                         |  2 +-
+ 2 files changed, 5 insertions(+), 7 deletions(-)

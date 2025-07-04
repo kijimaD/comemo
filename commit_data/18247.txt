@@ -1,12 +1,27 @@
-commit 6430a6d90e0be5703c5b5263a55ca831bd2ab8a0
+commit 014f3dcc837cb6789076cff4fccaa3bd221f823e
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 14 12:53:06 2014 -0800
+Date:   Tue Jan 14 11:10:56 2014 -0800
 
-    C: add Michael Kelly (Google CLA)
+    cmd/gofmt: remove -tabwidth and -tabs flags
     
-    R=golang-codereviews, iant, mjk
+    Having these flags misleads people into thinking they're acceptable
+    for code that "must be gofmt'd".
+    
+    If an organization wishes to use gofmt internally with
+    different settings, they can fork gofmt trivially. But "gofmt"
+    as used by the community with open source Go code should not
+    support these old knobs.
+    
+    Also removes the -comments flag.
+    
+    Fixes #7101
+    
+    R=r, gri
     CC=golang-codereviews
-    https://golang.org/cl/52220043
+    https://golang.org/cl/52170043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gofmt/doc.go        | 11 ++++-------
+ src/cmd/gofmt/gofmt.go      | 39 +++++++++++----------------------------
+ src/cmd/gofmt/gofmt_test.go |  1 -
+ src/cmd/gofmt/long_test.go  |  2 +-
+ 4 files changed, 16 insertions(+), 37 deletions(-)

@@ -1,12 +1,12 @@
-commit 583f72434f5930bc40177bc9e3bca1a4ee027501
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 4 16:32:14 2011 +1000
+commit bb8e36b4a12b16302abf557ccb7aba6965a3ddaf
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Aug 4 16:22:22 2011 +1000
 
-    fmt: call UpdateMemStats in malloc counter
+    gob: avoid a couple of init-time allocations.
     
-    R=golang-dev, dsymonds
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4830059
+    https://golang.org/cl/4806049
 
- src/pkg/fmt/fmt_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/gob/type.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

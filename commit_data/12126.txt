@@ -1,25 +1,47 @@
-commit a457fa500d35d352a76883706e82fd7e9f8e4bd7
+commit 5bcad92f07317dc81122f72d40433f314e336b7c
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 21 22:54:07 2012 -0500
+Date:   Tue Feb 21 22:08:42 2012 -0500
 
-    gc: return of ideal bool
+    ld: add NOPTRBSS for large, pointer-free uninitialized data
+    cc: add #pragma textflag to set it
+    runtime: mark mheap to go into noptr-bss.
+            remove special case in garbage collector
     
-    This is a manual undo of CL 5674098.
-    It does not implement the even less strict spec
-    that we just agreed on, but it gets us back where
-    we were at the last weekly.
+    Remove the ARM from.flag field created by CL 5687044.
+    The DUPOK flag was already in p->reg, so keep using that.
     
-    R=ken2
+    Otherwise test/nilptr.go creates a very large binary.
+    Should fix the arm build.
+    Diagnosed by minux.ma; replacement for CL 5690044.
+    
+    R=golang-dev, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/5683069
+    https://golang.org/cl/5686060
 
- src/cmd/gc/const.c       | 7 ++++---
- src/cmd/gc/export.c      | 2 +-
- src/cmd/gc/fmt.c         | 4 ++--
- src/cmd/gc/go.h          | 1 +
- src/cmd/gc/lex.c         | 5 +++--
- src/cmd/gc/subr.c        | 4 ++--
- test/fixedbugs/bug285.go | 1 +
- test/named.go            | 4 +++-
- test/named1.go           | 4 ++--
- 9 files changed, 19 insertions(+), 13 deletions(-)
+ src/cmd/5a/lex.c           |  1 -
+ src/cmd/5c/swt.c           |  7 +++----
+ src/cmd/5c/txt.c           |  2 ++
+ src/cmd/5g/gg.h            |  1 -
+ src/cmd/5g/gobj.c          |  1 -
+ src/cmd/5g/gsubr.c         |  6 +++---
+ src/cmd/5l/asm.c           |  4 ++++
+ src/cmd/5l/l.h             |  1 -
+ src/cmd/5l/obj.c           | 13 ++++++++-----
+ src/cmd/5l/span.c          |  2 ++
+ src/cmd/6c/txt.c           |  2 ++
+ src/cmd/6l/asm.c           |  4 ++++
+ src/cmd/6l/obj.c           | 10 +++++++---
+ src/cmd/8c/txt.c           |  2 ++
+ src/cmd/8l/asm.c           |  4 ++++
+ src/cmd/cc/cc.h            |  3 +++
+ src/cmd/cc/dcl.c           |  4 ++++
+ src/cmd/cc/dpchk.c         | 18 +++++++++++-------
+ src/cmd/cc/lexbody         |  7 +++++++
+ src/cmd/cc/macbody         |  4 ++++
+ src/cmd/ld/data.c          | 42 ++++++++++++++++++++++++++++++++++--------
+ src/cmd/ld/lib.h           |  1 +
+ src/cmd/ld/symtab.c        |  4 ++++
+ src/libmach/5obj.c         |  2 +-
+ src/pkg/runtime/malloc.goc |  2 ++
+ src/pkg/runtime/mgc0.c     |  7 ++-----
+ 26 files changed, 114 insertions(+), 40 deletions(-)

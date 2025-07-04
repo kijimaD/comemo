@@ -1,16 +1,13 @@
-commit 0e92b538a9f6e337b8e48f47f38803e8245c03cc
-Author: Robert Dinu <r@varp.se>
-Date:   Wed Jun 18 10:59:25 2014 -0700
+commit 5f896ae30686165ea5233d9b07ed3bc73246eda0
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jun 18 08:47:05 2014 -0700
 
-    testing: fix timing format inconsistency
+    go/build: update doc.go for go1.3 build tag.
     
-    Fixes #8175.
-    
-    LGTM=r
-    R=golang-codereviews, r, gobot
+    LGTM=bradfitz
+    R=adg, rsc, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/103320043
+    https://golang.org/cl/102470045
 
- src/pkg/testing/example.go |  6 +++---
- src/pkg/testing/testing.go | 15 ++++++++++-----
- 2 files changed, 13 insertions(+), 8 deletions(-)
+ src/pkg/go/build/doc.go | 1 +
+ 1 file changed, 1 insertion(+)

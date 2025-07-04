@@ -1,17 +1,20 @@
-commit 4304529a16774719687ff09f18a04e27aa8894c2
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Feb 22 12:09:56 2023 -0500
+commit c4efe7fb2777fca05a904b0c62bee8915e13b03f
+Author: Olivier Szika <olivier.szika@vadesecure.com>
+Date:   Fri Jul 30 12:02:51 2021 +0200
 
-    cmd/link: make Exitf panic under -h
+    mime/multipart: allow nested boundary with outer boundary+dash prefix
     
-    If the -h flag is specified, currently it makes Errorf panic, but
-    not Exitf. Do so for Exitf as well.
+    Fixes #46042
     
-    Change-Id: I3e8d8899fd439f7299be3f9e9a63993b04852a93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470297
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Icd243eb12c6e260aeead04710f12340048a0e859
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338549
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/util.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/mime/multipart/multipart.go      | 21 ++++++++-
+ src/mime/multipart/multipart_test.go | 84 ++++++++++++++++++++++++++++++------
+ 2 files changed, 91 insertions(+), 14 deletions(-)

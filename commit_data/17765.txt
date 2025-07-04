@@ -1,19 +1,13 @@
-commit daa61d1eb33f255247de4acb2236fa5d7e6707b9
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 8 13:13:40 2013 -0700
+commit bab2a5416ccb20cb8b25c640f2eff0da6a13d2d6
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Oct 8 14:36:20 2013 -0400
 
-    encoding/gob: add examples
-    Also tweak the package document, putting in section headings and
-    adding a sentence about intended use.
+    test: revert changes made for Go SSA interpreter test.
     
-    Fixes #4925.
-    
-    R=golang-dev, iant, adg, ugorji
+    R=r, gri
     CC=golang-dev
-    https://golang.org/cl/14519044
+    https://golang.org/cl/14552044
 
- src/pkg/encoding/gob/doc.go                    |  8 +++
- src/pkg/encoding/gob/example_encdec_test.go    | 61 +++++++++++++++++++
- src/pkg/encoding/gob/example_interface_test.go | 81 ++++++++++++++++++++++++++
- src/pkg/encoding/gob/example_test.go           | 60 +++++++++++++++++++
- 4 files changed, 210 insertions(+)
+ test/blank.go   | 3 +--
+ test/nilptr2.go | 3 ---
+ 2 files changed, 1 insertion(+), 5 deletions(-)

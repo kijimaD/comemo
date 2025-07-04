@@ -1,13 +1,19 @@
-commit 6cf98a4553b216a5817e37112b2c81816b6a38a8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 17 12:00:02 2011 +1100
+commit a5ff8ad9db409bfa35322c8887b2bae964fec210
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Feb 17 10:45:30 2011 +1100
 
-    net: fix windows build
+    html: tokenize HTML comments.
     
-    R=golang-dev, r2
+    I'm not sure if it's 100% correct wrt the HTML5 specification,
+    but the test suite has plenty of HTML comment test cases, and
+    we'll shake out any tokenization bugs as the parser improves its
+    coverage.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4184051
+    https://golang.org/cl/4186055
 
- src/pkg/net/multicast_test.go      |  4 ++++
- src/pkg/syscall/syscall_windows.go | 15 +++++++++++++--
- 2 files changed, 17 insertions(+), 2 deletions(-)
+ src/pkg/html/doc.go        |   3 ++
+ src/pkg/html/token.go      | 117 +++++++++++++++++++++++++++++++++++----------
+ src/pkg/html/token_test.go |  86 +++++++++++++++++++++------------
+ 3 files changed, 152 insertions(+), 54 deletions(-)

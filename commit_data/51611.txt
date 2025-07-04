@@ -1,34 +1,31 @@
-commit 245e95dfabd77f337373bf2d6bb47cd353ad8d74
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Jan 11 14:41:03 2023 -0500
+commit 5a9fc946b42cc987db41eabcfcbaffd2fb310d94
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 23 11:55:08 2022 -0500
 
-    go/types, types2: don't look up fields or methods when expecting a type
+    cmd/go: avoid +incompatible major versions if a go.mod file exists in a subdirectory for that version
     
-    As we have seen many times, the type checker must be careful to avoid
-    accessing named type information before the type is fully set up. We
-    need a more systematic solution to this problem, but for now avoid one
-    case that causes a crash: checking a selector expression on an
-    incomplete type when a type expression is expected.
+    Previous versions of the 'go' command would reject a pseudo-version
+    passed to 'go get' if that pseudo-version had a mismatched major
+    version and lacked a "+incompatible" suffix. However, they would
+    erroneously accept a version *with* a "+incompatible" suffix even if
+    the repo contained a vN/go.mod file for the same major version, and
+    would generate a "+incompatible" pseudo-version or version if the user
+    requested a tag, branch, or commit hash.
     
-    For golang/go#57522
+    This change uniformly rejects "vN.…" without "+incompatible", and also
+    avoids resolving to "vN.…+incompatible", when vN/go.mod exists.
+    To maintain compatibility with existing go.mod files, it still accepts
+    "vN.…+incompatible" if the version is requested explicitly as such
+    and the repo root lacks a go.mod file.
     
-    Change-Id: I7ed31b859cca263276e3a0647d1f1b49670023a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461577
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Fixes #51324
+    Updates #36438
+    
+    Change-Id: I2b16150c73fc2abe4d0a1cd34cb1600635db7139
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387675
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/types2/call.go            | 21 ++++++++++++++++++-
- src/cmd/compile/internal/types2/expr.go            |  2 +-
- src/cmd/compile/internal/types2/typexpr.go         |  2 +-
- src/go/types/call.go                               | 21 ++++++++++++++++++-
- src/go/types/expr.go                               |  2 +-
- src/go/types/typexpr.go                            |  2 +-
- src/internal/types/testdata/check/cycles0.go       |  2 +-
- src/internal/types/testdata/check/decls0.go        | 10 ++++-----
- src/internal/types/testdata/check/issues0.go       |  2 +-
- .../types/testdata/fixedbugs/issue39634.go         |  2 +-
- .../types/testdata/fixedbugs/issue57522.go         | 24 ++++++++++++++++++++++
- test/fixedbugs/issue18392.go                       |  2 +-
- 12 files changed, 77 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo.go      | 53 +++++++++++++++++++++------
+ src/cmd/go/internal/modfetch/coderepo_test.go | 48 ++++++++++++++++++++++++
+ 2 files changed, 89 insertions(+), 12 deletions(-)

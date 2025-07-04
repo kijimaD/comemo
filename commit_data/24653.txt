@@ -1,17 +1,14 @@
-commit 80d9106487e451f5de5d4c4e5de97002c33a0363
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Oct 28 15:27:51 2015 +1300
+commit b711f5ad8f945a6c8e823cb1e7fc65eafdb3a3e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 18 23:19:41 2015 -0400
 
-    cmd/internal/obj, cmd/link: support inital-exec TLS on arm64
+    net: document GODEBUG=netdns=xxx settings
     
-    Change-Id: Iaf9159a68fa395245bc20ccb4a2a377f89371a7e
-    Reviewed-on: https://go-review.googlesource.com/13996
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #12191.
+    
+    Change-Id: I5c7659ccb0566dad3613041d9e76be87ceacae61
+    Reviewed-on: https://go-review.googlesource.com/13700
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/obj/arm64/a.out.go   | 11 ++++++++++-
- src/cmd/internal/obj/arm64/anames7.go |  3 ++-
- src/cmd/internal/obj/arm64/asm7.go    | 30 +++++++++++++++++++++++++-----
- src/cmd/internal/obj/link.go          |  5 +++++
- src/cmd/link/internal/arm64/asm.go    |  9 ++++++++-
- src/cmd/link/internal/ld/elf.go       | 14 ++++++++------
- 6 files changed, 58 insertions(+), 14 deletions(-)
+ src/net/net.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

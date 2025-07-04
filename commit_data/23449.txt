@@ -1,18 +1,15 @@
-commit 79d4d6eca47acc3b2dd0ec598b6a55c0bb0b1b31
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 19 13:48:06 2015 -0700
+commit ed8ae79282f1ad8d06f926b366725c1be798289c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue May 12 01:13:09 2015 -0400
 
-    syscall: skip non-root user namespace test if kernel forbids
+    syscall: add test for Flock_t roundtrip
     
-    Some Linux kernels apparently have a sysctl that prohibits
-    nonprivileged processes from creating user namespaces.  If we see a
-    failure for that reason, skip the test.
+    See CL 9962 for the rationale.
     
-    Fixes #11261.
-    
-    Change-Id: I82dfcaf475eea4eaa387941373ce7165df4848ad
-    Reviewed-on: https://go-review.googlesource.com/11269
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I73c714fce258430eea1e61d3835f5c8e9014ca1f
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/9925
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_linux_test.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/syscall/syscall_unix_test.go | 59 ++++++++++++++++++++++++++++++++--------
+ 1 file changed, 47 insertions(+), 12 deletions(-)

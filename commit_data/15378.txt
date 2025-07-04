@@ -1,35 +1,27 @@
-commit 18eb3cfdfd66b3055843b6718dcc4a06137ac399
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Feb 22 14:30:44 2013 -0500
+commit d57fcbf05c431fa767467b2a04f477309b681f9d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 22 14:23:21 2013 -0500
 
-    exp/ssa: support variadic synthetic methods.
+    cmd/5l, cmd/6l, cmd/8l: accept CALL reg, reg
     
-    We wrap the final '...' argument's type in types.Slice.
-    Added tests.
+    The new src argument is ignored during linking
+    (that is, CALL r1, r2 is identical to CALL r2 for linking),
+    but it serves as a hint to the 5g/6g/8g optimizer
+    that the src register is live on entry to the called
+    function and must be preserved.
     
-    Also:
-    - Function.writeSignature: suppress slice '[]' when printing
-      variadic arg '...'.
-    - Eliminate Package.ImportPath field; redundant
-      w.r.t. Package.Types.Path.
-    - Use "TODO: (opt|fix)" notation more widely.
-    - Eliminate many redundant/stale TODOs.
+    It is possible to avoid exposing this fact to the rest of
+    the toolchain, keeping it entirely within 5g/6g/8g,
+    but I think it will help to be able to look in object files
+    and assembly listings and linker -a / -W output to
+    see CALL instructions are "Go func value" calls and
+    which are "C function pointer" calls.
     
-    R=gri
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7378057
+    https://golang.org/cl/7364045
 
- src/pkg/exp/ssa/blockopt.go                 |  2 +-
- src/pkg/exp/ssa/builder.go                  | 33 ++++++++++------------
- src/pkg/exp/ssa/doc.go                      |  9 +++---
- src/pkg/exp/ssa/emit.go                     |  2 +-
- src/pkg/exp/ssa/func.go                     |  6 ++--
- src/pkg/exp/ssa/interp/reflect.go           |  7 ++---
- src/pkg/exp/ssa/interp/testdata/coverage.go | 43 +++++++++++++++++++++++++++++
- src/pkg/exp/ssa/lift.go                     |  4 +--
- src/pkg/exp/ssa/literal.go                  |  6 ++--
- src/pkg/exp/ssa/lvalue.go                   |  6 ++--
- src/pkg/exp/ssa/print.go                    |  6 ++--
- src/pkg/exp/ssa/promote.go                  | 18 ++++++++----
- src/pkg/exp/ssa/ssa.go                      | 15 +++++-----
- 13 files changed, 100 insertions(+), 57 deletions(-)
+ src/cmd/5l/optab.c | 1 +
+ src/cmd/6l/optab.c | 3 ++-
+ src/cmd/8l/optab.c | 3 ++-
+ 3 files changed, 5 insertions(+), 2 deletions(-)

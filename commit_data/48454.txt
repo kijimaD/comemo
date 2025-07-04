@@ -1,19 +1,26 @@
-commit 4d2da99498ff55700eeddf09d603fa0618c8b55c
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sun Oct 31 21:12:45 2021 +0800
+commit ccbfbb1c3327fffe88dd6b6da550f4a0cd37db6e
+Author: Dan Scales <danscales@google.com>
+Date:   Sun May 9 11:38:34 2021 -0700
 
-    cmd/compile/internal/riscv64: add initial spill support
+    [dev.typeparams] cmd/compile: export OFUNCINST and OSELRECV2 nodes (for generic functions)
     
-    This CL adds some initial support for spilling and reloading
-    registers in the new ABI for RISCV64.
+    Added new test typeparam/factimp.go and changed a bunch of other tests
+    to test exporting more generic functions and types.
     
-    Change-Id: I5e2b4d93c33c528809d569e5a442bb302074be78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360215
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: mzh <mzh@golangcn.org>
-    Run-TryBot: mzh <mzh@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I573d75431cc92482f8f908695cfbc8e84dbb36d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321749
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/riscv64/galign.go |  2 ++
- src/cmd/compile/internal/riscv64/ssa.go    | 31 ++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+)
+ src/cmd/compile/internal/typecheck/iexport.go | 20 ++++++++++++
+ src/cmd/compile/internal/typecheck/iimport.go | 20 ++++++++++++
+ test/typeparam/combine.go                     | 28 ++++++++--------
+ test/typeparam/cons.go                        | 46 +++++++++++++--------------
+ test/typeparam/factimp.dir/a.go               | 12 +++++++
+ test/typeparam/factimp.dir/main.go            | 26 +++++++++++++++
+ test/typeparam/factimp.go                     |  7 ++++
+ test/typeparam/index.go                       |  8 ++---
+ test/typeparam/listimp.dir/a.go               |  4 +++
+ test/typeparam/listimp.dir/main.go            |  4 +++
+ test/typeparam/lockable.go                    | 16 +++++-----
+ 11 files changed, 142 insertions(+), 49 deletions(-)

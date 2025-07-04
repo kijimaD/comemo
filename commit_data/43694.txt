@@ -1,20 +1,25 @@
-commit 8eb846fd37eb7bded8a1cf6932be2c59069863e5
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Nov 4 00:26:15 2020 +1100
+commit 7f8fda3c0bfcc832934aa75b4580b4c780e1cb52
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 21 03:47:02 2020 +0700
 
-    cmd/compile,cmd/dist,cmd/go: enable pie buildmode for linux/riscv64
+    cmd/compile: use proper magnitude for (x>>c) & uppermask = 0
     
-    Enable pie as a buildmode for linux/riscv64, along with associated tests.
+    This is followup of CL 228860, which rewrite shift rules to use typed
+    aux. That CL introduced nlz* functions, to refactor left shift rules.
+    While at it, we realize there's a bug in old rules with both right/left
+    shift rules, but only fix for left shift rules only.
     
-    Change-Id: I3fb0234d534dbeb96aa6cee6ae872304fbe02cf4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267317
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This CL fixes the bug for right shift rules.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Id8f2158b1b66c9e87f3fdeaa7ae3e35dc0666f8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229137
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 2 +-
- src/cmd/dist/test.go                | 2 +-
- src/cmd/go/go_test.go               | 2 +-
- src/cmd/internal/sys/supported.go   | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  6 +++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 12 ++++++------
+ 2 files changed, 9 insertions(+), 9 deletions(-)

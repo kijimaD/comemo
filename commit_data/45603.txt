@@ -1,32 +1,29 @@
-commit 287025925f66f90ad9b30aea2e533928026a8376
-Author: Keith Randall <khr@golang.org>
-Date:   Sun May 9 11:06:17 2021 -0700
+commit 8494a6243ee5c80da51da8f4e1ad4d719eddf409
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 29 16:06:19 2020 -0400
 
-    cmd/compile,reflect: allow longer type names
+    cmd/go: make TestScript/mod_get_patchmod self-contained
     
-    Encode the length of type names and tags in a varint encoding
-    instead of a fixed 2-byte encoding. This allows lengths longer
-    than 65535 (which can happen for large unnamed structs).
+    I find it pretty difficult to reason about test-dependency modules
+    when they aren't in the same file as the rest of the test.
     
-    Removed the alignment check for #14962, it isn't relevant any more
-    since we're no longer reading pointers directly out of this data
-    (it is encoded as an offset which is copied out bytewise).
+    Now that 'go get' supports replacements (CL 258220 and CL 266018),
+    we can localize tests that need 'go get' but don't specifically depend
+    on module proxy semantics.
     
-    Fixes #44155
-    Update #14962
+    For #36460
+    For #37438
     
-    Change-Id: I6084f6027e5955dc16777c87b0dd5ea2baa49629
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318249
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib37a6c170f251435399dfc23e60d96681a81eadc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266369
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  29 ++++---
- src/cmd/link/internal/ld/decodesym.go           |   5 +-
- src/internal/reflectlite/all_test.go            |  13 ---
- src/internal/reflectlite/type.go                |  52 ++++++-----
- src/reflect/all_test.go                         |  13 ---
- src/reflect/type.go                             | 111 +++++++++++++++---------
- src/runtime/type.go                             |  53 ++++++-----
- 7 files changed, 143 insertions(+), 133 deletions(-)
+ .../go/testdata/mod/example.net_pkgremoved_v0.1.0.txt    | 16 ----------------
+ .../go/testdata/mod/example.net_pkgremoved_v0.2.0.txt    | 15 ---------------
+ .../go/testdata/mod/example.net_pkgremoved_v0.2.1.txt    | 15 ---------------
+ src/cmd/go/testdata/script/mod_get_patchmod.txt          | 16 +++++++++++++++-
+ 4 files changed, 15 insertions(+), 47 deletions(-)

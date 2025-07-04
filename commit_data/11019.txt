@@ -1,22 +1,15 @@
-commit 99fed2be279934f0e4d806833f810a3ac78f0e60
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Jan 4 09:51:15 2012 +1100
+commit 7ccd505dc47842c94898f5aed72509c54af22576
+Author: Sanjay Menakuru <balasanjay@gmail.com>
+Date:   Tue Jan 3 14:12:54 2012 +1100
 
-    html: parse <frameset> inside body
+    cmd/go: include test files in the files sent to gofmt, govet, and gofix
     
-    Pass tests6.dat, test 47:
-    <param><frameset></frameset>
+    Also, add TestGoFiles to the go command's public api.
     
-    | <html>
-    |   <head>
-    |   <frameset>
-    
-    Also pass remaining tests in tests6.dat.
-    
-    R=nigeltao
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5489136
+    https://golang.org/cl/5505083
 
- src/pkg/html/parse.go      | 13 +++++++++++++
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/go/list.go | 11 ++++++-----
+ src/cmd/go/pkg.go  | 55 ++++++++++++++++++++++++++++++------------------------
+ 2 files changed, 37 insertions(+), 29 deletions(-)

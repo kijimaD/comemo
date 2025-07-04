@@ -1,20 +1,12 @@
-commit 8801402940aa983a318ba680b7b65b5070dd35ca
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Jun 3 19:27:17 2012 +1000
+commit bbac652b31466463d66a4731365f8e0d7f0deb5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 2 23:02:39 2012 -0400
 
-    syscall: correct Win32finddata definition
+    api: add net.UnixConn's CloseRead and CloseWrite methods
     
-    Fixes #3685.
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6261053
+    https://golang.org/cl/6278045
 
- api/next.txt                              | 26 ++++++++++++++++
- src/pkg/os/file_windows.go                |  6 ++--
- src/pkg/syscall/syscall_windows.go        | 13 ++++++--
- src/pkg/syscall/syscall_windows_test.go   | 50 +++++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_windows_386.go   |  4 +--
- src/pkg/syscall/zsyscall_windows_amd64.go |  4 +--
- src/pkg/syscall/ztypes_windows.go         | 16 ++++++++++
- 7 files changed, 110 insertions(+), 9 deletions(-)
+ api/next.txt | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,15 +1,18 @@
-commit a041a752955d772a3b5e1080ee7951a66c2be12b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Mar 30 00:18:48 2022 +0200
+commit 0c40cb4a0736df4514c5e5f35fdbb87c0543fe6f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 4 21:38:40 2021 -0700
 
-    crypto/elliptic: fix BenchmarkMarshalUnmarshal/Compressed
+    [dev.typeparams] cmd/compile/internal/types2: provide valid signature in errors involving method expressions
     
-    Change-Id: Ifbf4a95e5f315a88633ec0170625cadb087167c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396934
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Trust: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    This is an adjusted port of a similar fix in https://golang.org/cl/324733.
+    
+    Fixes #46583.
+    
+    Change-Id: Ica1410e4de561e64e58b753e3da04b32156cbaf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325369
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/elliptic/elliptic_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/call.go            | 20 +++++++++++++---
+ .../types2/testdata/fixedbugs/issue46583.src       | 28 ++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 3 deletions(-)

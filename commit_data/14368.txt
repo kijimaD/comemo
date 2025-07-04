@@ -1,18 +1,12 @@
-commit cc224c004d0f389efcbb54251840bbb264ea4826
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Nov 9 21:06:45 2012 +0100
+commit 5e57954f8c57233f1217b14c1f479a8571f8d10d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 8 23:48:13 2012 -0800
 
-    cmd/6c, cmd/8c: use signed char explicitly in mul.c
+    runtime/pprof: fix typo in comment
     
-    On ARM, char is unsigned, and the code generation for
-    multiplication gets totally broken.
-    
-    Fixes #4354.
-    
-    R=golang-dev, dave, minux.ma, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6826079
+    https://golang.org/cl/6810102
 
- src/cmd/6c/mul.c | 8 ++++----
- src/cmd/8c/mul.c | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/runtime/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

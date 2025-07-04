@@ -1,15 +1,22 @@
-commit d0c1888739ac0d5d0c9f82a4b86945c0351caef6
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 2 08:11:01 2016 +1000
+commit 1747788c5668e76a238221ae4982daa5bdf24939
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Mon Apr 4 23:33:30 2016 +0200
 
-    doc: revert copyright date to 2009
+    cmd/compile: add a pass to print bound checks
     
-    Somehow this date was changed in error (by me) to 2012.
-    It should have always been 2009.
+    Since BCE happens over several passes (opt, loopbce, prove)
+    it's easy to regress especially with rewriting.
     
-    Change-Id: I87029079458d4c4eeeff2f2fc0574f10afa9af09
-    Reviewed-on: https://go-review.googlesource.com/23622
-    Reviewed-by: Rob Pike <r@golang.org>
+    The pass is only activated with special debug flag.
+    
+    Change-Id: I46205982e7a2751156db8e875d69af6138068f59
+    Reviewed-on: https://go-review.googlesource.com/21510
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- LICENSE | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/checkbce.go | 23 +++++++++
+ src/cmd/compile/internal/ssa/compile.go  |  3 ++
+ src/cmd/compile/internal/ssa/phiopt.go   |  4 ++
+ test/checkbce.go                         | 89 ++++++++++++++++++++++++++++++++
+ 4 files changed, 119 insertions(+)

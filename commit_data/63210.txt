@@ -1,0 +1,24 @@
+commit 8b1978f6143f211e1d7ed1599c1b64e3f44a1c80
+Author: David Chase <drchase@google.com>
+Date:   Fri May 23 14:49:13 2025 -0400
+
+    doc/next: add crudely processed todos
+    
+    This is the output of relnote -goroot=... todo,
+    with each todo in a comment, followed by summary
+    text from the issue and perhaps the CL, lightly
+    processed into markdown.
+    
+    For #71661.
+    
+    Change-Id: I855c4c4ee02491b5b6113822baf69dbafb4e54ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675877
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/63796.txt                                 |   2 +-
+ doc/next/6-stdlib/1-synctest.md                    |   1 +
+ .../6-stdlib/99-minor/sync/{63769.md => 63796.md}  |   0
+ doc/next/9-todo.md                                 | 202 +++++++++++++++++++++
+ 4 files changed, 204 insertions(+), 1 deletion(-)

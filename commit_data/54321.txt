@@ -1,34 +1,21 @@
-commit 67fb00396d1f0acf4b726990d5cd729ecace403c
-Author: Roland Shoemaker <bracewell@google.com>
-Date:   Thu Aug 3 12:24:13 2023 -0700
+commit c433cf189354f0b3a5e50716df57a94af5f22718
+Author: kijimaD <norimaking777@gmail.com>
+Date:   Wed Oct 5 12:56:46 2022 +0000
 
-    html/template: support HTML-like comments in script contexts
+    all: fix some typos
     
-    Per Appendix B.1.1 of the ECMAScript specification, support HTML-like
-    comments in script contexts. Also per section 12.5, support hashbang
-    comments. This brings our parsing in-line with how browsers treat these
-    comment types.
-    
-    Thanks to Takeshi Kaneko (GMO Cybersecurity by Ierae, Inc.) for
-    reporting this issue.
-    
-    Fixes #62196
-    Fixes CVE-2023-39318
-    
-    Change-Id: Id512702c5de3ae46cf648e268cb10e1eb392a181
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1976593
-    Run-TryBot: Roland Shoemaker <bracewell@google.com>
-    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526156
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I6be77e7b7c919f26bed7b6690cce6741888ba78a
+    GitHub-Last-Rev: 4ef4a7b425d0b89adf398a1bee04e9f7495813bc
+    GitHub-Pull-Request: golang/go#56051
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438991
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/html/template/context.go      |  6 ++-
- src/html/template/escape.go       |  5 ++-
- src/html/template/escape_test.go  | 10 +++++
- src/html/template/state_string.go | 26 +++++++------
- src/html/template/transition.go   | 80 +++++++++++++++++++++++++--------------
- 5 files changed, 84 insertions(+), 43 deletions(-)
+ src/go/scanner/scanner_test.go | 2 +-
+ src/os/str.go                  | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

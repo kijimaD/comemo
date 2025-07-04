@@ -1,21 +1,25 @@
-commit 2fc29a83ae265bba0f35e4cde44786b7e6fbd64c
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Dec 16 14:15:49 2014 -0800
+commit 9b5444420cec4b576aff179f632ec60be64fd7f2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Nov 6 15:14:08 2014 -0500
 
-    cmd/gc: resolve static addresses of the form &x.f at link time
+    test: move linkx and sinit to run.go
     
-    When we do y = &x for global variables x and y, y gets initialized
-    at link time.  Do the same for y = &x.f if x is a struct and y=&x[5]
-    if x is an array.
+    The remaining run-only tests will be migrated to run.go in another CL.
     
-    fixes #9217
-    fixes #9355
+    This CL will break the build due to issues 8746 and 8806.
     
-    Change-Id: Iea3c0ce2ce1b309e2b760e345608fd95460b5713
-    Reviewed-on: https://go-review.googlesource.com/1691
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Update #4139
+    Update #8746
+    Update #8806
+    
+    LGTM=rsc
+    R=rsc, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/144630044
 
- src/cmd/gc/sinit.c                | 13 ++++------
- test/fixedbugs/issue9355.dir/a.go | 16 ++++++++++++
- test/fixedbugs/issue9355.go       | 51 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 72 insertions(+), 8 deletions(-)
+ test/linkx.go     | 14 ++++----------
+ test/linkx_run.go | 32 ++++++++++++++++++++++++++++++++
+ test/run.go       |  2 --
+ test/sinit.go     | 34 +++++++++++++++++-----------------
+ test/sinit_run.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 92 insertions(+), 29 deletions(-)

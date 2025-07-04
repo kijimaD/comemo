@@ -1,44 +1,12 @@
-commit dafd9f0bfc4ef33845bc8c370e3a6bc48b39d793
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Jan 17 00:49:05 2012 -0200
+commit a5aa4d3307ccc557127d333b7b084b52d5097979
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 17 10:59:39 2012 +0900
 
-    net/url: cleaned up URL interface (v2)
+    net: fix unintentional error variable shadowing
     
-    Duplicated fields from URL were dropped so that its behavior
-    is simple and expected when being stringified and when being
-    operated by packages like http. Most of the preserved fields
-    are in unencoded form, except for RawQuery which continues to
-    exist and be more easily handled via url.Query().
-    
-    The RawUserinfo field was also replaced since it wasn't practical
-    to use and had limitations when operating with empty usernames
-    and passwords which are allowed by the RFC. In its place the
-    Userinfo type was introduced and made accessible through the
-    url.User and url.UserPassword functions.
-    
-    What was previous built as:
-    
-            url.URL{RawUserinfo: url.EncodeUserinfo("user", ""), ...}
-    
-    Is now built as:
-    
-            url.URL{User: url.User("user"), ...}
-    
-    R=rsc, bradfitz, gustavo
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5498076
+    https://golang.org/cl/5543065
 
- src/pkg/net/http/cgi/host.go              |   2 +-
- src/pkg/net/http/client.go                |   5 +-
- src/pkg/net/http/httputil/dump.go         |  12 +-
- src/pkg/net/http/httputil/reverseproxy.go |   5 -
- src/pkg/net/http/readrequest_test.go      |  30 +--
- src/pkg/net/http/request.go               |  22 +-
- src/pkg/net/http/requestwrite_test.go     |  16 +-
- src/pkg/net/http/serve_test.go            |   2 +-
- src/pkg/net/http/transport.go             |   7 +-
- src/pkg/net/url/url.go                    | 347 ++++++++++++++---------------
- src/pkg/net/url/url_test.go               | 354 ++++++++++++++++--------------
- src/pkg/websocket/hixie.go                |   8 +-
- src/pkg/websocket/hybi.go                 |   4 +-
- 13 files changed, 382 insertions(+), 432 deletions(-)
+ src/pkg/net/sock.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,19 +1,18 @@
-commit 0ca355318f6c407edb4a82a0bb0c249ffd31840b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Sep 4 05:26:54 2022 +1000
+commit c09d854f0961a997ac41a740a6e8d1892b7e6ee0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 15:50:35 2021 -0800
 
-    cmd/compile: combine masking and zero extension on riscv64
+    cmd/compile/internal/types2: set tparamsIsIface to true
     
-    Combine masking with a negative value and zero extension into a single
-    AND operation.
+    This CL enables the mode in which the underlying type of
+    type parameters is the underlying type of their constraints.
     
-    Change-Id: I0b2a735b696d65568839fc4504445eeac3d869a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428498
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: Id3471578dab098695dbd1e0429356ebcc9c5e224
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363155
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  5 +++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 53 +++++++++++++++++++++++++
- 2 files changed, 58 insertions(+)
+ src/cmd/compile/internal/types2/typeparam.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

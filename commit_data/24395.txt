@@ -1,20 +1,22 @@
-commit 7e1d1f899cbfb302447324e96da0e913ef94096c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 29 15:34:29 2015 -0700
+commit f5e67e53e79784ceb772fea50fecbd3847ae3bdf
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 24 12:33:23 2015 -0400
 
-    go/types: move gotype command into this directory
+    runtime: allow GC drain whenever write barrier is enabled
     
-    This is a copy of x/tools/cmd/gotype/gotype.go with the corresponding
-    x/tools/cmd/gotype/doc.go prepended and including a build tag (ignore).
+    Currently we hand-code a set of phases when draining is allowed.
+    However, this set of phases is conservative. The critical invariant is
+    simply that the write barrier must be enabled if we're draining.
     
-    This way, go/types can be built unaffected. If we need the gotype command,
-    it is trivially built in the go/types directory with: go build gotype.go .
+    Shortly we're going to enable mutator assists during the scan phase,
+    which means we may drain during the scan phase. In preparation, this
+    commit generalizes these assertions to check the fundamental condition
+    that the write barrier is enabled, rather than checking that we're in
+    any particular phase.
     
-    Fixes #12303.
-    
-    Change-Id: I2d792fcb39719cc5cc300f657e4735901cd20faa
-    Reviewed-on: https://go-review.googlesource.com/15152
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I0e1bec1ca823d4a697a0831ec4c50f5dd3f2a893
+    Reviewed-on: https://go-review.googlesource.com/12673
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/gotype.go | 322 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 322 insertions(+)
+ src/runtime/mgcmark.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

@@ -1,12 +1,16 @@
-commit ea51f2d304f4df094791edd704c96e0585f6b837
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 8 15:11:11 2014 -0800
+commit 6b54cc93d015e4cab1b12c8c78edf1d4a0a7cd0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 28 23:22:46 2014 -0400
 
-    cmd/objdump: Fix error logging
+    cmd/gc: fix internal compiler error in struct compare
     
-    Change-Id: I6b1b4d3e8c039ba3198cb4b9765de75859ea8c32
-    Reviewed-on: https://go-review.googlesource.com/1214
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #9006.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/167800043
 
- src/cmd/objdump/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/walk.c           | 17 ++++++++++++-----
+ test/fixedbugs/issue9006.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 5 deletions(-)

@@ -1,13 +1,14 @@
-commit d4b6a198b3b44c8c9617c72ceca9c32ba089b5a8
-Author: Patrick Mézard <patrick@mezard.eu>
-Date:   Sun Feb 23 12:53:02 2014 -0800
+commit f1e4184db62eba7cf1778b3a15251959c3e5adc2
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 21 14:35:54 2014 -0800
 
-    os/exec: explicitly mention Cmd.Wait() has to be called eventually
+    testing: improve introduction to package comment
+    Fixes #7361.
     
-    LGTM=minux.ma, r
-    R=golang-codereviews, minux.ma, r
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/67280043
+    https://golang.org/cl/66910045
 
- src/pkg/os/exec/exec.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/testing/testing.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

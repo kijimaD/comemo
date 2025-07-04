@@ -1,22 +1,74 @@
-commit a2bb68de4d1cb1ca35279523365e9caf36fb9896
-Author: Sebastiaan van Stijn <github@gone.nl>
-Date:   Fri Jan 11 15:28:04 2019 +0000
+commit c430adf1362dbe4c150cba98214fd521d0e9933a
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu Jul 12 03:23:21 2018 +0000
 
-    cmd/go: remove note about GOCACHE=off in docs
+    cmd/internal/obj/arm64: encode float constants into FMOVS/FMOVD instructions
     
-    This patch removes mention of GOCACHE=off from the help/docs.
-    It is no longer supported in Go 1.12, per the release notes.
+    Current assembler rewrites float constants to values stored in memory
+    except 0.0, which is not performant. This patch uses the FMOVS/FMOVD
+    instructions to move some available floating-point immediate constants
+    into SIMD&FP destination registers. These available constants can be
+    encoded into FMOVS/FMOVD instructions, checked by the chipfloat7() function.
     
-    Fixes #29680
+    go1 benchmark results.
+    name                     old time/op    new time/op    delta
+    BinaryTree17-8              6.27s ± 1%     6.27s ± 1%    ~     (p=0.762 n=10+8)
+    Fannkuch11-8                5.42s ± 1%     5.38s ± 0%  -0.63%  (p=0.000 n=10+10)
+    FmtFprintfEmpty-8          92.9ns ± 1%    93.4ns ± 0%  +0.47%  (p=0.004 n=9+8)
+    FmtFprintfString-8          169ns ± 2%     170ns ± 4%    ~     (p=0.378 n=10+10)
+    FmtFprintfInt-8             197ns ± 1%     196ns ± 1%  -0.77%  (p=0.009 n=10+9)
+    FmtFprintfIntInt-8          284ns ± 1%     286ns ± 1%    ~     (p=0.051 n=10+10)
+    FmtFprintfPrefixedInt-8     419ns ± 0%     422ns ± 1%  +0.69%  (p=0.038 n=6+10)
+    FmtFprintfFloat-8           458ns ± 0%     463ns ± 1%  +1.14%  (p=0.000 n=10+10)
+    FmtManyArgs-8              1.35µs ± 2%    1.36µs ± 1%  +0.91%  (p=0.043 n=10+10)
+    GobDecode-8                16.0ms ± 2%    15.5ms ± 1%   -3.39%  (p=0.000 n=10+10)
+    GobEncode-8                11.9ms ± 3%    11.4ms ± 1%   -3.98%  (p=0.000 n=10+9)
+    Gzip-8                      621ms ± 0%     625ms ± 0%   +0.59%  (p=0.000 n=9+10)
+    Gunzip-8                   74.0ms ± 1%    74.3ms ± 0%     ~     (p=0.059 n=9+8)
+    HTTPClientServer-8          116µs ± 1%     116µs ± 1%     ~     (p=0.165 n=10+10)
+    JSONEncode-8               29.3ms ± 1%    29.5ms ± 0%   +0.72%  (p=0.001 n=10+10)
+    JSONDecode-8                145ms ± 1%     148ms ± 2%   +2.06%  (p=0.000 n=10+10)
+    Mandelbrot200-8            9.67ms ± 0%    9.48ms ± 1%   -1.92%  (p=0.000 n=8+10)
+    GoParse-8                  7.55ms ± 0%    7.60ms ± 0%   +0.57%  (p=0.000 n=9+10)
+    RegexpMatchEasy0_32-8       234ns ± 0%     210ns ± 0%  -10.13%  (p=0.000 n=8+10)
+    RegexpMatchEasy0_1K-8       753ns ± 1%     729ns ± 0%   -3.17%  (p=0.000 n=10+8)
+    RegexpMatchEasy1_32-8       225ns ± 0%     224ns ± 0%   -0.44%  (p=0.000 n=9+9)
+    RegexpMatchEasy1_1K-8      1.03µs ± 0%    1.04µs ± 1%   +1.29%  (p=0.000 n=10+10)
+    RegexpMatchMedium_32-8      320ns ± 3%     296ns ± 6%   -7.50%  (p=0.000 n=10+10)
+    RegexpMatchMedium_1K-8     77.0µs ± 5%    73.6µs ± 1%     ~     (p=0.393 n=10+10)
+    RegexpMatchHard_32-8       3.93µs ± 0%    3.89µs ± 1%   -0.95%  (p=0.000 n=10+9)
+    RegexpMatchHard_1K-8        120µs ± 5%     115µs ± 1%     ~     (p=0.739 n=10+10)
+    Revcomp-8                   1.07s ± 0%     1.08s ± 1%   +0.63%  (p=0.000 n=10+9)
+    Template-8                  165ms ± 1%     163ms ± 1%   -1.05%  (p=0.001 n=8+10)
+    TimeParse-8                 751ns ± 1%     749ns ± 1%     ~     (p=0.209 n=10+10)
+    TimeFormat-8                759ns ± 1%     751ns ± 1%   -0.96%  (p=0.001 n=10+10)
     
-    Change-Id: I53ab15a62743f2e55ae1d8aa50629b1bf1ae32ad
-    GitHub-Last-Rev: 31e904f51dece13645696a87b1164d86c984457f
-    GitHub-Pull-Request: golang/go#29681
-    Reviewed-on: https://go-review.googlesource.com/c/157517
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    name                     old speed      new speed      delta
+    GobDecode-8              48.0MB/s ± 2%  49.6MB/s ± 1%   +3.50%  (p=0.000 n=10+10)
+    GobEncode-8              64.5MB/s ± 3%  67.1MB/s ± 1%   +4.08%  (p=0.000 n=10+9)
+    Gzip-8                   31.2MB/s ± 0%  31.1MB/s ± 0%   -0.55%  (p=0.000 n=9+8)
+    Gunzip-8                  262MB/s ± 1%   261MB/s ± 0%     ~     (p=0.059 n=9+8)
+    JSONEncode-8             66.3MB/s ± 1%  65.8MB/s ± 0%   -0.72%  (p=0.001 n=10+10)
+    JSONDecode-8             13.4MB/s ± 1%  13.2MB/s ± 1%   -2.02%  (p=0.000 n=10+10)
+    GoParse-8                7.67MB/s ± 0%  7.63MB/s ± 0%   -0.57%  (p=0.000 n=9+10)
+    RegexpMatchEasy0_32-8     136MB/s ± 0%   152MB/s ± 0%  +11.45%  (p=0.000 n=10+10)
+    RegexpMatchEasy0_1K-8    1.36GB/s ± 1%  1.40GB/s ± 0%   +3.25%  (p=0.000 n=10+8)
+    RegexpMatchEasy1_32-8     142MB/s ± 0%   143MB/s ± 0%   +0.35%  (p=0.000 n=10+9)
+    RegexpMatchEasy1_1K-8     992MB/s ± 0%   980MB/s ± 1%   -1.27%  (p=0.000 n=10+10)
+    RegexpMatchMedium_32-8   3.12MB/s ± 3%  3.38MB/s ± 6%   +8.17%  (p=0.000 n=10+10)
+    RegexpMatchMedium_1K-8   13.3MB/s ± 5%  13.9MB/s ± 1%     ~     (p=0.362 n=10+10)
+    RegexpMatchHard_32-8     8.14MB/s ± 0%  8.21MB/s ± 1%   +0.95%  (p=0.000 n=10+9)
+    RegexpMatchHard_1K-8     8.54MB/s ± 5%  8.90MB/s ± 1%     ~     (p=0.636 n=10+10)
+    Revcomp-8                 238MB/s ± 0%   236MB/s ± 1%   -0.63%  (p=0.000 n=10+9)
+    Template-8               11.8MB/s ± 1%  11.9MB/s ± 1%   +1.07%  (p=0.001 n=8+10)
+    
+    Change-Id: I57b372d8dcd47e6aec39893843b20385d5d9c37e
+    Reviewed-on: https://go-review.googlesource.com/129555
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go               | 1 -
- src/cmd/go/internal/help/helpdoc.go | 1 -
- 2 files changed, 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s | 10 +++++++--
+ src/cmd/internal/obj/arm64/asm7.go        | 35 ++++++++++++++++---------------
+ src/cmd/internal/obj/arm64/obj7.go        |  9 +++++++-
+ 3 files changed, 34 insertions(+), 20 deletions(-)

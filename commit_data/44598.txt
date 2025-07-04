@@ -1,27 +1,22 @@
-commit f9ed8b3f1e180d3cd8534897103683e8165df5f0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 28 21:47:32 2020 -0400
+commit 82c45eb68187d7827bca392d528dbfa06607e3f0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Jul 27 12:08:56 2020 +0700
 
-    cmd/go/internal/mvs: factor out an incremental implementation
+    cmd/compile: handle OCLOSURE/OCALLPART in mustHeapAlloc check
     
-    The new Graph type implements an incremental version of the MVS
-    algorithm, with requirements pushed in by the caller instead of pulled
-    by an internal MVS traversal.
+    Currently, generated struct wrapper for closure is not handled in
+    mustHeapAlloc. That causes compiler crashes when the wrapper struct
+    is too large for stack, and must be heap allocated instead.
     
-    To avoid redundancy going forward (and to ensure adequate test
-    coverage of the incremental implementation), the existing buildList
-    function is reimplemented in terms of Graph.
+    Fixes #39292
     
-    For #36460
-    
-    Change-Id: Idd0b6ab8f17cc41d83a2a4c25a95f82e9ce1eab0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244760
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I14c1e591681d9d92317bb2396d6cf5207aa93e08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244917
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/mvs/errors.go |  10 +-
- src/cmd/go/internal/mvs/graph.go  | 223 ++++++++++++++++++++++++++++++++++++++
- src/cmd/go/internal/mvs/mvs.go    | 167 +++++++++-------------------
- 3 files changed, 282 insertions(+), 118 deletions(-)
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ src/cmd/compile/internal/gc/esc.go     |  7 +++++++
+ test/fixedbugs/issue39292.go           | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 1 deletion(-)

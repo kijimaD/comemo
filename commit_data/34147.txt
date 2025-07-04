@@ -1,21 +1,31 @@
-commit 3d4c9cecc8781364df0f1084594bccbb0378021d
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Jan 17 20:26:23 2018 +0100
+commit c85b12b5796c7efd4d8311253208b47449161361
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 14 11:46:35 2017 -0400
 
-    cmd/compile: change type of clear argument of ordercopyexpr to bool
+    runtime: make LockOSThread/UnlockOSThread nested
     
-    ordercopyexpr is only called with 0 or 1 as value for the clear
-    argument. The clear variable in ordercopyexpr is only used in the
-    call to ordertemp which has a clear argument of type bool.
+    Currently, there is a single bit for LockOSThread, so two calls to
+    LockOSThread followed by one call to UnlockOSThread will unlock the
+    thread. There's evidence (#20458) that this is almost never what
+    people want or expect and it makes these APIs very hard to use
+    correctly or reliably.
     
-    Change the clear argument of ordercopyexpr from int to bool and change
-    calls to ordercopyexpr to use false instead of 0 and true instead of 1.
+    Change this so LockOSThread/UnlockOSThread can be nested and the
+    calling goroutine will not be unwired until UnlockOSThread has been
+    called as many times as LockOSThread has. This should fix the vast
+    majority of incorrect uses while having no effect on the vast majority
+    of correct uses.
     
-    Passes toolstash -cmp.
+    Fixes #20458.
     
-    Change-Id: Ic264aafd3b0c8b99f6ef028ffaa2e30f23f9125a
-    Reviewed-on: https://go-review.googlesource.com/88115
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I1464e5e9a0ea4208fbb83638ee9847f929a2bacb
+    Reviewed-on: https://go-review.googlesource.com/45752
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 44 ++++++++++++++++++------------------
- 1 file changed, 22 insertions(+), 22 deletions(-)
+ src/runtime/export_test.go | 14 ++++++++++++++
+ src/runtime/proc.go        | 42 ++++++++++++++++++++++++++++--------------
+ src/runtime/proc_test.go   | 24 ++++++++++++++++++++++++
+ src/runtime/runtime2.go    | 15 ++-------------
+ 4 files changed, 68 insertions(+), 27 deletions(-)

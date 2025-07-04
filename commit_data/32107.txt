@@ -1,17 +1,24 @@
-commit 58ad0176ca280c07a966249a3208f707ee0b1989
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Fri Aug 4 12:59:55 2017 -0700
+commit 9741f0275c79786e16bdbe7b8ddfeecda421181f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 16 14:55:10 2017 -0400
 
-    doc: use better wording to explain type-aware completion
+    runtime: initialize more fields of stack spans
     
-    Some editors can filter the autocompletion suggestions based on
-    whether the code will compile once autocompleted. Explain this
-    feature with better wording.
+    Stack spans don't internally use many of the fields of the mspan,
+    which means things like the size class and element size get left over
+    from whatever last used the mspan. This can lead to confusing crashes
+    and debugging.
     
-    Change-Id: I29e4b0396878f18c79208915402c0a209a813b04
-    Reviewed-on: https://go-review.googlesource.com/53355
-    Reviewed-by: Florin Patan <florinpatan@gmail.com>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Zero these fields or initialize them to something reasonable. This
+    also lets us simplify some code that currently has to distinguish
+    between heap and stack spans.
+    
+    Change-Id: I9bd114e76c147bb32de497045b932f8bf1988bbf
+    Reviewed-on: https://go-review.googlesource.com/38573
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/editors.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mheap.go | 8 +++++---
+ src/runtime/stack.go | 4 +++-
+ 2 files changed, 8 insertions(+), 4 deletions(-)

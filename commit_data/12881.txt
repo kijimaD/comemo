@@ -1,23 +1,14 @@
-commit 6277656d69640da9166bbac2a132a3ddee61dcac
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Apr 12 09:35:43 2012 +1000
+commit 772e8ff4584ac6b97d8f3c38f0b21161ca72fe81
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Apr 11 12:57:38 2012 -0400
 
-    html, exp/html: escape ' and " as &#39; and &#34;, since IE8 and
-    below do not support &apos;.
+    crypto/rsa: fix Verify for multi-prime keys.
     
-    This makes package html consistent with package text/template's
-    HTMLEscape function.
+    The least common multiple is not totient/gcd.
     
-    Fixes #3489.
-    
-    R=rsc, mikesamuel, dsymonds
+    R=remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/5992071
+    https://golang.org/cl/5990045
 
- src/pkg/exp/html/escape.go      |  8 +++++---
- src/pkg/exp/html/render_test.go |  2 +-
- src/pkg/exp/html/token_test.go  | 11 ++++++-----
- src/pkg/html/escape.go          |  8 +++++---
- src/pkg/net/http/server.go      |  6 ++++--
- src/pkg/text/template/funcs.go  |  2 +-
- 6 files changed, 22 insertions(+), 15 deletions(-)
+ src/pkg/crypto/rsa/rsa.go | 36 ++++++++++++------------------------
+ 1 file changed, 12 insertions(+), 24 deletions(-)

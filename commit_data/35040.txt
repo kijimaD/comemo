@@ -1,15 +1,14 @@
-commit 24d5c871aa8c2107965e35e838514af8488e4bad
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 18 08:52:40 2018 -0700
+commit 31f8ca51fcaa961254ecb580a2fd63c11b43fc2e
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Thu Dec 7 14:05:08 2017 +0300
 
-    cmd/compile: alphabetize sysfunc lists
+    net/http: use correct method name in Server.ServeTLS docs
     
-    Change-Id: Ia95643752d743d208363e3434497ffcf0af7b2d7
-    Reviewed-on: https://go-review.googlesource.com/107816
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Closes #23028
+    
+    Change-Id: I469f1ab2dee9151334b38e0d3a22eb9840c8807b
+    Reviewed-on: https://go-review.googlesource.com/82495
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/go.go  | 36 ++++++++++++++++++------------------
- src/cmd/compile/internal/gc/ssa.go | 34 +++++++++++++++++-----------------
- 2 files changed, 35 insertions(+), 35 deletions(-)
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

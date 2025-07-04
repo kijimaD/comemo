@@ -1,13 +1,21 @@
-commit 63f59b6322c78e4b1dd256d8a5fe7e9c468183a4
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Mar 24 12:58:51 2015 -0400
+commit f47e581e022a29669d4dd6b62f8bf7d45c8395e5
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Feb 11 19:11:32 2015 +0300
 
-    doc/go1.4.html: fix typo
+    runtime: do not do futile netpolls
     
-    Change-Id: I5bfeeef53665b1ef79ec0e4a6ae0eb4aa3e95603
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/8021
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    There is no sense in trying to netpoll while there is
+    already a thread blocked in netpoll. And in most cases
+    there must be a thread blocked in netpoll, because
+    the first otherwise idle thread does blocking netpoll.
+    
+    On some program I see that netpoll called from findrunnable
+    consumes 3% of time.
+    
+    Change-Id: I0af1a73d637bffd9770ea50cb9278839716e8816
+    Reviewed-on: https://go-review.googlesource.com/4553
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
 
- doc/go1.4.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc1.go | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

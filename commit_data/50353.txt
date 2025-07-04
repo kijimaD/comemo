@@ -1,16 +1,32 @@
-commit 11c5bf521e676a379fbf17d956c61acd3d33eb31
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat Sep 3 07:09:54 2022 +0800
+commit 9fa85518ff84420af644b1dd82ff311a39cd99c1
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 18 12:19:07 2021 -0700
 
-    go/doc: using strings.Builder
+    cmd/compile: substitute "". prefix with package in more import locations
     
-    Change-Id: I9658c37a548a386c57d83dc13d5e9925a9c13211
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428140
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The "" stand-in for the current package needs to be substituted
+    in more places when importing, because of generics.
+    
+    ""..dict.conv4["".MyString]
+    
+    when imported in main and then exported, this becomes
+    
+    a..dict.conv4["".MyString]
+    
+    and then the linker makes that into
+    
+    a..dict.conv4[main.MyString]
+    
+    Which isn't correct. We need to replace on import not just
+    function names, but also globals, which this CL does.
+    
+    Change-Id: Ia04a23b5ffd60aeeaba72c807f69261105670f8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356570
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/go/doc/headscan.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go | 32 +++++++++++++++++----------
+ 1 file changed, 20 insertions(+), 12 deletions(-)

@@ -1,12 +1,22 @@
-commit 3230fd1469faa93fc3414ec7ee7cbc809daccd8f
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Sat May 21 07:38:01 2011 +1000
+commit bf73ca88a67eb0abc4ce711f261d093466021025
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 11:51:31 2011 -0700
 
-    fmt: scanning doc fix
+    syscall: sendfile
     
-    R=r
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/4539073
+    https://golang.org/cl/4553051
 
- src/pkg/fmt/doc.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/syscall/syscall_darwin.go       | 5 +++++
+ src/pkg/syscall/syscall_freebsd.go      | 5 +++++
+ src/pkg/syscall/syscall_linux.go        | 1 -
+ src/pkg/syscall/syscall_linux_386.go    | 1 +
+ src/pkg/syscall/syscall_linux_amd64.go  | 1 +
+ src/pkg/syscall/syscall_linux_arm.go    | 1 +
+ src/pkg/syscall/syscall_plan9.go        | 5 +++++
+ src/pkg/syscall/syscall_windows.go      | 5 +++++
+ src/pkg/syscall/zsyscall_linux_386.go   | 9 +++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 9 +++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 9 +++++++++
+ 11 files changed, 50 insertions(+), 1 deletion(-)

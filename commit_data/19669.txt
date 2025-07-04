@@ -1,13 +1,13 @@
-commit 48347cc1ebda367d52ca106210cb534d8b113509
-Author: Tetsuo Kiso <tetsuokiso9@gmail.com>
-Date:   Mon Jul 7 16:31:20 2014 +1000
+commit 67afeac2ab6a71d4d3b456c90bd99de9e7ae4185
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jul 5 08:48:04 2014 +0400
 
-    doc/contribute.html: capitalize the first letter
+    image/gif: fix nil deref in test
     
-    LGTM=dave
-    R=golang-codereviews, dave
+    LGTM=crawshaw, dave
+    R=golang-codereviews, crawshaw, dave
     CC=golang-codereviews
-    https://golang.org/cl/109080048
+    https://golang.org/cl/104520044
 
- doc/contribute.html | 2 +-
+ src/pkg/image/gif/writer_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

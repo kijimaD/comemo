@@ -1,24 +1,26 @@
-commit 0a6df4a87b8333e1029c1940c84e39fad66352fa
-Author: Adam Langley <agl@golang.org>
-Date:   Sat Jun 13 13:50:02 2015 -0700
+commit 79afb43a0a42abb435c9a7596d66759eb7af18f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 21 17:00:37 2015 -0700
 
-    encoding/asn1: don't parse invalid UTF-8.
+    math/big: fix Float.Float32 conversion for denormal corner cases
     
-    Invalid UTF-8 triggers an error when marshaling but, previously, not
-    when unmarshaling. This means that ASN.1 structures were not
-    round-tripping.
+    The existing code was incorrect for numbers that after rounding would
+    become the smallest denormal float32 (instead the result was 0). This
+    caused all.bash to fail if Float32() were used in the compiler for
+    constant arithmetic (there's currently a work-around - see also issue
+    10321.
     
-    This change makes invalid UTF-8 in a string marked as UTF-8 to be an
-    error when Unmarshaling.
+    This change fixes the implementation of Float.Float32 and adds
+    corresponding test cases. Float32 and Float64 diverge at this point.
+    For ease of review, this change only fixes Float32. Float64 will be
+    made to match in a subsequent change.
     
-    Fixes #11126.
+    Fixes #10321.
     
-    Change-Id: Ic37be84d21dc5c03983525e244d955a8b1e1ff14
-    Reviewed-on: https://go-review.googlesource.com/11056
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iccafe37c1593a4946bc552e4ad2045f69be62d80
+    Reviewed-on: https://go-review.googlesource.com/10350
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/encoding/asn1/asn1.go      |  4 ++++
- src/encoding/asn1/asn1_test.go | 18 ++++++++++++++++++
- 2 files changed, 22 insertions(+)
+ src/math/big/float.go      | 79 +++++++++++++++++++++------------------
+ src/math/big/float_test.go | 93 +++++++++++++++++++++++++++++-----------------
+ 2 files changed, 101 insertions(+), 71 deletions(-)

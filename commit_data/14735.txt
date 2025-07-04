@@ -1,24 +1,30 @@
-commit 3aed92f81136da6dc5848593fcf6f8b8d5c65c5e
+commit 04098d88fa1b4d41557ac6824a528d092d562936
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 22 17:23:33 2012 -0500
+Date:   Sat Dec 22 16:46:46 2012 -0500
 
-    cmd/gc: add diagnostic for var, type, const named init
+    cmd/gc: make forward declaration in pure Go package an error
     
-    Before this CL, defining the variable worked fine, but then when
-    the implicit package-level init func was created, that caused a
-    name collision and a confusing error about the redeclaration.
+    An error during the compilation can be more precise
+    than an error at link time.
     
-    Also add a test for issue 3705 (func init() needs body).
+    For 'func init', the error happens always: you can't forward
+    declare an init func because the name gets mangled.
     
-    Fixes #4517.
+    For other funcs, the error happens only with the special
+    (and never used by hand) -= flag, which tells 6g the
+    package is pure go.
+    
+    The go command now passes -= for pure Go packages.
+    
+    Fixes #3705.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/7008045
+    https://golang.org/cl/6996054
 
- src/cmd/gc/dcl.c             | 3 +++
- test/fixedbugs/issue3705.go  | 9 +++++++++
- test/fixedbugs/issue4517a.go | 9 +++++++++
- test/fixedbugs/issue4517b.go | 9 +++++++++
- test/fixedbugs/issue4517c.go | 9 +++++++++
- 5 files changed, 39 insertions(+)
+ doc/progs/error.go  |  6 +++++-
+ src/cmd/gc/go.h     |  1 +
+ src/cmd/gc/lex.c    |  5 +++--
+ src/cmd/gc/pgen.c   | 11 +++++++----
+ src/cmd/go/build.go | 17 +++++++++++++++++
+ 5 files changed, 33 insertions(+), 7 deletions(-)

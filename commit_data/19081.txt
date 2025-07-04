@@ -1,21 +1,15 @@
-commit 3d63ec240edfc596a8840f7a7e5218fa28e55c04
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Wed Apr 9 12:28:27 2014 -0400
+commit c9133e32f68008a0edb586fe71479a8f326d4505
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 9 10:08:35 2014 -0400
 
-    misc/emacs: ignore backquote in comment or string
+    doc: tweak Solaris wording
     
-    go-mode on Emacs 23 wrongly recognizes a backquote in a comment or
-    a string as a start of a raw string literal. Below is an example
-    that go-mode does not work well. This patch is to fix that issue.
+    Suggested in comments on CL 85740043.
     
-      // `
-      var x = 1
-      // `
-    
-    LGTM=dominik.honnef
-    R=golang-codereviews, dominik.honnef, adonovan
-    CC=golang-codereviews
-    https://golang.org/cl/84900043
+    LGTM=aram
+    R=golang-codereviews, aram
+    CC=dave, golang-codereviews, r
+    https://golang.org/cl/85990044
 
- misc/emacs/go-mode.el | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ doc/go1.3.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

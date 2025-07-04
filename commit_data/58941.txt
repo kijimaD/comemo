@@ -1,18 +1,29 @@
-commit f27d86c631188239362d2db78fd36440743dac2e
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Mar 3 14:46:18 2025 -0800
+commit 749ebaa4460af237f9facbc43af3e055802dc0be
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 23 17:08:50 2024 -0500
 
-    cmd/compile: add tests for too-large shift amounts
+    net: ignore Dial errors in TestAcceptTimeout
     
-    Update #72018
+    Also use DialContext instead of just Dial so that we can ensure
+    the call returns before we close the listener.
     
-    Change-Id: I3188019658c37da3c31f06472023b39e13170ebf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654316
+    The Dial in this test is intended to complete before the call to
+    Accept, but there is no synchronization to ensure that and sometimes
+    it doesn't happen. That's ok and mostly immaterial to the test, but it
+    does mean we need to ignore Dial errors (which can happen when the
+    listener is closed), and we need to be a little more careful about not
+    dialing a port that may have already been reused by some other test.
+    
+    Fixes #65240.
+    Updates #17948.
+    
+    Change-Id: Ife1b5c3062939441b58f4c096461bf5d7841889b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558175
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/test/shift_test.go | 203 ++++++++++++++++++++++++++++
- 1 file changed, 203 insertions(+)
+ src/net/timeout_test.go | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)

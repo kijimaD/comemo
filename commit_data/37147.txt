@@ -1,25 +1,23 @@
-commit 37afd3e31100a06229da61549abf5210a1dae8d0
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Oct 28 20:46:58 2018 +0000
+commit 32bc0976f9c4333e4a9247d6acc908972c6c5d79
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 28 15:42:20 2018 -0400
 
-    text/template/parse: simplify Tree.pipeline
+    cmd/link: use side table instead of sym.Symbol 'Reachparent' field
     
-    The pipeline parsing code was unnecessarily complex. It used a for loop
-    with a trailing break, a complex switch, and up to seven levels of
-    indentation.
+    The sym.Symbol 'Reachparent' field is used only when field tracking
+    is enabled. So as to use less memory for the common case where
+    field tracking is not enabled, remove this field and use a side
+    table stored in the context to achieve the same functionality.
     
-    Instead, drop the loop in favor of a single named goto with a comment,
-    and flatten out the complex switch to be easier to follow. Two lines of
-    code are now duplicated, but they're simple and only three lines apart.
+    Updates #26186
     
-    While at it, move the pipe initialization further up to remove the need
-    for three variables.
-    
-    Change-Id: I07b29de195f4000336219aadeadeacaaa4285c58
-    Reviewed-on: https://go-review.googlesource.com/c/145285
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idc5f8b0aa323689d4d51dddb5d1b0341a37bb7d2
+    Reviewed-on: https://go-review.googlesource.com/121915
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/parse/parse.go | 72 ++++++++++++++++++----------------------
- 1 file changed, 32 insertions(+), 40 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go |  4 +++-
+ src/cmd/link/internal/ld/go.go       |  2 +-
+ src/cmd/link/internal/ld/link.go     |  3 +++
+ src/cmd/link/internal/ld/main.go     |  5 +++++
+ src/cmd/link/internal/sym/symbol.go  | 21 ++++++++++-----------
+ 5 files changed, 22 insertions(+), 13 deletions(-)

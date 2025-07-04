@@ -1,17 +1,31 @@
-commit 985d91666cebbd0aef36034cc28596da280ead37
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Dec 7 15:10:43 2020 +0000
+commit 1667b35740bd6974082cba6b48b4ea1881e29088
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 30 21:15:54 2020 -0400
 
-    runtime/metrics: add a note about floating-point values to package docs
+    [dev.link] cmd/link: directly use loader.ExtReloc in ELF relocation generation
     
-    This change adds a note to the package documentation that the package
-    will never produce a NaN or infinity, to help ease usability.
+    Convert the part that uses relocations to use loader.ExtReloc
+    directly. It still uses sym.Symbols for now, but not sym.Relocs.
     
-    Change-Id: I72ff6ab636ca23722a68ef11e707c68b0724ac04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275854
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    This reduces some memory usage: linking cmd/compile with external
+    linking,
+    
+    name             old allocs/op  new allocs/op  delta
+    Loadlibfull_GC     52.2MB ± 0%    13.9MB ± 0%  -73.40%  (p=0.008 n=5+5)
+    
+    name             old live-B     new live-B     delta
+    Loadlibfull_GC      75.5M ± 0%     61.9M ± 0%  -18.02%  (p=0.008 n=5+5)
+    
+    Change-Id: I317ecbf516063c42b255b2caba310ea6281342d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231319
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/metrics/doc.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/link/internal/amd64/asm.go     | 26 +++++++-------
+ src/cmd/link/internal/amd64/obj.go     |  2 +-
+ src/cmd/link/internal/ld/elf.go        | 31 +++++++++-------
+ src/cmd/link/internal/ld/elf2.go       | 54 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go        |  5 +--
+ src/cmd/link/internal/ld/main.go       |  7 ++--
+ src/cmd/link/internal/loader/loader.go | 66 +++++++++++++++++++++++++---------
+ 7 files changed, 144 insertions(+), 47 deletions(-)

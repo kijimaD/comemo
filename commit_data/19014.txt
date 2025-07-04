@@ -1,16 +1,20 @@
-commit 9121e7e4df8e3867be2929cb2188272fbfe4408e
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Apr 3 13:44:44 2014 +1100
+commit 7d299d031d383c5279b4ed58c99e4cf96eb6b9b8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 2 17:06:51 2014 -0700
 
-    runtime: check that new slice cap doesn't overflow
+    net: don't export netFD readFrom, writeTo, readMsg, writeMsg methods
     
-    Fixes #7550.
+    There is no way to call them from outside the net package.
+    They are used to implement UCPConn.ReadMsgUDP and similar.
     
-    LGTM=iant
-    R=golang-codereviews, iant, josharian
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/83520043
+    https://golang.org/cl/83730044
 
- src/pkg/runtime/slice.goc   |  2 +-
- test/fixedbugs/issue7550.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_unix.go         |  8 ++++----
+ src/pkg/net/fd_windows.go      |  8 ++++----
+ src/pkg/net/iprawsock_posix.go |  8 ++++----
+ src/pkg/net/udpsock_posix.go   |  8 ++++----
+ src/pkg/net/unixsock_posix.go  | 10 +++++-----
+ 5 files changed, 21 insertions(+), 21 deletions(-)

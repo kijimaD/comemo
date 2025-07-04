@@ -1,14 +1,12 @@
-commit 5f7337769c4a09c34d32ca29ffdeb5c5c19aca41
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 13 13:38:36 2012 -0800
+commit 87ceb0cec73b93064be4b65da6bee265addc2027
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 13 11:48:57 2012 -0800
 
-    spec: change the wording regarding select statement choice
-    s/pseudo-random fair/uniform pseudo-random/
-    This careful word choice soothes the theoretically inclined.
+    bytes: make Write and WriteString code look the same
     
-    R=golang-dev, rsc, gri
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5528098
+    https://golang.org/cl/5540056
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/bytes/buffer.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

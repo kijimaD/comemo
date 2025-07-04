@@ -1,23 +1,23 @@
-commit 6367c19f26b9b84cee73264522d6ebfc05801053
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed Sep 6 00:10:50 2017 +0530
+commit 9eacd977a0d2329ea5856db7ab9bf5130f7bafcc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 9 06:40:04 2017 -0700
 
-    cmd/internal/obj/x86: add some more AVX2 instructions
+    cmd/go: put user flags after code generation flag
     
-    This adds the VFMADD[213|231]SD, VFNMADD[213|231]SD,
-    VADDSD, VSUBSD instructions
+    This permits the user to override the code generation flag when they
+    know better. This is always a good policy for all flags automatically
+    inserted by the build system.
     
-    This will allow us to write a fast path for exp_amd64.s where
-    these optimizations can be applied in a lot of places.
+    Doing this now so that I can write a test for #20290.
     
-    Change-Id: Ide292107ab887bd1e225a1ad60880235b5ed7c61
-    Reviewed-on: https://go-review.googlesource.com/61810
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Update #20290
+    
+    Change-Id: I5c6708a277238d571b8d037993a5a59e2a442e98
+    Reviewed-on: https://go-review.googlesource.com/42952
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 96 ++++++++++++++--------------
- src/cmd/internal/obj/x86/a.out.go            |  6 ++
- src/cmd/internal/obj/x86/anames.go           |  6 ++
- src/cmd/internal/obj/x86/asm6.go             | 10 +++
- 4 files changed, 70 insertions(+), 48 deletions(-)
+ src/cmd/go/go_test.go             | 28 ++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/build.go |  6 +++---
+ 2 files changed, 31 insertions(+), 3 deletions(-)

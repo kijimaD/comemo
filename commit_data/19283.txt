@@ -1,15 +1,17 @@
-commit 3b3e5ea460dab2468d46da501cc78757d30a2475
+commit b211d0601420dbd26ef98f2c7de8167e3fdea865
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed May 7 11:58:25 2014 +1000
+Date:   Wed May 7 10:16:55 2014 +1000
 
-    cmd/addr2line: skip broken TestAddr2Line on plan9 (fixes build)
+    cmd/addr2line: works with windows pe executables now
     
-    Update #7947
+    Update #7406
+    Fixes #7899
     
     LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    R=golang-codereviews, rsc, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/100180043
+    https://golang.org/cl/96960043
 
- src/cmd/addr2line/addr2line_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/addr2line/addr2line_test.go | 104 ++++++++++++++++++++++++++++++++++++
+ src/cmd/addr2line/main.go           |  48 ++++++++++++++---
+ 2 files changed, 144 insertions(+), 8 deletions(-)

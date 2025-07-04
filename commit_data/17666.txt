@@ -1,18 +1,12 @@
-commit 521dbbfef3f24eee4effb872bf358870958ac7cd
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Sep 22 17:31:08 2013 +1000
+commit f70116102b03ea864ae13245716344ee2f2a8b88
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Sun Sep 22 07:28:52 2013 +1000
 
-    runtime/pprof: run TestGoroutineSwitch for longer
+    doc/go1.2.html: Go 1.2, not Go1.2
     
-    Short test now takes about 0.5 second here.
-    
-    Fixes #6417.
-    
-    The failure was also seen on our builders.
-    
-    R=golang-dev, minux.ma, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/13321048
+    https://golang.org/cl/13735044
 
- src/pkg/runtime/pprof/pprof_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/go1.2.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

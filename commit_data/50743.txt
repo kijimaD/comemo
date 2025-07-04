@@ -1,17 +1,25 @@
-commit 13159fef0423fe908aac676d7c4f377c2ae41f49
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Thu Sep 29 21:40:39 2022 +0800
+commit 67e22941dfe1555d8597e48f49ff86d3be340a36
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 8 21:45:58 2021 +0000
 
-    go: replace bytes.Compare with bytes.Equal
+    Revert "cmd/go: add workspace pruning mode"
     
-    Change-Id: I268033bfcda34b76ef1d3a3446d6d1d875fc33ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436716
-    Run-TryBot: xie cui <523516579@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This reverts CL 357169.
+    
+    Reason for revert: appears to be failing on longtest SlowBot.¹
+    
+    ¹https://storage.googleapis.com/go-build-log/a97c855b/linux-amd64-longtest_7c9857d4.log
+    
+    Change-Id: I3b94395671db78ed5fb2fb1019e7199e4ffbd272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362249
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/internal/gccgoimporter/ar.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modload/buildlist.go  | 86 ++++++++-----------------------
+ src/cmd/go/internal/modload/init.go       | 44 ++++++++--------
+ src/cmd/go/internal/modload/load.go       | 24 +--------
+ src/cmd/go/internal/modload/modfile.go    | 14 ++---
+ src/cmd/go/testdata/script/work_prune.txt |  2 +-
+ 5 files changed, 49 insertions(+), 121 deletions(-)

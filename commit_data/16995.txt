@@ -1,30 +1,12 @@
-commit b8b48abe0fbd3ce6a1f8332da8ad6b8885a3aa1d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Aug 2 10:19:52 2013 -0700
+commit 97863bb8afb025b06cea1032f605207b899764f3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 2 13:29:45 2013 +1000
 
-    misc/dist: don't ship cmd/api
+    image/draw: fix typos found by "go vet".
     
-    cmd/api is a tool to prevent the Go developers from breaking
-    the Go 1 API promise. It has no utility to end users and
-    doesn't run on arbitrary packages (it's always been full of
-    hacks for its bespoke type checker to work on the standard
-    library)
-    
-    Robert's in-progress rewrite depends on the go.tools repo for
-    go/types, so we won't be able to ship this tool later
-    anyway. Just remove it from binary distributions.
-    
-    A future change to run.bash can conditionally build & run
-    cmd/api, perhaps automatically fetching go/types if
-    necessary. I assume people don't want to vendor go/types into
-    a private gopath just for cmd/api.
-    
-    I will need help with run.bat.
-    
-    R=golang-dev, adg, dsymonds, rsc
+    R=r, adg, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12316043
+    https://golang.org/cl/12312043
 
- misc/dist/bindist.go | 1 +
- src/run.bash         | 9 ++++++---
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/pkg/image/draw/draw_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

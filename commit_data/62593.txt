@@ -1,0 +1,26 @@
+commit f41fdd962db3264e62ec6acb4a8f5e40d22bdfed
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Fri Dec 13 17:20:38 2024 +0800
+
+    cmd/internal/obj/loong64: add {V,XV}NEG{B/H/W/V} instructions support
+    
+    Go asm syntax:
+             VNEG{B/H/W/V}          VJ, VD
+            XVNEG{B/H/W/V}          XJ, XD
+    
+    Equivalent platform assembler syntax:
+             vneg.{b/h/w/d}         vd, vj
+            xvneg.{b/h/w/d}         xd, xj
+    
+    Change-Id: Ie0a82a434b0ffbcb77425a65b96eff56e030028c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635935
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 10 ++++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 10 ++++++++++
+ src/cmd/internal/obj/loong64/anames.go          |  8 ++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 24 ++++++++++++++++++++++++
+ 4 files changed, 52 insertions(+)

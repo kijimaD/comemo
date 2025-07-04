@@ -1,20 +1,13 @@
-commit dd47a0a2ca62e8c7f275545d3aa810d3b875550f
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Jan 15 09:59:06 2012 -0500
+commit 4dda23a1d0f793f53661dd973e29c793e67aa9aa
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Sun Jan 15 19:32:16 2012 +1100
 
-    exp/ssh: remove duplicated terminal code.
+    http: Allow cookies with negative Max-Age attribute as these are
+    allowed by RFC 6265 sec 5.2.2.
     
-    The terminal code in exp/terminal was forked from the code in exp/ssh.
-    This change removes the duplicated code from exp/ssh in favour of
-    using exp/terminal.
-    
-    R=rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5375064
+    https://golang.org/cl/5533083
 
- src/pkg/exp/ssh/Makefile           |   2 +-
- src/pkg/exp/ssh/doc.go             |  24 ++-
- src/pkg/exp/ssh/server_shell.go    | 398 -------------------------------------
- src/pkg/exp/ssh/server_terminal.go |  81 ++++++++
- src/pkg/exp/ssh/session_test.go    |  23 ++-
- 5 files changed, 112 insertions(+), 416 deletions(-)
+ src/pkg/net/http/cookie.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

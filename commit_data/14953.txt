@@ -1,25 +1,12 @@
-commit a1231839b531b15e9745e92fe2396456029729a1
-Author: Robin Eklind <r.eklind.87@gmail.com>
-Date:   Tue Jan 22 13:44:35 2013 -0800
+commit a61dcef23275880d901db5a158fd1d9a9e71a00d
+Author: Dustin Shields-Cloues <dcloues@gmail.com>
+Date:   Tue Jan 22 14:43:37 2013 -0500
 
-    mime, strconv: Make testdata more consistent.
+    cmd/go: add hg ssh support
     
-    All packages place testdata in a specific directory with the name
-    "testdata". The mime and strconv packages have been updated to use
-    the same convention.
-    
-    mime: Move "mime/test.types" to "mime/testdata/test.types". Update test
-    code accordingly.
-    
-    strconv: Move "strconv/testfp.txt" to "strconv/testdata/testfp.txt".
-    Update test code accordingly.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7098072
+    https://golang.org/cl/7133048
 
- src/pkg/mime/{ => testdata}/test.types    |  0
- src/pkg/mime/type_unix.go                 |  2 +-
- src/pkg/strconv/fp_test.go                | 14 +++++++-------
- src/pkg/strconv/{ => testdata}/testfp.txt |  0
- 4 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/go/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

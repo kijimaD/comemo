@@ -1,24 +1,33 @@
-commit 3f002abb60b86a851e190d9246278aa53db11f87
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jan 6 18:23:21 2025 +0000
+commit fb6ff1e4caaece9be61c45518ffb51081e892a73
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Oct 12 16:01:34 2023 -0400
 
-    internal/sync: add test from issue 70970
+    cmd/compile: initial function value devirtualization
     
-    This test checks a use-case of sync.Map that's expected to be more
-    common in Go 1.24 and beyond, as a concurrent weak cache.
+    Today, PGO-based devirtualization only applies to interface calls. This
+    CL extends initial support to function values (i.e., function/closure
+    pointers passed as arguments or stored in a struct).
     
-    The test will also fail if CompareAndSwap is not properly atomic with
-    CompareAndDelete, which is what #70970 is actually about. We should have
-    more explicit tests checking mutual atomicity of operations, but
-    for now this is OK, and still useful.
+    This CL is a minimal implementation with several limitations.
     
-    For #70970.
+    * Export data lookup of function value callees not implemented
+      (equivalent of CL 497175; done in CL 540258).
+    * Callees must be standard static functions. Callees that are closures
+      (requiring closure context) are not supported.
     
-    Change-Id: I6db508660691586a8af9ad511c9a96432d333343
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640737
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    For #61577.
+    
+    Change-Id: I7d328859035249e176294cd0d9885b2d08c853f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539699
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/sync/hashtriemap_test.go | 59 +++++++++++++++++++++++++++++++++++
- 1 file changed, 59 insertions(+)
+ src/cmd/compile/internal/devirtualize/pgo.go       | 454 ++++++++++++++++-----
+ src/cmd/compile/internal/devirtualize/pgo_test.go  | 186 ++++++---
+ .../compile/internal/test/pgo_devirtualize_test.go |  58 ++-
+ .../test/testdata/pgo/devirtualize/devirt.go       | 214 +++++++++-
+ .../test/testdata/pgo/devirtualize/devirt.pprof    | Bin 890 -> 1411 bytes
+ .../test/testdata/pgo/devirtualize/devirt_test.go  |  48 ++-
+ .../testdata/pgo/devirtualize/mult.pkg/mult.go     |  28 ++
+ 7 files changed, 814 insertions(+), 174 deletions(-)

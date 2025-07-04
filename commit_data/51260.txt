@@ -1,38 +1,18 @@
-commit febe7b8e2a4dd7cce6ab8d02cf79a5430819cbe5
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Nov 9 10:55:54 2022 -0500
+commit 0e4b878258ffc3fca6a8fc6a98ebd81fc933b249
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 21 11:59:19 2021 -0800
 
-    runtime: make GC see object as allocated after it is initialized
+    doc/go1.18: mention debug/plan9obj.ErrNoSymbols
     
-    When the GC is scanning some memory (possibly conservatively),
-    finding a pointer, while concurrently another goroutine is
-    allocating an object at the same address as the found pointer, the
-    GC may see the pointer before the object and/or the heap bits are
-    initialized. This may cause the GC to see bad pointers and
-    possibly crash.
+    For #47694
+    For #48052
     
-    To prevent this, we make it that the scanner can only see the
-    object as allocated after the object and the heap bits are
-    initialized. Currently the allocator uses freeindex to find the
-    next available slot, and that code is coupled with updating the
-    free index to a new slot past it. The scanner also uses the
-    freeindex to determine if an object is allocated. This is somewhat
-    racy. This CL makes the scanner use a different field, which is
-    only updated after the object initialization (and a memory
-    barrier).
-    
-    Fixes #54596.
-    
-    Change-Id: I2a57a226369926e7192c253dd0d21d3faf22297c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449017
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I136be9b498033309d876099aae16bad330555416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373774
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/runtime/arena.go    |  2 ++
- src/runtime/malloc.go   | 10 ++++++++++
- src/runtime/mbitmap.go  |  2 +-
- src/runtime/mgcsweep.go |  1 +
- src/runtime/mheap.go    | 10 ++++++++++
- 5 files changed, 24 insertions(+), 1 deletion(-)
+ doc/go1.18.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

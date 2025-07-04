@@ -1,12 +1,13 @@
-commit bbf762582fd7f45ac5e145021d3f5bed2ea481b3
+commit d12b08d228aff8b62d6a90297689856bf67890f7
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 12 17:14:05 2013 -0800
+Date:   Thu Dec 12 17:13:27 2013 -0800
 
-    test: adjust issue4618 for gccgo allocation behaviour
+    test: disable a couple of precise GC tests for gccgo
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/41550044
+    https://golang.org/cl/41610043
 
- test/fixedbugs/issue4618.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ test/deferfin.go            | 4 ++++
+ test/fixedbugs/issue5493.go | 5 +++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

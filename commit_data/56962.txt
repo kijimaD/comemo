@@ -1,30 +1,26 @@
-commit 2247afc0aee41434a4e874af07d026f828bd3210
-Author: apocelipes <seve3r@outlook.com>
-Date:   Wed Jul 24 10:39:58 2024 +0000
+commit c292a74c389aed9cab01d435a8f8cb4bfb087544
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 1 23:42:48 2023 -0400
 
-    go,internal,io,mime: use slices and maps to clean tests
+    cmd/go: adjust conditions in which toolchain lines are written
     
-    Replace reflect.DeepEqual with slices.Equal/maps.Equal, which is
-    much faster.
+    'go mod tidy -go=1.20' should tidy as Go 1.20 did, without writing a
+    toolchain line implicitly. (We don't need it to stabilize toolchain
+    version switching anyway: because Go 1.20 predates toolchain
+    switching, any toolchain that supports switching toolchains also
+    supports Go 1.20 modules directly.)
     
-    Change-Id: Id9cb550884da817da96befdeccfecb3325fb4414
-    GitHub-Last-Rev: 7d64d78feb86e3ea1af6c24ea6782cb85731bb52
-    GitHub-Pull-Request: golang/go#67612
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587819
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #57001.
+    
+    Change-Id: I415abac75d8d6de9f8ed470aab0d1ed4c225b08d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499987
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go/build/build_test.go           | 22 ++++++++++++----------
- src/go/build/constraint/expr_test.go |  6 ++++--
- src/go/token/position_test.go        |  6 +++---
- src/internal/dag/alg_test.go         |  4 ++--
- src/internal/dag/parse_test.go       |  4 ++--
- src/internal/godebug/godebug_test.go |  3 +--
- src/internal/profile/proto_test.go   |  8 ++++----
- src/internal/xcoff/file_test.go      |  3 ++-
- src/io/fs/walk_test.go               |  4 ++--
- src/mime/mediatype_test.go           |  4 ++--
- src/mime/type_test.go                |  6 +++---
- 11 files changed, 37 insertions(+), 33 deletions(-)
+ src/cmd/go/internal/modload/init.go             | 22 ++++++++++----
+ src/cmd/go/internal/modload/load.go             |  4 ++-
+ src/cmd/go/testdata/script/mod_tidy_version.txt | 40 ++++++++++++++++++++++++-
+ src/cmd/go/testdata/script/mod_toolchain.txt    |  6 ++--
+ 4 files changed, 62 insertions(+), 10 deletions(-)

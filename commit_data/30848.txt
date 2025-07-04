@@ -1,21 +1,17 @@
-commit 34396adac1949438e8f059a199d813ac4619f158
-Author: Kenny Grant <kennygrant@gmail.com>
-Date:   Fri Mar 17 23:03:34 2017 +0000
+commit 8c190e58541493c580590a77fccfee87d174e5d4
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Dec 9 13:11:48 2016 -0800
 
-    net/http: Fix TestLinuxSendfile without strace permissions
+    io: update documentation on LimitedReader
     
-    If go doesn't have permission to run strace, this test hangs while
-    waiting for strace to run. Instead try invoking strace with
-    Run() first - on fail skip and report error, otherwise run
-    the test normally using strace.
+    Specify that that LimitedReader returns EOF when the underlying
+    R returns EOF even if bytes remaining, N > 0.
     
-    Also fix link to open mips64 issue in same test.
+    Fixes #18271
     
-    Fixes #9711
-    
-    Change-Id: Ibbc5fbb143ea6d0f8b6cfdca4b385ef4c8960b3d
-    Reviewed-on: https://go-review.googlesource.com/38633
+    Change-Id: I990a7135f1d31488d535238ae061d42ee96bacb7
+    Reviewed-on: https://go-review.googlesource.com/34249
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/fs_test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/io/io.go | 1 +
+ 1 file changed, 1 insertion(+)

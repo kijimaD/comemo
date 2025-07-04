@@ -1,18 +1,32 @@
-commit d3b00a8cc463267b24ade4cf57aafdd02440e19c
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Mon Feb 29 11:49:49 2016 +0200
+commit 670642d389a3c1a90fad6016f91197125969376d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 3 17:28:46 2015 -0800
 
-    cmd/link: batch writing of bytes
+    go/parser, go/types: report invalid else branch in if statements
     
-    In best of 10, linking cmd/go shows a ~10% improvement.
+    - Only accept valid if statement syntax in go/parser.
     
-    tip:              real  0m1.152s user  0m1.005s
-    this:             real  0m1.065s user  0m0.924s
+    - Check AST again in go/types since it may have been modified and the
+      AST doesn't preclude other statements in the else branch of an if
+      statement.
     
-    Change-Id: I303a20b94332feaedc1033c453247a0e4c05c843
-    Reviewed-on: https://go-review.googlesource.com/19978
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    - Removed a test from gofmt which verified that old-style if statements
+      permitting any statement in the else branch were correctly reformatted.
+      It's been years since we switched to the current syntax; no need to
+      support this anymore.
+    
+    - Added a comment to go/printer.
+    
+    Fixes #13475.
+    
+    Change-Id: Id2c8fbcc68b719cd511027d0412a37266cceed6b
+    Reviewed-on: https://go-review.googlesource.com/17408
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/data.go | 48 +++++++++++++++++++++++-----------------
- src/cmd/link/internal/ld/lib.go  |  4 ++++
- 2 files changed, 32 insertions(+), 20 deletions(-)
+ src/cmd/gofmt/testdata/old.golden |  9 ---------
+ src/cmd/gofmt/testdata/old.input  |  8 --------
+ src/go/parser/parser.go           | 11 ++++++++++-
+ src/go/parser/short_test.go       |  4 ++++
+ src/go/printer/nodes.go           |  3 +++
+ src/go/types/stmt.go              |  9 ++++++++-
+ 6 files changed, 25 insertions(+), 19 deletions(-)

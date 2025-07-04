@@ -1,29 +1,26 @@
-commit 0b6a10ef246ff55085d6ec88f68f5fd96677b141
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 27 09:27:52 2017 -0700
+commit 794f1ebff7aeb4085ce7059011330a5efd946156
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 15 18:43:34 2017 -0800
 
-    cmd/compile: dowidth more in the front end
+    cmd/compile: simplify needwritebarrier
     
-    dowidth is fundamentally unsafe to call from the back end;
-    it will cause data races.
+    Currently, whether we need a write barrier is simply a property of the
+    pointer slot being written to.
     
-    Replace all calls to dowidth in the backend with
-    assertions that the width has been calculated.
+    The only optimization we currently apply using the value being written
+    is that pointers to stack variables can omit write barriers because
+    they're only written to stack slots... but we already omit write
+    barriers for all writes to the stack anyway.
     
-    Then fix all the cases in which that was not so,
-    including the cases from #20145.
+    Passes toolstash -cmp.
     
-    Fixes #20145.
-    
-    Change-Id: Idba3d19d75638851a30ec2ebcdb703c19da3e92b
-    Reviewed-on: https://go-review.googlesource.com/41970
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7f16b71ff473899ed96706232d371d5b2b7ae789
+    Reviewed-on: https://go-review.googlesource.com/37109
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/ssa.go       | 37 ++++++++++++++++++++------------
- src/cmd/compile/internal/gc/typecheck.go |  5 +++++
- src/cmd/compile/internal/gc/walk.go      |  2 +-
- src/cmd/compile/internal/types/type.go   | 11 ++++++++--
- test/fixedbugs/issue20145.go             | 14 ++++++++++++
- 5 files changed, 52 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go  | 14 +++++---------
+ src/cmd/compile/internal/gc/subr.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go | 28 +++-------------------------
+ 3 files changed, 9 insertions(+), 35 deletions(-)

@@ -1,12 +1,19 @@
-commit 847197d3393e1e51576a156b5117828f4fe68355
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 1 02:42:56 2012 +0900
+commit 2cc33511312a68299ced23428365c0fc86c89476
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 31 12:27:42 2012 -0500
 
-    net: disable normal multicast testing on linux/arm
+    crypto/elliptic: p224Contract could produce a non-minimal representation.
+    
+    I missed an overflow in contract because I suspected that the prime
+    elimination would take care of it. It didn't, and I forgot to get back
+    to the overflow. Because of this, p224Contract may have produced a
+    non-minimal representation, causing flakey failures ~0.02% of the
+    time.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5603043
+    https://golang.org/cl/5592045
 
- src/pkg/net/multicast_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/crypto/elliptic/elliptic_test.go | 11 ++++++++++
+ src/pkg/crypto/elliptic/p224.go          | 35 +++++++++++++++++++++++++++++++-
+ 2 files changed, 45 insertions(+), 1 deletion(-)

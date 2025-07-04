@@ -1,20 +1,18 @@
-commit 92b4741728faca77329b204340b02e8df4f4d097
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 14 11:06:53 2014 -0800
+commit be9c514f84ed45872f8ed89046dc600a1408eb1c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Feb 15 00:47:28 2014 +0900
 
-    runtime: if traceback sees a breakpoint, don't change the PC
+    syscall: make use of include/linux when generating system constants
     
-    Changing the PC confuses gdb, because execution does not
-    continue where gdb expects it.  Not changing the PC has the
-    potential to confuse a stack dump, but when running under gdb
-    it seems better to confuse a stack dump than to confuse gdb.
+    On Linux include/net directory is just to help porting applications
+    from BSDs and files under net keep less information than include/linux.
+    Making use of files under include/linux instead of include/net prevents
+    lack of information.
     
-    Fixes #6776.
-    
-    LGTM=rsc
-    R=golang-codereviews, dvyukov, rsc
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/49580044
+    https://golang.org/cl/63930043
 
- src/pkg/runtime/sys_x86.c | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ src/pkg/syscall/mkerrors.sh | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

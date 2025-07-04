@@ -1,27 +1,18 @@
-commit b30d19de59cc43723573af06ec2df8aaf053c0b8
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 12 12:53:48 2015 -0500
+commit d94192180fada39666081efd66e39e1ac1e81e60
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jan 26 17:28:54 2015 +0300
 
-    runtime: introduce higher-level GC work abstraction
+    runtime: fix wbshadow mode
     
-    This introduces a producer/consumer abstraction for GC work pointers
-    that internally handles the details of filling, draining, and
-    shuffling work buffers.
+    Half of tests currently crash with GODEBUG=wbshadow.
+    _PageSize is set to 8192. So data can be extended outside
+    of actually mapped region during rounding. Which leads to crash
+    during initial copying to shadow.
+    Use _PhysPageSize instead.
     
-    In addition to simplifying the GC code, this should make it easy for
-    us to change how we use work buffers, including cleaning up how we use
-    the work.partial queue, reintroducing a FIFO lookahead cache, adding
-    prefetching, and using dual buffers to avoid flapping.
-    
-    This commit doesn't change any existing code.  The following commit
-    will switch the garbage collector from explicit workbuf manipulation
-    to gcWork.
-    
-    Change-Id: Ifbfe5fff45bf0362d6d7c3cecb061f0c9874077d
-    Reviewed-on: https://go-review.googlesource.com/5231
+    Change-Id: Iaa89992bd57f86dafa16b092b53fdc0606213acb
+    Reviewed-on: https://go-review.googlesource.com/3286
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgc.go     |   3 +-
- src/runtime/mgcwork.go | 186 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 188 insertions(+), 1 deletion(-)
+ src/runtime/mbarrier.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

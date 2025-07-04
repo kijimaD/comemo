@@ -1,24 +1,13 @@
-commit d181885de8f718623b41d45f5cc8644bbd8ad318
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Dec 21 13:20:20 2021 +0100
+commit ad44dfb0fda522df08e133d1f909bfe535c4b4be
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 11:33:46 2021 -0400
 
-    os: enable TestMkdirAllWithSymlink on darwin/arm64
+    cmd/go: clarify comment on HashSeed
     
-    Go 1.16 renamed the iOS port from darwin/arm64 to ios/arm64 and
-    darwin/arm64 was repurposed for the macOS ARM64 port (see
-    https://golang.org/doc/go1.16#darwin).
-    
-    TestMkdirAllWithSymlink ought to run on darwin/arm64, so enable it on
-    that platform.
-    
-    For #45696
-    
-    Change-Id: I2cad6b1dfddf215e6b6cd262bbd22251f48f3d8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373359
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I3c8769f52b86ca82611af373b0a493a937dda9d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310090
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/os/path_test.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/cmd/go/internal/cache/hash.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

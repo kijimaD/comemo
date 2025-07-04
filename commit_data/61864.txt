@@ -1,0 +1,29 @@
+commit ec7817e385a0e8f0bcd6c8082f465d81852ab500
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Sat Nov 30 23:22:49 2024 -0700
+
+    cmd/go: add -modfile and -modcacherw to go tool
+    
+    When adding support for module tools, we added the ability for `go tool`
+    to edit the module cache. For users with `GOFLAGS=-modcacherw` this
+    could have led to a situation where some of the files in the mod cache
+    were unexpectedly not deletable.
+    
+    We also allow -modfile so that people can select which module they are
+    working in when looking for tools.
+    
+    We still do not support arbitrary build flags for tools with `go tool`.
+    If you want those, use `go run` or `go build`, etc. instead.
+    
+    Updates #48429
+    
+    Change-Id: Ic3c56bb8b6ba46114196465ca6ee2dcb08b9dcc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632575
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/internal/tool/tool.go            | 1 +
+ src/cmd/go/testdata/script/mod_cache_rw.txt | 9 +++++++++
+ src/cmd/go/testdata/script/modfile_flag.txt | 4 ++++
+ 3 files changed, 14 insertions(+)

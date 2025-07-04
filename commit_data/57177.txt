@@ -1,22 +1,20 @@
-commit bd8977be0c429a6eec8a99bfefc4e41c74891865
-Author: j2gg0s <j2gg0s@gmail.com>
-Date:   Thu Aug 15 02:11:44 2024 +0000
+commit 0b65b02ba5e0eaa517509a940bb10e10abc0287a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jul 1 07:01:11 2023 +0700
 
-    encoding/json: merge FieldStack if the error's Field exists.
+    cmd/compile: fix clear on slice with zero size elem
     
-    When people return UnmarshalTypeError in UnmarshalJSON, we should append error's Field to FieldStack.
+    Fixed #61127
     
-    Fixes #68750
-    
-    Change-Id: I0a5a9b259a1b569de1bebc815ec936c913e10469
-    GitHub-Last-Rev: 18796addc3fa0d367ba1a3f4bd268ca246890fe0
-    GitHub-Pull-Request: golang/go#68870
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605455
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If07b04ebcc98438c66f273c0c94bea1f230dc2e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507535
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/encoding/json/decode.go      |  6 +++++-
- src/encoding/json/decode_test.go | 16 ++++++++++++++++
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/walk/builtin.go |  6 +++++-
+ test/fixedbugs/issue61127.go             | 13 +++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

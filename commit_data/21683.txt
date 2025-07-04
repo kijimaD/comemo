@@ -1,26 +1,19 @@
-commit 02d80b9e937aa1ea142bac016f35011bae72907f
-Author: Jan Kratochvil <jan.kratochvil@redhat.com>
-Date:   Sat Feb 21 17:35:01 2015 +0100
+commit 1b87f01239de499654b390a41a7f8e2b453789dc
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jan 19 23:46:22 2015 +0300
 
-    gdb: fix "gdb.error: No struct named reflect.rtype."
+    cmd/gc: improve escape analysis for &T{...}
     
-    With a trivial Golang-built program loaded in gdb-7.8.90.20150214-7.fc23.x86_64
-    I get this error:
+    Currently all PTRLIT element initializers escape. There is no reason for that.
+    This change links STRUCTLIT to PTRLIT; STRUCTLIT element initializers are
+    already linked to the STRUCTLIT. As the result, PTRLIT element initializers
+    escape when PTRLIT itself escapes.
     
-    (gdb) source ./src/runtime/runtime-gdb.py
-    Loading Go Runtime support.
-    Traceback (most recent call last):
-      File "./src/runtime/runtime-gdb.py", line 230, in <module>
-        _rctp_type = gdb.lookup_type("struct reflect.rtype").pointer()
-    gdb.error: No struct type named reflect.rtype.
-    (gdb) q
-    
-    No matter if this struct should or should not be in every Golang-built binary
-    this change should fix that with no disadvantages.
-    
-    Change-Id: I0c490d3c9bbe93c65a2183b41bfbdc0c0f405bd1
-    Reviewed-on: https://go-review.googlesource.com/5521
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I89ecd8677cbf81addcfd469cd2fd461c0e9bf7dd
+    Reviewed-on: https://go-review.googlesource.com/3031
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/runtime-gdb.py | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/gc/esc.c |  9 +++++----
+ test/escape2.go  | 27 +++++++++++++++++++++++++++
+ test/escape2n.go | 27 +++++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 4 deletions(-)

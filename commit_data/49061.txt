@@ -1,20 +1,31 @@
-commit 86536b934a6a5d074f1539b3103d7bc86a97e869
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu May 5 18:38:02 2022 -0400
+commit c1cc9f9c3d5ed789a080ef9f8dd9c11eca7e2026
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jul 15 00:56:44 2021 +0700
 
-    go/types,cmd/compile/internal/types2: fix TestStdlib
+    cmd/compile: fix lookup package of redeclared dot import symbol
     
-    CL 402556 moved a special-cased package and broke the longtests.
+    The compiler is relying on Sym.Def field to lookup symbol package in
+    DotImportRefs map. But the Sym.Def field is clear whenever the compiler
+    finish processing a file. If the dot import happen in file A, then the
+    redeclaration happen in file B, then the symbol lookup in file B will
+    see a nil Sym.Def, that cause the compiler crashes.
     
-    Change-Id: I10b48e0912c1cee0eabc342ed1c1704ed79946bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404474
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    Auto-Submit: Filippo Valsorda <valsorda@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    To fix this, we can interate over DotImportRefs and check for matching
+    symbol name and return the corresponding package. Though this operation
+    can be slow, but it only happens in invalid program, when printing error
+    message, so it's not worth to optimize it further.
+    
+    Fixes #47201
+    
+    Change-Id: I4ca1cb0a8e7432b19cf71434592a4cbb58d54adf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334589
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/stdlib_test.go | 2 +-
- src/go/types/stdlib_test.go                    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/typecheck/dcl.go | 12 +++++++++++-
+ test/fixedbugs/issue47201.dir/a.go        | 13 +++++++++++++
+ test/fixedbugs/issue47201.dir/b.go        |  9 +++++++++
+ test/fixedbugs/issue47201.go              |  7 +++++++
+ 4 files changed, 40 insertions(+), 1 deletion(-)

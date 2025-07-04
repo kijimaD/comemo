@@ -1,41 +1,22 @@
-commit 3675bff55d7c8ed0110423b0ca8ed8f529c58def
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 8 17:12:41 2017 -0500
+commit 6d33df1d65c405a3624dbb792112b8ce399f470f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 11 21:10:43 2017 +0200
 
-    runtime: mark heapBits.bits nosplit
+    cmd/compile: remove redundant switch label
     
-    heapBits.bits is used during bulkBarrierPreWrite via
-    heapBits.isPointer, which means it must not be preempted. If it is
-    preempted, several bad things can happen:
+    This label was added automatically by grind to remove gotos. As of
+    today, it's completely useless, as none of its uses need a label to
+    begin with.
     
-    1. This could allow a GC phase change, and the resulting shear between
-    the barriers and the memory writes could result in a lost pointer.
+    While at it, remove all the redundant breaks too. Leave those that are
+    the single statement in a case clause body, as that's the style used
+    throughout std and cmd to clarify when cases are empty.
     
-    2. Since bulkBarrierPreWrite uses the P's local write barrier buffer,
-    if it also migrates to a different P, it could try to append to the
-    write barrier buffer concurrently with another write barrier. This can
-    result in the buffer's next pointer skipping over its end pointer,
-    which results in a buffer overflow that can corrupt arbitrary other
-    fields in the Ps (or anything in the heap, really, but it'll probably
-    crash from the corrupted P quickly).
-    
-    Fix this by marking heapBits.bits go:nosplit. This would be the
-    perfect use for a recursive no-preempt annotation (#21314).
-    
-    This doesn't actually affect any binaries because this function was
-    always inlined anyway. (I discovered it when I was modifying heapBits
-    and make h.bits() no longer inline, which led to rampant crashes from
-    problem 2 above.)
-    
-    Updates #22987 and #22988 (but doesn't fix because it doesn't actually
-    change the generated code).
-    
-    Change-Id: I60ebb928b1233b0613361ac3d0558d7b1cb65610
-    Reviewed-on: https://go-review.googlesource.com/83015
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I3e20068b66b759614e903beab1cc9b2709b31063
+    Reviewed-on: https://go-review.googlesource.com/62950
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mbitmap.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/typecheck.go | 87 +++++---------------------------
+ 1 file changed, 12 insertions(+), 75 deletions(-)

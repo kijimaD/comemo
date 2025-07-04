@@ -1,12 +1,13 @@
-commit e7d010a6a7c19c3af6a8157356d09cea23eab198
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jan 8 12:41:26 2014 -0800
+commit a03e8a5be017f4741c029c04a3333bb655ab8059
+Author: Jeff Sickel <jas@corpus-callosum.com>
+Date:   Wed Jan 8 21:22:18 2014 +0100
 
-    runtime: deallocate specials before deallocating the underlying object.
+    plan9: lookup query must seek to offset 0 before reading or
+           writing /net/dns or /net/cs (see nbd(8)).
     
-    R=dvyukov
-    CC=golang-codereviews
-    https://golang.org/cl/48840043
+    R=golang-codereviews
+    CC=0intro, golang-codereviews, rsc
+    https://golang.org/cl/49060043
 
- src/pkg/runtime/malloc.goc | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/pkg/net/lookup_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

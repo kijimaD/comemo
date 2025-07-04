@@ -1,26 +1,15 @@
-commit 3440c7bc4c238e1d75d728536ca8f5efe883dbe6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 3 20:53:05 2016 +0000
+commit 8458a387e3a0aa29449767f633514747a1ee7e72
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 21:39:33 2016 -0700
 
-    net/http: tweak the new Client 307/308 redirect behavior a bit
+    cmd/compile: make fmt_test work on entire compiler
     
-    This CL tweaks the new (unreleased) 307/308 support added in
-    https://golang.org/cl/29852 for #10767.
+    - process all directories recursively
     
-    Change 1: if a 307/308 response doesn't have a Location header in its
-    response (as observed in the wild in #17773), just do what we used to
-    do in Go 1.7 and earlier, and don't try to follow that redirect.
-    
-    Change 2: don't follow a 307/308 if we sent a body on the first
-    request and the caller's Request.GetBody func is nil so we can't
-    "rewind" the body to send it again.
-    
-    Updates #17773 (will be fixed more elsewhere)
-    
-    Change-Id: I183570f7346917828a4b6f7f1773094122a30406
-    Reviewed-on: https://go-review.googlesource.com/32595
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I27a737013d17fd3c2cc8ae9de4722dcbe989e6e5
+    Reviewed-on: https://go-review.googlesource.com/28789
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/client.go      | 28 +++++++++++++++++++++++++
- src/net/http/client_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 79 insertions(+)
+ src/cmd/compile/fmt_test.go             | 780 ++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/fmt_test.go | 600 ------------------------
+ 2 files changed, 780 insertions(+), 600 deletions(-)

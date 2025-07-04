@@ -1,19 +1,22 @@
-commit d24a36cc4caf51c88082c9b17201b6088b9bfc86
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 5 10:06:30 2017 -0400
+commit c60d6c0b4367c047470ddd652f8c53e286481f96
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 16 18:13:13 2017 -0700
 
-    debug/elf: make safe for Go 1.4 compilers
+    os: on OpenBSD implement Executable using Args[0]
     
-    We're going to start building cmd/cgo as part of the bootstrap,
-    and with it debug/elf, so the copy here needs to work with Go 1.4.
-    It does except for the use of the new io.SeekStart etc constants,
-    so remove that use.
+    OpenBSD no longer has procfs.
     
-    Change-Id: Ib7fcf46e1e9060f96d2bacaaf349c9b0df347550
-    Reviewed-on: https://go-review.googlesource.com/68337
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Based on a patch by Matthieu Sarter.
+    
+    Fixes #19453.
+    
+    Change-Id: Ia09d16f8a1cbef2f8cc1c5f49e9c61ec7d026a40
+    Reviewed-on: https://go-review.googlesource.com/46004
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/elf/file.go   | 19 +++++++++++++++----
- src/debug/elf/reader.go |  6 +++---
- 2 files changed, 18 insertions(+), 7 deletions(-)
+ src/os/executable_path.go   | 104 ++++++++++++++++++++++++++++++++++++++++++++
+ src/os/executable_procfs.go |   4 +-
+ src/os/executable_test.go   |  11 +++--
+ 3 files changed, 112 insertions(+), 7 deletions(-)

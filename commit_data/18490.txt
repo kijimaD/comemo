@@ -1,15 +1,16 @@
-commit 68bf5666cdc6805783be7c29fb2a634d8d45bc24
-Author: Nicolas Owens <mischief@offblast.org>
-Date:   Thu Feb 13 10:26:16 2014 -0500
+commit ca6186aa269eebf62d8a89d846a0eed4108e3b66
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 13 03:09:03 2014 -0500
 
-    net: only return unique hosts during hostname lookup on plan 9
+    cmd/6c, cmd/8c, cmd/8g: fix print of pc (which is vlong).
+    While we're at it, fix a wrong for statement in cmd/8g.
     
-    TestLookupHost expects that no duplicate addresses are returned. when cs is consulted for a name, e.g net!localhost!1, it will possibly return multiple available paths, e.g. via il and tcp. this confuses the tests.
-    
-    LGTM=aram
-    R=jas, 0intro, aram
+    LGTM=rsc
+    R=rsc, golang-codereviews
     CC=golang-codereviews
-    https://golang.org/cl/58120045
+    https://golang.org/cl/62700044
 
- src/pkg/net/lookup_plan9.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/6c/reg.c |  8 ++++----
+ src/cmd/8c/reg.c | 10 +++++-----
+ src/cmd/8g/reg.c |  2 +-
+ 3 files changed, 10 insertions(+), 10 deletions(-)

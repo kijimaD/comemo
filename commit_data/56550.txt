@@ -1,18 +1,29 @@
-commit 80964338a522ece87a52e723242f9dd79caf8e63
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon May 20 10:44:43 2024 -0400
+commit 1b896bff30c7622e6d26a1fd30a73d964a860481
+Author: jchen038 <mfwinds@gmail.com>
+Date:   Tue Nov 29 00:05:54 2022 -0800
 
-    cmd/dist: set GOPROXY=off when GOPATH is set to be in GOROOT
+    cmd/go/internal/modload: replace import error message from goroot to std
     
-    Avoid downloading modules into a modcache in the GOROOT directory. That
-    creates read only files in GOROOT, which is undesirable.
+    When importing a package that does not exist, it would show goroot error
+    message and path. We would like to replace goroot with std instead.
     
-    Fixes #67463
+    Fixes #56965.
     
-    Change-Id: I6d10c605be5eba967648d823ee8fc915716b4b5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586078
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I86f8a7fab6555b68f792a3a4686de20d51eced8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453895
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/dist/build.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/go/internal/modload/import.go               |  2 +-
+ src/cmd/go/testdata/script/cmd_import_error.txt     |  4 ++--
+ src/cmd/go/testdata/script/mod_get_replaced.txt     |  2 +-
+ src/cmd/go/testdata/script/mod_goroot_errors.txt    | 10 +++++-----
+ src/cmd/go/testdata/script/mod_issue35270.txt       |  2 +-
+ src/cmd/go/testdata/script/mod_load_missing_std.txt |  2 +-
+ src/cmd/go/testdata/script/mod_tidy_error.txt       |  4 ++--
+ src/cmd/go/testdata/script/mod_vendor.txt           |  2 +-
+ src/go/build/build_test.go                          |  4 ++--
+ 9 files changed, 16 insertions(+), 16 deletions(-)

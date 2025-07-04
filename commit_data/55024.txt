@@ -1,18 +1,25 @@
-commit 7bf540012cd361cb7fac1fd224d7e7795fd52d81
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat Nov 11 05:32:13 2023 +0000
+commit 9dde2de454b78e681dd7318dbf3ef68d6a3df2d1
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 5 11:19:51 2022 -0800
 
-    log/slog: fix comments for *handleState.appendAttr
+    cmd/asm: improve assembler error messages
     
-    Change-Id: I8b9a6d177d297b9b1e890bf1d8a46a4b3311910f
-    GitHub-Last-Rev: 24067b8714129debd778098b1906d3c5cc3f9d5e
-    GitHub-Pull-Request: golang/go#64070
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541519
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Provide file/line numbers for errors when we have them.
+    Make the assembler error text closer to the equivalent errors from the compiler.
+    
+    Abort further processing when we come across errors.
+    Fixes #53994
+    
+    Change-Id: I4d6a037d6d713c1329923fce4c1189b5609f3660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455276
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
 
- src/log/slog/handler.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/asm.go              |  2 +-
+ src/cmd/asm/internal/asm/endtoend_test.go    |  4 ++++
+ src/cmd/asm/internal/asm/testdata/duperror.s | 14 ++++++++++++++
+ src/cmd/internal/obj/plist.go                | 16 +++++++++++-----
+ 4 files changed, 30 insertions(+), 6 deletions(-)

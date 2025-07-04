@@ -1,27 +1,31 @@
-commit 84b0e3665d9684b9957103deaa9c5984c146cdfd
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Oct 18 16:52:12 2019 -0400
+commit 004fb5cb8dd74b9ac46a9990e9a028673b88e838
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Thu May 2 03:57:29 2019 +0700
 
-    cmd/go: add a flag to avoid creating unwritable directories in the module cache
+    cmd/compile: fix isStaticCompositeLiteral reports wrong for struct field
     
-    This change adds the '-modcacherw' build flag, which leaves
-    newly-created directories (but not the files!) in the module cache
-    read-write instead of making them unwritable.
+    golang.org/cl/174498 add ONAME case to isStaticCompositeLiteral, to
+    detect global variable as compile-time constant.
     
-    Fixes #31481
+    It does report wrong for struct field, e.g:
     
-    Change-Id: I7c21a53dd145676627c3b51096914ce797991d99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202079
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+            o := one{i: two{i: 42}.i}
+    
+    field i in two{i: 42} was reported as static composite literal, while it
+    should not.
+    
+    In general, adding ONAME case for isStaticCompositeLiteral is probably
+    wrong.
+    
+    Fixes #31782
+    
+    Change-Id: Icde7d43bbb002b75df5c52b948b7126a4265e07b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174837
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.14.html                             | 11 +++++++++
- src/cmd/go/alldocs.go                       |  3 +++
- src/cmd/go/internal/cfg/cfg.go              |  1 +
- src/cmd/go/internal/modfetch/fetch.go       |  8 +++---
- src/cmd/go/internal/work/build.go           |  4 +++
- src/cmd/go/script_test.go                   | 12 ++++++---
- src/cmd/go/testdata/script/README           |  2 +-
- src/cmd/go/testdata/script/mod_cache_rw.txt | 38 +++++++++++++++++++++++++++++
- 8 files changed, 71 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go |  2 --
+ test/fixedbugs/issue31782.go         | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue31782.out        |  1 +
+ 3 files changed, 25 insertions(+), 2 deletions(-)

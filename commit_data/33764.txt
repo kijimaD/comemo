@@ -1,18 +1,23 @@
-commit aaccb3834c37a923659d1dc1004dcde94f04d871
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 30 15:47:04 2017 -0500
+commit 26dadbe32ce5b9d705ef38279e1f85fbbdf58287
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Fri Aug 18 14:13:33 2017 +0300
 
-    runtime: improve sigsend documentation
+    cmd/asm: add amd64 PAB{SB,SD,SW}, PMADDUBSW, PMULHRSW, PSIG{NB,ND,NW}
     
-    I think of "sending" a signal as calling kill, but sigsend is involved
-    in handling a signal and, specifically delivering it to the internal
-    signal queue. The term "delivery" is already used in
-    signalWaitUntilIdle, so this CL also uses it in the documentation for
-    sigsend.
+    instructions
     
-    Change-Id: I86e171f247f525ece884a680bace616fa9a3c7bd
-    Reviewed-on: https://go-review.googlesource.com/81235
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    1st change out of 3 to cover AMD64 SSSE3 instruction set in Go asm.
+    This commit adds instructions that do not require new named ytab sets.
+    
+    Change-Id: I0c3dfd8d39c3daa8b7683ab163c63145626d042e
+    Reviewed-on: https://go-review.googlesource.com/56834
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/sigqueue.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 128 +++++++++++++--------------
+ src/cmd/internal/obj/x86/a.out.go            |   8 ++
+ src/cmd/internal/obj/x86/anames.go           |   8 ++
+ src/cmd/internal/obj/x86/asm6.go             |   8 ++
+ 4 files changed, 88 insertions(+), 64 deletions(-)

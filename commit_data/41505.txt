@@ -1,23 +1,19 @@
-commit 156c60709e7775a6f1baa9685155b5974fefdea9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jul 8 18:11:23 2019 -0400
+commit fcfbe25dca8525257a2c265e6bd825b5c4062c6c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 7 12:44:49 2019 -0400
 
-    cmd/go/internal/search: record errors in the Match struct
+    [dev.link] cmd/link: remove runtime.gcbits special case
     
-    Previously, we would either invoke base.Fatalf (which is too aggressive),
-    or log.Print (which is too passive).
+    Follow-up of Than's comment on CL 196032. For runtime.gcbits
+    symbols, the compiler already sets the "local" attribute
+    (cmd/compile/internal/gc/reflect.go:dgcptrmask). No need of the
+    special handling in the linker.
     
-    Updates #32917
-    
-    Change-Id: I5475e873e76948de7df65dca08bc0ce67a7fc827
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185344
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7c53a818ed0375083f04655f3565c1c9c45f2401
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199642
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/get/get.go       |  9 +++--
- src/cmd/go/internal/load/pkg.go      |  3 ++
- src/cmd/go/internal/modget/get.go    |  4 +++
- src/cmd/go/internal/modload/load.go  |  8 +++--
- src/cmd/go/internal/search/search.go | 66 ++++++++++++++++++++++++++++++------
- 5 files changed, 75 insertions(+), 15 deletions(-)
+ src/cmd/link/internal/objfile/objfile2.go | 3 ---
+ 1 file changed, 3 deletions(-)

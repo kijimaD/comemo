@@ -1,12 +1,12 @@
-commit be5c445909ca872a67683a3f1720df8f99593656
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Nov 24 16:53:08 2012 -0800
+commit 747dda9767d3da479900ad180b11a73f78f0412e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Nov 25 10:02:57 2012 +1100
 
-    test: add bug469, a case where gccgo gaves an incorrect error
+    net: do not start io if deadline has passed
     
-    R=golang-dev, dsymonds
+    R=golang-dev, mikioh.mikioh, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6856084
+    https://golang.org/cl/6851098
 
- test/fixedbugs/bug469.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/pkg/net/fd_windows.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

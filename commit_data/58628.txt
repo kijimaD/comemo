@@ -1,19 +1,34 @@
-commit 7c6b047ea14dcc6aa948f901956511c4e8691abf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 9 14:42:16 2025 -0800
+commit 90ba4452530f7a380e7fb4936569f53879fd5955
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 20 05:37:36 2023 +0000
 
-    encoding/base64: use internal/byteorder
+    cmd/trace/v2: add support for a task-oriented procs-based view
     
-    This permits us to remove the dependency on reflect.
+    This change implements support for the trace?focustask=<taskid> endpoint
+    in the trace tool for v2 traces.
     
-    Change-Id: I60b1e9fd713f340bfd5eec2edfa58fc724a8e2d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641936
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Note: the one missing feature in v2 vs. v1 is that the "irrelevant" (but
+    still rendered) events are not grayed out. This basically includes
+    events that overlapped with events that overlapped with other events
+    that were in the task time period, but aren't themselves directly
+    associated. This is probably fine -- the UI already puts a very obvious
+    focus on the period of time the selected task was running.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: I5c78a220ae816e331b74cb67c01c5cd98be40dd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543596
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/encoding/base64/base64.go |  6 +++---
- src/go/build/deps_test.go     | 11 ++++++-----
- 2 files changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/trace/trace.go                    |   4 +-
+ src/cmd/trace/v2/gen.go                   |  71 +++++++++++++++--
+ src/cmd/trace/v2/goroutinegen.go          |   6 +-
+ src/cmd/trace/v2/gstate.go                |   6 +-
+ src/cmd/trace/v2/jsontrace.go             |  53 ++++++++++++-
+ src/cmd/trace/v2/procgen.go               |   8 +-
+ src/internal/trace/summary.go             |  12 ++-
+ src/internal/trace/traceviewer/emitter.go | 122 +++++++++++++++++++++++++++---
+ 8 files changed, 249 insertions(+), 33 deletions(-)

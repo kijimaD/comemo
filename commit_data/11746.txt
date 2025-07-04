@@ -1,12 +1,12 @@
-commit eb02b9cf9c2593d135b504a22f404f33d733e1b7
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 10 09:44:56 2012 +1100
+commit 309863aec4802bba22a3e9e5fa75cd5d1a0e1d93
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 10 09:33:51 2012 +1100
 
-    encoding/hex: vet the test prints
+    compress/gzip: remove dead code
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5642075
+    https://golang.org/cl/5645074
 
- src/pkg/encoding/hex/hex_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/compress/gzip/gunzip.go | 1 -
+ 1 file changed, 1 deletion(-)

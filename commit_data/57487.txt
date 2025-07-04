@@ -1,27 +1,23 @@
-commit db40d1a4c434e319e70af87ef1024a211a9e5a98
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 18 22:39:05 2024 +0700
+commit e3d7f7c3f8b0537d84e704986d88eb35271fa233
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 10 21:48:58 2023 +0200
 
-    cmd/compile: fix wrong esacpe analysis for rangefunc
+    internal/itoa, os: move os.uitox to itoa.Uitox
     
-    CL 584596 "-range<N>" suffix to the name of closure generated for a
-    rangefunc loop body. However, this breaks the condition that escape
-    analysis uses for checking whether a closure contains within function,
-    which is "F.funcN" for outer function "F" and closure "funcN".
+    This packages already contains other similar functions. Also add a test
+    for it.
     
-    Fixing this by adding new "-rangeN" to the condition.
-    
-    Fixes #69434
-    Fixes #69507
-    
-    Change-Id: I411de8f63b69a6514a9e9504d49d62e00ce4115d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614096
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Iafa8c14f5cb1f5ef89a0e16ccc855c568a3b5727
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518317
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/escape/solve.go |   4 +-
- test/fixedbugs/issue69434.go             | 173 +++++++++++++++++++++++++++++++
- test/fixedbugs/issue69507.go             | 133 ++++++++++++++++++++++++
- 3 files changed, 308 insertions(+), 2 deletions(-)
+ src/internal/itoa/itoa.go      | 24 ++++++++++++++++++++++++
+ src/internal/itoa/itoa_test.go | 11 +++++++++++
+ src/os/exec_posix.go           |  2 +-
+ src/os/str.go                  | 31 -------------------------------
+ 4 files changed, 36 insertions(+), 32 deletions(-)

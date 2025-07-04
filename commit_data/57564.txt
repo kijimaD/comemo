@@ -1,19 +1,19 @@
-commit 6536c207c2309da7c1c21e3669f8ddf491e31f5b
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Fri Sep 27 19:57:12 2024 +0000
+commit 570763e0ec50dff90073d6261eb7cd16e4aaf532
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 15 14:11:37 2023 -0700
 
-    net: improve GODEBUG=netdns=1 debug messages
+    cmd/compile/internal/escape: mark blankLoc as transient
     
-    Fixes #69680
+    Discarded values never persist, so they can be transiently allocated
+    too.
     
-    Change-Id: I73b0506c7a3245ba282cffabe47543f5fce86692
-    GitHub-Last-Rev: 4c6a1a4c706f39d2756c65b72b78896cd4881302
-    GitHub-Pull-Request: golang/go#69684
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616263
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I036ce0c1eea45e437142497bb7df3ecb44b56e52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520256
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/net/conf.go | 29 ++++++++++++++++++++---------
- 1 file changed, 20 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/escape/escape.go | 1 +
+ 1 file changed, 1 insertion(+)

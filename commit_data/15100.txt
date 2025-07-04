@@ -1,15 +1,12 @@
-commit 2af3cbe308986005715bed3fa8ec5975e32ea7b7
+commit fc6b530f0ff4b73e6bd42c282bf5409e804f989e
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 2 23:54:21 2013 -0500
+Date:   Sat Feb 2 23:09:49 2013 -0500
 
-    cmd/gc: treat &T{} like new(T): allocate on stack if possible
-    
-    Fixes #4618.
+    cmd/gc: remove spurious newline from node dump
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/7278048
+    https://golang.org/cl/7276048
 
- src/cmd/gc/sinit.c          | 11 +++++++++--
- test/fixedbugs/issue4618.go | 40 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 2 deletions(-)
+ src/cmd/gc/fmt.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

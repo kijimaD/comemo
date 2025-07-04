@@ -1,12 +1,16 @@
-commit 175c4015233272311d20dad8eb3e6f7d1acd941a
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Mar 15 06:57:50 2013 +0100
+commit f6a952599e2e9d75b50d1b1252397325111b1a87
+Author: Tyler Bunnell <tylerbunnell@gmail.com>
+Date:   Fri Mar 15 00:35:09 2013 -0400
 
-    cmd/gc: unroll small array types
+    cmd/gc: disallow fallthrough in final case of switch
     
-    R=golang-dev, rsc
-    CC=golang-dev, nigeltao
-    https://golang.org/cl/7812044
+    Small change to cmd/gc to catch a "fallthrough" in the final case of a switch.
+    
+    R=golang-dev, rsc, mtj
+    CC=golang-dev
+    https://golang.org/cl/7841043
 
- src/cmd/gc/reflect.c | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ src/cmd/gc/swt.c |  4 ++++
+ test/switch.go   |  9 ---------
+ test/switch4.go  | 36 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 40 insertions(+), 9 deletions(-)

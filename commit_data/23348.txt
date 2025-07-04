@@ -1,17 +1,25 @@
-commit 9a8750b2765184b3bfa555ac7cce6e28e45de03e
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sun Jun 14 21:52:57 2015 +0200
+commit a9a37dab4ac3b16cfeb865bd1ced940bc1d2004b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 5 16:19:12 2015 -0700
 
-    misc/trace: update trace viewer
+    [dev.ssa] cmd/internal/ssa: Add register allocation
     
-    Update to tip to fix #11003 (not possible to select events in chromium).
-    Fixed #11003
+    Add a simple register allocator.  It does only intra-basicblock
+    allocation.  It uses a greedy one-pass allocation treating the
+    register file as a cache.
     
-    Change-Id: Ibba5d39ca809cfd5cb79c9e6d152b00899d49e08
-    Reviewed-on: https://go-review.googlesource.com/11062
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ib6b52f48270e08dfda98f2dd842b05afc3ab01ce
+    Reviewed-on: https://go-review.googlesource.com/9761
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- misc/trace/README.md              |    3 +-
- misc/trace/trace_viewer_lean.html | 5732 ++++++++++++++++++++++---------------
- src/cmd/trace/trace.go            |    2 +-
- 3 files changed, 3427 insertions(+), 2310 deletions(-)
+ src/cmd/internal/ssa/block.go      |   5 +-
+ src/cmd/internal/ssa/cgen.go       |   3 -
+ src/cmd/internal/ssa/compile.go    |  25 ++-
+ src/cmd/internal/ssa/critical.go   |   2 +-
+ src/cmd/internal/ssa/location.go   |   2 +-
+ src/cmd/internal/ssa/op.go         |  50 +++--
+ src/cmd/internal/ssa/op_string.go  |   4 +-
+ src/cmd/internal/ssa/regalloc.go   | 421 +++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/ssa/sparseset.go  |  19 +-
+ src/cmd/internal/ssa/stackalloc.go |  51 +++++
+ 10 files changed, 542 insertions(+), 40 deletions(-)

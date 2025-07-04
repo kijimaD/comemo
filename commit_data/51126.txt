@@ -1,17 +1,18 @@
-commit a9767ea59d8b321bafc5e899889ff1d047a2b217
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Sat Nov 5 23:49:36 2022 +0900
+commit a08bbd964dd037331b2693aff731ec2d8376a721
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 18 14:59:05 2021 -0400
 
-    cmd/vet: remove unused const
+    cmd/go: add missing cgo conditions in script tests
     
-    Change-Id: I1f713bbb35917ab50b0cde24a81340aa16c2ed03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448195
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7cd1643b2dd5c00be84574d17830b1d5383643fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356610
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/vet/vet_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/go/testdata/script/build_overlay.txt      | 28 +++++++++++------------
+ src/cmd/go/testdata/script/list_swigcxx.txt       |  6 +++--
+ src/cmd/go/testdata/script/test_build_failure.txt |  2 +-
+ 3 files changed, 19 insertions(+), 17 deletions(-)

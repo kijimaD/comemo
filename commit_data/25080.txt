@@ -1,27 +1,14 @@
-commit 4d6a69f22790d0e9358b940da0bb86cef1e93777
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Nov 27 12:09:14 2015 +0900
+commit 7b7f85534cc8ed04ec727199c25119e157b2a4bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 22 09:37:56 2015 -0700
 
-    net: force LookupAddr results to be rooted DNS paths even in the case of local source
+    test/fixedbugs: update overly restrictive test case
     
-    The builtin name resolver using various resolution techniques is a bit
-    complicated and we sometimes fotget to take care of all the go and cgo
-    code paths and exchanging information to local and remote sources. This
-    change makes LookupAddr return absolute domain names even in the case of
-    local source.
+    See discussion in https://go-review.googlesource.com/14830 .
     
-    Updates #12189.
-    Fixes #12240.
-    
-    Change-Id: Icdd3375bcddc7f5d4d3b24f134d93815073736fc
-    Reviewed-on: https://go-review.googlesource.com/17216
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I94f25f92b8cdaa509d2c335865a645228425804d
+    Reviewed-on: https://go-review.googlesource.com/14837
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/cgo_unix.go      |  7 +------
- src/net/dnsclient.go     | 11 +++++++++++
- src/net/hosts.go         |  6 +++---
- src/net/hosts_test.go    |  5 ++++-
- src/net/lookup_test.go   | 37 +++++++++++++++++++++++++++++++------
- src/net/non_unix_test.go |  4 ++--
- src/net/unix_test.go     | 14 ++++++++++----
- 7 files changed, 62 insertions(+), 22 deletions(-)
+ test/fixedbugs/issue11326.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

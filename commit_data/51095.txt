@@ -1,20 +1,15 @@
-commit 0b76e326bb15ec828aeb1470902a71c7416b64b9
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Nov 3 15:18:25 2022 +0000
+commit ba83aa7caa4116266b6cc999d4e1fe9123fe18cb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 3 10:04:49 2021 -0800
 
-    net: do not modify shared test variable in TestDNSReadConfig
+    doc/go1.18: add documentation for changes to go/constant
     
-    Fixes #56542
+    Updates #47694
     
-    Change-Id: I294856f8fb4d49393310ec92ab40fb7d841b6570
-    GitHub-Last-Rev: a4563400af816caa6119775b7b01b51134c62149
-    GitHub-Pull-Request: golang/go#56545
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447198
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2ce5aaa4493259790712a8a49e5b03472c8a7400
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369094
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/dnsconfig_unix_test.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ doc/go1.18.html | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)

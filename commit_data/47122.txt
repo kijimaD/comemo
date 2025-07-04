@@ -1,23 +1,22 @@
-commit 994049a9ad3d4230d0835ce36616a34a466f6718
-Author: Michael Knyszek <mknyszek@google.com>
-Date:   Fri Oct 1 15:11:51 2021 -0400
+commit 37ca84a9cd6a8a76dfe91263a17d2b92b17a24b3
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Feb 25 02:58:04 2021 +0100
 
-    runtime: add testing framework and basic tests for GC pacer
+    syscall: return error if GetQueuedCompletionStatus truncates key
     
-    This change creates a formal exported interface for the GC pacer and
-    creates tests for it that simulate some series of GC cycles. The tests
-    are completely driven by the real pacer implementation, except for
-    assists, which are idealized (though revise is called repeatedly).
+    This function has the wrong signature, so return an error when that
+    actually might lead to unexpected results. Users should switch to
+    x/sys/windows for the real version of this function.
     
-    For #44167.
+    Updates #44538.
     
-    Change-Id: I0112242b07e7702595ca71001d781ad6c1fddd2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353354
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I4d1f3d1e380815733ecfea683f939b1d25dcc32a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296154
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/export_test.go   |  78 ++++++
- src/runtime/mgcpacer_test.go | 590 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 668 insertions(+)
+ src/syscall/syscall_windows.go | 3 +++
+ 1 file changed, 3 insertions(+)

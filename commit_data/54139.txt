@@ -1,20 +1,20 @@
-commit fecf51717f0911e5e6c8ede773656da79c0ade9f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 21 14:08:46 2023 -0700
+commit b52783c1e9673793da85dc7a9fb433d033da2e10
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 2 13:50:10 2022 -0700
 
-    cmd/compile/internal/walk: reuse runtime.scase
+    cmd/compile: abstract type type+value obtained from types2
     
-    Shaves ~1.5kB off cmd/go binary.
+    In preparation for encoding it in a more efficient way.
     
-    Change-Id: I8ad85aa4a24bc197b009c8e1ea9201957222152a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521677
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I299dd2befc3d07107a1b7b49225bbb9f2e48a343
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432896
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/walk/select.go | 11 ++++++++---
- test/live.go                            |  8 ++++----
- test/live_regabi.go                     |  8 ++++----
- 3 files changed, 16 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/noder/expr.go     |  8 +---
+ src/cmd/compile/internal/noder/irgen.go    | 16 +++++++
+ src/cmd/compile/internal/noder/validate.go | 10 ++---
+ src/cmd/compile/internal/noder/writer.go   | 68 +++++++++++++-----------------
+ 4 files changed, 52 insertions(+), 50 deletions(-)

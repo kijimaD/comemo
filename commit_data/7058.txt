@@ -1,16 +1,15 @@
-commit f383062e014d44872e8bd450a538fc45b7bee5c8
+commit 353fd1014c78b3b76fb5233f477677e0333e5f1a
 Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 7 14:41:46 2011 -0800
+Date:   Fri Jan 7 14:41:33 2011 -0800
 
-    time.NewTicker: panic for intervals <= 0.
-    Not absolutely certain it's right to do this, but since there's
-    no error value coming back, it seems reasonable.
+    bytes.Buffer: Fix bug in UnreadByte.
+    Error check was inverted.
     
-    Fixes #1392.
+    Fixes #1396.
     
     R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/3896042
+    https://golang.org/cl/3851042
 
- src/pkg/time/tick.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/bytes/buffer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

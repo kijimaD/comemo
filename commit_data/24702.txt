@@ -1,33 +1,59 @@
-commit 456528304d4a20ee438b440fd6807c3f5ca7d5e2
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 15 17:58:17 2015 -0400
+commit 9f8f8c27dca1b27e9567df4f3aa4e7d8c31f3ec2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Aug 22 19:38:12 2015 -0700
 
-    runtime: make assists preemptible
+    [dev.ssa] cmd/compile: support spilling and loading flags
     
-    Currently, assists are non-preemptible, which means a heavily
-    assisting G can block other Gs from running. At the beginning of a GC
-    cycle, it can also delay scang, which will spin until the assist is
-    done. Since scanning is currently done sequentially, this can
-    seriously extend the length of the scan phase.
+    This CL takes a simple approach to spilling and loading flags.
+    We never spill. When a load is needed, we recalculate,
+    loading the arguments as needed.
     
-    Fix this by making assists preemptible. Since the assist holds work
-    buffers and runs on the system stack, this must be done cooperatively:
-    we make gcDrainN return on preemption, and make the assist return from
-    the system stack and voluntarily Gosched.
+    This is simple and architecture-independent.
+    It is not very efficient, but as of this CL,
+    there are fewer than 200 flag spills during make.bash.
     
-    This is prerequisite to enlarging the work buffers. Without this
-    change, the delays and spinning in scang increase significantly.
+    This was tested by manually reverting CLs 13813 and 13843,
+    causing SETcc, MOV, and LEA instructions to clobber flags,
+    which dramatically increases the number of flags spills.
+    With that done, all stdlib tests that used to pass
+    still pass.
     
-    This has no effect on the go1 benchmarks.
+    For future reference, here are some other, more efficient
+    amd64-only schemes that we could adapt in the future if needed.
     
-    name              old time/op  new time/op  delta
-    XBenchGarbage-12  5.72ms ± 4%  5.37ms ± 5%  -6.11%  (p=0.000 n=20+20)
+    (1) Spill exactly the flags needed.
     
-    Change-Id: I829e732a0f23b126da633516a1a9ec1a508fdbf1
-    Reviewed-on: https://go-review.googlesource.com/15894
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For example, if we know that the flags will be needed
+    by a SETcc or Jcc op later, we could use SETcc to
+    extract just the relevant flag. When needed,
+    we could use TESTB and change the op to JNE/SETNE.
+    (Alternatively, we could leave the op unaltered
+    and prepare an appropriate CMPB instruction
+    to produce the desired flag.)
+    
+    However, this requires separate handling for every
+    instruction that uses the flags register,
+    including (say) SBBQcarrymask.
+    
+    We could enable this on an ad hoc basis for common cases
+    and fall back to recalculation for other cases.
+    
+    (2) Spill all flags with PUSHF and POPF
+    
+    This modifies SP, which the runtime won't like.
+    It also requires coordination with stackalloc to
+    make sure that we have a stack slot ready for use.
+    
+    (3) Spill almost all flags with LAHF, SETO, and SAHF
+    
+    See http://blog.freearrow.com/archives/396
+    for details. This would handle all the flags we currently
+    use. However, LAHF and SAHF are not universally available
+    and it requires arranging for AX to be free.
+    
+    Change-Id: Ie36600fd8e807ef2bee83e2e2ae3685112a7f276
+    Reviewed-on: https://go-review.googlesource.com/13844
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgcmark.go | 20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 52 +++++++++++++++++++++++++++-----
+ 1 file changed, 44 insertions(+), 8 deletions(-)

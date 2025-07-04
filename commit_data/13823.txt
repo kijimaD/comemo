@@ -1,25 +1,13 @@
-commit a4d08ed5dfe23f5b0d777548410456fbb517478c
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Sep 14 19:10:02 2012 +0900
+commit ab7c8a620049c52bd437317272d2bd18a8ac4e1b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 14 12:26:45 2012 +1000
 
-    exp/locale/collate: changed API to allow access to different locales through New(),
-    instead of variables. Several reasons:
-    - Encourage users of the API to minimize the number of creations and reuse Collate objects.
-    - Don't rule out the possibility of using initialization code for collators. For some locales
-      it will be possible to have very compact representations that can be quickly expanded
-      into a proper table on demand.
-    Other changes:
-    - Change name of root* vars to main*, as the tables are shared between locales.
-    - Added Locales() method to get a list of supported locales.
+    A+C: add Xing Xing (individual CLA)
     
-    R=r
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6498107
+    https://golang.org/cl/6493121
 
- src/pkg/exp/locale/collate/build/builder.go |  25 +-
- src/pkg/exp/locale/collate/build/table.go   |  15 ++
- src/pkg/exp/locale/collate/collate.go       |  21 ++
- src/pkg/exp/locale/collate/maketables.go    |  18 +-
- src/pkg/exp/locale/collate/table.go         |  14 ++
- src/pkg/exp/locale/collate/tables.go        | 351 ++++++++++++++++++++++++++--
- 6 files changed, 398 insertions(+), 46 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

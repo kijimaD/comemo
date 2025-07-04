@@ -1,17 +1,13 @@
-commit 8529d99e1d447e930a1172e5f30fe6c1f46922e6
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Fri Jul 12 09:41:10 2013 +1000
+commit 4a4d48328bb3f24aad5b25ac55c42a561d4a6341
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jul 12 05:06:43 2013 +0800
 
-    misc/goplay: use `go run x.go` instead of `go build x.go`
+    runtime: fix build for windows.
     
-    when the program is not main package, `go run x.go` can't return the
-    link error message. so use `go run x.go` in instead `go build x.go`.
-    
-    Fixes #5865.
-    
-    R=golang-dev, adg
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/11165043
+    https://golang.org/cl/11188043
 
- misc/goplay/goplay.go | 14 +++-----------
- 1 file changed, 3 insertions(+), 11 deletions(-)
+ src/pkg/runtime/sys_windows_386.s   | 4 ++--
+ src/pkg/runtime/sys_windows_amd64.s | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

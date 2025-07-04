@@ -1,19 +1,22 @@
-commit 865d2bc78e5b6170c8b773880dc5fa3405791dc2
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 9 18:02:48 2021 -0400
+commit e674b7703e48e357cd46939413620f21cb84027d
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Sep 28 14:11:02 2020 -0400
 
-    cmd/compile: do not allocate space for unspilled in-register results
+    [dev.link] cmd/link run generators in parallel
     
-    For function results, if in register, we allocate spill slots
-    within the frame like locals. Currently, even if we never spill
-    to it the slot is still allocated. This CL makes it not allocate
-    the slot if it is never used.
+    Small runtime win:
     
-    Change-Id: Idbd4e3096cfac6d2bdfb501d8efde48ee2191d7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309150
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Stats for darwin, building cmd/compile:
+    
+    Asmb                      20.7ms ±14%    18.3ms ±14%  -11.54%  (p=0.002 n=10+10)
+    TotalTime                  365ms ±10%     351ms ± 2%     ~     (p=0.211 n=10+9)
+    
+    Change-Id: Ia8afdf6948111d59b0c89e52cb50557a10f33c40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257964
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssagen/pgen.go | 25 +++++++++++++++++++------
- 1 file changed, 19 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/main.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

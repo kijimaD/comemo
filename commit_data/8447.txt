@@ -1,16 +1,12 @@
-commit b22151f7dc94734ebc67431240282cd569027423
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 20 09:03:43 2011 -0700
+commit 2fe4dd7ad34c35831fccaa82f4455122dc4ce897
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 20 15:32:01 2011 +1000
 
-    mime/multipart: add a multipart Writer
+    godoc: remove paragraph tags around navigation div
     
-    Fixes #1823
-    
-    R=golang-dev, adg, robert.hencke
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/4530054
+    https://golang.org/cl/4551051
 
- src/pkg/mime/multipart/Makefile       |   1 +
- src/pkg/mime/multipart/writer.go      | 160 ++++++++++++++++++++++++++++++++++
- src/pkg/mime/multipart/writer_test.go |  71 +++++++++++++++
- 3 files changed, 232 insertions(+)
+ lib/godoc/godoc.html | 2 --
+ 1 file changed, 2 deletions(-)

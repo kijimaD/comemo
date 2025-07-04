@@ -1,29 +1,31 @@
-commit fd4b391849dcd3ac0e90d3a86b0ee7df00b9b269
-Author: Shang Jian Ding <sding3@ncsu.edu>
-Date:   Tue Oct 5 19:52:20 2021 -0500
+commit b2389ad3ce7254784db5f4005805714e87ffab85
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 5 16:50:38 2021 -0400
 
-    crypto/x509: fix comments on certDirectories
+    cmd/compile: fix for zerorange on plan9-amd64
     
-    CL 205237 allowed SSL_CERT_DIR to be a colon delimited list of
-    directories. In the case that SSL_CERT_DIR is unset, the change
-    also made certDirectories to all be loaded rather than stopping
-    after successfully reading at least one file from a directory.
-    This update fixes code comments on the certDirectories package
-    level variables to reflect current behavior.
+    In CL 305829 a problematic change was made to the compiler's
+    amd64-specific "zerorange" function. In zerorange the compiler uses
+    different sets of strategies depending on the size of the stack frame
+    it needs to zero; turns out that only on plan9-amd64 was it hitting
+    the final fallback strategy, which is a REPSTOSQ instruction. REPSTOSQ
+    takes RAX as an input, hence the changes made in CL 305829 (switching
+    to R13) were incorrect.
     
-    Fixes #48808
+    This patch restores the zerorange REPSTOSQ sequence (back to use RAX).
+    This is going to be an interim solution, since long term we need to
+    avoid touching RAX in the function prolog (since if the new register
+    ABI is in effect, it will hold a live value).
     
-    Change-Id: Id92f875545272fc6205d9955d03ea7bf844f15eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354140
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
+    Fixes #45372.
+    
+    Change-Id: Ic89a6a2a76d6e03b9fbda99275101e96b70fdf5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307469
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/x509/root_aix.go     | 3 +--
- src/crypto/x509/root_bsd.go     | 3 +--
- src/crypto/x509/root_js.go      | 3 +--
- src/crypto/x509/root_linux.go   | 3 +--
- src/crypto/x509/root_solaris.go | 3 +--
- 5 files changed, 5 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

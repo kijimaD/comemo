@@ -1,28 +1,15 @@
-commit 1a976f1576f2220ca78cb7094b2fea3e88a8b4ad
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Aug 30 00:16:07 2014 -0400
+commit c6f7c176a3a46ff87d72c4b744bbadf02df1890e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 25 11:35:55 2014 -0700
 
-    undo CL 135230043 / 60812bad3769
+    cmd/go: add GOOS and GOARCH to generate
+    Fixes test failure in build, probably a good idea anyway.
     
-    broke api check everywhere
-    
-    ««« original CL description
-    runtime: fix openbsd build
-    
-    LGTM=iant
-    R=iant, minux
-    CC=golang-codereviews, jsing
-    https://golang.org/cl/135230043
-    
-    »»»
-    
-    TBR=mdempsky
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/137010043
+    https://golang.org/cl/131210043
 
- src/pkg/runtime/defs_openbsd.go      | 4 ++--
- src/pkg/runtime/defs_openbsd_386.h   | 4 ++--
- src/pkg/runtime/defs_openbsd_amd64.h | 4 ++--
- src/pkg/runtime/os_openbsd.c         | 6 +++---
- src/pkg/runtime/os_openbsd.go        | 2 +-
- 5 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/go/generate.go      | 17 ++++++++++++++++-
+ src/cmd/go/generate_test.go |  3 +++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

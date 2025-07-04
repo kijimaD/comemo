@@ -1,22 +1,18 @@
-commit b2cc0fecc2ccd80e6d5d16542cc684f97b3a9c8a
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Jun 17 10:09:45 2022 -0700
+commit 010817714e16b859211b50bde6ea7c804263146c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 28 11:22:06 2021 +0700
 
-    net/http: preserve nil values in Header.Clone
+    cmd/compile: ignore SliceExpr.CheckPtrCall for mknode
     
-    ReverseProxy makes a distinction between nil and zero-length header values.
-    Avoid losing nil-ness when cloning a request.
+    CL 343972 added SliceExpr.CheckPtrCall field but forgot to add ignore
+    tag for mknode. This CL adds the missing tag.
     
-    Thanks to Christian Mehlmauer for discovering this.
-    
-    Fixes #53423
-    Fixes CVE-2022-32148
-    
-    Change-Id: Ice369cdb4712e2d62e25bb881b080847aa4801f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412857
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib39bff3d456063bdc10fc17b4047b8392d373bf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345431
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/http/header.go      | 6 ++++++
- src/net/http/header_test.go | 5 +++++
- 2 files changed, 11 insertions(+)
+ src/cmd/compile/internal/ir/expr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,23 @@
-commit f3c46355d7a4c794228e4d8cd6bbaabbef23a345
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 5 16:22:02 2017 -0500
+commit 3366f515441d2ed1aeffaa215a44959e5089bc30
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 10 23:41:17 2017 +0900
 
-    cmd/go: drop runtime, runtime/internal/sys, runtime/internal/atomic, unsafe as deps of everything
+    cmd/compile: tweaks to unindent some code
     
-    This was a hack to make a new make.bash avoid reusing installed packages.
-    The new content-based staleness is precise enough not to need this hack;
-    now it's just causing unnecessary rebuilds: if a package doesn't import "runtime",
-    for example, it doesn't need to be recompiled when runtime changes.
-    (It does need to be relinked, and we still arrange that.)
+    Prioritized the chunks of code with 8 or more levels of indentation.
+    Basically early breaks/returns and joining nested ifs.
     
-    Change-Id: I4ddf6e16d754cf21b16e9db1ed52bddbf82e96c6
-    Reviewed-on: https://go-review.googlesource.com/76015
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I6817df1303226acf2eb904a29f2db720e4f7427a
+    Reviewed-on: https://go-review.googlesource.com/55630
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/go_test.go              | 29 ++++++++++++-----------------
- src/cmd/go/internal/load/pkg.go    | 25 +++----------------------
- src/cmd/go/internal/work/action.go | 32 +++++++++++++++++++-------------
- 3 files changed, 34 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/gc/closure.go   |  3 +-
+ src/cmd/compile/internal/gc/esc.go       | 24 +++++------
+ src/cmd/compile/internal/gc/phi.go       | 37 ++++++++--------
+ src/cmd/compile/internal/gc/reflect.go   | 12 +++---
+ src/cmd/compile/internal/gc/sinit.go     |  3 +-
+ src/cmd/compile/internal/gc/ssa.go       | 28 ++++++------
+ src/cmd/compile/internal/gc/typecheck.go | 74 ++++++++++++++++----------------
+ 7 files changed, 89 insertions(+), 92 deletions(-)

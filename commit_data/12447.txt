@@ -1,17 +1,33 @@
-commit 0130a31366734fe0dd82a5c574437a3b6d2e1b28
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 7 15:29:26 2012 +1100
+commit c3f4319a241d646668f81de5e7109ce8938f79f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 6 23:27:30 2012 -0500
 
-    go_faq: a simple binary is a little smaller now
-    About 10% for hello, world.
-    Maybe more reductions will come.
-    Also clarify that we're comparing printf against Printf
-    (gcc can optimize aggressively, making this a different
-    sort of comparison).
+    misc/cgo: re-enable some tests
     
-    R=golang-dev, rsc
+    The testso directory still needs to be enabled.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5756070
+    https://golang.org/cl/5731048
 
- doc/go_faq.html | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ misc/cgo/gmp/Makefile      | 38 --------------------------------------
+ misc/cgo/gmp/fib.go        |  4 +++-
+ misc/cgo/gmp/pi.go         |  4 +++-
+ misc/cgo/life/Makefile     | 35 -----------------------------------
+ misc/cgo/life/main.go      |  4 +++-
+ misc/cgo/life/test.bash    |  7 +++++--
+ misc/cgo/stdio/Makefile    | 17 -----------------
+ misc/cgo/stdio/chain.go    |  4 +++-
+ misc/cgo/stdio/fib.go      |  4 +++-
+ misc/cgo/stdio/file.go     |  2 +-
+ misc/cgo/stdio/hello.go    |  4 +++-
+ misc/cgo/stdio/test.bash   |  9 +++++++--
+ misc/cgo/test/basic.go     |  4 ++--
+ misc/cgo/test/callback.go  |  8 +++-----
+ misc/cgo/test/callback_c.c | 20 ++++++++++++++++++++
+ misc/cgo/test/issue1328.go |  2 +-
+ misc/cgo/test/issue1560.go |  5 +----
+ src/cmd/dist/build.c       | 18 ++++++++++++++++++
+ src/pkg/go/build/build.go  |  1 +
+ src/run.bash               | 10 ++--------
+ 20 files changed, 79 insertions(+), 121 deletions(-)

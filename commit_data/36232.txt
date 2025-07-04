@@ -1,14 +1,14 @@
-commit a618efd7d8b1c93ad2b8107bed4dd894198e02b1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 8 10:38:19 2018 -0400
+commit c96ac60bcdd9c3c170fd70cc1b8b5ebfcda2d776
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 29 07:55:30 2018 -0700
 
-    cmd/go: add test for 'go get' within a local module
+    time: document that going to sleep may stop the monotonic clock
     
-    Change-Id: I16d36c8e22c84a3266520d86e41ff71ef826ae70
-    Reviewed-on: https://go-review.googlesource.com/128555
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #23178
+    
+    Change-Id: I060a73d6263bc135f5a14c1991932a225208bb39
+    Reviewed-on: https://go-review.googlesource.com/103396
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/testdata/script/mod_get_local.txt | 61 ++++++++++++++++++++++++++++
- 1 file changed, 61 insertions(+)
+ src/time/time.go | 4 ++++
+ 1 file changed, 4 insertions(+)

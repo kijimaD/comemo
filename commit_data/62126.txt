@@ -1,0 +1,17 @@
+commit b45c7d546669c37bbfdb1dedffa1b3e12acfc18c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 3 22:50:29 2025 -0500
+
+    internal/trace: skip TestTraceCgoCallback on freebsd-amd64-race builders
+    
+    For #71556.
+    
+    Change-Id: I754f113bfdad244d0e978cf559bf45f2f4d7bf06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646396
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/trace/trace_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,17 +1,22 @@
-commit 6693807668af34c77522a7d7104bbc21dad5f0c8
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 8 11:28:31 2023 -0400
+commit 3b594b9255b091b8c3b56fc9592f05ebe71e31b8
+Author: HowJMay <yuanyanghau@gmail.com>
+Date:   Fri Jun 24 04:02:10 2022 +0000
 
-    misc: update go.mod comment
+    io: clarify SeekEnd offset value
     
-    We just moved all of the cgo tests out of misc, and this comment was
-    already a little stale. Update it.
+    fixes #53474
     
-    Change-Id: Ide711cce53dbe6d9675de587c1d73514b063e952
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493600
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I14c3dc800dc27233630a54592328bb0df1bbaa5d
+    GitHub-Last-Rev: 46f93cfbd41c1b3274b570744f18d08e7759eb1e
+    GitHub-Pull-Request: golang/go#53505
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413614
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- misc/go.mod | 11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+ src/io/io.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

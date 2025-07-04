@@ -1,25 +1,46 @@
-commit e90f572cd68adf11337faf30d1db0231d0c9d870
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed Feb 20 13:33:30 2019 +0530
+commit 0e9f8a21f8b6534931f1ab50909161a289a0da3c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 14 10:09:08 2018 -0700
 
-    go/doc: add // while wrapping a line comment in ToText
+    runtime,cmd/compile: pass strings and slices to convT2{E,I} by value
     
-    Currently, lineWrapper does not detect if it is printing a line comment or not.
-    Hence, while wrapping a comment, the new line does not get prefixed with a //.
+    When we pass these types by reference, we usually have to allocate
+    temporaries on the stack, initialize them, then pass their address
+    to the conversion functions. It's simpler to pass these types
+    directly by value.
     
-    We add logic to lineWrapper to detect this case and add // accordingly. Block
-    comments do not need any such handling.
+    This particularly applies to conversions needed for fmt.Printf
+    (to interface{} for constructing a [...]interface{}).
     
-    Added tests for both cases.
+    func f(a, b, c string) {
+         fmt.Printf("%s %s\n", a, b)
+         fmt.Printf("%s %s\n", b, c)
+    }
     
-    Fixes #20929
+    This function's stack frame shrinks from 200 to 136 bytes, and
+    its code shrinks from 535 to 453 bytes.
     
-    Change-Id: I656037c2d865f31dd853cf9195f43ab7c6e6fc53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/163578
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    The go binary shrinks 0.3%.
+    
+    Update #24286
+    
+    Aside: for this function f, we don't really need to allocate
+    temporaries for the convT2E function. We could use the address
+    of a, b, and c directly. That might get similar (or maybe better?)
+    improvements. I investigated a bit, but it seemed complicated
+    to do it safely. This change was much easier.
+    
+    Change-Id: I78cbe51b501fb41e1e324ce4203f0de56a1db82d
+    Reviewed-on: https://go-review.googlesource.com/c/135377
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/go/doc/comment.go      |  8 ++++++++
- src/go/doc/comment_test.go | 20 ++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+ src/cmd/compile/internal/gc/builtin.go         |  8 ++--
+ src/cmd/compile/internal/gc/builtin/runtime.go |  8 ++--
+ src/cmd/compile/internal/gc/order.go           | 13 ++++--
+ src/cmd/compile/internal/gc/walk.go            |  8 ++--
+ src/runtime/iface.go                           | 58 ++++++++------------------
+ test/fixedbugs/issue20250.go                   |  4 +-
+ test/live.go                                   |  8 ++--
+ 7 files changed, 45 insertions(+), 62 deletions(-)

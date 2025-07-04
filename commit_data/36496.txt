@@ -1,19 +1,21 @@
-commit eae5fc88c13d6902a7fe9c595fb02155eb037cbe
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Aug 25 16:53:23 2018 +0200
+commit 6a8cff57309ba3168844640b2da2ea3103d594fd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 30 22:55:05 2018 +0000
 
-    internal/bytealg: replace use of runtime.support_sse2 with cpu.X86.HasSSE2
+    os: fix missing break bug in earlier CL 110295's use of Uname
     
-    This makes the runtime.support_sse2 variable unused
-    so it is removed in this CL too.
+    The Uname name was never being used because it always generated a
+    too-long string.
     
-    Change-Id: Ia8b9ffee7ac97128179f74ef244b10315e44c234
-    Reviewed-on: https://go-review.googlesource.com/131455
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The new test looking for zero bytes wouldn't have caught it (I thought
+    it would've), but is still nice to have.
+    
+    Updates #24701
+    
+    Change-Id: I2648074452609e4ad1b9736973e1b3a95eac658d
+    Reviewed-on: https://go-review.googlesource.com/110436
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/bytealg/compare_386.s | 2 +-
- src/runtime/proc.go                | 1 -
- src/runtime/runtime2.go            | 1 -
- 3 files changed, 1 insertion(+), 3 deletions(-)
+ src/os/os_test.go   | 35 +++++++++++++++--------------------
+ src/os/sys_linux.go |  1 +
+ 2 files changed, 16 insertions(+), 20 deletions(-)

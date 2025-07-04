@@ -1,16 +1,14 @@
-commit ee80afe326bab0a4829bd39186c4f343ac680a40
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 21 13:14:35 2017 -0700
+commit f52e20582a30c1a52d192f331e19c277aa1cd98f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 1 16:25:07 2016 -0800
 
-    cmd/compile/internal/gc: remove unneeded effects cache fields
+    doc: CL 32796 was reverted, so remove it from go1.8.html
     
-    Must have been lost when rebasing the SSA liveness CLs.
+    Reversion CL was 33770.
     
-    Change-Id: Iaac33158cc7c92ea44a023c242eb914a7d6979c6
-    Reviewed-on: https://go-review.googlesource.com/38427
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I119f26796bb2b66d302e132dd118847ac3bd6633
+    Reviewed-on: https://go-review.googlesource.com/33807
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 3 ---
- 1 file changed, 3 deletions(-)
+ doc/go1.8.html | 13 -------------
+ 1 file changed, 13 deletions(-)

@@ -1,29 +1,20 @@
-commit 9483a0bc23904af80e47aaa8cf1239b3012246d2
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jan 12 12:03:49 2018 -0500
+commit 71d08324ed0f842228ee8aa966736a157b4a2422
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 26 10:50:57 2017 -0700
 
-    runtime: don't grow the stack on sigpanic if throwsplit
+    time: unify three readFile implementations into one
     
-    Currently, if a _SigPanic signal arrives in a throwsplit context,
-    nothing is stopping the runtime from injecting a call to sigpanic that
-    may attempt to grow the stack. This will fail and, in turn, mask the
-    real problem.
+    Undoes this part of https://golang.org/cl/5447061 by using the
+    OS-specific open and close functions, and adding a read function.
     
-    Fix this by checking for throwsplit in the signal handler itself
-    before injecting the sigpanic call.
-    
-    Updates #21431, where this problem is likely masking the real problem.
-    
-    Change-Id: I64b61ff08e8c4d6f6c0fb01315d7d5e66bf1d3e2
-    Reviewed-on: https://go-review.googlesource.com/87595
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: If37ef43eb5df8554fc03f3922bbc2f785129bb9c
+    Reviewed-on: https://go-review.googlesource.com/66271
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
 
- src/runtime/os3_plan9.go         | 5 +++++
- src/runtime/panic.go             | 3 +++
- src/runtime/signal_sighandler.go | 5 +++++
- src/runtime/signal_unix.go       | 6 ++++++
- src/runtime/signal_windows.go    | 6 ++++++
- 5 files changed, 25 insertions(+)
+ src/time/sys_plan9.go     | 34 ++++------------------------------
+ src/time/sys_unix.go      | 34 ++++------------------------------
+ src/time/sys_windows.go   | 34 ++++------------------------------
+ src/time/zoneinfo_read.go | 30 ++++++++++++++++++++++++++++++
+ 4 files changed, 42 insertions(+), 90 deletions(-)

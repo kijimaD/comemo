@@ -1,22 +1,19 @@
-commit bce85b701153f7671f0e362288ad5c8fdad15093
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 30 17:16:53 2021 -0700
+commit 754776850a62fa37ff6d68a8d5250497b2869b26
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Sep 22 12:43:16 2020 +0700
 
-    cmd/compile/internal/types2: combine all type inference in a single function
+    cmd/compile: consistently use typekind when reporting invalid operation
     
-    Rather than splitting up type inference into function argument
-    and constraint type inference, provide a single Checker.infer
-    that accepts type parameters, type arguments, value parameters,
-    and value arguments, if any. Checker.infer returns the completed
-    list of type arguments, or nil.
+    While at it, make "typekind" awares of "types.Ideal*" types.
     
-    Updated (and simplified) call sites.
+    Passes toolstash-check.
     
-    Change-Id: I9200a44b9c4ab7f2d21eed824abfffaab68ff766
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306170
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I092fa8c57ab6b8d9ba0f25d8e1ea44fba48675e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256438
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/call.go  |  85 ++++----------
- src/cmd/compile/internal/types2/infer.go | 184 +++++++++++++++++++++++++------
- 2 files changed, 174 insertions(+), 95 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

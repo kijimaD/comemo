@@ -1,34 +1,20 @@
-commit d11e1f92fc578c5d2e604acfe9ea60d7afb84a0c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 27 15:52:32 2020 -0500
+commit 48151b3f0ffda8a38ca71c8f1b8a72d5f90d7061
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Sep 24 18:12:55 2019 -0400
 
-    cmd/go/internal/search: consolidate package-pattern predicates into Match methods
+    [dev.link] cmd/link: add symbols to Textp after deadcode pass
     
-    This change consolidates predicates currently scattered throughout
-    various parts of the package and module loader into methods on the
-    search.Match type.
+    Currently we add all text symbols to ctxt.Textp at load time,
+    then the deadcode pass filters out unreachable ones. This CL
+    delays adding symbols to ctxt.Textp to the end of the deadcode
+    pass, where we only add reachable ones.
     
-    That not only makes them more concise, but also encourages
-    consistency, both in the code and in reasoning about the kinds of
-    patterns that need to be handled. (For example, the IsLocal predicate
-    was previously two different calls, either of which could be easily
-    forgotten at a given call site.)
-    
-    Factored out from CL 185344 and CL 185345.
-    
-    Updates #32917
-    
-    Change-Id: Ifa450ffaf6101f673e0ed69ced001a487d6f9335
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221458
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie83b2958f915c5aaa004b8c5ed1f1bc275f4d1db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197257
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/get/get.go       |  13 ++--
- src/cmd/go/internal/load/pkg.go      |   8 +--
- src/cmd/go/internal/modget/get.go    |   2 +-
- src/cmd/go/internal/modload/load.go  |  42 +++++------
- src/cmd/go/internal/modload/query.go |   3 +-
- src/cmd/go/internal/search/search.go | 131 ++++++++++++++++++++---------------
- 6 files changed, 109 insertions(+), 90 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 62 ++++++++++++++++++++++++++++++------
+ src/cmd/link/internal/ld/lib.go      | 38 ----------------------
+ 2 files changed, 53 insertions(+), 47 deletions(-)

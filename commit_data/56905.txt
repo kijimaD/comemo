@@ -1,21 +1,26 @@
-commit 355711821eea51c6456a31ab61d0dc2e9db034f7
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jul 16 19:13:47 2024 +0000
+commit e73e5d80ea371a67f7b10725e623940a3dcd4924
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 09:57:03 2023 -0400
 
-    cmd/internal/cov: close counter data files eagerly
+    cmd/go: introduce WriteOpts argument for WriteGoMod
     
-    When reading the counter data files from a given pod, close the
-    underlying *os.File immediately after each one is read, as opposed to
-    using a deferred close in the loop (which will close them all at the
-    end of the function). Doing things this way avoids running into "too
-    many open files" when processing large clumps of counter data files.
+    This CL is a no-op, just adding the new options and plumbing it through.
+    'go get' will use this option to let commitRequirements know whether
+    toolchain was mentioned explicitly on the command line.
     
-    Fixes #68468.
+    For #57001.
     
-    Change-Id: Ic1fe1d36c44d3f5d7318578cd18d0e65465d71d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598735
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iee7145f3335e899704df3e98fb840f1aa4063b0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499555
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/cov/readcovdata.go | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/modcmd/download.go |  4 ++--
+ src/cmd/go/internal/modget/get.go      |  2 +-
+ src/cmd/go/internal/modload/init.go    | 12 ++++++++----
+ src/cmd/go/internal/modload/list.go    |  2 +-
+ src/cmd/go/internal/modload/load.go    |  4 ++--
+ src/cmd/go/internal/workcmd/sync.go    |  2 +-
+ 6 files changed, 15 insertions(+), 11 deletions(-)

@@ -1,39 +1,16 @@
-commit 4f7053c87f9ebf3acab7669d380f53bdfba0566b
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Tue Apr 21 23:31:59 2020 -0700
+commit 5e52ca067a98d43ca3f2fc6d0f4116475dcac9ef
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 15 09:05:41 2019 -0500
 
-    cmd/compile: omit file:pos for non-existent, permission errors
+    cmd/go: fix typo'd argument in build_trimpath.txt
     
-    Omits printing the file:line:column when trying to open either
-    * non-existent files
-    * files without permission
+    Fixes #35617
     
-    Given:
-        go tool compile x.go
-    
-    For either of x.go not existing, or if no read permissions:
-    
-    * Before:
-        x.go:0: open x.go: no such file or directory
-        x.go:0: open x.go: permission denied
-    
-    * After:
-        open x.go: no such file or directory
-        open x.go: permission denied
-    
-    While here, noticed an oddity with the Linux builders, that appear
-    to always be running under root, hence the test for permission errors
-    with 0222 -W-*-W-*-W- can't pass on linux-amd64 builders.
-    The filed bug is #38608.
-    
-    Fixes #36437
-    
-    Change-Id: I9645ef73177c286c99547e3a0f3719fa07b35cb5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229357
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I514f4e5f80ba9866c5cad3eb1fecd6f346c82f14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207340
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/subr.go |  8 ++++-
- test/fixedbugs/issue36437.go        | 69 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 76 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/build_trimpath.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

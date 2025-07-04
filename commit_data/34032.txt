@@ -1,18 +1,25 @@
-commit 99e6e482f4f03d80c7dcf1c33b4f49f349d4b3b6
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Sun Jan 21 13:49:41 2018 -0500
+commit 90fdc45585bc18386d5a2d90a062bf86863e917d
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Sep 27 13:36:54 2017 +0200
 
-    os: handle ' is a directory' error as IsExist on Plan 9
+    net: bump TestDialerDualStackFDLeak timeout on iOS
     
-    This error is returned by os.Mkdir when the directory already exists.
+    On an iPhone 6 running iOS 11, the TestDialerDualStackFDLeak test
+    started failing with dial durations just above the limit:
     
-    This change fixes some upspin tests.
+    FAIL: TestDialerDualStackFDLeak (0.21s)
     
-    Change-Id: I9ad5aefebb32dff577726d537b4f3826d79868eb
-    Reviewed-on: https://go-review.googlesource.com/88656
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+            dial_test.go:90: got 101.154ms; want <= 95ms
+    
+    Bump the timeout on iOS.
+    
+    For the iOS builder.
+    
+    Change-Id: Id42b471e7cf7d0c84f6e83ed04b395fa1a2d449d
+    Reviewed-on: https://go-review.googlesource.com/66491
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/error_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/dial_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

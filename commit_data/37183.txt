@@ -1,23 +1,17 @@
-commit 5cc80899486027db5f0de00870f1e022e1cfb9c5
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Oct 26 18:44:17 2018 +1100
+commit 9b7a8aaaf3adbc330ef724fb581b3bfa72ab2a49
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 8 16:42:33 2018 -0700
 
-    os: use Stat instead of Lstat in Symlink
+    runtime: only run TestMemStats sanity tests once
     
-    Windows implementation of Symlink uses CreateSymbolicLink Windows
-    API. The API requires to identify the target type: file or
-    directory. Current Symlink implementation  uses Lstat to determine
-    symlink type, but Lstat will not be able to determine correct
-    result if destination is symlink. Replace Lstat call with Stat.
+    Fixes #22696
     
-    Fixes #28432
-    
-    Change-Id: Ibee6d8ac21e2246bf8d0a019c4c66d38b09887d4
-    Reviewed-on: https://go-review.googlesource.com/c/145217
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ibe4628f71d64a2b36b655ea69710a925924b12a3
+    Reviewed-on: https://go-review.googlesource.com/122586
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/file_windows.go |  2 +-
- src/os/stat_test.go    | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/runtime/malloc_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

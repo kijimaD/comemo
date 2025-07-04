@@ -1,19 +1,20 @@
-commit 84570aa9a18fa46dba1402004a54cedc7cf5e043
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Mar 7 15:11:16 2014 -0500
+commit b2fa6f41a48b141e7307f9640f4ceb748a42b4cd
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 7 14:22:17 2014 -0500
 
-    runtime: round stack size to power of 2.
-    Fixes build on windows/386 and plan9/386.
-    Fixes #7487.
+    runtime: comment out breakpoint in windows/386 sighandler
     
-    LGTM=mattn.jp, dvyukov, rsc
-    R=golang-codereviews, mattn.jp, dvyukov, 0intro, rsc
+    This code being buggy is the only explanation I can come up
+    with for issue 7325. It's probably not, but the only alternative
+    is a Windows kernel bug. Comment this out to see what breaks
+    or gets fixed.
+    
+    Update #7325
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/72360043
+    https://golang.org/cl/72590044
 
- src/pkg/runtime/proc.c    |  7 ++++---
- src/pkg/runtime/runtime.c |  4 ++++
- src/pkg/runtime/runtime.h |  1 +
- src/pkg/runtime/stack.c   |  6 +++---
- src/pkg/runtime/stack.h   | 13 ++++++-------
- 5 files changed, 18 insertions(+), 13 deletions(-)
+ src/pkg/runtime/os_windows_386.c | 2 ++
+ 1 file changed, 2 insertions(+)

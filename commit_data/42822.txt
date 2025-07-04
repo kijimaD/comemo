@@ -1,20 +1,26 @@
-commit 8d31ca255bd6b00d04f1673d26110b702e96662b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 25 18:01:27 2020 +0000
+commit 30e3bf2051e1659ba7ea1d14849f79deb82a5606
+Author: Timmy Douglas <timmyd983@gmail.com>
+Date:   Sat Feb 1 22:14:30 2020 +0000
 
-    Revert "net/http: fix data race due to writeLoop goroutine left running"
+    net/mail: skip empty entries in parseAddressList
     
-    This reverts CL 232799.
+    RFC 5322 has a section 4.4 where it says that address-list could
+    have "null" members: "That is, there could be two or more commas in
+    such a list with nothing in between them, or commas at the beginning
+    or end of the list." This change handles such a case so that mail
+    clients using this method on actual email messages get a reasonable
+    return value when they parse email.
     
-    Reason for revert: net/http test is failing on all longtest builders.
+    Fixes #36959
     
-    Change-Id: I4694e34f35419bab2d0b45fa6d8c3ac2aa1f51a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250597
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: I3ca240969935067262e3d751d376a06db1fef2a2
+    GitHub-Last-Rev: b96a9f2c075dfd67c3ff7b8ae0c12e12035f0da0
+    GitHub-Pull-Request: golang/go#36966
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217377
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/net/http/transport.go      | 10 +----
- src/net/http/transport_test.go | 92 ------------------------------------------
- 2 files changed, 1 insertion(+), 101 deletions(-)
+ src/net/mail/message.go      |  9 +++++++++
+ src/net/mail/message_test.go | 14 ++++++++++++++
+ 2 files changed, 23 insertions(+)

@@ -1,19 +1,20 @@
-commit 3124439b3a5903bdbf29c9d560493d2f1bcc9f11
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 28 13:02:58 2017 -0700
+commit c44d031bf08a916c01ee53a33fc54d46e0833d1b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 2 11:07:41 2016 -0400
 
-    cmd/compile: make more use of exported position information
+    runtime: eliminate heapBits.hasPointers
     
-    Updates #19683.
+    This is no longer necessary now that we can more efficiently consult
+    the span's noscan bit.
     
-    Change-Id: I64b3b93a3ab14518a5376e1270bdd2a94bdd67ef
-    Reviewed-on: https://go-review.googlesource.com/59611
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    This is a cherry-pick of dev.garbage commit 312aa09996.
+    
+    Change-Id: Id0b00b278533660973f45eb6efa5b00f373d58af
+    Reviewed-on: https://go-review.googlesource.com/41252
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go | 32 ++++++++++++++++----------------
- src/cmd/compile/internal/gc/dcl.go     | 14 ++++++++++++--
- src/cmd/compile/internal/gc/export.go  | 13 +++++++------
- src/cmd/compile/internal/gc/main.go    |  2 +-
- 4 files changed, 36 insertions(+), 25 deletions(-)
+ src/runtime/mbitmap.go | 11 -----------
+ src/runtime/mgcmark.go |  4 ++--
+ 2 files changed, 2 insertions(+), 13 deletions(-)

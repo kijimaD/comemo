@@ -1,24 +1,30 @@
-commit 5786a54cfe34069c865fead1b6d9c9e3485a40a5
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Oct 26 09:13:16 2021 +0200
+commit 5e804ba17da12f53c0d66c1ce1e0e7845feb7f69
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Nov 28 02:46:00 2020 +0700
 
-    syscall: use dup3 in forkAndExecInChild on NetBSD
+    cmd/compile: use transitive relations for slice len/cap in poset
     
-    Use dup3(oldfd, newfd, O_CLOEXEC) to atomically duplicate the file
-    descriptor and mark is as close-on-exec instead of dup2 & fcntl.
+    Currently, we keep track of slice len by mapping from slice ID to
+    len/cap SSA value. However, slice len/cap can have multiple SSA values,
+    so when updating fact table for slice len/cap, we only update in one
+    place.
     
-    The dup3 syscall was added in NetBSD 6.0.
+    Instead, we can take advantage of the transitive relations provided by
+    poset. So all duplicated slice lens are set as equal to one another.
+    When updating fact table for one, that fact will be reflected to all
+    others. The same mechanism is applied for slice cap.
     
-    Change-Id: I01a4f8c62bfa8fb7f9f3166070380dd2002bb564
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358755
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Removes 15 bounds checks from std/cmd.
+    
+    Fixes #42603
+    
+    Change-Id: I32c07968824cc33765b1e441b3ae2c4b5f5997c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273670
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/exec_bsd.go               | 33 +++++++++++++++++++++++++--------
- src/syscall/syscall_dragonfly.go      |  2 ++
- src/syscall/syscall_netbsd.go         |  2 ++
- src/syscall/syscall_openbsd_mips64.go |  2 ++
- 4 files changed, 31 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 16 ++++++++++++++--
+ test/prove.go                         | 16 ++++++++++++++++
+ 2 files changed, 30 insertions(+), 2 deletions(-)

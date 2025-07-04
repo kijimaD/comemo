@@ -1,14 +1,25 @@
-commit 05db7de1c1a27b75df1f11990a6e3e00f7e991cd
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Apr 21 13:57:41 2020 +0700
+commit 14849f0fa57c67996bb00bd42bb14cef9f4e9a1e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 12 22:30:39 2019 +0000
 
-    cmd/compile: remove unused nlo function
+    runtime: add new page allocator constants and description
     
-    Change-Id: I858d666d491f649f78581a43437408ffab33863b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229139
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    This change is the first of a series of changes which replace the
+    current page allocator (which is based on the contents of mgclarge.go
+    and some of mheap.go) with one based on free/used bitmaps.
+    
+    It adds in the key constants for the page allocator as well as a comment
+    describing the implementation.
+    
+    Updates #35112.
+    
+    Change-Id: I839d3a07f46842ad379701d27aa691885afdba63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190619
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/rewrite.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/runtime/mpagealloc.go       | 72 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mpagealloc_32bit.go | 23 +++++++++++++
+ src/runtime/mpagealloc_64bit.go | 14 ++++++++
+ 3 files changed, 109 insertions(+)

@@ -1,20 +1,19 @@
-commit ee8b8e988c47a400d035891539a045031854b391
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 11 12:20:19 2023 -0400
+commit 8befe0e4083a2a61741f03fb4e4cc2814fe27c35
+Author: Xiangdong Ji <xiangdong.ji@gmail.com>
+Date:   Fri Jun 25 21:51:22 2021 +0800
 
-    cmd/go: clean up "cover" debug output
+    runtime: fix uncondition calls to traceGCSTWDone
     
-    Currently, the two places that run the cover tool manually construct a
-    terse command description. However, this actually prevents Builder.run
-    from constructing a more detailed description from the actual command
-    being run. Fix this by passing "" as the description to get the
-    default behavior.
+    startTheWorldWithSema should call traceGCSTWDone only when
+    the tracing is enabled.
     
-    Change-Id: I27d42cb1fda9bba70c631dc43417a03b8bddec92
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534157
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ibc7181834f68af3923e4b2aee01a57492ab6213e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330835
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/work/exec.go | 4 ++--
+ src/runtime/mgc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

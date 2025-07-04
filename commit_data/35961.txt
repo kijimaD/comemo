@@ -1,16 +1,36 @@
-commit 964c15f36006e6f13695afd4e25e38a18d5c4c2b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 11 17:33:01 2018 -0700
+commit 6f08b9faf2f92752b3246cf52a1f3be76c3882a9
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Jan 30 19:25:37 2018 -0800
 
-    test: add test of valid code that gccgo failed to compile
+    database/sql: add more examples
     
-    Updates #26340
+    This aims to expand the coverage of examples showing how the sql
+    package works, as well as to address a number of issues I've observed
+    while explaining how the database package works:
     
-    Change-Id: I3bc7cd544ea77df660bbda7de99a009b63d5be1b
-    Reviewed-on: https://go-review.googlesource.com/123477
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    - The best way to issue UPDATE or INSERT queries, that don't need
+    to scan anything in return. (Previously, we had no examples for any
+    Execute statement).
+    
+    - How to use prepared statements and transactions.
+    
+    - How to aggregate arguments from a Query/QueryContext query into
+    a slice.
+    
+    Furthermore just having examples in more places should help, as users
+    click on e.g. the "Rows" return parameter and are treated with the
+    lack of any example about how Rows is used.
+    
+    Switch package examples to use QueryContext/QueryRowContext; I think
+    it is a good practice to prepare users to issue queries with a timeout
+    attached, even if they are not using it immediately.
+    
+    Change-Id: I4e63af91c7e4fff88b25f820906104ecefde4cc3
+    Reviewed-on: https://go-review.googlesource.com/91015
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue26340.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/database/sql/example_test.go | 187 +++++++++++++++++++++++++++++++++++++--
+ src/database/sql/sql.go          |  19 +---
+ 2 files changed, 181 insertions(+), 25 deletions(-)

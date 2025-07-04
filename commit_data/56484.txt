@@ -1,40 +1,18 @@
-commit 18d0e6a14f0de7fe1a32799f3d0982c274b3c091
+commit 3ee12d5702be8e2e13e256d6dec28c6464e0a7e5
 Author: David Chase <drchase@google.com>
-Date:   Tue Apr 2 11:12:44 2024 -0400
+Date:   Wed Apr 26 15:30:04 2023 -0400
 
-    cmd/compile, cmd/internal: fine-grained fiddling with loop alignment
+    internal/reflectlite: common up types, remove code
     
-    This appears to be useful only on amd64, and was specifically
-    benchmarked on Apple Silicon and did not produce any benefit there.
-    This CL adds the assembly instruction `PCALIGNMAX align,amount`
-    which aligns to `align` if that can be achieved with `amount`
-    or fewer bytes of padding. (0 means never, but will align the
-    enclosing function.)
-    
-    Specifically, if low-order-address-bits + amount are
-    greater than or equal to align; thus, `PCALIGNMAX 64,63` is
-    the same as `PCALIGN 64` and `PCALIGNMAX 64,0` will never
-    emit any alignment, but will still cause the function itself
-    to be aligned to (at least) 64 bytes.
-    
-    Change-Id: Id51a056f1672f8095e8f755e01f72836c9686aa3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/577935
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4d3ef025b935e52c47896f69814ba2f1a504d749
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489375
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/base/debug.go     |  1 +
- src/cmd/compile/internal/base/flag.go      |  1 +
- src/cmd/compile/internal/gc/compile.go     |  5 +-
- src/cmd/compile/internal/gc/main.go        |  2 +-
- src/cmd/compile/internal/inline/inl.go     | 90 +++++++++++++++++++-----------
- src/cmd/compile/internal/ssa/block.go      | 19 ++++++-
- src/cmd/compile/internal/ssa/func.go       |  1 +
- src/cmd/compile/internal/ssa/looprotate.go | 13 ++++-
- src/cmd/compile/internal/ssagen/pgen.go    |  6 +-
- src/cmd/compile/internal/ssagen/ssa.go     | 43 +++++++++++++-
- src/cmd/internal/obj/arm64/asm7.go         | 27 ++++-----
- src/cmd/internal/obj/link.go               |  1 +
- src/cmd/internal/obj/util.go               | 61 ++++++++++++++++++++
- src/cmd/internal/obj/x86/asm6.go           | 30 ++++------
- 14 files changed, 221 insertions(+), 79 deletions(-)
+ src/internal/reflectlite/export_test.go |  30 +--
+ src/internal/reflectlite/swapper.go     |   2 +-
+ src/internal/reflectlite/type.go        | 369 ++++++++++++--------------------
+ src/internal/reflectlite/value.go       |  20 +-
+ 4 files changed, 160 insertions(+), 261 deletions(-)

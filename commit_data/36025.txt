@@ -1,17 +1,14 @@
-commit 940811922fb528fabda91a2b2dbb401a06aeb1b3
-Author: Mostyn Bramley-Moore <mostyn@antipode.se>
-Date:   Wed Jul 4 23:32:59 2018 +0200
+commit d29ed92dedb4fb4317d189aebd7cd0b4f2c00082
+Author: Samuel Tan <samueltan@google.com>
+Date:   Wed Mar 28 11:42:28 2018 -0700
 
-    path/filepath: make Walk example runnable in the playground
+    html/template: fix lint errors
     
-    Relates to #9679
-    
-    Change-Id: I68951f664d2a03812dae309c580c181869d8af21
-    Reviewed-on: https://go-review.googlesource.com/122237
+    Change-Id: If56bd72917a9cbf5920ae8b5a36dc67f10959b94
+    Reviewed-on: https://go-review.googlesource.com/103175
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/path/filepath/example_unix_test.go      | 23 ----------
- src/path/filepath/example_unix_walk_test.go | 66 +++++++++++++++++++++++++++++
- 2 files changed, 66 insertions(+), 23 deletions(-)
+ src/html/template/url.go | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

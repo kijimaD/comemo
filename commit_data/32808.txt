@@ -1,17 +1,25 @@
-commit f260ae65232a88c9c6832bd954c6e0660d0773d4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 21 14:26:21 2017 -0700
+commit d263e855977d49719ceea4da3b843bab5951dffb
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 5 10:59:57 2017 -0400
 
-    cmd/compile/internal/types: unexport Type.Copy
+    runtime: expand acceptable PingPongHog factor from 2 to 5
     
-    It's only used/needed by SubstAny.
+    Since TestPingPongHog tests the scheduler, it's ultimately
+    probabilistic. Currently, it requires the result be at most of factor
+    of 2 off of the ideal. It turns out this isn't quite enough in
+    practice, with factors on 1000 iterations on linux/amd64 ranging from
+    0.48 to 2.5. If the test were failing, we would expect a factor closer
+    to 1000X, so it's pretty safe to expand the accepted factor from 2 to
+    5.
     
-    CL prepared with gorename.
+    Fixes #20494.
     
-    Change-Id: I243138f9dcc4e6af9b81a7746414e6d7b3ba10a2
-    Reviewed-on: https://go-review.googlesource.com/65311
+    Change-Id: If8f2e96194fe66f1fb981a965d1167fe74ff38d7
+    Reviewed-on: https://go-review.googlesource.com/44859
+    Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/types/type.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/runtime/proc_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

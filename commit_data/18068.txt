@@ -1,37 +1,13 @@
-commit 46b4ed2cf065a9877257c6641e40a0e3cd1468fd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 18 15:52:05 2013 -0800
+commit 8606b976905525e489bb5f3a89aea23b52e42ed0
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Dec 18 17:40:31 2013 -0500
 
-    encoding/json: use sync.Pool
+    cmd/go: show testflag help for "go test -h"
+    Fixes #6576.
     
-    Benchmark is within the noise. I had to run this a dozen times
-    each before & after (on wall power, without a browser running)
-    before I could get halfway consistent numbers, and even then
-    they jumped all over the place, with the new one sometimes
-    being better. But these are the best of a dozen each.
-    
-    Slowdown is expected anyway, since I imagine channels are
-    optimized more.
-    
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkCodeEncoder       26556987     27291072   +2.76%
-    BenchmarkEncoderEncode         1069         1071   +0.19%
-    
-    benchmark                  old MB/s     new MB/s  speedup
-    BenchmarkCodeEncoder          73.07        71.10    0.97x
-    
-    benchmark                old allocs   new allocs    delta
-    BenchmarkEncoderEncode            2            2    0.00%
-    
-    benchmark                 old bytes    new bytes    delta
-    BenchmarkEncoderEncode          221          221    0.00%
-    
-    Update #4720
-    
-    R=golang-dev, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/37720047
+    https://golang.org/cl/14502065
 
- src/pkg/encoding/json/encode.go | 17 ++++-------------
- src/pkg/encoding/json/stream.go |  2 +-
- 2 files changed, 5 insertions(+), 14 deletions(-)
+ src/cmd/go/main.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,20 +1,22 @@
-commit 33a89b5fdad1917e292b7a8aea5f164c1460177d
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed May 23 11:11:34 2012 +1000
+commit 13a59b8c6d092075c0ff9d6ec3b5d43b6ead7b39
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 22 17:20:37 2012 -0700
 
-    exp/html: adjust the last few insertion modes to match the spec
+    math/big: implement JSON un/marshaling support for Ints
     
-    Handle text, comment, and doctype tokens in afterBodyIM, afterAfterBodyIM,
-    and afterAfterFramesetIM.
+    Also: simplified some existing tests.
     
-    Pass three more tests.
+    No support for Rats for now because the precision-preserving
+    default notation (fractions of the form a/b) is not a valid
+    JSON value.
     
-    R=nigeltao
+    Fixes #3657.
+    
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6231043
+    https://golang.org/cl/6211079
 
- src/pkg/exp/html/parse.go                  | 22 ++++++++++++++++++----
- src/pkg/exp/html/testlogs/tests18.dat.log  |  2 +-
- src/pkg/exp/html/testlogs/tests19.dat.log  |  2 +-
- src/pkg/exp/html/testlogs/webkit01.dat.log |  2 +-
- 4 files changed, 21 insertions(+), 7 deletions(-)
+ src/pkg/math/big/int.go      | 16 ++++++++++++
+ src/pkg/math/big/int_test.go | 60 ++++++++++++++++++++++++++++----------------
+ src/pkg/math/big/rat_test.go | 37 ++++++++++-----------------
+ 3 files changed, 67 insertions(+), 46 deletions(-)

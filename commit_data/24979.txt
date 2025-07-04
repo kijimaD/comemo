@@ -1,26 +1,17 @@
-commit b43b375c6c3d540b8ed4ab69bfc634991cd5dcd3
-Author: Austin Clements <austin@google.com>
-Date:   Tue Nov 17 17:14:32 2015 -0500
+commit b9dbb030d5e7d2733e877972568368dc806b7304
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sun Sep 13 22:58:12 2015 +0200
 
-    runtime: eliminate write barriers from gentraceback
+    cmd/compiler/internal/gc: make Type.Copyto a []*Node
     
-    gentraceback is used in many contexts where write barriers are
-    disallowed. This currently works because the only write barrier is in
-    assigning frame.argmap in setArgInfo and in practice frame is always
-    on the stack, so this write barrier is a no-op.
+    Passes go build -a -toolexec 'toolstash -cmp' std cmd
     
-    However, we can easily eliminate this write barrier, which will let us
-    statically disallow write barriers (using go:nowritebarrierrec
-    annotations) in many more situations. As a bonus, this makes the code
-    a little more idiomatic.
-    
-    Updates #10600.
-    
-    Change-Id: I45ba5cece83697ff79f8537ee6e43eadf1c18c6d
-    Reviewed-on: https://go-review.googlesource.com/17003
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ief4613cfb341172a85e3a894f44fb2bb308c7b55
+    Reviewed-on: https://go-review.googlesource.com/14554
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/runtime/traceback.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/go.go        | 2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

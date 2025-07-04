@@ -1,18 +1,21 @@
-commit 6e5080470c184da64b021708545da984301a3eb8
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Fri Feb 16 10:24:55 2024 +0000
+commit 85b55c797d47a34dff63c21d17770f6ce9bd3af2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Feb 26 19:34:24 2023 +0700
 
-    crypto/subtle: use min builtin function in XORBytes
+    syscall: use unsafe.Slice in anyToSockaddr
     
-    Change-Id: Ibf57dbaaa54486823e0769714dec2e22d6c5ea9e
-    GitHub-Last-Rev: 31421d066833f721f3fa261ac9dc49724fffb5f8
-    GitHub-Pull-Request: golang/go#65748
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564577
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    The function was added since go1.17, which is the minimum version for
+    bootstraping now.
+    
+    Change-Id: I08b55c3639bb9ff042aabfcdcfbdf2993032ba6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471436
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/subtle/xor.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/syscall/syscall_aix.go     | 3 +--
+ src/syscall/syscall_bsd.go     | 3 +--
+ src/syscall/syscall_linux.go   | 3 +--
+ src/syscall/syscall_solaris.go | 3 +--
+ 4 files changed, 4 insertions(+), 8 deletions(-)

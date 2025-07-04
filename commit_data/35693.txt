@@ -1,19 +1,35 @@
-commit a1b85ee754f84899b1bd7460c0a51630541dc3da
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 13 17:42:22 2018 +0000
+commit 2baed3856deb9b077cc9b604c8247865bd3adec0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 14 19:35:03 2018 -0500
 
-    Revert "cmd/link: separate virtual address layout from file layout"
+    cmd/asm: fix assembling return jump
     
-    This reverts commit bd83774593bca66cc899d5180c77680bc907fab8.
+    In RET instruction, the operand is the return jump's target,
+    which should be put in Prog.To.
     
-    Reason for revert: This broke ELF layout on arm, arm64, mips*, mips64*, ppc64*, and s390x.
+    Add an action "buildrundir" to the test driver, which builds
+    (compile+assemble+link) the code in a directory and runs the
+    resulting binary.
     
-    Change-Id: I56a27b76e6f4b22ce39a99790af9116f8687eee9
-    Reviewed-on: https://go-review.googlesource.com/118675
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Fixes #23838.
+    
+    Change-Id: I7ebe7eda49024b40a69a24857322c5ca9c67babb
+    Reviewed-on: https://go-review.googlesource.com/94175
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/ld/data.go | 68 +++++++++++++++++-----------------------
- src/cmd/link/internal/ld/main.go |  3 +-
- 2 files changed, 29 insertions(+), 42 deletions(-)
+ src/cmd/asm/internal/asm/asm.go            |  2 +-
+ src/cmd/asm/internal/asm/testdata/386.s    |  1 +
+ src/cmd/asm/internal/asm/testdata/amd64.s  |  1 +
+ src/cmd/asm/internal/asm/testdata/arm.s    |  2 ++
+ src/cmd/asm/internal/asm/testdata/arm64.s  |  1 +
+ src/cmd/asm/internal/asm/testdata/mips.s   |  1 +
+ src/cmd/asm/internal/asm/testdata/mips64.s |  1 +
+ src/cmd/asm/internal/asm/testdata/ppc64.s  |  1 +
+ src/cmd/asm/internal/asm/testdata/s390x.s  |  1 +
+ test/retjmp.dir/a.s                        | 12 +++++++++++
+ test/retjmp.dir/main.go                    | 32 ++++++++++++++++++++++++++++++
+ test/retjmp.go                             |  9 +++++++++
+ test/run.go                                | 17 +++++++++++++---
+ 13 files changed, 77 insertions(+), 4 deletions(-)

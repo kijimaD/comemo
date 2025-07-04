@@ -1,22 +1,13 @@
-commit 9fe424737b59dd7c769ae5acfdaca8f511f40d25
+commit f18ced3fc9bdb36029d81eb73a1848959e5a84ec
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 7 03:15:09 2012 -0400
+Date:   Thu Jun 7 02:15:23 2012 -0400
 
-    cmd/gc: run escape analysis in call graph dependency order
-    
-    If there are mutually recursive functions, there is a cycle in
-    the dependency graph, so the order is actually dependency order
-    among the strongly connected components: mutually recursive
-    functions get put into the same batch and analyzed together.
-    (Until now the entire package was put in one batch.)
-    
-    The non-recursive case (single function, maybe with some
-    closures inside) will be able to be more precise about inputs
-    that escape only back to outputs, but that is not implemented yet.
+    cmd/gc: delete dead code
     
     R=ken2
-    CC=golang-dev, lvd
-    https://golang.org/cl/6304050
+    CC=golang-dev
+    https://golang.org/cl/6307050
 
- src/cmd/gc/esc.c | 499 +++++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 335 insertions(+), 164 deletions(-)
+ src/cmd/gc/dcl.c | 17 +----------------
+ src/cmd/gc/go.h  |  1 -
+ 2 files changed, 1 insertion(+), 17 deletions(-)

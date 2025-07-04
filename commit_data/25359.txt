@@ -1,16 +1,17 @@
-commit ab74f5944e1048f7293b519dfe26359db17d5ff2
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 17 13:16:25 2015 -0500
+commit c4fa25f4fc8f4419d0b0707bcdae9199a745face
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 24 17:18:56 2015 +0200
 
-    cmd/go: do not skip dirs with syntax errors in wildcard matching (like ./...)
+    os/exec: make Cmd.Output include stderr in ExitError
     
-    Fixes #11407.
-    
-    Change-Id: If35a8e04a3abf8acf955250c909dde57131b6bb8
-    Reviewed-on: https://go-review.googlesource.com/17971
+    Change-Id: I3c6649d2f2521ab0843b13308569867d2e5f02da
+    Reviewed-on: https://go-review.googlesource.com/11415
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 12 ++++++++++++
- src/cmd/go/main.go    |  9 ++++++++-
- src/go/build/build.go | 51 +++++++++++++++++++++++++++++++++------------------
- 3 files changed, 53 insertions(+), 19 deletions(-)
+ src/os/exec/exec.go          | 110 +++++++++++++++++++++++++++++++++++++++++--
+ src/os/exec/exec_test.go     |  19 ++++++++
+ src/os/exec/internal_test.go |  61 ++++++++++++++++++++++++
+ 3 files changed, 186 insertions(+), 4 deletions(-)

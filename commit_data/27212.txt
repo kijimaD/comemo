@@ -1,14 +1,12 @@
-commit 9fe572e509470d53c220e7f43a825d70a7f0d8b3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 29 15:44:36 2016 -0700
+commit ed73efbb746c9ca361071bdd0cd825b2b9724ec9
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Mar 16 12:57:17 2016 -0400
 
-    runtime: fix cgocallback_gofunc argument passing on arm64
+    runtime/debug: clarify WriteHeapDump STW behavior
     
-    Change-Id: I4b34bcd5cde71ecfbb352b39c4231de6168cc7f3
-    Reviewed-on: https://go-review.googlesource.com/22651
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Change-Id: I049d2596fe8ce0e93391599f5c224779fd8e316f
+    Reviewed-on: https://go-review.googlesource.com/20761
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_arm64.s | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/debug/garbage.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

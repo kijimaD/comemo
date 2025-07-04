@@ -1,14 +1,18 @@
-commit 1d2e548b428373461e92c7490edb49fc39df0c85
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 8 15:18:44 2019 -0800
+commit 24e51bbe64b4a534b096a3b0c6bfae6a732eea59
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jun 16 06:54:23 2018 -0700
 
-    doc: go1.12: mention os.File.SyscallConn
+    cmd/compile: prefer rematerializeable arg0 for HMUL
     
-    Updates #24331
+    This prevents accidental regalloc regressions
+    that otherwise can occur from unrelated changes.
     
-    Change-Id: I2d7c996bbe29d5b3922588e199a106eb722c02e6
-    Reviewed-on: https://go-review.googlesource.com/c/156839
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iea356fb1a24766361fce13748dc1b46e57b21cea
+    Reviewed-on: https://go-review.googlesource.com/129375
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.12.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 80 ++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+)

@@ -1,27 +1,25 @@
-commit 601bc41da2378b342ea3bb2f0e7ab961dfe508a4
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 27 20:42:00 2020 -0400
+commit 4de3c7d30b82deb1824d5caf3d1542d6b0cc990b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Nov 14 16:17:47 2019 -0500
 
-    cmd/compile: don't emit stack maps for write barrier calls
+    cmd/go: include module path and version in cache key with -trimpath
     
-    These are necessarily deeply non-preemptible, so there's no point in
-    emitting stack maps for them. We already mark them as unsafe points,
-    so this only affects the runtime, since user code does not emit stack
-    maps at unsafe points. SSAGenState.PrepareCall also excludes them when
-    it's sanity checking call stack maps.
+    When -trimpath is used, packages built from the module cache still
+    have debug into that contains the module path and version. Only the
+    module cache directory is stripped.
     
-    Right now this only drops a handful of unnecessary stack maps from the
-    runtime, but we're about to start emitting stack maps only at calls
-    for user code, too. At that point, this will matter much more.
+    With this CL, we now include the module path and version in the cache
+    key for build actions.
     
-    For #36365.
+    Fixes #35412
     
-    Change-Id: Ib3abfedfddc8e724d933a064fa4d573500627990
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230542
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1956592d0d86fcea2cca7c5fc8957e83543d6aa2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207317
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/plive.go | 11 ++++++++++-
- src/cmd/compile/internal/gc/ssa.go   |  4 +---
- 2 files changed, 11 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/work/exec.go                   |  4 ++++
+ .../go/testdata/mod/example.com_stack_v1.0.0.txt   | 18 +++++++++++++++
+ .../go/testdata/mod/example.com_stack_v1.0.1.txt   | 18 +++++++++++++++
+ .../go/testdata/script/build_cache_trimpath.txt    | 27 ++++++++++++++++++++++
+ 4 files changed, 67 insertions(+)

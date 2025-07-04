@@ -1,23 +1,17 @@
-commit 011cb6423187699e26553580d97518f40966d32b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 16 16:13:22 2016 -0800
+commit 893edc9b3fceead9c31151ce46fb871ea8c225b1
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Sat Sep 24 22:06:39 2016 -0700
 
-    cmd/compile, reflect: use field pkgPath if needed
+    net/http/httptrace: remove the mention of http client
     
-    It's possible for the pkgPath of a field to be different than that of
-    the struct type as a whole. In that case, store the field's pkgPath in
-    the name field. Use the field's pkgPath when setting PkgPath and when
-    checking for type identity.
+    This sentence is partially guilty why httptrace is considered as an
+    http.Client tracing package. Removing the mention.
     
-    Fixes #17952.
+    Updates #17152.
     
-    Change-Id: Iebaf92f0054b11427c8f6e4158c3bebcfff06f45
-    Reviewed-on: https://go-review.googlesource.com/33333
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I69f78a6e10817db933f44e464a949ae896e44ec6
+    Reviewed-on: https://go-review.googlesource.com/29755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 19 +++++++++++-------
- src/reflect/all_test.go                | 36 +++++++++++++++++++++++-----------
- src/reflect/type.go                    | 29 +++++++++++++++------------
- 3 files changed, 54 insertions(+), 30 deletions(-)
+ src/net/http/httptrace/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

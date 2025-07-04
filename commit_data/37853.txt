@@ -1,15 +1,17 @@
-commit 033b6501817aefebc6fc56b6212ff6abf14c8127
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Jan 8 19:47:52 2019 +0100
+commit e2e44a5d161d5373f8124997382dd4169c1e8a00
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Mon Sep 3 12:02:25 2018 +0530
 
-    doc: update tzdata version in 1.12 release notes
+    misc/wasm: handle error during instantiateStreaming
     
-    It was recently updated (again) to version 2018i. Since we're here,
-    wrap the paragraph at ~70 columns, like all the others.
+    The same catch block is there in wasm_exec.js for node processes.
+    Added it in browser invocations too, to prevent uncaught exceptions.
     
-    Change-Id: I0a380385f34f1df1258a9f2af447234967422f37
-    Reviewed-on: https://go-review.googlesource.com/c/156857
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icab577ec585fa86df3c76db508b49401bcdb52ae
+    Reviewed-on: https://go-review.googlesource.com/132916
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.12.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ misc/wasm/wasm_exec.html | 2 ++
+ 1 file changed, 2 insertions(+)

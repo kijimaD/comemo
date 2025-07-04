@@ -1,26 +1,23 @@
-commit 0bdc792145acaf10c5f7bac1783a6692fb327dfb
-Author: cuishuang <imcusg@gmail.com>
-Date:   Sat Feb 15 11:22:16 2025 +0800
+commit b18b05881691861c4279a50010829150f1684fa9
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Dec 4 10:17:34 2023 -0800
 
-    all: use a more straightforward return value
+    crypto/x509: gate Policies marshaling with GODEBUG
     
-    Change-Id: I27e86c221da7f541c4823f501801e02942c9a829
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649935
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Use a GODEBUG to choose which certificate policy field to use. If
+    x509usepolicies=1 is set, use the Policies field, otherwise use the
+    PolicyIdentifiers field.
+    
+    Fixes #64248
+    
+    Change-Id: I3f0b56102e0bac4ebe800497717c61c58ef3f092
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546916
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/inline/inlheur/dumpscores_test.go | 2 +-
- src/cmd/go/internal/modload/buildlist.go                   | 4 ++--
- src/compress/flate/deflate.go                              | 2 +-
- src/crypto/x509/parser.go                                  | 2 +-
- src/internal/syscall/unix/faccessat_bsd.go                 | 2 +-
- src/internal/syscall/unix/faccessat_openbsd.go             | 2 +-
- src/log/syslog/syslog.go                                   | 2 +-
- src/net/http/example_filesystem_test.go                    | 2 +-
- src/net/http/request.go                                    | 2 +-
- src/net/rpc/jsonrpc/client.go                              | 2 +-
- src/os/stat_windows.go                                     | 2 +-
- src/os/user/cgo_lookup_unix.go                             | 2 +-
- 12 files changed, 13 insertions(+), 13 deletions(-)
+ doc/godebug.md                 |  9 +++++++++
+ src/crypto/x509/x509.go        | 42 +++++++++++++++++++++++++++++++++--------
+ src/crypto/x509/x509_test.go   | 43 ++++++++++++++++++++++++++++++++++++++++++
+ src/internal/godebugs/table.go |  1 +
+ src/runtime/metrics/doc.go     |  5 +++++
+ 5 files changed, 92 insertions(+), 8 deletions(-)

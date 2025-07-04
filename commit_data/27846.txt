@@ -1,30 +1,16 @@
-commit 562d06fc23261b21d12fbcbd407aadee9cb428cb
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jun 6 08:29:52 2016 -0700
+commit e7b96e1a1f1ead0d5def61f339e446c3afefa617
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 14 18:51:18 2016 -0700
 
-    cmd/compile: inline _, ok = i.(T)
+    cmd/internal/sys: cleanup documentation
     
-    We already inlined
+    Expand description of ArchFamily, because it seems to be a common
+    source of confusion.  Also, update InFamily's description to reflect
+    current name.
     
-    _, ok = e.(T)
-    _, ok = i.(E)
-    _, ok = e.(E)
-    
-    The only ok-only variants not inlined are now
-    
-    _, ok = i.(I)
-    _, ok = e.(I)
-    
-    These call getitab, so are non-trivial.
-    
-    Change-Id: Ie45fd8933ee179a679b92ce925079b94cff0ee12
-    Reviewed-on: https://go-review.googlesource.com/26658
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I66b7999aef64ab8fee39aec0f752ae4f3a08d36d
+    Reviewed-on: https://go-review.googlesource.com/22102
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 10 ++++++++++
- src/cmd/compile/internal/gc/swt.go  |  6 +-----
- src/cmd/compile/internal/gc/walk.go | 30 +++++++++++++++++++-----------
- src/runtime/iface.go                | 15 ++++++---------
- 4 files changed, 36 insertions(+), 25 deletions(-)
+ src/cmd/internal/sys/arch.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

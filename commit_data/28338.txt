@@ -1,45 +1,20 @@
-commit c345a3913f54ab88720654b3dc9b2c34779fca0c
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 9 13:11:07 2016 -0700
+commit ccdca832c569727f7985966a3324421a69739f57
+Author: andrew werner <andrew@upthere.com>
+Date:   Tue Dec 15 14:42:28 2015 -0800
 
-    cmd/compile: get rid of BlockCall
+    io: make chained multiReader Read more efficient
     
-    No need for it, we can treat calls as (mostly) normal values
-    that take a memory and return a memory.
+    before this change, when io.MultiReader was called many times but contain few
+    underlying readers, calls to Read were unnecessarily expensive.
     
-    Lowers the number of basic blocks needed to represent a function.
-    "go test -c net/http" uses 27% fewer basic blocks.
-    Probably doesn't affect generated code much, but should help
-    various passes whose running time and/or space depends on
-    the number of basic blocks.
+    Fixes #13558
     
-    Fixes #15631
-    
-    Change-Id: I0bf21e123f835e2cfa382753955a4f8bce03dfa6
-    Reviewed-on: https://go-review.googlesource.com/28950
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I3ec4e88c7b50c075b148331fb1b7348a5840adbe
+    Reviewed-on: https://go-review.googlesource.com/17873
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/amd64/ssa.go          |  2 +-
- src/cmd/compile/internal/arm/ssa.go            |  2 +-
- src/cmd/compile/internal/arm64/ssa.go          |  2 +-
- src/cmd/compile/internal/gc/ssa.go             | 30 +++++++++------------
- src/cmd/compile/internal/mips64/ssa.go         |  2 +-
- src/cmd/compile/internal/ppc64/ssa.go          |  2 +-
- src/cmd/compile/internal/ssa/check.go          | 10 -------
- src/cmd/compile/internal/ssa/deadcode.go       |  7 +++++
- src/cmd/compile/internal/ssa/gen/386Ops.go     | 10 +++----
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   | 10 +++----
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go   | 10 +++----
- src/cmd/compile/internal/ssa/gen/ARMOps.go     | 10 +++----
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  | 10 +++----
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   | 10 +++----
- src/cmd/compile/internal/ssa/gen/genericOps.go | 11 ++++----
- src/cmd/compile/internal/ssa/gen/main.go       |  4 +++
- src/cmd/compile/internal/ssa/likelyadjust.go   | 20 +++++++++++---
- src/cmd/compile/internal/ssa/op.go             |  1 +
- src/cmd/compile/internal/ssa/opGen.go          | 37 ++++++++++++++++++++++++--
- src/cmd/compile/internal/ssa/regalloc.go       | 20 ++++++--------
- src/cmd/compile/internal/x86/ssa.go            |  2 +-
- 21 files changed, 125 insertions(+), 87 deletions(-)
+ src/io/multi.go      |  7 +++++++
+ src/io/multi_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

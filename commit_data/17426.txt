@@ -1,16 +1,17 @@
-commit f5f0e40e803125e47c64372fc7d808cbd8b9577a
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Aug 29 21:09:23 2013 +0200
+commit 280c8b90e2785a7de2216cb129752bbeca09210a
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Aug 29 16:48:44 2013 +0200
 
-    compress/flate: implement Reset method on Writer.
+    cmd/gc: make method names for function scoped types unique
     
-    Fixes #6138.
+    Types in function scope can have methods on them if they embed another type, but we didn't make the name unique, meaning that 2 identically named types in different functions would conflict with eachother.
+    
+    Fixes #6269.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12953048
+    https://golang.org/cl/13326045
 
- src/pkg/compress/flate/deflate.go            | 67 +++++++++++++++++++++++++++-
- src/pkg/compress/flate/deflate_test.go       | 64 ++++++++++++++++++++++++++
- src/pkg/compress/flate/huffman_bit_writer.go | 25 +++++++++++
- 3 files changed, 154 insertions(+), 2 deletions(-)
+ src/cmd/gc/fmt.c            |  5 ++++-
+ test/fixedbugs/issue6269.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

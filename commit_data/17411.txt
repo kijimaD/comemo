@@ -1,15 +1,12 @@
-commit d595b67a12f1ecc0839bc4ced7efae916ed5584d
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 29 11:16:53 2013 +1000
+commit cfb02f7b74a4df9a8b52967fecc11b786ac551b2
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Wed Aug 28 11:55:39 2013 -0700
 
-    cmd/go: add -race flag to 'go list'
+    fmt: Remove some unnecessary conversions.
     
-    Causes the package dependencies to include those for race detection.
-    Fixes #5653.
-    
-    R=golang-dev, dave, bradfitz
+    R=golang-dev, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/13236045
+    https://golang.org/cl/12795052
 
- src/cmd/go/list.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/pkg/fmt/print.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

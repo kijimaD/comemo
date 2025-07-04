@@ -1,27 +1,17 @@
-commit 933f6685f7d33f3865d6ef062cbb0944d3f5d2fc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Dec 16 12:55:15 2021 -0800
+commit e1f4feb3d652d90834974608bb1e83d161e88325
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Apr 16 10:15:46 2021 +0200
 
-    cmd/compile: unique LinkString for renamed, embedded fields
+    cmd/link/internal/ld: fix GOARCH in TestAbstractOriginSanityIssue25459
     
-    Using type aliases, it's possible to create structs with embedded
-    fields that have no corresponding type literal notation. However, we
-    still need to generate a unique name for these types to use for linker
-    symbols. This CL introduces a new "struct{ Name = Type }" syntax for
-    use in LinkString formatting to represent these types.
+    There is no x86 GOARCH, this should likely be 386.
     
-    Fixes #50190.
-    
-    Change-Id: I025ceb09a86e00b7583d3b9885d612f5d6cb44fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372914
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I16f1cf5edb0cce156d42ecb621b2ae481c8f1789
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308995
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types/fmt.go | 37 +++++++++++++++++++++++++++++++++--
- test/fixedbugs/issue50190.go          | 21 ++++++++++++++++++++
- 2 files changed, 56 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,25 +1,26 @@
-commit f229e46783a12b7604bf99f0b7329965d5a2b1f6
-Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
-Date:   Sat Apr 2 11:27:02 2016 -0300
+commit f39cca94af880253be22cdbb30d0a7d385f6b516
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 2 10:14:36 2016 -0800
 
-    cmd/compile: better error when assigning to struct field in map
+    cmd/compile: bring vendored copy of math/big up-to-date
     
-    Identify this assignment case and instead of the more general error
+    These files were not added to the repo. They contain conversion
+    routines and corresponding tests not used by the compiler and
+    thus are technically not needed.
     
-        prog.go:6: cannot assign to students["sally"].age
+    However, future changes to math/big (and corresponding updates
+    of this vendored version) may require these files to exist.
+    Add them to avoid unnecessary confusion.
     
-    produce
-    
-        prog.go:6: cannot directly assign to struct field students["sally"].age in map
-    
-    that explains why the assignment is not possible.
-    
-    Fixes #13779.
-    
-    Change-Id: I90c10b445f907834fc1735aa66e44a0f447aa74f
-    Reviewed-on: https://go-review.googlesource.com/21462
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ie390fb54f499463b2bba2fdc084967539afbeeb3
+    Reviewed-on: https://go-review.googlesource.com/19730
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/typecheck.go |  5 +++++
- test/fixedbugs/issue13779.go             | 15 +++++++++++++++
- 2 files changed, 20 insertions(+)
+ src/cmd/compile/internal/big/example_rat_test.go |  65 ++++++++++++
+ src/cmd/compile/internal/big/floatmarsh.go       |  33 ++++++
+ src/cmd/compile/internal/big/floatmarsh_test.go  |  54 ++++++++++
+ src/cmd/compile/internal/big/intmarsh.go         |  74 ++++++++++++++
+ src/cmd/compile/internal/big/intmarsh_test.go    | 121 ++++++++++++++++++++++
+ src/cmd/compile/internal/big/ratmarsh.go         |  73 +++++++++++++
+ src/cmd/compile/internal/big/ratmarsh_test.go    | 125 +++++++++++++++++++++++
+ 7 files changed, 545 insertions(+)

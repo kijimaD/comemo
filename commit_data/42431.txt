@@ -1,12 +1,30 @@
-commit 0eb9767caad4c4a0b447824d7b27328864612d58
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Jun 1 18:06:45 2020 -0400
+commit 5c6f42773cec9eb217e258e104ee058f67253f72
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 19 15:46:06 2019 -0500
 
-    misc/cgo/testplugin: fix typo in comment
+    cmd/go: relax validation for replacements for gopkg.in paths
     
-    Change-Id: I7d1a5f6936505dff8f765541b5102dcbcd6ae835
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235924
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The 'go' command normally requires the 'go.mod' files for replacement
+    modules to have a major version compatible with the module they are
+    replacing.
+    
+    However, prior to CL 206761, the 'go' command erroneously allowed
+    unversioned paths (which imply major version 0 or 1) to replace
+    'gopkg.in' paths with any major-version suffix.
+    
+    An analysis of proxy.golang.org suggests that these replacements,
+    while uncommon, are not unheard-of. Rather than breaking the modules
+    that rely on them, we will continue to allow the erroneous replacement
+    paths for this particular pairing.
+    
+    Updates #34254
+    
+    Change-Id: Icb4e745981803edaa96060f17a8720a058219ab1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212105
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- misc/cgo/testplugin/plugin_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/coderepo.go           | 13 ++++-
+ src/cmd/go/testdata/script/mod_replace_gopkgin.txt | 57 ++++++++++++++++++++--
+ 2 files changed, 66 insertions(+), 4 deletions(-)

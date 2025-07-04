@@ -1,24 +1,21 @@
-commit 7b15e297a26842f1f3408ee9d7942f8cfab2e5ea
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Mon Mar 7 01:54:14 2022 -0600
+commit c925e1546ee72e40ca5351f3773379e99a6b8cdf
+Author: eric fang <eric.fang@arm.com>
+Date:   Fri May 7 05:48:18 2021 +0000
 
-    cmd/compile: fix PrefetchStreamed builtin implementation on PPC64
+    cmd/internal/obj/arm64: disable AL and NV for some condition operation instructions
     
-    This CL fixes encoding of PrefetchStreamed on PPC64 to be consistent
-    with what is implemented on AMD64 and ARM64 platforms which is
-    prefetchNTA (prefetch non-temporal access). Looking at the definition
-    of prefetchNTA, the closest corresponding Touch hint (TH) value to be
-    used on PPC64 is 16 that states that the address is accessed in a
-    transient manner. Current usage of TH=8 may cause degraded
-    performance.
+    According to the armv8-a reference manual, conditions AL and NV are not allowed
+    for instructions CINC, CINV, CNEG, CSET and CSETM. This CL adds this check and
+    the corresponding test cases.
     
-    Change-Id: I393bf5a9b971a22f632b3cbfb4fa659062af9a27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390316
-    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Change-Id: Icb496b7b13a353f41491f2de4d939a5cd88abb04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317912
+    Reviewed-by: eric fang <eric.fang@arm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules | 8 ++++++--
- src/cmd/compile/internal/ssa/rewritePPC64.go | 4 ++--
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 10 ++++++++++
+ src/cmd/internal/obj/arm64/asm7.go             | 24 +++++++++++-------------
+ 2 files changed, 21 insertions(+), 13 deletions(-)

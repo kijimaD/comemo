@@ -1,16 +1,16 @@
-commit 1961d8d72a53e780effa18bfa8dbe4e4282df0b2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 3 22:18:07 2018 +0000
+commit b280edb89eae1974e3f218726814b03b3558e005
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Jun 1 19:43:58 2018 +0200
 
-    crypto/rand: warn to stderr if blocked 60+ sec on first Reader.Read call
+    cmd/compile: fix comment to reference runtime.countrunes
     
-    Fixes #22614
+    Updates #24923
     
-    Change-Id: I220afbaaeab4dec6d59eeeef12107234a77f1587
-    Reviewed-on: https://go-review.googlesource.com/c/139419
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie5a1b54b023381b58df618080f3d742a50d46d8b
+    Reviewed-on: https://go-review.googlesource.com/115836
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/rand/rand.go         | 4 ++++
- src/crypto/rand/rand_unix.go    | 8 ++++++++
- src/crypto/rand/rand_windows.go | 9 +++++++++
- 3 files changed, 21 insertions(+)
+ src/cmd/compile/internal/gc/walk.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

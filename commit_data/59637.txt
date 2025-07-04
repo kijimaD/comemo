@@ -1,24 +1,17 @@
-commit 3dbc775d605a9f364030e2815ee70bc3d70cd180
-Author: Julian Zhu <jz531210@gmail.com>
-Date:   Wed May 21 16:36:53 2025 +0800
+commit 4b2db7f60d808dc9e135af86bcd4a39ae63b1fc7
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Apr 3 12:18:14 2024 +0800
 
-    cmd/compile/internal: intrinsify publicationBarrier on mipsx
+    slices: update doc for Repeat
     
-    This enables publicationBarrier to be used as an intrinsic on mipsx.
+    To use (len(x) * count) consistently.
     
-    Change-Id: Ic199f34b84b3058bcfab79aac8f2399ff21a97ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674856
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I45fa4383de7e05846152a8090ea5c04bc72a1727
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575955
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/mips/ssa.go               | 3 +++
- src/cmd/compile/internal/ssa/_gen/MIPS.rules       | 3 +++
- src/cmd/compile/internal/ssa/_gen/MIPSOps.go       | 3 +++
- src/cmd/compile/internal/ssa/opGen.go              | 8 ++++++++
- src/cmd/compile/internal/ssa/rewriteMIPS.go        | 3 +++
- src/cmd/compile/internal/ssagen/intrinsics.go      | 2 +-
- src/cmd/compile/internal/ssagen/intrinsics_test.go | 2 ++
- 7 files changed, 23 insertions(+), 1 deletion(-)
+ src/slices/slices.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,15 @@
-commit 6044dbdf1b627fc1f30422add87216137b709bae
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jul 3 16:06:24 2012 -0700
+commit 55cc1ff721aaf14b27df31efcf0295c4ff09e35a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 3 10:17:55 2012 -0700
 
-    reflect: reflect.Zero results are neither addressable nor settable
+    net/http: clean up fs tests a bit
     
-    This could be deduced from "The Laws of Reflection" but it seems
-    worthwhile highlighting it.
+    And fix some govet-caught format arg issues.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/6350073
+    https://golang.org/cl/6354068
 
- src/pkg/reflect/value.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/net/http/fs_test.go    | 23 ++++++++++++++---------
+ src/pkg/net/http/serve_test.go |  6 +++---
+ 2 files changed, 17 insertions(+), 12 deletions(-)

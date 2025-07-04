@@ -1,12 +1,13 @@
-commit c1b4be6a4dbbdce9c69d028a8652731652d7babc
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 23 11:50:39 2012 -0500
+commit ce2b0c0bcb5187cf8b15fca771eaba6e97f30440
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 23 08:49:30 2012 -0800
 
-    dashboard: fix -commit for new xml package
+    CONTRIBUTORS: add Alexandru Moșoi <brtzsnr@gmail.com>
+    Google contributor.
     
-    R=golang-dev, r
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5571046
+    https://golang.org/cl/5554084
 
- misc/dashboard/builder/main.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

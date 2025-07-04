@@ -1,0 +1,14 @@
+commit 5f5e9f4ff1c855e88474f007043863093fff40cc
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 30 11:31:31 2024 +0100
+
+    go/ast: simplify walking lists with generics
+    
+    Change-Id: Ib6e3fd9c5788400420555b2889e6dba0853446bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582495
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/go/ast/walk.go | 68 ++++++++++++++++--------------------------------------
+ 1 file changed, 20 insertions(+), 48 deletions(-)

@@ -1,18 +1,20 @@
-commit 4cc83d49d2a69bb9d348cb32d71ca34651aec3b5
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Nov 7 11:50:48 2016 -0500
+commit 5940a007c14af11fe35f48d8f7daa3cd9036aaa3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 13 08:24:07 2016 -0400
 
-    cmd/dist: enable more cgo tests on ppc64le
+    cmd/link: R_ADDR dynamic relocs for internal PIE
     
-    The tests all pass (for me at least) so I don't think there is any
-    reason not to enable them.
+    This gets -buildmode=pie -ldflags=-linkmode=internal working on
+    Ubuntu 16.04.
     
-    Change-Id: I96e71383e573273f442a849914cf6458ada14f82
-    Reviewed-on: https://go-review.googlesource.com/32855
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #17068
+    
+    Change-Id: Ice5036199005fb528cc58279a7f057170dc6b73d
+    Reviewed-on: https://go-review.googlesource.com/29118
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go | 47 ++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 45 insertions(+), 2 deletions(-)

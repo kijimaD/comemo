@@ -1,19 +1,13 @@
-commit 20aa947c56bd34d2c87b616bffbc4535a62ab778
+commit 2a7ab1616f861087c6da320f7de360949868384a
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon May 12 17:00:57 2014 +1000
+Date:   Mon May 12 09:26:05 2014 +1000
 
-    cmd/objdump: works with windows pe executables now
+    cmd/nm: do not write to GOROOT testdata directories during TestNM
     
-    Most code is copy from addr2line change 01dd67e5827f
-    
-    Update #7406
-    Fixes #7937
-    
-    LGTM=iant
-    R=golang-codereviews, iant, 0intro
+    LGTM=bradfitz
+    R=bradfitz, 0intro
     CC=golang-codereviews
-    https://golang.org/cl/95090044
+    https://golang.org/cl/95280043
 
- src/cmd/objdump/main.go         |  48 +++++++++++++++---
- src/cmd/objdump/objdump_test.go | 109 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 149 insertions(+), 8 deletions(-)
+ src/cmd/nm/nm_test.go | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

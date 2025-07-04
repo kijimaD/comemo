@@ -1,16 +1,24 @@
-commit 0b52392ef788bb4914f3fde99fe213ea06527ec4
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Jan 5 13:50:09 2015 +1100
+commit d11a42595940df79bbd73bfe54469f840952ab79
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 19 14:24:41 2014 -0500
 
-    image: use three-index slice for NewYCbCr.
+    [dev.cc] runtime: decode power64 branch instructions the way the CPU does
     
-    This ensures that changing an image.YCbCr's Y values can't change its
-    chroma values, even after re-slicing up to capacity.
+    Previously, this used the top 8 bits of an instruction as a
+    sort-of opcode and ignored the top two bits of the relative
+    PC.  This worked because these jumps are always negative and
+    never big enough for the top two bits of the relative PC (also
+    the bottom 2 bits of the sort-of opcode) to be anything other
+    than 0b11, but the code is confusing because it doesn't match
+    the actual structure of the instruction.
     
-    Change-Id: Icb626561522e336a3220e10f456c95330ae7db9e
-    Reviewed-on: https://go-review.googlesource.com/2209
-    Reviewed-by: Rob Pike <r@golang.org>
+    Instead, use the real 6 bit opcode and use all 24 bits of
+    relative PC.
+    
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/179960043
 
- src/image/ycbcr.go      | 11 +++++++----
- src/image/ycbcr_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 4 deletions(-)
+ src/runtime/sys_power64x.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

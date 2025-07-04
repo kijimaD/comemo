@@ -1,38 +1,22 @@
-commit 371eda45582aea165131cc204e92bdbce3c95097
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Sep 21 17:43:00 2017 -0700
+commit 912bb817b08669acf99d0c2a665acf69558d93a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 29 17:06:54 2017 +0000
 
-    io: simplify pipe implementation
+    Revert "encoding/json: reduce unmarshal mallocs for unmapped fields"
     
-    In the distant past, Pipe was implemented with channels and a
-    long running pipe.run goroutine (see CL 994043).
-    This approach of having all communication serialized through the
-    run method was error prone giving Pipe a history of deadlocks
-    and race conditions.
+    This reverts commit df68afd07ce67727 (https://golang.org/cl/33276)
     
-    After the introduction of sync.Cond, the implementation was rewritten
-    (see CL 4252057) to use condition variables and avoid the
-    long running pipe.run goroutine. While this implementation is superior
-    to the previous one, this implementation is strange in that the
-    p.data field is always set immediately prior to signaling the other
-    goroutine with Cond.Signal, effectively making the combination of the
-    two a channel-like operation. Inferior to a channel, however, this still
-    requires explicit locking around the p.data field.
+    Reason for revert: made other benchmarks worse
     
-    The data+rwait can be effectively be replaced by a "chan []byte" to
-    inform a reader that there is data available.
-    The data+wwait can be effectively be replaced by a "chan int" to
-    inform a writer of how many bytes were read.
+    Fixes #20693 (details)
+    Updates #17914
+    Updates #10335
     
-    This implementation is a simplified from net.Pipe in CL 37402.
-    
-    Change-Id: Ia5b26320b0525934fd87a3b69a091c787167f5aa
-    Reviewed-on: https://go-review.googlesource.com/65330
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: If451b620803ccb0536b89c76c4353d2185d57d7e
+    Reviewed-on: https://go-review.googlesource.com/47211
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/build/deps_test.go |   2 +-
- src/io/pipe.go            | 165 +++++++++++++++++++++-------------------------
- src/io/pipe_test.go       |  84 +++++++++++++++++++++++
- 3 files changed, 159 insertions(+), 92 deletions(-)
+ src/encoding/json/decode.go | 62 +++++++++++++++++++++++++--------------------
+ 1 file changed, 34 insertions(+), 28 deletions(-)

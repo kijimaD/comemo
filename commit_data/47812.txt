@@ -1,19 +1,26 @@
-commit c9ffcca7848e2c59a75f97801617322bb054c3fd
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 15 10:46:11 2021 -0500
+commit 3e8ba91275cdeb0af4c8b30f9cc788fd42cfbbd3
+Author: Jacalz <jacob.alzen@gmail.com>
+Date:   Fri Apr 9 14:57:59 2021 +0000
 
-    net: increase timing slop in TimeoutFluctuation tests on NetBSD and OpenBSD
+    mime: support reading shared mime-info database on unix systems
     
-    Decrease the slop everywhere else, since NetBSD and OpenBSD seem to be
-    the only ones that miss by that much.
+    This adds support for reading the FreeDesktop Shared MIME-info Database on Unix systems, if it exists.
+    It should make lookups work on systems where the mime.types files are not present and
+    should lead to better mimetype lookup in general. If the shared mimetype database does not exist,
+    we will fall back to reading mime.types files in common locations.
     
-    For #50189
-    Updates #36108
+    Related to a bug on Solus bugtracker: https://dev.getsol.us/T9394
+    This change makes the mime package work on Solus.
     
-    Change-Id: I22ac39cc7c254e40358fcd933b5a6016629602c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372215
-    Trust: Bryan Mills <bcmills@google.com>
+    Change-Id: If330c22ffe523bf31f7f10807a54fc8858517055
+    GitHub-Last-Rev: d5fbe8c41a9d975029b35498183a0f5a40df8e6a
+    GitHub-Pull-Request: golang/go#45271
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305230
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/net/timeout_test.go | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/mime/testdata/test.types.globs2 |  8 ++++++++
+ src/mime/type_unix.go               | 41 +++++++++++++++++++++++++++++++++++++
+ src/mime/type_unix_test.go          | 39 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 88 insertions(+)

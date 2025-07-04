@@ -1,21 +1,15 @@
-commit dad1228cc378f5860a111201ed24ba88cf992a73
-Author: Jimmy Zelinskie <jimmyzelinskie@gmail.com>
-Date:   Thu Oct 11 13:07:34 2012 +1100
+commit bd31e62982461b9b5b10b8c2181eff56fe4085f9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 11 09:53:37 2012 +1100
 
-          doc/articles/wiki: numerous fixes
+    godoc: restore toy selection to playground widget
     
-    Fixes #3733
-    Fixes #2149
-    Updated Syntax
-    Added part3.go example program
-    Added part3-errorhandling.go example program
-    Improved wording in some places
+    Fixes #4225.
     
-    R=golang-dev, adg, minux.ma
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6636048
+    https://golang.org/cl/6640054
 
- doc/articles/wiki/index.html             | 208 ++++++++++++++++---------------
- doc/articles/wiki/part3-errorhandling.go |  75 +++++++++++
- doc/articles/wiki/part3.go               |  59 +++++++++
- 3 files changed, 243 insertions(+), 99 deletions(-)
+ doc/play/playground.js | 30 ++++++++++++++++++++++++------
+ doc/root.html          |  2 --
+ 2 files changed, 24 insertions(+), 8 deletions(-)

@@ -1,19 +1,35 @@
-commit 5e217284dc9f3b55e8c8b225dc81c1eb1004d423
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Oct 28 16:06:21 2021 -0400
+commit 04edf418d285df410745118aae756f9e0a9a00f5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Nov 18 12:50:29 2020 -0800
 
-    cmd/internal/goobj: bump version number
+    encoding/json: reduce allocated space in Unmarshal
     
-    There have a few updates to the Go object file in this cycle (e.g.
-    FuncInfo format change, some changes in constant values), and it
-    is not compatible with the old tools. Bump up the version number.
+    The decodeState type is a large part of the allocated space during Unmarshal.
+    The errorContext field is infrequently used, and only on error.
+    Extract it into a pointer and allocate it separate when necessary.
     
-    Change-Id: Id176979b139c76ded2c50f2678eb313934326d6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359483
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    name                old time/op    new time/op    delta
+    UnmarshalString-8      115ns ± 5%     114ns ± 3%     ~     (p=0.170 n=15+15)
+    UnmarshalFloat64-8     113ns ± 2%     106ns ± 1%   -6.42%  (p=0.000 n=15+14)
+    UnmarshalInt64-8      93.3ns ± 1%    86.9ns ± 4%   -6.89%  (p=0.000 n=14+15)
+    
+    name                old alloc/op   new alloc/op   delta
+    UnmarshalString-8       192B ± 0%      160B ± 0%  -16.67%  (p=0.000 n=15+15)
+    UnmarshalFloat64-8      180B ± 0%      148B ± 0%  -17.78%  (p=0.000 n=15+15)
+    UnmarshalInt64-8        176B ± 0%      144B ± 0%  -18.18%  (p=0.000 n=15+15)
+    
+    name                old allocs/op  new allocs/op  delta
+    UnmarshalString-8       2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    UnmarshalFloat64-8      2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    UnmarshalInt64-8        1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    
+    Change-Id: I53f3f468e6c65f77a12e5138a2626455b197012d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271338
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/internal/goobj/objfile.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/encoding/json/decode.go | 51 +++++++++++++++++++++++++++------------------
+ 1 file changed, 31 insertions(+), 20 deletions(-)

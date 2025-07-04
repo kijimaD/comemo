@@ -1,19 +1,22 @@
-commit cabb1402568ae7d05d9d5adf56953a4792085a81
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 11 05:12:43 2016 +0000
+commit 75cc05fa557b26336bc8e3f0a6c9f03b904a85eb
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Feb 27 12:19:49 2016 +0100
 
-    net/http: add ServerContextKey to let a handler access its Server
+    fmt: fix formatting of numbers with f.space and f.plus specified
     
-    Fixes #12438
-    Updates #15229 (to decide context key variable naming convention)
+    Do not replace the sign in front of a number with a space if both
+    f.space and f.plus are both specified for number formatting.
+    This was already the case for integers but not for floats
+    and complex numbers.
     
-    Change-Id: I3ba423e91b689e232143247d044495a12c97a7d2
-    Reviewed-on: https://go-review.googlesource.com/21829
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates: #14543.
+    
+    Change-Id: I07ddeb505003db84a8a7d2c743dc19fc427a00bd
+    Reviewed-on: https://go-review.googlesource.com/19974
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/http.go       |  8 ++++++++
- src/net/http/serve_test.go | 17 +++++++++++++++++
- src/net/http/server.go     | 21 +++++++++++++++------
- 3 files changed, 40 insertions(+), 6 deletions(-)
+ src/fmt/fmt_test.go | 18 +++++++++++++++++-
+ src/fmt/format.go   |  5 +++--
+ 2 files changed, 20 insertions(+), 3 deletions(-)

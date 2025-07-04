@@ -1,23 +1,18 @@
-commit d54f6630703900948d9757487a1bffd87b7d36e2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 14 11:23:59 2022 -0500
+commit 88655480f349ca07f523191112e52a49629cca8b
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 12:37:04 2021 -0400
 
-    cmd/go: remove the -buildinfo flag
+    internal/buildcfg: enable regabireflect by default
     
-    Fixes #50501
-    (in a sense, by removing a flag that looks like it should do something
-    it does not)
+    For #40724.
     
-    Change-Id: I69ae4862706a6283cda4016fd43b361bb21557f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378576
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib3e4a67c3826176f0d51619754270022344ee194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310174
+    Trust: Austin Clements <austin@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go             | 7 +------
- src/cmd/go/go_test.go             | 2 +-
- src/cmd/go/internal/cfg/cfg.go    | 1 -
- src/cmd/go/internal/load/pkg.go   | 2 +-
- src/cmd/go/internal/work/build.go | 8 +-------
- 5 files changed, 4 insertions(+), 16 deletions(-)
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

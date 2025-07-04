@@ -1,41 +1,21 @@
-commit 98def53f5610247b3d635ff85bf47fd19e848c01
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Aug 30 18:11:10 2016 -0700
+commit 84e808043ff40992ea1e25beb58365fd8e4f2591
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 29 15:20:27 2016 -0700
 
-    cmd/dist: make test names consistent
+    runtime: use cgo traceback for SIGPROF
     
-    Current banners are:
+    If we collected a cgo traceback when entering the SIGPROF signal
+    handler, record it as part of the profiling stack trace.
     
-    ##### Building Go bootstrap tool.
-    ##### Building Go toolchain using /Users/josh/go/1.4.
-    ##### Building go_bootstrap for host, darwin/amd64.
-    ##### Building packages and commands for darwin/amd64.
-    ##### Testing packages.
-    ##### GOMAXPROCS=2 runtime -cpu=1,2,4
-    ##### Testing without libgcc.
-    ##### sync -cpu=10
-    ##### ../misc/cgo/stdio
-    ##### ../misc/cgo/life
-    ##### ../misc/cgo/fortran
-    ##### ../misc/cgo/test
-    ##### Testing race detector
-    ##### ../misc/cgo/testso
-    ##### ../misc/cgo/testsovar
-    ##### misc/cgo/testcarchive
-    ##### ../misc/cgo/testcshared
-    ##### ../misc/cgo/errors
-    ##### ../test/bench/go1
-    ##### ../test
-    ##### API check
+    This serves as the promised test for https://golang.org/cl/21055 .
     
-    One of these things is not like the others.
-    Fix that.
-    
-    Change-Id: If0bd8ea9293d73b5d1b70d6bf676bd9192991505
-    Reviewed-on: https://go-review.googlesource.com/26759
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5f60cd6cea1d9b7c3932211483a6bfab60ed21d2
+    Reviewed-on: https://go-review.googlesource.com/22650
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/runtime/crash_cgo_test.go             | 30 ++++++++++
+ src/runtime/proc.go                       | 20 +++++--
+ src/runtime/testdata/testprogcgo/pprof.go | 96 +++++++++++++++++++++++++++++++
+ 3 files changed, 142 insertions(+), 4 deletions(-)

@@ -1,44 +1,19 @@
-commit d69509ff995bf3b92246365980e3d27eaf720e6a
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Apr 28 21:09:17 2020 +0000
+commit 9174e2c03c423a47bf052b8a1aa844f3378eccd4
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Nov 27 18:31:36 2019 +0000
 
-    runtime: make addrRange[s] operate on offset addresses
+    cmd/go/internal/modget: synchronize writes to modOnly map in runGet
     
-    Currently addrRange and addrRanges operate on real addresses. That is,
-    the addresses they manipulate don't include arenaBaseOffset. When added
-    to an address, arenaBaseOffset makes the address space appear contiguous
-    on platforms where the address space is segmented. While this is
-    generally OK because even those platforms which have a segmented address
-    space usually don't give addresses in a different segment, today it
-    causes a mismatch between the scavenger and the rest of the page
-    allocator. The scavenger scavenges from the highest addresses first, but
-    only via real address, whereas the page allocator allocates memory in
-    offset address order.
+    Adds an additional lock around an access to modOnly.
     
-    So this change makes addrRange and addrRanges, i.e. what the scavenger
-    operates on, use offset addresses. However, lots of the page allocator
-    relies on an addrRange containing real addresses.
+    Updates #35317
     
-    To make this transition less error-prone, this change introduces a new
-    type, offAddr, whose purpose is to make offset addresses a distinct
-    type, so any attempt to trivially mix real and offset addresses will
-    trigger a compilation error.
-    
-    This change doesn't attempt to use offAddr in all of the runtime; a
-    follow-up change will look for and catch remaining uses of an offset
-    address which doesn't use the type.
-    
-    Updates #35788.
-    
-    Change-Id: I991d891ac8ace8339ca180daafdf6b261a4d43d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230717
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ia1e75f9a674ec2a2c0489b41283c1cd3e7924d1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209237
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/export_test.go      |   4 +-
- src/runtime/mgcscavenge.go      |  22 ++++-----
- src/runtime/mpagealloc.go       |   2 +-
- src/runtime/mpagealloc_64bit.go |  12 ++---
- src/runtime/mranges.go          | 100 +++++++++++++++++++++++++++++++++-------
- 5 files changed, 103 insertions(+), 37 deletions(-)
+ src/cmd/go/internal/modget/get.go             | 2 ++
+ src/cmd/go/testdata/script/mod_issue35317.txt | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

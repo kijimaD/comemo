@@ -1,37 +1,20 @@
-commit 163da6feb525a98dab5c1f01d81b2c705ead51ea
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Feb 20 12:58:21 2022 -0800
+commit c05d50f8f3b2f8a9ca66a6288168adf74d10586f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 9 22:51:07 2021 -0400
 
-    go/types, types2: add "dynamic" flag to comparable predicate
+    cmd/go/internal/modload: avoid loading the module graph to list only the name of the main module
     
-    A type implements a comparable interface only if the type
-    is statically known to be comparable. Specifically, a type
-    cannot contain (component) interfaces that are not statically
-    known to be comparable.
+    For #36460
+    For #29666
     
-    This CL adds a flag "dynamic" to the comparable predicate to
-    control whether interfaces are always (dynamically) comparable.
-    Set the flag to true when testing for (traditional) Go comparability;
-    set the flag to false when testing whether a type implements the
-    comparable interface.
-    
-    Fixes #51257.
-    
-    Change-Id: If22bc047ee59337deb2e7844b8f488d67e5c5530
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387055
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I9e46f7054d52c053be80c483757cdd34b22822d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309190
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/types2/expr.go            |  2 +-
- src/cmd/compile/internal/types2/instantiate.go     |  2 +-
- src/cmd/compile/internal/types2/predicates.go      | 11 +++---
- .../types2/testdata/fixedbugs/issue51257.go2       | 46 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/typeset.go         |  2 +-
- src/go/types/expr.go                               |  2 +-
- src/go/types/instantiate.go                        |  2 +-
- src/go/types/predicates.go                         | 11 +++---
- src/go/types/testdata/fixedbugs/issue51257.go2     | 46 ++++++++++++++++++++++
- src/go/types/typeset.go                            |  2 +-
- 10 files changed, 110 insertions(+), 16 deletions(-)
+ src/cmd/go/internal/modload/list.go              | 12 ++++--------
+ src/cmd/go/testdata/script/mod_load_badchain.txt |  2 +-
+ 2 files changed, 5 insertions(+), 9 deletions(-)

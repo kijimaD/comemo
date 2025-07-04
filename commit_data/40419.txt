@@ -1,28 +1,12 @@
-commit 6b6e67f9b9ad00ff03b8a46c054b8da4954bfab4
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 4 10:07:36 2019 +0200
+commit 09267010ef66ec4b7cc1baaed690ca365a92baca
+Author: Tamir Duberstein <tamird@google.com>
+Date:   Sat May 11 14:08:52 2019 -0400
 
-    runtime: add support for freebsd/arm64
+    net: comment duplicate constant
     
-    Based on work by Mikaël Urankar (@MikaelUrankar),
-    Shigeru YAMAMOTO (@bsd-hacker) and @myfreeweb.
-    
-    Updates #24715
-    
-    Change-Id: If3189a693ca0aa627029e22b0f91534bcf322bc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198544
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If5a4d8eff4e51d72fb9dc1d5db2bfe674ec5753b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176717
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/defs_freebsd_arm64.go   | 257 +++++++++++++++++
- src/runtime/os_freebsd_arm64.go     | 156 +++++++++++
- src/runtime/os_freebsd_noauxv.go    |   2 +-
- src/runtime/rt0_freebsd_arm64.s     | 106 +++++++
- src/runtime/signal_arm64.go         |   2 +-
- src/runtime/signal_freebsd_arm64.go |  66 +++++
- src/runtime/stubs_arm64.go          |   1 +
- src/runtime/sys_freebsd_arm64.s     | 537 ++++++++++++++++++++++++++++++++++++
- src/runtime/tls_arm64.h             |   5 +
- src/runtime/vdso_freebsd_arm64.go   |  21 ++
- 10 files changed, 1151 insertions(+), 2 deletions(-)
+ src/net/tcpsockopt_darwin.go | 1 +
+ 1 file changed, 1 insertion(+)

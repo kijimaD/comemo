@@ -1,16 +1,27 @@
-commit eba91e83b05f146892aec8922615e77b6496d886
-Author: Sean Liao <seankhliao@gmail.com>
-Date:   Sat Oct 9 12:22:01 2021 +0200
+commit dcb5e0392e73c900db0f7260b392c91611e33540
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Feb 3 15:45:26 2021 -0800
 
-    sync: use example.com for url in ExampleWaitGroup
+    [dev.typeparams] cmd/compile: add stenciling of simple generic functions
     
-    Fixes #48886
+    Allow full compilation and running of simple programs with generic
+    functions by stenciling on the fly the needed generic functions. Deal
+    with some simple derived types based on type params.
     
-    Change-Id: I1093ae0ba30dab5a73d4d6bcfd083564d13877a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354830
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Include a few new typeparam tests min.go and add.go which involve
+    fully compiling and running simple generic code.
+    
+    Change-Id: Ifc2a64ecacdbd860faaeee800e2ef49ffef9df5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289630
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/sync/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/package.go    |   3 +
+ src/cmd/compile/internal/noder/irgen.go   |  15 ++
+ src/cmd/compile/internal/noder/stencil.go | 280 ++++++++++++++++++++++++++++++
+ test/typeparam/add.go                     |  50 ++++++
+ test/typeparam/min.go                     |  32 ++++
+ 5 files changed, 380 insertions(+)

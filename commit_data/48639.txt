@@ -1,15 +1,21 @@
-commit 9d6c711e3c7f16fd4dd2e812d855e881c6692f3e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 29 15:55:27 2022 -0700
+commit 090a17c99847166ac25ce33397e6adf83cc40a1d
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 3 10:57:09 2021 -0400
 
-    runtime: use correct parameter name in comment
+    [dev.typeparams] go/types: use correct type parameter list in missingMethod
     
-    Change-Id: If8713aca9d6b1f1c218e85f09c9ee016833b3faa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396515
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    This is a port of CL 321232 to go/types, adjusted to add a missing
+    comment and to remove optional support for method type params.
+    
+    Fixes #46275
+    
+    Change-Id: I63fcbb669e7607876a888fca89b9064568805448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324751
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mbarrier.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/lookup.go                         |  9 ++++++++-
+ src/go/types/testdata/fixedbugs/issue46275.go2 | 27 ++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

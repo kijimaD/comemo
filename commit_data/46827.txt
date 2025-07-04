@@ -1,22 +1,20 @@
-commit 74abcabf3045d2c893a517c872ace719f0e9d88f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 8 12:19:57 2021 -0700
+commit f37b0c6c12072edef19569c7f0b456ab7e570385
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 3 22:34:34 2021 -0800
 
-    cmd/internal/obj: rename MOVBE{LL,QQ,WW} to just MOVBE{L,Q,W}
+    [dev.typeparams] cmd/compile/internal/types2: type alias decl requires go1.9
     
-    The double suffix doesn't seem to serve any purpose, and we can keep
-    the old spelling as a backwards compatible alias in cmd/asm.
+    Add respective check to type checker.
+    Remove respective check from the compiler's new type2-based noder.
     
-    Change-Id: I3f01fc7249fb093ac1b25bd75c1cb9f39b8f62a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354700
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Updates #31793.
+    
+    Change-Id: I907e3acab4c136027a8c3db1e9bac301d209c2e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289570
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/asm/internal/arch/arch.go            |  4 +++
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 48 ++++++++++++++--------------
- src/cmd/internal/obj/x86/aenum.go            |  6 ++--
- src/cmd/internal/obj/x86/anames.go           |  6 ++--
- src/cmd/internal/obj/x86/asm6.go             |  6 ++--
- 5 files changed, 37 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/noder/decl.go             |  4 ----
+ src/cmd/compile/internal/types2/decl.go            |  3 +++
+ src/cmd/compile/internal/types2/testdata/go1_8.src | 10 ++++++++++
+ 3 files changed, 13 insertions(+), 4 deletions(-)

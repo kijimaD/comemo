@@ -1,19 +1,14 @@
-commit f570d9d7657edcccb52b2ec9a55cb90a28602d57
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon May 16 22:14:56 2011 -0400
+commit de7c28fe7689fccbf7b415eb5f5defb8b43ba390
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 16 16:00:41 2011 -0700
 
-    8g: fix conversion from float to uint64
+    image/gif: enable images with <8 bits per pixel.
     
-    The code for converting negative floats was
-    incorrectly loading an FP control word from
-    the stack without ever having stored it there.
-    
-    Thanks to Lars Pensjö for reporting this bug.
-    
-    R=golang-dev, rsc
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/4515091
+    https://golang.org/cl/4552042
 
- src/cmd/8g/gsubr.c       |  4 ++--
- test/fixedbugs/bug341.go | 22 ++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 2 deletions(-)
+ src/pkg/image/decode_test.go              |   1 +
+ src/pkg/image/gif/reader.go               |   7 ++-----
+ src/pkg/image/testdata/video-001.5bpp.gif | Bin 0 -> 6214 bytes
+ 3 files changed, 3 insertions(+), 5 deletions(-)

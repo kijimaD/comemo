@@ -1,21 +1,30 @@
-commit 84e91e1d6b2fed3e19d69194067cc2797f503b95
-Author: Mark Theunissen <mark.theunissen@gmail.com>
-Date:   Tue Jul 25 12:47:39 2017 +0200
+commit 0f19e24da7fa564af3fa4e831463951d5715211a
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Aug 9 13:53:34 2017 -0400
 
-    net/url: preserve leading slashes when resolving path
+    cmd/compile: intrinsics for trunc, floor, ceil on ppc64x
     
-    When doing resolvePath, if there are multiple leading slashes in the
-    target, preserve them. This prevents an issue where the Go http.Client
-    cleans up multiple leading slashes in the Location header in a
-    redirect, resulting in a redirection to the incorrect target.
+    This implements trunc, floor, and ceil in the math package
+    as intrinsics on ppc64x.  Significant improvement mainly due
+    to avoiding call overhead of args and return value.
     
-    Fixes #21158.
+    BenchmarkCeil-16                    5.95          0.69          -88.40%
+    BenchmarkFloor-16                   5.95          0.69          -88.40%
+    BenchmarkTrunc-16                   5.82          0.69          -88.14%
     
-    Change-Id: I6a21ea61ca3bc7033f3c8a6ccc21ecaa3e996fa8
-    Reviewed-on: https://go-review.googlesource.com/51050
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Updates #21390
+    
+    Change-Id: I951e182694f6e0c431da79c577272b81fb0ebad0
+    Reviewed-on: https://go-review.googlesource.com/54654
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/url/url.go      | 2 +-
- src/net/url/url_test.go | 4 ++++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             | 15 +++++++
+ src/cmd/compile/internal/ppc64/ssa.go          |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  3 ++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  3 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  5 ++-
+ src/cmd/compile/internal/ssa/opGen.go          | 60 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 39 +++++++++++++++++
+ 7 files changed, 125 insertions(+), 2 deletions(-)

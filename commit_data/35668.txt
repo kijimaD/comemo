@@ -1,14 +1,25 @@
-commit f027d1a8782387fb7e354054a669a202524335e4
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Tue Jun 12 11:10:49 2018 +0200
+commit 4b1d704d144181c81317c1b3db587f6aac53224b
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Feb 22 12:05:29 2018 -0800
 
-    runtime: convert a darwin/arm64 syscall to libc
+    crypto/x509: parse invalid DNS names and email addresses.
     
-    Change-Id: I5704a07375fc672ac70c1f4e8df6f4fff760b4bf
-    Reviewed-on: https://go-review.googlesource.com/118117
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Go 1.10 requires that SANs in certificates are valid. However, a
+    non-trivial number of (generally non-WebPKI) certificates have invalid
+    strings in dnsName fields and some have even put those dnsName SANs in
+    CA certificates.
+    
+    This change defers validity checking until name constraints are checked.
+    
+    Fixes #23995, #23711.
+    
+    Change-Id: I2e0ebb0898c047874a3547226b71e3029333b7f1
+    Reviewed-on: https://go-review.googlesource.com/96378
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/rt0_darwin_arm64.s | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/crypto/x509/name_constraints_test.go | 75 ++++++++++++++++++++++++++++++--
+ src/crypto/x509/verify.go                |  7 ++-
+ src/crypto/x509/x509.go                  | 18 +++-----
+ 3 files changed, 82 insertions(+), 18 deletions(-)

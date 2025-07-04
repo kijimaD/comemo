@@ -1,15 +1,103 @@
-commit 4ae1879dda1a20176dddc62e827404c75a869fa0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 24 16:16:27 2020 -0800
+commit c7d81bc08646ca56d6fe560c77d99be933d7f6dd
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Oct 2 11:02:41 2019 +0100
 
-    cmd/compile: document Move's type
+    cmd/compile: reduce amount of code generated for block rewrite rules
     
-    Fixes #37381
+    Add a Reset method to blocks that allows us to reduce the amount of
+    code we generate for block rewrite rules.
     
-    Change-Id: I8abf07d6342c10fc8d52e11c6a70fb0ec09220d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220683
+    Thanks to Cherry for suggesting a similar fix to this in CL 196557.
+    
+    Compilebench result:
+    
+    name                      old time/op       new time/op       delta
+    Template                        211ms ± 1%        211ms ± 1%   -0.30%  (p=0.028 n=19+20)
+    Unicode                        83.7ms ± 3%       83.0ms ± 2%   -0.79%  (p=0.029 n=18+19)
+    GoTypes                         757ms ± 1%        755ms ± 1%   -0.31%  (p=0.034 n=19+19)
+    Compiler                        3.51s ± 1%        3.50s ± 1%   -0.20%  (p=0.013 n=18+18)
+    SSA                             11.7s ± 1%        11.7s ± 1%   -0.38%  (p=0.000 n=19+19)
+    Flate                           131ms ± 1%        130ms ± 1%   -0.32%  (p=0.024 n=18+18)
+    GoParser                        162ms ± 1%        162ms ± 1%     ~     (p=0.059 n=20+18)
+    Reflect                         471ms ± 0%        470ms ± 0%   -0.24%  (p=0.045 n=20+17)
+    Tar                             187ms ± 1%        186ms ± 1%     ~     (p=0.157 n=20+20)
+    XML                             255ms ± 1%        255ms ± 1%     ~     (p=0.461 n=19+20)
+    LinkCompiler                    754ms ± 2%        755ms ± 2%     ~     (p=0.919 n=17+17)
+    ExternalLinkCompiler            2.82s ±16%        2.37s ±10%  -15.94%  (p=0.000 n=20+20)
+    LinkWithoutDebugCompiler        439ms ± 4%        442ms ± 6%     ~     (p=0.461 n=18+19)
+    StdCmd                          25.8s ± 2%        25.5s ± 1%   -0.95%  (p=0.000 n=20+20)
+    
+    name                      old user-time/op  new user-time/op  delta
+    Template                        240ms ± 8%        238ms ± 7%     ~     (p=0.301 n=20+20)
+    Unicode                         107ms ±18%        104ms ±13%     ~     (p=0.149 n=20+20)
+    GoTypes                         883ms ± 3%        888ms ± 2%     ~     (p=0.211 n=20+20)
+    Compiler                        4.22s ± 1%        4.20s ± 1%     ~     (p=0.077 n=20+18)
+    SSA                             14.1s ± 1%        14.1s ± 2%     ~     (p=0.192 n=20+20)
+    Flate                           145ms ±10%        148ms ± 5%     ~     (p=0.126 n=20+18)
+    GoParser                        186ms ± 7%        186ms ± 7%     ~     (p=0.779 n=20+20)
+    Reflect                         538ms ± 3%        541ms ± 3%     ~     (p=0.192 n=20+20)
+    Tar                             218ms ± 4%        217ms ± 6%     ~     (p=0.835 n=19+20)
+    XML                             298ms ± 5%        298ms ± 5%     ~     (p=0.749 n=19+20)
+    LinkCompiler                    818ms ± 5%        825ms ± 8%     ~     (p=0.461 n=20+20)
+    ExternalLinkCompiler            1.55s ± 4%        1.53s ± 5%     ~     (p=0.063 n=20+18)
+    LinkWithoutDebugCompiler        460ms ±12%        460ms ± 7%     ~     (p=0.925 n=20+20)
+    
+    name                      old object-bytes  new object-bytes  delta
+    Template                        554kB ± 0%        554kB ± 0%     ~     (all equal)
+    Unicode                         215kB ± 0%        215kB ± 0%     ~     (all equal)
+    GoTypes                        2.01MB ± 0%       2.01MB ± 0%     ~     (all equal)
+    Compiler                       7.97MB ± 0%       7.97MB ± 0%   +0.00%  (p=0.000 n=20+20)
+    SSA                            26.8MB ± 0%       26.9MB ± 0%   +0.27%  (p=0.000 n=20+20)
+    Flate                           340kB ± 0%        340kB ± 0%     ~     (all equal)
+    GoParser                        434kB ± 0%        434kB ± 0%     ~     (all equal)
+    Reflect                        1.34MB ± 0%       1.34MB ± 0%     ~     (all equal)
+    Tar                             480kB ± 0%        480kB ± 0%     ~     (all equal)
+    XML                             622kB ± 0%        622kB ± 0%     ~     (all equal)
+    
+    name                      old export-bytes  new export-bytes  delta
+    Template                       20.4kB ± 0%       20.4kB ± 0%     ~     (all equal)
+    Unicode                        8.21kB ± 0%       8.21kB ± 0%     ~     (all equal)
+    GoTypes                        36.6kB ± 0%       36.6kB ± 0%     ~     (all equal)
+    Compiler                        115kB ± 0%        115kB ± 0%   +0.08%  (p=0.000 n=20+20)
+    SSA                             141kB ± 0%        141kB ± 0%   +0.07%  (p=0.000 n=20+20)
+    Flate                          5.11kB ± 0%       5.11kB ± 0%     ~     (all equal)
+    GoParser                       8.93kB ± 0%       8.93kB ± 0%     ~     (all equal)
+    Reflect                        11.8kB ± 0%       11.8kB ± 0%     ~     (all equal)
+    Tar                            10.9kB ± 0%       10.9kB ± 0%     ~     (all equal)
+    XML                            17.4kB ± 0%       17.4kB ± 0%     ~     (all equal)
+    
+    name                      old text-bytes    new text-bytes    delta
+    HelloSize                       742kB ± 0%        742kB ± 0%     ~     (all equal)
+    CmdGoSize                      10.7MB ± 0%       10.7MB ± 0%     ~     (all equal)
+    
+    name                      old data-bytes    new data-bytes    delta
+    HelloSize                      10.7kB ± 0%       10.7kB ± 0%     ~     (all equal)
+    CmdGoSize                       312kB ± 0%        312kB ± 0%     ~     (all equal)
+    
+    name                      old bss-bytes     new bss-bytes     delta
+    HelloSize                       122kB ± 0%        122kB ± 0%     ~     (all equal)
+    CmdGoSize                       146kB ± 0%        146kB ± 0%     ~     (all equal)
+    
+    name                      old exe-bytes     new exe-bytes     delta
+    HelloSize                      1.10MB ± 0%       1.10MB ± 0%     ~     (all equal)
+    CmdGoSize                      14.9MB ± 0%       14.9MB ± 0%     ~     (all equal)
+    
+    Change-Id: Ic89a8e62423b3d9fd9391159e0663acf450803b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198419
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 1 +
- src/cmd/compile/internal/ssa/gen/genericOps.go | 7 +++++++
- 2 files changed, 8 insertions(+)
+ src/cmd/compile/internal/ssa/block.go          |    9 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |    5 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     |  424 +++------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  584 +++---------
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 1140 ++++++------------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  792 +++++-----------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  148 +--
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  132 +--
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  316 ++-----
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |   44 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go |   12 +-
+ 11 files changed, 912 insertions(+), 2694 deletions(-)

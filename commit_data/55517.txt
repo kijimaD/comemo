@@ -1,30 +1,36 @@
-commit e8d87728bd4ac93ed207df1261da673749c6bd0c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 1 15:56:05 2024 -0500
+commit 3348fd0ec9be0189f88e991db1d94f437ec04bd1
+Author: Akhil Indurti <aindurti@gmail.com>
+Date:   Fri Feb 10 19:08:14 2023 -0800
 
-    cmd/go: fix tests that fail when running a cross-compiled GOARCH
+    math: add Compare and Compare32
     
-    In CL 356611 I changed cmd/go to run most of its tests (instead of
-    skipping them all) when cross-compiled, such as with GOARCH=386 on an
-    amd64 host. Unfortunately, since we don't have a CI builder that runs
-    long tests in a cross-compiled configuration, some of the tests have
-    rotted since then.
+    This change introduces the Compare and Compare32 functions
+    based on the total-ordering predicate in IEEE-754, section 5.10.
     
-    This fixes 'GOARCH=386 go test cmd/go' on my workstation.
+    In particular,
+    * -NaN is ordered before any other value
+    * +NaN is ordered after any other value
+    * -0 is ordered before +0
+    * All other values are ordered the usual way
     
-    For #64963.
-    Updates #53936.
+    Compare-8    0.4537n ± 1%
+    Compare32-8  0.3752n ± 1%
+    geomean      0.4126n
     
-    Change-Id: If7f4bc8e8d1ace7d36010d7a1b652fc7b2ceb276
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560782
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Fixes #56491.
+    
+    Change-Id: I5c9c77430a2872f380688c1b0a66f2105b77d5ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467515
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/scriptconds_test.go                           | 7 +++++++
- src/cmd/go/testdata/script/README                        | 2 ++
- src/cmd/go/testdata/script/build_plugin_reproducible.txt | 3 ++-
- src/cmd/go/testdata/script/version.txt                   | 7 +++----
- src/cmd/go/testdata/script/version_cshared.txt           | 1 +
- 5 files changed, 15 insertions(+), 5 deletions(-)
+ api/next/56491.txt   |  2 ++
+ src/math/all_test.go | 94 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/compare.go  | 53 +++++++++++++++++++++++++++++
+ 3 files changed, 149 insertions(+)

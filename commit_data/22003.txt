@@ -1,15 +1,12 @@
-commit 1f35bb6466ca0c8fc2e2070b9ed65b4198e6546d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 12 11:54:11 2015 +1100
+commit c11882bc3e8f6ab4eea79d7bbd0647b31dad7482
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 13 14:43:08 2015 -0500
 
-    archive/zip: remove WriterOptions and replace with SetOffset method
+    [dev.cc] cmd/go: install new6g etc (once they are committed) to tool directory
     
-    Change-Id: I0a8b972c33e80c750ff1d63717177a5a3294a112
-    Reviewed-on: https://go-review.googlesource.com/7445
+    Change-Id: I2853535ab6c79d14f430c780161e4c35c52d9fb3
+    Reviewed-on: https://go-review.googlesource.com/4839
     Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Geert-Johan Riemer <gjr19912@gmail.com>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/archive/zip/writer.go      | 27 +++++++++------------------
- src/archive/zip/writer_test.go |  5 +++--
- 2 files changed, 12 insertions(+), 20 deletions(-)
+ src/cmd/go/pkg.go | 4 ++++
+ 1 file changed, 4 insertions(+)

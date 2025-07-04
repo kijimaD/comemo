@@ -1,20 +1,15 @@
-commit 4eb7ceba067cf4f3851f2eaf63c9929386594adf
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 3 13:53:41 2020 -0500
+commit a7e539619e5a73d9330f1698d710d99273651768
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 29 15:15:37 2020 -0700
 
-    doc/go1.16: update runtime and compiler sections
+    cmd/compile: move last of the generic rules to typed aux
     
-    This resolves all TODOs for the runtime and compiler and mentions
-    several other changes.
-    
-    For #40700.
-    Fixes #42892.
-    Fixes #42894.
-    
-    Change-Id: I18d14cfe572baf679ecf8b0a4e82c4b866da5a04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275176
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I1193fff570ff2917979e5cb610fb14c3b347aa92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230938
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.16.html | 54 ++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 34 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  8 +++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 32 +++++++++++++-------------
+ 2 files changed, 20 insertions(+), 20 deletions(-)

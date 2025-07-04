@@ -1,13 +1,13 @@
-commit b4ddef3cd1ef20c86529513f41f4bc1a2ba20c2d
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jun 6 06:54:40 2011 +0000
+commit ff0198b72fd6753975671cb2d46cd93747d37d2d
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jun 6 16:46:14 2011 +1000
 
-    CONTRIBUTORS: C+A for David Jakob Fritz and Jeffrey M Hodges
+    mail: address list parsing.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/4572043
+    https://golang.org/cl/4547084
 
- AUTHORS      | 2 ++
- CONTRIBUTORS | 2 ++
- 2 files changed, 4 insertions(+)
+ src/pkg/mail/message.go      | 301 ++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/mail/message_test.go |  71 ++++++++++
+ 2 files changed, 371 insertions(+), 1 deletion(-)

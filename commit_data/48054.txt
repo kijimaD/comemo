@@ -1,19 +1,15 @@
-commit a6a7c7a1fd6a2450cfec11e54217e04dce843a54
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 28 16:18:22 2022 -0500
+commit 199575a119d909b98afb044a94f43249883c1062
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 14 19:53:43 2021 -0400
 
-    cmd/go: add detail to test failures
+    cmd/link: count relocations better
     
-    For #50892
-    
-    Change-Id: I14ff1c43b39687a0ba5e668ee962cecfb49e4beb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381836
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie188abeb0194bf266d38c9bd0dda4b8f48934697
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312035
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/go_test.go     | 2 +-
- src/cmd/go/script_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

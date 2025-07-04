@@ -1,13 +1,26 @@
-commit 526d0818cca60a021e8c3c5ca34f7ed7d43f61ae
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Oct 19 18:26:08 2011 -0200
+commit b0ec32db117a750d6259a601b37d5bd89ff44a2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 19 16:06:16 2011 -0400
 
-    fmt: don't panic formatting nil interfaces
+    govet: check canonical dynamic method signatures
     
-    R=golang-dev, r
+    Adds check that, for example, a Scan method taking
+    a first argument of type fmt.ScanState has the correct
+    signature to satisfy fmt.Scanner.
+    
+    Similarly, a ReadByte should return byte, os.Error.
+    
+    These are important to check because various pieces
+    of code (fmt, gob, json, flate) do dynamic checks
+    for these methods, so code with incorrect signatures
+    would not be flagged at compile time.
+    
+    These become even more important to check when
+    rune is introduced.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5296044
+    https://golang.org/cl/5305044
 
- src/pkg/fmt/fmt_test.go | 5 +++++
- src/pkg/fmt/print.go    | 2 +-
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/govet/govet.go | 191 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 187 insertions(+), 4 deletions(-)

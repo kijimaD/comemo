@@ -1,19 +1,35 @@
-commit 80f86f706deff532cf3ee94a75dd1dc0db6795b2
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Jun 8 18:08:30 2022 -0400
+commit 0e598e7da42aea47b6b9d52c4292f202368d2f19
+Author: Changkun Ou <hi@changkun.de>
+Date:   Thu Jul 22 17:50:42 2021 +0200
 
-    api/next: minor reformat
+    syscall: add SyscallN
     
-    Add newline endings to files without them. Delete empty lines. So
-    it is consistent and easier to put them together.
+    This CL adds a new syscall.SyscallN API.
     
-    Change-Id: I84e6b7a1fe59e9f4d7f00f61539f6449f19a5d40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411121
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The proposal discussion also suggests the API should not only for
+    Windows but other platforms. However, the existing API set already
+    contain differences between platforms, hence the CL only implements
+    the Windows platform.
+    
+    Moreover, although the API offers variadic parameters, the permitted
+    parameters remains up to a limit, which is selected as 42, and arguably
+    large enough.
+    
+    Fixes #46552
+    
+    Change-Id: I66b49988a304d9fc178c7cd5de46d0b75e167a4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336550
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- api/next/35044.txt | 2 +-
- api/next/46059.txt | 1 -
- api/next/50062.txt | 2 +-
- 3 files changed, 2 insertions(+), 3 deletions(-)
+ doc/go1.18.html                     | 17 ++++++++
+ src/runtime/export_windows_test.go  |  2 +
+ src/runtime/sys_windows_amd64.s     | 10 ++---
+ src/runtime/syscall_windows.go      | 85 +++++++++++++++----------------------
+ src/runtime/syscall_windows_test.go | 72 ++++++++++++++++++-------------
+ src/syscall/dll_windows.go          | 62 +++++++--------------------
+ 6 files changed, 115 insertions(+), 133 deletions(-)

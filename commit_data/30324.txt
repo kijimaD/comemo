@@ -1,25 +1,21 @@
-commit e97f407ec164174187d6fbb2f7332d6fb3176e9e
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Feb 15 12:41:02 2017 +0100
+commit 9a8bf2d67de6884d99760a065d7af508b85e38d7
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Sat Oct 29 12:10:21 2016 -0700
 
-    fmt: support sharp flag for float and complex value printing
+    cmd/compile: avoid nil-ing out a node's Type in typecheckcomplit() on error
     
-    Added an alternate form of printing floats and complex values
-    by specifying the sharp flag.
+    typecheckcomplit nils out node's type, upon finding new errors.
+    This hides new errors in children's node as well as the type info
+    of current node. This change fixes that.
     
-    Output formatted using the the verbs v, e, E, f, F, g and G in
-    combination with the sharp flag will always include a decimal point.
+    Fixes #17645.
     
-    The alternate form specified by the sharp flag for %g and %G verbs
-    will not truncate trailing zeros and assume a default precision of 6.
-    
-    Fixes #18857.
-    
-    Change-Id: I4d776239e06d7a6a90f2d8556240a359888cb7c3
-    Reviewed-on: https://go-review.googlesource.com/37051
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib473291f31c7e8fa0307cb1d494e0c112ddd3583
+    Reviewed-on: https://go-review.googlesource.com/32324
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/fmt/doc.go      |  4 +++-
- src/fmt/fmt_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- src/fmt/format.go   | 40 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 85 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/typecheck.go |  1 -
+ test/fixedbugs/issue17645.go             | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

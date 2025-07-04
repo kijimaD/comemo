@@ -1,37 +1,19 @@
-commit 7a98bdf1c258dfa6aa539035f422389dc4c994f0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 3 14:27:24 2017 -0800
+commit 9a78eadeb636689f79dbf6bd3c0a35d830678097
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 11 14:05:51 2016 -0800
 
-    cmd/internal/obj: remove AUSEFIELD pseudo-op
+    net: deflake TestTCPSupriousConnSetupCompletion [sic]
     
-    Instead, cmd/compile can directly emit R_USEFIELD relocations.
+    And rename it.
     
-    Manually verified rsc.io/tmp/fieldtrack still passes.
+    Fixes #17703
     
-    Change-Id: Ib1fb5ab902ff0ad17ef6a862a9a5692caf7f87d1
-    Reviewed-on: https://go-review.googlesource.com/37871
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I73c82a9b3f96180699c6d33c069a666018eb30f9
+    Reviewed-on: https://go-review.googlesource.com/33149
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/prog.go  |  1 -
- src/cmd/compile/internal/arm/prog.go    |  1 -
- src/cmd/compile/internal/arm64/prog.go  |  1 -
- src/cmd/compile/internal/gc/gsubr.go    | 10 +------
- src/cmd/compile/internal/gc/pgen.go     | 49 ++++++++++++++++++++++-----------
- src/cmd/compile/internal/mips/prog.go   |  1 -
- src/cmd/compile/internal/mips64/prog.go |  1 -
- src/cmd/compile/internal/ppc64/prog.go  |  1 -
- src/cmd/compile/internal/s390x/prog.go  |  1 -
- src/cmd/compile/internal/x86/prog.go    |  1 -
- src/cmd/internal/obj/arm/asm5.go        |  8 ++----
- src/cmd/internal/obj/arm64/asm7.go      |  6 ++--
- src/cmd/internal/obj/line.go            | 18 ------------
- src/cmd/internal/obj/link.go            |  1 -
- src/cmd/internal/obj/mips/asm0.go       |  6 ++--
- src/cmd/internal/obj/pcln.go            |  2 +-
- src/cmd/internal/obj/plist.go           |  1 -
- src/cmd/internal/obj/ppc64/asm9.go      |  6 ++--
- src/cmd/internal/obj/util.go            |  1 -
- src/cmd/internal/obj/x86/asm6.go        |  1 -
- 20 files changed, 44 insertions(+), 73 deletions(-)
+ src/net/error_test.go        | 3 ++-
+ src/net/tcpsock_unix_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

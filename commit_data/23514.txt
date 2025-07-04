@@ -1,29 +1,21 @@
-commit 32fddadd98f938018485fba6253d30273db4e5e9
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 25 19:27:20 2015 -0400
+commit 7bdb4a28a87f24a6c00ae3194598934e0fa142f0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 19 23:49:24 2015 +0000
 
-    runtime: reduce slice growth during append to 2x
+    Revert "cmd/internal/ld: output dwarf in external link mode on darwin"
     
-    The new inlined code for append assumed that it could pass the
-    desired new cap to growslice, not the number of new elements.
-    But growslice still interpreted the argument as the number of new elements,
-    making it always grow by >2x (more precisely, 2x+1 rounded up
-    to the next malloc block size). At the time, I had intended to change
-    the other callers to use the new cap as well, but it's too late for that.
-    Instead, introduce growslice_n for the old callers and keep growslice
-    for the inlined (common case) caller.
+    This reverts commit 8b83306cf20abed54d7cb23a3f3091b7e6202056.
     
-    Fixes #11403.
-    
-    Filed #11419 to merge them.
-    
-    Change-Id: I1338b1e5b352f3be4e43641f44b652ef7195251b
-    Reviewed-on: https://go-review.googlesource.com/11541
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I3fb998bdf11eceef13e3997e336d86e7c5d47a60
+    Reviewed-on: https://go-review.googlesource.com/10254
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         |  3 +-
- src/cmd/compile/internal/gc/builtin/runtime.go |  3 +-
- src/cmd/compile/internal/gc/walk.go            | 14 ++++-----
- src/runtime/runtime_test.go                    | 40 ++++++++++++++++++++++++++
- src/runtime/slice.go                           | 14 +++++++--
- 5 files changed, 63 insertions(+), 11 deletions(-)
+ src/cmd/5l/asm.go                          |  14 +-
+ src/cmd/6l/asm.go                          |   2 +-
+ src/cmd/7l/asm.go                          |  14 +-
+ src/cmd/8l/asm.go                          |   2 +-
+ src/cmd/internal/ld/dwarf.go               | 155 +++---------
+ src/cmd/internal/ld/lib.go                 |  21 +-
+ src/cmd/internal/ld/macho.go               |   8 +-
+ src/cmd/internal/ld/macho_combine_dwarf.go | 369 -----------------------------
+ 8 files changed, 58 insertions(+), 527 deletions(-)

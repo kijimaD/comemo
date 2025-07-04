@@ -1,19 +1,15 @@
-commit 7e1a3e9f209d33eff36eb6876e0505a300be9ba6
+commit 3379414b210d1c03c27b4b340c3a12da430ec2e9
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 29 00:55:37 2011 -0400
+Date:   Wed Jun 29 00:45:29 2011 -0400
 
-    exp/regexp/syntax: incremental concat, alternate
-    Also reuse of *Regexp nodes.
+    codereview: restrict sync to default branch
     
-    I believe this is the end of the parser.
-    The only non-execution code that remains is
-    the code to expand x{3,5} into simpler operations.
+    'default' is the name of the main branch,
+    the one that isn't a release branch.
     
-    R=sam.thorogood, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4629078
+    https://golang.org/cl/4636072
 
- src/pkg/exp/regexp/syntax/parse.go      | 297 ++++++++++++++++++++++++++------
- src/pkg/exp/regexp/syntax/parse_test.go | 241 +++++++++++++-------------
- src/pkg/exp/regexp/syntax/regexp.go     |   2 +
- 3 files changed, 365 insertions(+), 175 deletions(-)
+ lib/codereview/codereview.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

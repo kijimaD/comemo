@@ -1,12 +1,22 @@
-commit 82f2b36e74a3ae7c5f7ca1cd762214e8ccb555b8
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Dec 6 15:17:31 2012 +1100
+commit a034fc9855b307ab5e9e5da04602823d6414f512
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 5 19:08:42 2012 -0800
 
-    vet: be less strict about number of arguments when a ... is present.
+    net/http: fix bug parsing http_proxy lacking a protocol
+    
+    Per the curl man page, the http_proxy configuration can be
+    of the form:
+    
+       [protocol://]<host>[:port]
+    
+    And we had a test that <ip>:<port> worked, but if
+    the host began with a letter, url.Parse parsed the hostname
+    as the scheme instead, confusing ProxyFromEnvironment.
     
     R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6883046
+    https://golang.org/cl/6875060
 
- src/cmd/vet/print.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/pkg/net/http/transport.go      | 2 +-
+ src/pkg/net/http/transport_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

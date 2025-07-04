@@ -1,15 +1,19 @@
-commit 35222eeb78ddb84f5787729c5f149cfd73d63ef8
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Dec 19 08:14:50 2023 -0800
+commit 79edd1d19d247a9c35ee90c96f9b70b54c4dfda2
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 26 14:46:51 2023 -0800
 
-    doc: add html/template release note
+    runtime: remove go119MemoryLimitSupport flag
     
-    Updates #61422
-    
-    Change-Id: Ie86e8545d55cfd0898d21387d8b48d9392f85bf0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/551335
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I207480d991c6242a1610795605c5ec6a3b3c59de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463225
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.22.html | 20 +++++++++-----------
- 1 file changed, 9 insertions(+), 11 deletions(-)
+ src/runtime/mgcmark.go     | 2 +-
+ src/runtime/mgcpacer.go    | 8 +-------
+ src/runtime/mgcscavenge.go | 3 +--
+ src/runtime/mheap.go       | 2 +-
+ src/runtime/runtime1.go    | 2 +-
+ 5 files changed, 5 insertions(+), 12 deletions(-)

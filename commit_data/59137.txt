@@ -1,21 +1,51 @@
-commit 69ea62fe95a14a04d6b2ba145aaf78e36f42e2eb
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Mar 21 08:46:14 2025 -0700
+commit d42cd452dcca76819dd385a7775f8453d6255dbd
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Nov 14 23:56:51 2023 +0800
 
-    Revert "cmd/compile/internal/abi: fix ComputePadding"
+    net: add KeepAliveConfig and implement SetKeepAliveConfig
     
-    This reverts CL 656736.
+    Fixes #62254
+    Fixes #48622
     
-    Reason for revert: breaks many builders (all flavors of
-    linux-amd64 builders).
-    
-    Change-Id: Ie7190d4078fada227391804c5cf10b9ce9cc9115
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659955
+    Change-Id: Ida598e7fa914c8737fdbc1c813bcd68adb5119c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542275
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go       |   3 +-
- src/cmd/compile/internal/ssa/debug.go          |   2 +-
- src/cmd/compile/internal/test/abiutils_test.go |   4 +-
- src/cmd/link/internal/ld/dwarf_test.go         | 113 -------------------------
- 4 files changed, 5 insertions(+), 117 deletions(-)
+ api/next/62254.txt                                 |  12 ++
+ doc/next/6-stdlib/99-minor/net/62254.md            |   4 +
+ .../99-minor/syscall (windows-386)/62254.md        |   1 +
+ .../99-minor/syscall (windows-amd64)/62254.md      |   1 +
+ src/net/dial.go                                    |  45 ++++-
+ src/net/dial_test.go                               |  18 +-
+ src/net/file_plan9.go                              |   2 +-
+ src/net/file_unix.go                               |   2 +-
+ src/net/hook.go                                    |   4 +-
+ src/net/mockserver_test.go                         |   7 +-
+ src/net/tcpconn_keepalive_conf_unix_test.go        | 102 +++++++++++
+ src/net/tcpconn_keepalive_darwin_test.go           |  92 ++++++++++
+ src/net/tcpconn_keepalive_dragonfly_test.go        |  92 ++++++++++
+ src/net/tcpconn_keepalive_solaris_test.go          |  89 ++++++++++
+ src/net/tcpconn_keepalive_test.go                  | 195 +++++++++++++++++++++
+ src/net/tcpconn_keepalive_unix_test.go             |  92 ++++++++++
+ src/net/tcpconn_keepalive_windows_test.go          |  33 ++++
+ src/net/tcpsock.go                                 |  60 +++++--
+ src/net/tcpsock_plan9.go                           |   4 +-
+ src/net/tcpsock_posix.go                           |   4 +-
+ src/net/tcpsock_test.go                            |   8 +-
+ src/net/tcpsock_unix.go                            |  31 ++++
+ src/net/tcpsock_windows.go                         |  26 +++
+ src/net/tcpsockopt_darwin.go                       |  44 ++++-
+ src/net/tcpsockopt_dragonfly.go                    |  38 +++-
+ src/net/tcpsockopt_openbsd.go                      |  23 ++-
+ src/net/tcpsockopt_plan9.go                        |  22 ++-
+ src/net/tcpsockopt_solaris.go                      |  32 +++-
+ src/net/tcpsockopt_stub.go                         |  10 +-
+ src/net/tcpsockopt_unix.go                         |  37 +++-
+ src/net/tcpsockopt_windows.go                      |  66 ++++++-
+ src/syscall/types_windows.go                       |   1 +
+ 32 files changed, 1131 insertions(+), 66 deletions(-)

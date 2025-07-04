@@ -1,51 +1,17 @@
-commit 99c30211b1e0b3ac4e5d32f3ae5eaf759c23195f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 1 14:23:46 2018 -0800
+commit f1fa663b6d7c80109ad0ba690751daeb9e387061
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Wed Nov 1 01:05:48 2017 -0400
 
-    go/scanner: recognize //line and /*line directives incl. columns
+    make.bash: show correct GOROOT_BOOTSTRAP when using `go env GOROOT`
     
-    This change updates go/scanner to recognize the extended line
-    directives that are now also handled by cmd/compile:
+    Also, support spaces in go binaries locations, and document
+    GOROOT_BOOTSTRAP at the top.
     
-    //line filename:line
-    //line filename:line:column
-    /*line filename:line*/
-    /*line filename:line:column*/
-    
-    As before, //-style line directives must start in column 1.
-    /*-style line directives may be placed anywhere in the code.
-    In both cases, the specified position applies to the character
-    immediately following the comment; for line comments that is
-    the first character on the next line (after the newline of the
-    comment).
-    
-    The go/token API is extended by a new method
-    
-    File.AddLineColumnInfo(offset int, filename string, line, column int)
-    
-    which extends the existing
-    
-    File.AddLineInfo(offset int, filename string, line int)
-    
-    by adding a column parameter.
-    
-    Adjusted token.Position computation is changed to take into account
-    column information if provided via a line directive: A (line-directive)
-    relative position will have a non-zero column iff the line directive
-    specified a column; if the position is on the same line as the line
-    directive, the column is relative to the specified column (otherwise
-    it is relative to the line beginning). See also #24183.
-    
-    Finally, Position.String() has been adjusted to not print a column
-    value if the column is unknown (== 0).
-    
-    Fixes #24143.
-    
-    Change-Id: I5518c825ad94443365c049a95677407b46ba55a1
-    Reviewed-on: https://go-review.googlesource.com/97795
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I643d22df57aad9a2200cc256edd20e8c811bc70d
+    Reviewed-on: https://go-review.googlesource.com/74951
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/scanner/scanner.go      | 144 ++++++++++++++++++++++++++++++++---------
- src/go/scanner/scanner_test.go |  61 ++++++++++-------
- src/go/token/position.go       |  60 ++++++++++++-----
- 3 files changed, 194 insertions(+), 71 deletions(-)
+ src/make.bash | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

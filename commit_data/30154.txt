@@ -1,16 +1,29 @@
-commit 92cdde016ab64416188113c72e5d6b5ade87e89f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 8 10:56:30 2017 -0800
+commit bea5252a13f723e08c1cb109cb87105e3bdd4ed0
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 21 12:01:52 2016 -0400
 
-    go/constant: use new math/big.IsInt and isUint predicates
+    cmd/compile: add explicit 'where' to EscStep data for explanations
     
-    Slightly cleaner and more readable code.
+    Sometimes neither the src nor the dst of an escape edge
+    contains the line number appropriate to the edge, so add
+    a field so that can be set correctly.
     
-    Change-Id: I35263dbf338861b0a1bd62d59417b6a2c6a4e670
-    Reviewed-on: https://go-review.googlesource.com/36562
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Also updated some of the explanations to be less jargon-y
+    and perhaps more informative, and folded bug example into
+    test.
+    
+    Cleaned up some of the function/method names in esc.go
+    and did a quick sanity check that each "bundling" function
+    was actually called often enough to justify its existence.
+    
+    Fixes #17459.
+    
+    Change-Id: Ieba53ab0a6ba1f7a6c4962bc0b702ede9cc3a3cc
+    Reviewed-on: https://go-review.googlesource.com/31660
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/constant/value.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 141 ++++++++++++++++++++++---------------
+ test/escape_because.go             |  48 +++++++++----
+ 2 files changed, 120 insertions(+), 69 deletions(-)

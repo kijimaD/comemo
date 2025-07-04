@@ -1,13 +1,18 @@
-commit 98603e7af6056734e0f5bee5f05b3623ca5189de
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Tue Aug 29 16:23:49 2017 -0400
+commit 46f4bfb2d17a3ccb4b3207d086a90cac3c00ea2f
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Apr 28 13:37:52 2017 -0700
 
-    doc: hide content blocked by GFW when served in CN
+    crypto/tls: pass argument to serverInit rather than using a field in Config.
     
-    Change-Id: Ia3d0fa0517d96f0672d3c5ce7e7b7bb8bd0ce093
-    Reviewed-on: https://go-review.googlesource.com/60070
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Updates #20164.
+    
+    Change-Id: Ib900095e7885f25cd779750674a712c770603ca8
+    Reviewed-on: https://go-review.googlesource.com/42137
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/docs.html | 42 +++++++++++++++++++++++++++++-------------
- doc/help.html |  9 ++++++++-
- 2 files changed, 37 insertions(+), 14 deletions(-)
+ src/crypto/tls/common.go           | 19 ++++++-------------
+ src/crypto/tls/handshake_server.go |  8 ++------
+ 2 files changed, 8 insertions(+), 19 deletions(-)

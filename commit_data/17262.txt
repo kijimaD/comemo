@@ -1,31 +1,16 @@
-commit 5d5defc77ffbf88b8f9a4facf66798e3016340cf
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Aug 15 16:40:33 2013 +0900
+commit ec837ad73c20d9b33d8aea9d79ce68bf95598544
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 14 23:21:57 2013 -0700
 
-    net: rearrange the call order of runtime-integrated network pollster and syscall functions
+    archive/zip: speed up Zip64 test
     
-    This CL rearranges the call order for raw networking primitives like
-    the following;
+    Took 76 seconds or so before. By avoiding flate and crc32 on
+    4GB of data, it's now only 12 seconds.  Still a slow test, but
+    not painful to run anymore when you forget -short.
     
-    - For dialers that open active connections, pollDesc.Init will be
-      called before syscall.Connect.
-    
-    - For stream listeners that open passive stream connections,
-      pollDesc.Init will be called just after syscall.Listen.
-    
-    - For datagram listeners that open datagram connections,
-      pollDesc.Init will be called just after syscall.Bind.
-    
-    This is in preparation for runtime-integrated network pollster for BSD
-    variants.
-    
-    Update #5199
-    
-    R=golang-dev, alex.brainman
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/12730043
+    https://golang.org/cl/12950043
 
- src/pkg/net/sock_posix.go     | 20 ++++++++++++++------
- src/pkg/net/tcpsock_posix.go  |  5 -----
- src/pkg/net/unixsock_posix.go |  5 -----
- 3 files changed, 14 insertions(+), 16 deletions(-)
+ src/pkg/archive/zip/zip_test.go | 162 +++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 151 insertions(+), 11 deletions(-)

@@ -1,22 +1,27 @@
-commit 92eb34b59abe75318c091175f80daba165cf7a52
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 19 10:49:42 2015 -0700
+commit 8e6dc76e1f14088546ef99d00d884ac5057b349f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 30 11:28:29 2015 -0400
 
-    math/big: remove superfluous comparison
+    net/url: only record RawPath when it is needed
     
-    This is not a functional change.
+    RawPath is a hint to the desired encoding of Path.
+    It is ignored when it is not a valid encoding of Path,
+    such as when Path has been changed but RawPath has not.
+    It is not ignored but also not useful when it matches
+    the url package's natural choice of encoding.
+    In this latter case, set it to the empty string.
+    This should help drive home the point that clients
+    cannot in general depend on it being present and
+    that they should use the EncodedPath method instead.
     
-    Also:
-    - minor cleanups, better comments
-    - uniform spelling of noun "zeros" (per OED)
+    This also reduces the impact of the change on tests,
+    especially tests that use reflect.DeepEqual on parsed URLs.
     
-    Fixes #11277.
-    
-    Change-Id: I1726f358ce15907bd2410f646b02cf8b11b919cd
-    Reviewed-on: https://go-review.googlesource.com/11267
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I437c51a33b85439a31c307caf1436118508ea196
+    Reviewed-on: https://go-review.googlesource.com/11760
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/intconv.go | 16 ++++++++--------
- src/math/big/natconv.go | 32 ++++++++++++++++----------------
- 2 files changed, 24 insertions(+), 24 deletions(-)
+ src/net/http/readrequest_test.go | 22 ++++++++--------------
+ src/net/url/url.go               | 10 ++++++++--
+ src/net/url/url_test.go          |  8 ++------
+ 3 files changed, 18 insertions(+), 22 deletions(-)

@@ -1,19 +1,23 @@
-commit 0825475599d40c786c19c3449e22d2db66754456
-Author: Youlin Feng <fengyoulin@live.com>
-Date:   Mon Nov 18 17:34:20 2024 +0800
+commit 6b77d1b73694b50f2eccc1a2e1e09cc951393cce
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 20:23:46 2023 +0800
 
-    cmd/compile: do not treat OpLocalAddr as load in DSE
+    cmd/compile: update loong64 CALL* ops
     
-    Fixes #70409
-    Fixes #47107
+    allow the loong64 CALL* ops to take variable number of args
     
-    Change-Id: I82a66c46f6b76c68e156b5d937273b0316975d44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629016
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Update #40724
+    
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I4706d9651fcbf9a0f201af6820c97b1a924f14e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521781
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
     Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/deadstore.go |  3 +--
- test/codegen/issue70409.go                | 20 ++++++++++++++++++++
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 8 ++++----
+ src/cmd/compile/internal/ssa/opGen.go           | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

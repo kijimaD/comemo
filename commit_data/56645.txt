@@ -1,22 +1,20 @@
-commit 726fd5bc2b4dd94371f21598936e645379eca31f
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed May 15 10:51:44 2024 -0700
+commit ade3f3f5efd1a4a95b0070930644b8961646ee02
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 18 20:06:42 2023 -0700
 
-    crypto/tls: allow 256KiB certificate messages
+    go/types, types2: type-check built-ins even if there's a version error
     
-    During handshake, lift the message length limit, but only for
-    certificate messages.
+    There is no harm in continuing type-checking a built-in even if there
+    is a version error.
     
-    Fixes #50773
-    
-    Change-Id: Ida9d83f4219c4386ca71ed3ef72b22259665a187
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585402
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I161abd904a26075694c26639e247a17126947fcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/tls/common.go   | 13 ++++++-----
- src/crypto/tls/conn.go     | 16 +++++++++++--
- src/crypto/tls/tls_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 77 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go | 28 +++++++---------------------
+ src/go/types/builtins.go                    | 28 +++++++---------------------
+ 2 files changed, 14 insertions(+), 42 deletions(-)

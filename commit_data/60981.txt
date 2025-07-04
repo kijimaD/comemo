@@ -1,0 +1,23 @@
+commit 5b2f71a2c3f66b93d78bf0d0d7e5b6f0b54caf93
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Sep 16 13:04:54 2024 -0400
+
+    cmd/compile/internal/typecheck: remove getcallerpc/sp builtin signature
+    
+    The compiler never does a lookup of these (LookupRuntime), so they
+    aren't needed here.
+    
+    getcallerpc is only used in intrinsification. getcallersp is used in
+    intrinsification and defer handling via a direct OGETCALLERSP op.
+    
+    For #54766.
+    
+    Change-Id: I1666ceef3360a84573ae5b41b1c51d9205de7235
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613495
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .../compile/internal/typecheck/_builtin/runtime.go |  3 -
+ src/cmd/compile/internal/typecheck/builtin.go      | 69 +++++++++++-----------
+ src/cmd/internal/goobj/builtinlist.go              |  2 -
+ 3 files changed, 33 insertions(+), 41 deletions(-)

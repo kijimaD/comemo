@@ -1,33 +1,21 @@
-commit 726a2d04ea457430d0ecfd8ee1e9ffebcb78e2f6
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Jun 20 16:45:25 2018 -0400
+commit e3127f023f6a591699bcaa5b6fb2844ecee794ea
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 7 15:11:54 2018 -0800
 
-    cmd/link: support DWARF compression on Darwin
+    cmd/compile: fuse escape analysis parameter tagging loops
     
-    We want to compress DWARF even on macOS, but the native toolchain isn't
-    going to understand it. Add a flag that can be used to disable
-    compression, then add Darwin to the whitelist used during internal
-    linking.
+    Simplifies the code somewhat and allows removing Param.Field.
     
-    Unlike GNU ld, the Darwin linker doesn't have a handy linker flag to do
-    compression. But since we're already doing surgery to put the DWARF in
-    the output executable in the first place, compressing it at the same
-    time isn't unduly difficult. This does have the slightly odd effect of
-    compressing some Apple proprietary debug sections, which absolutely
-    nothing will understand. Leaving them uncompressed didn't make much
-    sense, though, since I doubt they're useful without (say) __debug_info.
+    Passes toolstash-check.
     
-    Updates #11799
-    
-    Change-Id: Ie00b0215c630a798c59d009a641e2d13f0e7ea01
-    Reviewed-on: https://go-review.googlesource.com/120155
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: Id854416aea8afd27ce4830ff0f5ff940f7353792
+    Reviewed-on: https://go-review.googlesource.com/99336
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/ld/dwarf.go               |   3 +-
- src/cmd/link/internal/ld/lib.go                 |   4 +-
- src/cmd/link/internal/ld/link.go                |   7 +-
- src/cmd/link/internal/ld/macho_combine_dwarf.go | 153 ++++++++++++++++++++----
- src/cmd/link/internal/ld/main.go                |   1 +
- 5 files changed, 142 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go         | 10 ----------
+ src/cmd/compile/internal/gc/esc.go         | 32 ++++++++++--------------------
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/syntax.go      |  3 ---
+ 4 files changed, 12 insertions(+), 35 deletions(-)

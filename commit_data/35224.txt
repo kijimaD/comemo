@@ -1,19 +1,27 @@
-commit 8c4170b2c9d0769ee970aeedadde239cfe519059
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue May 1 12:10:14 2018 +0200
+commit 4b3a3bd3aa7ff9f02d1f2dde0bcafc0110984c59
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 12 16:29:48 2018 -0800
 
-    math/bits: move tests into their own package
+    runtime: don't issue cgocheck error for timer bucket source pointer
     
-    This makes math/bits not have any explicit imports even
-    when compiling tests and thereby avoids import cycles when
-    dependencies of testing want to import math/bits.
+    The cgo checker was issuing an error with cgocheck=2 when a timer
+    bucket was stored in a pollDesc. The pollDesc values are allocated
+    using persistentalloc, so they are not in the Go heap. The code is OK
+    since timer bucket pointers point into a global array, and as such are
+    never garbage collected or moved.
     
-    Change-Id: I95eccae2f5c4310e9b18124abfa85212dfbd9daa
-    Reviewed-on: https://go-review.googlesource.com/110479
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Mark timersBucket notinheap to avoid the problem. timersBucket values
+    only occur in the global timers array.
+    
+    Fixes #23435
+    
+    Change-Id: I835f31caafd54cdacc692db5989de63bb49e7697
+    Reviewed-on: https://go-review.googlesource.com/87637
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/bits/bits_test.go   | 7 ++++---
- src/math/bits/export_test.go | 7 +++++++
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ misc/cgo/errors/ptr_test.go | 8 ++++++++
+ src/runtime/time.go         | 1 +
+ 2 files changed, 9 insertions(+)

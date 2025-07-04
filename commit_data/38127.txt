@@ -1,21 +1,16 @@
-commit b34c5f0cb46d77c3929fc2b37e86f811c4d32377
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Feb 8 17:50:36 2019 +0100
+commit 1961d8d72a53e780effa18bfa8dbe4e4282df0b2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 3 22:18:07 2018 +0000
 
-    net/http: remove use of DeepEqual for testing errors
+    crypto/rand: warn to stderr if blocked 60+ sec on first Reader.Read call
     
-    Comparing errors using DeepEqual breaks if frame information
-    is added as proposed in Issue #29934.
+    Fixes #22614
     
-    Updates #29934.
-    
-    Change-Id: I4ef076e262109a9d6f5b18846129df2535611d71
-    Reviewed-on: https://go-review.googlesource.com/c/162178
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I220afbaaeab4dec6d59eeeef12107234a77f1587
+    Reviewed-on: https://go-review.googlesource.com/c/139419
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/clientserver_test.go | 2 +-
- src/net/http/transport.go         | 5 ++++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/crypto/rand/rand.go         | 4 ++++
+ src/crypto/rand/rand_unix.go    | 8 ++++++++
+ src/crypto/rand/rand_windows.go | 9 +++++++++
+ 3 files changed, 21 insertions(+)

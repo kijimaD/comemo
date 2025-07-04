@@ -1,17 +1,23 @@
-commit deb988a2866ce541058d8af3844912d1a638980b
-Author: Katie Hockman <katie@golang.org>
-Date:   Fri Dec 3 12:23:44 2021 -0500
+commit d57189e92b9b4cd6909aefbcee02e9cb6fc05cff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 6 11:36:36 2021 -0700
 
-    doc/go1.18: mention fuzzing in the release notes
+    test/syntax: remove interface.go
     
-    Also make a few small formatting fixes.
+    The exact same test case covered by this file is also in
+    fixedbugs/bug121.go. No need for duplication.
     
-    Change-Id: Iad99d030312393af3b6533f2cd00f09aea0f2a7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369074
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Also, the actual syntax error tested (multiple method names
+    with a single signature) is an unlikely syntax error, and
+    only here for historical reasons (in the very beginning, this
+    was actually possible to write). Now, virtually nobody is making
+    this mistake.
+    
+    Change-Id: I9d68e0aee2a63025f44e6338647f8250ecc3077a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307789
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.18.html | 27 ++++++++++++++++++++++++---
- 1 file changed, 24 insertions(+), 3 deletions(-)
+ test/syntax/interface.go | 14 --------------
+ 1 file changed, 14 deletions(-)

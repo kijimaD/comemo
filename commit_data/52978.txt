@@ -1,55 +1,29 @@
-commit 472f623482cdd7b89691d7dfe1c9e3d1c21ea538
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sun May 7 16:46:42 2023 +0000
+commit 5960f4ec10e175714145d5ffa1b37d282b7a2157
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jun 20 23:21:16 2022 -0700
 
-    net: force cgo for myhostname and mdns nss modules for LookupAddr on unix
+    [dev.unified] cmd/compile: add RType fields
     
-    Currently there is a small bug in the LookupAddr for unix systems
-    that causes the use of go resolver instead of the cgo one.
-    Example for nss myhostname:
+    This CL adds RType/ITab fields to IR nodes that (may) ultimately
+    become runtime calls that require a *runtime._type or *runtime.itab
+    argument. It also updates the corresponding reflectdata IR helpers to
+    use these fields in preference of calling TypePtr/ITabAddr.
     
-    func main() {
-            fmt.Println(net.LookupAddr(os.Args[1]))
-    }
+    Subsequent CLs will start updating the GOEXPERIMENT=unified frontend
+    to set the RType fields, and incrementally switch the reflectdata
+    helpers to require them.
     
-    root@arch:~# cat /etc/nsswitch.conf | grep host
-    hosts:          myhostname dns
-    root@arch:~# GODEBUG=netdns=+3 go run main.go 192.168.1.200
-    go package net: confVal.netCgo = false  netGo = false
-    go package net: dynamic selection of DNS resolver
-    go package net: hostLookupOrder() = dns
-    [] lookup 200.1.168.192.in-addr.arpa. on 8.8.8.8:53: no such host
-    root@arch:~# GODEBUG=netdns=go+3 go run main.go 192.168.1.200
-    go package net: confVal.netCgo = false  netGo = true
-    go package net: GODEBUG setting forcing use of Go's resolver
-    go package net: hostLookupOrder() = dns
-    [] lookup 200.1.168.192.in-addr.arpa. on 8.8.8.8:53: no such host
-    root@arch:~# GODEBUG=netdns=cgo+3 go run main.go 192.168.1.200
-    go package net: confVal.netCgo = true  netGo = false
-    go package net: using cgo DNS resolver
-    go package net: hostLookupOrder() = cgo
-    [arch] <nil>
+    Passes toolstash -cmp.
     
-    The problem come from that we are only checking for hostnames that the
-    myhostname can resolve, but not for the addrs that it can also.
-    
-    man  nss-myhostname:
-           Please keep in mind that nss-myhostname (and nss-resolve) also
-           resolve in the other direction — from locally attached IP
-           addresses to hostnames.
-    
-    Change-Id: Ic18a9f99a2214b2938463e9a95f7f3ca5db1c01b
-    GitHub-Last-Rev: ade40fd3e3057de418b9b6a79f79fb9a53fb6c09
-    GitHub-Pull-Request: golang/go#59921
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491235
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I30e31d91f0a53961e3d6d872d7b5f9df2ec5074c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413358
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/net/conf.go        | 106 +++++++++++++++++++++++++++----------------------
- src/net/conf_test.go   |  37 ++++++++++++++++-
- src/net/lookup_unix.go |   2 +-
- 3 files changed, 96 insertions(+), 49 deletions(-)
+ src/cmd/compile/internal/ir/expr.go             | 25 ++++++++++---
+ src/cmd/compile/internal/ir/stmt.go             |  1 +
+ src/cmd/compile/internal/reflectdata/helpers.go | 50 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/walk/convert.go        |  2 +-
+ 4 files changed, 70 insertions(+), 8 deletions(-)

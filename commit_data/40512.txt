@@ -1,18 +1,17 @@
-commit d5caea771e917e13c4d05a6d7c5a009bf719d299
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 29 13:45:40 2019 +0700
+commit 1d1ba85d9986bb56226046c06dec4ce63ef9fe48
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed May 8 18:57:00 2019 -0700
 
-    bufio: save error from underlying ReadFrom
+    cmd/go: teach the build cache about -trimpath
     
-    Updates #35194
+    Fixes #31896
     
-    Change-Id: Ib854bc6250ddeb606d6ff6240179e23b98e4ac62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203999
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I228a809568cd37c599987f9f1e99df5c229e6c9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176112
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/bufio/bufio.go      |  4 +++-
- src/bufio/bufio_test.go | 20 ++++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/exec.go                    |  6 ++++++
+ src/cmd/go/testdata/script/build_cache_trimpath.txt | 20 ++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

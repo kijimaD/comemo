@@ -1,15 +1,16 @@
-commit 63a6f305ef7e4f0cd0d99e9714b259c1930f5609
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 14 13:42:13 2015 -0500
+commit 996c540be265716f3c00259eee38487c0b6e301e
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Oct 19 14:41:38 2015 -0400
 
-    cmd/compile: diagnose invalid switch interface{} case earlier
+    net: android no longer supports unix/unixgram
     
-    Fixes #11737.
+    I cannot find any documentation for this, but these tests no longer run
+    on the device I have since upgrading to Android L. Presumably it still
+    works for root, but standard Android programs to not have root access.
     
-    Change-Id: Id231b502ac5a44035dc3a02515b43bf665cb1e87
-    Reviewed-on: https://go-review.googlesource.com/17816
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I001c8fb5ce22f9ff8d7433f881d0dccbf6ab969d
+    Reviewed-on: https://go-review.googlesource.com/16056
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/compile/internal/gc/swt.go |  2 ++
- test/fixedbugs/issue11737.go       | 17 +++++++++++++++++
- 2 files changed, 19 insertions(+)
+ src/net/platform_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

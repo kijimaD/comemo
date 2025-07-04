@@ -1,17 +1,20 @@
-commit 0713293374ad75c0e92cac14f9c0d071bc45de83
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 28 12:06:25 2013 -0700
+commit 1e112cd59f560129f4dca5e9af7c3cbc445850b6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jun 28 17:52:17 2013 +0400
 
-    cmd/5g, cmd/6g, cmd/8g: fix comment
+    runtime: preempt goroutines for GC
+    The last patch for preemptive scheduler,
+    with this change stoptheworld issues preemption
+    requests every 100us.
+    Update #543.
     
-    Keeping the string "compactframe" because that's what
-    I always search for to find this code. But point to the real place too.
-    
-    TBR=iant
+    R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/10676047
+    https://golang.org/cl/10264044
 
- src/cmd/5g/ggen.c | 2 +-
- src/cmd/6g/ggen.c | 2 +-
- src/cmd/8g/ggen.c | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/runtime/proc.c       | 20 +++++++++++++-------
+ src/pkg/runtime/proc_test.go | 30 ++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h    |  1 +
+ src/pkg/runtime/stack.c      | 24 +++++++++++++++++++++---
+ src/pkg/runtime/stack.h      | 11 ++++++-----
+ 5 files changed, 71 insertions(+), 15 deletions(-)

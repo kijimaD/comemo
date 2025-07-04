@@ -1,14 +1,17 @@
-commit 06d639e07588ef290ed28ab384d5371e052240b1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 27 16:56:13 2016 -0500
+commit 9bffcf382b4f484876782a35bdff7297a60ab814
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 13 21:57:31 2016 -0700
 
-    runtime: fix SetCgoTraceback doc indentation
+    cmd/compile: minor cleanup in sinit.go
     
-    It wasn't rendering as HTML nicely.
+    Passes toolstash -cmp.
     
-    Change-Id: I5408ec22932a05e85c210c0faa434bd19dce5650
-    Reviewed-on: https://go-review.googlesource.com/22532
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id16009ef3ef1173eafe0f0c578dbf325b61aab3c
+    Reviewed-on: https://go-review.googlesource.com/20674
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/traceback.go | 68 ++++++++++++++++++++++++------------------------
- 1 file changed, 34 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go | 42 ++++++------------------------------
+ 1 file changed, 7 insertions(+), 35 deletions(-)

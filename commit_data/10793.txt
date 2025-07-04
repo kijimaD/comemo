@@ -1,13 +1,17 @@
-commit 4e066e419e715eb25093a61d43456e14472d20b0
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Wed Dec 14 16:26:48 2011 -0500
+commit 1402d1a68615d037365158578b0c4861e0fb4157
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 14 11:22:17 2011 -0800
 
-    misc/osx: Rename profile.go to profile_go to avoid confusing scripts
+    html/template: define the FuncMap type locally
+    This redefinition means that the public signature of html/template
+    does not refer to text/template.
+    
+    Fixes #2546.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5472043
+    https://golang.org/cl/5487083
 
- misc/osx/etc/{profile.go => profile_go} | 0
- misc/osx/scripts/postinstall            | 6 +++---
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/html/template/escape_test.go |  4 ++--
+ src/pkg/html/template/template.go    | 12 ++++++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

@@ -1,24 +1,18 @@
-commit acd072a0784863dfbdf32da9d770753722270a26
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Oct 9 17:38:49 2024 +0000
+commit 86f0f08461ae5b5fd605c229aad696ddefa92b2b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 23 10:20:29 2023 +0700
 
-    runtime: execute publicationBarrier in noscan case for delayed zeroing
+    cmd/compile: use s.temp for creating defer struct
     
-    This is a peace-of-mind change to make sure that delayed-zeroed memory
-    (in the large alloc case) is globally visible from the moment the
-    allocation is published back to the caller.
+    Follow discussion in go.dev/cl/521676.
     
-    The way it's written right now is good enough for the garbage collector
-    (we already have a publication barrier for a nil span.largeType, so the
-    GC will ignore the noscan span) but this might matter for user code on
-    weak memory architectures.
-    
-    Change-Id: I06ac9b95863074e5f09382629083b19bfa87fdb8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/619036
+    Change-Id: Ie5c0ce66b60fcbfd59385e8c2c45d431133ab53a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522115
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/malloc.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

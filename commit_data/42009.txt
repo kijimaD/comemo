@@ -1,24 +1,17 @@
-commit 1f0738c1577a55a6b7229b821ddfe762b84771d0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Dec 31 21:24:20 2019 -0800
+commit 81559af51a69d9f2c1c45d78efbe3cd7a4b9e3cb
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Nov 5 15:45:22 2019 -0500
 
-    runtime/pprof: speed up CPU profiling shutdown
+    doc: mention the anti-spam bypass in security.html
     
-    The core CPU profiling loop contains a 100ms sleep.
-    This is important to reduce overhead.
+    We had some issues with reports being marked as spam, so I added a
+    filter to never mark as spam something that mentions the word
+    "vulnerability". We get too much spam at that address to disable the
+    filter entirely, so instead meantion the bypass in the docs.
     
-    However, it means that it takes 200ms to shutting down a program
-    with CPU profiling enabled. When trying to collect many samples
-    by running a short-lived program many times, this adds up.
-    
-    This change cuts the shutdown penalty in half by skipping
-    the sleep whenever possible.
-    
-    Change-Id: Ic3177f8e1a2d331fe1a1ecd7c8c06f50beb42535
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228886
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: Idb4dabcf51a9dd8234a2d571cd020c970b0a582c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205538
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/pprof/pprof.go | 27 +++++++++++++++++++++------
- 1 file changed, 21 insertions(+), 6 deletions(-)
+ doc/security.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

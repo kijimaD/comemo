@@ -1,25 +1,24 @@
-commit 46aa8354fa57ab5a4fb133898baf18aafbeb2e88
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 17 16:31:19 2019 -0700
+commit 762953be28010644fb38ddbe4a55094751d10049
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 1 16:44:21 2019 -0700
 
-    cmd/compile: only escape unsafe.Pointer conversions when -d=checkptr=2
+    cmd/compile: disable Go1.13 language features for -lang=go1.12 and below
     
-    Escaping all unsafe.Pointer conversions for -d=checkptr seems like it
-    might be a little too aggressive to enable for -race/-msan mode, since
-    at least some tests are written to expect unsafe.Pointer conversions
-    to not affect escape analysis.
+    Fixes   #31747.
+    Updates #19308.
+    Updates #12711.
+    Updates #29008.
+    Updates #28493.
+    Updates #19113.
     
-    So instead only enable that functionality behind -d=checkptr=2.
-    
-    Updates #22218.
-    Updates #34959.
-    
-    Change-Id: I2f0a774ea5961dabec29bc5b8ebe387a1b90d27b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201840
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I76d2fdbc7698cc4e0f31b7ae24cbb4d28afbb6a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174897
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/escape.go | 4 ++--
- src/cmd/compile/internal/gc/main.go   | 5 +++++
- src/cmd/compile/internal/gc/walk.go   | 9 +++++----
- 3 files changed, 12 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/noder.go     | 32 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++++-
+ src/go/types/stdlib_test.go              |  1 +
+ test/fixedbugs/issue31747.go             | 34 ++++++++++++++++++++++++++++++++
+ 4 files changed, 72 insertions(+), 1 deletion(-)

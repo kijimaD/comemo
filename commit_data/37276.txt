@@ -1,23 +1,17 @@
-commit 9fc22d29092933460fe00bdaccea179f29e9960d
-Author: Michael Stapelberg <stapelberg@google.com>
-Date:   Fri Nov 2 11:23:54 2018 +0100
+commit 1177b089f5285aadf8eab72bcbbdce553ff03e36
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 12 11:57:05 2018 -0700
 
-    net: update zoneCache on cache misses to cover appearing interfaces
+    cmd/cgo: add note about bug writing C pointers to uninitialized C memory
     
-    performance differences are in measurement noise as per benchcmp:
+    Describe the problem as a bug, since it is not implied by the rest of
+    the pointer passing rules, and it may be possible to fix it.
     
-    benchmark                            old ns/op     new ns/op     delta
-    BenchmarkUDP6LinkLocalUnicast-12     5012          5009          -0.06%
+    Updates #19928
     
-    Fixes #28535
-    
-    Change-Id: Id022e2ed089ce8388a2398e755848ec94e77e653
-    Reviewed-on: https://go-review.googlesource.com/c/146941
-    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
-    Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
+    Change-Id: I2d336e7336b2a215c0b8cf909a203201ef1b054e
+    Reviewed-on: https://go-review.googlesource.com/123658
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/interface.go            | 40 ++++++++++++++++++++++++++++++----------
- src/net/interface_bsd_test.go   |  5 +++++
- src/net/interface_linux_test.go | 25 +++++++++++++++++++++++++
- src/net/interface_unix_test.go  | 34 ++++++++++++++++++++++++++++++++++
- 4 files changed, 94 insertions(+), 10 deletions(-)
+ src/cmd/cgo/doc.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

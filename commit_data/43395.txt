@@ -1,22 +1,28 @@
-commit 1296ee6b4f9058be75c799513ccb488d2f2dd085
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 6 11:56:19 2020 -0400
+commit 6e3bde5f302a20c457459fdaedba21d8ff37ee08
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Mar 28 16:46:47 2020 -0400
 
-    archive/zip: make Reader implement fs.FS
+    [dev.link] cmd/link: store external relocations in Reloc2 format
     
-    Now a zip.Reader (an open zip file) can be passed to code
-    that accepts a file system, such as (soon) template parsing.
+    Store external relocations in (almost) the same format as the Go
+    objects, so we can handle them more uniformly.
     
-    For #41190.
+    There is a small speedup:
     
-    Change-Id: If51b12e39db3ccc27f643c2453d3300a38035360
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243937
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    (linking cmd/compile)
+    Deadcode        67.8ms ± 3%    61.1ms ± 3%   -9.94%  (p=0.008 n=5+5)
+    Dostkcheck      41.2ms ± 2%    38.8ms ± 3%   -5.99%  (p=0.008 n=5+5)
+    
+    Change-Id: I8616e10b26235904201d6c9465f5ae32a49c9949
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226365
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/zip/reader.go      | 189 +++++++++++++++++++++++++++++++++++++++++
- src/archive/zip/reader_test.go |  11 +++
- src/archive/zip/struct.go      |   3 +
- 3 files changed, 203 insertions(+)
+ src/cmd/internal/goobj2/objfile.go            |  20 ++--
+ src/cmd/link/internal/ld/data.go              |  13 +--
+ src/cmd/link/internal/ld/dwarf.go             |  36 +++-----
+ src/cmd/link/internal/loader/loader.go        | 127 +++++++-------------------
+ src/cmd/link/internal/loader/loader_test.go   |  26 +++---
+ src/cmd/link/internal/loader/symbolbuilder.go |  43 +++++----
+ 6 files changed, 104 insertions(+), 161 deletions(-)

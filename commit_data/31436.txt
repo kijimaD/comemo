@@ -1,50 +1,28 @@
-commit 1a033b1a70668eb8b3832bd06512d0a8d2e59f57
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 9 17:53:07 2016 -0500
+commit 6db4d92e4c01c854e15391d18100c8d99cbbd7bc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 11:42:24 2017 +1100
 
-    runtime: separate spans of noscan objects
+    cmd/link: do not add __image_base__ and _image_base__ if external linker
     
-    Currently, we mix objects with pointers and objects without pointers
-    ("noscan" objects) together in memory. As a result, for every object
-    we grey, we have to check that object's heap bits to find out if it's
-    noscan, which adds to the per-object cost of GC. This also hurts the
-    TLB footprint of the garbage collector because it decreases the
-    density of scannable objects at the page level.
+    The symbols get in a way when using external linker. They are
+    not associated with a section. And linker fails when
+    generating relocations for them.
     
-    This commit improves the situation by using separate spans for noscan
-    objects. This will allow a much simpler noscan check (in a follow up
-    CL), eliminate the need to clear the bitmap of noscan objects (in a
-    follow up CL), and improves TLB footprint by increasing the density of
-    scannable objects.
+    __image_base__ and _image_base__ have been added long time ago.
+    I do not think they are needed anymore. If I delete them, all
+    tests still PASS. I tried going back to the commit that added
+    them to see if I can reproduce original error, but I cannot
+    build it. I don't have hg version of go repo, and my gcc is
+    complaining about cc source code.
     
-    This is also a step toward eliminating dead bits, since the current
-    noscan check depends on checking the dead bit of the first word.
+    I wasted too much time with this, so I decided to leave them only
+    for internal linker. That is what they were originally added for.
     
-    This has no effect on the heap size of the garbage benchmark.
+    For #10776.
     
-    We'll measure the performance change of this after the follow-up
-    optimizations.
-    
-    This is a cherry-pick from dev.garbage commit d491e550c3. The only
-    non-trivial merge conflict was in updatememstats in mstats.go, where
-    we now have to separate the per-spanclass stats from the per-sizeclass
-    stats.
-    
-    Change-Id: I13bdc4869538ece5649a8d2a41c6605371618e40
-    Reviewed-on: https://go-review.googlesource.com/41251
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ibb72b04f3864947c782f964a7badc69f4b074e25
+    Reviewed-on: https://go-review.googlesource.com/36979
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/export_test.go |  4 ++--
- src/runtime/malloc.go      | 23 +++++++++++-----------
- src/runtime/mbitmap.go     |  1 +
- src/runtime/mcache.go      | 15 ++++++++-------
- src/runtime/mcentral.go    | 14 +++++++-------
- src/runtime/mfinal.go      |  2 +-
- src/runtime/mgcmark.go     |  2 +-
- src/runtime/mgcsweep.go    | 10 +++++-----
- src/runtime/mheap.go       | 48 +++++++++++++++++++++++++++++++++++-----------
- src/runtime/mstats.go      | 19 +++++++++++-------
- src/runtime/stubs.go       |  7 +++++++
- 11 files changed, 93 insertions(+), 52 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,28 +1,29 @@
-commit 590c5b08070dfb2ddeb2b2583acc3a2b0fcb03bb
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Mon May 22 15:17:38 2017 -0600
+commit 073247f11fa0202e916820aa71044dcca11f4c7c
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sat Mar 18 15:09:40 2017 +0100
 
-    text/template: support indexing into *int* maps
+    cmd/link: export specialized variants of runtime._type to debug_info
     
-    Ensure that we can index maps whose key types are:
-    * int
-    * uint
-    * int32
-    * uint32
-    * int64
-    * uint64
-    * uintptr
+    The reflect package can be used to create new types at runtime, these
+    types will have runtime._type entries describing them but no entry in
+    debug_info (obviously).
     
-    Fixes #20439
+    A debugger that wanted to print the value of variables with such types
+    will have to read the runtime._type directly, however the
+    "specializations" of runtime._type (runtime.slicetype, runtime.maptype,
+    etc) are not exported to debug_info, besides runtime.interfacetype.
     
-    Change-Id: I8fa96b14073c8af72786482ff4ffc3508064ea86
-    Reviewed-on: https://go-review.googlesource.com/43850
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    All those types (i.e. runtime.slicetype, runtime.maptype, etc) should
+    be exported to debug_info so that debuggers don't have to hard-code
+    their description.
+    
+    Fixes #19602
+    
+    Change-Id: I086d523a4421a4ed964e16bc3c2274319a98b45b
+    Reviewed-on: https://go-review.googlesource.com/38350
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/exec_test.go | 17 +++++++++++++++++
- src/text/template/funcs.go     | 20 +++++++++++++++++---
- 2 files changed, 34 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go      | 18 +++++--
+ src/cmd/link/internal/ld/dwarf_test.go | 90 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 104 insertions(+), 4 deletions(-)

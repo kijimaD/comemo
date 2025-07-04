@@ -1,32 +1,58 @@
-commit 949d0f4f99c15541d7cd43f3e9812fb7ac9c73db
-Author: Laurent Senta <laurent@singulargarden.com>
-Date:   Fri Mar 10 12:33:59 2023 +0000
+commit 64ef16e77795957d47e3889bca9483d6f3099bbf
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 15 15:09:24 2022 -0400
 
-    net/http: do not force the Content-Length header if nilled
+    cmd/internal/obj/arm64: save LR and SP in one instruction for small frames
     
-    According to the ResponseWriter documentation:
+    When we create a thread with signals blocked. But glibc's
+    pthread_sigmask doesn't really allow us to block SIGSETXID. So we
+    may get a signal early on before the signal stack is set. If we
+    get a signal on the current stack, it will clobber anything below
+    the SP. This CL makes it to save LR and decrement SP in a single
+    MOVD.W instruction for small frames, so we don't write below the
+    SP.
     
-      To suppress automatic response headers (such as "Date"), set
-      their value to nil.
+    We used to use a single MOVD.W instruction before CL 379075.
+    CL 379075 changed to use an STP instruction to save the LR and FP,
+    then decrementing the SP. This CL changes it back, just this part
+    (epilogues and large frame prologues are unchanged). For small
+    frames, it is the same number of instructions either way.
     
-    In some cases, this documentation is incorrect: chunkWriter writes
-    a Content-Length header even if the value was set to nil. Meaning
-    there is no way to suppress this header.
+    This decreases the size of a "small" frame from 0x1f0 to 0xf0.
+    For frame sizes in between, it could benefit from using an
+    STP instruction instead of using the prologue for the "large"
+    frame case. We don't bother it for now as this is a stop-gap
+    solution anyway.
     
-    This patch replaces the empty string comparison with a call to
-    `header.has` which takes into account nil values as expected.
-    This is similar to the way we handle the "Date" header.
+    This only addresses the issue with small frames. Luckily, all
+    functions from thread entry to setting up the signal stack have
+    samll frames.
     
-    Change-Id: Ie10d54ab0bb7d41270bc944ff867e035fe2bd0c5
-    GitHub-Last-Rev: e0616dd46388a724df7c6ea821b3808ed1663cab
-    GitHub-Pull-Request: golang/go#58578
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/469095
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Other possible ideas:
+    - Expand the unwind info metadata, separate SP delta and the
+      location of the return address, so we can express "SP is
+      decremented but the return address is in the LR register". Then
+      we can always create the frame first then write the LR, without
+      writing anything below the SP (except the frame pointer at SP-8,
+      which is minor because it doesn't really affect program
+      execution).
+    - Set up the signal stack immediately in mstart in assembly.
+    
+    For Go 1.19 we do this simple fix. We plan to do the metadata fix
+    in Go 1.20 ( #53609 ).
+    
+    Other LR architectures are addressed in CL 413428.
+    
+    Fix #53374.
+    
+    Change-Id: I9d6582ab14ccb06ac61ad43852943d9555e22ae5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412474
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
 
- src/net/http/serve_test.go | 34 ++++++++++++++++++++++++++++++++++
- src/net/http/server.go     |  2 +-
- 2 files changed, 35 insertions(+), 1 deletion(-)
+ misc/cgo/test/cgo_linux_test.go    |  8 +++++
+ misc/cgo/test/setgid2_linux.go     | 35 ++++++++++++++++++++
+ src/cmd/internal/obj/arm64/obj7.go | 65 +++++++++++++++-----------------------
+ 3 files changed, 69 insertions(+), 39 deletions(-)

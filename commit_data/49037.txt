@@ -1,24 +1,44 @@
-commit a6a49d128bbd67051c2246fbb9abae85c8601a5d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon May 2 17:49:32 2022 -0700
+commit 1c783dc1480e8dec8bd4e76b744238607ea527f0
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Jul 2 17:51:20 2021 -0700
 
-    cmd/compile: remove ir.Name.Ntype
+    [dev.typeparams] Add optional sub-dict entry for typeparam bound calls
     
-    No longer needed now that IR construction uses types2.
+    In the case that a generic function/method f does a method call on a
+    type param allowed by its bound, an instantiation of f may do a direct
+    method call of a concrete type or a method call defined on a generic
+    type, depending on whether the passed type in a concrete type or an
+    instantiated type with the appropriate method defined. See the test case
+    boundmethod.go added to this change.
     
-    Change-Id: If8b7aff80cd8472be7d87fd3a36da911a5df163c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403839
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    In order to keep the dictionary format the same for all instantiations
+    of a generic function/method, I decided to have an optional
+    sub-dictionary entry for "bounds" calls. At the point that we are
+    creating the actual dictionary, we can then fill in the needed
+    sub-dictionary, if the type arg is an instantiated type, or a zeroed
+    dictionary entry, if type arg is not instantiated and the method will be
+    on a concrete type.
+    
+    In order to implement this, I now fill in n.Selection for "bounds"
+    method calls in generic functions as well. Also, I need to calculate
+    n.Selection correctly during import for the case where it is now set -
+    method calls on generic types, and bounds calls on typeparams.
+    
+    With this change, the dictionaries/sub-dictionaries are correct for
+    absdiff.go. The new test boundmethod.go illustrates the case where the
+    bound sub-dict entry is not used for a dictionary for stringify[myint],
+    but is used for a dictionary for stringify[StringInt[myint]].
+    
+    Change-Id: Ie2bcb971b7019a9f1da68c97eb03da2333327457
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333456
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/inline/inl.go     |  9 ---------
- src/cmd/compile/internal/ir/fmt.go         | 10 ----------
- src/cmd/compile/internal/ir/name.go        |  1 -
- src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
- src/cmd/compile/internal/noder/reader.go   |  4 ----
- src/cmd/compile/internal/typecheck/dcl.go  | 19 ++++++++-----------
- src/cmd/compile/internal/typecheck/func.go |  5 +----
- src/cmd/compile/internal/typecheck/type.go |  2 +-
- 8 files changed, 11 insertions(+), 41 deletions(-)
+ src/cmd/compile/internal/noder/expr.go        | 30 +++++++---
+ src/cmd/compile/internal/noder/stencil.go     | 81 +++++++++++++++++++++------
+ src/cmd/compile/internal/typecheck/iexport.go |  6 +-
+ src/cmd/compile/internal/typecheck/iimport.go | 22 ++++++++
+ test/typeparam/boundmethod.go                 | 60 ++++++++++++++++++++
+ 5 files changed, 172 insertions(+), 27 deletions(-)

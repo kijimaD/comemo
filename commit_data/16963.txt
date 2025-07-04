@@ -1,46 +1,14 @@
-commit 4fa83edf0693099becc97df926ee05eb83d08a47
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 1 11:21:17 2013 +1000
+commit 64cb2cf5ccff1f7f86a481992d6085eddb2db5ad
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Thu Aug 1 11:03:13 2013 +1000
 
-    cmd/godoc: delete from core repository
+    doc: don't invoke go build with -o /dev/null during test
     
-    The godoc command now lives at code.google.com/p/go.tools/cmd/godoc.
+    Fixes #5998.
     
-    R=golang-dev, r
+    R=golang-dev, khr
     CC=golang-dev
-    https://golang.org/cl/12206044
+    https://golang.org/cl/12149043
 
- lib/godoc/codewalk.html            |   56 --
- lib/godoc/codewalkdir.html         |   16 -
- lib/godoc/dirlist.html             |   31 -
- lib/godoc/error.html               |    9 -
- lib/godoc/example.html             |   28 -
- lib/godoc/godoc.html               |   94 ---
- lib/godoc/opensearch.xml           |   11 -
- lib/godoc/package.html             |  226 -----
- lib/godoc/package.txt              |   80 --
- lib/godoc/search.html              |  109 ---
- lib/godoc/search.txt               |   47 --
- src/cmd/godoc/README.godoc-app     |   61 --
- src/cmd/godoc/appinit.go           |   69 --
- src/cmd/godoc/codewalk.go          |  494 -----------
- src/cmd/godoc/dirtrees.go          |  320 --------
- src/cmd/godoc/doc.go               |  135 ---
- src/cmd/godoc/filesystem.go        |  562 -------------
- src/cmd/godoc/format.go            |  372 ---------
- src/cmd/godoc/godoc.go             | 1586 ------------------------------------
- src/cmd/godoc/index.go             | 1079 ------------------------
- src/cmd/godoc/linkify.go           |  234 ------
- src/cmd/godoc/main.go              |  470 -----------
- src/cmd/godoc/parser.go            |   37 -
- src/cmd/godoc/play-appengine.go    |   35 -
- src/cmd/godoc/play-local.go        |   41 -
- src/cmd/godoc/play.go              |   52 --
- src/cmd/godoc/setup-godoc-app.bash |  140 ----
- src/cmd/godoc/snippet.go           |  112 ---
- src/cmd/godoc/spec.go              |  179 ----
- src/cmd/godoc/template.go          |  182 -----
- src/cmd/godoc/throttle.go          |   88 --
- src/cmd/godoc/utils.go             |   91 ---
- src/cmd/godoc/zip.go               |  236 ------
- 33 files changed, 7282 deletions(-)
+ doc/codewalk/run | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,13 +1,18 @@
-commit d36cc027959170c9927a52f139482d2369f173af
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 15 14:46:20 2015 -0400
+commit 03eb132684016cee4728504425764433d7d1ff70
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 20 23:15:00 2015 +0900
 
-    reflect: make PtrTo(FuncOf(...)) not crash
+    net: deflake zero byte IO tests on datagram
     
-    Change-Id: Ie67e295bf327126dfdc75b73979fe33fbcb79ad9
-    Reviewed-on: https://go-review.googlesource.com/10150
-    Reviewed-by: Austin Clements <austin@google.com>
+    This change deflakes zero byte read/write tests on datagram sockets, and
+    enables them by default.
+    
+    Change-Id: I52f1a76f8ff379d90f40a07bb352fae9343ea41a
+    Reviewed-on: https://go-review.googlesource.com/9194
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/all_test.go | 23 ++++++++++++++++++++++-
- src/reflect/type.go     |  2 +-
- 2 files changed, 23 insertions(+), 2 deletions(-)
+ src/net/main_test.go   |   6 ---
+ src/net/server_test.go |  47 ---------------------
+ src/net/udp_test.go    |  74 +++++++++++++++++++++++++++++++++
+ src/net/unix_test.go   | 109 ++++++++++++++++++++++++++++++++++++-------------
+ 4 files changed, 154 insertions(+), 82 deletions(-)

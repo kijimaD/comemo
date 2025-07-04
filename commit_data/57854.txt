@@ -1,24 +1,26 @@
-commit b813e6fd73e0925ca57f5b3ff6b0d991bb2e5aea
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 31 20:41:51 2024 +0000
+commit ac2ec69e195ef7cb8d991e3db76dcc162cb45941
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Aug 30 04:57:57 2023 +0000
 
-    cmd/cgo/internal/testsanitizers: disable ASLR for TSAN tests
+    all: use io.{SeekStart, SeekCurrent, SeekEnd}
     
-    Ever since we had to upgrade from our COS image, we've been experiencing
-    TSAN test failures. My best guess is that the ASLR randomization entropy
-    increased, causing TSAN to fail. TSAN already re-execs itself in Clang
-    18+ with ASLR disabled, so just execute the tests with ASLR disabled on
-    Linux.
+    Currently we include these symbols in bootstrap code.
     
-    Fixes #59418.
-    
-    Change-Id: Icb4536ddf0f2f5e7850734564d40f5a208ab8d01
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-386,gotip-linux-386-clang15,gotip-linux-amd64-clang15,gotip-linux-amd64-boringcrypto,gotip-linux-amd64-aliastypeparams,gotip-linux-amd64-asan-clang15,gotip-linux-amd64-msan-clang15,gotip-linux-amd64-goamd64v3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623956
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I19b504237b0344f0e87cda0fbe651811c72daba1
+    GitHub-Last-Rev: 5134baec387659c5e2ca8c4fc65a5e73c07f00ce
+    GitHub-Pull-Request: golang/go#62368
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524258
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/cgo/internal/testsanitizers/cshared_test.go | 12 +++++++++++-
- src/cmd/cgo/internal/testsanitizers/tsan_test.go    | 12 +++++++++++-
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go |  6 ++----
+ src/debug/elf/file.go                        | 21 +++++----------------
+ src/debug/elf/reader.go                      |  6 +++---
+ src/debug/pe/file.go                         |  7 ++-----
+ src/debug/pe/section.go                      |  2 +-
+ src/debug/pe/string.go                       |  2 +-
+ src/debug/pe/symbol.go                       |  2 +-
+ 7 files changed, 15 insertions(+), 31 deletions(-)

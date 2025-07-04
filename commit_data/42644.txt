@@ -1,31 +1,15 @@
-commit a93a4c178025b52be85c9eb4b9f2815716a62d11
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Aug 4 20:25:10 2020 -0400
+commit 25d0ffe603885a9c42400b35cb39e93a56a7aa95
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 30 10:49:12 2020 -0800
 
-    runtime: make nanotime1 reentrant
+    doc: document new hash/maphash package
     
-    Currently, nanotime1 (and walltime1) is not reentrant, in that it
-    sets m.vdsoSP at entry and clears it at exit. If a signal lands
-    in between, and nanotime1 is called from the signal handler, it
-    will clear m.vdsoSP while we are still in nanotime1. If (in the
-    unlikely event) it is signaled again, m.vdsoSP will be wrong,
-    which may cause the stack unwinding code to crash.
+    Update #36878
+    Update #28322
     
-    This CL makes it reentrant, by saving/restoring the previous
-    vdsoPC and vdsoSP, instead of setting it to 0 at exit.
-    
-    TODO: have some way to test?
-    
-    Change-Id: I9ee53b251f1d8a5a489c71d4b4c0df1dee70c3e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246763
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I793c7c4dbdd23fdecd715500e90b7cc0cbe4cea5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217099
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_linux_386.s     | 38 +++++++++++++++++++++++++---
- src/runtime/sys_linux_amd64.s   | 56 ++++++++++++++++++++++++++++-------------
- src/runtime/sys_linux_arm.s     | 36 +++++++++++++++++++++++---
- src/runtime/sys_linux_arm64.s   | 34 +++++++++++++++++++++++--
- src/runtime/sys_linux_mips64x.s | 38 +++++++++++++++++++++++++---
- src/runtime/sys_linux_ppc64x.s  | 40 ++++++++++++++++++++++++++---
- 6 files changed, 206 insertions(+), 36 deletions(-)
+ doc/go1.14.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,27 +1,28 @@
-commit a32262d4625e6f54cedd765e4807c215d1deb992
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Apr 18 17:47:54 2020 -0400
+commit 414c1d454e6d388443239209220fe0783d4dac71
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Sun Nov 3 22:08:35 2019 -0500
 
-    cmd/compile: when marking REFLECTMETHOD, check for reflect package itself
+    cmd/go: derive TestExecutableGOROOT environment from tg.env instead of os.Environ()
     
-    reflect.Type.Method (and MethodByName) can be used to obtain a
-    reference of a method by reflection. The linker needs to know
-    if reflect.Type.Method is called, and retain all exported methods
-    accordingly. This is handled by the compiler, which marks the
-    caller of reflect.Type.Method with REFLECTMETHOD attribute. The
-    current code failed to handle the reflect package itself, so the
-    method wrapper reflect.Type.Method is not marked. This CL fixes
-    it.
+    TestExecutableGOROOT, unlike most other tests in go_test.go, was
+    running subcommands in a process with an environment derived directly
+    from os.Environ(), rather than using tg.env on its testgoData object.
     
-    Fixes #38515.
+    Since tg.env is what sets GO111MODULE=off for GOPATH-mode tests, that
+    caused TestExecutableGOROOT to unexpectedly run in module mode instead
+    of GOPATH mode. If the user's environment included 'GOFLAGS=-mod=mod',
+    that would cause the test to spuriously fail due to the inability to
+    download modules to $HOME (which in this test binary is hard-coded to
+    "/test-go-home-does-not-exist").
     
-    Change-Id: I12904d23eda664cf1794bc3676152f3218fb762b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228880
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #33848
+    
+    Change-Id: I2f343008dd9e38cd76b9919eafd5a3181d0cbd6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205064
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/walk.go |  3 ++-
- test/reflectmethod5.go              | 30 ++++++++++++++++++++++++++++++
- test/reflectmethod6.go              | 32 ++++++++++++++++++++++++++++++++
- 3 files changed, 64 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go               | 27 ++++++++++-----------------
+ src/cmd/go/testdata/print_goroot.go |  7 +++++--
+ 2 files changed, 15 insertions(+), 19 deletions(-)

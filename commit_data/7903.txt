@@ -1,50 +1,12 @@
-commit 41f93a430fd673ccc4b52c3755e31ff6f64bf9a3
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 28 23:28:42 2011 -0400
+commit 188a17db8070bdda0e4569243b09d8270616b35a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 29 14:19:21 2011 +1100
 
-    net: drop laddr from Dial, cname from LookupHost; new functions
+    tag release.2011-03-28
     
-    Drop laddr argument from Dial.
-    
-    Drop cname return from LookupHost.
-    
-    Add LookupIP, LookupCNAME, ParseCIDR, IP.Equal.
-    Export SplitHostPort, JoinHostPort.
-    Add AAAA (IPv6) support to host lookups.
-    
-    Preparations for implementing some of the
-    lookups using cgo.
-    
-    ParseCIDR and IP.Equal are logically new in this CL
-    but accidentally snuck into an earlier CL about unused
-    labels that was in the same client.
-    
-    In crypto/tls, drop laddr from Dial to match net.
-    
-    R=golang-dev, dsymonds, adg, rh
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4244055
+    https://golang.org/cl/4321041
 
- src/pkg/crypto/tls/handshake_client_test.go |  2 +-
- src/pkg/crypto/tls/tls.go                   |  5 +-
- src/pkg/net/Makefile                        |  2 +
- src/pkg/net/cgo_stub.go                     | 21 +++++++
- src/pkg/net/dial.go                         | 79 +++++++++----------------
- src/pkg/net/dialgoogle_test.go              | 13 ++++-
- src/pkg/net/dnsclient.go                    | 80 ++++++++++++++++++++++---
- src/pkg/net/dnsmsg.go                       | 42 +++++++++++++-
- src/pkg/net/hosts_test.go                   |  1 -
- src/pkg/net/ip.go                           | 53 ++++++++++-------
- src/pkg/net/ip_test.go                      | 90 ++++++++++++++++++++++-------
- src/pkg/net/iprawsock.go                    |  2 +-
- src/pkg/net/ipsock.go                       | 17 +++---
- src/pkg/net/lookup.go                       | 38 ++++++++++++
- src/pkg/net/net_test.go                     | 23 ++++----
- src/pkg/net/port.go                         |  4 +-
- src/pkg/net/server_test.go                  | 10 ++--
- src/pkg/net/sock.go                         |  4 +-
- src/pkg/net/tcpsock.go                      |  7 ++-
- src/pkg/net/textproto/textproto.go          |  2 +-
- src/pkg/net/timeout_test.go                 |  2 +-
- src/pkg/net/udpsock.go                      |  2 +-
- 22 files changed, 353 insertions(+), 146 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

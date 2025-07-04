@@ -1,14 +1,19 @@
-commit 8833af3f4b891b13d747b1af375cc57e8db29909
-Author: Hana Kim <hyangah@gmail.com>
-Date:   Tue Feb 14 16:11:35 2017 -0500
+commit 833f57ed502d686ce054ff557cf3bf5b6ed1a1d2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Oct 27 11:44:51 2016 +0200
 
-    runtime/pprof: print newly added fields of runtime.MemStats
+    cmd/compile: make Node.Diag a bool
     
-    in heap profile with debug mode
-    
-    Change-Id: I3a80d03a4aa556614626067a8fd698b3b00f4290
-    Reviewed-on: https://go-review.googlesource.com/36962
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I017c2ef7cc6248d3f4e38a791cd2576e941984ed
+    Reviewed-on: https://go-review.googlesource.com/32156
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/pprof.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/const.go     | 20 ++++++-------
+ src/cmd/compile/internal/gc/dcl.go       |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  9 ++++--
+ src/cmd/compile/internal/gc/syntax.go    |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 50 +++++++++++++++++---------------
+ 5 files changed, 44 insertions(+), 39 deletions(-)

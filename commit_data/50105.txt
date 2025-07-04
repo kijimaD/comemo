@@ -1,21 +1,27 @@
-commit 2fc21b50e4c19d60ad7c91bcfe6488e0f13abde3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 24 10:10:12 2022 -0400
+commit 7d822af4500831d131562f17dcf53374469d823e
+Author: siddharth <s@ricketyspace.net>
+Date:   Mon Jun 28 19:36:53 2021 -0400
 
-    cmd/go: skip link_syso tests in short mode
+    cmd/go/internal/cfg: improve error message when GOPATH is unset
     
-    These tests invoke the system C compiler and linker.
-    Skipping them saves a little over half a second of time in short mode.
+    Add GoPathError variable. This variable gets set when GOPATH is not
+    set in the environment and in build.Default.GOPATH. GoPathError may
+    be used in "GOPATH unset" error messages to explain why GOPATH is not
+    set.
     
-    Updates #54423.
+    This CL improves upon CL 158257.
     
-    Change-Id: I3e8aa7b53c0c91f7d1e001ec2cd5f7b4954de52d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425206
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Fixes #29341
+    
+    Change-Id: Ib42b42fb442c8297d58da4ca556be55e21a034e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331529
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/testdata/script/link_syso_deps.txt       | 3 ++-
- src/cmd/go/testdata/script/link_syso_issue33139.txt | 2 ++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/cfg/cfg.go        | 27 ++++++++++++++++++++++++++-
+ src/cmd/go/internal/modfetch/sumdb.go |  6 ++++--
+ 2 files changed, 30 insertions(+), 3 deletions(-)

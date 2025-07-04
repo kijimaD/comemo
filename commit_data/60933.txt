@@ -1,0 +1,24 @@
+commit 8926ca9c5ec3ea0b51e413e87f737aeb1422ea48
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 6 12:19:01 2024 -0700
+
+    syscall: on exec failure, close pidfd
+    
+    Fixes #69284
+    
+    Change-Id: I6350209302778ba5e44fa03d0b9e680d2b4ec192
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611495
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/os/pidfd_linux_test.go  | 56 +++++++++++++++++++++++++++++++++++++++++++++
+ src/syscall/exec_bsd.go     |  5 ++++
+ src/syscall/exec_freebsd.go |  5 ++++
+ src/syscall/exec_libc.go    |  5 ++++
+ src/syscall/exec_libc2.go   |  5 ++++
+ src/syscall/exec_linux.go   |  8 +++++++
+ src/syscall/exec_unix.go    |  4 ++++
+ 7 files changed, 88 insertions(+)

@@ -1,18 +1,18 @@
-commit 63dae3c3becfabce9454e062297f8b4a22fc69a9
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 7 14:37:06 2011 -0400
+commit 8cd7aac2234f648818fc6c01bb52386a537e7029
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Jun 7 14:28:10 2011 -0400
 
-    compress/lzw: do not use background goroutines
+    godefs: do not assume forward type references are enums
     
-    Programs expect that Read and Write are synchronous.
-    The background goroutines make the implementation
-    a little easier, but they introduce asynchrony that
-    trips up calling code.  Remove them.
+    Fixes #1466.
     
-    R=golang-dev, nigeltao
+    R=mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/4548080
+    https://golang.org/cl/4564043
 
- src/pkg/compress/lzw/reader.go      | 223 +++++++++++++++++++++---------------
- src/pkg/compress/lzw/writer_test.go |   8 +-
- 2 files changed, 135 insertions(+), 96 deletions(-)
+ src/cmd/godefs/a.h                     |  1 +
+ src/cmd/godefs/main.c                  | 14 +++++++++++---
+ src/cmd/godefs/stabs.c                 | 10 +---------
+ src/pkg/syscall/ztypes_darwin_386.go   |  4 ----
+ src/pkg/syscall/ztypes_darwin_amd64.go |  4 ----
+ 5 files changed, 13 insertions(+), 20 deletions(-)

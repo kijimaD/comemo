@@ -1,21 +1,14 @@
-commit 6c4e90a99edaf50a6825e04816756cd10808583c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 7 14:32:18 2016 -0800
+commit e357eb97a695d62c3102973f7384a15cb664b519
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 02:24:07 2015 -0500
 
-    cmd/compile: change Node fields from *NodeList to Nodes
+    cmd/go: document that package documentation is ignored
     
-    Compile time is about the same.  Getting rid of the nodeSeq interfaces,
-    particularly nodeSeqIterate, should produce some improvements.
+    Fixes #11801.
     
-    Passes toolstash -cmp.
-    
-    Update #14473.
-    
-    Change-Id: I678abafdd9129c6cccb0ec980511932eaed496a0
-    Reviewed-on: https://go-review.googlesource.com/20343
+    Change-Id: I2caeac7fdddc7f29015d6db8d4b3e296c8b9c423
+    Reviewed-on: https://go-review.googlesource.com/17954
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go    |  4 ++--
- src/cmd/compile/internal/gc/parser.go | 16 +++++++++-------
- src/cmd/compile/internal/gc/syntax.go |  6 +++---
- 3 files changed, 14 insertions(+), 12 deletions(-)
+ src/cmd/go/help.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

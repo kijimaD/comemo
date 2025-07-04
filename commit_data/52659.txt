@@ -1,68 +1,53 @@
-commit 804d786a30c664df63ef1e0c95d44772063afae1
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 13 21:06:49 2023 -0400
+commit 420a1fb223da8830ca8b30e503fd9bfa7d99be3b
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon May 16 17:49:01 2022 -0400
 
-    go/types, cmd/compile/internal/types2: use per-file Go version
+    all: update vendored golang.org/x/{arch,sys,term} for Go 1.19 release
     
-    For #57001, compilers and others tools will need to understand that
-    a different Go version can be used in different files in a program,
-    according to the //go:build lines in those files.
+    The Go 1.19 code freeze has recently started. This is a time to update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
     
-    Update go/types and cmd/compile/internal/types2 to track and
-    use per-file Go versions. The two must be updated together because
-    of the files in go/types that are generated from files in types2.
+    This CL updates only the lower-level modules arch, sys, term for better
+    bisection. The next CL will update further ones.
     
-    The effect of the //go:build go1.N line depends on the Go version
-    declared in the 'go 1.M' line in go.mod. If N > M, the file gets go1.N
-    semantics when built with a Go 1.N or later toolchain
-    (when built with an earlier toolchain the //go:build line will keep
-    the file from being built at all).
-    If N < M, then in general we want the file to get go1.N semantics
-    as well, meaning later features are disabled. However, older Go 1.M
-    did not apply this kind of downgrade, so for compatibility, N < M
-    only has an effect when M >= 21, meaning when using semantics
-    from Go 1.21 or later.
+    For #36905.
     
-    For #59033.
-    
-    Change-Id: I93cf07e6c687d37bd37a9461dc60cc032bafd01d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476278
+    Change-Id: I15f6f8b015f8e425571f4f072d6942c806c6ec3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406355
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/api.go         |  6 +-
- src/cmd/compile/internal/types2/builtins.go    | 12 ++--
- src/cmd/compile/internal/types2/call.go        |  6 +-
- src/cmd/compile/internal/types2/check.go       | 27 ++++++++
- src/cmd/compile/internal/types2/conversions.go |  4 +-
- src/cmd/compile/internal/types2/decl.go        |  4 +-
- src/cmd/compile/internal/types2/expr.go        |  2 +-
- src/cmd/compile/internal/types2/instantiate.go |  6 +-
- src/cmd/compile/internal/types2/lookup.go      |  5 +-
- src/cmd/compile/internal/types2/operand.go     |  4 +-
- src/cmd/compile/internal/types2/resolver.go    |  4 +-
- src/cmd/compile/internal/types2/typeset.go     |  8 +--
- src/cmd/compile/internal/types2/typexpr.go     |  4 +-
- src/cmd/compile/internal/types2/version.go     | 85 +++++++++++++++++++++-----
- src/go/build/deps_test.go                      | 13 ++--
- src/go/types/api.go                            |  6 +-
- src/go/types/builtins.go                       | 12 ++--
- src/go/types/call.go                           |  6 +-
- src/go/types/check.go                          | 33 ++++++++++
- src/go/types/conversions.go                    |  4 +-
- src/go/types/decl.go                           |  4 +-
- src/go/types/expr.go                           |  2 +-
- src/go/types/generate_test.go                  |  2 +-
- src/go/types/instantiate.go                    |  6 +-
- src/go/types/lookup.go                         |  5 +-
- src/go/types/operand.go                        |  4 +-
- src/go/types/resolver.go                       |  4 +-
- src/go/types/typeset.go                        |  8 +--
- src/go/types/typexpr.go                        |  4 +-
- src/go/types/version.go                        | 71 ++++++++++++++++-----
- src/internal/types/testdata/check/go1_19_20.go | 17 ++++++
- src/internal/types/testdata/check/go1_20_19.go | 17 ++++++
- src/internal/types/testdata/check/go1_21_19.go | 17 ++++++
- 33 files changed, 315 insertions(+), 97 deletions(-)
+ src/cmd/go.mod                                     |   6 +-
+ src/cmd/go.sum                                     |  12 +-
+ .../golang.org/x/arch/arm64/arm64asm/condition.go  |   8 +-
+ .../x/arch/arm64/arm64asm/condition_util.go        |  18 +--
+ .../golang.org/x/arch/arm64/arm64asm/decode.go     |  23 ++-
+ .../golang.org/x/arch/arm64/arm64asm/inst.go       | 158 +++++++++++++++++++++
+ .../golang.org/x/arch/arm64/arm64asm/plan9x.go     |  36 ++---
+ .../golang.org/x/arch/ppc64/ppc64asm/tables.go     |   3 +-
+ .../vendor/golang.org/x/arch/x86/x86asm/plan9x.go  |   4 +
+ .../vendor/golang.org/x/arch/x86/x86asm/tables.go  |   3 +-
+ src/cmd/vendor/golang.org/x/sys/plan9/syscall.go   |   1 +
+ .../vendor/golang.org/x/sys/plan9/syscall_plan9.go |  10 ++
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   6 +
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |   2 +-
+ .../golang.org/x/sys/unix/syscall_dragonfly.go     |   2 +
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  | 112 +++++++--------
+ .../golang.org/x/sys/unix/syscall_openbsd.go       |   2 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |  24 ++++
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  |   6 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |  24 ++++
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  |   6 +
+ .../golang.org/x/sys/windows/exec_windows.go       |  10 +-
+ .../golang.org/x/sys/windows/syscall_windows.go    |   1 -
+ src/cmd/vendor/golang.org/x/term/term.go           |  10 +-
+ src/cmd/vendor/modules.txt                         |   6 +-
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   4 +-
+ src/vendor/golang.org/x/sys/cpu/cpu.go             |   4 +-
+ src/vendor/modules.txt                             |   2 +-
+ 29 files changed, 377 insertions(+), 128 deletions(-)

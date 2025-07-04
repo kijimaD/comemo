@@ -1,41 +1,16 @@
-commit 4338e5a8914be2216de09363288177c806ef845e
-Author: Michael Matloob <matloob@golang.org>
-Date:   Sun Aug 21 13:52:23 2016 -0400
+commit 5a0881a1d1797a5f34c33ec4cf67cb97cc1aa634
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Apr 19 08:59:56 2016 -0400
 
-    cmd/link/internal: remove global Ctxt variable
+    cmd/link: calculate section alignment concurrently
     
-    This change threads the *ld.Link Ctxt variable through
-    code in arch-specific packages. This removes all remaining
-    uses of Ctxt, so remove the global variable too.
+    Reduces link time for cmd/go by 1%.
     
-    This CL continues the work in golang.org/cl/27408
-    
-    Updates #16818
-    
-    Change-Id: I5f4536847a1825fd0b944824e8ae4e122ec0fb78
-    Reviewed-on: https://go-review.googlesource.com/27459
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iad4a16db0aedc56f81ddf73ba9b632e418dc1b19
+    Reviewed-on: https://go-review.googlesource.com/22242
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/amd64/asm.go  | 204 ++++++++++++++++++------------------
- src/cmd/link/internal/amd64/obj.go  |   8 +-
- src/cmd/link/internal/arm/asm.go    | 135 ++++++++++++------------
- src/cmd/link/internal/arm/obj.go    |   6 +-
- src/cmd/link/internal/arm64/asm.go  |  67 ++++++------
- src/cmd/link/internal/arm64/obj.go  |   6 +-
- src/cmd/link/internal/ld/data.go    |   6 +-
- src/cmd/link/internal/ld/elf.go     |   4 +-
- src/cmd/link/internal/ld/lib.go     |  21 ++--
- src/cmd/link/internal/ld/macho.go   |   2 +-
- src/cmd/link/internal/ld/pe.go      |   2 +-
- src/cmd/link/internal/ld/pobj.go    |   5 +-
- src/cmd/link/internal/mips64/asm.go |  25 +++--
- src/cmd/link/internal/mips64/obj.go |   6 +-
- src/cmd/link/internal/ppc64/asm.go  | 184 ++++++++++++++++----------------
- src/cmd/link/internal/ppc64/obj.go  |   8 +-
- src/cmd/link/internal/s390x/asm.go  | 189 +++++++++++++++++----------------
- src/cmd/link/internal/s390x/obj.go  |   4 +-
- src/cmd/link/internal/x86/asm.go    | 140 ++++++++++++-------------
- src/cmd/link/internal/x86/obj.go    |  10 +-
- 20 files changed, 511 insertions(+), 521 deletions(-)
+ src/cmd/link/internal/ld/data.go | 145 +++++++++++++++++++--------------------
+ 1 file changed, 70 insertions(+), 75 deletions(-)

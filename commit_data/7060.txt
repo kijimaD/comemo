@@ -1,13 +1,15 @@
-commit 80055c658b0570f5c621892d7137b1426b0ede8e
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 7 17:17:42 2011 -0800
+commit a6820b65cbc585f32697cac047f2260c069ec4b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 7 15:04:41 2011 -0800
 
-    arm: fix build
-    previous version was built with -l32; should be -b32
+    gofmt: don't attempt certain illegal rewrites
     
-    R=ken
+    (e.g.: echo 'package main' | gofmt -r 'x->7'
+    cannot change the package name to 7)
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3867044
+    https://golang.org/cl/3913041
 
- src/pkg/syscall/zsyscall_linux_arm.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/gofmt/rewrite.go | 36 ++++++++++++++++++++++++++----------
+ 1 file changed, 26 insertions(+), 10 deletions(-)

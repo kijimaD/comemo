@@ -1,23 +1,19 @@
-commit e29efbcbcbcd7dde56ac0b4880ff8c13fdb6a89d
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 10 11:58:31 2017 -0400
+commit 25de52eb57e085fae854f6162c42482f6703d5ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 29 19:44:07 2017 +0000
 
-    cmd/link: fix some unintentional symbol creation
+    doc: update binary requirements
     
-    There are two places in DWARF generation that create symbols when they
-    really just want to get the symbol if it exists. writeranges, in
-    particular, will create a DWARF range symbol for every single textp
-    symbol (though they won't get linked into any list, so they don't
-    affect the binary).
+    FreeBSD 9.3.
+    Add Linux arm64. (required second line)
+    Clarify glibc requirement now that we have second line in notes.
+    OS X to macOS
     
-    Fix these to use ROLookup instead of Lookup.
+    Updates #20850
     
-    Change-Id: I401eadf22890e296bd08bccaa6ba2fd8fac800cd
-    Reviewed-on: https://go-review.googlesource.com/69971
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I684d464ed32a072081726b7c805a346c22c42f97
+    Reviewed-on: https://go-review.googlesource.com/47252
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ doc/install.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

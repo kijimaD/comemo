@@ -1,30 +1,28 @@
-commit 54c7bc9cff748e6554e53fbbbf823fdd214d0482
-Author: ruinan <ruinan.sun@arm.com>
-Date:   Mon Aug 8 04:17:19 2022 +0000
+commit 4a3daeee636751a262eb9f77d8e90c59955ee6bb
+Author: James Harris <mailjamesharris@gmail.com>
+Date:   Fri Sep 17 02:29:00 2021 +0000
 
-    cmd/compile: optimize shift ops on arm64 when the shift value is v&63
+    net/http/httputil: allow MIME parameters when detecting SSE in ReverseProxy
     
-    For the following code case:
+    This change allows httputil.ReverseProxy to detect SSE (server-sent events)
+    content when the response's Content-Type header includes MIME parameters,
+    such as "text/event-stream;charset=utf-8".
     
-      var x uint64
-      x >> (shift & 63)
+    Prior to this change the value of the Content-Type header was compared
+    directly to the literal "text/event-stream". This caused a false-negative
+    which failed to set the FlushInterval correctly when MIME parameters were
+    present.
     
-    We can directly genereta `x >> shift` on arm64, since the hardware will
-    only use the bottom 6 bits of the shift amount.
-    
-    Benchmark               old time/op  new time/op    delta
-    ShiftArithmeticRight-8  0.40ns       0.31ns        -21.7%
-    
-    Change-Id: Id58c8a5b2f6dd5c30c3876f4a36e11b4d81e2dc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425294
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: If8bb43efb78787b6519d7fe7599ca018a0da0023
+    GitHub-Last-Rev: 224518c5eb9686ee050c79f5f853ebacfdf6fc42
+    GitHub-Pull-Request: golang/go#48427
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350509
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 36 ++++++++++++++++++++++++++++
- test/codegen/shift.go                        |  9 +++++++
- 3 files changed, 49 insertions(+), 1 deletion(-)
+ src/net/http/httputil/reverseproxy.go      |  3 ++-
+ src/net/http/httputil/reverseproxy_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

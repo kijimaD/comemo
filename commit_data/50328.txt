@@ -1,16 +1,44 @@
-commit a89c3d76ba3c8f75663ebb83ebdbe8432582e9d2
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 17:31:08 2022 +0800
+commit 323e009c757229bdf58f68fde1c5bf07e9e65b61
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Oct 15 16:39:39 2021 -0400
 
-    debug: use strings.Builder
+    go/types: ensure named types are expanded after type-checking
     
-    Change-Id: I59db11212758b478248f34c031501a167335348c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428257
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Rather than using Checker.later in newNamed, add a Checker.defTypes
+    field to track named types that have been created during type-checking,
+    and use this to expand named types as a final phase in type checking.
+    
+    We have encountered several bugs related to infinite recursion while
+    expanding named types, because (I would argue) we have two conflicting
+    requirements in the type checker: ensuring that we eventually collapse
+    underlying chains, and yet allowing lazy substitution of the underlying
+    type in instances. The former is necessary for correctness, and to
+    ensure that we detect cycles during the type-checking pass. The latter
+    is necessary to allow infinitely expanding patterns of instances through
+    underlying or method definitions.
+    
+    I believe this CL reconciles these conflicting requirements, by creating
+    a boundary between types that are encountered in the source during
+    type checking, and instances that are created by recursive evaluation.
+    At the end of the type checking pass, Checker.defTypes should contain
+    all possible origin types for instantiation. Once we compute the true
+    underlying for these origin types, any remaining instances that are
+    unresolved are guaranteed to have an origin with a valid underlying.
+    Therefore, we can return from the type-checking pass without calling
+    under() for these remaining instances.
+    
+    Fixes #48703
+    Fixes #48974
+    
+    Change-Id: I1474f514e2ab71c1ad4c3704fe32bfba11d59394
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356490
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/debug/buildinfo/buildinfo_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/go/types/check.go                          | 27 ++++++++++++++++++++++++++
+ src/go/types/named.go                          | 23 ++++++++--------------
+ src/go/types/testdata/fixedbugs/issue48703.go2 | 27 ++++++++++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue48974.go2 | 22 +++++++++++++++++++++
+ 4 files changed, 84 insertions(+), 15 deletions(-)

@@ -1,27 +1,25 @@
-commit c2c787d73e6fadd57ebcc9fb07532332637b9164
-Author: Nayef Ghattas <nayef.ghattas@datadoghq.com>
-Date:   Wed Apr 12 11:09:01 2023 +0200
+commit e6d8b05a61e3977f5769e8e896d24d2d26dcb23c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 26 17:52:28 2022 +0000
 
-    runtime/metrics: set /sched/latencies:seconds as cumulative
+    Revert "reflect: deprecate (Slice|String)Header"
     
-    The current implementation for this metric populates a histogram
-    that is never reset, i.e. where each bucket count increases
-    monotonically.
+    This reverts CL 401434.
     
-    The comment in the definition of the Cumulative attribute calls
-    out that cumulative means that if the metric is a distribution,
-    then each bucket count increases monotonically.
+    Reason for revert: We should't deprecate these without a replacement.
     
-    In that sense, the cumulative attribute should be set to true for
-    this metric.
+    Fixes #53079
     
-    Change-Id: Ifc34e965a62f2d7881b5c8e8cbb8b7207a4d5757
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486755
+    Change-Id: I5515b03e39787d4e528a98c733cdb643b86b17ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408815
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/runtime/metrics/description.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.19.html      | 5 -----
+ src/reflect/value.go | 6 ------
+ 2 files changed, 11 deletions(-)

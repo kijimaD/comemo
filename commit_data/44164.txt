@@ -1,16 +1,13 @@
-commit cf10e69f17a202499aed8de6dd08f9642ab61b53
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 21 18:10:47 2021 -0800
+commit 7214090180276603bbfdacaf736058f49b8c3041
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue May 19 10:53:41 2020 -0400
 
-    doc/go1.16: mention net/http.Transport.GetProxyConnectHeader
+    [dev.link] cmd/link: skip TestDWARFiOS if the iOS tools aren't installed
     
-    For #40700
-    For #41048
-    
-    Change-Id: Ida6bcaaf5edaa2bba9ba2b8e02ec9959481f8302
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285594
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5bccb5935cdeb3a0ccf398a57eb4776f0e6aedca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234578
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.16.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/link/dwarf_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

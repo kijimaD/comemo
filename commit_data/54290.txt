@@ -1,30 +1,27 @@
-commit b4c889b5618f328866579671a532c8e617cdb507
-Author: Dominique Lefevre <domingolefevre@gmail.com>
-Date:   Fri Aug 25 16:06:36 2023 +0300
+commit 6d8ec893039a39f495c8139012e47754e4518b70
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 3 23:46:13 2022 +0700
 
-    cmd/internal/objabi: rename R_USEGENERICIFACEMETHOD to R_USENAMEDMETHOD.
+    reflect: fix race condition on funcTypes
     
-    Now we have two cases when we want to keep methods with a specific name:
-    calls to generic interface methods and MethodByName("Foo"). Both use
-    the same relocation type, so let us give it a name that is not limited
-    to the implementation of generic interfaces.
+    CL 425314 made creating funcTypes using StructOf, and using a mutex to
+    protect read+write to funcTypes. However, after initializing funcTypes,
+    it is accessed in FuncOf without holding lock, causing a race.
     
-    Also, introduce staticdata.StrSymNoCommon(). It creates a symbol that
-    does not appear in the final binary and only communicates arguments
-    to the linker.
+    Fixing it by returning the n-th Type directly from initFuncTypes, so the
+    accessing funcTypes will always be guarded by a mutex.
     
-    Change-Id: Icc9f49febfde1f31a4455b5acb903e8838d1c0af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523016
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Fixes #56011
+    
+    Change-Id: I1b50d1ae342943f16f368b8606f2614076dc90fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437997
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 14 +++-----------
- src/cmd/compile/internal/staticdata/data.go     | 10 ++++++++++
- src/cmd/compile/internal/walk/expr.go           |  9 ++-------
- src/cmd/internal/objabi/reloctype.go            |  9 ++++-----
- src/cmd/internal/objabi/reloctype_string.go     |  6 +++---
- src/cmd/link/internal/ld/deadcode.go            |  2 +-
- 6 files changed, 23 insertions(+), 27 deletions(-)
+ src/reflect/all_test.go | 18 ++++++++++++++++++
+ src/reflect/type.go     | 28 +++++++++++-----------------
+ 2 files changed, 29 insertions(+), 17 deletions(-)

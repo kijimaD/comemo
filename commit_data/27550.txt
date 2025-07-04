@@ -1,17 +1,40 @@
-commit 93369001c76e01b2fe8b0d8a5074d62d0b8fdc81
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 26 23:43:19 2016 -0400
+commit 633ab7426a906b72dcf6f1d54e87f4ae926dc4e1
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Sat Mar 5 13:37:38 2016 +0100
 
-    cmd/compile: delete Func.Outer
+    reflect: implement StructOf
     
-    This was just storage for a linked list.
+    This change exposes a facility to create new struct types from a slice of
+    reflect.StructFields.
     
-    Change-Id: I850e8db1e1f5e72410f5c904be9409179b56a94a
-    Reviewed-on: https://go-review.googlesource.com/23484
-    Reviewed-by: David Chase <drchase@google.com>
+    - reflect: first stab at implementing StructOf
+    - reflect: tests for StructOf
+    
+    StructOf creates new struct types in the form of structTypeWithMethods
+    to accomodate the GC (especially the uncommonType.methods slice field.)
+    
+    Creating struct types with embedded interfaces with unexported methods
+    is not supported yet and will panic.
+    Creating struct types with non-ASCII field names or types is not yet
+    supported (see #15064.)
+    
+    Binaries' sizes for linux_amd64:
+    
+    old=tip (0104a31)
+    
+                old bytes     new bytes     delta
+    bin/go      9911336       9915456       +0.04%
+    reflect     781704        830048        +6.18%
+    
+    Updates #5748.
+    Updates #15064.
+    
+    Change-Id: I3b8fd4fadd6ce3b1b922e284f0ae72a3a8e3ce44
+    Reviewed-on: https://go-review.googlesource.com/9251
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go         | 28 +++++++++++++++++-----------
- src/cmd/compile/internal/gc/go.go          |  2 --
- src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
- src/cmd/compile/internal/gc/syntax.go      |  3 +--
- 4 files changed, 19 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go |   2 +-
+ src/reflect/all_test.go                | 575 +++++++++++++++++++++++++++++++++
+ src/reflect/type.go                    | 473 ++++++++++++++++++++++++++-
+ 3 files changed, 1043 insertions(+), 7 deletions(-)

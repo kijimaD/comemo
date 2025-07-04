@@ -1,34 +1,23 @@
-commit c06a354bccf60ea32ed74238be409a00aac292c5
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Dec 21 18:41:16 2020 -0500
+commit 94e61ab94d4ab865cd3f9f73062a1c201bb6584d
+Author: Aaron Patterson <tenderlove@ruby-lang.org>
+Date:   Tue Jan 14 19:13:47 2020 +0000
 
-    test: trigger SIGSEGV instead of SIGTRAP in issue11656.go
+    runtime/runtime2: pack the sudog struct
     
-    In issue11656.go, it tests that if the runtime can get a
-    reasonable traceback when it faults at a non-function PC. It does
-    it by jumping to an address that contains an illegal or trap
-    instruction. When it traps, the SIGTRAP crashes the runtime.
+    This commit moves the isSelect bool below the ticket uint32.  The
+    boolean was consuming 8 bytes of the struct.  The uint32 was also
+    consuming 8 bytes, so we can pack isSelect below the uint32 and save 8
+    bytes.  This reduces the sudog struct from 96 bytes to 88 bytes.
     
-    This CL changes it to use an instruction that triggers SIGSEGV.
-    This is due to two reasons:
-    - currently, the handling of bad PC is done by preparePanic,
-      which is only used for a panicking signal (SIGSEGV, SIGBUS,
-      SIGFPE), not a fatal signal (e.g. SIGTRAP).
-    - the test uses defer+recover to get a traceback, which only
-      works for panicking signals, not fatal signals.
-    
-    Ideally, we should handle all kinds of faults (SIGSEGV, SIGBUS,
-    SIGILL, SIGTRAP, etc.) with a nice traceback. I'll leave this
-    for the future.
-    
-    This CL also adds RISCV64 support.
-    
-    Fixes #43283.
-    
-    Change-Id: I5e0fbf8530cc89d16e05c3257d282bc1d4d03405
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279423
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If555cdaf2f5eaa125e2590fc4d113dbc99750738
+    GitHub-Last-Rev: d63b4e086b17da74e185046dfecb12d58e4f19ac
+    GitHub-Pull-Request: golang/go#36552
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214677
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- test/fixedbugs/issue11656.go | 30 +++++++++++++-----------------
- 1 file changed, 13 insertions(+), 17 deletions(-)
+ src/runtime/export_test.go | 2 ++
+ src/runtime/runtime2.go    | 8 +++++---
+ src/runtime/sizeof_test.go | 1 +
+ 3 files changed, 8 insertions(+), 3 deletions(-)

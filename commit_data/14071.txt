@@ -1,12 +1,17 @@
-commit 5497787d35846bbfc44719b4477d57829bc53b31
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Oct 7 23:14:20 2012 +0200
+commit c1d06cef122b221340a1f4c5884dda4aff32c3da
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 7 16:36:14 2012 -0400
 
-    test/testlib: don't forget stderr for rundircmpout.
+    cmd/8l: add SSE2 instructions
     
-    R=golang-dev, rsc
+    R=ken
     CC=golang-dev
-    https://golang.org/cl/6620071
+    https://golang.org/cl/6610065
 
- test/testlib | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/8l/8.out.h | 137 +++++++++++++++++++++++++++++++++++++----
+ src/cmd/8l/l.h     |   8 +++
+ src/cmd/8l/list.c  |   9 +++
+ src/cmd/8l/obj.c   |  14 +++++
+ src/cmd/8l/optab.c | 178 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/8l/span.c  |  78 ++++++++++++++++++++++-
+ 6 files changed, 411 insertions(+), 13 deletions(-)

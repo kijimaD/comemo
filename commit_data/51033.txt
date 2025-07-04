@@ -1,16 +1,14 @@
-commit 7366b199c52f1c6ac6590bf126357bd2762ebc5b
-Author: Changkun Ou <hi@changkun.de>
-Date:   Tue Sep 20 08:53:56 2022 +0200
+commit 61ff5019687c125910c48c22d672a9b6985ee61e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 28 15:25:09 2021 -0800
 
-    sync: use atomic.Pointer for entry
+    spec: adjust section on package unsafe for type parameters
     
-    Change-Id: Ie3b4bfe483d7ef43da29ea1dd73d423dac36cf39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432055
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Changkun Ou <mail@changkun.de>
+    Change-Id: I562d4648756e710020ee491f3801896563a89baa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367395
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/sync/map.go | 43 ++++++++++++++++++++++---------------------
- 1 file changed, 22 insertions(+), 21 deletions(-)
+ doc/go_spec.html | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

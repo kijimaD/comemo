@@ -1,21 +1,16 @@
-commit ecc7dd546998ad0b68e9055876db1ec82facca4b
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sat Sep 21 16:22:50 2019 +0530
+commit 1c00deeaf96743362a103957266f92e47ff90bc6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Apr 7 09:33:36 2019 +1000
 
-    test/codegen: fix wasm codegen breakage
+    image: deprecate ZP and ZR
     
-    i32.eqz instructions don't appear unless needed in if conditions anymore
-    after CL 195204. I forgot to run the codegen tests while submitting the CL.
+    They were added a very long time ago, as a convenience before Go had
+    struct literals. Today, it is better to use the zero-valued literal. For
+    example, the compiler cannot prove that ZP or ZR have not been modified.
     
-    Thanks to @martisch for catching it.
-    
-    Fixes #34442
-    
-    Change-Id: I177b064b389be48e39d564849714d7a8839be13e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196580
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I7469f1c751e91bf76fe1eab07b5772eccb5d6405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171097
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- test/codegen/comparisons.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/image/geom.go | 4 ++++
+ 1 file changed, 4 insertions(+)

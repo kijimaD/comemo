@@ -1,21 +1,15 @@
-commit e7524d51fdf64b48a4ec2fbc13596a5c8a80cc05
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 22 11:53:20 2016 -0800
+commit 3aa755b8fb82c28e55938e040bdead6b7f45ae5a
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Tue Oct 20 11:21:21 2015 -0400
 
-    cmd/compile: move Io state into lexer and remove Io type
+    regexp/syntax: correctly print `^` BOL and `$` EOL
     
-    Pass lexer around so state is accessible and dependency is explicit.
-    In the process remove EOF -> '\n' conversion that has to be corrected
-    for when reporting errors.
+    Fixes #12980.
     
-    Change-Id: If95564b70e7484dedc1f5348e585cd19acbc1243
-    Reviewed-on: https://go-review.googlesource.com/19819
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I936db2f57f7c4dc80bb8ec32715c4c6b7bf0d708
+    Reviewed-on: https://go-review.googlesource.com/16112
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/go.go     |  10 --
- src/cmd/compile/internal/gc/lex.go    | 216 +++++++++++++++++-----------------
- src/cmd/compile/internal/gc/parser.go |  28 ++---
- src/cmd/compile/internal/gc/subr.go   |   6 -
- 4 files changed, 119 insertions(+), 141 deletions(-)
+ src/regexp/syntax/regexp.go        | 4 ++--
+ src/regexp/syntax/simplify_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

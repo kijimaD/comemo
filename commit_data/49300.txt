@@ -1,73 +1,30 @@
-commit 4dd9458162a08efeb3f3da9a9f3ab4f13113d4b9
-Author: Motiejus Jakštys <motiejus@jakstys.lt>
-Date:   Fri May 20 07:28:25 2022 +0000
+commit 508624f359f168cab32814f63d29a4305fb01588
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Aug 8 12:37:35 2021 -0700
 
-    cmd/cgo: use --no-gc-sections if available
+    [dev.typeparams] cmd/compile/internal/types2: expand is only required for *Named types
     
-    zig cc passes `--gc-sections` to the underlying linker, which then
-    causes undefined symbol errors when compiling with cgo but without C
-    code. Add `-Wl,--no-gc-sections` to make it work with zig cc. Minimal
-    example:
+    Now that the pointer identity for a *Named type doesn't change
+    anymore when going from lazy instantiated to actually instantiated
+    (= expanded) state, expand() only needs to be called when we deal
+    with *Named types and only if we care about a *Named type's internals.
     
-    **main.go**
+    Remove the expand function and respective calls for all types and
+    replace with specific t.expand() method calls where t is a *Named.
     
-        package main
-        import _ "runtime/cgo"
-        func main() {}
-    
-    Run (works after the patch, doesn't work before):
-    
-        CC="zig cc" go build main.go
-    
-    Among the existing code, `src/runtime/testdata/testprognet` fails to
-    build:
-    
-        src/runtime/testdata/testprognet$ CC="zig cc" go build .
-        net(.text): relocation target __errno_location not defined
-        net(.text): relocation target getaddrinfo not defined
-        net(.text): relocation target freeaddrinfo not defined
-        net(.text): relocation target gai_strerror not defined
-        runtime/cgo(.text): relocation target stderr not defined
-        runtime/cgo(.text): relocation target fwrite not defined
-        runtime/cgo(.text): relocation target vfprintf not defined
-        runtime/cgo(.text): relocation target fputc not defined
-        runtime/cgo(.text): relocation target abort not defined
-        runtime/cgo(.text): relocation target pthread_create not defined
-        runtime/cgo(.text): relocation target nanosleep not defined
-        runtime/cgo(.text): relocation target pthread_detach not defined
-        runtime/cgo(.text): relocation target stderr not defined
-        runtime/cgo(.text): relocation target strerror not defined
-        runtime/cgo(.text): relocation target fprintf not defined
-        runtime/cgo(.text): relocation target abort not defined
-        runtime/cgo(.text): relocation target pthread_mutex_lock not defined
-        runtime/cgo(.text): relocation target pthread_cond_wait not defined
-        runtime/cgo(.text): relocation target pthread_mutex_unlock not defined
-        runtime/cgo(.text): relocation target pthread_cond_broadcast not defined
-        runtime/cgo(.text): relocation target malloc not defined
-    
-    With the patch both examples build as expected.
-    
-    @ianlancetaylor suggested:
-    
-    > It would be fine with me if somebody wants to send a cgo patch that
-    passes -Wl,--no-gc-sections, with a fallback if that option is not
-    supported.
-    
-    ... and this is what we are doing. Tested with zig
-    0.10.0-dev.2252+a4369918b
-    
-    Fixes #52690
-    
-    Change-Id: Ib6d1b2bd59335e9663afefd360ddad7da358a938
-    GitHub-Last-Rev: 58406b36cabec694003b2c50533220410853e295
-    GitHub-Pull-Request: golang/go#52815
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405414
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If82299360d60108b00adc4013b29399aec90b940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340749
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/work/exec.go | 29 ++++++++++++++++++++++-------
- 1 file changed, 22 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go   |  2 +-
+ src/cmd/compile/internal/types2/expr.go       |  1 -
+ src/cmd/compile/internal/types2/named.go      |  9 ---------
+ src/cmd/compile/internal/types2/predicates.go |  6 ++----
+ src/cmd/compile/internal/types2/signature.go  |  2 +-
+ src/cmd/compile/internal/types2/type.go       |  5 ++++-
+ src/cmd/compile/internal/types2/typexpr.go    |  3 +--
+ src/cmd/compile/internal/types2/unify.go      |  6 ++----
+ src/cmd/compile/internal/types2/union.go      | 11 +++++------
+ 9 files changed, 16 insertions(+), 29 deletions(-)

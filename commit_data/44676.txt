@@ -1,25 +1,40 @@
-commit a9b3c4bd0602f95afc58328d9953534f5e5fe4f6
-Author: Joel Courtney <euphemize@gmail.com>
-Date:   Mon Mar 15 22:28:31 2021 +0000
+commit e7c7ce646f37b260fe5a5635bc52243d28125dd8
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Aug 17 16:14:48 2020 -0500
 
-    time: add Time.IsDST() to check if its Location is in Daylight Savings Time
+    cmd/compile: combine multiply/add into maddld on ppc64le/power9
     
-    Fixes #42102
+    Add a new lowering rule to match and replace such instances
+    with the MADDLD instruction available on power9 where
+    possible.
     
-    Change-Id: I2cd2fdf67c794c3e99ed1c24786f7f779da73962
-    GitHub-Last-Rev: bbfa92135734cbd55895012fa492e51686a7b58b
-    GitHub-Pull-Request: golang/go#42103
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264077
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Likewise, this plumbs in a new ppc64 ssa opcode to house
+    the newly generated MADDLD instructions.
+    
+    When testing ed25519, this reduced binary size by 936B.
+    Similarly, MADDLD combination occcurs in a few other less
+    obvious cases such as division by constant.
+    
+    Testing of golang.org/x/crypto/ed25519 shows non-trivial
+    speedup during keygeneration:
+    
+    name           old time/op  new time/op  delta
+    KeyGeneration  65.2µs ± 0%  63.1µs ± 0%  -3.19%
+    Signing        64.3µs ± 0%  64.4µs ± 0%  +0.16%
+    Verification    147µs ± 0%   147µs ± 0%  +0.11%
+    
+    Similarly, this test binary has shrunk by 66488B.
+    
+    Change-Id: I077aeda7943119b41f07e4e62e44a648f16e4ad0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248723
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/time/format.go        |  2 +-
- src/time/time.go          | 20 +++++++++++++-------
- src/time/time_test.go     | 36 ++++++++++++++++++++++++++++++++++++
- src/time/zoneinfo.go      | 37 +++++++++++++++++++++++--------------
- src/time/zoneinfo_read.go |  2 +-
- src/time/zoneinfo_test.go | 23 ++++++++++++-----------
- 6 files changed, 86 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 +++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 16 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 21 +++++++++++++++++++++
+ test/codegen/arithmetic.go                   | 12 ++++++++----
+ 6 files changed, 64 insertions(+), 4 deletions(-)

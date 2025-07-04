@@ -1,27 +1,74 @@
-commit f601d412ceae1338999b203c50168af34285c634
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 29 23:06:06 2019 -0500
+commit da0d1a44bac379f5acedb1933f85400de08f4ac6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 26 21:10:21 2018 +0000
 
-    fmt: scan new number syntax
+    all: use strings.ReplaceAll and bytes.ReplaceAll where applicable
     
-    This CL updates fmt's scanner to accept the new number syntaxes:
+    I omitted vendor directories and anything necessary for bootstrapping.
+    (Tested by bootstrapping with Go 1.4)
     
-     - Hexadecimal floating-point values.
-     - Digit-separating underscores.
-     - Leading 0b and 0o prefixes.
+    Updates #27864
     
-    See golang.org/design/19308-number-literals for background.
-    
-    For #12711.
-    For #19308.
-    For #28493.
-    For #29008.
-    
-    Change-Id: I5582af5c94059c781e6cf4e862441d3df3006adf
-    Reviewed-on: https://go-review.googlesource.com/c/160247
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7d9b68d0372d3a34dee22966cca323513ece7e8a
+    Reviewed-on: https://go-review.googlesource.com/137856
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/fmt/doc.go       | 15 ++++++++-------
- src/fmt/scan.go      | 50 +++++++++++++++++++++++++++++++++++++-------------
- src/fmt/scan_test.go | 38 ++++++++++++++++++++++++++++++++++++--
- 3 files changed, 81 insertions(+), 22 deletions(-)
+ src/cmd/fix/main.go                               |  2 +-
+ src/cmd/fix/typecheck.go                          |  4 ++--
+ src/cmd/go/go_test.go                             | 10 +++++-----
+ src/cmd/go/internal/envcmd/env.go                 |  2 +-
+ src/cmd/go/internal/get/vcs.go                    |  2 +-
+ src/cmd/go/internal/modconv/convert_test.go       |  2 +-
+ src/cmd/go/internal/modfetch/codehost/codehost.go |  2 +-
+ src/cmd/go/internal/modfetch/coderepo_test.go     | 12 ++++++------
+ src/cmd/go/internal/modfetch/proxy.go             |  2 +-
+ src/cmd/go/internal/modload/import_test.go        |  2 +-
+ src/cmd/go/internal/modload/query_test.go         |  2 +-
+ src/cmd/go/internal/search/search.go              |  4 ++--
+ src/cmd/go/internal/work/build.go                 |  4 ++--
+ src/cmd/go/internal/work/exec.go                  | 10 +++++-----
+ src/cmd/go/proxy_test.go                          |  4 ++--
+ src/cmd/go/script_test.go                         | 12 ++++++------
+ src/cmd/go/testdata/addmod.go                     |  2 +-
+ src/cmd/go/vendor_test.go                         |  2 +-
+ src/cmd/gofmt/gofmt_test.go                       |  2 +-
+ src/cmd/internal/goobj/read.go                    |  2 +-
+ src/cmd/trace/trace.go                            |  2 +-
+ src/cmd/vet/main.go                               |  2 +-
+ src/cmd/vet/vet_test.go                           |  2 +-
+ src/crypto/rsa/pss_test.go                        |  2 +-
+ src/crypto/x509/root_darwin_arm_gen.go            |  6 +++---
+ src/encoding/base32/base32_test.go                | 10 +++++-----
+ src/encoding/base64/base64_test.go                |  8 ++++----
+ src/flag/flag.go                                  |  2 +-
+ src/go/constant/value_test.go                     |  2 +-
+ src/go/doc/doc_test.go                            |  6 +++---
+ src/go/printer/example_test.go                    |  4 ++--
+ src/html/template/js.go                           |  2 +-
+ src/html/template/url.go                          |  2 +-
+ src/mime/multipart/formdata_test.go               |  8 ++++----
+ src/mime/multipart/multipart_test.go              |  6 +++---
+ src/net/http/cgi/child.go                         |  2 +-
+ src/net/http/httputil/dump_test.go                |  2 +-
+ src/net/http/readrequest_test.go                  |  2 +-
+ src/net/http/request_test.go                      |  6 +++---
+ src/net/http/serve_test.go                        |  2 +-
+ src/net/lookup_windows_test.go                    |  2 +-
+ src/net/mail/message_test.go                      |  4 ++--
+ src/net/net_windows_test.go                       |  2 +-
+ src/net/url/example_test.go                       |  2 +-
+ src/net/url/url_test.go                           |  6 +++---
+ src/os/path_windows_test.go                       |  6 +++---
+ src/path/filepath/path.go                         |  4 ++--
+ src/path/filepath/path_test.go                    |  2 +-
+ src/path/filepath/path_windows.go                 |  2 +-
+ src/path/filepath/path_windows_test.go            |  2 +-
+ src/runtime/pprof/internal/profile/profile.go     |  2 +-
+ src/runtime/pprof/pprof_test.go                   |  2 +-
+ src/runtime/runtime-gdb_test.go                   |  2 +-
+ src/strings/example_test.go                       |  2 +-
+ src/testing/sub_test.go                           |  4 ++--
+ src/text/template/exec.go                         |  2 +-
+ 56 files changed, 104 insertions(+), 104 deletions(-)

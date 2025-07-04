@@ -1,18 +1,23 @@
-commit c9ad32bd9f670a64292de17d09f9ec8294a60f39
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sun Jun 30 02:46:12 2024 +0800
+commit 03631f027e2e2e6a162de2f270016470f9a10b3e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 11 14:35:23 2023 -0700
 
-    encoding/asn1: unmarshal bool values correctly dealing with the ANY type
+    cmd/compile: remove reflectdata.{TypePtr,ITabAddr} wrappers
     
-    Fixes #68241
+    Remove these in favor of the explicit *At variants that take a
+    src.XPos.
     
-    Change-Id: I1ee81aa50c2f39f535ad27309e855f19acb2f2ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595796
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I2c095b75e43b58fe31e3e1b15c811a66ac5a0f83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518956
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/asn1/asn1.go         |  2 ++
- src/encoding/asn1/marshal_test.go | 20 ++++++++++++++++++++
- 2 files changed, 22 insertions(+)
+ src/cmd/compile/internal/reflectdata/reflect.go | 10 ----------
+ src/cmd/compile/internal/staticinit/sched.go    |  4 ++--
+ src/cmd/compile/internal/walk/assign.go         |  4 ++--
+ src/cmd/compile/internal/walk/builtin.go        |  2 +-
+ src/cmd/compile/internal/walk/expr.go           |  2 +-
+ 5 files changed, 6 insertions(+), 16 deletions(-)

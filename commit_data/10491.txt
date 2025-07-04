@@ -1,16 +1,18 @@
-commit 8362ee99b046bdbc19d6e8a806c656295ba56b2a
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Nov 23 09:04:02 2011 -0800
+commit 8281f6bd1b02b52c8233fbcc6b54b697896d0155
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 23 09:44:29 2011 -0500
 
-    fmt: don't check for nil when printing arrays as Go syntax.
+    crypto/openpgp/packet: fix private key checksum
     
-    Also add array values to printing test suite.
-    Fixes #2468.
+    I misinterpreted http://tools.ietf.org/html/rfc4880#section-5.5.3
+    and implemented the sum of 16-bit values, rather than the 16-bit sum
+    of 8-bit values.
     
-    R=golang-dev, r
-    CC=golang-dev, remy
-    https://golang.org/cl/5436053
+    Thanks to Szabolcs Nagy for pointing it out.
+    
+    R=bradfitz, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5372091
 
- src/pkg/fmt/fmt_test.go | 16 ++++++++++++++--
- src/pkg/fmt/print.go    |  2 +-
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ src/pkg/crypto/openpgp/packet/private_key.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

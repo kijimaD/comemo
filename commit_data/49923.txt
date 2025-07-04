@@ -1,22 +1,17 @@
-commit cdb3789772a7e7c02d2ac7290b3a16fb542b48dd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 13 17:25:27 2022 -0700
+commit ebc6ce40ceb587af54dfcac910931606fe2d9a66
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 20 20:45:09 2021 -0700
 
-    debug/pe, internal/saferio: use saferio to read PE section data
+    go/types: return typeHash value without blanks
     
-    For #47653
-    Fixes #53189
+    This is an adjusted port of CL 349990 from types2 to go/types:
+    typeHash remains unexported but is adjusted to not contain blanks.
     
-    Change-Id: If35b968fc53e4c96b18964cfb020cdc003b881bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412014
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I37fa826b8a185e3c275ae9bea29a3b0ed386d2c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351171
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/debug/pe/section.go         |  8 ++------
- src/internal/saferio/io.go      | 41 ++++++++++++++++++++++++++++++++++++++
- src/internal/saferio/io_test.go | 44 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 87 insertions(+), 6 deletions(-)
+ src/go/types/environment.go |  5 +++--
+ src/go/types/typestring.go  | 46 ++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 36 insertions(+), 15 deletions(-)

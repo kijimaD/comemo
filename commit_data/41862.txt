@@ -1,95 +1,20 @@
-commit 0a820007e70fdd038950f28254c6269cd9588c02
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Nov 13 17:34:47 2019 -0800
+commit 1a058cd04b7b902e59ff5584c7fda8ddfe388981
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Fri Oct 18 22:19:59 2019 -0400
 
-    runtime:  static lock ranking for the runtime (enabled by GOEXPERIMENT)
+    net/http: only decrement connection count if we removed a connection
     
-    I took some of the infrastructure from Austin's lock logging CR
-    https://go-review.googlesource.com/c/go/+/192704 (with deadlock
-    detection from the logs), and developed a setup to give static lock
-    ranking for runtime locks.
+    The connection count must only be decremented if the persistent
+    connection was also removed.
     
-    Static lock ranking establishes a documented total ordering among locks,
-    and then reports an error if the total order is violated. This can
-    happen if a deadlock happens (by acquiring a sequence of locks in
-    different orders), or if just one side of a possible deadlock happens.
-    Lock ordering deadlocks cannot happen as long as the lock ordering is
-    followed.
+    Fixes #34941
     
-    Along the way, I found a deadlock involving the new timer code, which Ian fixed
-    via https://go-review.googlesource.com/c/go/+/207348, as well as two other
-    potential deadlocks.
-    
-    See the constants at the top of runtime/lockrank.go to show the static
-    lock ranking that I ended up with, along with some comments. This is
-    great documentation of the current intended lock ordering when acquiring
-    multiple locks in the runtime.
-    
-    I also added an array lockPartialOrder[] which shows and enforces the
-    current partial ordering among locks (which is embedded within the total
-    ordering). This is more specific about the dependencies among locks.
-    
-    I don't try to check the ranking within a lock class with multiple locks
-    that can be acquired at the same time (i.e. check the ranking when
-    multiple hchan locks are acquired).
-    
-    Currently, I am doing a lockInit() call to set the lock rank of most
-    locks. Any lock that is not otherwise initialized is assumed to be a
-    leaf lock (a very high rank lock), so that eliminates the need to do
-    anything for a bunch of locks (including all architecture-dependent
-    locks). For two locks, root.lock and notifyList.lock (only in the
-    runtime/sema.go file), it is not as easy to do lock initialization, so
-    instead, I am passing the lock rank with the lock calls.
-    
-    For Windows compilation, I needed to increase the StackGuard size from
-    896 to 928 because of the new lock-rank checking functions.
-    
-    Checking of the static lock ranking is enabled by setting
-    GOEXPERIMENT=staticlockranking before doing a run.
-    
-    To make sure that the static lock ranking code has no overhead in memory
-    or CPU when not enabled by GOEXPERIMENT, I changed 'go build/install' so
-    that it defines a build tag (with the same name) whenever any experiment
-    has been baked into the toolchain (by checking Expstring()). This allows
-    me to avoid increasing the size of the 'mutex' type when static lock
-    ranking is not enabled.
-    
-    Fixes #38029
-    
-    Change-Id: I154217ff307c47051f8dae9c2a03b53081acd83a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207619
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I5070717d5d9effec78016005fa4910593500c8cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202087
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/objabi/stack.go |   2 +-
- src/cmd/internal/objabi/util.go  |   8 +-
- src/runtime/chan.go              |   1 +
- src/runtime/export_test.go       |   1 +
- src/runtime/iface.go             |   1 +
- src/runtime/lock_futex.go        |   8 ++
- src/runtime/lock_js.go           |   8 ++
- src/runtime/lock_sema.go         |  10 +-
- src/runtime/lockrank.go          | 234 +++++++++++++++++++++++++++++++++++++++
- src/runtime/lockrank_off.go      |  26 +++++
- src/runtime/lockrank_on.go       | 160 ++++++++++++++++++++++++++
- src/runtime/malloc.go            |   3 +
- src/runtime/mcentral.go          |   1 +
- src/runtime/mgc.go               |   3 +
- src/runtime/mgcscavenge.go       |   1 +
- src/runtime/mgcsweep.go          |   1 +
- src/runtime/mgcwork.go           |   8 ++
- src/runtime/mheap.go             |   5 +
- src/runtime/netpoll.go           |   2 +
- src/runtime/proc.go              |  17 +++
- src/runtime/runtime2.go          |  13 +++
- src/runtime/rwmutex.go           |  10 +-
- src/runtime/sema.go              |  10 +-
- src/runtime/stack.go             |   7 +-
- src/runtime/trace.go             |   1 +
- src/sync/runtime.go              |  10 --
- src/sync/runtime2.go             |  15 +++
- src/sync/runtime2_lockrank.go    |  18 +++
- test/nosplit.go                  |   6 +-
- 29 files changed, 561 insertions(+), 29 deletions(-)
+ src/net/http/transport.go      | 15 +++++++----
+ src/net/http/transport_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 5 deletions(-)

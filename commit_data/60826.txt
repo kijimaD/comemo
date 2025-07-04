@@ -1,0 +1,26 @@
+commit c3f346a485f2fa97a7bdee82d587419b3823a1ba
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 19:51:22 2024 -0700
+
+    math,os,os/*: use testenv.Executable
+    
+    As some callers don't have a testing context, modify testenv.Executable
+    to accept nil (similar to how testenv.GOROOT works).
+    
+    Change-Id: I39112a7869933785a26b5cb6520055b3cc42b847
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609835
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/testenv/exec.go     | 12 ++++++++++--
+ src/math/rand/default_test.go    |  6 +-----
+ src/os/exec/exec_test.go         | 34 ++++------------------------------
+ src/os/exec/lp_windows_test.go   | 11 +++--------
+ src/os/executable_test.go        |  6 +-----
+ src/os/fifo_test.go              |  5 +----
+ src/os/os_test.go                | 13 +++----------
+ src/os/os_windows_test.go        |  5 +----
+ src/os/user/user_windows_test.go |  5 +----
+ 9 files changed, 25 insertions(+), 72 deletions(-)

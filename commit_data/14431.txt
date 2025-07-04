@@ -1,18 +1,12 @@
-commit 4758f89ddbd2c04e7ae1645758495794c34fc5eb
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Nov 18 08:58:54 2012 +1100
+commit d1e06dab7c23109be4b24912212fedf3b155bfc7
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Nov 18 02:47:17 2012 +0800
 
-    runtime/cgo: enable warnings and treat as errors
+    runtime: don't assume AT_RANDOM provide 4-byte aligned ptr
     
-    Enable warnings as errors during the cgo portion of runtime/cgo. iant requested that the list of flags match cmd/dist/build.c, but I would like to avoid the set of disabled warnings if possible.
-    
-    ref: https://groups.google.com/d/topic/golang-nuts/TrCoVzIIG4M/discussion
-    
-    requires: 6843061
-    
-    R=minux.ma, iant
+    R=dave, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6852055
+    https://golang.org/cl/6854056
 
- src/pkg/runtime/cgo/cgo.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/runtime/signal_linux_arm.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

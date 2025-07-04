@@ -1,20 +1,21 @@
-commit 7f92ccea5ca5832a1dc63c02fc71db2d698f7915
-Author: David Chase <drchase@google.com>
-Date:   Wed Aug 24 15:53:40 2022 -0400
+commit 7109323af5a8c7e076fa2af7185caa6185df97cd
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Oct 4 10:50:02 2021 -0700
 
-    debug/pe: check size in uint64 to avoid overflow
+    all: update golang.org/x/net to pull in CL 353390
     
-    uint32(sz) != n*uint32(ddSz) can go wrong if
-    the RHS overflows, so do it in wider precision.
+    Fixes #48564.
+    Fixes #23559.
     
-    Fixes #54640.
-    
-    Change-Id: I776563330e46de6cdacd4055f6ff08e7de67797f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425364
-    Reviewed-by: Dan Kortschak <dan@kortschak.io>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8e0b646c4791d3a6fb17df1af0a7175b68ce8983
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353870
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/pe/file.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go.mod                |    2 +-
+ src/go.sum                |    6 +
+ src/net/http/h2_bundle.go | 1397 ++++++++++++++++++++++++++-------------------
+ src/vendor/modules.txt    |    2 +-
+ 4 files changed, 807 insertions(+), 600 deletions(-)

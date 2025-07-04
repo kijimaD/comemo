@@ -1,15 +1,37 @@
-commit 8c46e47b61447c21d4269fe746a9a248acd5dfd4
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Aug 12 14:44:16 2011 +1000
+commit 595e9d50344eb9afe878490296b19c5eac1b38b0
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Fri Aug 12 14:34:29 2011 +1000
 
-    crypto, exec, path, time: add support for OpenBSD
+    exp/template/html: New package with a toy template transformation.
     
-    R=golang-dev, r
+    func Reverse(*Template) *Template
+    returns a template that produces the reverse of the original
+    for any input.
+    
+    Changes outside exp/template/html include:
+    - Adding a getter for a template's FuncMap so that derived templates
+      can inherit function definitions.
+    - Exported one node factory function, newIdentifier.
+      Deriving tempaltes requires constructing new nodes, but I didn't
+      export all of them because I think shallow copy functions might
+      be more useful for this kind of work.
+    - Bugfix: Template's Name() method ignores the name field so
+      template.New("foo") is a nil dereference instead of "foo".
+    
+    Caveats: Reverse is a toy.  It is not UTF-8 safe, and does not
+    preserve order of calls to funcs in FuncMap.
+    
+    For context, see http://groups.google.com/group/golang-nuts/browse_thread/thread/e8bc7c771aae3f20/b1ac41dc6f609b6e?lnk=gst
+    
+    R=rsc, r, nigeltao, r
     CC=golang-dev
-    https://golang.org/cl/4837048
+    https://golang.org/cl/4808089
 
- src/pkg/crypto/rand/Makefile   | 3 +++
- src/pkg/exec/Makefile          | 3 +++
- src/pkg/path/filepath/Makefile | 3 +++
- src/pkg/time/Makefile          | 5 +++++
- 4 files changed, 14 insertions(+)
+ src/pkg/Makefile                          |   1 +
+ src/pkg/exp/template/html/Makefile        |  11 +++
+ src/pkg/exp/template/html/reverse.go      | 134 ++++++++++++++++++++++++++++++
+ src/pkg/exp/template/html/reverse_test.go |  48 +++++++++++
+ src/pkg/exp/template/parse.go             |   2 +-
+ src/pkg/exp/template/parse/node.go        |   7 +-
+ src/pkg/exp/template/parse/parse.go       |   2 +-
+ 7 files changed, 200 insertions(+), 5 deletions(-)

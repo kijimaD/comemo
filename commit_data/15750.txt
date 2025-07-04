@@ -1,16 +1,15 @@
-commit 4e63d6ee4d55c706c3e24b718d89ece9c7faec16
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 13 15:22:59 2013 -0400
+commit 06cbe78bd77789afb46b597466bcecf73c25d6d2
+Author: Tyler Bunnell <tylerbunnell@gmail.com>
+Date:   Wed Mar 13 14:49:24 2013 -0400
 
-    cmd/godoc: fix BUGS heading in text mode
+    net: use original raddr if getpeername fails
     
-    All the headings are CAPS not Title.
+    Fixes #3838.
     
-    Fixes #4843.
-    
-    R=golang-dev, bradfitz
+    R=dave, mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/7792043
+    https://golang.org/cl/7511043
 
- lib/godoc/package.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/ipraw_test.go | 16 ++++++++++++++++
+ src/pkg/net/sock_posix.go |  3 +++
+ 2 files changed, 19 insertions(+)

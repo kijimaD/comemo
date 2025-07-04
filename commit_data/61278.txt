@@ -1,0 +1,16 @@
+commit 4226fc597b0f080537cb06e4c8dd640bf6e46c11
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Oct 24 09:28:58 2024 -0700
+
+    doc: document new http.Transport limit on 1xx responses
+    
+    Fixes #65035
+    
+    Change-Id: I3b0586b5e2a0729e6b252d2bcd4139c99bc80733
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622335
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ doc/next/6-stdlib/99-minor/net/http/65035.md | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

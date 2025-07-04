@@ -1,16 +1,20 @@
-commit 1abefc1ff0ae6a3f3df7affa704cd2c71ab48a05
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Oct 25 05:45:52 2016 -0700
+commit 8a9b96ace4c0064d3c06cd483368bd655ad43d87
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 18 19:07:59 2016 +0900
 
-    cmd/compile: clean up rule logging helpers
+    internal/testenv: add HasSymlink/MustHaveSymlink
     
-    Introduced in CLs 29380 and 30011.
+    os package and path/filepath package have duplicated code for
+    checking symlink supports in test code.
+    This CL tries to simplify such test code.
     
-    Change-Id: I3d3641e8748ce0adb57b087a1fcd62f295ade665
-    Reviewed-on: https://go-review.googlesource.com/31933
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I0371488337f5e951eca699852daab9ccb16ddd62
+    Reviewed-on: https://go-review.googlesource.com/27331
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/build/deps_test.go               |  2 +-
+ src/internal/testenv/testenv.go         | 13 +++++++++++
+ src/internal/testenv/testenv_notwin.go  | 20 +++++++++++++++++
+ src/internal/testenv/testenv_windows.go | 40 +++++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 1 deletion(-)

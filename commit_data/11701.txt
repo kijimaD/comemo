@@ -1,14 +1,21 @@
-commit 5957f914e21d52f540116153bf72d3ec263ab825
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 8 08:59:59 2012 -0500
+commit cc39bb90686197e30ad103c7053aeb5cfc2efb8b
+Author: Andrew Pritchard <awpritchard@gmail.com>
+Date:   Wed Feb 8 17:14:15 2012 +1100
 
-    regexp: fix typo
+    database/sql: treat pointers as nullable types like encoding/json
     
-    Fixes #2918.
+    - convert from nil pointers to the nil interface{}
+    - dereference non-nil pointers
+    - convert from nil interface{}s to nil pointers
+    - allocate pointers for non-nil interface{}s
+    - tests for all of the above
     
-    TBR=golang-dev
+    R=golang-dev, bradfitz, rsc, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/5639062
+    https://golang.org/cl/5630052
 
- src/pkg/regexp/regexp.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/database/sql/convert.go           |  8 ++++++++
+ src/pkg/database/sql/convert_test.go      | 22 ++++++++++++++++++++++
+ src/pkg/database/sql/driver/types.go      |  7 +++++++
+ src/pkg/database/sql/driver/types_test.go |  4 ++++
+ 4 files changed, 41 insertions(+)

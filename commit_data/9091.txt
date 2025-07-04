@@ -1,12 +1,61 @@
-commit e07c6e6ee78c20b78981591ebc2d0b6cb4094b21
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 15 12:07:37 2011 -0400
+commit 4c6280b0f1afd82b2c249fb5a8903d5b5ae54063
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Jul 15 11:58:39 2011 -0400
 
-    http: fixes for sniffing
+    6a, 6c, 6l: fix for Plan 9 build
     
-    R=golang-dev, dsymonds
-    CC=golang-dev
-    https://golang.org/cl/4753044
+    6a/a.h:
+    . Dropped <u.h> and <libc.h>.
+    . Made definition of EOF conditional.
+    
+    6a/a.y:
+    . Added <u.h> and <libc.h>.
+    
+    6a/lex.c:
+    . Added <u.h> and <libc.h>.
+    . Dropped <ctype.h> (now in <u.h>).
+    
+    6c/gc.h:
+    . Added varargck pragma for "lD".
+    
+    6c/swt.c:
+    . Dropped unused "thestring" argument in Bprint() calls.
+    
+    6l/Makefile:
+    . Dropped unneeded directory prefix.
+    
+    6l/l.h:
+    . Dropped unneeded directory prefix.
+    . Added varargck pragma for "I" and "i".
+    
+    6l/obj.c:
+    . Dropped unneeded assignment.
+    . Dropped unreachable goto statement.
+    
+    6l/pass.c:
+    . Dropped assignments flagged as unused.
+    
+    6l/prof.c:
+    . Replaced "#if 0" with "#ifdef NOTDEF".
+    
+    6l/span.c:
+    . Dropped unused incrementation.
+    . Added USED() as required.
+    . Dropped unreachable "return" statement.
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4747044
 
- src/pkg/http/server.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/6a/a.h      | 4 ++--
+ src/cmd/6a/a.y      | 2 ++
+ src/cmd/6a/lex.c    | 3 ++-
+ src/cmd/6c/gc.h     | 1 +
+ src/cmd/6c/swt.c    | 4 ++--
+ src/cmd/6l/Makefile | 2 +-
+ src/cmd/6l/l.h      | 4 +++-
+ src/cmd/6l/obj.c    | 2 --
+ src/cmd/6l/pass.c   | 5 -----
+ src/cmd/6l/prof.c   | 2 +-
+ src/cmd/6l/span.c   | 4 ++--
+ 11 files changed, 16 insertions(+), 17 deletions(-)

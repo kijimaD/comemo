@@ -1,13 +1,16 @@
-commit 97fdfdb52c28cab9251d1a610382d257c39682da
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Sep 4 11:34:01 2014 +0400
+commit 6f19fd438e2178d086c4352b439e857bd08051bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 29 10:29:00 2014 -0400
 
-    runtime: fix solaris netpoll
+    runtime: fix sprintf index out of bounds
     
-    TBR=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/141030043
+    Breaks on Plan 9, apparently.
+    The other systems must not run sprintf during all.bash.
+    I'd write a test but it's all going away.
+    
+    TBR=r
+    CC=0intro, golang-codereviews
+    https://golang.org/cl/133260044
 
- src/pkg/runtime/netpoll.go | 2 +-
+ src/pkg/runtime/print1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

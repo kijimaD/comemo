@@ -1,23 +1,25 @@
-commit 13e92e4d7542ac65a7efb33778f752403c5ac014
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Nov 9 10:58:53 2011 +0100
+commit 820523d09186bd9c7078338803e41c8592158110
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Nov 9 19:18:26 2011 +1100
 
-    gc: Better typechecks and errors in switches.
+    html: correctly parse </html> in <head> element.
     
-    Allow any type in switch on interface value.
-    Statically check typeswitch early.
+    Pass tests1.dat, test 92:
+    <head></html><meta><p>
     
-    Fixes #2423.
-    Fixes #2424.
+    | <html>
+    |   <head>
+    |   <body>
+    |     <meta>
+    |     <p>
     
-    R=rsc, dsymonds
+    Also pass tests through test 98:
+    <p><b><div><marquee></p></b></div>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5339045
+    https://golang.org/cl/5359054
 
- src/cmd/gc/swt.c         | 24 +++++++++++++++++++-----
- test/fixedbugs/bug270.go | 21 ---------------------
- test/fixedbugs/bug340.go |  4 ++--
- test/fixedbugs/bug375.go | 19 +++++++++++++++++++
- test/switch3.go          | 38 ++++++++++++++++++++++++++++++++++++++
- test/typeswitch3.go      | 20 ++++++++++++++++++++
- 6 files changed, 98 insertions(+), 28 deletions(-)
+ src/pkg/html/parse.go      | 18 +++++++++++++++---
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 16 insertions(+), 4 deletions(-)

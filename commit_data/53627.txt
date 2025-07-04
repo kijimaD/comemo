@@ -1,28 +1,40 @@
-commit 13529cc5f443ef4e242da3716daa0032aa8d34f2
-Author: Chris O'Hara <cohara87@gmail.com>
-Date:   Thu May 25 12:07:48 2023 +1000
+commit e4be2ac79f3cc7219ae1cf8334463d11cae24e01
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Aug 24 18:33:21 2022 -0400
 
-    syscall: try non-blocking stdio on wasip1
+    runtime: mark morestack_noctxt SPWRITE on LR architectures
     
-    Try to set stdio to non-blocking mode before the os package
-    calls NewFile for each fd. NewFile queries the non-blocking flag
-    but doesn't change it, even if the runtime supports non-blocking
-    stdio. Since WebAssembly modules are single-threaded, blocking
-    system calls temporarily halt execution of the module. If the
-    runtime supports non-blocking stdio, the Go runtime is able to
-    use the WASI net poller to poll for read/write readiness and is
-    able to schedule goroutines while waiting.
+    On LR architectures, morestack (and morestack_noctxt) are called
+    with a special calling convention, where the caller doesn't save
+    LR on stack but passes it as a register, which morestack will save
+    to g.sched.lr. The stack unwinder currently doesn't understand it,
+    and would fail to unwind from it. morestack already writes SP (as
+    it switches stack), but morestack_noctxt (which tailcalls
+    morestack) doesn't. If a profiling signal lands right in
+    morestack_noctxt, the unwinder will try to unwind the stack and
+    go off, and possibly crash.
     
-    Change-Id: I1e3ce68a414e3c5960ce6a27fbfd38556e59c3dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498196
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Marking morestack_noctxt SPWRITE stops the unwinding.
+    
+    Ideally we could teach the unwinder about the special calling
+    convention, or change the calling convention to be less special
+    (so the unwinder doesn't need to fetch a register from the signal
+    context). This is a stop-gap solution, to stop the unwinder from
+    crashing.
+    
+    Fixes #54332.
+    
+    Change-Id: I75295f2e27ddcf05f1ea0b541aedcb9000ae7576
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425396
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/syscall/fs_wasip1.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/runtime/asm_arm.s     |  7 +++++++
+ src/runtime/asm_arm64.s   |  7 +++++++
+ src/runtime/asm_mips64x.s |  7 +++++++
+ src/runtime/asm_mipsx.s   |  7 +++++++
+ src/runtime/asm_ppc64x.s  |  7 +++++++
+ src/runtime/asm_riscv64.s | 11 +++++++++--
+ src/runtime/asm_s390x.s   |  7 +++++++
+ 7 files changed, 51 insertions(+), 2 deletions(-)

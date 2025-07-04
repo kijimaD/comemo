@@ -1,12 +1,12 @@
-commit 14da5298cd2b2099909545976e7cb8e5c8fadae9
+commit cafc2b6a24c0a27682bb078215efc1a02c3728b5
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 27 20:53:16 2012 +1100
+Date:   Tue Mar 27 20:52:48 2012 +1100
 
-    doc: use relative links in Laws of Reflection article
+    doc: use relative links in draw package article
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5924050
+    https://golang.org/cl/5924051
 
- doc/articles/laws_of_reflection.html | 47 ++++++++++++++++--------------------
- 1 file changed, 21 insertions(+), 26 deletions(-)
+ doc/articles/image_draw.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,13 +1,20 @@
-commit 3bd79713b7381f6984c596a84f38e2a485fa0efd
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Aug 29 13:09:59 2017 +1000
+commit a69222d949bcc2c4453248ee233b63b75d79967e
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 28 12:43:06 2017 +1200
 
-    cmd/link: introduce and use peFile.addDWARF
+    cmd/link: replace SHIDDEN bit in SymKind with a bit of Attribute
     
-    Change-Id: I2c217e03779772605aa0b5a33ef80459333eeebc
-    Reviewed-on: https://go-review.googlesource.com/59790
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I02dab81393cc9339895f0076df41a652aded5b60
+    Reviewed-on: https://go-review.googlesource.com/42025
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 16 ----------------
- src/cmd/link/internal/ld/pe.go    | 21 ++++++++++++++++++---
- 2 files changed, 18 insertions(+), 19 deletions(-)
+ src/cmd/link/internal/arm64/asm.go  | 2 +-
+ src/cmd/link/internal/ld/data.go    | 2 +-
+ src/cmd/link/internal/ld/ldelf.go   | 9 ++++-----
+ src/cmd/link/internal/ld/link.go    | 6 ++++++
+ src/cmd/link/internal/ld/pe.go      | 4 +++-
+ src/cmd/link/internal/ld/symkind.go | 1 -
+ src/cmd/link/internal/ld/symtab.go  | 8 ++++++--
+ 7 files changed, 21 insertions(+), 11 deletions(-)

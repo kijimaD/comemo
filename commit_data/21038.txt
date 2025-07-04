@@ -1,17 +1,16 @@
-commit bc611a31a5b3003ba6c05d337093f9b83e898209
-Author: Michalis Kargakis <michaliskargakis@gmail.com>
-Date:   Sun Dec 21 23:03:11 2014 +0100
+commit c99616fc6795123ec1a6b4d742099789865bd939
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 9 21:10:49 2014 -0500
 
-    flag: Check for Set error
+    test: fix nacl build
     
-    Check for Set error when a boolean flag isn't explicitly given a value.
+    Disable linkx_run.go and sinit_run.go, because they
+    exec subprocesses, which NaCl cannot.
     
-    Fixes #9345
-    
-    Change-Id: I97a1289f8cf27567d1a726ebe5ef167c800f357c
-    Reviewed-on: https://go-review.googlesource.com/1897
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/171350043
 
- src/flag/flag.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ test/linkx_run.go | 1 +
+ test/sinit_run.go | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,20 +1,26 @@
-commit f2503e612a4635cf77a6f1ea0cdafa7f6cadb969
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Nov 3 18:11:24 2017 +0100
+commit 9de7990054184381f1c520563d60175f821e7d7f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun May 21 15:18:08 2017 -0700
 
-    cmd/vendor/github.com/google/pprof: refresh from upstream
+    cmd/compile: insert ' ' and \n at beginning of walkprint
     
-    Updating to commit 79c4198ef7bd1069f8f56501fc05f0f1d2c33d8a
-    from github.com/google/pprof
+    Rather than emitting spaces and newlines for println
+    as we walk the expression, construct it all up front.
+    This enables further optimizations.
     
-    Fixes #22561.
+    This requires using printstring instead of print in
+    the implementation of printsp and printnl,
+    on pain of infinite recursion.
+    That's ok; it's more efficient anyway, and just as simple.
+    While we're here, do it for other print routines as well.
     
-    Change-Id: Ib92fd443ccc067aef7214e59f594db7f2521535b
-    Reviewed-on: https://go-review.googlesource.com/75870
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: I61d7df143810e00710c4d4d948d904007a7fd190
+    Reviewed-on: https://go-review.googlesource.com/55097
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .../github.com/google/pprof/internal/driver/fetch_test.go  | 14 ++++++++++++--
- src/cmd/vendor/vendor.json                                 |  4 ++--
- 2 files changed, 14 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/subr.go |  4 +++
+ src/cmd/compile/internal/gc/walk.go | 54 +++++++++++++++++++++++--------------
+ src/runtime/print.go                | 18 ++++++-------
+ 3 files changed, 47 insertions(+), 29 deletions(-)

@@ -1,18 +1,12 @@
-commit 51f14a9fe285cbc5579ae59fc7f72082c29ce266
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Mar 19 07:08:26 2013 +0100
+commit 646e54106d915b7305f327849e61ef8100d6fa39
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 18 15:54:22 2013 -0700
 
-    runtime: fix erroneous overflow protection on netbsd/openbsd semasleep.
+    database/sql: doc cleanup on the DB type
     
-    On NetBSD tv_sec is already an int64 so no need for a test.
-    
-    On OpenBSD, semasleep expects a Unix time as argument,
-    and 1<<30 is in 2004.
-    
-    R=golang-dev, iant
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7810044
+    https://golang.org/cl/7865044
 
- src/pkg/runtime/os_netbsd.c  | 7 +------
- src/pkg/runtime/os_openbsd.c | 4 ++--
- 2 files changed, 3 insertions(+), 8 deletions(-)
+ src/pkg/database/sql/sql.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

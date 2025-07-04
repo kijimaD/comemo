@@ -1,16 +1,29 @@
-commit 38ad3baf0054e926136d8a2cfe6458f41b544841
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 9 21:33:35 2020 -0700
+commit 928623ca953151451d7c780d3b634da3b792f038
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 9 10:22:02 2019 -0400
 
-    cmd/cgo: always produce a parameter name for C code
+    [dev.link] cmd/internal/goobj2: separate Autolib from Pkglist in new object file
     
-    Updates #37746
+    In CL 196030 we decided to combine the imported package list
+    (Autolib) and referenced package list (PkgIdx, or Pkglist).
+    However, in some cases the Autolib list may contain file name,
+    instead of package path, e.g.
+    https://go.googlesource.com/go/+/refs/heads/dev.link/src/cmd/compile/internal/gc/main.go#1181
+    And the linker needs that to locate the file. This mostly happens
+    with direct invocation of the compiler and linker (i.e., not
+    through "go build").
     
-    Change-Id: Ib64abe3995f310cd50ede47b0d3d159572901000
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222622
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Instead of letting the linker make guess of the file name based
+    on the package path, make Autolib a separate list.
+    
+    Change-Id: If195a69462d04db515346ee67cdec925f5a69e2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200157
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/cgo/out.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/internal/goobj/readnew.go         |  3 ++-
+ src/cmd/internal/goobj2/objfile.go        | 16 ++++++++++++++--
+ src/cmd/internal/obj/objfile2.go          | 13 ++++++-------
+ src/cmd/link/internal/objfile/objfile2.go |  6 +-----
+ 4 files changed, 23 insertions(+), 15 deletions(-)

@@ -1,17 +1,23 @@
-commit 3c85e1b186a1b0c153678e3e85ff5819a430dd84
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Nov 11 15:57:42 2015 +1300
+commit 2b50e6b4583ee72254ca61a689ae63f9189543f7
+Author: alexander demakin <alexander.demakin@gmail.com>
+Date:   Thu Sep 10 19:43:20 2015 +0300
 
-    cmd/internal/obj/x86: factor rewriting to use GOT into separate function
+    archive/zip: fixes unexpected EOF when reading archive
     
-    I was prodded into doing this in review comments for the ARM version, and it's
-    going to make shared libs for 386 easier.
+    If comment of the archive contains data which looks like
+    a zip64 directory, the comment is parsed as an
+    actual directory header.
+    Commit adds some additional checks similar to the checks
+    in minizip library.
     
-    Change-Id: Id12de801b1425b8c6b5736fe91b418fc123a4e40
-    Reviewed-on: https://go-review.googlesource.com/17012
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #12449
+    
+    Change-Id: Ia0fc950e47b9c39f77d88401b9ca30100ca7c808
+    Reviewed-on: https://go-review.googlesource.com/14433
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go      |   5 +-
- src/cmd/internal/obj/x86/obj6.go      | 154 ++++++++++++++++++----------------
- src/cmd/internal/obj/x86/obj6_test.go |  10 +--
- 3 files changed, 93 insertions(+), 76 deletions(-)
+ src/archive/zip/reader.go      | 25 ++++++++++++++++---------
+ src/archive/zip/reader_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 9 deletions(-)

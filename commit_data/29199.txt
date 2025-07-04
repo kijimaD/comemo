@@ -1,18 +1,14 @@
-commit 2a7272b42230c0d55c1ec243d123fea9ba035063
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 26 22:18:02 2016 -0400
+commit 3968ac2caf4b7bbabcad6504ab5e3589fc525b1e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Aug 31 09:54:00 2016 +1000
 
-    runtime/trace: deflake TestTraceSymbolize
+    cmd/compile/internal/gc: clean up closure.go
     
-    Waiting 2ms for all the kicked-off goroutines to run and block
-    seems a little optimistic. No harm done by waiting for 200ms instead.
-    
-    Fixes #17238.
-    
-    Change-Id: I827532ea2f5f1f3ed04179f8957dd2c563946ed0
-    Reviewed-on: https://go-review.googlesource.com/32103
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I01bfab595c50582c5adf958dcecbd58524dbc28f
+    Reviewed-on: https://go-review.googlesource.com/28212
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/trace/trace_stack_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/closure.go | 43 +++++++++++++---------------------
+ 1 file changed, 16 insertions(+), 27 deletions(-)

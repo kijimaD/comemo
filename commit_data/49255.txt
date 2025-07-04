@@ -1,19 +1,26 @@
-commit 1c6706c71b6b3f783a4f1ce78433a10aa302a9c8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 17 15:41:59 2022 -0700
+commit 3efc8f9a8dc93ccacb8b139cafc44ee0709d8fdd
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Aug 3 21:14:31 2021 -0400
 
-    test: add test that caused a gofrontend crash
+    [dev.typeparams] go/types: (TypeParam) SetBound -> SetConstraint
     
-    For #51291
+    This is a straightforward port of CL 338196 to go/types, minus the
+    deprecated TypeParam.Bound() method (since it is not needed), plus an
+    adjustment for methodset.go.
     
-    Change-Id: If47e4cbf899853ade5050852c3870b9500da4c63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406916
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ie372bfeec245094102a2c3257a43499d75981447
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339675
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- test/fixedbugs/issue51291.dir/a.go |  9 +++++++++
- test/fixedbugs/issue51291.dir/b.go | 11 +++++++++++
- test/fixedbugs/issue51291.go       |  9 +++++++++
- 3 files changed, 29 insertions(+)
+ src/go/types/builtins.go    |  2 +-
+ src/go/types/call.go        |  2 +-
+ src/go/types/instantiate.go |  6 +++---
+ src/go/types/lookup.go      |  2 +-
+ src/go/types/methodset.go   |  2 +-
+ src/go/types/predicates.go  |  2 +-
+ src/go/types/type.go        |  2 +-
+ src/go/types/typeparam.go   | 25 +++++++++++--------------
+ 8 files changed, 20 insertions(+), 23 deletions(-)

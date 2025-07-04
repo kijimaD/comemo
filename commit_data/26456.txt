@@ -1,19 +1,15 @@
-commit e61db3119ca0767b255b784005d2636f8d4b611e
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Tue Mar 22 17:34:36 2016 +0100
+commit 830143fa3dd344a72d5c00643983ab62abb88a72
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 26 05:28:20 2016 -0800
 
-    cmd/compile: simplify SliceCap when it equals SliceLen
+    time: fix comment about use of Location.cacheEnd
     
-    Shows up occassionally, especially after p = p[:8:len(p)]
+    Fixes #14099.
     
-    Updates #14905
-    
-    Change-Id: Iab35ef2eac57817e6a10c6aaeeb84709e8021641
-    Reviewed-on: https://go-review.googlesource.com/21025
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I122e918bdc55fb185f4a4a797489b160219542d2
+    Reviewed-on: https://go-review.googlesource.com/18943
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
- src/cmd/compile/internal/ssa/rewritegeneric.go | 49 +++++++++++++++++++-------
- 2 files changed, 38 insertions(+), 12 deletions(-)
+ src/time/zoneinfo.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

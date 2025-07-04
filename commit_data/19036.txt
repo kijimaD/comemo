@@ -1,20 +1,13 @@
-commit df8ec65b3abcdc8566176d6dae756273d8641706
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Apr 4 16:26:15 2014 +1100
+commit 22bc710fe4dbd3e4c0e1ac07c97e30942f722664
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Apr 4 09:55:19 2014 +0900
 
-    os/exec: always try appropriate command extensions during Cmd.Start on windows
+    cmd/gc: fix build
     
-    Update #7362
-    Fixes #7377
-    Fixes #7570
-    
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    LGTM=minux.ma
+    R=rsc, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/83020043
+    https://golang.org/cl/84260043
 
- src/cmd/pack/pack_test.go          |   2 +-
- src/pkg/os/exec/exec.go            |  37 +++
- src/pkg/os/exec/exec_test.go       |  18 ++
- src/pkg/os/exec/lp_windows_test.go | 474 +++++++++++++++++++++++++------------
- 4 files changed, 384 insertions(+), 147 deletions(-)
+ src/cmd/gc/plive.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

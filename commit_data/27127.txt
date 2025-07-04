@@ -1,17 +1,14 @@
-commit 3a72d626a8bae104c658f361d97f992f609d91e7
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Apr 26 21:37:49 2016 +1200
+commit 055dcb75665992454454894e87216a2aa2215e4f
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Mar 10 15:49:30 2016 -0800
 
-    cmd/link: pass -no-pie (if supported) when creating a race-enabled executable.
+    crypto/tls: document that the cipher suite list is non-exhaustive.
     
-    Fixes #15443
+    Fixes #14370.
     
-    Change-Id: Ia3593104fc1a4255926ae5675c25390604b44b7b
-    Reviewed-on: https://go-review.googlesource.com/22453
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ieb95ee3494f592fb5fc74aa4b803479671816927
+    Reviewed-on: https://go-review.googlesource.com/20551
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/crypto/tls/cipher_suites.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

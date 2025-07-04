@@ -1,22 +1,18 @@
-commit 55620a0e910fd9f2a9d7d631f01a6bddfe0f6a0a
-Author: Billy Lynch <wlynch@google.com>
-Date:   Fri Sep 30 16:24:31 2016 -0400
+commit 68697a3e82e19fef04c6af4a02340a1aa6e3bcf2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 14 15:32:39 2016 -0700
 
-    cmd/go: add support for GIT_ALLOW_PROTOCOL
+    net: don't run TestLookupDotsWithLocalSource in short mode
     
-    Allows users to override the default secure protocol list by setting the
-    GIT_ALLOW_PROTOCOL environment variable.
+    Do run it on the builders, though.
     
-    Addresses #17299 for vcs.go.
+    Fixes #15881.
     
-    Change-Id: If575861d2b1b04b59029fed7e5d12b49690af50a
-    Reviewed-on: https://go-review.googlesource.com/30135
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie42204d553cb18547ffd6441afc261717bbd9205
+    Reviewed-on: https://go-review.googlesource.com/24111
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go  |  9 +++++++++
- src/cmd/go/help.go     |  9 +++++++++
- src/cmd/go/vcs.go      | 24 +++++++++++++++++++++---
- src/cmd/go/vcs_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 4 files changed, 78 insertions(+), 3 deletions(-)
+ src/net/lookup_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,20 +1,22 @@
-commit 664cd26c89ec59cb6b686a9b3887ace7a76b0047
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 2 12:06:58 2017 -0700
+commit 6c5a819a5edd602236200627694215a1017aded2
+Author: Filip Gruszczyński <gruszczy@gmail.com>
+Date:   Fri Mar 17 20:10:38 2017 -0700
 
-    cmd/vet: don't exit with failure on type checking error
+    reflect: add MakeMapWithSize for creating maps with size hint
     
-    The vet tool only reports a type checking error when invoked with -v.
-    Don't let that by itself cause vet to exit with an error exit status.
+    Providing size hint when creating a map allows avoiding re-allocating
+    underlying data structure if we know how many elements are going to
+    be inserted. This can be used for example during decoding maps in
+    gob.
     
-    Updates #21188
+    Fixes #19599
     
-    Change-Id: I172c13d46c35d49e229e96e833683d8c82a77de7
-    Reviewed-on: https://go-review.googlesource.com/52851
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I108035fec29391215d2261a73eaed1310b46bab1
+    Reviewed-on: https://go-review.googlesource.com/38335
     Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/main.go              |  5 +++--
- src/cmd/vet/testdata/cgo/cgo3.go | 13 +++++++++++++
- src/cmd/vet/vet_test.go          | 12 ++++++++++++
- 3 files changed, 28 insertions(+), 2 deletions(-)
+ src/reflect/all_test.go | 18 ++++++++++++++++++
+ src/reflect/value.go    | 13 +++++++++----
+ src/runtime/hashmap.go  |  4 ++--
+ 3 files changed, 29 insertions(+), 6 deletions(-)

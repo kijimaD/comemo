@@ -1,19 +1,34 @@
-commit 42f89db1538ce9c7e48b04615b0bc7ca098946c1
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Apr 19 20:55:47 2023 +0200
+commit 34507e879d31d082eeb5f5722c6c2aceaeb7e052
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
 
-    net: remove unused _C_FreeCString
+    runtime/cgo: add cgo function call support for loong64
     
-    It's unused since CL 486015.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Change-Id: Ic9397f5f84940a09f05499da2774b952fe6d1365
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486475
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I8ef0e7f17d6ada3d2f07c81524136b78457e7795
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342319
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/cgo_unix_cgo.go     | 1 -
- src/net/cgo_unix_syscall.go | 3 +--
- 2 files changed, 1 insertion(+), 3 deletions(-)
+ src/runtime/cgo/asm_loong64.s       | 67 +++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_linux_loong64.c | 69 +++++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_loong64.S       | 65 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 201 insertions(+)

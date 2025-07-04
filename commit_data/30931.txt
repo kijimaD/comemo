@@ -1,27 +1,25 @@
-commit 361af94d5d4df310a90d924b4ce3dd4e3c96ee38
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Mar 29 15:14:55 2017 +1100
+commit 985a574991207a74ab45ce76ecf54228734ddffe
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Dec 20 22:33:06 2016 +0100
 
-    cmd/internal/obj, cmd/link: remove Hwindowsgui everywhere
+    net: fix LookupCNAME on Plan 9
     
-    Hwindowsgui has the same meaning as Hwindows - build PE
-    executable. So use Hwindows everywhere.
+    In CL 34650, LookupCNAME was changed so it always returns
+    the canonical DNS host, even when there is no CNAME record.
     
-    Change-Id: I2cae5777f17c7bc3a043dfcd014c1620cc35fc20
-    Reviewed-on: https://go-review.googlesource.com/38761
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Consequently, TestLookupCNAME was failing on Plan 9,
+    because www.google.com doesn't have a CNAME record.
+    
+    We changed the implementation of lookupCNAME on Plan 9, so it
+    returns the canonical DNS host after a CNAME lookup failure.
+    
+    Fixes #18391.
+    
+    Change-Id: I59f361bfb2c9de3953e998e8ac58c054979210bd
+    Reviewed-on: https://go-review.googlesource.com/34633
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/link.go       |  5 -----
- src/cmd/internal/obj/x86/asm6.go   |  4 ++--
- src/cmd/internal/obj/x86/obj6.go   |  7 +++----
- src/cmd/link/internal/amd64/asm.go | 15 ++++++---------
- src/cmd/link/internal/amd64/obj.go |  2 +-
- src/cmd/link/internal/ld/data.go   | 18 +++++++++---------
- src/cmd/link/internal/ld/lib.go    |  8 ++++----
- src/cmd/link/internal/ld/main.go   |  4 ++--
- src/cmd/link/internal/ld/sym.go    |  2 +-
- src/cmd/link/internal/x86/asm.go   |  8 ++++----
- src/cmd/link/internal/x86/obj.go   |  2 +-
- 11 files changed, 33 insertions(+), 42 deletions(-)
+ src/net/lookup_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

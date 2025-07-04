@@ -1,32 +1,19 @@
-commit ab422f2749bc21514cb22d444bae460f5fa22376
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Tue Jun 21 12:28:48 2022 -0700
+commit c2f96e686fe9383711d23aea95a34a280fdd0e49
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 24 10:21:16 2021 -0700
 
-    runtime/trace: ignore fallback stacks in test
+    cmd/compile: mark ODYNAMICDOTTYPE as an expression that can panic
     
-    When runtime.sigprof encounters a stack that gentraceback is unable to
-    process, it synthesizes a call stack with a sentinel function (such as
-    runtime._System) at the leaf.
+    Fixes #47924
     
-    The test to confirm that runtime/trace and runtime/pprof have similar
-    views of CPU profile samples has trouble with those stacks. The test
-    confirms that the samples match by confirming that their symbolized
-    forms match, and the symbolization procedure is very different for the
-    two packages.
-    
-    Skip the samples that the CPU profiler's view symbolizes to include one
-    of runtime.sigprof's sentinel functions at the leaf. (The test design
-    expects the CPU profiler to under-report samples relative to the
-    execution tracer.)
-    
-    Fixes #53378
-    
-    Change-Id: I60c27de4c69b454057d28a3b6e12d70369de4c4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413457
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I4325b3c4ed9d369d9ea778478285436e1b2ab08a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344571
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/runtime/trace/trace_test.go | 18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/walk/walk.go |  2 +-
+ test/typeparam/issue47924.go          | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

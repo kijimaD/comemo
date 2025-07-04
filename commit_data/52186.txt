@@ -1,27 +1,18 @@
-commit dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 3 10:43:02 2023 -0800
+commit 65558a4f3da02fd7ad3d7ea93821c2a1be5508d7
+Author: hopehook <hopehook@qq.com>
+Date:   Mon Apr 11 18:38:08 2022 +0800
 
-    go/types, types2: use "undefined type" rather than "<T>" in have/want error messages
+    cmd/asm: update comment to refer to #44505
     
-    In assignments and return statements, if we have the wrong number
-    of LHS or return values, we report the pattern that we have and
-    the pattern that we want. For untyped constants we use "number"
-    (to be not overly specific). For unknown types (due to earlier
-    errors), now use "unknown type" rather than the (cryptic) "<T>".
+    Updates #44505
     
-    Fixes #58742.
-    
-    Change-Id: I69c84ee29fb64badb0121e26a96f003b381024aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473255
+    Change-Id: I400110c33e69decf133fe9c4b582a450b7258b39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399514
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/types2/assignments.go      |  2 +-
- src/go/types/assignments.go                         |  2 +-
- src/internal/types/testdata/fixedbugs/issue58742.go | 18 ++++++++++++++++++
- 3 files changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/lex/tokenizer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

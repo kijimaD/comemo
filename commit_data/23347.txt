@@ -1,18 +1,13 @@
-commit 48d865ace1cf3b95bfa9e9525ee51bb18738b10c
-Author: Michael Gehring <mg@ebfe.org>
-Date:   Sat Jun 13 11:38:34 2015 +0200
+commit 0211d7d7b06216c7c3664ae6ef95c088d5699b8d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 7 15:41:01 2015 -0400
 
-    archive/zip: fix returned error on truncated data descriptor
+    runtime: turn off checkmark by default
     
-    Return io.ErrUnexpectedEOF instead of io.EOF when reading a truncated
-    data descriptor.
-    
-    Fixes #11146.
-    
-    Change-Id: Ia1905955165fd38af3c557d1fa1703ed8be893e2
-    Reviewed-on: https://go-review.googlesource.com/11070
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ic8cb8b1ed8715d6d5a53ec3cac385c0e93883514
+    Reviewed-on: https://go-review.googlesource.com/9825
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/archive/zip/reader.go      |  6 +++++-
- src/archive/zip/reader_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/runtime/runtime1.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,36 +1,25 @@
-commit 3348fd0ec9be0189f88e991db1d94f437ec04bd1
-Author: Akhil Indurti <aindurti@gmail.com>
-Date:   Fri Feb 10 19:08:14 2023 -0800
+commit 90b29e186576d2682c024b0f0b90c6ad98e824d7
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Jan 19 17:01:25 2022 +0100
 
-    math: add Compare and Compare32
+    cmd/cgo: use size_t instead of __SIZE_TYPE__
     
-    This change introduces the Compare and Compare32 functions
-    based on the total-ordering predicate in IEEE-754, section 5.10.
+    __SIZE_TYPE__ is a GCC type which has been superseded
+    by size_t -define in stddef.h- since ISO C99.
     
-    In particular,
-    * -NaN is ordered before any other value
-    * +NaN is ordered after any other value
-    * -0 is ordered before +0
-    * All other values are ordered the usual way
+    cmd/cgo already uses size_t in many places, but still generates several
+    files using __SIZE_TYPES__, most notably the _cgo_export.h.
     
-    Compare-8    0.4537n ± 1%
-    Compare32-8  0.3752n ± 1%
-    geomean      0.4126n
+    This change replaces all __SIZE_TYPES__ occurrences with size_t.
     
-    Fixes #56491.
+    Updates #36233
     
-    Change-Id: I5c9c77430a2872f380688c1b0a66f2105b77d5ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467515
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Id8a99b5d7763caab9333eab9b585e78249a37415
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379474
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- api/next/56491.txt   |  2 ++
- src/math/all_test.go | 94 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/math/compare.go  | 53 +++++++++++++++++++++++++++++
- 3 files changed, 149 insertions(+)
+ src/cmd/cgo/out.go | 29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)

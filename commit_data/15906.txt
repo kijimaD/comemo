@@ -1,14 +1,12 @@
-commit 8b6d50170463e402e94eab9f260c5e09fa8b0146
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Mar 23 07:39:43 2013 +0900
+commit 7191ef7199cae4753dd7f06e66d9b82d760136aa
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 22 14:51:22 2013 -0700
 
-    net: fix documentation for UnixAddr
+    doc/go1.1.html: return requirements
     
-    Also simplifies ResolveUnixAddr.
-    
-    R=golang-dev, dave, rsc, bradfitz
+    R=golang-dev, rsc, jeremyjackins, gri
     CC=golang-dev
-    https://golang.org/cl/7510047
+    https://golang.org/cl/7838045
 
- src/pkg/net/unixsock.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ doc/go1.1.html | 33 +++++++++++++++++++++++++++++++--
+ 1 file changed, 31 insertions(+), 2 deletions(-)

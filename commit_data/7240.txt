@@ -1,18 +1,31 @@
-commit afc6928ad9f7ac251ef42998ff51ae94b97924a2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 25 16:35:36 2011 -0500
+commit eaae95fa3d9f54665ef954df26c2fd54a32460c3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 25 13:32:56 2011 -0800
 
-    runtime: prefer fixed stack allocator over general memory allocator
-      * move stack constants from proc.c to runtime.h
-      * make memclr take uintptr length
+    scanner: fix Position returned by Scan, Pos
     
-    R=r
+    The implementation of the position computation
+    was surprisingly broken. Implemented fixes and
+    added extra test cases.
+    
+    There is a slight interface change: Calling
+    Pos() returns the current position; but if
+    called before Scan() that position may not
+    be the position of the next token returned
+    by Scan() (depending on the scan settings
+    and the source text) - this in contrast to
+    the original comment.
+    
+    However, after calling Scan(), the Scanner's
+    Position field reports the position of the
+    scanned token, as before.
+    
+    Fixes #1327.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3985046
+    https://golang.org/cl/3972047
 
- src/pkg/runtime/amd64/asm.s |  6 +--
- src/pkg/runtime/malloc.goc  | 10 +++--
- src/pkg/runtime/proc.c      | 96 ++++-----------------------------------------
- src/pkg/runtime/runtime.c   |  4 ++
- src/pkg/runtime/runtime.h   | 91 +++++++++++++++++++++++++++++++++++++++---
- 5 files changed, 108 insertions(+), 99 deletions(-)
+ src/pkg/scanner/scanner.go      |  81 +++++++++++++++++++++--------
+ src/pkg/scanner/scanner_test.go | 110 +++++++++++++++++++++++++++++++---------
+ 2 files changed, 144 insertions(+), 47 deletions(-)

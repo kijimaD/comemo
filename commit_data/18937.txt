@@ -1,26 +1,16 @@
-commit cc2c5fc3d28ef2e179e605fa41d5e7eec04e34ac
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 25 10:59:09 2014 -0700
+commit 8de04c78b7cd27ff7aad787cb016314bc31365ba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 25 05:18:08 2014 -0700
 
-    net/http: don't re-use Transport connections if we've seen an EOF
+    runtime: change nproc local variable to uint32
     
-    This the second part of making persistent HTTPS connections to
-    certain servers (notably Amazon) robust.
+    The nproc and ndone fields are uint32.  This makes the type
+    consistent.
     
-    See the story in part 1: https://golang.org/cl/76400046/
-    
-    This is the http Transport change that notes whether our
-    net.Conn.Read has ever seen an EOF. If it has, then we use
-    that as an additional signal to not re-use that connection (in
-    addition to the HTTP response headers)
-    
-    Fixes #3514
-    
-    LGTM=rsc
-    R=agl, rsc
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/79240044
+    https://golang.org/cl/79340044
 
- src/pkg/net/http/transport.go      | 19 ++++++++++-
- src/pkg/net/http/transport_test.go | 66 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 84 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

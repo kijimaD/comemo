@@ -1,55 +1,19 @@
-commit b46e44a399045d0177dd063dc192168f0b5b3f55
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jan 10 10:21:16 2023 -0500
+commit b88600f926b6a1fb6de6e3a8cc1f0db9132bddb4
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Feb 25 18:51:48 2022 -0500
 
-    cmd/compile: enable deadcode of unreferenced large global maps
+    go/types, types2: clean up a few typos, and an unused const
     
-    This patch changes the compiler's pkg init machinery to pick out large
-    initialization assignments to global maps (e.g.
-    
-       var mymap = map[string]int{"foo":1, "bar":2, ... }
-    
-    and extract the map init code into a separate outlined function, which is
-    then called from the main init function with a weak relocation:
-    
-       var mymap map[string]int   // KEEP reloc -> map.init.0
-    
-       func init() {
-          map.init.0() // weak relocation
-       }
-    
-       func map.init.0() {
-         mymap = map[string]int{"foo":1, "bar":2}
-       }
-    
-    The map init outlining is done selectively (only in the case where the
-    RHS code exceeds a size limit of 20 IR nodes).
-    
-    In order to ensure that a given map.init.NNN function is included when
-    its corresponding map is live, we add dummy R_KEEP relocation from the
-    map variable to the map init function.
-    
-    This first patch includes the main compiler compiler changes, and with
-    the weak relocation addition disabled. Subsequent patch includes the
-    requred linker changes along with switching to the call to the
-    outlined routine to a weak relocation. See the later linker change for
-    associated compile time performance numbers.
-    
-    Updates #2559.
-    Updates #36021.
-    Updates #14840.
-    
-    Change-Id: I1fd6fd6397772be1ebd3eb397caf68ae9a3147e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461315
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I01717cc52c9728b4eaaf2c996707f59a113bff9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395434
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/base/debug.go       |   2 +
- src/cmd/compile/internal/base/flag.go        |   2 +
- src/cmd/compile/internal/gc/compile.go       |   9 ++
- src/cmd/compile/internal/gc/main.go          |   6 +
- src/cmd/compile/internal/pkginit/init.go     |  21 ++-
- src/cmd/compile/internal/ssagen/pgen.go      |  52 ++++++++
- src/cmd/compile/internal/staticinit/sched.go | 183 +++++++++++++++++++++++++++
- 7 files changed, 274 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/infer.go | 2 +-
+ src/cmd/compile/internal/types2/named.go | 2 +-
+ src/go/types/api.go                      | 2 --
+ src/go/types/infer.go                    | 2 +-
+ src/go/types/named.go                    | 2 +-
+ 5 files changed, 4 insertions(+), 6 deletions(-)

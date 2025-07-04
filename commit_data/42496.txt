@@ -1,20 +1,23 @@
-commit e5e386938f4ace00c00de86ead47ed5c02961e5b
-Author: eric fang <eric.fang@arm.com>
-Date:   Mon Jun 8 03:19:43 2020 +0000
+commit a5cff1e5a51587bc53a49c8311ab6dcd3db89578
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 13:28:43 2019 -0500
 
-    cmd/asm: fix the encoding error of VCNT instruction for arm64
+    cmd/go: convert TestIssue17119 to the script test framework
     
-    When the arrangement specifier is "B16", the 30-bit should be 1 rather than 0.
-    This CL fixes this error.
+    It's already parallel, but we might as well convert it and
+    get rid of the testdata/src dircetory completely.
     
-    Fixes #39445
+    Updates #36320
     
-    Change-Id: Ib44881cdb8b3aab855cb30f2c52a085cd73a6a2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236638
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I75e335b32d64a8ddedd65e4337949b729c9e0fbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212877
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64enc.s | 1 +
- src/cmd/internal/obj/arm64/asm7.go           | 4 ++--
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go                              | 12 -----------
+ .../go/testdata/script/gopath_vendor_dup_err.txt   | 24 ++++++++++++++++++++++
+ src/cmd/go/testdata/src/dupload/dupload.go         |  8 --------
+ src/cmd/go/testdata/src/dupload/p/p.go             |  1 -
+ src/cmd/go/testdata/src/dupload/p2/p2.go           |  3 ---
+ src/cmd/go/testdata/src/dupload/vendor/p/p.go      |  1 -
+ 6 files changed, 24 insertions(+), 25 deletions(-)

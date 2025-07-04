@@ -1,0 +1,18 @@
+commit e9a306e004fb6e9c6ca6045151be0ca8bddd242b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jun 21 14:45:26 2024 +0700
+
+    types2, go/types: correct NewTypeParam documentation
+    
+    Signature type does not have SetTypeParams method, only Named type.
+    
+    Change-Id: Ic7a25c24cb821540d921eb2c94dfff31f28f7aa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593955
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types2/typeparam.go | 4 ++--
+ src/go/types/typeparam.go                    | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

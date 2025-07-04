@@ -1,14 +1,27 @@
-commit e6e2eb58071a084e1d3aa62fa9d5d03ebd629fd9
+commit 740051ae75e9a97ae86b9ff2374477e84b5972ed
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 8 13:04:29 2011 -0400
+Date:   Fri Apr 8 13:00:40 2011 -0400
 
-    http: do not listen on 0.0.0.0 during test
+    codereview: automatically port old diffs forward
     
-    Quiets the pop-up boxes on OS X.
+    In the current codereview, if a patch was written against
+    a version of a file that had subsequently been edited,
+    hg clpatch would fail, even if the patch and the edits were
+    in different parts of the file.  In this situation the reviewer
+    typically wrote back saying "please hg sync and hg mail
+    to update the patch".
     
-    R=bradfitzgo, r2
+    This change rewrites the patch automatically, using the
+    same transformation that hg sync + hg mail would.
+    
+    If the interim changes (since the patch was created)
+    affect the same line ranges as the patch, clpatch will
+    still refuse to apply it.  But this CL should make
+    of the trivial conflicts we see just go away.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4387042
+    https://golang.org/cl/4377046
 
- src/pkg/http/serve_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/codereview/codereview.py | 114 +++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 100 insertions(+), 14 deletions(-)

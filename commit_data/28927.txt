@@ -1,72 +1,17 @@
-commit 4859f6a416b053d57fcc9d8f43e81e9d218280e9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 19 10:31:15 2016 +0000
+commit 04e76f295f434bf1bd5ef3b01eed42b638a8b321
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 17 10:32:39 2016 -0400
 
-    net/http: make NewRequest set empty Body nil, don't peek Read Body in Transport
+    test: add test for CL 26831
     
-    This CL makes NewRequest set Body nil for known-zero bodies, and makes
-    the http1 Transport not peek-Read a byte to determine whether there's
-    a body.
+    Test nil check removal for access of PAUTOHEAP.
     
-    Background:
-    
-    Many fields of the Request struct have different meanings for whether
-    they're outgoing (via the Transport) or incoming (via the Server).
-    
-    For outgoing requests, ContentLength and Body are documented as:
-    
-            // Body is the request's body.
-            //
-            // For client requests a nil body means the request has no
-            // body, such as a GET request. The HTTP Client's Transport
-            // is responsible for calling the Close method.
-            Body io.ReadCloser
-    
-            // ContentLength records the length of the associated content.
-            // The value -1 indicates that the length is unknown.
-            // Values >= 0 indicate that the given number of bytes may
-            // be read from Body.
-            // For client requests, a value of 0 with a non-nil Body is
-            // also treated as unknown.
-            ContentLength int64
-    
-    Because of the ambiguity of what ContentLength==0 means, the http1 and
-    http2 Transports previously Read the first byte of a non-nil Body when
-    the ContentLength was 0 to determine whether there was an actual body
-    (with a non-zero length) and ContentLength just wasn't populated, or
-    it was actually empty.
-    
-    That byte-sniff has been problematic and gross (see #17480, #17071)
-    and was removed for http2 in a previous commit.
-    
-    That means, however, that users doing:
-    
-        req, _ := http.NewRequest("POST", url, strings.NewReader(""))
-    
-    ... would not send a Content-Length header in their http2 request,
-    because the size of the reader (even though it was known, being one of
-    the three common recognized types from NewRequest) was zero, and so
-    the HTTP Transport thought it was simply unset.
-    
-    To signal explicitly-zero vs unset-zero, this CL changes NewRequest to
-    signal explicitly-zero by setting the Body to nil, instead of the
-    strings.NewReader("") or other zero-byte reader.
-    
-    This CL also removes the byte sniff from the http1 Transport, like
-    https://golang.org/cl/31326 did for http2.
-    
-    Updates #17480
-    Updates #17071
-    
-    Change-Id: I329f02f124659bf7d8bc01e2c9951ebdd236b52a
-    Reviewed-on: https://go-review.googlesource.com/31445
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id739a9cda7cd3ff173bdcccfedcad93ee90711ef
+    Reviewed-on: https://go-review.googlesource.com/27232
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/request.go           | 60 ++++++++--------------------
- src/net/http/request_test.go      | 38 ++++++++++++++----
- src/net/http/requestwrite_test.go | 82 ++++++++++++++++++++++++---------------
- src/net/http/transfer.go          |  3 +-
- src/net/http/transport_test.go    |  8 +---
- 5 files changed, 101 insertions(+), 90 deletions(-)
+ test/nilptr3.go     | 8 ++++++++
+ test/nilptr3_ssa.go | 8 ++++++++
+ 2 files changed, 16 insertions(+)

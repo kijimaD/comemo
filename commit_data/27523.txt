@@ -1,39 +1,17 @@
-commit a5d1a72a40b59db0d2f3f5d3fbb2ed60aafb7fdf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 19 16:27:23 2016 -0700
+commit 4b95575bd4baa683bf1c5b75bd42adf8ab2871af
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 31 10:57:48 2016 -0700
 
-    cmd/cgo, runtime, runtime/cgo: TSAN support for malloc
+    cmd/compile: fix build
     
-    Acquire and release the TSAN synchronization point when calling malloc,
-    just as we do when calling any other C function. If we don't do this,
-    TSAN will report false positive errors about races calling malloc and
-    free.
+    Pushed from an old client by mistake.  These are the
+    missing changes.
     
-    We used to have a special code path for malloc and free, going through
-    the runtime functions cmalloc and cfree. The special code path for cfree
-    was no longer used even before this CL. This CL stops using the special
-    code path for malloc, because there is no place along that path where we
-    could conditionally insert the TSAN synchronization. This CL removes
-    the support for the special code path for both functions.
-    
-    Instead, cgo now automatically generates the malloc function as though
-    it were referenced as C.malloc.  We need to automatically generate it
-    even if C.malloc is not called, even if malloc and size_t are not
-    declared, to support cgo-provided functions like C.CString.
-    
-    Change-Id: I829854ec0787a80f33fa0a8a0dc2ee1d617830e2
-    Reviewed-on: https://go-review.googlesource.com/23260
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ia8d61c5c0bde907369366ea9ea98711823342803
+    Reviewed-on: https://go-review.googlesource.com/21349
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- misc/cgo/testsanitizers/test.bash | 10 ++++++
- misc/cgo/testsanitizers/tsan4.go  | 34 +++++++++++++++++++
- src/cmd/cgo/out.go                | 69 ++++++++++++++++++++++++++++++++++-----
- src/runtime/cgo.go                |  4 ---
- src/runtime/cgo/callbacks.go      | 12 -------
- src/runtime/cgo/gcc_util.c        | 25 --------------
- src/runtime/cgocall.go            | 19 -----------
- src/runtime/proc.go               |  6 ----
- 8 files changed, 105 insertions(+), 74 deletions(-)
+ src/go/types/stdlib_test.go  | 1 +
+ test/fixedbugs/issue15002.go | 2 +-
+ test/run.go                  | 4 ++--
+ 3 files changed, 4 insertions(+), 3 deletions(-)

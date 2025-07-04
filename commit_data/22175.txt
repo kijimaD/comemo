@@ -1,20 +1,14 @@
-commit 41d58c3739e7a0e45542423519e0ebbdce27edda
-Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
-Date:   Tue Mar 24 16:42:34 2015 -0400
+commit 3a3c9d6d66fb50a9cd6f475a0ee7301ca50259e4
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Feb 27 08:06:58 2015 +1100
 
-    os/exec: post-process lsof output on Android.
+    runtime/debug: fix nacl build
     
-    lsof is used to inspect the open file desciptors in exec_test.go.
-    In order to limit the output of lsof to the tested process, the tests use
-    lsof with the -p option, but the version of lsof in android seems to ignore
-    it. This change adds a post-processing step to filter out irrelevant entries.
+    Disable the test properly on nacl systems, tested on nacl/amd64p32.
     
-    Fixes golang/go#10206.
-    
-    Change-Id: Ia789b8f5e1e9b95c7b55deac92d0d1fbf3ee74fb
-    Reviewed-on: https://go-review.googlesource.com/8025
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Iffe210be4f9c426bfc47f2dd3a8f0c6b5a398cc3
+    Reviewed-on: https://go-review.googlesource.com/6093
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec/exec_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 45 insertions(+)
+ src/runtime/debug/garbage_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

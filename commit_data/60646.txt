@@ -1,0 +1,24 @@
+commit f259e4c916bcde5221dca99ce7d77095a21b9801
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 9 10:59:43 2024 -0700
+
+    cmd/compile: fix off-by-one error in prove pass
+    
+    I think I introduced #68809 when rewriting the prove pass, by
+    introducing an off-by-one error here:
+    https://go-review.googlesource.com/c/go/+/599096/5/src/cmd/compile/internal/ssa/prove.go
+    lines 872-874.
+    The min++ is already handled in one of the two following cases with
+    the (r&eq==0) condition. Move the min++ to just the other case.
+    
+    Fixes #68809
+    
+    Change-Id: Iffae99e29219c94aaf584cd7ae247289fa604a00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604100
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/prove.go |  6 +++---
+ test/fixedbugs/issue68809.go          | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+), 3 deletions(-)

@@ -1,14 +1,17 @@
-commit 0af08d825343431594421aec06fec4c96052257b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 12 16:29:33 2012 -0400
+commit a7c9f2490769e29696b64c3e4027b1bca64d44f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 12 13:25:48 2012 -0700
 
-    log: fix doc comment for Ldate
+    cmd/fix: add rules for net/http -> net/http/httputil renames
     
-    Fixes #3303.
+    And merge the httputil fix into go1rename.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r, dsymonds, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5795062
+    https://golang.org/cl/5696084
 
- src/pkg/log/log.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/fix/go1rename.go      |  90 +++++++++++++++++++++++++++++
+ src/cmd/fix/go1rename_test.go | 130 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/fix/httputil.go       |  63 --------------------
+ src/cmd/fix/httputil_test.go  | 122 ---------------------------------------
+ 4 files changed, 220 insertions(+), 185 deletions(-)

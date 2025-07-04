@@ -1,18 +1,19 @@
-commit a5085f82a51a96f7aca3aee5c49973c727a46d94
-Author: bontequero <bontequero@gmail.com>
-Date:   Sun Apr 15 11:28:20 2018 +0300
+commit 509ffb94caae3fd53130d318c013cac38a179976
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 4 11:09:45 2017 -0800
 
-    cmd/internal/obj/x86: fix doc-comment and clarify output parameters
+    cmd/go: disable concurrent compilation under GOEXPERIMENTs
     
-    Fixes comment style.
-    Added names to return parameters to clarify what they are.
+    Duplicate cmd/compile check into cmd/go. Manually tested that
+    "GOEXPERIMENT=fieldtrack make.bash" passes now.
     
-    Change-Id: Ib6f7f58b36981e08b63de1a4cd582ce99cfb4519
-    Reviewed-on: https://go-review.googlesource.com/107235
-    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Updates #22223.
+    
+    Change-Id: I441970a8a5ad4aadf5bd4fbd4d6cc71847b43308
+    Reviewed-on: https://go-review.googlesource.com/81776
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/gc.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,14 +1,17 @@
-commit 5a18aef67cbd707cd15e6412ddd089d0b6fb4738
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Nov 29 09:28:58 2011 +1100
+commit 8e515485e277b982ce4265d72b0d92f76242b651
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 28 16:40:39 2011 -0500
 
-    goinstall: add -fix flag to run gofix on packages on build failure
-    goinstall: better error handling and reporting
+    gc: remove funarg special case in structfield
     
-    R=r, r, rsc, mattn.jp
+    This should make CL 5431046 a little simpler.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5421051
+    https://golang.org/cl/5444048
 
- src/cmd/goinstall/download.go |  13 +-
- src/cmd/goinstall/main.go     | 271 ++++++++++++++++++++++++++----------------
- 2 files changed, 176 insertions(+), 108 deletions(-)
+ src/cmd/gc/dcl.c       |  8 --------
+ src/cmd/gc/subr.c      | 11 +++++------
+ src/cmd/gc/typecheck.c | 15 +++++++++++++++
+ test/blank.go          | 24 ++++++++++++++++++++++++
+ 4 files changed, 44 insertions(+), 14 deletions(-)

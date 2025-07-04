@@ -1,30 +1,35 @@
-commit 37b7880d157111a796eda7f59ca73af7621489b8
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jul 20 11:12:37 2017 -0400
+commit a8b2e4a630a5991e91095d85c604dc1fa23c1e56
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Mar 30 11:07:36 2017 -0400
 
-    runtime: use SIGKILL if SIGQUIT is blocked; skip tests that need SIGQUIT
+    cmd/compile: improve LoweredMove performance on ppc64x
     
-    The runtime tests may be invoked from a parent that has SIGQUIT
-    blocked. For example, Java invokes subprocesses this way. In this
-    situation, TestCrashDumpsAllThreads and TestPanicSystemstack will fail
-    because they depend on SIGQUIT to get tracebacks, and any subprocess
-    test that times out will fail to kill the subprocess.
+    This change improves the performance for LoweredMove on ppc64le
+    and ppc64.
     
-    Fix this by detecting if SIGQUIT is blocked and, if so, skipping tests
-    that depend on it and using SIGKILL to kill timed-out subprocesses.
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkCopyFat8-16        0.93          0.69          -25.81%
+    BenchmarkCopyFat12-16       2.61          1.85          -29.12%
+    BenchmarkCopyFat16-16       9.68          1.89          -80.48%
+    BenchmarkCopyFat24-16       4.48          1.85          -58.71%
+    BenchmarkCopyFat32-16       6.12          1.82          -70.26%
+    BenchmarkCopyFat64-16       21.2          2.70          -87.26%
+    BenchmarkCopyFat128-16      29.6          3.97          -86.59%
+    BenchmarkCopyFat256-16      52.6          13.4          -74.52%
+    BenchmarkCopyFat512-16      97.1          18.7          -80.74%
+    BenchmarkCopyFat1024-16     186           35.3          -81.02%
     
-    Based on a fix by Carl Henrik Lunde in
-    https://golang.org/issue/19196#issuecomment-316145733
+    BenchmarkAssertE2TLarge-16      14.2          5.06          -64.37%
     
-    Fixes #19196.
+    Fixes #19785
     
-    Change-Id: Ia20bf15b96086487d0ef6b75239dcc260c21714c
-    Reviewed-on: https://go-review.googlesource.com/50330
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7d5e0052712b75811c02c7d86c5112e5649ad782
+    Reviewed-on: https://go-review.googlesource.com/38950
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/crash_unix_test.go  | 17 +++++++++++++++++
- src/runtime/export_unix_test.go | 19 +++++++++++++++++++
- 2 files changed, 36 insertions(+)
+ src/cmd/compile/internal/ppc64/ssa.go        | 222 +++++++++++++++++++--------
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  55 +++----
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  45 ++++--
+ src/cmd/compile/internal/ssa/opGen.go        |   9 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 215 ++++++--------------------
+ 5 files changed, 258 insertions(+), 288 deletions(-)

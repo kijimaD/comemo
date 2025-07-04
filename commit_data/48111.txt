@@ -1,26 +1,19 @@
-commit 5442f4d51b01fea94159b035ce5b5ca5834487e5
+commit 13e87cda000149ff3efce95210b0c921f7d772bf
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 7 17:07:44 2022 -0800
+Date:   Mon Apr 26 17:49:28 2021 -0700
 
-    runtime: restore old mp.fastrand initialization
+    time: increase slop for TestTicker
     
-    CL 337350 changed mp.fastrand from a [2]uint32 to a uint64 and changed
-    the initialization to a single call of int64Hash. However, int64Hash
-    returns uintptr, so 32-bit systems this always left the most
-    significant 32 bits of mp.fastrand initialized to 0. The new code also
-    did not protect against initializing mp.fastrand to 0, which on a
-    system that does not implement math.Mul64 (most 32-bit systems) would
-    lead fastrand to always return 0.
+    Also sleep a bit each time it fails, in case the system is overloaded.
     
-    This CL restores the mp.fastrand initialization to what it was before
-    CL 337350, adjusted for the change from [2]uint32 to uint64.
+    Fixes #37332
     
-    Change-Id: I663b415d9424d967e8e665ce2d017604dcd5b204
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383916
+    Change-Id: Iabf3d0a27b5834c1e2a87c826b6206146b4f62c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313849
     Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/proc.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/time/tick_test.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

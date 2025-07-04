@@ -1,12 +1,17 @@
-commit c7c147c83016384db29791e2006f9919c571512a
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Jul 18 15:16:26 2018 -0400
+commit 6734452554f639c63055e8e233a6bc1d2076c3ed
+Author: ajnirp <ajnirp@users.noreply.github.com>
+Date:   Fri Mar 30 23:21:50 2018 +0000
 
-    doc: update go1.11.html with user annotation API additions
+    testing: fix testing flags link
     
-    Change-Id: I357eea0efb04392e1a4671d20190a2052bf548de
-    Reviewed-on: https://go-review.googlesource.com/124706
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Fixed a broken link to a section in the documentation for the
+    test flags for the go command.
+    
+    Change-Id: Ic4bdd4965aac7856dd13a2adda9d774b9bae4113
+    GitHub-Last-Rev: 15bda340674c268a92f43a2820eca50482940de1
+    GitHub-Pull-Request: golang/go#24613
+    Reviewed-on: https://go-review.googlesource.com/103835
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 53 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 52 insertions(+), 1 deletion(-)
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

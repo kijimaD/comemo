@@ -1,14 +1,30 @@
-commit 3ca8ee14d15d8fdf152c28e98812347419f8084c
+commit 2730c17a863e0eeb7afa3589608eece8cc50e6f3
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 19 22:57:40 2017 +0000
+Date:   Tue Mar 21 22:16:16 2017 +0000
 
-    crypto/x509: update MaxPathLen & MaxPathLenZero docs
+    syscall, os: fix FreeBSD 9 build
     
-    Fixes #19285
+    I broke FreeBSD 9 in https://golang.org/cl/38426 by using Pipe2.
     
-    Change-Id: I11e864eff9980dec8247c47e4c600f76602e7ada
-    Reviewed-on: https://go-review.googlesource.com/46092
+    We still want to support FreeBSD 9 for one last release (Go 1.9 will
+    be the last), and FreeBSD 9 doesn't have Pipe2.
+    
+    So this still uses Pipe2, but falls back to Pipe on error.
+    
+    Updates #18854
+    Updates #19072
+    
+    Change-Id: I1de90fb83606c93fb84b4b86fba31e207a702835
+    Reviewed-on: https://go-review.googlesource.com/38430
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/x509.go | 41 ++++++++++++++++++++++++++++-------------
- 1 file changed, 28 insertions(+), 13 deletions(-)
+ src/os/pipe_freebsd.go                | 16 +++++++++++++++-
+ src/syscall/exec_freebsd.go           | 18 +++++++++++++++++-
+ src/syscall/syscall_freebsd.go        |  9 ++++++++-
+ src/syscall/zsyscall_freebsd_386.go   | 12 ++++++++++++
+ src/syscall/zsyscall_freebsd_amd64.go | 12 ++++++++++++
+ src/syscall/zsyscall_freebsd_arm.go   | 12 ++++++++++++
+ 6 files changed, 76 insertions(+), 3 deletions(-)

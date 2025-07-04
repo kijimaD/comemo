@@ -1,0 +1,24 @@
+commit 31a9c139419dadf35df1b162115da69a0b4cb917
+Author: Manuel Sabin <msabin27@gmail.com>
+Date:   Mon Jul 1 10:49:11 2024 -0400
+
+    crypto/internal/cryptotest: add tests for the cipher.AEAD interface
+    
+    This CL creates tests for the cipher.AEAD interface in the new
+    cryptotest package.  This set of tests is called from the tests of
+    implementations of the AEAD interface, such as the GCM blockmode.
+    
+    Updates #25309
+    
+    Change-Id: I7612fa6fb6c1505bdf1a2cd71180dd43dc50bf4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601778
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/crypto/cipher/gcm_test.go          |  39 ++++
+ src/crypto/internal/cryptotest/aead.go | 387 +++++++++++++++++++++++++++++++++
+ 2 files changed, 426 insertions(+)

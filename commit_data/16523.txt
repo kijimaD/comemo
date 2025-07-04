@@ -1,20 +1,16 @@
-commit 0f4897ae1a99d5c9de78c33c7b0963e71960c678
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jun 10 22:38:58 2013 +0400
+commit bb6e265fed09754d2a71966f661be9ab084ef43a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 10 19:14:41 2013 +1000
 
-    sync: improve race instrumentation of WaitGroup
-    Do not synchronize Add(1) with Wait().
-    Imitate read on first Add(1) and write on Wait(),
-    it allows to catch common misuses of WaitGroup:
-    - Add() called in the additional goroutine itself
-    - incorrect reuse of WaitGroup with multiple waiters
+    os: return io.EOF from windows ReadAt as documented
     
-    R=golang-dev, iant
+    Fixes #5619.
+    
+    R=golang-dev, r, peter.armitage, go.peter.90
     CC=golang-dev
-    https://golang.org/cl/10093044
+    https://golang.org/cl/9952044
 
- src/pkg/runtime/race/testdata/waitgroup_test.go | 128 +++++++++++++++++++++++-
- src/pkg/sync/race.go                            |   8 ++
- src/pkg/sync/race0.go                           |   6 ++
- src/pkg/sync/waitgroup.go                       |  26 ++++-
- 4 files changed, 160 insertions(+), 8 deletions(-)
+ src/pkg/os/file_windows.go        |  4 ++++
+ src/pkg/os/os_test.go             | 16 ++++++++++++++++
+ src/pkg/syscall/ztypes_windows.go |  1 +
+ 3 files changed, 21 insertions(+)

@@ -1,23 +1,20 @@
-commit 5254e989425648ff62faa270948bb927b6568ff3
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Nov 20 16:02:03 2024 +0100
+commit e12bdc80f2d8b2fa243a7dc362a5dc2a4b545d1e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 11 15:34:09 2023 +0700
 
-    cmd/cgo/internal/testsanitizers: fix TSAN tests using setarch
+    types2, go/types: remove doc link from Func.Pkg comment
     
-    Some systems don't have permissions to run setarch, for example
-    when running in a docker container without the --privileged flag.
+    The documentation link only works with exported identifiers. Further,
+    the built-in error interface lives in pseudo package "builtin" only,
+    thus it's not a real package that can be referred using doc links.
     
-    This change makes the tests skip the setarch command if it fails.
-    
-    Fixes #70463
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-asan-clang15
-    Change-Id: I02fbd423ba809f5229b8639c9abe6fd275f32558
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630096
+    Change-Id: I2116beb27fc73ba33f8352301fe77b4b6abc3ec1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534436
+    Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/cgo/internal/testsanitizers/cshared_test.go | 13 ++++++++++---
- src/cmd/cgo/internal/testsanitizers/tsan_test.go    | 13 ++++++++++---
- 2 files changed, 20 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/object.go | 2 +-
+ src/go/types/object.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

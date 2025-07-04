@@ -1,14 +1,12 @@
-commit 7a471eadcc4b00c2a998639a0797b4742bfc8aea
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Fri Jun 24 11:23:49 2011 -0700
+commit fc57c4b7a982979b7ed2f62af10b2b1c3cbcf8fb
+Author: Quan Yong Zhai <qyzhai@gmail.com>
+Date:   Fri Jun 24 11:19:48 2011 -0700
 
-    os: remove duplicate package description
-    
-    file.go contains a more complete package description.
+    misc/emacs: update list of builtins.
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4645058
+    https://golang.org/cl/4630065
 
- src/pkg/os/file_posix.go | 2 --
- 1 file changed, 2 deletions(-)
+ misc/emacs/go-mode.el | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

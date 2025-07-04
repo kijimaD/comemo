@@ -1,20 +1,28 @@
-commit bb1749ba3bfaa6912d79904dad5e29e6ea624d29
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jul 8 09:41:14 2022 -0700
+commit 4fb79569d2fb7a0eabc88729f400addb0162f21e
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 1 16:51:17 2021 -0400
 
-    cmd/compile: improve GOAMD64=v1 violation test
+    go/internal/gcimporter: add import tests for type parameters
     
-    Add more opcodes that are only available in >v1 modes.
+    Add a new test TestImportTypeparamTests that compiles and imports
+    packages contained in test/typeparam, and compares the resulting package
+    scope with the scope produced by type-checking directly.
     
-    This test will now correctly detect the regression in -race mode
-    for #53743.
+    In the process, fix a bug in go/types affecting embedded instances with
+    more than one type argument. This was uncovered by smoketest.go.
     
-    Change-Id: Icfbb1384e4333d7b4ff167c9ebcb6f4c7aeb6134
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416477
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    To enable this new test it was easiest to move gcimporter_test.go to an
+    external test, which required copying the pkgExts variable.
+    
+    Fixes #48101
+    
+    Change-Id: Ie4d981bf463e886a8d141809805d184dbbf64607
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347070
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/amd64/versions_test.go | 31 ++++++++++++++++++++-----
- 1 file changed, 25 insertions(+), 6 deletions(-)
+ src/go/internal/gcimporter/gcimporter_test.go | 133 +++++++++++++++++++++++++-
+ src/go/types/struct.go                        |   2 +
+ 2 files changed, 134 insertions(+), 1 deletion(-)

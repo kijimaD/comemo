@@ -1,17 +1,23 @@
-commit e25de44ef2990a1aadf6c5ece09e41cf158461d7
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Mon Nov 4 03:51:25 2019 +0900
+commit 55d31e16c12c38d36811bdee65ac1f7772148250
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jun 6 17:00:27 2019 -0400
 
-    runtime/pprof: correct inlined function location encoding for non-CPU profiles
+    cmd/go: add '--' before repository names when invoking vcs tools
     
-    Change-Id: Id270a3477bf1a581755c4311eb12f990aa2260b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205097
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Also, in 'go get' in GOPATH mode, report an error for package paths
+    that start with '-'.
+    
+    Change-Id: Ic2575381aa2d093ba15c53b893bf2eaded8b6066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181237
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/pprof/mprof_test.go | 106 ++++++++++++++++++++++++--------
- src/runtime/pprof/pprof.go      |  26 ++------
- src/runtime/pprof/proto.go      | 130 +++++++++++++++++++++-------------------
- src/runtime/pprof/protomem.go   |  23 ++++---
- 4 files changed, 166 insertions(+), 119 deletions(-)
+ src/cmd/go/internal/get/path.go              |  3 +++
+ src/cmd/go/internal/get/vcs.go               | 18 +++++++++---------
+ src/cmd/go/internal/modfetch/codehost/git.go | 10 ++++++----
+ src/cmd/go/internal/modfetch/codehost/vcs.go | 18 +++++++++---------
+ src/cmd/go/internal/module/module.go         |  3 +++
+ src/cmd/go/internal/module/module_test.go    |  2 +-
+ 6 files changed, 31 insertions(+), 23 deletions(-)

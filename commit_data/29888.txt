@@ -1,25 +1,14 @@
-commit 9def857072bb708a79c291bb88c4b2830f0a8376
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Mon Dec 26 11:33:46 2016 -0800
+commit 42f5ee4cbf15ff02803863d1002259565da0f071
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 16 11:28:45 2016 -0700
 
-    database/sql: prevent Tx.rollback from racing Tx.close
+    testing: mention in docs for Logf that a final newline is added if needed
     
-    Previously Tx.done was being set in close, but in a Tx
-    rollback and Commit are the real closing methods,
-    and Tx.close is just a helper common to both. Prior to this
-    change a multiple rollback statements could be called, one
-    would enter close and begin closing it while the other was
-    still in rollback breaking it. Fix that by setting done
-    in rollback and Commit, not in Tx.close.
+    Fixes #16423
     
-    Fixes #18429
-    
-    Change-Id: Ie274f60c2aa6a4a5aa38e55109c05ea9d4fe0223
-    Reviewed-on: https://go-review.googlesource.com/34716
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9635db295be4d356d427adadd309084e16c4582f
+    Reviewed-on: https://go-review.googlesource.com/31255
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go      |  9 ++++-----
- src/database/sql/sql_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 5 deletions(-)
+ src/testing/testing.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

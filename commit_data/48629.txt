@@ -1,23 +1,20 @@
-commit a41763539c7ad09a22720a517a28e6018ca4db0f
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Jan 4 10:34:50 2022 -0800
+commit 5542c10fbf19cb199d1659c18963f9ed83570746
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Apr 27 12:16:03 2021 -0700
 
-    net/http: handle 3xx responses with no Location
+    [dev.fuzz] internal/fuzz: don't use temporary buffers
     
-    RFC 7231 does not require that a 3xx response contain a Location header.
-    When receiving such a response, just return it to the caller rather than
-    treating it as an error.
+    We're already allocating a huge amount of space at the end of each byte
+    slice, so just use that for scratch space instead of allocating a new
+    temporary buffer.
     
-    Fixes #49281.
-    
-    Change-Id: I66c06d81b0922016384a0f4ff32bf52e3a3d5983
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375354
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie075a199d4ac5dd5789949af2a19815c3025b809
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314272
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/http/client.go      | 17 ++++-------------
- src/net/http/client_test.go | 44 ++++++++++++++++++++++++--------------------
- 2 files changed, 28 insertions(+), 33 deletions(-)
+ src/internal/fuzz/mutator.go | 40 ++++++++++++++++++++++++++++++----------
+ 1 file changed, 30 insertions(+), 10 deletions(-)

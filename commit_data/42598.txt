@@ -1,36 +1,16 @@
-commit 3b6b86d1fe4275c0d5f89019a0170fa203c0d105
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 6 08:54:12 2020 -0400
+commit 8453844ed774b0f864d28cb83844402c63db2849
+Author: Kirill Tatchihin <kirabsuir@gmail.com>
+Date:   Thu Jan 23 16:14:40 2020 +0000
 
-    go/build: rewrite TestDependencies to be cleaner, more correct
+    time: document how Parse handles two-digit years
     
-    TestDependencies defines the dependency policy
-    (what can depend on what) for the standard library.
+    Fixes #36549
     
-    The standard library has outgrown the idea of writing
-    the policy as a plain map literal. Also, the checker was
-    ignoring vendored packages, which makes it miss real
-    problems.
-    
-    This commit adds a little language for describing
-    partial orders and rewrites the policy in that language.
-    
-    It also changes the checker to look inside vendored
-    packages and adds those to the policy as well.
-    
-    This turned up one important problem: net is depending
-    on fmt, unicode via golang.org/x/net/dns/dnsmessage,
-    filed as #40070.
-    
-    This is a test-only change, so it should be appropriate
-    even for the release freeze, especially since it identified
-    a real bug.
-    
-    Change-Id: I9b79f30761f167b8587204c959baa973583e39f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241078
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia803330fc046d5807bbefd67acb419cb81640a13
+    GitHub-Last-Rev: bd354319083bf80c250e1915f2be6860d2f7d14b
+    GitHub-Pull-Request: golang/go#36584
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214980
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/build/deps_test.go | 1130 ++++++++++++++++++++++++++-------------------
- 1 file changed, 650 insertions(+), 480 deletions(-)
+ src/time/format.go | 3 +++
+ 1 file changed, 3 insertions(+)

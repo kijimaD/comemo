@@ -1,19 +1,28 @@
-commit 9c7aa5fea983fe58d126542013861a022adefa70
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 22 10:40:23 2013 -0800
+commit 71c37e1c88884edd7c9681ebbed9e3bbc1a08915
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Feb 22 12:35:45 2013 -0500
 
-    mime/multipart: allow unescaped newlines through in quoted-printable
+    exp/ssa: fixed bug (typo) in findPromotedField.
     
-    This makes Go's quoted-printable decoder more like other
-    popular ones, allowing through a bare \r or \n, and also
-    passes through \r\n which looked like a real bug before.
+    By appending to the wrong (always empty) list, only the last
+    anonymous field was being considered for promotion.
     
-    Fixes #4771
+    Also:
+    - eliminated "function-local NamedTypes" TODO; nothing to do.
+    - fixed Function.DumpTo: printing of anon receivers was "( T)",
+      now "(T)"; extracted writeSignature into own function.
+    - eliminated blockNames function;
+      thanks to BasicBlock.String, "%s" of []*BasicBlock is fine.
+    - extracted buildReferrers into own function.
     
-    R=minux.ma
+    exp/ssa can now build its own transitive closure.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/7300092
+    https://golang.org/cl/7384054
 
- src/pkg/mime/multipart/quotedprintable.go      |  58 ++++++++--
- src/pkg/mime/multipart/quotedprintable_test.go | 149 ++++++++++++++++++++++++-
- 2 files changed, 196 insertions(+), 11 deletions(-)
+ src/pkg/exp/ssa/builder.go |   2 -
+ src/pkg/exp/ssa/func.go    | 109 ++++++++++++++++++++++++++-------------------
+ src/pkg/exp/ssa/promote.go |   2 +-
+ src/pkg/exp/ssa/sanity.go  |  19 +-------
+ 4 files changed, 66 insertions(+), 66 deletions(-)

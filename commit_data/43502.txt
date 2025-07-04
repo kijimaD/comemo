@@ -1,27 +1,26 @@
-commit ce46f197b6c75281b77ee93338e2559671e28b01
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jul 23 20:48:06 2020 +0000
+commit 376472ddb7252a4a859d89fc5ccb6db802e2b3b0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 8 12:36:35 2020 -0700
 
-    runtime: access the assist ratio atomically
+    cmd/compile: clean up slice and string offsets/sizes
     
-    This change makes it so that the GC assist ratio (the pair of
-    gcControllerState fields assistBytesPerWork and assistWorkPerByte) is
-    updated atomically. Note that the pair of fields are not updated
-    together atomically, but that's OK. The code here was already racy for
-    some time and in practice the assist ratio moves very slowly.
+    Minor cleanup:
     
-    The purpose of this change is so that we can document
-    gcController.revise to be safe for concurrent use, which will be useful
-    in further changes.
+    * Modernize comments.
+    * Change from int to int64 to avoid conversions.
+    * Use idiomatic names.
     
-    Change-Id: Ie25d630207c88e4f85f2b8953f6a0051ebf1b4ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246963
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Passes toolstash-check.
+    
+    Change-Id: I93560c81926c0f4e00f33129cb4846b53bea99e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227548
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mgc.go     | 51 ++++++++++++++++++++++++++++++++++++++++++--------
- src/runtime/mgcmark.go | 17 +++++++++++------
- src/runtime/proc.go    |  3 ++-
- 3 files changed, 56 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/align.go    |  6 ++---
+ src/cmd/compile/internal/gc/go.go       | 46 ++++++++++++++++-----------------
+ src/cmd/compile/internal/gc/sinit.go    | 18 ++++++-------
+ src/cmd/compile/internal/gc/ssa.go      |  4 +--
+ src/cmd/compile/internal/gc/universe.go | 10 +++----
+ 5 files changed, 41 insertions(+), 43 deletions(-)

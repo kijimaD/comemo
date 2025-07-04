@@ -1,14 +1,16 @@
-commit 2548d36c86bf78f4a535c8ffac6de2e2421e76df
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue Aug 29 21:32:41 2017 +0200
+commit c095e92c406968a5aefe57ce97e3c4097ad91b9a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 1 08:06:48 2017 -0700
 
-    cmd/compile: simplify check for pointers in map bucket
+    cmd/compile: add comments to trackAllTypes
     
-    Change-Id: Ie5e977c54f50274421962a7ca268ae71a6f19cef
-    Reviewed-on: https://go-review.googlesource.com/60050
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Per gri's suggestion on CL 41623,
+    add a comment to trackAllTypes
+    about the trade-offs of enabling it.
+    
+    Change-Id: Iec42b0da7933543200729003d1b2c6e0d9dcc5f0
+    Reviewed-on: https://go-review.googlesource.com/42186
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,14 +1,12 @@
-commit 0f5902d6beab85b2882bbe8490866b88d97b71a5
+commit 1d6ae53cc2c71ba189c0c2b06a1cd7db18081933
 Author: Hector Chu <hectorchu@gmail.com>
-Date:   Mon Aug 29 22:12:56 2011 +1000
+Date:   Mon Aug 29 16:17:08 2011 +1000
 
-    runtime: fix stack cleanup on windows/amd64
+    fix windows/amd64 build with newest mingw-w64
     
-    In amd64 it is the caller who cleans the stack.
-    
-    R=alex.brainman, vcc.163, jp
+    R=alex.brainman, golang-dev
     CC=golang-dev
-    https://golang.org/cl/4966046
+    https://golang.org/cl/4968048
 
- src/pkg/runtime/windows/amd64/sys.s | 39 ++++++-------------------------------
- 1 file changed, 6 insertions(+), 33 deletions(-)
+ include/libc.h | 2 ++
+ 1 file changed, 2 insertions(+)

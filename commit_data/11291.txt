@@ -1,14 +1,13 @@
-commit 88010973aa4a2ed37d278ea99356d4ad149588cb
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 20 13:34:11 2012 -0500
+commit a67c69cbaee1e419b1950832afb295cc951b202e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 20 10:22:41 2012 -0800
 
-    go/doc: avoid the name 'a.out' in the testdata
+    goyacc: fix indexing bug when yydebug >= 2
+    Fixes #2701.
     
-    R=golang-dev, gri, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5561047
+    https://golang.org/cl/5556070
 
- src/pkg/go/doc/testdata/a0.go                | 2 +-
- src/pkg/go/doc/testdata/a1.go                | 2 +-
- src/pkg/go/doc/testdata/{a.out => alpha.out} | 4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/goyacc/goyacc.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

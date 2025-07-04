@@ -1,15 +1,14 @@
-commit 9ada88aec271a2f08c998e9669331145803e7d5a
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Apr 8 13:02:49 2016 -0400
+commit 5c72c6f889ad854ba16e4ed560e6ad10ebb6dcc4
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Fri Feb 26 16:09:54 2016 -0300
 
-    cmd/cgo: increase s390x int type size to 8 bytes
+    cmd/go: show position in error for wrong signature in test functions
     
-    The size of the int type in Go on s390x is 8 bytes, not 4.
-    
-    Change-Id: I1a71ce8c9925f3499abb61c1aa4f6fa2d2ec0d7e
-    Reviewed-on: https://go-review.googlesource.com/21760
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Change-Id: Ie915dc2fc32a31d31f566ac931ccecb506559645
+    Reviewed-on: https://go-review.googlesource.com/19888
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cgo/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/test.go | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

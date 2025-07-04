@@ -1,31 +1,12 @@
-commit 9dcc58c3d139ee0475fdaca8119812c014ec5ba1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 16 15:26:00 2015 -0700
+commit 5fdd4fea905923084affaeb5d2427f226db076e1
+Author: Todd Neal <todd@tneal.org>
+Date:   Sun Aug 30 20:47:26 2015 -0500
 
-    cmd/cgo, runtime: add checks for passing pointers from Go to C
+    [dev.ssa] cmd/compile: map EQ/NE intptr to OpEqPtr/OpNeqPtr
     
-    This implements part of the proposal in issue 12416 by adding dynamic
-    checks for passing pointers from Go to C.  This code is intended to be
-    on at all times.  It does not try to catch every case.  It does not
-    implement checks on calling Go functions from C.
-    
-    The new cgo checks may be disabled using GODEBUG=cgocheck=0.
-    
-    Update #12416.
-    
-    Change-Id: I48de130e7e2e83fb99a1e176b2c856be38a4d3c8
-    Reviewed-on: https://go-review.googlesource.com/16003
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I8fd3727763c812297967c8069847833fc8516ff2
+    Reviewed-on: https://go-review.googlesource.com/14073
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- misc/cgo/errors/ptr.go    | 267 +++++++++++++++++++++++++++++++++++++++++++++
- misc/cgo/errors/test.bash |   4 +
- misc/cgo/test/callback.go |  33 +++++-
- src/cmd/cgo/ast.go        | 104 +++++++++++-------
- src/cmd/cgo/doc.go        |  45 ++++++++
- src/cmd/cgo/gcc.go        | 273 ++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/cgo/main.go       |   2 +
- src/cmd/cgo/out.go        |  10 ++
- src/runtime/cgocall.go    | 249 ++++++++++++++++++++++++++++++++++++++++++
- src/runtime/runtime1.go   |   3 +
- src/runtime/type.go       |  20 ++++
- 11 files changed, 965 insertions(+), 45 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

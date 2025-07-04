@@ -1,18 +1,23 @@
-commit f71444955a4c0962abb334a8f39438466c57a4db
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 14 14:39:19 2020 -0700
+commit fccf2edbe1ed677008638f7ad97aecd3e5594468
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 4 15:15:39 2020 +0000
 
-    test: add test case that caused gccgo undefined symbol reference
+    doc/go1.14: remove TODO about Illumos port
     
-    For #40252
+    There is an active builder that was added in CL 201597,
+    and it is passing on Go tip and release-branch.go1.13
+    (with one failure that appears to be flaky due to being
+    out of memory). It's also passing on all golang.org/x repos
+    on tip and release-branch.go1.13. It's not configured to
+    run on Go 1.12 release branches.
     
-    Change-Id: Ie23d2789ca9b4b9081adb39ab64c80c412ad58ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248637
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #36878
+    Updates #15581
+    
+    Change-Id: I4ed7fc62c11a09743832fca39bd61fa0cf6e7ded
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217737
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- test/fixedbugs/issue40252.dir/a.go    | 14 ++++++++++++++
- test/fixedbugs/issue40252.dir/main.go | 16 ++++++++++++++++
- test/fixedbugs/issue40252.go          |  8 ++++++++
- 3 files changed, 38 insertions(+)
+ doc/go1.14.html | 5 -----
+ 1 file changed, 5 deletions(-)

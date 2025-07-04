@@ -1,45 +1,16 @@
-commit edca4cda8858c6af5a9236d81b8654cb294054c8
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Mar 23 16:01:15 2016 +1100
+commit f49a757ad0d8f5987953684ea20153c713f7d9b9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 26 17:23:33 2016 -0800
 
-    cmd/compile/internal/gc: remove remaining Nod(OXXX, ...)
+    unsafe: clarify that Alignof returns required alignment
     
-    Remove almost all the remaining Nod(OXXX, ... ) uses. The performance
-    change is due entirely to the changes to func temp(*Type). The other
-    cleanups have no effect, as expected.
+    Also document the special behavior of Alignof(s.f), and mention the
+    correspondence between Alignof and reflect.Type.{Align,FieldAlign}.
     
-    I'll address the remaining Nod(OXXX, ...) uses in a followup CL as they
-    are very sensitive to change.
-    
-    lucky(~/go/src/cmd/compile) % benchstat /tmp/{old,new}.txt
-    name      old time/op    new time/op    delta
-    Template     391ms ± 6%     385ms ± 6%    ~     (p=0.127 n=19+20)
-    GoTypes      1.27s ± 2%     1.27s ± 2%    ~     (p=0.172 n=19+19)
-    Compiler     6.17s ± 2%     6.15s ± 2%    ~     (p=0.647 n=19+20)
-    
-    name      old alloc/op   new alloc/op   delta
-    Template    63.7MB ± 0%    63.4MB ± 0%  -0.35%  (p=0.000 n=16+20)
-    GoTypes      219MB ± 0%     218MB ± 0%  -0.38%  (p=0.000 n=20+20)
-    Compiler     980MB ± 0%     976MB ± 0%  -0.38%  (p=0.000 n=20+20)
-    
-    name      old allocs/op  new allocs/op  delta
-    Template      586k ± 0%      584k ± 0%  -0.30%  (p=0.000 n=20+20)
-    GoTypes      1.80M ± 0%     1.79M ± 0%  -0.31%  (p=0.000 n=20+20)
-    Compiler     7.74M ± 0%     7.71M ± 0%  -0.34%  (p=0.000 n=20+20)
-    
-    Change-Id: Ie21a5443c33a23ce30f987bdddec9fe350365d35
-    Reviewed-on: https://go-review.googlesource.com/21017
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6f81047a04c86887f1b1164473225616cae45a26
+    Reviewed-on: https://go-review.googlesource.com/18949
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/const.go    | 17 ++++++---------
- src/cmd/compile/internal/gc/dcl.go      |  9 +++-----
- src/cmd/compile/internal/gc/export.go   |  5 ++---
- src/cmd/compile/internal/gc/gen.go      |  4 ++--
- src/cmd/compile/internal/gc/inl.go      | 35 +++++++++++++++---------------
- src/cmd/compile/internal/gc/order.go    | 38 +++++++++++++--------------------
- src/cmd/compile/internal/gc/racewalk.go |  6 ++----
- src/cmd/compile/internal/gc/subr.go     | 23 ++++++++------------
- 8 files changed, 57 insertions(+), 80 deletions(-)
+ src/unsafe/unsafe.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

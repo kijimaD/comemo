@@ -1,21 +1,16 @@
-commit 60b8908588eb60b7e0d2053e52d191987a868c74
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Mar 3 20:45:00 2015 -0500
+commit e90a91eac4e493536aeeff867a2406c0ab31c76d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 10 20:22:41 2015 -0800
 
-    cmd/internal/ld: fix symbol visibility for external linking
+    [dev.cc] cmd/asm: fix dev.cc 386 build: implement CALL *x(SB)
     
-    The original C code is: (x->type & SHIDDEN) ? 2 : 0, however when
-    cleaning up the code for c2go, the ternary operator is rewritten in
-    the exact opposite way.
+    Also clean up the branch code a bit
     
-    We need a test for this, and that's being tracked as #10070.
+    TBR=rsc
     
-    Fixes #10067.
-    
-    Change-Id: I24a5e021597d8bc44218c6e75bab6446513b76cf
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/6730
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I209dea750db3a6769e7ccd79bb65c4d809aba152
+    Reviewed-on: https://go-review.googlesource.com/4530
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/ld/symtab.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/asm.go | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)

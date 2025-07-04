@@ -1,19 +1,19 @@
-commit 70491a81113e7003e314451f3e3cf134c4d41dd7
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri Dec 29 20:20:03 2023 +0000
+commit 481665ec077f581cec34b7c62c4b7ec715bb3bed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 31 11:41:31 2023 -0700
 
-    maps: document handling of non-reflexive keys
+    doc/go1.21: mention debug/elf changes
     
-    Fixes #63312
+    For #55107
+    For #56887
+    For #56892
     
-    Change-Id: I7861bddcd4c6dc208b4449b923eb2785a122aadf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/553157
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ibcca34c931ed3595d877c4573bba221dec66bb5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499616
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/maps/maps.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go1.21.html | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)

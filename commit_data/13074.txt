@@ -1,15 +1,21 @@
-commit 0b7bcb84e394755664562fb70cd48c033e61669c
-Author: Joel Sing <jsing@google.com>
-Date:   Wed May 16 03:33:37 2012 +1000
+commit 0c8f4694282aebd131fee8400cfc6ca0b0c41775
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 15 12:53:57 2012 -0400
 
-    runtime: fix netbsd syscalls
+    cmd/go: invoke godoc with import path when possible
+    Also add -n -x flags to doc, fmt, vet.
+    Also shorten unknown command error.
     
-    Use correct system calls/syscall numbers for NetBSD.
+    Fixes #3612.
+    Fixes #3613.
     
-    R=golang-dev, for.go.yong, rsc
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/6200070
+    https://golang.org/cl/6211053
 
- src/pkg/runtime/sys_netbsd_386.s   | 28 ++++++++++++++--------------
- src/pkg/runtime/sys_netbsd_amd64.s | 26 +++++++++++++-------------
- 2 files changed, 27 insertions(+), 27 deletions(-)
+ src/cmd/go/build.go |  5 +++++
+ src/cmd/go/doc.go   | 15 ++++++++++++---
+ src/cmd/go/fmt.go   | 21 ++++++++++++++++++---
+ src/cmd/go/main.go  | 12 ++++++++++--
+ src/cmd/go/vet.go   |  9 ++++++++-
+ 5 files changed, 53 insertions(+), 9 deletions(-)

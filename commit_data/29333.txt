@@ -1,18 +1,24 @@
-commit aa8c8e770e6db895405b66d38867c2368d94024a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Nov 2 18:25:57 2016 -0700
+commit 3877f820a61886b74bb596bdb128a8d705a44628
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Sep 7 14:45:27 2016 -0400
 
-    cmd/vet: teach vet about ast.AliasSpec
+    cmd/link, etc: introduce SymKind type
     
-    Fixes #17755
+    Moves the grouping of symbol kinds (sections) into cmd/internal/obj
+    to keep it near the definition. Groundwork for CL 28538.
     
-    Change-Id: I1ad1edc382b1312d992963054eb82648cb5112d2
-    Reviewed-on: https://go-review.googlesource.com/32588
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I99112981e69b028f366e1333f31cd7defd4ff82c
+    Reviewed-on: https://go-review.googlesource.com/28691
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/copylock.go          | 5 ++++-
- src/cmd/vet/shadow.go            | 3 +--
- src/cmd/vet/testdata/copylock.go | 9 +++++++++
- 3 files changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/internal/goobj/read.go         | 72 +++++++++++++++++-----------------
+ src/cmd/internal/obj/link.go           | 48 +++++++++++++++++++----
+ src/cmd/internal/obj/symkind_string.go | 16 ++++++++
+ src/cmd/link/internal/ld/data.go       | 48 +++++++----------------
+ src/cmd/link/internal/ld/lib.go        |  4 +-
+ src/cmd/link/internal/ld/link.go       |  2 +-
+ src/cmd/link/internal/ld/objfile.go    |  6 +--
+ src/cmd/link/internal/ld/symtab.go     |  2 +-
+ 8 files changed, 114 insertions(+), 84 deletions(-)

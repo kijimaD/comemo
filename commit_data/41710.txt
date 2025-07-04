@@ -1,14 +1,21 @@
-commit 1250a324b405c0a8f6eb4751b8471dd0ae7cb7bc
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Mon Mar 23 02:51:26 2020 +0000
+commit 9989221ac1853aeda5795952a744de522699494f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 18 12:03:18 2019 -0700
 
-    bytes: narrow the search of IndexByte in Index
+    reflect, internal/reflectlite: set capacity when slicing unsafe pointers
     
-    Change-Id: I5a47b18b64e7f781dcc77440b06de36966e3d01d
-    GitHub-Last-Rev: 8576f1931d6e87a0823632ee35fcbc0d4eaaeaaf
-    GitHub-Pull-Request: golang/go#37993
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224589
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Follow the idiom for allowing -d=checkptr to recognize and verify
+    correctness.
+    
+    Updates #22218.
+    Updates #34972.
+    
+    Change-Id: Ib6001c6f0e6dc535a36bcfaa1ae48e29e0c737f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202580
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bytes/bytes.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/internal/reflectlite/type.go | 4 ++--
+ src/reflect/type.go              | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

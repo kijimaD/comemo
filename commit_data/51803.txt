@@ -1,23 +1,28 @@
-commit c8c646d31bec3cbe56ecf5a26fbbd235c97cfb21
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 13 16:43:41 2023 -0500
+commit d34287a4f68de5b8a796ec50b8c6b0582a4afc40
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Jan 26 10:23:48 2022 +0800
 
-    cmd/go/internal/modfetch: avoid path.Join in URL errors
+    cmd/link: default generic ABI compression for ELF
     
-    path.Join collapses duplicated '/' tokens, but an HTTP URL
-    intentionally includes a '://' after the scheme.
+    This CL change all debug dwarf headers to generic ABI
+    "Compression header" for ELF
+    (http://www.sco.com/developers/gabi/latest/ch4.sheader.html#compression_header)
     
-    This should fix the syntax of the errors seen in
-    https://build.golang.org/log/a17d0c7b6159ea4dad0a9e5378ab5a36ee30ce44.
+    Fixes #50796
     
-    Updates #52727.
-    
-    Change-Id: I6e1773a7eb8b3e7e2b3ca29540c1e94a7cd2d99d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461682
+    Change-Id: I188625e596f11cd120dbd802ac2d79341d5eaf41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380755
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/modfetch/proxy.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/elf_test.go             |  3 +++
+ src/cmd/link/internal/ld/data.go     | 27 +++++++++++++++++++++++----
+ src/cmd/link/internal/ld/dwarf.go    | 11 +++++++++--
+ src/cmd/link/internal/ld/elf.go      |  3 +++
+ src/cmd/link/internal/ld/lib.go      |  2 +-
+ src/cmd/link/internal/sym/segment.go |  2 ++
+ src/debug/elf/file.go                | 34 ++++++++++++++++++++++++++++++----
+ 7 files changed, 71 insertions(+), 11 deletions(-)

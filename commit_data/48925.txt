@@ -1,15 +1,18 @@
-commit 4d350710a23c505f0afcc6bcd8ac7ba37145b521
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Wed Apr 27 21:34:48 2022 +0800
+commit 3ea0fcfe15663a7fb62f8570cc5991dc0f7c0260
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jun 27 00:51:16 2021 +0700
 
-    cmd/compile: intrinsify math/big.mulWW on MIPS64(LE),RISCV64
+    [dev.typeparams] cmd/compile: do not skip TestUnifiedCompare in short mode
     
-    Change-Id: Ib8b18a892b0b1a59229ebc97a38200b53e701a77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402574
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Instead, just testing the runtime package in short mode instead of std.
+    So trybot can help catching any mistake earlier.
+    
+    Change-Id: I5bc859a59afa13a10d436a798258ac154c7d27b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330836
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/noder/unified_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

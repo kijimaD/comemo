@@ -1,24 +1,13 @@
-commit 3d8ebefbbe5c271b9b97904d87c4fa970c035f17
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Feb 17 14:36:40 2012 +1100
+commit efb28b2ac1808bcbb7df28d12addc6df630353d5
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 17 14:30:25 2012 +1100
 
-    runtime: Permit default behaviour of SIGTSTP, SIGTTIN, SIGTTOU.
+    os: add a simple example to the package doc.
+    Shows error handling and slices for Read and Write.
     
-    Fixes #3037.
-    
-    R=rsc, minux.ma, r, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5674072
+    https://golang.org/cl/5676075
 
- src/pkg/runtime/runtime.h              |  8 +++++---
- src/pkg/runtime/signal_plan9_386.c     |  5 +++++
- src/pkg/runtime/signal_unix.c          | 22 ++++++++++++++++++++--
- src/pkg/runtime/signal_windows_386.c   |  5 +++++
- src/pkg/runtime/signal_windows_amd64.c |  5 +++++
- src/pkg/runtime/signals_darwin.h       |  8 +++++---
- src/pkg/runtime/signals_freebsd.h      |  8 +++++---
- src/pkg/runtime/signals_linux.h        |  8 +++++---
- src/pkg/runtime/signals_netbsd.h       |  8 +++++---
- src/pkg/runtime/signals_openbsd.h      |  8 +++++---
- src/pkg/runtime/sigqueue.goc           |  2 ++
- 11 files changed, 67 insertions(+), 20 deletions(-)
+ src/pkg/os/file.go | 26 ++++++++++++++++++++++++--
+ 1 file changed, 24 insertions(+), 2 deletions(-)

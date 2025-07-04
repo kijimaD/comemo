@@ -1,20 +1,35 @@
-commit 13d5ca42fdbbbd4e3f104928f945a266642857dd
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Aug 28 02:14:22 2023 +1000
+commit 388fbf287c29c73fb8cd12f8c24e101d9e790dd2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 18:09:23 2022 -0700
 
-    cmd/internal/obj/riscv: simplify instructionsForMOV
+    go/types, types2: use zero error code to indicate unset error code
     
-    Rather than handling shift based scaling in two locations, rework logic
-    so there is a single exit path.
+    Use InvalidSyntaxError where the zero error code was used before.
+    Fix a couple of places that didn't set an error code.
+    Panic in error reporting if no error code is provided.
     
-    Change-Id: I832b4932d53183736050059a11019ced08281b3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523455
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Change-Id: I3a537d42b720deb5c351bf38871e04919325e231
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439566
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 21 ++++++++-------------
- 1 file changed, 8 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go |  3 ++-
+ src/cmd/compile/internal/types2/call.go        |  2 +-
+ src/cmd/compile/internal/types2/decl.go        |  2 +-
+ src/cmd/compile/internal/types2/errors.go      |  4 ++++
+ src/cmd/compile/internal/types2/expr.go        | 12 ++++++------
+ src/cmd/compile/internal/types2/index.go       |  6 +++---
+ src/cmd/compile/internal/types2/interface.go   |  2 +-
+ src/cmd/compile/internal/types2/labels.go      |  2 +-
+ src/cmd/compile/internal/types2/resolver.go    |  4 ++--
+ src/cmd/compile/internal/types2/signature.go   |  4 ++--
+ src/cmd/compile/internal/types2/stmt.go        | 16 ++++++++--------
+ src/cmd/compile/internal/types2/struct.go      |  4 ++--
+ src/cmd/compile/internal/types2/typexpr.go     |  2 +-
+ src/go/types/assignments.go                    |  3 ++-
+ src/go/types/call.go                           |  2 +-
+ src/go/types/errors.go                         |  6 +++++-
+ 16 files changed, 42 insertions(+), 32 deletions(-)

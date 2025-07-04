@@ -1,15 +1,20 @@
-commit 9c2526e6373e8cde99e62f8f6dfc73d6f79c5fad
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed May 4 11:11:20 2022 -0400
+commit 8f397bc1183b1094f8d0c702668b1e2b43dc8797
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:18 2021 -0600
 
-    cmd/go/internal/modfetch/codehost: add missing newline in '# lock' log message
+    cmd/internal/obj/ppc64: improve long conditional branch fixup
     
-    Change-Id: Ib92e983b6cdeed2b275a028c85b2bba583def059
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403850
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Improve the code which fixes up conditional branches which exceed the
+    range of a single instruction by inserting one extra jump when
+    possible instead of two.
+    
+    Change-Id: Ib0eb5b0f47f7d0e0ccd55471307a5f73fbda88a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342930
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/modfetch/codehost/codehost.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/ppc64/a.out.go | 15 +++----
+ src/cmd/internal/obj/ppc64/asm9.go  | 86 +++++++++++++++++++++++++++++--------
+ 2 files changed, 74 insertions(+), 27 deletions(-)

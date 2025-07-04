@@ -1,31 +1,13 @@
-commit fe9991e8b29d261f12a0a0a15b89d67a29f5299d
-Author: Quan Yong Zhai <qyzhai@gmail.com>
-Date:   Tue Jul 12 17:30:40 2011 -0700
+commit ba91dac3a9e01a68e13e3ea6f6798f2f3b4ea73f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 13 09:40:49 2011 +1000
 
-    runtime: replace runtime.mcpy with runtime.memmove
-    faster string operations, and more
+    doc: gofix io2010 demo programs
     
-    tested on linux/386
-    
-    runtime_test.BenchmarkSliceToString                    642          532  -17.13%
-    runtime_test.BenchmarkStringToSlice                    636          528  -16.98%
-    runtime_test.BenchmarkConcatString                    1109          897  -19.12%
-    
-    R=r, iant, rsc
+    R=golang-dev, gri, r, agl
     CC=golang-dev
-    https://golang.org/cl/4674042
+    https://golang.org/cl/4696046
 
- src/cmd/cgo/out.go              |  2 +-
- src/pkg/runtime/386/closure.c   |  2 +-
- src/pkg/runtime/386/memmove.s   | 12 ------------
- src/pkg/runtime/amd64/closure.c |  2 +-
- src/pkg/runtime/amd64/memmove.s | 11 -----------
- src/pkg/runtime/arm/closure.c   |  2 +-
- src/pkg/runtime/hashmap.h       |  2 +-
- src/pkg/runtime/plan9/thread.c  |  4 ++--
- src/pkg/runtime/proc.c          | 14 +++++++-------
- src/pkg/runtime/runtime.c       | 11 -----------
- src/pkg/runtime/runtime.h       |  1 -
- src/pkg/runtime/string.goc      | 14 +++++++-------
- src/pkg/runtime/symtab.c        |  2 +-
- 13 files changed, 22 insertions(+), 57 deletions(-)
+ doc/talks/io2010/decrypt.go | 20 ++++++++++----------
+ doc/talks/io2010/encrypt.go | 10 +++++-----
+ 2 files changed, 15 insertions(+), 15 deletions(-)

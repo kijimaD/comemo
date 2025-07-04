@@ -1,65 +1,26 @@
-commit 23b476a3c8b5d915c4b50957a0f3935a40261eac
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 17 07:14:12 2019 -0700
+commit d154ef60a0c88be98c70bbe1c5735fb7b1f45250
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Oct 21 14:57:58 2018 +1100
 
-    cmd/compile: port callnew to ssa conversion
+    path/filepath: change IsAbs("NUL") to return true
     
-    This is part of a general effort to shrink walk.
-    In an ideal world, we'd have an SSA op for allocation,
-    but we don't yet have a good mechanism for introducing
-    function calling during SSA compilation.
-    In the meantime, SSA conversion is a better place for it.
+    This CL changes IsAbs to return true for "NUL" and other Windows
+    reserved filenames (search
+    https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
+    for NUL for details). os.Open("NUL") and os.Stat("NUL") work
+    regardless of what current directory is, and it is mistake to join
+    "NUL" with current directory when building full path. Changing
+    IsAbs("NUL") to return true fixes that mistake.
     
-    This also makes it easier to introduce new optimizations;
-    instead of doing the typecheck walk dance,
-    we can simply write what we want the backend to do.
+    Fixes #28035
     
-    I introduced a new opcode in this change because:
-    
-    (a) It avoids a class of bugs involving correctly detecting
-        whether this ONEW is a "before walk" ONEW or an "after walk" ONEW.
-        It also means that using ONEW or ONEWOBJ in the wrong context
-        will generally result in a faster failure.
-    (b) Opcodes are cheap.
-    (c) It provides a better place to put documentation.
-    
-    This change also is also marginally more performant:
-    
-    name        old alloc/op      new alloc/op      delta
-    Template         39.1MB ± 0%       39.0MB ± 0%  -0.14%  (p=0.008 n=5+5)
-    Unicode          28.4MB ± 0%       28.4MB ± 0%    ~     (p=0.421 n=5+5)
-    GoTypes           132MB ± 0%        132MB ± 0%  -0.23%  (p=0.008 n=5+5)
-    Compiler          608MB ± 0%        607MB ± 0%  -0.25%  (p=0.008 n=5+5)
-    SSA              2.04GB ± 0%       2.04GB ± 0%  -0.01%  (p=0.008 n=5+5)
-    Flate            24.4MB ± 0%       24.3MB ± 0%  -0.13%  (p=0.008 n=5+5)
-    GoParser         29.3MB ± 0%       29.1MB ± 0%  -0.54%  (p=0.008 n=5+5)
-    Reflect          84.8MB ± 0%       84.7MB ± 0%  -0.21%  (p=0.008 n=5+5)
-    Tar              36.7MB ± 0%       36.6MB ± 0%  -0.10%  (p=0.008 n=5+5)
-    XML              48.7MB ± 0%       48.6MB ± 0%  -0.24%  (p=0.008 n=5+5)
-    [Geo mean]       85.0MB            84.8MB       -0.19%
-    
-    name        old allocs/op     new allocs/op     delta
-    Template           383k ± 0%         382k ± 0%  -0.26%  (p=0.008 n=5+5)
-    Unicode            341k ± 0%         341k ± 0%    ~     (p=0.579 n=5+5)
-    GoTypes           1.37M ± 0%        1.36M ± 0%  -0.39%  (p=0.008 n=5+5)
-    Compiler          5.59M ± 0%        5.56M ± 0%  -0.49%  (p=0.008 n=5+5)
-    SSA               16.9M ± 0%        16.9M ± 0%  -0.03%  (p=0.008 n=5+5)
-    Flate              238k ± 0%         238k ± 0%  -0.23%  (p=0.008 n=5+5)
-    GoParser           306k ± 0%         303k ± 0%  -0.93%  (p=0.008 n=5+5)
-    Reflect            990k ± 0%         987k ± 0%  -0.33%  (p=0.008 n=5+5)
-    Tar                356k ± 0%         355k ± 0%  -0.20%  (p=0.008 n=5+5)
-    XML                444k ± 0%         442k ± 0%  -0.45%  (p=0.008 n=5+5)
-    [Geo mean]         848k              845k       -0.33%
-    
-    Change-Id: I2c36003a7cbf71b53857b7de734852b698f49310
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167957
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ife8f8aee48400702613ede8fc6834fd43e6e0f03
+    Reviewed-on: https://go-review.googlesource.com/c/145220
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/go.go        |  4 +++-
- src/cmd/compile/internal/gc/op_string.go |  4 ++--
- src/cmd/compile/internal/gc/ssa.go       | 11 +++++++++++
- src/cmd/compile/internal/gc/syntax.go    |  3 ++-
- src/cmd/compile/internal/gc/walk.go      | 22 ++++++----------------
- 5 files changed, 24 insertions(+), 20 deletions(-)
+ src/cmd/go/testdata/script/test_devnull.txt | 13 +++++++++++++
+ src/path/filepath/path_test.go              |  5 +++++
+ src/path/filepath/path_windows.go           | 26 ++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+)

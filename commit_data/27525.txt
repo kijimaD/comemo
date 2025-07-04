@@ -1,36 +1,18 @@
-commit 30282b091d6c80f4aa37d7c457fa288c3a181573
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 25 16:38:02 2016 -0700
+commit 43a274fd67747a70bb7c2f97db219f5d9ee8c07c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 30 11:15:01 2016 -0400
 
-    cmd/compile: correctly import labels, gotos, and fallthroughs
+    cmd/compile: include pkgPath on all struct types
     
-    The importer had several bugs with respect to labels and gotos:
-    - it didn't create a new ONAME node for label names (label dcl,
-      goto, continue, and break)
-    - it overwrote the symbol for gotos with the dclstack
-    - it didn't set the dclstack for labels
+    Fixes #15026.
     
-    In the process changed export format slightly to always assume
-    a label name for labels and gotos, and never assume a label for
-    fallthroughs.
-    
-    For fallthroughs and switch cases, now also set Xoffset like in
-    the parser. (Not setting it, i.e., using 0 was ok since this is
-    only used for verifying correct use of fallthroughs, which was
-    checked already. But it's an extra level of verification of the
-    import.)
-    
-    Fixes #15838.
-    
-    Change-Id: I3637f6314b8651c918df0c8cd70cd858c92bd483
-    Reviewed-on: https://go-review.googlesource.com/23445
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I61ed71152b99973270d79264d1e8f466f7343c02
+    Reviewed-on: https://go-review.googlesource.com/21286
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 11 +++---
- src/cmd/compile/internal/gc/bimport.go | 17 +++++++---
- test/fixedbugs/issue15838.dir/a.go     | 61 ++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue15838.dir/b.go     |  9 +++++
- test/fixedbugs/issue15838.go           | 12 +++++++
- 5 files changed, 100 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go |  2 +-
+ src/reflect/all_test.go                | 27 +++++++++++++++++++++++++++
+ src/reflect/export_test.go             |  5 +++++
+ 3 files changed, 33 insertions(+), 1 deletion(-)

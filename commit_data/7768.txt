@@ -1,15 +1,21 @@
-commit c3254bbef92b0070f4bfd1d481bea112305e6b9e
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Tue Mar 15 14:42:18 2011 -0400
+commit aa55c052136b9498af2714d2b9a1b8afd1360898
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Mar 15 14:41:19 2011 -0400
 
-    lib9, libmach: Change GOOS references to GOHOSTOS
+    os, syscall: add ProcAttr type. Change StartProcess etc. to use it.
+    The Windows code is untested.
     
-    This makes it possible to build Windows binaries on non-Windows OSes.
-    
-    R=golang-dev, rsc1, rsc
+    R=rsc, gri, brainman, rsc1
     CC=golang-dev
-    https://golang.org/cl/4271046
+    https://golang.org/cl/4253052
 
- src/lib9/Makefile    | 2 +-
- src/libmach/Makefile | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/cgo/util.go              |  2 +-
+ src/cmd/godoc/main.go            |  2 +-
+ src/pkg/debug/proc/proc_linux.go | 18 ++++++++----
+ src/pkg/exec/exec.go             |  2 +-
+ src/pkg/http/triv.go             |  3 +-
+ src/pkg/os/exec.go               | 43 ++++++++++++++++++++--------
+ src/pkg/os/os_test.go            | 13 +++++----
+ src/pkg/syscall/exec_unix.go     | 62 +++++++++++++++++++++++++++-------------
+ src/pkg/syscall/exec_windows.go  | 24 ++++++++++++----
+ 9 files changed, 115 insertions(+), 54 deletions(-)

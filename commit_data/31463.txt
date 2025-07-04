@@ -1,44 +1,19 @@
-commit d1b544c7eb00d54d7298292c1860a965ecc93d41
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 23 17:31:15 2017 -0700
+commit 6694a01016e2fb842ee6d8ae053b9c87f56185ff
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 21 17:00:10 2017 -0800
 
-    cmd/compile: avoid giant init functions due to many user inits
+    cmd/dist: fix negative test filtering
     
-    We generate code that calls each user init function one at a time.
-    When there are lots of user init functions,
-    usually due to generated code, like test/rotate* or
-    github.com/juju/govmomi/vim25/types,
-    we can end up with a giant function,
-    which can be slow to compile.
+    std and race bench tests fail to check against t.runRxWant, so what
+    should be negative filters act as positive filters.
     
-    This CL puts in an escape valve.
-    When there are more than 500 functions, instead of doing:
+    Fixes #19239
     
-    init.0()
-    init.1()
-    // ...
-    
-    we construct a static array of functions:
-    
-    var fns = [...]func(){init.0, init.1, ... }
-    
-    and call them in a loop.
-    
-    This generates marginally bigger, marginally worse code,
-    so we restrict it to cases in which it might start to matter.
-    
-    500 was selected as a mostly arbitrary threshold for "lots".
-    Each call uses two Progs, one for PCDATA and one for the call,
-    so at 500 calls we use ~1000 Progs.
-    At concurrency==8, we get a Prog cache of about
-    1000 Progs per worker.
-    So a threshold of 500 should more or less avoid
-    exhausting the Prog cache in most cases.
-    
-    Change-Id: I276b887173ddbf65b2164ec9f9b5eb04d8c753c2
-    Reviewed-on: https://go-review.googlesource.com/41500
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Icf02b2192bcd806a162fca9fb0af68a27ccfc936
+    Reviewed-on: https://go-review.googlesource.com/37336
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/init.go  | 78 ++++++++++++++++++++++++++++++++----
- src/cmd/compile/internal/gc/sinit.go |  5 ++-
- 2 files changed, 74 insertions(+), 9 deletions(-)
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

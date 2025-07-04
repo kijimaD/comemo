@@ -1,18 +1,36 @@
-commit ffe47d978990c5bfc0089b94a5bea0f61c6219b7
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Mon Apr 7 20:38:54 2025 +0200
+commit 96e9838f39d8da2cd249f5ee62869239cbb1e9e7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 23 12:43:51 2024 -0800
 
-    go/ast: move sortimports test directly to go/ast
+    go/types, types2: call error handler for each sub-error as needed
     
-    For some reason i have created a separate package instead
-    of using _test package. Let's move this test where it belongs.
+    Factor out calling or typechecker error handler from error_.report.
+    In error_.report, decide if the typechecker error handler needs to
+    be called once or multiple times.
     
-    Change-Id: Ib569ca433de1ef4e161b9d334125648e00b7d3c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663555
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This change enables the use of sub-errors for types2 and go/types,
+    with the error handler taking care of deciding how many "separate"
+    errors are reported via the API.
+    
+    Use new error reporting in go/types mono and initorder computation;
+    with the above adjustments, these changes should now pass gopls tests.
+    
+    Also: adjust some format strings to avoid vet errors.
+    
+    Change-Id: If05a7044399b4783c596c69a8158619f83c21c70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566537
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/go/ast/{internal/tests/sortimports_test.go => import_test.go} | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/decl.go   |   2 +-
+ src/cmd/compile/internal/types2/errors.go | 140 ++++++++++++++++++------------
+ src/cmd/compile/internal/types2/infer.go  |   2 +-
+ src/go/types/decl.go                      |   2 +-
+ src/go/types/errors.go                    | 134 +++++++++++++++++-----------
+ src/go/types/expr.go                      |   2 +-
+ src/go/types/infer.go                     |   2 +-
+ src/go/types/initorder.go                 |   8 +-
+ src/go/types/mono.go                      |   8 +-
+ 9 files changed, 180 insertions(+), 120 deletions(-)

@@ -1,14 +1,15 @@
-commit 298be61f3c74a010d3f6bb6c827b268cd3a5fca8
-Author: David Chase <drchase@google.com>
-Date:   Tue Oct 29 14:44:54 2019 -0400
+commit c11f6c4929efff3ef02aff9a3de9c0f4799bc276
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Jun 17 16:28:18 2019 -0400
 
-    cmd/compile: add json logging for escape analysis
+    doc: add release notes for godoc and go doc
     
-    Change-Id: I7ca075e50d144aa449a20ebfbaf7337406e1e510
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204161
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #30029
+    Updates #31457
+    
+    Change-Id: I08414a544615e74afb47f7a10a00f1e22adfd40c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182619
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/gc/escape.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ doc/go1.13.html | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

@@ -1,21 +1,16 @@
-commit 210ac4d5e0fea2bfd4287b0865104bdaaeaffe05
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Sep 1 16:00:25 2016 -0700
+commit ba6765c237ed4dece0056b774d81e160b3839db1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 4 12:20:14 2016 +1000
 
-    crypto/cipher: enforce message size limits for GCM.
+    cmd/api: remove debug/pe replated changes from next.txt
     
-    The maximum input plaintext for GCM is 64GiB - 64. Since the GCM
-    interface is one-shot, it's very hard to hit this in Go (one would need
-    a 64GiB buffer in memory), but we should still enforce this limit.
+    See CL 22720 for details.
     
-    Thanks to Quan Nguyen for pointing it out.
+    Updates #15345
     
-    Change-Id: Icced47bf8d4d5dfbefa165cf13e893205c9577b8
-    Reviewed-on: https://go-review.googlesource.com/28410
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: If93ddbb8137d57da9846b671160b4cebe1992570
+    Reviewed-on: https://go-review.googlesource.com/22752
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/crypto/aes/aes_gcm.go | 7 +++++++
- src/crypto/cipher/gcm.go  | 8 ++++++++
- 2 files changed, 15 insertions(+)
+ api/next.txt | 8 --------
+ 1 file changed, 8 deletions(-)

@@ -1,29 +1,25 @@
-commit cf5dbd44591ca885fe8deb14c1500447c915e6b8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 1 14:29:11 2022 -0800
+commit 936c7fbc1c154964b6e3e8a7523bdf0c29b4e1b3
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Feb 28 10:54:32 2022 -0500
 
-    go/types, types2: do not abort constraint type inference eagerly
+    internal/goversion: update Version to 1.19
     
-    During constraint type inference, unification may fail because it
-    operates with limited information (core types) even if the actual
-    type argument satisfies the type constraint in question.
+    This is the start of the Go 1.19 development cycle, so update the
+    Version value accordingly. It represents the Go 1.x version that will
+    soon open up for development (and eventually become released).
     
-    On the other hand, it is safe to ignore failing unification during
-    constraint type inference because if the failure is true, an error
-    will be reported when checking instantiation.
+    Updates #40705
+    Updates #51336
     
-    Fixes #53650.
-    
-    Change-Id: Ia76b21ff779bfb1282c1c55f4174847b29cc6f3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454655
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ic4b3f2c04b1fa5c588cb6d62e829f2ed1864e511
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388376
+    Trust: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Trust: Alex Rakoczy <alex@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/infer.go           | 30 ++++++-----
- src/go/types/infer.go                              | 30 ++++++-----
- .../types/testdata/fixedbugs/issue45985.go         |  2 +-
- .../types/testdata/fixedbugs/issue53650.go         | 59 ++++++++++++++++++++++
- 4 files changed, 96 insertions(+), 25 deletions(-)
+ src/cmd/go/testdata/script/work_edit.txt | 2 +-
+ src/internal/goversion/goversion.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

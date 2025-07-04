@@ -1,20 +1,16 @@
-commit 5500f027f72cc7467e7f30447f83480448674f67
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Apr 19 11:00:47 2011 +1000
+commit 3bac16a6bf8ed0df6592d179ee17960d0688a071
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 18 20:00:42 2011 -0400
 
-    image/jpeg: add an encoder.
+    reflect: allow Slice of arrays
     
-    It is based on changeset 4186064 by Raph Levien <raph@google.com>.
-    
-    R=r, nigeltao_gnome
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4435051
+    https://golang.org/cl/4444049
 
- src/pkg/Makefile                  |   1 -
- src/pkg/image/jpeg/Makefile       |   2 +
- src/pkg/image/jpeg/fdct.go        | 190 ++++++++++++++
- src/pkg/image/jpeg/idct.go        |   2 +-
- src/pkg/image/jpeg/reader.go      |  14 +-
- src/pkg/image/jpeg/writer.go      | 523 ++++++++++++++++++++++++++++++++++++++
- src/pkg/image/jpeg/writer_test.go |  87 +++++++
- 7 files changed, 811 insertions(+), 8 deletions(-)
+ src/cmd/gc/reflect.c        | 28 +++++++++++++++++++---------
+ src/pkg/reflect/all_test.go | 14 ++++++++++++++
+ src/pkg/reflect/type.go     |  1 +
+ src/pkg/reflect/value.go    | 24 ++++++++++++++++++------
+ src/pkg/runtime/type.go     |  5 +++--
+ 5 files changed, 55 insertions(+), 17 deletions(-)

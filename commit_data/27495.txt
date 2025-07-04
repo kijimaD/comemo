@@ -1,18 +1,16 @@
-commit f117a5359af607d8e62fa9cd66eb327d18a7d6d7
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 24 03:12:41 2016 -0400
+commit fdf6761e01f2f826cc880266a00cc68bea6490fb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 29 10:18:43 2016 -0700
 
-    doc: first draft of Go 1.7 release notes
+    cmd/compile: add typPtr
     
-    Mostly complete but a few TODOs remain for future CLs.
+    Passes toolstash -cmp.
     
-    For #15810.
-    
-    Change-Id: I81ee19d1088d192cf709a5f7e6b7bcc44ad892ac
-    Reviewed-on: https://go-review.googlesource.com/23379
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I721348ed2122b6a9cd87ad2041b6ee3bf6b2bbb5
+    Reviewed-on: https://go-review.googlesource.com/21306
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.7.html | 1122 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/go1.7.txt  |   36 --
- 2 files changed, 1122 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/gc/subr.go     | 20 ++++++--------------
+ src/cmd/compile/internal/gc/type.go     |  9 +++++++++
+ src/cmd/compile/internal/gc/universe.go |  3 +--
+ 3 files changed, 16 insertions(+), 16 deletions(-)

@@ -1,31 +1,23 @@
-commit e07b02ff87af594a68484dcb1e3a78d1c39abc56
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 23 10:27:30 2021 -0500
+commit aeaa4519b584747b57d780c31134be8f6bb36251
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 6 08:28:17 2021 -0400
 
-    net: in (*netFD).dial, use the passed in local address if getsockname fails
+    runtime: drop haveexperiment, sys.GOEXPERIMENT
     
-    'man getsockname' lists a number of possible failure modes, including
-    ENOBUFS (for resource exhaustion) and EBADF (which we could possibly
-    see in the event of a bug or race condition elsewhere in the program).
+    We have ways to statically access experiments now, so we don't need a
+    relatively clunky string-parsing dynamic way to do it.
     
-    If getsockname fails for an explicit user-provided local address, the
-    user is probably not expecting LocalAddr on the returned net.Conn to
-    return nil. This may or may not fix #34611, but should at least help
-    us diagnose it more clearly.
-    
-    While we're add it, also add more nil-checking logic in the test based
-    on the stack traces posted to
-    https://golang.org/issue/34611#issuecomment-975923748.
-    
-    For #34611
-    
-    Change-Id: Iba870b96787811e4b9959b74ef648afce9316602
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366536
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I5d75480916eef4bde2c30d5fe30593180da77ff2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307815
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/server_test.go | 10 +++++++++-
- src/net/sock_posix.go  | 16 +++++++++++-----
- 2 files changed, 20 insertions(+), 6 deletions(-)
+ src/cmd/internal/objabi/util.go  |  1 -
+ src/cmd/link/internal/ld/main.go |  2 --
+ src/runtime/heapdump.go          |  2 +-
+ src/runtime/internal/sys/arch.go |  2 --
+ src/runtime/proc.go              | 21 ---------------------
+ 5 files changed, 1 insertion(+), 27 deletions(-)

@@ -1,16 +1,12 @@
-commit a9e119ac7006c273d0045bcbc8c8d1a83f58f264
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Aug 29 10:00:58 2013 +0200
+commit b3fd434ae07db5cf6385fb6b97a467e6f312c253
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Thu Aug 29 17:14:57 2013 +1000
 
-    cmd/gc: fix method values whose receiver is an unnamed interface.
+    net: make channel-based semaphore depend on receive, not send
     
-    Fixes #6140.
-    
-    R=golang-dev, iant
+    R=r, dvyukov
     CC=golang-dev
-    https://golang.org/cl/13083043
+    https://golang.org/cl/13348045
 
- src/cmd/gc/closure.c        | 14 ++++++++++++--
- test/fixedbugs/issue6140.go | 31 +++++++++++++++++++++++++++++++
- test/method2.go             |  5 +++--
- 3 files changed, 46 insertions(+), 4 deletions(-)
+ src/pkg/net/net.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

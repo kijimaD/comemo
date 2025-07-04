@@ -1,20 +1,29 @@
-commit 8e3dfe783ab5ed110b6b338662ee1dee6a7dc51b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 16 17:24:16 2023 -0700
+commit 695be961d57508da5a82217f7415200a11845879
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Wed Jun 15 10:43:05 2022 -0700
 
-    go/types, types2: assert that builtin reports valid operand mode upon success
+    go/parser: limit recursion depth
     
-    Fix a case where x.mode == invalid was returned despite builtin
-    returning true.
+    Limit nested parsing to 100,000, which prevents stack exhaustion when
+    parsing deeply nested statements, types, and expressions. Also limit
+    the scope depth to 1,000 during object resolution.
     
-    Change-Id: Iae9c18aac16bcbadc3530d341b380e05c8743fcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495299
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Thanks to Juho Nurminen of Mattermost for reporting this issue.
+    
+    Fixes #53616
+    Fixes CVE-2022-1962
+    
+    Change-Id: I4d7b86c1d75d0bf3c7af1fdea91582aa74272c64
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1491025
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417063
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go | 14 +++++++++-----
- src/go/types/builtins.go                    | 14 +++++++++-----
- 2 files changed, 18 insertions(+), 10 deletions(-)
+ src/go/parser/interface.go   |  10 ++-
+ src/go/parser/parser.go      |  54 +++++++++++++-
+ src/go/parser/parser_test.go | 169 +++++++++++++++++++++++++++++++++++++++++++
+ src/go/parser/resolver.go    |   9 ++-
+ 4 files changed, 234 insertions(+), 8 deletions(-)

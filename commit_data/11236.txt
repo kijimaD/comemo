@@ -1,13 +1,15 @@
-commit 0203fbee6439b12c48096482638fecfde7573a52
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 18 14:35:23 2012 -0800
+commit be93207c8f19a601551dd6021f13b3c964aa258a
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Jan 19 09:34:37 2012 +1100
 
-    doc/go1.*: documented changes to go/* package tree
+    image/color: rename modelYCbCr to yCbCrModel.
     
-    R=r
+    This matches the other color models. It seems that this was missed
+    during the review of 5544073.
+    
+    R=nigeltao, david.crawshaw
     CC=golang-dev
-    https://golang.org/cl/5557053
+    https://golang.org/cl/5536057
 
- doc/go1.html | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/go1.tmpl | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 128 insertions(+)
+ src/pkg/image/color/ycbcr.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

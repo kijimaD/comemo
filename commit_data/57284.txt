@@ -1,27 +1,18 @@
-commit c2098929056481d0dc09f5f42b8959f4db8878f2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 27 10:19:17 2024 -0700
+commit 7fed33815cf57bf8d6b6ddfbd2ce0f5d8180b4f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 30 14:54:34 2023 -0700
 
-    cmd/cgo: correct padding required by alignment
+    spec: update section on type unification for Go 1.21
     
-    If the aligned offset isn't sufficient for the field offset,
-    we were padding based on the aligned offset. We need to pad
-    based on the original offset instead.
+    This leaves the specific unification details out in favor
+    of a (forthcoming) section in an appendix.
     
-    Also set the Go alignment correctly for int128. We were defaulting
-    to the maximum alignment, but since we translate int128 into an
-    array of uint8 the correct Go alignment is 1.
-    
-    Fixes #69086
-    
-    Change-Id: I23ce583335c81beac2ac51f7f9336ac97ccebf09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608815
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If984c48bdf71c278e1a2759f9a18c51ef58df999
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507417
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- src/cmd/cgo/gcc.go                    | 23 ++++++++++++++++-------
- src/cmd/cgo/internal/test/cgo_test.go |  1 +
- src/cmd/cgo/internal/test/test.go     | 34 ++++++++++++++++++++++++++++++++++
- 3 files changed, 51 insertions(+), 7 deletions(-)
+ doc/go_spec.html | 146 ++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 85 insertions(+), 61 deletions(-)

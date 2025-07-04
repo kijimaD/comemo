@@ -1,21 +1,17 @@
-commit d0ed8d6ea161f89880e057fe54fa4825df4097b9
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri May 4 10:10:59 2018 +0700
+commit 19150303182643e07d4c587bc7794cca04884e20
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 31 10:02:01 2018 -0800
 
-    cmd/vet: %T is a formatting directive too
+    cmd/go: if unable to initialize cache, just disable it
     
-    Some warnings were being missed, because vet's regex that finds
-    formatting directives was missing the 'T' verb.
+    Fixes #23638
     
-    Fixes #24646.
-    
-    Change-Id: I2f6f9ed19e7daf9a07175199f428a62e94799ea9
-    Reviewed-on: https://go-review.googlesource.com/111357
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I51967290448217f371fc7aba9259918ee9857143
+    Reviewed-on: https://go-review.googlesource.com/91097
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/print.go          | 2 +-
- src/cmd/vet/testdata/print.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go                | 20 ++++++++++++++++++++
+ src/cmd/go/internal/cache/default.go |  8 +++++---
+ 2 files changed, 25 insertions(+), 3 deletions(-)

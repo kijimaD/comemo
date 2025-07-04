@@ -1,23 +1,19 @@
-commit f2a18b1456e9cbb83ada13776195c56d2a6fb951
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Fri Feb 22 16:12:37 2019 -0300
+commit c68e3bcb035d25ce2df34618bd3ca2d1063dcad3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 26 17:46:36 2018 -0700
 
-    cmd/compile: make math/bits.RotateLeft{32,64} intrinsics on ppc64x
+    cmd/compile: remove -f flag
     
-    Extends CL 132435 to ppc64x. ppc64x has 32- and 64-bit variable
-    rotate left instructions.
+    This is supposed to print out function stack frames, but it's been
+    broken since golang.org/cl/38593, and no one has noticed.
     
-    name             old time/op  new time/op  delta
-    RotateLeft32-16  1.39ns ± 0%  1.37ns ± 0%  -1.44%  (p=0.008 n=5+5)
-    RotateLeft64-16  1.35ns ± 0%  1.32ns ± 0%  -2.22%  (p=0.008 n=5+5)
-    
-    Updates #17566
-    
-    Change-Id: I567f634ff90d0691db45df0a25c99fcdfe10ca00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/163760
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Iad428a9097d452b878b1f8c5df22afd6f671ac2e
+    Reviewed-on: https://go-review.googlesource.com/c/145199
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go           |  4 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  8 +++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 74 ++++++++++++++++++++++++++++
- 3 files changed, 84 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/main.go |  4 ----
+ src/cmd/compile/internal/gc/ssa.go  |  3 ---
+ src/cmd/compile/internal/gc/subr.go | 30 ------------------------------
+ 3 files changed, 37 deletions(-)

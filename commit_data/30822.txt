@@ -1,15 +1,46 @@
-commit 25a1d5d0f472f0da82aa8b4a1f3322463df5bbe6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 23 15:26:10 2017 -0700
+commit 24597c080bdba1de8f7e5d46aa250e5f25d24311
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 6 17:08:06 2016 -0800
 
-    cmd/compile/internal/gc: remove a Curfn dependency from nod
+    [dev.inline] cmd/compile: introduce cmd/internal/src.Pos type for line numbers
     
-    Change-Id: I5daeb8f00044c86bb10510afbc6886898e61ba15
-    Reviewed-on: https://go-review.googlesource.com/38570
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    This is a step toward chosing a different position representation.
+    By introducing an explicit type, it will be easier to make the
+    transition step-wise while ensuring everything keeps running.
+    
+    This has been reviewed via https://go-review.googlesource.com/#/c/34025/.
+    
+    Change-Id: Ibceddcd62d8f346321ac3250e3940e9c436ed684
+    Reviewed-on: https://go-review.googlesource.com/34132
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Lazar <lazard@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 2 ++
- src/cmd/compile/internal/gc/subr.go    | 1 -
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/fmt_test.go                  |  1 +
+ src/cmd/compile/internal/gc/const.go         |  7 ++--
+ src/cmd/compile/internal/gc/dcl.go           |  5 +--
+ src/cmd/compile/internal/gc/go.go            |  9 ++---
+ src/cmd/compile/internal/gc/gsubr.go         |  2 +-
+ src/cmd/compile/internal/gc/inl.go           |  9 +++--
+ src/cmd/compile/internal/gc/lex.go           |  5 +--
+ src/cmd/compile/internal/gc/main.go          |  3 +-
+ src/cmd/compile/internal/gc/noder.go         | 24 ++++++-------
+ src/cmd/compile/internal/gc/pgen.go          |  3 +-
+ src/cmd/compile/internal/gc/phi.go           |  3 +-
+ src/cmd/compile/internal/gc/plive.go         |  5 +--
+ src/cmd/compile/internal/gc/ssa.go           | 39 ++++++++++----------
+ src/cmd/compile/internal/gc/subr.go          | 23 ++++++------
+ src/cmd/compile/internal/gc/syntax.go        |  8 +++--
+ src/cmd/compile/internal/gc/type.go          |  9 ++---
+ src/cmd/compile/internal/gc/typecheck.go     |  3 +-
+ src/cmd/compile/internal/ssa/block.go        |  7 ++--
+ src/cmd/compile/internal/ssa/config.go       | 21 ++++++-----
+ src/cmd/compile/internal/ssa/export_test.go  | 11 +++---
+ src/cmd/compile/internal/ssa/func.go         | 53 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/regalloc.go     | 35 +++++++++---------
+ src/cmd/compile/internal/ssa/sparsemap.go    |  6 ++--
+ src/cmd/compile/internal/ssa/value.go        |  3 +-
+ src/cmd/compile/internal/ssa/writebarrier.go |  7 ++--
+ src/cmd/dist/buildtool.go                    |  1 +
+ src/cmd/internal/src/src.go                  | 11 ++++++
+ 27 files changed, 181 insertions(+), 132 deletions(-)

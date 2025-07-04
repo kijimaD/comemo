@@ -1,15 +1,20 @@
-commit 8cd191b6caf506210bb50d0506c6354a2cb46a10
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sat May 30 15:19:56 2015 +0300
+commit 6abfdc3fdd49d7691e1cdc3028849fa40e4a41f2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Apr 29 13:51:49 2015 +1000
 
-    doc/go1.5.txt: mention bugs found by go-fuzz
+    image/gif: check that individual frame's bounds are within the overall
+    GIF's bounds.
     
-    I think it's worth mentioning.
-    But the final decision is up to you.
+    Also change the implicit Config Width and Height to be the
+    Rectangle.Max, not the Dx and Dy, of the first frame's bounds. For the
+    case where the first frame's bounds is something like (5,5)-(8,8), the
+    overall width should be 8, not 3.
     
-    Change-Id: I3959132600ecc554988524ede73a7f6e8eac8353
-    Reviewed-on: https://go-review.googlesource.com/10551
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I3affc484f5e32941a36f15517a92ca8d189d9c22
+    Reviewed-on: https://go-review.googlesource.com/9465
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.5.txt | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/image/gif/reader.go      | 11 +++++---
+ src/image/gif/writer.go      | 10 ++++---
+ src/image/gif/writer_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 74 insertions(+), 9 deletions(-)

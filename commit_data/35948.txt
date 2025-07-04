@@ -1,21 +1,35 @@
-commit 8ec35ab66ae4abdb98b3b0d7c3ca4522601c7168
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Jul 10 04:54:37 2018 +1000
+commit 699b0d4e52f32234e21358d3a0b9485b01c13236
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 23 10:28:39 2018 -0700
 
-    runtime: correct new thread stack for openbsd MAP_STACK
+    cmd/link: skip __.PKGDEF in archives
     
-    OpenBSD 6.4 will require the stack pointer to be pointing at an area that is
-    marked as MAP_STACK when entering and exiting syscalls. Adjust the stack pointer
-    used for a new thread such that it points within the stack, not at the top of
-    it (i.e. outside).
+    The __.PKGDEF file is a compiler object file only intended for other
+    compilers. Also, for build systems that use -linkobj, all of the
+    information it contains is present within the linker object files
+    already, so look for it there instead.
     
-    Fixes #26142
+    This requires a little bit of code reorganization. Significantly,
+    previously when loading an archive file, the __.PKGDEF file was
+    authoritative on whether the package was "main" and/or "safe". Now
+    that we're using the Go object files instead, there's the issue that
+    there can be multiple Go object files in an archive (because when
+    using assembly, each assembly file becomes its own additional object
+    file).
     
-    Change-Id: I905bd8e5be3dfc325392e7ac490fb56a7c71b3aa
-    Reviewed-on: https://go-review.googlesource.com/122735
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    The solution taken here is to check if any object file within the
+    package declares itself as "main" and/or "safe".
+    
+    Updates #24512.
+    
+    Change-Id: I70243a293bdf34b8555c0bf1833f8933b2809449
+    Reviewed-on: https://go-review.googlesource.com/102281
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_openbsd.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/ar.go       |  2 +-
+ src/cmd/link/internal/ld/go.go       | 30 ++------------
+ src/cmd/link/internal/ld/lib.go      | 77 +++++++++++++++++-------------------
+ src/cmd/link/internal/sym/library.go |  2 +
+ 4 files changed, 44 insertions(+), 67 deletions(-)

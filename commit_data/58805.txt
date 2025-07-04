@@ -1,20 +1,18 @@
-commit 9b842e2e63b660dd5e9ac39bac58a578d7b69824
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Feb 19 14:27:33 2025 -0800
+commit 6396a42b99daab77f6207f6c3011f7ffd7bbe173
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Dec 12 19:20:24 2023 +0100
 
-    crypto/tls: improve ech parsing errors
+    doc: document Windows os.ReadDir improvements
     
-    Make the errors we return when parsing an ECHConfig slightly more
-    verbose.
+    For #61422.
     
-    Fixes #71706
-    
-    Change-Id: Id138fd9defec71ce492a490a71af4981cb9ede51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650720
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: Icc1868ef9516766d0f422849866ef8de27bfa4c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549275
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/crypto/tls/ech.go | 45 ++++++++++++++++++++++++++++-----------------
- 1 file changed, 28 insertions(+), 17 deletions(-)
+ doc/go1.22.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

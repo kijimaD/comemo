@@ -1,19 +1,20 @@
-commit dba9323f764e1ded627a0e3a459377026e9e0ce3
-Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
-Date:   Wed Nov 10 22:14:03 2021 +0200
+commit 8444a545e3d38c2e470df5035ef4b5a9365aaefc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 5 11:41:40 2021 -0700
 
-    mime: allow duplicate media type parameters with equivalent values
+    text/template: only unwrap final and/or value
     
-    Fixes #48866
+    In the last CL I missed the fact that except for the final value the
+    code already unwraps the argument.
     
-    Change-Id: I2bd2c806e44eb4064b1fb9a6509d79cecbbef013
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363094
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    For #31103
+    
+    Change-Id: Ic9099aeb50c6b3322fc14a90ac8026c1d8cb1698
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354091
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/mime/mediatype.go      | 4 ++--
- src/mime/mediatype_test.go | 5 ++++-
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/text/template/exec.go      | 14 +++++++++++---
+ src/text/template/exec_test.go |  2 ++
+ 2 files changed, 13 insertions(+), 3 deletions(-)

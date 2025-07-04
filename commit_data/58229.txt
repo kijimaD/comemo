@@ -1,16 +1,26 @@
-commit a1d62aa475d163e97c416dd601fbf9ca996a8e47
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 21 15:42:48 2024 -0500
+commit ab2e3ce77c3935b38a954c7fb720875e9173dddd
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 5 12:35:35 2023 +0200
 
-    hash/maphash: simplify pointer size checks
+    runtime: use cgo_import_dynamic for QueryPerformanceCounter
     
-    Use internal/goarch.PtrSize, instead of unsafe.Sizeof(uintptr(0)).
+    QueryPerformanceCounter is available since Windows 2000 [1], so there
+    is no need to conditionally load it.
     
-    Change-Id: If501ae9853ed384c4b9485e2c3b0aeba03c17685
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630795
+    Even if the Go runtime doesn't eventually use it, it is still simpler
+    and faster to just tell the Windows loader to load it, instead of doing
+    it ourselves.
+    
+    [1]: https://learn.microsoft.com/en-us/windows/win32/api/profileapi/nf-profileapi-queryperformancecounter
+    
+    Change-Id: Ied3b54a6a8fe3b8d51aefab0fe483b3a193b5522
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532915
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/hash/maphash/maphash_runtime.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/os_windows.go | 16 +---------------
+ 1 file changed, 1 insertion(+), 15 deletions(-)

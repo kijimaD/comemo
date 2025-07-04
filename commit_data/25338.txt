@@ -1,16 +1,22 @@
-commit 54977cd3de0a537be46e28a474be203a0ac1a61a
+commit 7b4b96f2480d52ad99303a2c7868f2e110c2c6f8
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 17 10:29:12 2015 -0800
+Date:   Wed Oct 21 07:11:01 2015 -0700
 
-    cmd/go: runtime and runtime/internal packages depend on runtime/internal/sys
+    cmd/link: add -msan option
     
-    Fixes #13655.
+    The -msan option causes the linker to link against the runtime/msan
+    package in order to use the C/C++ memory sanitizer.
     
-    Change-Id: I764019aecdd59743baa436b7339499e6c2126268
-    Reviewed-on: https://go-review.googlesource.com/17916
+    This CL passes tests but is not usable by itself.  The actual
+    runtime/msan package, and support for -msan in the go tool and the
+    compiler, and tests, are in separate CLs.
+    
+    Change-Id: I02c097393b98c5b80e40ee3dbc167a8b4d23efe0
+    Reviewed-on: https://go-review.googlesource.com/16161
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/go/go_test.go | 9 +++++++++
- src/cmd/go/pkg.go     | 8 ++++++++
- 2 files changed, 17 insertions(+)
+ src/cmd/link/doc.go              |  2 ++
+ src/cmd/link/internal/ld/lib.go  | 13 +++++++++++++
+ src/cmd/link/internal/ld/pobj.go |  1 +
+ 3 files changed, 16 insertions(+)

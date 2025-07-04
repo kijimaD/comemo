@@ -1,17 +1,20 @@
-commit 8fa2344e98aa0eb2ef5a401847a4b760e9d19418
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 6 20:41:14 2017 -0800
+commit 9ee21f90d2594412dd60dd821831056db708fa53
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 10 16:18:43 2016 -0400
 
-    net/http: don't do a background read if we've already done one
+    math/big: add (*Int).Sqrt
     
-    Fixes #18535
+    This is needed for some of the more complex primality tests
+    (to filter out exact squares), and while the code is simple the
+    boundary conditions are not obvious, so it seems worth having
+    in the library.
     
-    Change-Id: I9e49d33ce357a534529a6b0fcdbc09ff4fa98622
-    Reviewed-on: https://go-review.googlesource.com/34920
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ica994a6b6c1e412a6f6d9c3cf823f9b653c6bcbd
+    Reviewed-on: https://go-review.googlesource.com/30706
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/serve_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     |  3 +++
- 2 files changed, 50 insertions(+)
+ src/math/big/int.go      | 11 +++++++++++
+ src/math/big/int_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/nat.go      | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+)

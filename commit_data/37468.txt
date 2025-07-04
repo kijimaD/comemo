@@ -1,24 +1,20 @@
-commit 63a3993a336714f95400e3e614064d4ae72995de
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Nov 16 22:53:04 2018 -0500
+commit 2069543bf11fe0432f51231c8a2cd1d4629f5a05
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 2 20:42:00 2018 +0000
 
-    cmd/compile: use correct store types in softfloat
+    encoding/xml: document HTMLAutoClose and HTMLEntity more
     
-    When using softfloat, floating point ops are rewritten to integer
-    ops. The types of store ops were not rewritten. This may lower
-    to floating point stores, which are problematic. This CL fixes
-    this by rewriting the store types as well.
+    They didn't even have public types, which made them pretty mysterious.
     
-    This fixes test/fixedbugs/issue28688.go on Wasm. Softfloat mode
-    is not used by default on Wasm, and it is not needed as Wasm spec
-    supports floating points. But it is nice to have the correct
-    types.
+    Give them types and reference the Decoder, which uses them.
     
-    Change-Id: Ib5e19e19fa9491b15c2f60320f8724cace5cefb5
-    Reviewed-on: https://go-review.googlesource.com/c/149965
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Also, refer them qualified by their package name in the examples, as
+    we usually do in example*.go files, which usually use package foo_test
+    specifically so we can show the package names along with the symbols.
+    
+    Change-Id: I50ebbbf43778c1627bfa526f8824f52c7953454f
+    Reviewed-on: https://go-review.googlesource.com/127663
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/softfloat.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/encoding/xml/xml.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

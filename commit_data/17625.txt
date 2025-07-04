@@ -1,33 +1,15 @@
-commit 30ecb4cd05ac41805593c95bd7967b808e5f4ca5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 16 20:26:10 2013 -0400
+commit cec0954dd04b585b1cadacbb5f46ae5ab76a371c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 17 07:41:11 2013 +1000
 
-    build: disable precise collection of stack frames
+    spec: add example for continue to label
+    Make the break example slightly more interesting
+    Update #5725
+    Effective Go will be updated in a separate CL.
     
-    The code for call site-specific pointer bitmaps was not ready in time,
-    but the zeroing required without it is too expensive to use by default.
-    We will have to wait for precise collection of stack frames until Go 1.3.
-    
-    The precise collection can be re-enabled by
-    
-            GOEXPERIMENT=precisestack ./all.bash
-    
-    but that will not be the default for a Go 1.2 build.
-    
-    Fixes #6087.
-    
-    R=golang-dev, jeremyjackins, dan.kortschak, r
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13677045
+    https://golang.org/cl/13368054
 
- src/cmd/dist/a.h            |  1 +
- src/cmd/dist/build.c        |  2 ++
- src/cmd/dist/buildruntime.c | 35 ++++++++++++++++++++++++++++++++++-
- src/cmd/gc/go.h             |  1 +
- src/cmd/gc/lex.c            |  1 +
- src/cmd/gc/pgen.c           | 20 +++++++++++---------
- src/cmd/gc/walk.c           |  6 +++---
- src/pkg/runtime/mgc0.c      |  2 +-
- src/pkg/runtime/proc.c      | 24 ++++++++++++++++++++++++
- src/pkg/runtime/runtime.h   |  2 ++
- 10 files changed, 80 insertions(+), 14 deletions(-)
+ doc/go_spec.html | 34 ++++++++++++++++++++++++++--------
+ 1 file changed, 26 insertions(+), 8 deletions(-)

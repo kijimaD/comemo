@@ -1,19 +1,17 @@
-commit 7e90f7b4abac5fda50cbd1c41f14e8f63def0923
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Oct 9 13:25:47 2012 -0400
+commit d901808869db4236f436e067e4bd957de7d54595
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Oct 10 01:02:49 2012 +0800
 
-    crypto/tls: fix NPN extension parsing.
+    cmd/5l: generate FreeBSD compatible ELF
+    1. correctly initialize .plt.got entries (point to the 1st entry)
+    2. add section .rel.plt (FreeBSD insists PLT relocs to be there)
+    3. put relocs of .got.plt into .rel.plt
+    4. set ELFOSABI_FREEBSD in ELF header
     
-    I typoed the code and tried to parse all the way to the end of the
-    message. Therefore it fails when NPN is not the last extension in the
-    ServerHello.
-    
-    Fixes #4088.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6637052
+    https://golang.org/cl/6643050
 
- src/pkg/crypto/tls/handshake_messages.go      |  7 +++++--
- src/pkg/crypto/tls/handshake_messages_test.go | 13 +++++++++++++
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/5l/asm.c | 73 +++++++++++++++++++++++++++++++++++++++-----------------
+ src/cmd/5l/obj.c |  4 +++-
+ 2 files changed, 54 insertions(+), 23 deletions(-)

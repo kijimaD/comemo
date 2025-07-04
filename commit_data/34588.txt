@@ -1,22 +1,23 @@
-commit 1178e51a374f055e986c9a878500dd4136107076
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Mar 13 20:37:05 2018 +0000
+commit 3860478b421d8be0ced439b4a307ccb60f71738f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 30 10:36:15 2017 -0400
 
-    cmd/asm: VPERMQ's imm8 arg is an uint8
+    math: implement asm modf for ppc64x
     
-    The imm8 argument consists of 4 2-bit indices, so it can take values up
-    to $255. However, the assembler was treating it as Yi8, which reads
-    "fits in int8". Add a Yu8 variant, to also keep backwards compatibility
-    with negative values possible with Yi8.
+    This change adds an asm implementations modf for ppc64x.
     
-    Fixes #24378.
+    Improvements:
     
-    Change-Id: I24ddb19c219b54d039a6c1bcdb903717d1c7c3b8
-    Reviewed-on: https://go-review.googlesource.com/100475
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    BenchmarkModf-16               7.48          6.26          -16.31%
+    
+    Updates: #21390
+    
+    Change-Id: I9c4f3213688e3e8842d050840dc04fc9c0bf6ce4
+    Reviewed-on: https://go-review.googlesource.com/74411
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 2 ++
- src/cmd/internal/obj/x86/asm6.go             | 3 +++
- 2 files changed, 5 insertions(+)
+ src/math/modf_ppc64x.s  | 17 +++++++++++++++++
+ src/math/stubs_ppc64x.s |  3 ---
+ 2 files changed, 17 insertions(+), 3 deletions(-)

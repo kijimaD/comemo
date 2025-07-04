@@ -1,21 +1,15 @@
-commit 2fa987b6cd135fb9a337a55b02cf073956fcae56
-Author: Rob Pike <r@golang.org>
-Date:   Wed Dec 7 16:11:17 2011 -0800
+commit be587a4d5366ea1d53967dfdbd7539b6168c6af2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 8 10:31:06 2011 +1100
 
-    doc/go1: map deletion
-    This CL is in part a proposal for how to write these sections:
-    - Brief discussion of change
-    - No attempt to analyze the thinking about it
-    - Old code
-    - New code, runnable if possible
-    - How to update old programs
+    gobuilder: goinstall packages after building go tree
     
-    R=golang-dev, remyoudompheng, gri, adg
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5454044
+    https://golang.org/cl/5450100
 
- doc/go1.html     | 53 ++++++++++++++++++++++++++++++++++++++++++++++++++---
- doc/go1.tmpl     | 51 ++++++++++++++++++++++++++++++++++++++++++++++++---
- doc/progs/go1.go | 22 ++++++++++++++++++++++
- doc/progs/run    |  3 +++
- 4 files changed, 123 insertions(+), 6 deletions(-)
+ misc/dashboard/builder/exec.go    |  2 +-
+ misc/dashboard/builder/http.go    | 26 +++++++++------
+ misc/dashboard/builder/main.go    | 70 +++++++++++++++++++++++++++++++++++----
+ misc/dashboard/builder/package.go |  2 +-
+ 4 files changed, 82 insertions(+), 18 deletions(-)

@@ -1,24 +1,29 @@
-commit 5e3c4016a436c357a57a6f7870913c6911c6904e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 23 14:40:37 2024 -0800
+commit 7dbd6de7d45da622e532e149de616e159286e1d4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Mar 8 16:38:32 2023 -0500
 
-    go/types, types2: separate formatting from error handling functions
+    cmd/link: use label symbols for Duff's devices on darwin/arm64
     
-    This change moves formatting-specific functionality into a new file
-    format.go and rearranges the code in the errors.go files to be in
-    the same order for go/types and types2, making them more similar.
+    On darwin, the external linker generally supports CALL relocations
+    with addend. One exception is that for a very large binary when it
+    decides to insert a trampoline, instead of applying the addend to
+    the call target (in the trampoline), it applies the addend to the
+    CALL instruction in the caller, i.e. generating a call to
+    trampoline+addend, which is not the correct address and usually
+    points to unreloated functions.
     
-    No functionality change. This is a pure code reordering.
+    To work around this, we use label symbols so the CALL is targeting
+    a label symbol without addend. To make things simple we always use
+    label symbols for CALLs with addend (in external linking mode on
+    darwin/arm64), even for small binaries.
     
-    Change-Id: Ibd818792397be146ad510a6c7308c85d3bb65956
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566555
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Fixes #58935.
+    
+    Change-Id: I38aed6b62a0496c277c589b5accbbef6aace8dd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474620
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/errors.go | 163 ++-------------------------
- src/cmd/compile/internal/types2/format.go | 153 +++++++++++++++++++++++++
- src/go/types/errors.go                    | 178 ++++--------------------------
- src/go/types/format.go                    | 153 +++++++++++++++++++++++++
- 4 files changed, 337 insertions(+), 310 deletions(-)
+ src/cmd/link/internal/arm64/asm.go | 66 +++++++++++++++++++++-----------------
+ 1 file changed, 36 insertions(+), 30 deletions(-)

@@ -1,27 +1,23 @@
-commit 7ee793652307269c9fdee2c0cb222509371a6e36
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Nov 13 21:20:58 2016 -0500
+commit d586aae1f44ebdf0e8f92137856b4b62c41cac6a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 22 13:50:16 2016 -0400
 
-    cmd/link: handle R_GOTPCREL separately on darwin
+    test: errorcheck auto-generated functions
     
-    To generate the correct section offset the shared code path for
-    R_CALL, R_PCREL, and R_GOTPCREL on darwin when externally linking
-    walks up the symbol heirarchy adding the differences. This is fine,
-    except in the case where we are generating a GOT lookup, because
-    the topmost symbol is left in r.Xsym instead of the symbol we are
-    looking up. So all funcsym GOT lookups were looking up the outer
-    "go.func.*" symbol.
+    Add an "errorcheckwithauto" action which performs error check
+    including lines with auto-generated functions (excluded by
+    default). Comment "// ERRORAUTO" matches these lines.
     
-    Fix this by separating out the R_GOTPCREL code path.
+    Add testcase for CL 29570 (as an example).
     
-    For #17828 (and may fix it).
+    Updates #16016, #17186.
     
-    Change-Id: I2c9f4d135e77c17270aa064d8c876dc6d485d659
-    Reviewed-on: https://go-review.googlesource.com/33211
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Iaba3727336cd602f3dda6b9e5f97dafe0848e632
+    Reviewed-on: https://go-review.googlesource.com/29652
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/testplugin/src/plugin1/plugin1.go | 10 +++++++++-
- src/cmd/link/internal/ld/data.go           | 14 +++++++++++++-
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ test/live.go |  9 ++++++++-
+ test/run.go  | 52 +++++++++++++++++++++++++++++++---------------------
+ 2 files changed, 39 insertions(+), 22 deletions(-)

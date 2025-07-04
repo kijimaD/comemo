@@ -1,17 +1,19 @@
-commit 9853da523e72c91ab90b6b5d1ca0baa3fc646be4
-Author: Benjamin Peterson <benjamin@python.org>
-Date:   Fri Mar 1 18:27:48 2024 +0000
+commit 07a25a9f6e46e83a6335d43b0174dfb250bca960
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Mar 15 13:58:44 2023 -0400
 
-    doc: fix typo of gotypesalias
+    runtime: pass M to traceReleaseBuffer
     
-    Change-Id: I943a7794dab919b7377661a4b9e2e1d9865f2922
-    GitHub-Last-Rev: 2a66fce2734bc453651c22968e2d55e157885398
-    GitHub-Pull-Request: golang/go#66063
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568495
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This change is a no-op, but makes the acquire-release pair
+    traceAcquireBuffer / traceReleaseBuffer more explicit, since the former
+    does acquirem and the latter releasm.
+    
+    Change-Id: If8a5b1ba8709bf6f39c8ff27b2d3e0c0b0da0e58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476575
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- doc/godebug.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/trace.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

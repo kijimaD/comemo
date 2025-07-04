@@ -1,12 +1,17 @@
-commit 16dcef80d46d78cc198bfc680e9cf05cea9095cc
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Dec 19 21:20:03 2013 +0100
+commit 9144ef332191f6a85d16d261ccaea9a998750aea
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 19 14:06:28 2013 -0500
 
-    os: rename only works as part of the same directory on Plan 9
+    crypto/x509: import crypto/sha256
     
-    R=golang-dev, lucio.dere, rsc
+    Since SHA-256 is now the default hash function, x509 should import it
+    otherwise some programs may fail because it hasn't been linked in.
+    
+    R=golang-dev, dave, minux.ma
     CC=golang-dev
-    https://golang.org/cl/44080046
+    https://golang.org/cl/44010047
 
- src/pkg/os/file_plan9.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/pkg/crypto/x509/x509.go             |  1 +
+ src/pkg/crypto/x509/x509_test.go        |  7 +++++
+ src/pkg/crypto/x509/x509_test_import.go | 53 +++++++++++++++++++++++++++++++++
+ 3 files changed, 61 insertions(+)

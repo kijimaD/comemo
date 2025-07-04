@@ -1,46 +1,70 @@
-commit 483533df9e35eea46747c5545307b230eca997b6
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Tue Sep 14 10:48:18 2021 +0800
+commit f065ff221b546c9ac550d947f89eb3b44b11fc2f
+Merge: 099599662d d9acf6f3a3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 12 15:56:54 2021 -0800
 
-    runtime: using wyrand for fastrand
+    [dev.typeparams] all: merge dev.regabi (d9acf6f) into dev.typeparams
     
-    For modern 64-bit CPU architecture multiplier is faster than xorshift
+    Conflicts:
     
-    darwin/amd64
-    name              old time/op  new time/op  delta
-    Fastrand          2.13ns ± 1%  1.78ns ± 1%  -16.47%  (p=0.000 n=9+10)
-    FastrandHashiter  32.5ns ± 4%  32.1ns ± 3%     ~     (p=0.277 n=8+9)
-    Fastrandn/2       2.16ns ± 1%  1.99ns ± 1%   -7.53%  (p=0.000 n=10+10)
-    Fastrandn/3       2.13ns ± 3%  2.00ns ± 1%   -5.88%  (p=0.000 n=10+10)
-    Fastrandn/4       2.08ns ± 2%  1.98ns ± 2%   -4.71%  (p=0.000 n=10+10)
-    Fastrandn/5       2.08ns ± 2%  1.98ns ± 1%   -4.90%  (p=0.000 n=10+9)
+    - src/cmd/compile/fmtmap_test.go
     
-    linux/mips64le
-    name              old time/op  new time/op  delta
-    Fastrand          12.1ns ± 0%  10.8ns ± 1%  -10.58%  (p=0.000 n=8+10)
-    FastrandHashiter   105ns ± 1%   105ns ± 1%     ~     (p=0.138 n=10+10)
-    Fastrandn/2       16.9ns ± 0%  16.4ns ± 4%   -2.84%  (p=0.020 n=10+10)
-    Fastrandn/3       16.9ns ± 0%  16.4ns ± 3%   -3.03%  (p=0.000 n=10+10)
-    Fastrandn/4       16.9ns ± 0%  16.5ns ± 2%   -2.01%  (p=0.002 n=8+10)
-    Fastrandn/5       16.9ns ± 0%  16.4ns ± 3%   -2.70%  (p=0.000 n=8+10)
+    Merge List:
     
-    linux/riscv64
-    name              old time/op  new time/op  delta
-    Fastrand          22.7ns ± 0%  12.7ns ±19%  -44.09%  (p=0.000 n=9+10)
-    FastrandHashiter   255ns ± 4%   250ns ± 7%     ~     (p=0.363 n=10+10)
-    Fastrandn/2       31.8ns ± 2%  28.5ns ±13%  -10.45%  (p=0.000 n=10+10)
-    Fastrandn/3       33.0ns ± 2%  27.4ns ± 8%  -17.16%  (p=0.000 n=9+10)
-    Fastrandn/4       29.6ns ± 3%  28.2ns ± 5%   -4.81%  (p=0.000 n=8+9)
-    Fastrandn/5       33.4ns ± 3%  26.5ns ± 9%  -20.49%  (p=0.000 n=8+10)
+    + 2021-01-12 d9acf6f3a3 [dev.regabi] cmd/compile: remove Func.ClosureType
+    + 2021-01-12 41352fd401 [dev.regabi] cmd/compile: transform closures during walk
+    + 2021-01-12 d6ad88b4db [dev.regabi] cmd/compile: compile functions before closures
+    + 2021-01-12 432f9ffb11 [dev.regabi] cmd/compile: unindent compileFunctions
+    + 2021-01-12 cc90e7a51e [dev.regabi] cmd/compile: always use the compile queue
+    + 2021-01-12 cd5b74d2df [dev.regabi] cmd/compile: call NeedFuncSym in InitLSym
+    + 2021-01-12 95acd8121b [dev.regabi] cmd/compile: remove Name.Typegen
+    + 2021-01-12 12ee55ba7b [dev.regabi] cmd/compile: stop using Vargen for import/export
+    + 2021-01-12 b4d2a0445b [dev.regabi] cmd/compile: refactor closure var setup/teardown
+    + 2021-01-12 f57f484053 [dev.regabi] cmd/compile: decouple escape analysis from Name.Vargen
+    + 2021-01-10 7fd84c6e46 [dev.regabi] cmd/compile: remove OCLOSUREREAD
+    + 2021-01-10 c9c26d7ffb [dev.regabi] cmd/compile: use ClosureVars for method value wrappers
+    + 2021-01-10 950cf4d46c [dev.regabi] cmd/compile: bind closure vars during SSA constructions
+    + 2021-01-10 8b2efa990b [dev.regabi] cmd/compile: deref PAUTOHEAPs during SSA construction
+    + 2021-01-08 6ee9b118a2 [dev.regabi] cmd/compile: remove fmt_test code; it has outlived its usefulness
+    + 2021-01-08 b241938e04 [dev.regabi] cmd/compile: fix some methods error text
     
-    Change-Id: I88ac69625ef923f8be66647e3361e3be986de002
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337350
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9a530f9a78b16e2bb14ea0a4ecbd9a75f9350342
 
- src/runtime/proc.go     | 11 ++++-------
- src/runtime/runtime2.go |  2 +-
- src/runtime/stubs.go    | 17 +++++++++++++++--
- 3 files changed, 20 insertions(+), 10 deletions(-)
+ src/cmd/compile/fmt_test.go                     | 615 ------------------------
+ src/cmd/compile/fmtmap_test.go                  | 102 ----
+ src/cmd/compile/internal/base/debug.go          |   1 -
+ src/cmd/compile/internal/escape/escape.go       |  26 +-
+ src/cmd/compile/internal/gc/compile.go          | 184 ++++---
+ src/cmd/compile/internal/gc/main.go             |  22 +-
+ src/cmd/compile/internal/gc/obj.go              |   5 +-
+ src/cmd/compile/internal/ir/expr.go             |  17 +-
+ src/cmd/compile/internal/ir/func.go             |  12 +-
+ src/cmd/compile/internal/ir/name.go             |  86 +++-
+ src/cmd/compile/internal/ir/node.go             |  27 +-
+ src/cmd/compile/internal/ir/node_gen.go         |  16 -
+ src/cmd/compile/internal/ir/op_string.go        |  27 +-
+ src/cmd/compile/internal/ir/sizeof_test.go      |   4 +-
+ src/cmd/compile/internal/liveness/plive.go      |   1 +
+ src/cmd/compile/internal/noder/noder.go         |  66 +--
+ src/cmd/compile/internal/reflectdata/alg.go     |   4 +-
+ src/cmd/compile/internal/ssagen/abi.go          |   5 +-
+ src/cmd/compile/internal/ssagen/ssa.go          |  59 ++-
+ src/cmd/compile/internal/staticdata/data.go     |  13 +-
+ src/cmd/compile/internal/typecheck/dcl.go       |  33 --
+ src/cmd/compile/internal/typecheck/func.go      |  33 +-
+ src/cmd/compile/internal/typecheck/iexport.go   |  58 ++-
+ src/cmd/compile/internal/typecheck/iimport.go   | 103 ++--
+ src/cmd/compile/internal/typecheck/typecheck.go |  21 +-
+ src/cmd/compile/internal/types/alg.go           |   2 +-
+ src/cmd/compile/internal/walk/closure.go        | 178 +++----
+ src/cmd/compile/internal/walk/expr.go           |  30 +-
+ src/cmd/compile/internal/walk/walk.go           |   2 +-
+ test/fixedbugs/issue20250.go                    |   2 +-
+ test/fixedbugs/issue20780.go                    |  16 +-
+ test/fixedbugs/issue20780b.go                   |  62 +++
+ test/fixedbugs/issue43633.dir/a.go              |  28 ++
+ test/fixedbugs/issue43633.dir/main.go           |  18 +
+ test/fixedbugs/issue43633.go                    |   7 +
+ test/fixedbugs/issue7921.go                     |   2 +-
+ test/nilptr3.go                                 |   8 -
+ 37 files changed, 635 insertions(+), 1260 deletions(-)

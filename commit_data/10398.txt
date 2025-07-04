@@ -1,13 +1,15 @@
-commit 552a556a400a5d8f6d2d233b442b00539a761cab
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 15 10:58:19 2011 -0500
+commit 8998673cc60a53013f6461fecf90b25abd003982
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Nov 15 14:04:58 2011 +0900
 
-    encoding/json: add marshal/unmarshal benchmark
+    net/http: fix build
     
-    R=bradfitz
+    empty is already not a nil.
+    
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5387041
+    https://golang.org/cl/5376099
 
- src/pkg/encoding/json/bench_test.go         | 157 ++++++++++++++++++++++++++++
- src/pkg/encoding/json/testdata/code.json.gz | Bin 0 -> 120432 bytes
- 2 files changed, 157 insertions(+)
+ src/pkg/net/http/readrequest_test.go | 6 ++----
+ src/pkg/net/http/response_test.go    | 2 ++
+ 2 files changed, 4 insertions(+), 4 deletions(-)

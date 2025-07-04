@@ -1,21 +1,14 @@
-commit ca8aac698f1766f80f68bcf5581361a784ef10d9
-Author: Christian Himpel <chressie@googlemail.com>
-Date:   Mon Nov 19 10:22:47 2012 -0800
+commit c8e7469fcdfccb6ba91d0a28c1d633a009de2932
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 19 08:25:51 2012 -0800
 
-    runtime: gdb support: use parse_and_eval to get the goroutine id
+    net/http/cgi: make test more robust for Windows perl
     
-    This enables to loop over some goroutines, e.g. to print the
-    backtrace of goroutines 1 to 9:
+    Update #4401
     
-            set $i = 1
-            while $i < 10
-            printf "backtrace of goroutine %d:\n", $i
-            goroutine $i++ bt
-            end
-    
-    R=lvd, lvd
+    R=golang-dev, mattn.jp
     CC=golang-dev
-    https://golang.org/cl/6843071
+    https://golang.org/cl/6853067
 
- src/pkg/runtime/runtime-gdb.py | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/http/cgi/testdata/test.cgi | 2 ++
+ 1 file changed, 2 insertions(+)

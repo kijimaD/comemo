@@ -1,30 +1,27 @@
-commit e56c6e75353d32a97a301d4890b58a4e10963d82
+commit 258c278e12ba90502bb4805343592a926b6d9a7a
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 20 16:18:05 2014 -0500
+Date:   Thu Feb 20 15:50:30 2014 -0500
 
-    runtime/debug: add SetPanicOnFault
+    cmd/pack: fix match
     
-    SetPanicOnFault allows recovery from unexpected memory faults.
-    This can be useful if you are using a memory-mapped file
-    or probing the address space of the current program.
+    Match used len(ar.files) == 0 to mean "match everything"
+    but it also deleted matched things from the list, so once you
+    had matched everything you asked for, match returned true
+    for whatever was left in the archive too.
     
-    LGTM=r
-    R=r
+    Concretely, if you have an archive containing f1, f2, then
+            pack t foo.a f1
+    would match f1 and then, because len(ar.files) == 0 after
+    deleting f1 from the match list, also match f2.
+    
+    Avoid the problem by recording explicitly whether match
+    matches everything.
+    
+    LGTM=r, dsymonds
+    R=r, dsymonds
     CC=golang-codereviews
-    https://golang.org/cl/66590044
+    https://golang.org/cl/65630046
 
- doc/go1.3.txt                    |  1 +
- src/pkg/runtime/debug/garbage.go | 11 +++++++++++
- src/pkg/runtime/os_darwin.c      |  4 ++--
- src/pkg/runtime/os_dragonfly.c   |  4 ++--
- src/pkg/runtime/os_freebsd.c     |  4 ++--
- src/pkg/runtime/os_linux.c       |  4 ++--
- src/pkg/runtime/os_netbsd.c      |  4 ++--
- src/pkg/runtime/os_openbsd.c     |  4 ++--
- src/pkg/runtime/os_solaris.c     |  4 ++--
- src/pkg/runtime/os_windows.c     |  2 +-
- src/pkg/runtime/proc.c           |  1 +
- src/pkg/runtime/rdebug.goc       |  5 +++++
- src/pkg/runtime/runtime.h        |  1 +
- src/pkg/runtime/runtime_test.go  | 18 ++++++++++++++++++
- 14 files changed, 52 insertions(+), 15 deletions(-)
+ src/cmd/pack/pack.go      | 14 ++++++++------
+ src/cmd/pack/pack_test.go | 16 ++++++++++++++++
+ 2 files changed, 24 insertions(+), 6 deletions(-)

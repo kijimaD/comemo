@@ -1,27 +1,34 @@
-commit f5f7755da878934c3b0799f511f5c1d5711a0296
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 19 13:21:02 2023 -0400
+commit 137133953025159683d48af2298f105a8fa2cbb9
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
 
-    internal/abi, runtime, cmd: merge StackSmall, StackBig consts into internal/abi
+    go, math, os, reflect: support standard library for loong64
     
-    For #59670.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Change-Id: I04a17079b351b9b4999ca252825373c17afb8a88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486379
-    Run-TryBot: Austin Clements <austin@google.com>
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I2ad9ed01fc913b90e75023ac0fa70de87a9f5de1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342324
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/internal/obj/arm/obj5.go     |  8 ++++----
- src/cmd/internal/obj/arm64/obj7.go   | 10 +++++-----
- src/cmd/internal/obj/loong64/obj.go  |  7 +++----
- src/cmd/internal/obj/mips/obj0.go    |  7 +++----
- src/cmd/internal/obj/ppc64/obj9.go   |  8 ++++----
- src/cmd/internal/obj/riscv/obj.go    |  6 +++---
- src/cmd/internal/obj/s390x/objz.go   |  8 ++++----
- src/cmd/internal/obj/wasm/wasmobj.go |  5 +++--
- src/cmd/internal/obj/x86/obj6.go     | 12 ++++++------
- src/cmd/internal/objabi/stack.go     |  9 +++++----
- src/internal/abi/stack.go            | 25 +++++++++++++++++++++++++
- src/runtime/stack.go                 | 14 +-------------
- 12 files changed, 66 insertions(+), 53 deletions(-)
+ src/go/types/gccgosizes.go   |  1 +
+ src/math/big/arith_loong64.s | 34 ++++++++++++++++++++++++++++++++++
+ src/os/endian_little.go      |  2 +-
+ src/reflect/asm_loong64.s    | 40 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 76 insertions(+), 1 deletion(-)

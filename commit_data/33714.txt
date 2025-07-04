@@ -1,20 +1,47 @@
-commit be67e269b4a4161f4276e2619c5019a26e94541c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 22 11:10:47 2017 -0500
+commit f85dc050bad21c60c7fc0cf0ee45ab99e2bf93d2
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 25 16:48:46 2017 -0700
 
-    archive/zip: replace Writer.Comment field with SetComment method
+    archive/tar: require opt-in to PAX or GNU format for time features
     
-    A method is more in keeping with the rest of the Writer API and
-    incidentally allows the comment error to be reported earlier.
+    Nearly every Header obtained from FileInfoHeader via the FS has
+    timestamps with sub-second resolution and the AccessTime
+    and ChangeTime fields populated. This forces the PAX format
+    to almost always be used, which has the following problems:
+    * PAX is still not as widely supported compared to USTAR
+    * The PAX headers will occupy at minimum 1KiB for every entry
     
-    Fixes #22737.
+    The old behavior of tar Writer had no support for sub-second resolution
+    nor any support for AccessTime or ChangeTime, so had neither problem.
+    Instead the Writer would just truncate sub-second information and
+    ignore the AccessTime and ChangeTime fields.
     
-    Change-Id: I1eee2103a0720c76d0c394ccd6541e6219996dc0
-    Reviewed-on: https://go-review.googlesource.com/79415
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    In this CL, we preserve the behavior such that the *default* behavior
+    would output a USTAR header for most cases by truncating sub-second
+    time measurements and ignoring AccessTime and ChangeTime.
+    To use either of the features, users will need to explicitly specify
+    that the format is PAX or GNU.
+    
+    The exact policy chosen is this:
+    * USTAR and GNU may still be chosen even if sub-second measurements
+    are present; they simply truncate the timestamp to the nearest second.
+    As before, PAX uses sub-second resolutions.
+    * If the Format is unspecified, then WriteHeader ignores AccessTime
+    and ChangeTime when using the USTAR format.
+    
+    This ensures that USTAR may still be chosen for a vast majority of
+    file entries obtained through FileInfoHeader.
+    
+    Updates #11171
+    Updates #17876
+    
+    Change-Id: Icc5274d4245922924498fd79b8d3ae94d5717271
+    Reviewed-on: https://go-review.googlesource.com/59230
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/zip/writer.go      | 22 +++++++++++++---------
- src/archive/zip/writer_test.go | 11 ++++++++++-
- 2 files changed, 23 insertions(+), 10 deletions(-)
+ src/archive/tar/common.go   | 26 +++++++++++++-------
+ src/archive/tar/format.go   | 35 +++++++++++++++++++++++++++
+ src/archive/tar/tar_test.go | 58 ++++++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 105 insertions(+), 14 deletions(-)

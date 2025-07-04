@@ -1,16 +1,26 @@
-commit c3dbf56a14e8d9dffab7330c203a82a66cf9722e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Sep 15 18:16:45 2014 -0700
+commit 902f8d9ca036974a853ade8efdd609434a19bbbe
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 7 20:13:35 2014 -0400
 
-    cmd/ld: document that -X overwrites initialized variables
+    net/http/httptest: fix deadlock in TestIssue7264
     
-    Fixes #7626.
+    I am seeing deadlocks waiting on <-inHandler.
+    It seems to me that there is no guarantee that the
+    handler actually runs, if the client does
     
-    LGTM=iant
-    R=rsc, iant
+            write header
+            close connection
+    
+    fast enough. The server might see the EOF on the
+    connection before it manages to invoke the handler.
+    
+    This change fixes the deadlock, but it may make
+    the test not actually test anything. Not sure.
+    
+    LGTM=bradfitz
+    R=bradfitz, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/144870045
+    https://golang.org/cl/140970043
 
- src/cmd/ld/doc.go | 6 +++---
- test/linkx.go     | 8 ++++++--
- 2 files changed, 9 insertions(+), 5 deletions(-)
+ src/pkg/net/http/httptest/server_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

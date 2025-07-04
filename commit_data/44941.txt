@@ -1,18 +1,22 @@
-commit 9e3328e7407ab7cd24f48d27ba69d265c57d5805
-Author: Austin Clements <austin@google.com>
-Date:   Sat Apr 3 16:29:34 2021 -0400
+commit f554eb7bc332cc265e6cc0490a7595b2f5873cba
+Author: David Chase <drchase@google.com>
+Date:   Mon Jul 13 14:44:14 2020 -0400
 
-    cmd/internal/objabi: remove StackPreempt
+    cmd/compile: add variable length TRESULTS type for SSA use.
     
-    None of the stack check prologues depend on this constant at this
-    point (and, indeed, they shouldn't).
+    This type is very much like TTUPLE, but not just for pairs.
+    Used to describe results of a pre-expansion function call.
+    (will later probably also be used to describe the incoming args).
     
-    Change-Id: Iaa40d9c47285b26952f02a7bdde574e8385ffe95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307152
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I811850cfcc2b3de85085eb4c2eca217c04c330b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242360
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/objabi/stack.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go             | 11 +++++
+ src/cmd/compile/internal/types/etype_string.go |  7 +--
+ src/cmd/compile/internal/types/type.go         | 66 +++++++++++++++++++++++---
+ 3 files changed, 74 insertions(+), 10 deletions(-)

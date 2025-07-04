@@ -1,22 +1,21 @@
-commit b81f2f106f68b771518f40390a69f834717f17d1
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Mar 28 21:45:33 2016 -0700
+commit 51b624e6a29b135ce0fadb22b678acf4998ff16f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 22:50:03 2016 -0500
 
-    cmd/compile: place combined loads at the location of the last byte load
+    cmd/link: remove alternate -X flag spelling
     
-    We need to make sure all the bounds checks pass before issuing
-    a load which combines several others.  We do this by issuing the
-    combined load at the last load's block, where "last" = closest to
-    the leaf of the dominator tree.
+    The Go 1.6 release notes say we'll remove the “-X name value” form
+    (in favor of the “-X name=value” form) in Go 1.7.
+    Do that.
     
-    Fixes #15002
+    Also establish the doc/go1.7.txt file.
     
-    Change-Id: I7358116db1e039a072c12c0a73d861f3815d72af
-    Reviewed-on: https://go-review.googlesource.com/21246
-    Reviewed-by: Todd Neal <todd@tneal.org>
+    Change-Id: Ie4565a6bc5dbcf155181754d8d92bfbb23c75338
+    Reviewed-on: https://go-review.googlesource.com/19614
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  58 ++--
- src/cmd/compile/internal/ssa/rewrite.go      |  50 ++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 430 ++++++++++++++-------------
- test/fixedbugs/issue15002.go                 | 132 ++++++++
- 4 files changed, 435 insertions(+), 235 deletions(-)
+ doc/go1.7.txt                    | 13 +++++++++++++
+ src/cmd/go/go_test.go            |  4 ++--
+ src/cmd/link/internal/ld/pobj.go | 27 ---------------------------
+ test/linkx_run.go                |  2 +-
+ 4 files changed, 16 insertions(+), 30 deletions(-)

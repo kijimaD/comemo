@@ -1,19 +1,22 @@
-commit aad928957184e0d632ef6f7b83d69d3e3c2e0868
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sat Nov 18 11:43:43 2017 +0100
+commit bad6b6fa9190e9079a6d6958859856a66f0fab87
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 25 15:34:35 2017 -0700
 
-    cmd/dist: skip SWIG tests on Android
+    archive/tar: improve package documentation
     
-    They were added in CL 78175 but doesn't run on Android (yet). Skip
-    them for now.
+    Many aspects of the package is woefully undocumented.
+    With the recent flurry of improvements, the package is now at feature
+    parity with the GNU and TAR tools. Thoroughly all of the public API
+    and perform some minor stylistic cleanup in some code segments.
     
-    For the Android builders.
-    
-    Change-Id: I3b4bfe1f0d820ab98cf50aaab1ee2fad1a44a851
-    Reviewed-on: https://go-review.googlesource.com/78615
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Ic892fd72c587f30dfe91d1b25b88c9c8048cc389
+    Reviewed-on: https://go-review.googlesource.com/59210
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/archive/tar/common.go | 150 +++++++++++++++++++++++++---------------------
+ src/archive/tar/format.go |   3 +-
+ src/archive/tar/reader.go |  13 ++--
+ src/archive/tar/writer.go |  21 +++----
+ 4 files changed, 101 insertions(+), 86 deletions(-)

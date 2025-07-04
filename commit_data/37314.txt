@@ -1,17 +1,27 @@
-commit ef2c48659880c7e8a989e6721a21f018790f7793
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 8 18:46:34 2018 +0000
+commit a371bc2dfdf1fe4166c83be1177fbecb03d8da53
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 17 17:36:15 2018 -0700
 
-    mime/multipart: check for quoted-printable case insensitively
+    cmd/cgo: don't report inconsistency error for incomplete typedef
     
-    Fixes #28674
+    In CLs 122575 and 123177 the cgo tool started explicitly looking up
+    typedefs. When there are two Go files using import "C", and the first
+    one has an incomplete typedef and the second one has a complete
+    version of the same typedef, then we will now record a version of the
+    first typedef which will not match the recorded version of the second
+    typedef, producing an "inconsistent definitions" error. Fix this by
+    silently merging incomplete typedefs with complete ones.
     
-    Change-Id: Id88e0a4b86b50eb45f0d968d7e4bbe66b7f37f82
-    Reviewed-on: https://go-review.googlesource.com/c/148579
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #26430
+    
+    Change-Id: I9e629228783b866dd29b5c3a31acd48f6e410a2d
+    Reviewed-on: https://go-review.googlesource.com/124575
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/mime/multipart/multipart.go      |  3 ++-
- src/mime/multipart/multipart_test.go | 10 +++++++++-
- 2 files changed, 11 insertions(+), 2 deletions(-)
+ misc/cgo/test/issue26430.go   | 10 ++++++++++
+ misc/cgo/test/issue26430/a.go | 13 +++++++++++++
+ misc/cgo/test/issue26430/b.go | 13 +++++++++++++
+ src/cmd/cgo/main.go           | 10 ++++++++++
+ 4 files changed, 46 insertions(+)

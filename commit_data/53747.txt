@@ -1,24 +1,20 @@
-commit c6b5dce0d1ef35c1c35ab14f3e32ad55d7f83818
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Jul 20 10:23:47 2023 -0400
+commit dced3461eee8297fe2bd666f2c5146d220b2ab5b
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Sep 1 21:53:22 2022 +0800
 
-    cmd/dist: apply timeout scale even if timeout isn't overridden
+    cmd/internal/pkgpath: use strings.Builder
     
-    The timeout field is documented as being available so that it's possible
-    to override timeout by setting a non-zero value. If it's left at zero,
-    we don't need to override the default go test timeout, but we still need
-    to apply the timeout scale whenever it's something other than 1.
+    Since when go1.17 is now used for bootstraping.
     
-    Fixes (via backport) #61468.
-    
-    Change-Id: I63634e9b3ef8c4ec7f334b5a6b4bf3cad121355c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511567
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I5f763dec1cb152f94ab1c677d3fa26da17abf097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427557
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/dist/test.go                 | 3 +++
- src/cmd/go/internal/test/testflag.go | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/internal/pkgpath/pkgpath.go | 23 ++++++++++-------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)

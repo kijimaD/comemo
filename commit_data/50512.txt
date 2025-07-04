@@ -1,34 +1,36 @@
-commit b7c28f484ddbc8267273c997e1bcc83a1391b5f7
+commit 9ac1ee2d464eff73077afda83677f155bd69c6b8
 Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 6 20:11:28 2022 +0000
+Date:   Mon Apr 12 22:33:54 2021 +0000
 
-    runtime/metrics: add CPU stats
+    runtime: track the amount of scannable allocated stack for the GC pacer
     
-    This changes adds a breakdown for estimated CPU usage by time. These
-    estimates are not based on real on-CPU counters, so each metric has a
-    disclaimer explaining so. They can, however, be more reasonably
-    compared to a total CPU time metric that this change also adds.
+    This change adds two fields to gcControllerState: stackScan, used for
+    pacing decisions, and scannableStackSize, which directly tracks the
+    amount of space allocated for inuse stacks that will be scanned.
     
-    Fixes #47216.
+    scannableStackSize is not updated directly, but is instead flushed from
+    each P when at an least 8 KiB delta has accumulated. This helps reduce
+    issues with atomics contention for newly created goroutines. Stack
+    growth paths are largely unaffected.
     
-    Change-Id: I125006526be9f8e0d609200e193da5a78d9935be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404307
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Josh MacDonald <jmacd@lightstep.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    StackGrowth-48                  51.4ns ± 0%     51.4ns ± 0%     ~       (p=0.927 n=10+10)
+    StackGrowthDeep-48              6.14µs ± 3%     6.25µs ± 4%     ~       (p=0.090 n=10+9)
+    CreateGoroutines-48             273ns ± 1%      273ns ± 1%      ~       (p=0.676 n=9+10)
+    CreateGoroutinesParallel-48     65.5ns ± 5%     66.6ns ± 7%     ~       (p=0.340 n=9+9)
+    CreateGoroutinesCapture-48      2.06µs ± 1%     2.07µs ± 4%     ~       (p=0.217 n=10+10)
+    CreateGoroutinesSingle-48       550ns ± 3%      563ns ± 4%      +2.41%  (p=0.034 n=8+10)
+    
+    For #44167.
+    
+    Change-Id: Id1800d41d3a6c211b43aeb5681c57c0dc8880daf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309589
+    Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/metrics.go             |  98 +++++++++++++++++++++++++++++++
- src/runtime/metrics/description.go | 116 +++++++++++++++++++++++++++++++++++++
- src/runtime/metrics/doc.go         |  84 +++++++++++++++++++++++++++
- src/runtime/metrics_test.go        |  75 ++++++++++++++++++++++++
- src/runtime/mgc.go                 |  56 ++++++++++++++----
- src/runtime/mgclimit.go            |   3 +-
- src/runtime/mgcscavenge.go         |  11 ++++
- src/runtime/mheap.go               |   2 +-
- src/runtime/mpagealloc.go          |   8 +--
- src/runtime/mstats.go              |  22 +++++++
- src/runtime/runtime2.go            |   5 ++
- 11 files changed, 459 insertions(+), 21 deletions(-)
+ src/runtime/mgcpacer.go | 29 +++++++++++++++++++++++++++++
+ src/runtime/proc.go     |  7 +++++--
+ src/runtime/runtime2.go |  6 ++++++
+ src/runtime/stack.go    |  5 +++++
+ 4 files changed, 45 insertions(+), 2 deletions(-)

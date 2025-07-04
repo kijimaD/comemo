@@ -1,20 +1,20 @@
-commit db0d3892e0f3b246475c473685249427f86e3a56
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Dec 26 00:08:51 2014 -0500
+commit a3876ac21ce4e8e5afbcee69df3cdd51e2919548
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Jan 1 13:19:12 2015 +0100
 
-    lib9: provide alterantive implementation of ldexp and frexp
+    log: optimize itoa
     
-    Libc on Darwin/ARM has a buggy implementation of ldexp and frexp
-    that could not handle denormal numbers.
+    Reduce buffer to maximally needed size for conversion of 64bit integers.
+    Reduce number of used integer divisions.
     
-    Also disable VFP runfast (flush-to-zero) mode so that the gc
-    compiler can correctly handle denormal constants used in math and
-    strconv tests.
+    benchmark            old ns/op     new ns/op     delta
+    BenchmarkItoa        144           119           -17.36%
+    BenchmarkPrintln     783           752           -3.96%
     
-    Change-Id: Ie64220b882f414e0b37f406f38181c3586104d46
-    Reviewed-on: https://go-review.googlesource.com/2119
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I6d57a7feebf90f303be5952767107302eccf4631
+    Reviewed-on: https://go-review.googlesource.com/2215
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/lib9/math_darwin_arm.c | 102 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 102 insertions(+)
+ src/log/log.go      | 21 +++++++++------------
+ src/log/log_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 12 deletions(-)

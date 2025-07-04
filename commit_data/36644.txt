@@ -1,18 +1,20 @@
-commit c56dcd5fc7cd926b9d4a9c96a699a12f832317f1
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 11 14:27:41 2018 +0200
+commit 66a67ee6b4831816ee86f1ea9e5bd555d3a13e16
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun May 13 22:58:31 2018 +0200
 
-    cmd/dist: make raceDetectorSupported an exact copy of cmd/internal/sys.RaceDetectorSupported
+    net: implement cancellable lookup on Plan 9
     
-    The comment states that cmd/internal/sys.RaceDetectorSupported is a copy,
-    so make the two identical. No functional difference, since ppce64le is
-    only supported on linux anyway.
+    This change implements cancellable lookup
+    on Plan 9. The query function has been modified
+    to return when the ctx.Done channel is closed.
     
-    Change-Id: Id3e4d445fb700b9b3bb53bf15ea05b8911b4f95e
-    Reviewed-on: https://go-review.googlesource.com/134595
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #25361.
+    
+    Change-Id: I544b779ceec8d69975bc7363045849c21cbfd59e
+    Reviewed-on: https://go-review.googlesource.com/112981
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/net/lookup_plan9.go | 70 +++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 47 insertions(+), 23 deletions(-)

@@ -1,24 +1,18 @@
-commit 6c4a8d195b627bf216c6cd22e8237c6faf99cad5
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 16 15:56:13 2016 -0500
+commit 8eb88b0d8e1b76eabe37de67b7dd603da9fbaea3
+Author: Kevin Burke <kev@inburke.com>
+Date:   Fri Nov 11 08:39:33 2016 -0800
 
-    runtime: don't hold global gcBitsArenas lock over allocation
+    cmd/gofmt, crypto/tls: fix typos
     
-    Currently, newArena holds the gcBitsArenas lock across allocating
-    memory from the OS for a new gcBits arena. This is a global lock and
-    allocating physical memory can be expensive, so this has the potential
-    to cause high lock contention, especially since every single span
-    sweep operation calls newArena (via newMarkBits).
+    Fix spelling of "original" and "occurred" in new gofmt docs. The same
+    misspelling of "occurred" was also present in crypto/tls, I fixed it there as
+    well.
     
-    Improve the situation by temporarily dropping the lock across
-    allocation. This means the caller now has to revalidate its
-    assumptions after the lock is dropped, so this also factors out that
-    code path and reinvokes it after the lock is acquired.
-    
-    Change-Id: I1113200a954ab4aad16b5071512583cfac744bdc
-    Reviewed-on: https://go-review.googlesource.com/34594
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I67b4f1c09bd1a2eb1844207d5514f08a9f525ff9
+    Reviewed-on: https://go-review.googlesource.com/33138
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mheap.go | 60 +++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 45 insertions(+), 15 deletions(-)
+ src/cmd/gofmt/doc.go                    | 4 ++--
+ src/crypto/tls/handshake_client.go      | 2 +-
+ src/crypto/tls/handshake_client_test.go | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

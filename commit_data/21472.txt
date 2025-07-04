@@ -1,17 +1,14 @@
-commit 3e9ed273a244da5d96472656af911a6d2714a9e8
-Author: Chris Kastorff <encryptio@gmail.com>
-Date:   Wed Feb 4 04:43:00 2015 -0800
+commit 60801c48530f5fc0555d8156006c1a41fdf53571
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Dec 23 13:19:59 2014 -0800
 
-    testing/quick: support generation of array types in Value
+    test: delete testlib
     
-    Generating array types like [4]int would fail even though the int type
-    is generatable. Allow generating values of array types when the inner
-    type is generatable.
+    It is unused as of e7173dfd.
     
-    Change-Id: I7d71b3c18edb3737e2fec1ddf5e36c9dc8401971
-    Reviewed-on: https://go-review.googlesource.com/3865
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I3e4ea3fc66cf0a768ff28172a151b244952eefc9
+    Reviewed-on: https://go-review.googlesource.com/2093
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/quick/quick.go      | 8 ++++++++
- src/testing/quick/quick_test.go | 8 ++++++++
- 2 files changed, 16 insertions(+)
+ test/testlib | 170 -----------------------------------------------------------
+ 1 file changed, 170 deletions(-)

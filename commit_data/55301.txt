@@ -1,17 +1,28 @@
-commit 5e939b3a9ce7864551e86c04a05db887c25e2759
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Dec 11 11:44:23 2023 -0800
+commit 13c70b12d7562a841cd03cfce7ecc8f14a8190e8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 1 18:00:42 2022 -0800
 
-    doc: add crypto/tls and crypto/x509 release notes
+    cmd/compile/internal/types: remove Markdcl/Pushdcl/Popdcl
     
-    Updates #61422
+    Sym.Def used to be used for symbol resolution during the
+    old (pre-types2) typechecker. But since moving to types2-based IR
+    construction, we haven't really had a need for Sym.Def to ever refer
+    to anything but the package-scope definition, because types2 handles
+    symbol resolution for us.
     
-    Change-Id: If561f701882396f8e28e2fc3fa9c76c7169f752e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548975
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This CL finally removes the Markdcl/Pushdcl/Popdcl functions that have
+    been a recurring source of issues in the past.
+    
+    Change-Id: I2b012a0f17203efdd724ebd1e9314bd128cc2d61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458625
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- doc/go1.22.html | 60 +++++++++++++++++++++++++--------------------------------
- 1 file changed, 26 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/base/debug.go      |  1 -
+ src/cmd/compile/internal/reflectdata/alg.go |  8 ---
+ src/cmd/compile/internal/ssagen/abi.go      |  3 -
+ src/cmd/compile/internal/typecheck/dcl.go   |  6 +-
+ src/cmd/compile/internal/types/scope.go     | 92 +----------------------------
+ src/cmd/compile/internal/types/sym.go       |  2 -
+ 6 files changed, 3 insertions(+), 109 deletions(-)

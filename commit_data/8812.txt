@@ -1,19 +1,14 @@
-commit b88e669a8fee64634898e6ad66eb03ff7cda1c91
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Tue Jun 21 12:02:40 2011 -0400
+commit d6be71c788680b078925637cc418f35321ab0f13
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 21 11:27:08 2011 -0400
 
-    nacl, tiny: remove vestiges
+    gopprof: update list of memory allocators
     
-    R=golang-dev, r, rsc
+    Also import new weblist command from Google version.
+    
+    R=r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4635053
+    https://golang.org/cl/4650048
 
- misc/nacl/naclrun            | 15 ---------------
- src/cmd/8l/asm.c             |  4 ----
- src/cmd/8l/obj.c             | 15 ---------------
- src/cmd/ld/elf.h             |  1 -
- src/cmd/ld/lib.h             |  2 --
- src/pkg/runtime/mkasmh.sh    |  1 -
- src/pkg/syscall/mksyscall.pl |  5 -----
- test/run                     |  6 ------
- 8 files changed, 49 deletions(-)
+ src/cmd/prof/gopprof | 287 +++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 242 insertions(+), 45 deletions(-)

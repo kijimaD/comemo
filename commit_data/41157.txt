@@ -1,17 +1,25 @@
-commit 8d7be1e3c9a98191f8c900087025c5e78b73d962
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Thu Jan 23 23:00:29 2020 +0200
+commit b38be35e4c79fd3c5b9450e95cf092eaac094405
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Sep 8 22:55:01 2019 +0530
 
-    text/template/parse: remove redundant return
+    cmd/compile: optimize const rotates for wasm architecture
     
-    Change the `itemChar` clause to be like all other clauses
-    that don't return a different state function than the default.
+    This removes the unnecessary code to check whether the shift
+    is within limits or not when the shift amount is a constant.
     
-    Change-Id: I56c863a7d699c1264b24b42ef23138ec47eaacd8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216117
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
+    The rules hit 23034 times when building std cmd.
+    
+    grep -E "Wasm.rules:(106|107|121|122|139|140)" rulelog | wc -l
+    23034
+    
+    Reduces the size of pkg/js_wasm by 132 bytes.
+    
+    Change-Id: I64a2b8faca08c3b5039d6a027d4676130d2db18d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194239
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/text/template/parse/lex.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |   6 ++
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 118 ++++++++++++++++++++++++++++
+ 2 files changed, 124 insertions(+)

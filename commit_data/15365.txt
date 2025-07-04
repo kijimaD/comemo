@@ -1,14 +1,14 @@
-commit dbd409afb58b8fcd315afedd097a85b65f80387d
-Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 21 15:55:40 2013 -0800
+commit 0462aad9a485d1df06ea935d7f9d1044a29ad746
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 21 14:39:16 2013 -0800
 
-    bufio: add examples for Scanner
-    Mention Scanner in docs for ReadLine etc.
+    net/url: fix URL Opaque notes on making client requests
     
-    R=golang-dev, bradfitz
+    Fixes #4860
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7375045
+    https://golang.org/cl/7375047
 
- src/pkg/bufio/bufio.go        |  4 ++-
- src/pkg/bufio/example_test.go | 74 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 77 insertions(+), 1 deletion(-)
+ src/pkg/net/url/url.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

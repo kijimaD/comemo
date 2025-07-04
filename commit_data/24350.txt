@@ -1,18 +1,17 @@
-commit b0a1f6462f34c9907ea35813b7ffa0f600646e80
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Sep 22 02:14:28 2015 -0700
+commit 5c5f2a731ccfb9dec12967ed2da8f530b8c23a61
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 24 11:43:25 2015 -0700
 
-    compress/gzip: detect truncated streams
+    [dev.ssa] cmd/compile: convert localOffset panic to unimplemented
     
-    Reader fails to detect truncated streams since calls to io.ReadFull
-    do not check if the error is io.EOF.
+    This prevents panics while attempting to generate code
+    for the runtime package. Now:
     
-    Change-Id: I052cd03161e43fec17e3d328106c40e17923e52b
-    Reviewed-on: https://go-review.googlesource.com/14832
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    <unknown line number>: internal compiler error: localOffset of non-LocalSlot value: v10 = ADDQconst <*m> [256] v22
+    
+    Change-Id: I20ed6ec6aae2c91183b8c826b8ebcc98e8ceebff
+    Reviewed-on: https://go-review.googlesource.com/12655
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/compress/gzip/gunzip.go      | 16 ++++++++++++++++
- src/compress/gzip/gunzip_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

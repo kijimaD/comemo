@@ -1,20 +1,21 @@
-commit e25fdb968c4ff93c6d41574f2220a11ee02b0914
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 27 22:17:21 2017 +0000
+commit 3e63cdf8507709ebfb0906a3dbdc14c402cc0cd6
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Thu Mar 23 22:29:59 2017 +0100
 
-    doc: mention testing/quick RNG seeding change in Go 1.9 notes
+    cmd/compile: optimize shift when counter has different type.
     
-    Also reword the testing/quick.Config field docs to conform to the
-    normal subject-first style. Without that style, godoc links
-    /pkg/testing/quick/#Config.Rand to the wrong line, since it doesn't
-    recognize the preceding comment as necessarily being attached.
+    We already handle n << (uint64(c)&63).
+    This change also handles n << (uint8(c)&63)
+    where the SSA compiler promotes the counter to 32 bits.
     
-    Fixes #20809
+    Fixes #19681
     
-    Change-Id: I9aebbf763eed9b1ab1a153fa11850d88a65571c6
-    Reviewed-on: https://go-review.googlesource.com/46910
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9327d64a994286aa0dbf76eb995578880be6923a
+    Reviewed-on: https://go-review.googlesource.com/38550
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.9.html             | 16 ++++++++++++----
- src/testing/quick/quick.go | 21 +++++++++++----------
- 2 files changed, 23 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 52 ++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

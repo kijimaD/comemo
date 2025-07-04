@@ -1,15 +1,31 @@
-commit ec9967ff11851facad48bb0c11639e52a77f79b9
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Thu Sep 13 10:25:35 2012 -0400
+commit e7d7ea21d4f0bcb9b90921f4a2d694657cbe4fff
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 13 11:14:20 2012 +1000
 
-    go/build: reject empty strings in Import
+          undo CL 6493071 / 56c7453d488f
     
-    Fixes #3889.
+    This change messes with anchor links. It obscures the item being linked to.
+    I don't see a way around it. Undoing for now.
     
-    R=rsc, adg
+          Fixes #4071.
+    
+          ««« original CL description
+          doc css: topbar sticks to the top of large windows.
+          Rationale: for large screens, the convenience of not having to scroll
+          to the top of the page to do a search outweighs having less vertical
+          space.
+          Tested with Chrome, Firefox, Safari with various window and text sizes.
+    
+          R=adg
+          CC=gobot, golang-dev
+          https://golang.org/cl/6493071
+    
+          Committer: Andrew Gerrand <adg@golang.org>
+          »»»
+    
+    R=golang-dev, r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6499102
+    https://golang.org/cl/6488121
 
- src/pkg/go/build/build.go      |  3 +++
- src/pkg/go/build/build_test.go | 13 +++++++++++++
- 2 files changed, 16 insertions(+)
+ doc/style.css | 18 ------------------
+ 1 file changed, 18 deletions(-)

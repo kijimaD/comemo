@@ -1,17 +1,16 @@
-commit e83d5067147ca6e82c1dc178eaeaf175c9f9db8e
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Jan 15 20:39:10 2017 -0500
+commit 8a255cb85cf4a0b20d0f5dc513d3bb0c56518ec2
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 18 15:28:44 2016 +0200
 
-    vendor/golang_org/x/crypto/poly1305: revendor to pick up fix for #18673
+    net: enable TestCancelRequestWithChannelBeforeDo on Plan 9
     
-    Fixes #18673.
+    This issue has been fixed in CL 31390.
     
-    Change-Id: Ic827c16ad414733392c348da1c9ed9b308879fef
-    Reviewed-on: https://go-review.googlesource.com/35260
-    Run-TryBot: Minux Ma <minux@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #11476.
+    
+    Change-Id: I6658bda2e494d3239d62c49d0bd5d34a36b744d0
+    Reviewed-on: https://go-review.googlesource.com/31394
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/vendor/golang_org/x/crypto/poly1305/sum_amd64.s | 10 +++++-----
- src/vendor/golang_org/x/crypto/poly1305/sum_arm.s   | 14 +++++++-------
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ src/net/http/transport_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

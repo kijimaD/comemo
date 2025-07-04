@@ -1,26 +1,36 @@
-commit 25d74f324dde687e1bbf486ef444a1f73f48f4eb
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 8 12:31:33 2022 -0700
+commit e74e363a6b3e71ec5a49a3aae8c2523abb72faa7
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Sat Aug 28 17:54:10 2021 +0200
 
-    cmd/compile/internal/inline: fix latent CalleeEffects issue
+    strings: add Clone function
     
-    ir.ClosureExpr implements ir.InitNode, so ir.InitExpr can prepend init
-    statements to it. However, CalleeEffects wasn't aware of this and
-    could cause the init statements to get dropped when inlining a call to
-    a closure.
+    The new strings.Clone function copies the input string
+    without the returned cloned string referencing the
+    input strings memory.
     
-    This isn't an issue today, because we don't create closures with init
-    statements. But I ran into this within unified IR.
+    goarch: amd64
+    cpu: Intel(R) Core(TM) i5-1038NG7 CPU @ 2.00GHz
     
-    Easy and robust solution: just take advantage that ir.TakeInit can
-    handle any node.
+    name     time/op
+    Clone-8  24.2ns ± 2%
     
-    Change-Id: Ica05fbf6a8c5be4b11927daf84491a1140da5431
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422196
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    name     alloc/op
+    Clone-8   48.0B ± 0%
+    
+    name     allocs/op
+    Clone-8    1.00 ± 0%
+    
+    Update #45038
+    Fixes #40200
+    
+    Change-Id: Id9116c21c14328ec3931ef9a67a2e4f30ff301f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345849
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/inline/inl.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/strings/clone.go      | 23 +++++++++++++++++++++++
+ src/strings/clone_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+)

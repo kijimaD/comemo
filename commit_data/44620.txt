@@ -1,44 +1,27 @@
-commit 7fc638d6f1679f2e35862555531bf479c3e5b99c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Dec 23 19:49:39 2020 -0800
+commit 7bbd5ca5a6a94f58d33de6b1244248a32dc8cd9c
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 22 11:21:36 2020 -0400
 
-    cmd: move GOEXPERIMENT knob from make.bash to cmd/go
+    runtime: replace index and contains with bytealg calls
     
-    This CL changes GOEXPERIMENT to act like other GO[CONFIG] environment
-    variables. Namely, that it can be set at make.bash time to provide a
-    default value used by the toolchain, but then can be manually set when
-    running either cmd/go or the individual tools (compiler, assembler,
-    linker).
+    The runtime has its own implementation of string indexing. To reduce
+    code duplication and cognitive load, replace this with calls to the
+    internal/bytealg package. We can't do this on Plan 9 because it needs
+    string indexing in a note handler (which isn't allowed to use the
+    optimized bytealg version because it uses SSE), so we can't just
+    eliminate the index function, but this CL does down-scope it so make
+    it clear it's only for note handlers on Plan 9.
     
-    For example, it's now possible to test rsc.io/tmp/fieldtrack by simply
-    running:
-    
-    GOEXPERIMENT=fieldtrack go test -gcflags=-l rsc.io/tmp/fieldtrack \
-      -ldflags=-k=rsc.io/tmp/fieldtrack.tracked
-    
-    without needing to re-run make.bash. (-gcflags=-l is needed because
-    the compiler's inlining abilities have improved, so calling a function
-    with a for loop is no longer sufficient to suppress inlining.)
-    
-    Fixes #42681.
-    
-    Change-Id: I2cf8995d5d0d05f6785a2ee1d3b54b2cfb3331ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300991
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie1a142678262048515c481e8c26313b80c5875df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244537
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/asm/internal/lex/input.go | 10 ++++++++++
- src/cmd/dist/build.go             | 16 ++++------------
- src/cmd/dist/buildruntime.go      |  6 ++----
- src/cmd/go/internal/cfg/cfg.go    | 13 +++++++------
- src/cmd/go/internal/work/exec.go  |  8 ++++++++
- src/cmd/go/internal/work/gc.go    | 12 ------------
- src/cmd/internal/objabi/util.go   | 25 +++++++++++++------------
- src/cmd/link/internal/ld/main.go  |  2 ++
- src/internal/cfg/cfg.go           |  1 +
- src/runtime/heapdump.go           |  2 +-
- src/runtime/internal/sys/arch.go  |  2 ++
- src/runtime/proc.go               |  2 +-
- 12 files changed, 51 insertions(+), 48 deletions(-)
+ src/runtime/os_plan9.go  | 18 ++++++++++++++++--
+ src/runtime/proc.go      |  3 ++-
+ src/runtime/runtime1.go  |  5 +++--
+ src/runtime/string.go    | 16 ----------------
+ src/runtime/traceback.go |  3 ++-
+ 5 files changed, 23 insertions(+), 22 deletions(-)

@@ -1,21 +1,15 @@
-commit 8e01f2bf85385c79fc807c53df8553220c3ac658
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 3 19:20:47 2018 -0800
+commit 5403b8ecebc37da227dae170f01b6004a66bf2e6
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sat Jul 28 00:26:42 2018 +0300
 
-    go/internal/gccgoimporter: skip /*nointerface*/ comment
+    cmd/compile: remove empty branches
     
-    Support for methods marked with "//go:nointerface" was broken by CL
-    151557, based on CL 150061, which changed the scanner to stop skipping
-    comments.
-    
-    Change-Id: I43d5e2cf51bed2dc4ed9d6136ca21aa1223e8df1
-    Reviewed-on: https://go-review.googlesource.com/c/152378
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id87d9f55d1714fc553f5b1a9cba0f2fe348dad3e
+    Reviewed-on: https://go-review.googlesource.com/126396
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gccgoimporter/importer_test.go         |  1 +
- src/go/internal/gccgoimporter/parser.go                |  8 ++++++++
- src/go/internal/gccgoimporter/testdata/nointerface.go  | 12 ++++++++++++
- src/go/internal/gccgoimporter/testdata/nointerface.gox |  8 ++++++++
- 4 files changed, 29 insertions(+)
+ src/cmd/compile/internal/ssa/debug.go           | 5 -----
+ src/cmd/compile/internal/ssa/redblack32_test.go | 2 --
+ 2 files changed, 7 deletions(-)

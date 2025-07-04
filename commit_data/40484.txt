@@ -1,25 +1,39 @@
-commit e7ce8627b0adb0dfa8657c5186a1a53e1baad404
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Oct 10 12:11:06 2019 -0400
+commit 97ecc4321ec3069d405c04cb2dc3132b39ef732e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu May 16 12:38:41 2019 -0400
 
-    cmd/compile: fix spurious R_TLE_LE reloc on android/386
+    cmd/go: don't panic when explaining lost upgrades due to downgrades
     
-    When compiling for GOARCH=386 GOOS=android, the compiler was attaching
-    R_TLS_LE relocations inappropriately -- as of Go 1.13 the TLS access
-    recipe for Android refers to a runtime symbol and no longer needs this
-    type of relocation (which was causing a crash when the linker tried to
-    process it).
+    If a user runs 'go get mod@vers' where the module transitively
+    requires itself at a newer version, 'go get' attempts to perform a
+    downgrade, which necessarily excludes the requested version of the
+    module.
     
-    Updates #29674.
-    Fixes #34788.
+    Previously, we called mvs.BuildList with the requested module
+    version as the target. This panicked because BuildList doesn't allow
+    the target module (typically the main module) to require a newer
+    version of itself.
     
-    Change-Id: Ida01875011b524586597b1f7e273aa14e11815d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200337
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    With this change, when we lose an upgrade due to a downgrade, we call
+    mvs.BuildList through a wrapper that treats the lost module version as
+    requirement of a synthetic root module, rather than the target
+    module. This avoids the panic.
+    
+    This change also starts reporting errors when an upgraded module is
+    lost entirely (downgrades caused the module to be completely removed
+    from the build list).
+    
+    Fixes #31491
+    
+    Change-Id: I70ca261c20af7553cad2d3b840a1eaf3d18a4191
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177602
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/internal/obj/x86/asm6.go |  2 +-
- src/cmd/link/link_test.go        | 61 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 62 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modget/get.go                  | 63 +++++++++++++++++-----
+ src/cmd/go/internal/mvs/mvs.go                     |  9 ++--
+ .../testdata/mod/example.com_newcycle_a_v1.0.0.txt | 10 ++++
+ .../testdata/mod/example.com_newcycle_a_v1.0.1.txt | 10 ++++
+ .../testdata/mod/example.com_newcycle_b_v1.0.0.txt |  8 +++
+ src/cmd/go/testdata/script/mod_get_newcycle.txt    | 14 +++++
+ 6 files changed, 99 insertions(+), 15 deletions(-)

@@ -1,36 +1,40 @@
-commit e515d80d5dfd5621a16f6fc9f08cc3c0958a8414
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 1 08:41:25 2013 -0800
+commit b0a29f393b5672c37355eb7a5f126cc0e1537834
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 1 08:34:41 2013 -0800
 
-    bytes, strings: add TrimPrefix and TrimSuffix
+    runtime: cgo-related fixes
     
-    Everybody either gets confused and thinks this is
-    TrimLeft/TrimRight or does this by hand which gets
-    repetitive looking.
+    * Separate internal and external LockOSThread, for cgo safety.
+    * Show goroutine that made faulting cgo call.
+    * Never start a panic due to a signal caused by a cgo call.
     
-    R=rsc, kevlar
+    Fixes #3774.
+    Fixes #3775.
+    Fixes #3797.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7239044
+    https://golang.org/cl/7228081
 
- src/cmd/api/goapi.go            |  3 +--
- src/cmd/cgo/gcc.go              |  4 ++--
- src/cmd/cgo/godefs.go           |  2 +-
- src/cmd/fix/typecheck.go        |  4 +---
- src/cmd/go/testflag.go          |  4 +---
- src/cmd/godoc/dirtrees.go       | 13 +++----------
- src/cmd/godoc/filesystem.go     |  4 +---
- src/cmd/godoc/godoc.go          |  4 +---
- src/cmd/godoc/main.go           |  2 +-
- src/cmd/vet/method.go           |  4 +---
- src/pkg/bytes/bytes.go          | 18 ++++++++++++++++++
- src/pkg/bytes/bytes_test.go     | 22 ++++++++++++++++++----
- src/pkg/bytes/example_test.go   | 17 +++++++++++++++++
- src/pkg/exp/html/parse_test.go  |  5 +----
- src/pkg/go/printer/printer.go   |  4 +---
- src/pkg/go/types/gcimporter.go  |  5 +----
- src/pkg/net/http/pprof/pprof.go |  2 +-
- src/pkg/net/http/response.go    |  4 +---
- src/pkg/strings/example_test.go | 16 ++++++++++++++++
- src/pkg/strings/strings.go      | 18 ++++++++++++++++++
- src/pkg/strings/strings_test.go | 16 ++++++++++++----
- 21 files changed, 117 insertions(+), 54 deletions(-)
+ misc/cgo/test/cgo_test.go              |  1 +
+ misc/cgo/test/issue3775.go             | 29 +++++++++++++++++++
+ src/pkg/runtime/cgocall.c              | 42 +++++++++-------------------
+ src/pkg/runtime/proc.c                 | 51 ++++++++++++++++++++++++----------
+ src/pkg/runtime/runtime.h              | 14 ++++++++--
+ src/pkg/runtime/signal_darwin_386.c    |  8 ++++--
+ src/pkg/runtime/signal_darwin_amd64.c  |  8 ++++--
+ src/pkg/runtime/signal_freebsd_386.c   |  6 +++-
+ src/pkg/runtime/signal_freebsd_amd64.c |  6 +++-
+ src/pkg/runtime/signal_freebsd_arm.c   |  6 +++-
+ src/pkg/runtime/signal_linux_386.c     |  6 +++-
+ src/pkg/runtime/signal_linux_amd64.c   |  6 +++-
+ src/pkg/runtime/signal_linux_arm.c     |  6 +++-
+ src/pkg/runtime/signal_netbsd_386.c    |  6 +++-
+ src/pkg/runtime/signal_netbsd_amd64.c  |  6 +++-
+ src/pkg/runtime/signal_openbsd_386.c   |  6 +++-
+ src/pkg/runtime/signal_openbsd_amd64.c |  6 +++-
+ src/pkg/runtime/signal_windows_386.c   |  4 +++
+ src/pkg/runtime/signal_windows_amd64.c |  4 +++
+ src/pkg/runtime/traceback_arm.c        |  6 ++++
+ src/pkg/runtime/traceback_x86.c        |  5 ++++
+ 21 files changed, 173 insertions(+), 59 deletions(-)

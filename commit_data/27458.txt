@@ -1,20 +1,28 @@
-commit d603c27c6b462f044a7079ce5113d90bb3ca4814
-Author: Keith Randall <khr@golang.org>
-Date:   Wed May 18 13:04:00 2016 -0700
+commit 79688ca58f59a65eee324694fd8a559dae8af149
+Author: Michel Lespinasse <walken@google.com>
+Date:   Thu Mar 17 07:00:33 2016 -0700
 
-    cmd/compile: large ptr literals must escape
+    cmd/link: collect itablinks as a slice in moduledata
     
-    They get rewritten to NEWs, and they must be marked as escaping
-    so walk doesn't try to allocate them back onto the stack.
+    See #14874
     
-    Fixes #15733
+    This change tells the linker to collect all the itablink symbols and
+    collect them so that moduledata can have a slice of all compiler
+    generated itabs.
     
-    Change-Id: I433033e737c3de51a9e83a5a273168dbc9110b74
-    Reviewed-on: https://go-review.googlesource.com/23223
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    The logic is shamelessly adapted from what is done with typelink symbols.
+    
+    Change-Id: Ie93b59acf0fcba908a876d506afbf796f222dbac
+    Reviewed-on: https://go-review.googlesource.com/20889
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/esc.go |  2 +-
- test/fixedbugs/issue15733.go       | 23 +++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/internal/goobj/read.go       |  2 ++
+ src/cmd/internal/obj/link.go         |  1 +
+ src/cmd/internal/objfile/goobj.go    |  2 +-
+ src/cmd/link/internal/ld/data.go     | 23 ++++++++++++++++++++++-
+ src/cmd/link/internal/ld/deadcode.go |  7 ++++---
+ src/cmd/link/internal/ld/elf.go      |  3 +++
+ src/cmd/link/internal/ld/lib.go      |  1 +
+ src/cmd/link/internal/ld/symtab.go   | 17 +++++++++++++++++
+ src/runtime/symtab.go                |  1 +
+ 9 files changed, 52 insertions(+), 5 deletions(-)

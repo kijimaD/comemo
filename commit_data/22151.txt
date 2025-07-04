@@ -1,16 +1,12 @@
-commit 398f56fe22dff8463c7833088d05d6c3968a3051
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Mar 23 20:41:35 2015 -0400
+commit bba8b89aa5ee9ef9d6981deeac4dea5393c7d4ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 25 10:08:17 2015 -0800
 
-    os/signal: skip TestCtrlBreak on windows/386 temporarily
+    math/big: improve some doc strings
     
-    Update #10215.
-    
-    Change-Id: Ib588f90279a4ef5461492553d50ad77c742b3560
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/7971
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ie37673d4af2fa7476d67ffb686641611ab6a8e6b
+    Reviewed-on: https://go-review.googlesource.com/5930
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/os/signal/signal_windows_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/math/big/float.go | 44 ++++++++++++++++++++++++--------------------
+ 1 file changed, 24 insertions(+), 20 deletions(-)

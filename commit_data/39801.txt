@@ -1,24 +1,17 @@
-commit 5ff38e476177ce9e67375bd010bea2e030f2fe19
-Author: Austin Clements <austin@google.com>
-Date:   Sun Sep 1 10:49:27 2019 -0400
+commit 804a4024ec9b149410df6aeaa8b443e65e70ff28
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu Mar 21 16:41:48 2019 +0100
 
-    runtime: platform-independent faketime support
+    cmd/link/internal/ld: don't leave files open in a loop
     
-    This adds a platform-independent implementation of nacl's faketime
-    support. It can be enabled by setting the faketime build tag.
+    Noticed by Ingo Oeser in his review of CL 168321.
     
-    Updates #30439.
-    
-    Change-Id: Iee097004d56d796e6d2bfdd303a092c067ade87e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192740
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I2f39db675a7c22b395062a11903657a9d0d1956d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168560
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os_nacl.go                        |   3 +
- src/runtime/testdata/testfaketime/faketime.go |  28 +++++++
- src/runtime/time.go                           |   3 -
- src/runtime/time_fake.go                      | 101 ++++++++++++++++++++++++++
- src/runtime/time_nofake.go                    |   7 ++
- src/runtime/time_test.go                      |  93 ++++++++++++++++++++++++
- 6 files changed, 232 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/macho.go | 55 ++++++++++++++++++---------------------
+ 1 file changed, 26 insertions(+), 29 deletions(-)

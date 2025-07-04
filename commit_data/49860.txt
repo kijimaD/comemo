@@ -1,23 +1,23 @@
-commit dd8cb66d0b1bf385a8acbbdc81515b301e059236
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Jul 19 13:49:33 2022 -0400
+commit 70493b3eb06d10217d9aa346ffff0b4c4f2cc72b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jul 16 02:56:08 2021 +1000
 
-    runtime: convert g.goid to uint64
+    runtime/cgo: save and restore X3 (aka GP) for crosscall1 on riscv64
     
-    schedt.goidgen and p.goidcache are already uint64, this makes all cases
-    consistent.
+    The C code that is calling crosscall1 may depend on the GP register, which Go code
+    will currently clobber. Save and restore both X3 (aka GP) and X4 (aka TP) in this
+    code path (note that the Go code does not currently clobber X4, however there is
+    minimal downside to saving and restoring it here, which then also matches crosscall2).
     
-    The only oddball here is schedtrace which prints -1 as an equivalent for
-    N/A or nil. A future CL will make this more explicit.
+    Updates #47100
     
-    Change-Id: I489626f3232799f6ca333d0d103b71d9d3aa7494
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419440
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Icbb706d7889d5dc59de3efb2b510fa6ea2069496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334870
+    Trust: Joel Sing <joel@sing.id.au>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
 
- src/runtime/heapdump.go |  2 +-
- src/runtime/proc.go     | 10 +++++-----
- src/runtime/runtime2.go |  4 ++--
- src/runtime/trace.go    | 22 +++++++++++-----------
- 4 files changed, 19 insertions(+), 19 deletions(-)
+ src/runtime/cgo/gcc_riscv64.S | 108 ++++++++++++++++++++++--------------------
+ 1 file changed, 56 insertions(+), 52 deletions(-)

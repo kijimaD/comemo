@@ -1,16 +1,35 @@
-commit fd99157f9d9c22eb35ea9c70f32908f0980d47ed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 25 09:21:14 2024 -0700
+commit 3c59639b902fada0a2e5a6a35bafd10fc9183b89
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 11 18:55:23 2023 -0700
 
-    go/types, types2: refactor Checker.rangeStmt for clarity
+    crypto/sha512: add WriteString and WriteByte method
     
-    Change-Id: I0c2f921389416ab222b84f77699fd4b3246ef0e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581776
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    This can reduce allocations when hashing a string or byte
+    rather than []byte.
+    
+    For #38776
+    
+    Change-Id: I4926ae2749f6b167edbebb73d8f68763ffb2f0c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483816
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/stmt.go | 23 ++++++++++++++++++-----
- src/go/types/stmt.go                    | 23 ++++++++++++++++++-----
- 2 files changed, 36 insertions(+), 10 deletions(-)
+ src/crypto/internal/boring/sha.go        | 28 +++++++++++++
+ src/crypto/sha512/sha512.go              | 67 ++++++++++++++++++++++++++------
+ src/crypto/sha512/sha512_test.go         | 34 +++++++++++++++-
+ src/crypto/sha512/sha512block.go         |  2 +-
+ src/crypto/sha512/sha512block_amd64.go   | 21 +++++++---
+ src/crypto/sha512/sha512block_amd64.s    | 12 +++---
+ src/crypto/sha512/sha512block_arm64.go   | 17 ++++++--
+ src/crypto/sha512/sha512block_arm64.s    |  6 +--
+ src/crypto/sha512/sha512block_decl.go    | 12 +++++-
+ src/crypto/sha512/sha512block_generic.go |  4 ++
+ src/crypto/sha512/sha512block_ppc64x.s   |  8 ++--
+ src/crypto/sha512/sha512block_s390x.go   |  9 ++++-
+ src/crypto/sha512/sha512block_s390x.s    |  6 +--
+ 13 files changed, 186 insertions(+), 40 deletions(-)

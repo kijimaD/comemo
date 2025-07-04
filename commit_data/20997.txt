@@ -1,12 +1,23 @@
-commit 1b0b0db6fbd6a11df18bda38eae1f46a1835b9e5
+commit 77db737ac3c196ad86252c24b00688f04a79b3b8
 Author: Rick Hudson <rlh@golang.org>
-Date:   Fri Dec 12 09:51:20 2014 -0500
+Date:   Tue Nov 4 13:31:34 2014 -0500
 
-    runtime: add profiling infrastructure for the Concurrent GC
+    [dev.garbage] runtime: Add gc mark verification pass.
+    This adds an independent mark phase to the GC that can be used to
+    verify the the default concurrent mark phase has found all reachable
+    objects. It uses the upper 2 bits of the boundary nibble to encode
+    the mark leaving the lower bits to encode the boundary and the
+    normal mark bit.
     
-    Change-Id: Ia7a007444eeb1503cec27367a5c6699ce0bf4af6
-    Reviewed-on: https://go-review.googlesource.com/1441
-    Reviewed-by: Austin Clements <austin@google.com>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/167130043
 
- src/runtime/malloc.go | 138 ++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 133 insertions(+), 5 deletions(-)
+ src/runtime/heapdump.c |  15 +-
+ src/runtime/malloc.go  |  28 +++-
+ src/runtime/mgc0.c     | 428 +++++++++++++++++++++++++++++++++++++++----------
+ src/runtime/mgc0.h     |   8 +-
+ src/runtime/stack.c    |  40 +----
+ src/runtime/stubs.go   |   6 +
+ 6 files changed, 382 insertions(+), 143 deletions(-)

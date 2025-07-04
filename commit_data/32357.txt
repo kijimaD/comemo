@@ -1,18 +1,47 @@
-commit dca29095beb91b77f8dd41bf51e3771fdd814db0
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 17 10:30:40 2017 -0400
+commit bb6309cd63b35a81a8527efaad58847a83039947
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 6 14:32:37 2017 -0400
 
-    cmd/go: add t.Helper calls to test helpers
+    runtime: inform arena placement using sbrk(0)
     
-    Now that we have t.Helper, might as well use it to make the
-    reported failure lines more helpful.
+    On 32-bit architectures (or if we fail to map a 64-bit-style arena),
+    we try to map the heap arena just above the end of the process image.
+    While we can accept any address, using lower addresses is preferable
+    because lower addresses cause us to map less of the heap bitmap.
     
-    Change-Id: I2a0c64e9ca7bdc0eaf2b62f9f855c41467767084
-    Reviewed-on: https://go-review.googlesource.com/56274
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    However, if a program is linked against C code that has global
+    constructors, those constructors may call brk/sbrk to allocate memory
+    (e.g., many C malloc implementations do this for small allocations).
+    The brk also starts just above the process image, so this may adjust
+    the brk past the beginning of where we want to put the heap arena. In
+    this case, the kernel will pick a different address for the arena and
+    it will usually be very high (at least, as these things go in a 32-bit
+    address space).
+    
+    Fix this by consulting the current value of the brk and using this in
+    addition to the end of the process image to compute the initial arena
+    placement.
+    
+    This is implemented only on Linux currently, since we have no evidence
+    that it's an issue on any other OSes.
+    
+    Fixes #19831.
+    
+    Change-Id: Id64b45d08d8c91e4f50d92d0339146250b04f2f8
+    Reviewed-on: https://go-review.googlesource.com/39810
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/go/go_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 45 insertions(+)
+ src/runtime/malloc.go           | 15 +++++++++++++++
+ src/runtime/stubs_linux.go      |  9 +++++++++
+ src/runtime/stubs_nonlinux.go   | 12 ++++++++++++
+ src/runtime/sys_linux_386.s     |  9 +++++++++
+ src/runtime/sys_linux_amd64.s   |  9 +++++++++
+ src/runtime/sys_linux_arm.s     | 10 ++++++++++
+ src/runtime/sys_linux_arm64.s   | 10 ++++++++++
+ src/runtime/sys_linux_mips64x.s | 10 ++++++++++
+ src/runtime/sys_linux_mipsx.s   | 10 ++++++++++
+ src/runtime/sys_linux_ppc64x.s  |  9 +++++++++
+ src/runtime/sys_linux_s390x.s   | 10 ++++++++++
+ 11 files changed, 113 insertions(+)

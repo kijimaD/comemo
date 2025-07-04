@@ -1,24 +1,32 @@
-commit 561a5079057e3a660ab638e1ba957a96c4ff3fd1
+commit a971904e10c85e4aeb2cb6a3cf6d8efadc259fdc
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Sep 15 10:37:08 2023 -0400
+Date:   Thu Aug 18 13:54:43 2022 -0400
 
-    net/http: avoid leaking goroutines when TestServerGracefulClose retries
+    cmd/go/internal/script: remove special-case escaping logic for $WORK
     
-    If the call to ReadString returns an error, the closure in
-    testServerGracefulClose will return an error and retry the test with a
-    longer timeout. If that happens, we need to wait for the conn.Write
-    goroutine to complete so that we don't leak connections across tests.
+    Previously, the script engine implicitly escaped the path in the
+    $WORK environment variable to be the literal string '$WORK', which
+    produces somewhat better error messages in case of failure.
     
-    Updates #57084.
-    Fixes #62643.
+    However, for a general-purpose script engine that implicit behavior is
+    surprising, and it isn't really necessary.
     
-    Change-Id: Ia86c1bbd0a5e5d0aeccf4dfeb994c19d1fb10b00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528398
+    For #27494.
+    
+    Change-Id: Ic1d5b8801bbd068157315685539e7cc2795b3aa5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426854
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/http/serve_test.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/script/cmds.go                   | 3 ---
+ src/cmd/go/internal/script/state.go                  | 7 -------
+ src/cmd/go/script_test.go                            | 6 ++----
+ src/cmd/go/testdata/script/build_n_cgo.txt           | 1 +
+ src/cmd/go/testdata/script/build_relative_tmpdir.txt | 4 ++--
+ src/cmd/go/testdata/script/cache_unix.txt            | 6 +++---
+ src/cmd/go/testdata/script/mod_empty_err.txt         | 8 ++++----
+ src/cmd/go/testdata/script/mod_gobuild_import.txt    | 4 ++--
+ src/cmd/go/testdata/script/modfile_flag.txt          | 2 +-
+ 9 files changed, 15 insertions(+), 26 deletions(-)

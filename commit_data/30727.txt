@@ -1,33 +1,17 @@
-commit 2805d206890344f685579ac5b72ba2d9e5da485d
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Mar 19 09:51:22 2017 +0100
+commit 6dca9ac791054ebcaf02362bd7e6ab00c18a4b7d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 29 17:58:46 2016 -0800
 
-    cmd/compile: replace all uses of ptrto by typPtr
+    doc: add release notes for os and os/signal packages
     
-    This makes the overall naming and use of the functions
-    to create a Type more consistent.
+    TBR=See https://golang.org/cl/33244
     
-    Passes toolstash -cmp.
+    Updates #17929
     
-    Change-Id: Ie0d40b42cc32b5ecf5f20502675a225038ea40e4
-    Reviewed-on: https://go-review.googlesource.com/38354
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2e5b24fb0b110d833a8b73bccfbf399cb6e37ea2
+    Reviewed-on: https://go-review.googlesource.com/33681
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/alg.go       |  8 ++---
- src/cmd/compile/internal/gc/closure.go   |  6 ++--
- src/cmd/compile/internal/gc/dcl.go       |  6 ++--
- src/cmd/compile/internal/gc/esc.go       |  6 ++--
- src/cmd/compile/internal/gc/gen.go       |  2 +-
- src/cmd/compile/internal/gc/racewalk.go  |  4 +--
- src/cmd/compile/internal/gc/range.go     |  2 +-
- src/cmd/compile/internal/gc/reflect.go   | 42 +++++++++++++-------------
- src/cmd/compile/internal/gc/select.go    | 12 ++++----
- src/cmd/compile/internal/gc/sinit.go     |  4 +--
- src/cmd/compile/internal/gc/ssa.go       | 52 ++++++++++++++++----------------
- src/cmd/compile/internal/gc/subr.go      | 18 ++---------
- src/cmd/compile/internal/gc/type.go      | 12 ++++++--
- src/cmd/compile/internal/gc/typecheck.go | 12 ++++----
- src/cmd/compile/internal/gc/walk.go      | 24 +++++++--------
- 15 files changed, 103 insertions(+), 107 deletions(-)
+ doc/go1.8.html | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.8.txt  |  9 ---------
+ 2 files changed, 53 insertions(+), 9 deletions(-)

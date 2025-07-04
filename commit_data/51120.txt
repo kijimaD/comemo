@@ -1,34 +1,21 @@
-commit bdd1e283a914d4d161589adce4f2ad79767d029d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Nov 2 11:11:03 2022 -0400
+commit 0eb39ca1f0ca118e78648fb6844d35d0a96e5eee
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Dec 6 18:41:49 2021 -0500
 
-    cmd/compile/internal/pgo: match on call line offsets
+    cmd/dist: enable plugin test on Linux/ARM64
     
-    Rather than matching calls to edges in the profile based directly on
-    line number in the source file, use the line offset from the start of
-    the function. This makes matching robust to changes in the source file
-    above the function containing the call.
+    The test was skipped because with the old gold linker on the
+    builder it fails with an internal error in gold. The builders now
+    have gold 2.31 and the test passes. Enable it.
     
-    The start line in the profile comes from Function.start_line, which is
-    included in Go pprof output since CL 438255.
+    Fixes #17138.
     
-    Currently it is an error if no samples set start_line to help users
-    detect profiles missing this information. In the future, we should
-    fallback to using absolute lines, which is better than nothing.
-    
-    For #55022.
-    
-    Change-Id: Ie621950cfee1fef8fb200907a2a3f1ded41d04fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447315
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia0054030dd12f1d003c7420bf7ed8b112715baa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369814
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/inline/inl.go             |  15 ++-
- src/cmd/compile/internal/pgo/irgraph.go            | 127 +++++++++++----------
- src/cmd/compile/internal/test/pgo_inl_test.go      | 115 +++++++++++++++++--
- .../test/testdata/pgo/inline/inline_hot.go         |   6 +-
- .../test/testdata/pgo/inline/inline_hot.pprof      | Bin 1423 -> 943 bytes
- .../test/testdata/pgo/inline/inline_hot_test.go    |   6 +-
- 6 files changed, 186 insertions(+), 83 deletions(-)
+ src/cmd/dist/test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

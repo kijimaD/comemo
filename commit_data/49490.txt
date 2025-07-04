@@ -1,17 +1,27 @@
-commit f38a580a51cd2fc072aabc9dd45b9e0a85064c81
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Apr 5 18:47:23 2022 -0400
+commit fa34678c67275a765a9b78443806c8144d88fe3d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 23 11:40:56 2021 -0700
 
-    cmd/go: add more tracing
+    internal/buildcfg: change GOEXPERIMENT to always return non-empty string
     
-    Change-Id: I26ed64c097533ee9276e598653db72efc053c4e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403156
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Rather than returning "", we now return "," (which is a no-op). This
+    ensures that the returned string always overrides DefaultGOEXPERIMENT.
+    
+    This fixes a bootstrapping issue where GOROOT_BOOTSTRAP was built with
+    "GOEXPERIMENT=fieldtrack ./make.bash". cmd/dist sets GOEXPERIMENT=none
+    during bootstrapping, which was causing cmd/go to set GOEXPERIMENT=""
+    when executing cmd/compile; but then cmd/compile ignores the
+    environment variable (because it's empty) and instead uses
+    DefaultGOEXPERIMENT.
+    
+    Fixes #47921.
+    
+    Change-Id: I657ff6cdfb294a94f6a2f58c306ceed7f104416b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344511
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/go/internal/load/pkg.go       | 6 ++++++
- src/cmd/go/internal/modload/query.go  | 3 +++
- src/cmd/go/internal/modload/search.go | 7 +++++++
- 3 files changed, 16 insertions(+)
+ src/internal/buildcfg/exp.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

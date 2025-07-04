@@ -1,14 +1,16 @@
-commit be9dcfec293854bfb4a13737ba09801769daccbf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 23 22:26:27 2017 +0000
+commit ae14472af9e9508eab948303b14290ca98d09646
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 22:21:58 2016 -0400
 
-    doc: mention testing.MainStart signature change
+    os: clean up after test
     
-    Fixes #18766
+    Noted in CL 31358 after submit.
     
-    Change-Id: Ic0f72f3b7bbccd0546692993c4ed414f8c88c1c6
-    Reviewed-on: https://go-review.googlesource.com/35573
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I76ddad9b9e27dd6a03c1c4f49153213747fe0a61
+    Reviewed-on: https://go-review.googlesource.com/31365
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.8.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/os/os_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

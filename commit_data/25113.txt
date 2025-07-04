@@ -1,21 +1,22 @@
-commit b64b3a771320d95a4c9b8456e8de0e70702a0275
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 1 21:16:29 2015 -0800
+commit e937eeeccdbf07df30ad4ea8ebd3cc20742b3200
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 25 10:09:04 2015 -0700
 
-    cmd/go: fix reading PT_NOTE segment with multiple notes
+    math/big: removed more unnecessary string conversions
     
-    The old code was assuming that a PT_NOTE segment never had more than one
-    note, but there is no such requirement.
+    - renamed (nat) itoa to utoa (since that's what it is)
+    - added (nat) itoa that takes a sign parameter; this helps removing a few string copies
+    - used buffers instead of string+ in Rat conversions
     
-    Fixes #13364.
-    
-    Change-Id: I3f6b3716130bf7af6abe81b8e10571a8c7cd943c
-    Reviewed-on: https://go-review.googlesource.com/17331
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6b37a6b39557ae311cafdfe5c4a26e9246bde1a9
+    Reviewed-on: https://go-review.googlesource.com/14995
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/note.go      | 27 +++++++++++++++++++--------
- src/cmd/go/note_test.go |  3 ---
- 2 files changed, 19 insertions(+), 11 deletions(-)
+ src/math/big/decimal.go      |  2 +-
+ src/math/big/ftoa.go         |  6 +++---
+ src/math/big/intconv.go      | 13 +++----------
+ src/math/big/nat_test.go     | 10 +++++-----
+ src/math/big/natconv.go      | 17 +++++++++++++++--
+ src/math/big/natconv_test.go | 22 +++++++++++-----------
+ src/math/big/ratconv.go      | 36 ++++++++++++++++++++++++------------
+ 7 files changed, 62 insertions(+), 44 deletions(-)

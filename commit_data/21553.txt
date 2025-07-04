@@ -1,49 +1,206 @@
-commit f3b73e040c24c5a589373e431b91babc249640bc
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 10 23:51:25 2015 -0500
+commit 929f3210acd0aa9973a40fad283716f40db61f77
+Merge: 1fac6d1829 d1210acffd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 14 19:39:34 2015 -0500
 
-    cmd/dist: fetch version when needed, instead of at init
+    [dev.cc] all: merge master (d1210ac) into dev.cc
     
-    Currently, if there is a VERSION.cache, running make.bash will set
-    runtime.theVersion to the revision as of the *last* make.bash run
-    instead of the current make.bash run.
-    
-    For example,
-    
-    $ git rev-parse --short HEAD
-    5c4a86d
-    $ ./make.bash
-    ...
-    $ cat ../VERSION.cache
-    devel +5c4a86d Tue Feb 10 01:46:30 2015 +0000
-    $ git checkout a1dbb92
-    $ ./make.bash
-    ...
-    $ go version
-    go version devel +5c4a86d Tue Feb 10 01:46:30 2015 +0000 linux/amd64
-    $ ./make.bash
-    ...
-    $ go version
-    go version devel +a1dbb92 Tue Feb 10 02:31:27 2015 +0000 linux/amd64
-    
-    This happens because go tool dist reads the potentially stale
-    VERSION.cache into goversion during early initialization; then cleans,
-    which deletes VERSION.cache; then builds the runtime using the stale
-    revision read in to goversion.  It isn't until make later in the build
-    process, when make.bash invokes go tool dist again, that VERSION.cache
-    gets updated with the current revision.
-    
-    To address this, simply don't bother fetching the version until go
-    tool dist needs it and don't bother caching the value in memory.  This
-    is more robust since it interacts with cleaning in the expected ways.
-    Futhermore, there's no downside to eliminating the in-memory cache;
-    the file system cache is perfectly reasonable for the whole three
-    times make.bash consults it.
-    
-    Change-Id: I8c480100e56bb2db0816e8a088177004d9e87973
-    Reviewed-on: https://go-review.googlesource.com/4540
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I068d617175776c2f5df00b17ff0d404a584ab570
 
- src/cmd/dist/build.go        | 8 +++-----
- src/cmd/dist/buildruntime.go | 2 +-
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ README.md                                  |   2 +
+ api/next.txt                               |   2 -
+ doc/contribute.html                        |   4 +-
+ doc/go1.5.txt                              |   6 +
+ include/link.h                             |  17 +
+ misc/cgo/test/cgo_test.go                  |   1 +
+ misc/cgo/test/issue7234_test.go            |   2 +-
+ misc/cgo/test/issue9557.go                 |  36 ++
+ misc/cgo/testcdefs/cdefstest.c             |   9 -
+ misc/cgo/testcdefs/cdefstest.go            |  60 ---
+ misc/cgo/testcdefs/main.c                  |  76 ---
+ misc/cgo/testcdefs/main.go                 |  13 -
+ misc/cgo/testcdefs/test.bash               |  16 -
+ misc/makerelease/makerelease.go            |  76 +--
+ misc/swig/stdio/file_test.go               |   2 +-
+ src/cmd/5a/lex.c                           |   2 +
+ src/cmd/5l/asm.c                           |   9 +
+ src/cmd/5l/l.h                             |   1 +
+ src/cmd/6a/lex.c                           |   2 +
+ src/cmd/6g/gsubr.c                         |   1 -
+ src/cmd/6g/peep.c                          |   4 +-
+ src/cmd/6l/asm.c                           |   9 +
+ src/cmd/6l/l.h                             |   1 +
+ src/cmd/8a/lex.c                           |   2 +
+ src/cmd/8g/peep.c                          |   2 +-
+ src/cmd/8l/asm.c                           |   9 +
+ src/cmd/8l/l.h                             |   1 +
+ src/cmd/9a/lex.c                           |   2 +
+ src/cmd/9g/gsubr.c                         |  11 +-
+ src/cmd/9g/reg.c                           |   2 +-
+ src/cmd/9l/9.out.h                         |  12 +-
+ src/cmd/9l/asm.c                           | 514 +++++++++++++++++-
+ src/cmd/9l/l.h                             |   1 +
+ src/cmd/9l/obj.c                           |   3 +-
+ src/cmd/cgo/doc.go                         |   4 -
+ src/cmd/cgo/gcc.go                         |  54 +-
+ src/cmd/cgo/godefs.go                      | 167 ------
+ src/cmd/cgo/main.go                        |  14 +-
+ src/cmd/cgo/out.go                         |   1 +
+ src/cmd/gc/align.c                         |  22 +-
+ src/cmd/gc/builtin.c                       |  11 +-
+ src/cmd/gc/export.c                        |   1 +
+ src/cmd/gc/go.h                            |   2 +
+ src/cmd/gc/racewalk.c                      |   5 +-
+ src/cmd/gc/range.c                         |  67 +++
+ src/cmd/gc/reflect.c                       |  63 ++-
+ src/cmd/gc/runtime.go                      |  11 +-
+ src/cmd/gc/subr.c                          |  62 ++-
+ src/cmd/gc/typecheck.c                     |   2 +-
+ src/cmd/gc/walk.c                          |  29 +-
+ src/cmd/go/doc.go                          |  21 +-
+ src/cmd/go/get.go                          |   2 +-
+ src/cmd/go/help.go                         |  21 +-
+ src/cmd/go/mkdoc.sh                        |   2 +-
+ src/cmd/ld/data.c                          |  53 +-
+ src/cmd/ld/elf.c                           |  83 ++-
+ src/cmd/ld/elf.h                           |  16 +
+ src/cmd/ld/ldelf.c                         |  40 +-
+ src/cmd/ld/lib.h                           |   2 +
+ src/cmd/ld/pcln.c                          |  55 ++
+ src/cmd/ld/pobj.c                          |   1 +
+ src/crypto/elliptic/elliptic.go            |   5 +-
+ src/crypto/elliptic/p224.go                |   2 +-
+ src/crypto/elliptic/p256.go                |   2 +-
+ src/crypto/tls/tls.go                      |  38 +-
+ src/crypto/x509/pkix/pkix.go               |   2 +-
+ src/crypto/x509/root_solaris.go            |   3 +-
+ src/crypto/x509/x509.go                    |   7 +-
+ src/go/build/build.go                      |   4 +-
+ src/image/draw/clip_test.go                |  34 +-
+ src/image/draw/draw.go                     |   8 +-
+ src/liblink/asm5.c                         | 115 ++--
+ src/liblink/asm9.c                         | 230 +++++---
+ src/liblink/list6.c                        |  35 --
+ src/liblink/list9.c                        |  67 +--
+ src/liblink/obj5.c                         |  20 +-
+ src/liblink/obj6.c                         |  36 +-
+ src/liblink/obj8.c                         |  36 +-
+ src/liblink/obj9.c                         |  21 +-
+ src/liblink/pass.c                         |   7 +-
+ src/liblink/sched9.c                       | 835 -----------------------------
+ src/liblink/sym.c                          |   5 +-
+ src/log/log.go                             |  32 +-
+ src/log/log_test.go                        |  24 +
+ src/math/big/arith.go                      |  69 ++-
+ src/math/big/arith_386.s                   |  20 +-
+ src/math/big/arith_amd64.s                 |  57 +-
+ src/math/big/arith_test.go                 |   2 +-
+ src/math/big/nat_test.go                   |  52 ++
+ src/net/http/httputil/reverseproxy.go      |  46 ++
+ src/net/http/httputil/reverseproxy_test.go |  60 +++
+ src/net/http/serve_test.go                 |  24 +-
+ src/reflect/type.go                        |  19 +-
+ src/reflect/value.go                       |   2 +-
+ src/run.bash                               |  12 +-
+ src/run.rc                                 |  16 +-
+ src/runtime/alg.go                         | 136 +++--
+ src/runtime/arch1_ppc64.go                 |   2 +-
+ src/runtime/arch1_ppc64le.go               |   2 +-
+ src/runtime/asm_386.s                      |  79 ++-
+ src/runtime/asm_amd64.s                    |  81 ++-
+ src/runtime/asm_amd64p32.s                 |  37 +-
+ src/runtime/asm_arm.s                      |  38 +-
+ src/runtime/asm_ppc64x.s                   | 288 +++++++++-
+ src/runtime/cgo/asm_ppc64x.s               | 124 +++++
+ src/runtime/cgo/gcc_linux_ppc64x.c         |  70 +++
+ src/runtime/cgo/gcc_ppc64x.S               | 140 +++++
+ src/runtime/cgocall.go                     |   7 +
+ src/runtime/chan.go                        |   4 +-
+ src/runtime/crash_cgo_test.go              |   5 +
+ src/runtime/crash_test.go                  |  28 +
+ src/runtime/defs_nacl_386.go               |   1 +
+ src/runtime/defs_nacl_amd64p32.go          |   1 +
+ src/runtime/defs_nacl_arm.go               |   1 +
+ src/runtime/defs_windows.go                |   1 -
+ src/runtime/defs_windows_386.go            |   1 -
+ src/runtime/defs_windows_amd64.go          |   1 -
+ src/runtime/export_test.go                 |   2 +
+ src/runtime/extern.go                      |   6 +
+ src/runtime/hash32.go                      |   4 +-
+ src/runtime/hash64.go                      |   4 +-
+ src/runtime/hashmap.go                     |  30 +-
+ src/runtime/hashmap_fast.go                |  12 +-
+ src/runtime/iface.go                       |  11 +-
+ src/runtime/malloc.go                      | 202 ++++---
+ src/runtime/malloc2.go                     |  18 +-
+ src/runtime/memmove_test.go                |  14 +
+ src/runtime/mgc.go                         | 209 +++++---
+ src/runtime/mgc0.go                        |  35 +-
+ src/runtime/netpoll.go                     |  10 +-
+ src/runtime/netpoll_stub.go                |   4 +
+ src/runtime/os1_darwin.go                  |   2 +-
+ src/runtime/os1_freebsd.go                 |   2 +-
+ src/runtime/os1_linux.go                   |   2 +-
+ src/runtime/os1_windows.go                 |  63 ++-
+ src/runtime/os2_plan9.go                   |   4 +-
+ src/runtime/os3_solaris.go                 |   6 +-
+ src/runtime/os_darwin.go                   |   1 +
+ src/runtime/os_dragonfly.go                |   1 +
+ src/runtime/os_freebsd.go                  |   1 +
+ src/runtime/os_linux.go                    |   1 +
+ src/runtime/os_linux_arm.go                |  18 +-
+ src/runtime/os_nacl.go                     |   3 +
+ src/runtime/os_netbsd.go                   |   1 +
+ src/runtime/os_openbsd.go                  |   1 +
+ src/runtime/print1.go                      | 120 +----
+ src/runtime/print1_write.go                |   4 +
+ src/runtime/print1_write_android.go        |   4 +
+ src/runtime/proc1.go                       |   2 +-
+ src/runtime/rt0_linux_arm.s                |   3 -
+ src/runtime/rt0_linux_ppc64.s              |   6 +
+ src/runtime/rt0_linux_ppc64le.s            |  26 +-
+ src/runtime/runtime1.go                    |   8 +
+ src/runtime/runtime2.go                    |   6 +-
+ src/runtime/runtime_test.go                |  41 ++
+ src/runtime/signal_amd64x.go               |  43 +-
+ src/runtime/stack.h                        |  10 +-
+ src/runtime/stack1.go                      |  45 +-
+ src/runtime/stubs.go                       |   6 -
+ src/runtime/symtab.go                      |  57 +-
+ src/runtime/sys_darwin_386.s               |   7 +-
+ src/runtime/sys_darwin_amd64.s             |   7 +-
+ src/runtime/sys_linux_386.s                |   9 +
+ src/runtime/sys_linux_amd64.s              |   9 +
+ src/runtime/sys_linux_arm.s                |  11 +
+ src/runtime/sys_linux_ppc64x.s             |  16 +
+ src/runtime/sys_nacl_amd64p32.s            |   4 +-
+ src/runtime/sys_windows_386.s              |  10 +-
+ src/runtime/sys_windows_amd64.s            |  10 +-
+ src/runtime/tls_ppc64x.s                   |  60 +++
+ src/runtime/type.go                        |   2 -
+ src/runtime/vdso_none.go                   |   1 +
+ src/sort/sort.go                           |  17 +-
+ src/strconv/atoi.go                        |  40 +-
+ src/strconv/atoi_test.go                   |  83 ++-
+ src/syscall/asm_darwin_386.s               |  93 ++--
+ src/syscall/asm_darwin_amd64.s             |  95 ++--
+ src/syscall/asm_linux_arm.s                |   2 +-
+ src/syscall/asm_nacl_386.s                 |   3 +-
+ src/syscall/asm_nacl_amd64p32.s            |   2 +-
+ src/syscall/asm_nacl_arm.s                 |   2 +-
+ src/syscall/mkall.sh                       |  28 +-
+ src/syscall/mkall_windows.bat              |  15 -
+ src/syscall/mksyscall_windows.go           |  39 +-
+ src/syscall/syscall_windows.go             |   2 +
+ src/syscall/zsyscall_windows.go            |   3 +-
+ src/time/format.go                         |  71 ++-
+ src/time/time_test.go                      |  23 +-
+ test/cmplxdivide.c                         |  13 +-
+ test/cmplxdivide.go                        |   1 +
+ test/fixedbugs/issue5373.go                |  71 +++
+ test/fixedbugs/issue9321.go                |   6 +-
+ test/fixedbugs/issue9432.go                |  15 +
+ test/init1.go                              |   2 +-
+ test/nilcheck.go                           |   5 +
+ test/testlib                               | 170 ------
+ 196 files changed, 3954 insertions(+), 2756 deletions(-)

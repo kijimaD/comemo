@@ -1,18 +1,14 @@
-commit 55b4516fd65b0e471556330a0d89af6b7e59ae93
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 17 13:56:29 2015 -0700
+commit b48d2a5f25ffa22dbae80c3820b87b3d489bbd1d
+Author: Charles Dorian <cldorian@gmail.com>
+Date:   Wed Feb 18 20:05:38 2015 -0500
 
-    cmd/internal/gc: clean up walk conv* and assert*
+    math: faster Cbrt
     
-    This is preliminary cleanup for another change.
+    Old 45.3 ns/op, new 19.9 ns/op.
     
-    No functional changes. Passes toolstash -cmp.
-    
-    Change-Id: I11d562fbd6cba5c48d9636f3149e210e5f5308ad
-    Reviewed-on: https://go-review.googlesource.com/7696
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: If2a201981dcc259846631ecbc694c401e0a80287
+    Reviewed-on: https://go-review.googlesource.com/5260
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/gc/subr.go | 13 ++++++++
- src/cmd/internal/gc/walk.go | 80 +++++++++++++--------------------------------
- 2 files changed, 36 insertions(+), 57 deletions(-)
+ src/math/cbrt.go | 91 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 46 insertions(+), 45 deletions(-)

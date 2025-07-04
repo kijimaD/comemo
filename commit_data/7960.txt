@@ -1,14 +1,14 @@
-commit fbeaa869f6b2104a1bb0361f9563e4c781ed4e1f
+commit 69819c2ea303d105ccdf294dbf4e5b6804670627
 Author: Andrey Mirtchovski <mirtchovski@gmail.com>
-Date:   Sun Apr 3 09:11:41 2011 -0700
+Date:   Sun Apr 3 08:52:43 2011 -0700
 
-    path/filepath: add support for plan9
+    os: add a few missing plan9 errors
     
-    R=paulzhol, ality, r, fhs
+    these were needed by packages in crypto/ and by io/ioutil
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4316054
+    https://golang.org/cl/4350047
 
- src/pkg/path/filepath/Makefile      |  3 +++
- src/pkg/path/filepath/path_plan9.go | 28 ++++++++++++++++++++++++++++
- src/pkg/path/filepath/path_unix.go  |  2 +-
- 3 files changed, 32 insertions(+), 1 deletion(-)
+ src/pkg/os/error_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

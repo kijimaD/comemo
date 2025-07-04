@@ -1,29 +1,19 @@
-commit bc471a52d7f8f05d631cbda9080f7b21df1f79c5
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Aug 8 13:53:10 2018 +0100
+commit 90fee59287394fb43823481e1d1bff0d5d7fb047
+Author: dchenk <dcherchenko@gmail.com>
+Date:   Wed Apr 11 19:20:10 2018 -0700
 
-    net: reduce TestSplice/big's memory usage
+    database/sql: remove a couple redundancies
     
-    The old code used splice on a 2GB []byte when not in short mode, meaning
-    that running 'go test net' when one had 4GB or less free memory would
-    easily result in "out of memory" runtime panics.
+    This commit includes efficiency improvements in two places in the
+    database/sql package where an "if err != nil" was redundant and
+    the error can be returned as-is (most of the code in the standard
+    library and even in the file I changed does it my suggested way).
     
-    Instead, use a much smaller size that is still big enough to not fit
-    into a single splice(2) syscall. The new size is just 5MB, so the test
-    uses a fraction of the memory it used to, and there's no longer a need
-    for a different size on short mode.
-    
-    This also speeds up the test, which goes from ~1.23s to ~0.01s on my
-    laptop.
-    
-    Fixes #26867.
-    
-    Change-Id: Iae1daa5c0995b549f41992f44339be32ca1ee5e4
-    Reviewed-on: https://go-review.googlesource.com/128535
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Andrei Tudor Călin <mail@acln.ro>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib9dac69ed01ee846e570a776164cb87c2caee6ca
+    Reviewed-on: https://go-review.googlesource.com/106555
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/splice_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/database/sql/sql.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

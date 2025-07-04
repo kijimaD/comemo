@@ -1,26 +1,18 @@
-commit 8bf18b56a47a98b9dd2fa03beb358312237a8c76
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Mar 13 16:47:44 2019 +0100
+commit 5bc1fd42f6d185b8ff0201db09fb82886978908b
+Author: Raghavendra Nagaraj <jamdagni86@gmail.com>
+Date:   Fri Oct 26 12:18:06 2018 +0000
 
-    errors: improve performance of New
+    container/list: combining insert and remove operations while moving elements within a list.
     
-    See Issue #29382 and Issue #30468.
+    Fixes #27747
     
-    Improvements in this CL:
-    
-    name                     old time/op  new time/op  delta
-    New-8                     352ns ± 2%   225ns ± 5%  -36.04%  (p=0.008 n=5+5)
-    
-    Improvements together with moving to 1 uintptr:
-    
-    name                     old time/op  new time/op  delta
-    New-8                     475ns ± 3%   225ns ± 5%  -52.59%  (p=0.008 n=5+5)
-    
-    Change-Id: I9d69a14e5e10a6498767defb7d5f26ceedcf9ba5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167401
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: I843e9e121d33440648b364650ee8a8a1639a0144
+    GitHub-Last-Rev: c614e91e23d4d3dea80bc78886a1b7e96456596b
+    GitHub-Pull-Request: golang/go#28413
+    Reviewed-on: https://go-review.googlesource.com/c/144998
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/errors/errors.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/container/list/list.go | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)

@@ -1,81 +1,29 @@
-commit 61f84a2cdcb64ea8c818ed88e7e5072f9f289936
+commit 55db9fe7309442ac4ba2aaacc65cfab3db86e7f1
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 25 16:25:10 2011 -0400
+Date:   Thu Aug 25 16:08:13 2011 -0400
 
-    gc: shuffle #includes
+    build: fix unused parameters
     
-    #include "go.h" (or "gg.h")
-    
-    becomes
-    
-    #include <u.h>
-    #include <libc.h>
-    #include "go.h"
-    
-    so that go.y can #include <stdio.h>
-    after <u.h> but before "go.h".
-    This is necessary on Plan 9.
+    Found with gcc 4.6 -Wunused -Wextra
+    but should be applicable to Plan 9 too.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4971041
+    https://golang.org/cl/4958044
 
- src/cmd/5g/cgen.c      | 2 ++
- src/cmd/5g/cgen64.c    | 2 ++
- src/cmd/5g/galign.c    | 2 ++
- src/cmd/5g/gg.h        | 3 ---
- src/cmd/5g/ggen.c      | 2 ++
- src/cmd/5g/gobj.c      | 2 ++
- src/cmd/5g/gsubr.c     | 2 ++
- src/cmd/5g/list.c      | 2 ++
- src/cmd/5g/peep.c      | 2 ++
- src/cmd/5g/reg.c       | 2 ++
- src/cmd/6g/cgen.c      | 2 ++
- src/cmd/6g/galign.c    | 2 ++
- src/cmd/6g/gg.h        | 3 ---
- src/cmd/6g/ggen.c      | 2 ++
- src/cmd/6g/gobj.c      | 2 ++
- src/cmd/6g/gsubr.c     | 2 ++
- src/cmd/6g/list.c      | 2 ++
- src/cmd/6g/peep.c      | 2 ++
- src/cmd/6g/reg.c       | 2 ++
- src/cmd/8g/cgen.c      | 2 ++
- src/cmd/8g/cgen64.c    | 2 ++
- src/cmd/8g/galign.c    | 2 ++
- src/cmd/8g/gg.h        | 3 ---
- src/cmd/8g/ggen.c      | 2 ++
- src/cmd/8g/gobj.c      | 2 ++
- src/cmd/8g/gsubr.c     | 2 ++
- src/cmd/8g/list.c      | 2 ++
- src/cmd/8g/peep.c      | 2 ++
- src/cmd/8g/reg.c       | 2 ++
- src/cmd/gc/align.c     | 2 ++
- src/cmd/gc/bits.c      | 2 ++
- src/cmd/gc/closure.c   | 2 ++
- src/cmd/gc/const.c     | 2 ++
- src/cmd/gc/cplx.c      | 2 ++
- src/cmd/gc/dcl.c       | 2 ++
- src/cmd/gc/esc.c       | 2 ++
- src/cmd/gc/export.c    | 2 ++
- src/cmd/gc/gen.c       | 2 ++
- src/cmd/gc/go.h        | 2 --
- src/cmd/gc/go.y        | 2 ++
- src/cmd/gc/init.c      | 2 ++
- src/cmd/gc/lex.c       | 2 ++
- src/cmd/gc/md5.c       | 2 ++
- src/cmd/gc/mparith1.c  | 2 ++
- src/cmd/gc/mparith2.c  | 2 ++
- src/cmd/gc/mparith3.c  | 2 ++
- src/cmd/gc/obj.c       | 2 ++
- src/cmd/gc/pgen.c      | 2 ++
- src/cmd/gc/print.c     | 2 ++
- src/cmd/gc/range.c     | 2 ++
- src/cmd/gc/reflect.c   | 2 ++
- src/cmd/gc/select.c    | 2 ++
- src/cmd/gc/sinit.c     | 2 ++
- src/cmd/gc/subr.c      | 2 ++
- src/cmd/gc/swt.c       | 2 ++
- src/cmd/gc/typecheck.c | 2 ++
- src/cmd/gc/unsafe.c    | 2 ++
- src/cmd/gc/walk.c      | 2 ++
- 58 files changed, 108 insertions(+), 11 deletions(-)
+ src/cmd/6g/gobj.c        |  2 ++
+ src/cmd/6g/gsubr.c       |  2 ++
+ src/cmd/cov/main.c       |  3 +++
+ src/cmd/gc/closure.c     |  2 ++
+ src/cmd/gc/dcl.c         |  2 ++
+ src/cmd/gc/lex.c         |  4 ++++
+ src/cmd/gc/walk.c        |  4 ++++
+ src/cmd/godefs/main.c    |  5 ++++-
+ src/cmd/gopack/ar.c      |  2 ++
+ src/cmd/prof/main.c      |  4 ++++
+ src/lib9/exitcode.c      |  1 +
+ src/libmach/executable.c | 19 ++++++++++++++++++-
+ src/libmach/fakeobj.c    | 28 ++++++++++++++--------------
+ src/libmach/linux.c      |  4 ++++
+ src/libmach/map.c        |  2 ++
+ 15 files changed, 68 insertions(+), 16 deletions(-)

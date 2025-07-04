@@ -1,24 +1,20 @@
-commit cdc635547fc436dc49c91ddb172b0e101febd3d7
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jun 30 15:59:40 2020 -0700
+commit 576cc530c93d416f6fe3a0b8fefac47e83715216
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 30 00:25:19 2020 +0100
 
-    cmd/compile: invalidate zero-use values during rewrite
+    misc/cgo: enable testso and testsovar on mips64x
     
-    This helps remove uses that aren't needed any more.
-    That in turn helps other rules with Uses==1 conditions fire.
+    External linking on mips64 was implemented in CL 19803 and CL 19809
     
-    Update #39918
+    Updates #12560
+    Updates #14126
     
-    Change-Id: I68635b675472f1d59e59604e4d34b949a0016533
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249463
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I2cc127d71173aade56ad181bdd947355a76b3e46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217017
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/decompose.go |  8 +++++---
- src/cmd/compile/internal/ssa/lower.go     |  2 +-
- src/cmd/compile/internal/ssa/opt.go       |  2 +-
- src/cmd/compile/internal/ssa/rewrite.go   | 22 +++++++++++++++++++++-
- src/cmd/compile/internal/ssa/softfloat.go |  2 +-
- src/cmd/compile/internal/ssa/value.go     | 20 ++++++++++++++++++++
- 6 files changed, 49 insertions(+), 7 deletions(-)
+ misc/cgo/testso/so_test.go    | 2 --
+ misc/cgo/testsovar/so_test.go | 2 --
+ 2 files changed, 4 deletions(-)

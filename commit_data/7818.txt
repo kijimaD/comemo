@@ -1,17 +1,14 @@
-commit 126911dcd2478ccd6756079d4e73830142e719e7
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Mar 21 00:07:22 2011 -0300
+commit 338185dabb6a0c966e366c56ab89d749d27a33f9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 21 11:24:48 2011 +1100
 
-    rpc: increase server_test timeout
+    path/filepath: fix TestEvalSymlinks when run under symlinked GOROOT
     
-    These timeouts are breaking tests in very slow
-    systems every once in a while.  I've noticed
-    problems when compiling the Ubuntu packages for
-    arm, specifically.
+    Fixes #1622.
     
-    R=golang-dev, adg
+    R=rsc, bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4291058
+    https://golang.org/cl/4287063
 
- src/pkg/rpc/server_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/path/filepath/path_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit cc16fb52e6f1eafaee468f8563525ec391e016f5
+Author: khr@golang.org <khr@golang.org>
+Date:   Sun Feb 23 10:34:00 2025 -0800
+
+    cmd/compile: ensure we don't reuse temporary register
+    
+    Before this CL, we could use the same register for both a temporary
+    register and for moving a value in the output register out of the way.
+    
+    Fixes #71857
+    
+    Change-Id: Iefbfd9d4139136174570d8aadf8a0fb391791ea9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651221
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go |  1 +
+ test/fixedbugs/issue71857.go             | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

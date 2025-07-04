@@ -1,17 +1,16 @@
-commit 526b2ef0ea3a13d7e9af635918ef3ef86353f220
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 9 11:14:37 2021 -0500
+commit 3224990dad27d5a06961a168c3760b13a6d140c1
+Author: zfCode <zfcode@qq.com>
+Date:   Sat Mar 13 18:00:30 2021 +0000
 
-    go/types: check non-generic conversions first
+    fmt: use “truncateString” not “truncate” in method doc
     
-    This is a clean port of CL 361269 to go/types.
-    
-    Change-Id: I2caaf08eabdf1707ae83ec1e628fd26f21b2b8e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362616
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: If1acb6a8533a782f80c7d1f0ad5155e98e1134dd
+    GitHub-Last-Rev: 03384a3d99dd89d802635f7ef48ce4456ec338b0
+    GitHub-Pull-Request: golang/go#44375
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293629
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Rob Pike <r@golang.org>
 
- src/go/types/conversions.go | 119 +++++++++++++++++++++++---------------------
- 1 file changed, 62 insertions(+), 57 deletions(-)
+ src/fmt/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

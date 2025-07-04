@@ -1,17 +1,21 @@
-commit 137328f92dd5250ace285fc0d163b6b9401504fa
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri May 17 18:05:11 2024 +0800
+commit 7286800338bb43b6c0736885fa2c97267e498d37
+Author: Arnaud Lacombe <al@aerilon.ca>
+Date:   Thu Sep 14 20:52:54 2023 +0000
 
-    runtime: use ABIInternal for calls to sigtrampgo on linux/loong64
+    testdata/vcstest/bzr: fix unit test with Ubuntu 2020 LTS bzr 3.0.2
     
-    Change-Id: I13fd5a96daff66a2ecb54f5bafa3d6e5c60f3879
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586357
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    As pointed by @bcmills, upstream fixed this in 3.1.0 in https://github.com/breezy-team/breezy/commit/30143860ced0ad9f42cbf18a119f2800117decff
+    
+    Fixes #62620.
+    
+    Change-Id: I9fa179a5293aec59496ddd401edec02e1080f1a5
+    GitHub-Last-Rev: 6066b05054877b33b78afbb32a81457c19f11c9b
+    GitHub-Pull-Request: golang/go#62652
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528437
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/runtime/sys_linux_loong64.s | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+ src/cmd/go/testdata/vcstest/bzr/hello.txt | 1 +
+ 1 file changed, 1 insertion(+)

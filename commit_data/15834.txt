@@ -1,24 +1,14 @@
-commit b4f3533c92dc59f22bbddbc5b73a1575ce6f7f8b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 19 15:45:42 2013 -0400
+commit 6e69df6102d167344a74d720b5ef080cdf04a8d7
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue Mar 19 19:51:03 2013 +0100
 
-    cmd/ld: replace -hostobj with -linkmode
+    cmd/gc: support channel types in the garbage collector
     
-    Still disabled. Need to fix TLS.
-    
-    R=golang-dev, minux.ma, bradfitz
+    R=golang-dev, dvyukov, rsc
     CC=golang-dev
-    https://golang.org/cl/7783044
+    https://golang.org/cl/7473044
 
- src/cmd/5l/asm.c  |  2 +-
- src/cmd/5l/obj.c  |  6 ++++++
- src/cmd/6l/asm.c  |  4 ++--
- src/cmd/6l/obj.c  | 30 ++++++++++++++----------------
- src/cmd/8l/asm.c  |  4 ++--
- src/cmd/8l/obj.c  | 30 ++++++++++++++----------------
- src/cmd/ld/data.c |  8 ++++----
- src/cmd/ld/elf.c  | 18 +++++++++---------
- src/cmd/ld/go.c   | 25 +++++++++++++++++++------
- src/cmd/ld/lib.h  |  1 +
- src/run.bash      |  5 +++--
- 11 files changed, 75 insertions(+), 58 deletions(-)
+ src/cmd/gc/reflect.c   | 11 ++++++++++-
+ src/pkg/runtime/mgc0.c | 32 ++++++++++++++++++++++++++++----
+ src/pkg/runtime/mgc0.h |  1 +
+ 3 files changed, 39 insertions(+), 5 deletions(-)

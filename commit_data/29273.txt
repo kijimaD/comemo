@@ -1,34 +1,39 @@
-commit f2d05389da562fd58143995195b5f6f844eb89e1
+commit 276a52de55fb48c4e56a778f1f7cac9292d8fad7
 Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 31 17:37:05 2016 -0400
+Date:   Mon Jul 18 21:40:02 2016 -0400
 
-    runtime: perform write barriers on direct channel receive
+    runtime: fetch physical page size from the OS
     
-    Currently we have write barriers for direct channel sends, where the
-    receiver is blocked and the sender is writing directly to the
-    receiver's stack; but not for direct channel receives, where the
-    sender is blocked and the receiver is reading directly from the
-    sender's stack.
+    Currently the physical page size assumed by the runtime is hard-coded.
+    On Linux the runtime at least fetches the OS page size during init and
+    sanity checks against the hard-coded value, but they may still differ.
+    On other OSes we wouldn't even notice.
     
-    This was okay with the old write barrier because either 1) the
-    receiver would write the received pointer into the heap (causing it to
-    be shaded), 2) the pointer would still be on the receiver's stack at
-    mark termination and we would rescan it, or 3) the receiver dropped
-    the pointer so it wasn't necessarily reachable anyway.
+    Add support on all OSes to fetch the actual OS physical page size
+    during runtime init and lift the sanity check of PhysPageSize from the
+    Linux init code to general malloc init. Currently this is the only use
+    of the retrieved page size, but we'll add more shortly.
     
-    This is not okay with the write barrier because it lets a grey stack
-    send a white pointer to a black stack and then remove it from its own
-    stack. If the grey stack was the sole grey-protector of this pointer,
-    this hides the object from the garbage collector.
+    Updates #12480 and #10180.
     
-    Fix this by making direct receives perform a stack-to-stack write
-    barrier just like direct sends do.
-    
-    Fixes #17694.
-    
-    Change-Id: I1a4cb904e4138d2ac22f96a3e986635534a5ae41
-    Reviewed-on: https://go-review.googlesource.com/32450
+    Change-Id: I065f2834bc97c71d3208edc17fd990ec9058b6da
+    Reviewed-on: https://go-review.googlesource.com/25050
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/chan.go | 33 +++++++++++++++++++++------------
- 1 file changed, 21 insertions(+), 12 deletions(-)
+ src/runtime/defs1_solaris_amd64.go |  1 +
+ src/runtime/export_mmap_test.go    |  6 +++++
+ src/runtime/malloc.go              | 22 +++++++++++++++++
+ src/runtime/os3_solaris.go         |  9 +++++++
+ src/runtime/os_darwin.go           | 22 ++++++++++++++++-
+ src/runtime/os_dragonfly.go        | 17 +++++++++++--
+ src/runtime/os_freebsd.go          | 17 +++++++++++--
+ src/runtime/os_linux.go            | 12 +--------
+ src/runtime/os_nacl.go             |  1 +
+ src/runtime/os_netbsd.go           | 17 +++++++++++--
+ src/runtime/os_openbsd.go          | 17 +++++++++++--
+ src/runtime/os_plan9.go            | 50 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/os_windows.go          |  8 ++++++
+ src/runtime/runtime_mmap_test.go   | 28 +++++++++++++++++++--
+ 14 files changed, 205 insertions(+), 22 deletions(-)

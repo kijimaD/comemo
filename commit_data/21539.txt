@@ -1,34 +1,41 @@
-commit e6fbce3596c1200825db78d338b98cbc80dc5665
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Feb 6 11:44:09 2015 +1100
+commit 5bfed7c6c03bf3cc9a0a1d7a0ab056b9dfaae920
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 14 11:18:24 2015 -0500
 
-    cmd/dist: reactivate vfp detection on linux/arm
+    runtime: log all thread stack traces during GODEBUG=crash on Linux and OS X
     
-    Fixes #9732
-    Fixes #9819
+    Normally, a panic/throw only shows the thread stack for the current thread
+    and all paused goroutines. Goroutines running on other threads, or other threads
+    running on their system stacks, are opaque. Change that when GODEBUG=crash,
+    by passing a SIGQUIT around to all the threads when GODEBUG=crash.
+    If this works out reasonably well, we might make the SIGQUIT relay part of
+    the standard panic/throw death, perhaps eliding idle m's.
     
-    Rather than detecting vfp support via catching SIGILL signals,
-    parse the contents of /proc/cpuinfo.
-    
-    As the GOARM values for NaCl and freebsd are hard coded, this parsing
-    logic only needs to support linux/arm.
-    
-    This change also fixes the nacl/arm build which is broken because the
-    first stage of nacltest.bash is executed with GOARM=5, embedding that
-    into 5g.
-    
-    The second stage of nacltest.bash correctly detects GOARM=7, but this is
-    ignored as we pass --no-clean at that point, and thus do not replace
-    the compiler.
-    
-    Lastyly, include a fix to error message in nacltest.bash
-    
-    Change-Id: I13f306ff07a99b44b493fade72ac00d0d5097e1c
-    Reviewed-on: https://go-review.googlesource.com/3981
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If7dd354f7f3a6e326d17c254afcf4f7681af2f8b
+    Reviewed-on: https://go-review.googlesource.com/2811
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/dist/util.go       | 48 ++++++++++++++++++++++++++++++----------------
- src/cmd/dist/vfp_arm.s     | 15 ---------------
- src/cmd/dist/vfp_default.s | 14 --------------
- src/nacltest.bash          |  2 +-
- 4 files changed, 32 insertions(+), 47 deletions(-)
+ src/runtime/defs_nacl_386.go      |  1 +
+ src/runtime/defs_nacl_amd64p32.go |  1 +
+ src/runtime/defs_nacl_arm.go      |  1 +
+ src/runtime/defs_windows.go       |  1 -
+ src/runtime/defs_windows_386.go   |  1 -
+ src/runtime/defs_windows_amd64.go |  1 -
+ src/runtime/os1_windows.go        |  8 +++++++
+ src/runtime/os2_plan9.go          |  4 ++--
+ src/runtime/os3_solaris.go        |  4 ++++
+ src/runtime/os_darwin.go          |  1 +
+ src/runtime/os_dragonfly.go       |  1 +
+ src/runtime/os_freebsd.go         |  1 +
+ src/runtime/os_linux.go           |  1 +
+ src/runtime/os_nacl.go            |  3 +++
+ src/runtime/os_netbsd.go          |  1 +
+ src/runtime/os_openbsd.go         |  1 +
+ src/runtime/signal_amd64x.go      | 44 ++++++++++++++++++++++++++++++++++-----
+ src/runtime/sys_darwin_386.s      |  7 ++++++-
+ src/runtime/sys_darwin_amd64.s    |  7 ++++++-
+ src/runtime/sys_linux_386.s       |  9 ++++++++
+ src/runtime/sys_linux_amd64.s     |  9 ++++++++
+ src/runtime/sys_linux_arm.s       | 11 ++++++++++
+ src/runtime/sys_linux_ppc64x.s    |  9 ++++++++
+ 23 files changed, 115 insertions(+), 12 deletions(-)

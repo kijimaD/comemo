@@ -1,39 +1,26 @@
-commit e596e8831885ad057a7f1db1391fddfd53f06431
-Author: Damien Neil <dneil@google.com>
-Date:   Sat Sep 30 10:38:01 2023 -0700
+commit 0487ba08a681c9e4414195c3a0f0ed16e93ada4f
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Sun Feb 12 12:21:26 2023 +0000
 
-    path/filepath: add Localize
+    archive/zip: make receiver names consistent
     
-    Add the Localize function, which takes an io/fs slash-separated path
-    and returns an operating system path.
+    Fixes revive linter receiver-naming warnings:
     
-    Localize returns an error if the path cannot be represented on
-    the current platform.
+    - receiver name f should be consistent with previous receiver name e for fileListEntry
+    - receiver name r should be consistent with previous receiver name z for Reader
+    - receiver name f should be consistent with previous receiver name h for FileHeader
     
-    Replace internal/safefile.FromFS with Localize,
-    which serves the same purpose as this function.
-    
-    The internal/safefile package remains separate from path/filepath
-    to avoid a dependency cycle with the os package.
-    
-    Fixes #57151
-    
-    Change-Id: I75c88047ddea17808276761da07bf79172c4f6fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531677
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ibfa14b97f6ca7adc86e3a1df919c5bb5de9716dc
+    GitHub-Last-Rev: dd7315b09d224bb2953b82cc6bd97d81c9eaca0a
+    GitHub-Pull-Request: golang/go#58477
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467519
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
 
- api/next/57151.txt                                |  1 +
- doc/next/6-stdlib/99-minor/path/filepath/57151.md |  2 +
- src/internal/safefilepath/path.go                 | 17 +++--
- src/internal/safefilepath/path_other.go           | 24 -------
- src/internal/safefilepath/path_plan9.go           | 14 ++++
- src/internal/safefilepath/path_test.go            | 88 -----------------------
- src/internal/safefilepath/path_unix.go            | 16 +++++
- src/internal/safefilepath/path_windows.go         | 35 ++++-----
- src/net/http/fs.go                                |  7 +-
- src/os/dir.go                                     |  2 +-
- src/os/file.go                                    |  5 +-
- src/path/filepath/path.go                         | 16 +++++
- src/path/filepath/path_test.go                    | 67 +++++++++++++++++
- 13 files changed, 149 insertions(+), 145 deletions(-)
+ src/archive/zip/reader.go | 50 +++++++++++++++++++++++------------------------
+ src/archive/zip/struct.go |  4 ++--
+ 2 files changed, 27 insertions(+), 27 deletions(-)

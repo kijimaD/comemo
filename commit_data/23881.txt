@@ -1,17 +1,13 @@
-commit cd3a5edb0433e6f3cafd997794aaea3083ae5b92
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 28 15:50:51 2015 -0400
+commit 0c247bf41b51b8528e592cdbeffbd237def72f69
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 18 17:01:55 2015 +1000
 
-    cmd/go: fix go get -u with vendoring
+    math/big: refine Fibonacci example
     
-    Fixes #11864.
-    
-    Change-Id: Ib9d5bd79f3b73ebd32f6585b354aaad556e0fc71
-    Reviewed-on: https://go-review.googlesource.com/12749
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Id9e8c3f89e021b9f389ab3c8403e6a8450fa9f5f
+    Reviewed-on: https://go-review.googlesource.com/11231
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/get.go         | 36 +++++++++++++++++++-----------------
- src/cmd/go/pkg.go         | 38 ++++++++++++++++++++++++++++++--------
- src/cmd/go/test.go        |  6 +++---
- src/cmd/go/vendor_test.go | 13 +++++++++++++
- 4 files changed, 65 insertions(+), 28 deletions(-)
+ src/math/big/example_test.go | 38 +++++++++++++++++---------------------
+ 1 file changed, 17 insertions(+), 21 deletions(-)

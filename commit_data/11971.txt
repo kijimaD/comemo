@@ -1,17 +1,21 @@
-commit 11f4a6c9df1616da9abe4f4ad1c2f41b4cf33fbf
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Feb 16 14:04:51 2012 -0500
+commit 7c2bfa4f2cd591c618353bc3099678b0db6e8750
+Author: Bobby Powers <bobbypowers@gmail.com>
+Date:   Thu Feb 16 13:31:46 2012 -0500
 
-    os,syscall: fix plan 9 build
+    dist: add clang specific -Wno options
     
-    NewFile take uintptr
-    make syscall.ProcAttr.Files be []uintptr
+    Clang 3.1 has more warnings enabled by default than GCC.
+    Combined with -Werror, they cause the build to fail
+    unnecessarily.  if the name of our compiler ends in "clang",
+    add the necessary extra -Wno options.  Ideally we would add
+    these flags unconditionally, as GCC is supposed to ignore
+    unknown -Wno flags, but apple's llvm-gcc doesn't.
     
-    R=rsc
+    Fixes #2878.
+    
+    R=rsc, dave
     CC=golang-dev
-    https://golang.org/cl/5656073
+    https://golang.org/cl/5673055
 
- src/pkg/os/exec_plan9.go      | 12 ++----------
- src/pkg/os/file_plan9.go      | 19 ++++++++++---------
- src/pkg/syscall/exec_plan9.go | 13 ++++++++-----
- 3 files changed, 20 insertions(+), 24 deletions(-)
+ src/cmd/dist/build.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,22 +1,18 @@
-commit debca779719a72929932c589fe7ed3fea5341e53
-Author: Keith Randall <khr@google.com>
-Date:   Fri Dec 21 15:41:28 2018 -0800
+commit 096229b2ec60c51b65746dfd1a5bf443ac8e5a0f
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Aug 8 02:04:49 2018 +0000
 
-    cmd/compile: fix line number for implicitly declared method expressions
+    cmd/compile: add missing type information for some arm/arm64 rules
     
-    Method expressions where the method is implicitly declared have no
-    line number. The Error method of the built-in error type is one such
-    method.  We leave the line number at the use of the method expression
-    in this case.
+    Some indexed load/store rules lack of type information, and this
+    CL adds that for them.
     
-    Fixes #29389
-    
-    Change-Id: I29c64bb47b1a704576abf086599eb5af7b78df53
-    Reviewed-on: https://go-review.googlesource.com/c/155639
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Icac315ccb83a2f5bf30b056d4667d5b59eb4e5e2
+    Reviewed-on: https://go-review.googlesource.com/128455
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/closure.go |  7 ++++++-
- test/fixedbugs/issue29389.go           | 17 +++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 24 +++++++++++-----------
+ src/cmd/compile/internal/ssa/gen/ARMOps.go   | 30 ++++++++++++++--------------
+ 2 files changed, 27 insertions(+), 27 deletions(-)

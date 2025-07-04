@@ -1,23 +1,32 @@
-commit fdf5aaf5555692a9e03a65df1aba06aa4a09052b
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Mar 5 07:48:28 2018 +0000
+commit 2ff75551030c7e54bd1cec3e88805d4ea3232276
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Thu Sep 21 01:53:13 2017 -0400
 
-    cmd/asm: fix ARM64 vector register arrangement encoding bug
+    net/http: set Content-Type header for HEAD as well
     
-    The current code assigns vector register arrangement a wrong value
-    when the arrangement specifier is S2, which causes the incorrect
-    assembly.
+    In CL 50510, the Content-Type header started to be set in Redirect when
+    request method is GET. (Prior to that, it wasn't set at all, which is
+    what said CL was fixing.) However, according to HTTP specification,
+    the expected response for a HEAD request is identical to that of a
+    GET request, but without the response body.
     
-    The patch fixes the issue and adds the test cases.
+    This CL updates the behavior to set the Content-Type header for HEAD
+    method in addition to GET.
     
-    Fixes #24249
+    This actually allows a simpler implementation than before. This change
+    largely reverts CL 50510, and applies the simpler implementation.
     
-    Change-Id: I9736df1279494003d0b178da1af9cee9cd85ce21
-    Reviewed-on: https://go-review.googlesource.com/98555
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Add a test for Content-Type header and body for GET, HEAD requests.
+    
+    Updates CL 50510.
+    
+    Change-Id: If33ea3f4bbc5246bb5dc751458004828cfe681b9
+    Reviewed-on: https://go-review.googlesource.com/65190
+    Run-TryBot: Dmitri Shuralyov <shurcool@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/cmd/asm/internal/arch/arm64.go        | 2 +-
- src/cmd/asm/internal/asm/testdata/arm64.s | 5 +++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/net/http/serve_test.go | 31 +++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 13 ++++++-------
+ 2 files changed, 37 insertions(+), 7 deletions(-)

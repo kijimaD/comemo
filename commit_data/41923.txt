@@ -1,18 +1,35 @@
-commit 7242428509ba2d947ee2bed79f60bf0301720fef
-Author: chainhelen <chainhelen@gmail.com>
-Date:   Sun Apr 12 08:38:21 2020 +0000
+commit 08a72c851c782a5a0190c1647283432a1bb09889
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Oct 25 18:23:35 2019 +0000
 
-    doc/debugging_with_gdb: fix the link of delve
+    runtime: turn off scavenger when there's <1 physical page of work
     
-    The repository of delve has already switched from the personal
-    account github.com/derekparker/delve to the organization account
-    github.com/go-delve/delve. According to go-delve/delve#1456.
+    This change turns off the scavenger if there's less than one physical
+    page of work to do. If there's less than one phyiscal page of work
+    today, then the computed time for the work to be done will be zero,
+    resulting in a floating point division by zero.
     
-    Change-Id: Ie64f72c2808a8aca5059a75e2c2f11d8691e66b3
-    GitHub-Last-Rev: f90120c3b33f2134a572a62aaf291aa2abe58749
-    GitHub-Pull-Request: golang/go#38387
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227999
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This is bad on two accounts. On the one hand it could cause a fault on
+    some systems. On the other hand, it could cause the pacing computations
+    done by the scavenger to be nonsense. While this is generally harmless
+    in the case where there's a very small amount of work to do anyway (the
+    scavenger might just back off expontentially forever, or do some work
+    and immediately sleep, because there's not much of it to do), it causes
+    problems for the deadlock checker. On platforms with a larger physical
+    page size, such as 64 KiB, we might hit this path in a deadlock
+    scenario, in which case the deadlock checker will never fire and we'll
+    just hang.
+    
+    Specifically, this happens on ppc64 trybot tests, which is where the
+    issue was discovered.
+    
+    Fixes #34575.
+    
+    Change-Id: I8677db539447b2f0e75b8cfcbe33932244e1508c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203517
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/debugging_with_gdb.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mgcscavenge.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

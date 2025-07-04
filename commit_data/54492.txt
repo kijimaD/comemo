@@ -1,23 +1,85 @@
-commit 38b2c06e144c6ea7087c575c76c66e41265ae0b7
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Aug 28 01:22:02 2023 +1000
+commit 4319231686c28d8542219991f0c9026139142b9c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 28 16:59:02 2022 -0400
 
-    cmd/internal/obj/riscv: clean up immediate checking
+    cmd/go: replace the '[exec:git]' condition with a '[git]' condition
     
-    Change immIFits to return an error in the case that it does not fit.
-    This allows for deduplication and consistency of error messages.
-    Additionally, since we've already calculated the min and max values,
-    we can easily include these in the message. Also provide and use
-    immEven, for the same reasons.
+    This makes it more obvious that the condition is testing for something
+    beyond just the existence of a 'git' executable.
     
-    Change-Id: Ie680558744f3e9bc19d6913c4144ce9ddbd0429c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523458
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    For #27494.
+    
+    Change-Id: I7608b6c84f9f373292687b3a2066b0ded7deb6e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421454
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 93 +++++++++++++++++++++++----------------
- 1 file changed, 54 insertions(+), 39 deletions(-)
+ src/cmd/go/scriptconds_test.go                     | 28 +++++++++-------------
+ src/cmd/go/testdata/script/README                  |  2 ++
+ src/cmd/go/testdata/script/build_buildvcs_auto.txt |  2 +-
+ src/cmd/go/testdata/script/get_404_meta.txt        |  2 +-
+ src/cmd/go/testdata/script/get_brace.txt           |  2 +-
+ .../testdata/script/get_custom_domain_wildcard.txt |  2 +-
+ src/cmd/go/testdata/script/get_dash_t.txt          |  2 +-
+ src/cmd/go/testdata/script/get_domain_root.txt     |  2 +-
+ .../go/testdata/script/get_dot_slash_download.txt  |  2 +-
+ src/cmd/go/testdata/script/get_dotfiles.txt        |  2 +-
+ src/cmd/go/testdata/script/get_insecure.txt        |  2 +-
+ .../testdata/script/get_insecure_custom_domain.txt |  2 +-
+ src/cmd/go/testdata/script/get_insecure_env.txt    |  2 +-
+ .../go/testdata/script/get_insecure_redirect.txt   |  2 +-
+ src/cmd/go/testdata/script/get_insecure_update.txt |  2 +-
+ .../go/testdata/script/get_internal_wildcard.txt   |  2 +-
+ src/cmd/go/testdata/script/get_issue11307.txt      |  2 +-
+ src/cmd/go/testdata/script/get_issue16471.txt      |  2 +-
+ src/cmd/go/testdata/script/get_issue22125.txt      |  2 +-
+ src/cmd/go/testdata/script/get_legacy.txt          |  2 +-
+ src/cmd/go/testdata/script/get_non_pkg.txt         |  2 +-
+ src/cmd/go/testdata/script/get_race.txt            |  2 +-
+ src/cmd/go/testdata/script/get_test_only.txt       |  2 +-
+ src/cmd/go/testdata/script/get_update.txt          |  2 +-
+ .../script/get_update_unknown_protocol.txt         |  2 +-
+ src/cmd/go/testdata/script/get_update_wildcard.txt |  2 +-
+ src/cmd/go/testdata/script/get_vendor.txt          |  2 +-
+ src/cmd/go/testdata/script/get_with_git_trace.txt  |  2 +-
+ src/cmd/go/testdata/script/gopath_moved_repo.txt   | 16 ++++++-------
+ src/cmd/go/testdata/script/govcs.txt               |  4 ++--
+ src/cmd/go/testdata/script/list_json_fields.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_convert.txt         |  2 +-
+ .../testdata/script/mod_convert_tsv_insecure.txt   |  2 +-
+ .../script/mod_download_git_decorate_full.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_download_hash.txt   |  2 +-
+ .../script/mod_download_insecure_redirect.txt      |  2 +-
+ .../go/testdata/script/mod_download_issue51114.txt |  2 +-
+ .../testdata/script/mod_download_private_vcs.txt   |  2 +-
+ src/cmd/go/testdata/script/mod_get_direct.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_get_hash.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_get_major.txt       |  2 +-
+ src/cmd/go/testdata/script/mod_get_pseudo.txt      |  2 +-
+ .../script/mod_get_pseudo_other_branch.txt         |  2 +-
+ .../go/testdata/script/mod_get_pseudo_prefix.txt   |  2 +-
+ src/cmd/go/testdata/script/mod_getx.txt            |  2 +-
+ .../go/testdata/script/mod_git_export_subst.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_gonoproxy.txt       |  2 +-
+ src/cmd/go/testdata/script/mod_gopkg_unstable.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_init_glide.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_invalid_version.txt |  2 +-
+ src/cmd/go/testdata/script/mod_list_direct.txt     |  2 +-
+ src/cmd/go/testdata/script/mod_list_odd_tags.txt   |  2 +-
+ src/cmd/go/testdata/script/mod_missing_repo.txt    |  2 +-
+ .../go/testdata/script/mod_prefer_compatible.txt   |  2 +-
+ src/cmd/go/testdata/script/mod_pseudo_cache.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_replace_gopkgin.txt |  2 +-
+ .../go/testdata/script/mod_retract_pseudo_base.txt |  2 +-
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt    |  2 +-
+ src/cmd/go/testdata/script/reuse_git.txt           |  2 +-
+ src/cmd/go/testdata/script/test_buildvcs.txt       |  2 +-
+ .../go/testdata/script/vendor_list_issue11977.txt  |  2 +-
+ .../go/testdata/script/vendor_test_issue11864.txt  |  2 +-
+ .../go/testdata/script/vendor_test_issue14613.txt  |  2 +-
+ .../go/testdata/script/version_buildvcs_git.txt    |  2 +-
+ .../testdata/script/version_buildvcs_git_gpg.txt   |  2 +-
+ .../go/testdata/script/version_buildvcs_nested.txt |  2 +-
+ 66 files changed, 85 insertions(+), 89 deletions(-)

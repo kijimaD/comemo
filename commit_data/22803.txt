@@ -1,40 +1,19 @@
-commit f4e3e5eaf0833ef21ae477ad888f6bccfd93d1bc
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Wed Apr 29 18:59:04 2015 +0000
+commit a513088396d28794c2b2e1bb5e5f2a827e922b4a
+Author: Matthew Brennan <matty.brennan@gmail.com>
+Date:   Fri Apr 3 20:09:53 2015 -0400
 
-    html/template: fix quadratic performance with special tags
+    regexp: skip backtracker for long programs
     
-    The current implementation of the tSpecialTagEnd function
-    is inefficient since it generates plenty of memory allocations
-    and converts the whole buffer to lowercase at each call.
+    This update makes maxBacktrackLen return 0 if
+    len(prog.Inst) > maxBacktrackProg. This prevents an attempt to
+    backtrack against a nil bitstate.
     
-    If the number of special tags increases linearly with the
-    template size, the complexity becomes quadratic.
+    Fixes #10319
     
-    This CL provides an alternative implementation.
-    While the algorithm is probably still not optimal, it avoids
-    the quadratic behavior and the memory allocations.
-    
-    benchmark                          old ns/op     new ns/op     delta
-    BenchmarkTemplateSpecialTags-4     19326431      532190        -97.25%
-    
-    benchmark                          old allocs    new allocs    delta
-    BenchmarkTemplateSpecialTags-4     2650          190           -92.83%
-    
-    benchmark                          old bytes     new bytes     delta
-    BenchmarkTemplateSpecialTags-4     4106460       46568         -98.87%
-    
-    While we are there, make sure we respect the HTML tokenization algorithm.
-    An end tag needs to be followed by a space, tab, CR, FF, /, or > as described
-    in https://html.spec.whatwg.org/multipage/syntax.html#tokenization
-    Explicitly add this check.
-    
-    Fixes #10605
-    
-    Change-Id: Ia33ddee164ab608a69ac4183e16ec506bbeaa54c
-    Reviewed-on: https://go-review.googlesource.com/9502
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Icdbeb2392782ccf66f9d0a70ea57af22fb93f01b
+    Reviewed-on: https://go-review.googlesource.com/8473
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/html/template/transition.go      | 42 +++++++++++++++++++++----
- src/html/template/transition_test.go | 60 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 96 insertions(+), 6 deletions(-)
+ src/regexp/backtrack.go | 11 ++++++++++-
+ src/regexp/exec_test.go | 12 ++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

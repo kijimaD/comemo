@@ -1,49 +1,32 @@
-commit 8d39e55c6516be5ee3267b8ce101b324a4f09986
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 14 15:54:20 2014 -0400
+commit 172acae68ae4c89190df48a7cec084d6cc27c49d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 14 12:08:32 2014 -0700
 
-    liblink: remove arch-specific constants from file format
+    net/http: make race detector happy for recently-added test
     
-    The relocation and automatic variable types were using
-    arch-specific numbers. Introduce portable enumerations
-    instead.
+    Update #7264
     
-    To the best of my knowledge, these are the only arch-specific
-    bits left in the new object file format.
+    Races:
+    http://build.golang.org/log/a2e401fdcd4903a61a3375bff5da702a20ddafad
+    http://build.golang.org/log/ec4c69e92076a747ac6d5df7eb7b382b31ab3d43
     
-    Remove now, before Go 1.3, because file formats are forever.
+    I think this is the first time I've actually seen a manifestation
+    of Issue 7264, and one that I can reproduce.
     
-    LGTM=iant
-    R=iant
-    CC=golang-codereviews
-    https://golang.org/cl/87670044
+    I don't know why it triggers on this test and not any others
+    just like it, or why I can't reproduce Issue 7264
+    independently, even when Dmitry gives me minimal repros.
+    
+    Work around it for now with some synchronization to make the
+    race detector happy.
+    
+    The proper fix will probably be in net/http/httptest itself, not
+    in all hundred some tests.
+    
+    LGTM=rsc
+    R=rsc
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/87640043
 
- include/link.h                      |  26 ++++++++++++++++--
- src/cmd/5l/5.out.h                  |  10 -------
- src/cmd/5l/asm.c                    |  52 ++++++++++++++++++------------------
- src/cmd/6l/6.out.h                  |   4 ---
- src/cmd/6l/asm.c                    |  34 +++++++++++------------
- src/cmd/8l/8.out.h                  |   5 ----
- src/cmd/8l/asm.c                    |  44 +++++++++++++++---------------
- src/cmd/ld/data.c                   |  14 +++++-----
- src/cmd/ld/dwarf.c                  |   6 ++---
- src/cmd/ld/ldmacho.c                |   2 +-
- src/cmd/ld/ldpe.c                   |   6 ++---
- src/cmd/ld/lib.c                    |   4 +--
- src/cmd/link/load.go                |  18 +++++--------
- src/cmd/link/pclntab.go             |   2 +-
- src/cmd/link/testdata/autosection.6 | Bin 912 -> 888 bytes
- src/cmd/link/testdata/autoweak.6    | Bin 431 -> 425 bytes
- src/cmd/link/testdata/dead.6        | Bin 1065 -> 1054 bytes
- src/cmd/link/testdata/hello.6       | Bin 272 -> 271 bytes
- src/cmd/link/testdata/layout.6      | Bin 434 -> 429 bytes
- src/cmd/link/testdata/pclntab.6     | Bin 4607 -> 4603 bytes
- src/liblink/asm5.c                  |  12 ++++-----
- src/liblink/asm6.c                  |  12 ++++-----
- src/liblink/asm8.c                  |  10 +++----
- src/liblink/data.c                  |  16 +++++------
- src/liblink/obj5.c                  |   4 +--
- src/liblink/obj6.c                  |   8 +++---
- src/liblink/obj8.c                  |   4 +--
- src/liblink/objfile.c               |  12 +++++----
- 28 files changed, 151 insertions(+), 154 deletions(-)
+ src/pkg/net/http/transport_test.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

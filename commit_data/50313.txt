@@ -1,17 +1,24 @@
-commit 7d83d320c0c290a259fa9dcf9ecfb3e0402be30c
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Fri Sep 2 10:31:34 2022 +0800
+commit cf51fb5d680a9a1ca98af3361e65722d07bff111
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Oct 16 20:30:12 2021 -0700
 
-    runtime: convert local var ready at TestMemmoveAtomicity to atomic type
+    cmd/compile, types2: avoid confusing follow-on error in invalid type assertion
     
-    For #53821
+    This CL avoids a useless follow-on error (that gets reported before the
+    actual error due to source position). This addresses the first part of
+    the issue below.
     
-    Change-Id: I2487b8d18a4cd3fc6e64fbbb531419812bfe0f08
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427136
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Thanks to @cuonglm for the suggestion for the fix.
+    
+    For #49005.
+    
+    Change-Id: Ifdd83072a05c32e115dc58a0233868a64f336f3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356449
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/memmove_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/typexpr.go |  7 +++++++
+ test/fixedbugs/issue49005a.go              | 13 +++++++++++++
+ 2 files changed, 20 insertions(+)

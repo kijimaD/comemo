@@ -1,38 +1,14 @@
-commit 133c26b158b7764dd128f02e2d64de798c198582
-Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
-Date:   Sat Mar 5 15:57:17 2016 -0300
+commit 7688f0d9fb13a77113f75f3b85ae7973cabc7044
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 16:34:08 2015 +0000
 
-    go/types: don't emit conversion error in non-numeric increment/decrement
+    cmd/pprof: fix scaling of "gigabyte" unit
     
-    In increment and decrement statements, explicit check that the type
-    of operand is numeric. This avoids a related but less clear error
-    about converting "1" to be emitted.
+    Fixes #13654
     
-    So, when checking
-    
-            package main
-    
-            func main() {
-                    var x bool
-                    x++
-            }
-    
-    instead of emitting the error
-    
-            prog.go:5:2: cannot convert 1 (untyped int constant) to bool
-    
-    emits
-    
-            prog.go:5:2: invalid operation: x++ (non-numeric type bool).
-    
-    Updates #12525.
-    
-    Change-Id: I00aa6bd0bb23267a2fe10ea3f5a0b20bbf3552bc
-    Reviewed-on: https://go-review.googlesource.com/20244
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id2ce32c52efcfdbd66630725d62d2ca6bf0916d5
+    Reviewed-on: https://go-review.googlesource.com/17934
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/stmt.go            | 10 ++++++++++
- src/go/types/testdata/stmt0.src |  2 +-
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/pprof/internal/report/report.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

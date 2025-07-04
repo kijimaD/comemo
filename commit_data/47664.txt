@@ -1,18 +1,20 @@
-commit 36be0beb05043e8ef3b8d108e9f8977b5eac0c87
-Author: Changkun Ou <hi@changkun.de>
-Date:   Thu Dec 2 16:01:09 2021 +0100
+commit 45e87cd3ecfe5e579a06493ef8cd43ce9947262c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 4 12:20:35 2021 -0400
 
-    misc/ios: bump min version
+    cmd/compile: disable tail call for method wrappers when RegabiArgs is enabled
     
-    For #48076
+    Currently, the IR of tailcall does not connect the arguments with
+    the OTAILCALL node, so the arguments are not marshaled correctly.
+    Disable tail call for now.
     
-    Change-Id: I5edaa43af82c3478555c309a001a3d1b16de3d64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368615
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #40724.
+    
+    Change-Id: I39de3ea8e19a23eb63768ab7282d2f870e9c266e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307234
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/ios/clangwrap.sh | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,17 +1,14 @@
-commit 3b980579b42299c3bd31ffd433824c43a7b13523
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Fri May 27 15:51:00 2011 -0700
+commit 5a35757f3f68716e394a676eaa1d655b37cb55b2
+Author: Rob Pike <r@golang.org>
+Date:   Sat May 28 07:06:53 2011 +1000
 
-    big: make Int and Rat implement fmt.Scanner
+    time: midnight is 12AM.
+    This is the other half of the problem fixed at noon by the previous change.
     
-    R=gri
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4552056
+    https://golang.org/cl/4515150
 
- src/pkg/big/int.go      | 79 ++++++++++++++++++++++++++++++++++++----------
- src/pkg/big/int_test.go | 43 +++++++++++++++++++++++++
- src/pkg/big/nat.go      | 83 +++++++++++++++++++++++++++++++++----------------
- src/pkg/big/nat_test.go | 64 +++++++++++++++++++++++++++++++++-----
- src/pkg/big/rat.go      | 32 +++++++++++++++++--
- src/pkg/big/rat_test.go | 29 ++++++++++++++++-
- 6 files changed, 275 insertions(+), 55 deletions(-)
+ src/pkg/time/format.go    | 36 +++++++++++++++++++++++-------------
+ src/pkg/time/time_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 13 deletions(-)

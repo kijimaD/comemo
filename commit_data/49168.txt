@@ -1,34 +1,22 @@
-commit f269d90bf201ee97c42ce625376883866ad77332
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 11 20:52:05 2022 -0700
+commit ecaa6816bfdbcef2ad749958a11a321de5c2ebd8
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jul 24 18:34:16 2021 +0700
 
-    spec: use original terminology in metasyntax (cleanup)
+    doc: clarify non-nil zero length slice to array pointer conversion
     
-    The metasyntax used in the spec is exactly the Wirth Syntax
-    Notation (WSN), which eventually influenced EBNF. Add a link
-    but keep mentioning EBNF which is likely more commonly known.
+    There is an example for nil slice already, so adding example for non-nil
+    zero length slice, too, clarifying to the reader that the result is also
+    non-nil and different from nil slice case.
     
-    Use the original terms in the productions. Specifically, use
-    the words "Term" and "Factor" rather than "Alternative" and
-    "Term".
+    Updates #395
     
-    The terminology cleanup also resolves an inconsistency in the
-    subsequent prose which is referring to the correct "terms" now.
-    
-    While at it, add a production for the entire Syntax itself,
-    matching the original WSN definition.
-    
-    Also, replace the two uses of "grammar" with "syntax" for
-    consistency ("syntax" is the prevalent term used throughout
-    the spec).
-    
-    Fixes #50074.
-    
-    Change-Id: If770d5f32f56f509f85893782c1dafbb0eb29b2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405814
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I019db1b1a1c0c621161ecaaacab5a4d888764b1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336890
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go_spec.html | 19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+ doc/go_spec.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

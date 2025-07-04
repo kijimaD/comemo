@@ -1,0 +1,19 @@
+commit 10ca5ba4ffecb58028e301904f943a66110966ba
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Dec 17 20:39:24 2024 +0100
+
+    crypto/pbkdf2: update RFC reference in package doc
+    
+    Now that it's published, we don't need to explain how we diverge from
+    the old one.
+    
+    Change-Id: If2c22e89dd1b9fc531a363b5fb7b1eb5720eb84e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637215
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/pbkdf2/pbkdf2.go | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)

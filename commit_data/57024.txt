@@ -1,20 +1,18 @@
-commit a55f9d93e31c885f104896dc7c03fa14ec1a1b29
-Author: Julian Dax <julian.dax@posteo.de>
-Date:   Mon Jul 15 16:36:07 2024 +0200
+commit ce8eadf591f81cbdec3d7887339a3dabfe20f7ea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 8 13:16:06 2023 -0700
 
-    cmd/go/internal/test: update documentation for the "go test" command
+    doc/go1.21: remove CL 472195 TODO
     
-    The documentation referred to the package's source root as $GOPATH, which is no longer correct.
+    It's not needed per CL 499515.
     
-    Fixes #64303
-    
-    Change-Id: I2ea113497975726468d4ee4f85e2cfcbea9a76d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598235
-    Reviewed-by: Julian Dax <julian.dax@posteo.de>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I2a5ce46be93dad1442c0aad736fd8d230ee35f39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501996
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/alldocs.go            | 8 ++++----
- src/cmd/go/internal/test/test.go | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ doc/go1.21.html | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

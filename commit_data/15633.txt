@@ -1,12 +1,12 @@
-commit 43ee80997a5d52360fad605f01b9753e4056bdc2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 7 12:46:44 2013 -0800
+commit 6ee75663c987dca914a34cf298e65484088250a8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 7 11:17:30 2013 -0800
 
-    C: add Keith Randall (Google CLA)
+    go/types: more internal cleanups
     
-    R=golang-dev, iant
+    R=adonovan, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7595043
+    https://golang.org/cl/7492045
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/go/types/stmt.go | 66 +++++++++++++++++++++++++-----------------------
+ 1 file changed, 34 insertions(+), 32 deletions(-)

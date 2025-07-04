@@ -1,35 +1,33 @@
-commit dac514ea370d9a5e5129614c58082fe1905f6dcb
-Author: Achille Roussel <achille.roussel@gmail.com>
-Date:   Mon Mar 20 22:16:21 2023 +0000
+commit 4bb45f7549548add8222aa4f3040d0e2120691a9
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Apr 26 14:42:34 2022 -0400
 
-    runtime: reuse freed memory blocks on wasm
+    runtime: mark sigtramp as TOPFRAME
     
-    When compiling Go programs to WebAssembly, the memory allocation
-    strategy was neither releasing memory to the OS nor reusing blocks freed
-    by calls to runtime.sysFreeOS.
+    Currently throw() in the signal handler results in "fatal error: unknown
+    return pc from runtime.sigreturn ...".
     
-    This CL unifies the plan9 and wasm memory management strategy
-    since both platforms use a linear memory space and do not have a
-    mechanism for returning memory blocks to the OS.
+    Marking sigtramp as TOPFRAME allows gentraceback to stop tracebacks at
+    the end of a signal handler, since there is not much beyond sigtramp.
     
-    Fixes #59061
+    This is just done on Linux for now, but may apply to other Unix systems
+    as well.
     
-    Change-Id: I282ba93c0fe1a0961a31c0825b2a7e0478b8713d
-    GitHub-Last-Rev: 1c485be4fb798679fde7db148392de558a6fa97c
-    GitHub-Pull-Request: golang/go#59065
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476717
-    Reviewed-by: Julien Fabre <ju.pryz@gmail.com>
+    Change-Id: I96edcb945283f417a5bfe00ce2fb2b1a0d578692
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402190
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Evan Phoenix <evan@phx.io>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/mem_js.go    |  71 ++----------------
- src/runtime/mem_plan9.go | 174 --------------------------------------------
- src/runtime/mem_sbrk.go  | 183 +++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/os_js.go     |   4 +-
- src/runtime/os_plan9.go  |   2 +-
- 5 files changed, 194 insertions(+), 240 deletions(-)
+ src/runtime/sys_linux_386.s     | 2 +-
+ src/runtime/sys_linux_amd64.s   | 2 +-
+ src/runtime/sys_linux_arm.s     | 2 +-
+ src/runtime/sys_linux_arm64.s   | 2 +-
+ src/runtime/sys_linux_mips64x.s | 2 +-
+ src/runtime/sys_linux_mipsx.s   | 2 +-
+ src/runtime/sys_linux_ppc64x.s  | 2 +-
+ src/runtime/sys_linux_riscv64.s | 2 +-
+ src/runtime/sys_linux_s390x.s   | 2 +-
+ 9 files changed, 9 insertions(+), 9 deletions(-)

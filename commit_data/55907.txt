@@ -1,18 +1,46 @@
-commit a18aa0e3d14271659398648a49e54683ded4456c
-Author: sivchari <shibuuuu5@gmail.com>
-Date:   Mon Mar 11 23:28:30 2024 +0900
+commit 42f99b203d2990429ba9d13bd1b71d31057ce30a
+Author: erifan01 <eric.fang@arm.com>
+Date:   Tue Mar 14 09:25:07 2023 +0800
 
-    all: gofmt
+    cmd/compile: optimize cmp to cmn under conditions < and >= on arm64
     
-    These files are not formatted by gofmt. Thus, run gofmt to format them.
+    Under the right conditions we can optimize cmp comparisons to cmn
+    comparisons, such as:
+    func foo(a, b int) int {
+      var c int
+      if a + b < 0 {
+            c = 1
+      }
+      return c
+    }
     
-    Change-Id: Iea9650e64b1f47cf82739f3a8a34f47740a96455
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570398
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Previously it's compiled as:
+      ADD     R1, R0, R1
+      CMP     $0, R1
+      CSET    LT, R0
+    With this CL it's compiled as:
+      CMN     R1, R0
+      CSET    MI, R0
+    Here we need to pay attention to the overflow situation of a+b, the MI
+    flag means N==1, which doesn't honor the overflow flag V, its value
+    depends only on the sign of the result. So it has the same semantic of
+    the Go code, so it's correct.
+    
+    Similarly, this CL also optimizes the case of >= comparison
+    using the PL conditional flag.
+    
+    Change-Id: I47179faba5b30cca84ea69bafa2ad5241bf6dfba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476116
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/html/template/transition.go | 2 +-
- src/net/netip/slow_test.go      | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go            |   7 +-
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules    |  18 +-
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go    |   3 +
+ src/cmd/compile/internal/ssa/opGen.go            |  20 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go     | 380 +++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteCond_test.go |  36 +++
+ test/codegen/comparisons.go                      |  43 +++
+ 7 files changed, 497 insertions(+), 10 deletions(-)

@@ -1,19 +1,24 @@
-commit f25631b490c7ccb8e555b4031dc12046b2534c11
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Mar 26 00:46:17 2022 +0700
+commit a573cbfa6c84c108d79330d062c345dc8d38dbfd
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon May 17 20:14:15 2021 -0700
 
-    cmd/compile/internal/ir: remove NewClosureExpr
+    [dev.fuzz] internal/fuzz: support minimization of strings, integers, and floats
     
-    The only usage of NewClosureExpr is inside NewClosureFunc, which is its
-    alternative version. So just remove NewClosureExpr and inline it there.
+    Adds support for minimizing strings using the same logic as byte slices
+    as well as minimizing both signed and unsigned integers and floats using
+    extremely basic logic. A more complex approach is probably warranted in
+    the future, but for now this should be _good enough_.
     
-    Change-Id: I1900f4fbb48d7b4f6e6a857f7f7760cd27302671
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395855
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibc6c3d6ae82685998f571aa2c1ecea2f85c2708b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320669
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ir/expr.go | 8 --------
- src/cmd/compile/internal/ir/func.go | 4 +++-
- 2 files changed, 3 insertions(+), 9 deletions(-)
+ src/internal/fuzz/minimize.go      | 104 ++++++++++++++++++
+ src/internal/fuzz/minimize_test.go | 219 +++++++++++++++++++++++++++++++++++++
+ src/internal/fuzz/worker.go        | 175 ++++++++++++++++-------------
+ 3 files changed, 425 insertions(+), 73 deletions(-)

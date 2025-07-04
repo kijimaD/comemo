@@ -1,16 +1,16 @@
-commit 4d724f4c5b31d13f55017266db6e6cc8bd08f541
+commit a642ca49309b129e77ba15a066fbf8e7c4b69b79
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat May 5 02:02:36 2012 +0800
+Date:   Sat May 5 01:59:14 2012 +0800
 
-    sync/atomic: fix 64-bit atomic cas for Linux/ARM
-        This is a follow-up to CL 5978051.
-        Use kernel cas64 helper if we can, fallback to LDREXD/STREXD if
-        we are on ARMv6 or higher, and to lock-emulated cas64 if on ARMv5.
-        A future CL will fix {Add,Load,Store}{Int,Uint}64 and issue 3331.
+    runtime: get per-process random number from auxv for hash table
+    Decode AT_RANDOM, AT_HWCAP, and AT_PLATFORM.
+    This CL only make use of AT_RANDOM, but future CLs will make use of the others.
     
-    R=bradfitz, rsc
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6034048
+    https://golang.org/cl/5978051
 
- src/pkg/sync/atomic/asm_linux_arm.s | 61 +++++++++++++++++++++++++++++++++----
- 1 file changed, 55 insertions(+), 6 deletions(-)
+ src/pkg/runtime/asm_arm.s          | 10 -------
+ src/pkg/runtime/rt0_linux_arm.s    |  4 +++
+ src/pkg/runtime/signal_linux_arm.c | 57 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 61 insertions(+), 10 deletions(-)

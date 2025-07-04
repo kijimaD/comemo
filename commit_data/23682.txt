@@ -1,17 +1,26 @@
-commit 6ab582a80d329e69fb5c2e61eb72512131e17b4a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 01:14:08 2015 -0400
+commit f7f604e28459ac993b86832b769438c4a35f06c2
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 27 14:52:22 2015 -0700
 
-    cmd/go: go test -race -i runtime/race must not install race-enabled cmd/cgo
+    [dev.ssa] cmd/internal/ssa: add string operations
     
-    Fix now uses same test as 'go build'.
+    Add ops to load, store, select ptr & len, and build constant strings.
+    A few other minor cleanups.
     
-    Fixes #10500.
-    
-    Change-Id: I2fcf2d95430643370aa29165d89a188988dee446
-    Reviewed-on: https://go-review.googlesource.com/12174
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I6f0f7419d641b119b613ed44561cd308a466051c
+    Reviewed-on: https://go-review.googlesource.com/10449
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/go_test.go | 17 +++++++++++++++++
- src/cmd/go/test.go    |  2 +-
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go                |   2 +-
+ src/cmd/compile/internal/gc/ssa.go                 |  50 ++++--
+ src/cmd/compile/internal/gc/type.go                |   4 +
+ src/cmd/compile/internal/ssa/config.go             |  22 ++-
+ src/cmd/compile/internal/ssa/generic.go            | 171 ++++++++++++++++++---
+ src/cmd/compile/internal/ssa/lowerAmd64.go         |   2 +-
+ src/cmd/compile/internal/ssa/op.go                 |  12 +-
+ src/cmd/compile/internal/ssa/regalloc.go           |   4 +
+ src/cmd/compile/internal/ssa/rewrite.go            |   6 +-
+ src/cmd/compile/internal/ssa/rulegen/generic.rules |  14 +-
+ src/cmd/compile/internal/ssa/rulegen/rulegen.go    |   5 +-
+ src/cmd/compile/internal/ssa/type.go               |   4 +
+ 12 files changed, 251 insertions(+), 45 deletions(-)

@@ -1,20 +1,20 @@
-commit 647dc1afc5932b0dbbc409727cc81def8e90a0c4
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Aug 29 15:19:44 2019 +0000
+commit d039e12b54a73796caa913994597a9f3a73e8e87
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Fri Mar 1 18:04:14 2019 +0800
 
-    Revert "runtime: don't forward SIGPIPE on macOS"
+    os: consistently return PathError from RemoveAll
     
-    This reverts CL 188297.
+    Fixes #30491
     
-    Reason for revert: broke multiple of the darwin builders.
-    
-    Fixes #33943.
-    
-    Change-Id: Iacff98d1450edc70402dc7a220d16fcd73337c9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191784
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If4070e5d39d8649643d7e90f6f3eb499642e25ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164720
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- misc/cgo/testcarchive/testdata/main3.c | 21 ---------------------
- src/runtime/signal_unix.go             |  7 -------
- 2 files changed, 28 deletions(-)
+ src/os/path.go           |  1 +
+ src/os/path_unix.go      |  2 +-
+ src/os/removeall_at.go   | 38 ++++++++++++++++++++++++--------------
+ src/os/removeall_test.go | 15 +++++++++++++--
+ 4 files changed, 39 insertions(+), 17 deletions(-)

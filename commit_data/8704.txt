@@ -1,20 +1,15 @@
-commit 9968090dddb74e7b5cd1352d791b7cf8cb7a6045
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 13 14:43:54 2011 -0400
+commit 8834bb0bfa7cbbfeb9df0c6d1fa2296e24a431d5
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jun 13 13:04:59 2011 -0400
 
-    cgo: handle new Apple LLVM-based gcc from Xcode 4.2
+    crypto/openpgp: flesh out Encrypt by adding support for signing.
     
-    That gcc does not include enumerator names and values
-    in its DWARF debug output.  Create a data block from which
-    we can read the values instead.
-    
-    Fixes #1881.
-    
-    R=iant
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4607045
+    https://golang.org/cl/4572059
 
- src/cmd/cgo/gcc.go          | 89 ++++++++++++++++++++++++++++++++++++---------
- src/pkg/debug/dwarf/type.go |  4 +-
- src/pkg/debug/elf/file.go   |  6 +++
- 3 files changed, 80 insertions(+), 19 deletions(-)
+ src/pkg/crypto/openpgp/keys.go                     |   2 +-
+ .../crypto/openpgp/packet/one_pass_signature.go    |  27 +++++-
+ src/pkg/crypto/openpgp/write.go                    | 104 +++++++++++++++++++--
+ src/pkg/crypto/openpgp/write_test.go               |  36 ++++++-
+ 4 files changed, 158 insertions(+), 11 deletions(-)

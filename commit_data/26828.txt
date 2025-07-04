@@ -1,60 +1,21 @@
-commit ba09d06e166a06b4405b2ffd92df6acf222d281f
-Author: Jeremy Jackins <jeremyjackins@gmail.com>
-Date:   Thu Apr 7 15:42:35 2016 +0900
+commit c8ef0df06cbab367ab943825ab0677e03d019c3d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 3 19:17:21 2015 -0800
 
-    runtime: remove remaining references to TheChar
+    cmd/cgo: add hooks for thread sanitizer
     
-    After mdempsky's recent changes, these are the only references to
-    "TheChar" left in the Go tree. Without the context, and without
-    knowing the history, this is confusing.
+    When Go code is used with C code compiled with -fsanitize=thread, adds
+    thread sanitizer calls so that correctly synchronized Go code does not
+    cause spurious failure reports from the thread sanitizer.  This may
+    cause some false negatives, but for the thread sanitizer what is most
+    important is avoiding false positives.
     
-    Also rename sys.TheGoos and sys.TheGoarch to sys.GOOS
-    and sys.GOARCH.
-    
-    Also change the heap dump format to include sys.GOARCH
-    rather than TheChar, which is no longer a concept.
-    
-    Updates #15169 (changes heapdump format)
-    
-    Change-Id: I3e99eeeae00ed55d7d01e6ed503d958c6e931dca
-    Reviewed-on: https://go-review.googlesource.com/21647
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If670e4a6f2874c7a2be2ff7db8728c6036340a52
+    Reviewed-on: https://go-review.googlesource.com/17421
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/extern.go                        |  4 ++--
- src/runtime/heapdump.go                      |  2 +-
- src/runtime/internal/sys/arch.go             | 17 +++++++++++++++++
- src/runtime/internal/sys/arch_386.go         |  2 +-
- src/runtime/internal/sys/arch_amd64.go       |  2 +-
- src/runtime/internal/sys/arch_amd64p32.go    |  2 +-
- src/runtime/internal/sys/arch_arm.go         |  2 +-
- src/runtime/internal/sys/arch_arm64.go       |  2 +-
- src/runtime/internal/sys/arch_mips64.go      |  2 +-
- src/runtime/internal/sys/arch_mips64le.go    |  2 +-
- src/runtime/internal/sys/arch_ppc64.go       |  2 +-
- src/runtime/internal/sys/arch_ppc64le.go     |  2 +-
- src/runtime/internal/sys/arch_s390x.go       |  2 +-
- src/runtime/internal/sys/gengoos.go          |  4 ++--
- src/runtime/internal/sys/zgoarch_386.go      |  2 +-
- src/runtime/internal/sys/zgoarch_amd64.go    |  2 +-
- src/runtime/internal/sys/zgoarch_amd64p32.go |  2 +-
- src/runtime/internal/sys/zgoarch_arm.go      |  2 +-
- src/runtime/internal/sys/zgoarch_arm64.go    |  2 +-
- src/runtime/internal/sys/zgoarch_mips64.go   |  2 +-
- src/runtime/internal/sys/zgoarch_mips64le.go |  2 +-
- src/runtime/internal/sys/zgoarch_ppc64.go    |  2 +-
- src/runtime/internal/sys/zgoarch_ppc64le.go  |  2 +-
- src/runtime/internal/sys/zgoarch_s390x.go    |  2 +-
- src/runtime/internal/sys/zgoos_android.go    |  2 +-
- src/runtime/internal/sys/zgoos_darwin.go     |  2 +-
- src/runtime/internal/sys/zgoos_dragonfly.go  |  2 +-
- src/runtime/internal/sys/zgoos_freebsd.go    |  2 +-
- src/runtime/internal/sys/zgoos_linux.go      |  2 +-
- src/runtime/internal/sys/zgoos_nacl.go       |  2 +-
- src/runtime/internal/sys/zgoos_netbsd.go     |  2 +-
- src/runtime/internal/sys/zgoos_openbsd.go    |  2 +-
- src/runtime/internal/sys/zgoos_plan9.go      |  2 +-
- src/runtime/internal/sys/zgoos_solaris.go    |  2 +-
- src/runtime/internal/sys/zgoos_windows.go    |  2 +-
- src/runtime/mgcmark.go                       |  4 ++--
- src/runtime/stack.go                         |  8 ++++----
- 37 files changed, 59 insertions(+), 42 deletions(-)
+ misc/cgo/testsanitizers/test.bash | 105 ++++++++++++++++++++++++++------------
+ misc/cgo/testsanitizers/tsan.go   |  44 ++++++++++++++++
+ misc/cgo/testsanitizers/tsan2.go  |  55 ++++++++++++++++++++
+ src/cmd/cgo/out.go                |  60 +++++++++++++++++++++-
+ 4 files changed, 228 insertions(+), 36 deletions(-)

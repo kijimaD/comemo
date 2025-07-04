@@ -1,21 +1,21 @@
-commit 53bab198d93153f0123cb806ebb2b5c9ebbe8dc7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 5 10:11:11 2021 -0400
+commit 142a76530cf610fe02d151727fa0d8038c552127
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Mar 9 14:22:38 2021 -0500
 
-    runtime: skip TestNoShrinkStackWhileParking on netbsd/arm64
+    go/types: improve the positioning of broken import errors
     
-    This test appears to deadlock frequently on the only netbsd-arm64
-    builder we have (netbsd-arm64-bsiegert). Skip the test to provide
-    more useful test coverage for other failures.
+    The heuristic gopls uses to guess error spans can get tripped-up on
+    certain valid characters in an import path (for example '-').
     
-    For #49382
+    Update the error for broken imports to capture the full import path
+    span, so that gopls doesn't need to rely on heuristics.
     
-    Change-Id: I3be32f58ce1e396f7c69163e70cf58f779f57ac6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361615
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: Ieb8e0dce11933643f701b32271ff5f3477fecaaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300169
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/chan_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/go/types/resolver.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,24 +1,16 @@
-commit 48895d021bf631f15d68ecc10cab89ebd9cb28f6
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Mar 7 23:48:02 2021 -0800
+commit 20254c02b38055c1bb6d5ac8aba70bb7b8d638ef
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 14 17:29:27 2020 -0400
 
-    cmd/compile: remove skipping of implicit operations during export
+    cmd/go: add rudimentary tracing support.
     
-    We'll need to attach types to these operations, so we need to
-    represent them in the import/export data.
+    Updates #38714
     
-    Some of the operations use a selector indicating a different package,
-    so we need to provide an option to encode the package of a selector.
-    The default selector() function can't encode that extra information,
-    as selector's exact encoding is used by go/types.
-    
-    Change-Id: I4c110fe347b3d915f88a722834bc4058baea7854
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299771
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: I14da982d405074d65ccf5521d431df1bf1734f9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230378
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/typecheck/iexport.go | 42 +++++++++++++++++----------
- src/cmd/compile/internal/typecheck/iimport.go | 19 ++++++++++--
- 2 files changed, 43 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/trace/trace.go | 139 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 139 insertions(+)

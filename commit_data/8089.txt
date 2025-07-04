@@ -1,14 +1,12 @@
-commit dd93df35b95c8db2227d2f27a6abfb2fe81d1958
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Thu Apr 14 15:32:20 2011 +0200
+commit 9c3ecb361739e9ed2f1cd560197cc9dfab2e7b91
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 14 08:16:40 2011 -0400
 
-    runtime: fix gdb support for channels.
+    runtime: fix set and not used in chan.c
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4418043
+    https://golang.org/cl/4416042
 
- src/cmd/ld/dwarf.c             | 10 ++++------
- src/pkg/runtime/chan.c         |  7 -------
- src/pkg/runtime/runtime-gdb.py | 11 +++++++----
- 3 files changed, 11 insertions(+), 17 deletions(-)
+ src/pkg/runtime/chan.c | 1 -
+ 1 file changed, 1 deletion(-)

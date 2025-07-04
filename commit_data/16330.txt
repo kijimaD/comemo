@@ -1,49 +1,13 @@
-commit 6021449236c8ef46a6c78518470d0355b56943f3
-Author: Keith Randall <khr@golang.org>
-Date:   Fri May 17 12:53:49 2013 -0700
+commit a8484753242a47ba43786395315a9edf09a0d8de
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat May 18 02:41:49 2013 +0800
 
-    runtime: faster x86 memmove (a.k.a. built-in copy())
+    cmd/ld: emit .tbss section when doing dynamic internal linking
+    Fixes #5200.
     
-    REP instructions have a high startup cost, so we handle small
-    sizes with some straightline code.  The REP MOVSx instructions
-    are really fast for large sizes.  The cutover is approximately
-    1K.  We implement up to 128/256 because that is the maximum
-    SSE register load (loading all data into registers before any
-    stores lets us ignore copy direction).
-    
-    (on a Sandy Bridge E5-1650 @ 3.20GHz)
-    benchmark               old ns/op    new ns/op    delta
-    BenchmarkMemmove0               3            3   +0.86%
-    BenchmarkMemmove1               5            5   +5.40%
-    BenchmarkMemmove2              18            8  -56.84%
-    BenchmarkMemmove3              18            7  -58.45%
-    BenchmarkMemmove4              36            7  -78.63%
-    BenchmarkMemmove5              36            8  -77.91%
-    BenchmarkMemmove6              36            8  -77.76%
-    BenchmarkMemmove7              36            8  -77.82%
-    BenchmarkMemmove8              18            8  -56.33%
-    BenchmarkMemmove9              18            7  -58.34%
-    BenchmarkMemmove10             18            7  -58.34%
-    BenchmarkMemmove11             18            7  -58.45%
-    BenchmarkMemmove12             36            7  -78.51%
-    BenchmarkMemmove13             36            7  -78.48%
-    BenchmarkMemmove14             36            7  -78.56%
-    BenchmarkMemmove15             36            7  -78.56%
-    BenchmarkMemmove16             18            7  -58.24%
-    BenchmarkMemmove32             18            8  -54.33%
-    BenchmarkMemmove64             18            8  -53.37%
-    BenchmarkMemmove128            20            9  -55.93%
-    BenchmarkMemmove256            25           11  -55.16%
-    BenchmarkMemmove512            33           33   -1.19%
-    BenchmarkMemmove1024           43           44   +2.06%
-    BenchmarkMemmove2048           61           61   +0.16%
-    BenchmarkMemmove4096           95           95   +0.00%
-    
-    R=golang-dev, bradfitz, remyoudompheng, khr, iant, dominik.honnef
+    R=iant, dave
     CC=golang-dev
-    https://golang.org/cl/9038048
+    https://golang.org/cl/9383043
 
- src/pkg/runtime/memmove_386.s   | 109 ++++++++++++++++++++++++++++----
- src/pkg/runtime/memmove_amd64.s | 136 ++++++++++++++++++++++++++++++++++++----
- src/pkg/runtime/memmove_test.go | 116 ++++++++++++++++++++++++++++++++++
- 3 files changed, 338 insertions(+), 23 deletions(-)
+ src/cmd/ld/elf.c | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

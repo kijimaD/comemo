@@ -1,21 +1,24 @@
-commit 84ba117fd7446030f93ab679d5c819dc028ad881
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Sat Sep 11 20:53:24 2021 +0800
+commit ca5774a5a533ce26ed64010fcc98f258e5bb0cc1
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jan 14 13:04:17 2021 -0500
 
-    runtime: add mp parameter for getMCache
+    embed: treat uninitialized FS as empty
     
-    Since all callers of getMCache appear to have mp available,
-    we pass the mp to getMCache, and reduce one call to getg.
-    And after modification, getMCache is also inlined.
+    As described in the FS documentation.
     
-    Change-Id: Ib7880c118336acc026ecd7c60c5a88722c3ddfc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349329
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This prevents http.FS and other clients from panicking when the
+    go:embed directive is missing.
+    
+    For #43682
+    Related #43698
+    
+    Change-Id: Iecf26d229a099e55d24670c3119cd6c6d17ecc6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283852
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Trust: Carlos Amedee <carlos@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/malloc.go | 4 ++--
- src/runtime/mcache.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/embed/embed.go                         |  6 ++++++
+ src/embed/internal/embedtest/embed_test.go | 17 +++++++++++++++++
+ 2 files changed, 23 insertions(+)

@@ -1,22 +1,20 @@
-commit 5c11480631f5654e9e6937ff08c453660138c64d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 10 15:25:15 2018 -0400
+commit b47806d1b57bd871b30fe5980454537eaefce27c
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Sun Apr 15 13:46:18 2018 +0200
 
-    cmd/go: don't let ... match GOROOT/src/cmd in module mode
+    cmd/compile: fix double go prefix trim
     
-    GOROOT/src/cmd uses GOROOT/src/cmd/vendor, which module
-    mode simply cannot handle.
+    CL 106463 introduced what seems to trim the "go:" prefix in pramas
+    comments twice, so "//go:go:foo" would be handled, too.
+    So either the strings.TrimPrefix or the [3:]-slicing is not needed.
     
-    Exposed by making ... match the standard library, which it still should.
+    I opted to remove the [3:]-slicing.
     
-    But for now it's fine to just exclude commands.
-    
-    Change-Id: I2201b94445f11239022de8a2473aa3b573f405c0
-    Reviewed-on: https://go-review.googlesource.com/129055
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I1325bbc08a9be9ae100c5a7775b0a23f9ed0a419
+    Reviewed-on: https://go-review.googlesource.com/107256
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modload/search.go       | 12 ++++++++++++
- src/cmd/go/testdata/script/mod_patterns.txt |  2 ++
- 2 files changed, 14 insertions(+)
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

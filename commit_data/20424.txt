@@ -1,15 +1,14 @@
-commit 1e4f86e48550c1d04a3778948613f38a078e2801
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Sep 15 12:30:57 2014 -0700
+commit fb818eab7fde33270bbbcf06d984af6db1c3eb0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 7 08:59:20 2014 -0400
 
-    runtime: try harder to get different iteration orders.
+    liblink: fix arm wrapper prologue
     
-    Fixes #8736.
+    Fixes arm build.
     
-    LGTM=iant, josharian
-    R=golang-codereviews, iant, josharian
+    TBR=khr
     CC=golang-codereviews
-    https://golang.org/cl/144910044
+    https://golang.org/cl/132700043
 
- src/runtime/map_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/liblink/obj5.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

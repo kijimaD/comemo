@@ -1,14 +1,21 @@
-commit afe675c2fa9deacd61f5684be54f1ebbdc94fc0c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 20 14:37:31 2016 -0400
+commit 236901384dc9fc3d7810ae96b43c8404f0fea6c1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 19 23:13:29 2016 +0000
 
-    doc/faq: mention that copying discussion is semantics, not implementation
+    net/http: fix unwanted HTTP/2 conn Transport crash after IdleConnTimeout
     
-    Fixes #17181.
+    Go 1.7 crashed after Transport.IdleConnTimeout if an HTTP/2 connection
+    was established but but its caller no longer wanted it. (Assuming the
+    connection cache was enabled, which it is by default)
     
-    Change-Id: If7cc4865e391acf76512f7ec7167d5a31377b598
-    Reviewed-on: https://go-review.googlesource.com/31574
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #16208
+    
+    Change-Id: I9628757f7669e344f416927c77f00ed3864839e3
+    Reviewed-on: https://go-review.googlesource.com/27450
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_faq.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/net/http/transport.go      |  4 +++
+ src/net/http/transport_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+)

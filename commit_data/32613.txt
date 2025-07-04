@@ -1,22 +1,24 @@
-commit 6c102e141c5858d1b900afad8dd616370f6091bb
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Thu Aug 31 01:00:39 2017 +0200
+commit 8c49c06b48e008e82c68ccc634c5c9f006beeadc
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Mon May 8 13:18:15 2017 +0200
 
-    cmd/compile: avoid stack allocation of a map bucket for large constant hints
+    bytes: skip inline test by default
     
-    runtime.makemap will allocate map buckets on the heap for hints larger
-    than the number of elements a single map bucket can hold.
+    The test "TestTryGrowByResliceInlined" introduced in c08ac36 broke the
+    noopt builder as it fails when inlining is disabled.
+    Since there are currently no other options at hand for checking
+    inlined-ness other than looking at emited symbols of the compilation,
+    we for now skip the problem causing test by default and only run
+    it on one specific builder ("linux-amd64").
+    Also see CL 42813, which introduced the test and contains comments
+    suggesting this temporary solution.
     
-    Do not allocate any map bucket on the stack if it is known at compile time
-    that hint is larger than the number of elements one map bucket can hold.
-    This avoids zeroing and reserving memory on the stack that will not be used.
-    
-    Change-Id: I1a5ab853fb16f6a18d67674a77701bf0cf29b550
-    Reviewed-on: https://go-review.googlesource.com/60450
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I3978ab0831da04876cf873d78959f821c459282b
+    Reviewed-on: https://go-review.googlesource.com/42820
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 39 ++++++++++++++++++++-----------------
- src/runtime/map_test.go             | 19 +++++++++++++++++-
- 2 files changed, 39 insertions(+), 19 deletions(-)
+ src/bytes/buffer_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

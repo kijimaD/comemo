@@ -1,26 +1,21 @@
-commit c14ed5b37c6cc387b29a7939cad7c7cbccd59934
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Wed May 11 23:22:45 2022 +0000
+commit 244267e8c4aebfadce5a43a7395ae59eacd76a21
+Merge: d8ceb133ca a27e325c59
+Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
+Date:   Thu Jul 22 20:59:40 2021 +0000
 
-    Revert "net/http: close accepted connection"
-    
-    This reverts CL 353714.
-    
-    The change closes accepted connection also in graceful shutdown which
-    breaks the fix for #33313 (and apparent duplicate #36819).
-    
-    The proper fix should close accepted connection only if server is closed
-    but not in graceful shutdown.
-    
-    Updates #48642
-    
-    Change-Id: I2f7005f3f3037e6563745731bb2693923b654004
-    GitHub-Last-Rev: f6d885aa37e793811c1624f73a3d90bc733db048
-    GitHub-Pull-Request: golang/go#52823
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405454
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Merge "[dev.typeparams] all: merge master (798ec73) into dev.typeparams" into dev.typeparams
 
- src/net/http/serve_test.go | 25 -------------------------
- src/net/http/server.go     | 24 +++++++++---------------
- 2 files changed, 9 insertions(+), 40 deletions(-)
+ api/go1.17.txt                    |  1 +
+ doc/go1.17.html                   | 12 ++++++++++++
+ src/cmd/go/go_test.go             | 32 ++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go  | 11 +++++++++--
+ src/reflect/all_test.go           |  9 +++++++++
+ src/reflect/value.go              | 20 ++++++++++++++++++++
+ src/reflect/visiblefields.go      |  4 ++++
+ src/reflect/visiblefields_test.go |  4 ++++
+ src/runtime/debug/panic_test.go   |  3 +++
+ src/runtime/malloc.go             | 20 +++++++++-----------
+ src/runtime/runtime2.go           |  2 +-
+ src/runtime/time.go               |  5 -----
+ src/time/sleep_test.go            | 34 ++++++++++++++++++++++++++++++++++
+ 13 files changed, 138 insertions(+), 19 deletions(-)

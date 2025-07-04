@@ -1,13 +1,19 @@
-commit 63fe9efb90a076422c67d34426b0076c2af1d8ab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 10 08:12:43 2014 -0800
+commit a9b9ecc9ef3a73ac0ab74b57ca7ef864f1bd9ac8
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 22 16:39:31 2014 -0400
 
-    cmd/cgo: tweak doc to not show example of passing Go pointer
+    [dev.power64] runtime: fix early GC of Defer objects
+    
+    go_bootstrap was panicking during runtime initialization
+    (under runtime.main) because Defer objects were being
+    prematurely GC'd.  This happened because of an incorrect
+    change to runtime·unrollgcprog_m to make it endian-agnostic
+    during the conversion of runtime bitmaps to byte arrays.
     
     LGTM=rsc
     R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/171360043
+    https://golang.org/cl/161960044
 
- src/cmd/cgo/doc.go | 2 +-
+ src/runtime/mgc0.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

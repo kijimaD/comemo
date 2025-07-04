@@ -1,15 +1,19 @@
-commit fba47dc3b10e7649e3ad0129b357d83cc2db228e
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Jul 25 10:49:50 2012 -0700
+commit 4d2251967847cf9b710da09525c676a7e733113d
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Jul 25 12:09:58 2012 +1000
 
-    cmd/godoc: delete -path flag
+    exp/html: allow frameset if body contains whitespace
     
-    Fixes #3453.
+    If the body of an HTML document contains text, the <frameset> tag is
+    ignored. But not if the text is only whitespace.
     
-    R=golang-dev, gri, jeff, bradfitz
+    Pass 4 additional tests.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6350086
+    https://golang.org/cl/6442043
 
- src/cmd/godoc/doc.go   | 18 ++----------------
- src/cmd/godoc/godoc.go | 11 -----------
- 2 files changed, 2 insertions(+), 27 deletions(-)
+ src/pkg/exp/html/parse.go                           | 5 ++++-
+ src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log | 4 ++--
+ src/pkg/exp/html/testlogs/tests19.dat.log           | 4 ++--
+ 3 files changed, 8 insertions(+), 5 deletions(-)

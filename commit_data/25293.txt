@@ -1,12 +1,18 @@
-commit bdd5d6e2574347d63763d42f1a6b529236bbd06a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 11 11:35:23 2015 -0500
+commit 17a256bf22352c2beb9fc25ff76462fb16f3e6b2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Oct 19 12:54:38 2015 -0400
 
-    cmd/go: tiny cleanup
+    cmd/go: -buildmode=pie for android/arm
     
-    Change-Id: I65084e518c735f1e50d191a612cd32533b241685
-    Reviewed-on: https://go-review.googlesource.com/17742
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also make PIE executables the default build mode, as PIE executables
+    are required as of Android L.
+    
+    For #10807
+    
+    Change-Id: I86b7556b9792105cd2531df1b8f3c8f7a8c5d25c
+    Reviewed-on: https://go-review.googlesource.com/16055
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/go/get.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/build.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

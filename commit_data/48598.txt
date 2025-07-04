@@ -1,34 +1,20 @@
-commit a9d13a9c230bafba64469f126202315ba4d24eea
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Feb 3 08:23:10 2022 -0500
+commit 6b1cdeaef3099b32d244cef7bb5adc4d7b7628fc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 1 17:00:26 2021 -0700
 
-    cmd/link: read crt2.o for windows internal-linking CGO
+    [dev.typeparams] cmd/link: include "go build" output in test logs
     
-    For Windows internal linking with CGO, when using more modern
-    LLVM-based compilers, we may need to read in the object file "crt2.o"
-    so as to have a definition of "atexit" (for example when linking the
-    runtime/cgo test), and we also need to allow for the possibility that
-    a given host archive might have to be looked at more than once. The goal
-    here is to get all.bash working on Windows when using an up to date
-    mingw C compiler (including those based on clang + LLD).
+    If running "go build" outputs anything, write it to the test log even
+    if the test succeeds. This makes it easier to diagnose errors within
+    the compiler by adding print statements and finding them in the test
+    log, even if the compiler exits successfully.
     
-    This patch also adds a new "hostObject" helper routine, similar to
-    "hostArchive" but specific to individual object files. There is also a
-    change to hostArchive to modify the pseudo-package name assigned when
-    reading archive elements: up until this point, a package name of
-    "libgcc" was used (even when reading a host archive like
-    "libmingex.a"), which led to very confusing errors messages if symbols
-    were missing or there were duplicate definitions.
-    
-    Updates #35006.
-    
-    Change-Id: I19c17dea9cfffa9e79030fc23064c7c63a612097
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382838
+    Change-Id: Id04716c4e1dcd9220c35ea0040ea516c1dd5237c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324329
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/internal/ld/ar.go  |  13 ++++-
- src/cmd/link/internal/ld/lib.go | 119 +++++++++++++++++++++++++++++++++-------
- 2 files changed, 111 insertions(+), 21 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

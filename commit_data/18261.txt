@@ -1,19 +1,15 @@
-commit 2af7a26f1eaf2a8640270ac39cfd04d9aaa70ee2
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jan 15 13:56:59 2014 -0800
+commit fc80ce81946b009dd826e260fe4fc1fbcc19f133
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 15 09:50:55 2014 -0800
 
-    reflect: add precise GC info for Call argument frame.
+    go/scanner: report too short escape sequences
     
-    Give proper types to the argument/return areas
-    allocated for reflect calls.  Avoid use of iword to
-    manipulate receivers, which may or may not be pointers.
+    Generally improve error messages for escape sequences.
     
-    Update #6490
-    
-    R=rsc
+    R=adonovan
     CC=golang-codereviews
-    https://golang.org/cl/52110044
+    https://golang.org/cl/49430046
 
- src/pkg/reflect/type.go  |  91 +++++++++++++++++++++++++
- src/pkg/reflect/value.go | 169 ++++++++++++++++++++---------------------------
- 2 files changed, 161 insertions(+), 99 deletions(-)
+ src/pkg/go/scanner/scanner.go      | 62 +++++++++++++++++++++++++-------------
+ src/pkg/go/scanner/scanner_test.go | 30 ++++++++++++++----
+ 2 files changed, 65 insertions(+), 27 deletions(-)

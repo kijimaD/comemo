@@ -1,16 +1,18 @@
-commit 2012290c7e1872a1bf3faa848898761cb6958b61
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Jul 13 14:39:33 2011 -0700
+commit 350504559e12272824d31e4d942d66929ba027c5
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Wed Jul 13 12:44:21 2011 -0700
 
-    http: fix Content-Type of file extension.
-    ServeFile() pass empty string to serveFile(). serveFile() should get
-    file extension via joining root and filename.
+    net: windows/amd64 port
     
-    R=bradfitz, rsc
+    R=rsc, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/4654089
+    https://golang.org/cl/3790044
 
- src/pkg/http/fs.go              |  3 ++-
- src/pkg/http/fs_test.go         | 15 +++++++++++++++
- src/pkg/http/testdata/style.css |  1 +
- 3 files changed, 18 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_windows.go                 |  2 +-
+ src/pkg/syscall/syscall_windows.go        |  2 +-
+ src/pkg/syscall/zsyscall_windows_386.go   |  2 +-
+ src/pkg/syscall/zsyscall_windows_amd64.go |  2 +-
+ src/pkg/syscall/ztypes_windows.go         | 21 ++-------------------
+ src/pkg/syscall/ztypes_windows_386.go     | 17 +++++++++++++++++
+ src/pkg/syscall/ztypes_windows_amd64.go   | 17 +++++++++++++++++
+ 7 files changed, 40 insertions(+), 23 deletions(-)

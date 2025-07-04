@@ -1,19 +1,14 @@
-commit d665ea98f37ce556690f14a58b2f90032bd3a9d0
+commit 57af5429e690e093ca41b0def2338f0b422f6984
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 25 10:21:13 2012 -0800
+Date:   Wed Jan 25 09:54:10 2012 -0800
 
-    go/printer, gofmt: respect line breaks in signatures
+    go/doc: test case for corner case (override of predecl. type)
     
-    No changes when applying gofmt to src, misc.
-    
-    Fixes #2597.
-    
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5564056
+    https://golang.org/cl/5575055
 
- src/pkg/go/printer/nodes.go                     | 44 ++++++++++++++-------
- src/pkg/go/printer/testdata/declarations.golden | 50 ++++++++++++++++--------
- src/pkg/go/printer/testdata/linebreaks.golden   | 52 +++++++++++++++++++++++++
- src/pkg/go/printer/testdata/linebreaks.input    | 48 +++++++++++++++++++++++
- 4 files changed, 164 insertions(+), 30 deletions(-)
+ src/pkg/go/doc/testdata/b.0.golden |  9 +++++++++
+ src/pkg/go/doc/testdata/b.1.golden | 15 +++++++++++++++
+ src/pkg/go/doc/testdata/b.go       | 17 +++++++++++++++++
+ 3 files changed, 41 insertions(+)

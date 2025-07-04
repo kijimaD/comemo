@@ -1,19 +1,17 @@
-commit 0d264746063df2887875432170cbf11607c85501
-Author: rajender <rajenderreddykompally@gmail.com>
-Date:   Mon Nov 27 23:19:12 2017 +0530
+commit 4a5c37793cf72987b3884b246c9b590d1ed1e565
+Author: Guilherme Rezende <guilhermebr@gmail.com>
+Date:   Tue Aug 29 13:14:05 2017 -0300
 
-    encoding/json: update RFC number
+    mime: ignore key on ParseMediaType when value don't pass RFC 2231 check
     
-    Existing docs mention obsolete RFC 4627. Update it with current one,
-    https://tools.ietf.org/html/rfc7159.
+    Also add more test cases.
     
-    Current implementation already adhere to RFC 7159.
-    
-    Fixes #22888
-    
-    Change-Id: I705ec1313f6f655b3bc41d2f847b30e479bf9b15
-    Reviewed-on: https://go-review.googlesource.com/79995
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I53cc6484b25560fc7a4b5d44e73bbd9270c25769
+    Reviewed-on: https://go-review.googlesource.com/59950
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/json/encode.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/mime/mediatype.go      |  25 +++++--
+ src/mime/mediatype_test.go | 183 ++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 198 insertions(+), 10 deletions(-)

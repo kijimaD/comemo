@@ -1,25 +1,12 @@
-commit 5bb3a66a973ea87494b9197091e8c1f122080627
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Apr 8 23:46:54 2013 +0200
+commit 1d729b7f59f4fdd7292c1aeecdfb2b2c951b631a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 8 00:09:35 2013 -0700
 
-    sync, sync/atomic: do not corrupt race detector after a nil dereference.
+    test: fix mapnan.go build tag
     
-    The race detector uses a global lock to analyze atomic
-    operations. A panic in the middle of the code leaves the
-    lock acquired.
-    
-    Similarly, the sync package may leave the race detectro
-    inconsistent when methods are called on nil pointers.
-    
-    R=golang-dev, r, minux.ma, dvyukov, rsc, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/7981043
+    https://golang.org/cl/8491044
 
- src/pkg/runtime/race/testdata/atomic_test.go | 19 +++++++++++++++++++
- src/pkg/runtime/race/testdata/sync_test.go   | 19 +++++++++++++++++++
- src/pkg/sync/atomic/race.go                  | 15 +++++++++++++++
- src/pkg/sync/cond.go                         |  3 +++
- src/pkg/sync/mutex.go                        |  1 +
- src/pkg/sync/rwmutex.go                      |  4 ++++
- src/pkg/sync/waitgroup.go                    |  2 ++
- 7 files changed, 63 insertions(+)
+ test/mapnan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

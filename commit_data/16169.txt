@@ -1,14 +1,18 @@
-commit 14cb1a1da98bbecaf64c8393138b845ce5562c23
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Fri Apr 12 15:58:34 2013 -0700
+commit ce64f7365ff814087fc843bcaa8267e236692939
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Fri Apr 12 14:04:00 2013 -0700
 
-    test: raise the allocation threshold for chan/select2.go failure
+    cmd/go: quote command line arguments in debug output
     
-    Updates #5282
+    Debug output from go test -x may contain empty arguments.
+    This CL quotes arguments if needed. E.g. the output of
+    go test -x is now
+      .../6g -o ./_go_.6 -p testmain -complete -D "" -I . -I $WORK ./_testmain.go
+    which is easier to grasp.
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/8718045
+    https://golang.org/cl/8633043
 
- test/chan/select2.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/build.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

@@ -1,16 +1,18 @@
-commit c71d3a0f507555a268791f0597e89e3e0e2c0de7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Nov 30 11:03:47 2022 +0100
+commit f9763a648bbe4468118b95e147bc5e81268d0341
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Feb 4 17:02:49 2022 -0500
 
-    doc/go1.20: add code tags in crypto/{rsa,subtle} and net/netip sections
+    internal/fuzz: change meaning of "total" in output
     
-    Change-Id: I516195fb1c2434feb3bf130d37012a98d77beeb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454235
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #51023
+    
+    Change-Id: I7dd9f7c696e15ba9c6c887d4c4e0f4d281a82b17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383414
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.20.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/internal/fuzz/fuzz.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

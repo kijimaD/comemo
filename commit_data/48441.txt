@@ -1,32 +1,19 @@
-commit 67f6b8c98715f265f38aff4052356ef6e6b35dfe
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 18 11:40:34 2022 -0400
+commit 240d6d00ca561b7d293976e758642addb467d6b9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 19 17:34:19 2021 -0400
 
-    cmd/go: avoid stamping VCS metadata in test binaries
+    [dev.typeparams] cmd/link: mangle symbol ABI name on Plan 9
     
-    Invoking a VCS tool requires that the VCS tool be installed, and also
-    adds latency to build commands. Unfortunately, we had been mistakenly
-    loading VCS metadata for tests of "main" packages.
+    It is probably not strictly necessary (as we don't support
+    external linking on Plan 9). Do it for consistency (and less
+    confusion).
     
-    Users almost never care about versioning for test binaries, because
-    'go test' runs the test in the source tree and test binaries are only
-    rarely used outside of 'go test'. So the user already knows exactly
-    which version the test is built against, because the source code is
-    right there — it's not worth the overhead to stamp.
-    
-    Fixes #51723.
-    
-    Change-Id: I96f191c5a765f5183e5e10b6dfb75a0381c99814
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393894
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0b48562061273ccbd4be83db4a981b8e465b1c95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321331
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/list/list.go             |  1 +
- src/cmd/go/internal/load/pkg.go              | 31 ++++++++--
- src/cmd/go/internal/load/test.go             |  6 +-
- src/cmd/go/internal/work/build.go            |  4 +-
- src/cmd/go/testdata/script/test_buildvcs.txt | 92 ++++++++++++++++++++++++++++
- 5 files changed, 123 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/ld/symtab.go | 1 +
+ 1 file changed, 1 insertion(+)

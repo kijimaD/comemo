@@ -1,17 +1,36 @@
-commit f29c4fa55e44c0ca835bc7e2d3e6ca8bfc01a9cd
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Jun 28 13:27:17 2023 -0400
+commit aa5ff29dabbfdda036b8a1f5c5a80f239b876abc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 16:41:35 2022 -0700
 
-    cmd/link: test the -s flag
+    go/parser: adjustments to error messages
     
-    Add a test checking the -s flag actually suppresses the symbol
-    table.
+    - Use "expected X" rather then "expecting X".
+    - Report a better error when a type argument list is expected.
+    - Adjust various tests.
     
-    Change-Id: I7216d4811a72c62b823d2daa12f6462568243b12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/506759
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    For #54511.
+    
+    Change-Id: I0c5ca66ecbbdcae1a8f67377682aae6b0b6ab89a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425734
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/link/link_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 53 insertions(+)
+ src/cmd/compile/internal/syntax/parser.go          | 50 +++++++++++-----------
+ .../compile/internal/syntax/testdata/issue47704.go |  4 +-
+ .../compile/internal/syntax/testdata/tparams.go    |  2 +-
+ .../internal/types2/testdata/check/typeinst0.go    |  6 +--
+ .../internal/types2/testdata/check/vardecl.go      |  6 +--
+ .../types2/testdata/fixedbugs/issue45635.go        |  2 +-
+ test/fixedbugs/issue13273.go                       |  8 ++--
+ test/fixedbugs/issue18092.go                       |  2 +-
+ test/fixedbugs/issue18747.go                       |  2 +-
+ test/fixedbugs/issue19667.go                       |  2 +-
+ test/fixedbugs/issue23664.go                       |  4 +-
+ test/fixedbugs/issue33386.go                       | 10 ++---
+ test/switch2.go                                    |  6 +--
+ test/syntax/ddd.go                                 |  2 +-
+ test/syntax/semi4.go                               |  2 +-
+ 15 files changed, 55 insertions(+), 53 deletions(-)

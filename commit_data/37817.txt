@@ -1,14 +1,12 @@
-commit 5de0c37ecf49b986f6231a9cf5273861101b634b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 20 15:30:31 2018 -0800
+commit e84409ac95d5ed4a9113128c72d8f930f034aebf
+Author: Venil Noronha <veniln@vmware.com>
+Date:   Thu Aug 30 12:44:54 2018 -0600
 
-    doc: go1.12: clarify use of MADV_FREE
+    time: add example for LoadLocation
     
-    Fixes #29337
-    
-    Change-Id: I1d632d19058c63dac8e25d2a5ad55555c1aec9d4
-    Reviewed-on: https://go-review.googlesource.com/c/155438
+    Change-Id: I8e55e9397eb6844b5856f8bde9c26185c446a80e
+    Reviewed-on: https://go-review.googlesource.com/132238
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.12.html | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/time/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

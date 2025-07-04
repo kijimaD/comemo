@@ -1,18 +1,19 @@
-commit 72d90d8238c00daf8893fa6b849e43a9e917e10e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 4 15:26:38 2016 -0800
+commit 6e11f45ebdbc7b0ee1367c80ea0a0c0ec52d6db5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 16 18:51:12 2015 +0000
 
-    cmd/compile: change parser, racewalk, range to use nodeSeq
+    net/http: make Server validate Host headers
     
-    Passes toolstash -cmp.
+    Fixes #11206 (that we accept invalid bytes)
+    Fixes #13624 (that we don't require a Host header in HTTP/1.1 per spec)
     
-    Update #14473.
-    
-    Change-Id: I0809c6b88643f04c7fc503f866ffe25e69f29910
-    Reviewed-on: https://go-review.googlesource.com/20260
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I4138281d513998789163237e83bb893aeda43336
+    Reviewed-on: https://go-review.googlesource.com/17892
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/parser.go   | 70 ++++++++++++++--------------
- src/cmd/compile/internal/gc/racewalk.go | 82 +++++++++++++--------------------
- src/cmd/compile/internal/gc/range.go    | 60 ++++++++++++------------
- 3 files changed, 97 insertions(+), 115 deletions(-)
+ src/net/http/request.go    | 63 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/net/http/serve_test.go | 58 ++++++++++++++++++++++++++++++++++++++----
+ src/net/http/server.go     | 27 ++++++++++++++++++--
+ 3 files changed, 139 insertions(+), 9 deletions(-)

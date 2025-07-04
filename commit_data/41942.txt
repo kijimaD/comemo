@@ -1,24 +1,30 @@
-commit 5a706d163d332ec3a83e38849efbaf550a9da7ab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 13 23:26:39 2020 +0000
+commit 2d031dc559a720ec2c1939848a2e5de2782acd5a
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 14 19:28:58 2019 -0400
 
-    Revert "time/tzdata: new package"
+    runtime: support for injecting calls at signals on x86
     
-    This reverts CL 224588.
+    This adds a sigctxt.pushCall method that pushes a call at the signaled
+    site. We'll use this to inject asynchronous preemptions and in some
+    places we use it to clean up preparePanic.
     
-    Reason for revert: Test failing on secondary platforms.
+    For the moment this only works on 386 and amd64. We stub it out on
+    other platforms and will avoid calling the stubbed version.
     
-    Change-Id: Ic15fdc73a0d2b860e776733abb82c58809e13160
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228200
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    For #10958, #24543.
+    
+    Change-Id: I49e0e853f935d32dd67a70c6cafbae44ee68af8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201758
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.15.html                     |    14 -
- lib/time/update.bash                |     2 -
- src/go/build/deps_test.go           |     2 -
- src/time/embed.go                   |    12 -
- src/time/tzdata/generate_zipdata.go |    83 -
- src/time/tzdata/tzdata.go           |   107 -
- src/time/tzdata/tzdata_test.go      |    95 -
- src/time/tzdata/zipdata.go          | 13048 ----------------------------------
- src/time/zoneinfo_read.go           |    23 -
- 9 files changed, 13386 deletions(-)
+ src/runtime/signal_386.go         | 25 ++++++++++++++++---------
+ src/runtime/signal_amd64.go       | 26 +++++++++++++++++---------
+ src/runtime/signal_arm.go         |  6 ++++++
+ src/runtime/signal_arm64.go       |  6 ++++++
+ src/runtime/signal_linux_s390x.go |  6 ++++++
+ src/runtime/signal_mips64x.go     |  6 ++++++
+ src/runtime/signal_mipsx.go       |  6 ++++++
+ src/runtime/signal_ppc64x.go      |  6 ++++++
+ 8 files changed, 69 insertions(+), 18 deletions(-)

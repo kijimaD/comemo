@@ -1,21 +1,24 @@
-commit f6f6621312263e1e3ea2928bdccc967f0f977865
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 21 11:25:59 2021 -0700
+commit fefad1dc856d66c024a94d3421fc52ff326fe970
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 11:22:42 2021 -0500
 
-    go/types: make ptrRecv a method hasPtrRecv of Func
+    test: fix timeout code for invoking compiler
     
-    This is a clean port of CL 351310 from types2 to go/types
-    with the necessary changes to methodset.go which doesn't
-    exist in types2.
+    When running go tool compile,
+    go tool is running compile as a subprocess.
+    Killing go tool with Process.Kill leaves the subprocess behind.
+    Send an interrupt signal first, which it can forward on
+    to the compile subprocess.
     
-    Change-Id: Ifdac820d3be14c7bfa778b7bca3f6ba58d220b2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351311
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Also report the timeout in errorcheck -t.
+    
+    Change-Id: I7ae0029bbe543ed7e60e0fea790dd0739d10bcaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282313
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/lookup.go    |  2 +-
- src/go/types/methodset.go | 23 ++---------------------
- src/go/types/named.go     |  4 ++--
- src/go/types/object.go    | 23 +++++++++++++++++++++--
- src/go/types/resolver.go  |  2 +-
- 5 files changed, 27 insertions(+), 27 deletions(-)
+ test/run.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

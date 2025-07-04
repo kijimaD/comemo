@@ -1,22 +1,15 @@
-commit c3de91bb15cf23bd1757c63c581f9da4b7e14598
+commit d7b4a09ca8037d91a5a89ea0e9ab36cef37cef74
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 18 10:43:22 2013 -0400
+Date:   Thu Jul 18 10:12:14 2013 -0400
 
-    cmd/ld, runtime: use new contiguous pcln table
+    debug/gosym: update for Go 1.2 pcln table
     
-    R=golang-dev, r, dave
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/11494043
+    https://golang.org/cl/11495043
 
- src/cmd/5l/obj.c                |   1 -
- src/cmd/6l/obj.c                |   1 -
- src/cmd/8l/obj.c                |   1 -
- src/cmd/ld/lib.c                | 272 +++++++++++++---------------------------
- src/cmd/ld/lib.h                |   3 +-
- src/cmd/ld/symtab.c             |   2 +-
- src/pkg/runtime/mgc0.c          |   4 +-
- src/pkg/runtime/runtime.h       |   7 +-
- src/pkg/runtime/symtab.c        | 111 +++++++++-------
- src/pkg/runtime/traceback_arm.c |  12 +-
- src/pkg/runtime/traceback_x86.c |  12 +-
- 11 files changed, 177 insertions(+), 249 deletions(-)
+ src/pkg/debug/gosym/pclinetest.asm  |   4 +-
+ src/pkg/debug/gosym/pclntab.go      | 360 +++++++++++++++++++++++++++++++++++-
+ src/pkg/debug/gosym/pclntab_test.go |  43 +++--
+ src/pkg/debug/gosym/symtab.go       |  91 +++++++--
+ 4 files changed, 458 insertions(+), 40 deletions(-)

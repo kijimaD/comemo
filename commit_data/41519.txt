@@ -1,22 +1,17 @@
-commit 91bc75b4870308b668d497ff22eada75219c3c2e
-Author: Shuo <openset.wang@gmail.com>
-Date:   Sun Mar 1 02:32:32 2020 +0000
+commit dae8e719614f6e3d2e4e66071e5c91964b404676
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Oct 9 11:10:48 2019 -0400
 
-    time: optimize Time.ISOWeek
+    cmd/go: document multiple conditions in TestScript
     
-    name       old time/op  new time/op  delta
-    ISOWeek-4  57.7ns ± 5%  27.9ns ±10%  -51.54%  (p=0.000 n=48+49)
+    This functionality already exists but was undocumented. Related to
+    comments in CL 198797.
     
-    Fixes #37534
-    
-    Change-Id: Ic4673ced44a4b0190018e87207743ed9500fb1e0
-    GitHub-Last-Rev: a376c57e83a99f8e8fde297335caa85215e7aead
-    GitHub-Pull-Request: golang/go#36316
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212837
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icce40bd7c362423e6ed9c20673ce3de1311e5fd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200040
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/time.go      | 70 ++++++++++++++-------------------------------------
- src/time/time_test.go |  7 ++++++
- 2 files changed, 26 insertions(+), 51 deletions(-)
+ src/cmd/go/testdata/script/README | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

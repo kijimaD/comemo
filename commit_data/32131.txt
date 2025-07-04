@@ -1,33 +1,24 @@
-commit ca19f2fc78a5b6b97d842a4a9816a9d1eea12f05
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jul 26 10:59:08 2017 -0700
+commit e4a500ce1490a5db709da5880f0121e5eeac73cd
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Mar 28 15:30:31 2017 -0500
 
-    math/rand: fix uniform distribution stddev in tests
+    cmd/compile/internal/gc: improve comparison with constant strings
     
-    The standard deviation of a uniform distribution is size / √12.
-    The size of the interval [0, 255] is 256, not 255.
-    While we're here, simplify the expression.
+    Currently we expand comparison with small constant strings into len check
+    and a sequence of byte comparisons. Generate 16/32/64-bit comparisons,
+    instead of bytewise on 386 and amd64. Also increase limits on what is
+    considered small constant string.
+    Shaves ~30kb (0.5%) from go executable.
     
-    The tests previously passed only because the error margin was large enough.
-    Sample observed standard deviations while running tests:
+    This also updates test/prove.go to keep test case valid.
     
-    73.7893634666819
-    73.9221651548294
-    73.8077961697150
-    73.9084236069471
-    73.8968446814785
-    73.8684209136244
-    73.9774618960282
-    73.9523483202549
-    
-    255 / √12 == 73.6121593216772
-    256 / √12 == 73.9008344562721
-    
-    Change-Id: I7bc6cdc11e5d098951f2f2133036f62489275979
-    Reviewed-on: https://go-review.googlesource.com/51310
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I99ae8871a1d00c96363c6d03d0b890782fa7e1d9
+    Reviewed-on: https://go-review.googlesource.com/38776
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/math/rand/rand_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go | 22 ++++++++++++
+ src/cmd/compile/internal/gc/walk.go     | 62 ++++++++++++++++++++++++++++++---
+ test/prove.go                           |  4 ++-
+ 3 files changed, 83 insertions(+), 5 deletions(-)

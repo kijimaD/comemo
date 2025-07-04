@@ -1,18 +1,23 @@
-commit 990113f3a0285f3ea2fdb590f61e835bf41ba1dc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 1 09:00:46 2023 -0700
+commit a135f8e251120e89520bb2c226266b8256f81de0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jul 18 17:01:20 2022 -0400
 
-    doc/go1.21: reformat flag init change note
+    cmd/go: convert TestAccidentalGitCheckout to a script test
     
-    It reads better as a single paragraph. Also added links.
+    As far as I can determine, this is the only existing non-script test
+    that relies on vcs-test.golang.org. I am attempting to eliminate the
+    vcs-test server, and to keep configuration straightforward I would
+    like to only set up its replacement for script tests.
     
-    Change-Id: Id6ba54111b63fbd536423272f674e0eb64b087a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499956
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    For #27494.
+    
+    Change-Id: Ib978228b9c3f403af5f1c445e08942cbe7915b62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418103
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- doc/go1.21.html | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go                         | 23 -----------------------
+ src/cmd/go/testdata/script/get_issue22125.txt | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 23 deletions(-)

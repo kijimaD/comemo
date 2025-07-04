@@ -1,42 +1,23 @@
-commit 263bc50c90ff8e0bcd55765819056807acfd20ab
-Author: Gopher Robot <gobot@golang.org>
-Date:   Wed May 28 09:38:20 2025 -0700
+commit 7a0e2db135daef2c0aeb98d5e3019807a71a7b4d
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Apr 16 07:42:26 2024 +0000
 
-    api: promote next to go1.25
+    cmd,crypto/elliptic: fix typos in comments
     
-    Change-Id: I96dd383ea0bf0b69d2d9058334b4bbcfbe50c77c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/676895
+    Replace these incorrect fullwidth brackets with halfwidth brackets.
+    
+    Change-Id: Ie17561c18334f9c07eedbff79e5f64ed4fc281bd
+    GitHub-Last-Rev: 94214be6cea75b4d1fa7b536cac523f061614d38
+    GitHub-Pull-Request: golang/go#66846
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579117
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- api/go1.25.txt     | 110 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next/43936.txt |   4 --
- api/next/46771.txt |   1 -
- api/next/49580.txt |   8 ----
- api/next/59928.txt |   3 --
- api/next/62121.txt |   1 -
- api/next/63185.txt |   9 -----
- api/next/63405.txt |   5 ---
- api/next/63796.txt |   1 -
- api/next/63963.txt |   4 --
- api/next/66365.txt |   1 -
- api/next/67002.txt |  10 -----
- api/next/67434.txt |   2 -
- api/next/67516.txt |   1 -
- api/next/69518.txt |   5 ---
- api/next/69521.txt |   9 -----
- api/next/70250.txt |  17 ---------
- api/next/70280.txt |   1 -
- api/next/70780.txt |   3 --
- api/next/71122.txt |   1 -
- api/next/71920.txt |   1 -
- api/next/72843.txt |   4 --
- api/next/73088.txt |   7 ----
- api/next/73126.txt |   2 -
- api/next/73193.txt |   1 -
- api/next/73205.txt |   1 -
- api/next/73319.txt |   1 -
- api/next/73626.txt |   7 ----
- 28 files changed, 110 insertions(+), 110 deletions(-)
+ src/cmd/internal/obj/mips/asm0.go  | 2 +-
+ src/cmd/internal/obj/s390x/asmz.go | 2 +-
+ src/crypto/elliptic/params.go      | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

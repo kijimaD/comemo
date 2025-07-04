@@ -1,38 +1,22 @@
-commit 5f00ce86334aa7e80ab825882db1a080f1b56404
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 20 16:25:33 2023 -0500
+commit caf5cd9da8b08e786442eeef3d3a3a8e4492d3dd
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Oct 28 15:22:26 2021 +0800
 
-    cmd/go: use Join functions instead of adding path separators to strings
+    cmd/compile/internal: add ABI register info for riscv64
     
-    Adding a file path separator is incorrect for a file path that may be
-    the root directory on a Unix platform (such as in a container or
-    chroot).
+    This CL adds register information for riscv64
     
-    Adding a path separator is incorrect for a package path prefix that
-    may be the empty string (as in the "std" module in GOROOT/src).
+    Updates #40724
     
-    And in both cases, a Join function is arguably clearer and simpler
-    anyway.
-    
-    Fixes #51506 (maybe).
-    
-    Change-Id: Id816930811ad5e4d1fbd206cddf219ecd4ad39a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463178
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: If2275d9135596ff856d096881e4fe8bd1eeaacb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359337
+    Trust: mzh <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/cfg/cfg.go        | 16 ++++++++++------
- src/cmd/go/internal/load/pkg.go       |  9 +++++----
- src/cmd/go/internal/modindex/build.go |  7 ++-----
- src/cmd/go/internal/modload/load.go   | 20 ++++++++++----------
- src/cmd/go/internal/modload/search.go | 23 +++++++++++------------
- src/cmd/go/internal/script/cmds.go    | 18 +++++++++++++++---
- src/cmd/go/internal/script/state.go   |  6 +++++-
- src/cmd/go/internal/search/search.go  |  2 +-
- src/cmd/go/internal/str/path.go       |  9 +++++++++
- src/cmd/go/internal/work/action.go    |  3 ++-
- src/cmd/go/testdata/addmod.go         |  3 +--
- src/cmd/go/testdata/savedir.go        |  3 +--
- 12 files changed, 72 insertions(+), 47 deletions(-)
+ src/cmd/compile/internal/riscv64/ssa.go        | 2 ++
+ src/cmd/compile/internal/ssa/config.go         | 2 ++
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go | 4 ++++
+ src/cmd/compile/internal/ssa/opGen.go          | 4 ++--
+ 4 files changed, 10 insertions(+), 2 deletions(-)

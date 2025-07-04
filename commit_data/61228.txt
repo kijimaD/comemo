@@ -1,0 +1,32 @@
+commit 4510586f930b49a142f991c51d960a3afc18e667
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 21 13:01:56 2024 -0400
+
+    runtime: (re)use unused linear memory on Wasm
+    
+    CL 476717 adopted the memory management mechanism on Plan 9 to
+    manage Wasm's linear memory. But the Plan 9 code uses global
+    variable bloc and blocMax to keep track of the runtime's and the
+    OS's sense of break, whereas the Wasm sbrk function doesn't use
+    those global variables, and directly goes to grow the linear
+    memory instead. This causes that if there is any unused portion at
+    the end of the linear memory, the runtime doesn't use it. This CL
+    fixes it, adopts the same mechanism as the Plan 9 code.
+    
+    In particular, the runtime is not aware of any unused initial
+    memory at startup. Therefore, (most of) the extra initial memory
+    set by the linker are not actually used. This CL fixes this as
+    well.
+    
+    For #69018.
+    
+    Change-Id: I2ea6a138310627eda5f19a1c76b1e1327362e5f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621635
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/mem_sbrk.go | 24 ++++++++++++++++++++++--
+ src/runtime/mem_wasm.go | 19 +++++++++++++------
+ src/runtime/os_wasm.go  |  1 +
+ src/runtime/sys_wasm.s  |  6 ++++++
+ 4 files changed, 42 insertions(+), 8 deletions(-)

@@ -1,14 +1,22 @@
-commit 22538477a3cceb4f03b7c44cad6fe19e9e9e06b3
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Fri May 12 13:45:55 2017 +0900
+commit 5e90bbcc6de54ecbad1d72bc8e71e167829069b5
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Feb 27 18:26:33 2017 -0500
 
-    cmd/go: use filepath.Base for getting $CC name in TestCgoContainsSpace
+    testing: fix Benchmark() to start at 1 iteration, not 100
     
-    Change-Id: If7329b81073d7c98fdcb8a2c0b35f8708000606e
-    Reviewed-on: https://go-review.googlesource.com/43332
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    The run1 call removed in golang.org/cl/36990 was necessary to
+    initialize the duration of the benchmark. With it gone, the math in
+    launch() starts from 100. This doesn't work out well for second-long
+    benchmark methods. Put it back.
+    
+    Updates #18815
+    
+    Change-Id: I461f3466c805d0c61124a2974662f7ad45335794
+    Reviewed-on: https://go-review.googlesource.com/37530
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/cmd/go/go_test.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/testing/benchmark.go |  5 ++++-
+ src/testing/sub_test.go  | 12 ++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

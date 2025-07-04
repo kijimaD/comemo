@@ -1,13 +1,12 @@
-commit a044154a4c82af185d56ed5826d9946cd065178b
-Author: Rob Pike <r@golang.org>
-Date:   Sat Feb 4 06:16:02 2012 +1100
+commit d5c89972d809184f453d7a70901033a3ab8f0c9e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 3 10:17:37 2012 -0800
 
-    spec: restore primality
-    9 is prime if it's a hot day.
+    godoc: provide link to subdirectories, if any
     
-    R=golang-dev, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5630043
+    https://golang.org/cl/5626043
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/godoc/package.html | 3 +++
+ 1 file changed, 3 insertions(+)

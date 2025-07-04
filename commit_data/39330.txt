@@ -1,23 +1,27 @@
-commit 82521659deafea2c03b9140662bb07f23c49a0c1
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 6 17:23:19 2019 -0400
+commit f601d412ceae1338999b203c50168af34285c634
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 23:06:06 2019 -0500
 
-    runtime/internal/atomic: remove erroneous ABI wrappers
+    fmt: scan new number syntax
     
-    CL 179862 introduced go:linkname directives to create ABI wrappers for
-    Store and Store64 on s390x, but a concurrent change (CL 180439)
-    replaced the Go definitions of these functions with assembly
-    definitions. This resulted in conflicting definitions for the ABI0
-    symbols, which led to a bootstrap linking failure.
+    This CL updates fmt's scanner to accept the new number syntaxes:
     
-    Fix this by removing the now-incorrect go:linkname directives for
-    Store and Store64. This should fix the linux-s390x builders.
+     - Hexadecimal floating-point values.
+     - Digit-separating underscores.
+     - Leading 0b and 0o prefixes.
     
-    Updates #31230.
+    See golang.org/design/19308-number-literals for background.
     
-    Change-Id: I8de8c03c23412fc217d428c0018cc56eb2f9996f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181078
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    For #12711.
+    For #19308.
+    For #28493.
+    For #29008.
+    
+    Change-Id: I5582af5c94059c781e6cf4e862441d3df3006adf
+    Reviewed-on: https://go-review.googlesource.com/c/160247
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/internal/atomic/atomic_s390x.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/fmt/doc.go       | 15 ++++++++-------
+ src/fmt/scan.go      | 50 +++++++++++++++++++++++++++++++++++++-------------
+ src/fmt/scan_test.go | 38 ++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 81 insertions(+), 22 deletions(-)

@@ -1,18 +1,23 @@
-commit f15b81a80fc7250b436e5866d0a73c60f7b47712
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 27 16:14:48 2022 +0200
+commit ad2044a498cbbb211fe14fd4eeb0a63709363cfc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 3 08:39:41 2021 -0700
 
-    cmd/internal/pkgpath: use MustHaveExec in TestToSymbolFunc
+    cmd/compile/internal/types2: rename is_X predicates back to isX (step 2 of 2)
     
-    ToSymbolFunc executes a command using exec.Command.
+    This is s/is_/is/ throughout. No other changes.
     
-    Change-Id: Ic6c274bdc23050d021ec98ba67748338ac34f12c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435236
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I1be77a209133edc68a6dec0677a4991a7683f116
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361134
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/internal/pkgpath/pkgpath_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/types2/builtins.go    | 12 ++++-----
+ src/cmd/compile/internal/types2/check.go       |  2 +-
+ src/cmd/compile/internal/types2/conversions.go | 12 ++++-----
+ src/cmd/compile/internal/types2/expr.go        | 36 +++++++++++++-------------
+ src/cmd/compile/internal/types2/index.go       |  6 ++---
+ src/cmd/compile/internal/types2/predicates.go  | 24 ++++++++---------
+ src/cmd/compile/internal/types2/sizes.go       |  2 +-
+ src/cmd/compile/internal/types2/stmt.go        |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go     |  2 +-
+ 9 files changed, 49 insertions(+), 49 deletions(-)

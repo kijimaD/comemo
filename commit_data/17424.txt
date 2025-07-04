@@ -1,17 +1,21 @@
-commit 280c8b90e2785a7de2216cb129752bbeca09210a
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Thu Aug 29 16:48:44 2013 +0200
+commit 66c8935f732db28632b75aea456c682487febf15
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 29 10:16:09 2013 +0200
 
-    cmd/gc: make method names for function scoped types unique
+    cmd/gc: fix detection of initialization loop.
     
-    Types in function scope can have methods on them if they embed another type, but we didn't make the name unique, meaning that 2 identically named types in different functions would conflict with eachother.
+    The compiler computes initialization order by finding
+    a spanning tree between a package's global variables.
+    But it does so by walking both variables and functions
+    and stops detecting cycles between variables when they
+    mix with a cycle of mutually recursive functions.
     
-    Fixes #6269.
+    Fixes #4847.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/13326045
+    https://golang.org/cl/9663047
 
- src/cmd/gc/fmt.c            |  5 ++++-
- test/fixedbugs/issue6269.go | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 1 deletion(-)
+ src/cmd/gc/sinit.c          | 78 ++++++++++++++++++++++++++++-----------------
+ test/fixedbugs/issue4847.go | 24 ++++++++++++++
+ 2 files changed, 73 insertions(+), 29 deletions(-)

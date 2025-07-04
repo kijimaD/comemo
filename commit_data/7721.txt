@@ -1,16 +1,12 @@
-commit f8f3145a080b18b35c2fa7f245a4a474cc3043d4
+commit a16af59fd1d6daa02bd8b79c7daeb703843264cf
 Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 9 17:30:27 2011 -0800
+Date:   Wed Mar 9 16:53:32 2011 -0800
 
-    gob: turn two panics into errors because they can be triggered
-    by bogus data, or are in any case recoverable.
+    fmt: heaven forfend we export EOF = -1
     
-    Fixes #1598.
-    
-    R=rsc
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4240101
+    https://golang.org/cl/4248076
 
- src/pkg/gob/decode.go | 6 +++---
- src/pkg/gob/encode.go | 5 +++--
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/pkg/fmt/scan.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

@@ -1,13 +1,28 @@
-commit db7af2e67b023da2c4e8c1cc49543ebf4566ce52
-Author: Kevin Burke <kev@inburke.com>
-Date:   Sun Feb 25 10:29:28 2018 -0800
+commit 2da8a16cbcd5fc6fc04e1fd8a157cfa21f6d18bc
+Author: Ben Burkert <ben@benburkert.com>
+Date:   Thu Oct 19 10:29:23 2017 -0700
 
-    os/user: clean up grammar in comments
+    net/http: ignore response body when forbidden by status code
     
-    Change-Id: If9fe04894851d60a682346415c2e5523b2f04929
-    Reviewed-on: https://go-review.googlesource.com/96981
+    A 1XX, 204, or 304 response may not include a response body according
+    to RFC 7230, section 3.3.3. If a buggy server returns a 204 or 304
+    response with a body that is chunked encoded, the invalid body is
+    currently made readable in the Response. This can lead to data races due
+    to the transport connection's read loop which does not wait for the body
+    EOF when the response status is 204 or 304.
+    
+    The correct behavior is to ignore the body on a 204 or 304 response, and
+    treat the body data as the beginning of the next request on the
+    connection.
+    
+    Updates #22330.
+    
+    Change-Id: I89a457ceb783b6f66136d5bf9be0a9b0a04fa955
+    Reviewed-on: https://go-review.googlesource.com/71910
+    Reviewed-by: Tom Bergan <tombergan@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Tom Bergan <tombergan@google.com>
 
- src/os/user/lookup_windows.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/net/http/transfer.go       |  2 +-
+ src/net/http/transport_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

@@ -1,28 +1,12 @@
-commit 626da8d73741b0cdeaa1acc048fec9ec8286f2b5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 18 07:30:21 2013 -0800
+commit 9f2b2dfa8644a1c110579b00e91c72848ddfc478
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 18 17:25:23 2013 +1100
 
-    encoding/json: speed up decoding
+    log: fix example (fix build)
     
-    Don't make copies of keys while decoding, and don't use the
-    expensive strings.EqualFold when it's not necessary. Instead,
-    note in the existing field cache what algorithm to use to
-    check fold equality... most keys are just ASCII letters.
-    
-    benchmark               old ns/op    new ns/op    delta
-    BenchmarkCodeDecoder    137074314    103974418  -24.15%
-    
-    benchmark                old MB/s     new MB/s  speedup
-    BenchmarkCodeDecoder        14.16        18.66    1.32x
-    
-    Update #6496
-    
-    R=golang-dev, rsc, adg, r, mikioh.mikioh
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/13894045
+    https://golang.org/cl/43780043
 
- src/pkg/encoding/json/decode.go    |  10 +--
- src/pkg/encoding/json/encode.go    |  21 +++++-
- src/pkg/encoding/json/fold.go      | 143 +++++++++++++++++++++++++++++++++++++
- src/pkg/encoding/json/fold_test.go | 116 ++++++++++++++++++++++++++++++
- 4 files changed, 282 insertions(+), 8 deletions(-)
+ src/pkg/log/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

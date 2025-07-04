@@ -1,15 +1,23 @@
-commit cc5ccd71ef6df461fed01a91c18c5adde10ae2c8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 13 11:12:44 2023 -0800
+commit 6d4101ea68477bf1d762f7466523de0b95bec0ca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 20 12:00:36 2022 -0800
 
-    doc: in pre-generic spec, be explicit that it is not the current spec
+    cmd/compile/internal/pkginit: remove dependency on typecheck.Resolve
     
-    Change-Id: I4cf7efc8e704d41ee2e3743f6aa712cc46dd1fe9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549515
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    The use of typecheck.Resolve was previously necessary to interoperate
+    with the non-unified frontend, because it hooked into iimport. It's no
+    longer necessary with unified IR, where we can just lookup the
+    ".inittask" symbol and access Def directly.
+    
+    Updates #57410.
+    
+    Change-Id: I73bdfd53f65988ececd2b777743cd8b591a6db48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458616
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.17_spec.html | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/pkginit/init.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

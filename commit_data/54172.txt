@@ -1,24 +1,31 @@
-commit 291a32aa4bd894eaad0517ce1ac3e04dd885cb8b
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Tue Aug 22 21:14:14 2023 +0000
+commit 87db4ffadac291bc878cb892e05601610ca68ef5
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 11 07:34:20 2021 -0400
 
-    net/http: fix request canceler leak on connection close
+    runtime/coverage: runtime routines to emit coverage data
     
-    Due to a race condition persistConn could be closed without removing request canceler.
+    This patch fleshes out the runtime support for emitting coverage data
+    at the end of a run of an instrumented binary. Data is emitted in the
+    form of a pair of files, a meta-out-file and counter-data-outfile,
+    each written to the dir GOCOVERDIR. The meta-out-file is emitted only
+    if required; no need to emit again if an existing meta-data file with
+    the same hash and length is present.
     
-    Note that without the fix test occasionally passes and to demonstrate the issue it has to be run multiple times, e.g. using -count=10.
+    Updates #51430.
     
-    Fixes #61708
-    
-    Change-Id: I9029d7d65cf602dd29ee1b2a87a77a73e99d9c92
-    GitHub-Last-Rev: 6b31f9826da71dad4ee8c0491efba995a8f51440
-    GitHub-Pull-Request: golang/go#61745
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515796
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I59d20a4b8c05910c933ee29527972f8e401b1685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355451
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/net/http/transport.go      |  1 +
- src/net/http/transport_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+)
+ src/cmd/go/internal/work/gc.go       |  20 +-
+ src/go/build/deps_test.go            |  10 +-
+ src/internal/coverage/rtcov/rtcov.go |   9 +
+ src/runtime/coverage/dummy.s         |   8 +
+ src/runtime/coverage/emit.go         | 611 +++++++++++++++++++++++++++++++++++
+ src/runtime/coverage/hooks.go        |  42 +++
+ src/runtime/coverage/testsupport.go  | 207 ++++++++++++
+ src/runtime/covercounter.go          |  26 ++
+ src/runtime/covermeta.go             |  30 +-
+ 9 files changed, 932 insertions(+), 31 deletions(-)

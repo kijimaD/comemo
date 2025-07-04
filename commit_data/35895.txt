@@ -1,24 +1,22 @@
-commit fb72965df06e193bce0b999a0b5cb2a7b817fc7c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 5 21:38:02 2018 -0400
+commit 91bbe5388d44e485275a8f5892255fdef66d708b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 15 13:14:41 2018 -0700
 
-    go/doc: update header rules
+    cmd/compile: sort method sets earlier
     
-    Go documentation can have header lines, which are single-line paragraphs
-    with leading and trailing letters and almost no punctuation.
-    Before this CL, the only allowed punctuation was ' followed by s.
+    By sorting method sets earlier, we can change the interface
+    satisfaction problem from taking O(NM) time to O(N+M). This is the
+    same algorithm already used by runtime and reflect for dynamic
+    interface satisfaction testing.
     
-    After this CL, parentheses and commas are also allowed,
-    to pick up a pair of previously unrecognized headings in the
-    go command documentation:
+    For #22075.
     
-            Gofmt (reformat) package sources
-            Modules, module versions, and more
-    
-    Change-Id: I6d59c40a1269f01cef62a3fb17b909571c2f2adb
-    Reviewed-on: https://go-review.googlesource.com/122407
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I3d889f0227f37704535739bbde11f5107b4eea17
+    Reviewed-on: https://go-review.googlesource.com/100845
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/doc/comment.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go |  1 -
+ src/cmd/compile/internal/gc/subr.go    | 59 +++++++++++++++++++---------------
+ 2 files changed, 33 insertions(+), 27 deletions(-)

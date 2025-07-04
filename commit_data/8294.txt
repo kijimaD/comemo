@@ -1,14 +1,14 @@
-commit 12cf1699e7ff6d7fc9f62e52f9ee065cdfa23f00
+commit 6876ad37f303617fa9b2f7ff4feafd6bf2744efe
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 2 14:22:40 2011 -0700
+Date:   Mon May 2 13:35:28 2011 -0700
 
-    net: default to 127.0.0.1, not localhost, in TestICMP
+    runtime: maybe fix Windows build broken by cgo setenv CL
     
-    If localhost resolves to ::1, the IPv4-only test fails.
-    
-    R=rsc, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4444084
+    https://golang.org/cl/4428078
 
- src/pkg/net/ipraw_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/runtime/cgo/Makefile | 14 ++++++++------
+ src/pkg/runtime/cgo/setenv.c | 16 ++++++++++++++++
+ src/pkg/runtime/cgo/util.c   | 11 -----------
+ 3 files changed, 24 insertions(+), 17 deletions(-)

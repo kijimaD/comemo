@@ -1,23 +1,20 @@
-commit 427d1a23ef8183a4e0c6714e391f53d35c614c4d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Oct 8 17:59:29 2024 -0400
+commit 99a174f06e6c7043a2ec739d116f6663f6c0c7b2
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Aug 24 10:12:38 2023 -0700
 
-    cmd/link: on ELF, generate GNU build ID by default
+    net/http: remove arbitrary timeout from TestTransportGCRequest
     
-    On ELF, default to "-B gobuildid", so it generates GNU build ID
-    based on Go buildid by default.
+    This test expects a *Request to be garbage collected
+    within five seconds. Some slow builders take longer.
+    Drop the arbitrary timeout.
     
-    Updates #41004.
-    Fixes #63934.
-    Fixes #68652.
+    Fixes #56809
     
-    Change-Id: I5619dfaa4eeb6575c52922ae1de3430b46e31db6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618601
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Than McIntosh <thanm@golang.org>
+    Change-Id: I4b5bdce09002a5b52b7b5d0b33e7876d48740bc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522615
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/elf_test.go         | 54 +++++++++++++++++++++++++---------------
- src/cmd/link/internal/ld/lib.go  |  8 ++++--
- src/cmd/link/internal/ld/main.go |  2 +-
- 3 files changed, 41 insertions(+), 23 deletions(-)
+ src/net/http/clientserver_test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

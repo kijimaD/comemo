@@ -1,25 +1,22 @@
-commit f777726ff073f8066c017649b572bd8c40940a42
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 15 21:50:51 2023 -0700
+commit 59ab6f351a370a27458755dc69f4a837e55a05a6
+Author: Mitar <mitar.git@tnode.com>
+Date:   Sun Jul 10 14:06:09 2022 +0000
 
-    os: if descriptor is non-blocking, retain that in Fd method
+    net/http: remove Content-Encoding in writeNotModified
     
-    For #58408
-    Fixes #60211
+    Additional header to remove if set before calling http.ServeContent.
     
-    Change-Id: I30f5678b46e15121865b19d1c0f82698493fad4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495079
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The API of ServeContent is that one should set Content-Encoding before calling it, if the content is encoded (e.g., compressed). But then, if content has not been modified, that header should be removed, according to RFC 7232 section 4.1.
+    
+    Change-Id: If51b35b7811a4dbb19de2ddb73f40c5e68fcec7e
+    GitHub-Last-Rev: 53df6e73c44b63f351f7aeeb45cab82d706311eb
+    GitHub-Pull-Request: golang/go#50903
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381955
+    Run-TryBot: hopehook <hopehook@qq.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- src/internal/syscall/unix/nonblocking.go        |  4 ++
- src/internal/syscall/unix/nonblocking_js.go     |  4 ++
- src/internal/syscall/unix/nonblocking_libc.go   |  4 ++
- src/internal/syscall/unix/nonblocking_wasip1.go |  4 ++
- src/os/fifo_test.go                             | 50 +++++++++++++++++++++++++
- src/os/file_unix.go                             | 17 ++++++---
- 6 files changed, 78 insertions(+), 5 deletions(-)
+ src/net/http/fs.go      |  1 +
+ src/net/http/fs_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

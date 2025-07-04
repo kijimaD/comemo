@@ -1,19 +1,18 @@
-commit a21a6e44616eed6fa6eae0e40864d109390960ed
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Apr 24 23:04:23 2019 +1000
+commit 8765e89a8ac2f4f2cfb8a4aea21b563168b6b6b6
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Tue Nov 20 00:40:28 2018 +0800
 
-    cmd/dist: handle arm64 as a machine hardware name
+    cmd/go/internal/modcmd: fix go mod edit -module replaces empty string
     
-    OpenBSD/arm64 reports itself as arm64 from `uname -m` - this currently
-    matches as gohostarch=arm, rather than gohostarch=arm64. Correct this
-    by matching on both aarch64 and arm64 (the alternative would be to use
-    `uname -p`, however that's likely to cause upset elsewhere).
+    Fixes golang/go#28820.
     
-    Updates #31656
-    
-    Change-Id: I7b2da93495d808e704caf032b3fadc984077769e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173598
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id931617efcf161ec934eb6d44062ad95e8a6ab8d
+    Reviewed-on: https://go-review.googlesource.com/c/150277
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/dist/main.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modcmd/edit.go      |  2 +-
+ src/cmd/go/testdata/script/mod_edit.txt | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

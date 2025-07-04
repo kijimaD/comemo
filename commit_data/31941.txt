@@ -1,14 +1,24 @@
-commit 7e067c4c78e057d1b034e40d7edee4efe3a4ee28
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 28 12:14:49 2017 -0700
+commit 5e954047bcb77b219629676db3e5d057bed48360
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 24 11:43:08 2017 -0700
 
-    doc: mention gccgo status in 1.9 release notes
+    cmd/compile: be slightly more tolerant in case of certain syntax errors
     
-    Updates #20587
+    Avoid construction of incorrect syntax trees in presence of errors.
     
-    Change-Id: If35868345d9697d4afa2e9c19b85e01d94c87908
-    Reviewed-on: https://go-review.googlesource.com/47034
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For #19663.
+    
+    Change-Id: I43025a3cf0fe02cae9a57e8bb9489b5f628c3fd7
+    Reviewed-on: https://go-review.googlesource.com/38604
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.9.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/compile/internal/gc/dcl.go        |  4 ++--
+ src/cmd/compile/internal/gc/main.go       |  2 +-
+ src/cmd/compile/internal/syntax/parser.go | 35 +++++++++++++++++--------------
+ src/cmd/compile/internal/syntax/syntax.go |  5 +++--
+ test/fixedbugs/bug217.go                  |  2 ++
+ test/fixedbugs/issue18393.go              |  2 +-
+ test/import5.go                           |  8 +++----
+ 7 files changed, 32 insertions(+), 26 deletions(-)

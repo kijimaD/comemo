@@ -1,22 +1,13 @@
-commit 4a532c664df5d0c6edd4955a80006490827179d7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 30 12:09:34 2014 -0700
+commit dcb594ec30f428b4b116682a7536ed694526f0e5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Sep 22 19:51:53 2014 -0700
 
-    net/http/httputil: ensure DumpRequestOut dumps all of Body
+    runtime: remove unused function declaration
     
-    Bodies larger than 8KB (the default bufio reader size) weren't
-    being dumped.  Force a read of the body so they're teed into
-    the response buffer.
-    
-    Thanks to Steven Hartland for identifying the problem.
-    
-    Fixes #8089
-    
-    LGTM=r
-    R=golang-codereviews, r
-    CC=adg, golang-codereviews
-    https://golang.org/cl/144650044
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/145970043
 
- src/net/http/httputil/dump.go      | 12 ++++++++++--
- src/net/http/httputil/dump_test.go | 30 +++++++++++++++++++++++++++++-
- 2 files changed, 39 insertions(+), 3 deletions(-)
+ src/runtime/mgc0.c | 1 -
+ 1 file changed, 1 deletion(-)

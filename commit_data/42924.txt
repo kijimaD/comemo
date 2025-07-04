@@ -1,49 +1,20 @@
-commit bdb480fd623e58d0d1d0689a3755367379ea57bc
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Sep 8 15:28:43 2020 +0700
+commit 089e482b3dd2026178c8ee5b90d9aadb6bf81239
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Feb 15 19:23:07 2020 -0800
 
-    cmd/compile: fix mishandling of unsafe-uintptr arguments in go/defer
+    runtime: reorder race detector calls in slicecopy
     
-    Currently, the statement:
+    In rare circumstances, this helps report a race which would
+    otherwise go undetected.
     
-            go g(uintptr(f()))
+    Fixes #36794
     
-    gets rewritten into:
-    
-            tmp := f()
-            newproc(8, g, uintptr(tmp))
-            runtime.KeepAlive(tmp)
-    
-    which doesn't guarantee that tmp is still alive by time the g call is
-    scheduled to run.
-    
-    This CL fixes the issue, by wrapping g call in a closure:
-    
-            go func(p unsafe.Pointer) {
-                    g(uintptr(p))
-            }(f())
-    
-    then this will be rewritten into:
-    
-            tmp := f()
-            go func(p unsafe.Pointer) {
-                    g(uintptr(p))
-                    runtime.KeepAlive(p)
-            }(tmp)
-            runtime.KeepAlive(tmp)  // superfluous, but harmless
-    
-    So the unsafe.Pointer p will be kept alive at the time g call runs.
-    
-    Updates #24491
-    
-    Change-Id: Ic10821251cbb1b0073daec92b82a866c6ebaf567
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253457
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I8a3c9bd6fc34efa51516393f7ee72531c34fb073
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220685
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/compile/internal/gc/order.go  |  1 +
- src/cmd/compile/internal/gc/syntax.go | 41 +++++++++++++++++---------
- src/cmd/compile/internal/gc/walk.go   | 54 ++++++++++++++++++++++++++++-------
- test/fixedbugs/issue24491.go          | 45 +++++++++++++++++++++++++++++
- 4 files changed, 117 insertions(+), 24 deletions(-)
+ src/runtime/race/testdata/slice_test.go | 16 ++++++++++++++++
+ src/runtime/slice.go                    |  4 ++--
+ 2 files changed, 18 insertions(+), 2 deletions(-)

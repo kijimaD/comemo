@@ -1,28 +1,30 @@
-commit 711a373cc304eab50ee29ace78ec48f6c619a0cc
-Author: erifan01 <eric.fang@arm.com>
-Date:   Tue Dec 19 07:49:10 2017 +0000
+commit f768693f58dd7f98bb95e696cd0aae185a47db66
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 10 14:44:31 2017 -0500
 
-    math: optimize Exp and Exp2 on arm64
+    cmd/go: cache and replay command output during build
     
-    This CL implements Exp and Exp2 with arm64 assembly. By inlining Ldexp and
-    using fused instructions(fmadd, fmsub, fnmsub), this CL helps to improve
-    the performance of functions Exp, Exp2, Sinh, Cosh and Tanh.
+    It's nice that
     
-    Benchmarks:
-    name                   old time/op  new time/op  delta
-    Cosh-8                  138ns ± 0%    96ns ± 0%  -30.72%  (p=0.008 n=5+5)
-    Exp-8                   105ns ± 0%    58ns ± 0%  -45.24%  (p=0.000 n=5+4)
-    Exp2-8                  100ns ± 0%    57ns ± 0%  -43.21%  (p=0.008 n=5+5)
-    Sinh-8                  139ns ± 0%   102ns ± 0%  -26.62%  (p=0.008 n=5+5)
-    Tanh-8                  134ns ± 0%   100ns ± 0%  -25.67%  (p=0.008 n=5+5)
+            go build -gcflags=-m errors
+            go build -gcflags=-m errors
     
-    Change-Id: I7483a3333062a1d3525cedf3de56db78d79031c6
-    Reviewed-on: https://go-review.googlesource.com/86615
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    uses the cache for the second command.
+    
+    Even nicer is to make the second command
+    print the same output as the first command.
+    
+    Fixes #22587.
+    
+    Change-Id: I64350839f01c86c9a095d9d22f6924cd7a0b9105
+    Reviewed-on: https://go-review.googlesource.com/77110
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/all_test.go   |  11 ++-
- src/math/exp_arm64.s   | 182 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/math/stubs_arm64.s |   6 --
- 3 files changed, 192 insertions(+), 7 deletions(-)
+ src/cmd/go/go_test.go               | 26 ++++++++++++
+ src/cmd/go/internal/cache/hash.go   | 20 +++++++++
+ src/cmd/go/internal/work/action.go  |  1 +
+ src/cmd/go/internal/work/buildid.go | 41 ++++++++++++++++---
+ src/cmd/go/internal/work/exec.go    | 82 +++++++++++++++++++++----------------
+ src/cmd/go/internal/work/gc.go      | 14 +++----
+ src/cmd/go/internal/work/gccgo.go   | 14 +++----
+ 7 files changed, 143 insertions(+), 55 deletions(-)

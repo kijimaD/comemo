@@ -1,17 +1,25 @@
-commit b35dacaac57b039205d9b07ea24098e2c3fcb12e
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Feb 13 03:37:57 2019 -0500
+commit 5be78668ef311576c945c4dfc6cfb0716236a89f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 21 09:47:31 2018 +1000
 
-    crypto/rc4: remove false guarantees from Reset docs and deprecate it
+    fmt: unify the printing examples
     
-    Nothing in Go can truly guarantee a key will be gone from memory (see
-    #21865), so remove that claim. That makes Reset useless, because
-    unlike most Reset methods it doesn't restore the original value state,
-    so deprecate it.
+    Provide an example for each of the printing functions (Print,
+    Sprintf, Fprintln etc.), and make them all produce the same output
+    so their usage can be compared.
     
-    Change-Id: I6bb0f7f94c7e6dd4c5ac19761bc8e5df1f9ec618
-    Reviewed-on: https://go-review.googlesource.com/c/162297
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also add a package-level example explaining the difference between
+    how Printf, Println, and Print behave.
+    
+    There are more examples to come.
+    
+    Update #27554.
+    
+    Change-Id: Ide03e5233f3762a9ee2ac0269f534ab927562ce2
+    Reviewed-on: https://go-review.googlesource.com/136615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/rc4/rc4.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/fmt/example_test.go | 193 +++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 132 insertions(+), 61 deletions(-)

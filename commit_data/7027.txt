@@ -1,9 +1,14 @@
-commit 3cd10e3a0d9a1984eb1fd9e418885a989e8a454a
-Merge: 9214016b3d 4e5a59591b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 4 13:40:41 2011 -0500
+commit 4e5a59591bc24e0e5219f372596274e467dbab6c
+Author: Patrick Gavlin <pgavlin@gmail.com>
+Date:   Tue Jan 4 13:14:17 2011 -0500
 
-    merge tree
+    gc: rewrite complex /= to l = l / r.
+    
+    Fixes #1368.
+    
+    R=rsc, ejsherry
+    CC=golang-dev
+    https://golang.org/cl/3811042
 
  src/cmd/gc/walk.c        |  4 +++-
  test/fixedbugs/bug315.go | 18 ++++++++++++++++++

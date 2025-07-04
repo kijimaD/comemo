@@ -1,28 +1,18 @@
-commit a5464af55469e2810452fd62e189404f3b8406ea
+commit 096c900f9edbe7138e1683c8740e5e94b97d6b83
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jul 21 08:57:50 2016 -0700
+Date:   Thu Apr 14 12:41:54 2016 -0700
 
-    syscall: split out unix Syscall9 asm support
+    crypto/aes: fix vet warnings in gcm_amd64.s
     
-    This is preliminary work to unifying them.
-    Aside from Syscall9, all are identical.
-    Syscall9 has a netbsd/openbsd variant
-    and a dragonfly/freebsd variant.
+    Notably, this fixes two incorrect argument sizes.
     
-    Updates #11041
+    Update #11041
     
-    Change-Id: Ia5ce95d5e9115d4c0492d5e53aa7a4316deafd1f
-    Reviewed-on: https://go-review.googlesource.com/25115
+    Change-Id: Ie4a3b1a59cd6a6707f6d2f4d3be978fc70322b46
+    Reviewed-on: https://go-review.googlesource.com/22091
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/asm9_dragonfly_amd64.s | 47 ++++++++++++++++++++++++++++++++++++++
- src/syscall/asm9_freebsd_amd64.s   | 47 ++++++++++++++++++++++++++++++++++++++
- src/syscall/asm9_netbsd_amd64.s    | 46 +++++++++++++++++++++++++++++++++++++
- src/syscall/asm9_openbsd_amd64.s   | 46 +++++++++++++++++++++++++++++++++++++
- src/syscall/asm_dragonfly_amd64.s  | 34 ---------------------------
- src/syscall/asm_freebsd_amd64.s    | 34 ---------------------------
- src/syscall/asm_netbsd_amd64.s     | 33 --------------------------
- src/syscall/asm_openbsd_amd64.s    | 33 --------------------------
- 8 files changed, 186 insertions(+), 134 deletions(-)
+ src/crypto/aes/gcm_amd64.s | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

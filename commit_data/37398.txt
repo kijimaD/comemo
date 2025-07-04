@@ -1,24 +1,21 @@
-commit 0c7762cd184649552309c82671bf81f89d215ff7
-Author: Keith Randall <khr@google.com>
-Date:   Tue Oct 30 13:30:09 2018 -0700
+commit 7b46867d6ed3a1b0d45b9f647bd577585d451207
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 25 10:03:40 2018 -0700
 
-    cmd/compile: assume unsafe pointer arithmetic generates non-nil results
+    cmd/go: for missing binary-only package, say where it should be
     
-    I've never seen a case where unsafe arithmetic is used to generate a nil.
-    (Something like var x uintptr; unsafe.Pointer(x - x).)
-    We can assume that if someone is doing arithmetic with pointers, the
-    result will be non-nil. Our unsafe rules already forbid this, although
-    we should be more explicit.
+    Before this CL the user effectively has to guess at the expected
+    location of a binary-only package. While the location is normally
+    obvious ($GOPATH/pkg/GOOS_GOARCH/PATH/PKG.a) it is much less so when
+    building with options that implicitly add an -installsufix option.
     
-    RELNOTE=It is invalid to convert a nil unsafe.Pointer to uintptr and back, with arithmetic.
-    (This was already invalid, but this statement has been added for clarification.)
+    Fixes #26590
     
-    Fixes #27180
-    
-    Change-Id: I1880b7725a9fd99e4613799930fdad9aaa99e8f0
-    Reviewed-on: https://go-review.googlesource.com/c/146058
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I753ef54d6dcf733bb456dba65a4a92e4db57a1b0
+    Reviewed-on: https://go-review.googlesource.com/125818
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/nilcheck.go | 3 ++-
- src/unsafe/unsafe.go                     | 6 ++++++
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/exec.go           |  2 +-
+ src/cmd/go/testdata/script/binary_only.txt | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

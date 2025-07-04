@@ -1,27 +1,22 @@
-commit 5dead59add1f11e98de155860aa86175e893ac01
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Wed May 29 16:41:51 2024 +0000
+commit ef67022471bb26973168827ebf41e09f839fa0a7
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 12 08:20:08 2023 -0400
 
-    Revert "runtime: profile mutex contention during unlock"
+    runtime/coverage: add coverage snapshot helper routine
     
-    This reverts commit ba1c5b2c4573e10f3b5f0e0f25a27f17fba67eb0 (CL 585638).
+    Add a new function runtime/coverage.snapshot(), which samples the
+    current values of coverage counters in a running "go test -cover"
+    binary and returns percentage of statements executed so far. This
+    function is intended to be used by the function testing.Coverage().
     
-    Reason for revert: This is part of a patch series that changed the
-    handling of contended lock2/unlock2 calls, reducing the maximum
-    throughput of contended runtime.mutex values, and causing a performance
-    regression on applications where that is (or became) the bottleneck.
+    Updates #59590.
     
-    Updates #66999
-    Updates #67585
-    
-    Change-Id: Ibeec5d8deb17e87966cf352fefc7efe2267839d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589115
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I861393701c0cef47b4980aec14331168a9e64e8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495449
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/lock_futex.go |  15 ++--
- src/runtime/lock_sema.go  |  15 ++--
- src/runtime/mprof.go      | 178 ++++++++++++++++++++++++++++++----------------
- 3 files changed, 128 insertions(+), 80 deletions(-)
+ src/runtime/coverage/testsupport.go | 47 +++++++++++++++++++++++++++++++++++++
+ src/runtime/coverage/ts_test.go     | 40 +++++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+)

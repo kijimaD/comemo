@@ -1,21 +1,14 @@
-commit d9308cbb516fc581ff7c7f77781d51604be44da6
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 6 15:17:18 2017 -0400
+commit 5630d39f0c726037e28b16b6d80bba64b848067a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 9 12:28:51 2017 +0900
 
-    runtime/debug: expand SetGCPercent test
+    database/sql: fix nits in test
     
-    The current SetGCPercent test is, shall we say, minimal.
-    
-    Expand it to check that the GC target is actually computed and updated
-    correctly.
-    
-    For #19076.
-    
-    Change-Id: I6e9b2ee0ef369f22f72e43b58d89e9f1e1b73b1b
-    Reviewed-on: https://go-review.googlesource.com/39834
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I451b33d8da8d97917f2b257e6a25392c6e6582db
+    Reviewed-on: https://go-review.googlesource.com/36671
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/debug/garbage_test.go | 63 +++++++++++++++++++++++++++++++++++++--
- 1 file changed, 61 insertions(+), 2 deletions(-)
+ src/database/sql/sql_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

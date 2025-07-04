@@ -1,16 +1,19 @@
-commit 9d6af4082b4ee0dc912a5cd108581f6eefd778a5
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Jan 24 10:38:45 2025 -0800
+commit 95712fe70bb8d6f3c00662acdff79db3da067026
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Nov 19 22:01:07 2023 -0800
 
-    crypto/tls: disable additional SSLv2 bogo tests
+    cmd/compile/internal/inline: remove useless code
     
-    We don't support SSLv2, at all.
+    There doesn't appear to be any need for this code. EditChildren won't
+    recurse into the closure body anyway.
     
-    Change-Id: Icd0579b81393fbd82bf5b4d961470928faa7d09d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644017
-    Reviewed-by: Neal Patel <nealpatel@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Split out into a separate commit in case I'm overlooking something.
+    
+    Change-Id: I004d1aa04865896de972bf3323b1622cc08a0d18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543659
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/tls/bogo_config.json | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/inline/inl.go | 5 -----
+ 1 file changed, 5 deletions(-)

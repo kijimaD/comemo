@@ -1,0 +1,17 @@
+commit a3d11d280d10a3213f70d04379d5e1be882debb2
+Author: Luka Krmpotić <luka.krmpotic@gmail.com>
+Date:   Sat Feb 15 10:25:50 2025 +0000
+
+    go/format: format comment to match code
+    
+    Change-Id: I9434a8d04ca4282da86cb2622a6a541db3961a2b
+    GitHub-Last-Rev: f28908e338e9160ca3d4033161647832fdd76840
+    GitHub-Pull-Request: golang/go#71763
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649955
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/go/format/benchmark_test.go | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)

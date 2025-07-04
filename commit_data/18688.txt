@@ -1,13 +1,61 @@
-commit a9600502bbaace43792e3f00a8f23286ba8a1667
-Author: Robert Sesek <rsesek@google.com>
-Date:   Thu Feb 27 19:11:03 2014 -0800
+commit d9c6ae6ae8359429a249b074b07baf5cbc894d7f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 27 20:37:00 2014 -0500
 
-    debug/macho: Define CPU constants for other common architectures for OS X/iOS.
+    all: final merge of NaCl tree
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    This CL replays the following one CL from the rsc-go13nacl repo.
+    This is the last replay CL: after this CL the main repo will have
+    everything the rsc-go13nacl repo did. Changes made to the main
+    repo after the rsc-go13nacl repo branched off probably mean that
+    NaCl doesn't actually work after this CL, but all the code is now moved
+    over and just needs to be redebugged.
+    
+    ---
+    cmd/6l, cmd/8l, cmd/ld: support for Native Client
+    
+    See golang.org/s/go13nacl for design overview.
+    
+    This CL is publicly visible but not CC'ed to golang-dev,
+    to avoid distracting from the preparation of the Go 1.2
+    release.
+    
+    This CL and the others will be checked into my rsc-go13nacl
+    clone repo for now, and I will send CLs against the main
+    repo early in the Go 1.3 development.
+    
+    R≡khr
+    https://golang.org/cl/15750044
+    ---
+    
+    LGTM=bradfitz, dave, iant
+    R=dave, bradfitz, iant
     CC=golang-codereviews
-    https://golang.org/cl/69100045
+    https://golang.org/cl/69040044
 
- src/pkg/debug/macho/macho.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ include/link.h             |   7 ++
+ src/cmd/5l/l.h             |   1 +
+ src/cmd/5l/obj.c           |   6 ++
+ src/cmd/6l/asm.c           |   3 +
+ src/cmd/6l/l.h             |   6 +-
+ src/cmd/6l/obj.c           |  24 +++++
+ src/cmd/8l/asm.c           |   1 +
+ src/cmd/8l/l.h             |   1 +
+ src/cmd/8l/obj.c           |  18 ++++
+ src/cmd/gc/doc.go          |   4 +-
+ src/cmd/ld/data.c          |   7 +-
+ src/cmd/ld/decodesym.c     |  47 ++++++----
+ src/cmd/ld/elf.c           |  57 ++++++------
+ src/cmd/ld/lib.c           |  35 ++++---
+ src/cmd/ld/lib.h           |   2 +
+ src/cmd/ld/pcln.c          |   2 +-
+ src/cmd/ld/pobj.c          |   1 +
+ src/liblink/asm6.c         | 228 +++++++++++++++++++++++++++++++++++++++++----
+ src/liblink/asm8.c         | 111 +++++++++++++++++++++-
+ src/liblink/obj5.c         |   1 +
+ src/liblink/obj6.c         | 168 ++++++++++++++++++++++++++++-----
+ src/liblink/obj8.c         |   4 +-
+ src/liblink/sym.c          |   9 +-
+ src/pkg/runtime/type.h     |   2 +-
+ src/pkg/runtime/typekind.h |   3 -
+ 25 files changed, 633 insertions(+), 115 deletions(-)

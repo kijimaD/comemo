@@ -1,19 +1,21 @@
-commit c1e2ecbaf93b360f3384a23c77a01c2280b9e58e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 3 21:18:14 2022 -0700
+commit 213e157d3aad3fbb289d184a5cb4b18258162634
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jun 15 16:01:25 2021 -0700
 
-    doc/go1.19: document Resolver.PreferGo
+    testing/fstest: allow specifying file for "." in MapFS
     
-    Updates #51400
+    Prior to this commit, specifying a file for "." in MapFS
+    created an invalid fs.FS and caused infinite recursion in fs.WalkDir.
     
-    Change-Id: I61733574362d4cf3cb65122bd13361e5c0f6728c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410375
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Fixes #46776
+    
+    Change-Id: Ia9e4ae1125355a74dba9ee6b36451b7fda75a862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328409
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.19.html | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/testing/fstest/mapfs.go      |  4 +++-
+ src/testing/fstest/mapfs_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

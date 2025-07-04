@@ -1,17 +1,14 @@
-commit 0b204e4625d158d5d466cdca2dedca4fda75dcf2
+commit b88be149828199abf7dfdebe0ab803248cd9ecf4
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 27 11:06:53 2011 -0700
+Date:   Fri May 27 10:08:31 2011 -0700
 
-    http: propagate Set-Cookie in reverse proxy
+    http/spdy: temporarily disable some failing tests
     
-    Also adds Host header tests.
+    Issue 1886 has details
     
-    Fixes #1886
-    
-    R=golang-dev, rsc
+    R=golang-dev, willchan
     CC=golang-dev
-    https://golang.org/cl/4556063
+    https://golang.org/cl/4527083
 
- src/pkg/http/reverseproxy.go      |  4 ++++
- src/pkg/http/reverseproxy_test.go | 14 +++++++++++++-
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/pkg/http/spdy/framer_test.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

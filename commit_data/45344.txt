@@ -1,42 +1,31 @@
-commit a53dc4c1ce0e21da328bd5984900448bab354ba1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 23 01:49:00 2021 -0400
+commit 5e9582e3f0d10523d32a25a338cbade21266dca3
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Oct 15 11:45:32 2020 -0400
 
-    cmd/go/internal/modload: use (*loadPkg).mod only to indicate the module from which the package was loaded
+    cmd/go: support overlays for synthesized packages.
     
-    The (*loadPkg).mod field normally indicates the module from which the
-    package was loaded. However, if the package was missing, we previously
-    used the mod field to instead store the module from which we intend to
-    load the package next time around.
+    The main missing piece here was supporting Stat in the overlay
+    filesystem, in the parts of the package code that determines whether
+    an command line argument is a file on disk or a directory.  so this
+    change adds a Stat function to the fsys package. It's implemented the
+    same way as the already existing fsys.lstat function, but instead of
+    os.Lstat, it calls os.Stat on disk files.
     
-    That sort of dual use makes the semantics (and synchronization) of the
-    mod field much more complex to reason about. For example, it would be
-    nice to have the invariant that the mod field is always one of the
-    modules in the overall build list, or one of the modules selected in
-    the overall module graph. Similarly, it would be nice to have the
-    invariant that the version indicated by the mod field can coexist with
-    (without upgrading) all of the other versions indicated in the mod
-    fields of other packages.
+    Then, the change changes parts of the package code to use the overlay
+    Stat instead of the os package's Stat.
     
-    This repurposing of the mod field appears to be solely in the service
-    of storing the module when resolving missing imports. To keep
-    conceptually-separate fields separate, I have changed
-    resolveMissingImports to store a slice of package–module pairs,
-    instead of just packages that need to be revisited.
+    For #39958
     
-    This may increase allocation pressure slightly if we have many
-    unresolved packages, but most packages are not unresolved, and it
-    seems worth the cost to use a little extra memory if it means we can
-    reason more clearly about the (quite complex) behaviors of the module
-    loader.
-    
-    For #36460
-    
-    Change-Id: Ic434df0f38185c6e9e892c5e9ba9ff53b3efe01f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312930
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I8e478ae386f05b48d7dd71bd7e47584f090623df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262617
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modload/load.go | 45 +++++++++++++++++++++++++++++--------
- 1 file changed, 36 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/fsys/fsys.go             |  20 +++-
+ src/cmd/go/internal/fsys/fsys_test.go        | 155 ++++++++++++++++++++++++++-
+ src/cmd/go/internal/load/pkg.go              |   7 +-
+ src/cmd/go/testdata/script/build_overlay.txt |  21 +++-
+ 4 files changed, 190 insertions(+), 13 deletions(-)

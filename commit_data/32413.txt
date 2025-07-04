@@ -1,32 +1,38 @@
-commit cbc4e5d9c4f2444c5d40ae6333b4e1f4c9cfbd41
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Aug 14 10:16:21 2017 +0200
+commit 1737aef270a8954f3f8718beb55d6ddfc1cf5d21
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Apr 22 15:28:58 2017 +0200
 
-    cmd/compile: generate makemap calls with int arguments
+    cmd/compile: more error position tests for the typechecker
     
-    Where possible generate calls to runtime makemap with int hint argument
-    during compile time instead of makemap with int64 hint argument.
+    This change adds line position tests for several yyerror calls in the
+    typechecker that are currently not tested in any way.
     
-    This eliminates converting the hint argument for calls to makemap with
-    int64 hint argument for platforms where int64 values do not fit into
-    an argument of type int.
+    Untested yyerror calls were found by replacing them with
     
-    A similar optimization for makeslice was introduced in CL
-    golang.org/cl/27851.
+      yerrorl(src.NoXPos, ...)
     
-    386:
-    name         old time/op    new time/op    delta
-    NewEmptyMap    53.5ns ± 5%    41.9ns ± 5%  -21.56%  (p=0.000 n=10+10)
-    NewSmallMap     182ns ± 1%     165ns ± 1%   -8.92%  (p=0.000 n=10+10)
+    (thus destroying position information in the error), and then running
+    the test suite. No failures means no test coverage for the relevant
+    yyerror call.
     
-    Change-Id: Ibd2b4c57b36f171b173bf7a0602b3a59771e6e44
-    Reviewed-on: https://go-review.googlesource.com/55142
-    Reviewed-by: Keith Randall <khr@golang.org>
+    For #19683
+    
+    Change-Id: Iedb3d2f02141b332e9bfa76dbf5ae930ad2fddc3
+    Reviewed-on: https://go-review.googlesource.com/41477
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         | 242 +++++++++++++------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   3 +-
- src/cmd/compile/internal/gc/walk.go            |  19 +-
- src/runtime/hashmap.go                         |  19 +-
- src/runtime/hashmap_fast.go                    |   6 +-
- test/makemap.go                                |  34 ++++
- 6 files changed, 191 insertions(+), 132 deletions(-)
+ test/append1.go            | 20 ++++++++++++++++++++
+ test/chan/perm.go          |  5 +++++
+ test/cmplx.go              | 14 ++++++++++++++
+ test/complit1.go           |  9 +++++++++
+ test/copy1.go              | 27 +++++++++++++++++++++++++++
+ test/ddd1.go               |  4 ++++
+ test/initializerr.go       |  1 +
+ test/interface/explicit.go |  5 +++++
+ test/makenew.go            | 19 +++++++++++++++++++
+ test/map1.go               | 10 ++++++++--
+ test/recover5.go           | 16 ++++++++++++++++
+ test/shift1.go             |  6 ++++++
+ 12 files changed, 134 insertions(+), 2 deletions(-)

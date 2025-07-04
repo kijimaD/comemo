@@ -1,0 +1,18 @@
+commit cf6124f807e5138cd533bab687d2e233f8fefde8
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri May 10 05:20:09 2024 +0000
+
+    cmd/trace: pkg import only once
+    
+    Change-Id: Iaaf2e9dbcffb4b1944817b0a4aaecd3554ebfec1
+    GitHub-Last-Rev: f4ec85a05e54c2f403cabc4c6458cd2f396e183d
+    GitHub-Pull-Request: golang/go#67280
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584695
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/trace/gc_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

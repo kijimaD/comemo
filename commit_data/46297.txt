@@ -1,16 +1,23 @@
-commit a8aa6cfa6d41a1be17bf8d35c490f693935f81ac
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Jul 30 13:12:27 2021 -0400
+commit cb4898a77d79f457d75f601fad6908dd85bdc772
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Dec 18 19:38:13 2020 -0800
 
-    cmd/compile: correct a comment in uint64Tofloat
+    [dev.regabi] cmd/compile: simplify declaration importing
     
-    We only do z>>1 once (as it should be). Remove the extra one
-    in the comment.
+    Rather than creating Names w/ ONONAME earlier and later adding in the
+    details, this CL changes the import logic to create and add details at
+    the same time.
     
-    Change-Id: I6fea05fe697de07e160bd686697377babcb3e4c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347400
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Ifaabade3cef8cd80ddd6644bff79393b934255d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279313
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/gc/export.go    | 110 ++++++++-----------------------
+ src/cmd/compile/internal/gc/iimport.go   |  62 +++++++++--------
+ src/cmd/compile/internal/gc/typecheck.go |  13 +---
+ 3 files changed, 58 insertions(+), 127 deletions(-)

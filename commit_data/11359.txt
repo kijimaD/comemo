@@ -1,21 +1,30 @@
-commit 37d2f8190d5477c306675ec17cfc05499630fe63
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 24 11:48:48 2012 -0800
+commit 0da89b3964d7b9f44d5180b147791c57312ddd0f
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Tue Jan 24 14:48:15 2012 -0500
 
-    rename FooError vars to ErrFoo
+    test: Add the usual Copyright notice.
+    
+    Fixes #2759.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5574056
+    https://golang.org/cl/5570053
 
- src/pkg/archive/tar/reader.go        |  8 ++++----
- src/pkg/archive/zip/reader.go        | 24 ++++++++++++------------
- src/pkg/archive/zip/reader_test.go   | 16 ++++++++--------
- src/pkg/archive/zip/writer.go        |  2 +-
- src/pkg/compress/gzip/gunzip.go      | 14 +++++++-------
- src/pkg/compress/gzip/gunzip_test.go |  6 +++---
- src/pkg/compress/zlib/reader.go      | 12 ++++++------
- src/pkg/compress/zlib/reader_test.go |  6 +++---
- src/pkg/crypto/bcrypt/bcrypt.go      |  8 ++++----
- src/pkg/crypto/bcrypt/bcrypt_test.go |  6 +++---
- 10 files changed, 51 insertions(+), 51 deletions(-)
+ misc/cgo/test/align.go                | 4 ++++
+ misc/cgo/test/callback.go             | 4 ++++
+ src/cmd/gofix/netdial_test.go         | 4 ++++
+ src/cmd/gofix/reflect_test.go         | 4 ++++
+ test/chan/select4.go                  | 4 ++++
+ test/fixedbugs/bug222.dir/chanbug.go  | 4 ++++
+ test/fixedbugs/bug222.dir/chanbug2.go | 4 ++++
+ test/fixedbugs/bug248.dir/bug0.go     | 4 ++++
+ test/fixedbugs/bug248.dir/bug1.go     | 4 ++++
+ test/fixedbugs/bug248.dir/bug2.go     | 4 ++++
+ test/fixedbugs/bug248.dir/bug3.go     | 4 ++++
+ test/fixedbugs/bug260.go              | 4 ++++
+ test/fixedbugs/bug367.dir/main.go     | 4 ++++
+ test/fixedbugs/bug367.dir/p.go        | 4 ++++
+ test/fixedbugs/bug377.dir/one.go      | 4 ++++
+ test/fixedbugs/bug377.dir/two.go      | 4 ++++
+ test/fixedbugs/bug382.go              | 4 ++++
+ 17 files changed, 68 insertions(+)

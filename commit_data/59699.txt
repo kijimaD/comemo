@@ -1,17 +1,17 @@
-commit 68f4434df02c3d1bde5b42c9adeaf79d15858ff3
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri May 23 17:31:53 2025 -0400
+commit 28b5d80d8d1746d2e33fb3cf49f3087521264b80
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 11 15:10:47 2024 -0700
 
-    runtime/trace: match traceClockNow types
+    os: document file mode of temporary files
     
-    runtime.traceClockNow returns a (named) uint64. Make the declaration in
-    runtime/trace match this type.
+    Fixes #66784
     
-    Change-Id: I6a6a636ce3596cbc6fc5bac3590703b7b4839c4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675976
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: Ifd17e0830e04e7028d8a876c6c12c496f5167887
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578395
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/trace/recorder.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/tempfile.go | 2 ++
+ 1 file changed, 2 insertions(+)

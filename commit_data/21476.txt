@@ -1,23 +1,14 @@
-commit 3a8713575499622dbe77d78e9871dbe2ae94b8bb
-Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
-Date:   Sat Jan 24 17:51:42 2015 -0500
+commit f7e43f14d324815b0884ed1dfee5d655f273e91e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jan 7 14:24:18 2015 -0800
 
-    runtime: support panic/print logging in android-L.
+    runtime: remove stray commas in assembly
     
-    In android-L, logging is done through the logd daemon.
-    If logd daemon is available, send logging to logd.
-    Otherwise, fallback to the legacy mechanism (/dev/log files).
-    
-    This change adds access/socket/connect calls to interact with the logd.
-    
-    Fixes golang/go#9398.
-    
-    Change-Id: I3c52b81b451f5862107d7c675f799fc85548486d
-    Reviewed-on: https://go-review.googlesource.com/3350
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I4dc97ff8111bdc5ca6e4e3af06aaf4f768031c68
+    Reviewed-on: https://go-review.googlesource.com/2473
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/defs_linux_arm.go       |  11 ++-
- src/runtime/print1_write_android.go | 143 +++++++++++++++++++++++++++++++-----
- src/runtime/stubs_android.go        |  10 +++
- src/runtime/sys_linux_arm.s         |  29 ++++++++
- 4 files changed, 175 insertions(+), 18 deletions(-)
+ src/runtime/asm_386.s      | 6 +++---
+ src/runtime/asm_amd64.s    | 6 +++---
+ src/runtime/asm_amd64p32.s | 6 +++---
+ 3 files changed, 9 insertions(+), 9 deletions(-)

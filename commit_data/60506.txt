@@ -1,0 +1,17 @@
+commit 0fe775e9f3c60db4a8fa6981bbc5cb0812a01dc5
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Jun 27 10:56:22 2024 +0800
+
+    cmd/compile: drop TODO in NilCheck for riscv64
+    
+    Also add log as arm/amd64 do.
+    
+    Change-Id: I3698993e2df0ebf3bfcf8bad5fe389affa0e8eff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595355
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/riscv64/ssa.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,14 +1,25 @@
-commit 406d73876dc13bfe85215e7a9c32cd8396270256
-Author: Rob Pike <r@golang.org>
-Date:   Fri May 27 23:24:39 2011 +1000
+commit a825e8a69f3811c55d9bbf988ef0cec667d5380c
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri May 27 08:46:51 2011 -0300
 
-    time: fix Format bug: noon is 12PM, not 0PM.
-    Fixes #1882.
+    cgo: restrict #cgo directives to prevent shell expansion
     
-    R=golang-dev, dsymonds
+    Fixes issue #1879.
+    
+    Directives were not directly expanded, but since their
+    content ended up in makefiles, further expansion would
+    take place there.  This prevents such artifacts by
+    restricting the set of characters that may be used in
+    a directive value.
+    
+    To build the list of safe characters I went through the
+    contents of /usr/lib/pkgconfig and extracted LDFLAGS
+    and CFLAGS information, so hopefully this is a
+    reasonable default to get started.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4556062
+    https://golang.org/cl/4532092
 
- src/pkg/time/format.go    | 13 +++++++++++--
- src/pkg/time/time_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+), 2 deletions(-)
+ src/cmd/cgo/gcc.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

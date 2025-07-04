@@ -1,19 +1,18 @@
-commit d18057917003970322335bd1ad73a68ae6994ccd
-Author: Joel Sing <jsing@google.com>
-Date:   Sat Jan 4 00:29:20 2014 +1100
+commit d4c66a35baba191b5857960d75fe66d766f6d573
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 3 10:10:54 2014 +1100
 
-    syscall: handle varied path lengths for unix sockets
+    runtime: add a test for randomised map iteration order.
     
-    Most BSDs include the trailing NUL character of the socket path in the
-    length, however some do not (such as NetBSD 6.99). Handle this by only
-    subtracting the family and length bytes from the returned length, then
-    scanning the path and removing any terminating NUL bytes.
+    Technically the spec does not guarantee that the iteration order is random,
+    but it is a property that we have consciously pursued, and so it seems
+    right to verify that our implementation does indeed randomise.
     
-    Fixes #6627.
+    Update #6719.
     
-    R=golang-codereviews, mikioh.mikioh
+    R=khr, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/46420044
+    https://golang.org/cl/47010043
 
- src/pkg/syscall/syscall_bsd.go | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/pkg/runtime/map_test.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

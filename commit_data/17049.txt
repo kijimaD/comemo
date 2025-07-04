@@ -1,26 +1,25 @@
-commit 82f5ca1ef05970fc271dc7e1cacaed8e27f65910
-Author: Rob Pike <r@golang.org>
-Date:   Tue Aug 6 21:49:03 2013 +1000
+commit 04b1cfa94635f18462b8a076cebacc5e08d92631
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 6 14:40:10 2013 +0400
 
-    runtime: change int32 to intgo in findnull and findnullw
+    net: reduce number of memory allocations during IO operations
+    Embed all data necessary for read/write operations directly into netFD.
     
-    Update #6046.
-    This CL just does findnull and findnullw. There are other functions
-    to fix but doing them a few at a time will help isolate any (unlikely)
-    breakages these changes bring up in architectures I can't test
-    myself.
+    benchmark                    old ns/op    new ns/op    delta
+    BenchmarkTCP4Persistent          27669        23341  -15.64%
+    BenchmarkTCP4Persistent-2        18173        12558  -30.90%
+    BenchmarkTCP4Persistent-4        10390         7319  -29.56%
     
-    R=golang-dev, dsymonds
+    This change will intentionally break all builders to see
+    how many allocations they do per read/write.
+    This will be fixed soon afterwards.
+    
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/12520043
+    https://golang.org/cl/12413043
 
- src/pkg/runtime/env_plan9.c      | 3 ++-
- src/pkg/runtime/env_posix.c      | 3 ++-
- src/pkg/runtime/os_plan9.c       | 3 ++-
- src/pkg/runtime/os_plan9_386.c   | 2 +-
- src/pkg/runtime/os_plan9_amd64.c | 2 +-
- src/pkg/runtime/print.c          | 2 +-
- src/pkg/runtime/runtime.c        | 2 +-
- src/pkg/runtime/runtime.h        | 4 ++--
- src/pkg/runtime/string.goc       | 8 ++++----
- 9 files changed, 16 insertions(+), 13 deletions(-)
+ src/pkg/net/fd_windows.go         | 328 +++++++++++++-------------------------
+ src/pkg/net/sendfile_windows.go   |  36 ++---
+ src/pkg/net/tcp_test.go           |  44 +++++
+ src/pkg/runtime/netpoll_windows.c |   8 +-
+ 4 files changed, 172 insertions(+), 244 deletions(-)

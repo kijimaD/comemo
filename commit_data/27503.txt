@@ -1,18 +1,21 @@
-commit 7b6b5e340403c32756a92294729dc52f308b841a
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Wed May 25 00:12:22 2016 +0600
+commit d8f1f8d8568d680be0845379d477264fd09324c3
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Thu Mar 24 22:46:37 2016 +0100
 
-    doc: add notes on good commit messages
+    cmd/compile: generalize strength reduction of mulq
     
-    Explain Brad's algorithm for generating commit headlines.
+    * This is an improved version of an earlier patch.
+    * Verified with gcc up to 100.
+    * Limited to two instructions based on costs from
+    https://gmplib.org/~tege/x86-timing.pdf
     
-    Fixes #15700
-    
-    Change-Id: Ic602f17629b3dd7675e2bb1ed119062c03353ee9
-    Reviewed-on: https://go-review.googlesource.com/23355
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib7c37de6fd8e0ba554459b15c7409508cbcf6728
+    Reviewed-on: https://go-review.googlesource.com/21103
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/contribute.html | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  23 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 257 ++++++++++++++++++++++++++-
+ test/strength.go                             |  45 +++++
+ 3 files changed, 319 insertions(+), 6 deletions(-)

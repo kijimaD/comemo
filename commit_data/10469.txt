@@ -1,14 +1,23 @@
-commit 750d0e33fbb6d04e46fec6864b02b83798125320
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Nov 20 14:56:49 2011 -0500
+commit fb57134d47977b5c607da2271fa3f5d75400138d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Nov 20 11:46:35 2011 -0500
 
-    sql: more driver docs & tests; no functional changes
+    exp/ssh: alter Session to match the exec.Cmd API
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/5415055
+    This CL inverts the direction of the Stdin/out/err members of the
+    Session struct so they reflect the API of the exec.Cmd. In doing so
+    it borrows heavily from the exec package.
+    
+    Additionally Shell now returns immediately, wait for completion using
+    Wait. Exec calls Wait internally and so blocks until the remote
+    command is complete.
+    
+    Credit to Gustavo Niemeyer for the impetus for this CL.
+    
+    R=rsc, agl, n13m3y3r, huin, bradfitz
+    CC=cw, golang-dev
+    https://golang.org/cl/5322055
 
- src/pkg/exp/sql/driver/driver.go | 29 ++++++++++++++++++---
- src/pkg/exp/sql/fakedb_test.go   | 14 +++++++++++
- src/pkg/exp/sql/sql_test.go      | 54 +++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 93 insertions(+), 4 deletions(-)
+ src/pkg/exp/ssh/client.go  |  11 --
+ src/pkg/exp/ssh/session.go | 299 ++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 227 insertions(+), 83 deletions(-)

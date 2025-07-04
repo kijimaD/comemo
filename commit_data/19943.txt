@@ -1,16 +1,14 @@
-commit cc063592b0307552af9fd80f03be6276838e52f9
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 7 21:39:32 2014 +0400
+commit c689eb9b21b97b888ef74b6ddccf9c08fd9d5c75
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 6 23:59:14 2014 -0400
 
-    encoding/gob: make benchmarks parallel
-    There are lots of internal synchronization in gob,
-    so it makes sense to have parallel benchmarks.
-    Also add a benchmark with slices and interfaces.
+    [dev.power64] cmd/dist: power64/power64le support.
     
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/115960043
+    https://golang.org/cl/117670045
 
- src/pkg/encoding/gob/timing_test.go | 57 ++++++++++++++++++++++++-------------
- 1 file changed, 38 insertions(+), 19 deletions(-)
+ src/cmd/dist/build.c        | 43 +++++++++++++++++++++++++++++++++++++++----
+ src/cmd/dist/buildruntime.c |  7 +++++++
+ 2 files changed, 46 insertions(+), 4 deletions(-)

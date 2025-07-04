@@ -1,22 +1,12 @@
-commit 098b9dcf2f92823342fcddef9d606ea176062a63
-Author: Joel Sing <jsing@google.com>
-Date:   Tue Apr 10 21:57:05 2012 +1000
+commit caedc603d4e015baa35c2dadf85e1a541885d2f3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 10 16:46:06 2012 +1000
 
-    runtime: block signals during thread creation on openbsd
+    test/bench/shootout: update timing.log to Go 1
     
-    Block signals during thread creation, otherwise the new thread can
-    receive a signal prior to initialisation completing.
-    
-    Fixes #3102.
-    
-    R=golang-dev, rsc, devon.odell, minux.ma
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5757064
+    https://golang.org/cl/5989063
 
- src/pkg/runtime/os_openbsd.h           | 15 ++++++++++-----
- src/pkg/runtime/signal_openbsd_amd64.c |  8 ++++----
- src/pkg/runtime/signals_openbsd.h      | 20 ++++++++++----------
- src/pkg/runtime/sys_openbsd_386.s      |  8 ++++++++
- src/pkg/runtime/sys_openbsd_amd64.s    | 10 ++++++++++
- src/pkg/runtime/thread_openbsd.c       | 11 ++++++++++-
- 6 files changed, 52 insertions(+), 20 deletions(-)
+ test/bench/shootout/timing.log | 93 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 93 insertions(+)

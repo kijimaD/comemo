@@ -1,21 +1,12 @@
-commit 05c4c6e2f48dad6876a8ffc3e72b4122245c5095
-Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
-Date:   Thu Nov 5 16:32:27 2015 -0500
+commit a0022d9b8ced73368e76b20b3fcbf93ead30952b
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Aug 31 20:42:04 2015 -0500
 
-    cmd,runtime: TLS setup for android/386
+    [dev.ssa] cmd/compile: add more specific regalloc logging
     
-    Same ugly hack as https://go-review.googlesource.com/15991.
-    
-    Update golang/go#9327.
-    
-    Change-Id: I58284e83268a15de95eabc833c3e01bf1e3faa2e
-    Reviewed-on: https://go-review.googlesource.com/16678
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ib0ea4b9c245f3d551e0f703826caa6b444b56a2d
+    Reviewed-on: https://go-review.googlesource.com/14136
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/x86/asm6.go  |  3 ++
- src/cmd/link/internal/ld/sym.go   | 16 +++++--
- src/runtime/cgo/gcc_android_386.c | 87 +++++++++++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_linux_386.c   | 12 ++++++
- src/runtime/rt0_android_386.s     | 32 ++++++++++++++
- src/runtime/sys_linux_386.s       | 10 +++++
- 6 files changed, 156 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

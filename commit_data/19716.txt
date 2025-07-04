@@ -1,31 +1,14 @@
-commit f5b600f70cbe1e504a7623a7e0636535c49ea6c8
-Author: Pietro Gagliardi <pietro10@mac.com>
-Date:   Thu Jul 10 12:44:40 2014 -0700
+commit 99e2a5678601b7452172283d02f5da5cacad6fa2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jul 10 15:15:41 2014 -0400
 
-    debug/elf: add (*File).DynamicSymbols, ErrNoSymbols, and tests for (*File).Symbols and (*File).DynamicSymbols, and formalize symbol order.
+    nacltest.bash: nacl/arm support.
+    Also detect GOARCH automatically based on `uname -m`.
     
-    Added a complement to (*File).Symbols for the dynamic symbol table.
-    Would be useful, for instance, if seraching for certain shared objects
-    compatible with certain libraries (for instance, LADSPA requires an
-    exported symbol "ladspa_descriptor").
-    
-    Added a variable ErrNoSymbols that canonicalizes a return from
-    (*File).Symbols and (*File).DyanmicSymbols if the file has no symbols.
-    
-    Added tests for both (*File).Symbols and (*File).DynamicSymbols;
-    there was never a test for (*File).Symbols at all. A small C program using
-    libelf, included in the test data, was used to produce the golden
-    symbols to compare against.
-    
-    As part of the requirements for testing, (*File).Symbols and (*File).DynamicSymbols now document the order in which the symbol tables are returned (in the order the symbols appear in the file).
-    
-    All tests currently pass.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=crawshaw, dave, rsc
+    R=rsc, iant, crawshaw, dave
     CC=golang-codereviews
-    https://golang.org/cl/107530043
+    https://golang.org/cl/111780043
 
- src/pkg/debug/elf/file.go         |  22 +-
- src/pkg/debug/elf/symbols_test.go | 834 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 853 insertions(+), 3 deletions(-)
+ src/nacltest.bash | 23 ++++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)

@@ -1,23 +1,23 @@
-commit e4ea6283e484b7c1e8263c3cda8647b1962815db
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Nov 21 23:24:59 2023 +0000
+commit 390eee7ab18a091662fd7580b08b4aa3515b5951
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 7 20:40:37 2022 -0800
 
-    runtime: don't hold trace.lock over semrelease in readTrace0
+    go/types: use commentMap to collect error comments
     
-    semrelease may unblock a goroutine, but the act of unblocking a
-    goroutine may emit an event, which in turn may try to acquire trace.lock
-    again.
+    Adjust the testFiles function to use the new commentMap
+    function. This makes it possible for testFiles to match
+    the types2.TestFiles logic more closely.
     
-    It's safe to release trace.lock in readTrace0 for this because all of
-    the state (one variable) it uses under the lock will be recomputed when
-    it reacquires the lock. There's also no other synchronization
-    requirement to hold trace.lock. This is just a mistake.
+    For #51006.
     
-    Change-Id: Iff6c6b02efa298ebed8e60cdf6539ec161d5ec48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544178
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6c5ecbeb86d095404ec04ba4452fb90d404b8280
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456137
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/runtime/trace2.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/check_test.go |  61 ++++----
+ src/go/types/check_test.go                    | 199 ++++++++++++--------------
+ 2 files changed, 121 insertions(+), 139 deletions(-)

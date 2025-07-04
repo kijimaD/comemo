@@ -1,21 +1,14 @@
-commit 64bf90576e60bce0c2a6acd3d42855ffdc1c2654
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 27 13:35:39 2018 -0700
+commit 707a4d3fed2e3de3bb08508b31279161bedb8df8
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Nov 14 21:32:00 2017 -0400
 
-    cmd/compile: refactor memory op constructors in SSA builder
+    encoding/pem: add Encode example
     
-    Pulling these operations out separately so it's easier to add
-    instrumentation calls.
-    
-    Passes toolstash-check.
-    
-    Updates #19054.
-    
-    Change-Id: If6a537124a87bac2eceff1d66d9df5ebb3bf07be
-    Reviewed-on: https://go-review.googlesource.com/102816
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib9ec3524b712e016a9dd2fbee5555362c1a0cb59
+    Reviewed-on: https://go-review.googlesource.com/77770
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 127 ++++++++++++++++++++-----------------
- 1 file changed, 69 insertions(+), 58 deletions(-)
+ src/encoding/pem/example_test.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

@@ -1,32 +1,32 @@
-commit 76f578459a3db0153237816a7513497092463aae
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 10 17:19:29 2018 -0700
+commit 021c39d7a3361290d9e29497cf2a4a8fd2ee7b5c
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Jun 7 12:19:42 2018 +0200
 
-    go/types: use correct receiver types for embedded interface methods
+    runtime: use libc for signal functions on iOS
     
-    Interface methods don't declare a receiver (it's implicit), but after
-    type-checking the respective *types.Func objects are marked as methods
-    by having a receiver. For interface methods, the receiver base type used
-    to be the interface that declared the method in the first place, even if
-    the method also appeared in other interfaces via embedding. A change in
-    the computation of method sets for interfaces for Go1.10 changed that
-    inadvertently, with the consequence that sometimes a method's receiver
-    type ended up being an interface into which the method was embedded.
-    The exact behavior also depended on file type-checking order, and because
-    files are sometimes sorted by name, the behavior depended on file names.
+    Also:
+     - Add extra SystemStack space for darwin/arm64 just
+    like for darwin/arm.
+     - Removed redundant stack alignment; the arm64 hardware enforces
+     the 16 byte alignment.
+     - Save and restore the g registers at library initialization.
+     - Zero g registers since libpreinit can call libc functions
+     that in turn use asmcgocall. asmcgocall requires an initialized g.
+     - Change asmcgocall to work even if no g is set. The change mimics
+     amd64.
     
-    This didn't matter for type-checking (the typechecker doesn't need the
-    receiver), but it matters for clients, and for printing of methods.
-    
-    This change fixes interface method receivers at the end of type-checking
-    when we have all relevant information.
-    
-    Fixes #28005.
-    
-    Change-Id: I96c120fb0e517d7f8a14b8530f0273674569d5ea
-    Reviewed-on: https://go-review.googlesource.com/c/141358
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I1b8c63b07cfec23b909c0d215b50dc229f8adbc8
+    Reviewed-on: https://go-review.googlesource.com/117176
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/issues_test.go | 67 +++++++++++++++++++++++++++++++++++++++++++++
- src/go/types/typexpr.go     | 27 ++++++++++++++++--
- 2 files changed, 92 insertions(+), 2 deletions(-)
+ src/cmd/vet/all/whitelist/darwin_arm.txt   |   6 --
+ src/cmd/vet/all/whitelist/darwin_arm64.txt |   2 -
+ src/runtime/asm_arm.s                      |  71 +++++++++----
+ src/runtime/asm_arm64.s                    |  34 +++++-
+ src/runtime/rt0_darwin_arm64.s             |  37 ++++---
+ src/runtime/stack.go                       |   4 +-
+ src/runtime/sys_darwin_arm.s               | 157 ++++++++++++++-------------
+ src/runtime/sys_darwin_arm64.s             | 165 +++++++++++++++--------------
+ 8 files changed, 267 insertions(+), 209 deletions(-)

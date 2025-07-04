@@ -1,25 +1,28 @@
-commit c945f77f41fc69b652dc359e52a32f031ca5c730
+commit b50a847c3cf4ffa9064f03652126ef603efa3cf5
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 22:26:12 2011 -0700
+Date:   Tue Oct 25 22:23:54 2011 -0700
 
-    exp/norm: use rune
+    csv, gob, json, mail, mime, xml: use rune
     
-    Nothing terribly interesting here. (!)
+    Nothing terribly interesting here.
     
-    Since the public APIs are all in terms of UTF-8,
-    the changes are all internal only.
-    
-    R=mpvl, gri, r
+    R=golang-dev, r, borman
     CC=golang-dev
-    https://golang.org/cl/5309042
+    https://golang.org/cl/5315043
 
- src/pkg/exp/norm/composition.go      | 24 +++++++-------
- src/pkg/exp/norm/composition_test.go | 62 ++++++++++++++++++------------------
- src/pkg/exp/norm/maketables.go       | 54 +++++++++++++++----------------
- src/pkg/exp/norm/maketesttables.go   |  2 +-
- src/pkg/exp/norm/normalize_test.go   |  8 ++---
- src/pkg/exp/norm/normregtest.go      | 20 ++++++------
- src/pkg/exp/norm/trie_test.go        | 12 +++----
- src/pkg/exp/norm/triedata_test.go    |  2 +-
- src/pkg/exp/norm/triegen.go          |  4 +--
- 9 files changed, 94 insertions(+), 94 deletions(-)
+ src/pkg/csv/reader.go        | 80 ++++++++++++++++++++++----------------------
+ src/pkg/csv/reader_test.go   |  4 +--
+ src/pkg/csv/writer.go        | 12 +++----
+ src/pkg/gob/encoder_test.go  |  4 +--
+ src/pkg/json/decode.go       | 28 ++++++++--------
+ src/pkg/json/decode_test.go  |  2 +-
+ src/pkg/json/scanner.go      |  2 +-
+ src/pkg/json/scanner_test.go |  4 +--
+ src/pkg/json/stream.go       |  2 +-
+ src/pkg/mail/message.go      |  2 +-
+ src/pkg/mime/grammar.go      | 14 ++++----
+ src/pkg/mime/mediatype.go    | 21 ++++++------
+ src/pkg/strconv/quote.go     | 52 ++++++++++++++--------------
+ src/pkg/xml/read.go          |  2 +-
+ src/pkg/xml/xml.go           | 16 ++++-----
+ 15 files changed, 123 insertions(+), 122 deletions(-)

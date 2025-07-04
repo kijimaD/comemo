@@ -1,12 +1,24 @@
-commit c6d019aa636e31beff1857fad562e1af89ed3569
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Sep 10 08:52:33 2017 -0700
+commit 27da3ba5af274ba6702849d708b0004d80c9ca67
+Author: David Chase <drchase@google.com>
+Date:   Mon May 15 13:49:30 2017 -0400
 
-    test: add test case that gccgo crashed on
+    cmd/compile: don't attach lines to SB, SP, similar constants
     
-    Change-Id: I4d5d40e1ed3f58b2cdecd6248cb25c8ae9a1b9a1
-    Reviewed-on: https://go-review.googlesource.com/62531
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Attaching positions to SB, SP, initial mem can result in
+    less-good line-numbering when compiled for debugging.
+    This "fix" also removes source position from a zero-valued
+    struct (but not from its fields) and from a zero-length
+    array constant.
+    
+    This may be a general problem for constants in entry blocks.
+    
+    Fixes #20367.
+    
+    Change-Id: I7e9df3341be2e2f60f127d35bb31e43cdcfce9a1
+    Reviewed-on: https://go-review.googlesource.com/43531
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- test/fixedbugs/bug503.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

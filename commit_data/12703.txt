@@ -1,14 +1,12 @@
-commit c5488d4f004e9f38e5fb996dd709a73aed03cd00
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Tue Mar 20 14:23:12 2012 -0700
+commit c5b45aa9913dbad6596a3fcaa001be0cca23c9e0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 20 14:17:06 2012 -0700
 
-    sort: fix computation of maxDepth to avoid infinite loop
+    cmd/go: use .o, not .{5,6,8}, for gccgo created object files
     
-    The current computation loops indefinitely if n > 1<<30 (for 32-bit ints).
-    
-    R=golang-dev, gri
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5848067
+    https://golang.org/cl/5861044
 
- src/pkg/sort/sort.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

@@ -1,24 +1,18 @@
-commit cf51fb5d680a9a1ca98af3361e65722d07bff111
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Oct 16 20:30:12 2021 -0700
+commit 6f3da9d2f6b4f7dbbe5d15260d87ed2a84488fde
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 16 10:16:06 2021 -0800
 
-    cmd/compile, types2: avoid confusing follow-on error in invalid type assertion
+    README: pull gopher image from website
     
-    This CL avoids a useless follow-on error (that gets reported before the
-    actual error due to source position). This addresses the first part of
-    the issue below.
+    Fixes breakage accidentally introduced by https://golang.org/cl/291711.
     
-    Thanks to @cuonglm for the suggestion for the fix.
+    Fixes #44295
     
-    For #49005.
-    
-    Change-Id: Ifdd83072a05c32e115dc58a0233868a64f336f3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356449
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I76f3e5577d1d24027d4ed2a725b5b749ab2d059c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292629
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/types2/typexpr.go |  7 +++++++
- test/fixedbugs/issue49005a.go              | 13 +++++++++++++
- 2 files changed, 20 insertions(+)
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

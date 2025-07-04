@@ -1,43 +1,16 @@
-commit 1d3daebc5fd5f51e16fa160a84f8fcfa28b4e2d7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 1 17:20:02 2023 -0700
+commit 9709d92bfaab7a9fb5350c102f46c8c9758e615d
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed Aug 17 17:11:13 2022 +0800
 
-    go/types, types2: handle named and literal interfaces in interface unification
+    runtime: gofmt -w -s
     
-    If we don't have exact unification, we must consider interface
-    unification whether one of the types is a defined (named) interface
-    or not. Otherwise, if one of them is named, and the other one isn't,
-    the code selects interface-vs-non-interface unification and possibly
-    uses the wrong method set as the "required" method set, leading to
-    (incorrect) unification failure as was the case in #60564.
-    
-    We can also not simply rely on getting this right in the subsequent
-    switch, through the handling of *Named types.
-    
-    This CL fixes this simple logic error. If there's inexact unification,
-    now all (non-type parameter) interface cases are handled in one place,
-    before the switch. After handling interfaces, we are guaranteed that
-    we have either no interfaces, or we have exact unification where both
-    types must be of the same structure.
-    
-    As a consequence, we don't need special handling for named interfaces
-    in the *Named case of the switch anymore.
-    
-    Also, move the (unbound) type parameter swap from before interface
-    handling to after interface handling, just before the switch which
-    is the code that relies on a type parameter being in x, if any.
-    
-    Fixes #60564.
-    
-    Change-Id: Ibf7328bece25808b8dbdb714867048b93689f219
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500195
+    Change-Id: I1226ff66fd0c64984939793eb8ef96c08d030fa1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424399
     Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/unify.go           | 64 ++++++++++------------
- src/go/types/unify.go                              | 64 ++++++++++------------
- .../types/testdata/fixedbugs/issue60562.go         |  3 +-
- 3 files changed, 59 insertions(+), 72 deletions(-)
+ src/runtime/mbitmap.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

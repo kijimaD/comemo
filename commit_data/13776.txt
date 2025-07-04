@@ -1,39 +1,17 @@
-commit ae0862c1ec6850035bbb89aa6274392de1020039
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Sep 9 20:30:08 2012 +0200
+commit ef48dfa310450b54fcb3eb4b33ca43329df7c824
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sat Sep 8 10:46:55 2012 +0900
 
-    cmd/8g: import componentgen from 6g.
+    exp/locale/collate: added indices to builder for reusing blocks between locales.
+    Refactored build + buildTrie into build + buildOrdering.
+    Note that since the tailoring code is not checked in yet, all tailorings are identical
+    to root.  The table therefore should not and does not grow at this point.
     
-    This makes the compilers code more similar and improves
-    code generation a lot.
-    
-    The number of LEAL instructions generated for cmd/go drops
-    by 60%.
-    
-    % GOARCH=386 go build -gcflags -S -a cmd/go | grep LEAL | wc -l
-    Before:       89774
-    After:        47548
-    
-    benchmark                              old ns/op    new ns/op    delta
-    BenchmarkAppendFloatDecimal                  540          444  -17.78%
-    BenchmarkAppendFloat                        1160         1035  -10.78%
-    BenchmarkAppendFloatExp                     1060          922  -13.02%
-    BenchmarkAppendFloatNegExp                  1053          920  -12.63%
-    BenchmarkAppendFloatBig                     1773         1558  -12.13%
-    BenchmarkFormatInt                         13065        12481   -4.47%
-    BenchmarkAppendInt                         10981         9900   -9.84%
-    BenchmarkFormatUint                         3804         3650   -4.05%
-    BenchmarkAppendUint                         3506         3303   -5.79%
-    BenchmarkUnquoteEasy                         714          683   -4.34%
-    BenchmarkUnquoteHard                        5117         2915  -43.03%
-    
-    Update #1914.
-    
-    R=nigeltao, rsc, golang-dev
-    CC=golang-dev, remy
-    https://golang.org/cl/6489067
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6500087
 
- src/cmd/8g/cgen.c | 166 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/8g/gg.h   |   1 +
- src/cmd/8g/ggen.c |   4 ++
- 3 files changed, 170 insertions(+), 1 deletion(-)
+ src/pkg/exp/locale/collate/build/builder.go      | 124 +++++++++++++----------
+ src/pkg/exp/locale/collate/build/builder_test.go |   8 +-
+ src/pkg/exp/locale/collate/build/order.go        |   2 +
+ 3 files changed, 77 insertions(+), 57 deletions(-)

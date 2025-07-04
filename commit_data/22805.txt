@@ -1,21 +1,87 @@
-commit ccaaf1f13417b4fdc56ac571f22f8b6dd8c7c8e1
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Apr 30 11:57:34 2015 +1000
+commit 878a86a129ceb771f677c8391a9f5c891e5be7c3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Apr 6 18:17:20 2015 +0300
 
-    misc/cgo/testcshared, misc/cgo/testshared: fix clang warnings and errors
+    cmd/gc: fix escape analysis of closures
     
-    Fix several warnings generated on the linux-amd64-clang builder
-    and make it clear to clang that -znow is a linker only flag.
+    Fixes #10353
     
-    Tested with
+    See test/escape2.go:issue10353. Previously new(int) did not escape to heap,
+    and so heap-allcated closure was referencing a stack var. This breaks
+    the invariant that heap must not contain pointers to stack.
     
-        env CC=clang-3.5 ./all.bash
-        env CC=gcc-4.8 ./all.bash
+    Look at the following program:
     
-    Change-Id: I5ca7366ba8bf6221a36d25a2157dda4b4f3e16fa
-    Reviewed-on: https://go-review.googlesource.com/9523
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    package main
+    
+    func main() {
+            foo(new(int))
+            bar(new(int))
+    }
+    
+    func foo(x *int) func() {
+            return func() {
+                    println(*x)
+            }
+    }
+    
+    // Models what foo effectively does.
+    func bar(x *int) *C {
+            return &C{x}
+    }
+    
+    type C struct {
+            x *int
+    }
+    
+    Without this patch escape analysis works as follows:
+    
+    $ go build -gcflags="-m -m -m -l" esc.go
+    escflood:1: dst ~r1 scope:foo[0]
+    escwalk: level:0 depth:0  func literal( l(9) f(1) esc(no) ld(1)) scope:foo[1]
+    /tmp/live2.go:9: func literal escapes to heap
+    escwalk: level:0 depth:1         x( l(8) class(PPARAM) f(1) esc(no) ld(1)) scope:foo[1]
+    /tmp/live2.go:8: leaking param: x to result ~r1
+    
+    escflood:2: dst ~r1 scope:bar[0]
+    escwalk: level:0 depth:0  &C literal( l(15) esc(no) ld(1)) scope:bar[1]
+    /tmp/live2.go:15: &C literal escapes to heap
+    escwalk: level:-1 depth:1        &C literal( l(15)) scope:bar[0]
+    escwalk: level:-1 depth:2                x( l(14) class(PPARAM) f(1) esc(no) ld(1)) scope:bar[1]
+    /tmp/live2.go:14: leaking param: x
+    
+    /tmp/live2.go:5: new(int) escapes to heap
+    /tmp/live2.go:4: main new(int) does not escape
+    
+    new(int) does not escape while being captured by the closure.
+    With this patch escape analysis of foo and bar works similarly:
+    
+    $ go build -gcflags="-m -m -m -l" esc.go
+    escflood:1: dst ~r1 scope:foo[0]
+    escwalk: level:0 depth:0  &(func literal)( l(9)) scope:foo[0]
+    escwalk: level:-1 depth:1        func literal( l(9) f(1) esc(no) ld(1)) scope:foo[1]
+    /tmp/live2.go:9: func literal escapes to heap
+    escwalk: level:-1 depth:2                x( l(8) class(PPARAM) f(1) esc(no) ld(1)) scope:foo[1]
+    /tmp/live2.go:8: leaking param: x
+    
+    escflood:2: dst ~r1 scope:bar[0]
+    escwalk: level:0 depth:0  &C literal( l(15) esc(no) ld(1)) scope:bar[1]
+    /tmp/live2.go:15: &C literal escapes to heap
+    escwalk: level:-1 depth:1        &C literal( l(15)) scope:bar[0]
+    escwalk: level:-1 depth:2                x( l(14) class(PPARAM) f(1) esc(no) ld(1)) scope:bar[1]
+    /tmp/live2.go:14: leaking param: x
+    
+    /tmp/live2.go:4: new(int) escapes to heap
+    /tmp/live2.go:5: new(int) escapes to heap
+    
+    Change-Id: Ifd14b7ae3fc11820e3b5eb31eb07f35a22ed0932
+    Reviewed-on: https://go-review.googlesource.com/8408
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testcshared/main0.c | 4 ++++
- src/cmd/internal/ld/lib.go   | 2 +-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/internal/gc/esc.go   | 15 ++++++++++++--
+ test/escape2.go              | 22 ++++++++++++++++++++
+ test/escape2n.go             | 22 ++++++++++++++++++++
+ test/fixedbugs/issue10353.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 106 insertions(+), 2 deletions(-)

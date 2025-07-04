@@ -1,30 +1,21 @@
-commit 0efbec91cdc8b3e73a869e13dcec73c798147bd6
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 4 12:13:27 2023 -0400
+commit 4f45ec5963a4b72e0c4ddbdfa84f9cb374692eea
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Jan 20 12:46:38 2022 +0100
 
-    misc/swig: move tests to cmd/cgo/internal
+    cmd/go: prepend builtin prolog when checking for preamble errors
     
-    This moves the misc/swig test to cmd/cgo/internal.
+    Fixes #50710
     
-    This lets these tests access facilities in internal/testenv. It's also
-    now just a normal test that can run as part of the cmd tests.
-    
-    For #37486.
-    
-    Change-Id: Ibe5026219999d175aa0a310b9886bef3f6f9ed17
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492722
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I62feddbe3eaae9605d196bec60d378614436603a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379754
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- misc/swig/nocgo_test.go                              |  7 -------
- {misc => src/cmd/cgo/internal}/swig/swig_test.go     | 20 ++++++++++++--------
- .../cmd/cgo/internal}/swig/testdata/callback/main.cc |  0
- .../cmd/cgo/internal}/swig/testdata/callback/main.go |  0
- .../cmd/cgo/internal}/swig/testdata/callback/main.h  |  0
- .../internal}/swig/testdata/callback/main.swigcxx    |  0
- .../cmd/cgo/internal}/swig/testdata/stdio/main.go    |  0
- .../cmd/cgo/internal}/swig/testdata/stdio/main.swig  |  0
- src/cmd/dist/test.go                                 |  3 ---
- 9 files changed, 12 insertions(+), 18 deletions(-)
+ misc/cgo/errors/errors_test.go         |  1 +
+ misc/cgo/errors/testdata/issue50710.go | 14 ++++++++++++++
+ src/cmd/cgo/gcc.go                     |  2 +-
+ 3 files changed, 16 insertions(+), 1 deletion(-)

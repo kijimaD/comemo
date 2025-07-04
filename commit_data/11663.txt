@@ -1,17 +1,14 @@
-commit d887a31b7c7234c560072191e4fc2146be416c29
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 7 10:38:10 2012 +1100
+commit 32f011e46b8bf188db0d485cfd38d4e7cf19eb75
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 6 18:04:12 2012 -0500
 
-    misc/osx: don't set GOROOT or modify profile files
+    syscall: add Timeval.Nano, Timespec.Nano, for conversion to Duration
     
-    There's no reason to set GOROOT as the tools will have the path baked
-    into it with GOROOT_FINAL.
+    Fixes #2534.
     
-    R=bradfitz, bytbox, gustavo, rsc
+    R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5576064
+    https://golang.org/cl/5635051
 
- misc/osx/etc/profile_go      | 15 ---------------
- misc/osx/package.bash        | 24 +++++++++++-------------
- misc/osx/scripts/postinstall |  5 -----
- 3 files changed, 11 insertions(+), 33 deletions(-)
+ src/pkg/syscall/syscall.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

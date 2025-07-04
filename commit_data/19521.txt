@@ -1,22 +1,15 @@
-commit f7c99f3377b2d75a5fd7913e04034fb0741edf82
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Wed Jun 11 20:40:00 2014 -0700
+commit d131ffefadd283cfcb98d49949b8b82a8c77c378
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 12 13:31:13 2014 +1000
 
-    net: efficient text processing
+    doc: link to release history from /doc/
     
-    Optimize IP.String, IPMask.String and ParseIP.
+    Fixes #8168.
     
-    benchmark                old ns/op    new ns/op    delta
-    BenchmarkParseIP              2216         1849  -16.56%
-    BenchmarkIPString             7828         2486  -68.24%
-    BenchmarkIPMaskString         3872          659  -82.98%
-    
-    LGTM=mikioh.mikioh, dave, bradfitz
-    R=golang-codereviews, mikioh.mikioh, dave, bradfitz
+    TBR=bradfitz
+    R=golang-codereviews
     CC=golang-codereviews
-    https://golang.org/cl/95750043
+    https://golang.org/cl/107950043
 
- src/pkg/net/ip.go      | 38 +++++++++++++++++++++++---------------
- src/pkg/net/ip_test.go | 26 ++++++++++++++++++++++++++
- src/pkg/net/parse.go   | 22 +++++++++++-----------
- 3 files changed, 60 insertions(+), 26 deletions(-)
+ doc/docs.html | 3 +++
+ 1 file changed, 3 insertions(+)

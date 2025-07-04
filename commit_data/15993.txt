@@ -1,14 +1,15 @@
-commit 47ec6e23d23aa95797aed517388845e7c0e14a45
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 28 15:04:25 2013 -0700
+commit f1b7c140ffe42db59b51937037b2af6c48fa94b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 28 14:40:59 2013 -0700
 
-    cmd/ld: only pass -rdynamic to host linker on ELF target
+    cmd/godoc: provide a link from notes to source location
     
-    Fixes #5150.
-    
-    R=golang-dev, franciscossouza
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8120043
+    https://golang.org/cl/8122043
 
- src/cmd/ld/lib.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ lib/godoc/package.html   |  4 ++--
+ src/cmd/godoc/godoc.go   | 32 +++++++++++++++++++++++---------
+ src/pkg/go/doc/doc.go    |  6 +++---
+ src/pkg/go/doc/reader.go |  1 +
+ 4 files changed, 29 insertions(+), 14 deletions(-)

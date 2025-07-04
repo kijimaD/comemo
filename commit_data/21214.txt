@@ -1,31 +1,16 @@
-commit 06ed8f0df76e9b0256de286392d42d1ea7dec809
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Tue Jan 6 19:48:31 2015 +0100
+commit 006ceb2f1dd64e75134347ae9a73be397ff8a2ed
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 8 11:12:33 2014 -0500
 
-    strconv: speed up atoi for common cases
+    runtime: fix missing newline when dumping bad symbol table
     
-    Add compile time constants for bases 10 and 16 instead of computing the cutoff
-    value on every invocation of ParseUint by a division.
+    If the symbol table isn't sorted, we print it and abort.  However, we
+    were missing the line break after each symbol, resulting in one
+    gigantic line instead of a nicely formatted table.
     
-    Reduce usage of slice operations.
-    
-    amd64:
-    benchmark              old ns/op     new ns/op     delta
-    BenchmarkAtoi          44.6          36.0          -19.28%
-    BenchmarkAtoiNeg       44.2          38.9          -11.99%
-    BenchmarkAtoi64        72.5          56.7          -21.79%
-    BenchmarkAtoi64Neg     66.1          58.6          -11.35%
-    
-    386:
-    benchmark              old ns/op     new ns/op     delta
-    BenchmarkAtoi          86.6          73.0          -15.70%
-    BenchmarkAtoiNeg       86.6          72.3          -16.51%
-    BenchmarkAtoi64        126           108           -14.29%
-    BenchmarkAtoi64Neg     126           108           -14.29%
-    
-    Change-Id: I0a271132120d776c97bb4ed1099793c73e159893
-    Reviewed-on: https://go-review.googlesource.com/2460
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ie5c6f3c256d0e648277cb3db4496512a79d266dd
+    Reviewed-on: https://go-review.googlesource.com/1182
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/strconv/atoi.go | 40 ++++++++++++++++++++++------------------
- 1 file changed, 22 insertions(+), 18 deletions(-)
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

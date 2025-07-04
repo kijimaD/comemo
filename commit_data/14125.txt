@@ -1,18 +1,14 @@
-commit 4c473c02e13f2429c7776cc6585af420cd248502
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Oct 11 23:33:57 2012 +0800
+commit 2100947d4a25dcf875be1941d0e3a409ea85051e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 11 14:21:19 2012 +1100
 
-    doc/contribute.html: assorted fixes
-    0. windows uses all.bat instead of ./all.bash
-    1. correct expected all.bash output
-    2. mention you need to use an application specific password
-    if you're using 2-step verification
-    3. note you can edit files included in CL by 'hg change NNNN'
-    or 'hg file'
+    doc/faq: discuss virtual memory use by go processes
     
-    R=golang-dev, adg, r
+    Fixes #3948.
+    
+    R=golang-dev, r, dave, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6615060
+    https://golang.org/cl/6639064
 
- doc/contribute.html | 23 ++++++++---------------
- 1 file changed, 8 insertions(+), 15 deletions(-)
+ doc/go_faq.html | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

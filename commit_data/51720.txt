@@ -1,22 +1,21 @@
-commit 0518e33f6c0c3a9f6ce1f800ca4b7fe5f3a1b7a5
-Author: matsuyoshi30 <sfbgwm30@gmail.com>
-Date:   Thu Jan 19 00:45:18 2023 +0900
+commit 3bb90a278a09c889fe936b2c5053116e48312ba2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Feb 13 21:27:58 2022 -0800
 
-    path/filepath: fix evaluation of symlinks to paths under /tmp on macOS
+    spec: clarifications based on feedback
     
-    For symlinks created from symlinks under the root directory created
-    as the relative path (e.g., symbolic links under /tmp), we update vol and volLen.
+    This change includes several smaller changes based on feedback
+    received so far.
     
-    Fixes #57905
+    These changes were reviewed at CL 385536. The only additional
+    change here is to the current date in the subtitle.
     
-    Change-Id: I45affd1db3b93109de51bf19b181f3cdba061109
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461761
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I653eb4a143e3b86c5357a2fd3b19168419c9f432
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390634
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/path/filepath/path_test.go | 31 +++++++++++++++++++++++++++++++
- src/path/filepath/symlink.go   |  2 ++
- 2 files changed, 33 insertions(+)
+ doc/go_spec.html | 82 ++++++++++++++++++++++++++------------------------------
+ 1 file changed, 38 insertions(+), 44 deletions(-)

@@ -1,133 +1,14 @@
-commit 71d83b72efe3e20ce6b0ab96226873074afe24be
+commit 108961b21649cd7c2d8f9650542b2228fea09613
 Author: Rob Pike <r@golang.org>
-Date:   Sun Jan 29 11:07:25 2012 -0800
+Date:   Sun Jan 29 11:06:39 2012 -0800
 
-    cmd/go: add go tools to rearrangement
-    fix, vet
-    yacc is also fixed (it was wrong before)
-    All that's left is the commands used during compilation
-    This looks like a huge CL, but it's almost all file renames.
-    The action is in cmd/go/pkg.go, the Makefiles, and .../doc.go.
+    cmd/go: slightly less confusing error message
+    If the argument to go fix isn't a package directory, the message said nothing helpful.
+    Now it at least says a package couldn't be found.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5595044
+    https://golang.org/cl/5577072
 
- src/cmd/Makefile                                   |  3 +-
- src/cmd/{gofix => fix}/Makefile                    |  2 +-
- src/cmd/fix/doc.go                                 | 36 ++++++++++++++++++++++
- src/cmd/{gofix => fix}/error.go                    |  0
- src/cmd/{gofix => fix}/error_test.go               |  0
- src/cmd/{gofix => fix}/filepath.go                 |  0
- src/cmd/{gofix => fix}/filepath_test.go            |  0
- src/cmd/{gofix => fix}/fix.go                      |  0
- src/cmd/{gofix => fix}/go1pkgrename.go             |  0
- src/cmd/{gofix => fix}/go1pkgrename_test.go        |  0
- src/cmd/{gofix => fix}/googlecode.go               |  0
- src/cmd/{gofix => fix}/googlecode_test.go          |  0
- src/cmd/{gofix => fix}/hashsum.go                  |  0
- src/cmd/{gofix => fix}/hashsum_test.go             |  0
- src/cmd/{gofix => fix}/hmacnew.go                  |  0
- src/cmd/{gofix => fix}/hmacnew_test.go             |  0
- src/cmd/{gofix => fix}/htmlerr.go                  |  0
- src/cmd/{gofix => fix}/htmlerr_test.go             |  0
- src/cmd/{gofix => fix}/httpfinalurl.go             |  0
- src/cmd/{gofix => fix}/httpfinalurl_test.go        |  0
- src/cmd/{gofix => fix}/httpfs.go                   |  0
- src/cmd/{gofix => fix}/httpfs_test.go              |  0
- src/cmd/{gofix => fix}/httpheaders.go              |  0
- src/cmd/{gofix => fix}/httpheaders_test.go         |  0
- src/cmd/{gofix => fix}/httpserver.go               |  0
- src/cmd/{gofix => fix}/httpserver_test.go          |  0
- src/cmd/{gofix => fix}/httputil.go                 |  0
- src/cmd/{gofix => fix}/httputil_test.go            |  0
- src/cmd/{gofix => fix}/imagecolor.go               |  0
- src/cmd/{gofix => fix}/imagecolor_test.go          |  0
- src/cmd/{gofix => fix}/imagenew.go                 |  0
- src/cmd/{gofix => fix}/imagenew_test.go            |  0
- src/cmd/{gofix => fix}/imagetiled.go               |  0
- src/cmd/{gofix => fix}/imagetiled_test.go          |  0
- src/cmd/{gofix => fix}/imageycbcr.go               |  0
- src/cmd/{gofix => fix}/imageycbcr_test.go          |  0
- src/cmd/{gofix => fix}/import_test.go              |  0
- src/cmd/{gofix => fix}/iocopyn.go                  |  0
- src/cmd/{gofix => fix}/iocopyn_test.go             |  0
- src/cmd/{gofix => fix}/main.go                     |  8 ++---
- src/cmd/{gofix => fix}/main_test.go                |  0
- src/cmd/{gofix => fix}/mapdelete.go                |  0
- src/cmd/{gofix => fix}/mapdelete_test.go           |  0
- src/cmd/{gofix => fix}/math.go                     |  0
- src/cmd/{gofix => fix}/math_test.go                |  0
- src/cmd/{gofix => fix}/netdial.go                  |  0
- src/cmd/{gofix => fix}/netdial_test.go             |  0
- src/cmd/{gofix => fix}/netudpgroup.go              |  0
- src/cmd/{gofix => fix}/netudpgroup_test.go         |  0
- src/cmd/{gofix => fix}/oserrorstring.go            |  0
- src/cmd/{gofix => fix}/oserrorstring_test.go       |  0
- src/cmd/{gofix => fix}/osopen.go                   |  0
- src/cmd/{gofix => fix}/osopen_test.go              |  0
- src/cmd/{gofix => fix}/procattr.go                 |  0
- src/cmd/{gofix => fix}/procattr_test.go            |  0
- src/cmd/{gofix => fix}/reflect.go                  |  4 +--
- src/cmd/{gofix => fix}/reflect_test.go             |  0
- src/cmd/{gofix => fix}/signal.go                   |  0
- src/cmd/{gofix => fix}/signal_test.go              |  0
- src/cmd/{gofix => fix}/sorthelpers.go              |  0
- src/cmd/{gofix => fix}/sorthelpers_test.go         |  0
- src/cmd/{gofix => fix}/sortslice.go                |  0
- src/cmd/{gofix => fix}/sortslice_test.go           |  0
- src/cmd/{gofix => fix}/strconv.go                  |  0
- src/cmd/{gofix => fix}/strconv_test.go             |  0
- src/cmd/{gofix => fix}/stringssplit.go             |  0
- src/cmd/{gofix => fix}/stringssplit_test.go        |  0
- src/cmd/{gofix => fix}/template.go                 |  0
- src/cmd/{gofix => fix}/template_test.go            |  0
- src/cmd/{gofix => fix}/testdata/reflect.asn1.go.in |  0
- .../{gofix => fix}/testdata/reflect.asn1.go.out    |  0
- .../{gofix => fix}/testdata/reflect.datafmt.go.in  |  0
- .../{gofix => fix}/testdata/reflect.datafmt.go.out |  0
- .../{gofix => fix}/testdata/reflect.decode.go.in   |  0
- .../{gofix => fix}/testdata/reflect.decode.go.out  |  0
- .../{gofix => fix}/testdata/reflect.decoder.go.in  |  0
- .../{gofix => fix}/testdata/reflect.decoder.go.out |  0
- .../{gofix => fix}/testdata/reflect.dnsmsg.go.in   |  0
- .../{gofix => fix}/testdata/reflect.dnsmsg.go.out  |  0
- .../{gofix => fix}/testdata/reflect.encode.go.in   |  0
- .../{gofix => fix}/testdata/reflect.encode.go.out  |  0
- .../{gofix => fix}/testdata/reflect.encoder.go.in  |  0
- .../{gofix => fix}/testdata/reflect.encoder.go.out |  0
- .../{gofix => fix}/testdata/reflect.export.go.in   |  0
- .../{gofix => fix}/testdata/reflect.export.go.out  |  0
- .../{gofix => fix}/testdata/reflect.print.go.in    |  0
- .../{gofix => fix}/testdata/reflect.print.go.out   |  0
- .../{gofix => fix}/testdata/reflect.quick.go.in    |  0
- .../{gofix => fix}/testdata/reflect.quick.go.out   |  0
- src/cmd/{gofix => fix}/testdata/reflect.read.go.in |  0
- .../{gofix => fix}/testdata/reflect.read.go.out    |  0
- src/cmd/{gofix => fix}/testdata/reflect.scan.go.in |  0
- .../{gofix => fix}/testdata/reflect.scan.go.out    |  0
- .../{gofix => fix}/testdata/reflect.script.go.in   |  0
- .../{gofix => fix}/testdata/reflect.script.go.out  |  0
- .../{gofix => fix}/testdata/reflect.template.go.in |  0
- .../testdata/reflect.template.go.out               |  0
- src/cmd/{gofix => fix}/testdata/reflect.type.go.in |  0
- .../{gofix => fix}/testdata/reflect.type.go.out    |  0
- src/cmd/{gofix => fix}/timefileinfo.go             |  0
- src/cmd/{gofix => fix}/timefileinfo_test.go        |  0
- src/cmd/{gofix => fix}/typecheck.go                |  0
- src/cmd/{gofix => fix}/url.go                      |  0
- src/cmd/{gofix => fix}/url_test.go                 |  0
- src/cmd/{gofix => fix}/xmlapi.go                   |  0
- src/cmd/{gofix => fix}/xmlapi_test.go              |  0
- src/cmd/go/fix.go                                  |  6 ++--
- src/cmd/go/pkg.go                                  | 14 ++++++++-
- src/cmd/go/vet.go                                  |  6 ++--
- src/cmd/gofix/doc.go                               | 36 ----------------------
- src/cmd/{govet => vet}/Makefile                    |  6 ++--
- src/cmd/{govet => vet}/doc.go                      |  8 ++---
- src/cmd/{govet/govet.go => vet/main.go}            |  4 +--
- src/cmd/{govet => vet}/method.go                   |  2 +-
- src/cmd/{govet => vet}/print.go                    |  2 +-
- src/cmd/{govet => vet}/structtag.go                |  0
- src/pkg/Makefile                                   |  4 +--
- 117 files changed, 77 insertions(+), 64 deletions(-)
+ src/cmd/go/pkg.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

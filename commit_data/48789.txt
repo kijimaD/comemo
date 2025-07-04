@@ -1,31 +1,33 @@
-commit 5a4f0b6f1e6d3c022ee30884590526ab7d3f580b
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Tue Apr 12 17:46:36 2022 +0800
+commit ad59efb02705a9f33a1eb9a9c04740da721a8cc4
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jun 7 10:29:44 2021 -0400
 
-    runtime: don't discard value from panic while panicking
+    [dev.typeparams] go/ast: remove the typeparams build constraint
     
-    In issue #17671, there are a endless loop if printing
-    the panic value panics, CL 30358 has fixed that.
+    This CL removes the typeparams build constraint guarding changes to the
+    go/ast and go/types APIs. Notably it does not remove all indirection
+    added to hide the type parameter API: the go/internal/typeparams
+    package is not yet deleted, nor have go/parser or go/types been updated
+    to access type parameter data directly. This will be done in a follow-up
+    CL; the intent of this CL is to make it easier to support the new type
+    set syntax, and to experiment with different AST APIs.
     
-    As issue #52257 pointed out, above change should not
-    discard the value from panic while panicking.
-    
-    With this CL, when we recover from a panic in error.Error()
-    or stringer.String(), and the recovered value is string,
-    then we can print it normally.
-    
-    Fixes #52257
-    
-    Change-Id: Icfcc4a1a390635de405eea04904b4607ae9e3055
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399874
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I13ea0285752991b87b3aead1d1371e1f3f817b1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325689
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/crash_test.go              | 44 ++++++++++++++++++++
- src/runtime/panic.go                   | 10 ++++-
- src/runtime/testdata/testprog/crash.go | 73 ++++++++++++++++++++++++++++++++++
- 3 files changed, 125 insertions(+), 2 deletions(-)
+ src/go/ast/ast.go                          |  62 +++++++++++++----
+ src/go/ast/ast_notypeparams.go             |  28 --------
+ src/go/ast/ast_typeparams.go               |  51 --------------
+ src/go/ast/walk.go                         |  17 ++++-
+ src/go/ast/walk_notypeparams.go            |  17 -----
+ src/go/ast/walk_typeparams.go              |  36 ----------
+ src/go/internal/typeparams/notypeparams.go |  40 -----------
+ src/go/internal/typeparams/typeparams.go   |   3 -
+ src/go/types/api_notypeparams.go           | 104 -----------------------------
+ src/go/types/api_typeparams.go             |   3 -
+ src/go/types/api_typeparams_test.go        |   3 -
+ 11 files changed, 64 insertions(+), 300 deletions(-)

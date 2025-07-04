@@ -1,23 +1,18 @@
-commit 67048432026062a98a3937a865aeb05a398148c5
-Author: Tao Qingyun <qingyunha@gmail.com>
-Date:   Thu Mar 18 00:10:38 2021 +0000
+commit 41bc0a1713b9436e96c2d64211ad94e42cafd591
+Author: SparrowLii <liyuancylx@gmail.com>
+Date:   Mon Aug 24 14:43:32 2020 +0800
 
-    testing: update helperNames just before checking it
+    math/big: fix TestShiftOverlap for test -count arguments > 1
     
-    parent's helperNames has not been set when frameSkip called, moving
-    helperNames initilazing to frameSkip.
+    Don't overwrite incoming test data.
     
-    Fixes #44887
+    The change uses copy instead of assigning statement to avoid this.
     
-    Change-Id: I5107c5951033e5e47d1ac441eac3ba5344a7bdc0
-    GitHub-Last-Rev: 44b90b2e2eeca8e2bb4a2084ec6fdd279c88f76d
-    GitHub-Pull-Request: golang/go#45071
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302469
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ib907101822d811de5c45145cb9d7961907e212c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250137
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/testing/helper_test.go | 32 ++++++++++++++++++++++++++++++++
- src/testing/testing.go     | 15 +++++++--------
- 2 files changed, 39 insertions(+), 8 deletions(-)
+ src/math/big/arith_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

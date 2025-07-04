@@ -1,27 +1,21 @@
-commit e512bc2cf0ce18342571fdbcdcd43d2bb13ef55b
+commit d888f1d5c06828e9d7b0166f770a443f6315c2d1
 Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 13 08:20:08 2021 -0400
+Date:   Thu Oct 1 16:06:03 2020 -0400
 
-    runtime: use compileCallback for ctrlhandler
+    runtime: add debugging to TestTimePprof
     
-    This replaces the externalthreadhandler-based implementation of
-    ctrlhandler with one based on compileCallback. This is a step toward
-    eliminating externalthreadhandler.
+    We've seen timeouts of TestTimePprof, but the tracebacks aren't useful
+    because goroutines are running on other threads. Add GOTRACEBACK=crash
+    to catch these in the future.
     
-    For #45530.
+    For #41120.
     
-    Change-Id: I2de2f2f37777af292db67ccf8057b7566aab81f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309632
+    Change-Id: I97318172ef78d0cbab10df5e4ffcbfeadff579e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258802
     Trust: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/pe.go  |  4 ++--
- src/runtime/os_windows.go       | 15 +++++++--------
- src/runtime/sys_windows_386.s   |  9 ---------
- src/runtime/sys_windows_amd64.s |  7 -------
- src/runtime/sys_windows_arm.s   |  4 ----
- src/runtime/sys_windows_arm64.s |  4 ----
- 6 files changed, 9 insertions(+), 34 deletions(-)
+ src/runtime/crash_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

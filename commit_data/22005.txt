@@ -1,13 +1,12 @@
-commit 4feee8c6590c3df6a474931512d7d61de2c56121
-Author: Joel Sing <jsing@google.com>
-Date:   Wed Dec 24 02:08:58 2014 +1100
+commit 2633f2aad46bbdfde3e3c7f5f5f9bee83509568b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 17 17:23:13 2015 -0800
 
-    cmd/5l: make 5l work on openbsd
+    [dev.cc] cmd/asm/internal/asm: add operand parsing tests for 386 and arm
     
-    Change-Id: If58ea50fbf321ae943d0890a40e0552e7bc19709
-    Reviewed-on: https://go-review.googlesource.com/2080
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: If2aafc4dd3f91650fc7727ea7d534ad7aa627c8c
+    Reviewed-on: https://go-review.googlesource.com/5090
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/5l/obj.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/operand_test.go | 143 ++++++++++++++++++++++++++++---
+ 1 file changed, 133 insertions(+), 10 deletions(-)

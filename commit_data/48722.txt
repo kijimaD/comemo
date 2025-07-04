@@ -1,21 +1,19 @@
-commit 8cd6aacf81ad0a759ac895bce0b569b47aa4201c
-Author: cia-rana <kiwamura0314@gmail.com>
-Date:   Sat Apr 9 15:37:11 2022 +0900
+commit a5bc060b42fe1bee8910a1081eff0a1047b15869
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Jun 8 14:26:13 2021 -0700
 
-    runtime: fix URL in a comment
+    doc/go1.17: document strconv changes for Go 1.17
     
-    For various reasons Intel has suspended viewing web pages in the .ru
-    domain, so change the domain of the documents cited in the code
-    to the .com domain. In addition, the chapter numbers in the document
-    were updated and fix it.
+    For #44513.
+    Fixes #46021.
     
-    Change-Id: I718be1548ec46f05ebc4f73873d4635c1d5fc76d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399060
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I40a4645fedfae24f67e249743c6a143e71b9f507
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326150
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/memmove_amd64.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.17.html | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

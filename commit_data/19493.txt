@@ -1,16 +1,23 @@
-commit 14a75ecf4a673e99ff41c1a1166289840d4f3cbb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 3 11:44:17 2014 +0900
+commit d646040fd13b79f811c85bc7280a71c3493419ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 2 21:06:30 2014 -0400
 
-    time: support version 3 zone records
+    runtime: fix 1-byte return during x.(T) for 0-byte T
     
-    Fixes #8134
+    The 1-byte write was silently clearing a byte on the stack.
+    If there was another function call with more arguments
+    in the same stack frame, no harm done.
+    Otherwise, if the variable at that location was already zero,
+    no harm done.
+    Otherwise, problems.
     
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=golang-codereviews, r, rsc
-    https://golang.org/cl/100930044
+    Fixes #8139.
+    
+    LGTM=dsymonds
+    R=golang-codereviews, dsymonds
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/100940043
 
- src/pkg/time/zoneinfo_read.go | 4 ++--
- src/pkg/time/zoneinfo_test.go | 9 +++++++++
- 2 files changed, 11 insertions(+), 2 deletions(-)
+ src/pkg/runtime/iface.goc   | 23 +++++++++++++++++----
+ test/fixedbugs/issue8139.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+), 4 deletions(-)

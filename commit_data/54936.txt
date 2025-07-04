@@ -1,28 +1,22 @@
-commit 96eeb4512bd045a2c247f6ebcce46b7e443206e7
-Author: Michał Matczuk <mmatczuk@gmail.com>
-Date:   Thu Nov 9 09:43:26 2023 +0000
+commit 9160e15494ed03967b86ddc1a601b659b3243fd0
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 22 10:42:25 2022 -0500
 
-    net/http: use copyBufPool in transferWriter.doBodyCopy()
+    cmd/dist: skip -race w/ external linkage on windows 2008
     
-    This is a followup to CL 14177. It applies copyBufPool optimization to
-    transferWriter.doBodyCopy(). The function is used every time Request or
-    Response is written.
+    Add a skip for the external-linkage part of the race detector test for
+    elderly versions of windows, until the underlying cause for the problem
+    can be determined.
     
-    Without this patch for every Request and Response processed, if there is
-    a body, we need to allocate and GC a 32k buffer. This is quickly causing
-    GC pressure.
+    Updates #56904.
     
-    Fixes #57202
-    
-    Change-Id: I4c30e1737726ac8d9937846106efd02effbae300
-    GitHub-Last-Rev: 908573cdbe2e8b6f91ce026cf8632ff5f2c41110
-    GitHub-Pull-Request: golang/go#57205
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456435
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I3e8650ff66f34efefabcd6bc343d57124539901b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452763
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
 
- src/net/http/transfer.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

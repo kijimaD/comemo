@@ -1,0 +1,25 @@
+commit 6fa224a80965a32228f9bc13cfe667af500d0a9d
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 19:06:57 2024 -0700
+
+    testing: use testenv.Executable
+    
+    Note that this changes some nuances of how the tests work:
+     - some tests had a fallback to using os.Args[0], which is removed;
+     - some tests skipped (rather than failed) the test upon getting an
+       error from os.Executable.
+    
+    I think these changes are not practically relevant.
+    
+    Change-Id: I0655add6d959a8b7e3359f94c38203aa06e8f490
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609303
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/testing/flag_test.go    |  6 +-----
+ src/testing/helper_test.go  | 16 ++--------------
+ src/testing/testing_test.go | 16 ++--------------
+ 3 files changed, 5 insertions(+), 33 deletions(-)

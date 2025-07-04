@@ -1,25 +1,21 @@
-commit 197522d3ae9e033bc51c5700cf4f7743fb624d8b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 14 14:07:56 2023 -0700
+commit 706d84fca2b36fdf670a0d921e6a8a3b481eaa05
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 14 21:01:04 2022 -0400
 
-    go/types, types2: use exact unification when comparing interface methods
+    cmd/link: suppress -no_pie deprecation warning on darwin
     
-    Irrespective of whether unification is exact or inexact, method
-    signatures of interfaces must always match exactly: a type never
-    satisfies/implements an interface if relevant method signatures
-    are different (i.e., not identical, possibly after substitution).
+    Apparently the new darwin linker starts to emit a warning about
+    -no_pie deprecation. Maybe we want to switch to PIE by default.
+    For now, suppress the warning. This also makes it easier for
+    backporting to previous releases.
     
-    Fixes #61879.
+    For #54482.
     
-    Change-Id: I20c0aa28ac86e2edec615b40f2269938e4a96938
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519435
+    Change-Id: I1a3b74c237a9d00ec3b030fc3a9940a31e5cd37e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430937
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/unify.go           |  6 +--
- src/go/types/unify.go                              |  6 +--
- .../types/testdata/fixedbugs/issue61879.go         | 57 ++++++++++++++++++++++
- 3 files changed, 63 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

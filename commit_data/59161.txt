@@ -1,19 +1,22 @@
-commit f90f3cfcf71fa1226572f87035323fca0ab33e52
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jan 7 18:46:37 2023 +1100
+commit 808c8fb815183f0bd6978b17e41e7edf254b78ec
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Feb 16 15:01:47 2024 -0500
 
-    cmd/internal/obj/arm64: move register encoding into oprrr
+    cmd/go: change the naming of flag counters
     
-    Rather than having register encoding knowledge in each caller of oprrr,
-    pass the registers into oprrr and let it handle the encoding. This reduces
-    duplication and improves readability.
+    We're making the following changes:
+     * From cmd/go/flag-<flagname> to cmd/go/flag:<flagname>
+     * From cmd/go/<subcommand-name>:flag-<flagname> to
+           cmd/go/flag:<subcommand-name>-<flagname>
+     * From cmd/go:subcommand-<subcommand-name> to
+           cmd/go/subcommand:<subcommand-name>
     
-    Change-Id: Iab6c70f7796b7a8c071419654b8a5686aeee8c1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471518
-    Reviewed-by: Fannie Zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Id682840bb4330fceeb070fc69203d0bfb03f3a29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564857
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 716 +++++++++++++++++--------------------
- 1 file changed, 323 insertions(+), 393 deletions(-)
+ src/cmd/go/main.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

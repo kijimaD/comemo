@@ -1,55 +1,43 @@
-commit 2050f57141a01a3ab91d96b67f9bcb51820e7857
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 24 13:41:57 2015 -0400
+commit 75883bae28435530bcb01d071d1b448ab0cf11cd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 2 19:58:37 2015 -0700
 
-    runtime: change unused argument in fat write barriers from pointer to scalar
+    cmd/internal/gc: convert yet more Node fields to bools
     
-    The argument is unused, only present for alignment of the
-    following argument. The compiler today always passes a zero
-    but I'd rather not write anything there during the call sequence,
-    so mark it as a scalar so the garbage collector won't look at it.
+    Convert Embedded, Method, and Colas to bools.
     
-    As expected, no significant performance change.
+    I believe that this is the last of the Node fields
+    that can be trivially converted to bools.
     
-    name                                       old                     new          delta
-    BenchmarkBinaryTree17              17.9s × (0.99,1.00)     17.9s × (0.99,1.01)  ~
-    BenchmarkFannkuch11                4.35s × (1.00,1.00)     4.35s × (1.00,1.00)  ~
-    BenchmarkFmtFprintfEmpty           120ns × (0.94,1.05)     120ns × (0.93,1.06)  ~
-    BenchmarkFmtFprintfString          477ns × (1.00,1.00)     479ns × (0.99,1.00)  ~
-    BenchmarkFmtFprintfInt             450ns × (0.99,1.01)     452ns × (0.99,1.02)  ~
-    BenchmarkFmtFprintfIntInt          765ns × (0.99,1.01)     766ns × (0.99,1.01)  ~
-    BenchmarkFmtFprintfPrefixedInt     569ns × (0.99,1.01)     576ns × (0.98,1.01)  ~
-    BenchmarkFmtFprintfFloat           728ns × (1.00,1.00)     730ns × (1.00,1.01)  ~
-    BenchmarkFmtManyArgs              2.82µs × (0.99,1.01)    2.84µs × (0.99,1.00)  ~
-    BenchmarkGobDecode                39.1ms × (0.99,1.01)    39.3ms × (0.98,1.01)  ~
-    BenchmarkGobEncode                39.4ms × (0.99,1.01)    39.5ms × (0.99,1.01)  ~
-    BenchmarkGzip                      661ms × (0.99,1.01)     663ms × (1.00,1.01)  ~
-    BenchmarkGunzip                    143ms × (1.00,1.00)     143ms × (1.00,1.00)  ~
-    BenchmarkHTTPClientServer          133µs × (0.99,1.01)     132µs × (0.99,1.01)  ~
-    BenchmarkJSONEncode               57.3ms × (0.99,1.04)    57.4ms × (0.99,1.01)  ~
-    BenchmarkJSONDecode                139ms × (0.99,1.00)     139ms × (0.99,1.00)  ~
-    BenchmarkMandelbrot200            6.02ms × (1.00,1.00)    6.03ms × (1.00,1.00)  ~
-    BenchmarkGoParse                  9.72ms × (0.92,1.11)   10.31ms × (0.89,1.14)  ~
-    BenchmarkRegexpMatchEasy0_32       209ns × (1.00,1.01)     209ns × (1.00,1.00)  ~
-    BenchmarkRegexpMatchEasy0_1K       592ns × (0.99,1.00)     591ns × (0.99,1.00)  ~
-    BenchmarkRegexpMatchEasy1_32       183ns × (0.98,1.01)     184ns × (0.99,1.02)  ~
-    BenchmarkRegexpMatchEasy1_1K      1.01µs × (1.00,1.01)    1.01µs × (1.00,1.00)  ~
-    BenchmarkRegexpMatchMedium_32      330ns × (1.00,1.00)     330ns × (1.00,1.00)  ~
-    BenchmarkRegexpMatchMedium_1K     92.4µs × (1.00,1.00)    92.6µs × (1.00,1.00)  ~
-    BenchmarkRegexpMatchHard_32       4.77µs × (0.95,1.01)    4.80µs × (0.95,1.00)  ~
-    BenchmarkRegexpMatchHard_1K        136µs × (1.00,1.00)     136µs × (1.00,1.00)  ~
-    BenchmarkRevcomp                   906ms × (0.99,1.05)     900ms × (0.99,1.04)  ~
-    BenchmarkTemplate                  171ms × (0.99,1.01)     172ms × (1.00,1.00)  ~
-    BenchmarkTimeParse                 638ns × (1.00,1.00)     637ns × (1.00,1.00)  ~
-    BenchmarkTimeFormat                745ns × (0.99,1.02)     744ns × (1.00,1.01)  ~
+    No functional changes. Passes toolstash -cmp.
     
-    Change-Id: I0aeac5dc7adfd75e2223e3aabfedc7818d339f9b
-    Reviewed-on: https://go-review.googlesource.com/9320
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I81962ee47866596341fc60d24d6959c20cd7fc1c
+    Reviewed-on: https://go-review.googlesource.com/8440
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/gc/builtin.go         | 50 +++++++++++++++++-----------------
- src/cmd/internal/gc/builtin/runtime.go | 50 +++++++++++++++++-----------------
- src/cmd/internal/gc/walk.go            |  2 +-
- src/runtime/wbfat.go                   | 50 +++++++++++++++++-----------------
- src/runtime/wbfat_gen.go               |  2 +-
- 5 files changed, 77 insertions(+), 77 deletions(-)
+ src/cmd/5g/cgen64.go           |  4 +--
+ src/cmd/5g/gsubr.go            |  4 +--
+ src/cmd/6g/gsubr.go            |  2 +-
+ src/cmd/8g/cgen.go             | 10 ++++----
+ src/cmd/8g/cgen64.go           |  4 +--
+ src/cmd/8g/ggen.go             |  8 +++---
+ src/cmd/8g/gsubr.go            |  2 +-
+ src/cmd/internal/gc/cgen.go    | 58 +++++++++++++++++++++---------------------
+ src/cmd/internal/gc/closure.go |  2 +-
+ src/cmd/internal/gc/cplx.go    | 30 +++++++++++-----------
+ src/cmd/internal/gc/dcl.go     |  6 ++---
+ src/cmd/internal/gc/fmt.go     |  8 +++---
+ src/cmd/internal/gc/gen.go     | 10 ++++----
+ src/cmd/internal/gc/go.y       |  4 +--
+ src/cmd/internal/gc/gsubr.go   |  8 +++---
+ src/cmd/internal/gc/order.go   |  6 ++---
+ src/cmd/internal/gc/pgen.go    |  2 +-
+ src/cmd/internal/gc/reflect.go |  4 +--
+ src/cmd/internal/gc/sinit.go   |  4 +--
+ src/cmd/internal/gc/subr.go    | 10 ++++----
+ src/cmd/internal/gc/syntax.go  |  6 ++---
+ src/cmd/internal/gc/walk.go    | 10 ++++----
+ src/cmd/internal/gc/y.go       |  4 +--
+ 23 files changed, 103 insertions(+), 103 deletions(-)

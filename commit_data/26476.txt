@@ -1,23 +1,22 @@
-commit 0659cf691194f30345442d66c94eba632ca6d7ae
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 23 11:07:20 2016 -0700
+commit 9202e9e1b81d1c6d07b516eae2d1da28951c7a76
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 27 00:09:50 2016 +0000
 
-    cmd/compile: small Mpint method simplifications
+    runtime: add more debug info to flaky TestNumGoroutine
     
-    Get rid of (*Mpint).Add's "quiet" parameter: it's always set to 0.
+    This has been flaking on the new OpenBSD 5.8 builders lately:
+    https://storage.googleapis.com/go-build-log/808270e7/openbsd-amd64-gce58_61ce2663.log
+    (as one example)
     
-    Inline (*Mpint).shift into (*Mpint).Lsh and (*Mpint).Rsh. There's no
-    need for a common shift method that can handle both left or right
-    shifts based on sign when the higher level abstractions only ever do
-    one or the other.
+    Add more debug info when it fails.
     
-    Change-Id: Icd3b082413f9193961b6835279e0bd4b6a6a6621
-    Reviewed-on: https://go-review.googlesource.com/21050
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Updates #14107
+    
+    Change-Id: Ie30bc0c703d2e9ee993d1e232ffc5f2d17e65c97
+    Reviewed-on: https://go-review.googlesource.com/18938
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/const.go  |  2 +-
- src/cmd/compile/internal/gc/mpint.go  | 26 ++++++++------------------
- src/cmd/compile/internal/gc/parser.go |  2 +-
- 3 files changed, 10 insertions(+), 20 deletions(-)
+ src/runtime/proc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,14 @@
-commit dbbfbcc4a18c3303c4e8a55cf652c67702c91aed
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Aug 1 14:45:35 2012 +1000
+commit e07958f7dfde86fe9053e25793219d4807f4d74c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jul 31 23:02:46 2012 -0400
 
-    exp/html: implement escaping and double-escaping in scripts
+    runtime: round return value address in runtime.equal
+         Fixes #3866.
     
-    The text inside <script> tags is not ordinary raw text; there are all sorts
-    of other complications. This CL implements those complications.
-    
-    Pass 76 additional tests.
-    
-    R=nigeltao
+    R=rsc, r, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6443070
+    https://golang.org/cl/6452046
 
- src/pkg/exp/html/parse_test.go                 |  17 ++
- src/pkg/exp/html/testlogs/scriptdata01.dat.log |  16 +-
- src/pkg/exp/html/testlogs/tests16.dat.log      | 136 ++++++-------
- src/pkg/exp/html/token.go                      | 263 +++++++++++++++++++++++--
- 4 files changed, 336 insertions(+), 96 deletions(-)
+ src/pkg/runtime/alg.c    |  9 ++++---
+ test/fixedbugs/bug449.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 4 deletions(-)

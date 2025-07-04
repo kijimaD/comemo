@@ -1,22 +1,15 @@
-commit 7c546566c35ed682dcd1892d174071cde1014e46
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Mar 11 17:49:07 2016 -0500
+commit 39c3e0f64285b9e3c0c0f750af5ae1aa52be79f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 11:23:03 2016 -0500
 
-    cmd/compile: compute number of arguments correctly
+    time: document that RFC1123 is wrong for times in UTC
     
-    The outCount value includes a flag bit for dotdotdot.
+    Fixes #13781.
     
-    If we have this count incorrect, then the offset for the
-    methodset *rtype are in the wrong place.
-    
-    Fixes #14783
-    
-    Change-Id: If5acb16af08d4ffe36c8c9ee389c32f2712ce757
-    Reviewed-on: https://go-review.googlesource.com/20566
+    Change-Id: Icfac8f2bfc3a4106f646409cfdc053df1e0cd76a
+    Reviewed-on: https://go-review.googlesource.com/18314
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |  2 +-
- src/reflect/all_test.go                | 11 +++++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/time/format.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

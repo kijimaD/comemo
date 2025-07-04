@@ -1,20 +1,22 @@
-commit 9630c47e8c86a3fabc008eab9f239480b1d4f8e5
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 23 15:04:37 2015 -0400
+commit 6184765f86db05510e94e6b7f747ba080d0c84ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 24 14:05:52 2015 -0700
 
-    runtime: decentralize concurrent sweep termination
+    go/types, go/constant: remove backward-compatibility files (cleanup)
     
-    This moves concurrent sweep termination from the coordinator to the
-    off->mark transition. This allows it to be performed by all Gs
-    attempting to start the GC.
+    Not needed anymore since go/types is always built against the current
+    standard library.
     
-    Updates #11970.
+    Fixes #11538.
     
-    Change-Id: I24428e8599a759398c2ef7ec996ba755a448f947
-    Reviewed-on: https://go-review.googlesource.com/16356
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2f07d73703f4e5661c4b5df5d487939dcf530b43
+    Reviewed-on: https://go-review.googlesource.com/13897
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgc.go | 25 ++++++++++++++-----------
- 1 file changed, 14 insertions(+), 11 deletions(-)
+ src/go/constant/go13.go  | 24 ------------------------
+ src/go/constant/go14.go  | 13 -------------
+ src/go/constant/value.go |  4 ++--
+ src/go/types/expr.go     |  6 +++---
+ src/go/types/go11.go     | 17 -----------------
+ src/go/types/go12.go     | 17 -----------------
+ 6 files changed, 5 insertions(+), 76 deletions(-)

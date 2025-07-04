@@ -1,0 +1,45 @@
+commit 4582f239c3e4589d73dc9e273368f17a196bc09e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 31 09:49:47 2024 -0400
+
+    cmd/internal/objabi, cmd/link: introduce SymKind helper methods
+    
+    These will be necessary when we start using the new FIPS symbols.
+    Split into a separate CL so that these refactoring changes can be
+    tested separate from any FIPS-specific changes.
+    
+    Passes golang.org/x/tools/cmd/toolstash/buildall.
+    
+    Change-Id: I73e5873fcb677f1f572f0668b4dc6f3951d822bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625996
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/dwarf.go              |  2 +-
+ src/cmd/internal/obj/objfile.go            |  4 ++--
+ src/cmd/internal/obj/plist.go              |  2 +-
+ src/cmd/internal/obj/sym.go                | 35 +++++++++++++++++++-----------
+ src/cmd/internal/objabi/symkind.go         | 16 ++++++++++++++
+ src/cmd/link/internal/amd64/asm.go         |  6 ++---
+ src/cmd/link/internal/arm/asm.go           |  2 +-
+ src/cmd/link/internal/arm64/asm.go         |  8 +++----
+ src/cmd/link/internal/ld/deadcode.go       |  2 +-
+ src/cmd/link/internal/ld/dwarf.go          |  5 +++--
+ src/cmd/link/internal/ld/elf.go            |  6 ++---
+ src/cmd/link/internal/ld/ld.go             |  2 +-
+ src/cmd/link/internal/ld/lib.go            |  4 ++--
+ src/cmd/link/internal/ld/macho.go          |  4 ++--
+ src/cmd/link/internal/ld/pe.go             | 10 ++++-----
+ src/cmd/link/internal/ld/symtab.go         | 16 +++++++-------
+ src/cmd/link/internal/ld/xcoff.go          | 10 ++++-----
+ src/cmd/link/internal/loadelf/ldelf.go     |  4 ++--
+ src/cmd/link/internal/loader/loader.go     |  8 +++----
+ src/cmd/link/internal/loadmacho/ldmacho.go |  4 ++--
+ src/cmd/link/internal/loadpe/ldpe.go       |  6 ++---
+ src/cmd/link/internal/loadxcoff/ldxcoff.go |  2 +-
+ src/cmd/link/internal/ppc64/asm.go         | 30 ++++++++++++-------------
+ src/cmd/link/internal/riscv64/asm.go       |  4 ++--
+ src/cmd/link/internal/sym/symkind.go       | 26 +++++++++++++++++++---
+ src/cmd/link/internal/x86/asm.go           |  2 +-
+ 26 files changed, 133 insertions(+), 87 deletions(-)

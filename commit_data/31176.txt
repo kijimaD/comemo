@@ -1,18 +1,40 @@
-commit b3fb6b00ae6649631ce43a034f2d160045af3aee
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 14 06:43:01 2017 -0700
+commit 3c667ef421becd1acdbd8ac57503a1cbed47fc5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 00:06:08 2017 -0500
 
-    cmd/compile: relocate large comment to plive.go
+    cmd/go: split out cmd/go/internal/work
     
-    It was a bit weird to have it at the top of pgen.go.
-    This does half of the TODO at the top of the comment.
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
     
-    Change-Id: I65140fa05673b2dbb6feddb8c1877f6d624a7844
-    Reviewed-on: https://go-review.googlesource.com/40698
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: Icdd181098f9f0e81f68bf201e6867cdd8f820300
+    Reviewed-on: https://go-review.googlesource.com/36197
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go  | 58 ------------------------------------
- src/cmd/compile/internal/gc/plive.go | 57 +++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 58 deletions(-)
+ src/cmd/go/build_test.go                |  44 --
+ src/cmd/go/clean.go                     |  20 +-
+ src/cmd/go/env.go                       |  30 +-
+ src/cmd/go/generate.go                  |   3 +-
+ src/cmd/go/get.go                       |   5 +-
+ src/cmd/go/internal/base/env.go         |  37 ++
+ src/cmd/go/internal/base/flag.go        |  33 ++
+ src/cmd/go/internal/base/path.go        |   8 +
+ src/cmd/go/internal/str/str.go          |  44 ++
+ src/cmd/go/{ => internal/work}/build.go | 918 +++++++++++++++-----------------
+ src/cmd/go/internal/work/build_test.go  | 167 ++++++
+ src/cmd/go/list.go                      |   5 +-
+ src/cmd/go/main.go                      |   5 +-
+ src/cmd/go/pkg_test.go                  | 114 ----
+ src/cmd/go/run.go                       |  38 +-
+ src/cmd/go/test.go                      | 177 +++---
+ src/cmd/go/testflag.go                  |  11 +-
+ src/cmd/go/vet.go                       |   3 +-
+ 18 files changed, 878 insertions(+), 784 deletions(-)

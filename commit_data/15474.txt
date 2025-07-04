@@ -1,12 +1,13 @@
-commit e97aa82c2f05dcce6a875d69ea2d88dff04f000a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 27 15:19:59 2013 -0800
+commit 029457aab54c8c8ae25aaf51725d002aaba8749c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 27 14:24:41 2013 -0800
 
-    api: update next.txt
+    go/types: don't crash when assigning to undefined variables
     
-    R=golang-dev, adg
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/7420043
+    https://golang.org/cl/7369059
 
- api/next.txt | 154 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 154 insertions(+)
+ src/pkg/go/types/stmt.go            | 4 ++++
+ src/pkg/go/types/testdata/stmt0.src | 2 ++
+ 2 files changed, 6 insertions(+)

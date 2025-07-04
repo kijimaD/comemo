@@ -1,24 +1,15 @@
-commit 2a39d1e96a8d37d14ff23a2eb3ffc5b584a17cb6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 9 23:55:15 2017 -0500
+commit e258249c247d7135f164f4f0b3abb29bebe75767
+Author: Francesc Campoy Flores <campoy@golang.org>
+Date:   Thu Aug 24 10:07:15 2017 -0700
 
-    cmd/cover: add //line comment pointing to original file
+    cmd/vet: check only for ASCII spaces (0x20) in struct tags
     
-    Now that cover does not modify the formatting of the original file
-    or add any newline characters, we can make it print a //line comment
-    pointing back at the original, and compiler errors and panics will
-    report accurate line numbers.
-    
-    Fixes #6329.
-    Fixes #15757.
-    
-    Change-Id: I7b0e386112c69beafe69e0d47c5f9e9abc87c0f5
-    Reviewed-on: https://go-review.googlesource.com/77151
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6e9b5caeca842b6bf72afefb31f5140608b86d20
+    Reviewed-on: https://go-review.googlesource.com/58530
+    Run-TryBot: Francesc Campoy Flores <campoy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/cover/cover.go                     |  1 +
- src/cmd/go/go_test.go                      | 27 +++++++++++++++++++++++++++
- src/cmd/go/testdata/src/coverbad/p.go      |  5 +++++
- src/cmd/go/testdata/src/coverbad/p_test.go |  5 +++++
- 4 files changed, 38 insertions(+)
+ src/cmd/vet/structtag.go          |  3 +--
+ src/cmd/vet/testdata/structtag.go | 21 ++++++++++-----------
+ 2 files changed, 11 insertions(+), 13 deletions(-)

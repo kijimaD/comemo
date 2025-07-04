@@ -1,15 +1,23 @@
-commit f5ab890c189fae6f149a5621adf1cdd8016216b0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 9 06:18:43 2016 -0800
+commit 05390a07931771b14bcd5c6eb4e5410cf9c2bbfe
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 22:51:03 2015 -0500
 
-    cmd/go: only check SWIG intsize once per build
+    misc/cgo/stdio: reenable tests
     
-    Besides being more efficient in a large build, this avoids a possible
-    race when creating the input file.
+    The build tags are necessary to keep "go build" in that directory
+    building only stdio.go, but we have to arrange for test/run.go to
+    treat them as satisfied.
     
-    Change-Id: Ifc2cb055925a76be9c90eac56d84ebd9e14f2bbc
-    Reviewed-on: https://go-review.googlesource.com/19392
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Fixes #12625.
+    
+    Change-Id: Iec0cb2fdc2c9b24a4e0530be25e940aa0cc9552e
+    Reviewed-on: https://go-review.googlesource.com/17454
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/build.go | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ misc/cgo/life/main.go   | 2 +-
+ misc/cgo/stdio/chain.go | 5 +++--
+ misc/cgo/stdio/fib.go   | 5 +++--
+ misc/cgo/stdio/hello.go | 2 +-
+ test/run.go             | 4 ++++
+ 5 files changed, 12 insertions(+), 6 deletions(-)

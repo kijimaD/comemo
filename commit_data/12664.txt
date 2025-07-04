@@ -1,16 +1,12 @@
-commit 8009542f559cee2a2c17af1bdafb46666778feac
-Author: Christopher Redden <christopher.redden@gmail.com>
-Date:   Fri Mar 16 14:30:43 2012 +1100
+commit e5cc09a75db2536c836ab4aeedf33a88794a79b9
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Mar 16 14:27:11 2012 +1100
 
-    make.bat: Fix for old files
+    doc: use time.Duration in Effective Go.
     
-    Same fix as applied here: https://golang.org/cl/5761044
-    
-    Fixes #3222.
-    
-    R=golang-dev, alex.brainman, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5838043
+    https://golang.org/cl/5841044
 
- src/make.bat | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

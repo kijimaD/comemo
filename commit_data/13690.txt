@@ -1,22 +1,13 @@
-commit a85fa33ece194e5b8709330e85575575c1c3b2e2
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Aug 25 10:16:02 2012 +0200
+commit 5a297fa03873e2696290590cc663390ee3b6287b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 24 13:01:50 2012 -0700
 
-    test: use run.go for more tests.
+    VERSION: check in a version file for the development branch
+    That way "go version" will talk about "devel" rather than weekly.2012-03-27
     
-    R=golang-dev, alex.brainman, minux.ma
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6443110
+    https://golang.org/cl/6478061
 
- test/fixedbugs/bug206.go                        |  2 +-
- test/fixedbugs/bug206.out                       |  2 ++
- test/fixedbugs/bug222.go                        |  2 +-
- test/fixedbugs/bug335.dir/a.go                  |  6 ++++--
- test/fixedbugs/bug335.dir/b.go                  |  6 ++----
- test/fixedbugs/bug335.go                        |  5 ++---
- test/fixedbugs/bug392.dir/{two.go => pkg2.go}   |  2 +-
- test/fixedbugs/bug392.dir/{three.go => pkg3.go} | 10 +++++-----
- test/fixedbugs/bug392.go                        |  2 +-
- test/fixedbugs/bug415.dir/{main.go => prog.go}  |  0
- test/fixedbugs/bug415.go                        |  2 +-
- 11 files changed, 20 insertions(+), 19 deletions(-)
+ VERSION | 1 +
+ 1 file changed, 1 insertion(+)

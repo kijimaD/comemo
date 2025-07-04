@@ -1,73 +1,26 @@
-commit d73d5d9fb0c2b963bd58ed0ab679dd71498f118e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 27 03:09:26 2020 -0400
+commit 636fa3148fe149923839a86e648dd87dc4d1537a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 10 22:11:51 2020 -0400
 
-    cmd/go/internal/imports: make Tags and AnyTags safe for concurrent use
+    [dev.link] cmd/link: don't split container symbols when write blocks
     
-    AnyTags turned up as a data race while running 'go test -race cmd/go'.
-    I'm not sure how long the race has been present.
+    We split the output into blocks and write them in parallel. The
+    block boundary is placed at symbol boundary. In the case of outer
+    symbols and sub symbols, currently we may split an outer symbol
+    into two blocks. This will be bad, as the two blocks will have
+    overlapping address range, since outer symbol and its sub symbols
+    occupies the same address range.
     
-    ==================
-    WARNING: DATA RACE
-    Read at 0x000001141ec0 by goroutine 8:
-      cmd/go/internal/imports.AnyTags()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/imports/tags.go:45 +0x10e
-      cmd/go/internal/modload.QueryPattern.func2()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:539 +0x11d
-      cmd/go/internal/modload.QueryPattern.func4.1()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:607 +0x3db
-      cmd/go/internal/modload.queryPrefixModules.func1()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:677 +0xa7
+    Make sure we place block boundary only at top-level symbol
+    boundaries.
     
-    Previous write at 0x000001141ec0 by goroutine 7:
-      cmd/go/internal/imports.AnyTags()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/imports/tags.go:46 +0x26b
-      cmd/go/internal/modload.QueryPattern.func2()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:539 +0x11d
-      cmd/go/internal/modload.QueryPattern.func4.1()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:607 +0x3db
-      cmd/go/internal/modload.queryPrefixModules.func1()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:677 +0xa7
+    Fix boringcrypto build.
     
-    Goroutine 8 (running) created at:
-      cmd/go/internal/modload.queryPrefixModules()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:676 +0x284
-      cmd/go/internal/modload.QueryPattern.func4()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:624 +0x2e4
-      cmd/go/internal/modfetch.TryProxies()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modfetch/proxy.go:220 +0x107
-      cmd/go/internal/modload.QueryPattern()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:590 +0x69e
-      cmd/go/internal/work.installOutsideModule()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/work/build.go:744 +0x4b0
-      cmd/go/internal/work.runInstall()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/work/build.go:556 +0x217
-      main.main()
-          /usr/local/google/home/bcmills/go/src/cmd/go/main.go:194 +0xb94
-    
-    Goroutine 7 (finished) created at:
-      cmd/go/internal/modload.queryPrefixModules()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:676 +0x284
-      cmd/go/internal/modload.QueryPattern.func4()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:624 +0x2e4
-      cmd/go/internal/modfetch.TryProxies()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modfetch/proxy.go:220 +0x107
-      cmd/go/internal/modload.QueryPattern()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:590 +0x69e
-      cmd/go/internal/work.installOutsideModule()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/work/build.go:744 +0x4b0
-      cmd/go/internal/work.runInstall()
-          /usr/local/google/home/bcmills/go/src/cmd/go/internal/work/build.go:556 +0x217
-      main.main()
-          /usr/local/google/home/bcmills/go/src/cmd/go/main.go:194 +0xb94
-    ==================
-    
-    Change-Id: Id394978fd6ea0c30614caf8f90ee4f8e2d272843
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265278
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I56811d3969c65c6be97672d8e1f1ea36b2447465
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227957
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/imports/tags.go | 23 ++++++++++++++++-------
- 1 file changed, 16 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/ld/data.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

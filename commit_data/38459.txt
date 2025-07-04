@@ -1,19 +1,16 @@
-commit ca4314d39efd5f9dfa12b2eff7a945d9ead0b69e
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Feb 27 15:44:43 2019 +0100
+commit f14067f3c10e15343f29aed439ff60af856eb323
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 29 17:02:42 2018 -0700
 
-    net: allow build on aix/ppc64 with cgo
+    cmd/compile: when comparing 0-size types, make sure expr side-effects survive
     
-    This commit adds C support for net package for aix/ppc64.
+    Fixes #23837
     
-    Change-Id: I704710991fc013c6ec3511671def6791df4854f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164038
-    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
+    Change-Id: I53f524d87946a0065f28a4ddbe47b40f2b43c459
+    Reviewed-on: https://go-review.googlesource.com/c/145757
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/cgo_aix.go       | 24 ++++++++++++++++++++++++
- src/net/cgo_sockold.go   |  2 +-
- src/net/cgo_unix.go      |  7 ++++++-
- src/net/cgo_unix_test.go |  2 +-
- 4 files changed, 32 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/walk.go |  8 +++++
+ test/fixedbugs/issue23837.go        | 70 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+)

@@ -1,14 +1,14 @@
-commit 34cbccd3411308bffecab9982a27735a56b648f3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 18 14:16:28 2015 -0800
+commit cea441427e7a007ea5e35a4baa9cc2cb5d000f64
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 8 16:52:25 2015 -0700
 
-    cmd/compile/internal/gc: add line numbers for complit elts if needed (addresses TODO)
+    [dev.ssa] cmd/compile: add constBool helpers
     
-    For #13243.
-    
-    Change-Id: I802cef3dad5d1236e70d0cd52047008a6a7a311a
-    Reviewed-on: https://go-review.googlesource.com/17045
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: I1f93ea65bbdc895cd4eff7545e1688a64d85aae5
+    Reviewed-on: https://go-review.googlesource.com/14520
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 49 ++++++++++++++++++-----------------
- 1 file changed, 25 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go   | 15 +++++++--------
+ src/cmd/compile/internal/ssa/func.go |  8 ++++++++
+ 2 files changed, 15 insertions(+), 8 deletions(-)

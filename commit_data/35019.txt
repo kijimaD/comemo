@@ -1,25 +1,17 @@
-commit 155aefe0c182f3788e44596db5f09cf94d2c6a3e
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Fri Jan 26 22:29:55 2018 -0400
+commit a032f74bf0b40a94669159e7d7e96722eb76199b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 21:53:30 2017 -0500
 
-    os/exec: remove "binary" when talking about executables
+    crypto/x509/pkix: remove references to fmt.Stringer in String method docs
     
-    The use of binary was incorrect as executable files can also be scripts.
+    String method comments should explain what they do,
+    not that they are attempting to implement fmt.Stringer.
     
-    The docs for Error are also reworded. The old docs implied that Error was
-    returned when attempting to start an executable, which is not correct: it
-    was returned by LookPath when the file was not found or did not have the
-    attributes of an executable.
-    
-    Change-Id: I757a44b16612936df4498b43c45c12e4c14956d2
-    Reviewed-on: https://go-review.googlesource.com/90315
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If51dd1ff2f0c2f9ef9dca569bfa0c3914be2e8fe
+    Reviewed-on: https://go-review.googlesource.com/82081
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec/exec.go       |  8 +++++---
- src/os/exec/exec_test.go  | 10 +++++-----
- src/os/exec/lp_plan9.go   |  4 ++--
- src/os/exec/lp_unix.go    |  4 ++--
- src/os/exec/lp_windows.go |  4 ++--
- 5 files changed, 16 insertions(+), 14 deletions(-)
+ src/crypto/x509/pkix/pkix.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

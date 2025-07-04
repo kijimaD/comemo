@@ -1,13 +1,20 @@
-commit 7a389b61d4f678fbe527a3b6e90432cb5844ffd8
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 25 08:27:34 2013 +1100
+commit f8fb95f288d54f7459d08e6b47bfa48e46b79315
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jan 24 14:21:51 2013 -0500
 
-    doc: add mention of the Go+ community
+    go/types: add String() method to Type interface.
     
-    R=golang-dev, iant, kamil.kisiel, minux.ma
+    All implementations delegate to typeString.
+    
+    Though I don't wish to exploit gri's absence to change
+    his code, this change is pretty low-risk and he assented to it
+    in the blue ink in the doc below [gophers only].
+    https://docs.google.com/a/google.com/document/d/1-DQ4fxlMDs9cYtnkKhAAehX6MArjOQyJsRXp-6kiJLA/edit#
+    
+    R=iant, gri, gri
     CC=golang-dev
-    https://golang.org/cl/7203049
+    https://golang.org/cl/7200046
 
- doc/contrib.html |  3 +++
- doc/help.html    | 12 +++++++++---
- 2 files changed, 12 insertions(+), 3 deletions(-)
+ src/pkg/go/types/errors.go | 13 +++++++++++++
+ src/pkg/go/types/types.go  |  1 +
+ 2 files changed, 14 insertions(+)

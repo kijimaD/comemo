@@ -1,12 +1,22 @@
-commit d3bb45d9046bb7d12c4fc9cdaf122f36d001fd31
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Thu Mar 14 13:58:47 2019 -0400
+commit 3c9ad7cb41c9c8166d3322e5bc7554a25cda7523
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Oct 26 21:04:45 2018 +0200
 
-    doc: document Go 1.11.6
+    internal/cpu: replace arch dependent with generic minimal feature test
     
-    Change-Id: I99832fa4f2c3ec28e2dad46cf7607f3766948031
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167698
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Use information about required CPU features stored in the CPU feature
+    options slice to test if minimal CPU requirements are met instead
+    of hard coding this information in the tests directly.
+    
+    Change-Id: I72d89b1cff305b8e751995d4230a2217e32f4236
+    Reviewed-on: https://go-review.googlesource.com/c/145118
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/devel/release.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/internal/cpu/cpu_arm64_test.go  | 26 --------------------------
+ src/internal/cpu/cpu_ppc64x.go      |  1 +
+ src/internal/cpu/cpu_ppc64x_test.go | 33 ---------------------------------
+ src/internal/cpu/cpu_test.go        | 17 +++++++++++++++++
+ src/internal/cpu/cpu_x86_test.go    | 10 ----------
+ 5 files changed, 18 insertions(+), 69 deletions(-)

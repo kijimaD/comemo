@@ -1,50 +1,25 @@
-commit 673d64ac7009b41c55b90b33ca346a86351959ee
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 9 23:47:27 2023 -0400
+commit 39b31a3eb25e925cfbb57777e23d24e2a2af4d7a
+Author: Vladimir Varankin <vladimir@varank.in>
+Date:   Sat Sep 10 20:07:36 2022 +0000
 
-    cmd/distpack: include directory entries in tar files
+    net/http: make DefaultTransport docs about HTTP proxy consistent
     
-    Various tools expect tar files to contain entries for directories.
-    I dropped them when writing cmd/distpack because they're not
-    strictly necessary and omitting them saves space, but it also
-    turns out to break some things, so add them back.
+    The changes improve the documentation for DefaultTransport, making
+    the style with how the HTTP proxy environment variables are being
+    referred to, consistent with the rest of the project's
+    documentation.
     
-    We will backport this to release-branch.go1.21 so that Go 1.21.1
-    will include the directory entries. We can't do anything about
-    Go 1.21.0 retroactively.
+    Also mention HTTPS_PROXY environment variables, as suggested in #32649.
     
-    % tar tzvf go1.22rsc1.src.tar.gz | sed 10q
-    drwxr-xr-x  0 0      0           0 Aug 10 10:07 go/
-    -rw-r--r--  0 0      0        1337 Aug 10 10:07 go/CONTRIBUTING.md
-    -rw-r--r--  0 0      0        1479 Aug 10 10:07 go/LICENSE
-    -rw-r--r--  0 0      0        1303 Aug 10 10:07 go/PATENTS
-    -rw-r--r--  0 0      0        1455 Aug 10 10:07 go/README.md
-    -rw-r--r--  0 0      0         419 Aug 10 10:07 go/SECURITY.md
-    -rw-r--r--  0 0      0          42 Aug 10 10:07 go/VERSION
-    drwxr-xr-x  0 0      0           0 Aug 10 10:07 go/api/
-    -rw-r--r--  0 0      0        1142 Aug 10 10:07 go/api/README
-    -rw-r--r--  0 0      0       35424 Aug 10 10:07 go/api/except.txt
-    % tar tzvf go1.22rsc1.darwin-amd64.tar.gz | sed 10q
-    drwxr-xr-x  0 0      0           0 Aug 10 10:07 go/
-    -rw-r--r--  0 0      0        1337 Aug 10 10:07 go/CONTRIBUTING.md
-    -rw-r--r--  0 0      0        1479 Aug 10 10:07 go/LICENSE
-    -rw-r--r--  0 0      0        1303 Aug 10 10:07 go/PATENTS
-    -rw-r--r--  0 0      0        1455 Aug 10 10:07 go/README.md
-    -rw-r--r--  0 0      0         419 Aug 10 10:07 go/SECURITY.md
-    -rw-r--r--  0 0      0          42 Aug 10 10:07 go/VERSION
-    drwxr-xr-x  0 0      0           0 Aug 10 10:07 go/api/
-    -rw-r--r--  0 0      0        1142 Aug 10 10:07 go/api/README
-    -rw-r--r--  0 0      0       35424 Aug 10 10:07 go/api/except.txt
-    %
-    
-    Fixes #61862.
-    
-    Change-Id: Iecd9ba893015295e88715b031b79a104236b9ced
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518335
+    Change-Id: I4e6b49881d7b30b5a0d4699531fa7c2929fc49f7
+    GitHub-Last-Rev: 2fc751937be685aa45acf43cf37b8ba2da124e4e
+    GitHub-Pull-Request: golang/go#54996
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430135
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/distpack/archive.go |  2 +-
- src/cmd/distpack/pack.go    | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 1 deletion(-)
+ src/net/http/transport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

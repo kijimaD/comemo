@@ -1,33 +1,23 @@
-commit 13d0b82bc8821c41ec3782d0d5911cda2499dedc
+commit 649c83530a9c3a71319ed3d2ff53d9ecf2f2fd04
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 7 23:40:59 2014 -0400
+Date:   Mon Sep 1 21:55:57 2014 -0400
 
-    runtime: implement time.now in assembly on plan9, solaris, windows
+    runtime: fix race detector running Go code on g0 of non-main thread
     
-    These all used a C implementation that contained 64-bit divide by 1000000000.
-    On 32-bit systems that ends up in the 64-bit C divide support, which makes
-    other calls and ends up using a fair amount of stack. We could convert them
-    to Go but then they'd still end up in software 64-bit divide code. That would
-    be okay, because Go code can split the stack, but it's still unnecessary.
+    It looks like this has just always been broken:
+    the race detector handles running Go code on g0 of the main thread
+    and on g0 of any extra threads created by non-Go code, but it does
+    not handle running Go code on g0 of non-main threads created by Go.
+    Handle that.
     
-    Write time·now in assembly, just like on all the other systems, and use the
-    actual hardware support for 64/32 -> 64/32 division. This cuts the software
-    routines out entirely.
+    Should fix the race build failures on the dashboard.
     
-    The actual code to do the division is copied and pasted from the sys_darwin_*.s files.
+    We're running into this now because we are running more
+    and more Go code on g0.
     
-    LGTM=alex.brainman
-    R=golang-codereviews, alex.brainman
-    CC=aram, golang-codereviews, iant, khr, r
-    https://golang.org/cl/136300043
+    TBR=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/137910043
 
- src/pkg/runtime/os_plan9.c          | 13 -------------
- src/pkg/runtime/os_solaris.c        | 13 -------------
- src/pkg/runtime/os_windows.c        | 23 +++++++----------------
- src/pkg/runtime/sys_darwin_amd64.s  |  2 +-
- src/pkg/runtime/sys_plan9_386.s     | 13 +++++++++++++
- src/pkg/runtime/sys_plan9_amd64.s   | 20 ++++++++++++++++++++
- src/pkg/runtime/sys_solaris_amd64.s | 20 ++++++++++++++++++++
- src/pkg/runtime/sys_windows_386.s   | 13 +++++++++++++
- src/pkg/runtime/sys_windows_amd64.s | 21 +++++++++++++++++++++
- 9 files changed, 95 insertions(+), 43 deletions(-)
+ src/pkg/runtime/proc.c | 2 ++
+ 1 file changed, 2 insertions(+)

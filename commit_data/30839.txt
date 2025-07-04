@@ -1,32 +1,22 @@
-commit 0b9607d1d648ae77d2db86a991db4a1fe921dbd8
-Author: Filip Gruszczyński <gruszczy@gmail.com>
-Date:   Wed Mar 15 20:11:30 2017 -0700
+commit 4bf7d1e722e852f4a28d1898cbe5d0a0d505763b
+Author: Joe Tsai <thebrokentoaster@gmail.com>
+Date:   Thu Dec 8 07:13:50 2016 +0000
 
-    encoding/gob: Speedup map decoding by reducing the allocations.
+    Revert "testing: add T.Context method"
     
-    The improvementis achieved in encoding/gob/decode.go decodeMap by
-    allocate keyInstr and elemInstr only once and pass it to
-    decodeIntoValue, instead of allocating a new instance on every loop
-    cycle.
+    This reverts commit 26827bc2fe4c80dc68b3793631d24975425c9467.
     
-    name                     old time/op  new time/op  delta
-    DecodeComplex128Slice-8  64.2µs ±10%  62.2µs ± 8%     ~     (p=0.686 n=4+4)
-    DecodeFloat64Slice-8     37.1µs ± 3%  36.5µs ± 5%     ~     (p=0.343 n=4+4)
-    DecodeInt32Slice-8       33.7µs ± 3%  32.7µs ± 4%     ~     (p=0.200 n=4+4)
-    DecodeStringSlice-8      59.7µs ± 5%  57.3µs ± 1%     ~     (p=0.114 n=4+4)
-    DecodeInterfaceSlice-8    543µs ± 7%   497µs ± 3%     ~     (p=0.057 n=4+4)
-    DecodeMap-8              3.78ms ± 8%  2.66ms ± 2%  -29.69%  (p=0.029 n=4+4)
+    Fixes #18199
     
-    Updates #19525
-    
-    Change-Id: Iec5fa4530de76f0a70da5de8a129a567b4aa096e
-    Reviewed-on: https://go-review.googlesource.com/38317
+    Change-Id: I42e292cb4e3d740a4fbb5d0380c6ee15ac742092
+    Reviewed-on: https://go-review.googlesource.com/34141
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/gob/codec_test.go  |  8 ++++++++
- src/encoding/gob/decode.go      | 10 ++++++----
- src/encoding/gob/timing_test.go | 25 +++++++++++++++++++++++++
- 3 files changed, 39 insertions(+), 4 deletions(-)
+ src/go/build/deps_test.go   |  2 +-
+ src/testing/benchmark.go    |  4 ----
+ src/testing/sub_test.go     | 51 +++++++++++++++++++--------------------------
+ src/testing/testing.go      | 35 ++++++-------------------------
+ src/testing/testing_test.go | 38 +++++----------------------------
+ 5 files changed, 34 insertions(+), 96 deletions(-)

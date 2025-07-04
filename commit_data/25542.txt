@@ -1,25 +1,22 @@
-commit b80b098bc523871d0657f8f68ed71882558f557f
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Jan 8 12:57:02 2016 +1300
+commit a7d331b368cb4f16db7bc1919a82af878e382ba4
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Tue Nov 10 00:56:14 2015 +0530
 
-    cmd/go: pass -no-pie along with -Wl,-r to gcc when supported on linux
+    cmd/go: clean the directory path containing the packages
     
-    Go fails to build on a system which has PIE enabled by default like this:
+    The heuristic for determining if the packages or commands are stale
+    fails as the mtime comparison happens even though the GOROOT and
+    current package paths are the same, since the path name isn't
+    canonicalized before the comparison (GOROOT is).
     
-    /usr/bin/ld: -r and -pie may not be used together
-    collect2: error: ld returned 1 exit status
+    Fixes: #12690
     
-    The only system I know that has this property right now is Ubuntu Xenial
-    running on s390x, which is hardly the most accessible system, but it's planned
-    to enable this on amd64 soon too. The fix is to pass -no-pie along with -Wl,-r
-    to the compiler, but unfortunately that flag is very new as well. So this does
-    a test compile of a trivial file to see if the flag is supported.
-    
-    Change-Id: I1345571142b7c3a96212e43297d19e84ec4a3d41
-    Reviewed-on: https://go-review.googlesource.com/18359
+    Change-Id: Ia7d142fbbed8aac2bd2f71d1db4efd1f3ff5aece
+    Reviewed-on: https://go-review.googlesource.com/16483
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/build.go | 38 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 38 insertions(+)
+ src/cmd/go/go_test.go | 11 +++++++++++
+ src/go/build/build.go |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,15 +1,21 @@
-commit 8ac6544564be04ed1c0bbf7831ad0f8ed1f067ed
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 15 10:03:30 2021 -0700
+commit ac5c406ef0ab20e2a11f57470271266ef4265221
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Aug 13 12:21:18 2020 -0400
 
-    bytes: correct tense in comment
+    [dev.link] cmd/link: clean up some pclntab state
     
-    Undo incorrect change accidentally made in CL 299109.
+    Clean up some pclntab state, specifically:
+    1) Remove the oldPclnState type.
+    2) Move a structure out of pclnState, that was holding some memory.
+    3) Stop passing container around everywhere and calling emitPcln. Use a
+       slice of function symbols instead.
     
-    Change-Id: Iba29827d0fbd3637c311cebc50c2f4ea437fc582
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301830
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I74e916564cd769a706750d024e55ee0d811a79da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248379
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/bytes/buffer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/pcln.go | 135 ++++++++++++++-------------------------
+ 1 file changed, 47 insertions(+), 88 deletions(-)

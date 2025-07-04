@@ -1,12 +1,20 @@
-commit 314df5226a812b25f480a0f13cb3aed7dd140475
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Apr 26 12:02:06 2012 -0700
+commit d09943aeaf9469f567f1935eb641dc6c2e2dedaa
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 26 14:25:28 2012 -0400
 
-    doc: go1.0.1 release notes
+    cmd/go: new tag selection logic
     
-    R=golang-dev, rsc
+    The new logic is "use go1 if it's there, otherwise no tag."
+    Nothing needs to say "I require go1.0.1", and I want to
+    preserve some flexibility in defining what tags mean.
+    
+    Right now (before go1.0.1) there is only one possible tag,
+    "go1", and I'd like to keep it that way.
+    
+    R=golang-dev, bradfitz, r, adg
     CC=golang-dev
-    https://golang.org/cl/6123055
+    https://golang.org/cl/6112060
 
- doc/devel/release.html | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/go/get.go      | 64 ++++++++++++++-------------------------------
+ src/cmd/go/tag_test.go | 71 ++++++++++++++++++++++++++------------------------
+ 2 files changed, 57 insertions(+), 78 deletions(-)

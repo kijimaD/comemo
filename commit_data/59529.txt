@@ -1,32 +1,27 @@
-commit 8798f9e7a4929bafb570da29d342104c8cb32f9b
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Feb 6 16:11:50 2025 -0500
+commit 5d29578fd54d5774ff0ecbe2b1407317bf64ead8
+Author: sivchari <shibuuuu5@gmail.com>
+Date:   Mon Feb 26 15:08:13 2024 +0900
 
-    cmd/distpack: remove some tools from packaged distribution
+    testing: add TB.SetGOMAXPROCS function
     
-    This change removes some tools that are not used for builds, or
-    otherwise invoked by the go command (other than through "go tool"
-    itself) from the packaged distributions produced by distpack. When these
-    tools are missing, "go tool" will build and run them as needed.
+    Add a new method TB.SetGOMAXPROCS which sets variable of GOMAXPROCS.
+    This method aims to set a variable for the isolated lifetime of the test and cleans up.
+    And unset this when the test ends.
+    This method disables the test or benchmark from running in
+    parallel.
     
-    Also update a case where we print a buildid commandline to specify
-    invoking buildid using "go tool" rather than the binary at it's install
-    location, because it may not exist there in packaged distributions
-    anymore.
+    Fixes: #62020
     
-    The tools in this CL are the lowest hanging fruit. There are a few more
-    tools that aren't used by builds, but we'd have to get the go command to
-    run them using "go tool" rather than finding them in the tool install
-    directory.
-    
-    For #71867
-    
-    Change-Id: I217683bd549962a1add87405bf3fb1225e2333c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/666755
+    Change-Id: Iae44109d0def35cc47049c3ca4cd5306173d52ee
+    Signed-off-by: sivchari <shibuuuu5@gmail.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519235
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Matloob <matloob@google.com>
 
- src/cmd/distpack/pack.go            | 4 ++--
- src/cmd/go/internal/work/buildid.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ api/next/62020.txt                          |  4 ++
+ doc/next/6-stdlib/99-minor/testing/62020.md |  1 +
+ src/testing/testing.go                      | 49 ++++++++++++++-
+ src/testing/testing_test.go                 | 97 +++++++++++++++++++++++++++++
+ 4 files changed, 149 insertions(+), 2 deletions(-)

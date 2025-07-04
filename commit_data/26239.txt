@@ -1,33 +1,16 @@
-commit bb48b864b1c79c586b5807f3c78ab15e75e770e2
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Mar 11 12:19:08 2016 +1100
+commit aec2f0cf855ac2d2b79ca3178dcd9f63c0b5afb0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 10:53:16 2016 -0500
 
-    cmd/link: rewrite pe symbol table generating code
+    net: fix timeout test bug
     
-    Every go executable has COFF symbol table appended at the end. The table is
-    used by nm and addr2line and contains all symbols present in the executable.
-    The table is quite large. For example, my go.exe has 11736 records.
+    This was supposed to be in CL 18205 but I submitted via the web
+    instead of from my computer, so it got lost.
+    May deflake some things.
     
-    To generate symbol table:
-    1) we walk "all symbols" list to count symbols we want for the table;
-    2) we allocate large global array of COFFSym structs (32 bytes each)
-       to fit our symbols;
-    3) we walk "all symbols" list again to fill our array with contents;
-    4) we iterate over our global array to write all records to the file.
-    
-    This CL changes all these steps with single step:
-    - walk "all symbols" list and write each COFF symbol table record to
-      the file as we go.
-    
-    I hope new version is faster and uses less garbage, but I don't know
-    how to benchmark this.
-    
-    Change-Id: Ie4870583250131ea4428e0e83a0696c9df1794e0
-    Reviewed-on: https://go-review.googlesource.com/20580
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I880fb74b5943b8a17f952a82639c60126701187a
+    Reviewed-on: https://go-review.googlesource.com/18259
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 147 ++++++++++++++++++-----------------------
- 1 file changed, 64 insertions(+), 83 deletions(-)
+ src/net/timeout_test.go | 1 -
+ 1 file changed, 1 deletion(-)

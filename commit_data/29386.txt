@@ -1,40 +1,30 @@
-commit 23416315060bf7601e5779c3a6a2529d4d604584
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 4 05:28:01 2016 +0000
+commit 1ee544641450236e8c78d8d408e6cb8ab69cee60
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 12 13:39:54 2016 -0700
 
-    all: sprinkle t.Parallel on some slow tests
+    cmd/compile: remove incannedimport
     
-    I used the slowtests.go tool as described in
-    https://golang.org/cl/32684 on packages that stood out.
+    This used to be used to give special semantics to the builtin
+    definitions of package runtime and unsafe, but none of those are
+    relevant anymore:
     
-    go test -short std drops from ~56 to ~52 seconds.
+    - The builtin runtime and unsafe packages do not risk triggering false
+      import cycles since they no longer contain `import "runtime"`.
     
-    This isn't a huge win, but it was mostly an exercise.
+    - bimport.go never creates ODCLTYPE, so no need to special case them.
     
-    Updates #17751
+    - "incannedimport != 0" is only true when "importpkg != nil" anyway,
+      so "incannedimport == 0 && importpkg == nil" is equivalent to just
+      "importpkg == nil".
     
-    Change-Id: I9f3402e36a038d71e662d06ce2c1d52f6c4b674d
-    Reviewed-on: https://go-review.googlesource.com/32751
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I076f15dd705d4962e7a4c33972e304ef67e7effb
+    Reviewed-on: https://go-review.googlesource.com/29084
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/compress/flate/deflate_test.go      |  7 +++++
- src/compress/flate/flate_test.go        |  1 +
- src/compress/flate/writer_test.go       |  3 ++
- src/crypto/tls/handshake_client_test.go | 21 +++++++++++++
- src/crypto/tls/handshake_server_test.go |  2 ++
- src/crypto/tls/tls_test.go              |  1 +
- src/encoding/json/encode_test.go        |  2 ++
- src/encoding/json/scanner_test.go       |  1 +
- src/go/printer/printer_test.go          | 55 ++++++++++++++++++++-------------
- src/log/syslog/syslog_test.go           |  2 ++
- src/mime/multipart/multipart_test.go    |  2 ++
- src/runtime/crash_cgo_test.go           | 16 ++++++++++
- src/runtime/crash_test.go               |  2 ++
- src/runtime/crash_unix_test.go          |  2 ++
- src/runtime/map_test.go                 |  1 +
- src/runtime/memmove_linux_amd64_test.go |  1 +
- src/runtime/memmove_test.go             |  4 +++
- src/runtime/runtime-gdb_test.go         |  2 ++
- 18 files changed, 103 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go   | 2 +-
+ src/cmd/compile/internal/gc/go.go        | 2 --
+ src/cmd/compile/internal/gc/main.go      | 3 ---
+ src/cmd/compile/internal/gc/typecheck.go | 6 ++----
+ 4 files changed, 3 insertions(+), 10 deletions(-)

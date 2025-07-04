@@ -1,37 +1,12 @@
-commit e7e4a4ffa3330518250c4075e1f16a8ba62414df
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat Sep 9 14:59:06 2017 +0200
+commit e16944da0e9485db83014e9377860c80cd20f363
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Tue May 23 10:36:28 2017 -0700
 
-    runtime: improve fastrand with a better generator
+    doc: document go1.8.2 and go1.7.6
     
-    The current generator is a simple LSFR, which showed strong
-    correlation in higher bits, as manifested by fastrandn().
-    
-    Change it with xorshift64+, which is slightly more complex,
-    has a larger state, but has a period of 2^64-1 and is much better
-    at statistical tests. The version used here is capable of
-    passing Diehard and even SmallCrush.
-    
-    Speed is slightly worse but is probably insignificant:
-    
-    name                old time/op  new time/op  delta
-    Fastrand-4          0.77ns ±12%  0.91ns ±21%  +17.31%  (p=0.048 n=5+5)
-    FastrandHashiter-4  13.6ns ±21%  15.2ns ±17%     ~     (p=0.160 n=6+5)
-    Fastrandn/2-4       2.30ns ± 5%  2.45ns ±15%     ~     (p=0.222 n=5+5)
-    Fastrandn/3-4       2.36ns ± 7%  2.45ns ± 6%     ~     (p=0.222 n=5+5)
-    Fastrandn/4-4       2.33ns ± 8%  2.61ns ±30%     ~     (p=0.126 n=6+5)
-    Fastrandn/5-4       2.33ns ± 5%  2.48ns ± 9%     ~     (p=0.052 n=6+5)
-    
-    Fixes #21806
-    
-    Change-Id: I013bb37b463fdfc229a7f324df8fe2da8d286f33
-    Reviewed-on: https://go-review.googlesource.com/62530
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I2ed2e8c4890a65288cf3066ebe3c1d9a16fb4c05
+    Reviewed-on: https://go-review.googlesource.com/43990
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/chan_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/proc.go      | 12 +++++-----
- src/runtime/runtime2.go  | 18 +++++++--------
- src/runtime/stubs.go     | 15 ++++++++-----
- 4 files changed, 83 insertions(+), 19 deletions(-)
+ doc/devel/release.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

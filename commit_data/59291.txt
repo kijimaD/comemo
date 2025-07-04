@@ -1,19 +1,19 @@
-commit 80bff42fdd0380c09f4df35c4baacb9cfdae5aae
-Author: dmathieu <42@dmathieu.com>
-Date:   Wed Dec 11 09:55:27 2024 +0000
+commit bfa116b345b9216fa3dce253864d51dcefb42d0f
+Author: Nicolas Hillegeer <aktau@google.com>
+Date:   Wed Feb 28 15:21:18 2024 -0800
 
-    errors: optimize errors.Join for single unwrappable errors
+    text/tabwriter: add recovered panic message to rethrow
     
-    Change-Id: I10bbb782ca7234cda8c82353f2255eec5be588c9
-    GitHub-Last-Rev: e5ad8fdb802e56bb36c41b4982ed27c1e0809af8
-    GitHub-Pull-Request: golang/go#70770
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635115
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Without it, there is little information to debug why the original write
+    failed.
+    
+    Change-Id: I21615ab7ca402115d02becdbd11bbacde55b98b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567955
+    Auto-Submit: Nicolas Hillegeer <aktau@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/errors/join.go      | 12 ++++++++++++
- src/errors/join_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+)
+ src/text/tabwriter/tabwriter.go      | 3 ++-
+ src/text/tabwriter/tabwriter_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

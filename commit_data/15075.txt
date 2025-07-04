@@ -1,32 +1,15 @@
-commit f20e3a10654e71823d58fb5d2deefce24d44a76f
+commit 25d1fc9389b7313b0e5743c7742c30c36dc2396a
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 1 08:34:08 2013 -0800
+Date:   Thu Jan 31 22:57:30 2013 -0800
 
-    cmd/cgo: fix line number annotations in generated C code
+    cmd/dist: fix build
     
-    The old version was using go/ast's CommentGroup.Text method,
-    but that method drops leading blank lines from the result, so that
-    if the comment looked like one of
+    The Unix and Plan 9 readfile call breset(b) but Windows was not,
+    leaving dregs in the buffer.
     
-    //
-    // syntax error
-    import "C"
-    
-    /*
-    syntax error
-    */
-    import "C"
-    
-    then the line numbers for the syntax error would be off by the
-    number of leading blank lines (1 in each of the above cases).
-    
-    The new text extractor preserves blank lines.
-    
-    Fixes #4019.
-    
-    R=golang-dev, iant
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7232071
+    https://golang.org/cl/7229069
 
- src/cmd/cgo/ast.go | 26 +++++++++++++++++++++++++-
- 1 file changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/dist/windows.c | 1 +
+ 1 file changed, 1 insertion(+)

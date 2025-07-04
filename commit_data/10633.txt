@@ -1,18 +1,27 @@
-commit 130e2943a320f012757518787b0c9dbf182ecb3a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 6 16:38:02 2011 -0800
+commit 554ac03637bd855179c93d76d05b9c847571d0e2
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Dec 6 18:25:14 2011 -0500
 
-    http: make Transport warning about connections closing more accurate
+    crypto: allocate less.
     
-    It was fragile and non-portable, and then became spammy with
-    the os.EINVAL removal.  Now it just uses the length of the
-    Peek return value instead.
+    The code in hash functions themselves could write directly into the
+    output buffer for a savings of about 50ns. But it's a little ugly so I
+    wasted a copy.
     
-    R=golang-dev, alex.brainman
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5453065
+    https://golang.org/cl/5440111
 
- src/pkg/net/http/Makefile             |  5 -----
- src/pkg/net/http/transport.go         | 14 ++++----------
- src/pkg/net/http/transport_windows.go | 21 ---------------------
- 3 files changed, 4 insertions(+), 36 deletions(-)
+ src/pkg/crypto/hmac/hmac.go            |  9 ++++-----
+ src/pkg/crypto/md5/md5.go              | 17 +++++++++--------
+ src/pkg/crypto/openpgp/s2k/s2k.go      |  8 ++++++--
+ src/pkg/crypto/ripemd160/ripemd160.go  | 17 +++++++++--------
+ src/pkg/crypto/rsa/rsa.go              |  3 ++-
+ src/pkg/crypto/sha1/sha1.go            | 17 +++++++++--------
+ src/pkg/crypto/sha256/sha256.go        | 20 ++++++++++++--------
+ src/pkg/crypto/sha512/sha512.go        | 25 +++++++++++++++----------
+ src/pkg/crypto/tls/cipher_suites.go    | 14 +++++++-------
+ src/pkg/crypto/tls/conn.go             |  9 +++++++--
+ src/pkg/crypto/tls/handshake_client.go |  8 ++++----
+ src/pkg/crypto/tls/handshake_server.go |  6 +++---
+ 12 files changed, 87 insertions(+), 66 deletions(-)

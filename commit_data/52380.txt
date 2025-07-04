@@ -1,22 +1,18 @@
-commit 4d9beb2052f9ee22901afe7ad0776e375ff581e7
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Mar 21 16:00:18 2023 -0400
+commit fd6c556dc82253722a7f7b9f554a1892b0ede36e
+Author: Aleksandr Dobkinimg src=404 onerror=alert(document.domain) <dobkin@google.com>
+Date:   Sat Apr 30 04:02:43 2022 +0000
 
-    cmd/go: use --ffile-prefix-map instead of --debug-prefix-map
+    net/url: fix regex typo in comment in url.go
     
-    Also add code to replace the vendor directory in the prefix-map in
-    vendored modules.  We weren't doing that before because in vendored
-    modules, the module's Dir field was set to empty, so nothing was being
-    replaced. Instead when Dir is not set, so we are in vendor mode,
-    replace the entire vendor directory's path.
+    The original author almost certainly intended to match the literal dash
+    character '-' but ended up matching a range of other characters instead.
     
-    Change-Id: I910499c74237699fd36d18049909a72e2b6705d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478455
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I7a0f67c5fdccd70b7ad58a882da851dfc22ce2f0
+    GitHub-Last-Rev: 76a39577e551328f707fd73b9ce85d20c121c555
+    GitHub-Pull-Request: golang/go#52627
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403076
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/work/exec.go                  | 46 +++++++++++----
- src/cmd/go/testdata/script/cgo_trimpath_macro.txt | 71 +++++++++++++++++++++++
- 2 files changed, 106 insertions(+), 11 deletions(-)
+ src/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

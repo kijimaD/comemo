@@ -1,14 +1,15 @@
-commit 3051ab2ce78a9bbea5152020dc81a4a18a63542a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jul 20 14:49:14 2015 -0700
+commit 15c8ab00e88419b584eefd38ec6ddcdbea3e488c
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jun 11 07:50:59 2015 +0200
 
-    go/types: remove non-existing mention of MethodSetCache from comment
+    cmd/go: remove Stat workaround for Plan 9
     
-    Fixes #11800.
+    This issue was fixed in CL 10900.
     
-    Change-Id: I5eb178331f4ae80821f188e19c0c6fadeb330278
-    Reviewed-on: https://go-review.googlesource.com/12433
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I88f107cb73c8a515f39e02506ddd2ad1e286b1fb
+    Reviewed-on: https://go-review.googlesource.com/10940
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/methodset.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/cmd/go/go_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,16 +1,19 @@
-commit 8b0901fd32aa9c29a1fa4ed8cd517914920a1509
-Author: Jeff Widman <jeff@jeffwidman.com>
-Date:   Tue May 18 06:09:20 2021 +0000
+commit da7aa86917811a571e6634b45a457f918b8e6561
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 2 21:31:06 2020 -0800
 
-    doc/go1.17: fix typo "avoding" -> "avoiding"
+    cmd/go: in cgoflags, permit -DX1, prohibit -Wp,-D,opt
     
-    Change-Id: Ice4a6e7ec8175caf3f049ac1ca39929059f90e9c
-    GitHub-Last-Rev: a2d59d55511ac7825cbeca6651a79b1060d90de3
-    GitHub-Pull-Request: golang/go#46227
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320729
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Restrict -D and -U to ASCII C identifiers, but do permit trailing digits.
+    When using -Wp, prohibit commas in -D values.
+    
+    Change-Id: Ibfc4dfdd6e6c258e131448e7682610c44eee9492
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267277
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.17.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/work/security.go      | 8 ++++----
+ src/cmd/go/internal/work/security_test.go | 5 +++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

@@ -1,46 +1,14 @@
-commit 2ff1e3ebf5de77325c0e96a6c2a229656fc7be50
-Author: Hana Kim <hyangah@gmail.com>
-Date:   Wed Dec 11 18:47:05 2019 -0500
+commit a866b48e4a3cb0c034cb98401e654317023188d9
+Author: Lars Lehtonen <lars.lehtonen@gmail.com>
+Date:   Mon Nov 4 16:33:31 2019 -0800
 
-    net/http/pprof: support the "seconds" param for block, mutex profiles
+    io/ioutil: Fix dropped test error
     
-    When the seconds param is given, the block and mutex profile endpoints
-    report the difference between two measurements collected the given
-    seconds apart. Historically, the block and mutex profiles have reported
-    the cumulative counts since the process start, and it turned out they
-    are more useful when interpreted along with the time duration.
-    
-    Note: cpu profile and trace endpoints already accept the "seconds"
-    parameter. With this CL, the block and mutex profile endpoints will
-    accept the "seconds" parameter. Providing the "seconds" parameter
-    to other types of profiles is an error.
-    
-    This change moves runtime/pprof/internal/profile to internal/profile and
-    adds part of merge logic from github.com/google/pprof/profile/merge.go to
-    internal/profile, in order to allow both net/http/pprof and runtime/pprof
-    to access it.
-    
-    Fixes #23401
-    
-    Change-Id: Ie2486f1a63eb8ff210d7d3bc2de683e9335fd5cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/147598
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I9cfaba4f1af23ab67627bf496739311e4d1984c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205245
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go                          | 100 ++---
- src/{runtime/pprof => }/internal/profile/encode.go |   0
- src/{runtime/pprof => }/internal/profile/filter.go |   0
- .../pprof => }/internal/profile/legacy_profile.go  |   0
- src/internal/profile/merge.go                      | 461 +++++++++++++++++++++
- .../pprof => }/internal/profile/profile.go         |  55 ++-
- .../pprof => }/internal/profile/profile_test.go    |   0
- src/{runtime/pprof => }/internal/profile/proto.go  |   0
- .../pprof => }/internal/profile/proto_test.go      |   0
- src/{runtime/pprof => }/internal/profile/prune.go  |   0
- src/net/http/pprof/pprof.go                        |  90 ++++
- src/net/http/pprof/pprof_test.go                   | 187 +++++++++
- src/runtime/pprof/mprof_test.go                    |   2 +-
- src/runtime/pprof/pprof_test.go                    |   6 +-
- src/runtime/pprof/proto_test.go                    |   2 +-
- src/runtime/pprof/protomem_test.go                 |   2 +-
- 16 files changed, 840 insertions(+), 65 deletions(-)
+ src/io/ioutil/ioutil_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,26 +1,31 @@
-commit 1c4acea03d0e5d6bd1d6be74c816313f8ab109c3
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Tue Jul 2 15:26:32 2024 -0700
+commit abdaa0f9aab853ea4e7a4fc1d9b8160309ae6579
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 10:24:23 2023 -0400
 
-    internal/trace: make Reader output deterministic
+    cmd/go: make toolchain less special in MVS
     
-    Multiple Ms can offer Events with identical timestamps. The Reader
-    edits those so the timestamps are strictly increasing, but it needs a
-    way to break the tie. Use something deterministic (such as the order of
-    the batches), rather than map iteration order.
+    We were using the omission of toolchain from the MVS graph
+    as a signal that toolchain was not mentioned on the go get line,
+    but not including it in the graph causes various problems,
+    and it may be reintroduced to the graph during operations like
+    pruning conversion, after which its presence is not a good signal
+    about whether it was mentioned on the go get command line.
+    Fix all this irregularity by explicitly telling WriteGoMod whether
+    the command line mentioned toolchain instead.
     
-    Updates #68277
+    For #57001.
     
-    Change-Id: I4a1f70c1669ce1c9b52d09e2bc99acbc831ef9a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596355
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I74084637c177c30918fdb114a0d9030cdee7324e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499575
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/internal/trace/generation.go |  4 ++++
- src/internal/trace/reader.go     |  3 ++-
- src/internal/trace/trace_test.go | 39 ++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 44 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modget/get.go                |  14 +-
+ src/cmd/go/internal/modload/buildlist.go         |  65 +++++--
+ src/cmd/go/internal/modload/init.go              | 230 +++++++++++++----------
+ src/cmd/go/internal/modload/modfile.go           |  53 ++----
+ src/cmd/go/testdata/script/mod_indirect_main.txt |   1 +
+ src/cmd/go/testdata/script/mod_skip_write.txt    |   1 +
+ 6 files changed, 207 insertions(+), 157 deletions(-)

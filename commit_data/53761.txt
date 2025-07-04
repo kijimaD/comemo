@@ -1,20 +1,20 @@
-commit b02725a8897ec46e26b99e3be9b9805021c77064
-Author: erifan01 <eric.fang@arm.com>
-Date:   Wed Jun 7 14:49:00 2023 +0800
+commit 0592ce5f69f4149da643b61e6bb1163e6046401c
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Sep 1 21:44:11 2022 +0800
 
-    cmd/asm: initialize assembler before running error tests
+    types2: use strings.Builder in infer.go
     
-    The Test{ARCH}Errors tests will call ctxt.Arch.Assemble, but this
-    function requires the assembler has been initialized. So this CL adds
-    a call to architecture.Init(ctxt) in testErrors, otherwise running
-    Test{ARCH}Errors alone would fail.
+    Permissible now because go1.17 is used for bootstrapping.
     
-    Change-Id: I4f3ba5a5fc1375d28779701989cf700cb4d1b635
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505976
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ic97b0706190c3eb907da69003bc94448c90e5af7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427556
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/asm/internal/asm/endtoend_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/types2/infer.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

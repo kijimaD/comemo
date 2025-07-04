@@ -1,19 +1,18 @@
-commit d5f208c8746a92fa889b9a9121e0d40dcc1deced
-Author: Nathan John Youngman <nj@nathany.com>
-Date:   Mon Mar 17 09:35:04 2014 +1100
+commit f0433e422b3b71df54957fcd5ab1db31b02e58d4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 15 13:43:02 2014 +0900
 
-    doc: Revise Contribution Guidelines.
+    net: make use of testing.Errorf instead of testing.Fatalf in non-test function goroutines
     
-    Smooth out the setup process for new contributors.
+    See testing.FailNow for further information.
     
-    * Remove references $GOROOT (often not defined).
-    * Add a note for contributing to subrepositories.
-    * Emphasize that hg mail also uploads the latest copy.
-    
-    LGTM=adg
-    R=golang-codereviews, iant, adg
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/74370043
+    https://golang.org/cl/75900043
 
- doc/contribute.html | 53 +++++++++++++++++++++++++++++++----------------------
- 1 file changed, 31 insertions(+), 22 deletions(-)
+ src/pkg/net/fd_mutex_test.go | 27 ++++++++++++++++++---------
+ src/pkg/net/net_test.go      | 15 ++++++++++-----
+ src/pkg/net/tcp_test.go      | 15 ++++++++++-----
+ src/pkg/net/timeout_test.go  | 15 ++++++++++-----
+ 4 files changed, 48 insertions(+), 24 deletions(-)

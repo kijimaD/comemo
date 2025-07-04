@@ -1,0 +1,15 @@
+commit 02a9f51011eb7b6150828aab623eede497eb1e09
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 20 23:41:40 2024 +1000
+
+    test/codegen: add initial codegen tests for integer min/max
+    
+    Change-Id: I006370053748edbec930c7279ee88a805009aa0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606976
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ test/codegen/arithmetic.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

@@ -1,14 +1,16 @@
-commit ed480128a6da8e65119738bf792f3fbe4af2e16f
+commit 85266dfd4dd9932672258e0a9f68e3fc96a44ec8
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 22 00:12:58 2012 -0400
+Date:   Tue May 22 00:07:13 2012 -0400
 
-    cmd/6a, cmd/6l: add BSWAPL, BSWAPQ
+    runtime: relax TestGcSys
     
-    R=ken2
+    This fixes occasional 64-bit failures.
+    Maybe it will fix the 32-bit failures too,
+    so re-enable on 32-bit for now.
+    
+    R=golang-dev, bradfitz, r, dvyukov
     CC=golang-dev
-    https://golang.org/cl/6209087
+    https://golang.org/cl/6218050
 
- src/cmd/6a/lex.c   | 2 ++
- src/cmd/6l/6.out.h | 2 ++
- src/cmd/6l/optab.c | 7 +++++++
- 3 files changed, 11 insertions(+)
+ src/pkg/runtime/gc_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

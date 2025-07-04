@@ -1,25 +1,19 @@
-commit a25688d406f2a4296d39b22a2b10aea7178eddc6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 11 14:01:02 2023 -0700
+commit 73475ef0350e84b35a6aa1b593448a9497b62440
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 23 17:53:01 2022 -0700
 
-    runtime: remove crash_cgo_test CgoRaceSignal timeout
+    go/types, types2: print qualified object names in cycle errors
     
-    The test had a 5 second timeout. Running the test on a Darwin system
-    sometimes took less than 5 seconds but often took up to 8 seconds.
-    We don't need a timeout anyhow. Instead, use testenv.Command to
-    run the program, which uses the test timeout.
+    Fixes #50788.
     
-    Fixes #59807
-    
-    Change-Id: Ibf3eda9702731bf98601782f4abd11c3caa0bf40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494456
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Id1ed7d9c0687e3005e28598373fd5634178c78ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413895
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/crash_cgo_test.go               |  5 +----
- src/runtime/testdata/testprogcgo/racesig.go | 10 ----------
- 2 files changed, 1 insertion(+), 14 deletions(-)
+ src/cmd/compile/internal/types2/decl.go | 22 ++++++++++++++++++----
+ src/go/types/decl.go                    | 22 ++++++++++++++++++----
+ test/fixedbugs/issue50788.dir/a.go      |  9 +++++++++
+ test/fixedbugs/issue50788.dir/b.go      |  9 +++++++++
+ test/fixedbugs/issue50788.go            |  7 +++++++
+ 5 files changed, 61 insertions(+), 8 deletions(-)

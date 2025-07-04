@@ -1,19 +1,21 @@
-commit 1894842b751d86b642249d8171250acba0395205
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jan 23 22:19:39 2020 -0800
+commit cdd59205c48a4504925b1d65fdb68ff1f1250870
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 26 09:53:37 2019 -0400
 
-    cmd/compile: allow values with aux Sym to fault on nil args
+    cmd/compile: don't emit autom's into object file
     
-    And use this newfound power to more precisely describe some PPC64 ops.
+    Don't write Autom records when writing a function to the object file;
+    we no longer need them in the linker for DWARF processing. So as to
+    keep the object file format unchanged, write out a zero-length list of
+    automs to the object, as opposed to removing all references.
     
-    Change-Id: Idb2b669d74fbab5f3508edf19f7e3347306b0daf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217002
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Updates #34554.
+    
+    Change-Id: I42a1d67207ea7114ae4f3a315cf37effba57f190
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197499
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 8 ++++----
- src/cmd/compile/internal/ssa/gen/main.go     | 4 ++--
- src/cmd/compile/internal/ssa/nilcheck.go     | 4 ++++
- src/cmd/compile/internal/ssa/opGen.go        | 6 +++---
- 4 files changed, 13 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 43 +++++++++++--------------------------
+ src/cmd/internal/obj/link.go        |  4 ----
+ src/cmd/internal/obj/objfile.go     | 24 ++-------------------
+ 3 files changed, 14 insertions(+), 57 deletions(-)

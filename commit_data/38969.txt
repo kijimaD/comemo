@@ -1,18 +1,18 @@
-commit a8d0047e473510db1b1a5e35c03fdf41a13b5733
-Author: Baokun Lee <nototon@gmail.com>
-Date:   Tue Jan 15 18:53:44 2019 +0800
+commit 944a9c7a4f2553998609351ee17111995cf80bb7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 12 22:08:50 2018 -0800
 
-    cmd/go/internal/modcmd: allow mod download without go.mod
+    math: use constant rather than variable for exported test threshold
     
-    Fixes #29522
+    This is a minor follow-up on https://golang.org/cl/153059.
     
-    Change-Id: I48f3a945d24c23c7c7ef5c7f1fe5046b6b2898e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/157937
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TBR=iant
+    
+    Updates #6794.
+    
+    Change-Id: I03657dafc572959d46a03f86bbeb280825bc969d
+    Reviewed-on: https://go-review.googlesource.com/c/153845
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modcmd/download.go      | 5 +++--
- src/cmd/go/internal/modload/init.go         | 4 +++-
- src/cmd/go/testdata/script/mod_download.txt | 7 +++++++
- 3 files changed, 13 insertions(+), 3 deletions(-)
+ src/math/export_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

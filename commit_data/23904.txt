@@ -1,15 +1,17 @@
-commit b7205b92c0a5ae985a3530dc8ad17e7d3a7a807d
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Jul 29 19:56:10 2015 -0400
+commit 2f2908bec31a5fa8b5031b362006baef020b9819
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jun 20 08:12:10 2015 +1000
 
-    runtime/trace: test requires 'go tool addr2line'
+    cmd/doc: fix test on nacl
     
-    For the android/arm builder.
+    nacl is really giving a hard time. avoid all external dependencies in the test.
+    Worked with trybots, failed in the build. No explanation, but this should fix it.
     
-    Change-Id: Iad4881689223cd6479870da9541524a8cc458cce
-    Reviewed-on: https://go-review.googlesource.com/12859
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TBR=rsc
+    
+    Change-Id: Icb644286dbce88f17ee3d96ad90efba34a80a92d
+    Reviewed-on: https://go-review.googlesource.com/11291
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/trace/trace_stack_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/doc/doc_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

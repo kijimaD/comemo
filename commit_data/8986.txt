@@ -1,14 +1,14 @@
-commit e86d727e6033c04b9610c4aeb7b7eafcd9e950a7
+commit 58baf648277730f57debc3be521652d30770ab34
 Author: Rob Pike <r@golang.org>
-Date:   Sat Jul 9 17:11:35 2011 +1000
+Date:   Sat Jul 9 12:05:39 2011 +1000
 
-    exp/template: vars as arguments to functions and methods.
-    That should be it, bugs aside.
+    exp/template: variable evaluation.
+    Still need to do static checking of declarations during parse.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/4671055
+    https://golang.org/cl/4667070
 
- src/pkg/exp/template/exec.go      | 82 +++++++++++++++++++--------------------
- src/pkg/exp/template/exec_test.go |  3 ++
- 2 files changed, 44 insertions(+), 41 deletions(-)
+ src/pkg/exp/template/exec.go      | 93 +++++++++++++++++++++++++++++++++++----
+ src/pkg/exp/template/exec_test.go |  9 ++++
+ 2 files changed, 94 insertions(+), 8 deletions(-)

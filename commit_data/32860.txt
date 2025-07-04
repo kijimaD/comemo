@@ -1,17 +1,19 @@
-commit 4896fc2fa4ed9445e38475a8b1abe9676062d664
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Thu Sep 21 10:53:08 2017 +0900
+commit 829adf5047bee5a7cd746e9d6d00d09eb7ac4adb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 7 16:22:21 2017 -0700
 
-    debug/macho: parse relocations
+    cmd/compile: fix real/imag for untyped constant arguments
     
-    Fixes #21957
+    Fixes #11945.
+    Fixes #17446.
     
-    Change-Id: I69ef9e257aa2b7b6c4fc4c115e99f8a7f93d8d9c
-    Reviewed-on: https://go-review.googlesource.com/65150
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic674f6ebc0533ab0f97c650689125994941b72e1
+    Reviewed-on: https://go-review.googlesource.com/45081
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/debug/macho/file.go                         |  80 +++++++++++-
- src/debug/macho/file_test.go                    | 165 ++++++++++++++++++------
- src/debug/macho/testdata/clang-386-darwin.obj   | Bin 0 -> 464 bytes
- src/debug/macho/testdata/clang-amd64-darwin.obj | Bin 0 -> 768 bytes
- 4 files changed, 204 insertions(+), 41 deletions(-)
+ src/cmd/compile/internal/gc/subr.go      | 13 ------
+ src/cmd/compile/internal/gc/typecheck.go | 58 ++++++++++++++++++++------
+ test/fixedbugs/issue11945.go             | 71 ++++++++++++++++++++++++++++++++
+ 3 files changed, 117 insertions(+), 25 deletions(-)

@@ -1,23 +1,24 @@
-commit 8d11b1d1172817359d08231deaf29f72d315b762
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jun 8 15:53:08 2021 -0400
+commit b63db7f72446753de0f5bb78b629dbe58fb15cda
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Nov 9 16:37:05 2020 -0500
 
-    cmd/go: report the imports of CompiledGoFiles in ImportMap
+    runtime: give test child time to block
     
-    Ideally we should encode the load.PackageInternal data in a way that
-    doesn't rely on 1:1 correlations of slices, but this is a minimal fix
-    to unblock Go 1.17.
+    The child in TestPanicSystemstack prints "x\n" and then blocks on a
+    lock. Receiving those bytes only indicates that the child is _about to
+    block_. Since we don't have a way to know when it is fully blocked,
+    sleep a bit to give it time to block. This makes us less likely to lose
+    the race and signal before the child blocks, which will fail the test as
+    the stack trace cannot be read from a running G.
     
-    Fixes #46462
+    Fixes #33626
     
-    Change-Id: I6e029c69f757aadc54d4be02c01d6b294c217542
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326610
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I8a27b1b114bf75e1e5bcb2a7a33aa69cdbc22f40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268578
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/list/list.go                   | 14 ++++++--
- src/cmd/go/internal/load/pkg.go                    |  4 +--
- .../script/list_cgo_compiled_importmap.txt         | 38 ++++++++++++++++++++++
- 3 files changed, 52 insertions(+), 4 deletions(-)
+ src/runtime/crash_unix_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

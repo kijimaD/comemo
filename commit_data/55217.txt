@@ -1,26 +1,22 @@
-commit 6e33a6376e5bbbfa34c72c34d61abcc3f5891772
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Nov 27 12:24:59 2023 -0500
+commit e7495d873703b0f1602d796b147e56b5c432b1d5
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Dec 2 13:33:04 2022 -0500
 
-    cmd/go: use local go cache for cover_statements script test
+    cmd/dist: remove GOTESTONLY environment variable
     
-    Use a test-local directory for GOCACHE in "cover_statements" script
-    test, as a workaround for issue 64014.
+    This hook was added for the Go build system (x/build) to be able to set
+    the run flag value, but it's no longer used anywhere. Remove it for now.
     
-    For the portion of this test that verifies that caching works
-    correctly, the cache should theoretically always behave
-    reliably/deterministically, however if other tests are concurrently
-    accessing the cache while this test is running, it can lead to cache
-    lookup failures, which manifest as a flaky failure. To avoid such
-    flakes, use a separate isolated GOCACHE for this test.
+    Updates #46054.
     
-    For #64014.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Change-Id: Ia66798215a75b7c41188ed15920c17b73f40152a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545235
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I64e7d68d2b270303f3bd54f73079600f209e350a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455519
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/testdata/script/cover_statements.txt | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

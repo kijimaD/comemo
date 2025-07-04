@@ -1,13 +1,16 @@
-commit 01a5b66d95203f64b215de342487a8d522a3532b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Mar 2 10:41:53 2013 +0400
+commit fd9049f40417781f2dca9435b03d86b1f2b96a0d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 2 10:56:51 2013 +0900
 
-    runtime: deadlock tests now work with GOMAXPROCS>1
-    Fixes #4826.
+    net: skip interface tests when required external command not found
     
-    R=golang-dev, r
+    Fixes #4952.
+    
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/7434046
+    https://golang.org/cl/7445046
 
- src/pkg/runtime/crash_test.go | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/pkg/net/interface_bsd_test.go   | 10 ++++++----
+ src/pkg/net/interface_linux_test.go | 12 +++++++-----
+ src/pkg/net/interface_unix_test.go  |  8 ++++++--
+ 3 files changed, 19 insertions(+), 11 deletions(-)

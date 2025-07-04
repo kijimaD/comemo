@@ -1,39 +1,21 @@
-commit 24ac659a395b2ef6c3877e82de15bed8e13fa40a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 15 13:54:33 2022 -0800
+commit badbc52d82b1f97861bf30457014fc9ea19dfcb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 11 12:18:33 2022 -0800
 
-    syscall, internal/poll: fall back to accept on linux-arm
+    spec: highlight missing prose for easier review, fixed a few sections
     
-    Our minimum Linux version is 2.6.32, and the accept4 system call was
-    introduced in 2.6.28, so we use accept4 everywhere. Unfortunately,
-    it turns out that the accept4 system call was only added to
-    linux-arm in 2.6.36, so for linux-arm only we need to try the accept4
-    system call and then fall back to accept if it doesn't work.
+    The (temporary) highlights will make it easier to review the spec
+    in formatted form as opposed to html text.
     
-    The code we use on linux-arm is the code we used in Go 1.17.
-    On non-arm platforms we continue using the simpler code introduced
-    in Go 1.18.
+    Added a missing rule about the use of adjusted core types for
+    constraint type inference.
     
-    Adding accept4 to the ARM Linux kernel was:
+    Adjusted rule for invalid embedding of interface types.
     
-    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=21d93e2e29722d7832f61cc56d73fb953ee6578e
-    
-    Fixes #57333
-    
-    Change-Id: I6680cb54dd4d3514a6887dda8906e6708c64459d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/457995
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie573068d2307b66c937e803c486724175415b9c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385535
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/sock_cloexec.go        |  2 +-
- src/internal/poll/sock_cloexec_accept.go | 51 ++++++++++++++++++++++++++++++++
- src/syscall/syscall_linux.go             | 15 ----------
- src/syscall/syscall_linux_accept.go      | 34 +++++++++++++++++++++
- src/syscall/syscall_linux_accept4.go     | 25 ++++++++++++++++
- src/syscall/zsyscall_linux_arm.go        | 13 +++++++-
- 6 files changed, 123 insertions(+), 17 deletions(-)
+ doc/go_spec.html | 57 +++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 36 insertions(+), 21 deletions(-)

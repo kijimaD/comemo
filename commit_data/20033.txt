@@ -1,16 +1,13 @@
-commit a6feaf3affcc83f77af1a2ad8c9418befcdec6ef
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Aug 18 18:14:54 2014 -0700
+commit 56949d33d889778d03dd43afc37afdc3cf224223
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 19:50:51 2014 -0400
 
-    liblink: fix encoding of ASETPC in 6a, 8a
+    [dev.power64] sync/atomic: implement for asm_power64x.s
     
-    It was incorrectly encoded as ASETLS.
-    
-    LGTM=ruiu, rsc
-    R=rsc, ruiu
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/126400043
+    https://golang.org/cl/124220043
 
- src/liblink/asm6.c | 2 +-
- src/liblink/asm8.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/sync/atomic/asm_power64x.s | 184 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 184 insertions(+)

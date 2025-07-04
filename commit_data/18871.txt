@@ -1,17 +1,19 @@
-commit 88f84b3e415ad226f9724dc486be0f1b363b9f05
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Mar 14 21:33:55 2014 +0100
+commit 8d321625fdae77d7e4a8c1681fe90bd893b9cdd2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 14 23:25:48 2014 +0400
 
-    liblink, runtime: make nacl/386 binaries valid.
+    runtime: fix spans corruption
+    The problem was that spans end up in wrong lists after split
+    (e.g. in h->busy instead of h->central->empty).
+    Also the span can be non-swept before split,
+    I don't know what it can cause, but it's safer to operate on swept spans.
+    Fixes #7544.
     
-    They were rejected by NaCl due to AES instructions and
-    accesses to %gs:0x8, caused by wrong tlsoffset value.
-    
-    LGTM=iant
-    R=rsc, dave, iant
-    CC=golang-codereviews
-    https://golang.org/cl/76050044
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/76160043
 
- src/liblink/sym.c       | 13 +++++++++++--
- src/pkg/runtime/alg.goc |  5 ++++-
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ src/pkg/runtime/mgc0.c  |  2 +-
+ src/pkg/runtime/mheap.c | 96 ++++++++++++++++++++++++++++++++++---------------
+ src/pkg/runtime/stack.c | 12 ++-----
+ 3 files changed, 70 insertions(+), 40 deletions(-)

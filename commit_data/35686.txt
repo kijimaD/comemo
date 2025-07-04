@@ -1,24 +1,13 @@
-commit 1041ac8781be0fc6b7108b8270f583660e72ec77
-Author: Suriyaa Sundararuban <suriyaasundararuban@gmail.com>
-Date:   Wed Jun 13 07:06:04 2018 +0000
+commit e75f805e6f93af08cb8ae8b531d66277c7813bb0
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Mar 1 11:42:09 2018 -0500
 
-    doc: use HTTPS for links
+    runtime/trace: skip TestUserTaskSpan upon timestamp error
     
-    Change-Id: I9d2d25df067ca573589db5ff18296a5ec33866be
-    Reviewed-on: https://go-review.googlesource.com/118595
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I030baaa0a0abf1e43449faaf676d389a28a868a3
+    Reviewed-on: https://go-review.googlesource.com/97857
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
 
- doc/code.html               |  2 +-
- doc/contribute.html         |  2 +-
- doc/debugging_with_gdb.html |  2 +-
- doc/docs.html               |  2 +-
- doc/editors.html            |  2 +-
- doc/gccgo_contribute.html   |  6 +++---
- doc/gccgo_install.html      | 10 +++++-----
- doc/go1.2.html              |  4 ++--
- doc/go1.4.html              | 10 +++++-----
- doc/go_faq.html             | 10 +++++-----
- doc/go_spec.html            | 10 +++++-----
- doc/install-source.html     |  4 ++--
- doc/install.html            |  2 +-
- 13 files changed, 33 insertions(+), 33 deletions(-)
+ src/runtime/trace/annotation_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

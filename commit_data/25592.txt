@@ -1,37 +1,27 @@
-commit 91b910b7e2b35d06720e7ed4f358016403cda79c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 14 16:29:24 2016 -0800
+commit d5cd4ab46ab4deb15b0f1a12cb03126840d8240d
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:33:09 2015 -0400
 
-    net/http: update bundled http2
+    cmd/compile: added support for mips64{,le}
     
-    If a user starts two HTTP requests when no http2 connection is
-    available, both end up creating new TCP connections, since the
-    server's protocol (h1 or h2) isn't yet known. Once it turns out that
-    the server supports h2, one of the connections is useless. Previously
-    we kept upgrading both TLS connections to h2 (SETTINGS frame exchange,
-    etc).  Now the unnecessary connections are closed instead, before the
-    h2 preface/SETTINGS.
+    It is based on ppc64 compiler.
     
-    Updates x/net/http2 to git rev a8e212f3d for https://golang.org/cl/18675
-    
-    This CL contains the tests for https://golang.org/cl/18675
-    
-    Semi-related change noticed while writing the tests: now that we have
-    TLSNextProto in Go 1.6, which consults the TLS
-    ConnectionState.NegotiatedProtocol, we have to gurantee that the TLS
-    handshake has been done before we look at the ConnectionState. So add
-    that check after the DialTLS hook. (we never documented that users
-    have to call Handshake, so do it for them, now that it matters)
-    
-    Updates #13957
-    
-    Change-Id: I9a70e9d1282fe937ea654d9b1269c984c4e366c0
-    Reviewed-on: https://go-review.googlesource.com/18676
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I15a101df05f2919ba5292136957ba0009227d067
+    Reviewed-on: https://go-review.googlesource.com/14445
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/http/clientserver_test.go | 93 ++++++++++++++++++++++++++++++++++++++
- src/net/http/h2_bundle.go         | 94 +++++++++++++++++++++++++++++++++------
- src/net/http/transport.go         |  6 +++
- 3 files changed, 179 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/cgen.go       |  32 +-
+ src/cmd/compile/internal/gc/gsubr.go      |   4 +-
+ src/cmd/compile/internal/gc/pgen.go       |   4 +-
+ src/cmd/compile/internal/gc/reg.go        |   4 +-
+ src/cmd/compile/internal/gc/walk.go       |   4 +-
+ src/cmd/compile/internal/mips64/cgen.go   |  60 +--
+ src/cmd/compile/internal/mips64/galign.go |  32 +-
+ src/cmd/compile/internal/mips64/ggen.go   | 240 +++++-------
+ src/cmd/compile/internal/mips64/gsubr.go  | 581 ++++++++++++++++--------------
+ src/cmd/compile/internal/mips64/opt.go    |  12 -
+ src/cmd/compile/internal/mips64/peep.go   | 497 ++++++-------------------
+ src/cmd/compile/internal/mips64/prog.go   | 325 +++++------------
+ src/cmd/compile/internal/mips64/reg.go    |  20 +-
+ src/cmd/compile/main.go                   |   3 +
+ 14 files changed, 689 insertions(+), 1129 deletions(-)

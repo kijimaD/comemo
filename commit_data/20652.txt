@@ -1,14 +1,18 @@
-commit 6e8f7b4f3e98deb90c8e2bc183b514c6780cb3a9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Oct 6 22:22:47 2014 -0700
+commit df781cc4abf83225ec2e0dbd6e16dc8dd6cab36d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 13:50:53 2014 -0400
 
-    doc/go1.4.txt: useless change to tickle builders
+    liblink: fix cmd/ld -X flag
     
-    Debugging the builders and need a commit to make them run.
+    This fixes the test/linkx.go test, which does not run by default.
+    (Issue 4139 is about fixing that.)
     
-    R=adg
-    CC=golang-codereviews
-    https://golang.org/cl/149600043
+    Fixes #8806.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=bradfitz, golang-codereviews, iant
+    https://golang.org/cl/145420043
 
- doc/go1.4.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/liblink/objfile.c | 2 ++
+ 1 file changed, 2 insertions(+)

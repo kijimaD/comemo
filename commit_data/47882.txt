@@ -1,24 +1,18 @@
-commit c5540e53b1f692a8c977fd1e4ee0915eea66f999
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 5 12:25:43 2022 -0800
+commit 567a9322ad1980d22896efc3b642eedf997eb6d9
+Author: Amit Kumar <mittalmailbox@gmail.com>
+Date:   Tue Sep 22 18:52:06 2020 +0530
 
-    go/types, types2: ensure that signature type bounds are interfaces
+    mime: add mime type for avif image file format
     
-    Do this by running verification for instantiated signatures
-    later, after the delayed type parameter set-up had a chance
-    to wrap type bounds in implicit interfaces where needed.
+    Fixes #44602
     
-    Fixes #50450
-    
-    Change-Id: If3ff7dc0be6af14af854830bfddb81112ac575cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375737
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I28b6df5e2523fc2ece6fd8251fcabc83c7c38d89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256478
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/call.go            | 24 +++++++++++---------
- .../types2/testdata/fixedbugs/issue50450.go2       | 11 +++++++++
- src/go/types/call.go                               | 26 +++++++++++++---------
- src/go/types/testdata/fixedbugs/issue50450.go2     | 11 +++++++++
- 4 files changed, 51 insertions(+), 21 deletions(-)
+ src/mime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

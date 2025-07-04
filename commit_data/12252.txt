@@ -1,18 +1,12 @@
-commit e952e241ae2f8b33fe60da7640c90afbf0f4307f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 27 21:35:26 2012 -0800
+commit 64bc38eb854b860342031d98eb8788eea1f69815
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 28 16:05:12 2012 +1100
 
-    gotype: provide -comments flag
+    godoc: add Examples link to top-level index
     
-    When debugging ASTs, it's useful to also
-    see the comments on occasion. Usage:
-    
-    gotype -ast -comments file.go
-    
-    R=golang-dev, r
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5703043
+    https://golang.org/cl/5702043
 
- src/pkg/exp/gotype/doc.go    | 2 ++
- src/pkg/exp/gotype/gotype.go | 8 ++++++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ lib/godoc/package.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

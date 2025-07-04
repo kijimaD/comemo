@@ -1,17 +1,22 @@
-commit 30678788b2fef14a614a1cb5b0ea4a7b12a61236
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 16 21:29:39 2018 -0400
+commit 4b265fb74736ffaba2ad5cc96f43e442ae0d9850
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Thu Jan 11 13:11:12 2018 +0800
 
-    cmd/go/internal/modfetch: make subdirectories unwritable too
+    math: fix Ldexp when result is below ldexp(2, -1075)
     
-    The top-level directory in a module was marked unwritable
-    but not the subdirectories. Fix that.
+    Before this change, the smallest result Ldexp can handle was
+    ldexp(2, -1075), which is SmallestNonzeroFloat64.
+    There are some numbers below it should also be rounded to
+    SmallestNonzeroFloat64. The change fixes this.
     
-    Change-Id: Ia57e5343624753851d9fe1ddfe496b870b67f924
-    Reviewed-on: https://go-review.googlesource.com/124381
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #23407
+    
+    Change-Id: I76f4cb005a6e9ccdd95b5e5c734079fd5d29e4aa
+    Reviewed-on: https://go-review.googlesource.com/87338
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modfetch/unzip.go |  2 +-
- src/cmd/go/mod_test.go                | 19 ++++++++++++++++---
- 2 files changed, 17 insertions(+), 4 deletions(-)
+ src/math/all_test.go | 4 ++++
+ src/math/ldexp.go    | 6 +++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)

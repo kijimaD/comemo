@@ -1,28 +1,27 @@
-commit b28f2f73991c849657e5898dfa2f8cae54e885a0
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 29 20:53:32 2017 -0400
+commit 1ec64e9b63d4ab4c2e7e16fa1581a10ee0c80a1d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Dec 12 13:31:56 2016 +1300
 
-    cmd/link: make mach-o dwarf segment properly aligned
+    cmd/compile, runtime: a different approach to duplicate itabs
     
-    Without this, the load fails during kernel exec, which results in the
-    mysterious and completely uninformative "Killed: 9" error.
+    golang.org/issue/17594 was caused by additab being called more than once for
+    an itab. golang.org/cl/32131 fixed that by making the itabs local symbols,
+    but that in turn causes golang.org/issue/18252 because now there are now
+    multiple itab symbols in a process for a given (type,interface) pair and
+    different code paths can end up referring to different itabs which breaks
+    lots of reflection stuff. So this makes itabs global again and just takes
+    care to only call additab once for each itab.
     
-    It appears that the stars (or at least the inputs) were properly aligned
-    with earlier versions of Xcode so that this happened accidentally.
-    Make it happen on purpose.
+    Fixes #18252
     
-    Gregory Man bisected the breakage to this change in LLVM,
-    which fits the theory nicely:
-    https://github.com/llvm-mirror/llvm/commit/9a41e59c
-    
-    Fixes #19734.
-    
-    Change-Id: Ice67a09af2de29d3c0d5e3fcde6a769580897c95
-    Reviewed-on: https://go-review.googlesource.com/38854
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I781a193e2f8dd80af145a3a971f6a25537f633ea
+    Reviewed-on: https://go-review.googlesource.com/34173
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- misc/cgo/testcshared/test.bash                  |  7 ++++
- src/cmd/link/internal/ld/macho_combine_dwarf.go | 52 ++++++++++++++++---------
- 2 files changed, 41 insertions(+), 18 deletions(-)
+ misc/cgo/testshared/src/exe/exe.go     | 12 ++++++++++++
+ src/cmd/compile/internal/gc/reflect.go |  7 +++----
+ src/runtime/iface.go                   | 14 +++++++++-----
+ src/runtime/runtime2.go                |  2 +-
+ 4 files changed, 25 insertions(+), 10 deletions(-)

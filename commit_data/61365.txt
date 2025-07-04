@@ -1,0 +1,21 @@
+commit 7240c6cb970bd395e7005988b4ce6af73a8e59c0
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Thu Oct 31 15:11:05 2024 +0800
+
+    cmd/asm: add support for loong64 CRC32 instructions
+    
+    This patch is a copy of CL 478595.
+    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    
+    Change-Id: Ifb6e8183c83a5dfe5dec84e173a74d5de62692a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623875
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 10 ++++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 10 ++++++++++
+ src/cmd/internal/obj/loong64/anames.go          |  8 ++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 25 ++++++++++++++++++++++++-
+ 4 files changed, 52 insertions(+), 1 deletion(-)

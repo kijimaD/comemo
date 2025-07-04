@@ -1,25 +1,14 @@
-commit d930d69fd95e410107e84231f57ff629d1ef7f21
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Dec 1 12:05:30 2015 -0800
+commit af8cd3f6bdca237b3a843d66031c568f4679de73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 20 09:58:22 2015 -0800
 
-    cmd/compile: make -A and -newexport compatible
+    cmd/compile: fix TODO in tracing code
     
-    Packages compiled with -A may reference the builtin "any" type, so it
-    needs to be included in the list of predeclared types for binary
-    import/export.
+    For #13243.
     
-    Also, when -A is used, mark all symbols as SymExport instead of
-    SymPackage in importsym.  This parallels the logic in autoexport and
-    is necessary to prevent a "export/package mismatch" errors in
-    exportsym during dumpexport's verifyExport pass.
-    
-    Change-Id: Iff5ec5fbfe2219525ec9d1a975307fa8936af9b9
-    Reviewed-on: https://go-review.googlesource.com/19627
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I214945278255a49f93120f9407f536a6c01a29fb
+    Reviewed-on: https://go-review.googlesource.com/17101
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 3 +++
- src/cmd/compile/internal/gc/export.go  | 2 +-
- src/go/internal/gcimporter/bimport.go  | 4 ++++
- 3 files changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/parser.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

@@ -1,18 +1,23 @@
-commit 8eefc3b8f0dde0c89110817af3eccf44c79aeef0
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Aug 29 23:37:08 2024 -0700
+commit ad90eeffa5343a134c5898e3630ac90a362eaf9f
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jul 21 13:49:06 2023 -0400
 
-    os: improve TestExecutable
+    cmd/dist: handle -json flag in runPending (clean up)
     
-    Instead of running all tests and relying on an init function, let's
-    embed the child code into the test case and only run one specific test.
+    Document work fields a bit more, and move code that
+    synthesizes JSON-encoded skip events to testjson.go.
     
-    Change-Id: Ib04e8a580556e7e30ff776c2041f0b809b440a26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609838
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    For #37486.
+    For #61557.
+    
+    Change-Id: Iffc23cf990bc39696e1e3fce8ce5a6790fc44e78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/os/executable_test.go | 49 ++++++++++++++++++++++-------------------------
- 1 file changed, 23 insertions(+), 26 deletions(-)
+ src/cmd/dist/test.go     | 77 ++++++++++++++++--------------------------------
+ src/cmd/dist/testjson.go | 18 +++++++++++
+ 2 files changed, 44 insertions(+), 51 deletions(-)

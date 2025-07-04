@@ -1,19 +1,17 @@
-commit 46323795130e92f26cbbb6bc744298edc8c443e9
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Nov 22 16:19:25 2016 +0100
+commit 26531b3846694b311aec87fc4f5de65b4cc48a44
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Sep 14 16:56:24 2016 +0300
 
-    cmd/go: print CC environment variables on Plan 9
+    cmd/internal/obj/x86: cleanup
     
-    This changes makes the output of `go env` the same
-    as on other operating systems.
+    Remove duplicate vars, commented out code  and duplicate lines.
+    When choosing between 2 aliases, on with more uses was chosen.
     
-    Fixes #18013.
-    
-    Change-Id: I3079e14dcf7b30c75ec3fde6c78cb95721111320
-    Reviewed-on: https://go-review.googlesource.com/33396
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7bc15f1693de3f6d378cef9c09469970a659db40
+    Reviewed-on: https://go-review.googlesource.com/29152
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/env.go | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go | 132 ++++++++++++---------------------------
+ 1 file changed, 40 insertions(+), 92 deletions(-)

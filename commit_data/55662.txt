@@ -1,44 +1,26 @@
-commit 05c0579621b54cc461dd19dd9bebd5a2b3e7af3c
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Wed Jan 31 17:10:49 2024 +0800
+commit a5f3cb6f75f31ea7336ce87375cbc30c73360def
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 28 19:16:54 2023 +0000
 
-    runtime: migrate internal/syscall to internal/runtime
+    internal/testenv: use 'go env CGO_ENABLED' instead of a build constraint
     
-    For #65355
+    A build constraint reports whether the test binary was compiled with
+    cgo enabled, but that doesn't necessarily imply that cgo can be used
+    in the environment in which the test binary is run.
     
-    Change-Id: I5fefe30dcb520159de565e61dafc74a740fc8730
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559715
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    In particular, cross-compiled builders (such as Android) may compile
+    the test binaries on the host with CGO enabled but not provide a C
+    toolchain on the device that runs the test.
+    
+    For #58775.
+    
+    Change-Id: Ibf2f44c9e956cd3fa898c3de67af4449e8ef2dd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472215
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/internal/objabi/pkgspecial.go                                 | 4 ++--
- src/go/build/deps_test.go                                             | 2 +-
- src/internal/coverage/pkid.go                                         | 4 ++--
- src/{runtime/internal => internal/runtime}/syscall/asm_linux_386.s    | 0
- src/{runtime/internal => internal/runtime}/syscall/asm_linux_amd64.s  | 0
- src/{runtime/internal => internal/runtime}/syscall/asm_linux_arm.s    | 0
- src/{runtime/internal => internal/runtime}/syscall/asm_linux_arm64.s  | 0
- .../internal => internal/runtime}/syscall/asm_linux_loong64.s         | 0
- .../internal => internal/runtime}/syscall/asm_linux_mips64x.s         | 0
- src/{runtime/internal => internal/runtime}/syscall/asm_linux_mipsx.s  | 0
- src/{runtime/internal => internal/runtime}/syscall/asm_linux_ppc64x.s | 0
- .../internal => internal/runtime}/syscall/asm_linux_riscv64.s         | 0
- src/{runtime/internal => internal/runtime}/syscall/asm_linux_s390x.s  | 0
- src/{runtime/internal => internal/runtime}/syscall/defs_linux.go      | 0
- src/{runtime/internal => internal/runtime}/syscall/defs_linux_386.go  | 0
- .../internal => internal/runtime}/syscall/defs_linux_amd64.go         | 0
- src/{runtime/internal => internal/runtime}/syscall/defs_linux_arm.go  | 0
- .../internal => internal/runtime}/syscall/defs_linux_arm64.go         | 0
- .../internal => internal/runtime}/syscall/defs_linux_loong64.go       | 0
- .../internal => internal/runtime}/syscall/defs_linux_mips64x.go       | 0
- .../internal => internal/runtime}/syscall/defs_linux_mipsx.go         | 0
- .../internal => internal/runtime}/syscall/defs_linux_ppc64x.go        | 0
- .../internal => internal/runtime}/syscall/defs_linux_riscv64.go       | 0
- .../internal => internal/runtime}/syscall/defs_linux_s390x.go         | 0
- src/{runtime/internal => internal/runtime}/syscall/syscall_linux.go   | 0
- .../internal => internal/runtime}/syscall/syscall_linux_test.go       | 2 +-
- src/runtime/netpoll_epoll.go                                          | 2 +-
- src/runtime/os_linux.go                                               | 2 +-
- src/syscall/syscall_linux.go                                          | 4 ++--
- 29 files changed, 10 insertions(+), 10 deletions(-)
+ src/internal/testenv/testenv.go     | 78 +++++++++++++++++++++++++------------
+ src/internal/testenv/testenv_cgo.go | 11 ------
+ 2 files changed, 54 insertions(+), 35 deletions(-)

@@ -1,14 +1,16 @@
-commit 219ca602ab3f9d7d857bc1640e2b9e01475cdc3d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Aug 6 10:12:03 2016 -0700
+commit 66afbf1010fa492fb9a266f9019f707bd09f066d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 13 10:06:12 2016 -0400
 
-    doc: fix required OS X version inconsistency for binary downloads
+    cmd/link: use a switch for name prefix switching
     
-    Updates #16625
+    Minor cleanup.
     
-    Change-Id: Icac6705828bd9b29379596ba64b34d922b9002c3
-    Reviewed-on: https://go-review.googlesource.com/25548
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7574f58a7e55c2bb798ebe9c7c98d36b8c258fb8
+    Reviewed-on: https://go-review.googlesource.com/21982
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/install.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/symtab.go | 61 +++++++++++++-------------------------
+ 1 file changed, 21 insertions(+), 40 deletions(-)

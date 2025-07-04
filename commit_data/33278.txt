@@ -1,27 +1,16 @@
-commit afbe646ab4480696d61462e9cab2ad048b5c1b6c
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 24 17:10:02 2017 -0400
+commit 1ee55c3ab6e4dff810a03bc1d788dd6106cdf691
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Mon Jul 31 10:30:16 2017 +0100
 
-    cmd/compile: report typedslicecopy write barriers
+    net/http: remove an unused variable in readCookies function
     
-    Most write barrier calls are inserted by SSA, but copy and append are
-    lowered to runtime.typedslicecopy during walk. Fix these to set
-    Func.WBPos and emit the "write barrier" warning, as done for the write
-    barriers inserted by SSA. As part of this, we refactor setting WBPos
-    and emitting this warning into the frontend so it can be shared by
-    both walk and SSA.
-    
-    Change-Id: I5fe9997d9bdb55e03e01dd58aee28908c35f606b
-    Reviewed-on: https://go-review.googlesource.com/73411
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I9d77655026f16a41a77bd0036d693a40cdd6d52f
+    Reviewed-on: https://go-review.googlesource.com/52090
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/ssa.go           | 13 ++++---------
- src/cmd/compile/internal/gc/syntax.go        | 11 ++++++++++-
- src/cmd/compile/internal/gc/walk.go          |  2 ++
- src/cmd/compile/internal/ssa/config.go       |  5 ++++-
- src/cmd/compile/internal/ssa/export_test.go  |  3 ++-
- src/cmd/compile/internal/ssa/func.go         |  2 --
- src/cmd/compile/internal/ssa/writebarrier.go |  7 +------
- 7 files changed, 23 insertions(+), 20 deletions(-)
+ src/net/http/cookie.go | 2 --
+ 1 file changed, 2 deletions(-)

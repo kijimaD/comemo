@@ -1,18 +1,16 @@
-commit 42aa608f8acd50f963b0f1807a6c3ecbf651b6e2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 30 16:40:52 2017 -0700
+commit 8599c0da1f7ffc1f230ee49ddb9838a5caff358a
+Author: Takuya Ueda <uedatakuya@gmail.com>
+Date:   Wed Dec 21 12:43:05 2016 +0900
 
-    cmd/compile: remove confusing comment, fix comment for symExport
+    go/parser: fix reference in ParseExprFrom docs
     
-    The symExport flag tells whether a symbol is in the export list
-    already or not (and it's also used to avoid being added to that
-    list). Exporting is based on that export list - no need to check
-    again.
+    The ParseExprFrom docs refer to Parse. It meant ParseFile.
     
-    Change-Id: I6056f97aa5c24a19376957da29199135c8da35f9
-    Reviewed-on: https://go-review.googlesource.com/39033
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fixes #18398
+    
+    Change-Id: I06fb3b5178c6319e86199823fe4769a8eb9dc49c
+    Reviewed-on: https://go-review.googlesource.com/34671
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 10 ----------
- src/cmd/compile/internal/gc/go.go      |  2 +-
- 2 files changed, 1 insertion(+), 11 deletions(-)
+ src/go/parser/interface.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

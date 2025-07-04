@@ -1,12 +1,13 @@
-commit 4bd15ae1b72c5488a06ea1365d0090d76699770c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 14 13:12:08 2011 -0800
+commit 4e65478cbd9691aefdcf0c2f636d4909c8a45993
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 14 16:11:15 2011 -0500
 
-    cgi: make test code more readable
+    reflect: empty slice/map is not DeepEqual to nil
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5375089
+    https://golang.org/cl/5373095
 
- src/pkg/net/http/cgi/host_test.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/pkg/reflect/all_test.go  | 8 ++++++++
+ src/pkg/reflect/deepequal.go | 6 ++++++
+ 2 files changed, 14 insertions(+)

@@ -1,0 +1,33 @@
+commit 3b77085b40bf0d53528d6852d07c00c81021c855
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 28 14:34:52 2025 -0400
+
+    runtime: increment updatemaxprocs metric only when disabled
+    
+    The updatemaxprocs metric logic is currently backwards. We only
+    increment the metric when we update GOMAXPROCS, but that only occurs if
+    updatemaxprocs is enabled.
+    
+    Instead, the metric is supposed to increment when updatemaxprocs is
+    disabled and there would be different behavior if it were enabled.
+    
+    Theoretically we should run the entire update system in a dry run mode,
+    and only bail out right before committing updates. But that is an awful
+    lot of effort for a feature that is disabled. Plus some users (like
+    sandboxes) want to completely disable the update syscalls
+    (sched_getaffinity and pread64). If we still do dry run updates then we
+    need an additional GODEBUG for completely disabling functionality.
+    
+    This CL also avoids starting the update goroutine at all if disabled,
+    since it isn't needed.
+    
+    For #73193.
+    
+    Change-Id: I6a6a636ceec8fced44e36cb27dcb1b4ba51fce33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677036
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)

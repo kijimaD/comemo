@@ -1,15 +1,12 @@
-commit 091970c5514567f8d44c76761f14310ae305ee86
-Author: Kamil Kisiel <kamil@kamilkisiel.net>
-Date:   Mon Apr 8 14:42:06 2013 +1000
+commit 092c481c1bc1982ca992512d0e75503ca5878800
+Author: Rob Pike <r@golang.org>
+Date:   Sun Apr 7 18:42:47 2013 -0700
 
-    cmd/go: document usage of external test packages
+    reflect: document the unreliability of StringHeader and SliceHeader
     
-    Fixes #5144
-    
-    R=golang-dev, r, dave, adg
+    R=golang-dev, adg, dvyukov
     CC=golang-dev
-    https://golang.org/cl/8171044
+    https://golang.org/cl/8494045
 
- src/cmd/go/doc.go  | 3 +++
- src/cmd/go/test.go | 3 +++
- 2 files changed, 6 insertions(+)
+ src/pkg/reflect/value.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

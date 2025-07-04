@@ -1,22 +1,24 @@
-commit b69b2f63d65609b400b4a40ae01e4a48638f050f
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Oct 27 14:03:24 2021 -0700
+commit f47fab938eb19e383258b3501560b46d2e47158a
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Mar 17 17:54:41 2021 -0700
 
-    net/http: do not send Transfer-Encoding: identity in responses
+    cmd/compile: remove unneeded calls to typecheck in noder2
     
-    Server handlers may set a "Transfer-Encoding: identity" header on
-    responses to disable chunking, but this header should not be sent
-    on the wire.
+    Remove unneeded calls to typecheck in noder2 associated with g.use() and
+    g.obj(). These routines are already setting the types2-derived type
+    correctly for ONAME nodes, and there is no typechecker1-related
+    transformations related to ONAME nodes, other than making sure that
+    newly created closure variables have their type set.
     
-    Fixes #49194.
+    Tested through normal -G=3 testing in all.bash (all of go/tests).
     
-    Change-Id: I46a9e3b8ff9d93edd7d1c34d264fc309fa322ad5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359176
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I1b790ab9948959685fca3a768401458201833671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303029
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/net/http/clientserver_test.go | 34 ++++++++++++++++++++++++++++++++++
- src/net/http/server.go            |  7 ++++---
- 2 files changed, 38 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/expr.go   |  7 ++-----
+ src/cmd/compile/internal/noder/object.go | 20 ++++++++++++++++----
+ 2 files changed, 18 insertions(+), 9 deletions(-)

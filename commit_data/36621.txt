@@ -1,16 +1,15 @@
-commit ceb7745cc846f798531ef019162dd9f1dabfea12
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 7 04:12:42 2018 -0700
+commit f95ef94ad5f58aef9a17bae407bf7b154caabe11
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed May 9 04:11:12 2018 +0000
 
-    cmd/go: add -Wl,--export-dynamic to linker flag whitelist
+    misc/android: add more information to README
     
-    Fixes #27496
+    Add more information to misc/android/README for developing
+    arm and arm64 with an Android environment.
     
-    Change-Id: I53538c7697729294a9e50ace26a6a7183131e837
-    Reviewed-on: https://go-review.googlesource.com/134016
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I0c88996b6ab0c41946a2c7e69e9c92ec7bb3be27
+    Reviewed-on: https://go-review.googlesource.com/112276
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
 
- src/cmd/go/internal/work/security.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/android/README | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

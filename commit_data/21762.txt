@@ -1,15 +1,39 @@
-commit e4791066c8a46131462f3af4135dd401651c16b9
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Feb 26 09:44:41 2015 -0500
+commit c9321f3fb13aec7af5c72d3d11a6e3b4d88dced3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Jan 29 12:47:30 2015 +0300
 
-    os/exec: disable tests on darwin/arm
+    runtime: fix nosplit stack overflow
     
-    There is only one process under the iOS sandboxd.
+    The overflow happens only with -gcflags="-N -l"
+    and can be reproduced with:
     
-    Change-Id: I21b5528366a0248a034801a717f24c60f0733c5f
-    Reviewed-on: https://go-review.googlesource.com/6101
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    $ go test -gcflags="-N -l" -a -run=none net
+    
+    runtime.cgocall: nosplit stack overflow
+            504     assumed on entry to runtime.cgocall
+            480     after runtime.cgocall uses 24
+            472     on entry to runtime.cgocall_errno
+            408     after runtime.cgocall_errno uses 64
+            400     on entry to runtime.exitsyscall
+            288     after runtime.exitsyscall uses 112
+            280     on entry to runtime.exitsyscallfast
+            152     after runtime.exitsyscallfast uses 128
+            144     on entry to runtime.writebarrierptr
+            88      after runtime.writebarrierptr uses 56
+            80      on entry to runtime.writebarrierptr_nostore1
+            24      after runtime.writebarrierptr_nostore1 uses 56
+            16      on entry to runtime.acquirem
+            -24     after runtime.acquirem uses 40
+    
+    Move closure creation into separate function so that
+    frames of writebarrierptr_shadow and writebarrierptr_nostore1
+    are overlapped.
+    
+    Fixes #9721
+    
+    Change-Id: I40851f0786763ee964af34814edbc3e3d73cf4e7
+    Reviewed-on: https://go-review.googlesource.com/3418
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/exec/exec_test.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/runtime/mbarrier.go | 37 +++++++++++++++++++++----------------
+ 1 file changed, 21 insertions(+), 16 deletions(-)

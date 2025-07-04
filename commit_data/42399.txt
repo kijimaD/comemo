@@ -1,16 +1,21 @@
-commit 4abec2a48070da6ca9b8cf53888ad993e0ee82ef
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue May 26 15:58:13 2020 +0200
+commit 6f2b8347b148bb7aab1a89423d18ec0cbca6ffb4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 11 11:44:08 2019 -0500
 
-    runtime, time: gofmt
+    test: add a test for gccgo compiler bug of missing type descriptor
     
-    Change-Id: Ib36a5f239db5af497aae122eba049c15d0d4c4a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235139
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The gccgo compiler did not generate type descriptor for a pointer
+    to a type alias defined in another package, causing linking error.
+    The fix is CL 210787. This CL adds a test.
+    
+    Updates #36085.
+    
+    Change-Id: I3237c7fedb4d92fb2dc610ee2b88087f96dc2a1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210858
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sizeof_test.go                    | 2 +-
- src/runtime/testdata/testprog/lockosthread.go | 6 +++---
- src/time/example_test.go                      | 2 +-
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ test/fixedbugs/issue36085.dir/a.go |  3 +++
+ test/fixedbugs/issue36085.dir/b.go |  8 ++++++++
+ test/fixedbugs/issue36085.go       | 11 +++++++++++
+ 3 files changed, 22 insertions(+)

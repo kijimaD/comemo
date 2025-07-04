@@ -1,34 +1,14 @@
-commit 74a123fcfa94a743d16b22fdc74da3116419a5e5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 8 10:28:22 2015 -0700
+commit 29f03a37c116c9cfe8b6adfbac90e661bd0e42b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 23:33:29 2015 -0400
 
-    AUTHORS: add Oracle as corporate copyright holder
+    net/smtp: give example addrs in docs
     
-    Some commits made by Aram from his personal email address are
-    actually copyright Oracle:
+    Fixes #9140.
     
-    a77fcb3 net: fix comment in sendFile
-    b0e71f4 net: link with networking libraries when net package is in use
-    92e959a syscall, net: use sendfile on Solaris
-    db8d5b7 net: try to fix setKeepAlivePeriod on Solaris
-    fe5ef5c runtime, syscall: link Solaris binaries directly instead of using dlopen/dlsym
-    2b90c3e go/build: enable cgo by default on solaris/amd64
-    2d18ab7 doc/progs: disable cgo tests that use C.Stdout on Solaris
-    2230e9d misc/cgo: add various solaris build lines
-    649c7b6 net: add cgo support for Solaris
-    24396da os/user: small fixes for Solaris
-    121489c runtime/cgo: add cgo support for solaris/amd64
-    83b25d9 cmd/ld: make .rela and .rela.plt sections contiguous
-    c94f1f7 runtime: always load address of libcFunc on Solaris
-    e481aac cmd/6l: use .plt instead of .got on Solaris
-    
-    See bug for clarification.
-    
-    Fixes #12452
-    
-    Change-Id: I0aeb1b46c0c7d09c5c736e383ecf40240d2cf85f
-    Reviewed-on: https://go-review.googlesource.com/14380
+    Change-Id: I3b85053262cac3c30358f8e03a5aca65dbc67623
+    Reviewed-on: https://go-review.googlesource.com/12231
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- AUTHORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/smtp/smtp.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

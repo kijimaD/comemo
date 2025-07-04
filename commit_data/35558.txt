@@ -1,54 +1,15 @@
-commit fffb3a5c20b31a8d6916697ebac19ac9e8d3f6e7
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Tue May 15 09:55:46 2018 +0300
+commit 262b524a1171b42f0507043b1fa068a9bcc5ef3a
+Author: Ahmed W <oneofone@gmail.com>
+Date:   Fri Feb 16 18:33:15 2018 +0000
 
-    testing: make indentation consistent in sub-tests
+    A+C: update my name and spelling
     
-    Instead of mixed usage of spaces and tabs for indentation,
-    just use 4 spaces instead of one tab.
-    
-    This test:
-    
-    func TestX(t *testing.T) {
-            t.Error("1\nnew line")
-            t.Error("2")
-            t.Error("3")
-            t.Run("Y", func(t *testing.T) {
-                    t.Error("2")
-                    t.Error("2b\nnew line")
-                    t.Run("Z", func(t *testing.T) {
-                            t.Error("3\nnew line")
-                    })
-            })
-            t.Error("4")
-    }
-    
-    produces following output:
-    
-    --- FAIL: TestX (0.00s)
-        indent_test.go:6: 1
-            new line
-        indent_test.go:7: 2
-        indent_test.go:8: 3
-        --- FAIL: TestX/Y (0.00s)
-            indent_test.go:10: 2
-            indent_test.go:11: 2b
-                new line
-            --- FAIL: TestX/Y/Z (0.00s)
-                indent_test.go:13: 3
-                    new line
-        indent_test.go:16: 4
-    FAIL
-    
-    Fixes #25369
-    
-    Change-Id: Ib3b5da45ab3ee670c6e8a23172e7cbefb94c5e60
-    Reviewed-on: https://go-review.googlesource.com/113177
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    GitHub-Last-Rev: ff68319f4c46271ddb927d176756962a3a2b4332
+    GitHub-Pull-Request: golang/go#23874
+    Change-Id: I7242c5cc35f04e23d807f5e91180c4ef510e7d1a
+    Reviewed-on: https://go-review.googlesource.com/94840
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go   | 32 ++++++++++++++++----------------
- src/testing/sub_test.go | 32 ++++++++++++++++----------------
- src/testing/testing.go  | 10 +++++-----
- 3 files changed, 37 insertions(+), 37 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

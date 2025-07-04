@@ -1,19 +1,48 @@
-commit 117a6973cb17d45c0c14cd8fb576f5a06b0d7234
+commit d2574e2adb658b46ea2d8e22b3195cc14da1affe
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 24 14:45:11 2014 -0700
+Date:   Tue Sep 16 10:22:15 2014 -0400
 
-    build: fix elf builds
+    runtime: remove duplicated Go constants
     
-    Corrections due to new strict type rules for data+bss.
-    Also disable misc/cgo/cdefstest since you can't compile C code anymore.
+    The C header files are the single point of truth:
+    every C enum constant Foo is available to Go as _Foo.
+    Remove or redirect duplicate Go declarations so they
+    cannot be out of sync.
     
-    TBR=iant
+    Eventually we will need to put constants in Go, but for now having
+    them be out of sync with C is too risky. These predate the build
+    support for auto-generating Go constants from the C definitions.
+    
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/148050044
+    https://golang.org/cl/141510043
 
- include/link.h                 |  2 +-
- src/cmd/ld/data.c              | 13 ++++++++++---
- src/cmd/ld/lib.c               |  4 +++-
- src/run.bash                   | 11 +++++++----
- src/runtime/vdso_linux_amd64.c |  9 +++++++--
- 5 files changed, 28 insertions(+), 11 deletions(-)
+ src/cmd/api/goapi.go         | 46 +++++++++++++++++++++++++++++++++
+ src/cmd/dist/buildruntime.c  |  6 +++--
+ src/runtime/arch_386.go      |  4 ---
+ src/runtime/arch_amd64.go    |  4 ---
+ src/runtime/arch_amd64p32.go |  4 ---
+ src/runtime/arch_arm.go      |  4 ---
+ src/runtime/chan.go          |  2 +-
+ src/runtime/malloc.c         |  6 ++---
+ src/runtime/malloc.go        | 48 +++++++++++++++--------------------
+ src/runtime/mgc0.c           |  2 +-
+ src/runtime/mgc0.go          | 12 ---------
+ src/runtime/mgc0.h           | 12 ++++-----
+ src/runtime/os_darwin.go     |  2 --
+ src/runtime/os_freebsd.go    |  2 --
+ src/runtime/os_linux.go      |  2 --
+ src/runtime/os_nacl.go       |  2 --
+ src/runtime/os_netbsd.go     |  2 --
+ src/runtime/os_openbsd.go    |  2 --
+ src/runtime/os_plan9.go      |  4 ---
+ src/runtime/os_solaris.go    |  2 --
+ src/runtime/os_windows.go    |  2 --
+ src/runtime/runtime.h        |  1 -
+ src/runtime/sema.go          |  2 +-
+ src/runtime/slice.go         |  8 +++---
+ src/runtime/string.go        |  2 +-
+ src/runtime/typekind.go      | 60 ++++++++++++++++++++++----------------------
+ src/runtime/typekind.h       |  3 ---
+ 27 files changed, 117 insertions(+), 129 deletions(-)

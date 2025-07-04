@@ -1,13 +1,16 @@
-commit 6918357031df3a7e3373fcb0b28657ead4afc1bb
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Aug 20 10:55:40 2012 +0200
+commit 67924c1b602c170239eec821c3aea67b6ab682c7
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Sat Aug 18 15:50:33 2012 -0700
 
-    exp/locale/collate: Added test flag to maketables tool for comparing newly
-    against previously generated tables.
+    crypto/tls: explicitly require ExtKeyUsageClientAuth for client certs
     
-    R=r
+    If we aren't explicit about the KeyUsages, the verifier
+    will treat the certificate as a server certificate and require
+    it to have a ExtKeyUsageServerAuth key usage.
+    
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6441098
+    https://golang.org/cl/6453148
 
- src/pkg/exp/locale/collate/maketables.go | 89 +++++++++++++++++++++++++++-----
- 1 file changed, 77 insertions(+), 12 deletions(-)
+ src/pkg/crypto/tls/handshake_server.go | 1 +
+ 1 file changed, 1 insertion(+)

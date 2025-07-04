@@ -1,14 +1,14 @@
-commit ac1cb992ea3ff1d0dd9ddc2af9da4dd1354f7761
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 18 18:27:20 2018 +0000
+commit befd5c44cc5e970dd4b021229d6162d8b56f111b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Mar 30 17:00:39 2018 -0400
 
-    doc/go1.11: remove unnecessary absolute link
+    syscall: remove double Unlock from Dup2 on nacl
     
-    This doesn't auto-deploy to golang.org, only tip.golang.org.
+    Fixes #24610
     
-    Change-Id: I112743ada2c1393e21edcc9075127f40da9e6270
-    Reviewed-on: https://go-review.googlesource.com/124755
+    Change-Id: I76dee97db7cd77fe03e4a224f679a5efd061a2b5
+    Reviewed-on: https://go-review.googlesource.com/103775
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/syscall/fd_nacl.go | 1 -
+ 1 file changed, 1 deletion(-)

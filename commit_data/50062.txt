@@ -1,32 +1,27 @@
-commit 9f0f87c806b7a11b2cb3ebcd02eac57ee389c43a
-Author: eric fang <eric.fang@arm.com>
-Date:   Thu May 5 07:46:05 2022 +0000
+commit e213c72fb9492a409bd0ed9620ca9aaaa96ddebe
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Sep 28 15:59:34 2021 -0400
 
-    cmd/internal/obj/arm64: remove the transition from $0 to ZR
+    internal/fuzz: disconnect stdout and stderr from the worker
     
-    Previously we convert $0 to the ZR register for some reasons, which causes
-    two problems:
-    1. Confusion, the special case of the ZR register needs to be considered
-    when dealing with constants. For encoding, some places we encode ZR, and
-    some places we encode $0, although we have converted $0 to ZR.
-    2. Unexpected instruction format. All instructions that support ZR register
-    operands can be replaced by $0.
+    This was useful for debugging while we were developing
+    the feature, but is now causing extraneous prints that
+    make the command output difficult to read.
     
-    This patch removes this conversion. Note that this patch may cause previously
-    unintendedly supported instruction formats to no longer be supported.
+    This change also prevents the go command from printing
+    an extraneous "FAIL" when fuzzing is enabled.
     
-    Change-Id: I3d8d2c06711b7614a38191397da7776417f1861c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404316
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #48633
+    Fixes #46631
+    
+    Change-Id: I636e65f305a20f6dcd843e62090ae228741a3725
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352892
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s    |  19 +-
- src/cmd/asm/internal/asm/testdata/arm64enc.s |   2 +-
- src/cmd/internal/obj/arm64/a.out.go          |   3 +-
- src/cmd/internal/obj/arm64/anames7.go        |   1 +
- src/cmd/internal/obj/arm64/asm7.go           | 475 ++++++++++++++-------------
- src/cmd/internal/obj/arm64/obj7.go           |  35 +-
- test/codegen/bitfield.go                     |   5 +-
- 7 files changed, 285 insertions(+), 255 deletions(-)
+ src/cmd/go/internal/test/test.go | 18 ++++++++++++++++--
+ src/internal/fuzz/worker.go      |  2 --
+ 2 files changed, 16 insertions(+), 4 deletions(-)

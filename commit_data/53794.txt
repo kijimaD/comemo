@@ -1,26 +1,32 @@
-commit 3bc28402fae2a1646e4d2756344b5eb34994d25f
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Jul 25 23:10:34 2023 +0000
+commit 34f0029a85af054787b279761e89db410621f1d7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 1 16:06:11 2022 -0700
 
-    all: use built-in clear to clear maps
+    cmd/compile/internal/noder: allow OCONVNOP for identical iface conversions
     
-    Change-Id: I7f4ac72fe3230d8b7486fab0c925015cefcbe355
-    GitHub-Last-Rev: 54455839b674f980fb6c3afceb433db4833d340e
-    GitHub-Pull-Request: golang/go#61544
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512376
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    In go.dev/cl/421821, I included a hack to force OCONVNOP back to
+    OCONVIFACE for conversions involving shape types and non-empty
+    interfaces. The comment correctly noted that this was only needed for
+    conversions between non-identical types, but the code was conservative
+    and applied to even conversions between identical types.
+    
+    This CL adds an extra bool to record whether the conversion is between
+    identical types, so we can keep OCONVNOP instead of forcing back to
+    OCONVIFACE. This has a small improvement to generated code, because we
+    no longer need a convI2I call (as demonstrated by codegen/ifaces.go).
+    
+    But more usefully, this is relevant to pruning unnecessary itab slots
+    in runtime dictionaries (next CL).
+    
+    Change-Id: I94f89e961cd26629b925037fea58d283140766ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427678
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/list/list.go      | 4 +---
- src/cmd/go/internal/load/pkg.go       | 4 +---
- src/cmd/gofmt/rewrite.go              | 4 +---
- src/internal/intern/intern_test.go    | 4 +---
- src/net/http/httputil/reverseproxy.go | 5 +----
- src/runtime/map_benchmark_test.go     | 8 ++------
- src/testing/benchmark.go              | 4 +---
- src/testing/match.go                  | 4 +---
- 8 files changed, 9 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/noder/reader.go |  7 +++++--
+ src/cmd/compile/internal/noder/writer.go |  1 +
+ test/codegen/ifaces.go                   | 21 +++++++++++++++++++++
+ 3 files changed, 27 insertions(+), 2 deletions(-)

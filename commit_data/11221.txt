@@ -1,13 +1,15 @@
-commit 436b37d885d6bf552d16f81a6b75a96aa44b6248
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Jan 18 16:59:40 2012 +1100
+commit 6a5db20d144c22c356492c2ba8d8a325402d4439
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 17 18:00:34 2012 -0800
 
-    os: remove old note about NewSyscallError being special
+    test: match gccgo error messages for bug345
     
-    R=golang-dev, r
+    bug345.dir/main.go:25:18: error: argument 1 has incompatible type (need explicit conversion; missing method ‘Write’)
+    bug345.dir/main.go:27:8: error: argument 1 has incompatible type
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5556044
+    https://golang.org/cl/5556043
 
- src/pkg/os/error_plan9.go | 4 ----
- src/pkg/os/error_posix.go | 4 ----
- 2 files changed, 8 deletions(-)
+ test/fixedbugs/bug345.dir/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

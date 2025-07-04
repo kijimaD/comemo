@@ -1,16 +1,17 @@
-commit 1dae47378cd32c3bdc0351f7eed71bd3d3aaf364
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Thu Nov 26 10:33:45 2015 +0100
+commit 53c92f95a888837571eda1cf356425010f92edde
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Sep 23 11:49:44 2015 -0400
 
-    unicode/utf8: add test for FullRune
+    os: document that behavior of Seek on O_APPEND files is not specified
     
-    Check that it now properly handles \xC0 and \xC1.
+    The actual behavior varies across platforms, and due to the inherent
+    race, we can't do anything better (other than to always return 0).
     
-    Fixes #11733.
+    Fixes #12710.
     
-    Change-Id: I66cfe0d43f9d123d4c4509a3fa18b9b6380dfc39
-    Reviewed-on: https://go-review.googlesource.com/17225
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Icb52f0f1f0a267e0f9f70767cae427f3f0239965
+    Reviewed-on: https://go-review.googlesource.com/14881
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/unicode/utf8/utf8_test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/os/file.go | 1 +
+ 1 file changed, 1 insertion(+)

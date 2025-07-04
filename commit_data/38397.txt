@@ -1,14 +1,19 @@
-commit 6aa710f7231bd02eac4389579dc11bb7d9c1bdad
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 13 20:49:19 2019 +0000
+commit 51104cd4d2dab6bdd8bda694c0a9a5613cec3b84
+Author: Andrew Poydence <apoydence@pivotal.io>
+Date:   Thu Oct 25 23:14:15 2018 +0000
 
-    cmd/go/internal/work: remove commented-out import
+    log: add Logger.Writer method
     
-    Somebody wasn't using goimports. :)
+    Writer method returns the underlying io.Writer used by the given Logger
+    object.
     
-    Change-Id: Ibad3c0781ea70d538592b2e90d8b578e4fae8173
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167385
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #28327
+    
+    Change-Id: I6347913d8be8d3222b98967b136cf03d00f446d1
+    GitHub-Last-Rev: 2db0c5c7416436f99852592d2f258ca93da96712
+    GitHub-Pull-Request: golang/go#28399
+    Reviewed-on: https://go-review.googlesource.com/c/144757
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/work/build.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/log/log.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

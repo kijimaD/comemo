@@ -1,17 +1,24 @@
-commit c94a9fdf651e44bed2fc72c783990a0eba63b24e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Nov 20 11:15:02 2024 +0100
+commit e7c142a19d8b3944c2f1b9ab7fd94c63d8d0c555
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 20 16:16:29 2023 -0700
 
-    os: use ignoringEINTR2 in (*Process).pidWait
+    cmd/compile: use absolute file name in isCgo check
     
-    This was missed in CL 627479.
+    For #23672
+    Fixes #63211
+    Fixes CVE-2023-39323
     
-    Change-Id: Ibcd511573c330bf782fe6a8a50d56bb70aedf3c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629915
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I4586a69e1b2560036afec29d53e53cf25e6c7352
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/2032884
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534158
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/os/exec_unix.go | 15 +++++----------
- 1 file changed, 5 insertions(+), 10 deletions(-)
+ src/cmd/cgo/internal/testerrors/errors_test.go   |  1 +
+ src/cmd/cgo/internal/testerrors/testdata/err5.go | 11 +++++++++++
+ src/cmd/compile/internal/noder/noder.go          |  8 +++++++-
+ 3 files changed, 19 insertions(+), 1 deletion(-)

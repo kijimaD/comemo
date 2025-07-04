@@ -1,36 +1,19 @@
-commit d8f60eea64a568b272222960eb253bfc08cfbac2
-Author: David Chase <drchase@google.com>
-Date:   Wed Sep 19 16:20:35 2018 -0400
+commit 78c0e1f81d4052f8ca5a50e4e7c5bb35ddec6519
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Nov 9 11:45:04 2018 -0800
 
-    cmd/compile: enhance induction variable detection for unrolled loops
+    cmd/compile: eliminate dead code
     
-    Would suggest extending capabilities (32-bit, unsigned, etc)
-    in separate CLs because prove bugs are so mystifying.
+    During walkexpr, we were assessing whether shifts were bounded.
+    However, that information was dropped on the floor during SSA conversion.
+    The SSA backend already finds all bounded shifts that walkexpr could have,
+    and at negligible extra cost (0.02% in alloc, CPU undetectable).
     
-    This implements the suggestion in this comment
-    https://go-review.googlesource.com/c/go/+/104041/10/src/cmd/compile/internal/ssa/loopbce.go#164
-    for inferring properly bounded iteration for loops of the form
-    
-    for i := K0; i < KNN-(K-1); i += K
-    for i := K0; i <= KNN-K;    i += K
-    
-    Where KNN is "known non negative" (i.e., len or cap) and K
-    is also not negative.  Because i <= KNN-K, i+K <= KNN and
-    no overflow occurs.
-    
-    Also handles decreasing case (K1 > 0)
-    for i := KNN; i >= K0; i -= K1
-    which works when MININT+K1 < K0
-    (i.e. MININT < K0-K1, no overflow)
-    
-    Signed only, also only 64 bit for now.
-    
-    Change-Id: I5da6015aba2f781ec76c4ad59c9c48d952325fdc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/136375
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ieda1af1a2a3ec99bfdc2b0b704c9b80ce8a34486
+    Reviewed-on: https://go-review.googlesource.com/c/148897
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
 
- src/cmd/compile/internal/ssa/loopbce.go |  98 ++++++++++++++++++++++++--
- test/prove.go                           | 117 ++++++++++++++++++++++++++++++++
- 2 files changed, 211 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

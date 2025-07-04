@@ -1,38 +1,19 @@
-commit b170c7e94c478e616d194af95caa7747d9fa4725
-Author: Damien Neil <dneil@google.com>
-Date:   Tue May 20 15:56:43 2025 -0700
+commit 661f98141ac8b919802343467c05ea74abf8fae1
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Apr 16 16:01:50 2024 -0400
 
-    runtime, internal/synctest, sync: associate WaitGroups with bubbles
+    go/internal/gcimporter: suppress 3 test cases when gotypesalias=1
     
-    Add support to internal/synctest for managing associations between
-    arbitrary pointers and synctest bubbles. (Implemented internally to
-    the runtime package by attaching a special to the pointer.)
+    CL 577715 caused these test cases to fail, but this was not
+    detected by CI because they are "long" tests.
     
-    Associate WaitGroups with bubbles.
-    Since WaitGroups don't have a constructor,
-    perform the association when Add is called.
-    All Add calls must be made from within the same bubble,
-    or outside any bubble.
+    Updates #66859
     
-    When a bubbled goroutine calls WaitGroup.Wait,
-    the wait is durably blocking iff the WaitGroup is associated
-    with the current bubble.
-    
-    Change-Id: I77e2701e734ac2fa2b32b28d5b0c853b7b2825c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/676656
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I84320d9091772540df2ab15f57d93031596bb89b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579415
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
 
- src/go/build/deps_test.go              |   4 +-
- src/internal/synctest/synctest.go      |  32 +++++++++-
- src/internal/synctest/synctest_test.go | 102 +++++++++++++++++++++++++++++++-
- src/runtime/mheap.go                   |   9 +++
- src/runtime/runtime2.go                |  26 +++++----
- src/runtime/sema.go                    |   8 ++-
- src/runtime/synctest.go                | 104 +++++++++++++++++++++++++++++++--
- src/sync/runtime.go                    |   2 +-
- src/sync/waitgroup.go                  |  53 ++++++++++++++++-
- src/testing/synctest/synctest.go       |  15 ++++-
- 10 files changed, 324 insertions(+), 31 deletions(-)
+ src/go/internal/gcimporter/gcimporter_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

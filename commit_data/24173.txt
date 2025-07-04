@@ -1,15 +1,18 @@
-commit 220b5f7b548101b892232da8ad80a75dfecd7046
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sun Aug 23 13:09:02 2015 +0000
+commit fa1ea497d5d9ef16ba12fd3d99a495b7b836569d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 20:50:51 2015 -0400
 
-    image/gif: map/slice literals janitoring
+    cmd/compile: define func value symbols at declaration
     
-    Simplify slice/map literal expressions.
-    Caught with gofmt -d -s, fixed with gofmt -w -s
+    These used to be defined at use, but that breaks when shared libraries
+    are involved.
     
-    Change-Id: Iefd5f263c4f89a81da9427a7b9d97f13c35ab64f
-    Reviewed-on: https://go-review.googlesource.com/13838
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    For #11480.
+    
+    Change-Id: I416a848754fb615c0d75f9f0ccc00723d07f7f01
+    Reviewed-on: https://go-review.googlesource.com/12145
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/image/gif/writer_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/closure.go |  1 +
+ src/cmd/compile/internal/gc/dcl.go     | 20 ++++++++++++++------
+ 2 files changed, 15 insertions(+), 6 deletions(-)

@@ -1,27 +1,24 @@
-commit d8b08c3aa49d9aaac6ff34dbb8516040cc88a13a
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 11 14:57:33 2016 -0400
+commit afafab3b9736345d150445840dbb603c883bfde4
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Thu Mar 24 13:40:11 2016 +0100
 
-    runtime: perform publication barrier even for noscan objects
+    cmd/compile: simplify shifts when the counter fits 6 bits.
     
-    Currently we only execute a publication barrier for scan objects (and
-    skip it for noscan objects). This used to be okay because GC would
-    never consult the object itself (so it wouldn't observe uninitialized
-    memory even if it found a pointer to a noscan object), and the heap
-    bitmap was pre-initialized to noscan.
+    In f the extra & 63 is redundant because SHRQ already
+    looks at the bottom 6 bits only. This is a trick on AMD64
+    to get rid of CMPQ/SBBQ/ANDQ if one knows that the shift
+    counter is small.
     
-    However, now we explicitly initialize the heap bitmap for noscan
-    objects when we allocate them. While the GC will still never consult
-    the contents of a noscan object, it does need to see the initialized
-    heap bitmap. Hence, we need to execute a publication barrier to make
-    the bitmap visible before user code can expose a pointer to the newly
-    allocated object even for noscan objects.
+    func f(x uint64, s uint) uint64 {
+            return x >> (s & 63)
+    }
     
-    Change-Id: Ie4133c638db0d9055b4f7a8061a634d970627153
-    Reviewed-on: https://go-review.googlesource.com/23043
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I4861c902168dabec9a6a14a85750246dde94fc08
+    Reviewed-on: https://go-review.googlesource.com/21073
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/malloc.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  15 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 216 +++++++++++++++++++++++++++
+ 2 files changed, 231 insertions(+)

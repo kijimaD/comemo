@@ -1,24 +1,26 @@
-commit a05ea985c5fdb22ef606706f2b1a99eec5574c9c
-Author: sivchari <shibuuuu5@gmail.com>
-Date:   Mon Feb 26 14:59:15 2024 +0900
+commit 90dde5dec1126ddf2236730ec57511ced56a512d
+Author: Geon Kim <geon0250@gmail.com>
+Date:   Sat Mar 11 00:57:57 2023 +0000
 
-    all: run go fmt
+    time: fix timezone lookup logic for non-DST zones
     
-    I ran go fmt to fix format on the entire repository.
+    This change fixes time.LoadLocationFromTZData and time.Location.lookup logic if the given time is after the last transition and the extend string doesn't have the DST rule.
     
-    Change-Id: I2f09166b6b8ba0ffb0ba27f6500efb0ea4cf21ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566835
+    Fixes #58682
+    
+    Change-Id: Ie34a6d658d14c2b33098b29ab83c041ef0d34266
+    GitHub-Last-Rev: f6681eb44c0ea0772004e56eb68fcbd9023d971e
+    GitHub-Pull-Request: golang/go#58684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471020
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/internal/buildcfg/cfg.go        | 26 +++++++++++++-------------
- src/internal/chacha8rand/chacha8.go |  1 +
- src/maps/maps.go                    |  1 +
- src/net/dnsclient.go                |  1 +
- src/runtime/mgc.go                  |  2 +-
- src/runtime/rand.go                 |  6 ++++++
- src/runtime/rwmutex.go              | 16 ++++++++--------
- src/sync/pool.go                    |  1 +
- 8 files changed, 32 insertions(+), 22 deletions(-)
+ src/time/time_test.go     | 26 ++++++++++++++++++--------
+ src/time/zoneinfo.go      |  8 ++++----
+ src/time/zoneinfo_read.go |  2 +-
+ src/time/zoneinfo_test.go |  1 +
+ 4 files changed, 24 insertions(+), 13 deletions(-)

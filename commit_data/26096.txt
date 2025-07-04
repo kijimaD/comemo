@@ -1,35 +1,19 @@
-commit 2a68c6c27c447321842cb89d89c47059a15ff5ff
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 7 09:36:24 2016 -0800
+commit 4378746a4b4160d5851d1daa68383a514aadad6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 16 21:09:03 2015 -0500
 
-    cmd/compile: more nodeSeq conversions
+    cmd/dist: show output from failed compiler execution
     
-    Found by temporarily flipping fields from *NodeList to Nodes and fixing
-    all the compilation errors.  This CL does not actually change any
-    fields.
+    Maybe it will say something that helps the user understand the problem.
     
-    Passes toolstash -cmp.
+    Note that we can't use os/exec.ExitError's new Stderr field because
+    cmd/dist is compiled with Go 1.4.
     
-    Update #14473.
+    Fixes #13099.
     
-    Change-Id: Ib98fa37e8752f96358224c973a743618a6a0e736
-    Reviewed-on: https://go-review.googlesource.com/20320
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4b5910434bf324d1b85107002a64684d8ba14dc8
+    Reviewed-on: https://go-review.googlesource.com/17940
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/alg.go       | 54 ++++++++++++------------
- src/cmd/compile/internal/gc/bexport.go   |  6 +--
- src/cmd/compile/internal/gc/bimport.go   |  2 +-
- src/cmd/compile/internal/gc/closure.go   | 70 ++++++++++++++++----------------
- src/cmd/compile/internal/gc/const.go     | 58 ++++++++++++--------------
- src/cmd/compile/internal/gc/dcl.go       | 54 ++++++++++++------------
- src/cmd/compile/internal/gc/esc.go       | 25 ++++++------
- src/cmd/compile/internal/gc/fmt.go       |  2 +-
- src/cmd/compile/internal/gc/inl.go       | 16 ++++----
- src/cmd/compile/internal/gc/order.go     | 54 ++++++++++++------------
- src/cmd/compile/internal/gc/select.go    |  2 +-
- src/cmd/compile/internal/gc/syntax.go    | 10 ++++-
- src/cmd/compile/internal/gc/typecheck.go | 50 ++++++++++++-----------
- src/cmd/compile/internal/gc/unsafe.go    |  6 +--
- src/cmd/compile/internal/gc/walk.go      | 54 +++++++++++++-----------
- 15 files changed, 234 insertions(+), 229 deletions(-)
+ src/cmd/dist/build.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

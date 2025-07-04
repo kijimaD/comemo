@@ -1,15 +1,14 @@
-commit 441538eb574f8ef69a6f11f1d7eee403335931a1
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Mon Feb 20 12:31:24 2012 +1100
+commit 7a4d7444f01472bb28348bf9df1b87ea1f32e9bc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Feb 20 12:17:27 2012 +1100
 
-    os,time: fix Plan 9 build
+    build: implement clean.bat
     
-    R=golang-dev, bradfitz
+    Fixes #2893.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5689043
+    https://golang.org/cl/5685047
 
- src/pkg/os/file.go             | 13 +++++++++++++
- src/pkg/os/file_posix.go       | 13 -------------
- src/pkg/time/sys_plan9.go      |  3 ++-
- src/pkg/time/zoneinfo_plan9.go |  5 ++---
- 4 files changed, 17 insertions(+), 17 deletions(-)
+ src/clean.bat | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

@@ -1,0 +1,33 @@
+commit 192d65e46b38381653ccbe16cac49f7fa36aac93
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu May 16 22:12:47 2024 +0000
+
+    sync/atomic: public And/Or ops and race instrumentation
+    
+    This CL implements the new sync/atomic AND and OR apis as well as their race
+    counterparts.
+    
+    Fixes #61395
+    
+    Change-Id: I294eefe4b3ac27bc4ed237edcbfa88a8c646d86f
+    GitHub-Last-Rev: f174297007c7b81b1ff4a687ef23d955a3ffd4db
+    GitHub-Pull-Request: golang/go#64331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544455
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ api/next/61395.txt                              |  20 +
+ doc/next/6-stdlib/99-minor/sync/atomic/61395.md |   3 +
+ src/runtime/race.go                             |  34 ++
+ src/runtime/race_amd64.s                        |  51 +++
+ src/runtime/race_arm64.s                        |  50 +++
+ src/runtime/race_ppc64le.s                      |  46 +++
+ src/runtime/race_s390x.s                        |  50 +++
+ src/sync/atomic/asm.s                           |  30 ++
+ src/sync/atomic/atomic_test.go                  | 466 ++++++++++++++++++++++++
+ src/sync/atomic/doc.go                          |  50 +++
+ src/sync/atomic/type.go                         |  40 ++
+ 11 files changed, 840 insertions(+)

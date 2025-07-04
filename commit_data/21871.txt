@@ -1,29 +1,29 @@
-commit 4492811c05f0f57d0bf9e11b9ef4ee7d71d126fd
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 2 20:34:22 2015 -0500
+commit 5c4a86d0d00bee86793ad5f750d768e98867132d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jan 14 12:25:55 2015 +1100
 
-    cmd/internal/gc: manual goto removal + grind to move var decls
+    runtime: introduce CPU access functions on windows
     
-    Also change gc.Naddr to return the Addr instead of filling it in.
+    This CL introduces new methods for 'context' type, so we can
+    manipulate its values in an architecture independent way.
     
-    Change-Id: I98a86705d23bee49626a12a042a4d51cabe290ea
-    Reviewed-on: https://go-review.googlesource.com/6601
-    Reviewed-by: Rob Pike <r@golang.org>
+    Use new methods to replace both 386 and amd64 versions of
+    dosigprof with single piece of code.
+    
+    There is more similar code to be converted in the following CLs.
+    
+    Also remove os_windows_386.go and os_windows_amd64.go. These
+    contain unused functions.
+    
+    Change-Id: I28f76aeb97f6e4249843d30d3d0c33fb233d3f7f
+    Reviewed-on: https://go-review.googlesource.com/2790
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/5g/ggen.go               |    2 +-
- src/cmd/5g/gsubr.go              |   24 +-
- src/cmd/6g/cgen.go               |    3 +-
- src/cmd/6g/ggen.go               |    2 +-
- src/cmd/6g/gsubr.go              |   27 +-
- src/cmd/6g/peep.go               |    3 +-
- src/cmd/8g/gsubr.go              |   16 +-
- src/cmd/9g/ggen.go               |    2 +-
- src/cmd/9g/gsubr.go              |   16 +-
- src/cmd/internal/gc/closure.go   |    2 +-
- src/cmd/internal/gc/dcl.go       |    2 +-
- src/cmd/internal/gc/gsubr.go     |   24 +-
- src/cmd/internal/gc/plive.go     |   10 +-
- src/cmd/internal/gc/range.go     |    5 +-
- src/cmd/internal/gc/typecheck.go | 1244 +++++++++++++++++++++-----------------
- src/cmd/internal/gc/walk.go      |   58 +-
- 16 files changed, 779 insertions(+), 661 deletions(-)
+ src/runtime/defs_windows_386.go   |  6 ++++++
+ src/runtime/defs_windows_amd64.go |  6 ++++++
+ src/runtime/os1_windows.go        |  2 +-
+ src/runtime/os1_windows_386.go    |  4 ----
+ src/runtime/os1_windows_amd64.go  |  4 ----
+ src/runtime/os_windows_386.go     | 11 -----------
+ src/runtime/os_windows_amd64.go   | 11 -----------
+ 7 files changed, 13 insertions(+), 31 deletions(-)

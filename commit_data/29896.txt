@@ -1,15 +1,17 @@
-commit 20cdb62c499140bcd3c42f89be0d5b4ede683f42
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 4 13:37:33 2017 -0500
+commit c1cd64d0ac2001ec8fe6f253e4e95561a444d533
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Sat Oct 15 13:06:22 2016 +0200
 
-    doc: in Go 1.8 notes, mention lack of RWMutex in contention profile
+    compress/flate: use correct table for size estimation
     
-    For #18496.
+    The incorrect table was used for estimating output size.
+    This can give suboptimal selection of entropy encoder in rare cases.
     
-    Change-Id: I50ced7c9f0fe5d9c627eef1f59a7f73be742e04c
-    Reviewed-on: https://go-review.googlesource.com/34831
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I8b358200f2d1f9a3f9b79a44269d7be704e1d2d9
+    Reviewed-on: https://go-review.googlesource.com/31172
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.8.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/compress/flate/huffman_bit_writer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

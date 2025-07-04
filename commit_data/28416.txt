@@ -1,20 +1,18 @@
-commit 8607bed7445100993938ee96a028627461fce9d3
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Aug 25 22:04:04 2016 -0400
+commit 8e724e7bbad07d530f547b6214c71ddfe26ba92a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 23 20:34:39 2016 -0400
 
-    runtime: avoid dependence on main symbol
+    cmd/go: fix //go:binary-only-package check
     
-    For -buildmode=plugin, this lets the linker drop the main.main symbol
-    out of the binary while including most of the runtime.
+    The use of a prefix check was too liberal.
+    Noted in review after submit.
     
-    (In the future it should be possible to drop the entire runtime
-    package from plugins.)
-    
-    Change-Id: I3e7a024ddf5cc945e3d8b84bf37a0b7cb2a00eb6
-    Reviewed-on: https://go-review.googlesource.com/27821
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I4fe1df660997efd225609e818040b8392fab79f0
+    Reviewed-on: https://go-review.googlesource.com/23375
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go | 3 ++-
+ src/go/build/build.go | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

@@ -1,14 +1,12 @@
-commit c57a443e8777de0f34444dd512fbcb099e7b3e29
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 1 16:44:18 2016 -0700
+commit 9e1f6a326e4fe9081975d73da03d115c01173552
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 30 14:21:33 2016 -0700
 
-    doc: update go1.8.txt
+    cmd/compile: implement fmt.Formatter for Op formats %s, %v
     
-    Automated update after manual classification using x/build/cmd/writenotes.
-    
-    Change-Id: Ie92f501d301c1e2245954439da197812c09c1684
-    Reviewed-on: https://go-review.googlesource.com/32570
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I59e18fab37fd688fc1e578e2192e32e29fdf37f0
+    Reviewed-on: https://go-review.googlesource.com/28331
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.8.txt | 150 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 149 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

@@ -1,14 +1,14 @@
-commit db16bca18f44af824127dbe0bf31e81b97f2ee1b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun May 1 18:23:39 2011 -0700
+commit 366986a3fea5e56470b8d853d047aa57c5241815
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon May 2 09:35:55 2011 +1000
 
-    multipart: return an error on Reader EOF, not (nil, nil)
+    syscall: add Windows file mapping functions and constants
     
-    R=rsc, adg
+    R=brainman, rsc1, rsc
     CC=golang-dev
-    https://golang.org/cl/4430074
+    https://golang.org/cl/4375046
 
- src/pkg/mime/multipart/formdata.go       |  6 +++---
- src/pkg/mime/multipart/multipart.go      | 11 ++++-------
- src/pkg/mime/multipart/multipart_test.go |  8 ++++----
- 3 files changed, 11 insertions(+), 14 deletions(-)
+ src/pkg/syscall/syscall_windows.go      |  6 +++
+ src/pkg/syscall/zsyscall_windows_386.go | 92 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows_386.go   | 12 +++++
+ 3 files changed, 110 insertions(+)

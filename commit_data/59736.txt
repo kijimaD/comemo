@@ -1,20 +1,27 @@
-commit 555d425d177db7fa7123779d253aee42980cb8a3
-Author: Damien Neil <dneil@google.com>
-Date:   Wed May 28 10:55:26 2025 -0700
+commit c686783cabd4603cdff662f8cf9180c4f76b7928
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 11 15:16:22 2024 +0000
 
-    testing, testing/synctest: write bubble errors to parent test log
+    cmd/compile/internal/ssa: delay rewrite cycle detection for huge funcs
     
-    Ensure that log messages written to the testing.T created by
-    synctest.Test appear in the test output when a test fails.
+    The SSA rewrite pass has some logic that looks to see whether a
+    suspiciously large number of rewrites is happening, and if so, turns
+    on logic to try to detect rewrite cycles. The cycle detection logic is
+    quite expensive (hashes the entire function), meaning that for very
+    large functions we might get a successful compilation in a minute or
+    two with no cycle detection, but take a couple of hours once cycle
+    detection kicks in.
     
-    Fixes #73902
+    This patch moves from a fixed limit of 1000 iterations to a limit set
+    partially based on the size of the function (meaning that we'll wait
+    longer before turning cycle detection for a large func).
     
-    Change-Id: Ie97f5efe54eb003e6c0a5394c2def4cac1520ecb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/676995
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Fixes #66773.
+    
+    Change-Id: I72f8524d706f15b3f0150baf6abeab2a5d3e15c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578215
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/testing/synctest/synctest_test.go | 42 ++++++++++++++++++++++++++---------
- src/testing/testing.go                |  3 +--
- 2 files changed, 32 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

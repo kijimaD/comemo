@@ -1,18 +1,17 @@
-commit d599accafa0ddd1a598f87c419099f82d5910004
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 14 11:17:48 2012 -0500
+commit c2e58dc568093cb0d8967d62e7081aa2781de89f
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Feb 14 07:13:57 2012 -0500
 
-    time: use "2006-01-02 15:04:05.999999999 -0700 MST" as String format
+    go1.tmpl: fix merge
     
-    This change shows all the information present
-    in the Time value (now including fractional seconds)
-    and also arranges the fields so that, within a single time zone,
-    string comparison and time comparison agree.
+    hg massively messed up a simple merge for 9d7addec2635 in what I can
+    only imagine was a public service announcement that everyone should
+    use git.
     
-    R=golang-dev, rogpeppe, r
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5654078
+    https://golang.org/cl/5668043
 
- src/pkg/time/example_test.go | 2 +-
- src/pkg/time/format.go       | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ doc/go1.html | 223 +++++++++++++++++++++++++++++++++++++++++++++--------------
+ doc/go1.tmpl | 223 +++++++++++++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 346 insertions(+), 100 deletions(-)

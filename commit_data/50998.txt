@@ -1,31 +1,17 @@
-commit 069d1fc9e2085d93ea256b6c49b5d7c3026f79a3
-Author: cui fliter <imcusg@gmail.com>
-Date:   Mon Oct 3 01:32:11 2022 +0000
+commit e883005d2ae5c9de0f3a072af53968da299bb8a8
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Nov 24 11:05:51 2021 -0500
 
-    runtime: fix a few function names on comments
+    doc/go1.18: document that iOS 12 or newer is required
     
-    Change-Id: I4be0b1e612dcc21ca6bb7d4395f1c0aa52480759
-    GitHub-Last-Rev: 032480c4c9ddb2bedea26b01bb80b8a079bfdcf3
-    GitHub-Pull-Request: golang/go#55993
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/437518
-    Reviewed-by: hopehook <hopehook@golangcn.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
+    For #47694.
+    Updates #49616.
+    Updates #48076.
+    
+    Change-Id: I570564c3a54d3cd9cfc9b8267df9fbee3363b650
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366914
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/env_plan9.go    |  8 ++++----
- src/runtime/float.go        | 10 +++++-----
- src/runtime/mbarrier.go     |  2 +-
- src/runtime/mbitmap.go      |  4 ++--
- src/runtime/mpagealloc.go   |  2 +-
- src/runtime/os3_solaris.go  |  2 +-
- src/runtime/os_aix.go       |  2 +-
- src/runtime/os_darwin.go    |  2 +-
- src/runtime/os_dragonfly.go |  2 +-
- src/runtime/os_freebsd.go   |  2 +-
- src/runtime/os_linux.go     |  2 +-
- src/runtime/os_netbsd.go    |  2 +-
- src/runtime/os_openbsd.go   |  2 +-
- 13 files changed, 21 insertions(+), 21 deletions(-)
+ doc/go1.18.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

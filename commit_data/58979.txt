@@ -1,21 +1,20 @@
-commit 705fa920c13e87a580f0fc5bec4e186e1b6f663b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Mar 6 17:08:02 2025 +0100
+commit b91bad78199aaf8baeb66cb8a30f51b89b8f90ee
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 29 11:14:05 2024 -0500
 
-    crypto/internal/fips140: make Version return latest when not frozen
+    cmd/go/internal/generate: call modload.InitWorkFile
     
-    Fixes #71820
+    This is necessary for go generate to enter workspace mode for
+    recognizing package paths in the workspace.
     
-    Change-Id: I6a6a46563da281a7b20efc61eefdcbb2e146db33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655795
+    Fixes #56098
+    
+    Change-Id: I25f68de24f4189259353f63194823516e9d3d505
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559195
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/fips140/mkzip.go         | 30 ++++++++++++++++++++++++++++
- src/crypto/internal/fips140/fips140.go       |  6 +++++-
- src/crypto/internal/fips140test/fips_test.go | 27 +++++++++++++++++++++++++
- src/runtime/debug/mod.go                     |  1 +
- 4 files changed, 63 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/generate/generate.go          |  2 ++
+ src/cmd/go/testdata/script/generate_workspace.txt | 27 +++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

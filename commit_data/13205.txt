@@ -1,19 +1,39 @@
-commit 4e0749a47805912a528326e3a63e5f0342b19b59
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed May 30 15:50:12 2012 +1000
+commit 034fa90dc113994cbbc4e31ae6a2f7c9d06ed1eb
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed May 30 13:00:32 2012 +1000
 
-    exp/html: Convert \r and \r\n to \n when tokenizing
+    exp/html: add some tokenizer and parser benchmarks.
     
-    Also escape "\r" as "&#13;" when rendering HTML.
+    $GOROOT/src/pkg/exp/html/testdata/go1.html is an execution of the
+    $GOROOT/doc/go1.html template by godoc.
     
-    Pass 2 additional tests.
+    Sample numbers on my linux,amd64 desktop:
+    BenchmarkParser      500           4699198 ns/op          16.63 MB/s
+    --- BENCH: BenchmarkParser
+            parse_test.go:409: 1 iterations, 14653 mallocs per iteration
+            parse_test.go:409: 100 iterations, 14651 mallocs per iteration
+            parse_test.go:409: 500 iterations, 14651 mallocs per iteration
+    BenchmarkRawLevelTokenizer          2000            904957 ns/op          86.37 MB/s
+    --- BENCH: BenchmarkRawLevelTokenizer
+            token_test.go:657: 1 iterations, 28 mallocs per iteration
+            token_test.go:657: 100 iterations, 28 mallocs per iteration
+            token_test.go:657: 2000 iterations, 28 mallocs per iteration
+    BenchmarkLowLevelTokenizer          2000           1134300 ns/op          68.91 MB/s
+    --- BENCH: BenchmarkLowLevelTokenizer
+            token_test.go:657: 1 iterations, 41 mallocs per iteration
+            token_test.go:657: 100 iterations, 41 mallocs per iteration
+            token_test.go:657: 2000 iterations, 41 mallocs per iteration
+    BenchmarkHighLevelTokenizer         1000           2096179 ns/op          37.29 MB/s
+    --- BENCH: BenchmarkHighLevelTokenizer
+            token_test.go:657: 1 iterations, 6616 mallocs per iteration
+            token_test.go:657: 100 iterations, 6616 mallocs per iteration
+            token_test.go:657: 1000 iterations, 6616 mallocs per iteration
     
-    R=nigeltao
-    CC=golang-dev
-    https://golang.org/cl/6260046
+    R=rsc
+    CC=andybalholm, golang-dev, r
+    https://golang.org/cl/6257067
 
- src/pkg/exp/html/escape.go                         |  4 ++-
- .../exp/html/testlogs/plain-text-unsafe.dat.log    |  4 +--
- src/pkg/exp/html/token.go                          | 35 +++++++++++++++++++++-
- src/pkg/exp/html/token_test.go                     | 27 +++++++++++++++++
- 4 files changed, 66 insertions(+), 4 deletions(-)
+ src/pkg/exp/html/parse_test.go     |   22 +
+ src/pkg/exp/html/testdata/go1.html | 2237 ++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/html/token_test.go     |   65 ++
+ 3 files changed, 2324 insertions(+)

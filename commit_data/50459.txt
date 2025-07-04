@@ -1,42 +1,23 @@
-commit f7396aaea0297a2e95b502a4075b0aed6efda89f
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Aug 22 11:29:03 2022 -0700
+commit 5c4d7c50c7266bfbce3f43f04a0fb622b9e45805
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 25 21:43:07 2021 -0700
 
-    time: optimize Parse for RFC3339 and RFC3339Nano
+    cmd/compile/internal/types2: rename isNamed predicate to hasName
     
-    RFC 3339 is the most common time representation,
-    being used in an overwhelming 57.3% of all specified formats,
-    while the next competitor only holds 7.5% usage.
-    Specially optimize parsing to handle the RFC 3339 format.
-    To reduce the complexity of error checking,
-    parseRFC3339 simply returns a bool indicating parsing success.
-    It leaves error handling to the general parse path.
+    isNamed(t) is easily confused with asNamed(t) != nil (e.g., we
+    have isPointer(t) that is defined as asPointer(t) != nil).
     
-    To assist in fuzzing, the internal parse function was left unmodified
-    so that we could test that parseRFC3339 and parse agree with each other.
+    This rename also helped clarifying a couple of places in the
+    assignability rules where it makes sense to simply look for
+    types that have names.
     
-    Performance:
-    
-            name             old time/op  new time/op  delta
-            ParseRFC3339UTC  112ns ± 1%   37ns ± 1%    -67.37%  (p=0.000 n=9+9)
-            ParseRFC3339TZ   259ns ± 2%   67ns ± 1%    -73.92%  (p=0.000 n=10+9)
-    
-    Credit goes to Amarjeet Anand for a prior CL attemping to optimize this.
-    See CL 425014.
-    
-    Fixes #54093
-    
-    Change-Id: I14f4e8c52b092d44ceef6863f261842ed7e83f4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425197
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Change-Id: Ie995908613a26883ffe0562343d297a1e981e9ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358621
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/time/export_test.go |   2 +
- src/time/format.go      |  86 ++++++++++++++++++++++++++++++++++
- src/time/format_test.go | 120 +++++++++++++++++++++++++++++++++++-------------
- src/time/time_test.go   |  12 +++++
- 4 files changed, 189 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/types2/operand.go                      | 9 ++++-----
+ src/cmd/compile/internal/types2/predicates.go                   | 7 ++++---
+ src/cmd/compile/internal/types2/testdata/spec/assignability.go2 | 8 +++++---
+ src/cmd/compile/internal/types2/unify.go                        | 6 +++---
+ 4 files changed, 16 insertions(+), 14 deletions(-)

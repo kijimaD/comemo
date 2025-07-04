@@ -1,28 +1,22 @@
-commit 475d86b6d98a9d7c30d3933d3097727dddb94320
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Jan 30 11:01:19 2013 -0500
+commit 607317651206f32ee11bf97ec0fe8c473bba403d
+Author: Rodrigo Rafael Monti Kochenburger <divoxx@gmail.com>
+Date:   Wed Jan 30 07:57:11 2013 -0800
 
-    crypto/rc4: add simple amd64 asm implementation.
+    cmd/vet: detect misuse of atomic.Add*
     
-    (Although it's still half the speed of OpenSSL.)
+    Re-assigning the return value of an atomic operation to the same variable being operated is a common mistake:
     
-    benchmark           old ns/op    new ns/op    delta
-    BenchmarkRC4_128         1409          398  -71.75%
-    BenchmarkRC4_1K         10920         2898  -73.46%
-    BenchmarkRC4_8K        131323        23083  -82.42%
+    x = atomic.AddUint64(&x, 1)
     
-    benchmark            old MB/s     new MB/s  speedup
-    BenchmarkRC4_128        90.83       321.43    3.54x
-    BenchmarkRC4_1K         93.77       353.28    3.77x
-    BenchmarkRC4_8K         61.65       350.73    5.69x
+    Add this check to go vet.
     
-    R=rsc, remyoudompheng
-    CC=golang-dev, jgrahamc
-    https://golang.org/cl/7234055
+    Fixes #4065.
+    
+    R=dvyukov, golang-dev, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/7097048
 
- src/pkg/crypto/rc4/rc4.go      | 11 --------
- src/pkg/crypto/rc4/rc4_amd64.s | 53 +++++++++++++++++++++++++++++++++++++
- src/pkg/crypto/rc4/rc4_asm.go  | 18 +++++++++++++
- src/pkg/crypto/rc4/rc4_ref.go  | 20 ++++++++++++++
- src/pkg/crypto/rc4/rc4_test.go | 60 +++++++++++++++++++++++++++++++++++++++++-
- 5 files changed, 150 insertions(+), 12 deletions(-)
+ src/cmd/vet/Makefile  |  2 +-
+ src/cmd/vet/atomic.go | 90 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/main.go   | 16 +++++++++
+ 3 files changed, 107 insertions(+), 1 deletion(-)

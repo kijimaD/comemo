@@ -1,18 +1,21 @@
-commit 9dc572eab55b085b61877ecd4d7cc492e34dc3ab
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Mar 20 14:49:56 2025 +0100
+commit af5943f90cc919c38188067bbe006bdc148b576c
+Author: ALX99 <alx245669@gmail.com>
+Date:   Sat Feb 17 04:43:34 2024 +0000
 
-    cmd/compile/internal/ssa: remove linkedBlocks and its uses
+    context: update doc comment to link to context interface
     
-    The use of predFn/succFn is not needed since CL 22401.
+    Linking to the Context interface in the WithCancel doc comment makes
+    it more consistent with the WithDeadline and WithTimeout doc comments.
     
-    Change-Id: Icc39190bb7b0e85541c75da2d564093d551751d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659555
+    Change-Id: Ic935c63e8262784be5f3564816402221ba2fbd63
+    GitHub-Last-Rev: 9c6bb607a94f6f4cd27cc3f5e39c192e088ab386
+    GitHub-Pull-Request: golang/go#65768
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564996
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/ssa/dom.go | 23 ++++++++---------------
- 1 file changed, 8 insertions(+), 15 deletions(-)
+ src/context/context.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,46 @@
-commit 9a9bd102904f0ac57a427634cd9f2e6302d60624
+commit f32f4f58d9cd9d15371ee6198c1b222bcf2b56d9
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 28 20:42:40 2022 -0800
+Date:   Sun May 30 18:13:36 2021 -0700
 
-    cmd/compile/internal/importer: support final unified IR export format
+    [dev.typeparams] cmd/compile: simplify formatting of defined types
     
-    This updates the cmd/compile/internal/importer to natively support the
-    "final" unified IR export format. This is really just for unit tests
-    and symmetry with go/internal/gcimporter though, since
-    cmd/compile/internal/noder has its own types2.Importer.
+    The existing code for deciding how to format defined type names is
+    incredibly convoluted and difficult to follow. In particular, I'm
+    looking at changing how Vargen works, and I couldn't tell from the
+    existing code whether my idea was viable.
     
-    Change-Id: I52fbb6134dbc0a903d62c1b04f95d33bd29e0414
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388617
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This CL overhauls the logic to be much simpler with fewer special
+    cases, while overall behaving the same. A few notable intentional
+    differences from how the current code works:
+    
+    1. The old code replaced the 'S' verb for fmtTypeGo and fmtTypeDebug
+    to 'v', whereas the new code leaves it alone. There's currently no
+    code that actually uses 'S' with these modes anyway, so it doesn't
+    seem important to maintain this special case. If future code wants 'v'
+    formatting, it should just use 'v' instead of 'S'.
+    
+    2. The old code included Vargen for fmtTypeIDName mode with the 'S'
+    verb; but again, this functionality isn't actually used. I think it
+    would make sense for fmtTypeIDName to include Vargen like fmtTypeID
+    does (Vargen is logically part of the type's identity after all), but
+    that breaks tests and toolstash -cmp. So for now, this is left as a
+    TODO to investigate in the future.
+    
+    3. The old code only added Vargen for fmtTypeID in 'v' mode when
+    printing types from the local package. But because we don't currently
+    support exporting function-scoped defined types anyway, this is again
+    irrelevant. In fact, once we *do* support exporting function-scoped
+    defined types, we'll need to include Vargen to generate the linker
+    symbols correctly.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I4e481276bc4dc8d5b17eebf597b612737f26be5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323709
     Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/importer/exportdata.go |  8 +++++--
- src/cmd/compile/internal/importer/gcimporter.go | 29 ++++++++++++++++++++-----
- 2 files changed, 29 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types/fmt.go | 33 +++++++++++----------------------
+ 1 file changed, 11 insertions(+), 22 deletions(-)

@@ -1,28 +1,23 @@
-commit 66c03d39f3aa65ec522c41e56c569391786539a7
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Aug 9 11:33:40 2017 +1000
+commit 3e0c21e0335f5ec01ea13a86e1fd32ee066f369d
+Author: Mark Ryan <mark.d.ryan@intel.com>
+Date:   Fri Jun 16 11:34:28 2017 +0100
 
-    path/filepath: re-implement windows EvalSymlinks
+    encoding: fix endless loop in TestDecoderBuffering
     
-    CL 41834 used approach suggested by Raymond Chen in
-    https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
-    to implement os.Stat by getting Windows I/O manager
-    follow symbolic links.
+    The ascii85, base32 and base64 packages all contain a test called
+    TestDecoderBuffering.  Each of these tests contain a loop that ignores
+    the error returned from the Read method of their decoders.  The result
+    being that the tests loop for ever if the decoders actually return an
+    error.  This commit fixes the issue by terminating the loops if an error
+    occurs and failing the tests with a suitable error message.
     
-    Do the same for filepath.EvalSymlinks, when existing
-    strategy fails.
-    
-    Updates #19922
-    Fixes #20506
-    
-    Change-Id: I15f3d3a80256bae86ac4fb321fd8877e84d8834f
-    Reviewed-on: https://go-review.googlesource.com/55612
+    Change-Id: Idb385673cf9f3f6f8befe4288b4be366ab0985fd
+    Reviewed-on: https://go-review.googlesource.com/46010
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go                        |  2 +-
- src/internal/syscall/windows/syscall_windows.go  | 16 ++++
- src/internal/syscall/windows/zsyscall_windows.go | 44 +++++++----
- src/os/os_windows_test.go                        |  9 ++-
- src/path/filepath/path_windows_test.go           | 34 +++++++++
- src/path/filepath/symlink_windows.go             | 97 +++++++++++++++++++++++-
- 6 files changed, 183 insertions(+), 19 deletions(-)
+ src/encoding/ascii85/ascii85_test.go | 10 +++++++---
+ src/encoding/base32/base32_test.go   | 10 +++++++---
+ src/encoding/base64/base64_test.go   | 10 +++++++---
+ 3 files changed, 21 insertions(+), 9 deletions(-)

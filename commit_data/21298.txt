@@ -1,14 +1,13 @@
-commit 7ef59e4ed8c2bc4d79d1a40ece6e262677214ace
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 16 14:33:27 2015 -0500
+commit c5089a7a817139ea1239ae4f841438a50b04f34a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Dec 18 17:28:03 2014 -0500
 
-    runtime: rename float64 constants to avoid name space pollution
+    test/fixedbugs/issue9355: fix build on windows and skip on nacl
     
-    Otherwise, if you mistakenly refer to an undeclared 'shift' variable, you get 52.
-    
-    Change-Id: I845fb29f23baee1d8e17b37bde0239872eb54316
-    Reviewed-on: https://go-review.googlesource.com/2909
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: If367cc1e8c2d744569513bc71da6e6c454c74e9a
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/1802
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/sqrt.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ test/fixedbugs/issue9355.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

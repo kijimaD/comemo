@@ -1,18 +1,14 @@
-commit cb62365f5737d8c6a803b0737b3f34a64e526b6b
-Author: Alexey Borzenkov <snaury@gmail.com>
-Date:   Mon May 28 10:46:51 2012 -0700
+commit 042848da65a4f504542d5b2b690b198e3cd20230
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun May 27 18:57:16 2012 +1000
 
-    net/http: reuse http proxy connections for different http requests
+    syscall: simplify text returned by Errno.Error() when FormatMessage fails
     
-    Comment on cache keys above connectMethod says "http to proxy, http
-    anywhere after that", however in reality target address was always
-    included, which prevented http requests to different target
-    addresses to reuse the same http proxy connection.
+    Fixes #3623.
     
-    R=golang-dev, r, rsc, bradfitz
+    R=golang-dev, bsiegert, rsc
     CC=golang-dev
-    https://golang.org/cl/5901064
+    https://golang.org/cl/6218072
 
- src/pkg/net/http/proxy_test.go | 30 ++++++++++++++++++++++++++++++
- src/pkg/net/http/transport.go  |  6 +++++-
- 2 files changed, 35 insertions(+), 1 deletion(-)
+ src/pkg/syscall/syscall_windows.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

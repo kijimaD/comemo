@@ -1,18 +1,19 @@
-commit df781cc4abf83225ec2e0dbd6e16dc8dd6cab36d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 26 13:50:53 2014 -0400
+commit 8c2484ec11d27324423e3cf27cc9ac6b34394c7d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Sep 17 21:22:11 2014 -0700
 
-    liblink: fix cmd/ld -X flag
+    sync/atomic: remove unnecessary race instrumentation in Value
+    It is left from the time when Value was implemented in assembly.
+    Now it is implemented in Go and race detector understands Go.
+    In particular the atomic operations must provide
+    all necessary synchronization.
     
-    This fixes the test/linkx.go test, which does not run by default.
-    (Issue 4139 is about fixing that.)
-    
-    Fixes #8806.
-    
-    LGTM=r
-    R=golang-codereviews, r
-    CC=bradfitz, golang-codereviews, iant
-    https://golang.org/cl/145420043
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/145880043
 
- src/liblink/objfile.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/sync/atomic/norace.go | 17 -----------------
+ src/sync/atomic/race.go   | 22 ----------------------
+ src/sync/atomic/value.go  |  6 ------
+ 3 files changed, 45 deletions(-)

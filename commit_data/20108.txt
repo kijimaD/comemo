@@ -1,13 +1,17 @@
-commit 639dc6c794d682dd7efff21107d0e085ed66726c
-Author: Sanjay Menakuru <balasanjay@gmail.com>
-Date:   Mon Aug 25 11:29:53 2014 +0400
+commit 78cc89ce6740057bfbf9da211102c75659f83c89
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Aug 16 14:10:35 2014 +1000
 
-    runtime: Loosen conditions in TestMemstat in an attempt to fix the nacl/arm build.
+    cmd/ld: fix operator precedence
     
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
-    CC=golang-codereviews, khr
-    https://golang.org/cl/128680043
+    Fixes #8480.
+    
+    This CL reapplies CL 114420043. This attempt doesn't blow up when encountering hidden symbols.
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/128310043
 
- src/pkg/runtime/malloc_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

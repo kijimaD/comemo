@@ -1,28 +1,14 @@
-commit a62b5723be15849656279c244834064b951801fc
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Apr 29 20:58:39 2019 +0000
+commit 1e88d91eb26fbbf17a1ac4d8b0967d17905a2aba
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Dec 19 09:36:11 2018 +0100
 
-    runtime: scavenge huge spans first
+    doc/go1.12: fix typos and code formatting
     
-    This change adds two new treap iteration types: one for large
-    unscavenged spans (contain at least one huge page) and one for small
-    unscavenged spans. This allows us to scavenge the huge spans first by
-    first iterating over the large ones, then the small ones.
+    Fix two typos and don't indent the go vet example.
     
-    Also, since we now depend on physHugePageSize being a power of two,
-    ensure that that's the case when it's retrieved from the OS.
-    
-    For #30333.
-    
-    Change-Id: I51662740205ad5e4905404a0856f5f2b2d2a5680
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174399
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Iccec56ca5decfbae45547a00115500ed13b703e1
+    Reviewed-on: https://go-review.googlesource.com/c/154721
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/export_test.go |  1 +
- src/runtime/mgclarge.go    |  6 ++++-
- src/runtime/mheap.go       | 60 +++++++++++++++++++++++++++++++---------------
- src/runtime/os_linux.go    |  7 ++++--
- src/runtime/treap_test.go  |  8 ++++---
- 5 files changed, 57 insertions(+), 25 deletions(-)
+ doc/go1.12.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

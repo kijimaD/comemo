@@ -1,18 +1,26 @@
-commit 2b9787c2f3861736e82aa715343b67157911917f
+commit c7f7bbbf03415e1805e503846627f2e08423c360
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 15 13:12:28 2013 -0500
+Date:   Fri Feb 15 12:18:33 2013 -0500
 
-    encoding/binary: make type error more specific
+    runtime: fix build on linux
     
-    Right now it says 'invalid type S' for a struct type S.
-    Instead, say which type inside the struct is the problem.
+    In addition to the compile failure fixed in signal*.c,
+    preserving the signal mask led to very strange crashes.
+    Testing shows that looking for SIG_IGN is all that
+    matters to get along with nohup, so reintroduce
+    sigset_zero instead of trying to preserve the signal mask.
     
-    Fixes #4825.
-    
-    R=golang-dev, iant
+    TBR=iant
     CC=golang-dev
-    https://golang.org/cl/7301102
+    https://golang.org/cl/7323067
 
- src/pkg/encoding/binary/binary.go      | 57 ++++++++++++++++++----------------
- src/pkg/encoding/binary/binary_test.go |  9 +++++-
- 2 files changed, 39 insertions(+), 27 deletions(-)
+ src/pkg/runtime/runtime.h            | 1 -
+ src/pkg/runtime/signal_linux_386.c   | 2 +-
+ src/pkg/runtime/signal_linux_amd64.c | 3 ++-
+ src/pkg/runtime/signal_linux_arm.c   | 2 +-
+ src/pkg/runtime/thread_darwin.c      | 6 ++----
+ src/pkg/runtime/thread_freebsd.c     | 6 ++----
+ src/pkg/runtime/thread_linux.c       | 6 ++----
+ src/pkg/runtime/thread_netbsd.c      | 7 ++-----
+ src/pkg/runtime/thread_openbsd.c     | 6 ++----
+ 9 files changed, 14 insertions(+), 25 deletions(-)

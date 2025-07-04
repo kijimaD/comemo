@@ -1,13 +1,12 @@
-commit 8db6802cec2a48ea460e8185734c05a0a1e26164
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 16 16:03:24 2011 +1000
+commit aaae15ef0f390cd4f780ed1a74a476707852efc9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 16 01:46:14 2011 -0400
 
-    docs/GoCourseDay1.pdf: fix error in operator table.
-    Communications op was listed as a binary; it isn't any more.
+    doc: document r57.2
     
-    R=golang-dev, rsc
+    R=adg, r
     CC=golang-dev
-    https://golang.org/cl/4637041
+    https://golang.org/cl/4627042
 
- doc/GoCourseDay1.pdf | Bin 265989 -> 904237 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ doc/devel/release.html | 1 +
+ 1 file changed, 1 insertion(+)

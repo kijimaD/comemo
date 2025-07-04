@@ -1,19 +1,27 @@
-commit de50ea3cd848f187766825402f8d6c8109536443
+commit 0b23c88d9f908aa09c7e35ec339b3678f9dcf5fc
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 12 11:36:12 2018 -0500
+Date:   Wed Jul 18 20:08:04 2018 -0400
 
-    bufio: put notes about len(p) together
+    cmd/go: fix module get -u to avoid spurious new deps
     
-    CL 145577 added the part about io.ReadFull to read len(p)
-    but it should be next to the existing sentence about not
-    reading len(p) bytes.
+    If we have go get -u x1@v1 x2@v2 and x1 depends on x2,
+    use v2 as the "upgraded" x2 chosen by -u  instead of
+    letting -u pick something (say, v2.1) and then immediately
+    overriding it. This avoids chasing down the deps from v2.1
+    and also avoids them polluting the overall module graph.
     
-    Change-Id: Idfa037c59a3085d44d5da6129188473db0e96d23
-    Reviewed-on: https://go-review.googlesource.com/c/148903
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    This fix also lets us delete some code in the preparation step,
+    reducing the overall latency of get -u.
+    
+    Suggested by Bryan Mills in
+    https://go-review.googlesource.com/c/vgo/+/122396/6#371.
+    
+    Fixes #26342.
+    
+    Change-Id: I50fa842304820d3f16f66a8e65dea695e2b0f88b
+    Reviewed-on: https://go-review.googlesource.com/124856
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/bufio/bufio.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/go/internal/modget/get.go                | 69 ++++++++++--------------
+ src/cmd/go/testdata/script/mod_get_downgrade.txt | 10 ++++
+ 2 files changed, 39 insertions(+), 40 deletions(-)

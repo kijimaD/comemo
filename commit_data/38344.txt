@@ -1,42 +1,33 @@
-commit 48d3c32ba9c2cbe4cfded44a150540f15fdf517c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 10 11:55:49 2019 -0700
+commit 13d5cd784748f8849c75ec23ed6e3d40dc7d2ce7
+Author: ChrisALiles <caveryliles@gmail.com>
+Date:   Mon Aug 6 19:50:38 2018 +1000
 
-    cmd/compile: teach rulegen to |-expand multiple |s in a single op
+    cmd/compile: use proved bounds to remove signed division fix-ups
     
-    I want to be able to write
+    prove is able to find 94 occurrences in std cmd where a divisor
+    can't have the value -1. The change removes
+    the extraneous fix-up code for these cases.
     
-    MOV(Q|Q|L|L|L|W|W|B)loadidx(1|8|1|4|8|1|2|1)
+    Fixes #25239
     
-    instead of
-    
-    MOV(Qloadidx1|Qloadidx8|Lloadidx1|Lloadidx4|Lloadidx8|Wloadidx1|Wloadidx2|Bloadidx1)
-    
-    in rewrite rules.
-    
-    Both are fairly cryptic and hard to review, but the former
-    is at least compact, which helps to not obscure the structure
-    of the rest of the rule.
-    
-    Support that by adjusting rulegen's expansion.
-    
-    Instead of looking for an op that begins with "(", ends with " ",
-    and has exactly one set of parens in it, look for everything of the
-    form "(...|...)".
-    
-    That has false positives: Go code in the && conditions and AuxInt expressions.
-    Those are easily checked for syntactically: && conditions are between && and ->,
-    and AuxInt expressions are inside square brackets.
-    After ruling out those false positives, we can keep everything else,
-    regardless of where it is.
-    
-    No change to the generated code for existing rules.
-    
-    Change-Id: I5b70a190e268989504f53cb2cce2f9a50170d8a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166737
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ic184de971f47cc57c702eb72805b8e291c14035d
+    Reviewed-on: https://go-review.googlesource.com/c/130215
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go | 53 +++++++++++++++++++++--------
- 1 file changed, 39 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go              | 85 ++++++++++++----------
+ src/cmd/compile/internal/gc/testdata/arith_test.go | 36 +++++++++
+ src/cmd/compile/internal/ssa/gen/386.rules         |  8 +-
+ src/cmd/compile/internal/ssa/gen/386Ops.go         | 19 ++---
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |  4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |  8 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go     | 15 ++--
+ src/cmd/compile/internal/ssa/opGen.go              | 13 ++++
+ src/cmd/compile/internal/ssa/prove.go              | 23 ++++++
+ src/cmd/compile/internal/ssa/rewrite.go            | 10 +++
+ src/cmd/compile/internal/ssa/rewrite386.go         | 24 ++++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 36 ++++++---
+ src/cmd/compile/internal/x86/ssa.go                | 33 +++++----
+ test/codegen/arithmetic.go                         | 81 +++++++++++++++++++++
+ 14 files changed, 298 insertions(+), 97 deletions(-)

@@ -1,31 +1,31 @@
-commit 6f84993e90e7076427c1bd0aaebe4e10b764194a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Nov 21 20:11:03 2020 -0500
+commit 56933fb83852837f169cb35a23815f23c799da87
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Apr 23 15:36:28 2020 -0400
 
-    cmd/link: code-sign on darwin/arm64
+    cmd/compile,cmd/internal/obj/ppc64: use mod instructions on power9
     
-    This CL lets the linker code-sign output binaries on
-    darwin/arm64, as the kernel requires binaries must be signed in
-    order to run.
+    This updates the PPC64.rules file to use the MOD instructions
+    that are available in power9. Prior to power9 this is done
+    using a longer sequence with multiply and divide.
     
-    This signature will likely be invalidated when we stamp the
-    buildid after linking. We still do it in the linker, for
-    - plain "go tool link" works.
-    - the linker generates the LC_CODE_SIGNATURE load command with
-      the right size and offset, so we don't need to update it when
-      stamping the buildid.
+    Included in this change is removal of the REM* opcode variations
+    that set the CC or OV bits since their settings are based
+    on the DIV and are not appropriate for the REM.
     
-    Updates #38485, #42684.
-    
-    Change-Id: Ia306328906d73217221ba31093fe61a935a46122
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272256
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Iceed9ce33e128e1911c15592ee674276ce8ba3fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229761
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/ld/lib.go    |  11 +++
- src/cmd/link/internal/ld/macho.go  | 146 ++++++++++++++++++++++++++++++++++---
- src/cmd/link/internal/ld/outbuf.go |   9 +++
- 3 files changed, 155 insertions(+), 11 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s |  5 ++
+ src/cmd/compile/internal/ppc64/ssa.go        |  3 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 12 +++--
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  4 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 60 +++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 72 ++++++++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/a.out.go          | 12 -----
+ src/cmd/internal/obj/ppc64/anames.go         | 12 -----
+ src/cmd/internal/obj/ppc64/asm9.go           | 55 ++++++++-------------
+ 9 files changed, 171 insertions(+), 64 deletions(-)

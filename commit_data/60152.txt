@@ -1,0 +1,21 @@
+commit 56ec5d96bce06b70895ce2816fd59a4e0c4db21c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed May 15 13:46:38 2024 -0700
+
+    crypto/tls: populate Leaf in X509KeyPair
+    
+    Fixes #67065
+    
+    Change-Id: I189e194de8aa94523eb64e1dd294a70cb81cbdf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585856
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ doc/godebug.md                 |  7 ++++++
+ src/crypto/tls/tls.go          | 29 +++++++++++++++------
+ src/crypto/tls/tls_test.go     | 57 ++++++++++++++++++++++++++++++++++++++++++
+ src/internal/godebugs/table.go |  1 +
+ src/runtime/metrics/doc.go     |  5 ++++
+ 5 files changed, 92 insertions(+), 7 deletions(-)

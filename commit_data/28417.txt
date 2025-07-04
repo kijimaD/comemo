@@ -1,17 +1,21 @@
-commit 882dd1c3baff19cfe8d59bc1f69d766b38540fa5
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Sep 16 09:27:06 2016 -0400
+commit 7f9255c2120f784c334431661145ee89e75f64fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 23 20:40:52 2016 -0400
 
-    cmd/compile: enable rewritings that are blocked by old backends
+    net: revise IP.String result for malformed IP address to add ? back
     
-    Old backends did not implement them, but SSA do.
+    In earlier versions of Go the result was simply "?".
+    A change in this cycle made the result echo back the hex bytes
+    of the address, which is certainly useful, but now the result is
+    not clearly indicating an error. Put the "?" back, at the beginning
+    of the hex string, to make the invalidity of the string clearer.
     
-    Change-Id: I543b2281dcf4bab0da37c9b1f26a5ef55a0ea11b
-    Reviewed-on: https://go-review.googlesource.com/29278
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I3e0f0b6a005601cd98d982a62288551959185b40
+    Reviewed-on: https://go-review.googlesource.com/23376
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/walk.go    | 8 +-------
- src/cmd/compile/internal/ppc64/prog.go | 6 ++++--
- 2 files changed, 5 insertions(+), 9 deletions(-)
+ src/net/ip.go      | 4 ++--
+ src/net/ip_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

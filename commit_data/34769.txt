@@ -1,22 +1,12 @@
-commit 72b0fb5153765fef92290a7c3eb816201bbd20fd
-Author: Ben Burkert <ben@benburkert.com>
-Date:   Thu Mar 29 15:04:58 2018 -0700
+commit f71cbc8a96056248d6789581b214ac44a2e6f91e
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Aug 30 12:24:37 2017 -0400
 
-    net: map context errors from aborted dial to internal net package errors
+    runtime/trace: fix a typo in doc
     
-    Map the error returned when a dial is aborted from the context package
-    error to the internal net package error. For example, context.Canceled
-    errors map to errCanceled, and context.DeadlineExceeded errors map to
-    poll.ErrTimeout.
-    
-    Fixes #23648
-    
-    Change-Id: Idf9d3d08052d540740c0b054503aaed931dc5b1e
-    Reviewed-on: https://go-review.googlesource.com/103518
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I63f3d2edb09801c99957a1f744639523fb6d0b62
+    Reviewed-on: https://go-review.googlesource.com/60331
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dial_unix_test.go | 5 +++--
- src/net/fd_unix.go        | 2 +-
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/runtime/trace/trace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

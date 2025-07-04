@@ -1,12 +1,20 @@
-commit 867dcb5570919e3b0c7dc35662e604c7136cc68d
-Author: Kevin Burke <kev@inburke.com>
-Date:   Thu Jan 5 17:49:08 2017 -0800
+commit 6f4a6faf86238285fd02d2d04cbf3aeb51eb9d37
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Oct 17 14:09:40 2016 -0400
 
-    net: Fix grammar error
+    cmd/dist: disable math/big assembly when using the bootstrap compiler
     
-    Change-Id: I1c2e17b25ca91be37a18c47e70678c3753070fb8
-    Reviewed-on: https://go-review.googlesource.com/34827
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    The assembly in math/big may contain instructions that the bootstrap
+    compiler does not support. Disable it using the math_big_pure_go
+    build tag.
+    
+    Fixes #17484.
+    
+    Change-Id: I766cab6a888721ab4ed76ebdbfc87ad4e919ec41
+    Reviewed-on: https://go-review.googlesource.com/31142
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/iprawsock.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/buildtool.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,13 +1,18 @@
-commit 51057bda3f5c4956d7703444fca0ee20f59b4a83
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Wed Oct 12 13:36:45 2011 -0400
+commit 8219cc9af8a53fa22af2e12631108c85a14b166b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 12 13:23:34 2011 -0400
 
-    net: fix "unexpected socket family" error from WriteToUDP.
+    runtime: fix memory leak in parallel garbage collector
     
-    R=rsc, iant, mikioh.mikioh
+    The work buffer management used by the garbage
+    collector during parallel collections leaks buffers.
+    This CL tests for and fixes the leak.
+    
+    R=golang-dev, dvyukov, r
     CC=golang-dev
-    https://golang.org/cl/5128048
+    https://golang.org/cl/5254059
 
- src/pkg/net/file.go      |  6 +++++-
- src/pkg/net/file_test.go | 11 ++++++++---
- 2 files changed, 13 insertions(+), 4 deletions(-)
+ src/pkg/runtime/gc_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/runtime/mgc0.c     |  2 +-
+ src/run.bash               |  4 ++++
+ 3 files changed, 29 insertions(+), 1 deletion(-)

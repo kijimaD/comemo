@@ -1,40 +1,14 @@
-commit 249842c8dbb90b9d286499d052ebd8fd633bd132
-Author: Rob Pike <r@golang.org>
-Date:   Fri May 17 13:53:22 2013 -0700
+commit af1dd56d1bcb842a10adaa071cca3ad5bb687a38
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat May 18 02:55:44 2013 +0800
 
-    cmd/vet: delete; it now lives in the go.tools subrepo
+    misc/cgo/test: deflake TestParallelSleep once more
+    Fixes #5480.
     
-    R=golang-dev, dsymonds, rsc, iant, dave
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/9496043
+    https://golang.org/cl/9475043
 
- src/cmd/vet/Makefile             |   14 -
- src/cmd/vet/asmdecl.go           |  533 ----------
- src/cmd/vet/assign.go            |   44 -
- src/cmd/vet/atomic.go            |   59 --
- src/cmd/vet/buildtag.go          |   91 --
- src/cmd/vet/deadcode.go          |  280 -----
- src/cmd/vet/doc.go               |   76 --
- src/cmd/vet/main.go              |  422 --------
- src/cmd/vet/method.go            |  162 ---
- src/cmd/vet/print.go             |  351 -------
- src/cmd/vet/rangeloop.go         |   65 --
- src/cmd/vet/structtag.go         |   37 -
- src/cmd/vet/taglit.go            |  164 ---
- src/cmd/vet/test_asm.go          |   24 -
- src/cmd/vet/test_asm1.s          |  247 -----
- src/cmd/vet/test_asm2.s          |  251 -----
- src/cmd/vet/test_asm3.s          |  166 ---
- src/cmd/vet/test_assign.go       |   20 -
- src/cmd/vet/test_atomic.go       |   43 -
- src/cmd/vet/test_buildtag.go     |   15 -
- src/cmd/vet/test_buildtag_bad.go |   15 -
- src/cmd/vet/test_deadcode.go     | 2121 --------------------------------------
- src/cmd/vet/test_method.go       |   24 -
- src/cmd/vet/test_print.go        |  153 ---
- src/cmd/vet/test_rangeloop.go    |   61 --
- src/cmd/vet/test_structtag.go    |   15 -
- src/cmd/vet/test_taglit.go       |   65 --
- src/cmd/vet/types.go             |  185 ----
- src/cmd/vet/typestub.go          |   50 -
- 29 files changed, 5753 deletions(-)
+ misc/cgo/test/callback_c.c | 26 +++++++++++++++++--
+ misc/cgo/test/issue1560.go | 63 ++++++++++++++--------------------------------
+ 2 files changed, 43 insertions(+), 46 deletions(-)

@@ -1,19 +1,13 @@
-commit ae47e044a8c2f1a4cf21ba2b02eba7304c2d157d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Sep 7 20:48:40 2014 -0700
+commit 20d9cc4bb0dceed4d06338e69b7eea5287650fc7
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Sep 1 23:03:26 2014 -0400
 
-    net/http: add Transport.DialTLS hook
+    runtime: fix gogetenv on Plan 9
     
-    Per discussions out of https://golang.org/cl/128930043/
-    and golang-nuts threads and with agl.
-    
-    Fixes #8522
-    
-    LGTM=agl, adg
-    R=agl, c, adg
-    CC=c, golang-codereviews
-    https://golang.org/cl/137940043
+    LGTM=rsc
+    R=rsc, ality
+    CC=golang-codereviews
+    https://golang.org/cl/137030043
 
- src/pkg/net/http/transport.go      | 63 ++++++++++++++++++++++++++------------
- src/pkg/net/http/transport_test.go | 40 ++++++++++++++++++++++++
- 2 files changed, 83 insertions(+), 20 deletions(-)
+ src/pkg/runtime/env_plan9.go | 20 +++++---------------
+ 1 file changed, 5 insertions(+), 15 deletions(-)

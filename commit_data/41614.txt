@@ -1,22 +1,15 @@
-commit eafb4d8f8f57f52cbb6792aeff535783525186c5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Mar 9 15:47:53 2020 -0400
+commit 52e5987f5d92f707411359d9f56cb0cec97ac167
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 15 07:52:23 2019 -0700
 
-    cmd/internal/moddeps: set GO111MODULE explicitly for moddeps_test 'go' commands
+    os: keep attr.Files alive when calling StartProcess
     
-    This fixes observed failures using the following steps to reproduce:
+    Updates #34810
+    Fixes #34858
     
-            go env -w GO111MODULE=off
-            go test cmd/internal/moddeps
-    
-    Fixes #37749
-    
-    Change-Id: I7761f0b20266ac911ad19a724ba2551beca3f267
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222674
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ie934861e51eeafe8a7fd6653c4223a5f5d45efe8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201198
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/moddeps/moddeps_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/os/exec_posix.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

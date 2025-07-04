@@ -1,15 +1,54 @@
-commit 16cd770e0668a410a511680b2ac1412e554bd27b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sun Apr 11 14:49:38 2021 +0200
+commit af9c5e5dbc3a5abc49aa3ac45da1b533b0d238a6
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Fri May 8 15:57:25 2020 -0700
 
-    cmd/cgo: throw if C.malloc returns NULL in C.CString or C.CBytes
+    crypto/x509: prioritize potential parents in chain building
     
-    Change-Id: Iea07b7f3e64f5938cfb1cd1c07bdce4adf8e4470
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308992
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    When building a x509 chain the algorithm currently looks for parents
+    that have a subject key identifier (SKID) that matches the child
+    authority key identifier (AKID), if it is present, and returns all
+    matches. If the child doesn't have an AKID, or there are no parents
+    with matching SKID it will instead return all parents that have a
+    subject DN matching the child's issuer DN. Prioritizing AKID/SKID
+    matches over issuer/subject matches means that later in buildChains we
+    have to throw away any pairs where these DNs do not match. This also
+    prevents validation when a child has a SKID with two possible parents,
+    one with matching AKID but mismatching subject DN, and one with a
+    matching subject but missing AKID. In this case the former will be
+    chosen and the latter ignored, meaning a valid chain cannot be built.
+    
+    This change alters how possible parents are chosen. Instead of doing a
+    two step search it instead only consults the CertPool.byName subject DN
+    map, avoiding issues where possible parents may be shadowed by parents
+    that have SKID but bad subject DNs. Additionally it orders the list of
+    possible parents by the likelihood that they are in fact a match. This
+    ordering follows this pattern:
+    * AKID and SKID match
+    * AKID present, SKID missing / AKID missing, SKID present
+    * AKID and SKID don't match
+    
+    In an ideal world this should save a handful of cycles when there are
+    multiple possible matching parents by prioritizing parents that have
+    the highest likelihood. This does diverge from past behavior in that
+    it also means there are cases where _more_ parents will be considered
+    than in the past. Another version of this change could just retain the
+    past behavior, and only consider parents where both the subject and
+    issuer DNs match, and if both parent and child have SKID and AKID also
+    compare those, without any prioritization of the candidate parents.
+    
+    This change removes an existing test case as it assumes that the
+    CertPool will return a possible candidate where the issuer/subject DNs
+    do not match.
+    
+    Fixes #30079
+    
+    Change-Id: I629f579cabb0b3d0c8cae5ad0429cc5a536b3e58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232993
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/cgo/out.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/crypto/x509/cert_pool.go   | 58 +++++++++++++++++++++++----------------
+ src/crypto/x509/verify_test.go | 62 ++++++++++++++++++++++++++++++------------
+ 2 files changed, 79 insertions(+), 41 deletions(-)

@@ -1,24 +1,17 @@
-commit dc7808d4f2989fa0514fc0e4014616fdb8c4a764
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 5 14:42:47 2018 -0800
+commit 09ec523049e3f26cba9b431dcc8ea4820b5dcc89
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 20 19:11:33 2018 +0000
 
-    cmd/compile/internal/syntax: remove unused field in (scanner) source
+    Revert "cmd/dist: support windows/arm"
     
-    The source.offs field was intended for computing line offsets which
-    may allow a tiny optimization (see TODO in source.go). We haven't
-    done the optimization, so for now just remove the field to avoid
-    confusion. It's trivially added if needed.
+    This reverts commit def3280eb4e4bc7fb058f98fa2993cb077db3f95.
     
-    While at it, also:
+    Reason for revert: broke the vetall builder and I (Brad) forgot to run the trybots first. :(
     
-    - Fix comment for ungetr2.
-    - Make sure sentinel is present even if reading from the io.Reader failed.
-    
-    Change-Id: Ib056c6478030b3fe5fec29045362c8161ff3d19e
-    Reviewed-on: https://go-review.googlesource.com/c/152763
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I255bedeb28d13e265f357060e57561e593145275
+    Reviewed-on: https://go-review.googlesource.com/130015
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/syntax/source.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/dist/build.go       | 1 -
+ src/cmd/dist/sys_windows.go | 3 ---
+ 2 files changed, 4 deletions(-)

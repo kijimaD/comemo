@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 52186: dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
+# Index 52186: 65558a4f3da02fd7ad3d7ea93821c2a1be5508d7
 
 echo "🚀 Generating explanation for commit 52186..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 52186
-- **コミットハッシュ**: dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
-- **GitHub URL**: https://github.com/golang/go/commit/dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
+- **コミットハッシュ**: 65558a4f3da02fd7ad3d7ea93821c2a1be5508d7
+- **GitHub URL**: https://github.com/golang/go/commit/65558a4f3da02fd7ad3d7ea93821c2a1be5508d7
 
 ### 章構成
 

@@ -1,22 +1,30 @@
-commit ce4a2755956a42aa3211c121139a52c9a97a9aa0
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Nov 12 19:53:28 2021 -0500
+commit 836dbdb15b766696eadd141ea2430f3549c58ec5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Mar 15 21:48:58 2021 +0000
 
-    cmd/compile, runtime: mark R1 as clobbered for write barrier call
+    runtime: mark Windows' address-taken asm routines as ABIInternal
     
-    If the call to gcWriteBarrier is via PLT, the PLT stub will
-    clobber R1. Mark R1 clobbered.
+    In the runtime there are Windows-specific assembly routines that are
+    address-taken via funcPC and are not intended to be called through a
+    wrapper. Mark them as ABIInternal so that we don't grab the wrapper,
+    because that will break in all sorts of contexts.
     
-    For #49386.
+    For #40724.
+    For #44065.
     
-    Change-Id: I72df5bb3b8d10381fec5c567b15749aaf7d2ad70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363698
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I12a728786786f423e5b229f8622e4a80ec27a31c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302109
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/S390XOps.go |  5 +++--
- src/cmd/compile/internal/ssa/opGen.go        |  2 +-
- src/runtime/asm_s390x.s                      | 10 ++++------
- 3 files changed, 8 insertions(+), 9 deletions(-)
+ src/runtime/sys_windows_386.s         | 22 +++++++++++-----------
+ src/runtime/sys_windows_amd64.s       | 22 +++++++++++-----------
+ src/runtime/sys_windows_arm.s         | 22 +++++++++++-----------
+ src/runtime/sys_windows_arm64.s       | 26 +++++++++++++-------------
+ src/runtime/wincallback.go            |  6 +++---
+ src/runtime/zcallback_windows.s       |  2 +-
+ src/runtime/zcallback_windows_arm.s   |  2 +-
+ src/runtime/zcallback_windows_arm64.s |  2 +-
+ 8 files changed, 52 insertions(+), 52 deletions(-)

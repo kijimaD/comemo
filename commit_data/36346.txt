@@ -1,12 +1,15 @@
-commit 77c575d2e2cc320b62cbbdefbc6840a8cff2163c
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Mon Jul 30 18:59:08 2018 -0300
+commit 37dd7cd040e626d5a9c30f2880005643b3a23d22
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 20 10:22:54 2018 -0700
 
-    net/http: remove unnecessary return
+    runtime: use sys.PtrSize in growslice
     
-    Change-Id: I93bc5de6bcb23c2639d7c2f3f5252fb6f09ca6e4
-    Reviewed-on: https://go-review.googlesource.com/126797
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Minor cleanup.
+    
+    Change-Id: I4175de392969bb6408081a75cebdaeadcef1e68c
+    Reviewed-on: https://go-review.googlesource.com/108576
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/server.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/slice.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

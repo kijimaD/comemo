@@ -1,23 +1,21 @@
-commit 0e35fb2f99ce4c249c0a42ad93a597835ae742b5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 4 14:23:14 2025 -0800
+commit 4e6bbbe61f554dbd9ed78fcd55ff46fe59736785
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Aug 16 08:28:28 2023 +0800
 
-    net: ignore unnamed interfaces on DragonFly
+    reflect, runtime: add reflect support for regABI on loong64
     
-    On DragonFly it seems that we can see an unnamed interface,
-    but be unable to retrieve it. Skip unnamed interface cases.
+    Update #40724
     
-    For #71064
-    
-    Change-Id: Ie9af74bd656d403ddc19cc5f14062cd8e0fa2571
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646675
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I0549fd1a2192ffb041034ff41bf0cc4be0b1662c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521784
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/internal/routebsd/interface_classic.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/reflect/asm_loong64.s | 77 ++++++++++++++++++++++++++++++++++++++---------
+ src/runtime/stkframe.go   |  2 +-
+ 2 files changed, 64 insertions(+), 15 deletions(-)

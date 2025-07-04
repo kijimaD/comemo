@@ -1,17 +1,20 @@
-commit f1d61b959fc0f759a619025eebd3c76d8a897553
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Mon Aug 26 07:41:37 2013 -0500
+commit 9a7947288b55948eeb141ef7020cb542217e54c5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Aug 25 08:44:31 2013 +0900
 
-    net/http: do not send leading dot in cookie domain attribute
+    syscall: update routing socket parser for NetBSD 6 and beyond
     
-    RFC 6265 allows a leading dot in a cookie domain attribute
-    but is clear (see section 4.1.1) that a Set-Cookie header
-    should be sent without these dots.
+    NetBSD 6 kernel and beyond require 64-bit aligned access to routing
+    facilities.
     
-    R=bradfitz
+    Fixes #6226.
+    
+    R=golang-dev, bsiegert, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13111043
+    https://golang.org/cl/13170043
 
- src/pkg/net/http/cookie.go      | 9 +++++++--
- src/pkg/net/http/cookie_test.go | 2 +-
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/pkg/net/interface_test.go    |  8 ++++----
+ src/pkg/syscall/route_bsd.go     | 28 +++++++++++++++++++++++-----
+ src/pkg/syscall/sockcmsg_unix.go |  2 +-
+ src/pkg/syscall/syscall_unix.go  |  5 ++++-
+ 4 files changed, 32 insertions(+), 11 deletions(-)

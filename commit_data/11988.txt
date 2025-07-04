@@ -1,14 +1,24 @@
-commit 008e64da393f16044b3573cd971e1c2bef28e17f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 17 13:07:06 2012 +1100
+commit 03d4c7c7d79bbe7e1912f407fe1d5ddbccf0f73b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 17 10:59:30 2012 +0900
 
-    net: package doc overview / examples
+    net, os, syscall: delete os.EPLAN9
     
-    Fixes #2774
+    Also fixes plan9 cross-build.
     
-    R=golang-dev, r
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5673076
+    https://golang.org/cl/5675073
 
- src/pkg/net/net.go | 35 +++++++++++++++++++++++++++++++++--
- 1 file changed, 33 insertions(+), 2 deletions(-)
+ src/pkg/net/file_plan9.go            |  7 ++++---
+ src/pkg/net/iprawsock_plan9.go       | 26 +++++++++++++-------------
+ src/pkg/net/ipsock_plan9.go          |  7 ++++---
+ src/pkg/net/lookup_plan9.go          |  3 ++-
+ src/pkg/net/tcpsock_plan9.go         | 12 ++++++------
+ src/pkg/net/udpsock_plan9.go         |  9 +++++----
+ src/pkg/net/unixsock_plan9.go        | 26 +++++++++++++-------------
+ src/pkg/os/exec/lp_plan9.go          |  3 ++-
+ src/pkg/os/signal/signal_stub.go     | 11 +++++++++++
+ src/pkg/syscall/syscall_plan9.go     |  8 ++++++++
+ src/pkg/syscall/zerrors_plan9_386.go | 17 ++++++++++++++++-
+ 11 files changed, 84 insertions(+), 45 deletions(-)

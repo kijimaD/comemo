@@ -1,13 +1,16 @@
-commit 46cf91a75fc0a516eb76b66b1a61202f3546bd7e
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Sun Oct 7 00:58:08 2018 +0900
+commit 35778aa4972e5c005877fe77970183281fab1d44
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 19 10:54:12 2018 -0400
 
-    all: fix typos
+    cmd/go: final edits for add go list -cgo and -export
     
-    Change-Id: I775eb4b33422a95f4255799d551c9962d7e181d3
-    Reviewed-on: https://go-review.googlesource.com/c/140318
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    These got lost because I violated the cardinal rule of Gerrit
+    which is never click the Submit button in the web UI.
+    
+    Change-Id: I8ccdfb5d8691960f244941036d33fb5a5a3f0c9a
+    Reviewed-on: https://go-review.googlesource.com/117015
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/typexpr.go        |  2 +-
- src/os/user/cgo_lookup_unix.go | 10 ++++------
- 2 files changed, 5 insertions(+), 7 deletions(-)
+ src/cmd/go/alldocs.go            | 7 +++----
+ src/cmd/go/internal/list/list.go | 7 +++----
+ 2 files changed, 6 insertions(+), 8 deletions(-)

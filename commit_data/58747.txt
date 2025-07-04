@@ -1,17 +1,26 @@
-commit c0d96f30e88b7ed541830a9d5a172f199d05399c
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Feb 13 19:15:49 2025 -0500
+commit bb34112d4df7b5dfd12fc83b8d1305631a7b8708
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 4 15:32:01 2023 -0500
 
-    net/http: unskip TestDisableContentLength/h2
+    os: document Readlink behavior for relative links
     
-    h2_bundle.go has been updated.
+    Also provide a runnable example to illustrate that behavior.
     
-    Change-Id: I055b8db9aab964621c980e4731011c89f7694405
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649496
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    This should help users to avoid the common mistake of expecting
+    os.Readlink to return an absolute path.
+    
+    Fixes #57766.
+    
+    Change-Id: I8f60aa111ebda0cae985758615019aaf26d5cb41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546995
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/serve_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/os/example_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/os/file.go         |  9 +++++++++
+ src/os/file_plan9.go   |  4 +---
+ src/os/file_unix.go    |  4 +---
+ src/os/file_windows.go |  8 +++-----
+ 5 files changed, 68 insertions(+), 11 deletions(-)

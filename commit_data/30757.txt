@@ -1,20 +1,18 @@
-commit 0dafb7d9624c4c2bc876f03f2a6fa8d4a2ce6963
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 20 13:16:07 2017 -0700
+commit 208d4d222786f3e51749a6b50e4f3fd8f8d9777f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 1 16:50:00 2016 +0000
 
-    cmd/compile: check for missing function body earlier
+    net/http: clarify Request.Context's lifetime
     
-    Tested by fixedbugs/issue3705.go.
+    Reverts https://golang.org/cl/23672 and tweaks the text to clarify
+    HTTP/2 request cancelations also cancel the context (not just closing
+    the TCP conn).
     
-    This removes a dependency on lineno
-    from near the backend.
+    Fixes #18143
     
-    Change-Id: I228bd0ad7295cf881b9bdeb0df9d18483fb96821
-    Reviewed-on: https://go-review.googlesource.com/38382
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9f838e09b906d455c98f676e5bc5559f8f7ecb17
+    Reviewed-on: https://go-review.googlesource.com/33769
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 4 ++++
- src/cmd/compile/internal/gc/pgen.go  | 6 ------
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ src/net/http/request.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

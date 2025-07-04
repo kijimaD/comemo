@@ -1,63 +1,29 @@
-commit 83df0afc4e5c3719a6aca08a798460d38e78fc95
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed May 14 16:13:24 2025 -0400
+commit 73981695a2518b6eae7f8ffe74d224691c60d433
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 15 22:15:37 2024 +0000
 
-    runtime/trace: add the flight recorder
+    runtime: push down systemstack requirement for tracer where possible
     
-    This change adds the flight recorder to the trace package.
-    Flight recording is a technique in which trace data is kept
-    in a circular buffer and can be flushed upon request. The
-    implementation will be added in follow-up CLs.
+    Currently lots of functions require systemstack because the trace buffer
+    might get flushed, but that will already switch to the systemstack for
+    the most critical bits (grabbing trace.lock). That means a lot of this
+    code is non-preemptible when it doesn't need to be. We've seen this
+    cause problems at scale, when dumping very large numbers of stacks at
+    once, for example.
     
-    The flight recorder has already been implemented inside of the
-    golang.org/x/exp/trace package. This copies the current implementation
-    and modifies it to work within the runtime/trace package.
+    This is a re-land of CL 572095 which was reverted in CL 577376. This
+    re-land includes a fix of the test that broke on the longtest builders.
     
-    The changes include:
-    
-    This adds the ability for multiple consumers (both the execution
-    tracer and the flight recorder) to subscribe to tracing events. This
-    change allows us to add multiple consumers without making major
-    modifications to the runtime. Future optimizations are planned
-    for this functionality.
-    
-    This removes the use of byte readers from the process that
-    parses and processes the trace batches.
-    
-    This modifies the flight recorder to not parse out the trace
-    clock frequency, since that requires knowledge of the format that's
-    unfortunate to encode in yet another place. Right now, the trace clock
-    frequency is considered stable for the lifetime of the program, so just
-    grab it directly from the runtime.
-    
-    This change adds an in-band end-of-generation signal to the internal
-    implementation of runtime.ReadTrace. The internal implementation is
-    exported via linkname to runtime/trace, so the flight recorder can
-    identify exactly when a generation has ended. This signal is also useful
-    for ensuring that subscribers to runtime trace data always see complete
-    generations, by starting or stopping data streaming only at generation
-    boundaries.
-    
-    For #63185
-    
-    Change-Id: I5c15345981a6bbe9764a3d623448237e983c64ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673116
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ia8d7cbe3aaa8398cf4a1818bac66c3415a399348
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577377
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- api/next/63185.txt                                |   9 +
- doc/next/6-stdlib/99-minor/runtime/trace/63185.md |   2 +
- src/internal/trace/testtrace/validation.go        |  35 +--
- src/internal/trace/tracev2/events.go              |   7 +
- src/runtime/trace.go                              |  40 ++-
- src/runtime/trace/batch.go                        |  83 ++++++
- src/runtime/trace/encoding.go                     |  50 ++++
- src/runtime/trace/flightrecorder.go               | 182 +++++++++++++
- src/runtime/trace/flightrecorder_test.go          | 308 ++++++++++++++++++++++
- src/runtime/trace/recorder.go                     | 144 ++++++++++
- src/runtime/trace/subscribe.go                    | 188 +++++++++++++
- src/runtime/trace/trace.go                        |  32 +--
- src/runtime/traceregion.go                        |  60 +++--
- src/runtime/tracetime.go                          |   2 +
- 14 files changed, 1063 insertions(+), 79 deletions(-)
+ src/runtime/crash_test.go   | 11 +++++++++--
+ src/runtime/trace2.go       | 20 ++++++++++----------
+ src/runtime/trace2cpu.go    | 15 ++++++---------
+ src/runtime/trace2stack.go  | 13 +++++--------
+ src/runtime/trace2string.go | 25 ++++++++++++-------------
+ 5 files changed, 42 insertions(+), 42 deletions(-)

@@ -1,39 +1,29 @@
-commit a156e02c16c1e0e71ba0477a27734b8d38f41cf7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Apr 5 13:16:58 2023 +0200
+commit dd8d425fedd88970a7ee79e908eb47f6d1fcdcad
+Author: Ryan Leung <rleungx@gmail.com>
+Date:   Tue Nov 23 03:00:32 2021 +0000
 
-    internal/syscall/unix: fix PosixFallocate error check on freebsd
+    all: fix some lint issues
     
-    The posix_fallocate syscall returns the result in r1 rather than in
-    errno:
+    Make some code more simple.
     
-    > If successful, posix_fallocate() returns zero. It returns an error on failure, without
-    > setting errno.
-    
-    Source: https://man.freebsd.org/cgi/man.cgi?query=posix_fallocate&sektion=2&n=1
-    
-    Adjust the PosixFallocate wrappers on freebsd to account for that.
-    
-    Also, CL 479715 used the same syscall wrapper for 386 and arm. However,
-    on arm the syscall argument order is different. The wrapper was
-    generated using mksyscall.go from the golang.org/x/sys/unix package,
-    adjusting the r1 check correspondingly.
-    
-    Fixes #59352
-    
-    Change-Id: I9a4e8e4546237010bc5e730c4988a2a476264cf4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481621
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I801adf0dba5f6c515681345c732dbb907f945419
+    GitHub-Last-Rev: a505146baca00a1b3268d11d10510afa8cea6f1d
+    GitHub-Pull-Request: golang/go#49626
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364634
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/link/internal/ld/fallocate_test.go         |  3 ++-
- src/cmd/link/internal/ld/outbuf_freebsd.go         | 12 ++++++++++--
- src/internal/syscall/unix/at_sysnum_freebsd.go     |  5 +++--
- .../syscall/unix/fallocate_freebsd_32bit.go        | 20 --------------------
- src/internal/syscall/unix/fallocate_freebsd_386.go | 17 +++++++++++++++++
- .../syscall/unix/fallocate_freebsd_64bit.go        | 11 +++++------
- src/internal/syscall/unix/fallocate_freebsd_arm.go | 22 ++++++++++++++++++++++
- 7 files changed, 59 insertions(+), 31 deletions(-)
+ src/crypto/des/block.go                 | 6 +-----
+ src/database/sql/example_cli_test.go    | 6 ++----
+ src/debug/plan9obj/file.go              | 3 +--
+ src/go/build/constraint/expr.go         | 1 -
+ src/math/tan.go                         | 8 ++++----
+ src/net/http/cookiejar/jar.go           | 6 ++----
+ src/net/http/httputil/reverseproxy.go   | 1 -
+ src/runtime/metrics/description_test.go | 2 +-
+ src/testing/sub_test.go                 | 2 +-
+ 9 files changed, 12 insertions(+), 23 deletions(-)

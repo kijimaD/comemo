@@ -1,29 +1,26 @@
-commit 3053788cac0343c2fd29806ebc358d2f63976695
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jul 24 11:37:59 2017 -0400
+commit 28502b5023b6ddbecf24c68f225762054882ebf5
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Thu Jul 12 16:32:02 2018 +0000
 
-    cmd/trace: add minimum mutator utilization (MMU) plot
+    net/http: correct use of byte slice in js syscall
     
-    This adds an endpoint to the trace tool that plots the minimum mutator
-    utilization curve using information on mark assists and GC pauses from
-    the trace.
+    syscall/js does not allow []byte to be used in direct inputs to
+    its JavaScript manipulation methods since
+    https://github.com/golang/go/commit/bafe466a9537d8ea5ac5767504628803302ebb12.
+    Unfortunately, this use of a byte slice was missed, so any
+    uses of the WASM Roundtripper with a body will panic.
+    This ensures the byte slice is appropriately converted
+    before being passed to syscall.
     
-    This commit implements a fairly straightforward O(nm) algorithm for
-    computing the MMU (and tests against an even more direct but slower
-    algorithm). Future commits will extend and optimize this algorithm.
+    Fixes #26349
     
-    This should be useful for debugging and understanding mutator
-    utilization issues like #14951, #14812, #18155. #18534, #21107,
-    particularly once follow-up CLs add trace cross-referencing.
-    
-    Change-Id: Ic2866869e7da1e6c56ba3e809abbcb2eb9c4923a
-    Reviewed-on: https://go-review.googlesource.com/c/60790
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I83847645d71ce310c1eee3decddbac990fae166b
+    GitHub-Last-Rev: 3914bda2ff457deba4b76182a48d26ce8948b4cb
+    GitHub-Pull-Request: golang/go#26350
+    Reviewed-on: https://go-review.googlesource.com/123537
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/trace/main.go               |   1 +
- src/cmd/trace/mmu.go                | 160 +++++++++++++++++++++++
- src/internal/traceparser/gc.go      | 248 ++++++++++++++++++++++++++++++++++++
- src/internal/traceparser/gc_test.go | 158 +++++++++++++++++++++++
- 4 files changed, 567 insertions(+)
+ src/net/http/roundtrip_js.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

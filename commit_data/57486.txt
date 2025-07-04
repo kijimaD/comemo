@@ -1,23 +1,19 @@
-commit 889178d5b67b0e2687e1c04c5ea9c2774b0d466a
-Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
-Date:   Wed Sep 11 06:53:00 2024 +0200
+commit 9c3ffbf424bd1d02ea1187c6f744ca9635d9ef11
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 10 21:42:00 2023 +0200
 
-    cmd/internal/obj/s390x: fix m6 field encoding for VSTRC instruction on s390x
+    os: remove unused func itox
     
-    M6 field for all extended mnemonics of VSTRC set to zero
-    This fixes VSTRC codegen to emit correctly  and added testcases for all
-    the extended mnemonics.
+    It was added by CL 288792 but was never used.
     
-    Fixes #69216
-    
-    Change-Id: I2a1b7fb61d6bd6444286eab56a506225c90b75e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612315
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Vishwanatha HD <vishwanatha.hd@ibm.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I0c21237c0c32ee5df2ebe99b6ecd8831f9c28649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518316
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 15 ++++++++++++++-
- src/cmd/internal/obj/s390x/asmz.go        |  4 ++--
- src/cmd/internal/obj/s390x/vector.go      | 14 +++++++-------
- 3 files changed, 23 insertions(+), 10 deletions(-)
+ src/os/str.go | 8 --------
+ 1 file changed, 8 deletions(-)

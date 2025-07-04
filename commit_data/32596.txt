@@ -1,28 +1,17 @@
-commit a4e1a72f0a40acf84f4b7bd982f3d9cffdf01cfd
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Jun 20 15:36:34 2017 -0500
+commit 507f4d5f48919097e5b85b145d337e89d1a2f252
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 4 16:49:23 2017 +1000
 
-    cmd/compile/internal/amd64: add MOVLloadidx8 and MOVLstoreidx8
+    cmd/link: do not read .bss sections in ldpe
     
-    Currently we only use 1 and 4 as a scale for indexed 4-byte load.
-    In code generated in #20711 we can use indexed load with scale=8,
-    to improve performance:
+    For .bss section symbol ldelf does not set P (raw symbol data).
+    Make ldpe do the same.
     
-    name  old time/op  new time/op  delta
-    GM-6   108µs ± 0%    95µs ± 0%  -12.06%  (p=0.000 n=10+10)
-    
-    So add new ops and combine loadidx1(shift 3..).. into loadidx8,
-    same for stores.
-    
-    Change-Id: I5ed1c250ac40960e20606580cf9de221e75b72f1
-    Reviewed-on: https://go-review.googlesource.com/46134
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: Ib3d558456f505ee568d0972465fa9b08b5794a87
+    Reviewed-on: https://go-review.googlesource.com/42631
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |   4 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  10 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   2 +
- src/cmd/compile/internal/ssa/opGen.go        |  32 ++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 267 ++++++++++++++++++++++++++-
- 5 files changed, 306 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/ld/ldpe.go | 29 +++++++++--------------------
+ 1 file changed, 9 insertions(+), 20 deletions(-)

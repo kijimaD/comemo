@@ -1,24 +1,15 @@
-commit 3d3bccc42145260869f9832107d8bdb5782a8608
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 17 17:10:48 2013 -0700
+commit 0d0c7489306f9379e5968435769b0620ff6b7fe3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 17 15:24:40 2013 -0700
 
-    cmd/go: add basic docs on calling between Go and C/C++
+    encoding/xml: remove dead code
     
-    This is a framework for docs on the subject more than it is
-    actual docs.
+    Avoid future 'declared and not used error'.
+    See also issue 6414.
     
-    The section header in go/doc.go just says "C", not "C/C++,"
-    because otherwise godoc doesn't recognize the line as a
-    section header.
-    
-    Fixes #5473.
-    
-    R=golang-dev, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/13280050
+    https://golang.org/cl/13242058
 
- src/cmd/go/build.go |  3 ++-
- src/cmd/go/doc.go   | 23 ++++++++++++++++++++++-
- src/cmd/go/help.go  | 22 ++++++++++++++++++++++
- src/cmd/go/main.go  |  1 +
- 4 files changed, 47 insertions(+), 2 deletions(-)
+ src/pkg/encoding/xml/xml_test.go | 2 --
+ 1 file changed, 2 deletions(-)

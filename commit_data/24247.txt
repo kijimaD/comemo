@@ -1,16 +1,14 @@
-commit 90f69259ec3f2b306fce26481baaea0b3611579d
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sun Aug 23 12:03:05 2015 +0000
+commit 4a0d9587f23b42bb604666a65a81559ff7944dc5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jul 18 10:54:50 2015 +1000
 
-    cmd/compile/internal/ppc64: map/slice literals janitoring
+    runtime: skip TestReturnAfterStackGrowInCallback if gcc is not found
     
-    Simplify slice/map literal expressions.
-    Caught with gofmt -d -s, fixed with gofmt -w -s
-    Checked that the result can still be compiled with Go 1.4.
+    Fixes #11754
     
-    Change-Id: I201cd90fdfb8de2971c46ad7fce64111152b697e
-    Reviewed-on: https://go-review.googlesource.com/13832
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ifa423ca6eea46d1500278db290498724a9559d14
+    Reviewed-on: https://go-review.googlesource.com/12347
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ppc64/prog.go | 166 ++++++++++++++++-----------------
- 1 file changed, 83 insertions(+), 83 deletions(-)
+ src/runtime/syscall_windows_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

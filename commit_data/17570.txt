@@ -1,12 +1,12 @@
-commit 7f6a7e22a8e93364d6d853c5983f8c0624c21165
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 20:28:14 2013 -0400
+commit c0ac667531afaab0658461ea21b0d39b39aec227
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 12 10:12:26 2013 +1000
 
-    net/http: explain the "1.1" in the default User-Agent
+    doc/go1.2.html: status of gccgo's support for 1.2
     
-    R=golang-dev, adg
+    R=iant, minux.ma
     CC=golang-dev
-    https://golang.org/cl/13263052
+    https://golang.org/cl/13669043
 
- src/pkg/net/http/request.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/go1.2.html | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

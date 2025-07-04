@@ -1,12 +1,47 @@
-commit 0c9ea63b3b3cc7bbbd7309cc8ca1751f3ea58ba0
+commit 335da67e00baecf05035f97ef578abf3f35ba82a
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 31 08:17:01 2011 -0400
+Date:   Wed Aug 31 07:37:14 2011 -0400
 
-    cgo: explain how to free something
+    gc: make static initialization more static
     
-    R=golang-dev, n13m3y3r, r
+    Does as much as possible in data layout instead
+    of during the init function.
+    
+    Handles var x = y; var y = z as a special case too,
+    because it is so prevalent in package unicode
+    (var Greek = _Greek; var _Greek = []...).
+    
+    Introduces InitPlan description of initialized data
+    so that it can be traversed multiple times (for example,
+    in the copy handler).
+    
+    Cuts package unicode's init function size by 8x.
+    All that remains there is map initialization, which
+    is on the chopping block too.
+    
+    Fixes sinit.go test case.
+    
+    Aggregate DATA instructions at end of object file.
+    
+    Checkpoint.  More to come.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4958053
+    https://golang.org/cl/4969051
 
- src/cmd/cgo/doc.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/5g/gobj.c      |  59 ++-----
+ src/cmd/5g/gsubr.c     |  37 ++++-
+ src/cmd/6g/gobj.c      |  58 ++-----
+ src/cmd/6g/gsubr.c     |  37 ++++-
+ src/cmd/8g/gg.h        |   6 -
+ src/cmd/8g/gobj.c      |  59 ++-----
+ src/cmd/8g/gsubr.c     |  37 ++++-
+ src/cmd/gc/const.c     |   3 +-
+ src/cmd/gc/go.h        |  28 +++-
+ src/cmd/gc/obj.c       |  10 +-
+ src/cmd/gc/reflect.c   |  30 ----
+ src/cmd/gc/sinit.c     | 405 +++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/gc/typecheck.c |   8 +-
+ test/golden.out        |   3 -
+ test/sinit.go          | 219 ++++++++++++++++++++++----
+ 15 files changed, 741 insertions(+), 258 deletions(-)

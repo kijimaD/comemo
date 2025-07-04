@@ -1,15 +1,13 @@
-commit 7ec76e25b627cae9c94a3757823613b240c3e3df
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Nov 18 00:45:47 2012 +1100
+commit f3e6b2060679a6f430c9e711cf797d76d4226a15
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 16 13:25:01 2012 -0800
 
-    archive/zip: handle extra data headers with no body
+    net/http: reduce allocations in chunk reading & writing
     
-    Fixes #4393.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6854058
+    https://golang.org/cl/6847063
 
- src/pkg/archive/zip/reader.go   |  2 +-
- src/pkg/archive/zip/zip_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 1 deletion(-)
+ src/pkg/net/http/chunked.go          | 11 +++++------
+ src/pkg/net/http/httputil/chunked.go | 11 +++++------
+ 2 files changed, 10 insertions(+), 12 deletions(-)

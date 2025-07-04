@@ -1,21 +1,18 @@
-commit 8cf5293caa7071601fa90358abdd20a0b787e178
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 4 03:25:53 2019 +1100
+commit f518a96e009157c51f8ecf619032bbb7873228f9
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 17 18:55:18 2019 -0400
 
-    cmd/internal/obj/riscv: split immediates larger than 12-bits
+    cmd/go: document go get @upgrade behavior in release notes
     
-    Handle immediates larger than 12-bits by rewriting as an LUI instruction with
-    the high bits, followed by the original instruction with the low bits.
+    Fixes #33149
     
-    Based on the riscv-go port.
-    
-    Updates #27532
-    
-    Change-Id: I8ed6d6e6db06fb8a27f3ab75f467ec2b7ff1f075
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204626
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: If9ff24fea6d087b4047a9f6e50f99f449f9b1c52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186618
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 110 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 110 insertions(+)
+ doc/go1.13.html                   | 11 +++++++++++
+ src/cmd/go/alldocs.go             | 11 +++++++----
+ src/cmd/go/internal/modget/get.go | 11 +++++++----
+ 3 files changed, 25 insertions(+), 8 deletions(-)

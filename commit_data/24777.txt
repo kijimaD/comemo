@@ -1,16 +1,36 @@
-commit e36494e3820323489f819614d06365928e54394c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 5 07:53:28 2015 +0100
+commit efeeee38c9aa30d2bdcb9d150c6e76ada01c5145
+Author: Vlad Krasnov <vlad@cloudflare.com>
+Date:   Thu May 28 13:50:23 2015 -0700
 
-    net/http/internal: ignore chunk-extension when reading chunked encoding bodies
+    crypto/aes: dedicated asm version of AES-GCM
     
-    Fixes #13135
+    The existing implementation didn't use the CLMUL instructions for fast
+    and constant time binary-field multiplication. With this change, amd64
+    CPUs that support both AES and CLMUL instructions will use an optimised
+    asm implementation.
     
-    Change-Id: I45666f32cd91102211bf01a306edcb10deb65187
-    Reviewed-on: https://go-review.googlesource.com/16680
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkAESGCMSeal8K     91723         3200          -96.51%
+    BenchmarkAESGCMOpen8K     91487         3324          -96.37%
+    BenchmarkAESGCMSeal1K     11873         546           -95.40%
+    BenchmarkAESGCMOpen1K     11833         594           -94.98%
+    
+    benchmark                 old MB/s     new MB/s     speedup
+    BenchmarkAESGCMSeal8K     89.31        2559.62      28.66x
+    BenchmarkAESGCMOpen8K     89.54        2463.78      27.52x
+    BenchmarkAESGCMSeal1K     86.24        1872.49      21.71x
+    BenchmarkAESGCMOpen1K     86.53        1721.78      19.90x
+    
+    Change-Id: Idd63233098356d8b353d16624747b74d0c3f193e
+    Reviewed-on: https://go-review.googlesource.com/10484
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/net/http/internal/chunked.go      | 35 +++++++++++++++++++++++++++++------
- src/net/http/internal/chunked_test.go | 15 +++++++++++++++
- 2 files changed, 44 insertions(+), 6 deletions(-)
+ src/crypto/aes/aes_gcm.go           |  160 +++++
+ src/crypto/aes/cipher.go            |    9 +-
+ src/crypto/aes/cipher_generic.go    |    8 +
+ src/crypto/aes/gcm_amd64.s          | 1277 +++++++++++++++++++++++++++++++++++
+ src/crypto/cipher/benchmark_test.go |   30 +-
+ src/crypto/cipher/gcm.go            |   11 +
+ src/crypto/cipher/gcm_test.go       |   58 +-
+ 7 files changed, 1542 insertions(+), 11 deletions(-)

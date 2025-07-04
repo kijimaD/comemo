@@ -1,12 +1,16 @@
-commit 3921d26300cb61e31657c1732fff92dad6b91712
+commit 49e2888a96404ee109817d32b8479231f4104f0a
 Author: Anschel Schaffer-Cohen <anschelsc@gmail.com>
-Date:   Fri Jan 21 10:14:43 2011 -0500
+Date:   Thu Jan 20 19:58:08 2011 -0800
 
-    Use defer to unlock mutex in crypto/rand.
+    Fixed documentation for netchan import()
     
-    R=agl1
+            This was broken after the last update (2011-01-20).
+            However, I'm not sure if the changed example is a
+            sensible use of import(), so I'd appreciate comments.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/3991045
+    https://golang.org/cl/4067043
 
- src/pkg/crypto/rand/rand_unix.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/netchan/import.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

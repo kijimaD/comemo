@@ -1,18 +1,15 @@
-commit 6920b2a1f93a2ff6876eafc7f8747e82aa59d015
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 8 15:48:46 2014 -0700
+commit 705c1f5cd45d572ba32dea48f5fe997a9f970400
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 29 13:42:33 2014 -0700
 
-    reflect: add tests for variadic method calls
+    net/http: clarify Request.FormValue docs
     
-    These tests fail when using gccgo.  In gccgo using Interface
-    on the value of a method function is implemented using a
-    variant of MakeFunc.  That approach did not correctly handle
-    variadic functions.
+    Fixes #8067
     
     LGTM=r
-    R=golang-codereviews, r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/151280043
+    https://golang.org/cl/146480043
 
- src/reflect/all_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 49 insertions(+), 5 deletions(-)
+ src/net/http/request.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

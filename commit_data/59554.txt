@@ -1,27 +1,24 @@
-commit 3baf53aec6c2209562495d4ac1dc035c2881f6eb
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 24 18:37:49 2025 -0700
+commit 15b2f69aa9fe309afd86e8ae7bc4b4e3bf8d4bbc
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Mar 25 08:41:34 2024 -0700
 
-    cmd/compile: derive bounds on signed %N for N a power of 2
+    net/http: also log TLS errors which look like HTTP sent to an HTTPS port
     
-    -N+1 <= x % N <= N-1
+    We log TLS handshake errors in general, but currently do not log errors
+    when the first TLS record looks like an attempt to send HTTP to an HTTPS
+    port. There doesn't seem to be any principled reason to log the one and
+    not the other, so just log all TLS handshake errors.
     
-    This is useful for cases like:
+    Fixes #66501
     
-    func setBit(b []byte, i int) {
-        b[i/8] |= 1<<(i%8)
-    }
-    
-    The shift does not need protection against larger-than-7 cases.
-    (It does still need protection against <0 cases.)
-    
-    Change-Id: Idf83101386af538548bfeb6e2928cea855610ce2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672995
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I5d78a754d054c220be935513448515721fa387a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573979
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 120 +++++++++++++++++++++++++++++++++-
- test/codegen/shift.go                 |   9 +++
- 2 files changed, 128 insertions(+), 1 deletion(-)
+ src/net/http/server.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

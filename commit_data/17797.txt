@@ -1,14 +1,15 @@
-commit 74f639176da060afc1fa939f7165310abbbb707f
+commit 56aeec31c6ea439188d1800b1167b193b7bfd14a
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 15 14:25:29 2013 -0400
+Date:   Tue Oct 15 12:46:14 2013 -0400
 
-    misc/cgo/test: cut out non-standard functions
+    cmd/cgo: work around bug in clang debug info for builtins like memset
     
-    Otherwise the link fails. Fixes build.
+    Fixes #6506.
     
-    TBR=golang-dev
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14483050
+    https://golang.org/cl/14682044
 
- misc/cgo/test/issue6506.go | 17 -----------------
- 1 file changed, 17 deletions(-)
+ misc/cgo/test/issue6506.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go         | 48 ++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 98 insertions(+), 2 deletions(-)

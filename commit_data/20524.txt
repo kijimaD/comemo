@@ -1,14 +1,71 @@
-commit 39cd39b0238b079227460448f298bdd097562e7e
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Sep 25 01:49:04 2014 +0400
+commit f95beae61d21898710d7d405ac39bc7b3b205c79
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 10:36:38 2014 -0400
 
-    cmd/go: strip -fsanitize= flags when building cgo object
-    Fixes #8788.
+    runtime: use traceback to traverse defer structures
     
-    LGTM=iant
-    R=iant
-    CC=golang-codereviews
-    https://golang.org/cl/142470043
+    This makes the GC and the stack copying agree about how
+    to interpret the defer structures. Previously, only the stack
+    copying treated them precisely.
+    This removes an untyped memory allocation and fixes
+    at least three copystack bugs.
+    
+    To make sure the GC can find the deferred argument
+    frame until it has been copied, keep a Defer on the defer list
+    during its execution.
+    
+    In addition to making it possible to remove the untyped
+    memory allocation, keeping the Defer on the list fixes
+    two races between copystack and execution of defers
+    (in both gopanic and Goexit). The problem is that once
+    the defer has been taken off the list, a stack copy that
+    happens before the deferred arguments have been copied
+    back to the stack will not update the arguments correctly.
+    The new tests TestDeferPtrsPanic and TestDeferPtrsGoexit
+    (variations on the existing TestDeferPtrs) pass now but
+    failed before this CL.
+    
+    In addition to those fixes, keeping the Defer on the list
+    helps correct a dangling pointer error during copystack.
+    The traceback routines walk the Defer chain to provide
+    information about where a panic may resume execution.
+    When the executing Defer was not on the Defer chain
+    but instead linked from the Panic chain, the traceback
+    had to walk the Panic chain too. But Panic structs are
+    on the stack and being updated by copystack.
+    Traceback's use of the Panic chain while copystack is
+    updating those structs means that it can follow an
+    updated pointer and find itself reading from the new stack.
+    The new stack is usually all zeros, so it sees an incorrect
+    early end to the chain. The new TestPanicUseStack makes
+    this happen at tip and dies when adjustdefers finds an
+    unexpected argp. The new StackCopyPoison mode
+    causes an earlier bad dereference instead.
+    By keeping the Defer on the list, traceback can avoid
+    walking the Panic chain at all,  making it okay for copystack
+    to update the Panics.
+    
+    We'd have the same problem for any Defers on the stack.
+    There was only one: gopanic's dabort. Since we are not
+    taking the executing Defer off the chain, we can use it
+    to do what dabort was doing, and then there are no
+    Defers on the stack ever, so it is okay for traceback to use
+    the Defer chain even while copystack is executing:
+    copystack cannot modify the Defer chain.
+    
+    LGTM=khr
+    R=khr
+    CC=dvyukov, golang-codereviews, iant, rlh
+    https://golang.org/cl/141490043
 
- src/cmd/go/build.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/runtime/heapdump.c    |   2 +-
+ src/runtime/malloc.go     |  10 ++++
+ src/runtime/mgc0.c        |   1 +
+ src/runtime/panic.c       |   5 +-
+ src/runtime/panic.go      | 108 +++++++++++++++++++++---------------
+ src/runtime/proc.go       |  11 ++--
+ src/runtime/runtime.h     |   5 +-
+ src/runtime/stack.c       | 136 +++++++++++++++++++++-------------------------
+ src/runtime/stack_test.go |  96 ++++++++++++++++++++++++++++++--
+ src/runtime/traceback.go  |  99 ++++++++++++++++++---------------
+ 10 files changed, 298 insertions(+), 175 deletions(-)

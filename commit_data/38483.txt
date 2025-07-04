@@ -1,22 +1,19 @@
-commit e0181ff52a17eeddd20b8560ce4abaa615388dd0
-Author: Mikio Hara <mikioh.public.networking@gmail.com>
-Date:   Tue Mar 19 18:32:11 2019 +0900
+commit efc185029bf770894defe63cec2c72a4c84b2ee9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 1 16:29:42 2018 +0000
 
-    runtime: disable event scanning error reporting on solaris
+    net: enable RFC 6555 Fast Fallback by default
     
-    It seems like we need to pay special attention to capturing error
-    condition on the event port of SmartOS. The previous attempt CL 167777
-    works on Oracle Solaris but doesn't work on SmartOS for the uncertain
-    reason. It's better to disable the reporting for now.
+    The Dialer.DualStack field is now meaningless and documented as
+    deprecated.
     
-    Updates #30624.
-    Fixes #30840.
+    To disable fallback, set FallbackDelay to a negative value.
     
-    Change-Id: Ieca5dac4fceb7e8c9cb4db149bb4c2e79691588c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167782
-    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #22225
+    
+    Change-Id: Icc212fe07bb69d7651ab81e539b8b3e3d3372fa9
+    Reviewed-on: https://go-review.googlesource.com/c/146659
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/netpoll_solaris.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/net/dial.go | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

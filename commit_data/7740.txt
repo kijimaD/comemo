@@ -1,12 +1,21 @@
-commit 9f2cb86fe2d4ffbaff4c9d9493e2098f757ab6ac
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 11 14:47:02 2011 -0500
+commit d3d672998f26b15cf0eebf63f243bf28b3b3943b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 11 11:32:33 2011 -0800
 
-    spec: remove closed from language, replaced by x, ok = <-c
+    http: rename interface Transport to RoundTripper
     
-    R=gri, r, r2
+    Transport.Do -> RoundTripper.RoundTrip
+    
+    This makes way for a subsequent CL to export the
+    currently private RoundTripper implementation
+    as struct Transport.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4249065
+    https://golang.org/cl/4286043
 
- doc/go_spec.html | 43 +++++++++++++++----------------------------
- 1 file changed, 15 insertions(+), 28 deletions(-)
+ src/pkg/http/client.go         | 34 ++++++++++++++++------------------
+ src/pkg/http/client_test.go    |  2 +-
+ src/pkg/http/transport.go      |  4 ++--
+ src/pkg/http/transport_test.go |  4 ++--
+ 4 files changed, 21 insertions(+), 23 deletions(-)

@@ -1,21 +1,16 @@
-commit 1e917312511f6ce54bbdcea8cd0c25e66973d49e
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Sun Nov 13 18:06:16 2016 -0800
+commit 6072e4d710dc28fe5907d43e59074d5b55de8981
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 21 12:53:25 2016 +0900
 
-    html/template: fix multiple Clones of redefined template
+    syscall: fix build on dragonfly
     
-    This change redoes the fix for #16101 (CL 31092) in a different way by
-    making t.Clone return the template associated with the t.Name() while
-    allowing for the case that a template of the same name is define-d.
+    This change fixes the broken build caused by CL 23780.
     
-    Fixes #17735.
-    
-    Change-Id: I1e69672390a4c81aa611046a209008ae4a3bb723
-    Reviewed-on: https://go-review.googlesource.com/33210
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    Change-Id: I142cf8a1af033d036d57ac56e9e21ea925d922d4
+    Reviewed-on: https://go-review.googlesource.com/29490
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/html/template/clone_test.go | 21 +++++++++++++++++++++
- src/html/template/template.go   |  6 ++----
- 2 files changed, 23 insertions(+), 4 deletions(-)
+ src/syscall/syscall_dragonfly.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

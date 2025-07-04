@@ -1,13 +1,23 @@
-commit da648eac67dded869cfb6af2c0661f21af064f02
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 29 13:23:07 2019 -0800
+commit a2a3dd00c934fa15ad880ee5fe1f64308cbc73a7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 12 21:30:09 2018 +0200
 
-    doc: remove meaningless word from Go 1.12 release notes
+    os: add ModeCharDevice to ModeType
     
-    Change-Id: I744940e2bbde19ccec53af6c5469d46ba9161f01
-    Reviewed-on: https://go-review.googlesource.com/c/160179
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    When masking FileInfo.Mode() from a character device with the ModeType
+    mask, ModeCharDevice cannot be recovered.
+    
+    ModeCharDevice was added https://golang.org/cl/5531052, but nothing
+    indicates why it was omitted from ModeType. Add it now.
+    
+    Fixes #27640
+    
+    Change-Id: I52f56108b88b1b0a5bc6085c66c3c67e10600619
+    Reviewed-on: https://go-review.googlesource.com/135075
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.12.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/except.txt  | 1 +
+ src/os/types.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

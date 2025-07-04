@@ -1,17 +1,12 @@
-commit a7743d7ad25a5a37699c1bc8378f8f2523956f72
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 10 10:16:09 2012 -0700
+commit 122d2873a8634ba338d4ca63fc487e16fecb8f71
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Sep 9 20:11:58 2012 -0400
 
-    net/http: add If-None-Match and If-Range support to ServeContent
+    crypto/rand: typo fix from a69e30463bf4
     
-    Also, clear Content-Type and Content-Length on Not Modified
-    responses before server.go strips them and spams the logs with
-    warnings.
-    
-    R=rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6503090
+    https://golang.org/cl/6497106
 
- src/pkg/net/http/fs.go      |  64 ++++++++++++++++-
- src/pkg/net/http/fs_test.go | 163 ++++++++++++++++++++++++++++++++++----------
- 2 files changed, 189 insertions(+), 38 deletions(-)
+ src/pkg/crypto/rand/rand_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

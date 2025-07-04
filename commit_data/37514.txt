@@ -1,21 +1,16 @@
-commit 048580d341a530bb8d9ca891f95ce79aace4151f
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Nov 13 16:05:15 2018 -0500
+commit 5b56053371a73b2a06869bc77152766eb76e96e4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 8 14:44:44 2018 -0400
 
-    cmd/asm,cmd/internal/obj/ppc64: add VPERMXOR to ppc64 assembler
+    cmd/go: test package patterns with multiple modules
     
-    VPERMXOR is missing from the Go assembler for ppc64. It has the
-    same format as VPERM. It was requested by an external user so
-    they could write an optimized algorithm in asm.
+    This change replaces https://golang.org/cl/125835.
     
-    Change-Id: Icf4c682f7f46716ccae64e6ae3d62e8cec67f6c1
-    Reviewed-on: https://go-review.googlesource.com/c/151578
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Updates #26317.
+    
+    Change-Id: I38ae1f93e5f5c86737a4b489df498c18b179781d
+    Reviewed-on: https://go-review.googlesource.com/128637
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s | 1 +
- src/cmd/internal/obj/ppc64/a.out.go       | 1 +
- src/cmd/internal/obj/ppc64/anames.go      | 1 +
- src/cmd/internal/obj/ppc64/asm9.go        | 4 +++-
- 4 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/mod_patterns.txt | 77 +++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)

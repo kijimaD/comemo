@@ -1,21 +1,15 @@
-commit e21154fe31fcf9cebe5163c53b6695cfedccac34
-Author: ALTree <alb.donizetti@gmail.com>
-Date:   Mon Apr 6 21:18:37 2015 +0200
+commit f3d3328988a547cd21bcd398b7155ec390b642d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 4 14:19:08 2015 -0800
 
-    math/big: fix Exp when exponent is 1
+    math/big: move "bits" operations used for Float tests into separate file
     
-    Fixed bug that caused Exp(x, y, m) ( i.e. x**y (mod m) ) to return x
-    instead of x (mod m) when y == 1. See issue page on github for more
-    details.
+    This is a pure code move without any semantic change.
     
-    Added test case
-    
-    Fixes #9826
-    
-    Change-Id: Ibabb58275a20c4231c9474199b7f1c10e54241ce
-    Reviewed-on: https://go-review.googlesource.com/8409
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I2c18efc858955d07949b1241e793232f2cf1deb9
+    Reviewed-on: https://go-review.googlesource.com/6821
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/math/big/int_test.go | 1 +
- src/math/big/nat.go      | 7 +++++++
- 2 files changed, 8 insertions(+)
+ src/math/big/bits_test.go  | 207 +++++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/float_test.go | 197 ------------------------------------------
+ 2 files changed, 207 insertions(+), 197 deletions(-)

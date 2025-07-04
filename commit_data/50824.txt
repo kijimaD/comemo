@@ -1,18 +1,32 @@
-commit 77c0e99c192331d44ddab664c4b6442925410cdc
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 28 14:02:18 2022 +0200
+commit 9d89a5eb64f25ce0e7cc6086d44b6f327cbb302c
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Nov 9 17:13:36 2021 -0500
 
-    net/netip: use IPv4Unspecified in TestIPProperties
+    all: update terminology for fuzzing
     
-    Also inline the single-use unspecified{4,6} variables.
+    This change doesn't modify any functionality.
+    It also doesn't update all of the comments and
+    variable names of the internal code, but everything
+    user facing should be correct.
     
-    Change-Id: I5992273031e0b8db1bc6f5de8fce669310226ee9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435915
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #49185
+    
+    Change-Id: Ia8b2c94b89ba45897c4085ea0c17a3d8896f7ec7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362794
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/net/netip/netip_test.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/cmd/go/alldocs.go                              |  31 +++--
+ src/cmd/go/internal/test/test.go                   |  43 ++++---
+ src/cmd/go/testdata/script/test_fuzz.txt           |  10 +-
+ src/cmd/go/testdata/script/test_fuzz_match.txt     |   4 +-
+ src/cmd/go/testdata/script/test_fuzz_multiple.txt  |   2 +-
+ .../testdata/script/test_fuzz_mutator_repeat.txt   |   2 +-
+ .../go/testdata/script/test_fuzz_seed_corpus.txt   |  22 ++--
+ src/go/doc/example.go                              |   6 +-
+ src/internal/fuzz/fuzz.go                          |   4 +-
+ src/testing/fuzz.go                                | 138 +++++++++++----------
+ src/testing/testing.go                             |  57 ++++-----
+ 11 files changed, 160 insertions(+), 159 deletions(-)

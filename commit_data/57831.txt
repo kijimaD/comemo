@@ -1,38 +1,27 @@
-commit 63ba2b9d84dede1df107db30b4ff8139711402eb
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 25 15:08:54 2024 -0400
+commit 5cdb132228b90732d57215893a9910ded694c585
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jun 27 17:17:33 2023 -0500
 
-    cmd/compile,internal/runtime/maps: stack allocated maps and small alloc
+    cmd/compile/internal/ssa: improve masking codegen on PPC64
     
-    The compiler will stack allocate the Map struct and initial group if
-    possible.
+    Generate RLDIC[LR] instead of MOVD mask, Rx; AND Rx, Ry, Rz.
+    This helps reduce code size, and reduces the latency caused
+    by the constant load.
     
-    Stack maps are initialized inline without calling into the runtime.
-    Small heap allocated maps use makemap_small.
+    Similarly, for smaller-than-register values, truncate constants
+    which exceed the range of the value's type to avoid needing to
+    load a constant.
     
-    These are the same heuristics as existing maps.
-    
-    For #54766.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
-    Change-Id: I6c371d1309716fd1c38a3212d417b3c76db5c9b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622042
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I6019684795eb8962d4fd6d9585d08b17c15e7d64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515576
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- .../compile/internal/typecheck/_builtin/runtime.go |   1 +
- src/cmd/compile/internal/typecheck/builtin.go      | 392 +++++++++++----------
- src/cmd/compile/internal/walk/builtin.go           |  92 ++++-
- src/internal/abi/map_swiss.go                      |   6 +
- src/internal/runtime/maps/export_test.go           |   2 +-
- src/internal/runtime/maps/map.go                   |  90 +++--
- src/runtime/map_swiss.go                           |  15 +-
- test/live.go                                       |  10 +
- test/live_noswiss.go                               |  32 --
- test/live_regabi.go                                |  10 +
- test/live_regabi_noswiss.go                        |  31 --
- test/live_regabi_swiss.go                          |  31 --
- test/live_swiss.go                                 |  32 --
- 13 files changed, 364 insertions(+), 380 deletions(-)
+ .../compile/internal/ssa/_gen/PPC64latelower.rules |  13 +++
+ src/cmd/compile/internal/ssa/rewrite.go            |  19 ++++
+ .../compile/internal/ssa/rewritePPC64latelower.go  | 123 +++++++++++++++++++++
+ test/codegen/bits.go                               |  26 +++++
+ 4 files changed, 181 insertions(+)

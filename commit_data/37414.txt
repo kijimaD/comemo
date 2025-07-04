@@ -1,14 +1,21 @@
-commit 48e4d36fed94f0549f17ca082c0106bada094d5d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Nov 16 11:26:16 2018 +0100
+commit f37ca81c84ec21cb50d32e2161c6fc4875195acf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 24 15:05:11 2018 -0400
 
-    misc/cgo/testsanitizers: gofmt
+    cmd/go: fix spurious edges in mod -graph output
     
-    Change-Id: I4e7328bb89f504dbca3948b8565d22c44d41db3d
-    Reviewed-on: https://go-review.googlesource.com/c/149917
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The mod -graph output was showing every dependency
+    as an edge from the main module, instead of showing only
+    the things that are listed in go.mod.
+    
+    Fixes #26489.
+    
+    Change-Id: I248fedb1fc9225e2a7a9ddc2f4a84520b3a96138
+    Reviewed-on: https://go-review.googlesource.com/125657
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- misc/cgo/testsanitizers/tsan_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modcmd/mod.go        |  2 +-
+ src/cmd/go/internal/modload/build.go     | 12 +++++++++++-
+ src/cmd/go/internal/modload/init.go      | 25 ++++++++++++++++++-------
+ src/cmd/go/testdata/script/mod_graph.txt | 10 ++++++++++
+ 4 files changed, 40 insertions(+), 9 deletions(-)

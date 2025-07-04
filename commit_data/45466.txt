@@ -1,27 +1,38 @@
-commit c3365ad5f25043d6293f5cec1e71d1526678ac62
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 30 00:04:19 2021 -0400
+commit fe7ff71185cf30f9bdee3e8d8897e8b6069ad02e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 3 20:11:04 2020 +0000
 
-    cmd/go: annotate versions in vendor/modules.txt
+    runtime: add consistent heap statistics
     
-    In order to prevent edit wars with previous cmd/go releases,
-    the new version annotations are only included if the main module
-    specifies 'go 1.17' or higher.
+    This change adds a global set of heap statistics which are similar
+    to existing memory statistics. The purpose of these new statistics
+    is to be able to read them and get a consistent result without stopping
+    the world. The goal is to eventually replace as many of the existing
+    memstats statistics with the sharded ones as possible.
     
-    Fixes #36876
+    The consistent memory statistics use a tailor-made synchronization
+    mechanism to allow writers (allocators) to proceed with minimal
+    synchronization by using a sequence counter and a global generation
+    counter to determine which set of statistics to update. Readers
+    increment the global generation counter to effectively grab a snapshot
+    of the statistics, and then iterate over all Ps using the sequence
+    counter to ensure that they may safely read the snapshotted statistics.
+    To keep statistics fresh, the reader also has a responsibility to merge
+    sets of statistics.
     
-    Change-Id: Iba15e47dd1ac2c16d754679a9b501db4069fa250
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315409
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    These consistent statistics are computed, but otherwise unused for now.
+    Upcoming changes will integrate them with the rest of the codebase and
+    will begin to phase out existing statistics.
+    
+    Change-Id: I637a11f2439e2049d7dccb8650c5d82500733ca5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247037
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.17.html                                    | 10 +++
- src/cmd/go/internal/modcmd/vendor.go               | 57 +++++++++-----
- src/cmd/go/internal/modload/vendor.go              |  5 ++
- .../go/testdata/script/mod_go_version_vendor.txt   |  4 +-
- .../go/testdata/script/mod_vendor_goversion.txt    | 87 ++++++++++++++++++++++
- src/cmd/vendor/modules.txt                         | 16 ++--
- src/vendor/modules.txt                             |  8 +-
- 7 files changed, 154 insertions(+), 33 deletions(-)
+ src/runtime/mcache.go      |   4 +
+ src/runtime/mgcscavenge.go |  11 ++-
+ src/runtime/mheap.go       |  34 +++++++++
+ src/runtime/mstats.go      | 184 ++++++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 230 insertions(+), 3 deletions(-)

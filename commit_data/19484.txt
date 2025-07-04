@@ -1,13 +1,14 @@
-commit 865904f6d8c1dd80b1a203c531d0eb03e7f403f7
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jun 2 12:46:03 2014 +1000
+commit 9717e3605bffb3b5173416dac3602bab3f434107
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Jun 1 19:20:46 2014 -0400
 
-    misc/makerelease: report uploads to the new downloads page
+    build: don't build goplay in run.rc.
+    Fix plan 9 build.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    TBR=rsc
+    R=golang-codereviews
     CC=golang-codereviews
-    https://golang.org/cl/102040047
+    https://golang.org/cl/100880047
 
- misc/makerelease/makerelease.go | 57 ++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 50 insertions(+), 7 deletions(-)
+ src/run.rc | 4 ----
+ 1 file changed, 4 deletions(-)

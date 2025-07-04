@@ -1,23 +1,36 @@
-commit f5de42001df2e61233c7ec7bbbd014bbaeaee242
-Author: erifan01 <eric.fang@arm.com>
-Date:   Fri Jan 26 10:18:50 2018 +0000
+commit 378de1ae43c6406ae5159f235f834da73403a541
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 12 19:46:42 2017 -0700
 
-    cmd/asm: add arm64 instructions for math optimization
+    runtime: unify 386 entry point code
     
-    Add arm64 HW instructions FMADDD, FMADDS, FMSUBD, FMSUBS, FNMADDD, FNMADDS,
-    FNMSUBD, FNMSUBS, VFMLA, VFMLS, VMOV (element) for math optimization.
+    Unify the 386 entry point code as much as possible.
     
-    Add check on register element index and test cases.
+    The main function could not be unified because on Windows 386 it is
+    called _main. Putting main in asm_386.s caused multiple definition
+    errors when using the external linker.
     
-    Change-Id: Ice07c50b1a02d488ad2cde2a4e8aea93f3e3afff
-    Reviewed-on: https://go-review.googlesource.com/90876
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Add the _lib entry point to various operating systems.  A future CL
+    will enable c-archive/c-shared mode for those targets.
+    
+    Fix _rt0_386_windows_lib_go--it was passing arguments as though it
+    were amd64.
+    
+    Change-Id: Ic73f1c95cdbcbea87f633f4a29bbc218a5db4f58
+    Reviewed-on: https://go-review.googlesource.com/70530
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/asm/internal/arch/arm64.go             |  21 +++
- src/cmd/asm/internal/asm/testdata/arm64.s      |  39 +++--
- src/cmd/asm/internal/asm/testdata/arm64error.s |  56 ++++++--
- src/cmd/internal/obj/arm64/a.out.go            |   2 +
- src/cmd/internal/obj/arm64/anames.go           |   2 +
- src/cmd/internal/obj/arm64/asm7.go             | 188 +++++++++++++++++++++----
- src/cmd/internal/obj/arm64/doc.go              |  54 +++++++
- 7 files changed, 314 insertions(+), 48 deletions(-)
+ src/cmd/vet/all/whitelist/386.txt |  8 ++--
+ src/runtime/asm_386.s             | 83 +++++++++++++++++++++++++++++++++++++--
+ src/runtime/rt0_android_386.s     | 14 ++-----
+ src/runtime/rt0_darwin_386.s      | 70 +++------------------------------
+ src/runtime/rt0_freebsd_386.s     | 15 +++----
+ src/runtime/rt0_linux_386.s       | 70 +++------------------------------
+ src/runtime/rt0_nacl_386.s        |  6 ++-
+ src/runtime/rt0_netbsd_386.s      | 15 +++----
+ src/runtime/rt0_openbsd_386.s     | 15 +++----
+ src/runtime/rt0_plan9_386.s       |  2 +-
+ src/runtime/rt0_windows_386.s     | 19 ++++-----
+ 11 files changed, 136 insertions(+), 181 deletions(-)

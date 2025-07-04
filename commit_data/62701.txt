@@ -1,0 +1,25 @@
+commit 656b5b3abe25d026725edff49edbdaa9862c9d77
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Mar 28 10:39:49 2025 +0100
+
+    internal/poll: don't skip empty writes on Windows
+    
+    Empty writes might be important for some protocols. Let Windows decide
+    what do with them rather than skipping them on our side. This is inline
+    with the behavior of other platforms.
+    
+    While here, refactor the Read/Write/Pwrite methods to reduce one
+    indentation level and make the code easier to read.
+    
+    Fixes #73084.
+    
+    Change-Id: Ic5393358e237d53b8be6097cd7359ac0ff205309
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661435
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/poll/fd_windows.go                 | 133 ++++++++++++------------
+ src/internal/poll/fd_windows_test.go            |  38 +++++--
+ src/internal/syscall/windows/syscall_windows.go |   3 +-
+ 3 files changed, 99 insertions(+), 75 deletions(-)

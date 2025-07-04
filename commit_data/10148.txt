@@ -1,13 +1,28 @@
-commit eef78091932aafec2b8030bc1927699b551d119b
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Oct 31 10:58:04 2011 +0100
+commit 0f6b80c69498d2047d584d365e4056ced9f38adc
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Oct 29 14:22:30 2011 -0400
 
-    exp/norm: fixed bug that creeped in with moving to the new
-    regexp, which caused the last line of a test block to be ignored.
+    exp/ssh: fix length header leaking into channel data streams.
     
-    R=r, rsc
+    The payload of a data message is defined as an SSH string type,
+    which uses the first four bytes to encode its length. When channelData
+    and channelExtendedData were added I defined Payload as []byte to
+    be able to use it directly without a string to []byte conversion. This
+    resulted in the length data leaking into the payload data.
+    
+    This CL fixes the bug, and restores agl's original fast path code.
+    
+    Additionally, a bug whereby s.lock was not released if a packet arrived
+    for an invalid channel has been fixed.
+    
+    Finally, as they were no longer used, I have removed
+    the channelData and channelExtedendData structs.
+    
+    R=agl, rsc
     CC=golang-dev
-    https://golang.org/cl/5177052
+    https://golang.org/cl/5330053
 
- src/pkg/exp/norm/maketables.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/ssh/client.go   |  90 ++++++++++++++++++------------
+ src/pkg/exp/ssh/messages.go |  17 ------
+ src/pkg/exp/ssh/server.go   | 130 ++++++++++++++++++++++++--------------------
+ 3 files changed, 127 insertions(+), 110 deletions(-)

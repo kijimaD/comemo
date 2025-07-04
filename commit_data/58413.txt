@@ -1,16 +1,26 @@
-commit e977b83b320b3aedca218566c42ee94c5fad6bb0
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Tue Dec 17 20:14:16 2024 +0200
+commit 0ccbf6306c8cac2b6f68ea6e8b098bb72b53473f
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Mon Nov 6 22:33:25 2023 +0000
 
-    cmd/go/internal/help: use secure link to swig.org
+    runtime/internal/atomic: add arm/arm64 operators for And/Or
     
-    Change-Id: Ifd315128ceeddf92bc16647869c3ace77ed1f430
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637195
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This CL continues adding support for And/Or primitives to
+    more architectures, this time for arm/arm64.
+    
+    For #61395
+    
+    Change-Id: Icc44ea65884c825698a345299d8f9511392aceb6
+    GitHub-Last-Rev: 8267665a0348faa0a10ac63b18909a1b13f9971d
+    GitHub-Pull-Request: golang/go#62674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528797
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/go/alldocs.go               | 2 +-
- src/cmd/go/internal/help/helpdoc.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/internal/atomic/atomic_andor_test.go |  2 +-
+ src/runtime/internal/atomic/atomic_arm.go        | 60 ++++++++++++++++++
+ src/runtime/internal/atomic/atomic_arm64.go      | 18 ++++++
+ src/runtime/internal/atomic/atomic_arm64.s       | 78 ++++++++++++++++++++++++
+ 4 files changed, 157 insertions(+), 1 deletion(-)

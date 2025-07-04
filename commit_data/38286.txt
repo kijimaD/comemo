@@ -1,25 +1,19 @@
-commit 3b6216ed0601c81fe42c2a4738d419afccb62163
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Mar 6 19:45:41 2019 +0100
+commit a2381f59662f8118c5cd78baaa90e8b186947e8f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 17 22:32:27 2018 +1100
 
-    runtime: remove CPU capability workarounds for unsupported FreeBSD versions
+    cmd/doc: fix repeated header bug added in previous CL
     
-    This CL removes runtime code working around missing ARM processor capability
-    information in the auxiliary vector in older FreeBSD versions.
+    One too many lines was deleted, and it would print a header multiple times.
+    Add a test.
     
-    As announced in the Go 1.12 release notes Go 1.13 will require FreeBSD 11.2+
-    or FreeBSD 12.0+. These FreeBSD versions support CPU capability detection
-    through AT_HWCAP and AT_HWCAP2 values stored in the auxiliary vector.
-    
-    Updates #27619
-    
-    Change-Id: I2a457b578d35101a7a5fd56ae9b81b300ad17da4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165799
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    Change-Id: I4906b454dbb66193d515ffacf43849ffdc2dede6
+    Reviewed-on: https://go-review.googlesource.com/c/142937
+    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/os_freebsd_arm.go | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/cmd/doc/doc_test.go | 3 +++
+ src/cmd/doc/pkg.go      | 1 +
+ 2 files changed, 4 insertions(+)

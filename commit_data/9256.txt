@@ -1,16 +1,18 @@
-commit 124172e2cfe55f1bfefb5e478a42ae3b29e62478
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 29 13:47:54 2011 -0400
+commit ffa14e849c1268fd94ecf30f7a26d3c4ba39f0ca
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Jul 29 13:47:41 2011 -0400
 
-    godoc: allow form feed in text files
+    6l: OpenBSD support
     
-    Now recognizes misc/emacs/go-mode-load.el as text.
+    Add linker support for OpenBSD ELF-64.
     
-    Fixes #2115.
-    
-    R=gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4801061
+    https://golang.org/cl/4815066
 
- src/cmd/godoc/utils.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/6l/asm.c  | 13 +++++++++++--
+ src/cmd/6l/doc.go |  2 ++
+ src/cmd/6l/obj.c  |  5 ++++-
+ src/cmd/6l/pass.c |  6 ++++--
+ src/cmd/ld/lib.h  |  1 +
+ 5 files changed, 22 insertions(+), 5 deletions(-)

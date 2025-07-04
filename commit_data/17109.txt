@@ -1,20 +1,36 @@
-commit 94179d61abf9516e24597ec8fa3888343d01388c
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 9 10:49:01 2013 +1000
+commit 554d47ecb5f35dd5bb850f5e20dde978bea37061
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 9 09:02:27 2013 +0900
 
-    reflect: avoid allocation when interface's contents are not addressable
-    See issue 4949 for a full explanation.
+    net: separate unix pollster initialization from network file descriptor allocation
     
-    Allocs go from 1 to zero in the non-addressable case.
-    Fixes #4949.
+    Unlike the existing net package own pollster, runtime-integrated
+    network pollster on BSD variants, actually kqueue, requires a socket
+    that has beed passed to syscall.Listen previously for a stream
+    listener.
     
-    BenchmarkInterfaceBig             90           14  -84.01%
-    BenchmarkInterfaceSmall           14           14   +0.00%
+    This CL separates pollDesc.Init of Unix network pollster from newFD
+    to avoid any breakages in the transition from Unix network pollster
+    to runtime-integrated pollster. Upcoming CLs will rearrange the call
+    order of pollster and syscall functions like the following;
     
-    R=golang-dev, bradfitz
+    - For dialers that open active connections, pollDesc.Init will be
+      called in between syscall.Bind and syscall.Connect.
+    
+    - For stream listeners that open passive stream connections,
+      pollDesc.Init will be called just after syscall.Listen.
+    
+    - For datagram listeners that open datagram connections,
+      pollDesc.Init will be called just after syscall.Bind.
+    
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=dvyukov, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12646043
+    https://golang.org/cl/12663043
 
- src/pkg/reflect/all_test.go | 34 ++++++++++++++++++++++++++++++++++
- src/pkg/reflect/value.go    |  3 ++-
- 2 files changed, 36 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_poll_unix.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

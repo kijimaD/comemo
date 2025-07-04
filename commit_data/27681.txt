@@ -1,19 +1,34 @@
-commit 53242e49b127ede6d7b258c7e90c39a5afa70c25
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 7 09:42:48 2016 -0700
+commit e88f89028a55acf9c8b76b7f6ca284c3f9eb4cbd
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Mar 31 16:05:23 2016 -0700
 
-    crypto/x509: don't ignore asn1.Marshal error
+    bytes, string: add Reset method to Reader
     
-    I don't see how the call could fail, so, no test. Just a code cleanup in
-    case it can fail in the future.
+    Currently, there is no easy allocation-free way to turn a
+    []byte or string into an io.Reader. Thus, we add a Reset method
+    to bytes.Reader and strings.Reader to allow the reuse of these
+    Readers with another []byte or string.
     
-    Fixes #15987.
+    This is consistent with the fact that many standard library io.Readers
+    already support a Reset method of some type:
+            bufio.Reader
+            flate.Reader
+            gzip.Reader
+            zlib.Reader
+            debug/dwarf.LineReader
+            bytes.Buffer
+            crypto/rc4.Cipher
     
-    Change-Id: If4af0d5e7d19cc8b13fb6a4f7661c37fb0015e83
-    Reviewed-on: https://go-review.googlesource.com/23860
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #15033
+    
+    Change-Id: I456fd1af77af6ef0b4ac6228b058ac1458ff3d19
+    Reviewed-on: https://go-review.googlesource.com/21386
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/crypto/x509/x509.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/bytes/reader.go        |  3 +++
+ src/bytes/reader_test.go   | 20 ++++++++++++++++++++
+ src/strings/reader.go      |  3 +++
+ src/strings/reader_test.go | 20 ++++++++++++++++++++
+ 4 files changed, 46 insertions(+)

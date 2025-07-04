@@ -1,18 +1,12 @@
-commit 5038792837355abde32f2e9549ef132fc5ffbd16
+commit 7247d6b96f639d266828c33566a71697272a67da
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 30 16:07:57 2011 -0500
+Date:   Sun Jan 30 15:46:02 2011 -0500
 
-    gc: special case code for single-op blocking and non-blocking selects
+    test: another select test
     
-    R=ken2
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4004045
+    https://golang.org/cl/4004044
 
- src/cmd/gc/builtin.c.boot |   3 +
- src/cmd/gc/print.c        |   1 +
- src/cmd/gc/runtime.go     |   4 +
- src/cmd/gc/select.c       | 217 ++++++++++++++++++++++++++++++++++++----------
- src/cmd/gc/sinit.c        |   1 +
- src/cmd/gc/typecheck.c    |  55 +++++++++---
- src/pkg/runtime/chan.c    | 104 +++++++++++++++++++---
- 7 files changed, 313 insertions(+), 72 deletions(-)
+ test/chan/select5.go | 482 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 482 insertions(+)

@@ -1,19 +1,26 @@
-commit df2421de60215cfc314fe6772ff6c2c6201f7abb
-Author: Ville Skyttä <ville.skytta@iki.fi>
-Date:   Wed Feb 16 21:00:04 2022 +0000
+commit aecfd5c29e3d8cb168c180f4e14e981c58eb599c
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Jun 9 18:31:55 2021 -0400
 
-    mime: ignore non-extension globs2 entries
+    [dev.typeparams] go/types: clean up type set/union intersection
     
-    Change-Id: Ic2315b593dca5648c02f793b7650b5936a997bff
-    GitHub-Last-Rev: ee55edcf087416c6f0d50d5dd51cbddfd1d77620
-    GitHub-Pull-Request: golang/go#51226
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386334
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This is a straightforward port of CL 323354 to go/types.
+    
+    Change-Id: I53512540cc35df6e88b2b66e144e1be7ccc9a6f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326678
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/mime/testdata/test.types.globs2 | 2 ++
- src/mime/type_unix.go               | 6 +++---
- src/mime/type_unix_test.go          | 2 ++
- 3 files changed, 7 insertions(+), 3 deletions(-)
+ src/go/types/interface.go                      |  10 ---
+ src/go/types/predicates.go                     |  11 ++-
+ src/go/types/sanitize.go                       |   2 +-
+ src/go/types/sizeof_test.go                    |   1 -
+ src/go/types/subst.go                          |   4 +-
+ src/go/types/testdata/check/issues.go2         |   2 +-
+ src/go/types/testdata/examples/constraints.go2 |  14 ++++
+ src/go/types/type.go                           |  40 ++++-----
+ src/go/types/typestring.go                     |   7 +-
+ src/go/types/union.go                          | 107 ++++++++++++++++++-------
+ 10 files changed, 119 insertions(+), 79 deletions(-)

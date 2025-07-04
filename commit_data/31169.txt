@@ -1,31 +1,33 @@
-commit 7d4cca07d2c6890fb39635aaa5b3b8d902bf2cbf
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Apr 12 14:22:16 2017 -0400
+commit 762eb40892061b43a2dabbfd99486e9940a149b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 13 13:52:44 2017 -0500
 
-    cmd/asm: detect invalid DS form offsets for ppc64x
+    cmd/go: split out cmd/go/internal/str
     
-    While debugging a recent regression it was discovered that
-    the assembler for ppc64x was not always generating the correct
-    instruction for DS form loads and stores.  When an instruction
-    is DS form then the offset must be a multiple of 4, and if it
-    isn't then bits outside the offset field were being incorrectly
-    set resulting in unexpected and incorrect instructions.
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
     
-    This change adds a check to determine when the opcode is DS form
-    and then verifies that the offset is a multiple of 4 before
-    generating the instruction, otherwise logs an error.
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
     
-    This also changes a few asm files that were using unaligned offsets
-    for DS form loads and stores.  In the runtime package these were
-    instructions intended to cause a crash so using aligned or unaligned
-    offsets doesn't change that behavior.
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
     
-    Change-Id: Ie3a7e1e65dcc9933b54de7a46a054da8459cb56f
-    Reviewed-on: https://go-review.googlesource.com/40476
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    For #18653.
+    
+    Change-Id: I63f578f5ac99c707b599ac5659293c46b275567d
+    Reviewed-on: https://go-review.googlesource.com/36190
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |  8 ++--
- src/cmd/internal/obj/ppc64/asm9.go        | 79 +++++++++++++++++++++++++------
- src/runtime/asm_ppc64x.s                  |  4 +-
- src/runtime/sys_linux_ppc64x.s            |  6 +--
- 4 files changed, 73 insertions(+), 24 deletions(-)
+ src/cmd/go/build.go            | 35 +++++++--------
+ src/cmd/go/fix.go              |  4 +-
+ src/cmd/go/fmt.go              |  3 +-
+ src/cmd/go/get.go              |  5 ++-
+ src/cmd/go/internal/str/str.go | 97 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/main.go             | 77 +--------------------------------
+ src/cmd/go/pkg.go              | 15 ++++---
+ src/cmd/go/pkg_test.go         | 13 +++---
+ src/cmd/go/run.go              |  3 +-
+ src/cmd/go/test.go             | 18 +++-----
+ src/cmd/go/vet.go              | 10 +++--
+ 11 files changed, 154 insertions(+), 126 deletions(-)

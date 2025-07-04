@@ -1,20 +1,14 @@
-commit 9abaef93c75b8aef007624b66f99a671eb0cc5d6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 3 16:09:13 2016 -0700
+commit e1a6e71e746d511570f269d43b9abf838505a8e5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 20 15:43:21 2016 -0700
 
-    cmd/compile: cleanup artifacts from previous CL
+    test: add missing copyright notice
     
-    Does not pass toolstash, but only because it causes ATYPE instructions
-    to be emitted in a different order, and it avoids emitting type
-    metadata for unused variables.
-    
-    Change-Id: I3ec8f66a40b5af9213e0d6e852b267a8dd995838
-    Reviewed-on: https://go-review.googlesource.com/30217
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2a5353203ca2958fa37fc7a5ea3f22ad4fc62b0e
+    Reviewed-on: https://go-review.googlesource.com/24282
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/pgen.go        | 13 +------------
- src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
- src/cmd/compile/internal/gc/syntax.go      | 29 ++++++++++++++---------------
- 3 files changed, 16 insertions(+), 28 deletions(-)
+ test/fixedbugs/issue16008.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,17 +1,15 @@
-commit 4ca6e588e4bac8bffa56dfe42526d7a12e7cb69c
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Mar 10 12:33:45 2014 -0400
+commit 4888781f2485e276938867c5d9fe6f5d0477520b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Mar 10 12:20:16 2014 +0900
 
-    time: handle int64 overflow in ParseDuration.
+    runtime: fix flakiness on futexsleep test
     
-    Previously, passing a long duration to ParseDuration could result in
-    random, even negative, values.
+    Fixes #7496.
     
-    LGTM=r
-    R=golang-codereviews, bradfitz, r
+    LGTM=jsing
+    R=golang-codereviews, jsing
     CC=golang-codereviews
-    https://golang.org/cl/72120043
+    https://golang.org/cl/72840043
 
- src/pkg/time/format.go    | 3 +++
- src/pkg/time/time_test.go | 1 +
- 2 files changed, 4 insertions(+)
+ src/pkg/runtime/futex_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

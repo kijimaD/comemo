@@ -1,33 +1,17 @@
-commit fb6ff1e4caaece9be61c45518ffb51081e892a73
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Oct 12 16:01:34 2023 -0400
+commit 76ec47eeec0e61bd5c679412ec847cdfaf1a95bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 23 18:08:57 2022 -0500
 
-    cmd/compile: initial function value devirtualization
+    doc/go1.20: complete, add more library TODOs
     
-    Today, PGO-based devirtualization only applies to interface calls. This
-    CL extends initial support to function values (i.e., function/closure
-    pointers passed as arguments or stored in a struct).
+    Finish all standard library TODOs, including additions
+    flagged by another run of relnote.
     
-    This CL is a minimal implementation with several limitations.
-    
-    * Export data lookup of function value callees not implemented
-      (equivalent of CL 497175; done in CL 540258).
-    * Callees must be standard static functions. Callees that are closures
-      (requiring closure context) are not supported.
-    
-    For #61577.
-    
-    Change-Id: I7d328859035249e176294cd0d9885b2d08c853f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539699
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ib9d22672b13b9775a98262d645aaf1d54e7494df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453295
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/devirtualize/pgo.go       | 454 ++++++++++++++++-----
- src/cmd/compile/internal/devirtualize/pgo_test.go  | 186 ++++++---
- .../compile/internal/test/pgo_devirtualize_test.go |  58 ++-
- .../test/testdata/pgo/devirtualize/devirt.go       | 214 +++++++++-
- .../test/testdata/pgo/devirtualize/devirt.pprof    | Bin 890 -> 1411 bytes
- .../test/testdata/pgo/devirtualize/devirt_test.go  |  48 ++-
- .../testdata/pgo/devirtualize/mult.pkg/mult.go     |  28 ++
- 7 files changed, 814 insertions(+), 174 deletions(-)
+ doc/go1.20.html | 267 ++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 171 insertions(+), 96 deletions(-)

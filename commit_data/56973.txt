@@ -1,25 +1,21 @@
-commit b6efbd4efc733f3f398929e2722accfdb2653032
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Jul 26 18:09:57 2024 +0700
+commit d8c9eece2828195e5488b63ba80f98c31b182953
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed May 17 15:33:07 2023 +0200
 
-    cmd/compile, reflect: treat abi.NoEscape as cheap call
+    runtime: add debugger hook for fatal signals
     
-    The abi.NoEscape function is introduced to replace all usages of
-    noescape wrapper in the standard library. However, the last usage in
-    reflect package is still present, because the inlining test failed if
-    abi.NoEscape were used. The reason is that reflect.noescape is treated
-    as a cheap call, while abi.NoEscape is not.
+    On Go <= 1.20 signals that caused the program to exit would eventually
+    call runtime.fatal. After the changes made in go.dev/cl/462437 but it
+    would still be nice if debuggers (eg. Delve) had a function they could
+    hook to intercept fatal signals.
     
-    By treating abi.NoEscape a cheap call, the last usage of noescape in
-    reflect package can now be removed.
-    
-    Change-Id: I798079780129221a5a26cbcb18c95ee30855b784
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601275
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Icf2b65187f95d52e60825c84f386806a75b38f6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495736
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/inline/inl.go |  4 ++--
- src/reflect/value.go                   | 12 +-----------
- 2 files changed, 3 insertions(+), 13 deletions(-)
+ src/runtime/signal_unix.go | 81 ++++++++++++++++++++++++----------------------
+ 1 file changed, 43 insertions(+), 38 deletions(-)

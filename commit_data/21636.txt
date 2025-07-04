@@ -1,12 +1,17 @@
-commit 490af4fd83132c6ab98de702dd9c0051820cb49c
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Tue Feb 17 08:21:14 2015 +1100
+commit 6017f680292e86611a6f709dcacd4083ab910d6b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 22 10:46:50 2015 -0800
 
-    unicode: Fixed an out of date comment (MaxLatin1, not Latin1Max).
+    [dev.cc] cmd/asm: add arch package
     
-    Change-Id: I3ca878e9685f650a9ff02aaac0e2e3cca89634c6
-    Reviewed-on: https://go-review.googlesource.com/4970
-    Reviewed-by: Minux Ma <minux@golang.org>
+    This package builds the representation of the machine architecture
+    for the new assembler.
+    
+    Almost nothing in it is likely to last but this will get things running.
+    
+    Change-Id: I8edd891f927a81f76d2dbdcd7484b9c87ac0fb2e
+    Reviewed-on: https://go-review.googlesource.com/3194
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/unicode/graphic.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arch.go | 292 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 292 insertions(+)

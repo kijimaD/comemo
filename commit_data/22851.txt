@@ -1,25 +1,15 @@
-commit 98a9d3683705b21fdcffe0291826de7611891167
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 4 14:37:45 2015 -0400
+commit 2e61315254c0649d035d66fef8eab3b7c8504713
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 18:57:18 2015 -0400
 
-    runtime: add pointer size to type structure
+    sync/atomic: skip issue 7338 test on darwin/arm64
     
-    This adds a field to the runtime type structure that records the size
-    of the prefix of objects of that type containing pointers. Any data
-    after this offset is scalar data.
+    Similar to darwin/arm. This issue is quite worrying and I hope it
+    can be addressed for Go 1.5.
     
-    This is necessary for shrinking the type bitmaps to 1 bit and will
-    help the garbage collector efficiently estimate the amount of heap
-    that needs to be scanned.
-    
-    Change-Id: I1318d79e6360dca0ac980245016c562e61f52ff5
-    Reviewed-on: https://go-review.googlesource.com/9691
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic095281d6a2e9a38a59973f58d464471db5a2edc
+    Reviewed-on: https://go-review.googlesource.com/8811
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/internal/gc/reflect.go   | 54 ++++++++++++++++++++++++++++++++++++++++
- src/cmd/internal/ld/decodesym.go | 16 ++++++------
- src/reflect/type.go              |  7 ++++++
- src/runtime/type.go              |  5 +++-
- 4 files changed, 74 insertions(+), 8 deletions(-)
+ src/sync/atomic/atomic_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

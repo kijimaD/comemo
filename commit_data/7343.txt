@@ -1,12 +1,18 @@
-commit 27191b558c74233da9b465249a295b8ac612647d
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Feb 2 22:43:40 2011 -0500
+commit 34336bd9f382512bda42711526031a6d94bd01df
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Feb 2 22:37:40 2011 -0500
 
-    codereview: fix hgpatch on windows
+    cgo: fix _cgo_run timestamp file order
+    
+    The timestamp file is being created before cgo
+    runs, which means errors will not prevent it
+    from being created and thus will cause the
+    build to break by rendering the rule up-to-date
+    when it isn't.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3989059
+    https://golang.org/cl/4001049
 
- lib/codereview/codereview.py | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/Make.pkg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

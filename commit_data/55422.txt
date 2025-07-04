@@ -1,23 +1,20 @@
-commit 9368ced7555d9320e93e83e18a67faa9af1226b9
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Jan 19 16:27:22 2024 +0100
+commit 82e046535571c121b836bc2425f0fc8d5cc0b80b
+Author: David Anderson <danderson@tailscale.com>
+Date:   Thu Feb 2 20:13:46 2023 +0000
 
-    net,internal/poll: load ws2_32.dll only when net is imported
+    time: add /etc/zoneinfo as valid path for tzdata for NixOS
     
-    On Windows, ws2_32.dll is loaded and WSA initialized even if websockets
-    are not used.
+    NixOS has no /usr/share, but does have tzdata at /etc/zoneinfo.
     
-    This CL delays loading of ws2_32.dll and starting WSA until net is
-    initialized.
-    
-    Change-Id: I07ea8241d79709cd4e80d29ba0d792c7444bbfe9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557015
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ic7d7f42a215e06c2e4f5c54ee11db82240f27167
+    GitHub-Last-Rev: 9969dd3e2cc49b30c3cd6b0858cb60b00bcbdf60
+    GitHub-Pull-Request: golang/go#58267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464995
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/testdata/script/ws2_32.txt | 48 +++++++++++++++++++++++++++++++++++
- src/internal/poll/fd_windows.go       |  7 +++--
- src/internal/poll/fd_windows_test.go  |  2 ++
- src/net/fd_windows.go                 |  4 +++
- 4 files changed, 59 insertions(+), 2 deletions(-)
+ src/time/zoneinfo_unix.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

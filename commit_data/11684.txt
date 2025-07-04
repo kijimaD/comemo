@@ -1,24 +1,12 @@
-commit 52ebadd3569b31ce423d4868ac9aa54a373aa1ad
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 8 14:09:20 2012 +1100
+commit f23a6dba5e7a477b15bb10c5f630df01b5f0ea88
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 7 18:13:11 2012 -0800
 
-    encoding/binary: hide TotalSize
+    cmd/api: compare multiple contexts
     
-    The function has a bizarre signature: it was the only public function there
-    that exposed the reflect package. Also, its definition is peculiar and hard to
-    explain. It doesn't merit being exported.
-    
-    This is an API change but really, it should never have been exported and
-    it's certain very few programs will depend on it: it's too weird.
-    
-    Fixes #2846.
-    
-    R=golang-dev, gri, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5639054
+    https://golang.org/cl/5626045
 
- doc/go1.html                           | 99 +++++++++++++++++++---------------
- doc/go1.tmpl                           | 99 +++++++++++++++++++---------------
- src/pkg/encoding/binary/binary.go      | 10 ++--
- src/pkg/encoding/binary/binary_test.go |  2 +-
- 4 files changed, 118 insertions(+), 92 deletions(-)
+ src/cmd/api/goapi.go | 85 +++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 71 insertions(+), 14 deletions(-)

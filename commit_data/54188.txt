@@ -1,20 +1,39 @@
-commit 43e69b330a71e0d101bd57f0a1ea83bc4da259f3
-Author: cui fliter <imcusg@gmail.com>
-Date:   Thu Aug 24 11:18:18 2023 +0800
+commit 7997e5f2540deb03a88a2f68f83bb5e5b7d6f77e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 28 14:13:24 2022 -0700
 
-    cmd/compile/internal: fix receiver names are different
+    cmd/compile: use "cannot use %s as %s value in %s: %s" error message
     
-    Change-Id: I78a7d34a6e2558ecff0274170bffaa51e038d0bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522415
+    This is close to what the compiler used to say, except now we say
+    "as T value" rather than "as type T" which is closer to the truth
+    (we cannot use a value as a type, after all). Also, place the primary
+    error and the explanation (cause) on a single line.
+    
+    Make respective (single line) adjustment to the matching "cannot
+    convert" error.
+    
+    Adjust various tests.
+    
+    For #55326.
+    
+    Change-Id: Ib646cf906b11f4129b7ed0c38cf16471f9266b88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436176
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/noder/writer.go             | 14 +++++++-------
- src/cmd/compile/internal/pgo/internal/graph/graph.go | 10 +++++-----
- src/cmd/compile/internal/ssa/debug.go                |  4 ++--
- src/cmd/compile/internal/ssa/expand_calls.go         | 12 ++++++------
- 4 files changed, 20 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go  | 18 +++++-----------
+ src/cmd/compile/internal/types2/conversions.go  |  8 ++-----
+ src/go/types/assignments.go                     | 18 +++++-----------
+ src/go/types/conversions.go                     |  9 ++------
+ src/internal/types/testdata/spec/conversions.go | 28 ++++++++++++-------------
+ test/alias2.go                                  | 10 ++++-----
+ test/append1.go                                 |  2 +-
+ test/ddd1.go                                    |  2 +-
+ test/fixedbugs/bug389.go                        |  2 +-
+ test/fixedbugs/issue17645.go                    |  2 +-
+ test/fixedbugs/issue48471.go                    | 16 +++++++-------
+ test/fixedbugs/issue5358.go                     |  2 +-
+ 12 files changed, 46 insertions(+), 71 deletions(-)

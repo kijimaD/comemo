@@ -1,0 +1,20 @@
+commit 9b842e2e63b660dd5e9ac39bac58a578d7b69824
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Feb 19 14:27:33 2025 -0800
+
+    crypto/tls: improve ech parsing errors
+    
+    Make the errors we return when parsing an ECHConfig slightly more
+    verbose.
+    
+    Fixes #71706
+    
+    Change-Id: Id138fd9defec71ce492a490a71af4981cb9ede51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650720
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/crypto/tls/ech.go | 45 ++++++++++++++++++++++++++++-----------------
+ 1 file changed, 28 insertions(+), 17 deletions(-)

@@ -1,19 +1,18 @@
-commit c901d93fcd5b1a2439232de4469400fd7a327128
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Nov 15 07:40:49 2024 -0800
+commit ad9e6edfddf7c68b7a549ab7b491919f0980889d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 9 22:39:50 2023 +0700
 
-    cmd/go: enforce -Wl,--push-state logic only when it is a prefix
+    cmd/compile: fix wrong argument of OpSelectN during expand_calls
     
-    Make sure we only run the --push-state logic when -Wl,--push-state is a
-    prefix of the argument, not just present in the argument string.
+    Fixes #63462
     
-    Thanks to Juho Forsén of Mattermost for reporting this issue.
-    
-    Change-Id: I799f7854ff680674fd84cf2136fadf70817fc7e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628415
+    Change-Id: I5ddf831eab630e23156f8f27a079b4ca4bb3a261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533795
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/internal/work/security.go      | 2 +-
- src/cmd/go/internal/work/security_test.go | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/expand_calls.go |  4 ++++
+ test/fixedbugs/issue63462.go                 | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+)

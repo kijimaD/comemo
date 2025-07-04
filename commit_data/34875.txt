@@ -1,17 +1,19 @@
-commit 27493187ed98cbf4f7679a5480fb84a63ece3e40
+commit 5e423ed8553b8eec01273597f7eb89ce73f47b86
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 6 09:44:29 2018 -0700
+Date:   Tue Nov 21 11:27:20 2017 -0800
 
-    cmd/compile: change cmplx{mpy,div} into Mpcplx methods
+    cmd/link: fix export data truncation bug
     
-    Passes toolstash-check.
+    Similar fix as in CL 60773 for fixing cmd/pack.
     
-    Change-Id: Icae55fe4fa1bb8e4f2f83b7c69e08d30a5559d9e
-    Reviewed-on: https://go-review.googlesource.com/105047
+    Fixes #21703.
+    
+    Change-Id: I457ed8a3be828fd458abc5c8c1cc766a9f7aab13
+    Reviewed-on: https://go-review.googlesource.com/79135
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/const.go   | 96 +---------------------------------
- src/cmd/compile/internal/gc/mpfloat.go | 71 +++++++++++++++++++++++++
- 2 files changed, 73 insertions(+), 94 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 20 +++++++++++++++++--
+ src/cmd/link/link_test.go       | 44 ++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 61 insertions(+), 3 deletions(-)

@@ -1,19 +1,34 @@
-commit 980fdb8dd5fe0151a9b7e84ec6b8c20a11727521
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Mon Apr 2 03:17:18 2018 +0200
+commit 9044f018ec7bf35ac030dc5aec1acd7d18d6691c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 8 12:11:00 2018 -0500
 
-    cmd/compile: improve testing of induction variables
+    cmd/test2json: emit Benchmark name output early
     
-    Test both minimum and maximum bound, and prepare
-    formatting for more advanced tests (inclusive / esclusive bounds).
+    When benchmarks run, they print lines like:
     
-    Change-Id: Ibe432916d9c938343bc07943798bc9709ad71845
-    Reviewed-on: https://go-review.googlesource.com/104040
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+      BenchmarkGenericNoMatch-8   3000000 385 ns/op
+    
+    The first field, padded by spaces and followed by a tab,
+    is printed when the benchmark begins running.
+    The rest of the line is printed when the benchmark ends.
+    Tools and people can watch the timing of these prints
+    to see which benchmark is running.
+    
+    To allow tools consuming json output to continue to be
+    able to see which benchmark is running, this CL adds a
+    special case to the usual "line at a time" behavior to flush
+    the benchmark name if it is observed separately from the
+    rest of the line.
+    
+    Fixes #23352.
+    
+    Change-Id: I7b6410698d78034eec18745d7f57b7d8e9575dbb
+    Reviewed-on: https://go-review.googlesource.com/86695
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/loopbce.go | 21 ++++++++++---
- test/loopbce.go                         | 54 ++++++++++++++++-----------------
- test/prove.go                           |  4 +--
- 3 files changed, 46 insertions(+), 33 deletions(-)
+ src/cmd/internal/test2json/test2json.go            | 25 ++++++++++++++++++++++
+ .../internal/test2json/testdata/benchshort.json    |  7 ++++++
+ .../internal/test2json/testdata/benchshort.test    |  5 +++++
+ 3 files changed, 37 insertions(+)

@@ -1,20 +1,12 @@
-commit 77082481d48c8cd8ea93328f9ab962092fe0183f
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu May 7 12:33:45 2015 +0300
+commit 6e8bcbbe8987d9b06ef2c349913cde11e6dd8339
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 16:11:25 2015 -0400
 
-    runtime/race: make test more robust
+    cmd/internal/gc: refine ginscmp comment
     
-    The test is flaky on builders lately. I don't see any issues other than
-    usage of very small sleeps. So increase the sleeps. Also take opportunity
-    to refactor the code.
-    On my machine this change significantly reduces failure rate with GOMAXPROCS=2.
-    I can't reproduce the failure with GOMAXPROCS=1.
-    
-    Fixes #10726
-    
-    Change-Id: Iea6f10cf3ce1be5c112a2375d51c13687a8ab4c9
-    Reviewed-on: https://go-review.googlesource.com/9803
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I2ebb36c6c5de9d34e52ed523e9c888452591924a
+    Reviewed-on: https://go-review.googlesource.com/10152
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/race/testdata/sync_test.go | 74 +++++++++++++---------------------
- 1 file changed, 27 insertions(+), 47 deletions(-)
+ src/cmd/internal/gc/go.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

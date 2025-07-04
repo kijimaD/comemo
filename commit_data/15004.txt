@@ -1,17 +1,13 @@
-commit 1c6b6b125eea1de587734ea7b16c05831e91ecf9
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Mon Jan 28 15:47:25 2013 -0800
+commit 8f90915692d6a8205a996d1116c9eb703f91c40c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Jan 28 18:14:09 2013 -0500
 
-    cmd/ld: avoid a segfault when dumping the symbol table
+    exp/ssa: (#3 of 5): Function, BasicBlock and optimisations
     
-    The dumping routine incorrectly assumed that all incoming
-    symbols would be non-nil and load through it to retrieve the
-    symbol name.  Instead of using the symbol to retrieve a name,
-    use the name provided by the caller.
-    
-    R=golang-dev, rsc
+    R=gri, iant, iant
     CC=golang-dev
-    https://golang.org/cl/7224043
+    https://golang.org/cl/7202051
 
- src/cmd/ld/symtab.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/ssa/blockopt.go | 190 +++++++++++++++++++++
+ src/pkg/exp/ssa/func.go     | 404 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 594 insertions(+)

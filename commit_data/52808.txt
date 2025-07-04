@@ -1,22 +1,19 @@
-commit 752ef81056691603c8b305a5f894215d3eb64b14
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 27 15:56:34 2023 -0700
+commit 54a2f4b6763b6e9c37ac86329af1b8d8f2e51b58
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jun 2 16:56:41 2022 -0400
 
-    net: re check conf.goos even if it equals runtime.GOOS
+    doc/go1.19: add release notes for runtime packages
     
-    This field is only for testing purposes, where we can't assume
-    that the conf value was initialized as expected for that GOOS.
+    This documents most of the changes in runtime packages, which the major
+    exception of GC changes, which will be documented in a future CL.
     
-    This fixes the net tests on android.
+    For #51400
     
-    Change-Id: I8432587f219a05adbb4d234a813467f876a764b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489975
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ibcf501e1b4f7caa3397db6b9136daec07aac5a65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410117
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/net/conf.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.19.html | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 75 insertions(+), 1 deletion(-)

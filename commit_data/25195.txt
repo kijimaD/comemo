@@ -1,32 +1,21 @@
-commit 670642d389a3c1a90fad6016f91197125969376d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 3 17:28:46 2015 -0800
+commit e4add8d569d3152a461dbdf6e086dd60c8ca6c27
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 1 01:04:24 2015 -0700
 
-    go/parser, go/types: report invalid else branch in if statements
+    archive/tar: fix numeric overflow issues in readGNUSparseMap0x1
     
-    - Only accept valid if statement syntax in go/parser.
+    Motivation:
+    * The logic to verify the numEntries can overflow and incorrectly
+    pass, allowing a malicious file to allocate arbitrary memory.
+    * The use of strconv.ParseInt does not set the integer precision
+    to 64bit, causing this code to work incorrectly on 32bit machines.
     
-    - Check AST again in go/types since it may have been modified and the
-      AST doesn't preclude other statements in the else branch of an if
-      statement.
-    
-    - Removed a test from gofmt which verified that old-style if statements
-      permitting any statement in the else branch were correctly reformatted.
-      It's been years since we switched to the current syntax; no need to
-      support this anymore.
-    
-    - Added a comment to go/printer.
-    
-    Fixes #13475.
-    
-    Change-Id: Id2c8fbcc68b719cd511027d0412a37266cceed6b
-    Reviewed-on: https://go-review.googlesource.com/17408
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1b1571a750a84f2dde97cc329ed04fe2342aaa60
+    Reviewed-on: https://go-review.googlesource.com/15173
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/gofmt/testdata/old.golden |  9 ---------
- src/cmd/gofmt/testdata/old.input  |  8 --------
- src/go/parser/parser.go           | 11 ++++++++++-
- src/go/parser/short_test.go       |  4 ++++
- src/go/printer/nodes.go           |  3 +++
- src/go/types/stmt.go              |  9 ++++++++-
- 6 files changed, 25 insertions(+), 19 deletions(-)
+ src/archive/tar/reader.go      | 31 +++++++--------
+ src/archive/tar/reader_test.go | 87 ++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 85 insertions(+), 33 deletions(-)

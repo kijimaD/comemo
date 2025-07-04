@@ -1,25 +1,15 @@
-commit e280035fc1afdf4c1855d74bc4178ff0a8a18332
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Feb 1 04:14:37 2012 -0800
+commit 2f2b6e55ef69126bef77396a3834915b2121fa80
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Feb 1 19:13:38 2012 +1100
 
-    gc, cc: avoid using the wrong library when building the compilers
+    encoding/base64: ignore new line characters during decode.
     
-    This can happen on Plan 9 if we we're building
-    with the 32-bit and 64-bit host compilers, one
-    after the other.
+    Fixes #2541.
     
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5599053
+    https://golang.org/cl/5610045
 
- .hgignore           | 2 +-
- src/cmd/5c/Makefile | 2 +-
- src/cmd/5g/Makefile | 2 +-
- src/cmd/6c/Makefile | 2 +-
- src/cmd/6g/Makefile | 2 +-
- src/cmd/8c/Makefile | 2 +-
- src/cmd/8g/Makefile | 2 +-
- src/cmd/cc/Makefile | 2 +-
- src/cmd/gc/Makefile | 2 +-
- src/cmd/gc/go.h     | 2 ++
- 10 files changed, 11 insertions(+), 9 deletions(-)
+ src/pkg/encoding/base64/base64.go      | 39 ++++++++++++++++++++--------------
+ src/pkg/encoding/base64/base64_test.go | 26 +++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 16 deletions(-)

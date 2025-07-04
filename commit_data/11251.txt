@@ -1,13 +1,17 @@
-commit 885cbc3be4e37d8ac36265b2b8fdf0582cff0551
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 19 14:44:21 2012 +1100
+commit c109705c6f30d568b7c7af8a203bdd69c6fb99af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 19:35:53 2012 -0800
 
-    A+C: add Stefan Nilsson's gmail account
+    go/doc: collect imports
     
-    R=golang-dev, dsymonds
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5541064
+    https://golang.org/cl/5556051
 
- AUTHORS      | 2 +-
- CONTRIBUTORS | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/go/doc/doc.go                |  2 +-
+ src/pkg/go/doc/exports.go            |  3 +++
+ src/pkg/go/doc/reader.go             | 22 ++++++++++++++++++++++
+ src/pkg/go/doc/testdata/b.out        |  3 +++
+ src/pkg/go/doc/testdata/template.txt |  6 +++---
+ src/pkg/go/doc/testdata/testing.out  | 12 ++++++++++++
+ 6 files changed, 44 insertions(+), 4 deletions(-)

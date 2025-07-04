@@ -1,18 +1,28 @@
-commit 343d113610d22dfcb79442c2ef2e9701b741e451
-Author: Chris Manghane <cmang@golang.org>
-Date:   Wed Oct 15 13:13:37 2014 -0700
+commit 7c8e057ad3b4fed16719d9ef91936537dff90ecd
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 2 14:16:58 2014 -0700
 
-    cmd/go: add '_go_' suffix to go files compiled by gccgo to avoid naming conflicts
+    fmt: make the %#v verb a special flag
+    The %#v verb is special: it says all values below need to print as %#v.
+    However, for some situations the # flag has other meanings and this
+    causes some issues, particularly in how Formatters work. Since %#v
+    dominates all formatting, translate it into actual state of the formatter
+    and decouple it from the # flag itself within the calculations (although
+    it must be restored when methods are doing the work.)
+    The result is cleaner code and correct handling of # for Formatters.
+    TODO: Apply the same thinking to the + flag in a followup CL.
     
-    Fixes #8828.
+    Also, the wasString return value in handleMethods is always false,
+    so eliminate it.
     
-    LGTM=rsc
-    R=rsc
+    Update #8835
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/154410043
+    https://golang.org/cl/146650043
 
- misc/cgo/test/issue8828.go          | 16 ++++++++++++++++
- misc/cgo/test/issue8828/issue8828.c |  7 +++++++
- misc/cgo/test/issue8828/trivial.go  |  8 ++++++++
- src/cmd/go/build.go                 |  2 +-
- 4 files changed, 32 insertions(+), 1 deletion(-)
+ src/fmt/fmt_test.go |  95 ++++++++++++++++++++++++++++-
+ src/fmt/format.go   |  12 +++-
+ src/fmt/print.go    | 173 ++++++++++++++++++++++++++++------------------------
+ 3 files changed, 196 insertions(+), 84 deletions(-)

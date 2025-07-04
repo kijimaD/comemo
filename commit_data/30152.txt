@@ -1,36 +1,44 @@
-commit 894650277670eed065566f803c642a8f80437456
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Tue Feb 7 13:38:52 2017 +0200
+commit d6625caf5397a52edc38e19d523a597b531a5f12
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 24 14:20:07 2016 -0400
 
-    bytes, strings: optimize Split*
+    runtime: scan mark worker stacks like normal
     
-    The relevant benchmark results on linux/amd64:
+    Currently, markroot delays scanning mark worker stacks until mark
+    termination by putting the mark worker G directly on the rescan list
+    when it encounters one during the mark phase. Without this, since mark
+    workers are non-preemptible, two mark workers that attempt to scan
+    each other's stacks can deadlock.
     
-    bytes:
+    However, this is annoyingly asymmetric and causes some real problems.
+    First, markroot does not own the G at that point, so it's not
+    technically safe to add it to the rescan list. I haven't been able to
+    find a specific problem this could cause, but I suspect it's the root
+    cause of issue #17099. Second, this will interfere with the hybrid
+    barrier, since there is no stack rescanning during mark termination
+    with the hybrid barrier.
     
-    SplitSingleByteSeparator-4   25.7ms ± 5%   9.1ms ± 4%  -64.40%  (p=0.000 n=10+10)
-    SplitMultiByteSeparator-4    13.8ms ±20%   4.3ms ± 8%  -69.23%  (p=0.000 n=10+10)
-    SplitNSingleByteSeparator-4  1.88µs ± 9%  0.88µs ± 4%  -53.25%  (p=0.000 n=10+10)
-    SplitNMultiByteSeparator-4   4.83µs ±10%  1.32µs ± 9%  -72.65%  (p=0.000 n=10+10)
+    This commit switches to a different approach. We move the mark
+    worker's call to gcDrain to the system stack and set the mark worker's
+    status to _Gwaiting for the duration of the drain to indicate that
+    it's preemptible. This lets another mark worker scan its G stack while
+    the drain is running on the system stack. We don't return to the G
+    stack until we can switch back to _Grunning, which ensures we don't
+    race with a stack scan. This lets us eliminate the special case for
+    mark worker stack scans and scan them just like any other goroutine.
+    The only subtlety to this approach is that we have to disable stack
+    shrinking for mark workers; they could be referring to captured
+    variables from the G stack, so it's not safe to move their stacks.
     
-    strings:
+    Updates #17099 and #17503.
     
-    name                         old time/op  new time/op  delta
-    SplitSingleByteSeparator-4   21.4ms ± 8%   8.5ms ± 5%  -60.19%  (p=0.000 n=10+10)
-    SplitMultiByteSeparator-4    13.2ms ± 9%   3.9ms ± 4%  -70.29%  (p=0.000 n=10+10)
-    SplitNSingleByteSeparator-4  1.54µs ± 5%  0.75µs ± 7%  -51.21%  (p=0.000 n=10+10)
-    SplitNMultiByteSeparator-4   3.57µs ± 8%  1.01µs ±11%  -71.76%  (p=0.000 n=10+10)
-    
-    Fixes #18973
-    
-    Change-Id: Ie4bc010c6cc389001e72eab530497c81e5b26f34
-    Reviewed-on: https://go-review.googlesource.com/36510
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia5213949ec470af63e24dfce01df357c12adbbea
+    Reviewed-on: https://go-review.googlesource.com/31820
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/bytes/bytes.go          | 23 ++++++++++----------
- src/bytes/bytes_test.go     | 53 +++++++++++++++++++++++++++++++++++++++++++++
- src/strings/strings.go      | 25 +++++++++++----------
- src/strings/strings_test.go | 18 ++++++++++++---
- 4 files changed, 93 insertions(+), 26 deletions(-)
+ src/runtime/mgc.go     | 27 +++++++++++++++++++--------
+ src/runtime/mgcmark.go | 15 ++-------------
+ src/runtime/stack.go   |  5 +++++
+ 3 files changed, 26 insertions(+), 21 deletions(-)

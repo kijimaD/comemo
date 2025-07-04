@@ -1,18 +1,25 @@
-commit 5b43bbe63b6dfe36f793f496a0e92a3804df0137
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Aug 12 15:56:22 2017 +0900
+commit c18fd098401805478fac6a3ff42bfad9a66a16d3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 12 17:43:30 2017 -0700
 
-    cmd/link: prefer to use constants in macho.go
+    cmd/internal/obj: build ctxt.Text during Sym init
     
-    We might want to replace some linker's feature by debug/macho in future.
-    This CL gathers information of required constants.
+    Instead of constructing ctxt.Text in Flushplist,
+    which will be called concurrently,
+    do it in InitTextSym, which must be called serially.
+    This allows us to avoid a mutex for ctxt.Text,
+    and preserves the existing ordering of functions
+    for debug output.
     
-    Change-Id: Iea14abdb32709a4f5404a17874f9c925d29ba999
-    Reviewed-on: https://go-review.googlesource.com/55252
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Updates #15756
+    
+    Change-Id: I6322b4da24f9f0db7ba25e5b1b50e8d3be2deb37
+    Reviewed-on: https://go-review.googlesource.com/40502
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/macho.go               | 108 +++++++++++++++++-------
- src/cmd/link/internal/ld/macho_combine_dwarf.go |  21 -----
- 2 files changed, 77 insertions(+), 52 deletions(-)
+ src/cmd/internal/obj/plist.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

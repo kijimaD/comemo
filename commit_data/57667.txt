@@ -1,20 +1,19 @@
-commit 5c1a68aedd09ba9992ca0b1c6d0a00d8e1ce8f8f
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Oct 14 21:32:40 2024 +0200
+commit 3e73802c4a40a665d505e0c906609ce771cfd219
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 5 15:16:41 2023 -0400
 
-    internal/syscall/windows: fix handle leak in Mkdirat
+    cmd/internal/objabi: test runtime package list
     
-    Mkdirat does not close the handle returned by CreateFile, but it should.
+    This adds a test that all packages imported by runtime are marked as
+    runtime tests by LookupPkgSpecial. We add two packages that were
+    missing from the list.
     
-    Mkdirat has been introduced in this developer cycle, so it is not
-    necessary to backport this fix to any release branch.
-    
-    Change-Id: Icddac5ccdc6a142a5be5392a39aba2ae7cc9c69a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620195
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: I2545980ab09474de0181cf546541527d8baaf2e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521700
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/syscall/windows/at_windows.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/objabi/path_test.go  | 32 +++++++++++++++++++++++++++++++-
+ src/cmd/internal/objabi/pkgspecial.go |  4 ++--
+ 2 files changed, 33 insertions(+), 3 deletions(-)

@@ -1,22 +1,19 @@
-commit 20da893e8392c5008f7583400accf2a2b9a2f8ff
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Sep 29 15:00:08 2022 -0700
+commit 01103d533a086afd6c06f3eec5057d46f117d2ff
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Nov 9 10:01:05 2021 +0100
 
-    debug/dwarf: don't crash on negative range/rnglist offset
+    cmd/link: fix GCC startfiles names on AIX
     
-    No test case because the problem can only happen for invalid data. Let
-    the fuzzer find cases like this.
+    Since GCC version 11, the 64-bit version of GCC starting files are
+    now suffixed by "_64" instead of being stored without suffix under
+    "ppc64" multilib directory.
     
-    Fixes #55948
-    
-    Change-Id: I7ba40ba928d2a14d4ac5b39f966173f3868d4729
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436876
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ibe53521ed24d36e5f6282e3574849b9ae11a1e9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362594
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/debug/dwarf/entry.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

@@ -1,16 +1,22 @@
-commit fa49c3970a43ca77d46363397e7f4f3ae1f5957c
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Tue Oct 4 09:21:30 2016 -0700
+commit 252eda470a3684a1ead5956f7e703532f4213f11
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 20 14:00:58 2016 -0700
 
-    database/sql: fixup remaining driver call to use context
+    cmd/pprof: don't use offset if we don't have a start address
     
-    Missed one in the prior CL.
+    The test is in the runtime package because there are other tests of
+    pprof there. At some point we should probably move them all into a pprof
+    testsuite.
     
-    Change-Id: I6f6d84d52fe4d902a985971a402701fb3b1eed86
-    Reviewed-on: https://go-review.googlesource.com/30255
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #16128.
+    
+    Change-Id: Ieefa40c61cf3edde11fe0cf04da1debfd8b3d7c0
+    Reviewed-on: https://go-review.googlesource.com/24274
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/database/sql/sql.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/pprof/pprof.go                   |  6 ++--
+ src/runtime/crash_test.go                | 40 ++++++++++++++++++++++++++
+ src/runtime/testdata/testprog/memprof.go | 49 ++++++++++++++++++++++++++++++++
+ 3 files changed, 93 insertions(+), 2 deletions(-)

@@ -1,21 +1,17 @@
-commit 91d326e7341247dc3f4c391cc7eb7dd7163446aa
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri May 25 14:01:25 2018 +0200
+commit ba99433d333a2babbbfa63ead19d43282a3243f4
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Feb 16 10:26:00 2018 +0100
 
-    runtime: remove duplicate cpu feature detection on x86
+    runtime: only run TestArenaCollision if the target can exec
     
-    This also allows the GODEBUGCPU options to change the
-    support_* runtime cpu feature variable values.
+    Replace the test for nacl with testenv.MustHaveExec to also skip
+    test on iOS.
     
-    Change-Id: I884c5f03993afc7e3344ff2fd471a2c6cfde43d4
-    Reviewed-on: https://go-review.googlesource.com/114615
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I6822714f6d71533d1b18bbb7894f6ad339d8aea1
+    Reviewed-on: https://go-review.googlesource.com/94755
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/asm_386.s      | 36 ------------------------------------
- src/runtime/asm_amd64.s    | 32 --------------------------------
- src/runtime/asm_amd64p32.s | 38 --------------------------------------
- src/runtime/proc.go        |  6 ++++++
- src/runtime/runtime2.go    |  3 +--
- 5 files changed, 7 insertions(+), 108 deletions(-)
+ src/runtime/malloc_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

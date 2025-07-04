@@ -1,27 +1,29 @@
-commit 160414ca6a30a210b82fb09abbd3541802a51017
-Author: eric fang <eric.fang@arm.com>
-Date:   Sun Jun 26 09:39:09 2022 +0000
+commit 94f2a03951ed1534ebd6b13392b87d8b8b807e20
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Aug 27 12:42:38 2021 -0400
 
-    cmd/internal/obj/arm64: fix BITCON constant printing error
+    cmd: update requirement on golang.org/x/mod
     
-    For some 32-bit instructions whose first operand is a constant, we
-    copy the lower 32 bits of the constant into the upper 32 bits in progedit,
-    which leads to the wrong value being printed in -S output.
+    Commands run:
+      go get golang.org/x/mod@master
+      go mod vendor
+      go mod tidy
     
-    The purpose of this is that we don't need to distinguish between 32-bit
-    and 64-bit constants when checking C_BITCON, this CL puts the modified
-    value in a temporary variable, so that the constant operand of the
-    instruction will not be modified.
+    This change pulls in the x/mod on master. Before it was pulled in on
+    the dev.cmdgo branch of x/mod, but now that the workspace changes have
+    been pulled into x/mod, we can change the requirement back on to the
+    main branch.
     
-    Fixes #53551
-    
-    Change-Id: I40ee9223b4187bff1c0a1bab7eb508fcb30325f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414374
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I296799a87ecc08ba17c0722e955f000426b105ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345390
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 21 ++++++++++++++++-----
- src/cmd/internal/obj/arm64/obj7.go | 13 -------------
- 2 files changed, 16 insertions(+), 18 deletions(-)
+ src/cmd/go.mod                                   |   2 +-
+ src/cmd/go.sum                                   |   4 +-
+ src/cmd/vendor/golang.org/x/mod/module/module.go |   7 +-
+ src/cmd/vendor/golang.org/x/mod/zip/zip.go       | 130 ++++++++++++++++++++++-
+ src/cmd/vendor/modules.txt                       |   2 +-
+ 5 files changed, 132 insertions(+), 13 deletions(-)

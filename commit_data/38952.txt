@@ -1,13 +1,12 @@
-commit ccbc9a3f9f6479070f5a45a8583d14d158b8bcb0
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Mon Apr 29 16:41:20 2019 +0200
+commit d1882c986673b5bd5fb6775548990d4e11917c1e
+Author: Julie Qiu <julie@golang.org>
+Date:   Thu Dec 6 11:02:49 2018 -0500
 
-    cmd/go: add XCOFF format handler for go version
+    doc/go1.12: release notes for testing
     
-    Change-Id: Ib102ae95acfd89fc3c9942a4ec82c74362f62045
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174299
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I81ffe7ee88354efeabb24f091db66c7c4892876c
+    Reviewed-on: https://go-review.googlesource.com/c/152919
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/internal/version/exe.go | 44 +++++++++++++++++++++++++++++++++++++-
- 1 file changed, 43 insertions(+), 1 deletion(-)
+ doc/go1.12.html | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

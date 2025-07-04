@@ -1,18 +1,14 @@
-commit 1cd6d8b974517e6c0506d3959a9ad08f98e89902
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 1 13:08:30 2019 -0800
+commit 2afdd17e3f0a453ba330352a7221f4fa9bef19b2
+Author: Urvil Patel <patelurvil38@gmail.com>
+Date:   Tue Sep 25 13:44:45 2018 +0530
 
-    cmd/vet: let TestMain run deferred functions
+    strconv: add example for QuoteRuneToGraphic and QuoteToGraphic functions
     
-    Split TestMain into two functions so that we can defer cleanups.
-    
-    Updates #30500
-    
-    Change-Id: I1fa7957be0779c079ec4d221a8321b45ddb973e2
-    Reviewed-on: https://go-review.googlesource.com/c/164860
+    Change-Id: Ie5b2ef0087dbc7b8191de8c8b4190396631e3c7f
+    Reviewed-on: https://go-review.googlesource.com/c/137215
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/vet_test.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/strconv/example_test.go | 40 ++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 38 insertions(+), 2 deletions(-)

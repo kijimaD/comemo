@@ -1,19 +1,12 @@
-commit c4692da9231c244a1275d42055e703b3f1dac25b
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Tue Jun 14 16:48:42 2016 -0400
+commit 4dae828f77a37ed87401f7877998b241f0d2c33e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Apr 8 15:09:45 2016 +1000
 
-    context: document how to release resources associated with Contexts.
+    cmd/go: fix failing tests since vet was moved from x/tools
     
-    Some users don't realize that creating a Context with a CancelFunc
-    attaches a subtree to the parent, and that that subtree is not released
-    until the CancelFunc is called or the parent is canceled.  Make this
-    clear early in the package docs, so that people learning about this
-    package have the right conceptual model.
-    
-    Change-Id: I7c77a546c19c3751dd1f3a5bc827ad106dd1afbf
-    Reviewed-on: https://go-review.googlesource.com/24090
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3276a118ced78f3efd8f1bc5fb8b8fa2fde52496
+    Reviewed-on: https://go-review.googlesource.com/21704
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/context/context.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

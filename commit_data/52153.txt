@@ -1,24 +1,42 @@
-commit cf3d0655f8ca2de555549f6e8a91bf8654da7e6c
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Mar 1 08:39:04 2023 -0800
+commit e1b0862925c8ed97bdaf9277f4a2ba38e0b58cbe
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 16:45:18 2022 -0400
 
-    crypto/x509: fix broken tests
+    go/doc/comment: parse and print lists
     
-    Convert TestUnknownAuthorityError to use subtests, avoiding continuing
-    the test after an unrecoverable failure.
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
     
-    Skip TestIssue51759 on pre-macOS 11 builders, which don't enforce the
-    behavior we were testing for.
+    Implement lists, like:
     
-    Updates #58791
-    Fixes #58812
+            Three numbers:
     
-    Change-Id: I4e3e5bc371aa139d38052184c8232f8cb564138f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472496
+              - One
+              - Two
+              - Three
+    
+    For #51082.
+    
+    Change-Id: Id87d9c19bca677be968f3803809a9ea6c705f3ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397286
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/crypto/x509/verify_test.go | 54 +++++++++++++++++++++++-------------------
- 1 file changed, 30 insertions(+), 24 deletions(-)
+ src/go/doc/comment/html.go            |  48 ++++++++++++-
+ src/go/doc/comment/markdown.go        |  23 ++++++
+ src/go/doc/comment/parse.go           |  91 ++++++++++++++++++++++++
+ src/go/doc/comment/print.go           |  23 ++++++
+ src/go/doc/comment/testdata/list.txt  |  48 +++++++++++++
+ src/go/doc/comment/testdata/list2.txt |  57 +++++++++++++++
+ src/go/doc/comment/testdata/list3.txt |  32 +++++++++
+ src/go/doc/comment/testdata/list4.txt |  38 ++++++++++
+ src/go/doc/comment/testdata/list5.txt |  40 +++++++++++
+ src/go/doc/comment/testdata/list6.txt | 129 ++++++++++++++++++++++++++++++++++
+ src/go/doc/comment/testdata/list7.txt |  98 ++++++++++++++++++++++++++
+ src/go/doc/comment/testdata/list8.txt |  56 +++++++++++++++
+ src/go/doc/comment/testdata/text.txt  |  62 ++++++++++++++++
+ src/go/doc/comment/testdata/text8.txt |  94 +++++++++++++++++++++++++
+ src/go/doc/comment/text.go            |  35 +++++++--
+ 15 files changed, 869 insertions(+), 5 deletions(-)

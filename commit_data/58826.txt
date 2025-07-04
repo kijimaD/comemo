@@ -1,20 +1,20 @@
-commit 41a30dd19285ad470d651878853fddf238437769
-Author: Than McIntosh <thanm@golang.org>
-Date:   Mon Nov 18 11:23:39 2024 -0500
+commit c564d4ae0876895b2a9bd941f1f90022e8318f29
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Dec 18 21:11:13 2023 +0000
 
-    cmd/internal/dwarf: add DW_LNCT and DW_UT constant definitions
+    Revert "cmd/cgo/internal/testsanitizers: fix msan test failing with clang >= 16"
     
-    Add a set of constants for the DWARF version 5 line table content
-    description values found in the V5 line table prolog, and for the
-    new DWARF unit type encodings.
+    This reverts commit https://go.dev/cl/c/go/+/549297
     
-    Updates #26379.
+    Reason for revert: breaks clang builder
     
-    Change-Id: I8f4989ea6b6cbb303deda1a6a20ad243d73b46b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633878
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I2321dec9bc1fc20dfafa8a984303b0b5710f8aac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550779
+    Auto-Submit: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/dwarf/dwarf_defs.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/cmd/cgo/internal/testsanitizers/msan_test.go      | 5 +----
+ src/cmd/cgo/internal/testsanitizers/testdata/msan8.go | 7 -------
+ 2 files changed, 1 insertion(+), 11 deletions(-)

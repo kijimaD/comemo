@@ -1,29 +1,15 @@
-commit 8331f25e96d6120bb0ec212bd03abcae53282769
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Sep 15 09:56:09 2021 -0700
+commit 33d72fd4122a4b7e31e738d5d9283093966ec14a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 14 17:21:56 2021 -0800
 
-    reflect: make Elem panic on bad notinheap pointers
+    doc/faq: update generics entry to reflect accepted proposal
     
-    This CL fixes the subtle issue that Elem can promote a
-    not-in-heap pointer, which could be any bit pattern, into an
-    unsafe.Pointer, which the garbage collector can see. If that
-    resulting value is bad, it can crash the GC.
+    For #43651
     
-    Make sure that we don't introduce bad pointers that way. We can
-    make Elem() panic, because any such bad pointers are in the Go heap,
-    and not-in-heap pointers are not allowed to point into the Go heap.
-    
-    Update #48399
-    
-    Change-Id: Ieaf35a611b16b4dfb5e907e229ed4a2aed30e18c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350153
-    Trust: Keith Randall <khr@golang.org>
+    Change-Id: Idb511f4c759d9a77de289938c19c2c1d4a542a17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291990
     Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/reflect/all_test.go | 20 ++++++++++++++++++++
- src/reflect/value.go    | 17 +++++++++++++++++
- src/runtime/mbitmap.go  |  9 +++++++++
- 3 files changed, 46 insertions(+)
+ doc/go_faq.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,13 +1,18 @@
-commit 3388e9f67b2ebb30bbd115c13b3ac4728c7ff9c1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 15 16:56:12 2011 +1100
+commit c26ca912e500bd0e681cfda366d3b69f8769c9c2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 14 21:52:41 2011 -0800
 
-    weekly.2011-12-14
+    spec: skip carriage returns in raw literals
     
-    R=golang-dev, r
+    This change guarantees that whether the line ending convention
+    when the source is created includes carriage returns is irrelevant
+    to the value of the string. See issue 680.
+    
+    The compilers do not yet implement this.
+    
+    R=golang-dev, adg, r, gri, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/5494045
+    https://golang.org/cl/5491043
 
- .hgtags               |   1 -
- doc/devel/weekly.html | 105 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 105 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

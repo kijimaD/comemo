@@ -1,27 +1,23 @@
-commit 7be97af2ff6d4bdc8a52cb72677bbd68703489fd
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed Jul 10 00:00:13 2019 +0530
+commit 0ff9df6b53076a9402f691b07707f7d88d352722
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 16:39:09 2019 +0100
 
-    cmd/compile: apply optimization for readonly globals on wasm
+    cmd: disable DWARF with old ld on aix/ppc64
     
-    Extend the optimization introduced in CL 141118 to the wasm architecture.
+    DWARF relocations isn't working with some older ld, because of
+    -Wl,-bnoobjreorder which is needed on Go.
+    This commit checks ld's version and disable DWARF generation in cmd/link
+    if it's too old. Some tests must therefore be skipped.
     
-    And for reference, the rules trigger 212 times while building std and cmd
-    
-    $GOOS=js GOARCH=wasm gotip build std cmd
-    $grep -E "Wasm.rules:44(1|2|3|4)" rulelog | wc -l
-    212
-    
-    Updates #26498
-    
-    Change-Id: I153684a2b98589ae812b42268da08b65679e09d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185477
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Change-Id: I2e794c263eb0dfe0b42e7062fb80c26f086b44d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164007
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/Wasm.rules |  6 ++
- src/cmd/compile/internal/ssa/rewriteWasm.go | 98 +++++++++++++++++++++++++++++
- test/codegen/strings.go                     |  3 +
- 3 files changed, 107 insertions(+)
+ src/cmd/compile/internal/ssa/stmtlines_test.go | 16 ++++++++++
+ src/cmd/internal/dwarf/dwarf.go                | 42 ++++++++++++++++++++++++++
+ src/cmd/link/dwarf_test.go                     | 14 +++++++++
+ src/cmd/link/internal/ld/dwarf.go              |  5 +++
+ src/cmd/link/internal/ld/lib.go                | 22 ++++++++------
+ 5 files changed, 89 insertions(+), 10 deletions(-)

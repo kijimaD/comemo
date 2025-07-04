@@ -1,17 +1,16 @@
-commit a4e694b8d41be82b3605f577833dfcb85788ee2b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jul 17 14:32:44 2023 +0200
+commit 86f8b8d3f20129dce7a220d4ce32d13e766ba86a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Sep 5 15:06:38 2022 +0800
 
-    doc/go1.21: consistently use spaces for indentation
+    cmd/compile/internal/syntax: use strings.Builder
     
-    Change-Id: Ib0aec9ee6cd7aae1821c82e67f0c67be01122992
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/509677
+    Change-Id: Ic18d12b3d1c2f4819f2656371537df797e9970ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428361
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/go1.21.html | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/syntax/printer.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

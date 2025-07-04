@@ -1,13 +1,14 @@
-commit d5f5e658aef1103944b514a10f987690fe9ec0d3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 3 12:35:59 2015 -0700
+commit 895df143a2d76cc5bb5f49f8e6c1675fc95cd183
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 25 22:38:19 2015 +1000
 
-    doc: link to design doc for GOMAXPROCS change in go1.5.html
+    math: explain OEIS link
     
-    Change-Id: Ifac10621fece766f3a0e8551e98d1f8d7072852f
-    Reviewed-on: https://go-review.googlesource.com/13068
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #10236
+    
+    Change-Id: Ife85513efda48af81c267b753da2ac7317cdfe75
+    Reviewed-on: https://go-review.googlesource.com/11479
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/go1.5.html | 2 ++
- 1 file changed, 2 insertions(+)
+ src/math/const.go | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

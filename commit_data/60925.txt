@@ -1,0 +1,23 @@
+commit adf220a5d5ecaa407401e5f46a8460e97bbca64d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Sep 9 12:47:33 2024 -0400
+
+    cmd/go/testdata/script: skip part of test on unsupported platforms
+    
+    The telemetry script test checks for the existence of telemetry data as
+    a baseline before checking that the act of setting telemtetry to off
+    while in local mode doesn't produce telemetry data. Of course, when
+    we're running on platforms where telemetry is not supported, telemetry
+    data won't be produced on disk either way. Only check for the existence
+    of telemetry data on supported platforms.
+    
+    For #69269
+    
+    Change-Id: I3a06bbc3d3ca0cf0203b84883f632ecfd9445aae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611876
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/testdata/script/telemetry.txt | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

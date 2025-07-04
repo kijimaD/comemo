@@ -1,22 +1,90 @@
-commit ff6b6c61d7818e4a32402acbf65940afa372368e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 31 14:58:20 2022 -0400
+commit 4d2b528795fe2534398d1b1a978e1037d4a9d2f0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 3 10:30:47 2021 -0400
 
-    net: skip tests that use netsh on the windows-arm64-10 builder
+    [dev.typeparams] internal/buildcfg: turn on register ABI by default on ARM64
     
-    These tests sometimes hang on Windows 10 on ARM64, due to what appears
-    to be a platform bug. Since we have not yet observed any such hangs on
-    the windows-arm64-11 builder, I am leaving the tests otherwise enabled
-    on the theory that the platform bug may have been fixed in Windows 11.
+    This CL enables all regabi experiments on ARM64 by default.
+    regabiwrappers and regabireflect are enabled in the previous CLs.
+    regabidefer is already enabled everywhere. regabig is no-op on
+    ARM64 as it already has a G register. regabiargs is enabled in
+    this CL.
     
-    Fixes #52082 (at least for now).
+    Go1 benchmarks results (GOEXPERIMENT=regabi vs. none, on macOS/ARM64):
     
-    Change-Id: I79161f485b1921f083ebcf01865d6e7b0178ef70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397315
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    name                     old time/op    new time/op     delta
+    BinaryTree17-8              1.20s ± 1%      1.02s ± 0%  -15.08%  (p=0.000 n=9+9)
+    Fannkuch11-8                1.55s ± 0%      1.57s ± 0%   +1.53%  (p=0.000 n=9+8)
+    FmtFprintfEmpty-8          22.5ns ± 3%     14.7ns ± 1%  -34.47%  (p=0.000 n=10+8)
+    FmtFprintfString-8         38.4ns ± 0%     28.8ns ± 0%  -24.99%  (p=0.000 n=9+9)
+    FmtFprintfInt-8            38.7ns ± 2%     34.5ns ± 0%  -10.79%  (p=0.000 n=10+7)
+    FmtFprintfIntInt-8         61.1ns ± 1%     57.9ns ± 0%   -5.23%  (p=0.000 n=10+8)
+    FmtFprintfPrefixedInt-8    69.9ns ± 0%     64.4ns ± 0%   -7.78%  (p=0.000 n=8+8)
+    FmtFprintfFloat-8           106ns ± 0%       76ns ± 0%  -28.12%  (p=0.000 n=7+10)
+    FmtManyArgs-8               273ns ± 0%      236ns ± 1%  -13.57%  (p=0.000 n=9+10)
+    GobDecode-8                3.09ms ± 1%     2.02ms ± 0%  -34.70%  (p=0.000 n=9+10)
+    GobEncode-8                2.45ms ± 1%     1.44ms ± 1%  -41.26%  (p=0.000 n=10+10)
+    Gzip-8                      128ms ± 0%      124ms ± 0%   -2.89%  (p=0.000 n=7+8)
+    Gunzip-8                   23.6ms ± 1%     19.8ms ± 0%  -16.15%  (p=0.000 n=10+9)
+    HTTPClientServer-8         27.4µs ± 1%     26.3µs ± 0%   -4.05%  (p=0.000 n=10+10)
+    JSONEncode-8               4.47ms ± 1%     3.45ms ± 1%  -22.73%  (p=0.000 n=10+9)
+    JSONDecode-8               21.5ms ± 0%     17.2ms ± 0%  -19.78%  (p=0.000 n=9+9)
+    Mandelbrot200-8            2.33ms ± 1%     2.33ms ± 1%     ~     (p=0.842 n=9+10)
+    GoParse-8                  1.62ms ± 1%     1.32ms ± 1%  -18.67%  (p=0.000 n=10+10)
+    RegexpMatchEasy0_32-8      33.1ns ± 0%     26.3ns ± 0%  -20.50%  (p=0.000 n=8+10)
+    RegexpMatchEasy0_1K-8       121ns ± 6%      121ns ± 8%     ~     (p=0.926 n=10+10)
+    RegexpMatchEasy1_32-8      31.4ns ± 0%     24.7ns ± 0%  -21.50%  (p=0.000 n=9+10)
+    RegexpMatchEasy1_1K-8       177ns ± 0%      140ns ± 0%  -20.70%  (p=0.000 n=10+9)
+    RegexpMatchMedium_32-8     3.02ns ± 3%     2.12ns ± 0%  -29.73%  (p=0.000 n=10+10)
+    RegexpMatchMedium_1K-8     19.8µs ± 2%     17.1µs ± 0%  -13.50%  (p=0.000 n=9+9)
+    RegexpMatchHard_32-8        940ns ± 0%      872ns ± 0%   -7.20%  (p=0.000 n=9+8)
+    RegexpMatchHard_1K-8       28.5µs ± 1%     26.5µs ± 0%   -7.06%  (p=0.000 n=10+10)
+    Revcomp-8                   186ms ± 1%      179ms ± 1%   -3.66%  (p=0.000 n=10+10)
+    Template-8                 30.3ms ± 0%     22.3ms ± 0%  -26.58%  (p=0.000 n=8+9)
+    TimeParse-8                 133ns ± 0%      117ns ± 0%  -12.40%  (p=0.000 n=10+10)
+    TimeFormat-8                176ns ± 0%      141ns ± 0%  -19.92%  (p=0.000 n=8+9)
+    [Geo mean]                 21.4µs          17.8µs       -16.81%
+    
+    name                     old speed      new speed       delta
+    GobDecode-8               249MB/s ± 1%    381MB/s ± 0%  +53.13%  (p=0.000 n=9+10)
+    GobEncode-8               314MB/s ± 1%    534MB/s ± 1%  +70.25%  (p=0.000 n=10+10)
+    Gzip-8                    152MB/s ± 0%    156MB/s ± 0%   +2.97%  (p=0.000 n=7+8)
+    Gunzip-8                  822MB/s ± 1%    981MB/s ± 0%  +19.26%  (p=0.000 n=10+9)
+    JSONEncode-8              434MB/s ± 1%    562MB/s ± 1%  +29.41%  (p=0.000 n=10+9)
+    JSONDecode-8             90.3MB/s ± 0%  112.5MB/s ± 0%  +24.66%  (p=0.000 n=9+9)
+    GoParse-8                35.7MB/s ± 1%   43.9MB/s ± 1%  +22.96%  (p=0.000 n=10+10)
+    RegexpMatchEasy0_32-8     967MB/s ± 0%   1216MB/s ± 0%  +25.78%  (p=0.000 n=8+10)
+    RegexpMatchEasy0_1K-8    8.46GB/s ± 6%   8.45GB/s ± 7%     ~     (p=0.912 n=10+10)
+    RegexpMatchEasy1_32-8    1.02GB/s ± 0%   1.30GB/s ± 0%  +27.40%  (p=0.000 n=9+10)
+    RegexpMatchEasy1_1K-8    5.78GB/s ± 0%   7.29GB/s ± 0%  +26.10%  (p=0.000 n=10+9)
+    RegexpMatchMedium_32-8    331MB/s ± 2%    471MB/s ± 0%  +42.29%  (p=0.000 n=10+10)
+    RegexpMatchMedium_1K-8   51.7MB/s ± 2%   59.8MB/s ± 0%  +15.60%  (p=0.000 n=9+9)
+    RegexpMatchHard_32-8     34.0MB/s ± 0%   36.7MB/s ± 0%   +7.75%  (p=0.000 n=9+8)
+    RegexpMatchHard_1K-8     35.9MB/s ± 1%   38.6MB/s ± 0%   +7.59%  (p=0.000 n=10+10)
+    Revcomp-8                1.37GB/s ± 1%   1.42GB/s ± 1%   +3.79%  (p=0.000 n=10+10)
+    Template-8               64.0MB/s ± 0%   87.1MB/s ± 0%  +36.20%  (p=0.000 n=8+9)
+    [Geo mean]                299MB/s         368MB/s       +23.16%
+    
+    Binary sizes:
+                    old            new
+    hello           1180994        1162626      -1.6%
+    cmd/compile     23455858       22833970     -2.7%
+    cmd/link        6425010        6332978      -1.4%
+    
+    Text sizes:
+                    old            new
+    hello           458752         425984       -7.1%
+    cmd/compile     10190848       9355264      -8.2%
+    cmd/link        2621440        2441216      -6.9%
+    
+    Change-Id: I52c10c11bb8fe5952b7043f9dbf09573ef71d2b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324890
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/net/net_windows_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/internal/buildcfg/exp.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,24 +1,18 @@
-commit d474b6c824249dcdd6cddfb6bf43366e092df022
-Author: David Chase <drchase@google.com>
-Date:   Thu Apr 8 13:09:21 2021 -0400
+commit 9e073b504fbb936f54e6be50a41903319a993ce9
+Author: witchard <witchard@hotmail.co.uk>
+Date:   Tue Sep 22 18:02:52 2020 +0000
 
-    test/abi: clean up test to fix builders
+    doc/go1.16: add -insecure deprecation to release notes
     
-    go.mod file was not tidy, made builders sad.
+    Updates #37519.
     
-    Updates #40724.
-    
-    Change-Id: I28371a1093108f9ec473eb20bb4d185e35dee67d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308590
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iddf88a24334d4740f9c40caa2354127298692eeb
+    GitHub-Last-Rev: deda4c858b5c5582fa63ae7f1eee5f57292670c4
+    GitHub-Pull-Request: golang/go#41545
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256419
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- .../genCaller42/genCaller42.go                     |  71 ------
- .../genChecker42/genChecker42.go                   | 135 ----------
- test/abi/bad_select_crash.dir/genMain.go           |  17 --
- test/abi/bad_select_crash.dir/genUtils/genUtils.go |  61 -----
- test/abi/bad_select_crash.dir/go.mod               |   2 -
- test/abi/bad_select_crash.go                       | 272 ++++++++++++++++++++-
- 6 files changed, 271 insertions(+), 287 deletions(-)
+ doc/go1.16.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

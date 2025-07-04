@@ -1,17 +1,71 @@
-commit 533082d1a08fd2c3b0c7ee43f3cf5c29f4e12d84
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 27 22:11:38 2022 -0700
+commit 220bc44a4c7b8ccc15c38f593531d5f0e721485c
+Merge: de83ef67ac 67f7e16bcc
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Aug 27 08:06:55 2021 -0400
 
-    test: add test that gofrontend failed to compile
+    [dev.cmdgo] all: merge master (67f7e16) into dev.cmdgo
     
-    For #51475
+    Merge List:
     
-    Change-Id: Ie1b27304687225194a323dc8305e5d62578fff4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414755
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    + 2021-08-27 67f7e16bcc encoding/gob: optimize decoding of []byte
+    + 2021-08-27 2c60a99f72 cmd/compile/internal/syntax: make valid type parameter list in presence of errors
+    + 2021-08-27 d350a66532 cmd/compile: eagerly CalcStructSize for synthetic ABI types
+    + 2021-08-27 d7e2e2ec2b cmd/compile: delay fillinMethods to deal with mutually-recursive types
+    + 2021-08-27 c927599783 cmd/compile: eliminate repetitive code
+    + 2021-08-27 62f88b6dc8 cmd/compile: add types.RecalcSize
+    + 2021-08-27 e7eee5e265 cmd/compile: remove ssagen/pgen_test.go
+    + 2021-08-27 f153b6739b cmd/compile: use typecheck.InitUniverse in unit tests
+    + 2021-08-26 967a8017f7 cmd/compile: move types init code into package types
+    + 2021-08-26 af80af22b5 cmd/compile/internal/types2: do not declare new methods on instantiated types
+    + 2021-08-26 03db2c2413 cmd/compile/internal/types2: implement TypeList.String (debugging support)
+    + 2021-08-26 c9e05fdcf7 cmd/compile: fix reference to generic type needed by crawler
+    + 2021-08-26 eb6a07fcf9 cmd/compile: unexport Type.Vargen
+    + 2021-08-26 3836983779 cmd/compile/internal/types: unexport Type.Extra
+    + 2021-08-26 1f8d4562de cmd/compile: change typecheck.iscmp into ir.Op.IsCmp
+    
+    Change-Id: I95c040a0e984a13a3b12c50458148007221ee300
 
- test/fixedbugs/issue51475.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/compile/internal/abi/abiutils.go           |   3 +
+ src/cmd/compile/internal/gc/main.go                |   2 +-
+ src/cmd/compile/internal/ir/node.go                |  10 +
+ src/cmd/compile/internal/ir/scc.go                 |   3 +-
+ src/cmd/compile/internal/ir/symtab.go              |   1 -
+ src/cmd/compile/internal/noder/decl.go             |   3 +-
+ src/cmd/compile/internal/noder/func.go             |   3 +-
+ src/cmd/compile/internal/noder/import.go           |   4 +-
+ src/cmd/compile/internal/noder/irgen.go            |   8 +
+ src/cmd/compile/internal/noder/noder.go            |   2 +-
+ src/cmd/compile/internal/noder/reader.go           |   4 +-
+ src/cmd/compile/internal/noder/stencil.go          |   2 +-
+ src/cmd/compile/internal/noder/types.go            | 161 +++++++++-------
+ src/cmd/compile/internal/reflectdata/reflect.go    |   4 +-
+ src/cmd/compile/internal/ssa/export_test.go        |  37 +---
+ src/cmd/compile/internal/ssagen/pgen.go            |  17 +-
+ src/cmd/compile/internal/ssagen/pgen_test.go       | 209 --------------------
+ src/cmd/compile/internal/syntax/dumper_test.go     |   6 +-
+ src/cmd/compile/internal/syntax/parser.go          |   5 +-
+ src/cmd/compile/internal/syntax/printer_test.go    |   6 +-
+ src/cmd/compile/internal/typecheck/dcl.go          |   7 -
+ src/cmd/compile/internal/typecheck/expr.go         |   6 +-
+ src/cmd/compile/internal/typecheck/iexport.go      |   6 +-
+ src/cmd/compile/internal/typecheck/iimport.go      |   4 +-
+ src/cmd/compile/internal/typecheck/typecheck.go    |   8 +-
+ src/cmd/compile/internal/typecheck/universe.go     | 152 +--------------
+ src/cmd/compile/internal/types/fmt.go              |  11 +-
+ src/cmd/compile/internal/types/size.go             |  10 +-
+ src/cmd/compile/internal/types/type.go             | 211 ++++++++++++---------
+ src/cmd/compile/internal/types/type_test.go        |  19 +-
+ src/cmd/compile/internal/types/universe.go         | 144 ++++++++++++++
+ src/cmd/compile/internal/types2/instantiate.go     |   2 +-
+ src/cmd/compile/internal/types2/signature.go       |   8 +-
+ src/cmd/compile/internal/types2/subst.go           |   6 -
+ .../types2/testdata/fixedbugs/issue47968.go2       |  21 ++
+ .../types2/testdata/fixedbugs/issue47996.go2       |   8 +
+ src/cmd/compile/internal/types2/typelists.go       |  13 ++
+ src/encoding/gob/decode.go                         |   2 +-
+ src/encoding/gob/timing_test.go                    |   8 +
+ test/typeparam/issue47514c.dir/a.go                |   5 +
+ test/typeparam/issue47514c.dir/main.go             |  10 +
+ test/typeparam/issue47514c.go                      |   7 +
+ test/typeparam/issue47710.go                       |  19 ++
+ 43 files changed, 552 insertions(+), 625 deletions(-)

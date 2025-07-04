@@ -1,23 +1,22 @@
-commit bc0aba971705722b6798746b2003908166ee007b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Dec 15 12:34:34 2021 -0500
+commit 07b2fee4607aa6c710411a7ac404f18be4dff6f7
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Apr 9 10:41:27 2021 -0500
 
-    cmd/compile: correct type identity comparison with "any"
+    cmd/link: fix TestLargeText
     
-    The builtin "any" type should only be identical to an unnamed empty
-    interface type, not a defined empty interface type.
+    This test is not run in short mode so it was getting
+    failures that didn't happen with default testing. See
+    the issue for details on the failures.
     
-    Fixes #50169.
+    Fixes #45406
     
-    Change-Id: Ie5bb88868497cb795de1fd0276133ba9812edfe4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372217
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I51d97cc4c910fe3ba2bc0a12742023a57d101f44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308935
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/types/identity.go |  7 ++++---
- test/fixedbugs/issue50169.go               | 24 ++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 3 deletions(-)
+ src/cmd/link/linkbig_test.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

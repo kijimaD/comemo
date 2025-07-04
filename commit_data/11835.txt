@@ -1,15 +1,13 @@
-commit c58b6ad02203cc0f4ba3cd0a38ce222d177cc75e
+commit 3760213e6e29fd16ab07b41e94276e05ecd86aba
 Author: Hong Ruiqi <hongruiqi@gmail.com>
-Date:   Sun Feb 12 23:45:19 2012 -0500
+Date:   Sun Feb 12 23:42:34 2012 -0500
 
-    net/http: use mtime < t+1s to check for unmodified
+    A+C: Hong Ruiqi (individual CLA)
     
-    The Date-Modified header truncates sub-second precision, so
-    use mtime < t+1s instead of mtime <= t to check for unmodified.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5655052
+    https://golang.org/cl/5652078
 
- src/pkg/net/http/fs.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

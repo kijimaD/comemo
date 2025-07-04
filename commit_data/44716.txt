@@ -1,50 +1,30 @@
-commit f5e6d3e879f487066d1a05b8000a7187247558f7
+commit 85902b6786bbe40b297cbbf823f489b07c654bbd
 Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Jan 18 14:32:49 2021 +0800
+Date:   Thu May 14 17:01:11 2020 +0800
 
-    cmd/compile: add rewrite rules for conditional instructions on arm64
+    cmd/compile: convert rest ARM64.rules lines to typed aux mode
     
-    This CL adds rewrite rules for CSETM, CSINC, CSINV, and CSNEG. By adding
-    these rules, we can save one instruction.
+    This patch adds the ARM6464Bitfield auxInt to auxIntType() and
+    returns its Go type as "arm64Bitfield" type, which is defined
+    as int16 type.
     
-    For example,
+    And the Go type of SymOff auxInt is int32, but some functions
+    (such as min(), areAdjacentOffsets() and read16/32/64(),etc.)
+    use SymOff as an input parameter and treat its type as int64,
+    this patch adds the type conversion for these rules.
     
-      func test(cond bool, a int) int {
-        if cond {
-          a++
-        }
-        return a
-      }
+    Passes toolstash-check -all.
     
-    Before:
-    
-      MOVD "".a+8(RSP), R0
-      ADD $1, R0, R1
-      MOVBU "".cond(RSP), R2
-      CMPW $0, R2
-      CSEL NE, R1, R0, R0
-    
-    After:
-    
-      MOVBU "".cond(RSP), R0
-      CMPW $0, R0
-      MOVD "".a+8(RSP), R0
-      CSINC EQ, R0, R0, R0
-    
-    This patch is a copy of CL 285694. Co-authored-by: JunchenLi
-    <junchen.li@arm.com>
-    
-    Change-Id: Ic1a79e8b8ece409b533becfcb7950f11e7b76f24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302231
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ib234b48d0a97ef244dd37878e06b5825316dd782
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234378
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/arm64/ssa.go        |  14 ++
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  16 ++-
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   8 +-
- src/cmd/compile/internal/ssa/opGen.go        |  60 ++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 204 +++++++++++++++++++++++++++
- test/codegen/condmove.go                     | 198 +++++++++++++++++++++++++-
- 6 files changed, 494 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |    2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  722 ++++---
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |    2 +
+ src/cmd/compile/internal/ssa/op.go           |    6 +
+ src/cmd/compile/internal/ssa/rewrite.go      |   16 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go   |   12 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 2704 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/value.go        |   11 +-
+ 8 files changed, 1746 insertions(+), 1729 deletions(-)

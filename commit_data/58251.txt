@@ -1,33 +1,16 @@
-commit 0edea47f264a4185d78e00e1e9e977d99f5c997b
-Author: Tim King <taking@google.com>
-Date:   Thu Nov 14 12:04:39 2024 -0800
+commit 5d0a277fac610d55f73a970334987bfb686f9d80
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Oct 13 15:20:55 2023 +0800
 
-    internal/exportdata, cmd/compile/internal/noder: merge export data handling
+    flag: add available godoc link
     
-    Unify how go/types, types2, and noder read in unified export data from
-    GC-created files.
-    
-    This splits FindExportData into smaller pieces for improved code
-    sharing.
-    - FindPackageDefinition finds the package definition file in the ar
-      archive.
-    - ReadObjectHeaders reads the object headers.
-    - ReadExportDataHeader reads the export data format header.
-    
-    There is a new convenience wrapper ReadUnified that combines all of
-    these. This documents the expected archive contents.
-    
-    Updates noder and the importers to use these.
-    This also adjusts when end-of-section marker ("\n$$\n") checking happens.
-    
-    Change-Id: Iec2179b0a1ae7f69eb12d077018f731116a77f13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628155
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Tim King <taking@google.com>
+    Change-Id: I00d49ded65801ab12322f711d1ac6131d69aea34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535081
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/importer/gcimporter.go |  47 +-----
- src/cmd/compile/internal/noder/import.go        | 123 +++++----------
- src/go/internal/gcimporter/gcimporter.go        |  46 +-----
- src/internal/exportdata/exportdata.go           | 196 +++++++++++++++++++++---
- 4 files changed, 228 insertions(+), 184 deletions(-)
+ src/flag/flag.go | 72 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 36 insertions(+), 36 deletions(-)

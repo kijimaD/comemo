@@ -1,13 +1,18 @@
-commit 5f91a62a3cc8da7cccb4e0c74e69321e00c8e590
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 11 14:07:47 2013 -0700
+commit d74d0b269de395aa4be7a7bc04fda23cde9ce34f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 11 13:38:59 2013 -0700
 
-    cmd/go: fix description of -o flag to build
-    Fixes #5003.
+    cmd/godoc: only show package documentation for commands
     
-    R=golang-dev, rsc
+    Fixed package.txt and adjusted package.html to match
+    structure (swapped if branches).
+    
+    Fixes #4861.
+    
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/7476047
+    https://golang.org/cl/7714043
 
- src/cmd/go/doc.go | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ lib/godoc/package.html |  8 +++++---
+ lib/godoc/package.txt  | 11 ++++++-----
+ 2 files changed, 11 insertions(+), 8 deletions(-)

@@ -1,23 +1,17 @@
-commit c3cef0bfe5f503ee016fc61e58f5ee1b78dbd962
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 5 07:24:18 2019 -0800
+commit 8343a0934df8f437938c55a6f0ff120c7c24a8bb
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Tue Jun 4 09:26:35 2019 +0530
 
-    runtime: keep adjusted timers in timerMoving status until moved
+    doc: fix missing anchor links in contribute.html
     
-    Before this CL adjustTimers left timers being moved in an inconsistent
-    state: status timerWaiting but not on a P. Simplify the code by
-    leaving the timers in timerMoving status until they are actually moved.
-    Other functions (deltimer, modtimer) will wait until the move is complete
-    before changing anything on the timer. This does leave timers in timerMoving
-    state for longer, but still not all that long.
+    Some <h3>s were missing ids due to which the anchor links
+    weren't getting generated.
     
-    Fixes #35367
+    Fixes #32415
     
-    Change-Id: I31851002fb4053bd6914139125b4c82a68bf6fb2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205418
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ica21425c1a7c49735231c1de96b6c77dd594ce64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180397
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/timeout_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
- src/runtime/time.go     | 49 +++++--------------------------------------------
- 2 files changed, 45 insertions(+), 44 deletions(-)
+ doc/contribute.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

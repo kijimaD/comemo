@@ -1,19 +1,18 @@
-commit 8db71d4ee89a505c375b550eb8fb8cc33bbabc03
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 29 15:14:04 2014 -0400
+commit 343d113610d22dfcb79442c2ef2e9701b741e451
+Author: Chris Manghane <cmang@golang.org>
+Date:   Wed Oct 15 13:13:37 2014 -0700
 
-    runtime: update comment for Callers
+    cmd/go: add '_go_' suffix to go files compiled by gccgo to avoid naming conflicts
     
-    Attempt to clear up confusion about how to turn
-    the PCs reported by Callers into the file and line
-    number people actually want.
+    Fixes #8828.
     
-    Fixes #7690.
-    
-    LGTM=r, chris.cs.guy
-    R=r, chris.cs.guy
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/163550043
+    https://golang.org/cl/154410043
 
- src/runtime/extern.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ misc/cgo/test/issue8828.go          | 16 ++++++++++++++++
+ misc/cgo/test/issue8828/issue8828.c |  7 +++++++
+ misc/cgo/test/issue8828/trivial.go  |  8 ++++++++
+ src/cmd/go/build.go                 |  2 +-
+ 4 files changed, 32 insertions(+), 1 deletion(-)

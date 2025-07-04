@@ -1,14 +1,31 @@
-commit 07b0c57a75d4b8c94b16983c5a78026ba46377ac
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Mon May 3 13:17:04 2021 +0930
+commit 74d46381b2003f7d77bbe6eb4a8a31cb6f753a09
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Jun 4 15:22:55 2021 -0700
 
-    crypto/subtle: note that input length mismatch makes ConstantTimeCompare return immediately
+    [dev.typeparams] cmd/compile: do extra markObjects during iexport to deal with generics
     
-    Change-Id: Id1ae6c8fbb8c2f31b251ba141dc2bbedae189006
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316169
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    markInlBody/markObject/markType don't fully work as they stand for
+    generic functions/methods, since markInlBody can't understand method
+    calls on generic types. Those method calls will be resolved to concrete
+    methods in a full instantiation, but markInlBody on a generic
+    function/method can't understand those method calls. So, we won't
+    necessarily cause export of the appropriate extra method/function bodies
+    needed for inlining in an instantiated function.
+    
+    One way to do this is just to make sure that we call markType
+    on all generic types that are exported (whether explicitly exported via
+    a capitalized name or unexported types that are referenced by a generic
+    function body). That way, we will call markInlBody on all possible
+    generic methods that might be called.
+    
+    Fixes the current problem for i386-softfloat builds on dev.typeparams.
+    
+    Change-Id: I2d3625d26042296731bd3c44ba1938aa194d527e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325329
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/crypto/subtle/constant_time.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/crawler.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

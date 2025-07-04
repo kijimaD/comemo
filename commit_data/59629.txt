@@ -1,20 +1,16 @@
-commit ce49eb488af1c5273b226b3b52a8cbd7eae63a51
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed May 21 13:36:42 2025 -0400
+commit cf8010d22123e4b0fac315bebe301e0376d36e45
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Sat Mar 30 16:22:13 2024 +0100
 
-    runtime: skip windows stack tests in race mode
+    text/template: more godoc links
     
-    These became race instrumented in CL 643897, but race mode uses more
-    memory, so the test doesn't make much sense.
-    
-    For #71395.
-    
-    Change-Id: I6a6a636cf09ba29625aa9a22550314845fb2e611
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675077
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ib8ea569b3cd92bbc9fa8a54f7da61207ba978bbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574796
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/crash_cgo_test.go       | 3 +++
- src/runtime/syscall_windows_test.go | 4 ++++
- 2 files changed, 7 insertions(+)
+ src/text/template/helper.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

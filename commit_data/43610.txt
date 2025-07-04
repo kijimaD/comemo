@@ -1,19 +1,20 @@
-commit ecb79e8afa7811fd23b2e550a2bc5b22ea0aa82d
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Oct 29 12:12:19 2020 +0100
+commit e4e192484b1fd28ba2e77e52004d924b24f1bb19
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 13 12:49:59 2020 -0400
 
-    cmd/compile: run rulegen to include missing condition
+    cmd/compile: split up the addressing mode on OpAMD64CMP*loadidx* always
     
-    Rulegen was not run again between patchsets 2 and 3 of CL 264683, so
-    the rewritegeneric.go file is out of sync. Run rulegen.
+    Benchmarking suggests that the combo instruction is notably slower,
+    at least in the places where we measure.
     
-    Change-Id: I67d8d267c4f666943ed9bf8c33aac2ac6013336a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266080
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rémy Oudompheng <remyoudompheng@gmail.com>
+    Updates #37955
+    
+    Change-Id: I829f1975dd6edf38163128ba51d84604055512f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228157
+    Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/addressingmodes.go    | 29 ++++++++++++++++++++++
+ .../compile/internal/ssa/gen/AMD64splitload.rules  |  9 +++++--
+ test/codegen/memops.go                             | 28 ++++++++++-----------
+ 3 files changed, 50 insertions(+), 16 deletions(-)

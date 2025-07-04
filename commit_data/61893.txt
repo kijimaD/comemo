@@ -1,0 +1,42 @@
+commit c93477b5e563dd0ed7b45fd519762f24b7cfa7b0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Dec 11 14:50:00 2024 +0100
+
+    crypto: use provided random Reader in FIPS mode
+    
+    This removes the difference in behavior between FIPS mode on and off.
+    
+    Instead of the sentinel type we could have moved the Reader to the
+    drbg package and checked for equality, but then we would have locked the
+    crypto/rand.Reader implementation to the one in the FIPS module (which
+    we might have to support for years).
+    
+    In internal/ed25519.GenerateKey we remove the random parameter entirely,
+    since that function is not actually used by crypto/ed25519.GenerateKey,
+    which instead commits to being deterministic.
+    
+    Fixes #70772
+    
+    Change-Id: Ic1c7ca2c1cd59eb9cd090a8b235c0ce218921ac5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635195
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/ecdh/nist.go                        |  5 ++++
+ src/crypto/ecdsa/ecdsa.go                      |  7 +++++
+ src/crypto/internal/fips140/drbg/rand.go       | 37 ++++++++++++++++++++++++++
+ src/crypto/internal/fips140/ecdh/ecdh.go       | 20 +++++---------
+ src/crypto/internal/fips140/ecdsa/cast.go      |  3 ++-
+ src/crypto/internal/fips140/ecdsa/ecdsa.go     | 23 +++-------------
+ src/crypto/internal/fips140/ed25519/ed25519.go | 19 +++----------
+ src/crypto/internal/fips140/rsa/keygen.go      | 14 +++-------
+ src/crypto/internal/fips140/rsa/pkcs1v22.go    | 21 +++------------
+ src/crypto/internal/fips140only/fips140only.go |  7 +++++
+ src/crypto/internal/fips140test/cast_test.go   |  2 +-
+ src/crypto/rand/rand.go                        |  4 ++-
+ src/crypto/rsa/fips.go                         |  9 +++++++
+ src/crypto/rsa/rsa.go                          |  3 +++
+ src/crypto/rsa/rsa_test.go                     |  4 ---
+ 15 files changed, 94 insertions(+), 84 deletions(-)

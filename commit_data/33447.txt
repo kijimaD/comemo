@@ -1,52 +1,20 @@
-commit 6e8894d5ffca9acc635e0d7298167122ed52ce55
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Aug 28 12:07:58 2017 -0700
+commit f52ce42274573d39386f3bacc77ab2ef969d5a0d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 17 09:16:32 2017 +0900
 
-    archive/zip: add FileHeader.Modified field
+    debug/macho: add comments for ambiguious LoadCommand
     
-    The ModifiedTime and ModifiedDate fields are not expressive enough
-    for many of the time extensions that have since been added to ZIP,
-    nor are they easy to access since they in a legacy MS-DOS format,
-    and must be set and retrieved via the SetModTime and ModTime methods.
+    While LoadCmdDylib represents LC_LOAD_DYLIB,
+    LoadCmdDylinker represents LC_ID_DYLINKER.
+    This is confusing because there is another command called LC_LOAD_DYLINKER.
+    LC_ID_DYLINKER is not included in normal binary, it is only used for
+    /usr/lib/dyld as far as I know. So, perhaps this is a mistake.
     
-    Instead, we add new field Modified of time.Time type that contains
-    all of the previous information and more.
-    
-    Support for extended timestamps have been attempted before, but the
-    change was reverted because it provided no ability for the user to
-    specify the timezone of the legacy MS-DOS fields.
-    Technically the old API did not either, but users were manually offsetting
-    the timestamp to achieve the same effect.
-    
-    The Writer now writes the legacy timestamps according to the timezone
-    of the FileHeader.Modified field. When the Modified field is set via
-    the SetModTime method, it is in UTC, which preserves the old behavior.
-    
-    The Reader attempts to determine the timezone if both the legacy
-    and extended timestamps are present since it can compute the delta
-    between the two values.
-    
-    Since Modified is a superset of the information in ModifiedTime and ModifiedDate,
-    we mark ModifiedTime, ModifiedDate, ModTime, and SetModTime as deprecated.
-    
-    Fixes #18359
-    
-    Change-Id: I29c6bc0a62908095d02740df3e6902f50d3152f1
-    Reviewed-on: https://go-review.googlesource.com/74970
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I6ea61664a26998962742914af5688e094a233541
+    Reviewed-on: https://go-review.googlesource.com/56330
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/zip/reader.go                 | 145 ++++++++++++++-----
- src/archive/zip/reader_test.go            | 225 ++++++++++++++++++++++--------
- src/archive/zip/struct.go                 |  78 +++++++++--
- src/archive/zip/testdata/time-7zip.zip    | Bin 0 -> 150 bytes
- src/archive/zip/testdata/time-go.zip      | Bin 0 -> 148 bytes
- src/archive/zip/testdata/time-infozip.zip | Bin 0 -> 166 bytes
- src/archive/zip/testdata/time-osx.zip     | Bin 0 -> 142 bytes
- src/archive/zip/testdata/time-win7.zip    | Bin 0 -> 114 bytes
- src/archive/zip/testdata/time-winrar.zip  | Bin 0 -> 150 bytes
- src/archive/zip/testdata/time-winzip.zip  | Bin 0 -> 150 bytes
- src/archive/zip/writer.go                 |  45 +++++-
- src/archive/zip/writer_test.go            |  26 ++++
- src/archive/zip/zip_test.go               |   4 +-
- 13 files changed, 403 insertions(+), 120 deletions(-)
+ src/debug/macho/macho.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,16 +1,36 @@
-commit 04494f384357a10a3effe3f24286b1f29a68115e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 29 19:22:27 2017 +0000
+commit 7b49445d0fab71820314a2e5bdfba6b84b7f16d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 30 10:10:15 2017 -0400
 
-    net: skip unixpacket tests on netbsd/386
+    [dev.boringcrypto] cmd/compile: hide new boring fields from reflection
     
-    Updates #22927
-    Updates #20852
+    This is terrible but much simpler, cleaner, and more effective
+    than all the alternatives I have come up with.
     
-    Change-Id: I3ac0f8d38375d58a77781ab0e4f78ca57b258de0
-    Reviewed-on: https://go-review.googlesource.com/80756
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Lots of code assumes that reflect.DeepEqual is meaningful
+    on rsa.PublicKey etc, because previously they consisted only of
+    exported meaningful fields.
+    
+    Worse, there exists code that assumes asn1.Marshal can be
+    passed an rsa.PublicKey, because that struct has historically
+    matched exactly the form that would be needed to produce
+    the official ASN.1 DER encoding of an RSA public key.
+    
+    Instead of tracking down and fixing all of that code
+    (and probably more), we can limit the BoringCrypto-induced
+    damage by ensliting the compiler to hide the new field
+    from reflection. Then nothing can get at it and nothing can
+    be disrupted by it.
+    
+    Kill two birds with one cannon ball.
+    
+    I'm very sorry.
+    
+    Change-Id: I0ca4d6047c7e98f880cbb81904048c1952e278cc
+    Reviewed-on: https://go-review.googlesource.com/60271
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/platform_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/reflect.go | 19 ++++++++++++++++
+ src/crypto/rsa/boring_test.go          | 40 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+)

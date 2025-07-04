@@ -1,29 +1,16 @@
-commit 13cf2473b8b617a3e800a22b810a5a13030d4cb6
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Aug 31 10:00:12 2012 +1000
+commit 363ec80dec5908ed7feebba448dc8e5b2cf90740
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 30 11:16:55 2012 -0700
 
-    exp/html: change a node's children from a slice to a linked list.
+    cmd/gc: string conversion for surrogates
+    This is required by the spec to produce the replacement char.
+    The fix lies in lib9's rune code.
     
-    Also rename Node.{Add,Remove} to Node.{AppendChild,RemoveChild} to
-    be consistent with the DOM.
-    
-    benchmark                      old ns/op    new ns/op    delta
-    BenchmarkParser                  4042040      3749618   -7.23%
-    
-    benchmark                       old MB/s     new MB/s  speedup
-    BenchmarkParser                    19.34        20.85    1.08x
-    
-    BenchmarkParser mallocs per iteration is also:
-    10495 before / 7992 after
-    
-    R=andybalholm, r, adg
+    R=golang-dev, nigeltao, rsc
     CC=golang-dev
-    https://golang.org/cl/6495061
+    https://golang.org/cl/6443109
 
- src/pkg/exp/html/node.go        | 107 ++++++++++++++------
- src/pkg/exp/html/node_test.go   | 146 +++++++++++++++++++++++++++
- src/pkg/exp/html/parse.go       |  73 +++++++-------
- src/pkg/exp/html/parse_test.go  |  14 ++-
- src/pkg/exp/html/render.go      |  10 +-
- src/pkg/exp/html/render_test.go | 213 ++++++++++++++++++++++++----------------
- 6 files changed, 398 insertions(+), 165 deletions(-)
+ src/lib9/utf/rune.c               | 18 +++++++++++++-----
+ src/pkg/unicode/utf8/utf8_test.go |  6 ++++--
+ test/string_lit.go                | 24 +++++++++++++++++++++++-
+ 3 files changed, 40 insertions(+), 8 deletions(-)

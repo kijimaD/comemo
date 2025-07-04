@@ -1,13 +1,24 @@
-commit 51319b1125473fc1732ef012cde40c512ec735a0
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Apr 5 12:55:03 2011 +1000
+commit 6e4966eb7fd8892265ce14817ed75db86180bf24
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 4 19:43:36 2011 -0700
 
-    weekly.2011-04-04
+    http: ignore Transfer-Encoding on HEAD responses
     
-    R=rsc
+    Amazon S3 sends Transfer-Encoding "chunked"
+    on its 404 responses to HEAD requests for
+    missing objects.
+    
+    We weren't ignoring the Transfer-Encoding
+    and were thus interpretting the subsequent
+    response headers as a chunk header from the
+    previous responses body (but a HEAD response
+    can't have a body)
+    
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/4363043
+    https://golang.org/cl/4346050
 
- .hgtags                |  1 -
- doc/devel/release.html | 53 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 1 deletion(-)
+ src/pkg/http/response_test.go  | 22 ++++++++++++++++++++++
+ src/pkg/http/transfer.go       | 11 +++++++++--
+ src/pkg/http/transport_test.go | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 60 insertions(+), 2 deletions(-)

@@ -1,19 +1,17 @@
-commit c1e8a9a8c6315f63b7fa0eee8a79589bb02f89fa
-Author: HowJMay <vulxj0j8j8@gmail.com>
-Date:   Fri Apr 16 17:36:22 2021 +0000
+commit 09833da6b4cfb494ba61a398ab2063ab016d3890
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 10:44:56 2020 -0400
 
-    net/http/cgi: Remove hard-coded ServeHTTP timeout
+    cmd/fix: always format source file before fixing
     
-    Close #43624
+    This makes the changes to the file easier to explain.
+    Not all the changes may come from the fixers directly,
+    if the file is not gofmt-ed already.
     
-    Change-Id: Ifaea3d8ec2aeabbd923abf5edd7497172dbf855a
-    GitHub-Last-Rev: ea3ef953a1dbbb07c4554e4062571af716e9505b
-    GitHub-Pull-Request: golang/go#43803
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284778
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Trust: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I81776da446a34a1239a3130317d2aae1437d61a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240555
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/http/cgi/integration_test.go | 29 +++--------------------------
- 1 file changed, 3 insertions(+), 26 deletions(-)
+ src/cmd/fix/main.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

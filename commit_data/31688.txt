@@ -1,19 +1,23 @@
-commit 708a01fbf40cfd82675923f88dd306ef6eb17114
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Mon May 29 19:50:24 2017 +0300
+commit d50f892abca46b794a23f20777c0b2425467d407
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 7 15:36:49 2017 -0500
 
-    cmd/vet: add a test for embedded stringer
+    runtime: join selectgo and selectgoImpl
     
-    This should help narrowing down the possible cause of #20514.
+    Currently selectgo is just a wrapper around selectgoImpl. This keeps
+    the hard-coded frame skip counts for tracing the same between the
+    channel implementation and the select implementation.
     
-    Updates #20514.
+    However, this is fragile and confusing, so pass a skip parameter to
+    send and recv, join selectgo and selectgoImpl into one function, and
+    use decrease all of the skips in selectgo by one.
     
-    Change-Id: Ie997400c9749aace7783bd585b23dbb4cefc181d
-    Reviewed-on: https://go-review.googlesource.com/44375
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I11b8cbb7d805b55f5dc6ab4875ac7dde79412ff2
+    Reviewed-on: https://go-review.googlesource.com/37860
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/vet/testdata/print.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/runtime/chan.go   | 12 ++++++------
+ src/runtime/select.go | 14 ++++----------
+ 2 files changed, 10 insertions(+), 16 deletions(-)

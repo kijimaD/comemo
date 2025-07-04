@@ -1,14 +1,17 @@
-commit 5de497bc6fbae2470f700bb9d786a844cd7908db
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Dec 11 19:09:39 2014 +0100
+commit 36d417c0e380b8ea762812b415796cf4b0af72de
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 30 11:17:26 2014 -0400
 
-    math: Added parity check to ProbablyPrime
+    [dev.power64] runtime: test CAS on large unsigned 32-bit numbers
     
-    Fixes #9269
+    This adds a test to runtime·check to ensure CAS of large
+    unsigned 32-bit numbers does not accidentally sign-extend its
+    arguments.
     
-    Change-Id: I25751632e95978537b656aedfa5c35ab2273089b
-    Reviewed-on: https://go-review.googlesource.com/1380
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/162490044
 
- src/math/big/nat.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/runtime.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

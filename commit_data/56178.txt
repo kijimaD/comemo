@@ -1,23 +1,19 @@
-commit 45703b50a6ae557ebe9bd7b1bea8e49d66fc97ee
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Apr 8 11:30:12 2024 +0200
+commit 47e2d7495fabaae8cfe2e1a0f0ff1e38f6e7b851
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 13 09:31:41 2023 +0700
 
-    internal/syscall/unix: implement Eaccess on openbsd
+    cmd/compile: move unsafe operation out of EvalConst
     
-    Like on other BSDs, use faccessat(AT_FDCWD, path, mode, AT_EACCESS)
+    So future CLs can get rid of EvalConst entirely.
     
-    Change-Id: I80f8d327dd152576165b9206e32dfb749b41d187
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538836
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ic8e147fd76e53c002a6ceda2fb3be979459bf865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484315
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/internal/syscall/unix/asm_openbsd.s        | 10 +++++++
- src/internal/syscall/unix/at_sysnum_openbsd.go | 10 ++++---
- src/internal/syscall/unix/eaccess_bsd.go       |  2 +-
- src/internal/syscall/unix/eaccess_openbsd.go   | 36 ++++++++++++++++++++++++++
- src/internal/syscall/unix/eaccess_other.go     |  2 +-
- 5 files changed, 55 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/typecheck/const.go     | 4 ----
+ src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
+ 2 files changed, 1 insertion(+), 5 deletions(-)

@@ -1,49 +1,53 @@
-commit 4655aadd00fd0228469ebc3c8b9edead7387f285
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 21 14:24:25 2015 -0400
+commit 9c0375277ca88df0065fe442242a110201029793
+Author: Evan Phoenix <evan@phx.io>
+Date:   Sat Mar 21 23:42:47 2015 -0700
 
-    runtime: use reachable heap estimate to set trigger/goal
+    text/scanner: Fix EOF reporting on strange Readers
     
-    Currently, we set the heap goal for the next GC cycle using the size
-    of the marked heap at the end of the current cycle. This can lead to a
-    bad feedback loop if the mutator is rapidly allocating and releasing
-    pointers that can significantly bloat heap size.
+    Currently, scanner uses -1 to represent 2 different states:
     
-    If the GC were STW, the marked heap size would be exactly the
-    reachable heap size (call it stwLive). However, in concurrent GC,
-    marked=stwLive+floatLive, where floatLive is the amount of "floating
-    garbage": objects that were reachable at some point during the cycle
-    and were marked, but which are no longer reachable by the end of the
-    cycle. If the GC cycle is short, then the mutator doesn't have much
-    time to create floating garbage, so marked≈stwLive. However, if the GC
-    cycle is long and the mutator is allocating and creating floating
-    garbage very rapidly, then it's possible that marked≫stwLive. Since
-    the runtime currently sets the heap goal based on marked, this will
-    cause it to set a high heap goal. This means that 1) the next GC cycle
-    will take longer because of the larger heap and 2) the assist ratio
-    will be low because of the large distance between the trigger and the
-    goal. The combination of these lets the mutator produce even more
-    floating garbage in the next cycle, which further exacerbates the
-    problem.
+    1. I haven't yet scanned anything, call it "Beginning of File"
+    2. I've reached the end of the input, ie EOF
     
-    For example, on the garbage benchmark with GOMAXPROCS=1, this causes
-    the heap to grow to ~500MB and the garbage collector to retain upwards
-    of ~300MB of heap, while the true reachable heap size is ~32MB. This,
-    in turn, causes the GC cycle to take upwards of ~3 seconds.
+    The result of this behavior is that calling Peek() when next()
+    has detected the end of the input and set s.ch to scanner.EOF,
+    is that Peek() things "oh, s.ch is < 0, which to me means that
+    I haven't scanned any next yet, let me try and clear the BOM
+    marker."
     
-    Fix this bad feedback loop by estimating the true reachable heap size
-    (stwLive) and using this rather than the marked heap size
-    (stwLive+floatLive) as the basis for the GC trigger and heap goal.
-    This breaks the bad feedback loop and causes the mutator to assist
-    more, which decreases the rate at which it can create floating
-    garbage. On the same garbage benchmark, this reduces the maximum heap
-    size to ~73MB, the retained heap to ~40MB, and the duration of the GC
-    cycle to ~200ms.
+    When this behavior is run on a typical IO, next() will issue
+    a Read and get (0, io.EOF) back for the second time without
+    blocking and Peek() will return scanner.EOF.
     
-    Change-Id: I7712244c94240743b266f9eb720c03802799cdd1
-    Reviewed-on: https://go-review.googlesource.com/9177
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    The bug comes into play when, inside a terminal, hitting Control-D.
+    This causes the terminal to return a EOF condition to the reader
+    but it does not actually close the fd.
+    
+    So, combining these 2 situations, we arrive at the bug:
+    
+    What is expected: hitting Control-D in a terminal will make Peek()
+    return scanner.EOF instantly.
+    
+    What actually happens:
+    
+    0. Code waiting in Next()
+    1. User hits Control-D
+    2. fd returns EOF condition
+    3. EOF bubbles it's way out to line 249 in scanner.go
+    4. next() returns scanner.EOF
+    5. Next() saves the scanner.EOF to s.ch and returns the previous value
+    6. Peek() runs, sees s.ch < 0, mistakenly thinks it hasn't run yet and
+       tries to read the BOM marker.
+    7. next() sees the buffer is empty and tries to fill it again, blocking
+       on line 249.
+    
+    The fix is simple: use a different code to indicate that no data
+    has been scanned.
+    
+    Change-Id: Iee8f4da5881682c4d4c36b93b9bf397ac5798179
+    Reviewed-on: https://go-review.googlesource.com/7913
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mgc.go    | 19 +++++++++++++++----
- src/runtime/mstats.go |  4 ++++
- 2 files changed, 19 insertions(+), 4 deletions(-)
+ src/text/scanner/scanner.go      |  4 ++--
+ src/text/scanner/scanner_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

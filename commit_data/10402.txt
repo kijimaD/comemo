@@ -1,45 +1,42 @@
-commit d03611f628c65321b572ab0d4ce85cc61b759fc6
+commit 0ed5e6a2be4c7248dfb6c870c445e2504f818623
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 15 12:20:59 2011 -0500
+Date:   Tue Nov 15 12:17:25 2011 -0500
 
-    allow copy of struct containing unexported fields
+    strconv: make Ftoa faster
     
-    An experiment: allow structs to be copied even if they
-    contain unexported fields.  This gives packages the
-    ability to return opaque values in their APIs, like reflect
-    does for reflect.Value but without the kludgy hacks reflect
-    resorts to.
+    Make code amenable to escape analysis
+    so that the decimal values do not escape.
     
-    In general, we trust programmers not to do silly things
-    like *x = *y on a package's struct pointers, just as we trust
-    programmers not to do unicode.Letter = unicode.Digit,
-    but packages that want a harder guarantee can introduce
-    an extra level of indirection, like in the changes to os.File
-    in this CL or by using an interface type.
+    benchmark                               old ns/op    new ns/op    delta
+    strconv_test.BenchmarkAtof64Decimal           229          233   +1.75%
+    strconv_test.BenchmarkAtof64Float             261          263   +0.77%
+    strconv_test.BenchmarkAtof64FloatExp         7760         7757   -0.04%
+    strconv_test.BenchmarkAtof64Big              3086         3053   -1.07%
+    strconv_test.BenchmarkFtoa64Decimal          6866         2629  -61.71%
+    strconv_test.BenchmarkFtoa64Float            7211         3064  -57.51%
+    strconv_test.BenchmarkFtoa64FloatExp        12587         8263  -34.35%
+    strconv_test.BenchmarkFtoa64Big              7058         2825  -59.97%
+    json.BenchmarkCodeEncoder               357355200    276528200  -22.62%
+    json.BenchmarkCodeMarshal               360735200    279646400  -22.48%
+    json.BenchmarkCodeDecoder               731528600    709460600   -3.02%
+    json.BenchmarkCodeUnmarshal             754774400    731051200   -3.14%
+    json.BenchmarkCodeUnmarshalReuse        713379000    704218000   -1.28%
+    json.BenchmarkSkipValue                  51594300     51682600   +0.17%
     
-    All in one CL so that it can be rolled back more easily if
-    we decide this is a bad idea.
+    benchmark                                old MB/s     new MB/s  speedup
+    json.BenchmarkCodeEncoder                    5.43         7.02    1.29x
+    json.BenchmarkCodeMarshal                    5.38         6.94    1.29x
+    json.BenchmarkCodeDecoder                    2.65         2.74    1.03x
+    json.BenchmarkCodeUnmarshal                  2.57         2.65    1.03x
+    json.BenchmarkCodeUnmarshalReuse             2.72         2.76    1.01x
+    json.BenchmarkSkipValue                     38.61        38.55    1.00x
     
-    Originally discussed in March 2011.
-    https://groups.google.com/group/golang-dev/t/3f5d30938c7c45ef
-    
-    R=golang-dev, adg, dvyukov, r, bradfitz, jan.mercl, gri
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5372095
+    https://golang.org/cl/5369111
 
- doc/go_spec.html               | 11 +------
- src/cmd/gc/go.h                |  1 -
- src/cmd/gc/subr.c              |  4 ---
- src/cmd/gc/typecheck.c         | 69 ------------------------------------------
- src/pkg/os/file_plan9.go       | 16 ++++++++--
- src/pkg/os/file_unix.go        | 16 ++++++++--
- src/pkg/os/file_windows.go     | 16 ++++++++--
- src/pkg/sync/mutex.go          |  2 ++
- test/assign.go                 | 22 +++++++-------
- test/fixedbugs/bug226.dir/x.go |  9 ------
- test/fixedbugs/bug226.dir/y.go | 31 -------------------
- test/fixedbugs/bug226.go       |  7 -----
- test/fixedbugs/bug310.go       | 20 ------------
- test/fixedbugs/bug359.go       | 26 ----------------
- test/fixedbugs/bug378.go       | 27 -----------------
- 15 files changed, 56 insertions(+), 221 deletions(-)
+ src/pkg/strconv/decimal.go       | 27 ++++++++++-----------------
+ src/pkg/strconv/decimal_test.go  | 12 +++++++++---
+ src/pkg/strconv/ftoa.go          |  9 ++++++---
+ src/pkg/strconv/internal_test.go |  6 +++++-
+ 4 files changed, 30 insertions(+), 24 deletions(-)

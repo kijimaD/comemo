@@ -1,37 +1,28 @@
-commit f1903fd4ecbf7a1e524bf71ddecb8650b9d2ea9f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 3 15:03:02 2022 -0800
+commit ca8e8317be5b288163c3623f936fb234723484cc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 26 17:56:10 2021 +1000
 
-    go/types, types2: simplify Checker.typeAssertion, use same code in both type checkers
+    runtime: add missing import "C" in TestLibraryCtrlHandler
     
-    - Remove the xtyp argument from the Checker.typeAssertion parameter
-      list; it was confusing and not needed. Adjusted call sites.
+    CL 211139 added TestLibraryCtrlHandler. But the CL left out import "C"
+    line in the test file that is supposed to be build with Cgo.
     
-    - Simplify logic in Checker.typeAssertion.
+    While debugging issue #45638, I discovered that the DLL built during
+    TestLibraryCtrlHandler does not have Dummy function. Adding import "C"
+    makes Dummy function appear in DLL function list.
     
-    - Use the same code in both types2 and go/types, specifically
-      use the same error positions.
+    TestLibraryCtrlHandler does not actually calls Dummy function. So I
+    don't see how this change affects issue #45638, but still let's make
+    this code correct.
     
-    - Adjust error messages as needed.
+    Updates #45638
     
-    This removes another subtle discrepancy between types2 and go/types.
-    The go/types error messages don't have the have/want appendix for
-    the affected error messages yet because we don't use case folding
-    in lookups yet.
-    
-    Change-Id: Id39f5c473da36c9baad60082f85cf1f34dc26c50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383014
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ibab8fed29ef2ae446d0815842cf0bd040a5fb943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313350
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/expr.go            | 32 ++++++++--------------
- src/cmd/compile/internal/types2/stmt.go            | 16 ++++++-----
- .../internal/types2/testdata/check/issues.src      |  4 +--
- .../types2/testdata/fixedbugs/issue49005.go        |  5 +---
- .../types2/testdata/fixedbugs/issue50816.go2       |  4 +--
- src/go/types/expr.go                               | 31 ++++++++++-----------
- src/go/types/stmt.go                               | 16 ++++++-----
- src/go/types/testdata/check/issues.src             |  4 +--
- src/go/types/testdata/fixedbugs/issue49005.go      | 31 +++++++++++++++++++++
- src/go/types/testdata/fixedbugs/issue50816.go2     |  4 +--
- 10 files changed, 84 insertions(+), 63 deletions(-)
+ src/runtime/testdata/testwinlibsignal/dummy.go | 3 +++
+ 1 file changed, 3 insertions(+)

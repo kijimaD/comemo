@@ -1,16 +1,30 @@
-commit 6606cd3d3bee550e0693e1bfc5678e35f1a289bf
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Oct 4 15:37:49 2018 +0200
+commit 8994444491d984491d8070ed30aeffc1abe344a2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 11 18:40:54 2018 -0400
 
-    cmd/compile: regenerate known formats for TestFormats
+    runtime/race: update most syso files to compiler-rt fe2c72
     
-    This fixes the build for long-running tests after CL 139338
+    These were generated using the racebuild configuration from
+    https://golang.org/cl/115375, with the LLVM compiler-rt repository at
+    commit fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 for most platforms.
     
-    Change-Id: Ib8adfa785d41c736188e2ff7e14125de045b96b9
-    Reviewed-on: https://go-review.googlesource.com/c/139637
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The Windows build is from an older compiler-rt revision, because the
+    compiler-rt build script for the Go race detector has been broken
+    since January 2017 (https://reviews.llvm.org/D28596).
+    
+    Updates #24354.
+    
+    Change-Id: Ica05a5d0545de61172f52ab97e7f8f57fb73dbfd
+    Reviewed-on: https://go-review.googlesource.com/112896
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/fmt_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/race/README                  |   7 ++++++-
+ src/runtime/race/race_darwin_amd64.syso  | Bin 328168 -> 398868 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 405576 -> 503384 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 378032 -> 449328 bytes
+ src/runtime/race/race_linux_ppc64le.syso | Bin 0 -> 505304 bytes
+ src/runtime/race/race_netbsd_amd64.syso  | Bin 0 -> 507208 bytes
+ src/runtime/race/race_windows_amd64.syso | Bin 369467 -> 348915 bytes
+ 7 files changed, 6 insertions(+), 1 deletion(-)

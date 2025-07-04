@@ -1,18 +1,12 @@
-commit a026d0fc767dd701d681635dfd99da6eb40396c7
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Tue Jun 28 12:04:50 2011 -0400
+commit 660b22988b2ee68c630806817f6dfdd70cf43518
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jun 28 11:15:24 2011 -0400
 
-    runtime/cgo: check for errors from pthread_create
+    runtime: add Semacquire/Semrelease benchmarks
     
-    R=rsc, iant, dvyukov
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4643057
+    https://golang.org/cl/4625065
 
- src/libmach/darwin.c                | 13 +++++++++++--
- src/pkg/runtime/cgo/darwin_386.c    |  7 ++++++-
- src/pkg/runtime/cgo/darwin_amd64.c  |  7 ++++++-
- src/pkg/runtime/cgo/freebsd_386.c   |  7 ++++++-
- src/pkg/runtime/cgo/freebsd_amd64.c |  7 ++++++-
- src/pkg/runtime/cgo/linux_386.c     |  7 ++++++-
- src/pkg/runtime/cgo/linux_amd64.c   |  7 ++++++-
- 7 files changed, 47 insertions(+), 8 deletions(-)
+ src/pkg/runtime/sema_test.go | 100 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 100 insertions(+)

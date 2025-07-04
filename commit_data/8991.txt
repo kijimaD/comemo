@@ -1,12 +1,17 @@
-commit 658a02a50cf9e16a4a570fcb2a173dc7307af6fc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Jul 9 15:18:18 2011 -0700
+commit b053400e37a994b773694b6f428b54724168c8e1
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sat Jul 9 15:10:39 2011 -0700
 
-    CONTRIBUTORS: add Evan Martin (Google CLA)
+    http: update triv.go with gofix
     
-    R=golang-dev, gri
+    Sample code in triv.go wouldn't compile because it didn't use the new
+    FileSystem interface.
+    This was discussed on golang-nuts on July 7.
+    https://groups.google.com/forum/#!topic/golang-nuts/NMhZk3Ft_Vc
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4657089
+    https://golang.org/cl/4684044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/http/triv.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

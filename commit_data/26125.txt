@@ -1,12 +1,24 @@
-commit 7529701d11ace94cb7c1dee105ad36bd7b4f7058
+commit 18227bb7b6ce14c2736543777f1d5cebeff11abd
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 8 07:05:31 2016 +0000
+Date:   Thu Dec 17 19:36:43 2015 +0000
 
-    cmd/compile: fix comment accuracy after recent change
+    net/http: be more consistent about Request.Method "" vs "GET"
     
-    Change-Id: Ifa09bccb8482a6141d0aa862cef674fade30e2eb
-    Reviewed-on: https://go-review.googlesource.com/20355
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Patch from Russ.
+    
+    No bug identified, but I didn't search exhaustively. The new code is
+    easier to read.
+    
+    Fixes #13621
+    
+    Change-Id: Ifda936e4101116fa254ead950b5fe06adb14e977
+    Reviewed-on: https://go-review.googlesource.com/17981
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ppc64/prog.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/client.go   |  5 +++--
+ src/net/http/request.go  | 12 +++++++-----
+ src/net/http/transfer.go |  2 +-
+ 3 files changed, 11 insertions(+), 8 deletions(-)

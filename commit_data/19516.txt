@@ -1,15 +1,15 @@
-commit 22a5d2cc961a0f115ebd61f41cabec6e668ed451
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Wed Jun 11 17:39:34 2014 -0700
+commit 3d68dc332517d7f6ef38d42e9a3211655958b20b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 11 14:24:16 2014 -0700
 
-    mime/multipart: fix format
+    math: remove Nextafter64 alias in favor of existing Nextafter
     
-    Remove unnecessary blank line.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=adonovan
+    R=rsc, adonovan
     CC=golang-codereviews
-    https://golang.org/cl/105040045
+    https://golang.org/cl/104050045
 
- src/pkg/mime/multipart/multipart.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/math/all_test.go     |  6 +++---
+ src/pkg/math/big/rat_test.go |  6 +++---
+ src/pkg/math/nextafter.go    | 10 ++--------
+ 3 files changed, 8 insertions(+), 14 deletions(-)

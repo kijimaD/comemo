@@ -1,25 +1,21 @@
-commit 95add73abf50dedec79b58ce4c58664eccfcca4d
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Fri Mar 25 01:27:34 2016 +0100
+commit 2f57d0fe024c19b1b7a86084d72e7267863415a6
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 28 13:46:30 2016 -0800
 
-    misc/cgo/testcarchive: fix build
+    [dev.ssa] cmd/compile: preallocate small-numbered values and blocks
     
-    I failed to rebase (and re-test) CL 21102 before submit, which meant
-    that two extra tests sneaked into testcarchive that still referenced
-    runtime.GOOS and runtime.GOARCH.
+    Speeds up the compiler ~5%.
     
-    Convert the new tests.
-    
-    While we're here, make sure pending tasks are flushed before running
-    the host tests. If not, the "##### misc/cgo/testcarchive" banner
-    and "PASS" won't show up in the all.bash output.
-    
-    Change-Id: I41fc4ec9515f9a193fa052f7c31fac452153c897
-    Reviewed-on: https://go-review.googlesource.com/21106
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Ia5cf0bcd58701fd14018ec77d01f03d5c7d6385b
+    Reviewed-on: https://go-review.googlesource.com/19060
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 12 ++++++------
- src/cmd/dist/test.go                   |  1 +
- 2 files changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go      |   1 +
+ src/cmd/compile/internal/gc/ssa.go       |  13 +-
+ src/cmd/compile/internal/ssa/check.go    |  12 +-
+ src/cmd/compile/internal/ssa/config.go   |  26 ++-
+ src/cmd/compile/internal/ssa/deadcode.go |   6 +-
+ src/cmd/compile/internal/ssa/func.go     | 269 ++++++++++++++-----------------
+ src/cmd/compile/internal/ssa/id.go       |  11 --
+ src/cmd/compile/internal/ssa/regalloc.go |   4 +-
+ 8 files changed, 167 insertions(+), 175 deletions(-)

@@ -1,12 +1,19 @@
-commit 4c3dc1ba74dfb28f018a12219fff4e5fa83db30e
-Author: Andrey Mirtchovski <mirtchovski@gmail.com>
-Date:   Thu Jun 28 15:18:35 2012 -0700
+commit 71de83b73375f13db91d93a84edf555be569bea5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 28 12:22:24 2012 -0700
 
-    net/http: Fix a verb-tense mismatch and a typo in documentation.
+    go spec: clean up section on selectors
     
-    R=bradfitz
+    - point out difference between selectors and qualified identifiers
+    - differentiate between illegal selectors and run-time panics
+    - use "indirect" as opposed to "dereference" consistently
+    - add extra links
+    
+    Fixes #3779.
+    
+    R=r, rsc, iant, ken
     CC=golang-dev
-    https://golang.org/cl/6357049
+    https://golang.org/cl/6326059
 
- src/pkg/net/http/server.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 48 +++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 31 insertions(+), 17 deletions(-)

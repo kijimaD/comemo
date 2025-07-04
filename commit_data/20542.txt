@@ -1,15 +1,35 @@
-commit 2fa3e43fae867f5b8757780eb2bbf7444b56f5d5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 25 12:52:05 2014 -0700
+commit da8cf5438aa676a99e8bb55c94011b2581743e1a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 16 17:26:16 2014 -0700
 
-    spec: clarify scope and re-use of iteration variables
+    runtime: always run semacquire on the G stack
     
-    Fixes #7834.
+    semacquire might need to park the currently running G.  It can
+    only park if called from the G stack (because it has no way of
+    saving the M stack state).  So all calls to semacquire must come
+    from the G stack.
     
-    LGTM=iant, rsc, r
-    R=r, rsc, iant, ken
+    The three violators are GOMAXPROCS, ReadMemStats, and WriteHeapDump.
+    This change moves the semacquire call earlier, out of their C code
+    and into their Go code.
+    
+    This seldom caused bugs because semacquire seldom actually had
+    to park the caller.  But it did happen intermittently.
+    
+    Fixes #8749
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/148940044
+    https://golang.org/cl/144940043
 
- doc/go_spec.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/debug.go   | 30 ++++++++++++++-----
+ src/runtime/heapdump.c | 25 +---------------
+ src/runtime/mem.go     | 37 ++++++++++++++++++++++-
+ src/runtime/mgc0.c     | 26 +----------------
+ src/runtime/proc.c     | 79 ++++----------------------------------------------
+ src/runtime/runtime.h  | 39 +++++++++++++++++++++++++
+ src/runtime/sema.go    |  5 ++++
+ src/runtime/stubs.go   |  2 ++
+ src/runtime/thunk.s    |  3 ++
+ 9 files changed, 114 insertions(+), 132 deletions(-)

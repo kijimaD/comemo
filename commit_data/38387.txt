@@ -1,27 +1,15 @@
-commit 82af9e67493b14ad1e10f28a384645e904a88d6f
-Author: David Chase <drchase@google.com>
-Date:   Mon Jan 28 18:00:01 2019 -0500
+commit 41d6315e34f677c7102c73253819b12cf6e3e209
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jul 10 09:23:46 2018 +0200
 
-    cmd/compile: move statement marks from jumps to targets
+    hash/crc64: use t.Fatalf in TestGolden
     
-    When a jump at the end of a block is about to be marked as
-    a statement, if the first real instruction in the target
-    block is also a statement for the same line, remove the
-    mark from the jump.
+    Use t.Fatalf instead of t.Errorf followed by t.FailNow.
     
-    This is a first effort at a minimal-harm heuristic.
-    A better heuristic might skip over any "not-statement"
-    values preceding a definitely marked value.
-    
-    Fixes #29443.
-    
-    Change-Id: Ibd52783713b4936e0c2dfda8d708bf186f33b00a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/159977
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie31f8006e7d9daca7f59bf6f0d5ae688222be486
+    Reviewed-on: https://go-review.googlesource.com/c/144111
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go          |  3 +++
- src/cmd/compile/internal/ssa/numberlines.go | 10 ++++++++++
- 2 files changed, 13 insertions(+)
+ src/hash/crc64/crc64_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

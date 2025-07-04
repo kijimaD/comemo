@@ -1,25 +1,45 @@
-commit b5dab2b9d9ef44eee709e4b6704fee1092afcdd5
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Tue Aug 15 20:31:45 2017 +0300
+commit 9248ff46a82aec26164a775f3eba43e3fcfb5651
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Apr 18 17:05:31 2017 -0400
 
-    cmd/asm: uncomment tests for PCMPESTRI, PHMINPOSUW
+    cmd/compile: add rotates to PPC64.rules
     
-    Instructions are implemented in the following revisions:
-    PCMPESTRI - https://golang.org/cl/22337
-    PHMINPOSUW - https://golang.org/cl/18853
+    This updates PPC64.rules to include rules to generate rotates
+    for ADD, OR, XOR operators that combine two opposite shifts
+    that sum to 32 or 64.
     
-    It is unknown when x86test will be updated/re-run, but tests are useful
-    to check which x86 instructions are not yet supported.
-    As an example of tool that uses this information, there is Damien
-    Lespiau x86db.
+    To support this change opcodes for ROTL and ROTLW were added to
+    be used like the rotldi and rotlwi extended mnemonics.
     
-    Part of the mission to add missing amd64 SSE4 instructions to Go asm.
+    This provides the following improvement in sha3:
     
-    Change-Id: I512ff26040f47a0976b3e37000fb1f37eac5b762
-    Reviewed-on: https://go-review.googlesource.com/55830
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    BenchmarkPermutationFunction-8     302.83       376.40       1.24x
+    BenchmarkSha3_512_MTU-8            98.64        121.92       1.24x
+    BenchmarkSha3_384_MTU-8            136.80       168.30       1.23x
+    BenchmarkSha3_256_MTU-8            169.21       211.29       1.25x
+    BenchmarkSha3_224_MTU-8            179.76       221.19       1.23x
+    BenchmarkShake128_MTU-8            212.87       263.23       1.24x
+    BenchmarkShake256_MTU-8            196.62       245.60       1.25x
+    BenchmarkShake256_16x-8            163.57       194.37       1.19x
+    BenchmarkShake256_1MiB-8           199.02       248.74       1.25x
+    BenchmarkSha3_512_1MiB-8           106.55       133.13       1.25x
+    
+    Fixes #20030
+    
+    Change-Id: I484c56f48395d32f53ff3ecb3ac6cb8191cfee44
+    Reviewed-on: https://go-review.googlesource.com/40992
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 32 ++++++++++++++--------------
- 1 file changed, 16 insertions(+), 16 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s    |  20 ++
+ src/cmd/compile/internal/gc/asm_test.go      |  48 +++++
+ src/cmd/compile/internal/ppc64/ssa.go        |   8 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |   9 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   3 +
+ src/cmd/compile/internal/ssa/opGen.go        |  30 +++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 312 +++++++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/a.out.go          |   2 +
+ src/cmd/internal/obj/ppc64/anames.go         |   2 +
+ src/cmd/internal/obj/ppc64/asm9.go           |  50 +++--
+ 10 files changed, 463 insertions(+), 21 deletions(-)

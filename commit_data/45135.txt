@@ -1,24 +1,23 @@
-commit 25b25a9ed7fe8a543fd6c1f79c6a43d33f8eae68
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Apr 13 13:46:52 2021 -0400
+commit 28e549dec3954b36d0c83442be913d8709d7e5ae
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Sep 12 12:33:24 2020 -0400
 
-    cmd/asm: require NOSPLIT for ABIInternal asm functions
+    runtime: use sigaltstack on macOS/ARM64
     
-    Change the assembler to enforce the requirement that ABIInternal
-    functions need to be NOSPLIT. At the moment all of the assembly
-    routines in the runtime that are defined as ABIInternal also
-    happen to be NOSPLIT, but this CL makes it mandatory.
+    Currently we don't use sigaltstack on darwin/arm64, as is not
+    supported on iOS. However, it is supported on macOS. Use it.
+    (iOS remains unchanged.)
     
-    Updates #40724.
-    
-    Change-Id: Ief80d22de1782edb44b798fcde9aab8a93548722
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309789
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Icc154c5e2edf2dbdc8ca68741ad9157fc15a72ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256917
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/asm.go         |  8 ++++++
- src/cmd/asm/internal/asm/pseudo_test.go | 47 ++++++++++++++++++++++++---------
- 2 files changed, 43 insertions(+), 12 deletions(-)
+ misc/cgo/test/sigaltstack.go       |  2 +-
+ src/cmd/internal/obj/arm64/obj7.go |  2 +-
+ src/runtime/mkpreempt.go           |  7 ++-----
+ src/runtime/os_darwin.go           |  8 ++++----
+ src/runtime/preempt_arm64.s        |  3 ---
+ src/runtime/stack.go               |  2 +-
+ src/runtime/sys_darwin_arm64.s     | 22 ++++++++++++++++++----
+ 7 files changed, 27 insertions(+), 19 deletions(-)

@@ -1,14 +1,18 @@
-commit 26f12beb5d1828858c365409af23393013c0e4e3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 25 05:33:51 2015 +0200
+commit 362a40e37da849696e1af6874d0d5f1275a1a386
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu May 7 21:29:47 2015 +1200
 
-    doc: add a missing space in func signature
+    misc/cgo/testshared: rewrite in Go
     
-    Fixes #11383
+    And fix to work on filesystems with only 1s resolution.
     
-    Change-Id: I7ef0bb8b535ef513afdfcda19317ae4ff21f7166
-    Reviewed-on: https://go-review.googlesource.com/11490
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #10724
+    
+    Change-Id: Ia07463f090b4290fc27f5953fa94186463d7afc7
+    Reviewed-on: https://go-review.googlesource.com/9768
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testshared/shared_test.go | 364 +++++++++++++++++++++++++++++++++++++
+ misc/cgo/testshared/test.bash      | 137 --------------
+ src/cmd/dist/test.go               |   2 +-
+ 3 files changed, 365 insertions(+), 138 deletions(-)

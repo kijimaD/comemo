@@ -1,13 +1,22 @@
-commit ee7680104ff5596be0d49ce2e93993dbaab2bb02
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Oct 22 09:21:57 2012 +1100
+commit 4545dc6a6953b2be6d0d50719ad165d46278d9bf
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Oct 21 17:17:51 2012 -0400
 
-    A+C: Richard Eric Gavaletz (individual CLA)
+    net: add test for Conn, PacketConn and Listener
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/6734055
+    I just realized that there is no good place for adding
+    exposed function or method tests because server, unicast
+    and multicast_test.go do test complicated multiple test
+    objects, platform behaviros, protocol behaviors and API,
+    at the same time. Perhaps splitting them into per test
+    object might be better, so this CL provides tests focused
+    on API.
+    
+    R=rsc
+    CC=gobot, golang-dev
+    https://golang.org/cl/6501057
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/net/conn_test.go       | 103 +++++++++++++++++++++++
+ src/pkg/net/packetconn_test.go | 161 +++++++++++++++++++++++++++++++++++
+ src/pkg/net/protoconn_test.go  | 185 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 449 insertions(+)

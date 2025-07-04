@@ -1,19 +1,13 @@
-commit 1ab827371858e02f864f91e7dc561ae48eb7bbd0
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Feb 3 09:44:21 2022 -0800
+commit 8ff1da0b8182667560ed6bd3079ad7692e5c722b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 26 14:30:00 2021 -0400
 
-    cmd/compile: ensure size is computed for shape types
+    runtime: fix offset in comment
     
-    Fixes #50993
-    
-    Change-Id: I5f1bf5a8375c3da3203083b11de26962523ccb36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382874
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: I2770195cb53220948081a6265f891ef064e4f763
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313629
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/typecheck/subr.go |  1 +
- test/typeparam/issue50993.go               | 35 ++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+)
+ src/runtime/sys_windows_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

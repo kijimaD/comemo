@@ -1,36 +1,23 @@
-commit 77b1f23af70eb6e02b4d2f5ad18e462b86156971
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri May 5 16:35:10 2023 -0400
+commit cb9bf93078c54187f5be9d8a65c81c249d12d3c5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 10 15:46:43 2022 -0700
 
-    runtime: clean up extra M API
+    cmd/go: quote package directory when calling glob
     
-    There are quite a few locations that get/put Ms from the extra M list,
-    but the API is pretty clumsy to use. Add an easier to use getExtraM /
-    putExtraM API.
+    Fixes #53314
     
-    There are only two minor semantic changes:
-    
-    1. dropm no longer calls setg(nil) inside the lockextra critical
-       section. It is important that this thread no longer references the G
-       (and in turn M) once it is published to the extra M list and another
-       thread could acquire it. But there is no reason that needs to happen
-       only after lockextra.
-    
-    2. extraMLength (renamed from extraMCount) is no longer protected by
-       lockextra and is instead simply an atomic (though writes are still in
-       the critical section). The previous readers all dropped lockextra
-       before using the value they read anyway.
-    
-    For #60004.
-    
-    Change-Id: Ifca4d6c84d605423855d89f49af400ca07de56f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492742
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Commit-Queue: Michael Pratt <mpratt@google.com>
+    Change-Id: I4933b59ee247daec5cf96eb15c52ff54d3ec26a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411696
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/runtime/proc.go        | 85 +++++++++++++++++++++++++++-------------------
- src/runtime/signal_unix.go |  2 +-
- 2 files changed, 51 insertions(+), 36 deletions(-)
+ src/cmd/go/internal/clean/clean.go            |  3 ++-
+ src/cmd/go/internal/load/pkg.go               |  2 +-
+ src/cmd/go/internal/modfetch/fetch.go         |  5 +++--
+ src/cmd/go/internal/str/path.go               | 18 ++++++++++++++++++
+ src/cmd/go/testdata/script/embed_brackets.txt | 18 ++++++++++++++++++
+ 5 files changed, 42 insertions(+), 4 deletions(-)

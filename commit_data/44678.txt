@@ -1,44 +1,16 @@
-commit 78f90152364d68268a14b2907ae26379f314baf4
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Mon Mar 15 19:48:39 2021 +0800
+commit 0941fc3f9ff43598d25fa6e964e7829a268102bf
+Author: cui <cuiweixie@gmail.com>
+Date:   Wed Aug 12 17:33:41 2020 +0000
 
-    runtime: using wyhash for memhashFallback on 32bit platform
+    runtime: reduce syscall when call runtime.clone
     
-    wyhash is a general hash function that:
-    
-    1. Default hash function of Zig, Nim
-    2. Passed Smhasher, BigCrush and PractRand
-    3. Less code
-    4. 3~26% faster than internal hashmap
-    
-    name                  old time/op    new time/op    delta
-    Hash5                   67.8ns ± 0%    65.4ns ± 0%   -3.45%  (p=0.000 n=7+10)
-    Hash16                  82.5ns ± 0%    74.2ns ± 0%  -10.12%  (p=0.000 n=6+8)
-    Hash64                   121ns ± 0%     102ns ± 0%  -15.82%  (p=0.000 n=7+10)
-    Hash1024                1.13µs ± 0%    0.89µs ± 0%  -20.58%  (p=0.000 n=10+9)
-    Hash65536               68.9µs ± 0%    54.4µs ± 0%  -21.04%  (p=0.000 n=10+7)
-    HashStringSpeed          103ns ± 2%      93ns ± 3%  -10.24%  (p=0.000 n=9+10)
-    HashBytesSpeed           191ns ± 2%     180ns ± 1%   -5.40%  (p=0.000 n=10+8)
-    HashInt32Speed          59.0ns ± 2%    59.1ns ± 1%     ~     (p=0.655 n=9+8)
-    HashInt64Speed          72.7ns ± 3%    66.1ns ± 5%   -9.04%  (p=0.000 n=10+10)
-    HashStringArraySpeed     270ns ± 1%     222ns ± 2%  -17.91%  (p=0.000 n=10+10)
-    FastrandHashiter         108ns ± 0%     109ns ± 1%   +0.96%  (p=0.002 n=10+10)
-    
-    name                  old speed      new speed      delta
-    Hash5                 73.8MB/s ± 0%  76.4MB/s ± 0%   +3.58%  (p=0.000 n=7+10)
-    Hash16                 194MB/s ± 0%   216MB/s ± 0%  +11.25%  (p=0.000 n=10+8)
-    Hash64                 530MB/s ± 0%   630MB/s ± 0%  +18.74%  (p=0.000 n=8+10)
-    Hash1024               910MB/s ± 0%  1145MB/s ± 0%  +25.88%  (p=0.000 n=10+9)
-    Hash65536              951MB/s ± 0%  1204MB/s ± 0%  +26.64%  (p=0.000 n=10+7)
-    
-    Update #43130
-    
-    Change-Id: Id00c54b116a2411fcf675e95896fffb85f0e25b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/280372
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3ea398fd86aae4c86557dd6fff65d90a6f756890
+    GitHub-Last-Rev: 4c295388f7b5e6768ffd2530337f78b4c75a9310
+    GitHub-Pull-Request: golang/go#40392
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244626
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/hash32.go | 136 ++++++++++++++++----------------------------------
- 1 file changed, 43 insertions(+), 93 deletions(-)
+ src/runtime/sys_linux_amd64.s | 34 +++++++++++++++++++++-------------
+ 1 file changed, 21 insertions(+), 13 deletions(-)

@@ -1,12 +1,24 @@
-commit c40579ac75b7fe012097af46c4e3dd7fbd291311
-Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-Date:   Mon Sep 18 16:51:15 2017 +0200
+commit 1a63f116c11acdbd1b11c38dbdcaeb4e4ba0a94e
+Author: Tom Bergan <tombergan@google.com>
+Date:   Tue May 23 16:03:21 2017 -0700
 
-    doc: simplify Append example in "Effective Go"
+    net/http: Add Server.RegisterOnShutdown
     
-    Change-Id: I011486993b167e65c69da1c8390bbcc625ca58c3
-    Reviewed-on: https://go-review.googlesource.com/64331
-    Reviewed-by: Rob Pike <r@golang.org>
+    This will be used to allow http2 servers to register a shutdown function
+    so that net/http.Server.Shutdown will work when the http2 server is
+    configured via a manual call to http2.ConfigureServer. Currently, Shutdown
+    only works when the http2 server is configured automatically by the
+    net/http package.
+    
+    Updates #20302
+    Updates #18471
+    
+    Change-Id: Ifc2b5f3126126a106b49ea4a7e999279852b9cc9
+    Reviewed-on: https://go-review.googlesource.com/44003
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/effective_go.html | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/net/http/serve_test.go | 13 +++++++++++--
+ src/net/http/server.go     | 15 +++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

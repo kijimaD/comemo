@@ -1,15 +1,16 @@
-commit 3aba41d6c3ee7a74cde724a2740896978ae81d89
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Jan 8 19:09:56 2015 -0500
+commit c5de72b2135cd4ec59621fcfef9fa21111183f1f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 8 10:28:18 2014 -0800
 
-    runtime: source startupRandomData from auxv AT_RANDOM on linux/arm.
+    test: write Go wrapper code so that bug302 can be run by run.go
     
-    Fixes #9541.
+    Issue #4139.
     
-    Change-Id: I5d659ad50d7c3d1c92ed9feb86cda4c1a6e62054
-    Reviewed-on: https://go-review.googlesource.com/2584
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I50d85a65b22c0cfb4d2a078cee45cf7adb23ba77
+    Reviewed-on: https://go-review.googlesource.com/1210
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/os_linux_arm.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ test/fixedbugs/bug302.go | 40 ++++++++++++++++++++++++++++++++++++----
+ test/run.go              |  1 -
+ 2 files changed, 36 insertions(+), 5 deletions(-)

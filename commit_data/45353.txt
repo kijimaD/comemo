@@ -1,15 +1,35 @@
-commit c249491572db67acd226210dbcfb4f349614a632
-Author: lixianyang <lee1300394324@gmail.com>
-Date:   Tue Apr 27 02:29:59 2021 +0000
+commit 1d07306a447ae50d3eae5eed6ecc4f30a2528c96
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 19 21:38:31 2020 -0700
 
-    doc: change <a/> to </a> in spec
+    [dev.typeparams] cmd/compile/internal/types2: adjust tests, enable Testdata tests
     
-    Change-Id: I21d0ee83c9204d51c587bd944209df2232b460ad
-    GitHub-Last-Rev: 47fab8dc582baaab5f5cd58a1d53f1c24604c769
-    GitHub-Pull-Request: golang/go#45771
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313449
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Types2 uses a different test runner and has fewer/better
+    errors in some cases (error messages match the compiler).
+    Adjust the tests and enable them.
+    
+    Change-Id: I74877f54a81a3918a80774452cef5bcaad8a98e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263631
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/check_test.go      |   3 +-
+ .../compile/internal/types2/testdata/builtins.src  |  10 +-
+ .../compile/internal/types2/testdata/constdecl.src |  19 ++--
+ .../compile/internal/types2/testdata/decls0.src    |  10 +-
+ .../internal/types2/testdata/decls2/decls2a.src    | 111 +++++++++++++++++++++
+ .../internal/types2/testdata/decls2/decls2b.src    |  75 ++++++++++++++
+ src/cmd/compile/internal/types2/testdata/expr3.src |  37 ++++---
+ .../types2/testdata/importdecl0/importdecl0a.src   |  53 ++++++++++
+ .../types2/testdata/importdecl0/importdecl0b.src   |  30 ++++++
+ .../types2/testdata/importdecl1/importdecl1a.src   |  22 ++++
+ .../types2/testdata/importdecl1/importdecl1b.src   |  11 ++
+ .../types2/testdata/issue25008/issue25008a.src     |  15 +++
+ .../types2/testdata/issue25008/issue25008b.src     |   9 ++
+ .../compile/internal/types2/testdata/issues.src    |   4 +-
+ .../compile/internal/types2/testdata/shifts.src    |  11 +-
+ src/cmd/compile/internal/types2/testdata/stmt0.src |   8 +-
+ .../compile/internal/types2/testdata/vardecl.src   |   9 +-
+ 17 files changed, 381 insertions(+), 56 deletions(-)

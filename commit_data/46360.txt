@@ -1,26 +1,22 @@
-commit 12eb7331b9e220d73ecfba0281e60cf0f5285e18
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Sep 8 11:46:58 2021 -0400
+commit 5898025026e3ec38451e86c7837f6faf3633cf27
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 23 00:50:18 2020 -0800
 
-    go/ast: rename TParams fields to TypeParams
+    [dev.regabi] cmd/compile: update mkbuiltin.go to use new type constructors
     
-    As discussed in the ast proposal (#47781), there's not really a strong
-    reason to avoid spelling out 'Type'.
+    We recently added new functions to types like NewSignature and
+    NewField, so we can use these directly rather than depending on the
+    typecheck and ir wrappers.
     
-    Change-Id: I0ba1bf03b112ea60509a78a89a050a302779d9d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348375
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I32676aa9a4ea71892216017756e72bcf90297219
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279953
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/ast/ast.go         | 20 ++++++++++----------
- src/go/ast/walk.go        |  8 ++++----
- src/go/parser/parser.go   | 18 +++++++++---------
- src/go/parser/resolver.go | 10 +++++-----
- src/go/printer/nodes.go   |  8 ++++----
- src/go/types/decl.go      |  8 ++++----
- src/go/types/interface.go |  4 ++--
- src/go/types/resolver.go  | 12 ++++++------
- src/go/types/signature.go |  6 +++---
- 9 files changed, 47 insertions(+), 47 deletions(-)
+ src/cmd/compile/internal/typecheck/builtin.go   | 189 ++++++++++++------------
+ src/cmd/compile/internal/typecheck/mkbuiltin.go |  15 +-
+ 2 files changed, 101 insertions(+), 103 deletions(-)

@@ -1,16 +1,15 @@
-commit ae12e963505f71bfd5ddb427ba0f0c546c422c30
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Dec 13 16:26:20 2012 +1100
+commit c8ce844d5a8680cc4f22639f7c2eda4ee57cfcdd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 13 14:32:03 2012 +1100
 
-    log/syslog: fix flakey test on slow hosts
+    doc/play: sync playground.js with go-playground repo
     
-    Fixes #4467.
-    
-    The syslog tests can fail if the timeout fires before the data arrives at the mock server. Moving the timeout onto the goroutine that is calling ReadFrom() and always processing the data returned before handling the error should improve the reliability of the test.
+    Also add style for "Program exited." message.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6920047
+    https://golang.org/cl/6934047
 
- src/pkg/log/syslog/syslog_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ doc/play/playground.js | 85 +++++++++++++++++++++++++++++++++++++++-----------
+ doc/style.css          |  3 ++
+ 2 files changed, 70 insertions(+), 18 deletions(-)

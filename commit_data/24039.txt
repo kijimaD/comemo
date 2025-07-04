@@ -1,17 +1,15 @@
-commit 39e77bff85ddc9e862eccf0408968301955db977
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 30 15:00:50 2015 -0700
+commit fea18f5a341e442783f84703a78924b882aceb5e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Jun 29 16:22:54 2015 +1000
 
-    go/types: fix complex(a, b) for untyped arguments a, b
+    compress/lzw: return the partial decoding for a truncated input.
     
-    R=1.6
+    This is needed by issue #9856.
     
-    Fixes #11669.
-    
-    Change-Id: Id39e5401e991e46f014eb16b747f5d9b7b55b46a
-    Reviewed-on: https://go-review.googlesource.com/12937
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Idad570a7e55ad903aab55372d390bc746c4e19cf
+    Reviewed-on: https://go-review.googlesource.com/11661
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/types/builtins.go           | 113 ++++++++++++++++++++-----------------
- src/go/types/testdata/builtins.src |  19 ++++---
- 2 files changed, 71 insertions(+), 61 deletions(-)
+ src/compress/lzw/reader.go      | 2 ++
+ src/compress/lzw/reader_test.go | 9 ++++++++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)

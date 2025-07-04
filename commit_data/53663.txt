@@ -1,33 +1,22 @@
-commit 5c154986094bcc2fb28909cc5f01c9ba1dd9ddd4
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Jul 4 13:39:41 2023 +0200
+commit 9e810997c02c9c062a25e922a91e7824baef8e4d
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Thu May 26 05:24:38 2022 -0500
 
-    os: support reading empty root directories on Windows
+    runtime: add address sanitizer support for ppc64le
     
-    GetFileInformationByHandleEx can return `ERROR_FILE_NOT_FOUND` when no
-    files were found in a root directory, as per MS-FSA 2.1.5.6.3 [1].
+    updates #44853
     
-    This error code should not be treated as an error, but rather as an
-    indication that no files were found, in which case `readdir` should
-    return an empty slice.
-    
-    This CL doesn't add any test as it is difficult to trigger this error
-    code. Empty root directories created using Windows utilities such as
-    `net use` always report at least the optional `.` and `..` entries.
-    A reproducer is provided in #61159, but it requires WinFSP to be
-    installed.
-    
-    Fixes #61159
-    
-    [1] https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsa/fa8194e0-53ec-413b-8315-e8fa85396fd8
-    
-    Change-Id: Id46452030f5355c292e5b0abbf5e22af434a84d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507775
-    Reviewed-by: Nick Craig-Wood <nickcw@gmail.com>
+    Change-Id: I71905ee1bcb99ce7300bbed2daad3617d2643c53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408814
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
 
- src/os/dir_windows.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ misc/cgo/testsanitizers/cc_test.go |  2 +-
+ src/cmd/dist/test.go               |  2 +-
+ src/cmd/internal/sys/supported.go  |  2 +-
+ src/runtime/asan/asan.go           |  2 +-
+ src/runtime/asan_ppc64le.s         | 87 ++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 91 insertions(+), 4 deletions(-)

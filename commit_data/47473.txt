@@ -1,21 +1,26 @@
-commit 0a39e4a89d26d8375bb5877f736dcc0047894060
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Nov 13 11:02:51 2021 -0800
+commit e838c76a6ea99007b872669b06590a41278f6188
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 19 15:55:30 2021 -0400
 
-    cmd/compile/internal/types2: optimize common case in structuralType
+    cmd/go/internal/modload: remove go116EnableNarrowAll constant
     
-    Most of the time we don't have a type parameter. Avoid using a
-    closure in that case.
+    This constant existed in case there was a serious problem with the
+    change to the "all" pattern in Go 1.16 (CL 240623), so that we could
+    roll back the change in behavior by just flipping the constant without
+    introducing merge conflicts elsewhere.
     
-    While at it, rename argument from typ to t (to match style in
-    that file), and clarify the doc string.
+    Go 1.16 has been out for a while and the new "all" behavior seems fine,
+    so we can jettison this feature flag.
     
-    Change-Id: Ie62821073f60f353526263f8b380bad9f72d842e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363668
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    For #36460
+    
+    Change-Id: Ic2730edcee81514d56c7086e11542468eb63c84a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303431
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/types2/type.go | 21 +++++++++++++--------
- 1 file changed, 13 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/modload/modfile.go | 4 ----
+ 1 file changed, 4 deletions(-)

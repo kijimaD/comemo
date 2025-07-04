@@ -1,18 +1,48 @@
-commit 5d4c6088be94e0380d4b937f381eaa28ed7ba010
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Wed Feb 28 09:30:08 2024 +0000
+commit e671fe0c3efc497397af3362a4b79c895fbd8bfc
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Feb 6 11:37:39 2023 -0800
 
-    testing: fix typo in comment
+    bytes: add Buffer.Available and Buffer.AvailableBuffer
     
-    Change-Id: I5aa6093b0199df1ef5b0ad0fcfa651a4b990bfd5
-    GitHub-Last-Rev: b053d993eb497500ee63024ef12784f63fac6c0e
-    GitHub-Pull-Request: golang/go#65986
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567655
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This adds a new Buffer.AvailableBuffer method that returns
+    an empty buffer with a possibly non-empty capacity for use
+    with append-like APIs.
+    
+    The typical usage pattern is something like:
+    
+            b := bb.AvailableBuffer()
+            b = appendValue(b, v)
+            bb.Write(b)
+    
+    It allows logic combining append-like APIs with Buffer
+    to avoid needing to allocate and manage buffers themselves and
+    allows the append-like APIs to directly write into the Buffer.
+    
+    The Buffer.Write method uses the builtin copy function,
+    which avoids copying bytes if the source and destination are identical.
+    Thus, Buffer.Write is a constant-time call for this pattern.
+    
+    Performance:
+    
+            BenchmarkBufferAppendNoCopy  2.909 ns/op  5766942167.24 MB/s
+    
+    This benchmark should only be testing the cost of bookkeeping
+    and never the copying of the input slice.
+    Thus, the MB/s should be orders of magnitude faster than RAM.
+    
+    Fixes #53685
+    
+    Change-Id: I0b41e54361339df309db8d03527689b123f99085
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474635
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/testing/fuzz.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next/53685.txt        |  2 ++
+ src/bytes/buffer.go       |  9 +++++++++
+ src/bytes/buffer_test.go  | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/bytes/example_test.go | 13 +++++++++++++
+ 4 files changed, 65 insertions(+)

@@ -1,22 +1,16 @@
-commit 8ed026e783ded812ee4bd03a47278f95168b9087
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Sep 18 23:47:15 2012 +0400
+commit 0e60019a42b6c5c98ddb6b6418481133e3c42854
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 18 15:02:08 2012 -0400
 
-    race: build system changes
-    This is the first part of a bigger change that adds data race detection feature:
-    https://golang.org/cl/6456044
-    Adds -race flag to go command.
-    API change:
-    +pkg go/build, type Context struct, InstallTag string
+    bytes, strings: add Fields benchmarks
     
-    R=rsc
+    The performance changes will be a few different CLs.
+    Start with benchmarks as a baseline.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6488075
+    https://golang.org/cl/6537043
 
- src/cmd/go/build.go       | 29 ++++++++++++++++++++++++++++-
- src/cmd/go/pkg.go         |  5 +++++
- src/cmd/go/run.go         |  1 +
- src/cmd/go/test.go        |  1 +
- src/cmd/go/testflag.go    |  3 ++-
- src/pkg/go/build/build.go |  7 ++++++-
- 6 files changed, 43 insertions(+), 3 deletions(-)
+ src/pkg/bytes/bytes_test.go     | 45 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/strings_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 89 insertions(+)

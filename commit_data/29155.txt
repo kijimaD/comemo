@@ -1,48 +1,37 @@
-commit bba1ac4fd9d208892aa45e49eda215954008d2ee
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 27 02:02:30 2016 -0700
+commit e6f9f39ce52e880b54e4cb08bf0cde73cf6c7dc2
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Aug 25 14:17:52 2016 +0200
 
-    cmd/compile: stop adding implicit OKEY nodes
+    cmd/compile: generate makeslice calls with int arguments
     
-    Keys are uncommon in array and slice literals, and normalizing
-    OARRAYLIT and OSLICELIT nodes to always use OKEY ends up not reducing
-    complexity much. Instead, only create OKEY nodes to represent explicit
-    keys, and recalculate implicit keys when/where necessary.
+    Where possible generate calls to runtime makeslice with int arguments
+    during compile time instead of makeslice with int64 arguments.
     
-    Fixes #15350.
+    This eliminates converting arguments for calls to makeslice with
+    int64 arguments for platforms where int64 values do not fit into
+    arguments of type int.
     
-    name       old time/op     new time/op     delta
-    Template       299ms ± 9%      299ms ±12%    ~           (p=0.694 n=28+30)
-    Unicode        165ms ± 7%      162ms ± 9%    ~           (p=0.084 n=27+27)
-    GoTypes        950ms ± 9%      963ms ± 5%    ~           (p=0.301 n=30+29)
-    Compiler       4.23s ± 7%      4.17s ± 7%    ~           (p=0.057 n=29+27)
+    godoc 386 binary shrinks by approximately 12 kilobyte.
     
-    name       old user-ns/op  new user-ns/op  delta
-    Template        389M ±15%       400M ±12%    ~           (p=0.202 n=30+29)
-    Unicode         246M ±21%       232M ±22%  -5.76%        (p=0.006 n=28+29)
-    GoTypes        1.34G ± 8%      1.34G ± 7%    ~           (p=0.775 n=28+30)
-    Compiler       5.91G ± 6%      5.87G ± 7%    ~           (p=0.298 n=28+29)
+    amd64:
+    name         old time/op  new time/op  delta
+    MakeSlice-2  29.8ns ± 1%  29.8ns ± 1%   ~     (p=1.000 n=24+24)
     
-    name       old alloc/op    new alloc/op    delta
-    Template      41.2MB ± 0%     41.2MB ± 0%    ~           (p=0.085 n=30+30)
-    Unicode       34.0MB ± 0%     31.5MB ± 0%  -7.28%        (p=0.000 n=30+29)
-    GoTypes        121MB ± 0%      121MB ± 0%    ~           (p=0.657 n=30+30)
-    Compiler       511MB ± 0%      511MB ± 0%  -0.01%        (p=0.001 n=29+29)
+    386:
+    name         old time/op  new time/op  delta
+    MakeSlice-2  52.3ns ± 0%  45.9ns ± 0%  -12.17%  (p=0.000 n=25+22)
     
-    name       old allocs/op   new allocs/op   delta
-    Template        390k ± 0%       390k ± 0%    ~           (p=0.225 n=30+29)
-    Unicode         318k ± 0%       293k ± 0%  -8.03%        (p=0.000 n=30+29)
-    GoTypes        1.16M ± 0%      1.16M ± 0%    ~           (p=0.745 n=30+30)
-    Compiler       4.35M ± 0%      4.35M ± 0%    ~           (p=0.105 n=30+30)
+    Fixes  #15357
     
-    Change-Id: I6310739a0bfdb54f1ab8a460b2c03615ad1ff5bc
-    Reviewed-on: https://go-review.googlesource.com/32221
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Icb8701bb63c5a83877d26c8a4b78e782ba76de7c
+    Reviewed-on: https://go-review.googlesource.com/27851
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/esc.go       | 19 ++++++++---
- src/cmd/compile/internal/gc/sinit.go     | 58 +++++++++++++++++++-------------
- src/cmd/compile/internal/gc/syntax.go    |  2 +-
- src/cmd/compile/internal/gc/typecheck.go | 52 ++++++++++++----------------
- 4 files changed, 71 insertions(+), 60 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 43 +++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |  3 +-
+ src/cmd/compile/internal/gc/walk.go            | 22 +++++++++++--
+ src/runtime/slice.go                           | 23 ++++++++++----
+ test/fixedbugs/issue4085b.go                   | 24 ++++++++------
+ 5 files changed, 74 insertions(+), 41 deletions(-)

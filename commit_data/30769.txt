@@ -1,18 +1,20 @@
-commit 89840e4ac9525ddff2b04a8f17fe5b85e96f9bdc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 21 12:13:12 2017 -0700
+commit ae9712c76688a07e1149958994a9ab3e5a99c37f
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Dec 1 11:07:11 2016 -0800
 
-    cmd/compile: eliminate a Curfn reference in plive
+    database/sql: ensure Commit and Rollback return ErrTxDone
     
-    I think this got lost in a rebase somewhere.
+    Ensure documented behavior of returning ErrTxDone if the Tx has
+    already been committed or rolled back.
     
-    Updates #15756
+    Fixes #18147
     
-    Change-Id: Ia3e7c60d1b9254f2877217073732b46c91059ade
-    Reviewed-on: https://go-review.googlesource.com/38425
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I07dc75bef4dbd4dd88dd252c96dc8ab99f28c00e
+    Reviewed-on: https://go-review.googlesource.com/33793
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/database/sql/sql.go      |  6 +++---
+ src/database/sql/sql_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 3 deletions(-)

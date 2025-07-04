@@ -1,19 +1,19 @@
-commit c4136a433c28eb12abad777f8e74087ecf6e21f4
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri Jul 12 20:56:19 2024 +0100
+commit 1e9de4db88089f0959462f2932666c9aed273d70
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 4 13:24:13 2023 -0800
 
-    runtime/debug: document DefaultGODEBUG as a BuildSetting
+    doc: add release note for go/types.Alias type and Unalias function
     
-    Fixes #66465
+    Also, add some missing <code></code> tags.
     
-    Change-Id: I60c017ddba29fa5b452b665d8521cd6c8e20438c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597979
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    For #63223.
+    
+    Change-Id: I570b82be830b3c124420c5715ab1165ca53725f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546358
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- src/runtime/debug/mod.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.22.html | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

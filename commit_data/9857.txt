@@ -1,42 +1,13 @@
-commit e2d326b87893c73c9f4a91c95bb9e011046e366c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 4 15:06:16 2011 -0400
+commit da99a5bca4950a1477913fc22ca43cde41d93e60
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Oct 4 11:27:06 2011 -0300
 
-    5g, 6g, 8g: fix loop finding bug, squash jmps
+    path/filepath: added Rel as the complement of Abs
     
-    The loop recognizer uses the standard dominance
-    frontiers but gets confused by dead code, which
-    has a (not explicitly set) rpo number of 0, meaning it
-    looks like the head of the function, so it dominates
-    everything.  If the loop recognizer encounters dead
-    code while tracking backward through the graph
-    it fails to recognize where it started as a loop, and
-    then the optimizer does not registerize values loaded
-    inside that loop.  Fix by checking rpo against rpo2r.
-    
-    Separately, run a quick pass over the generated
-    code to squash JMPs to JMP instructions, which
-    are convenient to emit during code generation but
-    difficult to read when debugging the -S output.
-    A side effect of this pass is to eliminate dead code,
-    so the output files may be slightly smaller and the
-    optimizer may have less work to do.
-    There is no semantic effect, because the linkers
-    flatten JMP chains and delete dead instructions
-    when laying out the final code.  Doing it here too
-    just makes the -S output easier to read and more
-    like what the final binary will contain.
-    
-    The "dead code breaks loop finding" bug is thus
-    fixed twice over.  It seemed prudent to fix loopit
-    separately just in case dead code ever sneaks back
-    in for one reason or another.
-    
-    R=ken2
+    R=golang-dev, rsc, gustavo, r, borman
     CC=golang-dev
-    https://golang.org/cl/5190043
+    https://golang.org/cl/4981049
 
- src/cmd/5g/reg.c | 131 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/6g/reg.c | 134 +++++++++++++++++++++++++++++++++++++++++++++++++++++--
- src/cmd/8g/reg.c | 134 +++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 389 insertions(+), 10 deletions(-)
+ src/pkg/path/filepath/path.go      | 69 +++++++++++++++++++++++++++++++
+ src/pkg/path/filepath/path_test.go | 85 +++++++++++++++++++++++++++++++++++---
+ 2 files changed, 148 insertions(+), 6 deletions(-)

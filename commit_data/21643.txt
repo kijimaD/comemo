@@ -1,12 +1,12 @@
-commit 277eddb8f236b76c1028110ca89c9fc596f3074f
-Author: Ivan Ukhov <ivan.ukhov@gmail.com>
-Date:   Tue Feb 17 07:53:44 2015 +0100
+commit c8d7d0d9f117cfd3d7e13f4061e8a69b8d5afbf5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 23 11:21:19 2015 -0800
 
-    math: change Nextafter64 to Nextafter in the description of Nextafter
+    go/printer: update golden file (fix build)
     
-    Change-Id: I3419d6247fbff36aa1ed5451bb3cfb7502c3d07e
-    Reviewed-on: https://go-review.googlesource.com/5030
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I897a09a1c54f6d68c5dc68e189cb25dc72bb7590
+    Reviewed-on: https://go-review.googlesource.com/3240
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/math/nextafter.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/go/printer/testdata/declarations.golden | 3 +++
+ 1 file changed, 3 insertions(+)

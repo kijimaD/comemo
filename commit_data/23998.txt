@@ -1,12 +1,40 @@
-commit abe70aff0e06ec5bbd12aa53a3ce991a7e884eb6
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Aug 7 04:16:43 2015 +0000
+commit ca91de7ca09fef7ca000fc0267918c8fdd34b429
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Mon Jun 8 20:04:14 2015 +0000
 
-    doc: tweak phrasing in Go 1.5 release notes
+    html/template: prevent panic while escaping pipelines
     
-    Change-Id: I6bea045bb1cef15e6d9d3b4e6e6b4ae91f7bb941
-    Reviewed-on: https://go-review.googlesource.com/13345
+    AFAIK, the documentation does not explicitly state whether
+    variables can store a callable entity or not. I believe the
+    current implementation in text/template assumes they cannot
+    though. The call builtin function is supposed to be used for
+    this purpose.
+    
+    Template "{{0|$}}" should generate an error at runtime,
+    instead of a panic.
+    
+    Similarly, template "{{0|(nil)}}" should not generate
+    a panic.
+    
+    This CL aborts the sanitization process for a given pipeline
+    when no identifier can be derived from the selected node.
+    It happens with malformed pipelines.
+    
+    We now have the following errors:
+    
+    {{ 0 | $ }}
+    template: foo:1:10: executing "foo" at <$>: can't give argument to non-function $
+    
+    {{ 0 | (nil) }}
+    template: foo:1:11: executing "foo" at <nil>: nil is not a command
+    
+    Fixes #11118
+    Fixes #11356
+    
+    Change-Id: Idae52f806849f4c9ab7aca1b4bb4b59a74723d0e
+    Reviewed-on: https://go-review.googlesource.com/10823
     Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.5.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/html/template/escape.go      |  2 +-
+ src/html/template/escape_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

@@ -1,17 +1,34 @@
-commit e1077420807882bd52fd4857100a199b9afc5909
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Aug 3 13:28:05 2012 -0400
+commit 89d40b911c0e1f7012e2f463919d8093a49797cc
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Aug 3 09:01:21 2012 +0200
 
-    crypto/tls: remove flakey tests
+    exp/locale/collate: changed API of Builder to be more convenient
+    for dealing with CLDR files:
+    - Add now taxes a list of indexes of colelems that are variables. Checking and
+      handling is now done by the Builder.  VariableTop is now also properly generated
+      using the Build method.
+    - Introduced separate Builder, called Tailoring, for creating tailorings of root
+      table.  This clearly separates the functionality for building a table based on
+      weights (the allkeys* files) versus tables based on LDML XML files.
+    - Tailorings are now added by two calls instead of one: SetAnchor and Insert.
+      This more closely reflects the structure of LDML side and simplifies the
+      implementation of both the client and library side.  It also preserves
+      some information that is otherwise hard to recover for the Builder.
+    - Allow the LDML XML element extend to be passed to Insert.  This simplifies
+      both client and library implementation.
     
-    This removes some (non-short only) tests that involved connections to
-    the outside world and thus were flakey. This does remove some test
-    coverage of the root fetchers on non-Windows platforms, but the right
-    place for that is crypto/x509.
-    
-    R=golang-dev, krautz, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6455085
+    https://golang.org/cl/6454061
 
- src/pkg/crypto/tls/root_test.go | 61 -----------------------------------------
- 1 file changed, 61 deletions(-)
+ src/pkg/exp/locale/collate/build/builder.go      | 144 +++++++++++++++++++----
+ src/pkg/exp/locale/collate/build/builder_test.go |   2 +-
+ src/pkg/exp/locale/collate/build/table.go        |   6 +
+ src/pkg/exp/locale/collate/collate.go            |   5 +-
+ src/pkg/exp/locale/collate/export.go             |  10 +-
+ src/pkg/exp/locale/collate/export_test.go        |  13 +-
+ src/pkg/exp/locale/collate/maketables.go         |  39 +++---
+ src/pkg/exp/locale/collate/table.go              |   1 +
+ src/pkg/exp/locale/collate/table_test.go         |   9 +-
+ src/pkg/exp/locale/collate/tables.go             |   8 +-
+ 10 files changed, 166 insertions(+), 71 deletions(-)

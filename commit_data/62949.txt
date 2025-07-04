@@ -1,0 +1,33 @@
+commit ad7a6f81597fae99f2d94dda308bdc19ff8c1362
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 7 22:28:23 2025 +0000
+
+    runtime: fix condition to emit gcpacertrace end-of-sweep line
+    
+    It's the job of the last sweeper to emit the GC pacer trace. The last
+    sweeper can identify themselves by reducing the count of sweepers, and
+    also seeing that there's no more sweep work.
+    
+    Currently this identification is broken, however, because the last
+    sweeper doesn't check the state they just transitioned sweeping into,
+    but rather the state they transitioned from (one sweeper, no sweep work
+    left). By design, it's impossible to transition *out* of this state,
+    except for another GC to start, but that doesn't take this codepath.
+    
+    This means lines like
+    
+        pacer: sweep done at heap size ...
+    
+    were missing from the gcpacertrace output for a long time.
+    
+    This change fixes this problem by having the last sweeper check the
+    state they just transitioned sweeping to, instead of the state they
+    transitioned from.
+    
+    Change-Id: I44bcd32fe2c8ae6ac6c21ba6feb2e7b9e17f60cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670735
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgcsweep.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

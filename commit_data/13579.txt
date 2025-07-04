@@ -1,16 +1,13 @@
-commit 2d2866ee8454d096d0dc8b5906324a36cfb3cc6e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 6 14:12:23 2012 +1000
+commit 8efb70f92e258d458c183232b985c83b477ed3de
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Sun Aug 5 17:02:41 2012 -0400
 
-    net: fix TCPListener file leak to child processes
+    syscall: add some new syscall numbers from NetBSD-current
     
-    Hold ForkLock during dup of fd + cloexec in the net pkg,
-    per the locking policy documented in syscall/exec_unix.go.
-    
-    R=golang-dev, dsymonds, adg
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6457080
+    https://golang.org/cl/6454100
 
- src/pkg/net/fd.go            |  4 +++
- src/pkg/os/exec/exec_test.go | 60 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 64 insertions(+)
+ src/pkg/syscall/zsysnum_netbsd_386.go   | 4 ++++
+ src/pkg/syscall/zsysnum_netbsd_amd64.go | 4 ++++
+ 2 files changed, 8 insertions(+)

@@ -1,30 +1,25 @@
-commit f78483eaac3a678ef242cc04e05a330c8a92a992
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat May 27 14:31:14 2023 -0700
+commit b04e4637dba254e5bda132753a91532f8e32e4b9
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jul 25 15:58:23 2022 -0400
 
-    go/types, types2: add unifyMode to unifier, pass it through
+    runtime: convert timeHistogram to atomic types
     
-    Pass a mode parameter through all unifier calls but make no use of it.
-    When unifying type elements (components of composite types), use emode,
-    which currently is set to mode.
+    I've dropped the note that sched.timeToRun is protected by sched.lock,
+    as it does not seem to be true.
     
-    Preparatory step to fix #60460. Factoring out this mechanical change
-    will make the actual fix smaller and easier to review and understand.
-    Because this change doesn't affect the behavior of the unifier, it is
-    safe.
+    For #53821.
     
-    For #60460.
-    
-    Change-Id: I5b67499d93025be2128c14cc00bcc3b8cc9f44b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498955
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I03f8dc6ca0bcd4ccf3ec113010a0aa39c6f7d6ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419449
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types2/infer.go |  8 ++---
- src/cmd/compile/internal/types2/unify.go | 54 ++++++++++++++++++--------------
- src/go/types/infer.go                    |  8 ++---
- src/go/types/unify.go                    | 54 ++++++++++++++++++--------------
- 4 files changed, 68 insertions(+), 56 deletions(-)
+ src/runtime/align_runtime_test.go |  4 ----
+ src/runtime/export_test.go        |  4 ++--
+ src/runtime/histogram.go          | 12 +++++-------
+ src/runtime/metrics.go            |  9 ++++-----
+ src/runtime/mstats.go             |  4 ----
+ src/runtime/proc.go               |  5 -----
+ src/runtime/runtime2.go           |  2 --
+ 7 files changed, 11 insertions(+), 29 deletions(-)

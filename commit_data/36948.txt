@@ -1,16 +1,22 @@
-commit 93cf82f08af78869a721d4e48fc4fd1ce08cd259
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Fri Oct 12 11:36:54 2018 +0200
+commit f7142206e95f7b7bf880d8819341718b9adef7dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 12 16:05:29 2018 -0400
 
-    os: make UserHomeDir return "/" on iOS
+    cmd/go: use build cache for tests when GOCACHE is unset
     
-    The UserHomeDir test succeeds on the builder, but not when run
-    manually where HOME is set to the host $HOME.
+    Before this CL, if you had GOCACHE=/some/dir, then the cmd/go tests used it.
+    But if you were relying on the implicit behavior that GOCACHE being empty
+    meant an appropriate system-specific cache directory, then the cmd/go tests
+    ran with no cache at all, which makes them about 4X slower.
     
-    Change-Id: I1db0f608b04b311b53cc0c8160a3778caaf542f6
-    Reviewed-on: https://go-review.googlesource.com/c/141798
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    During all.bash GOCACHE is set to a fresh temporary directory and is therefore
+    already getting proper caching; this CL mainly helps people running 'go test cmd/go'
+    by hand.
+    
+    Change-Id: I7c322ca79b877c1d0a3b448b95d5354fbfcba7f8
+    Reviewed-on: https://go-review.googlesource.com/118320
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/file.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/go_test.go | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

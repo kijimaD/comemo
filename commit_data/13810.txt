@@ -1,21 +1,14 @@
-commit 237ee3926906ad08a048e764920e036ecdb08b11
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Sep 13 15:47:12 2012 +1000
+commit 66331532cd512ae2d506c7a120796c203c78099c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 12 17:37:39 2012 -0400
 
-    image/png: optimize encoding image.Gray and image.NRGBA images.
+    net/rpc/jsonrpc: fix test error message
     
-    benchmark                    old ns/op    new ns/op    delta
-    BenchmarkEncodeGray           23616080      5624558  -76.18%
-    BenchmarkEncodeNRGBOpaque     34181260     17144380  -49.84%
-    BenchmarkEncodeNRGBA          41235820     20345990  -50.66%
-    BenchmarkEncodePaletted        5594652      5620362   +0.46%
-    BenchmarkEncodeRGBOpaque      17242210     17168820   -0.43%
-    BenchmarkEncodeRGBA           66515720     67243560   +1.09%
+    Fixes #4041.
     
-    R=r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6490099
+    https://golang.org/cl/6495121
 
- src/pkg/image/png/writer.go      | 61 +++++++++++++++++++++++++++-------------
- src/pkg/image/png/writer_test.go | 45 ++++++++++++++++++++++++++++-
- 2 files changed, 85 insertions(+), 21 deletions(-)
+ src/pkg/net/rpc/jsonrpc/all_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

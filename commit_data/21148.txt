@@ -1,12 +1,30 @@
-commit 35132a6be8cbfd6be2adfb1096e6f4de6c9cea4e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jan 5 15:27:20 2015 +0900
+commit 378c2515aeec0e23662631dc6ba63148594ad92b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 15:25:33 2014 -0500
 
-    crypto/x509: fix nacl build
+    runtime: remove assumption that noptrdata data bss noptrbss are ordered and contiguous
     
-    Change-Id: Ie47c6460c1749aef3cf6d7c6ba44d43305d7ca7b
-    Reviewed-on: https://go-review.googlesource.com/2305
-    Reviewed-by: Minux Ma <minux@golang.org>
+    The assumption can be violated by external linkers reordering them or
+    inserting non-Go sections in between them. I looked briefly at trying
+    to write out the _go_.o in external linking mode in a way that forced
+    the ordering, but no matter what there's no way to force Go's data
+    and Go's bss to be next to each other. If there is any data or bss from
+    non-Go objects, it's very likely to get stuck in between them.
+    
+    Instead, rewrite the two places we know about that make the assumption.
+    I grepped for noptrdata to look for more and didn't find any.
+    
+    The added race test (os/exec in external linking mode) fails without
+    the changes in the runtime. It crashes with an invalid pointer dereference.
+    
+    Fixes #9133.
+    
+    LGTM=dneil
+    R=dneil
+    CC=dvyukov, golang-codereviews, iant
+    https://golang.org/cl/179980043
 
- src/crypto/x509/root_nacl.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/run.bash          |  5 +++--
+ src/runtime/malloc.go | 11 +++++++++--
+ src/runtime/race.c    | 44 +++++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 51 insertions(+), 9 deletions(-)

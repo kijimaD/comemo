@@ -1,18 +1,16 @@
-commit be7c50a7101a6e3cbd39648814c9f1030980c0f6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 3 01:11:49 2016 +0000
+commit 361d2738d5d750bd249661e725d3d9070fc3f2f5
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Sep 8 22:25:50 2016 -0400
 
-    net/http: deflake TestServerSetKeepAlivesEnabledClosesConns
+    cmd/link: remove the -shared flag
     
-    Fixes #17754
-    Updates #9478 (details in here)
+    The -shared flag has been superseded by the -buildmode flag.
     
-    Change-Id: Iae2c1ca05a18ed266b53b2594c22fc57fab33c5e
-    Reviewed-on: https://go-review.googlesource.com/32587
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3682cc0367b919084c280d7dc64746485c1d4ddd
+    Reviewed-on: https://go-review.googlesource.com/28852
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/net/http/export_test.go | 12 ++++++++++++
- src/net/http/serve_test.go  |  3 +++
- 2 files changed, 15 insertions(+)
+ src/cmd/link/internal/ld/main.go | 11 -----------
+ 1 file changed, 11 deletions(-)

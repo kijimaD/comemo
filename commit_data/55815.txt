@@ -1,22 +1,23 @@
-commit 566e08fc649cb8c65d2a9f0f362ce76d79e0fc4d
-Author: apocelipes <seve3r@outlook.com>
-Date:   Mon Mar 4 12:07:50 2024 +0000
+commit be27fcfd2bfeda927213f334811df794d6a45872
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 14 14:49:16 2023 -0700
 
-    cmd/compile/internal: use reflectdata.TypeLinksym
+    os, internal/poll: don't use splice with tty
     
-    As the document of Sym.Linksym said, we replace
-    reflectdata.TypeSym(t).Linksym() with reflectdata.TypeLinksym(t).
+    Also don't try to wait for a non-pollable FD.
     
-    Change-Id: I578eb159e552e60cd05d2aa1560f91797a6629ef
-    GitHub-Last-Rev: d096cba8f08506d7c5248dbf0179e5aef77e8f65
-    GitHub-Pull-Request: golang/go#66088
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568715
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #59041
+    
+    Change-Id: Ife469d8738f2cc27c0beba223bdc8f8bc757b2a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476335
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/walk/expr.go   | 2 +-
- src/cmd/compile/internal/walk/switch.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/internal/poll/splice_linux.go | 19 ++++-----
+ src/os/readfrom_linux.go          | 13 ++++++
+ src/os/readfrom_linux_test.go     | 84 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 107 insertions(+), 9 deletions(-)

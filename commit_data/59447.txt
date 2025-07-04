@@ -1,18 +1,20 @@
-commit cad1fc52076f1368d79aa833c1810ae050df57e6
-Author: Mark Freeman <mark@golang.org>
-Date:   Wed May 7 16:46:47 2025 -0400
+commit c841ba3a3e4f320c7939a8097f8e54b752644d81
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Mar 14 12:06:36 2024 +0000
 
-    cmd/compile/internal/noder: begin a formal UIR grammar.
+    math/big: use built-in clear to simplify code
     
-    The UIR export data format can be reasonably expressed using EBNF.
-    The noder owns the definition of the export data format, so this
-    seems like a reasonable place to put this.
-    
-    Change-Id: I0205ab29a3c5e57d670d7fd3164a8bd604ab8e59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670616
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Mark Freeman <mark@golang.org>
-    Auto-Submit: Mark Freeman <mark@golang.org>
+    Change-Id: I07c3a498ce1e462c3d1703d77e7d7824e9334651
+    GitHub-Last-Rev: 2ba8c4c705eaeb0772109ece7296978b62467eb3
+    GitHub-Pull-Request: golang/go#66312
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571636
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/noder/doc.go | 37 +++++++++++++++++++++++++++++++++++
- 1 file changed, 37 insertions(+)
+ src/math/big/int.go    |  6 ++----
+ src/math/big/nat.go    | 22 ++++++++--------------
+ src/math/big/natdiv.go | 12 ++++++------
+ 3 files changed, 16 insertions(+), 24 deletions(-)

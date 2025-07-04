@@ -1,17 +1,23 @@
-commit 5aebeaaca2c8221cc9ad0a0c8d8af46cd453955b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 06:49:29 2017 -0700
+commit 39366326cc2600792a9d9f8c170aae5bc1613d25
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Sun Jan 22 17:16:59 2017 -0800
 
-    cmd/compile: simplify sharedProgArray init
+    net/http/pprof: return error when requested profile duration exceeds WriteTimeout
     
-    Per code review feedback on CL 40693.
+    Updates Profile and Trace handlers to reject requests for durations >=
+    WriteTimeout.
     
-    Change-Id: I38c522022a3c2f3e61ea90181391edb5c178916e
-    Reviewed-on: https://go-review.googlesource.com/41300
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Modifies go tool pprof to print the body of the http response when
+    status != 200.
+    
+    Fixes #18755
+    
+    Change-Id: I6faed21685693caf39f315f003039538114937b0
+    Reviewed-on: https://go-review.googlesource.com/35564
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/gsubr.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/pprof/internal/fetch/fetch.go | 18 +++++++++++++++---
+ src/net/http/pprof/pprof.go           | 23 +++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 3 deletions(-)

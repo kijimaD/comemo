@@ -1,24 +1,24 @@
-commit 3a0061822e0bfa79f2a464807e12970f588e3e94
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue Mar 23 15:35:30 2021 +0800
+commit 612b1194475a23760ec502b48a93fea7237f3ae6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 2 21:04:12 2020 -0400
 
-    cmd/compile: add arm64 rules to optimize go codes to constant 0
+    cmd/link: pass darwin/amd64-specific flags only on AMD64
     
-    Optimize the following codes to constant 0.
+    The linker assumed macOS is AMD64 (and 386 in the past). It
+    passes darwin/amd64-specific flags to the external linker when
+    building for macOS. They don't work for ARM64-based macOS. So
+    only pass them on AMD64.
     
-      function shift (x uint32) uint64 {
-        return uint64(x) >> 32
-      }
+    Disable DWARF combining for macOS ARM64 for now. The generated
+    binary doesn't run. (TODO: fix.)
     
-    Change-Id: Ida6b39d713cc119ad5a2f01fd54bfd252cf2c975
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303830
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    For macOS ARM64 port. External linking now works.
+    
+    Change-Id: Iab53bc48f4fadd9b91de8898b4b450ea442667a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253019
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 10 ++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 90 ++++++++++++++++++++++++++++
- test/codegen/bitfield.go                     | 11 ++++
- 3 files changed, 111 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

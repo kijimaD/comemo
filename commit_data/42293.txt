@@ -1,20 +1,21 @@
-commit 05e3ad38973a1f594b46ec16ce355b09aef76924
-Author: Shengyu Zhang <shengyu.zhang@chaitin.com>
-Date:   Wed Dec 11 02:46:49 2019 +0000
+commit c931f1b6e69492a19b935dc0812499a55d634403
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 21 15:03:24 2019 -0500
 
-    cmd/go: add -Wl,-E to linker flag whitelist (shortcut of --export-dynamic)
+    misc/cgo/testshared: make -v output less verbose
     
-    According to https://linux.die.net/man/1/ld, `-E` is a shortcut of
-    `--export-dynamic`, it will be better to be added in to whitelist for the
-    later one has been added in https://golang.org/cl/134016.
+    Previously, 'go test -v' in this directory would result in a massive
+    dump of go command output, because the test plumbed -v to 'build -x'.
+    This change separates them into distinct flags, so that '-v' only
+    implies the display of default 'go' command output.
     
-    Change-Id: I11aa8ea7d86c1c58a2f1dcd258f6f7d2e50861df
-    GitHub-Last-Rev: 4b1b3676c58406f48fed0571e5353e039f27830d
-    GitHub-Pull-Request: golang/go#36066
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210657
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #30316
+    
+    Change-Id: Ifb125f35ec6a0bebe7e8286e7c546d132fb213df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208232
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/security.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/testshared/shared_test.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

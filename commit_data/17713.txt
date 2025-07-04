@@ -1,17 +1,16 @@
-commit cdb33231b2d988b71f03f622fc9c3d2edccc20e0
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Sep 29 10:34:41 2013 +1000
+commit bdafe73ce4f4910efd71eb5fdd7a5fc4614a9afe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 27 20:38:52 2013 -0700
 
-    race.bash, race.bat: build a race enabled cmd/cgo before trying to use it
+    test: recognize gccgo error message in index.go
     
-    Fixes #5537.
+    When a floating point constant is used as an array/slice
+    index, gccgo prints "error: index must be integer"; gc prints
+    "constant 2.1 truncated to integer".
     
-    To avoid `go install -v race std` replacing cmd/cgo with a race enabled version and another package trying to build a cgo enabled package, always build cmd/cgo race enabled before doing the rest of the build.
-    
-    R=remyoudompheng, rsc, dvyukov, minux.ma
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/14071044
+    https://golang.org/cl/14044044
 
- src/race.bash | 2 ++
- src/race.bat  | 3 +++
- 2 files changed, 5 insertions(+)
+ test/index.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,19 @@
-commit e62622b1b1a51471f85d13119f0dbff76bdac4b0
+commit e812db35581d257fb2d3518509898fc22bdd2d48
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 30 13:42:14 2011 -0500
+Date:   Wed Nov 30 13:36:25 2011 -0500
 
-    os: fix path/filepath test on Windows
+    encoding/asn1: fix test on OpenBSD
     
-    This is not the right fix, but it is what used to happen
-    before the FileInfo conversion, and it should get the
-    build working again (at least that part).
+    time.Parse uses time.Local if it has the right zone offset,
+    otherwise it calls time.FixedZone.  The test's use of reflect.DeepEqual
+    meant that the test expected time.FixedZone always, failing
+    when the local time zone really would have used -0700 for
+    that time.  The fix is to format the time to display only the
+    pieces we intend to test.
     
-    TBR=brainman
+    R=golang-dev, agl, iant
     CC=golang-dev
-    https://golang.org/cl/5434090
+    https://golang.org/cl/5437088
 
- src/pkg/os/stat_windows.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/encoding/asn1/asn1_test.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

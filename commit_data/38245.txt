@@ -1,19 +1,14 @@
-commit 4b142806fa070bfbd26126c75b109f6aefc3b738
-Author: sergey <sngasuan@gmail.com>
-Date:   Sun Mar 3 16:38:04 2019 +0300
+commit c4f07510a0161c4493a751984e24532a1b189759
+Author: Ivan Sharavuev <shpiwan@gmail.com>
+Date:   Sat Oct 13 13:14:39 2018 +0300
 
-    net/http: add corner cases for readCookiesTests
+    strings: Replace s[:] to s where s is a slice.
     
-    The following corner cases for readCookiesTests are tested now:
-     - An extra cookie delimiter ";" at the end of a Cookie header
-     - An empty Cookie header
-    
-    Change-Id: Id8028b448e4182613fb261bf0903efc98cbf4997
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164702
-    Reviewed-by: Volker Dobler <dr.volker.dobler@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ie7ba3f9ece9b0fc0e8a5c92fbae9c3b558815e4c
+    Reviewed-on: https://go-review.googlesource.com/c/141997
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
 
- src/net/http/cookie_test.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/strings/replace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

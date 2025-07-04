@@ -1,16 +1,22 @@
-commit 316f93f7164d015ce82f341bd58657cc84f2cc69
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 3 13:32:11 2016 -0700
+commit 0dae2fd149537a0385b48bbd1564b3cfefa1c85b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 1 14:18:00 2016 -0700
 
-    go/types: minimal support for alias declarations: don't crash
+    cmd/objdump: fix disassembly suffixes
     
-    For #16339
+    MOVB $1, (AX) was being disassembled as MOVL $1, (AX).
     
-    Change-Id: I8927f40e0fd166795f41c784ad92449743f73af5
-    Reviewed-on: https://go-review.googlesource.com/30213
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Use the memory size to override the standard size.
+    Fix the tests.
+    
+    Fixes #15922
+    
+    Change-Id: If92fe74c33a21e5427c8c5cc97dd15e087edb860
+    Reviewed-on: https://go-review.googlesource.com/23608
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/check_test.go          |  1 +
- src/go/types/resolver.go            |  3 +++
- src/go/types/testdata/aliasdecl.src | 10 ++++++++++
- 3 files changed, 14 insertions(+)
+ .../vendor/golang.org/x/arch/x86/x86asm/plan9x.go  |   6 +-
+ .../x/arch/x86/x86asm/testdata/decode.txt          | 306 +++++++++++----------
+ 2 files changed, 159 insertions(+), 153 deletions(-)

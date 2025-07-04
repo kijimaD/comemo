@@ -1,27 +1,20 @@
-commit 5a6c58099085a8156bc42b68a7cf51b5b9c72802
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Thu Apr 27 08:30:27 2017 +0200
+commit c12cd31a3326e6b2119525cd07cebc6d6e1b52ee
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Thu Feb 16 14:58:47 2017 -0200
 
-    runtime: refactor cpu feature detection for 386 & amd64
+    cmd/internal/obj/ppc64: Fix RLDIMI
     
-    Changes all cpu features to be detected and stored in bools in rt0_go.
+    Fix the encoding of the SH field for rldimi.
     
-    Updates: #15403
+    The SH field of rldimi is 6-bit wide and it is not contiguous in the instruction.
+    Bits 0-4 are placed in bit fields 16-20 in the instruction, while bit 5 is
+    placed in bit field 30. The current implementation does not consider this and,
+    therefore, any SH field between 32 and 63 are encoded wrongly in the instruciton.
     
-    Change-Id: I5a9961cdec789b331d09c44d86beb53833d5dc3e
-    Reviewed-on: https://go-review.googlesource.com/41950
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I4d25a0a70f4219569be0e18160dea5505bd7fff0
+    Reviewed-on: https://go-review.googlesource.com/37350
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/runtime/alg.go            |   6 +--
- src/runtime/asm_386.s         |  79 ++++++++++++++++++++++++-----
- src/runtime/asm_amd64.s       | 112 +++++++++++++++++++++++-------------------
- src/runtime/asm_amd64p32.s    |  80 +++++++++++++++++++++++++++---
- src/runtime/cpuflags_amd64.go |  10 ++--
- src/runtime/memclr_386.s      |   4 +-
- src/runtime/memmove_386.s     |   8 +--
- src/runtime/memmove_amd64.s   |   4 +-
- src/runtime/runtime2.go       |  34 ++++++++-----
- 9 files changed, 243 insertions(+), 94 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go | 3 +++
+ 1 file changed, 3 insertions(+)

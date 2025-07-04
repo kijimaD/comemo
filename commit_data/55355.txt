@@ -1,26 +1,21 @@
-commit b7c630dc3ac3f43b2294f803f26f512d75a54fc6
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Wed Dec 13 21:18:07 2023 +0000
+commit 066b780502c8c87c03f8a5e0bbc16c1c87221cf1
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Dec 12 11:04:05 2022 -0500
 
-    runtime: fix tests when running with -msan
+    cmd/link: load host archive libc_nonshared.a for -fstack-protector
     
-    Currently go test -msan runtime always fails on loong64, arm64
-    and amd64. Changed the variable name to sz to match the
-    function prototypes.
+    For internal linking, at the point where we finish reading libgcc.a,
+    if the symbol "__stack_chk_local" is still undefined, then read
+    in the host archive libc_nonshared.a as well.
     
-    For #64256
+    Updates #57261.
     
-    Change-Id: Ida71197307016520deb39293927850d47845140a
-    GitHub-Last-Rev: 0ee1e3bb093e682ef325d9860a8fed67570ca345
-    GitHub-Pull-Request: golang/go#64572
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547696
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: I0b1e485aa50aa7940db8cabcb3b9a7959bf99ce7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456856
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/msan_amd64.s   | 10 +++++-----
- src/runtime/msan_arm64.s   | 10 +++++-----
- src/runtime/msan_loong64.s | 10 +++++-----
- 3 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 19 +++++++++++++++++++
+ src/runtime/cgo/cgo.go          |  4 +---
+ 2 files changed, 20 insertions(+), 3 deletions(-)

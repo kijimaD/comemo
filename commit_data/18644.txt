@@ -1,14 +1,16 @@
-commit 5b35dc0f6f0ff0a96edd8f8460911273bced073a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 25 11:31:09 2014 -0500
+commit fd4b4b56c4a1fd3426fc9ab4c36ec1b270089d29
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 25 08:08:15 2014 -0800
 
-    runtime: fix 386, arm build
+    net/http: add Transport.TLSHandshakeTimeout; set it by default
     
-    CL 68150047 lost runtime.panicdivide.
+    Update #3362
     
-    TBR=dfc
+    LGTM=agl
+    R=agl
     CC=golang-codereviews
-    https://golang.org/cl/68610043
+    https://golang.org/cl/68150045
 
- src/pkg/runtime/panic.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/net/http/transport.go      | 36 +++++++++++++++++---
+ src/pkg/net/http/transport_test.go | 67 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 99 insertions(+), 4 deletions(-)

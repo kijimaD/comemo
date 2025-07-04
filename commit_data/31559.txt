@@ -1,18 +1,16 @@
-commit dddd1dd481c98c85c1e2b05ff51679db4338d6e5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 12 07:11:53 2017 -0700
+commit 9bd1cc3fa1145182e9ce041d0e96bd2051cd7fcf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 1 13:29:17 2017 +0000
 
-    cmd/go: fix TestExecutableGOROOT on Windows
+    Revert "cmd/vet/all: remove pprof from the whitelist"
     
-    On Windows the drive letter is sometime "c:" and sometimes "C:".
+    This reverts commit 12b6c18139233abd7b1af1fc0a07279d56df3642.
     
-    Fixes #20336.
+    Reason for revert: Broke vet builder. #19322 was not fully fixed.
     
-    Change-Id: I38c86999af9522c51470d60016729d41cfec6b25
-    Reviewed-on: https://go-review.googlesource.com/43390
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id85131d4d0b8915480d65e3532da62b769463d70
+    Reviewed-on: https://go-review.googlesource.com/37625
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/go_test.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/cmd/vet/all/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

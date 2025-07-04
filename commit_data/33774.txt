@@ -1,20 +1,16 @@
-commit 7684fe0bf1b60495621f888483199867ed52d54a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 1 13:54:15 2017 -0500
+commit 4410900a3cf4477fc91b3a09cadd215cc0fe8d3a
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Sep 6 22:05:24 2017 -0400
 
-    cmd/test2json: add ability to run test binary
+    cmd/compile: revert "more compact representation of DW_AT_high_pc"
     
-    Also be clear that go test output is not suitable for piping into test2json.
+    This reverts commit 84188296e93dd4d26cb0a75a03a9096794e01e2f AKA CL 60530.
     
-    Fixes #22710.
-    Fixes #22789.
+    Fixes #21783
     
-    Change-Id: I3d850c8a2288be7f9a27d638bbf847cb8707dcce
-    Reviewed-on: https://go-review.googlesource.com/81555
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I68038a77de7446dea68419a40dd25982ea6d7df5
+    Reviewed-on: https://go-review.googlesource.com/62151
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/go/go_test.go     |  5 +++++
- src/cmd/test2json/main.go | 48 ++++++++++++++++++++++++++++++++++++++---------
- 2 files changed, 44 insertions(+), 9 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

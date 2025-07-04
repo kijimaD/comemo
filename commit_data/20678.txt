@@ -1,20 +1,18 @@
-commit 9ca836844496fe8723d8fe215d78530d1bba032e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Oct 9 16:10:51 2014 +1100
+commit 0b36211cfb823f41e3a201dd18ddee7a68b4d4e3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Sep 30 10:03:10 2014 +1000
 
-    misc/cgo/test: add Test8517
+    liblink: generate MRC replacement in liblink, not tls_arm
     
-    CL 145890044 did not provide test. Rectify that.
+    Fixes #8690.
     
-    Update #8517
+    This CL moves the save of LR around BL runtime.read_tls_fallback to liblink as it is not needed when MRC is not replaced.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    LGTM=rsc, minux
+    R=rsc, khr, minux
     CC=golang-codereviews
-    https://golang.org/cl/148790043
+    https://golang.org/cl/147310043
 
- misc/cgo/test/cgo_test.go          |  1 +
- misc/cgo/test/issue8517.go         | 13 +++++++++++
- misc/cgo/test/issue8517_windows.c  | 24 ++++++++++++++++++++
- misc/cgo/test/issue8517_windows.go | 45 ++++++++++++++++++++++++++++++++++++++
- 4 files changed, 83 insertions(+)
+ src/liblink/obj5.c    | 20 ++++++++++++++++++--
+ src/runtime/tls_arm.s | 11 +++--------
+ 2 files changed, 21 insertions(+), 10 deletions(-)

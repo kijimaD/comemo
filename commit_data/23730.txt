@@ -1,51 +1,43 @@
-commit cc8f5441980a8c2f9e6c8ec3222985ed488e76ba
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jul 16 16:27:09 2015 -0400
+commit 0dca7351e9d51bdaf980e1256ec41af8cb1b9747
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jun 6 16:03:33 2015 -0700
 
-    runtime: don't free large spans until heapBitsSweepSpan returns
+    [dev.ssa] cmd/compile/internal/ssa: autogenerate opcodes
     
-    This fixes a race between 1) sweeping and freeing an unmarked large
-    span and 2) reusing that span and allocating from it. This race arises
-    because mSpan_Sweep returns spans for large objects to the heap
-    *before* heapBitsSweepSpan clears the mark bit on the object in the
-    span.
+    Revamp autogeneration.  Get rid of gogenerate commands, they are more
+    trouble than they are worth.  (If the code won't compile, gogenerate
+    doesn't work.)
     
-    Specifically, the following sequence of events can lead to an
-    incorrectly zeroed bitmap byte, which causes the garbage collector to
-    not trace any pointers in that object (the pointer bits for the first
-    four words are cleared, and the scan bits are also cleared, so it
-    looks like a no-scan object).
+    Generate opcode enums & tables.  This means we only have to specify
+    opcodes in one place instead of two.
     
-    1) P0 calls mSpan_Sweep on a large span S0 with an unmarked object on it.
+    Add arch prefixes to opcodes so they will be globally unique.
     
-    2) mSpan_Sweep calls heapBitsSweepSpan, which invokes the callback for
-       the one (unmarked) object on the span.
-    
-    3) The callback calls mHeap_Free, which makes span S0 available for
-       allocation, but this is too early.
-    
-    4) P1 grabs this S0 from the heap to use for allocation.
-    
-    5) P1 allocates an object on this span and writes that object's type
-       bits to the bitmap.
-    
-    6) P0 returns from the callback to heapBitsSweepSpan.
-       heapBitsSweepSpan clears the byte containing the mark, even though
-       this span is now owned by P1 and this byte contains important
-       bitmap information.
-    
-    This fixes this problem by simply delaying the mHeap_Free until after
-    the heapBitsSweepSpan. I think the overall logic of mSpan_Sweep could
-    be simplified now, but this seems like the minimal change.
-    
-    Fixes #11617.
-    
-    Change-Id: I6b1382c7e7cc35f81984467c0772fe9848b7522a
-    Reviewed-on: https://go-review.googlesource.com/12320
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I175d0a89b701b2377bbe699f3756731b7c9f5a9f
+    Reviewed-on: https://go-review.googlesource.com/10812
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgcsweep.go | 64 +++++++++++++++++++++++++++----------------------
- 1 file changed, 36 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 |  40 +-
+ src/cmd/compile/internal/ssa/block.go              |  30 +-
+ src/cmd/compile/internal/ssa/blockkind_string.go   |  32 -
+ src/cmd/compile/internal/ssa/config.go             |   8 +-
+ .../{rulegen/lower_amd64.rules => gen/AMD64.rules} |  28 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       | 161 ++++
+ src/cmd/compile/internal/ssa/gen/README            |   7 +
+ .../internal/ssa/{rulegen => gen}/generic.rules    |   6 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go     | 104 +++
+ src/cmd/compile/internal/ssa/gen/main.go           | 146 ++++
+ .../internal/ssa/{rulegen => gen}/rulegen.go       | 104 ++-
+ src/cmd/compile/internal/ssa/lower.go              |   4 +-
+ src/cmd/compile/internal/ssa/lowergeneric.go       | 289 +++++++
+ src/cmd/compile/internal/ssa/op.go                 | 176 +---
+ src/cmd/compile/internal/ssa/opGen.go              | 916 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/op_string.go          |  32 -
+ src/cmd/compile/internal/ssa/opamd64.go            | 196 -----
+ src/cmd/compile/internal/ssa/opt.go                |   5 +-
+ src/cmd/compile/internal/ssa/regalloc.go           |  42 +-
+ .../ssa/{lowerAmd64.go => rewriteAMD64.go}         | 374 ++++-----
+ src/cmd/compile/internal/ssa/rewritegeneric.go     | 424 ++++++++++
+ src/cmd/compile/internal/ssa/stackalloc.go         |   9 +-
+ src/cmd/compile/internal/ssa/value.go              |   7 +-
+ 23 files changed, 2391 insertions(+), 749 deletions(-)

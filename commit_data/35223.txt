@@ -1,24 +1,21 @@
-commit 7f6105f138b3836e9ad85b8da26d44c742bf217b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 30 20:23:37 2018 -0700
+commit 39687051e9e781bb438ad32154472356fddf98a8
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 15 12:52:48 2018 +1100
 
-    net, syscall: make ECONNRESET/ECONNABORTED only temporary for Accept
+    cmd/go: clarify and simplify (a little) the description of go test's caching
     
-    Updates #6163
-    Fixes #24808
+    I found the previous text choppy and hard to follow, and in putting
+    this CL together, based entirely on the existing text, I found
+    several details that seemed misleading to me.
     
-    Change-Id: I4f5c686ebf60f72f71f566199ee3e946076202bb
-    Reviewed-on: https://go-review.googlesource.com/110439
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This is my attempt to make the text simultaneously easier to
+    understand, more complete, and more precise. I may have failed in
+    all three, but I wanted to try.
+    
+    Change-Id: I088cb457f6fcad8f2b40236949cc3ac43455e600
+    Reviewed-on: https://go-review.googlesource.com/87735
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/error_nacl.go          |  9 +++++++++
- src/net/error_plan9.go         |  9 +++++++++
- src/net/error_unix.go          | 16 ++++++++++++++++
- src/net/error_windows.go       | 14 ++++++++++++++
- src/net/net.go                 |  6 ++++++
- src/net/net_test.go            | 27 +++++++++++++++++++++++++++
- src/syscall/syscall_unix.go    |  2 +-
- src/syscall/syscall_windows.go |  2 +-
- 8 files changed, 83 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go            | 73 ++++++++++++++++++++++------------------
+ src/cmd/go/internal/test/test.go | 73 ++++++++++++++++++++++------------------
+ 2 files changed, 82 insertions(+), 64 deletions(-)

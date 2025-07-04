@@ -1,33 +1,25 @@
-commit 031854117f91fbc1265840a04caf2a7a168dd06b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed May 5 17:08:39 2021 -0400
+commit 7191f1136b1526703c5af7fc04ff948e3a6c26b9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 30 10:36:31 2020 -0700
 
-    cmd/go: include packages with InvalidGoFiles when filtering main packages
+    cmd/compile: fix reassignVisitor
     
-    If a package has files with conflicting package names, go/build
-    empirically populates the first name encountered and puts the
-    remaining files in InvalidGoFiles. That foiled our check for packages
-    whose name is either unpopulated or "main", since the "package main"
-    could be found in a source file after the first.
+    reassignVisitor was short-circuiting on assignment statements after
+    checking the LHS, but there might be further assignment statements
+    nested within the RHS expressions.
     
-    Instead, we now treat any package with a nonzero set of InvalidGoFiles
-    as potentially a main package. This biases toward over-reporting
-    errors, but we would rather over-report than under-report.
+    Fixes #42284.
     
-    If we fix #45999, we will be able to make these error checks more
-    precise.
-    
-    Updates #42088
-    Fixes #45827
-    Fixes #39986
-    
-    Change-Id: I588314341b17961b38660192c2130678dc03023e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317300
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I175eef87513b973ed5ebe6a6527adb9766dde6cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266618
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/load/pkg.go                    | 76 +++++++++++++---------
- .../go/testdata/script/mod_install_pkg_version.txt |  2 +-
- src/cmd/go/testdata/script/mod_run_nonmain.txt     | 18 +++++
- src/cmd/go/testdata/script/mod_run_pkgerror.txt    | 20 +++++-
- 4 files changed, 82 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/gc/inl.go |  2 --
+ test/fixedbugs/issue42284.dir/a.go | 23 +++++++++++++++++++++++
+ test/fixedbugs/issue42284.dir/b.go | 15 +++++++++++++++
+ test/fixedbugs/issue42284.go       |  7 +++++++
+ 4 files changed, 45 insertions(+), 2 deletions(-)

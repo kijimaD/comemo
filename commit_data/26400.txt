@@ -1,27 +1,20 @@
-commit ec7c49453516957280ab8756c5dcd45f7cc11efe
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 19 17:02:01 2016 -0700
+commit 5e7110b92b959d22eba421953beaf1de8580f8f5
+Author: OneOfOne <oneofone@gmail.com>
+Date:   Fri Jan 15 19:24:44 2016 +0200
 
-    cmd/compile: remove typechecklist
+    cmd/link: fix elf64phdr to allow using upx (and other broken ELF loaders).
     
-    Convert remaining uses to typecheckslice.
+    The linker already applies the fix for elf32, so this just extends it to elf64.
     
-    Passes toolstash -cmp.
+    Inspired by https://github.com/pwaller/goupx
     
-    Change-Id: I6ed0877386fb6c0b036e8ee5a228433343855abd
-    Reviewed-on: https://go-review.googlesource.com/20905
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fixes #13974
+    
+    Change-Id: I65d92b5be9590657060a0e8e80ff5b86ba40017f
+    Reviewed-on: https://go-review.googlesource.com/18690
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/alg.go       |  4 ++--
- src/cmd/compile/internal/gc/closure.go   |  2 +-
- src/cmd/compile/internal/gc/inl.go       |  4 ++--
- src/cmd/compile/internal/gc/main.go      |  2 +-
- src/cmd/compile/internal/gc/range.go     |  8 +++----
- src/cmd/compile/internal/gc/select.go    |  4 ++--
- src/cmd/compile/internal/gc/subr.go      |  2 +-
- src/cmd/compile/internal/gc/swt.go       |  4 ++--
- src/cmd/compile/internal/gc/typecheck.go | 36 +++++++++++++-------------------
- src/cmd/compile/internal/gc/walk.go      | 10 ++++-----
- 10 files changed, 35 insertions(+), 41 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 30 ++++++++++++++++++++----------
+ 1 file changed, 20 insertions(+), 10 deletions(-)

@@ -1,93 +1,17 @@
-commit 496b8dbbfcd39cc51e1dfc1e9be90b7e61179009
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 25 17:25:54 2019 -0400
+commit 701f6a27b5c2499c1e84c28a3761eb2f1bf6fd7e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 11 12:56:09 2019 -0500
 
-    cmd, runtime: remove PC_F & PC_B globals on Wasm
+    cmd/go/internal/modcmd: use replaced paths to break cycles in 'go mod tidy'
     
-    Following the previous CL, this removes more global variables on
-    Wasm.
+    Fixes #30166
     
-    PC_B is used mostly for intra-function jumps, and for a function
-    telling its callee where to start or resume. This usage can be
-    served by a parameter. The top level loop (wasm_pc_f_loop) uses
-    PC_B for resuming a function. This value is either set by gogo,
-    or loaded from the Go stack at function return. Instead of
-    loading PC_B at each function return, we could make gogo stores
-    PC_B at the same stack location, and let the top level loop do
-    the load. This way, we don't need to use global PC_B to
-    communicate with the top level loop, and we can replace global
-    PC_B with a parameter.
-    
-    PC_F is similar. It is even more so in that the only reader is
-    the top level loop. Let the top level loop read it from the stack,
-    and we can get rid of PC_F entirely.
-    
-    PC_F and PC_B are used less entensively as SP, so this CL has
-    smaller performance gain.
-    
-    Running on Chrome 74.0.3729.108 on Linux/AMD64,
-    
-    name                   old time/op    new time/op    delta
-    BinaryTree17              16.6s ± 0%     16.2s ± 1%   -2.59%  (p=0.016 n=4+5)
-    Fannkuch11                11.1s ± 1%     10.8s ± 0%   -2.65%  (p=0.008 n=5+5)
-    FmtFprintfEmpty           231ns ± 1%     217ns ± 0%   -6.06%  (p=0.008 n=5+5)
-    FmtFprintfString          407ns ± 3%     375ns ± 2%   -7.81%  (p=0.008 n=5+5)
-    FmtFprintfInt             466ns ± 2%     430ns ± 0%   -7.79%  (p=0.016 n=5+4)
-    FmtFprintfIntInt          719ns ± 2%     673ns ± 2%   -6.37%  (p=0.008 n=5+5)
-    FmtFprintfPrefixedInt     706ns ± 1%     676ns ± 3%   -4.31%  (p=0.008 n=5+5)
-    FmtFprintfFloat          1.01µs ± 1%    0.97µs ± 1%   -4.30%  (p=0.008 n=5+5)
-    FmtManyArgs              2.67µs ± 1%    2.51µs ± 1%   -5.95%  (p=0.008 n=5+5)
-    GobDecode                30.7ms ± 9%    31.3ms ±34%     ~     (p=0.222 n=5+5)
-    GobEncode                24.2ms ±23%    20.2ms ± 0%  -16.36%  (p=0.016 n=5+4)
-    Gzip                      852ms ± 0%     823ms ± 0%   -3.38%  (p=0.016 n=4+5)
-    Gunzip                    160ms ± 1%     151ms ± 1%   -5.37%  (p=0.008 n=5+5)
-    JSONEncode               35.7ms ± 1%    34.3ms ± 1%   -3.81%  (p=0.008 n=5+5)
-    JSONDecode                247ms ± 8%     254ms ± 7%     ~     (p=0.548 n=5+5)
-    Mandelbrot200            5.39ms ± 0%    5.41ms ± 0%   +0.42%  (p=0.008 n=5+5)
-    GoParse                  18.5ms ± 1%    18.3ms ± 2%     ~     (p=0.343 n=4+4)
-    RegexpMatchEasy0_32       424ns ± 2%     397ns ± 0%   -6.23%  (p=0.008 n=5+5)
-    RegexpMatchEasy0_1K      2.88µs ± 0%    2.86µs ± 1%     ~     (p=0.079 n=5+5)
-    RegexpMatchEasy1_32       395ns ± 2%     370ns ± 1%   -6.23%  (p=0.008 n=5+5)
-    RegexpMatchEasy1_1K      3.26µs ± 0%    3.19µs ± 1%   -2.06%  (p=0.008 n=5+5)
-    RegexpMatchMedium_32      564ns ± 1%     532ns ± 0%   -5.71%  (p=0.008 n=5+5)
-    RegexpMatchMedium_1K      146µs ± 2%     140µs ± 1%   -4.62%  (p=0.008 n=5+5)
-    RegexpMatchHard_32       8.47µs ± 1%    7.91µs ± 1%   -6.65%  (p=0.008 n=5+5)
-    RegexpMatchHard_1K        253µs ± 1%     236µs ± 2%   -6.66%  (p=0.008 n=5+5)
-    Revcomp                   1.78s ± 4%     1.76s ± 5%     ~     (p=1.000 n=5+5)
-    Template                  292ms ±29%     269ms ± 5%     ~     (p=0.690 n=5+5)
-    TimeParse                1.61µs ± 4%    1.54µs ± 1%   -4.42%  (p=0.008 n=5+5)
-    TimeFormat               1.66µs ± 3%    1.58µs ± 1%   -5.22%  (p=0.008 n=5+5)
-    [Geo mean]                232µs          221µs        -4.54%
-    
-    name                   old speed      new speed      delta
-    GobDecode              25.0MB/s ± 8%  25.1MB/s ±27%     ~     (p=0.222 n=5+5)
-    GobEncode              32.8MB/s ±21%  38.0MB/s ± 0%  +15.84%  (p=0.016 n=5+4)
-    Gzip                   22.8MB/s ± 0%  23.6MB/s ± 0%   +3.49%  (p=0.016 n=4+5)
-    Gunzip                  121MB/s ± 1%   128MB/s ± 1%   +5.68%  (p=0.008 n=5+5)
-    JSONEncode             54.4MB/s ± 1%  56.5MB/s ± 1%   +3.97%  (p=0.008 n=5+5)
-    JSONDecode             7.88MB/s ± 8%  7.65MB/s ± 8%     ~     (p=0.548 n=5+5)
-    GoParse                3.07MB/s ± 8%  3.00MB/s ±22%     ~     (p=0.579 n=5+5)
-    RegexpMatchEasy0_32    75.6MB/s ± 2%  80.5MB/s ± 0%   +6.58%  (p=0.008 n=5+5)
-    RegexpMatchEasy0_1K     356MB/s ± 0%   358MB/s ± 1%     ~     (p=0.095 n=5+5)
-    RegexpMatchEasy1_32    81.1MB/s ± 2%  86.5MB/s ± 1%   +6.69%  (p=0.008 n=5+5)
-    RegexpMatchEasy1_1K     314MB/s ± 0%   320MB/s ± 0%   +2.10%  (p=0.008 n=5+5)
-    RegexpMatchMedium_32   1.77MB/s ± 1%  1.88MB/s ± 0%   +6.09%  (p=0.016 n=5+4)
-    RegexpMatchMedium_1K   6.99MB/s ± 2%  7.33MB/s ± 1%   +4.83%  (p=0.008 n=5+5)
-    RegexpMatchHard_32     3.78MB/s ± 1%  4.04MB/s ± 1%   +7.04%  (p=0.008 n=5+5)
-    RegexpMatchHard_1K     4.04MB/s ± 1%  4.33MB/s ± 2%   +7.17%  (p=0.008 n=5+5)
-    Revcomp                 143MB/s ± 4%   145MB/s ± 5%     ~     (p=1.000 n=5+5)
-    Template               6.77MB/s ±24%  7.22MB/s ± 5%     ~     (p=0.690 n=5+5)
-    [Geo mean]             24.4MB/s       25.4MB/s        +4.18%
-    
-    Change-Id: Ib80716e62992aec28b2c4a96af280c278f83aa49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173980
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4704b57ed48197f512cd1b818e1f7d2fffc0d9ce
+    Reviewed-on: https://go-review.googlesource.com/c/161898
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/cmd/internal/obj/wasm/a.out.go   |   8 +--
- src/cmd/internal/obj/wasm/wasmobj.go | 134 +++++++++++++++++++++++++----------
- src/cmd/link/internal/wasm/asm.go    |  23 +++---
- src/runtime/asm_wasm.s               |  15 ++--
- src/runtime/rt0_js_wasm.s            |  54 +++++++-------
- 5 files changed, 146 insertions(+), 88 deletions(-)
+ src/cmd/go/internal/modcmd/tidy.go              |  4 ++-
+ src/cmd/go/testdata/script/mod_tidy_replace.txt | 39 +++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

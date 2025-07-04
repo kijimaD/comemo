@@ -1,27 +1,14 @@
-commit 4bdf1fc02bd44d539301d19c2781411d2c745b64
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 26 19:35:21 2011 -0400
+commit 4c462e6fd719861e03cab1a7c5c892b7db7baa11
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 26 15:58:01 2011 -0700
 
-    test: silence/coalesce some tests
+    gob: protect against invalid message length
+    Fixes #2301.
     
-    Add copyright notice to nilptr.go.
-    
-    R=golang-dev, r
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5139048
+    https://golang.org/cl/5134048
 
- test/chan/doubleselect.go    |  1 -
- test/chan/nonblock.go        |  1 -
- test/{cmp1.go => cmp.go}     | 40 ++++++++++++++++++++++++++++++++++++++++
- test/cmp2.go                 | 15 ---------------
- test/cmp3.go                 | 15 ---------------
- test/cmp4.go                 | 14 --------------
- test/cmp5.go                 | 14 --------------
- test/fixedbugs/bug093.go     |  1 -
- test/fixedbugs/bug113.go     | 18 +++++++++++++++++-
- test/fixedbugs/bug148.go     | 19 +++++++++++++++++--
- test/golden.out              | 34 ----------------------------------
- test/interface/fail.go       | 16 ++++++++++++++--
- test/interface/returntype.go | 15 ++++++++++++++-
- test/nilptr.go               |  4 ++++
- 14 files changed, 106 insertions(+), 101 deletions(-)
+ src/pkg/gob/decoder.go      |  6 ++++++
+ src/pkg/gob/encoder_test.go | 10 ++++++++++
+ 2 files changed, 16 insertions(+)

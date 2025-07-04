@@ -1,26 +1,25 @@
-commit 476f71c9586c18235cdc678b2e8d7fadd7570d3d
-Author: Hana Kim <hakim@google.com>
-Date:   Fri Mar 2 15:52:30 2018 -0500
+commit bc723cf3400b7dd4e0b9d8e947da9b6fbdfb4831
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 31 11:48:13 2017 -0400
 
-    cmd/trace: remove unrelated arrows in task-oriented traceview
+    cmd/compile: on ARM, make sure *const's AuxInt fit into int32
     
-    Also grey out instants that represent events occurred outside the
-    task's span. Furthermore, if the unrelated instants represent user
-    annotation events but not for the task of the interest, skip rendering
-    completely.
+    Previously some of the AuxInt are uint32, which may not fit into
+    int32. This CL convert them to int32. This does not change the
+    generated code, but make ssacheck happy.
     
-    This helps users to focus on the task-related events better.
+    Pass "toolstash -cmp" for std cmd on ARM.
     
-    UI screen shot:
-    https://gist.github.com/hyangah/1df5d2c8f429fd933c481e9636b89b55#file-golang-org_cl_99035
+    Fixes #22499.
     
-    Change-Id: I2b5aef41584c827f8c1e915d0d8e5c95fe2b4b65
-    Reviewed-on: https://go-review.googlesource.com/99035
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ib072d3c14962388bfeb0766c861995d00b4fa7c4
+    Reviewed-on: https://go-review.googlesource.com/74770
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/trace/annotations.go | 50 ++++++++++++++++++++++++++++++++++++++++----
- src/cmd/trace/trace.go       | 32 ++++++++++++++++++++++++++++
- 2 files changed, 78 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/testdata/arithConst.go | 21356 +++++++++++++------
+ .../internal/gc/testdata/gen/arithConstGen.go      |    15 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules         |    74 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go         |   148 +-
+ 4 files changed, 15454 insertions(+), 6139 deletions(-)

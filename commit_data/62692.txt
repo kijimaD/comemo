@@ -1,0 +1,22 @@
+commit af53bd2c030fa585d116e916a0676aa6c582faf7
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Mar 27 10:39:40 2025 +0100
+
+    internal/syscall/windows: run go generate
+    
+    CL 660595 manually edited zsyscall_windows.go, making it be out of sync
+    with its associated //sys directive. Longtest builders are failing
+    due to that.
+    
+    Fixes #73069.
+    
+    Change-Id: If7256ef4b831423e4925fb6e5656fe3f7ef77fea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661275
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/syscall/windows/zsyscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

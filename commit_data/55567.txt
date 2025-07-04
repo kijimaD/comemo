@@ -1,25 +1,19 @@
-commit 644bc4a3e7095789843438648badb82a9a78abef
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Feb 9 14:06:39 2024 -0500
+commit 8f3a13de9ac8c207b5bf1258179924dc09df53f2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 7 18:40:56 2023 +1100
 
-    internal/trace: run children in race mode during race testing
+    cmd/internal/obj/arm64: use obj.REG_NONE where appropriate
     
-    This would have caught #65607.
+    When referring to an unspecified register, use obj.REG_NONE rather than 0.
+    This has the same result but is more readable.
     
-    On my machine:
-    
-    internal/trace/v2:               ~13s
-    internal/trace/v2: -short:        ~4s
-    internal/trace/v2: -race -short: ~20s
-    internal/trace/v2: -race:        ~46s
-    
-    For #65607.
-    
-    Change-Id: I03a555ebaf8c761c98a82b6d35fa16d7a99aa9e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562998
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I56b541a3abc3c2c0e3ce1de21a624da0b21c485a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461137
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/internal/trace/v2/trace_test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/arm64/asm7.go | 56 +++++++++++++++++++-------------------
+ 1 file changed, 28 insertions(+), 28 deletions(-)

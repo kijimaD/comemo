@@ -1,28 +1,19 @@
-commit 14393c5cd4fed812c87ba45fe4e2b8d07c02e8fa
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Apr 3 15:52:30 2018 +0100
+commit 571ee0436f388a5304a08a3f029113306bfd54d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 22 15:14:33 2017 -0800
 
-    cmd: remove a few more unused parameters
+    os/signal: don't run TestTerminalSignal on Android
     
-    ssa's pos parameter on the Const* funcs is unused, so remove it.
+    At least some versions of the Android libc do not define posix_openpt.
     
-    ld's alloc parameter on elfnote is always true, so remove the arguments
-    and simplify the code.
+    Updates #22845
     
-    Finally, arm's addpltreloc never has its return parameter used, so
-    remove it.
-    
-    Change-Id: I63387ecf6ab7b5f7c20df36be823322bb98427b8
-    Reviewed-on: https://go-review.googlesource.com/104456
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Id21705f47ef0f9694313a7dc7351a952d48d407b
+    Reviewed-on: https://go-review.googlesource.com/79399
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go           | 24 ++++++-------
- src/cmd/compile/internal/ssa/func.go         | 51 ++++++++++++++--------------
- src/cmd/compile/internal/ssa/func_test.go    |  8 ++---
- src/cmd/compile/internal/ssa/shortcircuit.go |  4 +--
- src/cmd/compile/internal/ssa/writebarrier.go |  2 +-
- src/cmd/link/internal/arm/asm.go             |  4 +--
- src/cmd/link/internal/ld/elf.go              | 14 ++++----
- 7 files changed, 51 insertions(+), 56 deletions(-)
+ src/os/signal/internal/pty/pty.go | 2 +-
+ src/os/signal/signal_cgo_test.go  | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,26 +1,16 @@
-commit f782a7e075d049979c67cdc72b6fb38fac36fdad
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Jul 14 10:51:30 2016 +1000
+commit 78ff74375930d5ae391beae562c91da40e5d92a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 10 09:24:57 2016 -0700
 
-    image/draw: optimize drawFillOver as drawFillSrc for opaque fills.
+    crypto/sha1: disable crashing AVX2 optimizations for now
     
-    Benchmarks are much better for opaque fills and slightly worse on non
-    opaque fills. I think that on balance, this is still a win.
+    Updates #15617
     
-    When the source is uniform(color.RGBA{0x11, 0x22, 0x33, 0xff}):
-    name        old time/op  new time/op  delta
-    FillOver-8   966µs ± 1%    32µs ± 1%  -96.67%  (p=0.000 n=10+10)
-    FillSrc-8   32.4µs ± 1%  32.2µs ± 1%     ~      (p=0.053 n=9+10)
-    
-    When the source is uniform(color.RGBA{0x11, 0x22, 0x33, 0x44}):
-    name        old time/op  new time/op  delta
-    FillOver-8   962µs ± 0%  1018µs ± 0%  +5.85%   (p=0.000 n=9+10)
-    FillSrc-8   32.2µs ± 1%  32.1µs ± 0%    ~     (p=0.148 n=10+10)
-    
-    Change-Id: I52ec6d5fcd0fbc6710cef0e973a21ee7827c0dd9
-    Reviewed-on: https://go-review.googlesource.com/28790
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I2104776f8e789d987b4f2f7f08f2ebe979b747a1
+    Reviewed-on: https://go-review.googlesource.com/23001
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/image/draw/bench_test.go |  2 +-
- src/image/draw/draw.go       | 16 ++++++++++------
- 2 files changed, 11 insertions(+), 7 deletions(-)
+ src/crypto/sha1/sha1block_amd64.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,26 +1,47 @@
-commit 6b1d5471b9ab649322def7075d488c65d5f78cbf
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Sun Sep 8 21:50:07 2019 -0600
+commit b33652642286cf4c3fc8b10cdda97bd58059ba3e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jun 7 10:39:21 2019 +0100
 
-    cmd/compile: add signed indivisibility by power of 2 rules
+    os: change UserConfigDir on Darwin to ~/Library/Application Support
     
-    Commit 44343c777c (CL 173557) added rules for handling
-    divisibility checks for powers of 2 for signed integers, x%c ==0.
-    This change adds the complementary indivisibility rules, x%c != 0.
+    The old code used ~/Library/Preferences, which is documented by
+    Apple as:
     
-    Fixes #34166
+            This directory contains app-specific preference files. You
+            should not create files in this directory yourself. Instead, use
+            the NSUserDefaults class or CFPreferences API to get and set
+            preference values for your app.
     
-    Change-Id: I87379e30af7aff633371acca82db2397da9b2c07
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194219
-    Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
+    It looks like we missed everything after the first sentence; it's
+    definitely not the right choice for files that Go programs and users
+    should be touching directly.
+    
+    Instead, use ~/Library/Application Support, which is documented as:
+    
+            Use this directory to store all app data files except those
+            associated with the user’s documents. For example, you might use
+            this directory to store app-created data files, configuration
+            files, templates, or other fixed or modifiable resources that
+            are managed by the app. An app might use this directory to store
+            a modifiable copy of resources contained initially in the app’s
+            bundle. A game might use this directory to store new levels
+            purchased by the user and downloaded from a server.
+    
+    This seems in line with what UserConfigDir is for, so use it.
+    
+    The documentation quotes above are obtained from the surprisingly long
+    link below:
+    
+    https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/FileSystemOverview/FileSystemOverview.html
+    
+    Fixes #32475.
+    
+    Change-Id: Ic27a6c92d76a5d7a4d4b8eac5cd8472f67a533a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181177
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |   16 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go   |   26 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go   |   24 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go   |   24 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go   |   26 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 2360 +++++++++++++++++-------
- test/codegen/arithmetic.go                     |   14 +-
- 7 files changed, 1794 insertions(+), 696 deletions(-)
+ src/cmd/go/testdata/script/env_write.txt | 2 +-
+ src/os/file.go                           | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

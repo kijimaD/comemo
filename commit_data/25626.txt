@@ -1,22 +1,24 @@
-commit 2a09a68dd951a563b2e6fb6d0d3b5a77ec9e67d5
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 13 20:14:03 2016 -0500
+commit b619d5573e4ed02780018cad845a941f2a1c374e
+Author: Burcu Dogan <jbd@google.com>
+Date:   Wed Nov 11 15:45:09 2015 -0800
 
-    unsafe: document valid uses of Pointer
+    Revert "cmd/go: use shallow clones for new git checkouts"
     
-    Add docs for valid uses of Pointer.
-    Then document change made for #13372 in CL 18584.
+    This reverts commit bc1f9d20b40998b87c9a5f56f2b22595de65c2d4.
     
-    Fixes #8994.
+    The current go-get strategy doesn't support cases that servers
+    cannot handle shallow clients.
     
-    Change-Id: Ifba71e5aeafd11f684aed0b7ddacf3c8ec07c580
-    Reviewed-on: https://go-review.googlesource.com/18640
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Also, `go get -u` is broken and is not compatible with already
+    go-getted unshallow repos.
+    
+    Fixes #13213.
+    Fixes #13206.
+    
+    Change-Id: Ie89d7603d96d323db64ad82997793fda0972f709
+    Reviewed-on: https://go-review.googlesource.com/16832
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/unsafe/unsafe.go | 157 +++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 152 insertions(+), 5 deletions(-)
+ src/cmd/go/vcs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

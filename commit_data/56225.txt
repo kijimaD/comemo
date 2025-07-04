@@ -1,26 +1,29 @@
-commit 2073b35e07ce9cea47ee1fbe763b304d2371954f
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Apr 19 11:56:30 2023 -0700
+commit d93f02010cbaa83916eecb4fb23dfc4153694dc0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 18 16:43:11 2023 -0700
 
-    crypto/tls: add a bogo shim
+    cmd/compile/internal/types2: only mark variables as used if they are
     
-    Run the BoGo test suite.
+    Marking variables in erroneous variable declarations as used is
+    convenient for tests but doesn't necessarily hide follow-on errors
+    in real code: either the variable is not supposed to be declared in
+    the first place and then we should get an error if it is not used,
+    or it is there because it is intended to be used, and the we expect
+    an error it if is not used.
     
-    For now a number of tests are disabled, so that we can land the shim.
-    Once the shim is in the tree I'll work on fixing tests, and aligning
-    the TLS stack with the boringssl stack.
+    This brings types2 closer to go/types.
     
-    Eventually we should also remove the --loose-errors flag.
-    
-    Fixes #51434
-    
-    Change-Id: Ic8339fc34552936b798acf834011a129e375750e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486495
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: If7ee1298fc770f7ad0cefe7e968533fd50ec2343
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486175
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/tls/bogo_config.json  | 175 +++++++++++++++++++++++++
- src/crypto/tls/bogo_shim_test.go | 277 +++++++++++++++++++++++++++++++++++++++
- src/crypto/tls/handshake_test.go |  22 +++-
- 3 files changed, 471 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/decl.go             | 14 --------------
+ src/internal/types/testdata/fixedbugs/issue59371.go |  7 ++-----
+ test/fixedbugs/issue30085.go                        |  2 +-
+ test/fixedbugs/issue30087.go                        |  2 +-
+ test/rename1.go                                     |  2 +-
+ 5 files changed, 5 insertions(+), 22 deletions(-)

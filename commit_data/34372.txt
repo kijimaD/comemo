@@ -1,21 +1,30 @@
-commit 68def820088ac8a9d652be648fc14e3cd39a3421
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Tue Feb 20 09:39:09 2018 +0100
+commit 006bc57095e7b1221ecc292735a510a52a27292c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Oct 20 11:56:31 2017 +0100
 
-    cmd/compile: fix bit-test rules for highest bit
+    cmd/compile: clean up various bits of code
     
-    Bit-test rules failed to match when matching the highest bit
-    of a word because operands in SSA are signed int64. Fix
-    them by treating them as unsigned (and correctly handling
-    32-bit operands as well).
+    * replace a copy of IsMethod with a call of it.
+    * a few more switches where they simplify the code.
+    * prefer composite literals over "n := new(...); n.x = y; ...".
+    * use defers to get rid of three goto labels.
+    * rewrite updateHasCall into two funcs to remove gotos.
     
-    Tests will be added in next CL.
+    Passes toolstash-check on std cmd.
     
-    Change-Id: I491c4e88e7e2f87e9bb72bd0d9fa5d4025b90736
-    Reviewed-on: https://go-review.googlesource.com/94765
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Icb5442a89a87319ef4b640bbc5faebf41b193ef1
+    Reviewed-on: https://go-review.googlesource.com/72070
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  24 +++---
- src/cmd/compile/internal/ssa/rewrite.go      |  18 ++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 120 +++++++++++++--------------
- 3 files changed, 90 insertions(+), 72 deletions(-)
+ src/cmd/compile/internal/gc/const.go  | 13 +++-----
+ src/cmd/compile/internal/gc/esc.go    |  4 +--
+ src/cmd/compile/internal/gc/export.go |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go  |  8 ++---
+ src/cmd/compile/internal/gc/obj.go    |  8 ++---
+ src/cmd/compile/internal/gc/select.go |  3 +-
+ src/cmd/compile/internal/gc/ssa.go    |  9 +++---
+ src/cmd/compile/internal/gc/subr.go   | 61 ++++++++++++++---------------------
+ src/cmd/compile/internal/gc/walk.go   | 22 +++++--------
+ 9 files changed, 52 insertions(+), 78 deletions(-)

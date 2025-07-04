@@ -1,32 +1,17 @@
-commit 5a040c5a3678857f03e77822956c916e8274b2c3
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Mar 9 14:57:58 2022 +0000
+commit 73d5aef4d19486d5eb03730791bd21f47c6c7d2b
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Sat Dec 12 09:45:45 2020 +0000
 
-    go/token: allocate fewer times at init time
+    cmd/internal/objfile: add objabi.SNOPTRDATA to "D"
     
-    go/token has had a global "keywords" map filled at init time for years.
-    Overall, the package's init time cost is small, as per GODEBUG=inittrace=1:
-    
-            init go/token @0.51 ms, 0.004 ms clock, 1776 bytes, 5 allocs
-            init go/token @0.44 ms, 0.003 ms clock, 1776 bytes, 5 allocs
-            init go/token @0.45 ms, 0.003 ms clock, 1568 bytes, 4 allocs
-    
-    However, adding the map size hint does help with the allocations:
-    
-            init go/token @0.45 ms, 0.002 ms clock, 944 bytes, 2 allocs
-            init go/token @0.46 ms, 0.002 ms clock, 944 bytes, 2 allocs
-            init go/token @0.55 ms, 0.003 ms clock, 1152 bytes, 3 allocs
-    
-    Three samples are rather unscientific, and the clock time is basically
-    unchanged, but we might as well reduce the allocs.
-    
-    Change-Id: I48121a4cea4113d991882e32f274d7b7736800dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391094
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I65913534a4a3e2cbc0d4b00454dd3092eb908cb5
+    GitHub-Last-Rev: 39dc0d21b81eb6aeec4c29d4ea72e6c1ef7fea0d
+    GitHub-Pull-Request: golang/go#43151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277452
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Heschi Kreinick <heschi@google.com>
 
- src/go/token/token.go | 2 +-
+ src/cmd/internal/objfile/goobj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

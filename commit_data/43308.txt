@@ -1,26 +1,23 @@
-commit 8773d141641708574654c617b686a7fd687c3f70
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Oct 13 15:58:10 2020 +0200
+commit 651e950fc9416f934dbfcdad312e699a65bed4c5
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Mar 24 09:05:19 2020 -0400
 
-    cmd/compile: make assignop/convertop reason a return param
+    [dev.link] cmd/link: convert addexport to loader interfaces
     
-    On a negative answer, the assignop and convertop functions write the
-    reason why to a string pointer passed as an argument, likely a C-ism
-    leftover since the compiler's machine assisted translation to Go.
+    Convert the linker's "addexport" function to use loader interfaces
+    for symbol manipulation instead of *sym.Symbol.
     
-    This change makes why a return parameter.
+    At the moment "addexport" happens after loadlibfull (there are other
+    chunks of functionality in the way that haven't been converted), so
+    this implementation contains temporary shim code to copy back the
+    contents of updated loader.Sym's into the corresponding sym.Symbol.
     
-    It also fixes a few places where the assignop/convertop result was
-    compared to 0. While OXXX's value may be zero now, using the named
-    constant is more robust.
-    
-    Change-Id: Id9147ed4c1b97d658d30a2f778f876b7867006b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261857
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I867b08e66562a2bed51560fd0be2cb64d344709c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224384
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/range.go     |  13 +--
- src/cmd/compile/internal/gc/subr.go      | 150 ++++++++++++++-----------------
- src/cmd/compile/internal/gc/swt.go       |  19 ++--
- src/cmd/compile/internal/gc/typecheck.go |  14 ++-
- 4 files changed, 92 insertions(+), 104 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 112 +++++++++++++++++++++++++++++++++++-----
+ src/cmd/link/internal/ld/go.go  |  58 +++++++++++++++------
+ 2 files changed, 143 insertions(+), 27 deletions(-)

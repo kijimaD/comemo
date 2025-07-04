@@ -1,16 +1,16 @@
-commit 21a4bdef2fa2ae5425c8d309a8e914e3e514c30a
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 25 23:24:18 2014 +0400
+commit bdb2f976d369112f68a1288eea1a8c1f54366fba
+Author: Evan Kroske <evankroske@google.com>
+Date:   Mon Aug 18 20:40:12 2014 -0700
 
-    runtime: restore nacl timens
-    Deleted in cl/123700044.
-    I am not sure whether I need to restore it,
-    or delete rest of the uses...
+    net/http: correct error message for incorrect Body length
+    
+    Fixes #8140.
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/129580043
+    https://golang.org/cl/131900044
 
- src/pkg/runtime/time.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/net/http/requestwrite_test.go | 4 ++--
+ src/pkg/net/http/transfer.go          | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

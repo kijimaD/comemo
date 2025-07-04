@@ -1,40 +1,47 @@
-commit 49b3ab0d81824f060b9ba459a076f6ff9ad04bc6
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jan 26 14:45:30 2024 -0500
+commit 089cc6867619da6d6a901b3835475206759c47a2
+Author: Patrick Steinhardt <ps@pks.im>
+Date:   Sat Sep 16 11:12:12 2023 +0000
 
-    cmd/go: report all loading errors in tests as "setup failed"
+    cmd/link: allow deriving GNU build ID from Go build ID ID
     
-    Currently, under *most* circumstances, if there's a package loading
-    error during "go test", that will get reported as a "FAIL p [setup
-    failed]" or "FAIL p [build failed] message and won't prevent running
-    unaffected test packages.
+    While it is possible to embed a GNU build ID into the linked
+    executable by passing `-B 0xBUILDID` to the linker, the build ID will
+    need to be precomputed by the build system somehow. This makes it
+    unnecessarily complex to generate a deterministic build ID as it
+    either requires the build system to hash all inputs manually or to
+    build the binary twice, once to compute its hash and once with the GNU
+    build ID derived from that hash. Despite being complex, it is also
+    inefficient as it requires the build system to duplicate some of the
+    work that the Go linker already performs anyway.
     
-    However, if there's a loading error from a non-test file in a package
-    listed directly on the "go test" command line, that gets reported as
-    an immediate fatal error, without any "FAIL" line, and without
-    attempting to run other tests listed on the command line. Likewise,
-    certain early build errors (like a package containing no Go files) are
-    currently immediately fatal rather than reporting a test failure.
+    Introduce a new argument "gobuildid" that can be passed to `-B` that
+    causes the linker to automatically derive the GNU build ID from the Go
+    build ID. Given that the Go build ID is deterministically computed
+    from all of its inputs, the resulting GNU build ID should be
+    deterministic in the same way, which is the desired behaviour.
     
-    Fix this by eliminating the check that causes that immediate failure.
-    This causes one minor follow-up problem: since
-    load.TestPackagesAndErrors was never passed a top-level package with
-    an error before, it doesn't currently propagate such an error to the
-    packages it synthesizes (even though it will propagate errors in
-    imported packages). Fix this by copying the error from the top-level
-    package into the synthesized test package while we're copying
-    everything else.
+    Furthermore, given that the `-B` flag currently requires a "0x" prefix
+    for all values passed to it, using "gobuildid" as value is a backwards
+    compatible change.
     
-    For #62067.
+    An alternative would be to unconditionally calculate the GNU build ID
+    unless otherwise specified. This would require some larger rework
+    though because building the Go toolchain would not converge anymore
+    due the GNU build ID changing on every stage, which in turn would
+    cause the Go build ID to change as well.
     
-    Change-Id: Icd563a3d9912256b53afd998050995e5260ebe5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558637
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #41004
+    
+    Change-Id: I707c5fc321749c00761643d6cc79d44bf2cd744d
+    GitHub-Last-Rev: 5483305a8566937836e5f39149a3df805d94580b
+    GitHub-Pull-Request: golang/go#61469
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511475
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
 
- src/cmd/go/internal/load/test.go                |  6 +-
- src/cmd/go/internal/test/test.go                |  3 +-
- src/cmd/go/testdata/script/test_flags.txt       |  3 +-
- src/cmd/go/testdata/script/test_setup_error.txt | 74 +++++++++++++++++++++++++
- 4 files changed, 82 insertions(+), 4 deletions(-)
+ src/cmd/link/doc.go              |  2 ++
+ src/cmd/link/elf_test.go         | 37 +++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/elf.go  | 12 ++++++++++++
+ src/cmd/link/internal/ld/main.go |  2 +-
+ 4 files changed, 52 insertions(+), 1 deletion(-)

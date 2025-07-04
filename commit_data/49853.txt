@@ -1,23 +1,19 @@
-commit 0b79abc27e1e4ea4ef3c299206f49e0724b03d57
-Author: David Chase <drchase@google.com>
-Date:   Wed Jul 13 14:27:45 2022 -0400
+commit 4efdaa7bc7220fad0177842d0009285ca429a823
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sat Aug 28 16:06:43 2021 -0700
 
-    cmd/compile: avoid copying Pos from ONAME when creating converts for maps
+    testing: skip panics when picking the line number for decoration
     
-    ONAME nodes are shared, so using their position for anything is almost
-    always a mistake.  There are probably more instances of this mistake
-    elsewhere.  For now, handle the case of map key temporaries, where it's
-    been a problem.
+    Fixes #31154
     
-    Fixes #53456.
-    
-    Change-Id: Id44e845d08d428592ad3ba31986635b6b87b0041
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417076
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I4cfd98b5e79f1abdc93044fb66855ac2cc0a9a49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345909
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
 
- src/cmd/compile/internal/ssa/debug_lines_test.go | 46 +++++++++++++++---------
- src/cmd/compile/internal/ssa/testdata/b53456.go  | 19 ++++++++++
- src/cmd/compile/internal/walk/order.go           | 24 ++++++++-----
- 3 files changed, 64 insertions(+), 25 deletions(-)
+ src/testing/helper_test.go      | 35 +++--------------------------------
+ src/testing/helperfuncs_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/testing/testing.go          |  3 +++
+ 3 files changed, 38 insertions(+), 32 deletions(-)

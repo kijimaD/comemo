@@ -1,15 +1,27 @@
-commit d0fadb93c2cc5d067813a106e6679f8a3ffd9c0f
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Tue Apr 23 14:19:04 2019 +0200
+commit c2412a7681d5beaeb5a4ceef3b2b7886361282ce
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Nov 28 16:33:23 2018 -0500
 
-    doc: update wording in contribution guide
+    cmd/go: emit go list error for local non-existant packages
     
-    The top right menu in Gerrit is now a gear icon, and the link
-    has a slightly different title.
+    In CL 129061, a check was added for patterns that reference
+    nonexistent local directories. While this prevented unnecessary
+    network lookups (fixing #26874), it caused "go list -e" to exit with
+    an error instead of listing packages with error messages.
     
-    Change-Id: I3f5d194f31ad09a99416a45db392aa4b5c7d98ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173400
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This change avoids the network lookup and does not exit for these
+    kinds of packages. Errors are still reported by
+    internal/load.LoadImport for packages that don't exist.
+    
+    Fixes #28023
+    
+    Change-Id: I0a648269e437aed3a95bfb05461a397264f3793f
+    Reviewed-on: https://go-review.googlesource.com/c/151800
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/contribute.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/load.go            | 20 ++++++++------------
+ src/cmd/go/testdata/script/mod_fs_patterns.txt |  4 ++--
+ src/cmd/go/testdata/script/mod_list_dir.txt    |  4 +++-
+ 3 files changed, 13 insertions(+), 15 deletions(-)

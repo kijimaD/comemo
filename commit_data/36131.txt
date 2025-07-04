@@ -1,16 +1,32 @@
-commit 902fc114272978a40d2e65c2510a18e870077559
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 25 18:19:51 2018 +0000
+commit 284c53498fd4f52967067eb7c2d0102467980155
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 5 21:28:06 2018 +0100
 
-    net/http: try to document ServeFile security more
+    cmd: some semi-automated cleanups
     
-    We've expanded this several times. Try more.
+    * Remove some redundant returns
+    * Replace HasPrefix with TrimPrefix
+    * Remove some obviously dead code
     
-    Fixes #18837
+    Passes toolstash -cmp on std cmd.
     
-    Change-Id: I03b699391351a30ee60a15d7aa712c6c66444cf9
-    Reviewed-on: https://go-review.googlesource.com/125875
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifb0d70a45cbb8a8553758a8c4878598b7fe932bc
+    Reviewed-on: https://go-review.googlesource.com/105017
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/fs.go | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ src/cmd/asm/internal/arch/arm.go     |  4 +---
+ src/cmd/compile/internal/gc/ssa.go   |  1 -
+ src/cmd/go/internal/test/test.go     |  4 +---
+ src/cmd/internal/obj/arm/asm5.go     |  4 +---
+ src/cmd/internal/obj/arm64/asm7.go   |  4 ----
+ src/cmd/internal/obj/mips/asm0.go    |  4 ----
+ src/cmd/internal/obj/ppc64/asm9.go   |  1 -
+ src/cmd/internal/obj/x86/a.out.go    |  5 -----
+ src/cmd/internal/obj/x86/asm6.go     |  5 -----
+ src/cmd/internal/objabi/flag.go      | 15 ---------------
+ src/cmd/internal/objfile/disasm.go   |  4 +---
+ src/cmd/link/internal/loadpe/ldpe.go |  4 +---
+ src/cmd/vet/method.go                |  4 +---
+ 13 files changed, 6 insertions(+), 53 deletions(-)

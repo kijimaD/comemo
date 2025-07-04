@@ -1,16 +1,14 @@
-commit 2642c6e24dd3d935d01270a0fa0a89de3d3dae69
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 13 16:16:05 2013 -0400
+commit 0df438c683d7a2b8acb47d767ff37c3b22c1b61d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 13 12:36:03 2013 -0700
 
-    sync/atomic: update comment for ARM 64-bit atomics
+    runtime: tell GC not to scan internal hashmap structures.
+    We'll do it ourselves via hash_gciter, thanks.
+    Fixes bug 6119.
     
-    They don't work on older chips, just like the x86-32 64-bit atomics.
-    
-    Update #6134
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, dvyukov, cookieo9, rsc
     CC=golang-dev
-    https://golang.org/cl/12880043
+    https://golang.org/cl/12840043
 
- src/pkg/sync/atomic/doc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/runtime/hashmap.c | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

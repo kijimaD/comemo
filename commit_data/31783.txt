@@ -1,17 +1,19 @@
-commit 32543a8bf7c74320acb6bb147bc17bf0dd7df9bb
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Jun 10 10:36:28 2017 +0900
+commit d75925d6bad2576bd80c442ff3b23ba22ffb2c68
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 13 21:27:53 2017 -0500
 
-    go/parser: handle last line comments
+    cmd/compile: add a test for writebarrier pass with single-block loop
     
-    Fixes #20636
+    The old writebarrier implementation fails to handle single-block
+    loop where a memory Phi value depends on the write barrier store
+    in the same block. The new implementation (CL 36834) doesn't have
+    this problem. Add a test to ensure it.
     
-    Change-Id: Icea0012fecb73944c95f6037922505c63b57b245
-    Reviewed-on: https://go-review.googlesource.com/45295
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fix #19067.
+    
+    Change-Id: Iab13c6817edc12be8a048d18699b4450fa7ed712
+    Reviewed-on: https://go-review.googlesource.com/36940
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/parser/parser.go      |  2 +-
- src/go/parser/parser_test.go | 15 +++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/writebarrier_test.go | 24 +++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

@@ -1,19 +1,19 @@
-commit 0119933477e51f8ece875aca9419cace74b5fe9d
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 8 14:45:04 2020 -0500
+commit 9c0e56bf9de5ff8faa73860ab6bb43562722c18f
+Author: two <oohcode@gmail.com>
+Date:   Sat Sep 21 14:08:07 2019 +0000
 
-    cmd/go: convert TestGoGetNonPkg to the script framework
+    runtime/type: change fieldalign to use mixedCaps
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    All spelling in source code is "fieldAlign", except this place, so change
+    "fieldalign" to use mixedCaps.
     
-    Updates #36320
-    Updates #17751
-    
-    Change-Id: Ieaddc20aebd0b71189f2ebc8f8e2758f1117bbed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213826
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Icbd9b9d23d9b4f756174e9a3cc4b25776fd90def
+    GitHub-Last-Rev: 44a4fe140a4a473a234ceb5bd927109cbc35bb30
+    GitHub-Pull-Request: golang/go#34441
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196757
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/go_test.go                      | 17 -----------------
- src/cmd/go/testdata/script/get_non_pkg.txt | 14 ++++++++++++++
- 2 files changed, 14 insertions(+), 17 deletions(-)
+ src/runtime/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

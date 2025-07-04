@@ -1,27 +1,20 @@
-commit 376fc48338bfd05192ebb87cdbca8c0d74d23b6a
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Tue Jul 30 17:48:11 2019 -0400
+commit 81c7beb04eda3ecc97e723793e11c61732ff37e8
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Apr 7 16:58:13 2019 +0200
 
-    cmd/compile: add new symbol for debug line numbers
+    cmd/dist: set buildmode=pie on Android
     
-    This is broken out from: CL 187117
+    Android refuses to run non-PIE binaries, a restriction already
+    encoded in the cmd/go tool's buildModeInit function. This CL adds
+    the necessary flags to cmd/dist to make ./make.bash run on an
+    Android device.
     
-    This new symbol will be populated by the compiler and contain debug line
-    information that's currently generated in the linker. One might say it's
-    sad to create a new symbol, but this symbol will replace the isStmt
-    symbols.
-    
-    Testing: Ran go build -toolexec 'toolstash -cmp'
-    
-    Change-Id: If8f7ae4b43b7247076605b6429b7d03a1fd239c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188238
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I162084f573befaa41dcb47a2b78448bce5b83d35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170943
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/internal/dwarf/dwarf.go             |  3 +++
- src/cmd/internal/obj/link.go                | 11 ++++++-----
- src/cmd/internal/obj/objfile.go             |  8 ++++----
- src/cmd/internal/obj/plist.go               |  2 +-
- src/cmd/internal/objabi/symkind.go          |  1 +
- src/cmd/link/internal/sym/symkind.go        |  2 ++
- src/cmd/link/internal/sym/symkind_string.go |  9 +++++----
- 7 files changed, 22 insertions(+), 14 deletions(-)
+ src/cmd/dist/build.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,13 +1,17 @@
-commit c31eb979421236ac51cdb21870483d70d47b84cc
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Aug 13 14:54:54 2014 +1000
+commit 897f7a31fa040584f2c76d7901b9ef3257ca218f
+Author: Chris Manghane <cmang@golang.org>
+Date:   Mon Aug 11 16:11:55 2014 -0700
 
-    tag go1.3.1
+    cmd/gc: comma-ok assignments produce untyped bool as 2nd result
     
-    LGTM=r
-    R=r
+    LGTM=rsc
+    R=gri, rsc
     CC=golang-codereviews
-    https://golang.org/cl/125170044
+    https://golang.org/cl/127950043
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/gc/order.c          |  5 ++++-
+ src/cmd/gc/typecheck.c      |  2 +-
+ src/cmd/gc/walk.c           | 14 +++++++++++++-
+ test/fixedbugs/issue8475.go | 25 +++++++++++++++++++++++++
+ test/named1.go              |  8 ++++----
+ 5 files changed, 47 insertions(+), 7 deletions(-)

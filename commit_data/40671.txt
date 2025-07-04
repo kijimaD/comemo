@@ -1,25 +1,22 @@
-commit 33dfd3529b8a761739da00da88eb13d39300a679
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 4 16:12:10 2019 +0000
+commit 73abea300a89f0a9b801a4662e3688a5747f1859
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 5 10:33:43 2019 -0700
 
-    runtime: remove old page allocator
+    database/sql/driver: document Valuer must not panic
     
-    This change removes the old page allocator from the runtime.
+    While it is possible for the connection pool to guard against panics
+    on every valuer read, this seems like a high cost to be added,
+    in both code complexity and possible runtime performance.
     
-    Updates #35112.
+    Most uses of the Valuer will be trivial, like returning
+    a struct field. Optimize for that case. If sometime may panic the
+    valuer should itself use recover and return an error.
     
-    Change-Id: Ib20e1c030f869b6318cd6f4288a9befdbae1b771
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195700
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #26332
+    
+    Change-Id: Iad18780b8028f669f5a7841b74a5384d62fb6a7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170700
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/export_test.go | 178 +-----------
- src/runtime/gc_test.go     |  23 --
- src/runtime/malloc.go      |   3 -
- src/runtime/malloc_test.go |   4 -
- src/runtime/mgclarge.go    | 657 ---------------------------------------------
- src/runtime/mgcscavenge.go |  24 +-
- src/runtime/mheap.go       | 474 ++------------------------------
- src/runtime/treap_test.go  | 270 -------------------
- 8 files changed, 27 insertions(+), 1606 deletions(-)
+ src/database/sql/driver/types.go | 1 +
+ 1 file changed, 1 insertion(+)

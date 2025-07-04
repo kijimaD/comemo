@@ -1,46 +1,12 @@
-commit f8a5ba2a3880f4782d8250fd26dde2baa3990afa
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 21 09:03:26 2019 -0400
+commit 691a2d457ab1bf03bd46d4b69e0f93b8993c0055
+Author: spring1843 <yasser@yasser.ca>
+Date:   Sat Feb 2 21:09:55 2019 -0800
 
-    cmd/go: default to GOPROXY=https://proxy.golang.org and GOSUMDB=sum.golang.org
+    crypto/aes: replace broken extenal link to FIPS 197
     
-    This CL changes the default module download and module verification mechanisms
-    to use the Go module mirror and Go checksum database run by Google.
-    See https://proxy.golang.org/privacy for the services' privacy policy.
-    (Today, that URL is a redirect to Google's standard privacy policy,
-    which covers these services as well. If we publish a more specific
-    privacy policy just for these services, that URL will be updated to
-    display or redirect to it.)
-    
-    See 'go help modules' and 'go help modules-auth' for details (added in this CL).
-    
-    To disable the mirror and checksum database for non-public modules:
-    
-            go env -w GONOPROXY=*.private.net,your.com/*
-            go env -w GONOSUMDB=*.private.net,your.com/*
-    
-    (If you are using a private module proxy then you'd only do the second.)
-    
-    If you run into problems with the behavior of the go command when using
-    the Go module mirror or the Go checksum database, please file issues at
-    https://golang.org/issue/new, so that we can address them for the
-    Go 1.13 release.
-    
-    For #25530.
-    
-    This CL also documents GONOPROXY.
-    Fixes #32056.
-    
-    Change-Id: I2fde82e071742272b0842efd9580df1a56947fec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178179
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib0a0d04aaaaa3c213fdb8646bd9b7dfdadae40d4
+    Reviewed-on: https://go-review.googlesource.com/c/160831
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/go/alldocs.go                           | 76 +++++++++++++++----------
- src/cmd/go/internal/cfg/cfg.go                  | 14 -----
- src/cmd/go/internal/modfetch/fetch.go           | 18 +++---
- src/cmd/go/internal/modfetch/proxy.go           | 15 -----
- src/cmd/go/internal/modload/help.go             | 47 +++++++++++----
- src/cmd/go/testdata/script/mod_sumdb_golang.txt |  8 +--
- 6 files changed, 96 insertions(+), 82 deletions(-)
+ src/crypto/aes/block.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

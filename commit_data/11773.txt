@@ -1,14 +1,15 @@
-commit 1ceb5616292496da476f52c0125917ecff002a76
+commit 13443ccc2aa102cb57cdefd8a44d03257ae1777b
 Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 10 15:57:12 2012 +1100
+Date:   Fri Feb 10 15:56:51 2012 +1100
 
-    regexp/syntax: add package and Parse commentary
+    math: fix gamma doc, link to OEIS
     
-    Fixes #2954.
+    Fixes #2940.
     
-    R=golang-dev, bradfitz, rsc, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5645077
+    https://golang.org/cl/5645078
 
- src/pkg/regexp/syntax/parse.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/pkg/math/const.go | 2 +-
+ src/pkg/math/gamma.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

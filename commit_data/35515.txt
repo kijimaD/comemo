@@ -1,14 +1,40 @@
-commit 002c764533bd15414ce26b99570815bd5e48b16e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 28 15:29:01 2018 -0700
+commit 1b1c8b34d129eefcdbad234914df999581e62b2f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Feb 16 11:26:14 2018 +0100
 
-    test: gofmt bounds.go
+    runtime: remove unused getrlimit function
     
-    Change-Id: I8b462e20064658120afc8eb1cbac926254d1e24e
-    Reviewed-on: https://go-review.googlesource.com/114937
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Follow CL 93655 which removed the (commented-out) usage of this
+    function.
+    
+    Also remove unused constant _RLIMIT_AS and type rlimit.
+    
+    Change-Id: Ifb6e6b2104f4c2555269f8ced72bfcae24f5d5e9
+    Reviewed-on: https://go-review.googlesource.com/94775
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- test/bounds.go | 92 +++++++++++++++++++++++++++++-----------------------------
- 1 file changed, 46 insertions(+), 46 deletions(-)
+ src/runtime/os2_freebsd.go        | 1 -
+ src/runtime/os2_solaris.go        | 1 -
+ src/runtime/os3_solaris.go        | 3 ---
+ src/runtime/os_dragonfly.go       | 4 ----
+ src/runtime/os_freebsd.go         | 2 --
+ src/runtime/os_linux.go           | 2 --
+ src/runtime/os_linux_be64.go      | 6 ------
+ src/runtime/os_linux_generic.go   | 6 ------
+ src/runtime/os_linux_mips64x.go   | 6 ------
+ src/runtime/os_linux_mipsx.go     | 6 ------
+ src/runtime/sys_dragonfly_amd64.s | 8 --------
+ src/runtime/sys_freebsd_386.s     | 6 ------
+ src/runtime/sys_freebsd_amd64.s   | 8 --------
+ src/runtime/sys_freebsd_arm.s     | 9 ---------
+ src/runtime/sys_linux_386.s       | 9 ---------
+ src/runtime/sys_linux_amd64.s     | 9 ---------
+ src/runtime/sys_linux_arm.s       | 9 ---------
+ src/runtime/sys_linux_arm64.s     | 9 ---------
+ src/runtime/sys_linux_mips64x.s   | 9 ---------
+ src/runtime/sys_linux_mipsx.s     | 9 ---------
+ src/runtime/sys_linux_ppc64x.s    | 8 --------
+ src/runtime/sys_linux_s390x.s     | 9 ---------
+ 22 files changed, 139 deletions(-)

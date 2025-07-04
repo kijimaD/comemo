@@ -1,56 +1,56 @@
-commit 0bf79b2de8bf75093629b1861a49efca1dbc0356
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 4 15:46:52 2015 -0500
+commit b3be360f16c44d21b2594d06e8d0e609e8fe3c0c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Jan 29 19:40:02 2015 +0300
 
-    cmd/internal/obj/x86: take over i386 duty, clean up PINSRQ, CMPSD
+    cmd/gc: allocate non-escaping maps on stack
     
-    Make cmd/internal/obj/x86 support 32-bit mode and use
-    instead of cmd/internal/obj/i386. Delete cmd/internal/obj/i386.
+    Extend escape analysis to make(map[k]v).
+    If it does not escape, allocate temp buffer for hmap and one bucket on stack.
     
-    Clean up encoding of PINSRQ, CMPSD to use explicit third arg
-    instead of jamming it into an unused slot of a different arg.
+    There are 75 cases of non-escaping maps in std lib.
     
-    Also fix bug in old6a, which declared the wrong grammar.
-    The accepted (and encoded) arguments to CMPSD etc are mem,reg not reg,mem.
-    Code that did try to use mem,reg before would be rejected by liblink,
-    so only reg,reg ever worked, so existing code is not affected.
-    After this change, code can use mem,reg successfully.
+    benchmark                                    old allocs     new allocs     delta
+    BenchmarkConcurrentStmtQuery                 16161          15161          -6.19%
+    BenchmarkConcurrentTxQuery                   17658          16658          -5.66%
+    BenchmarkConcurrentTxStmtQuery               16157          15156          -6.20%
+    BenchmarkConcurrentRandom                    13637          13114          -3.84%
+    BenchmarkManyConcurrentQueries               22             20             -9.09%
+    BenchmarkDecodeComplex128Slice               250            188            -24.80%
+    BenchmarkDecodeFloat64Slice                  250            188            -24.80%
+    BenchmarkDecodeInt32Slice                    250            188            -24.80%
+    BenchmarkDecodeStringSlice                   2250           2188           -2.76%
+    BenchmarkNewEmptyMap                         1              0              -100.00%
+    BenchmarkNewSmallMap                         2              0              -100.00%
     
-    The real bug here is that the encoding tables inverted the argument
-    order, making the comparisons all backward from what they say on the page.
-    It's too late to swap them, though: people have already written code that
-    expects the inverted comparisons (like in package math, and likely externally).
-    The best we can do is make the argument that should and can take a
-    memory operand accept it.
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkNewEmptyMap     124           55.7          -55.08%
+    BenchmarkNewSmallMap     317           148           -53.31%
     
-    Bit-for-bit compatibility checked against tree without this CL.
+    benchmark                old allocs     new allocs     delta
+    BenchmarkNewEmptyMap     1              0              -100.00%
+    BenchmarkNewSmallMap     2              0              -100.00%
     
-    Change-Id: Ife5685bc98c95001f64407f35066b34b4dae11c1
-    Reviewed-on: https://go-review.googlesource.com/6810
-    Reviewed-by: Rob Pike <r@golang.org>
+    benchmark                old bytes     new bytes     delta
+    BenchmarkNewEmptyMap     48            0             -100.00%
+    BenchmarkNewSmallMap     192           0             -100.00%
+    
+    Fixes #5449
+    
+    Change-Id: I24fa66f949d2f138885d9e66a0d160240dc9e8fa
+    Reviewed-on: https://go-review.googlesource.com/3508
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/8g/cgen.go                        |   2 +-
- src/cmd/8g/cgen64.go                      |   2 +-
- src/cmd/8g/galign.go                      |   2 +-
- src/cmd/8g/gg.go                          |   2 +-
- src/cmd/8g/ggen.go                        |   2 +-
- src/cmd/8g/gsubr.go                       |   2 +-
- src/cmd/8g/peep.go                        |   2 +-
- src/cmd/8g/prog.go                        |   2 +-
- src/cmd/8g/reg.go                         |   2 +-
- src/cmd/asm/internal/arch/arch.go         |  89 +---
- src/cmd/asm/internal/asm/endtoend_test.go |   2 +
- src/cmd/dist/buildtool.go                 |   4 +-
- src/cmd/internal/obj/link.go              |   1 +
- src/cmd/internal/obj/x86/6.out.go         |  13 +
- src/cmd/internal/obj/x86/anames6.go       |  13 +
- src/cmd/internal/obj/x86/asm6.go          | 673 +++++++++++++++++++++++-------
- src/cmd/internal/obj/x86/list6.go         |  53 ++-
- src/cmd/internal/obj/x86/obj6.go          | 137 ++++--
- src/cmd/old6a/a.y                         |  17 +-
- src/cmd/old6a/lex.go                      |   6 +-
- src/cmd/old6a/y.go                        | 231 +++++-----
- src/cmd/old8a/a.y                         |   4 +-
- src/cmd/old8a/lex.go                      |   2 +-
- src/cmd/old8a/y.go                        | 178 ++++----
- 24 files changed, 907 insertions(+), 534 deletions(-)
+ src/cmd/gc/builtin.c         |   2 +-
+ src/cmd/gc/go.h              |   2 +
+ src/cmd/gc/reflect.c         | 229 +++++++++++++++----------------------------
+ src/cmd/gc/runtime.go        |   2 +-
+ src/cmd/gc/walk.c            |  30 +++++-
+ src/runtime/hashmap.go       |  16 ++-
+ src/runtime/map_test.go      |  10 ++
+ src/runtime/mapspeed_test.go |   9 ++
+ test/escape2.go              |  17 ++++
+ test/escape2n.go             |  17 ++++
+ test/live.go                 |   4 +-
+ test/live2.go                |   8 +-
+ 12 files changed, 178 insertions(+), 168 deletions(-)

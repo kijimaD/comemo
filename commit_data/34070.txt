@@ -1,50 +1,23 @@
-commit a046caa1e8c6cb2e21f438c672c0c1a96eebfff6
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 25 12:15:23 2018 -0500
+commit ed815d0038d42d2c7359cc319babd6b289cedbef
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Oct 1 14:39:04 2017 +1100
 
-    runtime, sync/atomic: use NOFRAME on arm
+    cmd/link/internal/ld: reduce the scope of some local declarations
     
-    This replaces frame size -4 with the NOFRAME flag in arm assembly.
+    Move some local declarations closer to their use, reducing their
+    respective lifetimes. Spotted while reviewing CL 67318.
     
-    This was automated with:
-    
-    sed -i -e 's/\(^TEXT.*[A-Z]\),\( *\)\$-4/\1|NOFRAME,\2$0/' $(find -name '*_arm.s')
-    
-    Plus three manual comment changes found by:
-    
-    grep '\$-4' $(find -name '*_arm.s')
-    
-    The go binary is identical before and after this change.
-    
-    Change-Id: I0310384d1a584118c41d1cd3a042bb8ea7227ef9
-    Reviewed-on: https://go-review.googlesource.com/92042
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I68db67fe8530344d95e50efb6587bc724e1171f5
+    Reviewed-on: https://go-review.googlesource.com/67370
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/test/issue9400/asm_arm.s   |  2 +-
- src/runtime/asm_arm.s               | 54 ++++++++++++++++++-------------------
- src/runtime/cgo/asm_arm.s           |  2 +-
- src/runtime/cgo/signal_darwin_arm.s |  2 +-
- src/runtime/rt0_android_arm.s       |  2 +-
- src/runtime/rt0_linux_arm.s         |  4 +--
- src/runtime/rt0_nacl_arm.s          |  2 +-
- src/runtime/rt0_plan9_arm.s         |  2 +-
- src/runtime/sys_darwin_arm.s        |  4 +--
- src/runtime/sys_freebsd_arm.s       | 24 ++++++++---------
- src/runtime/sys_linux_arm.s         | 12 ++++-----
- src/runtime/sys_nacl_arm.s          |  4 +--
- src/runtime/sys_netbsd_arm.s        | 22 +++++++--------
- src/runtime/sys_openbsd_arm.s       | 14 +++++-----
- src/runtime/sys_plan9_arm.s         |  6 ++---
- src/runtime/tls_arm.s               |  2 +-
- src/runtime/vlop_arm.s              |  4 +--
- src/sync/atomic/asm_arm.s           |  2 +-
- src/sync/atomic/asm_darwin_arm.s    |  2 +-
- src/sync/atomic/asm_freebsd_arm.s   |  2 +-
- src/sync/atomic/asm_linux_arm.s     |  4 +--
- src/sync/atomic/asm_nacl_arm.s      |  2 +-
- src/sync/atomic/asm_netbsd_arm.s    |  2 +-
- src/sync/atomic/asm_openbsd_arm.s   |  2 +-
- src/sync/atomic/asm_plan9_arm.s     |  2 +-
- 25 files changed, 90 insertions(+), 90 deletions(-)
+ src/cmd/link/internal/ld/data.go    | 30 ++++++----------
+ src/cmd/link/internal/ld/elf.go     | 31 +++++------------
+ src/cmd/link/internal/ld/go.go      | 19 +++++-----
+ src/cmd/link/internal/ld/ldelf.go   | 69 +++++++++++++++----------------------
+ src/cmd/link/internal/ld/ldmacho.go | 21 +++++------
+ src/cmd/link/internal/ld/macho.go   | 14 +++-----
+ 6 files changed, 67 insertions(+), 117 deletions(-)

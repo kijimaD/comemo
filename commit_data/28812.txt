@@ -1,21 +1,25 @@
-commit 26c7b4fb1e0553e8f9abe5fdd9008bb1f5bd3228
-Author: Anthony Canino <anthony.canino1@gmail.com>
-Date:   Sat Oct 10 15:24:34 2015 -0400
+commit dede2061f3c7d593df471eb8b22b349dd310c71f
+Author: David Chase <drchase@google.com>
+Date:   Wed Jul 27 13:54:07 2016 -0700
 
-    cmd/compile: "abc"[1] is not an ideal constant
+    [dev.ssa] cmd/compile: PPC64, add more zeroing and moves
     
-    "abc"[1] is not like 'b', in that -"abc"[1] is uint8 math, not ideal constant math.
-    Delay the constantification until after ideal constant folding is over.
+    Passes light testing.
+    Modified to avoid possible exposure of "exterior" pointers
+    to GC.
     
-    Fixes #11370.
+    Updates #16010.
     
-    Change-Id: Iba2fc00ca2455959e7bab8f4b8b4aac14b1f9858
-    Reviewed-on: https://go-review.googlesource.com/15740
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I41fced4fa83cefb9542dff8c8dee1a0c48056b3c
+    Reviewed-on: https://go-review.googlesource.com/25310
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go  |  6 ++++++
- src/cmd/compile/internal/gc/walk.go | 14 ++------------
- test/fixedbugs/issue11370.go        | 13 +++++++++++++
- 3 files changed, 21 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        | 127 ++++++++++
+ src/cmd/compile/internal/ssa/config.go       |   1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  52 ++++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  68 ++++-
+ src/cmd/compile/internal/ssa/opGen.go        |  76 ++++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 362 +++++++++++++++++++++++++++
+ 6 files changed, 652 insertions(+), 34 deletions(-)

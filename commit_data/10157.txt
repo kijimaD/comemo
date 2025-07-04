@@ -1,12 +1,15 @@
-commit d0eaa58b5a19f15546af4d61a1dc9987af168b5a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 31 17:50:25 2011 -0400
+commit a7e473be95d02b754e120f4616520c263c4a5268
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Oct 31 12:59:06 2011 -0700
 
-    runtime/pprof: document OS X being broken
+    time: add RFC1123 with numeric timezone format
     
-    R=golang-dev, r
+    Fixes #841.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5307078
+    https://golang.org/cl/5322058
 
- src/pkg/runtime/pprof/pprof.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/time/format.go    | 12 ++++++------
+ src/pkg/time/time_test.go |  3 +++
+ 2 files changed, 9 insertions(+), 6 deletions(-)

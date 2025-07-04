@@ -1,23 +1,25 @@
-commit 5f320f962bd79120f542315c8317f3469c47cee3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 10 15:26:56 2019 -0400
+commit 28fb8c69871ff3edecb0951e50f7caf38943ec5d
+Author: David Chase <drchase@google.com>
+Date:   Fri Jan 4 11:43:23 2019 -0500
 
-    cmd/go/internal/modfetch: fix GOSUMDB test failures
+    cmd/compile: modify swt.go to skip repeated walks of switch
     
-    Use cfg.GOSUMDB consistently instead of re-resolving it from the environment.
+    The compiler appears to contain several squirrelly corner
+    cases where nodes are double walked, some where new nodes
+    are created from walked parts.  Rather than trust that we
+    had searched hard enough for the last one, change
+    exprSwitch.walk() to return immediately if it has already
+    been walked.  This appears to be the only case where
+    double-walking a node is actually harmful.
     
-    Set cfg.GOSUMDB to 'off' explicitly in coderepo_test, since it may
-    include modules that cannot be fetched using a released version of the
-    'go' command.
+    Fixes #29562.
     
-    Fixes #31964
-    
-    Change-Id: I17cae9e0c6aa1168ba534e6da4e3652800ac81e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176538
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I0667e8769aba4c3236666cd836a934e256c0bfc5
+    Reviewed-on: https://go-review.googlesource.com/c/156317
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo_test.go | 7 +++++++
- src/cmd/go/internal/modfetch/sumdb.go         | 2 +-
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/swt.go |  4 ++--
+ test/fixedbugs/issue29562.go       | 26 ++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)

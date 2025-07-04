@@ -1,41 +1,17 @@
-commit 87abb4afb63918d3e5ee5d7ebd196386fa22e368
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Tue Jul 16 07:15:22 2024 -0400
+commit d329fc5b30912456733c0396a06dfebfc5faf6b3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 30 15:27:29 2023 -0700
 
-    runtime: avoid multiple records with identical stacks from MutexProfile
+    doc/go1.21: mention flag.BoolFunc
     
-    When using frame pointer unwinding, we defer frame skipping and inline
-    expansion for call stacks until profile reporting time. We can end up
-    with records which have different stacks if no frames are skipped, but
-    identical stacks once skipping is taken into account. Returning multiple
-    records with the same stack (but different values) has broken programs
-    which rely on the records already being fully aggregated by call stack
-    when returned from runtime.MutexProfile. This CL addresses the problem
-    by handling skipping at recording time. We do full inline expansion to
-    correctly skip the desired number of frames when recording the call
-    stack, and then handle the rest of inline expansion when reporting the
-    profile.
+    For #53747
     
-    The regression test in this CL is adapted from the reproducer in
-    https://github.com/grafana/pyroscope-go/issues/103, authored by Tolya
-    Korniltsev.
-    
-    Fixes #67548
-    
-    This reapplies CL 595966.
-    The original version of this CL introduced a bounds error in
-    MutexProfile and failed to correctly expand inlined frames from that
-    call. This CL applies the original CL, fixing the bounds error and
-    adding a test for the output of MutexProfile to ensure the frames are
-    expanded properly.
-    
-    Change-Id: I5ef8aafb9f88152a704034065c0742ba767c4dbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598515
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia5e2f89c1184f2dfd6d672b838b0dbb579e6c954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499417
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/mprof.go            | 113 +++++++++++++++++++++++----
- src/runtime/pprof/pprof.go      |  23 +++++-
- src/runtime/pprof/pprof_test.go | 164 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 282 insertions(+), 18 deletions(-)
+ doc/go1.21.html | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

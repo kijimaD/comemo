@@ -1,18 +1,14 @@
-commit 8c58900aeb9241e856515c23519455bf39c808df
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Oct 23 19:13:32 2017 -0400
+commit f396fa4285dd5def6d28ebedb4261cf89133bae1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 1 16:05:17 2017 -0700
 
-    cmd/compile: fix problem with non-decomposed vars
+    internal/poll: don't add non-sockets to runtime poller
     
-    Fix a bug introduced in patch 2 of
-    https://go-review.googlesource.com/72630 (sense of a map
-    lookup test was accidentally flipped).
+    Updates #21172
     
-    Change-Id: Icc6096ee50be4605fa7542b9fd855c13b8aff090
-    Reviewed-on: https://go-review.googlesource.com/72850
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I0fec6e645328bbc85f3e47f4f71dd8d1d68c75ab
+    Reviewed-on: https://go-review.googlesource.com/52551
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/gc/pgen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/poll/fd_windows.go | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)

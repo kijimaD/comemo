@@ -1,13 +1,42 @@
-commit cdc556556c1d0213b3205dcd5b08655795fc215d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 21 09:29:19 2014 -0800
+commit cb133c66073303b08e893d6b71faf98bda2402e9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 21 13:06:57 2014 +0400
 
-    cmd/ld: support archives larger than 2G
+    runtime: do not collect GC roots explicitly
+    Currently we collect (add) all roots into a global array in a single-threaded GC phase.
+    This hinders parallelism.
+    With this change we just kick off parallel for for number_of_goroutines+5 iterations.
+    Then parallel for callback decides whether it needs to scan stack of a goroutine
+    scan data segment, scan finalizers, etc. This eliminates the single-threaded phase entirely.
+    This requires to store all goroutines in an array instead of a linked list
+    (to allow direct indexing).
+    This CL also removes DebugScan functionality. It is broken because it uses
+    unbounded stack, so it can not run on g0. When it was working, I've found
+    it helpless for debugging issues because the two algorithms are too different now.
+    This change would require updating the DebugScan, so it's simpler to just delete it.
     
-    R=golang-codereviews, gobot, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/53950043
+    With 8 threads this change reduces GC pause by ~6%, while keeping cputime roughly the same.
+    
+    garbage-8
+    allocated                 2987886      2989221      +0.04%
+    allocs                      62885        62887      +0.00%
+    cputime                  21286000     21272000      -0.07%
+    gc-pause-one             26633247     24885421      -6.56%
+    gc-pause-total             873570       811264      -7.13%
+    rss                     242089984    242515968      +0.18%
+    sys-gc                   13934336     13869056      -0.47%
+    sys-heap                205062144    205062144      +0.00%
+    sys-other                12628288     12628288      +0.00%
+    sys-stack                11534336     11927552      +3.41%
+    sys-total               243159104    243487040      +0.13%
+    time                      2809477      2740795      -2.44%
+    
+    R=golang-codereviews, rsc
+    CC=cshapiro, golang-codereviews, khr
+    https://golang.org/cl/46860043
 
- src/cmd/ld/lib.c | 6 +++---
- src/cmd/ld/lib.h | 1 -
- 2 files changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/runtime/mgc0.c    | 465 ++++++++++++++++------------------------------
+ src/pkg/runtime/mprof.goc |   5 +-
+ src/pkg/runtime/proc.c    |  77 +++++---
+ src/pkg/runtime/runtime.h |   4 +-
+ 4 files changed, 217 insertions(+), 334 deletions(-)

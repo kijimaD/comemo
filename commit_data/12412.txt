@@ -1,13 +1,12 @@
-commit eab42619467c0bb5c52cb17868df1ac77691d9cc
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 6 15:25:42 2012 +1100
+commit 4191ff2436be8d825493181ad00e71cf2363b990
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 6 15:16:45 2012 +1100
 
-    strconv: remove dependency on bytes
+    godoc: switch on +1 buttons
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5759044
+    https://golang.org/cl/5754048
 
- src/pkg/go/build/deps_test.go |  2 +-
- src/pkg/strconv/quote.go      | 63 ++++++++++++++++++++++---------------------
- 2 files changed, 34 insertions(+), 31 deletions(-)
+ lib/godoc/godoc.html | 2 --
+ 1 file changed, 2 deletions(-)

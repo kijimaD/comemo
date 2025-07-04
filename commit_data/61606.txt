@@ -1,0 +1,23 @@
+commit 405a0c4ae86fe2761118ee6d1d59e59daf9b50cd
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Nov 18 09:31:59 2024 +0100
+
+    os/user: fix race detector failure
+    
+    The race detector doesn't like that windows.GetSid* functions return
+    pointers to the SID structure. This change makes these functions return
+    values instead and mark them with nocheckptr.
+    
+    Fixes #70378
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race
+    Change-Id: Iba39d75bb31679d25a5ee43b51e4abb0c435dbac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628995
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/syscall/windows/security_windows.go | 34 +++++++++++++++++++++---
+ src/internal/syscall/windows/zsyscall_windows.go | 12 ++++-----
+ src/os/user/lookup_windows.go                    |  6 ++---
+ 3 files changed, 40 insertions(+), 12 deletions(-)

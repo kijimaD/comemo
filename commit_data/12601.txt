@@ -1,13 +1,18 @@
-commit f0aeac1ac82d8fda8a0010462ade5a5de3b4856b
+commit c9f1f56143c7f4284fe3bdd3526aeb72714d533f
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 13 15:09:51 2012 +1100
+Date:   Tue Mar 13 15:02:36 2012 +1100
 
-    weekly.2012-03-12
+    doc: increase h3 size
     
-    R=golang-dev, nigeltao, bradfitz
+    This makes h3 and h4 more distinct, and h2 and h3 the same size.
+    The h2 and h3 styles may be distinguished h2's background styles.
+    
+    This means that almost all text on the site is either 16px, 20px,
+    or 24px. (with a smattering of 14px)
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5783077
+    https://golang.org/cl/5754095
 
- .hgtags               |   1 -
- doc/devel/weekly.html | 144 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 144 insertions(+), 1 deletion(-)
+ doc/style.css | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

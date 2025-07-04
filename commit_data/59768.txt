@@ -1,23 +1,20 @@
-commit 4d1c255f159d90557b43ede07f8b9a209e1fb49c
-Author: Neal Patel <nealpatel@google.com>
-Date:   Wed May 21 14:11:44 2025 -0400
+commit c260de24b688d72206f1224e298181c8363fc33d
+Author: khr@golang.org <khr@golang.org>
+Date:   Mon Apr 15 18:23:38 2024 -0700
 
-    net/http: strip sensitive proxy headers from redirect requests
+    runtime: remove odd-forcing of hash constants
     
-    Similarly to Authentication entries, Proxy-Authentication entries should be stripped to ensure sensitive information is not leaked on redirects outside of the original domain.
+    We don't multiply by them any more, so no need to make them odd.
     
-    https://fetch.spec.whatwg.org/#authentication-entries
+    Suggested by me here in 2021:
+    https://go-review.googlesource.com/c/go/+/280372/comment/1a86b8aa_f64310bf/
+    Never got around to it until now.
     
-    Thanks to Takeshi Kaneko (GMO Cybersecurity by Ierae, Inc.) for reporting this issue.
-    
-    For #73816
-    Fixes CVE-2025-4673
-    
-    Change-Id: Ied7b641f6531f1d340ccba3c636d3c30dd5547d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/679257
+    Change-Id: Iddc675e6a18b4a7a785acbf77c96e127003cc3c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579116
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/net/http/client.go      | 3 ++-
- src/net/http/client_test.go | 3 +++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/alg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,16 @@
-commit 15c362a26081d99ee968f99fb3fc43b2e093a81d
-Author: Sandy <openset.wang@gmail.com>
-Date:   Mon Jul 30 03:56:46 2018 +0000
+commit d18f186b9b05be6efdba2b54e3506083ae7c4efc
+Author: ludweeg <mursalimovemeel@gmail.com>
+Date:   Mon Apr 23 16:20:32 2018 +0300
 
-    time: use secondsPerMinute instead of 60
+    crypto/md5: unnecessary conversion
     
-    It's maybe better.
+    Fixes go lint warning.
     
-    Change-Id: I7929e93a95c96676915bc24f2f7cce4e73b08c59
-    GitHub-Last-Rev: a8c2bb6cafe78090f35c3b194e270e301255be89
-    GitHub-Pull-Request: golang/go#26685
-    Reviewed-on: https://go-review.googlesource.com/126623
-    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
+    Change-Id: I5a7485a4c8316b81e6aa50b95fe75e424f2fcedc
+    Reviewed-on: https://go-review.googlesource.com/109055
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/time.go | 2 +-
+ src/crypto/md5/md5.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

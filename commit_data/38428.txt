@@ -1,22 +1,23 @@
-commit cb8054a6b63975975b89c2901ce31f3be4fe7838
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Feb 20 16:48:43 2019 +0100
+commit 3f3142ad99155424007b8e8182265b5b716b44ee
+Author: bill_ofarrell <billo@ca.ibm.com>
+Date:   Fri Oct 26 17:33:51 2018 -0400
 
-    cmd/link: fix trampoline generation for aix/ppc64
+    cmd/asm: add s390x VMSLG instruction variants
     
-    This commit fixes trampoline generation on aix/ppc64 which must use TOC
-    symbols.
-    It also adds a size to runtime.text.X symbols to prevent ld from moving
-    them, like runtime.text.
+    VMSLG has three variants on z14 and later machines. These variants are used in "limbified" squaring:
+    VMSLEG: Even Shift Indication -- the even-indexed intermediate result is doubled
+    VMSLOG: Odd Shift Indication -- the odd-indexed intermediate result is doubled
+    VMSLEOG: Even and Odd Shift Indication -- both intermediate results are doubled
+    Limbified squaring is very useful for high performance cryptographic algorithms, such as
+    elliptic curve. This change allows these instructions to be used in Go assembly.
     
-    Change-Id: Ida033ec20ad8d7b7fb3faeb0ec4fa7bc4ce86b7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164009
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iaad577b07320205539f99b3cb37a2a984882721b
+    Reviewed-on: https://go-review.googlesource.com/c/145180
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/cmd/link/internal/ld/data.go   | 44 +++++++++++++++++++----
- src/cmd/link/internal/ld/lib.go    |  3 +-
- src/cmd/link/internal/ld/xcoff.go  |  8 +++--
- src/cmd/link/internal/ppc64/asm.go | 73 ++++++++++++++++++++++++++------------
- 4 files changed, 95 insertions(+), 33 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s | 3 +++
+ src/cmd/internal/obj/s390x/a.out.go       | 3 +++
+ src/cmd/internal/obj/s390x/anames.go      | 3 +++
+ src/cmd/internal/obj/s390x/asmz.go        | 3 +++
+ src/cmd/internal/obj/s390x/vector.go      | 8 +++++++-
+ 5 files changed, 19 insertions(+), 1 deletion(-)

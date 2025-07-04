@@ -1,16 +1,12 @@
-commit 95ae5c180efbeb7c086da2f62a6bccc49d7a8b76
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 29 13:33:37 2012 -0400
+commit 8c8ab0552c2f211cee79d6df89e38ff59cdc1649
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 30 01:52:50 2012 +0900
 
-    exp/types: disable test
+    net: fix comment on FileListener
     
-    It's broken and seems to be exp/types's fault.
-    
-    Update #3682.
-    
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6243068
+    https://golang.org/cl/6242067
 
- src/pkg/exp/types/gcimporter_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/pkg/net/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

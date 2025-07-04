@@ -1,23 +1,17 @@
-commit 7c7cd56870ba617f964014fa4694e9b61e29cf97
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 7 11:18:50 2022 -0500
+commit 9867262dfd9b1ba2f212c24dbf26758f81d7cd58
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 12:43:21 2022 -0800
 
-    cmd/go: in TestTerminalPassthrough, delay subprocess exit until the PTY has been read
+    spec: document behavior of generic type switch cases
     
-    Empirically, unread PTY output may be discarded on macOS when the
-    child process exits.
+    Fixes #51110.
     
-    Fixes #57141.
-    
-    Tested with 'go test cmd/go -run=TestTerminalPassthrough -count=1000'
-    on a darwin-amd64-12_0 gomote.
-    
-    Change-Id: I11508e6429c61488f30e10d9ae0cc94fdf059257
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455915
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I11370417f1ef435b05dfab18eeabc2c3c1b7b8a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384674
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/terminal_test.go | 57 +++++++++++++++++++++++++++------------------
- 1 file changed, 34 insertions(+), 23 deletions(-)
+ doc/go_spec.html | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

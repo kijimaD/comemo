@@ -1,19 +1,78 @@
-commit 64e152910e5b8ef3cad5aa4d02070fdda645c378
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jun 16 10:49:32 2016 -0700
+commit 7538b1db8ec0d82a623847fe5987f1988fe16448
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 15 14:14:04 2016 -0700
 
-    cmd/internal/obj/x86: remove pointless NOPs
+    cmd/compile: switch to compact export format by default
     
-    They are no longer needed by stkcheck.
+    builtin.go was auto-generated via go generate; all other
+    changes were manual.
     
-    Fixes #16057
+    The new format reduces the export data size by ~65% on average
+    for the std library packages (and there is still quite a bit of
+    room for improvement).
     
-    Change-Id: I57cb55de5b7a7a1d31a3da200a3a2d51576b68f5
-    Reviewed-on: https://go-review.googlesource.com/26667
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    The average time to write export data is reduced by (at least)
+    62% as measured in one run over the std lib, it is likely more.
+    
+    The average time to read import data is reduced by (at least)
+    37% as measured in one run over the std lib, it is likely more.
+    There is also room to improve this time.
+    
+    The compiler transparently handles both packages using the old
+    and the new format.
+    
+    Comparing the -S output of the go build for each package via
+    the cmp.bash script (added) shows identical assembly code for
+    all packages, but 6 files show file:line differences:
+    
+    The following files have differences because they use cgo
+    and cgo uses different temp. directories for different builds.
+    Harmless.
+    
+            src/crypto/x509
+            src/net
+            src/os/user
+            src/runtime/cgo
+    
+    The following files have file:line differences that are not yet
+    fully explained; however the differences exist w/ and w/o new export
+    format (pre-existing condition). See issue #15453.
+    
+            src/go/internal/gccgoimporter
+            src/go/internal/gcimporter
+    
+    In summary, switching to the new export format produces the same
+    package files as before for all practical purposes.
+    
+    How can you tell which one you have (if you care): Open a package
+    (.a) file in an editor. Textual export data starts with a $$ after
+    the header and is more or less legible; binary export data starts
+    with a $$B after the header and is mostly unreadable. A stand-alone
+    decoder (for debugging) is in the works.
+    
+    In case of a problem, please first try reverting back to the old
+    textual format to determine if the cause is the new export format:
+    
+    For a stand-alone compiler invocation:
+    - go tool compile -newexport=0 <files>
+    
+    For a single package:
+    - go build -gcflags="-newexport=0" <pkg>
+    
+    For make/all.bash:
+    - (export GO_GCFLAGS="-newexport=0"; sh make.bash)
+    
+    Fixes #13241.
+    
+    Change-Id: I2588cb463be80af22446bf80c225e92ab79878b8
+    Reviewed-on: https://go-review.googlesource.com/22123
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/x86/obj6.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go |   3 -
+ src/cmd/compile/internal/gc/builtin.go | 233 ++++++++++++++-------------------
+ src/cmd/compile/internal/gc/export.go  |   2 +-
+ src/cmd/compile/internal/gc/main.go    |   2 +-
+ src/cmp.bash                           |  61 +++++++++
+ 5 files changed, 164 insertions(+), 137 deletions(-)

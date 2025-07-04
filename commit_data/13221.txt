@@ -1,14 +1,18 @@
-commit 6f3ffd4d799492612cd8283d5103f6db433cfca8
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 30 12:31:28 2012 -0700
+commit eb056dbea7bf2d18ef582bb637979a7c05b9b6a4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 30 14:40:59 2012 -0400
 
-    test/bench/shootout: more speedups
-    Most significant in mandelbrot, from avoiding MOVSD between registers,
-    but there are others.
+    shootout: make mandelbrot.go more like mandelbrot.c
     
-    R=golang-dev, rsc
+    Surprise! The C code is using floating point values for its counters.
+    Its off the critical path, but the Go code and C code are supposed to
+    be as similar as possible to make comparisons meaningful.
+    
+    It doesn't have a significant effect.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6258063
+    https://golang.org/cl/6260058
 
- test/bench/shootout/timing.log | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ test/bench/shootout/mandelbrot.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,14 +1,12 @@
-commit f320eb94f9ec057639b61bd03fc655838d85f6e3
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jan 17 16:51:02 2012 +1100
+commit 9b54af20204128a655ccea895bf668a5ef4e0309
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 17 00:55:35 2012 -0200
 
-    go/build: no back slash in FindTree returned pkg name
+    exp/proxy: fix build after URL changes
     
-    Fixes #2652.
-    
-    R=adg, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5516045
+    https://golang.org/cl/5540062
 
- src/pkg/go/build/path.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/proxy/proxy.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

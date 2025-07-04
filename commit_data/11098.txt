@@ -1,13 +1,12 @@
-commit 4a6b07f2356644e0aa58925799771d79ec0541a0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 10 20:08:53 2012 -0800
+commit d03bfa8e5b2040565ecf3563f83787970bab854c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jan 11 14:55:10 2012 +1100
 
-    gc: enable inlining by default
+    net: fix windows build
     
-    R=lvd, r
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/5531058
+    https://golang.org/cl/5533065
 
- src/cmd/gc/lex.c | 7 +++++++
- test/escape2.go  | 2 +-
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/net/sockoptip_windows.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

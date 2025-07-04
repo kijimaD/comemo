@@ -1,15 +1,16 @@
-commit a3498f4be4844802c2a942dee3a61531e6ed5275
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 26 23:44:30 2012 -0400
+commit bf9620ebbdf6f9dfa2f46e5823f6afc5bfa8206f
+Author: Ben Fried <ben.fried@gmail.com>
+Date:   Mon Mar 26 23:26:39 2012 -0400
 
-    cmd/go: copy tag_test.go from goinstall
+    misc/emacs: fix overindentation caused by mis-parsing lines ending with special chars
     
-    hg cat -r 11846 src/cmd/goinstall/tag_test.go >tag_test.go
-    No changes.
+    Fixes #3313
     
-    R=golang-dev, r
+    go-mode-backward-skip-comments is probably due for a more ambitious refactoring --- it repeats guard conditions after every nearly every movement of point.
+    
+    R=sameer, r
     CC=golang-dev
-    https://golang.org/cl/5919047
+    https://golang.org/cl/5844063
 
- src/cmd/go/tag_test.go | 73 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 73 insertions(+)
+ misc/emacs/go-mode.el | 203 ++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 179 insertions(+), 24 deletions(-)

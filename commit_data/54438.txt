@@ -1,16 +1,22 @@
-commit dd2279ee344a59ad50a73ebce5ab80c93fbbe732
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 12 16:14:36 2023 +0200
+commit 9fedc481ea09a0539cd2669312429ef5416a8949
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 15:33:29 2022 -0400
 
-    testing: use strings.LastIndexAny in (*common).decorate
+    runtime/internal/atomic: add write barrier-enabled pointer atomics
     
-    Change-Id: I14c521f4e599e14c71a52342b0ead5d0d4007f1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527655
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    UnsafePointer.Store, UnsafePointer.CompareAndSwap were missing,
+    although .StoreNoWB and .CompareAndSwapNoWB existed.
+    Same for Pointer[T}.
+    
+    Do the linkname tricks necessary to add those methods.
+    
+    Change-Id: I925ee27673288accb15ebe93898f9eb01ab46a98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443379
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/testing/testing.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/runtime/atomic_pointer.go        | 21 +++++++++++++
+ src/runtime/internal/atomic/types.go | 60 ++++++++++++++++++++++++++----------
+ 2 files changed, 65 insertions(+), 16 deletions(-)

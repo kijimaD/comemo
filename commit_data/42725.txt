@@ -1,16 +1,17 @@
-commit 99d6e3eec2cad4387b28759322273d774cc94fe5
-Author: Heisenberg <lziqiang1@gmail.com>
-Date:   Thu Jun 11 10:16:33 2020 +0800
+commit ab5d9f5831cd267e0d8e8954cfe9987b737aec9c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Feb 10 14:48:58 2020 -0500
 
-    internal/bytealg: use CBZ instructions
+    doc/go1.14: add a couple minor crypto release notes
     
-    Use CBZ to replace the comparison and jump to the zero instruction in the arm64 assembly file.
+    These were left out of CL 216759 because they are trivial, but I was
+    advised to be thorough.
     
-    Change-Id: Ie16fb52e27b4d327343e119ebc0f0ca756437bc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237477
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #36878
+    
+    Change-Id: Id4fd3a84866a82265e3f89abfdad6e3d231b507c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218918
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/bytealg/compare_arm64.s | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ doc/go1.14.html | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

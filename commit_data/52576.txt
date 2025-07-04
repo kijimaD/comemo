@@ -1,25 +1,31 @@
-commit 231f290e51e130a1699d5c29d28133d68f43d2e9
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Apr 4 12:49:39 2023 +0700
+commit 536282763f7357edd81d85993c12fd977fecd378
+Author: Charlie Vieth <charlie.vieth@gmail.com>
+Date:   Sat Mar 12 17:27:42 2022 -0500
 
-    runtime: mark map bucket slots as empty during map clear
+    go/build: replace ioutil.ReadDir with os.ReadDir
     
-    So iterators that are in progress can know entries have been deleted and
-    terminate the iterator properly.
+    Change go/build.readDir to use os.ReadDir instead of ioutil.ReadDir.
+    This addresses a TODO and improves performance on Darwin and Linux.
     
-    Update #55002
-    Update #56351
-    Fixes #59411
+    Darwin: Apple M1
+    name              old time/op    new time/op    delta
+    ImportVendor-10     39.8µs ± 1%    37.0µs ± 1%  -6.91%  (p=0.000 n=10+10)
     
-    Change-Id: I924f16a00fe4ed6564f730a677348a6011d3fb67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481935
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Linux: Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz
+    name              old time/op    new time/op    delta
+    ImportVendor-16     22.9µs ±11%    21.2µs ± 5%  -7.47%  (p=0.001 n=10+9)
+    
+    Updates #45557
+    
+    Change-Id: Ib1bd2e66210e714e499a035847d6261b61b7e2c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392074
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/map.go           | 16 +++++++++
- test/fixedbugs/issue59411.go | 77 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 93 insertions(+)
+ src/go/build/build.go      | 21 ++++++++++++++-------
+ src/go/build/build_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 7 deletions(-)

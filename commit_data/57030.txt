@@ -1,31 +1,23 @@
-commit 1f72ce31f06fbb28c289f5ee7e33d6c54c6894bc
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jul 1 16:34:08 2024 -0400
+commit 5e9b76fe2a1c6709e710c985ae82dff90c847c54
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 1 17:35:28 2023 -0400
 
-    cmd/go/internal/load: recompute test variant's build info if necessary
+    cmd/link: mangle certain instantiated function name in plugin mode
     
-    The buildinfo used for a testmain is a copy from the buildinfo produced
-    for the package under test, and that in turn is only computed if the
-    package under test is package main. If there are //go:debug directives
-    in a test file for package main, the godebugs for the testmain (which
-    are computed using the regular package files as well as the test files'
-    //go:debug directives) will be different from those used to produce the
-    buildinfo of the package under test (computed using the //go:debug
-    directives only in the main package). In that case, recompute the
-    buildinfo for the testmain to incorporate the new godebug information.
+    In plugin mode, we mangle the type symbol name so it doesn't
+    contain characters that may confuse the external linker. With
+    generics, instantiated function name includes type names, so it
+    may also contain such characters and so also needs to be mangled.
     
-    Since we've only been generating buildinfo for tests on package main, in
-    this CL we'll only recompute the buildinfo if the test is for package
-    main. It's not clear to me though if we should be computing the
-    buildinfo for all test mains (or none of them?)
+    Fixes #58800.
     
-    Fixes #68053
-    
-    Change-Id: Ib6cdb118e2f233de483c33e171c0cd03df1fc7be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595961
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: Ibb08c95b89b8a815ccef98193d3a025e9d4756cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500095
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/load/test.go                   | 10 ++++++++
- .../script/test_buildinfo_godebug_issue68053.txt   | 30 ++++++++++++++++++++++
- 2 files changed, 40 insertions(+)
+ src/cmd/cgo/internal/testplugin/plugin_test.go     |  7 +++++++
+ .../internal/testplugin/testdata/generic/plugin.go | 22 ++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go                    | 24 ++++++++++++++++------
+ 3 files changed, 47 insertions(+), 6 deletions(-)

@@ -1,17 +1,17 @@
-commit 687925ffcf034b84029f646ea87f22eca5aeada5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 13 22:55:26 2015 -0400
+commit d751be9f98120cc9d54b986f1fb09249dc2e6f3a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 4 12:57:53 2015 -0700
 
-    cmd/go: document that <meta> tags should be early in the HTML for go get
+    net/http: the Set-Cookie Expiration time zone should be GMT, not UTC
     
-    While we are here, fix a few things not updated for -insecure.
+    Per RFC 6265.
     
-    Fixes #8163.
-    
-    Change-Id: Ib80c9ac00d6b61cce26c3d20bee3d30ab9af1331
-    Reviewed-on: https://go-review.googlesource.com/12148
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I2b6b145f5d057f96509332509d722602ed9e2bbd
+    Reviewed-on: https://go-review.googlesource.com/10711
+    Reviewed-by: Brett Slatkin <bslatkin@google.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go | 10 +++++++---
- src/cmd/go/help.go    | 10 +++++++---
- 2 files changed, 14 insertions(+), 6 deletions(-)
+ src/net/http/cookie.go      | 2 +-
+ src/net/http/cookie_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

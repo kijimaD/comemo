@@ -1,14 +1,28 @@
-commit 55e7636f9c251f2dbff3daa1924071bc11df28a8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 29 20:11:33 2016 -0800
+commit f740d717bd31e1a4b8281072b5cb3dfeb26f3273
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Dec 4 14:17:03 2015 -0800
 
-    cmd/compile: remove some unused consts from the old yacc parser
+    crypto/elliptic: resample private keys if out of range.
     
-    Change-Id: I42f370b987fcc85201f7aaa055b9e58ee9b9a99e
-    Reviewed-on: https://go-review.googlesource.com/20079
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The orders of the curves in crypto/elliptic are all very close to a
+    power of two. None the less, there is a tiny bias in the private key
+    selection.
+    
+    This change makes the distribution uniform by resampling in the case
+    that a private key is >= to the order of the curve. (It also switches
+    from using BitSize to Params().N.BitLen() because, although they're the
+    same value here, the latter is technically the correct thing to do.)
+    
+    The private key sampling and nonce sampling in crypto/ecdsa don't have
+    this issue.
+    
+    Fixes #11082.
+    
+    Change-Id: Ie2aad563209a529fa1cab522abaf5fd505c7269a
+    Reviewed-on: https://go-review.googlesource.com/17460
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/go.go | 9 ---------
- 1 file changed, 9 deletions(-)
+ src/crypto/elliptic/elliptic.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

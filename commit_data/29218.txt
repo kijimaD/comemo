@@ -1,109 +1,20 @@
-commit bd640c882a8dcb88a0497770f881bce48ab83102
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 23 11:07:49 2016 -0400
+commit 1c53a1b1975adf69c594fbbd5b1ca13d783f9817
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 1 07:22:23 2016 -0400
 
-    runtime: disable stack rescanning by default
+    cmd/compile: fix scheduling of memory-producing tuple ops
     
-    With the hybrid barrier in place, we can now disable stack rescanning
-    by default. This commit adds a "gcrescanstacks" GODEBUG variable that
-    is off by default but can be set to re-enable STW stack rescanning.
-    The plan is to leave this off but available in Go 1.8 for debugging
-    and as a fallback.
+    Intrinsified atomic op produces <value,memory>. Make sure this
+    memory is considered in the store chain calculation.
     
-    With this change, worst-case mark termination time at GOMAXPROCS=12
-    *not* including time spent stopping the world (which is still
-    unbounded) is reliably under 100 µs, with a 95%ile around 50 µs in
-    every benchmark I tried (the go1 benchmarks, the x/benchmarks garbage
-    benchmark, and the gcbench activegs and rpc benchmarks). Including
-    time spent stopping the world usually adds about 20 µs to total STW
-    time at GOMAXPROCS=12, but I've seen it add around 150 µs in these
-    benchmarks when a goroutine takes time to reach a safe point (see
-    issue #10958) or when stopping the world races with goroutine
-    switches. At GOMAXPROCS=1, where this isn't an issue, worst case STW
-    is typically 30 µs.
+    Fixes #16948.
     
-    The go-gcbench activegs benchmark is designed to stress large numbers
-    of dirty stacks. This commit reduces 95%ile STW time for 500k dirty
-    stacks by nearly three orders of magnitude, from 150ms to 195µs.
-    
-    This has little effect on the throughput of the go1 benchmarks or the
-    x/benchmarks benchmarks.
-    
-    name         old time/op  new time/op  delta
-    XGarbage-12  2.31ms ± 0%  2.32ms ± 1%  +0.28%  (p=0.001 n=17+16)
-    XJSON-12     12.4ms ± 0%  12.4ms ± 0%  +0.41%  (p=0.000 n=18+18)
-    XHTTP-12     11.8µs ± 0%  11.8µs ± 1%    ~     (p=0.492 n=20+18)
-    
-    It reduces the tail latency of the x/benchmarks HTTP benchmark:
-    
-    name      old p50-time  new p50-time  delta
-    XHTTP-12    489µs ± 0%    491µs ± 1%  +0.54%  (p=0.000 n=20+18)
-    
-    name      old p95-time  new p95-time  delta
-    XHTTP-12    957µs ± 1%    960µs ± 1%  +0.28%  (p=0.002 n=20+17)
-    
-    name      old p99-time  new p99-time  delta
-    XHTTP-12   1.76ms ± 1%   1.64ms ± 1%  -7.20%  (p=0.000 n=20+18)
-    
-    Comparing to the beginning of the hybrid barrier implementation
-    ("runtime: parallelize STW mcache flushing") shows that the hybrid
-    barrier trades a small performance impact for much better STW latency,
-    as expected. The magnitude of the performance impact is generally
-    small:
-    
-    name                      old time/op    new time/op    delta
-    BinaryTree17-12              2.37s ± 1%     2.42s ± 1%  +2.04%  (p=0.000 n=19+18)
-    Fannkuch11-12                2.84s ± 0%     2.72s ± 0%  -4.00%  (p=0.000 n=19+19)
-    FmtFprintfEmpty-12          44.2ns ± 1%    45.2ns ± 1%  +2.20%  (p=0.000 n=17+19)
-    FmtFprintfString-12          130ns ± 1%     134ns ± 0%  +2.94%  (p=0.000 n=18+16)
-    FmtFprintfInt-12             114ns ± 1%     117ns ± 0%  +3.01%  (p=0.000 n=19+15)
-    FmtFprintfIntInt-12          176ns ± 1%     182ns ± 0%  +3.17%  (p=0.000 n=20+15)
-    FmtFprintfPrefixedInt-12     186ns ± 1%     187ns ± 1%  +1.04%  (p=0.000 n=20+19)
-    FmtFprintfFloat-12           251ns ± 1%     250ns ± 1%  -0.74%  (p=0.000 n=17+18)
-    FmtManyArgs-12               746ns ± 1%     761ns ± 0%  +2.08%  (p=0.000 n=19+20)
-    GobDecode-12                6.57ms ± 1%    6.65ms ± 1%  +1.11%  (p=0.000 n=19+20)
-    GobEncode-12                5.59ms ± 1%    5.65ms ± 0%  +1.08%  (p=0.000 n=17+17)
-    Gzip-12                      223ms ± 1%     223ms ± 1%  -0.31%  (p=0.006 n=20+20)
-    Gunzip-12                   38.0ms ± 0%    37.9ms ± 1%  -0.25%  (p=0.009 n=19+20)
-    HTTPClientServer-12         77.5µs ± 1%    78.9µs ± 2%  +1.89%  (p=0.000 n=20+20)
-    JSONEncode-12               14.7ms ± 1%    14.9ms ± 0%  +0.75%  (p=0.000 n=20+20)
-    JSONDecode-12               53.0ms ± 1%    55.9ms ± 1%  +5.54%  (p=0.000 n=19+19)
-    Mandelbrot200-12            3.81ms ± 0%    3.81ms ± 1%  +0.20%  (p=0.023 n=17+19)
-    GoParse-12                  3.17ms ± 1%    3.18ms ± 1%    ~     (p=0.057 n=20+19)
-    RegexpMatchEasy0_32-12      71.7ns ± 1%    70.4ns ± 1%  -1.77%  (p=0.000 n=19+20)
-    RegexpMatchEasy0_1K-12       946ns ± 0%     946ns ± 0%    ~     (p=0.405 n=18+18)
-    RegexpMatchEasy1_32-12      67.2ns ± 2%    67.3ns ± 2%    ~     (p=0.732 n=20+20)
-    RegexpMatchEasy1_1K-12       374ns ± 1%     378ns ± 1%  +1.14%  (p=0.000 n=18+19)
-    RegexpMatchMedium_32-12      107ns ± 1%     107ns ± 1%    ~     (p=0.259 n=18+20)
-    RegexpMatchMedium_1K-12     34.2µs ± 1%    34.5µs ± 1%  +1.03%  (p=0.000 n=18+18)
-    RegexpMatchHard_32-12       1.77µs ± 1%    1.79µs ± 1%  +0.73%  (p=0.000 n=19+18)
-    RegexpMatchHard_1K-12       53.6µs ± 1%    54.2µs ± 1%  +1.10%  (p=0.000 n=19+19)
-    Template-12                 61.5ms ± 1%    63.9ms ± 0%  +3.96%  (p=0.000 n=18+18)
-    TimeParse-12                 303ns ± 1%     300ns ± 1%  -1.08%  (p=0.000 n=19+20)
-    TimeFormat-12                318ns ± 1%     320ns ± 0%  +0.79%  (p=0.000 n=19+19)
-    Revcomp-12 (*)               509ms ± 3%     504ms ± 0%    ~     (p=0.967 n=7+12)
-    [Geo mean]                  54.3µs         54.8µs       +0.88%
-    
-    (*) Revcomp is highly non-linear, so I only took samples with 2
-    iterations.
-    
-    name         old time/op  new time/op  delta
-    XGarbage-12  2.25ms ± 0%  2.32ms ± 1%  +2.74%  (p=0.000 n=16+16)
-    XJSON-12     11.6ms ± 0%  12.4ms ± 0%  +6.81%  (p=0.000 n=18+18)
-    XHTTP-12     11.6µs ± 1%  11.8µs ± 1%  +1.62%  (p=0.000 n=17+18)
-    
-    Updates #17503.
-    
-    Updates #17099, since you can't have a rescan list bug if there's no
-    rescan list. I'm not marking it as fixed, since gcrescanstacks can
-    still be set to re-enable the rescan lists.
-    
-    Change-Id: I6e926b4c2dbd4cd56721869d4f817bdbb330b851
-    Reviewed-on: https://go-review.googlesource.com/31766
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I029f164b123a7e830214297f8373f06ea0bf1e26
+    Reviewed-on: https://go-review.googlesource.com/28350
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/extern.go   |  5 +++++
- src/runtime/mgc.go      |  2 +-
- src/runtime/mgcmark.go  | 15 ++++++++++++++-
- src/runtime/runtime1.go |  9 +++++++++
- 4 files changed, 29 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go |  6 +++++-
+ test/fixedbugs/issue16948.go             | 34 ++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

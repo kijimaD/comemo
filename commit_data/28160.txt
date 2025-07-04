@@ -1,24 +1,16 @@
-commit cc0248aea53b252ec5c0e1c57e32edb102bc36fe
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 31 12:35:32 2016 -0700
+commit 45f39fb46747d0c46bc25e6ef605c00e96e2dc07
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 2 13:58:48 2016 +1200
 
-    cmd/compile: don't reserve X15 for float sub/div any more
+    cmd/link: pass -Wl,-z,relro to host linker in -buildmode=PIE
     
-    We used to reserve X15 to implement the 3-operand floating-point
-    sub/div ops with the 2-operand sub/div that 386/amd64 gives us.
+    Fixes #15485
     
-    Now that resultInArg0 is implemented, we no longer need to
-    reserve X15 (X7 on 386).
-    
-    Fixes #15584
-    
-    Change-Id: I978e6c0a35236e89641bfc027538cede66004e82
-    Reviewed-on: https://go-review.googlesource.com/28272
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I8e9314be91db89873130b232b589a284822e6643
+    Reviewed-on: https://go-review.googlesource.com/22687
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386Ops.go   | 15 +++-----
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 15 +++-----
- src/cmd/compile/internal/ssa/opGen.go        | 56 ++++++++++++----------------
- 3 files changed, 36 insertions(+), 50 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 3 +++
+ 1 file changed, 3 insertions(+)

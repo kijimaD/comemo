@@ -1,17 +1,38 @@
-commit 9d4717d5f1d9b8a16c52c46d2a670c230dc72cbc
-Author: Mark Pulford <mark@kyne.com.au>
-Date:   Sat Dec 7 09:50:17 2019 +1100
+commit c5f142fa9fb6e00b0877ba4b6e9ab77d22ac50cd
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed May 8 17:02:23 2019 +0700
 
-    runtime: suggest more kernel options for mlock failure
+    cmd/compile: optimize bitset tests
     
-    Some Linux distributions will continue to provide 5.3.x kernels for a
-    while rather than 5.4.x.
+    The assembly output for x & c == c, where c is power of 2:
     
-    Updates #35777
+            MOVQ    "".set+8(SP), AX
+            ANDQ    $8, AX
+            CMPQ    AX, $8
+            SETEQ   "".~r2+24(SP)
     
-    Change-Id: I493ef8338d94475f4fb1402ffb9040152832b0fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210299
-    Reviewed-by: Austin Clements <austin@google.com>
+    With optimization using bitset:
+    
+            MOVQ    "".set+8(SP), AX
+            BTL     $3, AX
+            SETCS   "".~r2+24(SP)
+    
+    output less than 1 instruction.
+    
+    However, there is no speed improvement:
+    
+    name         old time/op  new time/op  delta
+    AllBitSet-8  0.35ns ± 0%  0.35ns ± 0%   ~     (all equal)
+    
+    Fixes #31904
+    
+    Change-Id: I5dca4e410bf45716ed2145e3473979ec997e35d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175957
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/os_linux_x86.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |    6 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1455 +++++++++++++++++++++++-
+ test/codegen/bits.go                           |   12 +
+ 3 files changed, 1468 insertions(+), 5 deletions(-)

@@ -1,19 +1,18 @@
-commit e508a5f072c6e3c8449007bf7ca87142c6746404
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Oct 2 20:23:41 2018 +0000
+commit 3b0b3a02231083d8946b5afa5be6dd16dae5c6bf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 15 19:13:51 2018 +0000
 
-    runtime: de-duplicate span scavenging
+    cmd/link: add buildid to wasm modules
     
-    Currently, span scavenging was done nearly identically in two different
-    locations. This change deduplicates that into one shared routine.
+    Add Go buildids into a custom wasm section ("go.buildid", arbitrarily)
+    early in the wasm module, right after the magic & version.
     
-    For #14045.
+    Fixes #25910
     
-    Change-Id: I15006b2c9af0e70b7a9eae9abb4168d3adca3860
-    Reviewed-on: https://go-review.googlesource.com/c/139297
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: If3f7cb267bf8c7beb6fa8d8b7a4829419720bbd8
+    Reviewed-on: https://go-review.googlesource.com/119175
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mheap.go | 84 ++++++++++++++++++++--------------------------------
- 1 file changed, 32 insertions(+), 52 deletions(-)
+ src/cmd/link/internal/wasm/asm.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

@@ -1,19 +1,20 @@
-commit 13d48bb6a1ad3787c10fbbe4265ad11672d90a37
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Sep 28 14:41:30 2022 -0700
+commit 0bc98b3e9b3b6b55489bb9ffed54377e678eba28
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 5 17:09:22 2021 +0100
 
-    encoding/gob: add top level security doc
+    syscall: fix mkall.sh for openbsd/386
     
-    Add a slightly expanded version of the Decoder type comment to the top
-    level package doc, which explains that this package is not designed
-    to be hardened against adversarial inputs.
+    CL 287654 converted the syscall package on openbsd/386 to use libc.
+    However, the mksyscall.pl invocation wasn't adjusted. Do so now to use
+    syscall_openbsd_libc.go like the other libc-based openbsd ports.
     
-    Change-Id: I8b83433838c8235eb06ded99041fdf726c811ee5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436096
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I48a7bd6ce4c25eca5222f560ed584e412b466111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361481
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/encoding/gob/doc.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/syscall/mkall.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

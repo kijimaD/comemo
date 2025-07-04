@@ -1,20 +1,25 @@
-commit 4170084ad12c2e14dc0485d2a17a838e97fee8c7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu May 12 15:47:21 2022 -0700
+commit ff0c0dbca6a7a3a3d6528481829679be4c9d7e94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 27 19:13:26 2021 -0700
 
-    cmd/compile/internal/ir: remove PkgFuncName assumption that LocalPkg.Path == ""
+    [dev.typeparams] cmd/compile/internal/types2: use type terms to represent unions
     
-    Prep refactoring for CL 393715, after which LocalPkg.Path will no
-    longer be the empty string. Instead of testing `pkg.Path == ""`, we
-    can just test `pkg == LocalPkg`.
+    This is just an internal representation change for now.
     
-    Updates #51734.
-    
-    Change-Id: I74fff7fb383e275c9f294389d30b2220aced19e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406059
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I7e0126e9b17850ec020c2a60db13582761557bea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338092
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ir/func.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/infer.go           |  18 +++-
+ src/cmd/compile/internal/types2/interface.go       |   6 +-
+ src/cmd/compile/internal/types2/operand.go         |   6 +-
+ src/cmd/compile/internal/types2/predicates.go      |  16 +--
+ src/cmd/compile/internal/types2/sizeof_test.go     |   3 +-
+ src/cmd/compile/internal/types2/subst.go           |  22 +++-
+ .../types2/testdata/examples/constraints.go2       |   6 +-
+ src/cmd/compile/internal/types2/type.go            |   2 +-
+ src/cmd/compile/internal/types2/typeset.go         |   7 ++
+ src/cmd/compile/internal/types2/typestring.go      |   6 +-
+ src/cmd/compile/internal/types2/union.go           | 117 +++++++++++++--------
+ 11 files changed, 130 insertions(+), 79 deletions(-)

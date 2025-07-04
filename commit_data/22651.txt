@@ -1,22 +1,14 @@
-commit 723f86537c362f2f86c82ae827f689c23b866f00
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Mon Apr 20 23:02:07 2015 +0100
+commit f8fd5502ecdba0f40d794d22f7eb14c9b471a773
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 31 06:16:40 2015 -0700
 
-    net/http: fix race between dialing and canceling
+    doc: add another go1.5.txt performance item, sort gc items
     
-    In the brief window between getConn and persistConn.roundTrip,
-    a cancel could end up going missing.
-    
-    Fix by making it possible to inspect if a cancel function was cleared
-    and checking if we were canceled before entering roundTrip.
-    
-    Fixes #10511
-    
-    Change-Id: If6513e63fbc2edb703e36d6356ccc95a1dc33144
-    Reviewed-on: https://go-review.googlesource.com/9181
+    Change-Id: I9c2b9143d80d253d90d12d2b7686e045ec19c96c
+    Reviewed-on: https://go-review.googlesource.com/8291
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/export_test.go    |  4 ++++
- src/net/http/transport.go      | 37 +++++++++++++++++++++++++++++++++++--
- src/net/http/transport_test.go | 26 ++++++++++++++++++++++++++
- 3 files changed, 65 insertions(+), 2 deletions(-)
+ doc/go1.5.txt | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

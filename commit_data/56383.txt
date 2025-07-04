@@ -1,15 +1,30 @@
-commit 723d34f1713a09b0bce388dc403f3dd764cc608e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue May 7 11:05:08 2024 +0200
+commit 09a24a91b5aff200aa5fb8e75977c5a354702089
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 2 12:44:40 2023 -0400
 
-    internal/sysinfo: use strings.Cut in osCpuInfoName
+    cmd/go/internal/modfetch/codehost: initialize localGitURL lazily and clean up skips
     
-    Change-Id: I78a6189f0fc5d52b5f88cc0db0d3dbc36f94f826
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583715
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Previously localGitURL was initialized in TestMain, which creates
+    needless work if the test flags do not result in running a test that
+    requires localGitURL.
+    
+    We had also been skipping a bunch of tests that used
+    vcs-test.golang.org in order to avoid network traffic, but now that
+    that content is served through an in-process vcweb server that is no
+    longer necessary. (All of the 'git' tests together take less than a
+    second to run.)
+    
+    The 'hg' tests are much slower, so we do still skip those in short
+    mode.
+    
+    Updates #59940.
+    
+    Change-Id: Ie4f2d2bc825d7a011e25e754edf1a7c3c6010c77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491659
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/internal/sysinfo/cpuinfo_linux.go | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git_test.go | 102 ++++++++++++----------
+ 1 file changed, 57 insertions(+), 45 deletions(-)

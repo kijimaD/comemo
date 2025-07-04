@@ -1,26 +1,36 @@
-commit 8af32240c6c8f21695cdcb3b6df8293d7f2d3bc7
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 19 10:17:22 2025 -0700
+commit 821bf37819ec170cadbc9e44a7471f7613611c41
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jan 11 11:31:57 2024 -0800
 
-    cmd/compile: don't evaluate side effects of range over array
+    net/http, net/http/cookiejar: avoid subdomain matches on IPv6 zones
     
-    If the thing we're ranging over is an array or ptr to array, and
-    it doesn't have a function call or channel receive in it, then we
-    shouldn't evaluate it.
+    When deciding whether to forward cookies or sensitive headers
+    across a redirect, do not attempt to interpret an IPv6 address
+    as a domain name.
     
-    Typecheck the ranged-over value as a constant in that case.
-    That makes the unified exporter replace the range expression
-    with a constant int.
+    Avoids a case where a maliciously-crafted redirect to an
+    IPv6 address with a scoped addressing zone could be
+    misinterpreted as a within-domain redirect. For example,
+    we could interpret "::1%.www.example.com" as a subdomain
+    of "www.example.com".
     
-    Change-Id: I0d4ea081de70d20cf6d1fa8d25ef6cb021975554
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659317
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Thanks to Juho Nurminen of Mattermost for reporting this issue.
+    
+    Fixes CVE-2023-45289
+    Fixes #65065
+    
+    Change-Id: I8f463f59f0e700c8a18733d2b264a8bcb3a19599
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/2131938
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569340
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssa/nilcheck.go |  4 ++--
- src/cmd/compile/internal/types2/range.go | 25 +++++++++++++++++++++++
- src/cmd/compile/internal/walk/range.go   | 35 +++++++++++++++++++++++++++-----
- src/go/types/range.go                    | 25 +++++++++++++++++++++++
- test/codegen/issue52635.go               | 12 +++++++++++
- 5 files changed, 94 insertions(+), 7 deletions(-)
+ src/net/http/client.go             |  6 ++++++
+ src/net/http/client_test.go        |  1 +
+ src/net/http/cookiejar/jar.go      |  7 +++++++
+ src/net/http/cookiejar/jar_test.go | 10 ++++++++++
+ 4 files changed, 24 insertions(+)

@@ -1,12 +1,13 @@
-commit 253c139275d4997f466157dcfd0699bd6227751e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Feb 18 11:15:52 2012 -0800
+commit a5f21c95dc279f421c094a592d65bf2ef89e87d6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Feb 18 04:45:43 2012 -0800
 
-    doc: update gccgo_contribute.html
+    os: document the type of link errors
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5673080
+    https://golang.org/cl/5673090
 
- doc/gccgo_contribute.html | 115 ++++++++++++++++++++++++----------------------
- 1 file changed, 60 insertions(+), 55 deletions(-)
+ src/pkg/os/file_plan9.go | 8 +++++---
+ src/pkg/os/file_posix.go | 2 ++
+ 2 files changed, 7 insertions(+), 3 deletions(-)

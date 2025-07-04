@@ -1,34 +1,25 @@
-commit 95c5227c15da3c0c61eeea70f0a8288088301b98
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 10 15:14:54 2017 -0800
+commit b2d34fa51bd509f0aa780151a3d30c5ca77f1f4e
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Nov 9 09:09:37 2016 -0600
 
-    strconv: use % instead of computing the remainder from the quotient
+    runtime: handle bad ftab index in symtab.go
     
-    The compiler recognizes that in a sequence q = x/y; r = x%y only
-    one division is required. Remove prior work-arounds and write
-    more readable straight-line code (this also results in fewer
-    instructions, though it doesn't appear to affect the benchmarks
-    significantly).
+    If a program has had its text section split into multiple
+    sections then the ftab that is built is based on addresses
+    prior to splitting.  That means all the function addresses
+    are there and correct because of relocation but the
+    but the computed idx won't always match up quite right and
+    in some cases go beyond the end of the table, causing a panic.
     
-    name          old time/op  new time/op  delta
-    FormatInt-8   2.95µs ± 1%  2.92µs ± 5%   ~     (p=0.952 n=5+5)
-    AppendInt-8   1.91µs ± 1%  1.89µs ± 2%   ~     (p=0.421 n=5+5)
-    FormatUint-8   795ns ± 2%   782ns ± 4%   ~     (p=0.444 n=5+5)
-    AppendUint-8   557ns ± 1%   557ns ± 2%   ~     (p=0.548 n=5+5)
+    To resolve this, determine if the idx is too large and if it is,
+    set it to the last index in ftab.  Then search backward to find the
+    matching function address.
     
-    https://perf.golang.org/search?q=upload:20170310.1
+    Fixes #17854
     
-    Also:
-    - use uint instead of uintptr where we want to guarantee single-
-      register operations
-    - remove some unnecessary conversions (before indexing)
-    - add more comments and fix some comments
-    
-    Change-Id: I04858dc2d798a6495879d9c7cfec2fdc2957b704
-    Reviewed-on: https://go-review.googlesource.com/38071
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6940e76a5238727b0a9ac23dc80000996db2579a
+    Reviewed-on: https://go-review.googlesource.com/32972
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/strconv/itoa.go | 48 ++++++++++++++++++++++++++----------------------
- 1 file changed, 26 insertions(+), 22 deletions(-)
+ src/runtime/symtab.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

@@ -1,31 +1,21 @@
-commit 0ba3c607dfcc90072191375d57c4059be1ae96c7
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 17 13:29:31 2016 -0400
+commit df9eeb192227257e8399c629372cd8cc79513406
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 7 09:25:15 2016 -0700
 
-    cmd/dist, go/build: make CGO_ENABLED during make.bash sticky
+    go/types: remove struct Sizeof cache
     
-    Per discussion on #12808, it's a bit odd that if you do
+    It was not responsive to the sizes param.
+    Remove it, and unwind the extra layers.
     
-            CGO_ENABLED=0 ./make.bash
+    Fixes #16316
     
-    then you get a toolchain that still tries to use cgo.
-    So make the CGO_ENABLED setting propagate into
-    the resulting toolchain as the default setting for that
-    environment variable, like we do with other variables
-    like CC and GOROOT.
-    
-    No reasonable way to test automatically, but I did
-    test by hand that after the above command, 'go env'
-    shows CGO_ENABLED=0; before it showed CGO_ENABLED=1.
-    
-    Fixes #12808.
-    
-    Change-Id: I26a2fa6cc00e73bde8af7469270b27293392ed71
-    Reviewed-on: https://go-review.googlesource.com/31141
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I940a57184a1601f52348d4bff8638f3f7462f5cd
+    Reviewed-on: https://go-review.googlesource.com/26995
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/buildgo.go | 4 +++-
- src/go/build/build.go   | 6 +++++-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/go/types/sizes.go      | 38 +++++++++--------------------
+ src/go/types/sizes_test.go | 60 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/type.go       | 11 +++------
+ 3 files changed, 74 insertions(+), 35 deletions(-)

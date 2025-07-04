@@ -1,35 +1,29 @@
-commit d80ab3e85a76581277f62761ae3c22817dab745d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 1 12:38:10 2019 -0700
+commit 5d0d87ae1659807909da9d97ed1da77d7544d30c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 28 14:35:49 2019 -0700
 
-    runtime: wake netpoller when dropping P, don't sleep too long in sysmon
+    cmd/compile: fix package initialization ordering
     
-    When dropping a P, if it has any timers, and if some thread is
-    sleeping in the netpoller, wake the netpoller to run the P's timers.
-    This mitigates races between the netpoller deciding how long to sleep
-    and a new timer being added.
+    This CL rewrites cmd/compile's package-level initialization ordering
+    algorithm to be compliant with the Go spec. See documentation in
+    initorder.go for details.
     
-    In sysmon, if all P's are idle, check the timers to decide how long to sleep.
-    This avoids oversleeping if no thread is using the netpoller.
-    This can happen in particular if some threads use runtime.LockOSThread,
-    as those threads do not block in the netpoller.
+    Incidentally, this CL also improves fidelity of initialization loop
+    diagnostics by including referenced functions in the emitted output
+    like go/types does.
     
-    Also, print the number of timers per P for GODEBUG=scheddetail=1.
+    Fixes #22326.
     
-    Before this CL, TestLockedDeadlock2 would fail about 1% of the time.
-    With this CL, I ran it 150,000 times with no failures.
-    
-    Updates #6239
-    Updates #27707
-    Fixes #35274
-    Fixes #35288
-    
-    Change-Id: I7e5193e6c885e567f0b1ee023664aa3e2902fcd1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204800
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7c9ac47ff563df4d4f700cf6195387a0f372cc7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170062
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/proc.go | 49 ++++++++++++++++++++++++++-----------------------
- src/runtime/time.go | 21 +++++++++++++++++++++
- 2 files changed, 47 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/init.go      |   2 +-
+ src/cmd/compile/internal/gc/initorder.go | 355 +++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/sinit.go     | 266 +++--------------------
+ src/cmd/compile/internal/gc/syntax.go    |  28 +++
+ test/fixedbugs/issue22326.go             |  25 +++
+ test/fixedbugs/issue22326.out            |   1 +
+ 6 files changed, 439 insertions(+), 238 deletions(-)

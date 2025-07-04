@@ -1,15 +1,15 @@
-commit 4c75cab6783d7871987b99d72a310aa34b68e214
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Mar 9 13:18:12 2014 +1100
+commit a35b9e496073682cefdc0a533217683204ecb667
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 7 14:44:31 2014 -0800
 
-    syscall: add missing SO_ERROR constant for nacl/*
+    os: document that Process.Wait only works on child processes
     
-    CL 69340044 requires that syscall.SO_ERROR be defined on all unix like platforms. Add SO_ERROR to the list of dummy constants in sycall/net_nacl.go.
+    Fixes #7072
     
-    LGTM=bradfitz
-    R=iant, rsc, mikioh.mikioh, bradfitz
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/73100043
+    https://golang.org/cl/71900045
 
- src/pkg/syscall/net_nacl.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/os/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

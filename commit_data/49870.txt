@@ -1,17 +1,117 @@
-commit 3121c2bf64ae7e5c17379af2cf2a5c16952f57f1
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 29 14:52:42 2022 -0400
+commit c10b98022027ce584b0571359439fae41a721dd3
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 10 22:05:55 2021 -0400
 
-    runtime: convert prof.signalLock to atomic type
+    cmd/compile: restore tail call for method wrappers
     
-    For #53821.
+    For certain type of method wrappers we used to generate a tail
+    call. That was disabled in CL 307234 when register ABI is used,
+    because with the current IR it was difficult to generate a tail
+    call with the arguments in the right places. The problem was that
+    the IR does not contain a CALL-like node with arguments; instead,
+    it contains an OAS node that adjusts the receiver, than an
+    OTAILCALL node that just contains the target, but no argument
+    (with the assumption that the OAS node will put the adjusted
+    receiver in the right place). With register ABI, putting
+    arguments in registers are done in SSA. The assignment (OAS)
+    doesn't put the receiver in register.
     
-    Change-Id: I3e757fc6a020be10ee69459c395cb7eee49b0dfb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420195
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    This CL changes the IR of a tail call to take an actual OCALL
+    node. Specifically, a tail call is represented as
+    
+    OTAILCALL (OCALL target args...)
+    
+    This way, the call target and args are connected through the OCALL
+    node. So the call can be analyzed in SSA and the args can be passed
+    in the right places.
+    
+    (Alternatively, we could have OTAILCALL node directly take the
+    target and the args, without the OCALL node. Using an OCALL node is
+    convenient as there are existing code that processes OCALL nodes
+    which do not need to be changed. Also, a tail call is similar to
+    ORETURN (OCALL target args...), except it doesn't preserve the
+    frame. I did the former but I'm open to change.)
+    
+    The SSA representation is similar. Previously, the IR lowers to
+    a Store the receiver then a BlockRetJmp which jumps to the target
+    (without putting the arg in register). Now we use a TailCall op,
+    which takes the target and the args. The call expansion pass and
+    the register allocator handles TailCall pretty much like a
+    StaticCall, and it will do the right ABI analysis and put the args
+    in the right places. (Args other than the receiver are already in
+    the right places. For register args it generates no code for them.
+    For stack args currently it generates a self copy. I'll work on
+    optimize that out.) BlockRetJmp is still used, signaling it is a
+    tail call. The actual call is made in the TailCall op so
+    BlockRetJmp generates no code (we could use BlockExit if we like).
+    
+    This slightly reduces binary size:
+                  old        new
+    cmd/go     14003088   13953936
+    cmd/link    6275552    6271456
+    
+    Change-Id: I2d16d8d419fe1f17554916d317427383e17e27f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350145
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/cpuprof.go | 9 ++++-----
- src/runtime/proc.go    | 6 +++---
- 2 files changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go           |  21 ++--
+ src/cmd/compile/internal/arm/ssa.go             |  10 +-
+ src/cmd/compile/internal/arm64/ssa.go           |  10 +-
+ src/cmd/compile/internal/escape/stmt.go         |   3 +-
+ src/cmd/compile/internal/inline/inl.go          |   3 +
+ src/cmd/compile/internal/ir/fmt.go              |   2 +-
+ src/cmd/compile/internal/ir/node_gen.go         |   6 +-
+ src/cmd/compile/internal/ir/stmt.go             |   9 +-
+ src/cmd/compile/internal/mips/ssa.go            |   9 +-
+ src/cmd/compile/internal/mips64/ssa.go          |   9 +-
+ src/cmd/compile/internal/ppc64/ssa.go           |  10 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  15 +--
+ src/cmd/compile/internal/riscv64/ssa.go         |   9 +-
+ src/cmd/compile/internal/s390x/ssa.go           |  10 +-
+ src/cmd/compile/internal/ssa/check.go           |   3 -
+ src/cmd/compile/internal/ssa/expand_calls.go    |  16 ++-
+ src/cmd/compile/internal/ssa/gen/386.rules      |   1 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go      |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   1 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules      |   1 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules    |   1 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go    |   1 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go      |   1 +
+ src/cmd/compile/internal/ssa/gen/MIPS.rules     |   1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules   |   1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go   |   1 +
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go     |   1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules    |   1 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go    |   1 +
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules  |   1 +
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go  |   1 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules    |   1 +
+ src/cmd/compile/internal/ssa/gen/S390XOps.go    |   1 +
+ src/cmd/compile/internal/ssa/gen/Wasm.rules     |   1 +
+ src/cmd/compile/internal/ssa/gen/WasmOps.go     |   1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go  |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go           | 124 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go      |   3 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    |   3 +
+ src/cmd/compile/internal/ssa/rewriteARM.go      |   3 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go    |   3 +
+ src/cmd/compile/internal/ssa/rewriteMIPS.go     |   3 +
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go   |   3 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go    |   3 +
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  |   3 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go    |   3 +
+ src/cmd/compile/internal/ssa/rewriteWasm.go     |   3 +
+ src/cmd/compile/internal/ssa/writebarrier.go    |   2 +-
+ src/cmd/compile/internal/ssagen/abi.go          |  20 ++--
+ src/cmd/compile/internal/ssagen/ssa.go          |  29 ++++--
+ src/cmd/compile/internal/typecheck/typecheck.go |   1 +
+ src/cmd/compile/internal/walk/stmt.go           |   8 ++
+ src/cmd/compile/internal/wasm/ssa.go            |  13 +--
+ src/cmd/compile/internal/x86/ssa.go             |   9 +-
+ test/abi/method_wrapper.go                      |  35 +++++++
+ 56 files changed, 319 insertions(+), 121 deletions(-)

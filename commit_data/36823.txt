@@ -1,28 +1,12 @@
-commit 54f5a6674a9463fecb8656c9ffc6d80374c5868d
-Author: Anton Gyllenberg <anton@iki.fi>
-Date:   Tue Oct 2 22:47:28 2018 +0000
+commit 9b49edef50a86ac06d956774bc03a2410f73920f
+Author: Audrius Butkevicius <audrius.butkevicius@gmail.com>
+Date:   Wed May 30 20:07:41 2018 +0100
 
-    cmd/go: prevent infinite loop in QueryPackage()
+    net: fix leftover variable names from CL 115175
     
-    p = path.Dir(p) converges to either "." or "/". The current
-    implementation of modload.QueryPackage() has a loop that
-    terminates only on ".", not "/". This leads to the go command
-    hanging in an infinite loop if the user manages to supply
-    a file path starting with "/" as package path.
-    
-    An example of the issue is if the user (incorrectly) attempts
-    to use an absolute directory path in an import statement within
-    a module (import "/home/bob/myproj") and then runs go list.
-    
-    Fixes #27558
-    
-    Change-Id: Iaa6a4f7b05eba30609373636e50224ae2e7d6158
-    GitHub-Last-Rev: 3a70d3a4277395c2dd8bb50f61b1ac3e44caee28
-    GitHub-Pull-Request: golang/go#27976
-    Reviewed-on: https://go-review.googlesource.com/c/139098
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I5f78fe3286bf4667b6922c57c5701c09bf56e182
+    Reviewed-on: https://go-review.googlesource.com/115355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/query.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/unixsock.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

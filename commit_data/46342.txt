@@ -1,19 +1,107 @@
-commit bab79dd3627a9c5d4b43ac3f3c2eba4a1f04b813
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 7 16:24:49 2021 -0700
+commit dac0de3748cc816352da56f516506f80c33db4a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:39:45 2020 -0500
 
-    reflect: add back signaling NaN test
+    [dev.regabi] cmd/compile: move type size calculations into package types [generated]
     
-    I was a little too agressive in CL 258957 (removing 387 support) in
-    removing a signaling NaN test that should probably still exist.
-    I should have just removed the 387 skip, not the entire test.
+    To break up package gc, we need to put these calculations somewhere
+    lower in the import graph, either an existing or new package. Package types
+    already needs this code and is using hacks to get it without an import cycle.
+    We can remove the hacks and set up for the new package gc by moving the
+    code into package types itself.
     
-    Change-Id: I97ca53f190eb0de00e43b96629b2cae677e7dacb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348209
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+            # Remove old import cycle hacks in gc.
+            rm TypecheckInit:/types.Widthptr =/-0,/types.Dowidth =/+0 \
+                    ../ssa/export_test.go:/types.Dowidth =/-+
+            ex {
+                    import "cmd/compile/internal/types"
+                    types.Widthptr -> Widthptr
+                    types.Dowidth -> dowidth
+            }
+    
+            # Disable CalcSize in tests instead of base.Fatalf
+            sub dowidth:/base.Fatalf\("dowidth without betypeinit"\)/ \
+                    // Assume this is a test. \
+                    return
+    
+            # Move size calculation into cmd/compile/internal/types
+            mv Widthptr PtrSize
+            mv Widthreg RegSize
+            mv slicePtrOffset SlicePtrOffset
+            mv sliceLenOffset SliceLenOffset
+            mv sliceCapOffset SliceCapOffset
+            mv sizeofSlice SliceSize
+            mv sizeofString StringSize
+            mv skipDowidthForTracing SkipSizeForTracing
+            mv dowidth CalcSize
+            mv checkwidth CheckSize
+            mv widstruct calcStructOffset
+            mv sizeCalculationDisabled CalcSizeDisabled
+            mv defercheckwidth DeferCheckSize
+            mv resumecheckwidth ResumeCheckSize
+            mv typeptrdata PtrDataSize
+            mv \
+                    PtrSize RegSize SlicePtrOffset SkipSizeForTracing typePos align.go PtrDataSize \
+                    size.go
+            mv size.go cmd/compile/internal/types
+    '
+    
+    : # Remove old import cycle hacks in types.
+    cd ../types
+    rf '
+            ex {
+                    Widthptr -> PtrSize
+                    Dowidth -> CalcSize
+            }
+            rm Widthptr Dowidth
+    '
+    
+    Change-Id: Ib96cdc6bda2617235480c29392ea5cfb20f60cd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279234
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/all_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/amd64/ggen.go             |  15 +-
+ src/cmd/compile/internal/amd64/ssa.go              |   4 +-
+ src/cmd/compile/internal/arm/ggen.go               |   9 +-
+ src/cmd/compile/internal/arm64/ggen.go             |  17 +-
+ src/cmd/compile/internal/gc/abiutils.go            |   6 +-
+ src/cmd/compile/internal/gc/abiutils_test.go       |   6 +-
+ src/cmd/compile/internal/gc/abiutilsaux_test.go    |   2 +-
+ src/cmd/compile/internal/gc/alg.go                 |   6 +-
+ src/cmd/compile/internal/gc/closure.go             |  12 +-
+ src/cmd/compile/internal/gc/embed.go               |   2 +-
+ src/cmd/compile/internal/gc/gen.go                 |   2 +-
+ src/cmd/compile/internal/gc/go.go                  |  29 ---
+ src/cmd/compile/internal/gc/iimport.go             |   6 +-
+ src/cmd/compile/internal/gc/inl.go                 |   2 +-
+ src/cmd/compile/internal/gc/main.go                |   6 +-
+ src/cmd/compile/internal/gc/obj.go                 |  26 +-
+ src/cmd/compile/internal/gc/order.go               |   2 +-
+ src/cmd/compile/internal/gc/pgen.go                |  28 +-
+ src/cmd/compile/internal/gc/plive.go               |  22 +-
+ src/cmd/compile/internal/gc/racewalk.go            |   2 +-
+ src/cmd/compile/internal/gc/reflect.go             | 127 +++------
+ src/cmd/compile/internal/gc/sinit.go               |  14 +-
+ src/cmd/compile/internal/gc/ssa.go                 |  56 ++--
+ src/cmd/compile/internal/gc/subr.go                |  14 +-
+ src/cmd/compile/internal/gc/swt.go                 |   4 +-
+ src/cmd/compile/internal/gc/typecheck.go           |  47 ++--
+ src/cmd/compile/internal/gc/universe.go            |  18 +-
+ src/cmd/compile/internal/gc/unsafe.go              |   3 +-
+ src/cmd/compile/internal/gc/walk.go                |  26 +-
+ src/cmd/compile/internal/mips/ggen.go              |   9 +-
+ src/cmd/compile/internal/mips64/ggen.go            |  13 +-
+ src/cmd/compile/internal/ppc64/ggen.go             |  11 +-
+ src/cmd/compile/internal/riscv64/ggen.go           |  11 +-
+ src/cmd/compile/internal/ssa/export_test.go        |   1 -
+ .../internal/{gc/align.go => types/size.go}        | 289 ++++++++++++++-------
+ src/cmd/compile/internal/types/type.go             |  10 +-
+ src/cmd/compile/internal/types/utils.go            |   2 -
+ src/cmd/compile/internal/x86/ggen.go               |  11 +-
+ 38 files changed, 439 insertions(+), 431 deletions(-)

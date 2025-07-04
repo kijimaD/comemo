@@ -1,19 +1,13 @@
-commit a813be86df74bf2a9c5b272c0b0934d196ac665d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Sep 9 18:43:08 2022 -0400
+commit 749f6e9eb6d101ef2ea4b7228a966391a80aa89b
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Fri Oct 22 18:41:41 2021 +1100
 
-    cmd/compile: don't use R25 as input for LoweredMove on ARM64
+    doc/go1.18: document Fossil/Bazaar and commit time build tag support
     
-    The rule uses R25 as a scratch register. If the input is R25 it
-    will be clobbered on the way, causing wrong result.
-    
-    Change-Id: I464eadbdef0f3a5e90f9ef8c818393baa4335b87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430015
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Change-Id: I032791a3cda1916099b0fd2955dcca4e69763660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357958
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 2 +-
- src/cmd/compile/internal/ssa/opGen.go        | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.18.html | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

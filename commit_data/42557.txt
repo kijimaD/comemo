@@ -1,14 +1,19 @@
-commit 3c6fec86e30a28b3a773d1b972ca8bc8c3c90c30
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jun 24 14:29:20 2020 -0400
+commit 563287ae0636a592880dc616b50fde217fa1100f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 13 23:34:53 2020 +0000
 
-    crypto/tls: fix DialContext docs
+    Revert "os: handle long path in RemoveAll for windows"
     
-    Change-Id: I58e3febbf63049bebb4f8ed8893288183c8aaccd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239745
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    This reverts CL 214437.
+    
+    Does not fix the issue, and the test was wrong so it did not detect that it did not fix the issue.
+    
+    Updates #36375
+    
+    Change-Id: I6a4112035a1e90f4fdafed6fdf4ec9dfc718b571
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214601
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/tls.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/removeall_noat.go |  1 -
+ src/os/removeall_test.go | 20 --------------------
+ 2 files changed, 21 deletions(-)

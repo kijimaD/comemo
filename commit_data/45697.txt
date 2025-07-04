@@ -1,15 +1,18 @@
-commit 55aefbb268d7d33ebf300ed5b1e38e55c10c8070
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed May 19 16:34:58 2021 -0400
+commit 2c80de74d57de74cc50ba7195392cada4e9c3ea2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Nov 7 12:03:36 2020 +0700
 
-    doc/go1.17: mention enabling frame pointer on all ARM64
+    cmd/link: fix invalid usage of reflect.SliceHeader
     
-    Updates #44513.
+    Caught by "go vet" built with golang.org/cl/248192.
     
-    Change-Id: I43e95de0423779b3311d96c56f7c8c1cc5be27b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321311
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Change-Id: I446083533dd82ecef8db591beb7bd3d70b040d4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268099
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.17.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/link/internal/ld/outbuf_windows.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

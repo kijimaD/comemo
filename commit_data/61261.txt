@@ -1,0 +1,30 @@
+commit bd388c0216bcb33d7325b0ad9722a3be8155a289
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Oct 23 16:01:08 2024 -0700
+
+    internal/poll: keep copying after successful Sendfile return on BSD
+    
+    The BSD implementation of poll.SendFile incorrectly halted
+    copying after succesfully writing one full chunk of data.
+    Adjust the copy loop to match the Linux and Solaris
+    implementations.
+    
+    In testing, empirically macOS appears to sometimes return
+    EAGAIN from sendfile after successfully copying a full
+    chunk. Add a check to all implementations to return nil
+    after successfully copying all data if the last sendfile
+    call returns EAGAIN.
+    
+    For #70000
+    
+    Change-Id: I57ba649491fc078c7330310b23e1cfd85135c8ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/sendfile_bsd.go     |  19 +++--
+ src/internal/poll/sendfile_linux.go   |   3 +
+ src/internal/poll/sendfile_solaris.go |   3 +
+ src/os/copy_test.go                   | 154 ++++++++++++++++++++++++++++++++++
+ src/os/readfrom_linux_test.go         |  41 ---------
+ 5 files changed, 171 insertions(+), 49 deletions(-)

@@ -1,99 +1,24 @@
-commit 1d5dc4fd481ae5ccebe1be0091a88b9343fe0904
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 25 12:13:47 2013 -0500
+commit 7edd13355f1a407a95c7a084c201867501f48ec6
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Feb 25 16:22:00 2013 +0000
 
-    cmd/gc: emit explicit type information for local variables
+    net/rpc: avoid racy use of closing flag.
     
-    The type information is (and for years has been) included
-    as an extra field in the address chunk of an instruction.
-    Unfortunately, suppose there is a string at a+24(FP) and
-    we have an instruction reading its length. It will say:
+    It's accessed without mutex protection
+    in a different goroutine from the one that
+    sets it.
     
-            MOVQ x+32(FP), AX
+    Also make sure that Client.Call after Client.Close
+    will reliably return ErrShutdown, and that clients
+    see ErrShutdown rather than io.EOF when appropriate.
     
-    and the type of *that* argument is int (not slice), because
-    it is the length being read. This confuses the picture seen
-    by debuggers and now, worse, by the garbage collector.
+    Suggestions welcome for a way to reliably test
+    the mutex issue.
     
-    Instead of attaching the type information to all uses,
-    emit an explicit list of TYPE instructions with the information.
-    The TYPE instructions are no-ops whose only role is to
-    provide an address to attach type information to.
-    
-    For example, this function:
-    
-            func f(x, y, z int) (a, b string) {
-                    return
-            }
-    
-    now compiles into:
-    
-            --- prog list "f" ---
-            0000 (/Users/rsc/x.go:3) TEXT    f+0(SB),$0-56
-            0001 (/Users/rsc/x.go:3) LOCALS  ,
-            0002 (/Users/rsc/x.go:3) TYPE    x+0(FP){int},$8
-            0003 (/Users/rsc/x.go:3) TYPE    y+8(FP){int},$8
-            0004 (/Users/rsc/x.go:3) TYPE    z+16(FP){int},$8
-            0005 (/Users/rsc/x.go:3) TYPE    a+24(FP){string},$16
-            0006 (/Users/rsc/x.go:3) TYPE    b+40(FP){string},$16
-            0007 (/Users/rsc/x.go:3) MOVQ    $0,b+40(FP)
-            0008 (/Users/rsc/x.go:3) MOVQ    $0,b+48(FP)
-            0009 (/Users/rsc/x.go:3) MOVQ    $0,a+24(FP)
-            0010 (/Users/rsc/x.go:3) MOVQ    $0,a+32(FP)
-            0011 (/Users/rsc/x.go:4) RET     ,
-    
-    The { } show the formerly hidden type information.
-    The { } syntax is used when printing from within the gc compiler.
-    It is not accepted by the assemblers.
-    
-    The same type information is now included on global variables:
-    
-    0055 (/Users/rsc/x.go:15) GLOBL   slice+0(SB){[]string},$24(AL*0)
-    
-    This more accurate type information fixes a bug in the
-    garbage collector's precise heap collection.
-    
-    The linker only cares about globals right now, but having the
-    local information should make things a little nicer for Carl
-    in the future.
-    
-    Fixes #4907.
-    
-    R=ken2
+    R=r, iant
     CC=golang-dev
-    https://golang.org/cl/7395056
+    https://golang.org/cl/7338045
 
- src/cmd/5g/ggen.c      | 14 +++++++++++++-
- src/cmd/5g/gsubr.c     |  5 +++--
- src/cmd/5g/list.c      |  5 ++++-
- src/cmd/5g/peep.c      |  2 ++
- src/cmd/5g/reg.c       |  2 ++
- src/cmd/5l/5.out.h     |  1 +
- src/cmd/5l/obj.c       |  4 ++++
- src/cmd/5l/span.c      |  1 +
- src/cmd/6g/ggen.c      | 15 +++++++++++++--
- src/cmd/6g/gsubr.c     |  9 ++++-----
- src/cmd/6g/list.c      |  5 ++++-
- src/cmd/6g/peep.c      |  2 ++
- src/cmd/6g/reg.c       |  2 ++
- src/cmd/6l/6.out.h     |  1 +
- src/cmd/6l/obj.c       |  4 ++++
- src/cmd/6l/optab.c     |  1 +
- src/cmd/8g/ggen.c      | 14 +++++++++++++-
- src/cmd/8g/gsubr.c     |  6 +++---
- src/cmd/8g/list.c      |  5 ++++-
- src/cmd/8g/peep.c      |  2 ++
- src/cmd/8g/reg.c       |  2 ++
- src/cmd/8l/8.out.h     |  1 +
- src/cmd/8l/obj.c       |  4 ++++
- src/cmd/8l/optab.c     |  1 +
- src/cmd/gc/closure.c   |  7 ++-----
- src/cmd/gc/dcl.c       | 13 +++++++++----
- src/cmd/gc/fmt.c       | 11 +++++++----
- src/cmd/gc/go.h        |  3 +--
- src/cmd/gc/obj.c       |  2 +-
- src/cmd/gc/pgen.c      | 20 +++++++++++++++++---
- src/cmd/gc/subr.c      |  6 ++----
- src/cmd/gc/typecheck.c |  1 -
- src/cmd/gc/walk.c      |  2 ++
- 33 files changed, 132 insertions(+), 41 deletions(-)
+ src/pkg/net/rpc/client.go      | 12 ++++++++----
+ src/pkg/net/rpc/server_test.go | 17 +++++++++++++++++
+ 2 files changed, 25 insertions(+), 4 deletions(-)

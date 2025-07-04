@@ -1,15 +1,16 @@
-commit 7aa60d998a5f81f58a09e6b1e5703becaf486043
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 29 19:50:23 2012 -0400
+commit b4402a49b6c9a87f27c2140beacf46ef95738455
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Sun Jul 29 18:51:06 2012 -0400
 
-    syscall: apply comment from Mikioh
+    runtime/cgo: fix netbsd build
     
-    This comment was suggested in CL 6456045
-    but never got applied.
+    Copy over freebsd.c to netbsd.c.
     
-    R=mikioh, mikioh.mikioh
+    Fixes #3823.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6447056
+    https://golang.org/cl/6398045
 
- src/pkg/syscall/syscall_bsd.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/runtime/cgo/netbsd.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

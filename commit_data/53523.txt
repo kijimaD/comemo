@@ -1,23 +1,55 @@
-commit 1fd3cc7cd095377f8a742d55b6c04516b9139b03
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 9 19:59:37 2023 -0700
+commit 3204e62dd1abe087430e37e8c33c3d010606aabe
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu May 19 22:25:42 2022 -0700
 
-    cmp, builtin: document NaN behavior
+    syscall: add new CLONE_ flags for Linux
     
-    Add notes for cmp.Ordered and builtin.{min,max}.
+    The constants for these were auto-generated from the C includes
+    into zerrors_linux* files quite some time ago. The generator is
+    currently broken, but some new flags need to be added nevertheless.
     
-    Fixes #60648
+    As the flags won't change and the values are the same for all
+    architectures, we can just define them statically (as it's already
+    done in the runtime package):
     
-    Change-Id: I81806af2d9a0613befde3f2bbfbc2720f0726912
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502235
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+     - remove the CLONE_* constants from zerrors_linux_*.go;
+     - patch mkerrors.sh to not generate CLONE_ constants
+       (in case it will be fixed and used in the future);
+     - add the constants and some comments about them to exec_linux.go,
+       using Linux v5.17 include/uapi/sched.h as the ultimate source.
+    
+    This adds the following new flags:
+    
+     - CLONE_CLEAR_SIGHAND
+     - CLONE_INTO_CGROUP
+     - CLONE_NEWCGROUP
+     - CLONE_NEWTIME
+     - CLONE_PIDFD
+    
+    For #51246.
+    
+    Change-Id: I0c635723926218bd403d37e113ee4d62194463a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407574
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/builtin/builtin.go | 4 ++++
- src/cmp/cmp.go         | 5 +++++
- 2 files changed, 9 insertions(+)
+ api/next/51246.txt                    | 60 +++++++++++++++++++++++++++++++++++
+ src/syscall/exec_linux.go             | 39 +++++++++++++++++++++++
+ src/syscall/mkerrors.sh               |  2 +-
+ src/syscall/zerrors_linux_386.go      | 22 -------------
+ src/syscall/zerrors_linux_amd64.go    | 22 -------------
+ src/syscall/zerrors_linux_arm.go      | 22 -------------
+ src/syscall/zerrors_linux_arm64.go    | 22 -------------
+ src/syscall/zerrors_linux_loong64.go  | 27 ----------------
+ src/syscall/zerrors_linux_mips.go     | 22 -------------
+ src/syscall/zerrors_linux_mips64.go   | 22 -------------
+ src/syscall/zerrors_linux_mips64le.go | 22 -------------
+ src/syscall/zerrors_linux_mipsle.go   | 22 -------------
+ src/syscall/zerrors_linux_ppc64.go    | 22 -------------
+ src/syscall/zerrors_linux_ppc64le.go  | 22 -------------
+ src/syscall/zerrors_linux_riscv64.go  | 22 -------------
+ src/syscall/zerrors_linux_s390x.go    | 23 --------------
+ 16 files changed, 100 insertions(+), 293 deletions(-)

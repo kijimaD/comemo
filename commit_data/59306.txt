@@ -1,21 +1,20 @@
-commit 2869d55366a55d6a29a166523ac2383d0b2291df
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Mar 6 17:33:27 2025 -0800
+commit 4d923e3f077727718b708132ad67fad35dc064f9
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Feb 29 07:48:17 2024 +0000
 
-    net/http: test intended behavior in TestClientInsecureTransport
+    cmd/compile: remove unnecessary fmt.Sprintf call
     
-    This test wasn't testing the HTTP/2 case, because it didn't
-    set NextProtos in the tls.Config.
-    
-    Set "Connection: close" on requests to make sure each request
-    gets a new connection.
-    
-    Change-Id: I1ef470e7433a602ce88da7bd7eeec502687ea857
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655676
+    Change-Id: I38ba7cb0179ec9226a68629c53ea2d81fa19c059
+    GitHub-Last-Rev: a3d4fe2ac2d2f40033ae0244a264074d45b3ad52
+    GitHub-Pull-Request: golang/go#66024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568115
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/net/http/client_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/base/hashdebug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

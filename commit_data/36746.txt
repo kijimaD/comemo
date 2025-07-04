@@ -1,22 +1,24 @@
-commit 4a0dad211c2158e8763c6fd230fbdc1c7d566cb9
-Author: Michael McLoughlin <mmcloughlin@gmail.com>
-Date:   Sun Sep 23 20:29:33 2018 -0700
+commit 7ba1c91dd999681425c2e1053b854f218ea3f2f8
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed May 23 16:31:36 2018 +0200
 
-    crypto/cipher: 8K benchmarks for AES stream modes
+    misc/android: forward SIGQUIT to the process running on the device
     
-    Some parallelizable cipher modes may achieve peak performance for larger
-    block sizes. For this reason the AES-GCM mode already has an 8K
-    benchmark alongside the 1K version. This change introduces 8K benchmarks
-    for additional AES stream cipher modes.
+    When a test binary runs for too long, the go command sends it a
+    SIGQUIT to force a backtrace dump. On Android, the exec wrapper
+    will instead receive the signal and dump its backtrace.
     
-    Updates #20967
+    Forward SIGQUIT signals from the wrapper to the wrapped process
+    to gain useful backtraces.
     
-    Change-Id: If97c6fbf31222602dcc200f8f418d95908ec1202
-    Reviewed-on: https://go-review.googlesource.com/136897
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Inspired by issuse 25519; this CL would have revealed the hanging
+    test directly in the builder log.
+    
+    Change-Id: Ic362d06940d261374343a1dc09366ef54edaa631
+    Reviewed-on: https://go-review.googlesource.com/114137
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/cipher/benchmark_test.go | 67 +++++++++++++------------------------
- 1 file changed, 23 insertions(+), 44 deletions(-)
+ misc/android/go_android_exec.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

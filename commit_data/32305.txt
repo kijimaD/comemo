@@ -1,27 +1,12 @@
-commit 53836a74f8b0137ebd52f0279edc16fc7d5cf2ca
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Thu Jul 20 23:31:51 2017 -0700
+commit eb40f0621f37e247597020e316febe701e377b51
+Author: xufei_Alex <badgangkiller@gmail.com>
+Date:   Mon Apr 17 01:57:59 2017 +0000
 
-    math/big: speed up GCD x, y calculation
+    go/format: quote bytes in comments for readability
     
-    The current implementation of the extended Euclidean GCD algorithm
-    calculates both cosequences x and y inside the division loop. This
-    is unneccessary since the second Bezout coefficient can be obtained
-    at the end of calculation via a multiplication, subtraction and a
-    division.  In case only one coefficient is needed, e.g. ModInverse
-    this calculation can be skipped entirely.  This is a standard
-    optimization, see e.g.
-    
-    "Handbook of Elliptic and Hyperelliptic Curve Cryptography"
-    Cohen et al pp 191
-    Available at:
-    http://cs.ucsb.edu/~koc/ccs130h/2013/EllipticHyperelliptic-CohenFrey.pdf
-    
-    Updates #15833
-    
-    Change-Id: I1e0d2e63567cfed97fd955048fe6373d36f22757
-    Reviewed-on: https://go-review.googlesource.com/50530
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I8e90012b3498c51aaeb2f70182debab52549afb4
+    Reviewed-on: https://go-review.googlesource.com/40930
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/int.go | 19 ++++++-------------
- 1 file changed, 6 insertions(+), 13 deletions(-)
+ src/go/format/internal.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,35 @@
+commit dca577d882f989e41a753537e9607f0c22e4a798
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu May 2 15:08:30 2024 -0500
+
+    cmd/compile/internal/ssa: reintroduce ANDconst opcode on PPC64
+    
+    This allows more effective conversion of rotate and mask opcodes
+    into their CC equivalents, while simplifying the first lowering
+    pass.
+    
+    This was removed before the latelower pass was introduced to fold
+    more cases of compare against zero. Add ANDconst to push the
+    conversion of ANDconst to ANDCCconst into latelower with the other
+    CC opcodes.
+    
+    This also requires introducing RLDICLCC to prevent regressions
+    when ANDconst is converted to RLDICL then to RLDICLCC and back
+    to ANDCCconst when possible.
+    
+    Change-Id: I9e5f9c99fbefa334db18c6c152c5f967f3ff2590
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586160
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/compile/internal/ppc64/ssa.go              |    9 +-
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules      |  124 +-
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      |   18 +-
+ .../compile/internal/ssa/_gen/PPC64latelower.rules |   17 +-
+ src/cmd/compile/internal/ssa/opGen.go              |   31 +
+ src/cmd/compile/internal/ssa/rewrite.go            |   11 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go       | 1376 ++++++++------------
+ .../compile/internal/ssa/rewritePPC64latelower.go  |  148 ++-
+ 8 files changed, 752 insertions(+), 982 deletions(-)

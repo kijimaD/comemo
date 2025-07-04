@@ -1,22 +1,23 @@
-commit 66ee97590ce967c8210eedfb3194b1140740a792
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed May 6 18:57:58 2020 -0400
+commit f29e53d66419713f011cda50a3001cc20950bc7e
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 22 15:27:01 2019 -0500
 
-    cmd/link: don't overwrite text sections on PPC64
+    cmd/link: fix bug with -newobj and "ld -r" ELF host objects
     
-    The code writes text sections twice, one with Codeblk, one with
-    Datblk. The second write shouldn't be there.
+    When the ELF host object loader encounters a static/hidden symbol, it
+    creates a sym.Symbol for it but does not enter it into the sym.Symbols
+    lookup table. Under -newobj mode, this was not happening correctly; we
+    were adding the sym via loader.LookupOrCreate, which resulted in
+    collisions when it encountered symbols with the same name + version +
+    section (this can happen for "ld -r" objects).
     
-    May fix #38898.
+    Fixes #35779.
     
-    Change-Id: I4ec70294059ec9aa0fc4cc69a3cd824f5843287b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232661
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Change-Id: I36d40fc1efc03fc1cd8ae6b76cb6a0d2a957389c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208479
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/ppc64/asm.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go |  8 +++++++-
+ src/cmd/link/internal/loader/loader.go | 33 ++++++++++++++++++++++++++++++---
+ 2 files changed, 37 insertions(+), 4 deletions(-)

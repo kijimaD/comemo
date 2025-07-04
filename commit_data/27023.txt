@@ -1,26 +1,39 @@
-commit 001e8e8070e8ed3a578dbad93cc3f70257e965bd
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 19 19:35:10 2016 -0700
+commit c4012b6bbb3714c5e47f60e3c6946c8c4bc5abef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 8 10:26:20 2016 -0800
 
-    runtime: simplify mallocgc flag argument
+    cmd/compile: remove nodesOrNodeList outside of syntax.go
     
-    mallocgc can calculate noscan itself.  The only remaining
-    flag argument is needzero, so we just make that a boolean arg.
+    Passes toolstash -cmp.
     
-    Fixes #15379
+    Update #14473.
     
-    Change-Id: I839a70790b2a0c9dbcee2600052bfbd6c8148e20
-    Reviewed-on: https://go-review.googlesource.com/22290
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I717ebd948dfc8faf8b9ef5aa02c67484af618d18
+    Reviewed-on: https://go-review.googlesource.com/20359
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/chan.go      |  2 +-
- src/runtime/malloc.go    | 48 +++++++++++-------------------------------------
- src/runtime/mfinal.go    |  2 +-
- src/runtime/os1_plan9.go |  4 ++--
- src/runtime/panic.go     |  2 +-
- src/runtime/select.go    |  2 +-
- src/runtime/slice.go     | 11 +++--------
- src/runtime/string.go    |  6 +++---
- 8 files changed, 23 insertions(+), 54 deletions(-)
+ src/cmd/compile/internal/gc/alg.go       |   4 +-
+ src/cmd/compile/internal/gc/bexport.go   |   2 +-
+ src/cmd/compile/internal/gc/bimport.go   |  27 ++++----
+ src/cmd/compile/internal/gc/closure.go   |   2 +-
+ src/cmd/compile/internal/gc/dcl.go       |  24 +++----
+ src/cmd/compile/internal/gc/esc.go       |  22 +++---
+ src/cmd/compile/internal/gc/export.go    |   2 +-
+ src/cmd/compile/internal/gc/fmt.go       |   8 ++-
+ src/cmd/compile/internal/gc/gen.go       |   6 +-
+ src/cmd/compile/internal/gc/init.go      |   2 +-
+ src/cmd/compile/internal/gc/inl.go       |  20 +++---
+ src/cmd/compile/internal/gc/lex.go       |   2 +-
+ src/cmd/compile/internal/gc/order.go     |  35 +++++-----
+ src/cmd/compile/internal/gc/parser.go    |  22 +++---
+ src/cmd/compile/internal/gc/racewalk.go  |  12 ++--
+ src/cmd/compile/internal/gc/range.go     |  20 +++---
+ src/cmd/compile/internal/gc/reflect.go   |  12 ++--
+ src/cmd/compile/internal/gc/select.go    |   6 +-
+ src/cmd/compile/internal/gc/sinit.go     |   8 +--
+ src/cmd/compile/internal/gc/ssa.go       |   2 +-
+ src/cmd/compile/internal/gc/subr.go      |  10 +--
+ src/cmd/compile/internal/gc/swt.go       |  26 +++----
+ src/cmd/compile/internal/gc/typecheck.go |  48 ++++++-------
+ src/cmd/compile/internal/gc/walk.go      | 115 +++++++++++++++----------------
+ 24 files changed, 218 insertions(+), 219 deletions(-)

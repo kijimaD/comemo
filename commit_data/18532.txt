@@ -1,22 +1,16 @@
-commit 9f0008bb93694410ccde7f44a86648ef1117e069
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Feb 14 17:17:19 2014 -0500
+commit 1dc82d25632fc402edb36b0d50ecf4d681d77286
+Author: Michael T. Jones <mtj@google.com>
+Date:   Fri Feb 14 12:57:03 2014 -0800
 
-    compress/bzip2: support superfluous Huffman levels.
+    math/big: Add text marshaller interface to Int
     
-    These should never be found in a bzip2 file but it does appear that
-    there's a buggy encoder that is producing them. Since the official
-    bzip2 handles this case, this change makes the Go code do likewise.
+    Fixes #7329
     
-    With this change, the code produces the same output as the official
-    bzip2 code on the invalid example given in the bug.
-    
-    Fixes #7279.
-    
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=gri
+    R=gri, bradfitz, mtj
     CC=golang-codereviews
-    https://golang.org/cl/64010043
+    https://golang.org/cl/63710043
 
- src/pkg/compress/bzip2/huffman.go | 32 +++++++++++++++++++++++++++++++-
- 1 file changed, 31 insertions(+), 1 deletion(-)
+ src/pkg/math/big/int.go      | 24 +++++++++++++++-----
+ src/pkg/math/big/int_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 6 deletions(-)

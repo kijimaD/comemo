@@ -1,22 +1,16 @@
-commit 9202e9e1b81d1c6d07b516eae2d1da28951c7a76
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 27 00:09:50 2016 +0000
+commit 59dc25730bad088e44d67bfc1166171182b61c74
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 13 16:00:46 2015 -0800
 
-    runtime: add more debug info to flaky TestNumGoroutine
+    cmd/compile: cleanup in parser (3)
     
-    This has been flaking on the new OpenBSD 5.8 builders lately:
-    https://storage.googleapis.com/go-build-log/808270e7/openbsd-amd64-gce58_61ce2663.log
-    (as one example)
+    Factored out functionality of dotname (was inlined in 3 places).
     
-    Add more debug info when it fails.
-    
-    Updates #14107
-    
-    Change-Id: Ie30bc0c703d2e9ee993d1e232ffc5f2d17e65c97
-    Reviewed-on: https://go-review.googlesource.com/18938
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ica782737c8decbb757465830b25ba87faa9115a4
+    Reviewed-on: https://go-review.googlesource.com/16897
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/runtime/proc_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/parser.go | 54 ++++++++++++++++-------------------
+ 1 file changed, 25 insertions(+), 29 deletions(-)

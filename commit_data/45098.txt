@@ -1,18 +1,28 @@
-commit 7b19fb1d560908a848e07e091fb5df61f4848389
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 12 22:26:37 2021 -0700
+commit f4cbf3477f1456b4d28a7b74b31820ee60b7e6d1
+Author: David Chase <drchase@google.com>
+Date:   Mon Aug 31 14:29:58 2020 -0400
 
-    mime: in globs2 file only keep first time extension is seen
+    cmd/compile: allow directory specification for GOSSAFUNC output
     
-    Fixes #45534
+    This was useful for debugging failures occurring during make.bash.
+    The added flush also ensures that any hints in the GOSSAFUNC output
+    are flushed before fatal exit.
     
-    Change-Id: I9855607e845951f26ab85cb179ec6dea40d92156
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309574
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The environment variable GOSSADIR specifies where the SSA html debugging
+    files should be placed.  To avoid collisions, each one is written into
+    the [package].[functionOrMethod].html, where [package] is the filepath
+    separator separated package name, function is the function name, and method
+    is either (*Type).Method, or Type.Method, as appropriate.  Directories
+    are created as necessary to make this work.
+    
+    Change-Id: I420927426b618b633bb1ffc51cf0f223b8f6d49c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252338
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/mime/testdata/test.types.globs2 |  1 +
- src/mime/type_unix.go               | 10 +++++++++-
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go     |  1 +
+ src/cmd/compile/internal/gc/ssa.go      | 10 +++++++++-
+ src/cmd/compile/internal/ssa/compile.go | 10 ++++++++++
+ src/cmd/compile/internal/ssa/html.go    | 13 +++++++++----
+ 4 files changed, 29 insertions(+), 5 deletions(-)

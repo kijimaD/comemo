@@ -1,29 +1,14 @@
-commit ba94dd34385af3352660fb4bfa2a2d97fb937088
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Sep 26 13:21:21 2016 -0400
+commit 9e112a3fe4c001530184c2edc918a854d0b6d7e4
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu May 26 10:54:25 2016 +0200
 
-    math: add some assembly implementations on ARM64
+    bytes: use Run method for benchmarks
     
-    Also add GP<->FP move addressing mode to FMOVS, FMOVD
-    instructions.
-    
-    Ceil-8                 37.1ns ± 0%   7.9ns ± 0%  -78.64%          (p=0.000 n=4+5)
-    Dim-8                  20.9ns ± 1%  11.3ns ± 0%  -45.93%          (p=0.008 n=5+5)
-    Floor-8                22.9ns ± 0%   7.9ns ± 0%  -65.41%          (p=0.029 n=4+4)
-    Gamma-8                 117ns ± 0%    94ns ± 1%  -19.50%          (p=0.016 n=4+5)
-    PowInt-8                121ns ± 0%   108ns ± 1%  -11.07%          (p=0.008 n=5+5)
-    PowFrac-8               331ns ± 0%   318ns ± 0%   -3.93%          (p=0.000 n=5+4)
-    Trunc-8                18.8ns ± 0%   7.9ns ± 0%  -57.83%          (p=0.016 n=4+5)
-    
-    Change-Id: I709b7f1a914b28adc27414522db551e2630cfb92
-    Reviewed-on: https://go-review.googlesource.com/29734
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I34ab1003099570f0ba511340e697a648de31d08a
+    Reviewed-on: https://go-review.googlesource.com/23427
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 18 ++++++++-
- src/math/dim_arm64.s               | 78 ++++++++++++++++++++++++++++++++++++++
- src/math/floor_arm64.s             | 26 +++++++++++++
- src/math/modf_arm64.s              | 18 +++++++++
- src/math/stubs_arm64.s             | 21 ----------
- 5 files changed, 138 insertions(+), 23 deletions(-)
+ src/bytes/bytes_test.go | 309 ++++++++++++++++++++++--------------------------
+ 1 file changed, 143 insertions(+), 166 deletions(-)

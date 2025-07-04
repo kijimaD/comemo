@@ -1,19 +1,28 @@
-commit c9d5df0848515f4503d77e6a087a4b3920254e09
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Apr 18 12:11:20 2023 -0400
+commit c087121dafc1e0250d43b545e85d67e7e6762f74
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 18 15:15:33 2022 -0400
 
-    cmd/go: mark gocacheverify godebug as undocumented
+    runtime: relax the threshold for TestPingPongHog
     
-    This avoids the panic for godebugs without documentation. Perhaps we
-    eventually want to remove this godebug.
+    The test checks that the scheduling of the goroutines are within
+    a small factor, to ensure the scheduler handing off the P
+    correctly. There have been flaky failures on the builder (probably
+    due to OS scheduling delays). Increase the threshold to make it
+    less flaky. The gap would be much bigger if the scheduler doesn't
+    work correctly.
     
-    Change-Id: I032cdded0f3ccf6681821286e2cb6f0b90a318c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485756
+    For the long term maybe it is better to test it more directly
+    with the scheduler, e.g. with scheduler instrumentation.
+    
+    May fix #52207.
+    
+    Change-Id: I50278b70ab21b7f04761fdc8b38dd13304c67879
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407134
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Bypass: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/go_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,26 +1,22 @@
-commit beadf433c37498dafc6748cc510eeab2636b5be3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 2 11:14:33 2019 -0800
+commit 29907b13db0455eded50263b4e37445045c82e6e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:42:19 2018 +0200
 
-    os/exec: provide map size hint in dedupEnvCase
+    crypto: add AIX operating system
     
-    The common case is that most env vars are distinct;
-    optimize for that.
+    This commit adds AIX operating system to crypto package for ppc64
+    architecture.
     
-    name        old time/op    new time/op    delta
-    ExecEcho-8    2.16ms ± 3%    2.14ms ± 1%     ~     (p=0.315 n=10+10)
+    Updates: #25893
     
-    name        old alloc/op   new alloc/op   delta
-    ExecEcho-8    7.87kB ± 0%    6.35kB ± 0%  -19.31%  (p=0.000 n=9+10)
-    
-    name        old allocs/op  new allocs/op  delta
-    ExecEcho-8      72.0 ± 0%      69.0 ± 0%   -4.17%  (p=0.000 n=10+10)
-    
-    Change-Id: I42bb696c6862f2ea12c5cbd2f24c64336a7a759a
-    Reviewed-on: https://go-review.googlesource.com/c/164960
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I20047ff2fef0051b8b235ec15b064c4a95c2b9c3
+    Reviewed-on: https://go-review.googlesource.com/c/138722
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec/exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/rand/eagain.go    |  2 +-
+ src/crypto/rand/rand_unix.go |  2 +-
+ src/crypto/x509/root_aix.go  | 10 ++++++++++
+ src/crypto/x509/root_unix.go |  3 ++-
+ 4 files changed, 14 insertions(+), 3 deletions(-)

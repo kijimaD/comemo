@@ -1,20 +1,23 @@
-commit 87ec2c959c73e62bfae230ef7efca11ec2a90804
-Author: Julian Dax <julian.dax@posteo.de>
-Date:   Sun Jul 7 23:41:02 2024 +0200
+commit 6e248b8ff2f387b5e4dd16a5b57f7487a2e18c94
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 26 16:03:32 2023 -0700
 
-    testing: remove call to os.Exit in documentation for TestMain
+    doc/go1.21: mention os package changes
     
-    In the example for the TestMain function, os.Exit was called explicitly,
-    which is no longer necessary since Go 1.15 (see change #219639).
+    Also mention WTF-8 support in the syscall package.
     
-    Updates #34129
+    For #32558
+    For #58977
+    For #59971
     
-    Change-Id: Ia8021de0d5699742adbb7ab6d28b11c841e596dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596977
+    Change-Id: Id1627889b5e498add498748d9bfc69fb58030b35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498600
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.21.html | 41 ++++++++++++++++++++++++-----------------
+ 1 file changed, 24 insertions(+), 17 deletions(-)

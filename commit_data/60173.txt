@@ -1,0 +1,17 @@
+commit bb88d28bf5a45563ba49357d9845585ac5f8f768
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 16 12:59:01 2024 -0400
+
+    time: add a few more benchmarks
+    
+    Preparation for upcoming optimizations.
+    
+    For #63844.
+    
+    Change-Id: I61803dd8b699e51c391614c99ebbd005df5261cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586256
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/time/time_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

@@ -1,14 +1,13 @@
-commit 27cab90363159d5dbf9c6412778210f63dace7b5
+commit 692c31d60a1bba484bca6efb59619243bb93d483
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Dec 9 11:12:03 2011 +1100
+Date:   Fri Dec 9 11:00:49 2011 +1100
 
-    syscall: allow for mksyscall_windows.pl to be used outside of syscall
+    misc/cgo/testso: do not leave out file behind
     
-    this change should have been part of fafcd328da73
-    
-    R=golang-dev, bsiegert
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/5462045
+    https://golang.org/cl/5461044
 
- src/pkg/syscall/mksyscall_windows.pl | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testso/test.bash | 9 +++++++++
+ src/run.bash              | 3 +--
+ 2 files changed, 10 insertions(+), 2 deletions(-)

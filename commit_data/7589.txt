@@ -1,16 +1,15 @@
-commit 7da86983a8619df20e61531159d6e2f7f1f628bf
+commit a3ef19825c5d798f18eb62e7fe326fa33bfceafa
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 28 17:16:44 2011 -0500
+Date:   Mon Feb 28 14:55:27 2011 -0500
 
-    gc: bug325 / issue 1566
+    build: move $GOBIN ahead of /bin, /usr/bin in build $PATH
     
-    Fixes #1566.
+    Otherwise if there is an installed /usr/bin/6g the build
+    will use that one instead of the one it builds.
     
-    R=ken2
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4259041
+    https://golang.org/cl/4249045
 
- src/cmd/gc/subr.c        |  1 -
- src/cmd/gc/typecheck.c   |  2 +-
- test/fixedbugs/bug325.go | 14 ++++++++++++++
- 3 files changed, 15 insertions(+), 2 deletions(-)
+ src/env.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

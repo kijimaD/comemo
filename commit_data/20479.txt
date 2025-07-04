@@ -1,16 +1,88 @@
-commit 048692e5de12c89b80761a9532c86eff526af640
+commit fcb4cabba4efd78905939b7e0ceab2e9eb3c60a8
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 18 20:41:00 2014 -0400
+Date:   Thu Sep 11 12:17:45 2014 -0400
 
-    runtime: fix Windows SysUsed
+    cmd/gc: emit write barriers
     
-    Same fix as for SysUnused.
-    Fixes #8038.
+    A write *p = x that needs a write barrier (not all do)
+    now turns into runtime.writebarrierptr(p, x)
+    or one of the other variants.
     
-    LGTM=iant, alex.brainman
-    R=golang-codereviews, iant, alex.brainman
-    CC=golang-codereviews
-    https://golang.org/cl/147820043
+    The write barrier implementations are trivial.
+    The goal here is to emit the calls in the correct places
+    and to incur the cost of those function calls in the Go 1.4 cycle.
+    
+    Performance on the Go 1 benchmark suite below.
+    Remember, the goal is to slow things down (and be correct).
+    
+    We will look into optimizations in separate CLs, as part of
+    the process of comparing Go 1.3 against tip in order to make
+    sure Go 1.4 runs at least as fast as Go 1.3.
+    
+    benchmark                          old ns/op      new ns/op      delta
+    BenchmarkBinaryTree17              3118336716     3452876110     +10.73%
+    BenchmarkFannkuch11                3184497677     3211552284     +0.85%
+    BenchmarkFmtFprintfEmpty           89.9           107            +19.02%
+    BenchmarkFmtFprintfString          236            287            +21.61%
+    BenchmarkFmtFprintfInt             246            278            +13.01%
+    BenchmarkFmtFprintfIntInt          395            458            +15.95%
+    BenchmarkFmtFprintfPrefixedInt     343            378            +10.20%
+    BenchmarkFmtFprintfFloat           477            525            +10.06%
+    BenchmarkFmtManyArgs               1446           1707           +18.05%
+    BenchmarkGobDecode                 14398047       14685958       +2.00%
+    BenchmarkGobEncode                 12557718       12947104       +3.10%
+    BenchmarkGzip                      453462345      472413285      +4.18%
+    BenchmarkGunzip                    114226016      115127398      +0.79%
+    BenchmarkHTTPClientServer          114689         112122         -2.24%
+    BenchmarkJSONEncode                24914536       26135942       +4.90%
+    BenchmarkJSONDecode                86832877       103620289      +19.33%
+    BenchmarkMandelbrot200             4833452        4898780        +1.35%
+    BenchmarkGoParse                   4317976        4835474        +11.98%
+    BenchmarkRegexpMatchEasy0_32       150            166            +10.67%
+    BenchmarkRegexpMatchEasy0_1K       393            402            +2.29%
+    BenchmarkRegexpMatchEasy1_32       125            142            +13.60%
+    BenchmarkRegexpMatchEasy1_1K       1010           1236           +22.38%
+    BenchmarkRegexpMatchMedium_32      232            301            +29.74%
+    BenchmarkRegexpMatchMedium_1K      76963          102721         +33.47%
+    BenchmarkRegexpMatchHard_32        3833           5463           +42.53%
+    BenchmarkRegexpMatchHard_1K        119668         161614         +35.05%
+    BenchmarkRevcomp                   763449047      706768534      -7.42%
+    BenchmarkTemplate                  124954724      134834549      +7.91%
+    BenchmarkTimeParse                 517            511            -1.16%
+    BenchmarkTimeFormat                501            514            +2.59%
+    
+    benchmark                         old MB/s     new MB/s     speedup
+    BenchmarkGobDecode                53.31        52.26        0.98x
+    BenchmarkGobEncode                61.12        59.28        0.97x
+    BenchmarkGzip                     42.79        41.08        0.96x
+    BenchmarkGunzip                   169.88       168.55       0.99x
+    BenchmarkJSONEncode               77.89        74.25        0.95x
+    BenchmarkJSONDecode               22.35        18.73        0.84x
+    BenchmarkGoParse                  13.41        11.98        0.89x
+    BenchmarkRegexpMatchEasy0_32      213.30       191.72       0.90x
+    BenchmarkRegexpMatchEasy0_1K      2603.92      2542.74      0.98x
+    BenchmarkRegexpMatchEasy1_32      254.00       224.93       0.89x
+    BenchmarkRegexpMatchEasy1_1K      1013.53      827.98       0.82x
+    BenchmarkRegexpMatchMedium_32     4.30         3.31         0.77x
+    BenchmarkRegexpMatchMedium_1K     13.30        9.97         0.75x
+    BenchmarkRegexpMatchHard_32       8.35         5.86         0.70x
+    BenchmarkRegexpMatchHard_1K       8.56         6.34         0.74x
+    BenchmarkRevcomp                  332.92       359.62       1.08x
+    BenchmarkTemplate                 15.53        14.39        0.93x
+    
+    LGTM=rlh
+    R=rlh
+    CC=dvyukov, golang-codereviews, iant, khr, r
+    https://golang.org/cl/136380043
 
- src/runtime/mem_windows.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/gc/builtin.c  |   5 ++
+ src/cmd/gc/go.h       |   3 +
+ src/cmd/gc/lex.c      |   2 +
+ src/cmd/gc/order.c    |   4 +-
+ src/cmd/gc/runtime.go |   7 +++
+ src/cmd/gc/sinit.c    |  18 ++++--
+ src/cmd/gc/walk.c     | 157 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/runtime/mgc0.go   |  33 +++++++++++
+ test/live.go          |   2 +-
+ test/live2.go         |   2 +-
+ 10 files changed, 218 insertions(+), 15 deletions(-)

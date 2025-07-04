@@ -1,29 +1,28 @@
-commit 2860e01853174e278900ef6907b1941b16fb1645
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Mar 25 16:37:05 2024 +0100
+commit 9be533a8ee7673cbf16699d05517d9c6aebed297
+Author: ruinan <ruinan.sun@arm.com>
+Date:   Tue Jul 12 04:05:41 2022 +0000
 
-    os: make readdir more robust on Windows
+    cmd/compile: get more bounds info from logic operators in prove pass
     
-    On Windows, File.readdir currently fails if the volume information
-    can't be retrieved via GetVolumeInformationByHandle and if the
-    directory path is relative and can't be converted to an absolute
-    path.
+    Currently, the prove pass can get knowledge from some specific logic
+    operators only before the CFG is explored, which means that the bounds
+    information of the branch will be ignored.
     
-    This change makes readdir more robust by not failing in these cases,
-    as these steps are just necessary to support a potential call to
-    os.SameFile, but not for the actual readdir operation. os.SameFile
-    will still fail in these cases, but that's a separate issue tracked
-    in #62042.
+    This CL updates the facts table by the logic operators in every
+    branch. Combined with the branch information, this will be helpful for
+    BCE in some circumstances.
     
-    Change-Id: I8d98d8379bdac4b2832fa433432a5f027756abaa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574155
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #57243
+    
+    Change-Id: I0bd164f1b47804ccfc37879abe9788740b016fd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419555
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/internal/syscall/windows/symlink_windows.go |  1 +
- src/internal/syscall/windows/syscall_windows.go | 15 +++++
- src/os/dir_windows.go                           | 81 ++++++++++++++-----------
- 3 files changed, 60 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 26 ++++++++++++++++++++++++++
+ test/codegen/comparisons.go           |  2 +-
+ test/prove.go                         | 19 +++++++++++++++++++
+ 3 files changed, 46 insertions(+), 1 deletion(-)

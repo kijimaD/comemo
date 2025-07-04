@@ -1,18 +1,37 @@
-commit b4b70a4617fa318ae3e3f3b3d1bb9241d4dc0f9e
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Apr 19 12:31:27 2023 -0700
+commit 2a5ceaaa78e4643ff7ef38312f23a25d7c99c44f
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
 
-    doc: add release notes for new context functions
+    runtime: implement runtime entry for linux/loong64
     
-    For #40221
-    For #56661
-    For #57928
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Change-Id: Iaf7425bb26eeb9c23235d13c786d5bb572159481
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486535
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I252ecd0b13580c5e71723715023b1951985045f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342322
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/go1.21.html | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/runtime/asm_loong64.s       | 803 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/atomic_loong64.s    |   9 +
+ src/runtime/cputicks.go         |   2 +-
+ src/runtime/os_linux_loong64.go |  18 +
+ src/runtime/os_linux_noauxv.go  |   2 +-
+ src/runtime/rt0_linux_loong64.s |  24 ++
+ src/runtime/sys_loong64.go      |  20 +
+ 7 files changed, 876 insertions(+), 2 deletions(-)

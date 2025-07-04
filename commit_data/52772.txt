@@ -1,26 +1,19 @@
-commit ddd822e5ca0e686ae64d921bcfe28119c34278fb
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Apr 21 16:28:57 2023 -0400
+commit ec9258029e40f7952051f5762b036b9d7f4f91f9
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu May 26 19:38:02 2022 +0800
 
-    cmd/link: don't sort data symbols by name
+    internal/cpu: fix cpu cacheLineSize for loong64
     
-    For data symbols, we currently sort them by size, then by name if
-    the size is the same. Sorting by name is not really necessary.
-    Instead, we sort by symbol index. Like name, the symbol index is
-    deterministic, and pretty stable if only a small portion of the
-    input is changed, and also naturally partitioned by packages. This
-    reduces the CPU time for reading the symbol names and comparing
-    strings.
+    We choose 64 because the L1 Dcache of Loongson 3A5000 CPU is
+    4-way 256-line 64-byte-per-line.
     
-    Linking cmd/compile (on macOS/amd64),
-    
-    Dodata    57.2ms ± 6%    54.5ms ± 4%   -4.74%  (p=0.000 n=19+17)
-    
-    Change-Id: I1c4f2b83dbbb4b984b2c8ab4a7e8543b9f7f22b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487515
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ifb9a9f993dd6f75b5adb4ff6e4d93e945b1b2a98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408854
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/link/internal/ld/data.go | 29 +++++++++++++++++------------
- 1 file changed, 17 insertions(+), 12 deletions(-)
+ src/internal/cpu/cpu_loong64.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

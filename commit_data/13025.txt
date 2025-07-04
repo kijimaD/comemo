@@ -1,13 +1,18 @@
-commit 9602dd5e87b0d5cccae8ca84fcc088c065f9cae3
+commit 5cffce611a9fb698cbe8f3ab7b24429f269b5d6d
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri May 4 18:26:16 2012 +0800
+Date:   Fri May 4 18:20:09 2012 +0800
 
-    cmd/cgo: support Linux/ARM
-            Part 3 of CL 5601044 (cgo: Linux/ARM support)
+    runtime: cgo support for Linux/ARM
+            Part 2 of CL 5601044 (cgo: Linux/ARM support)
     
-    R=golang-dev, dave, rsc
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/5991066
+    https://golang.org/cl/5989057
 
- src/cmd/cgo/gcc.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/runtime/asm_arm.s           | 133 +++++++++++++++++++++++++++++++++---
+ src/pkg/runtime/cgo/gcc_arm.S       |  58 +++++++++++++++-
+ src/pkg/runtime/cgo/gcc_linux_arm.c |  95 +++++++++++++++++++++++++-
+ src/pkg/runtime/cgocall.c           |   6 ++
+ src/pkg/runtime/signal_linux_arm.c  |   3 +
+ src/pkg/runtime/sys_linux_arm.s     |  10 ++-
+ 6 files changed, 291 insertions(+), 14 deletions(-)

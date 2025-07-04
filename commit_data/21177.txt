@@ -1,23 +1,22 @@
-commit e5864cd9397679353e44ab1de82fdf6d75a359c7
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Fri Jan 2 00:18:10 2015 +0100
+commit e78777ebfef59356c72a3788483a78610f9ad0a2
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 24 11:40:36 2014 -0500
 
-    sort: optimize symMerge performance for blocks with one element
+    [dev.cc] 9g: fill progtable for CC, V, and VCC instruction variants
     
-    Use direct binary insertion instead of recursive calls to symMerge
-    when one of the blocks has only one element.
+    This adds some utilities for converting between the CC, V, and
+    VCC variants of operations and uses these to derive the
+    ProgInfo entries for these variants (which are identical to
+    the ProgInfo for the base operations).
     
-    benchmark                   old ns/op      new ns/op      delta
-    BenchmarkStableString1K     421999         397629         -5.77%
-    BenchmarkStableInt1K        123422         120592         -2.29%
-    BenchmarkStableInt64K       9629094        9620200        -0.09%
-    BenchmarkStable1e2          123089         120209         -2.34%
-    BenchmarkStable1e4          39505228       36870029       -6.67%
-    BenchmarkStable1e6          8196612367     7630840157     -6.90%
+    The 9g peephole optimizer will also use these conversion
+    utilities.
     
-    Change-Id: I49905a909e8595cfa05920ccf9aa00a8f3036110
-    Reviewed-on: https://go-review.googlesource.com/2219
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    LGTM=minux, rsc
+    R=rsc, dave, minux
+    CC=golang-codereviews
+    https://golang.org/cl/180110044
 
- src/sort/sort.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 48 insertions(+)
+ src/cmd/9g/opt.h  |  10 ++++
+ src/cmd/9g/prog.c | 162 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 172 insertions(+)

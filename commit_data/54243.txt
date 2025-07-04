@@ -1,28 +1,16 @@
-commit e9c14a77803a3e80d6697c70bb79d8accd0d2290
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Fri Mar 31 17:08:44 2023 +0800
+commit 1f1583839227ebe9adc5979e355bde7a20e00405
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:50:36 2022 +0800
 
-    runtime, cmd/go: enable address sanitizer on linux/loong64
+    cmd/internal/dwarf: remove redundant break statement
     
-    The recently released llvm-16/LoongArch already supports the asan feature;
-    but gcc13/LoongArch does not yet fully support the asan feature, and asan
-    will be fully supported in gcc14.
-    
-    Change-Id: I48a65f2f10e3dc488acd9c02ea1a1f37de192be0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481317
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Change-Id: I20956187e925ef6ab35d23b23c40bbb0ee55ef4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436702
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/cgo/internal/testsanitizers/cc_test.go |  6 +++
- src/cmd/go/alldocs.go                          |  5 +-
- src/cmd/go/internal/work/build.go              |  5 +-
- src/internal/platform/supported.go             |  2 +-
- src/runtime/asan/asan.go                       |  2 +-
- src/runtime/asan_loong64.s                     | 75 ++++++++++++++++++++++++++
- 6 files changed, 89 insertions(+), 6 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go | 1 -
+ 1 file changed, 1 deletion(-)

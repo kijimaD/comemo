@@ -1,35 +1,28 @@
-commit 5b765ce310c594276ea919a9cb455cc894fee999
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 11 14:08:10 2016 -0500
+commit f6ceed2cab426403fb823938491accf35ee00d81
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Mar 11 19:36:54 2016 -0600
 
-    runtime: don't clear gcscanvalid in casfrom_Gscanstatus
+    cmd/compile: const folding for float32/64
     
-    Currently we clear gcscanvalid in both casgstatus and
-    casfrom_Gscanstatus if the new status is _Grunning. This is very
-    important to do in casgstatus. However, this is potentially wrong in
-    casfrom_Gscanstatus because in this case the caller doesn't own gp and
-    hence the write is racy. Unlike the other _Gscan statuses, during
-    _Gscanrunning, the G is still running. This does not indicate that
-    it's transitioning into a running state. The scan simply hasn't
-    happened yet, so it's neither valid nor invalid.
+    Split the auxFloat type into 32/64 bit versions and perform checking for
+    exactly representable float32 values.  Perform const folding on
+    float32/64.  Comment out some const negation rules that the frontend
+    already performs.
     
-    Conveniently, this also means clearing gcscanvalid is unnecessary in
-    this case because the G was already in _Grunning, so we can simply
-    remove this code. What will happen instead is that the G will be
-    preempted to scan itself, that scan will set gcscanvalid to true, and
-    then the G will return to _Grunning via casgstatus, clearing
-    gcscanvalid.
-    
-    This fix will become necessary shortly when we start keeping track of
-    the set of G's with dirty stacks, since it will no longer be
-    idempotent to simply set gcscanvalid to false.
-    
-    Change-Id: I688c82e6fbf00d5dbbbff49efa66acb99ee86785
-    Reviewed-on: https://go-review.googlesource.com/20669
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ib3f8d59fa8b30e50fe0267786cfb3c50a06169d2
+    Reviewed-on: https://go-review.googlesource.com/20568
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go  | 3 ---
- src/runtime/stack.go | 1 +
- 2 files changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/check.go          |  12 +-
+ src/cmd/compile/internal/ssa/func.go           |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  12 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  22 ++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   4 +-
+ src/cmd/compile/internal/ssa/op.go             |   3 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   8 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  10 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 224 +++++++++++++++++++------
+ src/cmd/compile/internal/ssa/value.go          |   4 +-
+ 10 files changed, 232 insertions(+), 69 deletions(-)

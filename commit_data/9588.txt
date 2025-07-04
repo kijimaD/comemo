@@ -1,18 +1,12 @@
-commit 9b011500c0b93951b0618c06be1b9d2d78ab374e
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Sat Sep 3 18:27:16 2011 +1000
+commit 2b6d3b498c92371b5e9721d8ca69bc680f4c80f3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Sep 3 10:30:05 2011 +1000
 
-    runtime: implement exception handling on windows/amd64
+    exp/template/html: string replacement refactoring.
     
-    Fixes #2194.
-    
-    R=rsc, alex.brainman, vcc.163, jp
+    R=mikesamuel
     CC=golang-dev
-    https://golang.org/cl/4977044
+    https://golang.org/cl/4968063
 
- src/cmd/ld/pe.c                        | 57 ++++++++++++++++++++--
- src/pkg/runtime/windows/amd64/defs.h   | 58 +++++++++++++++++++++-
- src/pkg/runtime/windows/amd64/signal.c | 89 +++++++++++++++++++++++++++++++++-
- src/pkg/runtime/windows/amd64/sys.s    | 39 +++++++++++++++
- src/pkg/runtime/windows/defs.c         |  5 ++
- 5 files changed, 243 insertions(+), 5 deletions(-)
+ src/pkg/exp/template/html/js.go | 200 +++++++++++++++-------------------------
+ 1 file changed, 74 insertions(+), 126 deletions(-)

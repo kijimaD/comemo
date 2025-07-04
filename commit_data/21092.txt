@@ -1,30 +1,33 @@
-commit ce9a4afa6f931c1ab832b4c92d3d6768fbd2ab7a
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Dec 22 18:14:00 2014 +0300
+commit c3dadb3d190973b888f5f83de3a3cccdbe7fc949
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 13 13:34:20 2014 -0500
 
-    runtime: simplify procresize
+    [dev.power64] 6g,8g: remove unnecessary and incorrect reg use scanning
     
-    Currently we do very a complex rebalancing of runnable goroutines
-    between queues, which tries to preserve scheduling fairness.
-    Besides being complex and error-prone, it also destroys all locality
-    of scheduling.
+    Previously, the 6g and 8g registerizers scanned for used
+    registers beyond the end of a region being considered for
+    registerization.  This ancient artifact was copied from the C
+    compilers, where it was probably necessary to track implicitly
+    used registers.  In the Go compilers it's harmless (because it
+    can only over-restrict the set of available registers), but no
+    longer necessary because the Go compilers correctly track
+    register use/set information.  The consequences of this extra
+    scan were (at least) that 1) we would not consider allocating
+    the AX register if there was a deferproc call in the future
+    because deferproc uses AX as a return register, so we see the
+    use of AX, but don't track that AX is set by the CALL, and 2)
+    we could not consider allocating the DX register if there was
+    a MUL in the future because MUL implicitly sets DX and (thanks
+    to an abuse of copyu in this code) we would also consider DX
+    used.
     
-    This change uses simpler scheme: leave runnable goroutines where
-    they are, during starttheworld start all Ps with local work,
-    plus start one additional P in case we have excessive runnable
-    goroutines in local queues or in the global queue.
+    This commit fixes these problems by nuking this code.
     
-    The schedler must be able to operate efficiently w/o the rebalancing,
-    because garbage collections do not have to happen frequently.
-    
-    The immediate need is execution tracing support: handling of
-    garabage collection which does stoptheworld/starttheworld several
-    times becomes exceedingly complex if the current execution can
-    jump between Ps during starttheworld.
-    
-    Change-Id: I4fdb7a6d80ca4bd08900d0c6a0a252a95b1a2c90
-    Reviewed-on: https://go-review.googlesource.com/1951
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/174110043
 
- src/runtime/proc1.go | 112 ++++++++++++++++++++++-----------------------------
- 1 file changed, 48 insertions(+), 64 deletions(-)
+ src/cmd/6g/reg.c | 50 +-------------------------------------------------
+ src/cmd/8g/reg.c | 48 +-----------------------------------------------
+ 2 files changed, 2 insertions(+), 96 deletions(-)

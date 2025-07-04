@@ -1,14 +1,23 @@
-commit b214a88d7671c8ad1192a0e9622a8c36bce3cecb
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:26:50 2015 -0400
+commit 0a048ce5e9b599912872c4d8865e8f5beceb04ff
+Author: Nick Sullivan <nicholas.sullivan@gmail.com>
+Date:   Tue Feb 24 17:55:25 2015 -0800
 
-    log/syslog: limiting tests on darwin/arm64
+    crypto/rsa: implement crypto.Decrypter
     
-    Just like darwin/arm.
+    Decrypter is an interface to support opaque private keys that perform
+    decryption operations. This interface is analogous to the crypto.Signer
+    interface.
     
-    Change-Id: Ic5c6c0b2fdbb89f4579677e120a8f2dbf300e5b9
-    Reviewed-on: https://go-review.googlesource.com/8820
-    Reviewed-by: Minux Ma <minux@golang.org>
+    This change introduces the crypto.Decrypter interface and implements
+    the crypto.Decrypter interface for rsa.PrivateKey with both OAEP and
+    PKCS#1 v1.5 padding modes.
+    
+    Change-Id: I433f649f84ed3c2148337d735cafd75f1d94a904
+    Reviewed-on: https://go-review.googlesource.com/3900
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/log/syslog/syslog_test.go | 21 +++++++++++++++------
- 1 file changed, 15 insertions(+), 6 deletions(-)
+ src/crypto/crypto.go            | 16 +++++++++++++++
+ src/crypto/rsa/pkcs1v15.go      | 10 ++++++++++
+ src/crypto/rsa/pkcs1v15_test.go | 43 +++++++++++++++++++++++++++++++++--------
+ src/crypto/rsa/rsa.go           | 41 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 102 insertions(+), 8 deletions(-)

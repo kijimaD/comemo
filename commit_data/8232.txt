@@ -1,35 +1,15 @@
-commit 8803d57f3e1c78c9e0ce3e50819c272db818c5ee
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Apr 26 10:26:22 2011 -0400
+commit 839e9eada0300387f678013f9dc50c47a277639b
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue Apr 26 06:41:19 2011 -0700
 
-    crypto/x509: memorize chain building.
+    syscall: Mlock, Munlock, Mlockall, Munlockall on Linux.
     
-    I ran the new verification code against a large number of certificates
-    with a huge (>1000) number of intermediates.
-    
-    I had previously convinced myself that a cycle in the certificate
-    graph implied a cycle in the hash graph (and thus, a contradiction).
-    This is bogus because the signatures don't cover each other.
-    
-    Secondly, I managed to drive the verification into a time explosion
-    with a fully connected graph of certificates. The code would try to
-    walk the factorial number of paths.
-    
-    This change switches the CertPool to dealing with indexes of
-    certificates rather than pointers: this makes equality easy. (I didn't
-    want to compare pointers because a reasonable gc could move objects
-    around over time.)
-    
-    Secondly, verification now memorizes the chains from a given
-    certificate. This is dynamic programming for the lazy, but there's a
-    solid reason behind it: dynamic programming would ignore the Issuer
-    hints that we can exploit by walking up the chain rather than down.
-    
-    R=bradfitzgo
+    R=rsc, bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4439070
+    https://golang.org/cl/4433070
 
- src/pkg/crypto/x509/cert_pool.go   | 36 ++++++++++++++++++++++++++----------
- src/pkg/crypto/x509/verify.go      | 16 +++++++++++-----
- src/pkg/crypto/x509/verify_test.go |  4 ++--
- 3 files changed, 39 insertions(+), 17 deletions(-)
+ src/pkg/syscall/syscall_linux.go        | 13 +++++-----
+ src/pkg/syscall/zsyscall_linux_386.go   | 44 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 44 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 44 +++++++++++++++++++++++++++++++++
+ 4 files changed, 138 insertions(+), 7 deletions(-)

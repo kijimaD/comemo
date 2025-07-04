@@ -1,21 +1,31 @@
-commit 2c67cdf7cf59a685f3a5e705b6be85f32285acec
-Author: Thanabodee Charoenpiriyakij <wingyminus@gmail.com>
-Date:   Fri May 3 11:41:54 2019 +0700
+commit 3651476075bad3d21d4dbaddc9a7d298d3d97e24
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 26 23:56:35 2018 +0000
 
-    net/http: strip escaped password from error
+    runtime: add iterator abstraction for mTreap
     
-    Using password that returns from User.Password() won't work in this case
-    because password in Userinfo already unescaped. The solution is uses
-    User.String() to escape password back again and then stringify it to error.
+    This change adds the treapIter type which provides an iterator
+    abstraction for walking over an mTreap. In particular, the mTreap type
+    now has iter() and rev() for iterating both forwards (smallest to
+    largest) and backwards (largest to smallest). It also has an erase()
+    method for erasing elements at the iterator's current position.
     
-    Fixes #31808
+    For #28479.
     
-    Change-Id: I723aafd5a57a5b69f2dd7d3a21b82ebbd4174451
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175018
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    While the expectation is that this change will slow down Go programs,
+    the impact on Go1 and Garbage is negligible.
+    
+    Go1:     https://perf.golang.org/search?q=upload:20181214.6
+    Garbage: https://perf.golang.org/search?q=upload:20181214.11
+    
+    Change-Id: I60dbebbbe73cbbe7b78d45d2093cec12cc0bc649
+    Reviewed-on: https://go-review.googlesource.com/c/151537
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/client.go      | 5 ++---
- src/net/http/client_test.go | 5 +++++
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/runtime/export_test.go |  6 ++--
+ src/runtime/mgclarge.go    | 74 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mheap.go       | 48 +++++++-----------------------
+ 3 files changed, 88 insertions(+), 40 deletions(-)

@@ -1,14 +1,14 @@
-commit 92b2643c92f88f802e7556a733aa7b7c727efdbe
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 18 17:30:34 2013 -0500
+commit 4730a226ca78a192ee0fa39df76cd9b260772f5d
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Fri Jan 18 17:07:34 2013 -0500
 
-    math/big: fix typo
+    encoding/xml: fix decoding of attributes in to pointer fields.
+    Fixes #3719.
     
-    Fixes #4678.
-    
-    TBR=gri
+    R=anacrolix, rsc
     CC=golang-dev
-    https://golang.org/cl/7135059
+    https://golang.org/cl/7131052
 
- src/pkg/math/big/int.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/xml/read.go      |  7 +++++++
+ src/pkg/encoding/xml/read_test.go | 44 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

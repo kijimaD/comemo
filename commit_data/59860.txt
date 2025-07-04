@@ -1,0 +1,22 @@
+commit 10c035acd669271dc37b9e5354b30ec939ff7c84
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri May 3 08:36:03 2024 +0000
+
+    strings: move TrimPrefix and TrimSuffix to stringslite
+    
+    To help packages use these functions like "os" which using
+    the copied function "stringsTrimSuffix".
+    
+    Change-Id: I223028ed264c7b7e95534b4883223af0988cda68
+    GitHub-Last-Rev: 2fd8fbf5286e5a4abdb03704d69f02e32d3f1a6b
+    GitHub-Pull-Request: golang/go#67151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583075
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/stringslite/strings.go | 14 ++++++++++++++
+ src/strings/strings.go              | 10 ++--------
+ 2 files changed, 16 insertions(+), 8 deletions(-)

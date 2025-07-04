@@ -1,16 +1,15 @@
-commit c441eecbe9324f4278cedb89df191ed226b798d4
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Feb 25 18:13:29 2025 +0100
+commit aa0a6ad1db9ea2e338e755720c91e1b10376c4de
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jan 3 11:21:49 2024 -0500
 
-    crypto/internal/fips140test: add a test for a non-approved function
+    doc/go1.22: add links to go/types symbols
     
-    Change-Id: I6a6a46560bfca588e5874f3769f33b561c33096a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652415
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Also, join three paragraphs that should have been one.
+    
+    Change-Id: Ib1c252f88a1e98afe157d477caa5323c0c8365e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553715
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
 
- src/crypto/internal/fips140test/fips_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ doc/go1.22.html | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

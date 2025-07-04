@@ -1,24 +1,25 @@
-commit cecaa25bd31622f5ae0df7fd5c8c7f02afde8715
-Author: Eddie Lopez <ejlopez00@gmail.com>
-Date:   Fri Sep 30 16:51:33 2022 -0400
+commit ccd41cc05e3ee2f0d0ded1d7faf9c1f43ce1037b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 11 11:57:43 2021 -0800
 
-    testing: add an example showcasing B.RunParallel with B.ReportMetric
+    go/types, types2: document nil scope for imported and instantiated Func objects
     
-    This commit was dedicated to adding an example of using B.ReportMetrics
-    with B.RunParallel called ExampleB_ReportMetric_parallel. In this
-    example, the same algorithm for ExampleB_ReportMetric was used, instead
-    with a concurrent for loop using PB.Next instead of a standard one.
-    There is also notes noting when to use the B.ReportMetric methods when
-    running concurrent testing.
+    Also, don't set the scope anymore when instantiating (substituting)
+    a signature.
     
-    Fixes #50756
-    Change-Id: I2a621b4e367af5f4ec47d38a0da1035a8d52f628
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/437815
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Per discussion with rfindley.
+    
+    Change-Id: I560d4571c7ff14b0df3e15fece634cb5f9f94a99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363435
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/testing/benchmark_test.go | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ src/cmd/compile/internal/types2/object.go    | 2 ++
+ src/cmd/compile/internal/types2/signature.go | 2 +-
+ src/cmd/compile/internal/types2/subst.go     | 4 ++--
+ src/go/types/object.go                       | 2 ++
+ src/go/types/signature.go                    | 2 +-
+ src/go/types/subst.go                        | 4 ++--
+ 6 files changed, 10 insertions(+), 6 deletions(-)

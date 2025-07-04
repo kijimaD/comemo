@@ -1,30 +1,21 @@
-commit b7f0fb6d9eb9a2c1b2beb9ecd58bdbf3571dd5cd
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Sat Feb 6 00:50:55 2021 -0500
+commit 441b52f5660ccde7848f034ba345d2f0088ea383
+Author: kakulisen <lziqiang1@gmail.com>
+Date:   Thu May 14 16:20:58 2020 +0800
 
-    cmd/go/internal/modload: fuse upgrading with downgrading in EditBuildList
+    math: simplify the code
     
-    Previosly, EditBuildList performed an mvs.Upgrade followed by an
-    mvs.Downgrade, with the Downgrade building on the result of the
-    Upgrade. Unfortunately, that approach potentially folds in irrelevant
-    dependencies from the first Upgrade, which are then preserved
-    unnecessarily by the Downgrade (see mod_get_downup_artifact.txt).
+    Simplifying some code without compromising performance.
+    My CPU is Intel Xeon Gold 6161, 2.20GHz, 64-bit operating system.
+    The memory is 8GB. This is my test environment, I hope to help you judge.
     
-    Now, we use the initial Upgrade only to compute the maximum allowed
-    versions of transitive dependencies, and apply the module upgrades and
-    downgrades together in a single operation.
+    Benchmark:
     
-    For #36460
+    name      old time/op    new time/op    delta
+    Log1p-4    21.8ns ± 5%    21.8ns ± 4%   ~     (p=0.973 n=20+20)
     
-    Change-Id: I7590c137111fed4a3b06531c88d90efd49e6943a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/290770
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Icd8f96f1325b00007602d114300b92d4c57de409
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233940
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modload/buildlist.go           |  29 +--
- src/cmd/go/internal/modload/edit.go                | 281 +++++++++++++++++++++
- src/cmd/go/internal/modload/mvs.go                 |  29 ++-
- .../go/testdata/script/mod_get_downup_artifact.txt |  10 +-
- 4 files changed, 314 insertions(+), 35 deletions(-)
+ src/math/log1p.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

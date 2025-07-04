@@ -1,19 +1,16 @@
-commit e5da468c51ad13a08730dc7890311915eefd2199
-Author: Carlos Alexandro Becker <caarlos0@gmail.com>
-Date:   Fri Aug 21 08:01:01 2020 +0000
+commit 9c68d85db57ea68d9631aa36622653c06d2bbbca
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Feb 19 16:28:26 2020 -0500
 
-    net/http: use iotest.ErrReader in tests
+    cmd/go/testdata/script: fix typo in get_domain_root.txt
     
-    Updates #38781
+    golang.org/cl/214141 introduced the typo 'skup' for 'skip', which
+    broke tests. This change fixes it.
     
-    Change-Id: I16a66904167ca4c0e916619b4da1dd23795b3ab2
-    GitHub-Last-Rev: 45054235a009cf776030bc951ba9a2a2a02c13e9
-    GitHub-Pull-Request: golang/go#40864
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249037
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I1b3c230b545f1c093d3e0feedc3b41f3f0b41bec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220157
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/http/requestwrite_test.go | 5 +++--
- src/net/http/transport_test.go    | 9 ++-------
- 2 files changed, 5 insertions(+), 9 deletions(-)
+ src/cmd/go/testdata/script/get_domain_root.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

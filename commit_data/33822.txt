@@ -1,15 +1,14 @@
-commit 3d3b8cc47716b9ce3df37b8babe48cfd074cd121
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Dec 7 13:29:26 2017 +0900
+commit e27a81221f5cdb529db1ba5481597526e05cb77c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Sep 10 15:26:19 2017 +1000
 
-    cmd/vendor/golang.org/x/arch/arm64: update from upstream
+    misc/cgo/testcshared: run tests in parallel
     
-    Updates x/arch/arm64 to git rev. 530ae47 for CL 82437.
-    
-    Change-Id: I0131f7ac783462fcaeddf5625c59784fe30bbd5a
-    Reviewed-on: https://go-review.googlesource.com/82435
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id1b5939cfcd210a0cb5f61915ce2d077c7fcec11
+    Reviewed-on: https://go-review.googlesource.com/62592
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition.go      | 0
- src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition_util.go | 0
- 2 files changed, 0 insertions(+), 0 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 58 ++++++++++++++++--------------------
+ 1 file changed, 25 insertions(+), 33 deletions(-)

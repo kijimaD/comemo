@@ -1,13 +1,16 @@
-commit ca2cb5190bb9e13dbf7e13154480560f4d1d21a0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 20 08:32:06 2014 -0700
+commit a2770af447a470cf34841f09d0a5bf23a9b5ea9e
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Mar 20 16:00:34 2014 +1100
 
-    crypto/tls: clarify concurrent use of Config
+    base64: fix bug that decoder fails to detect corruption
     
-    LGTM=r, agl
-    R=agl, r
+    Encoding.Decode() failed to detect trailing garbages if input contains "==" followed by garbage smaller than 3 bytes (for example, it failed to detect "x" in "AA==x"). This patch fixes the bug and adds a few tests.
+    
+    LGTM=nigeltao
+    R=golang-codereviews, bradfitz, nigeltao
     CC=golang-codereviews
-    https://golang.org/cl/77530044
+    https://golang.org/cl/75340044
 
- src/pkg/crypto/tls/common.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/pkg/encoding/base64/base64.go      | 27 +++++++++++++++++++--------
+ src/pkg/encoding/base64/base64_test.go |  6 +++++-
+ 2 files changed, 24 insertions(+), 9 deletions(-)

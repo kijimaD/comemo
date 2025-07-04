@@ -1,16 +1,19 @@
-commit fe5619b479859f199a244929770a11cc4cbd1911
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Sep 1 10:13:11 2016 -0700
+commit babdbfb8260bbe8c6305c9d3023d83cc0b3645bf
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sun Apr 24 13:33:33 2016 +0200
 
-    cmd/compile: be more aggressive in tighten pass for booleans
+    cmd/trace: make binary argument optional
     
-    Fixes #15509
+    1.7 traces embed symbol info and we now generate symbolized pprof profiles,
+    so we don't need the binary. Make binary argument optional as 1.5 traces
+    still need it.
     
-    Change-Id: I44073533f02d38795f9ba9b255db4d1ee426d70e
-    Reviewed-on: https://go-review.googlesource.com/28390
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I65eb13e3d20ec765acf85c42d42a8d7aae09854c
+    Reviewed-on: https://go-review.googlesource.com/22410
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/tighten.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/go/test.go     |  1 -
+ src/cmd/go/testflag.go |  4 +++-
+ src/cmd/trace/main.go  | 21 ++++++++++++++-------
+ 3 files changed, 17 insertions(+), 9 deletions(-)

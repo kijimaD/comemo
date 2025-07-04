@@ -1,25 +1,22 @@
-commit f14ad78e844d7dff286421754c462886336b1eb6
+commit 42953bc9f5ded1bcf4ff727d82ddd3b7a8a2b8de
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 10 20:09:07 2022 -0800
+Date:   Wed Apr 28 11:10:07 2021 -0700
 
-    net: send EDNS(0) packet length in DNS query
+    runtime: remove walltime function
     
-    We used to only accept up to 512 bytes in a DNS packet, per RFC 1035.
-    Increase the size we accept to 1232 bytes, per https://dnsflagday.net/2020/,
-    and advertise that larger limit in a EDNS(0) OPT record.
+    There was only one meaningful caller, which changes to call time_now.
     
-    Fixes #6464
-    Fixes #21160
-    Fixes #44135
-    Fixes #51127
+    This clearly separates systems that use walltime1 to be just those
+    that use the stub version of time_now. That is to say, those that do
+    not provide an assembler version of time_now.
     
-    Change-Id: I496a294e9a8015de4161cbc1825b0dc5b4e9f5d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385035
+    Change-Id: I14c06cc402070bd705f953af6f9966785015e2a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314769
     Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/net/dnsclient_unix.go      | 19 +++++++++++++-
- src/net/dnsclient_unix_test.go | 57 +++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 74 insertions(+), 2 deletions(-)
+ src/runtime/time_fake.go         | 7 +------
+ src/runtime/time_nofake.go       | 4 ----
+ src/runtime/timestub.go          | 2 +-
+ src/runtime/write_err_android.go | 2 +-
+ 4 files changed, 3 insertions(+), 12 deletions(-)

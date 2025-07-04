@@ -1,21 +1,23 @@
-commit 51b624e6a29b135ce0fadb22b678acf4998ff16f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 28 22:50:03 2016 -0500
+commit 35a5bd64315a989a19f49568beddf39ae69ee420
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Nov 20 00:23:52 2015 -0500
 
-    cmd/link: remove alternate -X flag spelling
+    runtime: make it possible to call syscall on solaris without g
     
-    The Go 1.6 release notes say we'll remove the “-X name value” form
-    (in favor of the “-X name=value” form) in Go 1.7.
-    Do that.
+    The nosplit stack is now much bigger, so we can afford to allocate
+    libcall on stack.
     
-    Also establish the doc/go1.7.txt file.
+    Fix asmsysvicall6 to not update errno if g == nil.
     
-    Change-Id: Ie4565a6bc5dbcf155181754d8d92bfbb23c75338
-    Reviewed-on: https://go-review.googlesource.com/19614
+    These two fixes TestCgoCallbackGC on solaris, which used to stuck
+    in a loop.
+    
+    Change-Id: Id1b13be992dae9f059aa3d47ffffd37785300933
+    Reviewed-on: https://go-review.googlesource.com/17076
+    Run-TryBot: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.7.txt                    | 13 +++++++++++++
- src/cmd/go/go_test.go            |  4 ++--
- src/cmd/link/internal/ld/pobj.go | 27 ---------------------------
- test/linkx_run.go                |  2 +-
- 4 files changed, 16 insertions(+), 30 deletions(-)
+ src/runtime/os_solaris.go       | 28 ++++++++++++++--------------
+ src/runtime/sys_solaris_amd64.s |  4 ++++
+ 2 files changed, 18 insertions(+), 14 deletions(-)

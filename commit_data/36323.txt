@@ -1,16 +1,19 @@
-commit 083938df14c0602a44d055bd3f4427980cf51c27
-Author: Austin Clements <austin@google.com>
-Date:   Fri Aug 10 10:33:05 2018 -0400
+commit 1c439e6e37c87c9543cb1860c3b8d174658b80ca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 18 22:17:28 2018 -0700
 
-    runtime: use gList for injectglist
+    cmd/compile: change exporter.pos to take src.XPos instead of *Node
     
-    Change-Id: Id5af75eaaf41f43bc6baa6d3fe2b852a2f93bb6f
-    Reviewed-on: https://go-review.googlesource.com/129400
-    Run-TryBot: Austin Clements <austin@google.com>
+    This is to allow followup refactorings that will replace
+    Field.Nname.Pos with Field.Pos.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I1060b6a37c60273892f7af5369809057cff61881
+    Reviewed-on: https://go-review.googlesource.com/108215
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mgc.go     |  3 +--
- src/runtime/mgcmark.go |  3 ++-
- src/runtime/proc.go    | 31 ++++++++++++++++---------------
- 3 files changed, 19 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 111 +++++++++++++++++----------------
+ 1 file changed, 57 insertions(+), 54 deletions(-)

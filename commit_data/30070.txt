@@ -1,26 +1,17 @@
-commit b60e61ab1bf7cca20a03364143e76acf2925ccb6
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 18 12:58:25 2017 -0500
+commit 07a22dbd34d439182bea6a966b80baa2df7c72f4
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Oct 24 11:00:19 2016 -0400
 
-    cmd/dist: move cmd/go z files to cmd/go/internal/cfg
+    cmd/vet: cgo: emit no error for calls to C.CBytes
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
+    Fixes issue golang/go#17563
     
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
-    
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
-    
-    For #18653.
-    
-    Change-Id: I6ee5b053683034ea9462a9a0a4ea4f5ad24fa5a1
-    Reviewed-on: https://go-review.googlesource.com/36192
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ibb41ea9419907193526cc601f6afd07d8689b1fe
+    Reviewed-on: https://go-review.googlesource.com/31810
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .gitignore              |  4 ++--
- src/cmd/dist/build.go   |  4 ++--
- src/cmd/dist/buildgo.go | 28 +++++++++++++++++++---------
- src/cmd/dist/deps.go    | 12 +++++++++++-
- 4 files changed, 34 insertions(+), 14 deletions(-)
+ src/cmd/vet/cgo.go          | 5 +++++
+ src/cmd/vet/testdata/cgo.go | 2 ++
+ 2 files changed, 7 insertions(+)

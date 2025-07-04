@@ -1,17 +1,25 @@
-commit d8899acaf896529a5ab119af3e52ab5ad9488e51
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 7 14:14:20 2017 -0700
+commit b59a405656bbd79aefe3620553bee771628f9209
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 13 21:09:27 2017 +0000
 
-    cmd/compile: separate code for len, cap from code for real, imag
+    Revert "cmd/compile: de-virtualize interface calls"
     
-    Prep work for issues mentioned below. No semantic or functionality change.
+    This reverts commit 4e0c7c3f61475116c4ae8d11ef796819d9c404f0.
     
-    For #11945.
-    For #17446.
+    Reason for revert: The presence-of-optimization test program is fragile, breaks under noopt, and might break if the Go libraries are tweaked.  It needs to be (re)written without reference to other packages.
     
-    Change-Id: Ia1bb2b87647a6daa47f7863c0eb42cf5e1d35a7c
-    Reviewed-on: https://go-review.googlesource.com/45076
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I3aaf1ab006a1a255f961a978e9c984341740e3c7
+    Reviewed-on: https://go-review.googlesource.com/38097
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 96 ++++++++++++++++++--------------
- 1 file changed, 54 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/gc/main.go            |  4 --
+ src/cmd/compile/internal/gc/reflect.go         | 82 +-------------------------
+ src/cmd/compile/internal/gc/ssa.go             |  4 --
+ src/cmd/compile/internal/gc/subr.go            | 10 +---
+ src/cmd/compile/internal/ssa/config.go         |  6 --
+ src/cmd/compile/internal/ssa/export_test.go    | 31 +++++-----
+ src/cmd/compile/internal/ssa/gen/generic.rules |  7 ---
+ src/cmd/compile/internal/ssa/rewrite.go        | 20 -------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 48 ---------------
+ test/devirt.go                                 | 64 --------------------
+ 10 files changed, 17 insertions(+), 259 deletions(-)

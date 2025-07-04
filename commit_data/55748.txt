@@ -1,22 +1,33 @@
-commit 8a493a667268083a6e33de606fd90e82ddd694f0
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 14 11:56:56 2024 -0500
+commit f52bede354102a5e16e19381b93d4a469d1286d4
+Author: Austin Clements <austin@google.com>
+Date:   Sun Feb 5 15:54:33 2023 -0500
 
-    runtime: move all timer-locking code into time.go
+    runtime: create an API for unwinding inlined frames
     
-    No code changes, only code moves here.
-    Move all code that locks pp.timersLock into time.go
-    so that it is all in one place, for easier abstraction.
+    We've replicated the code to expand inlined frames in many places in
+    the runtime at this point. This CL adds a simple iterator API that
+    abstracts this out.
     
-    [This is one CL in a refactoring stack making very small changes
-    in each step, so that any subtle bugs that we miss can be more
-    easily pinpointed to a small change.]
+    We also use this to try out a new idea for structuring tests of
+    runtime internals: rather than exporting this whole internal data type
+    and API, we write the test in package runtime and import the few bits
+    of std we need. The idea is that, for tests of internals, it's easier
+    to inject public APIs from std than it is to export non-public APIs
+    from runtime. This is discussed more in #55108.
     
-    Change-Id: I1b59af7780431ec6479440534579deb1a3d9d7a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564117
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #54466.
+    
+    Change-Id: Iebccc04ff59a1509694a8ac0e0d3984e49121339
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466096
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/runtime/proc.go | 123 ++-------------------------------------------------
- src/runtime/time.go | 124 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 128 insertions(+), 119 deletions(-)
+ src/runtime/import_test.go    |  41 ++++++++++++++
+ src/runtime/importx_test.go   |  33 ++++++++++++
+ src/runtime/runtime2.go       |   2 +
+ src/runtime/string.go         |   4 ++
+ src/runtime/symtab.go         |  33 ++++++++----
+ src/runtime/symtabinl.go      | 114 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/symtabinl_test.go | 122 ++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 340 insertions(+), 9 deletions(-)

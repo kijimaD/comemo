@@ -1,34 +1,22 @@
-commit 2cac7e89daa50fa01615d50134c97b146ab9b24f
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Oct 14 10:48:42 2022 -0700
+commit 0981d9fff1fa5601a2b7833473955252425bd923
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jun 15 13:06:10 2022 -0700
 
-    crypto/tls: support QUIC as a transport
+    time: add DateTime, DateOnly, and TimeOnly
     
-    Add a QUICConn type for use by QUIC implementations.
+    Add named constants for the 3rd, 4th, and 13th most popular formats.
     
-    A QUICConn provides unencrypted handshake bytes and connection
-    secrets to the QUIC layer, and receives handshake bytes.
+    Fixes #52746
     
-    For #44886
-    
-    Change-Id: I859dda4cc6d466a1df2fb863a69d3a2a069110d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493655
+    Change-Id: I7ce92e44dcae18c089124f1d6f5bc2d6359d436c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412495
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
 
- api/next/44886.txt                        |  41 +++
- src/crypto/tls/alert.go                   |  10 +
- src/crypto/tls/common.go                  |   1 +
- src/crypto/tls/conn.go                    | 119 +++++++--
- src/crypto/tls/handshake_client.go        |  45 +++-
- src/crypto/tls/handshake_client_tls13.go  |  54 +++-
- src/crypto/tls/handshake_messages.go      |  30 ++-
- src/crypto/tls/handshake_messages_test.go |   3 +
- src/crypto/tls/handshake_server.go        |   8 +-
- src/crypto/tls/handshake_server_tls13.go  |  51 +++-
- src/crypto/tls/quic.go                    | 376 ++++++++++++++++++++++++++
- src/crypto/tls/quic_test.go               | 430 ++++++++++++++++++++++++++++++
- 12 files changed, 1118 insertions(+), 50 deletions(-)
+ api/next/52746.txt      | 6 ++++++
+ src/time/format.go      | 3 +++
+ src/time/format_test.go | 3 +++
+ 3 files changed, 12 insertions(+)

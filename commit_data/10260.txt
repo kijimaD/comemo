@@ -1,14 +1,13 @@
-commit c171633780923d6eb02d2bf63446797e7940f9d1
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Sat Nov 5 12:25:36 2011 -0700
+commit c29cd8abb9e17c468843b097cb0d944ace6b2625
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Nov 5 11:28:23 2011 +1100
 
-    math: faster Gamma
+    gofix: avoid panic on body-less functions in netudpgroup.
     
-    Having the compiler count the number of array elements speeds up Gamma from 63.7 to 56.6 ns/op.
-    
-    R=rsc, golang-dev, r
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5362043
+    https://golang.org/cl/5347041
 
- src/pkg/math/gamma.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gofix/netudpgroup.go      |  2 +-
+ src/cmd/gofix/netudpgroup_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

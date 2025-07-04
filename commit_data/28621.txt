@@ -1,19 +1,23 @@
-commit 6c5e377d23136bd371d205e1c2aae6ddccb4597e
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jul 14 13:23:11 2016 -0400
+commit af0fc83985860776551d15be3a8fefde35514bcb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Jun 14 10:20:11 2016 -0400
 
-    cmd/compile: relax liveness restrictions on ambiguously live
+    cmd/compile, etc: handle many struct fields
     
-    Update gc liveness to remove special conservative treatment
-    of ambiguously live vars, since there is no longer a need to
-    protect against GCDEBUG=gcdead.
+    This adds 8 bytes of binary size to every type that has methods. It is
+    the smallest change I could come up with for 1.7.
     
-    Change-Id: Id6e2d03218f7d67911e8436d283005a124e6957f
-    Reviewed-on: https://go-review.googlesource.com/24896
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #16037
+    
+    Change-Id: Ibe15c3165854a21768596967757864b880dbfeed
+    Reviewed-on: https://go-review.googlesource.com/24070
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 22 ++++++++--------------
- test/live.go                         | 19 ++++++++++---------
- 2 files changed, 18 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 10 +++--
+ src/cmd/link/internal/ld/decodesym.go  |  4 +-
+ src/reflect/type.go                    |  6 ++-
+ src/runtime/type.go                    |  4 +-
+ test/fixedbugs/issue16037_run.go       | 70 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 85 insertions(+), 9 deletions(-)

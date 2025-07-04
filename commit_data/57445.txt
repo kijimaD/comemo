@@ -1,33 +1,32 @@
-commit 0ee5d20b1fe617e425d1798a4f7439cf8c337459
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Sep 10 01:04:51 2024 +1000
+commit b9153f6ef338baee5fe02a867c8fbc83a8b29dd1
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jul 19 10:30:46 2023 -0700
 
-    cmd/compile,cmd/internal/obj/riscv: always provide ANDN, ORN and XNOR for riscv64
+    net/http: permit requests with invalid Host headers
     
-    The ANDN, ORN and XNOR RISC-V Zbb extension instructions are easily
-    synthesised. Make them always available by adding support to the
-    riscv64 assembler so that we either emit two instruction sequences,
-    or a single instruction, when permitted by the GORISCV64 profile.
-    This means that these instructions can be used unconditionally,
-    simplifying compiler rewrite rules, codegen tests and manually
-    written assembly.
+    Historically, the Transport has silently truncated invalid
+    Host headers at the first '/' or ' ' character. CL 506996 changed
+    this behavior to reject invalid Host headers entirely.
+    Unfortunately, Docker appears to rely on the previous behavior.
     
-    Around 180 instructions are removed from the Go binary on riscv64
-    when built with rva22u64.
+    When sending a HTTP/1 request with an invalid Host, send an empty
+    Host header. This is safer than truncation: If you care about the
+    Host, then you should get the one you set; if you don't care,
+    then an empty Host should be fine.
     
-    Change-Id: Ib2d90f2593a306530dc0ed08a981acde4d01be20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611895
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Continue to fully validate Host headers sent to a proxy,
+    since proxies generally can't productively forward requests
+    without a Host.
+    
+    For #60374
+    Fixes #61431
+    
+    Change-Id: If170c7dd860aa20eb58fe32990fc93af832742b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511155
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s        | 12 ++--
- src/cmd/compile/internal/riscv64/ssa.go            |  3 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules    |  1 -
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go    | 29 ++++----
- .../internal/ssa/_gen/RISCV64latelower.rules       |  6 ++
- src/cmd/compile/internal/ssa/opGen.go              | 46 ++++++++++++
- .../internal/ssa/rewriteRISCV64latelower.go        | 84 ++++++++++++++++++++++
- src/cmd/internal/obj/riscv/obj.go                  | 28 ++++++++
- 8 files changed, 188 insertions(+), 21 deletions(-)
+ src/net/http/request.go      | 23 ++++++++++++++++++++++-
+ src/net/http/request_test.go | 17 ++++++++++++-----
+ 2 files changed, 34 insertions(+), 6 deletions(-)

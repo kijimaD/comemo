@@ -1,14 +1,22 @@
-commit 742f755a29493b111d54a0d39d80083994dcaf1a
+commit 85138da832f8740bee9241e80acb291a4954a10a
 Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 2 17:58:19 2013 -0800
+Date:   Mon Dec 2 13:36:50 2013 -0800
 
-    reflect: test to make sure big Zero()-obtained objects are really zero.
+    reflect: prevent the callXX routines from calling makeFuncStub
+    and methodValueCall directly.  Instead, we inline their behavior
+    inside of reflect.call.
     
-    Update #6876.
+    This change is required because otherwise we have a situation where
+    reflect.callXX calls makeFuncStub, neither of which knows the
+    layout of the args passed between them.  That's bad for
+    precise gc & stack copying.
     
-    R=dave, bradfitz
+    Fixes #6619.
+    
+    R=golang-dev, dvyukov, rsc, iant, khr
     CC=golang-dev
-    https://golang.org/cl/36370043
+    https://golang.org/cl/26970044
 
- src/pkg/reflect/all_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/pkg/reflect/all_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/reflect/value.go    | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+)

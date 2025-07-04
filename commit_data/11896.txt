@@ -1,14 +1,18 @@
-commit 60e4d5668e80457023a3432752b2889fb73b89bf
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Feb 14 11:24:41 2012 -0500
+commit d599accafa0ddd1a598f87c419099f82d5910004
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 11:17:48 2012 -0500
 
-    cmd/vet: give warning for construct 'Println(os.Stderr, ...)'
-            also fixes this bug in net/http/httptest.
+    time: use "2006-01-02 15:04:05.999999999 -0700 MST" as String format
     
-    R=golang-dev, r
+    This change shows all the information present
+    in the Time value (now including fractional seconds)
+    and also arranges the fields so that, within a single time zone,
+    string comparison and time comparison agree.
+    
+    R=golang-dev, rogpeppe, r
     CC=golang-dev
-    https://golang.org/cl/5654083
+    https://golang.org/cl/5654078
 
- src/cmd/vet/print.go                | 11 +++++++++++
- src/pkg/net/http/httptest/server.go |  2 +-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/pkg/time/example_test.go | 2 +-
+ src/pkg/time/format.go       | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

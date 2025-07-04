@@ -1,14 +1,21 @@
-commit 9666a959cf0f9e622f9442a3e5cc0a941e0957f4
+commit d75023e1d144793dcf83ba45c3857656134c4fa0
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Feb 21 07:50:10 2012 +0100
+Date:   Tue Feb 21 07:37:25 2012 +0100
 
-    test: fix bug423.go to actually fail with older releases.
+    cmd/api: record return type of functions for variable typecheck.
     
-    The supposedly overflowing variable was registerized.
+    Also cleanup the resolveName method.
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/5687061
+    Fixes failure on go/build declaration:
+            var ToolDir = filepath.Join(...)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev, remy
+    https://golang.org/cl/5681043
 
- test/fixedbugs/bug423.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/api/goapi.go                       | 74 +++++++++++++++++++-----------
+ src/cmd/api/testdata/src/pkg/p1/golden.txt |  5 ++
+ src/cmd/api/testdata/src/pkg/p1/p1.go      | 11 ++++-
+ src/cmd/api/testdata/src/pkg/p2/golden.txt |  3 ++
+ src/cmd/api/testdata/src/pkg/p2/p2.go      |  4 ++
+ 5 files changed, 68 insertions(+), 29 deletions(-)

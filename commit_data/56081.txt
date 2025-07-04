@@ -1,44 +1,32 @@
-commit bb7a29991c7e6c78e35348973dad0b8f9f8d818f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 27 22:33:44 2024 -0400
+commit 0d3c23fe87ca0ee727d833ce11ab16b405a93ea3
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Tue Apr 4 16:35:06 2023 +0800
 
-    runtime: move whenHeap into heap slice
+    cmd/link: bump loong64 function alignment to 16 bytes
     
-    This CL changes the timer heap from a slice of timers to a slice
-    of {timer, when} pairs, moving timer.whenHeap into the heap
-    backing store itself. This makes the ownership clearer (t.whenHeap
-    was always protected by the heap lock, not the timer's lock)
-    and also avoids an indirection when doing heap operations,
-    which look at the when field quite a lot.
+    The loong64 PCALIGN directive works with PCs relative to beginning of
+    functions. So if the function alignment is less than that requested by
+    PCALIGN, the following code may in fact not be aligned as such, leading
+    to unexpected performance.
     
-    goos: linux
-    goarch: amd64
-    pkg: time
-    cpu: AMD Ryzen 9 7950X 16-Core Processor
-                                       │  s7base.txt  │                s7.txt                │
-                                       │    sec/op    │    sec/op     vs base                │
-    AdjustTimers10000-32                 244.1µ ±  5%   195.9µ ± 13%  -19.76% (p=0.001 n=10)
-    AdjustTimers10000SingleThread-32     1.674m ±  6%   1.573m ± 13%   -6.03% (p=0.001 n=10)
-    AdjustTimers10000NoReset-32          194.0µ ±  2%   170.6µ ±  1%  -12.06% (p=0.000 n=10)
-    AdjustTimers10000NoSleep-32          223.0µ ±  7%   183.9µ ±  2%  -17.54% (p=0.000 n=10)
-    AdjustTimers10000NoResetNoSleep-32   181.1µ ±  1%   151.3µ ±  1%  -16.45% (p=0.000 n=10)
+    The current function alignment on loong64 is 8 bytes, which seems to
+    stem from mips64 or riscv64. In order to make performance more
+    predictable on loong64, it is raised to 16 bytes to ensure that at
+    least `PCALIGN $16` works.
     
-    goos: darwin
-    goarch: arm64
-    pkg: time
-    cpu: Apple M3 Pro
-                                       │ m3base.txt  │               m3.txt                │
-                                       │   sec/op    │   sec/op     vs base                │
-    AdjustTimers10000-12                 266.6µ ± 2%   234.2µ ± 1%  -12.16% (p=0.000 n=10)
-    AdjustTimers10000SingleThread-12     1.194m ± 0%   1.191m ± 1%   -0.33% (p=0.029 n=10)
-    AdjustTimers10000NoReset-12          260.9µ ± 2%   239.6µ ± 2%   -8.15% (p=0.000 n=10)
-    AdjustTimers10000NoSleep-12          247.8µ ± 2%   223.3µ ± 2%   -9.90% (p=0.000 n=10)
-    AdjustTimers10000NoResetNoSleep-12   231.7µ ± 2%   209.2µ ± 2%   -9.68% (p=0.000 n=10)
+    As alignment of loops written in Go is yet to be tackled, and the
+    codegen is not otherwise touched, benchmark numbers for this change are
+    not going to be meaningful, and not included.
     
-    Change-Id: I546f077068476d7a7b855889419b292525fb2bc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574896
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I2120ef3746ce067e274920c82091810073bfa3be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481936
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/time.go | 218 ++++++++++++++++++++++++----------------------------
- 1 file changed, 100 insertions(+), 118 deletions(-)
+ src/cmd/link/internal/loong64/l.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

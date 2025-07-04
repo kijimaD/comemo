@@ -1,30 +1,22 @@
-commit 77b0ad1e806580e47e4f682dfb912c55e1411b73
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Nov 24 09:28:58 2011 +1100
+commit b3923a27dd80592ec4cd21ca04ea2a736578c9ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 23 09:27:38 2011 -0800
 
-    html: parse DOCTYPE into name and public and system identifiers
+    go/printer, gofmt: more performance tweaks
     
-    Pass tests2.dat, test 59:
-    <!DOCTYPE <!DOCTYPE HTML>><!--<!--x-->-->
+    Removed more string conversions and streamlined bottleneck
+    printing interface by removing unnecessary tests where possible.
+    About 6% faster AST printing.
     
-    | <!DOCTYPE <!doctype>
-    | <html>
-    |   <head>
-    |   <body>
-    |     ">"
-    |     <!-- <!--x -->
-    |     "-->"
+    Before:
+    - printer.BenchmarkPrint                50      32056640 ns/op
     
-    Pass all the tests in doctype01.dat.
+    After:
+    - printer.BenchmarkPrint                50      30138440 ns/op (-6%)
     
-    Also pass tests2.dat, test 60:
-    <!doctype html><div><form></form><div></div></div>
-    
-    R=nigeltao
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5437045
+    https://golang.org/cl/5431047
 
- src/pkg/html/parse.go      | 58 ++++++++++++++++++++++++++++++++++++++++++----
- src/pkg/html/parse_test.go | 21 +++++++++++++++--
- src/pkg/html/render.go     | 56 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 129 insertions(+), 6 deletions(-)
+ src/pkg/go/printer/printer.go | 197 +++++++++++++++++++++---------------------
+ 1 file changed, 99 insertions(+), 98 deletions(-)

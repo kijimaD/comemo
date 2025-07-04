@@ -1,18 +1,28 @@
-commit 6718cb617f3d09878088779fe9d18b08949a9bc0
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 4 04:32:32 2019 +1100
+commit 141b09726dcfc1fa9f04ee9e08e6fa4af00fa57b
+Author: smasher164 <aindurti@gmail.com>
+Date:   Tue Aug 20 23:11:22 2019 -0400
 
-    cmd/internal/obj/riscv: implement prologue and epilogue
+    net/http: make copyValues append instead of calling Add
     
-    Based on riscv-go port.
+    This results in a performance boost:
     
-    Updates #27532
+    name          old time/op    new time/op    delta
+    CopyValues-4    3.46µs ± 3%    1.53µs ± 3%  -55.85%  (p=0.000 n=18+19)
     
-    Change-Id: If552225552bf8d27c29b08de31146dd34986a3a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204630
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    name          old alloc/op   new alloc/op   delta
+    CopyValues-4    1.52kB ± 0%    0.74kB ± 0%  -51.58%  (p=0.000 n=20+20)
+    
+    name          old allocs/op  new allocs/op  delta
+    CopyValues-4      24.0 ± 0%      11.0 ± 0%  -54.17%  (p=0.000 n=20+20)
+    
+    Fixes #33744.
+    
+    Change-Id: Ibc653fb076a9a6aaa775fcc9ca720fb90e68cf96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191057
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/internal/obj/riscv/obj.go | 334 +++++++++++++++++++++++++++++++++++++-
- 1 file changed, 331 insertions(+), 3 deletions(-)
+ src/net/http/http_test.go | 26 ++++++++++++++++++++++++++
+ src/net/http/request.go   |  4 +---
+ 2 files changed, 27 insertions(+), 3 deletions(-)

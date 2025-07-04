@@ -1,70 +1,30 @@
-commit 37a2290095a78cbe0f0137d3e0d40611f9509ef3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 18 16:49:20 2019 -0700
+commit 74695644e0c38586a85b9b483830c546efbb6642
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 22 23:55:27 2019 -0400
 
-    go/types: fix cycle detection
+    cmd/go: add -trimpath build flag
     
-    For Go 1.13, we rewrote the go/types cycle detection scheme. Unfortunately,
-    it was a bit too clever and introduced a bug (#34333). Here's an example:
+    "go build -trimpath" trims the recorded file paths in the
+    resulting packages and executables to avoid recording
+    the names of any local directories. Instead, the files appear
+    to be stored in directories named either "go/src/..." (for the
+    standard library) or named after the module or package
+    in which the files appear.
     
-    type A struct {
-            f1 *B
-            f2 B
-    }
+    Fixes #16860.
     
-    type B A
-    
-    When type-checking this code, the first cycle A->*B->B->A (via field f1)
-    is ok because there's a pointer indirection. Though in the process B is
-    considered "type-checked" (and painted/marked from "grey" to black").
-    When type-checking f2, since B is already completely set up, go/types
-    doesn't complain about the invalid cycle A->B->A (via field f2) anymore.
-    On the other hand, with the fields f1, f2 swapped:
-    
-    type A struct {
-            f2 B
-            f1 *B
-    }
-    
-    go/types reports an error because the cycle A->B->A is type-checked first.
-    In general, we cannot know the "right" order in which types need to be
-    type-checked.
-    
-    This CL fixes the issue as follows:
-    
-    1) The global object path cycle detection does not take (pointer, function,
-       reference type) indirections into account anymore for cycle detection.
-       That mechanism was incorrect to start with and the primary cause for this
-       issue. As a consequence we don't need Checker.indirectType and indir anymore.
-    
-    2) After processing type declarations, Checker.validType is called to
-       verify that a type doesn't expand indefinitively. This corresponds
-       essentially to cmd/compile's dowidth computation (without size computation).
-    
-    3) Cycles involving only defined types (e.g.: type (A B; B C; C A))
-       require separate attention as those must now be detected when resolving
-       "forward chains" of type declarations. Checker.underlying was changed
-       to detect these cycles.
-    
-    All three cycle detection mechanism use an object path ([]Object) to
-    report cycles. The cycle error reporting mechanism is now factored out
-    into Checker.cycleError and used by all three mechanisms. It also makes
-    an attempt to report the cycle starting with the "first" (earliest in the
-    source) object.
-    
-    Fixes #34333.
-    
-    Change-Id: I2c6446445e47344cc2cd034d3c74b1c345b8c1e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196338
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I433afeeb1fdeea641286b21693fee5e0a66d607e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173345
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/types/decl.go              | 227 +++++++++++++++++++++++++++-----------
- src/go/types/expr.go              |   9 +-
- src/go/types/testdata/cycles.src  |  12 +-
- src/go/types/testdata/cycles5.src |  10 ++
- src/go/types/testdata/decls0.src  |   4 -
- src/go/types/type.go              |   1 +
- src/go/types/typexpr.go           |  43 ++++----
- 7 files changed, 204 insertions(+), 102 deletions(-)
+ src/cmd/go/alldocs.go                         |  6 +++++
+ src/cmd/go/internal/cfg/cfg.go                |  1 +
+ src/cmd/go/internal/work/build.go             |  7 ++++++
+ src/cmd/go/internal/work/exec.go              |  3 ++-
+ src/cmd/go/internal/work/gc.go                | 34 +++++++++++++++++++++------
+ src/cmd/go/script_test.go                     | 23 ++++++++++++++----
+ src/cmd/go/testdata/script/README             |  7 ++++--
+ src/cmd/go/testdata/script/build_trimpath.txt | 19 +++++++++++++++
+ 8 files changed, 85 insertions(+), 15 deletions(-)

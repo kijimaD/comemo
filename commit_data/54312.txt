@@ -1,18 +1,20 @@
-commit 972cc3e7c2c0a14fe2c88fc4264f293fc045745f
-Author: go101 <tapir.liu@gmail.com>
-Date:   Tue Sep 5 03:53:29 2023 +0000
+commit 9f78c3cb0400c2df143bd0ae124a911f911eaf36
+Author: shaoliming <shaojacobi@gmail.com>
+Date:   Wed Oct 5 01:35:25 2022 +0000
 
-    testing: add doc to not call Init concurrently
+    cmd/internal/obj/arm64: add missing operand register in GNU assembly
     
-    Change-Id: I2e218805fbe4858be125df97bdaf921799315799
-    GitHub-Last-Rev: 32b798d75f7ec0f72e18a65932ad93d8e5f1040a
-    GitHub-Pull-Request: golang/go#62410
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525015
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #55832
+    
+    Change-Id: Ib20279d47c1ca9a383a3c85bb41ca4f550bb0a33
+    GitHub-Last-Rev: 10af77a2f21397899f69938e6d98bb34b33bfddf
+    GitHub-Pull-Request: golang/go#55838
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433575
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/testing/testing.go | 2 +-
+ src/cmd/internal/obj/arm64/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

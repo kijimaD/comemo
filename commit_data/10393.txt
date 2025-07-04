@@ -1,28 +1,19 @@
-commit 3bd5082f579d3a45cfa3969d799bef2539c988f0
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Tue Nov 15 11:39:18 2011 +1100
+commit f5cf0a486ecded2e5200b53973cc53c74d1f25aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 14 13:35:22 2011 -0800
 
-    html: parse and render <plaintext> elements
+    math/big: replace nat{} -> nat(nil)
     
-    Pass tests2.dat, test 10:
-    <table><plaintext><td>
+    No need for creating a new nat each time.
+    Per Roger Peppe's suggestion; assuming
+    nat(nil) produces better code than nat{}.
     
-    | <html>
-    |   <head>
-    |   <body>
-    |     <plaintext>
-    |       "<td>"
-    |     <table>
-    
-    Also pass tests through test 25:
-    <!doctypehtml><p><dd>
-    
-    R=nigeltao
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5369109
+    https://golang.org/cl/5375092
 
- src/pkg/html/parse.go      |  3 +++
- src/pkg/html/parse_test.go |  5 ++++-
- src/pkg/html/render.go     | 25 +++++++++++++++++++++----
- src/pkg/html/token.go      | 20 ++++++++++++++------
- 4 files changed, 42 insertions(+), 11 deletions(-)
+ src/pkg/math/big/int.go      | 30 +++++++++++++++---------------
+ src/pkg/math/big/nat.go      | 10 +++++-----
+ src/pkg/math/big/nat_test.go | 26 +++++++++++++-------------
+ src/pkg/math/big/rat.go      | 14 +++++++-------
+ 4 files changed, 40 insertions(+), 40 deletions(-)

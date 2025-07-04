@@ -1,29 +1,14 @@
-commit 354e9778a3327e125ed99e86d7b6e648ed0ccd53
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Mar 29 11:39:33 2016 -0400
+commit 387d5b8cfb085ed8d2a074586a0ee0e6e6cb9820
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 13 08:48:55 2016 -0800
 
-    cmd/asm: add s390x support
+    runtime: remove debugging print in cgoCheckTypedBlock
     
-    s390x doesn't introduce any new assembly syntax. There are a few
-    instructions which require the operands to be reordered, notably
-    the storage-storage instructions that put the length into From3 so
-    that the memory operands can be put into From and To.
-    
-    The assembly test currently covers a subset of instructions but
-    tries to hit edge cases as much as possible. Unlike the other ports
-    it can be linked as an executable to make disassembling it easy.
-    It would be nice to autogenerate it at some point in the future.
-    
-    Change-Id: I8dd542c34b9e450b8129d46693a5acb0ded791ce
-    Reviewed-on: https://go-review.googlesource.com/21253
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I83639fcde88e7d9747b54728a9481ee2e1b23a64
+    Reviewed-on: https://go-review.googlesource.com/19486
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/arch/arch.go         |  58 ++++++++
- src/cmd/asm/internal/arch/s390x.go        | 139 +++++++++++++++++++
- src/cmd/asm/internal/asm/asm.go           |  30 +++++
- src/cmd/asm/internal/asm/endtoend_test.go |   4 +
- src/cmd/asm/internal/asm/operand_test.go  | 103 ++++++++++++++
- src/cmd/asm/internal/asm/testdata/s390x.s | 215 ++++++++++++++++++++++++++++++
- 6 files changed, 549 insertions(+)
+ src/runtime/cgocheck.go | 3 ---
+ 1 file changed, 3 deletions(-)

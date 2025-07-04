@@ -1,20 +1,26 @@
-commit a456801615223d11ef7252180af46ed79b0a6ab8
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Dec 31 15:45:46 2014 +0900
+commit 44ab8d95d36819c9115388153deff3ef224c0691
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Nov 17 14:21:29 2014 +1100
 
-    net: remove redundant test case for lookupIP with threadLimit
+    undo CL 176900044 / 561398621ba7
     
-    There is no reason to have the redundant test case TestDNSThreadLimt
-    because TestLookupIPDeadline does cover what we need to test with
-    -dnsflood flag and more.
+    Turns out it *is* needed because the cmd/link tests expect to find their own files.
     
-    Also this CL moves TestLookupIPDeadline into lookup_test.go to avoid
-    abusing to control the order of test case execution by using file name.
+    ««« original CL description
+    misc/nacl: exclude cmd/link from the test zip.
     
-    Change-Id: Ib417d7d3411c59d9352c03c996704d584368dc62
-    Reviewed-on: https://go-review.googlesource.com/2204
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    It does not appear to be necessary, and cmd/link does not appear in release branches.
+    
+    LGTM=rsc
+    R=adg, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/176900044
+    »»»
+    
+    TBR=rsc
+    R=adg, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/175870045
 
- src/net/lookup_test.go | 65 +++++++++++++++++++++++++++++++++
- src/net/z_last_test.go | 99 --------------------------------------------------
- 2 files changed, 65 insertions(+), 99 deletions(-)
+ misc/nacl/testzip.proto | 3 +++
+ 1 file changed, 3 insertions(+)

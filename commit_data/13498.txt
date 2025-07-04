@@ -1,15 +1,14 @@
-commit 24ae7e686d51954b8befaaaef27f55a245d0050e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 25 14:14:37 2012 -0700
+commit 9b1412701fc5f265c478153b2032ca90755c38cf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 25 10:17:27 2012 -0700
 
-    cgo: fix declarations in _cgo_export.c
+    testing: allow concurrent use of T and B
     
-    Declare crosscall2.  Declare the functions passed to it as
-    returning void, rather than relying on implicit return type.
+    Notably, allow concurrent logging and failing.
     
-    R=golang-dev, minux.ma
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6432060
+    https://golang.org/cl/6453045
 
- src/cmd/cgo/out.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/testing/testing.go | 27 ++++++++++++++++++++-------
+ 1 file changed, 20 insertions(+), 7 deletions(-)

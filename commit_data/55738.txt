@@ -1,42 +1,28 @@
-commit 1a6498e1cb8d68c747a926efb3749625e135e6df
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 26 16:45:28 2024 -0800
+commit c9389a5849d65b74287cd2746a94748d6d64cb44
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 9 16:17:30 2023 -0500
 
-    go/types, types2: initial support for parameterized type aliases
+    cmd/link: use only the configured C compiler in TestCGOLTO
     
-    Permit type parameters on type alias declarations depending on
-    Go language version.
+    The test had been assuming that any 'gcc' or 'clang' command found in
+    $PATH could be used to compile cgo dependencies for the target GOARCH
+    and GOOS. That assumption does not hold in general: for example,
+    the GOARCH/GOOS configuration may be cross-compiling, which will cause
+    the test to fail if the native 'gcc' and/or 'clang' is not configured
+    for the target architecture.
     
-    Implement various version checks such that at most one version
-    error is reported per type alias declaration.
+    Instead, leave the 'CC' variable unset and assume only that the user
+    has configured it appropriate to the environment in which they are
+    running the test.
     
-    Add tparams field to Alias type node.
+    For #58829.
     
-    Missing:
-            - instantiation of alias types
-            - API additions (requires proposal)
-    
-    For #46477.
-    
-    Change-Id: Ica658292bd096d3bceb513027d3353501a6c58e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566856
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9a1269ae3e0b4af281702114dabba844953f74bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475155
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/alias.go           | 11 +++---
- src/cmd/compile/internal/types2/check_test.go      |  2 +-
- src/cmd/compile/internal/types2/decl.go            | 44 +++++++++++++++++-----
- src/cmd/compile/internal/types2/resolver.go        |  1 -
- src/cmd/go/testdata/script/mod_edit_go.txt         |  4 +-
- src/go/types/alias.go                              | 11 +++---
- src/go/types/decl.go                               | 44 +++++++++++++++++-----
- src/go/types/resolver.go                           |  1 -
- src/internal/types/testdata/check/go1_8.go         |  2 +-
- src/internal/types/testdata/check/typeinst0.go     |  4 --
- .../types/testdata/spec/typeAliases1.22.go         | 10 +++++
- .../types/testdata/spec/typeAliases1.23a.go        | 10 +++++
- .../types/testdata/spec/typeAliases1.23b.go        | 41 ++++++++++++++++++++
- src/internal/types/testdata/spec/typeAliases1.8.go | 10 +++++
- 14 files changed, 155 insertions(+), 40 deletions(-)
+ src/cmd/link/cgo_test.go | 41 ++++++++++++++++++++++++-----------------
+ 1 file changed, 24 insertions(+), 17 deletions(-)

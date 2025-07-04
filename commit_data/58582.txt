@@ -1,16 +1,37 @@
-commit 82337de9f2157a132257b2e2fe5ae8f1ad57ff20
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 3 09:50:38 2025 -0800
+commit 8be8bfeaa2e9fb9372d8507f076c6307e8237c54
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Nov 2 11:25:07 2023 -0400
 
-    test/issue71226: add cast to avoid clang error
+    cmd/compile/internal/ir: add batch-mode reassignment detection oracle
     
-    Change-Id: I2d8ecb7b5f48943697d454d09947fdb1817809d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646295
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Add a new helper type 'ReassignOracle', useful for doing "batch mode"
+    reassignment analysis, e.g. deciding whether a given ir.Name or (chain
+    of connected names) has a single definition and is never reassigned.
+    
+    The intended usage model is for clients to create/initialize a
+    ReassignOracle for a given function, then make a series of queries
+    using it (with the understanding that changing/mutating the func body
+    IR can invalidate the info cached in the oracle). This oracle is
+    intended to provide the same sort of analysis that ir.StaticValue and
+    ir.Reassigned carry out, but at a much reduced cost in compile
+    time.
+    
+    Notes:
+    - the new helper isn't actually used for anything useful in this
+      patch; it will be hooked into the inline heuristics code as part of
+      a subsequent CL.
+    - this is probably not an ideal long-term solution; it would be better
+      to switch to a scheme based a flag on ir.Name, as opposed to a
+      side table.
+    
+    Change-Id: I283e748e440a9f595df495f6aa48ee9c498702d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539319
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- test/fixedbugs/issue71226.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/check_reassign_no.go   |   9 +
+ src/cmd/compile/internal/ir/check_reassign_yes.go  |   9 +
+ src/cmd/compile/internal/ir/expr.go                |   2 +
+ .../internal/ir/reassign_consistency_check.go      |  46 +++++
+ src/cmd/compile/internal/ir/reassignment.go        | 205 +++++++++++++++++++++
+ 5 files changed, 271 insertions(+)

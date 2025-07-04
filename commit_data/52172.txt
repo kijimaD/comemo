@@ -1,19 +1,18 @@
-commit b958d4a597a599e22c78d25d83d803ab2a1f2c52
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 1 22:32:46 2023 -0800
+commit 2b31abc5286e4f29f934c4123101feabf0f4aaca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 11 17:35:24 2022 -0700
 
-    cmd/asm: don't panic on bad GATHER x86 instructions
+    test: add //go:build support to run.go
     
-    Fixes #58822
+    gofmt is rewriting +build comments into //go:build anyway, so update
+    the test script to support both.
     
-    Change-Id: I9c44c57dac72884ec3209d87ddb25e7e1675a737
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472795
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia6d950cfaa2fca9f184b8b2d3625a551bff88dde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399794
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/obj/x86/asm6.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ test/run.go | 51 +++++++++++++--------------------------------------
+ 1 file changed, 13 insertions(+), 38 deletions(-)

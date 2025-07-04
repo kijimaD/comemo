@@ -1,24 +1,26 @@
-commit 7a88c6465b0369506dcc9129d783550fd13c678c
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Mar 24 13:11:43 2015 -0400
+commit 433c1ad1400047b17b9cd7107afa7afe55a04e12
+Author: Joe Shaw <joe@joeshaw.org>
+Date:   Thu Feb 12 17:21:01 2015 -0500
 
-    syscall: use Getpgid to emulate Getpgrp on linux
+    archive/zip: fix size value in ZIP64 end central directory record
     
-    Fixes newly introduced test on linux/arm64 because linux/arm64 doesn't
-    have the getpgrp syscall. Getpgid(0) is documented to be equivalent to
-    Getpgrp.
+    Section 4.3.14.1 of the ZIP file format
+    spec (https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT) says,
     
-    Change-Id: I8f30f4f8de8c32fe04a29c9c4a9330d4e4e6b46d
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/8022
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Reviewed-by: Rob Pike <r@golang.org>
+        The value stored into the "size of zip64 end of central directory
+        record" should be the size of the remaining record and should not
+        include the leading 12 bytes.
+    
+    We were previously writing the full size, including the 12 bytes.
+    
+    Fixes #9857
+    
+    Change-Id: I7cf1fc8457c5f306717cbcf61e02304ab549781f
+    Reviewed-on: https://go-review.googlesource.com/4760
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/syscall_linux.go          | 7 ++++++-
- src/syscall/zsyscall_linux_386.go     | 8 --------
- src/syscall/zsyscall_linux_amd64.go   | 8 --------
- src/syscall/zsyscall_linux_arm.go     | 8 --------
- src/syscall/zsyscall_linux_arm64.go   | 8 --------
- src/syscall/zsyscall_linux_ppc64.go   | 8 --------
- src/syscall/zsyscall_linux_ppc64le.go | 8 --------
- 7 files changed, 6 insertions(+), 49 deletions(-)
+ src/archive/zip/writer.go   | 18 +++++++++---------
+ src/archive/zip/zip_test.go | 36 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 43 insertions(+), 11 deletions(-)

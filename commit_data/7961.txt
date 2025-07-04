@@ -1,14 +1,14 @@
-commit 0f46aaf8b3e43ea5add91c73aec5773f0d028b35
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Apr 4 10:06:09 2011 +1000
+commit fbeaa869f6b2104a1bb0361f9563e4c781ed4e1f
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Sun Apr 3 09:11:41 2011 -0700
 
-    version.bash: strip changeset hash from 'hg tags' output
+    path/filepath: add support for plan9
     
-    Fixes #1651.
-    
-    R=rsc
+    R=paulzhol, ality, r, fhs
     CC=golang-dev
-    https://golang.org/cl/4300054
+    https://golang.org/cl/4316054
 
- src/version.bash | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/path/filepath/Makefile      |  3 +++
+ src/pkg/path/filepath/path_plan9.go | 28 ++++++++++++++++++++++++++++
+ src/pkg/path/filepath/path_unix.go  |  2 +-
+ 3 files changed, 32 insertions(+), 1 deletion(-)

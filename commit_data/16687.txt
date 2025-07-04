@@ -1,29 +1,12 @@
-commit b4e92cee97b968f1799be27bed8cec62ae403725
+commit 1184407f2a2955fe2befd22896ee9bf49cd0defe
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 1 20:32:36 2013 -0400
+Date:   Mon Jul 1 18:10:03 2013 -0400
 
-    cmd/gc: support x[i:j:k]
+    runtime: disable preemption test (fix build)
     
-    Design doc at golang.org/s/go12slice.
-    This is an experimental feature and may not be included in the release.
-    
-    R=golang-dev, r
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/10743046
+    https://golang.org/cl/10849043
 
- src/cmd/5g/cgen.c           |    4 +
- src/cmd/6g/cgen.c           |    4 +
- src/cmd/8g/cgen.c           |    4 +
- src/cmd/gc/esc.c            |    2 +
- src/cmd/gc/fmt.c            |    4 +
- src/cmd/gc/go.h             |    2 +
- src/cmd/gc/go.y             |   17 +
- src/cmd/gc/racewalk.c       |    2 +
- src/cmd/gc/typecheck.c      |  134 ++-
- src/cmd/gc/walk.c           |   86 +-
- src/cmd/gc/y.tab.c          | 2080 ++++++++++++++++++++++---------------------
- src/cmd/gc/yerr.h           |    2 +-
- test/fixedbugs/issue4251.go |    6 +-
- test/slice3.go              |  156 ++++
- test/slice3err.go           |  121 +++
- 15 files changed, 1533 insertions(+), 1091 deletions(-)
+ src/pkg/runtime/proc_test.go | 1 +
+ 1 file changed, 1 insertion(+)

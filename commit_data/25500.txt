@@ -1,29 +1,17 @@
-commit c5bafc828126c8fa057e1accaa448583c7ec145f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 21:16:01 2016 -0500
+commit 7bb2a7d63b0767f9c6fa0382ed9185ba21757095
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 4 18:12:30 2015 -0800
 
-    runtime: make NumGoroutine and Stack agree not to include system goroutines
+    cmd/dist: remove vestigial -s flag
     
-    Before, NumGoroutine counted system goroutines and Stack (usually) didn't show them,
-    which was inconsistent and confusing.
+    Fixes #12002.
     
-    To resolve which way they should be consistent, it seems like
-    
-            package main
-            import "runtime"
-            func main() { println(runtime.NumGoroutine()) }
-    
-    should print 1 regardless of internal runtime details. Make it so.
-    
-    Fixes #11706.
-    
-    Change-Id: I6bfe26a901de517728192cfb26a5568c4ef4fe47
-    Reviewed-on: https://go-review.googlesource.com/18343
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I7262f4520560ac158fc2ee3ce1d2f7a488d40354
+    Reviewed-on: https://go-review.googlesource.com/16666
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/runtime/mprof.go                  |  5 +++++
- src/runtime/proc.go                   |  8 +++++++-
- src/runtime/proc_test.go              | 18 ++++++++++++++++++
- src/runtime/runtime2.go               |  2 ++
- src/runtime/testdata/testprog/misc.go | 15 +++++++++++++++
- 5 files changed, 47 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

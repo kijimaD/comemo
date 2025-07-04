@@ -1,0 +1,31 @@
+commit 15618840f6d416cc9da34505a5ea5190ff15c3aa
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Oct 2 13:31:37 2024 -0500
+
+    cmd/compile: add internal/runtime/atomic.Xchg8 intrinsic for PPC64
+    
+    This is minor extension of the existing support for 32 and
+    64 bit types.
+    
+    For #69735
+    
+    Change-Id: I6828ec223951d2b692e077dc507b000ac23c32a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617496
+    Reviewed-by: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go              | 17 +++++++++++------
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules      |  2 +-
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      |  3 ++-
+ src/cmd/compile/internal/ssa/opGen.go              | 18 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |  3 +++
+ src/cmd/compile/internal/ssagen/intrinsics.go      |  2 +-
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  2 ++
+ src/internal/runtime/atomic/atomic_ppc64x.go       |  3 +++
+ src/internal/runtime/atomic/atomic_ppc64x.s        | 16 ++++++++++++++++
+ src/internal/runtime/atomic/xchg8_test.go          |  2 +-
+ 10 files changed, 58 insertions(+), 10 deletions(-)

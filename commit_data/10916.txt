@@ -1,27 +1,38 @@
-commit d13ce8115d650e598f5fd35975f8188f493c2f96
+commit fe28d1aacf108cb7b7a4ec573a019e193d07c696
 Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Dec 21 10:29:21 2011 +1100
+Date:   Wed Dec 21 10:00:41 2011 +1100
 
-    image/ycbcr: move the Y'CbCr types into image and image/color.
+    html: handle breakout tags in foreign content.
     
-    R=r, rsc
+    Also recognize that, in the latest version of the HTML5 spec,
+    foreign content is not an insertion mode, but a separate concern.
+    
+    Pass tests10.dat, test 13:
+    <!DOCTYPE html><body><table><caption><svg><g>foo</g><g>bar</g><p>baz</table><p>quux
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <table>
+    |       <caption>
+    |         <svg svg>
+    |           <svg g>
+    |             "foo"
+    |           <svg g>
+    |             "bar"
+    |         <p>
+    |           "baz"
+    |     <p>
+    |       "quux"
+    
+    Also pass tests through test 15:
+    <!DOCTYPE html><body><table><colgroup><svg><g>foo</g><g>bar</g><p>baz</table><p>quux
+    
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/5493084
+    https://golang.org/cl/5494078
 
- src/cmd/gofix/Makefile                       |   1 +
- src/cmd/gofix/imageycbcr.go                  |  64 ++++++++++
- src/cmd/gofix/imageycbcr_test.go             |  54 ++++++++
- src/pkg/Makefile                             |   2 -
- src/pkg/image/Makefile                       |   1 +
- src/pkg/image/color/Makefile                 |   1 +
- src/pkg/image/color/ycbcr.go                 |  99 ++++++++++++++
- src/pkg/image/{ycbcr => color}/ycbcr_test.go |   2 +-
- src/pkg/image/draw/bench_test.go             |   9 +-
- src/pkg/image/draw/draw.go                   |  19 ++-
- src/pkg/image/draw/draw_test.go              |   5 +-
- src/pkg/image/jpeg/reader.go                 |  15 +--
- src/pkg/image/jpeg/writer.go                 |   6 +-
- src/pkg/image/ycbcr.go                       |  87 +++++++++++++
- src/pkg/image/ycbcr/Makefile                 |  11 --
- src/pkg/image/ycbcr/ycbcr.go                 | 184 ---------------------------
- 16 files changed, 333 insertions(+), 227 deletions(-)
+ src/pkg/html/parse.go      | 41 ++++++++++++++++++++++++++++++-----------
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 31 insertions(+), 12 deletions(-)

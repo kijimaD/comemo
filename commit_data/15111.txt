@@ -1,18 +1,14 @@
-commit f02067a99aaf5b78cc0969f32c37454ce82200d0
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 3 14:28:44 2013 -0500
+commit 2ebfaa36b51e860d066799afa90de3efe092ae4a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Feb 4 00:40:11 2013 +0800
 
-    cmd/gc: implement latest rules for checking make sizes
+    cmd/5l, cmd/ld: support generating ELF binaries for NetBSD/ARM
     
-    Fixes #4085.
-    
-    R=ken2
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7277047
+    https://golang.org/cl/7261043
 
- src/cmd/gc/mparith1.c        |  6 +++---
- src/cmd/gc/typecheck.c       | 51 +++++++++++++++++++++++++++++++++-----------
- src/pkg/runtime/slice.c      |  9 ++++++--
- test/fixedbugs/issue4085a.go | 18 ++++++++++++++++
- test/fixedbugs/issue4085b.go | 49 ++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 115 insertions(+), 18 deletions(-)
+ src/cmd/5l/asm.c |  5 +----
+ src/cmd/5l/obj.c | 15 ++++-----------
+ src/cmd/ld/elf.c | 25 +++++++++++++++----------
+ 3 files changed, 20 insertions(+), 25 deletions(-)

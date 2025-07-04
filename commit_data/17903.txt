@@ -1,27 +1,14 @@
-commit 24699fb05c897dbaec3fe4f1d565c3c9da5078fc
+commit 742f755a29493b111d54a0d39d80083994dcaf1a
 Author: Keith Randall <khr@golang.org>
-Date:   Tue Dec 3 10:39:19 2013 -0800
+Date:   Mon Dec 2 17:58:19 2013 -0800
 
-    runtime: get rid of concatstring's vararg C argument.
+    reflect: test to make sure big Zero()-obtained objects are really zero.
     
-    Pass as a slice of strings instead.  For 2-5 strings, implement
-    dedicated routines so no slices are needed.
+    Update #6876.
     
-    static call counts in the go binary:
-     2 strings: 342 occurrences
-     3 strings:  98
-     4 strings:  30
-     5 strings:  13
-    6+ strings:  14
-    
-    Why?  C varags, bad for stack scanning and copying.
-    
-    R=golang-dev, iant
+    R=dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/36380043
+    https://golang.org/cl/36370043
 
- src/cmd/gc/builtin.c       |  6 +++++-
- src/cmd/gc/runtime.go      |  7 +++++--
- src/cmd/gc/walk.c          | 38 ++++++++++++++++++++++----------------
- src/pkg/runtime/string.goc | 35 ++++++++++++++++++++++++++++-------
- 4 files changed, 60 insertions(+), 26 deletions(-)
+ src/pkg/reflect/all_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

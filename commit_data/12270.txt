@@ -1,31 +1,15 @@
-commit b1b0ed1e60af93bc83298da80d0293a2b23fcb5e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 29 08:38:31 2012 -0800
+commit fb2706113f36452f7e1e514be1949c0cdae46835
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Feb 29 16:42:25 2012 +0100
 
-    go/printer: replace multiline logic
+    pkg/runtime: 2 sanity checks in the runtime-gdb.py prettyprinters.
     
-    This CL mostly deletes code.
+    Don't try to print obviously corrupt slices or interfaces.
+    Doesn't actually solve 3047 or 2818, but seems a good idea anyway.
     
-    Using existing position information is
-    just as good to determine if a new section
-    is needed; no need to track exact multi-
-    line information. Eliminates the need to
-    carry around a multiLine parameter with
-    practically every function.
-    
-    Applied gofmt -w src misc resulting in only
-    a minor change to godoc.go. In return, a couple
-    of test cases are now formatted better.
-    
-    Not Go1-required, but nice-to-have as it will
-    simplify fixes going forward.
-    
-    R=rsc
+    R=rsc, bsiegert
     CC=golang-dev
-    https://golang.org/cl/5706055
+    https://golang.org/cl/5708061
 
- src/cmd/godoc/godoc.go                          |   2 +-
- src/pkg/go/printer/nodes.go                     | 299 +++++++++++-------------
- src/pkg/go/printer/printer.go                   |  11 +-
- src/pkg/go/printer/testdata/declarations.golden |   4 +-
- 4 files changed, 145 insertions(+), 171 deletions(-)
+ src/pkg/runtime/runtime-gdb.py | 82 ++++++++++++++++++++++++------------------
+ 1 file changed, 48 insertions(+), 34 deletions(-)

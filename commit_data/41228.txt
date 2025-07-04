@@ -1,20 +1,36 @@
-commit a744be42f9427a3b20e7e179e4b9831dbcf27f4c
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Feb 4 12:48:20 2020 -0500
+commit 357e8f83f868bd028df7f2f1c373b4d0c57d1408
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Sep 13 14:42:05 2019 +0100
 
-    doc: remove paragraph break for upgrading to modules
+    cmd/compile: parallelize another big chunk of rulegen
     
-    Previously, the release notes broke up the sentences that modules
-    is now ready for production use and where to file issues for
-    migration problems into separate paragraphs. This made it look like
-    the migration paragraph was about upgrading to 1.14, not to modules,
-    and made the reading a bit confusing. Now the entire idea is in one
-    paragraph.
+    rulegen has a sanity check that ensures all the arch-specific opcodes
+    are handled by each of the gen files.
     
-    Change-Id: I10bddfb8aba5f5909ac6842f25e3e97d505835e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217720
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    This is an expensive chunk of work, particularly since there are a lot
+    of opcodes in total, and each one of them compiles and runs a regular
+    expression.
+    
+    Parallelize that for each architecture, which greatly speeds up 'go run
+    *.go' on my laptop with four real CPU cores.
+    
+            name     old time/op         new time/op         delta
+            Rulegen          3.39s ± 1%          2.53s ± 2%  -25.34%  (p=0.008 n=5+5)
+    
+            name     old user-time/op    new user-time/op    delta
+            Rulegen          10.6s ± 1%          11.2s ± 1%   +6.09%  (p=0.008 n=5+5)
+    
+            name     old sys-time/op     new sys-time/op     delta
+            Rulegen          201ms ± 7%          218ms ±17%     ~     (p=0.548 n=5+5)
+    
+            name     old peak-RSS-bytes  new peak-RSS-bytes  delta
+            Rulegen          182MB ± 3%          184MB ± 3%     ~     (p=0.690 n=5+5)
+    
+    Change-Id: Iec538ed0fa7eb867eeeeaab3da1e2615ce32cbb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195218
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.14.html | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/main.go | 31 +++++++++++++++++++------------
+ 1 file changed, 19 insertions(+), 12 deletions(-)

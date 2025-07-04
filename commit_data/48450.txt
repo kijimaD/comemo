@@ -1,29 +1,20 @@
-commit da9649e6d9ddfc2677c289f8db3e0c02998f02e0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Mar 19 00:23:33 2022 +0700
+commit 211244e1720942af2f2b77b8c96ff7f3a019df31
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 20 14:40:11 2021 -0700
 
-    cmd/compile: remove t.Broke() deadcode paths
+    [dev.typeparams] cmd/compile/internal/types2: move interface checking into separate file
     
-    CL 392918 changed t.Broke() to always return false, we can now get rid
-    of all its deadcode paths.
+    This only moves functionality from one file into another.
+    Except for import adjustments there are no changes to the
+    code.
     
-    Updates #51691
-    
-    Change-Id: I0a2a13def07364e780e4785621690452948e219a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393914
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia7d611d3a01c1ed3331dcc7cfe94a96f87b338e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321549
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/typecheck/const.go     | 15 +++++++--------
- src/cmd/compile/internal/typecheck/expr.go      |  2 +-
- src/cmd/compile/internal/typecheck/func.go      |  4 +---
- src/cmd/compile/internal/typecheck/stmt.go      |  2 +-
- src/cmd/compile/internal/typecheck/subr.go      |  7 +------
- src/cmd/compile/internal/typecheck/typecheck.go | 10 ++--------
- src/cmd/compile/internal/types/alg.go           |  3 ---
- src/cmd/compile/internal/types/identity.go      |  2 +-
- src/cmd/compile/internal/types/size.go          | 14 --------------
- src/cmd/compile/internal/types/type.go          | 11 -----------
- 10 files changed, 14 insertions(+), 56 deletions(-)
+ src/cmd/compile/internal/types2/interface.go | 320 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go   | 311 --------------------------
+ 2 files changed, 320 insertions(+), 311 deletions(-)

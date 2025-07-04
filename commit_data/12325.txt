@@ -1,18 +1,14 @@
-commit c3fbc9a5e817d037f04abba4ec6d8a453afb344a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Mar 2 14:47:40 2012 +1100
+commit 36d9ee4aec46a08e859ce30715c5034ada90645f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 2 14:07:26 2012 +1100
 
-    os: implement UserTime/SystemTime on windows
+    os: fix grammar in ProcessState comment
+    Asymptotic convergence.
     
-    Fixes #3145.
-    
-    R=golang-dev, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5721044
+    https://golang.org/cl/5719045
 
- src/pkg/os/exec_windows.go                | 16 ++++++++++++----
- src/pkg/syscall/syscall_windows.go        |  9 +++++++--
- src/pkg/syscall/zsyscall_windows_386.go   | 13 +++++++++++++
- src/pkg/syscall/zsyscall_windows_amd64.go | 13 +++++++++++++
- src/pkg/syscall/ztypes_windows.go         |  2 ++
- 5 files changed, 47 insertions(+), 6 deletions(-)
+ src/pkg/os/exec_plan9.go | 2 +-
+ src/pkg/os/exec_posix.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

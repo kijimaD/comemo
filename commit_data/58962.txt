@@ -1,24 +1,24 @@
-commit 938b6c15e92e6a80b8368798a350a1a811487d88
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Thu Mar 6 13:23:52 2025 +0100
+commit d278d5bbdddd0e976c272d1dd3ecc41eeb37daf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 23 12:02:50 2024 -0500
 
-    os: more godoc links
+    all: enable range-over-func in Go 1.23
     
-    Add missing links to *PathError.
+    GOEXPERIMENT=rangefunc still enables it for all Go modules.
+    Otherwise only enable in Go 1.23 source files.
+    More work remains but it will be done in follow-up issues.
     
-    Also a few links to O_ flags and Mode and syscall constants.
+    Fixes #61405.
     
-    Change-Id: Ic6ec5780a44942050a83ed07dbf16d6fa9f83eb9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655375
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Change-Id: Icad64942deb152ee65444e4d7be289814a8a0b6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557835
+    Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/os/file.go         | 34 +++++++++++++++++-----------------
- src/os/file_plan9.go   | 22 +++++++++++-----------
- src/os/file_posix.go   |  6 +++---
- src/os/file_unix.go    |  4 ++--
- src/os/file_windows.go |  2 +-
- src/os/root.go         |  4 ++--
- 6 files changed, 36 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/types2/stmt.go    | 5 ++---
+ src/cmd/compile/internal/types2/version.go | 1 +
+ src/go/types/stmt.go                       | 5 ++---
+ src/go/types/version.go                    | 1 +
+ src/internal/types/testdata/spec/range.go  | 2 --
+ 5 files changed, 6 insertions(+), 8 deletions(-)

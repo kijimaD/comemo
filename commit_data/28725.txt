@@ -1,15 +1,31 @@
-commit 56d35d42e188b8767665a368384e084da50ef634
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Fri Oct 7 21:27:32 2016 -0700
+commit 42181ad852700b790906b4c7ab24c4c23dd874e2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 7 14:18:04 2016 -0400
 
-    compress/gzip: document Reader.Read
+    [dev.ssa] cmd/compile: enable SSA on ARM by default
     
-    Fixes #17374.
+    As Josh mentioned in CL 24716, there has been requests for using SSA
+    for ARM. SSA can still be disabled by setting -ssa=0 for cmd/compile,
+    or partially enabled with GOSSAFUNC, GOSSAPKG, and GOSSAHASH.
     
-    Change-Id: Ic89c35aaa31f35a8a4e3ffa09f49b68f08127625
-    Reviewed-on: https://go-review.googlesource.com/30718
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Not enable SSA by default on NaCl, which is not supported yet.
+    
+    Enable SSA-specific tests on ARM: live_ssa.go and nilptr3_ssa.go;
+    disable non-SSA tests: live.go, nilptr3.go, and slicepot.go.
+    
+    Updates #15365.
+    
+    Change-Id: Ic2ca8d166aeca8517b9d262a55e92f2130683a16
+    Reviewed-on: https://go-review.googlesource.com/23953
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/compress/gzip/gunzip.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/ssa.go | 7 ++++++-
+ test/live.go                       | 2 +-
+ test/live_ssa.go                   | 2 +-
+ test/nilptr3.go                    | 2 +-
+ test/nilptr3_ssa.go                | 4 +---
+ test/sliceopt.go                   | 2 +-
+ 6 files changed, 11 insertions(+), 8 deletions(-)

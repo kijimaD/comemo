@@ -1,23 +1,15 @@
-commit 5167e5cd64b2d4710dd8a20d2a599674d5d94861
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Dec 6 11:58:10 2022 -0800
+commit 0cbe3e00d820a2022d220d0790c0e85eb96de3d1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Feb 7 12:00:04 2022 -0500
 
-    archive/zip: only consider UncompressedSize when checking dirs
+    runtime: fix an error message in TestCrashDumpsAllThreads
     
-    CL 454475 switched from checking CompressedSize to UncompressedSize
-    when determining if we should consider an archive malformed because
-    it contains data and added a test for an example of this (a JAR). We
-    should also remove the hasDataDescriptor check, since that is basically
-    an alias for CompressedSize > 0. The test didn't catch this because we
-    didn't actually attempt to read from the returned reader.
-    
-    Change-Id: Ibc4c1aa9c3a733f3ebf4a956d1e2f8f4900a29cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455523
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: I04962c836fd448378b8bf071ba848f3b24253dce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384159
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/archive/zip/reader.go      | 2 +-
- src/archive/zip/reader_test.go | 5 ++++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/runtime/crash_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

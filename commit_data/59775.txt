@@ -1,28 +1,21 @@
-commit 049a5e603634dfdbc73b4255c7e72eabc3922d5b
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Jun 5 13:55:35 2025 -0700
+commit 734fd7a949e17a0ad379d9db593ce9b0d03703ab
+Author: zhangjian <zj.cosmos@gmail.com>
+Date:   Sun Apr 21 12:03:35 2024 +0000
 
-    runtime: return a different bubble deadlock error when main goroutine is done
+    cmd/compile/internal/ssa: fix the description of auxCCop as auxInt
     
-    The synctest.Test function waits for all goroutines in a bubble to
-    exit before returning. If there is ever a point when all goroutines
-    in a bubble are durably blocked, it panics and reports a deadlock.
+    The auxCCop has been modified from aux to auxInt in CL 252517.
     
-    Panic with a different message depending on whether the bubble's
-    main goroutine has returned or not. The main goroutine returning
-    stops the bubble clock, so knowing whether it is running or not
-    is useful debugging information.
-    
-    The new panic messages are:
-            deadlock: all goroutines in bubble are blocked
-            deadlock: main bubble goroutine has exited but blocked goroutines remain
-    
-    Change-Id: I94a69e79121c272d9c86f412c1c9c7de57ef27ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/679375
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I5c472d684c51fd38fd38f61561d1b1644e20bafe
+    GitHub-Last-Rev: 78d1cf40f476adbda2f42b929607501b07f0c91c
+    GitHub-Pull-Request: golang/go#66950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580635
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
 
- src/internal/synctest/synctest_test.go |  4 ++--
- src/runtime/synctest.go                | 13 ++++++++++---
- 2 files changed, 12 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/op.go    | 2 +-
+ src/cmd/compile/internal/ssa/value.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

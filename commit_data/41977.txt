@@ -1,22 +1,27 @@
-commit 8c00e07c01c9864506054dfe5916fd343057b3db
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 8 15:00:41 2020 -0400
+commit ea0b4e7c7db8c5d376e77fd3e6741d94685073ac
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 28 15:30:35 2019 -0700
 
-    net/url: add URL.RawFragment, URL.EscapedFragment
+    cmd/compile, runtime: add comparison tracing for libFuzzer
     
-    These are analogous to URL.RawPath and URL.EscapedPath
-    and allow users fine-grained control over how the fragment
-    section of the URL is escaped. Some tools care about / vs %2f,
-    same problem as in paths.
+    This CL extends cmd/compile's experimental libFuzzer support with
+    calls to __sanitizer_cov_trace_{,const_}cmp{1,2,4,8}. This allows much
+    more efficient fuzzing of comparisons.
     
-    Fixes #37776.
+    Only supports amd64 and arm64 for now.
     
-    Change-Id: Ie6f556d86bdff750c47fe65398cbafd834152b47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227645
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Updates #14565.
+    
+    Change-Id: Ibf82a8d9658f2bc50d955bdb1ae26723a3f0584d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203887
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.15.html             | 13 +++++++--
- src/net/url/example_test.go | 24 ++++++++++++++--
- src/net/url/url.go          | 69 ++++++++++++++++++++++++++++++++++-----------
- src/net/url/url_test.go     | 32 ++++++++++++++++++---
- 4 files changed, 112 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 16 +++++-
+ src/cmd/compile/internal/gc/builtin/runtime.go |  9 ++++
+ src/cmd/compile/internal/gc/walk.go            | 55 +++++++++++++++++++
+ src/runtime/libfuzzer.go                       | 75 ++++++++++++++++++++++++++
+ src/runtime/libfuzzer_amd64.s                  | 42 +++++++++++++++
+ src/runtime/libfuzzer_arm64.s                  | 31 +++++++++++
+ 6 files changed, 227 insertions(+), 1 deletion(-)

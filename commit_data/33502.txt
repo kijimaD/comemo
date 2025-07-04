@@ -1,17 +1,30 @@
-commit 2a668e2467ddea57e8a1ab2859cfd49e6ab2dd40
-Author: Sina Siadat <siadat@gmail.com>
-Date:   Tue Oct 17 13:50:26 2017 +0330
+commit 5927854f7d2bf10704d80cf28fed2385fc0a7b42
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Aug 18 08:37:58 2017 -0400
 
-    net/http: simplify ctx.Err() call in test
+    [release-branch.go1.9] cmd/compile: add rules handling unsigned div/mod by constant 1<<63
     
-    See CL 40291. ctx.Err() is defined to only return non-nil exactly
-    when ctx.Done() returns a closed channel.
+    Cherry-pick CL 56890.
     
-    Change-Id: I12f51d8c42228f759273319b3ccc28012cb9fc73
-    Reviewed-on: https://go-review.googlesource.com/71310
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Normally 64-bit div/mod is turned into runtime calls on 32-bit
+    arch, but the front end leaves power-of-two constant division
+    and hopes the SSA backend turns into a shift or AND. The SSA rule is
+    
+    (Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
+    
+    But isPowerOfTwo returns true only for positive int64, which leaves
+    out 1<<63 unhandled. Add a special case for 1<<63.
+    
+    Fixes #21517.
+    
+    Change-Id: Ic91f86fd5e035a8bb64b937c15cb1c38fec917d6
+    Reviewed-on: https://go-review.googlesource.com/57070
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/serve_test.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/testdata/arithConst.go | 680 +++++++++++++++++++++
+ .../internal/gc/testdata/gen/arithConstGen.go      |   2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   2 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  41 ++
+ 4 files changed, 724 insertions(+), 1 deletion(-)

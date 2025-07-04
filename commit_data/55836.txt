@@ -1,27 +1,23 @@
-commit d463de61b38cc037808970a8aeed8255082a1df5
-Author: Mitar <mitar.git@tnode.com>
-Date:   Tue Mar 5 23:45:51 2024 +0000
+commit 3360be4a1160658153c1f2643acc99452c977339
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 16 14:41:44 2023 -0700
 
-    net/http: remove misleading response headers on error
+    cmd/compile: fix extraneous diff in generated files
     
-    ServeContent API is to set some headers you want to see in the response
-    before calling ServeContent. But if there is an error, those headers
-    should be removed otherwise they might confused the client.
+    Looks like CL 475735 contained a not-quite-up-to-date version
+    of the generated file. Maybe ABSFL was in an earlier version of the CL
+    and was removed before checkin without regenerating the generated file?
     
-    Removing those headers is useful in general in the case of an error,
-    so we remove them in http.Error.
+    In any case, update the generated file. Shouldn't cause a problem, as
+    that field isn't used in x86/ssa.go.
     
-    Fixes #50905.
-    
-    Change-Id: If8d2786c1512906ac93e6b388df6ab1c5ecd1ea9
-    GitHub-Last-Rev: 32b6f045a791cf7bc391f018452a05cc872041ba
-    GitHub-Pull-Request: golang/go#64312
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544019
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I3f0b7d41081ba3ce2cdcae385fea16b37d7de81b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477096
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/fs_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go  | 17 +++++++++++---
- 2 files changed, 76 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/opGen.go | 1 -
+ 1 file changed, 1 deletion(-)

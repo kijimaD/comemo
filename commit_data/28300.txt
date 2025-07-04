@@ -1,17 +1,19 @@
-commit f7fce1e2088ed888c5ced3f2649af84bc0a672b9
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Aug 22 17:20:57 2016 -0400
+commit 376e6415402b4e62f96fb7f8f7a99d352aa9c1b3
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Thu May 12 15:13:22 2016 +0300
 
-    mime/quotedprintable: accept trailing soft line-break at the end of message
+    cmd: fixed certain vet warnings
     
-    Fixes #15486.
+    Updates #11041
     
-    Change-Id: Id879dc9acef9232003df9a0f6f54312191374a60
-    Reviewed-on: https://go-review.googlesource.com/27530
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7f2583d08f344d6622027c5e8a5de1f5d2f2881c
+    Reviewed-on: https://go-review.googlesource.com/23082
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/mime/quotedprintable/reader.go      | 6 +++++-
- src/mime/quotedprintable/reader_test.go | 3 +++
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/cover/cover.go                  | 2 +-
+ src/cmd/dist/test.go                    | 2 +-
+ src/cmd/internal/pprof/report/report.go | 4 +++-
+ src/cmd/link/internal/ld/objfile.go     | 2 +-
+ 4 files changed, 6 insertions(+), 4 deletions(-)

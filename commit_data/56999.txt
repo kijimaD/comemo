@@ -1,22 +1,23 @@
-commit d531e344aea38f165a9d13d1e4173816fec35050
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 26 10:02:55 2024 -0400
+commit 1c89de6a71cf5a4c6e9545582cf277bf69bf9206
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Mon Jun 5 23:47:17 2023 +0200
 
-    debug/buildinfo: improve format documentation
+    context: add godoc links
     
-    Existing documentation is a bit sparse, and more importantly focuses
-    almost entirely on the old pre-1.18 format, with the new format as an
-    afterthought. Since the new format is the primary format, make it more
-    prominent.
+    This clarifies the ambiguity of the TODO word as raised in
+    golang/go#56625.
+    Also links the introduction text to each function.
     
-    Updates #68592.
+    Note: linking from Context methods documentation is blocked for now by
+    golang/go#59728.
     
-    Change-Id: I108ecde1b33650b4812fa5d278b08cb9197f6329
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601456
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: Ie6080bd8dee3a652436b0875ddc5f452287c9493
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501115
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/internal/ld/data.go |  8 +++--
- src/debug/buildinfo/buildinfo.go | 74 +++++++++++++++++++++++++++-------------
- 2 files changed, 56 insertions(+), 26 deletions(-)
+ src/context/context.go | 48 ++++++++++++++++++++++++------------------------
+ 1 file changed, 24 insertions(+), 24 deletions(-)

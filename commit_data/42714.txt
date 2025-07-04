@@ -1,22 +1,17 @@
-commit ebccba7954fe9507df993dda7ba78fa34e030390
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jun 22 19:02:00 2020 -0400
+commit b8061825e57dcee97a37fe49272ca52e84600f5e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 10 16:00:29 2020 -0500
 
-    cmd/go: process -debug-trace flag for cmd/test and cmd/vet
+    doc: fill in 'go mod init' section of module documentation
     
-    These commands are build-like commands that do their own flag
-    processing, so the value of debug-trace isn't available until
-    the command starts running. Start tracing in the cmd's run
-    function.
+    Updates #33637
     
-    Updates #38714
-    
-    Change-Id: I4d633e6ee907bf09feac52c2aff3daceb9b20e12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248324
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I9c1345d0fa7a1b6c98c33b8b0837706e5261d5b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214381
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
 
- src/cmd/go/internal/test/test.go | 18 ++++++++++++++++++
- src/cmd/go/internal/vet/vet.go   | 25 +++++++++++++++++++++++--
- 2 files changed, 41 insertions(+), 2 deletions(-)
+ doc/modules.md | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

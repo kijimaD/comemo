@@ -1,23 +1,22 @@
-commit 29957c52df59795ba21a6832662f66e9f1f298cf
+commit f61057c497e9ccb88dae093778d97aeee941af13
 Author: Austin Clements <austin@google.com>
-Date:   Wed May 23 14:01:21 2018 -0400
+Date:   Fri Dec 8 22:24:59 2017 -0500
 
-    runtime: fix preemption deadlocks in TestDebugCall*
+    runtime: fix various contiguous bitmap assumptions
     
-    TestDebugCall* uses atomic spin loops and hence can deadlock if the
-    garbage collector is enabled (because of #10958; ironically,
-    implementing debugger call injection is closely related to fixing this
-    exact issue, but we're not there yet).
+    There are various places that assume the heap bitmap is contiguous and
+    scan it sequentially. We're about to split up the heap bitmap. This
+    commit modifies all of these except heapBitsSetType to use the
+    heapBits abstractions so they can transparently switch to a
+    discontiguous bitmap.
     
-    Fix this by disabling the garbage collector during these tests.
+    Updates #10460. This is a step toward supporting sparse heaps.
     
-    Updates #25519 (might fix it, though I suspect not)
-    
-    Change-Id: If1e454b9cdea8e4b1cd82509b762c75b6acd8476
-    Reviewed-on: https://go-review.googlesource.com/114086
+    Change-Id: I2f3994a5785e4dccb66602fb3950bbd290d9392c
+    Reviewed-on: https://go-review.googlesource.com/85882
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/debug_test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/runtime/mbitmap.go | 52 +++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 32 insertions(+), 20 deletions(-)

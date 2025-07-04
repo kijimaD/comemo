@@ -1,135 +1,14 @@
-commit bed8129ee69f5b2d32cd84e4cc0e3e3be50366dc
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Feb 2 09:44:26 2017 -0500
+commit 263a825b0534a55916d472ba17feff7d1ed47569
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Oct 26 00:07:27 2016 +0200
 
-    cmd/internal/obj: remove Follow pass
+    syscall: use name+(NN)FP on plan9/amd64
     
-    The Follow pass in the assembler backend reorders and copies
-    instructions. This even applies to hand-written assembly code,
-    which in many cases don't want to be reordered. Now that the
-    SSA compiler does a good job for laying out instructions, the
-    benefit of this pass is very little:
+    Generated from go vet.
     
-    AMD64: (old = with Follow, new = without Follow)
-    name                      old time/op    new time/op    delta
-    BinaryTree17-12              2.78s ± 1%     2.79s ± 1%  +0.44%  (p=0.000 n=20+19)
-    Fannkuch11-12                3.11s ± 0%     3.31s ± 1%  +6.16%  (p=0.000 n=19+19)
-    FmtFprintfEmpty-12          50.9ns ± 1%    51.6ns ± 3%  +1.40%  (p=0.000 n=17+20)
-    FmtFprintfString-12          127ns ± 0%     128ns ± 1%  +0.88%  (p=0.000 n=17+17)
-    FmtFprintfInt-12             122ns ± 0%     123ns ± 1%  +0.76%  (p=0.000 n=20+19)
-    FmtFprintfIntInt-12          185ns ± 1%     186ns ± 1%  +0.65%  (p=0.000 n=20+19)
-    FmtFprintfPrefixedInt-12     192ns ± 1%     202ns ± 1%  +4.99%  (p=0.000 n=20+19)
-    FmtFprintfFloat-12           284ns ± 0%     288ns ± 0%  +1.33%  (p=0.000 n=15+19)
-    FmtManyArgs-12               807ns ± 0%     804ns ± 0%  -0.44%  (p=0.000 n=16+18)
-    GobDecode-12                7.23ms ± 1%    7.21ms ± 1%    ~     (p=0.052 n=20+20)
-    GobEncode-12                6.09ms ± 1%    6.12ms ± 1%  +0.41%  (p=0.002 n=19+19)
-    Gzip-12                      253ms ± 1%     255ms ± 1%  +0.95%  (p=0.000 n=18+20)
-    Gunzip-12                   38.4ms ± 0%    38.5ms ± 0%  +0.34%  (p=0.000 n=17+17)
-    HTTPClientServer-12         95.4µs ± 2%    96.1µs ± 1%  +0.78%  (p=0.002 n=19+19)
-    JSONEncode-12               16.5ms ± 1%    16.6ms ± 1%  +1.17%  (p=0.000 n=19+19)
-    JSONDecode-12               54.6ms ± 1%    55.3ms ± 1%  +1.23%  (p=0.000 n=18+18)
-    Mandelbrot200-12            4.47ms ± 0%    4.47ms ± 0%  +0.06%  (p=0.000 n=18+18)
-    GoParse-12                  3.47ms ± 1%    3.47ms ± 1%    ~     (p=0.583 n=20+20)
-    RegexpMatchEasy0_32-12      84.8ns ± 1%    85.2ns ± 2%  +0.51%  (p=0.022 n=20+20)
-    RegexpMatchEasy0_1K-12       206ns ± 1%     206ns ± 1%    ~     (p=0.770 n=20+20)
-    RegexpMatchEasy1_32-12      82.8ns ± 1%    83.4ns ± 1%  +0.64%  (p=0.000 n=20+19)
-    RegexpMatchEasy1_1K-12       363ns ± 1%     361ns ± 1%  -0.48%  (p=0.007 n=20+20)
-    RegexpMatchMedium_32-12      126ns ± 1%     126ns ± 0%  +0.72%  (p=0.000 n=20+20)
-    RegexpMatchMedium_1K-12     39.1µs ± 1%    39.8µs ± 0%  +1.73%  (p=0.000 n=19+19)
-    RegexpMatchHard_32-12       1.97µs ± 0%    1.98µs ± 1%  +0.29%  (p=0.005 n=18+20)
-    RegexpMatchHard_1K-12       59.5µs ± 1%    59.8µs ± 1%  +0.36%  (p=0.000 n=18+20)
-    Revcomp-12                   442ms ± 1%     445ms ± 2%  +0.67%  (p=0.000 n=19+20)
-    Template-12                 58.0ms ± 1%    57.5ms ± 1%  -0.85%  (p=0.000 n=19+19)
-    TimeParse-12                 311ns ± 0%     314ns ± 0%  +0.94%  (p=0.000 n=20+18)
-    TimeFormat-12                350ns ± 3%     346ns ± 0%    ~     (p=0.076 n=20+19)
-    [Geo mean]                  55.9µs         56.4µs       +0.80%
-    
-    ARM32:
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              30.4s ± 0%     30.1s ± 0%  -1.14%  (p=0.000 n=10+8)
-    Fannkuch11-4                13.7s ± 0%     13.6s ± 0%  -0.75%  (p=0.000 n=10+10)
-    FmtFprintfEmpty-4           664ns ± 1%     651ns ± 1%  -1.96%  (p=0.000 n=7+8)
-    FmtFprintfString-4         1.83µs ± 2%    1.77µs ± 2%  -3.21%  (p=0.000 n=10+10)
-    FmtFprintfInt-4            1.57µs ± 2%    1.54µs ± 2%  -2.25%  (p=0.007 n=10+10)
-    FmtFprintfIntInt-4         2.37µs ± 2%    2.31µs ± 1%  -2.68%  (p=0.000 n=10+10)
-    FmtFprintfPrefixedInt-4    2.14µs ± 2%    2.10µs ± 1%  -1.83%  (p=0.006 n=10+10)
-    FmtFprintfFloat-4          3.69µs ± 2%    3.74µs ± 1%  +1.60%  (p=0.000 n=10+10)
-    FmtManyArgs-4              9.43µs ± 1%    9.17µs ± 1%  -2.70%  (p=0.000 n=10+10)
-    GobDecode-4                76.3ms ± 1%    75.5ms ± 1%  -1.14%  (p=0.003 n=10+10)
-    GobEncode-4                70.7ms ± 2%    69.0ms ± 1%  -2.36%  (p=0.000 n=10+10)
-    Gzip-4                      2.64s ± 1%     2.65s ± 0%  +0.59%  (p=0.002 n=10+10)
-    Gunzip-4                    402ms ± 0%     398ms ± 0%  -1.11%  (p=0.000 n=10+9)
-    HTTPClientServer-4          458µs ± 0%     457µs ± 0%    ~     (p=0.247 n=10+10)
-    JSONEncode-4                171ms ± 0%     172ms ± 0%  +0.56%  (p=0.000 n=10+10)
-    JSONDecode-4                672ms ± 1%     668ms ± 1%    ~     (p=0.105 n=10+10)
-    Mandelbrot200-4            33.5ms ± 0%    33.5ms ± 0%    ~     (p=0.156 n=9+10)
-    GoParse-4                  33.9ms ± 0%    34.0ms ± 0%  +0.36%  (p=0.031 n=9+9)
-    RegexpMatchEasy0_32-4       823ns ± 1%     835ns ± 1%  +1.49%  (p=0.000 n=8+8)
-    RegexpMatchEasy0_1K-4      3.99µs ± 0%    4.02µs ± 1%  +0.92%  (p=0.000 n=8+10)
-    RegexpMatchEasy1_32-4       877ns ± 3%     904ns ± 2%  +3.07%  (p=0.012 n=10+10)
-    RegexpMatchEasy1_1K-4      5.99µs ± 0%    5.97µs ± 1%  -0.38%  (p=0.023 n=8+8)
-    RegexpMatchMedium_32-4     1.40µs ± 2%    1.40µs ± 2%    ~     (p=0.590 n=10+9)
-    RegexpMatchMedium_1K-4      357µs ± 0%     355µs ± 1%  -0.72%  (p=0.000 n=7+8)
-    RegexpMatchHard_32-4       22.3µs ± 0%    22.1µs ± 0%  -0.49%  (p=0.000 n=8+7)
-    RegexpMatchHard_1K-4        661µs ± 0%     658µs ± 0%  -0.42%  (p=0.000 n=8+7)
-    Revcomp-4                  46.3ms ± 0%    46.3ms ± 0%    ~     (p=0.393 n=10+10)
-    Template-4                  753ms ± 1%     750ms ± 0%    ~     (p=0.211 n=10+9)
-    TimeParse-4                4.28µs ± 1%    4.22µs ± 1%  -1.34%  (p=0.000 n=8+10)
-    TimeFormat-4               9.00µs ± 0%    9.05µs ± 0%  +0.59%  (p=0.000 n=10+10)
-    [Geo mean]                  538µs          535µs       -0.55%
-    
-    ARM64:
-    name                     old time/op    new time/op    delta
-    BinaryTree17-8              8.39s ± 0%     8.39s ± 0%    ~     (p=0.684 n=10+10)
-    Fannkuch11-8                5.95s ± 0%     5.99s ± 0%  +0.63%  (p=0.000 n=10+10)
-    FmtFprintfEmpty-8           116ns ± 0%     116ns ± 0%    ~     (all equal)
-    FmtFprintfString-8          361ns ± 0%     360ns ± 0%  -0.31%  (p=0.003 n=8+6)
-    FmtFprintfInt-8             290ns ± 0%     290ns ± 0%    ~     (p=0.620 n=9+9)
-    FmtFprintfIntInt-8          476ns ± 1%     469ns ± 0%  -1.47%  (p=0.000 n=10+6)
-    FmtFprintfPrefixedInt-8     412ns ± 2%     417ns ± 2%  +1.39%  (p=0.006 n=9+10)
-    FmtFprintfFloat-8           652ns ± 1%     652ns ± 0%    ~     (p=0.161 n=10+8)
-    FmtManyArgs-8              1.94µs ± 0%    1.94µs ± 2%    ~     (p=0.781 n=10+10)
-    GobDecode-8                17.7ms ± 1%    17.7ms ± 0%    ~     (p=0.962 n=10+7)
-    GobEncode-8                15.6ms ± 0%    15.6ms ± 1%    ~     (p=0.063 n=10+10)
-    Gzip-8                      786ms ± 0%     787ms ± 0%    ~     (p=0.356 n=10+9)
-    Gunzip-8                    127ms ± 0%     127ms ± 0%  +0.08%  (p=0.028 n=10+9)
-    HTTPClientServer-8          198µs ± 6%     198µs ± 7%    ~     (p=0.796 n=10+10)
-    JSONEncode-8               42.5ms ± 0%    42.2ms ± 0%  -0.73%  (p=0.000 n=9+8)
-    JSONDecode-8                158ms ± 1%     162ms ± 0%  +2.28%  (p=0.000 n=10+9)
-    Mandelbrot200-8            10.1ms ± 0%    10.1ms ± 0%  -0.01%  (p=0.000 n=10+9)
-    GoParse-8                  8.54ms ± 1%    8.63ms ± 1%  +1.06%  (p=0.000 n=10+9)
-    RegexpMatchEasy0_32-8       231ns ± 1%     225ns ± 0%  -2.52%  (p=0.000 n=9+10)
-    RegexpMatchEasy0_1K-8      1.63µs ± 0%    1.63µs ± 0%    ~     (p=0.170 n=10+10)
-    RegexpMatchEasy1_32-8       253ns ± 0%     249ns ± 0%  -1.41%  (p=0.000 n=9+10)
-    RegexpMatchEasy1_1K-8      2.08µs ± 0%    2.08µs ± 0%  -0.32%  (p=0.000 n=9+10)
-    RegexpMatchMedium_32-8      355ns ± 1%     351ns ± 0%  -1.04%  (p=0.007 n=10+7)
-    RegexpMatchMedium_1K-8      104µs ± 0%     104µs ± 0%    ~     (p=0.148 n=10+10)
-    RegexpMatchHard_32-8       5.79µs ± 0%    5.79µs ± 0%    ~     (p=0.578 n=10+10)
-    RegexpMatchHard_1K-8        176µs ± 0%     176µs ± 0%    ~     (p=0.137 n=10+10)
-    Revcomp-8                   1.37s ± 1%     1.36s ± 1%  -0.26%  (p=0.023 n=10+10)
-    Template-8                  151ms ± 1%     154ms ± 1%  +2.14%  (p=0.000 n=9+10)
-    TimeParse-8                 723ns ± 2%     721ns ± 1%    ~     (p=0.592 n=10+10)
-    TimeFormat-8                804ns ± 2%     798ns ± 3%    ~     (p=0.344 n=10+10)
-    [Geo mean]                  154µs          154µs       -0.02%
-    
-    Therefore remove this pass. Also reduce text size by 0.5~2%.
-    
-    Comment out some dead code in runtime/sys_nacl_amd64p32.s
-    which contains undefined symbols.
-    
-    Change-Id: I1473986fe5b18b3d2554ce96cdc6f0999b8d955d
-    Reviewed-on: https://go-review.googlesource.com/36205
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie775c29b505166e0bd511826ef20eeb153a0424c
+    Reviewed-on: https://go-review.googlesource.com/32071
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go   | 179 ---------------------------
- src/cmd/internal/obj/arm64/obj7.go | 187 -----------------------------
- src/cmd/internal/obj/link.go       |   1 -
- src/cmd/internal/obj/mips/obj0.go  | 144 ----------------------
- src/cmd/internal/obj/plist.go      |   3 -
- src/cmd/internal/obj/ppc64/obj9.go | 168 --------------------------
- src/cmd/internal/obj/s390x/objz.go | 171 --------------------------
- src/cmd/internal/obj/x86/obj6.go   | 239 -------------------------------------
- src/runtime/sys_nacl_amd64p32.s    |  68 +++++------
- 9 files changed, 34 insertions(+), 1126 deletions(-)
+ src/syscall/asm_plan9_amd64.s | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)

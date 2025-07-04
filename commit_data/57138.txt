@@ -1,37 +1,20 @@
-commit bcec5f1540e0765fd302a443c6435943bb4aecb5
-Author: Zxilly <zxilly@outlook.com>
-Date:   Fri Aug 9 17:43:11 2024 +0000
+commit 1dbbafc70fd3e2c284469ab3e0936c1bb56129f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 26 13:52:37 2023 -0700
 
-    syscall,misc/wasm: fix path expansion on non-unix platforms
+    go/types, types2: replace TODO with clarifying comment
     
-    When running a go binary compiled to wasm using node.js on a Windows platform,
-    the absolute path passed in is also incorrectly forced to expand.
+    This resolves an open question.
+    No non-comment code changes.
     
-    For example:
-    
-    E:\Project\CS_Project\gsv\testdata\result.gob.gz
-    
-    will results to
-    
-    open C:\Users\zxilly\AppData\Local\wasm-exec\go1.23rc1\E:\Project\CS_Project\gsv\testdata\result.gob.gz: No such file or directory
-    
-    C:\Users\zxilly\AppData\Local\wasm-exec\go1.23rc1 is the place of
-    wasm_exec_node.js
-    
-    Fixes: #68820
-    
-    Change-Id: Ic30c6242302f8915ac1b8ea9f24546935cbb791e
-    GitHub-Last-Rev: f35ff1a2eef86c3b6431bb2be75448c3ac553f1b
-    GitHub-Pull-Request: golang/go#68255
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595797
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Change-Id: Idc92794090b2dde694394d1fcd916f6ea61f03e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506395
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- misc/wasm/wasm_exec.js      | 8 ++++++++
- misc/wasm/wasm_exec_node.js | 1 +
- src/syscall/fs_js.go        | 7 +++----
- 3 files changed, 12 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/unify.go | 7 +++++--
+ src/go/types/unify.go                    | 7 +++++--
+ 2 files changed, 10 insertions(+), 4 deletions(-)

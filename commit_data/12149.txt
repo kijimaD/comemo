@@ -1,12 +1,14 @@
-commit 37decab5a31f6418ae52d4548d06b2022d99c72f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 22 16:29:05 2012 -0500
+commit ee71afbb55cc16c87ac258ebb1c6a12c8729412b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 23 06:27:05 2012 +0900
 
-    cmd/dist: fix install cmd/5g on non-arm system
+    net: make raw IP tests robust
     
-    R=golang-dev, r
+    Make it rely on underlying socket's address family.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5689072
+    https://golang.org/cl/5673091
 
- src/cmd/dist/build.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/ipraw_test.go | 62 +++++++++++++++++++++++++++++------------------
+ 1 file changed, 38 insertions(+), 24 deletions(-)

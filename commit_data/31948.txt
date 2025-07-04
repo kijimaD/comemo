@@ -1,20 +1,21 @@
-commit 9745e88b224d517018ba8421972a0de5dd1c231c
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 28 15:58:59 2017 -0400
+commit 0b647ffb98fa40077b521ea0b4aa1dfa5dcb7912
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 24 16:22:08 2017 -0700
 
-    runtime: use rwmutex for execLock
+    cmd/compile: combine walkexpr cases
     
-    Currently the execLock is a mutex, which has the unfortunate
-    side-effect of serializing all thread creation. This replaces it with
-    an rwmutex so threads can be created in parallel, but exec still
-    blocks thread creation.
+    The type switch in walkexpr is giant.
+    Shrink it a little by coalescing identical cases
+    and removing some vertical whitespace.
     
-    Fixes #20738.
+    No functional changes.
     
-    Change-Id: Ia8f30a92053c3d28af460b0da71176abe5fd074b
-    Reviewed-on: https://go-review.googlesource.com/47072
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I7f7efb4faae1f8657dfafac04585172f99d8b37d
+    Reviewed-on: https://go-review.googlesource.com/38652
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 55 +++++--------------------------------
+ 1 file changed, 7 insertions(+), 48 deletions(-)

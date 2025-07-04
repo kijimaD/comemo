@@ -1,27 +1,21 @@
-commit c2e0f01598fbc17d2f960fe93c5bcb057203b75d
-Author: Alex Gaynor <alex.gaynor@gmail.com>
-Date:   Mon Apr 27 23:10:23 2020 +0000
+commit c2edcf4b1253fdebc13df8a25979904c3ef01c66
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 4 02:14:18 2019 -0500
 
-    bufio: optimize bufio.Reader.ReadString to avoid an allocation and copy
+    crypto/tls: take key size into account in signature algorithm selection
     
-    name                old time/op    new time/op    delta
-    ReaderReadString-4     226ns ±12%     161ns ±11%  -28.76%  (p=0.008 n=5+5)
+    Fixes #29793
     
-    name                old alloc/op   new alloc/op   delta
-    ReaderReadString-4      288B ± 0%      144B ± 0%  -50.00%  (p=0.008 n=5+5)
-    
-    name                old allocs/op  new allocs/op  delta
-    ReaderReadString-4      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.008 n=5+5)
-    
-    Change-Id: I77f330b8340c2bfbfff1f6f1000170b65953a200
-    GitHub-Last-Rev: 65d65302a7b80504b4d37b81a3843fe1439e638a
-    GitHub-Pull-Request: golang/go#34706
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199257
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6e389d166c2d9a2ba8664a41f4b9569f2481b27f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205177
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/bufio/bufio.go        | 52 +++++++++++++++++++++++++++++++----------------
- src/bufio/bufio_test.go   | 32 +++++++++++++++++++++++++++++
- src/go/build/deps_test.go |  2 +-
- 3 files changed, 67 insertions(+), 19 deletions(-)
+ src/crypto/tls/auth.go                             |  41 ++++----
+ src/crypto/tls/auth_test.go                        |   2 +
+ src/crypto/tls/handshake_server_test.go            |  14 ++-
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RSAPSS   |  39 ++------
+ src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 105 ++-------------------
+ .../tls/testdata/Server-TLSv13-RSA-RSAPSS-TooSmall |  16 ++++
+ 6 files changed, 71 insertions(+), 146 deletions(-)

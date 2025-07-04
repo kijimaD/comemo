@@ -1,15 +1,15 @@
-commit ca6e1dbc2258e95e9ac1a1269768e544a259964a
-Author: Kyle Lemons <kyle@kylelemons.net>
-Date:   Wed Aug 17 12:12:08 2011 -0400
+commit 9f06ccb48d9bb17deeb7515c521993879141334d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Aug 17 12:12:01 2011 -0400
 
-    xml: escape string chardata in xml.Marshal
+    asn1: add support for unmarshalling structs with int32 members
     
-    Fixes #2150.
+    Also improve error message for unsupported integer types
     
-    R=golang-dev, nigeltao, rsc
+    R=agl, rsc
     CC=golang-dev
-    https://golang.org/cl/4890042
+    https://golang.org/cl/4873049
 
- src/pkg/xml/marshal.go      | 2 +-
- src/pkg/xml/marshal_test.go | 6 ++++++
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/asn1/asn1.go      | 34 ++++++++++++++++------------------
+ src/pkg/asn1/asn1_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 18 deletions(-)

@@ -1,18 +1,16 @@
-commit c292b32f33d4c466abb769782d9cdfacdb76688b
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed May 9 15:49:22 2018 -0500
+commit 4e6fe7138004990ce452053d6c5a4f191a7a6cb2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Apr 16 11:05:47 2018 +0200
 
-    cmd/compile: enable disjoint memmove inlining on amd64
+    cmd/go: document which vet tests are enabled during go test
     
-    Memmove can use AVX/prefetches/other optional instructions, so
-    only do it for small sizes, when call overhead dominates.
+    Update #18085
+    Fixes #24009
     
-    Change-Id: Ice5e93deb11462217f7fb5fc350b703109bb4090
-    Reviewed-on: https://go-review.googlesource.com/112517
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I655ad76284480002f8d49da269be92ded306128b
+    Reviewed-on: https://go-review.googlesource.com/107077
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go | 2 +-
- test/codegen/copy.go                    | 5 ++++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go            | 9 ++++++---
+ src/cmd/go/internal/test/test.go | 9 ++++++---
+ 2 files changed, 12 insertions(+), 6 deletions(-)

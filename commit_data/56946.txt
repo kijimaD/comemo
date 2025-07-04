@@ -1,21 +1,23 @@
-commit 3f9360345cc1e3286abbb7bf5fbce50481a0bbbd
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Jul 4 00:17:05 2024 +0700
+commit d0459766c8d6b503fda7a8d9983b4aaf92a63e01
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jun 1 12:34:20 2023 -0400
 
-    cmd/compile: prevent un-necessary wrapping in switch statement
+    runtime: update skips for TestGdbBacktrace
     
-    Follow up discussion in CL 594575.
+    One issue simply has a reworded message, probably from a new version of
+    GDB. Another is a new issue.
     
-    The wrapping in "any" is only necessary if either casType or tagType is
-    an interface, as "==" in this situation is implemented by upconverting
-    to an interface anyway.
+    Fixes #60553.
+    Fixes #58698.
+    Updates #39204.
     
-    Change-Id: I73da771d25685a23eec612ac696965c892db4764
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596555
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I8389aa981fab5421f57ee761bfb5e1dd237709ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499975
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/noder/writer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/runtime-gdb_test.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

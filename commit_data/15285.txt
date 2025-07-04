@@ -1,25 +1,35 @@
-commit 60526ca6d105ee5cf79ede6b964de30ceea79fd3
+commit 6d888f1e1b81bd2545e5da710d37a5a0ddce71d5
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 15 17:54:46 2013 -0500
+Date:   Fri Feb 15 13:37:43 2013 -0800
 
-    undo CL 7310096 / 59da6744d66d
+    build: clang support
     
-    broke windows build
+    This works with at least one version of clang
+    that existed at one moment in time.
+    No guarantees about clangs past or future.
     
-    ««« original CL description
-    runtime: ensure forward progress of runtime.Gosched() for locked goroutines
-    The removed code leads to the situation when M executes the same locked G again and again.
-    Fixes #4820.
+    To try:
+            CC=clang all.bash
     
-    R=golang-dev, rsc
+    It does not work with the Xcode clang,
+    because that clang fails at printing a useful answer
+    to:
+            clang -print-libgcc-file-name
+    The clang that works prints a full path name for
+    that command, not just "libgcc.a".
+    
+    Fixes #4713.
+    
+    R=iant, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7310096
-    »»»
-    
-    TBR=dvyukov
-    CC=golang-dev
-    https://golang.org/cl/7343050
+    https://golang.org/cl/7323068
 
- src/pkg/runtime/proc.c       |  8 ++++++++
- src/pkg/runtime/proc_test.go | 30 ------------------------------
- 2 files changed, 8 insertions(+), 30 deletions(-)
+ include/libc.h            |  2 +-
+ misc/cgo/testso/test.bash |  2 +-
+ src/cmd/cgo/gcc.go        | 34 +++++++++++++++++++++++---------
+ src/cmd/dist/build.c      |  8 ++++++--
+ src/cmd/go/build.go       | 50 +++++++++++++++++++++++++++--------------------
+ src/cmd/go/env.go         |  1 +
+ src/make.bash             |  5 ++++-
+ src/run.bash              |  8 ++++++--
+ 8 files changed, 73 insertions(+), 37 deletions(-)

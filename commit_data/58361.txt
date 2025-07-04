@@ -1,16 +1,20 @@
-commit 04cdaa9984682e36e7603dd7e40309fc916edb56
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Dec 5 13:01:32 2024 -0500
+commit 4e896d179d3ce56170c21cce6564047a0afe80bf
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Oct 31 00:25:52 2023 +1100
 
-    cmd/go: document c-shared buildmode for building WASI library/reactor
+    runtime: remove map stack version handling for openbsd
     
-    For #65199.
+    OpenBSD 6.3 is more than five years old and has not been supported for
+    the last four years (only 7.3 and 7.4 are currently supported). As such,
+    remove special handling of MAP_STACK for 6.3 and earlier.
     
-    Change-Id: Icd3ec7cf25c2d381401686333c8aeed8013b3fbd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633418
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I1086c910bbcade7fb3938bb1226813212794b587
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538458
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Aaron Bieber <aaron@bolddaemon.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/cmd/go/alldocs.go               | 5 ++++-
- src/cmd/go/internal/help/helpdoc.go | 5 ++++-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/runtime/os_openbsd.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

@@ -1,21 +1,37 @@
-commit 202b4359696bcd2945244b42299e35e338331019
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Thu Nov 9 22:04:38 2023 +0100
+commit b89a840d6572c97a80ac78462b03122b83bc84e9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 25 16:11:45 2022 +0700
 
-    runtime: more godoc links
+    cmd/compile: add clear(x) builtin
     
-    Change-Id: I8fe66326994894b17ce0eda991bba942844d26b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541475
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    To clear map, and zero content of slice.
+    
+    Updates #56351
+    
+    Change-Id: I5f81dfbc465500f5acadaf2c6beb9b5f0d2c4045
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453395
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/cpuprof.go |  6 +++---
- src/runtime/extern.go  | 17 +++++++++--------
- src/runtime/mprof.go   |  4 ++--
- src/runtime/pinner.go  |  4 ++--
- src/runtime/proc.go    |  2 +-
- src/runtime/symtab.go  | 10 +++++-----
- src/runtime/trace.go   |  4 ++--
- src/runtime/trace2.go  |  4 ++--
- 8 files changed, 26 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/escape/call.go         |   2 +-
+ src/cmd/compile/internal/escape/stmt.go         |   2 +-
+ src/cmd/compile/internal/ir/expr.go             |   2 +-
+ src/cmd/compile/internal/ir/fmt.go              |   3 +
+ src/cmd/compile/internal/ir/node.go             |   1 +
+ src/cmd/compile/internal/ir/op_string.go        | 247 ++++++++++++------------
+ src/cmd/compile/internal/typecheck/const.go     |   1 +
+ src/cmd/compile/internal/typecheck/func.go      |  24 ++-
+ src/cmd/compile/internal/typecheck/stmt.go      |   1 +
+ src/cmd/compile/internal/typecheck/typecheck.go |   6 +-
+ src/cmd/compile/internal/typecheck/universe.go  |   1 +
+ src/cmd/compile/internal/walk/builtin.go        |  12 ++
+ src/cmd/compile/internal/walk/expr.go           |   4 +
+ src/cmd/compile/internal/walk/order.go          |   2 +-
+ src/cmd/compile/internal/walk/range.go          |  42 ++--
+ src/cmd/compile/internal/walk/stmt.go           |   1 +
+ test/clear.go                                   |  47 +++++
+ 17 files changed, 256 insertions(+), 142 deletions(-)

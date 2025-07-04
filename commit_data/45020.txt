@@ -1,31 +1,21 @@
-commit 46ffbec1d6715f62c724a7180aec12ffd8acf57f
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Apr 7 07:58:10 2021 -0700
+commit 25a33daa2b7e7bda773705215113450923ae4815
+Author: Sean Liao <seankhliao@gmail.com>
+Date:   Thu May 21 17:52:33 2020 +0200
 
-    cmd/compile: break out transformations of tcCompLit into transformCompLit
+    encoding/json: allow semicolon in field key / struct tag
     
-    Create transformCompLit, which does the transformations done by
-    tcCompLit without the typechecking. This removes the final use of the
-    old typechecker in the noder2 pass.
+    Allow ';' as a valid character for json field keys and struct tags.
     
-    Other changes:
+    Fixes #39189
     
-     - Used the transformCompLit in stringstorunelit(), which creates an
-       OCOMPLIT that needs transformation as well.
-    
-     - Fixed one place in transformIndex where we were still using
-       typecheck.AssignConv, when we should be using its equivalent
-       noder.assignconvfn.
-    
-    The go/test tests always run with -G=3, and I also tested that the "go
-    test" tests continue to run correctly with -G=3.
-    
-    Change-Id: I4a976534ab7311cf2a5f43841026dbf7401e62b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308529
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I4b602a1b0674ff028db07623682f0d1e8e9fd6c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234818
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/noder/expr.go      |   5 +-
- src/cmd/compile/internal/noder/transform.go | 166 +++++++++++++++++++++++++++-
- 2 files changed, 163 insertions(+), 8 deletions(-)
+ src/encoding/json/encode.go      | 2 +-
+ src/encoding/json/tagkey_test.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

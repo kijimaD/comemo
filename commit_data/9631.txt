@@ -1,17 +1,17 @@
-commit 571d3f50d398e50ca4dbe8f21cb9c19cffc76c0b
-Author: Jaroslavas Počepko <jp@webmaster.ms>
-Date:   Thu Sep 8 17:27:41 2011 +1000
+commit bb8bbb29088138b3cf86fd4c001ecf9ed088b505
+Author: Paul Lalonde <paul.a.lalonde@gmail.com>
+Date:   Thu Sep 8 16:32:40 2011 +1000
 
-    os: os.RemoveAll has to check for 2 error codes on Windows. ENOENT is not enough.
-    os.Lstat can return ENOTDIR as well.
+    Windows: net, syscall: implement SetsockoptIPMReq(), move to winsock v2.2 for multicast support.
+    I don't know the protocol regarding the zsyscall files which appear to
+    be hand-generated, so I've re-done them and added them to the change.
     
-    R=golang-dev, r, alex.brainman
-    CC=golang-dev, rsc
-    https://golang.org/cl/4984051
+    R=rsc, alex.brainman, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4975060
 
- src/pkg/os/file_posix.go            | 2 +-
- src/pkg/os/file_windows.go          | 9 ---------
- src/pkg/os/path.go                  | 2 +-
- src/pkg/syscall/mkerrors_windows.sh | 2 +-
- src/pkg/syscall/zerrors_windows.go  | 2 +-
- 5 files changed, 4 insertions(+), 13 deletions(-)
+ src/pkg/net/fd_windows.go                 |  2 +-
+ src/pkg/syscall/syscall_windows.go        | 38 ++++++++++++++++---------------
+ src/pkg/syscall/zsyscall_windows_386.go   | 30 ++++++++++++------------
+ src/pkg/syscall/zsyscall_windows_amd64.go | 30 ++++++++++++------------
+ 4 files changed, 51 insertions(+), 49 deletions(-)

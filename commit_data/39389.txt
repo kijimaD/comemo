@@ -1,28 +1,18 @@
-commit 53f628e56029573729ce6ac8844f87cc08f62a7a
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Jun 17 17:03:55 2019 -0400
+commit 572329ef7f62ced3bd0d099d670247cc2bbb8810
+Author: go101 <tapir.liu@gmail.com>
+Date:   Fri Feb 22 02:11:55 2019 +0000
 
-    cmd/go/internal/modload: query correct "latest" version through proxy
+    go/ast: break out after first variable in ExampleCommentMap
     
-    This fixes a regression introduced in CL 180337. When we query a
-    module at "latest" that has no tagged versions, we tried to use ""
-    as the version because we used info.Name instead of info.Version. This
-    only happened when using a proxy: in direct mode, info.Name is set to
-    the underlying VCS revision, which is fine.
+    The current ExampleCommentMap might panic if there are more satisfied
+    comments in the parsed program.
     
-    Also: serve "/mod/path/@latest" through our test proxy.
-    Previously, we served a 404, which made this bug hard to detect.
-    
-    Fixes #32636
-    
-    Change-Id: I5c60975656297f862cad66675170e819685ebd39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182697
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ibe6943470aa0cfb450dae9fc07c1199acaabef73
+    GitHub-Last-Rev: c79e98c2868179ea47618b296ce28c5eebc0b99d
+    GitHub-Pull-Request: golang/go#28587
+    Reviewed-on: https://go-review.googlesource.com/c/147359
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modload/query.go               |  2 +-
- src/cmd/go/proxy_test.go                           | 65 ++++++++++++++++++++--
- ...m_notags_v0.0.0-20190507143103-cc8cbe209b64.txt |  9 +++
- .../go/testdata/script/mod_get_latest_pseudo.txt   | 10 ++++
- 4 files changed, 81 insertions(+), 5 deletions(-)
+ src/go/ast/example_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

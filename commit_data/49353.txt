@@ -1,36 +1,27 @@
-commit af88fb6502ceee973aaa118471c9d953a10a68e5
+commit 57c115e1f68a997ba8978d4a5abd6ccc954ae3dd
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat May 28 14:06:43 2022 -0700
+Date:   Mon May 24 10:06:36 2021 -0700
 
-    net: permit use of Resolver.PreferGo, netgo on Windows and Plan 9
+    crypto/sha{256,512}: unname result parameters for consistency
     
-    This reverts commit CL 401754 (440c9312c8) which reverted CL 400654,
-    thus reapplying CL 400654, re-adding the func init() { netGo = true }
-    to cgo_stub.go CL 400654 had originally removed (mistakenly during
-    development?) that had broken the darwin nocgo builder.
+    Sum224 and Sum256 didn't look the same at:
     
-    Fixes #33097
+        https://golang.org/pkg/crypto/sha256/
     
-    Change-Id: I90f59746d2ceb6b5d2bd832c9fc90068f8ff7417
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409234
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Now they match. Likewise with sha512's funcs.
+    
+    Per:
+    https://github.com/golang/go/wiki/CodeReviewComments#named-result-parameters
+    
+    Change-Id: I6b88c8ef15141c78a6cddeb0960b3ad52db34244
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322329
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/addrselect.go            |   2 -
- src/net/conf.go                  |  36 ++++-
- src/net/dnsclient_unix.go        |  24 ++-
- src/net/dnsconfig.go             |  43 +++++
- src/net/dnsconfig_unix.go        |  36 +----
- src/net/dnsconfig_windows.go     |  58 +++++++
- src/net/lookup.go                | 226 +++++++++++++++++++++++++++
- src/net/lookup_plan9.go          |  52 ++++++-
- src/net/lookup_unix.go           | 205 +-----------------------
- src/net/lookup_windows.go        |  93 +++++++----
- src/net/net.go                   |   5 +-
- src/net/net_fake.go              |   6 +
- src/net/netgo.go                 |   9 ++
- src/net/nss.go                   |   2 -
- src/net/resolverdialfunc_test.go | 328 +++++++++++++++++++++++++++++++++++++++
- 15 files changed, 835 insertions(+), 290 deletions(-)
+ src/crypto/sha256/sha256.go |  6 +++---
+ src/crypto/sha512/sha512.go | 18 +++++++++---------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

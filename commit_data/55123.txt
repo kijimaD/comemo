@@ -1,19 +1,34 @@
-commit 5a6f1b35d42dca8e3e7646ee36fa1344ce5bc775
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Nov 21 21:47:57 2023 +0000
+commit 245e95dfabd77f337373bf2d6bb47cd353ad8d74
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Jan 11 14:41:03 2023 -0500
 
-    runtime: add lock partial order edge between wakeableSleep and hchan
+    go/types, types2: don't look up fields or methods when expecting a type
     
-    This is totally valid and always was, but the staticlockranking builder
-    started failing when the new execution tracer was enabled by default.
+    As we have seen many times, the type checker must be careful to avoid
+    accessing named type information before the type is fully set up. We
+    need a more systematic solution to this problem, but for now avoid one
+    case that causes a crash: checking a selector expression on an
+    incomplete type when a type expression is expected.
     
-    Change-Id: I011e7d86bd968b1251bcc4d74395633036753b00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544319
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    For golang/go#57522
+    
+    Change-Id: I7ed31b859cca263276e3a0647d1f1b49670023a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461577
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/runtime/lockrank.go   | 40 ++++++++++++++++++++--------------------
- src/runtime/mklockrank.go |  2 +-
- 2 files changed, 21 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/types2/call.go            | 21 ++++++++++++++++++-
+ src/cmd/compile/internal/types2/expr.go            |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go         |  2 +-
+ src/go/types/call.go                               | 21 ++++++++++++++++++-
+ src/go/types/expr.go                               |  2 +-
+ src/go/types/typexpr.go                            |  2 +-
+ src/internal/types/testdata/check/cycles0.go       |  2 +-
+ src/internal/types/testdata/check/decls0.go        | 10 ++++-----
+ src/internal/types/testdata/check/issues0.go       |  2 +-
+ .../types/testdata/fixedbugs/issue39634.go         |  2 +-
+ .../types/testdata/fixedbugs/issue57522.go         | 24 ++++++++++++++++++++++
+ test/fixedbugs/issue18392.go                       |  2 +-
+ 12 files changed, 77 insertions(+), 15 deletions(-)

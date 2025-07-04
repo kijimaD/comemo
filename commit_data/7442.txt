@@ -1,13 +1,13 @@
-commit 9b85d499af923165e643ebb3384e0dd4baff2b38
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 11 16:20:31 2011 -0500
+commit 3de98466c8636d58a2772fa641dd879a1c038c99
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Fri Feb 11 15:05:47 2011 -0500
 
-    syscall: remove obsolete socket IO control
+    http: add pipelining to ClientConn, ServerConn
     
-    R=golang-dev, rsc
+    R=rsc, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4183046
+    https://golang.org/cl/4082044
 
- src/pkg/syscall/zerrors_linux_386.go   | 1 -
- src/pkg/syscall/zerrors_linux_amd64.go | 1 -
- 2 files changed, 2 deletions(-)
+ src/pkg/http/persist.go    | 136 ++++++++++++++++++++++++++++++++-------------
+ src/pkg/http/serve_test.go |   2 +-
+ 2 files changed, 99 insertions(+), 39 deletions(-)

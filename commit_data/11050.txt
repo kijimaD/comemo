@@ -1,24 +1,12 @@
-commit 468e692e38fd2442a64ba8d8e6c4a789e60c3891
+commit c7e91724c0e1f514982e90d7d08bb2c291a2bc43
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jan 9 20:05:34 2012 +1100
+Date:   Mon Jan 9 14:24:05 2012 +1100
 
-    doc: only trim newlines in tmpltohtml, gofmt progs
+    go/build: handle and warn of duplicate GOPATH entries
     
-    R=golang-dev, r, r
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5530048
+    https://golang.org/cl/5519050
 
- doc/articles/error_handling.html | 10 +++++-----
- doc/go1.html                     | 18 +++++++++---------
- doc/go_tutorial.html             | 19 +++++++++----------
- doc/progs/cat_rot13.go           |  3 ++-
- doc/progs/defer2.go              |  2 ++
- doc/progs/echo.go                |  2 +-
- doc/progs/error.go               |  5 +++++
- doc/progs/error2.go              |  1 +
- doc/progs/error3.go              |  3 +++
- doc/progs/error4.go              |  3 +++
- doc/progs/go1.go                 |  1 +
- doc/progs/sortmain.go            |  3 +--
- doc/tmpltohtml.go                |  2 +-
- 13 files changed, 43 insertions(+), 29 deletions(-)
+ src/pkg/go/build/path.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

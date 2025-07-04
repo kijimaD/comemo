@@ -1,15 +1,27 @@
-commit cabf73ffb8f1d15f0509546dec81fb9069ea57d4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 27 15:31:50 2016 -0700
+commit 7de8cfdf9ce3942a255172e03c8f2ad380a30aca
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 4 11:21:31 2016 -0800
 
-    cmd/compile: add EType.String and missing EType names
+    [dev.ssa] cmd/internal/obj/x86: don't clobber flags with dynlink rewrite
     
-    Passes toolstash -cmp.
+    LEAQ symbol+100(SB), AX
     
-    Change-Id: Icc387eb557d5029e903923a051b565812fd2246b
-    Reviewed-on: https://go-review.googlesource.com/21234
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Under dynamic link, rewrites to
+    
+    MOVQ symbol@GOT(SB), AX
+    ADDQ $100, AX
+    
+    but ADDQ clobbers flags, whereas the original LEAQ (when not dynamic
+    linking) doesn't.
+    
+    Use LEAQ instead of ADDQ to add that constant in so we preserve flags.
+    
+    Change-Id: Ibb055403d94a4c5163e1c7d2f45da633ffd0b6a3
+    Reviewed-on: https://go-review.googlesource.com/19230
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/internal/obj/x86/obj6.go      | 7 ++++---
+ src/cmd/internal/obj/x86/obj6_test.go | 4 ++--
+ 2 files changed, 6 insertions(+), 5 deletions(-)

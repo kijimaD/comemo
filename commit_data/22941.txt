@@ -1,12 +1,23 @@
-commit 82359d1c2d835d44d84408b52fd8eaf4965ad363
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat May 9 01:29:03 2015 +0900
+commit 5cc8561333313c4318d980fea9b5c2dab596b503
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 13 15:31:28 2015 -0700
 
-    net: enable cgo test on solaris
+    compress/flate: reject invalid Huffman bit sizes
     
-    Change-Id: I4ade27469d82839b4396e1a88465dddc6b31d578
-    Reviewed-on: https://go-review.googlesource.com/9838
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    If the requested coding bit sizes don't result in a full binary tree,
+    then reject the input as invalid.
+    
+    Exception: We still need to allow degenerate Huffman codings with a
+    single 1-bit code to be compatible with zlib and files compressed with
+    Go's compress/flate package.
+    
+    Update #10426.
+    
+    Change-Id: I171b98d12e65b4deb9f4031cd802407ebb5e266c
+    Reviewed-on: https://go-review.googlesource.com/8922
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/net/cgo_unix_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/flate/flate_test.go |  75 +++++++++++++++++++++++---
+ src/compress/flate/gen.go        | 113 ++++++++++++++++++++++++++++++---------
+ src/compress/flate/inflate.go    |  68 +++++++++++------------
+ 3 files changed, 188 insertions(+), 68 deletions(-)

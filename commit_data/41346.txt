@@ -1,26 +1,19 @@
-commit 30e3bf2051e1659ba7ea1d14849f79deb82a5606
-Author: Timmy Douglas <timmyd983@gmail.com>
-Date:   Sat Feb 1 22:14:30 2020 +0000
+commit 8506b7d42fa696a8a7ca7cea747e1509286fdfba
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Aug 27 13:16:40 2019 -0400
 
-    net/mail: skip empty entries in parseAddressList
+    cmd/link: switch linker over to new debug lines from compiler
     
-    RFC 5322 has a section 4.4 where it says that address-list could
-    have "null" members: "That is, there could be two or more commas in
-    such a list with nothing in between them, or commas at the beginning
-    or end of the list." This change handles such a case so that mail
-    clients using this method on actual email messages get a reasonable
-    return value when they parse email.
+    This switches the linker over to using the new debug_lines data
+    generated in the compiler.
     
-    Fixes #36959
-    
-    Change-Id: I3ca240969935067262e3d751d376a06db1fef2a2
-    GitHub-Last-Rev: b96a9f2c075dfd67c3ff7b8ae0c12e12035f0da0
-    GitHub-Pull-Request: golang/go#36966
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217377
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: If8362d6fcea7db60aaebab670ed6f702ab1c4908
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191968
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/net/mail/message.go      |  9 +++++++++
- src/net/mail/message_test.go | 14 ++++++++++++++
- 2 files changed, 23 insertions(+)
+ src/cmd/internal/obj/dwarf.go     |   6 +-
+ src/cmd/link/internal/ld/dwarf.go | 246 ++++++++------------------------------
+ 2 files changed, 52 insertions(+), 200 deletions(-)

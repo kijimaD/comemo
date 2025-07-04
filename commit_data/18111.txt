@@ -1,15 +1,16 @@
-commit 0d12e24ebb037202c3324c230e075f1e448f6f34
-Author: Marko Tiikkaja <marko@joh.to>
-Date:   Thu Dec 26 11:27:18 2013 -0800
+commit 699dbb60b7274a525f53797aa1d145cc762cf953
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 24 08:08:15 2013 -0800
 
-    database/sql: Use all connections in pool
+    runtime/cgo: always set signal mask before calling pthread_create
     
-    The last connection in the pool was not being handed out correctly.
+    This was done correctly for most targets but was missing from
+    FreeBSD/ARM and Linux/ARM.
     
-    R=golang-codereviews, gobot, bradfitz
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/40410043
+    https://golang.org/cl/45180043
 
- src/pkg/database/sql/sql.go      |  4 ++--
- src/pkg/database/sql/sql_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 25 insertions(+), 2 deletions(-)
+ src/pkg/runtime/cgo/gcc_freebsd_arm.c | 7 +++++++
+ src/pkg/runtime/cgo/gcc_linux_arm.c   | 7 +++++++
+ 2 files changed, 14 insertions(+)

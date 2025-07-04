@@ -1,17 +1,15 @@
-commit 3ea72fb1a1d05f2d6ebcedd03eb5a94942c23504
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Jan 6 01:16:09 2018 +0000
+commit 7a5d76fa62d05a97d088a1278508d3c868cab4a2
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 21 17:35:32 2017 +0200
 
-    doc/go1.10: remove ReverseProxy TODO
+    math/big: delete solved TODO
     
-    No longer needs to be done.
+    The TODO is no longer needed as it was solved by a previous CL.
+    See https://go-review.googlesource.com/14995.
     
-    Updates #23009
-    Updates #21255
-    
-    Change-Id: I78e9e29a923dc03dea89ff3a5bf60f2e0bd0c0aa
-    Reviewed-on: https://go-review.googlesource.com/86476
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If62d1b296f35758ad3d18d28c8fbb95e797f4464
+    Reviewed-on: https://go-review.googlesource.com/65232
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.10.html | 7 -------
- 1 file changed, 7 deletions(-)
+ src/math/big/intconv.go | 6 ------
+ 1 file changed, 6 deletions(-)

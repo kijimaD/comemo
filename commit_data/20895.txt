@@ -1,48 +1,11 @@
-commit b3932baba4e15e175e8f0e040d5e8bbd357a60d8
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 16 16:44:45 2014 -0500
+commit c2b7b6d5da9768cf35c91947157901b623778fa6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 24 09:52:11 2014 -0700
 
-    runtime: fix sudog leak
+    doc/go1.4.txt: unsafe is outside go1 compatibility guarantees
     
-    The SudoG used to sit on the stack, so it was cheap to allocated
-    and didn't need to be cleaned up when finished.
-    
-    For the conversion to Go, we had to move sudog off the stack
-    for a few reasons, so we added a cache of recently used sudogs
-    to keep allocation cheap. But we didn't add any of the necessary
-    cleanup before adding a SudoG to the new cache, and so the cached
-    SudoGs had stale pointers inside them that have caused all sorts
-    of awful, hard to debug problems.
-    
-    CL 155760043 made sure SudoG.elem is cleaned up.
-    CL 150520043 made sure SudoG.selectdone is cleaned up.
-    
-    This CL makes sure SudoG.next, SudoG.prev, and SudoG.waitlink
-    are cleaned up. I should have done this when I did the other two
-    fields; instead I wasted a week tracking down a leak they caused.
-    
-    A dangling SudoG.waitlink can point into a sudogcache list that
-    has been "forgotten" in order to let the GC collect it, but that
-    dangling .waitlink keeps the list from being collected.
-    And then the list holding the SudoG with the dangling waitlink
-    can find itself in the same situation, and so on. We end up
-    with lists of lists of unusable SudoGs that are still linked into
-    the object graph and never collected (given the right mix of
-    non-trivial selects and non-channel synchronization).
-    
-    More details in golang.org/issue/9110.
-    
-    Fixes #9110.
-    
-    LGTM=r
-    R=r
-    CC=dvyukov, golang-codereviews, iant, khr
-    https://golang.org/cl/177870043
+    CC=golang-codereviews
+    https://golang.org/cl/164770043
 
- src/runtime/chan.go         |  1 +
- src/runtime/mgc0.go         | 16 ++++++++
- src/runtime/proc.go         | 10 +++++
- src/runtime/select.go       |  2 +
- src/runtime/sema.go         |  2 +
- test/fixedbugs/issue9110.go | 90 +++++++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 121 insertions(+)
+ doc/go1.4.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

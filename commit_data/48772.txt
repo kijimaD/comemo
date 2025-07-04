@@ -1,19 +1,33 @@
-commit b55a2fb3b0d67b346bac871737b862f16e5a6447
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sat Nov 6 22:38:51 2021 +0800
+commit 413c125da38990720744c0d98ab65c0d5b1602da
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Jun 7 17:51:51 2021 -0400
 
-    runtime: port memmove, memclr to register ABI on riscv64
+    [dev.fuzz] testing: convert seed corpus values where possible
     
-    This allows memmove and memclr to be invoked using the new
-    register ABI on riscv64.
+    The types provided in f.Fuzz will be viewed as the
+    canonical types for fuzzing. If the type is different
+    for a seed corpus entry, then the testing package
+    will attempt to convert it. If it can't convert it,
+    f.Fuzz will fail.
     
-    Change-Id: I3308d52e06547836cffcc533740fe535624e78d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361975
-    Run-TryBot: mzh <mzh@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Currently, this allows converting types that may result
+    in precision loss or a semantically different value.
+    For example, an int(-1) can be converted to uint even
+    though the value could be math.MaxUint64. There is a
+    TODO to consider improving this in the future.
+    
+    Updates golang/go#45593
+    
+    Change-Id: I2e752119662f46b68445d42b1ffa46dd30e9faea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325702
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/runtime/memclr_riscv64.s  | 30 +++++++++++++-----------
- src/runtime/memmove_riscv64.s | 54 ++++++++++++++++++++++---------------------
- 2 files changed, 44 insertions(+), 40 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt | 38 ++++++++++++++++++++++++---
+ src/internal/fuzz/fuzz.go                | 45 +++++++++++++++++++++++++++++---
+ src/testing/fuzz.go                      | 14 +++++++++-
+ src/testing/internal/testdeps/deps.go    |  4 +++
+ src/testing/testing.go                   |  6 +++--
+ 5 files changed, 97 insertions(+), 10 deletions(-)

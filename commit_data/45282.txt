@@ -1,17 +1,18 @@
-commit 48b368b01fa1f4f9a4380722f03b35d449a09871
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 20 10:55:59 2021 -0700
+commit 5faa8286512db8b11ba3f16c447dbf41f289b47a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 16 20:25:54 2020 -0400
 
-    cmd/compile/internal/types2: avoid follow-on errors for invalid [...] array
+    cmd/link: use GOOS=ios for TestBuildForTvOS
     
-    Fixes #42987.
+    Updates #38485.
     
-    Change-Id: Iaaa46e1f79525cd1e418c1a81a6414d11f8120b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311889
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Fix darwin-amd64-10_15 build.
+    
+    Change-Id: I1833c23788acafc9530bb91fb6182fc5cb44f6cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263265
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go              | 2 +-
- src/cmd/compile/internal/types2/fixedbugs/issue42987.src | 8 ++++++++
- src/cmd/compile/internal/types2/typexpr.go               | 5 ++++-
- 3 files changed, 13 insertions(+), 2 deletions(-)
+ src/cmd/link/link_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

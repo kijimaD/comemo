@@ -1,21 +1,19 @@
-commit 16f32a0726567ddba7627629b7557086058fbe70
-Author: Eric Rykwalder <e.rykwalder@gmail.com>
-Date:   Mon Apr 2 22:15:59 2018 -0700
+commit a631daba5fe9d91ebdddd4148e8af82e07c1ae3e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 29 22:30:23 2017 +0000
 
-    database/sql: return context errors from Rows.Scan
+    os: remove skipped test on netbsd
     
-    The previous implementation would return "sql: Rows are closed" for any
-    context errors, which can be confusing for context timeouts or
-    cancelations.
+    It must've been fixed since NetBSD 7.0. I can no longer reproduce it
+    with NetBSD 8-BETA (our new minimum NetBSD requirement).
     
-    Fixes #24431
+    Fixes #19293
     
-    Change-Id: I884904ec43204c43f4e94e2335b2802aab77a888
-    Reviewed-on: https://go-review.googlesource.com/104276
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: I28f970ca41a53a037e1c6cddf1b7f286bda2d725
+    Reviewed-on: https://go-review.googlesource.com/80875
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go      | 5 +++++
- src/database/sql/sql_test.go | 4 ++--
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/os/os_test.go | 2 --
+ 1 file changed, 2 deletions(-)

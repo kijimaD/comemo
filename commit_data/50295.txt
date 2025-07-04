@@ -1,17 +1,27 @@
-commit d1681120be027579f0556dfd3b07f205cab3ff6b
-Author: Julie Qiu <julie@golang.org>
-Date:   Fri Sep 2 14:32:36 2022 -0400
+commit 3da0ff8e3b05333c378efe17585609598692791e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 14 16:47:47 2021 -0700
 
-    .github: change label for vulndb and vulndb issues
+    cmd/go: don't stamp build or vcs info for GOROOT binaries
     
-    Change-Id: Ie384bfb366abc4005e9333b24dbbb70d66b74c0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427956
-    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Julie Qiu <julieqiu@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Julie Qiu <julieqiu@google.com>
+    Fixes a test failure in cmd/go TestScript/mod_outside.
+    
+    make.bash (cmd/dist) builds everything with -gcflags=all= -ldflags=all=
+    by default. If those no-op flags aren't used, all GOROOT binaries
+    appear stale.
+    
+    It's likely safe to omit those flags in cmd/dist if they're
+    empty. Checking out a new commit in GOROOT would always cause
+    staleness since the VCS info would change.
+    
+    For #37475
+    
+    Change-Id: Ic9aa0f3b7318e05fbb2f7d2c008ad07a4c61952f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356014
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- .github/ISSUE_TEMPLATE/04-vuln.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/load/pkg.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

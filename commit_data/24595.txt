@@ -1,27 +1,23 @@
-commit e7ee268292a814fed6ebe7c81c808581f80d3416
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 21 12:33:56 2015 -0700
+commit fe3d8d4db04d0589177a7a2164dff46928129331
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 10 13:21:28 2015 +1000
 
-    cmd/go: add -msan option
+    fmt: don't unread eof scanning %x
     
-    The -msan option compiles Go code to use the memory sanitizer.  This is
-    intended for use when linking with C/C++ code compiled with
-    -fsanitize=memory.  When memory blocks are passed back and forth between
-    C/C++ and Go, code in both languages will agree as to whether the memory
-    is correctly initialized or not, and will report errors for any use of
-    uninitialized memory.
+    When scanning a hex byte at EOF, the code was ungetting the eof,
+    which backed up the input and caused double-scanning of a byte.
     
-    Change-Id: I2dbdbd26951eacb7d84063cfc7297f88ffadd70c
-    Reviewed-on: https://go-review.googlesource.com/16169
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Delete the call to UnreadRune.
+    
+    This line appeared in 1.5 for some reason; it was not in 1.4 and
+    should be removed again for 1.5
+    
+    Fixes #12090.
+    
+    Change-Id: Iad1ce8e7db8ec26615c5271310f4b0228cca7d78
+    Reviewed-on: https://go-review.googlesource.com/13461
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- misc/cgo/testsanitizers/msan.go      |  3 ---
- misc/cgo/testsanitizers/msan2.go     | 31 ++++++++++++++++++++++++
- misc/cgo/testsanitizers/msan_fail.go | 31 ++++++++++++++++++++++++
- misc/cgo/testsanitizers/test.bash    | 19 ++++++++++++++-
- src/cmd/go/alldocs.go                |  8 ++++--
- src/cmd/go/build.go                  | 47 ++++++++++++++++++++++++++----------
- src/cmd/go/pkg.go                    |  6 +++++
- src/cmd/go/run.go                    |  2 +-
- src/cmd/go/test.go                   |  7 ++++--
- 9 files changed, 132 insertions(+), 22 deletions(-)
+ src/fmt/scan.go      |  1 -
+ src/fmt/scan_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

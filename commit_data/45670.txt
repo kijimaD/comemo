@@ -1,17 +1,17 @@
-commit 5fee772c872fcbf35c059b241d0b60c0aecd0f20
-Author: Aaron Sheah <aaronsheah@gmail.com>
-Date:   Tue May 18 14:54:02 2021 +0000
+commit 8ab8125fbd70e439f677c37832a678e6ce1067d7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 4 11:52:43 2020 -0800
 
-    doc/go1.17: document archive/zip changes for Go 1.17
+    os: remove unused variable in unix implementation of File.readdir
     
-    For #44513. Fixes #46000
-    
-    Change-Id: I299d0b5657f1f96174d6e35d60daac8b36e59d29
-    GitHub-Last-Rev: e63461bff042a8abe79e0ec3515eefbf56ba1d82
-    GitHub-Pull-Request: golang/go#46235
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320809
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Trust: Robert Findley <rfindley@google.com>
+    Change-Id: I0dd8a325bce6ed12d1ec1dc206ded62398925aef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267758
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- doc/go1.17.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/dir_unix.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

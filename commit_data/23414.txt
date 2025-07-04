@@ -1,16 +1,27 @@
-commit 9490fbf7557f3d1d12051f79d033e2a4fd8fcbcb
-Author: Giulio Iotti <dullgiulio@gmail.com>
-Date:   Wed Apr 15 16:59:49 2015 +0300
+commit abb818bc03fc19324c9271e8d4dbe5840eea18d2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 20 17:17:24 2015 -0700
 
-    xml: add check of version in document declaration
+    spec: fix binary expression grammar rule
     
-    Check that if a version is declared, for example
-    in '<?xml version="XX" ?>', version must be '1.0'.
+    The spec explains later in the "Operator precedence" section that *
+    has a higher precedence than +, but the current production rule
+    requires that "1 + 2 * 3" be parsed as "(1 + 2) * 3", instead of the
+    intended "1 + (2 * 3)".
     
-    Change-Id: I16ba9f78873a5f31977dcf75ac8e671fe6c08280
-    Reviewed-on: https://go-review.googlesource.com/8961
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The new production rule better matches cmd/internal/gc/go.y's grammar:
+    
+        expr:
+                uexpr
+        |       expr LOROR expr
+        |       expr LANDAND expr
+        |       ...
+    
+    Fixes #10151.
+    
+    Change-Id: I13c9635d6ddf1263cafe7cc63e68f3e5779e24ba
+    Reviewed-on: https://go-review.googlesource.com/9163
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/encoding/xml/xml.go      | 18 ++++++++++++------
- src/encoding/xml/xml_test.go | 21 ++++++++++++---------
- 2 files changed, 24 insertions(+), 15 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

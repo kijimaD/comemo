@@ -1,16 +1,18 @@
-commit 308a3e6c522928a5787a54b122bfba18856a3347
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 14 12:57:05 2013 -0400
+commit 13c7896fb69cb42da34c31480207aa4e8de19aa5
+Author: Matt Joiner <anacrolix@gmail.com>
+Date:   Wed Aug 14 09:27:30 2013 -0700
 
-    cmd/dist: fix darwin build
+    database/sql: fix accumulation of bad conns on prepared statements
     
-    The TLS block on Darwin is not the same as on ELF.
+    Fixes an issue where prepared statements that outlive many
+    connections become expensive to invoke.
     
-    TBR=elias.naur
-    CC=golang-dev
-    https://golang.org/cl/12741044
+    Fixes #6081
+    
+    R=golang-dev
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/12646044
 
- src/cmd/dist/buildruntime.c | 13 ++++++-------
- src/cmd/ld/data.c           |  2 +-
- src/cmd/ld/lib.c            |  7 ++++---
- 3 files changed, 11 insertions(+), 11 deletions(-)
+ src/pkg/database/sql/sql.go      | 7 ++++---
+ src/pkg/database/sql/sql_test.go | 1 -
+ 2 files changed, 4 insertions(+), 4 deletions(-)

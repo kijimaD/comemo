@@ -1,20 +1,18 @@
-commit 6d379add0fefcc17ed7b763078526800a3c1d705
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Apr 15 16:03:30 2018 +0200
+commit bf897845363eee8e39d3d4c02d3aadc864b5faf0
+Author: Samuel Tan <samueltan@google.com>
+Date:   Wed Dec 13 22:38:00 2017 -0800
 
-    cmd/compile: in prove, detect loops with negative increments
+    Revert "html/template: prevent aliasing of parse Trees via AddParseTree"
     
-    To be effective, this also requires being able to relax constraints
-    on min/max bound inclusiveness; they are now exposed through a flags,
-    and prove has been updated to handle it correctly.
+    This reverts commit cd0a5f08293e1bf1fac41ae6438d495318cd52fb, which
+    unnecessarily restricts the use of AddParseTree.
     
-    Change-Id: I3490e54461b7b9de8bc4ae40d3b5e2fa2d9f0556
-    Reviewed-on: https://go-review.googlesource.com/104041
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I1155214a20ba08981d604404e79fff54874fd8e4
+    Reviewed-on: https://go-review.googlesource.com/83919
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/loopbce.go | 61 +++++++++++++++++++++++++++------
- src/cmd/compile/internal/ssa/prove.go   | 13 +++++--
- test/loopbce.go                         | 34 ++++++++++++++++++
- 3 files changed, 96 insertions(+), 12 deletions(-)
+ src/html/template/escape_test.go | 21 ++++-----------------
+ src/html/template/template.go    |  5 -----
+ 2 files changed, 4 insertions(+), 22 deletions(-)

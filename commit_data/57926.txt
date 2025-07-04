@@ -1,29 +1,26 @@
-commit 5a9aeef9d54321702253257eb983d7a0cc1d97bf
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Nov 8 12:43:06 2024 -0500
+commit d9aca84da0556dea8a1c48e1bbd46f726dab9535
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 17:45:37 2023 -0700
 
-    cmd/compile: allow more types for wasmimport/wasmexport parameters and results
+    cmd/compile: stop changing Field.Sym for parameters
     
-    As proposed on #66984, this CL allows more types to be used as
-    wasmimport/wasmexport function parameters and results.
-    Specifically, bool, string, and uintptr are now allowed, and also
-    pointer types that point to allowed element types. Allowed element
-    types includes sized integer and floating point types (including
-    small integer types like uint8 which are not directly allowed as
-    a parameter type), bool, array whose element type is allowed, and
-    struct whose fields are allowed element type and also include a
-    struct.HostLayout field.
+    Field.Sym now always contains the original symbol as it appeared in Go
+    source, so we don't need OrigSym anymore.
     
-    For #66984.
+    Instead, when the mangled name is desired, Field.Nname.Sym() can be
+    used instead, which is always non-nil if Nname is non-nil.
     
-    Change-Id: Ie5452a1eda21c089780dfb4d4246de6008655c84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626615
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I96cd61db6458d4a2e07ec5810239236e3dfba747
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527516
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssagen/abi.go | 77 +++++++++++++++++++++++++++++-----
- src/cmd/internal/obj/link.go           |  4 ++
- src/cmd/internal/obj/wasm/wasmobj.go   | 18 ++++++--
- src/cmd/link/internal/wasm/asm.go      |  2 +-
- test/wasmexport2.go                    | 57 ++++++++++++++++++-------
- 5 files changed, 127 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go  |  2 +-
+ src/cmd/compile/internal/escape/escape.go |  6 +++---
+ src/cmd/compile/internal/inline/inl.go    |  2 +-
+ src/cmd/compile/internal/noder/reader.go  |  3 +--
+ src/cmd/compile/internal/types/fmt.go     | 31 -------------------------------
+ src/cmd/compile/internal/walk/assign.go   |  2 +-
+ 6 files changed, 7 insertions(+), 39 deletions(-)

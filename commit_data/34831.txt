@@ -1,59 +1,41 @@
-commit 28c1ad9d35f27b3b57afff4ee78faac746a8ed0a
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Dec 17 13:23:40 2017 +0000
+commit b868616b63a82a4f5917400b2df63a19ebe041e2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 26 15:14:50 2017 -0700
 
-    text/template: add variable assignments
+    cmd/cgo: special case C ptr types to use uintptr
     
-    Variables can be declared and shadowing is supported, but modifying
-    existing variables via assignments was not available.
+    Some C types are declared as pointers, but C code
+    stores non-pointers in them.  When the Go garbage
+    collector sees such a pointer, it gets unhappy.
     
-    This meant that modifying a variable from a nested block was not
-    possible:
+    Instead, for these types represent them on the Go
+    side with uintptr.
     
-            {{ $v := "init" }}
-            {{ if true }}
-                    {{ $v := "changed" }}
-            {{ end }}
-            v: {{ $v }} {{/* "init" */}}
+    We need this change to handle Apple's CoreFoundation
+    CF*Ref types. Users of these types might need to
+    update their code like we do in root_cgo_darwin.go.
+    The only change that is required under normal
+    circumstances is converting some nils to 0.
+    A go fix module is provided to help.
     
-    Introduce the "=" assignment token, such that one can now do:
+    Fixes #21897
     
-            {{ $v := "init" }}
-            {{ if true }}
-                    {{ $v = "changed" }}
-            {{ end }}
-            v: {{ $v }} {{/* "changed" */}}
+    RELNOTE=yes
     
-    To avoid confusion, rename PipeNode.Decl to PipeNode.Vars, as the
-    variables may not always be declared after this change. Also change a
-    few other names to better reflect the added ambiguity of variables in
-    pipelines.
-    
-    Modifying the text/template/parse package in a backwards incompatible
-    manner is acceptable, given that the package godoc clearly states that
-    it isn't intended for general use. It's the equivalent of an internal
-    package, back when internal packages didn't exist yet.
-    
-    To make the changes to the parse package sit well with the cmd/api test,
-    update except.txt with the changes that we aren't worried about.
-    
-    Fixes #10608.
-    
-    Change-Id: I1f83a4297ee093fd45f9993cebb78fc9a9e81295
-    Reviewed-on: https://go-review.googlesource.com/84480
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9716cfb255dc918792625f42952aa171cd31ec1b
+    Reviewed-on: https://go-review.googlesource.com/66332
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/README                            |  1 -
- api/except.txt                        | 19 ++++++++++++++++
- src/html/template/escape.go           |  2 +-
- src/text/template/doc.go              |  4 ++++
- src/text/template/exec.go             | 42 ++++++++++++++++++++++++-----------
- src/text/template/exec_test.go        |  7 ++++++
- src/text/template/parse/lex.go        |  7 ++++--
- src/text/template/parse/lex_test.go   |  8 +++----
- src/text/template/parse/node.go       | 39 ++++++++++++++++----------------
- src/text/template/parse/parse.go      | 24 +++++++++++++-------
- src/text/template/parse/parse_test.go |  4 ++--
- 11 files changed, 107 insertions(+), 50 deletions(-)
+ misc/cgo/test/cgo_test.go          |   1 +
+ misc/cgo/test/issue21897.go        |  56 +++++++++++
+ misc/cgo/test/issue21897b.go       |  13 +++
+ src/cmd/cgo/doc.go                 |  82 ++++++++++++++++
+ src/cmd/cgo/gcc.go                 |  59 ++++++++++++
+ src/cmd/dist/test.go               |   2 +-
+ src/cmd/fix/cftype.go              |  93 +++++++++++++++++++
+ src/cmd/fix/cftype_test.go         | 185 +++++++++++++++++++++++++++++++++++++
+ src/cmd/fix/typecheck.go           |  56 +++++++++++
+ src/crypto/x509/root_cgo_darwin.go |   6 +-
+ 10 files changed, 549 insertions(+), 4 deletions(-)

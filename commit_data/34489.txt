@@ -1,17 +1,27 @@
-commit 42ecf39e85a6960f4e0c2272bf9aff491eda3b66
-Author: ChrisALiles <caveryliles@gmail.com>
-Date:   Mon Feb 26 15:35:48 2018 +1100
+commit afbe646ab4480696d61462e9cab2ad048b5c1b6c
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 24 17:10:02 2017 -0400
 
-    cmd/compile: improve compiler error on embedded structs
+    cmd/compile: report typedslicecopy write barriers
     
-    Fixes #23609
+    Most write barrier calls are inserted by SSA, but copy and append are
+    lowered to runtime.typedslicecopy during walk. Fix these to set
+    Func.WBPos and emit the "write barrier" warning, as done for the write
+    barriers inserted by SSA. As part of this, we refactor setting WBPos
+    and emitting this warning into the frontend so it can be shared by
+    both walk and SSA.
     
-    Change-Id: I751aae3d849de7fce1306324fcb1a4c3842d873e
-    Reviewed-on: https://go-review.googlesource.com/97076
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5fe9997d9bdb55e03e01dd58aee28908c35f606b
+    Reviewed-on: https://go-review.googlesource.com/73411
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/typecheck.go | 13 ++++++++++++-
- test/fixedbugs/issue23609.go             | 27 +++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go           | 13 ++++---------
+ src/cmd/compile/internal/gc/syntax.go        | 11 ++++++++++-
+ src/cmd/compile/internal/gc/walk.go          |  2 ++
+ src/cmd/compile/internal/ssa/config.go       |  5 ++++-
+ src/cmd/compile/internal/ssa/export_test.go  |  3 ++-
+ src/cmd/compile/internal/ssa/func.go         |  2 --
+ src/cmd/compile/internal/ssa/writebarrier.go |  7 +------
+ 7 files changed, 23 insertions(+), 20 deletions(-)

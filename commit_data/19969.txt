@@ -1,21 +1,30 @@
-commit eae9fee3bf8c58c7403bcd103050ef2196fdfed1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 11 13:53:38 2014 -0400
+commit 7aa4e5ac5fb3894e0eaf99fbc3704c32d934b199
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 7 14:52:55 2014 -0700
 
-    cmd/link: fix zig-zag decoding
-    
-    The >>1 shift needs to happen before converting to int32, otherwise
-    large values will decode with an incorrect sign bit.
-    
-    The <<31 shift can happen before or after, but before is consistent
-    with liblink and the go12symtab doc.
-    
-    Bug demo at http://play.golang.org/p/jLrhPUakIu
+    runtime: convert equality functions to Go
     
     LGTM=rsc
-    R=golang-codereviews, minux, rsc
+    R=rsc, khr
     CC=golang-codereviews
-    https://golang.org/cl/119630043
+    https://golang.org/cl/121330043
 
- src/cmd/link/pclntab.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/builtin.c            |  13 ++-
+ src/cmd/gc/order.c              |  13 +++
+ src/cmd/gc/reflect.c            |   9 +-
+ src/cmd/gc/runtime.go           |  14 ++-
+ src/cmd/gc/subr.c               |  66 +++++++------
+ src/cmd/gc/walk.c               |  59 ++---------
+ src/pkg/runtime/alg.go          | 100 +++++++++++++++++++
+ src/pkg/runtime/alg.goc         | 210 ++++++++--------------------------------
+ src/pkg/runtime/asm_386.s       |  43 +-------
+ src/pkg/runtime/asm_amd64.s     |  43 +-------
+ src/pkg/runtime/asm_amd64p32.s  |  43 +-------
+ src/pkg/runtime/asm_arm.s       |  54 +----------
+ src/pkg/runtime/hashmap.go      |  37 ++++---
+ src/pkg/runtime/hashmap_fast.go |  12 +--
+ src/pkg/runtime/iface.go        |  42 --------
+ src/pkg/runtime/iface.goc       |  46 ---------
+ src/pkg/runtime/runtime.h       |  26 +++--
+ src/pkg/runtime/stubs.go        |  13 +--
+ 18 files changed, 265 insertions(+), 578 deletions(-)

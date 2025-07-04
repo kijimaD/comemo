@@ -1,22 +1,14 @@
-commit 95aaca6708f719e03ab71f553981da2451142ec7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 18 14:40:47 2013 -0800
+commit 07e87885ad4094aa27f166d1e666b29b910c0429
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 18 13:29:55 2013 -0500
 
-    go/types: Pkg *Package field for all objects
+    cmd/6c: fix build
     
-    The field is nil for predeclared (universe)
-    objects and parameter/result variables.
+    copy+paste error while cleaning up CL 7303099 before submit
     
-    R=adonovan
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7312093
+    https://golang.org/cl/7308104
 
- src/pkg/go/types/check.go         | 12 ++++++------
- src/pkg/go/types/check_test.go    |  1 +
- src/pkg/go/types/gcimporter.go    | 32 ++++++++++++++++++--------------
- src/pkg/go/types/objects.go       | 22 +++++++++++++++++-----
- src/pkg/go/types/resolve.go       |  5 +++--
- src/pkg/go/types/resolver_test.go |  6 +++---
- src/pkg/go/types/stmt.go          |  2 +-
- src/pkg/go/types/universe.go      | 17 +++++++++++++----
- 8 files changed, 62 insertions(+), 35 deletions(-)
+ src/cmd/6c/swt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

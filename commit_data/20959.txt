@@ -1,16 +1,33 @@
-commit a56a3876e8221ed125ffdd017efcbdded651d99b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 10 13:04:06 2014 +1100
+commit a5a07331444f9b48a5e09728e3d0085cfbfb2222
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 20:37:44 2014 -0400
 
-    misc/makerelease: handle git sub-repositories
+    runtime: change top-most return PC from goexit to goexit+PCQuantum
     
-    Also: checkout sub-repos from Mercurial manually
-    instead of using "go get". (for the 1.4 release)
+    If you get a stack of PCs from Callers, it would be expected
+    that every PC is immediately after a call instruction, so to find
+    the line of the call, you look up the line for PC-1.
+    CL 163550043 now explicitly documents that.
     
-    LGTM=rsc
-    R=rsc
+    The most common exception to this is the top-most return PC
+    on the stack, which is the entry address of the runtime.goexit
+    function. Subtracting 1 from that PC will end up in a different
+    function entirely.
+    
+    To remove this special case, make the top-most return PC
+    goexit+PCQuantum and then implement goexit in assembly
+    so that the first instruction can be skipped.
+    
+    Fixes #7690.
+    
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/190720043
+    https://golang.org/cl/170720043
 
- misc/makerelease/makerelease.go | 26 +++++++++++++++++++++-----
- 1 file changed, 21 insertions(+), 5 deletions(-)
+ src/runtime/asm_386.s      | 6 ++++++
+ src/runtime/asm_amd64.s    | 6 ++++++
+ src/runtime/asm_amd64p32.s | 6 ++++++
+ src/runtime/asm_arm.s      | 6 ++++++
+ src/runtime/proc.c         | 8 +++-----
+ 5 files changed, 27 insertions(+), 5 deletions(-)

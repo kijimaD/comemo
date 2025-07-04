@@ -1,25 +1,33 @@
-commit 187d0f672029e0fa0106024dd2f554b247aa7aff
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 13 20:42:55 2014 +0400
+commit 03e6a88ef04abd5916cd54d5255e7f6d6c78789f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 11 16:49:13 2014 -0700
 
-    runtime: keep objects in free lists marked as allocated.
-    Restore https://golang.org/cl/41040043 after GC rewrite.
-    Original description:
-    On the plus side, we don't need to change the bits on malloc and free.
-    On the downside, we need to mark objects in the free lists during GC.
-    But the free lists are small at GC time, so it should be a net win.
+    cmd/cgo: iterate over names in deterministic order
     
-    benchmark             old ns/op     new ns/op     delta
-    BenchmarkMalloc8      21.9          20.4          -6.85%
-    BenchmarkMalloc16     31.1          29.6          -4.82%
+    This makes GCC behavior (and cgo build failures) deterministic.
     
-    LGTM=khr
-    R=khr
-    CC=golang-codereviews, rlh, rsc
-    https://golang.org/cl/122280043
+    Fixes #8487.
+    
+    Ran this shell command on linux/amd64 (Ubuntu 12.04) before and
+    after this change:
+    
+        for x in `seq 100`; do
+          go tool cgo -debug-gcc=true issue8441.go 2>&1 | md5sum
+        done | sort | uniq -c
+    
+    Before:
+        67 2cdcb8c7c4e290f7d9009abc581b83dd  -
+        10 9a55390df94f7cec6d810f3e20590789  -
+        10 acfad22140d43d9b9517bbc5dfc3c0df  -
+        13 c337f8fee2304b3a8e3158a4362d8698  -
+    
+    After:
+        100 785c316cbcbcd50896695050e2fa23c1  -
+    
+    LGTM=minux, iant
+    R=golang-codereviews, bradfitz, minux, iant
+    CC=golang-codereviews
+    https://golang.org/cl/126990043
 
- src/pkg/runtime/heapdump.c |  22 ++++--
- src/pkg/runtime/malloc.go  | 180 ++++++++++++++++++++++-----------------------
- src/pkg/runtime/mgc0.c     |  53 ++++++-------
- src/pkg/runtime/mgc0.h     |   8 +-
- 4 files changed, 133 insertions(+), 130 deletions(-)
+ src/cmd/cgo/gcc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

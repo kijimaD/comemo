@@ -1,14 +1,17 @@
-commit b0b2f7d6dda2b01a06a1dd99b87c97c81934c184
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 27 17:35:45 2016 +0900
+commit 59fc42b230671d083feb68925d9cadc1da1d2616
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 1 15:06:25 2016 -0700
 
-    net/http/httptrace: fix nit in test
+    runtime: allocate mp.cgocallers earlier
     
-    Change-Id: I6dc3666398b4cd7a7195bb9c0e321fa8b733fa15
-    Reviewed-on: https://go-review.googlesource.com/23502
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #15061.
+    
+    Change-Id: I71f69f398d1c5f3a884bbd044786f1a5600d0fae
+    Reviewed-on: https://go-review.googlesource.com/21398
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/httptrace/trace_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/cgocall.go | 5 -----
+ src/runtime/proc.go    | 5 +++++
+ 2 files changed, 5 insertions(+), 5 deletions(-)

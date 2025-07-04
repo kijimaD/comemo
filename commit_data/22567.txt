@@ -1,14 +1,12 @@
-commit 27067df9db40d558190bf3aa70bf47e698806887
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 17 09:36:19 2015 -0700
+commit 21aad02f9d31284604f848424dbc4e81c40328f0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Mar 13 22:36:51 2015 -0400
 
-    cmd/internal/obj: cleanups from C transition and delete dead code
+    doc/go1.5: mention external linking support for windows
     
-    Change-Id: Id1ecad2565edd5937a764dcf56b89263353f47c2
-    Reviewed-on: https://go-review.googlesource.com/8947
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e33
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7537
 
- src/cmd/internal/obj/fmt.go | 32 +++++++++++------------
- src/cmd/internal/obj/go.go  | 64 +++------------------------------------------
- 2 files changed, 20 insertions(+), 76 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

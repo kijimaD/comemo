@@ -1,12 +1,19 @@
-commit 4e78818259bb9c43d7bc65ae3c15e935d3727770
+commit 9523b4d59c9a902abce9c584ded795376d875d1b
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Tue Jan 17 10:01:12 2012 +0100
+Date:   Tue Jan 17 10:00:57 2012 +0100
 
-    gc: give esc.c's sink an orig so -mm diagnostics work again.
+    gc: fix infinite recursion for embedded interfaces
     
-    R=rsc
+    Fixes #1909
+    
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/5543063
+    https://golang.org/cl/5523047
 
- src/cmd/gc/esc.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gc/dcl.c                | 13 +++++++++++--
+ src/cmd/gc/export.c             | 11 +++++++++--
+ src/cmd/gc/fmt.c                | 18 ++++++++++++++++--
+ src/cmd/gc/go.y                 |  6 +++++-
+ src/pkg/exp/types/gcimporter.go | 31 +++++++++++++++++--------------
+ test/fixedbugs/bug395.go        | 15 +++++++++++++++
+ 6 files changed, 73 insertions(+), 21 deletions(-)

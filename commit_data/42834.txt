@@ -1,47 +1,54 @@
-commit db821b54d1a8dffa85a9a3cf599f83a19184f020
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Apr 15 12:08:24 2020 -0400
+commit 333087623a8040d5da7f87dd53328156fae28e90
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Feb 21 14:24:31 2020 -0500
 
-    cmd/go/internal/modload: refactor version filtering for exclude
+    CONTRIBUTORS: second round of updates for Go 1.14
     
-    Query and other functions now accept an "allowed" function that
-    returns an error (previously, the function returned a bool). If the
-    error is equivalent to ErrDisallowed, it indicates the version is
-    excluded (or, in a future CL, retracted). This provides predicates a
-    chance to explain why a version is not allowed.
+    This update was automatically generated using the updatecontrib command:
     
-    When a query refers to a specific revision (by version, branch, tag,
-    or commit name), most callers will not use the Allowed predicate. This
-    allows commands like 'go list -m' and 'go mod download' to handle
-    disallowed versions when explicitly requested. 'go get' will reject
-    excluded versions though.
+            cd gotip
+            go run golang.org/x/build/cmd/updatecontrib
     
-    When a query does not refer to a specific revision (for example,
-    "latest"), disallowed versions will not be considered.
+    With minor manual changes based on publicly available information
+    to canonicalize letter case and formatting for a few names.
     
-    When an "allowed" predicate returns an error not equivalent to
-    ErrDisallowed, it may be ignored or returned, depending on the
-    case. This never happens for excluded versions, but it may happen for
-    retractions (in a future CL). This indicates a list of retractions
-    could not be loaded. This frequently happens when offline, and it
-    shouldn't cause a fatal or warning in most cases.
+    Actions taken (relative to CONTRIBUTORS at origin/master):
     
-    For #24031
+            Added Aaron Bieber <deftly@gmail.com>
+            Added Adam Williams <pwnfactory@gmail.com>
+            Added Ayke van Laethem <aykevanlaethem@gmail.com>
+            Added Bradford Lamson-Scribner <brad.lamson@gmail.com>
+            Added Brian Falk <falk@logicparty.org>
+            Added Chen Zhihan <energiehund@gmail.com>
+            Added Christopher Loessl <cloessl+github@gmail.com>
+            Added Frederik Zipp <fzipp@gmx.de>
+            Added Fujimoto Kyosuke <kyoro.f@gmail.com>
+            Added GitHub User jopbrown (6345470) <msshane2008@gmail.com>
+            Added GitHub User yah01 (12216890) <kagaminehuan@gmail.com>
+            Added Hiromichi Ema <ema.hiro@gmail.com>
+            Added Jamal Carvalho <jamal.a.carvalho@gmail.com>
+            Added Jason Baker <jason-baker@users.noreply.github.com>
+            Added Kanta Ebihara <kantaebihara@gmail.com>
+            Added Kirill Tatchihin <kirabsuir@gmail.com>
+            Added Kévin Dunglas <dunglas@gmail.com>
+            Added Mariano Cano <mariano@smallstep.com>
+            Added Sergey Ivanov <ser1325@gmail.com>
+            Added Thomas Symborski <thomas.symborski@gmail.com>
+            Added Tomohiro Kusumoto <zabio1192@gmail.com>
+            Added Xingqang Bai <bxq2011hust@qq.com>
+            Used GitHub User jopbrown (6345470) form for jopbrown <msshane2008@gmail.com> https://github.com/golang/exp/commit/0405dc7 [exp]
+            Used GitHub User yah01 (12216890) form for yah01 <kagaminehuan@gmail.com> https://github.com/golang/go/commit/ee55dd6b64 [go]
+            Used GitHub name "Hiromichi Ema" for emahiro <ema.hiro@gmail.com> https://github.com/golang/tools/commit/b6336cbc [tools]
+            Used GitHub name "Jamal Carvalho" for Gopher <jamal.a.carvalho@gmail.com> https://github.com/golang/gddo/commit/31dd61d [gddo]
+            Used GitHub name "Xingqang Bai" for bxq2011hust <bxq2011hust@qq.com> https://github.com/golang/go/commit/79ccbe1b67 [go]
     
-    Change-Id: I4df6fb6bd60e3e0259e5b3b4bf71a307b4b32298
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228379
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Updates #12042
+    
+    Change-Id: I13f8ab37f8b38f8f5d0ff71c939ad39d0bc4f985
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220363
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modget/get.go                |   6 +-
- src/cmd/go/internal/modload/build.go             |   6 +-
- src/cmd/go/internal/modload/import.go            |   2 +-
- src/cmd/go/internal/modload/list.go              |   9 +-
- src/cmd/go/internal/modload/modfile.go           |  38 ++++++--
- src/cmd/go/internal/modload/mvs.go               |  28 ++++--
- src/cmd/go/internal/modload/query.go             | 111 +++++++++++++++--------
- src/cmd/go/internal/modload/query_test.go        |   8 +-
- src/cmd/go/testdata/script/mod_query_exclude.txt |  40 ++++++--
- 9 files changed, 177 insertions(+), 71 deletions(-)
+ CONTRIBUTORS | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

@@ -1,14 +1,12 @@
-commit 6154ae8e24f8e4ddc414cc8c11a5ac091935cb73
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 18 14:16:40 2013 -0700
+commit f882bc8708e52ccc1a6844294ac29d73fc04dd41
+Author: Cosmos Nicolaou <cnicolaou@google.com>
+Date:   Tue Jun 18 08:55:32 2013 -0700
 
-    math/big: fix Errorf verb
+    os/exec: make exec_test.go:TestExtraFilesFDShuffle portable.
     
-    Pointed out by go vet.
-    
-    R=r
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/10368048
+    https://golang.org/cl/9103045
 
- src/pkg/math/big/nat_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/os/exec/exec_test.go | 29 ++++++++++++++++++++++-------
+ 1 file changed, 22 insertions(+), 7 deletions(-)

@@ -1,15 +1,14 @@
-commit f3857f5748a02bc8e2142ee5f569fe0b3a321a81
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 28 12:44:54 2015 -0600
+commit b6e913806ec85f18614ab825fce4e99aae94f899
+Author: Emil Hessman <emil@hessman.se>
+Date:   Sun Dec 28 06:12:19 2014 +0100
 
-    net/http: close HTTP response bodies in benchmark
+    cmd/pack: address go vet reports
     
-    This should fix the race builders.
+    Use log.Fatalf for formatting directives instead of log.Fatal
     
-    Change-Id: I9c9e7393d5e29d64ab797e346b34b1fa1dfe6d96
-    Reviewed-on: https://go-review.googlesource.com/3441
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ia207b320f5795c63cdfa71f92c19ca6d05cc833f
+    Reviewed-on: https://go-review.googlesource.com/2160
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/http/main_test.go  |  2 +-
- src/net/http/serve_test.go | 19 +++++++++++++++----
- 2 files changed, 16 insertions(+), 5 deletions(-)
+ src/cmd/pack/pack.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,21 +1,31 @@
-commit a05a25cb19d1ea222e37e7172fe489d972c0ec67
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Oct 31 18:34:07 2023 +0000
+commit 6d0bf438e302afcb0db5422ea2da59d1995e08c1
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Nov 9 17:49:44 2022 -0800
 
-    bytes,internal/bytealg: add func bytealg.LastIndexRabinKarp
+    path/filepath: add IsLocal
     
-    Also rename 'substr' to 'sep' in IndexRabinKarp for consistency.
+    IsLocal reports whether a path lexically refers to a location
+    contained within the directory in which it is evaluated.
+    It identifies paths that are absolute, escape a directory
+    with ".." elements, and (on Windows) paths that reference
+    reserved device names.
     
-    Change-Id: Icc2ad1116aecaf002c8264daa2fa608306c9a88a
-    GitHub-Last-Rev: 1784b93f53d569991f86585f9011120ea26f193f
-    GitHub-Pull-Request: golang/go#63854
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538716
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    For #56219.
+    
+    Change-Id: I35edfa3ce77b40b8e66f1fc8e0ff73cfd06f2313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449239
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/bytes/bytes.go              | 20 +-------------------
- src/internal/bytealg/bytealg.go | 37 +++++++++++++++++++++++++++++++------
- 2 files changed, 32 insertions(+), 25 deletions(-)
+ api/next/56219.txt                |  1 +
+ doc/go1.20.html                   |  7 ++++
+ src/path/filepath/path.go         | 40 +++++++++++++++++++++++
+ src/path/filepath/path_plan9.go   |  4 +++
+ src/path/filepath/path_test.go    | 54 +++++++++++++++++++++++++++++++
+ src/path/filepath/path_unix.go    |  4 +++
+ src/path/filepath/path_windows.go | 67 +++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 177 insertions(+)

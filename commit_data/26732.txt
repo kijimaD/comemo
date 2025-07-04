@@ -1,15 +1,19 @@
-commit 870d997ab47fe88c33f4dadef38d7e85eeabf17c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 5 17:24:23 2016 +0000
+commit 288817b05a0ea1671c87b7c3ed021fed874d0caa
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 23 21:09:39 2016 -0500
 
-    net/http: keep request context during Client redirects
+    [dev.ssa] cmd/compile: reduce line number churn in generated code
     
-    Change-Id: I25c51280ba55120ffeaf08222f5ac5d471632d89
-    Reviewed-on: https://go-review.googlesource.com/21535
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    In regalloc, make LoadReg instructions use the line number
+    of their *use*, not their *source*.  This reduces the
+    tendency of debugger stepping to "jump around" the program.
+    
+    Change-Id: I59e2eeac4dca9168d8af3a93effbc5bdacac2881
+    Reviewed-on: https://go-review.googlesource.com/19836
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/client.go      |  1 +
- src/net/http/client_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+)
+ src/cmd/compile/internal/ssa/regalloc.go | 10 +++++-----
+ src/cmd/compile/internal/ssa/tighten.go  |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

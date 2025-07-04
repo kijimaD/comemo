@@ -1,17 +1,19 @@
-commit 91c8e5f80be36f20e3b63715f52babc015258640
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 14 14:07:21 2015 -0500
+commit c64a6f636282e1db66e6bda681be9b76069b1918
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 19 10:57:03 2015 -0700
 
-    cmd/compile: fix export type conversion loss in inlined func body
+    [dev.ssa] cmd/compile: Rematerialize in regalloc
     
-    Fixes #12677.
+    Rematerialize constants instead of spilling and loading them.
+    "Constants" includes constant offsets from SP and SB.
     
-    Change-Id: I72012f55615fcf5f4a16c054706c9bcd82e49ccd
-    Reviewed-on: https://go-review.googlesource.com/17817
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Should help somewhat with stack frame sizes.  I'm not sure
+    exactly how much yet.
+    
+    Change-Id: I44dbad97aae870cf31cb6e89c92fe4f6a2b9586f
+    Reviewed-on: https://go-review.googlesource.com/16029
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 2 +-
- test/fixedbugs/issue12677.dir/p.go | 8 ++++++++
- test/fixedbugs/issue12677.dir/q.go | 7 +++++++
- test/fixedbugs/issue12677.go       | 9 +++++++++
- 4 files changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 36 +++++++++++++++++++++++++++++---
+ 1 file changed, 33 insertions(+), 3 deletions(-)

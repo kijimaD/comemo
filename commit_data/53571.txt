@@ -1,22 +1,19 @@
-commit 3e7ec131667c31448365f47643cf9b58d08ffd26
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jun 13 16:13:01 2023 -0400
+commit e0388c92d048fc31b39e133441bd4f6d85959ec4
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jun 15 17:35:41 2022 -0700
 
-    cmd/go: fix build config for 'go list -cover'
+    internal/poll: rely on utf8.AppendRune
     
-    When 'go list -cover' is run in a way that triggers package builds
-    (for example, -export), ensure that the build step actually includes
-    coverage instrumentation as part of the config. Without this we will
-    wind up with incorrect build IDs.
+    This is both simpler and more performant.
     
-    Fixes #60755.
-    
-    Change-Id: Ic84ab9e301d075bee5ff9d6828370a1708be0035
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502877
+    Change-Id: I398de29230e578fb7caf1765df7b8fe84d4e8876
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412336
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/list/list.go          |  3 +++
- src/cmd/go/testdata/script/cover_list.txt | 39 ++++++++++++++++++++++++++++++-
- 2 files changed, 41 insertions(+), 1 deletion(-)
+ src/internal/poll/fd_windows.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

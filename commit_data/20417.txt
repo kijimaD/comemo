@@ -1,15 +1,13 @@
-commit e8a74dcad96b134ba29a7edbc3bc84ba597e7c64
+commit 7230db9ef8f0bcf69d5ca5743c2177e795f0cbe1
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 14 22:24:29 2014 -0400
+Date:   Sat Sep 6 21:10:06 2014 -0400
 
-    runtime: fix solaris build, part 2
+    misc/makerelease: make goimports-safe
     
-    This file was already assigned to another CL
-    so it didn't make it into the build fix CL. Sigh.
-    
-    TBR=iant
+    LGTM=bradfitz
+    R=adg, bradfitz, minux
     CC=golang-codereviews
-    https://golang.org/cl/144850043
+    https://golang.org/cl/140310045
 
- src/runtime/os_solaris.go | 29 +++++++++++++++--------------
- 1 file changed, 15 insertions(+), 14 deletions(-)
+ misc/makerelease/makerelease.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

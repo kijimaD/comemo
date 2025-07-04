@@ -1,21 +1,29 @@
-commit 5c7dbf40e1e0af9d8fc4521e1ce7bd0afaa1f2c4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Feb 24 13:58:29 2020 -0500
+commit 4f13a9c5b1bfc9ec2213d9ee7d9df49661b119dd
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Tue Oct 1 01:10:44 2019 +0300
 
-    misc/cgo/testshared: explicitly set GOBIN (instead of unsetting it)
+    text/template/parse: use strings.Builder in String methods
     
-    If GOBIN is set in the GOENV file, then merely unsetting it in the
-    process environment is not sufficient. We can instead either set GOBIN
-    explicitly, or disable GOENV explicitly. For now, we (semi-arbitrary)
-    choose the former.
+    As mentioned in godoc, strings.Builder is more efficient for
+    concatenating and building strings.
+    Running a simple bench test on VariableNode.String() gives:
     
-    Fixes #37390
+    benchmark                     old ns/op     new ns/op     delta
+    BenchmarkParseLarge-8         25676831      24453285      -4.77%
+    BenchmarkVariableString-8     296           115           -61.15%
     
-    Change-Id: Iec54532c804b70546d695105cd89e9169eac5dbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220652
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    benchmark                     old allocs     new allocs     delta
+    BenchmarkVariableString-8     8              3              -62.50%
+    
+    benchmark                     old bytes     new bytes     delta
+    BenchmarkVariableString-8     112           72            -35.71%
+    
+    Change-Id: I13c9340080738fcad1edeed859d33ba608e4b05a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198078
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testshared/shared_test.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/text/template/parse/node.go       | 41 +++++++++++++++++++----------------
+ src/text/template/parse/parse_test.go | 16 ++++++++++++++
+ 2 files changed, 38 insertions(+), 19 deletions(-)

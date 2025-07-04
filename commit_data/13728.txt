@@ -1,44 +1,19 @@
-commit 5a78e5ea4c3cd4d6029882a9e45c0c5506c2babb
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Sat Sep 1 14:15:00 2012 +0200
+commit dd79b330c9115a62a482c655edb7911c8121744c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Sep 1 09:17:14 2012 +1000
 
-    exp/locale/collate: Added functionality to parse and process LDML files
-    for both locale-specific exemplar characters and tailorings to
-    the collation table.
-    Some specifices:
-    - Moved stringSet to the beginning of the file and added some functionality
-      to parse command line files.
-    - openReader now modifies the input URL for localFiles to guarantee that
-      any http source listed in the generated file is indeed this source.
-    - Note that the implementation of the Tailoring API used by maketables.go
-      is not yet checked in. So for now adding tailorings are simply no-ops.
-    - The generated file of exemplar characters will be used somewhere else.
-      Here is a snippet of how the body of the generated file looks like:
+    syscall: add PtraceSyscall(pid int, signal int)
     
-    type exemplarType int
-    const (
-            exCharacters exemplarType = iota
-            exContractions
-            exPunctuation
-            exAuxiliary
-            exCurrency
-            exIndex
-            exN
-    )
+    Fixes #3525.
     
-    var exemplarCharacters = map[string][exN]string{
-            "af": [exN]string{
-                    0: "a á â b c d e é è ê ë f g h i î ï j k l m n o ô ö p q r s t u û v w x y z",
-                    3: "á à â ä ã æ ç é è ê ë í ì î ï ó ò ô ö ú ù û ü ý",
-                    4: "a b c d e f g h i j k l m n o p q r s t u v w x y z",
-            },
-            ...
-    }
+    PTRACE_SYSCALL behaves like PTRACE_CONT and can deliver
+    a signal to the process. Ideally PtraceSingleStep should
+    support the signal argument, but its interface is frozen
+    by Go1.
     
-    R=r
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/6501070
+    https://golang.org/cl/6353051
 
- src/pkg/exp/locale/collate/maketables.go | 584 ++++++++++++++++++++++++++++---
- src/pkg/exp/locale/collate/tables.go     |   2 +-
- 2 files changed, 543 insertions(+), 43 deletions(-)
+ src/pkg/syscall/syscall_linux.go | 4 ++++
+ 1 file changed, 4 insertions(+)

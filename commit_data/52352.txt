@@ -1,23 +1,23 @@
-commit f24afeef9ae279dd62a22583248f49155defc928
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Mar 15 17:38:35 2023 -0400
+commit 123e27170aac5b26c38e6bf9866e16a38aed1696
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 25 17:21:58 2022 -0400
 
-    cmd/link: improve error message and debugging
+    runtime: clean up escaping in tests
     
-    Correct an error message to missing section, not unreachable
-    symbol.
+    There are several tests in the runtime that need to force various
+    things to escape to the heap. This CL centralizes this functionality
+    into runtime.Escape, defined in export_test.
     
-    Also, under -v >= 2, dump symbol info on error for debugging.
-    
-    Updates #58966.
-    
-    Change-Id: I0f832c517d64f4b672b313a8b9be2d028744f945
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476735
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2de2519661603ad46c372877a9c93efef8e7a857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402178
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
 
- src/cmd/go/testdata/script/link_external_undef.txt |  2 +-
- src/cmd/link/internal/ld/data.go                   | 13 ++++++++++---
- src/cmd/link/internal/ld/main.go                   |  8 ++++++++
- 3 files changed, 19 insertions(+), 4 deletions(-)
+ src/runtime/export_test.go | 18 +++++++++---------
+ src/runtime/gc_test.go     | 10 ++++------
+ src/runtime/gcinfo_test.go | 25 +++++++++----------------
+ src/runtime/malloc_test.go | 21 +++++----------------
+ src/runtime/map_test.go    | 14 ++++----------
+ 5 files changed, 31 insertions(+), 57 deletions(-)

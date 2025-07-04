@@ -1,16 +1,20 @@
-commit 944df9a7516021f0405cd8adb1e6894ae9872cb5
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Nov 19 09:04:11 2024 -0800
+commit 95ef1e7efc42a511b2aebff6c9391fec56462330
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 18 02:36:20 2022 +1000
 
-    runtime: use indirect call in adjustSignalStack to avoid nosplit overflow
+    cmd/link: enable linking on openbsd/riscv64
     
-    Avoids a nosplit stack overflow on OpenBSD after CL 591997
-    increases the adjustSignalStack stack by 16 bytes.
+    Updates #55999
     
-    Change-Id: I2c990de6c7cd8d2aca6e6b98133da120c8a4174b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629696
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6e48e6649e19a9b2d776745c05eefb3995b6dd00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518625
+    Reviewed-by: Aaron Bieber <deftly@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/runtime/signal_unix.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/riscv64/obj.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

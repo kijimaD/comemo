@@ -1,21 +1,20 @@
-commit 0f99a91bb56dd01dfd4e5ce4344e6006e3463ade
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 8 21:02:36 2014 -0400
+commit 55fa7659c990701b3b7fb21e5364585793b9e452
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 3 15:57:03 2014 -0700
 
-    runtime: let stack copier update Panic structs for us
+    text/template: 0xef is an integer, not a floating-point value.
+    The discriminator in the execution engine was stupid.
+    Add a test to the parse package too. The problem wasn't there
+    but the particular case ('e' in a hex integer) was not covered.
     
-    It already is updating parts of them; we're just getting lucky
-    retraversing them and not finding much to do.
-    Change argp to a pointer so that it will be updated too.
-    Existing tests break if you apply the change to adjustpanics
-    without also updating the type of argp.
+    Fixes #8622.
     
-    LGTM=khr
-    R=khr
+    LGTM=ruiu
+    R=golang-codereviews, ruiu
     CC=golang-codereviews
-    https://golang.org/cl/139380043
+    https://golang.org/cl/133530043
 
- src/runtime/panic.go  |  6 +++---
- src/runtime/runtime.h |  2 +-
- src/runtime/stack.c   | 20 +++++++++-----------
- 3 files changed, 13 insertions(+), 15 deletions(-)
+ src/pkg/text/template/exec.go             | 6 +++++-
+ src/pkg/text/template/exec_test.go        | 5 +++++
+ src/pkg/text/template/parse/parse_test.go | 2 ++
+ 3 files changed, 12 insertions(+), 1 deletion(-)

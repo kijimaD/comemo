@@ -1,19 +1,12 @@
-commit d326a9641994eccdac1c95901762af45ec801bf1
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Wed Jan 27 19:10:11 2016 +0000
+commit 4bae454d6865b64d189b797f4870a6c9eeb8212d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Nov 3 10:23:56 2015 +1300
 
-    runtime: remove redundant empty function call from Breakpoint on arm
+    cmd/link: work around arm64 linker bugs with GOT relocations against local symbols
     
-    CL 18964 included an extra patch (sorry, my first experience of
-    git-codereview) which defined the conventional breakpoint instruction
-    used by Plan 9 on arm, but also introduced a benign but unneeded
-    call to runtime.emptyfunc.  This CL removes the redundant call again.
-    
-    This completes the series of CLs which add support for Plan 9 on arm.
-    
-    Change-Id: Id293cfd40557c9d79b4b6cb164ed7ed49295b178
-    Reviewed-on: https://go-review.googlesource.com/19010
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie14530c57720f1af1960ab77686b860e906058c6
+    Reviewed-on: https://go-review.googlesource.com/16582
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/asm_arm.s | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/link/internal/arm64/asm.go | 34 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)

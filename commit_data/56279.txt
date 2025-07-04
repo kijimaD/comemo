@@ -1,20 +1,27 @@
-commit 8d880da1c42d0bc81e9e350df4f3fc4238c79873
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 9 14:14:58 2024 -0800
+commit 2c70690451f1484607a9172a4c24f78ae832dcb0
+Author: Tero Saarni <tero.saarni@gmail.com>
+Date:   Wed Apr 12 10:07:07 2023 +0000
 
-    cmd/cgo/internal/test: don't skip some tests on musl
+    crypto/tls: fix PSK binder calculation
     
-    They reportedly work at least as of Alpine 3.18.
+    When server and client have mismatch in curve preference, the server will
+    send HelloRetryRequest during TLSv1.3 PSK resumption. There was a bug
+    introduced by Go1.19.6 or later and Go1.20.1 or later, that makes the client
+    calculate the PSK binder hash incorrectly. Server will reject the TLS
+    handshake by sending alert: invalid PSK binder.
     
-    Fixes #39857
+    Fixes #59424
     
-    Change-Id: I6a249d61d33e467bf32e8c250f870fc261b90941
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/563096
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I2ca8948474275740a36d991c057b62a13392dbb9
+    GitHub-Last-Rev: 1aad9bcf27f563449c1a7ed6d0dd1d247cc65713
+    GitHub-Pull-Request: golang/go#59425
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481955
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/cmd/cgo/internal/test/cgo_linux_test.go | 15 +--------------
- 1 file changed, 1 insertion(+), 14 deletions(-)
+ src/crypto/tls/handshake_client_test.go  | 21 +++++++++++++++++++++
+ src/crypto/tls/handshake_client_tls13.go |  2 +-
+ 2 files changed, 22 insertions(+), 1 deletion(-)

@@ -1,19 +1,13 @@
-commit 8e9c6431f06da0c2e4f77dab23b86c0b98b9174c
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Sun Mar 29 23:27:58 2015 +0000
+commit 258752079766607682e07834e81e0b69208cece8
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 4 12:55:04 2015 -0500
 
-    cmd/internal/ld: maintain Ctxt.Etextp when removing dead code
+    log/syslog: avoid unix sockets on darwin/arm
     
-    I wrote some code that added a function in gentext() by sticking it
-    after Ctxt.Etextp and was very confused when this wasn't written out
-    sometimes. It turned out that Etextp was not updated by deadcode() so
-    if the last function is not reachable, my new function was never
-    seen. This changes deadcode() to update Etextp to the last reachable
-    funtion.
-    
-    Change-Id: Ib6a3e7c67ccfb8a15826ce9e0ef046732b5e25d2
-    Reviewed-on: https://go-review.googlesource.com/8233
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ice4f78e74ec3025a974ffd9ca5e3d28bb3164f40
+    Reviewed-on: https://go-review.googlesource.com/6794
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/internal/ld/go.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/log/syslog/syslog_test.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

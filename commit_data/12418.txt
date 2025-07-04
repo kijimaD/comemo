@@ -1,86 +1,15 @@
-commit 932c8ddba158a91056eba87045bb6d5ddbeb39f7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 5 22:36:15 2012 -0800
+commit 36708a40e0511d7654f30615e9ca4452a4d90cc4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 6 17:21:39 2012 +1100
 
-    cmd/go: allow go get with arbitrary URLs
+    cmd/dist: use correct hg tag for go version
     
-    This CL permits using arbitrary, non-VCS-qualified URLs as
-    aliases for fully VCS-qualified and/or well-known code hosting
-    sites.
+    When looking for suitable tag always start
+    from current version, not the tip.
     
-    Example 1) A VCS-qualified URL can now be shorter.
-    
-    Before:
-    $ go get camlistore.org/r/p/camlistore.git/pkg/blobref
-    After:
-    $ go get camlistore.org/pkg/blobref
-    
-    Example 2) A custom domain can be used as the import,
-    referencing a well-known code hosting site.
-    
-    Before:
-    $ go get github.com/bradfitz/sonden
-    After:
-    $ go get bradfitz.com/pkg/sonden
-    
-    The mechanism used is a <meta> tag in the HTML document
-    retrieved from fetching:
-    
-        https://<import>?go-get=1  (preferred)
-        http://<import>?go-get=1   (fallback)
-    
-    The meta tag should look like:
-    
-    <meta name="go-import" content="import-alias-prefix vcs full-repo-root">
-    
-    The full-repo-root must be a full URL root to a repository containing
-    a scheme and *not* containing a ".vcs" qualifier.
-    
-    The vcs is one of "git", "hg", "svn", etc.
-    
-    The import-alias-prefix must be a prefix or exact match of the
-    package being fetched with "go get".
-    
-    If there are multiple meta tags, only the one with a prefix
-    matching the import path is used. It is an error if multiple
-    go-import values match the import prefix.
-    
-    If the import-alias-prefix is not an exact match for the import,
-    another HTTP fetch is performed, at the declared root (which does
-    *not* need to be the domain's root).
-    
-    For example, assuming that "camlistore.org/pkg/blobref" declares
-    in its HTML head:
-    
-    <meta name="go-import" content="camlistore.org git https://camlistore.org/r/p/camlistore" />
-    
-    ... then:
-    
-    $ go get camlistore.org/pkg/blobref
-    
-    ... looks at the following URLs:
-    
-       https://camlistore.org/pkg/blobref?go-get=1
-       http://camlistore.org/pkg/blobref?go-get=1
-       https://camlistore.org/?go-get=1
-       http://camlistore.org/?go-get=1
-    
-    Ultimately it finds, at the root (camlistore.org/), the same go-import:
-    
-    <meta name="go-import" content="camlistore.org git https://camlistore.org/r/p/camlistore" />
-    
-    ... and proceeds to trust it, checking out git //camlistore.org/r/p/camlistore at
-    the import path of "camlistore.org" on disk.
-    
-    Fixes #3099
-    
-    R=r, rsc, gary.burd, eikeon, untheoretic, n13m3y3r, rsc
+    R=minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/5660051
+    https://golang.org/cl/5731059
 
- src/cmd/go/bootstrap.go |  17 ++++-
- src/cmd/go/discovery.go |  63 +++++++++++++++++++
- src/cmd/go/get.go       |   9 +--
- src/cmd/go/http.go      |  51 +++++++++++++++
- src/cmd/go/vcs.go       | 162 +++++++++++++++++++++++++++++++++++++++++++-----
- 5 files changed, 282 insertions(+), 20 deletions(-)
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

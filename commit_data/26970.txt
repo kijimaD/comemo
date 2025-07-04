@@ -1,15 +1,22 @@
-commit d6b177d1eb7849375e246b97c58406aed7350c86
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 14 15:08:24 2016 -0400
+commit 8c838192b84c062ccf208809320cab68d762a973
+Author: Hitoshi Mitake <mitake.hitoshi@gmail.com>
+Date:   Wed Jan 13 23:06:27 2016 +0900
 
-    runtime: remove empty 386 archauxv
+    runtime: don't print EnableGC flag in WriteHeapProfile()
     
-    archauxv no longer does anything on 386, so remove it.
+    Current runtime.WriteHeapProfile() doesn't print correct
+    EnableGC. Even if GOGC=off, the result file has below line:
+     # EnableGC = true
     
-    Change-Id: I94545238e40fa6a6832a7c3b40aedfc6c1f6a97b
-    Reviewed-on: https://go-review.googlesource.com/22063
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    It is hard to print correct status of the variable because of corner
+    cases e.g. initialization. For avoiding confusion, this commit removes
+    the print.
+    
+    Change-Id: Ia792454a6c650bdc50a06fbaff4df7b6330ae08a
+    Reviewed-on: https://go-review.googlesource.com/18600
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/os_linux_386.go    | 12 ------------
- src/runtime/os_linux_noauxv.go |  2 +-
- 2 files changed, 1 insertion(+), 13 deletions(-)
+ src/runtime/pprof/pprof.go | 1 -
+ 1 file changed, 1 deletion(-)

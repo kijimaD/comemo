@@ -1,15 +1,29 @@
-commit fd2bc8681d10d3ca98647f4911e498d4e341ab65
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Nov 25 14:27:26 2015 +1300
+commit 13be616e560411f6f252f728deed3c0b3e145fed
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 15 14:14:44 2015 -0700
 
-    runtime: fix conflict resolution in golang.org/cl/14207
+    bufio: allow Scanner to accept a user-provided buffer
     
-    Fixes testshared on arm64 and ppc64le.
+    Add Scanner.Buffer, which lets the user give a buffer to
+    the scanner and set the maximum token size.
     
-    Change-Id: Ie94bc0c85c7666fbb5ab6fc6d3dbb180407a9955
-    Reviewed-on: https://go-review.googlesource.com/17212
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    We call it Buffer not SetBuffer for consistency with Split, which
+    perhaps should have been called SetSplit; too late regardless.
+    
+    Both Buffer and Split panic if they are called after Scan. The
+    panic in Split is new, but the comment on the method already
+    said it needed to be called first, so we might as well add the
+    verification while we're doing it for Buffer.
+    
+    This method allows precise user control of storage.
+    
+    Fixes #11702.
+    
+    Change-Id: I80e3d0e3830562fdabd4f7b08f322e1378248c39
+    Reviewed-on: https://go-review.googlesource.com/14599
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
 
- src/runtime/asm_arm64.s  | 1 +
- src/runtime/asm_ppc64x.s | 1 +
- 2 files changed, 2 insertions(+)
+ src/bufio/scan.go      | 45 ++++++++++++++++++++++++++++++++++++++++-----
+ src/bufio/scan_test.go | 16 ++++++++++++++++
+ 2 files changed, 56 insertions(+), 5 deletions(-)

@@ -1,33 +1,32 @@
-commit 2a4845257fea627da8b30444a498576ea90b5401
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Sep 5 20:50:54 2021 +0700
+commit 788dad53c5934f43e5be451d4a9b3f1cd75c7123
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 22 17:12:49 2020 -0500
 
-    cmd/compile: fix deadlock in (*Named).load
+    [dev.typeparams] cmd/compile/internal/types2: disable external test temporarily
     
-    For lazy import resolution, there's reentrancy issue with (*Named).load
-    method, when "t.resolve(t)" can lead us to the same named type, thus
-    (*Named).load is called recursively, causing the deadlock.
+    This is making rf unhappy for extremely subtle reasons,
+    so for now just disable the external test here. Will reenable
+    once the big rewrite is done.
     
-    The main problem is that when instantinate a type, we calculate the type
-    hashing, including TParams. Calling t.TParams().Len() triggers the
-    reentrancy call to "(*Named).load".
-    
-    To fix this, just not checking TParams().Len() if we are hashing.
-    
-    Updates #48185
-    
-    Change-Id: Ie34842d7b10fad5d11fbcf75bb1c64a89deac6b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347534
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ifd1ba95e2843792427629d1660850fe531cdd0b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279531
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/typestring.go |  2 +-
- test/typeparam/issue48185a.dir/p.go           | 19 +++++++++++++++++++
- test/typeparam/issue48185a.dir/p_test.go      | 11 +++++++++++
- test/typeparam/issue48185a.go                 |  7 +++++++
- 4 files changed, 38 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/api_test.go        | 2 ++
+ src/cmd/compile/internal/types2/builtins_test.go   | 2 ++
+ src/cmd/compile/internal/types2/check_test.go      | 2 ++
+ src/cmd/compile/internal/types2/example_test.go    | 2 ++
+ src/cmd/compile/internal/types2/exprstring_test.go | 2 ++
+ src/cmd/compile/internal/types2/hilbert_test.go    | 2 ++
+ src/cmd/compile/internal/types2/importer_test.go   | 2 ++
+ src/cmd/compile/internal/types2/issues_test.go     | 2 ++
+ src/cmd/compile/internal/types2/resolver_test.go   | 2 ++
+ src/cmd/compile/internal/types2/self_test.go       | 2 ++
+ src/cmd/compile/internal/types2/sizes_test.go      | 2 ++
+ src/cmd/compile/internal/types2/stdlib_test.go     | 2 ++
+ src/cmd/compile/internal/types2/typestring_test.go | 2 ++
+ 13 files changed, 26 insertions(+)

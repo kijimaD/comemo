@@ -1,13 +1,22 @@
-commit b99a6d465a5a08ea5217d72e8e7a6202b80320d2
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 19 12:36:52 2011 -0800
+commit 1558834248858f268e5ae8b57a213f373a0f61e0
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed Jan 19 15:30:26 2011 -0500
 
-    runtime/debug: fix build (missing Makefile)
-    Why does this happen so often?
+    5a, 5l, 6a, 6l, 8a, 8l: handle out of memory, large allocations
     
-    R=rsc
+    Fixes #392.
+    
+    R=rsc, r2
     CC=golang-dev
-    https://golang.org/cl/4067042
+    https://golang.org/cl/2732042
 
- src/pkg/runtime/debug/Makefile | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/5a/a.h     |  1 -
+ src/cmd/5l/l.h     |  1 -
+ src/cmd/6a/a.h     |  1 -
+ src/cmd/6l/l.h     |  1 -
+ src/cmd/8a/a.h     |  1 -
+ src/cmd/8l/l.h     |  1 -
+ src/cmd/cc/cc.h    |  1 -
+ src/cmd/cc/dpchk.c |  1 +
+ src/cmd/cc/lexbody | 43 ++++++++++++++-----------------------------
+ 9 files changed, 15 insertions(+), 36 deletions(-)

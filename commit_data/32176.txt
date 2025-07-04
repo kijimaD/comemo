@@ -1,32 +1,18 @@
-commit ead6255ce3bd39e56d66f39471ab1854fd4f67f2
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Aug 9 13:12:50 2017 -0700
+commit 5a8eae6d47d768a8900ddf7a6a4d20db53ae519d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Apr 11 09:54:08 2017 +0900
 
-    archive/tar: check for permissible output formats first
+    os: adjust error in Stat on windows
     
-    The current logic in writeHeader attempts to encode the Header in one
-    format and if it discovered that it could not it would attempt to
-    switch to a different format mid-way through. This makes it very
-    hard to reason about what format will be used in the end and whether
-    it will even be a valid format.
+    Current code could return a non-nil os.FileInfo even if there is an error.
+    This is a bit incompatible with Stat on other OSes.
     
-    Instead, we should verify from the start what formats are allowed
-    to encode the given input Header. If no formats are possible,
-    then we can return immediately, rejecting the Header.
-    
-    For now, we continue on to the hairy logic in writeHeader, but
-    a future CL can split that logic up and specialize them for each
-    format now that we know what is possible.
-    
-    Update #9683
-    Update #12594
-    
-    Change-Id: I8406ea855dfcb8b478a03a7058ddf8b2b09d46dc
-    Reviewed-on: https://go-review.googlesource.com/54433
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I37b608da234f957bb89b82509649de78ccc70bbb
+    Reviewed-on: https://go-review.googlesource.com/40330
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/common.go   | 101 +++++++++++++++++++++++++++++++++++
- src/archive/tar/tar_test.go | 127 ++++++++++++++++++++++++++++++++++++++++++++
- src/archive/tar/writer.go   |  18 ++++++-
- 3 files changed, 245 insertions(+), 1 deletion(-)
+ src/os/os_test.go      | 39 +++++++++++++++++++++++++++++++++++++++
+ src/os/stat_windows.go |  4 ++--
+ 2 files changed, 41 insertions(+), 2 deletions(-)

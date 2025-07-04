@@ -1,28 +1,16 @@
-commit fb9e37cd9bc9fcb3c8a325867ef843b2e23d1853
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 9 14:23:01 2011 -0800
+commit 2a81292ac35a1a71d64f28150c96e57b74f882d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 14:08:19 2011 -0800
 
-    template: reverse order of arguments to Execute
+    srcextract: HTML-escape output if so desired
     
-    In line with other functions such as Fprintf, put the
-    thing to be written first.
+    This functionality was removed with CL 4169041.
     
-    Apologies for the breakages this is sure to cause.
+    Minor simplifications.
     
-    R=rsc, gri, adg, eds, r2, aam
+    R=r, adg
     CC=golang-dev
-    https://golang.org/cl/4169042
+    https://golang.org/cl/4171042
 
- doc/codelab/wiki/final.go         |  2 +-
- doc/codelab/wiki/index.html       |  2 +-
- doc/effective_go.html             |  2 +-
- misc/goplay/goplay.go             |  8 ++++----
- src/cmd/godoc/godoc.go            |  4 ++--
- src/cmd/godoc/main.go             |  2 +-
- src/cmd/goinstall/make.go         |  2 +-
- src/pkg/exp/eval/gen.go           |  2 +-
- src/pkg/rpc/debug.go              |  2 +-
- src/pkg/template/template.go      |  2 +-
- src/pkg/template/template_test.go | 20 ++++++++++----------
- test/chan/select5.go              |  2 +-
- 12 files changed, 25 insertions(+), 25 deletions(-)
+ doc/codelab/wiki/srcextract.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

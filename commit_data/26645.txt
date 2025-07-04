@@ -1,19 +1,15 @@
-commit 1bf779a44a924650885111c6161c0c5a22968dbf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 31 04:03:57 2016 -0700
+commit 699a2ba137fec09371da431907431ec2020a58af
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 19 18:36:02 2016 -0800
 
-    net/http/httputil: make ReverseProxy return 502 Bad Gateway instead of 500
+    cmd/compile: switch cannedimports to use a Biobuf
     
-    ... when the backend can't be reached.
+    Allows eliminating the separate lexer code paths for reading from cp
+    in the next CL.
     
-    Fixes #9864
-    
-    Change-Id: I9e4814824943060e0101b6236d6dfd8d7822b4c7
-    Reviewed-on: https://go-review.googlesource.com/21363
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I49098ecef32b735c4a01374443c2f847235ff964
+    Reviewed-on: https://go-review.googlesource.com/19750
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/httputil/reverseproxy.go      |  2 +-
- src/net/http/httputil/reverseproxy_test.go | 20 ++++++++++++++++++++
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

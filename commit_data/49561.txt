@@ -1,18 +1,28 @@
-commit e6c0546c54f6f3fa7c6cb5002ecc839bc89d5d20
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Jun 27 18:04:56 2022 -0700
+commit a9377183d0f3ccd49631e2d927d55d91f2ab5ec6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 19:18:57 2021 -0700
 
-    crypto/x509/pkix: move crl deprecation message
+    cmd/compile/internal/types: unexport New and NewBasic
     
-    There was a deprecation message on RevokedCertificate which was
-    intended to be on CertificateList.
+    Now that the universe is fully initialized within package types, we
+    can stop exporting New and NewBasic, which are only needed for that
+    purpose. So this CL renames "New" to "newType" and "NewBasic" to
+    "newBasic".
     
-    Change-Id: Ia378935afc75c36702e64cf33ea5c8a24c1488ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414754
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+    This CL also moves the initialization of Types[TBLANK] and Types[TNIL]
+    from typecheck.InitUniverse to types.InitTypes, which I missed in an
+    earlier CL. And a use of "New(TSTRING)" in test/abiutils_test.go,
+    which should just be "Types[TSTRING]" anyway.
+    
+    Change-Id: I1d83f93e27b88be289d4f3f6c16357a20f570460
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345487
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/pkix/pkix.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/test/abiutils_test.go |  2 +-
+ src/cmd/compile/internal/typecheck/universe.go |  3 --
+ src/cmd/compile/internal/types/type.go         | 52 +++++++++++++-------------
+ src/cmd/compile/internal/types/universe.go     |  7 +++-
+ 4 files changed, 32 insertions(+), 32 deletions(-)

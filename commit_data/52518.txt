@@ -1,24 +1,18 @@
-commit 6991f63d9e97b2a76f29170450f40b5ac6bb87f3
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Sat Apr 1 20:19:37 2023 -0400
+commit eed77574d029e8c8426195bc9e7267462f568a8a
+Author: Keith Randall <khr@golang.org>
+Date:   Sun May 8 08:32:07 2022 -0700
 
-    runtime/trace: Fix TestTraceSymbolize on solaris and illumos
+    cmd/compile: trying to linkname a method is not an ICE, just an error
     
-    Fix a regression caused by CL 463835. Unlike most platforms, solaris and
-    illumos don't use a libc_read_trampoline, so we need to skip one frame
-    less when using frame pointer unwinding in traceGoSysCall.
+    Fixes #52774
     
-    The solution is a bit hacky, so it might make sense to implement
-    gp.syscallbp if this causes more test failures in the future.
-    
-    Fixes #59350
-    
-    Change-Id: I0f0b08f36efe8a492eb4a535e752c03636857057
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481336
+    Change-Id: I853f462146d10e44a35e5a8716d41f32b6052fd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404936
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
 
- src/runtime/trace.go | 27 +++++++++++++++++----------
- 1 file changed, 17 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssagen/abi.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,18 +1,26 @@
-commit 2ca1ae8e09a9f821d4bc04c06b18114eafdea12f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 31 20:35:47 2024 -0700
+commit 60e6afb689f97ecddb31496f68f351cc01f2a174
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jun 8 09:58:22 2023 +0700
 
-    os: clarify Rename docs for renaming to a directory
+    cmd/compile: do not report division by error during typecheck
     
-    Fixes #68690
+    types2 have already errored about any spec-required overflows, and
+    division by zero. CL 469595 unintentionally fixed typecheck not to error
+    about overflows, but zero division is still be checked during tcArith.
+    This causes unsafe operations with variable size failed to compile,
+    instead of raising runtime error.
     
-    Change-Id: Iebc27d5f385d787e568550a863f59f16c7a79fd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602178
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #60601
+    
+    Change-Id: I7bea2821099556835c920713397f7c5d8a4025ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501735
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/file.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/typecheck/expr.go |  7 -----
+ test/fixedbugs/issue60601.go               | 50 ++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 7 deletions(-)

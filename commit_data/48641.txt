@@ -1,26 +1,19 @@
-commit 26ab2159694b19ef5feb56f4fe7a9cd18360dcdd
-Author: erifan01 <eric.fang@arm.com>
-Date:   Wed Aug 12 17:41:54 2020 +0800
+commit 93a886a165ed39bcfb842f88f17fc2cd7d005ab9
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 3 11:10:08 2021 -0400
 
-    cmd/asm: add TLBI instruction on arm64
+    [dev.typeparams] go/types: move struct checking into separate file
     
-    There was only a placeholder for TLBI instruction in the previous code.
-    gVisor needs this instruction. This CL completes its support.
+    This is a port of CL 321589 to go/types. Specifically, the same checker
+    methods were moved.
     
-    This patch is a copy of CL 250758, contributed by Junchen Li(junchen.li@arm.com).
-    Co-authored-by: Junchen Li(junchen.li@arm.com)
-    
-    Change-Id: I69e893d2c1f75e227475de9e677548e14870f3cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302850
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Eric Fang <eric.fang@arm.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If07d96faa77d2f9409d8895f970149c42cbfe440
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324753
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s          |  80 ++++++++++++++
- src/cmd/asm/internal/asm/testdata/arm64enc.s       |   2 +-
- src/cmd/asm/internal/asm/testdata/arm64error.s     |   5 +
- src/cmd/internal/obj/arm64/a.out.go                |  80 ++++++++++++++
- src/cmd/internal/obj/arm64/asm7.go                 | 121 ++++++++++++++++++++-
- .../internal/obj/arm64/specialoperand_string.go    | 120 ++++++++++++++++----
- 6 files changed, 383 insertions(+), 25 deletions(-)
+ src/go/types/struct.go  | 154 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/typexpr.go | 144 --------------------------------------------
+ 2 files changed, 154 insertions(+), 144 deletions(-)

@@ -1,0 +1,48 @@
+commit 04879acdebbb08bdca00356f043d769c4b4375ce
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 25 11:27:33 2024 -0800
+
+    net/http: test for racing idle conn closure and new requests
+    
+    TestTransportRemovesH2ConnsAfterIdle is experiencing flaky
+    failures due to a bug in idle connection handling.
+    Upon inspection, TestTransportRemovesH2ConnsAfterIdle
+    is slow and (I think) not currently testing the condition
+    that it was added to test.
+    
+    Using the new synctest package, this CL:
+    
+    - Adds a test for the failure causing flakes in this test.
+    - Rewrites the existing test to use synctest to avoid sleeps.
+    - Adds a new test that covers the condition the test was
+      intended to examine.
+    
+    The new TestTransportIdleConnRacesRequest exercises the
+    scenario where a never-used connection is closed by the
+    idle-conn timer at the same time as a new request attempts
+    to use it. In this race, the new request should either
+    successfully use the old connection (superseding the
+    idle timer) or should use a new connection; it should not
+    use the closing connection and fail.
+    
+    TestTransportRemovesConnsAfterIdle verifies that
+    a connection is reused before the idle timer expires,
+    and not reused after.
+    
+    TestTransportRemovesConnsAfterBroken verifies
+    that a connection is not reused after it encounters
+    an error. This exercises the bug fixed in CL 196665,
+    which introduced TestTransportRemovesH2ConnsAfterIdle.
+    
+    For #70515
+    
+    Change-Id: Id23026d2903fb15ef9a831b2df71177ea177b096
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631795
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/net/http/clientserver_test.go |  65 +++++++++++--
+ src/net/http/netconn_test.go      |  48 +++++++---
+ src/net/http/transport_test.go    | 195 +++++++++++++++++++++++++++++++-------
+ 3 files changed, 253 insertions(+), 55 deletions(-)

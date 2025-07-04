@@ -1,12 +1,22 @@
-commit 62a296cd5482312cc656a4ead421acef00538cc1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 24 23:02:08 2016 -0700
+commit 733f835f307595366a87fd377ba60c5d23841982
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 27 19:34:17 2016 +1000
 
-    cmd/compile: use printer in sconv, symfmt
+    cmd/compile/internal/gc: remove all uses of oconv(op, FmtSharp)
     
-    Change-Id: Iec33775ff5a786f6c52024d592f634231acf91c0
-    Reviewed-on: https://go-review.googlesource.com/27918
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #15462
+    
+    Replace all use of oconv(op, FmtSharp) with fmt.Printf("%#v", op).
+    This removes all the callers of oconv.
+    
+    Change-Id: Ic3bf22495147f8497c8bada01d681428e2405b0e
+    Reviewed-on: https://go-review.googlesource.com/22530
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 137 +++++++++++++++++++------------------
- 1 file changed, 70 insertions(+), 67 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go    | 39 ++++++++++++++++++-----------------
+ src/cmd/compile/internal/gc/pgen.go   |  2 +-
+ src/cmd/compile/internal/gc/unsafe.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go   |  2 +-
+ 4 files changed, 23 insertions(+), 22 deletions(-)

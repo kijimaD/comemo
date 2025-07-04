@@ -1,27 +1,16 @@
-commit 252324e879e32f948d885f787decf8af06f82be9
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Oct 24 12:28:18 2021 +0200
+commit 6521c7b3786a69bc6ad3840ef2e3ba2088ad1cae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 09:39:01 2021 -0800
 
-    cmd/link: increase reserved space for passing env on wasm
+    [dev.typeparams] cmd/compile/internal/types2: resolve decl cycle the same way as in go/types
     
-    On wasm, the wasm_exec.js helper passes the command line arguments and
-    environment variables via a reserved space in the wasm linear memory.
-    Increase this reserved space from 4096 to 8192 bytes so more environment
-    variables can fit into the limit.
+    Minor adjustment to match go/types more closely.
     
-    Later, after https://golang.org/cl/350737 landed, we can switch to the
-    WASI interface for getting the arguments and environment. This would
-    remove the limit entirely.
-    
-    Fixes #49011
-    
-    Change-Id: I48a6e952a97d33404ed692c98e9b49c5cd6b269b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358194
-    Trust: Richard Musiol <neelance@gmail.com>
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Id79c51f0ecd8cda0f5b68f6e961500f7f22f7115
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294270
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- misc/wasm/wasm_exec.js           | 4 ++--
- src/cmd/link/internal/ld/data.go | 7 ++++---
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/expr.go | 44 ++++++++++++++++++++-------------
+ src/cmd/compile/internal/types2/type.go | 11 +--------
+ 2 files changed, 28 insertions(+), 27 deletions(-)

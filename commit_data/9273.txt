@@ -1,13 +1,12 @@
-commit 6ed27d4770c8141e31c665089772090117c32b97
+commit 5c5ce6d24d766b47791cb4066748e8ef26ecae9a
 Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Mon Aug 1 09:03:35 2011 -0700
+Date:   Mon Aug 1 09:02:06 2011 -0700
 
-    exp/template: make index function on maps return zero value when key not present.
+    exp/template: ensure that a valid Set is returned even on error.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4808065
+    https://golang.org/cl/4838044
 
- src/pkg/exp/template/exec_test.go | 2 +-
- src/pkg/exp/template/funcs.go     | 7 ++++---
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/exp/template/helper.go | 3 +++
+ 1 file changed, 3 insertions(+)

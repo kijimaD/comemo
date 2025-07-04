@@ -1,15 +1,18 @@
-commit 7a256adbafed8599d7c355422f50d4b95b60bf46
-Author: changwang ma <machangwang.cn@gmail.com>
-Date:   Fri Oct 25 23:41:42 2024 +0800
+commit c9911b9a842f4399f59957da5622bc535dc2c688
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Aug 26 13:48:38 2023 +0100
 
-    os: add File.Close for TestFileStatNUL
+    log/slog: package doc fixes
     
-    Change-Id: I9f8b0beed16f38d71055cdc7606306d93fb535c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622655
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #62286
+    
+    Change-Id: If463436e3b5ba6e4eb850097395e00482d0dc671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523196
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Sean Liao <sean@liao.dev>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
 
- src/os/os_windows_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/log/slog/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

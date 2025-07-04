@@ -1,12 +1,12 @@
-commit 9de38d6788efec8d65c51d47e5a5b503be8df14f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 1 14:30:51 2013 -0700
+commit 3bd076991bcb619f076dab99a17cdd620dada037
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 1 10:00:05 2013 -0400
 
-    runtime/cgo: export symbols in both internal and external link mode
+    doc: link to Go 1.1 release notes
     
-    R=rsc, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9060045
+    https://golang.org/cl/9047045
 
- src/pkg/runtime/cgo/callbacks.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ doc/docs.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

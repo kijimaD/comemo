@@ -1,0 +1,15 @@
+commit cc874072f3778a2b2cbe972b703dd6552ae63831
+Author: Eng Zer Jun <engzerjun@gmail.com>
+Date:   Sun Jan 12 18:02:45 2025 +0800
+
+    math/big: use built-in max function
+    
+    Change-Id: I65721039dab311762e55c6a60dd75b82f6b4622f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642335
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/math/big/float.go | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)

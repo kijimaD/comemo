@@ -1,22 +1,15 @@
-commit 463009ff06c246afa7a7d0999c198fc5a3808294
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Feb 19 18:11:16 2012 -0500
+commit 72f5a91aa3c040d48ba85fbc86f05d84400af114
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 19 18:04:38 2012 -0500
 
-    5a, 5c, 5g, 5l: fix build for Linux/ARM.
-    ARM doesn't have the concept of scale, so I renamed the field
-    Addr.scale to Addr.flag to better reflect its true meaning.
+    doc/go1: update for runtime, unsafe API changes
     
-    R=rsc
+    Fixes #2890.
+    
+    R=golang-dev, r, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/5687044
+    https://golang.org/cl/5683044
 
- src/cmd/5a/lex.c   | 1 +
- src/cmd/5c/swt.c   | 7 ++++---
- src/cmd/5g/gg.h    | 1 +
- src/cmd/5g/gobj.c  | 1 +
- src/cmd/5g/gsubr.c | 5 +++--
- src/cmd/5l/asm.c   | 2 ++
- src/cmd/5l/l.h     | 1 +
- src/cmd/5l/obj.c   | 5 +++--
- src/libmach/5obj.c | 2 +-
- 9 files changed, 17 insertions(+), 8 deletions(-)
+ doc/go1.html | 49 +++++++++++++++++++++++++++++++++++++++++++++++--
+ doc/go1.tmpl | 49 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 94 insertions(+), 4 deletions(-)

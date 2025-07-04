@@ -1,21 +1,22 @@
-commit 0fb33863b78c03f4f3d6228e310869f2edff1195
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Sep 28 16:20:58 2024 +0000
+commit 2fcfdb96860855be0c88e10e3fd5bb858420cfe2
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jun 15 17:39:59 2022 -0700
 
-    net,os: use os.LookupEnv instead of syscall.Getenv
+    strconv: rely on utf8.AppendRune
     
-    The os package already has a function for retrieving an environment
-    variable with a ok boolean, we don't need to use syscall directly.
+    This is both simpler and more performant.
     
-    Change-Id: Ife873e7245261ec765b628e31a0e7a7bc4dff934
-    GitHub-Last-Rev: bc5f30bf56c87a94e0f17dd67a15aa4b2d7e3fd4
-    GitHub-Pull-Request: golang/go#69700
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616342
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Quote             268ns ± 5%   258ns ± 4%  -3.70%  (p=0.014 n=10+10)
+    QuoteRune        28.9ns ± 3%  28.4ns ± 4%    ~     (p=0.113 n=9+10)
+    AppendQuote       165ns ± 3%   165ns ± 3%    ~     (p=0.661 n=9+10)
+    AppendQuoteRune  8.05ns ± 5%  7.75ns ± 7%    ~     (p=0.065 n=10+9)
+    
+    Change-Id: Ib0ee332e970d4986026c05e5e0e368f41eff7977
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412338
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/net/conf.go           | 3 +--
- src/os/exec/lp_windows.go | 3 +--
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/strconv/quote.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

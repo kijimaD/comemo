@@ -1,22 +1,15 @@
-commit 3be158d6ab73090a74df6bc3b7cfa062d896483a
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Sat Jan 10 14:00:21 2015 +0000
+commit 8bf6e09f4cbb0242039dd4602f1f2d58e30e0f26
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jan 21 00:39:53 2015 +0000
 
-    encoding/xml: encoding name spaces correctly
+    Revert "crypto/x509: implement crypto.Signer"
     
-    The current XML printer does not understand the xmlns
-    attribute. This change changes it so that it interprets the
-    xmlns attributes in the tokens being printed, and uses
-    appropriate prefixes.
+    This reverts commit cef15faafe5d15ba6242bad3504a52d287f78b88.
     
-    Fixes #7535.
-    
-    Change-Id: I20fae291d20602d37deb41ed42fab4c9a50ec85d
-    Reviewed-on: https://go-review.googlesource.com/2660
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: I6df3e9ea48cd58893892587dd5cd28c1eb759c48
+    Reviewed-on: https://go-review.googlesource.com/3090
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/encoding/xml/marshal.go      | 318 +++++++++++++++++++++++++++++++--------
- src/encoding/xml/marshal_test.go |  44 +++---
- src/encoding/xml/read_test.go    |  32 +++-
- src/encoding/xml/xml.go          |  37 ++++-
- 4 files changed, 344 insertions(+), 87 deletions(-)
+ src/crypto/x509/x509.go      | 106 +++++++++++++++++++++++++++++--------------
+ src/crypto/x509/x509_test.go |  12 ++---
+ 2 files changed, 77 insertions(+), 41 deletions(-)

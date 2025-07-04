@@ -1,31 +1,20 @@
-commit 44e752c38ad507fd2725f58ae58802b39b45f1d8
-Author: Keith Randall <khr@google.com>
-Date:   Wed Sep 25 13:24:54 2019 -0700
+commit ccaa4913864d49137012d04a0cd3ddf2d8ffc015
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 11 16:35:56 2019 -0400
 
-    runtime: fix ppc64le race code
+    cmd/go: log failures to remove workdir
     
-    This code is not currently compiling, the asm vet checks fail. When running race.bash on ppc64le, I get:
+    Failures here don't otherwise affect the build, but they do cause a
+    slow file leak in the user's temp directory. The user deserves at
+    least a cursory warning that something may be amiss.
     
-    runtime/race_ppc64le.s:104:1: [ppc64le] RaceReadRange: wrong argument size 24; expected $...-16
-    runtime/race_ppc64le.s:514:1: [ppc64le] racecallbackthunk: unknown variable cmd; offset 0 is arg+0(FP)
-    runtime/race_ppc64le.s:515:1: [ppc64le] racecallbackthunk: unknown variable ctx
+    Updates #30789
     
-    I'm also not sure why it ever worked; it looks like it is writing
-    the arguments to racecallback in the wrong place (the race detector
-    itself probably still works, it would just have trouble symbolizing
-    any resulting race report).
-    
-    At a meta-level, we should really add a ppc64le/race builder.
-    Otherwise this code will rot, as evidenced by the rot this CL fixes :)
-    
-    Update #33309
-    
-    Change-Id: I3b49c2442aa78538fbb631a143a757389a1368fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197337
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Id0e72b1967e7f7c88cdc94d532554496653f264b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171764
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/race_ppc64le.s | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/work/action.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

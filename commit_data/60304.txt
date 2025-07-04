@@ -1,0 +1,17 @@
+commit 8219848c944c7603df349775de66093af64f0fd4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 12 14:28:30 2024 -0700
+
+    spec: allow range-over-func to omit iteration variables
+    
+    For #65236.
+    
+    Change-Id: I5a11811cc52467ea4446db29c3f86b119f9b2409
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592295
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go_spec.html | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

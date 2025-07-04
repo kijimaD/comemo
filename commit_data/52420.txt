@@ -1,17 +1,16 @@
-commit 524f820b7fc6b191820c1e3813ca60677c91052a
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Mar 27 19:20:58 2023 +0000
+commit e7508598bb8007ec2a04cb25a6076643af05c033
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 3 15:40:40 2022 +0000
 
-    runtime: skip TestGdbCoreSignalBacktrace on arches other than 386/amd64
+    runtime: use Escape instead of escape in export_test.go
     
-    For #25218.
+    I landed the bottom CL of my stack without rebasing or retrying trybots,
+    but in the rebase "escape" was removed in favor of "Escape."
     
-    Change-Id: I4024a2064e0f56755fe40eb7489ba28eb4358c60
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479518
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Icdc4d8de8b6ebc782215f2836cd191377cc211df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403755
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/runtime-gdb_unix_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/export_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

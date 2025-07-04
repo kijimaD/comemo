@@ -1,21 +1,22 @@
-commit fbee173545da4ecbdd80a59edcb93e6c4605241f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Mar 4 22:27:41 2021 +0700
+commit f204ca305128ad1b500d3ba77aebf5509509a8fc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jul 29 19:44:49 2020 -0400
 
-    cmd/compile: fix wrong condition in tcShift
+    [dev.link] cmd/link: drop hash maps after loading
     
-    CL 279442 refactored typecheck arithmetic operators, but using wrong
-    condition for checking invalid rhs.
+    The hash maps are used to deduplicate hashed symbols. Once we
+    loaded all the symbols, we no longer need the hash maps. Drop
+    them.
     
-    Updates #43311
+    Linking cmd/compile,
     
-    Change-Id: I7a03a5535b82ac4ea4806725776b0a4f7af1b79a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298714
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    name         old live-B     new live-B     delta
+    Loadlib_GC      13.1M ± 0%     11.3M ± 0%   -13.62%  (p=0.008 n=5+5)
+    
+    Change-Id: I4bb1f84e1111a56d9e777cd6a68f7d974b60e321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245721
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/typecheck/expr.go | 2 +-
- test/fixedbugs/bug297.go                   | 7 ++++---
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/loader/loader.go      | 54 +++++++++++++++++++----------
+ src/cmd/link/internal/loader/loader_test.go |  3 +-
+ 2 files changed, 37 insertions(+), 20 deletions(-)

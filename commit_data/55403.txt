@@ -1,41 +1,25 @@
-commit 6e7aee5f6bdcf2823be358d6e4452b5e2fafb8ed
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jan 22 13:54:56 2024 -0500
+commit 53372ab2791f2bd8a02ef21928893d213e6bfe95
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Mon Jan 30 21:51:40 2023 -0800
 
-    net: delete TestListenCloseListen
+    misc: increase node stack size
     
-    In CL 557177, I attempted to fix a logical race in this test (#65175).
-    However, I introduced a data race in the process (#65209).
+    The default NodeJS V8 stack size is 984K, which is not enough to run
+    the regexp or go/parser tests. This commit increases the stack size
+    to 8192K, which removes the stack size limit error.
     
-    The race was reported on the windows-amd64-race builder. When I tried
-    to reproduce it on linux/amd64, I added a time.Sleep in the Accept
-    loop. However, that Sleep causes the test to fail outright with
-    EADDRINUSE, which suggests that my earlier guess about the open Conn
-    preventing reuse of the port was, in fact, incorrect.
+    Fixes #56498
+    Fixes #57614
     
-    On some platforms we could instead use SO_REUSEPORT and avoid closing
-    the first Listener entirely, but that wouldn't be even remotely in the
-    spirit of the original test.
-    
-    Since I don't see a way to preserve the test in a way that is not
-    inherently flaky / racy, I suggest that we just delete it. It was
-    originally added as a regression test for a bug in the nacl port,
-    which no longer exists anyway. (Some of that code may live on in the
-    wasm port, but it doesn't seem worth maintaining a flaky
-    port-independent test to maintain a regression test for a bug specific
-    to secondary platforms.)
-    
-    Fixes #65209.
-    Updates #65175.
-    
-    Change-Id: I32f9da779d24f2e133571f0971ec460cebe7820a
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557536
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I357885d420daf259187403deab25ff587defa0fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463994
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Julien Fabre <ju.pryz@gmail.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/net/net_test.go | 70 -----------------------------------------------------
- 1 file changed, 70 deletions(-)
+ misc/wasm/go_js_wasm_exec | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

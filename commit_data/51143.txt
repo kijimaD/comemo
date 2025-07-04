@@ -1,27 +1,30 @@
-commit dc98ccd836da7d22a5d270b9778fb055826fa07b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Nov 7 23:00:14 2022 +0100
+commit 46db6aa1573def4ba06dbf5c38e704d85dc303b6
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Tue Dec 7 13:32:24 2021 -0800
 
-    net/netip: use slice-to-array conversions
+    runtime: fix flake in TestCgoPprofThread
     
-    Resend of CL 432735 (with one additional conversion that the original CL
-    missed) after it broke the longtest builder on x/tools and was reverted
-    in CL 433478. Now that x/tools/go/ssa has support for this, the longtest
-    x/tools build passes as well.
+    If the test's main goroutine receives a SIGPROF while creating the
+    C-owned thread for the test, that sample will appear in the resulting
+    profile. The root end of that stack will show a set of Go functions. The
+    leaf end will be the C functions returned by the SetCgoTraceback
+    handler, which will confuse the test runner.
     
-    Use slice-to-array conversions in AddrFromSlice and
-    (*Addr).UnmarshalBinary. This allows using AddrFrom16 and drop the
-    redundant ipv6Slice helper.
+    Add a label to the main goroutine while it calls in to C, so all profile
+    samples that triggered the SetCgoTraceback handler are either correct,
+    or can easily be excluded from the test's analysis. (The labels will not
+    apply to the resulting C-owned thread, which does not use goroutines.)
     
-    For #46505
+    Fixes #43174
     
-    Change-Id: I4d8084b7a97f162e4f7d685c86aac56d960ff693
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448396
+    Change-Id: Ica3100ca0f191dcf91b30b0084e8541c5a25689f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370135
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/netip/netip.go | 22 +++++-----------------
- 1 file changed, 5 insertions(+), 17 deletions(-)
+ src/runtime/crash_cgo_test.go                   |  2 +-
+ src/runtime/testdata/testprogcgo/threadpprof.go | 10 +++++++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

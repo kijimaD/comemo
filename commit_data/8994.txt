@@ -1,25 +1,16 @@
-commit 87d9e7e166ade0902ef1f1cebaedfc475c2d3278
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sun Jul 10 14:29:47 2011 +1000
+commit 4d47600f467da4852119298ac90ca3dabee614c3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Jul 10 11:30:16 2011 +1000
 
-    image: change Pix[0] to mean top-left corner of an image's Rect instead
-    of the origin.
+    archive/zip: add Writer
     
-    image/png and image/jpeg benchmarks show no significant changes.
-    
-    The image/draw changes suggest to me that making a gofix for this is not
-    feasible. People are just going to have to make manual fixes.
-    
-    R=r
+    R=bradfitz, dchest, r, rsc
     CC=golang-dev
-    https://golang.org/cl/4681044
+    https://golang.org/cl/4523077
 
- src/pkg/exp/gui/x11/conn.go      |  64 +++++------
- src/pkg/image/draw/draw.go       | 155 +++++++++++++------------
- src/pkg/image/image.go           | 240 ++++++++++++++++++++++++++++-----------
- src/pkg/image/image_test.go      |   5 +
- src/pkg/image/jpeg/reader.go     |   4 +-
- src/pkg/image/jpeg/writer.go     |   4 +-
- src/pkg/image/png/writer.go      |   8 +-
- src/pkg/image/png/writer_test.go |   4 +-
- 8 files changed, 299 insertions(+), 185 deletions(-)
+ src/pkg/archive/zip/Makefile       |   1 +
+ src/pkg/archive/zip/reader.go      |  61 +++-------
+ src/pkg/archive/zip/struct.go      |  29 +++++
+ src/pkg/archive/zip/writer.go      | 244 +++++++++++++++++++++++++++++++++++++
+ src/pkg/archive/zip/writer_test.go |  73 +++++++++++
+ 5 files changed, 365 insertions(+), 43 deletions(-)

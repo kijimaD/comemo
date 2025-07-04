@@ -1,17 +1,16 @@
-commit 458632a21a7e532e10b7a64daf447e2ccfab97e1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 4 13:09:02 2012 -0800
+commit add1bed735e190abb03943a73e415576de211245
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 4 07:09:01 2012 -0800
 
-    spec: BuiltinCall syntax must permit "..." for append
+    net/http: clarify that Request.Host may contain a port number
     
-    Also: fix an incorrect link.
+    Fixes #4172
     
-    Fixes #4479.
-    Fixes #4456.
-    
-    R=rsc, iant, r, ken
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6868062
+    https://golang.org/cl/6872055
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/http/request.go      |  1 +
+ src/pkg/net/http/request_test.go | 10 ++++++++++
+ src/pkg/net/url/url.go           |  2 +-
+ 3 files changed, 12 insertions(+), 1 deletion(-)

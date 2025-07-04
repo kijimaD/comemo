@@ -1,25 +1,14 @@
-commit 76b724cc6367309b046a9fc09d81b73f0dcccca4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Mar 9 18:16:00 2016 +0900
+commit 5e059d1c3111b4ce555effa072299a44fda96a32
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 8 11:33:17 2016 -0800
 
-    net: prevent spurious TCP connection setup notification on darwin
+    math/big: fix typo in comment
     
-    On the latest darwin kernels, kevent in runtime-integrated network
-    poller sometimes reports SYN-SENT state sockets as ESTABLISHED ones,
-    though it's still unclear what's the root cause.
+    Fixes #13875.
     
-    This change prevents such spurious notifications by additional connect
-    system calls.
-    
-    Fixes #14548.
-    
-    Change-Id: Ie29788e38ca735ca77259befeba3229d6a30ac52
-    Reviewed-on: https://go-review.googlesource.com/20468
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icbb85c858d0bc545499a2b31622e9e7abdd7e5f9
+    Reviewed-on: https://go-review.googlesource.com/18441
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/error_unix_test.go   | 15 ++++++++-
- src/net/fd_unix.go           | 11 +++++-
- src/net/tcpsock_unix_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 103 insertions(+), 2 deletions(-)
+ src/math/big/int.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

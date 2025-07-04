@@ -1,17 +1,13 @@
-commit 1069d25e37e741a70977a42e60395923f9662778
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Thu Feb 28 11:18:39 2013 +1100
+commit f12796e9f7233266163d4003b528dd099b0f1799
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 27 16:11:17 2013 -0800
 
-    exp/cookiejar: add some more tests
+    builtin: document appending a string to a byte slice
+    Fixes #4873.
     
-    New tests added for port handling and IDNA domains.
-    A new test case contains several redundant
-    tests but provides a nice documentation of the
-    implemented rules for domain handling.
-    
-    R=nigeltao
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7393070
+    https://golang.org/cl/7421043
 
- src/pkg/exp/cookiejar/jar_test.go | 202 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 202 insertions(+)
+ src/pkg/builtin/builtin.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,19 +1,28 @@
-commit c4be790c0e20bfa4def3103392f404de201b3487
-Author: Erik Dubbelboer <erik@dubbelboer.com>
-Date:   Wed Jul 15 16:12:05 2015 +0200
+commit b7c55ba49684cc454f6c699bd3b3fa8fe6455c67
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 18 11:55:31 2015 -0400
 
-    encoding/json: check if Number is valid
+    runtime: improve invalid pointer error message
     
-    json.Number is a special case which didn't have any checks and could result in invalid JSON.
+    By default, the runtime panics if it detects a pointer to an
+    unallocated span. At this point, this usually catches bad uses of
+    unsafe or cgo in user code (though it could also catch runtime bugs).
+    Unfortunately, the rather cryptic error misleads users, offers users
+    little help with debugging their own problem, and offers the Go
+    developers little help with root-causing.
     
-    Fixes #10281
+    Improve the error message in various ways. First, the wording is
+    improved to make it clearer what condition was detected and to suggest
+    that this may be the result of incorrect use of unsafe or cgo. Second,
+    we add a dump of the object containing the bad pointer so that there's
+    at least some hope of figuring out why a bad pointer was stored in the
+    Go heap.
     
-    Change-Id: Ie3e726e4d6bf6a6aba535d36f6107013ceac913a
-    Reviewed-on: https://go-review.googlesource.com/12250
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I57b91b12bc3cb04476399d7706679e096ce594b9
+    Reviewed-on: https://go-review.googlesource.com/14763
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/encoding/json/decode.go      | 121 +++++++++++++++++++++++++++++++++++
- src/encoding/json/encode.go      |   5 ++
- src/encoding/json/encode_test.go |  12 ++++
- src/encoding/json/number_test.go | 133 +++++++++++++++++++++++++++++++++++++++
- 4 files changed, 271 insertions(+)
+ src/runtime/crash_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/runtime/mbitmap.go    | 32 +++++++++++++++++++++++---------
+ src/runtime/mgcmark.go    |  8 ++++----
+ 3 files changed, 64 insertions(+), 13 deletions(-)

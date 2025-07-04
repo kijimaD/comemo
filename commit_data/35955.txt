@@ -1,16 +1,17 @@
-commit a07ee41a334f6bbcda2e642e1d05d73c21bab746
-Author: Caleb Martinez <accounts@calebmartinez.com>
-Date:   Wed Jul 11 13:40:14 2018 +0000
+commit a27cd4fd317b57aadd63ff448e1b60636d4da38a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 23 18:50:39 2018 +0100
 
-    time: add clarification to Timer.Stop documentation
+    test/codegen: port tbz/tbnz arm64 tests
     
-    Fixes #26220
+    And delete them from asm_test.
     
-    Change-Id: I05703912be594d985ad3ccb3a9757ae21ec738ab
-    GitHub-Last-Rev: e4649847e015e573ee169c7d6db29b9437841afd
-    GitHub-Pull-Request: golang/go#26293
-    Reviewed-on: https://go-review.googlesource.com/122715
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I34fcf85ae8ce09cd146fe4ce6a0ae7616bd97e2d
+    Reviewed-on: https://go-review.googlesource.com/102296
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/time/tick.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 40 ---------------------------------
+ test/codegen/comparisons.go             | 26 +++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 40 deletions(-)

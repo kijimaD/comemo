@@ -1,22 +1,27 @@
-commit 0c39dc1ff72181d36f7e9fc61bfacc5a7b7c5c57
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Apr 22 17:40:53 2024 -0400
+commit d5fea5078b5d2b9f3c4da0f7cd4292f80806ca4b
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu Sep 9 16:07:38 2021 +0800
 
-    runtime: reduce stack usage for asmcgocall on PPC64
+    cmd/compile: support -buildmode=c-shared on linux/mips64{,le}
     
-    Define it as ABIInternal, so the result does not take space on
-    stack.
+    The modification of these rules is optimization to load/store global
+    variables. If there are a sequence of loads/stores nearby a global
+    variable address, the address can only be loaded from GOT once instead
+    of every time.
     
-    Also use R10 as a temporary register for arithmetics on SP, so it
-    is hidden from the assembler's SP delta calculation, which is
-    irrelevant anyway as we are on the system stack.
+    For #43264
     
-    Change-Id: I8fed467601c19cad2d7afab26978246d15ce3147
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580918
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Idedaf6c81f085955371320f51bca148ffb42a2d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348732
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/asm_ppc64x.s | 21 ++++++++++++---------
- 1 file changed, 12 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/base/flag.go          |   2 +-
+ src/cmd/compile/internal/liveness/plive.go     |   2 +-
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules | 139 +++++++++++++------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 184 +++++++++++++++----------
+ 4 files changed, 208 insertions(+), 119 deletions(-)

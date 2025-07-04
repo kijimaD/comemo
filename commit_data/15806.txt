@@ -1,15 +1,15 @@
-commit f98b8a00db9283930ee8f00046e9d87c673b0dca
+commit 552207611bc21a0feae14fb8d961668d14729c06
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 15 16:50:54 2013 -0700
+Date:   Fri Mar 15 15:58:43 2013 -0700
 
-    net/http: don't test for goroutine leaks in short mode
+    net/http: fix test breakage on Windows
     
-    Too annoying and flaky to debug for now. Later. This
-    tangent has taken enough time.
+    Treat the Windows net server as uninteresting for leak
+    purposes too.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7863043
+    https://golang.org/cl/7818048
 
- src/pkg/net/http/z_last_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/net/http/z_last_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,18 +1,23 @@
-commit cceee685be4436c8fd417e9c248429b8625b978d
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Mar 15 11:15:22 2018 +0100
+commit 14f2bfd369cf3e85346130996db058620d656385
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 2 13:38:08 2017 -0400
 
-    test/codegen: port floats tests to codegen
+    cmd/go: make test binary builds reproducible
     
-    And delete them from asm_test.
+    The name of the temporary directory containing _testmain.go
+    was leaking into the binary.
     
-    Change-Id: Ibdaca3496eefc73c731b511ddb9636a1f3dff68c
-    Reviewed-on: https://go-review.googlesource.com/100915
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Found with GODEBUG=gocacheverify=1 go test std.
+    
+    Change-Id: I5b35f049b564f3eb65c6a791ee785d15255c7885
+    Reviewed-on: https://go-review.googlesource.com/75630
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 95 ---------------------------------
- test/codegen/arithmetic.go              |  3 +-
- test/codegen/floats.go                  | 73 +++++++++++++++++++++++++
- 3 files changed, 75 insertions(+), 96 deletions(-)
+ src/cmd/go/go_test.go                   | 12 ++++++++++-
+ src/cmd/go/internal/cache/cache.go      | 20 +++++++++++++++----
+ src/cmd/go/internal/cache/cache_test.go |  8 ++++----
+ src/cmd/go/internal/cache/hash.go       | 35 ++++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/test/test.go        |  4 ++++
+ 5 files changed, 69 insertions(+), 10 deletions(-)

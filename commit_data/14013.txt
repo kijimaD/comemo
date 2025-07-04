@@ -1,13 +1,13 @@
-commit e7f453148c22789660ad064107ffa7e2541ae740
+commit 81ae666f16bb0b747d1dddef0be4f7dd8b285c49
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 4 11:21:37 2012 +1000
+Date:   Thu Oct 4 07:55:24 2012 +1000
 
-    godoc: show contents in correct order, expand sections on click
+    go/doc: rewrite whole file examples for playground
     
-    R=dsymonds
+    R=gri
     CC=gobot, golang-dev
-    https://golang.org/cl/6588079
+    https://golang.org/cl/6592061
 
- doc/godocs.js          | 2 ++
- lib/godoc/package.html | 4 ++--
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/go/doc/example.go | 157 +++++++++++++++++++++++++++++++---------------
+ src/pkg/go/doc/reader.go  |  73 ++++++++++++++-------
+ 2 files changed, 157 insertions(+), 73 deletions(-)

@@ -1,13 +1,15 @@
-commit b4e41b4680423b14d9558c9950dc22f78524d9f4
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Mar 20 07:28:24 2014 +0100
+commit 90a66fa6aff43214298bbb3e184b2eb8c2bd6850
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Mar 20 15:54:17 2014 +1100
 
-    test: enable bug385_32 test on amd64p32.
+    base32: remove unnecessary "if" condition
     
-    LGTM=dave
-    R=dave, rsc
+    This is a patch to apply the same change as CL 76610045.
+    
+    LGTM=nigeltao
+    R=nigeltao
     CC=golang-codereviews
-    https://golang.org/cl/78110043
+    https://golang.org/cl/77460044
 
- test/fixedbugs/bug385_32.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/base32/base32.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

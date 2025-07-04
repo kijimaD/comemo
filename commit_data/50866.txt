@@ -1,25 +1,20 @@
-commit 9ec69908aaacebb0796807afa55f7682db15afb4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 12 13:29:01 2022 -0400
+commit f986191325e9c8be606b5f4db69a33692728274b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 11 18:12:20 2021 +0000
 
-    os: use the correct constant for P_PID on NetBSD
+    runtime: fix released bytes accumulation in bg scavenger
     
-    Dragonfly and FreeBSD both used numerical values for these constants
-    chosen to be the same as on Solaris. For some reason, NetBSD did not,
-    and happens to interpret value 0 as P_ALL instead of P_PID
-    (see https://github.com/NetBSD/src/blob/3323ceb7822f98b3d2693aa26fd55c4ded6d8ba4/sys/sys/idtype.h#L43-L44).
+    Currently "released" is not accumulated bytes released. If the last
+    attempt to scavenge ends up as 0, then the scavenger will go to sleep
+    too soon. This is an artifact from the old code where scavenge would
+    only be called into once.
     
-    Using the correct value for P_PID should cause wait6 to wait for the
-    correct process, which may help to avoid the deadlocks reported in
-    
-    For #50138.
-    Updates #13987.
-    
-    Change-Id: I0eacd1faee4a430d431fe48f9ccf837f49c42f39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442478
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I85aa2261f1504a6fb5bf086daa029eecb0e09cf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363416
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/os/wait_wait6.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/runtime/mgcscavenge.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

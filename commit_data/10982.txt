@@ -1,12 +1,16 @@
-commit 102c1a7c961c503379cdfe09476fa26662792c77
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Dec 23 09:46:30 2011 +1100
+commit 2afebbdf35baaf289328c86a7579c8961617ecf8
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Dec 22 17:28:35 2011 -0500
 
-    go/build: (*Tree).BinDir should not return path with / in it on windows
+    strconv: fix bug in extended-float based conversion.
+    
+    A test intended for denormals erroneously returned true also for
+    infinities, leading to bad overflows and wrong error estimates.
     
     R=rsc
-    CC=golang-dev
-    https://golang.org/cl/5502064
+    CC=golang-dev, remy
+    https://golang.org/cl/5489091
 
- src/pkg/go/build/path.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/strconv/atof_test.go | 5 ++++-
+ src/pkg/strconv/extfloat.go  | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

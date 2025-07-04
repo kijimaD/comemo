@@ -1,25 +1,49 @@
-commit 9401172166ee6ac64a5a74b4a8f2aa6d3f936ea1
+commit c50c7a8c068aa4f6f9aaf288dac984c67197d0e0
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jun 17 22:12:24 2021 -0700
+Date:   Sun Nov 22 20:43:16 2020 -0800
 
-    runtime: clarify Frames.Next documentation
+    [dev.regabi] cmd/compile/internal/gc: refactor to use stop using Func.Nname
     
-    I wrote code that relied on this API, but I misunderstood the original
-    description of the "more" result. As a consequence, my code always
-    stopped one frame early.
+    Automated factoring produced by rf script below to replace uses of
+    Func.Nname with Field.Nname or Node.MethodName as appropriate.
     
-    This CL expands the documentation to be more explicit and specifically
-    call out my confusion (i.e., that the "more" result indicates whether
-    the *next* Next call will return a valid Frame, and not whether this
-    call did).
+    Some dead assignments to Func.Nname are left behind; these will be
+    removed in a subequent remove-only CL.
     
-    Change-Id: If135f8f8c05425073d45377c4179e4f79e6bd6ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329389
+    Passes toolstash-check.
+    
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+    ex \
+      import "cmd/compile/internal/types"; \
+      var f *types.Field; \
+      var n *types.Node; \
+      f.Type.Nname() -> f.Nname; \
+      f.Type.SetNname(n) -> f.Nname = n; \
+      f.Type.FuncType().Nname -> f.Nname
+    
+    ex \
+      var n *Node; \
+      asNode(n.Type.Nname()) -> n.MethodName(); \
+      asNode(n.Type.FuncType().Nname) -> n.MethodName(); \
+      asNode(callpartMethod(n).Type.Nname()) -> n.MethodName()
+    '
+    
+    Change-Id: Iaae054324dfe7da6f5d8b8d57a1e05b58cc5968c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272389
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/example_test.go | 16 ++++++++++++----
- src/runtime/symtab.go       | 11 +++++++++--
- 2 files changed, 21 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go   | 2 +-
+ src/cmd/compile/internal/gc/dcl.go       | 2 +-
+ src/cmd/compile/internal/gc/escape.go    | 4 ++--
+ src/cmd/compile/internal/gc/iexport.go   | 2 +-
+ src/cmd/compile/internal/gc/iimport.go   | 4 ++--
+ src/cmd/compile/internal/gc/initorder.go | 4 ++--
+ src/cmd/compile/internal/gc/inl.go       | 6 +++---
+ src/cmd/compile/internal/gc/scc.go       | 6 +++---
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 9 files changed, 16 insertions(+), 16 deletions(-)

@@ -1,22 +1,26 @@
-commit e91704af275fc6dcbad8f94fd11baadeb062e50e
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Jul 23 18:52:25 2014 +0400
+commit b916dc19921a799c3fc9d1bcc704cfd0b0bf08d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 23 10:17:59 2014 -0400
 
-    runtime: don't lock mheap on user goroutine
-    This is bad for 2 reasons:
-    1. if the code under lock ever grows stack,
-    it will deadlock as stack growing acquires mheap lock.
-    2. It currently deadlocks with SetCPUProfileRate:
-    scavenger locks mheap, receives prof signal and tries to lock prof lock;
-    meanwhile SetCPUProfileRate locks prof lock and tries to grow stack
-    (presumably in runtime.unlock->futexwakeup). Boom.
-    Let's assume that it
-    Fixes #8407.
+    liblink: more precise literal word comparison on arm
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=golang-codereviews, khr
-    https://golang.org/cl/112640043
+    There are fields in the Addr that do not matter for the
+    purpose of deciding that the same word is already
+    in the current literal pool. Copy only the fields that
+    do matter.
+    
+    This came up when comparing against the Go version
+    because the way it is invoked doesn't copy a few fields
+    (like node) that are never directly used by liblink itself.
+    
+    Also remove a stray print that is not well-defined in
+    the new liblink. (Cannot use %D outside of %P, because
+    %D needs the outer Prog*.)
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/119000043
 
- src/pkg/runtime/mheap.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/liblink/asm5.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

@@ -1,23 +1,22 @@
-commit 789701e93a6f0063b6ef2c52c0557c672553d0e2
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 25 12:47:06 2023 -0400
+commit 2e6ffd6c5d573d36e969ec8c21f70680493e58b9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 5 20:29:51 2022 -0700
 
-    runtime: change heapObjectsCanMove to a func
+    cmd/compile/internal/noder: explicitly handle function instantiations
     
-    A var is problematic because the zero value is already false,
-    so if it goes away, it will appear to be false.
-    I'm also not sure about go:linkname on vars,
-    so switch to func for both reasons.
+    This CL changes unified IR to explicitly handle function
+    instantiations within expression handling, rather than leaving it to
+    the underlying object reading logic.
     
-    Also add a test.
-    
-    Change-Id: I2318a5390d98577aec025152e65543491489defb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498261
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I009a56013fbe9fbc4dabf80eea98993d34af4272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421817
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/heap_test.go | 21 +++++++++++++++++++++
- src/runtime/mgc.go       |  8 ++++++--
- 2 files changed, 27 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/codes.go  |  1 +
+ src/cmd/compile/internal/noder/reader.go | 38 +++++++++--------
+ src/cmd/compile/internal/noder/writer.go | 73 ++++++++++++++++++++------------
+ src/internal/pkgbits/encoder.go          |  1 +
+ 4 files changed, 67 insertions(+), 46 deletions(-)

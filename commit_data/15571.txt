@@ -1,12 +1,12 @@
-commit 66a93729767d3c0e0e0bb5c90ae8369e1c06458f
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Mon Mar 4 16:46:04 2013 +0100
+commit 69c90985b34564c344a8516be9fb3d4832f2b66e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 4 10:36:45 2013 -0500
 
-    test/bench/garbage: fix parser benchmark
+    runtime: add link to design doc for new scheduler
     
-    R=golang-dev, dvyukov
+    R=golang-dev, remyoudompheng, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7435053
+    https://golang.org/cl/7419049
 
- test/bench/garbage/parser.go | 95 +++++++++++++++++++++++++++++++++++---------
- 1 file changed, 77 insertions(+), 18 deletions(-)
+ src/pkg/runtime/proc.c | 2 ++
+ 1 file changed, 2 insertions(+)

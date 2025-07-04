@@ -1,22 +1,22 @@
-commit d00a3cead8423c8af6c5781aa2a3efe0a9a442ae
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Sep 12 15:19:36 2016 -0700
+commit 28c201860e0838b10972e805582007f9eb61e7ac
+Author: Simon Thulbourn <simon+github@thulbourn.com>
+Date:   Mon Dec 7 16:36:11 2015 +0000
 
-    runtime: make gdb test resilient to line numbering
+    mime/multipart: sort header keys to ensure reproducible output
     
-    Don't break on line number, instead break on the actual call.
-    This makes the test more robust to line numbering changes in the backend.
+    Adds a transparent sort to the mime/multipart package, which is
+    only used in the CreatePart func. This will ensure the ordering
+    of the MIMEHeader.
     
-    A CL (28950) changed the generated code line numbering slightly.  A MOVW
-    $0, R0 instruction at the start of the function changed to line
-    10 (because several constant zero instructions got CSEd, and one gets
-    picked arbitrarily).  That's too fragile for a test.
+    The point of this change was to ensure the output would be consistent
+    and something that could be depended on.
     
-    Change-Id: I5d6a8ef0603de7d727585004142780a527e70496
-    Reviewed-on: https://go-review.googlesource.com/29085
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #13522
+    
+    Change-Id: I9584ef9dbe98ce97d536d897326914653f8d9ddf
+    Reviewed-on: https://go-review.googlesource.com/17497
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/runtime-gdb_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/mime/multipart/writer.go      | 13 +++++++++----
+ src/mime/multipart/writer_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 4 deletions(-)

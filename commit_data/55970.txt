@@ -1,22 +1,41 @@
-commit af0ebdd4c1ab7c58bcb131d51571ef6bc7250fed
-Author: apocelipes <seve3r@outlook.com>
-Date:   Mon Mar 18 08:56:12 2024 +0000
+commit 7dc10dbf45db5a361e0ace376dedb5578f6a5642
+Author: Matthieu Baerts <matthieu.baerts@tessares.net>
+Date:   Fri Feb 24 17:51:58 2023 +0100
 
-    compress/bzip2,lzw: use built-in clear to simplify code
+    net: mptcp: implement listenMPTCP
     
-    Change-Id: I16c17e322c757c8c657364065948d7cec66a8346
-    GitHub-Last-Rev: 9a5104fe9874dd7c604c526be3f082487f2aaf01
-    GitHub-Pull-Request: golang/go#66377
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572199
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Auto-Submit: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Similar to dialMPTCP, this listenMPTCP function is called when the user
+    has requested MPTCP via SetMultipathTCP in the ListenConfig.
+    
+    This function falls back to listenTCP on operating systems that do not
+    support MPTCP or if MPTCP is not supported.
+    
+    On ListenConfig side, MultipathTCP function can be used to know if the
+    package will try to use MPTCP or not when Listen is called.
+    
+    Note that this new listenMPTCP function returns a TCPListener object and
+    not a new MPTCP dedicated one. The reasons are similar as the ones
+    explained in the parent commit introducing dialTCP: if MPTCP is used by
+    default later, Listen will return a different object that could break
+    existing applications expecting TCPListener.
+    
+    This work has been co-developped by Gregory Detal
+    <gregory.detal@tessares.net>.
+    
+    Updates #56539
+    
+    Change-Id: I010f1d87f921bbac9e157cef2212c51917852353
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471137
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/compress/bzip2/bzip2.go     | 4 +---
- src/compress/lzw/reader_test.go | 4 +---
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ api/next/56539.txt         |  2 ++
+ src/net/dial.go            | 29 ++++++++++++++++++++++++++++-
+ src/net/mptcpsock_linux.go |  9 +++++++++
+ src/net/mptcpsock_stub.go  |  4 ++++
+ src/net/tcpsock_posix.go   |  6 +++++-
+ 5 files changed, 48 insertions(+), 2 deletions(-)

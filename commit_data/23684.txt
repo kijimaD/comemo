@@ -1,15 +1,21 @@
-commit 4325a9ee2ae57e395779b96f3bd55d21e01eee88
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 02:17:39 2015 -0400
+commit 8d32360bddaafb4e8eafe0e57065b4883b4ec55f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 26 14:43:25 2015 -0700
 
-    cmd/go: reject missing source code in go get -d, same as go get -d -u
+    [dev.ssa] cmd/internal/ssa: add deadstore pass
     
-    Fixes #11090.
+    Eliminate dead stores.  Dead stores are those which are
+    unconditionally followed by another store to the same location, with
+    no intervening load.
     
-    Change-Id: I1518df7a48346b175ec80079a07225901fdd51fb
-    Reviewed-on: https://go-review.googlesource.com/12177
-    Reviewed-by: Rob Pike <r@golang.org>
+    Just a simple intra-block implementation for now.
+    
+    Change-Id: I2bf54e3a342608fc4e01edbe1b429e83f24764ab
+    Reviewed-on: https://go-review.googlesource.com/10386
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/get.go     |  3 ++-
- src/cmd/go/go_test.go | 16 ++++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/compile.go        |   4 +
+ src/cmd/compile/internal/ssa/deadstore.go      | 103 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/deadstore_test.go |  87 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/op.go             |   4 +-
+ 4 files changed, 196 insertions(+), 2 deletions(-)

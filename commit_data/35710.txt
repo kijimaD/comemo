@@ -1,27 +1,18 @@
-commit d7f874fef66483d6d123ffb9853bfa58d29dc94a
-Author: Akhil Indurti <aindurti@gmail.com>
-Date:   Wed Jun 13 20:52:05 2018 -0400
+commit 2fd1b523952727b91e5eca76ff1f8b8af8746f7a
+Author: Damien Mathieu <42@dmathieu.com>
+Date:   Fri Mar 2 08:42:02 2018 +0000
 
-    cmd/go: document convention to signify generated code.
+    net/http: lock the read-only mutex in shouldRedirect
     
-    This change updates the go tool's documentation under the section
-    "Generate Go files by processing source" to mention the convention that
-    generated source files should have a line of text that matches the
-    following regular expression:
+    Since that method uses 'mux.m', we need to lock the mutex to avoid data races.
     
-        ^// Code generated .* DO NOT EDIT\.$
-    
-    Previously, the canonical documentation for this convention
-    (https://golang.org/s/generatedcode) referenced Rob Pike's comment at
-    https://golang.org/issue/13560#issuecomment-288457920. This change
-    merely moves that information to a more visible place.
-    
-    Updates #25433.
-    
-    Change-Id: I804d95d307d1dc68cb28da3750ebe9090178c474
-    Reviewed-on: https://go-review.googlesource.com/118756
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I998448a6e482b5d6a1b24f3354bb824906e23172
+    GitHub-Last-Rev: 163a7d4942e793b328e05a7eb91f6d3fdc4ba12b
+    GitHub-Pull-Request: golang/go#23994
+    Reviewed-on: https://go-review.googlesource.com/96575
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go                    | 6 ++++++
- src/cmd/go/internal/generate/generate.go | 6 ++++++
- 2 files changed, 12 insertions(+)
+ src/net/http/serve_test.go | 10 ++++++++++
+ src/net/http/server.go     |  3 +++
+ 2 files changed, 13 insertions(+)

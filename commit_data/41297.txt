@@ -1,30 +1,25 @@
-commit a9d344dac0031abda87f224a124c485c9381643e
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jan 9 16:34:29 2020 -0500
+commit a14efb1be3a59dffbf4dd9121191d6d656049564
+Author: Keith Randall <khr@google.com>
+Date:   Mon Sep 16 14:38:12 2019 -0700
 
-    cmd/go: convert some go get tests to the script framework
+    runtime: allow the Go runtime to return multiple stack frames for a single PC
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Upgrade the thread sanitizer to handle mid-stack inlining correctly.
+    We can now return multiple stack frames for each pc that the thread sanitizer
+    gives us to symbolize.
     
-    Updates #36320
-    Updates #17751
+    To fix #33309, we still need to modify the tsan library with its portion
+    of this fix, rebuild the .syso files on all supported archs, and check
+    them into runtime/race.
     
-    Change-Id: I1de2b428ea7dac5429020742bf12bea910a02079
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214141
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Update #33309
+    
+    Change-Id: I340013631ffc8428043ab7efe3a41b6bf5638eaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195781
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/go/go_test.go                              | 244 ---------------------
- .../testdata/script/get_custom_domain_wildcard.txt |   5 +
- src/cmd/go/testdata/script/get_dash_t.txt          |   8 +
- src/cmd/go/testdata/script/get_domain_root.txt     |  19 ++
- .../go/testdata/script/get_dot_slash_download.txt  |   9 +
- src/cmd/go/testdata/script/get_goroot.txt          |  52 +++++
- .../go/testdata/script/get_internal_wildcard.txt   |   5 +
- src/cmd/go/testdata/script/get_issue11307.txt      |   8 +
- src/cmd/go/testdata/script/get_race.txt            |   7 +
- src/cmd/go/testdata/script/get_test_only.txt       |   5 +
- src/cmd/go/testdata/script/get_update.txt          |  24 ++
- src/cmd/go/testdata/script/get_update_all.txt      |   7 +
- src/cmd/go/testdata/script/get_update_wildcard.txt |  15 ++
- 13 files changed, 164 insertions(+), 244 deletions(-)
+ src/runtime/race.go   | 44 ++++++++++++++++++++++++++++++++++++++++----
+ src/runtime/symtab.go | 12 +++++++-----
+ 2 files changed, 47 insertions(+), 9 deletions(-)

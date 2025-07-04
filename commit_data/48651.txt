@@ -1,20 +1,33 @@
-commit 153c18a515c90a78bf4c90a56e4ba5b700f407b1
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Mon Mar 21 16:18:00 2022 +0800
+commit 831f9376d8d730b16fb33dfd775618dffe13ce7a
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Mar 12 13:53:11 2021 -0800
 
-    net/netip: improve documentation terminology for IPv4-mapped IPv6 addresses
+    net/http: fix ResponseWriter.ReadFrom with short reads
     
-    Updates #51834
+    CL 249238 changes ResponseWriter.ReadFrom to probe the source with
+    a single read of sniffLen bytes before writing the response header.
+    If the source returns less than sniffLen bytes without reaching
+    EOF, this can cause Content-Type and Content-Length detection to
+    fail.
     
-    Change-Id: I07a43457e2e328b51fea8131f7d6d5a4f1de4dc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394078
+    Fix ResponseWrite.ReadFrom to copy a full sniffLen bytes from
+    the source as a probe.
+    
+    Drop the explicit call to w.WriteHeader; writing the probe will
+    trigger a WriteHeader call.
+    
+    Consistently use io.CopyBuffer; ReadFrom has already acquired a
+    copy buffer, so it may as well use it.
+    
+    Fixes #44953.
+    
+    Change-Id: Ic49305fb827a2bd7da4764b68d64b797b5157dc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301449
     Trust: Damien Neil <dneil@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/netip/netip.go      | 8 ++++----
- src/net/netip/netip_test.go | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/net/http/server.go     |  40 ++++-----------
+ src/net/http/sniff_test.go | 122 +++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 107 insertions(+), 55 deletions(-)

@@ -1,14 +1,18 @@
-commit d51046b37ce382bbca0de7277721567e1ee0146a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 21 20:48:09 2016 +0000
+commit d13fa4d2256d6dfd030c03a82db258872e3e646c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 5 12:44:28 2016 +1000
 
-    doc: fix install.html unclosed bold tag, link to /help/
+    os: use FindFirstFile when GetFileAttributesEx fails in Stat
     
-    Fixes #18406
+    Fixes #15355
     
-    Change-Id: Ifd7342fa8de1d2cac47b9279c1f14ac127ac193c
-    Reviewed-on: https://go-review.googlesource.com/34666
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Idbab7a627c5de249bb62d519c5a47f3d2f6c82a7
+    Reviewed-on: https://go-review.googlesource.com/22796
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/install.html | 16 +++++-----------
- 1 file changed, 5 insertions(+), 11 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go |  1 +
+ src/os/os_windows_test.go                       | 11 +++++++++++
+ src/os/stat_windows.go                          | 19 ++++++++++++++++++-
+ 3 files changed, 30 insertions(+), 1 deletion(-)

@@ -1,20 +1,29 @@
-commit 86bbcc6a7503e96ea55d5c685141c7d109b07cde
-Author: ianwoolf <btw515wolf2@gmail.com>
-Date:   Wed Nov 9 16:40:24 2022 +0800
+commit 7f2314530e7cb4a11c6df4f7bd51187f5cffe2a5
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 13 20:11:07 2021 -0800
 
-    cmd/go: enable -x in go mod tidy
+    cmd/compile: don't re-typecheck while importing
     
-    Updates #35849
+    The imported code is already typechecked. NodAddrAt typechecks its
+    argument, which is unnecessary here and leads to errors when
+    typechecking unexported field references in other packages' code.
     
-    Change-Id: I8b40a2de6a05880a9f939349a714b631888f5f94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448915
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Mark the node is question as already typechecked, so we don't
+    retypecheck it.
+    
+    Fixes #50148
+    
+    Change-Id: I9789e3e7dd4d58ec095675e27b1c98389f7a0c44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371554
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go                                  |  4 +++-
- src/cmd/go/internal/modcmd/tidy.go                     |  5 ++++-
- src/cmd/go/testdata/script/mod_tidy_support_buildx.txt | 18 ++++++++++++++++++
- 3 files changed, 25 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go |  7 ++++++-
+ test/typeparam/structinit.dir/a.go            | 15 +++++++++++++++
+ test/typeparam/structinit.dir/b.go            | 12 ++++++++++++
+ test/typeparam/structinit.dir/main.go         | 11 +++++++++++
+ test/typeparam/structinit.go                  |  7 +++++++
+ 5 files changed, 51 insertions(+), 1 deletion(-)

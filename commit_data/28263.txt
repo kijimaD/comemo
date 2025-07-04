@@ -1,15 +1,29 @@
-commit 266c6223df73c5f90d2da6e271c8a415392e066c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 16:19:50 2016 -0700
+commit d88261fb6581106e4e7d8d6c63f0e33c2a24361e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 9 17:21:11 2016 +0000
 
-    cmd/compile: implement fmt.Formatter for Nodes formats %s, %v
+    time: don't depend on the io package
     
-    Change-Id: Iac3a72cb6c5394f3c1a49f39125b0256d570e006
-    Reviewed-on: https://go-review.googlesource.com/28339
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    The time package has never depended on the io package until
+    a recent change during Go 1.7 to use the io.Seek* constants.
+    
+    The go/build dependency check didn't catch this because "time" was
+    allowed to depend on meta package group "L0", which included "io".
+    
+    Adding the "io" package broke one of Dmitry's tools. The tool is
+    fixable, but it's also not necessary for us to depend on "io" at all
+    for some constants. Mirror the constants instead, and change
+    deps_test.go to prevent an io dependency in the future.
+    
+    Change-Id: I74325228565279a74fa4a2f419643f5710e3e09f
+    Reviewed-on: https://go-review.googlesource.com/22960
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |  2 +-
- src/cmd/compile/internal/gc/fmt.go     | 57 +++++++++++++++++-----------------
- src/cmd/compile/internal/gc/inl.go     |  8 ++---
- src/cmd/compile/internal/gc/walk.go    |  2 +-
- 4 files changed, 35 insertions(+), 34 deletions(-)
+ src/go/build/deps_test.go | 14 +++++++++++++-
+ src/time/sys_plan9.go     |  5 ++---
+ src/time/sys_unix.go      |  5 ++---
+ src/time/sys_windows.go   |  5 ++---
+ src/time/zoneinfo_read.go |  7 +++++++
+ 5 files changed, 26 insertions(+), 10 deletions(-)

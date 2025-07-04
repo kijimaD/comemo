@@ -1,13 +1,12 @@
-commit e77099daa2167cb394d133bd525fa5dc1c0771a8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 28 11:00:32 2011 -0500
+commit 23227f3d63227a9b63ece4bbc825be21288624af
+Author: Gustav Paul <gustav.paul@gmail.com>
+Date:   Mon Nov 28 10:45:52 2011 -0500
 
-    sql: add Tx.Stmt to use an existing prepared stmt in a transaction
+    exp/ssh: fix misleading spelling mistake in comment
     
-    R=rsc
+    R=dave, agl, rsc, golang-dev
     CC=golang-dev
-    https://golang.org/cl/5433059
+    https://golang.org/cl/5431089
 
- src/pkg/exp/sql/sql.go      | 79 ++++++++++++++++++++++++++++++++++-----------
- src/pkg/exp/sql/sql_test.go | 24 +++++++++++++-
- 2 files changed, 83 insertions(+), 20 deletions(-)
+ src/pkg/exp/ssh/client.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

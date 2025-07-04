@@ -1,20 +1,15 @@
-commit 9ded954a3b024ce1d8d73b21475697c6a5f76963
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 13 10:22:31 2011 +1000
+commit 95b8137a16bc6fbc6c924485c6415a6dca2e69fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Jun 12 12:09:50 2011 -0700
 
-    net: rearrange source files so we could run more tests on windows
+    go spec: clarify rules for append, scope rules for :=
     
-    R=rsc
+    Fixes #1936.
+    Fixes #1940.
+    
+    R=rsc, r, iant, ken, iant
     CC=golang-dev
-    https://golang.org/cl/4603043
+    https://golang.org/cl/4585049
 
- src/pkg/net/Makefile                               |  15 +-
- src/pkg/net/dnsclient.go                           | 367 ++-------------------
- src/pkg/net/dnsclient_unix.go                      | 262 +++++++++++++++
- src/pkg/net/dnsmsg_test.go                         |   7 -
- src/pkg/net/dnsname_test.go                        |   4 -
- src/pkg/net/lookup.go                              |  50 ---
- src/pkg/net/lookup_unix.go                         | 126 +++++++
- .../net/{resolv_windows.go => lookup_windows.go}   |  84 ++---
- src/pkg/net/net_test.go                            |   4 -
- 9 files changed, 442 insertions(+), 477 deletions(-)
+ doc/go_spec.html | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

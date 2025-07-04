@@ -1,12 +1,22 @@
-commit 534f56b4b2b7e368e27d87af2d7721c4ffde37ba
-Author: Michał Łowicki <mlowicki@gmail.com>
-Date:   Sun Mar 29 17:59:08 2020 +0100
+commit 4f70c151db6a2f169058a193232263733aa3947e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 24 18:22:43 2019 +1100
 
-    doc: fix path to make.bash
+    fmt: fix handling of %% verb in Scanf
     
-    Change-Id: I78c7197b8b93590470a782b492bba177a14d80ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226340
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    There were a couple of bugs, including not requiring a percent and
+    returning the wrong error for a bad format containing %%.
+    
+    Both are addressed by fixing the first.
+    
+    Fixes #34180.
+    
+    Change-Id: If96c0c0258bcb95eec49871437d719cb9d399d9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202879
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/fmt/scan.go      | 13 +++++++++++++
+ src/fmt/scan_test.go | 19 ++++++++++++-------
+ 2 files changed, 25 insertions(+), 7 deletions(-)

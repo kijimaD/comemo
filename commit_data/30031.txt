@@ -1,27 +1,19 @@
-commit 16dd0624c204ced87ea950b129c5c26d82e2aad4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 1 15:13:48 2017 -0800
+commit aa1e063efd7376e268ee592ebe078c6d05b0bdf8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 21 12:03:41 2016 +0100
 
-    cmd/compile/internal/gc: add comment and test for #15550
+    net/http: add Request.GetBody func for 307/308 redirects
     
-    When switching to the new parser, I changed cmd/compile to handle iota
-    per an intuitive interpretation of how nested constant declarations
-    should work (which also matches go/types).
+    Updates #10767
     
-    Note: if we end up deciding that the current spec wording is
-    intentional (i.e., confirming gccgo's current behavior), the test will
-    need to be updated to expect 4 instead of 1.
-    
-    Updates #15550.
-    
-    Change-Id: I441f5f13209f172b73ef75031f2a9daa5e985277
-    Reviewed-on: https://go-review.googlesource.com/36122
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I197535f71bc2dc45e783f38d8031aa717d50fd80
+    Reviewed-on: https://go-review.googlesource.com/31733
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/noder.go |  3 +++
- test/fixedbugs/issue15550.go         | 28 ++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/net/http/client.go       |  7 +++++++
+ src/net/http/request.go      | 24 ++++++++++++++++++++++++
+ src/net/http/request_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+)

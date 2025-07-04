@@ -1,17 +1,19 @@
-commit fa897643a18d71a62bade50f80171f5e58449f5a
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sat Aug 20 18:36:27 2016 +0100
+commit 285a18436d480ef91b2af236d5ddd2fa7fa49de8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 20 15:58:55 2016 +1000
 
-    runtime: remove unnecessary calls to memclr
+    debug/pe: pretty section.go code
     
-    Go will have already cleared the structs (the original C wouldn't
-    have).
+    Introduce (*SectionHeader32).fullName and add documentation comments.
     
-    Change-Id: I4a5a0cfd73953181affc158d188aae2ce281bb33
-    Reviewed-on: https://go-review.googlesource.com/27435
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #15345
+    
+    Change-Id: I8f3b8ab9492642d62e7aad010c91c68daea3f14b
+    Reviewed-on: https://go-review.googlesource.com/22301
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/os_linux.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/debug/pe/file.go    | 10 +++-------
+ src/debug/pe/section.go | 27 ++++++++++++++++++++++++---
+ 2 files changed, 27 insertions(+), 10 deletions(-)

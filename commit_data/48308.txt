@@ -1,18 +1,30 @@
-commit 20dd9a42fb80ed4919d79bfb4644c16ab9e09e72
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Mar 4 14:39:43 2022 -0500
+commit 90d6bbbe42c15d444c1da0a1c293192d6f735a8e
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Feb 2 12:58:30 2021 -0800
 
-    go/types: document that predicates are undefined on generic types
+    crypto/tls: enforce ALPN overlap when negotiated on both sides
     
-    Fixes #50887
+    During the TLS handshake if the server doesn't support any of the
+    application protocols requested by the client, send the
+    no_application_protocol alert and abort the handshake on the server
+    side. This enforces the requirements of RFC 7301.
     
-    Change-Id: I451d66b067badcfb7cf2e2756ea2b062366ac9d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390039
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iced2bb5c6efc607497de1c40ee3de9c2b393fa5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289209
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/types2/api.go | 22 ++++++++++++++++++----
- src/go/types/api.go                    | 22 ++++++++++++++++++----
- 2 files changed, 36 insertions(+), 8 deletions(-)
+ doc/go1.17.html                                    |   7 ++
+ src/crypto/tls/common.go                           |   6 +-
+ src/crypto/tls/handshake_client_test.go            |  50 +++++++++++
+ src/crypto/tls/handshake_server.go                 |  13 +--
+ src/crypto/tls/handshake_server_test.go            |  20 ++++-
+ src/crypto/tls/handshake_server_tls13.go           |  12 ++-
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch |  85 +-----------------
+ .../tls/testdata/Server-TLSv12-ALPN-NotConfigured  |  91 +++++++++++++++++++
+ src/crypto/tls/testdata/Server-TLSv13-ALPN-NoMatch |  99 +++-----------------
+ .../tls/testdata/Server-TLSv13-ALPN-NotConfigured  | 100 +++++++++++++++++++++
+ 10 files changed, 303 insertions(+), 180 deletions(-)

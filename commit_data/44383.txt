@@ -1,17 +1,16 @@
-commit 0694fb3d78f9ce2add154203dbd42a7a5a07c2da
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Tue Nov 10 17:56:33 2020 +0800
+commit 18bcc7c2854f900dfb631d7ef01a839021e24576
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Jun 18 11:26:07 2020 -0400
 
-    image: resolve the TODO of doc comment style
+    net/http: document Dir behavior with symlinks
     
-    Change-Id: Ic7701a9e4635fe1a331c9a1df776ed580759eb9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268758
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Trust: Nigel Tao <nigeltao@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Trust: Rob Pike <r@golang.org>
+    Based on CL 229377.
+    
+    Change-Id: I016eec20672c909e8fabe799c277f4d2540fc555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238698
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/image/jpeg/reader.go | 3 ---
- src/image/png/writer.go  | 1 +
- 2 files changed, 1 insertion(+), 3 deletions(-)
+ src/net/http/fs.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

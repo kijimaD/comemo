@@ -1,82 +1,68 @@
-commit e85265e8c2a41e4a0e703e5fb6fe762cc382d0af
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 2 16:16:46 2016 -0700
+commit 0da4dbe2322eb3b6224df35ce3e9fc83f104762b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 14 19:09:36 2016 -0700
 
-    cmd/compile: optimize bool to int conversion
+    all: remove unnecessary type conversions
     
-    This CL teaches SSA to recognize code of the form
+    cmd and runtime were handled separately, and I'm intentionally skipped
+    syscall. This is the rest of the standard library.
     
-    // b is a boolean value, i is an int of some flavor
-    if b {
-            i = 1
-    } else {
-            i = 0
-    }
+    CL generated mechanically with github.com/mdempsky/unconvert.
     
-    and use b's underlying 0/1 representation for i
-    instead of generating jumps.
-    
-    Unfortunately, it does not work on the obvious code:
-    
-    func bool2int(b bool) int {
-            if b {
-                    return 1
-            }
-            return 0
-    }
-    
-    This is left for future work.
-    Note that the existing phiopt optimizations also don't work for:
-    
-    func neg(b bool) bool {
-            if b {
-                    return false
-            }
-            return true
-    }
-    
-    In the meantime, runtime authors and the like can use:
-    
-    func bool2int(b bool) int {
-            var i int
-            if b {
-                    i = 1
-            } else {
-                    i = 0
-            }
-            return i
-    }
-    
-    This compiles to:
-    
-    "".bool2int t=1 size=16 args=0x10 locals=0x0
-            0x0000 00000 (x.go:25)  TEXT    "".bool2int(SB), $0-16
-            0x0000 00000 (x.go:25)  FUNCDATA        $0, gclocals·23e8278e2b69a3a75fa59b23c49ed6ad(SB)
-            0x0000 00000 (x.go:25)  FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
-            0x0000 00000 (x.go:32)  MOVBLZX "".b+8(FP), AX
-            0x0005 00005 (x.go:32)  MOVBQZX AL, AX
-            0x0008 00008 (x.go:32)  MOVQ    AX, "".~r1+16(FP)
-            0x000d 00013 (x.go:32)  RET
-    
-    The extraneous MOVBQZX is #15300.
-    
-    This optimization also helps range and slice.
-    The compiler must protect against pointers pointing
-    to the end of a slice/string. It does this by increasing
-    a pointer by either 0 or 1 * elemsize, based on a condition.
-    This CL optimizes away a jump in that code.
-    
-    This CL triggers 382 times while compiling the standard library.
-    
-    Updating code to utilize this optimization is left for future CLs.
-    
-    Updates #6011
-    
-    Change-Id: Ia7c1185f8aa223c543f91a3cd6d4a2a09c691c70
-    Reviewed-on: https://go-review.googlesource.com/22711
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9e0eff886974dedc37adb93f602064b83e469122
+    Reviewed-on: https://go-review.googlesource.com/22104
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/phiopt.go | 61 +++++++++++++++++++++++++++++++++-
- 1 file changed, 60 insertions(+), 1 deletion(-)
+ src/archive/tar/reader.go                |  8 ++++----
+ src/archive/tar/writer.go                |  2 +-
+ src/bytes/reader.go                      |  2 +-
+ src/compress/bzip2/bzip2.go              |  8 ++++----
+ src/compress/flate/huffman_bit_writer.go |  2 +-
+ src/compress/flate/reverse_bits.go       |  2 +-
+ src/compress/lzw/writer.go               |  2 +-
+ src/crypto/des/block.go                  |  2 +-
+ src/crypto/tls/handshake_messages.go     |  4 ++--
+ src/debug/dwarf/buf.go                   |  2 +-
+ src/debug/dwarf/line.go                  |  2 +-
+ src/debug/dwarf/typeunit.go              |  4 ++--
+ src/debug/elf/elf.go                     |  4 ++--
+ src/debug/elf/file.go                    | 32 ++++++++++++++++----------------
+ src/debug/gosym/pclntab.go               |  4 ++--
+ src/debug/gosym/symtab.go                |  4 ++--
+ src/encoding/asn1/marshal.go             |  6 +++---
+ src/encoding/binary/binary.go            |  2 +-
+ src/encoding/gob/encode.go               |  2 +-
+ src/go/ast/ast.go                        |  2 +-
+ src/image/color/ycbcr.go                 | 18 +++++++++---------
+ src/image/draw/draw.go                   |  8 ++++----
+ src/math/big/float.go                    |  4 ++--
+ src/math/big/natconv.go                  |  2 +-
+ src/math/big/ratconv.go                  |  2 +-
+ src/net/interface_bsd.go                 |  4 ++--
+ src/net/mail/message.go                  |  2 +-
+ src/net/parse.go                         |  4 ++--
+ src/os/exec_windows.go                   |  2 +-
+ src/os/file_windows.go                   | 14 +++++++-------
+ src/os/stat_darwin.go                    |  2 +-
+ src/os/stat_dragonfly.go                 |  4 ++--
+ src/os/stat_freebsd.go                   |  2 +-
+ src/os/stat_linux.go                     |  2 +-
+ src/os/stat_nacl.go                      |  2 +-
+ src/os/stat_netbsd.go                    |  4 ++--
+ src/os/stat_openbsd.go                   |  4 ++--
+ src/os/stat_plan9.go                     |  2 +-
+ src/os/stat_solaris.go                   |  4 ++--
+ src/os/stat_windows.go                   |  2 +-
+ src/os/types_windows.go                  |  2 +-
+ src/reflect/type.go                      |  4 ++--
+ src/reflect/value.go                     | 26 +++++++++++++-------------
+ src/regexp/onepass.go                    |  2 +-
+ src/strconv/extfloat.go                  |  4 ++--
+ src/strings/reader.go                    |  2 +-
+ src/sync/pool.go                         |  4 ++--
+ src/time/time.go                         |  8 ++++----
+ src/time/zoneinfo_windows.go             |  2 +-
+ src/unicode/letter.go                    |  2 +-
+ 50 files changed, 120 insertions(+), 120 deletions(-)

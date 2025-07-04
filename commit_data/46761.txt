@@ -1,24 +1,25 @@
-commit e82ed0cd83cec1e6d15ba5a037f77c0b9f1ec8c2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Oct 5 14:10:39 2021 -0700
+commit c97af0036b8cd8ab2a7ed3f68c3ba72968637e4d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 25 17:26:07 2021 -0800
 
-    runtime: start moduledata memory load early
+    [dev.typeparams] cmd/compile: force untyped constants from types2 to expected kind
     
-    The slowest thing that can happen in funcdata is a cache miss
-    on moduledata.gofunc. Move that memory load earlier.
+    Currently, types2 sometimes produces constant.Values with a Kind
+    different than the untyped constant type's Is{Integer,Float,Complex}
+    info, which irgen expects to always match.
     
-    Also, for better ergonomics when working on this code,
-    do more calculations as uintptrs.
+    While we mull how best to proceed in #43891, this CL adapts irgen to
+    types2's current behavior. In particular, fixedbugs/issue11945.go now
+    passes with -G=3.
     
-    name                   old time/op  new time/op  delta
-    StackCopyWithStkobj-8  10.5ms ± 5%   9.9ms ± 4%  -6.03%  (p=0.000 n=15+15)
+    Updates #43891.
     
-    Change-Id: I590f4449725983c7f8d274c4ac7ed384d9018d85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354134
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I24823a32ff49af6045a032d3903dbb55cbec6bef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286652
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/symtab.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/decl.go | 19 ++++++++++++++++++-
+ test/fixedbugs/issue11945.go           |  4 ++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

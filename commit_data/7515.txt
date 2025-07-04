@@ -1,13 +1,14 @@
-commit e041b9980c306eda2d26bfb55ac18aec7e54726c
-Author: Rob Pike <r@golang.org>
-Date:   Sat Feb 19 15:04:56 2011 -0800
+commit 7b166cd73c0c3d5dfa69d996a5c7d5a2f6fd2436
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Feb 19 10:41:57 2011 -0500
 
-    spec: delete incorrect obsolete mention of selector working on
-    pointer to interface type.
+    crypto/openpgp/packet: comment typo fix.
     
-    R=golang-dev, niemeyer, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4173067
+    https://golang.org/cl/4178065
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/crypto/openpgp/packet/encrypted_key.go | 4 ++--
+ src/pkg/crypto/openpgp/packet/literal.go       | 4 ++--
+ src/pkg/crypto/openpgp/packet/packet.go        | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

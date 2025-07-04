@@ -1,19 +1,25 @@
-commit cb80937bf6b728fa56ee315d2c079f07c2f9f2a1
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Jun 8 20:38:30 2021 +0000
+commit 0968d2d599189229145b1000cec55d9df47fbc98
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed May 20 13:51:53 2020 -0400
 
-    Revert "doc/go1.17: mention block profile bias fix"
+    cmd/go/internal/modget: clarify error for 'go get' without arguments
     
-    This reverts CL 324471 (commit 689f4c7415acc8a135440574a483e0eeabba8b87).
+    If the current directory doesn't contain a package, 'go get' will say
+    that without additional detail.
     
-    Reason for revert: break ~all builders. And it is not a doc-only change.
+    If there were no arguments, errors will start with "go get:" instead
+    of "go get .:".
     
-    Change-Id: Iadbdda34d2ca476a9f5e6c2d3a28592ed7ccb067
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326170
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Fixes #39080
+    
+    Change-Id: I47366f2a27bce17bd8b79344ad15b8b934a888c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234681
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- doc/go1.17.html                 | 10 ----------
- src/runtime/pprof/pprof_test.go | 22 ----------------------
- 2 files changed, 32 deletions(-)
+ src/cmd/go/internal/modget/get.go      | 9 +++++++++
+ src/cmd/go/internal/modget/query.go    | 6 +++++-
+ src/cmd/go/testdata/script/mod_dot.txt | 6 +++++-
+ 3 files changed, 19 insertions(+), 2 deletions(-)

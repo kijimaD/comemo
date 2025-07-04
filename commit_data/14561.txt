@@ -1,22 +1,12 @@
-commit 54e8d504e835127e9fcb71d4b5a9acd6f78f4482
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Dec 6 08:01:33 2012 +1100
+commit 4855c1c14589de01140087f93ecbd9153c9b1a8b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 5 15:26:18 2012 +1100
 
-    cmd/5g: use MOVB for fixed array nil check
+    net: change windows netFD finalizer to behave similar to unix
     
-    Fixes #4396.
-    
-    For fixed arrays larger than the unmapped page, agenr would general a nil check by loading the first word of the array. However there is no requirement for the first element of a byte array to be word aligned, so this check causes a trap on ARMv5 hardware (ARMv6 since relaxed that restriction, but it probably still comes at a cost).
-    
-    Switching the check to MOVB ensures alignment is not an issue. This check is only invoked in a few places in the code where large fixed arrays are embedded into structs, compress/lzw is the biggest offender, and switching to MOVB has no observable performance penalty.
-    
-    Thanks to Rémy and Daniel Morsing for helping me debug this on IRC last night.
-    
-    R=remyoudompheng, minux.ma, rsc
+    R=dave, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6854063
+    https://golang.org/cl/6873046
 
- src/cmd/5g/cgen.c            | 31 +++++++++++++++++++------------
- test/fixedbugs/issue4396a.go | 27 +++++++++++++++++++++++++++
- test/fixedbugs/issue4396b.go | 29 +++++++++++++++++++++++++++++
- 3 files changed, 75 insertions(+), 12 deletions(-)
+ src/pkg/net/fd_windows.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

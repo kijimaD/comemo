@@ -1,33 +1,12 @@
-commit ab2ea94c609cb2e6b6dd61ceea93a88a7a66b090
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Jan 20 10:44:22 2012 +1100
+commit 7f4936a1c5d828b39efea48787bb266f4666d95c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jan 20 08:33:37 2012 +0900
 
-    image: change the YCbCr image's pixel buffers to start at Rect.Min
-    instead of the origin.
+    net: fix windows build
     
-    This makes YCbCr match the other image types (e.g. RGBA, Gray) in
-    that an image's bounds is not restricted to the positive quadrant.
-    
-    Also optimize the YCbCr draw code by hoisting some computation
-    outside of the loop.
-    
-    benchmark              old ns/op    new ns/op    delta
-    draw.BenchmarkYCbCr      2544418      2373558   -6.72%
-    
-    Like https://golang.org/cl/4681044/ I don't think a gofix is
-    feasible. People will have to make manual changes. On the other hand,
-    directly manipulating YCbCr images is relatively rare, compared to
-    RGBA images, and if other code just uses the jpeg and draw packages
-    instead of messing directly with a YCbCr's []byte representations,
-    then things should just continue to work.
-    
-    R=r
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5558048
+    https://golang.org/cl/5532102
 
- src/pkg/image/draw/draw.go   |  32 ++++++--------
- src/pkg/image/image.go       |  16 +++----
- src/pkg/image/jpeg/reader.go |  15 ++-----
- src/pkg/image/ycbcr.go       |  75 ++++++++++++++++++++++++++-----
- src/pkg/image/ycbcr_test.go  | 103 +++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 192 insertions(+), 49 deletions(-)
+ src/pkg/net/fd_windows.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

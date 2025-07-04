@@ -1,23 +1,18 @@
-commit bf268472408b0f46767d46ae1d14439e5eb84014
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Jan 1 00:00:00 2020 -0500
+commit 35ac19455750198d797ff17a1d57922b92fc5f65
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Aug 26 09:18:03 2019 -0400
 
-    doc: 2020 is the Year of the Gopher
+    test: new testcase for gollvm bug
     
-    Starting with 2014 (golang.org/cl/46660043), we have enjoyed 6
-    consecutive years of the gopher. Now, the slice¹ of gophers is
-    ready to make its way into the next decade, as 2020 is the new
-    Year of the Gopher.
+    Testcase for a gollvm bug (assert in Llvm_backend::materializeComposite).
     
-    ¹ https://en.wikipedia.org/w/index.php?title=List_of_English_terms_of_venery,_by_animal&oldid=932675028#G
+    Updates golang/go#33020.
     
-    Change-Id: I5f9598dbedb373bd13021964193fa9e44c67693e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213017
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Change-Id: Icdf5b4b2b6eb55a5b48a31a61c41215b1ae4cf01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191743
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/contribute.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ test/fixedbugs/issue33020a.dir/a.go | 13 +++++++++++++
+ test/fixedbugs/issue33020a.dir/b.go | 14 ++++++++++++++
+ test/fixedbugs/issue33020a.go       |  9 +++++++++
+ 3 files changed, 36 insertions(+)

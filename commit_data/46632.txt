@@ -1,19 +1,37 @@
-commit 52b23a50f8a2028b6155da12161941803abd6198
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Sep 23 18:03:56 2021 -0700
+commit 59ff93fe645320c7d6a434ea7794546e89b12d45
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jan 17 00:47:12 2021 +0700
 
-    cmd/link: put type descriptor method arginfo in the correct section
+    [dev.regabi] cmd/compile: rename NameOffsetExpr to LinksymOffsetExpr
     
-    We were putting type descriptor funcdata,
-    such as type..eq.[2]interface {}.arginfo1
-    in type.* or typerel.* instead of go.func.*.
+    Updates #43737
     
-    Fix that.
+    [git-generate]
     
-    Change-Id: I779e6be3dd91c8029f2c3dc0e10a7d597c16678f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352071
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    cd src/cmd/compile/internal/ir
+    
+    rf '
+      mv NameOffsetExpr LinksymOffsetExpr
+      mv ONAMEOFFSET OLINKSYMOFFSET
+    '
+    
+    go generate
+    
+    Change-Id: I8c6b8aa576e88278c0320d16bb2e8e424a15b907
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284120
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/symtab.go | 35 +++++++++++++++++++----------------
- 1 file changed, 19 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/escape/escape.go       |  4 ++--
+ src/cmd/compile/internal/ir/expr.go             | 14 +++++------
+ src/cmd/compile/internal/ir/fmt.go              |  4 ++--
+ src/cmd/compile/internal/ir/node.go             | 26 ++++++++++----------
+ src/cmd/compile/internal/ir/node_gen.go         | 32 ++++++++++++-------------
+ src/cmd/compile/internal/ir/op_string.go        |  6 ++---
+ src/cmd/compile/internal/ssagen/ssa.go          |  8 +++----
+ src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
+ src/cmd/compile/internal/walk/expr.go           |  4 ++--
+ src/cmd/compile/internal/walk/walk.go           |  2 +-
+ 10 files changed, 51 insertions(+), 51 deletions(-)

@@ -1,21 +1,18 @@
-commit c433cf189354f0b3a5e50716df57a94af5f22718
-Author: kijimaD <norimaking777@gmail.com>
-Date:   Wed Oct 5 12:56:46 2022 +0000
+commit 47b3ab5ede452a88c2da4c5eaf092b2d707d2ff4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 10 16:57:14 2021 -0500
 
-    all: fix some typos
+    doc/go1.18: add a release note for 'go mod vendor -o'
     
-    Change-Id: I6be77e7b7c919f26bed7b6690cce6741888ba78a
-    GitHub-Last-Rev: 4ef4a7b425d0b89adf398a1bee04e9f7495813bc
-    GitHub-Pull-Request: golang/go#56051
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438991
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #47327
+    
+    Change-Id: I50418c0d017c4e90a2c13d26945ee639079e4e33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363174
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Paschalis Tsilias <paschalistsilias@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/scanner/scanner_test.go | 2 +-
- src/os/str.go                  | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ doc/go1.18.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

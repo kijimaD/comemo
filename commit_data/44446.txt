@@ -1,24 +1,29 @@
-commit 998fe70b683ed64d0bc67d9e0a35f8a7bcbe161d
-Author: David Chase <drchase@google.com>
-Date:   Fri Feb 26 17:37:26 2021 -0500
+commit 59a702aa6aca364eb75f40261fdafe4ae9be153e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 6 18:44:42 2020 -0400
 
-    cmd/compile: fixed which-result confusion in presence of 0-width types
+    [dev.link] cmd/link: emit Mach-O relocations in mmap
     
-    A function returning multiple results, some of them zero-width,
-    will have more than one result present at an offset.  Be sure
-    that offset AND type match.
+    Following CL 240399 and CL 240400, do the same for Mach-O.
     
-    Includes test.
+    Linking cmd/compile with external linking,
     
-    Change-Id: I3eb1f56116d989b4e73f533fefabb1bf554c901b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297169
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    name         old time/op    new time/op    delta
+    Asmb2_GC       32.7ms ± 2%    13.5ms ± 6%   -58.56%  (p=0.008 n=5+5)
+    
+    name         old alloc/op   new alloc/op   delta
+    Asmb2_GC       16.5MB ± 0%     6.4MB ± 0%   -61.15%  (p=0.008 n=5+5)
+    
+    Change-Id: I0fd7019d8713d1940e5fbbce4ee8eebd926451a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241178
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/op.go     |  9 ++++++---
- src/cmd/compile/internal/ssagen/ssa.go |  4 ++--
- test/abi/f_ret_z_not.go                | 33 +++++++++++++++++++++++++++++++++
- test/abi/f_ret_z_not.out               |  1 +
- 4 files changed, 42 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/amd64/obj.go |  1 +
+ src/cmd/link/internal/arm64/asm.go |  6 ++++-
+ src/cmd/link/internal/arm64/obj.go |  1 +
+ src/cmd/link/internal/ld/asmb.go   | 54 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/elf.go    | 47 +++------------------------------
+ src/cmd/link/internal/ld/lib.go    | 15 ++++++-----
+ src/cmd/link/internal/ld/macho.go  | 24 ++++++++++-------
+ 7 files changed, 87 insertions(+), 61 deletions(-)

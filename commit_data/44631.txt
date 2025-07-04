@@ -1,43 +1,22 @@
-commit 7240a18adbfcff5cfe750a1fa4af0fd42ade4381
-Author: David Chase <drchase@google.com>
-Date:   Fri Mar 5 14:24:41 2021 -0500
+commit 38fea3a4ec97fbcfad1f2d329f3a12c53cc36301
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jun 22 18:39:10 2020 -0400
 
-    cmd/compile: test register ABI for method, interface, closure calls
+    cmd/go: add tracing instrumentation to load.TestPackagesFor
     
-    This is enabled with a ridiculous magic name for method,
-    or for last input type passed, that needs to be changed
-    to something inutterable before actual release.
+    This change adds tracing instrumentation into load.TestPackagesFor,
+    propagating context through its callers.
     
-    Ridiculous method name: MagicMethodNameForTestingRegisterABI
-    Ridiculous last (input) type name: MagicLastTypeNameForTestingRegisterABI
+    Updates #38714
     
-    RLTN is tested with strings.Contains, so you can have
-    MagicLastTypeNameForTestingRegisterABI1
-    and
-    MagicLastTypeNameForTestingRegisterABI2
-    if that is helpful
-    
-    Includes test test/abi/fibish2.go
-    
-    Updates #44816.
-    
-    Change-Id: I592a6edc71ca9bebdd1d00e24edee1ceebb3e43f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299410
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I80fefaf3116ccccffaa8bb7613a656bda867394c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248323
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go   | 54 ++++++++++-------------
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  8 ++--
- src/cmd/compile/internal/ssa/gen/genericOps.go | 27 ++++++++++--
- src/cmd/compile/internal/ssa/op.go             | 47 +++++++++++++++++---
- src/cmd/compile/internal/ssa/opGen.go          |  8 ++--
- src/cmd/compile/internal/ssagen/ssa.go         | 61 +++++++++++++++++++++++---
- test/abi/fibish2.go                            | 40 +++++++++++++++++
- test/abi/fibish2.out                           |  1 +
- test/abi/fibish_closure.go                     | 34 ++++++++++++++
- test/abi/fibish_closure.out                    |  1 +
- test/abi/methods.go                            | 51 +++++++++++++++++++++
- test/abi/methods.out                           |  2 +
- 12 files changed, 279 insertions(+), 55 deletions(-)
+ src/cmd/go/internal/list/list.go |  4 ++--
+ src/cmd/go/internal/load/test.go | 14 ++++++++++----
+ src/cmd/go/internal/test/test.go |  6 +++---
+ src/cmd/go/internal/vet/vet.go   |  2 +-
+ 4 files changed, 16 insertions(+), 10 deletions(-)

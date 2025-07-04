@@ -1,39 +1,31 @@
-commit e9b3ff15f40d6b258217b3467c662f816b078477
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jan 8 17:20:14 2024 -0500
+commit 4bca2b9583c3300acccc71983cec8b5d4fbbc356
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 30 12:09:33 2023 -0800
 
-    os: relax tests and add examples for UserCacheDir and UserConfigDir
+    cmd/link: rename ELF struct fields to remove "elf" prefix
     
-    Per https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html:
-    “If, when attempting to write a file, the destination directory is
-    non-existent an attempt should be made to create it with permission
-    0700. […] The application should be prepared to handle the case where
-    the file could not be written […]. In such case it may choose to
-    present an error message to the user.”
+    While we're here rename setupplt to setupPLT.
     
-    In certain CI environments, these directories have well-defined
-    locations but do not exist and cannot be created. In that case,
-    we now choose to log and return from the test without failing it.
+    This is a pure naming change with no semantic change.
     
-    To prevent the functions from falling back to being entirely untested,
-    we still fail the test (and “present an error message to the user”) if
-    either function returns an empty string without an error, or returns a
-    path that refers to a non-directory or results in an error other than
-    ErrNotExist.
-    
-    In addition, since the tests themselves no longer create subdirectories,
-    we add examples illustrating the suggested pattern of usage.
-    
-    Fixes #64990.
-    
-    Change-Id: Ie72106424f5ebe36eaf9288c22710d74bb14a462
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/554815
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ib0312fb6568475b620dab7632438b4d25e4d9cc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463744
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/os/example_test.go | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/os/os_test.go      | 34 ++++++++++++----------
- 2 files changed, 95 insertions(+), 15 deletions(-)
+ src/cmd/link/internal/amd64/obj.go   |  6 +++---
+ src/cmd/link/internal/arm/obj.go     |  6 +++---
+ src/cmd/link/internal/arm64/obj.go   |  6 +++---
+ src/cmd/link/internal/ld/elf.go      | 16 ++++++++--------
+ src/cmd/link/internal/ld/lib.go      |  2 +-
+ src/cmd/link/internal/loong64/obj.go |  6 +++---
+ src/cmd/link/internal/mips/obj.go    |  6 +++---
+ src/cmd/link/internal/mips64/obj.go  |  6 +++---
+ src/cmd/link/internal/ppc64/obj.go   |  6 +++---
+ src/cmd/link/internal/riscv64/obj.go |  6 +++---
+ src/cmd/link/internal/s390x/obj.go   |  6 +++---
+ src/cmd/link/internal/x86/obj.go     |  6 +++---
+ 12 files changed, 39 insertions(+), 39 deletions(-)

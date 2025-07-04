@@ -1,13 +1,12 @@
-commit 5e37154077ceca58edd185306498d6fa0cc56a59
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Jul 9 19:17:17 2013 +1000
+commit e23d19e23535837fad3d1095e48fe877dbb38c10
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Tue Jul 9 11:12:05 2013 +1000
 
-    image/color: add Plan9Palette and WebSafePalette.
+    net/rpc: use log.Print and return error instead log.Fatal
     
-    R=r, rsc, andybons
-    CC=andybons, golang-dev
-    https://golang.org/cl/10890045
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/10758044
 
- src/pkg/image/color/gen.go     |  94 ++++++++
- src/pkg/image/color/palette.go | 497 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 591 insertions(+)
+ src/pkg/net/rpc/server.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

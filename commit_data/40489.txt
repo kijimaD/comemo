@@ -1,19 +1,19 @@
-commit 1d4369fa219a2cf6d6f84860e02f0cb3e6afb77a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Oct 28 11:37:24 2019 -0400
+commit ee551846fa015a04aaa55e44e8d9b6647156e301
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri May 17 01:25:55 2019 +1000
 
-    go/build: use the main module's root when locating module sources
+    runtime: correct netbsd/amd64 assembly for timespec handling
     
-    Previously, we were using srcDir, which would apply the wrong module
-    dependencies (including the wrong 'replace' and 'exclude' directives)
-    when locating an import path within a module.
+    A timespec on netbsd/amd64 is int64/int64, not int64/int32.
+    This bug appears to have been introduced in 7777bac6e45.
     
-    Fixes #34860
+    Spotted by Cherry Zhang while reviewing https://go-review.googlesource.com/c/go/+/177120.
     
-    Change-Id: Ie59dcc2075a7b51ba40f7cd2f62dae27bf58c9b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203820
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I163c55d926965defd981bdbfd2511de7d9d4c542
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177637
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
 
- src/go/build/build.go      | 83 ++++++++++++++++++++++++++++++++--------------
- src/go/build/build_test.go | 16 +++++++--
- 2 files changed, 73 insertions(+), 26 deletions(-)
+ src/runtime/sys_netbsd_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

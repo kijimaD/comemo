@@ -1,26 +1,20 @@
-commit 1f908bd060e7b597d48c907f5a2f54f3735dbe03
-Author: limeidan <limeidan@loongson.cn>
-Date:   Thu Aug 25 11:13:10 2022 +0800
+commit 267013e6e9150e073510469e1ea024cdc5149dce
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu May 12 10:26:12 2022 -0700
 
-    cmd/internal/obj/loong64, cmd/internal/objabi, cmd/link: add support for --buildmode=c-shared on loong64
+    crypto/x509: attempt to prime windows root pool before hybrid test
     
-    Updates #53301
-    Updates #58784
+    In TestHybridPool attempt to prime to the windows root pool before
+    the real test actually happens. This is a bit of a band-aid, with
+    a better long term solution discussed in #52108.
     
-    Change-Id: Ifcb40871f609531dfd8b568db9ac14da9b451742
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425476
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Updates #51599
+    
+    Change-Id: I406add8d9cd9e3fae37bfc20b97f5479c10a52c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405914
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: WANG Xuerui <git@xen0n.name>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
 
- src/cmd/internal/obj/loong64/a.out.go       |  3 +-
- src/cmd/internal/obj/loong64/asm.go         | 74 ++++++++++++++++++++++++-----
- src/cmd/internal/obj/loong64/cnames.go      |  3 +-
- src/cmd/internal/objabi/reloctype.go        |  5 ++
- src/cmd/internal/objabi/reloctype_string.go | 20 ++++----
- src/cmd/link/internal/loong64/asm.go        | 18 ++++++-
- 6 files changed, 99 insertions(+), 24 deletions(-)
+ src/crypto/x509/hybrid_pool_test.go | 30 +++++++++++++++++++++++++++++-
+ 1 file changed, 29 insertions(+), 1 deletion(-)

@@ -1,15 +1,13 @@
-commit 82a9294d1bdc230b0b251c5c2505dacefe0b901f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 5 11:43:28 2012 -0800
+commit eb5db57d1aa3dbff48693af0673746c232da875e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 14:41:30 2012 -0500
 
-    net: don't import bytes or fmt in mac.go
+    cmd/go: sync type Package and go list doc
     
-    Also add some more MAC tests.
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5728065
+    https://golang.org/cl/5730061
 
- src/pkg/net/mac.go      | 20 +++++++++++---------
- src/pkg/net/mac_test.go | 16 ++++++++++++++--
- 2 files changed, 25 insertions(+), 11 deletions(-)
+ src/cmd/go/list.go | 35 +++++++++++++++++++++++------------
+ src/cmd/go/pkg.go  | 31 ++++++++++++++++---------------
+ 2 files changed, 39 insertions(+), 27 deletions(-)

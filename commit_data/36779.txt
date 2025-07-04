@@ -1,19 +1,19 @@
-commit 01e6cfc2a0b2f9e363c6e305b14f3393d06b13b8
-Author: Austin Clements <austin@google.com>
-Date:   Sun Sep 23 19:12:15 2018 -0400
+commit 4258b43afe3d3c48010aeeae7c438e5a88c6b5ab
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat May 26 21:25:57 2018 +0200
 
-    runtime: don't call mcache.refill on systemstack
+    cmd/compile,go/build,internal/cpu: gofmt
     
-    mcache.refill doesn't need to run on the system stack; it just needs
-    to be non-preemptible. Its only caller, mcache.nextFree, also needs to
-    be non-preemptible, so we can remove the unnecessary systemstack
-    switch.
+    I don't know why these files were not formatted. Perhaps because
+    their changes came from Github PRs?
     
-    Change-Id: Iba5b3f4444855f1dc134485ba588efff3b54c426
-    Reviewed-on: https://go-review.googlesource.com/138196
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ida8d7b9a36f0d1064caf74ca1911696a247a9bbe
+    Reviewed-on: https://go-review.googlesource.com/114824
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/fmt_test.go | 56 ++++++++++++++++++++++-----------------------
+ src/go/build/build_test.go  |  2 +-
+ src/internal/cpu/cpu.go     |  4 ++--
+ 3 files changed, 31 insertions(+), 31 deletions(-)

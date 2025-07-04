@@ -1,19 +1,33 @@
-commit c4a8a684dacbe07f5524eae07d5e9f048034bcb6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 11 22:14:37 2018 -0500
+commit 3649fe299d452b11a8a458096deda38ed9df5947
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Aug 21 14:02:56 2018 +0200
 
-    cmd/go: reproduce #28680
+    cmd/gofmt: skip gofmt idempotency check on known issue
     
-    This change encodes the current behavior in mod_clean_cache.txt.
-    A fix for that behavior will probably have to wait for 1.13.
+    gofmt's TestAll runs gofmt on all the go files in the tree and checks,
+    among other things, that gofmt is idempotent (i.e. that a second
+    invocation does not change the input again).
     
-    Updates #28680
+    There's a known bug of gofmt not being idempotent (Issue #24472), and
+    unfortunately the fixedbugs/issue22662.go file triggers it. We can't
+    just gofmt the file, because it tests the effect of various line
+    directives inside weirdly-placed comments, and gofmt moves those
+    comments, making the test useless.
     
-    Change-Id: I216b5a783971309cc75187502bddccc58c3a9c35
-    Reviewed-on: https://go-review.googlesource.com/c/153818
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Instead, just skip the idempotency check when gofmt-ing the
+    problematic file.
+    
+    This fixes go test on the cmd/gofmt package, and a failure seen on the
+    longtest builder.
+    
+    Updates #24472
+    
+    Change-Id: Ib06300977cd8fce6c609e688b222e9b2186f5aa7
+    Reviewed-on: https://go-review.googlesource.com/130377
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/testdata/script/mod_clean_cache.txt | 40 ++++++++++++++++++++++++--
- 1 file changed, 38 insertions(+), 2 deletions(-)
+ src/cmd/gofmt/long_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

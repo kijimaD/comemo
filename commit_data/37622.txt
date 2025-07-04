@@ -1,31 +1,19 @@
-commit ea6259d5e9d57f247b7d877d4d04602b74ae5155
-Author: David Chase <drchase@google.com>
-Date:   Tue Dec 4 10:00:16 2018 -0500
+commit 89d533e368395a5ba3157d9a89d346dd7b50ba51
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Wed Jul 11 23:45:57 2018 +0300
 
-    cmd/compile: check for negative upper bound to IsSliceInBounds
+    archive/tar: remore redundant parens in type expressions
     
-    IsSliceInBounds(x, y) asserts that y is not negative, but
-    there were cases where this is not true.  Change code
-    generation to ensure that this is true when it's not obviously
-    true.  Prove phase cleans a few of these out.
+    Simplify `(T)` expressions to  `T` where possible.
     
-    With this change the compiler text section is 0.06% larger,
-    that is, not very much.  Benchmarking still TBD, may need
-    to wait for access to a benchmarking box (next week).
+    Found using https://go-critic.github.io/overview.html#typeUnparen-ref
     
-    Also corrected run.go to handle '?' in -update_errors output.
-    
-    Fixes #28797.
-    
-    Change-Id: Ia8af90bc50a91ae6e934ef973def8d3f398fac7b
-    Reviewed-on: https://go-review.googlesource.com/c/152477
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic5ef335e03898f9fea1ff90fd83956376657fe67
+    Reviewed-on: https://go-review.googlesource.com/123379
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/gc/ssa.go | 21 +++++++++
- test/fixedbugs/issue28797.go       | 53 +++++++++++++++++++++
- test/loopbce.go                    | 94 +++++++++++++++++++-------------------
- test/prove.go                      | 18 ++++----
- test/run.go                        |  2 +-
- 5 files changed, 131 insertions(+), 57 deletions(-)
+ src/archive/tar/format.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

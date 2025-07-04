@@ -1,34 +1,17 @@
-commit fe62a9ee872d4f61a47cc4e8c7bc0fb67cc4ebb6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 27 19:47:55 2016 -0700
+commit 86e7a5b92a8cda6809d7677689fad557b2d15544
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 4 18:46:13 2016 +0900
 
-    crypto/tls: remove unused variable in benchmark code
+    net: factor out fdMutex-related methods on netFD
     
-    This fixes `go test go/types`.
+    Also updates documentation.
     
-    https://golang.org/cl/23487/ introduced this code which contains
-    two unused variables (declared and assigned to, but never read).
-    cmd/compile doesn't report the error due open issue #8560 (the
-    variables are assigned to in a closure), but go/types does. The
-    build bot only runs go/types tests in -short mode (which doesn't
-    typecheck the std lib), hence this doesn't show up on the dashboard
-    either.
-    
-    We cannot call b.Fatal and friends in the goroutine. Communicating
-    the error to the invoking function requires a channel or a mutex.
-    Unless the channel/sycnhronized variable is tested in each iteration
-    that follows, the iteration blocks if there's a failure. Testing in
-    each iteration may affect benchmark times.
-    
-    One could use a time-out but that time depends on the underlying system.
-    Panicking seems good enough in this unlikely case; better than hanging
-    or affecting benchmark times.
-    
-    Change-Id: Idce1172da8058e580fa3b3e398825b0eb4316325
-    Reviewed-on: https://go-review.googlesource.com/23528
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idb0fc0feed61407f7f07eab81ce82b55ffde5040
+    Reviewed-on: https://go-review.googlesource.com/21446
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/tls_test.go | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ src/net/fd_mutex.go   | 87 ++++++++++++++++++++++++++++++++++++++++++++-------
+ src/net/fd_plan9.go   | 49 -----------------------------
+ src/net/fd_unix.go    | 49 -----------------------------
+ src/net/fd_windows.go | 49 -----------------------------
+ 4 files changed, 76 insertions(+), 158 deletions(-)

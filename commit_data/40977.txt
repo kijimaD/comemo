@@ -1,25 +1,19 @@
-commit 9c8c27a318459e76970a8ac0f171a8fc1a6ef5b9
-Author: Lorenz Bauer <lmb@cloudflare.com>
-Date:   Tue Dec 10 15:58:24 2019 +0000
+commit b91b3d9c31c14f55d7ddcbcbf8ffcb2539018f38
+Author: Keith Randall <khr@google.com>
+Date:   Tue Aug 27 15:06:07 2019 -0700
 
-    syscall: use SOCK_CLOEXEC when creating sockets
+    cmd/compile: remove auxSymInt32
     
-    LsfSocket, SetLsfPromisc and NetlinkRIB currently don't force the CLOEXEC
-    flag on the sockets they create. While the former two functions are
-    deprecated, NetlinkRIB is called by various functions related to
-    net.Interface.
+    We never used it, might as well get rid of it.
     
-    Add a helper to create CLOEXEC sockets, and use it from SetLsfPromisc and
-    NetlinkRIB. LsfSocket is unchanged since we don't want to break callers.
-    
-    Fixes #36053
-    
-    Change-Id: I72fe2b167996797698d8a44b0d28165045c42d3c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210517
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5c23c93e90173bff9ac1fc1b8ae1e2025215d6eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191938
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/lsf_linux.go          |  4 +++-
- src/syscall/netlink_linux.go      |  2 +-
- src/syscall/sock_cloexec_linux.go | 29 +++++++++++++++++++++++++++++
- 3 files changed, 33 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/check.go       | 6 ------
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 4 ++--
+ src/cmd/compile/internal/ssa/op.go          | 2 --
+ src/cmd/compile/internal/ssa/value.go       | 2 +-
+ 4 files changed, 3 insertions(+), 11 deletions(-)

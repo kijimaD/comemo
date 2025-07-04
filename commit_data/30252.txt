@@ -1,17 +1,15 @@
-commit 45356c1a082ae0e1f4233a8bc5644d60470e9e52
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Wed Feb 8 19:47:23 2017 -0800
+commit e2bcae7875e37c13f92dc3cf16614bf7e70fa6c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 13:06:37 2016 -0400
 
-    time: add Duration.Truncate and Duration.Round
+    cmd/go, go/build: document form of import paths
     
-    Fixes #18996
+    Fixes #16164.
     
-    Change-Id: I0b0f7270960b368ce97ad4456f60bcc1fc2a8313
-    Reviewed-on: https://go-review.googlesource.com/36615
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic8f51ebd8235640143913a07b70f5b41ee061fe4
+    Reviewed-on: https://go-review.googlesource.com/32114
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/time/time.go      | 39 ++++++++++++++++++++++++++++++++++
- src/time/time_test.go | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 98 insertions(+)
+ src/cmd/go/list.go    | 19 ++++++++++++-------
+ src/go/build/build.go | 11 ++++++++---
+ 2 files changed, 20 insertions(+), 10 deletions(-)

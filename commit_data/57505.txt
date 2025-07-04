@@ -1,21 +1,26 @@
-commit 7d114b5b71a03aa90fc560878acf19cc7251d216
-Author: yincong <yincong@baidu.com>
-Date:   Sun Sep 22 08:05:02 2024 +0000
+commit f123f5c7689f8b631686f74ebcbce15a8c650e74
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 11 14:22:56 2023 -0700
 
-    text/template/parse: use correct line number in error after comment
+    cmd/compile: mark generated eq/hash functions as //go:noinline
     
-    Fixes #69526
+    Instead of having the inliner specially recognize that eq/hash
+    functions can't be inlined, change the geneq and genhash to mark them
+    as //go:noinline.
     
-    Change-Id: I42467ddec02e91f24bce87185bf8d7f16f8811b0
-    GitHub-Last-Rev: 039a5b6884aa65f34cecbfcd127861a703a048da
-    GitHub-Pull-Request: golang/go#69532
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614375
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    This is a prereq for a subsequent CL that will move more logic for
+    handling rtypes from package types to package reflectdata.
+    
+    Change-Id: I091a9ededcc083fe8305cf5443a9af7d3a9053b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518955
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/text/template/parse/lex.go      |  1 +
- src/text/template/parse/lex_test.go | 10 ++++++++++
- 2 files changed, 11 insertions(+)
+ src/cmd/compile/internal/inline/inl.go      | 7 -------
+ src/cmd/compile/internal/ir/func.go         | 8 --------
+ src/cmd/compile/internal/reflectdata/alg.go | 4 ++++
+ src/cmd/compile/internal/types/type.go      | 5 -----
+ 4 files changed, 4 insertions(+), 20 deletions(-)

@@ -1,25 +1,25 @@
-commit cb3e170ae764856a99160ee1a6cf8f04c8f51e5d
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Feb 23 13:28:48 2023 -0800
+commit c18f398f32c45afe2e9a81a6d885a4e0183cd649
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Mar 10 11:43:43 2022 -0500
 
-    encoding/json: rely on reflect.Value.SetZero
+    crypto/rand: make Prime not deterministic for a fixed input stream
     
-    v.SetZero() is faster than v.Set(reflect.Zero(v.Type()))
-    and was recently added in Go 1.20.
+    rand.Prime does not guarantee the precise prime selection algorithm as
+    part of its contract. For example, it changed slightly in CL 387554. We
+    want to ensure that no tests come to rely on it staying the same, so
+    just like other cryptographic functions that use randomness in an
+    unspecified way (ECDSA signing, RSA PKCS #1 v1.5 encryption, RSA key
+    generation), make it randomly read an extra byte or not.
     
-    Benchmark numbers are largely unchanged since this mainly
-    affects the unmarshaling of large numbers of JSON nulls,
-    which our benchmarks do not heavily exercise.
-    
-    Change-Id: I464f60f63c9027e63a99fd5da92e7ab782018329
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471195
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Change-Id: Ib9079c03360812d412b7c21d5a06caadabb4a8bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391554
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/encoding/json/decode.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/crypto/rand/util.go      |  3 +++
+ src/crypto/rand/util_test.go | 19 +++++++++++++++++++
+ src/go/build/deps_test.go    |  2 +-
+ 3 files changed, 23 insertions(+), 1 deletion(-)

@@ -1,30 +1,15 @@
-commit 2730c17a863e0eeb7afa3589608eece8cc50e6f3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 21 22:16:16 2017 +0000
+commit 64969c8ef5b8c52b332d95d7a04421a5e4232791
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Dec 1 17:45:26 2016 -0800
 
-    syscall, os: fix FreeBSD 9 build
+    doc: update suggested Go installation version
     
-    I broke FreeBSD 9 in https://golang.org/cl/38426 by using Pipe2.
+    Previously the docs suggested downloading 1.7.2 (no good) or 1.7.3 (has
+    security flaw).
     
-    We still want to support FreeBSD 9 for one last release (Go 1.9 will
-    be the last), and FreeBSD 9 doesn't have Pipe2.
-    
-    So this still uses Pipe2, but falls back to Pipe on error.
-    
-    Updates #18854
-    Updates #19072
-    
-    Change-Id: I1de90fb83606c93fb84b4b86fba31e207a702835
-    Reviewed-on: https://go-review.googlesource.com/38430
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ifabe85908df8d6591c0957ef4bb1b800fc145793
+    Reviewed-on: https://go-review.googlesource.com/33808
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/pipe_freebsd.go                | 16 +++++++++++++++-
- src/syscall/exec_freebsd.go           | 18 +++++++++++++++++-
- src/syscall/syscall_freebsd.go        |  9 ++++++++-
- src/syscall/zsyscall_freebsd_386.go   | 12 ++++++++++++
- src/syscall/zsyscall_freebsd_amd64.go | 12 ++++++++++++
- src/syscall/zsyscall_freebsd_arm.go   | 12 ++++++++++++
- 6 files changed, 76 insertions(+), 3 deletions(-)
+ doc/install-source.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

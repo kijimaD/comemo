@@ -1,13 +1,15 @@
-commit 00b75a237af6ec8cdf227c18a5e6afe701bd61a0
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Aug 13 14:00:10 2014 +1000
+commit b5674a2b728d174bbd30be8e655b003528056d9f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 11 17:11:31 2014 -0400
 
-    misc/makerelease: exit with nonzero status code on error
+    cmd/8g: fix build
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Fixes #8510.
+    
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/129040043
+    https://golang.org/cl/129720043
 
- misc/makerelease/makerelease.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/8g/peep.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

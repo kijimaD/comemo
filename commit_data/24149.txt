@@ -1,18 +1,15 @@
-commit 45537d893d4b0a194a11d3d13ec18d460f86a237
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 31 13:56:23 2015 -0700
+commit 73ca459a56ef003ad0892ef46454bc98afd30a05
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 13 18:17:24 2015 -0600
 
-    cmd/doc: document that json.Decode documents encoding/json.Decoder.Decode
+    os/exec: ignore pipe write errors when command completes successfully
     
-    Refine the documentation in cmd/doc and go help doc.
+    Fixes #9173
     
-    Fixes #12377.
-    
-    Change-Id: I670c0a5cf18c9c9d5bb9bb222d8a3dd3722a3934
-    Reviewed-on: https://go-review.googlesource.com/14121
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I83530533db84b07cb88dbf6ec690be48a06a9d7d
+    Reviewed-on: https://go-review.googlesource.com/12152
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/doc/main.go   |  6 ++++--
- src/cmd/go/alldocs.go | 21 ++++++++++++++++-----
- src/cmd/go/doc.go     | 21 ++++++++++++++++-----
- 3 files changed, 36 insertions(+), 12 deletions(-)
+ src/os/exec/exec.go      | 10 ++++++++++
+ src/os/exec/exec_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

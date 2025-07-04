@@ -1,24 +1,21 @@
-commit 7d61ad25f8b10c0a656ef709fb30c08f5974594b
-Author: Adam Langley <agl@golang.org>
-Date:   Wed May 16 14:35:23 2018 -0700
+commit 97124af99a9a0f0ec1b3453c67c8af474aabd660
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 12 14:27:46 2018 -0500
 
-    crypto/x509: check EKUs like 1.9.
+    runtime/internal/atomic: unify sys_*_arm.s on non-linux
     
-    This change brings back the EKU checking from 1.9. In 1.10, we checked
-    EKU nesting independent of the requested EKUs so that, after verifying a
-    certifciate, one could inspect the EKUs in the leaf and trust them.
+    Updates #23778.
     
-    That, however, was too optimistic. I had misunderstood that the PKI was
-    /currently/ clean enough to require that, rather than it being
-    desirable. Go generally does not push the envelope on these sorts of
-    things and lets the browsers clear the path first.
-    
-    Fixes #24590
-    
-    Change-Id: I18c070478e3bbb6468800ae461c207af9e954949
-    Reviewed-on: https://go-review.googlesource.com/113475
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I80e57a15b6e3bbc2e25ea186399ff0e360fc5c21
+    Reviewed-on: https://go-review.googlesource.com/93635
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/x509/name_constraints_test.go |  46 ++++--
- src/crypto/x509/verify.go                | 237 ++++++++++++-------------------
- 2 files changed, 121 insertions(+), 162 deletions(-)
+ src/runtime/internal/atomic/sys_darwin_arm.s        | 11 -----------
+ src/runtime/internal/atomic/sys_nacl_arm.s          | 13 -------------
+ src/runtime/internal/atomic/sys_netbsd_arm.s        | 21 ---------------------
+ .../{sys_freebsd_arm.s => sys_nonlinux_arm.s}       | 10 ++++++----
+ src/runtime/internal/atomic/sys_openbsd_arm.s       | 11 -----------
+ src/runtime/internal/atomic/sys_plan9_arm.s         | 11 -----------
+ 6 files changed, 6 insertions(+), 71 deletions(-)

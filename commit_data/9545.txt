@@ -1,25 +1,13 @@
-commit 596bf61d6cb19d0d39c0adb5c210932279fc795d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 29 12:46:32 2011 -0700
+commit 2afc46f2b213336ca4ac1d518b9e9d4f6b5b0fbc
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Mon Aug 29 15:38:12 2011 -0400
 
-    json: add struct tag option to wrap literals in strings
+    doc/progs: fix windows/amd64
     
-    Since JavaScript doesn't have [u]int64 types, some JSON APIs
-    encode such types as strings to avoid losing precision.
-    
-    This adds a new struct tag option ",string" to cause
-    fields to be wrapped in JSON strings on encoding
-    and unwrapped from strings when decoding.
-    
-    R=rsc, gustavo
-    CC=golang-dev
-    https://golang.org/cl/4918051
+    R=rsc
+    CC=alex.brainman, golang-dev, vcc.163
+    https://golang.org/cl/4965050
 
- src/pkg/json/Makefile       |  1 +
- src/pkg/json/decode.go      | 32 +++++++++++++-----------
- src/pkg/json/decode_test.go |  5 ++++
- src/pkg/json/encode.go      | 59 +++++++++++++++++++++++++++++++--------------
- src/pkg/json/encode_test.go | 38 +++++++++++++++++++++++++++++
- src/pkg/json/tags.go        | 44 +++++++++++++++++++++++++++++++++
- src/pkg/json/tags_test.go   | 28 +++++++++++++++++++++
- 7 files changed, 175 insertions(+), 32 deletions(-)
+ doc/progs/file_windows.go | 2 +-
+ doc/progs/run             | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

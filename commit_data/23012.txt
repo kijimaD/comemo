@@ -1,14 +1,18 @@
-commit 85a15778005c8412005ef7366cf40b0a50ace5ba
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed May 13 20:28:05 2015 -0400
+commit a13cf8c104ada594e15fcb34ac3e41a36bc7f317
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 19 21:00:48 2015 -0700
 
-    math/big, cmd/internal/gc/big: fix vet detected printf problem
+    cmd/internal/obj: manual C->Go cleanups
     
-    Change-Id: I54425d8cbe0277d7a0c9d66c37f2128a0dfa6441
-    Reviewed-on: https://go-review.googlesource.com/10041
-    Run-TryBot: Minux Ma <minux@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I5964fc55157dc1df7be400dfa0df591d6163e25e
+    Reviewed-on: https://go-review.googlesource.com/9084
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/gc/big/float_test.go | 2 +-
- src/math/big/float_test.go            | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/libc.go     | 18 +++++-------------
+ src/cmd/internal/obj/link.go     |  4 +---
+ src/cmd/internal/obj/objfile.go  |  4 ----
+ src/cmd/internal/obj/stack.go    | 10 ++++------
+ src/cmd/internal/obj/sym.go      | 40 +++++++++++++---------------------------
+ src/cmd/internal/obj/typekind.go |  6 +-----
+ 6 files changed, 24 insertions(+), 58 deletions(-)

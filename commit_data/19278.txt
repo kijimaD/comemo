@@ -1,15 +1,15 @@
-commit cf78f96244ec8e3a69f10069fb43dd720f1556b0
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue May 6 11:40:43 2014 +1000
+commit 696a7e1595e30c1d05c4556b1bcf3107eae5609a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 5 14:31:26 2014 -0700
 
-    cmd/ld: correct pe section number in symbol table
+    doc: refer to wiki page for downloads
     
-    Update #7899
+    We will serve downloads from here until we work out a better plan.
     
-    LGTM=iant
-    R=golang-codereviews, rsc, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/97920044
+    https://golang.org/cl/95980044
 
- src/cmd/ld/pe.c | 35 +++++++++++++++++------------------
- 1 file changed, 17 insertions(+), 18 deletions(-)
+ doc/install.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

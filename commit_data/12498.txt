@@ -1,12 +1,12 @@
-commit 686d699ec689ccfbea7bda2aabb0af2618810eb7
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Thu Mar 8 12:49:13 2012 +1100
+commit 5827dd052c45c557b3f136e7ee466a0d9fe0f126
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 7 16:57:26 2012 -0800
 
-    io: minor change in io.WriteAt docs.
+    go/scanner: better panic diagnostic
     
-    R=adg, bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5787048
+    https://golang.org/cl/5787045
 
- src/pkg/io/io.go | 2 +-
+ src/pkg/go/scanner/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

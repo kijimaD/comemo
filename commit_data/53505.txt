@@ -1,18 +1,22 @@
-commit cc99093dfa60ecd2350cadcab5fe0d5066f06d55
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 7 17:05:11 2023 -0700
+commit 5fcddf3997a89c1f82935cf65d919b7ef03df2c5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 15:06:56 2022 -0700
 
-    doc/go1.21: mention new cmp package
+    go/types: match types2 error msg formatting for conversion errors
     
-    For #59488
+    This resolves a TODO. Also, it allows go/types and types2 to use
+    identical test files in testdata/spec, a prerequisition for sharing
+    them eventually.
     
-    Change-Id: I73ee4d1d8b9d8e6f0aad9e3bb98729aaa0f06a47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501697
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    For #54511.
+    
+    Change-Id: Ia9d11b15ada237c18b6ce8f72732f70134a1a06f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424537
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.21.html | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ src/go/types/conversions.go               | 14 +++++++-------
+ src/go/types/testdata/spec/conversions.go | 31 +++++++++++++++----------------
+ 2 files changed, 22 insertions(+), 23 deletions(-)

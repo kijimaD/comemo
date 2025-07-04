@@ -1,25 +1,29 @@
-commit 78b722d8c2f764c3048c6f0344e9ebcd2687813d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed May 4 15:44:44 2022 -0400
+commit 1fffeddfe9c977510d855277da57e0564700d6c3
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jul 20 14:37:53 2021 -0700
 
-    cmd/go: place GOROOT/bin at the beginning of PATH in 'go generate' and 'go test'
+    cmd/go: add -testsum flag to update go.sum in script tests
     
-    This causes tests and generators that execute 'go' as a subprocess to
-    use the same go command as the parent 'go test' or 'go generate'
-    command.
+    -testsum may be set to "tidy", "listm", or "listall". When set,
+    TestScript runs 'go mod tidy', 'go list -m -mod=mod all', or
+    'go list -mod=mod all' at the beginning of each test that has a go.mod
+    file in its root directory. If the test passes and go.mod or go.sum
+    was updated, TestScript will rewrite the test file with the initial
+    content of go.mod and go.sum (after the above command).
     
-    For #51473.
+    This is useful for writing tests that need a working go.sum and for
+    fixing tests that rely on -mod=mod.
     
-    Change-Id: I003cf1d05d1c93a26c6a7fdfad25e86c11765f59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404134
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    For golang/go#41302
+    
+    Change-Id: I63a5667621a5082ccedfc1bff33c3969c29e8b3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336150
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341932
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/base/env.go                    | 25 ++++++++++++-
- src/cmd/go/internal/generate/generate.go           | 21 +++++++++--
- src/cmd/go/internal/test/test.go                   |  7 +++-
- .../go/testdata/script/generate_goroot_PATH.txt    | 38 ++++++++++++++++++++
- src/cmd/go/testdata/script/test_goroot_PATH.txt    | 41 ++++++++++++++++++++++
- 5 files changed, 127 insertions(+), 5 deletions(-)
+ src/cmd/go/script_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 81 insertions(+)

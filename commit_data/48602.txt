@@ -1,33 +1,17 @@
-commit 378221bd6e73bdc21884fed9e32f53e6672ca0cd
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Mar 22 08:49:52 2022 -0400
+commit 3c1d502a19dcdaaf0f7ddf58ccad9953fe5d92d1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 27 22:09:58 2021 -0700
 
-    debug/pe: add APIs for reading section def aux info
+    [dev.typeparams] cmd/compile/internal/types2: eliminate need for unpack and asUnion functions
     
-    Add hooks to support reading of section definition symbol aux data
-    (including COMDAT information) from the aux symbols associated with
-    section definition symbols. The COFF symbol array made available by
-    "pe.File" includes entries for aux symbols, but doesn't expose their
-    structure (since it varies depending on the type of aux symbol). This
-    patch adds a function for returning a specific class of aux symbol
-    ("type 5") that immediately follows a COFF symbol corresponding to a
-    section definition.
-    
-    Updates #35006.
-    Updates #51868.
-    
-    Change-Id: I21fcc057150f7a3c64f01a5961aabca0fa43399e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394534
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iaa75b091d52f44939330e5945305aea323ba58f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323355
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- api/next/51868.txt                                 |  36 ++++++++
- src/debug/pe/section.go                            |  12 +++
- src/debug/pe/symbol.go                             |  59 +++++++++++++
- src/debug/pe/symbols_test.go                       |  91 +++++++++++++++++++++
- .../llvm-mingw-20211002-msvcrt-x86_64-crt2         | Bin 0 -> 24046 bytes
- 5 files changed, 198 insertions(+)
+ src/cmd/compile/internal/types2/builtins.go | 12 +++++-----
+ src/cmd/compile/internal/types2/infer.go    | 15 ++++++++-----
+ src/cmd/compile/internal/types2/subst.go    | 11 ++++-----
+ src/cmd/compile/internal/types2/type.go     | 35 ++++++++---------------------
+ 4 files changed, 29 insertions(+), 44 deletions(-)

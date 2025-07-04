@@ -1,57 +1,20 @@
-commit 613565186792ecee69ed6d43e7290c6124e81f33
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Mar 9 13:36:58 2024 -0500
+commit fba8566cda3a7ba8f32ed398466f1d95bb205594
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 24 13:15:31 2023 -0400
 
-    runtime: clean up timer state
+    runtime: fix ARM assembly code in cgocallback
     
-    The timers had evolved to the point where the state was stored as follows:
+    A comparison instruction was missing in CL 392854.
     
-            if timer in heap:
-                state has timerHeaped set
-                if heap timer is stale:
-                    heap deadline in t.when
-                    real deadline in t.nextWhen
-                    state has timerNextWhen set
-                else:
-                    real deadline in t.when
-                    t.nextWhen unset
-            else:
-                real deadline in t.when
-                t.nextWhen unset
+    Should fix ARM builders.
     
-    That made it hard to find the real deadline and just hard to think about everything.
-    The new state is:
+    For #51676.
     
-            real deadline in t.when (always)
-            if timer in heap:
-                state has timerHeaped set
-                heap deadline in t.whenHeap
-                if heap timer is stale:
-                    state has timerModified set
-    
-    Separately, the 'state' word itself was being used as a lock
-    and state bits because the code started with CAS loops,
-    which we abstracted into the lock/unlock methods step by step.
-    At this point, we can switch to a real lock, making sure to
-    publish the one boolean needed by timers fast paths
-    at each unlock.
-    
-    All this simplifies various logic considerably.
-    
-    Change-Id: I35766204f7a26d999206bd56cc0db60ad1b17cbe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570335
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ica27a99be10e595bab4fad35e2e6c00a1c68a662
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479255
+    TryBot-Bypass: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/runtime/mgcscavenge.go |   6 +-
- src/runtime/netpoll.go     |  40 ++--
- src/runtime/runtime2.go    |   1 +
- src/runtime/sizeof_test.go |   8 +-
- src/runtime/time.go        | 534 +++++++++++++++++++++------------------------
- src/runtime/trace2.go      |   6 +-
- src/time/sleep.go          |   7 +-
- src/time/tick.go           |   2 +-
- 8 files changed, 281 insertions(+), 323 deletions(-)
+ src/runtime/asm_arm.s | 1 +
+ 1 file changed, 1 insertion(+)

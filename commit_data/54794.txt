@@ -1,26 +1,18 @@
-commit 5fe2035927bc9fac8a375a96d9ef47735c10fba4
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Apr 7 18:53:49 2023 +0100
+commit d703ad54bcf6268e1f1813b261067421b7caa816
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:14:28 2022 -0500
 
-    internal/profile: actually return errors in postDecode
+    cmd/internal/archive: use testenv.Command instead of exec.Command in tests
     
-    As spotted by staticcheck, the body did keep track of errors by sharing
-    a single err variable, but its last value was never used as the function
-    simply finished by returning nil.
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
     
-    To prevent postDecode from erroring on empty profiles,
-    which breaks TestEmptyProfile, add a check at the top of the function.
-    
-    Update the runtime/pprof test accordingly,
-    since the default units didn't make sense for an empty profile anyway.
-    
-    Change-Id: I188cd8337434adf9169651ab5c914731b8b20f39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483137
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6f8391da50e74919ccc59cd43ccae99affab8798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450700
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/profile/encode.go  | 5 ++++-
- src/runtime/pprof/proto_test.go | 8 ++------
- 2 files changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/internal/archive/archive_test.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

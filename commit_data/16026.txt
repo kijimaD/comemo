@@ -1,16 +1,12 @@
-commit 32f88f4ea1f09cc02554071a9c2c42f6e2a83da8
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Mar 31 16:46:59 2013 +0900
+commit 59ae9d9ac9234b07c9940fa617ca09a4f43d352c
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Sat Mar 30 15:10:53 2013 -0700
 
-    net: update documentation for IPConn and related stuff
+    runtime: TestGcSys: if GOGC=off, skip instead of failing
     
-    Closes the API documentation gap between platforms.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8143044
+    https://golang.org/cl/8201043
 
- src/pkg/net/iprawsock.go       |  2 --
- src/pkg/net/iprawsock_plan9.go |  4 +---
- src/pkg/net/iprawsock_posix.go | 30 +++++++++++++++---------------
- 3 files changed, 16 insertions(+), 20 deletions(-)
+ src/pkg/runtime/gc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

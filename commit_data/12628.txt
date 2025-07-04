@@ -1,26 +1,12 @@
-commit 2fc5dd66dfb36bfdce1f260e55bba07050a21423
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Mar 14 18:43:01 2012 +1100
+commit b3ca3e95642f23c682a04d51ed60cc90825b08a5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 14 17:09:15 2012 +1100
 
-    misc/vim: restore fileencodings.
-    Currently, ftdetect/gofiletype.vim set fileencodings to open the file as
-    utf-8 encoding event if the file does not contain multibyte characters.
-    But fileencodings is global option.
-    
-    $ vim foo.txt
-    :set fileencodings
-    utf-8,ucs-bom,cp932
-    
-    $ vim foo.go
-    :set fileencodings
-    utf-8
-    
-    This change restore fileencodings before opening the file.
-    Also added specify fileformats=unix.
+    misc/dist: force modes to 0755 or 0644 in tarballs
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5718045
+    https://golang.org/cl/5823045
 
- misc/vim/ftdetect/gofiletype.vim | 24 +++++++++++++++++++++++-
- 1 file changed, 23 insertions(+), 1 deletion(-)
+ misc/dist/bindist.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

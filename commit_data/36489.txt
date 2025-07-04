@@ -1,20 +1,12 @@
-commit f2ed3e1da16ba02543268b14d962e1026257604e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Aug 25 10:11:19 2018 -0700
+commit 1129ec2ffeccbd668e0a19f60bbe8ef251b05e5f
+Author: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+Date:   Tue May 1 16:33:27 2018 +0300
 
-    cmd/go: don't let script grep commands match $WORK
+    database/sql: trivial documentation fixes
     
-    If $WORK happens to contain the string that a stdout/stderr/grep
-    command is searching for, a negative grep command will fail incorrectly.
-    
-    Fixes #27170
-    Fixes #27221
-    
-    Change-Id: I84454d3c42360fe3295c7235d388381525eb85b4
-    Reviewed-on: https://go-review.googlesource.com/131398
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I573172384eaf32daaca5021a9a1874bf0f3d340f
+    Reviewed-on: https://go-review.googlesource.com/110575
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/script_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/database/sql/sql.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

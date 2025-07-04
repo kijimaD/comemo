@@ -1,23 +1,19 @@
-commit 19f05770b05ef2a12692f522056ffb3bc23583ea
-Author: Keith Randall <khr@golang.org>
-Date:   Wed May 14 15:57:58 2025 -0700
+commit 7d4d71e52f0714c7990705f0fc56f9104761514e
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Apr 18 14:53:02 2023 -0700
 
-    cmd/compile: schedule induction variable increments late
+    net/http: improve error reporting in TestCancelRequestWhenSharingConnection
     
-    for ..; ..; i++ {
-     ...
-    }
+    Ensure that errors are reported if an HTTP request unexpectedly fails.
     
-    We want to schedule the i++ late in the block, so that all other
-    uses of i in the block are scheduled first. That way, i++ can
-    happen in place in a register instead of requiring a temporary register.
+    For #56587
     
-    Change-Id: Id777407c7e67a5ddbd8e58251099b0488138c0df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672998
+    Change-Id: I1adfb4fedc24d4177caf54e34c5033267e32caa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486075
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/ssa/schedule.go | 28 ++++++++++++++++++++++------
- test/codegen/schedule.go                 | 17 +++++++++++++++++
- 2 files changed, 39 insertions(+), 6 deletions(-)
+ src/net/http/transport_test.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

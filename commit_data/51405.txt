@@ -1,18 +1,58 @@
-commit 199d77aff0372daac2db39d7fb2da16269e4ffd4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 17 21:12:25 2022 -0500
+commit fe85c244315f82b1a6a21cd6ddc0255eed92a357
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 20 18:56:57 2022 -0800
 
-    cmd/dist: stop trying to access runtime/internal/sys.a in debug mode
+    go/types, types2: report an error when using a broken alias
     
-    Now that we don't install the .a files, the installed
-    runtime/internal/sys.a no longer exists. Stop trying to access it.
+    The type checker doesn't have a general mechanism to "use" the type
+    of a type alias whose type depends on a recursive type declaration
+    which is not yet completely type-checked. In some cases, the type of
+    a type alias is needed before it is determined; the type is incorrect
+    (invalid) in that case but no error is reported. The type-checker is
+    happy with this (incorrect type), but the compiler may crash under
+    some circumstances.
     
-    Change-Id: Ic437e7ad95be6109d0b2fcfb81e840f5cb476be8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451360
+    A correct fix will likely require some form of forwarding type which
+    is a fairly pervasive change and may also affect the type checker API.
+    
+    This CL introduces a simple side table, a map of broken type aliases,
+    which is consulted before the type associated with a type alias is
+    used. If the type alias is broken, an error is reported.
+    
+    This is a stop-gap solution that prevents the compiler from crashing.
+    The reported error refers to the corresponding issue which suggests
+    a work-around that may be applicable in some cases.
+    
+    Also fix a minor error related to type cycles: If we have a cycle
+    that doesn't start with a type, don't use a compiler error message
+    that explicitly mentions "type".
+    
+    Fixes #50259.
+    Fixes #50276.
+    Fixes #50779.
+    
+    For #50729.
+    
+    Change-Id: Ie8e38f49ef724e742e8e78625e6d4f3d4014a52c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379916
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/dist/build.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/compile/internal/types2/check.go           | 23 +++++++++++++
+ src/cmd/compile/internal/types2/decl.go            | 11 ++++--
+ .../internal/types2/testdata/check/cycles5.src     |  4 +--
+ .../types2/testdata/fixedbugs/issue50259.go2       | 18 ++++++++++
+ .../types2/testdata/fixedbugs/issue50276.go2       | 39 ++++++++++++++++++++++
+ .../types2/testdata/fixedbugs/issue50779.go2       | 23 +++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go         |  4 +++
+ src/go/types/check.go                              | 23 +++++++++++++
+ src/go/types/decl.go                               | 15 +++++++--
+ src/go/types/testdata/check/cycles5.src            |  4 +--
+ src/go/types/testdata/fixedbugs/issue50259.go2     | 18 ++++++++++
+ src/go/types/testdata/fixedbugs/issue50276.go2     | 39 ++++++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue50779.go2     | 23 +++++++++++++
+ src/go/types/typexpr.go                            |  4 +++
+ test/typeparam/issue50259.go                       | 13 ++++++++
+ 15 files changed, 251 insertions(+), 10 deletions(-)

@@ -1,27 +1,18 @@
-commit 709b6578722b0b1cb074f819e5cb22960fa31180
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 14 13:57:08 2023 -0500
+commit 489102de18cff38d1b12d09eeb7e60af42492d63
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 17 11:41:24 2022 +0100
 
-    cmd/vet: add directive analyzer
+    syscall: optimize UTF16{,Ptr}FromString
     
-    For #56986, add the new directive analyzer that catches
-    misplaced //go:debug lines.
+    Use bytealg.IndexByteString in UTF16FromString instead of an open-coded
+    loop.
     
-    Ran 'go mod vendor' after adding the import in vet
-    to bring in the vendored files.
-    
-    A followup CL will enable it by default in 'go test'.
-    
-    Change-Id: I12c46e292b31bdbf5ceb86ba4474545e78a83a47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462201
+    Change-Id: I366448382f2d0adeca6b254131e0087a1f489258
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393614
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../go/analysis/passes/directive/directive.go      | 216 +++++++++++++++++++++
- src/cmd/vendor/modules.txt                         |   1 +
- src/cmd/vet/main.go                                |   2 +
- src/cmd/vet/testdata/directive/directive.go        |   4 +
- src/cmd/vet/vet_test.go                            |   1 +
- 5 files changed, 224 insertions(+)
+ src/syscall/syscall_windows.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

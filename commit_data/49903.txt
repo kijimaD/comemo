@@ -1,24 +1,19 @@
-commit 95c125a44ad1a0c3e441c3214160cd7b4483e79c
-Author: Amit Saha <amitsaha.in@gmail.com>
-Date:   Sat May 21 17:42:02 2022 +1000
+commit d7e3e442febea1d4ba7b6b456f46b2fd9c3b69e6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 20 14:59:54 2021 -0700
 
-    net/http: allow zero-valued Expires in Cookie.Valid
+    internal/buildcfg: fix test for GOAMD64=v3 ./all.bash
     
-    The value of Expires is only checked when a value is set.
+    If GOAMD64 is set to a bogus value, goamd64() will return the default
+    value, which may not necessarily be 1. Instead, just test that it sets
+    Error.
     
-    This fixes the bug that a cookie with a zero-valued Expire
-    was considered invalid, even though Expires is an optional
-    field.
-    
-    Fixes #52989
-    
-    Change-Id: I206c50e9b6ea2744a92c74673d589ce2aaa62670
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407654
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ibbc26608c1ae24e645c7753ef5765b9c2fdc089e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351129
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/cookie.go      | 2 +-
- src/net/http/cookie_test.go | 7 +++++--
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/internal/buildcfg/cfg_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,20 +1,18 @@
-commit 52f68efa45a34e60e8fc5a2ad5fc124a865ac2a4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 17 12:28:28 2022 -0700
+commit 6ed9463133daabcf11b259155c3f3348ae5a06af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Aug 15 11:46:33 2021 -0700
 
-    mime: ignore .js => text/plain in Windows registry
+    cmd/compile/internal/syntax: better error message for index syntax error
     
-    This seems to be a common registry misconfiguration on Windows.
+    Fixes #47704.
     
-    Fixes #32350
-    
-    Change-Id: I68c617c42a6e72948e2acdf335ff8e7df569432d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406894
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I1de9fd00baaa4b534c23f011ade54120f5153a9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342369
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go1.19.html          | 16 ++++++++++++++++
- src/mime/type_windows.go | 11 +++++++++++
- 2 files changed, 27 insertions(+)
+ src/cmd/compile/internal/syntax/parser.go              |  6 +++++-
+ .../compile/internal/syntax/testdata/issue47704.src    | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

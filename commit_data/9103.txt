@@ -1,16 +1,12 @@
-commit 95323c59eaa6ffa8c76450c19a3831c88ecd19e3
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Jul 18 15:54:11 2011 +1000
+commit a8e0035bd346beebb9d6bb5b43cb99ca901dd47a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 18 12:59:16 2011 +1000
 
-    runtime: fix panic for make(chan [0]byte).
-    
-    I suspect that this was introduced by
-    http://code.google.com/p/go/source/detail?r=6e4ee32fffd1
+    http: drain the pipe output in TestHandlerPanic to avoid logging deadlock.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4764045
+    https://golang.org/cl/4756047
 
- src/pkg/runtime/chan.c |  2 +-
- test/chan/zerosize.go  | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/pkg/http/serve_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

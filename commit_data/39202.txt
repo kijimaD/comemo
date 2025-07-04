@@ -1,32 +1,25 @@
-commit 295c56627afaa9db19ee7fcb0df33c1d6fa3c9fa
-Author: Shulhan <m.shulhan@gmail.com>
-Date:   Fri May 10 22:38:56 2019 +0700
+commit 1fb596143cd47145c8cee0c1c5ed5e871feeb2b1
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jan 22 13:49:47 2019 -0800
 
-    internal/envcmd: print GO111MODULE when executing "go env"
+    cmd/compile: don't bother compiling functions named "_"
     
-    If we look at the issues in the past releases that are related
-    to go command that involved modules, its usually mention or ask about
-    the value of GO111MODULE, either in separate line or in separate
-    comment.
+    They can't be used, so we don't need code generated for them. We just
+    need to report errors in their bodies.
     
-    There are quite long time range before GO111MODULE will be removed
-    (unused).  The next release is still default to auto [1], and until Go
-    1.13 unsupported (two releases after that) there is about one and half
-    years after that.
+    This is the minimal CL for 1.12. For 1.13, CL 158845 will remove
+    a bunch of special cases sprinkled about the compiler to handle "_"
+    functions, which should (after this CL) be unnecessary.
     
-    Since the change is not that big (one line) [2], maybe temporary adding
-    it to "go env" give more clarity and benefit in issue reporting rather
-    than not.
+    Update #29870
     
-    [1] https://github.com/golang/go/issues/31857
-    
-    Fixes #29656
-    
-    Change-Id: I609ad6664774018e4f4147ec6158485172968e16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176837
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iaa1c194bd0017dffdce86589fe2d36726ee83c13
+    Reviewed-on: https://go-review.googlesource.com/c/158820
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/envcmd/env.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/pgen.go |  8 ++++++++
+ test/fixedbugs/issue29870.go        | 15 +++++++++++++++
+ test/fixedbugs/issue29870b.go       | 14 ++++++++++++++
+ 3 files changed, 37 insertions(+)

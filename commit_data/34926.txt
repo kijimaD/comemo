@@ -1,15 +1,21 @@
-commit cf7760360ed5ed5ae3d38e626eaf913329d16778
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 11 09:49:32 2018 +1000
+commit 4f6d8a59eae73f3ce4e67e8e42a2bc25e7216ec3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 22 15:25:59 2017 -0500
 
-    doc/install.html: address comments from review of previous edit
+    net/rpc: wait for responses to be written before closing Codec
     
-    Point out that one can just run the commands now; it's not necessary
-    to log out first.
+    If there are no more requests being made, wait to shut down
+    the response-writing codec until the pending requests are all
+    answered.
     
-    Change-Id: I48d0cc0273d97ba54ce59b3a3bbcae0b5af9aaef
-    Reviewed-on: https://go-review.googlesource.com/106195
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #17239.
+    
+    Change-Id: Ie62c63ada536171df4e70b73c95f98f778069972
+    Reviewed-on: https://go-review.googlesource.com/79515
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/install.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/net/rpc/server.go      | 14 ++++++++++---
+ src/net/rpc/server_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 3 deletions(-)

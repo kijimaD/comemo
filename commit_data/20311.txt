@@ -1,24 +1,25 @@
-commit 4b3906fec35b81e9bce7af5e1ce64c2a431c8301
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 5 14:58:54 2014 -0400
+commit 29f9f3ec80237ff0b2eb17f042747c08a10e0a14
+Author: Kelsey Hightower <kelsey.hightower@gmail.com>
+Date:   Fri Aug 29 22:19:30 2014 -0700
 
-    runtime: handle nil ptr load/store in arm software floating point
+    net/http: add BasicAuth method to *http.Request
     
-    We cannot let a real panic start there, because there is C code
-    on the stack, and worse, there is an assembly frame with a
-    saved copy of the registers and we have no idea which ones
-    are pointers.
+    The net/http package supports setting the HTTP Authorization header
+    using the Basic Authentication Scheme as defined in RFC 2617, but does
+    not provide support for extracting the username and password from an
+    authenticated request using the Basic Authentication Scheme.
     
-    Instead, detect the nil ptr load/store and return out of the C
-    and assembly into a stub that will start the call to sigpanic.
+    Add BasicAuth method to *http.Request that returns the username and
+    password from authenticated requests using the Basic Authentication
+    Scheme.
     
-    Fixes GOARM=5 build.
+    Fixes #6779.
     
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=dave, golang-codereviews, minux, r
-    https://golang.org/cl/138130043
+    LGTM=bradfitz
+    R=golang-codereviews, josharian, bradfitz, alberto.garcia.hierro, blakesgentry
+    CC=golang-codereviews
+    https://golang.org/cl/76540043
 
- src/pkg/runtime/softfloat_arm.c | 69 ++++++++++++++++++++++++++++++++---------
- src/pkg/runtime/vlop_arm.s      | 12 +++++++
- 2 files changed, 66 insertions(+), 15 deletions(-)
+ src/pkg/net/http/request.go      | 30 +++++++++++++++++
+ src/pkg/net/http/request_test.go | 70 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 100 insertions(+)

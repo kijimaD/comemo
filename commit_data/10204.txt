@@ -1,12 +1,14 @@
-commit 5e4e8f49c5a6a5850e808e2378103c6dd83420e7
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Nov 2 18:03:45 2011 +1100
+commit b43cf81c8c6a4809e89f7e470996b73d035a88e5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Nov 2 17:11:40 2011 +1100
 
-    json: fix typo in scanner_test.go.
+    net: implement LookupTXT for windows
     
-    R=dsymonds
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5303092
+    https://golang.org/cl/5318056
 
- src/pkg/json/scanner_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/lookup_test.go        |  4 ----
+ src/pkg/net/lookup_windows.go     | 25 +++++++++++++++++++------
+ src/pkg/syscall/ztypes_windows.go |  5 +++++
+ 3 files changed, 24 insertions(+), 10 deletions(-)

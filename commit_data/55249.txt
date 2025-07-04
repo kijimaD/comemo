@@ -1,17 +1,21 @@
-commit f360ffd95a9c2a40901a53956901681ef53b7049
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Dec 8 15:33:14 2023 -0500
+commit 7135710e01ab86468f23ac412e7f03f49235d5bb
+Author: James Yang <26634873@qq.com>
+Date:   Fri Jan 6 08:44:28 2023 +0000
 
-    doc/go1.22: document that reflect.PtrTo is deprecated
+    archive: error check when parse archive
     
-    Updates #59599.
-    For #61422.
+    Add error check when call `r.parseObject` in `parseArchive`.
     
-    Change-Id: I923be38b719a78dd983372acad93f710a53b0922
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548036
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Bypass: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib1739f25941262593cf63837e272b6ee896d8613
+    GitHub-Last-Rev: 5a17f9aa2c7406e191a518fdac6cb519a425fd09
+    GitHub-Pull-Request: golang/go#57624
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460755
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- doc/go1.22.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/internal/archive/archive.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

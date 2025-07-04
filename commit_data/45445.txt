@@ -1,51 +1,43 @@
-commit 02ab8d1a1dc82ce019969221313bfa28911f54a1
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Apr 24 12:41:17 2021 -0400
+commit 614a8b7c8ad42ff8a9bc363f813af2aae046fd0c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 16 22:22:20 2020 -0400
 
-    cmd/compile, runtime: emit only GC data for stack objects
+    runtime: tidy Windows callback test
     
-    Currently, for stack objects, the compiler emits metadata that
-    includes the offset and type descriptor for each object. The type
-    descriptor symbol has many fields, and it references many other
-    symbols, e.g. field/element types, equality functions, names.
+    This simplifies the systematic test of Windows callbacks with
+    different signatures and prepares it for expanded coverage of function
+    signatures.
     
-    Observe that what we actually need at runtime is only the GC
-    metadata that are needed to scan the object, and the GC metadata
-    are "leaf" symbols (which doesn't reference other symbols). Emit
-    only the GC data instead. This avoids bringing live the type
-    descriptor as well as things referenced by it (if it is not
-    otherwise live).
+    It now returns a result from the Go function and threads it back
+    through C. This simplifies things, but also previously the code could
+    have succeeded by simply not calling the callbacks at all (though
+    other tests would have caught that).
     
-    This reduces binary sizes:
+    It bundles together the C function description and the Go function
+    it's intended to call. Now the test source generation and the test
+    running both loop over a single slice of test functions.
     
-                         old          new
-    hello (println)    1187776      1133856 (-4.5%)
-    hello (fmt)        1902448      1844416 (-3.1%)
-    cmd/compile       22670432     22438576 (-1.0%)
-    cmd/link           6346272      6225408 (-1.9%)
+    Since the C function and Go function are now bundled, it generates the
+    C function by reflectively inspecting the signature of the Go
+    function. For the moment, we keep the same test suite, which is
+    entirely functions with "uintptr" arguments, but we'll expand this
+    shortly.
     
-    No significant change in compiler speed.
+    It now use sub-tests. This way tests automatically get useful
+    diagnostic labels in failures and the tests don't have to catch panics
+    on their own.
     
-    name        old time/op       new time/op       delta
-    Template          184ms ± 2%        186ms ± 5%    ~     (p=0.905 n=9+10)
-    Unicode          78.4ms ± 5%       76.3ms ± 3%  -2.60%  (p=0.009 n=10+10)
-    GoTypes           1.09s ± 1%        1.08s ± 1%  -0.73%  (p=0.027 n=10+8)
-    Compiler         85.6ms ± 3%       84.6ms ± 4%    ~     (p=0.143 n=10+10)
-    SSA               7.23s ± 1%        7.25s ± 1%    ~     (p=0.780 n=10+9)
-    Flate             116ms ± 5%        115ms ± 6%    ~     (p=0.912 n=10+10)
-    GoParser          201ms ± 4%        195ms ± 1%    ~     (p=0.089 n=10+10)
-    Reflect           455ms ± 1%        458ms ± 2%    ~     (p=0.050 n=9+9)
-    Tar               155ms ± 2%        155ms ± 3%    ~     (p=0.436 n=10+10)
-    XML               202ms ± 2%        200ms ± 2%    ~     (p=0.053 n=10+9)
+    It eliminates the DLL function argument. I honestly couldn't figure
+    out what the point of this was, and it added what appeared to be an
+    unnecessary loop level to the tests.
     
-    Change-Id: I33a7f383d79afba1a482cac6da0cf5b7de9c0ec4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313514
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I120dfd4785057cc2c392bd2c821302f276bd128e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263270
+    Trust: Austin Clements <austin@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/liveness/plive.go      | 22 ++++++++-
- src/cmd/compile/internal/reflectdata/reflect.go | 64 ++++++++++++++++++++-----
- src/runtime/mgcmark.go                          | 28 +++++------
- src/runtime/mgcstack.go                         | 22 ++++-----
- src/runtime/stack.go                            | 40 ++++++++++++----
- 5 files changed, 128 insertions(+), 48 deletions(-)
+ src/runtime/syscall_windows_test.go | 224 +++++++++++++++---------------------
+ 1 file changed, 90 insertions(+), 134 deletions(-)

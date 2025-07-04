@@ -1,16 +1,32 @@
-commit dacf1f1e10a6b1ed02b6b935e502ddf8585b3748
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Tue Oct 10 15:34:42 2023 -0400
+commit 9944ba757b0f8005cfb7715d41592c7e13c0a2b8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 17 16:57:07 2022 -0700
 
-    go/types: clarify the documentation for Func.Pkg
+    cmd/compile: fix transitive inlining of generic functions
     
-    Change-Id: Ia695960ba652143f4a48c1ca3495a043097acbb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534298
+    If an imported, non-generic function F transitively calls a generic
+    function G[T], we may need to call CanInline on G[T].
+    
+    While here, we can also take advantage of the fact that we know G[T]
+    was already seen and compiled in an imported package, so we don't need
+    to call InlineCalls or add it to typecheck.Target.Decls. This saves us
+    from wasting compile time re-creating DUPOK symbols that we know
+    already exist in the imported package's link objects.
+    
+    Fixes #56280.
+    
+    Change-Id: I3336786bee01616ee9f2b18908738e4ca41c8102
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443535
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/object.go | 6 ++++++
- src/go/types/object.go                    | 6 ++++++
- 2 files changed, 12 insertions(+)
+ src/cmd/compile/internal/inline/inl.go    | 23 +++++++++++-------
+ src/cmd/compile/internal/noder/reader.go  |  2 +-
+ src/cmd/compile/internal/noder/unified.go | 40 ++++++++++++++++++++++++++++---
+ test/fixedbugs/issue56280.dir/a.go        | 11 +++++++++
+ test/fixedbugs/issue56280.dir/main.go     | 11 +++++++++
+ test/fixedbugs/issue56280.go              |  7 ++++++
+ test/run.go                               |  1 +
+ 7 files changed, 83 insertions(+), 12 deletions(-)

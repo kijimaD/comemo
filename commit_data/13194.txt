@@ -1,11 +1,24 @@
-commit c1b53d43e8c843717b8f6e18897d5fe8e7290a9d
-Merge: a0efca84e6 fb32d60cd1
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 29 14:37:41 2012 -0400
+commit 93fe8c0c9333b0392b2a5cf2981cb068de9441ba
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 29 11:09:09 2012 -0700
 
-    merge unexpected branch
+    database/sql: use driver.ColumnConverter everywhere consistently
+    
+    It was only being used for (*Stmt).Exec, not Query, and not for
+    the same two methods on *DB.
+    
+    This unifies (*Stmt).Exec's old inline code into the old
+    subsetArgs function, renaming it in the process (changing the
+    old word "subset" to "driver", mostly converted earlier)
+    
+    Fixes #3640
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6258045
 
- src/pkg/runtime/signal_netbsd_386.c | 11 ++++++
- src/pkg/runtime/sys_netbsd_386.s    | 67 +++++++++----------------------------
- src/pkg/runtime/sys_netbsd_amd64.s  |  2 +-
- 3 files changed, 28 insertions(+), 52 deletions(-)
+ src/pkg/database/sql/convert.go     | 58 +++++++++++++++++++----
+ src/pkg/database/sql/fakedb_test.go | 29 +++++++++++-
+ src/pkg/database/sql/sql.go         | 93 +++++++++++++------------------------
+ src/pkg/database/sql/sql_test.go    |  4 +-
+ 4 files changed, 112 insertions(+), 72 deletions(-)

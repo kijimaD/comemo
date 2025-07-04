@@ -1,0 +1,21 @@
+commit 4f237ffd16ef1ff11f8fb80083457a47028954ff
+Author: David Chase <drchase@google.com>
+Date:   Tue Jul 2 12:45:30 2024 -0400
+
+    cmd/compile: verify that rangefunc assigning to no vars works
+    
+    This adds a test for
+       for range seq2rangefunc { ... }
+    and
+       for onevar := range seq2rangefunc { ... }
+    
+    For #65236.
+    
+    Change-Id: I083f8e4c19eb4ba0d6024d5314ac29d941141778
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596135
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/rangefunc/rangefunc_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

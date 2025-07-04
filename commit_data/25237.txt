@@ -1,53 +1,22 @@
-commit fb6f8a96f24f6b30e99cc77d78bc0194ffec7a41
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Dec 8 15:11:27 2015 +0100
+commit 6f772787f97720aeeb98d37b2c63b1a3155588d1
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat Oct 10 16:53:09 2015 +0000
 
-    runtime: remove unnecessary wakeups of worker threads
+    net/textproto: properly trim continued lines in MIME headers
     
-    Currently we wake up new worker threads whenever we pass
-    through the scheduler with nmspinning==0. This leads to
-    lots of unnecessary thread wake ups.
-    Instead let only spinning threads wake up new spinning threads.
+    A MIME header can include values defined on several lines.
+    Only the first line of each value was trimmed.
     
-    For the following program:
+    Make sure all the lines are trimmed before being aggregated.
     
-    package main
-    import "runtime"
-    func main() {
-            for i := 0; i < 1e7; i++ {
-                    runtime.Gosched()
-            }
-    }
+    Fixes #11204
     
-    Before:
-    $ time ./test
-    real    0m4.278s
-    user    0m7.634s
-    sys     0m1.423s
-    
-    $ strace -c ./test
-    % time     seconds  usecs/call     calls    errors syscall
-     99.93    9.314936           3   2685009     17536 futex
-    
-    After:
-    $ time ./test
-    real    0m1.200s
-    user    0m1.181s
-    sys     0m0.024s
-    
-    $ strace -c ./test
-    % time     seconds  usecs/call     calls    errors syscall
-      3.11    0.000049          25         2           futex
-    
-    Fixes #13527
-    
-    Change-Id: Ia1f5bf8a896dcc25d8b04beb1f4317aa9ff16f74
-    Reviewed-on: https://go-review.googlesource.com/17540
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Id92f384044bc6c4ca836e5dba2081fe82c82dc85
+    Reviewed-on: https://go-review.googlesource.com/15683
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/proc.go      | 142 +++++++++++++++++++++++++++++++++++------------
- src/runtime/proc_test.go |  74 ++++++++++++++++++++++++
- src/runtime/runtime2.go  |   2 +-
- 3 files changed, 181 insertions(+), 37 deletions(-)
+ src/net/textproto/reader.go      |  2 +-
+ src/net/textproto/reader_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

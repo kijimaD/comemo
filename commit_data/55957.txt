@@ -1,21 +1,38 @@
-commit 73cac618016a471e770672883619b0e323f9d875
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 14 21:22:31 2024 -0700
+commit f57f02fcd519a86683c47a444e0e24a086fea8e0
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Jan 12 11:19:12 2023 +0100
 
-    net: #define _GNU_SOURCE to 1
+    cmd/link,cmd/internal/objabi: support ADDR32NB relocations on windows
     
-    Makes the build work with CGO_CPPFLAGS=-D_GNU_SOURCE,
-    as reportedly used by TinyGo.
+    This CL updates the linker to support
+    IMAGE_REL_[I386|AMD64|ARM|ARM64]_ADDR32NB relocations via the new
+    R_PEIMAGEOFF relocation type. This relocation type references symbols
+    using RVAs instead of VA, so it can use 4-byte offsets to reference
+    symbols that would normally require 8-byte offsets.
     
-    Fixes #66325
+    This new relocation is still not used, but will be useful when
+    generating Structured Exception Handling (SEH) metadata, which
+    needs to reference functions only using 4-byte addresses, thus
+    using RVAs instead of VA is of great help.
     
-    Change-Id: I794f1cd89814638fdb6c3066d13bbd7da88c9d93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571875
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Updates #57302
+    
+    Change-Id: I28d73e97d5cb78a3bc7194dc7d2fcb4a03f9f4d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461737
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Davis Goodin <dagood@microsoft.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/cgo_unix_cgo.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/objabi/reloctype.go          |  4 ++++
+ src/cmd/internal/objabi/reloctype_string.go   |  5 +++--
+ src/cmd/link/internal/amd64/asm.go            |  3 +++
+ src/cmd/link/internal/arm/asm.go              |  3 +++
+ src/cmd/link/internal/arm64/asm.go            |  3 +++
+ src/cmd/link/internal/ld/data.go              |  9 +++++++--
+ src/cmd/link/internal/ld/pe.go                | 18 ++++++++++--------
+ src/cmd/link/internal/loader/loader_test.go   | 11 +++++++++++
+ src/cmd/link/internal/loader/symbolbuilder.go |  4 ++++
+ src/cmd/link/internal/x86/asm.go              |  3 +++
+ 10 files changed, 51 insertions(+), 12 deletions(-)

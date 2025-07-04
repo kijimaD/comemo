@@ -1,21 +1,24 @@
-commit 0387bedadf8ec0ec4139af7c1361abaa47a6c03a
+commit 6290a5436578751bb04dacc9d8910a6e968683a2
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Nov 1 17:05:32 2020 -0500
+Date:   Mon Apr 20 13:40:22 2020 -0400
 
-    cmd/compile: remove racefuncenterfp when it is not needed
+    [dev.link] cmd/link: don't write text address directly if using plugins
     
-    We already remove racefuncenter and racefuncexit if they are not
-    needed (i.e. the function doesn't have any other race  calls).
-    racefuncenterfp is like racefuncenter but used on LR machines.
-    Remove unnecessary racefuncenterfp as well.
+    When using plugins, on darwin we do weird things with
+    runtime.etext symbol, assigning a value for it, then clear it,
+    reassign a different value. This breaks the logic of writing text
+    address directly.
     
-    Change-Id: I65edb00e19c6d9ab55a204cbbb93e9fb710559f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267099
-    Trust: Cherry Zhang <cherryyz@google.com>
+    I think we should remove the weird thing with runtime.etext, if
+    possible. But for now, disable the optimization (this is not a
+    common case anyway).
+    
+    Fix darwin-nocgo build.
+    
+    Change-Id: Iab6a9f8519115226a5bbaaafe4a93f17042a928a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229057
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/rewrite.go | 6 +++---
- test/codegen/race.go                    | 2 ++
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

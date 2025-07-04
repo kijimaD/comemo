@@ -1,19 +1,21 @@
-commit 8a9e2d9d49a9d5234b52a0360ed6a0f91753c291
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Jun 28 15:46:00 2022 +0800
+commit 1ea4d3b91164fb08b7022958b6cd8e290f12e017
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Mar 30 19:58:35 2021 +0800
 
-    cmd/compile: add missing tail calls flag for linux/loong64
+    cmd/link: merge note sections into one segment
     
-    Set the value of the variable tailCall to true and prevent
-    allocating or clobber the linker register.
+    The ld from binutils merges note sections into one PT_NOTE
+    segment.
+    We should do that for consistency with binutils.
     
-    Change-Id: I4ec19c67056cb99196911aa7c0054be89ab7eb8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414954
+    Change-Id: I45703525c720972d49c36c4f10ac47d1628b5698
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265957
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 2 +-
- src/cmd/compile/internal/ssa/opGen.go           | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/link/elf_test.go        | 55 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/elf.go | 39 ++++++++++++-----------------
+ 2 files changed, 71 insertions(+), 23 deletions(-)

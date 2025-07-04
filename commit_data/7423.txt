@@ -1,17 +1,15 @@
-commit 9fe490ee38d8b98275c11078e56590e5fd6cf86f
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Feb 10 07:56:30 2011 -0500
+commit 239ef63bf2f30f86367d8b81a49ab9c25646f766
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Thu Feb 10 23:02:27 2011 +1100
 
-    crypto/openpgp/packet: four more packet types.
+    runtime: take the callback return value from the stack
     
-    R=bradfitzgo
+    R=brainman, lxn, rsc
     CC=golang-dev
-    https://golang.org/cl/4156044
+    https://golang.org/cl/4126056
 
- src/pkg/crypto/openpgp/packet/literal.go           |  53 ++++++
- .../crypto/openpgp/packet/one_pass_signature.go    |  49 +++++
- .../openpgp/packet/symmetric_key_encrypted.go      | 102 ++++++++++
- .../openpgp/packet/symmetric_key_encrypted_test.go |  62 +++++++
- .../openpgp/packet/symmetrically_encrypted.go      | 206 +++++++++++++++++++++
- .../openpgp/packet/symmetrically_encrypted_test.go |  78 ++++++++
- 6 files changed, 550 insertions(+)
+ src/pkg/runtime/cgocall.c         | 9 +++------
+ src/pkg/runtime/cgocall.h         | 2 +-
+ src/pkg/runtime/runtime.h         | 2 +-
+ src/pkg/runtime/windows/386/sys.s | 8 +++++++-
+ 4 files changed, 12 insertions(+), 9 deletions(-)

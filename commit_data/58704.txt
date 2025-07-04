@@ -1,29 +1,16 @@
-commit b574590c36b7ede1492239db2d55c35e8818c7a7
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Tue Feb 11 12:59:54 2025 -0500
+commit 818de275c0170dce86f2e4c6b3c70fbbea99bf94
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 13:31:21 2023 -0500
 
-    cmd/go: document -modfile and other flags for 'go tool'
+    doc: add release notes for PGO improvements
     
-    Mention -modfile, -C, -overlay, and -modcacherw in the 'go tool'
-    documentation. We let a reference to 'go help build' give a pointer to
-    more detailed information.
+    For #61577.
+    For #61422.
     
-    The -modfile flag in particular is newly useful with the Go 1.24 support
-    for user-defined tools with 'go tool'.
-    
-    Updates #48429
-    Updates #33926
-    Updates #71663
-    Fixes #71502
-    
-    Change-Id: Ida67df50ff774a0886733d661a40e27c2cadc0f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648577
+    Change-Id: I575bf657fb36bd7103c73620bb2371d0f490af20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546935
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Conrad Irwin <conrad.irwin@gmail.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
 
- src/cmd/go/alldocs.go            | 7 +++++++
- src/cmd/go/internal/tool/tool.go | 7 +++++++
- 2 files changed, 14 insertions(+)
+ doc/go1.22.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

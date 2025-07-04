@@ -1,26 +1,26 @@
-commit 5c15ed64deaf71dd3b84470f3de8aae0b667d6ef
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu May 2 07:05:21 2019 +0000
+commit f880efcc1666e2b99fbda644eeff258e4a15dd38
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Dec 18 16:32:09 2018 -0800
 
-    runtime: split spans during allocation without treap removal
+    Revert "runtime: use QPC for nanotime and time.now on windows/arm"
     
-    Now that the treap is first-fit, we can make a nice optimization.
-    Mainly, since we know that span splitting doesn't modify the relative
-    position of a span in a treap, we can actually modify a span in-place
-    on the treap. The only caveat is that we need to update the relevant
-    metadata.
+    This reverts change https://golang.org/cl/154758.
     
-    To enable this optimization, this change introduces a mutate method on
-    the iterator which takes a callback that is passed the iterator's span.
-    The method records some properties of the span before it calls into the
-    callback and then uses those records to see what changed and update
-    treap metadata appropriately.
+    Restore the previous implementations of nanotime and time.now, which
+    are sufficiently high resolution and more efficient than
+    QueryPerformanceCounter. The intent of the change was to improve
+    resolution of tracing timestamps, but the change was overly broad
+    as it was only necessary to fix cputicks(). cputicks() is fixed in
+    a subsequent change.
     
-    Change-Id: I74f7d2ee172800828434ba0194d3d78d3942acf2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174879
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Updates #26148
+    
+    Change-Id: Ib9883d02fe1af2cc4940e866d8f6dc7622d47781
+    Reviewed-on: https://go-review.googlesource.com/c/154761
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgclarge.go | 34 ++++++++++++++++++++++++++++
- src/runtime/mheap.go    | 60 +++++++++++++++++++++++++++----------------------
- 2 files changed, 67 insertions(+), 27 deletions(-)
+ src/runtime/os_windows.go     |  13 ++---
+ src/runtime/sys_windows_arm.s | 109 ++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 110 insertions(+), 12 deletions(-)

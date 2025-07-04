@@ -1,24 +1,25 @@
-commit ee1b51294ab50179b60d6c548ddded5b91cd0cbb
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Nov 18 08:53:00 2020 +0100
+commit 09630172d45c09e150bd1329e37b74611d4af830
+Author: Tyson Andre <tysonandre775@gmail.com>
+Date:   Sat Apr 25 21:39:19 2020 +0000
 
-    runtime: use pipe2 syscall for Pipe in tests
+    net/http/httputil: fix typo in unit test name
     
-    On FreeBSD >= 11 with a kernel built with COMPAT_FREEBSD11 but not
-    COMPAT_FREEBSD10, the pipe syscall is not available. Thus, tests using
-    runtime.pipe fail with ENOSYS. As suggested by Ian, fix this by calling
-    pipe2(0) in these tests and fall back to pipe() in case of ENOSYS.
+    Everywhere else is using "cancellation"
     
-    Fixes #42659
+    The reasoning is mentioned in 170060
     
-    Change-Id: Ifbb8008884b7901fe87830d162ad326122c5fab9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270917
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    > Though there is variation in the spelling of canceled,
+    > cancellation is always spelled with a double l.
+    >
+    > Reference: https://www.grammarly.com/blog/canceled-vs-cancelled/
+    
+    Change-Id: Ifc97c6785afb401814af77c377c2e2745ce53c5a
+    GitHub-Last-Rev: 05edd7477da46ca5c02703e139dbfc0cd05408ac
+    GitHub-Pull-Request: golang/go#38662
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230200
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/export_pipe2_test.go | 15 +++++++++++++++
- src/runtime/export_pipe_test.go  |  9 +++++++++
- src/runtime/export_unix_test.go  |  1 -
- 3 files changed, 24 insertions(+), 1 deletion(-)
+ src/net/http/httputil/reverseproxy_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,20 @@
-commit 70db237169c35367d6e2b0a13e3b6892849b3c35
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 8 16:09:49 2012 +1100
+commit d4fb568e047a23a5ade5c3750da0de9fb54ff33a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 22:43:28 2012 -0500
 
-    doc: add go command notes to the Go 1 doc
+    cmd/gc: implement len(array) / cap(array) rule
     
-    Fixes #2912.
+    The spec is looser than the current implementation.
+    The spec edit was made in CL 4444050 (May 2011)
+    but I never implemented it.
     
-    R=golang-dev, r
+    Fixes #3244.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5783048
+    https://golang.org/cl/5785049
 
- doc/go1.html | 20 +++++++++++++++++++-
- doc/go1.tmpl | 20 +++++++++++++++++++-
- 2 files changed, 38 insertions(+), 2 deletions(-)
+ src/cmd/gc/typecheck.c | 54 +++++++++++++++++++++++++++++++----
+ test/const4.go         | 77 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/const5.go         | 33 ++++++++++++++++++++++
+ 3 files changed, 158 insertions(+), 6 deletions(-)

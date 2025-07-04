@@ -1,15 +1,12 @@
-commit f80f6e4580b63fd837a5f9c0e9538b97d7520a7b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Dec 21 16:35:05 2015 +0900
+commit e4feb18fc2aa7618d612e9f4eedb86821240c20b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Oct 23 12:21:02 2015 -0400
 
-    net/internal/socktest: simplify log message format
+    math/big: fix SetMantExp comment
     
-    This change replaces the existing log format separated by commas and
-    spaces with space-separated one.
-    
-    Change-Id: I9a4b38669025430190c9a1a6b5c82b862866559d
-    Reviewed-on: https://go-review.googlesource.com/17999
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If30cf9c94b58e18564db46c15c6f5cc14ec1a6fa
+    Reviewed-on: https://go-review.googlesource.com/16271
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/internal/socktest/switch.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/math/big/float.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,13 +1,30 @@
-commit b3b9b5e463cefb5eaad69628709ed5a0c1cb658f
-Author: Kevin Burke <kev@inburke.com>
-Date:   Sun May 7 23:19:31 2017 -0700
+commit 870d079c76ffd3766fb336a4071ae273867761d1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 3 13:38:49 2017 -0800
 
-    net/url: add examples for URL.Hostname and URL.RequestURI
+    cmd/compile/internal/gc: replace Node.Ullman with Node.HasCall
     
-    Change-Id: I72a10cd5dfb863f8219bb3b5b8280c017f523cf4
-    Reviewed-on: https://go-review.googlesource.com/42856
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Since switching to SSA, the only remaining use for the Ullman field
+    was in tracking whether or not an expression contained a function
+    call. Give it a new name and encode it in our fancy new bitset field.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I95b7f9cb053856320c0d66efe14996667e6011c2
+    Reviewed-on: https://go-review.googlesource.com/37721
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/url/example_test.go | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ src/cmd/compile/internal/gc/bitset.go   | 10 ++++++
+ src/cmd/compile/internal/gc/closure.go  |  4 ---
+ src/cmd/compile/internal/gc/dcl.go      |  3 --
+ src/cmd/compile/internal/gc/fmt.go      |  8 ++---
+ src/cmd/compile/internal/gc/gen.go      |  2 --
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/reflect.go  |  2 --
+ src/cmd/compile/internal/gc/ssa.go      |  1 -
+ src/cmd/compile/internal/gc/subr.go     | 63 +++++++++++----------------------
+ src/cmd/compile/internal/gc/syntax.go   |  6 ++--
+ src/cmd/compile/internal/gc/walk.go     | 24 ++++++-------
+ 11 files changed, 52 insertions(+), 73 deletions(-)

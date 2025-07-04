@@ -1,24 +1,35 @@
-commit 5abf200d6528a67032d67d3f50ffd7ce8b536dfa
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 29 17:30:12 2022 -0400
+commit 353d5b6c536c7028eba058ba27014fae0206298a
+Author: Zhi Zheng <zhi.zheng052@gmail.com>
+Date:   Mon Apr 5 16:00:07 2021 -0700
 
-    cmd/dist: simplify exec.Cmd helpers for Go 1.19
+    runtime: enable crash dump creation on Windows
     
-    When running on Go 1.19, we can further simplify some of the exec.Cmd
-    helpers due to API improvements. There's not much point in doing this
-    while the bootstrap is still 1.17, but this will queue up this
-    simplification in an obvious way for when we next upgrade the
-    bootstrap toolchain (#54265).
+    This change provides ability to create dumps on Windows that can be used by
+    "dlv core" command. Currently only full dumps can be correctly read by Delve.
+    Below are the steps to create and use the dumps.
     
-    Updates #44505.
+    1. Configure Windows OS to collect dumps before running the program.
+    Instructions on how to do the configuration are here:
+    https://docs.microsoft.com/en-us/windows/win32/wer/collecting-user-mode-dumps.
+    In order for Delve to read the dump, set the DumpType to full dump, i.e. DumpType=2.
     
-    Change-Id: I2ebc3d5c584375ec862a1d48138ab134bd9b2366
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427958
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    2. Go program only generates dumps when the environment variable GOTRACEBACK
+    is set to crash. Run command "set GOTRACEBACK=crash" before running the program.
+    
+    3. Dump files will be generated in %LOCALAPPDATA%\CrashDumps
+    
+    4. Use Delve command "dlv core" to open the dump, e.g.: "dlv core a.exe a.exe.3840.dmp".
+    
+    Fixes #20498
+    
+    Change-Id: Ib9aa82e7aea9da19594dc49348876997b24e9600
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307372
+    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Patrik Nyblom <pnyb@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/dist/{exec.go => exec_118.go} |  2 ++
- src/cmd/dist/exec_119.go              | 42 +++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+)
+ src/runtime/os_windows.go     |  4 +++
+ src/runtime/panic.go          | 11 +++++++
+ src/runtime/signal_windows.go | 74 ++++++++++++++++++++++++++++++-------------
+ 3 files changed, 67 insertions(+), 22 deletions(-)

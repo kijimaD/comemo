@@ -1,28 +1,19 @@
-commit d5fefbb4980aaf46ac25344615c660136c365b9f
-Author: Jakub Čajka <jcajka@redhat.com>
-Date:   Mon Dec 13 13:28:15 2021 +0100
+commit 865d2bc78e5b6170c8b773880dc5fa3405791dc2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 9 18:02:48 2021 -0400
 
-    misc/cgo/testshared: pass -x flag only to commands supporting it
+    cmd/compile: do not allocate space for unspilled in-register results
     
-    Running testshared with the -testx flag leads to:
+    For function results, if in register, we allocate spill slots
+    within the frame like locals. Currently, even if we never spill
+    to it the slot is still allocated. This CL makes it not allocate
+    the slot if it is never used.
     
-    ./testshared.test -testx -testwork
-    + mkdir -p /tmp/shared_test125221103
-    shared_test.go:79: executing go env -x GOROOT failed exit status 2:
-    flag provided but not defined: -x
-    usage: go env [-json] [-u] [-w] [var ...]
-    Run 'go help env' for details.
-    panic: executing go env -x GOROOT failed exit status 2:
-    flag provided but not defined: -x
-    usage: go env [-json] [-u] [-w] [var ...]
-    Run 'go help env' for details.
-    
-    Change-Id: Id299979487c021e9ad1d57f5f7088d935830a6a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371614
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Change-Id: Idbd4e3096cfac6d2bdfb501d8efde48ee2191d7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309150
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- misc/cgo/testshared/shared_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssagen/pgen.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

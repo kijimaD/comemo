@@ -1,18 +1,32 @@
-commit 4a40fb197931a23c11ff4d677ecee6aefd99d5ca
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Sep 8 16:06:41 2014 +1000
+commit fa2af441f1d7f2daccf40e1e350e8a8bfdcfb9e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 2 15:12:53 2014 -0400
 
-    cmd/cc: fix undefined behaviour warning in bv.c
+    runtime: convert traceback*.c to Go
     
-    Fixes warning
+    The two converted files were nearly identical.
+    Instead of continuing that duplication, I merged them
+    into a single traceback.go.
     
-    # _/home/dfc/go/misc/cgo/test/backdoor
-    /home/dfc/go/src/cmd/cc/bv.c:43:11: runtime error: left shift of 1 by 31 places cannot be represented in type 'int'
+    Tested on arm, amd64, amd64p32, and 386.
     
-    LGTM=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/136330043
+    LGTM=r
+    R=golang-codereviews, remyoudompheng, dave, r
+    CC=dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/134200044
 
- src/cmd/cc/bv.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/api/goapi.go                 |  31 ++-
+ src/pkg/runtime/extern.go            |  24 +-
+ src/pkg/runtime/heapdump.c           |   4 +-
+ src/pkg/runtime/mgc0.c               |   8 +-
+ src/pkg/runtime/mprof.go             |  10 +-
+ src/pkg/runtime/os_windows_386.go    |  11 +
+ src/pkg/runtime/os_windows_amd64.go  |  11 +
+ src/pkg/runtime/runtime.h            |   8 +-
+ src/pkg/runtime/stack.c              |  12 +-
+ src/pkg/runtime/stubs.go             |  20 +-
+ src/pkg/runtime/traceback.go         | 504 +++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/traceback_arm.c      | 363 -------------------------
+ src/pkg/runtime/traceback_windows.go |  64 +++++
+ src/pkg/runtime/traceback_x86.c      | 436 ------------------------------
+ 14 files changed, 668 insertions(+), 838 deletions(-)

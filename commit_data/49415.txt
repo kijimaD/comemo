@@ -1,15 +1,26 @@
-commit 0c3a0543c2e4322ff3dccf6e2b82a7fbafaaabea
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jun 6 17:05:49 2022 -0400
+commit 4012fea822763ef3aa66dd949fa95b9f8d89450a
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Jul 23 22:28:26 2021 +0900
 
-    doc/go1.19: compiler section is complete, modulo TODOs
+    all: fix typos
     
-    For #51400
-    
-    Change-Id: I964e52e0a36e7bbe77175670e93ce8c99e7dab6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410367
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I83180c472db8795803c1b9be3a33f35959e4dcc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336889
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.19.html | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/go/internal/modcmd/vendor.go                                | 2 +-
+ .../mod/example.com_split-incompatible_v2.0.0+incompatible.txt      | 2 +-
+ .../mod/example.com_split-incompatible_v2.1.0-pre+incompatible.txt  | 2 +-
+ src/cmd/go/testdata/script/mod_lazy_import_allmod.txt               | 2 +-
+ src/cmd/go/testdata/script/mod_tidy_compat.txt                      | 2 +-
+ src/crypto/ed25519/internal/edwards25519/tables.go                  | 2 +-
+ src/crypto/x509/parser.go                                           | 6 +++---
+ src/math/sinh_s390x.s                                               | 4 ++--
+ src/math/tan_s390x.s                                                | 2 +-
+ src/net/lookup.go                                                   | 2 +-
+ src/reflect/value.go                                                | 2 +-
+ src/runtime/traceback.go                                            | 2 +-
+ src/strconv/ftoaryu.go                                              | 2 +-
+ test/typeparam/slices.go                                            | 2 +-
+ 14 files changed, 17 insertions(+), 17 deletions(-)

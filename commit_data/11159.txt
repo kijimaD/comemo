@@ -1,19 +1,27 @@
-commit 1c441e259f66bc2594cb8b0a95bf6cc0847e2bd8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 13 15:25:07 2012 -0800
+commit 0575cd9de45215c069ffb15afe11599dcb409f62
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 13 23:24:33 2012 +0100
 
-    exp/sql: fix statement leak
+    strconv: faster FormatFloat(x, *, -1, 64) using Grisu3 algorithm.
     
-    Also verified in external test suite that this fixes MySQL
-    resource exhaustion problems, and also exposed a double-free
-    bug in the gosqlite3 driver (where gosqlite3 either got lucky
-    before, or was working around this bug)
+    The implementation is similar to the one from the double-conversion
+    library used in the Chrome V8 engine.
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/5544057
+                                old ns/op   new ns/op  speedup
+    BenchmarkAppendFloatDecimal      591         480      1.2x
+    BenchmarkAppendFloat            2956         486      6.1x
+    BenchmarkAppendFloatExp        10622         503     21.1x
+    BenchmarkAppendFloatNegExp     40343         483     83.5x
+    BenchmarkAppendFloatBig         2798         664      4.2x
+    
+    See F. Loitsch, ``Printing Floating-Point Numbers Quickly and
+    Accurately with Integers'', Proceedings of the ACM, 2010.
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5502079
 
- src/pkg/exp/sql/fakedb_test.go | 17 ++++++++++++++++-
- src/pkg/exp/sql/sql.go         | 19 ++++++++++++++-----
- src/pkg/exp/sql/sql_test.go    | 18 ++++++++++++++++++
- 3 files changed, 48 insertions(+), 6 deletions(-)
+ src/pkg/strconv/extfloat.go  | 190 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strconv/ftoa.go      |  54 +++++++-----
+ src/pkg/strconv/ftoa_test.go |  33 ++++++++
+ 3 files changed, 257 insertions(+), 20 deletions(-)

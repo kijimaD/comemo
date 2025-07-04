@@ -1,16 +1,15 @@
-commit 7e92c86df25b70f486b99ed6a10b623b9fd20de4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 26 13:03:11 2016 -0800
+commit 91abab0429a9740ac1b9b0b06282c04f132103f5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 8 16:49:17 2015 +0000
 
-    cmd/compile: remove listsort
+    crypto/tls: document lack of Lucky13 hardening
     
-    The listsort function is no longer used, except in a test.  Change the
-    test to use sort.Sort instead.
+    Updates #13385
     
-    Change-Id: Ib634705cc1bc3b1d8fc3795bd4ed2894e6abc284
-    Reviewed-on: https://go-review.googlesource.com/19964
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9c2edf8c02adc388c48760b29e63dfa2966262d6
+    Reviewed-on: https://go-review.googlesource.com/17532
+    Reviewed-by: Tim Cooijmans <timcooijmans@gmail.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/gc/pgen_test.go | 15 ++++----
- src/cmd/compile/internal/gc/syntax.go    | 63 --------------------------------
- 2 files changed, 7 insertions(+), 71 deletions(-)
+ src/crypto/tls/tls.go | 5 +++++
+ 1 file changed, 5 insertions(+)

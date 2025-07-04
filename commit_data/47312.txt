@@ -1,24 +1,13 @@
-commit 8f923a4e3c03829874b43291f2bdfd12e2d8189b
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Tue Nov 2 21:33:23 2021 +0100
+commit 5e2f5a38c43874f97e3517e4445f68520f317226
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Feb 26 20:13:12 2021 +0100
 
-    net/netip: add missing encoding.BinaryUnmarshaler to AddrPort and Prefix
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    The Addr type got an encoding.BinaryUnmarshaler implementation, but not
-    AddrPort and Prefix. This commit adds the missing implementation of that
-    interface to these types. It also adds two round trip tests that follow
-    the template of the existing one for Addr.
-    
-    Updates #49298.
-    
-    Change-Id: Iac633aed8aac579960815bb64d06ff3181214841
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360875
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I091f7be19c4c01a0c878783335bea2e1724c85b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296989
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/netip/leaf_alts.go  | 11 ++++++
- src/net/netip/netip.go      | 54 ++++++++++++++++++++++++++++
- src/net/netip/netip_test.go | 88 +++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 150 insertions(+), 3 deletions(-)
+ misc/boring/RELEASES | 2 ++
+ 1 file changed, 2 insertions(+)

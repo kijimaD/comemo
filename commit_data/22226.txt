@@ -1,37 +1,38 @@
-commit 9e6f7aac28a33f805692e2c1b498fdbc576f853d
-Author: Austin Clements <austin@google.com>
-Date:   Sun Mar 29 10:20:54 2015 -0400
+commit 621d75999f37a5f358c94d6e467b4fe93a377b46
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 28 14:24:28 2015 -0500
 
-    runtime: make "write barriers are not allowed" comments more precise
+    all: mv 5a old5a and so on
     
-    Currently, various functions are marked with the comment
+    This CL will break any uses of 'go tool 5a' etc.
+    That is intentional.
+    Code that invokes an assembler directly should be updated to use go tool asm.
     
-      // May run without a P, so write barriers are not allowed.
+    We plan to keep the old5a around for bit-for-bit verification during
+    the release testing phase, but we plan to remove those tools for the
+    actual release. Renaming the directory now makes sure that lingering
+    references to 'go tool 5a' will be caught, changed to use asm, and
+    tested during the release evaluation.
     
-    However, "running without a P" is ambiguous. We intended these to mean
-    that m.p may be nil (which is the condition checked by the write
-    barrier). The comment could also be taken to mean that a
-    stop-the-world may happen, which is not the case for these functions
-    because they run in situations where there is in fact a function on
-    the stack holding a P locally, it just isn't in m.p.
-    
-    Change these comments to state precisely what we mean, that m.p may be
-    nil.
-    
-    Change-Id: I4a4a1d26aebd455e5067540e13b9f96a7482146c
-    Reviewed-on: https://go-review.googlesource.com/8209
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I98748a7ddb34cc7f1b151c2ef421d3656821f5c2
+    Reviewed-on: https://go-review.googlesource.com/6366
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/os1_darwin.go    | 2 +-
- src/runtime/os1_dragonfly.go | 2 +-
- src/runtime/os1_freebsd.go   | 2 +-
- src/runtime/os1_linux.go     | 2 +-
- src/runtime/os1_nacl.go      | 2 +-
- src/runtime/os1_netbsd.go    | 2 +-
- src/runtime/os1_openbsd.go   | 2 +-
- src/runtime/os1_plan9.go     | 2 +-
- src/runtime/os1_windows.go   | 2 +-
- src/runtime/os3_solaris.go   | 2 +-
- src/runtime/proc1.go         | 4 ++--
- 11 files changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/dist/build.go           | 10 +++++-----
+ src/cmd/dist/buildtool.go       |  8 ++++----
+ src/cmd/go/build.go             |  2 +-
+ src/cmd/go/pkg.go               |  8 ++++----
+ src/cmd/{5a => old5a}/a.y       |  0
+ src/cmd/{5a => old5a}/lex.go    |  0
+ src/cmd/{5a => old5a}/y.go      |  0
+ src/cmd/{6a => old6a}/a.y       |  0
+ src/cmd/{6a => old6a}/lex.go    |  0
+ src/cmd/{6a => old6a}/y.go      |  0
+ src/cmd/{8a => old8a}/a.y       |  0
+ src/cmd/{8a => old8a}/lex.go    |  0
+ src/cmd/{8a => old8a}/y.go      |  0
+ src/cmd/{9a => old9a}/a.y       |  0
+ src/cmd/{9a => old9a}/lex.go    |  0
+ src/cmd/{9a => old9a}/y.go      |  0
+ src/debug/gosym/pclntab_test.go |  2 +-
+ 17 files changed, 15 insertions(+), 15 deletions(-)

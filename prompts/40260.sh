@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40260: 6da300b196df5fc3b33dd3bc87c477d46473abde
+# Index 40260: 858064fb01c52e2c8a703854333ea25dff26ee33
 
 echo "🚀 Generating explanation for commit 40260..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 40260
-- **コミットハッシュ**: 6da300b196df5fc3b33dd3bc87c477d46473abde
-- **GitHub URL**: https://github.com/golang/go/commit/6da300b196df5fc3b33dd3bc87c477d46473abde
+- **コミットハッシュ**: 858064fb01c52e2c8a703854333ea25dff26ee33
+- **GitHub URL**: https://github.com/golang/go/commit/858064fb01c52e2c8a703854333ea25dff26ee33
 
 ### 章構成
 

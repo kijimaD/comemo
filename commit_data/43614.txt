@@ -1,37 +1,27 @@
-commit ddc7e1d16f58c73a2587bba130a4a49ffac8b0d1
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Oct 29 15:37:35 2020 +0000
+commit 03ba6b070d625bf00eac5350c4f363e5e87828b2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Apr 15 18:01:00 2020 +0000
 
-    Revert "reflect,runtime: use internal ABI for selected ASM routines"
+    runtime: prevent preemption while releasing worldsema in gcStart
     
-    This reverts commit 50af50d136551e2009b2b52e829570536271cdaa.
+    Currently, as a result of us releasing worldsema now to allow STW events
+    during a mark phase, we release worldsema between starting the world and
+    having the goroutine block in STW mode. This inserts preemption points
+    which, if followed through, could lead to a deadlock. Specifically,
+    because user goroutine scheduling is disabled in STW mode, the goroutine
+    will block before properly releasing worldsema.
     
-    Reason for revert: Causes failures in the runtime package test on Darwin, apparently.
+    The fix here is to prevent preemption while releasing the worldsema.
     
-    Change-Id: I006bc1b3443fa7207e92fb4a93e3fb438d4d3de3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266257
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Fixes #38404.
+    Updates #19812.
+    
+    Change-Id: I8ed5b3aa108ab2e4680c38e77b0584fb75690e3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228337
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/ssa.go   | 86 ++++++++++++++++----------------
- src/cmd/internal/obj/wasm/wasmobj.go |  6 ++-
- src/reflect/asm_amd64.s              | 12 ++---
- src/runtime/asm_amd64.s              | 96 ++++++++++++++----------------------
- src/runtime/asm_wasm.s               |  4 +-
- src/runtime/duff_amd64.s             |  4 +-
- src/runtime/mkpreempt.go             |  3 +-
- src/runtime/preempt_386.s            |  3 +-
- src/runtime/preempt_amd64.s          |  3 +-
- src/runtime/preempt_arm.s            |  3 +-
- src/runtime/preempt_arm64.s          |  3 +-
- src/runtime/preempt_mips64x.s        |  3 +-
- src/runtime/preempt_mipsx.s          |  3 +-
- src/runtime/preempt_ppc64x.s         |  3 +-
- src/runtime/preempt_riscv64.s        |  3 +-
- src/runtime/preempt_s390x.s          |  3 +-
- src/runtime/preempt_wasm.s           |  3 +-
- src/runtime/race_amd64.s             | 12 ++---
- src/runtime/sys_linux_amd64.s        | 13 ++---
- 19 files changed, 112 insertions(+), 154 deletions(-)
+ src/runtime/mgc.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

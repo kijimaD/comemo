@@ -1,15 +1,25 @@
-commit 4675e3332b0af407aee8bc078c1a50cccb318ce6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Mar 27 12:10:50 2011 -0700
+commit 7f9acb53cb15ecea79dd6ed5ec117429b5919abb
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 26 11:25:22 2011 -0700
 
-    test: match gccgo error messages for bug325.go.
+    testing: shorten some more tests
     
-    bug325.go:13:10: error: invalid indirect of ‘unsafe.Pointer’
-    bug325.go:14:31: error: reference to field ‘foo’ in object which has no fields or methods
-    
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4313050
+    https://golang.org/cl/4314044
 
- test/fixedbugs/bug325.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/archive/tar/writer_test.go            |  3 +++
+ src/pkg/big/int_test.go                       | 11 +++++++++--
+ src/pkg/container/vector/numbers_test.go      |  9 +++++++++
+ src/pkg/crypto/elliptic/elliptic_test.go      |  3 +++
+ src/pkg/crypto/tls/handshake_messages_test.go |  6 +++++-
+ src/pkg/exp/eval/eval_test.go                 |  8 ++++++--
+ src/pkg/fmt/fmt_test.go                       |  3 +++
+ src/pkg/go/printer/printer_test.go            |  7 +++++--
+ src/pkg/image/png/reader_test.go              | 12 +++++++++++-
+ src/pkg/image/png/writer_test.go              |  6 +++++-
+ src/pkg/json/decode_test.go                   |  1 +
+ src/pkg/json/scanner_test.go                  | 25 ++++++++++++++++++++-----
+ src/pkg/netchan/netchan_test.go               |  2 +-
+ src/pkg/utf8/string_test.go                   | 11 ++++++++---
+ 14 files changed, 89 insertions(+), 18 deletions(-)

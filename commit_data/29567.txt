@@ -1,21 +1,19 @@
-commit 14e9f4825bffd4339dbde43198ed1710a1e149b5
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Nov 16 22:39:25 2016 +0000
+commit 60074b0fd35e438b06ba8e42c0e90b1a8a2945b7
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 23 19:57:16 2016 -0700
 
-    cmd/cover: don't ignore os.Create error
+    runtime: remove TestCollisions from -short
     
-    Failing to create the output file would give confusing errors such as:
+    Takes a bit too long to run it all the time.
     
-            cover: invalid argument
+    Fixes #17217
+    Update #17104
     
-    Also do out.Close() even if Execute() errored.
-    
-    Fixes #17951.
-    
-    Change-Id: I897e1d31f7996871c54fde7cb09614cafbf6c3fc
-    Reviewed-on: https://go-review.googlesource.com/33278
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4802190ea16ee0f436a7f95b093ea0f995f5b11d
+    Reviewed-on: https://go-review.googlesource.com/29751
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cover/html.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/runtime/hash_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

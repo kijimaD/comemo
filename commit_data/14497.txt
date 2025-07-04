@@ -1,18 +1,14 @@
-commit 4ce3df5074d1ab4e0440a4d19ed6d26a54025578
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Nov 26 15:26:46 2012 -0800
+commit 4a1b8146687c1e73786857af36d8b4f1053aa4e6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 26 14:20:05 2012 -0800
 
-    os: move Plan 9 directory marshaling code to syscall
+    go/printer: don't use 'infinity' value when it might lead to int32 overflow
     
-    The API additions to syscall are in dir_plan9.go.
+    Fixes 386 build breakage.
     
-    R=seed, rsc, rminnich, mirtchovski, dave
-    CC=golang-dev, lucio.dere
-    https://golang.org/cl/6157045
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6844091
 
- src/pkg/os/dir_plan9.go       | 259 +++++-------------------------------------
- src/pkg/os/file_plan9.go      |  92 ++++++++++-----
- src/pkg/os/stat_plan9.go      |  36 +++---
- src/pkg/syscall/dir_plan9.go  | 205 +++++++++++++++++++++++++++++++++
- src/pkg/syscall/exec_plan9.go |  20 +---
- 5 files changed, 322 insertions(+), 290 deletions(-)
+ src/pkg/go/printer/nodes.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

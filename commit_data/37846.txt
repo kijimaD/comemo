@@ -1,17 +1,18 @@
-commit af3c4809675d1f8c0a96a6593795ce89c52ead2a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 7 11:54:35 2019 -0800
+commit b794ca64d29f3e584cbdf49bde7141d3c12dd2ab
+Author: Charles Kenney <charlesc.kenney@gmail.com>
+Date:   Mon Sep 3 07:02:03 2018 +0000
 
-    lib/time: update tzdata to 2018i
+    runtime/trace: fix syntax errors in NewTask doc example
     
-    Updates #22487
+    Fixes #27406
     
-    Change-Id: Iab4874ddef8e47eb99cd03e1c40af8372cce65c6
-    Reviewed-on: https://go-review.googlesource.com/c/156637
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9c6f5bac5b26558fa7628233c74a62faf676e811
+    GitHub-Last-Rev: 29d19f719316b486224a15a50556465811985edf
+    GitHub-Pull-Request: golang/go#27437
+    Reviewed-on: https://go-review.googlesource.com/132775
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 363811 -> 365447 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/trace/annotation.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

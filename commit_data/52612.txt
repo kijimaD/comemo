@@ -1,25 +1,21 @@
-commit 830f54b70ed2ce0c28c8db30876aba67beed7ee3
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 13 17:23:13 2023 -0400
+commit 5a4ba6d90543fc1af8822e4f4d379135cef25655
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri May 6 10:15:49 2022 -0700
 
-    go/build/constraint: add GoVersion
+    cmd/go: make TestScript/test_fuzz_minimize_dirty_cov use less memory
     
-    For #57001, programs need to be able to deduce the Go version
-    implied by a given build constraint. GoVersion determines that,
-    by discarding all build tags other than Go versions and computing
-    the minimum Go version implied by the resulting expression.
+    The test doesn't need to be as aggressive, it _should_ still tickle
+    the right paths with high enough probability. This should
+    significantly reduce the memory it consumes, which is at a premium
+    when testing fuzzing things.
     
-    For #59033.
+    Fixes #52744
     
-    Change-Id: Ifb1e7af2bdbdf172f82aa490c826c9b6ca5e824b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476275
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I4d8dd5b29e65fb429962850b3f4477982452c856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404634
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- api/next/59033.txt                   |   2 +
- src/cmd/dist/buildtool.go            |   1 +
- src/go/build/constraint/vers.go      | 105 +++++++++++++++++++++++++++++++++++
- src/go/build/constraint/vers_test.go |  45 +++++++++++++++
- 4 files changed, 153 insertions(+)
+ src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

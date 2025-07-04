@@ -1,17 +1,13 @@
-commit ba1018b4549f3edc257221cc8e49221255e03290
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 9 21:33:54 2018 +0000
+commit 70bada9db3b9eda9ae024dca36eb8fc1d57101c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 22 15:07:52 2017 -0400
 
-    net/url: reject invalid userinfo values when parsing URLs
+    [dev.boringcrypto] misc/boring: add go1.9b4 release
     
-    Fixes #23392
-    
-    Change-Id: I5822b082b14d886b9c3b5ad7beebb2c01a77851b
-    Reviewed-on: https://go-review.googlesource.com/87038
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3848a207fde43598ec77d88cd9be93cca8d3ded3
+    Reviewed-on: https://go-review.googlesource.com/65473
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/url/url.go      | 33 +++++++++++++++++++++++++++++++++
- src/net/url/url_test.go |  7 +++++++
- 2 files changed, 40 insertions(+)
+ misc/boring/RELEASES | 1 +
+ 1 file changed, 1 insertion(+)

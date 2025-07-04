@@ -1,20 +1,31 @@
-commit 9b112cec8363c0c574750d92cffe8682e80aacbe
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 15 08:56:07 2022 -0700
+commit a938e529861215d9721f5e2590d5166bfbf2d271
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Thu May 13 16:08:59 2021 +0200
 
-    internal/cpu: don't run SSE3 disable test if GOAMD64>1
+    cmd/go: fix a portability issue in the cd script command
     
-    That feature can't be disabled if the microarchitectural version
-    requires it.
+    Currently all script tests use the UNIX path separator with the cd
+    command, causing the PWD environment variable to have the incorrect path
+    separator on Windows.
     
-    Change-Id: Iad8aaa8089d2f023e9ae5044c6da33224499f09b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392994
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Trust: Keith Randall <khr@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Martin Möhrmann <martin@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Call filepath.FromSlash on the cd command argument.
+    Update the testdata/script/README to document that the cd argument must
+    use slashes.
+    
+    Add a regression test.
+    
+    To reproduce this issue, a test must use the cd command followed by a
+    stdout or stderr command containing the pattern $PWD.
+    
+    Change-Id: Ib2dc5f185cc2476451402787996d14df91f7dddb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319311
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/internal/cpu/cpu_x86_test.go    |  3 +++
- src/internal/cpu/export_x86_test.go | 11 +++++++++++
- 2 files changed, 14 insertions(+)
+ src/cmd/go/script_test.go                        |  2 +-
+ src/cmd/go/testdata/script/README                |  1 +
+ src/cmd/go/testdata/script/test_script_cmdcd.txt | 13 +++++++++++++
+ 3 files changed, 15 insertions(+), 1 deletion(-)

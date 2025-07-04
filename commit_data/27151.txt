@@ -1,27 +1,51 @@
-commit a19e60b2c3c388abd3503da3fc2659bef1e76b46
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 26 15:22:33 2016 -0700
+commit 7c18f8cdc37600637f05f1e87799cb013ee85772
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 13 12:16:43 2016 -0700
 
-    cmd/compile: don't use line numbers from ONAME and named OLITERALs
+    cmd/compile: write some static data directly
     
-    The line numbers of ONAMEs are the location of their
-    declaration, not their use.
+    Instead of generating ADATA instructions for
+    static data, write that static data directly
+    into the linker sym.
+    This is considerably more efficient.
+    The assembler still generates
+    ADATA instructions, so the ADATA machinery
+    cannot be dismantled yet. (Future work.)
+    Skipping ADATA has a significant impact
+    compiling the unicode package, which has lots
+    of static data.
     
-    The line numbers of named OLITERALs are also the location
-    of their declaration.
+    name     old time/op    new time/op    delta
+    Unicode     227ms ±10%     192ms ± 4%  -15.61%  (p=0.000 n=29+30)
     
-    Ignore both of these.  Instead, we will inherit the line number from
-    the containing syntactic item.
+    name     old alloc/op   new alloc/op   delta
+    Unicode    51.0MB ± 0%    45.8MB ± 0%  -10.29%  (p=0.000 n=30+30)
     
-    Fixes #14742
-    Fixes #15430
+    name     old allocs/op  new allocs/op  delta
+    Unicode      610k ± 0%      578k ± 0%   -5.29%  (p=0.000 n=30+30)
     
-    Change-Id: Ie43b5b9f6321cbf8cead56e37ccc9364d0702f2f
-    Reviewed-on: https://go-review.googlesource.com/22479
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This does not pass toolstash -cmp, because
+    this changes the order in which some relocations
+    get added, and thus it changes the output from
+    the compiler. It is not worth the execution time
+    to sort the relocs in the normal case.
+    
+    However, compiling with -S -v generates identical
+    output if (1) you suppress printing of ADATA progs
+    in flushplist and (2) you suppress printing of
+    cpu timing. It is reasonable to suppress printing
+    the ADATA progs, since the data itself is dumped
+    later. I am therefore fairly confident that all
+    changes are superficial and non-functional.
+    
+    Fixes #14786, although there's more to do
+    in general.
+    
+    Change-Id: I8dfabe7b423b31a30e516cfdf005b62a2e9ccd82
+    Reviewed-on: https://go-review.googlesource.com/20645
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 17 +++++++----------
- 1 file changed, 7 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/obj.go | 144 +++++++++++++++++--------------------
+ src/cmd/internal/obj/data.go       |  58 +++++++++++++++
+ 2 files changed, 122 insertions(+), 80 deletions(-)

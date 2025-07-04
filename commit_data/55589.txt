@@ -1,22 +1,40 @@
-commit 69d6c7b8ee62b4db5a8f6399e15f27d47b209a29
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Feb 12 11:04:24 2024 +0100
+commit 21ff6704bc8efa72abe191263aae938f3c867480
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun Feb 19 17:11:46 2023 -0800
 
-    net: skip TestModeSocket on older Windows versions
+    encoding/json: use append for Compact and Indent
     
-    CL 561937 taught os.Stat about IO_REPARSE_TAG_AF_UNIX and added a
-    test for it, TestModeSocket. This test fails on Windows older than
-    10.0.17063, in which AF_UNIX support was added. Skip the test on those
-    versions.
+    This is part of the effort to reduce direct reliance on bytes.Buffer
+    so that we can use a buffer with better pooling characteristics.
     
-    Some CI builders use Windows 10.0.14393, so CL 561937 broke them,
-    e.g. https://build.golang.org/log/5ea4f6422779f32eccfef3a25df54283ddd4e65e.
+    Avoid direct use of bytes.Buffer in Compact and Indent and
+    instead modify the logic to rely only on append.
+    This avoids reliance on the bytes.Buffer.Truncate method,
+    which makes switching to a custom buffer implementation easier.
     
-    Change-Id: I6c21a78a1454d2d88321478288c0da1b8a93e590
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/563256
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Performance:
+    
+            name                old time/op    new time/op    delta
+            EncodeMarshaler    25.5ns ± 8%    25.7ns ± 9%   ~     (p=0.724 n=10+10)
+    
+            name                old alloc/op   new alloc/op   delta
+            EncodeMarshaler     4.00B ± 0%     4.00B ± 0%   ~     (all equal)
+    
+            name                old allocs/op  new allocs/op  delta
+            EncodeMarshaler      1.00 ± 0%      1.00 ± 0%   ~     (all equal)
+    
+    Updates #27735
+    
+    Change-Id: I8cded03fab7651d43b5a238ee721f3472530868e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469555
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/unixsock_windows_test.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/encoding/json/encode.go |  18 +++++---
+ src/encoding/json/indent.go | 104 +++++++++++++++++++++++---------------------
+ src/encoding/json/stream.go |  10 ++---
+ 3 files changed, 69 insertions(+), 63 deletions(-)

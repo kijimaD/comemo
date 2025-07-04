@@ -1,16 +1,14 @@
-commit 92ab6fb4e1e994c951749e4ed82c88d99bd10f0c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 19 22:40:54 2013 -0800
+commit e378aef1def490cec4b86e2d341a287b5286d01f
+Author: Brian Dellisanti <briandellisanti@gmail.com>
+Date:   Wed Feb 20 15:38:35 2013 +1100
 
-    doc: fix old broken link
+    windows: fix syscall.SidTypeUser so following consts have correct values.
     
-    The Camlistore code tree rearranged after the go tool came
-    out. (I didn't know this link was here until I saw it in
-    some logs.)
+    Fixes #4844.
     
-    R=adg
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/7374043
+    https://golang.org/cl/7366043
 
- doc/articles/error_handling.html | 2 +-
+ src/pkg/syscall/security_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

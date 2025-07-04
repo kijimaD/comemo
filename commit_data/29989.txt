@@ -1,16 +1,19 @@
-commit 6bdb0c11c73ecf2337918d784c54f9dda2207ca7
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Sat Jan 28 07:36:09 2017 -0800
+commit abdd73cc43f9187e8918879944ec0dacbc912b5c
+Author: Edward Muller <edwardam@interlix.com>
+Date:   Tue Oct 4 21:24:58 2016 -0700
 
-    doc: update go1.8 release notes after TxOptions change
+    net/http/httptrace: add ClientTrace.TLSHandshakeStart & TLSHandshakeDone
     
-    Missed the release notes when updating the sql API.
+    Fixes #16965
     
-    Fixes #18825
-    
-    Change-Id: I89056d46939ad4fc99590f3434d2881f5764e1b6
-    Reviewed-on: https://go-review.googlesource.com/35915
+    Change-Id: I3638fe280a5b1063ff589e6e1ff8a97c74b77c66
+    Reviewed-on: https://go-review.googlesource.com/30359
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.8.html | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/go/build/deps_test.go       |  2 +-
+ src/net/http/httptrace/trace.go | 11 ++++++++
+ src/net/http/transport.go       | 19 +++++++++++++
+ src/net/http/transport_test.go  | 60 ++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 90 insertions(+), 2 deletions(-)

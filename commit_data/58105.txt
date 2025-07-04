@@ -1,30 +1,19 @@
-commit 4d6170427f4d02e79454b25391b56e7d1c5ceb39
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 14 02:31:46 2024 -0500
+commit 32b6d2d9a849a0f0120e9139b403831669373b79
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Sep 25 09:46:32 2023 -0400
 
-    cmd/dist: add GOFIPS140 setting
+    net/http: add a test for an empty ServeMux
     
-    GOFIPS140 will be used to control whether to build binaries that
-    run in FIPS-140 mode by default, as well as which version of
-    crypto/internal/fips is used during a given build.
-    It is a target configuration variable analogous to
-    GOOS, GOARCH, CGO_ENABLED, and the like, so the
-    default value is recorded in the toolchain during make.bash.
+    Make sure a ServeMux with no patterns is well-behaved.
     
-    This CL adds the GOFIPS140 setting to the build process
-    and records the default for use by cmd/go.
+    Updates #61410.
     
-    For #70200.
-    
-    Change-Id: Iafcb5a4207f00fae8bcd93e0184a63c72526abea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629196
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ib3eb85b384e1309e785663902d2c45ae01e64807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530479
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/build.go             |  8 ++++++++
- src/cmd/dist/buildruntime.go      |  1 +
- src/internal/buildcfg/cfg.go      | 42 +++++++++++++++++++++++++++++++++++++++
- src/internal/buildcfg/cfg_test.go | 36 +++++++++++++++++++++++++++++++++
- src/internal/cfg/cfg.go           |  1 +
- 5 files changed, 88 insertions(+)
+ src/net/http/server.go      |  2 --
+ src/net/http/server_test.go | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

@@ -1,16 +1,24 @@
-commit bc1410a4f9ee18750bbcb489631a2ddc84117b04
-Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 30 19:14:45 2015 -0700
+commit 84207a2500ea2efea47fdb85b94ab8543225b04c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 30 00:49:25 2015 +0000
 
-    cmd/cover: try once again to fix the build
+    cmd/internal/obj/x86, cmd/internal/ld, cmd/6l: 6g/asm -dynlink accesses global data via a GOT
     
-    Forgot to update the references to the old cover package. No excuse.
-    
-    Change-Id: If17b7521f0bf70bc0c8da9c5adf246d90f644637
-    Reviewed-on: https://go-review.googlesource.com/9564
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I49862e177045369d6c94d6a58afbdace4f13cc96
+    Reviewed-on: https://go-review.googlesource.com/8237
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cover/cover   | Bin 6084208 -> 0 bytes
- src/cmd/cover/func.go |   4 ++--
- src/cmd/cover/html.go |   6 +++---
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/6g/galign.go                  |   3 +
+ src/cmd/6g/reg.go                     |   4 +-
+ src/cmd/6l/asm.go                     |   7 ++
+ src/cmd/asm/internal/flags/flags.go   |   1 +
+ src/cmd/asm/main.go                   |   3 +-
+ src/cmd/internal/gc/lex.go            |   9 +-
+ src/cmd/internal/ld/data.go           |   4 +-
+ src/cmd/internal/ld/link.go           |   1 +
+ src/cmd/internal/obj/link.go          |   5 +
+ src/cmd/internal/obj/util.go          |   3 +
+ src/cmd/internal/obj/x86/asm6.go      |  14 ++-
+ src/cmd/internal/obj/x86/obj6.go      |  78 ++++++++++++++++
+ src/cmd/internal/obj/x86/obj6_test.go | 167 ++++++++++++++++++++++++++++++++++
+ 13 files changed, 292 insertions(+), 7 deletions(-)

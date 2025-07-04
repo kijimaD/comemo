@@ -1,82 +1,18 @@
-commit e97b3ab1f942a1bb2812e6b5c890c052903fa0b0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 15 20:46:46 2014 -0400
+commit a1ae3a05363050dc4bd809c367ba764b5d11e811
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 15 17:14:03 2014 -0700
 
-    build: remove tmp dir names from objects, support GOROOT_FINAL again
+    io: document that a Writer must not write to p
     
-    If we compile a generated file stored in a temporary
-    directory - let's say /tmp/12345/work/x.c - then by default
-    6c stores the full path and then the pcln table in the
-    final binary includes the full path. This makes repeated builds
-    (using different temporary directories) produce different
-    binaries, even if the inputs are the same.
+    Per golang-nuts question. Writing to p breaks
+    other writers (e.g. io.MultiWriter).
     
-    In the old 'go tool pack', the P flag specified a prefix to remove
-    from all stored paths (if present), and cmd/go invoked
-    'go tool pack grcP $WORK' to remove references to the
-    temporary work directory.
+    Make this explicit.
     
-    We've changed the build to avoid pack as much as possible,
-    under the theory that instead of making pack convert from
-    .6 to .a, the tools should just write the .a directly and save a
-    round of I/O.
-    
-    Instead of going back to invoking pack always, define a common
-    flag -trimpath in the assemblers, C compilers, and Go compilers,
-    implemented in liblink, and arrange for cmd/go to use the flag.
-    Then the object files being written out have the shortened paths
-    from the start.
-    
-    While we are here, reimplement pcln support for GOROOT_FINAL.
-    A build in /tmp/go uses GOROOT=/tmp/go, but if GOROOT_FINAL=/usr/local/go
-    is set, then a source file named /tmp/go/x.go is recorded instead as
-    /usr/local/go/x.go. We use this so that we can prepare distributions
-    to be installed in /usr/local/go without actually working in that
-    directory. The conversion to liblink deleted all the old file name
-    handling code, including the GOROOT_FINAL translation.
-    Bring the GOROOT_FINAL translation back.
-    
-    Before this CL, using GOROOT_FINAL=/goroot make.bash:
-    
-            g% strings $(which go) | grep -c $TMPDIR
-            6
-            g% strings $(which go) | grep -c $GOROOT
-            793
-            g%
-    
-    After this CL:
-    
-            g% strings $(which go) | grep -c $TMPDIR
-            0
-            g% strings $(which go) | grep -c $GOROOT
-            0
-            g%
-    
-    (The references to $TMPDIR tend to be cgo-generated source files.)
-    
-    Adding the -trimpath flag to the assemblers required converting
-    them to the new Go-semantics flag parser. The text in go1.3.html
-    is copied and adjusted from go1.1.html, which is when we applied
-    that conversion to the compilers and linkers.
-    
-    Fixes #6989.
-    
-    LGTM=iant
-    R=r, iant
+    LGTM=gri, r, rsc
+    R=r, rsc, gri, joshlf13
     CC=golang-codereviews
-    https://golang.org/cl/88300045
+    https://golang.org/cl/87780046
 
- doc/go1.3.html      | 13 ++++++++++
- include/link.h      |  3 +++
- src/cmd/5a/a.h      |  2 +-
- src/cmd/5a/lex.c    | 71 +++++++++++++++++++++++------------------------------
- src/cmd/6a/a.h      |  2 +-
- src/cmd/6a/lex.c    | 63 ++++++++++++++++++++++-------------------------
- src/cmd/8a/a.h      |  2 +-
- src/cmd/8a/lex.c    | 65 ++++++++++++++++++++++--------------------------
- src/cmd/cc/lex.c    |  1 +
- src/cmd/gc/lex.c    |  1 +
- src/cmd/go/build.go |  8 +++---
- src/liblink/obj.c   | 46 +++++++++++++++++++++++++++++++++-
- src/liblink/sym.c   |  4 +++
- 13 files changed, 164 insertions(+), 117 deletions(-)
+ src/pkg/io/io.go | 1 +
+ 1 file changed, 1 insertion(+)

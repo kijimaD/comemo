@@ -1,21 +1,23 @@
-commit 238d273da4859fe4be5db019879fdb886a547350
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu May 8 14:13:16 2025 +0200
+commit c2021c3004708d07165c39981e1edb43867d6476
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 15 12:56:05 2024 -0400
 
-    bytes, strings: rename parameters in ExampleCut{Pre,Suf}fix
+    net/http: revert header changes in Error
     
-    The old parameter name sep was probably copied from ExampleCut. Change
-    the parameter names to prefix and suffix, respectivly to make the
-    examples a bit more readable.
+    This reverts CL 544019 and CL 569815, because they break a variety
+    of tests inside Google that do not expect the Cache-Control header
+    to be set to no-cache.
     
-    Change-Id: Ie14b0050c2fafe3301c5368efd548a1629a7545f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670955
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    A followup CL will add this functionality back after a proposal.
+    
+    For #50905.
+    
+    Change-Id: Ie377bfb72ce2c77d11bf31f9617ab6db342a408a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571975
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/bytes/example_test.go   | 12 ++++++------
- src/strings/example_test.go | 12 ++++++------
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ src/net/http/fs_test.go | 62 -------------------------------------------------
+ src/net/http/server.go  | 19 +++------------
+ 2 files changed, 3 insertions(+), 78 deletions(-)

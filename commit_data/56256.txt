@@ -1,20 +1,27 @@
-commit c260de24b688d72206f1224e298181c8363fc33d
-Author: khr@golang.org <khr@golang.org>
-Date:   Mon Apr 15 18:23:38 2024 -0700
+commit ccb8db88c5c11be65343732ef61d9d1052e6838a
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Apr 17 09:25:45 2023 -0500
 
-    runtime: remove odd-forcing of hash constants
+    cmd/link,cmd/internal/obj/ppc64: enable PCrel on power10/ppc64/linux
     
-    We don't multiply by them any more, so no need to make them odd.
+    A CI machine has been set up to verify GOPPC64=power10 on ppc64/linux.
     
-    Suggested by me here in 2021:
-    https://go-review.googlesource.com/c/go/+/280372/comment/1a86b8aa_f64310bf/
-    Never got around to it until now.
+    This should be sufficient to verify the PCrel relocation support works
+    for BE.
     
-    Change-Id: Iddc675e6a18b4a7a785acbf77c96e127003cc3c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/579116
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Note, power10/ppc64/linux is an oddball case. Today, it can only link
+    internally. Furthermore, all PCrel relocs are resolved at link time,
+    so it works despite ELFv1 having no official support for PCrel relocs
+    today.
+    
+    Change-Id: Ibf79df69406ec6f9352c9d7d941ad946dba74e73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485075
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/alg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/ppc64/asm9.go | 5 ++---
+ src/cmd/link/internal/ppc64/asm.go | 4 ++--
+ 2 files changed, 4 insertions(+), 5 deletions(-)

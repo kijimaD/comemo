@@ -1,16 +1,30 @@
-commit 527b478edb86126d2db98d9a0f619cbc83dce1db
+commit cb19a20121cc9f5171df7bf537f6f741080b5a60
 Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 3 10:12:26 2015 -0800
+Date:   Fri Feb 6 11:39:23 2015 -0800
 
-    cmd/internal/obj/arm: fix arm build
+    [dev.cc] cmd/asm: rewrite to work with new obj API
     
-    Mishandled the mask for the arm instructions.
+    Considerable rewriting of the parser and assembler (code generator)
+    but it's simpler and shorter now. The internal Addr type is gone; so
+    is the package that held it. Parsing of operands goes directly into
+    obj.Addrs now.
     
-    TBR=rsc
+    There is a horrible hack regarding register pairs. It uses the Class
+    field to store the second register since it needs _some_ place to
+    put it but none is provided in the API. An alternative would be nice
+    but this works for now.
     
-    Change-Id: Idc596097c0fa61dcacdfb4aca5bc6d0b4fd40eeb
-    Reviewed-on: https://go-review.googlesource.com/6641
-    Reviewed-by: Rob Pike <r@golang.org>
+    Once again creates identical .6 and .8 files as the old assembler.
+    
+    Change-Id: I8207d6dfdfdb5bbed0bd870cb34ee0fe61c2fbfd
+    Reviewed-on: https://go-review.googlesource.com/4062
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/arm/asm5.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/addr/addr.go | 114 ----------
+ src/cmd/asm/internal/arch/arch.go |  62 ++----
+ src/cmd/asm/internal/asm/asm.go   | 432 ++++++++++++--------------------------
+ src/cmd/asm/internal/asm/parse.go | 316 ++++++++++++++++------------
+ src/cmd/asm/internal/lex/lex.go   |   5 +-
+ src/cmd/asm/internal/lex/stack.go |   7 -
+ src/cmd/asm/main.go               |   2 -
+ 7 files changed, 328 insertions(+), 610 deletions(-)

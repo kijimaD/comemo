@@ -1,20 +1,14 @@
-commit de3669901a6c9551067071ab410775e57e3b26c2
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Mar 5 13:37:33 2017 +0100
+commit 0631f292d370cd838e1fb57e193c6c09e74fe9e4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 11 00:02:45 2016 +0000
 
-    strconv: remove unused append rune width param
+    net/http: document relation and interaction with golang.org/x/net/http2
     
-    Found by github.com/mvdan/unparam. Small performance win when the
-    utf8.RuneLen call is removed.
+    Fixes #16412
     
-    name               old time/op    new time/op    delta
-    AppendQuoteRune-4    21.7ns ± 0%    21.4ns ± 0%  -1.38%  (p=0.008 n=5+5)
-    
-    Change-Id: Ieb3b3e1148db7a3d854c81555a491edeff549f43
-    Reviewed-on: https://go-review.googlesource.com/37831
+    Change-Id: Idc65d2a62414a9b1573e6bd9f8601b52985b5dea
+    Reviewed-on: https://go-review.googlesource.com/33110
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strconv/quote.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/doc.go | 27 +++++++++++++++++++--------
+ 1 file changed, 19 insertions(+), 8 deletions(-)

@@ -1,16 +1,24 @@
-commit e80376ca6b1f3c4cbc11639d998c0c83787f9247
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Aug 8 16:46:48 2016 -0700
+commit 5833d843de4d774f6b76e982b170f42b8e94a198
+Author: Chris Zou <chriszou@ca.ibm.com>
+Date:   Mon Apr 18 19:30:17 2016 -0400
 
-    runtime: ignore closeonexec ret val on openbsd/arm
+    hash/crc32: use vector instructions on s390x
     
-    Fixes #16641
-    Updates #11041
+    The input buffer is aligned to a doubleword boundary to
+    improve performance of the vector instructions. The pure
+    Go implementation is used to align the input data, and is
+    also used when the vector instructions are not available
+    or the data length is less than 64 bytes.
     
-    Change-Id: I087208a486f535d74135591b2c9a73168cf80e1a
-    Reviewed-on: https://go-review.googlesource.com/27490
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ie259a5f2f1562bcc17961c99e5776c99091d6bed
+    Reviewed-on: https://go-review.googlesource.com/22201
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/sys_openbsd_arm.s | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/hash/crc32/crc32_generic.go |   2 +-
+ src/hash/crc32/crc32_s390x.go   | 101 +++++++++++++++++
+ src/hash/crc32/crc32_s390x.s    | 245 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 347 insertions(+), 1 deletion(-)

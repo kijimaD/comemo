@@ -1,19 +1,18 @@
-commit 0fbaf6ca8b4939fbac8081f28aad12a0305afa35
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Wed Jul 11 23:42:40 2018 +0300
+commit 568d6f983172706d2f5f7f66024b7b7a544ada53
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 2 17:37:19 2017 -0400
 
-    math,net: omit explicit true tag expr in switch
+    cmd/compile: teach Haspointer about TSSA and TTUPLE
     
-    Performed `switch true {}` => `switch {}` replacement.
+    These will appear when tracking live pointers in registers, so we need
+    to know whether they have pointers.
     
-    Found using https://go-critic.github.io/overview.html#switchTrue-ref
+    For #24543.
     
-    Change-Id: Ib39ea98531651966a5a56b7bd729b46e4eeb7f7c
-    Reviewed-on: https://go-review.googlesource.com/123378
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2edccee39ca989473db4b3e7875ff166808ac141
+    Reviewed-on: https://go-review.googlesource.com/108497
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/math/sinh.go | 2 +-
- src/net/ip.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types/type.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

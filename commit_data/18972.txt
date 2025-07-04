@@ -1,47 +1,28 @@
-commit 5a23a7e52c8b11defb0e7ae88b6a2808432807c0
+commit f94bff7935d031f3114980715381af226ae3ac75
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 27 14:06:15 2014 -0400
+Date:   Thu Mar 27 14:05:31 2014 -0400
 
-    runtime: enable 'bad pointer' check during garbage collection of Go stack frames
+    cmd/dist: zero output variables on entry to goc2c functions
     
-    This is the same check we use during stack copying.
-    The check cannot be applied to C stack frames, even
-    though we do emit pointer bitmaps for the arguments,
-    because (1) the pointer bitmaps assume all arguments
-    are always live, not true of outputs during the prologue,
-    and (2) the pointer bitmaps encode interface values as
-    pointer pairs, not true of interfaces holding integers.
+    Zeroing the outputs makes sure that during function calls
+    in those functions we do not let the garbage collector
+    treat uninitialized values as pointers.
     
-    For the rest of the frames, however, we should hold ourselves
-    to the rule that a pointer marked live really is initialized.
-    The interface scanning already implicitly checks this
-    because it interprets the type word  as a valid type pointer.
+    The garbage collector may still see uninitialized values
+    if a preemption occurs during the function prologue,
+    before the zeroing has had a chance to run.
     
-    This may slow things down a little because of the extra loads.
-    Or it may speed things up because we don't bother enqueuing
-    nil pointers anymore. Enough of the rest of the system is slow
-    right now that we can't measure it meaningfully.
-    Enable for now, even if it is slow, to shake out bugs in the
-    liveness bitmaps, and then decide whether to turn it off
-    for the Go 1.3 release (issue 7650 reminds us to do this).
+    This reduces the number of 'bad pointer' messages when
+    that runtime check is enabled, but it doesn't fix all of them,
+    so the check is still disabled.
     
-    The new m->traceback field lets us force printing of fp=
-    values on all goroutine stack traces when we detect a
-    bad pointer. This makes it easier to understand exactly
-    where in the frame the bad pointer is, so that we can trace
-    it back to a specific variable and determine what is wrong.
+    It will also avoid leaks, although I doubt any of these were
+    particularly serious.
     
-    Update #7650
-    
-    LGTM=khr
-    R=khr
+    LGTM=iant, khr
+    R=iant, khr
     CC=golang-codereviews
-    https://golang.org/cl/80860044
+    https://golang.org/cl/80850044
 
- src/pkg/runtime/mgc0.c          | 24 +++++++++++++++++++-----
- src/pkg/runtime/runtime.c       |  5 ++++-
- src/pkg/runtime/runtime.h       |  1 +
- src/pkg/runtime/stack.c         |  1 +
- src/pkg/runtime/traceback_arm.c |  6 ++++--
- src/pkg/runtime/traceback_x86.c |  6 ++++--
- 6 files changed, 33 insertions(+), 10 deletions(-)
+ src/cmd/dist/goc2c.c | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

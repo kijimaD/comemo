@@ -1,18 +1,14 @@
-commit e751af1abacaf9958fe2e69d6dcb2e93cb1a3e4d
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Wed Dec 4 19:37:00 2019 -0800
+commit 989409f5279df7394faa1c3f66ef00a418f6c888
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Aug 26 12:57:09 2019 -0400
 
-    cmd/go: print newline after GOOS/GOARCH error
+    doc/go1.13: add information about using private modules to the introduction
     
-    The newline was dropped during the refactor in CL 194617.
+    Fixes #33796
     
-    Fixes #35984
-    
-    Change-Id: I7e0d7aa2d7a4d1f44898921f8bb40401620d78b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209965
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9f6837be96410e96d004523c48bef95ee1427484
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191746
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/work/action.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.13.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

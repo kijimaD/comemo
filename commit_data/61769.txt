@@ -1,0 +1,51 @@
+commit ca14eaf77c86bd5492329d2be6f1a82afe7802f5
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Nov 21 19:54:12 2024 -0500
+
+    all: update golang.org/x/net [generated]
+    
+    A part of the keeping Go's vendored dependencies and generated code
+    up to date.
+    
+    This updates h2_bundle.go with unencrypted HTTP/2 support.
+    
+    For #36905.
+    For #67816.
+    
+    [git-generate]
+    cd src
+    go get golang.org/x/net@v0.31.0
+    go mod tidy
+    go mod vendor
+    cd cmd
+    go get golang.org/x/net@v0.31.0
+    go mod tidy
+    go mod vendor
+    go generate -run=bundle std
+    
+    Change-Id: I2b77f651b990f260fbe7d551c7a819518f1c983f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631035
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go.mod                                     |     4 +-
+ src/cmd/go.sum                                     |     8 +-
+ src/cmd/vendor/golang.org/x/term/README.md         |    11 +-
+ src/cmd/vendor/golang.org/x/term/term_windows.go   |     1 +
+ src/cmd/vendor/modules.txt                         |     4 +-
+ src/go.mod                                         |     6 +-
+ src/go.sum                                         |    12 +-
+ src/net/http/h2_bundle.go                          |   851 +-
+ .../golang.org/x/crypto/chacha20/chacha_noasm.go   |     2 +-
+ .../{chacha_ppc64le.go => chacha_ppc64x.go}        |     2 +-
+ .../chacha20/{chacha_ppc64le.s => chacha_ppc64x.s} |   114 +-
+ .../chacha20poly1305/chacha20poly1305_amd64.s      | 11503 +++++++++++++++----
+ .../x/crypto/internal/poly1305/mac_noasm.go        |     2 +-
+ .../x/crypto/internal/poly1305/sum_amd64.s         |   133 +-
+ .../poly1305/{sum_ppc64le.go => sum_ppc64x.go}     |     2 +-
+ .../poly1305/{sum_ppc64le.s => sum_ppc64x.s}       |    30 +-
+ src/vendor/golang.org/x/net/route/address.go       |    27 +-
+ src/vendor/modules.txt                             |     6 +-
+ 18 files changed, 10124 insertions(+), 2594 deletions(-)

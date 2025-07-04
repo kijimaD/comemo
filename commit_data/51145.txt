@@ -1,16 +1,17 @@
-commit 9860faa5127931183e4dfb716d89ce7dface3f41
-Author: Eric Lagergren <eric@ericlagergren.com>
-Date:   Thu Nov 3 23:13:37 2022 -0700
+commit c759ec228435e387a5c863b6b886b49a055fa80a
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 7 16:29:21 2021 -0500
 
-    math/big: remove underscores from Binomial docs
+    doc/go1.18: clarify additions to net package API
     
-    Change-Id: I7605bcbbaa64bb4273ad458a157b1c6011467973
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447915
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #47694.
+    
+    Updates #46518.
+    
+    Change-Id: Ife3a8d3d6a1c50f55b5ab15730d5a6bd3ec512e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370134
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/math/big/int.go | 18 +++++++++---------
+ doc/go1.18.html | 18 +++++++++---------
  1 file changed, 9 insertions(+), 9 deletions(-)

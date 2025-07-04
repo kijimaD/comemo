@@ -1,23 +1,26 @@
-commit 5eaeb7b455d0bb6a39dacb4317ea177cbe0358de
-Author: Mark Freeman <markfreeman@google.com>
-Date:   Thu Apr 3 14:26:55 2025 -0700
+commit 856355a9133a3c96efcd35f355637d33c9fde7ea
+Author: Zxilly <zhouxinyu1001@gmail.com>
+Date:   Thu Feb 22 21:09:55 2024 +0000
 
-    go/types, types2: better error messages for invalid qualified identifiers
+    cmd/compile: use quotes to wrap user-supplied token
     
-    This change borrows code from CL 631356 by Emmanuel Odeke (thanks!).
+    Use quotes to wrap user-supplied token in the syntax error message.
+    Updates #65790
     
-    Fixes #70549.
-    
-    Change-Id: Id6f794ea2a95b4297999456f22c6e02890fce13b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662775
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I631a63df4a6bb8615b7850a324d812190bc15f30
+    GitHub-Last-Rev: f291e1d5a6adee558d21bb7e0a3a17471bad7eb6
+    GitHub-Pull-Request: golang/go#65840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565518
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/types2/call.go             |  9 ++++++++-
- src/cmd/compile/internal/types2/scope.go            | 13 +++++++++++++
- src/go/types/call.go                                |  9 ++++++++-
- src/go/types/scope.go                               | 13 +++++++++++++
- src/internal/types/testdata/fixedbugs/issue70549.go | 15 +++++++++++++++
- 5 files changed, 57 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go              |  4 +++-
+ src/cmd/compile/internal/syntax/testdata/issue20789.go |  2 +-
+ src/cmd/compile/internal/syntax/testdata/issue47704.go |  2 +-
+ src/cmd/compile/internal/syntax/testdata/issue49205.go |  8 ++++----
+ src/cmd/compile/internal/syntax/testdata/issue52391.go |  2 +-
+ src/cmd/compile/internal/syntax/testdata/issue65970.go | 14 ++++++++++++++
+ test/fixedbugs/issue20789.go                           |  2 +-
+ test/fixedbugs/issue23664.go                           |  4 ++--
+ 8 files changed, 27 insertions(+), 11 deletions(-)

@@ -1,19 +1,32 @@
-commit 750a42f42ce6b69632998a9026e076dc3f851cce
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Tue May 15 13:32:02 2018 -0400
+commit 618f88d847af9a060a14794859d4f1ea51a08006
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Dec 17 22:32:15 2017 +0000
 
-    cmd/vendor/.../pprof: delete pprof.go file
+    text/template: never call reflect.Zero(nil)
     
-    The file is not used ('go tool' uses cmd/pprof/pprof.go instead)
-    and the external package import in this file causes test failure.
+    It makes no sense to try to get the zero value of a nil type, hence the
+    panic. When we have a nil type, use reflect.ValueOf(nil) instead.
     
-    Fixes #25367
+    This was showing itself if one used a missing field on the data between
+    parentheses, when the data was a nil interface:
     
-    Change-Id: I71fbf8a3631efb1bd9e459b8247e5f7a6683894c
-    Reviewed-on: https://go-review.googlesource.com/113295
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+            t := template.Must(template.New("test").Parse(`{{ (.).foo }}`))
+            var v interface{}
+            t.Execute(os.Stdout, v)
+    
+    Resulting in:
+    
+            panic: reflect: Zero(nil) [recovered]
+                    panic: reflect: Zero(nil)
+    
+    Fixes #21171.
+    
+    Change-Id: Ifcc4a0c67e6df425b65bc9f82fde6fcf03828579
+    Reviewed-on: https://go-review.googlesource.com/84482
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vendor/github.com/google/pprof/pprof.go | 106 ------------------------
- 1 file changed, 106 deletions(-)
+ src/text/template/exec.go      | 6 +++++-
+ src/text/template/exec_test.go | 4 ++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

@@ -1,17 +1,17 @@
-commit 5f699e400a0a982bcc3ad1ff864dca70b1255d8b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 10 11:12:28 2019 -0800
+commit 5789f838bea28b57cce6b8def426aef933fb1050
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 5 15:53:30 2018 +0200
 
-    doc: add Go 1.12 release note for trigonometric reductions in math
+    net: skip splice unix-to-tcp tests on android
     
-    Worth mentioning because the results are not bit-for-bit identical.
-    This causes a test failure in github.com/fogleman/gg.
+    The android builders are failing on the AF_UNIX part of the new splice
+    test from CL 113997. Skip them.
     
-    Updates #6794
-    
-    Change-Id: I701f34927731fb5c658a1be271c04388e5e7e3f7
-    Reviewed-on: https://go-review.googlesource.com/c/157417
+    Change-Id: Ia0519aae922acb11d2845aa687633935bcd4b1b0
+    Reviewed-on: https://go-review.googlesource.com/133515
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.12.html | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/net/splice_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

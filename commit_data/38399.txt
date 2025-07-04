@@ -1,18 +1,15 @@
-commit 2989abc91efb7d64eb141b918bdc361975308e81
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 13 16:42:18 2019 -0400
+commit 2d77600ae7449680b0d4e0171f4186caf3e8d8ab
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Thu Oct 25 23:46:17 2018 +0000
 
-    cmd/dist: add a test in misc/reboot to verify that the toolchain can self-bootstrap
+    cmd/go: fix typo in output of "go help get"
     
-    Fixes #30758
-    
-    Change-Id: I8e49958602de9caa47bb5710828158e51744f375
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167478
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7e109470e27eb978f920a99f858dbaffa4872eb5
+    GitHub-Last-Rev: dd684c2481b234f556a1c84c1771f2d8eb8b5ea2
+    GitHub-Pull-Request: golang/go#28401
+    Reviewed-on: https://go-review.googlesource.com/c/144837
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/reboot/overlaydir_test.go | 80 ++++++++++++++++++++++++++++++++++++++++++
- misc/reboot/reboot_test.go     | 52 +++++++++++++++++++++++++++
- src/cmd/dist/test.go           |  6 ++++
- 3 files changed, 138 insertions(+)
+ src/cmd/go/alldocs.go             | 2 +-
+ src/cmd/go/internal/modget/get.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

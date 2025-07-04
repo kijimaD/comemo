@@ -1,16 +1,32 @@
-commit 7d891d5e4d7bd7d22b6adcc51e10c9be01825c16
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 10 21:46:12 2019 -0700
+commit 19966e9b533a85039458eabf08228e0b85f3bf4e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Oct 25 16:44:44 2018 -0400
 
-    runtime: implement new movetimers function
+    go/types: add CheckExpr function to type-check an expression
     
-    Updates #27707
+    In IDE-like applications (and also in tests), there is often a need to
+    type-check an expression as if it appeared at a particular position in
+    the source code of an already typed-checked package.
     
-    Change-Id: Idda31d0065064a81c570e291ef588d020871997d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171836
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Eval was added to address this need, but did so only partially,
+    stopping short of exposing a type-annotated expression tree. This
+    makes it impossible to resolve an expression such as new(T).x and
+    discover what Object x refers to.  CheckExpr exposes that generality.
+    Eval is now implemented in terms of CheckExpr.
+    
+    This change includes a test that demonstrates the object resolution
+    functionality just described.
+    
+    Historical context:
+    - https://go-review.googlesource.com/c/tools/+/10800
+    - https://codereview.appspot.com/10748044/
+    
+    Change-Id: I715ba934b9fc0c9ceb61270e20c5f91f4eff20c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/144677
+    Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/time.go | 46 +++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 45 insertions(+), 1 deletion(-)
+ src/go/types/eval.go      | 53 +++++++++++++++++---------
+ src/go/types/eval_test.go | 96 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 131 insertions(+), 18 deletions(-)

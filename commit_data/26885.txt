@@ -1,23 +1,25 @@
-commit 982274c96d6c9ad88a9deb07583d3b74ec2df357
+commit 8b4deb448e587802f67930b765c9598fc8cd36e5
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 12 15:47:17 2016 -0700
+Date:   Tue Mar 1 14:52:18 2016 -0800
 
-    reflect: test that Call results are not addressable
+    cmd/compile: fix OADDSTR buffer size calculation
     
-    Gccgo was erroneously marking Call results as addressable, which led to
-    an obscure bug using text/template, as text/template calls CanAddr to
-    check whether to take the address of a value when looking up methods.
-    When a function returned a pointer, and CanAddr was true, the result was
-    a pointer to a pointer that had no methods.
+    The size calculation has been wrong since this code was first committed
+    in https://golang.org/cl/3120.  The effect was that the compiler always
+    allocated a temporary buffer on the stack for a non-escaping string
+    concatenation.  This turns out to make no practical difference, as the
+    compiler always allocates a buffer of the same size (32 bytes) and the
+    runtime only uses the temporary buffer if the concatenated strings
+    fit (check is in rawstringtmp in runtime/string.go).
     
-    Fixed in gccgo by https://golang.org/cl/21908.  Adding the test here so
-    that it doesn't regress.
+    The effect of this change is to avoid generating a temporary buffer on
+    the stack that will not be used.
     
-    Change-Id: I1d25b868e1b8e2348b21cbac6404a636376d1a4a
-    Reviewed-on: https://go-review.googlesource.com/21930
+    Change-Id: Id632bfe3d6c113c9934c018a2dd4bcbf1784a63d
+    Reviewed-on: https://go-review.googlesource.com/20112
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/reflect/all_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/walk.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

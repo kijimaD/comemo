@@ -1,12 +1,17 @@
-commit de2cf5113b3860d487ab6b9638521c91785486b7
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 16 10:30:31 2013 +1000
+commit 95e0a8c277ae2bb50fd5628eb3222f9d12ed81af
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 15 16:47:31 2013 -0700
 
-    doc/go1.2.txt: three-index slices are going into 1.2
+    net/http: unify the confusingly-named serve_test and server_test
     
-    R=golang-dev, rsc
+    One was tiny. One was gigantic. Now one is gone and one is giganticer.
+    
+    No code changes.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/12931044
+    https://golang.org/cl/13025043
 
- doc/go1.2.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/http/serve_test.go  |  92 +++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server_test.go | 104 ----------------------------------------
+ 2 files changed, 92 insertions(+), 104 deletions(-)

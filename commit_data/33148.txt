@@ -1,17 +1,13 @@
-commit 5f740d6875ab6961381f2f4614b21ff6ddf448a4
-Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-Date:   Tue Oct 17 19:57:01 2017 +0200
+commit f4643972bd4c17a235559069fbfe75c4a7f47fea
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 6 14:45:05 2017 -0400
 
-    flag: simplify switch-case in isZeroValue
+    doc/go1.9: minor clarifications and grammar nits
     
-    Simplifies the switch statement in the isZeroValue function by merging
-    the case branches.
-    
-    Change-Id: I5b27939b62808dadac0cef632567b17e0e2b9a1d
-    Reviewed-on: https://go-review.googlesource.com/71390
-    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I55f50e45f8872f063c3b6c9e89261d14689e77ce
+    Reviewed-on: https://go-review.googlesource.com/47692
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/flag/flag.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ doc/go1.9.html | 51 ++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 28 insertions(+), 23 deletions(-)

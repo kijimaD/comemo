@@ -1,23 +1,19 @@
-commit 9ff2a6677fd34084295172aff0848ab9a4f5b76e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 3 13:08:52 2022 -0400
+commit 49b7c9caec6b96d0b327624efee61bd8a72cf68c
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Sun Dec 12 10:53:17 2021 -0500
 
-    crypto/x509: allow BoringCrypto to use 4096-bit keys
+    net/netip: make Prefix.MarshalText format 4-in-6 IPs consistently
     
-    FIPS-140 has been updated to allow 4096-bit RSA keys.
-    Allow them in certificate processing.
+    Fixes #50115.
     
-    Fixes #41147.
-    
-    Change-Id: I4c6bcb1b137a200dfe70cebc605ae57f49871184
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447655
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Iac76e5b486d3a2a784583345eaeb22c31cc4a36d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371134
+    Trust: Matt Layher <mdlayher@gmail.com>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/crypto/tls/boring_test.go                   | 99 +++++++++++++------------
- src/crypto/x509/boring.go                       |  5 +-
- src/crypto/x509/boring_test.go                  |  6 +-
- src/internal/obscuretestdata/obscuretestdata.go | 15 ++++
- 4 files changed, 73 insertions(+), 52 deletions(-)
+ src/net/netip/netip.go      |  7 ++++++-
+ src/net/netip/netip_test.go | 27 ++++++++++++++++++++++++++-
+ 2 files changed, 32 insertions(+), 2 deletions(-)

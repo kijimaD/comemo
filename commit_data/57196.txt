@@ -1,21 +1,21 @@
-commit c6c9634515e6128a5acb8645dced62581f5d1b1b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Aug 3 01:22:58 2024 +1000
+commit b88bd917b8dd8aabc471b1de41b3ee8c0d6eeabe
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 13 10:12:33 2023 -0400
 
-    cmd/compile/internal/ssagen: factor out intrinsics code
+    cmd/go/internal/modfetch: always allow Stat for the current toolchain to succeed
     
-    The intrinsic handling code is a good thousand lines in the fairly
-    large ssa.go file. This code is already reasonably self-contained - factor
-    it out into a separate file so that future changes are easier to manage
-    (and it becomes easier to add/change intrinsics for an architecture).
+    This fixes a failure mode observed in TestScript/gotoolchain_version
+    when building go1.21rc3.
     
-    Change-Id: I3c18d3d1bb6332f1817d902150e736373bf1ac81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605477
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #61259.
+    
+    Change-Id: Ifb14a5b94b687adea7a26c1155591e3ae75b7a62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509217
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssagen/intrinsics.go | 1047 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssagen/ssa.go        | 1035 +-----------------------
- 2 files changed, 1051 insertions(+), 1031 deletions(-)
+ src/cmd/go/internal/modfetch/toolchain.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,18 +1,14 @@
-commit 2dc714e1cf956edc6137be2674b5c8e44601873a
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sat Mar 4 01:28:53 2017 +0100
+commit 1c54119315d9f3bd9212c01db2fd4653314959e0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 10 21:35:01 2016 +0000
 
-    Revert "cmd/go: add comment about SIGUSR2 on iOS"
+    net/http: document that Server.Close and Shutdown don't track hijacked conns
     
-    This reverts commit 4f0aac52d926270255fa2b682aca15e8ff404c59.
+    Fixes #17721
     
-    Replaced by a improved strategy later in the CL relation chain.
-    
-    Change-Id: Iff0333f172443bb5b01a42ad06b01edeb6aa15bc
-    Reviewed-on: https://go-review.googlesource.com/36068
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I19fd81c9909a22b01a4dc9c75f3f0e069c8608ca
+    Reviewed-on: https://go-review.googlesource.com/33095
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/test/test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/net/http/server.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

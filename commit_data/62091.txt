@@ -1,0 +1,23 @@
+commit 39ceaf79614ac7a8874c086ec3c012464f710aca
+Author: cuishuang <imcusg@gmail.com>
+Date:   Wed Jan 1 00:17:54 2025 +0800
+
+    all: use slices.Contains to simplify code
+    
+    Change-Id: I9ef075bbb0e3c65f3c2a9d49e599ef50b18aa9be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/dist/test.go                            |  8 ++------
+ src/cmd/go/internal/modindex/build.go           | 20 +++-----------------
+ src/crypto/tls/handshake_server_tls13.go        |  7 +------
+ src/go/build/build.go                           | 19 ++-----------------
+ src/internal/reflectlite/reflect_mirror_test.go |  8 ++------
+ src/internal/trace/order.go                     |  8 ++------
+ src/os/user/user_test.go                        | 12 ++----------
+ src/os/user/user_windows_test.go                |  3 ++-
+ src/syscall/syscall_linux.go                    |  8 ++------
+ 9 files changed, 18 insertions(+), 75 deletions(-)

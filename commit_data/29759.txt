@@ -1,28 +1,16 @@
-commit 1ea60c136a5782eadb9abf92064e3c1985fe1cdd
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Dec 2 15:17:52 2016 -0800
+commit 7b4a2246670b4ec5a19214f8290fce21173f6b14
+Author: Alexander Döring <email@alexd.ch>
+Date:   Thu Oct 6 20:46:50 2016 +0200
 
-    runtime: on stack copy, adjust BP
+    math/cmplx: add examples for Abs, Exp, Polar
     
-    When we copy the stack, we need to adjust all BPs.
-    We correctly adjust the ones on the stack, but we also
-    need to adjust the one that is in g.sched.bp.
+    Updates #16360
     
-    Like CL 33754, no test as only kernel-gathered profiles will notice.
-    Tests will come (in 1.9) with the implementation of #16638.
-    
-    The invariant should hold that every frame pointer points to
-    somewhere within its stack.  After this CL, it is mostly true, but
-    something about cgo breaks it.  The runtime checks are disabled
-    until I figure that out.
-    
-    Update #16638
-    Fixes #18174
-    
-    Change-Id: I6023ee64adc80574ee3e76491d4f0fa5ede3dbdb
-    Reviewed-on: https://go-review.googlesource.com/33895
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I941519981ff5bda3a113e14fa6be718eb4d2bf83
+    Reviewed-on: https://go-review.googlesource.com/30554
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_amd64.s |  2 +-
- src/runtime/stack.go    | 25 +++++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ src/math/cmplx/example_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

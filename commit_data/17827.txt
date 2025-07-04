@@ -1,15 +1,16 @@
-commit 089bc25ae2be117310ae7e19d79d40e1ed69fc6e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 22 10:37:33 2013 -0400
+commit 7d9acff7511c85ee6d187bdb33b3237f0c04df55
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 21 19:01:24 2013 -0400
 
-    math: remove unnecessary source file
+    crypto/x509: name constraints should be a disjunction.
     
-    The routines in this file are dregs from a very early copy of the math API.
-    There are no Go prototypes and no non-amd64 implementations.
+    The code was requiring that all constraints be met, but it should be
+    satisfied by meeting *any* of them.
     
-    R=golang-dev, minux.ma
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/15750046
+    https://golang.org/cl/15570044
 
- src/pkg/math/fltasm_amd64.s | 69 ---------------------------------------------
- 1 file changed, 69 deletions(-)
+ src/pkg/crypto/x509/verify.go      |   6 +-
+ src/pkg/crypto/x509/verify_test.go | 183 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 188 insertions(+), 1 deletion(-)

@@ -1,14 +1,16 @@
-commit 85bcf7f59d68c59be50087f68f7f25736c6a2adf
+commit fa49c3970a43ca77d46363397e7f4f3ae1f5957c
 Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Thu Dec 1 07:10:21 2016 -0800
+Date:   Tue Oct 4 09:21:30 2016 -0700
 
-    doc: update go1.8 release notes to say NamedArg not NamedParam
+    database/sql: fixup remaining driver call to use context
     
-    Fixes #18135
+    Missed one in the prior CL.
     
-    Change-Id: I54ef9d6fc804d0fb77b729a04367a138e40f9ddf
-    Reviewed-on: https://go-review.googlesource.com/33766
+    Change-Id: I6f6d84d52fe4d902a985971a402701fb3b1eed86
+    Reviewed-on: https://go-review.googlesource.com/30255
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.8.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

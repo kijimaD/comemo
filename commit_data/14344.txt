@@ -1,17 +1,20 @@
-commit 7c0cbbfa186c10a6538e54f0cb6c5aba089fab8c
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Nov 7 21:36:15 2012 +0100
+commit e08008e8c5e9205ea4937051fe662fe4d05df657
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 7 12:33:54 2012 -0800
 
-    cmd/6g, cmd/8g: mark used registers in indirect addressing.
+    test: run index test by default
     
-    Fixes #4094.
-    Fixes #4353.
+    Running this test via "bash run" uncovered three different
+    bugs (4344, 4348, 4353).  We need to run it by default.
     
-    R=golang-dev, dave, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6810090
+    https://golang.org/cl/6832043
 
- src/cmd/6g/reg.c            | 10 ++++++++++
- src/cmd/8g/reg.c            | 10 ++++++++++
- test/fixedbugs/issue4353.go | 19 +++++++++++++++++++
- 3 files changed, 39 insertions(+)
+ test/index.go  | 27 ++++++++-------------------
+ test/index0.go | 12 ++++++++++++
+ test/index1.go | 12 ++++++++++++
+ test/index2.go | 12 ++++++++++++
+ test/run.go    | 38 ++++++++++++++++++++++++++++++++++----
+ test/testlib   | 12 +++++++++++-
+ 6 files changed, 89 insertions(+), 24 deletions(-)

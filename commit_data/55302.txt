@@ -1,25 +1,31 @@
-commit b60bf8f8e131b026eb2691e736d3df9dce852297
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Dec 14 13:07:50 2023 -0800
+commit a0bebffa339efc92af3a51781d910ef79b830482
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 22 10:12:18 2022 -0500
 
-    cmd/asm: fix encoding for arm right shift by constant 0
+    cmd/dist: consistently use $GOROOT/bin/go instead of just "go"
     
-    Right shifts, for some odd reasons, can encode shifts of constant
-    1-32 instead of 0-31. Left shifts, however, can encode shifts 0-31.
-    When the shift amount is 0, arm recommends encoding right shifts
-    using left shifts.
+    Also remove existing special cases that transform "go" into
+    gorootBinGo, because they make debugging and code-reviews more
+    difficult: log messages that don't include the full path can mask bugs
+    like #31567, and the reader of the code has to trace through the
+    various call chains to verify that the correct "go" is being used.
     
-    Fixes #64715
+    Instead, we can make the use of the correct "go" command plainly
+    obvious in the code by using one consistent name for it.
+    (Prior to this CL, we had three different names for it:
+    gorootBinGo, "go", and cmdGo. Now we have only one.
     
-    Change-Id: Id3825349aa7195028037893dfe01fa0e405eaa51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549955
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Updates #31567.
+    
+    Change-Id: Ia9ff27e5e800c79af5a4e9f2803c9ea5ccafbf35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452678
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm.s |  8 ++++++++
- src/cmd/internal/obj/arm/asm5.go        |  8 ++++++++
- test/fixedbugs/issue64715.go            | 25 +++++++++++++++++++++++++
- test/fixedbugs/issue64715.out           |  1 +
- 4 files changed, 42 insertions(+)
+ src/cmd/dist/build.go | 11 +++++------
+ src/cmd/dist/test.go  | 29 +++++++++++++----------------
+ src/cmd/dist/util.go  |  6 +-----
+ 3 files changed, 19 insertions(+), 27 deletions(-)

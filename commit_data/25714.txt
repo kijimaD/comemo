@@ -1,18 +1,22 @@
-commit 224888655fbbdf4a6d7a792d17dd95851e9b86aa
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 1 22:07:06 2016 -0500
+commit 8b1152a599ea6d5f0515bcec3c5131445cc87f5c
+Author: Emmanuel Odeke <odeke@ualberta.ca>
+Date:   Mon Nov 16 20:24:58 2015 -0700
 
-    cmd/go: document that -msan requires clang
+    net/http: add/update mp4 sniffing
     
-    Fixes #14171.
+    Completes sniffing for mp4 signature according
+    to the spec at:
+      https://mimesniff.spec.whatwg.org/#signature-for-mp4
+    Clause 6.2.1
     
-    Change-Id: Ie75c1cfd88801618308d472bc04e7fc648c95e0c
-    Reviewed-on: https://go-review.googlesource.com/19150
+    Fixes #8773
+    
+    Change-Id: Icfc4a23324ae249db52c94a21c0e8509e1833e19
+    Reviewed-on: https://go-review.googlesource.com/16951
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go | 3 ++-
- src/cmd/go/build.go   | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/net/http/sniff.go      | 27 +++++++++------------------
+ src/net/http/sniff_test.go |  4 +---
+ 2 files changed, 10 insertions(+), 21 deletions(-)

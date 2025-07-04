@@ -1,20 +1,30 @@
-commit a8b59fe3cdaeeb40c87d55122a45a2e390e60d88
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Sun Mar 14 18:12:59 2021 +0200
+commit 06337823ef4d9c57b1b01f9b97a348a47277a9df
+Author: Junchen Li <junchen.li@arm.com>
+Date:   Fri Jul 10 11:39:23 2020 +0800
 
-    encoding/json: fix package shadowing in MarshalIndent example
+    cmd/compile: optimize unsigned comparisons to 0/1 on arm64
     
-    Prior to this CL, pasting the example from the website causes a
-    compilation error for some programs because it was shadowing the
-    "json" package.
+    For an unsigned integer, it's useful to convert its order test with 0/1
+    to its equality test with 0. We can save a comparison instruction that
+    followed by a conditional branch on arm64 since it supports
+    compare-with-zero-and-branch instructions. For example,
     
-    Change-Id: I39b68a66ca99468547f2027a7655cf1387b61e95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301492
-    Reviewed-by: Joe Tsai <joetsai@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Joe Tsai <joetsai@google.com>
-    Run-TryBot: Joe Tsai <joetsai@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+      if x > 0 { ... } else { ... }
+    
+    the original version:
+      CMP $0, R0
+      BLS 9
+    
+    the optimized version:
+      CBZ R0, 8
+    
+    Updates #21439
+    
+    Change-Id: Id1de6f865f6aa72c5d45b29f7894818857288425
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246857
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/json/example_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  10 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 204 +++++++++++++++++++++++++++
+ test/codegen/comparisons.go                  |  32 +++++
+ 3 files changed, 246 insertions(+)

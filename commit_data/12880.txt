@@ -1,14 +1,25 @@
-commit 772e8ff4584ac6b97d8f3c38f0b21161ca72fe81
+commit 7247dcab92e4be1c0d2eec76823e27c60c9735ba
 Author: Adam Langley <agl@golang.org>
-Date:   Wed Apr 11 12:57:38 2012 -0400
+Date:   Wed Apr 11 12:55:57 2012 -0400
 
-    crypto/rsa: fix Verify for multi-prime keys.
+    crypto/tls: update how we create testing scripts.
     
-    The least common multiple is not totient/gcd.
+    crypto/tls is tested, in part, by replaying recorded TLS connections
+    and checking that the bytes sent by the Go code haven't changed.
     
-    R=remyoudompheng
+    Previously we used GnuTLS's debug output and extracted the bytes of
+    the TLS connection using a Python script. That wasn't great, and I
+    think GnuTLS removed that level of debugging in a more current
+    release.
+    
+    This change records the connection with Go code and adds a test for
+    ECDHE-AES clients generating using this method.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5990045
+    https://golang.org/cl/5988048
 
- src/pkg/crypto/rsa/rsa.go | 36 ++++++++++++------------------------
- 1 file changed, 12 insertions(+), 24 deletions(-)
+ src/pkg/crypto/tls/handshake_client_test.go      | 218 +++++++++++++++++++++--
+ src/pkg/crypto/tls/handshake_server_test.go      | 126 ++++++++++---
+ src/pkg/crypto/tls/parse-gnutls-cli-debug-log.py |  57 ------
+ 3 files changed, 301 insertions(+), 100 deletions(-)

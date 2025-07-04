@@ -1,24 +1,42 @@
-commit cad3ed207fc428bdca60ce16793ee154893e79df
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 29 20:00:18 2024 +0000
+commit 7f1467ff4ddd882acb318c0ffe24fd3702ce75cc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 22 13:25:15 2023 -0700
 
-    cmd/cgo/internal/swig,cmd/go: reenable swig tests on 386
+    cmd/compile: incorporate inlined function names into closure naming
     
-    CL 588938 skipped the tests because they were broken to unblock the
-    builders, but we're fairly certain the reason they were failing is
-    because we're missing g++-multilib. This change is intended to land once
-    CL 589175 is deployed.
+    In Go 1.17, cmd/compile gained the ability to inline calls to
+    functions that contain function literals (aka "closures"). This was
+    implemented by duplicating the function literal body and emitting a
+    second LSym, because in general it might be optimized better than the
+    original function literal.
     
-    Fixes #67698.
+    However, the second LSym was named simply as any other function
+    literal appearing literally in the enclosing function would be named.
+    E.g., if f has a closure "f.funcX", and f is inlined into g, we would
+    create "g.funcY" (N.B., X and Y need not be the same.). Users then
+    have no idea this function originally came from f.
     
-    Change-Id: I5bb679290ae9ba9ab3bda9499cdf1eec649bc066
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589195
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    With this CL, the inlined call stack is incorporated into the clone
+    LSym's name: instead of "g.funcY", it's named "g.f.funcY".
+    
+    In the future, it seems desirable to arrange for the clone's name to
+    appear exactly as the original name, so stack traces remain the same
+    as when -l or -d=inlfuncswithclosures are used. But it's unclear
+    whether the linker supports that today, or whether any downstream
+    tooling would be confused by this.
+    
+    Updates #60324.
+    
+    Change-Id: Ifad0ccef7e959e72005beeecdfffd872f63982f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497137
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/cgo/internal/swig/swig_test.go      | 8 --------
- src/cmd/go/testdata/script/list_swigcxx.txt | 3 ---
- 2 files changed, 11 deletions(-)
+ src/cmd/compile/internal/inline/inl.go |  2 +-
+ src/cmd/compile/internal/ir/func.go    | 18 ++++++++++++++---
+ src/cmd/internal/obj/inl.go            | 32 +++++++++++++++++++-----------
+ test/closure3.dir/main.go              | 28 +++++++++++++-------------
+ test/codegen/issue60324.go             | 36 ++++++++++++++++++++++++++++++++++
+ test/inline_unified.go                 |  4 ++--
+ 6 files changed, 89 insertions(+), 31 deletions(-)

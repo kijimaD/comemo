@@ -1,15 +1,13 @@
-commit 152d806b169a54564a21fd91d5cd3fb3cee1a5dc
+commit b888671f4c6614d40bcd6864a375939ce173947e
 Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 21 16:48:05 2012 +1100
+Date:   Tue Feb 21 16:47:42 2012 +1100
 
-    net: extend the workaround to DialTCP to try to get arm building again.
-    Awfulness by the bucket that we hope
-    Fixes #3057.
+    test: fix broken test
+    TBR=bradfitz
     
-    R=golang-dev, mikioh.mikioh, dsymonds, r, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5687060
+    https://golang.org/cl/5684050
 
- src/pkg/net/ipsock_posix.go  |  4 ----
- src/pkg/net/tcpsock_posix.go | 22 ++++++++++++----------
- 2 files changed, 12 insertions(+), 14 deletions(-)
+ test/fixedbugs/bug423.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

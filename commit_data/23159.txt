@@ -1,20 +1,16 @@
-commit 4a1957d0aaad9c6700b4bdab19af611e68468bf3
-Author: Austin Clements <austin@google.com>
-Date:   Tue May 26 15:21:18 2015 -0400
+commit 05d53165cebf7c31c4b4c2c818650b2efceefbeb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 27 12:53:34 2015 -0400
 
-    runtime: use stripped test environment for TestGdbPython
+    cmd/internal/ld: remove Biobuf unget
     
-    Most runtime tests that invoke the compiler to build a sub-test binary
-    do so with a special environment constructed by testEnv that strips
-    out environment variables that should apply to the test but not to the
-    build.
+    The underlying *bufio.Reader does everything that's needed here.
     
-    Fix TestGdbPython to use this test environment when invoking go build,
-    like other tests do.
-    
-    Change-Id: Iafdf89d4765c587cbebc427a5d61cb8a7e71b326
-    Reviewed-on: https://go-review.googlesource.com/10455
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If0712a5b4d3142ae4bceaa2efe287eaf2b91e54e
+    Reviewed-on: https://go-review.googlesource.com/9365
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/runtime-gdb_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/ld/objfile.go |  8 +++++---
+ src/cmd/internal/ld/util.go    | 45 ++++++------------------------------------
+ 2 files changed, 11 insertions(+), 42 deletions(-)

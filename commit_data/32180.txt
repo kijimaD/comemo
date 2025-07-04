@@ -1,20 +1,33 @@
-commit e9348ab4e9c8c189036ef405d73528ca50a6f785
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Jul 25 21:44:11 2017 +0900
+commit b5931020b71999db77109088e00b63ede19829c8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 10 11:17:49 2017 -0700
 
-    runtime: move mincore from stubs.go to os_linux.go
+    cmd/internal/obj/arm64: make assembler almost concurrency-safe
     
-    Although mincore is declared in stubs.go, mincore isn't used by any
-    OSes except linux. Move it to os_linux.go and clean up unused code.
+    CL 39922 made the arm assembler concurrency-safe.
+    This CL does the same, but for arm64.
+    The approach is similar: introduce ctxt7 to hold
+    function-local state and thread it through
+    the assembler as necessary.
     
-    Change-Id: I6cfb0fed85c0317a4d091a2722ac55fa79fc7c9a
-    Reviewed-on: https://go-review.googlesource.com/54910
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    One race remains after this CL, deep in aclass,
+    in the check that a Prog does not take the address
+    of a TLS variable.
+    
+    That race is conceptually unrelated to this refactoring,
+    and will be addressed in a separate CL.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Icab1ef70008468f9a5b8bf728a77c4520bbcb67d
+    Reviewed-on: https://go-review.googlesource.com/40252
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/os_linux.go        |  2 ++
- src/runtime/stubs.go           |  1 -
- src/runtime/sys_darwin_arm.s   | 10 ----------
- src/runtime/sys_darwin_arm64.s |  1 -
- 4 files changed, 2 insertions(+), 12 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 691 +++++++++++++++++++------------------
+ src/cmd/internal/obj/arm64/obj7.go | 208 +++++------
+ src/cmd/internal/obj/link.go       |   2 -
+ 3 files changed, 457 insertions(+), 444 deletions(-)

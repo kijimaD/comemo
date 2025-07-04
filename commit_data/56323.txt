@@ -1,17 +1,23 @@
-commit cf164403d1ae1459bf48cb7aea3cf16f8aca5a98
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Apr 26 21:49:41 2024 +0800
+commit 972774c4448f41826577304da0b5fd7d6936df4c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 27 16:07:11 2023 -0700
 
-    slices: reduce code nesting depth for Compact and CompactFunc
+    go/types, types2: call mustParse when using mustTypecheck
     
-    To make it easier to read.
+    Syntactically incorrect source files may produce valid (but
+    unexpected) syntax trees, leading to difficult to understand
+    test failures.
     
-    Change-Id: I2fa1eb78d879b9d86b4dc839be7ede37c7c864f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581976
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joedian Reid <joedian@google.com>
+    Make sure to call mustParse when we call mustTypecheck.
+    
+    Change-Id: I9f5ba3fe57ad3bbc16caabf285d2e7aeb5b9de0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489995
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/slices/slices.go | 50 ++++++++++++++++++++++++++------------------------
- 1 file changed, 26 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 8 +++++++-
+ src/go/types/api_test.go                    | 9 ++++++++-
+ 2 files changed, 15 insertions(+), 2 deletions(-)

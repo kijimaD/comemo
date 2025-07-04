@@ -1,20 +1,14 @@
-commit 292366e7162a030cade7b177eb4ad55bd887d25f
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Tue Oct 17 22:04:17 2017 +0000
+commit 4522efb7f1e9bb7242c9f82076d3db5461f8647b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jul 17 11:35:39 2017 +0200
 
-    Revert "database/sql: prevent race in driver by locking dc in Next"
+    time: fix 400 years offset in comment
     
-    This reverts commit 897080d5cbb1793f8ad3ef5fb7c6fafba2e97d42.
+    Fixes #21043
     
-    Reason for revert: Fails to fix all the locking issues.
-    
-    Updates #21117
-    
-    Change-Id: I6fc9cb7897244d6e1af78c089a2bf383258ec049
-    Reviewed-on: https://go-review.googlesource.com/71450
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I12db4f67ddee80500ff323f84e8fa34511650e63
+    Reviewed-on: https://go-review.googlesource.com/49230
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/fakedb_test.go |  1 -
- src/database/sql/sql.go         | 12 ------------
- src/database/sql/sql_test.go    |  8 +-------
- 3 files changed, 1 insertion(+), 20 deletions(-)
+ src/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

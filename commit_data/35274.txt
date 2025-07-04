@@ -1,13 +1,31 @@
-commit 166c37a7d0f2753be9fc5b16a9ab65e9e3d6975c
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Fri May 4 08:55:11 2018 +0000
+commit 1f85917fb618a27222ba0253c5dd4fdfdbca2fd2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jan 29 09:50:50 2018 +0000
 
-    src/*.bash: remove some trailing whitespace
+    cmd/vet: **T is not Stringer if *T has a String method
     
-    Change-Id: I11793daafdb69156b1dafaa80fe501fcaeeff202
-    Reviewed-on: https://go-review.googlesource.com/111435
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    vet recorded what types had String methods defined on them, but it did
+    not record whether the receivers were pointer types. That information is
+    important, as the following program is valid:
+    
+            type T string
+    
+            func (t *T) String() string {
+                    return fmt.Sprint(&t) // prints address
+            }
+    
+    Teach vet that, if *T is Stringer, **T is not.
+    
+    Fixes #23550.
+    
+    Change-Id: I1062e60e6d82e789af9cca396546db6bfc3541e8
+    Reviewed-on: https://go-review.googlesource.com/90417
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/make.bash | 2 +-
- src/race.bash | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/vet/main.go           |  6 ++++--
+ src/cmd/vet/print.go          | 23 ++++++++++++++++++-----
+ src/cmd/vet/testdata/print.go |  1 +
+ 3 files changed, 23 insertions(+), 7 deletions(-)

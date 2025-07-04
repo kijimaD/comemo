@@ -1,14 +1,16 @@
-commit 3564ec52cda2a3c83aaf41159b26369ca4e7ecee
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 22 22:13:50 2016 +0000
+commit 9c8f549abbc339fce83f96d80500ab9160a4c84d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 10 12:29:31 2016 -0800
 
-    cmd/api: ignore vendored packages
+    cmd/compile: continue is the new goto loop
     
-    Fixes #15404
+    Passes toolstash -cmp.
     
-    Change-Id: I16f2a34a1e4c3457053a1fc2141f21747cfb22b4
-    Reviewed-on: https://go-review.googlesource.com/22386
+    Change-Id: I014613985005780d1a622c1981b35a94cda798bb
+    Reviewed-on: https://go-review.googlesource.com/20530
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/api/goapi.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/parser.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

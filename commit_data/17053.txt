@@ -1,12 +1,38 @@
-commit 7583c14be7a4d3c2289c536148bc65957c41f3fc
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Tue Aug 6 07:57:51 2013 -0700
+commit 33bd9694cd1fcbfbba9f5ce51de5975e72696632
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Aug 6 07:37:26 2013 -0700
 
-    misc/notepadplus: simplify Function List regex
+    runtime: fix Plan 9 build
     
-    R=golang-dev, bradfitz
+    The current failures were:
+    
+    fatal error: runtime: stack split during syscall
+    goroutine 1 [stack split]:
+    runtime.findnull(0x105a9080)
+            /usr/go/src/pkg/runtime/string.goc:14 fp=0x305aefb8
+    runtime: unexpected return pc for runtime.errstr called from 0x80
+    runtime.errstr()
+            /usr/go/src/pkg/runtime/sys_plan9_386.s:196 +0x2f fp=0x305aefc8
+    
+    fatal error: runtime: stack split during syscall
+    goroutine 2 [stack split]:
+    runtime.nanotime(0x305bff3c)
+            /usr/go/src/pkg/runtime/time_plan9_386.c:9 fp=0x305bff34
+    notetsleep(0x305bff9c, 0xf8475800, 0xd, 0x0, 0x0, ...)
+            /usr/go/src/pkg/runtime/lock_sema.c:195 +0x87 fp=0x305bff48
+    runtime.notetsleepg(0x305bff9c, 0xf8475800, 0xd)
+            /usr/go/src/pkg/runtime/lock_sema.c:266 +0xa4 fp=0x305bff68
+    runtime.MHeap_Scavenger()
+            /usr/go/src/pkg/runtime/mheap.c:463 +0xc2 fp=0x305bffd0
+    runtime.goexit()
+            /usr/go/src/pkg/runtime/proc.c:1332 fp=0x305bffd4
+    created by runtime.main
+            /usr/go/src/pkg/runtime/proc.c:168
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12508043
+    https://golang.org/cl/12128043
 
- misc/notepadplus/functionList.xml | 17 ++++++-----------
- 1 file changed, 6 insertions(+), 11 deletions(-)
+ src/pkg/runtime/string.goc       | 1 +
+ src/pkg/runtime/time_plan9_386.c | 1 +
+ 2 files changed, 2 insertions(+)

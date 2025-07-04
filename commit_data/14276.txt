@@ -1,16 +1,15 @@
-commit 85d60a727cc25cb10cf2a3ff1fd68463a9749d34
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Thu Nov 1 18:45:19 2012 +0100
+commit 5c1422afabb7efa26b382e818314748bb8c857d9
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Thu Nov 1 13:13:20 2012 -0400
 
-    cmd/gc: do simple bounds checking of constant indices/slices in typecheck.
+    runtime: move Itab to runtime.h
     
-    This should make the compiler emit errors specific to the bounds checking instead of overflow errors on the underlying types.
-    
-    Updates #4232.
+    The 'type' field of Itab will be used by the garbage collector.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/6783054
+    https://golang.org/cl/6815059
 
- src/cmd/gc/typecheck.c | 17 +++++++++++++++--
- 1 file changed, 15 insertions(+), 2 deletions(-)
+ src/pkg/runtime/iface.c   | 13 -------------
+ src/pkg/runtime/runtime.h | 14 +++++++++++++-
+ 2 files changed, 13 insertions(+), 14 deletions(-)

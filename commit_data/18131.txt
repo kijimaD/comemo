@@ -1,12 +1,12 @@
-commit 7ff57e2fa1999a5f4c97a1caf4fd467c2c0b2f3b
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Mon Dec 30 11:41:01 2013 -0800
+commit 2f5f1939233e121b7f45ce3b6ac17551fbf0d08b
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Sun Dec 29 11:11:28 2013 -0800
 
-    reflect: fixed method name in Slice3 error message
+    doc/contribute: golang-dev -> golang-codereviews
     
-    R=golang-codereviews, bradfitz
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/46500043
+    https://golang.org/cl/46320043
 
- src/pkg/reflect/value.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/contribute.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

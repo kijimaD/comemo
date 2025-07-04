@@ -1,24 +1,15 @@
-commit 7edd13355f1a407a95c7a084c201867501f48ec6
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Mon Feb 25 16:22:00 2013 +0000
+commit 670f6b602d1e9ef6d1ce54830593415f62d48246
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Feb 24 21:57:16 2013 -0800
 
-    net/rpc: avoid racy use of closing flag.
+    go/types: unresolved literal keys must be looked up in universe.
     
-    It's accessed without mutex protection
-    in a different goroutine from the one that
-    sets it.
+    Fixes #4888.
     
-    Also make sure that Client.Call after Client.Close
-    will reliably return ErrShutdown, and that clients
-    see ErrShutdown rather than io.EOF when appropriate.
-    
-    Suggestions welcome for a way to reliably test
-    the mutex issue.
-    
-    R=r, iant
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/7338045
+    https://golang.org/cl/7383051
 
- src/pkg/net/rpc/client.go      | 12 ++++++++----
- src/pkg/net/rpc/server_test.go | 17 +++++++++++++++++
- 2 files changed, 25 insertions(+), 4 deletions(-)
+ src/pkg/go/types/expr.go            | 2 ++
+ src/pkg/go/types/testdata/expr3.src | 9 +++++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)

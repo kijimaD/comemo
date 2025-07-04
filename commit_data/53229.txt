@@ -1,21 +1,55 @@
-commit 1eae5c160da70c31476840c6370b7bfc73ee6134
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Tue May 23 11:26:22 2023 +0200
+commit 2b8a9a484fbc91b7b0d21890e33b28a0b48e3a10
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 19 17:31:52 2022 -0400
 
-    runtime/metrics: add /gc/gogc:percent
+    runtime: generate the lock ranking from a DAG description
     
-    For #56857
+    Currently, the runtime lock rank graph is maintained manually in a
+    large set of arrays that give the partial order and a manual
+    topological sort of this partial order. Any changes to the rank graph
+    are difficult to reason about and hard to review, as well as likely to
+    cause merge conflicts. Furthermore, because the partial order is
+    manually maintained, it's not actually transitively closed (though
+    it's close), meaning there are many cases where rank a can be acquired
+    before b and b before c, but a cannot be acquired before c. While this
+    isn't technically wrong, it's very strange in the context of lock
+    ordering.
     
-    Change-Id: I7e7d2ea3e6ab59291a4cd867c680605ad75bd21f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497317
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Replace all of this with a much more compact, readable, and
+    maintainable description of the rank graph written in the internal/dag
+    graph language. We statically generate the runtime structures from
+    this description, which has the advantage that the parser doesn't have
+    to run during runtime initialization and the structures can live in
+    static data where they can be accessed from any point during runtime
+    init.
+    
+    The current description was automatically generated from the existing
+    partial order, combined with a transitive reduction. This ensures it's
+    correct, but it could use some manual messaging to call out the
+    logical layers and add some structure.
+    
+    We do lose the ad hoc string names of the lock ranks in this
+    translation, which could mostly be derived from the rank constant
+    names, but not always. I may bring those back but in a more uniform
+    way.
+    
+    We no longer need the tests in lockrank_test.go because they were
+    checking that we manually maintained the structures correctly.
+    
+    Fixes #53789.
+    
+    Change-Id: I54451d561b22e61150aff7e9b8602ba9737e1b9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418715
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/metrics.go             | 6 ++++++
- src/runtime/metrics/description.go | 7 +++++++
- src/runtime/metrics/doc.go         | 5 +++++
- src/runtime/metrics_test.go        | 7 +++++++
- 4 files changed, 25 insertions(+)
+ src/internal/dag/alg.go      |  63 +++++++++++
+ src/internal/dag/alg_test.go |  46 ++++++++
+ src/internal/dag/parse.go    |   4 +
+ src/runtime/lockrank.go      | 248 +++++++++++++++++--------------------------
+ src/runtime/lockrank_on.go   |   3 +
+ src/runtime/lockrank_test.go |  46 +++-----
+ src/runtime/mklockrank.go    | 240 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/runtime.go       |   1 +
+ 8 files changed, 471 insertions(+), 180 deletions(-)

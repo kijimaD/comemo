@@ -1,22 +1,20 @@
-commit 51b22130b50035c942f9ea9be184dd16979404b7
-Author: Jan Berktold <jan@berktold.co>
-Date:   Thu Feb 23 15:53:27 2017 +0100
+commit 5ce06cf71d62e6fc1740d97b4ff4dda7e039c606
+Author: Josselin Costanzi <josselin@costanzi.fr>
+Date:   Sun Mar 5 18:04:30 2017 +0100
 
-    net/http: make Transport respect non lower case Content-Encoding
+    encoding/base64: fix decode reports incorrect index
     
-    The existing Transport implementation does not detect gzip encoding
-    when the Content-Encoding header is not lower-case. This is not
-    compliant with RFC2616 section 3.5 "All content-coding values are
-    case-insensitive." and caused issues in the wild.
+    Fix Decode to return the correct illegal data index from a corrupted
+    input that contains whitespaces.
     
-    Fixes #19248
+    Fixes #19406
     
-    Change-Id: I1b49992832dc3c8ef700058596a27dd9909640a3
-    Reviewed-on: https://go-review.googlesource.com/37431
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib2b2b6ed7e41f024d0da2bd035caec4317c2869c
+    Reviewed-on: https://go-review.googlesource.com/37837
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport.go      |  2 +-
- src/net/http/transport_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 1 deletion(-)
+ src/encoding/base64/base64.go      | 6 ++++--
+ src/encoding/base64/base64_test.go | 2 ++
+ 2 files changed, 6 insertions(+), 2 deletions(-)

@@ -1,36 +1,64 @@
-commit 8eaa7935db8c8b901f4dbb7d224a347bb3c33d7f
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Sat Dec 2 15:11:36 2023 +0000
+commit f66581ead6f6dbc94b1d2fddee11abff722039e1
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Jan 19 16:17:56 2023 +0100
 
-    net: clarify maxListenerBacklog windows implementation
+    cmd/internal/obj/x86: use push/pop instead of mov to store/load FP
     
-    The previous TODO comments were somewhat ambiguous. This aims to
-    provide a clearer understanding of the behavior on Windows.
+    This CL changes how the x86 compiler stores and loads the frame pointer
+    on each function prologue and epilogue, with the goal to reduce the
+    final binary size without affecting performance.
     
-    Windows does not offer a way to peek at the current backlog length, this
-    is explicitly stated in the winapi for `listen`.
+    The compiler is currently using MOV instructions to load and store BP,
+    which can take from 5 to 8 bytes each.
     
-    When set to `syscall.SOMAXCONN`, the OS dynamically adjusts the
-    backlog to a maximum reasonable value. It goes as far as the dotnet
-    runtime itself introducing a new version of `listen` that does not accept a
-    backlog parameter to help eliminate the confusion when comparing the
-    behavior with UNIXes.
+    This CL changes this approach so it emits PUSH/POP instructions instead,
+    which always take only 1 byte each (when operating with BP). It can also
+    avoid using the SUBQ/ADDQ to grow the stack for functions that have
+    frame pointer but does not have local variables.
     
-    The docs also mention that `SOMAXCONN_HINT(N)` can be used, and that
-    it clips the final computed value between (200, 65535), which suggests
-    windows might use a `uint16` to back this number. Either way it does not
-    matter since windows will adjust this value anyway, so I removed the
-    wrapping TODO as well.
+    On Windows, this CL reduces the go toolchain size from 15,697,920 bytes
+    to 15,584,768 bytes, a reduction of 0.7%.
     
-    See https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-listen
+    Example of epilog and prologue for a function with 0x10 bytes of
+    local variables:
     
-    Change-Id: I7b2e7cb547467c4bfc572ef0477a58de8c772521
-    GitHub-Last-Rev: 34e74abffe8792c8709c73db4d7a5fa05f64b1d0
-    GitHub-Pull-Request: golang/go#63549
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535475
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Before
+    
+    ===
+     SUBQ    $0x18, SP
+     MOVQ    BP, 0x10(SP)
+     LEAQ    0x10(SP), BP
+    
+     ... function body ...
+    
+     MOVQ    0x10(SP), BP
+     ADDQ    $0x18, SP
+     RET
+    ===
+    
+    After
+    
+    ===
+      PUSHQ   BP
+      LEAQ    0(SP), BP
+      SUBQ    $0x10, SP
+    
+      ... function body ...
+    
+      MOVQ    ADDQ $0x10, SP
+      POPQ    BP
+      RET
+    ===
+    
+    Updates #6853
+    
+    Change-Id: Ice9e14bbf8dff083c5f69feb97e9a764c3ca7785
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462300
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/net/sock_windows.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go | 70 +++++++++++++++++++---------------------
+ 1 file changed, 33 insertions(+), 37 deletions(-)

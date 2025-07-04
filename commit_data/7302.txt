@@ -1,14 +1,16 @@
-commit 400ea843c69350275474b607aa8b45c1cc403d81
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Feb 1 08:46:21 2011 -0500
+commit 4fd867b28335bea432d7d33f6212c97dc697dd5e
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 1 08:44:18 2011 -0500
 
-    syscall: add network interface constants for freebsd/386, freebsd/amd64
+    cgo: define CGO_CFLAGS and CGO_LDFLAGS in Go files
     
-    R=rsc
+    R=rsc, binet
     CC=golang-dev
-    https://golang.org/cl/4105046
+    https://golang.org/cl/3921043
 
- src/pkg/syscall/mkerrors.sh              |   7 ++
- src/pkg/syscall/zerrors_freebsd_386.go   | 151 ++++++++++++++++++++++++++++++-
- src/pkg/syscall/zerrors_freebsd_amd64.go | 142 ++++++++++++++++++++++++++++-
- 3 files changed, 294 insertions(+), 6 deletions(-)
+ src/Make.pkg        |  22 ++++++++----
+ src/cmd/cgo/doc.go  |   9 +++++
+ src/cmd/cgo/gcc.go  | 102 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/main.go |  21 ++++++++---
+ src/cmd/cgo/out.go  |   6 ++++
+ 5 files changed, 150 insertions(+), 10 deletions(-)

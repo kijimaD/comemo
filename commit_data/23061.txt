@@ -1,16 +1,18 @@
-commit 0b9866fd561d5ecebee14d73c0a4938dec5abe7d
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat May 16 20:05:58 2015 -0400
+commit 3a56aa0d3eb14aed7829c41df47b653a2f5c16f7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 21 15:47:58 2015 -0700
 
-    buildall.bash: exit 1 when make.bash fails
+    runtime: check error codes for arm64 system calls
     
-    If make.bash fails, there is no point continuing any further.
+    Unlike linux arm32, linux arm64 does not set the condition codes to indicate
+    whether a system call failed or not.  We must check if the return value
+    is in the error code range (the same as amd64 does).
     
-    Fixes #10880.
+    Fixes runtime.TestBadOpen test.
     
-    Change-Id: I350cc16999372422ad3d2e0327d52d467886a5b1
-    Reviewed-on: https://go-review.googlesource.com/10180
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I97a8b0a17b5f002a3215c535efa91d199cee3309
+    Reviewed-on: https://go-review.googlesource.com/9220
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/buildall.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/sys_linux_arm64.s | 3 +++
+ 1 file changed, 3 insertions(+)

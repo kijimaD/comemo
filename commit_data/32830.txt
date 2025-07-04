@@ -1,20 +1,14 @@
-commit 9f7fd893dc455339233a8e081f5fb5e2c51e7b5d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Sep 23 22:00:53 2017 -0700
+commit 557f6a13beb9e2da58d439d228e7f8f838c61159
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 6 22:05:34 2017 +0000
 
-    os: don't refer directly to Sysfd in epipecheck
+    doc: delete go1.8.txt
     
-    Instead record in the File whether it is stdout/stderr. This avoids a
-    race between a call to epipecheck and closing the file.
+    Fixes #20591
     
-    Fixes #21994
-    
-    Change-Id: Ic3d552ffa83402136276bcb5029ec3e6691042c2
-    Reviewed-on: https://go-review.googlesource.com/65750
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I2a4674a3430c5a4d3c569f3ea654c6ff4d9bf7ee
+    Reviewed-on: https://go-review.googlesource.com/45015
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/file_unix.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ doc/go1.8.txt | 55 -------------------------------------------------------
+ 1 file changed, 55 deletions(-)

@@ -1,12 +1,12 @@
-commit 7023a5d19768d1bcb9af737be1defc3bc12a50b8
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Tue Mar 19 09:40:57 2013 -0400
+commit b89a2bcf0186477b4f5070604920dfd156f50613
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 18 22:50:32 2013 -0700
 
-    lib/godoc: convert indentation to tabs.
+    doc/go1.1.html: document the surrogate and BOM changes
     
-    R=golang-dev, dsymonds, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7497048
+    https://golang.org/cl/7853048
 
- lib/godoc/package.html | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ doc/go1.1.html | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 53 insertions(+), 6 deletions(-)

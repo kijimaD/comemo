@@ -1,12 +1,12 @@
-commit a681c3029dbc258cb066aafd2325490a20362487
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 16 14:41:59 2015 -0400
+commit 264c099ba7988a30ba8d3088c0e925524655383c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 11:47:48 2015 -0500
 
-    runtime: remove out of date comment
+    [dev.cc] cmd/go: do not install tools while executing them
     
-    Change-Id: I0ad1a81a235c7c067fea2093bbeac4e06a233c10
-    Reviewed-on: https://go-review.googlesource.com/7661
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I3417efc203f555a0a6101701f387ead84f9a08d1
+    Reviewed-on: https://go-review.googlesource.com/5577
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgcmark.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/go/build.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

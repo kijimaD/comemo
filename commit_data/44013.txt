@@ -1,18 +1,26 @@
-commit 663cd862edf8dfa9c78d9df0f372c9bea03139e4
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Nov 8 11:11:27 2020 +0100
+commit 1dcbd8dc58abf7319a8f557536e3b5158cba8ed7
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 1 15:30:58 2020 -0400
 
-    cmd/link: do not mark resource section as writable
+    cmd/go/internal/modload: make QueryPattern consider current versions
     
-    Resources are immutable, and all other linkers set this section to be
-    read-only and not read-write. Fix this oversight by removing the writable
-    flag.
+    QueryPattern will now look up the current version of a module (if any)
+    before invoking queryProxy. This changes the interpretation of some
+    patterns (like "upgrade") and avoids the need to download earlier
+    versions for earlier versions when the current version is
+    +incompatible.
     
-    Change-Id: Ib441bde6620be2000f1685df1ea7bfaebdbe7860
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268258
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Fixes #37574
+    
+    Change-Id: I4089d6099236493df13a7f88a252b5e5e556d383
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231599
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modload/query.go               | 12 ++++++++-
+ .../mod/example.com_incompatiblewithsub_v1.0.0.txt |  8 ++++++
+ ...com_incompatiblewithsub_v2.0.0+incompatible.txt |  8 ++++++
+ .../script/mod_get_prefer_incompatible.txt         | 29 ++++++++++++++++++++++
+ 4 files changed, 56 insertions(+), 1 deletion(-)

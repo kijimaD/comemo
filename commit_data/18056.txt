@@ -1,24 +1,16 @@
-commit 8c6ef061e3c189e3ac90a451d5680aab9d142618
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 18 11:08:34 2013 -0800
+commit 0830f64bf0a95c310b6396ea53279b17e35f82ad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 18 10:33:47 2013 -0800
 
-    sync: add Pool type
+    liblink: don't search for an import file with an absolute path
     
-    Adds the Pool type and docs, and use it in fmt.
-    This is a temporary implementation, until Dmitry
-    makes it fast.
+    This restores the old behaviour, and makes it possible to
+    continue to use 6g and 6l directly, rather than the go tool,
+    with dot imports.
     
-    Uses the API proposal from Russ in http://goo.gl/cCKeb2 but
-    adds an optional New field, as used in fmt and elsewhere.
-    Almost all callers want that.
-    
-    Update #4720
-    
-    R=golang-dev, rsc, cshapiro, iant, r, dvyukov, khr
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/41860043
+    https://golang.org/cl/43710043
 
- src/pkg/runtime/mgc0.c    |  34 +++++++++-
- src/pkg/sync/pool.go      |  65 +++++++++++++++++++
- src/pkg/sync/pool_test.go | 154 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 252 insertions(+), 1 deletion(-)
+ src/liblink/ld.c | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

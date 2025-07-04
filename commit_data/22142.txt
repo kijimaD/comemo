@@ -1,12 +1,19 @@
-commit 754bb7158458a0a663a54f3cd015543bce2b822e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 20 16:17:13 2015 -0700
+commit 77d7771a829411b36461487b90a1e3034843b8dd
+Author: Chris Manghane <cmang@golang.org>
+Date:   Mon Dec 8 19:17:37 2014 -0800
 
-    doc/go1.5.txt: updated (composite literal lang. change, math/big.Float support)
+    cmd/internal/gc: omit non-explicit capacity in errors with map/chan make
     
-    Change-Id: Ib8df771957f9a5bf00bee7eb8cb361d4acd5813f
-    Reviewed-on: https://go-review.googlesource.com/7911
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #9083.
+    
+    Change-Id: Ifbdebafb39a73a1dacf7e67171e8e88028d1f10b
+    Reviewed-on: https://go-review.googlesource.com/1219
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Chris Manghane <cmang@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.5.txt | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/internal/gc/fmt.go  |  2 +-
+ test/escape2.go             |  6 +++---
+ test/escape2n.go            |  6 +++---
+ test/fixedbugs/issue9083.go | 22 ++++++++++++++++++++++
+ 4 files changed, 29 insertions(+), 7 deletions(-)

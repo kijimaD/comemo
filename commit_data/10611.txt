@@ -1,12 +1,18 @@
-commit 98553f1422392f135989e0daafab352b66c561c2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 5 14:22:23 2011 -0500
+commit abc7df9686839950f3a2ce108a5a683cce9001fe
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Dec 5 14:01:24 2011 -0500
 
-    spec: remove contentious composite literal shortening
+    math: add special-cases comments to Sinh and Tanh.
     
-    R=gri, r, gustavo, r
+    Also change "Special conditions" to "Special cases" as in other functions.
+    
+    R=rsc, golang-dev
     CC=golang-dev
-    https://golang.org/cl/5451099
+    https://golang.org/cl/5440078
 
- doc/go_spec.html | 11 +----------
- 1 file changed, 1 insertion(+), 10 deletions(-)
+ src/pkg/math/sin.go    |  2 +-
+ src/pkg/math/sincos.go |  2 +-
+ src/pkg/math/sinh.go   | 10 ++++++++++
+ src/pkg/math/tan.go    |  2 +-
+ src/pkg/math/tanh.go   |  5 +++++
+ 5 files changed, 18 insertions(+), 3 deletions(-)

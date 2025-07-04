@@ -1,37 +1,34 @@
-commit 5d1b53a944a415205a945f4ddd89a0af8e9f114f
-Author: David Lazar <lazard@golang.org>
-Date:   Mon Nov 28 17:39:31 2016 -0500
+commit f28cf8346c4ce7cb74bf97c7c69da21c43a78034
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Wed Dec 23 02:03:44 2015 +0000
 
-    cmd/compile: generate code that type checks when inlining variadic functions
+    crypto/tls: implement countermeasures against CBC padding oracles
     
-    This fixes a bug in -l=3 or higher.
+    The aim is to make the decrypt() timing profile constant, irrespective of
+    the CBC padding length or correctness.  The old algorithm, on valid padding,
+    would only MAC bytes up to the padding length threshold, making CBC
+    ciphersuites vulnerable to plaintext recovery attacks as presented in the
+    "Lucky Thirteen" paper.
     
-    To inline a variadic function, the compiler generates code that constructs
-    a slice of arguments for the variadic parameter. Consider the function
+    The new algorithm Write()s to the MAC all supposed payload, performs a
+    constant time Sum()---which required implementing a constant time Sum() in
+    crypto/sha1, see the "Lucky Microseconds" paper---and then Write()s the rest
+    of the data. This is performed whether the padding is good or not.
     
-      func Foo(xs ...string)
+    This should have no explicit secret-dependent timings, but it does NOT
+    attempt to normalize memory accesses to prevent cache timing leaks.
     
-    and the call Foo("hello", "world"). To inline the call to Foo, the
-    compiler used to generate
+    Updates #13385
     
-      xs := [2]string{"hello", "world"}[:]
-    
-    which doesn't type check:
-    
-      invalid operation [2]string literal[:] (slice of unaddressable value).
-    
-    Now, the compiler generates
-    
-      xs := []string{"hello", "world"}
-    
-    which does type check.
-    
-    Fixes #18116.
-    
-    Change-Id: I0ee531ef2e6cc276db6fb12602b25a46d6d5db21
-    Reviewed-on: https://go-review.googlesource.com/33671
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I15d91dc3cc6eefc1d44f317f72ff8feb0a9888f7
+    Reviewed-on: https://go-review.googlesource.com/18130
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/inl.go |  5 ++---
- test/inline_variadic.go            | 19 +++++++++++++++++++
- 2 files changed, 21 insertions(+), 3 deletions(-)
+ src/crypto/sha1/sha1.go         | 70 ++++++++++++++++++++++++++++++++++++++++-
+ src/crypto/sha1/sha1_test.go    | 17 +++++++---
+ src/crypto/tls/cipher_suites.go | 42 ++++++++++++++++++++++---
+ src/crypto/tls/conn.go          | 62 ++++++++++++++++++------------------
+ src/crypto/tls/conn_test.go     |  6 ++--
+ 5 files changed, 152 insertions(+), 45 deletions(-)

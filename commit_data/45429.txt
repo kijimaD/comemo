@@ -1,28 +1,18 @@
-commit 657f58d845e83c47c7d4b7638ccbee8e5a2acbf5
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Apr 27 10:57:09 2021 -0400
+commit d05c03536573b8c567d3eefaad2aafbf89678015
+Author: Keiichi Hirobe <chalenge.akane@gmail.com>
+Date:   Thu Aug 6 01:57:11 2020 +0900
 
-    cmd/link: support trampoline insertion for PLT calls on ARM64
+    net/http: fix typo in TestTransportReadToEndReusesConn
     
-    When internal linking with C objects, some C object relocations
-    may be turned into a CALL via PLT. For very large programs, the
-    PLT stub may be laid too far.
+    The test sets a Content-Type where it looks like it wants a Content-Length. The test passes because the Content-Length header is automatically added anyway, but fix the typo and set Content-Length as intended.
     
-    PLT stubs are generated late in the linker, and laid out after
-    the end of the text section. So if the text section is big, the
-    PLT stubs are likely too far.
-    
-    To avoid this situation, add trampolines for PLT calls in the
-    trampoline pass. Only do this when the program is known too large
-    (i.e. the second pass of the two-pass algorithm).
-    
-    Updates #40492.
-    
-    Change-Id: I21f65d6cbc6bde84e3cf9c2ae05f5233df6cfa72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314452
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ic2af778f82c3e9d58e164892f6ac6ef5745f884f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246977
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/link/internal/arm64/asm.go | 10 +++++++++-
- src/cmd/link/internal/ld/data.go   | 26 +++++++++++++++++++++++---
- 2 files changed, 32 insertions(+), 4 deletions(-)
+ src/net/http/transport_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

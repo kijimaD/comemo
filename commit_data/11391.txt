@@ -1,13 +1,14 @@
-commit 7eaad5e640001333013f497c8fd558418f9d3f85
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 25 13:29:25 2012 -0800
+commit 82d06e8f3cca4bd680aaa0cef6b71d83df0382bc
+Author: Robert Figueiredo <robfig@gmail.com>
+Date:   Wed Jan 25 15:50:23 2012 -0500
 
-    go1: sub-repositories
+    syscall: add NOTE_* constants on OS X
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5569065
+    https://golang.org/cl/5570043
 
- doc/go1.html | 55 +++++++++++++++++++++++++++++++++++++++++++++++++------
- doc/go1.tmpl | 55 +++++++++++++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 98 insertions(+), 12 deletions(-)
+ src/pkg/syscall/mkerrors.sh             |    2 +-
+ src/pkg/syscall/zerrors_darwin_386.go   | 2074 ++++++++++++++++---------------
+ src/pkg/syscall/zerrors_darwin_amd64.go | 2074 ++++++++++++++++---------------
+ 3 files changed, 2111 insertions(+), 2039 deletions(-)

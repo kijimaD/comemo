@@ -1,16 +1,29 @@
-commit 13e9a55afd1e269504ac60143a67ffc8d0731bba
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Oct 8 10:18:22 2024 +0200
+commit 4a8373c553e8a3b15177f74ac12240bbe320a7ca
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 1 13:54:32 2023 -0400
 
-    cmd/go/internal/modload: use slices.Contains
+    runtime: move pcvalue cache to M
     
-    Change-Id: I9d39984b6b15d415189592b592de471f50b43d0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618495
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Currently, the pcvalue cache is stack allocated for each operation
+    that needs to look up a lot of pcvalues. It's not always clear where
+    to put it, a lot of the time we just pass a nil cache, it doesn't get
+    reused across operations, and we put a surprising amount of effort
+    into threading these caches around.
+    
+    This CL moves it to the M, where it can be long-lived and used by all
+    pcvalue lookups, and we don't have to carefully thread it across
+    operations.
+    
+    This is a re-roll of CL 515276 with a fix for reentrant use of the
+    pcvalue cache from the signal handler.
+    
+    Change-Id: Id94c0c0fb3004d1fda1b196790eebd949c621f28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520063
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/modload/load.go | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ src/runtime/runtime2.go |  3 ++
+ src/runtime/symtab.go   | 84 +++++++++++++++++++++++++++++++------------------
+ 2 files changed, 56 insertions(+), 31 deletions(-)

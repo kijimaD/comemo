@@ -1,23 +1,12 @@
-commit aca58647b7b71a0efa2634e4ab67f8f0ba24d2e3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 27 11:50:43 2017 -0700
+commit 73151700b4cd946627d8969b02672828e23b2f47
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 13 16:57:05 2016 -0800
 
-    cmd/internal/obj: eliminate stray ctxt.Cursym write
+    cmd/link: improve -X doc wording
     
-    It is explicitly assigned in each of the
-    assemblers as needed.
-    I plan to remove Cursym entirely eventually,
-    but this is a helpful intermediate step.
-    
-    Passes toolstash-check -all.
-    
-    Updates #15756
-    
-    Change-Id: Id7ddefae2def439af44d03053886ca8cc935731f
-    Reviewed-on: https://go-review.googlesource.com/38727
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9329738ec5dd6c12f72eea7de413d66617b7b5c2
+    Reviewed-on: https://go-review.googlesource.com/34373
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/obj/pcln.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/link/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

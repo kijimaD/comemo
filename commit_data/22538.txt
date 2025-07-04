@@ -1,19 +1,12 @@
-commit 8fd1ec232ff2d9f5e8d73947900bc9b15a047050
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 15 17:00:05 2015 -0700
+commit a22e9393e39a7a2036ed6f55b9e9b668b261a25c
+Author: Jeremy Schlatter <jeremy.schlatter@gmail.com>
+Date:   Fri Mar 20 21:18:17 2015 +0000
 
-    misc/ios: fix teamID and appID use in entitlements
+    cmd/go: Delete some unused code.
     
-    This is a follow-up to CL 8910.
-    This is the version that I have tested and which works
-    when appID and teamID are not the same (which they appear
-    to be for the builder).
-    
-    I am unsure how I submitted it with the wrong code.
-    
-    Change-Id: I186e34e91953d082b507390c1cd2042e5419c4c9
-    Reviewed-on: https://go-review.googlesource.com/8943
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I5e11a76ebb20284618144be2ef5449d3202b6222
+    Reviewed-on: https://go-review.googlesource.com/7900
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/testflag.go | 37 -------------------------------------
+ 1 file changed, 37 deletions(-)

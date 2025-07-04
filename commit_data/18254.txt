@@ -1,12 +1,12 @@
-commit 71377d3cd3a8e9cc97258c3252717e8f0165e7fa
+commit 591265fcb4ab80d6a000521eb607600e81c83155
 Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 14 15:34:27 2014 -0800
+Date:   Tue Jan 14 15:04:16 2014 -0800
 
-    cmd/ld: document the -w flag, which disables DWARF generation
+    reflect: better document the tri-state for TryRecv
     
-    R=golang-codereviews, iant
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/52360044
+    https://golang.org/cl/52360043
 
- src/cmd/ld/doc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/reflect/value.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

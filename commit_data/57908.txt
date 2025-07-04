@@ -1,45 +1,24 @@
-commit 4582f239c3e4589d73dc9e273368f17a196bc09e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 31 09:49:47 2024 -0400
+commit 298e8488646e25e62b3879b88958cf0672b5acac
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 8 17:59:02 2023 -0400
 
-    cmd/internal/objabi, cmd/link: introduce SymKind helper methods
+    runtime: don't clear procid on netbsd
     
-    These will be necessary when we start using the new FIPS symbols.
-    Split into a separate CL so that these refactoring changes can be
-    tested separate from any FIPS-specific changes.
+    This is a partial revert of CL 526118.
     
-    Passes golang.org/x/tools/cmd/toolstash/buildall.
+    NetBSD uses mp.procid in locking (semawake). unminit is called
+    surprisingly early in mexit, and there is definitely locking after that
+    point, so it isn't safe to clear procid so early.
     
-    Change-Id: I73e5873fcb677f1f572f0668b4dc6f3951d822bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625996
+    Fixes #62524.
+    Fixes #62531.
+    
+    Change-Id: Iefbef63e84fc0395e255970a301401e1187a910d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527057
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/dwarf.go              |  2 +-
- src/cmd/internal/obj/objfile.go            |  4 ++--
- src/cmd/internal/obj/plist.go              |  2 +-
- src/cmd/internal/obj/sym.go                | 35 +++++++++++++++++++-----------
- src/cmd/internal/objabi/symkind.go         | 16 ++++++++++++++
- src/cmd/link/internal/amd64/asm.go         |  6 ++---
- src/cmd/link/internal/arm/asm.go           |  2 +-
- src/cmd/link/internal/arm64/asm.go         |  8 +++----
- src/cmd/link/internal/ld/deadcode.go       |  2 +-
- src/cmd/link/internal/ld/dwarf.go          |  5 +++--
- src/cmd/link/internal/ld/elf.go            |  6 ++---
- src/cmd/link/internal/ld/ld.go             |  2 +-
- src/cmd/link/internal/ld/lib.go            |  4 ++--
- src/cmd/link/internal/ld/macho.go          |  4 ++--
- src/cmd/link/internal/ld/pe.go             | 10 ++++-----
- src/cmd/link/internal/ld/symtab.go         | 16 +++++++-------
- src/cmd/link/internal/ld/xcoff.go          | 10 ++++-----
- src/cmd/link/internal/loadelf/ldelf.go     |  4 ++--
- src/cmd/link/internal/loader/loader.go     |  8 +++----
- src/cmd/link/internal/loadmacho/ldmacho.go |  4 ++--
- src/cmd/link/internal/loadpe/ldpe.go       |  6 ++---
- src/cmd/link/internal/loadxcoff/ldxcoff.go |  2 +-
- src/cmd/link/internal/ppc64/asm.go         | 30 ++++++++++++-------------
- src/cmd/link/internal/riscv64/asm.go       |  4 ++--
- src/cmd/link/internal/sym/symkind.go       | 26 +++++++++++++++++++---
- src/cmd/link/internal/x86/asm.go           |  2 +-
- 26 files changed, 133 insertions(+), 87 deletions(-)
+ src/runtime/os_netbsd.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

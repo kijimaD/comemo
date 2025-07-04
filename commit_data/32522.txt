@@ -1,12 +1,21 @@
-commit 72967551e5a5f16f1afa1b8e5dda3bfa6edebe01
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 28 13:25:45 2017 +1000
+commit 585be4639b927430189fa8197985816aec3e88cd
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Fri Apr 28 12:04:45 2017 +0200
 
-    cmd/link: move perelocsect into peFile.emitRelocations (no code changed)
+    os/exec: document that non-comparable writers may race
     
-    Change-Id: I807412bd743d544195aaf9d720f81b128b4636b3
-    Reviewed-on: https://go-review.googlesource.com/59421
+    The comment for Cmd.Stdout and Cmd.Stderr says that it's safe to
+    set both to the same writer, but it doesn't say that this only
+    works when both writers are comparable.
+    
+    This change updates the comment to explain that using a
+    non-comparable writer may still lead to a race.
+    
+    Fixes #19804
+    
+    Change-Id: I63b420034666209a2b6fab48b9047c9d07b825e2
+    Reviewed-on: https://go-review.googlesource.com/42052
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 111 +++++++++++++++++++----------------------
- 1 file changed, 52 insertions(+), 59 deletions(-)
+ src/os/exec/exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

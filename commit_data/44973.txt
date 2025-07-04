@@ -1,17 +1,16 @@
-commit 2e6f39beb0d2423beb544cf491fd9460d0959634
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 24 23:31:32 2021 -0400
+commit 73eb24ccb6d8dd2cf9dd807acf69987a05e8d142
+Author: surechen <surechen17@gmail.com>
+Date:   Wed May 6 20:04:35 2020 +0800
 
-    cmd/go/internal/modload: factor out a method to update loader requirements
+    math: Remove redundant local variable Ln2
     
-    For #36460
+    Use the const variable Ln2 in math/const.go for function acosh.
     
-    Change-Id: Idb0b333a28d2470bc9482fe1829ccb6ddf8abd34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304909
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I5381d03dd3142c227ae5773ece9be6c8f377615e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232517
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/go/internal/modload/load.go | 60 +++++++++++++++++++++++--------------
- 1 file changed, 38 insertions(+), 22 deletions(-)
+ src/math/acosh.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

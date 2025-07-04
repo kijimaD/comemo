@@ -1,25 +1,26 @@
-commit 660620dd45dc11f2d889add79bedf2dc771c7d04
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Sep 6 10:15:37 2023 -0400
+commit 5ca0cd3f1824f189b6c5edf59b669f22a393e2e1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 4 13:53:46 2022 +0200
 
-    cmd/link: avoid deadcode of global map vars for programs using plugins
+    internal/poll, internal/syscall/unix, syscall: move writev definition for solaris
     
-    If a program imports the plugin package, the mechanisms in place for
-    detecting and deleting unused global map variables are no longer safe,
-    since it's possibly for a given global map var to be unreferenced in
-    the main program but referenced by a plugin. This patch changes the
-    linker to test for plugin use and to avoid removing any unused global
-    map variables if the main program could possibly load up a plugin.
+    Move the writev definition for solaris from package
+    internal/syscall/unix to package syscall. This corresponds to where
+    writev is defined on aix, darwin and openbsd as well and is
+    go:linkname'ed from internal/poll. This also allows updating the
+    generated wrappers more easily if needed.
     
-    Fixes #62430.
-    
-    Change-Id: Ie00b18b681cb0d259e3c859ac947ade5778cd6c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526115
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I671ed8232d25319f8e63f549f786d77a17602148
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436597
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/cgo/internal/testplugin/plugin_test.go     |  7 +++++
- .../testplugin/testdata/issue62430/main.go         | 35 ++++++++++++++++++++++
- .../testplugin/testdata/issue62430/plugin.go       | 11 +++++++
- src/cmd/link/internal/ld/deadcode.go               | 24 ++++++++++++---
- 4 files changed, 73 insertions(+), 4 deletions(-)
+ src/internal/poll/fd_writev_libc.go         |  2 +-
+ src/internal/poll/fd_writev_solaris.go      | 14 --------------
+ src/internal/syscall/unix/writev_solaris.go | 28 ----------------------------
+ src/syscall/syscall_solaris.go              |  1 +
+ src/syscall/zsyscall_solaris_amd64.go       | 18 ++++++++++++++++++
+ 5 files changed, 20 insertions(+), 43 deletions(-)

@@ -1,32 +1,22 @@
-commit 2f0b8f88df33ca48494a90eea705ad092322a1ca
-Author: David Chase <drchase@google.com>
-Date:   Wed Oct 5 13:21:09 2016 -0700
+commit 84bb9e62f06dbb62279241fa0bd7a6c8846271ac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 7 17:43:08 2016 -0700
 
-    cmd/compile: PPC64, elide unnecessary sign extension
+    runtime: handle selects with duplicate channels in shrinkstack
     
-    Inputs to store[BHW] and cmpW(U) need not be correct
-    in more bits than are used by the instruction.
+    The shrinkstack code locks all the channels a goroutine is waiting for,
+    but didn't handle the case of the same channel appearing in the list
+    multiple times. This led to a deadlock. The channels are sorted so it's
+    easy to avoid locking the same channel twice.
     
-    Added a pattern tailored to what appears to be cgo boilerplate.
-    Added a pattern (also seen in cgo boilerplate and hashing)
-    to replace {EQ,NE}-CMP-ANDconst with {EQ-NE}-ANDCCconst.
-    Added a pattern to clean up ANDconst shift distance inputs
-    (this was seen in hashing).
+    Fixes #16286.
     
-    Simplify repeated and,or,xor.
-    
-    Fixes #17109.
-    
-    Change-Id: I68eac83e3e614d69ffe473a08953048c8b066d88
-    Reviewed-on: https://go-review.googlesource.com/30455
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ie514805d0532f61c942e85af5b7b8ac405e2ff65
+    Reviewed-on: https://go-review.googlesource.com/24815
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go        |   15 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  113 ++-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |    7 +-
- src/cmd/compile/internal/ssa/opGen.go        |   12 +
- src/cmd/compile/internal/ssa/rewrite.go      |    7 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go | 1142 ++++++++++++++++++++++++--
- 6 files changed, 1214 insertions(+), 82 deletions(-)
+ src/runtime/chan_test.go | 33 +++++++++++++++++++++++++--------
+ src/runtime/stack.go     | 12 ++++++++++--
+ 2 files changed, 35 insertions(+), 10 deletions(-)

@@ -1,18 +1,25 @@
-commit b36b12b292d7cfc8330702fb27865e5ef04e6c9e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 5 22:12:52 2017 -0500
+commit d8ae2156fe08f31f9b20a79b6971638c5bf203b5
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 2 12:05:35 2017 -0400
 
-    database/sql/driver: explain Driver vs DriverContext vs Connector
+    runtime, plugin: error not throw on duplicate open
     
-    The docs make it seem like they are all things a single object
-    would implement. That's true of Driver and DriverContext,
-    but Connector is really something else. Attempt to clarify.
+    Along the way, track bad modules. Make sure they don't end up on
+    the active modules list, and aren't accidentally reprocessed as
+    new plugins.
     
-    Change-Id: I8fdf1cff855a0fbe37ea22720c082045c719a267
-    Reviewed-on: https://go-review.googlesource.com/82082
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #19004
+    
+    Change-Id: I8a5e7bb11f572f7b657a97d521a7f84822a35c07
+    Reviewed-on: https://go-review.googlesource.com/61171
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/driver/driver.go | 27 +++++++++++++++++++--------
- 1 file changed, 19 insertions(+), 8 deletions(-)
+ misc/cgo/testplugin/src/host/host.go | 17 +++++++++++++++++
+ misc/cgo/testplugin/test.bash        |  1 +
+ src/plugin/plugin.go                 |  1 +
+ src/plugin/plugin_dlopen.go          | 26 ++++++++++++++++----------
+ src/runtime/plugin.go                | 24 ++++++++++++++++--------
+ src/runtime/symtab.go                |  9 +++++++--
+ 6 files changed, 58 insertions(+), 20 deletions(-)

@@ -1,22 +1,74 @@
-commit 1da64686f85da38af13c4ee186f261343455c697
-Author: Michael Munday <mike.munday@lowrisc.org>
-Date:   Wed Sep 8 14:07:12 2021 +0000
+commit de65151e507e7b3c8e46d74f223d7c562177bedc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:55:38 2020 -0500
 
-    test/codegen: fix compilation of bitfield tests
+    [dev.regabi] cmd/compile: split out package reflectdata [generated]
     
-    The codegen tests are currently skipped (see #48247) and the
-    bitfield tests do not actually compile due to a duplicate function
-    name (sbfiz5) added in CL 267602. Renaming the function fixes the
-    issue.
+    [git-generate]
     
-    Updates #48247.
+    cd src/cmd/compile/internal/gc
+    rf '
+            ex {
+                    import "cmd/compile/internal/base"
+                    thearch.LinkArch.Name -> base.Ctxt.Arch.Name
+            }
     
-    Change-Id: I626fd5ef13732dc358e73ace9ddcc4cbb6ae5b21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348391
-    Trust: Michael Munday <mike.munday@lowrisc.org>
-    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+            # Move out of reflect.go a few functions that should stay.
+            mv addsignats obj.go
+            mv deferstruct ssa.go
+    
+            # Export reflectdata API.
+            mv zerosize ZeroSize
+            mv hmap MapType
+            mv bmap MapBucketType
+            mv hiter MapIterType
+            mv addsignat NeedRuntimeType
+            mv typename TypePtr
+            mv typenamesym TypeSym
+            mv typesymprefix TypeSymPrefix
+            mv itabsym ITabSym
+            mv tracksym TrackSym
+            mv zeroaddr ZeroAddr
+            mv itabname ITabAddr
+            mv ifaceMethodOffset InterfaceMethodOffset
+            mv peekitabs CompileITabs
+            mv addptabs CollectPTabs
+            mv algtype AlgType
+            mv dtypesym WriteType
+            mv dumpbasictypes WriteBasicTypes
+            mv dumpimportstrings WriteImportStrings
+            mv dumpsignats WriteRuntimeTypes
+            mv dumptabs WriteTabs
+            mv eqinterface EqInterface
+            mv eqstring EqString
+    
+            mv GCProg gcProg
+            mv EqCanPanic eqCanPanic
+            mv IsRegularMemory isRegularMemory
+            mv Sig typeSig
+    
+            mv hashmem alg.go
+            mv CollectPTabs genwrapper ZeroSize reflect.go
+            mv alg.go reflect.go cmd/compile/internal/reflectdata
+    '
+    
+    Change-Id: Iaae9da9e9fad5f772f5216004823ccff2ea8f139
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279475
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/codegen/bitfield.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/abiutils_test.go       |   5 +-
+ src/cmd/compile/internal/gc/go.go                  |   2 -
+ src/cmd/compile/internal/gc/main.go                |  11 +-
+ src/cmd/compile/internal/gc/obj.go                 |  60 ++--
+ src/cmd/compile/internal/gc/order.go               |   3 +-
+ src/cmd/compile/internal/gc/pgen.go                |   3 +-
+ src/cmd/compile/internal/gc/range.go               |   5 +-
+ src/cmd/compile/internal/gc/sinit.go               |   5 +-
+ src/cmd/compile/internal/gc/ssa.go                 |  52 ++-
+ src/cmd/compile/internal/gc/subr.go                | 140 +-------
+ src/cmd/compile/internal/gc/walk.go                |  81 ++---
+ .../compile/internal/{gc => reflectdata}/alg.go    |  78 +++--
+ .../internal/{gc => reflectdata}/reflect.go        | 379 +++++++++++++--------
+ 13 files changed, 418 insertions(+), 406 deletions(-)

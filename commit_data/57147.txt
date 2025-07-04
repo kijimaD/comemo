@@ -1,26 +1,25 @@
-commit 9819ac51dfc0593755f334a3eedec4edf04313bf
-Author: Andy Pan <i@andypan.me>
-Date:   Tue Aug 6 21:22:57 2024 +0800
+commit 8b5fe5980cc116366b37ed8aa83569cadf5772d0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 28 23:15:35 2023 +0700
 
-    os: employ sendfile(2) for file-to-file copying on SunOS when needed
+    cmd/compile: handle min/max correctly in mayCall
     
-    Change-Id: Ia46de6c62707db9ef193fe1a2aabb18585f1dd48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603098
+    CL 500575 changed mayCall to return "false" for min/max builtin.
+    
+    However, with string or float, min/max requires runtime call, so mayCall
+    should return true instead. This's probably not a big problem, because
+    CL 506115 makes order pass handle min/max correctly. But it's still
+    better to do it the right way.
+    
+    Updates #60582
+    
+    Change-Id: I9779ca62bebd0f95e52ad5fa55b9160dc35b33aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506855
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/poll/sendfile_solaris.go |  11 +-
- src/net/cgo_solaris.go                |   2 +-
- src/os/readfrom_linux_test.go         | 400 +----------------------------
- src/os/readfrom_solaris_test.go       |  58 +++++
- src/os/readfrom_unix_test.go          | 456 ++++++++++++++++++++++++++++++++++
- src/os/writeto_linux_test.go          |  29 ---
- src/os/zero_copy_linux.go             |  24 --
- src/os/zero_copy_posix.go             |  36 +++
- src/os/zero_copy_solaris.go           | 111 +++++++++
- src/os/zero_copy_stub.go              |   2 +-
- 10 files changed, 684 insertions(+), 445 deletions(-)
+ src/cmd/compile/internal/walk/walk.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

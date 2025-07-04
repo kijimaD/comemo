@@ -1,23 +1,17 @@
-commit 47e0a3d7b12bbb12a513d7d1a4ebef8632a471ae
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue May 28 10:47:35 2013 +0400
+commit ae73b903696981ae3c4da203a3ea4e083e401b46
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon May 27 20:46:53 2013 +0800
 
-    runtime: introduce helper persistentalloc() function
-    It is a caching wrapper around SysAlloc() that can allocate small chunks.
-    Use it for symtab allocations. Reduces number of symtab walks from 4 to 3
-    (reduces buildfuncs time from 10ms to 7.5ms on a large binary,
-    reduces initial heap size by 680K on the same binary).
-    Also can be used for type info allocation, itab allocation.
-    There are also several places in GC where we do the same thing,
-    they can be changed to use persistentalloc().
-    Also can be used in FixAlloc, because each instance of FixAlloc allocates
-    in 128K regions, which is too eager.
+    runtime: make arm signal handler call runtime.badsignal
+    In preparation for CL 9249043 (already submitted).
     
-    R=golang-dev, daniel.morsing, khr
+    Fixes #5553.
+    
+    R=golang-dev, iant, capnm9, dave
     CC=golang-dev
-    https://golang.org/cl/9805043
+    https://golang.org/cl/9251043
 
- src/pkg/runtime/malloc.goc | 47 ++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/malloc.h   |  1 +
- src/pkg/runtime/symtab.c   | 32 +++++++------------------------
- 3 files changed, 55 insertions(+), 25 deletions(-)
+ src/pkg/runtime/sys_freebsd_arm.s | 7 ++++++-
+ src/pkg/runtime/sys_linux_arm.s   | 7 ++++++-
+ src/pkg/runtime/sys_netbsd_arm.s  | 7 ++++++-
+ 3 files changed, 18 insertions(+), 3 deletions(-)

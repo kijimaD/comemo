@@ -1,34 +1,27 @@
-commit c9d5f60eaa4450ccf1ce878d55b4c6a12843f2f3
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Apr 27 21:52:38 2020 -0400
+commit 6fd467ee29226bf4b875921b7cb3b692c9db52ef
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 18 20:21:38 2019 -0500
 
-    math/big: add (*Int).FillBytes
+    runtime: ensure thread handle is valid in profileloop1
     
-    Replaced almost every use of Bytes with FillBytes.
+    On Windows, there is currently a race between unminit closing the
+    thread's handle and profileloop1 suspending the thread using its
+    handle. If another handle reuses the same handle value, this can lead
+    to unpredictable results.
     
-    Note that the approved proposal was for
+    To fix this, we protect the thread handle with a lock and duplicate it
+    under this lock in profileloop1 before using it.
     
-        func (*Int) FillBytes(buf []byte)
+    This is going to become a much bigger problem with non-cooperative
+    preemption (#10958, #24543), which uses the same basic mechanism as
+    profileloop1.
     
-    while this implements
-    
-        func (*Int) FillBytes(buf []byte) []byte
-    
-    because the latter was far nicer to use in all callsites.
-    
-    Fixes #35833
-    
-    Change-Id: Ia912df123e5d79b763845312ea3d9a8051343c0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230397
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I9d62b83051df8c03f3363344438e37781a69ce16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207779
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/crypto/elliptic/elliptic.go | 13 +++++-----
- src/crypto/rsa/pkcs1v15.go      | 20 +++------------
- src/crypto/rsa/pss.go           | 17 ++++++-------
- src/crypto/rsa/rsa.go           | 32 ++++--------------------
- src/crypto/tls/key_schedule.go  |  7 ++----
- src/crypto/x509/sec1.go         |  7 ++----
- src/math/big/int.go             | 15 ++++++++++++
- src/math/big/int_test.go        | 54 +++++++++++++++++++++++++++++++++++++++++
- src/math/big/nat.go             | 15 +++++++++---
- 9 files changed, 106 insertions(+), 74 deletions(-)
+ src/runtime/os_windows.go | 34 +++++++++++++++++++++++++---------
+ 1 file changed, 25 insertions(+), 9 deletions(-)

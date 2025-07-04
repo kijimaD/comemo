@@ -1,29 +1,28 @@
-commit 5627a4dc3013fed02c4b8097413643b682cac276
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Dec 8 19:44:33 2020 -0500
+commit 4c78d54fdd9ffc81c15ffc3c4a2946f89d4fca22
+Author: Anton Kuklin <anton.a.kuklin@gmail.com>
+Date:   Sat Apr 25 02:33:30 2020 +0300
 
-    runtime/metrics: simplify test to support more environments
+    cmd: disable *.go domains lookup in go get command
     
-    go test sets the working directory to that of the package being tested,
-    so opening one of the package source files can be done in a simpler way.
-    This also allows the test to run in more environments, for example when
-    GOROOT_FINAL¹ is set.
+    Using 'go get x.go' instead of 'go build x.go' or some other
+    go command is a common mistake. By that mistake, a user gets
+    a misleading error message about unsuccessful `x.go` domain lookup.
+    This improvement handles such cases, by validating, whether the
+    argument hasn't specified version, has .go suffix, and either has
+    no slashes or such file locally exists. Handled both GOPATH
+    and GOMOD modes.
     
-    Also remove the testenv.HasSrc-like check for Go source. The doc.go
-    file is a part of the package being built and tested, so it's expected
-    to be available. If it's important for this test to handle when a test
-    binary is built with go test -c and executed elsewhere without package
-    source files, something more than testenv.HasSrc would be needed.
+    Fixes #38478
     
-    ¹ https://golang.org/cmd/go/#hdr-Environment_variables
-    
-    Fixes #43085.
-    
-    Change-Id: Ie6ade395a8fc7beebdadbad6f4873800138dfc26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276452
+    Change-Id: I583a4ef7f7ca8901deb07ebc811e2b3c0e828fa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229938
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/metrics/description_test.go | 16 +++-------------
- 1 file changed, 3 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/get/get.go                 | 16 ++++++
+ src/cmd/go/internal/modget/get.go              | 14 ++++++
+ src/cmd/go/testdata/script/get_go_file.txt     | 60 +++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_get_go_file.txt | 68 ++++++++++++++++++++++++++
+ 4 files changed, 158 insertions(+)

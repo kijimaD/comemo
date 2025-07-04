@@ -1,16 +1,20 @@
-commit 0a5fc261b65aff5c66033eb22edd6f7acd4f6bbd
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 21 15:06:44 2011 -0500
+commit 5b5a674b4665f0ca140dd210b319356de21d9184
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 21 11:28:53 2011 -0800
 
-    test/chan/doubleselect: fix various races
+    gob: better debugging, commentary
     
-    There were duplicate closes and missing closes,
-    with the result that the program was rarely testing
-    as much as it seemed to be.  Now it finishes.
+    Re-implement the debugging helper to be independent of the existing
+    implementation.  This is preparatory to a rewrite to clean up issue 1416.
+    Include a definition of the grammar of the data stream.
     
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4008046
+    https://golang.org/cl/3970045
 
- test/chan/doubleselect.go | 36 +++++++++++++++++++-----------------
- 1 file changed, 19 insertions(+), 17 deletions(-)
+ src/pkg/gob/codec_test.go |  27 +-
+ src/pkg/gob/debug.go      | 784 ++++++++++++++++++++++++++++++++++------------
+ src/pkg/gob/decode.go     |   8 +-
+ src/pkg/gob/decoder.go    |  23 +-
+ src/pkg/gob/doc.go        |  48 +++
+ 5 files changed, 672 insertions(+), 218 deletions(-)

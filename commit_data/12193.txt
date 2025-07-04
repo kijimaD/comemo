@@ -1,16 +1,14 @@
-commit 075eef4018b1c2ab37c9236e3265f0d2d816a04f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 23 23:09:53 2012 -0500
+commit d45ee4cb5f44b2ebc79a65f1fcbc4d3f81fbdd40
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 24 15:06:32 2012 +1100
 
-    gc: fix escape analysis + inlining + closure bug
+    test: fix the fix of the rename tests.
+    Now they actually test again instead of just setting iota to zero.
     
-    R=ken2
-    CC=golang-dev, lvd
-    https://golang.org/cl/5693056
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5700058
 
- src/cmd/gc/esc.c |  9 +++++----
- src/cmd/gc/go.h  |  2 +-
- src/cmd/gc/lex.c | 15 +++++++++------
- test/escape2.go  |  2 +-
- test/escape4.go  | 33 +++++++++++++++++++++++++++++++++
- 5 files changed, 49 insertions(+), 12 deletions(-)
+ test/rename.go  | 79 +++++++++++++++++++++++++++++----------------------------
+ test/rename1.go | 77 +++++++++++++++++++++++++++----------------------------
+ 2 files changed, 78 insertions(+), 78 deletions(-)

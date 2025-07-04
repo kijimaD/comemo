@@ -1,26 +1,68 @@
-commit 1e690409206ff97330b5a91517d453fc5129bab2
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Sep 29 14:19:17 2023 -0400
+commit d8541aa8d5d09042cff39ba064b2e09b772f0ae0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 26 23:34:15 2022 -0400
 
-    cmd/link: split text sections for arm 32-bit
+    math/big: add benchmark of Exp with large modulus
     
-    This CL is a roll-forward (tweaked slightly) of CL 467715, which
-    turned on text section splitting for GOARCH=arm. The intent is to
-    avoid recurrent problems with external linking where there is a
-    disagreement between the Go linker and the external linker over
-    whether a given branch will reach. In the past our approach has been
-    to tweak the reachability calculations slightly to try to work around
-    potential linker problems, but this hasn't proven to be very robust;
-    section splitting seems to offer a better long term fix.
+    Setting up for improving even modulus.
     
-    Fixes #58425.
+    name                   time/op
+    ExpMont/Odd-16          240µs ± 2%
+    ExpMont/Even1-16        757µs ± 3%
+    ExpMont/Even2-16        755µs ± 1%
+    ExpMont/Even3-16        771µs ± 3%
+    ExpMont/Even4-16        775µs ± 3%
+    ExpMont/Even8-16        779µs ± 2%
+    ExpMont/Even32-16       778µs ± 3%
+    ExpMont/Even64-16       774µs ± 6%
+    ExpMont/Even96-16       776µs ± 4%
+    ExpMont/Even128-16      764µs ± 2%
+    ExpMont/Even255-16      761µs ± 3%
+    ExpMont/SmallEven1-16  45.6µs ± 1%
+    ExpMont/SmallEven2-16  44.3µs ± 2%
+    ExpMont/SmallEven3-16  44.1µs ± 5%
+    ExpMont/SmallEven4-16  47.1µs ± 6%
     
-    Change-Id: I7372d41abce84097906a3d0805b6b9c486f345d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531795
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    name                   alloc/op
+    ExpMont/Odd-16         2.53kB ± 0%
+    ExpMont/Even1-16       2.57kB ± 0%
+    ExpMont/Even2-16       2.57kB ± 0%
+    ExpMont/Even3-16       2.57kB ± 0%
+    ExpMont/Even4-16       2.57kB ± 0%
+    ExpMont/Even8-16       2.57kB ± 0%
+    ExpMont/Even32-16      2.57kB ± 0%
+    ExpMont/Even64-16      2.57kB ± 0%
+    ExpMont/Even96-16      2.57kB ± 0%
+    ExpMont/Even128-16     2.57kB ± 0%
+    ExpMont/Even255-16     2.57kB ± 0%
+    ExpMont/SmallEven1-16    872B ± 0%
+    ExpMont/SmallEven2-16    872B ± 0%
+    ExpMont/SmallEven3-16    872B ± 0%
+    ExpMont/SmallEven4-16    872B ± 0%
+    
+    name                   allocs/op
+    ExpMont/Odd-16           21.0 ± 0%
+    ExpMont/Even1-16         24.0 ± 0%
+    ExpMont/Even2-16         24.0 ± 0%
+    ExpMont/Even3-16         24.0 ± 0%
+    ExpMont/Even4-16         24.0 ± 0%
+    ExpMont/Even8-16         24.0 ± 0%
+    ExpMont/Even32-16        24.0 ± 0%
+    ExpMont/Even64-16        24.0 ± 0%
+    ExpMont/Even96-16        24.0 ± 0%
+    ExpMont/Even128-16       24.0 ± 0%
+    ExpMont/Even255-16       24.0 ± 0%
+    ExpMont/SmallEven1-16    16.0 ± 0%
+    ExpMont/SmallEven2-16    16.0 ± 0%
+    ExpMont/SmallEven3-16    16.0 ± 0%
+    ExpMont/SmallEven4-16    16.0 ± 0%
+    
+    Change-Id: I5278378b4209a97b16273be581533310e0e4110b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420896
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/internal/ld/data.go    | 19 +++++++++++++------
- src/cmd/link/internal/ld/ld_test.go |  2 +-
- 2 files changed, 14 insertions(+), 7 deletions(-)
+ src/math/big/int_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

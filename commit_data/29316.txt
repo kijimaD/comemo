@@ -1,41 +1,12 @@
-commit c56cc9b3b5727647c2afb3d57f5793151558a0a7
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 31 19:27:26 2016 -0400
+commit 0ca5f269d4cb04cccd0012cc6fc0cb52b0002728
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 16:28:18 2016 -0700
 
-    testing: introduce testing/internal/testdeps for holding testmain dependencies
+    cmd/compile: remove fmt.go printer again, now that it's unused
     
-    Currently, we don't have package testing to import package regexp directly,
-    because then regexp can't have internal tests (or at least they become more
-    difficult to write), for fear of an import cycle. The solution we've been using
-    is for the generated test main package (pseudo-import path "testmain", package main)
-    to import regexp and pass in a matchString function for use by testing when
-    implementing the -run flags. This lets testing use regexp but without depending
-    on regexp and creating unnecessary cycles.
-    
-    We want to add a few dependencies to runtime/pprof, notably regexp
-    but also compress/gzip, without causing those packages to have to work
-    hard to write internal tests.
-    
-    Restructure the (dare I say it) dependency injection of regexp.MatchString
-    to be more general, and use it for the runtime/pprof functionality in addition
-    to the regexp functionality. The new package testing/internal/testdeps is
-    the root for the testing dependencies handled this way.
-    
-    Code using testing.MainStart will have to change from passing in a matchString
-    implementation to passing in testdeps.TestDeps{}. Users of 'go test' don't do this,
-    but other build systems that have recreated 'go test' (for example, Blaze/Bazel)
-    may need to be updated. The new testdeps setup should make future updates
-    unnecessary, but even so we keep the comment about MainStart not being
-    subject to Go 1 compatibility.
-    
-    Change-Id: Iec821d2afde10c79f95f3b23de5e71b219f47b92
-    Reviewed-on: https://go-review.googlesource.com/32455
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9a6e5b9cbcfc264c61fd39ed65330ca737707e1f
+    Reviewed-on: https://go-review.googlesource.com/28340
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- api/except.txt                        |  1 +
- src/cmd/go/pkg.go                     |  8 +++
- src/cmd/go/test.go                    | 24 ++-------
- src/go/build/deps_test.go             | 93 ++++++++++++++++++-----------------
- src/testing/internal/testdeps/deps.go | 51 +++++++++++++++++++
- src/testing/testing.go                | 80 ++++++++++++++++++++----------
- 6 files changed, 166 insertions(+), 91 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 58 ++------------------------------------
+ 1 file changed, 2 insertions(+), 56 deletions(-)

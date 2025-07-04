@@ -1,17 +1,16 @@
-commit 3540376b7067911fe1e02cb25e10b34ff789c630
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Dec 15 16:56:18 2015 +1100
+commit 19aa4209aebce5deaf485268e210ed3fc29cacd5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 16 04:41:34 2015 +0000
 
-    path/filepath: include test number in TestIssue13582 output
+    syscall: fix nacl listener to not accept connections once closed
     
-    Otherwise it's hard to tell the difference between
-    link1 and link2 or other tests.
-    
-    Change-Id: I36c153cccb10959535595938dfbc49db930b9fac
-    Reviewed-on: https://go-review.googlesource.com/17851
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I3ba6e97089ef6e69ba31dfb632df465859906a74
+    Reviewed-on: https://go-review.googlesource.com/15940
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/path/filepath/path_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/net_test.go     | 9 ++++++++-
+ src/syscall/net_nacl.go | 8 +++++++-
+ 2 files changed, 15 insertions(+), 2 deletions(-)

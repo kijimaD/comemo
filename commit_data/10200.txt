@@ -1,13 +1,27 @@
-commit e223eedc8b83bf6199a82b621db80ec3620b48db
-Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 1 20:57:17 2011 -0700
+commit 4c3ea0008c81e18688fc77f73dd0a8bb0c8ad323
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 23:26:10 2011 -0400
 
-    spec: delete spurious article
-    A profound change to christen the new tag.
+    undo CL 5330066 / 6a5647d82728
     
-    R=golang-dev, dsymonds
+    I promised it wouldn't last very long.
+    People who really need this can sync to 6a5647d82728.
+    
+    ««« original CL description
+    gc: add GOEXPERIMENT=os.Error
+    
+    This won't last long, I promise.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5327062
+    https://golang.org/cl/5330066
+    »»»
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5333053
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/go.h   |  1 -
+ src/cmd/gc/lex.c  |  1 -
+ src/cmd/gc/subr.c | 11 -----------
+ 3 files changed, 13 deletions(-)

@@ -1,34 +1,27 @@
-commit ea106cc07ac73110a8a25fcc5aef07b283159db0
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Sep 24 14:25:21 2020 -0700
+commit a79ac2b819db2680ba835b9a76de9bcce10c5099
+Author: smasher164 <aindurti@gmail.com>
+Date:   Thu Feb 27 03:44:13 2020 -0500
 
-    cmd/compile: prevent 387+float32+pie from clobbering registers
+    cmd/vet: add ifaceassert and stringintconv checks
     
-    The 387 port needs to load a floating-point control word from a
-    global location to implement float32 arithmetic.
-    When compiling with -pie, loading that control word clobbers an
-    integer register. If that register had something important in it, boom.
+    This change re-vendors x/tools to add the ifaceassert and stringintconv
+    checks to cmd/vet.
     
-    Fix by using LEAL to materialize the address of the global location
-    first. LEAL with -pie works because the destination register is
-    used as the scratch register.
+    Fixes #32479.
+    Updates #4483.
     
-    387 support is about to go away (#40255), so this will need to be
-    backported to have any effect.
-    
-    No test. I have one, but it requires building with -pie, which
-    requires cgo. Our testing infrastructure doesn't make that easy.
-    Not worth it for a port which is about to vanish.
-    
-    Fixes #41503
-    
-    Change-Id: I140f9fc8fdce4e74a52c2c046e2bd30ae476d295
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257277
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Keith Randall <khr@golang.org>
+    Change-Id: I6bd30b0a3278592dfab4bd247036404ddaff09e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221339
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/x86/387.go | 68 ++++++++++++++++++++++++++-----------
- 1 file changed, 48 insertions(+), 20 deletions(-)
+ src/cmd/go.mod                                     |   3 +-
+ src/cmd/go.sum                                     |   7 +-
+ .../tools/go/analysis/passes/errorsas/errorsas.go  |   2 +-
+ .../go/analysis/passes/ifaceassert/ifaceassert.go  | 101 +++++++++++++++++
+ .../go/analysis/passes/stringintconv/string.go     | 126 +++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   5 +-
+ src/cmd/vet/main.go                                |   4 +
+ 7 files changed, 240 insertions(+), 8 deletions(-)

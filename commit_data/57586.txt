@@ -1,22 +1,18 @@
-commit 8c52cd3da550f5315c32bdcb9442ac50e3e4ec96
-Author: Austin Clements <austin@google.com>
-Date:   Fri Sep 6 07:19:18 2024 -0400
+commit 48e05ee749256a6c618eff3ab0bb64a60a9901be
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 01:53:16 2023 -0700
 
-    cmd/internal/obj: make asmidx error less cryptic
+    cmd/compile/internal/pkginit: use typecheck.LookupRuntime for asan
     
-    It's still pretty cryptic, but at least now instead of printing
-    
-        asm: asmidx: bad address 0/2067/2068
-    
-    it will print
-    
-        asm: asmidx: bad address 0/BX/SP
-    
-    Change-Id: I1c73c439c94c5b9d3039728db85102a818739db9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611256
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: Ie9c90aa4560c982902738659737ae125cfcb6ba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520397
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/internal/obj/x86/asm6.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/pkginit/init.go               | 9 +--------
+ src/cmd/compile/internal/typecheck/_builtin/runtime.go | 2 ++
+ src/cmd/compile/internal/typecheck/builtin.go          | 1 +
+ 3 files changed, 4 insertions(+), 8 deletions(-)

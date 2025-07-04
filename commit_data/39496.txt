@@ -1,12 +1,16 @@
-commit c893ea8f8b5fc824b1fdd0b2e56d0cda5eacb02b
-Author: Alexander Rakoczy <alex@golang.org>
-Date:   Mon Jul 8 14:19:07 2019 -0400
+commit 5edb175b40a87f3dba90aed14390de9affee77f2
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Mon Feb 4 12:44:00 2019 +0000
 
-    doc: document Go 1.12.7
+    cmd/compile/internal/ssa: ignore error from second call to MatchString in test
     
-    Change-Id: Id5d2f4cc6bc310bed2516ce0f50c395802475f66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185258
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I714612b41facc8d1ec22974e8aaf2a5a3592e8f5
+    GitHub-Last-Rev: a0b3917e45bc1d24590e9c9cb3550da4c4008c49
+    GitHub-Pull-Request: golang/go#29998
+    Reviewed-on: https://go-review.googlesource.com/c/160422
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/devel/release.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/ssa/debug_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

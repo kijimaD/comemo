@@ -1,23 +1,14 @@
-commit fdecab6ef00be4a2e6247ebd962a281276b3f37d
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Sep 20 23:20:28 2017 -0700
+commit da1b83067dfe554ba1c3de564bc4e6a1f1a9bdb0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 31 14:06:25 2017 -0700
 
-    archive/tar: make check for hole detection support more liberal
+    sort: clarify comment about not-a-number values
     
-    On most Unix OSes, lseek reports EINVAL when lacking SEEK_HOLE support.
-    However, there are reports that ENOTTY is reported instead.
-    Rather than tracking down every possible errno that may be used to
-    represent "not supported", just treat any non-nil error as meaning
-    that there is no support. This is the same strategy taken by the
-    GNU and BSD tar tools.
+    Updates #20540
     
-    Fixes #21958
-    
-    Change-Id: Iae68afdc934042f52fa914fca45f0ca89220c383
-    Reviewed-on: https://go-review.googlesource.com/65191
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I864008fadd77b0aeb10fe7e7f1ec696516a5add5
+    Reviewed-on: https://go-review.googlesource.com/44492
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/archive/tar/sparse_unix.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/sort/sort.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

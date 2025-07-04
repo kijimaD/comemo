@@ -1,12 +1,14 @@
-commit be96fa5a2e3e146a4bb4ba28f2b2c0f9c8e37b71
-Author: David Symonds <dsymonds@golang.org>
-Date:   Sun Jul 31 12:59:58 2011 +1000
+commit ffccc026cb027136234be4ed5d58906f88d5034c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Jul 30 18:02:09 2011 -0700
 
-    go_faq: drop a dramatic comma.
+    exp/norm: correct package doc comment
     
-    R=r
+    Fixes #2118.
+    
+    R=golang-dev, r, iant
     CC=golang-dev
-    https://golang.org/cl/4809064
+    https://golang.org/cl/4815073
 
- doc/go_faq.html | 2 +-
+ src/pkg/exp/norm/normalize.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

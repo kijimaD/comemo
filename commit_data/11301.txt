@@ -1,16 +1,35 @@
-commit 0a1376a1df34d84a85ca7195f0499f012e62275d
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 20 14:28:48 2012 -0800
+commit 290e68b9833da723cbe9138856f7d6d494e5b07b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 20 17:14:09 2012 -0500
 
-    doc/go1: rearrange a bit, sort the packages
-    This should make it easier to add the zillion little changes coming.
-    No content change here beyond a couple of introductory sentences.
-    Sections have been moved wholesale without editing them.
+    gc: undo most of 'fix infinite recursion for embedded interfaces'
     
-    R=golang-dev, rsc, gri
+    Preserve test.
+    
+    changeset:   11593:f1deaf35e1d1
+    user:        Luuk van Dijk <lvd@golang.org>
+    date:        Tue Jan 17 10:00:57 2012 +0100
+    summary:     gc: fix infinite recursion for embedded interfaces
+    
+    This is causing 'interface type loop' errors during compilation
+    of a complex program.  I don't understand what's happening
+    well enough to boil it down to a simple test case, but undoing
+    this change fixes the problem.
+    
+    The change being undone is fixing a corner case (uses of
+    pointer to interface in an interface definition) that basically
+    only comes up in erroneous Go programs.  Let's not try to
+    fix this again until after Go 1.
+    
+    Unfixes issue 1909.
+    
+    TBR=lvd
     CC=golang-dev
-    https://golang.org/cl/5557074
+    https://golang.org/cl/5555063
 
- doc/go1.html | 545 +++++++++++++++++++++++++++++++++--------------------------
- doc/go1.tmpl | 510 +++++++++++++++++++++++++++++--------------------------
- 2 files changed, 569 insertions(+), 486 deletions(-)
+ src/cmd/gc/dcl.c                   |  9 +--------
+ src/cmd/gc/export.c                |  9 +--------
+ src/cmd/gc/fmt.c                   |  8 +-------
+ test/{fixedbugs => bugs}/bug395.go | 15 +++++++++++----
+ test/golden.out                    |  3 +++
+ 5 files changed, 17 insertions(+), 27 deletions(-)

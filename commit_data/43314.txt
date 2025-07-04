@@ -1,19 +1,17 @@
-commit 748c0d87e23eaae0ba133d2f613b82c009ac8cb4
+commit c4cb6832bb9fb058d9d635e161ed5ebc22ddd78b
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Oct 13 20:44:04 2020 -0400
+Date:   Tue Mar 24 14:35:45 2020 -0400
 
-    cmd/dist: only build ios_exec wrapper for ios
+    [dev.link] cmd/link: remove lookup function from relocsym
     
-    Not for darwin/arm64.
+    The lookup is only used for DWARF section symbols, for which we
+    can just link the symbols to the sections.
     
-    Updates #38485.
-    
-    Change-Id: I08a5f00fd77f20c9c483755a36755a63cf10aa1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262558
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Id8426fbf59bab2528f57e28e2043e0b405656a9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225204
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/dist/build.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/data.go     | 25 +++++++++++++------------
+ src/cmd/link/internal/sym/segment.go |  1 +
+ 2 files changed, 14 insertions(+), 12 deletions(-)

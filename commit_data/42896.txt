@@ -1,16 +1,16 @@
-commit be9ed03f1aa5f348aa836c4ffe1904d8e37a629a
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 2 22:10:15 2020 +0700
+commit 17f7c12eb9ee0df304eb7a48b3f29ec165a384be
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 24 14:52:19 2020 -0800
 
-    cmd/compile/internal/gc: remove unparen
+    cmd/compile: delete stray file
     
-    CL 197120 removed the last use of it.
+    This found its way in accidentally.
     
-    Change-Id: I5fe4f57a47acc712208d831e72cd79205a534c28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252697
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I830f1e3ec4852a213901a679ad20094a6958cb07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220680
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite_rule_idea.txt | 17 -----------------
+ 1 file changed, 17 deletions(-)

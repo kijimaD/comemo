@@ -1,44 +1,19 @@
-commit 566cf1c1083b26d4a15b94213c21142ecd9a8ca9
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Nov 14 22:02:02 2024 +0100
+commit 62bdbd2596591bb2819a1614dd3c57ffeec667e3
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Oct 5 11:27:36 2023 -0400
 
-    crypto/ecdh: move implementation to crypto/internal/fips/ecdh
+    net/http: fix ServeMux pattern registration
     
-    This intentionally gives up on the property of not computing the public
-    key until requested. It was nice, but it was making the code too
-    complex. The average use case is to call PublicKey immediately after
-    GenerateKey anyway.
+    When the httpmuxgo121 GODEBUG setting was active, we were registering
+    patterns in the old and the new way. Fix to register only in the old
+    way.
     
-    Added support in the module for P-224, just in case we'd ever want to
-    support it in crypto/ecdh.
-    
-    Tried various ways to fix test/fixedbugs/issue52193.go to be meaningful,
-    but crypto/ecdh is pretty complex and all the solutions would end up
-    locking in crypto/ecdh structure rather than compiler behavior. The rest
-    of that test is good enough on its own anyway. If we do the work in the
-    future of making crypto/ecdh zero-allocations using the affordances of
-    the compiler, we can add a more robust TestAllocations on our side.
-    
-    For #69536
-    
-    Change-Id: I68ac3955180cb31f6f96a0ef57604aaed88ab311
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628315
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ibc1fd41e7f4d162ee5bc34575df409e1db5657cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533095
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Olena Synenka <olenasynenka@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/crypto/ecdh/ecdh.go                       |  35 +--
- src/crypto/ecdh/ecdh_test.go                  |  13 +-
- src/crypto/ecdh/nist.go                       | 255 +++++++-------------
- src/crypto/ecdh/x25519.go                     |  34 +--
- src/crypto/internal/boring/ecdh.go            |   8 +-
- src/crypto/internal/fips/ecdh/cast.go         |  50 ++++
- src/crypto/internal/fips/ecdh/ecdh.go         | 331 ++++++++++++++++++++++++++
- src/crypto/internal/fips/ecdh/order_test.go   |  26 ++
- src/crypto/internal/fipsdeps/fipsdeps_test.go |   3 +
- src/crypto/internal/fipstest/cast_test.go     |   9 +-
- src/go/build/deps_test.go                     |  10 +-
- test/fixedbugs/issue52193.go                  |  21 --
- 12 files changed, 540 insertions(+), 255 deletions(-)
+ src/net/http/server.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

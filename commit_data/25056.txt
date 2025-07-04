@@ -1,18 +1,23 @@
-commit 0b55be1ba2cf1cbb84ef4292942e6532df0b22ad
-Author: Giulio Iotti <dullgiulio@gmail.com>
-Date:   Mon Aug 31 19:08:49 2015 +0300
+commit e31114dab0bac5c6104385d651c69462421801ee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Sep 19 05:39:03 2015 +0000
 
-    encoding/xml: case-insensitive encoding recognition
+    cmd/dist: skip spectralnorm shootout test on the linux-arm-arm5 builder
     
-    From the XML spec: "XML processors should match character encoding
-    names in a case-insensitive way"
+    Temporary fix to get the arm5 builder happy again.
     
-    Fixes #12417.
+    Without hardware floating point, this test takes over 20 minutes to
+    run.
     
-    Change-Id: I678c50152a49c14364be62b3f21ab9b9b009b24b
-    Reviewed-on: https://go-review.googlesource.com/14084
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    A proper solution would probably be to run all the benchmark tests,
+    but with a much lower iteration count, just to exercise the code.
+    
+    Updates golang/go#12688
+    
+    Change-Id: Ie56c93d3bf2a5a693a33217ba1b1df3c6c856442
+    Reviewed-on: https://go-review.googlesource.com/14775
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/encoding/xml/xml.go      |  2 +-
- src/encoding/xml/xml_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

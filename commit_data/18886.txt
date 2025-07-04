@@ -1,24 +1,13 @@
-commit 088b9a3c3da1b759038050e1c1ce91e09d369f17
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 17 20:00:44 2014 -0700
+commit e45f5cd5f17c88f979adcbebaa3bead9b0d7cc1f
+Author: Chris Manghane <cmang@golang.org>
+Date:   Mon Mar 17 18:30:02 2014 -0700
 
-    undo CL 77050045 / 073d79675aae
-    
-    Breaks all builds.
-    
-    ««« original CL description
     cmd/gc: Add tests for self-referential array types.
     
     LGTM=gri, iant
     R=gri, iant
     CC=golang-codereviews
     https://golang.org/cl/77050045
-    »»»
-    
-    TBR=cmang
-    R=cmang
-    CC=golang-codereviews
-    https://golang.org/cl/77210043
 
- test/fixedbugs/issue7525.go | 19 -------------------
- 1 file changed, 19 deletions(-)
+ test/fixedbugs/issue7525.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

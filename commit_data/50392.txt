@@ -1,21 +1,19 @@
-commit 196003f9fd8d754a926ea8bc3aa5207eaea87528
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Sep 6 17:57:07 2022 -0400
+commit b0f7eb6c0dee68c91d622cc5fcba1074626753b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 22 16:57:58 2021 -0700
 
-    runtime: rename _func.nameoff and friends to nameOff
+    cmd/go: update test script for reformatted error message (fix long builds)
     
-    Switch to the more Go-style name to match inlinedCall.nameOff.
+    TBR=iant
     
-    Change-Id: I2115b27af8309e1ead7d61ecc65fe4fc966030f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428657
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ic72af52e5ff8d28f8102c07b03e4930df61445ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358115
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/preempt.go   |  2 +-
- src/runtime/race.go      |  2 +-
- src/runtime/runtime2.go  |  2 +-
- src/runtime/symtab.go    | 16 ++++++++--------
- src/runtime/traceback.go |  6 +++---
- 5 files changed, 14 insertions(+), 14 deletions(-)
+ src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

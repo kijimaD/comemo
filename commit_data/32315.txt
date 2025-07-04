@@ -1,43 +1,24 @@
-commit 56b62c7cf0268eefc0d909e8e8351c4ff6a62148
-Author: Wei Xiao <Wei.Xiao@arm.com>
-Date:   Tue Jul 18 12:25:37 2017 +0800
+commit 22000f54073985958457168e8e19afa19e97821d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 14 14:44:22 2017 -0400
 
-    cmd/vendor/golang.org/x/arch: pull updates from x repo
+    runtime: record swept and reclaimed bytes in sweep trace
     
-    Vendor from golang.org/x/arch (commit f185940).
+    This extends the GCSweepDone event with counts of swept and reclaimed
+    bytes. These are useful for understanding the duration and
+    effectiveness of sweep events.
     
-    Implements #19157
-    
-    Updates #12840
-    Updates #20762
-    Updates #20897
-    Updates #20096
-    Updates #20766
-    Updates #20752
-    Updates #20096
-    Updates #19142
-    
-    Change-Id: Idefb8ba2c355dc07f3b9e8dcf5f00173256a0f0f
-    Reviewed-on: https://go-review.googlesource.com/49530
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I3c97a4f0f3aad3adbd188adb264859775f54e2df
+    Reviewed-on: https://go-review.googlesource.com/40811
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- .../vendor/golang.org/x/arch/arm/armasm/decode.go  |    8 +-
- .../vendor/golang.org/x/arch/arm/armasm/plan9x.go  |   77 +-
- .../vendor/golang.org/x/arch/arm/armasm/tables.go  |  104 +
- .../x/arch/arm/armasm/testdata/decode.txt          | 1250 +++
- .../vendor/golang.org/x/arch/arm64/arm64asm/arg.go |  494 ++
- .../golang.org/x/arch/arm64/arm64asm/condition.go  |  329 +
- .../x/arch/arm64/arm64asm/condition_util.go        |   81 +
- .../golang.org/x/arch/arm64/arm64asm/decode.go     | 2768 ++++++
- .../x/arch/arm64/arm64asm/decode_test.go           |   78 +
- .../golang.org/x/arch/arm64/arm64asm/ext_test.go   |  601 ++
- .../vendor/golang.org/x/arch/arm64/arm64asm/gnu.go |   35 +
- .../golang.org/x/arch/arm64/arm64asm/inst.go       |  963 ++
- .../golang.org/x/arch/arm64/arm64asm/inst.json     | 1219 +++
- .../x/arch/arm64/arm64asm/objdump_test.go          |  124 +
- .../x/arch/arm64/arm64asm/objdumpext_test.go       |  299 +
- .../golang.org/x/arch/arm64/arm64asm/plan9x.go     |  611 ++
- .../golang.org/x/arch/arm64/arm64asm/tables.go     | 3366 +++++++
- .../x/arch/arm64/arm64asm/testdata/Makefile        |    7 +
- .../x/arch/arm64/arm64asm/testdata/cases.txt       | 9203 ++++++++++++++++++++
- 19 files changed, 21603 insertions(+), 14 deletions(-)
+ src/internal/trace/parser.go                       |  21 +++++++++++++--------
+ src/internal/trace/testdata/http_1_9_good          | Bin 2368 -> 2187 bytes
+ src/internal/trace/testdata/stress_1_9_good        | Bin 594085 -> 365129 bytes
+ .../trace/testdata/stress_start_stop_1_9_good      | Bin 5615 -> 6271 bytes
+ src/runtime/mgcsweep.go                            |   5 ++++-
+ src/runtime/runtime2.go                            |   9 ++++++---
+ src/runtime/trace.go                               |  17 +++++++++++------
+ 7 files changed, 34 insertions(+), 18 deletions(-)

@@ -1,12 +1,13 @@
-commit ced57153df76f501b3f9b7efdc974c0725bcd594
+commit 40b3758864deab9e096b6ee8d102caf11ecce051
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Jan 17 23:11:25 2013 +0800
+Date:   Thu Jan 17 18:48:11 2013 +0800
 
-    doc/go_spec.html: clarification about insertion during map iteration
+    os: use SameFile in TestStartProcess
+    Fixes #4650.
     
-    R=mdempsky, iant, r, gri, rsc, ken
+    R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/7100046
+    https://golang.org/cl/7085048
 
- doc/go_spec.html | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/pkg/os/os_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,21 +1,22 @@
-commit 7d2e3da2432f3030e282ef88793d03c86d3b8d17
+commit e0948d825d8dab1a685bcb94bfc9ad69b9b6c075
 Author: Keith Randall <khr@golang.org>
-Date:   Tue Nov 12 20:14:31 2024 -0800
+Date:   Mon Sep 25 18:00:10 2023 -0700
 
-    cmd/compile: remove redundant nil checks
+    cmd/compile: use type hash from itab field instead of type field
     
-    Optimize them away if we can.
+    It is one less dependent load away, and right next to another
+    field in the itab we also load as part of the type switch or
+    type assert.
     
-    If not, be more careful about splicing them out after scheduling.
-    
-    Change-Id: I660e54649d753dc456d2e25d389d375a16d76940
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627418
-    Reviewed-by: Shengwei Zhao <wingrez@126.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If7aaa7814c47bd79a6c7ed4232ece0bc1d63550e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533117
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules |  4 ++++
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 10 ++++++++++
- src/cmd/compile/internal/ssa/schedule.go        | 10 ++++++----
- 3 files changed, 20 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ir/stmt.go     | 26 +++++++++++++----------
+ src/cmd/compile/internal/ssagen/ssa.go  | 17 +++++++++------
+ src/cmd/compile/internal/walk/switch.go |  2 +-
+ test/codegen/switch.go                  | 37 +++++++++++++++++++++++++++------
+ 4 files changed, 58 insertions(+), 24 deletions(-)

@@ -1,16 +1,31 @@
-commit 9e9c030083491aa485152601ebb3b96faa6dec4c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 15 21:20:22 2020 -0700
+commit 5e4da0adac18aad82b85e6ce3f928392b7998994
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 1 13:09:09 2020 -0800
 
-    debug/elf: add many PT_ and DT_ constants
+    cmd/compile: add streamlined Block Reset+AddControl routines
     
-    Change-Id: Icbb5a0f0ff4aa0a425aa4a15477da7bd0d58339c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255138
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    For use in rewrite rules. Shrinks cmd/compile:
+    
+    compile 20082104  19967416  -114688 -0.571%
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ic856508b27ec5b7fb9b6ca63e955a7139ae7dc30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221780
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/debug/elf/elf.go | 223 ++++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 201 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/ssa/block.go          |  28 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  16 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     | 123 ++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 189 +++----
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 705 +++++++++----------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 429 +++++----------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  75 +--
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  63 +--
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 183 +++----
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |   3 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 133 ++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go |   3 +-
+ 12 files changed, 675 insertions(+), 1275 deletions(-)

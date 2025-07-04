@@ -1,19 +1,29 @@
-commit b15297fcd2921d26b11aedf915164b3b9b40b9aa
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 27 16:03:27 2023 -0500
+commit 33e752edd3f5fa5b738730513a7c1283d8e98fa2
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Feb 21 14:54:05 2022 -0800
 
-    cmd/dist: remove dead code for META_BUILDLET_HOST_TYPE
+    syscall: ensure that Getwd returns absolute path
     
-    This environment variable appears to never be used; according to
-    https://cs.opensource.google/search?q=META_BUILDLET_HOST_TYPE&ss=go&ssfr=1
-    this is the only reference to it in the whole Go project.
+    Since Linux kernel 2.6.36, the pathname returned by the getcwd() system
+    call can be prefixed with the string "(unreachable)" in some cases [1].
     
-    Change-Id: I6426a1d9e16441358c0e88daf4358112e659b2a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463741
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Getcwd should return an absolute path, and doing otherwise is a
+    conformance issue; it also can be dangerous, since the path returned
+    can be an existing relative path.
+    
+    Fix by returning ENOENT in case the path is not absolute. This is
+    essentially the same as what glibc does (since [2]).
+    
+    [1] https://man7.org/linux/man-pages/man2/getcwd.2.html#BUGS
+    [2] https://sourceware.org/git/?p=glibc.git;a=commit;h=52a713fdd0a30e1bd79818e2e3c4ab44ddca1a94
+    
+    Change-Id: I444c80eb3c836ff7d32c64c8b65d5112fa8c710f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387174
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/build.go | 20 --------------------
- 1 file changed, 20 deletions(-)
+ src/syscall/syscall_linux.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

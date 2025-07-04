@@ -1,18 +1,23 @@
-commit f0b8d79c96be6f8557fd8b42d51996327cf1ecdc
-Author: Conrad Irwin <conrad.irwin@gmail.com>
-Date:   Sat Nov 30 22:08:44 2024 -0700
+commit 08b2f1f761a57b6c547eb5c53109237fe0a17b81
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Nov 1 13:12:43 2023 -0700
 
-    cmd/go: add tool meta-pattern to go help packages
+    os: fix PathError.Op for dirFS.Open
     
-    For #48429
+    This appears to be a copy-paste error from CL 455362.
     
-    Change-Id: I6932853c3156a68d099a749431d15d2c37785649
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632555
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    The operation name used to be "open"
+    but seems to have been accidentally changed to "stat".
+    This CL reverts back to "open".
+    
+    Change-Id: I3fc5168095e2d9eee3efa3cc091b10bcf4e3ecde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539056
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/go/alldocs.go               | 4 +++-
- src/cmd/go/internal/help/helpdoc.go | 4 +++-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

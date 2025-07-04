@@ -1,19 +1,21 @@
-commit 23c9efa24446186562ec23c1af7c9a549bc18362
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Aug 21 14:42:33 2024 +0000
+commit 2b82d70f856b91bf278a28fd697b69811e1335eb
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Jun 20 11:35:10 2023 +0000
 
-    unique: clean up handle test code
+    net/http: declare publicErr as a constant
     
-    Currently the handle test code has a lot of duplicate type parameters
-    that are already inferred. This results in IDE warnings which are
-    annoying. Clean this up by consistently explicitly calling out the type
-    in the argument, not the type parameter.
+    Do the same as the code above: "case err == errTooLarge", declare
+    publicErr as a constant to avoid runtime calls.
     
-    Change-Id: I756203f37fc97c793cd5c5e612c6fd1802a84bc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607356
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I50a9951232c70eff027b0da86c0bbb8bea51acbe
+    GitHub-Last-Rev: 71d4458ded3a1e99a0d027ccca6c9d6269a1ab06
+    GitHub-Pull-Request: golang/go#60884
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504456
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Olif Oftimis <oftimisolif@gmail.com>
 
- src/unique/handle_test.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

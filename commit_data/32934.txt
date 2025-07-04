@@ -1,18 +1,19 @@
-commit 0a7ef31d7d3e372129a665043c9377dc9e3860ee
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 3 13:07:07 2017 -0700
+commit 82abd4152da01cf2fc62ac7ce0988e7925043061
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 14 20:29:42 2017 -0400
 
-    runtime: give modulesSlice the correct type
+    unicode: move scripts from FoldCategories to FoldScripts
     
-    No need to type this global as an unsafe.Pointer, we know
-    what type the referent is.
+    Copy-and-paste bug was putting scripts in the categories map.
     
-    Change-Id: I7b1374065b53ccf1373754a21d54adbedf1fd587
-    Reviewed-on: https://go-review.googlesource.com/67990
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Fixes #18186.
+    
+    Change-Id: Ife9d9bdd346fe24e578dbb2a0aac7ef6e889ae68
+    Reviewed-on: https://go-review.googlesource.com/45830
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/symtab.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/unicode/maketables.go |  2 +-
+ src/unicode/tables.go     | 59 ++++++++++++++++++++++++-----------------------
+ 2 files changed, 31 insertions(+), 30 deletions(-)

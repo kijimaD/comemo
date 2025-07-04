@@ -1,13 +1,41 @@
-commit 5a297fa03873e2696290590cc663390ee3b6287b
+commit cc842c738ea9a64570e306cbab37c3e3cf9a35dd
 Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 24 13:01:50 2012 -0700
+Date:   Fri Aug 24 12:37:23 2012 -0700
 
-    VERSION: check in a version file for the development branch
-    That way "go version" will talk about "devel" rather than weekly.2012-03-27
+    text/template: allow grouping of pipelines using parentheses
     
-    R=golang-dev, rsc
+    Based on work by Russ Cox. From his CL:
+    
+            This is generally useful but especially helpful when trying
+            to use the built-in boolean operators.  It lets you write:
+    
+            {{if not (f 1)}} foo {{end}}
+            {{if and (f 1) (g 2)}} bar {{end}}
+            {{if or (f 1) (g 2)}} quux {{end}}
+    
+            instead of
+    
+            {{if f 1 | not}} foo {{end}}
+            {{if f 1}}{{if g 2}} bar {{end}}{{end}}
+            {{$do := 0}}{{if f 1}}{{$do := 1}}{{else if g 2}}{{$do := 1}}{{end}}{{if $do}} quux {{end}}
+    
+    The result can be a bit LISPy but the benefit in expressiveness and readability
+    for such a small change justifies it.
+    
+    I believe no changes are required to html/template.
+    
+    Fixes #3276.
+    
+    R=golang-dev, adg, rogpeppe, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6478061
+    https://golang.org/cl/6482056
 
- VERSION | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/text/template/doc.go              |  4 ++++
+ src/pkg/text/template/exec.go             |  4 ++++
+ src/pkg/text/template/exec_test.go        | 12 ++++++++++++
+ src/pkg/text/template/parse/lex.go        | 25 +++++++++++++++++++++++--
+ src/pkg/text/template/parse/lex_test.go   | 22 ++++++++++++++++++++++
+ src/pkg/text/template/parse/node.go       |  4 ++++
+ src/pkg/text/template/parse/parse.go      | 13 +++++++++++--
+ src/pkg/text/template/parse/parse_test.go |  2 ++
+ 8 files changed, 82 insertions(+), 4 deletions(-)

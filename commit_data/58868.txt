@@ -1,17 +1,18 @@
-commit b38b0c0088039b03117b87eee61583ac4153f2b7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 25 10:51:29 2025 -0800
+commit 821f94103b2980758cdb21ac6ae834ef0a07235a
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Jan 5 12:47:56 2024 +0000
 
-    cmd/compile: document -embedcfg flag
+    io/fs,path/filepath: fix typo in SkipAll/SkipDir doc
     
-    Fixes #71942
+    Also make the reference into a doc link.
     
-    Change-Id: Ie7e795506a9c8781f0e0963012233a7ed1093855
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652475
+    Change-Id: Ib112307a65b65c8f963abf60aa92cb1942de940c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554295
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/doc.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/io/fs/walk.go         | 4 ++--
+ src/path/filepath/path.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,16 +1,23 @@
-commit 08a3a7c08a04a0041db3ee6923d9dccb8aaf764d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 1 15:12:51 2017 -0800
+commit 6eede325ab9e444c19c8dc4fd5cc6c3603abb93c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 21 14:43:59 2016 -0700
 
-    cmd/compile: update maxPtrmaskBytes comment for larger value
+    cmd/compile: fix detection of duplicate cases for integer ranges
     
-    The comment for maxPtrmaskBytes implied that the value was still 16,
-    but that changed in CL 10815.
+    Previously, the check to make sure we only considered constant cases
+    for duplicates was skipping past integer ranges, because those use
+    n.List instead of n.Left. Thanks to Emmanuel Odeke for investigating
+    and helping to identify the root cause.
     
-    Change-Id: I86e304bc7d9d1a0a6b22b600fefcc1325e4372d9
-    Reviewed-on: https://go-review.googlesource.com/36120
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #17517.
+    
+    Change-Id: I46fcda8ed9c346ff3a9647d50b83f1555587b740
+    Reviewed-on: https://go-review.googlesource.com/31716
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/swt.go | 39 ++++++++++++++++++++------------------
+ test/switch5.go                    |  9 +++++++++
+ 2 files changed, 30 insertions(+), 18 deletions(-)

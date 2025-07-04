@@ -1,24 +1,17 @@
-commit 0bae9b083bdbf4d15d65fe175eaa98e4a83d22ea
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 6 10:01:36 2017 -0400
+commit ac8421f9a58c2c4df9072d1702783baa62eb99f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 29 15:49:01 2016 -0800
 
-    cmd/internal/obj/arm64: fix encoding of AND MBCON
+    [dev.typealias] cmd/compile: various minor cleanups
     
-    When a constant is both MOVCON (can fit into a MOV instruction)
-    and BITCON (can fit into a logical instruction), the assembler
-    chooses to use the MOVCON encoding, which is actually longer for
-    logical instructions. We add MBCON rules explicitly to make sure
-    it uses the BITCON encoding.
+    Also: Don't allow type pragmas with type alias declarations.
     
-    Updates #19857.
+    For #18130.
     
-    Change-Id: Ib9881be363cbc491ac2a0792b36b87e74eff34a8
-    Reviewed-on: https://go-review.googlesource.com/39652
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ie54ea5fefcd677ad87ced03466bbfd783771e974
+    Reviewed-on: https://go-review.googlesource.com/35102
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64.s | 9 +++++++++
- src/cmd/internal/obj/arm64/a.out.go       | 9 ++++++---
- src/cmd/internal/obj/arm64/asm7.go        | 4 ++++
- 3 files changed, 19 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/main.go  | 20 ++++++++++++--------
+ src/cmd/compile/internal/gc/noder.go | 31 ++++++++++++++++---------------
+ 2 files changed, 28 insertions(+), 23 deletions(-)

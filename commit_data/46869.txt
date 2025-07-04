@@ -1,22 +1,24 @@
-commit f687831e4cfa06d19533d47ae93c0451bd1ca688
-Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
-Date:   Thu Sep 16 02:10:17 2021 +0800
+commit 6f401df36680526d7e6eabb70ce8c4dd986273ef
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Feb 9 10:15:02 2021 -0500
 
-    cmd/link: disable weak reference in itab if build with "-linkshared"
+    [dev.fuzz] cmd/go: call F.Fuzz from all fuzz script tests
     
-    When build with "-linkshared", we can't tell if the interface method will be used or not. It can be used in shared library.
+    Fuzz targets must call F.Skip, F.Fail, or F.Fuzz. F.Fuzz must not be
+    called more than once. If a fuzz target panics, calls runtime.Goexit,
+    or returns normally without calling one of those functions, the target
+    should panic, and 'go test' should exit with a non-zero status.
     
-    Fixes #47873
+    For now, this isn't checked. It will be fixed in a follow-up CL.
     
-    Change-Id: Iba12812f199b7679cf2fd41a304268d6d6dd03c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350189
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ibb905954462b64af15332c285124d78a998f7762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290689
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- misc/cgo/testshared/shared_test.go                   |  8 ++++++++
- misc/cgo/testshared/testdata/issue47837/a/a.go       | 19 +++++++++++++++++++
- misc/cgo/testshared/testdata/issue47837/main/main.go | 14 ++++++++++++++
- src/cmd/link/internal/ld/deadcode.go                 |  4 +++-
- 4 files changed, 44 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/test_fuzz.txt        | 32 +++++++++++++++++++++----
+ src/cmd/go/testdata/script/test_fuzz_chatty.txt |  1 +
+ src/cmd/go/testdata/script/test_fuzz_match.txt  |  5 +++-
+ 3 files changed, 32 insertions(+), 6 deletions(-)

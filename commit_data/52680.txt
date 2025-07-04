@@ -1,26 +1,24 @@
-commit 57678d5e033fad85660e08a5f5146eeda4022415
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 13 16:11:14 2023 -0700
+commit b2ae2f5358e87fabd519bc2de20b3ab81d733820
+Author: Kévin Dunglas <kevin@dunglas.fr>
+Date:   Tue May 17 19:33:28 2022 +0000
 
-    go/types, types2: factor out type parameter renaming from type inference
+    net/http: unskip TestEarlyHintsRequest_h2
     
-    Preparation for reverse type inference where there is no need
-    to rename all type parameters supplied to type inference when
-    passing generic functions as arguments to (possibly generic)
-    function calls.
+    golang/net#134 and golang/net#96 have been merged.
+    This patch updates h2_bundle.go and enables TestEarlyHintsRequest_h2.
     
-    This also leads to a better separation of concerns.
-    
-    Change-Id: Id487a5c1340b743519b9053edc43f8aa99408522
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484655
+    Change-Id: Ia53fee6b3c4892a7cde10e7b62cbe7b64fa9f155
+    GitHub-Last-Rev: ea521b02ae1e873f9b8be6a2a3e81699d8eb5584
+    GitHub-Pull-Request: golang/go#52947
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406914
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/call.go  | 14 +++++++++++---
- src/cmd/compile/internal/types2/infer.go | 12 +++++-------
- src/go/types/call.go                     | 14 +++++++++++---
- src/go/types/infer.go                    | 12 +++++-------
- 4 files changed, 32 insertions(+), 20 deletions(-)
+ src/go.mod                        | 2 +-
+ src/go.sum                        | 2 ++
+ src/net/http/clientserver_test.go | 3 ---
+ src/net/http/h2_bundle.go         | 8 ++++++++
+ src/vendor/modules.txt            | 2 +-
+ 5 files changed, 12 insertions(+), 5 deletions(-)

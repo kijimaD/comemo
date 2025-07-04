@@ -1,45 +1,16 @@
-commit fae0d35043b7a3f8f3673d79cbf1d4798ee5e5aa
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 5 10:02:46 2012 -0500
+commit a347fdb035898f6c3344e112416a3eb9d0fb9cff
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Mon Mar 5 10:02:30 2012 -0500
 
-    godoc: support $GOPATH, simplify file system code
+    encoding/binary: improve package comment.
     
-    The motivation for this CL is to support $GOPATH well.
-    Since we already have a FileSystem interface, implement a
-    Plan 9-style name space.  Bind each of the $GOPATH src
-    directories onto the $GOROOT src/pkg directory: now
-    everything is laid out exactly like a normal $GOROOT and
-    needs very little special case code.
+    The current package comment doesn't mention varints and
+    protocol buffers. Also, the first sentence is incomprehensible
+    without further context as "fixed-size values" is undefined.
     
-    The filter files are no longer used (by us), so I think they
-    can just be deleted.  Similarly, the Mapping code and the
-    FileSystem interface were two different ways to accomplish
-    the same end, so delete the Mapping code.
-    
-    Within the implementation, since FileSystem is defined to be
-    slash-separated, use package path consistently, leaving
-    path/filepath only for manipulating operating system paths.
-    
-    I kept the -path flag, but I think it can be deleted too.
-    
-    Fixes #2234.
-    Fixes #3046.
-    
-    R=gri, r, r, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5711058
+    https://golang.org/cl/5715048
 
- lib/godoc/package.html      |   2 +-
- src/cmd/godoc/appinit.go    |   6 +-
- src/cmd/godoc/codewalk.go   |   6 +-
- src/cmd/godoc/dirtrees.go   |  35 +--
- src/cmd/godoc/filesystem.go | 502 ++++++++++++++++++++++++++++++++++++++++++--
- src/cmd/godoc/godoc.go      | 308 +++++----------------------
- src/cmd/godoc/httpzip.go    | 190 -----------------
- src/cmd/godoc/index.go      |   8 +-
- src/cmd/godoc/main.go       |  57 ++---
- src/cmd/godoc/mapping.go    | 202 ------------------
- src/cmd/godoc/parser.go     |   4 +-
- src/cmd/godoc/utils.go      |  79 +------
- src/cmd/godoc/zip.go        |  35 ++-
- 13 files changed, 636 insertions(+), 798 deletions(-)
+ src/pkg/encoding/binary/binary.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

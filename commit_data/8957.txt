@@ -1,13 +1,15 @@
-commit 6732bd35266c0fa9fa7d88eef93d4fc344edf193
+commit 64228e36a44bfa8546293918b8fb8f15d7a46453
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 6 22:27:06 2011 +1000
+Date:   Wed Jul 6 17:46:36 2011 +1000
 
-    exp/template: index function for arrays, slices, and maps.
+    exp/template: silence test noise (but add a flag to put it back)
+    Also delete a TODO and clean up a little evaluation code.
     
-    R=golang-dev, adg, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4643072
+    https://golang.org/cl/4643071
 
- src/pkg/exp/template/exec_test.go | 36 ++++++++++++++++++++++--------
- src/pkg/exp/template/funcs.go     | 47 ++++++++++++++++++++++++++++++++++++---
- 2 files changed, 71 insertions(+), 12 deletions(-)
+ src/pkg/exp/template/exec.go       | 6 ++----
+ src/pkg/exp/template/parse_test.go | 5 +++--
+ src/pkg/exp/template/set_test.go   | 2 +-
+ 3 files changed, 6 insertions(+), 7 deletions(-)

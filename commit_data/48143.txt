@@ -1,23 +1,20 @@
-commit f2ec001845c3faaca152550f976a1ca904edce38
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Feb 11 08:54:29 2022 -0500
+commit 07e006dd9322cc484303e1bef3d58c7e51d4f92c
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 28 10:02:16 2021 -0400
 
-    go/doc: mark comparable predeclared
+    go/types: use a global atomic counter for type parameter ids
     
-    Add comparable to the list of predeclared types.
+    This is a 1:1 port of CL 309830 to go/types.
     
-    Fixes golang/go#51141.
-    
-    Change-Id: I4a2d4e7e5680e115de9bca03b6c8ad454551cb82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385114
-    Trust: Jonathan Amsterdam <jba@google.com>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ibf709f8194dd5e93a87145e5f9db674ce93af529
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314594
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/doc/reader.go           | 1 +
- src/go/doc/testdata/b.0.golden | 3 +++
- src/go/doc/testdata/b.1.golden | 6 ++++++
- src/go/doc/testdata/b.2.golden | 3 +++
- src/go/doc/testdata/b.go       | 6 ++++++
- 5 files changed, 19 insertions(+)
+ src/go/types/api_test.go   |  1 +
+ src/go/types/check.go      |  2 --
+ src/go/types/type.go       | 13 +++++++++++--
+ src/go/types/types_test.go | 13 +++++++++++++
+ 4 files changed, 25 insertions(+), 4 deletions(-)

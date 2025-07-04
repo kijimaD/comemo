@@ -1,17 +1,18 @@
-commit 3902e9ef4e4543c6ac7371174a122ca090af971a
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Feb 12 15:24:10 2025 -0800
+commit 5686b650cc6e75ac28f76a3c02176cb3f25b13c4
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Dec 5 14:22:53 2023 -0500
 
-    internal/abi: remove go122 flag
+    doc/go_spec.html: rename golang.org to go.dev
     
-    We no longer need this flag in case we need to rollback.
+    Fixes #64513
     
-    Change-Id: Id8b8f76380237f2d80a14037e88df4917c843f03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649095
-    Reviewed-by: Michael Stapelberg <stapelberg@google.com>
+    Change-Id: I45d6a4ba2170308260f3b8f7965affc9948f3fcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547476
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
 
- src/internal/abi/switch.go | 5 -----
- 1 file changed, 5 deletions(-)
+ doc/go1.17_spec.html | 2 +-
+ doc/go_spec.html     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

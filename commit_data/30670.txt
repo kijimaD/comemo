@@ -1,34 +1,24 @@
-commit d0a045daaf022515ddf518cdded04f672210f8c4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 10 12:46:14 2017 -0500
+commit 75055de84ab7ad0f36b4c93e5c851ea55b297c95
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 15 21:15:40 2016 -0800
 
-    archive/zip: parallelize benchmarks
+    runtime: sleep a bit to let a bad signal be delivered
     
-    Add subbenchmarks for BenchmarkZip64Test with different sizes to tease
-    apart construction costs vs. steady-state throughput.
+    When we raise a signal that was delivered to C code, it's possible that
+    the kernel will not deliver it immediately. This is especially possible
+    on Darwin where we use send the signal to the entire process rather than
+    just the current thread. Sleep for a millisecond after sending the
+    signal to give it a chance to be delivered before we restore the Go
+    signal handler. In most real cases the program is going to crash at this
+    point, so sleeping is kind of irrelevant anyhow.
     
-    Results remain comparable with the non-parallel version with -cpu=1:
+    Fixes #14809.
     
-    benchmark                           old ns/op     new ns/op     delta
-    BenchmarkCompressedZipGarbage       26832835      27506953      +2.51%
-    BenchmarkCompressedZipGarbage-6     27172377      4321534       -84.10%
-    BenchmarkZip64Test                  196758732     197765510     +0.51%
-    BenchmarkZip64Test-6                193850605     192625458     -0.63%
-    
-    benchmark                           old allocs     new allocs     delta
-    BenchmarkCompressedZipGarbage       44             44             +0.00%
-    BenchmarkCompressedZipGarbage-6     44             44             +0.00%
-    
-    benchmark                           old bytes     new bytes     delta
-    BenchmarkCompressedZipGarbage       5592          5664          +1.29%
-    BenchmarkCompressedZipGarbage-6     5592          21946         +292.45%
-    
-    updates #18177
-    
-    Change-Id: Icfa359d9b1a8df5e085dacc07d2b9221b284764c
-    Reviewed-on: https://go-review.googlesource.com/36719
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib2c0d2c4e240977fb4535dc1dd2bdc50d430eb85
+    Reviewed-on: https://go-review.googlesource.com/33300
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/archive/zip/writer_test.go | 27 +++++++++++++++++----------
- src/archive/zip/zip_test.go    | 12 ++++++++++++
- 2 files changed, 29 insertions(+), 10 deletions(-)
+ src/runtime/signal_unix.go | 5 +++++
+ 1 file changed, 5 insertions(+)

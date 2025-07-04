@@ -1,24 +1,21 @@
-commit ea51e92c8a76ef476d99973468d755df5ab5ee0d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 6 18:46:29 2023 -0700
+commit c7c78f1a3a4c94043c140962f2916a69e466d255
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 9 10:15:27 2022 +0200
 
-    go/types, types2: don't crash when using trace with an invalid argument
+    cmd/internal/osinfo: use unix.ByteSliceToString
     
-    This only affects tests, typically manual tests, but when using trace
-    we're debugging and we don't want to crash because of trace itself.
+    The golang.org/x/sys/unix package is already imported for Utsname and
+    Uname. Use ByteSliceToString from that package as well to replace the
+    locally defined utsString helper which serves the same purpose and
+    matches ByteSliceToString's implementation.
     
-    No test because a test would cause trace output. Manually verified.
-    
-    Fixes #60649.
-    
-    Change-Id: I97abdb94db05774801ec5da56171f4a1aff35615
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501415
+    Change-Id: I5d9de186a5aeb1feed1387beedefbcd260fe22ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415654
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types2/builtins.go | 3 +++
- src/go/types/builtins.go                    | 3 +++
- 2 files changed, 6 insertions(+)
+ src/cmd/internal/osinfo/os_unix.go | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)

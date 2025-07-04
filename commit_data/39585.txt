@@ -1,18 +1,37 @@
-commit fc23e216319f9e4338720dbd28e1cdedc0896b4d
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Aug 8 14:08:48 2019 -0400
+commit a2ace8ec18a833e5d286e4e9af6fc5de41ca9a31
+Author: Chris Marchesi <chrism@vancluevertech.com>
+Date:   Thu Mar 7 07:36:05 2019 +0000
 
-    api/go1.13: add debug/elf.Symbol fields added in CL 184099
+    net/http: unfurl persistConnWriter's underlying writer
     
-    These will need auditing per #32813 like a few others in go1.13.txt, but
-    in the meantime they break the API check for beta/RC releases.
+    Make persistConnWriter implement io.ReaderFrom, via an io.Copy on the
+    underlying net.Conn. This in turn enables it to use OS level
+    optimizations such as sendfile.
     
-    Updates #32813
-    Updates #31912
+    This has been observed giving performance gains even in the absence
+    of ReaderFrom, more than likely due to the difference in io's default
+    buffer (32 KB) versus bufio's (4 KB).
     
-    Change-Id: I3b0501b46324ee6fc0985f84971b99b772c7e4a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189458
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Speedups on linux/amd64:
+    benchmark                               old MB/s     new MB/s     speedup
+    BenchmarkFileAndServer_16MB/NoTLS-4     662.96       2703.74      4.08x
+    BenchmarkFileAndServer_16MB/TLS-4       552.76       1420.72      2.57x
+    
+    Speedups on darwin/amd64:
+    benchmark                               old MB/s     new MB/s     speedup
+    BenchmarkFileAndServer_16MB/NoTLS-8     357.58       1972.86      5.52x
+    BenchmarkFileAndServer_16MB/TLS-8       346.20       1067.41      3.08x
+    
+    Updates #30377.
+    
+    Change-Id: Ic88d4ac254f665223536fcba4d551fc32ae105b6
+    GitHub-Last-Rev: a6f67cda2ed63ac61a1dffc87f0ea396363f72c6
+    GitHub-Pull-Request: golang/go#30390
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163737
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- api/go1.13.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/http/transport.go      |  11 ++++
+ src/net/http/transport_test.go | 143 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 154 insertions(+)

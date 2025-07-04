@@ -1,26 +1,26 @@
-commit 21b7e60c6b64dd3221ab5b95d164fb42492029e8
-Author: Damien Neil <dneil@google.com>
-Date:   Thu May 22 11:14:53 2025 -0700
+commit 2073b35e07ce9cea47ee1fbe763b304d2371954f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Apr 19 11:56:30 2023 -0700
 
-    runtime, testing/synctest: breaking bubble isolation with Cond is fatal
+    crypto/tls: add a bogo shim
     
-    sync.Cond.Wait is durably blocking. Waking a goroutine out of Cond.Wait
-    from outside its bubble panics.
+    Run the BoGo test suite.
     
-    Make this panic a fatal panic, since it leaves the notifyList in an
-    inconsistent state. We could do some work to make this a recoverable
-    panic, but the complexity doesn't seem worth the outcome.
+    For now a number of tests are disabled, so that we can land the shim.
+    Once the shim is in the tree I'll work on fixing tests, and aligning
+    the TLS stack with the boringssl stack.
     
-    For #67434
+    Eventually we should also remove the --loose-errors flag.
     
-    Change-Id: I88874c1519c2e5c0063175297a9b120cedabcd07
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675617
+    Fixes #51434
+    
+    Change-Id: Ic8339fc34552936b798acf834011a129e375750e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486495
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/crash_test.go                 | 17 +++++++++
- src/runtime/sema.go                       |  4 +--
- src/runtime/testdata/testprog/synctest.go | 58 +++++++++++++++++++++++++++++++
- src/testing/synctest/synctest.go          |  5 ++-
- 4 files changed, 81 insertions(+), 3 deletions(-)
+ src/crypto/tls/bogo_config.json  | 175 +++++++++++++++++++++++++
+ src/crypto/tls/bogo_shim_test.go | 277 +++++++++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_test.go |  22 +++-
+ 3 files changed, 471 insertions(+), 3 deletions(-)

@@ -1,15 +1,12 @@
-commit 43cf5505fcc3cdf4d02a4970af0b8a441ac274ef
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 30 21:57:50 2012 -0700
+commit 023a7e881c07c1f1b9d836afa245ec09e7bd056b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 31 14:09:24 2012 +1000
 
-    regexp: fix a couple of bugs in the documentation
-    Byte slices are not strings.
-    
-    Fixes #3687.
+    misc/dashboard/app: fix tests
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6257074
+    https://golang.org/cl/6244069
 
- src/pkg/regexp/regexp.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/dashboard/app/build/test.go | 33 +++++++++++++++++----------------
+ 1 file changed, 17 insertions(+), 16 deletions(-)

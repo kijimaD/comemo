@@ -1,12 +1,22 @@
-commit 1ddacfea7ba35c5ecbe75b2598c92f6349011ba3
-Author: griesemer <gri@golang.org>
-Date:   Fri Oct 6 16:44:12 2017 -0700
+commit c23948a2b83bfbe21d2d721f38a7f18f737ba7bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 22 20:08:00 2017 -0400
 
-    cmd/compile/internal/syntax: remove unused code
+    cmd/go: fix TestExecutableGOROOT when GOROOT_FINAL is set
     
-    Change-Id: I9c75dee7e4498cc11c08cad1ae34ff2af75f1469
-    Reviewed-on: https://go-review.googlesource.com/69071
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    If GOROOT_FINAL was set during the build, the default GOROOT
+    will not be testGOROOT. Determine the default GOROOT by reading
+    the right source file instead of guessing. (GOROOT_FINAL may no
+    longer be set when the test is actually run.)
+    
+    Also refactor a bit.
+    
+    Fixes #20284.
+    
+    Change-Id: I2274595a235bee10c3f3a5ffecf4bb976f4d9982
+    Reviewed-on: https://go-review.googlesource.com/46428
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 21 +++++----------------
- 1 file changed, 5 insertions(+), 16 deletions(-)
+ src/cmd/go/go_test.go | 122 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 62 insertions(+), 60 deletions(-)

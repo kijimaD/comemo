@@ -1,22 +1,17 @@
-commit 24d8f3fa4b02784af2419eec8a28aee303aae0c5
-Author: Sina Siadat <siadat@gmail.com>
-Date:   Sun Sep 4 12:20:14 2016 +0430
+commit 31283dd4836542f94b063bfd2886fc32639358f7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 6 18:11:38 2016 +0000
 
-    net/http/httputil: copy header map if necessary in ReverseProxy
+    net/http: don't assume Response.Request is populated after redirect errors
     
-    We were already making a copy of the map before removing
-    hop-by-hop headers. This commit does the same for proxied
-    headers mentioned in the "Connection" header.
+    Fixes #15577
     
-    A test is added to ensure request headers are not modified.
-    
-    Updates #16875
-    
-    Change-Id: I85329d212787958d5ad818915eb0538580a4653a
-    Reviewed-on: https://go-review.googlesource.com/28493
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5f023790a393b17235db2e66c02c2483773ddc1a
+    Reviewed-on: https://go-review.googlesource.com/22857
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 14 ++++++++++----
- src/net/http/httputil/reverseproxy_test.go |  9 +++++++--
- 2 files changed, 17 insertions(+), 6 deletions(-)
+ src/net/http/client.go      |  2 +-
+ src/net/http/client_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

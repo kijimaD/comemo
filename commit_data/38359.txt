@@ -1,18 +1,28 @@
-commit 14a58d65e387481a326193840bce5787096a150e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Mar 11 15:18:05 2019 +0100
+commit 5dbc67a99a99011fce1c1b7c983d2aa35247b950
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Jan 21 12:53:53 2018 +0100
 
-    internal/bytealg: share code for equal functions on arm
+    cmd/compile: avoid appends and allocate full slice length in copyRet
     
-    Move the shared code into byteal.memeqbody. This will allow to implement
-    optimizations (e.g. for #29001) in a single function.
+    passes toolstash -cmp
     
-    Change-Id: Iaa34ddeb7068d92c35a8b4e581b7fd92da56535c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166677
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    compilebench allocs:
+    name      old allocs/op   new allocs/op   delta
+    Template       385k ± 0%       385k ± 0%  -0.00%  (p=0.017 n=19+20)
+    Unicode        342k ± 0%       342k ± 0%    ~     (p=0.867 n=20+20)
+    GoTypes       1.15M ± 0%      1.15M ± 0%  -0.00%  (p=0.008 n=20+20)
+    SSA           12.1M ± 0%      12.1M ± 0%    ~     (p=0.141 n=20+19)
+    Flate          234k ± 0%       234k ± 0%    ~     (p=0.125 n=20+19)
+    GoParser       315k ± 0%       315k ± 0%    ~     (p=0.104 n=20+20)
+    Reflect        972k ± 0%       972k ± 0%  -0.00%  (p=0.000 n=17+20)
+    Tar            391k ± 0%       391k ± 0%  -0.01%  (p=0.000 n=19+20)
+    XML            404k ± 0%       403k ± 0%  -0.01%  (p=0.000 n=20+19)
+    
+    Change-Id: Ie24f7fae7b6b85422ec1ff0240f08f0a34064d72
+    Reviewed-on: https://go-review.googlesource.com/c/144038
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/all/whitelist/arm.txt |  1 +
- src/internal/bytealg/equal_arm.s  | 82 +++++++++++++++++++--------------------
- 2 files changed, 40 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

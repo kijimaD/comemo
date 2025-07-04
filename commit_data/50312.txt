@@ -1,17 +1,22 @@
-commit 357b9225174fa227b47246e57f61a1bf66c1354c
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Fri Sep 2 10:18:51 2022 +0800
+commit fa7d11a0e9c0ed469111ba5fdd86f7462a48ef49
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Oct 16 14:54:42 2021 -0700
 
-    runtime: convert local var stop,ready at TestDebugCallUnsafePoint to atomic type
+    go/types, types2: add test case for missing return
     
-    For #53821
+    The respective issue was fixed in types2 with CL 356189;
+    and the problem didn't exist in go/types. This CL simply
+    adds the test case to the type checkers as well.
     
-    Change-Id: Id972d4ccadc72de69dea46f8be146c9843d1d095
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427135
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #49003.
+    
+    Change-Id: Ib50ee8bb0ad21f2916f2b79d4f77593302899a3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356411
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/debug_test.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ .../compile/internal/types2/testdata/fixedbugs/issue49003.go   | 10 ++++++++++
+ src/go/types/testdata/fixedbugs/issue49003.go                  | 10 ++++++++++
+ 2 files changed, 20 insertions(+)

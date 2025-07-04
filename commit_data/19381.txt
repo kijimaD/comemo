@@ -1,15 +1,37 @@
-commit 2a627da326089dcbe9e77cdc30a3a823a1c6689a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 16 12:20:03 2014 -0700
+commit bf68f6623afd589ebaed1f868729f707701c6ddc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 16 12:15:32 2014 -0400
 
-    spec: clarify that newlines are kept in raw string literals
+    syscall: fix a few Linux system calls
     
-    Fixes #8007.
+    These functions claimed to return error (an interface)
+    and be implemented entirely in assembly, but it's not
+    possible to create an interface from assembly
+    (at least not easily).
     
-    LGTM=r
-    R=gri, r
+    In reality the functions were written to return an errno uintptr
+    despite the Go prototype saying error.
+    When the errno was 0, they coincidentally filled out a nil error
+    by writing the 0 to the type word of the interface.
+    If the errno was ever non-zero, the functions would
+    create a non-nil error that would crash when trying to
+    call err.Error().
+    
+    Luckily these functions (Seek, Time, Gettimeofday) pretty
+    much never fail, so it was all kind of working.
+    
+    Found by go vet.
+    
+    LGTM=bradfitz, r
+    R=golang-codereviews, bradfitz, r
     CC=golang-codereviews
-    https://golang.org/cl/91510044
+    https://golang.org/cl/99320043
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/asm_linux_386.s        |  2 +-
+ src/pkg/syscall/asm_linux_amd64.s      | 10 +---------
+ src/pkg/syscall/asm_linux_arm.s        |  2 +-
+ src/pkg/syscall/syscall_linux_386.go   | 10 +++++++++-
+ src/pkg/syscall/syscall_linux_amd64.go | 24 ++++++++++++++++++++++--
+ src/pkg/syscall/syscall_linux_arm.go   | 14 +++++++++++---
+ src/pkg/syscall/syscall_unix_test.go   | 12 ++++++++++++
+ 7 files changed, 57 insertions(+), 17 deletions(-)

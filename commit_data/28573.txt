@@ -1,22 +1,22 @@
-commit 4d07d3e29c467484801b84dfeb762d2ee00979a9
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Sep 28 10:20:24 2016 -0400
+commit 7b48020cfeb64d1f841a7523aa841dbe53b3b465
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 1 15:24:14 2016 -0700
 
-    cmd/compile: re-enable nilcheck removal for newobject
+    cmd/cgo: check pointers for deferred C calls at the right time
     
-    Also add compiler debug ouput and add a test.
+    We used to check time at the point of the defer statement. This change
+    fixes cgo to check them when the deferred function is executed.
     
-    Fixes #15390.
+    Fixes #15921.
     
-    Change-Id: Iceba1414c29bcc213b87837387bf8ded1f3157f1
-    Reviewed-on: https://go-review.googlesource.com/30011
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I72a10e26373cad6ad092773e9ebec4add29b9561
+    Reviewed-on: https://go-review.googlesource.com/23650
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/config.go         |  9 ++++
- src/cmd/compile/internal/ssa/gen/generic.rules | 22 +++++-----
- src/cmd/compile/internal/ssa/rewrite.go        |  9 ++++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 58 ++++++++++++++++++++++++++
- test/nilptr3.go                                |  7 ++++
- 5 files changed, 95 insertions(+), 10 deletions(-)
+ misc/cgo/errors/ptr.go |   8 ++++
+ src/cmd/cgo/ast.go     |   9 ++--
+ src/cmd/cgo/gcc.go     | 110 ++++++++++++++++++++++++++++++++++++++++++-------
+ src/cmd/cgo/main.go    |   8 +++-
+ 4 files changed, 115 insertions(+), 20 deletions(-)

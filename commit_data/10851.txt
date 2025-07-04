@@ -1,16 +1,18 @@
-commit 72bdd8683506807a16b20f5e1be8740e2c258a73
+commit cfd17a1b57adb6f1602f6a635af7f50be688ed10
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 16 18:31:09 2011 -0500
+Date:   Fri Dec 16 17:58:53 2011 -0500
 
-    runtime: fix build on gri's machine
+    runtime: fix build
     
-    Why it was not failing anywhere else I don't know,
-    but the Makefile was definitely wrong.  The rules
-    must not run in parallel.
+    I am looking forward to not supporting two build
+    systems simultaneously.  Make complains about
+    a circular dependency still, but I don't understand it
+    and it's probably not worth the time to figure out.
     
     TBR=r
     CC=golang-dev
-    https://golang.org/cl/5489069
+    https://golang.org/cl/5496058
 
- src/pkg/runtime/Makefile.auto | 29 ++++++-----------------------
- 1 file changed, 6 insertions(+), 23 deletions(-)
+ src/pkg/runtime/Makefile      |  6 ++++--
+ src/pkg/runtime/Makefile.auto | 26 +++++++++++++++++++++++++-
+ 2 files changed, 29 insertions(+), 3 deletions(-)

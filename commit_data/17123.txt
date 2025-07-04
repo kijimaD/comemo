@@ -1,12 +1,13 @@
-commit 8a9045634905c8777a3b6acd5eb78a8eee7828c6
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Fri Aug 9 08:56:15 2013 -0700
+commit ef86beb4453bc7675b21480bf9bfdb1c6d2dca23
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 9 23:23:34 2013 +1000
 
-    misc/emacs: clear previous overlays before adding new ones
+    encoding/binary: fix 32-bit build
+    Sigh.
     
-    R=golang-dev, bradfitz
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/12578044
+    https://golang.org/cl/12491045
 
- misc/emacs/go-mode.el | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/encoding/binary/binary_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

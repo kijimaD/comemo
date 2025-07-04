@@ -1,14 +1,20 @@
-commit 7c68f7876a1384951956b6b61a4158526f01cb51
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 4 10:31:01 2013 -0500
+commit 9d6e02742cd9942e342914f0b3dbbb4496d40ecd
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Mar 4 14:54:36 2013 +1100
 
-    misc/dashboard/builder: make -fail mode faster
+    image/png: always set up palette during DecodeConfig
     
-    Don't check out the repository if we're just going to fail everything.
+    The old code would decode the palette only for 8-bit
+    images during a DecodeConfig.
+    This CL keeps the behavior for 8-bit images and sets
+    up the decoded palette also for 1, 2 and 4-bit images.
     
-    R=golang-dev, bradfitz
+    Fixes #4279.
+    
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/7453048
+    https://golang.org/cl/7421048
 
- misc/dashboard/builder/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/image/png/reader.go      |  5 +++--
+ src/pkg/image/png/reader_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 2 deletions(-)

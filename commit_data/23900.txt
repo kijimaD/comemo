@@ -1,12 +1,12 @@
-commit e4bd8e04087ac9e7c8b754df2d01ff7dddb13ba6
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jul 30 08:27:56 2015 +1000
+commit dc89350fed5f75c277ceb1367cf7e8a2a88f0c77
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 19 16:03:49 2015 -0400
 
-    doc: remove non-answer from FAQ
+    cmd/go: fix build
     
-    Change-Id: Ie43986d016e5a9fb17ca1393263932bbb56e81ff
-    Reviewed-on: https://go-review.googlesource.com/12836
+    Change-Id: Ia13d1fa450e88e278b81048b99686395ca474c99
+    Reviewed-on: https://go-review.googlesource.com/11259
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go_faq.html | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/go/testdata/src/vend/x/vendor/p/p/p.go | 3 +++
+ 1 file changed, 3 insertions(+)

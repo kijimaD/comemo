@@ -1,12 +1,16 @@
-commit fc714594d76ca68ce3b09510ab5f66d519e0c2c6
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 8 12:40:09 2013 +1000
+commit a97a91de06b3f071a08314c7cb54eac57c4a624a
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 7 14:03:50 2013 -0700
 
-    doc/go1.2.txt: flag now exports CommandLine
+    runtime: Record jmpdefer's argument size.
+    Fixes bug 6055.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz, dvyukov, khr
     CC=golang-dev
-    https://golang.org/cl/12642043
+    https://golang.org/cl/12536045
 
- doc/go1.2.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/asm_386.s   |  2 +-
+ src/pkg/runtime/asm_amd64.s |  2 +-
+ src/pkg/runtime/asm_arm.s   |  2 +-
+ test/fixedbugs/issue6055.go | 29 +++++++++++++++++++++++++++++
+ 4 files changed, 32 insertions(+), 3 deletions(-)

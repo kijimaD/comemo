@@ -1,39 +1,21 @@
-commit 6b43a172d8e42804c174aa362aa346238fc62550
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 16 10:23:23 2023 -0500
+commit 5a4e440f489d110c80e4265560cab2101a2fcdc4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 28 11:02:23 2022 -0500
 
-    runtime/race: update race syso files to support atomic And, Or
+    archive/zip: use proper doc comment for Deprecated notes
     
-    TSAN recently got support for Go's new atomic And and Or
-    operations (#61395). This CL updates the race syso files to
-    include the change. Also regenerate cgo dynamic imports on darwin.
+    End-of-line comments are not doc comments,
+    so Deprecated notes in them are not recognized
+    as deprecation notices. Rewrite the comments.
     
-    OpenBSD/AMD64 is not updated, as TSAN no longer supports OpenBSD
-    (#52090).
-    
-    Linux/PPC64 is not updated, as I'm running into some builder
-    issues. Still working on it.
-    
-    For #61395.
-    For #62624.
-    
-    Change-Id: Ifc90ea79284f29a356f9e8a5f144f6c690881395
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543035
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Idc4681924f9a7e9ead62f672ef8a763e70db1f0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453616
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/runtime/race/README                            |  20 ++++++++++----------
- src/runtime/race/internal/amd64v1/race_darwin.syso | Bin 541464 -> 551776 bytes
- .../race/internal/amd64v1/race_freebsd.syso        | Bin 712464 -> 722120 bytes
- src/runtime/race/internal/amd64v1/race_linux.syso  | Bin 563848 -> 571888 bytes
- src/runtime/race/internal/amd64v1/race_netbsd.syso | Bin 714520 -> 736752 bytes
- .../race/internal/amd64v1/race_windows.syso        | Bin 550036 -> 562886 bytes
- src/runtime/race/internal/amd64v3/race_linux.syso  | Bin 563664 -> 571728 bytes
- src/runtime/race/race_darwin_amd64.go              |   7 +++++++
- src/runtime/race/race_darwin_arm64.go              |  13 +++++++++++++
- src/runtime/race/race_darwin_arm64.syso            | Bin 484988 -> 499112 bytes
- src/runtime/race/race_linux_arm64.syso             | Bin 530736 -> 580032 bytes
- src/runtime/race/race_linux_s390x.syso             | Bin 565472 -> 582872 bytes
- 12 files changed, 30 insertions(+), 10 deletions(-)
+ api/go1.16.txt            |  4 ++++
+ src/archive/zip/struct.go | 56 ++++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 47 insertions(+), 13 deletions(-)

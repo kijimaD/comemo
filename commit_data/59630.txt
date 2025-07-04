@@ -1,22 +1,17 @@
-commit 3ae95aafb5d656596212c672c6e104e5c8802dbc
-Author: Sean Liao <sean@liao.dev>
-Date:   Wed May 14 21:26:57 2025 +0100
+commit d8e47e257e40ab03c5eaf2316eaea4cb83e650c3
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Oct 13 23:14:30 2023 +0800
 
-    log/slog: add GroupAttrs
+    fmt: add available godoc link
     
-    GroupAttrs is a more efficient version of Group
-    that takes a slice of Attr values.
-    
-    Fixes #66365
-    
-    Change-Id: Ic3046704825e17098f2fea5751f2959dce1073e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672915
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Ia7eaa654b44625983d09284d906a7b67ef589696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535082
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- api/next/66365.txt                           |  1 +
- doc/next/6-stdlib/99-minor/log/slog/66365.md |  1 +
- src/log/slog/attr.go                         |  9 ++++++
- src/log/slog/example_test.go                 | 44 ++++++++++++++++++++++++++++
- 4 files changed, 55 insertions(+)
+ src/fmt/doc.go   | 46 +++++++++++++++++++++++-----------------------
+ src/fmt/print.go | 16 ++++++++--------
+ src/fmt/scan.go  | 10 +++++-----
+ 3 files changed, 36 insertions(+), 36 deletions(-)

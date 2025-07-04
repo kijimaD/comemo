@@ -1,16 +1,24 @@
-commit 0f022fdd527db88419c1261b11e764a53ea41160
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 20 08:12:45 2014 -0700
+commit 82a5e95ccc9c37b887570661fd11b051d6ca9b72
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 20:51:05 2014 -0400
 
-    regexp/syntax: fix validity testing of zero repeats
+    cmd/ld: ignore .Linfo_stringNN variables in clang .o files
     
-    This is already tested by TestRE2Exhaustive, but the build has
-    not broken because that test is not run when using -test.short.
+    http://build.golang.org/log/c7a91b6eac8f8daa2bd17801be273e58403a15f2
     
-    LGTM=rsc
-    R=rsc
+    # cmd/pprof
+    /linux-386-clang-9115aad1dc4a/go/pkg/linux_386/net.a(_all.o): sym#16: ignoring .Linfo_string0 in section 16 (type 0)
+    /linux-386-clang-9115aad1dc4a/go/pkg/linux_386/net.a(_all.o): sym#17: ignoring .Linfo_string1 in section 16 (type 0)
+    /linux-386-clang-9115aad1dc4a/go/pkg/linux_386/net.a(_all.o): sym#18: ignoring .Linfo_string2 in section 16 (type 0)
+    /linux-386-clang-9115aad1dc4a/go/pkg/linux_386/net.a(_all.o): sym#20: ignoring .Linfo_string0 in section 16 (type 0)
+    /linux-386-clang-9115aad1dc4a/go/pkg/linux_386/net.a(_all.o): sym#21: ignoring .Linfo_string1 in section 16 (type 0)
+    ...
+    
+    I don't know what these are. Let's ignore them and see if we get any further.
+    
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/155580043
+    https://golang.org/cl/155030043
 
- src/regexp/syntax/parse.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/ld/ldelf.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,20 +1,16 @@
-commit e05388335285928b354aa00b9e6ebd3ab4a392b2
+commit 950aa9f1bcdea247660a2393bf91506af249b539
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 2 15:36:19 2015 -0800
+Date:   Tue Feb 10 11:49:54 2015 -0800
 
-    math/big: implement NaN
+    math/big: When result prec == 0, use at least prec == 64 for SetInt, SetRat.
     
-    This change introduces NaNs (for situations like Inf-Inf, etc.).
-    The implementation is incomplete (the four basic operations produce
-    a NaN if any of the operands is an Inf or a NaN); and some operations
-    produce incorrect accuracy for NaN arguments. These are known bugs
-    which are documented.
+    This avoids surprises.
     
-    Change-Id: Ia88841209e47930681cef19f113e178f92ceeb33
-    Reviewed-on: https://go-review.googlesource.com/6540
+    Change-Id: Iaae67da2d12e29c4e797ad6313e0895f7ce80cb1
+    Reviewed-on: https://go-review.googlesource.com/4480
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/math/big/float.go      | 603 ++++++++++++++++++++++++++++-----------------
- src/math/big/float_test.go | 112 ++++++++-
- src/math/big/floatconv.go  |   5 +
- 3 files changed, 490 insertions(+), 230 deletions(-)
+ src/math/big/float.go      | 13 ++++++-------
+ src/math/big/float_test.go | 33 +++++++++++++++++++++++++++++----
+ 2 files changed, 35 insertions(+), 11 deletions(-)

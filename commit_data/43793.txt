@@ -1,41 +1,39 @@
-commit 062e0e5ce6df339dc26732438ad771f73dbf2292
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 6 09:38:38 2020 -0800
+commit 943a0d02d18bba5243f235fbbebd7f29d49d991e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 15:30:19 2020 -0700
 
-    cmd/go, cmd/cgo: don't let bogus symbol set cgo_ldflag
+    cmd/compile: add Value.Uses comparison during scheduling
     
-    A hand-edited object file can have a symbol name that uses newline and
-    other normally invalid characters. The cgo tool will generate Go files
-    containing symbol names, unquoted. That can permit those symbol names
-    to inject Go code into a cgo-generated file. If that Go code uses the
-    //go:cgo_ldflag pragma, it can cause the C linker to run arbitrary
-    code when building a package. If you build an imported package we
-    permit arbitrary code at run time, but we don't want to permit it at
-    package build time. This CL prevents this in two ways.
+    Falling back to comparing Value.ID during scheduling
+    is undesirable: Not only are we simply hoping for a good
+    outcome, but the decision we make will be easily perturbed
+    by other compiler changes, leading to random fluctuations.
     
-    In cgo, reject invalid symbols that contain non-printable or space
-    characters, or that contain anything that looks like a Go comment.
+    This change adds another decision point to the scheduler
+    by scheduling Values with many uses earlier.
+    Values with fewer uses are less likely to be spilled for
+    other reasons, so we should issue them as late as possible
+    in the hope of avoiding a spill.
     
-    In the go tool, double check all //go:cgo_ldflag directives in
-    generated code, to make sure they follow the existing LDFLAG restrictions.
+    This reduces the number of Value ID comparisons
+    in schedule while running make.bash
+    from 1,000,844 to 542,442.
     
-    Thanks to Imre Rad / https://www.linkedin.com/in/imre-rad-2358749b for
-    reporting this.
+    As you would expect, this changes a lot of functions,
+    but the overall trend is positive:
     
-    Fixes CVE-2020-28367
+    file    before    after     Δ       %
+    api     5237184   5233088   -4096   -0.078%
+    compile 19926480  19918288  -8192   -0.041%
+    cover   5281816   5277720   -4096   -0.078%
+    dist    3711608   3707512   -4096   -0.110%
+    total   113588440 113567960 -20480  -0.018%
     
-    Change-Id: Ia1ad8f3791ea79612690fa7d26ac451d0f6df7c1
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/895832
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269658
-    Trust: Katie Hockman <katie@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ic99ebc4c614d4ae3807ce44473ec6b04684388ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229798
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/errors/badsym_test.go   | 216 +++++++++++++++++++++++++++++++++++++++
- src/cmd/cgo/out.go               |  23 +++++
- src/cmd/go/internal/work/exec.go |  60 +++++++++++
- 3 files changed, 299 insertions(+)
+ src/cmd/compile/internal/ssa/schedule.go | 3 +++
+ 1 file changed, 3 insertions(+)

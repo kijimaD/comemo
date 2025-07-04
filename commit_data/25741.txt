@@ -1,38 +1,19 @@
-commit cc0a04d351c69a99f65342ad5822f2bba8b247d0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 10 21:46:51 2016 -0800
+commit 1a111ea2c7bfc9283f04a3be58ae46b339c691a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 17:27:32 2015 -0800
 
-    runtime: fix errno sign for some mmap and mincore cases
+    cmd/compile/internal/gc: fix parsing of <-x (recv op vs recv-only chan)
     
-    The caller of mmap expects it to return a positive errno value, but the
-    linux-arm64 and nacl-386 system calls returned a negative errno value.
-    Correct them to negate the errno value.
+    Also:
+    - better error messages in some cases
+    - factored out function to produce syntax error at given line number
     
-    The caller of mincore expects it to return a negative errno value (yes,
-    this is inconsistent), but the linux-mips64x and linux-ppc64x system
-    call returned a positive errno value.  Correct them to negate the errno
-    value.
+    Fixes #13273.
     
-    Add a test that mmap returns errno with the correct sign.  Brad added a
-    test for mincore's errno value in https://golang.org/cl/19457.
-    
-    Fixes #14297.
-    
-    Change-Id: I2b93f32e679bd1eae1c9aef9ae7bcf0ba39521b5
-    Reviewed-on: https://go-review.googlesource.com/19455
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0192a94731cc23444680a26bd0656ef663e6da0b
+    Reviewed-on: https://go-review.googlesource.com/16992
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/runtime/export_linux_test.go |  1 +
- src/runtime/export_mmap_test.go  | 15 +++++++++++++++
- src/runtime/export_test.go       |  2 --
- src/runtime/mem_bsd.go           |  4 ++--
- src/runtime/os2_nacl.go          | 25 +++++++++++++------------
- src/runtime/runtime_mmap_test.go | 30 ++++++++++++++++++++++++++++++
- src/runtime/sys_linux_arm64.s    |  3 +++
- src/runtime/sys_linux_mips64x.s  |  1 +
- src/runtime/sys_linux_ppc64x.s   |  1 +
- src/runtime/sys_nacl_386.s       |  3 +++
- 10 files changed, 69 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/parser.go | 66 ++++++++++++++++++++++++++++-------
+ test/fixedbugs/issue13273.go          | 55 +++++++++++++++++++++++++++++
+ 2 files changed, 108 insertions(+), 13 deletions(-)

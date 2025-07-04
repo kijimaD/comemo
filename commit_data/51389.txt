@@ -1,62 +1,20 @@
-commit 58a2db181b7cb2d51e462b6ea9c0026bba520055
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Oct 23 21:48:29 2022 +0200
+commit 35b0db7607a33da662a510f85d30f18cd40c1149
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 21 16:05:02 2022 -0500
 
-    crypto/rsa: allocate nats on the stack for RSA 2048
+    cmd/go: evaluate root symlink in matchPackages
     
-    With a small tweak and the help of the inliner, we preallocate enough
-    nat backing space to do RSA-2048 on the stack.
+    This fixes checks for crossing module boundaries when the root of
+    the module is a symlink. We're comparing paths by string, so we need
+    to follow the symlink to get the proper path to compare.
     
-    We keep the length of the preallocated slices at zero so they don't
-    silently mask missing expandFor calls.
-    
-    Surprisingly enough, this doesn't move the CPU benchmark needle much,
-    but probably reduces GC pressure on larger applications.
-    
-    name                    old time/op    new time/op    delta
-    DecryptPKCS1v15/2048-8    1.25ms ± 0%    1.22ms ± 1%   -1.68%  (p=0.000 n=10+9)
-    DecryptPKCS1v15/3072-8    3.78ms ± 0%    3.73ms ± 1%   -1.33%  (p=0.000 n=9+10)
-    DecryptPKCS1v15/4096-8    8.62ms ± 0%    8.45ms ± 1%   -1.98%  (p=0.000 n=8+10)
-    EncryptPKCS1v15/2048-8     140µs ± 1%     136µs ± 0%   -2.43%  (p=0.000 n=9+9)
-    DecryptOAEP/2048-8        1.25ms ± 0%    1.24ms ± 0%   -0.83%  (p=0.000 n=8+10)
-    EncryptOAEP/2048-8         140µs ± 0%     137µs ± 0%   -1.82%  (p=0.000 n=8+10)
-    SignPKCS1v15/2048-8       1.29ms ± 0%    1.29ms ± 1%     ~     (p=0.574 n=8+8)
-    VerifyPKCS1v15/2048-8      139µs ± 0%     136µs ± 0%   -2.12%  (p=0.000 n=9+10)
-    SignPSS/2048-8            1.30ms ± 0%    1.28ms ± 0%   -0.96%  (p=0.000 n=8+10)
-    VerifyPSS/2048-8           140µs ± 0%     137µs ± 0%   -1.99%  (p=0.000 n=10+8)
-    
-    name                    old alloc/op   new alloc/op   delta
-    DecryptPKCS1v15/2048-8    15.0kB ± 0%     0.5kB ± 0%  -96.58%  (p=0.000 n=10+10)
-    DecryptPKCS1v15/3072-8    24.6kB ± 0%     3.3kB ± 0%  -86.74%  (p=0.000 n=10+10)
-    DecryptPKCS1v15/4096-8    38.9kB ± 0%     4.5kB ± 0%  -88.50%  (p=0.000 n=10+10)
-    EncryptPKCS1v15/2048-8    18.0kB ± 0%     1.2kB ± 0%  -93.48%  (p=0.000 n=10+10)
-    DecryptOAEP/2048-8        15.2kB ± 0%     0.7kB ± 0%  -95.10%  (p=0.000 n=10+10)
-    EncryptOAEP/2048-8        18.2kB ± 0%     1.4kB ± 0%  -92.29%  (p=0.000 n=10+10)
-    SignPKCS1v15/2048-8       21.9kB ± 0%     0.8kB ± 0%  -96.50%  (p=0.000 n=10+10)
-    VerifyPKCS1v15/2048-8     17.7kB ± 0%     0.9kB ± 0%  -94.85%  (p=0.000 n=10+10)
-    SignPSS/2048-8            22.3kB ± 0%     1.2kB ± 0%  -94.77%  (p=0.000 n=10+10)
-    VerifyPSS/2048-8          17.9kB ± 0%     1.1kB ± 0%  -93.75%  (p=0.000 n=10+10)
-    
-    name                    old allocs/op  new allocs/op  delta
-    DecryptPKCS1v15/2048-8       124 ± 0%         3 ± 0%  -97.58%  (p=0.000 n=10+10)
-    DecryptPKCS1v15/3072-8       140 ± 0%         9 ± 0%  -93.57%  (p=0.000 n=10+10)
-    DecryptPKCS1v15/4096-8       158 ± 0%         9 ± 0%  -94.30%  (p=0.000 n=10+10)
-    EncryptPKCS1v15/2048-8      80.0 ± 0%       7.0 ± 0%  -91.25%  (p=0.000 n=10+10)
-    DecryptOAEP/2048-8           130 ± 0%         9 ± 0%  -93.08%  (p=0.000 n=10+10)
-    EncryptOAEP/2048-8          86.0 ± 0%      13.0 ± 0%  -84.88%  (p=0.000 n=10+10)
-    SignPKCS1v15/2048-8          162 ± 0%         4 ± 0%  -97.53%  (p=0.000 n=10+10)
-    VerifyPKCS1v15/2048-8       79.0 ± 0%       6.0 ± 0%  -92.41%  (p=0.000 n=10+10)
-    SignPSS/2048-8               167 ± 0%         9 ± 0%  -94.61%  (p=0.000 n=10+10)
-    VerifyPSS/2048-8            84.0 ± 0%      11.0 ± 0%  -86.90%  (p=0.000 n=10+10)
-    
-    Change-Id: I511a2f5f6f596bbec68a0a411e83a9d04080d72a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445021
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: Idf5f0dd5c49bcae5fffb5372e99a7fab89169a9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380057
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/rsa/nat.go      | 102 +++++++++++++++++++++++++++------------------
- src/crypto/rsa/nat_test.go |  34 +++++++--------
- src/crypto/rsa/rsa.go      |  34 +++++++--------
- 3 files changed, 95 insertions(+), 75 deletions(-)
+ src/cmd/go/internal/modload/search.go               |  5 +++++
+ src/cmd/go/testdata/script/work_root_is_symlink.txt | 20 ++++++++++++++++++++
+ 2 files changed, 25 insertions(+)

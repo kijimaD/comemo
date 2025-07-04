@@ -1,17 +1,13 @@
-commit be2596471f352c41b02a57e96c963d16ecb56183
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jan 14 09:35:04 2013 +1100
+commit 1a9a63961b03e386af000ed83fde5fca325c6bd1
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat Jan 12 03:13:55 2013 -0800
 
-    cmd/godoc: support m=text parameter for text files
+    cmd/5l: fix invalid executable header on Plan 9
     
-    It's possible to view the package docs in plain text, eg:
-            http://golang.org/pkg/time/?m=text
-    and this CL introduces the ability to do the same for files:
-            http://golang.org/src/pkg/time/time.go?m=text
-    
-    R=golang-dev, dave, minux.ma
+    R=minux.ma, lucio.dere
     CC=golang-dev
-    https://golang.org/cl/7085054
+    https://golang.org/cl/7094048
 
- src/cmd/godoc/godoc.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/5l/asm.c | 44 +++++++++++++++++++++++++++++++-------------
+ src/cmd/5l/l.h   |  1 -
+ 2 files changed, 31 insertions(+), 14 deletions(-)

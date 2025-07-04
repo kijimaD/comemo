@@ -1,22 +1,21 @@
-commit 3e2ab204a39b97e1abeda78d1442be90f48752b0
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Nov 29 13:19:27 2022 -0800
+commit d588f487703e773ba4a2f0a04f2d4141610bff6b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 4 21:14:13 2022 -0800
 
-    doc/go1.20: resolve root bundle package TODO
+    runtime: change sys.PtrSize to goarch.PtrSize in comments
     
-    We're unlikely to get this package out of the door all that soon. For
-    now add a note that SetFallbackRoots will be most commonly used with
-    an TBA package, and link the tracking issue.
+    The code was updated, the comments were not.
     
-    We could also just remove the "It will most commonly be used ..."
-    sentence.
-    
-    Change-Id: Ie96134d757f5b4c69f1878d53c92b5ed602671e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454056
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: If387779f3abd5e8a1b487fe34c33dcf9ce5fa7ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383495
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- doc/go1.20.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/mbarrier.go        |  2 +-
+ src/runtime/mbitmap.go         | 12 ++++++------
+ src/runtime/slice.go           |  2 +-
+ src/runtime/symtab.go          |  2 +-
+ src/runtime/syscall_windows.go |  2 +-
+ 5 files changed, 10 insertions(+), 10 deletions(-)

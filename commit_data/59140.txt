@@ -1,13 +1,19 @@
-commit 2cc0ea46e410b295181c9e1efa85b0e2be495682
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Mar 20 16:02:58 2025 -0700
+commit c4d55ab91260ca2d538fcf3dadbccc1d1c111c96
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sun Feb 18 12:23:20 2024 +0000
 
-    internal/syscall/unix: add missing cgo_import_dynamics for AIX
+    regexp/syntax: regenerate docs with mksyntaxgo
     
-    Change-Id: Ief4c6dd8340e07556692d2bde2284a3b7afb2444
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659756
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This makes the docs up-to-date by running doc/mksyntaxgo from the google/re2 repo.
+    
+    Change-Id: I80358eed071e7566c85edaeb1cc5514a6d8c37a7
+    GitHub-Last-Rev: 0f8c8df4f213ce89fbea89e81f0ea3babd59d38f
+    GitHub-Pull-Request: golang/go#65249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558136
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/syscall/unix/at_aix.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/regexp/syntax/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

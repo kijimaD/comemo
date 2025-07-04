@@ -1,12 +1,12 @@
-commit cc99d8ad0bb8a2299a72dcf123d615335ea09964
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 13 09:33:54 2012 -0400
+commit f26b1f8056284537b05be8003973abb4e84da811
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 13 16:50:44 2012 +1100
 
-    gc: use quoted string format in import error
+    make.bat: properly handle directories with spaces
     
-    R=ken2
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5794077
+    https://golang.org/cl/5797079
 
- src/cmd/gc/subr.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/make.bat | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

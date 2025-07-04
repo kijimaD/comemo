@@ -1,27 +1,33 @@
-commit 08d9397170e5870b72a95233e8e4ec43d2d70e30
-Author: rogeryk <rogeryk@outlook.com>
-Date:   Tue Nov 28 20:41:03 2023 +0800
+commit 3f8f929d60a90c4e4e2b07c8d1972166c1a783b1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 1 16:11:07 2023 +0000
 
-    text/template: add "else with" action
+    cmd/link/internal/ld: move more of mustLinkExternal into internal/platform
     
-    Add "else with" action will reduce the template complexity in some use cases(#57646).
-    This action will be added:
-      {{with pipeline}} T1 {{else with pipeline}} T0 {{end}}.
+    internal/platform.MustLinkExternal is used in various places to
+    determine whether external linking is required. It should always
+    match what the linker actually requires, but today does not match
+    because the linker imposes additional constraints.
     
-    Fixes #57646
+    Updates #31544.
     
-    Change-Id: I90ed546ab671805f753343b00bd3c9d1a1d5581d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545376
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I0cc6ad587e95c607329dea5d60d29a5fb2a9e722
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472515
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/html/template/exec_test.go        |  2 ++
- src/text/template/doc.go              |  7 +++++
- src/text/template/exec_test.go        |  2 ++
- src/text/template/parse/parse.go      | 56 +++++++++++++++++++----------------
- src/text/template/parse/parse_test.go |  4 +++
- 5 files changed, 45 insertions(+), 26 deletions(-)
+ src/cmd/dist/build.go                  | 33 +++++++++++++++++++++++++--
+ src/cmd/dist/build_test.go             | 10 +++++----
+ src/cmd/go/internal/work/gc.go         |  2 +-
+ src/cmd/link/internal/ld/config.go     | 28 +++--------------------
+ src/cmd/link/internal/ld/dwarf_test.go |  6 ++---
+ src/cmd/link/internal/ld/ld_test.go    |  2 +-
+ src/cmd/link/link_test.go              | 18 +++------------
+ src/cmd/nm/nm_cgo_test.go              | 41 +++++-----------------------------
+ src/internal/platform/supported.go     | 41 +++++++++++++++++++++++++++++-----
+ src/internal/testenv/testenv.go        | 11 +++++----
+ src/os/exec/exec_test.go               |  2 +-
+ src/runtime/crash_test.go              | 14 ++++++------
+ src/runtime/time_test.go               |  2 +-
+ 13 files changed, 105 insertions(+), 105 deletions(-)

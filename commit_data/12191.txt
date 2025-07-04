@@ -1,18 +1,16 @@
-commit 15d8b05f0ca604e40ba42a3e9f6d30b1a280d1d8
+commit fad10f9c1cba2aef54ef3822d6c3688eb1c25483
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 23 23:01:36 2012 -0500
+Date:   Thu Feb 23 22:46:04 2012 -0500
 
-    ld: fix alignment of rodata section
+    spec: allow disallow of \uFFFD in import path
     
-    We were not aligning the code size,
-    so read-only data, which follows in the same
-    segment, could be arbitrarily misaligned.
+    Turns out U+FFFD is a graphic character too.
     
-    Fixes #2506.
+    http://play.golang.org/p/YblCfKAfko
     
-    R=golang-dev, iant
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5693055
+    https://golang.org/cl/5699052
 
- src/cmd/ld/data.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

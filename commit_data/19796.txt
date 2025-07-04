@@ -1,22 +1,13 @@
-commit 064acace5b39308e19419e9f0e5b8a2e68f14a85
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jul 21 20:56:44 2014 -0700
+commit d9079cc88346ea08ca65166447184513f0566d98
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jul 22 10:09:32 2014 +1000
 
-    cmd/gc: in the runtime package, don't promote any decls to the heap.
+    syscall: fix typo in namei doc comment.
     
-    In the runtime, we want to control where allocations happen.
-    In particular, we don't want the code implementing malloc to
-    itself trigger a malloc.  This change prevents the compiler
-    from inserting mallocs on our behalf (due to escaping declarations).
-    
-    This check does not trigger on the current runtime code.
-    
-    Note: Composite literals are still allowed.
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=dave
+    R=rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/105280047
+    https://golang.org/cl/112420044
 
- src/cmd/gc/gen.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/syscall/fs_nacl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

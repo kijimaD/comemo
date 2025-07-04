@@ -1,36 +1,30 @@
-commit e74e363a6b3e71ec5a49a3aae8c2523abb72faa7
-Author: Martin Möhrmann <martin@golang.org>
-Date:   Sat Aug 28 17:54:10 2021 +0200
+commit 6acbae4fcc640715efd01cb161a65e1e04fda3cb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 28 17:06:43 2020 -0800
 
-    strings: add Clone function
+    [dev.regabi] cmd/compile: address some ir TODOs
     
-    The new strings.Clone function copies the input string
-    without the returned cloned string referencing the
-    input strings memory.
+    Previously, ODOTTYPE/ODOTTYPE2 were forced to reuse some available
+    Node fields for storing pointers to runtime type descriptors. This
+    resulted in awkward field types for TypeAssertExpr and AddrExpr.
     
-    goarch: amd64
-    cpu: Intel(R) Core(TM) i5-1038NG7 CPU @ 2.00GHz
+    This CL gives TypeAssertExpr proper fields for the runtime type
+    descriptors, and also tightens the field types as
+    possible/appropriate.
     
-    name     time/op
-    Clone-8  24.2ns ± 2%
+    Passes toolstash -cmp.
     
-    name     alloc/op
-    Clone-8   48.0B ± 0%
-    
-    name     allocs/op
-    Clone-8    1.00 ± 0%
-    
-    Update #45038
-    Fixes #40200
-    
-    Change-Id: Id9116c21c14328ec3931ef9a67a2e4f30ff301f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345849
-    Trust: Martin Möhrmann <martin@golang.org>
-    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    Change-Id: I521ee7a1462affc5459de33a0de6c68a7d6416ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280637
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/strings/clone.go      | 23 +++++++++++++++++++++++
- src/strings/clone_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+)
+ src/cmd/compile/internal/ir/expr.go        | 11 ++++++++---
+ src/cmd/compile/internal/ir/node_gen.go    |  7 +------
+ src/cmd/compile/internal/ssagen/ssa.go     |  8 ++++----
+ src/cmd/compile/internal/typecheck/expr.go |  2 +-
+ src/cmd/compile/internal/walk/expr.go      |  7 ++++---
+ 5 files changed, 18 insertions(+), 17 deletions(-)

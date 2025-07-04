@@ -1,22 +1,41 @@
-commit 89f465c2b59cea32c10ed69eaa07e17f85c910e2
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Dec 9 06:10:52 2020 -0500
+commit da382a3978d3db2380c7e9a69207545562dfd727
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 30 17:05:59 2020 -0400
 
-    go/types: avoid endless recursion in the Comparable predicate
+    internal/unsafeheader: consolidate stringHeader and sliceHeader declarations into an internal package
     
-    This is a port of CL 276374 from the dev.typeparams branch. Avoid an
-    endless recursion in Comparable by tracking types that have already been
-    considered.
+    The new package "internal/unsafeheader" depends only on "unsafe", and
+    provides declarations equivalent to reflect.StringHeader and
+    reflect.SliceHeader but with Data fields of the proper unsafe.Pointer
+    type (instead of uintptr).
     
-    Fixes #43088
+    Unlike the types it replaces, the "internal/unsafeheader" package has
+    a regression test to ensure that its header types remain equivalent to
+    the declarations provided by the "reflect" package.
     
-    Change-Id: I927b29ac544df9bfb5c8c04699d57fafe6cfff73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276552
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Trust: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Since "internal/unsafeheader" has almost no dependencies, it can be
+    used in other low-level packages such as "syscall" and "reflect".
+    
+    This change is based on the corresponding x/sys change in CL 231177.
+    
+    Fixes #37805
+    Updates #19367
+    
+    Change-Id: I7a6d93ef8dd6e235bcab94e7c47270aad047af31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231223
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/issues_test.go | 26 ++++++++++++++++++++++++++
- src/go/types/predicates.go  | 16 ++++++++++++++--
- 2 files changed, 40 insertions(+), 2 deletions(-)
+ src/cmd/dist/buildtool.go                      |   1 +
+ src/cmd/internal/goobj2/objfile.go             |  14 ++--
+ src/cmd/oldlink/internal/objfile/objfile.go    |  14 ++--
+ src/go/build/deps_test.go                      |   7 +-
+ src/internal/reflectlite/swapper.go            |   7 +-
+ src/internal/reflectlite/type.go               |   5 +-
+ src/internal/reflectlite/value.go              |  18 +----
+ src/internal/unsafeheader/unsafeheader.go      |  37 +++++++++
+ src/internal/unsafeheader/unsafeheader_test.go | 100 +++++++++++++++++++++++++
+ src/reflect/swapper.go                         |   7 +-
+ src/reflect/type.go                            |   5 +-
+ src/reflect/value.go                           |  58 ++++++--------
+ src/syscall/syscall_unix.go                    |  16 ++--
+ 13 files changed, 205 insertions(+), 84 deletions(-)

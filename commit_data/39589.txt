@@ -1,18 +1,19 @@
-commit 362625209b6cd2bc059b6b0a67712ddebab312d9
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Fri Aug 9 14:37:39 2019 +0530
+commit 9a7101586041a5ad69d65d845db78fb0e249cac6
+Author: Komu Wairagu <komuw05@gmail.com>
+Date:   Thu Mar 7 17:53:18 2019 +0000
 
-    doc/install-source.html: add new GOOS and GOARCHes
+    runtime/pprof: document labels bug
     
-    And also insert new paragraphs between GOOS and GOARCH listings
-    for better readability.
+    Currently only CPU profile utilizes tag information.
+    This change documents that fact
     
-    Fixes #28142
-    Fixes #26513
+    Updates #23458
     
-    Change-Id: Ie92e98dbfd924e80032a12afbfa02f30e3a6f916
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189578
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Ic893e85f63af0da9100d8cba7d3328c294e8c810
+    GitHub-Last-Rev: be99a126296493b3085aa5ade91895b36fb1de73
+    GitHub-Pull-Request: golang/go#27198
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/131275
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- doc/install-source.html | 46 ++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 42 insertions(+), 4 deletions(-)
+ src/runtime/pprof/label.go | 2 ++
+ 1 file changed, 2 insertions(+)

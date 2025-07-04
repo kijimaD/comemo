@@ -1,21 +1,32 @@
-commit 8e0781e5ff0320d8a0cb04dded9aa0ff8f3849cd
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 22 13:45:12 2022 -0500
+commit b054c7dc1738c810e74756ae0ac4797ce5d31cf6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 14 11:27:46 2022 -0400
 
-    cmd/dist: require absolute path to executable in flattenCommandLine
+    os: raise open file rlimit at startup
     
-    This should help to prevent bugs from unintended use of system tools,
-    especially the system or bootstrap "go" command.
-    (Suggested by Austin on CL 452678.)
+    Some systems set an artificially low soft limit on open file count,
+    for compatibility with code that uses select and its hard-coded
+    maximum file descriptor (limited by the size of fd_set).
     
-    Updates #31567.
+    Go does not use select, so it should not be subject to these limits.
+    On some systems the limit is 256, which is very easy to run into, even
+    in simple programs like gofmt when they parallelize walking a file tree.
     
-    Change-Id: I71809ee30d06eda4b5ff8f90656d4f1a462d35dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452776
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    After a long discussion on go.dev/issue/46279, we decided the best
+    approach was for Go to raise the limit unconditionally for itself, and
+    then leave old software to set the limit back as needed. Code that
+    really wants Go to leave the limit alone can set the hard limit, which
+    Go of course has no choice but to respect.
+    
+    Fixes #46279.
+    
+    Change-Id: Id6107503437d47a870a41be25e822fc79cea08b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392415
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 25 ++++++++++++++++++-------
- 1 file changed, 18 insertions(+), 7 deletions(-)
+ src/os/rlimit.go      | 31 +++++++++++++++++++++++++++++++
+ src/os/rlimit_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+)

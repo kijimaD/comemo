@@ -1,14 +1,16 @@
-commit 11cc5a26d51bb707e6e40c796827f5b3a9b6be04
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Mar 16 17:28:16 2012 +1100
+commit 8009542f559cee2a2c17af1bdafb46666778feac
+Author: Christopher Redden <christopher.redden@gmail.com>
+Date:   Fri Mar 16 14:30:43 2012 +1100
 
-    reflect: panic if MakeSlice is given bad len/cap arguments.
+    make.bat: Fix for old files
     
-    Fixes #3330.
+    Same fix as applied here: https://golang.org/cl/5761044
     
-    R=golang-dev, r
+    Fixes #3222.
+    
+    R=golang-dev, alex.brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/5847043
+    https://golang.org/cl/5838043
 
- src/pkg/reflect/value.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/make.bat | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,76 +1,19 @@
-commit 44e51e60acb8a1ff6ba10d698615fde98b2b28b0
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 10 14:02:32 2023 -0500
+commit 1c6706c71b6b3f783a4f1ce78433a10aa302a9c8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 17 15:41:59 2022 -0700
 
-    cmd/go: change toolchain based on $GOTOOLCHAIN
+    test: add test that caused a gofrontend crash
     
-    For proposal #57001, add code to reinvoke a different Go toolchain
-    based on $GOTOOLCHAIN. The toolchain is searched for in $PATH
-    first and otherwise downloaded. The download is a standard module
-    download, so the toolchain is validated using the checksum database
-    before being executed or even stored in the file system.
+    For #51291
     
-    Followup CLs will refine the exact toolchain selection and implement
-    other parts of the proposal. This is only the download+reinvoke code.
-    
-    For #57001.
-    
-    Change-Id: I44363cbd916dac01342b1bfce6a487fe7166be4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475955
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: If47e4cbf899853ade5050852c3870b9500da4c63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406916
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/gotoolchain.go                          | 214 +++++++++++++++++++++
- src/cmd/go/gotoolchain_js.go                       |  11 ++
- src/cmd/go/internal/modcmd/download.go             |  75 ++++----
- src/cmd/go/internal/modfetch/fetch.go              |  13 +-
- src/cmd/go/main.go                                 |   7 +-
- ...g_toolchain_v0.0.1-go1.999testmod.aix-ppc64.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.android-386.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.android-amd64.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.android-arm.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.android-arm64.txt |  14 ++
- ...oolchain_v0.0.1-go1.999testmod.darwin-amd64.txt |  14 ++
- ...oolchain_v0.0.1-go1.999testmod.darwin-arm64.txt |  14 ++
- ...chain_v0.0.1-go1.999testmod.dragonfly-amd64.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.freebsd-386.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.freebsd-amd64.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.freebsd-arm.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.freebsd-arm64.txt |  14 ++
- ...chain_v0.0.1-go1.999testmod.freebsd-riscv64.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.illumos-amd64.txt |  14 ++
- ...g_toolchain_v0.0.1-go1.999testmod.ios-amd64.txt |  14 ++
- ...g_toolchain_v0.0.1-go1.999testmod.ios-arm64.txt |  14 ++
- ...org_toolchain_v0.0.1-go1.999testmod.js-wasm.txt |  14 ++
- ...g_toolchain_v0.0.1-go1.999testmod.linux-386.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.linux-amd64.txt |  14 ++
- ...g_toolchain_v0.0.1-go1.999testmod.linux-arm.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.linux-arm64.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.linux-loong64.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.linux-mips64x.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.linux-mipsx.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.linux-ppc64.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.linux-ppc64le.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.linux-riscv64.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.linux-s390x.txt |  14 ++
- ..._toolchain_v0.0.1-go1.999testmod.netbsd-386.txt |  14 ++
- ...oolchain_v0.0.1-go1.999testmod.netbsd-amd64.txt |  14 ++
- ..._toolchain_v0.0.1-go1.999testmod.netbsd-arm.txt |  14 ++
- ...oolchain_v0.0.1-go1.999testmod.netbsd-arm64.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.openbsd-386.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.openbsd-amd64.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.openbsd-arm.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.openbsd-arm64.txt |  14 ++
- ...lchain_v0.0.1-go1.999testmod.openbsd-mips64.txt |  14 ++
- ...g_toolchain_v0.0.1-go1.999testmod.plan9-386.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.plan9-amd64.txt |  14 ++
- ...g_toolchain_v0.0.1-go1.999testmod.plan9-arm.txt |  14 ++
- ...olchain_v0.0.1-go1.999testmod.solaris-amd64.txt |  14 ++
- ...toolchain_v0.0.1-go1.999testmod.windows-386.txt |  10 +
- ...olchain_v0.0.1-go1.999testmod.windows-amd64.txt |  10 +
- ...toolchain_v0.0.1-go1.999testmod.windows-arm.txt |  10 +
- ...olchain_v0.0.1-go1.999testmod.windows-arm64.txt |  10 +
- src/cmd/go/testdata/script/gotoolchain.txt         |  51 +++++
- src/internal/cfg/cfg.go                            |   1 +
- 52 files changed, 947 insertions(+), 39 deletions(-)
+ test/fixedbugs/issue51291.dir/a.go |  9 +++++++++
+ test/fixedbugs/issue51291.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue51291.go       |  9 +++++++++
+ 3 files changed, 29 insertions(+)

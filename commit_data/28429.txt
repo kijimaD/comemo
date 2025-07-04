@@ -1,37 +1,19 @@
-commit 32db3f2756324616b7c856ac9501deccc2491239
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 15 17:40:26 2016 -0700
+commit 3474610fbc81f7e9f3f2cb23dc1554b3f5cec657
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Tue May 24 23:00:06 2016 +0600
 
-    cmd/compile/internal/syntax: support for alias declarations
+    math/rand: Doc fix for how many bits Seed uses
     
-    Permits parsing of alias declarations with -newparser
+    Document the fact that the default Source uses only
+    the bottom 31 bits of the given seed.
     
-            const/type/var/func T => p.T
+    Fixes #15788
     
-    but the compiler will reject it with an error. For now this
-    also accepts
-    
-            type T = p.T
-    
-    so we can experiment with a type-alias only scenario.
-    
-    - renamed _Arrow token to _Larrow (<-)
-    - introduced _Rarrow token (=>)
-    - introduced AliasDecl node
-    - extended scanner to accept _Rarrow
-    - extended parser and printer to handle alias declarations
-    
-    Change-Id: I0170d10a87df8255db9186d466b6fd405228c38e
-    Reviewed-on: https://go-review.googlesource.com/29355
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If20d1ec44a55c793a4a0a388f84b9392c2102bd1
+    Reviewed-on: https://go-review.googlesource.com/23352
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/noder.go            |   7 ++
- src/cmd/compile/internal/syntax/nodes.go        |  32 ++++++++
- src/cmd/compile/internal/syntax/parser.go       | 100 +++++++++++++++++-------
- src/cmd/compile/internal/syntax/printer.go      |  20 ++++-
- src/cmd/compile/internal/syntax/scanner.go      |   9 ++-
- src/cmd/compile/internal/syntax/scanner_test.go |   3 +-
- src/cmd/compile/internal/syntax/tokens.go       |  12 ++-
- 7 files changed, 144 insertions(+), 39 deletions(-)
+ src/math/rand/rand.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

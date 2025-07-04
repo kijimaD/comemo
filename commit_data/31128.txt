@@ -1,19 +1,19 @@
-commit 16df2ccdedec47d0be940702bb064f656091bd28
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 13 06:11:36 2017 -0700
+commit a27b78141b85d3b9733647de3f3863977d2f9f81
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 1 12:35:53 2017 -0800
 
-    cmd/compile: emit string symbols during walk
+    cmd/compile/internal/gc: inline typedcl0 and typedcl1
     
-    This avoids needing a mutex to protect stringsym,
-    and preserves a consistent ctxt.Data ordering
-    in the face of a concurrent backend.
+    It's easier to understand what's happening after inlining these into
+    noder.typeDecl.
     
-    Updates #15756
-    
-    Change-Id: I775daae11db5db1269533a00f5249e3a03086ffc
-    Reviewed-on: https://go-review.googlesource.com/40509
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I7beed5a1e18047bf09f2d4ddf64b9646c324d8d6
+    Reviewed-on: https://go-review.googlesource.com/36111
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/walk.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/gc/dcl.go   | 28 ----------------------------
+ src/cmd/compile/internal/gc/noder.go | 17 +++++++++++++++--
+ test/notinheap.go                    |  8 ++++----
+ 3 files changed, 19 insertions(+), 34 deletions(-)

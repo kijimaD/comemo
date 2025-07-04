@@ -1,38 +1,45 @@
-commit d032b2b2c8235ef25275405f6655866f2c81661d
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Oct 6 14:58:22 2021 -0700
+commit e0ac989cf3e43ec77c7205a66cb1cd63dd4d3043
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Feb 4 01:39:18 2021 -0800
 
-    testing: don't create unique subtest names while fuzzing
+    archive/tar: detect out of bounds accesses in PAX records resulting from padded lengths
     
-    T.Run uses a map[string]int64 to keep track of subtest names that may
-    be returned through T.Name. T.Name can't return duplicate names for
-    subtests started with T.Run.
+    Handles the case in which padding of a PAX record's length field
+    violates invariants about the formatting of record, whereby it no
+    longer matches the prescribed format:
     
-    If a fuzz target calls T.Run, this map takes a large amount of memory,
-    since there are a very large number of subtests that would
-    otherwise have duplicate names, and the map stores one entry per subtest.
-    The unique suffixes are not useful (and may be confusing) since the
-    full sequence of tests cannot be re-run deterministically.
+        "%d %s=%s\n", <length>, <keyword>, <value>
     
-    This change deletes all entries in the map before each call to the
-    function being fuzzed. There is a slight change in the contract of
-    T.Name while fuzzing.
+    as per:
     
-    This change was discussed in CL 351452.
+        https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
     
-    Fixes #44517
+    0-padding, and paddings of other sorts weren't handled and we assumed
+    that only non-padded decimal lengths would be passed in.
+    Added test cases to ensure that the parsing still proceeds as expected.
     
-    Change-Id: I3093a2e5568099ce54aca1006fac84a6fd2c3ddf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354430
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    The prior crashing repro:
+    
+        0000000000000000000000000000000030 mtime=1432668921.098285006\n30 ctime=2147483649.15163319
+    
+    exposed the fallacy in the code, that assumed that the length would ALWAYS be a
+    non-padded decimal length string.
+    
+    This bug has existed since Go1.1 as per CL 6700047.
+    
+    Thanks to Josh Bleecher Snyder for fuzzing this package, and thanks to Tom
+    Thorogood for advocacy, raising parity with GNU Tar, but for providing more test cases.
+    
+    Fixes #40196
+    
+    Change-Id: I32e0af4887bc9221481bd9e8a5120a79f177f08c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289629
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/testing/fuzz.go    |  9 ++++++++-
- src/testing/match.go   | 11 +++++++++++
- src/testing/testing.go | 20 +++++++-------------
- 3 files changed, 26 insertions(+), 14 deletions(-)
+ src/archive/tar/strconv.go      | 21 ++++++++++++++++++++-
+ src/archive/tar/strconv_test.go |  7 +++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

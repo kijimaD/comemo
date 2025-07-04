@@ -1,15 +1,16 @@
-commit dc6726b37f54b0ae3db471de7f1631e6b5cf80e5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Nov 14 21:59:48 2011 +0300
+commit 0a8005c7729951e26a37d17bb42a989f30bb415d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 14 10:48:26 2011 -0800
 
-    runtime: fix timers crash
-    Timer callbacks occasionally crash
-    with "sched while holding locks" message.
+    sql: add DB.Close, fix bugs, remove Execer on Driver (only Conn)
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5381043
+    https://golang.org/cl/5372099
 
- src/pkg/runtime/time.goc   |  8 +++++++-
- src/pkg/time/sleep_test.go | 16 ++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/pkg/exp/sql/convert.go       | 15 +++++++++
+ src/pkg/exp/sql/driver/driver.go | 17 +++++-----
+ src/pkg/exp/sql/fakedb_test.go   | 33 ++++++++++++++++++++
+ src/pkg/exp/sql/sql.go           | 67 ++++++++++++++++++++++++++++------------
+ src/pkg/exp/sql/sql_test.go      | 11 +++++++
+ 5 files changed, 117 insertions(+), 26 deletions(-)

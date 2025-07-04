@@ -1,19 +1,21 @@
-commit 399dcc75a882fcb3a7edbcb0b272ad4d12ee2555
+commit 472354f81e6c413508b3f2f43c0f321c4500bacd
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 4 00:21:44 2013 -0500
+Date:   Mon Feb 4 00:00:55 2013 -0500
 
-    cmd/gc: fix &^ code generation bug
+    runtime/debug: add controls for garbage collector
     
-    Was not re-walking the new AND node, so that its ullman
-    count was wrong, so that the code generator attempted to
-    store values in registers across the call.
+    Fixes #4090.
     
-    Fixes #4752.
-    
-    R=ken2
+    R=golang-dev, iant, bradfitz, dsymonds
     CC=golang-dev
-    https://golang.org/cl/7288054
+    https://golang.org/cl/7229070
 
- src/cmd/gc/walk.c           |  2 +-
- test/fixedbugs/issue4752.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/pkg/go/build/deps_test.go         |   2 +-
+ src/pkg/runtime/debug/debug.c         |   9 +++
+ src/pkg/runtime/debug/garbage.go      | 101 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/debug/garbage_test.go |  98 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/debug/stack_test.go   |   3 +-
+ src/pkg/runtime/malloc.h              |   4 +-
+ src/pkg/runtime/mgc0.c                |  72 +++++++++++++++++++++---
+ src/pkg/runtime/mheap.c               |  70 ++++++++++++++++-------
+ 8 files changed, 325 insertions(+), 34 deletions(-)

@@ -1,20 +1,27 @@
-commit e6eaf39cfaf253ebaff7fff3737f0f1d91024345
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Jul 7 14:26:31 2022 -0500
+commit 91edf2b7f2fe219f1af1df4031a210d8160da47c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Jan 8 14:39:43 2022 -0800
 
-    cmd/internal/obj/ppc64: add ISA 3.1B opcodes
+    go/types, types2: better error message for type parameter field access
     
-    A few new opcodes are added to support ROP mitigation on
-    Power10.
+    Fixes #50516.
     
-    Change-Id: I13045aebc0b6fb09c64dc234ee5741318670d7ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425597
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Also call DefPredeclaredTestFuncs in TestFixedbugs so it can be
+    run independently again.
+    
+    Change-Id: I78d4cc11790b1543a2545a7ab297a223b3d5e3c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376954
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64_p10.s |  7 +++++
- src/cmd/internal/obj/ppc64/asm9_gtables.go    | 44 +++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+)
+ src/cmd/compile/internal/types2/call.go            | 43 ++++++++-------------
+ src/cmd/compile/internal/types2/check_test.go      | 11 ++++--
+ .../internal/types2/testdata/check/typeparams.go2  |  6 +--
+ .../types2/testdata/fixedbugs/issue50417.go2       |  2 +-
+ .../types2/testdata/fixedbugs/issue50516.go2       | 13 +++++++
+ src/go/types/call.go                               | 45 ++++++++--------------
+ src/go/types/check_test.go                         | 11 ++++--
+ src/go/types/testdata/check/typeparams.go2         |  6 +--
+ src/go/types/testdata/fixedbugs/issue50417.go2     |  2 +-
+ src/go/types/testdata/fixedbugs/issue50516.go2     | 13 +++++++
+ 10 files changed, 79 insertions(+), 73 deletions(-)

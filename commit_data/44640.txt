@@ -1,18 +1,23 @@
-commit a8a85281caf21831ee51ea8c879cbba94bcce256
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 12 16:58:10 2021 -0800
+commit 260dff3ca3b06385dc298523791a2079162f546e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Feb 19 19:45:57 2020 +0000
 
-    runtime: fix documented alignment of 32KiB and 64KiB size classes
+    runtime: clean up old markrootSpans
     
-    As Cherry pointed out on golang.org/cl/299909, the page allocator
-    doesn't guarantee any alignment for multi-page allocations, so object
-    alignments are thus implicitly capped at page alignment.
+    This change removes the old markrootSpans implementation and deletes the
+    feature flag.
     
-    Change-Id: I6f5df27f269b095cde54056f876fe4240f69c5c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301292
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Updates #37487.
+    
+    Change-Id: Idb5a2559abcc3be5a7da6f2ccce1a86e1d7634e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221183
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mksizeclasses.go | 6 +++++-
- src/runtime/sizeclasses.go   | 6 +++---
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/runtime/mgcmark.go     | 120 ++++-----------------------------------------
+ src/runtime/mgcsweep.go    |   2 +-
+ src/runtime/mgcsweepbuf.go |  38 --------------
+ src/runtime/mheap.go       |   8 ++-
+ 4 files changed, 14 insertions(+), 154 deletions(-)

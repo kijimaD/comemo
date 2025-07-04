@@ -1,12 +1,14 @@
-commit 9fba2a17c2daa877ba3fc0df24ac531c842ce632
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Apr 15 11:56:56 2011 +1000
+commit c94f5fb0baa62497a7d440e7537632ac92c090c6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 14 17:26:12 2011 -0700
 
-    gobuilder: permit builders of the form goos-goarch-foo
+    gob: fix handling of indirect receivers for GobDecoders.
+    The previous code was just wrong. Let's not talk about it.
+    Passes iant's new test.
     
-    R=dfc
+    R=rsc, iant, iant2
     CC=golang-dev
-    https://golang.org/cl/4416044
+    https://golang.org/cl/4396053
 
- misc/dashboard/builder/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/gob/decode.go | 35 ++++++++++++++++-------------------
+ 1 file changed, 16 insertions(+), 19 deletions(-)

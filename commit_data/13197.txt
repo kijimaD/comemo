@@ -1,18 +1,19 @@
-commit 2d1fa08967a6bcb064f7690719ea9638866c7715
-Author: Peter Kleiweg <pkleiweg@xs4all.nl>
-Date:   Tue May 29 16:30:06 2012 -0400
+commit 12b2022a3b20565c0c995f86de4f072964679047
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 29 12:40:13 2012 -0700
 
-    Emacs go-mode: don't indent the inside of strings.
+    net/http: flush server response gracefully when ignoring request body
     
-    Two fixes for indentation problems:
+    This prevents clients from seeing RSTs and missing the response
+    body.
     
-    1. Properly recognize multi-line strings. These start with `, not ".
+    TCP stacks vary. The included test failed on Darwin before but
+    passed on Linux.
     
-    2. Don't indent a line if the beginning of the line is the end of a multi-line string. This happened for instance when inserting a closing bracket after a multi-line string.
-    
-    R=sameer
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6157044
+    https://golang.org/cl/6256066
 
- misc/emacs/go-mode.el | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/http/serve_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     | 33 +++++++++++++++++++++++++++---
+ 2 files changed, 76 insertions(+), 3 deletions(-)

@@ -1,20 +1,13 @@
-commit 9c504696f46295c7d2bbad3da7cb4854227a13b7
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Aug 27 15:23:38 2014 +1000
+commit cccd66c6c446fb2d4f2ee74259898d0acb8ec803
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 20 14:36:28 2014 -0700
 
-    cmd/gc: fix undefined behaviour warnings in mparith3.c
+    runtime: remove unused variable
     
-    Update #8527
-    
-    Fixes two warnings:
-    
-    src/cmd/gc/mparith3.c:255:10: runtime error: shift exponent 52 is too large for 32-bit type 'int'
-    src/cmd/gc/mparith3.c:254:14: runtime error: shift exponent 52 is too large for 32-bit type 'int'
-    
-    LGTM=rsc
-    R=r, dvyukov, rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/134940044
+    https://golang.org/cl/128230047
 
- src/cmd/gc/mparith3.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/atomic_arm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

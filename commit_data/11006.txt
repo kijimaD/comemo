@@ -1,15 +1,15 @@
-commit 98b90475acbe94e336b59feabaa3a643d1ad0c7c
+commit 57c9bb4a07b0ac483935e321ef760c0c52f8efd4
 Author: David Symonds <dsymonds@golang.org>
-Date:   Sun Dec 25 16:12:26 2011 +1100
+Date:   Sun Dec 25 16:07:05 2011 +1100
 
-    flag: change Set method Value interface to return error instead of bool.
+    testing: use flag.Duration for -timeout flag.
     
-    This yields much better error messages when a bad flag value is given.
-    
-    R=golang-dev, r
+    R=golang-dev, gustavo, r
     CC=golang-dev
-    https://golang.org/cl/5498078
+    https://golang.org/cl/5498077
 
- src/pkg/flag/flag.go      | 63 ++++++++++++++++++++++-------------------------
- src/pkg/flag/flag_test.go |  4 +--
- 2 files changed, 32 insertions(+), 35 deletions(-)
+ src/Make.pkg               | 2 +-
+ src/cmd/go/test.go         | 4 ++--
+ src/cmd/gotest/doc.go      | 4 ++--
+ src/pkg/testing/testing.go | 4 ++--
+ 4 files changed, 7 insertions(+), 7 deletions(-)

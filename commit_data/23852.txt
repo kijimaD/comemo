@@ -1,33 +1,13 @@
-commit 500c88d40db6798dddf181f39b6148415544ef94
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jul 23 17:55:01 2015 -0400
+commit e38bcb58d77b8e62b8c78157fea76afdba6e0105
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jun 17 22:05:55 2015 +0900
 
-    runtime: yield to GC coordinator after assist completion
+    net: fix build on netbsd
     
-    Currently it's possible for the GC assist to signal completion of the
-    mark phase, which puts the GC coordinator goroutine on the current P's
-    run queue, and then return to mutator code that delays until the next
-    forced preemption before actually yielding control to the GC
-    coordinator, dragging out completion of the mark phase. This delay can
-    be further exacerbated if the mutator makes other goroutines runnable
-    before yielding control, since this will push the GC coordinator on
-    the back of the P's run queue.
-    
-    To fix this, this adds a Gosched to the assist if it completed the
-    mark phase. This immediately and directly yields control to the GC
-    coordinator. This already happens implicitly in the background mark
-    workers because they park immediately after completing the mark.
-    
-    This is one of the reasons completion of the mark phase is being
-    dragged out and allowing the mutator to allocate without assisting,
-    leading to the large heap goal overshoot in issue #11677. This is also
-    a prerequisite to making the assist block when it can't pay off its
-    debt.
-    
-    Change-Id: I586adfbecb3ca042a37966752c1dc757f5c7fc78
-    Reviewed-on: https://go-review.googlesource.com/12670
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia5c6d9fb114be65d7c20c7eb97ed696977051031
+    Reviewed-on: https://go-review.googlesource.com/11167
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go     | 4 ++++
- src/runtime/mgcmark.go | 8 ++++++++
- 2 files changed, 12 insertions(+)
+ src/net/cgo_resnew.go | 2 +-
+ src/net/cgo_resold.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

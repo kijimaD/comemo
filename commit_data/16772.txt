@@ -1,21 +1,20 @@
-commit a15074c4dc909c6e27a98f8464b79863f446e8cc
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jul 16 09:04:20 2013 +0200
+commit 2254785c3e691cc95d84cca4864d20b6815f25d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 15 20:39:07 2013 -0400
 
-    cmd/gc: fix race detector instrumentation of type switches.
+    cmd/gc: tweak interface satisfaction error message
     
-    A type switch on a value with map index expressions,
-    could get a spurious instrumentation from a OTYPESW node.
-    These nodes do not need instrumentation because after
-    walk the type switch has been turned into a sequence
-    of ifs.
+    "M requires pointer receiver" can be misinterpreted to
+    mean that method M should have a pointer receiver but
+    does not. In fact the message means "M has a pointer
+    receiver" (and you don't have a pointer).
     
-    Fixes #5890.
+    Fixes #5891.
     
-    R=golang-dev, dvyukov
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/11308043
+    https://golang.org/cl/11313043
 
- src/cmd/gc/racewalk.c                     |  5 +----
- src/pkg/runtime/race/testdata/mop_test.go | 19 +++++++++++++++++++
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ src/cmd/gc/subr.c      | 2 +-
+ src/cmd/gc/typecheck.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,91 +1,30 @@
-commit 0a5fae2a0e965024f692b95f7e857904a274fcb6
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Feb 4 17:15:28 2022 -0500
+commit 2c05ba4ae08317c6d0ad7418d5ecb0f971275d69
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 28 23:07:38 2021 -0700
 
-    runtime, syscall: reimplement AllThreadsSyscall using only signals.
+    runtime: top align tinyallocs in race mode
     
-    In issue 50113, we see that a thread blocked in a system call can result
-    in a hang of AllThreadsSyscall. To resolve this, we must send a signal
-    to these threads to knock them out of the system call long enough to run
-    the per-thread syscall.
+    Top align allocations in tinyalloc buckets when in race mode.
+    This will make checkptr checks more reliable, because any code
+    that modifies a pointer past the end of the object will trigger
+    a checkptr error.
     
-    Stepping back, if we need to send signals anyway, it should be possible
-    to implement this entire mechanism on top of signals. This CL does so,
-    vastly simplifying the mechanism, both as a direct result of
-    newly-unnecessary code as well as some ancillary simplifications to make
-    things simpler to follow.
+    No test, because we need -race for this to actually kick in.  We could
+    add it to the race detector tests, but the race detector tests are all
+    geared towards race detector reports, not checkptr reports. Mucking
+    with parsing reports is more than a test is worth.
     
-    Major changes:
+    Fixes #38872
     
-    * The rest of the mechanism is moved to os_linux.go, with fields in mOS
-      instead of m itself.
-    * 'Fixup' fields and functions are renamed to 'perThreadSyscall' so they
-      are more precise about their purpose.
-    * Rather than getting passed a closure, doAllThreadsSyscall takes the
-      syscall number and arguments. This avoids a lot of hairy behavior:
-        * The closure may potentially only be live in fields in the M,
-          hidden from the GC. Not necessary with no closure.
-        * The need to loan out the race context. A direct RawSyscall6 call
-          does not require any race context.
-        * The closure previously conditionally panicked in strange
-          locations, like a signal handler. Now we simply throw.
-    * All manual fixup synchronization with mPark, sysmon, templateThread,
-      sigqueue, etc is gone. The core approach is much simpler:
-      doAllThreadsSyscall sends a signal to every thread in allm, which
-      executes the system call from the signal handler. We use (SIGRTMIN +
-      1), aka SIGSETXID, the same signal used by glibc for this purpose. As
-      such, we are careful to only handle this signal on non-cgo binaries.
-    
-    Synchronization with thread creation is a key part of this CL. The
-    comment near the top of doAllThreadsSyscall describes the required
-    synchronization semantics and how they are achieved.
-    
-    Note that current use of allocmLock protects the state mutations of allm
-    that are also protected by sched.lock. allocmLock is used instead of
-    sched.lock simply to avoid holding sched.lock for so long.
-    
-    Fixes #50113
-    
-    Change-Id: Ic7ea856dc66cf711731540a54996e08fc986ce84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383434
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie56f0fbd1a9385539f6631fd1ac40c3de5600154
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315029
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/defs_linux.go            |   2 +
- src/runtime/defs_linux_386.go        |   2 +
- src/runtime/defs_linux_amd64.go      |   2 +
- src/runtime/defs_linux_arm.go        |   1 +
- src/runtime/defs_linux_arm64.go      |   2 +
- src/runtime/defs_linux_mips64x.go    |   2 +
- src/runtime/defs_linux_mipsx.go      |   2 +
- src/runtime/defs_linux_ppc64.go      |   2 +
- src/runtime/defs_linux_ppc64le.go    |   2 +
- src/runtime/defs_linux_riscv64.go    |   2 +
- src/runtime/defs_linux_s390x.go      |   2 +
- src/runtime/os3_solaris.go           |   9 +
- src/runtime/os_aix.go                |   9 +
- src/runtime/os_darwin.go             |   9 +
- src/runtime/os_dragonfly.go          |   9 +
- src/runtime/os_freebsd.go            |   9 +
- src/runtime/os_linux.go              | 319 +++++++++++++++++++++--------------
- src/runtime/os_netbsd.go             |   9 +
- src/runtime/os_openbsd.go            |   9 +
- src/runtime/proc.go                  | 149 +++++-----------
- src/runtime/runtime2.go              |  19 +--
- src/runtime/signal_unix.go           |  16 ++
- src/runtime/sigqueue.go              |  48 ++----
- src/runtime/sigqueue_plan9.go        |   7 -
- src/syscall/syscall_linux.go         |  90 +---------
- src/syscall/syscall_linux_386.go     |   6 -
- src/syscall/syscall_linux_amd64.go   |   6 -
- src/syscall/syscall_linux_arm.go     |   6 -
- src/syscall/syscall_linux_arm64.go   |   6 -
- src/syscall/syscall_linux_mips64x.go |   6 -
- src/syscall/syscall_linux_mipsx.go   |   6 -
- src/syscall/syscall_linux_ppc64x.go  |   6 -
- src/syscall/syscall_linux_riscv64.go |   6 -
- src/syscall/syscall_linux_s390x.go   |   6 -
- src/syscall/syscall_linux_test.go    |  71 ++++++++
- 35 files changed, 429 insertions(+), 428 deletions(-)
+ src/runtime/export_test.go |  2 ++
+ src/runtime/malloc.go      | 19 ++++++++++++++++++-
+ src/runtime/malloc_test.go |  6 ++++++
+ 3 files changed, 26 insertions(+), 1 deletion(-)

@@ -1,25 +1,41 @@
-commit f86f9a3038eb6db513a0ea36bc2af7a13b005e99
-Author: Bryan Mills <bcmills@google.com>
-Date:   Mon Apr 4 14:45:45 2022 +0000
+commit a5be3eaee2cc0b8e5da216bdf545b9ca44789892
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 4 13:14:32 2021 -0700
 
-    Revert "os: add handling of os.Interrupt for windows"
+    [dev.typeparams] cmd/compile: refactor export writing
     
-    This reverts CL 367495.
+    This CL reorganizes export writing in preparation for unified IR:
     
-    Reason for revert: broke `x/tools` tests on Windows.
+    1. It moves dumpexport into noder as noder.WriteExports so that it can
+    be extended to include unified IR's export data.
     
-    Change-Id: Iab6b33259181c9520cf8db1e5b6edfeba763f974
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397997
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    2. Adds an "extensions" flag to typecheck.WriteExports to control
+    whether the compiler-only extension data (e.g., function bodies and
+    linker symbol info) is included in the exports.
+    
+    3. It moves the gc.exporter type into typecheck and renames it to
+    "crawler". The type originated as the implementation of
+    the (pre-iexport) binary exporter, but since the removal of bexport
+    it's been relegated to simply crawling the exported functions/bodies
+    graph to identify which inline bodies need to be included.
+    
+    4. It changes inline.Inline_Flood into the method crawler.markInlBody.
+    Inline_Flood doesn't actually have anything to do with the rest of
+    inlining; its current name and location are just historical quirks.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I6445e2de9d3ce500a3aded5a8e20b09f46d23dbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325212
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/internal/syscall/windows/syscall_windows.go  |  1 -
- src/internal/syscall/windows/zsyscall_windows.go |  9 ---------
- src/os/exec/exec_windows_test.go                 | 18 ------------------
- src/os/exec_posix.go                             |  4 +++-
- src/os/exec_windows.go                           | 21 +++++++--------------
- src/os/signal/signal_windows_test.go             | 17 ++++++++++++++++-
- src/runtime/signal_windows_test.go               | 18 +++++++++++++++++-
- 7 files changed, 43 insertions(+), 45 deletions(-)
+ src/cmd/compile/internal/gc/export.go         | 120 +------------------
+ src/cmd/compile/internal/gc/obj.go            |   3 +-
+ src/cmd/compile/internal/inline/inl.go        |  56 ---------
+ src/cmd/compile/internal/noder/export.go      |  26 ++++
+ src/cmd/compile/internal/typecheck/crawler.go | 164 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/typecheck/iexport.go |  38 ++++--
+ 6 files changed, 224 insertions(+), 183 deletions(-)

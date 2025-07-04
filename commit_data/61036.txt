@@ -1,0 +1,18 @@
+commit 4a1167dfe1e1616abbe1d70dbd3b44d7ca6d2f60
+Author: Tim King <taking@google.com>
+Date:   Thu Sep 5 16:22:50 2024 -0700
+
+    all: enable alias type parameters GOEXPERIMENT by default
+    
+    For #68778
+    
+    Change-Id: I4b39f84665262251ca014d3f5fe74b2fd434d51e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613236
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Commit-Queue: Tim King <taking@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/buildcfg/exp.go       | 1 +
+ src/internal/goexperiment/flags.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

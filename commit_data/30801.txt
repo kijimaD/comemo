@@ -1,51 +1,21 @@
-commit 8a16d7d40a371e61f6d30604224039cf9a46d106
-Author: haya14busa <haya14busa@gmail.com>
-Date:   Fri Mar 17 00:41:58 2017 +0900
+commit f251708a733bfca46899d57baab7d2601f6d7057
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 6 18:42:01 2016 +0000
 
-    regexp: reduce allocs in regexp.Match for onepass regex
+    net/http: update bundled http2
     
-    There were no allocations in regexp.Match for *non* onepass regex
-    because m.matchcap length is reset to zero (ncap=0 for regexp.Match).
+    Updates bundled x/net/http2 to git rev 8dab9293 for:
     
-    But, as for onepass regex, m.matchcap length remains as it is even when
-    ncap=0 and it leads needless allocations.
+        http2: make Transport retry on server's GOAWAY graceful shutdown
+        https://golang.org/cl/33971
     
-    benchmark                                    old ns/op      new ns/op      delta
-    BenchmarkMatch_onepass_regex/32-4      6465           4628           -28.41%
-    BenchmarkMatch_onepass_regex/1K-4      208324         151558         -27.25%
-    BenchmarkMatch_onepass_regex/32K-4     7230259        5834492        -19.30%
-    BenchmarkMatch_onepass_regex/1M-4      234379810      166310682      -29.04%
-    BenchmarkMatch_onepass_regex/32M-4     7903529363     4981119950     -36.98%
+    Fixes #18083
     
-    benchmark                                    old MB/s     new MB/s     speedup
-    BenchmarkMatch_onepass_regex/32-4      4.95         6.91         1.40x
-    BenchmarkMatch_onepass_regex/1K-4      4.92         6.76         1.37x
-    BenchmarkMatch_onepass_regex/32K-4     4.53         5.62         1.24x
-    BenchmarkMatch_onepass_regex/1M-4      4.47         6.30         1.41x
-    BenchmarkMatch_onepass_regex/32M-4     4.25         6.74         1.59x
-    
-    benchmark                                    old allocs     new allocs     delta
-    BenchmarkMatch_onepass_regex/32-4      32             0              -100.00%
-    BenchmarkMatch_onepass_regex/1K-4      1024           0              -100.00%
-    BenchmarkMatch_onepass_regex/32K-4     32768          0              -100.00%
-    BenchmarkMatch_onepass_regex/1M-4      1048576        0              -100.00%
-    BenchmarkMatch_onepass_regex/32M-4     104559255      0              -100.00%
-    
-    benchmark                                    old bytes      new bytes     delta
-    BenchmarkMatch_onepass_regex/32-4      512            0             -100.00%
-    BenchmarkMatch_onepass_regex/1K-4      16384          0             -100.00%
-    BenchmarkMatch_onepass_regex/32K-4     524288         0             -100.00%
-    BenchmarkMatch_onepass_regex/1M-4      16777216       0             -100.00%
-    BenchmarkMatch_onepass_regex/32M-4     2019458128     0             -100.00%
-    
-    Fixes #19573
-    
-    Change-Id: I033982d0003ebb0360bb40b92eb3941c781ec74d
-    Reviewed-on: https://go-review.googlesource.com/38270
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I676f5eb4b490a4d86356778bb17296c451f16d90
+    Reviewed-on: https://go-review.googlesource.com/34011
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/regexp/exec.go      |  6 ++++--
- src/regexp/exec_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 2 deletions(-)
+ src/net/http/h2_bundle.go | 87 ++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 78 insertions(+), 9 deletions(-)

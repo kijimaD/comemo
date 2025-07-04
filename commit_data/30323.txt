@@ -1,14 +1,44 @@
-commit 1e69aefb7e7ed34f8e425287b126b0f3edbf144e
-Author: Kenny Grant <kennygrant@gmail.com>
-Date:   Sat Feb 18 07:28:49 2017 +0000
+commit d35dfd405eaa21654807fac3891e198538d3c402
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 30 17:59:06 2016 -0400
 
-    net/url: document that Query returns only valid values
+    runtime: make assists perform root jobs
     
-    Fixes #19110
+    Currently, assists can only perform heap marking jobs. However, at the
+    beginning of GC, there are only root jobs and no heap marking jobs. As
+    a result, there's often a period at the beginning of a GC cycle where
+    no goroutine has accumulated assist credit, but at the same time it
+    can't get any credit because there are no heap marking jobs for it to
+    do yet. As a result, many goroutines often block on the assist queue
+    at the very beginning of the GC cycle.
     
-    Change-Id: I291fa4ec3c61145162acd019e3f0e5dd3d7c97e9
-    Reviewed-on: https://go-review.googlesource.com/37194
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This commit fixes this by allowing assists to perform root marking
+    jobs. The tricky part of this (and the reason we haven't done this
+    before) is that stack scanning jobs can lead to deadlocks if the
+    goroutines performing the stack scanning are themselves
+    non-preemptible, since two non-preemptible goroutines may try to scan
+    each other. To address this, we use the same insight d6625ca used to
+    simplify the mark worker stack scanning: as long as we're careful with
+    the stacks and only drain jobs while on the system stack, we can put
+    the goroutine into a preemptible state while we drain jobs. This means
+    an assist's user stack can be scanned while it continues to do work.
+    
+    This reduces the rate of assist blocking in the x/benchmarks HTTP
+    benchmark by a factor of 3 and all remaining blocking happens towards
+    the *end* of the GC cycle, when there may genuinely not be enough work
+    to go around.
+    
+    Ideally, assists would get credit for working on root jobs. Currently
+    they do not; however, this change prioritizes heap work over root jobs
+    in assists, so they're likely to mostly perform heap work. In contrast
+    with mark workers, for assists, the root jobs act only as a backstop
+    to create heap work when there isn't enough heap work.
+    
+    Fixes #15361.
+    
+    Change-Id: If6e169863e4ad75710b0c8dc00f6125b41e9a595
+    Reviewed-on: https://go-review.googlesource.com/32432
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/url/url.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/mgcmark.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

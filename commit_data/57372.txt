@@ -1,19 +1,27 @@
-commit 89958ab4aef14982b344c3d4aab8a93a9ad60f12
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Sep 4 14:51:44 2024 -0700
+commit a09ea59198faf85d41da6699220319089c98d86b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Jul 31 17:33:40 2023 +0200
 
-    cmd/go/internal: use t.TempDir in tests
+    runtime: cpu profiler to use high resolution timers on Windows
     
-    Change-Id: I8b4c19ed1085d2ffb07e2c8db33a10b6d70988eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611015
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The CPU profiler skip samples if the sampling rate is too high
+    for the system timer resolution. This CL uses high resolution
+    timers on Windows when available, to avoid this problem.
+    
+    Note that the default sampling rate (100Hz) is already too high
+    for the Windows timer resolution (15.6ms), so this CL also improves
+    the default Windows sampling coverage.
+    
+    Not adding regression tests, as they would be too flaky.
+    
+    Fixes #61665
+    
+    Change-Id: Ifdadabc9ebaf56f397eac517bd0e5f1502b956b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514375
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/cache/cache_test.go           | 31 ++++-------------------
- src/cmd/go/internal/lockedfile/lockedfile_test.go | 30 +++-------------------
- src/cmd/go/internal/lockedfile/transform_test.go  |  4 +--
- src/cmd/go/internal/modfetch/cache_test.go        | 10 ++------
- src/cmd/go/internal/work/build_test.go            |  8 ++----
- 5 files changed, 14 insertions(+), 69 deletions(-)
+ src/runtime/os_windows.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

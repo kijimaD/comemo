@@ -1,25 +1,30 @@
-commit 770746af1cf7900cb770767584abd3251013d932
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 28 17:45:22 2019 +0000
+commit 710417bc92af19379101acbcd4e0f79dba38c891
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 5 12:42:46 2019 -0800
 
-    net/http: quiet some log spam in tests
+    text/scanner: accept new Go2 number literals
     
-    One of these tests creates a bunch of connections concurrently, then
-    discovers it doesn't need them all, which then makes the server log
-    that the client went away midway through the TLS handshake. Perhaps
-    the server should recognize that as a case not worthy of logging
-    about, but this is a safer way to eliminate the stderr spam during go
-    test for now.
+    This CL introduces text/scanner support for the new binary and octal integer
+    literals, hexadecimal floats, and digit separators for all number literals.
+    The new code is closely mirroring the respective code for number literals in
+    cmd/compile/internal/syntax/scanner.go.
     
-    The other test's client gives up on its connection and closes it,
-    similarly confusing the server.
+    Uniformly use the term "invalid" rather than "illegal" in error messages
+    to match the respective error messages in the other scanners directly.
     
-    Change-Id: I49ce442c9a63fc437e58ca79f044aa76e8c317b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179179
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    R=Go1.13
+    
+    Updates #12711.
+    Updates #19308.
+    Updates #28493.
+    Updates #29008.
+    
+    Change-Id: I2f291de13ba5afc0e530cd8326e6bf4c3858ebac
+    Reviewed-on: https://go-review.googlesource.com/c/161199
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/client_test.go | 2 +-
- src/net/http/serve_test.go  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/text/scanner/scanner.go      | 252 +++++++++++++++++++++++++++------------
+ src/text/scanner/scanner_test.go | 228 ++++++++++++++++++++++++++++++-----
+ 2 files changed, 371 insertions(+), 109 deletions(-)

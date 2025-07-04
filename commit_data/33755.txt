@@ -1,47 +1,29 @@
-commit f22cf7131a322f958d07c087e8d6a95723262180
-Author: David Chase <drchase@google.com>
-Date:   Thu Nov 30 15:11:34 2017 -0500
+commit 34db5f0c4d80b8fe3fb4b5be90efd9ee92bd1d4d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 29 15:40:32 2017 -0700
 
-    cmd/compile: use src.NoXPos for entry-block constants
+    cmd/compile: fix evaluation order for OASOP
     
-    The ssa backend is aggressive about placing constants and
-    certain other values in the Entry block.  It's implausible
-    that the original line numbers for these constants makes
-    any sort of sense when it appears to a user stepping in a
-    debugger, and they're also not that useful in dumps since
-    entry-block instructions tend to be constants (i.e.,
-    unlikely to be the cause of a crash).
+    Currently, we handle "x op= y" by rewriting as "x = x op y", while
+    ensuring that any calls or receive operations in 'x' are only
+    evaluated once. Notably, pointer indirection, indexing operations,
+    etc. are left alone as it's typically safe to re-evaluate those.
     
-    Therefore, use src.NoXPos for any values that are explicitly
-    inserted into a function's entry block.
+    However, those operations were interleaved with evaluating 'y', which
+    could include function calls that might cause re-evaluation to yield
+    different memory addresses.
     
-    Passes all tests, including ssa/debug_test.go with both
-    gdb and a fairly recent dlv.  Hand-verified that it solves
-    the reported problem; constructed a test that reproduced
-    a problem, and fixed it.
+    As a fix, simply ensure that we order side-effecting operations in 'y'
+    before either evaluation of 'x'.
     
-    Modified test harness to allow injection of slightly more
-    interesting inputs.
+    Fixes #21687.
     
-    Fixes #22558.
-    
-    Change-Id: I4476927067846bc4366da7793d2375c111694c55
-    Reviewed-on: https://go-review.googlesource.com/81215
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ib14e77760fda9c828e394e8e362dc9e5319a84b2
+    Reviewed-on: https://go-review.googlesource.com/60091
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/ssa.go                 | 10 ++---
- src/cmd/compile/internal/ssa/debug_test.go         | 11 ++++--
- src/cmd/compile/internal/ssa/func.go               |  5 ++-
- .../internal/ssa/testdata/hist.dbg-dlv.nexts       |  7 ++--
- .../internal/ssa/testdata/hist.dbg-gdb.nexts       |  8 ++--
- src/cmd/compile/internal/ssa/testdata/hist.go      |  9 +++--
- .../internal/ssa/testdata/hist.opt-dlv.nexts       |  7 ++--
- .../internal/ssa/testdata/hist.opt-gdb.nexts       |  8 ++--
- .../ssa/testdata/i22558.dbg-22558-dlv.nexts        | 11 ++++++
- .../ssa/testdata/i22558.dbg-22558-gdb.nexts        | 11 ++++++
- src/cmd/compile/internal/ssa/testdata/i22558.go    | 43 ++++++++++++++++++++++
- .../ssa/testdata/i22600.dbg-race-gdb.nexts         |  3 +-
- src/cmd/compile/internal/ssa/testdata/i22600.go    |  6 ++-
- 13 files changed, 109 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/gc/order.go |  3 +-
+ test/fixedbugs/issue21687.go         | 68 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 1 deletion(-)

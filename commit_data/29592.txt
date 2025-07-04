@@ -1,21 +1,38 @@
-commit a34fddf46c47a86e7a7cab32be858f7e8d0feb70
-Author: Philip Hofer <phofer@umich.edu>
-Date:   Mon Nov 14 17:05:46 2016 -0800
+commit ec9c84c8840124b4cf883ab08f6c2dc6baf20732
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 15 14:08:04 2016 -0400
 
-    cmd/compile: in cse, allow for new ssa values
+    runtime: disentangle next_gc from GC trigger
     
-    The table of rewrites in ssa/cse is not sized appropriately for
-    ssa IDs that are created during copying of selects into new blocks.
+    Back in Go 1.4, memstats.next_gc was both the heap size at which GC
+    would trigger, and the size GC kept the heap under. When we switched
+    to concurrent GC in Go 1.5, we got somewhat confused and made this
+    variable the trigger heap size, while gcController.heapGoal became the
+    goal heap size.
     
-    Fixes #17918
+    memstats.next_gc is exposed to the user via MemStats.NextGC, while
+    gcController.heapGoal is not. This is unfortunate because 1) the heap
+    goal is far more useful for diagnostics, and 2) the trigger heap size
+    is just part of the GC trigger heuristic, which means it wouldn't be
+    useful to an application even if it tried to use it.
     
-    Change-Id: I65fe86c6aab5efa679aa473aadc4ee6ea882cd41
-    Reviewed-on: https://go-review.googlesource.com/33240
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    We never noticed this mess because MemStats.NextGC is practically
+    undocumented. Now that we're trying to document MemStats, it became
+    clear that this field had diverged from its original usefulness.
+    
+    Clean up this mess by shuffling things back around so that next_gc is
+    the goal heap size and the new (unexposed) memstats.gc_trigger field
+    is the trigger heap size. This eliminates gcController.heapGoal.
+    
+    Updates #15849.
+    
+    Change-Id: I2cbbd43b1d78bdf613cb43f53488bd63913189b7
+    Reviewed-on: https://go-review.googlesource.com/29270
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/ssa/cse.go |  5 ++++-
- test/fixedbugs/issue17918.go        | 41 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go    | 78 ++++++++++++++++++++++++++++++---------------------
+ src/runtime/mstats.go |  9 +++++-
+ 2 files changed, 54 insertions(+), 33 deletions(-)

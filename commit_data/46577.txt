@@ -1,23 +1,27 @@
-commit c90ead97ad7542437079462e0b70ff7b3f8e7811
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 23 16:53:21 2021 -0700
+commit d6ad88b4db454813e1bdf09635cd853fe3b7ef13
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 12 12:00:58 2021 -0800
 
-    cmd/compile/internal/types2: delay union element checks
+    [dev.regabi] cmd/compile: compile functions before closures
     
-    We cannot determine the underlying type right when parsing
-    a union term since it may lead to types that are not yet
-    fully set up.
+    This CL reorders function compilation to ensure that functions are
+    always compiled before any enclosed function literals. The primary
+    goal of this is to reduce the risk of race conditions that arise due
+    to compilation of function literals needing to inspect data from their
+    closure variables. However, a pleasant side effect is that it allows
+    skipping the redundant, separate compilation of function literals that
+    were inlined into their enclosing function.
     
-    Fixes #46461.
-    
-    Change-Id: I1fcadb1dcef2160be2f088a4a34e99dbab01da67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351969
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I03ee96212988cb578c2452162b7e99cc5e92918f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282892
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- .../types2/testdata/fixedbugs/issue46461.go2         |  9 +++++++++
- src/cmd/compile/internal/types2/typeset.go           |  8 ++++----
- src/cmd/compile/internal/types2/union.go             | 20 ++++++++++++++------
- 3 files changed, 27 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/compile.go     | 51 +++++++++++++++++++++++-------
+ src/cmd/compile/internal/ir/func.go        |  4 +++
+ src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/walk/closure.go   |  2 ++
+ src/cmd/compile/internal/walk/expr.go      |  7 ++--
+ 5 files changed, 52 insertions(+), 14 deletions(-)

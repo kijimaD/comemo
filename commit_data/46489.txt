@@ -1,26 +1,26 @@
-commit c894b442d1e5e150ad33fa3ce13dbfab1c037b3a
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Tue Sep 14 15:02:55 2021 -0700
+commit 9aa950c40789223d9e8df7d1ec657cd313e6c7aa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 5 03:28:06 2021 -0800
 
-    net/rpc: remove warnings on incompatible methods at registration
+    [dev.regabi] cmd/compile: make ir.OuterValue safer
     
-    When registering an RPC server, the type being registered may
-    have additional methods that are not meant to be exposed as
-    RPC endpoints. Remove the warnings net/rpc produces in
-    this case. The functionality to report warnings is kept in the code
-    with a compile-time constant that can be enabled for debugging.
+    For OINDEX expressions, ir.OuterValue depends on knowing the indexee's
+    type. Rather than silently acting as though it's not an array, make it
+    loudly fail.
     
-    The documentation of net/rpc states that only methods
-    satisfying a set of criteria will be made available, while other
-    methods will be ignored.
+    The only code that needs to be fixed to support this is checkassign
+    during typechecking, which needs to avoid calling ir.OuterValue now if
+    typechecking the assigned operand already failed.
     
-    Fixes #19957
+    Passes toolstash -cmp.
     
-    Change-Id: I5f8a148b4be1fdfffb2cd2029871193eaf24b751
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350009
-    Reviewed-by: Daniel Lublin <daniel@lublin.se>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Carlos Amedee <carlos@golang.org>
+    Change-Id: I935cae0dacc837202bc6b63164dc2f0a6fde005c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281539
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/net/rpc/server.go | 24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ir/node.go             |  5 ++++-
+ src/cmd/compile/internal/typecheck/typecheck.go | 13 ++++++++-----
+ 2 files changed, 12 insertions(+), 6 deletions(-)

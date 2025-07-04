@@ -1,0 +1,21 @@
+commit 29595ffeca93390dc9c03753b01406c4470c1490
+Author: John Bampton <jbampton@gmail.com>
+Date:   Tue Apr 29 11:46:09 2025 +0000
+
+    doc: fix grammar and spelling
+    
+    Minor typo fixes in the docs
+    
+    Change-Id: I56b5d0318936aecc7775fb5bc70534456707da49
+    GitHub-Last-Rev: b4d042f8a997aa0d3824d8f9350dd24090b21073
+    GitHub-Pull-Request: golang/go#73531
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668815
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ doc/godebug.md          | 2 +-
+ doc/next/5-toolchain.md | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

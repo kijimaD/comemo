@@ -1,22 +1,52 @@
-commit 52dadc1f31f8e509ad22902a41f0fe40b3b0a365
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sat Feb 14 16:10:06 2015 +0300
+commit ebaf8db4f62af36c7215735891f014dc4bb4e2ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 21 14:48:18 2015 -0500
 
-    cmd/gc: fix noscan maps
+    [dev.cc] cmd/internal/obj: export more symbols, rename Type_ to Type
     
-    Change 85e7bee introduced a bug:
-    it marks map buckets as noscan when key and val do not contain pointers.
-    However, buckets with large/outline key or val do contain pointers.
+    For new assembler, reconvert using rsc.io/c2go rev f9db76e.
+    - Removes trailing _ from Go keywords that are exported.
+    - Export regstr as Register, anames[5689] as Anames.
     
-    This change takes key/val size into consideration when
-    marking buckets as noscan.
+    Also update clients.
     
-    Change-Id: I7172a0df482657be39faa59e2579dd9f209cb54d
-    Reviewed-on: https://go-review.googlesource.com/4901
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I41c8fd2d14490236f548b4aa0ed0b9bd7571d2d7
+    Reviewed-on: https://go-review.googlesource.com/3151
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/gc/reflect.c    |  3 ++-
- src/reflect/type.go     |  3 ++-
- src/runtime/hashmap.go  |  2 +-
- src/runtime/map_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 60 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/arm/anames5.go   |   2 +-
+ src/cmd/internal/obj/arm/asm5.go      |  88 +++++++--------
+ src/cmd/internal/obj/arm/list5.go     |  14 +--
+ src/cmd/internal/obj/arm/obj5.go      | 196 +++++++++++++++++-----------------
+ src/cmd/internal/obj/data.go          |  40 +++----
+ src/cmd/internal/obj/i386/anames8.go  |   2 +-
+ src/cmd/internal/obj/i386/asm8.go     | 126 +++++++++++-----------
+ src/cmd/internal/obj/i386/list8.go    |  14 +--
+ src/cmd/internal/obj/i386/obj8.go     | 164 ++++++++++++++--------------
+ src/cmd/internal/obj/link.go          |   8 +-
+ src/cmd/internal/obj/objfile.go       |  44 ++++----
+ src/cmd/internal/obj/pass.go          |   6 +-
+ src/cmd/internal/obj/pcln.go          |   2 +-
+ src/cmd/internal/obj/ppc64/anames9.go |   2 +-
+ src/cmd/internal/obj/ppc64/asm9.go    |  48 ++++-----
+ src/cmd/internal/obj/ppc64/list9.go   |  18 ++--
+ src/cmd/internal/obj/ppc64/obj9.go    | 170 ++++++++++++++---------------
+ src/cmd/internal/obj/sym.go           |   2 +-
+ src/cmd/internal/obj/x86/anames6.go   |   2 +-
+ src/cmd/internal/obj/x86/asm6.go      | 140 ++++++++++++------------
+ src/cmd/internal/obj/x86/list6.go     |  14 +--
+ src/cmd/internal/obj/x86/obj6.go      | 180 +++++++++++++++----------------
+ src/cmd/new5a/a.y                     |  72 ++++++-------
+ src/cmd/new5a/lex.go                  |   2 +-
+ src/cmd/new5a/y.go                    |  72 ++++++-------
+ src/cmd/new6a/a.y                     |  72 ++++++-------
+ src/cmd/new6a/lex.go                  |   2 +-
+ src/cmd/new6a/y.go                    |  72 ++++++-------
+ src/cmd/new8a/a.y                     |  74 ++++++-------
+ src/cmd/new8a/lex.go                  |   2 +-
+ src/cmd/new8a/y.go                    |  74 ++++++-------
+ src/cmd/new9a/a.y                     |  68 ++++++------
+ src/cmd/new9a/lex.go                  |   2 +-
+ src/cmd/new9a/y.go                    |  68 ++++++------
+ src/cmd/objwriter/main.go             |   6 +-
+ 35 files changed, 934 insertions(+), 934 deletions(-)

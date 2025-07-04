@@ -1,20 +1,20 @@
-commit b9596aea50a0703f89c6f11c206cfd2c7dd189fa
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Feb 8 17:52:08 2019 +0100
+commit 0e4c013b6743507ebce2c08991cf1e3ab49cf7ac
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Sep 25 13:45:08 2018 +0200
 
-    encoding/json: remove use of DeepEqual for testing errors
+    syscall: use asynchronous operations on js/wasm
     
-    Comparing errors using DeepEqual breaks if frame information
-    is added as proposed in Issue #29934.
+    This commit makes syscall on js/wasm use the asynchronous variants
+    of functions in Node.js' fs module. This enables concurrency
+    and allows the API of the fs module to be implemented with an
+    alternative backend that only supports asynchronous operations.
     
-    Updates #29934.
+    Updates #26051.
     
-    Change-Id: Ib430c9ddbe588dd1dd51314c408c74c07285e1ff
-    Reviewed-on: https://go-review.googlesource.com/c/162179
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: Ibe1dcc988469fc11c3b8d8d49de439c12ddaafce
+    Reviewed-on: https://go-review.googlesource.com/c/137236
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/decode_test.go | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/syscall/fs_js.go | 94 +++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 60 insertions(+), 34 deletions(-)

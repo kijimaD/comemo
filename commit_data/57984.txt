@@ -1,38 +1,27 @@
-commit 60d66e6a86085478bc86fc924d1cd0221565262f
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Nov 7 12:22:20 2024 +0100
+commit 09300d89e94da7b1f32742e80768acc711b5c590
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 14 09:03:37 2023 -0400
 
-    os/user: support built-in service user accounts on Windows
+    net/http: synchronize tests that use reqNum counters
     
-    Built-in service user accounts should be treated as special cases
-    of well-known groups and allowed in user.Lookup and user.LookupId.
+    This suppresses the race reported in #62638.
     
-    Namely, these accounts are:
-    - NT AUTHORITY\SYSTEM (S-1-5-18)
-    - NT AUTHORITY\LOCAL SERVICE (S-1-5-19)
-    - NT AUTHORITY\NETWORK SERVICE (S-1-5-20)
+    I am not 100% certain how that race happens, but here is my theory.
+    The increment of reqNum happens before the server writes the response
+    headers, and the server necessarily writes the headers before the
+    client receives them. However, that write/read pair occurs through I/O
+    syscalls rather than Go synchronization primitives, so it doesn't
+    necessarily create a “happens before” relationship as defined by the
+    Go memory model: although we can establish a sequence of events, that
+    sequence is not visible to the race detector, nor to the compiler.
     
-    See https://learn.microsoft.com/en-us/windows/win32/services/service-user-accounts.
+    Fixes #62638.
     
-    Note that #49509 also mentions S-1-5-17 (NT AUTHORITY\IUSR) as
-    another well-known group that should be treated as a user. I haven't
-    found any documentation supporting this claim, and it is not an account
-    that is used usually, so I'm not adding it for now.
-    
-    This CL is heavily based on CL 452497.
-    
-    Fixes #49509
-    
-    Change-Id: I6e204ddfb4ed0c01b4503001cf284602531e4a88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626255
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I90d66ec3fc32b9b8e1f9bbf0bc2eb289b964b99b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528475
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- doc/next/6-stdlib/99-minor/os/user/49509.md      |   5 ++
- src/internal/syscall/windows/security_windows.go |  24 ++++++
- src/internal/syscall/windows/zsyscall_windows.go |  28 +++++++
- src/os/user/lookup_windows.go                    | 102 ++++++++++++++++++-----
- src/os/user/user_windows_test.go                 |  68 +++++++++++++++
- 5 files changed, 206 insertions(+), 21 deletions(-)
+ src/net/http/serve_test.go | 29 ++++++++++++++++-------------
+ 1 file changed, 16 insertions(+), 13 deletions(-)

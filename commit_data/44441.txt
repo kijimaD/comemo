@@ -1,20 +1,34 @@
-commit 3146166baa8c420dfe20619e4aa9978b87927268
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Jan 31 18:07:43 2021 +0100
+commit 3c3cc195643d441c09ad102e8e6f7412d975102b
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 30 11:30:28 2020 -0400
 
-    syscall: introduce SysProcAttr.AdditionalInheritedHandles on Windows
+    [dev.link] cmd/link: better naming for Loader container/subsym methods, part 1 of 2
     
-    This allows users to specify handles that they explicitly want to be
-    inherited by the new process. These handles must already be marked as
-    inheritable.
+    Introduce a new loader method "AddInteriorSym" to be used when
+    establishing container/containee symbol relationships for host object
+    sub-symbols and GOT/dynamic sub-symbols.
     
-    Updates #44011.
-    Updates #21085.
+    Interior symbols are employed in situations where you have a
+    "container" or "payload" symbol that has content, and then a series of
+    "interior" sub-symbols that point into a portion of the container
+    symbol's content. Each interior symbol will typically have a useful
+    name / size / value, but no content of its own. From a symbol table
+    perspective the container symbol is anonymous, but the interior
+    symbols are added to the output symbol table.
     
-    Change-Id: Ib18322e7dc2909e68c4209e80385492804fa15d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288298
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I919ed5dbbfe2ef2c9a76214f7ea9b384a1be6297
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240508
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/syscall/exec_windows.go | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/amd64/asm.go            |  2 +-
+ src/cmd/link/internal/ld/data.go              |  2 +-
+ src/cmd/link/internal/ld/pe.go                |  2 +-
+ src/cmd/link/internal/loadelf/ldelf.go        |  2 +-
+ src/cmd/link/internal/loader/loader.go        | 60 +++++++++++++++++++--------
+ src/cmd/link/internal/loader/loader_test.go   | 11 ++---
+ src/cmd/link/internal/loader/symbolbuilder.go |  4 +-
+ src/cmd/link/internal/loadmacho/ldmacho.go    |  2 +-
+ src/cmd/link/internal/loadpe/ldpe.go          |  2 +-
+ 9 files changed, 57 insertions(+), 30 deletions(-)

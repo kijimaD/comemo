@@ -1,26 +1,25 @@
-commit 6e096e2fd5d00164acce57cca80ba188096216fd
-Author: Jeff Hodges <jeff@somethingsimilar.com>
-Date:   Sat Mar 25 23:21:01 2023 +0000
+commit 2f23364340750fc96afc38cd28c71117f916f23b
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Apr 26 10:32:43 2022 -0500
 
-    cmd/go: change +build doc references to //go:build
+    cmd/asm: on PPC64, allow ISEL to accept a CR bit arg
     
-    This changes a few references to `+build` into the modern `//go:build`.
-    It was compiled by editing `cmd/go/internal/list/context.go`, running
-    `go test cmd/go -v -run=TestDocsUpToDate -fixdocs`, and then editing
-    list.go and build.go by hand.
+    Using the CR bit register arguments makes it more easy to
+    understand which condition and CR field is being tested when
+    using ISEL.
     
-    Change-Id: I00fec55e098bf5100f5a186dd975a6628e15beb8
-    GitHub-Last-Rev: e0eb9be77e9e409479ef48a65f750546d2a9ddcc
-    GitHub-Pull-Request: golang/go#59245
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479417
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Likewise, cleanup optab setup for ISEL. ISEL should only
+    accept a 5 bit unsigned constant (C_U5CON), and C_ZCON
+    arguments are accepted by a C_U5CON optab arg.
+    
+    Change-Id: I2495dbe3595dd3f16c510b3492a88133af9f7e1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402375
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/alldocs.go                 | 4 ++--
- src/cmd/go/internal/list/context.go   | 2 +-
- src/cmd/go/internal/list/list.go      | 4 ++--
- src/cmd/go/internal/modindex/build.go | 2 +-
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  9 ++++++++-
+ src/cmd/internal/obj/ppc64/asm9.go        | 12 +++++++-----
+ 2 files changed, 15 insertions(+), 6 deletions(-)

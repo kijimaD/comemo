@@ -1,18 +1,28 @@
-commit 2eb1b658305bfd32774fd1e6a32cd6463564cf89
-Author: Rob Pike <r@golang.org>
-Date:   Mon Oct 27 17:08:50 2014 -0700
+commit d704bb0dc907d32ca827e97bf506794d809ebce8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Oct 11 22:01:04 2014 +1100
 
-    doc/go_mem.html: don't be clever
+    cmd/ld: do not assume that only pe section names start with '.'
     
-    Add a short introductory section saying what most Go
-    programmers really need to know, which is that you
-    shouldn't have to read this document to understand
-    the behavior of your program.
+    Our current pe object reader assumes that every symbol starting with
+    '.' is section. It appeared to be true, until now gcc 4.9.1 generates
+    some symbols with '.' at the front. Change that logic to check other
+    symbol fields in addition to checking for '.'. I am not an expert
+    here, but it seems reasonable to me.
     
-    LGTM=bradfitz, adg, tracey.brendan, iant, rsc, dsymonds
-    R=golang-codereviews, bradfitz, tracey.brendan, adg, iant, rsc, dsymonds
-    CC=golang-codereviews
-    https://golang.org/cl/158500043
+    Added test, but it is only good, if tested with gcc 4.9.1. Otherwise
+    the test PASSes regardless.
+    
+    Fixes #8811.
+    Fixes #8856.
+    
+    LGTM=jfrederich, iant, stephen.gutekanst
+    R=golang-codereviews, jfrederich, stephen.gutekanst, iant
+    CC=alex.brainman, golang-codereviews
+    https://golang.org/cl/152410043
 
- doc/go_mem.html | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue8811.c  |  8 ++++++++
+ misc/cgo/test/issue8811.go | 22 ++++++++++++++++++++++
+ src/cmd/ld/ldpe.c          | 17 ++++++++++++-----
+ 4 files changed, 43 insertions(+), 5 deletions(-)

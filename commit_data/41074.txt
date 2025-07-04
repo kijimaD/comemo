@@ -1,23 +1,22 @@
-commit bc9194752749640c61c339140cf11d13e6262a6a
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Jan 7 04:25:57 2020 +1100
+commit e6d2544d20f028dffc529ba58249e11f709382e4
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Sep 1 17:30:56 2019 +0200
 
-    runtime: correct assembly for openbsd/arm64
+    test/codegen: mention -all_codegen in the README
     
-    Correct the pipe and pipe2 implementations by using the correct RSP offsets,
-    used to store and return the file descriptor array.
+    For performance reasons (avoiding costly cross-compilations) CL 177577
+    changed the codegen test harness to only run the tests for the
+    machine's GOARCH by default.
     
-    Fix setNonblock by using the correct immediate value for O_NONBLOCK and
-    replace EOR (exclusive OR) with ORR.
+    This change updates the codegen README accordingly, explaining what
+    all.bash does run by default and how to perform the tests for all
+    architectures.
     
-    Also correct the write1 implementation, which has a uintptr value for the fd
-    argument.
+    Fixes #33924
     
-    Change-Id: Ibca77af44b649e8bb330ca54f9c36a7a8b0f9cea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212765
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I43328d878c3e449ebfda46f7e69963a44a511d40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192619
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/runtime/sys_openbsd_arm64.s | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ test/codegen/README | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

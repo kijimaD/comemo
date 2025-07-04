@@ -1,21 +1,13 @@
-commit 561b147e4be4732c85f2725c7e12ab0a3577c962
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri May 19 15:10:10 2017 -0700
+commit 817c1023b06a7e0dbd180609b63e06a64b6ebeaf
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Fri Apr 7 09:22:46 2017 -0700
 
-    cmd/compile: use right shifts to eliminate bounds checks
+    doc: document go1.8.1
     
-    These rules trigger a few times during make.bash.
-    When we eliminate boundedness checks from walk.go
-    we'll rely on them more heavily.
-    
-    Updates #19692
-    
-    Change-Id: I268c36ae2f1401c68dd685b15f2d30f5d6971176
-    Reviewed-on: https://go-review.googlesource.com/43775
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9282c1907204ec5c6363de84faec222a38300c9f
+    Reviewed-on: https://go-review.googlesource.com/39919
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  11 +
- src/cmd/compile/internal/ssa/rewritegeneric.go | 299 ++++++++++++++++++++++++-
- 2 files changed, 309 insertions(+), 1 deletion(-)
+ doc/devel/release.html  | 12 ++++++++++++
+ doc/install-source.html |  4 ++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)

@@ -1,32 +1,28 @@
-commit 286e3e61aa9310bb8fd333adac6d06cfb2fcc95b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 25 11:10:44 2022 -0800
+commit 41afd3af42bd8028a1740c30a2b745105b4063d2
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 30 11:15:44 2021 -0400
 
-    go/types, types2: report an error for x.sel where x is a built-in
+    cmd/compile: fix abbrev selection for output params
     
-    In case of a selector expression x.sel where x is a built-in
-    we didn't report an error because the type of built-ins is
-    invalid and we surpress errors on operands of invalid types,
-    assuming that an error has been reported before.
+    In Cl 302071 we changed the compiler to use a different recipe for
+    selecting the DWARF frame offset for output parameters, to reflect the
+    fact that registerized output params don't have a stack memory
+    location on entry to the function. In the process, however, we
+    switched from using an abbrev pf DW_ABRV_PARAM to an abbrev of
+    DW_ABRV_AUTO, which means that Delve can't recognize them correctly.
+    To fix the problem, switch back to picking the correct abbrev entry,
+    while leaving the new offset recipe intact.
     
-    Add a corresponding check for this case.
+    Updates #40724.
+    Updates #45720.
     
-    Review all places where we call Checker.exprOrType to ensure
-    (invalid) built-ins are reported.
-    
-    Adjusted position for index error in types2.
-    
-    Fixes #51360.
-    
-    Change-Id: I24693819c729994ab79d31de8fa7bd370b3e8469
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388054
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: If721c9255bcd030177806576cde3450563f7a235
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315610
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/call.go                     |  6 +++++-
- src/cmd/compile/internal/types2/index.go                    |  2 +-
- .../internal/types2/testdata/fixedbugs/issue51360.go        | 13 +++++++++++++
- src/go/types/call.go                                        |  7 ++++++-
- src/go/types/index.go                                       |  1 +
- src/go/types/testdata/fixedbugs/issue51360.go               | 13 +++++++++++++
- 6 files changed, 39 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go |  25 ++++---
+ src/cmd/link/internal/ld/dwarf_test.go     | 110 +++++++++++++++++++++++++++++
+ 2 files changed, 125 insertions(+), 10 deletions(-)

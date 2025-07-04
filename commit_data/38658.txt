@@ -1,15 +1,17 @@
-commit f947c4dcfe6f22e6c92e6e5a170096b518a18448
-Author: Darren Grant <darren.e.grant@gmail.com>
-Date:   Thu Mar 14 16:33:35 2019 -0400
+commit a48a666bc89d355205550d43a9fdf1a9c507a123
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 12 22:20:17 2018 -0500
 
-    builtin: spec correction for panic()
+    go/build: do not suggest runtime.Version in comment
     
-    Upon unrecovered panic and program termination, process exit code is hard-coded
-    to 2, not set to the parameter passed to panic().
+    The form of runtime.Version is not guaranteed to be helpful.
+    Do not suggest it. (The suggestion was added in CL 136215.)
     
-    Change-Id: If64b75493227b4fd69c0bbb529f84e6df2d1b93f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167709
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I3227d2e66b6ce860b7e62d7ba531c18fb173823c
+    Reviewed-on: https://go-review.googlesource.com/c/149258
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/builtin/builtin.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/go/build/doc.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

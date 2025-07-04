@@ -1,14 +1,18 @@
-commit 7b7f85534cc8ed04ec727199c25119e157b2a4bc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 22 09:37:56 2015 -0700
+commit 3f4d5a550095b384de8e63bd09cf278e7c57fee3
+Author: Damian Gryski <dgryski@gmail.com>
+Date:   Thu Jul 23 22:12:24 2015 +0200
 
-    test/fixedbugs: update overly restrictive test case
+    go/types: fix suspect or
     
-    See discussion in https://go-review.googlesource.com/14830 .
+    In https://go-review.googlesource.com/#/c/8611/ , these tests were
+    supposed to be skipped only for linux and darwin, as the comment says.
+    This patch fixes the logic in the if test.
     
-    Change-Id: I94f25f92b8cdaa509d2c335865a645228425804d
-    Reviewed-on: https://go-review.googlesource.com/14837
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iff0a32186267457a414912c4c3ee4495650891a2
+    Reviewed-on: https://go-review.googlesource.com/12517
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- test/fixedbugs/issue11326.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/go/types/stdlib_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

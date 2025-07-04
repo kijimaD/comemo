@@ -1,14 +1,22 @@
-commit b7bfb54eaa84a7de187df905ae8f74c8fed515f4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 13 20:15:40 2015 -0800
+commit f4d2d71752474aed3f35b42ac77175e970da76ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 21 12:10:35 2015 -0500
 
-    math/big: fix aliasing bug in Float.Quo
+    [dev.cc] cmd/dist: build new5a etc during bootstrap
     
-    TBR r, adonovan
+    The change to the bootstrap import conversion is
+    for the a.y files, which use import dot.
     
-    Change-Id: I1a38e2d724bf1147c7307a7e5ae855c42c60428c
-    Reviewed-on: https://go-review.googlesource.com/4875
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    While we're editing the tool list, add "cmd/dist".
+    Right now 'go install cmd/dist' installs to $GOROOT/bin/dist.
+    (A new bug since cmd/dist has been rewritten in Go.
+    When cmd/dist was a C program, go install cmd/dist just didn't work.)
+    
+    Change-Id: I362208dcfb4ae64c987f60b95dc946829fa506d8
+    Reviewed-on: https://go-review.googlesource.com/3144
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/float.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/dist/buildtool.go | 8 +++++++-
+ src/cmd/go/pkg.go         | 1 +
+ 2 files changed, 8 insertions(+), 1 deletion(-)

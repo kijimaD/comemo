@@ -1,13 +1,15 @@
-commit 092a211fb99ba8fa922f6529473b279b24cb18a5
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 29 12:09:46 2011 -0400
+commit f30719dc89c2a41502fa584b790943170ad2d1ce
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 28 22:36:52 2011 -0700
 
-    5g: fix -f()
+    encoding/binary: support for varint encoding
     
-    R=ken2
+    R=rsc, r, nigeltao, r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5161041
+    https://golang.org/cl/5146048
 
- src/cmd/5g/cgen.c        |  4 ++--
- test/fixedbugs/bug368.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 2 deletions(-)
+ src/pkg/encoding/binary/Makefile       |   1 +
+ src/pkg/encoding/binary/binary.go      |   6 +-
+ src/pkg/encoding/binary/varint.go      | 163 ++++++++++++++++++++++++++++++
+ src/pkg/encoding/binary/varint_test.go | 175 +++++++++++++++++++++++++++++++++
+ 4 files changed, 342 insertions(+), 3 deletions(-)

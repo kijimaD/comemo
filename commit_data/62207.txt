@@ -1,0 +1,20 @@
+commit 659b895067400e1db64c57712729623970149e99
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 27 21:47:24 2025 +0000
+
+    internal/trace: move fake P IDs to internal/trace/traceviewer
+    
+    These fake P IDs really only belong to the traceviewer.
+    
+    Change-Id: I7976beb5750f1efca85e28975074a8c570a9c959
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644876
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/trace/gen.go                          | 4 ++--
+ src/cmd/trace/gstate.go                       | 6 +++---
+ src/cmd/trace/jsontrace_test.go               | 4 ++--
+ src/internal/trace/traceviewer/emitter.go     | 8 ++++----
+ src/internal/trace/{ => traceviewer}/fakep.go | 2 +-
+ 5 files changed, 12 insertions(+), 12 deletions(-)

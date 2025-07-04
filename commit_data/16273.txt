@@ -1,20 +1,15 @@
-commit f322c786923ebef0c012ff65df8bab767f0d1ace
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon May 6 16:15:03 2013 -0700
+commit e85016f81f91268e3155f9024702ae9205ad2dd1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 6 15:16:47 2013 -0700
 
-    runtime: fix crash in badsignal()
-    The linker can generate split stack prolog when a textflag 7 function
-    makes an indirect function call.  If it happens, badsignal() crashes
-    trying to dereference g.
-    Fixes #5337.
+    database/sql: remove an unused field from Rows
     
-    R=bradfitz, dave, adg, iant, r, minux.ma
-    CC=adonovan, golang-dev
-    https://golang.org/cl/9226043
+    Found while debugging memory usage. Nobody accesses this field
+    anymore.
+    
+    R=golang-dev, i.caught.air, adg, r
+    CC=golang-dev
+    https://golang.org/cl/9108043
 
- src/pkg/runtime/os_darwin.c  | 9 ++++++---
- src/pkg/runtime/os_freebsd.c | 9 ++++++---
- src/pkg/runtime/os_linux.c   | 9 ++++++---
- src/pkg/runtime/os_netbsd.c  | 9 ++++++---
- src/pkg/runtime/os_openbsd.c | 9 ++++++---
- 5 files changed, 30 insertions(+), 15 deletions(-)
+ src/pkg/database/sql/sql.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,15 +1,15 @@
-commit 0381ba69da90d42b777a490171acc7d4eb63d71a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jan 27 19:50:00 2015 +1100
+commit 865e5e98b685eb3a7888f5263021049c0694d16f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Jan 3 00:12:34 2015 -0500
 
-    doc: remove redundant images
+    runtime: fix TestCgoExternalThreadSIGPROF again
     
-    These are no longer used by anything.
+    Shell out to `uname -r` this time, so that the test will compile
+    even if the platform doesn't have syscall.Sysctl.
     
-    Change-Id: I50c971418b07cafc983242833a196ba2028a2723
-    Reviewed-on: https://go-review.googlesource.com/3603
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I3a19ab5d820bdb94586a97f4507b3837d7040525
+    Reviewed-on: https://go-review.googlesource.com/2271
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/logo-153x55.png | Bin 3382 -> 0 bytes
- doc/sieve.gif       | Bin 11019 -> 0 bytes
- 2 files changed, 0 insertions(+), 0 deletions(-)
+ src/runtime/crash_cgo_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

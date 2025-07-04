@@ -1,12 +1,16 @@
-commit 80f89133ea54b96d491f8780daaac253ed09abe9
-Author: Julie <julie@golang.org>
-Date:   Wed Jun 12 12:33:19 2019 -0400
+commit b68624464dc41ffb09b9ee5314d3455904acd2a8
+Author: Dmitry Mottl <dmitry.mottl@gmail.com>
+Date:   Fri Feb 22 16:50:54 2019 +0000
 
-    doc: add release notes for context
+    net/http: add godoc for Dir.Open function
     
-    Change-Id: I4c52d9bcf941810dbdfdd39e7f339c8283d6bcc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181937
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    This commit adds godoc for Dir.Open function.
+    
+    Change-Id: Ibc3b22f38660a082802e1f868c5cf9d880fc2801
+    GitHub-Last-Rev: 774cfd7d8cc61989179956e47d51451135b6c203
+    GitHub-Pull-Request: golang/go#30353
+    Reviewed-on: https://go-review.googlesource.com/c/163437
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.13.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/fs.go | 2 ++
+ 1 file changed, 2 insertions(+)

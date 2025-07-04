@@ -1,18 +1,21 @@
-commit d7cedc4b74f902a3a1b429fb27f85380f6955a6f
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 14 13:51:23 2016 -0400
+commit 30919fe978fccae450ea5c4ff8c4019f240d2d1e
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Sat Jan 9 22:22:58 2016 -0500
 
-    runtime: perform gcMarkRootCheck during STW in checkmark mode
+    cmd/dist: restrict parallel tests to NumCPU on mips64x
     
-    gcMarkRootCheck is too expensive to do during mark termination.
-    However, since it's a useful check and it complements checkmark mode
-    nicely, enable it during mark termination is checkmark is enabled.
+    mips64 builder and one machine of the mips64le builder has small amount
+    of memory. Since CL 18199, they have been running slowly, as more
+    processes were launched in running 'test' directory, and a lot of swap
+    were used. This CL brings all.bash from 5h back to 3h on Loongson 2E
+    with 512 MB memory.
     
-    Change-Id: Icd9039e85e6e9d22747454441b50f1cdd1412202
-    Reviewed-on: https://go-review.googlesource.com/20663
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I4a22e239a542a99ba5986753205d8cd1f4b3d3c6
+    Reviewed-on: https://go-review.googlesource.com/18483
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/dist/util.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

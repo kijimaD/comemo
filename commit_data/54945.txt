@@ -1,42 +1,28 @@
-commit ff7cf2d4cd8289111e7cef36c8ad50f557b29311
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Oct 6 15:07:28 2023 +0000
+commit 72fdecafc0c1863f7540bd827a387e7e56836187
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 21 16:36:14 2022 -0800
 
-    runtime: make it harder to introduce deadlocks with forEachP
+    spec: add a link to Allocation section in section on append built-in
     
-    Currently any thread that tries to get the attention of all Ps (e.g.
-    stopTheWorldWithSema and forEachP) ends up in a non-preemptible state
-    waiting to preempt another thread. Thing is, that other thread might
-    also be in a non-preemptible state, trying to preempt the first thread,
-    resulting in a deadlock.
+    If needed, the built-in function append allocates a new underlying
+    array. While we (probably) don't want to specify exactly how much
+    is allocated (the prose is deliberately vague), if there's more
+    space allocated than needed (cap > len after allocation), that
+    extra space is zeroed. Use an explicit link to the section on
+    Allocation which explicitly states that newly allocated memory
+    is zeroed.
     
-    This is a general problem, but in practice it only boils down to one
-    specific scenario: a thread in GC is blocked trying to preempt a
-    goroutine to scan its stack while that goroutine is blocked in a
-    non-preemptible state to get the attention of all Ps.
+    Fixes #56684.
     
-    There's currently a hack in a few places in the runtime to move the
-    calling goroutine into _Gwaiting before it goes into a non-preemptible
-    state to preempt other threads. This lets the GC scan its stack because
-    the goroutine is trivially preemptible. The only restriction is that
-    forEachP and stopTheWorldWithSema absolutely cannot reference the
-    calling goroutine's stack. This is generally not necessary, so things
-    are good.
-    
-    Anyway, to avoid exposing the details of this hack, this change creates
-    a safer wrapper around forEachP (and then renames it to forEachP and the
-    existing one to forEachPInternal) that performs the goroutine status
-    change, just like stopTheWorld does. We're going to need to use this
-    hack with forEachP in the new tracer, so this avoids propagating the
-    hack further and leaves it as an implementation detail.
-    
-    Change-Id: I51f02e8d8e0a3172334d23787e31abefb8a129ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533455
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I9805d37c263b87860ea703ad143f738a0846247e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452619
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mgc.go      | 63 ++++++++++++++++++++-----------------------------
- src/runtime/proc.go     | 29 +++++++++++++++++++++--
- src/runtime/runtime2.go |  2 ++
- 3 files changed, 55 insertions(+), 39 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

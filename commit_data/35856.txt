@@ -1,19 +1,17 @@
-commit 6780042f0a30569abcc3c5e9e0376761ac928ef5
-Author: Rob Pike <r@golang.org>
-Date:   Sun Jul 1 08:03:36 2018 +1000
+commit 63f4ab98ebbe168fd508469a76d038160af8487d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Feb 16 18:41:41 2018 +0000
 
-    testing/cover: improve comments on CoverBlock
+    cmd/compile: deduplicate racewalk switch cases
     
-    The previous CL (https://go-review.googlesource.com/c/go/+/96756)
-    added comments that didn't really say much, but there is something
-    so say: what the units are and that they are indexed starting at 1.
+    Only the contiguous ones, to keep the patch simple. Remove some
+    unnecessary newlines, while at it.
     
-    Add a more helpful comment on the type, and also follow proper
-    style by using initial capitals and a period.
-    
-    Change-Id: Id19cd5f392faf7c7bac034073f276cc770589075
-    Reviewed-on: https://go-review.googlesource.com/121875
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia588f80538b49a169fbf49835979ebff5a0a7b6d
+    Reviewed-on: https://go-review.googlesource.com/94756
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/testing/cover.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/racewalk.go | 42 ++++++---------------------------
+ 1 file changed, 7 insertions(+), 35 deletions(-)

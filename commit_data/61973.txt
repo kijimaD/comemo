@@ -1,0 +1,24 @@
+commit 3c8e5b13df931e88fde51ff09b27cceeaab9f6c4
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 27 13:27:21 2024 -0500
+
+    cmd/go/internal/cacheprog: drop redundant Prog prefixes
+    
+    Now that these types are in their own package, drop the unnecessary
+    Prog prefixes from everything.
+    
+    Updates #71032
+    Updates #59719
+    
+    Change-Id: Id54edf0473754e3b21a71beb72803fb5481206c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638996
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/cache/prog.go          | 24 ++++++-------
+ src/cmd/go/internal/cacheprog/cacheprog.go | 58 +++++++++++++++---------------
+ 2 files changed, 41 insertions(+), 41 deletions(-)

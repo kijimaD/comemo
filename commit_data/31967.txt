@@ -1,25 +1,21 @@
-commit 990dac2723d67b97692d4d35ac0a96189eeb5a09
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue Jun 13 07:24:36 2017 +0000
+commit 89ebe5bbca0638567771cb2b0376b059122a77ba
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 27 16:32:04 2017 +0000
 
-    cmd/internal/obj/arm64: fix assemble LDXP bug
+    net/http/httptest: don't panic on Close of user-constructed Server value
     
-    The current code calculates register number incorrectly.
+    If the user created an httptest.Server directly without using a
+    constructor it won't have the new unexported 'client' field. So don't
+    assume it's non-nil.
     
-    The fix corrects the register number calculation.
+    Fixes #19729
     
-    Add cases created by decoder to test assembler.
-    
-    Fixes #20697
-    Fixes #20723
-    
-    Change-Id: I73ac153df9ea9f51c43a5104828d7a5389551c92
-    Reviewed-on: https://go-review.googlesource.com/45850
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie92e5da66cf4e7fb8d95f3ad0f4e3987d3ae8b77
+    Reviewed-on: https://go-review.googlesource.com/38710
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Kevin Burke <kev@inburke.com>
 
- src/cmd/asm/internal/asm/endtoend_test.go    |   4 +
- src/cmd/asm/internal/asm/testdata/arm64enc.s | 503 +++++++++++++++++++++++++++
- src/cmd/internal/obj/arm64/asm7.go           |   6 +-
- 3 files changed, 510 insertions(+), 3 deletions(-)
+ src/net/http/httptest/server.go      |  6 ++++--
+ src/net/http/httptest/server_test.go | 17 +++++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

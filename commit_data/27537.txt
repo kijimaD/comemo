@@ -1,23 +1,18 @@
-commit 13a5b1faee06b59df456930d04edd2b5e083b019
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 26 12:16:53 2016 -0700
+commit 7a4211bc1f03672422ff0d761d3bf9d9f97b8997
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Fri Apr 1 00:54:13 2016 +0200
 
-    cmd/compile: improve domorder documentation
+    cmd/compile: constant fold ANDs.
     
-    domorder has some non-obvious useful properties
-    that we’re relying on in cse.
-    Document them and provide an argument that they hold.
-    While we’re here, do some minor renaming.
+    ANDQConst show up occassionally because of right shifting lowering.
+    ORs and XORs are already folded properly during generic.
     
-    The argument is a re-working of a private email
-    exchange with Todd Neal and David Chase.
-    
-    Change-Id: Ie154e0521bde642f5f11e67fc542c5eb938258be
-    Reviewed-on: https://go-review.googlesource.com/23449
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2f9134679555029c641264ce5333d70e167c65f7
+    Reviewed-on: https://go-review.googlesource.com/21375
     Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/cse.go        | 19 +++++++---------
- src/cmd/compile/internal/ssa/sparsetree.go | 36 +++++++++++++++++++++++++++---
- 2 files changed, 41 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 64 ++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+)

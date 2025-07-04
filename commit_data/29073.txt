@@ -1,22 +1,16 @@
-commit 5915ce66742415d96d5a082c41d31f965b719f26
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 4 16:22:41 2016 -0400
+commit 8050782cba45c739bfb2cd735766879098c48d99
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 23 13:54:01 2016 -0700
 
-    runtime: use len(h.spans) to indicate mapped region
+    flag: improve comment for calling String with zero value
     
-    Currently we set the len and cap of h.spans to the full reserved
-    region of the address space and track the actual mapped region
-    separately in h.spans_mapped. Since we have both the len and cap at
-    our disposal, change things so len(h.spans) tracks how much of the
-    spans array is mapped and eliminate h.spans_mapped. This simplifies
-    mheap and means we'll get nice "index out of bounds" exceptions if we
-    do try to go off the end of the spans rather than a SIGSEGV.
+    Update #16694.
     
-    Change-Id: I8ed9a1a9a844d90e9fd2e269add4704623dbdfe6
-    Reviewed-on: https://go-review.googlesource.com/30533
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Id6be1535d8a146b3dac3bee429ce407a51272032
+    Reviewed-on: https://go-review.googlesource.com/27634
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mheap.go | 21 ++++++++++++++-------
- 1 file changed, 14 insertions(+), 7 deletions(-)
+ src/flag/flag.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

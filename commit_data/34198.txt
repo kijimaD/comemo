@@ -1,13 +1,33 @@
-commit 8e0b814a3a2bfe3017efb8c8c1b412bfe4c36df1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Nov 12 22:11:11 2017 -0800
+commit f14f7b31416ee655dc588eb3a1772a7a4be2a61c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Oct 10 17:36:03 2017 +0100
 
-    runtime: fix minor doc typos in amd64 memmove
+    cmd/compile: make bad Ctypes be only 0
     
-    Change-Id: Ic1ce2f93d6a225699e9ce5307d62cdda8f97630d
-    Reviewed-on: https://go-review.googlesource.com/94024
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Before, -1 meant a node being nil or not an OLITERAL, and 0 meant an
+    OLITERAL missing a Val.
+    
+    However, the use of this value was confusing and led to some issues,
+    such as swt.go checking for < 0 instead of <= 0, causing panics.
+    
+    We never need to differentiate these two cases, so collapse both into 0.
+    To make it clear that negative values can no longer happen, make Ctype
+    an uint8.
+    
+    With this change, we can now get rid of the two n.Type == nil checks
+    in swt.go added to fix a couple of these panics.
+    
+    Thanks to Matthew Dempsky for spotting this inconsistency.
+    
+    Fixes #22001.
+    
+    Change-Id: I51c65a76f38a3e16788b6a3b57932dad3436dc7e
+    Reviewed-on: https://go-review.googlesource.com/69510
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/memmove_amd64.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 10 +++++-----
+ src/cmd/compile/internal/gc/order.go |  2 +-
+ src/cmd/compile/internal/gc/swt.go   | 16 +++-------------
+ 3 files changed, 9 insertions(+), 19 deletions(-)

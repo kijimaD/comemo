@@ -1,24 +1,13 @@
-commit 46f96079df8298796883bfb83832a9cc6f1d765d
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 6 07:54:43 2013 +1000
+commit 86c0cf10cb8d679039c2d51458435ff221352f81
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Sep 5 21:50:47 2013 +0200
 
-    undo CL 13004046 / 5db14b33d6ef
+    compress/zlib: add Reset method to Writer.
     
-    Flushing after every token negates the point of buffering. A different approach is required.
-    
-    ««« original CL description
-    encoding/xml: flush buffer after encoding token
-    
-    R=rsc, bradfitz, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13004046
-    
-    »»»
-    
-    R=golang-dev, adg, rsc
-    CC=golang-dev
-    https://golang.org/cl/13515043
+    https://golang.org/cl/13171046
 
- src/pkg/encoding/xml/marshal.go      | 3 ++-
- src/pkg/encoding/xml/marshal_test.go | 9 ---------
- 2 files changed, 2 insertions(+), 10 deletions(-)
+ src/pkg/compress/zlib/writer.go      | 29 +++++++++++++---
+ src/pkg/compress/zlib/writer_test.go | 65 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 90 insertions(+), 4 deletions(-)

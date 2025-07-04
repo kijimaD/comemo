@@ -1,19 +1,14 @@
-commit 50f1888814e2a72cb368c145a0d1c2f3af7a2f05
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Aug 13 20:51:43 2024 +0000
+commit 795414d1c628f763defa43199ab51ea3dc3241d8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Sep 21 13:41:31 2023 -0400
 
-    sync: add HashTrieMap to Map tests and benchmarks
+    cmd/compile: capitalize ir.MethodSym in comment
     
-    Also, rename Map benchmarks to make them easier to single out via
-    regexp.
-    
-    Change-Id: I4dcb066745aba1c340f56050d08539ae2976274d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606461
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I631704f87cc5343eeacdc800b819f2588e9528b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530315
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/sync/map_bench_test.go     | 56 ++++++++++++++++++++++--------------------
- src/sync/map_reference_test.go |  2 ++
- src/sync/map_test.go           | 11 +++++++++
- 3 files changed, 42 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/ir/expr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

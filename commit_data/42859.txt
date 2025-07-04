@@ -1,27 +1,21 @@
-commit 4f76fe86756841befb6574ce4bf04113d14389d4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 26 17:26:05 2020 -0700
+commit b0863ce0e6fbcf3e39f25cdd0b9380b3710507ba
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Sun Feb 23 17:28:56 2020 +0000
 
-    cmd/go, testing, os: fail test that calls os.Exit(0)
+    Revert "time: add Ticker.Reset"
     
-    This catches cases where a test calls code that calls os.Exit(0),
-    thereby skipping all subsequent tests.
+    This reverts CL 217362 (6e5652bebede2d53484a872f6d1dfeb498b0b50c.)
     
-    Fixes #29062
+    Reason for revert: Causing failures on arm64 bots. See #33184 for more info
     
-    Change-Id: If9478972f40189e27623557e7141469ca4234d89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250977
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I72ba40047e4138767d95aaa68842893c3508c52f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220638
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.16.html                           |  12 +++-
- src/cmd/go/internal/test/flagdefs_test.go |  11 ++-
- src/cmd/go/internal/test/genflags.go      |   7 +-
- src/cmd/go/internal/test/test.go          |   3 +-
- src/cmd/go/testdata/script/test_exit.txt  | 114 ++++++++++++++++++++++++++++++
- src/internal/testlog/exit.go              |  33 +++++++++
- src/os/proc.go                            |   8 +++
- src/testing/internal/testdeps/deps.go     |   5 ++
- src/testing/testing.go                    |  10 +++
- 9 files changed, 195 insertions(+), 8 deletions(-)
+ api/next.txt          |  1 -
+ doc/go1.15.html       | 10 ----------
+ src/runtime/time.go   |  8 +-------
+ src/time/sleep.go     |  1 -
+ src/time/tick.go      |  9 ---------
+ src/time/tick_test.go | 29 ++---------------------------
+ 6 files changed, 3 insertions(+), 55 deletions(-)

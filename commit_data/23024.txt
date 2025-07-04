@@ -1,12 +1,14 @@
-commit 5abdc24b006b98f32d5390691733a5c12b521b11
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 14 15:14:57 2015 -0700
+commit f9bc9a7a2eb732beb1e838203d1763f14f7c07ac
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Apr 7 14:51:29 2015 +1200
 
-    go/types: remove "vendoring" script - not useful anymore
+    cmd/internal/ld: set moduledatasize correctly when -linkshared
     
-    Change-Id: I4f4e6b99a22054666cd2284679cb0eca7f1042b8
-    Reviewed-on: https://go-review.googlesource.com/10086
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I1ea4175466c9113c1f41b012ba8266ee2b06e3a3
+    Reviewed-on: https://go-review.googlesource.com/8522
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types.bash | 97 -------------------------------------------------------
- 1 file changed, 97 deletions(-)
+ src/cmd/internal/ld/symtab.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

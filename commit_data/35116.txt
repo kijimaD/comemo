@@ -1,22 +1,20 @@
-commit be012e1e2e5fb24c765157fd2ca7e05675d6a1c2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 19 12:56:29 2018 -0700
+commit 44213336f06755115e6b9a5407af7a2312c0d896
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 14 15:32:12 2017 -0500
 
-    cmd/cgo: don't use absolute paths in the export header file
+    runtime: symbolize morestack caller in throwsplit panic
     
-    We were using absolute paths in the #line directives in the export
-    header file. This makes the header file change if you move GOPATH.
-    The absolute paths aren't helpful for the final user, which is some C
-    program elsewhere.
+    This attempts to symbolize the PC of morestack's caller when there's a
+    stack split at a bad time. The stack trace starts at the *caller* of
+    the function that attempted to grow the stack, so this is useful if it
+    isn't obvious what's being called at that point, such as in #21431.
     
-    Fixes #24945
-    
-    Change-Id: I2da32c9b477df578bd5087435a03fe97abe462e3
-    Reviewed-on: https://go-review.googlesource.com/108315
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5dee305d87c8069611de2d14e7a3083d76264f8f
+    Reviewed-on: https://go-review.googlesource.com/84115
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 31 +++++++++++++++++++++++++++++++
- src/cmd/cgo/out.go                     | 10 +++++++++-
- 2 files changed, 40 insertions(+), 1 deletion(-)
+ src/runtime/stack.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

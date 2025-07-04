@@ -1,42 +1,30 @@
-commit 0b4ab20d2cb30279c11a31cc6bd9324b14a4a38e
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Aug 7 13:09:18 2024 -0400
+commit 79d4defa75a26dd975c6ba3ac938e0e414dfd3e9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 27 16:51:24 2023 -0700
 
-    go/types, types2: only use fileVersion if 1.21 or greater
+    cmd/compile/internal/ssagen: fix min/max codegen, again
     
-    Only honor //go:build language version downgrades if the version
-    specified is 1.21 or greater. Before 1.21 the version in //go:build
-    lines didn't have the meaning of setting the file's language version.
+    The large-function phi placement algorithm evidently doesn't like the
+    same pseudo-variable being used to represent expressions of varying
+    types.
     
-    This fixes an issue that was appearing in GOPATH builds: Go 1.23 started
-    providing -lang versions to the compiler in GOPATH mode (among other
-    places) which it wasn't doing before.
+    Instead, use the same tactic as used for "valVar" (ssa.go:6585--6587),
+    which is to just generate a fresh marker node each time.
     
-    For example, take a go file with a //go:build line specifying go1.10.
-    If that file used a 1.18 feature, that use would compile fine with a Go
-    1.22 toolchain. But, before this change, it would produce an error when
-    compiling with the 1.23 toolchain because it set the language version to
-    1.20 and disallowed the 1.18 feature. This breaks backwards
-    compatibility: when the build tag was added, it did not have the meaning
-    of restricting the language version.
+    Maybe we could just use the OMIN/OMAX nodes themselves as the key
+    (like we do for OANDAND/OOROR), but that just seems needlessly risky
+    for negligible memory savings. Using fresh marker values each time
+    seems obviously safe by comparison.
     
-    Fixes #68658
+    Fixes #61041.
     
-    Change-Id: I4ac2b45a981cd019183d52ba324ba8f0fed93a8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603895
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Commit-Queue: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Change-Id: Ie2600c9c37b599c2e26ae01f5f8a433025d7fd08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506679
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/types2/api_test.go         |  8 ++++++--
- src/cmd/compile/internal/types2/check.go            | 15 ++++++++++++++-
- src/go/types/api_test.go                            |  8 ++++++--
- src/go/types/check.go                               | 15 ++++++++++++++-
- src/internal/types/testdata/check/go1_20_19.go      |  2 +-
- src/internal/types/testdata/check/go1_21_19.go      |  2 +-
- src/internal/types/testdata/check/go1_21_22.go      | 16 ++++++++++++++++
- src/internal/types/testdata/check/go1_22_21.go      | 16 ++++++++++++++++
- src/internal/types/testdata/fixedbugs/issue66285.go |  7 +------
- test/fixedbugs/issue63489a.go                       | 20 ++++++++++++--------
- 10 files changed, 87 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 5 ++++-
+ test/fixedbugs/issue60982.go           | 7 ++++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

@@ -1,21 +1,16 @@
-commit 5ec14065dcc4c066ca7e434be7239c942f0c2e5b
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Thu Jun 6 19:17:01 2019 +0800
+commit 73b803ee532173f64a5d3fb2cd0fbe789d49571e
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Feb 24 16:46:23 2019 +0100
 
-    syscall: fix skip condition in skipUnprivilegedUserClone
+    misc: wait for device readyness in the exec wrapper
     
-    This is a follow up CL of CL 180877:
-    It will skip test create user namespaces under 3 conditions:
+    Updates #23824
     
-    1. sysctl file is missing
-    2. file reads nothing
-    3. user don't have permission to create namespaces
-    
-    Change-Id: I25f00a6b67213bf98d654972388637789978e1fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180937
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I5472a05eb2cf571ccc84c76c6f592bf4dd2e3cb4
+    Reviewed-on: https://go-review.googlesource.com/c/163621
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/exec_linux_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/android/go_android_exec.go | 5 +++++
+ 1 file changed, 5 insertions(+)

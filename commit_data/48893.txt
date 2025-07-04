@@ -1,19 +1,22 @@
-commit 94f25ec94920beee5fb2dd4c0cbf4cbff28f14e6
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Apr 25 11:22:10 2022 -0400
+commit 9bdbf73c98b21c602f1304993176a6db0714f802
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 23 14:04:11 2021 -0700
 
-    debug/pe: fix off by one error in valid symbol index test
+    [dev.typeparams] cmd/compile: simplify writer.collectDecls
     
-    Fix an off-by-one error in COFFSymbolReadSectionDefAux, specifically
-    the code that tests whether a symbol index is valid.
+    The previous code for walking the syntax AST to find declarations
+    needed to know whether a declaration appeared within block scope, but
+    syntax.Crawl (née syntax.Walk) made that somewhat awkward.
     
-    Fixes #52525.
+    This CL simplifies it a little, taking advantage of syntax.Walk's
+    support for keeping per-subtree state.
     
-    Change-Id: I1b6e5dacfd99249c694bef5ae606e90fdb2ef521
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402156
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I03c7da8c44bec40f88e983852dc6bbab7e6ac13c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330549
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/debug/pe/symbol.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 148 ++++++++++++++++++-------------
+ 1 file changed, 85 insertions(+), 63 deletions(-)

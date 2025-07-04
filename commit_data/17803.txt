@@ -1,28 +1,13 @@
-commit 478f4b67543824c039d2f7afec6af88a59148db2
-Author: Alberto García Hierro <alberto@garciahierro.com>
-Date:   Wed Oct 16 09:17:25 2013 -0700
+commit 244014e40212a3790ebdc2b18ee3875262cced51
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 15 21:30:49 2013 -0400
 
-    database/sql: fix double decrement of numOpen count; test for connection leaks
+    doc/effective_go.html: fix code example
+    Fixes #6595.
     
-    Add a check at the end of every test to make sure
-    there are no leaked connections after running a test.
-    
-    Avoid incorrectly decrementing the number of open connections
-    when the driver connection ends up it a bad state (numOpen was
-    decremented twice).
-    
-    Prevent leaking a Rows struct (which ends up leaking a
-    connection) in Row.Scan() when a *RawBytes destination is
-    improperly used.
-    
-    Close the Rows struct in TestRowsColumns.
-    
-    Update #6593
-    
-    R=golang-dev, bradfitz, dave
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/14642044
+    https://golang.org/cl/14425062
 
- src/pkg/database/sql/sql.go      | 14 +++++++++-----
- src/pkg/database/sql/sql_test.go |  9 +++++++++
- 2 files changed, 18 insertions(+), 5 deletions(-)
+ doc/effective_go.html | 1 +
+ 1 file changed, 1 insertion(+)

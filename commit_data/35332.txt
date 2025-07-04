@@ -1,12 +1,27 @@
-commit 9eface7077f31ccf9580df6713252bb0fdd867e4
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Wed May 9 02:43:08 2018 +0800
+commit 8a064c600802eaab9da0cbc83adccafb5d1b8678
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 25 13:57:37 2018 -0500
 
-    cmd/trace: skip links for buckets with 0 count
+    runtime: fix silly frame sizes on arm and arm64
     
-    Change-Id: Ib1c2f7cc8e8f631ed9e74161699332f492d4cb0d
-    Reviewed-on: https://go-review.googlesource.com/112196
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    "-8" is not a sensible frame size on arm and we're about to start
+    rejecting it. Replace it with -4.
+    
+    Likewise, "-4" is not a sensible frame size on arm64 and we're about
+    to start rejecting it. Replace it with -8.
+    
+    Finally, clean up some places we're weirdly inconsistent about using 0
+    versus -8.
+    
+    Change-Id: If85e229993d5f7f1f0cfa9852b4e294d053bd784
+    Reviewed-on: https://go-review.googlesource.com/92038
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/trace/annotations.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/runtime/asm_arm64.s                    |  8 ++++----
+ src/runtime/internal/atomic/asm_arm64.s    |  4 ++--
+ src/runtime/internal/atomic/atomic_arm64.s |  6 +++---
+ src/runtime/sys_freebsd_arm.s              | 18 +++++++++---------
+ src/runtime/sys_netbsd_arm.s               |  6 +++---
+ 5 files changed, 21 insertions(+), 21 deletions(-)

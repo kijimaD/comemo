@@ -1,25 +1,15 @@
-commit ac24388e5e5bdc129451c074a349a982e1d55ffa
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Sep 26 11:14:41 2016 -0700
+commit d0c1888739ac0d5d0c9f82a4b86945c0351caef6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 2 08:11:01 2016 +1000
 
-    runtime: merge setting new signal mask in minit
+    doc: revert copyright date to 2009
     
-    All the variants that sets the new signal mask in minit do the same
-    thing, so merge them. This requires an OS-specific sigdelset function;
-    the function already exists for linux, and is now added for other OS's.
+    Somehow this date was changed in error (by me) to 2012.
+    It should have always been 2009.
     
-    Change-Id: Ie96f6f02e2cf09c43005085985a078bd9581f670
-    Reviewed-on: https://go-review.googlesource.com/29771
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I87029079458d4c4eeeff2f2fc0574f10afa9af09
+    Reviewed-on: https://go-review.googlesource.com/23622
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/os3_solaris.go  | 16 +++++-----------
- src/runtime/os_darwin.go    | 17 +++++------------
- src/runtime/os_dragonfly.go | 18 ++++++------------
- src/runtime/os_freebsd.go   | 18 ++++++------------
- src/runtime/os_linux.go     | 16 ++--------------
- src/runtime/os_netbsd.go    | 15 +++++----------
- src/runtime/os_openbsd.go   | 18 ++++++------------
- src/runtime/signal_unix.go  | 25 +++++++++++++++++++++++++
- 8 files changed, 60 insertions(+), 83 deletions(-)
+ LICENSE | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,22 +1,28 @@
-commit 64e041652aa2c431ff2aec6745dfecf32abac66a
+commit 189397df5855a35cd23c76becf5cd16b10bb4dce
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Mar 12 19:42:58 2014 -0700
+Date:   Wed Mar 12 18:12:56 2014 -0700
 
-    runtime: call symtabinit earlier
+    os: relax the way we kill processes on Plan 9
     
-    Otherwise, we won't get a stack trace in some of the early init.
+    Previously, we wrote "kill" to the process control file
+    to kill a program. This is problematic because it doesn't
+    let the program gracefully exit.
     
-    Here's one example:
+    This matters especially if the process we're killing is a
+    Go program. On Unix, sending SIGKILL to a Go program will
+    automatically kill all runtime threads. On Plan 9, there
+    are no threads so when the program wants to exit it has to
+    somehow signal all of the runtime processes. It can't do
+    this if we mercilessly kill it by writing to it's control
+    file.
     
-            http://build.golang.org/log/a96d10f6aee1fa3e3ae51f41da46d414a7ab02de
-    
-    After walking the stack by hand in acid, I was able to determine
-    that the stackalloc inside mpreinit was causing the throw.
+    Instead, we now send it a note to invoke it's note handler
+    and let it perform any cleanup before exiting.
     
     LGTM=rsc
-    R=rsc, dvyukov
+    R=rsc, 0intro
     CC=golang-codereviews
-    https://golang.org/cl/72450044
+    https://golang.org/cl/74440044
 
- src/pkg/runtime/proc.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/pkg/os/exec_plan9.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

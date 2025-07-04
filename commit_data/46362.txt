@@ -1,30 +1,20 @@
-commit c8d4fe2adc556317f75c2ebad195568ad5ff9644
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Sep 8 09:58:44 2021 -0400
+commit 18ebfb49e9114b98e5a66acae073f5514e383aba
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 23 02:00:39 2020 -0800
 
-    go/types: temporarily pin the Checker to Interface during checking
+    [dev.regabi] cmd/compile: cleanup noder
     
-    While type checking expressions involving interface types, it is
-    possible that their type set is used before delayed actions are
-    processed. As a result, computeInterfaceTypeSet is called with a nil
-    checker, and errors in the interface type definition result in panics
-    (see #48234).
+    Similar to previous CL: take advantage of better constructor APIs for
+    translating ASTs from syntax to ir.
     
-    To avoid the panics, store a *Checker on Interface for use in between
-    checking of the interface type expression and processing of delayed
-    actions.
+    Passes toolstash -cmp.
     
-    Fixes #48234
-    
-    Change-Id: I5509bc1c01b55edac52446b9e075fbe8fcc01874
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348371
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I40970775e7dd5afe2a0b7593ce3bd73237562457
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279972
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/types/interface.go                      | 15 ++++++++++++---
- src/go/types/sizeof_test.go                    |  2 +-
- src/go/types/testdata/fixedbugs/issue48234.go2 | 10 ++++++++++
- src/go/types/universe.go                       |  4 ++--
- 4 files changed, 25 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/noder.go | 96 ++++++++++++---------------------
+ 1 file changed, 33 insertions(+), 63 deletions(-)

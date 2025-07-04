@@ -1,55 +1,41 @@
-commit bfe3c678ab70d9a033b219276636c3f4669c1dc9
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Mar 31 19:16:12 2023 +0000
+commit 50b1add5a73f05b0142adf783b6825c0c149882b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 4 17:49:37 2022 -0400
 
-    Revert "runtime/cgo: store M for C-created thread in pthread key"
+    crypto/elliptic: precompute ScalarBaseMult doublings
     
-    This reverts CL 392854.
+    name                    old time/op    new time/op    delta
+    pkg:crypto/ecdsa goos:darwin goarch:amd64
+    Sign/P224-16               250µs ± 2%      91µs ± 2%  -63.42%  (p=0.000 n=10+9)
+    Sign/P384-16               955µs ± 3%     311µs ± 2%  -67.48%  (p=0.000 n=10+10)
+    Sign/P521-16              2.74ms ± 2%    0.82ms ± 2%  -69.95%  (p=0.000 n=10+10)
+    Verify/P224-16             440µs ± 3%     282µs ± 5%  -35.94%  (p=0.000 n=9+10)
+    Verify/P384-16            1.72ms ± 2%    1.07ms ± 1%  -38.02%  (p=0.000 n=10+9)
+    Verify/P521-16            5.10ms ± 2%    3.18ms ± 3%  -37.70%  (p=0.000 n=10+10)
+    GenerateKey/P224-16        225µs ± 3%      67µs ± 4%  -70.42%  (p=0.000 n=9+10)
+    GenerateKey/P384-16        881µs ± 1%     241µs ± 2%  -72.67%  (p=0.000 n=10+10)
+    GenerateKey/P521-16       2.62ms ± 3%    0.69ms ± 3%  -73.78%  (p=0.000 n=10+9)
+    pkg:crypto/elliptic/internal/nistec goos:darwin goarch:amd64
+    ScalarMult/P224-16         219µs ± 4%     209µs ± 3%   -4.57%  (p=0.003 n=10+10)
+    ScalarMult/P384-16         838µs ± 2%     823µs ± 1%   -1.72%  (p=0.004 n=10+9)
+    ScalarMult/P521-16        2.48ms ± 2%    2.45ms ± 2%     ~     (p=0.052 n=10+10)
+    ScalarBaseMult/P224-16     214µs ± 4%      54µs ± 4%  -74.88%  (p=0.000 n=10+10)
+    ScalarBaseMult/P384-16     828µs ± 2%     196µs ± 3%  -76.38%  (p=0.000 n=10+10)
+    ScalarBaseMult/P521-16    2.50ms ± 3%    0.55ms ± 2%  -77.96%  (p=0.000 n=10+10)
     
-    Reason for revert: caused #59294, which was derived from google
-    internal tests. The attempted fix of #59294 caused more breakage.
+    Updates #52424
+    For #52182
     
-    Change-Id: I5a061561ac2740856b7ecc09725ac28bd30f8bba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481060
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2be3c2b8cdeead512063ef489e43805f4ee71d0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404174
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Fernando Lobato Meeser <felobato@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- misc/cgo/test/cgo_test.go                 |  7 +--
- misc/cgo/test/cthread_unix.c              | 24 --------
- misc/cgo/test/cthread_windows.c           | 22 --------
- misc/cgo/test/testx.go                    | 14 -----
- src/runtime/asm_386.s                     | 41 ++------------
- src/runtime/asm_amd64.s                   | 38 ++-----------
- src/runtime/asm_arm.s                     | 37 ++-----------
- src/runtime/asm_arm64.s                   | 32 ++---------
- src/runtime/asm_loong64.s                 | 32 ++---------
- src/runtime/asm_mips64x.s                 | 32 ++---------
- src/runtime/asm_mipsx.s                   | 32 ++---------
- src/runtime/asm_ppc64x.s                  | 35 ++----------
- src/runtime/asm_riscv64.s                 | 32 ++---------
- src/runtime/asm_s390x.s                   | 32 ++---------
- src/runtime/cgo.go                        |  7 ---
- src/runtime/cgo/asm_386.s                 |  8 ---
- src/runtime/cgo/asm_amd64.s               |  8 ---
- src/runtime/cgo/asm_arm.s                 |  8 ---
- src/runtime/cgo/asm_arm64.s               |  8 ---
- src/runtime/cgo/asm_loong64.s             |  8 ---
- src/runtime/cgo/asm_mips64x.s             |  8 ---
- src/runtime/cgo/asm_mipsx.s               |  8 ---
- src/runtime/cgo/asm_ppc64x.s              | 24 --------
- src/runtime/cgo/asm_riscv64.s             |  8 ---
- src/runtime/cgo/asm_s390x.s               |  8 ---
- src/runtime/cgo/asm_wasm.s                |  3 -
- src/runtime/cgo/callbacks.go              | 36 ------------
- src/runtime/cgo/gcc_libinit.c             | 35 ------------
- src/runtime/cgo/gcc_libinit_windows.c     |  9 ---
- src/runtime/cgo/libcgo.h                  |  5 --
- src/runtime/cgocall.go                    |  6 --
- src/runtime/crash_cgo_test.go             | 13 -----
- src/runtime/proc.go                       | 92 ++++---------------------------
- src/runtime/runtime2.go                   |  1 -
- src/runtime/signal_unix.go                | 16 +-----
- src/runtime/stubs.go                      |  3 -
- src/runtime/testdata/testprogcgo/bindm.go | 89 ------------------------------
- 37 files changed, 61 insertions(+), 760 deletions(-)
+ src/crypto/elliptic/internal/nistec/generate.go | 115 +++++++++++++++++++-----
+ src/crypto/elliptic/internal/nistec/p224.go     | 115 +++++++++++++++++++-----
+ src/crypto/elliptic/internal/nistec/p256.go     | 115 +++++++++++++++++++-----
+ src/crypto/elliptic/internal/nistec/p384.go     | 115 +++++++++++++++++++-----
+ src/crypto/elliptic/internal/nistec/p521.go     | 115 +++++++++++++++++++-----
+ 5 files changed, 465 insertions(+), 110 deletions(-)

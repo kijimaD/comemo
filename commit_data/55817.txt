@@ -1,22 +1,16 @@
-commit de487d561653e7f2ec7a54832c9edcb1d9754594
-Author: apocelipes <seve3r@outlook.com>
-Date:   Mon Mar 4 16:44:43 2024 +0000
+commit bf03fa98077c11fc76de8afa48bcf676ca0e0704
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 15 16:44:36 2023 -0700
 
-    cmd/compile/internal: replace direct calls to Sym.LinksymABI
+    internal/fuzz: more debug logging
     
-    Using (*Sym).LinksymABI(abi) directly is not recommended.
-    
-    Replace with (*ir.Name).LinksymABI(abi).
-    
-    Change-Id: I95d5d35240d4e1856ba511d828f6edefcee81b4f
-    GitHub-Last-Rev: 6787b65716ab82d2f35cda4f3839bfd85baa41dd
-    GitHub-Pull-Request: golang/go#66094
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568855
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I2c36baf423dde419aaa940ce9308088f3bf431f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476718
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/ir/func.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/fuzz/fuzz.go   |  5 +++--
+ src/internal/fuzz/worker.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

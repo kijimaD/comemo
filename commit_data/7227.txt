@@ -1,12 +1,15 @@
-commit 2aa6cf3e7ec578d7fb4d4a2aa73e4685fb5df1de
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Mon Jan 24 20:59:39 2011 +0100
+commit 59a6395279e8529b54d96bb84051d38206d63e50
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Mon Jan 24 14:16:24 2011 -0500
 
-    [68]l: more robust decoding of reflection type info in generating dwarf.
+    codereview: fix windows
     
-    R=rsc
-    CC=golang-dev, golang-dev
-    https://golang.org/cl/4106041
+    Uploading go files on Windows aborts with gofmt: exceptions.ValueError:
+    close_fds is not supported on Windows platforms if you redirect stdin/stdout/stderr
+    
+    R=rsc, mattn, Joe Poirier
+    CC=golang-dev
+    https://golang.org/cl/4025046
 
- src/cmd/ld/dwarf.c | 44 +++++++++++++++++++++++++++++---------------
- 1 file changed, 29 insertions(+), 15 deletions(-)
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

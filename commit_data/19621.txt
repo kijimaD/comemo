@@ -1,13 +1,13 @@
-commit a6999c88455e6453964f4b3eac7c11a9febeb5c2
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri Jun 27 15:36:41 2014 +0200
+commit 548dece8f332fdfb55b78ebd678cb8f51207be95
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 26 13:00:47 2014 -0700
 
-    runtime: fix Plan 9 build
+    strings: avoid pointless slice growth in makeBenchInputHard
     
-    LGTM=0intro, aram
-    R=rsc, 0intro, aram
+    LGTM=ruiu
+    R=golang-codereviews, ruiu
     CC=golang-codereviews
-    https://golang.org/cl/109240044
+    https://golang.org/cl/108150043
 
- src/pkg/runtime/os_plan9.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/strings/strings_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

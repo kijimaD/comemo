@@ -1,0 +1,35 @@
+commit 3a3c006ac07886aa923a8aad0a4b3ed954640973
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri May 23 18:04:36 2025 +0200
+
+    crypto/tls: enable signature algorithm BoGo tests (and fix two bugs)
+    
+    The two bugs are very minor:
+    
+    - We were trying to set the ConnectionState CurveID field even if the
+      RSA key exchange was in use
+    
+    - We were sending the wrong alert from TLS 1.2 clients if none of the
+      certificate signature algorithms were supported
+    
+    Change-Id: I6a6a46564f5a9f1a5d44e54fc59a650118ad67d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675918
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/crypto/tls/auth.go                   |  23 ++---
+ src/crypto/tls/bogo_config.json          |  34 +++----
+ src/crypto/tls/bogo_shim_test.go         | 170 +++++++++++++++++++++++++------
+ src/crypto/tls/common.go                 |  65 ++++++++----
+ src/crypto/tls/conn.go                   |   2 +
+ src/crypto/tls/defaults.go               |  42 --------
+ src/crypto/tls/fips140_test.go           |   9 +-
+ src/crypto/tls/handshake_client.go       |  13 +--
+ src/crypto/tls/handshake_client_tls13.go |   1 +
+ src/crypto/tls/handshake_server.go       |   7 +-
+ src/crypto/tls/handshake_server_tls13.go |   1 +
+ src/crypto/tls/key_agreement.go          |  41 ++++----
+ 12 files changed, 253 insertions(+), 155 deletions(-)

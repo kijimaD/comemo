@@ -1,29 +1,52 @@
-commit 1fffeddfe9c977510d855277da57e0564700d6c3
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Jul 20 14:37:53 2021 -0700
+commit 1408d26ccca5f770e29785ddd442523416de2dd6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 11:37:30 2020 -0800
 
-    cmd/go: add -testsum flag to update go.sum in script tests
+    [dev.regabi] cmd/compile: cleanup some leftover cruft
     
-    -testsum may be set to "tidy", "listm", or "listall". When set,
-    TestScript runs 'go mod tidy', 'go list -m -mod=mod all', or
-    'go list -mod=mod all' at the beginning of each test that has a go.mod
-    file in its root directory. If the test passes and go.mod or go.sum
-    was updated, TestScript will rewrite the test file with the initial
-    content of go.mod and go.sum (after the above command).
+    Just clearing away some scaffolding artifacts from previous
+    refactorings.
     
-    This is useful for writing tests that need a working go.sum and for
-    fixing tests that rely on -mod=mod.
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+    ex {
+      import "cmd/compile/internal/ir"
+      import "cmd/compile/internal/types"
     
-    For golang/go#41302
+      var n *ir.Name; n.Name() -> n
+      var f *ir.Func; f.Func() -> f
     
-    Change-Id: I63a5667621a5082ccedfc1bff33c3969c29e8b3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336150
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+      var o types.Object
+      ir.AsNode(o).Sym() -> o.Sym()
+      ir.AsNode(o).Type() -> o.Type()
+      ir.AsNode(o).(*ir.Name) -> o.(*ir.Name)
+      ir.AsNode(o).(*ir.Func) -> o.(*ir.Func)
+    
+      var x ir.Node
+      ir.AsNode(o) != x -> o != x
+    }
+    '
+    
+    Change-Id: I946ec344bd7ee274900a392da53b95308ceaade4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274592
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341932
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/script_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 81 insertions(+)
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/dcl.go       | 10 +++++-----
+ src/cmd/compile/internal/gc/escape.go    | 10 +++++-----
+ src/cmd/compile/internal/gc/iexport.go   |  4 ++--
+ src/cmd/compile/internal/gc/init.go      |  2 +-
+ src/cmd/compile/internal/gc/main.go      |  2 +-
+ src/cmd/compile/internal/gc/noder.go     |  2 +-
+ src/cmd/compile/internal/gc/obj.go       |  4 ++--
+ src/cmd/compile/internal/gc/pgen.go      | 16 ++++++++--------
+ src/cmd/compile/internal/gc/reflect.go   |  4 ++--
+ src/cmd/compile/internal/gc/ssa.go       |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ src/cmd/compile/internal/gc/universe.go  |  2 +-
+ src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
+ 14 files changed, 39 insertions(+), 39 deletions(-)

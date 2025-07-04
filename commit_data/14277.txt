@@ -1,14 +1,29 @@
-commit c7873ff2a64982a4fa4f3c9177d4ec80f66e7db6
-Author: Ryan Hitchman <hitchmanr@gmail.com>
-Date:   Thu Nov 1 13:57:24 2012 -0400
+commit 1e8e14c901cebde0550c4fe0c1a77b3902d6080d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 1 10:13:48 2012 -0700
 
-    compress/flate: shrink decompressor struct for better performance
+    spec: clarify returns, defer statements, and panics
     
-    Helps with issue 2703.
+    This is an attempt at making the interaction between
+    these three constructs clearer. Specifically:
     
-    R=dave, minux.ma, rsc
+    - return statements terminate a function, execute deferred
+      functions, return to the caller, and then execution
+      continues after the call
+    
+    - panic calls terminate a function, execute deferred
+      functions, return to the caller, and then re-panic
+    
+    - deferred functions are executed before a function _returns_
+      to its caller
+    
+    The hope is that with this change it becomes clear when a
+    deferred function is executed (when a function returns),
+    and when it is not (when a program exits).
+    
+    R=r, rsc, iant, ken, iant
     CC=golang-dev
-    https://golang.org/cl/5536078
+    https://golang.org/cl/6736071
 
- src/pkg/compress/flate/inflate.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 63 ++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 34 insertions(+), 29 deletions(-)

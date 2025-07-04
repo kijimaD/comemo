@@ -1,12 +1,13 @@
-commit f3050dbbb5fef971aa592ac5e082a434b5dc1a8c
+commit d4507d44a65e0b064f2728e92cf1221d6f1cd465
 Author: Rob Pike <r@golang.org>
-Date:   Tue Sep 27 10:22:42 2011 -0700
+Date:   Tue Sep 27 09:33:26 2011 -0700
 
-    exp/ssh: update tag usage to new convention.
+    archive/zip: fix Fatal call
+    Error found by govet.
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5136047
+    https://golang.org/cl/5142048
 
- src/pkg/exp/ssh/messages.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/archive/zip/writer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

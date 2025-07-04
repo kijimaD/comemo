@@ -1,14 +1,15 @@
-commit 377ac335afb298bff873f3f95cd54ea71cfc7f43
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Fri Nov 4 15:35:59 2011 -0400
+commit cd6c7375d49edd52de557b0ec1cc5f37889ecaae
+Author: Jani Monoses <jani.monoses@ubuntu.com>
+Date:   Fri Nov 4 15:07:34 2011 -0400
 
-    math: improved high-angle test for Cos, Sin and Tan
+    goinstall: allow packages from launchpad.net/~user branches.
     
-    Maximum error for 386 is "close" (1e-14). For amd64, it's "veryclose" (4e-16).
+    The permitted filename characters should include ~ to allow
+    the names of user-owned branches in Launchpad.
     
-    R=rsc, golang-dev
-    CC=golang-dev
-    https://golang.org/cl/5340042
+    R=golang-dev, rsc, n13m3y3r, gustavo
+    CC=golang-dev, gustavo.niemeyer
+    https://golang.org/cl/5280052
 
- src/pkg/math/all_test.go | 59 ++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 50 insertions(+), 9 deletions(-)
+ src/cmd/goinstall/make.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

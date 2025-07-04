@@ -1,21 +1,18 @@
-commit 712d47ce15d01d31798d8a9fe677d587cf21c1d6
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Wed Sep 25 20:20:06 2024 +0800
+commit d7549821a0136593e9872e9c50c45c8ce038704b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 16 10:39:34 2023 -0400
 
-    text/template: support range-over-int
+    cmd/go: clean internal/vcs slightly
     
-    Fixes #66107
+    Delete CheckNested, which was for GOPATH get.
+    Unexport CheckGOVCS, which was only exported for GOPATH get.
     
-    Change-Id: I19b466e3fb17557cf4f198b7fd8c13e774d854b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615095
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I6d3f772bfea70f4a3ec197d48b74c3d6d58bcdce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520037
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- doc/next/6-stdlib/99-minor/text/template/66107.md |  2 +-
- src/text/template/doc.go                          |  4 ++--
- src/text/template/exec.go                         | 16 +++++++++++++++
- src/text/template/exec_test.go                    | 24 +++++++++++++++++++++++
- 4 files changed, 43 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go | 39 ++++-----------------------------------
+ 1 file changed, 4 insertions(+), 35 deletions(-)

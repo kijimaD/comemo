@@ -1,27 +1,26 @@
-commit da7173a2ed637c803b8ff59d0c948e7c7d056c50
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Mon Sep 20 16:09:47 2021 +0200
+commit 4c1a7ab49c4c68907bc7f7f7f776edd9116584a5
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Mon Jan 18 14:41:20 2021 +0800
 
-    runtime: fix missing pprof labels
+    cmd/go: reject relative paths in GOMODCACHE environment
     
-    Use gp.m.curg instead of the gp when recording cpu profiler stack
-    traces. This ensures profiler labels are captured when systemstack or similar
-    is executing on behalf of the current goroutine.
+    Go already rejects relative paths in a couple environment variables,
+    It should reject relative paths in GOMODCACHE.
     
-    After this there are still rare cases of samples containing the labelHog
-    function, so more work might be needed. This patch should fix ~99% of the
-    problem.
+    Fixes #43715
     
-    Fixes #48577.
-    
-    Change-Id: I27132110e3d09721ec3b3ef417122bc70d8f3279
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351751
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: Id1ceff839c7ab21c00cf4ace45ce48324733a526
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284432
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Baokun Lee <bk@golangcn.org>
 
- src/runtime/cpuprof.go          | 11 +------
- src/runtime/pprof/pprof_test.go | 67 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/proc.go             |  9 +++++-
- 3 files changed, 76 insertions(+), 11 deletions(-)
+ src/cmd/go/internal/envcmd/env.go            |  2 +-
+ src/cmd/go/internal/modfetch/cache.go        | 31 +++++++++++++++++-----------
+ src/cmd/go/internal/modfetch/fetch.go        |  6 ++----
+ src/cmd/go/testdata/script/env_write.txt     |  6 ++++++
+ src/cmd/go/testdata/script/mod_cache_dir.txt | 11 ++++++++++
+ 5 files changed, 39 insertions(+), 17 deletions(-)

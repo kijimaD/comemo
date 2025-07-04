@@ -1,15 +1,16 @@
-commit d02a4c1d60a875e5d4dd5300860e63d7e6ad8151
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jul 23 11:42:51 2015 +1000
+commit 71b570774da4c42139a9e16735a353209f0f8def
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 24 12:47:00 2015 -0700
 
-    runtime: test that timeBeginPeriod succeeds
+    [dev.ssa] cmd/compile: finish implementing comparisons
     
-    Change-Id: I5183f767dadb6d24a34d2460d02e97ddbaab129a
-    Reviewed-on: https://go-review.googlesource.com/12546
-    Run-TryBot: Minux Ma <minux@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4e496c7c7239111133631f76ca25e14be64800c6
+    Reviewed-on: https://go-review.googlesource.com/12656
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/export_windows_test.go  | 5 ++++-
- src/runtime/os1_windows.go          | 4 +++-
- src/runtime/syscall_windows_test.go | 7 +++++++
- 3 files changed, 14 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           | 105 +++++++----------------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   6 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   3 +
+ src/cmd/compile/internal/ssa/opGen.go        |  39 +++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 120 +++++++++++++++++++++++++++
+ 5 files changed, 197 insertions(+), 76 deletions(-)

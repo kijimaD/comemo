@@ -1,18 +1,17 @@
-commit e382bf5b322c9814e910212ebd19907b68606c49
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Fri Feb 14 12:39:44 2025 -0500
+commit 22284c34f2936d996a182daae3118dcff18a4d25
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 11 12:29:32 2023 -0500
 
-    unique: use runtime.AddCleanup instead of runtime.SetFinalizer
+    doc/go1.22: document removal of 'go get' support in GOPATH mode
     
-    Replace the usage of runtime.SetFinalizer with runtime.AddCleanup in
-    tests.
+    For #61422.
+    Updates #60915.
     
-    Updates #70907
-    
-    Change-Id: I0d91b6af9643bde278215318f6176277373ddd19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649458
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ia8ca12c163a02223b26c5e4cd4c1b6093978aba4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548875
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/unique/handle_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/go1.22.html | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

@@ -1,21 +1,15 @@
-commit 29b4e34cf208653db1471134a1a6489581a30ff5
-Author: David du Colombier <0intro@gmail.com>
-Date:   Mon Dec 29 17:35:42 2014 +0100
+commit a87e4a2d01097c7f2430df0427aaae9c0b6f2031
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 14 12:55:10 2014 -0500
 
-    runtime: rename atoi to _atoi on Plan 9
+    [dev.cc] runtime: fix linux build
     
-    Following change 2154, the goatoi function
-    was renamed atoi.
-    
-    However, this definition conflicts with the
-    atoi function defined in the Plan 9 runtime,
-    which takes a []byte instead of a string.
-    
-    This change fixes the build on Plan 9.
-    
-    Change-Id: Ia0f7ca2f965bd5e3cce3177bba9c806f64db05eb
-    Reviewed-on: https://go-review.googlesource.com/2165
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TBR=austin
+    CC=golang-codereviews
+    https://golang.org/cl/176760044
 
- src/runtime/os1_plan9.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/defs_linux_386.go   | 4 ++++
+ src/runtime/defs_linux_amd64.go | 4 ++++
+ src/runtime/defs_linux_arm.go   | 4 ++++
+ src/runtime/os1_linux.go        | 4 ++--
+ 4 files changed, 14 insertions(+), 2 deletions(-)

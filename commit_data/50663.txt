@@ -1,19 +1,27 @@
-commit b32689f6c3156da19d469f35cc68fc155d401ef9
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Aug 17 14:52:45 2022 -0400
+commit 256a8fc6ef297f2a2cec0cb7c918f61706b6f9a3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 4 23:13:12 2021 +0000
 
-    cmd/go: refactor package references in Builder.build
+    sync/atomic: disable GC during TestHammerStoreLoad
     
-    Refactor references to "a.Package" in Builder.build to be consistent,
-    e.g. all via the "p" helper variable. No change in functionality, this
-    is just intended to make the code more readable/consistent (since
-    prior to this point we had a random mix of "p" and "a.Package").
+    TestHammerStoreLoad involves a stress test of StorePointer, which has a
+    write barrier. The "pointer" that is being written is not a real value,
+    which is generally fine (though not *really* safe) on 64-bit systems
+    because they never point to an actual object.
     
-    Change-Id: Ifea5ff9b314c39a0cf6e688511907d08cc56c603
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424819
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    On 32-bit systems, however, this is much more likely. Because I can't
+    figure out how to rewrite the test such that it still is testing the
+    same conditions but is also using real pointers, just disable the GC
+    during the test, and make sure there isn't one currently in progress.
+    
+    Fixes #49362.
+    
+    Change-Id: If81883fedf06568132e6484f40c820aa69027a9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361455
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/work/exec.go | 64 ++++++++++++++++++++--------------------
- 1 file changed, 32 insertions(+), 32 deletions(-)
+ src/sync/atomic/atomic_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

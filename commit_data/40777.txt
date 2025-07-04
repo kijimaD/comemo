@@ -1,13 +1,47 @@
-commit a56d755f41461bd3a1eb700b0095d82f7a812c1a
-Author: David Chase <drchase@google.com>
-Date:   Wed Oct 30 13:36:37 2019 -0400
+commit 91c385b3936e757e4cda01c9265de3b4abf601c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 28 01:42:08 2019 -0400
 
-    cmd/compile: expand initial $GOROOT in optimizer logging json/lsp file names
+    runtime: fix pprof cpu profile corruption on arm/mips/mipsle
     
-    Change-Id: I9596536e04aef034623b51b42f44e4978f07ac47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204339
-    Run-TryBot: David Chase <drchase@google.com>
+    CL 42652 changed the profile handler for mips/mipsle to
+    avoid recording a profile when in atomic functions, for fear
+    of interrupting the 32-bit simulation of a 64-bit atomic with
+    a lock. The profile logger itself uses 64-bit atomics and might
+    deadlock (#20146).
+    
+    The change was to accumulate a count of dropped profile events
+    and then send the count when the next ordinary event was sent:
+    
+            if prof.hz != 0 {
+            +       if (GOARCH == "mips" || GOARCH == "mipsle") && lostAtomic64Count > 0 {
+            +               cpuprof.addLostAtomic64(lostAtomic64Count)
+            +               lostAtomic64Count = 0
+            +       }
+                    cpuprof.add(gp, stk[:n])
+            }
+    
+    CL 117057 extended this behavior to include GOARCH == "arm".
+    
+    Unfortunately, the inserted cpuprof.addLostAtomic64 differs from
+    the original cpuprof.add in that it neglects to acquire the lock
+    protecting the profile buffer.
+    
+    This has caused a steady stream of flakes on the arm builders
+    for the past 12 months, ever since CL 117057 landed.
+    
+    This CL moves the lostAtomic count into the profile buffer and
+    then lets the existing addExtra calls take care of it, instead of
+    duplicating the locking logic.
+    
+    Fixes #24991.
+    
+    Change-Id: Ia386c40034fcf46b31f080ce18f2420df4bb8004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184164
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/logopt/log_opts.go | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+ src/runtime/cpuprof.go | 27 +++++++++++++++------------
+ src/runtime/proc.go    |  9 +--------
+ 2 files changed, 16 insertions(+), 20 deletions(-)

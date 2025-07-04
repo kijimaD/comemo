@@ -1,16 +1,19 @@
-commit cf63e34b1dfe25f4a9f1d21294891bbe96d6540d
-Author: Eoghan Sherry <ejsherry@gmail.com>
-Date:   Wed Feb 2 22:36:54 2011 -0500
+commit fb9fc886ff937a0868e77b3c7942ccd56eea5d4a
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Thu Feb 3 12:50:41 2011 +1100
 
-    gc: correct rounding of denormal constants
+    windows: syscall: Make ForkExec acquire the ForkLock
+    so that spawned processes avoid inheriting pipes.
     
-    Fixes #1463.
+    Implement CloseOnExec.
+    Make file and pipe handles inheritable.
     
-    R=rsc
+    R=rsc, brainman, vincent.vanackere
     CC=golang-dev
-    https://golang.org/cl/4079060
+    https://golang.org/cl/4126047
 
- src/cmd/gc/mparith3.c        | 27 ++++++++++++++++++++-------
- src/pkg/strconv/ftoa_test.go |  3 +--
- test/fixedbugs/bug321.go     | 30 ++++++++++++++++++++++++++++++
- 3 files changed, 51 insertions(+), 9 deletions(-)
+ src/pkg/syscall/exec_windows.go         |  8 +++++++-
+ src/pkg/syscall/syscall_windows.go      | 22 +++++++++++++++++-----
+ src/pkg/syscall/zsyscall_windows_386.go | 24 ++++++++++++++++++++----
+ src/pkg/syscall/ztypes_windows_386.go   |  7 +++++++
+ 4 files changed, 51 insertions(+), 10 deletions(-)

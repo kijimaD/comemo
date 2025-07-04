@@ -1,20 +1,18 @@
-commit b12366bbb5e83ce0c4d3958d87c0872d2ad0e3e2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 11 16:49:19 2022 -0400
+commit cb9ccd494b778577d01cd6053b8288fc6d665de7
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Sep 3 11:17:37 2021 -0400
 
-    cmd/dist: force stackGuardMultiplierDefault to 1
+    go/types: move typeHash to environment.go
     
-    Nothing seems to break, not even the noopt builder.
+    This is a pure code move, with no other changes.
     
-    For #51256 (the conversation there is headed toward additional changes).
-    
-    Change-Id: Icb7ca451159a74f351c25d2cefb32c773b9bb017
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416859
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Id31f1f960d3208dc614556de89bf39b7ca77df3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347560
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/buildruntime.go       | 23 ++---------------------
- src/cmd/internal/objabi/stack.go   |  2 +-
- src/runtime/internal/sys/consts.go |  2 +-
- 3 files changed, 4 insertions(+), 23 deletions(-)
+ src/go/types/environment.go | 36 ++++++++++++++++++++++++++++++++++--
+ src/go/types/subst.go       | 36 +-----------------------------------
+ 2 files changed, 35 insertions(+), 37 deletions(-)

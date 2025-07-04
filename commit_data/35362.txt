@@ -1,23 +1,17 @@
-commit 4826d20a0953b3682cf6eedd1e9becb68bbb25e9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 18 21:12:19 2018 -0400
+commit dc27d68936767277984ac731a06cb15c4f64c997
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Dec 1 12:57:57 2017 +0000
 
-    cmd/go/internal/work: cache cgo invocations for vet, build modes
+    syscall: reuse BSD forkExecPipe for Solaris
     
-    Even if we had an up-to-date package binary, we reran cgo anyway if
-    (1) we needed a header file for buildmode c-archive or c-shared, or
-    (2) we needed cgo-translated files source files for input to go vet.
+    The function was duplicated for Solaris. Reuse the BSD version instead.
     
-    Cache those outputs too, so that we can avoid cgo if possible.
-    
-    Working toward exposing the cgo-generated files in go list.
-    
-    Change-Id: I339ecace925d2b0adc235a17977ecadb3d636c73
-    Reviewed-on: https://go-review.googlesource.com/108015
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ibc812bcf36d21f4a7ceeef7b4fb091fa9479bfa8
+    Reviewed-on: https://go-review.googlesource.com/81395
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go            |  25 ++++
- src/cmd/go/internal/work/exec.go | 245 +++++++++++++++++++++++++++------------
- 2 files changed, 197 insertions(+), 73 deletions(-)
+ src/syscall/exec_solaris.go                  | 14 --------------
+ src/syscall/{forkpipe_bsd.go => forkpipe.go} |  3 ++-
+ 2 files changed, 2 insertions(+), 15 deletions(-)

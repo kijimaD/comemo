@@ -1,24 +1,20 @@
-commit 5a45a157f2e94cb3fec38a3be8afa3bffd800067
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Thu Mar 30 16:03:03 2017 -0700
+commit d160982a2ef9193384fb3c66939db0fb37a21ba3
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Dec 19 19:28:17 2016 +0200
 
-    database/sql: support scanning into user defined string types
+    cmd/vet: fix copylocks false positive on len(array) and cap(array).
     
-    User defined numeric types such as "type Int int64" have
-    been able to be scanned into without a custom scanner by
-    using the reflect scan code path used to convert between
-    various numeric types. Add in a path for string types
-    for symmetry and least surprise.
+    This is a follow-up for https://golang.org/cl/24340.
     
-    Fixes #18101
+    Updates #14664.
+    Fixes #18374.
     
-    Change-Id: I00553bcf021ffe6d95047eca0067ee94b54ff501
-    Reviewed-on: https://go-review.googlesource.com/39031
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: I2831556a9014d30ec70d5f91943d18c33db5b390
+    Reviewed-on: https://go-review.googlesource.com/34630
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/convert.go      | 14 ++++++++++++++
- src/database/sql/convert_test.go | 13 ++++++++++---
- src/database/sql/sql_test.go     | 18 ++++++++++++++++++
- 3 files changed, 42 insertions(+), 3 deletions(-)
+ src/cmd/vet/copylock.go          |  8 +++++---
+ src/cmd/vet/testdata/copylock.go | 14 ++++++++++++++
+ 2 files changed, 19 insertions(+), 3 deletions(-)

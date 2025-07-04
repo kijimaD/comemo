@@ -1,23 +1,14 @@
-commit 1f6fc949f67973b4b745b5f0bd9c52ac27578186
+commit 4161dfc4feafa08870e347c5ca7da155a9790867
 Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 19 11:15:28 2012 +1100
+Date:   Mon Mar 19 11:12:32 2012 +1100
 
-    sysycall: remove creds_linux_test.go
-    It is unprecedented to add tests to package syscall, especially
-    system-specific ones. Not a policy worth changing right before Go 1
-    is cut.
+    syscall: delete passfd_test.go
     
-    The sole existing test, passfd_test.go, contains the line
-            // +build linux darwin probablyfreebsd probablyopenbsd
-    which argues that this is not a subject to be undertaking likely.
-    Note that passfd_test.go also went in just now. It's the only test
-    in syscall.
+    We can revisit the issue of testing in syscall after Go 1.
     
-    Deleting for now, will reconsider after Go 1.
-    
-    R=golang-dev, bradfitz, r, dsymonds
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5846063
+    https://golang.org/cl/5844057
 
- src/pkg/syscall/creds_linux_test.go | 107 ------------------------------------
- 1 file changed, 107 deletions(-)
+ src/pkg/syscall/passfd_test.go | 150 -----------------------------------------
+ 1 file changed, 150 deletions(-)

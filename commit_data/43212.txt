@@ -1,19 +1,16 @@
-commit f8e554021b7de4bf1150f64d047091b429c92b39
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Oct 3 23:58:29 2020 -0400
+commit 3b76bed3cdd865d9aabaa8e42eac72dc61e067db
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 18 13:50:14 2020 -0400
 
-    cmd/link: support C-shared buildmode on macOS/ARM64
+    cmd/internal/moddeps: skip GOROOT/pkg when locating modules
     
-    It just works, after the plugin work.
+    Fixes #37929
     
-    Updates #38485.
-    
-    Change-Id: I55aa11b380a33a729fccb731b77f48bc7d0dea2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259443
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I1435411de43aed98f40e0d98e450310b0fdf804c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223924
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go              | 2 +-
- src/cmd/internal/sys/supported.go | 2 +-
- src/cmd/link/internal/ld/lib.go   | 3 ---
- 3 files changed, 2 insertions(+), 5 deletions(-)
+ src/cmd/internal/moddeps/moddeps_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

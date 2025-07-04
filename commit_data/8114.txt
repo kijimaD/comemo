@@ -1,12 +1,16 @@
-commit 6ca71fb8975294122501f722c5409a675a943ff2
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 15 00:01:29 2011 -0400
+commit 29cf90a4efb5680430072d21984d533075896111
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 14 23:58:08 2011 -0400
 
-    os: turn EPIPE exit into panic
+    libmach: fix warnings.
     
-    R=iant, r2
+    Fixes #1706.
+    
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/4427042
+    https://golang.org/cl/4413051
 
- src/pkg/os/file_posix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5g/peep.c | 4 ++--
+ src/cmd/5l/obj.c  | 2 +-
+ src/libmach/obj.c | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

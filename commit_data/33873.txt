@@ -1,19 +1,15 @@
-commit 81c19cc0119d1b88e9cd26f65d93f3eede0d8620
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 13 11:00:14 2017 -0500
+commit 9cc170f9a5b84d8cc3f477c68f6f2a2dc9196755
+Author: Burak Guven <bguven@gmail.com>
+Date:   Wed Sep 13 19:54:40 2017 -0700
 
-    doc/go1.10: preannounce deprecation of OS X 10.9 Mavericks
+    math/rand: fix comment for Shuffle
     
-    By the time Go 1.11 is released, OS X 10.9 Mavericks will have gone
-    two years with no security updates.
+    Shuffle panics if n < 0, not n <= 0. The comment for the (*Rand).Shuffle
+    function is already accurate.
     
-    For #23011.
-    
-    Change-Id: I6482852a14477985769b72c45c92416aae8be100
-    Reviewed-on: https://go-review.googlesource.com/83795
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I073049310bca9632e50e9ca3ff79eec402122793
+    Reviewed-on: https://go-review.googlesource.com/63750
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.10.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/math/rand/rand.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

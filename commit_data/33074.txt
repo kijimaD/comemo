@@ -1,28 +1,20 @@
-commit a509cae90d93aec3f1c33c9de445721c0bc7c509
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 11 15:25:13 2017 -0700
+commit a89e6be5e409960da744626c27e24c130aa6e076
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 30 16:51:07 2017 -0400
 
-    cmd/compile: record InlCost in export data
+    runtime: clean up mheap.allocLarge
     
-    Previously, we were treating cross-package function calls as free for
-    inlining budgeting.
+    mheap.allocLarge just calls bestFitTreap and is the only caller of
+    bestFitTreap. Flatten these into a single function. Also fix their
+    comments: allocLarge claims to return exactly npages but can in fact
+    return a larger span, and h.freelarge is not in fact indexed by span
+    start address.
     
-    In theory, we should be able to recompute InlCost from the
-    exported/reimported function bodies. However, that process mutates the
-    structure of the Node AST enough that it doesn't preserve InlCost. To
-    avoid unexpected issues, just record and restore InlCost in the export
-    data.
-    
-    Fixes #19261.
-    
-    Change-Id: Iac2bc0d32d4f948b64524aca657051f9fc96d92d
-    Reviewed-on: https://go-review.googlesource.com/70151
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ia20112bdc46643a501ea82ea77c58596bc96f125
+    Reviewed-on: https://go-review.googlesource.com/47315
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |  1 +
- src/cmd/compile/internal/gc/bimport.go |  2 ++
- test/fixedbugs/issue19261.dir/p.go     | 24 ++++++++++++++++++++++++
- test/fixedbugs/issue19261.dir/q.go     | 17 +++++++++++++++++
- test/fixedbugs/issue19261.go           |  7 +++++++
- 5 files changed, 51 insertions(+)
+ src/runtime/mheap.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

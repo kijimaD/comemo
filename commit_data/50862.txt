@@ -1,17 +1,27 @@
-commit 0394cbed2e169ab71975109bd6a2309cc8c91b7e
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Oct 10 15:21:32 2022 -0400
+commit c2397905e027cdbab3a28d02813adcb82368422c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 12 18:24:54 2021 -0800
 
-    cmd/{cover,covdata}: minor code cleanups
+    cmd/compile/internal/types2: simplify under() and fix a crash
     
-    Delete some unused code, and fix a few warnings from staticcheck.
+    The simplified version of under exposed a bug (by crashing):
+    When a pointer base is used before the pointer is fully set
+    up, the base is nil. Set the pointer base to Typ[Invalid]
+    when creating the pointer, and add an extra safety check
+    into deref. Reviewed all code that creates pointers.
     
-    Change-Id: I3d3a6f13dccffda060449948769c305d93a0389c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/441936
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    The same error cannot happen with other types because
+    accessing parts of another type results in an expression
+    that is not a type, and thus these kids of cycles cannot
+    happen.
+    
+    Change-Id: I8332a281a534c094cfbb3623a636960865813ff6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363665
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/covdata/subtractintersect.go |  1 -
- src/cmd/covdata/tool_test.go         | 12 +++++-------
- src/cmd/cover/cfg_test.go            |  4 ++--
- src/cmd/cover/cover.go               | 34 ++--------------------------------
- 4 files changed, 9 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go                 | 7 +++++++
+ src/cmd/compile/internal/types2/testdata/check/cycles.src | 1 +
+ src/cmd/compile/internal/types2/type.go                   | 7 ++-----
+ src/cmd/compile/internal/types2/typexpr.go                | 1 +
+ 4 files changed, 11 insertions(+), 5 deletions(-)

@@ -1,23 +1,26 @@
-commit 303a596d8cf2e96d27d60288fca690e1703c0dd9
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jan 4 19:09:01 2019 -0500
+commit dbd8af74723d2c98cbdcc70f7e2801f69b57ac5b
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Thu Aug 23 20:16:19 2018 -0300
 
-    crypto/x509: ignore 5 phantom 1024-bit roots in TestSystemRoots
+    runtime: add support for VDSO on ppc64x for use in walltime/nanotime
     
-    On macOS 10.11, but not 10.10 and 10.12, the C API returns 5 old root
-    CAs which are not in SystemRootCertificates.keychain (but seem to be in
-    X509Anchors and maybe SystemCACertificates.keychain, along with many
-    others that the C API does not return). They all are moribund 1024-bit
-    roots which are now gone from the Apple store.
+    This change adds support for VDSO on ppc64x, making it possible to
+    avoid a syscall in walltime and nanotime.
     
-    Since we can't seem to find a way to make the no-cgo code see them,
-    ignore them rather than skipping the test.
+    BenchmarkClockVDSOAndFallbackPaths/vDSO-192             20000000    66.0 ns/op
+    BenchmarkClockVDSOAndFallbackPaths/Fallback-192          1000000    1456 ns/op
     
-    Fixes #21416
-    
-    Change-Id: I24ff0461f71cec953b888a60b05b99bc37dad2ed
-    Reviewed-on: https://go-review.googlesource.com/c/156329
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3373bd804b6f122961de3ae9d034e6ccf35748e6
+    Reviewed-on: https://go-review.googlesource.com/131135
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/crypto/x509/root_darwin_test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/runtime/os_linux_novdso.go   |  2 +-
+ src/runtime/sys_linux_ppc64x.s   | 94 +++++++++++++++++++++++++++++++++++-----
+ src/runtime/vdso_elf64.go        |  2 +-
+ src/runtime/vdso_in_none.go      |  2 +-
+ src/runtime/vdso_linux.go        |  7 ++-
+ src/runtime/vdso_linux_ppc64x.go | 25 +++++++++++
+ src/runtime/vdso_linux_test.go   |  2 +-
+ 7 files changed, 118 insertions(+), 16 deletions(-)

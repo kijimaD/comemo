@@ -1,16 +1,21 @@
-commit 3636d53c6119fd1b8a5f9e309fdf65c79952d398
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Sun May 13 15:17:40 2018 +0200
+commit 245310883dcae717bb662b22d5b1fd07fdd59b76
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 15 00:00:02 2018 -0500
 
-    cmd/link: writelines should keep is_stmt in sync with what it's writing
+    runtime: eliminate all writebarrierptr* calls
     
-    For all functions but the last one if the function ends on a
-    non-statement instruction the statement flag in debug_line is changed
-    but is_stmt is not updated to match.
+    Calls to writebarrierptr can simply be actual pointer writes. Calls to
+    writebarrierptr_prewrite need to go through the write barrier buffer.
     
-    Change-Id: I03c275c5e261ea672ce4da7baca2458810708326
-    Reviewed-on: https://go-review.googlesource.com/112979
-    Reviewed-by: David Chase <drchase@google.com>
+    Updates #22460.
+    
+    Change-Id: I92cee4da98c5baa499f1977563757c76f95bf0ca
+    Reviewed-on: https://go-review.googlesource.com/92704
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/atomic_pointer.go | 31 ++++++++++++++++++++++++++-----
+ src/runtime/chan.go           |  2 ++
+ src/runtime/hashmap_fast.go   |  6 ++++--
+ src/runtime/mbitmap.go        | 11 +++++++++--
+ 4 files changed, 41 insertions(+), 9 deletions(-)

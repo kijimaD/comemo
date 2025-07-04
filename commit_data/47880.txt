@@ -1,19 +1,17 @@
-commit ed84a8357c0107dedc42c9658ae9b020777b1bb7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 5 20:22:15 2022 -0800
+commit f18715c18fb4e0e71f46dc8fc47262ebfbcbe514
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Wed Apr 14 15:01:56 2021 +0200
 
-    test: add test of incorrect gofrontend error
+    time: replace os.Setenv with T.Setenv
     
-    For #50439
+    Updates #45448
     
-    Change-Id: Ifad6e6f8de42121c695b5a4dc56e0f6606e2917e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375796
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic096fe1c58c124fb8d84ee15c9446e7ed060b24f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310032
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- test/fixedbugs/issue50439.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/time/zoneinfo_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

@@ -1,30 +1,30 @@
-commit 4ac8f552e95521d292cc18ccc546739d41283b31
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Dec 3 12:22:49 2024 -0800
+commit 72da49caee3319dcdc5f03a8f70352eb4b725a64
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sat Nov 4 23:05:05 2023 +0000
 
-    syscall, internal/syscall/unix: fix fstatat on linux/mips64
+    cmd/compile,runtime: dedup writeBarrier needed
     
-    On linux/mips64, the syscall.Stat_t struct does not match the
-    kernel version of the struct. Functions that operate on a Stat_t
-    translate between it and the kernel struct.
+    The writeBarrier "needed" struct member has the exact same
+    value as "enabled", and used interchangeably.
     
-    The fstatat function was not doing this translation.
-    Make it do so.
+    I'm not sure if we plan to make a distinction between the
+    two at some point, but today they are effectively the same,
+    so dedup it and keep only "enabled".
     
-    Export a syscall.Fstatat on mips64 for usage by
-    internal/syscall/unix. Perhaps we should just do this on all
-    architectures, but this is the smaller change for now.
-    
-    Fixes #70659
-    
-    Change-Id: I38e36473689be25861953b418c9abc5b270a7bcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633280
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I65e596f174e1e820dc471a45ff70c0ef4efbc386
+    GitHub-Last-Rev: f8c805a91606d42c8d5b178ddd7d0bec7aaf9f55
+    GitHub-Pull-Request: golang/go#63814
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538495
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/syscall/unix/at_fstatat.go  |  2 +-
- src/internal/syscall/unix/at_fstatat2.go |  2 +-
- src/syscall/syscall_linux_mips64x.go     | 13 ++++++++++++-
- src/syscall/zsyscall_linux_mips64.go     | 30 +++++++++++++++---------------
- src/syscall/zsyscall_linux_mips64le.go   | 30 +++++++++++++++---------------
- 5 files changed, 44 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/typecheck/_builtin/runtime.go |  1 -
+ src/cmd/compile/internal/typecheck/builtin.go          |  2 +-
+ src/runtime/mbarrier.go                                | 12 ++++++------
+ src/runtime/mbitmap.go                                 |  6 +++---
+ src/runtime/mgc.go                                     |  4 +---
+ src/runtime/mgcmark.go                                 |  4 ++--
+ 6 files changed, 13 insertions(+), 16 deletions(-)

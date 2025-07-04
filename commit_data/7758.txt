@@ -1,12 +1,13 @@
-commit 31a72d1a53f8584a78f9d7c89a8951a553015ba4
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Mar 14 14:12:37 2011 -0700
+commit c5e474dd88c464160d7d09cbf2bfff492480c408
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 14 15:43:58 2011 -0400
 
-    libmach: correct string comparison to revive 6cov on darwin
+    5l: fix build
     
-    R=golang-dev, r, dsymonds, rsc1
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4277046
+    https://golang.org/cl/4279053
 
- src/libmach/darwin.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5l/softfloat.c | 1 +
+ src/cmd/5l/thumb.c     | 1 +
+ 2 files changed, 2 insertions(+)

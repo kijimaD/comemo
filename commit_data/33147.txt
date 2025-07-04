@@ -1,16 +1,14 @@
-commit 58cf881c1c61544d467b265950a942ec2aeb9d28
-Author: griesemer <gri@golang.org>
-Date:   Mon Oct 16 21:52:34 2017 -0700
+commit 504deee6088c2448fc3e91c94a1ba69ec92fb7ef
+Author: gmarik <gmarik@gmail.com>
+Date:   Sat Jul 15 12:11:42 2017 -0600
 
-    cmd/compile/internal/parser: removed TODO (cleanup)
+    log: adds a Logger Output method Example
     
-    When an opening "{" of a block is missing and after advancing we
-    find a closing "}", it's likely better to assume the end of the
-    block. Fixed and removed TODO.
-    
-    Change-Id: I20c9b4ecca798933a7cd4cbf21185bd4ca04f5f7
-    Reviewed-on: https://go-review.googlesource.com/71291
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia3e351169a4ebe6db5e5f37b668f23dc8c992c78
+    Reviewed-on: https://go-review.googlesource.com/48877
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/log/example_test.go | 26 +++++++++++++++++++++++---
+ 1 file changed, 23 insertions(+), 3 deletions(-)

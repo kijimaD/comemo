@@ -1,19 +1,34 @@
-commit 5121b45d7426687076c20ae0f4fcae1238f3ed47
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 22 22:01:35 2024 -0400
+commit 5abfdc8c75b13edbe3ccc918df47dd2da85454d8
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 22 15:19:49 2023 -0400
 
-    crypto/tls: add linkname comments dropped from CL 587220
+    cmd/cgo/internal: skip in tests, not in TestMain
     
-    A bad merge syncing before the submit of CL 587220 dropped these.
-    (I forgot to write the file out.)
+    Many cgo integration tests do a lot of common setup in TestMain, and
+    that means they require a lot from the test environment to even get
+    off the ground. If something is missing, right now they print a "SKIP"
+    message to stderr and exit without running any tests.
     
-    For #67401.
+    Make these behave more like normal tests by instead setting a global
+    skip function if some precondition isn't satisfied, and having every
+    test call that. This way we run the tests and see them skip.
     
-    Change-Id: I6f2ba69f388907f3d24eeef55c80cbb2cf51f580
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587755
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+    I would prefer something much more structured. For example, if we
+    replaced the global state set up by TestMain in these tests by instead
+    calling a function that returned that state (after setting it up on
+    the first call), that function could do the appropriate skips and
+    there would be no way to accidentally access this state without
+    checking the preconditions. But that's substantially more work and may
+    be much easier after we do further cleanup of these tests.
+    
+    Change-Id: I92de569fd27596798c5e478402449cd735ec53a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497096
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/tls/defaults.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/cgo/internal/testcarchive/carchive_test.go | 36 ++++++++++++++-----
+ src/cmd/cgo/internal/testcshared/cshared_test.go   | 24 +++++++++----
+ src/cmd/cgo/internal/testplugin/plugin_test.go     | 41 ++++++++++++++++------
+ src/cmd/cgo/internal/testshared/shared_test.go     | 41 ++++++++++++++++++----
+ 4 files changed, 111 insertions(+), 31 deletions(-)

@@ -1,16 +1,46 @@
-commit a67c481f765c08b8a2e0432e3c94cd282ee4a6d6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jul 9 12:53:25 2018 -0700
+commit bfa8b6f8ffa49b3e5796af45a2f0bf9714a37bb9
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri Jan 26 09:18:31 2018 +0000
 
-    cmd/link/internal/sym: add sizeof tests
+    bytes: add optimized Compare for arm64
     
-    CL 121916 showed that sym.Symbol matters for linker performance.
-    Prevent accidental regression.
+    Use LDP instructions to load 16 bytes per loop when the source length is long. Specially
+    process the 8 bytes length, 4 bytes length and 2 bytes length to get a better performance.
     
-    Change-Id: I5fd998c91fdeef9e721bc3f6e30f775b81103e95
-    Reviewed-on: https://go-review.googlesource.com/122716
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Benchmark result:
+    name                           old time/op   new time/op    delta
+    BytesCompare/1-8                21.0ns ± 0%    10.5ns ± 0%      ~     (p=0.079 n=4+5)
+    BytesCompare/2-8                11.5ns ± 0%    10.5ns ± 0%    -8.70%  (p=0.008 n=5+5)
+    BytesCompare/4-8                13.5ns ± 0%    10.0ns ± 0%   -25.93%  (p=0.008 n=5+5)
+    BytesCompare/8-8                28.8ns ± 0%     9.5ns ± 0%      ~     (p=0.079 n=4+5)
+    BytesCompare/16-8               40.5ns ± 0%    10.5ns ± 0%   -74.07%  (p=0.008 n=5+5)
+    BytesCompare/32-8               64.6ns ± 0%    12.5ns ± 0%   -80.65%  (p=0.008 n=5+5)
+    BytesCompare/64-8                112ns ± 0%      16ns ± 0%   -85.27%  (p=0.008 n=5+5)
+    BytesCompare/128-8               208ns ± 0%      24ns ± 0%   -88.22%  (p=0.008 n=5+5)
+    BytesCompare/256-8               400ns ± 0%      50ns ± 0%   -87.62%  (p=0.008 n=5+5)
+    BytesCompare/512-8               785ns ± 0%      82ns ± 0%   -89.61%  (p=0.008 n=5+5)
+    BytesCompare/1024-8             1.55µs ± 0%    0.14µs ± 0%      ~     (p=0.079 n=4+5)
+    BytesCompare/2048-8             3.09µs ± 0%    0.27µs ± 0%      ~     (p=0.079 n=4+5)
+    CompareBytesEqual-8             39.0ns ± 0%    12.0ns ± 0%   -69.23%  (p=0.008 n=5+5)
+    CompareBytesToNil-8             8.57ns ± 5%    8.23ns ± 2%    -3.99%  (p=0.016 n=5+5)
+    CompareBytesEmpty-8             7.37ns ± 0%    7.36ns ± 4%      ~     (p=0.690 n=5+5)
+    CompareBytesIdentical-8         7.39ns ± 0%    7.46ns ± 2%      ~     (p=0.667 n=5+5)
+    CompareBytesSameLength-8        17.0ns ± 0%    10.5ns ± 0%   -38.24%  (p=0.008 n=5+5)
+    CompareBytesDifferentLength-8   17.0ns ± 0%    10.5ns ± 0%   -38.24%  (p=0.008 n=5+5)
+    CompareBytesBigUnaligned-8      1.58ms ± 0%    0.19ms ± 0%   -88.31%  (p=0.016 n=4+5)
+    CompareBytesBig-8               1.59ms ± 0%    0.19ms ± 0%   -88.27%  (p=0.016 n=5+4)
+    CompareBytesBigIdentical-8      7.01ns ± 0%    6.60ns ± 3%    -5.91%  (p=0.008 n=5+5)
+    
+    name                           old speed     new speed      delta
+    CompareBytesBigUnaligned-8     662MB/s ± 0%  5660MB/s ± 0%  +755.15%  (p=0.016 n=4+5)
+    CompareBytesBig-8              661MB/s ± 0%  5636MB/s ± 0%  +752.57%  (p=0.016 n=5+4)
+    CompareBytesBigIdentical-8     150TB/s ± 0%   159TB/s ± 3%    +6.27%  (p=0.008 n=5+5)
+    
+    Change-Id: I70332de06f873df3bc12c4a5af1028307b670046
+    Reviewed-on: https://go-review.googlesource.com/90175
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/sym/sizeof_test.go | 39 ++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ src/internal/bytealg/compare_arm64.s | 106 ++++++++++++++++++++++++++++-------
+ 1 file changed, 87 insertions(+), 19 deletions(-)

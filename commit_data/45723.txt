@@ -1,16 +1,21 @@
-commit 1419ca7cead4438c8c9f17d8901aeecd9c72f577
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 27 17:25:43 2021 -0700
+commit d4957122ee8a45aa73b0e8700d3a41c0ee9f4442
+Author: Emmanuel Odeke <emmanuel@orijtech.com>
+Date:   Mon Nov 9 20:31:58 2020 +0000
 
-    doc/go1.17: mention new definitions of MSG_CMSG_CLOEXEC
+    Revert "runtime: make stack traces of endless recursion print only top and bottom 50"
     
-    For #44513
+    This reverts commit 3a81338622eb5c8b94f11001855e2a68a9e36bed.
     
-    Change-Id: I8c0070b116ee520a76726eb9d3dcbdd489a1fb1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323351
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reason for revert: Some edge cases not properly covered due to changes within runtime traceback generation since 2017, that need to be examined. This change landed very late in the Go1.16 cycle.
+    
+    Change-Id: I8cf6f46ea0ef6161d878e79943e6c7cdac94bccf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268577
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.17.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/crash_test.go                 | 126 ----------------------
+ src/runtime/testdata/testprog/deadlock.go |  13 ---
+ src/runtime/traceback.go                  | 173 ++++++++----------------------
+ 3 files changed, 47 insertions(+), 265 deletions(-)

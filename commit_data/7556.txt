@@ -1,12 +1,12 @@
-commit a1d95deaaabf31f0ff80a8314dc8fb1d90f76d2f
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Feb 24 15:56:53 2011 +1100
+commit 162d510d7e8d67c5a144e728c5866b7703bc317c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 24 10:17:45 2011 +1100
 
-    build: remove unused nacl conditional from make.bash
+    net: *netFD.Read to return os.EOF on eof (fixes windows build)
     
-    R=golang-dev, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4217042
+    https://golang.org/cl/4210041
 
- src/make.bash | 41 ++++++++++++++++++-----------------------
- 1 file changed, 18 insertions(+), 23 deletions(-)
+ src/pkg/net/fd_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

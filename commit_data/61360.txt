@@ -1,0 +1,19 @@
+commit 91ec6b6321395ba787a9b4c0ae1055ab45382435
+Author: Andy Pan <i@andypan.me>
+Date:   Tue Oct 29 12:27:30 2024 +0800
+
+    internal/poll: confine runtime OS-checks to sendFileChunk
+    
+    Ref:
+    https://ci.chromium.org/ui/p/golang/builders/ci/gotip-solaris-amd64/b8732788420094473425/overview
+    https://build.golang.org/log/80a05c426ceaebd0906eae80e5a3afd7e92d2f41
+    
+    Change-Id: I207c0043ce729be7bbba39cf376b6d39440e7f26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623055
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/sendfile_unix.go | 39 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 20 deletions(-)

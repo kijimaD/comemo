@@ -1,17 +1,14 @@
-commit 7482822bba44be97fd0b08ff396fa92f777baa42
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 23 09:37:48 2012 -0700
+commit eacc3cc8a1ad28e58dd8d87a10d165c826ed285f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 23 09:31:24 2012 -0700
 
-    go/parser: minor cleanup
+    net/http: clarify ErrBodyNotAllowed error message
     
-    - there is no label scope at package level
-    - open/close all scopes symmetrically now
-      that there is only one parse entry point
-      (parseFile)
+    It's usually due to writing on HEAD requests.
     
-    R=golang-dev, r
+    R=golang-dev, rsc, r, r
     CC=golang-dev
-    https://golang.org/cl/6230047
+    https://golang.org/cl/6206106
 
- src/pkg/go/parser/parser.go | 20 +++++++-------------
- 1 file changed, 7 insertions(+), 13 deletions(-)
+ src/pkg/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

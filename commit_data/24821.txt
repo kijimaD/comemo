@@ -1,19 +1,57 @@
-commit e0053f8b1c2c90da483ba228fbf671c12063266d
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 24 08:42:10 2015 -0400
+commit df37c4b987640849ad2b4033b4f94d7398eceba6
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Wed Aug 26 14:27:19 2015 +0000
 
-    runtime: restructured os1_linux.go, added mips64 support
+    cmd/asm: fix several panics with erroneous input
     
-    Linux/mips64 uses a different type of sigset. To deal with it, related
-    functions in os1_linux.go is refactored to os1_linux_generic.go
-    (used for non-mips64 architectures), and os1_linux_mips64x.go (only used
-    in mips64{,le}), to avoid code copying.
+    The parser tries to read as much information as possible,
+    issuing some errors when needed. Errors generally do not
+    stop the parsing.
     
-    Change-Id: I5cadfccd86bfc4b30bf97e12607c3c614903ea4c
-    Reviewed-on: https://go-review.googlesource.com/14991
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    With some pathological input, it may result in various
+    panics when the error message itself is built, or when the
+    next operand is parsed. It happens while parsing
+    pseudo-instructions.
+    
+    For instance, the following lines all generate a panic:
+    
+            TEXT
+            TEXT%
+            TEXT 1,1
+            TEXT $"toto", 0, $1
+            FUNCDATA
+            DATA 0
+            DATA(0),1
+            FUNCDATA(SB
+            GLOBL 0, 1
+            PCDATA 1
+    
+    Added corresponding tests.
+    
+    Introduced a writer in the parser to capture error messages
+    for testing purpose. It defaults to os.Stderr.
+    
+    Added an explicit check when symbol names cannot be displayed.
+    
+    Interrupted parsing early when the number of operands is wrong for
+    pseudo-instructions.
+    
+    Note that the last point is a change of behavior, because some
+    operands will not get parsed anymore in case of early error.
+    
+    IMO, it is acceptable, because only the first error of the line
+    is considered anyway. If it is not acceptable, it can probably
+    be improved at the price of a more verbose CL.
+    
+    Fixes #11765
+    Fixes #11760
+    Fixes #11759
+    
+    Change-Id: I9602a848132e358a1bccad794d7555e0823970dd
+    Reviewed-on: https://go-review.googlesource.com/13925
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/os1_linux.go         | 10 ++++------
- src/runtime/os1_linux_generic.go | 27 +++++++++++++++++++++++++++
- src/runtime/os1_linux_mips64x.go | 26 ++++++++++++++++++++++++++
- 3 files changed, 57 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/asm/asm.go         | 22 ++++++++--
+ src/cmd/asm/internal/asm/parse.go       | 23 ++++++-----
+ src/cmd/asm/internal/asm/pseudo_test.go | 71 +++++++++++++++++++++++++++++++++
+ 3 files changed, 103 insertions(+), 13 deletions(-)

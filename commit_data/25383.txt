@@ -1,46 +1,17 @@
-commit f7e51c132059a78953b768ca66e457b40985930e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 21 22:27:01 2015 -0800
+commit a3180d8b1daff3e0238a3ff08dd9a4213a9e1266
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 23 14:08:50 2015 -0700
 
-    runtime: adjust gsignal stack to current signal stack
+    [dev.ssa] cmd/compile: get rid of converts in unsafe.Pointer arithmetic
     
-    If non-Go code calls sigaltstack before a signal is received, use
-    sigaltstack to determine the current signal stack and set the gsignal
-    stack to use it.  This makes the Go runtime more robust in the face of
-    non-Go code.  We still can't handle a disabled signal stack or a signal
-    triggered with SA_ONSTACK clear, but we now give clear errors for those
-    cases.
+    unsafe.Pointer->uintptr, add, then uintptr->unsafe.Pointer.
+    Do the add directly on the pointer type instead.
     
-    Fixes #7227.
-    Update #9896.
-    
-    Change-Id: Icb1607e01fd6461019b6d77d940e59b3aed4d258
-    Reviewed-on: https://go-review.googlesource.com/18102
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I5a3a32691d0a000e16975857974ed9a1039c6d28
+    Reviewed-on: https://go-review.googlesource.com/16281
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- misc/cgo/test/cgo_unix_test.go    | 11 ++++++
- misc/cgo/test/sigaltstack.go      | 71 ++++++++++++++++++++++++++++++++++++
- src/runtime/signal1_unix.go       | 16 +++++++++
- src/runtime/signal2_unix.go       |  2 +-
- src/runtime/signal_darwin.go      | 23 ++++++++++++
- src/runtime/signal_freebsd.go     | 40 +++++++++++++++++++++
- src/runtime/signal_linux.go       | 23 ------------
- src/runtime/signal_openbsd.go     | 40 +++++++++++++++++++++
- src/runtime/signal_sigtramp.go    | 48 +++++++++++++++++++++++++
- src/runtime/sys_darwin_386.s      | 76 +++++++++++++++++++--------------------
- src/runtime/sys_darwin_arm.s      | 12 +++++++
- src/runtime/sys_darwin_arm64.s    |  8 +++++
- src/runtime/sys_dragonfly_amd64.s | 32 ++++-------------
- src/runtime/sys_freebsd_386.s     | 40 ++++++---------------
- src/runtime/sys_freebsd_amd64.s   | 32 ++++-------------
- src/runtime/sys_freebsd_arm.s     | 41 +++++++++------------
- src/runtime/sys_netbsd_386.s      | 37 ++++++-------------
- src/runtime/sys_netbsd_amd64.s    | 38 ++++++--------------
- src/runtime/sys_netbsd_arm.s      | 41 +++++++++------------
- src/runtime/sys_openbsd_386.s     | 40 ++++++---------------
- src/runtime/sys_openbsd_amd64.s   | 32 ++++-------------
- src/runtime/sys_openbsd_arm.s     | 41 +++++++++------------
- src/runtime/sys_solaris_amd64.s   |  2 ++
- 23 files changed, 419 insertions(+), 327 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)

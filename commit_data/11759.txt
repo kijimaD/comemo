@@ -1,14 +1,15 @@
-commit 1bfffb67d821db286f5629f32adc951418ea5697
+commit 7ef97def800fc155c3bdc9e84c0af7f6d786ee7b
 Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 10 13:52:19 2012 +1100
+Date:   Fri Feb 10 13:49:50 2012 +1100
 
-    time: improve commentary about standard time and formatting/parsing
+    testing: fix references to "gotest"
     
-    Fixes #2965.
+    Fixes #2958.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5652054
+    https://golang.org/cl/5650050
 
- src/pkg/time/format.go | 36 +++++++++++++++++++++---------------
- 1 file changed, 21 insertions(+), 15 deletions(-)
+ src/pkg/testing/benchmark.go |  6 +++---
+ src/pkg/testing/testing.go   | 12 ++++++------
+ 2 files changed, 9 insertions(+), 9 deletions(-)

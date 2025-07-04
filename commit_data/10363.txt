@@ -1,14 +1,14 @@
-commit 34466a14911163fadcc54725143b04c47d4080aa
+commit 59a92cde3dce85cc091c1134fae1bc08f056c445
 Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Nov 13 20:58:51 2011 -0500
+Date:   Sun Nov 13 20:57:15 2011 -0500
 
-    exp/ssh: add client functional tests
+    exp/ssh: use ClientConfig.rand() for publickey authentication
     
-    Requires CL 5373055
+    Closes TODO from 5373055
     
-    R=rsc, agl, n13m3y3r
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/5320053
+    https://golang.org/cl/5375081
 
- src/pkg/exp/ssh/client_func_test.go | 61 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 61 insertions(+)
+ src/pkg/exp/ssh/client_auth.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

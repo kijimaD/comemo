@@ -1,17 +1,15 @@
-commit f129370b3e5d53a384281503f658b3a5b115fbd5
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Aug 22 09:10:33 2014 +1000
+commit b7a6fd28db8a155946a9662c8ab984c4d5befe60
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 13 16:26:43 2014 -0400
 
-    cmd/ld: fix undefined behaviour in pcln.c
+    [dev.power64] runtime: fix reflect.call
     
-    Update #8527
+    The code to copy out the results was incorrect.
     
-    Fixes, src/cmd/6l/../ld/pcln.c:93:18: runtime error: left shift of negative value -2
-    
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/127440043
+    https://golang.org/cl/122530043
 
- src/cmd/ld/pcln.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/asm_power64x.s | 27 ++++++++++++---------------
+ 1 file changed, 12 insertions(+), 15 deletions(-)

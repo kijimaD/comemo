@@ -1,20 +1,23 @@
-commit a173357cd5d94ee88112ba46871c5d9344a2445e
-Author: Michael Matloob <matloob@google.com>
-Date:   Fri Jan 23 17:56:47 2015 -0800
+commit 9f9d66d3b66d1d23fd5578f30b2fa084e4f83902
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Mar 6 11:32:42 2015 +0000
 
-    runtime: fix return type for bsdthread_register in comments
+    encoding/xml: fix default namespace of tags
     
-    The return type for bsdthread_register is int32. See
-    runtime/os_darwin.go.
+    The struct XMLName sets the default namespace, but
+    that's not good enough for nested tags, because an
+    earlier tag can set the implicit parents of a subsequent
+    tag. This change makes sure that we always explicitly set the
+    namespace on a tag when possible.
     
-    This change also rewrites declaration comments for go functions to
-    use go syntax and fixes vet errors in sys_darwin_amd64.s.
+    See https://go-review.googlesource.com/#/c/5910/4/src/encoding/xml/marshal_test.go@628
+    for discussion.
     
-    Change-Id: I7482105f7562929e0ede30099efac9e76babd8a3
-    Reviewed-on: https://go-review.googlesource.com/3260
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If1afc536471c0be83e5dd80381b598476ea3f44d
+    Reviewed-on: https://go-review.googlesource.com/6927
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/runtime/sys_darwin_386.s   | 23 +++++++++++------------
- src/runtime/sys_darwin_amd64.s | 20 ++++++++++----------
- 2 files changed, 21 insertions(+), 22 deletions(-)
+ src/encoding/xml/marshal_test.go | 2 ++
+ src/encoding/xml/typeinfo.go     | 8 ++++++++
+ 2 files changed, 10 insertions(+)

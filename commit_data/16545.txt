@@ -1,24 +1,15 @@
-commit ae5e791ed20076bf67e5da20fee769ec86a7a969
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 11 20:23:21 2013 -0700
+commit e50e4f7ec1c25017dc8e906c752375e43a8a38a3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jun 12 06:56:50 2013 +0800
 
-    cmd/gc: save local var list before inlining
+    cmd/ld: supply -s to gcc if -s is passed.
+    Fixes #5463.
     
-    This avoids problems with inlining in genwrappers, which
-    occurs after functions have been compiled.  Compiling a
-    function may cause some unused local vars to be removed from
-    the list.  Since a local var may be unused due to
-    optimization, it is possible that a removed local var winds up
-    beingused in the inlined version, in which case hilarity
-    ensues.
-    
-    Fixes #5515.
-    
-    R=golang-dev, khr, dave
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/10210043
+    https://golang.org/cl/9239045
 
- src/cmd/gc/go.h             |  1 +
- src/cmd/gc/inl.c            |  5 +++--
- test/fixedbugs/issue5515.go | 34 ++++++++++++++++++++++++++++++++++
- 3 files changed, 38 insertions(+), 2 deletions(-)
+ src/cmd/ld/elf.c | 1 +
+ src/cmd/ld/lib.c | 5 ++++-
+ src/cmd/ld/lib.h | 1 +
+ 3 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,15 +1,16 @@
-commit 26a8cf56e0cfdb555025f60acf2e2ec773a5f492
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 25 19:03:37 2022 -0700
+commit ccd9784edf556673a340f3a8d55d9a8c64b95f59
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 27 16:16:37 2021 -0700
 
-    cmd/compile/internal/syntax: fix scanner.{op,prec} docs
+    doc/go1.17: document new debug/elf constant
     
-    These fields are also valid for _Star.
+    For #39677
+    For #44513
     
-    Change-Id: I2582000ac1737c41416e69f91404f7cac279d718
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395916
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I8c4193fd4359b83e6739e7e30a3a42b5f21b0f1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323275
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/syntax/scanner.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.17.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

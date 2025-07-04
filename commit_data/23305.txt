@@ -1,20 +1,19 @@
-commit 30ab39ac7643633716de44840172816ba5658637
-Author: Dmitry Savintsev <dsavints@gmail.com>
-Date:   Tue Jun 9 12:01:38 2015 +0200
+commit 2d18ab75e6f828811ff205b4bf968809e2d8fdb2
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 30 23:12:04 2015 +0200
 
-    doc: updated language about the AUTHORS/CONTRIBUTORS update
+    doc/progs: disable cgo tests that use C.Stdout on Solaris
     
-    Reflect the process changes where AUTHORS and CONTRIBUTORS
-    files are updated automatically based on commit logs
-    and Google committers no longer need to do it manually
-    on the first contributors.
+    Solaris, like Windows, NetBSD and OpenBSD, uses macros for stdin, stdout,
+    and stderr. Cgo can't access them without getters/setters written in
+    C. Because of this we disable affected tests like for the other platforms.
     
-    The documentation update will help to avoid requests to be
-    added from new contributors.
+    Updates #10715.
     
-    Change-Id: I67daae5bd21246cf79fe3724838889b929bc5e66
-    Reviewed-on: https://go-review.googlesource.com/10824
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I3d33a5554b5ba209273dbdff992925a38a281b42
+    Reviewed-on: https://go-review.googlesource.com/8264
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/contribute.html | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ doc/progs/run.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

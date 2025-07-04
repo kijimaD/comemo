@@ -1,26 +1,31 @@
-commit e5bd6e1c7944713c816cf94ae412a700c271cfca
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Apr 18 20:11:46 2020 -0700
+commit 73317080e12234defb59f84e2b5b15f69650b5d5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 21 00:24:25 2019 +0000
 
-    runtime: crash on SI_USER SigPanic signal
+    runtime: add scavenging code for new page allocator
     
-    Clean up the code a little bit to make it clearer:
+    This change adds a scavenger for the new page allocator along with
+    tests. The scavenger walks over the heap backwards once per GC, looking
+    for memory to scavenge. It walks across the heap without any lock held,
+    searching optimistically. If it finds what appears to be a scavenging
+    candidate it acquires the heap lock and attempts to verify it. Upon
+    verification it then scavenges.
     
-    Don't check throwsplit for a SI_USER signal.
+    Notably, unlike the old scavenger, it doesn't show any preference for
+    huge pages and instead follows a more strict last-page-first policy.
     
-    If throwsplit is set for a SigPanic signal, always throw;
-    discard any other flags.
+    Updates #35112.
     
-    Fixes #36420
-    
-    Change-Id: Ic9dcd1108603d241f71c040504dfdc6e528f9767
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228900
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0621ef73c999a471843eab2d1307ae5679dd18d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195697
+    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.15.html                          | 11 ++++++
- src/runtime/crash_cgo_test.go            | 18 ++++++++++
- src/runtime/signal_unix.go               | 10 ++++--
- src/runtime/testdata/testprogcgo/segv.go | 60 ++++++++++++++++++++++++++++++++
- 4 files changed, 96 insertions(+), 3 deletions(-)
+ src/runtime/export_test.go      |  71 +++++++-
+ src/runtime/malloc.go           |   2 +-
+ src/runtime/mgcscavenge.go      | 369 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/mgcscavenge_test.go | 382 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mpagealloc.go       |  25 ++-
+ src/runtime/mpagealloc_test.go  |  25 +--
+ src/runtime/mpallocbits.go      |  27 ++-
+ 7 files changed, 880 insertions(+), 21 deletions(-)

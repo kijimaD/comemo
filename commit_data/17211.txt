@@ -1,17 +1,19 @@
-commit 45cb2e1b70c80e9c087d2eea9449e7763cca16fc
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Aug 14 07:04:39 2013 +0900
+commit c7d352c9412de57ac5c9f5d7895540336ebaab5c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 13 14:48:08 2013 -0700
 
-    net: make Dial, Listen and ListenPacket return consistent error value
+    archive/zip: remove an allocation, speed up a test
     
-    Update #4856
+    Update #6138
+    
+    TestOver65kFiles spends all its time garbage collecting.
+    Removing the 1.4 MB of allocations per each of the 65k
+    files brings this from 34 seconds to 0.23 seconds.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12763044
+    https://golang.org/cl/12894043
 
- src/pkg/net/dial.go       | 18 ++++++++++--------
- src/pkg/net/dial_gen.go   |  6 +++---
- src/pkg/net/fd_unix.go    |  2 +-
- src/pkg/net/fd_windows.go |  2 +-
- 4 files changed, 15 insertions(+), 13 deletions(-)
+ src/pkg/archive/zip/reader.go   | 3 +--
+ src/pkg/archive/zip/zip_test.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 6 deletions(-)

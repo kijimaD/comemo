@@ -1,13 +1,29 @@
-commit 6a0e6cc7f41d49590c12c7affa9d145371a88cad
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 10 15:50:44 2012 -0800
+commit aa033c20b356b608e2fcc51e284cf711f952309b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jan 11 10:15:40 2012 +1100
 
-    A+C: add Yoshiyuki Kanno (Individual CLA)
+    html: propagate foreign namespaces only when adding foreign content.
     
-    R=golang-dev, r
+    Pass tests10.dat, test 31:
+    <div><svg><path><foreignObject><p></div>a
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <div>
+    |       <svg svg>
+    |         <svg path>
+    |           <svg foreignObject>
+    |             <p>
+    |               "a"
+    
+    Also pass test 32:
+    <!DOCTYPE html><svg><desc><div><svg><ul>a
+    
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/5534066
+    https://golang.org/cl/5527064
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/html/parse.go      | 9 +++++----
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 6 insertions(+), 5 deletions(-)

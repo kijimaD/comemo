@@ -1,18 +1,20 @@
-commit aa175a196d74f2788ec3d02b990487f7ca2af5b0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Dec 30 15:50:50 2019 +0100
+commit 8f79ca1d1ae78d3cc8025f0901540c45848347ab
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Aug 28 09:46:11 2019 -0400
 
-    internal/syscall/unix: use libc based fcntl for IsNonblock on aix and solaris
+    cmd/internal/obj/ppc64: add support for vmrgow,vmrgew
     
-    On aix and solaris (like on darwin) use libc fcntl to implement
-    IsNonblock instead of Syscall(SYS_FCNTL, ...) which isn't supported.
+    This adds support for ppc64 instructions vmrgow and vmrgew which
+    are needed for an improved implementation of chacha20.
     
-    Change-Id: I989b02aa0c90b7e2dae025572867dda277fef8be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212600
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I967a2de54236bcc573a99f7e2b222d5a8bb29e03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192117
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
 
- src/internal/syscall/unix/nonblocking.go                              | 2 +-
- .../syscall/unix/{nonblocking_darwin.go => nonblocking_libc.go}       | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  7 +++++++
+ src/cmd/internal/obj/ppc64/a.out.go       |  2 ++
+ src/cmd/internal/obj/ppc64/anames.go      |  2 ++
+ src/cmd/internal/obj/ppc64/asm9.go        | 11 +++++++++++
+ 4 files changed, 22 insertions(+)

@@ -1,24 +1,16 @@
-commit 384259628460f9975471332a0618d5bffa40507d
-Author: Austin Clements <austin@google.com>
-Date:   Sat Oct 24 21:19:52 2015 -0400
+commit c1aee8c825c2179ad4959ebf533bf27c4b774d00
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Aug 25 18:44:30 2015 -0500
 
-    runtime: move concurrent mark setup off system stack
+    net/http: remove always true comparison
     
-    For historical reasons we currently do a lot of the concurrent mark
-    setup on the system stack. In fact, at this point the one and only
-    thing that needs to happen on the system stack is the start-the-world.
+    byte is unsigned so the comparison against zero is always true.
     
-    Clean up this code by lifting everything other than the
-    start-the-world off the system stack.
-    
-    The diff for this change looks large, but the only code change is to
-    narrow the systemstack call. Everything else is re-indentation.
-    
-    Change-Id: I1e03b8afc759fad726f2397b05a17d183c2713ce
-    Reviewed-on: https://go-review.googlesource.com/16354
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I8fa60245972be362ae920507a291f92c0f9831ad
+    Reviewed-on: https://go-review.googlesource.com/13941
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go | 94 ++++++++++++++++++++++++++----------------------------
- 1 file changed, 46 insertions(+), 48 deletions(-)
+ src/net/http/sniff.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

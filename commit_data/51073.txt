@@ -1,22 +1,17 @@
-commit 581a822a9ed8fcae4afbc93daa6a74db7d9ea9a2
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat Oct 22 22:07:07 2022 +0800
+commit c8c89d20ce206969ea48819af3ef0309299f9f6c
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 16:27:55 2021 -0500
 
-    regexp: add ErrLarge error
+    doc/go1.18: add docs on Cookie.Valid
     
-    For #56041
+    Updates #47694
     
-    Change-Id: I6c98458b5c0d3b3636a53ee04fc97221f3fd8bbc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444817
+    Change-Id: Ibf3e25fbccf82e4abd7bd76b2ea6ceb4b05d4664
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368357
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
 
- api/next/56041.txt         | 2 ++
- src/regexp/all_test.go     | 1 +
- src/regexp/syntax/parse.go | 9 +++++----
- 3 files changed, 8 insertions(+), 4 deletions(-)
+ doc/go1.18.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,23 +1,19 @@
-commit 053c75411fbc3b6cf7689e3bfa5a46680c20e76f
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 11:32:49 2015 -0400
+commit 6411533ebf98d898a888b0195e8c4d4039864896
+Author: Todd Neal <todd@tneal.org>
+Date:   Sat Aug 29 15:41:57 2015 -0500
 
-    cmd/link: added support for mips64{,le}
+    [dev.ssa] cmd/compile: fix rare issue caused by liblink rewrite
     
-    Only internal linking without cgo is supported for now.
+    liblink rewrites MOV $0, reg into XOR reg, reg. Make MOVxconst clobber
+    flags so we don't generate invalid code in the unlikely case that it
+    matters.  In testing, this change leads to no additional regenerated
+    flags due to a scheduling fix in CL14042.
     
-    Change-Id: Ie6074a8ff3ec13605b72028f2d60758034f87185
-    Reviewed-on: https://go-review.googlesource.com/14444
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I7bc1cfee94ef83beb2f97c31ec6a97e19872fb89
+    Reviewed-on: https://go-review.googlesource.com/14043
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/arch.go    |  18 +++
- src/cmd/link/internal/ld/dwarf.go   |   4 +-
- src/cmd/link/internal/ld/elf.go     |  27 ++--
- src/cmd/link/internal/ld/ldelf.go   |   6 +
- src/cmd/link/internal/ld/lib.go     |   4 +-
- src/cmd/link/internal/ld/symtab.go  |   2 +-
- src/cmd/link/internal/mips64/asm.go | 248 ++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/mips64/l.go   |  75 +++++++++++
- src/cmd/link/internal/mips64/obj.go | 158 +++++++++++++++++++++++
- src/cmd/link/main.go                |   3 +
- 10 files changed, 529 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/testdata/ctl_ssa.go | 31 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    | 11 +++++----
+ src/cmd/compile/internal/ssa/opGen.go           |  4 ++++
+ 3 files changed, 42 insertions(+), 4 deletions(-)

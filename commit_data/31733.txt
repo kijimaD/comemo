@@ -1,19 +1,22 @@
-commit b5a0f7156845302040746ebcb71304f6cb03ba40
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 6 17:31:57 2017 -0700
+commit d5a9fbd556c441fa537c730681d6f8e7673b6e47
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 13 11:19:47 2017 +1100
 
-    runtime: deflake TestPanicRace
+    cmd/go/internal/get: remove unused tag selection code
     
-    The test is inherently racy, and for me fails about 0.05% of the time.
-    So only fail the test if it fails ten times in a row.
+    selectTag has been hard coded to only understand the tag `go1` since
+    CL 6112060 which landed in 2012. The commit message asserted;
     
-    Fixes #20594
+      Right now (before go1.0.1) there is only one possible tag,
+      "go1", and I'd like to keep it that way.
     
-    Change-Id: I3b3f7598f2196f7406f1a3937f38f21ff0c0e4b5
-    Reviewed-on: https://go-review.googlesource.com/45020
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Remove goTag and the unused matching code in selectTag.
+    
+    Change-Id: I85f7c10f95704e22f8e8681266afd72bbcbe8fbd
+    Reviewed-on: https://go-review.googlesource.com/38112
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/crash_test.go | 43 ++++++++++++++++++++++++++++++-------------
- 1 file changed, 30 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/get/get.go | 62 ------------------------------------------
+ 1 file changed, 62 deletions(-)

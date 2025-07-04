@@ -1,13 +1,13 @@
-commit 92686dda7c76e574d0a7fa447233e2ea7fd6ad59
+commit ba7dc5de064f7db4a41da2fd75757b46eca16ef5
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jan 16 14:47:33 2012 +0400
+Date:   Mon Jan 16 11:43:36 2012 +0400
 
-    net/http: fix data race in test
-    Fixes #2712.
+    sync/atomic: fix data race in tests
+    Fixes #2710.
     
     R=golang-dev, dsymonds
-    CC=golang-dev, mpimenov
-    https://golang.org/cl/5543062
+    CC=golang-dev
+    https://golang.org/cl/5541066
 
- src/pkg/net/http/fs_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/sync/atomic/atomic_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

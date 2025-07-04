@@ -1,0 +1,134 @@
+commit 1f7e28acdf78f04850e08a102383d687f934d1d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 19 10:55:18 2025 -0500
+
+    math/big: optimize atoi of base 2, 4, 16
+    
+    Avoid multiplies when converting base 2, 4, 16 inputs,
+    reducing conversion time from O(N²) to O(N).
+    
+    The Base8 and Base10 code paths should be unmodified,
+    but the base-2,4,16 changes tickle the compiler to generate
+    better (amd64) or worse (arm64) when really it should not.
+    This is described in detail in #71868 and should be ignored
+    for the purposes of this CL.
+    
+    goos: linux
+    goarch: amd64
+    pkg: math/big
+    cpu: Intel(R) Xeon(R) CPU @ 3.10GHz
+                          │     old      │                 new                 │
+                          │    sec/op    │   sec/op     vs base                │
+    Scan/10/Base2-16         324.4n ± 0%   258.7n ± 0%  -20.25% (p=0.000 n=15)
+    Scan/100/Base2-16        2.376µ ± 0%   1.968µ ± 0%  -17.17% (p=0.000 n=15)
+    Scan/1000/Base2-16       23.89µ ± 0%   19.16µ ± 0%  -19.80% (p=0.000 n=15)
+    Scan/10000/Base2-16      311.5µ ± 0%   190.4µ ± 0%  -38.86% (p=0.000 n=15)
+    Scan/100000/Base2-16    10.508m ± 0%   1.904m ± 0%  -81.88% (p=0.000 n=15)
+    Scan/10/Base8-16         138.3n ± 0%   127.9n ± 0%   -7.52% (p=0.000 n=15)
+    Scan/100/Base8-16        886.1n ± 0%   790.2n ± 0%  -10.82% (p=0.000 n=15)
+    Scan/1000/Base8-16       9.227µ ± 0%   8.234µ ± 0%  -10.76% (p=0.000 n=15)
+    Scan/10000/Base8-16      165.8µ ± 0%   155.6µ ± 0%   -6.19% (p=0.000 n=15)
+    Scan/100000/Base8-16     9.044m ± 0%   8.935m ± 0%   -1.20% (p=0.000 n=15)
+    Scan/10/Base10-16        129.9n ± 0%   120.0n ± 0%   -7.62% (p=0.000 n=15)
+    Scan/100/Base10-16       816.3n ± 0%   730.0n ± 0%  -10.57% (p=0.000 n=15)
+    Scan/1000/Base10-16      8.518µ ± 0%   7.628µ ± 0%  -10.45% (p=0.000 n=15)
+    Scan/10000/Base10-16     158.6µ ± 0%   149.4µ ± 0%   -5.80% (p=0.000 n=15)
+    Scan/100000/Base10-16    8.962m ± 0%   8.855m ± 0%   -1.20% (p=0.000 n=15)
+    Scan/10/Base16-16        114.5n ± 0%   108.6n ± 0%   -5.15% (p=0.000 n=15)
+    Scan/100/Base16-16       648.3n ± 0%   525.0n ± 0%  -19.02% (p=0.000 n=15)
+    Scan/1000/Base16-16      7.375µ ± 0%   5.636µ ± 0%  -23.58% (p=0.000 n=15)
+    Scan/10000/Base16-16    171.18µ ± 0%   66.99µ ± 0%  -60.87% (p=0.000 n=15)
+    Scan/100000/Base16-16   9490.9µ ± 0%   682.8µ ± 0%  -92.81% (p=0.000 n=15)
+    geomean                  20.11µ        13.69µ       -31.94%
+    
+    goos: linux
+    goarch: amd64
+    pkg: math/big
+    cpu: Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz
+                          │      old      │                 new                 │
+                          │    sec/op     │   sec/op     vs base                │
+    Scan/10/Base2-88          275.4n ± 0%   215.0n ± 0%  -21.93% (p=0.000 n=15)
+    Scan/100/Base2-88         1.869µ ± 0%   1.629µ ± 0%  -12.84% (p=0.000 n=15)
+    Scan/1000/Base2-88        18.56µ ± 0%   15.81µ ± 0%  -14.82% (p=0.000 n=15)
+    Scan/10000/Base2-88       270.0µ ± 0%   157.2µ ± 0%  -41.77% (p=0.000 n=15)
+    Scan/100000/Base2-88     11.518m ± 0%   1.571m ± 0%  -86.36% (p=0.000 n=15)
+    Scan/10/Base8-88          108.9n ± 0%   106.0n ± 0%   -2.66% (p=0.000 n=15)
+    Scan/100/Base8-88         655.2n ± 0%   594.9n ± 0%   -9.20% (p=0.000 n=15)
+    Scan/1000/Base8-88        6.467µ ± 0%   5.966µ ± 0%   -7.75% (p=0.000 n=15)
+    Scan/10000/Base8-88       151.2µ ± 0%   147.4µ ± 0%   -2.53% (p=0.000 n=15)
+    Scan/100000/Base8-88      10.33m ± 0%   10.30m ± 0%   -0.25% (p=0.000 n=15)
+    Scan/10/Base10-88        100.20n ± 0%   98.53n ± 0%   -1.67% (p=0.000 n=15)
+    Scan/100/Base10-88        596.9n ± 0%   543.3n ± 0%   -8.98% (p=0.000 n=15)
+    Scan/1000/Base10-88       5.904µ ± 0%   5.485µ ± 0%   -7.10% (p=0.000 n=15)
+    Scan/10000/Base10-88      145.7µ ± 0%   142.0µ ± 0%   -2.55% (p=0.000 n=15)
+    Scan/100000/Base10-88     10.26m ± 0%   10.24m ± 0%   -0.18% (p=0.000 n=15)
+    Scan/10/Base16-88         90.33n ± 0%   87.60n ± 0%   -3.02% (p=0.000 n=15)
+    Scan/100/Base16-88        506.4n ± 0%   437.7n ± 0%  -13.57% (p=0.000 n=15)
+    Scan/1000/Base16-88       5.056µ ± 0%   4.007µ ± 0%  -20.75% (p=0.000 n=15)
+    Scan/10000/Base16-88     163.35µ ± 0%   65.37µ ± 0%  -59.98% (p=0.000 n=15)
+    Scan/100000/Base16-88   11027.2µ ± 0%   735.1µ ± 0%  -93.33% (p=0.000 n=15)
+    geomean                   17.13µ        11.74µ       -31.46%
+    
+    goos: linux
+    goarch: arm64
+    pkg: math/big
+                          │     old      │                 new                  │
+                          │    sec/op    │    sec/op     vs base                │
+    Scan/10/Base2-16         324.7n ± 0%    348.4n ± 0%   +7.30% (p=0.000 n=15)
+    Scan/100/Base2-16        2.604µ ± 0%    3.031µ ± 0%  +16.40% (p=0.000 n=15)
+    Scan/1000/Base2-16       26.15µ ± 0%    29.94µ ± 0%  +14.52% (p=0.000 n=15)
+    Scan/10000/Base2-16      334.3µ ± 0%    298.8µ ± 0%  -10.64% (p=0.000 n=15)
+    Scan/100000/Base2-16    10.664m ± 0%    2.991m ± 0%  -71.95% (p=0.000 n=15)
+    Scan/10/Base8-16         144.4n ± 1%    162.2n ± 1%  +12.33% (p=0.000 n=15)
+    Scan/100/Base8-16        917.2n ± 0%   1084.0n ± 0%  +18.19% (p=0.000 n=15)
+    Scan/1000/Base8-16       9.367µ ± 0%   10.901µ ± 0%  +16.38% (p=0.000 n=15)
+    Scan/10000/Base8-16      164.2µ ± 0%    181.2µ ± 0%  +10.34% (p=0.000 n=15)
+    Scan/100000/Base8-16     8.871m ± 1%    9.140m ± 0%   +3.04% (p=0.000 n=15)
+    Scan/10/Base10-16        134.6n ± 1%    148.3n ± 1%  +10.18% (p=0.000 n=15)
+    Scan/100/Base10-16       837.1n ± 0%    986.6n ± 0%  +17.86% (p=0.000 n=15)
+    Scan/1000/Base10-16      8.563µ ± 0%    9.936µ ± 0%  +16.03% (p=0.000 n=15)
+    Scan/10000/Base10-16     156.5µ ± 1%    171.3µ ± 0%   +9.41% (p=0.000 n=15)
+    Scan/100000/Base10-16    8.863m ± 1%    9.011m ± 0%   +1.66% (p=0.000 n=15)
+    Scan/10/Base16-16        115.7n ± 2%    129.1n ± 1%  +11.58% (p=0.000 n=15)
+    Scan/100/Base16-16       708.6n ± 0%    796.8n ± 0%  +12.45% (p=0.000 n=15)
+    Scan/1000/Base16-16      7.314µ ± 0%    7.554µ ± 0%   +3.28% (p=0.000 n=15)
+    Scan/10000/Base16-16    149.05µ ± 0%    74.60µ ± 0%  -49.95% (p=0.000 n=15)
+    Scan/100000/Base16-16   9091.6µ ± 0%    741.5µ ± 0%  -91.84% (p=0.000 n=15)
+    geomean                  20.39µ         17.65µ       -13.44%
+    
+    goos: darwin
+    goarch: arm64
+    pkg: math/big
+    cpu: Apple M3 Pro
+                          │     old      │                 new                 │
+                          │    sec/op    │   sec/op     vs base                │
+    Scan/10/Base2-12         193.8n ± 2%   157.3n ± 1%  -18.83% (p=0.000 n=15)
+    Scan/100/Base2-12        1.445µ ± 2%   1.362µ ± 1%   -5.74% (p=0.000 n=15)
+    Scan/1000/Base2-12       14.28µ ± 0%   13.51µ ± 0%   -5.42% (p=0.000 n=15)
+    Scan/10000/Base2-12      177.1µ ± 0%   134.6µ ± 0%  -24.04% (p=0.000 n=15)
+    Scan/100000/Base2-12     5.429m ± 1%   1.333m ± 0%  -75.45% (p=0.000 n=15)
+    Scan/10/Base8-12         75.52n ± 2%   76.09n ± 1%        ~ (p=0.010 n=15)
+    Scan/100/Base8-12        528.4n ± 1%   532.1n ± 1%        ~ (p=0.003 n=15)
+    Scan/1000/Base8-12       5.423µ ± 1%   5.427µ ± 0%        ~ (p=0.183 n=15)
+    Scan/10000/Base8-12      89.26µ ± 1%   89.37µ ± 0%        ~ (p=0.237 n=15)
+    Scan/100000/Base8-12     4.543m ± 2%   4.560m ± 1%        ~ (p=0.595 n=15)
+    Scan/10/Base10-12        69.87n ± 1%   70.51n ± 0%        ~ (p=0.002 n=15)
+    Scan/100/Base10-12       488.4n ± 1%   491.2n ± 0%        ~ (p=0.060 n=15)
+    Scan/1000/Base10-12      5.014µ ± 1%   5.008µ ± 0%        ~ (p=0.783 n=15)
+    Scan/10000/Base10-12     84.90µ ± 0%   85.10µ ± 0%        ~ (p=0.109 n=15)
+    Scan/100000/Base10-12    4.516m ± 1%   4.521m ± 1%        ~ (p=0.713 n=15)
+    Scan/10/Base16-12        59.21n ± 1%   57.70n ± 1%   -2.55% (p=0.000 n=15)
+    Scan/100/Base16-12       380.0n ± 1%   360.7n ± 1%   -5.08% (p=0.000 n=15)
+    Scan/1000/Base16-12      3.775µ ± 0%   3.421µ ± 0%   -9.38% (p=0.000 n=15)
+    Scan/10000/Base16-12     80.62µ ± 0%   34.44µ ± 1%  -57.28% (p=0.000 n=15)
+    Scan/100000/Base16-12   4826.4µ ± 2%   450.9µ ± 2%  -90.66% (p=0.000 n=15)
+    geomean                  11.05µ        8.448µ       -23.52%
+    
+    Change-Id: Ifdb2049545f34072aa75cdbb72bed4cf465f0ad7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650640
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/math/big/natconv.go | 66 +++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 50 insertions(+), 16 deletions(-)

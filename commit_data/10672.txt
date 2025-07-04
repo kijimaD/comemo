@@ -1,14 +1,14 @@
-commit 136c04f71adf3611d94c33552aebb63290647580
-Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 8 16:39:05 2011 -0800
+commit 27cab90363159d5dbf9c6412778210f63dace7b5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 9 11:12:03 2011 +1100
 
-    doc/go1: most of the simple language changes
+    syscall: allow for mksyscall_windows.pl to be used outside of syscall
     
-    R=rsc, adg, r
+    this change should have been part of fafcd328da73
+    
+    R=golang-dev, bsiegert
     CC=golang-dev
-    https://golang.org/cl/5477044
+    https://golang.org/cl/5462045
 
- doc/go1.html     | 226 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- doc/go1.tmpl     | 182 +++++++++++++++++++++++++++++++++++++++++++-
- doc/progs/go1.go |  74 ++++++++++++++++++
- 3 files changed, 479 insertions(+), 3 deletions(-)
+ src/pkg/syscall/mksyscall_windows.pl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

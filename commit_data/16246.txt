@@ -1,13 +1,12 @@
-commit b493f0a868982711903c01f759a56c448d908b12
-Author: Cosmos Nicolaou <cnicolaou@google.com>
-Date:   Tue Apr 30 11:52:23 2013 -0700
+commit 5c0d782ab8a5bffab7de9c91ebfb7fe3f32de1bd
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 30 09:49:36 2013 -0700
 
-    syscall: fix a bug in the shuffling of file descriptors in StartProcess on Linux.
+    cmd/ld: another attempt at the relocation overflow fix
     
-    R=iant, iant, r, bradfitz
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/8334044
+    https://golang.org/cl/9036046
 
- src/pkg/os/exec/exec_test.go  | 127 ++++++++++++++++++++++++++++++++++++++++++
- src/pkg/syscall/exec_linux.go |  10 +++-
- 2 files changed, 135 insertions(+), 2 deletions(-)
+ src/cmd/ld/data.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

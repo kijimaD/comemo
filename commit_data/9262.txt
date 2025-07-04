@@ -1,16 +1,12 @@
-commit 7162f39fc322f16624814363f2fc7ca5bad15d4e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Jul 30 17:11:52 2011 -0700
+commit bf184398f6350ba36255a7c78a562d33afc70cfd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 29 15:21:24 2011 -0700
 
-    exp/template: fix endless loop
+    tag weekly.2011-07-29
     
-    No progress was made in indirect() if the reflect.Value
-    was an non-nil and non-empty interface.
-    
-    R=r, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4810060
+    https://golang.org/cl/4833047
 
- src/pkg/exp/template/exec.go      |  6 +++---
- src/pkg/exp/template/exec_test.go | 10 ++++++++++
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,20 +1,18 @@
-commit 0a4215c234fedb3c888dd184416fa1ef08dfe9ae
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jun 26 14:58:12 2024 -0400
+commit bce7aec3cdca8580585095007e9b7cea11a8812f
+Author: Philip Silva <philip.silva@protonmail.com>
+Date:   Tue May 30 19:59:43 2023 +0200
 
-    cmd/compile: keep internal/runtime packages sorted
+    runtime/trace: disable frame pointer unwinding on plan9
     
-    This is a minor cleanup from CL 600436.
+    Fixes #60254
     
-    For #65355.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-darwin-amd64-longtest
-    Change-Id: I8e27f0c6ba6bd35f4aa2b9d53c394fb5f1eb433d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595116
+    Change-Id: Ifd9e517a9479e5cd63fd3622b2556989d5f84eb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499036
     Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/test/inl_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/trace.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

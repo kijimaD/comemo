@@ -1,15 +1,27 @@
-commit 5aea33742a946b177590d44e6942ff781a18f111
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Mar 3 04:14:31 2012 +0800
+commit 6474eda490bbac1d24822e04081ca0f16389ae9d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 2 11:16:05 2012 -0800
 
-    ld: allow more -L options
-            Dynamically allocate the libdir array, so we won't need to bother it again.
-            Enhances CL 5727043.
+    go/printer: simpler exprList code, more tests
     
-    R=rsc
+    Except for the tests, this is mostly deleting code:
+    
+    - removed several exprListModes:
+      blankStart: easily done explicitly, and trailing blanks
+        are cleaned up by the trimmer post-pass
+      blankEnd: never used
+      commaSep: all exprLists calls had this set
+    
+    - added test cases for multi-line returns
+    (for a later fix of issue 1207)
+    
+    - no formatting changes
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5731043
+    https://golang.org/cl/5672062
 
- src/cmd/ld/lib.c | 21 ++++++++++++++++-----
- src/cmd/ld/lib.h |  2 +-
- 2 files changed, 17 insertions(+), 6 deletions(-)
+ src/pkg/go/printer/nodes.go                   | 77 +++++++++++----------------
+ src/pkg/go/printer/testdata/statements.golden | 76 ++++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/statements.input  | 76 ++++++++++++++++++++++++++
+ 3 files changed, 182 insertions(+), 47 deletions(-)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40426: 3f834114ab617eb7b414cb12e7ca8085b5fe3a5c
+# Index 40426: c2f7dd182ea54d53897b16bbab231a59e2a29ba0
 
 echo "🚀 Generating explanation for commit 40426..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 40426
-- **コミットハッシュ**: 3f834114ab617eb7b414cb12e7ca8085b5fe3a5c
-- **GitHub URL**: https://github.com/golang/go/commit/3f834114ab617eb7b414cb12e7ca8085b5fe3a5c
+- **コミットハッシュ**: c2f7dd182ea54d53897b16bbab231a59e2a29ba0
+- **GitHub URL**: https://github.com/golang/go/commit/c2f7dd182ea54d53897b16bbab231a59e2a29ba0
 
 ### 章構成
 

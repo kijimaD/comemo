@@ -1,12 +1,14 @@
-commit 0b12223fbe25d3c9d05b63179c7d063e4885df1a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 29 09:24:24 2011 -0400
+commit 0f5902d6beab85b2882bbe8490866b88d97b71a5
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Mon Aug 29 22:12:56 2011 +1000
 
-    doc/codelab/wiki: fix Makefile
+    runtime: fix stack cleanup on windows/amd64
     
-    R=adg
+    In amd64 it is the caller who cleans the stack.
+    
+    R=alex.brainman, vcc.163, jp
     CC=golang-dev
-    https://golang.org/cl/4971043
+    https://golang.org/cl/4966046
 
- doc/codelab/wiki/Makefile | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/windows/amd64/sys.s | 39 ++++++-------------------------------
+ 1 file changed, 6 insertions(+), 33 deletions(-)

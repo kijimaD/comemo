@@ -1,16 +1,16 @@
-commit b4bb970e1852e9f5340b846379ce4a434a1b9d26
-Author: Stephen Ma <stephenm@golang.org>
-Date:   Mon Jun 13 22:50:51 2011 +1000
+commit 7bc8e90e362177ef0003688e2f9c99d2b19c17d3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 13 16:08:35 2011 +1000
 
-    gc: handle go print() and go println()
+    exp/template: lexical scanner for new template package.
+    An unusual design using slice and a goroutine makes for a
+    compact scanner with very little allocation.
     
-    Fixes #1952.
-    
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/4611041
+    R=rsc, r
+    CC=golang-dev, kevlar
+    https://golang.org/cl/4610041
 
- src/cmd/gc/walk.c | 11 ++++++++++-
- test/golden.out   |  3 +++
- test/goprint.go   | 14 ++++++++++++++
- 3 files changed, 27 insertions(+), 1 deletion(-)
+ src/pkg/exp/template/Makefile    |  11 ++
+ src/pkg/exp/template/lex.go      | 302 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/template/lex_test.go | 126 ++++++++++++++++
+ 3 files changed, 439 insertions(+)

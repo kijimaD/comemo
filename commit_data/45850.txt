@@ -1,35 +1,20 @@
-commit a0400420ade001265f656c5dd9be1b48d7c8e6fe
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 16 14:34:54 2021 -0400
+commit 6dae48fb0ba772d30c664a8a31732a46e980e536
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Nov 20 13:23:58 2020 -0800
 
-    cmd/internal/moddeps: use -mod=readonly instead of -mod=mod
+    [dev.regabi] cmd/compile: refactor type/value assertions
     
-    TestAllDependencies is attempting to check that the modules in GOROOT
-    satisfy certain properties; it should not modify those modules itself.
+    Small refactoring to make subsequent CLs clearer.
     
-    The “quick” part of the test checks that vendored packages are present
-    and complete, without constructing a parallel GOROOT. It shouldn't
-    resolve new dependencies or change formatting in any way.
+    Passes toolstash-check.
     
-    The longer version of the test already constructs a parallel GOROOT
-    and tidies the modules within it. That part of the test will flag any
-    modifications needed to the go.mod and go.sum files, without modifying
-    the original GOROOT.
-    
-    From what I can tell, the failure mode in #46695 is caused by running
-    the test on a module rooted in $GOROOT proper. There is no such module
-    in the mainline Go repo, but it may have been introduced in the fork
-    and could also be introduced by stray edits in contributor CLs. It
-    should be diagnosed clearly.
-    
-    For #46695
-    
-    Change-Id: I62b90ccbd54cb3e3b413017021c952a7b1d455e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/328770
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I1a6ae599f491220d44aaabae0b7bed4aff46ee92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272651
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/moddeps/moddeps_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/const.go     | 23 ++++++++++++++++++-----
+ src/cmd/compile/internal/gc/iexport.go   |  4 +---
+ src/cmd/compile/internal/gc/syntax.go    |  3 +++
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ 4 files changed, 23 insertions(+), 9 deletions(-)

@@ -1,18 +1,35 @@
-commit a25d0d8fb901e9b6fa68b0f9d4e23d16bf201aff
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Mar 27 16:00:57 2018 -0400
+commit 2c00dea18b4a62fbf0bc11c85e4d9b91a314381f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 9 23:39:12 2017 -0500
 
-    crypto/x509: cache the result of SystemCertPool
+    cmd/cover: modify source as text, not as AST
     
-    Fixes #24540
+    cmd/cover rewrites Go source code to add coverage annotations.
+    The approach to date has been to parse the code to AST, analyze it,
+    rewrite the AST, and print it back out. This approach fails to preserve
+    line numbers in the original code and has a very difficult time with
+    comments, because go/printer does as well.
     
-    Change-Id: I65e9f2f99403e22d25ea64cc26701bf62a31d070
-    Reviewed-on: https://go-review.googlesource.com/102699
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This CL changes cmd/cover to decide what to modify based on the
+    AST but to apply the modifications as purely textual substitutions.
+    In this way, cmd/cover can be sure it never adds or removes a newline
+    character, nor a comment, so all line numbers and comments are
+    preserved.
+    
+    This also allows us to emit a single //line comment at the beginning
+    of the translated file and have the compiler report errors with
+    correct line numbers in the original file.
+    
+    Fixes #6329.
+    Fixes #15757.
+    
+    Change-Id: Ia95f6f894bb498e80d1f91fde56cd4a8009d7f9b
+    Reviewed-on: https://go-review.googlesource.com/77150
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/cert_pool.go | 27 +++++++++++++++++++++++++++
- src/crypto/x509/root.go      |  3 +++
- src/crypto/x509/x509_test.go | 38 +++++++++++++++++++++++++++++++++++++-
- 3 files changed, 67 insertions(+), 1 deletion(-)
+ src/cmd/cover/cover.go             | 341 ++++++++++---------------------------
+ src/cmd/cover/cover_test.go        |  15 +-
+ src/cmd/cover/testdata/test.go     |   2 +-
+ src/cmd/internal/edit/edit.go      |  93 ++++++++++
+ src/cmd/internal/edit/edit_test.go |  28 +++
+ 5 files changed, 216 insertions(+), 263 deletions(-)

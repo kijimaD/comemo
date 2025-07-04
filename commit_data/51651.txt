@@ -1,39 +1,19 @@
-commit f773bef9ab837db1bd81df375a701196b23ac510
+commit d40e7bb1744507be421b80c19372b9411c9856b4
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Jan 17 10:59:25 2023 -0800
+Date:   Tue Mar 1 12:58:20 2022 -0800
 
-    cmd/compile: fix static init inlining for hidden node fields
+    internal/pkgbits: add version number
     
-    Unified IR added several new IR fields for holding *runtime._type
-    expressions. To avoid throwing off any frontend semantics
-    (particularly inlining cost heuristics), they were marked as
-    `mknode:"-"` so that code wouldn't visit them.
+    Especially once this code gets copied into x/tools, we need a way to
+    evolve the file format, so add an explicit version number.
     
-    Unfortunately, this has a bad interaction with the static init
-    inlining optimization, because the latter relies on ir.EditChildren to
-    substitute all parameters. This potentially includes dictionary
-    parameters, which can appear within the new RType fields.
-    
-    This CL adds a new ir.EditChildrenWithHidden function that also edits
-    these fields, and switches staticinit to use it. Longer term, we
-    should unhide the RType fields so that ir.EditChildren visits them
-    normally, but that's scarier so late in the release cycle.
-    
-    Fixes #57778.
-    
-    Change-Id: I98c1e8cf366156dc0c81a0cb79029cc5e59c476f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461686
+    Change-Id: I9cc2e357c3ca3f07fd8d0c0ba4e4a95f89edeac6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388914
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/ir/func.go          |   7 +-
- src/cmd/compile/internal/ir/mknode.go        |  35 ++-
- src/cmd/compile/internal/ir/name.go          |   7 +-
- src/cmd/compile/internal/ir/node.go          |   1 +
- src/cmd/compile/internal/ir/node_gen.go      | 410 +++++++++++++++++++++++++++
- src/cmd/compile/internal/ir/visit.go         |  12 +
- src/cmd/compile/internal/staticinit/sched.go |   2 +-
- test/fixedbugs/issue57778.go                 |  19 ++
- 8 files changed, 478 insertions(+), 15 deletions(-)
+ src/internal/pkgbits/decoder.go | 4 ++++
+ src/internal/pkgbits/encoder.go | 2 ++
+ 2 files changed, 6 insertions(+)

@@ -1,18 +1,12 @@
-commit 084143d84434b66f3d75afcdb609b71097a07e65
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Mar 6 10:16:32 2018 -0500
+commit 6eaf7bcdea062a35241c54c8e4a53626819fb04e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 27 13:52:59 2017 -0400
 
-    math/big: don't use R18 in ARM64 assembly
+    api: update next.txt
     
-    R18 seems reserved on Apple platforms.
-    
-    May fix darwin/arm64 build.
-    
-    Change-Id: Ia2c1de550a64827c85a64affa53b94c62aacce8e
-    Reviewed-on: https://go-review.googlesource.com/98896
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Ib342468f3727be0cd6268ab824ad06d783ee7c94
+    Reviewed-on: https://go-review.googlesource.com/73993
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/arith_arm64.s | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ api/next.txt | 595 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 594 insertions(+), 1 deletion(-)

@@ -1,12 +1,26 @@
-commit 3ce6a4fb971491b58ec8157496a1f56348cc62c0
+commit cb6f5ac0b0239b6041267d3e9898390f57fc9eb1
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 29 00:02:29 2014 -0400
+Date:   Wed Oct 15 13:12:16 2014 -0400
 
-    runtime: fix windows build
+    runtime: remove hand-generated ptr bitmaps for reflectcall
     
-    TBR=austin
-    CC=golang-codereviews
-    https://golang.org/cl/167820043
+    A Go prototype can be used instead now, and the compiler
+    will do a better job than we will doing it by hand.
+    (We got it wrong in amd64p32, causing the current build
+    breakage.)
+    
+    The auto-prototype-matching only applies to functions
+    without an explicit package path, so the TEXT lines for
+    reflectcall and callXX are s/runtime·/·/.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/153600043
 
- src/runtime/crash_cgo_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/asm_386.s      | 72 ++++++++++++++++++-------------------------
+ src/runtime/asm_amd64.s    | 72 ++++++++++++++++++-------------------------
+ src/runtime/asm_amd64p32.s | 77 +++++++++++++++++++---------------------------
+ src/runtime/asm_arm.s      | 70 +++++++++++++++++------------------------
+ src/runtime/stubs.go       | 30 ++++++++++++++++++
+ 5 files changed, 151 insertions(+), 170 deletions(-)

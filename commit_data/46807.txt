@@ -1,44 +1,131 @@
-commit 6b4cf2be9385ea25fed011f7c862d9e023b71df6
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Sep 30 15:45:29 2021 -0700
+commit 0d2d6c74644c4e09655225894e6eca2a06aeeef4
+Merge: 3d5c715bf2 23b0c1f76e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 2 11:24:42 2021 -0800
 
-    cmd/compile: improving printing of type names in func/meth instantiations
+    [dev.typeparams] all: merge dev.regabi (23b0c1f) into dev.typeparams
     
-    Change to using types.(*Type).LinkString() for printing names of types
-    in function/method instantiations. (e.g. f[int] or Value[p.Myint].Set())
+    Merge List:
     
-    LinkString already generates a unique string description for t, using
-    package paths, except that it uses "" for the local package path. The ""
-    will be expanded in the linker, so the names in the executable will have
-    full package paths everywhere and de-duplication of function/method
-    instantiations will work properly. We do need to add an explicit
-    substitution of "" in ReadImports() for function/method names. We
-    previously were using NameString(), which doesn't use full package
-    paths, so is not fully unique.
+    + 2021-02-02 23b0c1f76e [dev.regabi] all: merge master (fca94ab) into dev.regabi
+    + 2021-02-02 fca94ab3ab spec: improve the example in Type assertions section
+    + 2021-02-02 98f8454a73 cmd/link: don't decode type symbol in shared library in deadcode
+    + 2021-02-02 1426a571b7 cmd/link: fix off-by-1 error in findShlibSection
+    + 2021-02-01 32e789f4fb test: fix incorrectly laid out instructions in issue11656.go
+    + 2021-02-01 ca6999e27c [dev.regabi] test: add a test for inlining closures
+    + 2021-02-01 0b6cfea634 doc/go1.16: document that on OpenBSD syscalls are now made through libc
+    + 2021-02-01 26e29aa15a cmd/link: disable TestPIESize if CGO isn't enabled
+    + 2021-02-01 6ac91e460c doc/go1.16: minor markup fixes
+    + 2021-01-29 44361140c0 embed: update docs for proposal tweaks
+    + 2021-01-29 68058edc39 runtime: document pointer write atomicity for memclrNoHeapPointers
+    + 2021-01-28 c8bd8010ff syscall: generate readlen/writelen for openbsd libc
+    + 2021-01-28 41bb49b878 cmd/go: revert TestScript/build_trimpath to use ioutil.ReadFile
+    + 2021-01-28 725a642c2d runtime: correct syscall10/syscall10X on openbsd/amd64
+    + 2021-01-28 4b068cafb5 doc/go1.16: document go/build/constraint package
+    + 2021-01-28 376518d77f runtime,syscall: convert syscall on openbsd/arm64 to libc
+    + 2021-01-27 aca22bddf2 [dev.regabi] cmd/compile: remove nested functions from expands_calls.go
+    + 2021-01-27 667e08ba8c [dev.regabi] cmd/go: Use GOMAXPROCS to limit default build, compile parallelism
+    + 2021-01-27 00f2ff5c94 api/go1.16: add go/build/constraint APIs
+    + 2021-01-27 35334caf18 crypto/x509: remove leftover CertificateRequest field
+    + 2021-01-27 a5a5e2c968 runtime: make sure to remove open-coded defer entries in all cases after a recover
+    + 2021-01-27 8cfa01943a runtime: block console ctrlhandler when the signal is handled
+    + 2021-01-27 ff9e8364c6 cmd/go: skip issue33139 when the 'cc' script command is unavailable
+    + 2021-01-27 cd176b3615 runtime: switch runtime to libc for openbsd/arm64
+    + 2021-01-27 6c8fbfbdcf runtime: convert openbsd/arm64 locking to libc
+    + 2021-01-27 5cdf0da1bf syscall: clean up mkasm related changes
+    + 2021-01-27 210f70e298 doc/go1.16: fix closing brace in .Export format
+    + 2021-01-27 0f797f168d math: fix typo in sqrt.go code comment
+    + 2021-01-26 9b636feafe [dev.regabi] cmd/compile: missing last patch set for cl286013
+    + 2021-01-26 f7dad5eae4 [dev.regabi] cmd/compile: remove leftover code form late call lowering work
+    + 2021-01-26 8634a234df runtime,syscall: convert syscall on openbsd/amd64 to libc
+    + 2021-01-26 1d5e14632e os: further document limitations around naked file descriptors
+    + 2021-01-26 cf263e9f77 os: correct names in CreateTemp and MkdirTemp doc comments
+    + 2021-01-26 ce8b318624 net/http/fcgi: remove locking added to prevent a test-only race
     
-    We had also discussed that we would prefer to minimize spaces in
-    function/method instantiation names. So, I changed LinkString() to
-    eliminate all unneeded spaces. In the one case where we need a
-    separator, which is between field names and types, we use a "#" instead
-    of a space.
-    
-    This change has the advantage of eliminating spaces in some existing
-    non-generic function name - mainly .type.eq functions for anonymous
-    types (e.g. "type..eq.struct { runtime.gList; runtime.n int32 }") shows
-    up in a hello-world executable (as Cherry pointed out).
-    
-    We do not need an analogous function for types2 right now, since we
-    create all instantiations using types1 types. In the one case where we
-    need to create an instantiation during types2-to-types1 translation, we
-    convert the types to types1 first (see (*irgen).instTypeName2).
-    
-    Change-Id: Iac4748fa0d0d6f89af59bd51076266986daee945
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353609
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibd38d559c8a5b0aa32dd0d3a8cdf6876368a3aeb
 
- src/cmd/compile/internal/typecheck/iimport.go | 11 ++++++-
- src/cmd/compile/internal/typecheck/subr.go    | 14 ++++----
- src/cmd/compile/internal/types/fmt.go         | 47 +++++++++++++++++++++------
- 3 files changed, 53 insertions(+), 19 deletions(-)
+ api/go1.16.txt                                     |   29 +
+ doc/go1.16.html                                    |   37 +-
+ doc/go_spec.html                                   |    4 +-
+ misc/cgo/testshared/shared_test.go                 |    8 +
+ misc/cgo/testshared/testdata/issue44031/a/a.go     |    9 +
+ misc/cgo/testshared/testdata/issue44031/b/b.go     |   17 +
+ .../testshared/testdata/issue44031/main/main.go    |   20 +
+ src/cmd/compile/internal/ssa/compile.go            |    1 -
+ src/cmd/compile/internal/ssa/config.go             |    8 -
+ src/cmd/compile/internal/ssa/decompose.go          |    4 -
+ src/cmd/compile/internal/ssa/expand_calls.go       | 1226 ++++++++++----------
+ src/cmd/compile/internal/ssa/gen/dec64.rules       |    8 +-
+ src/cmd/compile/internal/ssa/gen/decArgs.rules     |   58 -
+ src/cmd/compile/internal/ssa/gen/decArgsOps.go     |   20 -
+ src/cmd/compile/internal/ssa/rewritedec64.go       |   16 +-
+ src/cmd/compile/internal/ssa/rewritedecArgs.go     |  247 ----
+ src/cmd/compile/internal/ssagen/ssa.go             |  217 +---
+ src/cmd/go/alldocs.go                              |    2 +-
+ src/cmd/go/internal/cfg/cfg.go                     |   24 +-
+ src/cmd/go/internal/work/build.go                  |    2 +-
+ src/cmd/go/internal/work/gc.go                     |   17 +-
+ src/cmd/go/testdata/script/build_trimpath.txt      |    3 +-
+ .../go/testdata/script/link_syso_issue33139.txt    |    2 +-
+ src/cmd/link/elf_test.go                           |    6 +
+ src/cmd/link/internal/ld/deadcode.go               |   16 +-
+ src/cmd/link/internal/ld/decodesym.go              |    2 +-
+ src/crypto/x509/x509.go                            |   24 -
+ src/crypto/x509/x509_test.go                       |    4 -
+ src/embed/embed.go                                 |   22 +-
+ src/math/sqrt.go                                   |    2 +-
+ src/net/http/fcgi/child.go                         |    3 -
+ src/net/http/fcgi/fcgi_test.go                     |   12 +-
+ src/os/file_unix.go                                |    8 +
+ src/os/tempfile.go                                 |    4 +-
+ src/runtime/crash_test.go                          |   12 +
+ src/runtime/defer_test.go                          |   28 +
+ src/runtime/defs_openbsd_arm64.go                  |    5 +
+ src/runtime/memclr_386.s                           |    2 +
+ src/runtime/memclr_amd64.s                         |    2 +
+ src/runtime/memclr_arm.s                           |    2 +
+ src/runtime/memclr_arm64.s                         |    2 +
+ src/runtime/memclr_mips64x.s                       |    2 +
+ src/runtime/memclr_mipsx.s                         |    2 +
+ src/runtime/memclr_plan9_386.s                     |    2 +
+ src/runtime/memclr_plan9_amd64.s                   |    2 +
+ src/runtime/memclr_ppc64x.s                        |    2 +
+ src/runtime/memclr_riscv64.s                       |    2 +
+ src/runtime/memclr_s390x.s                         |    2 +
+ src/runtime/memclr_wasm.s                          |    2 +
+ src/runtime/os_openbsd_syscall1.go                 |    2 +-
+ src/runtime/os_openbsd_syscall2.go                 |    2 +-
+ src/runtime/os_windows.go                          |    7 +
+ src/runtime/panic.go                               |   63 +-
+ src/runtime/proc.go                                |    2 +-
+ src/runtime/signal_windows_test.go                 |   64 +
+ src/runtime/stubs.go                               |    8 +
+ src/runtime/sys_openbsd1.go                        |    2 +-
+ src/runtime/sys_openbsd2.go                        |    2 +-
+ src/runtime/sys_openbsd3.go                        |  113 ++
+ src/runtime/sys_openbsd_amd64.s                    |  341 ++++++
+ src/runtime/sys_openbsd_arm64.s                    |  821 ++++++++-----
+ src/runtime/testdata/testprog/deadlock.go          |   39 +
+ src/runtime/testdata/testwinsignal/main.go         |   19 +
+ src/syscall/asm9_unix1_amd64.s                     |    4 +-
+ src/syscall/asm_openbsd_amd64.s                    |   32 +
+ src/syscall/asm_openbsd_arm64.s                    |  140 +--
+ src/syscall/asm_unix_amd64.s                       |    2 +-
+ src/syscall/exec_bsd.go                            |    2 +-
+ src/syscall/{exec_darwin.go => exec_libc2.go}      |    2 +
+ src/syscall/exec_unix.go                           |    4 +
+ src/syscall/mkall.sh                               |   18 +-
+ src/syscall/{mkasm_darwin.go => mkasm.go}          |   31 +-
+ src/syscall/mksyscall.pl                           |   28 +-
+ src/syscall/syscall_openbsd.go                     |    5 -
+ src/syscall/syscall_openbsd1.go                    |   13 +
+ src/syscall/syscall_openbsd_libc.go                |   77 ++
+ src/syscall/zsyscall_darwin_amd64.s                |    2 +-
+ src/syscall/zsyscall_darwin_arm64.s                |    2 +-
+ src/syscall/zsyscall_openbsd_amd64.go              |  981 +++++++++++++---
+ src/syscall/zsyscall_openbsd_amd64.s               |  233 ++++
+ src/syscall/zsyscall_openbsd_arm64.go              |  955 +++++++++++++--
+ src/syscall/zsyscall_openbsd_arm64.s               |  233 ++++
+ test/closure7.go                                   |   28 +
+ test/fixedbugs/issue11656.go                       |    8 +-
+ 84 files changed, 4464 insertions(+), 1972 deletions(-)

@@ -1,24 +1,15 @@
-commit 9fc28892cb88dd4c7b0552137b97c1692c23e46b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 14 13:09:19 2021 -0700
+commit f0d99def5b8919292a76b19dfdaf601e25dc6157
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 29 10:08:30 2020 -0800
 
-    cmd/compile/internal/types2: export TypeHash, return value without blanks
+    [dev.regabi] cmd/compile: add newline to ir.Dump
     
-    Change the typeWriter to produce blank-free hashes where easily possible
-    if used as a type hasher, and replace remaining blanks with '#' is needed.
+    If you do two ir.Dumps in a row, there's no newline between them.
     
-    Exported Environment.TypeHash for use by the compiler.
-    
-    Change-Id: Icbd364c207f9c139a7a1844bb695512a0c56a4e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349990
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I1a80dd22da68cb677eb9abd7a50571ea33584010
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280672
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/environment.go |  9 ++---
- src/cmd/compile/internal/types2/instantiate.go |  2 +-
- src/cmd/compile/internal/types2/named.go       |  2 +-
- src/cmd/compile/internal/types2/subst.go       |  2 +-
- src/cmd/compile/internal/types2/typestring.go  | 46 ++++++++++++++++++--------
- 5 files changed, 41 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/ir/fmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

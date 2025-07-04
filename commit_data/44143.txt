@@ -1,25 +1,19 @@
-commit ccb2e906882e45fe2d22c31049185208adbfb62e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Jan 19 11:02:10 2021 -0500
+commit f474e9e549b248653875c340b3c6d7ab495decfe
+Author: Dan Scales <danscales@google.com>
+Date:   Tue May 12 15:44:47 2020 -0700
 
-    cmd/link: exit before Asmb2 if error
+    runtime: add a lock partial order edge (assistQueue -> mspanSpecial)
     
-    If there are already errors emitted, don't run the Asmb2 pass
-    and just exit. At the point of Asmb2 relocations are already
-    resolved and errors should have been reported, if any. Asmb2 is
-    unlikely to emit additional useful users errors. Instead, the
-    invalid input may cause inconsistencies and crash the linker, or
-    it may emit some internal errors which are more confusing than
-    helpful. Exit on error before Asmb2.
+    From interesting stack trace from GC assist through memory profiling to
+    addspecial().
     
-    Fixes #43748.
+    Fixes #39022
     
-    Change-Id: Icf6e27f2eef5b6259e921ec0e64bebad5dd805f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284576
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ia0506b820fe29ae91490b61c4e9c2fffcad9f7d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233599
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/ld/main.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/lockrank.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

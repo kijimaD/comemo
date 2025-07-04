@@ -1,34 +1,15 @@
-commit f9eb3e3cd59c1cf38a98f2367c6c8dc180db9a95
-Author: David Chase <drchase@google.com>
-Date:   Tue Jul 23 11:18:08 2024 -0400
+commit a469983943fcbaa63faa63230daad917447b34a0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 1 08:49:47 2023 -0700
 
-    runtime,internal: move runtime/internal/math to internal/runtime/math
+    doc/go1.21: fix type in closing tag
     
-    Cleanup and friction reduction.
-    
-    Updates #65355.
-    
-    Change-Id: I6c4fcd409d044c00d16561fe9ed2257877d73f5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600435
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ibcdedb8222a80c0478f783f4a1800e472dbe062c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499935
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules                | 2 +-
- src/cmd/compile/internal/ssagen/ssa.go                       | 6 +++---
- src/cmd/compile/internal/test/inl_test.go                    | 2 +-
- src/cmd/compile/internal/walk/builtin.go                     | 2 +-
- src/cmd/internal/objabi/pkgspecial.go                        | 2 +-
- src/go/build/deps_test.go                                    | 2 +-
- src/internal/coverage/pkid.go                                | 4 ++--
- src/{runtime/internal => internal/runtime}/math/math.go      | 0
- src/{runtime/internal => internal/runtime}/math/math_test.go | 2 +-
- src/runtime/arena.go                                         | 2 +-
- src/runtime/chan.go                                          | 2 +-
- src/runtime/hash64.go                                        | 2 +-
- src/runtime/malloc.go                                        | 2 +-
- src/runtime/map.go                                           | 2 +-
- src/runtime/rand.go                                          | 2 +-
- src/runtime/slice.go                                         | 2 +-
- src/runtime/unsafe.go                                        | 2 +-
- 17 files changed, 19 insertions(+), 19 deletions(-)
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

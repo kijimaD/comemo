@@ -1,17 +1,27 @@
-commit e4e4cdb39a821eb850200967cb21ab36e8d3a1be
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 6 10:47:42 2011 -0500
+commit bbbd41f4fff790e9a340a4be77c3c05f37491273
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 6 09:33:23 2011 -0500
 
-    image: avoid func comparison during ColorModel comparison
+    exp/ssh: simplify client channel open logic
     
-    When I disallowed map + func comparisons, I only did it
-    in the static case and missed the comparisons via == on
-    interface values.  Fixing that turned these up.
+    This is part one of a small set of CL's that aim to resolve
+    the outstanding TODOs relating to channel close and blocking
+    behavior.
     
-    R=nigeltao, r
+    Firstly, the hairy handling of assigning the peersId is now
+    done in one place. The cost of this change is the slightly
+    paradoxical construction of the partially created clientChan.
+    
+    Secondly, by creating clientChan.stdin/out/err when the channel
+    is opened, the creation of consumers like tcpchan and Session
+    is simplified; they just have to wire themselves up to the
+    relevant readers/writers.
+    
+    R=agl, gustav.paul, rsc
     CC=golang-dev
-    https://golang.org/cl/5440103
+    https://golang.org/cl/5448073
 
- src/pkg/image/color/color.go | 21 +++++++++++++++------
- src/pkg/image/names.go       |  8 ++++++--
- 2 files changed, 21 insertions(+), 8 deletions(-)
+ src/pkg/exp/ssh/client.go  | 79 +++++++++++++++++++++++++++++++---------------
+ src/pkg/exp/ssh/session.go | 41 ++++++------------------
+ src/pkg/exp/ssh/tcpip.go   | 48 ++++++++++------------------
+ 3 files changed, 79 insertions(+), 89 deletions(-)

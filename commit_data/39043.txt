@@ -1,22 +1,18 @@
-commit e64241216dd141589144a07f7f68acd64dc108fe
-Author: Vivek Sekhar <vsekhar@google.com>
-Date:   Mon May 6 17:49:47 2019 +0000
+commit c343b6b2b81f9c6d4007c2c3c567dfaadd4fa4e6
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Dec 17 00:37:07 2018 +0000
 
-    net/http: add support for SameSite=None
+    os: show how to print permission bits in octal
     
-    Section 4.2 of the Internet-Draft for SameSite includes the possible
-    SameSite value of "None".
+    Permission bits are most commonly viewed in string form (rwx-- etc) or
+    in octal form (0755), but the latter is relatively rare in Go.
+    Demonstrate how to print a FileMode in readable octal format.
     
-    https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00
-    
-    Change-Id: I44f246024429ec175db13ff6b36bee465f3d233d
-    GitHub-Last-Rev: 170d24aaca4f00d750fca88740100f7c0b440d19
-    GitHub-Pull-Request: golang/go#31842
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175337
+    Change-Id: I41feb801bcecb5077d4eabafdea27c149fc179a1
+    Reviewed-on: https://go-review.googlesource.com/c/154423
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/next.txt                |  2 ++
- src/net/http/cookie.go      |  5 +++++
- src/net/http/cookie_test.go | 13 +++++++++++++
- 3 files changed, 20 insertions(+)
+ src/os/example_test.go | 1 +
+ 1 file changed, 1 insertion(+)

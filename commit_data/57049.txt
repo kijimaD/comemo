@@ -1,113 +1,27 @@
-commit c5de95076669ad2416aeec941912af723f2ccf78
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 16 13:09:51 2024 -0400
+commit 0b5a4afec9df67157891732e5ca660eaf1efab34
+Author: Achille Roussel <achille.roussel@gmail.com>
+Date:   Sat Jun 10 12:44:21 2023 -0700
 
-    time: optimize time <-> date conversions
+    net: test net.FileConn and net.FileListener with UDP sockets on wasip1
     
-    Optimize the time -> date and date -> time conversions using the
-    methods outlined in:
+    The WASI specification has file types for both stream and datagram
+    sockets. This change refactors the internal implementation of the
+    net.FileConn and net.FileListener functions to avoid returning a
+    misleading ENOTSOCK when calling net.FileConn with a file referencing
+    a datagram socket and instead properly construct net.UDPConn values
+    or return EOPNOTSUPP otherwise.
     
-        Cassio Neri and Lorenz Schneider,
-        “Euclidean affine functions and their
-        application to calendar algorithms,”
-        SP&E 2023. https://doi.org/10.1002/spe.3172
-    
-    I took the opportunity to introduce some types to make the code
-    significantly clearer and optimize a few other parts I noticed along
-    the way. The result is noticeably faster across the board.
-    
-    Probably this doesn't matter much in real programs, but all the other
-    languages are picking this up, and it is less code than what we had
-    before.
-    
-    Proposal #63844 suggested adopting this algorithm and simultaneously
-    restricting the range of valid years supported by the package from its
-    current ±292277022399 (plenty for anyone) to a mere ±32767.
-    This CL does NOT make any such restriction. The range of valid years
-    is almost exactly what it was before. (It is the same size but shifted
-    10 months earlier, which no one will ever care about.)
-    
-    This CL removes any real need to consider the proposal, since it
-    would be a breaking change for truly insignificant benefit.
-    
-    Thanks to Normandes Junior and Cassio Neri for CL 548155
-    and for discussion on #63844, which prompted me to write this CL.
-    This CL is all new code and does not include code from CL 548155
-    except as noted in the isLeap function implementation.
-    
-    For #63844.
-    
-    goos: linux
-    goarch: amd64
-    pkg: time
-    cpu: AMD Ryzen 9 7950X 16-Core Processor
-                            │ timeold.txt  │             timenew.txt              │
-                            │    sec/op    │   sec/op     vs base                 │
-    Format-32                  156.5n ± 1%   148.1n ± 1%   -5.37% (n=125)
-    FormatRFC3339-32           118.5n ± 1%   112.1n ± 1%   -5.40% (n=125)
-    FormatRFC3339Nano-32       119.2n ± 1%   113.0n ± 1%   -5.20% (n=125)
-    FormatNow-32               96.88n ± 2%   97.22n ± 1%        ~ (p=0.173 n=125)
-    MarshalJSON-32             79.77n ± 1%   75.82n ± 1%   -4.95% (n=125)
-    MarshalText-32             79.25n ± 1%   76.18n ± 1%   -3.87% (p=0.000 n=125)
-    Parse-32                   79.80n ± 1%   78.28n ± 1%   -1.90% (p=0.000 n=125)
-    ParseRFC3339UTC-32         29.10n ± 1%   28.90n ± 0%        ~ (p=0.094 n=125)
-    ParseRFC3339UTCBytes-32    30.72n ± 1%   30.88n ± 1%        ~ (p=0.894 n=125)
-    ParseRFC3339TZ-32          92.29n ± 0%   90.27n ± 1%   -2.19% (p=0.000 n=125)
-    ParseRFC3339TZBytes-32     133.4n ± 1%   132.0n ± 1%        ~ (p=0.004 n=125)
-    ParseDuration-32           41.11n ± 3%   44.08n ± 2%        ~ (p=0.088 n=125)
-    Hour-32                    2.834n ± 0%   2.829n ± 1%        ~ (p=0.891 n=125)
-    Second-32                  2.811n ± 1%   2.828n ± 1%        ~ (p=0.208 n=125)
-    Date-32                    9.228n ± 1%   5.788n ± 0%  -37.28% (n=125)
-    Year-32                    6.404n ± 1%   4.673n ± 1%  -27.03% (n=125)
-    YearDay-32                 6.399n ± 1%   5.802n ± 0%   -9.33% (n=125)
-    Month-32                   9.108n ± 1%   4.700n ± 1%  -48.40% (n=125)
-    Day-32                     9.106n ± 1%   4.686n ± 1%  -48.54% (n=125)
-    ISOWeek-32                10.060n ± 0%   7.998n ± 1%  -20.50% (n=125)
-    GoString-32                84.59n ± 1%   83.82n ± 1%        ~ (p=0.027 n=125)
-    DateFunc-32                6.993n ± 0%   6.144n ± 1%  -12.14% (n=125)
-    UnmarshalText-32           94.78n ± 2%   89.49n ± 1%   -5.58% (n=125)
-    geomean                    29.60n        26.13n       -11.70%
-    
-    goos: darwin
-    goarch: arm64
-    pkg: time
-    cpu: Apple M3 Pro
-                            │ timeold-m3.txt │            timenew-m3.txt            │
-                            │     sec/op     │   sec/op     vs base                 │
-    Format-12                    152.6n ± 0%   147.4n ± 0%   -3.41% (n=125)
-    FormatRFC3339-12            101.50n ± 0%   92.02n ± 0%   -9.34% (n=125)
-    FormatRFC3339Nano-12        101.30n ± 0%   92.68n ± 0%   -8.51% (n=125)
-    FormatNow-12                 93.50n ± 0%   94.65n ± 0%   +1.23% (p=0.000 n=125)
-    MarshalJSON-12               50.06n ± 0%   48.25n ± 0%   -3.62% (n=125)
-    MarshalText-12               49.70n ± 0%   47.51n ± 0%   -4.41% (n=125)
-    Parse-12                     97.91n ± 0%   95.90n ± 0%   -2.05% (n=125)
-    ParseRFC3339UTC-12           36.45n ± 0%   35.78n ± 1%   -1.84% (n=125)
-    ParseRFC3339UTCBytes-12      38.11n ± 0%   37.42n ± 0%   -1.81% (n=125)
-    ParseRFC3339TZ-12           100.80n ± 1%   97.58n ± 0%   -3.19% (n=125)
-    ParseRFC3339TZBytes-12       111.8n ± 1%   107.4n ± 0%   -3.94% (n=125)
-    ParseDuration-12             52.70n ± 0%   52.84n ± 0%        ~ (p=0.028 n=125)
-    Hour-12                      2.657n ± 0%   2.655n ± 0%        ~ (p=0.018 n=125)
-    Second-12                    2.656n ± 0%   2.654n ± 0%        ~ (p=0.084 n=125)
-    Date-12                      8.201n ± 0%   5.055n ± 0%  -38.36% (n=125)
-    Year-12                      5.694n ± 0%   4.086n ± 0%  -28.24% (n=125)
-    YearDay-12                   5.693n ± 0%   4.828n ± 0%  -15.19% (n=125)
-    Month-12                     8.206n ± 0%   4.231n ± 0%  -48.44% (n=125)
-    Day-12                       8.199n ± 0%   4.551n ± 0%  -44.49% (n=125)
-    ISOWeek-12                   9.032n ± 0%   7.298n ± 0%  -19.20% (n=125)
-    GoString-12                  62.78n ± 0%   60.61n ± 0%   -3.46% (n=125)
-    DateFunc-12                  7.318n ± 0%   6.431n ± 0%  -12.12% (n=125)
-    UnmarshalText-12             99.66n ± 0%   95.64n ± 0%   -4.03% (n=125)
-    
-    Change-Id: I089a072a731914702f8087018d00960e129f86b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586257
+    Change-Id: I594f700847254895cd6ce172979fd89c4b851940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502316
+    Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
 
- src/time/abs_test.go       | 183 +++++++++++++
- src/time/format.go         |  34 ++-
- src/time/format_rfc3339.go |   4 +-
- src/time/linkname_test.go  |  41 +++
- src/time/time.go           | 671 +++++++++++++++++++++++++++++----------------
- src/time/time_test.go      |  48 +++-
- src/time/zoneinfo.go       |  21 +-
- 7 files changed, 724 insertions(+), 278 deletions(-)
+ src/net/fd_wasip1.go        | 16 +++-----
+ src/net/file_wasip1.go      | 84 ++++++++++++++++++++++++++++++-----------
+ src/net/file_wasip1_test.go | 92 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 160 insertions(+), 32 deletions(-)

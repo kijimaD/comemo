@@ -1,28 +1,18 @@
-commit b85c2dd56c4ecc7bf445bd1615467ecd38598eee
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Oct 24 20:58:38 2020 -0400
+commit f3424ceff2fa48615ed98580f337ab044925c940
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 13 21:57:41 2020 -0700
 
-    cmd/link: enable internal linking by default on darwin/arm64
+    go/types: use same local variable consistently (minor cleanup)
     
-    With previous CLs, internal linking without cgo should work well.
-    Enable it by default. And stop always requiring cgo.
+    Currently this CL has no effect because V == x.typ in the affected
+    code. But if we should ever manipulate V (e.g., to support some form
+    of lazy evaluation of the type), not using V consistently would
+    lead to a subtle bug.
     
-    Enable tests that were previously disabled due to the lack of
-    internal linking.
-    
-    Updates #38485.
-    
-    Change-Id: I45125b9c263fd21d6847aa6b14ecaea3a2989b29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265121
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I465e72d18bbd2b6cd8fcbd746e0d28d14f758c03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228105
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go    | 4 ----
- src/cmd/internal/sys/supported.go  | 2 +-
- src/cmd/link/internal/ld/config.go | 4 +---
- src/cmd/nm/nm_cgo_test.go          | 5 -----
- src/internal/testenv/testenv.go    | 2 +-
- test/fixedbugs/bug429_run.go       | 4 ----
- test/fixedbugs/issue21576.go       | 4 ----
- 7 files changed, 3 insertions(+), 22 deletions(-)
+ src/go/types/operand.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

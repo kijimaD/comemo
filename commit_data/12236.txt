@@ -1,16 +1,16 @@
-commit ec15046a8d7aea1bc8f89c5ff8006c5244e76ebc
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 28 08:33:06 2012 +1100
+commit 1f5fde09159fe2a4a87129af307045ca7b12f727
+Author: Yissakhar Z. Beck <yissakhar.beck@gmail.com>
+Date:   Tue Feb 28 07:41:49 2012 +1100
 
-    cmd/go: drop -example, apply -run to examples
-    Once more, with feeling.
+    misc/bash: Completion for go tool.
     
-    R=golang-dev, gri
+    This covers most of the tool's functionality. At some point,
+    support should probably be added for testflags and the various go
+    tools.
+    
+    R=golang-dev, bradfitz, kyle, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5698080
+    https://golang.org/cl/5646066
 
- src/cmd/go/test.go         |  5 -----
- src/cmd/go/testflag.go     |  2 --
- src/pkg/testing/example.go | 10 ++--------
- src/pkg/testing/testing.go |  2 +-
- 4 files changed, 3 insertions(+), 16 deletions(-)
+ misc/bash/go | 244 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 244 insertions(+)

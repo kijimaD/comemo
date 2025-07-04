@@ -1,18 +1,19 @@
-commit 132f9fa9f8d52ac6ca38b5f3a65d67c1492a42c2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 26 13:18:34 2024 -0700
+commit 4f4a9c7fff0b96d596c65f7997ab646b3ac42517
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Apr 6 17:36:05 2023 -0400
 
-    test: issue16016: use fewer goroutines for gccgo
+    runtime: correct GoCheckBindM's C declaration in EnsureBindM test
     
-    For https://gcc.gnu.org/PR114453
+    The test file has a C declaration which doesn't match the actual
+    definition. Remove it and include "_cgo_export.h" to have the
+    right declaration.
     
-    Change-Id: If41d9fca6288b18ed47b0f21ff224c74ddb34958
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574536
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iddf6d8883ee0e439147c7027029dd3e352ef090d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482975
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- test/fixedbugs/issue16016.go | 18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ src/runtime/testdata/testprogcgo/bindm.c  | 34 +++++++++++++++++++++++++++++++
+ src/runtime/testdata/testprogcgo/bindm.go | 30 +--------------------------
+ 2 files changed, 35 insertions(+), 29 deletions(-)

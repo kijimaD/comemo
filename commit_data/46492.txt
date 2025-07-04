@@ -1,20 +1,174 @@
-commit 315dbd10c90db3b41af2c975a5fbfa2ec7615c1b
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Sep 19 09:23:37 2021 -0700
+commit a8fe098a12a75801e13e99cdcc03a9d8a59c72ce
+Merge: a800acaae1 77365c5ed7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 5 10:10:56 2021 -0800
 
-    cmd/compile: fold double negate on arm64
+    [dev.typeparams] all: merge dev.regabi (77365c5) into dev.typeparams
     
-    Fixes #48467
+    Conflicts:
     
-    Change-Id: I52305dbf561ee3eee6c1f053e555a3a6ec1ab892
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350910
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    - src/cmd/compile/internal/gc/main.go
+    - test/fixedbugs/issue15055.go
+    
+    Merge List:
+    
+    + 2021-01-05 77365c5ed7 [dev.regabi] cmd/compile: add Name.Canonical and move Byval
+    + 2021-01-05 e09783cbc0 [dev.regabi] cmd/compile: make ir.StaticValue safer
+    + 2021-01-05 9aa950c407 [dev.regabi] cmd/compile: make ir.OuterValue safer
+    + 2021-01-05 eb626409d1 [dev.regabi] cmd/compile: simplify CaptureVars
+    + 2021-01-05 c28ca67a96 [dev.regabi] cmd/compile: fix ir.Dump for []*CaseClause, etc
+    + 2021-01-04 f24e40c14a [dev.regabi] cmd/compile: remove Name.Class_ accessors
+    + 2021-01-04 d89705e087 [dev.regabi] cmd/compile: fix re-export of parameters
+    + 2021-01-04 290b4154b7 [dev.regabi] cmd/compile: fix ICE due to large uint64 constants
+    + 2021-01-04 a30fd52884 [dev.regabi] cmd/compile: use ir.NewNameAt in SubstArgTypes
+    + 2021-01-03 8fc44cf0fa [dev.regabi] cmd/compile: remove a couple CloneName calls
+    + 2021-01-03 907a4bfdc7 [dev.regabi] cmd/compile: fix map assignment order
+    + 2021-01-03 f2e6dab048 [dev.regabi] cmd/compile: remove walkReturn "common case" path
+    + 2021-01-03 d36a6bf44d [dev.regabi] cmd/compile: improve walkReturn common case
+    + 2021-01-03 a317067d65 [dev.regabi] cmd/compile: improve ascompatee
+    + 2021-01-03 5d80a590a2 [dev.regabi] cmd/compile: simplify walkReturn
+    + 2021-01-03 bb1b6c95c2 [dev.regabi] cmd/compile: remove Node.{,Set}Walkdef
+    + 2021-01-03 57c426c9a5 [dev.regabi] cmd/compile: tighten typecheckdef to *ir.Name
+    + 2021-01-03 b1747756e3 [dev.regabi] cmd/compile: reorganize escape analysis somewhat
+    + 2021-01-02 f2538033c0 [dev.regabi] cmd/compile: remove Nodes.Set [generated]
+    + 2021-01-02 2f2d4b4e68 [dev.regabi] cmd/compile: remove {Ptr,Set}Init from Node interface
+    + 2021-01-01 1544a03198 [dev.regabi] cmd/compile: refactor redundant type conversion [generated]
+    + 2021-01-01 7958a23ea3 [dev.regabi] cmd/compile: use *ir.Name where possible in inl.go
+    + 2021-01-01 bfa97ba48f [dev.regabi] test: add another closure test case
+    + 2021-01-01 67ad695416 [dev.regabi] cmd/compile: split escape analysis state
+    + 2021-01-01 fad9a8b528 [dev.regabi] cmd/compile: simplify inlining of closures
+    + 2021-01-01 7d55669847 [dev.regabi] cmd/compile: simplify dwarfgen.declPos
+    + 2021-01-01 9ed1577779 [dev.regabi] cmd/compile: remove Func.ClosureEnter
+    + 2021-01-01 ece345aa69 [dev.regabi] cmd/compile: expand documentation for Func.Closure{Vars,Enter}
+    + 2021-01-01 6ddbc75efd [dev.regabi] cmd/compile: earlier deadcode removal
+    + 2021-01-01 68e6fa4f68 [dev.regabi] cmd/compile: fix package-initialization order
+    + 2021-01-01 3a4474cdfd [dev.regabi] cmd/compile: some more manual shuffling
+    + 2021-01-01 0f1d2129c4 [dev.regabi] cmd/compile: reshuffle type-checking code [generated]
+    + 2021-01-01 b8fd3440cd [dev.regabi] cmd/compile: report unused variables during typecheck
+    + 2021-01-01 fd22df9905 [dev.regabi] cmd/compile: remove idempotent Name() calls [generated]
+    + 2020-12-31 dfbcff80c6 [dev.regabi] cmd/compile: make copyExpr return *ir.Name directly
+    + 2020-12-31 77fd81a3e6 [dev.regabi] cmd/compile: use names for keep alive variables in function call
+    + 2020-12-31 8fe1197654 [dev.regabi] cmd/compile: remove Name.orig
+    + 2020-12-31 477b049060 [dev.regabi] cmd/compile: fix printing of method expressions
+    + 2020-12-30 178c667db2 [dev.regabi] cmd/compile: fix OSLICEARR comments
+    + 2020-12-30 f0d99def5b [dev.regabi] cmd/compile: add newline to ir.Dump
+    + 2020-12-30 451693af71 [dev.regabi] cmd/compile: simplify typecheckdef
+    + 2020-12-30 0c1a899a6c [dev.regabi] cmd/compile: fix defined-pointer method call check
+    + 2020-12-30 f9b67f76a5 [dev.regabi] cmd/compile: change ir.DoChildren to use bool result type
+    + 2020-12-30 499851bac8 [dev.regabi] cmd/compile: generalize ir/mknode.go
+    + 2020-12-30 82ab3d1448 [dev.regabi] cmd/compile: use *ir.Name for Decl.X
+    + 2020-12-30 9958b7ed3e [dev.regabi] cmd/compile: unexport ir.FmtNode
+    + 2020-12-29 f5816624cd [dev.regabi] cmd/compile: change AddrExpr.Alloc to AddrExpr.Prealloc
+    + 2020-12-29 850aa7c60c [dev.regabi] cmd/compile: use *ir.Name instead of ir.Node for CaseClause.Var
+    + 2020-12-29 37babc97bb [dev.regabi] cmd/compile: allow visitor visits *ir.Name
+    + 2020-12-29 5cf3c87fa6 [dev.regabi] cmd/compile: generate case/comm clause functions in mknode.go
+    + 2020-12-29 b3e1ec97fd [dev.regabi] cmd/compile: move new addrtaken bit back to the old name
+    + 2020-12-29 0620c674dd [dev.regabi] cmd/compile: remove original addrtaken bit
+    + 2020-12-29 0523d525ae [dev.regabi] cmd/compile: separate out address taken computation from typechecker
+    + 2020-12-29 9ea272e5ec [dev.regabi] cmd/compile: simplify ir.Func somewhat
+    + 2020-12-29 e40cb4d4ae [dev.regabi] cmd/compile: remove more unused code
+    + 2020-12-29 6f30c95048 [dev.regabi] cmd/compile: remove unneeded indirection
+    + 2020-12-29 171fc6f223 [dev.regabi] cmd/compile: remove workarounds for go/constant issues
+    + 2020-12-29 33801cdc62 [dev.regabi] cmd/compile: use Ntype where possible
+    + 2020-12-29 82ad3083f8 [dev.regabi] cmd/compile: remove typ from AssignOpStmt
+    + 2020-12-29 e34c44a7c4 [dev.regabi] cmd/compile: refactoring typecheck arith
+    + 2020-12-29 a5ec920160 [dev.regabi] cmd/compile: more Linksym cleanup
+    + 2020-12-29 ec59b197d5 [dev.regabi] cmd/compile: rewrite to use linksym helpers [generated]
+    + 2020-12-29 25c613c02d [dev.regabi] cmd/compile: add Linksym helpers
+    + 2020-12-29 289da2b33e [dev.regabi] cmd/compile: move Node.Opt to Name
+    + 2020-12-29 6acbae4fcc [dev.regabi] cmd/compile: address some ir TODOs
+    + 2020-12-29 4629f6a51d [dev.regabi] cmd/compile: merge {Selector,CallPart,Method}Expr
+    + 2020-12-29 e563715b30 [dev.regabi] cmd/compile: remove Sym.Importdef
+    + 2020-12-29 3f370b75fb [dev.regabi] cmd/compile: cleanup //go:generate directives
+    
+    Change-Id: Ibb254630924ac5873ebda6762ceb066f54a82649
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  1 +
- src/cmd/compile/internal/ssa/rewriteARM64.go | 10 ++++++++++
- test/codegen/bits.go                         |  8 ++++++++
- 3 files changed, 19 insertions(+)
+ src/cmd/compile/internal/deadcode/deadcode.go      |  152 ++
+ src/cmd/compile/internal/dwarfgen/dwarf.go         |   71 +-
+ src/cmd/compile/internal/escape/escape.go          |  305 ++--
+ src/cmd/compile/internal/gc/abiutils_test.go       |    9 +-
+ src/cmd/compile/internal/gc/abiutilsaux_test.go    |    2 +-
+ src/cmd/compile/internal/gc/compile.go             |    4 +-
+ src/cmd/compile/internal/gc/export.go              |    2 +-
+ src/cmd/compile/internal/gc/main.go                |   74 +-
+ src/cmd/compile/internal/gc/obj.go                 |   16 +-
+ src/cmd/compile/internal/inline/inl.go             |  188 ++-
+ src/cmd/compile/internal/ir/class_string.go        |    2 +-
+ src/cmd/compile/internal/ir/copy.go                |    8 +
+ src/cmd/compile/internal/ir/expr.go                |  193 +--
+ src/cmd/compile/internal/ir/fmt.go                 |   46 +-
+ src/cmd/compile/internal/ir/func.go                |   44 +-
+ src/cmd/compile/internal/ir/mini.go                |   19 +-
+ src/cmd/compile/internal/ir/mknode.go              |  259 ++--
+ src/cmd/compile/internal/ir/name.go                |   74 +-
+ src/cmd/compile/internal/ir/node.go                |   71 +-
+ src/cmd/compile/internal/ir/node_gen.go            | 1564 ++++++++++++--------
+ src/cmd/compile/internal/ir/op_string.go           |    2 +-
+ src/cmd/compile/internal/ir/scc.go                 |    2 +-
+ src/cmd/compile/internal/ir/sizeof_test.go         |    4 +-
+ src/cmd/compile/internal/ir/stmt.go                |   93 +-
+ src/cmd/compile/internal/ir/type.go                |   86 +-
+ src/cmd/compile/internal/ir/visit.go               |  123 +-
+ src/cmd/compile/internal/liveness/plive.go         |   28 +-
+ src/cmd/compile/internal/noder/import.go           |    2 -
+ src/cmd/compile/internal/noder/noder.go            |  160 +-
+ src/cmd/compile/internal/pkginit/init.go           |   18 +-
+ src/cmd/compile/internal/pkginit/initorder.go      |   12 +-
+ src/cmd/compile/internal/reflectdata/alg.go        |   12 +-
+ src/cmd/compile/internal/reflectdata/reflect.go    |  126 +-
+ src/cmd/compile/internal/ssa/deadstore.go          |    8 +-
+ src/cmd/compile/internal/ssa/export_test.go        |    2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go       |    5 +-
+ src/cmd/compile/internal/ssagen/abi.go             |    6 +-
+ src/cmd/compile/internal/ssagen/nowb.go            |    4 +-
+ src/cmd/compile/internal/ssagen/pgen.go            |   34 +-
+ src/cmd/compile/internal/ssagen/pgen_test.go       |    4 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |   78 +-
+ src/cmd/compile/internal/staticdata/data.go        |   31 +-
+ src/cmd/compile/internal/staticdata/embed.go       |    4 +-
+ src/cmd/compile/internal/staticinit/sched.go       |   34 +-
+ src/cmd/compile/internal/syntax/operator_string.go |   30 +-
+ src/cmd/compile/internal/syntax/token_string.go    |   55 +-
+ src/cmd/compile/internal/syntax/tokens.go          |    4 +-
+ src/cmd/compile/internal/typecheck/const.go        |   15 +-
+ src/cmd/compile/internal/typecheck/dcl.go          |  123 +-
+ src/cmd/compile/internal/typecheck/export.go       |   11 +-
+ src/cmd/compile/internal/typecheck/expr.go         |  206 +--
+ src/cmd/compile/internal/typecheck/func.go         |  107 +-
+ src/cmd/compile/internal/typecheck/iexport.go      |   50 +-
+ src/cmd/compile/internal/typecheck/iimport.go      |   56 +-
+ src/cmd/compile/internal/typecheck/stmt.go         |    2 +-
+ src/cmd/compile/internal/typecheck/subr.go         |   51 +
+ src/cmd/compile/internal/typecheck/syms.go         |   17 +-
+ src/cmd/compile/internal/typecheck/type.go         |   12 +-
+ src/cmd/compile/internal/typecheck/typecheck.go    |  565 +++----
+ src/cmd/compile/internal/typecheck/universe.go     |   10 +-
+ src/cmd/compile/internal/types/sizeof_test.go      |    2 +-
+ src/cmd/compile/internal/types/sym.go              |    7 +-
+ src/cmd/compile/internal/types/type.go             |    5 -
+ src/cmd/compile/internal/types/utils.go            |   11 -
+ src/cmd/compile/internal/walk/assign.go            |  108 +-
+ src/cmd/compile/internal/walk/builtin.go           |    8 +-
+ src/cmd/compile/internal/walk/closure.go           |   44 +-
+ src/cmd/compile/internal/walk/complit.go           |   20 +-
+ src/cmd/compile/internal/walk/convert.go           |   20 +-
+ src/cmd/compile/internal/walk/expr.go              |   32 +-
+ src/cmd/compile/internal/walk/order.go             |   72 +-
+ src/cmd/compile/internal/walk/race.go              |    8 +-
+ src/cmd/compile/internal/walk/range.go             |    4 +-
+ src/cmd/compile/internal/walk/select.go            |   17 +-
+ src/cmd/compile/internal/walk/stmt.go              |   24 +-
+ src/cmd/compile/internal/walk/switch.go            |   11 +-
+ src/cmd/compile/internal/walk/walk.go              |   43 +-
+ test/closure2.go                                   |   14 +
+ test/fixedbugs/issue15055.go                       |    2 +
+ test/fixedbugs/issue23017.go                       |  113 ++
+ test/fixedbugs/issue43384.go                       |  124 ++
+ test/fixedbugs/issue43428.go                       |   25 +
+ test/fixedbugs/issue43444.go                       |   28 +
+ test/fixedbugs/issue43444.out                      |    1 +
+ test/fixedbugs/issue43479.dir/a.go                 |   27 +
+ test/fixedbugs/issue43479.dir/b.go                 |   38 +
+ test/fixedbugs/issue43479.go                       |    7 +
+ test/fixedbugs/issue43480.go                       |   33 +
+ 88 files changed, 3389 insertions(+), 2754 deletions(-)

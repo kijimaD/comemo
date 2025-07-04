@@ -1,20 +1,16 @@
-commit a0cf2c872fd3b8fd34979d13b41115f9be8c90a1
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Feb 18 18:28:35 2020 +0000
+commit fe2ed5054176935d4adcf13e891715ccf2ee3cce
+Author: ZYunH <zyunhjob@163.com>
+Date:   Thu Sep 19 14:56:11 2019 +0000
 
-    doc/go1.14: remove TODO comment for CL 200439
+    net/url: add upperhex const instead of using string literal
     
-    Based on https://golang.org/issue/36878#issuecomment-587533153
-    and https://golang.org/issue/36878#issuecomment-587549692,
-    this is not a CL that needs to be mentioned in the release notes.
+    The mime and strconv packages already have a const with this name & value.
     
-    Updates #36878
-    
-    Change-Id: Icaa9153da7481a1d3ebabc237411539dd770cef2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219898
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibd7837f854ac8ec3f57943a9d1db07f4cf6db858
+    GitHub-Last-Rev: 775cdce3b75350aa3b9a6f31f04cfdd0033e9ac3
+    GitHub-Pull-Request: golang/go#34389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196437
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.14.html | 2 --
- 1 file changed, 2 deletions(-)
+ src/net/url/url.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

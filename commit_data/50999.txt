@@ -1,15 +1,26 @@
-commit f7f37b9399c418ff54b57eb70e7eb5120a2248e2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 23:10:39 2022 -0400
+commit 4da06e7b00ae9965ec7d2f6f131266e44f966754
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Nov 19 16:09:52 2021 -0500
 
-    crypto/x509: delete trailing spaces
+    cmd/go: fix bug in using the workfile flag with tests
     
-    Change-Id: I73ace9f5b9481f3b88be0c5f6b9c5076d2f82c7f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445497
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Tests do custom flag processing so we must process the workfile flag
+    after that happens.
+    
+    Also fix an issue where errors weren't handled properly when the
+    workfile wasn't absolute (the go command should just exit), and where a
+    parse error was just dropped.
+    
+    Fixes #48576
+    
+    Change-Id: I3a94d8d3a515114b2c4cc0e73f63447df2fc6bc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366174
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/crypto/x509/x509_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modload/init.go          |  5 ++---
+ src/cmd/go/internal/test/test.go             |  2 +-
+ src/cmd/go/testdata/script/work_workfile.txt | 21 +++++++++++++++++++++
+ 3 files changed, 24 insertions(+), 4 deletions(-)

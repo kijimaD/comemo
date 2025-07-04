@@ -1,25 +1,19 @@
-commit 7247dcab92e4be1c0d2eec76823e27c60c9735ba
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Apr 11 12:55:57 2012 -0400
+commit 98aa4968b7f7fbbac2baba99c508d72d4f4ce883
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Apr 11 16:47:53 2012 +0200
 
-    crypto/tls: update how we create testing scripts.
+    exp/norm: exposed runeInfo type in API.
+    For completeness, we also expose the Canonical Combining Class of a rune.
+    This does not increase the data size.
     
-    crypto/tls is tested, in part, by replaying recorded TLS connections
-    and checking that the bytes sent by the Go code haven't changed.
-    
-    Previously we used GnuTLS's debug output and extracted the bytes of
-    the TLS connection using a Python script. That wasn't great, and I
-    think GnuTLS removed that level of debugging in a more current
-    release.
-    
-    This change records the connection with Go code and adds a test for
-    ECDHE-AES clients generating using this method.
-    
-    R=golang-dev, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5988048
+    https://golang.org/cl/5931043
 
- src/pkg/crypto/tls/handshake_client_test.go      | 218 +++++++++++++++++++++--
- src/pkg/crypto/tls/handshake_server_test.go      | 126 ++++++++++---
- src/pkg/crypto/tls/parse-gnutls-cli-debug-log.py |  57 ------
- 3 files changed, 301 insertions(+), 100 deletions(-)
+ src/pkg/exp/norm/composition.go |  20 ++++----
+ src/pkg/exp/norm/forminfo.go    | 104 +++++++++++++++++++++++++++++-----------
+ src/pkg/exp/norm/iter.go        |  10 ++--
+ src/pkg/exp/norm/maketables.go  |  14 +++++-
+ src/pkg/exp/norm/normalize.go   |  28 +++++------
+ src/pkg/exp/norm/tables.go      |  21 ++++----
+ 6 files changed, 128 insertions(+), 69 deletions(-)

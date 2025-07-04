@@ -1,0 +1,43 @@
+commit d306003ff8fa4d5fbbebdd2eb186137b6328dca4
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Wed Nov 20 20:09:50 2024 -0500
+
+    crypto/tls: test with FIPS 140-3 TLS mode
+    
+    For tests that are interested in testing the difference between TLS in
+    FIPS 140-3 required mode or otherwise two new helpers are introduced,
+    runWithFIPSEnabled and runWithFIPSDisabled. They take care of forcing
+    the correct TLS FIPS 140-3 state regardless of the overal GODEBUG=fips
+    state, and restoring it afterwards.
+    
+    For the tests that use features or test data not appropriate for
+    TLS in FIPS 140-3 required mode we add skips. For some tests we can make
+    them appropriate for both TLS FIPS 140-3 required or not by tweaking some
+    parameters that weren't important to the subject under test, but would
+    otherwise preclude TLS FIPS 140-3 required mode (e.g. because they used
+    TLS 1.0 when the test could use TLS 1.2 instead). For others, switching
+    test certificates to a RSA 2048 hierarchy is sufficient. We avoid
+    regenerating the existing RSA 1024 certs as 2048 since it would
+    invalidate recorded static flow data.
+    
+    Tests that rely on static message flows (primarily the client and server
+    handshake) tests are skipped due to FIPS mode being non-deterministic
+    and inappropriate for this style of testing.
+    
+    Change-Id: I311f3828dac890bb3ff8ebda6ed73d50f0797110
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629736
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/test.go                    |   4 +-
+ src/crypto/tls/auth_test.go             |   6 ++
+ src/crypto/tls/bogo_shim_test.go        |   1 +
+ src/crypto/tls/conn_test.go             |   4 ++
+ src/crypto/tls/fips_test.go             | 116 +++++++++++++++++---------------
+ src/crypto/tls/handshake_client_test.go |  90 ++++++++++++++++---------
+ src/crypto/tls/handshake_server_test.go |  87 ++++++++++++++----------
+ src/crypto/tls/handshake_test.go        |   9 +++
+ src/crypto/tls/tls_test.go              |  43 ++++++++++++
+ 9 files changed, 239 insertions(+), 121 deletions(-)

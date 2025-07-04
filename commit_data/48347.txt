@@ -1,26 +1,54 @@
-commit 29b968e76638c22368f775a4347a544a096d9380
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Fri Oct 22 17:40:08 2021 +0800
+commit d9e068d2894ff2fce48a171212171bc3f394b023
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Mar 31 12:28:47 2021 -0500
 
-    runtime,cmd/compile: change reg duff{zero,copy} for regabi riscv64
+    runtime/cgo,cmd/internal/obj/ppc64: fix signals with cgo
     
-    As CL 356519 require, X8-X23 will be argument register, however X10, X11
-    is used by duff device.
+    Recently some tsan tests were enabled on ppc64le which had not
+    been enabled before. This resulted in failures on systems with
+    tsan available, and while debugging it was determined that
+    there were other issues related to the use of signals with cgo.
     
-    This CL changes X10, X11 into X24, X25 to meet the prerequisite.
+    Signals were not being forwarded within programs linked against
+    libtsan because the nocgo sigaction was being called for ppc64le
+    with or without cgo. Adding callCgoSigaction and calling that
+    allows signals to be registered so that signal forwarding works.
     
-    Update #40724
+    For linux-ppc64 and aix-ppc64, this won't change. On linux-ppc64
+    there is no cgo. I can't test aix-ppc64 so those owners can enable
+    it if they want.
     
-    Change-Id: Ie9b899afbba7e9a51bb7dacd89e49ca1c1fc33ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357976
-    Trust: mzh <mzh@golangcn.org>
-    Run-TryBot: mzh <mzh@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    In reviewing comments about sigtramp in sys_linux_arm64 it was
+    noted that a previous issue in arm64 due to missing callee save
+    registers could also be a problem on ppc64x, so code was added
+    to save and restore those.
+    
+    Also, the use of R31 as a temp register in some cases caused an
+    issue since it is a nonvolatile register in C and was being clobbered
+    in cases where the C code expected it to be valid. The code sequences to
+    load these addresses were changed to avoid the use of R31 when loading
+    such an address.
+    
+    To get around a vet error, the stubs_ppc64x.go file in runtime
+    was split into stubs_ppc64.go and stubs_ppc64le.go.
+    
+    Updates #45040
+    
+    Change-Id: Ia4ecff950613cbe1b89471790b1d3819d5b5cfb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306369
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
 
- src/cmd/compile/internal/riscv64/ggen.go       |    2 +-
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   14 +-
- src/cmd/compile/internal/ssa/opGen.go          |   10 +-
- src/runtime/duff_riscv64.s                     | 1790 ++++++++++++------------
- src/runtime/mkduff.go                          |   22 +-
- 5 files changed, 919 insertions(+), 919 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s         |   4 +-
+ src/cmd/internal/obj/ppc64/asm9.go                |  33 ++--
+ src/runtime/cgo/gcc_mmap.c                        |   2 +-
+ src/runtime/cgo/gcc_sigaction.c                   |   2 +-
+ src/runtime/cgo/sigaction.go                      |   8 +-
+ src/runtime/cgo_sigaction.go                      |   6 +-
+ src/runtime/sigaction.go                          |   4 +-
+ src/runtime/stubs_ppc64.go                        |  16 ++
+ src/runtime/{stubs_ppc64x.go => stubs_ppc64le.go} |   3 -
+ src/runtime/sys_linux_ppc64x.s                    | 176 +++++++++++++++++++++-
+ 10 files changed, 223 insertions(+), 31 deletions(-)

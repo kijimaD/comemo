@@ -1,17 +1,15 @@
-commit 8076f21e8ea9cd3fc7d0fd23b2262fce662e4bde
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Apr 7 11:00:07 2014 +0400
+commit 3929967156991f4bce4642a236e441f808243ce3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 7 11:34:35 2014 +1000
 
-    net: fix data race in benchmark
-    If an error happens on a connection, server goroutine can call b.Logf
-    after benchmark finishes.
-    So join both client and server goroutines.
-    Update #7718
+    build: remove depdenency on GNU make
     
     LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/84750047
+    https://golang.org/cl/84920043
 
- src/pkg/net/tcp_test.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ doc/articles/wiki/Makefile  | 10 ----------
+ doc/articles/wiki/test.bash |  2 ++
+ src/run.bash                |  1 -
+ 3 files changed, 2 insertions(+), 11 deletions(-)

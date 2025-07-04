@@ -1,17 +1,17 @@
-commit baa928a7823c0f7edce5374b449fa9275f29411a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 21 16:08:57 2015 -0500
+commit 34f04a675c204dc00f2ae1bc412e474b9a4c087d
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Aug 28 10:21:45 2015 +0200
 
-    cmd/dist: run various one-off tests in parallel
+    encoding/xml: check for exported fields in embedded structs
     
-    Takes 15% off my all.bash run time
-    (after this and earlier CLs, now down to 3½ from 5½ minutes).
+    Addresses issue #12367.
     
-    For #10571.
+    Must be checked in before CL 14010.
     
-    Change-Id: Iac316ffb730c9ff0a0faa7cc3b82ed4f7e6d4361
-    Reviewed-on: https://go-review.googlesource.com/18088
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4523a1de112ed02371504e27882659bce8028a9f
+    Reviewed-on: https://go-review.googlesource.com/14012
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/test.go | 315 +++++++++++++++++++++++++++++++--------------------
- 1 file changed, 190 insertions(+), 125 deletions(-)
+ src/encoding/xml/marshal_test.go | 10 ++++++++++
+ src/encoding/xml/typeinfo.go     |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

@@ -1,20 +1,17 @@
-commit ef92828bb9ffd77d6f08e402225557256b11cfad
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Mar 2 21:26:36 2022 -0800
+commit d19e5493bd764e26a0662c06c858033a24eaa415
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue May 4 12:53:52 2021 -0400
 
-    api: update next.txt for binary.AppendByteOrder interface
+    doc/go1.17: require macOS 10.13 or later
     
-    CL 386017 added new API for encoding/binary package.
-    This file was accidentally not updated in the same CL.
+    For #44513.
+    For #23011.
     
-    Updates #50601
-    
-    Change-Id: Iefeb596ba04b8c6576cf0fe42030f658a5848832
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/389636
-    Trust: Joseph Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ic092e38da3601a43d7e2110f500db4a6a6f845f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316889
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- api/next.txt | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/go1.17.html | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

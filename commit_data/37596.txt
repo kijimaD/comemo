@@ -1,17 +1,27 @@
-commit 352f1b77c40e2f2c0711244481e1cc25ae423830
-Author: komuW <komuw05@gmail.com>
-Date:   Wed Dec 5 05:39:18 2018 +0000
+commit 3578918b6614effaeaa581687d810b74e342e0f8
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 9 23:47:37 2018 -0400
 
-    doc/go1.11: add note about go run supporting for go run pkg or go run .
+    runtime: replace manually managed G dequeues with a type
     
-    Fixes golang/go#27047
+    There are two manually managed G dequeues. Abstract these both into a
+    shared gQueue type. This also introduces a gList type, which we'll use
+    to replace several manually-managed G lists in follow-up CLs.
     
-    Change-Id: I0dd40201fc03e87fbc674b47bdf9315f1783d6c2
-    GitHub-Last-Rev: f28ab6234ade814c4bc09e26417c424c843ad57b
-    GitHub-Pull-Request: golang/go#27048
-    Reviewed-on: https://go-review.googlesource.com/c/129696
-    Reviewed-by: komu wairagu <komuw05@gmail.com>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    This makes the code more readable and maintainable. gcFlushBgCredit in
+    particular becomes much easier to follow. It also makes it easier to
+    introduce more G queues in the future. Finally, the gList type clearly
+    distinguishes between lists of Gs and individual Gs; currently both
+    are represented by a *g, which can easily lead to confusion and bugs.
+    
+    Change-Id: Ic7798841b405d311fc8b6aa5a958ffa4c7993c6c
+    Reviewed-on: https://go-review.googlesource.com/129396
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go1.11.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/runtime/mgc.go      |   4 +-
+ src/runtime/mgcmark.go  |  48 +++++------------
+ src/runtime/proc.go     | 141 ++++++++++++++++++++++++++++++++++++++----------
+ src/runtime/runtime2.go |   3 +-
+ 4 files changed, 128 insertions(+), 68 deletions(-)

@@ -1,12 +1,13 @@
-commit d8714ca49f974d6117b443bfe90c0cc3511dc138
+commit a88d82813dfa3f56a6df2ecd25eaba480ef7e58e
 Author: Oling Cat <olingcat@gmail.com>
-Date:   Tue Mar 19 14:47:41 2013 -0400
+Date:   Tue Mar 19 13:48:07 2013 -0400
 
-    unicode: modify a comment to the convention format.
+    unicode: remove an extra space
     
-    R=golang-dev, r, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7869043
+    https://golang.org/cl/7856044
 
- src/pkg/unicode/letter.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/unicode/maketables.go | 2 +-
+ src/pkg/unicode/tables.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,28 +1,17 @@
-commit 2f70ce36d79ee94855daf7c6feb9a1296f9adfac
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Sep 20 16:29:50 2021 -0700
+commit b241938e04ed7171897390fdaefd3d3017a16a0b
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Tue Dec 29 18:49:13 2020 +0800
 
-    internal/fuzz: temporarily work around test failures after dev.fuzz merge
+    [dev.regabi] cmd/compile: fix some methods error text
     
-    - Skip test_fuzz_cache and test_fuzz_seed_corpus on 386.
-    - Skip worker benchmarks when race mode is enabled.
-    - Stub coverage function on platforms we haven't tested yet. It's
-      causing package initialization to panic on aix/ppc64.
-    
-    For #48504
-    
-    Change-Id: I79318b52b11a33fca66476b5050445d07422ef36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351117
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ie9b034efba30d66a869c5e991b60c76198fd330f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279444
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/testdata/script/test_fuzz_cache.txt     |  3 +++
- .../go/testdata/script/test_fuzz_seed_corpus.txt   |  3 +++
- src/internal/fuzz/counters_supported.go            | 29 ++++++++++++++++++++++
- src/internal/fuzz/counters_unsupported.go          | 16 ++++++++++++
- src/internal/fuzz/coverage.go                      | 19 --------------
- src/internal/fuzz/worker_test.go                   | 10 ++++++++
- 6 files changed, 61 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/reflectdata/alg.go | 4 ++--
+ src/cmd/compile/internal/staticdata/data.go | 2 +-
+ src/cmd/compile/internal/types/alg.go       | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

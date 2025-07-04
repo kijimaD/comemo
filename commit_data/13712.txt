@@ -1,22 +1,29 @@
-commit d073677569085642935d5d3b6acfe6df1054ae21
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Aug 31 20:17:59 2012 +1000
+commit 13cf2473b8b617a3e800a22b810a5a13030d4cb6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 31 10:00:12 2012 +1000
 
-    cgo/misc/test: burn CPU to improve sleep accuracy
+    exp/html: change a node's children from a slice to a linked list.
     
-    Fixes #4008.
+    Also rename Node.{Add,Remove} to Node.{AppendChild,RemoveChild} to
+    be consistent with the DOM.
     
-    Run a background goroutine that wastes CPU to trick the
-    power management into raising the CPU frequency which,
-    by side effect, makes sleep more accurate on arm.
+    benchmark                      old ns/op    new ns/op    delta
+    BenchmarkParser                  4042040      3749618   -7.23%
     
-    === RUN TestParallelSleep
-    --- PASS: TestParallelSleep (1.30 seconds)
-    _cgo_gotypes.go:772:    sleep(1) slept for 1.000458s
+    benchmark                       old MB/s     new MB/s  speedup
+    BenchmarkParser                    19.34        20.85    1.08x
     
-    R=minux.ma, r
+    BenchmarkParser mallocs per iteration is also:
+    10495 before / 7992 after
+    
+    R=andybalholm, r, adg
     CC=golang-dev
-    https://golang.org/cl/6498060
+    https://golang.org/cl/6495061
 
- misc/cgo/test/issue1560.go | 31 +++++++++++++++++++++++++------
- 1 file changed, 25 insertions(+), 6 deletions(-)
+ src/pkg/exp/html/node.go        | 107 ++++++++++++++------
+ src/pkg/exp/html/node_test.go   | 146 +++++++++++++++++++++++++++
+ src/pkg/exp/html/parse.go       |  73 +++++++-------
+ src/pkg/exp/html/parse_test.go  |  14 ++-
+ src/pkg/exp/html/render.go      |  10 +-
+ src/pkg/exp/html/render_test.go | 213 ++++++++++++++++++++++++----------------
+ 6 files changed, 398 insertions(+), 165 deletions(-)

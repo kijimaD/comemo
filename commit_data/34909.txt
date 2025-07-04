@@ -1,25 +1,32 @@
-commit 60fee0153ff9ae2f03e5db9fa8cf700cd953bf8d
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Apr 5 14:45:38 2018 +0100
+commit 18ae4c834bdb33903dbf6774f57536c73de923bb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 27 22:48:11 2017 +0000
 
-    cmd/compile: remove last manual node copies
+    net/http: panic on invalid WriteHeader status code
     
-    When I added the Node.copy method, I converted most of the occurrences
-    but missed a few.
+    Panic if an http Handler does:
     
-    One of them, used only for gdata, was an unnecessary copy given that
-    gdata does not modify the node it is passed.
+        rw.WriteHeader(0)
     
-    No allocation changes in compilebench.
+    ... or other invalid values. (for a forgiving range of valid)
     
-    Passes toolstash -cmp on std cmd.
+    I previously made it kinda work in https://golang.org/cl/19130 but
+    there's no good way to fake it in HTTP/2, and we want HTTP/1 and
+    HTTP/2 behavior to be the same, regardless of what programs do.
+    Currently HTTP/2 omitted the :status header altogether, which was a
+    protocol violation. In fixing that, I found CL 19130 added a test
+    about bogus WriteHeader values with the comment:
     
-    Change-Id: I7fba5212377b75c6d6b3785e594a30568ff0732e
-    Reviewed-on: https://go-review.googlesource.com/104937
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+      // This might change at some point, but not yet in Go 1.6.
+    
+    This now changes. Time to be strict.
+    
+    Updates golang/go#228800
+    
+    Change-Id: I20eb6c0e514a31f4bba305ac4c24266f39b95fd5
+    Reviewed-on: https://go-review.googlesource.com/80077
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/cmd/compile/internal/gc/const.go |  5 ++---
- src/cmd/compile/internal/gc/sinit.go | 17 ++++++++---------
- 2 files changed, 10 insertions(+), 12 deletions(-)
+ src/net/http/clientserver_test.go | 61 +++++++++++++++++++++++++--------------
+ src/net/http/server.go            | 19 ++++++++++++
+ 2 files changed, 59 insertions(+), 21 deletions(-)

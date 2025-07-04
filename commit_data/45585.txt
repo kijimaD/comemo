@@ -1,15 +1,39 @@
-commit d80d1427a8119eed6e668caba4314140edbcb4b8
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri May 7 10:41:24 2021 -0700
+commit f43e012084c4edd381d21c9988638535696775ea
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Fri Oct 23 22:23:21 2020 +0200
 
-    doc/go1.17: fill in TODO for reflect package
+    strconv: make Eisel-Lemire handle long mantissas
     
-    Updates #46019
+    In many cases, it is not necessary to parse long
+    decimal mantissas entirely to produce the correctly
+    rounded floating-point number. It is enough to parse
+    the short, rounded lower and upper bounds and in most cases
+    they round to the same floating point number because uint64
+    can hold 19 digits.
     
-    Change-Id: I3025927d949ff72535542e89b83dd830e969c255
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318011
-    Trust: Joe Tsai <joetsai@digital-static.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Previously this case was handled by the extFloat code path
+    (Grisu3 algorithm).
+    
+    name                      old time/op  new time/op  delta
+    Atof64Big-4               1.07µs ± 2%  0.11µs ± 2%  -89.61%  (p=0.000 n=10+9)
+    Atof64RandomLongFloats-4  8.03µs ± 2%  0.14µs ± 7%  -98.24%  (p=0.000 n=10+10)
+    Atof32RandomLong-4         760ns ± 1%   156ns ± 0%  -79.46%  (p=0.000 n=10+8)
+    
+    Benchmarks versus extFloat:
+    
+    name                      old time/op  new time/op  delta
+    Atof64Big-4                121ns ± 3%   111ns ± 2%   -7.93%  (p=0.000 n=10+9)
+    Atof64RandomLongFloats-4   144ns ± 1%   142ns ± 7%     ~     (p=0.167 n=10+10)
+    Atof32RandomLong-4         129ns ± 1%   156ns ± 0%  +21.12%  (p=0.000 n=10+8)
+    
+    Change-Id: Id734b8c11e74b49a444fda67ee72870ae9422e60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264677
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- doc/go1.17.html | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/strconv/atof.go      | 44 ++++++++++++++++++++++++++++++++++----------
+ src/strconv/atof_test.go | 33 +++++++++++++++++++++++++++++++--
+ 2 files changed, 65 insertions(+), 12 deletions(-)

@@ -1,32 +1,16 @@
-commit 826256497100607440b5651a4853b4c6bf816318
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 14 12:49:58 2016 -0700
+commit 771da53958618108c8ea56a69412eaeaae79e0ae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 12 20:51:08 2016 -0800
 
-    cmd/internal/obj/x86: estimate text size
+    net/http2: update bundled http2
     
-    We can’t perfectly predict how large the function
-    will be, but we can make a safe overestimate.
-    No significant CPU time changes.
+    Update bundled http2 to git rev 76365a4 for https://golang.org/issue/18571
     
-    name       old alloc/op    new alloc/op    delta
-    Template      67.7MB ± 0%     67.5MB ± 0%   -0.24%          (p=0.029 n=4+4)
-    Unicode       43.9MB ± 0%     43.8MB ± 0%   -0.13%          (p=0.029 n=4+4)
-    GoTypes        244MB ± 0%      244MB ± 0%   -0.28%          (p=0.029 n=4+4)
-    Compiler      1.05GB ± 0%     1.05GB ± 0%   -0.38%          (p=0.029 n=4+4)
+    Fixes golang/go#13924
     
-    name       old allocs/op   new allocs/op   delta
-    Template        795k ± 0%       794k ± 0%   -0.14%          (p=0.029 n=4+4)
-    Unicode         569k ± 0%       569k ± 0%     ~             (p=0.114 n=4+4)
-    GoTypes        2.59M ± 0%      2.58M ± 0%   -0.11%          (p=0.029 n=4+4)
-    Compiler       11.0M ± 0%      11.0M ± 0%   -0.09%          (p=0.029 n=4+4)
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: I0a92ab04cba7520540ec58fe7189666d0e771454
-    Reviewed-on: https://go-review.googlesource.com/20771
+    Change-Id: Ibb48cd6935b35d9965df70fb8761be5986d79ffc
+    Reviewed-on: https://go-review.googlesource.com/18591
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/data.go     | 14 ++++++++++++++
- src/cmd/internal/obj/x86/asm6.go |  3 +++
- 2 files changed, 17 insertions(+)
+ src/net/http/h2_bundle.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,33 @@
-commit 6454a3eb150218e13e71cecd48638e673dc6c304
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 19 15:45:18 2012 -0800
+commit ab2ea94c609cb2e6b6dd61ceea93a88a7a66b090
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jan 20 10:44:22 2012 +1100
 
-    os: use FileMode instead of uint32 in various functions
+    image: change the YCbCr image's pixel buffers to start at Rect.Min
+    instead of the origin.
     
-    Fixes #2733
+    This makes YCbCr match the other image types (e.g. RGBA, Gray) in
+    that an image's bounds is not restricted to the positive quadrant.
     
-    R=chickencha, ality, rsc
+    Also optimize the YCbCr draw code by hoisting some computation
+    outside of the loop.
+    
+    benchmark              old ns/op    new ns/op    delta
+    draw.BenchmarkYCbCr      2544418      2373558   -6.72%
+    
+    Like https://golang.org/cl/4681044/ I don't think a gofix is
+    feasible. People will have to make manual changes. On the other hand,
+    directly manipulating YCbCr images is relatively rare, compared to
+    RGBA images, and if other code just uses the jpeg and draw packages
+    instead of messing directly with a YCbCr's []byte representations,
+    then things should just continue to work.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5553064
+    https://golang.org/cl/5558048
 
- src/cmd/go/build.go         |  4 ++--
- src/cmd/hgpatch/main.go     |  4 ++--
- src/pkg/io/ioutil/ioutil.go |  2 +-
- src/pkg/os/file.go          |  4 ++--
- src/pkg/os/file_posix.go    | 24 ++++++++++++++++++++----
- src/pkg/os/file_unix.go     |  4 ++--
- src/pkg/os/file_windows.go  |  6 +++---
- src/pkg/os/path.go          |  2 +-
- 8 files changed, 33 insertions(+), 17 deletions(-)
+ src/pkg/image/draw/draw.go   |  32 ++++++--------
+ src/pkg/image/image.go       |  16 +++----
+ src/pkg/image/jpeg/reader.go |  15 ++-----
+ src/pkg/image/ycbcr.go       |  75 ++++++++++++++++++++++++++-----
+ src/pkg/image/ycbcr_test.go  | 103 +++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 192 insertions(+), 49 deletions(-)

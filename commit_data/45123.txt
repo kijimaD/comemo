@@ -1,26 +1,24 @@
-commit 6d8ba77896d05720e1cb1728c27db60926e672b5
+commit a9c75ecd3da2d87ce08b2e75bd4f332185cd7fc8
 Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 13 16:31:56 2021 -0700
+Date:   Fri Oct 2 15:48:50 2020 -0700
 
-    cmd/compile: fix importing of method expressions
+    cmd/compile: export notinheap annotation to object file
     
-    For OMETHEXPR, the Name in the Selection needs to be properly
-    linked up to the method declaration. Use the same code we
-    already have for ODOTMETH and OCALLPART to do that.
+    In the rare case when a cgo type makes it into an object file, we need
+    the go:notinheap annotation to go with it.
     
-    Fixes #45503
+    Fixes #41761
     
-    Change-Id: I7d6f886d606bae6faad8c104f50c177f871d41c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309831
+    Change-Id: I541500cb1a03de954881aef659f96fc0b7738848
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259297
     Trust: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/typecheck/iexport.go | 11 ++---------
- src/cmd/compile/internal/typecheck/iimport.go | 14 ++++----------
- test/fixedbugs/issue45503.dir/a.go            | 15 +++++++++++++++
- test/fixedbugs/issue45503.dir/b.go            | 12 ++++++++++++
- test/fixedbugs/issue45503.go                  | 10 ++++++++++
- 5 files changed, 43 insertions(+), 19 deletions(-)
+ misc/cgo/test/testdata/issue41761.go    | 20 ++++++++++++++++++++
+ misc/cgo/test/testdata/issue41761a/a.go | 14 ++++++++++++++
+ src/cmd/compile/internal/gc/iexport.go  |  2 ++
+ src/cmd/compile/internal/gc/iimport.go  |  2 +-
+ src/cmd/compile/internal/gc/lex.go      |  2 +-
+ 5 files changed, 38 insertions(+), 2 deletions(-)

@@ -1,19 +1,20 @@
-commit 822f832d29c5fe8d0fac3f36028c0b4ffa7eec80
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Sep 19 15:58:40 2017 +0900
+commit daa0ddde931f1c08bffe86c7a67787d0c756993e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 24 15:01:49 2017 -0700
 
-    cmd/nm: add test case for go archives
+    runtime: fix ppc64le c-archive init
     
-    Also, rename some test cases, check (*os.File).Close
+    We weren't setting r0 to 0, as required by our generated code.
     
-    For #21706
+    Before this patch, the misc/cgo/testcarchive tests failed on ppc64le.
+    After this patch, they work, so enable them.
     
-    Change-Id: Ie60c4d345b2259736c823dc6001c08affcdd86e7
-    Reviewed-on: https://go-review.googlesource.com/64510
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I53b16746961da9f7c34f59030a1e40953c9c1e05
+    Reviewed-on: https://go-review.googlesource.com/44093
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/nm/nm_cgo_test.go |  18 +++----
- src/cmd/nm/nm_test.go     | 117 ++++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 117 insertions(+), 18 deletions(-)
+ src/cmd/dist/test.go            | 3 ++-
+ src/runtime/rt0_linux_ppc64le.s | 3 +++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

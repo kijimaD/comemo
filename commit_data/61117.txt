@@ -1,0 +1,19 @@
+commit 1edb49a6eb37af8593e25fed63029343fc9177f5
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Thu Oct 3 13:11:43 2024 +0000
+
+    Revert "runtime/pprof: make TestBlockMutexProfileInlineExpansion stricter"
+    
+    This reverts commit 5b0f8596b766afae9dd1f117a4a5dcfbbf1b80f1.
+    
+    Reason for revert: This CL breaks gotip-linux-amd64-noopt builder.
+    
+    Change-Id: I3950211f05c90e4955c0785409b796987741a9f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617715
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/pprof/pprof_test.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

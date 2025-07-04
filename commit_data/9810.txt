@@ -1,14 +1,12 @@
-commit 7b1c1811a5a7b989da3d192f291ecfa6ca061d5d
+commit a1a3acbd956b5a70d644d21d1c36b31ae88c6c03
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 27 09:40:01 2011 -0400
+Date:   Tue Sep 27 09:13:00 2011 -0400
 
-    crypto/elliptic: use %x consistently in error print
+    test: fix windows build
     
-    Fixes #2308.
-    
-    R=agl, gri
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5121052
+    https://golang.org/cl/5124049
 
- src/pkg/crypto/elliptic/elliptic_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/sigchld.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

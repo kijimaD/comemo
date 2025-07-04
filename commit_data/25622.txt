@@ -1,18 +1,117 @@
-commit 0760023960fc9f1012e6bac277b886cac1c1bae9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 21 15:18:23 2016 -0800
+commit 432cb66f16b2bb6a167725057168bbe4aefe5fb5
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Nov 11 12:39:30 2015 -0500
 
-    runtime: skip TestSignalExitStatus on NetBSD
+    runtime: break out system-specific constants into package sys
     
-    It doesn't work and I don't know why.
+    runtime/internal/sys will hold system-, architecture- and config-
+    specific constants.
     
-    Update #14063.
+    Updates #11647
     
-    Change-Id: I42735012cf6247eca5336f29fcf713e08c8477f8
-    Reviewed-on: https://go-review.googlesource.com/18817
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6db29c312556087a42e8d2bdd9af40d157c56b54
+    Reviewed-on: https://go-review.googlesource.com/16817
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/crash_unix_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ .gitignore                                   |   2 +-
+ src/cmd/compile/internal/gc/racewalk.go      |   2 +-
+ src/cmd/dist/build.go                        |   2 +-
+ src/cmd/dist/buildruntime.go                 |  22 ++--
+ src/cmd/dist/deps.go                         | 103 +++++++++----------
+ src/go/build/deps_test.go                    |   3 +-
+ src/runtime/alg.go                           |  13 ++-
+ src/runtime/arch_386.go                      |  19 ----
+ src/runtime/arch_amd64.go                    |  19 ----
+ src/runtime/arch_amd64p32.go                 |  19 ----
+ src/runtime/arch_arm.go                      |  19 ----
+ src/runtime/arch_arm64.go                    |  19 ----
+ src/runtime/arch_ppc64.go                    |  19 ----
+ src/runtime/arch_ppc64le.go                  |  19 ----
+ src/runtime/cgocall.go                       |  25 +++--
+ src/runtime/export_test.go                   |   7 +-
+ src/runtime/extern.go                        |  10 +-
+ src/runtime/hashmap.go                       |  25 ++---
+ src/runtime/hashmap_fast.go                  |  37 +++----
+ src/runtime/heapdump.go                      |  25 +++--
+ src/runtime/iface.go                         |   5 +-
+ src/runtime/internal/sys/arch_386.go         |  19 ++++
+ src/runtime/internal/sys/arch_amd64.go       |  19 ++++
+ src/runtime/internal/sys/arch_amd64p32.go    |  19 ++++
+ src/runtime/internal/sys/arch_arm.go         |  19 ++++
+ src/runtime/internal/sys/arch_arm64.go       |  19 ++++
+ src/runtime/internal/sys/arch_ppc64.go       |  19 ++++
+ src/runtime/internal/sys/arch_ppc64le.go     |  19 ++++
+ src/runtime/{ => internal/sys}/gengoos.go    |  14 +--
+ src/runtime/internal/sys/stubs.go            |  11 ++
+ src/runtime/internal/sys/sys.go              |  15 +++
+ src/runtime/internal/sys/zgoarch_386.go      |  26 +++++
+ src/runtime/internal/sys/zgoarch_amd64.go    |  26 +++++
+ src/runtime/internal/sys/zgoarch_amd64p32.go |  26 +++++
+ src/runtime/internal/sys/zgoarch_arm.go      |  26 +++++
+ src/runtime/internal/sys/zgoarch_arm64.go    |  26 +++++
+ src/runtime/internal/sys/zgoarch_ppc64.go    |  26 +++++
+ src/runtime/internal/sys/zgoarch_ppc64le.go  |  26 +++++
+ src/runtime/internal/sys/zgoos_android.go    |  17 ++++
+ src/runtime/internal/sys/zgoos_darwin.go     |  17 ++++
+ src/runtime/internal/sys/zgoos_dragonfly.go  |  17 ++++
+ src/runtime/internal/sys/zgoos_freebsd.go    |  17 ++++
+ src/runtime/internal/sys/zgoos_linux.go      |  19 ++++
+ src/runtime/internal/sys/zgoos_nacl.go       |  17 ++++
+ src/runtime/internal/sys/zgoos_netbsd.go     |  17 ++++
+ src/runtime/internal/sys/zgoos_openbsd.go    |  17 ++++
+ src/runtime/internal/sys/zgoos_plan9.go      |  17 ++++
+ src/runtime/internal/sys/zgoos_solaris.go    |  17 ++++
+ src/runtime/internal/sys/zgoos_windows.go    |  17 ++++
+ src/runtime/malloc.go                        |  25 +++--
+ src/runtime/mbarrier.go                      |  17 ++--
+ src/runtime/mbitmap.go                       | 147 ++++++++++++++-------------
+ src/runtime/mem_bsd.go                       |   7 +-
+ src/runtime/mem_linux.go                     |  25 +++--
+ src/runtime/mfinal.go                        |  21 ++--
+ src/runtime/mgc.go                           |  11 +-
+ src/runtime/mgcmark.go                       |  33 +++---
+ src/runtime/mgcsweep.go                      |   9 +-
+ src/runtime/mgcwork.go                       |   5 +-
+ src/runtime/mheap.go                         |  25 ++---
+ src/runtime/mstats.go                        |   5 +-
+ src/runtime/mstkbar.go                       |  17 ++--
+ src/runtime/os1_freebsd.go                   |   7 +-
+ src/runtime/os1_linux.go                     |  11 +-
+ src/runtime/os3_plan9.go                     |  11 +-
+ src/runtime/os_linux_386.go                  |   7 +-
+ src/runtime/os_linux_arm.go                  |   7 +-
+ src/runtime/parfor.go                        |   7 +-
+ src/runtime/proc.go                          |  37 +++----
+ src/runtime/runtime1.go                      |   9 +-
+ src/runtime/runtime2.go                      |  15 +--
+ src/runtime/select.go                        |   7 +-
+ src/runtime/sema.go                          |   3 +-
+ src/runtime/signal1_unix.go                  |   4 +-
+ src/runtime/signal_386.go                    |  11 +-
+ src/runtime/signal_amd64x.go                 |   7 +-
+ src/runtime/signal_arm64.go                  |   7 +-
+ src/runtime/signal_linux_386.go              |   7 +-
+ src/runtime/signal_linux_amd64.go            |   7 +-
+ src/runtime/signal_linux_arm.go              |   7 +-
+ src/runtime/signal_linux_arm64.go            |   7 +-
+ src/runtime/signal_linux_ppc64x.go           |   7 +-
+ src/runtime/signal_ppc64x.go                 |   7 +-
+ src/runtime/stack.go                         |  29 +++---
+ src/runtime/stubs.go                         |   6 --
+ src/runtime/symtab.go                        |  15 +--
+ src/runtime/sys_x86.go                       |  11 +-
+ src/runtime/trace.go                         |   9 +-
+ src/runtime/traceback.go                     |  35 ++++---
+ src/runtime/vdso_linux_amd64.go              |   7 +-
+ src/runtime/zgoos_android.go                 |  17 ----
+ src/runtime/zgoos_darwin.go                  |  17 ----
+ src/runtime/zgoos_dragonfly.go               |  17 ----
+ src/runtime/zgoos_freebsd.go                 |  17 ----
+ src/runtime/zgoos_linux.go                   |  19 ----
+ src/runtime/zgoos_nacl.go                    |  17 ----
+ src/runtime/zgoos_netbsd.go                  |  17 ----
+ src/runtime/zgoos_openbsd.go                 |  17 ----
+ src/runtime/zgoos_plan9.go                   |  17 ----
+ src/runtime/zgoos_solaris.go                 |  17 ----
+ src/runtime/zgoos_windows.go                 |  17 ----
+ 101 files changed, 1049 insertions(+), 749 deletions(-)

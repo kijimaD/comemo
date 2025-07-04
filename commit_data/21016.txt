@@ -1,14 +1,20 @@
-commit 340ef004d63bd02740b31c5abb2f1105533a87b1
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Dec 17 23:52:39 2014 -0500
+commit 22c929f538483a02707b2caef91a1d3b55a72ef5
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 6 14:41:44 2014 -0500
 
-    runtime/cgo: guard against redefinition of PTHREAD_KEYS_MAX
+    [dev.power64] 9g: fix addr width calculation; enable MOV* width check
     
-    Fixes #9374.
+    9g's naddr was missing assignments to a->width in several
+    cases, so the optimizer was getting bogus width information.
+    Add them.
     
-    Change-Id: Ic53757eba98fc43bcd24e25e03876fef917b4da1
-    Reviewed-on: https://go-review.googlesource.com/1751
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    This correct width information also lets us enable the width
+    check in gins for MOV*.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/167310043
 
- src/runtime/cgo/gcc_android_arm.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/9g/gsubr.c | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

@@ -1,41 +1,20 @@
-commit e2931612b04e2ea6be337872c6f4a31c7d7dec54
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Oct 12 15:02:59 2020 +0200
+commit e0deacd1c096367ba341b43413ec5ccea8253db2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 24 16:46:49 2020 +0000
 
-    cmd/compile: rename strlit, Bool, and Int64 *Node accessors
+    Revert "cmd/compile: disable mem+op operations on 386"
     
-    The Node type has shortcuts to access bool and int Values:
+    This reverts commit CL 224837.
     
-      func (n *Node) Int64() int64
-        for n.Val().U.(*Mpint).Int64()
+    Reason for revert: Reverting partial reverts of 222782.
     
-      func (n *Node) Bool() bool
-        for n.Val().U.(bool)
+    Update #37881
     
-    I was convinced we didn't have one for string literal nodes, until I
-    noticed that we do, it's just called strlit, it's not a method, and
-    it's later in the file:
-    
-      func strlit(n *Node) string
-    
-    This change, for consistency:
-    - Renames strlit to StringVal and makes it a *Node method
-    - Renames Bool and Int64 to BoolVal and Int64Val
-    - Moves StringVal near the other two
-    
-    Change-Id: I18e635384c35eb3a238fd52b1ccd322b1a74d733
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261361
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie9bf84d6e17ed214abe538965e5ff03936886826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225217
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/const.go     | 34 ++++++++++++++++++--------------
- src/cmd/compile/internal/gc/esc.go       |  2 +-
- src/cmd/compile/internal/gc/noder.go     |  6 +++---
- src/cmd/compile/internal/gc/obj.go       |  2 +-
- src/cmd/compile/internal/gc/order.go     |  4 ++--
- src/cmd/compile/internal/gc/sinit.go     | 14 ++++++-------
- src/cmd/compile/internal/gc/ssa.go       |  8 ++++----
- src/cmd/compile/internal/gc/swt.go       | 10 +++++-----
- src/cmd/compile/internal/gc/typecheck.go | 31 ++++++++++++++---------------
- src/cmd/compile/internal/gc/walk.go      | 30 ++++++++++++++--------------
- 10 files changed, 72 insertions(+), 69 deletions(-)
+ src/cmd/compile/internal/ssa/addressingmodes.go | 37 ++++++++++++-----------
+ test/codegen/arithmetic.go                      |  4 +++
+ test/codegen/memops.go                          | 39 +++++++++++++++++++++++++
+ 3 files changed, 61 insertions(+), 19 deletions(-)

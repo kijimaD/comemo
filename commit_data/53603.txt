@@ -1,18 +1,44 @@
-commit b23cae8095ea3e268c358bcebe5d6f58890a8d31
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 21 12:44:48 2023 -0700
+commit 60ad3c48f59c35981dd872ed5dfe74e4d6becab2
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 3 22:58:30 2022 -0700
 
-    doc/go1.21: correct GOOS to GOARCH
+    cmd/compile: move SSA rotate instruction detection to arch-independent rules
     
-    For #57752
-    Fixes #60924
+    Detect rotate instructions while still in architecture-independent form.
+    It's easier to do here, and we don't need to repeat it in each
+    architecture file.
     
-    Change-Id: Ie1e16c041885abb51dd6c2f0b7dfa03091cfb338
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504879
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I9396954b3f3b3bfb96c160d064a02002309935bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421195
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Ruinan Sun <Ruinan.Sun@arm.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- doc/go1.21.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/386.rules     |   29 +-
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |    3 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   75 -
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |    8 -
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   47 -
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |   35 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |    4 -
+ src/cmd/compile/internal/ssa/gen/dec64.rules   |    5 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |   80 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   21 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   65 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |   17 +
+ src/cmd/compile/internal/ssa/rewrite386.go     |  345 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 2392 +------
+ src/cmd/compile/internal/ssa/rewriteARM.go     |   96 -
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 1097 +---
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  752 +--
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  114 -
+ src/cmd/compile/internal/ssa/rewritedec64.go   |   76 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 8396 ++++++++++++++++++++----
+ src/cmd/compile/internal/test/shift_test.go    |   22 +
+ src/cmd/compile/internal/x86/ssa.go            |    1 +
+ test/codegen/rotate.go                         |   40 +-
+ 23 files changed, 7537 insertions(+), 6183 deletions(-)

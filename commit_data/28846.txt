@@ -1,23 +1,24 @@
-commit fe4307f0607dff7742d047b04df06e721aea7906
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sun Oct 16 05:00:27 2016 -0700
+commit ed1ad8f56cc51cc55a8c12514e1c2b3098c1218b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 3 09:56:36 2016 -0400
 
-    net/http: support multiple identical Content-Length headers
+    [dev.ssa] cmd/compile: add some ARM64 optimizations
     
-    Referencing RFC 7230 Section 3.3.2, this CL
-    deduplicates multiple identical Content-Length headers
-    of a message or rejects the message as invalid if the
-    Content-Length values differ.
+    Mostly mirrors ARM, includes:
+    - constant folding
+    - simplification of load, store, extension, and arithmetics
+    - nilcheck removal
     
-    Fixes #16490
-    
-    Change-Id: Ia6b0f58ec7d35710b11a36113d2bd9128f693f64
-    Reviewed-on: https://go-review.googlesource.com/31252
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iffaa5fcdce100fe327429ecab316cb395e543469
+    Reviewed-on: https://go-review.googlesource.com/26710
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/request_test.go  | 64 ++++++++++++++++++++++++++++++++++++++-----
- src/net/http/response_test.go | 34 ++++++++++++++++++++---
- src/net/http/transfer.go      | 30 +++++++++++++++-----
- 3 files changed, 110 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/arm64/prog.go       |     1 +
+ src/cmd/compile/internal/arm64/ssa.go        |    63 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   352 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |     2 +
+ src/cmd/compile/internal/ssa/opGen.go        |    14 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 14679 ++++++++++++++++---------
+ 6 files changed, 10115 insertions(+), 4996 deletions(-)

@@ -1,23 +1,17 @@
-commit 8b88d58042be78b454541dc95dabee6c6e8e1cde
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Sep 1 00:27:12 2023 -0700
+commit 841873f27c4d08d266779a9ef719a7f0d1a0e74d
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Oct 4 09:43:29 2022 -0400
 
-    compress: linkify references to io.ByteReader
+    runtime: change exit hooks test to use RaceDetectorSupported
     
-    The special treatment of io.ByteReader is somewhat significant.
-    Linkify references to that type from documentation.
+    Use internal/syssup.RaceDetectorSupported in the exit hooks tests as a
+    better way to tell if the race detector is available.
     
-    Change-Id: I77c06e4c6b957d107638e2ff2a4c58148b396ed3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525016
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I8f43f93319f68b9910f2eea88fc375f7ef3bb2e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438476
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
 
- src/compress/bzip2/bzip2.go   | 2 +-
- src/compress/flate/inflate.go | 2 +-
- src/compress/gzip/gunzip.go   | 2 +-
- src/compress/lzw/reader.go    | 2 +-
- src/compress/zlib/reader.go   | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/ehooks_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

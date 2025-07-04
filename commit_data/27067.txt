@@ -1,15 +1,12 @@
-commit b563fcfabba559646b42b0ff2066fc98042d8a8a
+commit c2400e31ad7ab0c87801bb744af2c2b7b41dd702
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Apr 18 13:25:51 2016 +1000
+Date:   Thu Mar 10 10:25:11 2016 +1100
 
-    cmd/go: write test file to temporary directory
+    doc: add doc.Example.Unordered to go1.7.txt
     
-    Before this change, a go-vendor-issue-14613 file would be left in the
-    working directory after tests run.
-    
-    Change-Id: If1858421bb287215ab4a19163f489131b2e8912c
-    Reviewed-on: https://go-review.googlesource.com/22169
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: I142a9f97303e3bfbd9522fd061530c0a91305389
+    Reviewed-on: https://go-review.googlesource.com/20500
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/go/vendor_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.7.txt | 1 +
+ 1 file changed, 1 insertion(+)

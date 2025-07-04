@@ -1,34 +1,18 @@
-commit 1e95fc7ffe1faa0e329b32015532d9fa58a1a6c9
-Author: Allen Li <ayatane@google.com>
-Date:   Thu Aug 10 22:01:32 2023 +0000
+commit 7c8c209b45ebe5c3d7979c44e53216f61e8b5f2a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 15 12:26:11 2022 +0100
 
-    log/slog: Reorder doc comment for level constants
+    internal/goroot: report PkgfileMap error on invalid line
     
-    pkgsite and go doc print the doc comment *after* the code, resulting in:
+    Ref. https://go-review.googlesource.com/c/go/+/442303/comment/7caca6eb_0ebe4d51/
     
-        const (
-                LevelDebug Level = -4
-                ...
-        )
-    
-        Many paragraphs...
-    
-        Names for common levels.
-    
-    The "Names for common levels." feels out of place and confusing at the bottom.
-    
-    This is also consistent with the recommendation for the first sentence in doc comments to be the "summary".
-    
-    Change-Id: I656e85e27d2a4b23eaba5f2c1f4f811a88848c83
-    GitHub-Last-Rev: d9f7ee9b94df6779fcaef64edf3a480459e3ef16
-    GitHub-Pull-Request: golang/go#61943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518537
-    Reviewed-by: Alan Donovan <alan@alandonovan.net>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Id351b9c25380f0959453bb84ed123d0e784e4866
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450595
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/log/slog/level.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/internal/goroot/importcfg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

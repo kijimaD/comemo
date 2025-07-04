@@ -1,38 +1,17 @@
-commit aabdb66d8909f772270b80eff3405cfd4cce4d8b
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Oct 27 10:28:31 2016 -0700
+commit 9ac67f56f776ccf1708d25ce3f4f02ac771551de
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Wed Aug 17 17:31:12 2016 +0200
 
-    vendor/golang_org/x/crypto/poly1305: sync to 1150b8bd09e53aea1d415621adae9bad665061a1
+    doc: improve issue template
     
-    This change updates the vendored version of the poly1305 package to
-    match the latest version from x/crypto. This pulls in this change:
+    The previous template used an ordered list, but the formatting always
+    breaks when users paste quoted snippets of code or command outputs.
+    It is also harder to visually parse because items in ordered lists
+    are only indented but not highlighted in any way.
     
-      commit 1150b8bd09e53aea1d415621adae9bad665061a1
-      Author: Adam Langley <agl@golang.org>
-      Date:   Fri Oct 21 15:59:10 2016 -0700
-    
-          poly1305: don't move R13 in sum_arm.s.
-    
-          Rather than change the value of R13 during the execution, keep R13 fixed
-          (after the initial prelude) and always use offsets from it.
-    
-          This should help the runtime figure out what's going on if, say, a
-          signal should occur while running this code.
-    
-          I've also trimmed the set of saved registers since Go doesn't require
-          the callee to maintain anything except R10 and R13.
-    
-          Change-Id: Ifbeca73c1d964cc43bb7f8c20c61066f22fd562d
-          Reviewed-on: https://go-review.googlesource.com/31717
-          Run-TryBot: Cherry Zhang <cherryyz@google.com>
-          TryBot-Result: Gobot Gobot <gobot@golang.org>
-          Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    
-    Change-Id: I376b3e5d53aaded891e02801bd5faa5ff758da0d
-    Reviewed-on: https://go-review.googlesource.com/32227
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I73c89e9f0465aef41093f5c54d11bb0d12ff8c8d
+    Reviewed-on: https://go-review.googlesource.com/27252
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/vendor/golang_org/x/crypto/poly1305/sum_arm.s | 253 +++++++++++-----------
- 1 file changed, 132 insertions(+), 121 deletions(-)
+ .github/ISSUE_TEMPLATE | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

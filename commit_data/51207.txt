@@ -1,19 +1,17 @@
-commit 3fc8ed2543091693eca514b363fcdbbe5c7f2916
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Nov 9 11:09:42 2022 +0100
+commit b1c7703f266a2d72f80f3b55eff822ad7980ce31
+Author: Hana <hyangah@gmail.com>
+Date:   Wed Dec 15 08:40:30 2021 -0500
 
-    internal/reflectlite: use unsafe.String in name.name and name.tag
+    doc/go1.18: discuss embedded build info compatibility
     
-    Same as CL 448675 did in package reflect.
+    Fixes #50085
     
-    Change-Id: I26277d8dcf2d2e204724d6fa5cc6e1ad391633f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448936
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I9be8ddb983fb4fe598becbb0b93bb5b7e1f8438f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372214
+    Trust: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/internal/reflectlite/type.go | 21 ++++++---------------
- 1 file changed, 6 insertions(+), 15 deletions(-)
+ doc/go1.18.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

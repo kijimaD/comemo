@@ -1,16 +1,20 @@
-commit 3c6a7b3fc50a391f939308b522ac79e6ac79990b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jul 11 15:40:41 2011 +1000
+commit 7b79b3b2443a51e0b1853eae99d0de8e30f1b540
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 11 15:23:38 2011 +1000
 
-    go/build: use os.MkdirAll to create directories
+    exp/template: fields and methods on variables.
+    Not strictly necessary (you could achieve the same, clumsily,
+    via with blocks) but great to have: $x.Field, $y.Method.
     
-    Replaces "mkdir -p ..." command, as Windows mkdir command
-    does not support -p flag. Also, is simpler and faster then
-    launching new process.
-    
-    R=golang-dev, mattn.jp, adg, bradfitz, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4626087
+    https://golang.org/cl/4678047
 
- src/pkg/go/build/build.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/exp/template/doc.go        |  6 +++++-
+ src/pkg/exp/template/exec.go       | 29 +++++++++++++++++++++--------
+ src/pkg/exp/template/exec_test.go  |  4 ++++
+ src/pkg/exp/template/lex.go        |  2 +-
+ src/pkg/exp/template/lex_test.go   |  3 ++-
+ src/pkg/exp/template/parse.go      | 12 ++++++++----
+ src/pkg/exp/template/parse_test.go |  9 ++++++---
+ 7 files changed, 47 insertions(+), 18 deletions(-)

@@ -1,0 +1,28 @@
+commit b7f8c2a11058fe266fa5ddd0bc80dbf69b03b172
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 20 10:26:54 2025 -0400
+
+    testing: detect early return from B.Loop
+    
+    Currently, if a benchmark function returns prior to B.Loop() returning
+    false, we'll report a bogus result. While there was no way to detect
+    this with b.N-style benchmarks, one way b.Loop()-style benchmarks are
+    more robust is that we *can* detect it.
+    
+    This CL adds a flag to B that tracks if B.Loop() has finished and
+    checks it after the benchmark completes. If there was an early exit
+    (not caused by another error), it reports a B.Error.
+    
+    Fixes #72933.
+    Updates #72971.
+    
+    Change-Id: I731c1350e6df938c0ffa08fcedc11dc147e78854
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659656
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+
+ src/testing/benchmark.go |  9 +++++++
+ src/testing/loop_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 70 insertions(+), 1 deletion(-)

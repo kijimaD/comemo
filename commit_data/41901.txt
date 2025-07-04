@@ -1,16 +1,15 @@
-commit 7b90c1c0c42099248fbb849e8a1c3251984688ac
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Apr 9 11:09:00 2020 -0400
+commit ef03c4476eadc6c68c27bf2a01a6085ae22bac2d
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Oct 31 17:14:33 2019 -0400
 
-    os/exec: extend grace period in TestExtraFiles to 20% of overall deadline
+    doc: document Go 1.12.13
     
-    Updates #25628
-    
-    Change-Id: I938a7646521b34779a3a57833e7ce9d508b58faf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227765
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic65a74e56320adbd76aeef1cf3b19d7906ffe8fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204637
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec/exec_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

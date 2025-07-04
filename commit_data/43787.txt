@@ -1,20 +1,20 @@
-commit 4bc5f6f45f6e887f74b22dfdfffd6df2a2f97094
+commit f2d8da1a353b493548e211b06fdf47bd998ad4b6
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Nov 11 19:43:26 2020 -0500
+Date:   Fri Apr 24 12:13:11 2020 -0400
 
-    cmd/link: put DYLD_INFO at beginning of LINKEDIT segment on darwin
+    [dev.link] cmd/link: set HeadType early
     
-    Apparently, code signing requires DYLD_INFO tables are at the
-    beginning of the LINKEDIT segment. Put it there.
+    So we can use it to set per-OS flags.
     
-    May fix #42507.
+    Also set flagnewDoData after archinit, where IsELF is set.
     
-    Change-Id: I1836e0f495719cf75f66d0831fe1544bbe3ff1a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269377
-    Trust: Cherry Zhang <cherryyz@google.com>
+    This should correct the logic of setting flagnewDoData.
+    
+    Change-Id: I18c7252f141aa35119005c252becc9d7cb74f2f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229867
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/internal/ld/macho.go | 72 +++++++++++++++++++--------------------
- 1 file changed, 36 insertions(+), 36 deletions(-)
+ src/cmd/link/internal/ld/main.go | 22 ++++++++++------------
+ 1 file changed, 10 insertions(+), 12 deletions(-)

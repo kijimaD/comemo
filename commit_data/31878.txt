@@ -1,17 +1,12 @@
-commit 7b659eb1552320f34ed687330e433153ee4c2266
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jun 20 17:25:07 2017 +0900
+commit 19040ac871bb6873b7fa4747f0ffe479a2ce0ef9
+Author: Jason Travis <infomaniac7@gmail.com>
+Date:   Tue Mar 21 20:12:47 2017 -0700
 
-    all: gofmt
+    test/bench/go1: fix typo in parserdata_test.go comment
     
-    Change-Id: I2d0439a9f068e726173afafe2ef1f5d62b7feb4d
-    Reviewed-on: https://go-review.googlesource.com/46190
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iaca02660bdc8262db2b003a94aca661b5cec5576
+    Reviewed-on: https://go-review.googlesource.com/38437
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |  4 ++--
- src/crypto/dsa/dsa_test.go             |  2 +-
- src/hash/crc32/crc32_arm64.go          | 32 ++++++++++++++++----------------
- src/runtime/symtab_test.go             |  2 +-
- 4 files changed, 20 insertions(+), 20 deletions(-)
+ test/bench/go1/parserdata_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

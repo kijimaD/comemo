@@ -1,41 +1,19 @@
-commit 5a691927659d1057bb3be80087732b5df5889aca
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jul 24 17:43:55 2020 -0400
+commit 631b49886c27f88c2d701176104b01b24e551d7c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 17 17:20:26 2018 -0700
 
-    cmd/go/internal/modload: drop requirements on excluded versions
+    go/internal/gcimporter: rename file to better reflect new meaning
     
-    Previously, when we encountered an excluded version in any module's
-    requirements, we would resolve it to the next higher version.
-    Unfortunately, the meaning of “the next higher version” can change
-    over time.
+    Also: Removed unused deref function.
     
-    Moreover, users who use 'exclude' directives normally either already
-    require some higher version (using the 'exclude' directive to prune
-    out invalid requirements from some intermediate version), or already
-    require some lower version (using the 'exclude' directive to prevent
-    'go get -u' from upgrading to a known-bad version). In both of these
-    cases, resolving an upgrade for the excluded version is needless work
-    even in the best case: it adds work for the 'go' command when there is
-    already a perfectly usable selected version of the module in the
-    requirement graph.
+    Follow-up on https://golang.org/cl/143023.
     
-    Instead, we now interpret the 'exclude' directive as dropping all
-    references to the excluded version.
+    Updates #27999.
     
-    This implements the approach described in
-    https://golang.org/issue/36465#issuecomment-572694990.
-    
-    Fixes #36465
-    Updates #36460
-    
-    Change-Id: Ibf0187daced417b4cc23b97125826778658e4b0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244773
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I088265f0e3ce52029679407f0b84b734191d4d3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/143024
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modload/init.go                | 12 ++++-
- src/cmd/go/internal/modload/mvs.go                 | 19 +++----
- src/cmd/go/testdata/script/mod_require_exclude.txt | 62 +++++++++++++++++++---
- 3 files changed, 72 insertions(+), 21 deletions(-)
+ src/go/internal/gcimporter/gcimporter.go              | 7 -------
+ src/go/internal/gcimporter/{bimport.go => support.go} | 2 ++
+ 2 files changed, 2 insertions(+), 7 deletions(-)

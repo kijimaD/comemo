@@ -1,17 +1,15 @@
-commit 53a4152d478d75ef4b71e428b9d69ed54144081f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 24 14:34:28 2022 -0700
+commit 3920d6f2085559ae262d651b00bf8b29f953580a
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu May 6 09:04:03 2021 +0800
 
-    os/exec: clarify that Wait must be called
+    runtime: eliminate the redundant for loop in runqget()
     
-    Fixes #52580
-    
-    Change-Id: Ib2dd8a793b9c6fcb083abb3f7c346f6279adefc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414056
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If9b283bbef3ff12a64d34b07491aee3396852f05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317509
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Keith Randall <khr@golang.org>
 
- src/os/exec/exec.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/proc.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

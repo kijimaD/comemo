@@ -1,18 +1,82 @@
-commit f46324cffbf87b0a6334e09f72e5f73fb79f5a73
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 25 20:38:20 2016 -0400
+commit 62861889863d3d61f546d01aa7bd9824df1b33df
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 26 18:08:24 2016 -0700
 
-    cmd/compile: remove unused writebarrierptr, typedmemmove Nodes
+    cmd/compile: optimize integer "in range" expressions
     
-    Now that SSA's write barrier pass is generating calls to these,
-    compile doesn't need to look them up.
+    Use unsigned comparisons to reduce from
+    two comparisons to one for integer "in range"
+    checks, such as a <= b && b < c.
+    We already do this for bounds checks.
+    Extend it to user code.
     
-    Change-Id: Ib50e5f2c67b247ca280d467c399e23877988bc12
-    Reviewed-on: https://go-review.googlesource.com/32170
-    Run-TryBot: Austin Clements <austin@google.com>
+    This is much easier to do in the front end than SSA.
+    A back end optimization would be more powerful,
+    but this is a good start.
+    
+    This reduces the power of some of SSA prove
+    inferences (#16653), but those regressions appear
+    to be rare and not worth holding this CL for.
+    
+    Fixes #15844.
+    Fixes #16697.
+    
+    strconv benchmarks:
+    
+    name                          old time/op  new time/op   delta
+    Atof64Decimal-8               41.4ns ± 3%   38.9ns ± 2%   -5.89%  (p=0.000 n=24+25)
+    Atof64Float-8                 48.5ns ± 0%   46.8ns ± 3%   -3.64%  (p=0.000 n=20+23)
+    Atof64FloatExp-8              97.7ns ± 4%   93.5ns ± 1%   -4.25%  (p=0.000 n=25+20)
+    Atof64Big-8                    187ns ± 8%    162ns ± 2%  -13.54%  (p=0.000 n=24+22)
+    Atof64RandomBits-8             250ns ± 6%    233ns ± 5%   -6.76%  (p=0.000 n=25+25)
+    Atof64RandomFloats-8           160ns ± 0%    152ns ± 0%   -5.00%  (p=0.000 n=21+22)
+    Atof32Decimal-8               41.1ns ± 1%   38.7ns ± 2%   -5.86%  (p=0.000 n=24+24)
+    Atof32Float-8                 46.1ns ± 1%   43.5ns ± 3%   -5.63%  (p=0.000 n=21+24)
+    Atof32FloatExp-8               101ns ± 4%    100ns ± 2%   -1.59%  (p=0.000 n=24+23)
+    Atof32Random-8                 136ns ± 3%    133ns ± 3%   -2.83%  (p=0.000 n=22+22)
+    Atoi-8                        33.8ns ± 3%   30.6ns ± 3%   -9.51%  (p=0.000 n=24+25)
+    AtoiNeg-8                     31.6ns ± 3%   29.1ns ± 2%   -8.05%  (p=0.000 n=23+24)
+    Atoi64-8                      48.6ns ± 1%   43.8ns ± 1%   -9.81%  (p=0.000 n=20+23)
+    Atoi64Neg-8                   47.1ns ± 4%   42.0ns ± 2%  -10.83%  (p=0.000 n=25+25)
+    FormatFloatDecimal-8           177ns ± 9%    178ns ± 6%     ~     (p=0.460 n=25+25)
+    FormatFloat-8                  282ns ± 6%    282ns ± 3%     ~     (p=0.954 n=25+22)
+    FormatFloatExp-8               259ns ± 7%    255ns ± 6%     ~     (p=0.089 n=25+24)
+    FormatFloatNegExp-8            253ns ± 6%    254ns ± 6%     ~     (p=0.941 n=25+24)
+    FormatFloatBig-8               340ns ± 6%    341ns ± 8%     ~     (p=0.600 n=22+25)
+    AppendFloatDecimal-8          79.4ns ± 0%   80.6ns ± 6%     ~     (p=0.861 n=20+25)
+    AppendFloat-8                  175ns ± 3%    174ns ± 0%     ~     (p=0.722 n=25+20)
+    AppendFloatExp-8               142ns ± 4%    142ns ± 2%     ~     (p=0.948 n=25+24)
+    AppendFloatNegExp-8            137ns ± 2%    138ns ± 2%   +0.70%  (p=0.001 n=24+25)
+    AppendFloatBig-8               218ns ± 3%    218ns ± 4%     ~     (p=0.596 n=25+25)
+    AppendFloatBinaryExp-8        80.0ns ± 4%   78.0ns ± 1%   -2.43%  (p=0.000 n=24+21)
+    AppendFloat32Integer-8        82.3ns ± 3%   79.3ns ± 4%   -3.69%  (p=0.000 n=24+25)
+    AppendFloat32ExactFraction-8   143ns ± 2%    143ns ± 0%     ~     (p=0.177 n=23+19)
+    AppendFloat32Point-8           175ns ± 3%    175ns ± 3%     ~     (p=0.062 n=24+25)
+    AppendFloat32Exp-8             139ns ± 2%    137ns ± 4%   -1.05%  (p=0.001 n=24+24)
+    AppendFloat32NegExp-8          134ns ± 0%    137ns ± 4%   +2.06%  (p=0.000 n=22+25)
+    AppendFloat64Fixed1-8         97.8ns ± 0%   98.6ns ± 3%     ~     (p=0.711 n=20+25)
+    AppendFloat64Fixed2-8          110ns ± 3%    110ns ± 5%   -0.45%  (p=0.037 n=24+24)
+    AppendFloat64Fixed3-8          102ns ± 3%    102ns ± 3%     ~     (p=0.684 n=24+24)
+    AppendFloat64Fixed4-8          112ns ± 3%    110ns ± 0%   -1.43%  (p=0.000 n=25+18)
+    FormatInt-8                   3.18µs ± 4%   3.10µs ± 6%   -2.54%  (p=0.001 n=24+25)
+    AppendInt-8                   1.81µs ± 5%   1.80µs ± 5%     ~     (p=0.648 n=25+25)
+    FormatUint-8                   812ns ± 6%    816ns ± 6%     ~     (p=0.777 n=25+25)
+    AppendUint-8                   536ns ± 4%    538ns ± 3%     ~     (p=0.798 n=20+22)
+    Quote-8                        605ns ± 6%    602ns ± 9%     ~     (p=0.573 n=25+25)
+    QuoteRune-8                   99.5ns ± 8%  100.2ns ± 7%     ~     (p=0.432 n=25+25)
+    AppendQuote-8                  361ns ± 3%    363ns ± 4%     ~     (p=0.085 n=25+25)
+    AppendQuoteRune-8             23.3ns ± 3%   22.4ns ± 2%   -3.79%  (p=0.000 n=25+24)
+    UnquoteEasy-8                  146ns ± 4%    145ns ± 5%     ~     (p=0.112 n=24+24)
+    UnquoteHard-8                  804ns ± 6%    771ns ± 6%   -4.10%  (p=0.000 n=25+24)
+    
+    Change-Id: Ibd384e46e90f1cfa40503c8c6352a54c65b72980
+    Reviewed-on: https://go-review.googlesource.com/27652
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/go.go   | 3 ---
- src/cmd/compile/internal/gc/pgen.go | 2 --
- 2 files changed, 5 deletions(-)
+ src/cmd/compile/internal/gc/subr.go |  31 ---------
+ src/cmd/compile/internal/gc/type.go |  22 ++++++
+ src/cmd/compile/internal/gc/walk.go | 131 +++++++++++++++++++++++++++++++++++-
+ test/checkbce.go                    |   4 +-
+ 4 files changed, 155 insertions(+), 33 deletions(-)

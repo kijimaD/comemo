@@ -1,18 +1,14 @@
-commit 5e0278b7a06bbf904349570238fbbdd08c504693
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 7 11:05:19 2013 -0700
+commit 60aa48c12783f84ba150eac47ad2a5de23b8fc74
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 7 13:36:41 2013 +1000
 
-    test: fix return.go to not use fallthrough in a type switch
+    net: fix small bug introduced by 48f7c4dd87fe
     
-    The gc compiler only gives an error about fallthrough in a
-    type switch if it has not given any errors in an earlier pass.
-    Remove all functions in this test that use fallthrough in a
-    type switch because they don't test anything useful and they
-    cause gccgo to give unexpected errors.
+    Fixes #6063
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/12614043
+    R=golang-dev, r, dave
+    CC=dvyukov, golang-dev
+    https://golang.org/cl/12586043
 
- test/return.go | 84 ----------------------------------------------------------
- 1 file changed, 84 deletions(-)
+ src/pkg/net/fd_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

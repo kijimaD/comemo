@@ -1,34 +1,26 @@
-commit 7ed7669c0d35768dbb73eb33d7dc0098e45421b1
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 17 14:48:04 2019 +0000
+commit e1b49ad608c0b51acf75f8248e1167acbbcb5d30
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Feb 8 11:22:48 2019 +0000
 
-    runtime: ensure mheap lock stack growth invariant is maintained
+    doc: remove last pieces of advice to set GOROOT
     
-    Currently there's an invariant in the runtime wherein the heap lock
-    can only be acquired on the system stack, otherwise a self-deadlock
-    could occur if the stack grows while the lock is held.
+    install.html still insisted that GOROOT must be set if a binary install
+    of Go is set up in a custom directory. However, since 1.10, this has
+    been unnecessary as the GOROOT will be found based on the location of
+    the 'go' binary being run.
     
-    This invariant is upheld and documented in a number of situations (e.g.
-    allocManual, freeManual) but there are other places where the invariant
-    is either not maintained at all which risks self-deadlock (e.g.
-    setGCPercent, gcResetMarkState, allocmcache) or is maintained but
-    undocumented (e.g. gcSweep, readGCStats_m).
+    Likewise, install-source.html includes an 'export GOROOT' line in a
+    section that only talks about explicitly setting GOARCH and GOOS, which
+    is optional. We don't want to have users think it is recommended to set
+    GOROOT here either, so remove the unnecessary line.
     
-    This change adds go:systemstack to any function that acquires the heap
-    lock or adds a systemstack(func() { ... }) around the critical section,
-    where appropriate. It also documents the invariant on (*mheap).lock
-    directly and updates repetitive documentation to refer to that comment.
-    
-    Fixes #32105.
-    
-    Change-Id: I702b1290709c118b837389c78efde25c51a2cafb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177857
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I7dfef09f9a1d003e0253b793d63ea40d5cf1837f
+    Reviewed-on: https://go-review.googlesource.com/c/161758
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/export_test.go | 41 ++++++++++++++++++++++++++---------------
- src/runtime/mcache.go      | 11 +++++++----
- src/runtime/mgc.go         | 33 ++++++++++++++++++++++-----------
- src/runtime/mheap.go       | 11 ++++++-----
- src/runtime/mstats.go      |  3 +++
- 5 files changed, 64 insertions(+), 35 deletions(-)
+ doc/install-source.html | 1 -
+ doc/install.html        | 5 -----
+ 2 files changed, 6 deletions(-)

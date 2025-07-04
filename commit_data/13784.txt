@@ -1,20 +1,30 @@
-commit b29d641b3a379b2fb0f88ceed066f043acab7c33
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 10 14:54:52 2012 -0700
+commit 2c5b53866c001632678c0467f713d019cf50c1a6
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Sep 10 15:52:36 2012 -0400
 
-    exp/types/staging: typechecker API
+    undo CL 6498092 / 4ff71bc1a199
     
-    First set of type checker files for review.
-    The primary concern here is the typechecker
-    API (types.go).
+    Broke tests on 386.
     
-    R=rsc, adonovan, r, rogpeppe
+    ««« original CL description
+    6l/8l: emit correct opcodes to F(SUB|DIV)R?D.
+    
+    When the destination was not F0, 6l and 8l swapped FSUBD/FSUBRD and
+    FDIVD/FDIVRD.
+    
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6490089
+    https://golang.org/cl/6498092
+    »»»
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6492100
 
- src/pkg/exp/types/staging/exprstring.go |  98 +++++++++++++
- src/pkg/exp/types/staging/predicates.go | 210 ++++++++++++++++++++++++++++
- src/pkg/exp/types/staging/types.go      | 239 ++++++++++++++++++++++++++++++++
- src/pkg/exp/types/staging/typestring.go | 148 ++++++++++++++++++++
- src/pkg/exp/types/staging/universe.go   | 159 +++++++++++++++++++++
- 5 files changed, 854 insertions(+)
+ src/cmd/6l/optab.c                      |  8 ++++----
+ src/cmd/8l/optab.c                      |  8 ++++----
+ test/fixedbugs/bug453.dir/bug453.go     | 22 ----------------------
+ test/fixedbugs/bug453.dir/bug453.s      | 31 -------------------------------
+ test/fixedbugs/bug453.dir/bug453_ref.go | 15 ---------------
+ test/fixedbugs/bug453.go                |  7 -------
+ 6 files changed, 8 insertions(+), 83 deletions(-)

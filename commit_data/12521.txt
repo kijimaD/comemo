@@ -1,15 +1,38 @@
-commit dfb1af4b97ffed0c2acbbc52b0f85355d727974a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Mar 8 23:56:26 2012 +0900
+commit a40065ac6838068f07dcb12084406bab403067f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 8 08:39:20 2012 -0500
 
-    cmd/gofmt: fix race in long test
+    cmd/godoc: add support for serving templates
+    doc: convert to use godoc built-in templates
     
-    Fixes #3249.
+    tmpltohtml is gone, to avoid having a second copy of the code.
+    Instead, godoc -url /doc/go1.html will print the actual HTML
+    served for that URL.  "make" will generate files named go1.rawhtml
+    etc, which can be fed through tidy.
     
-    R=rsc
+    It can be hard to tell from the codereview diffs, but all the
+    tmpl files have been renamed to be html files and then
+    have "Template": true added.
+    
+    R=golang-dev, adg, r, gri
     CC=golang-dev
-    https://golang.org/cl/5792043
+    https://golang.org/cl/5782046
 
- src/cmd/gofmt/gofmt.go     | 10 +++++-----
- src/cmd/gofmt/long_test.go | 12 +++++++-----
- 2 files changed, 12 insertions(+), 10 deletions(-)
+ doc/Makefile                                   |   25 +-
+ doc/articles/defer_panic_recover.html          |   94 +-
+ doc/articles/defer_panic_recover.tmpl          |  195 --
+ doc/articles/error_handling.html               |  162 +-
+ doc/articles/error_handling.tmpl               |  314 ---
+ doc/articles/laws_of_reflection.html           |  147 +-
+ doc/articles/laws_of_reflection.tmpl           |  654 ------
+ doc/articles/slices_usage_and_internals.html   |   53 +-
+ doc/articles/slices_usage_and_internals.tmpl   |  438 ----
+ doc/effective_go.html                          |  127 +-
+ doc/effective_go.tmpl                          | 3008 ------------------------
+ doc/go1.html                                   |  164 +-
+ doc/go1.tmpl                                   | 2029 ----------------
+ src/cmd/godoc/doc.go                           |    3 +
+ src/cmd/godoc/godoc.go                         |   18 +
+ src/cmd/godoc/main.go                          |   52 +-
+ doc/tmpltohtml.go => src/cmd/godoc/template.go |   73 +-
+ 17 files changed, 199 insertions(+), 7357 deletions(-)

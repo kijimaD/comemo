@@ -1,17 +1,21 @@
-commit a9384eef7ae3a2587d215e3ec3d79bc1b335ce82
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Feb 1 21:24:51 2022 +0100
+commit a25d1d45d968253f0b257cca9d57619a5af248c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 14:05:49 2021 -0400
 
-    doc/go1.18: add crypto/tls, crypto/x509, and crypto/elliptic release notes
+    runtime: fix windows/arm64 callbackasm1 for frame pointer hack
     
-    Updates #45428
-    Updates #41682
+    Fixes the previously failing TestStdcallAndCDeclCallbacks
+    for the 9+ argument case.
     
-    Change-Id: I811bc4f8ec8de6b6db6a2917e265a72134a05e78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382454
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    The last time this code passed, the invisible frame pointer
+    below SP was apparently not enabled on windows/arm64.
+    
+    Change-Id: Ifc3064e894b2f39d6410f3be51c17309ebab08a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312042
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 62 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 62 insertions(+)
+ src/runtime/sys_windows_arm64.s | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

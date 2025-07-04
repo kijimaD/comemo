@@ -1,16 +1,17 @@
-commit 46890f60cee89ffef7a9b5f2b8d5e263650f61f7
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Mar 2 08:36:06 2013 +0200
+commit 83c8cc54361b075e6ec9d0d62d3c29803fbbf594
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 1 17:39:22 2013 -0800
 
-    runtime: move TestGcSys into a separate process
-    Fixes #4904.
-    The problem was that when the test runs the heap had grown to ~100MB,
-    so GC allows it to grow to 200MB, and so the test fails.
-    Moving the test to a separate process makes it much more isolated and stable.
+    go/types: fixed a few failure checks
     
-    R=golang-dev, minux.ma
+    More robustness in case of incorrect programs.
+    
+    Fixes #4962.
+    
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/7441046
+    https://golang.org/cl/7429047
 
- src/pkg/runtime/gc_test.go | 31 +++++++++++++++++++++++++------
- 1 file changed, 25 insertions(+), 6 deletions(-)
+ src/pkg/go/types/expr.go | 34 ++++++++++++++++++++++++++++++----
+ src/pkg/go/types/stmt.go |  4 ++++
+ 2 files changed, 34 insertions(+), 4 deletions(-)

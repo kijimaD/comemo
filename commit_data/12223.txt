@@ -1,12 +1,16 @@
-commit e10dc82ce09f49438d1d43fd630d18d6ee242512
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Feb 27 14:16:56 2012 +1100
+commit 5876b4eb2881336c9e7007c957002d15ef54a190
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 27 12:49:10 2012 +1100
 
-    doc: instruct freebsd/linux users to rm the old version first
+    testing: add -test.example flag to control execution of examples
+    Also, don't run examples if -test.run is set.
     
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5701052
+    https://golang.org/cl/5697069
 
- doc/install.html | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/go/test.go         |  5 +++++
+ src/cmd/go/testflag.go     |  2 ++
+ src/pkg/testing/example.go | 16 +++++++++++++++-
+ src/pkg/testing/testing.go |  2 +-
+ 4 files changed, 23 insertions(+), 2 deletions(-)

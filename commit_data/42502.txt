@@ -1,12 +1,18 @@
-commit b9332ed31aa4c2b73134a1b968761fc4c259ccac
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 5 13:51:17 2020 -0400
+commit a52cea446d93e736113ed05c96e14f2d180c4274
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Dec 13 13:34:43 2019 -0500
 
-    doc: document encoding/xml change in CL 203417
+    [dev.link] cmd/link: add hooks for sorting loader.Reloc by offset
     
-    Change-Id: Ibc0228f166f449ec28d813f33bdb550fe7ba2b3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236739
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Add support for supporting loader.Reloc by offset, needed by host
+    object loaders.
+    
+    Change-Id: I5ac0702ee74ad71531f443e6215558d8151e3a4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211306
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.15.html | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

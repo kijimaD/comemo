@@ -1,31 +1,32 @@
-commit 2d4c1ff73992fa817213c7866be8030d9c78b5ba
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 13 17:29:39 2018 -0400
+commit da02dcda0296b12811a8ee772c6f1cb146292637
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Sun Apr 1 00:58:48 2018 +0300
 
-    runtime: don't create heap hints outside TSAN's supported heap
+    cmd/link/internal/ld: make Thearch unexported
     
-    TSAN for Go only supports heap address in the range [0x00c000000000,
-    0x00e000000000). However, we currently create heap hints of the form
-    0xXXc000000000 for XX between 0x00 and 0x7f. Even for XX=0x01, this
-    hint is outside TSAN's supported heap address range.
+    s/Thearch/thearch/
     
-    Fix this by creating a slightly different set of hints in race mode,
-    all of which fall inside TSAN's heap address range.
+    This reduces the amount of exported global variables,
+    which in turn could make it easier to refactor them later.
     
-    This should fix TestArenaCollision flakes. That test forces the
-    runtime to use later heap hints. Currently, this always results in
-    TSAN "failed to allocate" failures on Windows (which happens to have a
-    slightly more constrained TSAN layout than non-Windows). Most of the
-    time we don't notice these failures, but sometimes it crashes TSAN,
-    leading to a test failure.
+    Also updated somewhat vague comment about ld.Thearch.
+    There is no need for Thearch to be exported as Archinit is
+    called by ld.Main.
     
-    Fixes #25698.
+    Updates #22095
     
-    Change-Id: I8926cd61f0ee5ee00efa77b283f7b809c555be46
-    Reviewed-on: https://go-review.googlesource.com/123780
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I266b291f6eac0165f70c51964738206e066cea08
+    Reviewed-on: https://go-review.googlesource.com/103878
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/link/internal/ld/data.go  | 24 ++++++++++++------------
+ src/cmd/link/internal/ld/dwarf.go | 14 +++++++-------
+ src/cmd/link/internal/ld/elf.go   | 16 ++++++++--------
+ src/cmd/link/internal/ld/lib.go   |  4 ++--
+ src/cmd/link/internal/ld/macho.go |  2 +-
+ src/cmd/link/internal/ld/main.go  |  8 ++++----
+ src/cmd/link/internal/ld/pe.go    |  2 +-
+ src/cmd/link/main.go              |  2 +-
+ 8 files changed, 36 insertions(+), 36 deletions(-)

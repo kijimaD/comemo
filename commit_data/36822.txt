@@ -1,26 +1,26 @@
-commit a3a69afff85c94be8b6419b03efd5dc14f2425f9
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 14:34:00 2018 +0200
+commit 0b8d9d425a66a3c7e1c76fe10cb9eab1acd316cc
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri May 25 15:58:37 2018 -0400
 
-    cmd/dist: add AIX operating system.
+    go/types: fix typo causing loss of embedded interfaces
     
-    This commit adds AIX operating system to cmd/dist package for ppc64
-    architecture.
+    Simplified the code per prior suggestion to avoid that
+    kind of error in the first place.
     
-    The stack guard is increased because of syscalls made inside the runtime
-    which need a larger stack.
+    Also: Fix subtle error in Interface.Complete where an
+    interface may have ended up incomplete if both the list
+    of methods and the list of embedded interfaces was nil.
     
-    Disable cmd/vet/all tests until aix/ppc64 is fully available.
+    Expanded existing test to cover all these cases.
     
-    Change-Id: I7e3caf86724249ae564a152d90c1cbd4de288814
-    Reviewed-on: https://go-review.googlesource.com/c/138715
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes golang/go#25577
+    
+    Change-Id: If8723a8b0c4570f02b3dadfa390f96dd98ce11c8
+    Reviewed-on: https://go-review.googlesource.com/114504
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/build.go           | 2 ++
- src/cmd/dist/buildruntime.go    | 4 ++++
- src/cmd/dist/main.go            | 3 +++
- src/cmd/internal/objabi/head.go | 5 +++++
- src/cmd/vet/all/main.go         | 6 ++++++
- 5 files changed, 20 insertions(+)
+ src/go/types/type.go            | 46 ++++++++++++++++++-----------------------
+ src/go/types/typestring_test.go | 36 ++++++++++++++++++++++++++++++--
+ 2 files changed, 54 insertions(+), 28 deletions(-)

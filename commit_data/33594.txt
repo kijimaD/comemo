@@ -1,18 +1,20 @@
-commit 918b98ca707e36ec84c0494b884ff0a02c9121c2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 13 22:32:19 2017 -0500
+commit 770d8d8207dbbbabf12d644e70b74d89f5bf595f
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 24 16:11:44 2017 -0700
 
-    cmd/internal/obj, cmd/trace: restore bounds checks dropped in CL 56950
+    cmd/compile: free value earlier in nilcheck
     
-    CL 56950 correctly identified code with checks that were impossible.
-    But instead of correcting the checks it deleted them.
-    This CL corrects the code to check what was meant.
+    When we remove a nil check, add it back to the free Value pool immediately.
     
-    Change-Id: Ic89222184ee4fa5cacccae12d750601a9438ac8d
-    Reviewed-on: https://go-review.googlesource.com/78113
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #18732
+    
+    Change-Id: I8d644faabbfb52157d3f2d071150ff0342ac28dc
+    Reviewed-on: https://go-review.googlesource.com/58810
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/sym.go | 5 ++++-
- src/cmd/trace/trace.go      | 7 +++++--
- 2 files changed, 9 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/func.go     | 5 ++++-
+ src/cmd/compile/internal/ssa/nilcheck.go | 2 +-
+ src/cmd/compile/internal/ssa/regalloc.go | 2 +-
+ 3 files changed, 6 insertions(+), 3 deletions(-)

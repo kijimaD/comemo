@@ -1,12 +1,16 @@
-commit 8194187a2de9b693af6656ca956762437c2f9c64
-Author: matsuyoshi <sfbgwm30@gmail.com>
-Date:   Sat May 23 16:23:04 2020 +0900
+commit 207a0b79336a470810b4ffcd72756240097cf93d
+Author: vovapi <evgrafov.vladimir@gmail.com>
+Date:   Tue Dec 10 10:34:34 2019 +0000
 
-    os: use same link in UserCacheDir/UserConfigDir doc
+    testing: use conventional comments for exported internal funcs & structs
     
-    Change-Id: I94c385243c37589f56aadaa30336b400adf31308
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234959
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2dd5ddc22bfff143b81d5945992d8c5fccf387f4
+    GitHub-Last-Rev: aa637756e772f5ee9094b802df3be9945c8466c4
+    GitHub-Pull-Request: golang/go#36054
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210497
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/file.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/testing/benchmark.go | 10 +++++-----
+ src/testing/example.go   |  4 ++--
+ src/testing/testing.go   |  8 ++++----
+ 3 files changed, 11 insertions(+), 11 deletions(-)

@@ -1,25 +1,21 @@
-commit ddfe7b3dc00291862f33224b68ffdad0ef4001ab
-Author: Michael McConville <momcconville@gmail.com>
-Date:   Sat Jan 2 20:50:57 2016 -0500
+commit 7a4022ee36ec1b45233f6d9ae19e336f8a64a215
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 3 12:14:07 2015 -0800
 
-    crypto/rand: use the getentropy syscall on OpenBSD
+    cmd/compile: fix live variable reuse in orderstmt
     
-    Go already supports Linux's getrandom, which is a slightly modified
-    version of getentropy.
+    The call "poptemp(t, order)" at line 906 should match up with the
+    assignment "t := marktemp(order)" at line 770, so use a new temporary
+    variable for stripping the ODCL nodes from a "case x := <-ch" node's
+    Ninit list.
     
-    getentropy was added in OpenBSD 5.6. All supported versions of OpenBSD
-    include it so, unlike with Linux and getrandom, we don't need to test
-    for its presence.
+    Fixes #13469.
+    Passes toolstash/buildall.
     
-    Fixes #13785.
-    
-    Change-Id: Ib536b96675f257cd8c5de1e3a36165e15c9abac9
-    Reviewed-on: https://go-review.googlesource.com/18219
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia7eabd40c79cfdcb83df00b6fbd0954e0c44c5c7
+    Reviewed-on: https://go-review.googlesource.com/17393
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/rand/rand.go                         |  3 ++-
- src/crypto/rand/rand_openbsd.go                 | 28 +++++++++++++++++++++++++
- src/internal/syscall/unix/getentropy_openbsd.go | 25 ++++++++++++++++++++++
- 3 files changed, 55 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/order.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

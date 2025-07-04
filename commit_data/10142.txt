@@ -1,17 +1,20 @@
-commit c0a0fd6cf4f71dad402ee2c66407dbb18161dd05
+commit c1178aae865455b94a7b5c90c601a5719d96593b
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 20:20:59 2011 -0700
+Date:   Thu Oct 27 19:46:31 2011 -0700
 
-    gob: split uses of gobError, remove unnecessary embedding
+    strconv: use better errors than os.EINVAL, os.ERANGE
     
-    Will make gofix for error run more smoothly.
-    The overloading of gobError appears to be unintentional.
-    
-    R=r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5308060
+    https://golang.org/cl/5327052
 
- src/pkg/gob/codec_test.go | 2 +-
- src/pkg/gob/decoder.go    | 2 +-
- src/pkg/gob/error.go      | 6 +++---
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/pkg/exp/sql/convert_test.go |  2 +-
+ src/pkg/strconv/atob.go         |  2 +-
+ src/pkg/strconv/atob_test.go    |  4 +--
+ src/pkg/strconv/atof.go         | 12 ++++-----
+ src/pkg/strconv/atof_test.go    | 40 +++++++++++++--------------
+ src/pkg/strconv/atoi.go         | 49 ++++++++++++++++++---------------
+ src/pkg/strconv/atoi_test.go    | 60 ++++++++++++++++++++---------------------
+ src/pkg/strconv/quote.go        | 30 ++++++++++-----------
+ src/pkg/strconv/quote_test.go   |  5 ++--
+ 9 files changed, 105 insertions(+), 99 deletions(-)

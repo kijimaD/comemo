@@ -1,56 +1,25 @@
-commit 319b75ed339b9c66d6cc0519a9adc248526c67d7
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Sat Mar 25 17:01:38 2023 -0700
+commit 81d567146eb94678d401e282f99885010411df39
+Author: David Chase <drchase@google.com>
+Date:   Fri May 13 12:09:21 2022 -0400
 
-    all: add wasip1 support
+    runtime: add go:yeswritebarrierrec to panic functions
     
-    Fixes #58141
+    Panic avoids any write barriers in the runtime by checking first
+    and throwing if called inappropriately, so it is "okay".  Adding
+    this annotation repairs recursive write barrier checking, which
+    becomes more thorough when the local package naming convention
+    is changed from "" to the actual package name.
     
-    Co-authored-by: Richard Musiol <neelance@gmail.com>
-    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
-    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
-    Co-authored-by: Evan Phoenix <evan@phx.io>
-    Change-Id: I49b66946acc90fdf09ed9223096bfec9a1e5b923
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479627
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    This CL is a prerequisite for a pending code cleanup,
+    https://go-review.googlesource.com/c/go/+/393715
+    
+    Updates #51734.
+    
+    Change-Id: If831a3598c6c8cd37a8e9ba269f822cd81464a13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405900
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/debug/elf/file_test.go                             | 2 +-
- src/go/types/example_test.go                           | 2 +-
- src/io/ioutil/ioutil_test.go                           | 4 ++++
- src/log/syslog/syslog_test.go                          | 2 +-
- src/mime/type_unix.go                                  | 2 +-
- src/path/filepath/path_test.go                         | 5 +++--
- src/path/filepath/path_unix.go                         | 2 +-
- src/testing/run_example.go                             | 2 +-
- src/testing/{run_example_js.go => run_example_wasm.go} | 2 +-
- test/const7.go                                         | 2 +-
- test/fixedbugs/bug369.go                               | 2 +-
- test/fixedbugs/issue11771.go                           | 2 +-
- test/fixedbugs/issue14636.go                           | 2 +-
- test/fixedbugs/issue16037_run.go                       | 2 +-
- test/fixedbugs/issue19182.go                           | 2 +-
- test/fixedbugs/issue19658.go                           | 2 +-
- test/fixedbugs/issue21317.go                           | 2 +-
- test/fixedbugs/issue21576.go                           | 2 +-
- test/fixedbugs/issue22660.go                           | 2 +-
- test/fixedbugs/issue22662b.go                          | 2 +-
- test/fixedbugs/issue26411.go                           | 2 +-
- test/fixedbugs/issue33275_run.go                       | 2 +-
- test/fixedbugs/issue33555.go                           | 2 +-
- test/fixedbugs/issue36437.go                           | 2 +-
- test/fixedbugs/issue46234.go                           | 4 ++--
- test/fixedbugs/issue52127.go                           | 4 ++--
- test/fixedbugs/issue9355.go                            | 2 +-
- test/fixedbugs/issue9862_run.go                        | 2 +-
- test/linkmain_run.go                                   | 2 +-
- test/linkobj.go                                        | 2 +-
- test/linkx_run.go                                      | 2 +-
- test/live_uintptrkeepalive.go                          | 2 +-
- test/nosplit.go                                        | 2 +-
- test/sigchld.go                                        | 2 +-
- 34 files changed, 41 insertions(+), 36 deletions(-)
+ src/runtime/panic.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

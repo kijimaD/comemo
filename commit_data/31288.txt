@@ -1,15 +1,20 @@
-commit 0e497971bb8a34f00d94ff3e5f0571855d7073dc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 14:36:34 2017 -0700
+commit 450472989b318b7242d2c3d0db4c09d84727c065
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 9 17:08:27 2017 -0500
 
-    cmd/compile: update dalgsym to use obj.LSym
+    cmd/compile: disallow combining nosplit and systemstack
     
-    Passes toolstash-check.
+    go:systemstack works by tweaking the stack check prologue to check
+    against a different bound, while go:nosplit removes the stack check
+    prologue entirely. Hence, they can't be used together. Make the build
+    fail if they are.
     
-    Change-Id: I00a8200370d56772f604a099654f9d838c4f62e2
-    Reviewed-on: https://go-review.googlesource.com/41405
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2d180c4b1d31ff49ec193291ecdd42921d253359
+    Reviewed-on: https://go-review.googlesource.com/36710
+    Run-TryBot: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 58 +++++++++++++++++-----------------
- 1 file changed, 29 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 3 +++
+ 1 file changed, 3 insertions(+)

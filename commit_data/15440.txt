@@ -1,18 +1,38 @@
-commit f08acae76e8a66a5fe245fd5c6948de8add04257
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Feb 26 09:25:46 2013 -0800
+commit a5e42f2611e0daae92a699091ce8c6525e9dc5e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 25 22:06:58 2013 -0800
 
-    build: do not set GOBIN on Plan 9
+    go/types: fix sizeof computations
     
-    Also, I synced the rc files with changes
-    that have been made to make.bash, etc.
+    Context.Alignof/Offsetsof/Sizeof now provide means
+    to customize the type checker for a given platform.
     
-    R=seed, rminnich, r
+    - provide Context.Offsetsof to specify the
+      offsets of struct fields
+    - use the correct sizes for ints, uint, uintptrs
+      in constant computations
+    - moved all size computations into separate file
+      (sizes.go)
+    - fixed a bug with string constant slicing
+    
+    R=adonovan, axwalk
     CC=golang-dev
-    https://golang.org/cl/7389049
+    https://golang.org/cl/7363054
 
- src/all.rc           |  2 ++
- src/cmd/dist/plan9.c |  6 ------
- src/make.rc          | 20 +++++++++++++-------
- src/run.rc           | 19 ++++++++++++++++---
- 4 files changed, 31 insertions(+), 16 deletions(-)
+ src/pkg/exp/ssa/importer.go            |   2 +-
+ src/pkg/go/types/api.go                |  23 +++--
+ src/pkg/go/types/builtins.go           | 103 ++-------------------
+ src/pkg/go/types/check.go              |   4 +-
+ src/pkg/go/types/const.go              |  70 ++++++--------
+ src/pkg/go/types/conversions.go        |   6 +-
+ src/pkg/go/types/expr.go               |  59 ++++--------
+ src/pkg/go/types/gcimporter.go         |  14 ++-
+ src/pkg/go/types/gcimporter_test.go    |   4 +-
+ src/pkg/go/types/operand.go            |  50 +++++-----
+ src/pkg/go/types/sizes.go              | 162 +++++++++++++++++++++++++++++++++
+ src/pkg/go/types/stmt.go               |   4 +-
+ src/pkg/go/types/testdata/builtins.src |  64 ++++++++++---
+ src/pkg/go/types/testdata/decls1.src   |   4 +-
+ src/pkg/go/types/testdata/expr3.src    |  10 ++
+ src/pkg/go/types/types.go              |  10 +-
+ 16 files changed, 339 insertions(+), 250 deletions(-)

@@ -1,22 +1,12 @@
-commit f53a98685664e5157977c92651bc99b1f0418db5
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 13 09:28:33 2018 -0500
+commit 12d27d8ea5a6980b741564e2229c281dedb547d2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jul 29 19:11:55 2018 +0000
 
-    cmd/go: fix detection of unexpected files in downloaded zips
+    doc/go1.11: note that godoc now shows the Go version that added features
     
-    A bug in the old code was indirectly causing a confusing print,
-    but CL 131635 fixed the print instead of the surrounding code.
-    Fix the surrounding code, restore the old print, and test that the
-    error is actually reported (it was being ignored in a direct go get
-    but displaying in go build).
-    
-    Change-Id: I03c21380fce481060c443b0cc820f3617497fdd9
-    Reviewed-on: https://go-review.googlesource.com/c/149317
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie613a707dad1ac69627e1d7584d7d4e311db22f7
+    Reviewed-on: https://go-review.googlesource.com/126622
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/internal/modfetch/fetch.go            |  4 ++--
- src/cmd/go/internal/modget/get.go                |  2 ++
- src/cmd/go/proxy_test.go                         |  8 +++++++-
- src/cmd/go/testdata/mod/rsc.io_badzip_v1.0.0.txt | 11 +++++++++++
- src/cmd/go/testdata/script/mod_load_badzip.txt   | 11 +++++++++++
- 5 files changed, 33 insertions(+), 3 deletions(-)
+ doc/go1.11.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

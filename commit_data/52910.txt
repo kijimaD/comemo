@@ -1,25 +1,24 @@
-commit 89138ce740bf72c7a6c0eae5aa281f10094637cf
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed May 3 12:38:50 2023 -0400
+commit 6130461149020d2b4b91fb183afa388a211cadc5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jun 9 20:41:18 2022 +0000
 
-    cmd/compile: un-hide closure func if parent expr moved to staticinit
+    internal/testmath: add two-sample Welch's t-test for performance tests
     
-    If the function referenced by a closure expression is incorporated
-    into a static init, be sure to mark it as non-hidden, since otherwise
-    it will be live but no longer reachable from the init func, hence it
-    will be skipped during escape analysis, which can lead to
-    miscompilations.
+    This CL copies code from github.com/aclements/go-moremath/stats and
+    github.com/aclements/go-moremath/mathx for Welch's t-test. Several
+    existing tests in the Go repository check performance and scalability,
+    and this import is part of a move toward a more rigorous measurement of
+    both.
     
-    Fixes #59680.
+    Note that the copied code is already licensed to Go Authors, so there's
+    no need to worry about additional licensing considerations.
     
-    Change-Id: Ib858aee296efcc0b7655d25c23ab8a6a8dbdc5f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492135
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    For #32986.
+    
+    Change-Id: I058630fab7216d1a589bb182b69fa2231e6f5475
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411395
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/staticinit/sched.go |   6 ++
- test/fixedbugs/issue59680.go                 | 100 +++++++++++++++++++++++++++
- 2 files changed, 106 insertions(+)
+ src/go/build/deps_test.go      |   5 +-
+ src/internal/testmath/ttest.go | 213 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 217 insertions(+), 1 deletion(-)

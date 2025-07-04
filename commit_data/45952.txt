@@ -1,35 +1,24 @@
-commit 70fd4e47d73b92fe90e44ac785e2f98f9df0ab67
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 28 21:09:31 2021 -0700
+commit fbc4c6a3ae5eb21c93d167e5eebdb07327aa5462
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 25 15:20:30 2020 -0800
 
-    runtime: avoid possible preemption when returning from Go to C
+    [dev.typeparams] cmd/compile/internal/types2: remove support for type parameter pointer designation
     
-    When returning from Go to C, it was possible for the goroutine to be
-    preempted after calling unlockOSThread. This could happen when there
-    a context function installed by SetCgoTraceback set a non-zero context,
-    leading to a defer call in cgocallbackg1. The defer function wrapper,
-    introduced in 1.17 as part of the regabi support, was not nosplit,
-    and hence was a potential preemption point. If it did get preempted,
-    the G would move to a new M. It would then attempt to return to C
-    code on a different stack, typically leading to a SIGSEGV.
+    An earlier version of the draft design supported pointer designation for
+    type parameters. Remove related code since we don't need it anymore.
     
-    Fix this in a simple way by postponing the unlockOSThread until after
-    the other defer. Also check for the failure condition and fail early,
-    rather than waiting for a SIGSEGV.
-    
-    Without the fix to cgocall.go, the test case fails about 50% of the
-    time on my laptop.
-    
-    Fixes #47441
-    
-    Change-Id: Ib8ca13215bd36cddc2a49e86698824a29c6a68ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338197
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I0d9e8c5f02a9a6745ff7ee15b8267a99ab1529e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273327
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/cgocall.go                             | 20 +++++++++----
- src/runtime/crash_cgo_test.go                      |  9 ++++++
- src/runtime/testdata/testprogcgo/tracebackctxt.go  | 33 ++++++++++++++++++++--
- src/runtime/testdata/testprogcgo/tracebackctxt_c.c | 14 ++++++++-
- 4 files changed, 67 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go   |  2 +-
+ src/cmd/compile/internal/types2/decl.go       | 12 +++---------
+ src/cmd/compile/internal/types2/lookup.go     |  2 +-
+ src/cmd/compile/internal/types2/subst.go      | 17 ++---------------
+ src/cmd/compile/internal/types2/type.go       |  5 ++---
+ src/cmd/compile/internal/types2/typestring.go |  3 ---
+ src/cmd/compile/internal/types2/typexpr.go    |  4 ----
+ 7 files changed, 9 insertions(+), 36 deletions(-)

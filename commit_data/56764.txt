@@ -1,37 +1,47 @@
-commit 1634fde4f918223614fd8893db8dd7ca4ebcda01
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jun 3 21:00:51 2024 +0000
+commit e0db8ab6e0d26fe1e05f6824cff670c61f38a3a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 23 15:50:13 2023 -0700
 
-    iter: don't iterate if stop is called before next on Pull
+    cmd/compile: report an error URL with error messages
     
-    Consider the following code snippet:
+    In the type checkers, add Config.ErrorURL (or Config._ErrorURL for
+    go/types) to configure whether and how an error message should report
+    a URL for errors that have an error code.
     
-        next, stop := iter.Pull(seq)
-        stop()
+    In the compiler, configure types2 to report an error URL of the form
+    " [go.dev/e/XXX]", where XXX stands for the error code, with the URL
+    appended to the first line of an error.
     
-    Today, seq will iterate exactly once before it notices that its
-    iteration is invalid to begin with. This effect is observable in a
-    variety of ways. For example, if the iterator panics, since that panic
-    must propagate to the caller of stop. But if the iterator is stateful in
-    anyway, then it may update some state.
+    Rename the compiler flag -url to -errorurl. At the moment this flag
+    is disabled by default.
     
-    This is somewhat unexpected and because it's observable, can be depended
-    upon. This behavior does not align well with other possible
-    implementations of Pull, like CPS performed by the compiler. It's also
-    just odd to let even one iteration happen, precisely because of
-    unexpected state modification.
+    Example for a one-line error message:
     
-    Fix this by not iterating at all of the done flag is set before entering
-    the iterator.
+    <pos>: undefined: f [go.dev/e/UndeclaredName]
     
-    For #67712.
+    Example for a multi-line error message:
     
-    Change-Id: I18162e29df45a2e8968f68379450d92e1de47c4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590075
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    <pos>: not enough arguments in call to min [go.dev/e/WrongArgCount]
+            have ()
+            want (P, P)
+    
+    Change-Id: I26651ce2c92ad32fddd641f003db37fe12fdb1cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497715
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/iter/iter.go      |   8 ++++
- src/iter/pull_test.go | 102 +++++++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 96 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/base/flag.go       |  2 +-
+ src/cmd/compile/internal/base/print.go      |  6 +-----
+ src/cmd/compile/internal/noder/irgen.go     |  3 +++
+ src/cmd/compile/internal/types2/api.go      |  6 ++++++
+ src/cmd/compile/internal/types2/api_test.go | 25 +++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/errors.go   | 10 ++++++++++
+ src/go/types/api.go                         |  6 ++++++
+ src/go/types/api_test.go                    | 26 ++++++++++++++++++++++++++
+ src/go/types/check_test.go                  |  7 +++++++
+ src/go/types/errors.go                      | 10 ++++++++++
+ 10 files changed, 95 insertions(+), 6 deletions(-)

@@ -1,13 +1,18 @@
-commit cdabca325e29641e41706a6e89c00a8c86b4ce46
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Sat May 10 07:13:42 2014 +0900
+commit c00804c55c9ecc65728387a1902e414cac03de10
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 9 14:19:21 2014 -0700
 
-    bytes: fix typos
+    encoding/binary: document that Read requires exported struct fields
     
-    LGTM=mikioh.mikioh
-    R=golang-codereviews, mikioh.mikioh
+    Add a test for the current behaviour.
+    
+    Fixes #7482.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
     CC=golang-codereviews
-    https://golang.org/cl/94240045
+    https://golang.org/cl/95160043
 
- src/pkg/bytes/bytes_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/encoding/binary/binary.go      |  1 +
+ src/pkg/encoding/binary/binary_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+)

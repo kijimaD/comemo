@@ -1,12 +1,12 @@
-commit 5ab9d2befd7c37468121081a84188aa687678e13
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 5 13:47:36 2012 -0500
+commit 1b311776c499e35444d891206e9975995ffc293a
+Author: Paul Borman <borman@google.com>
+Date:   Mon Mar 5 13:34:12 2012 -0500
 
-    cmd/gc: show duplicate key in error
+    csv: clarify what a negative FieldsPerRecord means
     
-    R=ken2
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5728064
+    https://golang.org/cl/5729068
 
- src/cmd/gc/typecheck.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/csv/reader.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,17 +1,27 @@
-commit 1e65616e1a03bfb71478a8dc43a4cd6e8c013107
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 19 17:31:16 2014 -0800
+commit 7f0be1f781a523b5acafb527ca123f5b0eac1536
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 10 09:15:57 2014 +1100
 
-    testing: style change: omit unnecessary new
+    all: use golang.org/x/... import paths
     
-    This was brought to my attention because a user thought that because
-    the file was named "example.go" it served as an example of good coding
-    practice.  It's not an example, of course, but may as well use a more
-    idiomatic style anyhow.
-    
-    Change-Id: I7aa720f603f09f7d597fb7536dbf46ef09144e28
-    Reviewed-on: https://go-review.googlesource.com/1902
-    Reviewed-by: Minux Ma <minux@golang.org>
+    LGTM=rsc, r
+    R=r, rsc
+    CC=golang-codereview, golang-codereviews
+    https://golang.org/cl/168050043
 
- src/testing/example.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/articles/go_command.html    |  13 +--
+ doc/cmd.html                    |   6 +-
+ doc/code.html                   | 183 +++++++++++++++++++++-------------------
+ doc/contribute.html             |   2 +-
+ doc/go1compat.html              |   6 +-
+ doc/go_faq.html                 |   4 +-
+ doc/install-source.html         |   6 +-
+ lib/codereview/codereview.py    |   2 +-
+ misc/benchcmp                   |   2 +-
+ misc/makerelease/makerelease.go |  10 +--
+ src/compress/lzw/reader.go      |   2 +-
+ src/crypto/crypto.go            |  12 +--
+ src/debug/goobj/read_test.go    |   2 +-
+ src/net/http/cookiejar/jar.go   |   2 +-
+ src/runtime/os_android.c        |   2 +-
+ 15 files changed, 132 insertions(+), 122 deletions(-)

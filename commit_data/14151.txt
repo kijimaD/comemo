@@ -1,12 +1,21 @@
-commit 0c44488ad94fe626a87c046662e714ee2058c8c2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Oct 16 15:53:17 2012 +0800
+commit 7e144bcab0df7efa7255ecfa1ac425931902437f
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Oct 16 07:22:33 2012 +0200
 
-    misc/dist: support packaging for NetBSD
+    cmd/5g, cmd/6g, cmd/8g: fix out of registers.
     
-    R=adg
+    This patch is enough to fix compilation of
+    exp/types tests but only passes a stripped down
+    version of the appripriate torture test.
+    
+    Update #4207.
+    
+    R=dave, nigeltao, rsc, golang-dev
     CC=golang-dev
-    https://golang.org/cl/6650053
+    https://golang.org/cl/6621061
 
- misc/dist/bindist.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/5g/cgen.c | 91 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/6g/cgen.c | 56 +++++++++++++++++++++++-----------
+ src/cmd/8g/cgen.c | 18 +++++++++--
+ test/torture.go   | 76 +++++++++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 212 insertions(+), 29 deletions(-)

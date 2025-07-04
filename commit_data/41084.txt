@@ -1,19 +1,19 @@
-commit 4b1b18d1060b82d4df273e23d81033dfacf4d5bb
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Jan 7 17:14:51 2020 +1100
+commit 2f04903fec99e8b8291f1bfa91590bddb1b93c68
+Author: tomocy <tomocy.dev@gmail.com>
+Date:   Mon Sep 2 14:34:16 2019 +0000
 
-    runtime: use FP offsets for pipe/pipe2 on freebsd/arm64 and linux/arm64
+    net: document concurrency safety and example for Dialer
     
-    This is more readable and less error-prone than using RSP offsets.
+    Fixes #33743.
     
-    Suggested during review of CL 212765.
-    
-    Change-Id: I070190abeeac8eae5dbd414407602619d9d57422
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213577
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I80621321d56b6cf312a86e272800f1ad03c5544c
+    GitHub-Last-Rev: d91cb3697516ccfc3f956e97837404cbfee5922f
+    GitHub-Pull-Request: golang/go#33856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191879
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/sys_freebsd_arm64.s | 4 ++--
- src/runtime/sys_linux_arm64.s   | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/net/dial.go         |  2 ++
+ src/net/example_test.go | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+)

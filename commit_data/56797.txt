@@ -1,30 +1,35 @@
-commit 69e7b2bcd61e1d318c51e82a5514b21cbdb2dbc5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 13 09:29:22 2024 -0700
+commit a6fb97b6a7f42b8d4cbd8890672ccbf3cf0a929a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 24 11:25:12 2023 -0400
 
-    go/types, types2: typecheck cases even if switch expression is invalid
+    os: explicitly check for invalid FD in NewFile
     
-    Rather than returning right away when the switch expression is invalid,
-    continue type checking the type switch case.
+    CL 497075 refactored NewFile to unconditionally dereference the file
+    returned by newFile. However, newFile can return nil if passed a
+    negative FD, which now causes a crash.
     
-    The code was already written to be able to deal with an invalid switch
-    expression but it returned early nevertheless. Remove the early return
-    and rewrite the switch expression test slightly to better control the
-    scope of the x operand, leading to cleaner code.
+    Resolve this by moving the invalid check earlier in NewFile, which also
+    lets us avoid a useless fcntl syscall on a negative FD.
     
-    In the process replace a tricky use of the x operand with a use of the
-    sx operand (plus guard, since sx may be nil if invalid).
+    Since we convert to int to check sign, adjust newFile to take an int
+    rather than uintptr, which cleans up a lot of conversions.
     
-    Fixes #67962.
+    Fixes #60406
     
-    Change-Id: I1dc08d10078753c68449637622beb4018ed23803
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592555
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I382a74e22f1cc01f7a2dcf1ff4efca6a79c4dd57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497877
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/stmt.go            | 36 ++++++++++++----------
- src/go/types/stmt.go                               | 36 +++++++++++++---------
- .../types/testdata/fixedbugs/issue67962.go         | 26 ++++++++++++++++
- 3 files changed, 67 insertions(+), 31 deletions(-)
+ src/net/fd_unix.go        |  4 ++--
+ src/os/file_unix.go       | 33 +++++++++++++++++++--------------
+ src/os/os_unix_test.go    |  8 ++++++++
+ src/os/os_windows_test.go |  7 +++++++
+ src/os/pipe2_unix.go      |  2 +-
+ src/os/pipe_unix.go       |  2 +-
+ src/os/removeall_at.go    |  2 +-
+ 7 files changed, 39 insertions(+), 19 deletions(-)

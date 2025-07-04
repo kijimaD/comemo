@@ -1,29 +1,22 @@
-commit aa5b22552ac353c79ad1e8b6202ab4fa131338ef
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 9 16:37:51 2023 -0500
+commit 9b90838712856cad86504a526e566f963f86c04e
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Mar 24 13:29:03 2022 -0400
 
-    cmd/go: remove tests that assume lack of new versions of external modules
+    go/types, types2: preserve parent scope when substituting receivers
     
-    In general it seems ok to assume that an open-source module that did
-    exist will continue to do so — after all, users of open-source modules
-    already do that all the time. However, we should not assume that those
-    modules do not publish new versions — that's really up to their
-    maintainers to decide.
+    Fixes #51920
     
-    Two existing tests did make that assumption for the module
-    gopkg.in/natefinch/lumberjack.v2. Let's remove those two tests.
-    If we need to replace them at some point, we can replace them with
-    hermetic test-only modules (#54503) or perhaps modules owned by the Go
-    project.
-    
-    Fixes #58445.
-    
-    Change-Id: Ica8fe587d86fc41f3d8445a4cd2b8820455ae45f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466860
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I29e44a52dabee5c09e1761f9ec8fb2e8795f8901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395538
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/modfetch/coderepo_test.go | 17 -----------------
- 1 file changed, 17 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 97 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/named.go    |  2 +-
+ src/cmd/compile/internal/types2/subst.go    | 15 +++--
+ src/go/types/api_test.go                    | 98 +++++++++++++++++++++++++++++
+ src/go/types/named.go                       |  2 +-
+ src/go/types/subst.go                       | 15 +++--
+ 6 files changed, 215 insertions(+), 14 deletions(-)

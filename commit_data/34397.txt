@@ -1,30 +1,21 @@
-commit a379b7d9acd69cd4a23eec7d7409084e15f8ace0
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Wed Feb 28 14:29:27 2018 +0000
+commit d92aaa970791472a1657e878bf686fe802943ebe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 13 13:52:57 2017 -0700
 
-    syscall: reduce redundant getwd tracking in Plan 9
+    runtime: unify arm entry point code
     
-    In Plan 9, each M is implemented as a separate OS process with
-    its own working directory.  To keep the wd consistent across
-    goroutines (or rescheduling of the same goroutine), CL 6350
-    introduced a Fixwd procedure which checks using getwd and calls
-    chdir if necessary before any syscall operating on a pathname.
-    
-    This wd checking will not be necessary if the pathname is absolute
-    (starts with '/' or '#').  Getwd is a fairly expensive operation
-    in Plan 9 (implemented by opening "." and calling Fd2path on the
-    file descriptor).  Eliminating the redundant getwd calls can
-    significantly reduce overhead for common operations like
-    "dist test --list" which perform many syscalls on absolute pathnames.
-    
-    Updates #9428.
-    
-    Change-Id: I13fd9380779de27b0ac2f2b488229778d6839255
-    Reviewed-on: https://go-review.googlesource.com/97675
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: Id51a2d63f7199b3ff71cedd415345ad20e5bd981
+    Reviewed-on: https://go-review.googlesource.com/70791
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/syscall/pwd_plan9.go     | 10 ++++++++++
- src/syscall/syscall_plan9.go | 16 ++++++++--------
- 2 files changed, 18 insertions(+), 8 deletions(-)
+ src/cmd/vet/all/whitelist/arm.txt |   3 --
+ src/runtime/asm_arm.s             | 102 +++++++++++++++++++++++++++++++++++++-
+ src/runtime/rt0_android_arm.s     |   5 +-
+ src/runtime/rt0_darwin_arm.s      |  94 ++---------------------------------
+ src/runtime/rt0_freebsd_arm.s     |  13 ++---
+ src/runtime/rt0_linux_arm.s       |  90 ++-------------------------------
+ src/runtime/rt0_nacl_arm.s        |   4 --
+ src/runtime/rt0_netbsd_arm.s      |  10 ++--
+ src/runtime/rt0_openbsd_arm.s     |  10 ++--
+ src/runtime/rt0_plan9_arm.s       |   2 -
+ 10 files changed, 124 insertions(+), 209 deletions(-)

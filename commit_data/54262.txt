@@ -1,55 +1,29 @@
-commit a9d4b2dbe47008677b6abb04a7b9c8327eb4d21b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 29 11:26:45 2023 -0400
+commit 8a0cf719a626ebd1ec11531ebaeacccbd19178ec
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 9 12:29:48 2022 -0400
 
-    net: avoid internal hooks in TestDialTimeout
+    cmd/link/internal/ld: panic if inlined functions missing FuncInfo
     
-    TestDialTimeout has historically been very flaky
-    (#11872, #13144, #22896, and now #56876),
-    apparently in part due to implementation details of the socktest
-    package it relies on.
+    All inlined functions are Go functions, and thus should be capable of
+    having a FuncInfo. Missing FuncInfo is likely indication of a compiler
+    bug that dropped the symbol too early, failing to add it to the symbol
+    list used for writing output. I believe all existing cases have been
+    fixed; this check will prevent regressions.
     
-    In reviewing CL 467335, I noticed that TestDialTimeout is the last
-    remaining use of testHookDialChannel (added for #5349), and that that
-    hook no longer has any effect for Unix and Windows.
+    The exception is -linkshared mode. There symbols are loaded from the
+    shared library, and the FuncInfo is not available. This is a bug, as it
+    can result in incorrect the FuncID in inlinedCall, but it is very
+    involved to fix.
     
-    As an experiment, I tried removing both that hook and the call to
-    time.Sleep in the socktest filter, and to my surprise the test
-    continued to pass. That greatly undermined my confidence in the test,
-    since it appears that the “timeout” behavior it observes is caused by
-    the socktest filter injecting an error rather than anything in the net
-    package proper actually timing out.
+    For #54959.
+    For #55954.
     
-    To restore confidence in the test, I think it should be written
-    against only the public API of the net package, and should test the
-    publicly-documented behaviors. This change implements that approach.
-    
-    Notably, when a timeout is set on a Dial call, that does not guarantee
-    that the listener will actually call Accept on the connection before
-    the timeout occurs: the kernel's network stack may preemptively accept
-    and buffer the connection on behalf of the listener. To avoid test
-    flakiness, the test must tolerate (and leave open) those spurious
-    connections: when the kernel has accepted enough of them, it will
-    start to block new connections until the buffered connections have
-    been accepted, and the expected timeout behavior will occur.
-    
-    This also allows the test to run much more quickly and in parallel:
-    since we are relying on real timeouts instead of injected calls to
-    time.Sleep, we can set the timeouts to be much shorter and run
-    concurrently with other public-API tests without introducing races.
-    
-    Fixes #56876.
-    
-    Change-Id: I90dcb2ed70976e70857ca29c253ed760cb078a4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524055
-    TryBot-Bypass: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ib0dc4f1ea62525b55f68604d6013ff33223fdcdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429637
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/hook_plan9.go   |   9 ---
- src/net/hook_unix.go    |   1 -
- src/net/hook_windows.go |   3 -
- src/net/ipsock_plan9.go |   1 -
- src/net/timeout_test.go | 143 ++++++++++++++++++++++++++++++++----------------
- 5 files changed, 97 insertions(+), 60 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,21 +1,25 @@
-commit a1ddbdd3ef8b739aab53f20d6ed0a61c3474cf12
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 13 16:15:15 2025 -0700
+commit 7731fd9cd344d387fa0e95ec7ae8f8dfcfb5df5f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 8 10:52:19 2024 -0800
 
-    cmd/compile: don't move nilCheck operations during tighten
+    go/types, types2: consistently use ast/syntax.Unparen (cleanup)
     
-    Nil checks need to stay in their original blocks. They cannot
-    be moved to a following conditionally-executed block.
+    This further reduces the differences between go/types and types2.
     
-    Fixes #72860
-    
-    Change-Id: Ic2d66cdf030357d91f8a716a004152ba4c016f77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657715
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I5ed0f621e1d64cd65b6a3e8eaca9926a1ccb5794
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562776
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/ssa/tighten.go |  4 ++++
- test/fixedbugs/issue72860.go            | 24 ++++++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+ src/cmd/compile/internal/types2/builtins.go | 11 -----------
+ src/go/types/assignments.go                 |  8 ++++----
+ src/go/types/builtins.go                    |  4 +---
+ src/go/types/call.go                        |  2 +-
+ src/go/types/expr.go                        |  2 +-
+ src/go/types/resolver.go                    |  4 ++--
+ src/go/types/return.go                      |  2 +-
+ src/go/types/stmt.go                        |  4 ++--
+ 8 files changed, 12 insertions(+), 25 deletions(-)

@@ -1,14 +1,19 @@
-commit 25c96cba2e6e9729ffda9e05da05f121ce9077f4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 30 11:42:09 2012 -0800
+commit d2599b431e80a3824cc587f8b23e3783fd241f3a
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Jan 30 13:54:22 2012 -0500
 
-    json: remove old optimization that inlining covers now
+    go: don't clobber command install paths
     
-    Benchmarks look the same.
+    This fixes a regression that was made when adding
+    support for building with gccgo (in d6a14e6fac0c).
     
-    R=golang-dev, dsymonds, rsc
+    External commands (those not from the Go tree) were
+    being installed to the package directory instead of
+    the binary directory.
+    
+    R=golang-dev, rsc, adg, remyoudompheng, rsc
     CC=golang-dev
-    https://golang.org/cl/5572080
+    https://golang.org/cl/5564072
 
- src/pkg/encoding/json/scanner.go | 19 +++++--------------
- 1 file changed, 5 insertions(+), 14 deletions(-)
+ src/cmd/go/pkg.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

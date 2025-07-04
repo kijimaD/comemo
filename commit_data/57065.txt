@@ -1,31 +1,55 @@
-commit b26134bf17972f959daf178087fcc0bd74b4015c
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Aug 1 06:26:48 2024 +0000
+commit 80629caecb5b21b718f5d1d01fefda6e8d3a5baf
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jun 13 16:54:02 2023 -0400
 
-    crypto: implement encoding.BinaryAppender for all crypto hashes
+    all: update vendored dependencies
     
-    For #62384
+    Generated with x/build/cmd/updatestd.
     
-    Change-Id: I6fc7a7b8b85e02c880f1d16e0467f5076d477f0f
-    GitHub-Last-Rev: 90ba7bae6aa9ddfbcd622682314c05e5f65cbb56
-    GitHub-Pull-Request: golang/go#68651
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601776
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #36905.
+    For #55079.
+    
+    Change-Id: I5ba28993359cb5bbfb1bc7cfcea9576b07fcfb14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502878
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/next/6-stdlib/99-minor/crypto/md5/62384.md    |  1 +
- doc/next/6-stdlib/99-minor/crypto/sha1/62384.md   |  1 +
- doc/next/6-stdlib/99-minor/crypto/sha256/62384.md |  1 +
- doc/next/6-stdlib/99-minor/crypto/sha512/62384.md |  1 +
- src/crypto/internal/boring/sha.go                 | 35 ++++++++++++++++-------
- src/crypto/md5/md5.go                             | 14 +++++----
- src/crypto/md5/md5_test.go                        | 12 ++++++++
- src/crypto/sha1/sha1.go                           | 14 +++++----
- src/crypto/sha1/sha1_test.go                      | 12 ++++++++
- src/crypto/sha256/sha256.go                       | 16 +++++++----
- src/crypto/sha256/sha256_test.go                  | 12 ++++++++
- src/crypto/sha512/sha512.go                       | 27 +++++++++++++----
- src/crypto/sha512/sha512_test.go                  | 12 ++++++++
- 13 files changed, 127 insertions(+), 31 deletions(-)
+ src/cmd/go.mod                                     |    8 +-
+ src/cmd/go.sum                                     |   16 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkall.sh      |    2 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |    6 +-
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |   30 +-
+ .../golang.org/x/sys/unix/syscall_openbsd.go       |   17 +-
+ .../vendor/golang.org/x/sys/unix/zsyscall_linux.go |   14 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_386.go  |   22 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_386.s   |   10 +
+ .../x/sys/unix/zsyscall_openbsd_amd64.go           |   32 +-
+ .../golang.org/x/sys/unix/zsyscall_openbsd_amd64.s |   10 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_arm.go  |   22 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_arm.s   |   10 +
+ .../x/sys/unix/zsyscall_openbsd_arm64.go           |   22 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_arm64.s |   10 +
+ .../x/sys/unix/zsyscall_openbsd_mips64.go          |   22 +
+ .../x/sys/unix/zsyscall_openbsd_mips64.s           |   10 +
+ .../x/sys/unix/zsyscall_openbsd_ppc64.go           |   22 +
+ .../golang.org/x/sys/unix/zsyscall_openbsd_ppc64.s |   12 +
+ .../x/sys/unix/zsyscall_openbsd_riscv64.go         |   22 +
+ .../x/sys/unix/zsyscall_openbsd_riscv64.s          |   10 +
+ .../x/tools/go/types/objectpath/objectpath.go      |   41 +-
+ .../x/tools/internal/typeparams/common.go          |   20 +
+ src/cmd/vendor/modules.txt                         |    8 +-
+ src/go.mod                                         |    8 +-
+ src/go.sum                                         |   16 +-
+ src/vendor/golang.org/x/net/idna/idna9.0.0.go      |    2 +-
+ src/vendor/golang.org/x/net/idna/tables13.0.0.go   | 2988 ++++----
+ src/vendor/golang.org/x/net/idna/tables15.0.0.go   | 5145 +++++++++++++
+ src/vendor/golang.org/x/net/idna/trie.go           |   21 -
+ src/vendor/golang.org/x/net/idna/trie12.0.0.go     |   31 +
+ src/vendor/golang.org/x/net/idna/trie13.0.0.go     |   31 +
+ .../golang.org/x/text/unicode/bidi/tables13.0.0.go |    4 +-
+ .../golang.org/x/text/unicode/bidi/tables15.0.0.go | 2043 +++++
+ .../golang.org/x/text/unicode/norm/tables13.0.0.go |    4 +-
+ .../golang.org/x/text/unicode/norm/tables15.0.0.go | 7908 ++++++++++++++++++++
+ src/vendor/modules.txt                             |    8 +-
+ 37 files changed, 17084 insertions(+), 1523 deletions(-)

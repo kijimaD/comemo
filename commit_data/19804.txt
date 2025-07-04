@@ -1,16 +1,12 @@
-commit d4d50b5f01e65e664d63bd18a4e545465df03143
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 23 10:17:47 2014 -0400
+commit b1a3b61f0d0870a3142e99715d315e6516b4d363
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jul 23 16:36:29 2014 +1000
 
-    lib9: format %#04x, 0 as 0x0000 not 000000.
+    doc/go1.4.txt: windows can do symlinks now
     
-    This matches Go's fmt.Printf instead of ANSI C's dumb rules.
-    It makes the -S output from C liblink match Go's liblink.
-    
-    LGTM=minux
-    R=minux
+    R=golang-codereviews
     CC=golang-codereviews
-    https://golang.org/cl/112600043
+    https://golang.org/cl/111560043
 
- src/lib9/fmt/dofmt.c | 6 ------
- 1 file changed, 6 deletions(-)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,15 +1,150 @@
-commit d12a7d39d1cfa7a0cd824673d7aacc4615b461cb
-Author: Alexey Borzenkov <snaury@gmail.com>
-Date:   Wed Oct 31 09:58:05 2012 +1100
+commit 465b9c35e57228e2f7e51865940650f9b54c50c7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 30 13:38:01 2012 -0700
 
-    net: use read deadline in Accept on windows
+    gofmt: apply gofmt -w src misc
     
-    Fixes #4296.
+    Remove trailing whitespace in comments.
+    No other changes.
     
-    R=golang-dev, alex.brainman
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6815044
+    https://golang.org/cl/6815053
 
- src/pkg/net/fd_windows.go   |  2 +-
- src/pkg/net/timeout_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ misc/cgo/test/callback.go                     |  2 +-
+ misc/cgo/test/cgo_test.go                     |  2 +-
+ misc/cgo/test/issue1560.go                    |  4 +--
+ misc/cgo/test/issue4029.go                    |  2 +-
+ misc/dashboard/app/build/build.go             |  2 +-
+ misc/dashboard/builder/doc.go                 |  8 +++---
+ misc/dashboard/builder/exec.go                |  2 +-
+ misc/dashboard/builder/main.go                |  4 +--
+ misc/dashboard/codereview/dashboard/cl.go     |  2 +-
+ misc/goplay/doc.go                            | 10 +++----
+ misc/goplay/goplay.go                         |  2 +-
+ src/cmd/cgo/gcc.go                            |  4 +--
+ src/cmd/fix/osopen.go                         |  2 +-
+ src/cmd/fix/reflect.go                        |  6 ++---
+ src/cmd/fix/typecheck.go                      |  2 +-
+ src/cmd/go/build.go                           |  2 +-
+ src/cmd/go/doc.go                             |  6 ++---
+ src/cmd/go/get.go                             |  2 +-
+ src/cmd/go/testflag.go                        |  2 +-
+ src/cmd/godoc/dirtrees.go                     |  2 +-
+ src/cmd/godoc/filesystem.go                   |  6 ++---
+ src/cmd/godoc/format.go                       |  2 +-
+ src/cmd/godoc/template.go                     |  2 +-
+ src/cmd/nm/doc.go                             |  2 +-
+ src/cmd/vet/doc.go                            |  2 +-
+ src/pkg/archive/zip/writer.go                 |  2 +-
+ src/pkg/bytes/bytes_test.go                   |  2 +-
+ src/pkg/compress/bzip2/bit_reader.go          |  2 +-
+ src/pkg/crypto/rsa/rsa.go                     |  2 +-
+ src/pkg/crypto/tls/conn.go                    |  2 +-
+ src/pkg/crypto/x509/cert_pool.go              |  2 +-
+ src/pkg/crypto/x509/pkcs8.go                  |  2 +-
+ src/pkg/crypto/x509/x509.go                   | 12 ++++-----
+ src/pkg/encoding/gob/encoder.go               |  2 +-
+ src/pkg/encoding/json/encode.go               |  2 +-
+ src/pkg/exp/html/doctype.go                   |  2 +-
+ src/pkg/exp/html/escape.go                    |  4 +--
+ src/pkg/exp/html/parse.go                     |  2 +-
+ src/pkg/exp/html/render.go                    |  4 +--
+ src/pkg/exp/html/token.go                     |  2 +-
+ src/pkg/exp/locale/collate/build/builder.go   |  8 +++---
+ src/pkg/exp/locale/collate/build/colelem.go   |  4 +--
+ src/pkg/exp/locale/collate/build/contract.go  | 12 ++++-----
+ src/pkg/exp/locale/collate/build/trie.go      |  2 +-
+ src/pkg/exp/locale/collate/build/trie_test.go |  2 +-
+ src/pkg/exp/locale/collate/collate.go         |  2 +-
+ src/pkg/exp/locale/collate/table.go           |  4 +--
+ src/pkg/exp/locale/collate/trie.go            |  2 +-
+ src/pkg/exp/locale/collate/trie_test.go       |  2 +-
+ src/pkg/exp/norm/forminfo.go                  |  4 +--
+ src/pkg/exp/norm/iter.go                      |  4 +--
+ src/pkg/exp/norm/maketables.go                |  2 +-
+ src/pkg/exp/norm/maketesttables.go            |  2 +-
+ src/pkg/exp/norm/normregtest.go               |  2 +-
+ src/pkg/exp/types/staging/const.go            |  4 +--
+ src/pkg/exp/types/staging/expr.go             |  2 +-
+ src/pkg/exp/types/staging/operand.go          |  2 +-
+ src/pkg/fmt/doc.go                            |  4 +--
+ src/pkg/fmt/print.go                          |  2 +-
+ src/pkg/fmt/scan.go                           |  6 ++---
+ src/pkg/go/ast/commentmap.go                  |  4 +--
+ src/pkg/go/ast/filter.go                      |  2 +-
+ src/pkg/go/ast/resolve.go                     |  2 +-
+ src/pkg/go/build/deps_test.go                 |  2 +-
+ src/pkg/go/build/doc.go                       | 10 +++----
+ src/pkg/go/doc/comment.go                     |  2 +-
+ src/pkg/go/doc/example.go                     |  4 +--
+ src/pkg/go/doc/exports.go                     |  2 +-
+ src/pkg/go/doc/reader.go                      |  4 +--
+ src/pkg/go/doc/testdata/e.go                  |  2 +-
+ src/pkg/go/doc/testdata/testing.go            |  4 +--
+ src/pkg/go/parser/interface.go                |  2 +-
+ src/pkg/go/printer/performance_test.go        |  2 +-
+ src/pkg/go/token/position.go                  |  4 +--
+ src/pkg/html/escape.go                        |  4 +--
+ src/pkg/html/template/content.go              |  2 +-
+ src/pkg/html/template/error.go                |  4 +--
+ src/pkg/html/template/html.go                 |  6 ++---
+ src/pkg/math/big/int.go                       |  2 +-
+ src/pkg/math/big/nat.go                       | 38 +++++++++++++--------------
+ src/pkg/math/big/nat_test.go                  |  4 +--
+ src/pkg/net/dial_test.go                      |  2 +-
+ src/pkg/net/dnsclient.go                      |  2 +-
+ src/pkg/net/example_test.go                   |  2 +-
+ src/pkg/net/fd_unix_test.go                   |  2 +-
+ src/pkg/net/http/chunked.go                   |  2 +-
+ src/pkg/net/http/cookie.go                    |  2 +-
+ src/pkg/net/http/cookie_test.go               |  2 +-
+ src/pkg/net/http/httputil/chunked.go          |  2 +-
+ src/pkg/net/http/proxy_test.go                |  2 +-
+ src/pkg/net/http/request_test.go              |  2 +-
+ src/pkg/net/http/serve_test.go                |  2 +-
+ src/pkg/net/http/transport.go                 |  4 +--
+ src/pkg/net/rpc/client.go                     |  2 +-
+ src/pkg/net/rpc/server.go                     |  6 ++---
+ src/pkg/net/unicast_posix_test.go             |  6 ++---
+ src/pkg/old/netchan/export.go                 |  2 +-
+ src/pkg/os/dir_plan9.go                       |  4 +--
+ src/pkg/os/error.go                           |  2 +-
+ src/pkg/os/exec/exec.go                       |  2 +-
+ src/pkg/os/file.go                            |  2 +-
+ src/pkg/os/stat_plan9.go                      |  2 +-
+ src/pkg/os/user/lookup_unix.go                |  2 +-
+ src/pkg/path/filepath/path.go                 |  4 +--
+ src/pkg/reflect/all_test.go                   |  2 +-
+ src/pkg/reflect/set_test.go                   |  2 +-
+ src/pkg/reflect/type.go                       |  2 +-
+ src/pkg/reflect/value.go                      |  6 ++---
+ src/pkg/regexp/exec_test.go                   | 16 +++++------
+ src/pkg/regexp/regexp.go                      |  6 ++---
+ src/pkg/regexp/syntax/compile.go              |  4 +--
+ src/pkg/regexp/syntax/parse.go                |  2 +-
+ src/pkg/runtime/mem.go                        |  2 +-
+ src/pkg/runtime/race.go                       |  4 +--
+ src/pkg/runtime/stack_test.go                 |  2 +-
+ src/pkg/runtime/vlop_arm_test.go              |  2 +-
+ src/pkg/sort/search.go                        |  6 ++---
+ src/pkg/strconv/extfloat.go                   |  4 +--
+ src/pkg/strings/strings_test.go               |  2 +-
+ src/pkg/syscall/exec_plan9.go                 |  2 +-
+ src/pkg/syscall/syscall_plan9.go              |  2 +-
+ src/pkg/syscall/types_linux.go                |  2 +-
+ src/pkg/syscall/zsysnum_freebsd_386.go        |  2 +-
+ src/pkg/syscall/zsysnum_freebsd_amd64.go      |  2 +-
+ src/pkg/syscall/zsysnum_freebsd_arm.go        |  2 +-
+ src/pkg/syscall/zsysnum_linux_arm.go          |  2 +-
+ src/pkg/syscall/zsysnum_netbsd_386.go         |  2 +-
+ src/pkg/syscall/zsysnum_netbsd_amd64.go       |  2 +-
+ src/pkg/syscall/zsysnum_openbsd_386.go        |  2 +-
+ src/pkg/syscall/zsysnum_openbsd_amd64.go      |  2 +-
+ src/pkg/testing/testing.go                    |  6 ++---
+ src/pkg/text/template/example_test.go         | 16 +++++------
+ src/pkg/time/zoneinfo_read.go                 |  2 +-
+ src/pkg/time/zoneinfo_windows.go              |  4 +--
+ src/pkg/unicode/letter.go                     |  2 +-
+ src/pkg/unicode/letter_test.go                |  2 +-
+ 136 files changed, 240 insertions(+), 240 deletions(-)

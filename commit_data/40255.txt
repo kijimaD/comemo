@@ -1,27 +1,14 @@
-commit 6adaf17eaaa7f2a8ec59a01f5b7280db210b3e75
-Author: David Chase <drchase@google.com>
-Date:   Wed Oct 9 18:06:06 2019 -0400
+commit d021dd6a3fe61059094dba591aba265cbf6f7733
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 29 08:38:24 2019 -0400
 
-    cmd/compile: preserve statements in late nilcheckelim optimization
+    cmd/go: add test of $GONOPROXY, $GONOSUMDB behavior
     
-    When a subsequent load/store of a ptr makes the nil check of that pointer
-    unnecessary, if their lines differ, change the line of the load/store
-    to that of the nilcheck, and attempt to rehome the load/store position
-    instead.
-    
-    This fix makes profiling less accurate in order to make panics more
-    informative.
-    
-    Fixes #33724
-    
-    Change-Id: Ib9afaac12fe0d0320aea1bf493617facc34034b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200197
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I8a4917ce14ea22d5991226e485d43a9c9312950e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174219
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/nilcheck.go    | 22 ++++++++++----
- src/cmd/compile/internal/ssa/numberlines.go |  2 +-
- test/codegen/memcombine.go                  |  4 +--
- test/fixedbugs/issue33724.go                | 45 +++++++++++++++++++++++++++++
- 4 files changed, 65 insertions(+), 8 deletions(-)
+ src/cmd/go/script_test.go                    |  2 ++
+ src/cmd/go/testdata/script/mod_gonoproxy.txt | 31 ++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

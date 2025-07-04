@@ -1,23 +1,126 @@
-commit a6462a608d60b6175db9dd9a7244b9609a12e7fc
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 5 15:11:09 2020 -0500
+commit 67bf856b962731965f7e9a75e6bede62fee1a4da
+Merge: dee3e3aebd c8dea8198e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 23 11:47:20 2020 -0400
 
-    cmd/go: set FOSSIL_HOME in TestScript/mod_get_fossil
+    [dev.link] all: merge branch 'master' into dev.link
     
-    Without HOME or FOSSIL_HOME set, this test fails for me when run with
-    fossil 2.12.1.
-    
-    Also verify that the 'go get' command produces an executable, which
-    helps to verify that the files extracted by fossil are not corrupted.
-    
-    Updates #42323
-    
-    Change-Id: Ie6f5d2eab6a6338e997a4f85591195e5bd9a0d37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267884
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ia6426e8494244fde7e81a7c932c8e3c865676d3d
 
- src/cmd/go/testdata/script/mod_get_fossil.txt | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ AUTHORS                                         |    1 +
+ doc/go1.15.html                                 |   47 +
+ src/cmd/api/goapi.go                            |    8 +
+ src/cmd/asm/internal/asm/testdata/s390x.s       |    4 +
+ src/cmd/compile/doc.go                          |   58 +-
+ src/cmd/compile/fmtmap_test.go                  |    2 +-
+ src/cmd/compile/internal/gc/closure.go          |   17 +
+ src/cmd/compile/internal/gc/escape.go           |   91 +-
+ src/cmd/compile/internal/gc/lex.go              |   37 +-
+ src/cmd/compile/internal/gc/noder.go            |  102 +-
+ src/cmd/compile/internal/gc/order.go            |   31 +-
+ src/cmd/compile/internal/gc/scc.go              |    7 +
+ src/cmd/compile/internal/gc/ssa.go              |   48 +-
+ src/cmd/compile/internal/gc/subr.go             |    2 +-
+ src/cmd/compile/internal/gc/syntax.go           |   33 +-
+ src/cmd/compile/internal/gc/walk.go             |   86 +-
+ src/cmd/compile/internal/ssa/block.go           |   11 +
+ src/cmd/compile/internal/ssa/deadcode.go        |    7 +-
+ src/cmd/compile/internal/ssa/fuse.go            |    4 +
+ src/cmd/compile/internal/ssa/gen/386.rules      |  911 +++---
+ src/cmd/compile/internal/ssa/gen/ARM64.rules    |   16 +-
+ src/cmd/compile/internal/ssa/gen/MIPS.rules     |  410 +--
+ src/cmd/compile/internal/ssa/gen/PPC64.rules    | 1614 +++++------
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules  |  794 ++---
+ src/cmd/compile/internal/ssa/gen/S390X.rules    |   25 +
+ src/cmd/compile/internal/ssa/gen/generic.rules  |  220 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go     |   12 +-
+ src/cmd/compile/internal/ssa/nilcheck.go        |   10 +-
+ src/cmd/compile/internal/ssa/op.go              |   19 +
+ src/cmd/compile/internal/ssa/rewrite.go         |   42 +-
+ src/cmd/compile/internal/ssa/rewrite386.go      | 3528 +++++++++++------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go    |   32 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS.go     |  740 ++---
+ src/cmd/compile/internal/ssa/rewritePPC64.go    | 3512 +++++++++++-----------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 1293 +++++----
+ src/cmd/compile/internal/ssa/rewriteS390X.go    |  628 ++++
+ src/cmd/compile/internal/ssa/rewrite_test.go    |   98 -
+ src/cmd/compile/internal/ssa/rewritegeneric.go  |  736 ++---
+ src/cmd/compile/internal/ssa/shortcircuit.go    |   15 +-
+ src/cmd/compile/internal/ssa/zcse.go            |    9 +-
+ src/cmd/compile/internal/syntax/nodes.go        |   27 +-
+ src/cmd/compile/internal/syntax/parser.go       |   71 +-
+ src/cmd/compile/internal/syntax/scanner.go      |   12 +-
+ src/cmd/compile/internal/syntax/syntax.go       |   25 +-
+ src/cmd/cover/html.go                           |    1 +
+ src/cmd/go/alldocs.go                           |   11 +-
+ src/cmd/go/internal/generate/generate.go        |   33 +-
+ src/cmd/go/internal/help/helpdoc.go             |    3 +
+ src/cmd/go/internal/load/pkg.go                 |   12 +-
+ src/cmd/go/internal/load/test.go                |    4 +-
+ src/cmd/go/internal/modfetch/fetch.go           |    1 +
+ src/cmd/go/internal/modget/get.go               |    5 +-
+ src/cmd/go/testdata/script/generate_invalid.txt |  199 ++
+ src/cmd/go/testdata/script/list_load_err.txt    |   79 +
+ src/cmd/internal/obj/s390x/asmz.go              |    4 +-
+ src/cmd/internal/obj/s390x/condition_code.go    |    6 +
+ src/cmd/trace/annotations.go                    |   55 +-
+ src/cmd/trace/goroutines.go                     |   16 +-
+ src/crypto/tls/conn.go                          |    8 +-
+ src/crypto/tls/tls.go                           |   89 +-
+ src/crypto/tls/tls_test.go                      |   42 +
+ src/crypto/x509/x509.go                         |    4 +
+ src/crypto/x509/x509_test.go                    |   35 +
+ src/database/sql/fakedb_test.go                 |   39 +-
+ src/database/sql/sql.go                         |   97 +-
+ src/database/sql/sql_test.go                    |  192 ++
+ src/encoding/base64/base64.go                   |   26 +-
+ src/go/build/deps_test.go                       |    2 +-
+ src/go/types/check.go                           |    1 -
+ src/go/types/stdlib_test.go                     |    1 +
+ src/math/big/arith_s390x.s                      | 1869 ++++++------
+ src/math/bits/bits_test.go                      |  124 +
+ src/net/http/pprof/pprof.go                     |    8 +-
+ src/net/http/pprof/pprof_test.go                |   51 +-
+ src/net/http/serve_test.go                      |    7 +-
+ src/net/http/server.go                          |    9 +-
+ src/os/file_plan9.go                            |    7 +-
+ src/reflect/all_test.go                         |  203 +-
+ src/reflect/type.go                             |    2 +-
+ src/reflect/value.go                            |   23 +-
+ src/runtime/crash_cgo_test.go                   |   18 +
+ src/runtime/lockrank.go                         |   12 +-
+ src/runtime/malloc.go                           |    8 +
+ src/runtime/mgcmark.go                          |  133 +-
+ src/runtime/mgcsweep.go                         |    4 +
+ src/runtime/mheap.go                            |   83 +-
+ src/runtime/mprof.go                            |   41 +-
+ src/runtime/panic_test.go                       |    2 +-
+ src/runtime/pprof/label.go                      |   23 +-
+ src/runtime/pprof/label_test.go                 |   32 +
+ src/runtime/pprof/pprof.go                      |   80 +-
+ src/runtime/pprof/pprof_test.go                 |   73 +-
+ src/runtime/pprof/proto.go                      |    2 +-
+ src/runtime/proc_test.go                        |   10 +-
+ src/runtime/runtime-gdb_test.go                 |    1 +
+ src/runtime/signal_unix.go                      |   10 +-
+ src/runtime/testdata/testprogcgo/segv.go        |   60 +
+ src/testing/testing.go                          |    7 +-
+ src/testing/testing_test.go                     |    5 +
+ src/time/export_test.go                         |   31 +
+ src/time/time.go                                |   50 +-
+ src/time/time_test.go                           |    7 +
+ src/time/zoneinfo.go                            |  348 +++
+ src/time/zoneinfo_read.go                       |   15 +-
+ src/time/zoneinfo_test.go                       |   94 +
+ src/unicode/utf8/utf8.go                        |   28 +
+ test/codegen/bits.go                            |    5 +
+ test/codegen/compare_and_branch.go              |   52 +
+ test/codegen/condmove.go                        |    2 +-
+ test/codegen/copy.go                            |   28 +-
+ test/codegen/mathbits.go                        |  126 +
+ test/directive.go                               |   95 +
+ test/escape2.go                                 |    3 +-
+ test/escape2n.go                                |    3 +-
+ test/fixedbugs/issue21709.go                    |    6 +-
+ test/fixedbugs/issue27557.go                    |    3 +-
+ 116 files changed, 11700 insertions(+), 8463 deletions(-)

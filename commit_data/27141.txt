@@ -1,74 +1,24 @@
-commit 2a889b9d931e58166350f785b16edc51e28ef19b
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 4 11:58:26 2016 -0500
+commit a2a48069fee931af943161c9f8a9aace32811b7b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 16:15:44 2016 -0800
 
-    runtime: make stack re-scan O(# dirty stacks)
+    cmd/compile: rework how fieldtrack is implemented
     
-    Currently the stack re-scan during mark termination is O(# stacks)
-    because we enqueue a root marking job for every goroutine. It takes
-    ~34ns to process this root marking job for a valid (clean) stack, so
-    at around 300k goroutines we exceed the 10ms pause goal. A non-trivial
-    portion of this time is spent simply taking the cache miss to check
-    the gcscanvalid flag, so simply optimizing the path that handles clean
-    stacks can only improve this so much.
+    Shrinks gc.Type and gc.Func slightly.
     
-    Fix this by keeping an explicit list of goroutines with dirty stacks
-    that need to be rescanned. When a goroutine first transitions to
-    running after a stack scan and marks its stack dirty, it adds itself
-    to this list. We enqueue root marking jobs only for the goroutines in
-    this list, so this improves stack re-scanning asymptotically by
-    completely eliminating time spent on clean goroutines.
+    Passes "GOEXPERIMENT=fieldtrack ./all.bash" and "go test -a
+    -toolexec='toolstash -cmp' -ldflags=-k=rsc.io/tmp/fieldtrack.tracked
+    rsc.io/tmp/fieldtrack".
     
-    This reduces mark termination time for 500k idle goroutines from 15ms
-    to 238µs. Overall performance effect is negligible.
-    
-    name \ 95%ile-time/markTerm     old           new         delta
-    IdleGs/gs:500000/gomaxprocs:12  15000µs ± 0%  238µs ± 5%  -98.41% (p=0.000 n=10+10)
-    
-    name              old time/op  new time/op  delta
-    XBenchGarbage-12  2.30ms ± 3%  2.29ms ± 1%  -0.43%  (p=0.049 n=17+18)
-    
-    name                      old time/op    new time/op    delta
-    BinaryTree17-12              2.57s ± 3%     2.59s ± 2%    ~     (p=0.141 n=19+20)
-    Fannkuch11-12                2.09s ± 0%     2.10s ± 1%  +0.53%  (p=0.000 n=19+19)
-    FmtFprintfEmpty-12          45.3ns ± 3%    45.2ns ± 2%    ~     (p=0.845 n=20+20)
-    FmtFprintfString-12          129ns ± 0%     127ns ± 0%  -1.55%  (p=0.000 n=16+16)
-    FmtFprintfInt-12             123ns ± 0%     119ns ± 1%  -3.24%  (p=0.000 n=19+19)
-    FmtFprintfIntInt-12          195ns ± 1%     189ns ± 1%  -3.11%  (p=0.000 n=17+17)
-    FmtFprintfPrefixedInt-12     193ns ± 1%     187ns ± 1%  -3.06%  (p=0.000 n=19+19)
-    FmtFprintfFloat-12           254ns ± 0%     255ns ± 1%  +0.35%  (p=0.001 n=14+17)
-    FmtManyArgs-12               781ns ± 0%     770ns ± 0%  -1.48%  (p=0.000 n=16+19)
-    GobDecode-12                7.00ms ± 1%    6.98ms ± 1%    ~     (p=0.563 n=19+19)
-    GobEncode-12                5.91ms ± 1%    5.92ms ± 0%    ~     (p=0.118 n=19+18)
-    Gzip-12                      219ms ± 1%     215ms ± 1%  -1.81%  (p=0.000 n=18+18)
-    Gunzip-12                   37.2ms ± 0%    37.4ms ± 0%  +0.45%  (p=0.000 n=17+19)
-    HTTPClientServer-12         76.9µs ± 3%    77.5µs ± 2%  +0.81%  (p=0.030 n=20+19)
-    JSONEncode-12               15.0ms ± 0%    14.8ms ± 1%  -0.88%  (p=0.001 n=15+19)
-    JSONDecode-12               50.6ms ± 0%    53.2ms ± 2%  +5.07%  (p=0.000 n=17+19)
-    Mandelbrot200-12            4.05ms ± 0%    4.05ms ± 1%    ~     (p=0.581 n=16+17)
-    GoParse-12                  3.34ms ± 1%    3.30ms ± 1%  -1.21%  (p=0.000 n=15+20)
-    RegexpMatchEasy0_32-12      69.6ns ± 1%    69.8ns ± 2%    ~     (p=0.566 n=19+19)
-    RegexpMatchEasy0_1K-12       238ns ± 1%     236ns ± 0%  -0.91%  (p=0.000 n=17+13)
-    RegexpMatchEasy1_32-12      69.8ns ± 1%    70.0ns ± 1%  +0.23%  (p=0.026 n=17+16)
-    RegexpMatchEasy1_1K-12       371ns ± 1%     363ns ± 1%  -2.07%  (p=0.000 n=19+19)
-    RegexpMatchMedium_32-12      107ns ± 2%     106ns ± 1%  -0.51%  (p=0.031 n=18+20)
-    RegexpMatchMedium_1K-12     33.0µs ± 0%    32.9µs ± 0%  -0.30%  (p=0.004 n=16+16)
-    RegexpMatchHard_32-12       1.70µs ± 0%    1.70µs ± 0%  +0.45%  (p=0.000 n=16+17)
-    RegexpMatchHard_1K-12       51.1µs ± 2%    51.4µs ± 1%  +0.53%  (p=0.000 n=17+19)
-    Revcomp-12                   378ms ± 1%     385ms ± 1%  +1.92%  (p=0.000 n=19+18)
-    Template-12                 64.3ms ± 2%    65.0ms ± 2%  +1.09%  (p=0.001 n=19+19)
-    TimeParse-12                 315ns ± 1%     317ns ± 2%    ~     (p=0.108 n=18+20)
-    TimeFormat-12                360ns ± 1%     337ns ± 0%  -6.30%  (p=0.000 n=18+13)
-    [Geo mean]                  51.8µs         51.6µs       -0.48%
-    
-    Change-Id: Icf8994671476840e3998236e15407a505d4c760c
-    Reviewed-on: https://go-review.googlesource.com/20700
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I785fe8a18eb830d9867d34247e4cd41a6a7921d4
+    Reviewed-on: https://go-review.googlesource.com/20557
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go      |  18 ++++++-
- src/runtime/mgcmark.go  | 133 +++++++++++++++++++++++++++++++++++++++++-------
- src/runtime/proc.go     |  33 +++++++++++-
- src/runtime/runtime2.go |  11 +++-
- 4 files changed, 171 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go        | 11 +++++++++--
+ src/cmd/compile/internal/gc/reflect.go     |  6 ++++--
+ src/cmd/compile/internal/gc/sizeof_test.go |  4 ++--
+ src/cmd/compile/internal/gc/syntax.go      |  2 +-
+ src/cmd/compile/internal/gc/type.go        |  7 ++-----
+ src/cmd/compile/internal/gc/walk.go        | 19 +++++++++----------
+ 6 files changed, 27 insertions(+), 22 deletions(-)

@@ -1,18 +1,13 @@
-commit aa81eb5901abc545bc8ff14833f52c3e798f0b90
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 11 23:58:20 2013 -0400
+commit 96e0c0c7648bc4dbdf433d14c43f6f31d4f13472
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Mar 12 11:24:24 2013 +1100
 
-    encoding/xml: allow embedded non-structs
+    encoding/base32, encoding/base64: a small stack-space optimization.
     
-    The old code just assumed that the only thing
-    you can embed is a struct. Not true.
-    
-    Fixes #3803.
-    
-    R=golang-dev, adg
+    R=dsymonds, dave
     CC=golang-dev
-    https://golang.org/cl/7743043
+    https://golang.org/cl/7568045
 
- src/pkg/encoding/xml/marshal_test.go | 12 ++++++++++++
- src/pkg/encoding/xml/typeinfo.go     | 21 ++++++++++-----------
- 2 files changed, 22 insertions(+), 11 deletions(-)
+ src/pkg/encoding/base32/base32.go | 12 ++++++------
+ src/pkg/encoding/base64/base64.go | 10 +++++-----
+ 2 files changed, 11 insertions(+), 11 deletions(-)

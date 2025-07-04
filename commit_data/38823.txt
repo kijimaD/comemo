@@ -1,17 +1,19 @@
-commit 4a119141303407d9223296e9092611560665d3e1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 19 09:48:36 2019 -0700
+commit 365a1877560e938b683dde76df0b8b71800f8cff
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 28 11:28:47 2018 -0500
 
-    bootstrap.bash: make source writable before cleaning
+    cmd/go/internal/modcmd: check for errors in Download
     
-    Otherwise the "git clean" command fails with errors like
-        rm: cannot remove '/home/iant/go-linux-ppc64-bootstrap/pkg/mod/golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c/encoding/simplifiedchinese/all.go': Permission denied
+    Also test that Download restores deleted files.
     
-    Change-Id: Iecfb1fed6d59819d7fdceb9e391a2b3f81ea620c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172998
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #27783
+    
+    Change-Id: If50074dbcffd74ff08fbaa9ad8c314cfdce0b02d
+    Reviewed-on: https://go-review.googlesource.com/c/151559
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/bootstrap.bash | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/modcmd/download.go      | 10 ++++++++++
+ src/cmd/go/testdata/script/mod_download.txt | 21 +++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

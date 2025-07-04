@@ -1,16 +1,19 @@
-commit 59bdbb3effe3e61f85e336a52323024bafaf44bd
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat Aug 27 02:51:11 2022 +0800
+commit b5cdb1b71c2198c6c5e209e77ce3801087a21d62
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Oct 6 15:10:39 2021 -0400
 
-    net: add the missing OS Darwin in the comment of sendFile
+    cmd/go/testdata/script: move test from test_fuzz to test_fuzz_cache
     
-    Change-Id: Ice7e3762d4a1d71e23d619be699697f5c6523cc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425879
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Tests that require instrumentation must be in
+    a test script which only runs for architectures
+    where coverage is supported.
+    
+    Change-Id: Ia56b1cef1071f848c9dce8c87597207937fdb6c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354372
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/sendfile_unix_alt.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt       | 14 --------------
+ src/cmd/go/testdata/script/test_fuzz_cache.txt | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 14 deletions(-)

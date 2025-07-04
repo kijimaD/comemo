@@ -1,28 +1,24 @@
-commit 42b37819a132fc2e79149643691894f501077161
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 18 16:11:50 2016 -0700
+commit 3d5cf72ca9beaedc5dcc8b094945de95fa35a670
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 17 13:29:19 2016 -0400
 
-    cmd/compile: rework mkbuiltin.go to generate code
+    cmd/compile: CSE copied tuple selectors
     
-    Generating binary export data requires a working Go compiler. Even
-    trickier to change the export data format itself requires a careful
-    bootstrapping procedure.
+    In CSE if a tuple generator is CSE'd to a different block, its
+    selectors are copied to the same block. In this case, also CES
+    the copied selectors.
     
-    Instead, simply generate normal Go code that lets us directly
-    construct the builtin runtime declarations.
+    Test copied from Keith's CL 27202.
     
-    Passes toolstash -cmp.
+    Fixes #16741.
     
-    Fixes #17508.
-    
-    Change-Id: I4f6078a3c7507ba40072580695d57c87a5604baf
-    Reviewed-on: https://go-review.googlesource.com/31493
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2fc8b9513d430f10d6104275cfff5fb75d3ef3d9
+    Reviewed-on: https://go-review.googlesource.com/27236
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go   | 345 ++++++++++++++++++++++---------
- src/cmd/compile/internal/gc/dcl.go       |   8 +
- src/cmd/compile/internal/gc/main.go      |  27 ++-
- src/cmd/compile/internal/gc/mkbuiltin.go | 205 ++++++++++++++----
- 4 files changed, 438 insertions(+), 147 deletions(-)
+ src/cmd/compile/internal/ssa/cse.go | 11 +++++++++++
+ test/fixedbugs/issue16741.go        | 17 +++++++++++++++++
+ 2 files changed, 28 insertions(+)

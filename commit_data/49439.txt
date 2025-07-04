@@ -1,20 +1,22 @@
-commit bdde41e3ba4926b9c1143502f299286d5eca6490
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 8 12:24:55 2022 -0400
+commit 3bdc1799d6ce441d7a972faf1452e34b6dce0826
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Aug 11 12:14:41 2021 +0100
 
-    runtime: skip TestGdbBacktrace on gdb bug
+    io: unexport internal methods
     
-    Very rarely, GDB will successfully run the whole test and the inferior
-    will exit successfully, and then GDB itself hangs and never exits.
-    Detect this and skip the test as flaky. We could just continue the
-    test since all of the output we need is there, but by skipping it
-    we're less likely to notice serious regressions in this test.
+    The methods on the pipe type don't need to be exported. Doing so sets
+    a bad precedent that it's OK to export methods to indicate an internal
+    public API.  That's not a good idea in general, because exported methods
+    increase cognitive load when reading code: the reader needs to consider
+    whether the exported method might be used via some external interface
+    or reflection.
     
-    Fixes #37405.
-    
-    Change-Id: I016cbb06f48673f064733da3e3f1ddcbefd58159
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411117
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib13f1b3f9fe0ff251628f31b776182a0953268ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341409
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/runtime/runtime-gdb_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/io/pipe.go | 50 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 26 insertions(+), 24 deletions(-)

@@ -1,19 +1,30 @@
-commit 1d65566148d0b214fcf9667535ecc1d43ed4f7ee
-Author: cui fliter <imcusg@gmail.com>
-Date:   Wed Sep 28 08:47:08 2022 +0000
+commit b74f2efc47bbfcc4aa301ebda1033948d8b6b63e
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Oct 1 09:14:10 2021 -0700
 
-    cmd/fix: use strings.Cut
+    crypto/x509: use the platform verifier on iOS
     
-    Change-Id: Ibee86b4c5dc9a18df9bdc65b0ec8339ee1cac7a9
-    GitHub-Last-Rev: 336580707cd58f2c17ec4c686d54982417d1a4b4
-    GitHub-Pull-Request: golang/go#55911
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435739
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Use the same certificate verification APIs on iOS as on macOS (they
+    share the same APIs, so we should be able to transparently use them
+    on both.)
+    
+    Updates #46287
+    Fixes #38843
+    
+    Change-Id: If70f99b0823dd5fa747c42ff4f20c3b625605327
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353403
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
 
- src/cmd/fix/main.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go              |   11 -
+ src/crypto/x509/cert_pool.go      |    2 +
+ src/crypto/x509/root_darwin.go    |    2 -
+ src/crypto/x509/root_ios.go       | 4872 -------------------------------------
+ src/crypto/x509/root_ios_gen.go   |  180 --
+ src/crypto/x509/root_omit.go      |   25 -
+ src/crypto/x509/root_omit_test.go |   22 -
+ src/crypto/x509/verify.go         |    2 +-
+ src/crypto/x509/verify_test.go    |    2 +-
+ src/crypto/x509/x509_test.go      |    2 +-
+ 10 files changed, 5 insertions(+), 5115 deletions(-)

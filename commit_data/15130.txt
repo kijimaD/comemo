@@ -1,18 +1,20 @@
-commit 022504b3ab62a4d35aad13c58382bd0a7168805b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 4 13:52:45 2013 -0800
+commit c06a5335baf80308c0765700378826ff929db86d
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Feb 4 12:22:35 2013 -0500
 
-    net/http: fix when server deadlines get extended
+    exp/ssa: (#4 of 5): the SSA builder.
     
-    Deadlines should be extended at the beginning of
-    a request, not at the beginning of a connection.
-    
-    Fixes #4676
-    
-    R=golang-dev, fullung, patrick.allen.higgins, adg
+    R=iant, gri, iant, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/7220076
+    https://golang.org/cl/7196053
 
- src/pkg/net/http/serve_test.go | 44 ++++++++++++++++++++++++------------------
- src/pkg/net/http/server.go     | 22 +++++++++++++++------
- 2 files changed, 41 insertions(+), 25 deletions(-)
+ src/pkg/exp/ssa/builder.go  | 2682 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/ssa/emit.go     |  261 +++++
+ src/pkg/exp/ssa/func.go     |   73 +-
+ src/pkg/exp/ssa/importer.go |  110 ++
+ src/pkg/exp/ssa/lvalue.go   |   86 ++
+ src/pkg/exp/ssa/print.go    |   54 +-
+ src/pkg/exp/ssa/promote.go  |  450 ++++++++
+ src/pkg/exp/ssa/ssa.go      |   35 +-
+ src/pkg/exp/ssa/util.go     |   38 +
+ 9 files changed, 3720 insertions(+), 69 deletions(-)

@@ -1,13 +1,64 @@
-commit de7d1c409474f0fe5cf88e5d106da683ea79f12e
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Nov 12 18:48:00 2014 +1100
+commit 6ad2749dcd614270ac58c5254b6ada3bce0af090
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 23 23:44:47 2014 -0400
 
-    hash/crc32: fix comment that the IEEE polynomial applies to MPEG-2.
+    encoding/csv: for Postgres, unquote empty strings, quote \.
     
-    LGTM=minux
-    R=adg, minux
+    In theory both of these lines encode the same three fields:
+    
+            a,,c
+            a,"",c
+    
+    However, Postgres defines that when importing CSV, the unquoted
+    version is treated as NULL (missing), while the quoted version is
+    treated as a string value (empty string). If the middle field is supposed to
+    be an integer value, the first line can be imported (NULL is okay), but
+    the second line cannot (empty string is not).
+    
+    Postgres's import command (COPY FROM) has an option to force
+    the unquoted empty to be interpreted as a string but it does not
+    have an option to force the quoted empty to be interpreted as a NULL.
+    
+    From http://www.postgresql.org/docs/9.0/static/sql-copy.html:
+    
+            The CSV format has no standard way to distinguish a NULL
+            value from an empty string. PostgreSQL's COPY handles this
+            by quoting. A NULL is output as the NULL parameter string
+            and is not quoted, while a non-NULL value matching the NULL
+            parameter string is quoted. For example, with the default
+            settings, a NULL is written as an unquoted empty string,
+            while an empty string data value is written with double
+            quotes (""). Reading values follows similar rules. You can
+            use FORCE_NOT_NULL to prevent NULL input comparisons for
+            specific columns.
+    
+    Therefore printing the unquoted empty is more flexible for
+    imports into Postgres than printing the quoted empty.
+    
+    In addition to making the output more useful with Postgres, not
+    quoting empty strings makes the output smaller and easier to read.
+    It also matches the behavior of Microsoft Excel and Google Drive.
+    
+    Since we are here and making concessions for Postgres, handle this
+    case too (again quoting the Postgres docs):
+    
+            Because backslash is not a special character in the CSV
+            format, \., the end-of-data marker, could also appear as a
+            data value. To avoid any misinterpretation, a \. data value
+            appearing as a lone entry on a line is automatically quoted
+            on output, and on input, if quoted, is not interpreted as
+            the end-of-data marker. If you are loading a file created by
+            another application that has a single unquoted column and
+            might have a value of \., you might need to quote that value
+            in the input file.
+    
+    Fixes #7586.
+    
+    LGTM=bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/170520043
+    https://golang.org/cl/164760043
 
- src/hash/crc32/crc32.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/encoding/csv/writer.go      | 16 ++++++++++++++--
+ src/encoding/csv/writer_test.go | 11 +++++++++++
+ 2 files changed, 25 insertions(+), 2 deletions(-)

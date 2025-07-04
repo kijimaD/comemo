@@ -1,21 +1,24 @@
-commit 1ea4d3b91164fb08b7022958b6cd8e290f12e017
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Tue Mar 30 19:58:35 2021 +0800
+commit 6996bae5d1d34ea9e2ab6399f70adb402697ed94
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 1 11:11:04 2021 -0400
 
-    cmd/link: merge note sections into one segment
+    cmd/compile: use ABI0 for cgo_unsafe_args functions
     
-    The ld from binutils merges note sections into one PT_NOTE
-    segment.
-    We should do that for consistency with binutils.
+    cgo_unsafe_args paragma indicates that the function (or its
+    callee) uses address and offsets to dispatch arguments, which
+    currently using ABI0 frame layout. Pin them to ABI0.
     
-    Change-Id: I45703525c720972d49c36c4f10ac47d1628b5698
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265957
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    With this, "GOEXPERIMENT=regabi,regabiargs go run hello.go" works
+    on Darwin/AMD64.
+    
+    Change-Id: I3eadd5a3646a9de8fa681fa0a7f46e7cdc217d24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306609
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/elf_test.go        | 55 +++++++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/elf.go | 39 ++++++++++++-----------------
- 2 files changed, 71 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        | 14 ++++----------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |  5 +++--
+ src/cmd/compile/internal/ssagen/abi.go       |  7 +++++++
+ 4 files changed, 15 insertions(+), 13 deletions(-)

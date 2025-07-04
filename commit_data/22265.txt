@@ -1,14 +1,14 @@
-commit bd09279c3fbe7617800da740103093fa75af522e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 1 17:48:08 2015 -0700
+commit 91e7ca588d07b8e04e9608c4436d2d701f6c59d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 3 10:47:15 2015 -0500
 
-    go/ast: fix ast.Inspect doc string
+    cmd/internal/ld: fix darwin/386
     
-    Fixes #10243.
+    grind's goto inliner moved a continue and changed its meaning. Oops.
     
-    Change-Id: I06ac53628980853faecbf1a57ff71b88098d65f2
-    Reviewed-on: https://go-review.googlesource.com/8382
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ifa2d3e1427036a606a069f356cd9b586ef22ec84
+    Reviewed-on: https://go-review.googlesource.com/6610
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/ast/walk.go | 3 ++-
+ src/cmd/internal/ld/ldmacho.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)

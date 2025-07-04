@@ -1,22 +1,25 @@
-commit ffd79b310736d768593b207946744e94d918749a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 5 21:26:07 2017 -0500
+commit 3d7042fba341180e63ea27fdfafbbab2499314aa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 31 11:26:28 2017 -0700
 
-    crypto/x509: add test for asn1.Marshal of rsa.PublicKey
+    cmd/pack: fix export data truncation bug
     
-    Go 1.10 is adding new API MarshalPKCS1PublicKey and
-    ParsePKCS1PublicKey for converting rsa.PublicKeys.
+    The binary export data format includes escaping to prevent "\n$$" from
+    appearing internally, but not "\n!\n". This could result in a false
+    positive when cmd/pack searched for "\n!\n" as the delimiter between
+    package definition and linker object.
     
-    Even though we'd prefer that users did not, check that
-    if users call asn1.Marshal and asn1.Unmarshal directly instead,
-    they get the same results. We know that code exists in the
-    wild that depends on this.
+    To address this, this CL changes cmd/pack to also be aware of the
+    "\n$$" markers, and to ignore "\n!\n" within the export data.
     
-    Change-Id: Ia385d6954fda2eba7da228dc42f229b6839ef11e
-    Reviewed-on: https://go-review.googlesource.com/82080
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #21703.
+    
+    Change-Id: I71ea8ba49dbd066c7afb7717ddc0190e38fe5649
+    Reviewed-on: https://go-review.googlesource.com/60773
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/x509_test.go | 22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/pack/pack.go      | 12 +++++++++++-
+ src/cmd/pack/pack_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

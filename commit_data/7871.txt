@@ -1,12 +1,16 @@
-commit 2363784653c9200a0313910832aa90b7bc51b9b7
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 25 11:33:07 2011 -0700
+commit 237ae64146f5c56287e287930de61ae96a465d5d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 11:32:32 2011 -0700
 
-    test/run: clear $E in case it's already set in environment.
+    test: match gccgo error messages for bug274.go.
+    
+    bug274.go:23:3: error: missing statement after label
+    bug274.go:25:3: error: missing statement after label
+    bug274.go:28:3: error: label ‘L2’ defined and not used
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4312054
+    https://golang.org/cl/4273114
 
- test/run | 2 ++
- 1 file changed, 2 insertions(+)
+ test/fixedbugs/bug274.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

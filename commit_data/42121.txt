@@ -1,16 +1,24 @@
-commit b0a87544754a41312aa454f69d4e820979f19ef0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 23:11:08 2020 -0700
+commit 6e111956ab4849976f9dcf46ecac575fa8105268
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 8 09:25:51 2019 +0100
 
-    cmd/compile: convert race cleanup rule to typed aux
+    syscall: skip TestSyscallNoError on mips{,le}
     
-    Passes toolstash-check.
+    On MIPS, Linux returns whether the syscall had an error in a separate
+    register (R7), not using a negative return value as on other
+    architectures. Thus, skip TestSyscallNoError as there is no error case
+    for syscall.RawSyscall which it could test against.
     
-    Change-Id: I3005210cc156d01a6ac1ccaafb4311c607681bf0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229691
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Also reformat the error output so the expected and gotten values are
+    aligned so they're easier to compare.
+    
+    Fixes #35422
+    
+    Change-Id: Ibc88f7c5382bb7ee8faf15ad4589ca1f9f017a06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205898
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
- src/cmd/compile/internal/ssa/rewrite.go        | 4 ++--
- src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/syscall/syscall_linux_test.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

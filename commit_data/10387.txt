@@ -1,13 +1,16 @@
-commit 11fe7cd6e32bdd41dcf9ff9b5fb82048b1340509
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Mon Nov 14 15:59:27 2011 -0500
+commit 1df62ca638107df5a51f969fc411a6bd091518fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 14 15:21:08 2011 -0500
 
-    6l, 8l: add missing space in error message
+    crypto/tls: fix handshake message test
     
-    R=golang-dev
-    CC=golang-dev, rsc
-    https://golang.org/cl/5374085
+    This test breaks when I make reflect.DeepEqual
+    distinguish empty slices from nil slices.
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/5369110
 
- src/cmd/6l/obj.c | 2 +-
- src/cmd/8l/obj.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/crypto/tls/handshake_messages.go      | 161 ++++++++++++++++++++++++++
+ src/pkg/crypto/tls/handshake_messages_test.go |   4 +-
+ 2 files changed, 164 insertions(+), 1 deletion(-)

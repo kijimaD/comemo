@@ -1,21 +1,16 @@
-commit b78bce08e3715aed96109a67849bbe6c334515f3
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 16 13:42:12 2017 -0400
+commit 2f55031c593ae842ab383c911aadcaee97a6715e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 22:04:33 2017 +0000
 
-    cmd/go: ignore -linkmode=external during cmd/cgo build
+    net, doc: document JoinHostPort change in release notes, clarify its docs
     
-    cmd/cgo is special among the build tools because it is (re)built on demand
-    when needed for a package using cgo, to avoid additional bootstrap logic
-    elsewhere. (This is in contrast to cmd/compile, cmd/link, and so on, which
-    must be specially built before even invoking the go command.)
+    Updates #18059
+    Updates #20587
     
-    When the go command starts using content-based decisions about staleness,
-    it is important that the build of cmd/cgo never use -linkmode=external,
-    because that depends on runtime/cgo, which in turn depends on cmd/cgo.
-    
-    Change-Id: I72a2be748606d1ed4b93a54f2a5c7084e87d5fbc
-    Reviewed-on: https://go-review.googlesource.com/67310
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icbb4c7cb201ac51d2cc6066620b47ba09ff6fe65
+    Reviewed-on: https://go-review.googlesource.com/45780
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/go/internal/work/build.go | 34 +++++++++++++++++++++++++++++++++-
- 1 file changed, 33 insertions(+), 1 deletion(-)
+ doc/go1.9.html    | 7 ++-----
+ src/net/ipsock.go | 4 ++--
+ 2 files changed, 4 insertions(+), 7 deletions(-)

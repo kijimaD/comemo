@@ -1,0 +1,25 @@
+commit 22d5d09f1e39bf0ef77bfcf80388c676e7e91574
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 6 13:24:58 2025 -0800
+
+    net/http/httputil: close hijacked connections when CloseWrite not available
+    
+    CL 637939 changed ReverseProxy's handling of hijacked connections:
+    After copying all data in one direction, it half-closes the outbound
+    connection rather than fully closing both.
+    
+    Revert to the old behavior when the outbound connection does not support
+    CloseWrite, avoiding a case where one side of the proxied connection closes
+    but the other remains open.
+    
+    Fixes #72140
+    
+    Change-Id: Ic0cacaa6323290f89ba48fd6cae737e86045a435
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655595
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/net/http/httputil/reverseproxy.go      | 11 ++++---
+ src/net/http/httputil/reverseproxy_test.go | 48 ++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 4 deletions(-)

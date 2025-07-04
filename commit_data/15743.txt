@@ -1,20 +1,15 @@
-commit 69eb3457279b1067e3c45e735d32916a41b87246
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Tue Mar 12 21:37:18 2013 -0700
+commit 8373f729fdc63e6d85f23318e1e62c11c5a8bca5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 13 08:00:01 2013 +0800
 
-    misc/emacs: Fix indentation for code following multiline function declarations
+    net: require of both -external and -ipv6 flags to run IPv6 multicast tests
     
-    Correctly indent the body of functions that have been declared
-    over multiple lines. See http://play.golang.org/p/MHMwNDbFyf for
-    an example.
+    On BSD variants, the tests need surely constructed IPv6
+    routing table.
     
-    Previously, the body of the function would be indented as deep as
-    the continuation line of the function declaration. Now it gets
-    indented as deep as the func keyword.
-    
-    R=adonovan, cw, patrick.allen.higgins
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7628043
+    https://golang.org/cl/7776043
 
- misc/emacs/go-mode.el | 40 ++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 38 insertions(+), 2 deletions(-)
+ src/pkg/net/multicast_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

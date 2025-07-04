@@ -1,0 +1,19 @@
+commit 78c0ea5df7e864575c8fcae8528572c5284c0435
+Author: Jakob Gillich <jakob@gillich.me>
+Date:   Tue Jul 16 17:43:18 2024 +0000
+
+    cmd/link: raise pe export cap to 65535
+    
+    fixes #68405
+    
+    Change-Id: I043e16f43daa336005695f82a53f9a52cd770656
+    GitHub-Last-Rev: 69f1ae8b648083154c64f0679b7bd97a118607e9
+    GitHub-Pull-Request: golang/go#68409
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597956
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Zxilly Chou <zxilly@outlook.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/pe.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

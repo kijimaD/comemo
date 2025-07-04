@@ -1,22 +1,42 @@
-commit b8f8969fbd91e8c6a1a6e523be91a99f92d0f809
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Oct 8 22:34:29 2015 +1300
+commit 1fb01a88f94e9ec5477ae3608ece2e69b5d51442
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 3 17:48:47 2015 -0400
 
-    reflect, runtime, runtime/cgo: use ppc64 asm constant for fixed frame size
+    runtime: revise assist ratio aggressively
     
-    Shared libraries on ppc64le will require a larger minimum stack frame (because
-    the ABI mandates that the TOC pointer is available at 24(R1)). Part 3 of that
-    is using a #define in the ppc64 assembly to refer to the size of the fixed
-    part of the stack (finding all these took me about a week!).
+    At the start of a GC cycle, the garbage collector computes the assist
+    ratio based on the total scannable heap size. This was intended to be
+    conservative; after all, this assumes the entire heap may be reachable
+    and hence needs to be scanned. But it only assumes that the *current*
+    entire heap may be reachable. It fails to account for heap allocated
+    during the GC cycle. If the trigger ratio is very low (near zero), and
+    most of the heap is reachable when GC starts (which is likely if the
+    trigger ratio is near zero), then it's possible for the mutator to
+    create new, reachable heap fast enough that the assists won't keep up
+    based on the assist ratio computed at the beginning of the cycle. As a
+    result, the heap can grow beyond the heap goal (by hundreds of megs in
+    stress tests like in issue #11911).
     
-    Change-Id: I50f22fe1c47af1ec59da1bd7ea8f84a4750df9b7
-    Reviewed-on: https://go-review.googlesource.com/15525
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    We already have some vestigial logic for dealing with situations like
+    this; it just doesn't run often enough. Currently, every 10 ms during
+    the GC cycle, the GC revises the assist ratio. This was put in before
+    we switched to a conservative assist ratio (when we really were using
+    estimates of scannable heap), and it turns out to be exactly what we
+    need now. However, every 10 ms is far too infrequent for a rapidly
+    allocating mutator.
+    
+    This commit reuses this logic, but replaces the 10 ms timer with
+    revising the assist ratio every time the heap is locked, which
+    coincides precisely with when the statistics used to compute the
+    assist ratio are updated.
+    
+    Fixes #11911.
+    
+    Change-Id: I377b231ab064946228378fa10422a46d1b50f4c5
+    Reviewed-on: https://go-review.googlesource.com/13047
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/build.go          |  2 ++
- src/reflect/asm_ppc64x.s       |  9 +++---
- src/runtime/asm_ppc64x.h       | 31 +++++++++++++++++++++
- src/runtime/asm_ppc64x.s       | 63 +++++++++++++++++++++---------------------
- src/runtime/cgo/asm_ppc64x.s   |  9 +++---
- src/runtime/sys_linux_ppc64x.s |  7 +++--
- 6 files changed, 79 insertions(+), 42 deletions(-)
+ src/runtime/mgc.go   | 22 ++++------------------
+ src/runtime/mheap.go |  3 +++
+ 2 files changed, 7 insertions(+), 18 deletions(-)

@@ -1,12 +1,15 @@
-commit dcf562dfb61a7a29ae6a4178a6324f801e7e7698
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Tue Dec 31 19:29:09 2013 +1100
+commit 8183ed19b9de8dbc40e40041e530d796246f0514
+Author: Mihai Borobocea <MihaiBorobocea@gmail.com>
+Date:   Mon Dec 30 13:29:56 2013 -0800
 
-    crypto/sha512: add tests for Size() and BlockSize()
+    spec: example shows wrong value for complex constant
     
-    R=golang-codereviews, bradfitz, dave
+    Looks like a typo.
+    Fixes #7011.
+    
+    R=golang-codereviews, r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/43550047
+    https://golang.org/cl/45350043
 
- src/pkg/crypto/sha512/sha512_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

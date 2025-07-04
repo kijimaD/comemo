@@ -1,44 +1,19 @@
-commit 14f3ca56eda1120cb9f25f05f7fbf705d2bb0dc3
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 24 13:48:35 2017 -0700
+commit 58d762176a6e2216760bc9b56b40665172b9f6fa
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 09:24:05 2017 -0500
 
-    cmd/internal/obj: ARM, use immediates instead of constant pool entries
+    runtime: run mutexevent profiling without holding semaRoot lock
     
-    When a constant doesn't fit in a single instruction, use two
-    paired instructions instead of the constant pool.  For example
+    Suggested by Dmitry in CL 36792 review.
+    Clearly safe since there are many different semaRoots
+    that could all have profiled sudogs calling mutexevent.
     
-      ADD $0xaa00bb, R0, R1
-    
-    Used to rewrite to:
-    
-      MOV ?(IP), R11
-      ADD R11, R0, R1
-    
-    Instead, do:
-    
-      ADD $0xaa0000, R0, R1
-      ADD $0xbb, R1, R1
-    
-    Same number of instructions.
-    Good:
-      4 less bytes (no constant pool entry)
-      One less load.
-    Bad:
-      Critical path is one instruction longer.
-    
-    It's probably worth it to avoid the loads, they are expensive.
-    
-    Dave Cheney got us some performance numbers: https://perf.golang.org/search?q=upload:20170426.1
-    TL;DR mean 1.37% improvement.
-    
-    Change-Id: Ib206836161fdc94a3962db6f9caa635c87d57cf1
-    Reviewed-on: https://go-review.googlesource.com/41612
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I45eed47a5be3e513b2dad63b60afcd94800e16d1
+    Reviewed-on: https://go-review.googlesource.com/37104
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/internal/obj/arm/a.out.go   |   7 ++-
- src/cmd/internal/obj/arm/anames5.go |   1 +
- src/cmd/internal/obj/arm/asm5.go    |  75 +++++++++++++++++++++++-
- test/armimm.go                      | 113 ++++++++++++++++++++++++++++++++++++
- 4 files changed, 191 insertions(+), 5 deletions(-)
+ src/runtime/sema.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

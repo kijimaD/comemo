@@ -1,59 +1,18 @@
-commit 1cfb5c3fd5578a3665231a302ef7f03abec78d1d
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Wed Sep 14 10:42:14 2016 -0400
+commit c88e868030f5f0bc68c11cb65af625e77acc43ba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jun 7 12:26:06 2016 -0700
 
-    cmd/compile: merge loads into operations on s390x
+    cmd/internal/obj: add generated String method for AddrType
     
-    Adds the new canMergeLoad function which can be used by rules to
-    decide whether a load can be merged into an operation. The function
-    ensures that the merge will not reorder the load relative to memory
-    operations (for example, stores) in such a way that the block can no
-    longer be scheduled.
+    Generated with:
     
-    This new function enables transformations such as:
+    stringer -type AddrType cmd/internal/obj
     
-    MOVD 0(R1), R2
-    ADD  R2, R3
-    
-    to:
-    
-    ADD  0(R1), R3
-    
-    The two-operand form of the following instructions can now read a
-    single memory operand:
-    
-     - ADD
-     - ADDC
-     - ADDW
-     - MULLD
-     - MULLW
-     - SUB
-     - SUBC
-     - SUBE
-     - SUBW
-     - AND
-     - ANDW
-     - OR
-     - ORW
-     - XOR
-     - XORW
-    
-    Improves SHA3 performance by 6-8%.
-    
-    Updates #15054.
-    
-    Change-Id: Ibcb9122126cd1a26f2c01c0dfdbb42fe5e7b5b94
-    Reviewed-on: https://go-review.googlesource.com/29272
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Change-Id: I74509cffab774035c5ca2ac0634638d73dbd33f3
+    Reviewed-on: https://go-review.googlesource.com/26657
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s    |  29 +
- src/cmd/compile/internal/s390x/ssa.go        |  16 +
- src/cmd/compile/internal/ssa/gen/S390X.rules |  71 +++
- src/cmd/compile/internal/ssa/gen/S390XOps.go |  69 ++-
- src/cmd/compile/internal/ssa/opGen.go        | 228 +++++++
- src/cmd/compile/internal/ssa/rewrite.go      | 110 ++++
- src/cmd/compile/internal/ssa/rewriteS390X.go | 858 +++++++++++++++++++++++++++
- src/cmd/internal/obj/s390x/asmz.go           |  69 +++
- 8 files changed, 1422 insertions(+), 28 deletions(-)
+ src/cmd/internal/obj/addrtype_string.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

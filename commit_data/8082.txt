@@ -1,15 +1,12 @@
-commit 017e73c1b259450e6fc1b8437844c66b9ce08db3
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 13 22:48:21 2011 -0400
+commit 785fbd94fda295469aac854f8c7eadb78832b457
+Author: Corey Thomasson <cthom.lists@gmail.com>
+Date:   Thu Apr 14 10:30:56 2011 +1000
 
-    gc: fix func syntax error
+    net: sort records returned by LookupMX
     
-    Fixes #1685.
-    
-    R=ken2
+    R=rog, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/4414042
+    https://golang.org/cl/4388048
 
- src/cmd/gc/go.y |  3 ++-
- test/func6.go   | 14 ++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/pkg/net/dnsclient.go | 31 +++++++++++++++++++++++--------
+ 1 file changed, 23 insertions(+), 8 deletions(-)

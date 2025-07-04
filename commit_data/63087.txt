@@ -1,0 +1,26 @@
+commit 913c069819b77c0cfda78806654696508baf7f32
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 1 19:38:39 2025 +0000
+
+    runtime: annotate checkfinalizers reports with source and type info
+    
+    This change adds a new special kind called CheckFinalizer which is used
+    to annotate finalizers and cleanups with extra information about where
+    that cleanup or finalizer came from.
+    
+    For #72949.
+    
+    Change-Id: I3c1ace7bd580293961b7f0ea30345a6ce956d340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662135
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/gc_test.go                           |   8 +-
+ src/runtime/mcheckmark.go                        |  76 ++++++++--
+ src/runtime/mcleanup.go                          |  12 +-
+ src/runtime/mfinal.go                            |   9 ++
+ src/runtime/mheap.go                             | 168 +++++++++++++++++++++--
+ src/runtime/testdata/testprog/checkfinalizers.go |   8 ++
+ 6 files changed, 247 insertions(+), 34 deletions(-)

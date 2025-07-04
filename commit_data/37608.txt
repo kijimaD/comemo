@@ -1,16 +1,25 @@
-commit bae1e70ac4a963bfb167136fc6b40988bc9cd546
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 6 13:54:07 2018 -0500
+commit a3593685cf4d385bf9edf5306022e001e1eb6586
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu May 31 16:38:18 2018 -0500
 
-    runtime: print pointers being put in checkPut
+    cmd/compile/internal/ssa: remove useless zero extension
     
-    In order to further diagnose #27993, I need to see exactly what
-    pointers are being added to the gcWork buffer too late.
+    We generate MOVBLZX for byte-sized LoadReg, so
+    (MOVBQZX (LoadReg (Arg))) is the same as
+    (LoadReg (Arg)). Remove those zero extension where possible.
+    Triggers several times during all.bash.
     
-    Change-Id: I8d92113426ffbc6e55d819c39e7ab5eafa68668d
-    Reviewed-on: https://go-review.googlesource.com/c/152957
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #25378
+    Updates #15300
+    
+    Change-Id: If50656e66f217832a13ee8f49c47997f4fcc093a
+    Reviewed-on: https://go-review.googlesource.com/115617
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgcwork.go | 20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewrite.go      | 48 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 26 +++++++++++++++
+ test/codegen/issue25378.go                   | 22 +++++++++++++
+ 4 files changed, 98 insertions(+)

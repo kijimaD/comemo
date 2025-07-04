@@ -1,13 +1,14 @@
-commit 9e6869b93bba5c04e9536e26944d657f15a88386
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Feb 9 09:26:56 2015 +1100
+commit 552080c72ade4a73c8ae38247f5c4254b670ea03
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 13 11:34:46 2015 -0800
 
-    Build fix for plan9 after 8bf13838eb21.
+    crypto/tls: remove return parameter stutter
     
-    Change-Id: I66d923abbef13ba35c76c6f6da5b14c6d534127c
-    Reviewed-on: https://go-review.googlesource.com/4165
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Per https://golang.org/s/style#named-result-parameters
+    
+    Change-Id: If69d3e6d3dbef385a0f41e743fa49c25475ca40c
+    Reviewed-on: https://go-review.googlesource.com/2761
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/time/zoneinfo_plan9.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/crypto/tls/tls.go | 38 +++++++++++++++++---------------------
+ 1 file changed, 17 insertions(+), 21 deletions(-)

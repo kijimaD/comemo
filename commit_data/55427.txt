@@ -1,30 +1,21 @@
-commit 6037c8a87745f96307bb4ffab965aa39f4cf1806
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Mon Jan 22 13:20:07 2024 -0500
+commit fcff7226f3aa4e92302a9475d23c254ff6dccedb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 30 12:04:46 2022 +0700
 
-    doc/next: initial contents
+    cmd/compile: use runtime hash func for known types
     
-    Initialize the doc/next directory for the next release by copying the
-    contents of doc/initial into it.
+    Those functions are defined in package runtime already, so just use them
+    instead of creating ONAME nodes with nil Func.
     
-    Also, rewrite doc/README.md to add release instructions and to separate
-    information for developers from information for the release team.
-    
-    Change-Id: Ie1e5c2ddae7a8d301e9b2f8a68925519648aa84d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557535
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: If29814a5254793c578c15b70f9c194b7414911d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436959
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/README.md                           | 40 +++++++++++++++++++++------------
- doc/next/1-intro.md                     | 12 ++++++++++
- doc/next/2-language.md                  |  3 +++
- doc/next/3-tools.md                     |  6 +++++
- doc/next/4-runtime.md                   |  1 +
- doc/next/5-toolchain.md                 |  7 ++++++
- doc/next/6-stdlib/0-heading.md          |  2 ++
- doc/next/6-stdlib/99-minor/0-heading.md |  3 +++
- doc/next/6-stdlib/99-minor/README       |  1 +
- doc/next/7-ports.md                     |  2 ++
- 10 files changed, 63 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/reflectdata/alg.go        |  20 +--
+ .../compile/internal/typecheck/_builtin/runtime.go |  14 +--
+ src/cmd/compile/internal/typecheck/builtin.go      | 137 +++++++++++----------
+ 3 files changed, 89 insertions(+), 82 deletions(-)

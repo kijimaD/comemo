@@ -1,14 +1,36 @@
-commit 485d67bd38c94617921f55b99e89be0e9cbda39d
-Author: Matt Layher <mdlayher@planetscale.com>
-Date:   Thu Mar 17 19:26:55 2022 -0400
+commit ad24be022be1c3124887ff22fc742494ee12dfb8
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 14 13:59:26 2021 -0400
 
-    A+C: add PlanetScale, Inc.
+    [dev.fuzz] internal/fuzz: make minimization tests more reliable
     
-    Change-Id: Ide2567dc66e55880b938b5814879f012c88159b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393697
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Matt Layher <mdlayher@gmail.com>
+    * Introduced -fuzzminimizetime flag to control the number of time or
+      the number of calls to spend minimizing. Defaults to 60s. Only works
+      for unrecoverable crashes for now.
+    * Moved the count (used by -fuzztime=1000x) into shared
+      memory. Calling workerClient.fuzz resets it, but it will remain
+      after the worker processes crashes. workerClient.minimize resets it
+      once before restarting the worker the first time, but the total
+      number of runs should still be limited during minimization, even
+      after multiple terminations and restarts.
+    * Renamed fuzzArgs.Count to Limit to avoid confusion.
+    * Several other small fixes and refactorings.
+    
+    Change-Id: I03faa4c94405041f6dfe48568e5ead502f8dbbd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320171
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/test/flagdefs.go               |   1 +
+ src/cmd/go/internal/test/testflag.go               |   1 +
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  |  14 +-
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt   |  17 +--
+ src/internal/fuzz/fuzz.go                          |  29 +++--
+ src/internal/fuzz/mem.go                           |  13 +-
+ src/internal/fuzz/worker.go                        | 141 ++++++++++++++-------
+ src/testing/fuzz.go                                |  25 +++-
+ src/testing/internal/testdeps/deps.go              |  29 +++--
+ src/testing/testing.go                             |   4 +-
+ 10 files changed, 187 insertions(+), 87 deletions(-)

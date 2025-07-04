@@ -1,22 +1,22 @@
-commit 5454834f011c019ca32d844d26d469cd47f407ad
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Thu Jan 12 19:37:18 2023 +0800
+commit 58804ea67a28c1d8e37ed548b685bc0c09638886
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Mar 2 20:16:54 2022 -0500
 
-    cmd/internal/obj/riscv: add check for invalid shift amount input
+    runtime: count spill slot for frame size at finalizer call
     
-    Current RISCV64 assembler do not check the invalid shift amount. This CL
-    adds the check to avoid generating invalid instructions.
+    The finalizer is called using reflectcall. When register ABI is
+    used, the finalizer's argument is passed in register(s). But the
+    frame size calculation does not include the spill slot. When the
+    argument actually spills, it may clobber the caller's stack frame.
+    This CL fixes it.
     
-    Fixes #57755
-    
-    Change-Id: If33877605e161baefd98c50db1f71641ca057507
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461755
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ibcc7507c518ba65c1c5a7759e5cab0ae3fc7efce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389574
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64error.s | 12 ++++++++++++
- src/cmd/internal/obj/riscv/obj.go                | 10 ++++++++++
- 2 files changed, 22 insertions(+)
+ src/runtime/mfinal.go      | 24 +++++++++---------------
+ src/runtime/mfinal_test.go |  9 +++++++++
+ 2 files changed, 18 insertions(+), 15 deletions(-)

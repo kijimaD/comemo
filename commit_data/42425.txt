@@ -1,18 +1,13 @@
-commit eecc6282cc9a16a6be439df5540af127477edc32
-Author: Alexander Rakoczy <alex@golang.org>
-Date:   Fri May 29 17:53:27 2020 -0400
+commit 87a546776b7f5a0a19abc1d439c73b19a974fc28
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 17 17:39:50 2019 -0500
 
-    doc/go1.15: update Go 1.15 release notes using relnote
+    doc/go1.14: release notes for runtime and compiler
     
-    The additions were generated using golang.org/x/build/cmd/relnote.
-    
-    Updates #37419
-    
-    Change-Id: Iad7b564dd7e6cbcbd0d216c2530802e086ec49cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235757
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I9519659983de23f43ff0e05cffd336d8bc351400
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211758
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- doc/go1.15.html | 106 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 105 insertions(+), 1 deletion(-)
+ doc/go1.14.html | 92 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 92 insertions(+)

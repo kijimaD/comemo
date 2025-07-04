@@ -1,44 +1,20 @@
-commit 870080752d175d5cede350486acf36213c64f35c
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Sep 19 15:31:03 2019 +0100
+commit 23d4c6cdd6712ba45ea4ec784bcb99cb883ab0ea
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 31 16:57:29 2019 +0000
 
-    cmd/compile: reduce rulegen's output by 200 KiB
+    runtime: merge codepaths in scavengeLargest
     
-    First, renove unnecessary "// cond:" lines from the generated files.
-    This shaves off about ~7k lines.
+    This change just makes the code in scavengeLargest easier to reason
+    about by reducing the number of exit points to the method. It should
+    still be correct either way because the condition checked at the end
+    (released > nbytes) will always be false if we return, but this just
+    makes the code a little easier to maintain.
     
-    Second, join "if cond { break }" statements via "||", which allows us to
-    deduplicate a large number of them. This shaves off another ~25k lines.
-    
-    This change is not for readability or simplicity; but rather, to avoid
-    unnecessary verbosity that makes the generated files larger. All in all,
-    git reports that the generated files overall weigh ~200KiB less, or
-    about 2.7% less.
-    
-    While at it, add a -trace flag to rulegen.
-    
-    Updates #33644.
-    
-    Change-Id: I3fac0290a6066070cc62400bf970a4ae0929470a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196498
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: If60da7696aca3fab3b5ddfc795d600d87c988238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160617
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/gen/main.go           |    19 +
- src/cmd/compile/internal/ssa/gen/rulegen.go        |    27 +-
- src/cmd/compile/internal/ssa/rewrite386.go         |  3642 +------
- .../compile/internal/ssa/rewrite386splitload.go    |     6 -
- src/cmd/compile/internal/ssa/rewriteAMD64.go       | 10396 +++----------------
- .../compile/internal/ssa/rewriteAMD64splitload.go  |     8 -
- src/cmd/compile/internal/ssa/rewriteARM.go         |  1360 +--
- src/cmd/compile/internal/ssa/rewriteARM64.go       |  6999 ++-----------
- src/cmd/compile/internal/ssa/rewriteMIPS.go        |   558 +-
- src/cmd/compile/internal/ssa/rewriteMIPS64.go      |   562 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go       |  7317 +++----------
- src/cmd/compile/internal/ssa/rewriteS390X.go       |  6745 ++----------
- src/cmd/compile/internal/ssa/rewriteWasm.go        |   342 +-
- src/cmd/compile/internal/ssa/rewritedec.go         |    12 -
- src/cmd/compile/internal/ssa/rewritedec64.go       |   114 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go     |  5914 ++---------
- 16 files changed, 6324 insertions(+), 37697 deletions(-)
+ src/runtime/mheap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

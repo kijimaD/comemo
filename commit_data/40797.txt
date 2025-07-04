@@ -1,37 +1,29 @@
-commit fc3eae52810f8a89ed656b30a98ad7a08104dc33
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 14 14:32:24 2019 -0500
+commit 13327f219e5bb0f050eb41f25f9dd07ec3d56f32
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jul 2 23:56:41 2019 +0200
 
-    doc: convert remaining bash tests to Go
+    encoding/json: obey SetEscapeHTML in all MarshalJSON cases
     
-    Updates #28387
-    Updates #30316
-    Fixes #35574
+    It wasn't obeyed in the case where the MarshalJSON method uses a pointer
+    receiver, and the encoder grabs the address of a value to find that
+    method. addrMarshalerEncoder is the function that does this work, but it
+    ignored opts.escapeHTML.
     
-    Change-Id: I21c9e18573909e092ed8dcec91b8542bb97e9f5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207263
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Here's the before and after of the added test case, which was failing
+    before the fix. Now the two cases are correct and consistent.
+    
+            {"NonPtr":"<str>","Ptr":"\u003cstr\u003e"}
+            {"NonPtr":"<str>","Ptr":"<str>"}
+    
+    Fixes #32896.
+    
+    Change-Id: Idc53077ece074973558bd3bb5ad036380db0d02c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184757
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
 
- doc/articles/wiki/final-noclosure.go     |   2 +
- doc/articles/wiki/final-noerror.go       |   2 +
- doc/articles/wiki/final-parsetemplate.go |   2 +
- doc/articles/wiki/final-template.go      |   2 +
- doc/articles/wiki/final-test.patch       |  27 -----
- doc/articles/wiki/final.go               |   2 +
- doc/articles/wiki/final_test.go          |  24 +++++
- doc/articles/wiki/get.go                 |  63 ------------
- doc/articles/wiki/go.mod                 |   3 +
- doc/articles/wiki/http-sample.go         |   2 +
- doc/articles/wiki/notemplate.go          |   2 +
- doc/articles/wiki/part1-noerror.go       |   2 +
- doc/articles/wiki/part1.go               |   2 +
- doc/articles/wiki/part2.go               |   2 +
- doc/articles/wiki/part3-errorhandling.go |   2 +
- doc/articles/wiki/part3.go               |   2 +
- doc/articles/wiki/test.bash              |  58 -----------
- doc/articles/wiki/wiki_test.go           | 165 +++++++++++++++++++++++++++++++
- doc/codewalk/codewalk_test.go            |  52 ++++++++++
- doc/codewalk/run                         |  21 ----
- doc/progs/run.go                         |   8 +-
- src/cmd/dist/test.go                     |   8 +-
- 22 files changed, 279 insertions(+), 174 deletions(-)
+ src/encoding/json/encode.go      |  4 ++--
+ src/encoding/json/stream_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)

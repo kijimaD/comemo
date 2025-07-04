@@ -1,17 +1,16 @@
-commit 48dfa2b2dca43c6dc80d7e1d1c605e2918fad3af
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Nov 8 03:09:42 2020 +0100
+commit a38bc324ee3e1fb788685a946e3e6a4c63b64b41
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 29 14:00:05 2020 -0400
 
-    cmd/link: deal with ADDR32NB relocations the same way as ADDR32 on arm
+    [dev.link] cmd/link: minor cleanup
     
-    As far as I can tell, the addend is the same for both of these, and in
-    this context we don't really care about setting or unsetting the thumb
-    selection bit, so just treat these the same way.
+    Minor cleanup: remove a couple of unused routines, and rename
+    elfWriteDynEntSym2 to elfWriteDynEntSym.
     
-    Change-Id: I3756c027239f77778c32b317733df9ac92272580
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268238
+    Change-Id: I7c767fd4aa18d04a469be5cb1cfbe63ebe570c83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231897
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/link/internal/loadpe/ldpe.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/elf.go | 37 ++++---------------------------------
+ 1 file changed, 4 insertions(+), 33 deletions(-)

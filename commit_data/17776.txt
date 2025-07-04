@@ -1,16 +1,14 @@
-commit 50d4dae80b9afc34dc931caef180161dba9b1530
+commit 47bb44fd5bee504cd53e1e9e1d1c36e28a15e94f
 Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Thu Oct 10 16:30:47 2013 -0700
+Date:   Thu Oct 10 16:30:20 2013 -0400
 
-    codereview: fix hg sync closing of CLs for subrepositories
+    misc/emacs: don't treat (foo)(bar) as a function call when preceded by a word character.
     
-    The regexp for closing CLs that were sent by you but committed by
-    someone else only matched messages for the main repository,
-    because of the added &repo=... for subrepositories.
+    Fixes #6531.
     
-    R=golang-dev, r
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/14512045
+    https://golang.org/cl/14523043
 
- lib/codereview/codereview.py | 2 +-
+ misc/emacs/go-mode.el | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

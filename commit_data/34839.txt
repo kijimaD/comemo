@@ -1,105 +1,12 @@
-commit 542ea5ad91367d2b40589942cc5757a4d5f43f97
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 3 17:05:47 2018 -0700
+commit 83634e9cf2fb7bf1d45737589291da8bdbee132b
+Author: Davor Kapsa <davor.kapsa@gmail.com>
+Date:   Sat Nov 18 20:48:08 2017 +0100
 
-    go/printer, gofmt: tuned table alignment for better results
+    runtime/pprof: fix doc typo
     
-    The go/printer (and thus gofmt) uses a heuristic to determine
-    whether to break alignment between elements of an expression
-    list which is spread across multiple lines. The heuristic only
-    kicked in if the entry sizes (character length) was above a
-    certain threshold (20) and the ratio between the previous and
-    current entry size was above a certain value (4).
-    
-    This heuristic worked reasonably most of the time, but also
-    led to unfortunate breaks in many cases where a single entry
-    was suddenly much smaller (or larger) then the previous one.
-    
-    The behavior of gofmt was sufficiently mysterious in some of
-    these situations that many issues were filed against it.
-    
-    The simplest solution to address this problem is to remove
-    the heuristic altogether and have a programmer introduce
-    empty lines to force different alignments if it improves
-    readability. The problem with that approach is that the
-    places where it really matters, very long tables with many
-    (hundreds, or more) entries, may be machine-generated and
-    not "post-processed" by a human (e.g., unicode/utf8/tables.go).
-    
-    If a single one of those entries is overlong, the result
-    would be that the alignment would force all comments or
-    values in key:value pairs to be adjusted to that overlong
-    value, making the table hard to read (e.g., that entry may
-    not even be visible on screen and all other entries seem
-    spaced out too wide).
-    
-    Instead, we opted for a slightly improved heuristic that
-    behaves much better for "normal", human-written code.
-    
-    1) The threshold is increased from 20 to 40. This disables
-    the heuristic for many common cases yet even if the alignment
-    is not "ideal", 40 is not that many characters per line with
-    todays screens, making it very likely that the entire line
-    remains "visible" in an editor.
-    
-    2) Changed the heuristic to not simply look at the size ratio
-    between current and previous line, but instead considering the
-    geometric mean of the sizes of the previous (aligned) lines.
-    This emphasizes the "overall picture" of the previous lines,
-    rather than a single one (which might be an outlier).
-    
-    3) Changed the ratio from 4 to 2.5. Now that we ignore sizes
-    below 40, a ratio of 4 would mean that a new entry would have
-    to be 4 times bigger (160) or smaller (10) before alignment
-    would be broken. A ratio of 2.5 seems more sensible.
-    
-    Applied updated gofmt to all of src and misc. Also tested
-    against several former issues that complained about this
-    and verified that the output for the given examples is
-    satisfactory (added respective test cases).
-    
-    Some of the files changed because they were not gofmt-ed
-    in the first place.
-    
-    For #644.
-    For #7335.
-    For #10392.
-    (and probably more related issues)
-    
-    Fixes #22852.
-    
-    Change-Id: I5e48b3d3b157a5cf2d649833b7297b33f43a6f6e
+    Change-Id: I6e814182d89c3e7ff184141af097af0afb844d00
+    Reviewed-on: https://go-review.googlesource.com/78620
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/reader_test.go                     |    6 +-
- src/cmd/doc/doc_test.go                            |    2 +-
- src/cmd/go/testdata/src/dupload/p2/p2.go           |    1 +
- src/cmd/go/testdata/src/exclude/x_linux.go         |    1 -
- src/cmd/go/testdata/src/my.pkg/main/main.go        |    2 +
- src/cmd/go/testdata/src/vetcycle/p.go              |    7 +-
- src/cmd/internal/obj/arm64/a.out.go                |    2 +-
- src/cmd/internal/obj/arm64/asm7.go                 |   14 +-
- src/cmd/pprof/pprof.go                             |    4 +-
- .../google/pprof/internal/driver/fetch.go          |    4 +-
- src/cmd/vet/testdata/composite.go                  |    2 +-
- src/crypto/tls/handshake_server_test.go            |    8 +-
- src/crypto/x509/name_constraints_test.go           |    4 +-
- src/crypto/x509/x509.go                            |    2 +-
- src/crypto/x509/x509_test.go                       |    8 +-
- src/encoding/json/decode_test.go                   |   20 +-
- src/go/build/deps_test.go                          |   86 +-
- src/go/printer/nodes.go                            |   68 +-
- src/go/printer/printer_test.go                     |    1 +
- src/go/printer/testdata/alignment.golden           |  130 +
- src/go/printer/testdata/alignment.input            |  130 +
- src/go/printer/testdata/declarations.golden        |    8 +-
- src/go/types/object_test.go                        |    6 +-
- src/html/entity.go                                 | 4154 ++++++++++----------
- src/math/lgamma.go                                 |    2 +-
- src/math/rand/regress_test.go                      |  508 +--
- src/net/http/cgi/host_test.go                      |    2 +-
- src/net/http/main_test.go                          |   10 +-
- src/net/url/url_test.go                            |    4 +-
- src/runtime/map_test.go                            |   10 +-
- src/time/time_test.go                              |    2 +-
- src/time/zoneinfo_abbrs_windows.go                 |   74 +-
- 32 files changed, 2782 insertions(+), 2500 deletions(-)
+ src/runtime/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

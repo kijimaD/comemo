@@ -1,12 +1,19 @@
-commit 0fa6e7fe8281e49b73de63f1df66b98c1798285f
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Dec 14 04:05:37 2014 -0500
+commit 4f81684f8640e81b1c337a6b88488a888d13abea
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 5 15:36:47 2014 -0500
 
-    api: update next.txt
+    [dev.power64] 6g: don't create variables for indirect addresses
     
-    Change-Id: I9eac8b23eb9e6b6940069811177365b4772c2fb1
-    Reviewed-on: https://go-review.googlesource.com/1513
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Previously, mkvar treated, for example, 0(AX) the same as AX.
+    As a result, a move to an indirect address would be marked as
+    *setting* the register, rather than just using it, resulting
+    in unnecessary register moves.  Fix this by not producing
+    variables for indirect addresses.
+    
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/164610043
 
- api/next.txt | 392 ++++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 251 insertions(+), 141 deletions(-)
+ src/cmd/6g/reg.c | 3 +++
+ 1 file changed, 3 insertions(+)

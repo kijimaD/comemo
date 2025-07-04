@@ -1,20 +1,14 @@
-commit b268b607743ebf570396750208e0032870653edd
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Jan 22 19:32:43 2021 +1100
+commit 4ec4a792f6e60c9c4f40a928650c66419ee0e446
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed May 20 14:39:13 2020 +1200
 
-    runtime: remove pthread_kill/pthread_self for openbsd
+    cmd/go: accept smart quotes when checking for missing gold in TestNoteReading
     
-    We're now using getthrid() and thrkill() instead.
+    Fixes #39157
     
-    Updates #36435
-    
-    Change-Id: I1c6bcfb9b46d149e0a2a10e936a244576489a88e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285692
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia983f5e66698519cd19c1565cfb80e86d08fdfc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234380
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_openbsd.go      | 18 ------------------
- src/runtime/sys_openbsd_amd64.s | 18 ------------------
- src/runtime/sys_openbsd_arm64.s | 12 ------------
- 3 files changed, 48 deletions(-)
+ src/cmd/go/note_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

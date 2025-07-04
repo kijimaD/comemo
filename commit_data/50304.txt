@@ -1,23 +1,20 @@
-commit 7a86ef2ad88af19642d7feaebacffd0260114d2a
-Author: Sasha Melentyev <sasha@melentyev.io>
-Date:   Fri Sep 2 07:54:43 2022 +0000
+commit 22951fbc89a1bc3c5cc38f4e71b4a682f5149361
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 15 08:06:58 2021 -0700
 
-    all: use strings.Builder instead of bytes.Buffer
+    cmd/compile: make for loops with range statements not terminating
     
-    Change-Id: I6d7213d29ade591b8366d5640833bd5a20474165
-    GitHub-Last-Rev: 94195832873fe6764d45ffdd6efa1ca49e57a743
-    GitHub-Pull-Request: golang/go#54834
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427814
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: hopehook <hopehook@golangcn.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Fixes #49003
+    
+    Change-Id: If09c6f028dce5440b1be238612653ffdd626113a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356189
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/internal/str/str.go          |  8 ++++----
- src/go/internal/gccgoimporter/parser.go |  9 ++++-----
- src/net/mail/message.go                 | 14 +++++++-------
- 3 files changed, 15 insertions(+), 16 deletions(-)
+ doc/go_spec.html                          |  5 +++--
+ src/cmd/compile/internal/types2/return.go |  5 +++++
+ test/fixedbugs/issue49003.go              | 12 ++++++++++++
+ 3 files changed, 20 insertions(+), 2 deletions(-)

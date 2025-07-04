@@ -1,14 +1,15 @@
-commit 5176481f16d2e7f32df41924582a0a36073f7063
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Oct 31 16:37:26 2012 -0400
+commit c15afa887a038a3f4c70f1e38aac31084ee9f846
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 31 10:52:59 2012 -0700
 
-    crypto/cipher: add examples
+    src/lib9/utf: update to Unicode 6.2.0
+    Fixes #2874.
     
-    Fixes #1390.
-    
-    R=golang-dev, minux.ma, adg, agl
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6631044
+    https://golang.org/cl/6820068
 
- src/pkg/crypto/cipher/example_test.go | 283 ++++++++++++++++++++++++++++++++++
- 1 file changed, 283 insertions(+)
+ src/lib9/utf/Makefile                              |   4 +-
+ src/lib9/utf/runetype.c                            |   2 +-
+ .../{runetypebody-6.0.0.h => runetypebody-6.2.0.h} | 122 +++++++++++++++++----
+ 3 files changed, 101 insertions(+), 27 deletions(-)

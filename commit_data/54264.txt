@@ -1,19 +1,23 @@
-commit 22eba6a1f8421425c87fa82dcd526d39912f5af6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 29 12:50:40 2023 -0700
+commit 4444f850b73324bc830d14d199371cc60d5608c7
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Sep 30 03:22:55 2022 +0000
 
-    cmd/compile/internal/ir: remove old variable capture logic
+    all: omit comparison bool constant to simplify code
     
-    This logic is no longer used, since the removal of the non-unified
-    frontends.
-    
-    Change-Id: I7256d4eb06f0b4e5308bc7c7476e90af9e70b7d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524215
+    Change-Id: Icd4062e570559f1d0c69d4bdb9e23412054cf2a6
+    GitHub-Last-Rev: fbbfbcb54dac88c9a8f5c5c6d210be46f87e27dd
+    GitHub-Pull-Request: golang/go#55958
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436880
+    Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/ir/name.go        | 150 +----------------------------
- src/cmd/compile/internal/ir/sizeof_test.go |   2 +-
- 2 files changed, 5 insertions(+), 147 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go              | 2 +-
+ src/runtime/mem_plan9.go                        | 2 +-
+ src/runtime/pprof/proto.go                      | 2 +-
+ src/runtime/pprof/protobuf.go                   | 2 +-
+ src/runtime/testdata/testprog/numcpu_freebsd.go | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

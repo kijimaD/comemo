@@ -1,21 +1,20 @@
-commit 166160b44664e75ffc6e51cd795956fd586196e4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 26 07:46:30 2017 -0700
+commit bc61026c3f60d0d449e1cb292ef202daa1c2d019
+Author: Max Riveiro <kavu13@gmail.com>
+Date:   Sun Dec 11 13:54:22 2016 +0300
 
-    cmd/internal/obj/x86: make ctxt.Cursym local
+    time: parse WITA timezone correctly
     
-    Thread it through as an argument instead of using a global.
+    WITA stands for Asia/Makassar IANA timezone
+    https://en.wikipedia.org/wiki/Asia/Makassar
     
-    Passes toolstash-check -all.
+    Fixes #18251
     
-    Updates #15756
-    
-    Change-Id: Ia8c6ce09b43dbb2e6c7d889ded8dbaeb5366048d
-    Reviewed-on: https://go-review.googlesource.com/38667
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5896efb8052593afb4e51ae4a34b574a8206d4dc
+    Reviewed-on: https://go-review.googlesource.com/34253
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 195 ++++++++++++++++++---------------------
- src/cmd/internal/obj/x86/obj6.go |  28 +++---
- 2 files changed, 101 insertions(+), 122 deletions(-)
+ src/time/format.go      | 5 +++--
+ src/time/format_test.go | 1 +
+ 2 files changed, 4 insertions(+), 2 deletions(-)

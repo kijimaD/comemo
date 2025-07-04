@@ -1,18 +1,20 @@
-commit ec359643a1f663c5283a81410f003f8dab60d46e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Aug 31 13:26:40 2017 +0200
+commit 39c07ce9e5311c94880789f19f2f8b49bf1b5241
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 4 16:13:24 2017 -0400
 
-    archive/tar: populate Devmajor and Devminor in FileInfoHeader on Darwin
+    cmd/link: set ELF CPIC bit in mips64 objects
     
-    Extract device major/minor number on Darwin and set Devmajor and
-    Devminor in FileInfoHeader. Code based on the Major/Minor functions for
-    Darwin in golang.org/x/sys/unix.
+    We already set it for mips32 objects. The native ELF linker warns when
+    linking PIC objects with non-PIC objects. Our objects are PIC, but we
+    were not marking them as such.
     
-    Change-Id: I51b65f607bfa2e6b177b8b66e2b246b771367b84
-    Reviewed-on: https://go-review.googlesource.com/60850
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Fixes #20243.
+    
+    Change-Id: Ifab131200b263e4c72cf81f7b131a65ac02a13a9
+    Reviewed-on: https://go-review.googlesource.com/42710
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/stat_unix.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/link/internal/ld/elf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

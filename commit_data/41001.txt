@@ -1,16 +1,33 @@
-commit 0377f061687771eddfe8de78d6c40e17d6b21a39
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 17 14:41:45 2019 -0500
+commit 3cfd003a8a89c6662b4b63d837a8cfae95e6762a
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Aug 2 02:20:38 2019 +0000
 
-    doc/go1.14: document changes to -mod=readonly and go.mod file maintenance
+    cmd/compile: optimize ARM's math.bits.RotateLeft32
     
-    Fixes #36169
+    This CL optimizes math.bits.RotateLeft32 to inline
+    "MOVW Rx@>Ry, Rd" on ARM.
     
-    Change-Id: Ib9a53fdb0112635b53be38d6818834dd1775e70c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211698
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    The benchmark results of math/bits show some improvements.
+    name               old time/op  new time/op  delta
+    RotateLeft-4       9.42ns ± 0%  6.91ns ± 0%  -26.66%  (p=0.000 n=40+33)
+    RotateLeft8-4      8.79ns ± 0%  8.79ns ± 0%   -0.04%  (p=0.000 n=40+31)
+    RotateLeft16-4     8.79ns ± 0%  8.79ns ± 0%   -0.04%  (p=0.000 n=40+32)
+    RotateLeft32-4     8.16ns ± 0%  7.54ns ± 0%   -7.68%  (p=0.000 n=40+40)
+    RotateLeft64-4     15.7ns ± 0%  15.7ns ± 0%     ~     (all equal)
+    
+    updates #31265
+    
+    Change-Id: I77bc1c2c702d5323fc7cad5264a8e2d5666bf712
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188697
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.14.html | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/cmd/compile/internal/arm/ssa.go        |  2 ++
+ src/cmd/compile/internal/gc/ssa.go         |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go      | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go | 16 +++++++++++++++-
+ test/codegen/mathbits.go                   |  2 ++
+ 7 files changed, 36 insertions(+), 2 deletions(-)

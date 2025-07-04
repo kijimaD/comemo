@@ -1,26 +1,26 @@
-commit 5594074dcd09d0bb8c35998e20cddf728893ff00
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 09:22:43 2016 -0400
+commit e2e2d10b9afe0cf4845aede06c6dd083a1d281c9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 26 16:57:00 2016 +1000
 
-    runtime: use clock_gettime(CLOCK_REALTIME) for nanosecond-precision time.now on arm64, mips64x
+    time: always use $GOROOT/lib/time/zoneinfo.zip with genzabbrs.go
     
-    Assembly copied from the clock_gettime(CLOCK_MONOTONIC)
-    call in runtime.nanotime in these files and then modified to use
-    CLOCK_REALTIME.
+    genzabbrs.go uses whatever zoneinfo database available on the system.
+    This makes genzabbrs.go output change from system to system. Adjust
+    go:generate line to always use $GOROOT/lib/time/zoneinfo.zip, so it
+    does not matter who runs the command.
     
-    Also comment system call numbers in a few other files.
+    Also move go:generate line into zoneinfo.go, so it can be run
+    on Unix (see #16368 for details).
     
-    Fixes #11222.
+    Fixes #15802.
     
-    Change-Id: Ie132086de7386f865908183aac2713f90fc73e0d
-    Reviewed-on: https://go-review.googlesource.com/32177
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I8ae4818aaf40795364e180d7bb4326ad7c07c370
+    Reviewed-on: https://go-review.googlesource.com/27832
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/sys_darwin_386.s      |  2 +-
- src/runtime/sys_darwin_amd64.s    |  2 +-
- src/runtime/sys_dragonfly_amd64.s |  2 +-
- src/runtime/sys_freebsd_386.s     |  2 +-
- src/runtime/sys_freebsd_amd64.s   |  2 +-
- src/runtime/sys_linux_arm64.s     | 10 ++++------
- src/runtime/sys_linux_mips64x.s   | 11 ++++-------
- 7 files changed, 13 insertions(+), 18 deletions(-)
+ src/time/zoneinfo.go               |   2 +
+ src/time/zoneinfo_abbrs_windows.go | 183 ++++++++++++++++++++-----------------
+ src/time/zoneinfo_windows.go       |   2 -
+ 3 files changed, 103 insertions(+), 84 deletions(-)

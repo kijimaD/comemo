@@ -1,36 +1,25 @@
-commit d0dd26a88c019d54f22463daae81e785f5867565
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 20 12:46:33 2021 -0400
+commit f57f484053f276c6fb57047cf02fa043974d7b95
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 11 14:30:16 2021 -0800
 
-    html/template, text/template: implement break and continue for range loops
+    [dev.regabi] cmd/compile: decouple escape analysis from Name.Vargen
     
-    Break and continue for range loops was accepted as a proposal in June 2017.
-    It was implemented in CL 66410 (Oct 2017)
-    but then rolled back in CL 92155 (Feb 2018)
-    because html/template changes had not been implemented.
+    Escape analysis needs to know the index of result parameters for
+    recording escape-flow information. It currently relies on Vargen for
+    this, but it can easily figure this out for itself. So just do that
+    instead, so that we can remove Vargen.
     
-    This CL reimplements break and continue in text/template
-    and then adds support for them in html/template as well.
+    Passes toolstash -cmp.
     
-    Fixes #20531.
+    For #43633.
     
-    Change-Id: I05330482a976f1c078b4b49c2287bd9031bb7616
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321491
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I65dedc2d73bc25e85ff400f308e50b73dc503630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283192
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/html/template/context.go          |  4 ++
- src/html/template/escape.go           | 71 ++++++++++++++++++++++++++++++++++-
- src/html/template/escape_test.go      | 24 ++++++++++++
- src/html/template/exec_test.go        |  2 +
- src/text/template/doc.go              |  8 ++++
- src/text/template/exec.go             | 24 +++++++++++-
- src/text/template/exec_test.go        |  2 +
- src/text/template/parse/lex.go        | 13 ++++++-
- src/text/template/parse/lex_test.go   |  2 +
- src/text/template/parse/node.go       | 36 ++++++++++++++++++
- src/text/template/parse/parse.go      | 42 ++++++++++++++++++++-
- src/text/template/parse/parse_test.go |  8 ++++
- 12 files changed, 232 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/escape/escape.go | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)

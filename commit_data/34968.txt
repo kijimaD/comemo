@@ -1,25 +1,47 @@
-commit 5a91c83ce82509551d353b1b5ea25cd72b44fec3
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 6 16:21:26 2018 -0400
+commit f22cf7131a322f958d07c087e8d6a95723262180
+Author: David Chase <drchase@google.com>
+Date:   Thu Nov 30 15:11:34 2017 -0500
 
-    cmd/compile: in escape analysis, propagate loop depth to field
+    cmd/compile: use src.NoXPos for entry-block constants
     
-    The escape analysis models "loop depth". If the address of an
-    expression is assigned to something defined at a lower (outer)
-    loop depth, the escape analysis decides it escapes. However, it
-    uses the loop depth of the address operator instead of where
-    the RHS is defined. This causes an unnecessary escape if there is
-    an assignment inside a loop but the RHS is defined outside the
-    loop. This CL propagates the loop depth.
+    The ssa backend is aggressive about placing constants and
+    certain other values in the Entry block.  It's implausible
+    that the original line numbers for these constants makes
+    any sort of sense when it appears to a user stepping in a
+    debugger, and they're also not that useful in dumps since
+    entry-block instructions tend to be constants (i.e.,
+    unlikely to be the cause of a crash).
     
-    Fixes #24730.
+    Therefore, use src.NoXPos for any values that are explicitly
+    inserted into a function's entry block.
     
-    Change-Id: I5ff1530688bdfd90561a7b39c8be9bfc009a9dae
-    Reviewed-on: https://go-review.googlesource.com/105257
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Passes all tests, including ssa/debug_test.go with both
+    gdb and a fairly recent dlv.  Hand-verified that it solves
+    the reported problem; constructed a test that reproduced
+    a problem, and fixed it.
+    
+    Modified test harness to allow injection of slightly more
+    interesting inputs.
+    
+    Fixes #22558.
+    
+    Change-Id: I4476927067846bc4366da7793d2375c111694c55
+    Reviewed-on: https://go-review.googlesource.com/81215
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 22 +++++++++++++++-------
- test/escape5.go                    | 19 +++++++++++++++++++
- 2 files changed, 34 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 | 10 ++---
+ src/cmd/compile/internal/ssa/debug_test.go         | 11 ++++--
+ src/cmd/compile/internal/ssa/func.go               |  5 ++-
+ .../internal/ssa/testdata/hist.dbg-dlv.nexts       |  7 ++--
+ .../internal/ssa/testdata/hist.dbg-gdb.nexts       |  8 ++--
+ src/cmd/compile/internal/ssa/testdata/hist.go      |  9 +++--
+ .../internal/ssa/testdata/hist.opt-dlv.nexts       |  7 ++--
+ .../internal/ssa/testdata/hist.opt-gdb.nexts       |  8 ++--
+ .../ssa/testdata/i22558.dbg-22558-dlv.nexts        | 11 ++++++
+ .../ssa/testdata/i22558.dbg-22558-gdb.nexts        | 11 ++++++
+ src/cmd/compile/internal/ssa/testdata/i22558.go    | 43 ++++++++++++++++++++++
+ .../ssa/testdata/i22600.dbg-race-gdb.nexts         |  3 +-
+ src/cmd/compile/internal/ssa/testdata/i22600.go    |  6 ++-
+ 13 files changed, 109 insertions(+), 30 deletions(-)

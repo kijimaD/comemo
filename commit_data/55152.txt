@@ -1,27 +1,26 @@
-commit 6317fb41e920cc593620d4b9a55376472fc02c07
-Author: Lasse Folger <lassefolger@google.com>
-Date:   Fri Nov 24 15:30:07 2023 +0000
+commit 8ed5a161ce85ee6d1e5fdef097a57593cfe15185
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 9 14:19:27 2023 -0800
 
-    Revert "testing: simplify concurrency and cleanup logic"
+    go/types: generate more files from types2 sources
     
-    reverts CL 506755
-    
-    Reason for revert: This leads to deadlocks of tests in Google internal testing
-    
-    For #64402
-    
-    Change-Id: I78329fc9dcc2377e7e880b264ac1d18d577ef99a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544895
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Lasse Folger <lassefolger@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I5e00b4367d7288867b03702d0c76b8210c125668
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461083
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/cgo/internal/test/callback_windows.go |   4 +-
- src/testing/benchmark.go                      |  94 +++---
- src/testing/fuzz.go                           | 199 ++++++-------
- src/testing/panic_test.go                     |  85 +++---
- src/testing/sub_test.go                       | 131 ++++++--
- src/testing/testing.go                        | 412 +++++++++++++-------------
- 6 files changed, 494 insertions(+), 431 deletions(-)
+ src/go/types/array.go            |  6 ++-
+ src/go/types/basic.go            |  6 ++-
+ src/go/types/context_test.go     |  2 +
+ src/go/types/generator.go        | 86 ++++++++++++++++++++++++++++++----------
+ src/go/types/instantiate_test.go |  7 +---
+ src/go/types/object.go           | 51 ++++++++++++++++++++++--
+ src/go/types/package.go          |  4 +-
+ src/go/types/predicates.go       | 16 ++++----
+ src/go/types/sizeof_test.go      |  2 +-
+ src/go/types/typeterm_test.go    |  2 +
+ src/go/types/universe.go         |  2 +
+ 11 files changed, 142 insertions(+), 42 deletions(-)

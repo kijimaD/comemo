@@ -1,42 +1,21 @@
-commit 9a932c5712bebb2620e0719a93773403f4fb563d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 15 16:31:02 2022 -0400
+commit 382c5dd5f754392444fbe2c3489d09b2f36f3939
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 14 15:04:51 2021 -0400
 
-    internal/buildcfg: initialize GOROOT to runtime.GOROOT
+    [dev.typeparams] internal/buildcfg: turn on register ABI on all AMD64 platforms
     
-    In the beginning the Go compiler was in C, and C had a function
-    'getgoroot' that returned GOROOT from either the environment or a
-    generated constant. 'getgoroot' was mechanically converted to Go
-    (as obj.Getgoroot) in CL 3046.
+    Register ABI is already enabled by default on AMD64 on Linux
+    (including Android), macOS, and Windows. This CL enables it on the
+    rest, specifically, on FreeBSD, OpenBSD, NetBSD, DragonflyBSD,
+    Solaris (including Illumos), iOS (simulator), and Plan 9.
     
-    obj.Getgoroot begat obj.GOROOT. obj.GOROOT begat objabi.GOROOT,
-    which begat buildcfg.GOROOT.
-    
-    As far as I can tell, today's buildcfg.GOROOT is functionally
-    identical to runtime.GOROOT(). Let's reduce some complexity by
-    defining it in those terms.
-    
-    While we're thinking about buildcfg.GOROOT, also check whether it is
-    non-empty: if the toolchain is built with -trimpath, the value of
-    GOROOT might not be valid or meaningful if the user invokes
-    cmd/compile or cmd/link directly, or via a build tool other than
-    cmd/go that doesn't care as much about GOROOT. (As of CL 390024,
-    runtime.GOROOT will return the empty string instead of a bogus one
-    when built with -trimpath.)
-    
-    For #51461.
-    
-    Change-Id: I9fec020d5fa65d4aff0dd39b805f5ca93f86c36e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393155
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I80fa20c8bbc8d67b16a19f71b65422e890210ab5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321332
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/logopt/log_opts.go | 2 +-
- src/cmd/compile/internal/noder/reader.go    | 2 +-
- src/cmd/internal/objabi/line.go             | 2 +-
- src/cmd/link/internal/ld/lib.go             | 4 +++-
- src/cmd/link/internal/ld/main.go            | 1 -
- src/internal/buildcfg/cfg.go                | 5 ++---
- 6 files changed, 8 insertions(+), 8 deletions(-)
+ src/internal/buildcfg/exp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

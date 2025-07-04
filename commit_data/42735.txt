@@ -1,30 +1,25 @@
-commit 06337823ef4d9c57b1b01f9b97a348a47277a9df
-Author: Junchen Li <junchen.li@arm.com>
-Date:   Fri Jul 10 11:39:23 2020 +0800
+commit 112a7cb82ca26f9705480087afcf00349d19928e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 12 17:23:47 2020 -0500
 
-    cmd/compile: optimize unsigned comparisons to 0/1 on arm64
+    [dev.link] cmd/link: remove the second result of MakeSymbolUpdater
     
-    For an unsigned integer, it's useful to convert its order test with 0/1
-    to its equality test with 0. We can save a comparison instruction that
-    followed by a conditional branch on arm64 since it supports
-    compare-with-zero-and-branch instructions. For example,
+    With unique global indices, MakeSymbolUpdater will not change the
+    symbol's index. So no need to return a new index.
     
-      if x > 0 { ... } else { ... }
-    
-    the original version:
-      CMP $0, R0
-      BLS 9
-    
-    the optimized version:
-      CBZ R0, 8
-    
-    Updates #21439
-    
-    Change-Id: Id1de6f865f6aa72c5d45b29f7894818857288425
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246857
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I5b4fd6a0167cc74476880bbf4382c524ecde7721
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219227
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  10 ++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 204 +++++++++++++++++++++++++++
- test/codegen/comparisons.go                  |  32 +++++
- 3 files changed, 246 insertions(+)
+ src/cmd/link/internal/ld/go.go                |  7 +++--
+ src/cmd/link/internal/ld/lib.go               | 40 +++++++++++++--------------
+ src/cmd/link/internal/loadelf/ldelf.go        | 19 ++++++-------
+ src/cmd/link/internal/loader/loader_test.go   | 38 ++++++++++++-------------
+ src/cmd/link/internal/loader/symbolbuilder.go |  7 ++---
+ src/cmd/link/internal/loadmacho/ldmacho.go    | 19 ++++++-------
+ src/cmd/link/internal/loadpe/ldpe.go          |  8 ++++--
+ src/cmd/link/internal/loadxcoff/ldxcoff.go    |  4 +--
+ 8 files changed, 70 insertions(+), 72 deletions(-)

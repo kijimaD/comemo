@@ -1,25 +1,13 @@
-commit a8d4463e50fb67448981a5c36a8fd6cb0da5c86f
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Tue Mar 1 21:18:56 2016 +0100
+commit b8b65c10e0b6d8e29ab525a6e803faaf19972e36
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Dec 8 20:17:02 2015 -0700
 
-    cmd/vet: polish output of shadow test
+    net/http: make testCaseSensitiveMethod also test http2
     
-    This commit modifies the style of a error message in case of -shadow.
-    
-    Previously such a message would look like:
-    foo.go:42: declaration of err shadows declaration at shadow.go:13:
-    
-    Changes of the commit include highlighting the variable name and
-    removing the ": "(space intended) at the end of the line:
-    foo.go:42: declaration of "err" shadows declaration at shadow.go:13
-    
-    Fixes #14585.
-    
-    Change-Id: Ia6a6bf396668dcba9a24f025a08d8826db31f434
-    Reviewed-on: https://go-review.googlesource.com/20093
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I6427b0914fc4ccd9b841eae3aefe3b7a355fc436
+    Reviewed-on: https://go-review.googlesource.com/17596
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/main.go            | 6 +++---
- src/cmd/vet/shadow.go          | 4 ++--
- src/cmd/vet/testdata/shadow.go | 8 ++++----
- 3 files changed, 9 insertions(+), 9 deletions(-)
+ src/net/http/serve_test.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

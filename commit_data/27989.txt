@@ -1,17 +1,44 @@
-commit b7ac426ee31cfe4464345754745e38bc0af02a66
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jun 3 12:05:32 2016 -0700
+commit a3703618eadeb74b60f2cb9a23fabe178d4b141d
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Apr 5 15:29:14 2016 +0200
 
-    cmd/compile: split genCaseClauses by switch type
+    runtime: use per-goroutine sequence numbers in tracer
     
-    The implementations are going to start diverging more.
-    Instead of more if clauses and empty parameters,
-    specialize.
+    Currently tracer uses global sequencer and it introduces
+    significant slowdown on parallel machines (up to 10x).
+    Replace the global sequencer with per-goroutine sequencer.
     
-    Change-Id: I44584450592e8c9f72a10d8ada859c07e9d9aa19
-    Reviewed-on: https://go-review.googlesource.com/26764
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    If we assign per-goroutine sequence numbers to only 3 types
+    of events (start, unblock and syscall exit), it is enough to
+    restore consistent partial ordering of all events. Even these
+    events don't need sequence numbers all the time (if goroutine
+    starts on the same P where it was unblocked, then start does
+    not need sequence number).
+    The burden of restoring the order is put on trace parser.
+    Details of the algorithm are described in the comments.
+    
+    On http benchmark with GOMAXPROCS=48:
+    no tracing: 5026 ns/op
+    tracing: 27803 ns/op (+453%)
+    with this change: 6369 ns/op (+26%, mostly for traceback)
+    
+    Also trace size is reduced by ~22%. Average event size before: 4.63
+    bytes/event, after: 3.62 bytes/event.
+    
+    Besides running trace tests, I've also tested with manually broken
+    cputicks (random skew for each event, per-P skew and episodic random skew).
+    In all cases broken timestamps were detected and no test failures.
+    
+    Change-Id: I078bde421ccc386a66f6c2051ab207bcd5613efa
+    Reviewed-on: https://go-review.googlesource.com/21512
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/swt.go | 81 +++++++++++++++++++++++---------------
- 1 file changed, 49 insertions(+), 32 deletions(-)
+ src/internal/trace/order.go       | 278 ++++++++++++++++++++++++++++++++++++++
+ src/internal/trace/parser.go      | 208 +++++++++++++++-------------
+ src/internal/trace/parser_test.go |   8 +-
+ src/runtime/proc.go               |  25 +---
+ src/runtime/runtime2.go           |  21 +--
+ src/runtime/trace.go              | 121 +++++++++--------
+ 6 files changed, 478 insertions(+), 183 deletions(-)

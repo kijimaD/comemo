@@ -1,19 +1,20 @@
-commit dd44d981dbad7191278fb629ed83bf2fd94cf1e5
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Mon Jan 30 17:24:14 2023 +0000
+commit efbff6e43bee73787bbf45a1f038e2f3bf0c8bd9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 14 13:26:42 2022 -0700
 
-    cmd/go/internal/par: generic Work
+    go/types, types2: re-enable panic if unification stack-overflows
     
-    This makes the mvs code slightly clearer.
+    With all the unification/type-inference fixes in place now, we
+    should not see stack overflows anymore. Re-enable the panic if
+    we do overflow, so we can address those issues should they arise.
     
-    Change-Id: Idefc36bd1066f0348a70e7c91c37a0d56f3c02d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463844
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: roger peppe <rogpeppe@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #51377.
+    
+    Change-Id: Ied64435ea5936811504cb30bda1126c7d85980f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392755
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/mvs/mvs.go       |  5 ++---
- src/cmd/go/internal/par/work.go      | 24 ++++++++++++------------
- src/cmd/go/internal/par/work_test.go |  9 ++++-----
- 3 files changed, 18 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/types2/unify.go | 7 ++++---
+ src/go/types/unify.go                    | 7 ++++---
+ 2 files changed, 8 insertions(+), 6 deletions(-)

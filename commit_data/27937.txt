@@ -1,19 +1,16 @@
-commit 7995cb86e54345cb2e3911bce4da00fbb68c2dce
-Author: Ian Gudger <igudger@google.com>
-Date:   Fri Jul 22 16:38:27 2016 -0700
+commit 11f1041022e001869de076699f297b28d25fc558
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 21 10:42:25 2016 +1000
 
-    syscall: validate ParseUnixCredentials inputs
+    debug/pe: update cstring documentation
     
-    Don't panic, crash, or return references to uninitialized memory when
-    ParseUnixCredentials is passed invalid input.
+    Updates #15345
     
-    Fixes #16475
-    
-    Change-Id: I140d41612e8cd8caaa94be829a415159659c217b
-    Reviewed-on: https://go-review.googlesource.com/25154
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If1fca1f6042571cb0ac689bbb3c294309dd6e7b4
+    Reviewed-on: https://go-review.googlesource.com/22331
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/sockcmsg_linux.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/debug/pe/string.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

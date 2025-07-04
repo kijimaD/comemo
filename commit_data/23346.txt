@@ -1,22 +1,24 @@
-commit 6a34206ca9aed71eeffba0e07e63a60b48c436bc
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Jun 14 08:15:41 2015 -0700
+commit 96265610307eab2b160a271169632b52ad7cc455
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 7 15:29:48 2015 -0400
 
-    crypto/tls: fix parsing of SNI extension.
+    runtime: fix gccheckmark mode and enable by default
     
-    The previous code had a brain fart: it took one of the length prefixes
-    as an element count, not a length. This didn't actually affect anything
-    because the loop stops as soon as it finds a hostname element, and the
-    hostname element is always the first and only element. (No other element
-    types have ever been defined.)
+    It was testing the mark bits on what roots pointed at,
+    but not the remainder of the live heap, because in
+    CL 2991 I accidentally inverted this check during
+    refactoring.
     
-    This change fixes the parsing in case SNI is ever changed in the future.
+    The next CL will turn it back off by default again,
+    but I want one run on the builders with the full
+    checkmark checks.
     
-    Fixes #10793.
-    
-    Change-Id: Iafdf3381942bc22b1f33595315c53dc6cc2e9f0f
-    Reviewed-on: https://go-review.googlesource.com/11059
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic166458cea25c0a56e5387fc527cb166ff2e5ada
+    Reviewed-on: https://go-review.googlesource.com/9824
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/tls/handshake_messages.go | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ src/runtime/mgcmark.go  | 2 +-
+ src/runtime/runtime1.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

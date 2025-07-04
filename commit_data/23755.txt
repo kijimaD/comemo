@@ -1,17 +1,29 @@
-commit 510f1dbad7cea17ca1154df862b7750eb9eeebb9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 20 09:15:46 2015 -0700
+commit 6f1884757f26f4906d71e2465a2238c80245c323
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 10 10:39:57 2015 -0700
 
-    cmd/go: build errors rather than fmt in a couple of tests
+    [dev.ssa] cmd/compile/internal/ssa: Complete 64-bit shifts
     
-    The errors package is smaller and builds faster.
+    Implement correct Go shifts.
     
-    Update #11779.
+    Allow multi-line rewrite rules.
     
-    Change-Id: Iaf2d43734ec4b0aa325590eb5d38522306b608cb
-    Reviewed-on: https://go-review.googlesource.com/12366
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fix offset & alignment in stack alloc.
+    
+    Change-Id: I0ae9e522c83df9205bbe4ab94bc0e43d16dace58
+    Reviewed-on: https://go-review.googlesource.com/10891
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/go_test.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/amd64/prog.go       |   2 +
+ src/cmd/compile/internal/gc/ssa.go           | 140 ++++++++++++
+ src/cmd/compile/internal/gc/type.go          |   5 +
+ src/cmd/compile/internal/ssa/TODO            |  16 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  38 +++-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  22 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |  38 +++-
+ src/cmd/compile/internal/ssa/opGen.go        | 109 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 305 ++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/shift_test.go   |  42 ++++
+ src/cmd/compile/internal/ssa/stackalloc.go   |  17 +-
+ src/cmd/compile/internal/ssa/type.go         |  47 +++--
+ 12 files changed, 720 insertions(+), 61 deletions(-)

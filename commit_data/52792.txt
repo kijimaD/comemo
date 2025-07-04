@@ -1,142 +1,18 @@
-commit 7b874619beec9ec88928f72efa8dc5bc44fec2d7
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Apr 17 14:51:28 2023 -0400
+commit 46ab7a5c4f80d912f25b6b3e1044282a2a79df8b
+Author: Lukas Joisten <luckuck.f95@gmail.com>
+Date:   Tue Mar 8 12:21:00 2022 +0100
 
-    runtime/cgo: store M for C-created thread in pthread key
+    encoding/json: mention SyntaxError in Unmarshal doc comment
     
-    This reapplies CL 481061, with the followup fixes in CL 482975, CL 485315, and
-    CL 485316 incorporated.
-    
-    CL 481061, by doujiang24 <doujiang24@gmail.com>, speed up C to Go
-    calls by binding the M to the C thread. See below for its
-    description.
-    CL 482975 is a followup fix to a C declaration in testprogcgo.
-    CL 485315 is a followup fix for x_cgo_getstackbound on Illumos.
-    CL 485316 is a followup cleanup for ppc64 assembly.
-    
-    [Original CL 481061 description]
-    
-    This reapplies CL 392854, with the followup fixes in CL 479255,
-    CL 479915, and CL 481057 incorporated.
-    
-    CL 392854, by doujiang24 <doujiang24@gmail.com>, speed up C to Go
-    calls by binding the M to the C thread. See below for its
-    description.
-    CL 479255 is a followup fix for a small bug in ARM assembly code.
-    CL 479915 is another followup fix to address C to Go calls after
-    the C code uses some stack, but that CL is also buggy.
-    CL 481057, by Michael Knyszek, is a followup fix for a memory leak
-    bug of CL 479915.
-    
-    [Original CL 392854 description]
-    
-    In a C thread, it's necessary to acquire an extra M by using needm while invoking a Go function from C. But, needm and dropm are heavy costs due to the signal-related syscalls.
-    So, we change to not dropm while returning back to C, which means binding the extra M to the C thread until it exits, to avoid needm and dropm on each C to Go call.
-    Instead, we only dropm while the C thread exits, so the extra M won't leak.
-    
-    When invoking a Go function from C:
-    Allocate a pthread variable using pthread_key_create, only once per shared object, and register a thread-exit-time destructor.
-    And store the g0 of the current m into the thread-specified value of the pthread key,  only once per C thread, so that the destructor will put the extra M back onto the extra M list while the C thread exits.
-    
-    When returning back to C:
-    Skip dropm in cgocallback, when the pthread variable has been created, so that the extra M will be reused the next time invoke a Go function from C.
-    
-    This is purely a performance optimization. The old version, in which needm & dropm happen on each cgo call, is still correct too, and we have to keep the old version on systems with cgo but without pthreads, like Windows.
-    
-    This optimization is significant, and the specific value depends on the OS system and CPU, but in general, it can be considered as 10x faster, for a simple Go function call from a C thread.
-    
-    For the newly added BenchmarkCGoInCThread, some benchmark results:
-    1. it's 28x faster, from 3395 ns/op to 121 ns/op, in darwin OS & Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-    2. it's 6.5x faster, from 1495 ns/op to 230 ns/op, in Linux OS & Intel(R) Xeon(R) CPU E5-2630 0 @ 2.30GHz
-    
-    [CL 479915 description]
-    
-    Currently, when C calls into Go the first time, we grab an M
-    using needm, which sets m.g0's stack bounds using the SP. We don't
-    know how big the stack is, so we simply assume 32K. Previously,
-    when the Go function returns to C, we drop the M, and the next
-    time C calls into Go, we put a new stack bound on the g0 based on
-    the current SP. After CL 392854, we don't drop the M, and the next
-    time C calls into Go, we reuse the same g0, without recomputing
-    the stack bounds. If the C code uses quite a bit of stack space
-    before calling into Go, the SP may be well below the 32K stack
-    bound we assumed, so the runtime thinks the g0 stack overflows.
-    
-    This CL makes needm get a more accurate stack bound from
-    pthread. (In some platforms this may still be a guess as we don't
-    know exactly where we are in the C stack), but it is probably
-    better than simply assuming 32K.
-    
-    [CL 485500 description]
-    
-    CL 479915 passed the G to _cgo_getstackbound for direct updates to
-    gp.stack.lo. A G can be reused on a new thread after the previous thread
-    exited. This could trigger the C TSAN race detector because it couldn't
-    see the synchronization in Go (lockextra) preventing the same G from
-    being used on multiple threads at the same time.
-    
-    We work around this by passing the address of a stack variable to
-    _cgo_getstackbound rather than the G. The stack is generally unique per
-    thread, so TSAN won't see the same address from multiple threads. Even
-    if stacks are reused across threads by pthread, C TSAN should see the
-    synchonization in the stack allocator.
-    
-    A regression test is added to misc/cgo/testsanitizer.
-    
-    Fixes #51676.
-    Fixes #59294.
-    Fixes #59678.
-    
-    Change-Id: Ic62be31a06ee83568215e875a891df37084e08ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485500
+    Change-Id: I71c9d9ef9d21a7ae9466d8c7b283fdfbba01f5a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390734
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- misc/cgo/test/cgo_test.go                  |   7 +-
- misc/cgo/test/cthread_unix.c               |  24 ++++++
- misc/cgo/test/cthread_windows.c            |  22 ++++++
- misc/cgo/test/testx.go                     |  14 ++++
- misc/cgo/testcarchive/carchive_test.go     |  54 +++++++++++++
- misc/cgo/testcarchive/testdata/libgo9/a.go |  14 ++++
- misc/cgo/testcarchive/testdata/main9.c     |  24 ++++++
- misc/cgo/testsanitizers/testdata/tsan14.go |  53 +++++++++++++
- misc/cgo/testsanitizers/tsan_test.go       |   1 +
- src/runtime/asm_386.s                      |  41 ++++++++--
- src/runtime/asm_amd64.s                    |  38 ++++++++--
- src/runtime/asm_arm.s                      |  38 ++++++++--
- src/runtime/asm_arm64.s                    |  32 +++++++-
- src/runtime/asm_loong64.s                  |  32 +++++++-
- src/runtime/asm_mips64x.s                  |  32 +++++++-
- src/runtime/asm_mipsx.s                    |  32 +++++++-
- src/runtime/asm_ppc64x.s                   |  35 ++++++++-
- src/runtime/asm_riscv64.s                  |  32 +++++++-
- src/runtime/asm_s390x.s                    |  32 +++++++-
- src/runtime/cgo.go                         |   9 +++
- src/runtime/cgo/asm_386.s                  |   8 ++
- src/runtime/cgo/asm_amd64.s                |   8 ++
- src/runtime/cgo/asm_arm.s                  |   8 ++
- src/runtime/cgo/asm_arm64.s                |   8 ++
- src/runtime/cgo/asm_loong64.s              |   8 ++
- src/runtime/cgo/asm_mips64x.s              |   8 ++
- src/runtime/cgo/asm_mipsx.s                |   8 ++
- src/runtime/cgo/asm_ppc64x.s               |  23 ++++++
- src/runtime/cgo/asm_riscv64.s              |   8 ++
- src/runtime/cgo/asm_s390x.s                |   8 ++
- src/runtime/cgo/asm_wasm.s                 |   3 +
- src/runtime/cgo/callbacks.go               |  45 +++++++++++
- src/runtime/cgo/gcc_libinit.c              |  35 +++++++++
- src/runtime/cgo/gcc_libinit_windows.c      |   9 +++
- src/runtime/cgo/gcc_stack_darwin.c         |  19 +++++
- src/runtime/cgo/gcc_stack_unix.c           |  39 ++++++++++
- src/runtime/cgo/gcc_stack_windows.c        |   7 ++
- src/runtime/cgo/libcgo.h                   |   5 ++
- src/runtime/cgocall.go                     |   6 ++
- src/runtime/crash_cgo_test.go              |  13 ++++
- src/runtime/proc.go                        | 118 +++++++++++++++++++++++++----
- src/runtime/runtime2.go                    |   1 +
- src/runtime/signal_unix.go                 |  20 ++++-
- src/runtime/stubs.go                       |   3 +
- src/runtime/testdata/testprogcgo/bindm.c   |  34 +++++++++
- src/runtime/testdata/testprogcgo/bindm.go  |  61 +++++++++++++++
- 46 files changed, 1012 insertions(+), 67 deletions(-)
+ src/encoding/json/decode.go  | 2 ++
+ src/encoding/json/scanner.go | 2 ++
+ 2 files changed, 4 insertions(+)

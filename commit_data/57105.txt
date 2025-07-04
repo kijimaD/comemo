@@ -1,31 +1,29 @@
-commit 3b96eebcbdf472326b9d6e46c373992bac9f72bb
-Author: khr@golang.org <khr@golang.org>
-Date:   Fri Jun 14 22:29:09 2024 -0700
+commit 3b4b7b84def19a57ffa3c83001b37038d9ea204b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 16 13:04:50 2023 -0400
 
-    cmd/compile: rewrite the constant parts of the prove pass
+    cmd/distpack: rename go.mod to _go.mod in toolchain modules
     
-    Handles a lot more cases where constant ranges can eliminate
-    various (mostly bounds failure) paths.
+    Modules cannot contain go.mod files except at the root
+    (and we don't keep one at the root). Rename the other go.mod
+    files to _go.mod.
     
-    Fixes #66826
-    Fixes #66692
-    Fixes #48213
-    Update #57959
+    dl2mod, which we used to convert all the old releases,
+    did this renaming, but it was missed when porting that
+    code to distpack.
     
-    TODO: remove constant logic from poset code, no longer needed.
+    For #57001.
+    Fixes #60847.
     
-    Change-Id: Id196436fcd8a0c84c7d59c04f93bd92e26a0fd7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599096
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I4d646b96b5be15df3b79193e254ddc9b11cc8734
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503979
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/func.go    |    2 +-
- src/cmd/compile/internal/ssa/prove.go   | 1133 ++++++++++++++++++++-----------
- src/cmd/compile/internal/ssa/rewrite.go |   14 +
- test/checkbce.go                        |    8 +-
- test/codegen/comparisons.go             |    4 +-
- test/loopbce.go                         |   22 +-
- test/prove.go                           |   65 +-
- test/prove_constant_folding.go          |    4 +-
- 8 files changed, 814 insertions(+), 438 deletions(-)
+ src/cmd/distpack/archive.go | 12 +++++++++++-
+ src/cmd/distpack/pack.go    | 13 +++++++++++++
+ src/cmd/distpack/test.go    |  4 ++++
+ 3 files changed, 28 insertions(+), 1 deletion(-)

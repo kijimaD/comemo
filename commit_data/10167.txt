@@ -1,13 +1,12 @@
-commit 1fe22d2d24e150ba6b6d54c1b1909a15e209c6ad
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Nov 1 16:09:29 2011 +0900
+commit 44262d157425c396f913b88c81b27f13dd30cff7
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Tue Nov 1 15:13:33 2011 +0900
 
-    doc: refer to tour.golang.org instead of go-tour.appspot.com
+    doc: fix typo in spec example code comment
     
-    R=golang-dev, r
+    R=r, golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5331055
+    https://golang.org/cl/5308071
 
- doc/docs.html | 4 ++--
- doc/root.html | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

@@ -1,28 +1,12 @@
-commit a76c1a5c7fb704e5658bbbe9f27b4301b86bfd80
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jun 27 11:07:30 2015 +1000
+commit 75250a9f791e650bcf0fe16e9d3436314a94dde6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 22 11:31:47 2015 -0700
 
-    fmt: restore padding for %x on byte slices and strings
+    cmd/compile/internal/gc: simplify mpgetflt (remove switch and indirection)
     
-    Also improve the documentation. A prior fix in this release
-    changed the properties for empty strings and slices, incorrectly.
-    Previous behavior is now restored and better documented.
-    
-    Add lots of tests.
-    
-    The behavior is that when using a string-like format (%s %q %x %X)
-    a byte slice is equivalent to a string, and printed as a unit. The padding
-    applies to the entire object. (The space and sharp flags apply
-    elementwise.)
-    
-    Fixes #11422.
-    Fixes #10430.
-    
-    Change-Id: I758f0521caf71630437e43990ec6d6c9a92655e3
-    Reviewed-on: https://go-review.googlesource.com/11600
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6ae3534defdae9367e1b856dbb8e846c3263a758
+    Reviewed-on: https://go-review.googlesource.com/10358
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/fmt/doc.go      |  5 ++++-
- src/fmt/fmt_test.go | 26 +++++++++++++++++++++++---
- src/fmt/format.go   |  2 +-
- 3 files changed, 28 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/mparith3.go | 27 +++++++++++----------------
+ 1 file changed, 11 insertions(+), 16 deletions(-)

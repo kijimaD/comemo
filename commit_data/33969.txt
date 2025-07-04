@@ -1,14 +1,13 @@
-commit dd806b8be4447f064e93ad9302bc8befde37f952
+commit bac02b14b5be4fbe025ca208a738b61e58edacd8
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 9 14:49:08 2018 -0500
+Date:   Fri Sep 22 11:59:40 2017 -0400
 
-    cmd/go: adjust import config debugging flag
+    [dev.boringcrypto] misc/boring: update VERSION
     
-    Change-Id: I3afaefc154f9ccfac353cedac7aefcfb70afe265
-    Reviewed-on: https://go-review.googlesource.com/86996
+    Change-Id: I805422f3bc4a8a64e55b7453da25c9d1e18f063f
+    Reviewed-on: https://go-review.googlesource.com/65394
     Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/load/icfg.go | 27 +++++++++++++++------------
- 1 file changed, 15 insertions(+), 12 deletions(-)
+ misc/boring/VERSION | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

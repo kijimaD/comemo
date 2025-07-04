@@ -1,19 +1,17 @@
-commit 01826280eb3dec5dfa06fae0474caf1ba3942ec7
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue May 15 19:10:16 2012 +0400
+commit b554fb912ffc25f88f19bc7985c83496faa98cc8
+Author: Joel Sing <jsing@google.com>
+Date:   Tue May 15 12:00:13 2012 +1000
 
-    runtime: refactor helpgc functionality in preparation for parallel GC
-    Parallel GC needs to know in advance how many helper threads will be there.
-    Hopefully it's the last patch before I can tackle parallel sweep phase.
-    The benchmarks are unaffected.
+    os/syscall: correct netbsd types/names
     
-    R=golang-dev, rsc
+    Fix types/names so that these functions work with the generated
+    syscall/z* files.
+    
+    R=golang-dev, m4dh4tt3r
     CC=golang-dev
-    https://golang.org/cl/6200064
+    https://golang.org/cl/6201078
 
- src/pkg/runtime/malloc.h  |  3 ++-
- src/pkg/runtime/mgc0.c    | 35 +++++++++++---------------
- src/pkg/runtime/mprof.goc |  4 +--
- src/pkg/runtime/proc.c    | 63 +++++++++++++++++++++++++++++------------------
- src/pkg/runtime/runtime.h |  2 +-
- 5 files changed, 58 insertions(+), 49 deletions(-)
+ src/pkg/os/stat_netbsd.go               |  4 ++--
+ src/pkg/syscall/syscall_netbsd_386.go   |  8 ++++----
+ src/pkg/syscall/syscall_netbsd_amd64.go | 10 +++++-----
+ 3 files changed, 11 insertions(+), 11 deletions(-)

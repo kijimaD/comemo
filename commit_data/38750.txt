@@ -1,18 +1,22 @@
-commit f8c6f986fd459945ec76930d88bd45d45b359c77
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 3 17:12:27 2019 -0700
+commit c6e698d5dd0d3a309c2d93368dcc451820deb66d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Nov 20 10:20:06 2018 -0500
 
-    math/big: don't clobber shared underlying array in pow5 computation
+    runtime: add arg maps for sync/atomic functions in ARM64 race mode
     
-    Rearranged code slightly to make lifetime of underlying array of
-    pow5 more explicit in code.
+    In race mode, these functions are defined and declared in
+    different packages, which therefore don't have implicit arg maps.
+    When they are defer'd, and the stack needs to move, the runtime
+    fails with missing stack maps. This CL adds arg maps (FUNCDATA)
+    to them.
     
-    Fixes #31184.
+    Updates #28848
     
-    Change-Id: I063081f0e54097c499988d268a23813746592654
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170641
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I0271563b7e78e7797ce2990c303dced957efaa86
+    Reviewed-on: https://go-review.googlesource.com/c/150457
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/ratconv.go      | 31 +++++++++++++------------------
- src/math/big/ratconv_test.go | 15 +++++++++++++++
- 2 files changed, 28 insertions(+), 18 deletions(-)
+ src/runtime/race_arm64.s | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

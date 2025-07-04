@@ -1,16 +1,19 @@
-commit f4a8bf128364e852cff87cf404a5c16c457ef8f6
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Nov 21 13:24:51 2019 -0500
+commit 2d6ee6e89a4b30c7528d2977df4e1aa86651e4e4
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Fri Aug 2 00:31:57 2019 +0800
 
-    crypto/tls: remove leftover extensionNextProtoNeg constant
+    os: enable the close-on-exec flag for openFdAt
     
-    NPN was removed in CL 174329.
+    There's a race here with fork/exec, enable the close-on-exec flag
+    for the new file descriptor.
     
-    Change-Id: Ic63ad53e7e24872e28673d590727e0300f435619
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208224
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Fixes #33405
+    
+    Change-Id: If95bae97a52b7026a930bb3427e47bae3b0032ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188537
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/common.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/os/removeall_at.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

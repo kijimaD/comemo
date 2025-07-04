@@ -1,21 +1,12 @@
-commit 1986a450ddd2e5ad213b9aff92cf7fe495234bbf
-Author: David Chase <drchase@google.com>
-Date:   Tue Oct 25 11:11:40 2016 -0400
+commit c8941bb85ce434eccf5066f22dd3c161e6afc4e2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 23 06:14:31 2016 -0700
 
-    cmd/compile: added test to ensure that accidental fix remains
+    doc: add note about CL 24180 to go1.8.txt
     
-    Bug 15141 was apparently fixed by some other change to the
-    compiler (this is plausible, it was a weird bug dependent
-    on a particular way of returning a large named array result),
-    add the test to ensure that it stays fixed.
-    
-    Updates #15141.
-    
-    Change-Id: I3d6937556413fab1af31c5a1940e6931563ce2f3
-    Reviewed-on: https://go-review.googlesource.com/31972
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie2bef1c181a49d7a02ed8068894d2bd81fc5bafa
+    Reviewed-on: https://go-review.googlesource.com/27566
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue15141.go | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ doc/go1.8.txt | 1 +
+ 1 file changed, 1 insertion(+)

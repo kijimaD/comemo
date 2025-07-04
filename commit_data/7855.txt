@@ -1,23 +1,13 @@
-commit 913c8d73978795e4f2cdd1f87de3af5239ebdc84
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Mar 24 11:20:28 2011 +1100
+commit eccf31b74492d9735fa981998dc9d86e2ce38c79
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 24 11:06:02 2011 +1100
 
-    syscall: StartProcess fixes for windows
+    doc: update contrib.html to be more enticing
+    doc: refer to golang-dev instead of -nuts in contribute.html
     
-    - StartProcess will work with relative (to attr.Dir, not
-      current directory) executable filenames
-    - StartProcess will only work if executable filename points
-      to the real file, it will not search for executable in the
-      $PATH list and others (see CreateProcess manual for details)
-    - StartProcess argv strings can contain any characters
-    
-    R=golang-dev, r
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4306041
+    https://golang.org/cl/4309043
 
- src/pkg/exec/exec_test.go               |  52 +++++
- src/pkg/os/os_test.go                   |  44 +++--
- src/pkg/syscall/exec_windows.go         | 328 ++++++++++++++++++++------------
- src/pkg/syscall/syscall_windows.go      |   3 +-
- src/pkg/syscall/zsyscall_windows_386.go |  20 +-
- 5 files changed, 308 insertions(+), 139 deletions(-)
+ doc/contrib.html | 45 +++++++++++++++++++++++++++++++++------------
+ 1 file changed, 33 insertions(+), 12 deletions(-)

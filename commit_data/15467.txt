@@ -1,16 +1,15 @@
-commit 6cdfb00f4ed2abcbe4dd58dd640a584c17484a61
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Feb 27 21:17:53 2013 +0200
+commit 73c21b13127c8dfad73d4477aa3dd9785515bf2b
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Wed Feb 27 10:44:50 2013 -0800
 
-    runtime: more changes in preparation to the new scheduler
-    add per-P cache of dead G's
-    add global runnable queue (not used for now)
-    add list of idle P's (not used for now)
+    sort: use proper mass unit in example
     
-    R=golang-dev, rsc
+    The values for the planet masses are given in
+    earth mass, not solar mass.
+    
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/7397061
+    https://golang.org/cl/7368054
 
- src/pkg/runtime/proc.c    | 158 ++++++++++++++++++++++++++++++++++++++++++----
- src/pkg/runtime/runtime.h |   8 +++
- 2 files changed, 152 insertions(+), 14 deletions(-)
+ src/pkg/sort/example_keys_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

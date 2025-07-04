@@ -1,28 +1,34 @@
-commit e30ce3c498b623f5a492a8e77c32077c1ecf3a1f
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Wed Jan 18 18:03:30 2023 +0100
+commit e356aa656d92ffd551e89edd9ed6ac00ea0278ef
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 5 15:53:33 2023 -0400
 
-    sync/atomic: make intrinsics noescape except 64bits op on 32bits arch and unsafe.Pointer
+    cmd/cover: add new "emit meta file" mode for packages without tests
     
-    Fixes #16241
+    Introduce a new mode of execution for instrumenting packages that have
+    no test files. Instead of just skipping packages with no test files
+    (during "go test -cover" runs), the go command will invoke cmd/cover
+    on the package passing in an option in the config file indicating that
+    it should emit a coverage meta-data file directly for the package (if
+    the package has no functions, an empty file is emitted). Note that
+    this CL doesn't actually wire up this functionality in the Go command,
+    that will come in a later patch.
     
-    I made 64 bits op on 32 bits arches still leak since it was kinda promised.
+    Updates #27261.
+    Updates #58770
+    Updates #24570.
     
-    The promised leaks were wider than this but I don't belive it's effect can
-    be observed in an breaking maner without using unsafe the way it's currently
-    setup.
-    
-    Change-Id: I66d8df47bfe49bce3efa64ac668a2a55f70733a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462298
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I01e8a3edb62441698c7246596e4bacbd966591c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495446
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/sync/atomic/doc.go          | 119 +++++++++++++++-------------------------
- src/sync/atomic/doc_32.go       |  79 ++++++++++++++++++++++++++
- src/sync/atomic/doc_64.go       | 107 ++++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue16241.go    |  59 ++++++++++++++++++++
- test/fixedbugs/issue16241_64.go |  46 ++++++++++++++++
- 5 files changed, 336 insertions(+), 74 deletions(-)
+ src/cmd/cover/cfg_test.go                          | 155 ++++++++++++++++-----
+ src/cmd/cover/cover.go                             |  97 +++++++++----
+ src/cmd/cover/testdata/pkgcfg/b/b.go               |  10 --
+ src/cmd/cover/testdata/pkgcfg/b/b_test.go          |   9 --
+ src/cmd/cover/testdata/pkgcfg/main/main.go         |  15 --
+ .../cover/testdata/pkgcfg/noFuncsNoTests/nfnt.go   |   8 ++
+ .../cover/testdata/pkgcfg/yesFuncsNoTests/yfnt.go  |  13 ++
+ src/internal/coverage/covcmd/cmddefs.go            |   7 +
+ 8 files changed, 220 insertions(+), 94 deletions(-)

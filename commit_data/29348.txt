@@ -1,19 +1,73 @@
-commit 3345802e8ac39e4ea6b2772ace15983f2c3be66b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 2 17:19:42 2016 -0400
+commit 5de2e5b73e79aea02463d661ec87cee4e944990b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jul 9 15:29:32 2016 -0700
 
-    time: document that only Jan and January, Mon and Monday are recognized
+    cmd/vet: add vet runner script for core
     
-    Not "J", not "JAN", not "jan", etc.
+    This CL adds a script to run vet on std and cmd.
     
-    Fixes #17523.
+    There are a considerable number of false positives,
+    mostly from legitimate but unusual assembly in
+    the runtime and reflect packages.
     
-    Change-Id: I16b5da97e73d88c6680c36401d30f8a195061527
-    Reviewed-on: https://go-review.googlesource.com/32636
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    There are also a few false positives that need fixes.
+    They are noted as such in the whitelists;
+    they're not worth holding this CL for.
+    
+    The unsafe pointer check is disabled.
+    The false positive rate is just too high to be worth it.
+    
+    There is no cmd/dist/test integration yet.
+    The tentative plan is that we'll check the local platform
+    during all.bash, and that there'll be a fast builder that
+    checks all platforms (to cover platforms that can't exec).
+    
+    Fixes #11041
+    
+    Change-Id: Iee4ed32b05447888368ed86088e3ed3771f84442
+    Reviewed-on: https://go-review.googlesource.com/27811
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/time/format.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/vet/all/main.go                       | 320 ++++++++++++++++++++++++++
+ src/cmd/vet/all/whitelist/386.txt             |  29 +++
+ src/cmd/vet/all/whitelist/64bit.txt           |  13 ++
+ src/cmd/vet/all/whitelist/all.txt             |  92 ++++++++
+ src/cmd/vet/all/whitelist/amd64.txt           |  35 +++
+ src/cmd/vet/all/whitelist/android_386.txt     |   8 +
+ src/cmd/vet/all/whitelist/android_amd64.txt   |   3 +
+ src/cmd/vet/all/whitelist/android_arm.txt     |   5 +
+ src/cmd/vet/all/whitelist/arm.txt             |  26 +++
+ src/cmd/vet/all/whitelist/arm64.txt           |  16 ++
+ src/cmd/vet/all/whitelist/darwin_386.txt      |  14 ++
+ src/cmd/vet/all/whitelist/darwin_amd64.txt    |   4 +
+ src/cmd/vet/all/whitelist/darwin_arm.txt      |  11 +
+ src/cmd/vet/all/whitelist/darwin_arm64.txt    |  13 ++
+ src/cmd/vet/all/whitelist/dragonfly_amd64.txt |   7 +
+ src/cmd/vet/all/whitelist/freebsd_386.txt     |  19 ++
+ src/cmd/vet/all/whitelist/freebsd_amd64.txt   |   6 +
+ src/cmd/vet/all/whitelist/freebsd_arm.txt     |   4 +
+ src/cmd/vet/all/whitelist/linux_386.txt       |  13 ++
+ src/cmd/vet/all/whitelist/linux_amd64.txt     |   8 +
+ src/cmd/vet/all/whitelist/linux_arm.txt       |  12 +
+ src/cmd/vet/all/whitelist/linux_arm64.txt     |   5 +
+ src/cmd/vet/all/whitelist/linux_ppc64x.txt    |   5 +
+ src/cmd/vet/all/whitelist/mips64x.txt         |   8 +
+ src/cmd/vet/all/whitelist/nacl_386.txt        |  13 ++
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt   |  31 +++
+ src/cmd/vet/all/whitelist/nacl_arm.txt        |   8 +
+ src/cmd/vet/all/whitelist/netbsd.txt          |   3 +
+ src/cmd/vet/all/whitelist/netbsd_386.txt      |  23 ++
+ src/cmd/vet/all/whitelist/netbsd_amd64.txt    |   3 +
+ src/cmd/vet/all/whitelist/netbsd_arm.txt      |   5 +
+ src/cmd/vet/all/whitelist/openbsd_386.txt     |  17 ++
+ src/cmd/vet/all/whitelist/openbsd_amd64.txt   |   3 +
+ src/cmd/vet/all/whitelist/openbsd_arm.txt     |   4 +
+ src/cmd/vet/all/whitelist/plan9_386.txt       |  11 +
+ src/cmd/vet/all/whitelist/plan9_amd64.txt     |  12 +
+ src/cmd/vet/all/whitelist/plan9_arm.txt       |   4 +
+ src/cmd/vet/all/whitelist/ppc64x.txt          |  12 +
+ src/cmd/vet/all/whitelist/solaris_amd64.txt   |   6 +
+ src/cmd/vet/all/whitelist/windows.txt         |   5 +
+ src/cmd/vet/all/whitelist/windows_386.txt     |   9 +
+ src/cmd/vet/all/whitelist/windows_amd64.txt   |   8 +
+ 42 files changed, 853 insertions(+)

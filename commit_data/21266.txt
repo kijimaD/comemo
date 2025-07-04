@@ -1,16 +1,17 @@
-commit 636de7afb61d3afc354949fb6290afd9554dd5a5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jan 14 13:30:34 2015 -0800
+commit 3185f8620c35e7a6f54b6830c4833528c9878407
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 16 14:06:53 2014 +1100
 
-    runtime: fix *bsd/amd64 build
+    net/textproto: turn an ancient DoS BUG annotation into a comment
     
-    6g does not implement dead code elimination for const switches like it
-    does for const if statements, so the undefined raiseproc() function
-    was resulting in a link-time failure.
+    Actually fixing this "bug" would be weird, since io.LimitReader already
+    does what we need, as demonstrated by net/http's use.
     
-    Change-Id: Ie4fcb3716cb4fe6e618033071df9de545ab3e0af
-    Reviewed-on: https://go-review.googlesource.com/2830
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Thanks to @davidfstr for pointing this out.
+    
+    Change-Id: If707bcc698d1666a369b39ddfa9770685fbe3879
+    Reviewed-on: https://go-review.googlesource.com/1579
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/signal_amd64x.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/net/textproto/reader.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

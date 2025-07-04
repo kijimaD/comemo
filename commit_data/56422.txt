@@ -1,18 +1,25 @@
-commit 671696a22dd98c0fafcaea2d159c284367b24aa0
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Feb 7 12:10:58 2024 -0800
+commit 89138ce740bf72c7a6c0eae5aa281f10094637cf
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed May 3 12:38:50 2023 -0400
 
-    crypto/x509: reject critical AKI
+    cmd/compile: un-hide closure func if parent expr moved to staticinit
     
-    Updates #65085
+    If the function referenced by a closure expression is incorporated
+    into a static init, be sure to mark it as non-hidden, since otherwise
+    it will be live but no longer reachable from the init func, hence it
+    will be skipped during escape analysis, which can lead to
+    miscompilations.
     
-    Change-Id: I8cc60990737d582edf4f7f85ec871f5e42f82b78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562341
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #59680.
+    
+    Change-Id: Ib858aee296efcc0b7655d25c23ab8a6a8dbdc5f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/crypto/x509/parser.go    |  4 ++++
- src/crypto/x509/x509_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 29 insertions(+)
+ src/cmd/compile/internal/staticinit/sched.go |   6 ++
+ test/fixedbugs/issue59680.go                 | 100 +++++++++++++++++++++++++++
+ 2 files changed, 106 insertions(+)

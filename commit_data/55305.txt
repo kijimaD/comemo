@@ -1,30 +1,22 @@
-commit 793097161b3a263b2b0912265cf99d4d9c6218fa
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Dec 15 04:33:18 2023 +0000
+commit c611ef28606ddd7450cf03e070e51ac6082fdad7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 21 21:30:02 2022 -0500
 
-    all: fix copyright headers
+    cmd/dist: restore the original GOCACHE before building std and cmd
     
-    Change-Id: Ib16986fb088030b93140e48c17e3d7bb2c9312cf
-    GitHub-Last-Rev: 41572879f8f45c963c0e3ab9862bc0de59781a13
-    GitHub-Pull-Request: golang/go#64731
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549956
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    The user is likely to run other commands that need these libraries
+    immediately after they are built.
+    
+    For #57734.
+    Updates #56889.
+    
+    Change-Id: I2a1a234e6031d85f017ee692ea1ace8c6e0e7355
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452679
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/cgo/internal/test/issue9400/asm_mips64x.s        | 2 +-
- src/cmd/cgo/internal/test/issue9400/asm_riscv64.s        | 2 +-
- src/cmd/cgo/internal/testgodefs/testdata/fieldtypedef.go | 2 +-
- src/cmd/compile/internal/types2/errorcalls_test.go       | 2 +-
- src/cmd/go/internal/mmap/mmap.go                         | 2 +-
- src/cmd/go/internal/mmap/mmap_other.go                   | 2 +-
- src/cmd/go/internal/mmap/mmap_unix.go                    | 2 +-
- src/cmd/go/internal/mmap/mmap_windows.go                 | 2 +-
- src/go/types/errorcalls_test.go                          | 2 +-
- src/runtime/asan0.go                                     | 2 +-
- src/runtime/profbuf.go                                   | 2 +-
- src/runtime/signal_aix_ppc64.go                          | 2 +-
- 12 files changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/dist/build.go | 20 ++++++++++++++------
+ src/cmd/dist/test.go  | 11 -----------
+ 2 files changed, 14 insertions(+), 17 deletions(-)

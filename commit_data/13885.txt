@@ -1,14 +1,13 @@
-commit 091388d8e92f46480ead687391ee7d582f6585b2
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Thu Sep 20 14:58:33 2012 -0400
+commit c993ac11bce307c08383164947417c98913da73a
+Author: Andrew Harding <andrew@spacemonkey.com>
+Date:   Thu Sep 20 12:36:37 2012 -0400
 
-    cmd/ld: remove unused assignment
+    crypto/x509: Use ExtKeyUsage and UnknownExtKeyUsage fields from template in CreateCertificate
     
-    The calculation of datsize is redundant.
-    
-    R=golang-dev, seed, rsc
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/6503122
+    https://golang.org/cl/6535057
 
- src/cmd/ld/data.c | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/crypto/x509/x509.go      | 89 +++++++++++++++++++++++++++++-----------
+ src/pkg/crypto/x509/x509_test.go | 15 +++++++
+ 2 files changed, 79 insertions(+), 25 deletions(-)

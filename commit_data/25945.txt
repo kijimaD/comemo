@@ -1,29 +1,27 @@
-commit abcad1e59de42e6275c735ba4303cbe1eb3adac7
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sat Feb 20 01:51:32 2016 +0100
+commit cd58f44b203b54ea3125637461d910fc447f0bad
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 16:10:15 2015 -0500
 
-    fmt: change padding functions to avoid package init
+    runtime/cgo: assume Solaris thread stack is at least 1 MB
     
-    Move the decision if zero padding is allowed to doPrintf
-    where the other formatting decisions are made.
+    When run with "ulimit -s unlimited", the misc/cgo/test test binary
+    finds a stack size of 0x3000 returned by getcontext, causing the
+    runtime to try to stay within those bounds and then fault when
+    called back in the test after 64 kB has been used by C.
     
-    Removes some dead code for negative f.wid that was never used
-    due to f.wid always being positive and f.minus deciding if left
-    or right padding should be used.
+    I suspect that Solaris is doing something clever like reporting the
+    current stack size and growing the stack as faults happen.
+    On all the other systems, getcontext reports the maximum stack size.
+    And when the ulimit is not unlimited, even Solaris reports the
+    maximum stack size.
     
-    New padding code writes directly into the buffer and is as fast
-    as the old version but avoids the cost of needing package init.
+    Work around this by assuming that any stack on Solaris must be at least 1 MB.
     
-    name              old time/op  new time/op  delta
-    SprintfPadding-2   246ns ± 5%   245ns ± 4%   ~     (p=0.345 n=50+47)
+    Fixes #12210.
     
-    Change-Id: I7dfddbac8e328f4ef0cdee8fafc0d06c784b2711
-    Reviewed-on: https://go-review.googlesource.com/19957
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I0a6ed0afb8a8f50aa1b2486f32b4ae470ab47dbf
+    Reviewed-on: https://go-review.googlesource.com/17452
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/fmt/fmt_test.go | 12 +++++++
- src/fmt/format.go   | 99 +++++++++++++++++++++++------------------------------
- src/fmt/print.go    |  6 ++++
- 3 files changed, 60 insertions(+), 57 deletions(-)
+ src/runtime/cgo/gcc_solaris_amd64.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

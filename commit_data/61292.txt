@@ -1,0 +1,31 @@
+commit c5d424bfca065fe6c92e384df61d84cfade2bfed
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Wed Oct 23 17:06:39 2024 +0000
+
+    internal/runtime/atomic: add arm native implementations of And8/Or8
+    
+    With LDREXB/STREXB now available for the arm assembler we can implement these operations natively. The instructions are armv6k+ but for simplicity I only use them on armv7.
+    
+    Benchmark results for a raspberry Pi 3 model B+:
+    
+            goos: linux
+            goarch: arm
+            pkg: internal/runtime/atomic
+            cpu: ARMv7 Processor rev 4 (v7l)
+                             │   old.txt    │               new.txt               │
+                             │    sec/op    │   sec/op     vs base                │
+            And8-4             127.65n ± 0%   68.74n ± 0%  -46.15% (p=0.000 n=10)
+    
+    Change-Id: Ic87f307c35f7d7f56010980302f253056f6d54dc
+    GitHub-Last-Rev: a7351802fd212704712b37d183435ab14e58f885
+    GitHub-Pull-Request: golang/go#70002
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622075
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/runtime/atomic/atomic_arm.go | 10 ++++-
+ src/internal/runtime/atomic/atomic_arm.s  | 64 +++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+), 2 deletions(-)

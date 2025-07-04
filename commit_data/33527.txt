@@ -1,13 +1,12 @@
-commit d50e95261db5151955ddd3cf31241f8a2434335f
-Author: Adrian Hesketh <adrianhesketh@hushmail.com>
-Date:   Fri Sep 1 12:38:52 2017 +0100
+commit 7f7be843e96a531d989e2790ceba45782158ffdd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 16:56:33 2017 +1000
 
-    time: add example for Time.Unix
+    cmd/link: introduce and use peFile.addInitArray
     
-    Change-Id: Ie64eba5b57b609a343ddb381fe83c01f172c0bf4
-    Reviewed-on: https://go-review.googlesource.com/60890
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4377c478159129ab3f3b5ddc58d1944f8f4a4b07
+    Reviewed-on: https://go-review.googlesource.com/56320
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/example_test.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/link/internal/ld/pe.go | 72 ++++++++++++++++++++----------------------
+ 1 file changed, 34 insertions(+), 38 deletions(-)

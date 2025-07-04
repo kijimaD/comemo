@@ -1,17 +1,20 @@
-commit ab81efa3dcac8bc9dca9a051ce3f665cfaeb6dc3
-Author: Keith Randall <khr@google.com>
-Date:   Thu Oct 17 14:37:55 2019 -0700
+commit b098c0f467e5ce70b936381c439a0cbafc3316d3
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed May 1 10:55:27 2019 -0400
 
-    runtime: save g register during arm64 race detector callbacks
+    cmd/compile/internal/ppc64: improve naming for ginsnop2
     
-    The race detector C code expects the g register (aka R28) to be
-    preserved per the C calling convention. Make sure we save/restore it.
+    This is a follow up from a review comment at the end of the last
+    Go release, to provide a more meaningful name for ginsnop2.
     
-    Once this is in we can revert the O3 -> O1 change to racebuild.
+    Updates #30475
     
-    Change-Id: Ia785b2717c136f565d45bed283e87b744e35c62d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201744
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ice9efd763bf2204a9e8c55ae230d3e8a80210108
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174757
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/race_arm64.s | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ppc64/galign.go | 2 +-
+ src/cmd/compile/internal/ppc64/ggen.go   | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

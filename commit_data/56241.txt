@@ -1,27 +1,44 @@
-commit dfc86e922cd033155339c22aff64e109f6c8cc89
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 4 04:50:13 2024 +0000
+commit 921699fe5f67a2e5246badc8f626cc70a615ad1c
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 14:01:05 2023 -0400
 
-    internal/weak: add package implementing weak pointers
+    runtime, cmd: rationalize StackLimit and StackGuard
     
-    This change adds the internal/weak package, which exposes GC-supported
-    weak pointers to the standard library. This is for the upcoming weak
-    package, but may be useful for other future constructs.
+    The current definitions of StackLimit and StackGuard only indirectly
+    specify the NOSPLIT stack limit and duplicate a literal constant
+    (928). Currently, they define the stack guard delta, and from there
+    compute the NOSPLIT limit.
     
-    For #62483.
+    Rationalize these by defining a new constant, abi.StackNosplitBase,
+    which consolidates and directly specifies the NOSPLIT stack limit (in
+    the default case). From this we then compute the stack guard delta,
+    inverting the relationship between these two constants. While we're
+    here, we rename StackLimit to StackNosplit to make it clearer what's
+    being limited.
     
-    Change-Id: I4aa8fa9400110ad5ea022a43c094051699ccab9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576297
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This change does not affect the values of these constants in the
+    default configuration. It does slightly change how
+    StackGuardMultiplier values other than 1 affect the constants, but
+    this multiplier is a pretty rough heuristic anyway.
+    
+                        before after
+    stackNosplit           800   800
+    _StackGuard            928   928
+    stackNosplit -race    1728  1600
+    _StackGuard -race     1856  1728
+    
+    For #59670.
+    
+    Change-Id: Ibe20825ebe0076bbd7b0b7501177b16c9dbcb79e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486380
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go/build/deps_test.go         |   1 +
- src/internal/abi/escape.go        |  11 +++
- src/internal/weak/pointer.go      |  83 ++++++++++++++++++
- src/internal/weak/pointer_test.go | 130 +++++++++++++++++++++++++++++
- src/runtime/mgcmark.go            |  45 ++++++----
- src/runtime/mgcsweep.go           |  43 ++++++----
- src/runtime/mheap.go              | 171 ++++++++++++++++++++++++++++++++++++--
- src/runtime/proc.go               |  12 +++
- 8 files changed, 457 insertions(+), 39 deletions(-)
+ src/cmd/internal/objabi/stack.go       | 15 +++------------
+ src/cmd/link/internal/ld/stackcheck.go |  2 +-
+ src/internal/abi/stack.go              |  8 ++++++++
+ src/runtime/preempt.go                 |  2 +-
+ src/runtime/stack.go                   | 19 +++++++++----------
+ test/nosplit.go                        | 13 +++----------
+ 6 files changed, 25 insertions(+), 34 deletions(-)

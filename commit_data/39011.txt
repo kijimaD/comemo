@@ -1,26 +1,16 @@
-commit f03b3331c74ae45f0a5053287a26dd522f89f462
-Author: Pontus Leitzler <leitzler@gmail.com>
-Date:   Mon Apr 29 09:50:53 2019 +0000
+commit bc175e53cc95d0f2026d06a1c8827246f9c55f8d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Dec 16 01:07:58 2018 +1100
 
-    cmd/go/internal/modload: make 'list -u' consider current pseudoversion
+    cmd/dist: re-enable VFPv3 on openbsd/arm
     
-    As pointed out by thepudds in #30634, the 'list -u' documentation states that the current version should be considered for upgrade:
-    The -u flag adds information about available upgrades. When the latest version of a given module is newer than the current one, list -u sets the Module's Update field to information about the newer module.
+    The OpenBSD armv7 port has working VFPv3 these days - re-enable the VFP
+    detection code so that GOARM=7 is used by default on openbsd/arm.
     
-    In go 1.12.4 (and current tip), an older version will be suggested as upgrade to a newer pseudo version.
-    
-    Updates: #30634
-    
-    Change-Id: If2c8887198884b8e7ccb3a604908065aa1f1878a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174206
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I0271d81c048d2d55becd2803c19e5f1542076357
+    Reviewed-on: https://go-review.googlesource.com/c/154378
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/build.go               | 17 +++++++-----
- ...oupgrade_v0.0.0-20190429073000-30950c05d534.txt | 13 ++++++++++
- .../mod/example.com_pseudoupgrade_v0.1.0.txt       | 13 ++++++++++
- ...pgrade_v0.1.1-0.20190429073117-b5426c86b553.txt | 13 ++++++++++
- .../go/testdata/script/mod_get_upgrade_pseudo.txt  | 30 ++++++++++++++++++++++
- .../go/testdata/script/mod_list_upgrade_pseudo.txt | 24 +++++++++++++++++
- 6 files changed, 103 insertions(+), 7 deletions(-)
+ src/cmd/dist/util.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

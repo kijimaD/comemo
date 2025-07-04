@@ -1,18 +1,19 @@
-commit a766d8e59c2c43b4c6795404d303b64b9fe69a0f
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Dec 16 00:06:45 2015 -0500
+commit d66f6c2c869c379f6b8ba54054ad8c3856bbb735
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Oct 12 12:19:20 2015 +1300
 
-    cmd/cgo: map C unsigned char back to _Ctype_uchar in error messages
+    cmd/link: centralize knowledge of size of fixed part of stack
     
-    Fixes #13635.
+    Shared libraries on ppc64le will require a larger minimum stack frame (because
+    the ABI mandates that the TOC pointer is available at 24(R1)). Part 2b of
+    preparing for that is to have all the code in the linker that needs to know
+    this size of this call a function to find out.
     
-    Change-Id: Icab4a45567f435f002a8f6c85db9538acf054a70
-    Reviewed-on: https://go-review.googlesource.com/17863
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I246363840096db22e44beabbe38b61d60c1f31ad
+    Reviewed-on: https://go-review.googlesource.com/15675
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/errors/issue13635.go | 24 ++++++++++++++++++++++++
- misc/cgo/errors/test.bash     | 15 +++++++++------
- src/cmd/cgo/gcc.go            |  1 +
- 3 files changed, 34 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go |  5 +----
+ src/cmd/link/internal/ld/lib.go   |  7 ++-----
+ src/cmd/link/internal/ld/link.go  | 13 +++++++++++++
+ 3 files changed, 16 insertions(+), 9 deletions(-)

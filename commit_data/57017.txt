@@ -1,20 +1,18 @@
-commit 8b51146c698bcfcc2c2b73fa9390db5230f2ce0a
-Author: limeidan <limeidan@loongson.cn>
-Date:   Sat Jan 6 11:35:48 2024 +0800
+commit cc99093dfa60ecd2350cadcab5fe0d5066f06d55
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 7 17:05:11 2023 -0700
 
-    cmd/internal/obj/loong64, cmd/asm: remove useless instructions
+    doc/go1.21: mention new cmp package
     
-    Change-Id: I180c40898672a757d72cd0ef38e6e8cc20dc4c3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565618
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For #59488
+    
+    Change-Id: I73ee4d1d8b9d8e6f0aad9e3bb98729aaa0f06a47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501697
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 13 ----------
- src/cmd/internal/obj/loong64/a.out.go           |  5 ----
- src/cmd/internal/obj/loong64/anames.go          |  4 ---
- src/cmd/internal/obj/loong64/asm.go             | 34 -------------------------
- 4 files changed, 56 deletions(-)
+ doc/go1.21.html | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

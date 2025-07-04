@@ -1,37 +1,36 @@
-commit 64736accdbc187eba6619345754abaaeefdb7238
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Oct 9 17:24:34 2014 +1100
+commit f13cec9f5732dd09c51f90957c3d888aad782c27
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 29 18:16:15 2014 -0700
 
-    undo CL 145150043 / 8b3d26697b8d
+    net/http: make Transport.CloseIdleConnections also close pending dials
     
-    That was complete failure - builders are broken,
-    but original cl worked fine on my system.
-    I will need access to builders
-    to test this change properly.
+    See comment 4 of https://code.google.com/p/go/issues/detail?id=8483#c4:
     
-    ««« original CL description
-    runtime: handle all windows exception
+    "So if a user creates a http.Client, issues a bunch of
+    requests and then wants to shutdown it and all opened connections;
+    what is she intended to do? The report suggests that just waiting for
+    all pending requests and calling CloseIdleConnections won't do, as
+    there can be new racing connections. Obviously she can't do what
+    you've done in the test, as it uses the unexported function.  If this
+    happens periodically, it can lead to serious resource leaks (the
+    transport is also preserved alive).  Am I missing something?"
     
-    Fixes #8006.
+    This CL tracks the user's intention to close all idle
+    connections (CloseIdleConnections sets it true; and making a
+    new request sets it false). If a pending dial finishes and
+    nobody wants it, before it's retained for a future caller, the
+    "wantIdle" bool is checked and it's closed if the user has
+    called CloseIdleConnections without a later call to make a new
+    request.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/145150043
-    »»»
+    Fixes #8483
     
-    TBR=rsc
-    R=golang-codereviews
-    CC=golang-codereviews
-    https://golang.org/cl/154180043
+    LGTM=adg
+    R=golang-codereviews, dvyukov, adg
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/148970043
 
- src/runtime/defs_windows.go         |  3 --
- src/runtime/defs_windows_386.h      |  3 --
- src/runtime/defs_windows_amd64.h    |  3 --
- src/runtime/os_windows.c            | 35 +++----------
- src/runtime/os_windows_386.c        | 84 +++++++++++++-------------------
- src/runtime/os_windows_amd64.c      | 97 +++++++++++++------------------------
- src/runtime/sys_windows_386.s       | 18 +------
- src/runtime/sys_windows_amd64.s     | 18 +------
- src/runtime/syscall_windows_test.go | 39 ---------------
- 9 files changed, 76 insertions(+), 224 deletions(-)
+ src/net/http/export_test.go    | 20 ++++++++++++++++++++
+ src/net/http/transport.go      | 20 +++++++++++++++-----
+ src/net/http/transport_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 74 insertions(+), 5 deletions(-)

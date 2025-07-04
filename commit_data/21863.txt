@@ -1,13 +1,22 @@
-commit ec7d8a6167309d2f9d6ee63c20fdfa960ce63bce
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Mar 3 12:25:36 2015 -0500
+commit f8176f81115b5b9b58ddfe4b37e0565fd599fecd
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Fri Feb 6 17:47:54 2015 -0800
 
-    runtime: remove makeStringSlice
+    cmd/go: stream test output if parallelism is set to 1.
     
-    Change-Id: I38d716de9d5a9c1b868641262067d0456d52c86d
-    Reviewed-on: https://go-review.googlesource.com/6612
+    "go test -v" buffers output if more than one package is
+    being tested to avoid mixing the outputs from multiple
+    tests running in parallel. It currently enables streaming
+    if there's only a single package under test.
+    
+    It is ok to stream output from multiple tests if we know
+    that they're not going to be running in parallel.
+    
+    To see the difference: go test -v -p=1 runtime fmt -short
+    
+    Change-Id: Idc24575c899eac30d553e0bf52b86f90e189392d
+    Reviewed-on: https://go-review.googlesource.com/4153
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os1_windows.go | 2 +-
- src/runtime/runtime.go     | 4 ----
- 2 files changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/go/test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

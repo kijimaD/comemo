@@ -1,18 +1,15 @@
-commit b95e9bc41e2d1e6c0c2077659f5996a68dc54c41
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 09:48:39 2022 -0500
+commit 40afced8d74a58d66a4f0201c21eb187e50bf325
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 5 21:37:04 2022 -0800
 
-    cmd/addr2line: use testenv.Command instead of exec.Command in tests
+    spec: be more precise with rules on specific types
     
-    testenv.Command sets a default based on the test\'s deadline
-    and sends SIGQUIT (where supported) in case of a hang.
+    Problem pointed out on golang-nuts mailing list.
     
-    Change-Id: I6710d9866c16610310347d50be1c0916c2976e87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450712
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: If1c9b22e1ed7b4ec7ebcaadc80fa450333e6856c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375799
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/addr2line/addr2line_test.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

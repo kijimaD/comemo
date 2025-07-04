@@ -1,12 +1,18 @@
-commit 763716ae2a1b5ec33dbee942ba37ad0a4940d96b
+commit 04868b28ac5b3ff608a58b4dbb7daa87f75fd660
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 14 11:45:27 2012 +1100
+Date:   Tue Feb 14 10:47:48 2012 +1100
 
-    doc: color comments
+    archive/zip: hide Write method from *Writer type
     
-    R=golang-dev, r
+    This was an implementation detail that snuck into the public interface.
+    *Writer.Create gives you an io.Writer, the *Writer itself was never
+    meant to be written to.
+    
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/5657047
+    https://golang.org/cl/5654076
 
- doc/style.css | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go1.html                  | 12 +++++++
+ doc/go1.tmpl                  | 12 +++++++
+ src/pkg/archive/zip/writer.go | 74 +++++++++++++++++++++----------------------
+ 3 files changed, 61 insertions(+), 37 deletions(-)

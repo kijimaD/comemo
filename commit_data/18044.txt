@@ -1,25 +1,28 @@
-commit ca3ff9251dbe34edb539b661a30222d0f3d755bd
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Dec 18 10:57:56 2013 -0500
+commit 626da8d73741b0cdeaa1acc048fec9ec8286f2b5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 18 07:30:21 2013 -0800
 
-    crypto/x509: set default signature hash to SHA256 and allow override.
+    encoding/json: speed up decoding
     
-    Previously the hash used when signing an X.509 certificate was fixed
-    and, for RSA, it was fixed to SHA1. Since Microsoft have announced the
-    deprecation of SHA1 in X.509 certificates, this change switches the
-    default to SHA256.
+    Don't make copies of keys while decoding, and don't use the
+    expensive strings.EqualFold when it's not necessary. Instead,
+    note in the existing field cache what algorithm to use to
+    check fold equality... most keys are just ASCII letters.
     
-    It also allows the hash function to be controlled by the caller by
-    setting the SignatureAlgorithm field of the template.
+    benchmark               old ns/op    new ns/op    delta
+    BenchmarkCodeDecoder    137074314    103974418  -24.15%
     
-    [1] http://blogs.technet.com/b/pki/archive/2013/11/12/sha1-deprecation-policy.aspx
+    benchmark                old MB/s     new MB/s  speedup
+    BenchmarkCodeDecoder        14.16        18.66    1.32x
     
-    Fixes #5302.
+    Update #6496
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc, adg, r, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/40720047
+    https://golang.org/cl/13894045
 
- src/pkg/crypto/x509/x509.go      | 79 ++++++++++++++++++++++++++--------------
- src/pkg/crypto/x509/x509_test.go | 15 ++++++--
- 2 files changed, 62 insertions(+), 32 deletions(-)
+ src/pkg/encoding/json/decode.go    |  10 +--
+ src/pkg/encoding/json/encode.go    |  21 +++++-
+ src/pkg/encoding/json/fold.go      | 143 +++++++++++++++++++++++++++++++++++++
+ src/pkg/encoding/json/fold_test.go | 116 ++++++++++++++++++++++++++++++
+ 4 files changed, 282 insertions(+), 8 deletions(-)

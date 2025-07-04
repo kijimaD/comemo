@@ -1,15 +1,42 @@
-commit f549af6f0a79479dddc70593291c31401b1f495a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 19 21:55:01 2018 +0000
+commit e83601b4356f92f2f4d05f302d5654754ff05a6d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Jan 7 12:12:25 2018 +1100
 
-    crypto/rand: make documentation consistent between package comment and Reader
+    os: use WIN32_FIND_DATA.Reserved0 to identify symlinks
     
-    Updates #25959
+    os.Stat implementation uses instructions described at
+    https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
+    to distinguish symlinks. In particular, it calls
+    GetFileAttributesEx or FindFirstFile and checks
+    either WIN32_FILE_ATTRIBUTE_DATA.dwFileAttributes
+    or WIN32_FIND_DATA.dwFileAttributes to see if
+    FILE_ATTRIBUTES_REPARSE_POINT flag is set.
+    And that seems to worked fine so far.
     
-    Change-Id: I9ae64b216ab5807718db0db98b32de1dc5fa4bec
-    Reviewed-on: https://go-review.googlesource.com/119875
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    But now we discovered that OneDrive root folder
+    is determined as directory:
+    
+    c:\>dir C:\Users\Alex | grep OneDrive
+    30/11/2017  07:25 PM    <DIR>          OneDrive
+    c:\>
+    
+    while Go identified it as symlink.
+    
+    But we did not follow Microsoft's advice to the letter - we never
+    checked WIN32_FIND_DATA.Reserved0. And adding that extra check
+    makes Go treat OneDrive as symlink. So use FindFirstFile and
+    WIN32_FIND_DATA.Reserved0 to determine symlinks.
+    
+    Fixes #22579
+    
+    Change-Id: I0cb88929eb8b47b1d24efaf1907ad5a0e20de83f
+    Reviewed-on: https://go-review.googlesource.com/86556
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/rand/rand.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/os/dir_windows.go     |  17 ++----
+ src/os/os_windows_test.go |  86 +++++++++++++++++++++++++++
+ src/os/stat_windows.go    | 138 ++++++++------------------------------------
+ src/os/types_windows.go   | 144 +++++++++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 250 insertions(+), 135 deletions(-)

@@ -1,29 +1,29 @@
-commit 60ab197bc2bebb0ad25e7f4610c6e4aae71d29e4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Feb 16 15:50:49 2021 -0500
+commit 2ec71e57323c4801bb70a8dab687991e551229f4
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Mon Oct 5 13:18:20 2020 -0700
 
-    runtime: refactor work stealing to dedicated function
+    crypto/x509: add signature verification to CreateCertificate
     
-    findrunnable has grown very large and hard to follow over the years.
-    Parts we can split out into logical chunks should help make it more
-    understandable and easier to change in the future.
+    This changes checks the signature generated during CreateCertificate
+    and returns an error if the verification fails. A benchmark is also
+    added. For RSA keys the delta looks to be insignificant, but for
+    ECDSA keys it introduces a much larger delta which is not ideal.
     
-    The work stealing loop is one such big chunk that is fairly trivial to
-    split out into its own function, and even has the advantage of
-    simplifying control flow by removing a goto around work stealing.
+    name          old time/op  new time/op   delta
+    RSA_2048-8    1.38ms ± 6%   1.41ms ± 2%      ~     (p=0.182 n=10)
+    ECDSA_P256-8  42.6µs ± 4%  116.8µs ± 4%  +174.00%  (p=0.000 n=1
     
-    This CL should have no functional changes.
+    Fixes #40458
     
-    For #43997.
-    For #44313.
-    
-    Change-Id: Ie69670c7bc60bd6c114e860184918717829adb22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307913
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I22827795bb9bb6868b4fa47391927db1d3bc19a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259697
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Chris Hines <chris.cs.guy@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Roland Shoemaker <roland@golang.org>
 
- src/runtime/proc.go | 180 ++++++++++++++++++++++++++++++----------------------
- 1 file changed, 105 insertions(+), 75 deletions(-)
+ doc/go1.16.html              |  7 ++++
+ src/crypto/x509/x509.go      | 12 ++++++-
+ src/crypto/x509/x509_test.go | 76 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 94 insertions(+), 1 deletion(-)

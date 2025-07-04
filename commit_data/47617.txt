@@ -1,17 +1,25 @@
-commit 45bae64015975a4d7ede597a55397545571d8bc5
-Author: Chaoqun Han <hanssccv@gmail.com>
-Date:   Thu Nov 25 09:41:06 2021 +0800
+commit 51cd074c59c770484e7db4788d968c408a278607
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Mar 30 22:33:28 2021 +0000
 
-    A+C: add Chaoqun Han (individual CLA)
+    reflect: undo register count increments on register assignment failure
     
-    Change-Id: Id4aa067ef84510a31992d7d32cc697dd8b8342f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367035
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Currently when register assignment fails we roll back all the abiParts
+    that were generated in the process. However, the total number of
+    registers also increases, but does not get rolled back. The result is
+    a very incorrect register assignment.
+    
+    For #40724.
+    For #44816.
+    
+    Change-Id: I1934ea5f95f7608ff2067166255099dbc9135e8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306109
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/reflect/abi.go      | 8 +++++++-
+ src/reflect/abi_test.go | 9 +++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

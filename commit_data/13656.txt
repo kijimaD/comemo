@@ -1,17 +1,15 @@
-commit b1532344ef58fe644c85bbc6e268102528d39c61
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Aug 21 00:34:06 2012 +0800
+commit db645a024d5b152ffa219ef51de0be0e8240af99
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Aug 20 22:30:04 2012 +1000
 
-    cmd/ld: skip R_*_NONE relocations, fix Linux/386 build again
-    The last fix was wrong w.r.t C's operator precedence,
-    and it also failed to really skip the NONE relocation.
+    strconv: consistent parameter names for ParseUint
     
-    The offending R_386_NONE relocation is a absolute
-    relocation in section .eh_frame.
+    If ParseUint is like ParseInt it should have the same parameter
+    names, thus rename b to to base as in ParseInt's documentation.
     
-    TBR=golang-dev
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6463058
+    https://golang.org/cl/6453152
 
- src/cmd/ld/ldelf.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/strconv/atoi.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

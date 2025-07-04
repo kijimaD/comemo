@@ -1,15 +1,22 @@
-commit 73b8baa1bdd76e0e5d898243c9d1d4ee2e6268e3
-Author: Ryan Slade <ryanslade@gmail.com>
-Date:   Thu Aug 8 10:00:24 2013 -0700
+commit 65834685d3df3e6219cbf3ab471a13fa997c5b98
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 8 17:41:57 2013 +0400
 
-    net/mail: AddressList fails to parse addresses with a dot
+    runtime: use GetQueuedCompletionStatusEx on windows if available
+    GetQueuedCompletionStatusEx allows to dequeue a batch of completion
+    notifications, which is more efficient than dequeueing one by one.
     
-    Fixes #4938.
+    benchmark                           old ns/op    new ns/op    delta
+    BenchmarkClientServerParallel4         100605        90945   -9.60%
+    BenchmarkClientServerParallel4-2        90225        74504  -17.42%
     
-    R=golang-dev, bradfitz
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/12657044
+    https://golang.org/cl/12436044
 
- src/pkg/net/mail/message.go      |  2 +-
- src/pkg/net/mail/message_test.go | 10 ++++++++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/pkg/runtime/netpoll.goc       |   6 +++
+ src/pkg/runtime/netpoll_windows.c | 100 ++++++++++++++++++++++++++------------
+ src/pkg/runtime/os_windows.c      |   3 ++
+ src/pkg/runtime/os_windows.h      |   1 +
+ src/pkg/runtime/runtime.h         |   1 +
+ 5 files changed, 79 insertions(+), 32 deletions(-)

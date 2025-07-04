@@ -1,21 +1,37 @@
-commit 415da71c5d2b02beab9067af4c2ff435de15bb9b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 16 13:40:24 2020 -0700
+commit 4af639a5685355b22f8a541c72ba092bed768941
+Author: Keith Randall <khr@google.com>
+Date:   Mon Nov 4 14:50:35 2019 -0800
 
-    cmd/compile: remove totype0 type-constructor helpers
+    cmd: vendor in new version of x/tools
     
-    These were originally introduced for the binary export format, which
-    required forward references to arbitrary types and later filling them
-    in. They're no longer needed since we switched to the indexed export
-    format, which only requires forward references to declared types.
+    Fixes #35264
     
-    Passes toolstash-check.
-    
-    Change-Id: I696dc9029ec7652d01ff49fb98e658a9ed510979
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228579
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Id540a48f593d8ac1b414551255c5eff24666aa0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205240
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go | 36 +++++++-----------------------------
- 1 file changed, 7 insertions(+), 29 deletions(-)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../golang.org/x/tools/go/analysis/analysis.go     |  18 ++-
+ .../golang.org/x/tools/go/analysis/diagnostic.go   |  13 ++
+ .../x/tools/go/analysis/internal/facts/facts.go    |   5 +-
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |   9 ++
+ .../x/tools/go/analysis/passes/atomic/atomic.go    |   2 +-
+ .../x/tools/go/analysis/passes/bools/bools.go      |   4 +-
+ .../go/analysis/passes/composite/composite.go      |   2 +-
+ .../tools/go/analysis/passes/copylock/copylock.go  |  14 +-
+ .../tools/go/analysis/passes/errorsas/errorsas.go  |   2 +-
+ .../analysis/passes/httpresponse/httpresponse.go   |   2 +-
+ .../x/tools/go/analysis/passes/inspect/inspect.go  |   2 +-
+ .../go/analysis/passes/loopclosure/loopclosure.go  |   2 +-
+ .../go/analysis/passes/lostcancel/lostcancel.go    |   6 +-
+ .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |   2 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    | 151 +++++++++++++--------
+ .../x/tools/go/analysis/passes/shift/shift.go      |   2 +-
+ .../go/analysis/passes/stdmethods/stdmethods.go    |   2 +-
+ .../go/analysis/passes/unreachable/unreachable.go  |   2 +-
+ .../go/analysis/passes/unsafeptr/unsafeptr.go      |   2 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 22 files changed, 162 insertions(+), 88 deletions(-)

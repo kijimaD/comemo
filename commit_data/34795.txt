@@ -1,34 +1,18 @@
-commit b834cd9a0d529bb870afe22b8c0f28fcf4f9f754
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Sat Mar 31 09:50:25 2018 +0800
+commit b9ebc675b31303cb22da5aa39ef7cbd208d83010
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 15 15:19:31 2017 -0500
 
-    crypto/md5: add assembly implementation on arm64
+    database/sql/driver: document that Execer, Queryer need not be implemented
     
-    This change improves the performance of the block
-    function used within crypto/md5 on arm64.  The following
-    improvement was seen:
+    CL 21663 allowed drivers to implement ExecerContext without
+    also implementing Execer, and similarly QueryerContext without
+    Queryer, but it did not make that clear in the documentation.
     
-    name                 old time/op    new time/op     delta
-    Hash8Bytes             1.62µs ± 0%     0.85µs ± 0%  -47.83%  (p=0.000 n=8+10)
-    Hash1K                 8.82µs ± 0%     7.10µs ± 3%  -19.52%  (p=0.000 n=10+10)
-    Hash8K                 59.5µs ± 2%     50.2µs ± 0%  -15.63%  (p=0.000 n=9+10)
-    Hash8BytesUnaligned    1.63µs ± 0%     0.85µs ± 0%  -47.92%  (p=0.000 n=9+10)
-    Hash1KUnaligned        14.1µs ± 0%      7.4µs ± 0%  -47.45%  (p=0.000 n=9+10)
-    Hash8KUnaligned         101µs ± 0%       53µs ± 0%  -47.57%  (p=0.000 n=10+10)
+    This CL updates the documentation.
     
-    name                 old speed      new speed       delta
-    Hash8Bytes           4.93MB/s ± 0%   9.44MB/s ± 0%  +91.61%  (p=0.000 n=9+10)
-    Hash1K                116MB/s ± 0%    144MB/s ± 3%  +24.28%  (p=0.000 n=10+10)
-    Hash8K                138MB/s ± 2%    163MB/s ± 0%  +18.52%  (p=0.000 n=9+10)
-    Hash8BytesUnaligned  4.92MB/s ± 0%   9.44MB/s ± 0%  +92.04%  (p=0.000 n=9+10)
-    Hash1KUnaligned      72.8MB/s ± 0%  138.6MB/s ± 0%  +90.29%  (p=0.000 n=9+8)
-    Hash8KUnaligned      80.9MB/s ± 0%  154.2MB/s ± 0%  +90.71%  (p=0.000 n=10+10)
-    
-    Change-Id: I9e121a3132ff1b59e30f2de64e46106269065ecd
-    Reviewed-on: https://go-review.googlesource.com/101875
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I9a4accaac32edfe255fe7c0b0907d4c1014322b4
+    Reviewed-on: https://go-review.googlesource.com/78129
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/crypto/md5/md5block_arm64.s    | 167 +++++++++++++++++++++++++++++++++++++
- src/crypto/md5/md5block_decl.go    |   2 +-
- src/crypto/md5/md5block_generic.go |   2 +-
- 3 files changed, 169 insertions(+), 2 deletions(-)
+ src/database/sql/driver/driver.go | 30 ++++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 14 deletions(-)

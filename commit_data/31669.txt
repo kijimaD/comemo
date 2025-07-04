@@ -1,20 +1,22 @@
-commit a9d8d4df616dc570e443d82bdc6d06a94a3c4ffd
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Wed May 24 19:36:41 2017 -0600
+commit 9207a7437e382e4a05436fc26a2e24740a0492ec
+Author: Josselin Costanzi <josselin@costanzi.fr>
+Date:   Sun Mar 5 18:55:18 2017 +0100
 
-    net/http: revert CL 43779
+    encoding/base64: add alphabet and padding restrictions
     
-    CL 43779/commit 6a6c792eef55eded7fb3165a330ec2b239b83960
-    broke the builds at tip, and that CL doesn't account for
-    cases where Redirect is directly invoked with a full URL
-    that itself has a query string.
+    Document and check that the alphabet cannot contain '\n' or '\r'.
+    Document that the alphabet cannot contain the padding character.
+    Document that the padding character must be equal or bellow '\xff'.
+    Document that the padding character must not be '\n' or '\r'.
     
-    Updates #17841
+    Fixes #19343
+    Fixes #19318
     
-    Change-Id: Idb0486bae8625e1f9e033ca4cfcd87de95bc835c
-    Reviewed-on: https://go-review.googlesource.com/44100
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6de0034d347ffdf317d7ea55d6fe38b01c2c4c03
+    Reviewed-on: https://go-review.googlesource.com/37838
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/serve_test.go | 42 ------------------------------------------
- src/net/http/server.go     |  9 ---------
- 2 files changed, 51 deletions(-)
+ src/encoding/base64/base64.go | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)

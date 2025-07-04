@@ -1,17 +1,14 @@
-commit 542a60fbdea55ca022fd87146a31b09058ee6850
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 28 13:44:33 2017 -0800
+commit 248a59447165ebac2779cb54ee2a10c021009d20
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Nov 7 19:08:51 2016 -0500
 
-    cmd/compile: don't crash when slicing non-slice
+    doc/devel/release.html: document go1.6.3 doesn't actually support macOS Sierra
     
-    Fixes #19323
+    Updates #17824.
     
-    Change-Id: I92d1bdefb15de6178a577a4fa0f0dc004f791904
-    Reviewed-on: https://go-review.googlesource.com/37584
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I73cf89c21b418158c7014c3271cd1103a17a5c86
+    Reviewed-on: https://go-review.googlesource.com/32882
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 11 +++++------
- test/fixedbugs/issue19323.go             | 19 +++++++++++++++++++
- 2 files changed, 24 insertions(+), 6 deletions(-)
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

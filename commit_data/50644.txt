@@ -1,30 +1,25 @@
-commit 7398c3c0c6d66a95d0c29c8fa59322e675ce7c86
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 26 21:27:20 2022 -0700
+commit 5af93a2d1556226656f003f65ac1de034b8fb55f
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Nov 4 13:55:31 2021 -0400
 
-    cmd/compile: use "method T.m already declared" for method redeclaration errors
+    internal/fuzz: improve minimizing message
     
-    Compromise between old compiler error "T.m redeclared in this block"
-    (where the "in this block" is not particularly helpful) and the old
-    type-checker error "method m already declared for type T ...".
-    In the case where we have position information for the original
-    declaration, the error message is "method T.m already declared at
-    <position>". The new message is both shorter and more precise.
+    In order to know the actual number of bytes
+    of the entire corpus entry, the coordinator
+    would likely need to unmarshal the bytes and
+    tally up the length. That's more work than it
+    is worth, so this change just clarifies that
+    the printed # of bytes is the length of the
+    entire file, not just the entry itself.
     
-    For #55326.
+    Fixes #48989
     
-    Change-Id: Id4a7f326fe631b11db9e8030eccb417c72d6c7db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435016
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I6fa0c0206a249cefdf6335040c560ec0c5a55b4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361414
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/decl.go | 10 +++-------
- src/go/types/decl.go                    |  7 +++++--
- test/alias2.go                          |  6 +++---
- test/fixedbugs/bug350.go                |  4 ++--
- test/fixedbugs/issue18655.go            | 16 ++++++++--------
- test/method1.go                         |  4 ++--
- 6 files changed, 23 insertions(+), 24 deletions(-)
+ src/internal/fuzz/fuzz.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

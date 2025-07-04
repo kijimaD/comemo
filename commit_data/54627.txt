@@ -1,56 +1,18 @@
-commit 008dabcd19b5c3f00083c6d4e6c306682bb1bcd0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 4 15:22:49 2023 -0700
+commit a72e133422d3eb2f24ca6f5d834c622137f0ccd2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 3 20:33:34 2022 -0400
 
-    cmd/compile/internal/ir: tweak a couple names
+    cmd/compile/internal/pgo: remove some unused fields
     
-    CallExpr.X -> CallExpr.Fun
+    We intentionally don't use file path so it is resilient to code
+    moving. OrigName and Objfile are also not used currently. Remove
+    them. (We can add them back if it turns out to be useful.)
     
-    This consistent with go/ast and cmd/compile/internal/syntax.
-    
-    OPRINTN -> OPRINTLN
-    
-    This op represents the "println" builtin; might as well spell it the
-    same way.
-    
-    Change-Id: Iead1b007776658c717879cf0997b3c48028428f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532795
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I7975d78c874bc21475b9119301088452a4426cb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447801
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- .../compile/internal/devirtualize/devirtualize.go  |  6 ++---
- src/cmd/compile/internal/devirtualize/pgo.go       | 10 ++++----
- src/cmd/compile/internal/escape/call.go            | 16 ++++++------
- src/cmd/compile/internal/escape/stmt.go            |  2 +-
- src/cmd/compile/internal/inline/inl.go             | 28 ++++++++++----------
- .../inline/inlheur/analyze_func_callsites.go       |  2 +-
- .../internal/inline/inlheur/analyze_func_flags.go  |  4 +--
- .../internal/inline/inlheur/analyze_func_params.go |  6 ++---
- .../inline/inlheur/analyze_func_returns.go         |  4 +--
- .../inline/inlheur/score_callresult_uses.go        |  4 +--
- src/cmd/compile/internal/ir/expr.go                |  6 ++---
- src/cmd/compile/internal/ir/fmt.go                 |  8 +++---
- src/cmd/compile/internal/ir/func.go                |  4 +--
- src/cmd/compile/internal/ir/node.go                |  2 +-
- src/cmd/compile/internal/ir/node_gen.go            | 10 ++++----
- src/cmd/compile/internal/ir/op_string.go           |  2 +-
- src/cmd/compile/internal/noder/reader.go           |  2 +-
- src/cmd/compile/internal/pgo/irgraph.go            |  4 +--
- src/cmd/compile/internal/reflectdata/reflect.go    |  2 +-
- src/cmd/compile/internal/ssagen/nowb.go            |  4 +--
- src/cmd/compile/internal/ssagen/ssa.go             | 30 +++++++++++-----------
- src/cmd/compile/internal/typecheck/const.go        |  2 +-
- src/cmd/compile/internal/typecheck/func.go         | 28 ++++++++++----------
- src/cmd/compile/internal/typecheck/stmt.go         | 12 ++++-----
- src/cmd/compile/internal/typecheck/typecheck.go    |  4 +--
- src/cmd/compile/internal/typecheck/universe.go     |  2 +-
- src/cmd/compile/internal/walk/assign.go            |  2 +-
- src/cmd/compile/internal/walk/builtin.go           |  2 +-
- src/cmd/compile/internal/walk/closure.go           |  4 +--
- src/cmd/compile/internal/walk/expr.go              | 18 ++++++-------
- src/cmd/compile/internal/walk/order.go             |  4 +--
- src/cmd/compile/internal/walk/stmt.go              |  8 +++---
- 32 files changed, 121 insertions(+), 121 deletions(-)
+ src/cmd/compile/internal/pgo/graph.go | 39 ++++++++---------------------------
+ 1 file changed, 9 insertions(+), 30 deletions(-)

@@ -1,29 +1,42 @@
-commit 29af494fca8a25d7d46276f6d4835c4dcd09e47d
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Sep 6 09:58:29 2022 -0700
+commit 4e565f7372494c9c46e33a35e84f0fe4fc7d2774
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 18 14:31:48 2021 +0700
 
-    all: update vendored golang.org/x/net
+    cmd/compile: fix crawling of embeddable types during inline
     
-    Pull in security fix:
+    In CL 327872, there's a fix for crawling of embeddable types directly
+    reached by the user, so all of its methods need to be re-exported. But
+    we missed the cased when an un-exported type may be reachable by
+    embedding in exported type. Example:
     
-        f3363e06e7 http2: handle server errors after sending GOAWAY
+            type t struct {}
+            func (t) M() {}
     
-    Fixes CVE-2022-27664
-    Fixes golang/go#54658
+            func F() interface{} { return struct{ t }{} }
     
-    Change-Id: Ie1f58a8d769c7fd75c67d202c611a3abfd7dbb35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428717
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    We generate the wrapper for "struct{ t }".M, and when inlining call to
+    "struct{ t }".M makes "t.M" reachable.
+    
+    It works well, and only be revealed in CL 327871, when we changed
+    methodWrapper to always call inline.InlineCalls, thus causes the crash
+    in #49016, which involve dot type in inlined function.
+    
+    Fixes #49016
+    
+    Change-Id: If174fa5575132da5cf60e4bd052f7011c4e76c5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356254
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go.mod                                         |  2 +-
- src/go.sum                                         |  4 +-
- src/net/http/h2_bundle.go                          | 63 +++++++++++++++-------
- .../golang.org/x/net/dns/dnsmessage/message.go     | 12 +++++
- src/vendor/golang.org/x/net/nettest/nettest.go     |  6 ++-
- .../golang.org/x/net/route/zsys_freebsd_riscv64.go | 52 ++++++++++++++++++
- src/vendor/modules.txt                             |  2 +-
- 7 files changed, 116 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/typecheck/crawler.go | 33 ++++++++++++++++++------
+ test/fixedbugs/issue49016.dir/a.go            | 36 +++++++++++++++++++++++++++
+ test/fixedbugs/issue49016.dir/b.go            | 13 ++++++++++
+ test/fixedbugs/issue49016.dir/c.go            |  9 +++++++
+ test/fixedbugs/issue49016.dir/d.go            |  9 +++++++
+ test/fixedbugs/issue49016.dir/e.go            | 11 ++++++++
+ test/fixedbugs/issue49016.dir/f.go            |  9 +++++++
+ test/fixedbugs/issue49016.dir/g.go            |  9 +++++++
+ test/fixedbugs/issue49016.go                  |  7 ++++++
+ 9 files changed, 128 insertions(+), 8 deletions(-)

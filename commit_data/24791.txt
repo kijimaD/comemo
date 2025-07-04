@@ -1,22 +1,17 @@
-commit 8f3f2ccac077c73249349e9cf975dcca7e803f6a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 3 17:15:30 2015 -0800
+commit 019297a9aa63fc1ee016e0ff4f4d86e8dc578541
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Fri Jul 24 14:21:11 2015 +1000
 
-    runtime: mark cgo callback results as written for msan
+    os: remove a redundant branch in File.Read.
     
-    This is a fix for the -msan option when using cgo callbacks.  A cgo
-    callback works by writing out C code that puts a struct on the stack and
-    passes the address of that struct into Go.  The result parameters are
-    fields of the struct.  The Go code will write to the result parameters,
-    but the Go code thinks it is just writing into the Go stack, and
-    therefore won't call msanwrite.  This CL adds a call to msanwrite in the
-    cgo callback code so that the C knows that results were written.
+    All implementations of File.read ensure that n >= 0. This is usually via
+    fixCount, except for Windows console reads, which only ever add to n.
     
-    Change-Id: I80438dbd4561502bdee97fad3f02893a06880ee1
-    Reviewed-on: https://go-review.googlesource.com/16611
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ic019d6a2da5ef1ac68d2690c908deca4fcc6b4a4
+    Reviewed-on: https://go-review.googlesource.com/12624
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testsanitizers/msan3.go  | 32 ++++++++++++++++++++++++++++++++
- misc/cgo/testsanitizers/test.bash |  7 ++++++-
- src/runtime/cgocall.go            |  7 +++++++
- 3 files changed, 45 insertions(+), 1 deletion(-)
+ src/os/file.go | 3 ---
+ 1 file changed, 3 deletions(-)

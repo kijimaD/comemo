@@ -1,20 +1,13 @@
-commit 3858efcc586914634c5a64b8ef289abe7d4d28b3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 3 17:39:55 2016 -0800
+commit 4ad64cadf8a5d1b57c8af4ae146d83cd0ea97cae
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 11 17:50:22 2015 -0500
 
-    math/big: use correct precision in Float.Float32/64 for denormals
+    runtime: trace sweep completion in gcpacertrace mode
     
-    When a big.Float is converted to a denormal float32/64, the rounding
-    precision depends on the size of the denormal. Rounding may round up
-    and thus change the size (exponent) of the denormal. Recompute the
-    correct precision again for correct placement of the mantissa.
-    
-    Fixes #14553.
-    
-    Change-Id: Iedab5810a2d2a405cc5da28c6de7be34cb035b86
-    Reviewed-on: https://go-review.googlesource.com/20198
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I7991612e4d064c15492a39c19f753df1db926203
+    Reviewed-on: https://go-review.googlesource.com/17747
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/float.go      | 24 +++++++++++++----------
- src/math/big/float_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 61 insertions(+), 10 deletions(-)
+ src/runtime/mgcsweep.go | 3 +++
+ 1 file changed, 3 insertions(+)

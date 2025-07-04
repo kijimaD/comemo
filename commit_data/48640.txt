@@ -1,25 +1,19 @@
-commit 029d2c4524e729dbd913475ca4a5138bb6c5e099
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 30 10:37:07 2022 +1100
+commit ffc74ad5d3241f3fed48816e25802967cfd6fb07
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 3 11:04:50 2021 -0400
 
-    flag: recover panic when calling String on zero value in PrintDefaults
+    [dev.typeparams] go/types: move interface checking into separate file
     
-    When printing the usage message, recover panics when calling String
-    methods on reflect-constructed flag.Value zero values. Collect the panic
-    messages and include them at the end of the PrintDefaults output so that
-    the programmer knows to fix the panic.
+    This is a port of CL 321549 to go/types. Specifically, the same checker
+    methods were moved.
     
-    Fixes #28667
-    
-    Change-Id: Ic4378a5813a2e26f063d5580d678add65ece8f97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396574
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Trust: Andrew Gerrand <adg@golang.org>
+    Change-Id: I491a8c5a985d71ebb23e4b34541a557da0af0cfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324752
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/flag/flag.go      | 31 ++++++++++++++++++++++++++++---
- src/flag/flag_test.go | 33 ++++++++++++++++++++++++++++++++-
- 2 files changed, 60 insertions(+), 4 deletions(-)
+ src/go/types/interface.go | 321 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/typexpr.go   | 310 --------------------------------------------
+ 2 files changed, 321 insertions(+), 310 deletions(-)

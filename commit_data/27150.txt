@@ -1,19 +1,20 @@
-commit c9389a101b020b41a954ac35642ec254c8344238
-Author: Zhongwei Yao <zhongwei.yao@arm.com>
-Date:   Thu Mar 31 15:34:12 2016 +0800
+commit 368507bb6fde52fc60797ced83a25e13b1c6b19d
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Mon Mar 14 01:59:22 2016 +0100
 
-    cmd/asm: fix SIMD register name on arm64
+    reflect: use SelectDir instead of uintptr in runtimeSelect
     
-    Current V-register range is V32~V63 on arm64. This patch changes it to
-    V0~V31.
+    And fix the wrong comment.
     
-    fix #15465.
+    Initially found this because the comment was wrong about the possible
+    values. Then noticed that there doesn't seem to be any reason to use
+    uintptr over SelectDir.
     
-    Change-Id: I90dab42dea46825ec5d7a8321ec4f6550735feb8
-    Reviewed-on: https://go-review.googlesource.com/22520
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Run-TryBot: Aram Hăvărneanu <aram@mgk.ro>
+    Change-Id: I4f9f9640e49d89e558ed00bd99e57dab890785f5
+    Reviewed-on: https://go-review.googlesource.com/20655
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/arm64/list7.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/value.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

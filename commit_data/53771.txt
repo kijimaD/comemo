@@ -1,24 +1,72 @@
-commit 12bd2445afffbf229bafc538260c37b5dc176479
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 25 15:14:03 2023 -0700
+commit 9649a4119c7954618ea891e71c09cb51940f39a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 16:56:17 2022 -0700
 
-    runtime2: don't check fcntl errno in checkfds on AIX and Solaris
+    go/types, types2: consolidate testdata/fixedbugs test files
     
-    On AIX and Solaris the errno value is fetched using m.mOS.perrno.
-    When checkfds is called, that value has not yet been set up by minit.
-    Since the error value doesn't really matter in checkfds,
-    don't bother to check it on AIX and Solaris.
+    Use the go/types version of testdata/fixedbugs tests where diffs
+    are only in the error positions (the types2 test harness allows
+    for some position tolerance). Consolidate files where there are
+    other minor differences.
     
-    Fixes #61584
+    Add files to respective directories if they only existed for
+    one of the type checkers.
     
-    Change-Id: I4e679ee3fdad4f0b833ae102597b2d6b8cb46cb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513215
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Move types2-only test issue47996.go out of testdata/fixedbugs
+    into testdata. Making it work for both type checkers requires
+    some more work.
+    
+    With this CL, the testdata/fixedbugs files are identical between
+    the two type checkers.
+    
+    For #54511.
+    
+    Change-Id: I0d67f0db75ad1743c62da9181a6d0032c8bdb728
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427236
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/fds_unix.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ .../types2/testdata/fixedbugs/issue20583.go        |  2 ++
+ .../types2/testdata/fixedbugs/issue26390.go        |  2 ++
+ .../types2/testdata/fixedbugs/issue39634.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue39693.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue39711.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue40038.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue40056.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue40684.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue42987.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue43125.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue45635.go        | 10 ++++----
+ .../types2/testdata/fixedbugs/issue45920.go        |  4 ++--
+ .../types2/testdata/fixedbugs/issue45985.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue46275.go        | 18 +++++++-------
+ .../types2/testdata/fixedbugs/issue46403.go        | 11 +++++++++
+ .../types2/testdata/fixedbugs/issue47115.go        |  8 +++----
+ .../types2/testdata/fixedbugs/issue47411.go        |  4 ++--
+ .../types2/testdata/fixedbugs/issue48136.go        | 14 +++++------
+ .../types2/testdata/fixedbugs/issue48827.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue49112.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue49179.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue49602.go        | 12 +++++-----
+ .../types2/testdata/fixedbugs/issue50372.go        |  8 +++----
+ .../types2/testdata/fixedbugs/issue50427.go        | 23 ++++++++++++++++++
+ .../types2/testdata/fixedbugs/issue51229.go        |  6 ++---
+ .../types2/testdata/fixedbugs/issue51257.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue51339.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue51360.go        |  8 +++----
+ .../types2/testdata/fixedbugs/issue51376.go        |  4 ++--
+ .../types2/testdata/fixedbugs/issue51472.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue51593.go        |  2 +-
+ .../types2/testdata/{fixedbugs => }/issue47996.go  |  0
+ src/go/types/testdata/fixedbugs/issue39693.go      |  4 ++--
+ src/go/types/testdata/fixedbugs/issue46275.go      | 19 +++++++--------
+ src/go/types/testdata/fixedbugs/issue46583.go      | 28 ++++++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue48695.go      |  2 +-
+ src/go/types/testdata/fixedbugs/issue49296.go      |  1 -
+ src/go/types/testdata/fixedbugs/issue50372.go      | 27 +++++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue52698.go      | 28 +++++++++++++++-------
+ 40 files changed, 190 insertions(+), 87 deletions(-)

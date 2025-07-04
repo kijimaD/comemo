@@ -1,16 +1,13 @@
-commit 11a40cb34db360661ed75268bd6b33aa221ad537
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Dec 21 20:40:44 2012 +0100
+commit c9eb6267dfdbda9e9704477322903688d72ae8dc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Dec 22 02:39:54 2012 +0800
 
-    misc/pprof: don't look for browser in current directory.
+    cmd/dist: make GOARM detection better compatible with thumb toolchain
+    Fixes #4557.
     
-    Taken from upstream pprof.
-    
-    Fixes #4564.
-    
-    R=golang-dev, minux.ma
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6952045
+    https://golang.org/cl/6946078
 
- misc/pprof | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/dist/arm.c | 28 +++++++++++++++++++++++++---
+ 1 file changed, 25 insertions(+), 3 deletions(-)

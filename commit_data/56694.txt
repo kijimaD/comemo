@@ -1,24 +1,25 @@
-commit 94aeedc33a4434f0d410be7c42e0bbcdaedd790f
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri May 24 15:18:00 2024 -0400
+commit bc96901e8959c5eb21d5bca5614eb66481815918
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu May 18 09:24:42 2023 -0400
 
-    cmd/go/internal/load: clone pgo variant's PackagePublic.Imports in split
+    log/slog: empty calls to With and WithGroup are no-ops
     
-    Before this change the pgo and non-pgo variants Imports slices pointed
-    to the same array, so modifying the pgo variant's Imports slice to add
-    the .ForMain suffix modified the non-pgo vairant's Imports slice too.
-    This change clones the imports slice to avoid that.
+    It doesn't make sense to call Logger.WithGroup with the empty string.
+    Make it a no-op by returning the receiver.
+    This relieves handlers of the burden of detecting that case themselves.
     
-    Fixes #66218
+    Less importantly, but for consistency, if Logger.With is called with
+    no args, make it a no-op by returning the receiver.
     
-    Change-Id: Ic936086f2c31f2056988d6546216142e4fce4d8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588275
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Along the way, fix obsolete mentions of "the Logger's context" in the
+    doc.
+    
+    Change-Id: Ia6caa4f1ca70c1c4b0cab3e222b2fda48be73fef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496175
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
 
- src/cmd/go/internal/load/pkg.go                    |  6 +++--
- src/cmd/go/testdata/script/list_pgo_issue66218.txt | 28 ++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 2 deletions(-)
+ src/log/slog/handler.go |  3 ---
+ src/log/slog/logger.go  | 27 ++++++++++++++-------------
+ 2 files changed, 14 insertions(+), 16 deletions(-)

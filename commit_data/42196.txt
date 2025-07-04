@@ -1,24 +1,20 @@
-commit 5a550b695117f07a4f2454039a4871250cd3ed09
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Mar 21 08:23:13 2020 -0400
+commit 62581ee982bef250a1b53af2e3591f1193fe27ee
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 13 10:03:19 2019 -0500
 
-    go/ast: drop //directive comments from doc.Text
+    cmd/link: don't run TestDWARF in c-archive mode on Windows
     
-    This allows writing
+    Test fix: in dwarf_test.go don't try to run the TestDWARF testpoint on
+    windows with c-archive build mode (linker + debug/pe support for that
+    build mode on Windows is not fully baked it seems).
     
-            // F does a thing.
-            //go:noinline
-            func F()
+    Fixes #35512.
     
-    without the //go:noinline or other directive (such as //line)
-    ending up looking like extra words in the doc comment.
-    
-    Fixes #37974.
-    
-    Change-Id: Ic738d72802cc2fa448f7633915e7126d2f76d8ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224737
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I1c87ff3d62e5b98e75062b184d762fb5ed937745
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206899
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/ast/ast.go      | 47 +++++++++++++++++++++++++++++++++++++++++------
- src/go/ast/ast_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 70 insertions(+), 6 deletions(-)
+ src/cmd/link/dwarf_test.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

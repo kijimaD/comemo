@@ -1,14 +1,27 @@
-commit ce68e1b81c470ef29ece6a33980ab05e2b8bb30c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 16 09:35:31 2017 -0800
+commit 86dde2debbab6dec105e0bf74ef74d7220974dde
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Aug 9 16:56:08 2017 +0900
 
-    builtin: improve docs for make slice
+    testing: error if -parallel is given N<1
     
-    Fixes #22764
+    Otherwise, if there are any parallel tests, it will hang and panic with
+    "all goroutines are asleep - deadlock!".
     
-    Change-Id: I339d3bbb08983e0d69d69a1d00c4d15d0661762a
-    Reviewed-on: https://go-review.googlesource.com/78335
-    Reviewed-by: Rob Pike <r@golang.org>
+    Do not use flag.Uint to handle the error for us because we also want to
+    error on N==0, and because it would make setting the default to
+    GOMAXPROCS(0) more difficult, since it's an int.
+    
+    Check for it right after flag.Parse, and mimic flag errors by printing
+    the usage and returning exit code 2.
+    
+    Fixes #20542.
+    
+    Change-Id: I0c9d4587f83d406a8f5e42ed74e40be46d639ffb
+    Reviewed-on: https://go-review.googlesource.com/54150
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/builtin/builtin.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go  | 11 +++++++++++
+ src/testing/testing.go |  6 ++++++
+ 2 files changed, 17 insertions(+)

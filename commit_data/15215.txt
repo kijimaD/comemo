@@ -1,14 +1,14 @@
-commit 27970af5c9a90e1b50026b4ff003064ff9d04920
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 12 19:40:20 2013 -0800
+commit be5deb93fb1af69a01acef214274a0708d711221
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Feb 12 16:13:14 2013 -0500
 
-    go/types: print, println accept 0 or more arguments
+    exp/ssa: omit Function's package name when printing intra-package references.
     
-    R=adonovan
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/7304089
+    https://golang.org/cl/7307105
 
- src/pkg/go/types/builtins.go           | 12 +++++++++---
- src/pkg/go/types/testdata/builtins.src | 26 ++++++++++++++++++++++++++
- src/pkg/go/types/universe.go           |  4 ++--
- 3 files changed, 37 insertions(+), 5 deletions(-)
+ src/pkg/exp/ssa/func.go  | 24 +++++++++++++++++++-----
+ src/pkg/exp/ssa/print.go | 11 ++++-------
+ src/pkg/exp/ssa/ssa.go   |  2 +-
+ 3 files changed, 24 insertions(+), 13 deletions(-)

@@ -1,22 +1,18 @@
-commit 0c0c94a9dcf90fbb48343d5a02787758d64e306d
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 18 16:41:19 2017 -0400
+commit a833485828f02b098c67127ed8be8e78493aaf4b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jan 16 12:37:11 2017 -0500
 
-    runtime/pprof: fix period information
+    cmd/compile: do not use statictmp for zeroing
     
-    The period recorded in CPU profiles is in nanoseconds, but was being
-    computed incorrectly as hz * 1000. As a result, many absolute times
-    displayed by pprof were incorrect.
+    Also fixes #18687.
     
-    Fix this by computing the period correctly.
-    
-    Change-Id: I6fadd6d8ad3e57f31e8cc7a25a24fcaec510d8d4
-    Reviewed-on: https://go-review.googlesource.com/40995
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I7c6d47c71e632adf4c16937a29074621f771844c
+    Reviewed-on: https://go-review.googlesource.com/35261
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/pprof/proto.go      | 4 +++-
- src/runtime/pprof/proto_test.go | 4 ++--
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 14 --------------
+ src/cmd/compile/internal/gc/ssa.go   |  9 +++++++++
+ src/cmd/compile/internal/gc/walk.go  | 13 +++++++++++++
+ 3 files changed, 22 insertions(+), 14 deletions(-)

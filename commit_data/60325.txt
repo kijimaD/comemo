@@ -1,0 +1,23 @@
+commit e44fa1c1a9139ad457d8fa84a68afa3f40e7732a
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Mon May 20 20:43:39 2024 +0000
+
+    cmd/go: fix go list -u -m all with too new retractions dependency
+    
+    Previously, go would not report retractions of dependencies that have a
+    newer version of Go. With this change, we will still display retractions despite a version difference when go list -u -m is used.
+    
+    Fixes: #66403
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I6406680235e294269836ae4cbe3d5680ca10eea0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588775
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modload/modfile.go             | 23 ++++++++++++++--------
+ .../example.com_retract_newergoversion_v1.0.0.txt  | 10 ++++++++++
+ .../example.com_retract_newergoversion_v1.2.0.txt  | 12 +++++++++++
+ .../script/list_retractions_issue66403.txt         | 20 +++++++++++++++++++
+ 4 files changed, 57 insertions(+), 8 deletions(-)

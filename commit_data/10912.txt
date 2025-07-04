@@ -1,13 +1,16 @@
-commit 01507b9ad168b98a1d528e6039f98a13d633034e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 20 14:32:33 2011 -0800
+commit a41006f35a5931387a3111739e4c97ff3568bbcc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 20 14:15:35 2011 -0800
 
-    net: fix Windows build
+    effective_go: redeclaration
     
-    R=golang-dev, r
+    Fixes #2455.
+    Fixes #2013.
+    
+    R=rsc, r, gri
     CC=golang-dev
-    https://golang.org/cl/5505048
+    https://golang.org/cl/5498053
 
- src/pkg/net/fd.go  | 8 --------
- src/pkg/net/net.go | 8 ++++++++
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ doc/effective_go.html | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/effective_go.tmpl | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 100 insertions(+)

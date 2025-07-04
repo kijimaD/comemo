@@ -1,16 +1,12 @@
-commit 19aa4209aebce5deaf485268e210ed3fc29cacd5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 16 04:41:34 2015 +0000
+commit 8ac16b9d529bc42ef085cd633fe57e17d5db57f9
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Mon Aug 3 17:20:31 2015 -0700
 
-    syscall: fix nacl listener to not accept connections once closed
+    cmd/go: re-run mkalldocs.sh after testflag change
     
-    Change-Id: I3ba6e97089ef6e69ba31dfb632df465859906a74
-    Reviewed-on: https://go-review.googlesource.com/15940
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia21501df23a91c065d9f2acc6f043019a1419b22
+    Reviewed-on: https://go-review.googlesource.com/13092
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/net_test.go     | 9 ++++++++-
- src/syscall/net_nacl.go | 8 +++++++-
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go | 1 +
+ 1 file changed, 1 insertion(+)

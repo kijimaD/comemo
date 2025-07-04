@@ -1,26 +1,12 @@
-commit a891b916bd6d284fba0349804da46ad2135e370c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Mar 22 03:58:35 2013 +0800
+commit ec8caf696ae44b9ea4624025a613dad4301398c4
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Thu Mar 21 19:00:02 2013 +0100
 
-    cmd/ld: don't generate DW_AT_type attr for unsafe.Pointer to match gcc behavior
-    gcc generates only attr DW_AT_byte_size for DW_TAG_pointer_type of "void *",
-    but we used to also generate DW_AT_type pointing to imaginary unspecified
-    type "void", which confuses some gdb.
-    This change makes old Apple gdb 6.x (specifically, Apple version gdb-1515)
-    accepts our binary without issue like this:
-    (gdb) b 'main.main'
-    Die: DW_TAG_unspecified_type (abbrev = 10, offset = 47079)
-        has children: FALSE
-        attributes:
-            DW_AT_name (DW_FORM_string) string: "void"
-    Dwarf Error: Cannot find type of die [in module /Users/minux/go/go2.hg/bin/go]
+    runtime: mark strings without going through an intermediate buffer
     
-    Special thanks to Russ Cox for pointing out the problem in comment #6 of
-    CL 7891044.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7744051
+    https://golang.org/cl/7949043
 
- src/cmd/ld/dwarf.c | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ src/pkg/runtime/mgc0.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

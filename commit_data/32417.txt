@@ -1,22 +1,40 @@
-commit f6944c780f5104114a7a5e404115478f8deb739b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 20 10:17:02 2017 -0700
+commit d234f9a75413fdae7643e4be9471b4aeccf02478
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Apr 13 16:04:40 2017 -0700
 
-    runtime: add TestIntendedInlining
+    database/sql: allow using a single connection from the database
     
-    The intent is to allow more aggressive refactoring
-    in the runtime without silent performance changes.
+    Databases have the following concepts: Statement, Batch, and Session.
     
-    The test would be useful for many functions.
-    I've seeded it with the runtime functions tophash and add;
-    it will grow organically (or wither!) from here.
+    A statement is often a single line like:
+    SELECT Amount from Account where ID = 50;
     
-    Updates #21536 and #17566
+    A batch is one or more statements submitted together for the query
+    to process. It may be a DELETE, INSERT, two UPDATES and a SELECT in
+    a single query text.
     
-    Change-Id: Ib26d9cfd395e7a8844150224da0856add7bedc42
-    Reviewed-on: https://go-review.googlesource.com/57410
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    A session is usually represented by a single database connection.
+    This often is an issue when dealing with scopes in databases.
+    Temporary tables and variables can have batch, session, or global
+    scope depending on the syntax, database, and use.
+    
+    Furthermore, some databases (sybase and derivatives in perticular)
+    that prevent certain statements from being in the same batch
+    and may necessitate being in the same session.
+    
+    By allowing users to extract a Conn from the database they can manage
+    session on their own without hacking around it by making connection
+    pools of single connections (a real workaround presented in issue).
+    It is tempting to just use a transaction, but this isn't always
+    desirable or an option if running an interactive session or
+    alter script set that itself starts transactions.
+    
+    Fixes #18081
+    
+    Change-Id: I9bdf0796632c48d4bcaef3624c629641984ffaf2
+    Reviewed-on: https://go-review.googlesource.com/40694
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
+ src/database/sql/sql.go      | 200 +++++++++++++++++++++++++++++++++++++++++--
+ src/database/sql/sql_test.go |  88 +++++++++++++++++++
+ 2 files changed, 283 insertions(+), 5 deletions(-)

@@ -1,15 +1,18 @@
-commit 53ebde225e0ecaff8c3b71356a4726fad753d47c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 1 12:22:39 2016 -0500
+commit bda885511d804a8a588df97080c2ea8207d637e3
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Fri Nov 6 17:28:58 2015 -0500
 
-    cmd/cgo: do not use gcc -xc - to compile standard input
+    cmd: allow buildmode=c-shared for android/386
     
-    We have private reports of compilers that mishandle that.
-    Write to a temporary file instead.
+    Update golang/go#9327.
     
-    Change-Id: I92e3cf4274b1a8048741e07fb52b8900c93b915e
-    Reviewed-on: https://go-review.googlesource.com/19616
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iab7dad31cf6b9f9347c3f34faebb67ecb38b17fc
+    Reviewed-on: https://go-review.googlesource.com/16701
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/cgo/util.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 47 insertions(+)
+ src/cmd/dist/test.go            | 4 +++-
+ src/cmd/go/build.go             | 2 +-
+ src/cmd/link/internal/ld/lib.go | 9 ++++++++-
+ 3 files changed, 12 insertions(+), 3 deletions(-)

@@ -1,16 +1,23 @@
-commit d4007aedfaf3f551f9ea7d5e2d2f86dcd2c4c990
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Sep 26 20:45:54 2021 -0700
+commit 14537e6e5410b403add59bb41d3954bdab0ade3e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 15 00:56:02 2021 -0800
 
-    go/types, types2: factor out some code, fix/add comments (cleanups)
+    [dev.regabi] cmd/compile: move stkobj symbol generation to SSA
     
-    Change-Id: Id6a2e3eadc9099abbdd21b6880e1ff3ac9cfb599
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352312
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    The code for allocating linksyms and recording that we need runtime
+    type descriptors is now concurrent-safe, so move it to where those
+    symbols are actually needed to reduce complexity and risk of failing
+    to generate all needed symbols in advance.
+    
+    For #43701.
+    
+    Change-Id: I759d2508213ac9a4e0b504b51a75fa10dfa37a8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284076
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/infer.go | 2 +-
- src/cmd/compile/internal/types2/unify.go | 6 ++++--
- src/go/types/infer.go                    | 2 +-
- src/go/types/unify.go                    | 6 ++++--
- 4 files changed, 10 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/compile.go | 16 ----------------
+ src/cmd/compile/internal/ssagen/ssa.go |  8 +++-----
+ 2 files changed, 3 insertions(+), 21 deletions(-)

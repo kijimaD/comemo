@@ -1,19 +1,19 @@
-commit 2f04903fec99e8b8291f1bfa91590bddb1b93c68
-Author: tomocy <tomocy.dev@gmail.com>
-Date:   Mon Sep 2 14:34:16 2019 +0000
+commit e608ffda0828e8001c0d95dc5ead28472c05d74e
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 19 17:11:15 2019 +0000
 
-    net: document concurrency safety and example for Dialer
+    cmd/compile: fix ssa/debug_test.go reference file
     
-    Fixes #33743.
+    Behavior improved, file expects old worse behavior.
+    Update file to expect newer, better output.
     
-    Change-Id: I80621321d56b6cf312a86e272800f1ad03c5544c
-    GitHub-Last-Rev: d91cb3697516ccfc3f956e97837404cbfee5922f
-    GitHub-Pull-Request: golang/go#33856
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191879
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Fixes #30912.
+    
+    Change-Id: I410bdaacdb77a4620656753c8c0dc2d4d5378985
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168377
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/dial.go         |  2 ++
- src/net/example_test.go | 18 ++++++++++++++++++
- 2 files changed, 20 insertions(+)
+ src/cmd/compile/internal/ssa/testdata/i22558.gdb-dbg.nexts | 7 +++++++
+ 1 file changed, 7 insertions(+)

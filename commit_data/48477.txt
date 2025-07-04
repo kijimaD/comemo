@@ -1,19 +1,24 @@
-commit 29866aa2b6a6a48672a386d05b53779e768c13d6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 17 17:35:11 2022 -0700
+commit 4356e7e85fcd8f59de6bc1fd1db6e4f01a92f19e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 21 20:30:02 2021 +0000
 
-    go/types, types2: remove predecl. test functions from ordinary tests
+    runtime: account for spill slots in Windows callback compilation
     
-    The type checker implements additional built-in functions (assert
-    and trace) that are useful for debugging. Only permit them in
-    manual tests (go test -run Manual), not for other tests where they
-    are not needed.
+    The Go ABI, as it stands, requires spill space to be reserved for
+    register arguments. syscall.NewCallback (because of compileCallback)
+    does not actually reserve this space, leading to issues if the Go code
+    it invokes actually makes use of it.
     
-    Change-Id: Idc7723d9e3f6b2c27769b34743561e9d0339565c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393659
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Fixes #46301.
+    
+    Change-Id: Idbc3578accaaaa29e4ba32291ef08d464da0b7b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322029
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Egon Elbre <egonelbre@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/check_test.go | 11 ++++-------
- src/go/types/check_test.go                    | 11 ++++-------
- 2 files changed, 8 insertions(+), 14 deletions(-)
+ src/runtime/syscall_windows.go      | 23 ++++++++++++++++++++---
+ src/runtime/syscall_windows_test.go | 15 +++++++++++++++
+ 2 files changed, 35 insertions(+), 3 deletions(-)

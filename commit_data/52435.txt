@@ -1,19 +1,30 @@
-commit a933d06271f6ce42cf56edb012cc6361e6551f5e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 22 16:28:05 2023 -0700
+commit d24c65d8bfb24b7064d49ec49b418ef273dc17f2
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue May 3 08:33:42 2022 -0500
 
-    go/types, types2: remove return values from Checker.assignVar/initVar
+    cmd/internal/notsha256: revert PPC64 removal, and fix PPC64 asm
     
-    Not needed anymore.
+    This reverts commit a41e37f56a4fc2523ac88a76bf54ba3e45dcf533, and
+    updates the ASM usage to be go1.8 compliant. go 1.18 added support
+    for using VR's in place of VSR arguments.
     
-    Change-Id: I5229d556ba1625f53b9fa23b496c17138a92fc3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478717
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    The following transformations are made:
+    
+      XXLOR Vx, Vx, VSy  -> XXLORQ VSx+32, VSx+32, VSy
+      XXLOR VSx, VSx, Vy -> XXLORQ VSx, VSx, VSy+32
+    
+    XXLOR is broken on 1.8, but XXLORQ is identical and still supported
+    today.
+    
+    Change-Id: Icc9cd5511b412c30a14e6afd07a51839aaaf6021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403734
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types2/assignments.go | 29 +++++++++-----------------
- src/go/types/assignments.go                    | 29 +++++++++-----------------
- 2 files changed, 20 insertions(+), 38 deletions(-)
+ src/cmd/internal/notsha256/sha256block_decl.go    |   4 +-
+ src/cmd/internal/notsha256/sha256block_generic.go |   4 +-
+ src/cmd/internal/notsha256/sha256block_ppc64x.s   | 430 ++++++++++++++++++++++
+ 3 files changed, 434 insertions(+), 4 deletions(-)

@@ -1,19 +1,12 @@
-commit 0ba7ffe2897cd9771de172362e9edcb5f733cf1f
-Author: Rob Pike <r@golang.org>
-Date:   Wed Sep 4 13:42:22 2013 +1000
+commit 3fca983872ce86e1d73cce4ac0554a5a404fc28c
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Sep 3 16:19:41 2013 -0400
 
-    text/template: allow eq to take more than two arguments
-    Based on an old suggestion by rsc, it compares the second
-    and following arguments to the first.
+    doc/go1.2.txt: crypto/{x509,tls} changes
     
-    Unfortunately the code cannot be as pretty as rsc's original
-    because it doesn't require identical types.
-    
-    R=golang-dev, dsymonds, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13509046
+    https://golang.org/cl/13335050
 
- src/pkg/text/template/doc.go       | 23 +++++++++-----
- src/pkg/text/template/exec_test.go |  5 ++--
- src/pkg/text/template/funcs.go     | 61 ++++++++++++++++++++++----------------
- 3 files changed, 54 insertions(+), 35 deletions(-)
+ doc/go1.2.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

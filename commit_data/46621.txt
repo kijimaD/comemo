@@ -1,43 +1,28 @@
-commit 301f6c8019bea813b039c3d376a6464a0e117dce
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 10 15:24:16 2021 -0700
+commit 8e0584c327e429bd010edb28fb9fea6f68a4cccc
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 15 14:43:25 2021 -0500
 
-    cmd/compile: keep methods on generic types from being deadcode eliminated
+    [dev.fuzz] internal/fuzz: handle SIGINT races gracefully
     
-    We currently make dictionaries contain a relocation pointing to
-    methods that generic code might use, so that those methods are not
-    deadcode eliminated. However, with inlining we can end up not using
-    the dictionary, making the reference from the dictionary to the method
-    no longer keep the method alive.
+    A worker process may be terminated by SIGINT if it doesn't install the
+    signal handler before SIGINT is delivered. That's likely when TestMain
+    or the fuzz target setup take a long time. The coordinator now ignores
+    these errors.
     
-    Fix this by keeping the dictionary alive at generic interface call sites.
-    It's a bit of overkill, as we only need to keep the dictionary statically
-    alive. We don't actually need it dynamically alive, which is what KeepAlive
-    does. But it works. It ends up generating a LEAQ + stack spill that aren't
-    necessary, but that's pretty low overhead.
+    Also, when testdeps.TestDeps.CoordinateFuzzing and RunFuzzWorker
+    return, they will send a value on the chan passed to signal.Notify
+    instead of closing it. This should have been obvious in hindsight, but
+    the signal handler could still send a value on that channel after
+    those functions return but before the process exits.
     
-    To make this work, I needed to stop generating methods on shape types.
-    We should do this anyway, as we shouldn't ever need them. But currently
-    we do use them! issue44688.go has a test that only works because it calls
-    a method on a shape type. I've disabled that test for now, will work on it
-    in a subsequent CL.
-    
-    Fixes #48047
-    
-    Change-Id: I78968868d6486c1745f51b8b43be0898931432a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349169
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Iea2589115f1f9bb7415bb5e7911defee423e642e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284292
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/noder/helpers.go       |  2 +-
- src/cmd/compile/internal/noder/stencil.go       | 22 +++++++++---------
- src/cmd/compile/internal/noder/transform.go     | 15 ++++++++++++-
- src/cmd/compile/internal/reflectdata/reflect.go |  3 +++
- src/cmd/compile/internal/walk/expr.go           | 12 +++++++++-
- test/typeparam/issue44688.go                    |  5 +++--
- test/typeparam/issue48047.go                    | 30 +++++++++++++++++++++++++
- 7 files changed, 73 insertions(+), 16 deletions(-)
+ src/internal/fuzz/sys_posix.go         | 11 +++++++++++
+ src/internal/fuzz/sys_unimplemented.go |  4 ++++
+ src/internal/fuzz/sys_windows.go       |  5 +++++
+ src/internal/fuzz/worker.go            | 25 +++++++++++++++++++------
+ src/testing/internal/testdeps/deps.go  |  4 ++--
+ 5 files changed, 41 insertions(+), 8 deletions(-)

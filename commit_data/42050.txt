@@ -1,51 +1,17 @@
-commit 2a2423bd05da85dc7d0f8e7d12531623b69036a0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 20 11:14:36 2020 -0700
+commit ee2268c6bce9fabf3330c832e90edf1601828ace
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 7 12:42:43 2019 -0500
 
-    cmd/compile: more precise analysis of method values
+    cmd/go: add math/bits to runtime packages in TestNewReleaseRebuildsStalePackagesInGOPATH
     
-    Previously for a method value "x.M", we always flowed x directly to
-    the heap, which led to the receiver argument generally needing to be
-    heap allocated.
+    This fixes a test failure introduced in CL 190620.
     
-    This CL changes it to flow x to the closure and M's receiver
-    parameter. This allows receiver arguments to be stack allocated as
-    long as (1) the closure never escapes, *and* (2) method doesn't leak
-    its receiver parameter.
+    Updates #35112
     
-    Within the standard library, this allows a handful of objects to be
-    stack allocated instead. Listed here are diagnostics that were
-    previously emitted by "go build -gcflags=-m std cmd" that are no
-    longer emitted:
-    
-    archive/tar/writer.go:118:6: moved to heap: f
-    archive/tar/writer.go:208:6: moved to heap: f
-    archive/tar/writer.go:248:6: moved to heap: f
-    cmd/compile/internal/gc/initorder.go:252:2: moved to heap: d
-    cmd/compile/internal/gc/initorder.go:75:2: moved to heap: s
-    cmd/go/internal/generate/generate.go:206:7: &Generator literal escapes to heap
-    cmd/internal/obj/arm64/asm7.go:910:2: moved to heap: c
-    cmd/internal/obj/mips/asm0.go:415:2: moved to heap: c
-    cmd/internal/obj/pcln.go:294:22: new(pcinlineState) escapes to heap
-    cmd/internal/obj/s390x/asmz.go:459:2: moved to heap: c
-    crypto/tls/handshake_server.go:56:2: moved to heap: hs
-    
-    Thanks to Cuong Manh Le for help coming up with this solution.
-    
-    Fixes #27557.
-    
-    Change-Id: I8c85d671d07fb9b53e11d2dd05949a34dbbd7e17
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228263
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I568ae85a456ccd8103563b0ce2e42b7348776a5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205877
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/gc/closure.go | 17 +++++++++++++++++
- src/cmd/compile/internal/gc/escape.go  | 22 +++++++++++++++++++---
- src/cmd/compile/internal/gc/scc.go     |  7 +++++++
- test/escape2.go                        |  3 +--
- test/escape2n.go                       |  3 +--
- test/fixedbugs/issue21709.go           |  6 ++----
- test/fixedbugs/issue27557.go           |  3 +--
- 7 files changed, 48 insertions(+), 13 deletions(-)
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

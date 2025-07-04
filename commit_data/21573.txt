@@ -1,15 +1,25 @@
-commit cdc2b0568feac1867377dddccf6eafa45cd27352
+commit 778b649e386788ec834336f0a222e3f515dadd3a
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 11 23:20:15 2015 -0800
+Date:   Sun Jan 18 10:56:00 2015 -0800
 
-    runtime: remove obsolete SELinux execmem comment
+    doc: direct people to the mailing list
     
-    We don't have executable memory anymore.
+    Since the move to Github, we've started to receive lots of
+    introductory questions to the bug tracker. I posit this is because
+    most projects on Github don't have mailing lists, so the culture on
+    Github is to use the Issue Tracker as a discussion forum.
     
-    Change-Id: I9835f03a7bcd97d809841ecbed8718b3048bfb32
-    Reviewed-on: https://go-review.googlesource.com/4681
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    The Go project doesn't use the Issue Tracker as our first point of
+    communication. This CL updates CONTRIBUTING.md (which is linked when
+    you file a bug or send a pull request), to mention that we have a
+    mailing list.
+    
+    It certainly won't stop all the errant bug reports, but it should
+    help.
+    
+    Change-Id: Id8fbfd35b73f5117617dff53b1e72d5b5276388b
+    Reviewed-on: https://go-review.googlesource.com/3002
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mem_linux.go | 1 -
- 1 file changed, 1 deletion(-)
+ CONTRIBUTING.md | 2 ++
+ 1 file changed, 2 insertions(+)

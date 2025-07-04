@@ -1,24 +1,36 @@
-commit df4f40b9e07ed9b4d50dc10a445d4b50c37e4daa
-Author: zzkcode <zzk819166453@gmail.com>
-Date:   Fri May 10 14:51:01 2024 +0000
+commit 77b1f23af70eb6e02b4d2f5ad18e462b86156971
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri May 5 16:35:10 2023 -0400
 
-    runtime: crash asap and extend total sleep time for slow machine in test
+    runtime: clean up extra M API
     
-    Running with few threads usually does not need 500ms to crash, so let it
-    crash as soon as possible. While the test may caused more time on slow
-    machine, try to expand the sleep time in test.
+    There are quite a few locations that get/put Ms from the extra M list,
+    but the API is pretty clumsy to use. Add an easier to use getExtraM /
+    putExtraM API.
     
-    Updates #64752
+    There are only two minor semantic changes:
     
-    Change-Id: I635fab846bd5e1735808d4d47bb9032d5a04cc2b
-    GitHub-Last-Rev: 84f3844ac0054a6a4b0e8ae13479a670e24ba8ce
-    GitHub-Pull-Request: golang/go#65018
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/554615
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    1. dropm no longer calls setg(nil) inside the lockextra critical
+       section. It is important that this thread no longer references the G
+       (and in turn M) once it is published to the extra M list and another
+       thread could acquire it. But there is no reason that needs to happen
+       only after lockextra.
+    
+    2. extraMLength (renamed from extraMCount) is no longer protected by
+       lockextra and is instead simply an atomic (though writes are still in
+       the critical section). The previous readers all dropped lockextra
+       before using the value they read anyway.
+    
+    For #60004.
+    
+    Change-Id: Ifca4d6c84d605423855d89f49af400ca07de56f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492742
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Commit-Queue: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/runtime/signal_unix.go | 33 ++++++++++++++++++++++++++-------
- 1 file changed, 26 insertions(+), 7 deletions(-)
+ src/runtime/proc.go        | 85 +++++++++++++++++++++++++++-------------------
+ src/runtime/signal_unix.go |  2 +-
+ 2 files changed, 51 insertions(+), 36 deletions(-)

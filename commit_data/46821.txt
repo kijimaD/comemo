@@ -1,17 +1,27 @@
-commit d7ba1d276be37989cfbcf3dc17a17e2ee9c5382d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 8 09:52:37 2021 -0700
+commit bc451b5770dc99b6a74934c26fd11a8cdc172bb1
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 4 11:06:15 2021 -0500
 
-    go/types: rename rparamMap to recvTParamMap to match types2
+    [dev.regabi] go/types: port check_test.go ergonomics from dev.typeparams
     
-    See also CL 354693.
+    On the dev.typeparams and dev.go2go branches, check_test.go has been
+    updated to automatically discover test data. This is convenient, so port
+    it to dev.regabi.
     
-    Change-Id: Id7579c5f7d486652a5b53b29663a6573a493121f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354694
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I5da9a9a5139c35a2693e64364eb9928ece1cd7c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289713
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/check.go     | 10 +++++-----
- src/go/types/signature.go |  8 ++++----
- src/go/types/typexpr.go   |  4 ++--
- 3 files changed, 11 insertions(+), 11 deletions(-)
+ src/go/types/check_test.go                         | 121 ++++++++-------------
+ src/go/types/testdata/{ => decls2}/decls2a.src     |   0
+ src/go/types/testdata/{ => decls2}/decls2b.src     |   0
+ .../testdata/{ => importdecl0}/importdecl0a.src    |   0
+ .../testdata/{ => importdecl0}/importdecl0b.src    |   0
+ .../testdata/{ => importdecl1}/importdecl1a.src    |   0
+ .../testdata/{ => importdecl1}/importdecl1b.src    |   0
+ .../testdata/{ => issue25008}/issue25008a.src      |   0
+ .../testdata/{ => issue25008}/issue25008b.src      |   0
+ 9 files changed, 45 insertions(+), 76 deletions(-)

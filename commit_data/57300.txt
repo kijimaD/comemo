@@ -1,16 +1,23 @@
-commit 0c7523ff599b56e455eee9a89cd1da9b2b2515f1
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Wed Aug 7 20:20:21 2024 +0200
+commit d79ec708bdaf27933058551b2d24a1a8e569c0d1
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jun 13 20:14:26 2023 -0400
 
-    cmd/compile: compute bits.Len*'s limits from argument's limits
+    cmd/dist: skip testing packages without tests in short test mode
     
-    Change-Id: Ie3c7e5eaba6a9a29389018625c4b784d07c6f173
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603537
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For short all.bash, we can keep the small speedup of 2-10 seconds by
+    skipping 'go test' on packages without tests. This is viable without
+    coverage loss since the Go release process is guaranteed to run long
+    tests for all first class ports.
+    
+    For golang/go#60463.
+    
+    Change-Id: Ib5a6bd357d757141bc8f1c1dec148a6565726587
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503115
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/ssa/prove.go |  21 +++++++
- test/prove.go                         | 102 +++++++++++++++++++++++++++++++++-
- 2 files changed, 122 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

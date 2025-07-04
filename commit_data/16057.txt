@@ -1,40 +1,14 @@
-commit babbd55e5d0c940b8c527ef27261ab7f87e42f17
+commit 6ca1fa625c2377071163399f1579a440e7d29502
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 2 16:27:23 2013 -0700
+Date:   Tue Apr 2 15:42:06 2013 -0700
 
-    net/http: fewer allocations in chunkWriter.WriteHeader
+    net/http: new server Handler benchmarks
     
-    It was unnecessarily cloning and then mutating a map that had
-    a very short lifetime (just that function).
+    For all the Content-Type & Content-Length cases.
     
-    No new tests, because they were added in revision 833bf2ef1527
-    (TestHeaderToWire). The benchmarks below are from the earlier
-    commit, revision 52e3407d.
-    
-    I noticed this inefficiency when reviewing a change Peter Buhr
-    is looking into, which will also use these benchmarks.
-    
-    benchmark                         old ns/op    new ns/op    delta
-    BenchmarkServerHandlerTypeLen         12547        12325   -1.77%
-    BenchmarkServerHandlerNoLen           12466        11167  -10.42%
-    BenchmarkServerHandlerNoType          12699        11800   -7.08%
-    BenchmarkServerHandlerNoHeader        11901         9210  -22.61%
-    
-    benchmark                        old allocs   new allocs    delta
-    BenchmarkServerHandlerTypeLen            21           20   -4.76%
-    BenchmarkServerHandlerNoLen              20           18  -10.00%
-    BenchmarkServerHandlerNoType             20           18  -10.00%
-    BenchmarkServerHandlerNoHeader           17           13  -23.53%
-    
-    benchmark                         old bytes    new bytes    delta
-    BenchmarkServerHandlerTypeLen          1930         1913   -0.88%
-    BenchmarkServerHandlerNoLen            1912         1879   -1.73%
-    BenchmarkServerHandlerNoType           1912         1878   -1.78%
-    BenchmarkServerHandlerNoHeader         1491         1086  -27.16%
-    
-    R=golang-dev, adg
+    R=golang-dev, pabuhr
     CC=golang-dev
-    https://golang.org/cl/8268046
+    https://golang.org/cl/8280046
 
- src/pkg/net/http/server.go | 132 ++++++++++++++++++++++++++++++---------------
- 1 file changed, 89 insertions(+), 43 deletions(-)
+ src/pkg/net/http/serve_test.go | 61 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

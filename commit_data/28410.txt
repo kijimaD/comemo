@@ -1,43 +1,13 @@
-commit 073d248bf50b1b1029b2a09c575111f38f6bf5eb
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Sep 16 11:00:54 2016 +1000
+commit 4b6e560b69f3fe6dfadcf6a43eda8a78b086448c
+Author: djherbis <djherbis@gmail.com>
+Date:   Sat May 21 13:25:47 2016 -0700
 
-    cmd/compile/internal/gc: make Nod private
+    AUTHORS: correcting my last name Herbis -> Herbison
     
-    Follow up to CL 29134. Generated with gofmt -r 'Nod -> nod', plus
-    three manual adjustments to the comments in syntax/parser.go
-    
-    Change-Id: I02920f7ab10c70b6e850457b42d5fe35f1f3821a
-    Reviewed-on: https://go-review.googlesource.com/29136
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I91608b15e00c8eaf732db3a99a890d4ceeb41955
+    Reviewed-on: https://go-review.googlesource.com/23317
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/alg.go        |  78 +++----
- src/cmd/compile/internal/gc/bimport.go    |  76 +++----
- src/cmd/compile/internal/gc/closure.go    |  72 +++---
- src/cmd/compile/internal/gc/const.go      |   6 +-
- src/cmd/compile/internal/gc/dcl.go        |  36 +--
- src/cmd/compile/internal/gc/esc.go        |  12 +-
- src/cmd/compile/internal/gc/gen.go        |   4 +-
- src/cmd/compile/internal/gc/gsubr.go      |   4 +-
- src/cmd/compile/internal/gc/init.go       |  26 +--
- src/cmd/compile/internal/gc/inl.go        |  28 +--
- src/cmd/compile/internal/gc/noder.go      |   6 +-
- src/cmd/compile/internal/gc/order.go      |  32 +--
- src/cmd/compile/internal/gc/parser.go     | 138 ++++++------
- src/cmd/compile/internal/gc/pgen.go       |   2 +-
- src/cmd/compile/internal/gc/racewalk.go   |  14 +-
- src/cmd/compile/internal/gc/range.go      |  86 +++----
- src/cmd/compile/internal/gc/reflect.go    |  14 +-
- src/cmd/compile/internal/gc/select.go     |  66 +++---
- src/cmd/compile/internal/gc/sinit.go      | 110 ++++-----
- src/cmd/compile/internal/gc/ssa.go        |   2 +-
- src/cmd/compile/internal/gc/subr.go       |  72 +++---
- src/cmd/compile/internal/gc/swt.go        |  80 +++----
- src/cmd/compile/internal/gc/swt_test.go   |   4 +-
- src/cmd/compile/internal/gc/type.go       |   2 +-
- src/cmd/compile/internal/gc/typecheck.go  |  38 ++--
- src/cmd/compile/internal/gc/universe.go   |  10 +-
- src/cmd/compile/internal/gc/unsafe.go     |   2 +-
- src/cmd/compile/internal/gc/walk.go       | 358 +++++++++++++++---------------
- src/cmd/compile/internal/syntax/parser.go |   6 +-
- 29 files changed, 692 insertions(+), 692 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

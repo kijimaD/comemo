@@ -1,16 +1,28 @@
-commit 0838c0f2f9fd45f527c4be8e27589eed22e0e559
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Nov 6 12:40:49 2017 -0500
+commit da34ddf24b4ed9b495143f58c6c5ded918ce4d16
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Aug 16 14:01:48 2017 -0500
 
-    cmd/dist: include "cmd/buildid" in toolchain in debug mode
+    cmd/compile/internal/ssa: combine more const stores
     
-    Fixes #22599.
+    We already combine const stores up-to MOVQstoreconst.
+    Combine 2 64-bit stores of const zero into 1 sse store of 128-bit zero.
     
-    Change-Id: I2d59a8fae457881f681184fc6ed1f2aa597699b3
-    Reviewed-on: https://go-review.googlesource.com/76026
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Shaves significant (>1%) amount of code from go tool:
+    /localdisk/itocar/golang/bin/go 10334877
+    go_old 10388125 [53248 bytes]
+    
+    global text (code) = 51041 bytes (1.343944%)
+    read-only data = 663 bytes (0.039617%)
+    Total difference 51704 bytes (0.873981%)
+    
+    Change-Id: I7bc40968023c3a69f379b10fbb433cdb11364f1b
+    Reviewed-on: https://go-review.googlesource.com/56250
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/build.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/asm_test.go      |  4 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 ++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 36 ++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+), 2 deletions(-)

@@ -1,13 +1,23 @@
-commit 454c2343979b8976f3f1ac50f8149b36a839d555
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 9 19:58:11 2016 +0000
+commit f13372c9f7df12bfa4fbba5d9802f17fd186a0bc
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Oct 9 11:50:21 2016 -0400
 
-    database/sql: use complete sentences in new docs
+    cmd/internal/obj/s390x: remove support for stores of global addresses
     
-    Change-Id: Icb842a80cab2b07b9ace1e8e14c4a19c48a92c43
-    Reviewed-on: https://go-review.googlesource.com/34247
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    This CL removes support for MOVD instructions that store the address
+    of a global variable. For example:
+    
+      MOVD $main·a(SB), (R1)
+      MOVD $main·b(SB), main·c(SB)
+    
+    These instructions are emulated and the new backend doesn't need them
+    (the stores now always go through an intermediate register).
+    
+    Change-Id: I3a1bcb3f19c5096ad0426afd76d35a4d7975733b
+    Reviewed-on: https://go-review.googlesource.com/30720
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/sql.go | 19 +++++++++++++------
- 1 file changed, 13 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/s390x/asmz.go | 34 +++-------------------------------
+ 1 file changed, 3 insertions(+), 31 deletions(-)

@@ -1,18 +1,22 @@
-commit 52d7033ff6d56094b7fa852bbdf51b4525bd6bb2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 14 16:51:57 2021 -0400
+commit d508d86cf12a3c4ee139d31f5f5c9e5e53566ecc
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Nov 3 13:12:19 2020 -0500
 
-    cmd/go/internal/modload: set the default GoVersion in a single location
+    cmd/go: account for flags when parsing regexps in TestScript
     
-    For #46141
-    Updates #36460
+    Test script expects the regexp argument for stdout, stderr, and cmp
+    to be the first argument after the command, but that might not be the
+    case if the -q or -count flags are provided. Treat the first argument
+    after a flag as a regexp instead.
     
-    Change-Id: Ie4c13c73a451650d1e8abb8e5cebfc30d0a71a70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321070
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    For #39958
+    
+    Change-Id: I369926109ec10cca8b2c3baca27e7a3f7baf364b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267877
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/load.go | 41 +++++++++++++++----------------------
- 1 file changed, 17 insertions(+), 24 deletions(-)
+ src/cmd/go/script_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,17 +1,15 @@
-commit 14da5bef5f4d8f0aeda1697d5f46a554d04f1f11
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 27 14:40:34 2015 -0400
+commit 660a6825eabcf8529826e25052a8546ac8e1f08f
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 4 11:28:51 2015 -0700
 
-    cmd/pprof: use copy of svgpan library instead of link to remote site
+    fmt: catch overflow in width and prec calculations
     
-    Fixes #10375.
+    Fixes #10674.
     
-    Change-Id: I78dc3e12035d130c405bdb284b0cceea19f084f6
-    Reviewed-on: https://go-review.googlesource.com/10690
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If3fae3244d87aeaa70815f499105c264394aa7ad
+    Reviewed-on: https://go-review.googlesource.com/9657
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/pprof/internal/commands/commands.go |  10 +-
- src/cmd/pprof/internal/driver/driver.go     |   5 +-
- src/cmd/pprof/internal/svg/svg.go           |  12 +-
- src/cmd/pprof/internal/svg/svgpan.go        | 291 ++++++++++++++++++++++++++++
- 4 files changed, 301 insertions(+), 17 deletions(-)
+ src/fmt/fmt_test.go | 1 +
+ src/fmt/print.go    | 3 +++
+ 2 files changed, 4 insertions(+)

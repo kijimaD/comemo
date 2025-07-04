@@ -1,13 +1,15 @@
-commit 1f93ba66d6ccb200e8b0a037a01265f6563fdf58
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 7 11:34:20 2017 -0800
+commit 4b9490ee72c225d4d82cb4896f95c757ee8fef89
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 15:08:40 2016 -0400
 
-    math/big: add IsInt64/IsUint64 predicates
+    fmt: document that unexported struct fields don't get the String/Error treatment
     
-    Change-Id: Ia5ed3919cb492009ac8f66d175b47a69f83ee4f1
-    Reviewed-on: https://go-review.googlesource.com/36487
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #17409.
+    
+    Change-Id: Ib49ff4a467431b5c1e6637e5144979cf0bfba489
+    Reviewed-on: https://go-review.googlesource.com/31817
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/math/big/int.go      |  34 +++++++++----
- src/math/big/int_test.go | 123 +++++++++++++++++++++++++++++++++--------------
- 2 files changed, 110 insertions(+), 47 deletions(-)
+ src/fmt/doc.go | 3 +++
+ 1 file changed, 3 insertions(+)

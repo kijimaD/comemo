@@ -1,22 +1,20 @@
-commit 6328e445c3a87d64a32b6203af3f39d43d874f9f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 21 11:42:20 2023 -0400
+commit ccf84a97501b1cc894536162479279df1e165fc5
+Author: David Chase <drchase@google.com>
+Date:   Mon May 16 17:50:31 2022 -0400
 
-    log: avoid leaking goroutines in TestOutputRace
+    cmd/compile: catch pointless recursion on function types
     
-    Leaked goroutines are the only explanation I can think of for excess
-    allocs in TestDiscard, and TestOutputRace is the only place I can see
-    where the log package leaks goroutines. Let's fix that leak and see if
-    it eliminates the TestDiscard flakes.
+    If a function type has no type parameters, note when it
+    is visited and do not recur.  (It must be visited
+    at least once because of closures and their associated
+    types occurring in a generic context).
     
-    Fixes #58797 (maybe).
+    Fixes #51832.
     
-    Change-Id: I2d54dcba3eb52bd10a62cd1c380131add6a2f651
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487356
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iee20612ffd0a03b838b9e59615f4a0206fc8940b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406714
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/log/log_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/typecheck/subr.go | 23 ++++++++++++++++++++---
+ test/typeparam/issue51832.go               | 25 +++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 3 deletions(-)

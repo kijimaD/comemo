@@ -1,14 +1,12 @@
-commit 029c9bcb8bbf4b9dd55293d9b41fc1c16994b3f9
+commit 417c42218f486b443099be2b283dc9cc56c8f858
 Author: Rob Pike <r@golang.org>
-Date:   Thu Oct 6 10:46:18 2011 -0700
+Date:   Thu Oct 6 10:41:52 2011 -0700
 
-    Effective Go: IntArray -> IntSlice
-    Fixes #2336.
+    gotest: document -test.parallel
     
-    R=golang-dev, dsymonds, rsc
+    R=golang-dev, bradfitz, dsymonds, gri
     CC=golang-dev
-    https://golang.org/cl/5222042
+    https://golang.org/cl/5223043
 
- doc/effective_go.html | 10 +++++-----
- doc/effective_go.tmpl | 10 +++++-----
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/gotest/doc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

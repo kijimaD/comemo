@@ -1,24 +1,17 @@
-commit 3a446d865226f2141208deb21ea2d829609c3cf6
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 2 12:37:25 2017 -0400
+commit 6711fa70cecce261662c20613cc63eec0c21a16a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 1 15:06:36 2017 -0700
 
-    cmd/compile: []T where T is go:notinheap does not need write barriers
+    test: add test that caused gccgo compiler crash
     
-    Currently, assigning a []T where T is a go:notinheap type generates an
-    unnecessary write barrier for storing the slice pointer.
+    Updates #21253
     
-    This fixes this by teaching HasHeapPointer that this type does not
-    have a heap pointer, and tweaking the lowering of slice assignments so
-    the pointer store retains the correct type rather than simply lowering
-    it to a *uint8 store.
-    
-    Change-Id: I8bf7c66e64a7fefdd14f2bd0de8a5a3596340bab
-    Reviewed-on: https://go-review.googlesource.com/76027
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iece71a27207b578618cafb378dac2362517363d0
+    Reviewed-on: https://go-review.googlesource.com/52531
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go     | 5 +++--
- src/cmd/compile/internal/types/type.go | 2 +-
- test/notinheap3.go                     | 8 ++++++--
- 3 files changed, 10 insertions(+), 5 deletions(-)
+ test/fixedbugs/issue21253.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

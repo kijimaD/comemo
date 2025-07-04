@@ -1,12 +1,21 @@
-commit 533f30b924ce150eddf0bea6746bc88631e4dde8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 2 17:40:18 2016 -0800
+commit c140df03267ab2e73ffd076002811aaa00fdc80e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 9 15:58:18 2015 -0800
 
-    cmd/compile: exit early if oldname doesn't find a name
+    [dev.ssa] cmd/compile: allocate the flag register in a separate pass
     
-    Change-Id: I59ce1b40bc3472cc92a9a0a9fbd32342e0b945ad
-    Reviewed-on: https://go-review.googlesource.com/20152
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Spilling/restoring flag values is a pain to do during regalloc.
+    Instead, allocate the flag register in a separate pass.  Regalloc then
+    operates normally on any flag recomputation instructions.
+    
+    Change-Id: Ia1c3d9e6eff678861193093c0b48a00f90e4156b
+    Reviewed-on: https://go-review.googlesource.com/17694
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/dcl.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/compile.go       |  11 ++-
+ src/cmd/compile/internal/ssa/flagalloc.go     | 123 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/func_test.go     |   5 ++
+ src/cmd/compile/internal/ssa/regalloc.go      |  55 +++---------
+ src/cmd/compile/internal/ssa/regalloc_test.go |   9 +-
+ src/cmd/compile/internal/ssa/value.go         |   9 ++
+ 6 files changed, 162 insertions(+), 50 deletions(-)

@@ -1,25 +1,23 @@
-commit be7068fb0804f661515c678bee9224b90b32869a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 31 15:58:06 2022 -0700
+commit e533b5793f43ed44f1562a10d974cb3bc3688226
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 16:55:37 2021 -0500
 
-    text/template: correct assignment, not declaration, in range
+    doc/go1.18: add docs on new reflect.Value methods
     
-    We were mishandling {{range $i = .}}, treating it as though it were
-    {{range $i := .}}. That happened to work if $i were the most recently
-    declared variable, but not otherwise.
+    From:
     
-    Fixes #56490
+    https://go-review.googlesource.com/c/go/+/352131/
     
-    Change-Id: I222a009d671d86c06a980a54388e05f12101c00b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446795
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Updates #47694
+    
+    Change-Id: I7c7811c49900049f5ef7fc906fe25d2ffd73c7b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368363
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Fabio Falzoi <fabio.falzoi84@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/text/template/exec.go      | 12 ++++++++++--
- src/text/template/exec_test.go |  2 ++
- 2 files changed, 12 insertions(+), 2 deletions(-)
+ doc/go1.18.html | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

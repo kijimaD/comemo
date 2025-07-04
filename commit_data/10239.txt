@@ -1,13 +1,18 @@
-commit a494c2003257edcb5e9177a4c8c0dc2240ae0d24
+commit 54049767ae43c0547b53f239164ac95f19a5db06
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 3 17:21:58 2011 -0700
+Date:   Thu Nov 3 15:54:08 2011 -0700
 
-    http: only recognize application/x-www-form-urlencoded in ParseForm
+    httputil: move ReverseProxy out of http
     
-    R=golang-dev, dsymonds
+    http diet plan, continued.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5322070
+    https://golang.org/cl/5305090
 
- src/pkg/net/http/request.go      |  2 +-
- src/pkg/net/http/request_test.go | 19 ++++++-------------
- 2 files changed, 7 insertions(+), 14 deletions(-)
+ src/pkg/Makefile                                   |  1 -
+ src/pkg/net/http/Makefile                          |  3 +--
+ src/pkg/net/http/httputil/Makefile                 |  1 +
+ src/pkg/net/http/{ => httputil}/reverseproxy.go    | 27 +++++++++++-----------
+ .../net/http/{ => httputil}/reverseproxy_test.go   | 12 +++++-----
+ 5 files changed, 22 insertions(+), 22 deletions(-)

@@ -1,22 +1,24 @@
-commit 53d091c5ffdcf2f587274e7e97914fe96b183338
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 5 22:36:23 2012 -0800
+commit 5cb1ed218944e7ce54384b7af0a7beed3965be56
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Dec 6 07:20:03 2012 +0100
 
-    net/http: populate ContentLength in HEAD responses
+    cmd/6c, cmd/8c: add fixjmp step to regopt.
     
-    Also fixes a necessary TODO in the process.
+    The fixjmp step eliminates redundant chains of JMP
+    instructions that are produced by the compiler during
+    code generation.
     
-    Fixes #4126
+    It is already implemented in gc, and can be adapted to 6c/8c with
+    the exception that JMPs refer to destination by pc instead of by
+    pointer. The algorithm is modified to operate on Regs instead of Progs
+    for this reason. The pcs are already restored later by regopt.
     
-    R=golang-dev, rsc
+    R=goalng-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6869053
+    https://golang.org/cl/6865046
 
- src/pkg/net/http/client_test.go    | 35 +++++++++++++++++++++++++++++++++
- src/pkg/net/http/response.go       |  4 ++--
- src/pkg/net/http/response_test.go  |  2 +-
- src/pkg/net/http/server.go         |  2 +-
- src/pkg/net/http/transfer.go       | 40 ++++++++++++++++++++++++++++++--------
- src/pkg/net/http/transport.go      |  5 +----
- src/pkg/net/http/transport_test.go |  2 +-
- 7 files changed, 73 insertions(+), 17 deletions(-)
+ src/cmd/6c/list.c |   2 +-
+ src/cmd/6c/reg.c  | 131 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/8c/list.c |  11 +++-
+ src/cmd/8c/reg.c  | 147 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 288 insertions(+), 3 deletions(-)

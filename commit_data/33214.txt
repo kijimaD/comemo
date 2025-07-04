@@ -1,20 +1,12 @@
-commit a5868a47c6777de4a4592903ba8763740cde3c49
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 24 13:24:14 2017 -0700
+commit be596f049a3ba75abc2180ebe3dc26450d783498
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Thu Aug 3 23:25:59 2017 +0200
 
-    cmd/internal/obj/x86: move MOV->XOR rewriting into compiler
+    doc/1.9: fix stray html in CL 53030
     
-    Fixes #20986.
-    
-    Change-Id: Ic3cf5c0ab260f259ecff7b92cfdf5f4ae432aef3
-    Reviewed-on: https://go-review.googlesource.com/73072
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ib4102b1e2a8863712f725c4d1e37fdbe3dfe3c07
+    Reviewed-on: https://go-review.googlesource.com/53210
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 17 ++++++++++++-----
- src/cmd/compile/internal/x86/ssa.go   | 17 ++++++++++++-----
- src/cmd/internal/obj/x86/a.out.go     |  3 +--
- src/cmd/internal/obj/x86/asm6.go      | 19 +++----------------
- src/math/big/arith_amd64.s            |  2 --
- 5 files changed, 28 insertions(+), 30 deletions(-)
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

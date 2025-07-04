@@ -1,18 +1,17 @@
-commit 68697a3e82e19fef04c6af4a02340a1aa6e3bcf2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 14 15:32:39 2016 -0700
+commit 853f1a1a63b759686421196d419ddaa626a44bf5
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Apr 7 19:59:59 2016 -0700
 
-    net: don't run TestLookupDotsWithLocalSource in short mode
+    net/http: fixed trivial go vet warnings
     
-    Do run it on the builders, though.
+    Updates #15177
     
-    Fixes #15881.
-    
-    Change-Id: Ie42204d553cb18547ffd6441afc261717bbd9205
-    Reviewed-on: https://go-review.googlesource.com/24111
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I748f025461f313b5b426821ead695f90d3011a6b
+    Reviewed-on: https://go-review.googlesource.com/21677
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/lookup_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/net/http/client_test.go            | 2 +-
+ src/net/http/httptest/httptest_test.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

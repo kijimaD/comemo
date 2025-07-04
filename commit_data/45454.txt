@@ -1,28 +1,30 @@
-commit 89bf297b2486adaaff04be154a066ea9f5e63994
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 29 21:49:15 2021 -0400
+commit a5088e76f108f6470d2a9b3ac56a58ddb9376e4f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 22:07:44 2020 +0000
 
-    cmd/internal/objfile: emit better error for Go object of a different version
+    runtime: remove mcentral.nmalloc and add mcache.local_nsmallalloc
     
-    The Go object file format can change from version to version.
-    Tools like cmd/objdump and cmd/nm only onderstand the current
-    version of the object file. Currently, when it encounters an
-    object built with a different version of the toolchain, it emits
-    a generic error "unrecognized object file", which is not very
-    helpful for users. This CL makes it emit a clearer error. Now it
-    emits
+    This change removes mcentral.nmalloc and adds mcache.local_nsmallalloc
+    which fulfills the same role but may be accessed non-atomically. It also
+    moves responsibility for updating heap_live and local_nsmallalloc into
+    mcache functions.
     
-    objdump: open go116.o: go object of a different version: go116ld
+    As a result of this change, mcache is now the sole source-of-truth for
+    malloc stats. It is also solely responsible for updating heap_live and
+    performing the various operations required as a result of updating
+    heap_live. The overall improvement here is in code organization:
+    previously malloc stats were fairly scattered, and now they have one
+    single home, and nearly all the required manipulations exist in a single
+    file.
     
-    Change-Id: I063c6078ed1da78f97cea65796779ae093a1a8cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315609
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I7e93fa297c1debf17e3f2a0d68aeed28a9c6af00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246966
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/internal/archive/archive.go |  11 ++++++++++-
- src/cmd/internal/objfile/objfile.go |   3 +++
- src/cmd/objdump/objdump_test.go     |  15 +++++++++++++++
- src/cmd/objdump/testdata/go116.o    | Bin 0 -> 478 bytes
- 4 files changed, 28 insertions(+), 1 deletion(-)
+ src/runtime/mcache.go   | 34 ++++++++++++++++++++++++++++++++++
+ src/runtime/mcentral.go | 41 +----------------------------------------
+ src/runtime/mstats.go   | 18 ++++++------------
+ 3 files changed, 41 insertions(+), 52 deletions(-)

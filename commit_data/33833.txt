@@ -1,24 +1,13 @@
-commit 95fab851fc1a88e64d7c016d53af25a349c4c888
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 7 19:51:08 2017 +0000
+commit 98603e7af6056734e0f5bee5f05b3623ca5189de
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Tue Aug 29 16:23:49 2017 -0400
 
-    net/http: deflake TestServerCancelsReadTimeoutWhenIdle
+    doc: hide content blocked by GFW when served in CN
     
-    I can reproduce with a very short timeout (fractions of a millisecond)
-    combined with -race.
-    
-    But given that this is inherently sensitive to actual time, add a
-    testing mechanism to retry with increasingly large times to compensate
-    for busy buidlers. This also means the test is usually faster now,
-    too, since we can start with smaller durations.
-    
-    Fixes #19608
-    
-    Change-Id: I3a222464720195849da768e9801eb7b43baa4aeb
-    Reviewed-on: https://go-review.googlesource.com/82595
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia3d0fa0517d96f0672d3c5ce7e7b7bb8bd0ce093
+    Reviewed-on: https://go-review.googlesource.com/60070
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/net/http/serve_test.go | 70 ++++++++++++++++++++++++++++++----------------
- 1 file changed, 46 insertions(+), 24 deletions(-)
+ doc/docs.html | 42 +++++++++++++++++++++++++++++-------------
+ doc/help.html |  9 ++++++++-
+ 2 files changed, 37 insertions(+), 14 deletions(-)

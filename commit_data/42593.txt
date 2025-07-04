@@ -1,26 +1,21 @@
-commit 20afbe86beda00676a608399638887538bd8f669
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Jul 6 14:22:38 2020 -0400
+commit 9f07cdd99ee70b90e2a5fe998acb48c5fc6e39f2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jan 23 03:31:49 2020 +1100
 
-    cmd/oldlink: port bug fixes to old linker
+    cmd/internal/obj/riscv: restore the ADDI instruction in jalrToSym
     
-    This CL ports CL 234105 and CL 240621 to the old linker, which
-    fix critical bugs (runtime crashes).
+    While this instruction is not needed for the relocation (the lower immediate
+    can be patched directly into the JALR instruction), other code currently
+    depends on the jump sequence being 12 bytes (or three instructions) long.
+    Put the ADDI instruction back until these can be found and fixed.
     
-    Updates #39049.
-    Updates #39927.
+    Updates #27532
     
-    Change-Id: I47afc84349119e320d2e60d64b7188a410835d2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241087
+    Change-Id: Idb73d716be8eb2eb796591b30f1ec4dc104f2bf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215840
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/oldlink/internal/arm/asm.go       |  6 +++++-
- src/cmd/oldlink/internal/ld/decodesym.go  | 32 ++++++++++++++++++-------------
- src/cmd/oldlink/internal/ld/lib.go        |  4 +++-
- src/cmd/oldlink/internal/ld/pcln.go       |  2 +-
- src/cmd/oldlink/internal/ppc64/asm.go     |  6 +++++-
- src/cmd/oldlink/internal/sym/attribute.go |  6 +++++-
- 6 files changed, 38 insertions(+), 18 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

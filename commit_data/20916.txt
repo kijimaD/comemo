@@ -1,13 +1,18 @@
-commit ce5d7cffe8c69e2097ae878b8b7cfb6b2265bf69
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Dec 2 14:39:23 2014 +1100
+commit 2eb1b658305bfd32774fd1e6a32cd6463564cf89
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 27 17:08:50 2014 -0700
 
-    tag go1.4rc2
+    doc/go_mem.html: don't be clever
     
-    LGTM=rsc
-    R=rsc
+    Add a short introductory section saying what most Go
+    programmers really need to know, which is that you
+    shouldn't have to read this document to understand
+    the behavior of your program.
+    
+    LGTM=bradfitz, adg, tracey.brendan, iant, rsc, dsymonds
+    R=golang-codereviews, bradfitz, tracey.brendan, adg, iant, rsc, dsymonds
     CC=golang-codereviews
-    https://golang.org/cl/178600043
+    https://golang.org/cl/158500043
 
- .hgtags | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go_mem.html | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

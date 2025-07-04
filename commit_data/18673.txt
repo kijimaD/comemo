@@ -1,17 +1,17 @@
-commit 0b0e209ffb937f283cdca8b51efadc78cc93f8a1
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Feb 28 03:26:26 2014 +1100
+commit 092dd4bed26a9e241d629c94734ded2c2cb2f2bd
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 27 09:22:02 2014 +0100
 
-    runtime: disable TestSetPanicOnFault for dragonfly/386
+    runtime: fix build on Plan 9
     
-    This test currently deadlocks on dragonfly/386.
+    warning: src/pkg/runtime/mem_plan9.c:72 param declared and not used: n
+    src/pkg/runtime/mem_plan9.c:73 name not declared: nbytes
+    src/pkg/runtime/mem_plan9.c:73 bad in naddr: NAME nbytes<>+0(SB)
     
-    Update #7421
-    
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
+    LGTM=minux.ma, bradfitz
+    R=khr, minux.ma, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/69380043
+    https://golang.org/cl/69360043
 
- src/pkg/runtime/runtime_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/runtime/mem_plan9.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

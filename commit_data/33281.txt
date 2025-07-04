@@ -1,22 +1,24 @@
-commit 164e1b84777082d83d659a16fad8e1d0456a8638
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 25 13:46:54 2017 -0400
+commit d7ec89c19846d8c1d89d510cd7634ae9de640ac0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 10 12:58:10 2017 +0200
 
-    runtime: eliminate remaining recordspan write barriers
+    test: add missing escape analysis test
     
-    recordspan has two remaining write barriers from writing to the
-    pointer to the backing store of h.allspans. However, h.allspans is
-    always backed by off-heap memory, so let the compiler know this.
-    Unfortunately, this isn't quite as clean as most go:notinheap uses
-    because we can't directly name the backing store of a slice, but we
-    can get it done with some judicious casting.
+    https://golang.org/cl/37508 added an escape analysis test for #12397 to
+    escape2.go but missed to add it to escape2n.go. The comment at the top
+    of the former states that the latter should contain all the same tests
+    and the tests only differ in using -N to compile. Conform to this by
+    adding the function issue12397 to escape2n.go as well.
     
-    For #22460.
+    Also fix a whitespace difference in escape2.go, so the two files match
+    exactly (except for the comment at the top).
     
-    Change-Id: I296f92fa41cf2cb6ae572b35749af23967533877
-    Reviewed-on: https://go-review.googlesource.com/73414
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I3a09cf95169bf2150a25d6b4ec9e147265d36760
+    Reviewed-on: https://go-review.googlesource.com/54610
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mheap.go | 16 ++++++++++++++--
- src/runtime/slice.go |  7 +++++++
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ test/escape2.go  |  2 +-
+ test/escape2n.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

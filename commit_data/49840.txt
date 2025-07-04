@@ -1,25 +1,22 @@
-commit 72a857a2802a60ae99000efa2cf6e629d75deb4c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 11 10:20:09 2022 -0700
+commit 03df68d3c33e83a23cf5f22389a37f2d09721bef
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Wed Sep 15 18:37:08 2021 +0000
 
-    test: relax fixedbugs/issue20250.go expectations
+    runtime: fix setting of cpu features for amd64
     
-    With GOEXPERIMENT=unified, the order variables are printed in "live at
-    entry to f.func1" is sensitive to whether regabi is enabled for some
-    reason. The order shouldn't matter to correctness, but it is odd.
+    Because of wrong case of letters, the cpu features flags were not
+    set properly for amd64.
     
-    For now, this CL just relaxes the test expectation order to unblock
-    enabling GOEXPERIMENT=unified by default. I've filed #54402 to
-    investigate further to confirm this a concern.
+    Fixes #48406.
     
-    Updates #54402.
-    
-    Change-Id: Iddfbb12c6cf7cc17b2aec8102b33761abd5f93ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422975
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: If19782851670e91fd31d119f4701c47373fa7e71
+    GitHub-Last-Rev: 91c7321ca49343c86917f071babec8a004ca5c77
+    GitHub-Pull-Request: golang/go#48403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350151
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- test/fixedbugs/issue20250.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

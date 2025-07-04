@@ -1,17 +1,35 @@
-commit 69182885d9bbb6329be0583ab190521d0d1fc6da
+commit 78074f6850c34a955d69f578e363d1d3f3e00e25
 Author: Elias Naur <elias.naur@gmail.com>
-Date:   Mon Apr 17 21:09:56 2017 +0200
+Date:   Sun Jan 29 15:34:50 2017 +0100
 
-    misc/ios: fix the Test386EndToEnd test on iOS
+    runtime: handle SIGPIPE in c-archive and c-shared programs
     
-    Some tests need the src/runtime/textflag.h file. Make sure it is
-    included in iOS test runs.
+    Before this CL, Go programs in c-archive or c-shared buildmodes
+    would not handle SIGPIPE. That leads to surprising behaviour where
+    writes on a closed pipe or socket would raise SIGPIPE and terminate
+    the program. This CL changes the Go runtime to handle
+    SIGPIPE regardless of buildmode. In addition, SIGPIPE from non-Go
+    code is forwarded.
     
-    Change-Id: I5e0e7ebe85679686ef15a7d336f28ac9b68a587a
-    Reviewed-on: https://go-review.googlesource.com/40915
+    This is a refinement of CL 32796 that fixes the case where a non-default
+    handler for SIGPIPE is installed by the host C program.
+    
+    Fixes #17393
+    
+    Change-Id: Ia41186e52c1ac209d0a594bae9904166ae7df7de
+    Reviewed-on: https://go-review.googlesource.com/35960
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 25 +++++++++++++++++++------
- 1 file changed, 19 insertions(+), 6 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go     | 19 ++++++++++++++++
+ misc/cgo/testcarchive/main2.c              | 35 +++++++++++++++++++++++++++++-
+ misc/cgo/testcarchive/main3.c              | 33 ++++++++++++++++++++++++++++
+ misc/cgo/testcarchive/main5.c              | 18 +++++++++++++++
+ misc/cgo/testcarchive/src/libgo2/libgo2.go | 30 +++++++++++++++++++++++++
+ misc/cgo/testcarchive/src/libgo3/libgo3.go | 12 ++++++++++
+ src/os/signal/doc.go                       |  9 ++++----
+ src/runtime/cgocall.go                     |  4 ++++
+ src/runtime/runtime2.go                    |  1 +
+ src/runtime/signal_unix.go                 | 15 ++++++++-----
+ 10 files changed, 165 insertions(+), 11 deletions(-)

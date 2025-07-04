@@ -1,15 +1,14 @@
-commit ed90fbc747b384a355ded46ff5c9164ca69b6590
+commit fe2ce5285e379703c28d7f9efae02c63321854db
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 30 17:14:41 2012 +1000
+Date:   Mon Apr 30 15:31:14 2012 +1000
 
-    encoding/base64: don't ignore underlying souce read error in decode
+    syscall: add a test for passing an fd over a unix socket
     
-    Fixes #3577
+    Re-submitting previously reverted change 160ec5506cb7.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/6137054
+    https://golang.org/cl/6129052
 
- src/pkg/encoding/base64/base64.go      |  2 +-
- src/pkg/encoding/base64/base64_test.go | 49 ++++++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 1 deletion(-)
+ src/pkg/syscall/passfd_test.go | 151 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 151 insertions(+)

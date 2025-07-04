@@ -1,32 +1,21 @@
-commit 58d296065501958bbc7aeb8abea016b221b53f02
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jul 31 13:40:01 2013 -0700
+commit d43ee1b71411ac0b372e4bc191108ddda321e179
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 31 15:36:49 2013 -0400
 
-    spec: clarify index and selector expressions
+           cmd/ld: report pclntab, funcdata sizes in 6l -v output
+           Also move chatty recent additions to -v -v.
     
-    1) Explain a[i] and a[i:j] where a is of type *A as
-       shortcut for (*a)[i] and (*a)[i:j], respectively.
+           For what it's worth:
     
-    2) Together with 1), because len() of nil slices is
-       well defined, there's no need to special case nil
-       operands anymore.
+           $ go build -o /dev/null -ldflags -v cmd/godoc
+           ...
+            0.73 pclntab=1259976 bytes, funcdata total 79788 bytes
+           ...
+           $
     
-    3) The result of indexing or slicing a constant string
-       is always a non-constant byte or string value.
-    
-    4) The result of slicing an untyped string is a value
-       of type string.
-    
-    5) If the operand of a valid slice a[i:j] is nil (i, j
-       must be 0 for it to be valid - this already follows
-       from the in-range rules), the result is a nil slice.
-    
-    Fixes #4913.
-    Fixes #5951.
-    
-    R=rsc, r, iant, ken
-    CC=golang-dev
-    https://golang.org/cl/11884043
+    R=ken2
+    CC=cshapiro, golang-dev
+    https://golang.org/cl/12193043
 
- doc/go_spec.html | 69 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 41 insertions(+), 28 deletions(-)
+ src/cmd/ld/lib.c | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

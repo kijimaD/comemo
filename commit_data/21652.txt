@@ -1,15 +1,23 @@
-commit b2c2bc48564a322a0d68ae429ec6a19836dfd6c1
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Feb 17 15:17:46 2015 -0500
+commit 2a74f436aa437d5392eb4a2cc58c0f54fa731d85
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Jan 25 02:19:39 2015 +0100
 
-    crypto/x509: embed certificates on darwin/arm
+    os: emulate plan 9 libc in stat
     
-    Change-Id: Ia6b06f19e5ac424f01a1b90b78b507363b0c4577
-    Reviewed-on: https://go-review.googlesource.com/5061
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    This change is a recreation of the CL written
+    by Nick Owens on http://golang.org/cl/150730043.
+    
+    If the stat buffer is too short, the kernel
+    informs us by putting the 2-byte size in the
+    buffer, so we read that and try again.
+    
+    This follows the same algorithm as /sys/src/libc/9sys/dirfstat.c.
+    
+    Fixes #8781.
+    
+    Change-Id: I01b4ad3a5e705dd4cab6673c7a119f8bef9bbd7c
+    Reviewed-on: https://go-review.googlesource.com/3281
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/x509/root_cgo_darwin.go     |    2 +-
- src/crypto/x509/root_darwin.go         |    2 +
- src/crypto/x509/root_darwin_arm.go     | 4903 ++++++++++++++++++++++++++++++++
- src/crypto/x509/root_darwin_arm_gen.go |  187 ++
- 4 files changed, 5093 insertions(+), 1 deletion(-)
+ src/os/stat_plan9.go | 36 +++++++++++++++++++-----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)

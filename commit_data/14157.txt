@@ -1,15 +1,22 @@
-commit 8c2b131cd11cde8b8d3008e22604b366694fb083
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Oct 17 09:41:00 2012 +1100
+commit cfa1ba34cc98c5f804d5ab9672b09acf43fee102
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Oct 16 15:40:37 2012 -0400
 
-    net: return error from pollster rather than panicing
+    crypto/tls: make closeNotify a warning alert.
     
-    Fixes #3590.
+    The RFC doesn't actually have an opinion on whether this is a fatal or
+    warning level alert, but common practice suggests that it should be a
+    warning.
     
-    R=bradfitz, mikioh.mikioh, iant, bsiegert
+    This involves rebasing most of the tests.
+    
+    Fixes #3413.
+    
+    R=golang-dev, shanemhansen, rsc
     CC=golang-dev
-    https://golang.org/cl/6684054
+    https://golang.org/cl/6654050
 
- src/pkg/net/fd_unix.go      | 10 +++-----
- src/pkg/net/fd_unix_test.go | 60 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+), 7 deletions(-)
+ src/pkg/crypto/tls/conn.go                  |    6 +-
+ src/pkg/crypto/tls/handshake_client_test.go |  100 +-
+ src/pkg/crypto/tls/handshake_server_test.go | 1666 +++++++++++----------------
+ 3 files changed, 755 insertions(+), 1017 deletions(-)

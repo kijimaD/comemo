@@ -1,92 +1,15 @@
-commit b80b4a23d135c12d91e71ba51e906cb5783f4d61
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Mon Feb 26 22:23:37 2018 +0300
+commit 81ec7256072ed5e20b8827c583193258769aebc0
+Author: Nils Larsgård <nilsmagnus@gmail.com>
+Date:   Tue Oct 24 19:21:58 2017 +0200
 
-    cmd/internal/obj/x86: add missing legacy insts
+    mime/multipart: permit empty file name
     
-    Minimizes the amount of "TODO" stuff in test suite
-    of cmd/asm/internal/asm/testdata/amd64enc.s.
+    Fixes #19183
     
-    Some instructions were already implemented, but
-    test cases for them were commented-out.
-    
-    Does not enable MMX instructions, calls/jumps and some
-    segment registers instructions.
-    
-    -- Affected instructions --
-    BLENDVPD, BLENDVPS
-    BSWAPW
-    CBW
-    CDQE
-    CLAC
-    CLFLUSHOPT
-    CMPXCHG16B
-    CRC32B, CRC32L, CRC32W
-    CWDE
-    FBLD
-    FBSTP
-    FCMOVB
-    FCMOVBE
-    FCMOVE
-    FCMOVNB
-    FCMOVNBE
-    FCMOVU
-    FCOMI
-    FCOMIP
-    IMUL3L, IMUL3Q, IMUL3W
-    ICEBP, INT
-    INVPCID
-    LARQ
-    LGDT, LIDT, LLDT
-    LMSW
-    LTR
-    LZCNTL, LZCNTQ, LZCNTW
-    MONITOR
-    MOVBELL, MOVBEQQ, MOVBEWW
-    MOVBQZX
-    MOVQ
-    MOVSWW, MOVZWW
-    MWAIT
-    NOPL, NOPW
-    PBLENDVB
-    PEXTRW
-    RDPKRU
-    RDRANDL, RDRANDQ, RDRANDW
-    RDSEEDL, RDSEEDQ, RDSEEDW
-    RDTSCP
-    SAHF
-    SGDT, SIDT
-    SLDTL, SLDTQ, SLDTW
-    SMSWL, SMSWQ, SMSWW
-    STAC
-    STRL, STRQ, STRW
-    SYSENTER, SYSENTER64
-    SYSEXIT, SYSEXIT64
-    SHA256RNDS2
-    TZCNTL, TZCNTQ, TZCNTW
-    UD1, UD2
-    WRPKRU
-    XRSTOR, XRSTOR64
-    XRSTORS, XRSTORS64
-    XSAVE, XSAVE64
-    XSAVEC, XSAVEC64
-    XSAVEOPT, XSAVEOPT64
-    XSAVES, XSAVES64
-    XSETBV
-    
-    Fixes #6739
-    
-    Change-Id: I8b125d9a5ea39bb4b9da7e66a63a16f609cef376
-    Reviewed-on: https://go-review.googlesource.com/97235
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I11502d855f5b521b03ed7a63a990cca2d0ed4083
+    Reviewed-on: https://go-review.googlesource.com/70931
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s       | 808 +++++++++++----------
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s |  58 ++
- src/cmd/asm/internal/asm/testdata/amd64error.s     |   2 +
- src/cmd/internal/obj/x86/aenum.go                  | 110 +++
- src/cmd/internal/obj/x86/anames.go                 | 110 +++
- src/cmd/internal/obj/x86/asm6.go                   | 222 +++++-
- src/cmd/internal/obj/x86/obj6.go                   | 129 ++--
- 7 files changed, 975 insertions(+), 464 deletions(-)
+ src/mime/multipart/formdata.go      |  3 ++-
+ src/mime/multipart/formdata_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

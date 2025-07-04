@@ -1,12 +1,19 @@
-commit 48535ae3f10e685f2385b67dbcc3037e8c297b5f
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 11 14:32:34 2011 -0500
+commit 7e77623120105b51f4a348d56798cb49007de029
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Feb 11 13:39:05 2011 -0500
 
-    runtime: check that SysReserve returns aligned memory
+    8l, runtime: place G and M pointers relative to _tos on Plan 9, instead of hardcoded values for USTKTOP.
     
-    R=iant, iant2
+    This should allow executing both on native Plan 9 and inside 9vx.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4180043
+    https://golang.org/cl/3993044
 
- src/pkg/runtime/malloc.goc | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/8l/obj.c                 |  1 +
+ src/cmd/8l/pass.c                | 29 +++++++++++++++++++++++++----
+ src/pkg/runtime/mkasmh.sh        |  6 +++---
+ src/pkg/runtime/plan9/386/defs.h |  1 +
+ src/pkg/runtime/plan9/386/sys.s  |  5 +++--
+ src/pkg/runtime/plan9/mem.c      | 29 ++++++++++++++++++-----------
+ 6 files changed, 51 insertions(+), 20 deletions(-)

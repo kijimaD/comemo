@@ -1,22 +1,23 @@
-commit c06679f7b5101781d6b8e36cf884568243b539ce
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 25 21:09:16 2017 -0700
+commit fded5dbb2f51d1c24d1541076b143929cdc988af
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 8 17:39:00 2016 -0800
 
-    cmd/internal/obj/x86: remove ctxt.Curp references
+    runtime: don't crash if signal delivered on g0 stack
     
-    Empirically, p == ctxt.Curp here.
-    A scan of (the thousands of lines of) asm6.go
-    shows no clear opportunity for them to diverge.
+    Also, if we changed the gsignal stack to match the stack we are
+    executing on, restore it when returning from the signal handler, for
+    safety.
     
-    Passes toolstash-check -all.
+    Fixes #18255.
     
-    Updates #15756
-    
-    Change-Id: I9f5ee9585a850fbe24be3b851d8fdc2c966c65ce
-    Reviewed-on: https://go-review.googlesource.com/38665
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ic289b36e4e38a56f8a6d4b5d74f68121c242e81a
+    Reviewed-on: https://go-review.googlesource.com/34239
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ misc/cgo/testsanitizers/test.bash |  1 +
+ misc/cgo/testsanitizers/tsan9.go  | 60 ++++++++++++++++++++++++++
+ src/runtime/signal_unix.go        | 88 +++++++++++++++++++++++++++++++--------
+ 3 files changed, 131 insertions(+), 18 deletions(-)

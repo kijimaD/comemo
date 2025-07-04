@@ -1,12 +1,12 @@
-commit 439d863e7c4e246f06e42e7ebdf562c4f7582e08
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Fri Jan 13 16:49:30 2012 -0800
+commit 066551e49bc223b3b73704e47cc1e489e4c3292d
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Fri Jan 13 16:45:30 2012 -0800
 
-    go/doc: remove duplicate package comment
+    pkg/go/doc: fix undefined: doc.NewPackageDoc in headscan.go
     
-    R=golang-dev, gri
+    R=golang-dev, bradfitz, gri
     CC=golang-dev
-    https://golang.org/cl/5528101
+    https://golang.org/cl/5539059
 
- src/pkg/go/doc/reader.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/go/doc/headscan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

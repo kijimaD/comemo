@@ -1,18 +1,33 @@
-commit 7eaabae84d8b69216356b84ebc7c86917100f99a
-Author: hitzhangjie <hit.zhangjie@gmail.com>
-Date:   Sat Aug 7 04:18:37 2021 +0000
+commit 77a71e0057357b0567cc5036f7e0f903d82705bb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 13:07:35 2020 -0800
 
-    net: update IP.String doc to reflect RFC 5952 conformance
+    [dev.regabi] cmd/compile: add Interface, Signature, and Struct constructors
     
-    Fixes #44485
+    This CL adds the remaining constructors needed to abstract away
+    construction of Types, and updates the compiler to use them
+    throughout. There's now just a couple uses within test cases to
+    remove.
     
-    Change-Id: I1b1bf14245ef738342ec881ac4c99adbfc9c5b7d
-    GitHub-Last-Rev: ae0242c6d61fc0e80c58113a70db74829f6aa12c
-    GitHub-Pull-Request: golang/go#47394
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337409
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Damien Neil <dneil@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    While at it, I also replace the Func.Outnamed field with a simple
+    helper function, which reduces the size of function types somewhat.
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: If1aa1095c98ae34b00380d0b3531bd63c10ce885
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274713
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/ip.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dcl.go            | 182 +++++++++-----------------
+ src/cmd/compile/internal/gc/iimport.go        |   8 +-
+ src/cmd/compile/internal/gc/pgen_test.go      |  15 +--
+ src/cmd/compile/internal/gc/reflect.go        |  12 +-
+ src/cmd/compile/internal/gc/typecheck.go      |   2 +-
+ src/cmd/compile/internal/gc/universe.go       |  10 +-
+ src/cmd/compile/internal/gc/walk.go           |   2 +-
+ src/cmd/compile/internal/types/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/types/type.go        |  59 ++++++++-
+ 9 files changed, 137 insertions(+), 155 deletions(-)

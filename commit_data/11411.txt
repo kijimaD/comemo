@@ -1,13 +1,14 @@
-commit 7c9ee5f3696290804a2d192121f1da1fae1b3b8f
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Wed Jan 25 21:09:46 2012 -0800
+commit f8a28ecc9f9ab0ca6a65ca4af4f5a7f3256f6a96
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 25 20:19:55 2012 -0800
 
-    doc/go1: minor html fixes
+    path/filepath: fix test
+    If there's an error, sometimes you need to stop.
+    Part of issue 2787.
     
-    R=golang-dev, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5572064
+    https://golang.org/cl/5570068
 
- doc/go1.html | 8 ++++----
- doc/go1.tmpl | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/path/filepath/path_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

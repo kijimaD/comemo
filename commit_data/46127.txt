@@ -1,28 +1,15 @@
-commit f457ecc7f096c7e6b225003b583b989384ef0fcb
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Aug 22 13:34:22 2021 -0700
+commit ae9b442df2436b3d65ef765572681bf9aacdfbbb
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 8 14:35:41 2020 -0800
 
-    cmd/compile: fixing 15.go for -G=3
+    doc: add description of new framepointer vet check
     
-    Required two changes:
+    Update #43014
     
-     - avoid creating a closure in the case where the actual receiver of an
-       embedded method is not generic even though the base operand of the
-       selector is generic. This is similar to the test suggested by wayne
-       zuo - I thought it was clear in buildClosure, and easier to comment.
-    
-     - Propagate //go:nointerface to base generic methods and then to
-       instantiations.
-    
-    Change-Id: If30c834e4223c2639b7f7e74d44e6087aa9ccd76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344251
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Wayne Zuo <wdvxdr1123@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: I5fbfaa16e6acb8859fd0b1188f532f5a225f6349
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276373
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/noder/decl.go    | 6 ++++++
- src/cmd/compile/internal/noder/stencil.go | 8 ++++++++
- test/run.go                               | 3 +--
- 3 files changed, 15 insertions(+), 2 deletions(-)
+ doc/go1.16.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

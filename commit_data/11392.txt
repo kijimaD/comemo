@@ -1,15 +1,13 @@
-commit dbce368ef9c190e5faaa80a1ccce92b04ccd614f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 25 13:56:12 2012 -0800
+commit 7eaad5e640001333013f497c8fd558418f9d3f85
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 25 13:29:25 2012 -0800
 
-    go/doc: test cases for sort order
+    go1: sub-repositories
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5569059
+    https://golang.org/cl/5569065
 
- src/pkg/go/doc/testdata/d.0.golden | 104 +++++++++++++++++++++++++++++++++++++
- src/pkg/go/doc/testdata/d.1.golden | 104 +++++++++++++++++++++++++++++++++++++
- src/pkg/go/doc/testdata/d1.go      |  57 ++++++++++++++++++++
- src/pkg/go/doc/testdata/d2.go      |  45 ++++++++++++++++
- 4 files changed, 310 insertions(+)
+ doc/go1.html | 55 +++++++++++++++++++++++++++++++++++++++++++++++++------
+ doc/go1.tmpl | 55 +++++++++++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 98 insertions(+), 12 deletions(-)

@@ -1,16 +1,17 @@
-commit b373d31c25e58d0b69cff3521b915f0c06fa6ac8
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Tue Jun 18 01:14:22 2019 +0700
+commit 9cb2471334e75c5e8f459e820feb75da315563a7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Feb 15 14:59:36 2019 +0100
 
-    cmd/compile: correct comments of gc.Val fields
+    debug/pe: prevent slice out of bounds access in (*File).ImportedSymbols
     
-    Refer to Val.Ctype method instead of non-existed n.ValCtype one.
+    Fixes #30253
     
-    Change-Id: Ie0fbcae87d9f4f97632865676309d98e0b5138c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182561
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I0c3d67649ea379b67f3575c1219fe05a04f056ae
+    Reviewed-on: https://go-review.googlesource.com/c/162859
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/gc/const.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/debug/pe/file.go      |  2 +-
+ src/debug/pe/file_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

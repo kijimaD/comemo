@@ -1,16 +1,31 @@
-commit ec4d06e47010ef5a7a69080046530997169e7666
-Author: Carl Jackson <carl@stripe.com>
-Date:   Fri Jul 31 23:25:48 2015 -0700
+commit 37ddc270ca5360ccde000fd373d49b3450ee8e6e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 24 14:03:39 2015 -0700
 
-    net/http: fix SetKeepAlivesEnabled receiver name
+    [dev.ssa] cmd/compile/ssa: add -f suffix to logging methods
     
-    This makes the receiver name consistent with the rest of the methods on
-    type Server.
+    Requested in CL 11380.
     
-    Change-Id: Ic2a007d3b5eb50bd87030e15405e9856109cf590
-    Reviewed-on: https://go-review.googlesource.com/13035
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icf0d23fb8d383c76272401e363cc9b2169d11403
+    Reviewed-on: https://go-review.googlesource.com/11450
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/http/server.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go          | 44 ++++++++++++++---------------
+ src/cmd/compile/internal/ssa/block.go       |  6 ++--
+ src/cmd/compile/internal/ssa/check.go       | 42 +++++++++++++--------------
+ src/cmd/compile/internal/ssa/compile.go     |  8 +++---
+ src/cmd/compile/internal/ssa/config.go      | 14 ++++-----
+ src/cmd/compile/internal/ssa/deadcode.go    |  4 +--
+ src/cmd/compile/internal/ssa/deadstore.go   |  4 +--
+ src/cmd/compile/internal/ssa/dom.go         |  4 +--
+ src/cmd/compile/internal/ssa/export_test.go |  6 ++--
+ src/cmd/compile/internal/ssa/func.go        |  8 +++---
+ src/cmd/compile/internal/ssa/func_test.go   |  4 +--
+ src/cmd/compile/internal/ssa/layout.go      |  2 +-
+ src/cmd/compile/internal/ssa/lower.go       |  2 +-
+ src/cmd/compile/internal/ssa/print.go       |  2 +-
+ src/cmd/compile/internal/ssa/regalloc.go    |  4 +--
+ src/cmd/compile/internal/ssa/rewrite.go     |  4 +--
+ src/cmd/compile/internal/ssa/stackalloc.go  |  6 ++--
+ src/cmd/compile/internal/ssa/value.go       |  6 ++--
+ 18 files changed, 85 insertions(+), 85 deletions(-)

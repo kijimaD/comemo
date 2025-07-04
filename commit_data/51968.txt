@@ -1,21 +1,21 @@
-commit 79e01ab7e6ffbc4c07515dcfef04d1f0a5ca533d
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Feb 10 10:36:16 2023 +0100
+commit 32fdad19a246143ae4f194d1b39886d778de1380
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 18 12:14:20 2022 -0700
 
-    cmd/dist: remove windows-amd64-2008 code path
+    bytes: restore old Trim/TrimLeft behavior for nil
     
-    `windows-amd64-2008` builder does no longer exist on go1.20,
-    so it is safe to remove conditions checking for that name.
+    Keep returning nil for the cases where we historically returned nil,
+    even though this is slightly different for TrimLeft and TrimRight.
     
-    Updates #57003
-    Closes #56904
+    Fixes #51793
     
-    Change-Id: I941ccc64cda0af3b9356996c4b581700afa81987
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467175
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ifbdfc6b09d52b8e063cfe6341019f9b2eb8b70e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393876
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/test.go | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ src/bytes/bytes.go      | 24 +++++++++++--
+ src/bytes/bytes_test.go | 93 ++++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 106 insertions(+), 11 deletions(-)

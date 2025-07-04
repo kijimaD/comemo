@@ -1,21 +1,21 @@
-commit 5fcd1badf724db853784243b29711df209976873
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 4 18:08:36 2022 -0700
+commit 10c8b7c1d7bb973a0b2bc6858b4d5b705cdaa402
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 12 16:12:55 2021 -0700
 
-    go/printer: fix printing for possibly ambiguous type constraints
+    [dev.typeparams] cmd/compile: use dictionary to convert arguments of ==, != to interfaces
     
-    This is a port of the printer changes from CLs 402256 and 404397
-    in the syntax package to go/printer, with adjustments for the
-    different AST structure and test framework.
+    When comparing a value whose type is a type parameter to an interface,
+    we need to convert that type parameter to an interface using the dictionary
+    entries.
     
-    For #52559.
-    
-    Change-Id: Ib7165979a4bd9df91f7f0f1c23b756a41ca31eb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404194
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I409c9e36e376fe4ef8163407d0fd4e84496d5b65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334150
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/go/printer/nodes.go                 | 51 ++++++++++++++++++++++-----------
- src/go/printer/testdata/generics.golden | 43 ++++++++++++++++++---------
- src/go/printer/testdata/generics.input  | 43 ++++++++++++++++++---------
- 3 files changed, 94 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 15 +++++++
+ test/typeparam/equal.go                   | 71 +++++++++++++++++++++++++++++++
+ 2 files changed, 86 insertions(+)

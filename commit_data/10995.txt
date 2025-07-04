@@ -1,13 +1,18 @@
-commit 1a06b513e758355f769cd894782c34751ba5722d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Dec 23 14:28:01 2011 +1100
+commit eef71840460669105aca633ad0d22c8ac5281166
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 22 22:24:43 2011 -0500
 
-    weekly.2011-12-22
+    cmd/go: two testing fixes
     
-    R=dsymonds, r, r, rsc, adg, mikioh.mikioh
+    1. Show passing output for "go test" (no args) and with -v flag.
+    2. Warn about out-of-date packages being rebuilt.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5498074
+    https://golang.org/cl/5504080
 
- .hgtags               |   1 -
- doc/devel/weekly.html | 127 ++++++++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 117 insertions(+), 11 deletions(-)
+ src/cmd/go/build.go    | 39 ++++++++++++++++++++-------------
+ src/cmd/go/pkg.go      |  1 +
+ src/cmd/go/test.go     | 59 ++++++++++++++++++++++++++++++++++++++------------
+ src/cmd/go/testflag.go | 33 +++++++++++++++++++++++++++-
+ 4 files changed, 102 insertions(+), 30 deletions(-)

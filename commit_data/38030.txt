@@ -1,14 +1,52 @@
-commit 1670da9ee4aabe3a9e35703d5ca34265d2294e99
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 22 15:58:15 2019 -0500
+commit 9eb53ab9bc3b89d960c23ab47b3d7bc3fc201fd7
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue Aug 14 16:41:22 2018 -0600
 
-    test: add a go.mod file in the working directory of nosplit.go
+    cmd/compile: intrinsify math/bits.Mul
     
-    Updates #30228
+    Add SSA rules to intrinsify Mul/Mul64 (AMD64 and ARM64).
+    SSA rules for other functions and architectures are left as a future
+    optimization.  Benchmark results on AMD64/ARM64 before and after SSA
+    implementation are below.
     
-    Change-Id: I41bbedf15fa51242f69a3b1ecafd0d3191271799
-    Reviewed-on: https://go-review.googlesource.com/c/163518
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    amd64
+    name     old time/op  new time/op  delta
+    Add-4    1.78ns ± 0%  1.85ns ±12%     ~     (p=0.397 n=4+5)
+    Add32-4  1.71ns ± 1%  1.70ns ± 0%     ~     (p=0.683 n=5+5)
+    Add64-4  1.80ns ± 2%  1.77ns ± 0%   -1.22%  (p=0.048 n=5+5)
+    Sub-4    1.78ns ± 0%  1.78ns ± 0%     ~     (all equal)
+    Sub32-4  1.78ns ± 1%  1.78ns ± 0%     ~     (p=1.000 n=5+5)
+    Sub64-4  1.78ns ± 1%  1.78ns ± 0%     ~     (p=0.968 n=5+4)
+    Mul-4    11.5ns ± 1%   1.8ns ± 2%  -84.39%  (p=0.008 n=5+5)
+    Mul32-4  1.39ns ± 0%  1.38ns ± 3%     ~     (p=0.175 n=5+5)
+    Mul64-4  6.85ns ± 1%  1.78ns ± 1%  -73.97%  (p=0.008 n=5+5)
+    Div-4    57.1ns ± 1%  56.7ns ± 0%     ~     (p=0.087 n=5+5)
+    Div32-4  18.0ns ± 0%  18.0ns ± 0%     ~     (all equal)
+    Div64-4  56.4ns ±10%  53.6ns ± 1%     ~     (p=0.071 n=5+5)
+    
+    arm64
+    name      old time/op  new time/op  delta
+    Add-96    5.51ns ± 0%  5.51ns ± 0%     ~     (all equal)
+    Add32-96  5.51ns ± 0%  5.51ns ± 0%     ~     (all equal)
+    Add64-96  5.52ns ± 0%  5.51ns ± 0%     ~     (p=0.444 n=5+5)
+    Sub-96    5.51ns ± 0%  5.51ns ± 0%     ~     (all equal)
+    Sub32-96  5.51ns ± 0%  5.51ns ± 0%     ~     (all equal)
+    Sub64-96  5.51ns ± 0%  5.51ns ± 0%     ~     (all equal)
+    Mul-96    34.6ns ± 0%   5.0ns ± 0%  -85.52%  (p=0.008 n=5+5)
+    Mul32-96  4.51ns ± 0%  4.51ns ± 0%     ~     (all equal)
+    Mul64-96  21.1ns ± 0%   5.0ns ± 0%  -76.26%  (p=0.008 n=5+5)
+    Div-96    64.7ns ± 0%  64.7ns ± 0%     ~     (all equal)
+    Div32-96  17.0ns ± 0%  17.0ns ± 0%     ~     (all equal)
+    Div64-96  53.1ns ± 0%  53.1ns ± 0%     ~     (all equal)
+    
+    Updates #24813
+    
+    Change-Id: I9bda6d2102f65cae3d436a2087b47ed8bafeb068
+    Reviewed-on: https://go-review.googlesource.com/129415
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- test/nosplit.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go |  6 ++++++
+ test/codegen/mathbits.go           | 16 ++++++++++++++++
+ 2 files changed, 22 insertions(+)

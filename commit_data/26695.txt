@@ -1,60 +1,19 @@
-commit a9ea36afbbf39555b7a215651535f0eef89db37c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 18 17:21:32 2016 -0700
+commit 9dc1334cc76eda231bd776e78d678649e630563b
+Author: Todd Neal <todd@tneal.org>
+Date:   Sat Feb 13 17:37:19 2016 -0600
 
-    cmd/compile: export inlined function bodies
+    [dev.ssa] cmd/compile : replace load of store with a copy
     
-    Completed implementation for exporting inlined functions
-    using the new binary export format. This change passes
-    (export GO_GCFLAGS=-newexport; make all.bash) but for
-    gc's builtin_test.go which we need to adjust before enabling
-    this code by default.
+    Loads of stores from the same pointer with compatible types
+    can be replaced with a copy.
     
-    For a high-level description of the export format see the
-    comment at the top of bexport.go.
-    
-    Major changes:
-    
-    1) The export format for the platform independent export data
-       changed: When we export inlined function bodies, additional
-       objects (other functions, types, etc.) that are referred to
-       by the function bodies will need to be exported. While this
-       doesn't affect the platform-independent portion directly, it
-       adds more objects to the exportlist while we are exporting.
-       Instead of trying to sort the objects into groups, just export
-       objects as they appear in the export list. This is slightly
-       less compact (one extra byte per object), but it is simpler
-       and much more flexible.
-    
-    2) The export format contains now three sections: 1) The plat-
-       form independent objects, 2) the objects pulled in for export
-       via inlined function bodies, and 3) the inlined function bodies.
-    
-    3) Completed the exporting and importing code for inlined function
-       bodies. The format is completely compiler-specific and easily
-       changeable w/o affecting other tools. There is still quite a
-       bit of room for denser encoding. This can happen at any time
-       in the future.
-    
-    This change contains also the adjustments for go/internal/gcimporter,
-    necessary because of the export format change 1) mentioned above.
-    
-    For #13241.
-    
-    Change-Id: I86bca0bd984b12ccf13d0d30892e6e25f6d04ed5
-    Reviewed-on: https://go-review.googlesource.com/21172
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I514b3ed8e5b6a9c432946880eac67a51b1607932
+    Reviewed-on: https://go-review.googlesource.com/19743
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 1109 ++++++++++++++++++++++----------
- src/cmd/compile/internal/gc/bimport.go |  730 ++++++++++++++-------
- src/cmd/compile/internal/gc/dcl.go     |   24 +-
- src/cmd/compile/internal/gc/export.go  |   10 +-
- src/cmd/compile/internal/gc/fmt.go     |    6 +-
- src/cmd/compile/internal/gc/inl.go     |    2 +-
- src/cmd/compile/internal/gc/main.go    |    3 +
- src/cmd/compile/internal/gc/parser.go  |    2 +-
- src/cmd/compile/internal/gc/pgen.go    |    6 +
- src/go/internal/gcimporter/bimport.go  |  141 ++--
- 10 files changed, 1373 insertions(+), 660 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  5 +++++
+ src/cmd/compile/internal/ssa/rewrite.go        |  9 +++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 20 ++++++++++++++++++++
+ 3 files changed, 34 insertions(+)

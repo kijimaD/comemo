@@ -1,20 +1,19 @@
-commit 054a721dcac9b30610af0898b3ed8bf3ffa9f8b1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 20 11:19:19 2016 -0700
+commit c12a0e645a9e5e69bb549d69811c54351f562eae
+Author: Philip Hofer <phofer@umich.edu>
+Date:   Tue Mar 29 11:29:28 2016 -0700
 
-    cmd/compile: read safemode bit from package header
+    cmp/compile: rewrite CMP $0 with TEST
     
-    Ignore respective bit in export data, but leave the info to
-    minimize format changes for 1.7. Scheduled to remove by 1.8.
+    The CMP* family of instructions are longer than their TEST counterparts by one byte.
     
-    For #15772.
+    After this change, my go tool has 13 cmp.*$0x0 instructions, compared to 5612 before.
     
-    Change-Id: Ifb3beea655367308a4e2d5dc8cb625915f904287
-    Reviewed-on: https://go-review.googlesource.com/23285
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ieb87d65657917e494c0e4b711a7ba2918ae27610
+    Reviewed-on: https://go-review.googlesource.com/21255
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go |  4 +++-
- src/cmd/compile/internal/gc/main.go    | 15 +++++++++++++++
- src/cmd/compile/internal/gc/parser.go  |  6 +-----
- 3 files changed, 19 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  6 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 52 ++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+)

@@ -1,14 +1,37 @@
-commit 38e11d05b9f563ca6588f020c40dbac7d4850fc2
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 30 14:26:04 2016 -0700
+commit bd70bd9cb2f458b23222083a3a11190f080af7fd
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 22 13:20:38 2016 -0800
 
-    cmd/compile: use *byte for pointer to string memory
+    runtime: unify memeq and memequal
     
-    Change-Id: I14cff013ef4920d33b5ead0c75d51681bb4f635a
-    Reviewed-on: https://go-review.googlesource.com/21337
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    They do the same thing, except memequal also has the short-circuit
+    check if the two pointers are equal.
+    
+    A) We might as well always do the short-circuit check, it is only 2 instructions.
+    B) The extra function call (memequal->memeq) is expensive.
+    
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkArrayEqual-8     8.56          5.31          -37.97%
+    
+    No noticeable affect on the former memeq user (maps).
+    
+    Fixes #14302
+    
+    Change-Id: I85d1ada59ed11e64dd6c54667f79d32cc5f81948
+    Reviewed-on: https://go-review.googlesource.com/19843
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/cgen.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/runtime/alg.go          |  7 -------
+ src/runtime/asm_386.s       |  8 +++++++-
+ src/runtime/asm_amd64.s     |  8 +++++++-
+ src/runtime/asm_amd64p32.s  |  8 +++++++-
+ src/runtime/asm_arm.s       |  9 ++++++---
+ src/runtime/asm_arm64.s     |  9 ++++++---
+ src/runtime/asm_mips64x.s   | 12 +++++++++---
+ src/runtime/asm_ppc64x.s    | 13 ++++++++++---
+ src/runtime/hashmap_fast.go | 12 ++++++------
+ src/runtime/string_test.go  | 11 +++++++++++
+ src/runtime/stubs.go        |  2 +-
+ 11 files changed, 70 insertions(+), 29 deletions(-)

@@ -1,20 +1,18 @@
-commit 6c740e769f11ab4a7e4300a2011fe86109bd32ae
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 4 20:53:43 2012 -0700
+commit 70ab57ea2dc9c4c5124204ca28dbbac41c94ecb0
+Author: Jeff Wendling <jeff@spacemonkey.com>
+Date:   Thu Oct 4 15:42:57 2012 -0400
 
-    go/parser: unify parsing of const and var declarations
+    crypto/x509: add DecryptBlock function for loading password protected keys
     
-    The AST representation is already identical. Making the
-    code (nearly) identical in the parser reduces code size
-    and ensures that the ast.ValueSpec nodes have the same
-    values (specifically, iota). This in turn permits the
-    sharing of much of the respective code in the typechecker.
+    Adds a DecryptBlock function which takes a password and a *pem.Block and
+    returns the decrypted DER bytes suitable for passing into other crypto/x509
+    functions.
     
-    While at it: type functions work now, so use them.
-    
-    R=r
+    R=golang-dev, agl, leterip
     CC=golang-dev
-    https://golang.org/cl/6624047
+    https://golang.org/cl/6555052
 
- src/pkg/go/parser/parser.go | 57 ++++++++++-----------------------------------
- 1 file changed, 12 insertions(+), 45 deletions(-)
+ src/pkg/crypto/x509/pem_decrypt.go      | 133 ++++++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/pem_decrypt_test.go | 119 ++++++++++++++++++++++++++++
+ src/pkg/go/build/deps_test.go           |   5 +-
+ 3 files changed, 256 insertions(+), 1 deletion(-)

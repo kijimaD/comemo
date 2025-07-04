@@ -1,15 +1,16 @@
-commit d366c369450991ad9d942fc5aa3ea7e6c99e40a0
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 11 18:06:24 2011 +1000
+commit 3c6a7b3fc50a391f939308b522ac79e6ac79990b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 11 15:40:41 2011 +1000
 
-    exp/template: fix bug in argument evaluation.
-    Must keep dot and the receiver separate - variables broke that symmetry.
-    Also clean up function invocation and rename "data" to "dot" for clarity.
+    go/build: use os.MkdirAll to create directories
     
-    R=golang-dev, dsymonds
+    Replaces "mkdir -p ..." command, as Windows mkdir command
+    does not support -p flag. Also, is simpler and faster then
+    launching new process.
+    
+    R=golang-dev, mattn.jp, adg, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4678048
+    https://golang.org/cl/4626087
 
- src/pkg/exp/template/exec.go      | 123 +++++++++++++++++++-------------------
- src/pkg/exp/template/exec_test.go |   4 ++
- 2 files changed, 66 insertions(+), 61 deletions(-)
+ src/pkg/go/build/build.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

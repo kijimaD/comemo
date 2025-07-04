@@ -1,20 +1,32 @@
-commit ba6cd156f30ad9d5b42663cdd93e58f0b91b9811
-Author: Iccha Sethi <icchasethi@gmail.com>
-Date:   Sat Jul 15 13:28:12 2017 -0500
+commit eee85fc5a1071c8c7d8d804e898da6394ffbdec3
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 1 13:58:22 2017 -0500
 
-    encoding/json: fix indentation in Decode stream example
+    runtime: snapshot heap profile during mark termination
     
-    The existing example for Decoder.Decode (Stream) had excessive
-    indentation in the godoc interface for the const jsonStream,
-    making it hard to read. This fixes the indentation in the
-    example_test.go to improve the readability in godoc.
+    Currently we snapshot the heap profile just *after* mark termination
+    starts the world because it's a relatively expensive operation.
+    However, this means any alloc or free events that happen between
+    starting the world and snapshotting the heap profile can be accounted
+    to the wrong cycle. In the worst case, a free can be accounted to the
+    cycle before the alloc; if the heap is small, this can result
+    temporarily in a negative "in use" count in the profile.
     
-    Helps #21026.
+    Fix this without making STW more expensive by using a global heap
+    profile cycle counter. This lets us split up the operation into a two
+    parts: 1) a super-cheap snapshot operation that simply increments the
+    global cycle counter during STW, and 2) a more expensive cleanup
+    operation we can do after starting the world that frees up a slot in
+    all buckets for use by the next heap profile cycle.
     
-    Change-Id: I16f56b82182da1dcc73cca44e535a7f5695e975d
-    Reviewed-on: https://go-review.googlesource.com/48910
-    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #19311.
+    
+    Change-Id: I6bdafabf111c48b3d26fe2d91267f7bef0bd4270
+    Reviewed-on: https://go-review.googlesource.com/37714
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/encoding/json/example_test.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/runtime/mgc.go   |  33 +++++++------
+ src/runtime/mprof.go | 130 +++++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 115 insertions(+), 48 deletions(-)

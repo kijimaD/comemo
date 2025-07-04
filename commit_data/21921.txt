@@ -1,17 +1,24 @@
-commit b0d545201e1d1c29dc0d96c4ab27547373dbd41e
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 4 21:58:20 2015 -0800
+commit 01ef6dbfa5c4b0c797a0a0523e3a9b2dc81f6e8b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jan 9 12:26:48 2015 -0800
 
-    cmd/asm: fix (printing of) TEXT flags
+    cmd/5g, cmd/6g, cmd/8g, cmd/9g: use a register to zero in componentgen
     
-    With the new unificiation, the flag must be TYPE_CONST to print
-    properly.
+    Using a zero register results in shorter, faster code.
+    5g already did this. Bring 6g, 8g, and 9g up to speed.
+    Reduces godoc binary size by 0.29% using 6g.
     
-    Change-Id: I7cd1c56355724f08cbe9afc6ab7a66904031adc9
-    Reviewed-on: https://go-review.googlesource.com/6903
+    This CL includes cosmetic changes to 5g and 8g.
+    With those cosmetic changes included, componentgen is now
+    character-for-character equivalent across the four architectures.
+    
+    Change-Id: I0e13dd48374bad830c725b117a1c86d4197d390c
+    Reviewed-on: https://go-review.googlesource.com/2606
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/asm/internal/asm/asm.go             | 1 +
- src/cmd/asm/internal/asm/testdata/386.out   | 2 +-
- src/cmd/asm/internal/asm/testdata/amd64.out | 2 +-
- 3 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/5g/cgen.c |  3 ++-
+ src/cmd/6g/cgen.c | 29 ++++++++++++++---------------
+ src/cmd/8g/cgen.c | 31 ++++++++++++++++---------------
+ src/cmd/9g/cgen.c | 29 ++++++++++++++---------------
+ 4 files changed, 46 insertions(+), 46 deletions(-)

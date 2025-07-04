@@ -1,63 +1,42 @@
-commit af40cbe83c451176a1576ff5ce5755c3dc119f45
-Author: Frank Somers <fsomers@arista.com>
-Date:   Tue Oct 10 22:50:01 2017 +0100
+commit 123fd4640ae27e7f179f84cd7efece07ab954b45
+Author: Michael Pratt <mpratt@google.com>
+Date:   Sat Jul 8 16:47:16 2017 -0700
 
-    runtime: use vDSO on linux/386 to improve time.Now performance
+    cmd/link: skip R_ADDR relocs in .rela.plt for internal PIE
     
-    This change adds support for accelerating time.Now by using
-    the __vdso_clock_gettime fast-path via the vDSO on linux/386
-    if it is available.
+    ld.addpltsym adds an R_X86_64_JMP_SLOT dynamic relocation to .rela.plt
+    and uses Addaddrplus to reference the GOT in Elf64_Rela.r_offset.
     
-    When the vDSO path to the clocks is available, it is typically
-    5x-10x faster than the syscall path (see benchmark extract
-    below).  Two such calls are made for each time.Now() call
-    on most platforms as of go 1.9.
+    Addaddrplus results in an R_ADDR relocation, which here we transform
+    into an R_X86_64_64 dynamic relocation. This is wrong for several
+    reasons:
     
-    - Add vdso_linux_386.go, containing the ELF32 definitions
-      for use by vdso_linux.go, the maximum array size, and
-      the symbols to be located in the vDSO.
+    1. .rela.plt is not a writable, relro section. It is mapped read-only,
+       causing the dynamic linker to segfault when it tried to handle the
+       relocation. This was the immediate cause of internal PIE cgo
+       crashes.
     
-    - Modify runtime.walltime and runtime.nanotime to check for
-      and use the vDSO fast-path if available, or fall back to
-      the existing syscall path.
+    2. Relocations targetting other reloc sections are, as far as I can
+       tell, undefined behavior in the ELF spec and are unlikely to be a
+       good idea.
     
-    - Reduce the stack reservations for runtime.walltime and
-      runtime.monotime from 32 to 16 bytes. It appears the syscall
-      path actually only needed 8 bytes, but 16 is now needed to
-      cover the syscall and vDSO paths.
+    3. Even if the relocation did work, it isn't what we want. The
+       relocation, if successfully handled, would have put an absolute
+       address as the JMP_SLOT offset, but it should be the offset from the
+       beginning of the binary, just like any other relocation. What we want
+       is a statically resolved R_ADDR relocation, just as is used below for
+       the R_X86_64_64 relocation.
     
-    - Remove clearing DX from the syscall paths as clock_gettime
-      only takes 2 args (BX, CX in syscall calling convention),
-      so there should be no need to clear DX.
+    Skipping the .rela.plt allows reloc() to handle these R_ADDR
+    relocations.
     
-    The included BenchmarkTimeNow was run with -cpu=1 -count=20
-    on an "Intel(R) Celeron(R) CPU J1900 @ 1.99GHz", comparing
-    released go 1.9.1 vs this change. This shows a gain in
-    performance on linux/386 (6.89x), and that no regression
-    occurred on linux/amd64 due to this change.
+    With this CL, internal PIE cgo binaries work.
     
-    Kernel: linux/i686, GOOS=linux GOARCH=386
-       name      old time/op  new time/op  delta
-       TimeNow   978ns ± 0%   142ns ± 0%  -85.48%  (p=0.000 n=16+20)
+    Updates #18968
     
-    Kernel: linux/x86_64, GOOS=linux GOARCH=amd64
-       name      old time/op  new time/op  delta
-       TimeNow   125ns ± 0%   125ns ± 0%   ~       (all equal)
-    
-    Gains are more dramatic in virtualized environments,
-    presumably due to the overhead of virtualizing the syscall.
-    
-    Fixes #22190
-    
-    Change-Id: I2f83ce60cb1b8b310c9ced0706bb463c1b3aedf8
-    Reviewed-on: https://go-review.googlesource.com/69390
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie74e6fe249e88150baa0e340b1cb128cf7f28673
+    Reviewed-on: https://go-review.googlesource.com/47837
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_linux_noauxv.go |  2 +-
- src/runtime/sys_linux_386.s    | 43 +++++++++++++++++--
- src/runtime/vdso_linux.go      |  2 +-
- src/runtime/vdso_linux_386.go  | 93 ++++++++++++++++++++++++++++++++++++++++++
- src/runtime/vdso_linux_test.go | 63 ++++++++++++++++++++++++++++
- 5 files changed, 197 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/amd64/asm.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,31 +1,17 @@
-commit 37d56279c87818b496e5717bddd1f7c43bfa743d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 9 15:16:29 2018 -0500
+commit 7537bb7b30fabd8fafd0b214b755d6dffa31bfe7
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Sun May 28 23:38:59 2017 +0900
 
-    cmd/go: limit test input file change detection to local GOROOT/GOPATH tree
+    cmd/compile/internal/gc: unexport global constants
     
-    We've had a series of problems with tests unexpectedly (and innocently)
-    looking at system files that appear to (but don't) change in meaningful ways,
-    like /dev/null on OS X having a modification time set to the current time.
-    
-    Cut all these off by only applying file change detection to the local package
-    root: the GOROOT or specific sub-GOPATH in which the package being tested
-    is found.
-    
-    (This means that if you test reads /tmp/x and you change /tmp/x, the cached
-    result will still be used. Don't do that, or else use -count=1.)
-    
-    Fixes #23390.
-    
-    Change-Id: I30b6dd194835deb645a040aea5e6e4f68af09edb
-    Reviewed-on: https://go-review.googlesource.com/87015
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ib292ef3b0a31b2c7bdd77519324362667f30389c
+    Reviewed-on: https://go-review.googlesource.com/44393
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go            | 24 ++++++++++++++++++++++++
- src/cmd/go/internal/load/path.go | 22 ----------------------
- src/cmd/go/internal/load/pkg.go  | 12 ++++++------
- src/cmd/go/internal/str/path.go  | 32 ++++++++++++++++++++++++++++++++
- src/cmd/go/internal/test/test.go | 20 ++++++++++++++++++++
- 5 files changed, 82 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/gc/bv.go  | 40 +++++++++++++++++++-------------------
+ src/cmd/compile/internal/gc/esc.go |  2 +-
+ src/cmd/compile/internal/gc/go.go  |  2 +-
+ 3 files changed, 22 insertions(+), 22 deletions(-)

@@ -1,16 +1,18 @@
-commit 2d9b4864201d76bd30b55a7d74d73a24cc3ae165
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Sep 19 18:26:19 2021 -0700
+commit 1b85e7c057e0ac20881099eee036cef1d7f2fbb0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 4 14:24:40 2021 -0800
 
-    cmd/compile: update doc at top of iexport.go on the changes for typeparams
+    cmd/go: don't scan gccgo standard library packages for imports
     
-    Add in the documentation of the new declarations and type descriptors to
-    support parameterized functions and types.
+    In a gccgo installation the standard library sources are not available.
     
-    Change-Id: Ia21c544caa704309cc8fd639f104c192e1786b72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350951
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I929f3645e3ac95a1fa7047d6a3d243159a86ba66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281493
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/typecheck/iexport.go | 38 ++++++++++++++++++++++++---
- 1 file changed, 34 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/modload/load.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

@@ -1,15 +1,19 @@
-commit eb863240dcc857b4207b06eb33385446696b7b1c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Feb 23 15:35:43 2021 +0100
+commit 320e4adc4bd153cb0cb7e31e186fb3b4564fd0a7
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 23 18:14:25 2020 -0400
 
-    runtime: remove unused const stackSystem on dragonfly
+    crypto/elliptic: document and test that IsOnCurve(∞) == false
     
-    Change-Id: I778c2bd7cf0b12275bae344cb2130a7959500481
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295470
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This also implies it can't be passed to Marshal.
+    
+    Fixes #37294
+    
+    Change-Id: I1e6b6abd87ff31f323486958d5cb34a5c8f76b5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239562
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/os_dragonfly.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/crypto/elliptic/elliptic.go      | 11 ++++--
+ src/crypto/elliptic/elliptic_test.go | 75 +++++++++++++++++++++++-------------
+ 2 files changed, 56 insertions(+), 30 deletions(-)

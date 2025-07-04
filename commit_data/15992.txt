@@ -1,24 +1,21 @@
-commit 1b0d04b89fa12bf635467e0ef7acff3fcc78d208
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 28 14:51:21 2013 -0700
+commit c676b8b27b128e6369da7c3a3f2bbf52bde945c8
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Thu Mar 28 14:36:23 2013 -0700
 
-    net/http: reuse textproto.Readers; remove 2 more allocations
+    cmd/ld, runtime: restrict stack root scan to locals and arguments
     
-    Saves both the textproto.Reader allocation, and its internal
-    scratch buffer growing.
+    Updates #5134
     
-    benchmark                                   old ns/op    new ns/op    delta
-    BenchmarkServerFakeConnWithKeepAliveLite        10324        10149   -1.70%
-    
-    benchmark                                  old allocs   new allocs    delta
-    BenchmarkServerFakeConnWithKeepAliveLite           19           17  -10.53%
-    
-    benchmark                                   old bytes    new bytes    delta
-    BenchmarkServerFakeConnWithKeepAliveLite         1559         1492   -4.30%
-    
-    R=golang-dev, r, gri
+    R=golang-dev, bradfitz, cshapiro, daniel.morsing, ality, iant
     CC=golang-dev
-    https://golang.org/cl/8094046
+    https://golang.org/cl/8022044
 
- src/pkg/net/http/request.go | 24 +++++++++++++++++++++++-
- 1 file changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/ld/lib.c                |  5 ++-
+ src/cmd/ld/lib.h                |  7 ++++
+ src/pkg/runtime/mgc0.c          | 90 ++++++++++++++++++++++++++++++-----------
+ src/pkg/runtime/mprof.goc       |  2 +-
+ src/pkg/runtime/proc.c          |  2 +-
+ src/pkg/runtime/runtime.h       |  9 ++++-
+ src/pkg/runtime/traceback_arm.c | 29 ++++++++-----
+ src/pkg/runtime/traceback_x86.c | 37 ++++++++++-------
+ 8 files changed, 129 insertions(+), 52 deletions(-)

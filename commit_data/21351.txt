@@ -1,29 +1,15 @@
-commit 85e7bee19f9f26dfca414b1e9054e429c448b14f
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Jan 26 21:04:41 2015 +0300
+commit 24ea0330fe8bc7970a3fc5c5377d54bf0cbe8660
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 23 12:09:38 2014 +1100
 
-    runtime: do not scan maps when k/v do not contain pointers
+    build: give freebsd longer to run tests
     
-    Currently we scan maps even if k/v does not contain pointers.
-    This is required because overflow buckets are hanging off the main table.
-    This change introduces a separate array that contains pointers to all
-    overflow buckets and keeps them alive. Buckets themselves are marked
-    as containing no pointers and are not scanned by GC (if k/v does not
-    contain pointers).
+    The freebsd-386 and freebsd-amd64 builders are timing out sometimes.
+    This will give them some more breathing room.
     
-    This brings maps in line with slices and chans -- GC does not scan
-    their contents if elements do not contain pointers.
-    
-    Currently scanning of a map[int]int with 2e8 entries (~8GB heap)
-    takes ~8 seconds. With this change scanning takes negligible time.
-    
-    Update #9477.
-    
-    Change-Id: Id8a04066a53d2f743474cad406afb9f30f00eaae
-    Reviewed-on: https://go-review.googlesource.com/3288
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib65bd172cca046a52861759a4232d7b4b6514fa8
+    Reviewed-on: https://go-review.googlesource.com/1994
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/gc/reflect.c   | 58 ++++++++++++++++++++++++++------------
- src/reflect/type.go    | 12 ++++++--
- src/runtime/hashmap.go | 75 ++++++++++++++++++++++++++++++++++++++++----------
- 3 files changed, 110 insertions(+), 35 deletions(-)
+ src/run.bash | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

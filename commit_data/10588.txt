@@ -1,14 +1,12 @@
-commit 30775f67e7d5e897d4d9aafe8ab84a5f65550ce4
-Author: Rob Pike <r@golang.org>
-Date:   Fri Dec 2 00:02:24 2011 -0800
+commit 8bc641083709c33a8173e719d8bcdd6b35ac5925
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 2 16:24:12 2011 +1100
 
-    encoding/gob: don't send type info for unexported fields
-    Fixes #2517.
+    build: update .hgignore
     
-    R=golang-dev, dsymonds
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/5440079
+    https://golang.org/cl/5451073
 
- src/pkg/encoding/gob/encoder.go      |  4 +++-
- src/pkg/encoding/gob/encoder_test.go | 16 ++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ .hgignore | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

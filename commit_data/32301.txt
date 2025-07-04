@@ -1,12 +1,28 @@
-commit babc5b1dd668cf4e8970d7ab8938b0687896ba36
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 5 14:21:35 2017 +1000
+commit bb70f517e9ee0406408ffd82a2ce60cdef95ec3b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 18 17:16:54 2017 -0700
 
-    cmd/link: use peSection everywhere
+    cmd/compile: report block start for gotos jumping into blocks
     
-    Change-Id: I4d4e8452b9b9e628f3ea8b2b727ad63ec2a1dd31
-    Reviewed-on: https://go-review.googlesource.com/55259
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Follow-up on https://go-review.googlesource.com/#/c/39998/
+    which dropped this information.
+    
+    The reported blocks are the innermost blocks containing a
+    label jumped to from outside, not the outermost block as
+    reported originally by cmd/compile.
+    
+    We could report the outermost block with a slighly more
+    involved algorithm (need to track containing blocks for
+    all unresolved forward gotos), but since gccgo also reports
+    the innermost blocks, the current approach seems good enough.
+    
+    Change-Id: Ic0235b8fafe8d5f99dc9872b58e90e8d9e72c5db
+    Reviewed-on: https://go-review.googlesource.com/40980
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 82 ++++++++++++------------------------------
- 1 file changed, 22 insertions(+), 60 deletions(-)
+ src/cmd/compile/internal/syntax/branches.go | 42 +++++++++----------
+ test/goto.go                                | 64 ++++++++++++++---------------
+ 2 files changed, 53 insertions(+), 53 deletions(-)

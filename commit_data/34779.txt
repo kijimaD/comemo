@@ -1,14 +1,16 @@
-commit befd5c44cc5e970dd4b021229d6162d8b56f111b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Mar 30 17:00:39 2018 -0400
+commit f1966de63f1174f93cdca87b36e8c02b7b95f652
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 13 23:06:54 2017 -0500
 
-    syscall: remove double Unlock from Dup2 on nacl
+    cmd/dist: adjust package doc
     
-    Fixes #24610
+    Mainly capitalize the first letter.
+    (Followup to CL 54351.)
     
-    Change-Id: I76dee97db7cd77fe03e4a224f679a5efd061a2b5
-    Reviewed-on: https://go-review.googlesource.com/103775
+    Change-Id: I2d5c3d72c53d3468de7a9d4af8bd009182ff3d38
+    Reviewed-on: https://go-review.googlesource.com/78114
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/fd_nacl.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/dist/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,24 +1,18 @@
-commit f7c330eac7777612574d8a1652fd415391f6095e
-Author: Anuraag Agrawal <anuraaga@gmail.com>
-Date:   Thu Jun 6 04:24:26 2024 +0000
+commit be91040ea72dac0f48ec1e6f8c4f19ba85af6697
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Apr 20 12:22:27 2023 +0800
 
-    runtime: add a note on SetFinalizer doc about method receiver
+    cmd/internal/goobj: update builtin list
     
-    A method receiver can be collected during the execution of that method.
-    This does make sense when thinking about how the GC would work, but
-    also seems not very obvious, so a point in the docs can increase the
-    chance of avoiding issues caused by missing KeepAlive of method
-    receivers.
-    
-    Change-Id: I6817237dd022b5729dbdcda1b9f70c7059605575
-    GitHub-Last-Rev: 878bf3fde7b4ed66be0302ffdd5e704b4cd70a6c
-    GitHub-Pull-Request: golang/go#67777
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589735
+    Change-Id: I8a903b76d80f451b498b145b14c97f96191e05f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486775
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/mfinal.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/internal/goobj/builtinlist.go | 20 ++++++++++++++------
+ src/cmd/internal/goobj/mkbuiltin.go   |  2 +-
+ 2 files changed, 15 insertions(+), 7 deletions(-)

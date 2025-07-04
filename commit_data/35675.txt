@@ -1,28 +1,39 @@
-commit 44b826bb28171c473cf906413c298f3095c86451
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Jun 11 13:41:23 2018 -0400
+commit 4338518da83386be4728498cfc157d22e36f9b9e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Feb 28 13:45:06 2018 -0800
 
-    cmd/compile: use a different register for updated value in AtomicAnd8/Or8 on ARM64
+    encoding/json: avoid assuming side-effect free reflect.Value.Addr().Elem()
     
-    ARM64 manual says it is "constrained unpredictable" if the src
-    and dst registers of STLXRB are same, although it doesn't seem
-    to cause any problem on real hardwares so far. Fix by allocating
-    a different register to hold the updated value for
-    AtomicAnd8/Or8. We do this by making the ops returns <val,mem>
-    like AtomicAdd, although val will not be used elsewhere.
+    Consider the following:
+            type child struct{ Field string }
+            type parent struct{ child }
     
-    Fixes #25823.
+            p := new(parent)
+            v := reflect.ValueOf(p).Elem().Field(0)
+            v.Field(0).SetString("hello")           // v.Field = "hello"
+            v = v.Addr().Elem()                     // v = *(&v)
+            v.Field(0).SetString("goodbye")         // v.Field = "goodbye"
     
-    Change-Id: I735b9822f99877b3c7aee67a65e62b7278dc40df
-    Reviewed-on: https://go-review.googlesource.com/117976
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    It would appear that v.Addr().Elem() should have the same value, and
+    that it would be safe to set "goodbye".
+    However, after CL 66331, any interspersed calls between Field calls
+    causes the RO flag to be set.
+    Thus, setting to "goodbye" actually causes a panic.
+    
+    That CL affects decodeState.indirect which assumes that back-to-back
+    Value.Addr().Elem() is side-effect free. We fix that logic to keep
+    track of the Addr() and Elem() calls and set v back to the original
+    after a full round-trip has occured.
+    
+    Fixes #24152
+    Updates #24153
+    
+    Change-Id: Ie50f8fe963f00cef8515d89d1d5cbc43b76d9f9c
+    Reviewed-on: https://go-review.googlesource.com/97796
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Wei Xiao <Wei.Xiao@arm.com>
 
- src/cmd/compile/internal/arm64/ssa.go        | 13 +++++------
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++--
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 12 +++++------
- src/cmd/compile/internal/ssa/opGen.go        | 28 +++++++++++++++---------
- src/cmd/compile/internal/ssa/rewriteARM64.go | 32 +++++++++++++++++++---------
- 5 files changed, 56 insertions(+), 34 deletions(-)
+ src/encoding/json/decode.go      | 24 ++++++++++++++++++-
+ src/encoding/json/decode_test.go | 50 ++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 69 insertions(+), 5 deletions(-)

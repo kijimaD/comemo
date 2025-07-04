@@ -1,25 +1,15 @@
-commit 9f4c288c168b38aa4110b227cead4a53e9e86075
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jul 12 09:29:24 2011 -0400
+commit 0f8678a74730c69ca19f2589ae45d9d2eb3d302e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jul 12 17:27:07 2011 +1000
 
-    hash/crc32: add SSE4.2 support
+    go/build: include processing of .c files for cgo packages
     
-    Using the CRC32 instruction speeds up the Castagnoli computation by
-    about 20x on a modern Intel CPU.
-    
-    R=rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4650072
+    https://golang.org/cl/4696041
 
- src/cmd/6a/lex.c                    |   9 ++++
- src/cmd/6l/6.out.h                  |   2 +
- src/cmd/6l/l.h                      |   1 +
- src/cmd/6l/optab.c                  |  65 +++++++++++++++++++++++
- src/cmd/6l/span.c                   |   6 +++
- src/pkg/hash/crc32/Makefile         |   9 ++++
- src/pkg/hash/crc32/crc32.go         |  37 +++++++++++--
- src/pkg/hash/crc32/crc32_amd64.go   |  25 +++++++++
- src/pkg/hash/crc32/crc32_amd64.s    |  62 ++++++++++++++++++++++
- src/pkg/hash/crc32/crc32_generic.go |  12 +++++
- src/pkg/hash/crc32/crc32_test.go    | 103 ++++++++++++++++++++++--------------
- 11 files changed, 285 insertions(+), 46 deletions(-)
+ src/pkg/go/build/build.go           | 12 ++++++++++--
+ src/pkg/go/build/cgotest/cgotest.c  |  9 +++++++++
+ src/pkg/go/build/cgotest/cgotest.go |  7 +++++++
+ src/pkg/go/build/cgotest/cgotest.h  |  5 +++++
+ 4 files changed, 31 insertions(+), 2 deletions(-)

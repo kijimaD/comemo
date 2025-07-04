@@ -1,26 +1,20 @@
-commit 32da8f51b82a1b255de35e6686780eb9a6418f26
-Author: Clide Stefani <cstefani.sites@gmail.com>
-Date:   Tue Jun 25 15:52:32 2024 -0400
+commit 5b72f45dd17314af39627c2fcac0fbc099b67603
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jun 30 14:32:39 2023 -0400
 
-    crypto/tls: add support for additional alpn flags to bogo_shim_test
+    runtime: check GOFLAGS not GCFLAGS
     
-    The existing implementation of bogo_shim_test does not support tests
-    that use the -expect-advertised-alpn flag or the -select-alpn flag. This
-    change allows bogo_shim_test to receive and enforce these flags.
+    GCFLAGS doesn't have any defined meaning. cmd/dist enables
+    mayMoreStackPreempt with GOFLAGS.
     
-    Support for these flags is added in the same change because these flags are set together.
+    For #55160.
     
-    Updates #51434
-    
-    Change-Id: Ia37f9e7403d4a43e6da68c16039a4bcb56ebd032
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595655
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
-    Reviewed-by: Clide Stefani <cstefani.sites@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I7ac71e4a1a983a56bd228ab5d24294db5cc595f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507359
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/crypto/tls/bogo_shim_test.go | 44 ++++++++++++++++++++++++++++++++++++----
- 1 file changed, 40 insertions(+), 4 deletions(-)
+ src/runtime/crash_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

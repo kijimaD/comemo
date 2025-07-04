@@ -1,18 +1,19 @@
-commit 0e9bf41e1dce5c75f80f255cc11b8076b6203994
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 15 17:08:44 2023 -0700
+commit 351037d16c16602388709b846420094eabb5ce16
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Fri Sep 16 08:13:23 2022 +0800
 
-    go/types: update generate_test.go (cleanup)
+    misc/cgo: replace os.SEEK_SET with io.SeekStart
     
-    Adjust some rewrite code to match current code base.
+    Since os.SEEK_SET was deprecated, use io.SeekStart instead.
     
-    Change-Id: I7d3b79b764b95d664dd95e1057725f15a94973d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519856
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I11ae496b071ab35412403ff73e52f3da73d5b120
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431096
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/go/types/generate_test.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

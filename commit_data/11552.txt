@@ -1,25 +1,15 @@
-commit f3f5239d1e3e1acb299ef8a6a907df12713b9626
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 1 16:19:36 2012 -0800
+commit 5cc07af675901380a62eb23a2cb643db41dd4f7e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 1 18:25:51 2012 -0500
 
-    all packages: fix various typos
+    syscall: fix build directive in types_linux.go
     
-    Detected semi-automatically. There are probably more.
+    The rule is that build directives can be preceded only
+    by blank lines and other line comments, not /* */ comments.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, adg, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5620046
+    https://golang.org/cl/5619045
 
- src/cmd/api/goapi.go             | 2 +-
- src/cmd/fix/fix.go               | 2 +-
- src/cmd/fix/reflect.go           | 2 +-
- src/cmd/yacc/yacc.go             | 2 +-
- src/pkg/crypto/elliptic/p224.go  | 4 ++--
- src/pkg/encoding/gob/doc.go      | 2 +-
- src/pkg/encoding/xml/typeinfo.go | 2 +-
- src/pkg/exp/ebnflint/doc.go      | 2 +-
- src/pkg/exp/norm/forminfo.go     | 2 +-
- src/pkg/go/doc/comment.go        | 2 +-
- src/pkg/html/template/js.go      | 2 +-
- src/pkg/net/interface_bsd.go     | 2 +-
- 12 files changed, 13 insertions(+), 13 deletions(-)
+ src/pkg/syscall/types_linux.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

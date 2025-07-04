@@ -1,30 +1,19 @@
-commit 4c003f6b780b471afbf032438eb6c7519458855b
-Author: Kezhu Wang <kezhuw@gmail.com>
-Date:   Mon May 4 02:28:39 2020 +0000
+commit 9c6f6409ada8737bf159e7e8eb952f0541e89860
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Wed Nov 20 13:57:24 2019 +0100
 
-    reflect: keep RO flags unchanged in Value.Addr
+    runtime: disable GDB tests on AIX with -short
     
-    Currently, Value.Addr collapses flagRO, which is a combination of
-    flagEmbedRO and flagStickyRO, to flagStickyRO. This causes exported
-    fields of unexported anonymous field from Value.Addr.Elem read only.
+    Since the new page allocator, AIX's GDB has trouble running Go programs.
+    It does work but it can be really slow. Therefore, they are disable when
+    tests are run with -short.
     
-    This commit fix this by keeping all bits of flagRO from origin
-    value in Value.Addr. This should be safe due to following reasons:
-    * Result of Value.Addr is not CanSet because of it is not CanAddr
-       but not flagRO.
-    * Addr.Elem get same flagRO as origin, so it should behave same as
-       origin in CanSet.
+    Updates: #35710
     
-    Fixes #32772.
-    
-    Change-Id: I79e086628c0fb6569a50ce63f3b95916f997eda1
-    GitHub-Last-Rev: 78e280e6d06865661b5835def74c252c94a92800
-    GitHub-Pull-Request: golang/go#32787
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183937
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibfc4bd2cd9714268f1fe172aaf32a73612e262d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207919
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/all_test.go | 37 ++++++++++++++++++++++++++++++++++++-
- src/reflect/value.go    |  5 ++++-
- 2 files changed, 40 insertions(+), 2 deletions(-)
+ src/runtime/runtime-gdb_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

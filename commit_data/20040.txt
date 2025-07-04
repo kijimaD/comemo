@@ -1,13 +1,15 @@
-commit b3d5a695a6ad56fa33455eedf8d502a1a90a51ac
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 19 11:46:19 2014 +0400
+commit f4529adabefa07b63b8bff23b5108f590a13e2b6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 20:57:45 2014 -0400
 
-    runtime: improve diagnostics of non-copyable frames
+    [dev.power64] liblink: support stack split, long conditional branches
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, rlh, rsc
-    https://golang.org/cl/124560043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/123300043
 
- src/pkg/runtime/stack.c | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+ src/liblink/asm9.c  |  48 +++++++----
+ src/liblink/list9.c |   5 +-
+ src/liblink/obj9.c  | 236 +++++++++++++++++++++++++++++++++++++++++++++-------
+ 3 files changed, 243 insertions(+), 46 deletions(-)

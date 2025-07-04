@@ -1,18 +1,17 @@
-commit 73b3e2301ebbaa4f940006b0869a158156613b4b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Nov 26 10:59:43 2012 +1100
+commit c8fa7dcc25cc7655abf55b541149ad248c9830f2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Nov 25 09:04:13 2012 -0800
 
-    net: never return -1 bytes read from netFD.Read
+    bytes, strings: fix Reader WriteTo return value on 0 bytes copied
     
-    If the a network read would block, and a packet arrived just before the timeout expired, then the number of bytes from the previous (blocking) read, -1, would be returned.
+    Fixes #4421
     
-    This change restores the previous logic, where n would be unconditionally set to 0 if err != nil, but was skipped due to a change in CL 6851096.
-    
-    The test for this change is CL 6851061.
-    
-    R=bradfitz, mikioh.mikioh, dvyukov, rsc
+    R=golang-dev, dave, minux.ma, mchaten, rsc
     CC=golang-dev
-    https://golang.org/cl/6852085
+    https://golang.org/cl/6855083
 
- src/pkg/net/fd_unix.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/bytes/reader.go        |  2 +-
+ src/pkg/bytes/reader_test.go   | 36 ++++++++++++++++++++++++++++++++----
+ src/pkg/strings/reader.go      |  2 +-
+ src/pkg/strings/reader_test.go |  4 ++--
+ 4 files changed, 36 insertions(+), 8 deletions(-)

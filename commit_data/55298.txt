@@ -1,21 +1,17 @@
-commit 7c282ba12a9078eefab1d6e1a42ca8a1ae723737
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 14 14:26:20 2023 -0500
+commit ea6d4b0eaf20da4d2d9a88b995314eeeac614ef3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 26 13:44:30 2023 +0100
 
-    cmd/go/internal/modfetch: simplify a redundant condition
+    internal/syscall/unix: use atomic.Bool for getrandomUnsupported
     
-    In gitRepo.stat, we were checking ref != "" twice,
-    which confused me during casual reading because it made it seem like
-    the string could be empty when it actually never is.
-    
-    For #56881.
-    
-    Change-Id: Ib83303a149ea771399cb55fedd5dfa02ad411ff0
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549855
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I50522ed782dd963f445419fc45495f6608909c47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463124
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/modfetch/codehost/git.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/internal/syscall/unix/getrandom.go         | 6 +++---
+ src/internal/syscall/unix/getrandom_netbsd.go  | 8 ++++----
+ src/internal/syscall/unix/getrandom_solaris.go | 6 +++---
+ 3 files changed, 10 insertions(+), 10 deletions(-)

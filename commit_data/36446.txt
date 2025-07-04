@@ -1,18 +1,23 @@
-commit 48462bb3c04f34c93689c047d4bc5319bc79b31b
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Wed Jul 11 23:36:55 2018 +0300
+commit 29162ec9a7d4ee08a558729236cd9bf50febee09
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Apr 3 18:59:44 2018 +0200
 
-    html/template: use named consts instead of their values
+    cmd/compile: in prove, infer unsigned relations while branching
     
-    Use defined named constants instead of 0 literal in comparisons.
+    When a branch is followed, we apply the relation as described
+    in the domain relation table. In case the relation is in the
+    positive domain, we can also infer an unsigned relation if,
+    by that point, we know that both operands are non-negative.
     
-    Found using https://go-critic.github.io/overview.html#namedConst-ref
+    Fixes #20393
     
-    Change-Id: Ic075cece248f6e51db0b3d9d9eaba7d6409c9eef
-    Reviewed-on: https://go-review.googlesource.com/123376
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: Ieaf0c81558b36d96616abae3eb834c788dd278d5
+    Reviewed-on: https://go-review.googlesource.com/100278
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/html/template/context.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 3 +++
+ test/prove.go                         | 9 +++++++++
+ 2 files changed, 12 insertions(+)

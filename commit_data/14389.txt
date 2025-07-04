@@ -1,19 +1,14 @@
-commit 306afc7725e5174e7ad06fc7ba160ec7bc262cb7
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Nov 13 16:18:37 2012 +0900
+commit 0a47d2eff1d13e5867a76a472558b0d672879026
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Nov 13 07:08:29 2012 +0100
 
-    net: consolidate common socket functions for Plan 9
+    cmd/gc: fix typos in clearslim.
     
-    This CL extends changeset 13126:fc4a62e14aba to Plan 9.
+    Fixes build failure.
     
-    R=ality, golang-dev, dave, rsc
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/6820124
+    https://golang.org/cl/6847043
 
- src/pkg/net/fd_plan9.go      | 115 ++++++++++++++++++++++++
- src/pkg/net/ipsock_plan9.go  | 202 ++++---------------------------------------
- src/pkg/net/net.go           |  97 +++++++++++++++++++++
- src/pkg/net/net_posix.go     | 110 -----------------------
- src/pkg/net/tcpsock_plan9.go | 115 ++++++++++++++++++++----
- src/pkg/net/udpsock_plan9.go |  36 ++++----
- 6 files changed, 349 insertions(+), 326 deletions(-)
+ src/cmd/gc/gen.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

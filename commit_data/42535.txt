@@ -1,21 +1,27 @@
-commit 8b98498a5833111402a2fe8f13a6605e071994b6
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Jun 11 13:30:23 2020 -0700
+commit fa284af7201c5ce246bd5fcac485a5445717c452
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Dec 6 20:11:36 2019 -0500
 
-    net/http: make Transport.RoundTrip preserve Requests
+    [dev.link] cmd/link: convert ELF host object loading to new loader
     
-    Ensure that the exact Request passed to Transport.RoundTrip
-    is returned in the Response. Do not replace the Request with
-    a copy when resetting the request body.
+    This is a rewrite of the ELF host object loader to use just the Loader
+    interfaces for symbol creation, without constructing sym.Symbols. At
+    the moment this is gated under the temporary linker command line
+    option "-newldelf".  This version is able to get through all.bash
+    on linux/amd64.
     
-    Fixes #39533
-    
-    Change-Id: Ie6fb080c24b0f6625b0761b7aa542af3d2411817
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237560
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I99f41368f75b0df9e35ef3c2cf2a702b732540c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210779
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/transport.go      | 2 ++
- src/net/http/transport_test.go | 6 +++++-
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/dist/buildtool.go                 |    1 +
+ src/cmd/link/internal/ld/ar.go            |   30 +-
+ src/cmd/link/internal/ld/go.go            |  161 ++++
+ src/cmd/link/internal/ld/lib.go           |  291 +++++--
+ src/cmd/link/internal/ld/link.go          |   11 +-
+ src/cmd/link/internal/ld/main.go          |    1 +
+ src/cmd/link/internal/loadelf/ldelf.go    |  187 +++--
+ src/cmd/link/internal/loadelfold/ldelf.go | 1243 +++++++++++++++++++++++++++++
+ src/cmd/link/internal/loader/loader.go    |  158 ++--
+ 9 files changed, 1850 insertions(+), 233 deletions(-)

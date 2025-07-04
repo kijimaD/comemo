@@ -1,40 +1,27 @@
-commit 2413b5488841903ad99463962f50f85221733c30
-Author: Keith Randall <khr@google.com>
-Date:   Tue Feb 27 13:46:03 2018 -0800
+commit 73f1a1a1a7f7781c095ef6aebe8b0adf0669d6b2
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu Oct 19 18:59:41 2017 -0400
 
-    cmd/compile: mark the first word of an interface as a uintptr
+    cmd/compile/internal/ssa: use reverse postorder traversal
     
-    The first word of an interface is a pointer, but for the purposes
-    of GC we don't need to treat it as such.
-     1. If it is a non-empty interface, the pointer points to an itab
-        which is always in persistentalloc space.
-     2. If it is an empty interface, the pointer points to a _type.
-       a. If it is a compile-time-allocated type, it points into
-          the read-only data section.
-       b. If it is a reflect-allocated type, it points into the Go heap.
-          Reflect is responsible for keeping a reference to
-          the underlying type so it won't be GCd.
+    Instead of the hand-written control flow analysis in debug info
+    generation, use a reverse postorder traversal, which is basically the
+    same thing. It should be slightly faster.
     
-    If we ever have a moving GC, we need to change this for 2b (as
-    well as scan itabs to update their itab._type fields).
+    More importantly, the previous version simply gave up in the case of
+    non-reducible functions, and produced output that caused a later stage
+    to crash. It turns out that there's a non-reducible function in
+    compress/flate, so that wasn't a theoretical issue.
     
-    Write barriers on the first word of interfaces have already been removed.
+    With this change, all blocks will be visited, even for non-reducible
+    functions.
     
-    Change-Id: I643e91d7ac4de980ac2717436eff94097c65d959
-    Reviewed-on: https://go-review.googlesource.com/97518
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Id47536764ee93203c6b4105a1a3013fe3265aa12
+    Reviewed-on: https://go-review.googlesource.com/73110
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/plive.go           | 15 +++++++++++++--
- src/cmd/compile/internal/gc/reflect.go         |  3 ++-
- src/cmd/compile/internal/gc/ssa.go             |  7 ++++---
- src/cmd/compile/internal/ssa/decompose.go      |  5 +++--
- src/cmd/compile/internal/ssa/gen/dec.rules     |  2 +-
- src/cmd/compile/internal/ssa/gen/generic.rules |  4 ++--
- src/cmd/compile/internal/ssa/gen/genericOps.go |  2 +-
- src/cmd/compile/internal/ssa/rewritedec.go     |  4 ++--
- src/cmd/compile/internal/ssa/rewritegeneric.go | 16 ++++++++--------
- src/runtime/gcinfo_test.go                     |  4 ++--
- test/live.go                                   |  2 +-
- 11 files changed, 39 insertions(+), 25 deletions(-)
+ src/cmd/compile/fmt_test.go           |  1 -
+ src/cmd/compile/internal/ssa/debug.go | 52 ++++-------------------------------
+ 2 files changed, 6 insertions(+), 47 deletions(-)

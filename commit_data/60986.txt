@@ -1,0 +1,27 @@
+commit ae8708f7441b24dac126122c5365327d29fa0012
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Sep 6 15:51:44 2024 +0200
+
+    os/user: fix Current().GroupIds() for AD joined users on Windows
+    
+    This CL special-case User.GroupIds to get the group IDs from the user's
+    token when the user is the current user.
+    
+    This approach is more efficient than calling NetUserGetLocalGroups.
+    It is also more reliable for users joined to an Active Directory domain,
+    where NetUserGetLocalGroups is likely to fail.
+    
+    Updates #26041.
+    Fixes #62712.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64
+    Change-Id: If7c30287192872077b98a514bd6346dbd1a64fb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611116
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/syscall/windows/security_windows.go | 35 +++++++++++++++++
+ src/os/user/lookup_windows.go                    | 50 ++++++++++++++++++------
+ 2 files changed, 74 insertions(+), 11 deletions(-)

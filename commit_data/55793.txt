@@ -1,20 +1,23 @@
-commit 4b43913f4062f811c1c29a8b871b91877b46be52
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Feb 29 20:17:09 2024 +0700
+commit 9ae97f8b8b07c63d354ac41cd37771d87c679df7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 10 20:41:14 2023 -0800
 
-    cmd/internal/testdir: support -godebug
+    os: don't hide all methods in recursive call to io.Copy
     
-    Similar with what we are doing for -goexperiment.
+    In order to avoid a recursive call to ReadFrom, we were converting
+    a *File to an io.Writer. But all we really need to do is hide
+    the ReadFrom method. In particular, this gives us the option of
+    adding a WriteTo method.
     
-    For #65778
+    For #58808
     
-    Change-Id: I7dda69512a3ffb491e3de31941ae1c3d34fececf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568156
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I20d3a45749d528c93c23267c467e607fc17dc83f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475535
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/testdir/testdir_test.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/os/file.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

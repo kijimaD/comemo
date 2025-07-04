@@ -1,21 +1,25 @@
-commit a9e536442ed3e6ecd57ec24cc187557152b6d655
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 22 12:32:05 2015 -0400
+commit a0fc306023d77e5605203c14ca92f368bdbce3ae
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 13 17:08:16 2015 -0400
 
-    runtime: set m.procid always on Linux
+    runtime: eliminate runqvictims and a copy from runqsteal
     
-    For debuggers and other program inspectors.
+    Currently, runqsteal steals Gs from another P into an intermediate
+    buffer and then copies those Gs into the current P's run queue. This
+    intermediate buffer itself was moved from the stack to the P in commit
+    c4fe503 to eliminate the cost of zeroing it on every steal.
     
-    Fixes #9914.
+    This commit follows up c4fe503 by stealing directly into the current
+    P's run queue, which eliminates the copy and the need for the
+    intermediate buffer. The update to the tail pointer is only committed
+    once the entire steal operation has succeeded, so the semantics of
+    stealing do not change.
     
-    Change-Id: I670728cea28c045e6eaba1808c550ee2f34d16ff
-    Reviewed-on: https://go-review.googlesource.com/11341
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Icdd7a0eb82668980bf42c0154b51eef6419fdd51
+    Reviewed-on: https://go-review.googlesource.com/9998
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/runtime/os1_linux.go       | 5 +++++
- src/runtime/sys_linux_386.s    | 6 ++++++
- src/runtime/sys_linux_amd64.s  | 6 ++++++
- src/runtime/sys_linux_arm.s    | 6 ++++++
- src/runtime/sys_linux_arm64.s  | 6 ++++++
- src/runtime/sys_linux_ppc64x.s | 5 +++++
- 6 files changed, 34 insertions(+)
+ src/runtime/proc1.go    | 21 ++++++++++-----------
+ src/runtime/runtime2.go |  7 +++----
+ 2 files changed, 13 insertions(+), 15 deletions(-)

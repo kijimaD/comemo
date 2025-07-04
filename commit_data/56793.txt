@@ -1,23 +1,21 @@
-commit a2026cf0d9e84346e3103f4f429107b9499eca26
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jun 12 15:38:38 2024 -0400
+commit 5de20f0f34a7bf08bec8af82befc24e3c0ea5d7e
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Thu May 18 11:12:23 2023 +0300
 
-    cmd: vendor golang.org/x/telemetry@8cad58b
+    net/http: fix spelling issues in comments and tests
     
-    Commands run:
-            go get golang.org/x/telemetry@8cad58b
-            go mod tidy
-            go mod vendor
-    
-    Change-Id: I81d37835c6828a8a6a40f21e4e39a0e282aca927
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592255
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I1b90619fd073a0c41188278a50ed149b763f0fa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496135
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../x/telemetry/internal/counter/counter.go        |   3 +-
- .../x/telemetry/internal/counter/file.go           | 244 +++++++++++----------
- src/cmd/vendor/golang.org/x/telemetry/start.go     | 120 ++++++----
- src/cmd/vendor/modules.txt                         |   2 +-
- 6 files changed, 206 insertions(+), 169 deletions(-)
+ src/net/dnsclient_unix_test.go |  2 +-
+ src/net/http/client_test.go    |  2 +-
+ src/net/http/cookiejar/jar.go  |  2 +-
+ src/net/http/transport_test.go | 10 +++++-----
+ src/net/mptcpsock_linux.go     |  2 +-
+ src/net/timeout_test.go        |  2 +-
+ 6 files changed, 10 insertions(+), 10 deletions(-)

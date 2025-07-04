@@ -1,25 +1,21 @@
-commit 93b753f525b62a2a860fc2ba2d4ea3f788c275f9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 22 21:49:32 2016 -0700
+commit 3411d6321979b33291e3b4c6fe79d4dd41bd5fba
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 15 19:19:58 2016 -0700
 
-    cmd/link: fix handling of cgo_dynamic_interpreter
+    net: keep waiting for valid DNS response until timeout
     
-    CL 27473 accidentally changed `!Debug['I']` to `*flagInterpreter != ""`.
-    Since the old `Debug['I']` was set when the new *flagInterpreter was
-    set, this inverted the sense of the condition. The effect was to always
-    ignore the cgo_dynamic_interpreter setting from runtime/cgo. This worked
-    OK when the default interpreter was the correct one, but failed when it
-    was not, as is currently the case on, at least, PPC64 and ARM.
+    Prevents denial of service attacks from bogus UDP packets.
     
-    This CL restores the old behavior by using a separate variable to track
-    whether the -I flag was used, just as we used to.
+    Fixes #13281.
     
-    Change-Id: Icf9b65fa41349ed2e4de477fec0a557ef1eb8189
-    Reviewed-on: https://go-review.googlesource.com/27562
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ifb51b17a1b0807bfd27b144d6037431701184e7b
+    Reviewed-on: https://go-review.googlesource.com/22126
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/go.go   |  4 ++--
- src/cmd/link/internal/ld/main.go | 27 +++++++++++++++------------
- 2 files changed, 17 insertions(+), 14 deletions(-)
+ src/net/dnsclient_unix.go      |  99 ++++++++++++++++++----------------
+ src/net/dnsclient_unix_test.go |  83 ++++++++++++++++++++++++-----
+ src/net/dnsmsg.go              |  20 +++++++
+ src/net/dnsmsg_test.go         | 118 +++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 260 insertions(+), 60 deletions(-)

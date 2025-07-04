@@ -1,20 +1,23 @@
-commit f6f1daa4b807f1164da67c96dc8b07ee84731b52
-Author: Steven Hartland <steven.hartland@multiplay.co.uk>
-Date:   Mon Mar 27 13:28:19 2017 +0000
+commit 6fd5e2549ad530dc6f8504de61f1e49fa4f336ea
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Mar 5 11:37:09 2017 -0500
 
-    cmd/go: Document that -cover causes incorrect line numbers
+    cmd/compile: mark MOVWF/MOVFW clobbering F15 on ARM
     
-    Due to the fact that -cover injects additional code to the original
-    source, tests run with -cover will often have incorrect line numbers.
+    The assembler back end uses F15 as a temporary register in these
+    instructions.
     
-    Also includes docs for -list regexp missed by ba8ff87
+    Checked the assembler back end and made sure that this is the
+    only case clobbering F15.
     
-    Updates #6329
+    Fixes #19403.
     
-    Change-Id: I87f0618ac31e96071bca61055cc17c0cbdee208a
-    Reviewed-on: https://go-review.googlesource.com/38640
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I02b9e00fdd9229db899f501c8e9b306e02912d83
+    Reviewed-on: https://go-review.googlesource.com/37792
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/alldocs.go            | 8 ++++++++
- src/cmd/go/internal/test/test.go | 3 +++
- 2 files changed, 11 insertions(+)
+ src/cmd/compile/internal/ssa/gen/ARMOps.go | 4 ++--
+ src/cmd/compile/internal/ssa/opGen.go      | 8 ++++++++
+ 2 files changed, 10 insertions(+), 2 deletions(-)

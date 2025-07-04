@@ -1,14 +1,13 @@
-commit b955bbfbdbe070d65910f76dcd09276d16978e52
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 7 10:30:08 2011 -0800
+commit a2ba34d37463cacc6c7fd2a1882d6aadc0102a2c
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Wed Dec 7 11:50:39 2011 -0500
 
-    misc/benchcmp: don't require "Benchmark" at beginning of line
+    ld: fix memory leaks
     
-    Output is package_name.BenchmarkXXX.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5440123
+    https://golang.org/cl/5434068
 
- misc/benchcmp | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/ld/go.c  |  7 +++++--
+ src/cmd/ld/lib.c | 12 +++++++++++-
+ 2 files changed, 16 insertions(+), 3 deletions(-)

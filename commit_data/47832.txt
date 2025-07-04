@@ -1,26 +1,37 @@
-commit c5fee935bbb8f02406eb653cfed550593755a1a4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Dec 16 14:33:13 2021 -0500
+commit 48531da9e706a9f3cf5e08319202e97022fb6813
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 12 13:21:55 2021 -0400
 
-    cmd/link: force eager binding when using plugins on darwin
+    cmd/link: build dynexp symbol list directly
     
-    When building/using plugins on darwin, we need to use flat
-    namespace so the same symbol from the main executable and the
-    plugin can be resolved to the same address. Apparently, when using
-    flat namespace the dynamic linker can hang at forkExec when
-    resolving a lazy binding. Work around it by forcing early bindings.
+    Currently, setCgoAttr populates the cgo_export_{static,dynamic} maps
+    with symbol names of exported symbols, which are then re-looked-up by
+    deadcode and setupdynexp, which in turn puts the re-looked-up symbols
+    in ctxt.dynexp. setCgoAttr already looked up the Syms, so simplify all
+    of this by making setCgoAttr populate ctxt.dynexp directly and
+    eliminating the cgo_export_{static,dynamic} maps. Recording Syms
+    directly also sets us up to use correct symbol versions for these
+    exports, rather than just assuming version 0 for all lookups.
     
-    Fixes #38824.
+    Since setupdynexp doesn't really do any "setting up" of dynexp any
+    more with this change, we fold the remaining logic from setupdynexp
+    directly into addexport, where it has better context anyway. This also
+    eliminates a sorting step, since we no longer do a non-deterministic
+    map iteration to build the dynexp slice.
     
-    Change-Id: I983aa0a0960b15bf3f7871382e8231ee244655f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372798
-    Trust: Cherry Mui <cherryyz@google.com>
+    For #40724.
+    
+    Change-Id: I3e1a65165268da8c2bf50d7485f2624133433260
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309340
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- misc/cgo/testplugin/plugin_test.go            | 28 +++++++++++++++++++++++++
- misc/cgo/testplugin/testdata/forkexec/main.go | 30 +++++++++++++++++++++++++++
- src/cmd/link/internal/ld/lib.go               |  5 ++++-
- 3 files changed, 62 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/deadcode.go | 16 +++++++-------
+ src/cmd/link/internal/ld/go.go       | 33 +++++++++++++++++++++++++----
+ src/cmd/link/internal/ld/lib.go      | 41 ------------------------------------
+ src/cmd/link/internal/ld/link.go     |  3 ---
+ src/cmd/link/internal/ld/main.go     |  1 -
+ 5 files changed, 37 insertions(+), 57 deletions(-)

@@ -1,27 +1,36 @@
-commit 85ecc51c4852c49b5e5bc4a52067210c58e266e0
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Thu Feb 2 17:59:18 2017 -0200
+commit d6dbf3a0d38773b37bd8fa8d64a3f192102e388b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 21 19:35:26 2016 -0700
 
-    cmd/asm, cmd/internal/obj/ppc64: Add ISA 2.05, 2.06 and 2.07 instructions.
+    cmd/compile: use List instead of OKEY for OSLICE*
     
-    This change adds instructions from ISA 2.05, 2.06 and 2.07 that are frequently
-    used in assembly optimizations for ppc64.
+    Performance changes are negligible, but that's expected.
+    This is a part of a general effort to eliminate OKEY nodes.
     
-    It also fixes two problems:
+    Passes toolstash -cmp.
     
-      * the implementation of RLDICR[CC]/RLDICL[CC] did not consider all possible
-      cases for the bit mask.
-      * removed two non-existing instructions that were added by mistake in the VMX
-      implementation (VORL/VANDL).
+    Updates #15350
     
-    Change-Id: Iaef4e5c6a5240c2156c6c0f28ad3bcd8780e9830
-    Reviewed-on: https://go-review.googlesource.com/36230
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    name       old alloc/op     new alloc/op     delta
+    Template       40.6MB ± 0%      40.6MB ± 0%  -0.04%         (p=0.000 n=9+10)
+    Unicode        33.4MB ± 0%      33.4MB ± 0%    ~           (p=0.853 n=10+10)
+    GoTypes         120MB ± 0%       120MB ± 0%  -0.03%         (p=0.000 n=9+10)
+    Compiler        470MB ± 0%       469MB ± 0%  -0.06%        (p=0.000 n=10+10)
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         404k ± 0%        404k ± 0%    ~           (p=0.165 n=10+10)
+    Unicode          350k ± 0%        350k ± 0%    ~            (p=0.211 n=9+10)
+    GoTypes         1.21M ± 0%       1.21M ± 0%    ~           (p=0.315 n=10+10)
+    Compiler        4.35M ± 0%       4.35M ± 0%  -0.03%        (p=0.001 n=10+10)
+    
+    Change-Id: I17d547bf9568b1ee2514a7ffab930424617f995e
+    Reviewed-on: https://go-review.googlesource.com/32213
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |  31 +++++-
- src/cmd/internal/obj/ppc64/a.out.go       |  17 +++-
- src/cmd/internal/obj/ppc64/anames.go      |  17 +++-
- src/cmd/internal/obj/ppc64/asm9.go        | 150 ++++++++++++++++++++++++++----
- 4 files changed, 191 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/gc/inl.go       | 12 ++++++---
+ src/cmd/compile/internal/gc/subr.go      | 46 ++++++++++++++++++--------------
+ src/cmd/compile/internal/gc/syntax.go    | 10 +++----
+ src/cmd/compile/internal/gc/typecheck.go |  3 +++
+ 4 files changed, 43 insertions(+), 28 deletions(-)

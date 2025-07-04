@@ -1,12 +1,19 @@
-commit eee3dd1292ba1b4282b39e3288239d5259a765b4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 9 15:25:46 2013 -0800
+commit 74c03cb81491a2e7e6559b6cf92518287260ce36
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Jan 9 15:05:22 2013 -0800
 
-    cmd/cgo: for gccgo: use intgo, don't use slice as void return type
+    cmd/ld: fix incompatible type signatures on Plan 9
     
-    R=golang-dev, rsc
+    Changeset f483bfe81114 moved ELF generation to the architecture
+    independent code and in doing so added a Section* to the Sym
+    type and an Elf64_Shdr* to the Section type.
+    
+    This caused the Plan 9 compilers to complain about incompatible
+    type signatures in the many files that reference the Sym type.
+    
+    R=rsc, dave
     CC=golang-dev
-    https://golang.org/cl/7057064
+    https://golang.org/cl/7057058
 
- src/cmd/cgo/out.go | 21 +++++++++++++--------
- 1 file changed, 13 insertions(+), 8 deletions(-)
+ src/cmd/ld/lib.h | 2 ++
+ 1 file changed, 2 insertions(+)

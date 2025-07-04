@@ -1,29 +1,19 @@
-commit d1640d86522c08e662eec86de985e9781e879e20
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jan 19 14:25:12 2022 -0500
+commit fbb600b28349a41742d35f1d2417c5843c6ba6e4
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Apr 15 00:04:17 2021 +0800
 
-    runtime/pprof: compare all samples vs rusage in TestCPUProfileMultithreadMagnitude
+    runtime: implement runqdrain() for GC mark worker goroutines
     
-    TestCPUProfileMultithreadMagnitude compares pprof results vs OS rusage
-    to verify that pprof is capturing all CPU usage. Presently it compares
-    the sum of cpuHog1 samples vs rusage. However, background usage from the
-    scheduler, GC, etc can cause additional CPU usage causing test failures
-    if rusage is too far off from the cpuHog1 samples.
-    
-    That said, this test doesn't actually need to care about cpuHog1
-    samples. It simply cares that pprof samples match rusage, not what the
-    breakdown of usage was. As a result, we can compare the sum of _all_
-    pprof samples vs rusage, which should implicitly include any background
-    CPU usage.
-    
-    Fixes #50097.
-    
-    Change-Id: I649a18de5b3dcf58b62be5962fa508d14cd4dc79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379535
+    Change-Id: Ida44a2e07f277bee8806538ecee4beee3474cf3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310149
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Michael Pratt <mpratt@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/pprof/pprof_test.go | 17 ++++++-----------
- 1 file changed, 6 insertions(+), 11 deletions(-)
+ src/runtime/mgc.go      | 12 ++++--------
+ src/runtime/proc.go     | 38 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/runtime2.go |  3 +++
+ 3 files changed, 45 insertions(+), 8 deletions(-)

@@ -1,0 +1,28 @@
+commit 3d61de41a28b310fedc345d76320829bd08146b3
+Author: Carlana Johnson <mail@carlana.net>
+Date:   Thu Nov 14 19:43:57 2024 +0000
+
+    log/slog: add DiscardHandler
+    
+    This adds a package-level variable, slog.DiscardHandler, which is a
+    slog.Handler which performs no output. This serves a similar purpose
+    to io.Discard.
+    
+    Fixes #62005
+    
+    Change-Id: Ia8babc55f860dec9b663a5c400090a7669608fd5
+    GitHub-Last-Rev: 0a611174ee8819a2f4e1b8e196a60d5acc6ef9f7
+    GitHub-Pull-Request: golang/go#70296
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626486
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/62005.txt                           |  1 +
+ doc/next/6-stdlib/99-minor/log/slog/62005.md |  1 +
+ src/log/slog/example_discard_test.go         | 23 +++++++++++++++++++++++
+ src/log/slog/handler.go                      | 11 +++++++++++
+ src/log/slog/handler_test.go                 | 21 +++++++++++++++++++++
+ src/log/slog/logger_test.go                  | 21 ++++++++++-----------
+ 6 files changed, 67 insertions(+), 11 deletions(-)

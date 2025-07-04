@@ -1,21 +1,18 @@
-commit 8367e2dfc72f626cba75be71112d42fdb2ed82f7
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Feb 24 01:46:09 2023 -0800
+commit 4aacb7ff0f103d95a724a91736823f44aa599634
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 2 11:01:18 2022 -0800
 
-    encoding/json: remove legacy fuzz.go file
+    crypto/x509: add CertPool.Equal
     
-    With native support for fuzzing in the Go toolchain,
-    rely instead on the fuzz tests declared in fuzz_test.go.
+    Fixes #46057
     
-    Change-Id: I601842cd0bc7e64ea3bfdafbbbc3534df11acf59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471197
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Change-Id: Id3af101c54108d6fd5b65946c4358872358eefcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388915
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/encoding/json/fuzz.go | 42 ------------------------------------------
- 1 file changed, 42 deletions(-)
+ src/crypto/x509/cert_pool.go      | 13 +++++++++
+ src/crypto/x509/cert_pool_test.go | 58 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+)

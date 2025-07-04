@@ -1,23 +1,12 @@
-commit f91b37b962dabc6ac0e5bae5ff35e4b7037cac8c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 22 13:05:51 2011 -0700
+commit f492bd7012a6cb2af2f91d82400e6c8df141c127
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 22 11:52:41 2011 -0700
 
-    Make.pkg: add support for SWIG, and add two SWIG examples
+    gob: fix up ugly formatting introduced by buggy (now fixed) gofmt.
     
-    The SWIG examples are not yet built or tested by default.
-    
-    R=r, rsc, iant2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4287056
+    https://golang.org/cl/4281065
 
- misc/swig/callback/Makefile         |  17 +++++++++
- misc/swig/callback/callback.h       |  24 ++++++++++++
- misc/swig/callback/callback.swigcxx |  18 +++++++++
- misc/swig/callback/run              | Bin 0 -> 1179384 bytes
- misc/swig/callback/run.go           |  39 +++++++++++++++++++
- misc/swig/stdio/Makefile            |  17 +++++++++
- misc/swig/stdio/file.swig           |  11 ++++++
- misc/swig/stdio/hello               | Bin 0 -> 231270 bytes
- misc/swig/stdio/hello.go            |  11 ++++++
- src/Make.pkg                        |  74 ++++++++++++++++++++++++++++++++----
- 10 files changed, 203 insertions(+), 8 deletions(-)
+ src/pkg/gob/type.go | 35 +++++++----------------------------
+ 1 file changed, 7 insertions(+), 28 deletions(-)

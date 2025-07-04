@@ -1,32 +1,16 @@
-commit 1afc37fa7eb5bcc48a72646357a497973b5a2c1e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 29 18:30:59 2011 -0700
+commit d54c4ecc329c22a8a79dd4d91a4df8bf41920bf4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 30 11:40:00 2011 +1100
 
-    go/printer/gofmt: remove special case for multi-line raw strings
+    time: make TestAfterQueuing retry 3 times before declaring failure.
     
-    As a special case, multi-line raw strings (i.e., strings in `` quotes)
-    were not indented if they were the only token on a line. This heuristic
-    was meant to improve formatting for multi-line raw strings where sub-
-    sequent lines are not indented at the level of the surrounding code.
-    Multiple people have complained about this. Removing the heuristic
-    again because it makes the formatting more regular, easier to under-
-    stand, and simplifies the implementation.
+    I'm in two minds as to whether this should be a function of gotest.
+    Tests that can flake out like this should be rare enough that we
+    needn't add more mechanism.
     
-    - manual changes to ebnf/ebnf_test.go for readability
-    - gofmt -w src misc
-    
-    Fixes #1643.
-    
-    R=r, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4307045
+    https://golang.org/cl/4335042
 
- src/cmd/gofix/httpserver.go                    |  2 +-
- src/cmd/gofix/netdial.go                       |  6 +--
- src/cmd/gofix/procattr.go                      |  2 +-
- src/pkg/ebnf/ebnf_test.go                      | 45 ++++++++----------
- src/pkg/go/printer/printer.go                  | 66 +++++---------------------
- src/pkg/go/printer/testdata/expressions.golden | 18 +++----
- src/pkg/go/printer/testdata/expressions.input  |  8 ++--
- src/pkg/go/printer/testdata/expressions.raw    | 21 ++++----
- 8 files changed, 61 insertions(+), 107 deletions(-)
+ src/pkg/time/sleep_test.go | 23 ++++++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)

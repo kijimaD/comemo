@@ -1,34 +1,27 @@
-commit 7c9510ef3ec4b1008b599c9c8a0ec9adaba4b663
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 1 22:35:29 2021 +0000
+commit 79beddc773ecca50c283dde6aad7c80929da0554
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Nov 23 10:59:33 2020 +0000
 
-    syscall: fix finalizer fd close bugs in TestFcntlFlock and TestPassFD
+    cmd/asm: add 128-bit FLDPQ and FSTPQ instructions for arm64
     
-    Currently, the syscall test suite takes very little time to run. It
-    stands to reason that pretty much every time, zero GCs execute.
+    This CL adds assembly support for 128-bit FLDPQ and FSTPQ instructions.
     
-    With CL 309869, this changes because the minimum heap size is lowered,
-    triggering two bugs in the test suite.
+    This CL also deletes some wrong pre/post-indexed LDP and STP instructions,
+    such as {ALDP, C_UAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, C_XPRE},
+    because when the offset type is C_UAUTO4K, pre and post don't work.
     
-    One bug is in TestFcntlFlock, where a raw FD is wrapped in an os.File
-    whose last reference is passed into a Cmd. That FD is then closed by a
-    defer syscall.Close, instead of the os.File's Close, so the finalizer
-    may fire *after* that FD has already been reused by another test.
-    
-    The second bug is in the child helper process of TestPassFD, where
-    there's a small window in which a temp file's FD is encoded for an
-    out-of-band unix domain socket message to the parent, but not yet sent.
-    The point of encoding is also the last reference that FD's os.File, so a
-    finalizer may run at any time. While it's safe for the finalizer to run
-    after the FD is sent, if it runs before, the send will fail, since unix
-    domain sockets require that any sent FDs are valid.
-    
-    Change-Id: I2d1bd7e6db6efcc6763273217fd85cb5b9764274
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360575
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ifd901d4440eb06eb9e86c9dd17518749fdf32848
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273668
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/syscall_unix_test.go | 20 ++++++++++++++++----
- 1 file changed, 16 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  48 ++++
+ src/cmd/asm/internal/asm/testdata/arm64error.s |   3 +
+ src/cmd/internal/obj/arm64/a.out.go            |  16 +-
+ src/cmd/internal/obj/arm64/anames.go           |   2 +
+ src/cmd/internal/obj/arm64/anames7.go          |  12 +
+ src/cmd/internal/obj/arm64/asm7.go             | 335 ++++++++++++++++---------
+ 6 files changed, 297 insertions(+), 119 deletions(-)

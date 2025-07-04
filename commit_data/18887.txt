@@ -1,13 +1,25 @@
-commit 8a511cccb59d1004122004253fca79d1000a7eb7
-Author: Chris Manghane <cmang@golang.org>
-Date:   Mon Mar 17 20:26:19 2014 -0700
+commit 1f1f69e389a30fd8941789fd04bfd946c9aa39fc
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Tue Mar 18 13:03:03 2014 +1100
 
-    cmd/gc: fix error check for self-referential array type.
+    build: fix race in doc/articles/wiki test
     
-    LGTM=gri, iant
-    R=gri, iant
+    The original test would open a local port and then immediately close it
+    and use the port number in subsequent tests. Between the port being closed
+    and reused by the later process, it could be opened by some other program
+    on the machine.
+    
+    Changed the test to run the server process directly and have it save the
+    assigned port to a text file to be used by client processes.
+    
+    Fixes #5564.
+    
+    LGTM=adg
+    R=golang-codereviews, gobot, adg
     CC=golang-codereviews
-    https://golang.org/cl/75920044
+    https://golang.org/cl/72290043
 
- test/fixedbugs/issue7525.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ doc/articles/wiki/Makefile  |  2 +-
+ doc/articles/wiki/final.go  | 23 +++++++++++++++++++++++
+ doc/articles/wiki/test.bash | 24 ++++++++++++++++++------
+ 3 files changed, 42 insertions(+), 7 deletions(-)

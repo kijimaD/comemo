@@ -1,25 +1,19 @@
-commit 7f688d18c0ae6df3e895d21799b8ece7d5941293
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Nov 27 00:42:41 2020 -0500
+commit 3f408fc7fdc8156f04414b529b9194f868485c8a
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 27 13:21:48 2020 -0400
 
-    runtime: mlock signal stack on macOS/ARM64
+    [dev.link] cmd/link: remove Unit field from sym.Symbol
     
-    Apparently, the macOS ARM64 kernel has a bug where when a signal
-    arrives and the signal stack is not currently faulted in, it may
-    kill the program with a SIGILL. Work around it by mlock the
-    signal stacks.
+    Remove sym.Symbol 'Unit' field, replacing accesses to the field with
+    calls into the loader instead.
     
-    Fixes #42774.
-    
-    Change-Id: I99a4b3fdb6d8af1c945725ddc2c25568d81c510a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273686
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ia1abd4c3d93036705dd624a49cb3d9cbe6a5188b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230307
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/os_darwin.go       | 6 ++++++
- src/runtime/sys_darwin.go      | 8 ++++++++
- src/runtime/sys_darwin_amd64.s | 3 +++
- src/runtime/sys_darwin_arm64.s | 6 ++++++
- 4 files changed, 23 insertions(+)
+ src/cmd/link/internal/ld/data2.go        | 4 ++--
+ src/cmd/link/internal/loader/loader.go   | 1 -
+ src/cmd/link/internal/sym/sizeof_test.go | 2 +-
+ src/cmd/link/internal/sym/symbol.go      | 1 -
+ 4 files changed, 3 insertions(+), 5 deletions(-)

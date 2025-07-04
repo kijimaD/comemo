@@ -1,19 +1,21 @@
-commit bcf41ab0ee1946c42eb50887fe1bc7f20e4030fb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat May 20 13:48:22 2023 -0700
+commit 462b78fe7027ef0d2e2b40c3cfd1f5a37d307310
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jul 27 12:59:16 2022 -0400
 
-    runtime: remove some unused constants from assembler code
+    misc/cgo/test: use fewer threads in TestSetgidStress in long mode
     
-    Change-Id: Ibcd919afcb7ff4db79036ef427d088097362a574
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496695
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TestSetgidStress originally spawns 1000 threads for stress testing.
+    It caused timeout on some builders so CL 415677 reduced to 50 in
+    short mode. But it still causes flaky timeouts in longtest
+    builders, so reduce the number of threads in long mode as well.
+    
+    Should fix #53641.
+    
+    Change-Id: I02f4ef8a143bb1faafe3d11ad223f36f5cc245c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419453
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_freebsd_arm64.s   | 3 ---
- src/runtime/sys_freebsd_riscv64.s | 3 ---
- src/runtime/sys_netbsd_arm64.s    | 3 ---
- 3 files changed, 9 deletions(-)
+ misc/cgo/test/setgid2_linux.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

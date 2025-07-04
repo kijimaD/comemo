@@ -1,16 +1,14 @@
-commit 9c4303397756b2217971465c6b2f54bbefeed37a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 13 13:52:06 2014 -0800
+commit a2edc469a0d4f744c26d3245a6600a02b4ebf426
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 13 11:39:04 2014 -0500
 
-    net/http: clarify semantics of File methods
+    runtime: remove redundant 0x prefix in error print
     
-    There were no docs explaining the meaning of Readdir's count
-    argument, for instance. Clarify that these mean the same as
-    the methods on *os.File.
+    %x already adds the prefix unconditionally
     
-    R=golang-codereviews, minux.ma
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/51630043
+    https://golang.org/cl/51550043
 
- src/pkg/net/http/fs.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/runtime/symtab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

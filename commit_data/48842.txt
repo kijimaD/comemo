@@ -1,16 +1,24 @@
-commit c2d436dcfad64d5cc301cf05d446f7a93c19133e
-Author: zhangyunhao <zhangyunhao@bytedance.com>
-Date:   Tue Apr 19 14:44:03 2022 +0800
+commit 460900a7b51f917888cb17608367979243178fe1
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Sat Jun 19 09:46:52 2021 -0700
 
-    hash/maphash: use fastrand64 in MakeSeed
+    os/signal: test with a significantly longer fatal timeout
     
-    Change-Id: I5ccbcea4c53658136b25ca608faec19eeec2e908
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400915
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    We've observed some occasional os-arch specific timeouts
+    in signal.TestSignalTrace(). While the main purpose of a
+    short timeout is to ensure the passing tests complete
+    quickly, the unexpected failure path can tolerate waiting
+    longer (the test is not intended to test how slow or
+    overloaded the OS is at the time it is run).
+    
+    Fixes #46736
+    Change-Id: Ib392fc6ce485a919612784ca88ed76c30f4898e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329502
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/hash/maphash/maphash.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/os/signal/signal_test.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

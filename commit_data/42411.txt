@@ -1,30 +1,29 @@
-commit 8f4151ea67e1d498e0880f28d3fd803dc2c5448f
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Sep 24 18:14:10 2019 +0100
+commit 499dc1c5d583a2a0735d4e408078819b84697e2e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Dec 13 16:53:28 2019 -0500
 
-    encoding/xml: only initialize nil struct fields when decoding
+    go/doc: ignore example functions with arguments
     
-    fieldInfo.value used to initialize nil anonymous struct fields if they
-    were encountered. This behavior is wanted when decoding, but not when
-    encoding. When encoding, the value should never be modified, and these
-    nil fields should be skipped entirely.
+    An Example function with arguments is not a valid example to be
+    run with go test. Don't return those functions from Examples. This
+    means that some functions that were previously showing up in
+    Examples will no longer show up. But those functions were not being
+    tested properly so the fact that they were showing up is misleading.
     
-    To fix the bug, add a bool argument to the function which tells the
-    code whether we are encoding or decoding.
+    This fixes an issue where a confusing compiler error was showing
+    up when running go test on a file with an invalid example. While
+    that issue could have been fixed by returning an error, this is
+    more consistent with the behavior of go/doc.Examples, and the tests
+    checker in vet will catch this issue.
     
-    Finally, add a couple of tests to cover the edge cases pointed out in
-    the original issue.
+    Fixes #35284
     
-    Fixes #27240.
-    
-    Change-Id: Ic97ae4bfe5f2062c8518e03d1dec07c3875e18f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196809
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I2101a7d19f38522ef9c2e50967f9cfb30d28c730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211357
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/encoding/xml/marshal.go      | 16 ++++++++++++----
- src/encoding/xml/marshal_test.go | 17 +++++++++++++++++
- src/encoding/xml/read.go         | 16 ++++++++--------
- src/encoding/xml/typeinfo.go     | 16 +++++++++++++---
- 4 files changed, 50 insertions(+), 15 deletions(-)
+ src/cmd/go/testdata/script/test_bad_example.txt | 13 +++++++++++++
+ src/go/doc/example.go                           |  3 +++
+ 2 files changed, 16 insertions(+)

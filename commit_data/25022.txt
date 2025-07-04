@@ -1,20 +1,19 @@
-commit 009517e0b7fb085c87b474a32fc7701613d0c0d3
-Author: Rob Pike <r@golang.org>
-Date:   Mon Nov 23 12:43:17 2015 -0800
+commit 1e4ebfdda59f9e5df4bfb5edf3827a9393c1c4de
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 10 13:53:27 2015 -0700
 
-    html/template: add DefinedTemplates to html/template
+    [dev.ssa] cmd/compile/internal/ssa: fix iface and slice comparisons
     
-    It is not important to add, since it's only used for creating an error message,
-    but for consistency in the API between text/template and html/template
-    it should be provided here.
+    A simpler way to do iface/slice comparisons.  Fixes some
+    cases of failed lowerings.
     
-    The implementation just calls the one in text/template.
-    
-    Fixes #13349.
-    
-    Change-Id: I0882849e06a58f1e38b00eb89d79ac39777309b2
-    Reviewed-on: https://go-review.googlesource.com/17172
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ia252bc8648293a2d460f63c41f1591785543a1e9
+    Reviewed-on: https://go-review.googlesource.com/14493
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/html/template/template.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             |   9 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  13 ++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  20 ++--
+ src/cmd/compile/internal/ssa/opGen.go          |  18 +++-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 142 ++++++++++++-------------
+ 5 files changed, 103 insertions(+), 99 deletions(-)

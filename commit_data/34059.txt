@@ -1,35 +1,29 @@
-commit d5e47fdc92ff0be67cf004b7796ba47943a7f0c3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 19 15:45:50 2017 -0800
+commit d8efa0e0ed8bbd5ed0780527652d86be2fba99dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 21 11:38:57 2017 -0400
 
-    go/types: perform delayed tests even for types.Eval
+    cmd/go: add gccgo support for recent work
     
-    R=go1.11
+    Implement importcfg on behalf of gccgo by writing out a
+    tree of symbolic links. In addition to keeping gccgo working
+    with the latest changes, this also fixes a precedence bug in
+    gccgo's cmd/go vendor support (the vendor equivalent of #14271).
     
-    types.Eval historically never evaluated any delayed tests, which
-    included verification of validity of map keys, but also function
-    literal bodies.
-    
-    Now, embedded interfaces are also type-checked in a delayed fashion,
-    so it becomes imperative to do all delayed checks for eval (otherwise
-    obviously incorrect type expressions are silently accepted).
-    
-    Enabling the delayed tests also removes the restriction that function
-    literals were not type-checked.
-    
-    Also fixed a bug where eval wouldn't return a type-checking error
-    because check.handleBailout was using the wrong err variable.
-    
-    Added tests that verify that method set computation is using the
-    right types when evaluating interfaces with embedded types.
-    
-    For #18395.
-    For #22992.
-    
-    Change-Id: I574fa84568b5158bca4b4ccd4ef5abb616fbf896
-    Reviewed-on: https://go-review.googlesource.com/84898
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I0e5645116e1c84c957936baf22e3126ba6b0d46e
+    Reviewed-on: https://go-review.googlesource.com/61731
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/go/types/eval.go      |  9 ++++-----
- src/go/types/eval_test.go | 13 +++++++++++++
- 2 files changed, 17 insertions(+), 5 deletions(-)
+ src/cmd/go/go_test.go                              |  13 +++
+ src/cmd/go/internal/work/build.go                  | 116 +++++++++++++++++----
+ src/cmd/go/testdata/src/complex/main.go            |  12 +++
+ .../go/testdata/src/complex/nest/sub/test12/p.go   |  11 ++
+ .../go/testdata/src/complex/nest/sub/test23/p.go   |  11 ++
+ .../testdata/src/complex/nest/sub/vendor/v2/v2.go  |   3 +
+ .../go/testdata/src/complex/nest/vendor/v1/v1.go   |   3 +
+ .../go/testdata/src/complex/nest/vendor/v2/v2.go   |   3 +
+ .../go/testdata/src/complex/nest/vendor/v3/v3.go   |   3 +
+ src/cmd/go/testdata/src/complex/vendor/v/v.go      |   3 +
+ src/cmd/go/testdata/src/complex/w/w.go             |   3 +
+ 11 files changed, 159 insertions(+), 22 deletions(-)

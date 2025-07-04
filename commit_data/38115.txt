@@ -1,14 +1,37 @@
-commit d7518ac51879011a732440d4a49dc7043759e2c8
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Feb 27 17:25:28 2019 +0100
+commit 9dac0a8132d7db5225b27bdd8faeb3158e624159
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Tue Sep 11 15:14:28 2018 -0700
 
-    doc: add 1.10.8 and 1.11.5 to the releases list
+    runtime: on a signal, set traceback address to a deferreturn call
     
-    Fixes #30431
+    When a function triggers a signal (like a segfault which translates to
+    a nil pointer exception) during execution, a sigpanic handler is just
+    below it on the stack.  The function itself did not stop at a
+    safepoint, so we have to figure out what safepoint we should use to
+    scan its stack frame.
     
-    Change-Id: I379e78a1c385942a19e1a10b91d732f9a73899e6
-    Reviewed-on: https://go-review.googlesource.com/c/164041
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Previously we used the site of the most recent defer to get the live
+    variables at the signal site. That answer is not quite correct, as
+    explained in #27518. Instead, use the site of a deferreturn call.
+    It has all the right variables marked as live (no args, all the return
+    values, except those that escape to the heap, in which case the
+    corresponding PAUTOHEAP variables will be live instead).
+    
+    This CL requires stack objects, so that all the local variables
+    and args referenced by the deferred closures keep the right variables alive.
+    
+    Fixes #27518
+    
+    Change-Id: Id45d8a8666759986c203181090b962e2981e48ca
+    Reviewed-on: https://go-review.googlesource.com/c/134637
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/devel/release.html | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/internal/objabi/funcid.go |  2 +-
+ src/cmd/link/internal/ld/pcln.go  | 97 +++++++++++++++++++++++----------------
+ src/runtime/runtime2.go           |  8 ++--
+ src/runtime/symtab.go             |  4 +-
+ src/runtime/traceback.go          |  8 ++--
+ test/fixedbugs/issue27518a.go     | 45 ++++++++++++++++++
+ test/fixedbugs/issue27518b.go     | 72 +++++++++++++++++++++++++++++
+ 7 files changed, 188 insertions(+), 48 deletions(-)

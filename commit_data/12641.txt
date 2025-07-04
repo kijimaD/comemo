@@ -1,12 +1,12 @@
-commit 1c224ab9dd1833f4548a49d40d2bb0a264a74767
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Wed Mar 14 20:25:57 2012 -0700
+commit 181dc14cd63dd364efaa4d6f7a6af7f3892cc83a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 15 11:31:16 2012 +1100
 
-    net/http: ensure triv.go compiles and runs
+    cmd/godoc: use *goroot as base path in zip file
     
-    R=golang-dev, bradfitz, dsymonds, dave, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5795069
+    https://golang.org/cl/5781069
 
- src/pkg/net/http/triv.go | 28 ++++++----------------------
- 1 file changed, 6 insertions(+), 22 deletions(-)
+ src/cmd/godoc/appinit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

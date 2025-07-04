@@ -1,15 +1,14 @@
-commit bf9a00bc8f048e2ca8d9d12d0bcf5dfc41505693
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Sat Jun 1 16:33:54 2013 +0200
+commit 7f0ee023baf8dca4b328c0a1c1fecfa45b555923
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 31 21:44:32 2013 -0700
 
-    cmd/gc: fix overflow in array bounds calculation.
+    runtime: revert of CL 8852047: do hashmap grow work during reads.
+    seems to break freebsd-386.
     
-    Fixes #5609.
-    
-    R=golang-dev, remyoudompheng, r
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/9757045
+    https://golang.org/cl/9915047
 
- src/cmd/gc/typecheck.c      |  8 ++++----
- test/fixedbugs/issue5609.go | 13 +++++++++++++
- 2 files changed, 17 insertions(+), 4 deletions(-)
+ src/pkg/runtime/hashmap.c      | 273 +++++++++++++++++++----------------------
+ src/pkg/runtime/hashmap_fast.c |  34 +++--
+ 2 files changed, 143 insertions(+), 164 deletions(-)

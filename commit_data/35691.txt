@@ -1,27 +1,29 @@
-commit a2f72cc80d3c8cbda793959c3186c76e004532af
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Jun 13 15:40:50 2018 +0200
+commit 7365fac2dbd01960268ee051ed03d961258d4ef4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 13 17:54:05 2018 -0800
 
-    syscall: support Linux syscalls without error return on mipsx/mips64x
+    runtime: use bytes.IndexByte in findnull
     
-    Like on other architectures, use rawSyscallNoError for Linux syscalls
-    that don't return an error and convert all applicable occurences of
-    RawSyscall to use it instead.
+    bytes.IndexByte is heavily optimized.
+    Use it in findnull.
     
-    This was missed in CL 84485 because mkall.sh doesn't support
-    mipsx/mips64x, so add the corresponding entries as well.
+    name        old time/op  new time/op  delta
+    GoString-8  65.5ns ± 1%  40.2ns ± 1%  -38.62%  (p=0.000 n=19+19)
     
-    Updates #22924
+    findnull is also used in gostringnocopy,
+    which is used in many hot spots in the runtime.
     
-    Change-Id: I762cbee0827140b9890c4a10830e0b4cd33de92f
-    Reviewed-on: https://go-review.googlesource.com/118655
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #23830
+    
+    Change-Id: I2e6cb279c7d8078f8844065de684cc3567fe89d7
+    Reviewed-on: https://go-review.googlesource.com/97523
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/mkall.sh                   | 30 ++++++++++++++++++++++++++++++
- src/syscall/zsyscall_linux_mips.go     | 16 ++++++++--------
- src/syscall/zsyscall_linux_mips64.go   | 16 ++++++++--------
- src/syscall/zsyscall_linux_mips64le.go | 16 ++++++++--------
- src/syscall/zsyscall_linux_mipsle.go   | 16 ++++++++--------
- 5 files changed, 62 insertions(+), 32 deletions(-)
+ misc/cgo/test/basic.go    | 14 ++++++++++++++
+ misc/cgo/test/cgo_test.go |  3 ++-
+ src/runtime/error.go      |  1 +
+ src/runtime/string.go     |  9 +++------
+ 4 files changed, 20 insertions(+), 7 deletions(-)

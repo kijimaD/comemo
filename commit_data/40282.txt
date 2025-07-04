@@ -1,17 +1,21 @@
-commit 4569f1baa8283f115adaf15fdbf6b6f57a2e643f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 17 16:30:49 2019 +0000
+commit e7d08b6fe68be30a4239a1f930f96974db35473a
+Author: Keith Randall <khr@google.com>
+Date:   Tue Apr 30 14:03:07 2019 -0700
 
-    syscall: remove use of IN_KUBERNETES in test, add a TODO to improve further
+    cmd/compile: fix line numbers for index panics
     
-    Updates #34956
+    In the statement x = a[i], the index panic should appear to come from
+    the line number of the '['. Previous to this CL we sometimes used the
+    line number of the '=' instead.
     
-    Change-Id: I35c39f3afda7226eeae0fd6936f7ee0d5d6c025b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201737
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #29504
+    
+    Change-Id: Ie718fd303c1ac2aee33e88d52c9ba9bcf220dea1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174617
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/exec_linux_test.go | 32 ++++++++------------------------
- 1 file changed, 8 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go |   7 ++
+ test/fixedbugs/issue29504.go       | 147 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 154 insertions(+)

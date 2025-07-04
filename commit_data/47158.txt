@@ -1,19 +1,25 @@
-commit b0472aa990dfa9fb4ffe49b5af6f3d744d81ba6e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Nov 1 14:05:14 2021 -0700
+commit a400eb3261ee3798e0715d2ba6a4083abe59150a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 1 14:43:24 2021 +0000
 
-    net: add BenchmarkReadWriteMsgUDPAddrPort
+    Revert "cmd/compile: check frame offsets against abi"
     
-    The main item of interest here is the allocs.
+    This reverts CL 293392.
     
-    BenchmarkReadWriteMsgUDPAddrPort-8        195920              6450 ns/op             176 B/op          5 allocs/op
+    Reason for revert: broke most non-x86 builders
     
-    Change-Id: I358bd18888ce254b6c6d5d5c920e6d22ce5a2ef4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360595
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #44675
+    
+    Change-Id: I1e815c3ab27a02e83a2f0d221a617909dd021403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297549
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/net/udpsock_test.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/cmd/compile/internal/abi/abiutils.go          | 43 ++----------------
+ src/cmd/compile/internal/gc/compile.go            |  3 --
+ src/cmd/compile/internal/ssa/op.go                | 18 ++++----
+ src/cmd/compile/internal/ssagen/ssa.go            | 55 +++++++++--------------
+ src/cmd/compile/internal/test/abiutilsaux_test.go | 32 +++++++++++++
+ 5 files changed, 66 insertions(+), 85 deletions(-)

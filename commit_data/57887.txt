@@ -1,28 +1,20 @@
-commit 635c2dce04259f2c84aeac543f0305b3e7c8ed7b
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Tue Aug 13 17:01:47 2024 +0000
+commit dfbf809f2af753db69537a9431d6419142dfe80b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Aug 28 14:59:13 2023 -0400
 
-    cmd/go: add built in git mode for GOAUTH
+    runtime: unskip TestG0StackOverflow
     
-    This CL adds support for git as a valid GOAUTH command.
-    Improves on implementation in cmd/auth/gitauth/gitauth.go
-    This follows the proposed design in
-    https://golang.org/issues/26232#issuecomment-461525141
+    The stack bounds from pthread are not always accurate, and could
+    cause seg fault if we run out of the actual stack space before
+    reaching the bounds. Here we use an artificially small stack bounds
+    to check overflow without actually running out of the system stack.
     
-    For #26232
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I07810d9dc895d59e5db4bfa50cd42cb909208f93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605275
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I8067c5e1297307103b315d9d0c60120293b57aab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523695
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/alldocs.go                     |   5 +-
- src/cmd/go/internal/auth/auth.go          |  71 ++++++++++++--
- src/cmd/go/internal/auth/gitauth.go       | 151 ++++++++++++++++++++++++++++++
- src/cmd/go/internal/auth/gitauth_test.go  |  80 ++++++++++++++++
- src/cmd/go/internal/help/helpdoc.go       |   5 +-
- src/cmd/go/internal/web/http.go           |  47 +++++++---
- src/cmd/go/testdata/script/goauth_git.txt |  72 ++++++++++++++
- 7 files changed, 404 insertions(+), 27 deletions(-)
+ src/runtime/crash_test.go  | 5 -----
+ src/runtime/export_test.go | 9 +++++++++
+ 2 files changed, 9 insertions(+), 5 deletions(-)

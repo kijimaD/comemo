@@ -1,0 +1,32 @@
+commit 681751a1fed4467e98d54d7f6cc1c5b9feea0833
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 19 15:20:30 2024 -0700
+
+    go/types, types2: implement underIs, coreType, coreString via typeset iterator
+    
+    Remove remaining underIs methods and call underIs function instead.
+    
+    Change-Id: Ic98430d3a56b85f6f4b35c4508c4c67dafbfa3f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614240
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go    |  4 +--
+ src/cmd/compile/internal/types2/conversions.go |  2 +-
+ src/cmd/compile/internal/types2/expr.go        |  2 +-
+ src/cmd/compile/internal/types2/index.go       |  2 +-
+ src/cmd/compile/internal/types2/predicates.go  |  2 +-
+ src/cmd/compile/internal/types2/typeparam.go   |  7 ----
+ src/cmd/compile/internal/types2/typeset.go     | 24 -------------
+ src/cmd/compile/internal/types2/under.go       | 48 +++++++++++---------------
+ src/go/types/builtins.go                       |  4 +--
+ src/go/types/conversions.go                    |  2 +-
+ src/go/types/expr.go                           |  2 +-
+ src/go/types/index.go                          |  2 +-
+ src/go/types/predicates.go                     |  2 +-
+ src/go/types/typeparam.go                      |  7 ----
+ src/go/types/typeset.go                        | 24 -------------
+ src/go/types/under.go                          | 48 +++++++++++---------------
+ 16 files changed, 54 insertions(+), 128 deletions(-)

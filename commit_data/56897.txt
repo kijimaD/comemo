@@ -1,19 +1,14 @@
-commit 3bfbfa821fbf4835d6be2e3bfda4ccac397c74fa
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri Jul 12 20:03:08 2024 +0100
+commit 2a129f3e8a0e3701e92fec0d7fde68d648e0cab9
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 30 11:36:19 2023 -0700
 
-    encoding/json: document compact json output in Encoder.Encode
+    doc: document change of cgocheck=2 from debug to experiment
     
-    Using the same wording as Compact.
-    
-    Fixes #67943
-    
-    Change-Id: I578874f3e917bba1634dd988895e622a5ac78c74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597976
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I98bdfe8ab338a5b92c466a5aacfa95266171e5c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499279
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/encoding/json/stream.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.21.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

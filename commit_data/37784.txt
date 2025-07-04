@@ -1,22 +1,14 @@
-commit b32ee0a3c004d4ef79d92bd63200008456da50f3
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Fri Dec 21 11:21:02 2018 +0700
+commit ded941158042d8b09164a9f8049fd7108b715680
+Author: Eric Ponce <tricokun@gmail.com>
+Date:   Sun Aug 26 19:32:07 2018 +0200
 
-    path/filepath: walkSymlinks: return correct error for file with trailing slash
+    math: add Round and RoundToEven examples
     
-    Rather than return os.ErrNotExist for /path/to/existing_file/,
-    walkSymLinks now returns syscall.ENOTDIR.
-    
-    This is consistent with behavior of os.Lstat.
-    
-    Fixes #29372
-    
-    Change-Id: Id5c471d901db04b2f35d60f60a81b2a0be93cae9
-    Reviewed-on: https://go-review.googlesource.com/c/155597
+    Change-Id: Ibef5f96ea588d17eac1c96ee3992e01943ba0fef
+    Reviewed-on: https://go-review.googlesource.com/131496
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/path/filepath/path_test.go       | 37 ++++++++++++++++++++++++++++++++++++
- src/path/filepath/symlink.go         |  9 ++++++---
- src/path/filepath/symlink_windows.go | 18 +++++++++++++++++-
- 3 files changed, 60 insertions(+), 4 deletions(-)
+ src/math/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

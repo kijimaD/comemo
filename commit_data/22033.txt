@@ -1,22 +1,41 @@
-commit 18d9ddc35c2159c30df3db4c2d47ef9d11b51e4f
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 14:11:41 2015 +0100
+commit 484f801ff4125d86f8c4072f070611afea9c79f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 19 13:38:46 2015 -0500
 
-    cmd/asm: add support for ARM64
+    runtime: reorganize memory code
     
-    Pre/post-index addressing modes with writeback use .W and .P
-    instruction suffixes, like on ARM.
+    Move code from malloc1.go, malloc2.go, mem.go, mgc0.go into
+    appropriate locations.
     
-    Complex addressing modes are not supported yet.
+    Factor mgc.go into mgc.go, mgcmark.go, mgcsweep.go, mstats.go.
     
-    Change-Id: I537a1c3fe5b057c0812662677d0010bc8c468ffb
-    Reviewed-on: https://go-review.googlesource.com/7047
-    Reviewed-by: Rob Pike <r@golang.org>
+    A lot of this code was in certain files because the right place was in
+    a C file but it was written in Go, or vice versa. This is one step toward
+    making things actually well-organized again.
+    
+    Change-Id: I6741deb88a7cfb1c17ffe0bcca3989e10207968f
+    Reviewed-on: https://go-review.googlesource.com/5300
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/asm/internal/arch/arch.go        |  86 +++++++++++++++++++++++
- src/cmd/asm/internal/arch/arm.go         |   8 ++-
- src/cmd/asm/internal/arch/arm64.go       | 114 +++++++++++++++++++++++++++++++
- src/cmd/asm/internal/asm/asm.go          |  43 +++++++++---
- src/cmd/asm/internal/asm/operand_test.go |  52 ++++++++++++++
- src/cmd/asm/internal/asm/parse.go        |   2 +-
- 6 files changed, 291 insertions(+), 14 deletions(-)
+ src/runtime/heapdump.go  |   18 +
+ src/runtime/malloc.go    |  754 +++++++++++++---------
+ src/runtime/malloc1.go   |  358 -----------
+ src/runtime/malloc2.go   |  525 ----------------
+ src/runtime/mbitmap.go   |    6 +
+ src/runtime/mcache.go    |   57 +-
+ src/runtime/mcentral.go  |    8 +
+ src/runtime/mem.go       |  114 ----
+ src/runtime/mfinal.go    |   17 +
+ src/runtime/mfixalloc.go |   28 +
+ src/runtime/mgc.go       | 1544 ++++++++++++----------------------------------
+ src/runtime/mgc0.go      |   91 ---
+ src/runtime/mgcmark.go   |  659 ++++++++++++++++++++
+ src/runtime/mgcsweep.go  |  312 ++++++++++
+ src/runtime/mheap.go     |  216 ++++++-
+ src/runtime/msize.go     |   18 +-
+ src/runtime/mstats.go    |  340 ++++++++++
+ src/runtime/proc1.go     |   15 +
+ src/runtime/stubs.go     |   10 +
+ src/runtime/symtab.go    |   14 +
+ 20 files changed, 2539 insertions(+), 2565 deletions(-)

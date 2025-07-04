@@ -1,14 +1,15 @@
-commit ec80beb9f032d3368f723dd9ef3fd5f942b18dd2
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Oct 19 07:38:32 2011 -0700
+commit e13635c1e0e6306a523d15ca25b62cefc978359d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Oct 19 10:54:45 2011 +0900
 
-    syscall: update ztypes_linux_arm for terminal changes
+    os/inotify: move to exp/inotify
     
-    regenerated on a debian sid arm5 host.
-    
-    R=bradfitz, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5298046
+    https://golang.org/cl/5295044
 
- src/pkg/syscall/ztypes_linux_arm.go | 111 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 111 insertions(+)
+ src/pkg/Makefile                                  | 2 +-
+ src/pkg/{os => exp}/inotify/Makefile              | 2 +-
+ src/pkg/{os => exp}/inotify/inotify_linux.go      | 0
+ src/pkg/{os => exp}/inotify/inotify_linux_test.go | 0
+ 4 files changed, 2 insertions(+), 2 deletions(-)

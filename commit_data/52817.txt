@@ -1,19 +1,27 @@
-commit 8b67cf0bc6ad657fddcbaaa10729d0086f08f9a9
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Jan 9 05:14:13 2023 +1100
+commit 47f806ce81aac555946144f112b9f8733e2ed871
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Sat Jun 4 18:31:40 2022 +1200
 
-    cmd/internal/obj/arm64: pass obj.As to oaddi rather than an instruction
+    strconv: clarify ParseFloat accepts Go syntax for float literals
     
-    This simplifies callers, as they do not need to call opirr before calling oaddi.
-    Additionally, use appropriate types (int16) for registers, which avoids the need
-    to continually cast.
+    The documentation for strconv.ParseFloat mentions that it "accepts
+    decimal and hexadecimal floating-point number syntax", but it doesn't
+    specify what those formats entail. For example, "0x10" is not allowed;
+    you need an explicit exponent, as in "0x10p0".
     
-    Change-Id: I8ca3807a97867ac49d63792f6922a18f35824448
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471520
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This clarifies that ParseFloat accepts the Go syntax for floating-point
+    literals, and links to that spec section. I've also linked to the
+    relevant spec section for ParseInt's doc comment, which already said
+    "as defined by the Go syntax for integer literals".
+    
+    Change-Id: Ib5d2b408bdd01ea0b9f69381a9dbe858f6d1d424
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410335
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 62 ++++++++++++++++++--------------------
- 1 file changed, 29 insertions(+), 33 deletions(-)
+ src/strconv/atof.go | 5 ++++-
+ src/strconv/atoi.go | 4 +++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

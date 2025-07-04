@@ -1,17 +1,20 @@
-commit 6f1667ea3e6a9c2bee8b5aea9859be1a677ee24e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 8 17:08:19 2019 -0400
+commit ad8b7a70c52d808d41d20b514f518984a179b3fa
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Mar 26 12:05:25 2019 -0400
 
-    cmd/go/internal/modload: propagate errors from Query for missing imports
+    test: fix fixedbugs/issue30908.go to work with no-opt builder
     
-    Updates #30748
-    Updates #28459
+    Update the issue 30908 test to work with the no-opt builder
+    (this requires a corresponding change in the linker as well).
+    As part of this change, 'rundir' tests are now linked without
+    passing "-w" to the linker.
     
-    Change-Id: I1c34b3dae0bf9361dba0dae66bb868901ecafe29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189780
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #30908.
+    Fixes #31034.
+    
+    Change-Id: Ic776e1607075c295e409e1c8230aaf55a79a6323
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169161
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/import.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ test/fixedbugs/issue30908.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

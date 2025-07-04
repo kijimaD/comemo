@@ -1,50 +1,16 @@
-commit 061a6903a232cb868780b1e724a75bf92a728489
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 13 16:52:16 2021 -0800
+commit 7fbd8c75c6c57e713069a3a405e5cde26cfae090
+Author: lihaowei <haoweili35@gmail.com>
+Date:   Fri Aug 14 10:35:46 2020 +0000
 
-    all: add internal/itoa package
+    all: fix spelling mistakes
     
-    This replaces five implementations scattered across low level packages.
-    (And I plan to use it in a sixth soon.)
-    Three of the five were byte-for-byte identical.
-    
-    Change-Id: I3bbbeeac63723a487986c912b604e10ad1e042f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301549
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I7d512281d8442d306594b57b5deaecd132b5ea9e
+    GitHub-Last-Rev: 251e1d6857516b21fd71f654133f81f23ffec654
+    GitHub-Pull-Request: golang/go#40793
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248441
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/go/build/deps_test.go          |  1 +
- src/internal/itoa/itoa.go          | 33 +++++++++++++++++++++++++++++++
- src/internal/itoa/itoa_test.go     | 40 ++++++++++++++++++++++++++++++++++++++
- src/internal/poll/fd_io_plan9.go   |  3 ++-
- src/internal/poll/strconv.go       | 28 --------------------------
- src/net/dnsclient.go               |  3 ++-
- src/net/dnsclient_unix.go          |  3 ++-
- src/net/interface.go               |  3 ++-
- src/net/interface_plan9.go         |  5 +++--
- src/net/ip.go                      |  7 +++++--
- src/net/ipsock_plan9.go            |  5 +++--
- src/net/lookup_plan9.go            |  3 ++-
- src/net/parse.go                   | 26 -------------------------
- src/net/tcpsock.go                 |  5 +++--
- src/net/tcpsockopt_plan9.go        |  3 ++-
- src/net/udpsock.go                 |  5 +++--
- src/os/exec_plan9.go               |  3 ++-
- src/os/exec_posix.go               |  5 +++--
- src/os/executable_plan9.go         |  7 +++++--
- src/os/signal/signal_plan9_test.go | 18 ++---------------
- src/os/str.go                      | 26 -------------------------
- src/os/tempfile.go                 |  7 +++++--
- src/syscall/dll_windows.go         |  3 ++-
- src/syscall/exec_linux.go          |  9 +++++----
- src/syscall/exec_plan9.go          |  3 ++-
- src/syscall/export_test.go         |  7 -------
- src/syscall/str.go                 | 24 -----------------------
- src/syscall/syscall_js.go          |  5 +++--
- src/syscall/syscall_linux.go       |  7 +++++--
- src/syscall/syscall_test.go        | 17 ----------------
- src/syscall/syscall_unix.go        |  5 +++--
- src/syscall/syscall_windows.go     |  5 +++--
- 32 files changed, 143 insertions(+), 181 deletions(-)
+ src/bufio/bufio.go     | 2 +-
+ src/net/http/client.go | 2 +-
+ src/runtime/mheap.go   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

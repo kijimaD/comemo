@@ -1,29 +1,15 @@
-commit 0c2d3f7346d140542953240e75aa4dc99d67e8bd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 23 14:05:54 2015 -0700
+commit d3e8a3614c4aad86a48100a196a7ff4a6e2164ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 15:21:39 2015 -0700
 
-    net/http: on Transport body write error, wait briefly for a response
+    go/types: don't export gcCompatibilityMode flag
     
-    From https://github.com/golang/go/issues/11745#issuecomment-123555313 :
+    This flag is not needed in the std repo because we don't have
+    tests requiring it. Remove it before it's frozen into the API.
     
-    The http.RoundTripper interface says you get either a *Response, or an
-    error.
-    
-    But in the case of a client writing a large request and the server
-    replying prematurely (e.g. 403 Forbidden) and closing the connection
-    without reading the request body, what does the client want? The 403
-    response, or the error that the body couldn't be copied?
-    
-    This CL implements the aforementioned comment's option c), making the
-    Transport give an N millisecond advantage to responses over body write
-    errors.
-    
-    Updates #11745
-    
-    Change-Id: I4485a782505d54de6189f6856a7a1f33ce4d5e5e
-    Reviewed-on: https://go-review.googlesource.com/12590
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I18b861eea146ad67e7a3c26ee8be681d8065ef12
+    Reviewed-on: https://go-review.googlesource.com/11150
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/http/transport.go      | 26 +++++++++++++++++
- src/net/http/transport_test.go | 63 +++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 82 insertions(+), 7 deletions(-)
+ src/go/types/typestring.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

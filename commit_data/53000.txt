@@ -1,20 +1,30 @@
-commit 711609d55f7d1254e0400fd870c97d5c5a259a99
-Author: Austin Clements <austin@google.com>
-Date:   Sat May 6 15:27:02 2023 -0400
+commit bd4753905d15035fabbc4dda79573506090fe40b
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Jun 23 09:43:47 2022 -0700
 
-    cmd/go: fix swigOne action with -n
+    internal/trace: add Go 1.19 test data
     
-    Currently, if cmd/go builds a swig file with the -n (dry run) flag, it
-    will print the swig command invocation without executing it, but then
-    attempt to actually rename one of swig's output files, which will
-    fail. Make this rename conditional on -n. While we're here, we fix the
-    missing logging of the rename command with -x, too.
+    Update instructions to match what seems to be the historical practice:
+    to generate canned traces when a version is finalized, rather than
+    waiting until it is superseded.
     
-    Change-Id: I1f6e6efc53dfe4ac5a42d26096679b97bc322827
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493255
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Follow rename of trace-internal tests from "Span" to "Region". Update
+    the net/http test invocation to match the apparent intent and the actual
+    http_1_5_good behavior (about 7ms of total run time and trace file size
+    under 50kB).
+    
+    Change-Id: Ifd4c85882159478852e0b8f0d771b6f16b8f3c1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413776
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/work/exec.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/internal/trace/mkcanned.bash                       |   6 +++---
+ src/internal/trace/parser.go                           |   4 ++--
+ src/internal/trace/testdata/http_1_19_good             | Bin 0 -> 28172 bytes
+ src/internal/trace/testdata/stress_1_19_good           | Bin 0 -> 322338 bytes
+ .../trace/testdata/stress_start_stop_1_19_good         | Bin 0 -> 7448 bytes
+ ..._task_span_1_11_good => user_task_region_1_11_good} | Bin
+ src/internal/trace/testdata/user_task_region_1_19_good | Bin 0 -> 1922 bytes
+ 7 files changed, 5 insertions(+), 5 deletions(-)

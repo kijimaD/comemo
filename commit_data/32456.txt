@@ -1,27 +1,49 @@
-commit 180bfc4bd49343cb280d1e162a4d326db7b35a6f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 24 15:36:47 2017 -0700
+commit fb4b4342fe298fda640bfa74f24b7bd58519deba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 7 15:53:19 2017 -0700
 
-    cmd/compile: simplify noding for struct embedding
+    os, net, internal/poll: return consistent error for closed socket
     
-    Since golang.org/cl/31670, we've stopped using the 'embedded' function
-    for handling struct embeddings within package export data. Now the
-    only remaining use is for Go source files, which allows for some
-    substantial simplifications:
+    In the past we returned "use of closed network connection" when using
+    a closed network descriptor in some way. In CL 36799 that was changed
+    to return "use of closed file or network connection". Because programs
+    have no access to a value of this error type (see issue #4373) they
+    resort to doing direct string comparisons (see issue #19252). This CL
+    restores the old error string so that we don't break programs
+    unnecessarily with the 1.9 release.
     
-    1. CenterDot never appears within Go source files, so that logic can
-    simply be removed.
+    This adds a test to the net package for the expected string.
     
-    2. The field name will always be declared in the local package.
+    For symmetry check that the os package returns the expected error,
+    which for os already exists as os.ErrClosed.
     
-    Passes toolstash-check.
+    Updates #4373.
+    Fixed #19252.
     
-    Change-Id: I59505f62824206dd5de0782918f98fbef6e93224
-    Reviewed-on: https://go-review.googlesource.com/58790
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5b83fd12cfa03501a077cad9336499b819f4a38b
+    Reviewed-on: https://go-review.googlesource.com/39997
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go   | 27 ---------------------------
- src/cmd/compile/internal/gc/noder.go |  6 +++++-
- 2 files changed, 5 insertions(+), 28 deletions(-)
+ src/internal/poll/fd.go               | 19 +++++++++++--
+ src/internal/poll/fd_mutex.go         |  6 ++---
+ src/internal/poll/fd_plan9.go         |  8 +++++-
+ src/internal/poll/fd_poll_nacl.go     | 16 +++++------
+ src/internal/poll/fd_poll_runtime.go  | 28 ++++++++++----------
+ src/internal/poll/fd_posix_test.go    |  8 +++---
+ src/internal/poll/fd_unix.go          | 50 ++++++++++++++++++++++-------------
+ src/internal/poll/fd_windows.go       |  8 +++---
+ src/internal/poll/sendfile_bsd.go     |  2 +-
+ src/internal/poll/sendfile_linux.go   |  2 +-
+ src/internal/poll/sendfile_solaris.go |  2 +-
+ src/internal/poll/writev.go           |  4 +--
+ src/net/error_test.go                 | 35 +++++++++++++++---------
+ src/net/fd_unix.go                    |  6 ++---
+ src/net/file_test.go                  |  4 +--
+ src/net/net_test.go                   | 14 +++++-----
+ src/os/file.go                        |  2 +-
+ src/os/file_unix.go                   | 26 +++++++++---------
+ src/os/pipe_test.go                   |  2 ++
+ 19 files changed, 143 insertions(+), 99 deletions(-)

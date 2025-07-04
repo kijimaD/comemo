@@ -1,12 +1,23 @@
-commit 2ee06a51bed4db90ffa872ed9adef120112561e2
+commit 60b9cd535cd0c8cacdfe178463f9b8d280479e0f
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 18 19:25:45 2013 +1100
+Date:   Fri Jan 18 13:47:01 2013 +1100
 
-    lib/godoc: link to Projects wiki page instead of dashboard
+    misc/dashboard/godashboard: delete
     
-    R=golang-dev, minux.ma
+    This code is obsolete and unmaintained.
+    
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/7139057
+    https://golang.org/cl/7135056
 
- lib/godoc/package.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dashboard/godashboard/app.yaml           |  15 ---
+ misc/dashboard/godashboard/const.py           |   7 --
+ misc/dashboard/godashboard/index.yaml         |  51 ---------
+ misc/dashboard/godashboard/project-edit.html  |  45 --------
+ misc/dashboard/godashboard/project-notify.txt |   9 --
+ misc/dashboard/godashboard/project.html       |  74 -------------
+ misc/dashboard/godashboard/project.py         | 151 --------------------------
+ misc/dashboard/godashboard/static/favicon.ico | Bin 785 -> 0 bytes
+ misc/dashboard/godashboard/static/style.css   | 136 -----------------------
+ misc/dashboard/godashboard/toutf8.py          |  14 ---
+ 10 files changed, 502 deletions(-)

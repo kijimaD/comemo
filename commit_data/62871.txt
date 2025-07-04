@@ -1,0 +1,29 @@
+commit c1fc209c41c18806b7cef1cf114f1ca9b3731eb9
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 23 14:15:51 2025 -0700
+
+    runtime: use precise bounds of Go data/bss for race detector
+    
+    We only want to call into the race detector for Go global variables.
+    By rounding up the region bounds, we can include some C globals.
+    Even worse, we can include only *part* of a C global, leading to
+    race{read,write}range calls which straddle the end of shadow memory.
+    That causes the race detector to barf.
+    
+    Fix some off-by-one errors in the assembly comparisons. We want to
+    skip calling the race detector when addr == racedataend.
+    
+    Fixes #73483
+    
+    Change-Id: I436b0f588d6165b61f30cb7653016ba9b7cbf585
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667655
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/race.go          | 10 ++++++----
+ src/runtime/race_arm64.s     |  2 +-
+ src/runtime/race_ppc64le.s   |  2 +-
+ test/fixedbugs/issue73483.go | 20 ++++++++++++++++++++
+ 4 files changed, 28 insertions(+), 6 deletions(-)

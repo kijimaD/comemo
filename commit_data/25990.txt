@@ -1,17 +1,19 @@
-commit 8fd7c11d594c28d359839e4e6d2727aab5609c80
+commit c488548967776ca49cb9768193df9956ad74150e
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 1 14:47:26 2016 -0800
+Date:   Tue Dec 8 17:23:23 2015 -0800
 
-    cmd/compile: delete unused lexer tokens, replace with LOPER
+    cmd/compile: recognize labels even if they have the same name as packages
     
-    Also: Use same ordering of tokens in the various tables/maps.
+    Another (historic) artifact due to partially resolving symbols too early.
     
-    Change-Id: Ief84c6ca3da36213ace6b2c10b513e2ca16318ab
-    Reviewed-on: https://go-review.googlesource.com/20110
+    Fixes #13539.
+    
+    Change-Id: Ie720c491cfa399599454f384b3a9735e75d4e8f1
+    Reviewed-on: https://go-review.googlesource.com/17600
     Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/lex.go    | 80 +++++++++++++++--------------------
- src/cmd/compile/internal/gc/parser.go | 36 +++++++---------
- 2 files changed, 49 insertions(+), 67 deletions(-)
+ src/cmd/compile/internal/gc/parser.go |  7 ++++---
+ test/fixedbugs/issue13539.go          | 20 ++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)

@@ -1,20 +1,21 @@
-commit 3e1e66fa05017f15b7e91307275975a6584cd205
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Oct 26 10:15:29 2017 -0400
+commit 6a7c4d69cb72f857b21c36ef077de0b97d9dbd50
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Wed Aug 9 03:26:45 2017 +0100
 
-    cmd/link: don't pass -gdwarf-2 to external linker
+    net/http: check If-Range header when request method is HEAD
     
-    Don't pass -gdwarf-2 to the external linker when external linkage is
-    requested. The Go compiler is now emitting DWARF version 4, so this
-    doesn't seem needed any more.
+    When If-Range does not match and the requested resource is
+    available, server should return a "200 OK" response to client.
+    Currently server returns "200 OK" when the request method is
+    GET, but "206 Partial Content" when method is HEAD.
+    This change fixed this inconsistency.
     
-    Fixes #22455
-    
-    Change-Id: Ic4122c55e946619a266430f2d26f06d6803dd232
-    Reviewed-on: https://go-review.googlesource.com/73672
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5ad979919f4f089baba54a4445b70ca38471a906
+    Reviewed-on: https://go-review.googlesource.com/54110
+    Run-TryBot: Tom Bergan <tombergan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/cmd/link/internal/ld/lib.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/net/http/fs.go      |  2 +-
+ src/net/http/fs_test.go | 81 ++++++++++++++++++++++++++++++-------------------
+ 2 files changed, 50 insertions(+), 33 deletions(-)

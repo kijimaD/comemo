@@ -1,31 +1,26 @@
-commit 7eeb0a188eb644486da9f77bae0375d91433d0bf
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 12 23:23:12 2024 +0100
+commit bc1d71ff64b01ac912cb0fa28c0f6dd5904fcd56
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Thu Jun 15 15:09:11 2023 -0400
 
-    runtime: reserve 4kB for system stack on windows-386
+    cmd/compile: add a 'Tips' section to README to help new contributors
     
-    The failures in #70288 are consistent with and strongly imply
-    stack corruption during fault handling, and debug prints show
-    that the Go code run during fault handling is running about
-    300 bytes above the bottom of the goroutine stack.
-    That should be okay, but that implies the DLL code that called
-    Go's handler was running near the bottom of the stack too,
-    and maybe it called other deeper things before or after the
-    Go handler and smashed the stack that way.
+    This CL adds a new 'Tips' section to the cmd/compile README.
     
-    stackSystem is already 4096 bytes on amd64;
-    making it match that on 386 makes the flaky failures go away.
-    It's a little unsatisfying not to be able to say exactly what is
-    overflowing the stack, but the circumstantial evidence is
-    very strong that it's Windows.
+    The primary intent is to help new-ish contributors.
     
-    Fixes #70288.
+    It includes some basics on getting started, testing changes,
+    viewing coverage, juggling different compiler versions,
+    some links to additional tools, and so on.
     
-    Change-Id: Ife89385873d5e5062a71629dbfee40825edefa49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627375
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Updates #30074
+    
+    Change-Id: I393bf1137db9d2bb851f7e254b08455273ccad8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: t hepudds <thepudds1460@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/stack.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/README.md | 170 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 170 insertions(+)

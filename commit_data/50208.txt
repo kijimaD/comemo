@@ -1,20 +1,24 @@
-commit ebc75ac1c6f056d5911286368d11022204e55947
-Author: eric fang <eric.fang@arm.com>
-Date:   Wed Aug 31 01:57:57 2022 +0000
+commit 5b9206f64ef4d8ea3201627cf9ba5c2b86e65022
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sun Sep 26 14:56:55 2021 +0800
 
-    cmd/internal/obj/arm64: allow transition from $0 to ZR for MSR
+    time: allow minimum int64 in ParseDuration
     
-    Previously the first operand of MSR could be $0, which would be
-    converted to the ZR register. This is prohibited by CL 404316,
-    this CL restores this instruction format.
+    ParseDuration should handle minimum int64 (-1<<63) nanosecond
+    since type Duration is alias of int64
     
-    Change-Id: I5b5be59e76aa58423a0fb96942d1b2a9de62e311
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426198
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    name           old time/op  new time/op  delta
+    ParseDuration  91.4ns ± 0%  86.4ns ± 1%  -5.49%  (p=0.000 n=9+8)
+    
+    Fixes: #48629
+    Change-Id: I81b7035b25cefb4c1e5b7801c20f2d335e29358a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352269
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s | 1 +
- src/cmd/internal/obj/arm64/obj7.go        | 1 +
- 2 files changed, 2 insertions(+)
+ src/time/format.go    | 56 +++++++++++++++++++++++++--------------------------
+ src/time/time_test.go | 27 ++++++++++++++++++++-----
+ 2 files changed, 49 insertions(+), 34 deletions(-)

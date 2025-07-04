@@ -1,28 +1,24 @@
-commit 52c3e8c7355f2bf8872bbfdd2a5986472d7a94ed
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 11 17:29:08 2023 -0700
+commit 501df45199e82cfbd2eb7422c8bfe35688712402
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:36:49 2022 +0800
 
-    cmd/compile: desugar ORECOVER during typecheck
+    cmd/go: use strings.Builder
     
-    This never belonged in escape analysis, but the non-unified generics
-    frontend didn't use typecheck. That frontend is gone, so now we can
-    desugar it earlier.
-    
-    Change-Id: I70f34a851f27fce1133777c5eeca0f549fc60ede
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518958
+    Change-Id: I0db93b7bdcd622ce9e23df183de4737744e6d6ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428294
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
 
- src/cmd/compile/internal/escape/call.go         |  5 ++--
- src/cmd/compile/internal/escape/desugar.go      | 37 -------------------------
- src/cmd/compile/internal/escape/expr.go         |  2 +-
- src/cmd/compile/internal/escape/stmt.go         |  2 +-
- src/cmd/compile/internal/inline/inl.go          |  2 ++
- src/cmd/compile/internal/typecheck/const.go     |  1 +
- src/cmd/compile/internal/typecheck/func.go      | 21 ++++++--------
- src/cmd/compile/internal/typecheck/stmt.go      |  3 +-
- src/cmd/compile/internal/typecheck/typecheck.go |  4 ---
- 9 files changed, 17 insertions(+), 60 deletions(-)
+ src/cmd/go/go_test.go                  | 2 +-
+ src/cmd/go/internal/bug/bug.go         | 2 +-
+ src/cmd/go/internal/help/help.go       | 3 +--
+ src/cmd/go/internal/modload/load.go    | 3 +--
+ src/cmd/go/internal/work/build_test.go | 3 +--
+ src/cmd/go/internal/work/buildid.go    | 4 ++--
+ src/cmd/go/internal/work/exec.go       | 2 +-
+ 7 files changed, 8 insertions(+), 11 deletions(-)

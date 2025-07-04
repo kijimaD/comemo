@@ -1,0 +1,26 @@
+commit 532cf270590da822a0803ebd1b5d40f454007ddf
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu May 23 13:43:45 2024 -0700
+
+    syscall: rm go:linkname from origRlimitNofile
+    
+    Since CL 588076 runc can do fine without the kludge. The code accessing the symbol is now guarded with `go:build !go1.23` in all supported runc branches (main: [1], release-1.1: [2]).
+    
+    This reverts part of CL 587219.
+    
+    Updates #67401.
+    
+    For #66797.
+    
+    [1]: https://github.com/opencontainers/runc/pull/4290
+    [2]: https://github.com/opencontainers/runc/pull/4299
+    
+    Change-Id: I204843a93c36857e21ab9b43bd7aaf046e8b9787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587918
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/rlimit.go | 11 -----------
+ 1 file changed, 11 deletions(-)

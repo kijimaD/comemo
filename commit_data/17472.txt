@@ -1,20 +1,20 @@
-commit 28bbc6c27a2be9f6af9786394acb22ed4f8b81d3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Sep 5 12:55:21 2013 -0700
+commit 780f5b714dfe9ede57e85cbb804d015981878df4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Sep 5 21:37:07 2013 +0200
 
-    cmd/ld: emit relocations for .debug_frame in external link mode
+    reflect: do not cache trivial values in DeepEqual.
     
-    This should have been part of revision 16731:cdedb129e020, but
-    I missed it.  This fixes printing local variables when doing
-    an external link.
+    DeepEqual caches addresses of compared values
+    each time it visits addressable values. This is
+    more expensive than actually comparing them in
+    the common case of large slices of bytes or integers.
     
-    No test because we aren't doing any debug info testing yet.
+    Also add a fast path for slices with identical
+    underlying array.
     
-    Fixes #5719.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13464046
+    https://golang.org/cl/13000044
 
- src/cmd/ld/dwarf.c | 41 ++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 38 insertions(+), 3 deletions(-)
+ src/pkg/reflect/deepequal.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

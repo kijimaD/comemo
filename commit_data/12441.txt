@@ -1,17 +1,18 @@
-commit 905cb4881b9604d2f69c2c5bc9c5c5e44d6ea3d9
+commit f91326b7b1de0f699fff4051e41318b7278b4af0
 Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 7 13:51:49 2012 +1100
+Date:   Wed Mar 7 13:50:31 2012 +1100
 
-    all: remove some references to Make.inc etc.
-    There are a few more but these are the easiest ones.
+    strconv: remove dependence on unicode and strings
+    We need a compact, reasonably efficient IsPrint. That adds about 2K of data,
+    plus a modest amount of code, but now strconv is a near-leaf package.
     
-    R=golang-dev, bradfitz
+    R=r, bradfitz, adg, rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5756067
+    https://golang.org/cl/5756050
 
- src/cmd/cgo/doc.go          |  6 +++---
- src/cmd/cgo/main.go         |  2 +-
- src/lib9/utf/Makefile       | 14 ++++++--------
- test/bench/garbage/Makefile | 17 ++++++-----------
- test/bench/go1/Makefile     |  5 -----
- 5 files changed, 16 insertions(+), 28 deletions(-)
+ src/pkg/go/build/deps_test.go  |   2 +-
+ src/pkg/strconv/isprint.go     | 268 ++++++++++++++++++++---------------------
+ src/pkg/strconv/makeisprint.go |  25 ++--
+ src/pkg/strconv/quote.go       |  68 ++++++++---
+ src/pkg/strconv/quote_test.go  |  15 +++
+ 5 files changed, 215 insertions(+), 163 deletions(-)

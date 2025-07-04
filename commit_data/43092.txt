@@ -1,28 +1,14 @@
-commit 8e8bfb697fbc948494d67428c4953605cc89b6f4
-Author: Ainar Garipov <gugl.zadolbal@gmail.com>
-Date:   Wed Sep 23 21:15:01 2020 +0300
+commit 43c6ada84c6ef47e3b61646d2f2e7f6b7264929d
+Author: Yann Salaün <1910607+yansal@users.noreply.github.com>
+Date:   Mon Mar 9 16:57:08 2020 +0000
 
-    crypto/tls: replace errClosed with net.ErrClosed
+    errors: fix typo in As documentation
     
-    CL 250357 exported net.ErrClosed to allow more reliable detection
-    of closed network connection errors.  Use that error in crypto/tls
-    as well.
-    
-    The error message is changed from "tls: use of closed connection"
-    to "use of closed network connection", so the code that detected such
-    errors by looking for that text in the error message will need to be
-    updated to use errors.Is(err, net.ErrClosed) instead.
-    
-    Fixes #41066
-    
-    Change-Id: Ic05c0ed6a4f57af2a0302d53b00851a59200be2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256897
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ia26b4457aa0780171a636df93f8d210de0278ec5
+    GitHub-Last-Rev: 577a6fec336010cb56a547bf2d6304fd3e0cb257
+    GitHub-Pull-Request: golang/go#37760
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222621
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/conn.go     | 5 ++---
- src/crypto/tls/tls_test.go | 4 ++--
- 2 files changed, 4 insertions(+), 5 deletions(-)
+ src/errors/wrap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

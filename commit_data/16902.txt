@@ -1,33 +1,20 @@
-commit e84d9e1fb3a0d87abd60d31afb9cd0ddfb7d9bfa
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jul 29 22:22:34 2013 +0400
+commit 6350e45892b5b0189fe3461ba1e7f530da23ff8f
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Mon Jul 29 19:43:08 2013 +0400
 
-    runtime: do not split stacks in syscall status
-    Split stack checks (morestack) corrupt g->sched,
-    but g->sched must be preserved consistent for GC/traceback.
-    The change implements runtime.notetsleepg function,
-    which does entersyscall/exitsyscall and is carefully arranged
-    to not call any split functions in between.
+    runtime: allow SetFinalizer with a func(interface{})
     
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/11575044
+    Fixes #5368.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev, rsc
+    https://golang.org/cl/11858043
 
- misc/cgo/test/callback.go     |  1 +
- src/pkg/runtime/asm_amd64.s   | 17 +++++----
- src/pkg/runtime/cgocall.c     | 41 +++++++++++++++-------
- src/pkg/runtime/futex_test.go |  3 ++
- src/pkg/runtime/lock_futex.c  | 38 ++++++++++++++++----
- src/pkg/runtime/lock_sema.c   | 75 +++++++++++++++++++++++++--------------
- src/pkg/runtime/os_darwin.c   | 35 +++++++-----------
- src/pkg/runtime/os_freebsd.c  | 27 +++++++-------
- src/pkg/runtime/os_linux.c    | 25 ++++++-------
- src/pkg/runtime/os_netbsd.c   |  5 +--
- src/pkg/runtime/os_openbsd.c  | 10 ++----
- src/pkg/runtime/os_plan9.c    |  6 ++--
- src/pkg/runtime/os_windows.c  | 29 +++++++--------
- src/pkg/runtime/proc.c        | 82 ++++++++++++++++++++++++++++++-------------
- src/pkg/runtime/runtime.c     | 30 ++++++++++++++++
- src/pkg/runtime/runtime.h     | 47 +++++++++++++------------
- src/pkg/runtime/stack.c       |  2 ++
- 17 files changed, 289 insertions(+), 184 deletions(-)
+ src/pkg/runtime/extern.go      |  5 ++-
+ src/pkg/runtime/malloc.goc     | 14 +++++--
+ src/pkg/runtime/malloc.h       |  2 +-
+ src/pkg/runtime/mfinal.c       | 14 ++++---
+ src/pkg/runtime/mfinal_test.go | 86 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/mgc0.c         | 19 ++++++++--
+ src/pkg/runtime/runtime.h      |  2 +-
+ 7 files changed, 126 insertions(+), 16 deletions(-)

@@ -1,26 +1,16 @@
-commit 3249cb0ab465c5310e09868236405ba6c40929a4
-Author: David Lazar <lazard@golang.org>
-Date:   Thu Apr 13 09:40:49 2017 -0400
+commit 8a9dc05312ece25aae057e618f3715208d201f8e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 9 16:59:38 2016 -0800
 
-    runtime/trace: iterate over frames instead of PCs
+    cmd/compile: allow inlining of functions with intrinsics in them
     
-    Now the runtime/trace tests pass with -l=4.
+    Intrinsics are ok to inline as they don't rewrite to actual calls.
     
-    This also gets rid of the frames cache for multiple reasons:
-    
-    1) The frames cache was used to avoid repeated calls to funcname and
-    funcline. Now these calls happen inside the CallersFrames iterator.
-    
-    2) Maintaining a frames cache is harder: map[uintptr]traceFrame
-    doesn't work since each PC can map to multiple traceFrames.
-    
-    3) It's not clear that the cache is important.
-    
-    Change-Id: I2914ac0b3ba08e39b60149d99a98f9f532b35bbb
-    Reviewed-on: https://go-review.googlesource.com/40591
-    Run-TryBot: David Lazar <lazard@golang.org>
+    Change-Id: Ieb19c834c61579823c62c6d1a1b425d6c4d4de23
+    Reviewed-on: https://go-review.googlesource.com/34272
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/trace.go | 40 ++++++++++++++++++++++------------------
- 1 file changed, 22 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 4 ++++
+ 1 file changed, 4 insertions(+)

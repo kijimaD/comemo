@@ -1,14 +1,24 @@
-commit 4fbf54fa0a4532753d2aac880e6d91202899a54e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Nov 17 10:03:55 2017 -0500
+commit 627d3a0b4c153a4d5c8d53f18083e4c5c133d429
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Aug 23 13:35:24 2017 +0200
 
-    cmd/compile: fix comment that -N does not disable escape analysis
+    misc/ios,src/iostest.bash: support GOIOS_DEVICE_ID
     
-    -N does not disable escape analysis. Remove the outdated comment.
+    When running multiple iOS builds on the same host, GOIOS_DEVICE_ID
+    is used to distinguish the devices. To improve support,
     
-    Change-Id: I96978b3afd51324b7b4f8035cf4417fb2eac4ebc
-    Reviewed-on: https://go-review.googlesource.com/79015
-    Reviewed-by: David Chase <drchase@google.com>
+    - Only restart the particular device when invoking iostest.bash
+    with the -restart flag.
+    - Make the exec wrapper lock file per-device.
+    
+    For the iOS builder.
+    
+    Change-Id: Id6f222981f25036399a43c3202a393dba89d87cb
+    Reviewed-on: https://go-review.googlesource.com/57970
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 6 ------
- 1 file changed, 6 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 2 +-
+ src/iostest.bash               | 8 ++++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

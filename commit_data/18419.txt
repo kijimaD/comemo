@@ -1,22 +1,14 @@
-commit 8e56eb8b57220579e95e87c1370b7bb770c2fc11
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 7 10:22:13 2014 +0900
+commit c66956cdb1f3e0c0e692f7d7ea6034b41c85af47
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 6 17:54:33 2014 -0500
 
-    runtime: fix build on freebsd/arm
+    cmd/go: do not create world-writable files.
+    Fixes #7240.
     
-    This CL is in preparation to make cgo work on freebsd/arm.
-    
-    How to generate defs-files on freebsd/arm in the bootstrapping phase:
-    1. run freebsd on appropriate arm-eabi platforms
-    2. both syscall z-files and runtime def-files in the current tree are
-       broken about EABI padding, fix them by hand
-    3. run make.bash again to build $GOTOOLDIR/cgo
-    4. use $GOTOOLDIR/cgo directly
-    
-    LGTM=minux.ma, iant
-    R=iant, minux.ma, dave
+    LGTM=tommi.virtanen, bradfitz
+    R=golang-codereviews, tommi.virtanen, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/59580045
+    https://golang.org/cl/60480045
 
- src/pkg/runtime/defs_freebsd_arm.h | 30 ++++++++++++++++--------------
- 1 file changed, 16 insertions(+), 14 deletions(-)
+ src/cmd/go/build.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

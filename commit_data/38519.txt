@@ -1,24 +1,21 @@
-commit 1e83369ca002218389e81235ed96d2bb509bb779
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Mar 20 18:16:33 2019 +0000
+commit 84d6a7abe8430233a0f89ba8fb44f9f174e4c544
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Oct 28 11:04:24 2018 -0400
 
-    Revert "cmd/go: fix the default build output name for versioned binaries"
+    crypto/tls: implement TLS 1.3 cryptographic computations
     
-    This reverts CL 140863 (commit bf94fc3ae387fc09929443393741919fac6727af).
+    Vendors golang.org/x/crypto/hkdf at e84da0312774c21d64ee2317962ef669b27ffb41
     
-    Reason for revert: There was a potential problem spotted in the original
-    fix, which resulted in it being rolled back from release-branch.go1.12
-    and not included in Go 1.12.1 release. We intend to improve the fix and
-    include it in Go 1.12.2 instead. To make the fix easier to backport,
-    revert this change before re-applying the improved fix (next commit).
+    Updates #9671
     
-    Change-Id: If6c785f58482d2531b5927c5ea7002f548c21c7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168402
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I2610c4a66756e2a6f21f9823dcbe39edd9c9ea21
+    Reviewed-on: https://go-review.googlesource.com/c/145298
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/go/internal/load/pkg.go                    | 71 ++++++++++------------
- src/cmd/go/internal/test/test.go                   |  2 +-
- src/cmd/go/internal/work/build.go                  |  6 +-
- .../go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt   |  6 --
- src/cmd/go/testdata/script/mod_build_versioned.txt | 16 -----
- 5 files changed, 37 insertions(+), 64 deletions(-)
+ src/crypto/tls/key_schedule.go                     |  85 ++++
+ src/crypto/tls/key_schedule_test.go                | 175 ++++++++
+ src/go/build/deps_test.go                          |   2 +-
+ .../golang_org/x/crypto/hkdf/example_test.go       |  56 +++
+ src/vendor/golang_org/x/crypto/hkdf/hkdf.go        |  93 +++++
+ src/vendor/golang_org/x/crypto/hkdf/hkdf_test.go   | 449 +++++++++++++++++++++
+ 6 files changed, 859 insertions(+), 1 deletion(-)

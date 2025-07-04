@@ -1,13 +1,21 @@
-commit 501632339f36e7e836ec94958351cee51ee76461
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Mon Mar 25 14:05:31 2019 -0400
+commit 603af813d6b93cf734b67551c2e776a1417e4603
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 28 10:24:39 2017 -0400
 
-    net: add missing period in conn.File documentation
+    cmd/trace: list and link to worst mutator utilization windows
     
-    Change-Id: Ie873d7ed595c91cee4c1aa6c22fa44b61b6190ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169138
-    Run-TryBot: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This adds the ability to click a point on the MMU graph to show a list
+    of the worst 10 mutator utilization windows of the selected size. This
+    list in turn links to the trace viewer to drill down on specifically
+    what happened in each specific window.
+    
+    Change-Id: Ic1b72d8b37fbf2212211c513cf36b34788b30133
+    Reviewed-on: https://go-review.googlesource.com/c/60795
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/net.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/trace/main.go  |  2 +-
+ src/cmd/trace/mmu.go   | 81 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/trace/trace.go | 30 +++++++++++++------
+ 3 files changed, 101 insertions(+), 12 deletions(-)

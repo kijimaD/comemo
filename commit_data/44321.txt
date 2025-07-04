@@ -1,27 +1,28 @@
-commit 5b76343a1040571e3d2249168a00a4dc814e920a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 22 13:27:10 2020 -0400
+commit 2a4e71c752875f84dc0061f75fdcbfc96ae8d5f2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 9 22:00:18 2020 -0400
 
-    go/build: prefer //go:build over // +build lines
+    run.bat: do not unset GOROOT_FINAL before running tests
     
-    Part of //go:build change (#41184).
-    See https://golang.org/design/draft-gobuild
+    This removes the same logic from run.bat that was removed from
+    cmd/dist in CL 236819.
     
-    - Reject files with multiple //go:build lines.
-    - If a file has both //go:build and // +build lines, only use the //go:build line.
-    - Otherwise fall back to // +build lines
-    - Use go/build/constraint for parsing both //go:build and // +build lines.
+    The duplicated logic was removed from run.bash and run.rc in CL 6531,
+    but that part of run.bat was apparently missed (and not noticed
+    because its effect was redundant).
     
-    For Go 1.17.
+    Also fix a path-separator bug in cmd/addr2line.TestAddr2Line that was
+    exposed as a result.
     
-    Change-Id: I32e2404d8ce266230f767718dc7cc24e77b425e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240607
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #39478
+    Updates #39385
+    
+    Change-Id: I00054966cf92ef92a03681bf23de7f45f46fbb5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237359
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/build.go      | 139 +++++++++++++++++++++------------------------
- src/go/build/build_test.go |  88 +++++++++++++++++++---------
- src/go/build/deps_test.go  |   2 +-
- 3 files changed, 127 insertions(+), 102 deletions(-)
+ src/cmd/addr2line/addr2line_test.go | 8 +++++---
+ src/run.bat                         | 5 -----
+ 2 files changed, 5 insertions(+), 8 deletions(-)

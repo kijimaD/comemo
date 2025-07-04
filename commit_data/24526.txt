@@ -1,20 +1,19 @@
-commit 7d86d5744484bd3297acb7c4a71fadd5670e5f82
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu Oct 15 18:59:01 2015 +0300
+commit 38ed6c10eb056419256beb03eefe289faa7d545b
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Jul 30 16:02:24 2015 -0400
 
-    net: use IndexByte implementation from runtime package
+    [dev.ssa] cmd/compile: simplify repeated OCOM
     
-    In net/parse.go we reimplement bytes.IndexByte and strings.IndexByte,
-    However those are implemented in runtime/$GOARCH_asm.s.
-    Using versions from runtime should provide performance advantage,
-    and keep the same code together.
+    Rewrite ^{n}x to be ^{n % 2}x.  This will eventually resolve a fuzz
+    issue that breaks v1.5.
     
-    Change-Id: I6212184bdf6aa1f2c03ce26d4b63f5b379d8ed0c
-    Reviewed-on: https://go-review.googlesource.com/15953
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #11352
+    
+    Change-Id: I1b3f93872d06222f9ff5f6fd5580178ebaf4c003
+    Reviewed-on: https://go-review.googlesource.com/13110
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/parse.go | 25 +++++++++----------------
- 1 file changed, 9 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 16 +++++
+ src/cmd/compile/internal/ssa/gen/generic.rules    |  5 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go    | 76 +++++++++++++++++++++++
+ 3 files changed, 97 insertions(+)

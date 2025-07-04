@@ -1,25 +1,15 @@
-commit 0744c21b98e916470c97ff5816630398cf3213c8
-Author: Austin Clements <austin@google.com>
-Date:   Mon Sep 25 14:58:13 2017 -0400
+commit 8073f99ea301848ccf66152c6fb10ff8fd3b86b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 7 11:32:42 2017 -0700
 
-    runtime: make runtime.GC() trigger GC even if GOGC=off
+    go/types: adjust type-checking of shifts to match compilers
     
-    Currently, the priority of checks in (gcTrigger).test() puts the
-    gcpercent<0 test above gcTriggerCycle, which is used for runtime.GC().
-    This is an unintentional change from 1.8 and before, where
-    runtime.GC() triggered a GC even if GOGC=off.
+    For #14822.
     
-    Fix this by rearranging the priority so the gcTriggerCycle test
-    executes even if gcpercent < 0.
-    
-    Fixes #22023.
-    
-    Change-Id: I109328d7b643b6824eb9d79061a9e775f0149575
-    Reviewed-on: https://go-review.googlesource.com/65994
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ia3f5558f3e0dcb8ee2dab54a6e9588eecc22511f
+    Reviewed-on: https://go-review.googlesource.com/45074
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/gc_test.go | 16 ++++++++++++++++
- src/runtime/mgc.go     |  5 ++++-
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/go/types/expr.go             |  6 +++---
+ src/go/types/testdata/shifts.src | 18 ++++++++++++------
+ 2 files changed, 15 insertions(+), 9 deletions(-)

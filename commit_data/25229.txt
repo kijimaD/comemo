@@ -1,14 +1,18 @@
-commit 251e50065b99eb6c40b6cc549b3bea9126e96bde
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 10 19:57:46 2015 +0000
+commit 881509357261c88addbe0eb30a6eebba2b387fe8
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Fri Oct 9 11:59:58 2015 -0700
 
-    syscall: fix duplicated copyright header in mksysnum_plan9.sh
+    cmd/go: print all warnings to stderr
     
-    Fixes #13569
+    All warnings in cmd/go are printed using fmt.Fprintf(os.Stderr...)
+    except one in test.go which is printed using log.Printf.
+    This is a minor inconsistency.
     
-    Change-Id: I04c9a44437414177e2fee260518cfe53a67e6364
-    Reviewed-on: https://go-review.googlesource.com/17684
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib470d318810b44b86e6cfaa77e9a556a5ad94069
+    Reviewed-on: https://go-review.googlesource.com/15657
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/mksysnum_plan9.sh | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/go/test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

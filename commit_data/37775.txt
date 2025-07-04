@@ -1,23 +1,35 @@
-commit 00055152d320f60476ca5db1e7da4fc89f94834e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Dec 21 12:23:18 2018 -0500
+commit 969b9d8127c0ef3bbffeb1fa7d13a7ec1afccce4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Aug 26 06:24:33 2018 -0600
 
-    cmd/go: fix -n output in runtime/internal/atomic
+    encoding/json: fix handling of nil anonymous structs
     
-    When building runtime/internal/atomic, the toolchain writes a symabis2
-    file. This file is read back in, filtered, and appended to the symabis
-    file. This breaks with -n, since the symabis2 file is never written.
+    Given the following types:
     
-    With this change, when -n is used, an equivalent "grep" command is
-    printed instead. The output for -x is unchanged.
+            type S2 struct{ Field string }
+            type S  struct{ *S2 }
     
-    Fixes #29346
+    Marshalling a value of type T1 should result in "{}", as there's no way
+    to access any value of T2.Field. This is how Go 1.10 and earlier
+    versions behave.
     
-    Change-Id: Id25e06e06364fc6689e71660d000f09c649c4f0c
-    Reviewed-on: https://go-review.googlesource.com/c/155480
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    However, in the recent refactor golang.org/cl/125417 I broke this logic.
+    When the encoder found an anonymous struct pointer field that was nil,
+    it no longer skipped the embedded fields underneath it. This can be seen
+    in the added test:
+    
+            --- FAIL: TestAnonymousFields/EmbeddedFieldBehindNilPointer (0.00s)
+                encode_test.go:430: Marshal() = "{\"Field\":\"\\u003c*json.S2 Value\\u003e\"}", want "{}"
+    
+    The human error was a misplaced label, meaning we weren't actually
+    skipping the right loop iteration. Fix that.
+    
+    Change-Id: Iba8a4a77d358dac73dcba4018498fe4f81afa263
+    Reviewed-on: https://go-review.googlesource.com/131376
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/gc.go                       | 6 ++++++
- src/cmd/go/testdata/script/build_runtime_gcflags.txt | 4 ++++
- 2 files changed, 10 insertions(+)
+ src/encoding/json/encode.go      |  2 +-
+ src/encoding/json/encode_test.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,26 +1,16 @@
-commit 35026f373233de30dbdb6752822d3eabf2220c11
-Author: Austin Clements <austin@google.com>
-Date:   Wed Aug 17 09:06:14 2022 -0400
+commit 0400d536e4f349c8f30777c975af78b6a19e73b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 14 12:41:29 2021 -0700
 
-    runtime: consolidate stkframe and its methods into stkframe.go
+    go/types, types2: add a test case to ConvertibleTo
     
-    The stkframe struct and its methods are strewn across different source
-    files. Since they actually have a pretty coherent theme at this point,
-    migrate it all into a new file, stkframe.go. There are no code changes
-    in this CL.
+    string(int) conversions are somewhat special and deserve an entry.
     
-    For #54466, albeit rather indirectly.
-    
-    Change-Id: Ibe53fc4b1106d131005e1c9d491be838a8f14211
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424516
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: Ia68d047cfdb2f98e837bf663659f7f46404b16ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355989
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/runtime2.go  |  49 --------
- src/runtime/stack.go     | 136 ----------------------
- src/runtime/stkframe.go  | 288 +++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/traceback.go |  91 ---------------
- 4 files changed, 288 insertions(+), 276 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 4 ++--
+ src/go/types/api_test.go                    | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

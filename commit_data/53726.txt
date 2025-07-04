@@ -1,28 +1,20 @@
-commit af0609b080dd6d9101d8c6aa31ef6378ac70d60a
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Jul 18 16:23:27 2023 -0400
+commit 9085ff585933d49261372b5a5fdf0686abc163c2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Aug 28 02:29:12 2022 +1000
 
-    cmd/go: attach PGO profile for test dependencies
+    cmd/compile: avoid extending when already sufficiently masked on riscv64
     
-    When running "go test" including a main package which has a PGO
-    profile, we currently build the package being tested and its
-    dependencies with PGO, but we failed to attach the profile to
-    test-only dependencies. If a package is (transitively) imported
-    by both the package being tested and the test, the PGO version
-    and the non-PGO version of the package are both linked into the
-    binary, causing link-time error.
+    Removes more than 2000 instructions from the Go binary on linux/risv64.
     
-    This CL fixes this by attaching the PGO profile to dependencies of
-    the test.
-    
-    Fixes #61376.
-    
-    Change-Id: I2559db9843c4cdab596b31e2025d8475ffbf58ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/510835
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I6db3e3b1c93f29f00869adcba7c6192bfb90b25c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426259
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/load/test.go                    |  6 ++++++
- src/cmd/go/testdata/script/build_pgo_auto_multi.txt | 13 +++++++++++++
- 2 files changed, 19 insertions(+)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  8 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 90 ++++++++++++++++++++++++++
+ 2 files changed, 98 insertions(+)

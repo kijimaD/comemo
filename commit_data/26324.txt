@@ -1,22 +1,33 @@
-commit 005140a77e535fa614fbdaa3c6c5d4c7f69f7a91
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 16 11:06:00 2016 -0500
+commit 9439fa107829b6626eb6cef2a3549b1fc9a6f974
+Author: Rick Hudson <rlh@golang.org>
+Date:   Wed Jan 6 17:07:58 2016 -0500
 
-    runtime: put g.waiting list in lock order
+    runtime: eagerly share GC work buffers
     
-    Currently the g.waiting list created by a select is in poll order.
-    However, nothing depends on this, and we're going to need access to
-    the channel lock order in other places shortly, so modify select to
-    put the waiting list in channel lock order.
+    Currently, due to an oversight, we only balance work buffers
+    in background and idle workers and not in assists. As a
+    result, in assist-heavy workloads, assists are likely to tie
+    up large work buffers in per-P caches increasing the
+    likelihood that the global list will be empty. This increases
+    the likelihood that other GC workers will exit and assists
+    will block, slowing down the system as a whole. Fix this by
+    eagerly balancing work buffers as soon as the assists notice
+    that the global buffers are empty. This makes it much more
+    likely that work will be immediately available to other
+    workers and assists.
     
-    For #12967.
+    This change reduces the garbage benchmark time by 39% and
+    fixes the regresssion seen at CL 15893 golang.org/cl/15893.
     
-    Change-Id: If0d38816216ecbb37a36624d9b25dd96e0a775ec
-    Reviewed-on: https://go-review.googlesource.com/20037
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Garbage benchmark times before and after this CL.
+    Before GOPERF-METRIC:time=4427020
+    After  GOPERF-METRIC:time=2721645
+    
+    Fixes #13827
+    
+    Change-Id: I9cb531fb873bab4b69ce9c1617e30df6c49cdcfe
+    Reviewed-on: https://go-review.googlesource.com/18341
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/runtime2.go |  2 +-
- src/runtime/select.go   | 19 +++++++++++--------
- 2 files changed, 12 insertions(+), 9 deletions(-)
+ src/runtime/mgcmark.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

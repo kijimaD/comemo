@@ -1,27 +1,16 @@
-commit c78d072c8e4a8b0283da21423732f93c503711a4
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 25 23:34:35 2016 +0000
+commit a301b329e5c99693cf5a35ad93e9db5198f0b284
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 16 14:14:16 2016 -0700
 
-    Revert "Revert "cmd/compile: inline convI2E""
+    cmd/compile: simplify isglobal
     
-    This reverts commit 7dd9c385f6896c7dcb5d76353e52e36c81af2838.
+    Passes toolstash -cmp.
     
-    Reason for revert: Reverting the revert, which will re-enable the convI2E optimization.  We originally reverted the convI2E optimization because it was making the builder fail, but the underlying cause was later determined to be unrelated.
-    
-    Original CL: https://go-review.googlesource.com/31260
-    Revert CL: https://go-review.googlesource.com/31310
-    Real bug: https://go-review.googlesource.com/c/25159
-    Real fix: https://go-review.googlesource.com/c/31316
-    
-    Change-Id: I17237bb577a23a7675a5caab970ccda71a4124f2
-    Reviewed-on: https://go-review.googlesource.com/32023
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I16ec0c11096bf4c020cf41392effeb67436f32ba
+    Reviewed-on: https://go-review.googlesource.com/26750
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         | 272 ++++++++++++-------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   1 -
- src/cmd/compile/internal/gc/walk.go            |  34 +++-
- src/runtime/iface.go                           |  10 -
- 4 files changed, 165 insertions(+), 152 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)

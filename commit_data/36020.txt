@@ -1,26 +1,12 @@
-commit 57b5a71d7c897a2f3a21ba8b875bb9264faed326
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 17 11:38:35 2018 -0400
+commit cc936d12bde1fe850b9f3928868105d76fbd53d8
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Mar 28 21:25:09 2018 -0400
 
-    Revert "runtime: fix lldb test after DWARF compression"
+    doc: update 1.9.5 release notes to include net/http/pprof
     
-    This reverts commit c99300229de4e69220790c71da14785dc52c3d68.
-    
-    The original CL skipped the lldb test if it couldn't read compressed
-    DWARF, but lldb can never read compressed DWARF, so this effectively
-    disabled this test unconditionally.
-    
-    The previous commit disabled DWARF compression for this test, so the
-    test now works on its own merits again. This CL reverts the change to
-    skip the test so we don't simply mask lldb failures.
-    
-    Updates #25925.
-    
-    Change-Id: I3e1c787b658257b542c3c70807065dde9cfe05ee
-    Reviewed-on: https://go-review.googlesource.com/124386
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7c0716711a2cadd347fdf242c792b109539f7355
+    Reviewed-on: https://go-review.googlesource.com/103163
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/runtime-lldb_test.go | 14 ++++----------
- 1 file changed, 4 insertions(+), 10 deletions(-)
+ doc/devel/release.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

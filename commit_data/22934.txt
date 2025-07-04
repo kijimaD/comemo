@@ -1,16 +1,18 @@
-commit a3dfcf51c6543ac1af853f1799d70eae83073f1a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri May 1 19:50:27 2015 -0700
+commit e1c1fa291934e49056b738166e243fd3aea7a7dd
+Author: Dave Day <djd@golang.org>
+Date:   Tue Dec 23 15:19:30 2014 +1100
 
-    cmd/internal/gc: unsafe.Pointer constants may only be converted to uintptr
+    reflect: add FuncOf function
     
-    Fixes #8927.
+    This also involves adding functions to typelinks along with a minor
+    change to ensure they are sorted correctly.
     
-    Change-Id: I638cddd439dd2d4eeef5474118cfcbde0c8a5a43
-    Reviewed-on: https://go-review.googlesource.com/9632
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I054a79b6498a634cbccce17579f52c299733c2cf
+    Reviewed-on: https://go-review.googlesource.com/1996
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/gc/const.go | 10 ++++++++--
- test/convlit.go              |  7 +++++++
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/internal/gc/reflect.go |  11 ++--
+ src/reflect/all_test.go        |  61 +++++++++++++++++++++
+ src/reflect/export_test.go     |  10 ++++
+ src/reflect/type.go            | 122 +++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 199 insertions(+), 5 deletions(-)

@@ -1,24 +1,21 @@
-commit e0e4ccb51afd84c33a9da47f72d464a9b92ecf4a
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Mon Nov 16 23:16:00 2015 +0530
+commit d8384e9a8f35efff15c8f62187dc793f79b7a355
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 15 20:50:17 2015 -0400
 
-    path/filepath: include the original paths in error messages
+    cmd/vet: diagnose plain assignment in copylock detector
     
-    On Windows, Rel emits error messages of the form `Rel: can't make
-    \windows relative to \windows`. Rather than emitting paths after
-    stripping volume names, emit the original paths so as to make those of
-    the form `Rel: can't make d:\windows relative to c:\windows`.  Fixed a
-    test that expected the error message to emit clean path instead of the
-    original.
+    It went out of its way to look for implicit assignments
+    but never checked explicit assignments.
     
-    Fixes #13259
+    This detects the root bug for #12099.
     
-    Change-Id: I3a9bd5b137205f22794ec8046b4e917ee48cf750
-    Reviewed-on: https://go-review.googlesource.com/16858
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I6a6e774cc38749ea8be7cfd58ba6421247b67000
+    Reviewed-on: https://go-review.googlesource.com/13646
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/path/filepath/example_unix_test.go | 2 +-
- src/path/filepath/path.go              | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/vet/copylock.go                | 22 +++++++++++++++++-----
+ src/cmd/vet/testdata/copylock.go       | 28 ++++++++++++++++++++++++++++
+ src/cmd/vet/testdata/copylock_func.go  | 22 +++++++++++-----------
+ src/cmd/vet/testdata/copylock_range.go | 26 +++++++++++++-------------
+ 4 files changed, 69 insertions(+), 29 deletions(-)

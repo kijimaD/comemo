@@ -1,30 +1,17 @@
-commit f3a29f1f81e14682f5415ddb517eefbd610dea1a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 6 21:22:11 2016 -0800
+commit 2f08bd96a0f291450c0f8cd41741fa475309cfc4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 00:37:09 2015 -0500
 
-    cmd/compile: preallocate storage for three Value args
+    cmd/go: for go get -insecure, do not fall back to HTTP for non-200 responses
     
-    benchstat master2 arg3b
-    name      old time/op    new time/op    delta
-    Template     441ms ± 4%     444ms ± 6%    ~     (p=0.335 n=22+25)
-    GoTypes      1.51s ± 2%     1.51s ± 2%    ~     (p=0.129 n=25+21)
-    Compiler     5.59s ± 1%     5.56s ± 2%  -0.65%  (p=0.001 n=24+21)
+    Since we allow non-200 responses from HTTPS in normal operation,
+    it seems odd to reject them in -insecure operation.
     
-    name      old alloc/op   new alloc/op   delta
-    Template    85.6MB ± 0%    85.3MB ± 0%  -0.40%  (p=0.000 n=25+24)
-    GoTypes      307MB ± 0%     305MB ± 0%  -0.38%  (p=0.000 n=25+25)
-    Compiler    1.06GB ± 0%    1.05GB ± 0%  -0.43%  (p=0.000 n=25+25)
+    Fixes #13037 (again).
     
-    name      old allocs/op  new allocs/op  delta
-    Template     1.10M ± 0%     1.09M ± 0%  -1.04%  (p=0.000 n=25+25)
-    GoTypes      3.36M ± 0%     3.32M ± 0%  -1.13%  (p=0.000 n=25+24)
-    Compiler     13.0M ± 0%     12.9M ± 0%  -1.12%  (p=0.000 n=25+25)
-    
-    Change-Id: I1280b846e895c00b95bb6664958a7765bd819610
-    Reviewed-on: https://go-review.googlesource.com/20296
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie232f7544ab192addfad407525888db6b967befe
+    Reviewed-on: https://go-review.googlesource.com/17945
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/TODO           | 1 -
- src/cmd/compile/internal/ssa/sizeof_test.go | 2 +-
- src/cmd/compile/internal/ssa/value.go       | 4 ++--
- 3 files changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/go/http.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

@@ -1,12 +1,25 @@
-commit 3fa133f482a7bfcf033a118c85121fef9902492b
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Apr 24 14:30:31 2017 +0900
+commit bdb9b945b954d01b490a468d97abf9592c98dce9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 19 10:30:44 2016 -0800
 
-    cmd/compile: fix comments in transformclosure
+    cmd/compile: eliminate OASWB
     
-    Change-Id: I7a18798180405504dc064424d63dac49634168fb
-    Reviewed-on: https://go-review.googlesource.com/41530
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Instead we can just call needwritebarrier when constructing the SSA
+    representation.
+    
+    Change-Id: I6fefaad49daada9cdb3050f112889e49dca0047b
+    Reviewed-on: https://go-review.googlesource.com/34566
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/closure.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go  |  2 +-
+ src/cmd/compile/internal/gc/esc.go      |  2 +-
+ src/cmd/compile/internal/gc/fmt.go      |  2 +-
+ src/cmd/compile/internal/gc/init.go     |  2 +-
+ src/cmd/compile/internal/gc/opnames.go  |  1 -
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/sinit.go    |  5 -----
+ src/cmd/compile/internal/gc/ssa.go      |  7 +++++--
+ src/cmd/compile/internal/gc/subr.go     |  7 ++++++-
+ src/cmd/compile/internal/gc/syntax.go   |  1 -
+ src/cmd/compile/internal/gc/walk.go     | 26 +-------------------------
+ 11 files changed, 17 insertions(+), 40 deletions(-)

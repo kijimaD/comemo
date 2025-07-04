@@ -1,35 +1,33 @@
-commit ef8e85e8b8176fb096683dac00cf536fd7d228bc
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Oct 18 16:38:54 2016 -0700
+commit e41b0e2bcb2667425b7eb223baa2b9945466651b
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jul 5 13:50:18 2016 -0700
 
-    archive/tar: fix parsePAXTime
+    crypto/x509: support PSS signatures.
     
-    Issues fixed:
-    * Could not handle quantity of seconds greater than 1<<31 on
-    32bit machines since strconv.ParseInt did not treat integers as 64b.
-    * Did not handle negative timestamps properly if nanoseconds were used.
-    Note that "-123.456" should result in a call to time.Unix(-123, -456000000).
-    * Incorrectly allowed a '-' right after the '.' (e.g., -123.-456)
-    * Did not detect invalid input after the truncation point (e.g., 123.123456789badbadbad).
+    Although the term “RSA” is almost synonymous with PKCS#1 v1.5, that
+    standard is quite flawed, cryptographically speaking. Bellare and
+    Rogaway fixed PKCS#1 v1.5 with OAEP (for encryption) and PSS (for
+    signatures) but they only see a fraction of the use of v1.5.
     
-    Note that negative timestamps are allowed by PAX, but are not guaranteed
-    to be portable. See the relevant specification:
-    <<<
-    If pax encounters a file with a negative timestamp in copy or write mode,
-    it can reject the file, substitute a non-negative timestamp, or generate
-    a non-portable timestamp with a leading '-'.
-    >>>
+    This change adds support for creating and verifying X.509 certificates
+    that use PSS signatures. Sadly, every possible dimension of flexibility
+    seems to have been reflected in the integration of X.509 and PSS
+    resulting in a huge amount of excess complexity. This change only
+    supports one “sane” configuration for each of SHA-{256, 384, 512}.
+    Hopefully this is sufficient because it saves a lot of complexity in the
+    code.
     
-    Since the previous behavior already partially supported negative timestamps,
-    we are bound by Go's compatibility rules to keep support for them.
-    However, we should at least make sure we handle them properly.
+    Although X.509 certificates with PSS signatures are rare, I'm inclined
+    to look favourably on them because they are sufficiently superior.
     
-    Change-Id: I5686997708bfb59110ea7981175427290be737d1
-    Reviewed-on: https://go-review.googlesource.com/31441
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #15958.
+    
+    Change-Id: I7282e0b68ad0177209f8b2add473b94aa5224c07
+    Reviewed-on: https://go-review.googlesource.com/24743
+    Run-TryBot: Adam Langley <agl@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/strconv.go      | 67 ++++++++++++++++----------------
- src/archive/tar/strconv_test.go | 84 +++++++++++++++++++++++++++++++++++------
- 2 files changed, 106 insertions(+), 45 deletions(-)
+ src/crypto/x509/x509.go      | 192 +++++++++++++++++++++++++++++++++++++------
+ src/crypto/x509/x509_test.go |  86 ++++++++++++++++---
+ 2 files changed, 242 insertions(+), 36 deletions(-)

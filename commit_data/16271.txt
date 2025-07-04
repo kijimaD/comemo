@@ -1,15 +1,26 @@
-commit e85016f81f91268e3155f9024702ae9205ad2dd1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 6 15:16:47 2013 -0700
+commit 6de184b385c8a15095cab925f50980e7c62f2ec3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue May 7 05:20:00 2013 +0800
 
-    database/sql: remove an unused field from Rows
+    syscall: fix prototype of Fchflags (API change)
+    API change, but the old API is obviously wrong.
     
-    Found while debugging memory usage. Nobody accesses this field
-    anymore.
-    
-    R=golang-dev, i.caught.air, adg, r
+    R=golang-dev, iant, r, rsc
     CC=golang-dev
-    https://golang.org/cl/9108043
+    https://golang.org/cl/9157044
 
- src/pkg/database/sql/sql.go | 4 ----
- 1 file changed, 4 deletions(-)
+ api/except.txt                            |  6 ++++++
+ doc/go1.1.html                            | 10 +++++++++-
+ src/pkg/syscall/syscall_darwin.go         |  2 +-
+ src/pkg/syscall/syscall_freebsd.go        |  2 +-
+ src/pkg/syscall/syscall_netbsd.go         |  2 +-
+ src/pkg/syscall/syscall_openbsd.go        |  2 +-
+ src/pkg/syscall/zsyscall_darwin_386.go    |  9 ++-------
+ src/pkg/syscall/zsyscall_darwin_amd64.go  |  9 ++-------
+ src/pkg/syscall/zsyscall_freebsd_386.go   |  9 ++-------
+ src/pkg/syscall/zsyscall_freebsd_amd64.go |  9 ++-------
+ src/pkg/syscall/zsyscall_netbsd_386.go    |  9 ++-------
+ src/pkg/syscall/zsyscall_netbsd_amd64.go  |  9 ++-------
+ src/pkg/syscall/zsyscall_openbsd_386.go   |  9 ++-------
+ src/pkg/syscall/zsyscall_openbsd_amd64.go |  9 ++-------
+ 14 files changed, 35 insertions(+), 61 deletions(-)

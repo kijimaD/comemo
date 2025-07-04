@@ -1,16 +1,19 @@
-commit 8aadcc551e1610d4185c36624c8105f4303fe7ec
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Oct 6 10:16:17 2016 -0400
+commit 8641e6fe2131ac342647fa34398a727f96d15fb5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 28 16:25:45 2016 -0700
 
-    cmd/compile: intrinsify math.Sqrt when compiling "math" itself
+    net/http: update bundled http2
     
-    Fixes #17354.
+    Updates x/net/http2 to git rev ef2e00e88 for https://golang.org/cl/24560,
+    "http2: make Transport return server's GOAWAY error back to the user"
     
-    Change-Id: I0e018c8c3e791fc6cc1925dbbc18c2151ba9a111
-    Reviewed-on: https://go-review.googlesource.com/30539
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Fixes #14627
+    
+    Change-Id: I2bb123a3041e168db7c9446beef4ee47638f17ee
+    Reviewed-on: https://go-review.googlesource.com/24561
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/net/http/h2_bundle.go | 29 ++++++++++++++++++++++++++---
+ 1 file changed, 26 insertions(+), 3 deletions(-)

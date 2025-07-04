@@ -1,23 +1,16 @@
-commit b7b790a71a86678f036b7d30a892c5f792c5092f
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Aug 12 17:08:49 2021 -0700
+commit dc8f16829a253dbbaffe278dcbf38534ced8403a
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Sep 15 15:13:31 2020 -0400
 
-    cmd/compile: fix CONVIFACE case converting interface to empty interface
+    [dev.fuzz] testing: add support for testing.F.Add of []byte
     
-    We need an extra case in convertToDictionary. In the case of an operand
-    which is an interface and converting to an empty interface, we don't
-    want to get the run-time type from the dictionary (which would be the
-    run-time type of the interface). We want to do a type-assert to the
-    empty interface.
-    
-    Change-Id: I414247210168153151272fab198bfe82ad7b1567
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342009
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I183693fec6a643b2f27cc379a422e2b42d8eca90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255339
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go |  5 +++
- test/typeparam/issue47272.go              | 55 +++++++++++++++++++++++++++++++
- test/typeparam/issue47272.out             |  2 ++
- 3 files changed, 62 insertions(+)
+ src/testing/fuzz.go      | 19 ++++++++++++++++---
+ src/testing/fuzz_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 3 deletions(-)

@@ -1,17 +1,15 @@
-commit 0d11cd1b6ecede754c3bf24c87a955d175568093
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 20 11:29:37 2014 +1100
+commit 2037756fcc6962808ce45e145b386ce70b41530c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 19 15:33:47 2014 -0800
 
-    cmd/pack: provide executable name in TestHello
-    
-    otherwise go build command adds .exe suffix
-    
-    Fixes #7362
+    cmd/pack: don't look for " in output from go env
+    Windows at least doesn't emit one.
+    Maybe fix Windows build.
     
     LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/66250043
+    https://golang.org/cl/66120046
 
- src/cmd/pack/pack_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/pack/pack_test.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

@@ -1,33 +1,21 @@
-commit c1296af151f5682f6e0cd88cd0372aca5a464a97
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Jan 17 13:24:06 2022 -0800
+commit 3f8e64878a93a1b005e1ff0f2a939bab826b8b9f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 20 12:58:53 2021 +0200
 
-    cmd/compile: add early a CONVIFACE normally created in the order phase
+    internal/poll, net: fix comments regarding accept and sysSocket
     
-    Most CONVIFACEs are created in the transform phase (or old typechecker,
-    in -G=0 mode). But if the main result of a multi-value assignment (map,
-    channel, or dot-type) must be converted to an interface during the
-    assignment, that CONVIFACE is not created until (*orderState).as2ok in
-    the order phase (because the AS2* ops and their sub-ops are so tightly
-    intertwined). But we need to create the CONVIFACE during the
-    stenciling/transform phase to enable dictionary lookups. So, in
-    transformAssign(), if we are doing a special multi-value assignment
-    involving a type-param-derived type, assign the results first to temps,
-    so that we can manifest the CONVIFACE during the transform in assigning
-    the first temp to lhs[0].
+    The implementation of accept was moved from package net to internal/poll
+    in CL 36799.
     
-    Added a test for both AS2RECV (channel receives) and AS2MAPR (maps). I
-    don't think we can have a type assertion on a type-param-derived type.
-    
-    Fixes #50642
-    
-    Change-Id: I4d079fc46c93d8494d7db4ea8234d91522edb02a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379054
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6e5964e0ee22e9c84bc444860cdd497817451fec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311571
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/noder/transform.go | 31 ++++++++++++++
- test/typeparam/issue50642.go                | 63 +++++++++++++++++++++++++++++
- 2 files changed, 94 insertions(+)
+ src/internal/poll/sock_cloexec.go | 4 ++--
+ src/internal/poll/sys_cloexec.go  | 4 ++--
+ src/net/sock_cloexec.go           | 4 ++--
+ src/net/sys_cloexec.go            | 4 ++--
+ 4 files changed, 8 insertions(+), 8 deletions(-)

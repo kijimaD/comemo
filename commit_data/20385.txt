@@ -1,26 +1,15 @@
-commit f956740163ad4b46237cea83357b962cada1c2df
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Sep 11 17:56:58 2014 +0900
+commit 43345a118b9e68f7779914cc7a965a6b8a1d585e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 4 10:43:03 2014 -0700
 
-    net: fix inconsistent behavior across platforms in SetKeepAlivePeriod
+    go/parser: initialize file set even in only some tests are run
     
-    The previous implementation used per-socket TCP keepalive options
-    wrong. For example, it used another level socket option to control
-    TCP and it didn't use TCP_KEEPINTVL option when possible.
+    Without this fix, some tests crashed (e.g. go test -run Invalid).
     
-    Fixes #8683.
-    Fixes #8701.
-    Update #8679
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=adonovan
+    R=adonovan
     CC=golang-codereviews
-    https://golang.org/cl/136480043
+    https://golang.org/cl/133580043
 
- src/net/tcpsockopt_darwin.go                       | 12 ++++++----
- src/net/tcpsockopt_dragonfly.go                    | 13 ++++-------
- src/net/tcpsockopt_solaris.go                      | 27 ----------------------
- .../{tcpsockopt_openbsd.go => tcpsockopt_stub.go}  |  8 ++++---
- src/net/tcpsockopt_unix.go                         | 10 +++-----
- src/net/tcpsockopt_windows.go                      | 12 ++++------
- 6 files changed, 25 insertions(+), 57 deletions(-)
+ src/pkg/go/parser/error_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

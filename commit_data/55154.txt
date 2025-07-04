@@ -1,18 +1,37 @@
-commit 94d6267060a619ef89ef296ed4691734e6be8de2
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Thu Nov 23 09:17:56 2023 +0100
+commit 248950f1928c543c31ac2d331213ce949e1b9886
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 11 09:17:55 2023 -0800
 
-    text/template: more godoc links
+    go/types, types2: factor out position comparison, share more code
     
-    Change-Id: I4f3684ea6cbdcc09985c93fef5107d3bd006699e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544735
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This CL introduces the new files util.go and util_test.go for both
+    type checkers; these files factor out functionality that is different
+    between the type checkers so that more code (that is otherwise mostly
+    the same) can be generated.
+    
+    With cmpPos/CmpPos factored out, go/types/scope.go can now be generated.
+    
+    Change-Id: I35f67e53d83b3c5086a559b1e826db83d38ee217
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461596
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/text/template/doc.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go  |  2 +-
+ src/cmd/compile/internal/types2/decl.go      |  2 +-
+ src/cmd/compile/internal/types2/mono.go      |  2 +-
+ src/cmd/compile/internal/types2/scope.go     |  4 +--
+ src/cmd/compile/internal/types2/stmt.go      |  2 +-
+ src/cmd/compile/internal/types2/util.go      | 22 ++++++++++++++
+ src/cmd/compile/internal/types2/util_test.go | 12 ++++++++
+ src/go/types/api_test.go                     |  2 +-
+ src/go/types/decl.go                         |  2 +-
+ src/go/types/generator.go                    | 43 +++++++++++++++++++---------
+ src/go/types/mono.go                         |  2 +-
+ src/go/types/scope.go                        | 14 +++++----
+ src/go/types/stmt.go                         |  2 +-
+ src/go/types/util.go                         | 22 ++++++++++++++
+ src/go/types/util_test.go                    | 12 ++++++++
+ 15 files changed, 115 insertions(+), 30 deletions(-)

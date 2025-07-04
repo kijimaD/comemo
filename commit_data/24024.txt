@@ -1,12 +1,14 @@
-commit 5acde2d5aa2296bc505fb5cffa26a73a5e53716b
+commit 5267bf075bcd0e4898f5414903c1b2180a852bac
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 18 11:40:59 2015 -0400
+Date:   Mon Jun 29 13:58:18 2015 -0400
 
-    cmd/go: really skip TestNoteReading on linux/ppc64le
+    cmd/go: disable TestIssue10952 without external network
     
-    Change-Id: Iaeba7c55bbb9e11ac30f3b61369aa597acc30190
-    Reviewed-on: https://go-review.googlesource.com/13691
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Should fix arm64 build failure.
+    
+    Change-Id: Ib35e4a69a1082e461a1eddf3265544a1d2ff98e5
+    Reviewed-on: https://go-review.googlesource.com/11710
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/go/note_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

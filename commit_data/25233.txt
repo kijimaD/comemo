@@ -1,33 +1,21 @@
-commit 617c93ce740c3c3cc28cdd1a0d712be183d0b328
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 4 12:43:25 2015 -0500
+commit fb3f152c196269d7a0fc9246226de478866073c1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Oct 10 14:21:42 2015 +1100
 
-    net/url: reject space in host; do not escape < > " in host
+    net/url: make *url.Error implement net.Error
     
-    Host names in URLs must not use %-escaping for ASCII bytes, per RFC 3986.
+    Fixes #12866
     
-    url.Parse has historically allowed spaces and < > " in the URL host.
-    In Go 1.5, URL's String method started escaping those,
-    but then Parse would rejects the escaped form.
-    This CL is an attempt at some consistency between Parse and String
-    as far as the accepted host characters and the encoding of host characters,
-    so that if Parse succeeds, then Parse -> String -> Parse also succeeds.
+    net/http.Client returns some errors wrapped in a *url.Error. To avoid
+    the requirement to unwrap these errors to determine if the cause was
+    temporary or a timeout, make *url.Error implement net.Error directly.
     
-    Allowing space seems like a mistake, so reject that in Parse.
-    (Similarly, reject \t, \x01, and so on, all of which were being allowed.)
-    
-    Allowing < > " doesn't seem awful, so continue to do that,
-    and go back to the Go 1.4 behavior of not escaping them in String.
-    
-    Fixes #11302.
-    
-    Change-Id: I0bf65b874cd936598f20694574364352a5abbe5f
-    Reviewed-on: https://go-review.googlesource.com/17387
+    Change-Id: I1ba84ecc7ad5147a40f056ff1254e60290152408
+    Reviewed-on: https://go-review.googlesource.com/15672
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/request_test.go |  4 +++-
- src/net/url/url.go           | 17 +++++++++++++++--
- src/net/url/url_test.go      | 11 +++++++++++
- 3 files changed, 29 insertions(+), 3 deletions(-)
+ src/net/http/client_test.go |  7 ++--
+ src/net/url/url.go          | 18 ++++++++++
+ src/net/url/url_test.go     | 83 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 104 insertions(+), 4 deletions(-)

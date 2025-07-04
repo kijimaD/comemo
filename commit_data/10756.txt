@@ -1,17 +1,16 @@
-commit 0b0a6ec7ec27f711304f86fcfd749173967b91d9
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 14 08:46:26 2011 +1100
+commit 516168057e0b2a30bcda024892ed36badb731c00
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Dec 13 16:34:22 2011 -0500
 
-    gofix: add googlecode module for rewriting Google Code imports
-    goinstall: disallow googlecode.com import paths
+    http: close connection after printing panic stack trace
+    In a testing situation, it's possible for a local http
+    server to panic and the test exit without the stack trace
+    ever being printed.
+    Fixes #2480.
     
     R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5421049
+    https://golang.org/cl/5414048
 
- src/cmd/gofix/Makefile             |  1 +
- src/cmd/gofix/googlecode.go        | 41 +++++++++++++++++++++++++++++++
- src/cmd/gofix/googlecode_test.go   | 31 +++++++++++++++++++++++
- src/cmd/goinstall/download.go      | 50 +++++++++++++++++++-------------------
- src/cmd/goinstall/download_test.go | 33 ++++++++++++++++---------
- 5 files changed, 119 insertions(+), 37 deletions(-)
+ src/pkg/net/http/server.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

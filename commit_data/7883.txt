@@ -1,12 +1,15 @@
-commit a4df525a79d3db1ede99a885724943715ea2abc4
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Fri Mar 25 20:45:21 2011 -0700
+commit 2795b13156993700e0e7355e2c4fa2fc617fd9ae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 18:31:55 2011 -0700
 
-    gob: trivial cleanup
+    gc: remove interim ... error which rejects valid code.
     
-    R=golang-dev, r
+    It's been six months.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4279074
+    https://golang.org/cl/4289073
 
- src/pkg/gob/type.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gc/typecheck.c   | 5 -----
+ test/fixedbugs/bug252.go | 4 ++--
+ 2 files changed, 2 insertions(+), 7 deletions(-)

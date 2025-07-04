@@ -1,16 +1,17 @@
-commit b8fcae02b076cdef0bbef5bce5de090409858fba
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 3 15:13:26 2015 -0800
+commit 8c69ce0b90d15e35d6f03f6af530fd6af47e276c
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jan 7 23:32:34 2015 +0100
 
-    math/big: fix %b format so it matches strconf %b format for non-zero values
+    build: increase timeout in run.rc
     
-    (For zero values the strconv %b format prints the bias-adjusted exponent;
-    there's no bias in Float.)
+    Increasing the timeout prevents the runtime test
+    to time out on the Plan 9 instances running on GCE.
     
-    Change-Id: I6f4dda9c3a50d02eac375cfe2c927c1540aae865
-    Reviewed-on: https://go-review.googlesource.com/3841
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Update golang/go#9491
+    
+    Change-Id: Id9c2b0c4e59b103608565168655799b353afcd77
+    Reviewed-on: https://go-review.googlesource.com/2462
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/floatconv.go      |  12 ++---
- src/math/big/floatconv_test.go | 106 ++++++++++++++++++++++-------------------
- 2 files changed, 61 insertions(+), 57 deletions(-)
+ src/run.rc | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

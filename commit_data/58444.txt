@@ -1,21 +1,21 @@
-commit 2b794ed86cb1b718bc212ee90fecbb8f3b28a744
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Dec 23 10:35:24 2024 -0800
+commit 1b03ec8a25412342ca072c0860bdf046d58e82ac
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 9 08:52:17 2023 -0500
 
-    encoding/json: expand and modernize TestInterfaceSet
+    os/signal: remove some arbitrary timeouts in tests
     
-    Add more test cases to cover a wider range of edge cases.
-    Use a generic addr function to take the address of a value.
-    Even though redudant, explicitly include a cast to the
-    top-level Go type so that it is more readable what the
-    expected input and ouput types are.
+    This should fix the test flake found in
+    https://build.golang.org/log/48ffb18e85dda480b7a67e8305dd03ee8337f170.
     
-    Change-Id: I3ef68df6f1beb903ae237cd49f3dcb91e5270fe7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638256
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #58901.
+    
+    Change-Id: I1fcdd713a78e6b7c81e38133ce5f42f7f448a1a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541115
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/encoding/json/decode_test.go | 65 ++++++++++++++++++++++++++++------------
- 1 file changed, 46 insertions(+), 19 deletions(-)
+ src/os/signal/example_unix_test.go |  7 ++++---
+ src/os/signal/signal_test.go       | 41 +++++++++++---------------------------
+ 2 files changed, 16 insertions(+), 32 deletions(-)

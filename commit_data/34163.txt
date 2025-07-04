@@ -1,21 +1,29 @@
-commit 97124af99a9a0f0ec1b3453c67c8af474aabd660
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Feb 12 14:27:46 2018 -0500
+commit ca5127cbcdaf54beec8245d97d251988e634c7c0
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Mon Aug 21 12:47:56 2017 +0300
 
-    runtime/internal/atomic: unify sys_*_arm.s on non-linux
+    cmd/asm: add amd64 EXTRACTPS instruction
     
-    Updates #23778.
+    Adds last missing SSE4 instruction.
+    Also introduces additional ytab set 'yextractps'.
     
-    Change-Id: I80e57a15b6e3bbc2e25ea186399ff0e360fc5c21
-    Reviewed-on: https://go-review.googlesource.com/93635
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    See https://golang.org/cl/57470 that adds other SSE4 instructions
+    but skips this one due to 'yextractps'.
+    
+    To make EXTRACTPS less "sloppy", Yu2 oclass added to forbid
+    usage of invalid offset values in immediate operand.
+    
+    Part of the mission to add missing amd64 SSE4 instructions to Go asm.
+    
+    Change-Id: I0e67e3497054f53257dd8eb4c6268da5118b4853
+    Reviewed-on: https://go-review.googlesource.com/57490
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/internal/atomic/sys_darwin_arm.s        | 11 -----------
- src/runtime/internal/atomic/sys_nacl_arm.s          | 13 -------------
- src/runtime/internal/atomic/sys_netbsd_arm.s        | 21 ---------------------
- .../{sys_freebsd_arm.s => sys_nonlinux_arm.s}       | 10 ++++++----
- src/runtime/internal/atomic/sys_openbsd_arm.s       | 11 -----------
- src/runtime/internal/atomic/sys_plan9_arm.s         | 11 -----------
- 6 files changed, 6 insertions(+), 71 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s   | 16 ++++++++--------
+ src/cmd/asm/internal/asm/testdata/amd64error.s |  2 ++
+ src/cmd/internal/obj/x86/a.out.go              |  1 +
+ src/cmd/internal/obj/x86/anames.go             |  1 +
+ src/cmd/internal/obj/x86/asm6.go               | 18 ++++++++++++++++++
+ 5 files changed, 30 insertions(+), 8 deletions(-)

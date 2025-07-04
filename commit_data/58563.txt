@@ -1,21 +1,28 @@
-commit 4f11d5879a01e64cb8bd59911bb205ffedd4f265
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 31 12:39:19 2025 -0800
+commit 468bc941886ae83b8d16af5deaaf12ea5cabb05b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 20 06:27:20 2023 +0000
 
-    crypto/internal/cryptotest: print stderr if go tool fails
+    Revert "runtime: profile contended lock calls"
     
-    Trying to find out why "go env GOMODCACHE" is failing
-    on the Windows longtest builder.
+    This reverts commit go.dev/cl/528657.
     
-    For #71508
+    Reason for revert: broke a lot of builders.
     
-    Change-Id: I0642d5a5d85a549c6edde0be5bed8f0a16cca200
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/645895
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I70c33062020e997c4df67b3eaa2e886cf0da961e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543660
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/crypto/internal/cryptotest/fetchmodule.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/runtime/debug.go        |  11 --
+ src/runtime/export_test.go  |  21 ---
+ src/runtime/extern.go       |   8 --
+ src/runtime/lock_futex.go   |   6 -
+ src/runtime/lock_sema.go    |   4 -
+ src/runtime/metrics.go      |   2 +-
+ src/runtime/metrics_test.go | 308 --------------------------------------------
+ src/runtime/mprof.go        | 236 +--------------------------------
+ src/runtime/proc.go         |   4 +-
+ src/runtime/runtime1.go     |  42 +++---
+ src/runtime/runtime2.go     |   8 --
+ 11 files changed, 23 insertions(+), 627 deletions(-)

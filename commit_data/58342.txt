@@ -1,18 +1,33 @@
-commit 6293a0683171e3a08e275884fddeaa2b57a861f6
-Author: Conrad Irwin <conrad.irwin@gmail.com>
-Date:   Sat Nov 30 22:13:52 2024 -0700
+commit 66b8107a26e515bbe19855d358bdf12bd6326347
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 29 14:23:59 2023 -0700
 
-    doc/next: introduce module tools
+    runtime: on arm32, detect whether we have sync instructions
     
-    Fixes #48429
+    Make the choice of using these instructions dynamic (triggered by cpu
+    feature detection) rather than static (trigered by GOARM setting).
     
-    Change-Id: Ie1954fc3bedd7d36cafaf3835b6c3a92326393f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632556
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    if GOARM>=7, we know we have them.
+    For GOARM=5/6, dynamically dispatch based on auxv information.
+    
+    Update #17082
+    Update #61588
+    
+    Change-Id: I8a50481d942f62cf36348998a99225d0d242f8af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525637
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/next/3-tools.md | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/cmd/go/internal/work/gc.go            | 14 ++++++++
+ src/internal/cpu/cpu.go                   |  9 ++---
+ src/internal/cpu/cpu_arm.go               | 14 ++++++++
+ src/runtime/internal/atomic/atomic_arm.go |  4 +++
+ src/runtime/internal/atomic/atomic_arm.s  | 59 +++++++++++++++++++------------
+ src/runtime/os_freebsd.go                 |  1 +
+ src/runtime/os_freebsd_arm.go             |  7 +++-
+ src/runtime/os_linux.go                   | 13 +++----
+ src/runtime/os_linux_arm.go               |  7 +++-
+ 9 files changed, 93 insertions(+), 35 deletions(-)

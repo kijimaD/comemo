@@ -1,24 +1,18 @@
-commit 8df6413e116eb471c69e0722ea4319a228efafa2
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 3 18:22:46 2024 +0000
+commit a97f71578fe326629b6cdeaabe6eb0286ccc5c74
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 23 10:54:37 2023 +0200
 
-    runtime: recompute assistG before and after malloc
+    net: remove unused func appendHex
     
-    This change stops tracking assistG across malloc to reduce number of
-    slots the compiler must keep track of in mallocgc, which adds to
-    register pressure. It also makes the call to deductAssistCredit only
-    happen if the GC is running.
+    It's unused since CL 463987.
     
-    This is a microoptimization that on its own changes very little, but
-    together with other optimizations and a breaking up of the various
-    malloc paths will matter all together ("death by a thousand cuts").
-    
-    Change-Id: I4cfac7f3e8e873ba66ff3b553072737a4707e2c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617876
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic28fd3b4a613cd7b43f817118841d40e3005a5fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522135
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/malloc.go | 53 +++++++++++++++++++++++----------------------------
- 1 file changed, 24 insertions(+), 29 deletions(-)
+ src/net/parse.go | 14 --------------
+ 1 file changed, 14 deletions(-)

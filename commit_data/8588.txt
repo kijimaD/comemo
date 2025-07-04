@@ -1,13 +1,19 @@
-commit 9995d216eb7442d8ec9b6f4c32f29b8289aa7dff
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jun 3 00:09:42 2011 +1000
+commit 07acc02a29ac74e7c0b08b4cd382bf71acd262dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 2 09:32:38 2011 -0400
 
-    template: explain that fields must be exported.
-    Fixes #1792.
+    compress/flate: do not use background goroutines
     
-    R=golang-dev, dsymonds
+    Programs expect that Read and Write are synchronous.
+    The background goroutines make the implementation
+    a little easier, but they introduce asynchrony that
+    trips up calling code.  Remove them.
+    
+    R=golang-dev, krasin
     CC=golang-dev
-    https://golang.org/cl/4548083
+    https://golang.org/cl/4548079
 
- src/pkg/template/template.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/pkg/compress/flate/deflate.go      | 478 ++++++++++++++-------------------
+ src/pkg/compress/flate/deflate_test.go |  15 +-
+ src/pkg/compress/flate/inflate.go      | 247 ++++++++++-------
+ 3 files changed, 364 insertions(+), 376 deletions(-)

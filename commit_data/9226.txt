@@ -1,17 +1,13 @@
-commit 2f4632febc46b2504313c271d04aaed008732f2b
-Author: John Asmuth <jasmuth@gmail.com>
-Date:   Wed Jul 27 15:23:42 2011 -0700
+commit 22f71cde6a366b2a2db928ab743bef50a856ee35
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 27 15:23:14 2011 -0700
 
-    container/vector: removed some uses of container/vector in other pkgs
+    A+C: John Asmuth
     
-    R=gri
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4823054
+    https://golang.org/cl/4827045
 
- src/pkg/crypto/x509/x509.go     | 11 +++++------
- src/pkg/http/request.go         |  5 +----
- src/pkg/json/decode.go          |  5 ++---
- src/pkg/net/dict/dict.go        |  7 +++----
- src/pkg/net/textproto/reader.go |  9 +++------
- src/pkg/websocket/client.go     | 17 ++++++++---------
- 6 files changed, 22 insertions(+), 32 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,22 +1,54 @@
-commit 0497f911acbb33efbeac7271dc46e920fe26f4b8
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Dec 12 17:04:04 2019 -0500
+commit f04f594a1fd1e8cf1bd01f9dc62599d5bd6e1d92
+Author: Nao YONASHIRO <owan.orisano@gmail.com>
+Date:   Wed Jul 24 22:00:58 2019 +0900
 
-    doc: remove expiration from PGP key in security.html
+    image/png: hoist repetitive pixels per byte out of loop in Encode
     
-    The key had expired earlier this year. Simply resigned it with no
-    expiration, so it maintains the same fingerprint.
+    The existing implementation has calculated pixels per byte for each pixel.
+    reduce the calculation of pixels per byte.
     
-    Removed the encouragement to use PGP above the fold. We trust the
-    security of our mail system, so it's really only there for people that
-    want it.
+    name                        old time/op    new time/op     delta
+    EncodeGray-4                  2.16ms ± 1%     2.16ms ± 1%    -0.28%  (p=0.000 n=86+84)
+    EncodeGrayWithBufferPool-4    1.99ms ± 0%     1.97ms ± 0%    -0.72%  (p=0.000 n=97+92)
+    EncodeNRGBOpaque-4            6.51ms ± 1%     6.48ms ± 1%    -0.45%  (p=0.000 n=90+85)
+    EncodeNRGBA-4                 7.33ms ± 1%     7.28ms ± 0%    -0.69%  (p=0.000 n=89+87)
+    EncodePaletted-4              5.10ms ± 1%     2.29ms ± 0%   -55.11%  (p=0.000 n=90+85)
+    EncodeRGBOpaque-4             6.51ms ± 1%     6.51ms ± 0%      ~     (p=0.311 n=94+88)
+    EncodeRGBA-4                  24.3ms ± 2%     24.1ms ± 1%    -0.87%  (p=0.000 n=91+91)
     
-    Also removed the individual keys, as they were never used, and both Adam
-    and I have access to the security@golang.org key anyway.
+    name                        old speed      new speed       delta
+    EncodeGray-4                 142MB/s ± 1%    143MB/s ± 1%    +0.26%  (p=0.000 n=86+85)
+    EncodeGrayWithBufferPool-4   154MB/s ± 0%    156MB/s ± 0%    +0.73%  (p=0.000 n=97+92)
+    EncodeNRGBOpaque-4           189MB/s ± 1%    190MB/s ± 1%    +0.44%  (p=0.000 n=90+86)
+    EncodeNRGBA-4                168MB/s ± 1%    169MB/s ± 0%    +0.69%  (p=0.000 n=89+87)
+    EncodePaletted-4            60.3MB/s ± 1%  134.2MB/s ± 0%  +122.74%  (p=0.000 n=90+85)
+    EncodeRGBOpaque-4            189MB/s ± 1%    189MB/s ± 0%      ~     (p=0.326 n=94+88)
+    EncodeRGBA-4                50.6MB/s ± 2%   51.1MB/s ± 1%    +0.87%  (p=0.000 n=91+91)
     
-    Change-Id: Icc5ad6dfb4f0b52128a59a080b7f270b20d3c520
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211177
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    name                        old alloc/op   new alloc/op    delta
+    EncodeGray-4                   852kB ± 0%      852kB ± 0%    +0.00%  (p=0.000 n=100+100)
+    EncodeGrayWithBufferPool-4    1.49kB ± 2%     1.47kB ± 1%    -0.88%  (p=0.000 n=95+90)
+    EncodeNRGBOpaque-4             860kB ± 0%      860kB ± 0%    +0.00%  (p=0.003 n=98+58)
+    EncodeNRGBA-4                  864kB ± 0%      864kB ± 0%    +0.00%  (p=0.021 n=100+99)
+    EncodePaletted-4               849kB ± 0%      849kB ± 0%    +0.00%  (p=0.040 n=100+100)
+    EncodeRGBOpaque-4              860kB ± 0%      860kB ± 0%      ~     (p=0.062 n=66+98)
+    EncodeRGBA-4                  3.32MB ± 0%     3.32MB ± 0%    -0.00%  (p=0.044 n=99+99)
+    
+    name                        old allocs/op  new allocs/op   delta
+    EncodeGray-4                    32.0 ± 0%       32.0 ± 0%      ~     (all equal)
+    EncodeGrayWithBufferPool-4      3.00 ± 0%       3.00 ± 0%      ~     (all equal)
+    EncodeNRGBOpaque-4              32.0 ± 0%       32.0 ± 0%      ~     (all equal)
+    EncodeNRGBA-4                   32.0 ± 0%       32.0 ± 0%      ~     (all equal)
+    EncodePaletted-4                36.0 ± 0%       36.0 ± 0%      ~     (all equal)
+    EncodeRGBOpaque-4               32.0 ± 0%       32.0 ± 0%      ~     (all equal)
+    EncodeRGBA-4                    614k ± 0%       614k ± 0%      ~     (all equal)
+    
+    Change-Id: I716bde2dc80d8111d75d3d765fc09223f770d5a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187417
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/security.html | 81 +++++++++++++++++++++++++++----------------------------
- 1 file changed, 40 insertions(+), 41 deletions(-)
+ src/image/png/writer.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

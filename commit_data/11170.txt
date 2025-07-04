@@ -1,13 +1,16 @@
-commit 2374edc6401401fcaa0d328bab38c9e3cffc9274
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jan 14 11:57:32 2012 -0800
+commit 4cfa9e3c616ee9ffd688adc7caffa76bfd7ee312
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Jan 14 10:59:45 2012 -0800
 
-    go/doc: print only one newline between paragraphs
-    Fixes #2595.
+    doc: fix comments referring to removed API funcs
+            The strconv package has removed Atob, AtoF{64,32} and Ftoa.
     
-    R=golang-dev, gri
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5544068
+    https://golang.org/cl/5540057
 
- src/pkg/go/doc/comment.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/pkg/exp/sql/driver/types.go | 2 +-
+ src/pkg/fmt/doc.go              | 5 +++--
+ src/pkg/math/all_test.go        | 2 +-
+ src/pkg/strconv/fp_test.go      | 8 ++++----
+ 4 files changed, 9 insertions(+), 8 deletions(-)

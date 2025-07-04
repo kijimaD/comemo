@@ -1,22 +1,37 @@
-commit 07b2fee4607aa6c710411a7ac404f18be4dff6f7
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Fri Apr 9 10:41:27 2021 -0500
+commit c863e14a6c15e174ac0979ddd7f9530d6a4ec9cc
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Aug 18 13:38:04 2020 -0400
 
-    cmd/link: fix TestLargeText
+    [dev.link] cmd/link: use generator symbols for the rest of pclntab
     
-    This test is not run in short mode so it was getting
-    failures that didn't happen with default testing. See
-    the issue for details on the failures.
+    Move the rest of pclntab creation to generator symbols. Any savings in
+    pclntab generation CPU time is eaten by the generators run in Asmb
+    phase.
     
-    Fixes #45406
+    Stats for Darwin, cmd/compile:
     
-    Change-Id: I51d97cc4c910fe3ba2bc0a12742023a57d101f44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308935
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    alloc/op:
+    Pclntab_GC                   13.9MB ± 0%     6.4MB ± 0%    -53.68%  (p=0.000 n=10+10)
+    
+    allocs/op
+    Pclntab_GC                    86.5k ± 0%     61.5k ± 0%    -28.90%  (p=0.000 n=10+10)
+    
+    liveB:
+    Pclntab_GC                    24.3M ± 0%     22.9M ± 0%     -5.57%  (p=0.000 n=10+10)
+    
+    Timing:
+    
+    Pclntab                   32.1ms ± 2%    24.2ms ± 2%    -24.35%  (p=0.000 n=9+9)
+    Asmb                      18.3ms ±14%    27.4ms ± 9%    +49.55%  (p=0.000 n=10+10)
+    TotalTime                  351ms ± 2%     347ms ± 3%       ~     (p=0.200 n=9+8)
+    
+    Change-Id: I5c6b6df5953f6f255240e07578f1c9f8c5f68500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249023
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/linkbig_test.go | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/data.go |   4 +-
+ src/cmd/link/internal/ld/pcln.go | 502 +++++++++++++++++++++++++--------------
+ 2 files changed, 322 insertions(+), 184 deletions(-)

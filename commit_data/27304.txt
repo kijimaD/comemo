@@ -1,18 +1,28 @@
-commit d68f800620b4295039912066970fb2be914f1d1e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 5 17:46:58 2016 -0700
+commit 34f0c0b3de8957f247c0bc99a682f622793fd88b
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Sun Mar 20 19:17:36 2016 +0000
 
-    test: update test for issue 15548
+    net/http: adaptive wait time in PersistConnLeak tests
     
-    Accidentally checked in the version of file c.go that doesn't
-    exhibit the bug - hence the test was not testing the bug fix.
-    Double-checked that this version exposes the bug w/o the fix.
+    In tests TransportPersistConnLeak and TransportPersistConnLeakShortBody,
+    there's a fixed wait time (100ms and 400ms respectively) to allow
+    goroutines to exit after CloseIdleConnections is called. This
+    is sometimes too short on a slow host running many simultaneous
+    tests.
     
-    Change-Id: Ie4dc455229d1ac802a80164b5d549c2ad4d971f5
-    Reviewed-on: https://go-review.googlesource.com/22837
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    This CL replaces the fixed sleep in each test with a sequence of
+    shorter sleeps, testing the number of remaining goroutines until
+    it reaches the threshold or an overall time limit of 500ms expires.
+    This prevents some failures in the plan9_arm builder, while reducing
+    the test time on faster machines.
+    
+    Fixes #14887
+    
+    Change-Id: Ia5c871062df139e2667cdfb2ce8283e135435318
+    Reviewed-on: https://go-review.googlesource.com/20922
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue15548.dir/c.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/transport_test.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

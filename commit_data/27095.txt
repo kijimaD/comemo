@@ -1,34 +1,17 @@
-commit 9e3c68f1e02021a845c452ae347d06332e4ed79d
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Apr 22 13:09:18 2016 -0700
+commit 1b8d4caddb8852829ce7e53d0fe6b153051716aa
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Mar 10 15:12:19 2016 -0800
 
-    cmd/compile: get rid of most byte and word insns for amd64
+    crypto/x509: correct default X.509 version.
     
-    Now that we're using 32-bit ops for 8/16-bit logical operations
-    (to avoid partial register stalls), there's really no need to
-    keep track of the 8/16-bit ops at all.  Convert everything we
-    can to 32-bit ops.
+    The default version of an X.509 certificate is v1, which is encoded on
+    the wire as a zero.
     
-    This CL is the obvious stuff.  I might think a bit more about
-    whether we can get rid of weirder stuff like HMULWU.
+    Fixes #13382.
     
-    The only downside to this CL is that we lose some information
-    about constants.  If we had source like:
-      var a byte = ...
-      a += 128
-      a += 128
-    We will convert that to a += 256, when we could get rid of the
-    add altogether.  This seems like a fairly unusual scenario and
-    I'm happy with forgoing that optimization.
-    
-    Change-Id: Ia7c1e5203d0d110807da69ed646535194a3efba1
-    Reviewed-on: https://go-review.googlesource.com/22382
-    Reviewed-by: Todd Neal <todd@tneal.org>
+    Change-Id: I5fd725c3fc8b08fd978ab694a3e2d6d2a495918b
+    Reviewed-on: https://go-review.googlesource.com/20548
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go         |   36 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules  |  391 ++--
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go  |   34 -
- src/cmd/compile/internal/ssa/opGen.go         |  572 -----
- src/cmd/compile/internal/ssa/regalloc_test.go |    4 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go  | 2767 +++++--------------------
- 6 files changed, 635 insertions(+), 3169 deletions(-)
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

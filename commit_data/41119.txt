@@ -1,16 +1,20 @@
-commit ee55dd6b647aab616b0819410563767f8552c082
-Author: yah01 <kagaminehuan@gmail.com>
-Date:   Wed Jan 15 01:34:43 2020 +0000
+commit 1406ece4461cc042c9340efbe331e2d7f6db2f8e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 5 11:15:59 2019 +0700
 
-    spec: add missing space in EBNF
+    cmd/compile: preserve loop depth when evaluating block
     
-    Fixes #36520
+    Add block method to preserve loop depth when evaluating statements in a
+    block, so escape analysis can handle looping label more precisely.
     
-    Change-Id: I698ab235f82f7c81caa09318c954847cf3833153
-    GitHub-Last-Rev: 368a1dc7889c2370fba272bcb45d94822b60d7b9
-    GitHub-Pull-Request: golang/go#36559
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214821
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #22438
+    
+    Change-Id: I39b306544a6c0ee3fcbebbe0d0ee735cb71773e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193517
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/escape.go | 22 +++++++++++-------
+ test/escape_goto.go                   | 44 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 8 deletions(-)

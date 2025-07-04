@@ -1,55 +1,17 @@
-commit aba7b3e91cea1c95a1803357bcf219b0591d3c12
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Apr 23 22:36:41 2016 +0900
+commit ba333a3061726b75a8e18fb542f4a43abd1d9999
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Mar 24 20:45:54 2016 +0100
 
-    vendor: import golang.org/x/net/route
+    cmd/go: remove limits on parallel tasks in the Go command for iOS
     
-    golang.org/x/net/route becomes vendor/golang.org/x/net/route.
+    Ther darwin/arm{,64} exec wrapper now limits the number of concurrent
+    executions to 1, so remove the higher level parallel task limit from
+    the Go command.
     
-    At git rev 30be488 (golang.org/cl/22446)
-    
-    Updates #14724.
-    
-    Change-Id: I41cfb5443aeecac4c71e843c09eb8c1d4b7413ea
-    Reviewed-on: https://go-review.googlesource.com/22450
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id84f65c3908305bde0452b3c8db6df8c5a8881bb
+    Reviewed-on: https://go-review.googlesource.com/21100
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/vendor/golang.org/x/net/route/address.go       | 269 ++++++++++++++
- .../golang.org/x/net/route/address_darwin_test.go  |  63 ++++
- src/vendor/golang.org/x/net/route/address_test.go  | 103 ++++++
- src/vendor/golang.org/x/net/route/binary.go        |  90 +++++
- src/vendor/golang.org/x/net/route/defs_darwin.go   | 106 ++++++
- .../golang.org/x/net/route/defs_dragonfly.go       | 105 ++++++
- src/vendor/golang.org/x/net/route/defs_freebsd.go  | 329 ++++++++++++++++++
- src/vendor/golang.org/x/net/route/defs_netbsd.go   | 104 ++++++
- src/vendor/golang.org/x/net/route/defs_openbsd.go  |  93 +++++
- src/vendor/golang.org/x/net/route/interface.go     |  64 ++++
- .../golang.org/x/net/route/interface_announce.go   |  32 ++
- .../golang.org/x/net/route/interface_classic.go    |  66 ++++
- .../golang.org/x/net/route/interface_freebsd.go    |  78 +++++
- .../golang.org/x/net/route/interface_multicast.go  |  30 ++
- .../golang.org/x/net/route/interface_openbsd.go    |  83 +++++
- src/vendor/golang.org/x/net/route/message.go       |  70 ++++
- .../golang.org/x/net/route/message_darwin_test.go  |  27 ++
- .../golang.org/x/net/route/message_freebsd_test.go | 106 ++++++
- src/vendor/golang.org/x/net/route/message_test.go  |  95 +++++
- src/vendor/golang.org/x/net/route/route.go         |  74 ++++
- src/vendor/golang.org/x/net/route/route_classic.go |  31 ++
- src/vendor/golang.org/x/net/route/route_openbsd.go |  28 ++
- src/vendor/golang.org/x/net/route/route_test.go    | 385 +++++++++++++++++++++
- src/vendor/golang.org/x/net/route/sys.go           |  40 +++
- src/vendor/golang.org/x/net/route/sys_darwin.go    |  80 +++++
- src/vendor/golang.org/x/net/route/sys_dragonfly.go |  71 ++++
- src/vendor/golang.org/x/net/route/sys_freebsd.go   | 150 ++++++++
- src/vendor/golang.org/x/net/route/sys_netbsd.go    |  67 ++++
- src/vendor/golang.org/x/net/route/sys_openbsd.go   |  72 ++++
- src/vendor/golang.org/x/net/route/syscall.go       |  33 ++
- src/vendor/golang.org/x/net/route/syscall.s        |   8 +
- src/vendor/golang.org/x/net/route/zsys_darwin.go   |  93 +++++
- .../golang.org/x/net/route/zsys_dragonfly.go       |  92 +++++
- .../golang.org/x/net/route/zsys_freebsd_386.go     | 120 +++++++
- .../golang.org/x/net/route/zsys_freebsd_amd64.go   | 117 +++++++
- .../golang.org/x/net/route/zsys_freebsd_arm.go     | 117 +++++++
- src/vendor/golang.org/x/net/route/zsys_netbsd.go   |  91 +++++
- src/vendor/golang.org/x/net/route/zsys_openbsd.go  |  80 +++++
- 38 files changed, 3662 insertions(+)
+ src/cmd/go/alldocs.go |  8 +++++---
+ src/cmd/go/build.go   | 14 +-------------
+ 2 files changed, 6 insertions(+), 16 deletions(-)

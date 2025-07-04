@@ -1,13 +1,12 @@
-commit 8ba4df2e9a742f89640b03b484e3d0251ba7fbd8
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Fri Feb 18 10:58:47 2011 +1100
+commit 42ed1ad4a60ed88d776b88d91143d9d62fc58f4d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Feb 18 10:35:49 2011 +1100
 
-    6l: pe fixes
+    html: small documentation fix.
     
-    R=rsc, brainman
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4182061
+    https://golang.org/cl/4169058
 
- src/cmd/6l/pass.c | 2 +-
- src/cmd/ld/pe.c   | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/html/token.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

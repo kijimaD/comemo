@@ -1,20 +1,41 @@
-commit 1c268431f49ee2fc843eac52a0854aea3d02a6e0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Jan 25 11:07:33 2020 -0800
+commit 497ea0610ea3757c6171cae3a85627459b572e5d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 21 20:20:00 2020 -0700
 
-    spec: allow conversion from slice to array ptr
+    cmd/compile: allow inlining of "for" loops
     
-    Implementation follows in subsequent changes.
+    We already allow inlining "if" and "goto" statements, so we might as
+    well allow "for" loops too. The majority of frontend support is
+    already there too.
     
-    Updates #395
+    The critical missing feature at the moment is that inlining doesn't
+    properly reassociate OLABEL nodes with their control statement (e.g.,
+    OFOR) after inlining. This eventually causes SSA construction to fail.
     
-    Change-Id: Ic97ee822805e4c236fdd9d224e776cb2ae62c817
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216424
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    As a workaround, this CL only enables inlining for unlabeled "for"
+    loops. It's left to a (yet unplanned) future CL to add support for
+    labeled "for" loops.
+    
+    The increased opportunity for inlining leads to a small growth in
+    binary size. For example:
+    
+    $ size go.old go.new
+       text    data     bss     dec     hex filename
+    9740163  320064  230656 10290883         9d06c3 go.old
+    9793399  320064  230656 10344119         9dd6b7 go.new
+    
+    Updates #14768.
+    Fixes #41474.
+    
+    Change-Id: I827db0b2b9d9fa2934db05caf6baa463f0cd032a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256459
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- doc/go_spec.html | 24 +++++++++++++++++++++++-
- 1 file changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/inl.go | 18 ++++++++++++++----
+ test/closure3.dir/main.go          |  3 +--
+ test/inline.go                     | 23 +++++++++++++++++++++++
+ 3 files changed, 38 insertions(+), 6 deletions(-)

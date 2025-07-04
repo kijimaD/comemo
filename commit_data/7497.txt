@@ -1,19 +1,15 @@
-commit f80d002438016bf622c961a724ae05f306e6b721
+commit 6e03ed32c7044ceae083b0042132e1c68f197d99
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 17 17:14:19 2011 -0500
+Date:   Thu Feb 17 16:33:26 2011 -0500
 
-    json: only use alphanumeric tags
+    gc: interface error message fixes
     
-    Almost the same definition as Go identifier names.
-    (Leading digits are allowed.)
+    Fixes #1526.
     
-    Fixes #1520.
-    
-    R=r, r2
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4173061
+    https://golang.org/cl/4190051
 
- src/pkg/json/decode.go      | 14 ++++++++------
- src/pkg/json/decode_test.go |  8 ++++++++
- src/pkg/json/encode.go      | 20 +++++++++++++++++---
- 3 files changed, 33 insertions(+), 9 deletions(-)
+ src/cmd/gc/subr.c      | 8 ++++++--
+ src/cmd/gc/typecheck.c | 4 ++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)

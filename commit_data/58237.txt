@@ -1,21 +1,25 @@
-commit 50087aa1b46460c8cd65f28afb59c5f79d8f27d8
-Author: Sean Liao <sean@liao.dev>
-Date:   Thu Nov 14 18:43:29 2024 +0000
+commit 66287d55060d6ca3e9bc81f11dc66dda1cef2633
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 17 12:32:52 2023 -0400
 
-    crypto/rand: add Text for secure random strings
+    cmd/go: drop unnecessary Package arguments
     
-    Fixes #67057
+    There are several functions that take both an Action argument and a
+    Package argument. It takes a decent amount of work to determine that
+    in all cases the value of the Package argument is just Action.Package.
+    This makes these Package arguments both redundant and potentially
+    confusing because it makes these APIs look like they have more
+    flexibility than they actually do.
     
-    Change-Id: Id4a1d07bc45d9ebf90b7e6ef507002908dcfa12d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627477
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Drop these unnecessary Package arguments.
+    
+    For #62067.
+    
+    Change-Id: Ibd3295cf6a79d95ceb421d60671f87e023517f8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536095
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- api/next/67057.txt                              |  1 +
- doc/next/6-stdlib/99-minor/crypto/rand/67057.md |  1 +
- src/crypto/rand/text.go                         | 22 ++++++++
- src/crypto/rand/text_test.go                    | 71 +++++++++++++++++++++++++
- 4 files changed, 95 insertions(+)
+ src/cmd/go/internal/work/exec.go | 62 +++++++++++++++++++++++-----------------
+ 1 file changed, 36 insertions(+), 26 deletions(-)

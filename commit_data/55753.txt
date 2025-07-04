@@ -1,24 +1,25 @@
-commit ed0ad591d31daf911092487ceafb7b440d0ed8ea
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 14 11:56:59 2024 -0500
+commit 86b69ef329c346fc6cc9b262e97bbdce7322288c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 9 14:40:05 2023 -0500
 
-    runtime: merge timerNoStatus into timerRemoved
+    runtime: replace cgoCtxt slice with index in traceback
     
-    For historical reasons, we have to treat a zero timer as
-    the same as an initialized timer that was stopped (removed).
-    The two states are already treated mostly identically.
-    Merge them.
+    Currently, gentraceback consumes the gp.cgoCtxt slice by copying the
+    slice header and then sub-slicing it as it unwinds. The code for this
+    is nice and clear, but we're about to lift this state into a structure
+    and mutating it is going to introduce write barriers that are
+    disallowed in gentraceback.
     
-    This is part of a larger simplification of the state set.
+    This CL replaces the mutable slice header with an index into
+    gp.cgoCtxt.
     
-    [This is one CL in a refactoring stack making very small changes
-    in each step, so that any subtle bugs that we miss can be more
-    easily pinpointed to a small change.]
+    For #54466.
     
-    Change-Id: I9c3aeb8f92bafb18c47489c1ec20a7b87ac5cd9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564122
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I6b701bb67d657290a784baaca34ed02d8247ede2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466863
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/time.go | 33 ++++++++++++---------------------
- 1 file changed, 12 insertions(+), 21 deletions(-)
+ src/runtime/traceback.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

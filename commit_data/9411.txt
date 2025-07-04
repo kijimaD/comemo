@@ -1,12 +1,13 @@
-commit a576535e5e257ee3156b6b69866f91b280c63e94
+commit 1491a20540f377b6f83f5c4a8e823ca20d27d6c5
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 18 14:34:00 2011 +1000
+Date:   Thu Aug 18 14:27:08 2011 +1000
 
-    tag weekly.2011-10-17
+    weekly.2011-08-17
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4867060
+    https://golang.org/cl/4914042
 
- .hgtags | 2 ++
- 1 file changed, 2 insertions(+)
+ .hgtags               |  1 -
+ doc/devel/weekly.html | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)

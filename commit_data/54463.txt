@@ -1,34 +1,55 @@
-commit d18e9407b078001a1ed07c783bb9b624b19f6609
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 13 19:26:32 2023 -0700
+commit 72c58fb77192f7d17d87663c943360a48aae11dc
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Sep 28 11:06:08 2022 -0700
 
-    cmd/compile/internal/ir: add Func.DeclareParams
+    time: implement strict RFC 3339 during marshal and unmarshal
     
-    There's several copies of this function. We only need one.
+    We add strict checking to marshal and unmarshal methods,
+    rather than Parse to maintain compatibility in Parse behavior.
+    Also, the Time.Format method has no ability to report errors.
     
-    While here, normalize so that we always declare parameters, and always
-    use the names ~pNN for params and ~rNN for results.
+    The Time.Marshal{Text,JSON} and Time.Unmarshal{Time,JSON} methods
+    are already documented as complying with RFC 3339, but have
+    edge cases on both marshal and unmarshal where it is incorrect.
+    The Marshal methods already have at least one check to comply
+    with RFC 3339, so it seems sensible to expand this to cover
+    all known violations of the specification.
+    This commit fixes all known edge cases for full compliance.
     
-    Change-Id: I49e90d3fd1820f3c07936227ed5cfefd75d49a1c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528415
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Two optimizations are folded into this change:
+    
+            1. parseRFC3339 is made generic so that it can operate
+               directly on a []byte as well as string.
+               This avoids allocating or redundant copying
+               when converting from string to []byte.
+    
+            2. When marshaling, we verify for correctness based
+               on the serialized output, rather than calling
+               attribute methods on the Time type. For example,
+               it is faster to check that the 5th byte is '-'
+               rather than check that Time.Year is within [0,9999],
+               since Year is a relatively expensive operation.
+    
+    Performance:
+    
+            name            old time/op  new time/op  delta
+            MarshalJSON     109ns ± 2%    99ns ± 1%   -9.43%  (p=0.000 n=10+10)
+            UnmarshalText   158ns ± 4%   143ns ± 1%   -9.17%  (p=0.000 n=9+9)
+    
+    Updates #54580
+    Updates #54568
+    Updates #54571
+    
+    Change-Id: I1222e45a7625d1ffd0629be5738670a84188d301
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444277
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- .../internal/inline/inlheur/analyze_func_params.go |  38 +--
- src/cmd/compile/internal/ir/func.go                |  41 +++-
- src/cmd/compile/internal/ir/name.go                |  11 +-
- src/cmd/compile/internal/ir/node.go                |  13 +-
- src/cmd/compile/internal/logopt/logopt_test.go     |   8 +-
- src/cmd/compile/internal/noder/reader.go           | 266 ++++++---------------
- src/cmd/compile/internal/noder/writer.go           |  20 +-
- src/cmd/compile/internal/reflectdata/alg.go        |  14 +-
- src/cmd/compile/internal/ssa/export_test.go        |  11 +-
- src/cmd/compile/internal/ssagen/abi.go             |   4 +-
- src/cmd/compile/internal/ssagen/ssa.go             |   4 +-
- src/cmd/compile/internal/typecheck/dcl.go          |  90 ++-----
- src/cmd/compile/internal/typecheck/stmt.go         |   1 +
- src/cmd/compile/internal/typecheck/subr.go         |  12 +-
- test/live_uintptrkeepalive.go                      |   7 +-
- 15 files changed, 179 insertions(+), 361 deletions(-)
+ src/time/export_test.go    |  2 +-
+ src/time/format.go         | 16 +++++-----
+ src/time/format_rfc3339.go | 58 +++++++++++++++++++++++++++++++++--
+ src/time/time.go           | 47 ++++++++++++++--------------
+ src/time/time_test.go      | 76 +++++++++++++++++++++++++++++++++++-----------
+ 5 files changed, 147 insertions(+), 52 deletions(-)

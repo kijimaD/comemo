@@ -1,17 +1,15 @@
-commit d3026dd30ac8a5254ec2165938624397fdecf132
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu Apr 5 13:40:51 2018 -0500
+commit 225a2e12fe1930702bc0c522918b2c71471ffdaa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 21 10:09:05 2017 -0500
 
-    cmd/compile/internal/ssa: fix GO386=387 build
+    time: rename internal type data to dataIO
     
-    Don't generate FP ops with 1 operand in memory for 387.
+    This allows LoadTimezoneFromTZData to have a parameter named data.
     
-    Change-Id: I23b49dfa2a1e60c8778c920230e64785a3ddfbd1
-    Reviewed-on: https://go-review.googlesource.com/105035
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I11c115745c7f697244f806bcd654f697dab73de1
+    Reviewed-on: https://go-review.googlesource.com/79017
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules |  6 +--
- src/cmd/compile/internal/ssa/rewrite386.go | 66 ++++++++++++++++++++----------
- 2 files changed, 48 insertions(+), 24 deletions(-)
+ src/time/zoneinfo_read.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

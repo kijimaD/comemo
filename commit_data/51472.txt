@@ -1,49 +1,39 @@
-commit 15e705ea963b5008112793507365e24b743606bc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 30 14:19:39 2022 -0800
+commit fa4d9b8e2bc2612960c80474fca83a4c85a974eb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 13 15:38:14 2022 -0500
 
-    go/types, types2: make the new comparable semantics the default
+    cmd/go/internal/modfetch: do not short-circuit canonical versions
     
-    Ordinary interface types now satisfy comparable constraints.
+    Since at least CL 121857, the conversion logic in
+    (*modfetch).codeRepo.Stat has had a short-circuit to use the version
+    requested by the caller if it successfully resolves and is already
+    canonical.
     
-    This change makes the new comparable semantics the default behavior,
-    depending on the Go -lang version.
+    However, we should not use that version if it refers to a branch
+    instead of a tag, because branches (unlike tags) usually do not refer
+    to a single, stable release: a branch named "v1.0.0" may be for the
+    development of the v1.0.0 release, or for the development of patches
+    based on v1.0.0, but only one commit (perhaps at the end of that
+    branch — but possibly not even written yet!) can be that specific
+    version.
     
-    It also renames the flag types2.Config.AltComparableSemantics to
-    types2.Config.OldComparableSemantics and inverts its meaning
-    (or types.Config.oldComparableSemantics respectively).
+    We already have some logic to prefer tags that are semver-equivalent
+    to the version requested by the caller. That more general case
+    suffices for exact equality too — so we can eliminate the
+    special-case, fixing the bug and (happily!) also somewhat simplifying
+    the code.
     
-    Adjust some existing tests by setting -oldComparableSemantics
-    and add some new tests that verify version-dependent behavior.
+    Fixes #35671
+    Updates #41512
     
-    The compiler flag -oldcomparable may be used to temporarily
-    switch back to the Go 1.18/1.19 behavior should this change
-    cause problems, or to identify that a problem is unrelated
-    to this change. The flag will be removed for Go 1.21.
-    
-    For #52509.
-    For #56548.
-    
-    Change-Id: Ic2b22db9433a8dd81dc1ed9d30835f0395fb7205
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453978
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I2fd290190b8a99a580deec7e26d15659b58a50b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378400
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/base/flag.go              |  4 +--
- src/cmd/compile/internal/noder/irgen.go            |  2 +-
- src/cmd/compile/internal/types2/api.go             |  7 +++--
- src/cmd/compile/internal/types2/check_test.go      |  2 +-
- src/cmd/compile/internal/types2/instantiate.go     | 33 ++++++++++++++++++----
- src/go/types/api.go                                |  7 +++--
- src/go/types/check_test.go                         |  8 +++---
- src/go/types/instantiate.go                        | 33 ++++++++++++++++++----
- src/internal/types/testdata/check/issues1.go       |  2 ++
- .../types/testdata/fixedbugs/issue50646.go         |  2 ++
- .../types/testdata/fixedbugs/issue51257.go         |  2 ++
- src/internal/types/testdata/spec/comparable.go     |  2 --
- src/internal/types/testdata/spec/comparable1.19.go | 28 ++++++++++++++++++
- src/internal/types/testdata/spec/oldcomparable.go  | 28 ++++++++++++++++++
- 14 files changed, 132 insertions(+), 28 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo.go           | 216 +++++++--------
+ src/cmd/go/internal/modfetch/coderepo_test.go      | 301 ++++++++++++---------
+ src/cmd/go/testdata/script/mod_invalid_version.txt |  10 +-
+ 3 files changed, 277 insertions(+), 250 deletions(-)

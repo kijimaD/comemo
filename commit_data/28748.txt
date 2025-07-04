@@ -1,26 +1,28 @@
-commit 809a1de1ac1ccc76f7a4faf630017626f2f68231
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Oct 10 16:26:51 2016 -0700
+commit b30814bbd6840e1574a27c87c37515af22caa5d9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 11 16:15:03 2016 -0700
 
-    crypto/x509: parse all names in an RDN.
+    runtime: add ctxt parameter to cgocallback called from Go
     
-    The Subject and Issuer names in a certificate look like they should be a
-    list of key-value pairs. However, they're actually a list of lists of
-    key-value pairs. Previously we only looked at the first element of each
-    sublist and the vast majority of certificates only have one element per
-    sublist.
+    The cgocallback function picked up a ctxt parameter in CL 22508.
+    That CL updated the assembler implementation, but there are a few
+    mentions in Go code that were not updated. This CL fixes that.
     
-    However, it's possible to have multiple elements and some 360
-    certificates from the “Pilot” log are so constructed.
+    Fixes #16326
     
-    This change causes all elements of the sublists to be processed.
-    
-    Fixes #16836.
-    
-    Change-Id: Ie0a5159135b08226ec517fcf251aa17aada37857
-    Reviewed-on: https://go-review.googlesource.com/30810
+    Change-Id: I5f68e23565c6a0b11057aff476d13990bff54a66
+    Reviewed-on: https://go-review.googlesource.com/24848
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/crypto/x509/pkix/pkix.go | 56 +++++++++++++++++++++++---------------------
- src/crypto/x509/x509_test.go | 52 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 81 insertions(+), 27 deletions(-)
+ src/runtime/cgocall.go         | 2 +-
+ src/runtime/os_nacl.go         | 2 +-
+ src/runtime/signal1_unix.go    | 2 +-
+ src/runtime/signal_darwin.go   | 4 ++--
+ src/runtime/signal_freebsd.go  | 4 ++--
+ src/runtime/signal_openbsd.go  | 4 ++--
+ src/runtime/signal_sigtramp.go | 4 ++--
+ src/runtime/stubs.go           | 4 ++--
+ 8 files changed, 13 insertions(+), 13 deletions(-)

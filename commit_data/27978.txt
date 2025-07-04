@@ -1,18 +1,15 @@
-commit 726190daf3cd66d020369c6ac7df586d53a58a1a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue May 31 13:11:15 2016 -0700
+commit e05b9746ddc6e53864d1ab26fc172b09ccbe321c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 21 20:58:35 2016 -0700
 
-    cmd/compile: explicitly manage default and nil switch cases
+    cmd/compile: map TSLICE to obj.KindSlice directly
     
-    Rather than juggle default and nil cases as part
-    of a slice, handle them explicitly.
-    
-    Change-Id: I97b200c9d3f23fe1a438acdbf3d13b0cf7e0851e
-    Reviewed-on: https://go-review.googlesource.com/26761
+    Change-Id: Idab5f603c1743895b8f4edbcc55f7be83419a099
+    Reviewed-on: https://go-review.googlesource.com/22383
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/swt.go      | 145 ++++++++++++++------------------
- src/cmd/compile/internal/gc/swt_test.go |   2 +-
- 2 files changed, 64 insertions(+), 83 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

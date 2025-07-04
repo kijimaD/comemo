@@ -1,23 +1,27 @@
-commit cb5e181fe7ba9b7412fc661e57551a0f776c294a
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 19 03:16:20 2012 -0500
+commit 3fb5f329b921ed602d70c9a8d98db0bd23ae6c3c
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 19 17:44:02 2012 +1100
 
-    time: switch to using (uncompressed) zoneinfo zip file
+    test/chan: document tests
     
-    Removal of old zoneinfo files is a separate CL due to its size.
-    
-    R=golang-dev, bradfitz, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5676100
+    https://golang.org/cl/5677094
 
- lib/time/README                  |   3 +-
- lib/time/update.bash             |  19 ++++--
- lib/time/zoneinfo.zip            | Bin 0 -> 370359 bytes
- src/pkg/time/sys_plan9.go        |  37 ++++++++++-
- src/pkg/time/sys_unix.go         |  38 ++++++++++-
- src/pkg/time/sys_windows.go      |  64 ++++++++++++++++++
- src/pkg/time/zoneinfo.go         |   9 +--
- src/pkg/time/zoneinfo_read.go    | 140 ++++++++++++++++++++++++++++++++++++++-
- src/pkg/time/zoneinfo_unix.go    |   6 +-
- src/pkg/time/zoneinfo_windows.go |   3 +-
- 10 files changed, 300 insertions(+), 19 deletions(-)
+ test/chan/doubleselect.go | 3 ++-
+ test/chan/fifo.go         | 2 +-
+ test/chan/goroutines.go   | 4 ++--
+ test/chan/nonblock.go     | 4 ++--
+ test/chan/perm.go         | 4 ++++
+ test/chan/powser1.go      | 2 ++
+ test/chan/powser2.go      | 9 ++++++---
+ test/chan/select.go       | 2 ++
+ test/chan/select2.go      | 2 ++
+ test/chan/select3.go      | 2 +-
+ test/chan/select4.go      | 2 ++
+ test/chan/select5.go      | 5 ++++-
+ test/chan/select6.go      | 2 +-
+ test/chan/sieve1.go       | 2 ++
+ test/chan/sieve2.go       | 2 ++
+ test/chan/zerosize.go     | 2 +-
+ 16 files changed, 36 insertions(+), 13 deletions(-)

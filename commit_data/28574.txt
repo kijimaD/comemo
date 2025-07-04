@@ -1,17 +1,16 @@
-commit 03a1dc3522f99bf5045fc41730e6682c1cc7402a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 28 15:04:00 2016 -0700
+commit b89bcc1daeed9980c5ba8a255b37877493952874
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jun 3 16:45:21 2016 +0900
 
-    cmd/compile: don't crash on (unsafe.Sizeof)(0)
+    cmd/go: re-enable TestCgoConsistentResults on solaris
     
-    Fixes #17270.
+    Updates #13247.
     
-    Change-Id: I4affa57e10baf1a758bc0977265d160f220b2945
-    Reviewed-on: https://go-review.googlesource.com/29960
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If5e4c9f4db05f58608b0eeed1a2312a04015b207
+    Reviewed-on: https://go-review.googlesource.com/23741
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 34 +++++++++++++++-----------------
- test/fixedbugs/issue17270.go             | 11 +++++++++++
- 2 files changed, 27 insertions(+), 18 deletions(-)
+ src/cmd/go/go_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

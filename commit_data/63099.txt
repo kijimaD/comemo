@@ -1,0 +1,16 @@
+commit 96d2211c61189f056fa3c7c8d8abb351596c0f2c
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon May 19 15:51:03 2025 -0400
+
+    cmd/compile/internal/noder: mark Ref[T] as a primitive
+    
+    Like Sync, Ref[T] is also used to define things like StringRef.
+    
+    Change-Id: I9e10234504ee4dd03907bb058a6f3ae7e6a287ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674157
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+
+ src/cmd/compile/internal/noder/doc.go | 1 +
+ 1 file changed, 1 insertion(+)

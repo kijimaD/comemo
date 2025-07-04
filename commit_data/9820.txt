@@ -1,15 +1,12 @@
-commit 58a5f1e84f4e6679ffb70a0cc81d786e078b4ef7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 28 09:27:11 2011 -0700
+commit 32d1e46058ce94d1959812ede5a51142bb36263f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 28 12:00:45 2011 -0400
 
-    http: don't send a 400 Bad Request after a client shutdown
+    json: use strings.EqualFold instead of strings.ToLower.
     
-    Fixes #2312
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz, iant
     CC=golang-dev
-    https://golang.org/cl/5143049
+    https://golang.org/cl/5127043
 
- src/pkg/http/serve_test.go | 32 ++++++++++++++++++++++++++++++++
- src/pkg/http/server.go     |  2 ++
- 2 files changed, 34 insertions(+)
+ src/pkg/json/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

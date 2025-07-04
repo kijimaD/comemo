@@ -1,20 +1,18 @@
-commit e12bdc80f2d8b2fa243a7dc362a5dc2a4b545d1e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Oct 11 15:34:09 2023 +0700
+commit 2df6c1abce8cfd3f47ed5eb5a45733d7cbb53b4b
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Wed Jul 27 09:02:17 2022 +0200
 
-    types2, go/types: remove doc link from Func.Pkg comment
+    runtime: remove the started field from sweepdata
     
-    The documentation link only works with exported identifiers. Further,
-    the built-in error interface lives in pseudo package "builtin" only,
-    thus it's not a real package that can be referred using doc links.
+    This bool doesn't seem to be used anymore. Remove it.
     
-    Change-Id: I2116beb27fc73ba33f8352301fe77b4b6abc3ec1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534436
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ic73346a98513c392d89482c5e1d818a90d713516
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419654
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/object.go | 2 +-
- src/go/types/object.go                    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mgcsweep.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

@@ -1,24 +1,26 @@
-commit 5a3b6400ef053d52a3dd25e945f647bc7ea2b088
-Author: Lev Ustimenko <Leva3175@gmail.com>
-Date:   Mon Apr 22 20:09:05 2024 +0000
+commit 30886390c2a59a24c23229f434453ca9ae247962
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 19 14:16:37 2023 -0700
 
-    Refactor output message
+    runtime: in __tsan_fini tell scheduler we are entering non-Go code
     
-    "/reflect/all_test.go : refactor message."
+    __tsan_fini will call exit which will call destructors which
+    may in principle call back into Go functions. Prepare the scheduler
+    by calling entersyscall before __tsan_fini.
     
-    This PR corrects a syntax
+    Fixes #59711
     
-    %value -> %v
-    
-    Change-Id: Ie56b93d238f090c564a88eb963dc9b7773054356
-    GitHub-Last-Rev: 023fde3ed4f31d5d702d76a593a63aaad1b4ac39
-    GitHub-Pull-Request: golang/go#66974
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580935
-    Reviewed-by: Joedian Reid <joedian@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ic4df8fba3014bafa516739408ccfc30aba4f22ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486615
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/reflect/all_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/crash_cgo_test.go                  | 37 ++++++++++++++++++++++++++
+ src/runtime/race.go                            |  7 +++++
+ src/runtime/testdata/testprogcgo/destructor.c  | 22 +++++++++++++++
+ src/runtime/testdata/testprogcgo/destructor.go | 23 ++++++++++++++++
+ 4 files changed, 89 insertions(+)

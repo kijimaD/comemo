@@ -1,20 +1,15 @@
-commit 3afbb690d5dd87949c87a8dd8d88cb4f3489f644
+commit efc806e92e9f7d591b31cdd0db4df4e626323d01
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 2 00:46:36 2016 +0000
+Date:   Wed Dec 9 17:07:44 2015 +0000
 
-    net/url: fix parsing of URLs ending in question mark
+    net/http: clarify some RoundTripper behaviors
     
-    Fixes parsing regression from https://golang.org/cl/19931 which
-    added the URL.ForceQuery field.
+    Fixes #12796
+    Updates #13444
     
-    Fixes #14573
-    
-    Change-Id: I89575cab3f778b1bf78b2389623c866450b26943
-    Reviewed-on: https://go-review.googlesource.com/20116
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I56840c0baf9b32a683086a80f5db1c5ea0a7aedf
+    Reviewed-on: https://go-review.googlesource.com/17680
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/url/url.go      |  2 +-
- src/net/url/url_test.go | 15 +++++++++++++--
- 2 files changed, 14 insertions(+), 3 deletions(-)
+ src/net/http/client.go | 27 +++++++++++++++++----------
+ 1 file changed, 17 insertions(+), 10 deletions(-)

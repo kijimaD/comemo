@@ -1,21 +1,13 @@
-commit 3ce1677ad9f95fb0b1ede191f41996c451e054c1
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Mar 26 15:30:55 2014 +1100
+commit 708a53f9cf618270b609aa72795fb0cdf01260cc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Mar 25 23:21:28 2014 -0400
 
-    cmd/go: ensure external test files are presented to the linker first
+    doc: document Solaris port.
     
-    Fixes #7627.
-    
-    CL 61970044 changed the order in which .a files are passed to gccgo's link phase. However by reversing the order it caused gccgo to complain if both internal (liba.a) and external (liba_test.a) versions of a package were presented as the former would not contain all the necessary symbols, and the latter would duplicate symbols already defined.
-    
-    This change ensures that all 'fake' targets remain at the top of the final link order which should be fine as a package compiled as an external test is a superset of its internal sibling.
-    
-    Looking at how gcToolchain links tests I think this change now accurately mirrors those actions which present $WORK/_test before $WORK in the link order.
-    
-    LGTM=iant
-    R=rsc, iant
-    CC=golang-codereviews, michael.hudson
-    https://golang.org/cl/80300043
+    LGTM=aram, rsc
+    R=aram, adg, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/74750045
 
- src/cmd/go/build.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ doc/install-source.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

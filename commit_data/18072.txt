@@ -1,16 +1,12 @@
-commit 4890502af647b3df6995dda55cff3345836c7d67
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 18 19:36:14 2013 -0500
+commit 674606503e716dbea89166d2df87e2ec887aa4da
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Dec 19 00:58:23 2013 +0100
 
-    liblink: use explicit field for globl duplicate detection
+    syscall: disallow slashes in file names on Plan 9
     
-    Overloading size leads to problems if clients
-    try to set up an LSym by hand.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/44140043
+    https://golang.org/cl/43480050
 
- include/link.h        | 1 +
- src/liblink/objfile.c | 3 ++-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/syscall/dir_plan9.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

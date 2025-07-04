@@ -1,16 +1,12 @@
-commit 5aad5146742146a2b178edb7a14f8c5b0165f787
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Apr 21 10:36:27 2011 +1000
+commit 98cf39e270c3d64a3f45f1e152e59696fd4a9c08
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 20 18:19:22 2011 -0400
 
-    syscall: correct Windows CreateProcess input parameters
+    run.bash: remove redundant rebuilds
     
-    Fixes #1718.
-    
-    R=golang-dev, rsc, peterGo, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4435059
+    https://golang.org/cl/4449041
 
- src/cmd/gotest/gotest.go        | 2 +-
- src/pkg/exec/exec_test.go       | 7 +------
- src/pkg/syscall/exec_windows.go | 3 ++-
- 3 files changed, 4 insertions(+), 8 deletions(-)
+ src/run.bash | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

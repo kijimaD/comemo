@@ -1,32 +1,30 @@
-commit fa2af441f1d7f2daccf40e1e350e8a8bfdcfb9e8
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 2 15:12:53 2014 -0400
+commit 299117eca0f28b6e379c4d5b7e43e2f13cf0cd36
+Author: Michael Hudson-Doyle <michael.hudson@linaro.org>
+Date:   Wed Aug 27 20:18:56 2014 -0700
 
-    runtime: convert traceback*.c to Go
+    debug/elf: support arm64 relocations
     
-    The two converted files were nearly identical.
-    Instead of continuing that duplication, I merged them
-    into a single traceback.go.
+    This adds the minimal support for AArch64/arm64 relocations
+    needed to get cgo to work (when an isomorphic patch is applied
+    to gccgo) and a test.
     
-    Tested on arm, amd64, amd64p32, and 386.
+    This change uses the "AAarch64" name for the architecture rather
+    than the more widely accepted "arm64" because that's the name that
+    the relevant docs from ARM such as
     
-    LGTM=r
-    R=golang-codereviews, remyoudompheng, dave, r
-    CC=dvyukov, golang-codereviews, iant, khr
-    https://golang.org/cl/134200044
+       http://infocenter.arm.com/help/topic/com.arm.doc.ihi0056b/IHI0056B_aaelf64.pdf
+    
+    all use.
+    
+    Fixes #8533.
+    
+    LGTM=iant
+    R=golang-codereviews, aram, gobot, iant, minux
+    CC=golang-codereviews
+    https://golang.org/cl/132000043
 
- src/cmd/api/goapi.go                 |  31 ++-
- src/pkg/runtime/extern.go            |  24 +-
- src/pkg/runtime/heapdump.c           |   4 +-
- src/pkg/runtime/mgc0.c               |   8 +-
- src/pkg/runtime/mprof.go             |  10 +-
- src/pkg/runtime/os_windows_386.go    |  11 +
- src/pkg/runtime/os_windows_amd64.go  |  11 +
- src/pkg/runtime/runtime.h            |   8 +-
- src/pkg/runtime/stack.c              |  12 +-
- src/pkg/runtime/stubs.go             |  20 +-
- src/pkg/runtime/traceback.go         | 504 +++++++++++++++++++++++++++++++++++
- src/pkg/runtime/traceback_arm.c      | 363 -------------------------
- src/pkg/runtime/traceback_windows.go |  64 +++++
- src/pkg/runtime/traceback_x86.c      | 436 ------------------------------
- 14 files changed, 668 insertions(+), 838 deletions(-)
+ src/pkg/debug/elf/elf.go                           | 338 ++++++++++++++++++---
+ src/pkg/debug/elf/file.go                          |  50 ++-
+ src/pkg/debug/elf/file_test.go                     |   6 +
+ .../testdata/go-relocation-test-gcc482-aarch64.obj | Bin 0 -> 3392 bytes
+ 4 files changed, 350 insertions(+), 44 deletions(-)

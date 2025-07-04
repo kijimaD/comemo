@@ -1,25 +1,20 @@
-commit 2de406bb9e26df19a31b5f6111bb221b60964d48
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Feb 20 00:42:27 2023 -0800
+commit eec47d06c1bb7ae6156c3910bfec8a0b5244d157
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Apr 4 22:49:34 2022 -0400
 
-    encoding/json: use append for HTMLEscape
+    api: add x509.CertPool.Equal to next/46057.txt
     
-    Use append for HTMLEscape similar to Indent and Compact.
-    Move it to indent.go alongside Compact, as it shares similar logic.
-    In a future CL, we will modify appendCompact to be written in terms
-    of appendHTMLEscape, but we need to first move the JSON decoder logic
-    out of the main loop of appendCompact.
+    CL 388915 added an exported API but was authored (and tested)
+    before the API check became stricter.
     
-    Change-Id: I131c64cd53d5d2b4ca798b37349aeefe17b418c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471198
+    Updates #46057.
+    
+    Change-Id: Iee6e4969ade77fb0539fa97fcef0047389fb2cf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398237
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/encoding/json/encode.go | 46 ++++-----------------------------------------
- src/encoding/json/indent.go | 30 +++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 42 deletions(-)
+ api/next/46057.txt | 1 +
+ 1 file changed, 1 insertion(+)

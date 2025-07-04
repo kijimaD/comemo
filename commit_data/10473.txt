@@ -1,20 +1,14 @@
-commit 6c9f466273e3214cce22bf4a94e662a3872b13ee
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 21 07:49:14 2011 -0800
+commit f3aa54e30de2c2c71a8735c5f61c9c1d93f7cd9f
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Nov 21 09:56:07 2011 -0500
 
-    json: speed up encoding, caching reflect calls
+    math: faster Cbrt
     
-    Before
-    json.BenchmarkCodeEncoder  10  181232100 ns/op  10.71 MB/s
-    json.BenchmarkCodeMarshal  10  184578000 ns/op  10.51 MB/s
+    For amd64, from 127 to 105 ns/op; for 386, from 208 to 169 ns/op.
     
-    After:
-    json.BenchmarkCodeEncoder  10  146444000 ns/op  13.25 MB/s
-    json.BenchmarkCodeMarshal  10  151428500 ns/op  12.81 MB/s
-    
-    R=rsc, r
+    R=rsc, golang-dev
     CC=golang-dev
-    https://golang.org/cl/5416046
+    https://golang.org/cl/5412056
 
- src/pkg/encoding/json/encode.go | 89 ++++++++++++++++++++++++++++++-----------
- 1 file changed, 66 insertions(+), 23 deletions(-)
+ src/pkg/math/cbrt.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

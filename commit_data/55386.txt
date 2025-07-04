@@ -1,19 +1,20 @@
-commit f19f31f2e7c136a8dae03cbfe4f8ebbb8b54569b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 19 16:51:24 2024 -0500
+commit 38d1a6665f20cb588810355ed4ea061c3b6a19ae
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 1 14:33:31 2023 +0100
 
-    net: work around runtime scheduler starvation on js and wasip1
+    syscall: regenerate zsyscall_windows.go
     
-    Fixes #65177.
-    Updates #65178.
-    Updates #64321.
+    This CL regenerates zsyscall_windows.go, which was incorrectly
+    hand-edited in CL 463842.
     
-    Change-Id: I698fd3b688c7dfbde692eb7c29cbdafc89e7ca32
-    Cq-Include-Trybots: luci.golang.try:gotip-js-wasm,gotip-wasip1-wasm_wasmtime,gotip-wasip1-wasm_wazero
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557037
+    Change-Id: Id556e69a282b2291a0b293b276ed4b9e0aeec105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463848
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/net/net_fake.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/syscall/zsyscall_windows.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,31 +1,19 @@
-commit 805b4d56364ec40f29fc7efba5de537d14036c6a
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Sun May 16 19:52:37 2021 +0200
+commit 7bfe32f39c59056c49f5776b104beaf09b010088
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:54:59 2021 -0600
 
-    cmd/dist: wait for exit in bgwait after a fatal error
+    cmd/internal/obj: reorder ppc64 MOV* optab entries
     
-    Currently, when a command scheduled by bgrun fails, bgwait returns to
-    the caller even in case the fatal error was detected.
+    These are always sorted and grouped during initialization of the
+    actual opcode -> optab map generation. Thus, their initial location
+    in optab is mostly aimed at readability. This cleanup is intends to
+    ease reviewing of future patches which simplify, combine, or remove
+    MOV* optab entries.
     
-    In case of a syntax error in one of the standard packages, as an
-    example, the runInstall function will try to read the generated archive
-    file, only to fail since the file does not exist.  Since the runInstall
-    function is called in a goroutine, cmd/dist will continue to report
-    errors until all background goroutines are done.
-    
-    Update the bgwait function to wait until program termination in case of
-    a fatal error, since returning to the caller (with an error, as an
-    example) will cause cmd/dist to report an additional error during the
-    next build phase.
-    
-    Fixes #45410
-    
-    Change-Id: If89976abad70f8d6ec79b2a5a1f2306e9c034c5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320311
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I87583ed34fab79e0f625880f419d499939e2a9e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300612
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/dist/util.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/internal/obj/ppc64/asm9.go | 304 ++++++++++++++++++-------------------
+ 1 file changed, 148 insertions(+), 156 deletions(-)

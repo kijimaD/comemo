@@ -1,17 +1,14 @@
-commit 8c6461bcb166cf9234be2e61eeab882f5856521b
+commit 7d1d8fe430a3e1463bced18cd4e5bf08a0fa6c75
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 16 18:13:50 2011 -0500
+Date:   Wed Nov 16 17:55:35 2011 -0500
 
-    exp/ssh: fix test?
+    go/printer: make //line formatting idempotent
     
-    Fixes use of c after Dial failure (causes crash).
-    May fix Dial failure by listening to 127.0.0.1:0
-    instead of 0.0.0.0:0 (tests should only listen on
-    localhost).
+    Fixes "test.sh" (long test) in src/cmd/gofmt.
     
-    R=golang-dev, gri
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5395052
+    https://golang.org/cl/5307081
 
- src/pkg/exp/ssh/client_auth_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/go/printer/printer.go | 36 ++++++++++++++++++++++++++++++++++--
+ 1 file changed, 34 insertions(+), 2 deletions(-)

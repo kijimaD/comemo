@@ -1,17 +1,16 @@
-commit 57ad05db1540fd949917708a7551866a2c9e2a47
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 21 13:39:09 2012 -0400
+commit b151af1f36b0e2274bbf4b816a80c940126f6b32
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Sep 21 13:50:02 2012 +0800
 
-    cmd/6g: use all 16 float registers, optimize float moves
+    runtime: fix mmap comments
+    We only pass lower 32 bits of file offset to asm routine.
     
-    Fixes #2446.
-    
-    R=ken2
+    R=r, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6557044
+    https://golang.org/cl/6499118
 
- src/cmd/6g/gsubr.c |  8 ++++----
- src/cmd/6g/peep.c  | 54 ++++++++++++++++++++++++++++++++++++++++++++++--------
- src/cmd/6g/reg.c   |  2 +-
- src/cmd/6l/6.out.h |  8 ++++++++
- 4 files changed, 59 insertions(+), 13 deletions(-)
+ src/pkg/runtime/runtime.h         | 3 +++
+ src/pkg/runtime/sys_freebsd_386.s | 2 +-
+ src/pkg/runtime/sys_netbsd_386.s  | 2 +-
+ src/pkg/runtime/sys_openbsd_386.s | 2 +-
+ 4 files changed, 6 insertions(+), 3 deletions(-)

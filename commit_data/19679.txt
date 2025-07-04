@@ -1,13 +1,13 @@
-commit b157077e34e61125a41f143304e9453c6142b09c
+commit 8543ed3df5595e584e9b06ae937c7ba72dea9bfe
 Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Tue Jul 8 13:44:41 2014 -0400
+Date:   Tue Jul 8 13:43:22 2014 -0400
 
-    cmd/nm: skip test on android (no Go tool)
+    cmd/objdump: skip test on android (no Go tool)
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=minux, iant
+    R=golang-codereviews, minux, iant
     CC=golang-codereviews
-    https://golang.org/cl/107590043
+    https://golang.org/cl/109570043
 
- src/cmd/nm/nm_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/objdump/objdump_test.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

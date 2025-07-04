@@ -1,16 +1,12 @@
-commit 9bc58accce0ab83dab6ca08f0cc319e75f7dd889
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Fri Jul 29 17:39:02 2011 -0400
+commit 31442a6737c98ba5297b348b87bc47edecf667c1
+Author: Kyle Lemons <kyle@kylelemons.net>
+Date:   Fri Jul 29 14:09:07 2011 -0400
 
-    runtime: fix scheduling race
+    xml: Header: fix close tag and newline
     
-    Affects programs using cgo or runtime.LockOSThread.
-    
-    Fixes #2100.
-    
-    R=rsc, dvyukov
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4810059
+    https://golang.org/cl/4830043
 
- src/pkg/runtime/proc.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/pkg/xml/marshal.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

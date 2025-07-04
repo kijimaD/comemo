@@ -1,17 +1,17 @@
-commit 7c9c4fc3a189399385960254facfab6feff55d5f
+commit 2be13a80c78e22a89fba27450cf813a2fe22ebca
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 4 16:58:11 2011 -0700
+Date:   Mon Apr 4 13:53:52 2011 -0700
 
-    http: fix hanging bug with HEAD responses
+    os: add Seek whence constants
     
-    The transport readLoop was waiting forever for the client to
-    read the non-existent body before proceeding to read the next
-    request.
-    
-    R=rsc
+    R=r, r2, rsc1, rsc, jacek.masiulaniec
     CC=golang-dev
-    https://golang.org/cl/4357051
+    https://golang.org/cl/4344062
 
- src/pkg/http/transport.go      |  5 +++--
- src/pkg/http/transport_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 2 deletions(-)
+ src/pkg/archive/tar/reader.go | 2 +-
+ src/pkg/archive/zip/reader.go | 4 ++--
+ src/pkg/debug/elf/file.go     | 6 +++---
+ src/pkg/debug/pe/file.go      | 8 ++++----
+ src/pkg/http/fs.go            | 4 ++--
+ src/pkg/os/file.go            | 7 +++++++
+ 6 files changed, 19 insertions(+), 12 deletions(-)

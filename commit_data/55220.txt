@@ -1,23 +1,21 @@
-commit 7b5a3733fce46aa44449c5ba28876f5a1e630650
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Dec 4 18:29:35 2023 -0500
+commit 2507e7897ba17bb33759c1c496d05bb7d459a31d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 14:39:20 2023 -0800
 
-    cmd/go/internal/modfetch/codehost: add new git tags before statLocal instead of after
+    go/types: provision for generating initorder.go, but disabled for now
     
-    gitRepo.statLocal reports tag and version information.
-    If we are statting a hash that corresponds to a tag, we need to add that tag
-    before calling statLocal so that it can be included in that information.
+    Add the code to generate initorder.go but do not enable the generation
+    of that file for now because the generated  use uses error_ which has
+    implications for gopls use (error_ produces a single error instead of
+    pultiple \t-indented follow-on errors).
     
-    Fixes #53955.
-    Updates #56881.
-    
-    Change-Id: I69a71428e6ed9096d4cb8ed1bb79531415ff06c1
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547155
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I5cd8acdeb8845dbb4716f19cf90d88191dd4216c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461692
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/go/internal/modfetch/codehost/git.go  | 24 ++++++----
- src/cmd/go/testdata/script/get_issue53955.txt | 67 +++++++++++++++++++++++++++
- 2 files changed, 82 insertions(+), 9 deletions(-)
+ src/go/types/generator.go | 42 ++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 34 insertions(+), 8 deletions(-)

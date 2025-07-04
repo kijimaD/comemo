@@ -1,28 +1,22 @@
-commit b31dda8a2ad833ea5ec3c807119372b27cc0e782
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Nov 18 13:43:04 2021 -0800
+commit 1a7d921aa545bb888e06ec7af364c86e919e399f
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Mar 25 12:23:44 2021 -0700
 
-    cmd/compile: handle `any` as alias like `byte` and `rune`
+    cmd/compile: remove typechecker calls in varDecl()
     
-    `types.Types[types.TINTER]` is already used for `interface{}`, so we
-    can conveniently just extend the existing logic that substitutes
-    `byte` and `rune` with `uint8` and `int32` to also substitute `any`.
+    We can now use transformAssign.
     
-    Fixes #49665.
+    The only remaining typechecker calls in the noder2 pass are for
+    CompLitExpr nodes (OCOMPLIT).
     
-    Change-Id: I1ab1954699934150aab899b35037d5611c8ca47e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365354
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I25671c79cc30749767bb16f84e9f151b943eccd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305509
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  5 +++--
- src/cmd/compile/internal/types/fmt.go           |  4 ++--
- src/cmd/compile/internal/types/identity.go      |  2 ++
- src/cmd/compile/internal/types/type.go          | 13 ++++++++++---
- src/cmd/compile/internal/types/universe.go      | 14 +++++++++-----
- test/fixedbugs/issue49665.go                    | 18 ++++++++++++++++++
- test/fixedbugs/issue49665.out                   |  2 ++
- 7 files changed, 46 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/noder/decl.go    | 17 +++++++++++++++--
+ src/cmd/compile/internal/noder/expr.go    |  1 -
+ src/cmd/compile/internal/noder/helpers.go |  4 ----
+ 3 files changed, 15 insertions(+), 7 deletions(-)

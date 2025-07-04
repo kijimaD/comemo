@@ -1,17 +1,41 @@
-commit 80423f1e64f1e939cddc455a29e5111527cd16f8
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Dec 26 16:50:01 2015 +0900
+commit a4be24cbe6b10ee66674834d571c196622ff55ed
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 23 13:27:49 2016 +1100
 
-    os/exec: cleanup and remove duplicated code
+    cmd/compile/internal/gc: remove redundant Nod(OXXX, ...) pattern
     
-    Change-Id: Ia2f61427b1cc09064ac4c0563bccbd9b98767a0e
-    Reviewed-on: https://go-review.googlesource.com/18118
+    The pattern
+    
+        n := Nod(OXXX, nil, nil)
+        Nodconst(n, ...)
+    
+    was a leftover from the C days where n must be heap allocated.
+    
+    No change in benchmarks, none expected as n escapes anyway.
+    
+    name      old time/op    new time/op    delta
+    Template     391ms ± 6%     388ms ± 5%    ~     (p=0.659 n=20+20)
+    GoTypes      1.27s ± 1%     1.27s ± 2%    ~     (p=0.828 n=18+20)
+    Compiler     6.16s ± 2%     6.15s ± 1%    ~     (p=0.947 n=20+20)
+    
+    name      old alloc/op   new alloc/op   delta
+    Template    63.7MB ± 0%    63.7MB ± 0%    ~     (p=0.414 n=20+20)
+    GoTypes      219MB ± 0%     219MB ± 0%    ~     (p=0.904 n=20+20)
+    Compiler     980MB ± 0%     980MB ± 0%  +0.00%  (p=0.007 n=20+19)
+    
+    name      old allocs/op  new allocs/op  delta
+    Template      586k ± 0%      586k ± 0%    ~     (p=0.564 n=19+20)
+    GoTypes      1.80M ± 0%     1.80M ± 0%    ~     (p=0.718 n=20+20)
+    Compiler     7.74M ± 0%     7.74M ± 0%    ~     (p=0.358 n=20+20)
+    
+    The reuse of nc in multiple overlapping scopes in walk.go is the worst.
+    
+    Change-Id: I4ed6a63f7ffbfff68124ad609f6e3a68d95cbbba
+    Reviewed-on: https://go-review.googlesource.com/21015
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/exec/lp_plan9.go        |  8 +++--
- src/os/exec/lp_unix.go         | 10 +++---
- src/os/exec/lp_windows.go      | 69 ++++++++++++------------------------------
- src/os/exec/lp_windows_test.go |  2 +-
- 4 files changed, 29 insertions(+), 60 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 12 ++---
+ src/cmd/compile/internal/gc/walk.go      | 82 ++++++++++++++++----------------
+ 2 files changed, 47 insertions(+), 47 deletions(-)

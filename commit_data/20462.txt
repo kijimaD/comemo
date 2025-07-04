@@ -1,19 +1,83 @@
-commit a2910958a2bcc360e811d1f6f476784b213bb0f1
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Sep 18 12:43:01 2014 +1000
+commit 15b76ad94b1054ec7fd6853530bff782790b5727
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 9 13:39:57 2014 -0400
 
-    image/gif: fix GIF encoding of sub-images.
+    runtime: assume precisestack, copystack, StackCopyAlways, ScanStackByFrames
     
-    benchmark                    old ns/op     new ns/op     delta
-    BenchmarkEncode              8641055       8646829       +0.07%
+    Commit to stack copying for stack growth.
     
-    Fixes #7792.
+    We're carrying around a surprising amount of cruft from older schemes.
+    I am confident that precise stack scans and stack copying are here to stay.
     
-    LGTM=r
-    R=r
-    CC=dbathgate, golang-codereviews
-    https://golang.org/cl/147730043
+    Delete fallback code for when precise stack info is disabled.
+    Delete fallback code for when copying stacks is disabled.
+    Delete fallback code for when StackCopyAlways is disabled.
+    Delete Stktop chain - there is only one stack segment now.
+    Delete M.moreargp, M.moreargsize, M.moreframesize, M.cret.
+    Delete G.writenbuf (unrelated, just dead).
+    Delete runtime.lessstack, runtime.oldstack.
+    Delete many amd64 morestack variants.
+    Delete initialization of morestack frame/arg sizes (shortens split prologue!).
+    
+    Replace G's stackguard/stackbase/stack0/stacksize/
+    syscallstack/syscallguard/forkstackguard with simple stack
+    bounds (lo, hi).
+    
+    Update liblink, runtime/cgo for adjustments to G.
+    
+    LGTM=khr
+    R=khr, bradfitz
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/137410043
 
- src/image/gif/writer.go      | 18 ++++++++++++++----
- src/image/gif/writer_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 4 deletions(-)
+ include/link.h                        |    2 +-
+ src/cmd/dist/buildruntime.c           |    2 +
+ src/liblink/obj5.c                    |   30 +-
+ src/liblink/obj6.c                    |  186 +----
+ src/liblink/obj8.c                    |   39 +-
+ src/runtime/asm_386.s                 |   52 +-
+ src/runtime/asm_amd64.s               |  174 +---
+ src/runtime/asm_amd64p32.s            |  167 +---
+ src/runtime/asm_arm.s                 |   39 +-
+ src/runtime/cgo/gcc_darwin_386.c      |   13 +-
+ src/runtime/cgo/gcc_darwin_amd64.c    |   13 +-
+ src/runtime/cgo/gcc_dragonfly_386.c   |   13 +-
+ src/runtime/cgo/gcc_dragonfly_amd64.c |   13 +-
+ src/runtime/cgo/gcc_freebsd_386.c     |   13 +-
+ src/runtime/cgo/gcc_freebsd_amd64.c   |   13 +-
+ src/runtime/cgo/gcc_freebsd_arm.c     |   13 +-
+ src/runtime/cgo/gcc_linux_386.c       |   13 +-
+ src/runtime/cgo/gcc_linux_amd64.c     |   13 +-
+ src/runtime/cgo/gcc_linux_arm.c       |   13 +-
+ src/runtime/cgo/gcc_netbsd_386.c      |   13 +-
+ src/runtime/cgo/gcc_netbsd_amd64.c    |   13 +-
+ src/runtime/cgo/gcc_netbsd_arm.c      |   13 +-
+ src/runtime/cgo/gcc_openbsd_386.c     |   13 +-
+ src/runtime/cgo/gcc_openbsd_amd64.c   |   13 +-
+ src/runtime/cgo/gcc_windows_386.c     |    6 +-
+ src/runtime/cgo/gcc_windows_amd64.c   |    6 +-
+ src/runtime/cgo/libcgo.h              |    4 +-
+ src/runtime/export_test.go            |    1 -
+ src/runtime/heapdump.c                |    4 +-
+ src/runtime/malloc.go                 |    4 +-
+ src/runtime/mgc0.c                    |   43 +-
+ src/runtime/mgc0.h                    |    2 -
+ src/runtime/os_darwin.c               |    2 +-
+ src/runtime/os_dragonfly.c            |    2 +-
+ src/runtime/os_freebsd.c              |    2 +-
+ src/runtime/os_linux.c                |    2 +-
+ src/runtime/os_nacl.c                 |    2 +-
+ src/runtime/os_netbsd.c               |    2 +-
+ src/runtime/os_openbsd.c              |    2 +-
+ src/runtime/os_solaris.c              |    2 +-
+ src/runtime/panic.c                   |   35 +-
+ src/runtime/proc.c                    |  156 ++--
+ src/runtime/runtime.h                 |   72 +-
+ src/runtime/stack.c                   |  383 +++------
+ src/runtime/stack.h                   |    6 +-
+ src/runtime/stack_gen_test.go         | 1473 ---------------------------------
+ src/runtime/stack_test.go             |   54 --
+ src/runtime/stubs.go                  |    1 -
+ src/runtime/traceback.go              |   38 +-
+ src/runtime/traceback_windows.go      |   63 --
+ 50 files changed, 359 insertions(+), 2894 deletions(-)

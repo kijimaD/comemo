@@ -1,22 +1,19 @@
-commit 9743fdd097171cada6231503974209edc5400ee8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 30 16:36:14 2022 -0700
+commit 165d39a1d460880f2d28619a4609f272448b0d60
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 1 19:29:24 2021 -0400
 
-    go/build: set allTags even when short-circuiting x_GOOS_GOARCH.go
+    [dev.typeparams] test: adjust codegen test for register ABI on ARM64
     
-    Fixes #52053
+    In codegen/arithmetic.go, previously there are MOVD's that match
+    for loads of arguments. With register ABI there are no more such
+    loads. Remove the MOVD matches.
     
-    Change-Id: I0e1f2737f97a4656913b34a731d8de2c77a15b4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396918
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I920ee2629c8c04d454f13a0c08e283d3528d9a64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324251
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/build/build.go                         |  4 +++
- src/go/build/build_test.go                    | 36 +++++++++++++++++++++++++++
- src/go/build/testdata/alltags/alltags.go      |  5 ++++
- src/go/build/testdata/alltags/x_netbsd_arm.go |  5 ++++
- 4 files changed, 50 insertions(+)
+ test/codegen/arithmetic.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

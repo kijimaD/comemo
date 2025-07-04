@@ -1,25 +1,17 @@
-commit 0c0c3c186b1c1a7d3bc9d8a4aaec24767b5bfa81
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 29 16:20:50 2017 -0500
+commit 2d362f7a4917057d6790ddeba1742f009c13feeb
+Author: alexpantyukhin <apantykhin@gmail.com>
+Date:   Tue Sep 5 15:48:56 2017 +0400
 
-    sync/atomic: remove noCopy from Value
+    flag: simplify arg logic in parseOne
     
-    Values must not be copied after the first use.
+    Fixes #21763.
     
-    Using noCopy makes vet complain about copies
-    even before the first use, which is incorrect
-    and very frustrating.
-    
-    Drop it.
-    
-    Fixes #21504.
-    
-    Change-Id: Icd3a5ac3fe11e84525b998e848ed18a5d996f45a
-    Reviewed-on: https://go-review.googlesource.com/80836
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I59ee4f24c8064df64d9ede11aac02bc7ce4995b3
+    Reviewed-on: https://go-review.googlesource.com/61491
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/testdata/copylock.go |  8 +++++---
- src/sync/atomic/value.go         | 12 ------------
- 2 files changed, 5 insertions(+), 15 deletions(-)
+ src/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

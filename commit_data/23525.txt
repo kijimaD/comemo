@@ -1,15 +1,23 @@
-commit 603dc4171aa23c57549ee03b2e3f9beb7403973f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 26 14:52:52 2015 -0700
+commit be59731d9fffb53a499d1ae64863e2a380f2dede
+Author: Ryan Brown <ribrdb@google.com>
+Date:   Wed Apr 8 12:55:34 2015 -0700
 
-    sync: don't run known-racy tests under the race detector
+    cmd/internal/ld: output dwarf in external link mode on darwin
     
-    Fixes the build from https://golang.org/cl/4117 (sync: simplify WaitGroup)
+    Fixes #8973
     
-    Change-Id: Icc2a7ba8acea26fd187d52cf1901bfebf8573f93
-    Reviewed-on: https://go-review.googlesource.com/11591
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I746fae430db6d8f9ebd33586b8cffcb31d688cc8
+    Reviewed-on: https://go-review.googlesource.com/10284
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/sync/export_test.go    | 2 ++
- src/sync/waitgroup_test.go | 8 ++++++++
- 2 files changed, 10 insertions(+)
+ src/cmd/5l/asm.go                          |  14 +-
+ src/cmd/6l/asm.go                          |   2 +-
+ src/cmd/7l/asm.go                          |  14 +-
+ src/cmd/8l/asm.go                          |   2 +-
+ src/cmd/internal/ld/dwarf.go               | 144 +++++++++--
+ src/cmd/internal/ld/lib.go                 |  21 +-
+ src/cmd/internal/ld/macho.go               |   8 +-
+ src/cmd/internal/ld/macho_combine_dwarf.go | 369 +++++++++++++++++++++++++++++
+ 8 files changed, 528 insertions(+), 46 deletions(-)

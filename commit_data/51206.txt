@@ -1,21 +1,24 @@
-commit 1309f0c51d730c87337a167acb70c86da4bb04be
-Author: Richard Tweed <RichardoC@users.noreply.github.com>
-Date:   Thu Nov 10 00:04:07 2022 +0000
+commit b5c0dbaafc548bd432c14935ae242ce1433180e8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 14 17:07:24 2021 -0500
 
-    os: document that WriteFile is not atomic
+    net: eliminate arbitrary timeout in TestVariousDeadlines
     
-    Fixes #56173
+    When we set a timeout, we don't actually have a guarantee one how long
+    the OS will take to notice it. Moreover, if the test deadlocks
+    completely (for example, due to a deadline never taking effect), it
+    would be more useful to get a full goroutine dump instead of the current
+    "client stuck in Dial+Copy" failure message.
     
-    Change-Id: I03a3ad769c99c0bdb78b1d757173d630879fd4dd
-    GitHub-Last-Rev: e3e31fa0b95aba363b13c45f562e3a4c8b31f2cc
-    GitHub-Pull-Request: golang/go#56282
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443495
+    For #37883
+    For #41863
+    
+    Change-Id: I9f712ef1c620f97a5ab69baac45deb71134b99bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371994
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/os/file.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/timeout_test.go | 34 +++++++++++-----------------------
+ 1 file changed, 11 insertions(+), 23 deletions(-)

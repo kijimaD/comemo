@@ -1,14 +1,21 @@
-commit 6e28bf379535ea22e81b5065b2a1ebf6007b5727
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 15:26:45 2016 -0500
+commit 3d5163cf4348b5e697dcbf09897a62893876ac3c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 21 16:12:24 2015 +1000
 
-    doc: fix source link in gdb docs
+    path/filepath: fix EvalSymlinks(".") on windows
     
-    Fixes #12059.
+    Also new tests added. So, perhaps, this CL corrects
+    even more broken EvalSymlinks behaviour.
     
-    Change-Id: Ib5caf8133cd3ed888f9102dfbfeca11c506f3b5b
-    Reviewed-on: https://go-review.googlesource.com/18337
+    Fixes #12451
+    
+    Change-Id: I81b9d92bab74bcb8eca6db6633546982fe5cec87
+    Reviewed-on: https://go-review.googlesource.com/16192
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/debugging_with_gdb.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/path/filepath/path_test.go       |  85 +++++++++++++++++++++++-
+ src/path/filepath/symlink.go         | 125 ++++++++++++++++++++++-------------
+ src/path/filepath/symlink_windows.go |   6 +-
+ 3 files changed, 166 insertions(+), 50 deletions(-)

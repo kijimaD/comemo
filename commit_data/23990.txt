@@ -1,28 +1,15 @@
-commit fc22331ccd015cfdbae73abe72cb6f3e8e2415b9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 5 21:22:10 2015 -0400
+commit 2b3b7dc1a96d4e23d687e1d4cc61dcb076ee3609
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 26 15:13:52 2015 -0700
 
-    net/url: restrict :port checking to [ipv6]:port form
+    archive/tar: also skip header roundtrip test on nacl
     
-    Go 1.4 and earlier accepted mysql://x@y(z:123)/foo
-    and I don't see any compelling reason to break that.
+    Update #11426
     
-    The CL during Go 1.5 that broke this syntax was
-    trying to fix #11208 and was probably too aggressive.
-    I added a test case for #11208 to make sure that stays
-    fixed.
-    
-    Relaxing the check did not re-break #11208 nor did
-    it cause any existing test to fail. I added a test for the
-    mysql://x@y(z:123)/foo syntax being preserved.
-    
-    Fixes #12023.
-    
-    Change-Id: I659d39f18c85111697732ad24b757169d69284fc
-    Reviewed-on: https://go-review.googlesource.com/13253
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I7abc4ed2241a7a3af6d57c934786f36de4f97b77
+    Reviewed-on: https://go-review.googlesource.com/11592
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/url/url.go      | 14 +++++---------
- src/net/url/url_test.go | 18 +++++++++++-------
- 2 files changed, 16 insertions(+), 16 deletions(-)
+ src/archive/tar/tar_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

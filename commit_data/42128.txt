@@ -1,18 +1,61 @@
-commit a9f8f02f3cfba18501669cdf58ae75ca36a4cff0
-Author: Mukesh Sharma <sharma.mukesh439@gmail.com>
-Date:   Sat Apr 25 05:42:10 2020 +0000
+commit cd53fddabb0f39288785cb2777f5250b9a3652b0
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 24 13:48:17 2019 -0400
 
-    cmd/go/internal/cache: fix typing error in errVerifyMode
+    cmd/compile: add framework for logging optimizer (non)actions to LSP
     
-    This change fixes the typing mistake in errVerifyMode error message in cache.
+    This is intended to allow IDEs to note where the optimizer
+    was not able to improve users' code.  There may be other
+    applications for this, for example in studying effectiveness
+    of optimizer changes more quickly than running benchmarks,
+    or in verifying that code changes did not accidentally disable
+    optimizations in performance-critical code.
     
-    Change-Id: I10c405a06e3396f9932db72d9de418d7f8aa013c
-    GitHub-Last-Rev: 14ea7c693cdff599f0c6f64906fe46c2db62a87b
-    GitHub-Pull-Request: golang/go#38655
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230097
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Logging of nilcheck (bad) for amd64 is implemented as
+    proof-of-concept.  In general, the intent is that optimizations
+    that didn't happen are what will be logged, because that is
+    believed to be what IDE users want.
+    
+    Added flag -json=version,dest
+    
+    Check that version=0.  (Future compilers will support a
+    few recent versions, I hope that version is always <=3.)
+    
+    Dest is expected to be one of:
+    
+    /path (or \path in Windows)
+      will create directory /path and fill it w/ json files
+    file://path
+      will create directory path, intended either for
+         I:\dont\know\enough\about\windows\paths
+         trustme_I_know_what_I_am_doing_probably_testing
+    
+    Not passing an absolute path name usually leads to
+    json splattered all over source directories,
+    or failure when those directories are not writeable.
+    If you want a foot-gun, you have to ask for it.
+    
+    The JSON output is directed to subdirectories of dest,
+    where each subdirectory is net/url.PathEscape of the
+    package name, and each for each foo.go in the package,
+    net/url.PathEscape(foo).json is created.  The first line
+    of foo.json contains version and context information,
+    and subsequent lines contains LSP-conforming JSON
+    describing the missing optimizations.
+    
+    Change-Id: Ib83176a53a8c177ee9081aefc5ae05604ccad8a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204338
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/cache/cache.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go              |   4 +
+ src/cmd/compile/internal/gc/main.go                |   9 +
+ src/cmd/compile/internal/gc/ssa.go                 |   4 +-
+ src/cmd/compile/internal/logopt/escape.go          |  13 +
+ .../compile/internal/logopt/escape_bootstrap.go    |  12 +
+ src/cmd/compile/internal/logopt/log_opts.go        | 439 +++++++++++++++++++++
+ src/cmd/compile/internal/logopt/logopt_test.go     | 126 ++++++
+ src/cmd/dist/buildtool.go                          |   1 +
+ src/cmd/internal/obj/inl.go                        |  15 +
+ 9 files changed, 621 insertions(+), 2 deletions(-)

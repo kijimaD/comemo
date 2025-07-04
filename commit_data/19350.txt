@@ -1,26 +1,35 @@
-commit 61d8a33719e0a90f74adb432cdfd3ab3d261d1d5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 14 11:47:19 2014 -0700
+commit 8c2fefe89cbc9fa64e600c400d127905e3c375a5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 14 19:24:00 2014 +0400
 
-    spec: more precise description of select statement
+    cmd/gc: fix out of bounds access
+    AddressSanitizer says:
     
-    - use previously defined terms (with links) throughout
-    - specify evaluation order more precisely (in particular,
-      the evaluation time of rhs expressions in receive cases
-      was not specified)
-    - added extra example case
+    AddressSanitizer: heap-buffer-overflow on address 0x60200001b6f3
+    READ of size 6 at 0x60200001b6f3 thread T0
+        #0 0x46741b in __interceptor_memcmp asan_interceptors.cc:337
+        #1 0x4b5794 in compile src/cmd/6g/../gc/pgen.c:177
+        #2 0x509b81 in funccompile src/cmd/gc/dcl.c:1457
+        #3 0x520fe2 in p9main src/cmd/gc/lex.c:489
+        #4 0x5e2e01 in main src/lib9/main.c:57
+        #5 0x7fab81f7976c in __libc_start_main /build/buildd/eglibc-2.15/csu/libc-start.c:226
+        #6 0x4b16dc in _start (pkg/tool/linux_amd64/6g+0x4b16dc)
     
-    Not a language change.
+    0x60200001b6f3 is located 0 bytes to the right of 3-byte region [0x60200001b6f0,0x60200001b6f3)
+    allocated by thread T0 here:
+        #0 0x493ec8 in __interceptor_malloc asan_malloc_linux.cc:75
+        #1 0x54d64e in mal src/cmd/gc/subr.c:459
+        #2 0x5260d5 in yylex src/cmd/gc/lex.c:1605
+        #3 0x52078f in p9main src/cmd/gc/lex.c:402
+        #4 0x5e2e01 in main src/lib9/main.c:57
     
-    Description matches observed behavior of code compiled
-    with gc and gccgo.
+    If the memory block happens to be at the end of hunk and page bounadry,
+    this out-of-bounds can lead to a crash.
     
-    Fixes #7669.
-    
-    LGTM=iant, r, rsc
-    R=r, rsc, iant, ken, josharian
+    LGTM=dave, iant
+    R=golang-codereviews, dave, iant
     CC=golang-codereviews
-    https://golang.org/cl/91230043
+    https://golang.org/cl/93370043
 
- doc/go_spec.html | 96 +++++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 63 insertions(+), 33 deletions(-)
+ src/cmd/gc/pgen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

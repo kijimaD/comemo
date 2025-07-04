@@ -1,17 +1,17 @@
-commit 2559a98a3cda46084cbdd3ea49217fdc8074ce7a
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Nov 8 12:13:01 2021 -0500
+commit 7b47f9a5f2092dcbc1546304f1f1b739883fa4c4
+Author: Michael Schaller <misch@google.com>
+Date:   Fri Mar 12 12:12:48 2021 +0000
 
-    testing: remove package from fuzz crasher message
+    cmd/compile: mention that -m can be increased or given multiple times
     
-    Fixes #48149
+    -m can be increased or it can be given up to 4 times to increase the verbosity of the printed optimization decisions: https://github.com/golang/go/search?q=LowerM
     
-    Change-Id: Iaf91d2c54fda809c7da90cdfb6d1d075f474c69b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362116
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Julie Qiu <julie@golang.org>
+    Change-Id: I0cc304385be052664fad455ff075846a3a63f298
+    GitHub-Last-Rev: 140f08529024dd17c5ca1cbad52dd1d17c6126c0
+    GitHub-Pull-Request: golang/go#44857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299709
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/testing/fuzz.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

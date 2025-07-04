@@ -1,23 +1,15 @@
-commit 81f1cc52abb0b004d8cd1b130ea293026419acac
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Sat Mar 5 14:48:27 2022 +0300
+commit 4f572d707661e3e84ff262d6c605eb6fa1f77abd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 25 08:21:52 2021 -0800
 
-    html/template: make FuncMap a type alias of text/template.FuncMap
+    io/fs: minor corrections to Sub docs
     
-    In preparation to make html/template and text/template use a
-    single generics package, this change make FuncMap a type alias
-    of text/template.FuncMap.
+    Fixes #44376
     
-    Fixes #46121
-    
-    Change-Id: I5e94cc8fdf4fe029ff223992b5cdfe79f9c098ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/389156
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9cd21adb9d4d434c3d8b8eb8af3042b70c763ea1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296389
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- api/except.txt                | 2 ++
- api/next/46121.txt            | 2 ++
- src/html/template/template.go | 9 +--------
- 3 files changed, 5 insertions(+), 8 deletions(-)
+ src/io/fs/sub.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

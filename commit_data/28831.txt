@@ -1,12 +1,21 @@
-commit 0cc400f0e7e73e1ee870d803b8faf1904c0c9ec3
-Author: Alex Carol <alex.carol.c@gmail.com>
-Date:   Sun Oct 16 00:26:39 2016 +0200
+commit 9fde86b0124b8c75000eb5d05887eff922a24566
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Aug 4 21:34:06 2016 -0400
 
-    net/rpc: add missing import to rpc server documentation
+    runtime, syscall: fix kernel gettimeofday ABI change on iOS 10
     
-    Change-Id: Idca6115181960eed7a955027ee77a02decb4e7f2
-    Reviewed-on: https://go-review.googlesource.com/31179
+    Fixes #16570 on iOS.
+    
+    Thanks Daniel Burhans for reporting the bug and testing the fix.
+    
+    Change-Id: I43ae7b78c8f85a131ed3d93ea59da9f32a02cd8f
+    Reviewed-on: https://go-review.googlesource.com/25481
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/rpc/server.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/sys_darwin_arm.s        | 15 ++++++++++++---
+ src/runtime/sys_darwin_arm64.s      | 14 ++++++++++++--
+ src/syscall/syscall_darwin_arm.go   | 13 +++++++++----
+ src/syscall/syscall_darwin_arm64.go | 13 +++++++++----
+ src/syscall/syscall_darwin_test.go  |  2 +-
+ 5 files changed, 43 insertions(+), 14 deletions(-)

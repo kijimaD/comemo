@@ -1,21 +1,17 @@
-commit 4ffa9a8305ddca86813cda356ddf1529b8054601
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Feb 5 13:51:26 2025 +0100
+commit 53393062ba95299e82ecaa3a0af69315e414e624
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 4 11:13:32 2023 -0800
 
-    crypto/internal/fips140test: support disabling PAA/PAI
+    doc: add release note for go/types.Info.FileVersions
     
-    FIPS 140-3 testing requires testing the module both with and without
-    platform hardware acceleration.
+    For #62605.
     
-    Change-Id: I6a6a4656faad883062d64bc8e2363d4c59bd8cce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648817
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I3c06b835c874c1be5aa5293e3906bdd06c021d87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546836
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- src/crypto/internal/fips140test/acvp_test.go |  8 ++++++++
- src/crypto/internal/fips140test/fips_test.go |  6 ++++++
- src/crypto/internal/impl/impl.go             | 14 ++++++++++++++
- 3 files changed, 28 insertions(+)
+ doc/go1.22.html | 58 ++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 26 insertions(+), 32 deletions(-)

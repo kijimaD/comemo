@@ -1,22 +1,36 @@
-commit 37a5d720d4c4ebf3fd0c8a089a3bde347d72c01a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Nov 28 14:17:11 2021 -0800
+commit 34b87b4a1ab7562858baf74f2320ab881214229e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 2 18:58:56 2021 +0000
 
-    spec: corrections to various sections
+    reflect: remove short-circuits for zero-sized types in ABI algorithm
     
-    - fix definition of "specific types" and add more examples
-    - state that a parameterized function must be instantiated
-      when used as a function value
-    - remove duplicate word ("can can" -> "can")
+    This change removes two short-circuits for zero-sized types (zero-sized
+    structs and zero-sized struct fields) in the recursive cases of the ABI
+    algorithm, because this does not match the spec's algorithm, nor the
+    compiler's algorithm.
     
-    Thanks to @danscales for finding these.
+    The failing case here is a struct with a field that is an array of
+    non-zero length but whose element type is zero-sized. This struct must
+    be stack-assigned because of the array, according to the algorithm.
+    The reflect package was register-assigning it.
     
-    Change-Id: Ideb41efc35a3e67694d3bc97e462454feae37c44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367394
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Because there were two short-circuits, this can also appear if a struct
+    has a field that is a zero-sized struct but contains such an array,
+    also.
+    
+    This change adds regression tests for both of these cases.
+    
+    For #44816.
+    For #40724.
+    
+    Change-Id: I956804170962448197a1c9853826e3436fc8b1ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306929
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go_spec.html | 36 +++++++++++++++++++-----------------
- 1 file changed, 19 insertions(+), 17 deletions(-)
+ src/reflect/abi.go      | 10 ----------
+ src/reflect/abi_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 10 deletions(-)

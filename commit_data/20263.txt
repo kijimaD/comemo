@@ -1,25 +1,18 @@
-commit 0e07f1c99f7ba8f657eaab49bfe106abddbe93a9
+commit f02232072312d6cb7921ad89256894c4cbd0b63c
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 3 11:10:38 2014 -0400
+Date:   Thu Aug 28 11:45:30 2014 -0400
 
-    runtime: introduce, use funcPC to convert Go func to PC
+    runtime: fix build
     
-    This removes the ** unsafe hack.
+    'range hash' makes a copy of the hash array in the stack, creating
+    a very large stack frame. It's just the right amount that it
+    uses most but not all of the total stack size. If you have a lot
+    of environment variables, like the builders, then this is too
+    much and the g0 stack runs out of space.
     
-    Real bug fixed at chan.go:101.
-    
-    LGTM=dave, r, iant
-    R=golang-codereviews, dave, r, iant
-    CC=dvyukov, golang-codereviews, khr
-    https://golang.org/cl/140870044
+    TBR=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/132350043
 
- src/pkg/runtime/chan.go         | 12 +++---------
- src/pkg/runtime/cpuprof.go      |  3 +--
- src/pkg/runtime/export_test.go  |  2 +-
- src/pkg/runtime/hashmap.go      | 24 +++++++-----------------
- src/pkg/runtime/hashmap_fast.go | 24 ++++++------------------
- src/pkg/runtime/proc.go         |  6 ++++++
- src/pkg/runtime/select.go       | 15 +++------------
- src/pkg/runtime/slice.go        | 10 +++-------
- src/pkg/runtime/string.go       |  9 +++------
- 9 files changed, 33 insertions(+), 72 deletions(-)
+ src/pkg/runtime/iface.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,33 @@
-commit 24ef1d60f09314a84ce5915da9caa700cb51f816
-Author: Tamir Duberstein <tamird@gmail.com>
-Date:   Wed Dec 30 11:15:38 2015 -0500
+commit 456528304d4a20ee438b440fd6807c3f5ca7d5e2
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 15 17:58:17 2015 -0400
 
-    cmd/dist: improve isGitRepo to handle git "worktree"s
+    runtime: make assists preemptible
     
-    Simply checking the exit code of `git rev-parse --git-dir` should
-    suffice here, but that requires deviating from the infrastructure
-    provided by `run`, so I've left that for a future change.
+    Currently, assists are non-preemptible, which means a heavily
+    assisting G can block other Gs from running. At the beginning of a GC
+    cycle, it can also delay scang, which will spin until the assist is
+    done. Since scanning is currently done sequentially, this can
+    seriously extend the length of the scan phase.
     
-    Originally by Tamir Duberstein but updated by iant & rsc to add
-    the filepath.Join logic.
+    Fix this by making assists preemptible. Since the assist holds work
+    buffers and runs on the system stack, this must be done cooperatively:
+    we make gcDrainN return on preemption, and make the assist return from
+    the system stack and voluntarily Gosched.
     
-    Fixes #11211 (again).
+    This is prerequisite to enlarging the work buffers. Without this
+    change, the delays and spinning in scang increase significantly.
     
-    Change-Id: I6d29b5ae39ba456088ae1fb5d41014cb91c86897
-    Reviewed-on: https://go-review.googlesource.com/18323
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This has no effect on the go1 benchmarks.
+    
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  5.72ms ± 4%  5.37ms ± 5%  -6.11%  (p=0.000 n=20+20)
+    
+    Change-Id: I829e732a0f23b126da633516a1a9ec1a508fdbf1
+    Reviewed-on: https://go-review.googlesource.com/15894
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/build.go | 21 +++++++++------------
- 1 file changed, 9 insertions(+), 12 deletions(-)
+ src/runtime/mgcmark.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

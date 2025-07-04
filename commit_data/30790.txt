@@ -1,16 +1,18 @@
-commit 22ea7fc1a9d3af3b09c823b60f7b7cc81cea4f48
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 22 10:27:30 2017 -0700
+commit 8c31f40a4c1c3474a7c24684cc47845b0ec06974
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 5 10:00:38 2016 -0800
 
-    cmd/compile/internal/gc: make SSAGenFPJump a method of SSAGenState
+    runtime: don't skip TestCgoCallbackGC on FreeBSD
     
-    Change-Id: Ie22a08c93dfcfd4b336e7b158415448dd55b2c11
-    Reviewed-on: https://go-review.googlesource.com/38407
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Seems to be fixed according to discussion on issue 16396.
+    
+    Fixes #16396.
+    
+    Change-Id: Ibac7037a24280204e48cb4d3000af524f65afd36
+    Reviewed-on: https://go-review.googlesource.com/33903
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 4 ++--
- src/cmd/compile/internal/gc/ssa.go    | 2 +-
- src/cmd/compile/internal/x86/ssa.go   | 4 ++--
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/crash_cgo_test.go | 2 --
+ 1 file changed, 2 deletions(-)

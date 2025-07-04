@@ -1,19 +1,17 @@
-commit cb867d2fd64adc851f82be3c6eb6e38ec008930b
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Sun Jun 21 20:07:29 2015 +0200
+commit 1122836b5f07bc9d76ec8667bab34f97e48a75e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 28 23:25:38 2015 -0400
 
-    os/user: don't depend on _SC_GETPW_R_SIZE_MAX on Linux
+    cmd/compile: reject large floating point exponents without math/big
     
-    Even Linux systems may not have _SC_GETPW_R_SIZE_MAX if using a
-    different libc than glibc (e.g. musl). Instead of having special-cases
-    for the BSDs, handle -1 correctly by always using a default buffer size.
+    For #11326 (but not a fix).
     
-    Fixes #11319.
-    
-    Change-Id: I8b1b260eb9830e6dbe7667f3f33d115ae4de4ce8
-    Reviewed-on: https://go-review.googlesource.com/13772
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic51814f5cd7357427c3fd990a5522775d05e7987
+    Reviewed-on: https://go-review.googlesource.com/11673
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/user/lookup_unix.go | 19 ++++++++-----------
- 1 file changed, 8 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/mparith3.go | 27 ++++++++++++++++++++
+ src/go/types/stdlib_test.go             | 10 +++++---
+ test/fixedbugs/issue11326.go            | 28 +++++++++++++++++++++
+ test/fixedbugs/issue11326b.go           | 44 +++++++++++++++++++++++++++++++++
+ 4 files changed, 105 insertions(+), 4 deletions(-)

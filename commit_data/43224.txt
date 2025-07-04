@@ -1,22 +1,24 @@
-commit 5d1378143bc07791296abb420df35537ad80492f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 7 16:37:05 2020 -0700
+commit 5d9cdbb84085407b54f618084bbb9c742b86ecd1
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Mar 5 14:37:59 2020 -0500
 
-    cmd/cgo: add more architectures to size maps
+    [dev.link] cmd/link: remove *Link from some arch functions
     
-    This brings over the architectures that the gofrontend knows about.
-    This permits using the main cgo tool for those architectures,
-    as cgo can be used with -godefs without gc support.
-    This will help add golang.org/x/sys/unix support for other architectures.
-    
-    For #37443
-    
-    Change-Id: I63632b9c5139e71b9ccab8edcc7acdb464229b74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260657
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ia7f9a999af5285885987b83a877b205b274342a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222306
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/cgo/main.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/cmd/link/internal/amd64/asm.go   | 2 +-
+ src/cmd/link/internal/arm/asm.go     | 2 +-
+ src/cmd/link/internal/arm64/asm.go   | 2 +-
+ src/cmd/link/internal/ld/data.go     | 4 ++--
+ src/cmd/link/internal/ld/lib.go      | 2 +-
+ src/cmd/link/internal/mips/asm.go    | 2 +-
+ src/cmd/link/internal/mips64/asm.go  | 2 +-
+ src/cmd/link/internal/ppc64/asm.go   | 2 +-
+ src/cmd/link/internal/riscv64/asm.go | 4 ++--
+ src/cmd/link/internal/s390x/asm.go   | 2 +-
+ src/cmd/link/internal/x86/asm.go     | 2 +-
+ 11 files changed, 13 insertions(+), 13 deletions(-)

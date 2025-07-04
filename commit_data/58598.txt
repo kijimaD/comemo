@@ -1,71 +1,23 @@
-commit 7472b4c324970895b1d44f39c284d72c40d4b621
-Author: David Chase <drchase@google.com>
-Date:   Wed Jan 8 17:01:05 2025 -0500
+commit ebca52eeb77f24f44c9b556b99508a9a6fada743
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 19:54:51 2023 +0800
 
-    cmd/compile: include liveness info in GOSSAFUNC output
+    cmd/compile/internal: add register info for loong64 regABI
     
-    For this function
-    ```
-    func test(a, b int, c string, s []int, r [3]int, f ifn) {
-            in(a)
-            in(b)
-            sl(s)
-            ar(r)
-            fu(f)
-    }
-    ```
-    this output
-    ```
-    HASH live at entry to test: f s
-    HASH /Users/drchase/work/src/live/main.go
-            00000 (15) TEXT main.test(SB), ABIInternal
-            00001 (15) FUNCDATA $0, gclocals·vYpXgR4/KsH5nhFsqkHG1Q==(SB)
-            00002 (15) FUNCDATA $1, gclocals·Soq6RzO4SX8YA1O9euewoQ==(SB)
-            00003 (15) FUNCDATA $5, main.test.arginfo1(SB)
-            00004 (15) FUNCDATA $6, main.test.argliveinfo(SB)
-    b1      00005 (15) PCDATA $3, $1
-    v32     00006 (21) MOVD R6, main.s+72(RSP)
-    v27     00007 (21) MOVD R5, main.s+64(RSP)
-    v30     00008 (21) MOVD R4, main.s+56(RSP)
-    v7      00009 (21) MOVD R1, main.b+32(RSP)
-    v34     00010 (21) MOVD R7, main.f+80(RSP)
-    v34     00011 (21) PCDATA $3, $2
-    v15     00012 (+16) PCDATA $1, $0
-    HASH live at call to in: f s
-    v15     00013 (+16) CALL main.in(SB)
-    v3      00014 (+17) MOVD main.b+32(RSP), R0
-    HASH live at call to in: f s
-    v17     00015 (+17) CALL main.in(SB)
-    v8      00016 (+18) MOVD main.s+56(RSP), R0
-    v21     00017 (18) MOVD main.s+64(RSP), R1
-    v33     00018 (18) MOVD main.s+72(RSP), R2
-    v19     00019 (+18) PCDATA $1, $1
-    HASH live at call to sl: f
-    v19     00020 (+18) CALL main.sl(SB)
-    v29     00021 (+19) LDP main.r(RSP), (R1, R2)
-    v9      00022 (19) STP (R1, R2), 8(RSP)
-    v12     00023 (19) MOVD main.r+16(RSP), R1
-    v31     00024 (19) MOVD R1, 24(RSP)
-    HASH live at call to ar: f
-    v22     00025 (+19) CALL main.ar(SB)
-    v35     00026 (+20) MOVD main.f+80(RSP), R0
-    v24     00027 (+20) PCDATA $1, $2
-    HASH live at call to fu:
-    v24     00028 (+20) CALL main.fu(SB)
-    b1      00029 (21) RET
-            00030 (?) END
-    ```
+    Update #40724
     
-    Where "HASH" is the git commit comment character I don't know how
-    to escape and this was easier than fighting with git.
-    
-    Change-Id: I0691a3f7988db111d11d69388ace83641a841e57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641360
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: Ifd7d94147b01e4fc83978b53dca2bcc0ad1ac4e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521779
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
 
- src/cmd/compile/internal/liveness/mergelocals.go |  2 +-
- src/cmd/compile/internal/liveness/plive.go       | 76 +++++++++++++++---------
- src/cmd/compile/internal/ssagen/ssa.go           | 27 ++++++++-
- 3 files changed, 75 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/loong64/ssa.go         | 2 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 4 ++--
+ src/cmd/compile/internal/ssa/config.go          | 2 ++
+ src/cmd/compile/internal/ssa/opGen.go           | 4 ++--
+ 4 files changed, 8 insertions(+), 4 deletions(-)

@@ -1,22 +1,24 @@
-commit a3c1836d80314607f01a5732ae1fc22a0ae17671
-Author: chanxuehong <chanxuehong@gmail.com>
-Date:   Mon Jul 24 08:58:16 2023 +0000
+commit e2d2d3a4a6edf1e571a5aca1eaaf55ffcc4d6eba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 17:40:21 2022 -0700
 
-    encoding/base32: reduce overflow risk when calc encode/decode len
+    go/types: test shifts that are disabled in shared test file
     
-    Same as https://go-review.googlesource.com/c/go/+/510635, reduces risk of overflow
+    CL 425735 consolidated the testdata/check/shifts.go files between
+    go/types and types2. Because some shifts don't work correctly with
+    types2, the corresponding tests were disabled in the shared file.
+    Make sure we keep testing those shifts for go/types by adding a
+    local test file.
     
-    Change-Id: I18f5560d73af76c3e853464a89ad7e42dbbd5894
-    GitHub-Last-Rev: 652c8c6712886184e59a110c3fa1e6dcb643d93b
-    GitHub-Pull-Request: golang/go#61547
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512200
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    For #52080.
+    For #54511.
+    
+    Change-Id: I53507e535bf83b204eaf18fc6c2efefcebf5ebf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426661
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/encoding/base32/base32.go      |   5 +-
- src/encoding/base32/base32_test.go | 126 ++++++++++++++++++++++++-------------
- 2 files changed, 83 insertions(+), 48 deletions(-)
+ src/go/types/testdata/local/shifts.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

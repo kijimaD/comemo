@@ -1,15 +1,19 @@
-commit e04ff3d133913ae5665d0da1baeffdcd4dc93bdf
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Oct 3 02:53:01 2017 -0700
+commit 0b81c023a722304304539cdbb0c6229bca481b09
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 18:29:49 2017 +0000
 
-    archive/tar: fix typo in documentation
+    os: clarify behavior of TempDir
     
-    s/TypeSymLink/TypeSymlink/g
+    Fixes #19695
     
-    Change-Id: I2550843248eb27d90684d0036fe2add0b247ae5a
-    Reviewed-on: https://go-review.googlesource.com/67810
+    Change-Id: Ie5103f7905969e25dba6e5fb37344b70e807fc69
+    Reviewed-on: https://go-review.googlesource.com/45702
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/tar/reader.go | 2 +-
- src/archive/tar/writer.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/os/file.go         | 13 +++++++++++++
+ src/os/file_plan9.go   |  3 +--
+ src/os/file_unix.go    |  3 +--
+ src/os/file_windows.go |  3 +--
+ 4 files changed, 16 insertions(+), 6 deletions(-)

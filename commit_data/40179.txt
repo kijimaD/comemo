@@ -1,18 +1,24 @@
-commit c7d7042efccd36182daea44584ee83762c0ca3d2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 1 09:59:53 2019 -0700
+commit 80e7832733fd245181af3394077f2df21303a4aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 23 12:19:57 2019 -0400
 
-    go/types: simplify some code and remove TODOs (cleanup)
+    cmd/go: change -tags to a comma-separated list
     
-    - remove Checker.cycle in favor of using a "seen" map
-    - rename Checker.typeCycle -> Checker.cycle
-    - remove TODO in api.go since the API is frozen
+    Using commas makes it possible to put multiple tags into GOFLAGS.
+    The space-separated form is still recognized and will be maintained.
     
-    Change-Id: I182a8215978dad54e9c6e79c21c5ec88ec802349
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198042
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Alleviates #26849 somewhat.
+    Fixes #18800 (again).
+    
+    Change-Id: I6f4cf28ea31e53e21ccbdad6ef1a0aee63b007d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173438
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Cottrell <iancottrell@google.com>
 
- src/go/types/api.go      |  3 ---
- src/go/types/decl.go     | 14 ++++++--------
- src/go/types/resolver.go | 29 ++++++-----------------------
- 3 files changed, 12 insertions(+), 34 deletions(-)
+ src/cmd/go/alldocs.go                         |  6 ++++--
+ src/cmd/go/go_test.go                         |  2 +-
+ src/cmd/go/internal/work/build.go             | 31 ++++++++++++++++++++++++---
+ src/cmd/go/testdata/script/mod_build_tags.txt |  3 +++
+ 4 files changed, 36 insertions(+), 6 deletions(-)

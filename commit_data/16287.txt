@@ -1,15 +1,8 @@
-commit 2184282308566ad6fd445ea55ab755019e360d77
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 14 09:43:56 2013 -0700
+commit 0bfee01523d806482fab2703ff7b6b6505f9f726
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 13 13:04:08 2013 -0700
 
-    cmd/api: don't print out except.txt removed features to stdout
-    
-    It's just noise. They've already been acknowledged in except.txt.
-    
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/9392047
+    tag go1.1
 
- src/cmd/api/goapi.go      | 7 ++++++-
- src/cmd/api/goapi_test.go | 2 +-
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

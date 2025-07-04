@@ -1,20 +1,26 @@
-commit 85387aa364f5ebb8c1c10ee2de78ae8ded5a80dd
-Author: Keith Randall <khr@google.com>
-Date:   Tue Apr 30 09:47:19 2019 -0700
+commit d177e10d2268d92e1babbbdf98fa992cb55bcff4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 13 19:50:40 2018 +0000
 
-    cmd/compile: remove dynamic entry handling from sinit/maplit
+    cmd/vendor: update vendored golang.org/x/sys/unix
     
-    The order pass now handles all the dynamic entries.
+    To x/sys git rev 4d1cda033e0619309c606fc686de3adcf599539e
     
-    Update #26552
+    Fixes #29224
     
-    Followup to CL 174417
-    
-    Change-Id: Ie924cadb0e0ba36c423868f654f13040100b44c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174498
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I696c815b4c2d26e8340c77cb77d1a37245c40ed2
+    Reviewed-on: https://go-review.googlesource.com/c/154117
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/sinit.go | 52 ++++++++++++------------------------
- 1 file changed, 17 insertions(+), 35 deletions(-)
+ .../golang.org/x/sys/unix/example_exec_test.go     |  19 ++
+ .../{example_test.go => example_flock_test.go}     |   7 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mksyscall.pl  | 341 ---------------------
+ .../vendor/golang.org/x/sys/unix/sockcmsg_unix.go  |  14 +-
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   9 +-
+ .../golang.org/x/sys/unix/syscall_linux_arm.go     |   8 +
+ .../golang.org/x/sys/unix/zsyscall_linux_arm.go    |  10 +
+ src/cmd/vendor/vendor.json                         |   6 +-
+ 8 files changed, 48 insertions(+), 366 deletions(-)

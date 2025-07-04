@@ -1,33 +1,24 @@
-commit 522be4e01000abe771362984f8d351c8452cceef
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 16 11:34:14 2023 -0700
+commit d667be88310de6f91d9f1a88d949ea6c5b48650d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 30 14:49:28 2022 -0700
 
-    go/types, types2: remove superfluous argument test in Checker.arguments
+    [dev.unified] cmd/compile/internal/walk: RType fields for range assignments
     
-    There's only two places which call Checker.arguments: Checker.callExpr
-    and Checker.builtin. Both ensure that the passed argument list doesn't
-    contain type expressions, so we don't need that extra check at the start
-    of Checker.arguments.
+    This CL adds extra fields to RangeStmt that can be used when
+    desugaring into primitive assignment statements. This will allow the
+    frontend to wire up all of the RTTI necessary, pulling from
+    dictionaries as necessary.
     
-    The remaining check causes Checker.arguments to exit early if any of
-    the passed arguments is invalid. This reduces the number of reported
-    errors in rare cases but is executed all the time.
-    If the extra errors are a problem, it would be better to not call
-    Checker.arguments in the first place, or only do the extra check
-    before Checker.arguments reports an error.
+    Updates #53328.
     
-    Removing this code for now. Removes a long-standing TODO.
-    
-    Change-Id: Ief654b680eb6b6a768bb1b4c621d3c8169953f17
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495395
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Iab0e3029ff18c947782ff24f71ef20b2b5cb8305
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415518
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types2/call.go             | 11 -----------
- src/go/types/call.go                                | 11 -----------
- src/internal/types/testdata/check/expr3.go          |  2 +-
- src/internal/types/testdata/fixedbugs/issue39634.go |  2 +-
- 4 files changed, 2 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/ir/stmt.go    |  8 ++++++++
+ src/cmd/compile/internal/walk/range.go | 20 ++++++++++++++++++--
+ 2 files changed, 26 insertions(+), 2 deletions(-)

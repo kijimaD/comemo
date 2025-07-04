@@ -1,16 +1,21 @@
-commit 829425d3ce34615726de2c91725c891393370879
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 26 11:45:50 2015 -0500
+commit c720875b76d1a003cdcde38687ae537dda6a59fa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 22 17:47:38 2015 -0700
 
-    bufio: clarify Read docs
+    spec: minor adjustment of prose in composite literal section
     
-    Or at least make them true.
+    The prose discussing composite literals referred to the composite
+    literal type with 'LiteralType', denoting the literal type's EBNF
+    production explicitly. Changed 'LiteralType' to 'literal type' to
+    remove the literal (no pun intended) connection and instead mean
+    the underlying type. Seems a simpler and more readable change
+    than referring to the underlying type everywhere explicitly.
     
-    Fixes #12237.
+    Fixes #12717.
     
-    Change-Id: I3c92a07233b2174c5731d6fa7fbb9ca3a97beb6b
-    Reviewed-on: https://go-review.googlesource.com/17237
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I225df95f9ece2664b19068525ea8bda5ca05a44a
+    Reviewed-on: https://go-review.googlesource.com/14851
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/bufio/bufio.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,22 +1,24 @@
-commit ff8a2c0ad982ed96aeac42f0c825219752e5d2f6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 21 15:33:28 2024 -0800
+commit 269bdcd56866d5cd5789164d3f7420a66c524a8a
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Mar 9 13:20:01 2023 -0500
 
-    go/types: generate mono.go from types2 source
+    cmd/compile: remove -wrapglobalmapinit flag
     
-    This CL reduces the amount of code that needs to be maintained
-    manually by about 340 LOC.
+    Remove the compiler's "-wrapglobalmapinit" flag; it is potentially
+    confusing for users and isn't appropriate as a top level flag. Move
+    the enable/disable control to the "wrapglobalmapctl" debug flag
+    (values: 0 on by default, 1 disabled, 2 stress mode). No other changes
+    to compiler functionality.
     
-    Change-Id: If7b96c30e5a2f1ff28ebf4ca2f3ac3f73d6a8865
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565839
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I0d120eaf90ee34e29d5032889e673d42fe99e5dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475035
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/mono.go |  6 +++---
- src/cmd/compile/internal/types2/util.go |  3 +++
- src/go/types/generate_test.go           | 13 +++++++++----
- src/go/types/mono.go                    |  4 +++-
- src/go/types/util.go                    |  3 +++
- 5 files changed, 21 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/base/debug.go       | 6 +++---
+ src/cmd/compile/internal/base/flag.go        | 2 --
+ src/cmd/compile/internal/gc/main.go          | 2 +-
+ src/cmd/compile/internal/ssagen/pgen.go      | 2 +-
+ src/cmd/compile/internal/staticinit/sched.go | 4 ++--
+ 5 files changed, 7 insertions(+), 9 deletions(-)

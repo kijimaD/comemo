@@ -1,41 +1,21 @@
-commit 3563792768b1e06da4a0cb5f946adf90d1297766
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Sep 22 15:57:46 2023 -0400
+commit 3848b44c754229125195e2f95bb71868d1a36f56
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 31 13:41:59 2022 -0700
 
-    net/http: unescape paths and patterns by segment
+    os: in TestDirFS only check returned path for unexpected string
     
-    When parsing patterns and matching, split the path into segments at
-    slashes, then unescape each segment.
+    The test added in CL 446115 was failing on Plan 9, on which the error
+    returned by a failed open includes the path that failed.
     
-    This behaves as most people would expect:
-    
-    - The pattern "/%61" matches the paths "/a" and "/%61".
-    
-    - The pattern "/%7B" matches the path "/{". (If we did not unescape
-      patterns, there would be no way to write that pattern: because "/{"
-      is a parse error because it is an invalid wildcard.)
-    
-    - The pattern "/user/{u}" matches "/user/john%2Fdoe" with u set to
-      "john/doe".
-    
-    - The unexpected redirections of #21955 will not occur.
-    
-    A later CL will restore the old behavior behind a GODEBUG setting.
-    
-    Updates #61410.
-    
-    Fixes #21955.
-    
-    Change-Id: I99025e149021fc94bf87d351699270460db532d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530575
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: If27222596c3cb0366a030bb49ae41c4c869c3db2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446641
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/http/pattern.go           | 12 ++++++
- src/net/http/pattern_test.go      |  6 +++
- src/net/http/request_test.go      | 84 +++++++++++++++++++++++++++++++--------
- src/net/http/routing_tree.go      | 19 +++------
- src/net/http/routing_tree_test.go |  2 +
- src/net/http/server.go            | 12 +++---
- 6 files changed, 97 insertions(+), 38 deletions(-)
+ src/os/os_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

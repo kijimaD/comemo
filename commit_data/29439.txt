@@ -1,14 +1,21 @@
-commit 7465bfb1ea1a7ddfec9b267587ee9e6200514f3f
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Mon Oct 31 10:23:50 2016 -0700
+commit 8a0bd5dc01f21888525e58d42efdc9dd246748d6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 15 00:21:28 2016 -0700
 
-    path: document that filepath is recommended to manipulate filename paths
+    cmd/compile: eliminate differences in appendpp functions
     
-    Fixes #17690.
+    Consistently use int16 for [ft]reg and int64 for [ft]offset.
     
-    Change-Id: Ifd300980aa4c11498ed7c083d08bcdd23f5b307a
-    Reviewed-on: https://go-review.googlesource.com/32423
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7d279bb6e4fb735105429234a949074bf1cefb29
+    Reviewed-on: https://go-review.googlesource.com/29215
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/path/path.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/amd64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/arm/ggen.go    | 18 +++++++++---------
+ src/cmd/compile/internal/arm64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/mips64/ggen.go |  6 +++---
+ src/cmd/compile/internal/ppc64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/x86/ggen.go    |  6 +++---
+ 6 files changed, 24 insertions(+), 24 deletions(-)

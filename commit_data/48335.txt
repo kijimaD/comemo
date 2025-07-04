@@ -1,27 +1,25 @@
-commit 7160e3252991d9462ee3a155b5504c564a6cffe5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 8 14:59:32 2022 -0800
+commit 8ec8f6aa87569a6bc567d4a7039fc22a473b37ec
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Jan 31 04:21:47 2021 +1100
 
-    cmd/compile: mark instantiated generic functions as DUPOK
+    runtime: switch openbsd/arm to pthreads
     
-    Unified IR wasn't marking instantiated generic functions as DUPOK,
-    even though they can appear in multiple compilation units, which
-    evidently interfered with cmd/link's dead code elimination logic.
+    This switches openbsd/arm to thread creation via pthreads, rather than doing
+    direct system calls.
     
-    Manually confirmed to fix the issue, but non-trivial to test within
-    $GOROOT/test currently, because it's only reproducible when
-    cmd/compile is invoked with -p. @rsc is currently investigating
-    updating test/run.go appropriately, after which I'll revisit writing a
-    test case.
+    Update #36435
     
-    Fixes #51519.
-    
-    Change-Id: I74a79ed0ca15b25b826e419714af5ceb6e567012
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390956
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia8749e3723a9967905c33b6d93dfd9be797a486c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315790
+    Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/reader.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/runtime/asm_arm.s             |  13 +++
+ src/runtime/defs_openbsd_arm.go   |   9 ++
+ src/runtime/os_openbsd_libc.go    |   4 +-
+ src/runtime/os_openbsd_syscall.go |   4 +-
+ src/runtime/proc.go               |   2 +-
+ src/runtime/sys_libc.go           |   4 +-
+ src/runtime/sys_openbsd.go        |   4 +-
+ src/runtime/sys_openbsd_arm.s     | 207 ++++++++++++++++++++++----------------
+ 8 files changed, 153 insertions(+), 94 deletions(-)

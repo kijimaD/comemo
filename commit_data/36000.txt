@@ -1,17 +1,18 @@
-commit 1177b089f5285aadf8eab72bcbbdce553ff03e36
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 12 11:57:05 2018 -0700
+commit a25d0d8fb901e9b6fa68b0f9d4e23d16bf201aff
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Mar 27 16:00:57 2018 -0400
 
-    cmd/cgo: add note about bug writing C pointers to uninitialized C memory
+    crypto/x509: cache the result of SystemCertPool
     
-    Describe the problem as a bug, since it is not implied by the rest of
-    the pointer passing rules, and it may be possible to fix it.
+    Fixes #24540
     
-    Updates #19928
-    
-    Change-Id: I2d336e7336b2a215c0b8cf909a203201ef1b054e
-    Reviewed-on: https://go-review.googlesource.com/123658
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I65e9f2f99403e22d25ea64cc26701bf62a31d070
+    Reviewed-on: https://go-review.googlesource.com/102699
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cgo/doc.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/crypto/x509/cert_pool.go | 27 +++++++++++++++++++++++++++
+ src/crypto/x509/root.go      |  3 +++
+ src/crypto/x509/x509_test.go | 38 +++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 67 insertions(+), 1 deletion(-)

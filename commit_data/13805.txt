@@ -1,16 +1,12 @@
-commit 1b4e37a43c2cb70d8158fd9b94fdac5485d23326
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 12 12:05:24 2012 -0400
+commit f5f651b89a7eb028f8d9fbb50cdf0d6e2be5218e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 12 06:34:42 2012 -0700
 
-    spec: make bitwise operators stand out
+    C: Add Andreas Jellinghaus (Google CLA)
     
-    The (and not) arguably sounds like it is trying to say something - and not what?.
-    
-    Just an idea, won't be hurt if it gets rejected.
-    
-    R=gri, dsymonds, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6498115
+    https://golang.org/cl/6494121
 
- doc/go_spec.html | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

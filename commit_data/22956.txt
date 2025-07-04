@@ -1,15 +1,16 @@
-commit 351897d9d4f61dba5bd19270463c393a58d1f2ce
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 7 10:34:12 2015 -0400
+commit f633e445c7d9396dd71ed6572d002523b35bc5a5
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Apr 11 05:09:12 2015 -0400
 
-    cmd/internal/gc: emit branches in -g mode
+    crypto/x509: build the builtin root certs also for darwin/arm64
     
-    The -g mode is a debugging mode that prints instructions
-    as they are constructed. Gbranch was just missing the print.
-    
-    Change-Id: I3fb45fd9bd3996ed96df5be903b9fd6bd97148b0
-    Reviewed-on: https://go-review.googlesource.com/9827
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f06
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8785
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/gc/gsubr.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/crypto/x509/root_cgo_darwin.go                          | 2 +-
+ src/crypto/x509/root_darwin.go                              | 2 +-
+ src/crypto/x509/root_darwin_arm_gen.go                      | 7 +++++--
+ src/crypto/x509/{root_darwin_arm.go => root_darwin_armx.go} | 5 ++++-
+ 4 files changed, 11 insertions(+), 5 deletions(-)

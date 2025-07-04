@@ -1,15 +1,12 @@
-commit 28cb9fd5096b3714351cb0312dda37816b1d7d8d
+commit 8627e5c0a1da23e0fe2eb10c306aed77c0743f08
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Sep 19 16:55:21 2012 +1000
+Date:   Wed Sep 19 12:07:25 2012 +1000
 
-    os: use small writes during console io
+    misc/cgo/test and test/bench/go1: enable these tests on windows
     
-    Fixes #3767
-    
-    R=golang-dev, bradfitz, rsc
+    R=golang-dev, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6523043
+    https://golang.org/cl/6488127
 
- src/pkg/os/file_windows.go | 14 ++++++++++++--
- src/pkg/os/os_test.go      | 29 +++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+), 2 deletions(-)
+ src/run.bat | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

@@ -1,13 +1,14 @@
-commit 81ae666f16bb0b747d1dddef0be4f7dd8b285c49
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 4 07:55:24 2012 +1000
+commit 256daf2c85c0277298d7066e5b24c137ef332aa5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 3 08:16:27 2012 -0700
 
-    go/doc: rewrite whole file examples for playground
+    misc/dashboard: set charset utf-8 on build log downloads
     
-    R=gri
-    CC=gobot, golang-dev
-    https://golang.org/cl/6592061
+    Fixes #4187
+    
+    R=golang-dev, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6587071
 
- src/pkg/go/doc/example.go | 157 +++++++++++++++++++++++++++++++---------------
- src/pkg/go/doc/reader.go  |  73 ++++++++++++++-------
- 2 files changed, 157 insertions(+), 73 deletions(-)
+ misc/dashboard/app/build/handler.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

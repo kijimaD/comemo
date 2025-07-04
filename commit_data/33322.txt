@@ -1,38 +1,16 @@
-commit 9aa6f80ed385f092259aa5b0623fdf826b6da75b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 30 11:13:27 2017 -0400
+commit aca92f352d6a5bc0b17cd39d3b1bbe23ae0bb5ac
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 7 11:35:17 2017 -0700
 
-    go/importer: support lookup in importer.For
+    runtime: CSE some function arguments in evacuate
     
-    The support in this CL assumes that something at a higher level than
-    the toolchain-specific importers is taking care of converting imports
-    in source code into canonical import paths before invoking the
-    toolchain-specific importers. That kind of "what does an import mean"
-    as opposed to "find me the import data for this specific path"
-    should be provided by higher-level layers.
+    Shrinks evacuate's machine code a little.
     
-    That's a different layering than the default behavior but matches the
-    current layering in the compiler and linker and works with the metadata
-    planned for generation by the go command for package management.
-    It should also eventually allow the importer code to stop concerning
-    itself with source directories and vendor import translation and maybe
-    deprecate ImporterFrom in favor of Importer once again. But that's all
-    in the future. For now, just make non-nil lookups work, and test that.
-    
-    Fixes #13847.
-    Adds #22550.
-    
-    Change-Id: I048c6a384492e634988a7317942667689ae680ff
-    Reviewed-on: https://go-review.googlesource.com/74354
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I08874c92abdc7e621bc0737e22f2a6be31542cab
+    Reviewed-on: https://go-review.googlesource.com/54652
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/go/importer/importer.go                        | 38 +++++++-----
- src/go/importer/importer_test.go                   | 68 ++++++++++++++++++++++
- .../gccgoimporter/gccgoinstallation_test.go        |  4 +-
- src/go/internal/gccgoimporter/importer.go          | 52 +++++++++++++----
- src/go/internal/gccgoimporter/importer_test.go     |  2 +-
- src/go/internal/gcimporter/gcimporter.go           | 65 ++++++++++++++-------
- src/go/internal/gcimporter/gcimporter_test.go      | 16 ++---
- 7 files changed, 186 insertions(+), 59 deletions(-)
+ src/runtime/hashmap.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

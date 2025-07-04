@@ -1,27 +1,21 @@
-commit d4dd1de19fcef835fca14ad8cb590dbfcf8e9859
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Jul 12 14:01:26 2023 -0700
+commit 4e32472e79e393675ba8489968539db5dc0ab650
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 14:23:07 2022 -0700
 
-    runtime: enforce standard file descriptors open on init on unix
+    go/parser: match syntax parser error for unnamed type parameters
     
-    On Unix-like platforms, enforce that the standard file descriptions (0,
-    1, 2) are always open during initialization. If any of the FDs are
-    closed, we open them pointing at /dev/null, or fail.
+    For #54511.
     
-    Fixes #60641
-    
-    Change-Id: Iaab6b3f3e5ca44006ae3ba3544d47da9a613f58f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/509020
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I1ae391b5f157bf688f9f31b1577c90e681b6df26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426655
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/runtime/fds_nonunix.go           | 11 +++++
- src/runtime/fds_test.go              | 78 ++++++++++++++++++++++++++++++++++++
- src/runtime/fds_unix.go              | 44 ++++++++++++++++++++
- src/runtime/proc.go                  |  1 +
- src/runtime/security_unix.go         | 40 +-----------------
- src/runtime/testdata/testfds/main.go | 29 ++++++++++++++
- 6 files changed, 165 insertions(+), 38 deletions(-)
+ src/go/parser/parser.go               | 4 ++--
+ src/go/parser/short_test.go           | 5 ++---
+ src/go/parser/testdata/issue49175.go2 | 2 +-
+ src/go/parser/testdata/tparams.go2    | 8 ++++----
+ 4 files changed, 9 insertions(+), 10 deletions(-)

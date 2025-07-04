@@ -1,22 +1,18 @@
-commit 129a2fcf6c38e83566511304702eada696ed486b
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Mar 21 18:49:37 2022 +0700
+commit e4d7525c3e119de30490550fe2516fd6958eac30
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Fri May 14 15:00:46 2021 +0200
 
-    cmd/compile: fix panic with nested dead hidden closures
+    cmd/dist: display first class port status in json output
     
-    CL 342350 fixed deadcode panic with dead hidden closures. However, a
-    closure may contains nested dead hidden closures, so we need to mark
-    them dead as well.
+    Fixes #38874
     
-    Fixes #51839
-    
-    Change-Id: Ib54581adfc1bdea60e74d733cd30fd8e783da983
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394079
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I819dd008fd6869d335888b4aa03dcf739da9a9a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320069
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/deadcode/deadcode.go |  1 +
- test/fixedbugs/issue51839.go                  | 22 ++++++++++++++++++++++
- 2 files changed, 23 insertions(+)
+ src/cmd/dist/build.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

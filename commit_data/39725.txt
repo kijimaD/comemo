@@ -1,20 +1,22 @@
-commit 2393d1614736eb3ece950d6dd70883120237e209
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Aug 28 12:56:26 2019 -0700
+commit cb8054a6b63975975b89c2901ce31f3be4fe7838
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 16:48:43 2019 +0100
 
-    cmd/compile: handle infinite loops in shortcircuit pass
+    cmd/link: fix trampoline generation for aix/ppc64
     
-    The newly upgraded shortcircuit pass attempted to remove infinite loops.
-    Stop doing that.
+    This commit fixes trampoline generation on aix/ppc64 which must use TOC
+    symbols.
+    It also adds a size to runtime.text.X symbols to prevent ld from moving
+    them, like runtime.text.
     
-    Fixes #33903
-    
-    Change-Id: I0fc9c1b5f2427e54ce650806602ef5e3ad65aca5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192144
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ida033ec20ad8d7b7fb3faeb0ec4fa7bc4ce86b7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164009
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/shortcircuit.go | 10 ++++++++--
- test/fixedbugs/issue33903.go                 | 16 ++++++++++++++++
- 2 files changed, 24 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/data.go   | 44 +++++++++++++++++++----
+ src/cmd/link/internal/ld/lib.go    |  3 +-
+ src/cmd/link/internal/ld/xcoff.go  |  8 +++--
+ src/cmd/link/internal/ppc64/asm.go | 73 ++++++++++++++++++++++++++------------
+ 4 files changed, 95 insertions(+), 33 deletions(-)

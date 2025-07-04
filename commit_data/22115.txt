@@ -1,19 +1,22 @@
-commit d47fe8092e13e33275033730bb96ebec492375a5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 9 15:34:06 2015 -0400
+commit 5ce9fde8b64a07a7cbfbe43c9451e2d1d536c972
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 23 23:51:05 2015 -0800
 
-    cmd/internal/gc: increase registerization limits
+    go/ast, go/parser: correct End() position for *ast.EmptyStmt
     
-    Also clean up code a little.
+    - added a new field ast.EmptyStmt.Implicit to indicate explicit
+      or implicit semicolon
+    - fix ast.EmptyStmt.End() accordingly
+    - adjusted parser and added test case
     
-    Change-Id: I23b7d2b7871b31e0974f1305e54f0c18dcab05d9
-    Reviewed-on: https://go-review.googlesource.com/7746
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #9979.
+    
+    Change-Id: I72b0983b3a0cabea085598e1bf6c8df629776b57
+    Reviewed-on: https://go-review.googlesource.com/5720
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/6g/peep.go          |   6 +-
- src/cmd/internal/gc/bits.go | 159 ---------------------
- src/cmd/internal/gc/go.go   |  24 ----
- src/cmd/internal/gc/popt.go | 137 ++----------------
- src/cmd/internal/gc/reg.go  | 329 ++++++++++++++++++++++++++++++++++++--------
- 5 files changed, 291 insertions(+), 364 deletions(-)
+ doc/go1.5.txt                |  1 +
+ src/go/ast/ast.go            |  8 ++++++--
+ src/go/parser/parser.go      |  7 +++++--
+ src/go/parser/parser_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 59 insertions(+), 4 deletions(-)

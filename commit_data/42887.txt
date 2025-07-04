@@ -1,25 +1,17 @@
-commit 971203cad3c4a5cdfd196a7ad5ce76b550d2ff9f
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Sep 1 15:41:36 2020 -0400
+commit 5749c0eb5b933372c21983698bbc67b841b8b2bc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jan 22 16:34:26 2020 -0800
 
-    cmd/go: remove TestScript/get_unicode and an internal get test case
+    cmd/compile: use ellipses in ARM rules
     
-    That test tested that import paths with non-ASCII unicode paths
-    were allowed by the Go command. Remove this test case because
-    golang.org/cl/251878 removes that support.
+    Passes toolstash-check -all.
     
-    Also rewrite a test case in TestRepoRootForImportPath in the test
-    for cmd/go/internal/get to reflect that unicode directory names are now
-    disallowed.
-    
-    Updates #29101
-    
-    Change-Id: I669e220facd04fc82ccd05dd08e8f1ff4d48b1fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252297
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I390789ca5bfe45967ed156590f2690c91d416187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217005
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/get/vcs_test.go        |  7 ++----
- src/cmd/go/testdata/script/get_unicode.txt | 40 ------------------------------
- 2 files changed, 2 insertions(+), 45 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  121 ++-
+ src/cmd/compile/internal/ssa/rewriteARM.go | 1406 +++++-----------------------
+ 2 files changed, 272 insertions(+), 1255 deletions(-)

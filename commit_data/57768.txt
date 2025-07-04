@@ -1,21 +1,23 @@
-commit e5e552b816793f2b5729744c27995cce12baf52e
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Sep 27 00:23:45 2024 +1000
+commit cf338eb89076049bc070e44a037a6364b8ec884a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 27 13:55:47 2023 -0700
 
-    cmd/internal/obj/riscv: update references to RISC-V specification
+    cmd/compile: eliminate fallback code for missing -p flag
     
-    Update references to version 20240411 of the RISC-V specifications.
-    Reorder and regroup instructions to maintain ordering.
+    cmd/compile has required the -p flag since go.dev/cl/391014. It's safe
+    to eliminate the fallback code that tried to cope without.
     
-    Change-Id: Iea2a5d22ad677e04948e9a9325986ad301c03f35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616115
+    Change-Id: I9a62ff829e34a6fa5bfe6ae6a836610cc3f0cd33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523337
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s |  55 ++++++------
- src/cmd/internal/obj/riscv/anames.go        |  42 ++++-----
- src/cmd/internal/obj/riscv/cpu.go           | 134 ++++++++++++++--------------
- 3 files changed, 119 insertions(+), 112 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go      |  4 +---
+ src/cmd/compile/internal/noder/import.go        |  5 ++++-
+ src/cmd/compile/internal/noder/noder.go         |  3 +--
+ src/cmd/compile/internal/reflectdata/reflect.go | 20 +++++---------------
+ src/cmd/compile/internal/types/size.go          |  6 ++++--
+ src/cmd/compile/internal/walk/order.go          |  2 +-
+ 6 files changed, 16 insertions(+), 24 deletions(-)

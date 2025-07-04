@@ -1,26 +1,26 @@
-commit f2df1e3c34ceb2225d0df5c9ec92d5dc9e9ba919
-Author: David Chase <drchase@google.com>
-Date:   Sat Feb 13 10:49:37 2021 -0500
+commit fa98f46741f818913a8c11b877520a548715131f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 13:27:22 2020 -0400
 
-    cmd/compile: retrieve Args from registers
+    net/http: synchronize "100 Continue" write and Handler writes
     
-    in progress; doesn't fully work until they are also passed on
-    register on the caller side.
+    The expectContinueReader writes to the connection on the first
+    Request.Body read. Since a Handler might be doing a read in parallel or
+    before a write, expectContinueReader needs to synchronize with the
+    ResponseWriter, and abort if a response already went out.
     
-    For #40724.
+    The tests will land in a separate CL.
     
-    Change-Id: I29a6680e60bdbe9d132782530214f2a2b51fb8f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293394
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #34902
+    Fixes CVE-2020-15586
+    
+    Change-Id: Icdd8dd539f45e8863762bd378194bb4741e875fc
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/793350
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242598
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go     |  7 +++++++
- src/cmd/compile/internal/amd64/ssa.go        |  2 ++
- src/cmd/compile/internal/ssa/expand_calls.go | 24 +++++++++++++++++++-----
- src/cmd/compile/internal/ssa/lower.go        |  6 +++++-
- src/cmd/compile/internal/ssa/regalloc.go     | 23 +++++++++++++++++++----
- src/cmd/compile/internal/ssa/rewrite.go      |  2 --
- src/cmd/compile/internal/ssa/schedule.go     |  2 +-
- src/cmd/compile/internal/ssagen/ssa.go       | 12 +++++++++++-
- 8 files changed, 64 insertions(+), 14 deletions(-)
+ src/net/http/server.go | 43 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 36 insertions(+), 7 deletions(-)

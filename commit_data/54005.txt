@@ -1,32 +1,29 @@
-commit 5feb8b60e7069e1b15273836b522a05a6b40edc6
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Aug 11 18:20:21 2023 +1000
+commit 7fda98a8d90139fed07d7f8ca80d248a5cbc1e93
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Jun 13 10:59:31 2022 -0500
 
-    runtime/cgo: use fatalf on dragonfly, freebsd, netbsd and openbsd
+    cmd/link: support -fno-plt compiled gcc objects on ppc64le
     
-    Use fatalf consistently on freebsd. Also use it on dragonfly, netbsd
-    and openbsd.
+    This is the initial trivial implemenation. Further improvements can be
+    made for local calls.
     
-    Change-Id: I8643c0b7bc13c3cb5173209d311d6d297913955b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518615
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    A test is added, but the -fno-plt option is ignored by gcc if binutils
+    does not support inline plt relocations, so the test is effectively
+    skipped on such hosts.
+    
+    Fixes #53345
+    
+    Change-Id: Ibf31c26b1a8551c942b21019df8782c00b7a563e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412714
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
 
- src/runtime/cgo/gcc_dragonfly_amd64.c | 3 +--
- src/runtime/cgo/gcc_fatalf.c          | 2 +-
- src/runtime/cgo/gcc_freebsd_386.c     | 3 +--
- src/runtime/cgo/gcc_freebsd_arm.c     | 3 +--
- src/runtime/cgo/gcc_freebsd_arm64.c   | 3 +--
- src/runtime/cgo/gcc_freebsd_riscv64.c | 3 +--
- src/runtime/cgo/gcc_netbsd_386.c      | 3 +--
- src/runtime/cgo/gcc_netbsd_amd64.c    | 3 +--
- src/runtime/cgo/gcc_netbsd_arm.c      | 3 +--
- src/runtime/cgo/gcc_netbsd_arm64.c    | 3 +--
- src/runtime/cgo/gcc_openbsd_386.c     | 3 +--
- src/runtime/cgo/gcc_openbsd_amd64.c   | 3 +--
- src/runtime/cgo/gcc_openbsd_arm.c     | 3 +--
- src/runtime/cgo/gcc_openbsd_arm64.c   | 3 +--
- src/runtime/cgo/gcc_openbsd_mips64.c  | 3 +--
- 15 files changed, 15 insertions(+), 29 deletions(-)
+ .../script/test_ppc64le_cgo_inline_plt.txt         | 38 +++++++++++++++++
+ src/cmd/link/internal/loadelf/ldelf.go             | 13 +++++-
+ src/cmd/link/internal/ppc64/asm.go                 | 47 ++++++++++++++++++++++
+ 3 files changed, 97 insertions(+), 1 deletion(-)

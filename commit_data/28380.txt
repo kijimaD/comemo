@@ -1,22 +1,32 @@
-commit f9e9412ce26ca208c1d25a6b854259c94aa54030
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Sep 10 18:53:30 2016 -0700
+commit 255e206b2bae9e7632043e08cf8cc0c7ce445c31
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 19 02:13:36 2016 +0000
 
-    cmd/dist: run vet/all on dedicated builders
+    net/http: update bundled http2
     
-    We will soon add dedicated builders for running vet/all.
-    Their name will end with "-vetall".
-    On those builders, run vet/all and nothing else.
-    On all other builders, including local all.bash,
-    don't run vet/all at all, because it is slow.
+    Updates x/net/http2 to git rev 5916dcb1 for:
     
-    This will probably be refined more over time.
+    * http2, lex/httplex: make Transport reject bogus headers before sending
+      https://golang.org/cl/23229
     
-    Change-Id: Ib1d0337adda84353931a325515c132068d4320cd
-    Reviewed-on: https://go-review.googlesource.com/28962
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    * http2: reject more trailer values
+      https://golang.org/cl/23230
+    
+    Fixes #14048
+    Fixes #14188
+    
+    Change-Id: Iaa8beca6e005267a3e849a10013eb424a882f2bb
+    Reviewed-on: https://go-review.googlesource.com/23234
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/go/build/deps_test.go                          |   1 +
+ src/net/http/h2_bundle.go                          | 216 ++++++++-------------
+ src/net/http/http.go                               |   6 +
+ src/net/http/server.go                             |   8 +-
+ src/net/http/transfer.go                           |   6 +-
+ src/net/http/transport.go                          |   6 +-
+ .../golang.org/x/net/lex/httplex/httplex.go}       |  63 ++++--
+ .../golang.org/x/net/lex/httplex/httplex_test.go}  |   6 +-
+ 8 files changed, 152 insertions(+), 160 deletions(-)

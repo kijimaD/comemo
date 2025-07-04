@@ -1,12 +1,13 @@
-commit c78d67fb86f5b2c3687c3c8d0152f75871ff490d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 14 10:53:55 2013 -0700
+commit 26f43a089e9d77cdb8c7c7f2c600631283de91f2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Oct 12 18:40:41 2013 -0400
 
-    debug/dwarf: report the value of an unrecognized attribute format
+    doc: fix small HTML problems
     
-    R=golang-dev, r, minux.ma
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/14669045
+    https://golang.org/cl/14629043
 
- src/pkg/debug/dwarf/entry.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ doc/code.html             | 2 +-
+ doc/codewalk/codewalk.xml | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

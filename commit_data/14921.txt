@@ -1,21 +1,17 @@
-commit 47568c747d3a407f390045310c3e843b439904f0
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Fri Jan 18 13:39:53 2013 -0800
+commit d127ed53784bf8a6e376904af163b58a78179dd2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 18 22:36:43 2013 +0100
 
-    cmd/5a, cmd/5c, cmd/6a, cmd/6c, cmd/8a, cmd/8c, cmd/ld: update reference
+    cmd/gc, cmd/6g: fix error on large stacks.
     
-    Reference the 80386 compiler documentation now that the
-    documentation for the 68020 is offline.
+    Fixes #4666.
     
-    R=golang-dev, minux.ma, rsc
+    R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/7127053
+    https://golang.org/cl/7141047
 
- src/cmd/5a/doc.go | 2 +-
- src/cmd/5c/doc.go | 2 +-
- src/cmd/6a/doc.go | 2 +-
- src/cmd/6c/doc.go | 2 +-
- src/cmd/8a/doc.go | 2 +-
- src/cmd/8c/doc.go | 2 +-
- src/cmd/ld/doc.go | 2 +-
- 7 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/6g/cgen.c           | 2 +-
+ src/cmd/gc/go.h             | 6 +++---
+ test/fixedbugs/bug385_64.go | 8 +++++++-
+ test/fixedbugs/issue4348.go | 5 ++++-
+ 4 files changed, 15 insertions(+), 6 deletions(-)

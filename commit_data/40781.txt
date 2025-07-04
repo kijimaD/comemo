@@ -1,27 +1,20 @@
-commit bf5f64107a5d750e53d0bfb046a3fd4dad3eb3e2
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Sep 20 03:09:07 2019 +1000
+commit bc593eac2dc63d979a575eccb16c7369a5ff81e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 29 09:26:19 2019 -0400
 
-    cmd/internal/objabi,cmd/link: initial linker support for riscv64
+    sync: document implementation of Once.Do
     
-    Provide initial linker support for riscv64.
+    It's not correct to use atomic.CompareAndSwap to implement Once.Do,
+    and we don't, but why we don't is a question that has come up
+    twice on golang-dev in the past few months.
+    Add a comment to help others with the same question.
     
-    Based on riscv-go port.
-    
-    Updates #27532
-    
-    Change-Id: I8a881ce41cd49efef0358bad9171d4d18aaf7ab2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204624
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia89ec9715cc5442c6e7f13e57a49c6cfe664d32c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184261
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
 
- src/cmd/dist/buildtool.go                   |   1 +
- src/cmd/internal/objabi/reloctype.go        |  15 +++-
- src/cmd/internal/objabi/reloctype_string.go |   4 +-
- src/cmd/link/internal/ld/config.go          |   5 +-
- src/cmd/link/internal/ld/elf.go             |   7 +-
- src/cmd/link/internal/riscv64/asm.go        | 122 ++++++++++++++++++++++++++++
- src/cmd/link/internal/riscv64/l.go          |  14 ++++
- src/cmd/link/internal/riscv64/obj.go        |  60 ++++++++++++++
- src/cmd/link/main.go                        |   3 +
- 9 files changed, 225 insertions(+), 6 deletions(-)
+ src/sync/once.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

@@ -1,23 +1,106 @@
-commit b691da9f788f27eb3d5035f3dbdc15c107d71ef9
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri May 31 15:08:45 2024 +0000
+commit 7d96475daa09a89840c55dcc38335589dafccb33
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Feb 25 19:09:11 2023 +0100
 
-    Revert "crypto/x509: reject serial numbers longer than 20 octets"
+    crypto/internal/bigmod: switch to saturated limbs
     
-    This reverts commit 8524931a2cdc6a57afdf6f4b3375cb261c2557da.
+    Turns out that unsaturated limbs being more performant for Montgomery
+    multiplication was true in portable C89, but is now a misconception.
+    With add-with-carry instructions, it's possible to run the carry chain
+    across the limbs, instead of needing the limb-by-limb product to fit in
+    two words.
     
-    Reason for revert: It turns out, basically no one in private PKIs can
-    get this right. It causes way too much breakage, and every other impl
-    also ignores it, so we'll continue to be in good company.
+    Switch to saturated limbs, and import the same Montgomery loop as
+    math/big, along with its assembly for some architectures. Since here we
+    know the sizes we care about, we can drop most of the assembly
+    scaffolding. For amd64, ported to avo, too.
     
-    Change-Id: I2da808b411ec12f72112c49079faf9f68ae465c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589615
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    We recover all the Go 1.20 performance loss on private key operations on
+    both Intel Xeon and AMD EPYC, with even a 10% improvement over Go 1.19
+    (which used variable-time math/big) for some operations.
+    
+    goos: linux
+    goarch: amd64
+    pkg: crypto/rsa
+    cpu: Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz
+                           │ go1.19.txt  │       go1.20.txt         │         new.txt          │
+                           │   sec/op    │    sec/op      vs base   │    sec/op      vs base   │
+    DecryptPKCS1v15/2048-4   1.175m ± 0%     1.515m ± 0%    +28.95%     1.132m ± 0%     -3.59%
+    DecryptPKCS1v15/3072-4   3.428m ± 1%     4.516m ± 0%    +31.75%     3.198m ± 0%     -6.69%
+    DecryptPKCS1v15/4096-4   7.405m ± 0%    10.092m ± 0%    +36.29%     6.446m ± 0%    -12.95%
+    EncryptPKCS1v15/2048-4   7.426µ ± 0%   170.829µ ± 0%  +2200.57%   131.874µ ± 0%  +1675.97%
+    DecryptOAEP/2048-4       1.175m ± 0%     1.524m ± 0%    +29.68%     1.137m ± 0%     -3.26%
+    EncryptOAEP/2048-4       9.609µ ± 0%   173.008µ ± 0%  +1700.48%   132.344µ ± 0%  +1277.29%
+    SignPKCS1v15/2048-4      1.181m ± 0%     1.563m ± 0%    +32.34%     1.177m ± 0%     -0.37%
+    VerifyPKCS1v15/2048-4    6.452µ ± 0%   170.092µ ± 0%  +2536.06%   131.225µ ± 0%  +1933.70%
+    SignPSS/2048-4           1.184m ± 0%     1.574m ± 0%    +32.88%     1.175m ± 0%     -0.84%
+    VerifyPSS/2048-4         9.151µ ± 1%   172.909µ ± 0%  +1789.50%   132.391µ ± 0%  +1346.74%
+    
+                           │  go1.19.txt   │      go1.20.txt       │       new.txt         │
+                           │     B/op      │     B/op      vs base │     B/op      vs base │
+    DecryptPKCS1v15/2048-4    24266.5 ± 0%     640.0 ± 0%  -97.36%     640.0 ± 0%  -97.36%
+    DecryptPKCS1v15/3072-4   45.465Ki ± 0%   3.375Ki ± 0%  -92.58%   4.688Ki ± 0%  -89.69%
+    DecryptPKCS1v15/4096-4   61.080Ki ± 0%   4.625Ki ± 0%  -92.43%   6.250Ki ± 0%  -89.77%
+    EncryptPKCS1v15/2048-4    3.138Ki ± 0%   1.146Ki ± 0%  -63.49%   1.082Ki ± 0%  -65.52%
+    DecryptOAEP/2048-4        24500.0 ± 0%     872.0 ± 0%  -96.44%     872.0 ± 0%  -96.44%
+    EncryptOAEP/2048-4        3.610Ki ± 0%   1.371Ki ± 0%  -62.02%   1.308Ki ± 0%  -63.78%
+    SignPKCS1v15/2048-4       26933.0 ± 0%     896.0 ± 0%  -96.67%     896.0 ± 0%  -96.67%
+    VerifyPKCS1v15/2048-4      3209.0 ± 0%     912.0 ± 0%  -71.58%     848.0 ± 0%  -73.57%
+    SignPSS/2048-4           26.940Ki ± 0%   1.266Ki ± 0%  -95.30%   1.266Ki ± 0%  -95.30%
+    VerifyPSS/2048-4          3.337Ki ± 0%   1.094Ki ± 0%  -67.22%   1.031Ki ± 0%  -69.10%
+    
+                           │  go1.19.txt  │     go1.20.txt      │      new.txt          │
+                           │  allocs/op   │ allocs/op   vs base │ allocs/op   vs base   │
+    DecryptPKCS1v15/2048-4    97.000 ± 0%   4.000 ± 0%  -95.88%     4.000 ± 0%  -95.88%
+    DecryptPKCS1v15/3072-4    107.00 ± 0%   10.00 ± 0%  -90.65%     12.00 ± 0%  -88.79%
+    DecryptPKCS1v15/4096-4    113.00 ± 0%   10.00 ± 0%  -91.15%     12.00 ± 0%  -89.38%
+    EncryptPKCS1v15/2048-4     7.000 ± 0%   7.000 ± 0%        ~     7.000 ± 0%        ~
+    DecryptOAEP/2048-4        103.00 ± 0%   10.00 ± 0%  -90.29%     10.00 ± 0%  -90.29%
+    EncryptOAEP/2048-4         14.00 ± 0%   13.00 ± 0%   -7.14%     13.00 ± 0%   -7.14%
+    SignPKCS1v15/2048-4      102.000 ± 0%   5.000 ± 0%  -95.10%     5.000 ± 0%  -95.10%
+    VerifyPKCS1v15/2048-4      7.000 ± 0%   6.000 ± 0%  -14.29%     6.000 ± 0%  -14.29%
+    SignPSS/2048-4            108.00 ± 0%   10.00 ± 0%  -90.74%     10.00 ± 0%  -90.74%
+    VerifyPSS/2048-4           12.00 ± 0%   11.00 ± 0%   -8.33%     11.00 ± 0%   -8.33%
+    
+    goos: linux
+    goarch: amd64
+    pkg: crypto/rsa
+    cpu: AMD EPYC 7R13 Processor
+                           │ go1.19a.txt │       go1.20a.txt        │        newa.txt          │
+                           │   sec/op    │    sec/op      vs base   │    sec/op      vs base   │
+    DecryptPKCS1v15/2048-4   970.0µ ± 0%    1667.6µ ± 0%    +71.92%     951.6µ ± 0%     -1.90%
+    DecryptPKCS1v15/3072-4   2.949m ± 0%     5.124m ± 0%    +73.75%     2.675m ± 0%     -9.29%
+    DecryptPKCS1v15/4096-4   6.350m ± 0%    11.660m ± 0%    +83.62%     5.746m ± 0%     -9.51%
+    EncryptPKCS1v15/2048-4   6.605µ ± 1%   183.807µ ± 0%  +2683.05%   123.720µ ± 0%  +1773.27%
+    DecryptOAEP/2048-4       973.8µ ± 0%    1670.8µ ± 0%    +71.57%     951.8µ ± 0%     -2.27%
+    EncryptOAEP/2048-4       8.444µ ± 1%   185.889µ ± 0%  +2101.56%   124.142µ ± 0%  +1370.27%
+    SignPKCS1v15/2048-4      976.8µ ± 0%    1725.5µ ± 0%    +76.65%     979.6µ ± 0%     +0.28%
+    VerifyPKCS1v15/2048-4    5.713µ ± 0%   182.983µ ± 0%  +3103.19%   122.737µ ± 0%  +2048.56%
+    SignPSS/2048-4           980.3µ ± 0%    1729.5µ ± 0%    +76.42%     985.7µ ± 3%     +0.55%
+    VerifyPSS/2048-4         8.168µ ± 1%   185.312µ ± 0%  +2168.76%   123.772µ ± 0%  +1415.33%
+    
+    Fixes #59463
+    Fixes #59442
+    Updates #57752
+    
+    Change-Id: I311a9c1f4f5288e47e53ca14f615a443f3132734
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471259
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/godebug.md                 |  5 -----
- src/crypto/x509/parser.go      | 24 +-----------------------
- src/crypto/x509/x509_test.go   | 23 -----------------------
- src/internal/godebugs/table.go |  1 -
- src/runtime/metrics/doc.go     |  5 -----
- 5 files changed, 1 insertion(+), 57 deletions(-)
+ src/crypto/internal/bigmod/_asm/nat_amd64_asm.go |  204 ++--
+ src/crypto/internal/bigmod/nat.go                |  432 ++++----
+ src/crypto/internal/bigmod/nat_386.s             |   47 +
+ src/crypto/internal/bigmod/nat_amd64.go          |    8 -
+ src/crypto/internal/bigmod/nat_amd64.s           | 1296 ++++++++++++++++++++--
+ src/crypto/internal/bigmod/nat_arm.s             |   47 +
+ src/crypto/internal/bigmod/nat_arm64.s           |   69 ++
+ src/crypto/internal/bigmod/nat_asm.go            |   28 +
+ src/crypto/internal/bigmod/nat_noasm.go          |   18 +-
+ src/crypto/internal/bigmod/nat_ppc64x.s          |   51 +
+ src/crypto/internal/bigmod/nat_s390x.s           |   85 ++
+ src/crypto/internal/bigmod/nat_test.go           |   95 +-
+ 12 files changed, 1967 insertions(+), 413 deletions(-)

@@ -1,21 +1,24 @@
-commit 700727151fe3772ecc2315af101d2e5d93269c0c
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Jul 4 13:03:58 2023 +0800
+commit 3c6a5cdb9a29c0e3b12cdaa8ab81ba22d989e3b0
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Mon Aug 29 23:29:48 2022 +0000
 
-    doc/go1.21: add release notes for linux/loong64
+    cmd/go/internal/imports: recognize "unix" build tag
     
-    Fixes #53301
+    For #20322
+    For #51572
+    Fixes #54712
     
-    Change-Id: Id447d57d43b12c3748267295928d45a089549340
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507815
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I22fcfa820e83323bfdf1a40deee7286240f02b3e
+    GitHub-Last-Rev: cd2c6536b0298baf3c54e5bdbc456a814545cff4
+    GitHub-Pull-Request: golang/go#54716
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426296
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/go1.21.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/dist/build.go                          |  3 +-
+ src/cmd/go/internal/imports/build.go           | 42 ++++++++++++++++++++------
+ src/cmd/go/testdata/script/import_unix_tag.txt | 32 ++++++++++++++++++++
+ src/go/build/syslist.go                        |  3 +-
+ 4 files changed, 69 insertions(+), 11 deletions(-)

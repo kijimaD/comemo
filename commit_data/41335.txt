@@ -1,17 +1,26 @@
-commit 0f7088ade502250a65402efde32c31f9c57f457b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jan 21 12:23:20 2020 -0800
+commit 6232dadc63dda3e6f8ce227ed7e003da80f5ba2e
+Author: Marwan Sulaiman <marwan.sameer@gmail.com>
+Date:   Tue Sep 24 16:34:16 2019 -0400
 
-    cmd/compile: dump contents when rulegen generates invalid code
+    cmd/go: consistent output for -json failures
     
-    It's much easier to debug when you can see
-    the contents in order to interpret the error message.
+    When the -json flag is passed to go mod download,
+    the sumdb error is embedded in the json Error field.
+    Other errors for the same command behave this way as
+    well such as module not found. The fix is done by changing
+    base.Fatalf into proper error returns.
     
-    Change-Id: I03bbb9dd3071aeca9577cc725a60d43f78118cf4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215717
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #34485
+    
+    Change-Id: I2727a5c70c7ab03988cad8661894d0f8ec71a768
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197062
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/cache.go              |  8 ++-
+ src/cmd/go/internal/modfetch/fetch.go              | 61 ++++++++++++++--------
+ src/cmd/go/testdata/script/mod_download_json.txt   | 10 ++++
+ src/cmd/go/testdata/script/mod_sumdb.txt           |  2 +-
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt |  2 +-
+ 5 files changed, 57 insertions(+), 26 deletions(-)

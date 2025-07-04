@@ -1,12 +1,28 @@
-commit 81a908aa685c5c3e68ded0fe542e7f3983d9dc85
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Dec 12 19:31:45 2018 -0500
+commit 9e2a04d5ebe450defe3435d827ef07ca3c0eae3f
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Thu Jul 26 12:51:06 2018 +0300
 
-    doc/go1.12: release notes for crypto
+    cmd/compile: add sources for inlined functions to ssa.html
     
-    Change-Id: I2a5613377a38815fb8746c5bfb07ccbbc2e6dd0b
-    Reviewed-on: https://go-review.googlesource.com/c/153829
-    Reviewed-by: Adam Langley <agl@golang.org>
+    This CL adds the source code of all inlined functions
+    into the function specified in $GOSSAFUNC.
+    The code is appended to the sources column of ssa.html.
+    
+    ssaDumpInlined is populated with references to inlined functions.
+    Then it is used for dumping the sources in buildssa.
+    
+    The source columns contains code in following order:
+    target function, inlined functions sorted by filename, lineno.
+    
+    Fixes #25904
+    
+    Change-Id: I4f6d4834376f1efdfda1f968a5335c0543ed36bc
+    Reviewed-on: https://go-review.googlesource.com/126606
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.12.html | 67 +++++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 61 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/inl.go   |  4 ++
+ src/cmd/compile/internal/gc/ssa.go   | 78 ++++++++++++++++++++++++++----------
+ src/cmd/compile/internal/ssa/html.go | 61 ++++++++++++++++++++++++----
+ 3 files changed, 114 insertions(+), 29 deletions(-)

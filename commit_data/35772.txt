@@ -1,46 +1,41 @@
-commit 0a7ac93c27c9ade79fe0f66ae0bb81484c241ae5
-Author: Wei Xiao <wei.xiao@arm.com>
-Date:   Fri Nov 3 02:05:28 2017 +0000
+commit a3b3284ddc274ca0d6abd01cb6a6fef471d281dc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 2 15:20:49 2018 -0800
 
-    cmd/compile: improve atomic add intrinsics with ARMv8.1 new instruction
+    cmd/compile: prevent untyped types from reaching walk
     
-    ARMv8.1 has added new instruction (LDADDAL) for atomic memory operations. This
-    CL improves existing atomic add intrinsics with the new instruction. Since the
-    new instruction is only guaranteed to be present after ARMv8.1, we guard its
-    usage with a conditional on CPU feature.
+    We already require expressions to have already been typechecked before
+    reaching walk. Moreover, all untyped expressions should have been
+    converted to their default type by walk.
     
-    Performance result on ARMv8.1 machine:
-    name        old time/op  new time/op  delta
-    Xadd-224    1.05µs ± 6%  0.02µs ± 4%  -98.06%  (p=0.000 n=10+8)
-    Xadd64-224  1.05µs ± 3%  0.02µs ±13%  -98.10%  (p=0.000 n=9+10)
-    [Geo mean]  1.05µs       0.02µs       -98.08%
+    However, in practice, we've been somewhat sloppy and inconsistent
+    about ensuring this. In particular, a lot of AST rewrites ended up
+    leaving untyped bool expressions scattered around. These likely aren't
+    harmful in practice, but it seems worth cleaning up.
     
-    Performance result on ARMv8.0 machine:
-    name        old time/op  new time/op  delta
-    Xadd-46      538ns ± 1%   541ns ± 1%  +0.62%  (p=0.000 n=9+9)
-    Xadd64-46    505ns ± 1%   508ns ± 0%  +0.48%  (p=0.003 n=9+8)
-    [Geo mean]   521ns        524ns       +0.55%
+    The two most common cases addressed by this CL are:
     
-    Change-Id: If4b5d8d0e2d6f84fe1492a4f5de0789910ad0ee9
-    Reviewed-on: https://go-review.googlesource.com/81877
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    1) When generating OIF and OFOR nodes, we would often typecheck the
+    conditional expression, but not apply defaultlit to force it to the
+    expression's default type.
+    
+    2) When rewriting string comparisons into more fundamental primitives,
+    we were simply overwriting r.Type with the desired type, which didn't
+    propagate the type to nested subexpressions. These are fixed by
+    utilizing finishcompare, which correctly handles this (and is already
+    used by other comparison lowering rewrites).
+    
+    Lastly, walkexpr is extended to assert that it's not called on untyped
+    expressions.
+    
+    Fixes #23834.
+    
+    Change-Id: Icbd29648a293555e4015d3b06a95a24ccbd3f790
+    Reviewed-on: https://go-review.googlesource.com/98337
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/arch/arm64.go             |  3 +-
- src/cmd/asm/internal/asm/testdata/arm64.s      |  2 ++
- src/cmd/compile/internal/arm64/ssa.go          | 22 ++++++++++++
- src/cmd/compile/internal/gc/go.go              |  1 +
- src/cmd/compile/internal/gc/ssa.go             | 47 +++++++++++++++++++++++--
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  3 ++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  7 ++++
- src/cmd/compile/internal/ssa/gen/genericOps.go |  7 ++++
- src/cmd/compile/internal/ssa/opGen.go          | 48 ++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 36 +++++++++++++++++++
- src/cmd/internal/obj/arm64/a.out.go            |  2 ++
- src/cmd/internal/obj/arm64/anames.go           |  2 ++
- src/cmd/internal/obj/arm64/asm7.go             | 12 +++++--
- src/runtime/internal/atomic/bench_test.go      | 20 +++++++++++
- src/runtime/proc.go                            |  2 ++
- src/runtime/runtime2.go                        |  3 ++
- 16 files changed, 211 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/range.go  |  2 ++
+ src/cmd/compile/internal/gc/select.go |  1 +
+ src/cmd/compile/internal/gc/swt.go    | 13 ++++++-------
+ src/cmd/compile/internal/gc/walk.go   | 24 +++++++-----------------
+ 4 files changed, 16 insertions(+), 24 deletions(-)

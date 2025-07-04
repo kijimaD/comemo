@@ -1,14 +1,14 @@
-commit d3072127ccac58f39df12a217f1fa9bb46d36a3b
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Dec 11 23:07:04 2014 -0500
+commit 51fcd3cf1bc4b9553da586396b028bfe98d3bff5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 30 17:19:29 2014 -0300
 
-    cmd/dist: ignore \r in crlf EOL when splitlines()
+    A+C: Nathan P Finch (individual CLA)
     
-    Fixes build on Windows. Fixes #9234.
-    
-    Change-Id: Iebf4317e7cc20ba1afea5558553166cd89783316
-    Reviewed-on: https://go-review.googlesource.com/1421
-    Reviewed-by: <iant@golang.org>
+    TBR=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/155560045
 
- src/cmd/dist/buf.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

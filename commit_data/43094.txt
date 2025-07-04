@@ -1,18 +1,22 @@
-commit 0f55d37d440d83f206bfc00b4a2521c1a0bb258b
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Sep 24 12:00:43 2020 +0200
+commit 2818a11b1824ca52803a3a335354970fbccfcf2e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 6 17:18:16 2020 -0500
 
-    cmd/compile: use typed rules for const folding on amd64
+    cmd/go/internal/modload: factor smaller files out of load.go and init.go
     
-    Passes
+    No semantic changes intended: just structural cleanup.
     
-      gotip build -toolexec 'toolstash -cmp' -a std
+    Updates #36460
     
-    Change-Id: I78cfe2962786604bdd78e02a2c33de68512cfeb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256997
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I405bc2572d3ff00f595dae645e673a11e01621ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222340
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  98 +++++------
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 242 +++++++++++++--------------
- 2 files changed, 170 insertions(+), 170 deletions(-)
+ src/cmd/go/internal/modload/init.go    | 226 ---------------------
+ src/cmd/go/internal/modload/load.go    | 355 ---------------------------------
+ src/cmd/go/internal/modload/modfile.go | 164 +++++++++++++++
+ src/cmd/go/internal/modload/mvs.go     | 253 +++++++++++++++++++++++
+ src/cmd/go/internal/modload/vendor.go  | 217 ++++++++++++++++++++
+ 5 files changed, 634 insertions(+), 581 deletions(-)

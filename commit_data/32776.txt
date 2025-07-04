@@ -1,57 +1,21 @@
-commit 098eb01600fe0e90aee21d204924c67188fe26d4
-Author: Albert Nigmatzianov <albertnigma@gmail.com>
-Date:   Thu Aug 31 16:00:37 2017 +0500
+commit a8dd20d389a1364059c36202da6a2a655677f7d8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 25 14:30:23 2017 -0400
 
-    io: Improve performance of CopyN
+    runtime/cgo: add TSAN annotations for C sigaction call
     
-    Benchmarks:
-    name          old time/op    new time/op    delta
-    CopyNSmall-4    5.09µs ± 1%    2.25µs ±86%  -55.91%  (p=0.000 n=11+14)
-    CopyNLarge-4     114µs ±73%     121µs ±72%     ~     (p=0.701 n=14+14)
+    This avoids false-positive TSAN reports when using the C sigaction
+    function to read handlers registered by the Go runtime.
     
-    name          old alloc/op   new alloc/op   delta
-    CopyNSmall-4    34.6kB ± 0%     1.9kB ±19%  -94.60%  (p=0.000 n=12+14)
-    CopyNLarge-4     129kB ± 8%     127kB ±18%   -2.00%  (p=0.007 n=14+14)
+    (Unfortunately, I can't seem to coax the runtime into reproducing the
+    failure in a small unit-test.)
     
-    name          old allocs/op  new allocs/op  delta
-    CopyNSmall-4      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=14+14)
-    CopyNLarge-4      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=14+14)
-    
-    Benchmark code:
-    type Buffer struct {
-            bytes.Buffer
-            io.ReaderFrom
-    }
-    
-    func BenchmarkCopyNSmall(b *testing.B) {
-            bs := bytes.Repeat([]byte{0}, 1024)
-            rd := bytes.NewReader(bs)
-            buf := new(Buffer)
-            b.ResetTimer()
-    
-            for i := 0; i < b.N; i++ {
-                    io.CopyN(buf, rd, 512)
-                    rd.Reset(bs)
-            }
-    }
-    
-    func BenchmarkCopyNLarge(b *testing.B) {
-            bs := bytes.Repeat([]byte{0}, 64*1024)
-            rd := bytes.NewReader(bs)
-            buf := new(Buffer)
-            b.ResetTimer()
-    
-            for i := 0; i < b.N; i++ {
-                    io.CopyN(buf, rd, (32*1024)+1)
-                    rd.Reset(bs)
-            }
-    }
-    
-    Change-Id: Id8d29e55758452c870cf372db640f07baec05849
-    Reviewed-on: https://go-review.googlesource.com/60630
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I744279a163708e24b1fbe296ca691935c394b5f3
+    Reviewed-on: https://go-review.googlesource.com/44270
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/io/io.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 50 insertions(+), 1 deletion(-)
+ src/runtime/cgo/gcc_sigaction.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,18 +1,14 @@
-commit b91cf5058514f70750076c25af07d904d2ee7c1b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 30 16:10:53 2012 -0400
+commit b8a02560de8a53be91f1e9b6cf188f5109d14897
+Author: Mats Lidell <mats.lidell@cag.se>
+Date:   Wed May 30 16:04:29 2012 -0400
 
-    cmd/6l, cmd/8l: fix chaining bug in jump rewrite
+    go-mode: Works for both GNU-Emacs and XEmacs-21.5
     
-    The code was inconsistent about when it used
-    brchain(x) and when it used x directly, with the result
-    that you could end up emitting code for brchain(x) but
-    leave the jump pointing at an unemitted x.
+    Fixes some portability issues between the Emacsen.
     
-    R=ken2
+    R=golang-dev, sameer, bradfitz, ryanb
     CC=golang-dev
-    https://golang.org/cl/6250077
+    https://golang.org/cl/6206043
 
- src/cmd/6l/pass.c | 15 ++++++++-------
- src/cmd/8l/pass.c | 15 ++++++++-------
- 2 files changed, 16 insertions(+), 14 deletions(-)
+ misc/emacs/go-mode.el | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

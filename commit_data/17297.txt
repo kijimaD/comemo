@@ -1,13 +1,15 @@
-commit eaa070448354c1710f053806dc703ad1d3a20558
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 16 21:14:38 2013 +0400
+commit 29794b77ddf1dbecc953d547b15e29aa12374bc1
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Fri Aug 16 13:03:40 2013 -0400
 
-    test: say that nilptr2.go requires 256+MB stack
-    Fixes #6161.
+    misc/emacs: godef: print the entire description, not just the first line
     
-    R=golang-dev, bradfitz
+    When identifying structs or interfaces we really want to know
+    their makeup, not just their name.
+    
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/13059043
+    https://golang.org/cl/13042043
 
- test/nilptr2.go | 6 +++---
+ misc/emacs/go-mode.el | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)

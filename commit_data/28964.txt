@@ -1,19 +1,12 @@
-commit 930ab0afd787214d379aca230944d0d41c8b90e6
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Oct 14 11:37:55 2016 -0400
+commit 35bddbba278fe0528b1399ab317b5e8128f02201
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 18 21:50:58 2016 +0000
 
-    cmd/asm, cmd/internal/obj/s390x: fix VFMA and VFMS encoding
+    doc: upate go1.8.txt
     
-    The m5 and m6 fields were the wrong way round.
-    
-    Fixes #17444.
-    
-    Change-Id: I10297064f2cd09d037eac581c96a011358f70aae
-    Reviewed-on: https://go-review.googlesource.com/31130
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I42597785be6121d8180520b3f7d8e936464f0048
+    Reviewed-on: https://go-review.googlesource.com/27361
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 5 ++++-
- src/cmd/internal/obj/s390x/asmz.go        | 2 +-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ doc/go1.8.txt | 2 ++
+ 1 file changed, 2 insertions(+)

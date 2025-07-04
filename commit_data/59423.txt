@@ -1,21 +1,17 @@
-commit 86101b083ad14bb0c6ca9c55d2869cba57760046
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Feb 21 10:55:32 2025 -0800
+commit 293fadffe7907dd4fc87201b8d9b7a186946639e
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Mar 12 08:22:19 2024 +0000
 
-    runtime: print stack traces for bubbled goroutines on synctest deadlock
+    cmd/covdata: fix typo in comment
     
-    When synctest.Run panics due to every goroutine in the bubble being
-    blocked, print a stack trace for every goroutine in the bubble.
-    
-    For #67434
-    
-    Change-Id: Ie751c2ee6fa136930b18f4bee0277ff30da46905
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/645719
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I14d2e58e36feb17a52fdc376a4562628e0da6698
+    GitHub-Last-Rev: 7e5d056dc5e0b9c009f5ed716ad4e9110551fe25
+    GitHub-Pull-Request: golang/go#66262
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570896
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/panic.go     | 29 +++++++++++++++++++++++------
- src/runtime/synctest.go  | 10 +++++++++-
- src/runtime/traceback.go |  6 +++++-
- 3 files changed, 37 insertions(+), 8 deletions(-)
+ src/cmd/covdata/metamerge.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

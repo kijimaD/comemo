@@ -1,25 +1,21 @@
-commit 1c3ab3d4312ec67d6450562bd750bb2c77621a66
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 21 12:41:15 2016 -0400
+commit 507051d6940c297bd93f5fac5cf786b0e3642d06
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 11:33:55 2016 -0700
 
-    cmd/go: report missing vendor visibility error
+    spec: complete list of special comma-ok forms
     
-    The logic for saving the list of packages was not always
-    preferring to keep error messages around correctly.
-    The missed error led to an internal consistency failure later.
+    The enumerations didn't include the syntactic form where the lhs is
+    full variable declaration with type specification, as in:
     
-    Fixes #17119.
+    var x, ok T = ...
     
-    Change-Id: I9723b5d2518c25e2cac5249e6a7b907be95b521c
-    Reviewed-on: https://go-review.googlesource.com/31812
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Fixes #15782.
+    
+    Change-Id: I0f7bafc37dc9dcf62cdb0894a0d157074ccd4b3e
+    Reviewed-on: https://go-review.googlesource.com/27670
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/go_test.go                         | 11 +++++++++++
- src/cmd/go/pkg.go                             | 19 ++++++++++++-------
- src/cmd/go/testdata/src/dupload/dupload.go    |  8 ++++++++
- src/cmd/go/testdata/src/dupload/p/p.go        |  1 +
- src/cmd/go/testdata/src/dupload/p2/p2.go      |  2 ++
- src/cmd/go/testdata/src/dupload/vendor/p/p.go |  1 +
- 6 files changed, 35 insertions(+), 7 deletions(-)
+ doc/go_spec.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

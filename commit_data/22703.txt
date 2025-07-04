@@ -1,20 +1,14 @@
-commit 14a4649fe2c1cb90093e5a7653c95169cde6cc67
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Fri Jan 9 00:11:44 2015 +0100
+commit 90c0fefe51b59f854f4eb7a8bc29348ae478b673
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 2 16:20:30 2015 -0400
 
-    cmd/pprof: handle empty profile gracefully
+    cmd/internal/obj/x86: remove NOP that crept into framepointer fix
     
-    The command "go tool pprof -top $GOROOT/bin/go /dev/null" now logs that
-    profile is empty instead of panicking.
+    Followup to CL 7728.
     
-    Fixes #9207
-    
-    Change-Id: I3d55c179277cb19ad52c8f24f1aca85db53ee08d
-    Reviewed-on: https://go-review.googlesource.com/2571
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibb0fed7816aab459a94720b139a7737fad65bea2
+    Reviewed-on: https://go-review.googlesource.com/8425
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/pprof/internal/driver/driver.go        |  4 ++++
- src/cmd/pprof/internal/profile/profile.go      |  5 +++++
- src/cmd/pprof/internal/profile/profile_test.go | 24 ++++++++++++++++++++++++
- 3 files changed, 33 insertions(+)
+ src/cmd/internal/obj/x86/asm6.go | 1 -
+ 1 file changed, 1 deletion(-)

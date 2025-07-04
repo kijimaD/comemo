@@ -1,0 +1,35 @@
+commit 76e7bfbb4e3a6114a33c7dba666fdd26698bedc5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 14 15:53:58 2025 -0400
+
+    runtime: move atoi to internal/runtime/strconv
+    
+    Moving to a smaller package allows its use in other internal/runtime
+    packages.
+    
+    This isn't internal/strconvlite since it can't be used directly by
+    strconv.
+    
+    For #73193.
+    
+    Change-Id: I6a6a636c9c8b3f06b5fd6c07fe9dd5a7a37d1429
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672697
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/internal/objabi/pkgspecial.go     |   1 +
+ src/go/build/deps_test.go                 |   1 +
+ src/internal/runtime/math/math.go         |   3 +
+ src/internal/runtime/strconv/atoi.go      |  76 +++++++++++++++++++++
+ src/internal/runtime/strconv/atoi_test.go | 105 ++++++++++++++++++++++++++++++
+ src/runtime/export_test.go                |   2 -
+ src/runtime/malloc.go                     |   4 +-
+ src/runtime/mgcpacer.go                   |   6 +-
+ src/runtime/mheap.go                      |   2 +-
+ src/runtime/os_linux.go                   |   3 +-
+ src/runtime/proc.go                       |   3 +-
+ src/runtime/runtime1.go                   |   7 +-
+ src/runtime/string.go                     |  83 ++---------------------
+ src/runtime/string_test.go                |  92 --------------------------
+ 14 files changed, 208 insertions(+), 180 deletions(-)

@@ -1,21 +1,16 @@
-commit 81c66e71d480ae2372b7eea4bcdf600b50fdd5e1
-Author: Andrey Bokhanko <andreybokhanko@gmail.com>
-Date:   Fri Jan 31 16:59:02 2025 +0300
+commit c844970ffb4f8c72e23364c5563d429d3535a0ff
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 11 14:14:10 2023 -0500
 
-    runtime: check LSE support on ARM64 at runtime init
+    doc/go1.22: fix stale id for math/rand/v2
     
-    Check presence of LSE support on ARM64 chip if we targeted it at compile
-    time.
+    For #61422.
     
-    Related to #69124
-    Updates #60905
-    Fixes #71411
-    
-    Change-Id: I65e899a28ff64a390182572c0c353aa5931fc85d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/645795
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If87f30229e5e5351e81d42c777259335af3533e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548878
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/asm_arm64.s | 50 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 50 insertions(+)
+ doc/go1.22.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

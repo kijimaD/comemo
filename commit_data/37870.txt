@@ -1,23 +1,20 @@
-commit 4b3f04c63b5b1a1bbc4dfd71c34341ea4e935115
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jan 4 20:17:15 2019 +0000
+commit 4cf33e361ada37d8fee9443a258abd167e31d033
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Tue Sep 4 17:17:32 2018 +0300
 
-    runtime: make mTreap iterator bidirectional
+    cmd/compile/internal/gc: fix mayAffectMemory in esc.go
     
-    This change makes mTreap's iterator type, treapIter, bidirectional
-    instead of unidirectional. This change helps support moving the find
-    operation on a treap to return an iterator instead of a treapNode, in
-    order to hide the details of the treap when accessing elements.
+    For OINDEX and other Left+Right nodes, we want the whole
+    node to be considered as "may affect memory" if either
+    of Left or Right affect memory. Initial implementation
+    only considered node as such if both Left and Right were non-safe.
     
-    For #28479.
-    
-    Change-Id: I5dbea4fd4fb9bede6e81bfd089f2368886f98943
-    Reviewed-on: https://go-review.googlesource.com/c/156918
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Icfb965a0b4c24d8f83f3722216db068dad2eba95
+    Reviewed-on: https://go-review.googlesource.com/133275
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/export_test.go |  2 +-
- src/runtime/mgclarge.go    | 54 +++++++++++++++++++++-------------------------
- src/runtime/mheap.go       | 14 ++++++------
- 3 files changed, 34 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 4 ++--
+ test/escape_param.go               | 8 ++++++++
+ 2 files changed, 10 insertions(+), 2 deletions(-)

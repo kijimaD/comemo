@@ -1,15 +1,13 @@
-commit e33e47e844cdce5a5dedfd0c1c72e480f12db6f1
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Feb 23 16:31:48 2014 -0500
+commit d4b6a198b3b44c8c9617c72ceca9c32ba089b5a8
+Author: Patrick Mézard <patrick@mezard.eu>
+Date:   Sun Feb 23 12:53:02 2014 -0800
 
-    cmd/gc: diagnose "make([]T, non-integer)" correctly.
-    Fixes #7223.
+    os/exec: explicitly mention Cmd.Wait() has to be called eventually
     
-    LGTM=rsc
-    R=golang-codereviews, gobot, rsc
+    LGTM=minux.ma, r
+    R=golang-codereviews, minux.ma, r
     CC=golang-codereviews
-    https://golang.org/cl/63040043
+    https://golang.org/cl/67280043
 
- src/cmd/gc/typecheck.c      | 43 ++++++++++++++++++++++++++-----------------
- test/fixedbugs/issue7223.go | 20 ++++++++++++++++++++
- 2 files changed, 46 insertions(+), 17 deletions(-)
+ src/pkg/os/exec/exec.go | 5 +++++
+ 1 file changed, 5 insertions(+)

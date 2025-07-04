@@ -1,33 +1,23 @@
-commit 50365666c7264ac0608220adeff2c4f503b8fb67
+commit 060a988011b34ded3e002e1a4cb138b7ed21b176
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 13 02:04:03 2014 -0400
+Date:   Thu Jun 12 21:12:53 2014 -0400
 
-    undo CL 101970047 / 30307cc8bef2
+    runtime: revise CL 105140044 (defer nil) to work on Windows
     
-    makes windows-amd64-race benchmarks slower
+    It appears that something about Go on Windows
+    cannot handle the fault cause by a jump to address 0.
+    The way Go represents and calls functions, this
+    never happened at all, until CL 105140044.
     
-    ««« original CL description
-    testing: make benchmarking faster
+    This CL changes the code added in CL 105140044
+    to make jump to 0 impossible once again.
     
-    Allow the number of benchmark iterations to grow faster for fast benchmarks, and don't round up twice.
+    Fixes #8047. (again, on Windows)
     
-    Using the default benchtime, this CL reduces wall clock time to run benchmarks:
-    
-    net/http        49s   -> 37s   (-24%)
-    runtime         8m31s -> 5m55s (-30%)
-    bytes           2m37s -> 1m29s (-43%)
-    encoding/json   29s   -> 21s   (-27%)
-    strings         1m16s -> 53s   (-30%)
-    
-    LGTM=crawshaw
-    R=golang-codereviews, crawshaw
-    CC=golang-codereviews
-    https://golang.org/cl/101970047
-    »»»
-    
-    TBR=josharian
-    CC=golang-codereviews
-    https://golang.org/cl/105950044
+    TBR=bradfitz
+    R=golang-codereviews, dave
+    CC=adg, golang-codereviews, iant, r
+    https://golang.org/cl/105120044
 
- src/pkg/testing/benchmark.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/pkg/runtime/stack.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

@@ -1,18 +1,14 @@
-commit a46a311deccf202e9076f6a53773c37a3c6e195a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 2 11:24:32 2011 -0400
+commit ef945203809d68663cfb7c4dd935d3bfe6babe78
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 08:14:31 2011 -0700
 
-    5a, 6a, 8a, cc: remove old environment variables
+    multipart: add FileName accessor on Part
     
-    Uses of $INCLUDE and $NPROC are left over from Plan 9.
-    Remove them to avoid causing confusion.
-    
-    R=golang-dev, r2
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/4445079
+    https://golang.org/cl/4426074
 
- src/cmd/5a/lex.c | 53 ++++-----------------------------------------------
- src/cmd/6a/lex.c | 53 ++++-----------------------------------------------
- src/cmd/8a/lex.c | 53 ++++-----------------------------------------------
- src/cmd/cc/lex.c | 58 ++++----------------------------------------------------
- 4 files changed, 16 insertions(+), 201 deletions(-)
+ src/pkg/mime/multipart/formdata.go       |  5 +----
+ src/pkg/mime/multipart/multipart.go      | 33 ++++++++++++++++++++++--------
+ src/pkg/mime/multipart/multipart_test.go | 35 ++++++++++++++++----------------
+ 3 files changed, 43 insertions(+), 30 deletions(-)

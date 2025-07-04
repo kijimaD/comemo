@@ -1,15 +1,14 @@
-commit 5c32c96f5cd624a4ab4cde4b8e4abd3dbe9be4a6
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Jun 8 13:32:47 2011 +1000
+commit 6998ea2982ad97db0166cbf5e22bab3087063154
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jun 8 10:46:15 2011 +1000
 
-    mail: format addresseses correctly.
+    gc: alternative clang compatible abort.
     
-    Also remove an obsolete TODO while I'm here.
+    Tested on clang 2.9/amd64
     
-    R=r, rsc
+    R=rsc, jeff, r
     CC=golang-dev
-    https://golang.org/cl/4588041
+    https://golang.org/cl/4517143
 
- src/pkg/mail/message.go      | 60 ++++++++++++++++++++++++++++++++++++++++----
- src/pkg/mail/message_test.go | 27 ++++++++++++++++++++
- 2 files changed, 82 insertions(+), 5 deletions(-)
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

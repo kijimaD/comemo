@@ -1,83 +1,19 @@
-commit 0d94f989d12a52ddc3869dbaa02255873f7a8196
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 30 07:07:42 2021 -0500
+commit 9984ef824c635421c225f5bf3d5573a1fbd94dde
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 3 10:52:23 2020 -0700
 
-    runtime: clean up system calls during cgo callback init
+    cmd/compile: test that equality is evaluated in order
     
-    During a cgocallback, the runtime calls needm to get an m.
-    The calls made during needm cannot themselves assume that
-    there is an m or a g (which is attached to the m).
+    Make sure that we compare fields of structs and elements of arrays in order,
+    with proper short-circuiting.
     
-    In the old days of making direct system calls, the only thing
-    you had to do for such functions was mark them //go:nosplit,
-    to avoid the use of g in the stack split prologue.
+    Update #8606
     
-    But now, on operating systems that make system calls through
-    shared libraries and use code that saves state in the g or m
-    before doing so, it's not safe to assume g exists. In fact, it is
-    not even safe to call getg(), because it might fault deferencing
-    the TLS storage to find the g pointer (that storage may not be
-    initialized yet, at least on Windows, and perhaps on other systems
-    in the future).
-    
-    The specific routines that are problematic are usleep and osyield,
-    which are called during lock contention in lockextra, called
-    from needm.
-    
-    All this is rather subtle and hidden, so in addition to fixing the
-    problem on Windows, this CL makes the fact of not running on
-    a g much clearer by introducing variants usleep_no_g and
-    osyield_no_g whose names should make clear that there is no g.
-    And then we can remove the various sketchy getg() == nil checks
-    in the existing routines.
-    
-    As part of this cleanup, this CL also deletes onosstack on Windows.
-    onosstack is from back when the runtime was implemented in C.
-    It predates systemstack but does essentially the same thing.
-    Instead of having two different copies of this code, we can use
-    systemstack consistently. This way we need not port onosstack
-    to each architecture.
-    
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
-    
-    Change-Id: I3352de1fd0a3c26267c6e209063e6e86abd26187
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288793
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I0a66ad92ea0af7bcc56dfdb275dec2b8d7e8b4fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236147
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/asm_386.s              | 16 ++++++++
- src/runtime/asm_amd64.s            | 17 ++++++++
- src/runtime/asm_arm.s              | 15 +++++++
- src/runtime/asm_arm64.s            | 13 +++++-
- src/runtime/asm_mips64x.s          |  9 ++++
- src/runtime/os2_aix.go             | 42 ++++++++-----------
- src/runtime/os3_solaris.go         | 20 +++++----
- src/runtime/os_darwin.go           |  5 +++
- src/runtime/os_dragonfly.go        |  5 +++
- src/runtime/os_freebsd.go          |  5 +++
- src/runtime/os_js.go               | 10 +++++
- src/runtime/os_linux.go            |  5 +++
- src/runtime/os_netbsd.go           |  5 +++
- src/runtime/os_openbsd_syscall1.go |  5 +++
- src/runtime/os_openbsd_syscall2.go |  5 +++
- src/runtime/os_plan9.go            | 10 +++++
- src/runtime/os_windows.go          | 38 ++++++++++-------
- src/runtime/proc.go                |  6 +--
- src/runtime/stubs2.go              |  5 +++
- src/runtime/stubs_386.go           |  3 ++
- src/runtime/stubs_amd64.go         |  5 +++
- src/runtime/stubs_arm.go           |  5 +++
- src/runtime/stubs_arm64.go         |  5 +++
- src/runtime/stubs_mips64x.go       |  5 +++
- src/runtime/sys_darwin.go          |  6 +++
- src/runtime/sys_openbsd1.go        |  5 +++
- src/runtime/sys_openbsd2.go        |  6 +++
- src/runtime/sys_windows_386.s      | 79 +++++------------------------------
- src/runtime/sys_windows_amd64.s    | 71 ++++----------------------------
- src/runtime/sys_windows_arm.s      | 84 ++++----------------------------------
- 30 files changed, 254 insertions(+), 256 deletions(-)
+ test/fixedbugs/issue8606.go | 46 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

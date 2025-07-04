@@ -1,13 +1,14 @@
-commit ec878116627919876b429f8eca70815ed10544c0
+commit dbac863ed89e824c458d8dacb3860513cf648468
 Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Fri Feb 10 22:35:42 2012 -0200
+Date:   Fri Feb 10 22:26:36 2012 -0200
 
-    CONTRIBUTORS: add Bjorn Tipling <bjorn.tipling@gmail.com>
+    cmd/dist: reset version during bootstrap
     
-    R=golang-dev, bradfitz
+    Fixes #2927.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5645085
+    https://golang.org/cl/5651062
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/dist/build.c | 1 +
+ 1 file changed, 1 insertion(+)

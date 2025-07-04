@@ -1,19 +1,25 @@
-commit c793ea37195f982bbe0b78f90fa0392bb856e834
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 9 23:47:02 2018 +0000
+commit 5f0a9ba1342674b3209c13035b5aa39a96dbd80c
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Dec 12 08:59:01 2017 +0900
 
-    net/http: remove dead code noted in post-submit review of CL 81778
+    go/internal/srcimporter: simplify and fix package file lookup
     
-    Per comments in https://github.com/golang/go/issues/20239#issuecomment-402199944
+    The old code was a blend of (copied) code that existed before go/build,
+    and incorrect adjustments made when go/build was introduced. This change
+    leaves package path determination entirely to go/build and in the process
+    fixes issues with relative import paths.
     
-    Updates #20239
-    Updates #26303
+    Fixes #23092
+    Fixes #24392
     
-    Change-Id: Iddf34c0452bd30ca9111b951bca48d1e011bd85a
-    Reviewed-on: https://go-review.googlesource.com/122820
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9e900538b365398751bace56964495c5440ac4ae
+    Reviewed-on: https://go-review.googlesource.com/83415
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/server.go | 17 +----------------
- 1 file changed, 1 insertion(+), 16 deletions(-)
+ src/go/internal/srcimporter/srcimporter.go         | 28 ++++---------------
+ src/go/internal/srcimporter/srcimporter_test.go    | 32 ++++++++++++++++++++++
+ .../srcimporter/testdata/issue23092/issue23092.go  |  5 ++++
+ .../srcimporter/testdata/issue24392/issue24392.go  |  5 ++++
+ 4 files changed, 47 insertions(+), 23 deletions(-)

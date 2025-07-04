@@ -1,0 +1,32 @@
+commit 44cea1234dc18352fec89285e94f92693034323d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 19 08:34:07 2024 -0500
+
+    cmd/go/internal/fsys: replace file tree with sorted list
+    
+    Replace the tree of nodes with a sorted list of file replacements.
+    The most important property of this representation is that it
+    allows replacing directories: a replacement x -> y where y is
+    a directory could not be implemented before, because it would
+    require making a node for every file in the tree rooted at y,
+    or else it would require unsuccessful lookups for files like
+    x/a/b/c/d/e/f/g/h/i/j/k to try every possible parent in order
+    to discover the x -> y mapping.
+    
+    The sorted list makes it easy to find the x -> y mapping:
+    when you do the binary search for x/a/b/c/d/e/f/g/h/i/j/k,
+    you end up immediately after the x -> y mapping, so stepping
+    backward one entry provides the mapping we need, if it exists.
+    
+    This CL does not allow overlay files to include directories,
+    but now it is possible. This is at least useful for other kinds
+    of experiments (like FIPS).
+    
+    Change-Id: Ief0afaee82e644dab8ae4eafeec20440afee2e36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628701
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/fsys/fsys.go      | 201 ++++++++++++++++++++--------------
+ src/cmd/go/internal/fsys/fsys_test.go |  97 ++++++++++++++++
+ 2 files changed, 213 insertions(+), 85 deletions(-)

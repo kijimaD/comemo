@@ -1,17 +1,21 @@
-commit b79acf97c79c63779acc77062eef70511a42be9b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Mar 2 09:31:44 2020 +0100
+commit c455e8878f67eeeb02537cc7b3c5fc18a22a2ed7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 3 18:25:21 2019 -0400
 
-    internal/cpu: use anonymous struct for CPU feature vars
+    [dev.link] cmd/link: change some decodetype functions to operate on bytes
     
-    Like in x/sys/cpu, use anonymous structs to declare the CPU feature vars
-    instead of defining single-use types. Also, order the vars
-    alphabetically.
+    Change some decodetype functions to operate on bytes nstead of
+    Symbol. This is in preparation of implementing live method
+    tracking in index-based deadcode pass, and reducing/eliminating
+    sym.Symbol in general.
     
-    Change-Id: Iedd3ca51916e3cbb852d2aeed18b3a4c6613e778
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221757
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: Ia9809ad7b182884225e1bda577e8dbec0cd216c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199077
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/internal/cpu/cpu.go | 64 ++++++++++++++++++++-----------------------------
- 1 file changed, 26 insertions(+), 38 deletions(-)
+ src/cmd/link/internal/ld/data.go      |  4 +--
+ src/cmd/link/internal/ld/deadcode.go  |  2 +-
+ src/cmd/link/internal/ld/decodesym.go | 56 +++++++++++++++++------------------
+ src/cmd/link/internal/ld/dwarf.go     | 14 ++++-----
+ src/cmd/link/internal/ld/symtab.go    |  2 +-
+ 5 files changed, 39 insertions(+), 39 deletions(-)

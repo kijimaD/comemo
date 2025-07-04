@@ -1,15 +1,37 @@
-commit 5636b60b705f462de0ee794fac6a0d071ed3a952
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 12 13:42:04 2013 -0400
+commit 8b789e17381f8c609cee24aad9c42e0f02ee6310
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 12 10:25:36 2013 -0700
 
-    cmd/5l: fix encoding of new MOVB, MOVH instructions
+    all: change textflags from numbers to symbols.
     
-    They are just like MOVW and should be setting only
-    two register fields, not three.
-    
-    R=ken2
-    CC=golang-dev, remyoudompheng
-    https://golang.org/cl/12781043
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12774043
 
- src/cmd/5l/asm.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/aes/asm_amd64.s        | 20 ++++++------
+ src/pkg/crypto/md5/md5block_386.s     |  4 ++-
+ src/pkg/crypto/md5/md5block_amd64.s   |  4 ++-
+ src/pkg/crypto/md5/md5block_arm.s     |  4 ++-
+ src/pkg/crypto/rc4/rc4_386.s          |  4 ++-
+ src/pkg/crypto/rc4/rc4_amd64.s        |  4 ++-
+ src/pkg/crypto/rc4/rc4_arm.s          |  4 ++-
+ src/pkg/crypto/sha1/sha1block_386.s   |  4 ++-
+ src/pkg/crypto/sha1/sha1block_amd64.s |  4 ++-
+ src/pkg/hash/crc32/crc32_amd64.s      |  6 ++--
+ src/pkg/math/big/arith_386.s          | 26 ++++++++--------
+ src/pkg/math/big/arith_amd64.s        | 26 ++++++++--------
+ src/pkg/math/big/arith_arm.s          | 26 ++++++++--------
+ src/pkg/os/signal/sig.s               |  8 +++--
+ src/pkg/reflect/asm_386.s             |  6 ++--
+ src/pkg/reflect/asm_amd64.s           |  6 ++--
+ src/pkg/reflect/asm_arm.s             |  6 ++--
+ src/pkg/runtime/cgo/asm_386.s         |  4 ++-
+ src/pkg/runtime/cgo/asm_amd64.s       |  4 ++-
+ src/pkg/runtime/cgo/asm_arm.s         |  4 ++-
+ src/pkg/sync/atomic/asm_386.s         | 48 +++++++++++++++--------------
+ src/pkg/sync/atomic/asm_amd64.s       | 48 +++++++++++++++--------------
+ src/pkg/sync/atomic/asm_arm.s         | 20 ++++++------
+ src/pkg/sync/atomic/asm_freebsd_arm.s | 48 +++++++++++++++--------------
+ src/pkg/sync/atomic/asm_linux_arm.s   | 58 ++++++++++++++++++-----------------
+ src/pkg/sync/atomic/asm_netbsd_arm.s  | 48 +++++++++++++++--------------
+ 26 files changed, 248 insertions(+), 196 deletions(-)

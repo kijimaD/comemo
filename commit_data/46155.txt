@@ -1,30 +1,25 @@
-commit 099b819085e12ca45ac184cab5afb82538bec472
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Aug 24 15:34:52 2021 -0700
+commit d0f40d29223a2aef58475f81a559b2d27396134a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Dec 4 16:04:53 2020 +0000
 
-    cmd/compile: fix CheckSize() calculation for -G=3 and stencils
+    runtime/metrics: add ordering line to supported metrics docs
     
-    Because the Align/Width of pointer types are always set when created,
-    CalcSize() never descends past a pointer. Therefore, we need to do
-    CheckSize() at every level when creating type. We need to do this for
-    types creates by types2-to-types1 conversion and also by type
-    substitution (mostly for stenciling). We also need to do
-    Defer/ResumeCheckSize() at the top level in each of these cases to deal
-    with potentially recursive types.
+    This change adds an additional line explaining the ordering of the
+    supported metrics list. It's also necessary to ensure "Supported
+    metrics" is displayed by godoc as a proper header.
     
-    These changes fix issue #47929 and also allow us to remove the
-    special-case CheckSize() call that causes the problem for issue #47901.
+    This modification does mean the description test, that ensures
+    descriptions line up with documentation, needs to change slightly
+    so it it doesn't read this new line as documentation. Make this
+    new line the line the test uses to decide when to begin.
     
-    Fixes #47901
-    Fixes #47929
-    
-    Change-Id: Icd8192431c145009cd6df2f4ade6db7da0f4dd3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344829
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I654c1c20e97a80ea79c8eb864445153ce91950bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275852
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/noder/types.go    | 24 ++++++--------
- src/cmd/compile/internal/typecheck/subr.go | 52 ++++++++++++++++--------------
- test/typeparam/issue47901.go               | 21 ++++++++++++
- test/typeparam/issue47929.go               | 29 +++++++++++++++++
- 4 files changed, 88 insertions(+), 38 deletions(-)
+ src/runtime/metrics/description_test.go | 2 +-
+ src/runtime/metrics/doc.go              | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

@@ -1,28 +1,34 @@
-commit 31c81500828993d99af3392742abde64194da858
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue May 14 22:22:34 2024 -0700
+commit 2e93fe0a9f55aaa2a762e7fb454d76b2ee3a4e4f
+Author: David Chase <drchase@google.com>
+Date:   Tue Apr 25 19:14:05 2023 -0400
 
-    cmd/compile/internal/noder: enable type aliases in type checker
+    runtime: move per-type types to internal/abi
     
-    This CL fixes an initialization loop during IR construction, that
-    stems from IR lacking first-class support for aliases. As a
-    workaround, we avoid publishing alias declarations until the RHS type
-    expression has been constructed.
-    
-    Thanks to gri@ for investigating while I was out.
-    
-    Fixes #66873.
-    
-    Change-Id: I11e0d96ea6c357c295da47f44b6ec408edef89b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585399
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I1f031f0f83a94bebe41d3978a91a903dc5bcda66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489276
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/irgen.go  |  4 +---
- src/cmd/compile/internal/noder/reader.go | 25 +++++++++++++++++++++++--
- src/cmd/compile/internal/noder/writer.go | 12 ++++++++++++
- test/alias2.go                           | 10 +++++-----
- test/fixedbugs/issue66873.go             | 15 +++++++++++++++
- 5 files changed, 56 insertions(+), 10 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go      |  12 +-
+ src/cmd/link/internal/ld/dwarf_test.go |  20 +--
+ src/runtime/alg.go                     |   8 +-
+ src/runtime/arena.go                   |  10 +-
+ src/runtime/cgocall.go                 |  18 +-
+ src/runtime/cgocheck.go                |  14 +-
+ src/runtime/export_debug_test.go       |   2 +-
+ src/runtime/export_test.go             |   8 +-
+ src/runtime/heapdump.go                |   4 +-
+ src/runtime/iface.go                   |  38 ++---
+ src/runtime/map.go                     | 304 ++++++++++++++++-----------------
+ src/runtime/map_fast32.go              |  68 ++++----
+ src/runtime/map_fast64.go              |  70 ++++----
+ src/runtime/map_faststr.go             |  68 ++++----
+ src/runtime/mbitmap.go                 |   6 +-
+ src/runtime/mfinal.go                  |  20 +--
+ src/runtime/plugin.go                  |   2 +-
+ src/runtime/runtime1.go                |   4 +-
+ src/runtime/syscall_windows.go         |  16 +-
+ src/runtime/type.go                    | 223 +++++-------------------
+ 20 files changed, 392 insertions(+), 523 deletions(-)

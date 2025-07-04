@@ -1,12 +1,43 @@
-commit 929449ddaf4fbd61e827e7d75776acd94c287bcf
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 17 16:33:10 2011 +1100
+commit 4fd41e494acee8721270a370634528cfed11b939
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 16 19:03:01 2011 -0700
 
-    doc: explain release and weekly tags in install.html
+    syscall: Permit non-blocking syscalls.
     
-    R=r
+    Permit system calls to be designated as non-blocking, meaning
+    that we simply call them without involving the scheduler.
+    
+    This change by itself is mostly performance neutral.  In
+    combination with a following change to the net package there
+    is a performance advantage.
+    
+    R=rsc, dfc, r2, iant2, rsc1
     CC=golang-dev
-    https://golang.org/cl/4272058
+    https://golang.org/cl/4278055
 
- doc/install.html | 23 ++++++++++++++++++++++-
- 1 file changed, 22 insertions(+), 1 deletion(-)
+ src/pkg/syscall/asm_darwin_386.s          | 24 +++++++++
+ src/pkg/syscall/asm_darwin_amd64.s        | 21 ++++++++
+ src/pkg/syscall/asm_freebsd_386.s         | 24 +++++++++
+ src/pkg/syscall/asm_freebsd_amd64.s       | 20 +++++++
+ src/pkg/syscall/asm_linux_386.s           | 45 ++++++++++++++++
+ src/pkg/syscall/asm_linux_amd64.s         | 22 ++++++++
+ src/pkg/syscall/asm_linux_arm.s           | 28 ++++++++++
+ src/pkg/syscall/mksyscall.sh              | 18 +++++--
+ src/pkg/syscall/syscall_bsd.go            | 14 ++---
+ src/pkg/syscall/syscall_darwin.go         | 46 ++++++++---------
+ src/pkg/syscall/syscall_darwin_386.go     |  2 +-
+ src/pkg/syscall/syscall_darwin_amd64.go   |  2 +-
+ src/pkg/syscall/syscall_freebsd.go        | 48 ++++++++---------
+ src/pkg/syscall/syscall_linux.go          | 54 +++++++++----------
+ src/pkg/syscall/syscall_linux_386.go      | 35 +++++++------
+ src/pkg/syscall/syscall_linux_amd64.go    | 30 +++++------
+ src/pkg/syscall/syscall_linux_arm.go      | 34 ++++++------
+ src/pkg/syscall/syscall_unix.go           |  1 +
+ src/pkg/syscall/zsyscall_darwin_386.go    | 62 +++++++++++-----------
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 62 +++++++++++-----------
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 62 +++++++++++-----------
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 62 +++++++++++-----------
+ src/pkg/syscall/zsyscall_linux_386.go     | 78 ++++++++++++++--------------
+ src/pkg/syscall/zsyscall_linux_amd64.go   | 82 ++++++++++++++---------------
+ src/pkg/syscall/zsyscall_linux_arm.go     | 86 +++++++++++++++----------------
+ 25 files changed, 579 insertions(+), 383 deletions(-)

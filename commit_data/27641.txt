@@ -1,22 +1,14 @@
-commit 7b48020cfeb64d1f841a7523aa841dbe53b3b465
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 1 15:24:14 2016 -0700
+commit b2fc9f1c23453e16ab08d411ed0e439212d6e5e6
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Wed Apr 6 11:18:55 2016 -0300
 
-    cmd/cgo: check pointers for deferred C calls at the right time
+    net/http/pprof: note calling runtime.SetBlockProfileRate is required for block profile
     
-    We used to check time at the point of the defer statement. This change
-    fixes cgo to check them when the deferred function is executed.
+    Fixes #15076
     
-    Fixes #15921.
-    
-    Change-Id: I72a10e26373cad6ad092773e9ebec4add29b9561
-    Reviewed-on: https://go-review.googlesource.com/23650
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I5ce8f6253245d8cc1f862a1bf618775f557f955d
+    Reviewed-on: https://go-review.googlesource.com/21610
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/errors/ptr.go |   8 ++++
- src/cmd/cgo/ast.go     |   9 ++--
- src/cmd/cgo/gcc.go     | 110 ++++++++++++++++++++++++++++++++++++++++++-------
- src/cmd/cgo/main.go    |   8 +++-
- 4 files changed, 115 insertions(+), 20 deletions(-)
+ src/net/http/pprof/pprof.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

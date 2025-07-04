@@ -1,45 +1,14 @@
-commit cf28e5cc9d51928ae05df0b193edc7e39a28c413
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Nov 1 15:28:10 2016 -0700
+commit 06eeea210b0fd764cda8d86b555343fcfac6e194
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 16:51:26 2016 -0700
 
-    cmd/compile: compute faulting args before writing args to stack
+    cmd/compile: permit use of %S (short) and %L (long) instead of %1v and %2v
     
-    when compiling f(a, b, c), we do something like:
-      *(SP+0) = eval(a)
-      *(SP+8) = eval(b)
-      *(SP+16) = eval(c)
-      call f
+    First step towards cleaning up format use. Not yet enabled.
     
-    If one of those evaluations is later determined to unconditionally panic
-    (say eval(b) in this example), then the call is deadcode eliminated. But
-    any previous argument write (*(SP+0)=... here) is still around. Becuase
-    we only compute the size of the outarg area for calls which are still
-    around at the end of optimization, the space needed for *(SP+0)=v is not
-    accounted for and thus the outarg area may be too small.
-    
-    The fix is to make sure that we evaluate any potentially panicing
-    operation before we write any of the args to the stack. It turns out
-    that fix is pretty easy, as we already have such a mechanism available
-    for function args. We just need to extend it to possibly panicing args
-    as well.
-    
-    The resulting code (if b and c can panic, but a can't) is:
-      tmpb = eval(b)
-      *(SP+16) = eval(c)
-      *(SP+0) = eval(a)
-      *(SP+8) = tmpb
-      call f
-    
-    This change tickled a bug in how we find the arguments for intrinsic
-    calls, so that latent bug is fixed up as well.
-    
-    Update #16760.
-    
-    Change-Id: I0bf5edf370220f82bc036cf2085ecc24f356d166
-    Reviewed-on: https://go-review.googlesource.com/32551
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia8d76bf02fe05882fffb9d17c9a30dc38d28bf81
+    Reviewed-on: https://go-review.googlesource.com/28784
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/ssa.go  | 158 +++++++++++++++++++++++-------------
- src/cmd/compile/internal/gc/subr.go |   6 ++
- test/fixedbugs/issue16760.go        |  42 ++++++++++
- 3 files changed, 148 insertions(+), 58 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 91 ++++++++++++++++++--------------------
+ 1 file changed, 43 insertions(+), 48 deletions(-)

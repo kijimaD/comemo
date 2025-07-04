@@ -1,13 +1,20 @@
-commit 076ebed0d87e1c9678ece352986d8b1ad877b440
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Dec 14 15:40:35 2011 -0800
+commit d89b7173c2e2c919677753f38ed67022ebea175d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Dec 14 17:30:40 2011 -0500
 
-    cgo: add basic gccgo support.
+    5c, 6c, 8c: support 64-bit switch value
     
-    R=rsc, iant
-    CC=golang-dev, remy
-    https://golang.org/cl/5485070
+    For real this time. :-)
+    
+    R=rsc, ken
+    CC=golang-dev
+    https://golang.org/cl/5486061
 
- src/cmd/cgo/main.go |  2 ++
- src/cmd/cgo/out.go  | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 56 insertions(+), 3 deletions(-)
+ src/cmd/5c/gc.h   |  1 +
+ src/cmd/5c/swt.c  | 25 ++++++++++++++++++++++---
+ src/cmd/6c/gc.h   |  1 +
+ src/cmd/6c/swt.c  | 19 +++++++++++++++++--
+ src/cmd/8c/gc.h   |  1 +
+ src/cmd/8c/swt.c  | 24 ++++++++++++++++++++++--
+ src/cmd/cc/pgen.c | 12 ++----------
+ 7 files changed, 66 insertions(+), 17 deletions(-)

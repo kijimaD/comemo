@@ -1,29 +1,27 @@
-commit 0234dfd493b9bb009728d60658aa0ccdd2463c09
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 4 10:19:24 2015 -0400
+commit 2f0828ef7c083bce7b912217762a872257022011
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Mar 29 23:11:47 2015 +0000
 
-    runtime: use 2-bit heap bitmap (in place of 4-bit)
+    reflect, cmd/internal/gc: look for pointer types by string before synthesizing
     
-    Previous CLs changed the representation of the non-heap type bitmaps
-    to be 1-bit bitmaps (pointer or not). Before this CL, the heap bitmap
-    stored a 2-bit type for each word and a mark bit and checkmark bit
-    for the first word of the object. (There used to be additional per-word bits.)
+    The ptrto field of the type data cannot be relied on when dynamic linking: a
+    type T may be defined in a module that makes no use of pointers to that type,
+    but another module can contain a package that imports the first one and does use
+    *T pointers.  The second module will end up defining type data for *T and a
+    type.*T symbol pointing at it. It's important that calling .PtrTo() on the
+    refect.Type for T returns this type data and not some synthesized object, so we
+    need reflect to be able to find it!
     
-    Reduce heap bitmap to 2-bit, with 1 dedicated to pointer or not,
-    and the other used for mark, checkmark, and "keep scanning forward
-    to find pointers in this object." See comments for details.
+    Fortunately, the reflect package already has a mechanism for doing this sort of
+    thing: ChanOf/MapOf/etc look for pre-existing type data by name.  So this change
+    just extends PtrTo() to consult this too, and changes the compiler to include
+    pointer types in the data consulted when compiling for dynamic linking.
     
-    This CL replaces heapBitsSetType with very slow but obviously correct code.
-    A followup CL will optimize it. (Spoiler: the new code is faster than Go 1.4 was.)
-    
-    Change-Id: I999577a133f3cfecacebdec9cdc3573c235c7fb9
-    Reviewed-on: https://go-review.googlesource.com/9703
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I3773c066fd0679a62e9fc52a84bf64f1d67662b7
+    Reviewed-on: https://go-review.googlesource.com/8232
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/gcinfo_test.go |  23 +--
- src/runtime/heapdump.go    |   7 +-
- src/runtime/mbitmap.go     | 489 ++++++++++++++++++++++++---------------------
- src/runtime/mgcmark.go     |  34 ++--
- src/runtime/stack1.go      |   6 +
- 5 files changed, 293 insertions(+), 266 deletions(-)
+ src/cmd/internal/gc/reflect.go | 14 ++++++++++++++
+ src/reflect/type.go            | 12 +++++++++++-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

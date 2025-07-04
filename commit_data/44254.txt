@@ -1,17 +1,19 @@
-commit 07ef3135253321176704bce6e629a07ac02bf1c6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 17 12:03:13 2021 -0800
+commit 5aaeda19c1876ecec85406726b544ac49c8f799b
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Jun 3 10:33:03 2020 +0800
 
-    runtime/cgo: add cast in C code to avoid C compiler warning
+    cmd/internal/obj/arm64: fix typos in document
     
-    Fixes #44340
+    The current document mismatches Go syntax loads a signed-byte
+    instruction "MOVB" with GNU syntax loads an 64bit double-word
+    instruction "ldr". This is just a typo in the document, the
+    assembler has the correct encoding. This patch fix this error.
     
-    Change-Id: Id80dd1f44a988b653933732afcc8e49a826affc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293209
-    Reviewed-by: Andrew G. Morgan <agm@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #39367
+    
+    Change-Id: Idb8f65ca540514ee5bc8f07073e756838710ba93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236217
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/cgo/linux_syscall.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/arm64/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,18 +1,21 @@
-commit 82cbcb0dd5437db1fd2f51d1ff81a38670f7a684
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Jul 11 09:41:08 2012 -0700
+commit 685a61df7ec3c559b1369576731b66d32a5790b8
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jul 10 15:57:51 2012 -0400
 
-    website: various html fixes
+    crypto/x509: exempt broken Entrust certificate from checks.
     
-    Fixes #3424.
+    Entrust have issued a root certificate that's not marked as valid for
+    signing certificates.
     
-    R=fullung, adg
+    This results in Go programs failing to validate certificates that
+    chain up to this root (i.e. gateway.push.apple.com:2195).
+    
+    Although this is clearly a mistake on Entrust's part, it seems that we
+    will have to bodge around it.
+    
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/6343088
+    https://golang.org/cl/6346064
 
- doc/docs.html          | 4 ++--
- doc/go_faq.html        | 2 +-
- doc/reference.html     | 4 ++--
- lib/godoc/godoc.html   | 2 +-
- lib/godoc/package.html | 4 ++--
- 5 files changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/crypto/x509/x509.go | 55 +++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 53 insertions(+), 2 deletions(-)

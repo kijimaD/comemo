@@ -1,24 +1,23 @@
-commit bc2dc2384619d871000f9627b5d4e2bdc1dd38dc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Nov 3 11:02:51 2022 -0700
+commit 21fa0b21996bc70c171bfa0f0c8917ecb0e73c75
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Dec 3 17:13:08 2021 -0500
 
-    os/exec: allow NUL in environment variables on Plan 9
+    [dev.boringcrypto] crypto/internal/boring: add -pthread linker flag
     
-    Plan 9 uses NUL as os.PathListSeparator, so it's almost always going
-    to appear in the environment variable list. Exempt GOOS=plan9 from the
-    check for NUL in environment variables.
+    goboringcrypto_linux_amd64.syso references pthread functions, so
+    we need to pass -pthread to the C linker when external linking.
+    Usually it is automatically added when linking with runtime/cgo
+    package. But in shared linkage the runtime/cgo package may be in
+    a separate DSO and not part of this invocation.
     
-    For #56284.
-    Fixes #56544.
+    Fixes #49965.
     
-    Change-Id: I23df233cdf20c0a9a606fd9253e15a9b5482575a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447715
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I3a9983e715ee804594a14006f212f76769ad71db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369161
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/os/exec/env_test.go  |  9 ++++++++-
- src/os/exec/exec.go      | 14 +++++++++-----
- src/os/exec/exec_test.go |  3 +++
- 3 files changed, 20 insertions(+), 6 deletions(-)
+ src/crypto/internal/boring/boring.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

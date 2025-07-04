@@ -1,17 +1,18 @@
-commit f1b1753627d1f895baa53e41c6fb4301282a3760
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Oct 12 08:32:56 2012 +1100
+commit 4c473c02e13f2429c7776cc6585af420cd248502
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Oct 11 23:33:57 2012 +0800
 
-    net/http: fix race on bodyEOFSignal.isClosed
+    doc/contribute.html: assorted fixes
+    0. windows uses all.bat instead of ./all.bash
+    1. correct expected all.bash output
+    2. mention you need to use an application specific password
+    if you're using 2-step verification
+    3. note you can edit files included in CL by 'hg change NNNN'
+    or 'hg file'
     
-    Update #4191.
-    
-    Fixes unreported race failure at
-    http://build.golang.org/log/61e43a328fb220801d3d5c88cd91916cfc5dc43c
-    
-    R=dvyukov, bradfitz
+    R=golang-dev, adg, r
     CC=golang-dev
-    https://golang.org/cl/6640057
+    https://golang.org/cl/6615060
 
- src/pkg/net/http/transport.go | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+ doc/contribute.html | 23 ++++++++---------------
+ 1 file changed, 8 insertions(+), 15 deletions(-)

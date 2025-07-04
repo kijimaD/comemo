@@ -1,18 +1,15 @@
-commit c1216c3a335894c86d9eb2fe3005b171619e2bc3
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Feb 26 07:48:50 2015 +1100
+commit 3bf005cea365639bb65cd52d9eebe7601ab5a74f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Jan 31 02:50:56 2015 -0500
 
-    runtime: skip failing gdb test on linux/arm
+    cmd/gc: always treat the output parameters as having been assigned in capturevars.
     
-    Updates #10002
+    Fixes #9738.
     
-    The gdb test added in 1c82e236f5ee is failing on most arm systems.
-    
-    Temporarily disable this test so that we can return to a working arm build.
-    
-    Change-Id: Iff96ea8d5a99e1ceacf4979e864ff196e5503535
-    Reviewed-on: https://go-review.googlesource.com/5902
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iab75de2d78335d4e31c3dce6a0e1826d8cddf5f3
+    Reviewed-on: https://go-review.googlesource.com/3690
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/runtime-gdb_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/gc/closure.c        |  3 ++-
+ test/fixedbugs/issue9738.go | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

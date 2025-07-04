@@ -1,20 +1,18 @@
-commit e0a5e69be2fcebe02c4ff94da31d3445c0e3cd60
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 17 08:58:36 2017 -0700
+commit 11f8676b1b92be5b7a41ee889796f5be6e03cb9b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 29 10:18:06 2016 -0800
 
-    cmd/compile: make Maxarg local
+    cmd/compile/internal/syntax: remove unused node field
     
-    Passes toolstash -cmp. No compiler performance impact.
+    The doc field is not yet used - remove it for now (we may end up
+    with a different solution for 1.9). This reduces memory consumption
+    for parsing all of std lib by about 40MB and makes parsing slightly
+    faster.
     
-    Updates #15756
-    
-    Change-Id: I1294058716d83dd1be495d399ed7ab2277754dc6
-    Reviewed-on: https://go-review.googlesource.com/38329
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iafb00b9c7f1be9c66fdfb29096d3da5049b2fcf5
+    Reviewed-on: https://go-review.googlesource.com/33661
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/dcl.go  | 1 -
- src/cmd/compile/internal/gc/go.go   | 2 --
- src/cmd/compile/internal/gc/init.go | 2 --
- src/cmd/compile/internal/gc/ssa.go  | 8 +++++---
- 4 files changed, 5 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/syntax/nodes.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

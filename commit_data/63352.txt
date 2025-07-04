@@ -1,0 +1,39 @@
+commit 740857f529ce4074c7f9aa1d6f38db8c4a00246c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jun 27 17:21:20 2025 -0400
+
+    runtime: stash allpSnapshot on the M
+    
+    findRunnable takes a snapshot of allp prior to dropping the P because
+    afterwards procresize may mutate allp without synchronization.
+    procresize is careful to never mutate the contents up to cap(allp), so
+    findRunnable can still safely access the Ps in the slice.
+    
+    Unfortunately, growing allp is problematic. If procresize grows the allp
+    backing array, it drops the reference to the old array. allpSnapshot
+    still refers to the old array, but allpSnapshot is on the system stack
+    in findRunnable, which also likely no longer has a P at all.
+    
+    This means that a future GC will not find the reference and can free the
+    array and use it for another allocation. This would corrupt later reads
+    that findRunnable does from the array.
+    
+    The fix is simple: the M struct itself is reachable by the GC, so we can
+    stash the snapshot in the M to ensure it is visible to the GC.
+    
+    The ugliest part of the CL is the cleanup when we are done with the
+    snapshot because there are so many return/goto top sites. I am tempted
+    to put mp.clearAllpSnapshot() in the caller and at top to make this less
+    error prone, at the expensive of extra unnecessary writes.
+    
+    Fixes #74414.
+    
+    Change-Id: I6a6a636c484e4f4b34794fd07910b3fffeca830b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684460
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go     | 41 ++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/runtime2.go |  1 +
+ 2 files changed, 41 insertions(+), 1 deletion(-)

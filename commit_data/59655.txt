@@ -1,20 +1,64 @@
-commit 4d6f49f6035b1f62c960f4ef66f41ef554de9243
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed May 21 15:19:16 2025 -0400
+commit d6a3d093c3f630e206abfc974a4a8b6c07884485
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Mar 21 18:49:05 2024 +0000
 
-    cmd/doc: add more convenient behavior for go doc -http with no args
+    runtime: take a stack trace during tracing only when we own the stack
     
-    If we're in a module, go to the module's page. Outside of a module, but
-    in a workspace go to the home page, and outside of a module or
-    workspace, show the stdlib docs.
+    Currently, the execution tracer may attempt to take a stack trace of a
+    goroutine whose stack it does not own. For example, if the goroutine is
+    in _Grunnable or _Gwaiting. This is easily fixed in all cases by simply
+    moving the emission of GoStop and GoBlock events to before the
+    casgstatus happens. The goroutine status is what is used to signal stack
+    ownership, and the GC may shrink a goroutine's stack if it can acquire
+    the scan bit.
     
-    For #68106
+    Although this is easily fixed, the interaction here is very subtle,
+    because stack ownership is only implicit in the goroutine's scan status.
+    To make this invariant more maintainable and less error-prone in the
+    future, this change adds a GODEBUG setting that checks, at the point of
+    taking a stack trace, whether the caller owns the goroutine. This check
+    is not quite perfect because there's no way for the stack tracing code
+    to know that the _Gscan bit was acquired by the caller, so for
+    simplicity it assumes that it was the caller that acquired the scan bit.
+    In all other cases however, we can check for ownership precisely. At the
+    very least, this check is sufficient to catch the issue this change is
+    fixing.
     
-    Change-Id: I911a90a0e2b0a2bbb622f56e32827d5bdfa7f2fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675235
-    Reviewed-by: Michael Matloob <matloob@google.com>
+    To make sure this debug check doesn't bitrot, it's always enabled during
+    trace testing. This new mode has actually caught a few other issues
+    already, so this change fixes them.
+    
+    One issue that this debug mode caught was that it's not safe to take a
+    stack trace of a _Gwaiting goroutine that's being unparked.
+    
+    Another much bigger issue this debug mode caught was the fact that the
+    execution tracer could try to take a stack trace of a G that was in
+    _Gwaiting solely to avoid a deadlock in the GC. The execution tracer
+    already has a partial list of these cases since they're modeled as the
+    goroutine just executing as normal in the tracer, but this change takes
+    the list and makes it more formal. In this specific case, we now prevent
+    the GC from shrinking the stacks of goroutines in this state if tracing
+    is enabled. The stack traces from these scenarios are too useful to
+    discard, but there is indeed a race here between the tracer and any
+    attempt to shrink the stack by the GC.
+    
+    Change-Id: I019850dabc8cede202fd6dcc0a4b1f16764209fb
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573155
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/doc/main.go | 28 ++++++++++++++++++----------
- 1 file changed, 18 insertions(+), 10 deletions(-)
+ src/internal/trace/v2/trace_test.go |  8 +++++--
+ src/runtime/debugcall.go            | 14 +++++++++--
+ src/runtime/extern.go               |  3 +++
+ src/runtime/mgc.go                  |  4 ++--
+ src/runtime/mgcmark.go              |  4 ++--
+ src/runtime/proc.go                 | 38 +++++++++++++++++++++++++-----
+ src/runtime/runtime1.go             | 46 +++++++++++++++++++------------------
+ src/runtime/runtime2.go             | 23 +++++++++++++++++++
+ src/runtime/stack.go                | 27 ++++++++++++++++++----
+ src/runtime/trace2.go               |  2 +-
+ src/runtime/trace2stack.go          | 23 +++++++++++++++++++
+ src/runtime/trace2status.go         |  8 +------
+ 12 files changed, 152 insertions(+), 48 deletions(-)

@@ -1,16 +1,16 @@
-commit 947aaf275cd5ede46c83322514f96a9fe9373171
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 11 16:45:31 2014 -0800
+commit 4687b5414789581f635ff96d401e23a50da8024b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 11 18:43:05 2014 -0500
 
-    go/parser: better error messages for if/switch/for conditions/expressions
+    cmd/ld, cmd/6l: part 2 of solaris/amd64 linker changes.
+    Second part of the solaris/amd64 linker changes: relocation and symbol table.
     
-    Fixes #7102.
-    
-    LGTM=adonovan
-    R=adonovan
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/56770045
+    https://golang.org/cl/61330043
 
- src/pkg/go/parser/parser.go     | 10 +++++-----
- src/pkg/go/parser/short_test.go | 16 ++++++++++------
- 2 files changed, 15 insertions(+), 11 deletions(-)
+ src/cmd/6l/asm.c    | 18 +++++++++++++++---
+ src/cmd/ld/data.c   |  8 ++++----
+ src/cmd/ld/symtab.c |  9 +++++++--
+ 3 files changed, 26 insertions(+), 9 deletions(-)

@@ -1,36 +1,16 @@
-commit 9dd0c7fc78cb19000f15bd58a3a1ab5ae1c6a84b
-Author: David Chase <drchase@google.com>
-Date:   Mon May 22 16:58:12 2023 -0400
+commit 0e18cf6d093c217cb7f093382cc83f0ea072c2e6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 12:59:50 2022 -0400
 
-    cmd/compile: indicate sense of hash/bisect match in output
+    runtime: trivial replacements of _g_ in GC files
     
-    If a hash match is "disabled" (!enabled) indicate that in the
-    output with DISABLED.  This is helpful in ensuring that multiple
-    package-directed command-line flags have the intended behavior,
-    e.g.
-    
-    ```
-    go build -a                       \
-    -gcflags=all=-d=gossahash=vn      \
-    -gcflags=runtime=-d=gossahash=vy  \
-    std
-    ```
-    
-    Output looks like
-    
-    [DISABLED] [bisect-match 0x11d0ee166d9d61b4]
-    
-    or (w/ "v"-prefixed hashcode )
-    
-    sort/slice.go:23:29 note [DISABLED] [bisect-match 0xa5252e1c1b85f2ec]
-    gossahash triggered sort/slice.go:23:29 note [DISABLED] 100001011111001011101100
-    
-    Change-Id: I797e02b3132f9781d97bacd0dcd2e80af0035cd8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497216
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Iedf10558d9a1d3b80a151927b99660b688ed9ccb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418585
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/base/hashdebug.go      | 12 +++++++++---
- src/cmd/compile/internal/base/hashdebug_test.go |  4 ++--
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ src/runtime/heapdump.go | 8 ++++----
+ src/runtime/mbitmap.go  | 5 ++---
+ src/runtime/mgcsweep.go | 8 ++++----
+ 3 files changed, 10 insertions(+), 11 deletions(-)

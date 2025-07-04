@@ -1,20 +1,18 @@
-commit cc02ef025831bb6fbf0a662bd11f6be796e4cf33
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 9 14:22:53 2012 -0800
+commit f9427364951a1e4b2ef6ad7d0ec9a6dfbb2dee54
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jan 9 16:57:51 2012 -0500
 
-    os: add ModeCharDevice
+    crypto/openpgp: truncate hashes before checking DSA signatures.
     
-    This should make conversion from Unix mode
-    to os.FileMode and back not lossy.
+    I didn't believe that OpenPGP allowed > SHA-1 with DSA, but it does and
+    so we need to perform hash truncation.
     
-    R=golang-dev, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5531052
+    https://golang.org/cl/5510044
 
- src/pkg/os/stat_darwin.go  |  4 +++-
- src/pkg/os/stat_freebsd.go |  4 +++-
- src/pkg/os/stat_linux.go   |  4 +++-
- src/pkg/os/stat_netbsd.go  |  4 +++-
- src/pkg/os/stat_openbsd.go |  4 +++-
- src/pkg/os/types.go        | 26 +++++++++++++++-----------
- 6 files changed, 30 insertions(+), 16 deletions(-)
+ src/pkg/crypto/openpgp/packet/public_key.go |  5 +++++
+ src/pkg/crypto/openpgp/packet/signature.go  |  9 ++++++++-
+ src/pkg/crypto/openpgp/read_test.go         | 12 ++++++++++++
+ src/pkg/crypto/openpgp/write_test.go        |  2 +-
+ 4 files changed, 26 insertions(+), 2 deletions(-)

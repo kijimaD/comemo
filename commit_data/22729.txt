@@ -1,24 +1,18 @@
-commit 02ba71e54721f89dcece3f2b439ecea0d06d5802
+commit 8c3fc088fbe1a25be73430a20a0c76af3c68d2f5
 Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 27 17:15:30 2015 -0400
+Date:   Thu Apr 2 19:53:02 2015 -0400
 
-    runtime/race: fix failing tests
+    runtime: report marked heap size in gctrace
     
-    Some race tests were sensitive to the goroutine scheduling order.
-    When this changed in commit e870f06, these tests started to fail.
+    When the gctrace GODEBUG option is enabled, it will now report three
+    heap sizes: the heap size at the beginning of the GC cycle, the heap
+    size at the end of the GC cycle before sweeping, and marked heap size,
+    which is the amount of heap that will be retained until the next GC
+    cycle.
     
-    Fix TestRaceHeapParam by ensuring that the racing goroutine has
-    run before the test exits. Fix TestRaceRWMutexMultipleReaders by
-    adding a third reader to ensure that two readers wind up on the
-    same side of the writer (and race with each other) regardless of
-    the schedule. Fix TestRaceRange by ensuring that the racing
-    goroutine runs before the main goroutine exits the loop it races
-    with.
-    
-    Change-Id: Iaf002f8730ea42227feaf2f3c51b9a1e57ccffdd
-    Reviewed-on: https://go-review.googlesource.com/9402
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie13f8a6d5c609bc9cc47c7555960ab55b37b5f1c
+    Reviewed-on: https://go-review.googlesource.com/8430
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/race/testdata/mop_test.go     |  5 +++++
- src/runtime/race/testdata/rwmutex_test.go | 22 ++++++++++++++++++++--
- 2 files changed, 25 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

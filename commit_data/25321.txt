@@ -1,14 +1,33 @@
-commit 7688f0d9fb13a77113f75f3b85ae7973cabc7044
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 16:34:08 2015 +0000
+commit 55ecda4ffd1899463db19bf224106fd73de21898
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 17 18:10:20 2015 -0700
 
-    cmd/pprof: fix scaling of "gigabyte" unit
+    spec: clarify numeric conversions where IEEE-754 produces -0.0
     
-    Fixes #13654
+    The spec defines precise numeric constants which do not overflow.
+    Consequently, +/-Inf and NaN values were excluded. The case was not
+    clear for -0.0 but they are mostly of interest to determine the sign
+    of infinities which don't exist.
     
-    Change-Id: Id2ce32c52efcfdbd66630725d62d2ca6bf0916d5
-    Reviewed-on: https://go-review.googlesource.com/17934
+    That said, the conversion rules explicitly say that T(x) (for a numeric
+    x and floating-point type T) is the value after rounding per IEEE-754.
+    The result is constant if x is constant. Rounding per IEEE-754 can
+    produce a -0.0 which we cannot represent as a constant.
+    
+    Thus, the spec is inconsistent. Attempt to fix the inconsistency by
+    adjusting the rounding rule rather than letting -0.0 into the language.
+    
+    For more details, see the issue below.
+    
+    Open to discussion.
+    
+    Fixes #12576.
+    
+    Change-Id: Ibe3c676372ab16d9229f1f9daaf316f761e074ee
+    Reviewed-on: https://go-review.googlesource.com/14727
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/pprof/internal/report/report.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)

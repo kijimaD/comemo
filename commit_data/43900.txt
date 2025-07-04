@@ -1,25 +1,21 @@
-commit dd4a52c2a588c57edc76cb0a414ae6f2e5bf5d52
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Dec 1 11:10:40 2020 -0500
+commit ca854f3cdaa577930b385b61571d5176193b738e
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Apr 28 07:31:12 2020 -0700
 
-    doc/go1.16: add multiple release notes for the go command
+    database/sql: document Connect and Close may need a timeout
     
-    Added notes for:
+    Opening a connection with Connect should still create a derived
+    context with a timeout because some clients will not use a timeout
+    and the connection pool may open a connection asynchronously.
     
-    * go test -c and -i flags used with unknown flags
-    * GO111MODULE=on by default
-    * GOVCS
-    * Dropped requirements on excluded versions
+    Likewise, if a connection close makes a network operation it should
+    provide some type of sane timeout for the operation.
     
-    Removed TODOs for documentation on the retract directive and
-    'go install pkg@version'. These pages will be written after the beta.
+    Fixes #38185
     
-    Change-Id: Ic9877a62f908be177a6035a039b72e969e7b7f22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274438
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I9b7ce2996c81c486170dcc84b12672a99610fa27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230438
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- doc/go1.16.html | 55 ++++++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 40 insertions(+), 15 deletions(-)
+ src/database/sql/driver/driver.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

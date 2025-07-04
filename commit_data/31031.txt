@@ -1,16 +1,23 @@
-commit 9eddc3a3561eed1f735491f89cf935cb5189a897
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 7 08:28:00 2017 -0700
+commit 4c4c5fc7a3248c063b279ffb3a28a12f0c6de04b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 11 15:08:08 2017 -0800
 
-    cmd/vet/all: add countBytes exemption to amd64 whitelist
+    misc/cgo/testplugin: test that types and itabs are unique
     
-    Fixes vetall build broken by CL 38693.
+    Make sure that the same type and itab generated in two
+    different plugins are actually the same thing.
     
-    Change-Id: I5c98f2164e0c7bb43f022c363b3b7c0650c4bcbe
-    Reviewed-on: https://go-review.googlesource.com/39916
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    See also CL 35115
+    
+    Change-Id: I0c1ecb039d7e2bf5a601d58dfa162a435ae4ef76
+    Reviewed-on: https://go-review.googlesource.com/35116
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/vet/all/whitelist/amd64.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testplugin/src/iface/main.go | 46 +++++++++++++++++++++++++++++++++++
+ misc/cgo/testplugin/src/iface_a/a.go  | 17 +++++++++++++
+ misc/cgo/testplugin/src/iface_b/b.go  | 17 +++++++++++++
+ misc/cgo/testplugin/src/iface_i/i.go  | 17 +++++++++++++
+ misc/cgo/testplugin/test.bash         | 10 ++++++--
+ 5 files changed, 105 insertions(+), 2 deletions(-)

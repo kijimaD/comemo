@@ -1,29 +1,20 @@
-commit 043f112e521dc48ec8ccffa58ceb7e5403c73fb0
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 8 17:32:23 2017 -0500
+commit 6237ab2c3155ed4c4fa064d1f0cb4f81eda10be1
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Sep 12 14:23:09 2017 -0500
 
-    runtime: reset write barrier buffer on all flush paths
+    unicode/utf8: make FullRune inlinable
     
-    Currently, wbBufFlush does nothing if the goroutine is dying on the
-    assumption that the system is crashing anyway and running the write
-    barrier may crash it even more. However, it fails to reset the
-    buffer's "next" pointer. As a result, if there are later write
-    barriers on the same P, the write barrier will overflow the write
-    barrier buffer and start corrupting other fields in the P or other
-    heap objects. Often, this corrupts fields in the next allocated P
-    since they tend to be together in the heap.
+    This has same readability and allows to inline FullRune for massive
+    performance gain:
     
-    Fix this by always resetting the buffer's "next" pointer, even if
-    we're not doing anything with the pointers in the buffer.
+    FullASCIIRune-6                      4.36ns ± 0%  1.25ns ± 0%  -71.33%  (p=0.000 n=8+10)
+    FullJapaneseRune-6                   4.70ns ± 0%  1.42ns ± 1%  -69.68%  (p=0.000 n=9+10)
     
-    Updates #22987 and #22988. (May fix; it's hard to say.)
-    
-    Change-Id: I82c11ea2d399e1658531c3e8065445a66b7282b2
-    Reviewed-on: https://go-review.googlesource.com/83016
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I95edd6292417a28aac244e40afb713596a087d93
+    Reviewed-on: https://go-review.googlesource.com/63332
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/runtime/mwbbuf.go | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/unicode/utf8/utf8.go | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

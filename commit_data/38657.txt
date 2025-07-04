@@ -1,25 +1,19 @@
-commit cebc4e514ae209dc00e171d70e10ef5bc17ba10d
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jan 9 16:40:01 2019 -0500
+commit de50ea3cd848f187766825402f8d6c8109536443
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 12 11:36:12 2018 -0500
 
-    cmd/go: parallelize package loading
+    bufio: put notes about len(p) together
     
-    load.PackageAndErrors now preloads data used to build load.Package
-    structures. Multiple packages may be preloaded in parallel, so this
-    parallelizes most of the package loading work.
+    CL 145577 added the part about io.ReadFull to read len(p)
+    but it should be next to the existing sentence about not
+    reading len(p) bytes.
     
-    The actual package construction and error-checking process is still
-    sequential, since this process needs to detect and report cycles.
-    
-    Fixes #29758
-    
-    Change-Id: Icf37e6669836ce8aad076e34fd895f97f4f3f9e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/161397
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Idfa037c59a3085d44d5da6129188473db0e96d23
+    Reviewed-on: https://go-review.googlesource.com/c/148903
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/internal/load/pkg.go  | 545 ++++++++++++++++++++++++++-------------
- src/cmd/go/internal/load/test.go |  12 +-
- src/cmd/go/internal/par/work.go  |  41 +++
- 3 files changed, 416 insertions(+), 182 deletions(-)
+ src/bufio/bufio.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

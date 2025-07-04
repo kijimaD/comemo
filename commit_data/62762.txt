@@ -1,0 +1,19 @@
+commit af278bfb1f07b9f8f84d325a84b3891a3ab0dbf1
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 7 10:33:31 2025 -0700
+
+    cmd/compile: add additional flag constant folding rules
+    
+    Fixes #73200
+    
+    Change-Id: I77518d37acd838acf79ed113194bac5e2c30897f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663535
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules | 22 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 22 ++++++++++++++++
+ test/fixedbugs/issue73200.go                  | 36 +++++++++++++++++++++++++++
+ 3 files changed, 70 insertions(+), 10 deletions(-)

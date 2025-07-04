@@ -1,18 +1,16 @@
-commit 8c31f40a4c1c3474a7c24684cc47845b0ec06974
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 5 10:00:38 2016 -0800
+commit 936ae27b9c89ffa7ffe6ebb33376bc55b82e5ccd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 5 13:53:39 2016 -0700
 
-    runtime: don't skip TestCgoCallbackGC on FreeBSD
+    cmd/compile: untyped arrays bounds representable as integers are valid
     
-    Seems to be fixed according to discussion on issue 16396.
+    Fixes #13485.
     
-    Fixes #16396.
-    
-    Change-Id: Ibac7037a24280204e48cb4d3000af524f65afd36
-    Reviewed-on: https://go-review.googlesource.com/33903
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I11dd15c7d14fc19d42a3b48427a4cc1208b18e6a
+    Reviewed-on: https://go-review.googlesource.com/30456
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/crash_cgo_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 24 ++++++++----------------
+ test/fixedbugs/bug255.go                 |  2 +-
+ test/fixedbugs/issue13485.go             | 18 ++++++++++++++++++
+ 3 files changed, 27 insertions(+), 17 deletions(-)

@@ -1,27 +1,15 @@
-commit bef4efc822794ea2e7310756bc546bf6930fc066
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 28 16:26:51 2017 -0400
+commit 3239e9d3dc7ab3df904b91ace570cc0e6be7999f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 13 16:38:24 2018 -0400
 
-    internal/trace: add "per-P" MMU analysis
+    cmd/go: fix TestModFindModulePath on Windows
     
-    The current MMU analysis considers all Ps together, so if, for
-    example, one of four Ps is blocked, mutator utilization is 75%.
-    However, this is less useful for understanding the impact on
-    individual goroutines because that one blocked goroutine could be
-    blocked for a very long time, but we still appear to have good
-    utilization.
+    The os.RemoveAll(tg.tempdir) was not a good idea.
     
-    Hence, this introduces a new flag that does a "per-P" analysis where
-    the utilization of each P is considered independently. The MMU is then
-    the combination of the MMU for each P's utilization function.
-    
-    Change-Id: Id67b980d4d82b511d28300cdf92ccbb5ae8f0c78
-    Reviewed-on: https://go-review.googlesource.com/c/60797
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I6f78cff887044186649cbf3ee04a58abdbcb71e2
+    Reviewed-on: https://go-review.googlesource.com/123757
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/trace/mmu.go                |  15 ++-
- src/internal/traceparser/gc.go      | 216 ++++++++++++++++++++++++++----------
- src/internal/traceparser/gc_test.go |   6 +-
- 3 files changed, 172 insertions(+), 65 deletions(-)
+ src/cmd/go/mod_test.go | 88 ++++++++++++++++++++++++--------------------------
+ 1 file changed, 43 insertions(+), 45 deletions(-)

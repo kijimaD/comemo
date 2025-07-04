@@ -1,15 +1,17 @@
-commit 6c0545ab833b2b834f351e59242a3ea64051fa3a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 30 19:22:15 2020 -0800
+commit 03f63654c4ce5885bf804fe242a4e15b70edc2c4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 12 20:43:42 2019 +0000
 
-    doc/go1.14: mention new method strconv.NumError.Unwrap
+    Revert "cmd/link: prefix syms with "_" on external darwin links"
     
-    Updates #30322
-    Updates #36878
+    This reverts CL 194381
     
-    Change-Id: I8b33eb6a8fb7c0ecf365940a1c3ae88dc807ebcd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217132
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reason for revert: break tests like add2line.
+    
+    Change-Id: I9e858c7ada340a842bd0cad719616ad30fae4aaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195137
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.14.html | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/link/internal/ld/issue33808_test.go | 53 -----------------------------
+ src/cmd/link/internal/ld/macho.go           |  5 ++-
+ 2 files changed, 2 insertions(+), 56 deletions(-)

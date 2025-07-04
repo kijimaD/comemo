@@ -1,12 +1,26 @@
-commit 827a8a56c607f4b9173ef9f5417b6e9e8674a826
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 7 11:59:52 2015 +0200
+commit d5b5d6702ad7d64f189c915225b945a2aa471a38
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Feb 13 15:59:54 2015 +0100
 
-    doc: add mime/quotedprintable to go1.5.txt
+    strconv: simplify code for binary exponent float format
     
-    Change-Id: Iace8941c947253b1141f4194c5d2010c420ec220
-    Reviewed-on: https://go-review.googlesource.com/8540
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Use optimized formatBits function to format mantissa and exponent.
+    Add benchmark for binary exponent float format.
+    
+    on darwin/386
+    
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkAppendFloatBinaryExp     520           122           -76.54%
+    
+    on darwin/amd64
+    
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkAppendFloatBinaryExp     76.9          84.3          +9.62%
+    
+    Change-Id: If543552f1960e1655bed3a4130914e5eaa3aac69
+    Reviewed-on: https://go-review.googlesource.com/5600
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/strconv/ftoa.go      | 50 ++++++++++++++++++------------------------------
+ src/strconv/ftoa_test.go |  1 +
+ 2 files changed, 20 insertions(+), 31 deletions(-)

@@ -1,20 +1,23 @@
-commit 8bd9242f7cd27f69449b2cdae8acbf25a952134c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 9 14:19:13 2014 -0700
+commit f400d9aafc961c18e3289a0e701e61b2482a342a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Apr 9 21:23:36 2014 +0200
 
-    bufio: fix UnreadByte
+    cmd/6g: relax constraint on variables that need zeroing.
     
-    Also:
-    - fix error messages in tests
-    - make tests more symmetric
+    On amd64p32 pointers are 32-bit-aligned and cannot be assumed to
+    have an offset multiple of widthreg. Instead check that they are
+    withptr-aligned.
     
-    Fixes #7607.
+    Also change the threshold for region merging to 2*widthreg
+    instead of 2*widthptr because performance on amd64 and amd64p32
+    is expected to be the same.
     
-    LGTM=r
-    R=r
+    Fixes #7712.
+    
+    LGTM=khr
+    R=rsc, dave, khr, brad, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/86180043
+    https://golang.org/cl/84690044
 
- src/pkg/bufio/bufio.go      | 24 +++++++++---------
- src/pkg/bufio/bufio_test.go | 62 ++++++++++++++++++++++++++++++++-------------
- 2 files changed, 57 insertions(+), 29 deletions(-)
+ src/cmd/6g/ggen.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,13 +1,13 @@
-commit a4196bb6c8a7016145a76587a6a67ffda8444b56
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Apr 18 02:33:55 2013 +0800
+commit f29013d19b79c960030e528b9106f8d0273cc21e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 16 13:59:10 2013 -0700
 
-    misc/cgo/test: fix a gcc warning
-    See https://code.google.com/p/go/issues/detail?id=5227#c16.
+    doc/effective_go: another doubled word
+    It's clear that that should never happen.
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8833044
+    https://golang.org/cl/8798045
 
- misc/cgo/test/issue5227.go | 2 +-
+ doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

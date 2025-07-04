@@ -1,12 +1,15 @@
-commit 75344d3d5b85acb4db74eb98cdffdef1d490508c
-Author: David G. Andersen <dave.andersen@gmail.com>
-Date:   Fri Jun 22 14:43:41 2012 -0700
+commit cbcf358d296d86e15b842bb3b70af2deb36b8edc
+Author: Mats Lidell <mats.lidell@cag.se>
+Date:   Thu Jun 21 13:01:54 2012 -0400
 
-    encoding/json: fix minor typo in documentation for Marshal
+    misc/emacs: Replace replace-{string|regexp} for XEmacs compatible code
     
-    R=golang-dev, r
+    Use code to be used in lisp programs as suggested in the doc strings for
+    replace-{string|regexp}. Bonus: This code works for XEmacs.
+    
+    R=golang-dev, sameer, jmeurin
     CC=golang-dev
-    https://golang.org/cl/6325053
+    https://golang.org/cl/6296073
 
- src/pkg/encoding/json/encode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/emacs/go-mode.el | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

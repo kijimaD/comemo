@@ -1,44 +1,17 @@
-commit 4bc7b5aeba2061c14199354b1c59592aa481bac8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 1 22:01:35 2016 +0000
+commit f15f1ff46f94c70b55903963a32dfccdcbe1efe5
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Oct 5 11:24:07 2016 -0400
 
-    net/http: revert change making NewRequest set ContentLength -1
+    runtime/testdata/testprogcgo: add explicit return value to signalThread
     
-    The introduction of NoBody and related body-peeking bug fixes also
-    added a "cleanup" of sorts to make NewRequest set the returned
-    Requests's ContentLength to -1 when it didn't know it.
+    Should fix the clang builder.
     
-    Using -1 to mean unknown is what the documentation says, but then
-    people apparently(?) depended on it being zero so they could do this:
-    
-        req, _ := http.NewRequest("POST", url, someNonNilReaderWithUnkownSize)
-        req.Body = nil
-        res, err := http.DefaultClient.Do(req)
-    
-    ... and expect it to work.
-    
-    After https://golang.org/cl/31445 the contrived(?) code above stopped
-    working, since Body was nil and ContentLength was -1, which has been
-    disallowed since Go 1.0.
-    
-    So this restores the old behavior of NewRequest, not setting it to -1.
-    That part of the fix isn't required as of https://golang.org/cl/31726
-    (which added NoBody)
-    
-    I still don't know whether this bug is hypothetical or actually
-    affected people in practice.
-    
-    Let's assume it's real for now.
-    
-    Fixes #18117
-    
-    Change-Id: I42400856ee92a1a4999b5b4668bef97d885fbb53
-    Reviewed-on: https://go-review.googlesource.com/33801
+    Change-Id: I3ee34581b6a7ec902420de72a8a08a2426997782
+    Reviewed-on: https://go-review.googlesource.com/30363
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/request.go           | 10 ++++++----
- src/net/http/request_test.go      | 25 ++++++++-----------------
- src/net/http/requestwrite_test.go | 10 ++++++----
- 3 files changed, 20 insertions(+), 25 deletions(-)
+ src/runtime/testdata/testprogcgo/racesig.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,14 @@
-commit d6fd52c088ccdcfcb4fd860a18a15d90300ed18c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Nov 27 12:18:54 2012 +0400
+commit d729be730f34a087245721c5e490bf70b1425432
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 26 21:21:07 2012 -0800
 
-    net: fix flaky test
-    The test failed on one of the builders with:
-    timeout_test.go:594:    ln.Accept: accept tcp 127.0.0.1:19373: use of closed network connection
-    http://build.golang.org/log/e83f4a152b37071b9d079096e15913811ad296b5
+    CONTRIBUTORS: Add Jonathan Hseu (Google CLA)
     
-    R=golang-dev, bradfitz, dave, mikioh.mikioh, remyoudompheng, rsc
+    Part of merging goprotobuf's A+C into Go's.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6859043
+    https://golang.org/cl/6844096
 
- src/pkg/net/timeout_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

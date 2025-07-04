@@ -1,19 +1,22 @@
-commit 5286b2ad424c1c0afe5fc1b7939cd49f0296380f
-Author: David Chase <drchase@google.com>
-Date:   Wed May 8 16:44:05 2019 -0400
+commit c043fc4f655ce34f67a0e7fe2833139f6313a3f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 19 16:47:50 2018 -0800
 
-    cmd/compile: test delve instead of gdb in ssa/debug_test.go
+    os: don't let sendFile put a pipe into blocking mode
     
-    This seems to deflake the test, and also allows testing
-    on macOS.
+    Use SyscallConn to avoid calling the Fd method in sendFile on Unix
+    systems, since Fd has the side effect of putting the descriptor into
+    blocking mode.
     
-    Fixes #31786.
+    Fixes #28330
     
-    Change-Id: I10bfba46dd4b8e64cb09fdd4dd9d175c1ce1f022
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176058
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: If093417a225fe44092bd2c0dbbc3937422e98c0b
+    Reviewed-on: https://go-review.googlesource.com/c/155137
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/debug_test.go | 126 ++++++++++++++++++++---------
- 1 file changed, 90 insertions(+), 36 deletions(-)
+ src/net/sendfile_linux.go    |  14 +++++-
+ src/net/sendfile_test.go     | 104 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/sendfile_unix_alt.go |  14 +++++-
+ 3 files changed, 130 insertions(+), 2 deletions(-)

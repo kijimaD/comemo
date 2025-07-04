@@ -1,45 +1,31 @@
-commit c028958393682fa559cf1555178c0caf7931a52a
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Mar 7 15:06:50 2018 +0100
+commit 6a5f1e58edfe55428d375be26c9c8eefbd67ad31
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 27 15:30:19 2017 -0400
 
-    test/codegen: fix issue with arm64 memmove codegen test
+    runtime: simplify and optimize typedslicecopy
     
-    This recently added arm64 memmove codegen check:
+    Currently, typedslicecopy meticulously performs a typedmemmove on
+    every element of the slice. This probably used to be necessary because
+    we only had an individual element's type, but now we use the heap
+    bitmap, so we only need to know whether the type has any pointers and
+    how big it is. Hence, this CL rewrites typedslicecopy to simply
+    perform one bulk barrier and one memmove.
     
-      func movesmall() {
-        // arm64:-"memmove"
-        x := [...]byte{1, 2, 3, 4, 5, 6, 7}
-        copy(x[1:], x[:])
-      }
+    This also has a side-effect of eliminating two unnecessary write
+    barriers per slice element that were coming from updates to dstp and
+    srcp, which were stored in the parent stack frame. However, most of
+    the win comes from eliminating the loops.
     
-    is not correct, for two reasons:
+    name                 old time/op  new time/op  delta
+    BulkWriteBarrier-12  7.83ns ±10%  7.33ns ± 6%  -6.45%  (p=0.000 n=20+20)
     
-    1. regexps are matched from the start of the disasm line (excluding
-       line information). This mean that a negative -"memmove" check will
-       pass against a 'CALL runtime.memmove' line because the line does
-       not start with 'memmove' (its starts with CALL...).
-       The way to specify no 'memmove' match whatsoever on the line is
-       -".*memmove"
+    Updates #22460.
     
-    2. AFAIK comments on their own line are matched against the first
-       subsequent non-comment line. So the code above only verifies that
-       the x := ... line does not generate a memmove. The comment should
-       be moved near the copy() line, if it's that one we want to not
-       generate a memmove call.
-    
-    The fact that the test above is not effective can be checked by
-    running `go run run.go -v codegen` in the toplevel test directory with
-    a go1.10 toolchain (that does not have the memmove-elision
-    optimization). The test will still pass (it shouldn't).
-    
-    This change changes the regexp to -".*memmove" and moves it near the
-    line it needs to (not)match.
-    
-    Change-Id: Ie01ef4d775e77d92dc8d8b7856b89b200f5e5ef2
-    Reviewed-on: https://go-review.googlesource.com/98977
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Id3450e9f36cc8e0892f268319b136f0d8f5464b8
+    Reviewed-on: https://go-review.googlesource.com/73831
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- test/codegen/movesmall.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/runtime/mbarrier.go | 40 ++++++----------------------------------
+ 1 file changed, 6 insertions(+), 34 deletions(-)

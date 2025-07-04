@@ -1,71 +1,17 @@
-commit e46c8e0558d287fcffde75bb458419288e71db62
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Feb 19 16:33:21 2025 +0000
+commit 90a2dcf1dbc0c3ed46a76547c3c9578a73aeb822
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Mar 14 03:16:12 2024 +0000
 
-    runtime: schedule cleanups across multiple goroutines
+    cmd/compile/internal/syntax: replace bytes.Compare call with bytes.Equal
     
-    This change splits the finalizer and cleanup queues and implements a new
-    lock-free blocking queue for cleanups. The basic design is as follows:
-    
-    The cleanup queue is organized in fixed-sized blocks. Individual cleanup
-    functions are queued, but only whole blocks are dequeued.
-    
-    Enqueuing cleanups places them in P-local cleanup blocks. These are
-    flushed to the full list as they get full. Cleanups can only be enqueued
-    by an active sweeper.
-    
-    Dequeuing cleanups always dequeues entire blocks from the full list.
-    Cleanup blocks can be dequeued and executed at any time.
-    
-    The very last active sweeper in the sweep phase is responsible for
-    flushing all local cleanup blocks to the full list. It can do this
-    without any synchronization because the next GC can't start yet, so we
-    can be very certain that nobody else will be accessing the local blocks.
-    
-    Cleanup blocks are stored off-heap because the need to be allocated by
-    the sweeper, which is called from heap allocation paths. As a result,
-    the GC treats cleanup blocks as roots, just like finalizer blocks.
-    
-    Flushes to the full list signal to the scheduler that cleanup goroutines
-    should be awoken. Every time the scheduler goes to wake up a cleanup
-    goroutine and there were more signals than goroutines to wake, it then
-    forwards this signal to runtime.AddCleanup, so that it creates another
-    goroutine the next time it is called, up to gomaxprocs goroutines.
-    
-    The signals here are a little convoluted, but exist because the sweeper
-    and the scheduler cannot safely create new goroutines.
-    
-    For #71772.
-    For #71825.
-    
-    Change-Id: Ie839fde2b67e1b79ac1426be0ea29a8d923a62cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650697
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I783e02e215efaebf4936146c6aaa032634fdfa64
+    GitHub-Last-Rev: 24680a73ee22fe03d7e33c122c95ed1372a2b406
+    GitHub-Pull-Request: golang/go#66304
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571595
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/objabi/funcid.go                  |  43 +-
- src/internal/abi/symtab.go                         |   3 +-
- src/runtime/abi_test.go                            |   3 +
- src/runtime/crash_test.go                          | 144 +++----
- src/runtime/export_test.go                         |   4 +
- src/runtime/lockrank.go                            |  55 +--
- src/runtime/mcleanup.go                            | 434 ++++++++++++++++++++-
- src/runtime/mcleanup_test.go                       |  40 ++
- src/runtime/mfinal.go                              |  26 +-
- src/runtime/mgc.go                                 |   6 +
- src/runtime/mgcmark.go                             |  11 +-
- src/runtime/mgcsweep.go                            |   2 +
- src/runtime/mheap.go                               |   2 +-
- src/runtime/mklockrank.go                          |   2 +
- src/runtime/mprof.go                               |  17 +-
- src/runtime/pprof/pprof_test.go                    |  12 +-
- src/runtime/proc.go                                |   7 +
- src/runtime/runtime2.go                            |  54 +--
- .../testdata/testprog/finalizer_deadlock.go        |  16 +-
- src/runtime/traceback.go                           |  24 +-
- src/sync/oncefunc_test.go                          |  14 +-
- src/unique/handle.go                               |   7 -
- src/unique/handle_test.go                          |   9 +-
- test/fixedbugs/issue30908.go                       |   2 +-
- 24 files changed, 722 insertions(+), 215 deletions(-)
+ src/cmd/compile/internal/syntax/parser_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

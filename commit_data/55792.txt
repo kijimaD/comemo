@@ -1,30 +1,24 @@
-commit b79a4801a4acf3a98461292223dd61b28fa0ba1e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 27 16:26:41 2024 -0800
+commit ebf8e26d03d3c01bf1611b1189e0af64c3698557
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 14 08:51:02 2023 +0100
 
-    go/types, types2: consistently use error_ type for sub-errors (cleanup)
+    cmd/go/internal/modfetch: use errors.ErrUnsupported
     
-    Also, rename reportAltDecl/recordAltDecl to addAltDecl and
-    move function into errors.go.
+    CL 473935 added errors.ErrUnsupported, let's use it.
     
-    Change-Id: Ie5210d1989f1e51fc5fec483dfa6dba8c4212b59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567616
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Updates #41198
+    
+    Change-Id: If6534d19cb31ca979ff00d529bd6bdfc964a616d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476135
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/decl.go      | 13 ++----------
- src/cmd/compile/internal/types2/errors.go    | 13 ++++++++++++
- src/cmd/compile/internal/types2/labels.go    |  2 +-
- src/cmd/compile/internal/types2/resolver.go  |  8 +++----
- src/cmd/compile/internal/types2/signature.go |  2 +-
- src/cmd/compile/internal/types2/struct.go    |  2 +-
- src/go/types/decl.go                         | 31 +++++++++++++---------------
- src/go/types/errors.go                       | 13 ++++++++++++
- src/go/types/labels.go                       |  7 +++++--
- src/go/types/resolver.go                     | 18 +++++++++-------
- src/go/types/signature.go                    |  6 ++++--
- src/go/types/stmt.go                         | 18 ++++++++++------
- src/go/types/struct.go                       |  6 ++++--
- 13 files changed, 85 insertions(+), 54 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 13 -------------
+ src/cmd/go/internal/modfetch/codehost/vcs.go      |  8 ++++----
+ src/cmd/go/internal/modfetch/coderepo.go          |  2 +-
+ 3 files changed, 5 insertions(+), 18 deletions(-)

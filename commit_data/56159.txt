@@ -1,22 +1,16 @@
-commit 9f13665088012298146c573bc2a7255b1caf2750
-Author: Michael Knyszek <mknyszek@google.com>
-Date:   Mon Apr 8 21:34:24 2024 +0000
+commit eed0cda44c1d7750d2abc7a8ee2bc4a0bcce46e2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Apr 8 17:11:37 2023 +0100
 
-    Revert "runtime: push down systemstack requirement for tracer where possible"
+    go/doc/comment: remove unused fields
     
-    This reverts CL 572095.
-    
-    Reason for revert: Broke longtest builders.
-    
-    Change-Id: Iac3a8159d3afb4156a49c7d6819cdd15fe9d4bbb
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/577376
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ia5b73e6950d0c53144a97e1ad3f231d69dd74fe8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483295
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
 
- src/runtime/trace2.go       | 20 ++++++++++----------
- src/runtime/trace2cpu.go    | 15 +++++++++------
- src/runtime/trace2stack.go  | 13 ++++++++-----
- src/runtime/trace2string.go | 25 +++++++++++++------------
- 4 files changed, 40 insertions(+), 33 deletions(-)
+ src/go/doc/comment/print.go | 2 --
+ 1 file changed, 2 deletions(-)

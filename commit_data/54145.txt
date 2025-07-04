@@ -1,34 +1,22 @@
-commit 05f951158278da91a67a2f6380ffbf0c9172f565
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Mon Jun 26 20:46:49 2023 +0800
+commit bf5805eae436a1ddbad593ec0671c9a7e8c67a9a
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Sep 27 12:23:26 2022 -0400
 
-    cmd/compile: improve FP FMA performance on riscv64
+    cmd/link: fix coverage counter issue on AIX
     
-    FMADD/FMSUB/FNSUB are an efficient FP FMA instructions, which can
-    be used by the compiler to improve FP performance.
+    Update the linker's XCOFF writer to handle coverage counter sections
+    properly; they need to be treated as bss, not data. Fixes a problem
+    with the aix-ppc64 builder introduced in CL 401235), e.g.
+    "runtime.covctrs: A symbol with type XTY_SD must be in a .text or
+    .data section".
     
-    Erf               188.0n ± 2%   139.5n ± 2%  -25.82% (p=0.000 n=10)
-    Erfc              193.6n ± 1%   143.2n ± 1%  -26.01% (p=0.000 n=10)
-    Erfinv            244.4n ± 2%   172.6n ± 0%  -29.40% (p=0.000 n=10)
-    Erfcinv           244.7n ± 2%   173.0n ± 1%  -29.31% (p=0.000 n=10)
-    geomean           216.0n        156.3n       -27.65%
+    Updates #51430.
     
-    Ref: The RISC-V Instruction Set Manual Volume I: Unprivileged ISA
-    11.6 Single-Precision Floating-Point Computational Instructions
-    
-    Change-Id: I89aa3a4df7576fdd47f4a6ee608ac16feafd093c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/506036
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Change-Id: I3fc385a37e2549c46cc7cc3b4718af989a36752a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435335
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/riscv64/ssa.go         |  3 ++
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  5 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  4 ++
- src/cmd/compile/internal/ssa/opGen.go           | 28 ++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 72 ++++++++++++++++++++++++-
- test/codegen/floats.go                          |  3 ++
- 6 files changed, 112 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/xcoff.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

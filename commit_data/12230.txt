@@ -1,13 +1,13 @@
-commit 56ae9032b23b089100e0e9c762f0e6326ec6990a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Feb 27 12:33:14 2012 -0500
+commit eb825b58ccbda0f748406a6cf9f76833774ab30e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 27 17:37:59 2012 +1100
 
-    cmd/go: test -i should not disable -c
-            Fixes #3104.
+    archive/zip: use smarter putUintXX functions to hide offsets
     
-    R=golang-dev, rsc
+    R=bradfitz, r, dsymonds, kyle
     CC=golang-dev
-    https://golang.org/cl/5699088
+    https://golang.org/cl/5701055
 
- src/cmd/go/test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/archive/zip/reader_test.go |   2 +-
+ src/pkg/archive/zip/writer.go      | 117 ++++++++++++++++++++-----------------
+ 2 files changed, 63 insertions(+), 56 deletions(-)

@@ -1,13 +1,19 @@
-commit 4ffa021965ac5a307cee497feefc834b2a1e041e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Mar 26 10:21:22 2014 +0900
+commit a837347dd95d045e05bf0e6df9bf1c9b157c7c53
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 26 11:13:50 2014 +1100
 
-    runtime: slience warning on 32-bit platforms
+    runtime: use VEH for windows/amd64 exception handling
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    Fixes windows/amd64 build.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/80250043
+    https://golang.org/cl/79470046
 
- src/pkg/runtime/heapdump.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/ld/pe.c                     | 44 ------------------
+ src/pkg/runtime/os_windows.c        |  3 --
+ src/pkg/runtime/os_windows_amd64.c  | 33 +++++++++++--
+ src/pkg/runtime/sys_windows_386.s   |  8 ----
+ src/pkg/runtime/sys_windows_amd64.s | 93 +++++++++++++++++--------------------
+ 5 files changed, 70 insertions(+), 111 deletions(-)

@@ -1,15 +1,25 @@
-commit 89d085de9fbc177ed53f09851b87f920c0322f67
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 18 15:22:32 2016 -0700
+commit 0150f15a924a7b4ac0c794012f6b12c8aa406b54
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 19 15:14:26 2016 -0700
 
-    go/types: better doc string for Object.Parent and test
+    runtime: call mallocgc directly from makeslice and growslice
     
-    Fixes #14647.
+    The extra checks provided by newarray are
+    redundant in these cases.
     
-    Change-Id: Ib9012a9141e815f5b95f8ca2307e65ffc4587a5b
-    Reviewed-on: https://go-review.googlesource.com/27370
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This shrinks by one frame the call stack expected
+    by the pprof test.
+    
+    name                      old time/op  new time/op  delta
+    MakeSlice-8               34.3ns ± 2%  30.5ns ± 3%  -11.03%  (p=0.000 n=24+22)
+    GrowSlicePtr-8             134ns ± 2%   129ns ± 3%   -3.25%  (p=0.000 n=25+24)
+    
+    Change-Id: Icd828655906b921c732701fd9d61da3fa217b0af
+    Reviewed-on: https://go-review.googlesource.com/22276
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/api_test.go | 71 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/go/types/object.go   |  2 +-
- 2 files changed, 72 insertions(+), 1 deletion(-)
+ src/runtime/pprof/mprof_test.go | 2 +-
+ src/runtime/slice.go            | 9 +++++++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)

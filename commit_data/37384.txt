@@ -1,25 +1,19 @@
-commit 45e9c5538b3956d98ef0337fc19ed8d45eb17090
-Author: Hana Kim <hyangah@gmail.com>
-Date:   Tue Oct 23 17:00:29 2018 -0400
+commit 62f401bf18d786b01fcef933610b43dd284e5095
+Author: marwan-at-work <marwan.sameer@gmail.com>
+Date:   Sun Jul 22 20:23:29 2018 +0000
 
-    runtime/debug: add API to read module info in binary
+    cmd/go/internal/modfetch: do not panic when zip is incorrect
     
-    When module is enabled, the go tool embeds build information
-    related to the module in the binary including the dependencies
-    and the replace information (See
-    src/cmd/go/internal/modload.PackageBuildInfo).
+    Fixes #26536
     
-    The newly introduced ReadBuildInfo reads the information and
-    makes it accessible programmatically.
-    
-    Update #26404
-    
-    Change-Id: Ide37022d609b4a8fb6b5ce02afabb73f04fbb532
-    Reviewed-on: https://go-review.googlesource.com/c/144220
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I75d284bd39af0a06e31d18c7f7745c5a8ecbe6ac
+    GitHub-Last-Rev: 88040a9edb0cb547a498cb8c8b662eb8729eb8bf
+    GitHub-Pull-Request: golang/go#26537
+    Reviewed-on: https://go-review.googlesource.com/125436
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/testdata/script/mod_modinfo.txt |  40 +++++++++++
- src/runtime/debug/mod.go                   | 105 +++++++++++++++++++++++++++++
- 2 files changed, 145 insertions(+)
+ src/cmd/go/internal/modfetch/fetch.go | 1 -
+ 1 file changed, 1 deletion(-)

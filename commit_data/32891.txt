@@ -1,23 +1,21 @@
-commit bad5abf64d76f9c302c084c5f62e6f70920d3c81
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Sat Sep 23 01:20:12 2017 +0200
+commit 8f9893173b70d7c2520321ff128f659e497914f4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 1 17:38:34 2017 -0700
 
-    cmd/compile: avoid copying in nilcheckelim2
+    cmd/go: initialize in get before loading packages
     
-    nilcheckelim2 cleans up by copying b.Values in a loop, omitting
-    OpUnknowns. However, the common case is that there are no OpUnknowns,
-    in which case we can skip a lot of work.
+    Otherwise the packages will not pick up the way that -installsuffix is
+    changed by -buildmode and -race.
     
-    So we track the first nilcheck which was eliminated, if any, and only
-    start copying from there. If no nilcheck was eliminated we won't copy at all.
+    Fixes #20512.
     
-    Fixes #20964
-    
-    Change-Id: Icd44194cf8ac81ce6485ce257b4d33e093003a40
-    Reviewed-on: https://go-review.googlesource.com/65651
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ieca32c958a531beb6331dff30d7e9a4998867dbb
+    Reviewed-on: https://go-review.googlesource.com/44630
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/nilcheck.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go             | 14 ++++++++++++++
+ src/cmd/go/internal/get/get.go    |  3 +++
+ src/cmd/go/internal/work/build.go |  4 ++--
+ 3 files changed, 19 insertions(+), 2 deletions(-)

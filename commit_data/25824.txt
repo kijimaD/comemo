@@ -1,16 +1,20 @@
-commit 8847a5913a5970b5f5c062f767c369da683648d6
+commit e126f30a662ea6bd622d69c9fd85499b612fb6b3
 Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 18 17:28:04 2016 -0500
+Date:   Tue Nov 17 17:20:38 2015 -0500
 
-    runtime: remove unused parfor code
+    runtime: recursively disallow write barriers in sighandler
     
-    Change-Id: Ibbfae20cab48163f22d661604ef730705f2b97ba
-    Reviewed-on: https://go-review.googlesource.com/19661
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    sighandler may run during STW, so write barriers are not allowed.
+    
+    Change-Id: Icdf46be10ea296fd87e73ab56ebb718c5d3c97ac
+    Reviewed-on: https://go-review.googlesource.com/17007
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/export_test.go |  36 --------
- src/runtime/parfor.go      | 217 ---------------------------------------------
- src/runtime/parfor_test.go | 128 --------------------------
- 3 files changed, 381 deletions(-)
+ src/runtime/os3_plan9.go      | 3 ++-
+ src/runtime/signal_386.go     | 3 ++-
+ src/runtime/signal_amd64x.go  | 3 ++-
+ src/runtime/signal_arm.go     | 3 ++-
+ src/runtime/signal_arm64.go   | 3 ++-
+ src/runtime/signal_mips64x.go | 3 ++-
+ src/runtime/signal_ppc64x.go  | 3 ++-
+ 7 files changed, 14 insertions(+), 7 deletions(-)

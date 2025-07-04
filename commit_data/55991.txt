@@ -1,41 +1,28 @@
-commit 99522de1c38e4915e061cd2dac7d34ee888c8318
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Mar 7 00:18:02 2024 +0100
+commit c054f223e7d0480a4d1d037177608c09c86c2ddd
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Thu Mar 16 18:18:04 2023 +0800
 
-    crypto/rand: use arc4random(3) on macOS and iOS
+    cmd/internal/obj/loong64: remove Optab.family and reorganize operand class fields
     
-    It's been good since Sierra: it never fails, it's faster, it's available
-    on iOS (see #47812), and it still handles forks and reseeding.
+    There is currently no support for GOARCH=loong32, so the Optab.family
+    field is unused so far. Remove it to simplify the optab; the loong
+    assembler backend would likely already be overhauled into a sufficiently
+    different shape by the time we start to care for loong32, that the data
+    we have today would be useless anyway.
     
-    On a M2 with macOS 14.3.1:
+    While at it, add a operand class slot for the 3rd source operand
+    (support for which will arrive in later commits), and rename the other
+    operand class fields to be self-documenting. The changes are being
+    merged into this patch for sake of reducing code churn.
     
-                  │   sec/op    │   sec/op     vs base                │
-        Read/32-8   413.7n ± 3%   249.7n ± 3%  -39.65% (p=0.000 n=10)
-        Read/4K-8   7.097µ ± 6%   1.261µ ± 2%  -82.24% (p=0.000 n=10)
-    
-                  │     B/s      │      B/s       vs base                 │
-        Read/32-8   73.76Mi ± 3%   122.25Mi ± 3%   +65.73% (p=0.000 n=10)
-        Read/4K-8   550.5Mi ± 6%   3099.0Mi ± 2%  +462.99% (p=0.000 n=10)
-    
-    arc4random(3) would be a good replacement for getentropy(2) on FreeBSD
-    and NetBSD as well, but we don't get as easy access to libc there.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64-longtest,gotip-darwin-amd64-nocgo,gotip-darwin-arm64_13,gotip-darwin-amd64_11,gotip-darwin-amd64_12,gotip-darwin-amd64_13,gotip-darwin-amd64_14
-    Change-Id: Ia76824853be92b4d1786e23592a1d2ef24d8907d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569655
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Icf0988e34ff1c0f762c8e0708cfcef2e7954760c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477715
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Wayne Zuo <wdvxdr@golangcn.org>
 
- src/crypto/rand/rand.go                        | 15 +++++++-------
- src/crypto/rand/rand_darwin.go                 | 19 +++++++++++++++++
- src/crypto/rand/rand_getentropy.go             |  4 ++--
- src/crypto/rand/rand_test.go                   | 19 +++++++++++++++++
- src/internal/syscall/unix/arc4random_darwin.go | 24 ++++++++++++++++++++++
- src/internal/syscall/unix/asm_darwin.s         |  1 +
- src/internal/syscall/unix/getentropy_darwin.go | 28 --------------------------
- src/internal/syscall/unix/getentropy_darwin.s  |  9 ---------
- 8 files changed, 73 insertions(+), 46 deletions(-)
+ src/cmd/internal/obj/loong64/asm.go | 682 ++++++++++++++++++------------------
+ 1 file changed, 346 insertions(+), 336 deletions(-)

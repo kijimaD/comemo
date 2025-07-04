@@ -1,13 +1,18 @@
-commit ebfc7e862eb6311c8403924e404eaa8d1bad2e37
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jul 21 16:29:38 2014 +1000
+commit 6eb5eb398b7c37079526bbf7d5987be8c054bb50
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 20 10:28:51 2014 -0700
 
-    make.bat: do not exit builder on successful completion of make.bat (fixes build)
+    test: add test for confusion with dot imports
     
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
+    The gccgo compiler would fail this test.  The fix for gccgo is
+    https://golang.org/cl/116960043 .
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/118020043
+    https://golang.org/cl/118000043
 
- src/make.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/bug488.dir/a.go |  7 +++++++
+ test/fixedbugs/bug488.dir/b.go |  9 +++++++++
+ test/fixedbugs/bug488.go       | 12 ++++++++++++
+ 3 files changed, 28 insertions(+)

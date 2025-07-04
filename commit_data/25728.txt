@@ -1,12 +1,14 @@
-commit fa5e5478c8791d644c3d7b07a73680f87eb5a43b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 5 09:37:13 2016 +0900
+commit 61da0e92d06137dec73c736ab93213ac652a06fe
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Oct 28 11:43:15 2015 +1300
 
-    runtime: don't call testing.Fatal from worker goroutines
+    cmd/compile, cmd/compile/internal/x86: do not let regopt use CX in position independent code
     
-    Change-Id: I630d4d2d8a914d6c07f22351a56d5e44a937123e
-    Reviewed-on: https://go-review.googlesource.com/19245
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    We might be able to do better than this, but it's a start.
+    
+    Change-Id: I80ebce9094e084a4746039106ccf1ad9c4b8bb7c
+    Reviewed-on: https://go-review.googlesource.com/16384
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/stack_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/x86/reg.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

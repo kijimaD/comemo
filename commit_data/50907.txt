@@ -1,20 +1,23 @@
-commit 85b02de083b5e337bcb581005d0efca883fdb3d9
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Sun Oct 16 20:00:42 2022 +1030
+commit 3d7cb23e3d5e7880d582f1b0300064bd1138f3ee
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 16 18:44:08 2021 -0500
 
-    runtime: remove redundant conversion
+    cmd/compile: emit definition of 'any' when compiling runtime
     
-    This appears to have been left over from a C cast during the rewrite of
-    malloc into Go in https://golang.org/cl/108840046.
+    Include the predefined type 'any' in the list of other important
+    predefined types that are emitted when compiling the runtime package
+    (uintptr, string, etc).
     
-    Change-Id: I88f212089c2bcf79d5881b3e8bf3f94f343331d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443235
-    Run-TryBot: Dan Kortschak <dan@kortschak.io>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #49619.
+    
+    Change-Id: I4a851ba2f302fbc3a425e65daa325c6bf83659da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364377
+    Trust: Than McIntosh <thanm@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/runtime/malloc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  1 +
+ test/fixedbugs/issue49619.go                    | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+)

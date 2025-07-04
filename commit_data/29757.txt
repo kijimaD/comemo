@@ -1,22 +1,25 @@
-commit 850e55b8c028440f2fe282858b332cb810a06864
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 20 14:29:58 2016 -0400
+commit 4c79ed5f4483f1de065ba2b409de58ae2b6907d2
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Jan 6 21:36:31 2016 +0900
 
-    crypto/*: document use or non-use of constant-time algorithms
+    archive/zip: handle mtime in NTFS/UNIX/ExtendedTS extra fields
     
-    Fixes #16821.
+    Handle NTFS timestamp, UNIX timestamp, Extended extra timestamp.
+    Writer supports only Extended extra timestamp field, matching most
+    zip creators.
     
-    Change-Id: I63d5f3d7cfba1c76259912d754025c5f3cbe4a56
-    Reviewed-on: https://go-review.googlesource.com/31573
+    Fixes #10242.
+    
+    Change-Id: Id665db274e63def98659231391fb77392267ac1e
+    Reviewed-on: https://go-review.googlesource.com/18274
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/aes/const.go         | 7 +++++++
- src/crypto/cipher/gcm.go        | 4 ++++
- src/crypto/dsa/dsa.go           | 2 ++
- src/crypto/elliptic/elliptic.go | 6 ++++++
- src/crypto/elliptic/p224.go     | 4 +++-
- src/crypto/rsa/rsa.go           | 2 ++
- src/math/big/int.go             | 5 ++++-
- 7 files changed, 28 insertions(+), 2 deletions(-)
+ src/archive/zip/reader.go                    |  49 +++++++++++++++++++++++++--
+ src/archive/zip/reader_test.go               |  31 +++++++++++------
+ src/archive/zip/struct.go                    |   3 ++
+ src/archive/zip/testdata/extra-timestamp.zip | Bin 0 -> 152 bytes
+ src/archive/zip/writer.go                    |  15 ++++++++
+ src/archive/zip/writer_test.go               |  27 +++++++++++++++
+ 6 files changed, 113 insertions(+), 12 deletions(-)

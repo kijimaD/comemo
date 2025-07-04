@@ -1,16 +1,14 @@
-commit e68412984e644256ca3cdd6d6687ed0ce71ab2a6
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Aug 23 15:24:26 2019 -0400
+commit 8782fd04319e16b372852ae8572b8c90f56e01ae
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Sat Mar 2 09:51:44 2019 +0300
 
-    all: update 'go get' command in standard library README.vendor
+    crypto/cipher: fix duplicated arguments to bytes.Equal in test
     
-    The -m flag is removed in Go 1.13. -d should be used instead.
+    Args were duplicated by a mistake. Found using static analysis tools.
     
-    Change-Id: Ia53764748309f16cb231e5ac6770400a73804484
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191621
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2f61e09844bc409b1f687d654767332d93dd39a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164937
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/README.vendor | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/crypto/cipher/cfb_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

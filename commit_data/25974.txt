@@ -1,23 +1,27 @@
-commit 6d0b55193104357255dacc9b3270c944374eed97
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Feb 29 08:00:46 2016 -0900
+commit 148b13c3bb889addae33f3a2e41e8e854351df6c
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 3 13:06:04 2015 -0800
 
-    cmd/link: track offset instead of using seek
+    encoding/gob: document behavior of zero-valued arrays, slices, and maps
     
-    The Cpos function is used frequently (at least once per symbol) and
-    it is implemented with the seek syscall. Instead, track current
-    output offset and use it.
+    The documentation was inconsistent. It said zero values were not sent, but
+    that zero-valued elements of arrays and arrays were sent. But which rule
+    applies if the array is all zero elements, and is therefore itself a zero value?
     
-    Building the godoc binary with DWARF, best of ten:
+    The answer is: the array is transmitted. In principle the other choice could
+    be made, but there would be considerable expense and complexity required
+    to implement this behavior now, not to mention worries about changes of
+    behavior.
     
-    tip:  real 0m1.287s user 0m1.573s
-    this: real 0m1.208s user 0m1.555s
+    Therefore we just document the situation: Arrays, slices, and maps are
+    always encoded. It would perhaps be nice to have sorted this out earlier,
+    but it was a missed opportunity.
     
-    Change-Id: I068148695cd6b4d32cd145db25e59e6f6bae6945
-    Reviewed-on: https://go-review.googlesource.com/20055
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #13378
+    
+    Change-Id: I8fae345edfa707fcfa7a3e0160d87ff1ac5cc5a2
+    Reviewed-on: https://go-review.googlesource.com/17394
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 44 +++++++++++++++++++++++++++--------------
- 1 file changed, 29 insertions(+), 15 deletions(-)
+ src/encoding/gob/doc.go | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

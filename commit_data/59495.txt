@@ -1,19 +1,25 @@
-commit 5bbac667c5c7bd1bde1750586c92f5932134c871
-Author: khr@golang.org <khr@golang.org>
-Date:   Wed May 7 14:34:30 2025 -0700
+commit eb636f778a733ab4e5684d4dc451874922fc3df2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 18 21:22:27 2024 +0100
 
-    runtime: increase freebsd/amd64 pointer size from 48 to 57 bits
+    all: use "unix" build tag where appropriate
     
-    Because freebsd is now enabling la57 by default.
+    For #51572
     
-    Fixes #49405
-    
-    Change-Id: I30f7bac8b8a9baa85e0c097e06072c19ad474e5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670715
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I23bb25b8cf1ecb9be25eb6ab9e89cd397b58b3c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572535
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/tagptr_64bit.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/base/mapfile_mmap.go | 2 +-
+ src/cmd/compile/internal/base/mapfile_read.go | 2 +-
+ src/cmd/internal/bio/buf_mmap.go              | 2 +-
+ src/cmd/internal/bio/buf_nommap.go            | 2 +-
+ src/cmd/link/internal/ld/outbuf_mmap.go       | 2 +-
+ src/cmd/link/internal/ld/outbuf_nommap.go     | 2 +-
+ src/runtime/pprof/pprof_norusage.go           | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

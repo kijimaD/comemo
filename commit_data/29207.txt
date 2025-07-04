@@ -1,22 +1,12 @@
-commit c3163d23f038a595dc4dd8e1218f412a443a39fa
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 19 16:16:40 2016 -0400
+commit ffa2bd27a47ef16e4d6a404dd15781ed5ba21e5d
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Aug 31 09:09:01 2016 -0700
 
-    runtime: eliminate write barriers from save
+    runtime: fix typo
     
-    As for dropg, save is writing a nil pointer that will generate a write
-    barrier with the hybrid barrier. However, in this case, ctxt always
-    should already be nil, so replace the write with an assertion that
-    this is the case.
-    
-    At this point, we're ready to disable the write barrier elision
-    optimizations that interfere with the hybrid barrier.
-    
-    Updates #17503.
-    
-    Change-Id: I83208e65aa33403d442401f355b2e013ab9a50e9
-    Reviewed-on: https://go-review.googlesource.com/31571
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I47e3cfa8b49e3d0b55c91387df31488b37038a8f
+    Reviewed-on: https://go-review.googlesource.com/28225
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ src/runtime/memmove_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

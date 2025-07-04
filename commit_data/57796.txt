@@ -1,26 +1,19 @@
-commit efa43c57b109582d602eeb9b5fb690d38e4cf9aa
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 4 15:20:48 2024 -0400
+commit 62fb281cf72d4b7fa0a29500911a4af3a244f90f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 31 19:15:19 2023 -0700
 
-    internal/runtime/maps: reuse deleted slots on insert
+    bytes, strings: use "reports whether" in HasPrefix and HasSuffix
     
-    While walking the probe sequence, Put keeps track of the first deleted
-    slot it encountered. If it reaches the end of the probe sequence without
-    finding a match, then it will prefer to use the deleted slot rather than
-    a new empty slot.
+    Update the doc comments to use the more idiomatic and common phrase
+    "reports whether" instead of "tests whether".
     
-    For #54766.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
-    Change-Id: I19356ef6780176506f57b42990ac15dc426f1b14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618016
+    Change-Id: I2b7f8cce2d192f66e296ebaa9b37f37e8276b4ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524898
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/runtime/maps/export_test.go | 36 +++++++++++++++++++
- src/internal/runtime/maps/map.go         |  7 ++--
- src/internal/runtime/maps/map_test.go    | 62 ++++++++++++++++++++++++++++++++
- src/internal/runtime/maps/table.go       | 54 ++++++++++++++++++----------
- 4 files changed, 137 insertions(+), 22 deletions(-)
+ src/bytes/bytes.go     | 4 ++--
+ src/strings/strings.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

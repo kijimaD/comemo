@@ -1,19 +1,21 @@
-commit bf5e19fbaf02b1b25fbe50c27ec301fe830a28d0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 25 11:31:37 2015 +0200
+commit 083a646f63055427c203d5600ef65f05f55783bf
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 12 11:06:44 2015 -0700
 
-    net/http: tolerate old buggy user agents, per RFC 2616 section 4.1
+    [dev.ssa] cmd/internal/gc: Generate code from ssa form
     
-    Some old buggy browsers sent extra CRLF(s) after POST bodies. Skip
-    over them before reading subsequent requests.
+    After the ssa compiler finishes, extract a cmd/internal/obj program
+    from the result.
     
-    Fixes #10876
+    Can compile and run iterative Fibonacci.  The code is awful, but it runs.
     
-    Change-Id: I62eacf2b3e985caffa85aee3de39d8cd3548130b
-    Reviewed-on: https://go-review.googlesource.com/11491
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I19fa27ffe69863950a8cb594f33a5e9a671a7663
+    Reviewed-on: https://go-review.googlesource.com/9971
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/serve_test.go | 24 ++++++++++++++++++++++++
- src/net/http/server.go     | 19 +++++++++++++++++++
- 2 files changed, 43 insertions(+)
+ src/cmd/internal/gc/pgen.go        |   9 +-
+ src/cmd/internal/gc/ssa.go         | 258 ++++++++++++++++++++++++++++++++++++-
+ src/cmd/internal/ssa/location.go   |   6 +-
+ src/cmd/internal/ssa/regalloc.go   |  36 +++---
+ src/cmd/internal/ssa/stackalloc.go |   6 +
+ 5 files changed, 291 insertions(+), 24 deletions(-)

@@ -1,20 +1,22 @@
-commit ba18c7c42d4fa70e81b2304ccc3b2c01675a3af0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 30 11:47:04 2019 +0200
+commit a16dcc00526dbb5ff411004c987a4182a8d68e7c
+Author: Gergely Brautigam <skarlso777@gmail.com>
+Date:   Sat Mar 9 13:28:50 2019 +0100
 
-    syscall: fix TestGroupCleanupUserNamespace on CentOS
+    cmd/go: report non-Go files as package error
     
-    Update the list of expected "id" outputs in
-    TestGroupCleanupUserNamespace with SELinux context information as used
-    on CentOS.
+    This change modifies cmd/go/list to format the error correctly in case
+    -e flag is set. It also fixes a bug where the package loader was only
+    ever checking the first pattern if it had the go extension. This caused
+    and error when a file without .go extension was not the first argument.
     
-    Fixes #34547
+    Fixes #29899
     
-    Change-Id: I426bbe2d04e2039c87490362a1891ec3de6e36e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197841
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I029bf4465ad4ad054434b8337c1d2a59369783da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166398
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/syscall/exec_linux_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/load/pkg.go                       | 17 ++++++++++++++---
+ src/cmd/go/testdata/script/list_test_non_go_files.txt | 13 +++++++++++++
+ 2 files changed, 27 insertions(+), 3 deletions(-)

@@ -1,17 +1,16 @@
-commit c1cd64d0ac2001ec8fe6f253e4e95561a444d533
-Author: Klaus Post <klauspost@gmail.com>
-Date:   Sat Oct 15 13:06:22 2016 +0200
+commit 31ad583ab24263f9dbcb5cbcce849eed64e74040
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jun 25 15:11:25 2016 -0700
 
-    compress/flate: use correct table for size estimation
+    testing: respect benchtime on very fast benchmarks
     
-    The incorrect table was used for estimating output size.
-    This can give suboptimal selection of entropy encoder in rare cases.
+    When ns/op dropped below 1, the old code
+    ignored benchtime and reverted to 1s.
     
-    Change-Id: I8b358200f2d1f9a3f9b79a44269d7be704e1d2d9
-    Reviewed-on: https://go-review.googlesource.com/31172
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I59752cef88d8d73bfd5b085f5400ae657f78504e
+    Reviewed-on: https://go-review.googlesource.com/26664
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/compress/flate/huffman_bit_writer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/testing/benchmark.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

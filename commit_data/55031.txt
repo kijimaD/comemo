@@ -1,40 +1,20 @@
-commit 1cecbb38f477a94938a27936d717f2e6f048623e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Nov 14 22:39:41 2023 +0100
+commit 89871dd8323f5eaa934f700327f9256d960b0537
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 2 16:41:23 2022 -0500
 
-    net/netip: optimize AddrPort.String for IPv4 addresses
+    cmd/go: unskip TestScript/build_issue48319 on Windows
     
-    Use Addr.appendTo4 like in Addr.String.
+    Now that we have newer C compilers on the Windows builders, they
+    should fully support reproducible builds.
     
-    name                          old time/op    new time/op    delta
-    AddrPortString/v4-8             47.5ns ± 0%    27.7ns ± 1%  -41.81%  (p=0.000 n=8+10)
-    AddrPortString/v6-8             95.2ns ± 0%    94.9ns ± 1%   -0.35%  (p=0.034 n=10+10)
-    AddrPortString/v6_ellipsis-8    96.8ns ± 0%    96.6ns ± 0%   -0.15%  (p=0.008 n=9+9)
-    AddrPortString/v6_v4-8          70.9ns ± 0%    70.9ns ± 0%     ~     (p=0.425 n=10+10)
-    AddrPortString/v6_zone-8        97.0ns ± 0%    97.0ns ± 0%     ~     (p=0.838 n=10+10)
+    Updates #35006.
     
-    name                          old alloc/op   new alloc/op   delta
-    AddrPortString/v4-8              24.0B ± 0%     24.0B ± 0%     ~     (all equal)
-    AddrPortString/v6-8              96.0B ± 0%     96.0B ± 0%     ~     (all equal)
-    AddrPortString/v6_ellipsis-8     56.0B ± 0%     56.0B ± 0%     ~     (all equal)
-    AddrPortString/v6_v4-8           56.0B ± 0%     56.0B ± 0%     ~     (all equal)
-    AddrPortString/v6_zone-8         56.0B ± 0%     56.0B ± 0%     ~     (all equal)
-    
-    name                          old allocs/op  new allocs/op  delta
-    AddrPortString/v4-8               1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    AddrPortString/v6-8               2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    AddrPortString/v6_ellipsis-8      2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    AddrPortString/v6_v4-8            2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    AddrPortString/v6_zone-8          2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    
-    Change-Id: I3d3fcee807ca33d1e8d6dafb03ab844ea0c76bea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542396
+    Change-Id: I0a8995fe327067c9e73e5578c385ea01ae5dee5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454504
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/net/netip/netip.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/script/build_issue48319.txt | 1 -
+ 1 file changed, 1 deletion(-)

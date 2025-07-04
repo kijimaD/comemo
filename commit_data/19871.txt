@@ -1,17 +1,23 @@
-commit aac1eabcee45a338f5b2e493cb2e3a0f153cb931
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 4 19:50:49 2014 -0700
+commit 5c055e74d0b04ca863380c5785ca0aadda9ebc5e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Aug 5 06:10:46 2014 +0900
 
-    test: add test for function type in function literal
+    net: consolidate sockaddrToAddr functions
     
-    The gccgo compiler used to fail this test.  This was the root
-    cause of http://gcc.gnu.org/PR61308 .  The fix for the gccgo
-    compiler is https://golang.org/cl/122020043 .
+    This CL removes sockaddrToAddr functions from socket creation
+    operations to avoid the bug like issue 7183.
     
-    LGTM=dave, bradfitz
-    R=golang-codereviews, dave, bradfitz
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/121200043
+    https://golang.org/cl/105100046
 
- test/fixedbugs/bug489.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/pkg/net/fd_unix.go         |  4 ++--
+ src/pkg/net/fd_windows.go      |  8 ++++----
+ src/pkg/net/iprawsock_posix.go |  4 ++--
+ src/pkg/net/ipsock_posix.go    |  4 ++--
+ src/pkg/net/sock_posix.go      | 46 ++++++++++++++++++++++++++++++++----------
+ src/pkg/net/tcpsock_posix.go   |  8 ++++----
+ src/pkg/net/udpsock_posix.go   |  6 +++---
+ src/pkg/net/unixsock_posix.go  | 15 ++------------
+ 8 files changed, 54 insertions(+), 41 deletions(-)

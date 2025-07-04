@@ -1,12 +1,12 @@
-commit e628144aeb2776f8d3a0be57d31a27d8fc470fb7
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Sun Dec 11 09:21:53 2011 -0800
+commit 3308891c9db7aa453eacb21225319a16e747e1d2
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Sun Dec 11 09:11:57 2011 -0800
 
-    pkg/runtime/Makefile: sorted object module names.
+    net/http: fix trivial example server
     
-    R=golang-dev, r
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/5479060
+    https://golang.org/cl/5479061
 
- src/pkg/runtime/Makefile | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

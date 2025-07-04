@@ -1,29 +1,42 @@
-commit 6fa06d960b5ec38867a35dc278ae318ecff1b6c6
-Author: Haoran Luo <haoran.luo@chaitin.com>
-Date:   Tue Dec 8 14:29:04 2020 +0000
+commit cdfff4d25a01ee1ae269d31a57c1e65ea00249b0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 29 22:00:28 2020 -0400
 
-    runtime: prevent stack growth after fork in runtime.sigfillset
+    [dev.link] cmd/link: use more compact representation for external relocations
     
-    This fixes the unexpected growth of stack in child process, which
-    is caused by stack checking code in runtime.sigfillset called from
-    runtime.sigset while clearing the signal handlers in child process.
+    Currently, for external relocations, the ExtReloc structure
+    contains all the fields of the relocation. In fact, many of the
+    fields are the same with the original relocation. So, instead, we
+    can just use an index to reference the original relocation and
+    not expand the fields.
     
-    The redundant stack checking code is generated due to missing
-    '//go:nosplit' directive that should be annotated for
-    runtime.sigfillset.
+    There is one place where we modify relocation type: changing
+    R_DWARFSECTREF to R_ADDR. Get away with it by changing
+    downstreams.
     
-    Fixes #43066
-    Updates #21314
+    It also makes it easier to retrieve the reloc variant.
     
-    Change-Id: I9483a962a4b0747074313991841e2440ee32198c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276173
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    This reduces some allocation. Linking cmd/compile with external
+    linking,
+    
+    name           old alloc/op   new alloc/op   delta
+    Reloc_GC         34.1MB ± 0%    22.7MB ± 0%  -33.30%  (p=0.000 n=5+4)
+    
+    Change-Id: Id08a89ed2aee705296886d3b95014b806a0d55cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231217
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/os_linux_be64.go    | 1 +
- src/runtime/os_linux_generic.go | 1 +
- src/runtime/os_linux_mips64x.go | 1 +
- src/runtime/os_linux_mipsx.go   | 1 +
- 4 files changed, 4 insertions(+)
+ src/cmd/link/internal/amd64/asm.go     |  2 +-
+ src/cmd/link/internal/arm/asm.go       |  2 +-
+ src/cmd/link/internal/arm64/asm.go     |  2 +-
+ src/cmd/link/internal/ld/data.go       | 73 ++++++++++++++--------------------
+ src/cmd/link/internal/loader/loader.go | 33 +++++++--------
+ src/cmd/link/internal/mips/asm.go      |  2 +-
+ src/cmd/link/internal/mips64/asm.go    |  2 +-
+ src/cmd/link/internal/ppc64/asm.go     |  2 +-
+ src/cmd/link/internal/s390x/asm.go     |  2 +-
+ src/cmd/link/internal/x86/asm.go       |  2 +-
+ 10 files changed, 55 insertions(+), 67 deletions(-)

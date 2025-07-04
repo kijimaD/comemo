@@ -1,18 +1,8 @@
-commit 878fa886a61c6536b4151c1f13a494434e6c6c82
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Thu Jan 8 02:18:16 2015 +0100
+commit 369873c6e5d00314ae30276363f58e5af11b149c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Dec 8 13:50:49 2014 +1100
 
-    strconv: add atoi tests for uncommon bases and syntax errors
-    
-    Edge cases like base 2 and 36 conversions are now covered.
-    Many tests are mirrored from the itoa tests.
-    
-    Added more test cases for syntax errors.
-    
-    Change-Id: Iad8b2fb4854f898c2bfa18cdeb0cb4a758fcfc2e
-    Reviewed-on: https://go-review.googlesource.com/2463
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    convert .hgignore to .gitignore.
 
- src/strconv/atoi_test.go | 83 ++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 60 insertions(+), 23 deletions(-)
+ .hgignore => .gitignore | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

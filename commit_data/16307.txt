@@ -1,14 +1,14 @@
-commit 3de593d94bd7c9c1e75afcc45f5ca89b629d5e64
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed May 15 15:34:47 2013 +1000
+commit d9d8d4c62c658f7c4015c73fcb2a1b809dbc0182
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 21:21:11 2013 -0700
 
-    misc/cgo/test: add missing import
+    cmd/godoc: don't warn about HEAD requests
     
-    Fixes windows build.
+    Fixes #5451
     
-    R=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/9429043
+    R=gri
+    CC=dsymonds, gobot, golang-dev
+    https://golang.org/cl/9388043
 
- misc/cgo/test/issue5337w.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/godoc/godoc.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,18 +1,22 @@
-commit bdd420155236768033b05524490738ca97645166
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 6 14:43:28 2019 -0400
+commit d6311ff1e43dd1e7c9cb9edccd10a04b63a7c41f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 30 00:55:38 2019 -0500
 
-    cmd/go: allow GOPROXY to elide the "https://" prefix
+    math/big: add %#b and %O integer formats
     
-    Fixes #32191
+    Matching fmt, %#b now prints an 0b prefix,
+    and %O prints octal with an 0o prefix.
     
-    Change-Id: I6eebe1d4975e904c906e6b839cd6cab9447cbb34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181019
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    See golang.org/design/19308-number-literals for background.
+    
+    For #19308.
+    For #12711.
+    
+    Change-Id: I139c5a9a1dfae15415621601edfa13c6a5f19cfc
+    Reviewed-on: https://go-review.googlesource.com/c/160250
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modfetch/proxy.go          |  9 +++++++++
- src/cmd/go/internal/modfetch/sumdb.go          |  2 +-
- src/cmd/go/testdata/script/mod_proxy_https.txt | 19 +++++++++++++++++++
- 3 files changed, 29 insertions(+), 1 deletion(-)
+ src/math/big/intconv.go      | 12 +++++++++---
+ src/math/big/intconv_test.go |  6 +++++-
+ 2 files changed, 14 insertions(+), 4 deletions(-)

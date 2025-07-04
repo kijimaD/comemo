@@ -1,30 +1,20 @@
-commit 6b420169d798c7ebe733487b56ea5c3fa4aab5ce
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 18 16:46:24 2020 -0700
+commit 3c630bb400b5bce64b598dc4cc907d0faacf77a6
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 9 12:41:16 2020 -0500
 
-    os, internal/poll: loop on EINTR for all file syscalls
+    cmd/go: convert two go get tests to the script framework
     
-    When using a FUSE file system, any system call that touches the file
-    system can return EINTR.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Fixes #40846
+    Updates #36320
+    Updates #17751
     
-    Change-Id: I25d32da22cec08dea81ab297291a85ad72db2df7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249178
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib1ccc72fc717df79214480b48dd98188d6061b46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214117
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/internal/poll/fd_fsync_posix.go    |  4 +++-
- src/internal/poll/fd_opendir_darwin.go |  8 ++++++-
- src/internal/poll/fd_posix.go          | 28 +++++++++++++++++++++---
- src/internal/poll/fd_unix.go           | 22 ++++++++-----------
- src/os/dir_darwin.go                   |  3 +++
- src/os/file.go                         |  5 ++++-
- src/os/file_plan9.go                   |  4 ++++
- src/os/file_posix.go                   | 32 ++++++++++++++++++++++++---
- src/os/file_unix.go                    | 40 +++++++++++++++++++++++++++-------
- src/os/getwd.go                        | 11 +++++++++-
- src/os/stat_unix.go                    |  8 +++++--
- src/runtime/trace/trace_stack_test.go  |  2 +-
- 12 files changed, 133 insertions(+), 34 deletions(-)
+ src/cmd/go/go_test.go                              | 49 ----------------------
+ .../testdata/script/get_insecure_custom_domain.txt |  5 +++
+ .../script/get_update_unknown_protocol.txt         | 13 ++++++
+ 3 files changed, 18 insertions(+), 49 deletions(-)

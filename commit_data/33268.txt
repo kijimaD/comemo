@@ -1,18 +1,32 @@
-commit 013ca842aa1414e3f6c6448d4269c22ce690087e
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Oct 9 09:54:35 2017 +0200
+commit f0b36269041eff3b8bbdd18e2ff41b06557235d1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 26 11:03:45 2017 -0700
 
-    cmd/go: add a test to ensure upx works on go binaries
+    cmd/compile: discard duplicate inline method bodies
     
-    On linux/amd64, for now.
+    If we've already imported a named type, then there's no need to
+    process its associated methods except to validate that the signature
+    matches the existing known method.
     
-    Updates #16706
+    However, the current import code still creates a new function node for
+    each method, saves its inline body (if any), and adds the node to the
+    global importlist. Because of this, the duplicate methods are never
+    garbage collected.
     
-    Change-Id: Ib8c89b6edc73fb88042c06873ff815d387491504
-    Reviewed-on: https://go-review.googlesource.com/69117
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This CL changes the compiler to avoid amassing uncollectable garbage
+    or performing any unnecessary processing.
+    
+    This is particularly noticeable for protobuf-heavy code. For the
+    motivating Go package, this CL reduced compile max-RSS from ~12GB to
+    ~3GB and compile time from ~65s to ~50s.
+    
+    Passes toolstash -cmp for std, cmd, and k8s.io/kubernetes/cmd/....
+    
+    Change-Id: Ib53ba9f2ad3212995671cf6ba220ee8a56d8d009
+    Reviewed-on: https://go-review.googlesource.com/51331
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/go_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 54 insertions(+)
+ src/cmd/compile/internal/gc/bimport.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

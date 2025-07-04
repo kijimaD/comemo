@@ -1,14 +1,30 @@
-commit bb3a32ef6e6772ca6fefda119d0238aec6f7e585
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 20 13:27:53 2013 -0700
+commit b419e2b57cb7bfa48cd04826f1b63ccb16ebe098
+Author: Adam Langley <agl@golang.org>
+Date:   Mon May 20 14:20:26 2013 -0400
 
-    spec: fix language about "range" clause
+    crypto/x509: provide better error messages for X.509 verify failures.
     
-    Fixes #5434.
+    Failures caused by errors like invalid signatures or missing hash
+    functions cause rather generic, unhelpful error messages because no
+    trust chain can be constructed: "x509: certificate signed by unknown
+    authority."
     
-    R=golang-dev, dsymonds
+    With this change, authority errors may contain the reason why an
+    arbitary candidate step in the chain was rejected. For example, in the
+    event of a missing hash function the error looks like:
+    
+    x509: certificate signed by unknown authority (possibly because of
+    "crypto/x509: cannot verify signature: algorithm unimplemented" while
+    trying to verify candidate authority certificate 'Thawte SGC CA')
+    
+    Fixes 5058.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9595044
+    https://golang.org/cl/9104051
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/crypto/x509/cert_pool.go    | 11 +++--
+ src/pkg/crypto/x509/root_windows.go |  6 +--
+ src/pkg/crypto/x509/verify.go       | 34 ++++++++++++--
+ src/pkg/crypto/x509/verify_test.go  | 90 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 130 insertions(+), 11 deletions(-)

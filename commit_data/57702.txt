@@ -1,28 +1,24 @@
-commit 0bb2183d45a1acec07470d9f041c55377217c8e2
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Oct 8 12:42:33 2024 -0400
+commit fe2c686b63804b0e22295f02e4e58ddbb3da5898
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 24 11:09:41 2023 -0400
 
-    cmd/internal/buildid: skip over Mach-O UUID from buildid computation
+    test/fixedbugs: require cgo for issue10607.go
     
-    With the "-B gobuildid" linker option (which will be the default
-    on some platforms), the host build ID (GNU build ID, Mach-O UUID)
-    depends on the Go buildid. If the host build ID is included in the
-    Go buildid computation, it will lead to convergence problem for
-    the toolchain binaries. So ignore the host build ID in the buildid
-    computation.
+    This test passes "-linkmode=external" to 'go run' to link the binary
+    using the system C linker.
     
-    This CL only handles Mach-O UUID. ELF GNU build ID will be handled
-    later.
+    CGO_ENABLED=0 explicitly tells cmd/go not to use the C toolchain,
+    so the test should not be run in that configuration.
     
-    For #68678.
-    For #63934.
+    Updates #46330.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-darwin-arm64_13
-    Change-Id: Ie8ff20402a1c6083246d25dea391140c75be40d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618597
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@golang.org>
+    Change-Id: I16ac66aac91178045f9decaeb28134061e9711f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522495
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/internal/buildid/rewrite.go | 42 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
+ test/fixedbugs/issue10607.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

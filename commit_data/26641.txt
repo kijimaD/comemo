@@ -1,16 +1,23 @@
-commit ec5083e49bea8fdd25a3df9b93f35374f524c7df
-Author: Alexandru Moșoi <brtzsnr@gmail.com>
-Date:   Fri Apr 1 00:33:29 2016 +0200
+commit 113c4d25818e67599d3ff647480e4e68d6857f82
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 12:15:25 2015 -0800
 
-    cmd/compile: combine SHLQ into loads and stores
+    cmd/compile: refactor import statement parsing
     
-    Very common, cuts about 70k from pkg/tools/linux_amd64/* binaries.
+    Combine parser's import_stmt and import_here methods as a single new
+    importdcl method, and cleanup conditional logic slightly to make the
+    code easier to follow.
     
-    Change-Id: Ied0c049e56e56a56810c781435d79027fbcaf274
-    Reviewed-on: https://go-review.googlesource.com/21374
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    Also, eliminate importfile's unused line parameter, and get rid of all
+    of its duplicate type assertions.
+    
+    Change-Id: Ic37ae8490afedc533f98ead9feef383e3599bc01
+    Reviewed-on: https://go-review.googlesource.com/19629
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  12 ++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 222 +++++++++++++++++++++++++++
- 2 files changed, 234 insertions(+)
+ src/cmd/compile/internal/gc/go.go     |   2 -
+ src/cmd/compile/internal/gc/lex.go    |  24 +++---
+ src/cmd/compile/internal/gc/parser.go | 134 +++++++++++++++-------------------
+ 3 files changed, 70 insertions(+), 90 deletions(-)

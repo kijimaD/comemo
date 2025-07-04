@@ -1,14 +1,27 @@
-commit b2dfec100afa7739dc1845f1009dad2d7163116c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Feb 24 10:02:52 2022 +0100
+commit c3365ad5f25043d6293f5cec1e71d1526678ac62
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 30 00:04:19 2021 -0400
 
-    doc/go1.18: fix typo in AMD64 port section
+    cmd/go: annotate versions in vendor/modules.txt
     
-    Change-Id: I234ae7988fd3c7a41c08e72664f8db811eb23bb1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387854
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    In order to prevent edit wars with previous cmd/go releases,
+    the new version annotations are only included if the main module
+    specifies 'go 1.17' or higher.
+    
+    Fixes #36876
+    
+    Change-Id: Iba15e47dd1ac2c16d754679a9b501db4069fa250
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315409
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- doc/go1.18.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.17.html                                    | 10 +++
+ src/cmd/go/internal/modcmd/vendor.go               | 57 +++++++++-----
+ src/cmd/go/internal/modload/vendor.go              |  5 ++
+ .../go/testdata/script/mod_go_version_vendor.txt   |  4 +-
+ .../go/testdata/script/mod_vendor_goversion.txt    | 87 ++++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         | 16 ++--
+ src/vendor/modules.txt                             |  8 +-
+ 7 files changed, 154 insertions(+), 33 deletions(-)

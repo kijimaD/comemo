@@ -1,36 +1,33 @@
-commit 357e8f83f868bd028df7f2f1c373b4d0c57d1408
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Sep 13 14:42:05 2019 +0100
+commit a7fc71092dfb6c6d5fef09b8c85b7d9e78908717
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 15 14:58:40 2019 -0400
 
-    cmd/compile: parallelize another big chunk of rulegen
+    cmd/go/internal/modget: support the suffix '@patch' in 'go get'
     
-    rulegen has a sanity check that ensures all the arch-specific opcodes
-    are handled by each of the gen files.
+    As of this change, an explicit '@patch' suffix is to '-u=patch' as
+    '@latest' is to '-u'.
     
-    This is an expensive chunk of work, particularly since there are a lot
-    of opcodes in total, and each one of them compiles and runs a regular
-    expression.
+    RELNOTE='go get' in module mode now supports the version suffix '@patch'.
     
-    Parallelize that for each architecture, which greatly speeds up 'go run
-    *.go' on my laptop with four real CPU cores.
+    Fixes #26812
     
-            name     old time/op         new time/op         delta
-            Rulegen          3.39s ± 1%          2.53s ± 2%  -25.34%  (p=0.008 n=5+5)
-    
-            name     old user-time/op    new user-time/op    delta
-            Rulegen          10.6s ± 1%          11.2s ± 1%   +6.09%  (p=0.008 n=5+5)
-    
-            name     old sys-time/op     new sys-time/op     delta
-            Rulegen          201ms ± 7%          218ms ±17%     ~     (p=0.548 n=5+5)
-    
-            name     old peak-RSS-bytes  new peak-RSS-bytes  delta
-            Rulegen          182MB ± 3%          184MB ± 3%     ~     (p=0.690 n=5+5)
-    
-    Change-Id: Iec538ed0fa7eb867eeeeaab3da1e2615ce32cbb9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195218
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib5eee40de640440f7470d37a574b311ef8a67f67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167747
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/main.go | 31 +++++++++++++++++++------------
- 1 file changed, 19 insertions(+), 12 deletions(-)
+ src/cmd/go/alldocs.go                              |  17 +-
+ src/cmd/go/internal/modget/get.go                  | 173 +++++++++++++++------
+ src/cmd/go/internal/modload/load.go                |  11 +-
+ .../patch.example.com_depofdirectpatch_v1.0.0.txt  |  11 ++
+ .../patch.example.com_depofdirectpatch_v1.0.1.txt  |  11 ++
+ .../mod/patch.example.com_direct_v1.0.0.txt        |  21 +++
+ .../mod/patch.example.com_direct_v1.0.1.txt        |  27 ++++
+ .../mod/patch.example.com_direct_v1.1.0.txt        |  21 +++
+ .../mod/patch.example.com_indirect_v1.0.0.txt      |  11 ++
+ .../mod/patch.example.com_indirect_v1.0.1.txt      |  11 ++
+ .../mod/patch.example.com_indirect_v1.1.0.txt      |  11 ++
+ src/cmd/go/testdata/script/mod_upgrade_patch.txt   |  29 ----
+ .../go/testdata/script/mod_upgrade_patch_mod.txt   |  85 ++++++++++
+ .../go/testdata/script/mod_upgrade_patch_pkg.txt   |  88 +++++++++++
+ 14 files changed, 444 insertions(+), 83 deletions(-)

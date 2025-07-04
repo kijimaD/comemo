@@ -1,16 +1,15 @@
-commit 34291f5f3e0a40eac110132b620b1444c2123d0e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 15 18:04:32 2019 -0500
+commit c22c7607d3657f7945580f5cf5e0f612c694389f
+Author: Jongmin Kim <jmkim@pukyong.ac.kr>
+Date:   Sat Sep 22 23:05:06 2018 +0900
 
-    cmd/internal/goobj: make the buildGoobj test helper work in module mode
+    test/bench/garbage: update Benchmarks Game URL to new page
     
-    Updates #30228
+    The existing URL in comment points to an Alioth page which was
+    deprecated (and not working), so use the new Benchmarks Game URL.
     
-    Change-Id: I8dd4a1f94dfd3be324a4f213941a20fa1b8b1215
-    Reviewed-on: https://go-review.googlesource.com/c/162832
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ifd694382a44a24c44acbed3fe1b17bca6dab998f
+    Reviewed-on: https://go-review.googlesource.com/136835
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/goobj/goobj_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ test/bench/garbage/tree.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,31 +1,26 @@
-commit a042221cdb9eb8b11240311057ff274e26b53165
-Author: David Chase <drchase@google.com>
-Date:   Sun Oct 29 11:53:18 2017 -0400
+commit c6f3e98eb568a364eb77445a50e4dfbe95ba5058
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 9 11:44:31 2017 -0400
 
-    cmd/compile: adjust Pos setting for "empty" blocks
+    cmd/go: rewrite TestCgoFlagContainsSpace not to use a fake CC
     
-    Plain blocks that contain only uninteresting instructions
-    (that do not have reliable Pos information themselves)
-    need to have their Pos left unset so that they can
-    inherit it from their successors.  The "uninteresting"
-    test was not properly applied and not properly defined.
-    OpFwdRef does not appear in the ssa.html debugging output,
-    but at the time of the test these instructions did appear,
-    and it needs to be part of the test.
+    Using a fake CC fails today if runtime/cgo is stale, because the
+    build will try to rebuild runtime/cgo using the fake CC, and the
+    fake CC is not a working C compiler.
     
-    Fixes #22365.
+    Worse, in the future, when the go command is sensitive to details like
+    the fact that different CCs produce different outputs, putting in
+    the fake CC will make runtime/cgo look stale even if it was
+    formerly up-to-date.
     
-    Change-Id: I99e5b271acd8f6bcfe0f72395f905c7744ea9a02
-    Reviewed-on: https://go-review.googlesource.com/74252
-    Run-TryBot: David Chase <drchase@google.com>
+    Fix both problems by not overriding CC and instead looking at
+    the command being run to make sure the flags are quoted as expected.
+    
+    Change-Id: I4417e35cfab33a07546cc90748ddb6119d8fdb2d
+    Reviewed-on: https://go-review.googlesource.com/56272
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go                 | 37 ++++++++++++++--------
- src/cmd/compile/internal/ssa/block.go              | 23 ++++++++++++++
- .../internal/ssa/testdata/hist.dbg-dlv.nexts       |  3 +-
- .../internal/ssa/testdata/hist.dbg-gdb.nexts       |  3 +-
- .../internal/ssa/testdata/hist.opt-gdb.nexts       |  1 -
- src/cmd/compile/internal/ssa/value.go              | 11 +++++++
- test/fixedbugs/issue18902.go                       |  2 +-
- 7 files changed, 61 insertions(+), 19 deletions(-)
+ src/cmd/go/go_test.go | 59 +++++++--------------------------------------------
+ 1 file changed, 8 insertions(+), 51 deletions(-)

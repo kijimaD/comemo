@@ -1,12 +1,18 @@
-commit b7f44e97a362f3c57a33712b2b092dc9ca91e478
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Mon Jan 9 11:53:20 2012 +1100
+commit 9569c67a6ba61501f5c8ce58f20139e64100585e
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Mon Jan 9 11:23:07 2012 +1100
 
-    doc: float -> float64 in Effective Go
+    windows: use ArbitraryUserPointer as TLS slot
     
-    R=golang-dev
+    R=hectorchu, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5531046
+    https://golang.org/cl/5519054
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/6l/pass.c                       |  8 ++++----
+ src/cmd/8l/pass.c                       |  6 +++---
+ src/pkg/runtime/cgo/gcc_windows_386.c   |  4 ++--
+ src/pkg/runtime/cgo/gcc_windows_amd64.c |  4 ++--
+ src/pkg/runtime/mkasmh.sh               |  4 ++--
+ src/pkg/runtime/sys_windows_386.s       | 10 +++++-----
+ src/pkg/runtime/sys_windows_amd64.s     | 10 +++++-----
+ 7 files changed, 23 insertions(+), 23 deletions(-)

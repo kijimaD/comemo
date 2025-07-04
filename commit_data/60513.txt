@@ -1,0 +1,16 @@
+commit fd7d5a6e6c56c79059b5ce4bb9f38897ad752b3c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jul 26 13:26:12 2024 -0400
+
+    debug/buildinfo: add test for malformed strings
+    
+    Updates #68592.
+    
+    Change-Id: I00c6c740ca0bdd19af24e08a219ec3c90196097e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601458
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/debug/buildinfo/buildinfo_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

@@ -1,15 +1,27 @@
-commit 26536b2f327781ad76afe22109b94b7b193407bf
-Author: 张嵩 <zs349596@gmail.com>
-Date:   Thu Apr 20 23:47:07 2017 -0700
+commit 275e1fdb20a3751f5a30f9ec2f0c3fb0b1c8d1d1
+Author: Mark Adams <mark@markadams.me>
+Date:   Fri Feb 3 08:46:25 2017 -0600
 
-    test/chan: add missing flag.Parse in doubleselect.go
+    cmd/go: use Bitbucket v2 REST API when determining VCS
     
-    doubleselect.go defines a flag to control the number of iterations,
-    but never called flag.Parse so it was unusable.
+    The existing implementation uses v1.0 of Bitbucket's REST API. The newer
+    version 2.0 of Bitbucket's REST API provides the same information but
+    with support for partial responses allowing the client to request only
+    the response fields that are relevant to their usage of the API
+    resulting in a much smaller payload size.
     
-    Change-Id: Ib5d0c7119e7f7c9a808dcc02d0d9cc6ba5bbc16e
-    Reviewed-on: https://go-review.googlesource.com/41299
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The partial response functionality in the Bitbucket API is documented here:
+    https://developer.atlassian.com/bitbucket/api/2/reference/meta/partial-response
+    
+    The v2.0 of the Bitbucket repositories API is documented here:
+    https://developer.atlassian.com/bitbucket/api/2/reference/resource/repositories/%7Busername%7D/%7Brepo_slug%7D#get
+    
+    Fixes #18919
+    
+    Change-Id: I319947d5c51adc241cfe3a2228a667cc43fb1f56
+    Reviewed-on: https://go-review.googlesource.com/36219
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- test/chan/doubleselect.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/get/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

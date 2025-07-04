@@ -1,30 +1,29 @@
-commit 7830180dcd13c028a1619f41bed0ac5e10a720e7
-Author: Will Hawkins <hawkinsw@obs.cr>
-Date:   Wed Apr 5 03:15:56 2023 -0400
+commit b553f51fcd959c9d2d113ce74eba6eac958e2a5b
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon May 9 10:44:07 2022 -0500
 
-    runtime: filter i/o async entries using completion key on windows
+    crypto/aes: enable aes-cbc asm for ppc64
     
-    In the case where a user program requests overlapped I/O directly on a
-    handlethat is managed by the runtime, it is possible that
-    runtime.netpoll will attempt to dereference a pointer with an invalid
-    value. This CL prevents the runtime from accessing the invalid pointer
-    value by adding a special key to each overlapped I/O operation that it
-    creates.
+    This reworks how we load/store vector registers using the new
+    bi-endian P9 instruction emulation macros. This also removes
+    quite a bit of asm used to align and reorder vector registers.
     
-    Fixes #58870
+    This is also a slight improvement on P9 ppc64le/linux:
     
-    Co-authored-by: quimmuntal@gmail.com
-    Change-Id: Ib58ee757bb5555efba24c29101fc6d1a0dedd61a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482495
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+        name             old speed      new speed      delta
+        AESCBCEncrypt1K   936MB/s ± 0%   943MB/s ± 0%  +0.80%
+        AESCBCDecrypt1K  1.28GB/s ± 0%  1.37GB/s ± 0%  +6.76%
+    
+    Updates #18499
+    
+    Change-Id: Ic5ff71d217d7302b6ae4e8d877c25004bfda5ecd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405134
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/poll/fd_windows_test.go             | 87 ++++++++++++++++++++++++
- src/internal/syscall/windows/syscall_windows.go  |  7 ++
- src/internal/syscall/windows/zsyscall_windows.go | 10 +++
- src/runtime/netpoll_windows.go                   |  6 +-
- 4 files changed, 107 insertions(+), 3 deletions(-)
+ src/crypto/aes/asm_ppc64x.s                      | 153 +++++++----------------
+ src/crypto/aes/{cbc_ppc64le.go => cbc_ppc64x.go} |   2 +
+ 2 files changed, 45 insertions(+), 110 deletions(-)

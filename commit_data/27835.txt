@@ -1,25 +1,21 @@
-commit c70bdd378811be6d56a3483fe6b9c5ed7b40cb2d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jun 30 10:53:47 2016 -0700
+commit 12e3b184f0fe15787be7f0837d2b168a4fbe60be
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 8 15:06:04 2016 +1200
 
-    cmd/compile: fix bad generated format strings in test
+    cmd/go: deduplicate gccgo afiles by package path, not *Package
     
-    We were generating format strings containing
-    a lone %. Vet legitimately complains:
+    This code was fixed a while ago to ensure that xtest and fake packages came
+    first on the link line, but golang.org/cl/16775 added --whole-archive ...
+    --no-whole-archive around all the .a files and rendered this fix useless.
     
-    cmd/compile/internal/gc/constFold_test.go:339: unrecognized printf verb ' '
+    So, take a different approach and only put one .a file on the linker command
+    line for each ImportPath we see while traversing the action graph, not for each
+    *Package we see. The way we walk the graph ensures that we'll see the .a files
+    that need to be first first.
     
-    The fix doesn't make for very readable code,
-    but it is simple and obviously correct.
-    
-    Updates #11041
-    
-    Change-Id: I90bd2d1d140887f5229752a279f7e46921472fbb
-    Reviewed-on: https://go-review.googlesource.com/27115
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I137f00f129ccc9fc99f40eee885cc04cc358a62e
+    Reviewed-on: https://go-review.googlesource.com/21692
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/constFold_test.go      | 4596 ++++++++++----------
- .../internal/gc/testdata/gen/constFoldGen.go       |    8 +-
- 2 files changed, 2302 insertions(+), 2302 deletions(-)
+ src/cmd/go/build.go | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)

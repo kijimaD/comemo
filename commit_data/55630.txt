@@ -1,25 +1,23 @@
-commit a3c35430fc0a67b5c8af6d57d21e2881929076ac
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Fri Feb 16 14:32:27 2024 +0800
+commit 52af6550c92b1023e64c48e7b0fd947e539fb30f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 18 15:20:06 2022 -0800
 
-    runtime/internal/syscall: merge duplicate constants
+    os: don't try to put directory into non-blocking mode
     
-    Change-Id: Ifdc6e22d52317cdb90a607ac4d72437d4d6b33e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564716
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #56843
+    
+    Change-Id: I3cb3e8397499cd8c57a3edddd45f38c510519b36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451997
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/internal/syscall/defs_linux.go         | 12 +++++++++++-
- src/runtime/internal/syscall/defs_linux_386.go     | 12 +-----------
- src/runtime/internal/syscall/defs_linux_amd64.go   | 12 +-----------
- src/runtime/internal/syscall/defs_linux_arm.go     | 12 +-----------
- src/runtime/internal/syscall/defs_linux_arm64.go   | 12 +-----------
- src/runtime/internal/syscall/defs_linux_loong64.go | 12 +-----------
- src/runtime/internal/syscall/defs_linux_mips64x.go | 12 +-----------
- src/runtime/internal/syscall/defs_linux_mipsx.go   | 12 +-----------
- src/runtime/internal/syscall/defs_linux_ppc64x.go  | 12 +-----------
- src/runtime/internal/syscall/defs_linux_riscv64.go | 12 +-----------
- src/runtime/internal/syscall/defs_linux_s390x.go   | 12 +-----------
- 11 files changed, 21 insertions(+), 111 deletions(-)
+ src/os/file_unix.go      | 10 ++++++++
+ src/os/removeall_at.go   |  3 ++-
+ src/os/removeall_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 76 insertions(+), 1 deletion(-)

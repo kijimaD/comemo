@@ -1,15 +1,14 @@
-commit 3d5e3a15f65f1dd622c87ffba58914c877c8112c
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Mon Apr 12 22:49:07 2021 +0200
+commit 2ca2e94731b1cb2ffe7f3cc68d6afdbbe2fd99ef
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Oct 1 07:57:00 2020 -0700
 
-    debug/pe: replace os.MkdirTemp with T.TempDir
+    doc/go1.16: fix crypto typo
     
-    Updates #45402
-    
-    Change-Id: I3d83a66270ca38e82d6bb7f8a1367af3d5343a98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309352
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icf962098cc22f16b0acf75db1e82eaddb9fa0c80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258777
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/pe/file_test.go | 21 ++++-----------------
- 1 file changed, 4 insertions(+), 17 deletions(-)
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

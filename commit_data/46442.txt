@@ -1,18 +1,44 @@
-commit 0bb40b08c4884952d7facce3135ff9e50847763f
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Sep 12 14:33:04 2021 -0400
+commit f9b67f76a59cb9adf5d04e9b559cda98afb3c6f4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 29 19:46:31 2020 -0800
 
-    go/types: implement Identical for *Union types
+    [dev.regabi] cmd/compile: change ir.DoChildren to use bool result type
     
-    This aligns with the API proposal (#47916).
+    After using the IR visitor code for a bit, it seems clear that a
+    simple boolean result type is adequate for tree traversals. This CL
+    updates ir.DoChildren to use the same calling convention as ir.Any,
+    and updates mknode.go to generate code accordingly.
     
-    Change-Id: I732e5b107e729718ed37e053ad3f434993a97ecd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349413
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    There were only two places where the error-based DoChildren API was
+    used within the compiler:
+    
+    1. Within typechecking, marking statements that contain "break". This
+    code never returns errors anyway, so it's trivially updated to return
+    false instead.
+    
+    2. Within inlining, the "hairy visitor" actually does make use of
+    returning errors. However, it threads through a reference to the
+    hairyVisitor anyway, where it would be trivial to store any needed
+    information instead. For the purpose of this CL, we provide
+    "errChildren" and "errList" helper functions that provide the previous
+    error-based semantics on top of the new bool-based API.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I4bac9a697b4dbfb5f66eeac37d4a2ced2073d7d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280675
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/api_test.go   | 42 ++++++++++++++++++++++++++++++++++++++++++
- src/go/types/predicates.go |  9 +++++++++
- 2 files changed, 51 insertions(+)
+ src/cmd/compile/internal/inline/inl.go          |  29 +-
+ src/cmd/compile/internal/ir/func.go             |   6 +-
+ src/cmd/compile/internal/ir/mknode.go           |  18 +-
+ src/cmd/compile/internal/ir/name.go             |   6 +-
+ src/cmd/compile/internal/ir/node.go             |   2 +-
+ src/cmd/compile/internal/ir/node_gen.go         | 898 ++++++++++--------------
+ src/cmd/compile/internal/ir/type.go             |  26 +-
+ src/cmd/compile/internal/ir/visit.go            | 103 ++-
+ src/cmd/compile/internal/typecheck/typecheck.go |   6 +-
+ 9 files changed, 481 insertions(+), 613 deletions(-)

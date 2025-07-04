@@ -1,13 +1,15 @@
-commit 61c9d3f08a5a6798c3834972027d30a8fcd3a171
+commit 469a747e02dae8c9457233be3d294aa6b93b7903
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 29 06:49:21 2011 -0700
+Date:   Tue Mar 29 06:48:20 2011 -0700
 
-    test: adjust bugs/bug322 to match current spec.
+    test: avoid undefined error in syntax/if.go.
     
-    R=gri, rsc1
+    Without this the gccgo version of errchk reports an unmatched
+    error.
+    
+    R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4328041
+    https://golang.org/cl/4327041
 
- test/bugs/bug322.dir/main.go | 10 +++++-----
- test/golden.out              |  3 +--
- 2 files changed, 6 insertions(+), 7 deletions(-)
+ test/syntax/if.go | 3 +++
+ 1 file changed, 3 insertions(+)

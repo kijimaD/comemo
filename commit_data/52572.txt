@@ -1,35 +1,21 @@
-commit b3bc8620f89153fddc1a30ee17c1d93654ed4314
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Apr 1 10:33:26 2023 -0700
+commit 4388faf9646bd4df0b0c3a5b781281d5b7948ce4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun May 8 23:26:28 2022 +0700
 
-    cmd/compile: use correct type for byteswaps on multi-byte stores
+    runtime: use unsafe.Slice in getStackMap
     
-    Use the type of the store for the byteswap, not the type of the
-    store's value argument.
+    CL 362934 added open code for unsafe.Slice, so using it now no longer
+    negatively impacts the performance.
     
-    Normally when we're storing a 16-bit value, the value being stored is
-    also typed as 16 bits. But sometimes it is typed as something smaller,
-    usually because it is the result of an upcast from a smaller value,
-    and that upcast needs no instructions.
+    Updates #48798
     
-    If the type of the store's arg is thinner than the type being stored,
-    and the byteswap'd value uses that thinner type, and the byteswap'd
-    value needs to be spilled & restored, that spill/restore happens using
-    the thinner type, which causes us to lose some of the top bits of the
-    value.
-    
-    Fixes #59367
-    
-    Change-Id: If6ce1e8a76f18bf8e9d79871b6caa438bc3cce4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481395
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ifbabe8bc1cc4349c5bcd11586a11fc99bcb388b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404974
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/AMD64.rules | 12 ++--
- src/cmd/compile/internal/ssa/_gen/ARM64.rules | 36 ++++++------
- src/cmd/compile/internal/ssa/rewriteAMD64.go  | 24 ++++----
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 74 +++++++++++++------------
- test/fixedbugs/issue59367.go                  | 80 +++++++++++++++++++++++++++
- 5 files changed, 154 insertions(+), 72 deletions(-)
+ src/runtime/stack.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

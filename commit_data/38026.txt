@@ -1,12 +1,21 @@
-commit 9d26ec85fc5657409d415caf647b11f614dd48c8
-Author: Andrew <andybons@golang.org>
-Date:   Mon Feb 25 20:02:00 2019 +0000
+commit 1058aecf611fc85365f87733f8588ef1cd31c8cd
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Wed Sep 12 01:16:29 2018 +0200
 
-    doc/go1.12: remove draft notice
+    net/http: configure http2 transport only once
     
-    Change-Id: Ib6a0f5c35b1efc3f3c8e7ca2a5c4f35bf8bf5e5d
-    Reviewed-on: https://go-review.googlesource.com/c/163720
+    it looks like we should abort trying to configure the http2 transport
+    again, once it has been configured already.
+    
+    Otherwise there will be no effect of these checks and changes, as they
+    will be overridden later again and the disable logic below will have no
+    effect, too.
+    
+    So it really looks like we just forgot a return statement here.
+    
+    Change-Id: Ic99b3bbc662a4e1e1bdbde77681bd1ae597255ad
+    Reviewed-on: https://go-review.googlesource.com/134795
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.12.html | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ src/net/http/transport.go | 1 +
+ 1 file changed, 1 insertion(+)

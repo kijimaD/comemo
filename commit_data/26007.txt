@@ -1,35 +1,19 @@
-commit b83f3972fe9e6ac0fdaadce1fd536e2bc9a16e80
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 2 11:01:25 2016 -0800
+commit 9ccdc4edac09b83a855be38ab4621bbf2a1d95e9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 10 10:11:15 2015 -0800
 
-    cmd/compile: use int32 for line numbers consistently
+    net/http/httptest: don't crash in mime sniffing if HeaderMap is nil
     
-    - removed lots of unnecessary int(x) casts
-    - removed parserline() - was inconsistently used anyway
-    - minor simplifications in dcl.go
+    Fixes some failing Google tests when run under Go tip (1.6).
     
-    Change-Id: Ibf7de679eea528a31c9692ef1c76a1d9b3239211
-    Reviewed-on: https://go-review.googlesource.com/20131
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #12986
+    
+    Change-Id: I0ca4d20f6103d10ea9464e45730085401336dada
+    Reviewed-on: https://go-review.googlesource.com/17698
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Nodir Turakulov <nodir@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ggen.go   |  2 +-
- src/cmd/compile/internal/arm/ggen.go     |  2 +-
- src/cmd/compile/internal/arm64/ggen.go   |  2 +-
- src/cmd/compile/internal/gc/closure.go   |  2 +-
- src/cmd/compile/internal/gc/dcl.go       | 50 ++++++++++++--------------------
- src/cmd/compile/internal/gc/esc.go       | 34 +++++++++++-----------
- src/cmd/compile/internal/gc/export.go    |  2 +-
- src/cmd/compile/internal/gc/gen.go       |  4 +--
- src/cmd/compile/internal/gc/lex.go       | 16 +++++-----
- src/cmd/compile/internal/gc/parser.go    |  4 +--
- src/cmd/compile/internal/gc/plive.go     |  4 +--
- src/cmd/compile/internal/gc/popt.go      |  6 ++--
- src/cmd/compile/internal/gc/ssa.go       | 22 +++++++-------
- src/cmd/compile/internal/gc/subr.go      | 28 ++++++++----------
- src/cmd/compile/internal/gc/swt.go       |  2 +-
- src/cmd/compile/internal/gc/typecheck.go |  4 +--
- src/cmd/compile/internal/gc/walk.go      |  2 +-
- src/cmd/compile/internal/mips64/ggen.go  |  2 +-
- src/cmd/compile/internal/ppc64/ggen.go   |  2 +-
- src/cmd/compile/internal/x86/ggen.go     |  2 +-
- 20 files changed, 87 insertions(+), 105 deletions(-)
+ src/net/http/httptest/recorder.go      |  3 +++
+ src/net/http/httptest/recorder_test.go | 11 +++++++++++
+ 2 files changed, 14 insertions(+)

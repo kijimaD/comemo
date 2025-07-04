@@ -1,14 +1,15 @@
-commit d26c607fe647efce17c061ab7f86506dd95eb314
-Author: Rob Pike <r@golang.org>
-Date:   Sun Feb 12 09:10:47 2012 +1100
+commit 7dd90621f8f8ed25708daf279067e8c0024af20b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 11 01:21:12 2012 -0500
 
-    unsafe: Alignof and Offsetof now use the same style
+    gc: diagnose field+method of same name
     
-    The easy part of issue 2968.
+    Fixes #2828.
     
-    R=golang-dev, gri
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5655059
+    https://golang.org/cl/5653065
 
- src/pkg/unsafe/unsafe.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/dcl.c         |  8 ++++++++
+ test/fixedbugs/bug416.go | 13 +++++++++++++
+ 2 files changed, 21 insertions(+)

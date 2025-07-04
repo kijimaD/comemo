@@ -1,38 +1,12 @@
-commit fe28d1aacf108cb7b7a4ec573a019e193d07c696
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Dec 21 10:00:41 2011 +1100
+commit b0eb68ad16978ac22fb115b8ec26e1dcb15979c6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 21 09:59:45 2011 +1100
 
-    html: handle breakout tags in foreign content.
+    dashboard: send builder in commit POST query string
     
-    Also recognize that, in the latest version of the HTML5 spec,
-    foreign content is not an insertion mode, but a separate concern.
-    
-    Pass tests10.dat, test 13:
-    <!DOCTYPE html><body><table><caption><svg><g>foo</g><g>bar</g><p>baz</table><p>quux
-    
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |   <body>
-    |     <table>
-    |       <caption>
-    |         <svg svg>
-    |           <svg g>
-    |             "foo"
-    |           <svg g>
-    |             "bar"
-    |         <p>
-    |           "baz"
-    |     <p>
-    |       "quux"
-    
-    Also pass tests through test 15:
-    <!DOCTYPE html><body><table><colgroup><svg><g>foo</g><g>bar</g><p>baz</table><p>quux
-    
-    R=andybalholm
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5494078
+    https://golang.org/cl/5498055
 
- src/pkg/html/parse.go      | 41 ++++++++++++++++++++++++++++++-----------
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 31 insertions(+), 12 deletions(-)
+ misc/dashboard/builder/http.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

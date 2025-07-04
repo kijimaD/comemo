@@ -1,48 +1,81 @@
-commit 9101bf19165ecde1967a0163d2fafa168e40ac6d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 17 17:44:55 2024 -0700
+commit 8fa9e3beee8b0e6baa7333740996181268b60a3a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Sep 23 16:32:34 2022 +0000
 
-    go/types, types2: use types2.Config flag to control Alias node creation
+    runtime: manage huge pages explicitly
     
-    Move Checker.enableAlias to Config.EnableAlias (for types2) and
-    Config._EnableAlias (for go/types), and adjust all uses.
+    This change makes it so that on Linux the Go runtime explicitly marks
+    page heap memory as either available to be backed by hugepages or not
+    using heuristics based on density.
     
-    Use Config.EnableAlias to control Alias creation for types2 and
-    with that remove dependencies on the gotypesalias GODEBUG setting
-    and problems during bootstrap. The only client is the compiler and
-    there we simply use the desired configuration; it is undesirable
-    for the compiler to be dependent on gotypesalias.
+    The motivation behind this change is twofold:
+    1. In default Linux configurations, khugepaged can recoalesce hugepages
+       even after the scavenger breaks them up, resulting in significant
+       overheads for small heaps when their heaps shrink.
+    2. The Go runtime already has some heuristics about this, but those
+       heuristics appear to have bit-rotted and result in haphazard
+       hugepage management. Unlucky (but otherwise fairly dense) regions of
+       memory end up not backed by huge pages while sparse regions end up
+       accidentally marked MADV_HUGEPAGE and are not later broken up by the
+       scavenger, because it already got the memory it needed from more
+       dense sections (this is more likely to happen with small heaps that
+       go idle).
     
-    Use the gotypesalias GODEBUG setting to control Config._EnableAlias
-    for go/types (similar to before).
+    In this change, the runtime uses a new policy:
     
-    Adjust some related code. We plan to remove gotypesalias eventually
-    which will remove some of the new discrepancies between types2 and
-    go/types again.
+    1. Mark all new memory MADV_HUGEPAGE.
+    2. Track whether each page chunk (4 MiB) became dense during the GC
+       cycle. Mark those MADV_HUGEPAGE, and hide them from the scavenger.
+    3. If a chunk is not dense for 1 full GC cycle, make it visible to the
+       scavenger.
+    4. The scavenger marks a chunk MADV_NOHUGEPAGE before it scavenges it.
     
-    Fixes #66874.
+    This policy is intended to try and back memory that is a good candidate
+    for huge pages (high occupancy) with huge pages, and give memory that is
+    not (low occupancy) to the scavenger. Occupancy is defined not just by
+    occupancy at any instant of time, but also occupancy in the near future.
+    It's generally true that by the end of a GC cycle the heap gets quite
+    dense (from the perspective of the page allocator).
     
-    Change-Id: Id7cc4805e7ea0697e0d023c7f510867e59a24871
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/579935
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Because we want scavenging and huge page management to happen together
+    (the right time to MADV_NOHUGEPAGE is just before scavenging in order to
+    break up huge pages and keep them that way) and the cost of applying
+    MADV_HUGEPAGE and MADV_NOHUGEPAGE is somewhat high, the scavenger avoids
+    releasing memory in dense page chunks. All this together means the
+    scavenger will now more generally release memory on a ~1 GC cycle delay.
+    
+    Notably this has implications for scavenging to maintain the memory
+    limit and the runtime/debug.FreeOSMemory API. This change makes it so
+    that in these cases all memory is visible to the scavenger regardless of
+    sparseness and delays the page allocator in re-marking this memory with
+    MADV_NOHUGEPAGE for around 1 GC cycle to mitigate churn.
+    
+    The end result of this change should be little-to-no performance
+    difference for dense heaps (MADV_HUGEPAGE works a lot like the default
+    unmarked state) but should allow the scavenger to more effectively take
+    back fragments of huge pages. The main risk here is churn, because
+    MADV_HUGEPAGE usually forces the kernel to immediately back memory with
+    a huge page. That's the reason for the large amount of hysteresis (1
+    full GC cycle) and why the definition of high density is 96% occupancy.
+    
+    Fixes #55328.
+    
+    Change-Id: I8da7998f1a31b498a9cc9bc662c1ae1a6bf64630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436395
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/irgen.go        |  8 +++---
- src/cmd/compile/internal/types2/api.go         |  6 +++++
- src/cmd/compile/internal/types2/check.go       | 29 +++++++++-------------
- src/cmd/compile/internal/types2/check_test.go  |  7 +++---
- src/cmd/compile/internal/types2/decl.go        |  6 ++---
- src/cmd/compile/internal/types2/issues_test.go |  4 +--
- src/cmd/compile/internal/types2/object_test.go |  7 ++----
- src/cmd/compile/internal/types2/resolver.go    |  2 +-
- src/cmd/compile/internal/types2/typexpr.go     |  2 +-
- src/go/types/api.go                            |  6 +++++
- src/go/types/check.go                          | 34 ++++++++++++--------------
- src/go/types/decl.go                           |  6 ++---
- src/go/types/generate_test.go                  |  9 ++++---
- src/go/types/object_test.go                    |  3 ---
- src/go/types/resolver.go                       |  2 +-
- src/go/types/typexpr.go                        |  2 +-
- 16 files changed, 64 insertions(+), 69 deletions(-)
+ src/runtime/debug/garbage_test.go |   2 +-
+ src/runtime/export_test.go        | 127 ++++++++---
+ src/runtime/mem_linux.go          |  70 ------
+ src/runtime/mgc.go                |   6 +
+ src/runtime/mgcscavenge.go        | 469 +++++++++++++++++++++++++++++---------
+ src/runtime/mgcscavenge_test.go   | 353 +++++++++++++++++++---------
+ src/runtime/mgcsweep.go           |   8 +-
+ src/runtime/mheap.go              |  15 +-
+ src/runtime/mpagealloc.go         |  38 ++-
+ src/runtime/mpagealloc_32bit.go   |  18 +-
+ src/runtime/mpagealloc_64bit.go   |  49 ++--
+ src/runtime/mpagecache.go         |   9 +-
+ 12 files changed, 791 insertions(+), 373 deletions(-)

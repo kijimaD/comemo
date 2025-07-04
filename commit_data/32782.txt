@@ -1,26 +1,15 @@
-commit e06a64a4768445f2fcea1cb6b5a04abe0c4d9d12
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 19 14:28:03 2017 -0700
+commit 9acd814c2a53a10de39a891bf7b6f4d12fc7b329
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Mon May 29 12:01:45 2017 +0200
 
-    cmd/compile/internal/syntax: fix source buffer refilling
+    runtime: fix file reference in comments
     
-    The previous code seems to have an off-by-1 in it somewhere, the
-    consequence being that we didn't properly preserve all of the old
-    buffer contents that we intended to.
+    cmd/compile/internal/ld/decodesym.go is now
+    cmd/link/internal/ld/decodesym.go
     
-    After spending a while looking at the existing window-shifting logic,
-    I wasn't able to understand exactly how it was supposed to work or
-    where the issue was, so I rewrote it to be (at least IMO) more
-    obviously correct.
-    
-    Fixes #21938.
-    
-    Change-Id: I1ed7bbc1e1751a52ab5f7cf0411ae289586dc345
-    Reviewed-on: https://go-review.googlesource.com/64830
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I16ec5c89aa3507e70676c2b50d70f1fde533a085
+    Reviewed-on: https://go-review.googlesource.com/44373
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/syntax/scanner_test.go | 13 +++++++++++++
- src/cmd/compile/internal/syntax/source.go       | 11 ++++++-----
- 2 files changed, 19 insertions(+), 5 deletions(-)
+ src/runtime/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

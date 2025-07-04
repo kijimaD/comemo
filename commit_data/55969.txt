@@ -1,20 +1,49 @@
-commit f40bf7486b4cf201c1d9f54d9e68c84422d055a2
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Tue Mar 12 08:35:52 2024 +0000
+commit 0bd94e4387da2ce056c0f4e9bfa66976841710a5
+Author: Matthieu Baerts <matthieu.baerts@tessares.net>
+Date:   Fri Feb 24 17:51:57 2023 +0100
 
-    net/http/httptest: close res.Body in test
+    net: mptcp: implement dialMPTCP
     
-    Change-Id: Ieec952ebc407ecb1aa20aa03105323505121981c
-    GitHub-Last-Rev: d19724c16dff3ec9c1f23d21054ff8a6ccc3770c
-    GitHub-Pull-Request: golang/go#66263
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570915
-    Auto-Submit: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This function is called when the user has requested MPTCP via
+    SetMultipathTCP in the Dialer.
+    
+    This new function falls back to dialTCP on operating systems that do not
+    support MPTCP or if MPTCP is not supported.
+    
+    On Dialer side, MultipathTCP function can be used to know if the package
+    will try to use MPTCP or not when Dial is called.
+    
+    Note that this new dialMPTCP function returns a TCPConn object, like
+    dialTCP. A new MPTCPConn object using the following composition could
+    have been returned:
+    
+        type MPTCPConn struct {
+            *TCPConn
+        }
+    
+    But the drawback is that if MPTCP is used by default one day (see #56539
+    issue on GitHub), Dial will return a different object: this new
+    MPTCPConn type instead of the previously expected TCPConn. This can
+    cause issues for apps checking the returned object.
+    
+    This work has been co-developped by Gregory Detal
+    <gregory.detal@tessares.net>.
+    
+    Updates #56539
+    
+    Change-Id: I0f9b5b81f630b39142bdd553d4f1b4c775f1dff0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471136
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/httptest/server_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ api/next/56539.txt         |  2 ++
+ src/net/dial.go            | 29 ++++++++++++++++++++++++++++-
+ src/net/mptcpsock_linux.go | 10 ++++++++++
+ src/net/mptcpsock_stub.go  |  8 ++++++++
+ src/net/tcpsock_posix.go   |  8 ++++++--
+ 5 files changed, 54 insertions(+), 3 deletions(-)

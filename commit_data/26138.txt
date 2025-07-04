@@ -1,22 +1,22 @@
-commit 2350ca5a41b81f9fa8026c511758deafa3038836
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 8 12:37:35 2016 -0800
+commit 5b355a7907550d6fe457fdf6a92fc320d5a764d5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 11 20:41:52 2015 -0800
 
-    cmd/compile: remove useless declaration of llit
+    [dev.ssa] cmd/compile: change ssa compilation trigger
     
-    Accidentally added in https://golang.org/cl/20242.
+    We used to compile everything with SSA and then decide whether
+    to use the result or not.  It was useful when we were working
+    on coverage without much regard for correctness, but not so much now.
     
-    This is in preparation for transformation by an automated tool.
+    Instead, let's decide what we're going to compile and go through
+    the SSA compiler for only those functions.
     
-    Passes toolstash -cmp.
+    TODO: next CL: get rid of all the UnimplementedF stuff.
     
-    Update #14473.
-    
-    Change-Id: I28c637d220df3ccaa8e368bfbea7282a6e66662e
-    Reviewed-on: https://go-review.googlesource.com/20402
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If629addd8b62cd38ef553fd5d835114137885ce0
+    Reviewed-on: https://go-review.googlesource.com/17763
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/typecheck.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go |   8 +--
+ src/cmd/compile/internal/gc/ssa.go  | 117 ++++++++++++++++++++----------------
+ 2 files changed, 68 insertions(+), 57 deletions(-)

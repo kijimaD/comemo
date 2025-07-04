@@ -1,18 +1,19 @@
-commit dabc361847f1daa8dee430fc6cf29c52e6f644cc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jun 7 11:42:36 2017 -0700
+commit 03d1aa602470a38510e0bd71341ed7b7a1672bc9
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Tue Apr 4 13:54:54 2017 -0400
 
-    runtime: use constants for map string key size
+    syscall: mark WSAECONNABORTED, WSAECONNRESET as temporary network errors
     
-    It appears that this was just missed
-    by accident in the original implementation.
+    Windows was missed in https://golang.org/cl/141600043.
     
-    Change-Id: Id87147bcb7a685d624eac7034342a305ad644e7a
-    Reviewed-on: https://go-review.googlesource.com/53891
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #6163 (again).
+    
+    Change-Id: I09076be80fb6b2148d3e5618461ebaa79f27d5b3
+    Reviewed-on: https://go-review.googlesource.com/39490
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Avelino <t@avelino.xxx>
 
- src/runtime/hashmap_fast.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/syscall/syscall_windows.go | 2 +-
+ src/syscall/ztypes_windows.go  | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

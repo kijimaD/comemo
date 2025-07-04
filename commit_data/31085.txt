@@ -1,25 +1,13 @@
-commit 826a09cd65bbbf39bd377f34e24a5870275014ad
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 9 15:02:35 2017 -0700
+commit 21a8db1c5fdd372510b30bb898269a56456096e8
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Jan 26 09:30:04 2017 -0800
 
-    cmd/internal/obj: add SortSlice
+    doc: document go1.7.5
     
-    sort.Slice was added in Go 1.8.
-    It's nice to use, and faster than sort.Sort,
-    so it'd be nice to be able to use it in the toolchain.
-    This CL adds obj.SortSlice, which is sort.Slice,
-    but with a slower fallback version for bootstrapping.
-    
-    This CL also includes a single demo+test use.
-    
-    Change-Id: I2accc60b61f8e48c8ab4f1a63473e3b87af9b691
-    Reviewed-on: https://go-review.googlesource.com/40114
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic8d4e971edebba9412f2e7c3d3c29f296c4977ff
+    Reviewed-on: https://go-review.googlesource.com/35833
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go      | 13 ++---------
- src/cmd/compile/internal/gc/reflect_test.go |  7 +++---
- src/cmd/internal/obj/bootstrap.go           | 34 +++++++++++++++++++++++++++++
- src/cmd/internal/obj/sort.go                | 13 +++++++++++
- 4 files changed, 52 insertions(+), 15 deletions(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,20 +1,45 @@
-commit 879db69ce2de814bc3203c39b45617ba51cc5366
-Author: Rob Findley <rfindley@google.com>
-Date:   Fri Apr 30 15:38:11 2021 -0400
+commit a19cf510af8182751fefc16ce962f91fe17c1e1b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 24 10:40:09 2020 +0700
 
-    go/types: list errors by default in TestManual
+    cmd/compile: defer lowering OANDNOT until SSA
     
-    This is a port of CL 315729 to go/types, adjusted for the slightly
-    different test set-up in go/types.
+    Currently, "x &^ y" gets rewriten into "x & ^y" during walk. It adds
+    unnecessary complexity to other parts, which must aware about this.
     
-    Added a TODO to reconcile these differences.
+    Instead, we can just implement "&^" in the conversion to SSA, so "&^"
+    can be handled like other binary operators.
     
-    Change-Id: I71cae712d8fc23b7311ce35e09168b258e07fa35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315850
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    However, this CL does not pass toolstash-check. It seems that implements
+    "&^" in the conversion to SSA causes registers allocation change.
+    
+    With the parent:
+    
+    obj: 00212 (.../src/runtime/complex.go:47)    MOVQ    X0, AX
+    obj: 00213 (.../src/runtime/complex.go:47)    BTRQ    $63, AX
+    obj: 00214 (.../src/runtime/complex.go:47)    MOVQ    "".n(SP), CX
+    obj: 00215 (.../src/runtime/complex.go:47)    MOVQ    $-9223372036854775808, DX
+    obj: 00216 (.../src/runtime/complex.go:47)    ANDQ    DX, CX
+    obj: 00217 (.../src/runtime/complex.go:47)    ORQ AX, CX
+    
+    With this CL:
+    
+    obj: 00212 (.../src/runtime/complex.go:47)    MOVQ    X0, AX
+    obj: 00213 (.../src/runtime/complex.go:47)    BTRQ    $63, AX
+    obj: 00214 (.../src/runtime/complex.go:47)    MOVQ    $-9223372036854775808, CX
+    obj: 00215 (.../src/runtime/complex.go:47)    MOVQ    "".n(SP), DX
+    obj: 00216 (.../src/runtime/complex.go:47)    ANDQ    CX, DX
+    obj: 00217 (.../src/runtime/complex.go:47)    ORQ AX, DX
+    
+    Change-Id: I80acf8496a91be4804fb7ef3df04c19baae2754c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264660
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/check_test.go | 32 +++++++++++++++++---------------
- 1 file changed, 17 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go    |  5 +++++
+ src/cmd/compile/internal/gc/syntax.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go   | 30 ++++++++++++------------------
+ test/bounds.go                        |  5 +++++
+ 4 files changed, 23 insertions(+), 19 deletions(-)

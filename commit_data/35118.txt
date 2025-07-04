@@ -1,27 +1,21 @@
-commit 09d36a819eb48d6a2c10b36bf654dcf8867d6641
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 18 10:45:52 2018 -0400
+commit f2ddcca22467c00c058f352aa51e6bbcfb530de3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 15 16:34:39 2017 +0000
 
-    doc: update "go get" HTTPS answer to mention .netrc
+    cmd/dist: let misc/cgo/testshared test timeout be scaled by slow builder
     
-    The existing text makes it seem like there's no way
-    to use GitHub over HTTPS. There is. Explain that.
+    The default test timeout is 10 minutes if unspecified.
     
-    Also, the existing text suggests explicit checkout into $GOPATH,
-    which is not going to work in the new module world.
-    Drop that alternative.
+    The misc/cgo/testshared test didn't use t.timeout(sec), which respects
+    GO_TEST_TIMEOUT_SCALE, so all builders got the default 10 minute
+    timeout. arm5 needs more, though, so specify 10 minutes explicitly,
+    which will then get scaled accordingly on slower builders.
     
-    Also, the existing text uses pushInsteadOf instead of insteadOf,
-    which would have the effect of being able to push to a private
-    repo but not clone it in the first place. That seems not helpful,
-    so suggest insteadOf instead.
-    
-    Fixes #18927.
-    
-    Change-Id: Ic358b66f88064b53067d174a2a1591ac8bf96c88
-    Reviewed-on: https://go-review.googlesource.com/107775
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I19ecfdcd9c865f2b69524484415b8fbd2852718e
+    Reviewed-on: https://go-review.googlesource.com/84315
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- doc/go_faq.html | 29 ++++++++++++++++-------------
- 1 file changed, 16 insertions(+), 13 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

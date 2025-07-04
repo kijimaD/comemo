@@ -1,28 +1,37 @@
-commit 380aa884b8b2935137eee266d0a44e9083fae71f
-Author: Matt Harden <matt.harden@gmail.com>
-Date:   Mon Feb 20 05:58:55 2017 -0800
+commit 44053de36509f4634befbf7ad442b5debd0f0cdf
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Feb 10 15:40:44 2017 -0500
 
-    net: allow Resolver to use a custom dialer
+    cmd/compile: use reg moves for int <-> float conversions on ppc64x
     
-    In some cases it is desirable to customize the way the DNS server is
-    contacted, for instance to use a specific LocalAddr. While most
-    operating-system level resolvers do not allow this, we have the
-    opportunity to do so with the Go resolver. Most of the code was
-    already in place to allow tests to override the dialer. This exposes
-    that functionality, and as a side effect eliminates the need for a
-    testing hook.
+    This makes a change in the SSA code generated for OpPPC64Xf2i64
+    and OpPPC64Xi2f64 to use register based instructions to convert
+    between float and integer.  This will require at least power8.
+    Currently the conversion is done by storing to and loading
+    from memory, which is more expensive.
     
-    Fixes #17404
+    This improves some of the math functions:
     
-    Change-Id: I1c5e570f8edbcf630090f8ec6feb52e379e3e5c0
-    Reviewed-on: https://go-review.googlesource.com/37260
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    BenchmarkExp-128                     74.1          66.8          -9.85%
+    BenchmarkExpGo-128                   87.4          66.3          -24.14%
+    BenchmarkExp2-128                    72.2          64.3          -10.94%
+    BenchmarkExp2Go-128                  74.3          65.9          -11.31%
+    
+    BenchmarkLgamma-128                  51.0          39.7          -22.16%
+    BenchmarkLog-128                     42.9          40.6          -5.36%
+    BenchmarkLogb-128                    11.5          9.16          -20.35%
+    BenchmarkLog1p-128                   38.9          36.2          -6.94%
+    
+    BenchmarkSin-128                     29.5          23.7          -19.66%
+    BenchmarkTan-128                     32.8          27.4          -16.46%
+    
+    Fixes #18922
+    
+    Change-Id: I8e1cf14d3880d7cd720dc5188dd174cba1f7fef7
+    Reviewed-on: https://go-review.googlesource.com/36725
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/build/deps_test.go      |   2 +-
- src/net/dnsclient_unix.go      |  44 +------
- src/net/dnsclient_unix_test.go | 262 ++++++++++++++++++++++++++---------------
- src/net/lookup.go              |   9 ++
- src/net/lookup_unix.go         |  27 +++++
- 5 files changed, 213 insertions(+), 131 deletions(-)
+ src/cmd/compile/internal/ppc64/prog.go |  2 ++
+ src/cmd/compile/internal/ppc64/ssa.go  | 12 ++++--------
+ 2 files changed, 6 insertions(+), 8 deletions(-)

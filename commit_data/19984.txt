@@ -1,16 +1,19 @@
-commit fe7b29f5fd5be75484ce7ea89c2b63d96f9baa14
+commit d6d7170de414c16a7ea0125b5a458272557227b6
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 13 01:02:01 2014 +0400
+Date:   Fri Aug 8 20:13:57 2014 +0400
 
-    runtime/pprof: fix data race
-    It's unclear why we do this broken double-checked locking.
-    The mutex is not held for the whole duration of CPU profiling.
-    Fixes #8365.
+    runtime: fix data race in stackalloc
+    Stack shrinking happens during mark phase,
+    and it assumes that it owns stackcache in mcache.
+    Stack cache flushing also happens during mark phase,
+    and it accesses stackcache's w/o any synchronization.
+    This leads to stackcache corruption:
+    http://goperfd.appspot.com/log/309af5571dfd7e1817259b9c9cf9bcf9b2c27610
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/116290043
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/126870043
 
- src/pkg/runtime/pprof/pprof.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/pkg/runtime/stack.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

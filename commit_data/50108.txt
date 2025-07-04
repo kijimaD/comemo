@@ -1,32 +1,24 @@
-commit b60432df143475b575a9da1f2a179ac35c399ed0
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Wed Aug 24 22:17:51 2022 +0800
+commit e8a85e90aca4adb472c66f8c42f6d4a41b8cca99
+Author: Amelia Downs <adowns@vmware.com>
+Date:   Thu Sep 30 11:35:30 2021 -0400
 
-    cmd/compile: deadcode for LoweredMuluhilo on riscv64
+    internal/fuzz: print size of interesting cache
     
-    This is a follow up of CL 425101 on RISCV64.
+    This change updates the log lines to clarify that the printed
+    interesting count is only for newly discovered cache entries, and prints
+    the total cache size. It only prints information about interesting
+    entries when coverageEnabled is true.
     
-    According to RISCV Volume 1, Unprivileged Spec v. 20191213 Chapter 7.1:
-    If both the high and low bits of the same product are required, then the
-    recommended code sequence is: MULH[[S]U] rdh, rs1, rs2; MUL rdl, rs1, rs2
-    (source register specifiers must be in same order and rdh cannot be the
-    same as rs1 or rs2). Microarchitectures can then fuse these into a single
-    multiply operation instead of performing two separate multiplies.
+    Fixes #48669
     
-    So we should not split Muluhilo to separate instructions.
-    
-    Updates #54607
-    
-    Change-Id: If47461f3aaaf00e27cd583a9990e144fb8bcdb17
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425203
-    Auto-Submit: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2045afc204764c1842d323e8ae42016fb21b6fb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353172
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 +++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 46 ++++++++++++++++++++++++++
- test/codegen/mathbits.go                       |  2 ++
- 3 files changed, 52 insertions(+)
+ src/internal/fuzz/fuzz.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

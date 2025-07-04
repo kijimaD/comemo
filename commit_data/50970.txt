@@ -1,22 +1,20 @@
-commit a1901f898bc05aac966edd247ff122f52fbb8d2e
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu May 5 09:23:44 2022 -0400
+commit 6275b54a2a58a1a1bed7f2cc3bc92eca5affb8ff
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 22 14:37:19 2021 +0000
 
-    crypto/ed25519: implement Ed25519ph in Sign and VerifyWithOptions
+    Revert "cmd/go: temporarily skip TestScript/test_fuzz_minimize"
     
-    Updates #31804
+    This reverts CL 365315.
     
-    Change-Id: I5a48dfc57401576902674aff20b557e4a8ce8ab8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373076
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reason for revert: test may have been fixed by intervening changes.
+    
+    Change-Id: I110948d53a789527edf471f1637eadbd98a1fc5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366074
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- api/next/31804.txt                 |  4 ++
- src/crypto/ed25519/ed25519.go      | 82 +++++++++++++++++++++++++++++++++-----
- src/crypto/ed25519/ed25519_test.go | 52 ++++++++++++++++++++++++
- 3 files changed, 128 insertions(+), 10 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt | 2 --
+ 1 file changed, 2 deletions(-)

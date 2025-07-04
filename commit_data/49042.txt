@@ -1,22 +1,21 @@
-commit cf66a82b0bc8fd8925db8ba7d90df67d21feaf55
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue May 3 12:58:54 2022 -0700
+commit d0324eb8fbabc6295d0170ba1527517d014a84a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 9 15:04:15 2021 -0700
 
-    cmd/compile/internal/ir: prune down possible Ntype nodes
+    [dev.typeparams] cmd/compile/internal/types2: use InstantiateLazy to create instance types (cleanup)
     
-    Ident, ParenExpr, SelectorExpr, and StarExpr used to need to be
-    allowed as Ntypes for the old -G=0 type checker to represent some type
-    expressions before type checking, but now they're only ever used to
-    represent value expressions.
+    This change concentrates the creation is lazily instantiated types
+    in one place (InstantiateLazy). This should also make it easier to
+    replace the implementation of lazily instantiated types (e.g. getting
+    rid of instance types).
     
-    Change-Id: Idd4901ae6149ecc81acf1c52de3bc914d9e73418
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403844
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I452c463219b466ce79f227c44fb67b79d428842a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333669
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ir/expr.go        | 25 -------------------------
- src/cmd/compile/internal/ir/name.go        |  2 --
- src/cmd/compile/internal/typecheck/expr.go |  8 ++++----
- 3 files changed, 4 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/noder/reader2.go      |  2 +-
+ src/cmd/compile/internal/types2/instance.go    |  4 +--
+ src/cmd/compile/internal/types2/instantiate.go | 16 +++++-----
+ src/cmd/compile/internal/types2/typexpr.go     | 43 +++++++++-----------------
+ 4 files changed, 27 insertions(+), 38 deletions(-)

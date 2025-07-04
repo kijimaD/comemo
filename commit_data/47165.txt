@@ -1,32 +1,33 @@
-commit 3ee426aefa519b0b2f814a834f5026481c187946
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue Jan 5 17:52:43 2021 +0800
+commit ff5cf4ced3f1681ec972cd954d4b476f87616fe3
+Author: YunQiang Su <syq@debian.org>
+Date:   Sat Jun 20 14:04:54 2020 +0000
 
-    cmd/dist: add asan tests in misc/cgo/testsanitizers package
+    cmd/link,debug/elf: mips32, add .gnu.attributes and .MIPS.abiflags sections
     
-    Add asan tests to check the use of Go with -asan option.
+    MIPS32 uses .gnu.attributes and .MIPS.abiflags sections to mark FP ABI
+    the object is using, and the kernel will set the correct FP mode for it.
     
-    Currenly, the address sanitizer in Go only checks for error
-    memory access to heap objects.
+    Currrently Go doesn't generate these 2 sections. If we link object
+    without these 2 sections togather FPXX objects, the result will be FPXX,
+    which is wrong:
+       FP32 + FPXX -> FP32
+       FPXX + FP64 -> FP64
+       FP32 + FP64 -> reject
     
-    TODO: Enable check for error memory access to global objects.
+    These 2 sections is also needed to support FPXX and FP64 in future.
     
-    Updates #44853.
+    More details about FP32/FPXX/FP64 are explained in:
+        https://web.archive.org/web/20180828210612/https://dmz-portal.mips.com/wiki/MIPS_O32_ABI_-_FR0_and_FR1_Interlinking
     
-    Change-Id: I83579f229f117b5684a369fc8f365f4dea140648
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298615
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #39677
+    
+    Change-Id: Ia34e7461dee38a4f575dd8ace609988744512ac1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239217
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
 
- misc/cgo/testsanitizers/asan_test.go               | 66 ++++++++++++++++++++++
- misc/cgo/testsanitizers/cc_test.go                 | 14 +++++
- misc/cgo/testsanitizers/testdata/asan1_fail.go     | 28 +++++++++
- misc/cgo/testsanitizers/testdata/asan2_fail.go     | 34 +++++++++++
- misc/cgo/testsanitizers/testdata/asan3_fail.go     | 23 ++++++++
- misc/cgo/testsanitizers/testdata/asan4_fail.go     | 22 ++++++++
- .../testsanitizers/testdata/asan_useAfterReturn.go | 26 +++++++++
- src/cmd/internal/sys/supported.go                  |  1 +
- 8 files changed, 214 insertions(+)
+ src/cmd/link/internal/ld/elf.go | 145 ++++++++++++++++++++++++++++++++++++++++
+ src/debug/elf/elf.go            |   2 +
+ 2 files changed, 147 insertions(+)

@@ -1,18 +1,15 @@
-commit 0f75a9ecdf3f320a22e52d9493b879c4a6ddc536
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Fri Nov 19 13:56:24 2021 -0500
+commit d10241fcf63826d51e8d9c914ab0ad2ef9173151
+Author: qcrao <qcrao91@gmail.com>
+Date:   Sun Mar 28 12:17:35 2021 +0000
 
-    [go] doc: add new bufio functionality
+    runtime: fix some typos
     
-    cl/345570
-    cl/345569
-    
-    Updates: #47694
-    Change-Id: I170af16d5fc9f022d3d29ed0772cfc3d02b8bbcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365317
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Change-Id: I18b9508904f19d5aa68355c937c30b5fdf35442c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305249
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.18.html | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/runtime/proc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

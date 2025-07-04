@@ -1,42 +1,18 @@
-commit 8337ca094beb07001cba12a1f88926dff78c1bcd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 3 17:47:29 2023 -0700
+commit f330a3a987aa980d6c1adfb4ed509b461d5c13cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 7 00:02:29 2022 -0400
 
-    go/types, types2: rename generic function arguments
+    doc/go1.19: complete most remaining TODOs
     
-    For correct inference, if the same generic function is provided
-    more than once as an argument to another function, the argument
-    function's type parameters must be unique for each argument so
-    that the type parameters can be correctly inferred.
+    The ones I left behind are almost entirely ones that I see pending CLs for.
+    Also make various fixes to existing text.
     
-    Example:
+    For #51400.
     
-            func f(func(int), func(string)) {}
-    
-            func g[P any](P) {}
-    
-            func _() {
-                    f(g, g)
-            }
-    
-    Here the type parameter P for the first g argument resolves to int
-    and the type parameter P for the second g argument resolves to string.
-    
-    Fixes #59956.
-    For #59338.
-    
-    Change-Id: I10ce0ea08c2033722dd7c7c976b2a5448b2ee2d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492516
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I555e0074c9df82b5bdb345e21a08c8757ca147b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410814
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types2/api_test.go        |  7 ++++
- src/cmd/compile/internal/types2/call.go            | 11 ++++-
- src/go/types/api_test.go                           |  7 ++++
- src/go/types/call.go                               | 11 ++++-
- src/internal/types/testdata/examples/inference2.go |  4 +-
- .../types/testdata/fixedbugs/issue59956.go         | 49 ++++++++++++++++++++++
- 6 files changed, 82 insertions(+), 7 deletions(-)
+ doc/go1.19.html | 325 ++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 199 insertions(+), 126 deletions(-)

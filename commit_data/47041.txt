@@ -1,33 +1,24 @@
-commit b54bdd281e62a4658ea4edb5e0a6139006938c9a
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Oct 18 18:11:48 2021 -0700
+commit 7af821a661be57cdd13212695cd6c1095487f2b4
+Author: yangwenmai <yangwen.yw@gmail.com>
+Date:   Fri Dec 25 09:36:41 2020 +0800
 
-    cmd/compile: clean up the switch statements in (*genInst).node()
+    all: faster midpoint computation in binary search
     
-    There were two main outer switch statements in node() that can just be
-    combined. Also, for simplicity, changed an IsCmp() conditional into just
-    another case in the switch statement.
+    On my machine (3.1 GHz Quad-Core Intel Core i7, macOS 10.15.7 10.15.7), go 1.15.6
     
-    Also, the inner OCALL switch statement had a bunch of fairly duplicate
-    cases. Combined the cases that all had no special semantics, into a
-    single default case calling transformCall().
+    benchstat:
+    name          old time/op  new time/op  delta
+    SearchInts-8  20.3ns ± 1%  16.6ns ± 6%  -18.37%  (p=0.000 n=9+10)
     
-    In the OCALL case in dictPass(), got rid of a check for OFUNCINST (which
-    will always have been removed by this point). Also, eliminated an assert
-    that could cause unneded failures. transformCall() should always be
-    called if the node op is still OCALL, so no need to assert on the ops of
-    call.X.
-    
-    Added an extra test in issue47078.go, to explicitly check for case where
-    the X argument of a call is a DOTTYPE.
-    
-    Change-Id: Ifb3f812ce12820a4ce08afe2887f00f7fc00cd2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358596
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I346e5955fd6df6ce10254b22267dbc8d5a2b16c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279439
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go | 161 ++++++++++++++----------------
- test/typeparam/issue47878.go              |  10 ++
- 2 files changed, 85 insertions(+), 86 deletions(-)
+ src/go/token/position.go            |  2 +-
+ src/go/token/position_bench_test.go | 24 ++++++++++++++++++++++++
+ src/reflect/type.go                 |  2 +-
+ src/strconv/makeisprint.go          |  4 ++--
+ src/strconv/quote.go                |  4 ++--
+ 5 files changed, 30 insertions(+), 6 deletions(-)

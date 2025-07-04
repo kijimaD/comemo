@@ -1,12 +1,15 @@
-commit 48fa4a10fbbc235f334a0a2d34f188799b95a3ae
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Mar 7 19:17:18 2013 +0900
+commit ae7aa345db7c08c15e621dd567b1666a674ffa1a
+Author: Tyler Bunnell <tylerbunnell@gmail.com>
+Date:   Thu Mar 7 19:06:19 2013 +0900
 
-    net: fix typo in skip message
+    cmd/fix: remove redundant 0 port
     
-    R=golang-dev, akumar
+    Fixes #4505.
+    
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/7523044
+    https://golang.org/cl/7468043
 
- src/pkg/net/protoconn_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/fix/netipv6zone.go      | 11 ++++++++---
+ src/cmd/fix/netipv6zone_test.go |  6 ++++--
+ 2 files changed, 12 insertions(+), 5 deletions(-)

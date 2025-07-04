@@ -1,16 +1,17 @@
-commit a89fa7040bdccd0531aa51eb7c8c83f6fa36df25
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Thu Jan 11 08:45:03 2018 +0900
+commit b71f39612adb671c176586cd9b0018eb3c716f3c
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Mon Sep 25 13:01:36 2017 +0200
 
-    net/rpc: improve error report messages
+    bytes: improve readability of IndexAny and LastIndexAny functions
     
-    Updates #19957
+    This change removes the check of len(chars) > 0 inside the Index and
+    IndexAny functions which was redundant.
     
-    Change-Id: I8e2e3837db9e5e69b7102f9bd5831fe78ac60cfc
-    Reviewed-on: https://go-review.googlesource.com/87335
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: Ic4bf8b8a37d7f040d3ebd81b4fc45fcb386b639a
+    Reviewed-on: https://go-review.googlesource.com/65851
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/rpc/server.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/bytes/bytes.go | 66 +++++++++++++++++++++++++-----------------------------
+ 1 file changed, 31 insertions(+), 35 deletions(-)

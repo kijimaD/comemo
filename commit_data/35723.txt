@@ -1,26 +1,16 @@
-commit 30b045d4d1a00801b1d1fc32a910334dcd722ba6
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Wed Jun 13 10:04:49 2018 -0600
+commit 89ae7045f395de8eb4085e3ac8c1ebf59b029965
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 3 19:17:20 2018 +0100
 
-    math/big: handle negative exponents in Exp
+    test: convert all math-related tests from asm_test
     
-    For modular exponentiation, negative exponents can be handled using
-    the following relation.
-    
-    for y < 0: x**y mod m == (x**(-1))**|y| mod m
-    
-    First compute ModInverse(x, m) and then compute the exponentiation
-    with the absolute value of the exponent.  Non-modular exponentiation
-    with a negative exponent still returns 1.
-    
-    Fixes #25865
-    
-    Change-Id: I2a35986a24794b48e549c8de935ac662d217d8a0
-    Reviewed-on: https://go-review.googlesource.com/118562
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: If542f0b5c5754e6eb2f9b302fe5a148ba9a57338
+    Reviewed-on: https://go-review.googlesource.com/98443
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/big/int.go      | 16 ++++++++++------
- src/math/big/int_test.go |  2 +-
- 2 files changed, 11 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 347 +-------------------------------
+ test/codegen/math.go                    | 140 +++++++++++++
+ test/codegen/rotate.go                  |   8 -
+ 3 files changed, 151 insertions(+), 344 deletions(-)

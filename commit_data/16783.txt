@@ -1,25 +1,26 @@
-commit 9ddfb64365230db8f3d3f3d3e7ab7384cade2cb1
+commit 47b89a37d9e83858ebcecb331ab3a0cfbd66dffc
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 16 16:24:09 2013 -0400
+Date:   Tue Jul 16 16:23:28 2013 -0400
 
-    runtime: record argument size in assembly functions
+    cmd/5a, cmd/6a, cmd/8a: parse PCDATA
     
-    I have not done the system call stubs in sys_*.s.
-    I hope to avoid that, because those do not block, so those
-    frames will not appear in stack traces during garbage
-    collection.
+    In cmd/5a, also add support for argument size in TEXT instruction.
     
-    R=golang-dev, dvyukov, khr
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/11360043
+    https://golang.org/cl/11357044
 
- src/pkg/runtime/asm_386.s       | 363 ++++++++++++++++++++--------------------
- src/pkg/runtime/asm_amd64.s     | 238 +++++++++++++-------------
- src/pkg/runtime/asm_arm.s       |  48 +++---
- src/pkg/runtime/funcdata.h      |  13 ++
- src/pkg/runtime/memclr_arm.s    |   2 +-
- src/pkg/runtime/memmove_386.s   |   2 +-
- src/pkg/runtime/memmove_amd64.s |   2 +-
- src/pkg/runtime/memmove_arm.s   |   2 +-
- src/pkg/runtime/race_amd64.s    |   2 +-
- 9 files changed, 348 insertions(+), 324 deletions(-)
+ src/cmd/5a/a.h     |    1 +
+ src/cmd/5a/a.y     |   19 +-
+ src/cmd/5a/lex.c   |    8 +
+ src/cmd/5a/y.tab.c | 1554 +++++++++++++++++++++++-----------------------------
+ src/cmd/5a/y.tab.h |  110 ++--
+ src/cmd/6a/a.y     |   20 +-
+ src/cmd/6a/lex.c   |    2 +-
+ src/cmd/6a/y.tab.c | 1084 ++++++++++++++++++------------------
+ src/cmd/6a/y.tab.h |   92 ++--
+ src/cmd/8a/a.y     |   20 +-
+ src/cmd/8a/lex.c   |    2 +-
+ src/cmd/8a/y.tab.c | 1053 ++++++++++++++++++-----------------
+ src/cmd/8a/y.tab.h |   64 +--
+ 13 files changed, 1977 insertions(+), 2052 deletions(-)

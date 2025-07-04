@@ -1,14 +1,14 @@
-commit 8b29f158add964b788cea61ad608f042238f52ba
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 20 17:20:14 2013 -0700
+commit 41451dd92b03be8fe51db16903a634b9b224c20b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Apr 20 09:04:20 2013 +0900
 
-    net/http: fix a panic in Redirect
+    net: enable test for runtime.PollDesc leak
     
-    R=golang-dev, dsymonds, r
+    Update #5219.
+    
+    R=golang-dev, dvyukov, r
     CC=golang-dev
-    https://golang.org/cl/8721045
+    https://golang.org/cl/8602047
 
- src/pkg/net/http/client_test.go |  2 +-
- src/pkg/net/http/server.go      |  4 ++--
- src/pkg/net/http/server_test.go | 35 ++++++++++++++++++++++-------------
- 3 files changed, 25 insertions(+), 16 deletions(-)
+ src/pkg/net/dial_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

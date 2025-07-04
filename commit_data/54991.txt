@@ -1,19 +1,28 @@
-commit 6f5aba995fdea76433337d1a8030518bdadfae28
-Author: David Chase <drchase@google.com>
-Date:   Tue Nov 7 16:37:17 2023 -0500
+commit af1a5d92871129e5fff093bcb3518b1ebfc86976
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 16 15:36:30 2022 -0500
 
-    cmd/compile: replace magic numbers "2" and "1" with named constant
+    cmd/go/internal/work: make formatOutput return an error that includes the import path
     
-    This was originally done for a #next-encoding-based check for
-    misbehaving loops, but it's a good idea anyhow because it makes
-    the code slightly easier to follow or change (we may decide to
-    check for errors the "other way" anyhow, later).
+    This refines the error output that was previously adjusted in CL 437298.
     
-    Change-Id: I2ba8f6e0f9146f0ff148a900eabdefd0fffebf8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540261
-    Run-TryBot: David Chase <drchase@google.com>
+    Longer term, we should consider unraveling the call chains involving
+    formatOutput to avoid passing so many parameters through so many
+    different formatting functions.
+    
+    Updates #25842.
+    
+    Change-Id: I3b9d03bf5968902d8ccc4841ab4dbe114a2239e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451218
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/rangefunc/rewrite.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/work/exec.go                   | 73 +++++++++++++---------
+ src/cmd/go/internal/work/gc.go                     |  4 +-
+ src/cmd/go/testdata/script/list_export_e.txt       | 15 +++--
+ .../go/testdata/script/list_pkgconfig_error.txt    | 16 +++++
+ 4 files changed, 72 insertions(+), 36 deletions(-)

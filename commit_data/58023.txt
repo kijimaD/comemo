@@ -1,16 +1,44 @@
-commit e689a7c8e8ed6c690adec8a125b242608a3c0815
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Nov 3 13:44:20 2024 +0100
+commit bda5e6c3d07c23d477f68f09e3414e495b12a87e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Aug 17 01:13:32 2023 +1000
 
-    crypto/internal/fips/subtle: move constant time functions from crypto/subtle
+    cmd/internal/obj/riscv,cmd/link: rework riscv64 call relocations
     
-    Change-Id: I267a3cac168fc0366fafac4c26e6a80ca545436a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624755
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    The riscv64 assembler and linker generate three types of calls.
+    Most calls are made via a single JAL instruction, however this is
+    limited to +/-1MB of text. In the case where a call target is
+    unreachable (or unknown), the JAL targets an AUIPC+JALR trampoline.
+    All other cases use AUIPC+JALR pairs, including the case where a
+    single function exceeds 1MB in text size, potentially making it
+    impossible to reach trampolines.
+    
+    Currently, the single instruction JAL call is marked with R_RISCV_CALL
+    and the two instruction AUIPC+JALR call is marked with
+    R_RISCV_PCREL_ITYPE, which is also used for memory load instructions.
+    This means that we have no way to identify that the latter is a call.
+    
+    Switch to using R_RISCV_CALL to mark the AUIPC+JALR pair (aligning
+    somewhat with the elf.R_RISCV_CALL, which is deprecated in favour of
+    elf.R_RISCV_CALL_PLT). Add R_RISCV_JAL and use this to mark the single
+    instruction JAL direct calls. This is clearer and allows us to map
+    elf.R_RISCV_CALL_PLT to Go's R_RISCV_CALL.
+    
+    Add all three types to IsDirectCall, so that direct calls are correctly
+    identified when a function exceeds 1MB of text.
+    
+    Fixes #62465
+    
+    Change-Id: Id3eea09688a2b7d6e481eae9ed0aa0d1f9a3a48f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520095
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/crypto/internal/fips/subtle/constant_time.go | 60 ++++++++++++++++++++++++
- src/crypto/subtle/constant_time.go               | 36 ++++----------
- 2 files changed, 70 insertions(+), 26 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscv64.s |  2 +-
+ src/cmd/internal/obj/riscv/cpu.go           |  9 ++++-
+ src/cmd/internal/obj/riscv/obj.go           | 15 ++++---
+ src/cmd/internal/objabi/reloctype.go        | 26 +++++++-----
+ src/cmd/internal/objabi/reloctype_string.go | 63 +++++++++++++++--------------
+ src/cmd/link/internal/riscv64/asm.go        | 49 +++++++++++-----------
+ 6 files changed, 90 insertions(+), 74 deletions(-)

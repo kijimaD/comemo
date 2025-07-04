@@ -1,17 +1,21 @@
-commit b783930e63f4922e8465e2cd61c3d9a131b95f2d
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 5 12:22:09 2017 -0400
+commit 7e172509d96db8cc3d0fb58ab4389b9785307d2c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 12 20:51:15 2017 -0700
 
-    runtime: simplify fractional mark worker scheduler
+    runtime: don't call t.Parallel in TestCgoSignalDeadlock
     
-    We haven't used non-zero gcForcePreemptNS for ages. Remove it and
-    declutter the code.
+    It seems that when too much other code is running on the system,
+    the testprogcgo code can overrun its timeouts.
     
-    Change-Id: Id5cc62f526d21ca394d2b6ca17d34a72959535da
-    Reviewed-on: https://go-review.googlesource.com/68572
-    Run-TryBot: Austin Clements <austin@google.com>
+    Updates #18598.
+    
+    Not marking the issue as fixed until it doesn't recur for some time.
+    
+    Change-Id: Ieaf106b41986fdda76b1d027bb9d5e3fb805cc3b
+    Reviewed-on: https://go-review.googlesource.com/48233
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgc.go | 22 ++--------------------
- 1 file changed, 2 insertions(+), 20 deletions(-)
+ src/runtime/crash_cgo_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

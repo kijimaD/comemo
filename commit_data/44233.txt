@@ -1,23 +1,24 @@
-commit 930c2c9a6810b54d84dc499120219a6cb4563fd7
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 9 17:34:09 2021 -0500
+commit 7dbbb5bacf4e52bc4efbd3caecdebf6ffb730783
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat May 30 16:34:23 2020 +0200
 
-    cmd/go: reject embedded files that can't be packed into modules
+    cmd/cgo,cmd/fix,misc/cgo: map the EGLConfig C type to uintptr in Go
     
-    If the file won't be packed into a module,
-    don't put those files into embeds.
-    Otherwise people will be surprised when things work
-    locally but not when imported by another module.
+    Similarly to EGLDisplay, EGLConfig is declared as a pointer but may
+    contain non-pointer values.
     
-    Observed on CL 290709
+    I believe this is the root cause of https://todo.sr.ht/~eliasnaur/gio/121.
     
-    Change-Id: Ia0ef7d0e0f5e42473c2b774e57c843e68a365bc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/290809
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I412c4fbc2eef4aa028534d68bda95db98e3a365d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235817
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ misc/cgo/test/testdata/issue27054/egl.h        |   1 +
+ misc/cgo/test/testdata/issue27054/test27054.go |   6 +-
+ src/cmd/cgo/doc.go                             |   9 +-
+ src/cmd/cgo/gcc.go                             |   8 +-
+ src/cmd/fix/egltype.go                         |  28 ++++-
+ src/cmd/fix/egltype_test.go                    | 141 +++++++++++++------------
+ 6 files changed, 117 insertions(+), 76 deletions(-)

@@ -1,19 +1,27 @@
-commit 8613ef81e676bda77f6413a587e68c3dcc5b03ae
-Author: Sean Liao <sean@liao.dev>
-Date:   Sun Jul 30 09:46:55 2023 +0100
+commit bd5595d7fa4eb3e234aabeac554f2ba8f2a95790
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Wed Apr 13 21:14:22 2022 +0800
 
-    .github: fix templates with multiple labels
+    runtime: refactor finalizer goroutine status
     
-    Also Go2 -> v2
+    Use an atomic.Uint32 to represent the state of finalizer goroutine.
+    fingStatus will only be changed to fingWake in non fingWait state,
+    so it is safe to set fingRunningFinalizer status in runfinq.
     
-    Change-Id: Icde8ffc4a1ee2e43241a3dcd00ff0c48992b1e25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514175
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    name            old time/op  new time/op  delta
+    Finalizer-8      592µs ± 4%   561µs ± 1%  -5.22%  (p=0.000 n=10+10)
+    FinalizerRun-8   694ns ± 6%   675ns ± 7%    ~     (p=0.059 n=9+8)
+    
+    Change-Id: I7e4da30cec98ce99f7d8cf4c97f933a8a2d1cae1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400134
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- .github/ISSUE_TEMPLATE/03-gopls.md           | 4 +++-
- .github/ISSUE_TEMPLATE/11-language-change.md | 5 ++++-
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/runtime/export_test.go |  5 +----
+ src/runtime/mfinal.go      | 49 ++++++++++++++++++++++++++--------------------
+ src/runtime/mprof.go       |  2 +-
+ src/runtime/proc.go        |  2 +-
+ src/runtime/traceback.go   |  2 +-
+ 5 files changed, 32 insertions(+), 28 deletions(-)

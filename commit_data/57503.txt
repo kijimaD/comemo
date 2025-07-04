@@ -1,21 +1,27 @@
-commit dfd0f0d8eb7ffe77e8b61e21dc59ba28a5a098df
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Sep 20 16:51:50 2024 +0200
+commit c6ee8e31e3e7b01da54d241ae5a8eed350ab0e9f
+Author: David Chase <drchase@google.com>
+Date:   Fri Aug 11 14:38:19 2023 -0400
 
-    os: skip TestReadlink sub-tests requiring symlinks when not enough
-    permissions are held
+    runtime: profiling on Darwin cannot use blocking reads
     
-    Some of the TestReadlink sub-tests require os.Symlink to succeed.
-    If the user doesn't have enough permissions to create symlinks, then
-    there is no point in running the test.
+    On Darwin (and assume also on iOS but not sure), notetsleepg
+    cannot be called in a signal-handling context.  Avoid this
+    by disabling block reads on Darwin.
     
-    Change-Id: I06ec7e3ddf0016e804667bba0ee6ebe6baa01872
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614655
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    An alternate approach was to add "sigNote" with a pipe-based
+    implementation on Darwin, but that ultimately would have required
+    at least one more linkname between runtime and syscall to avoid
+    racing with fork and opening the pipe, so, not.
+    
+    Fixes #61768.
+    
+    Change-Id: I0e8dd4abf9a606a3ff73fc37c3bd75f55924e07e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518836
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/os/os_windows_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/cpuprof.go   | 6 +++++-
+ src/runtime/os_darwin.go | 3 ++-
+ src/runtime/profbuf.go   | 1 +
+ 3 files changed, 8 insertions(+), 2 deletions(-)

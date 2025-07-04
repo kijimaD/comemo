@@ -1,12 +1,20 @@
-commit 0383bb473ddd394495c17f1ce7f5e555e311986d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 20 10:16:34 2015 -0800
+commit fb3027003738ef67b2c68bc46eb8d8841d04bd7d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 15 13:40:24 2015 -0400
 
-    cmd/compile: simplify tracing code (cleanup)
+    runtime: preserve R11 in darwin/arm entrypoint
     
-    Change-Id: I7c084542996226f3ed464314a5622fcfaac02d61
-    Reviewed-on: https://go-review.googlesource.com/17103
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    The _rt0_arm_darwin_lib entrypoint has to conform to the darwin ARMv7
+    calling convention, which requires functions to preserve the value of
+    R11. Go uses R11 as the liblink REGTMP register, so save it manually.
+    
+    Also avoid using R4, which is also callee-save.
+    
+    Fixes #12590
+    
+    Change-Id: I9c3b374e330f81ff8fc9c01fa20505a33ddcf39a
+    Reviewed-on: https://go-review.googlesource.com/14603
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 29 +++++++----------------------
- 1 file changed, 7 insertions(+), 22 deletions(-)
+ src/runtime/rt0_darwin_arm.s | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

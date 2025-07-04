@@ -1,12 +1,12 @@
-commit 5eb8c9baa7ad4b7897c4360809a16481d90ef51f
+commit 0b08119adc2f6d59d1f0f8022fdb8398c19c708c
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 20 12:56:32 2011 +1100
+Date:   Thu Jan 20 12:41:59 2011 +1100
 
-    net: remove duplicate import of runtime
+    syscall: attempt to fix windows build, supply missing constant
     
-    R=rsc
+    R=r, brainman, rsc1
     CC=golang-dev
-    https://golang.org/cl/3999046
+    https://golang.org/cl/4023043
 
- src/pkg/net/fd_windows.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/syscall/ztypes_windows_386.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

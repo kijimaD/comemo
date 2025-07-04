@@ -1,16 +1,19 @@
-commit c524db9ca8520d1e0f6fce79a9e937af901dff44
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Feb 20 22:54:34 2025 +1100
+commit aa9d2de559c2fff735000e4733b0405652434ff4
+Author: Quan Tong <quantonganh@gmail.com>
+Date:   Mon Nov 6 12:01:13 2023 +0700
 
-    cmd/internal/obj/arm64: simplify conclass
+    cmd/go: print the package containing the unmatched embed patterns
     
-    Reduce repetition by pulling some common conversions into variables.
+    Fixes #49534
     
-    Change-Id: I8c1cc806236b5ecdadf90f4507923718fa5de9b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650937
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Ia95868ecc1c3dc9715c0fdc7ab1f30348fffaef5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540017
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/go/internal/modcmd/vendor.go            | 47 ++++++++++++++++---------
+ src/cmd/go/testdata/script/mod_vendor_embed.txt |  8 +++--
+ 2 files changed, 36 insertions(+), 19 deletions(-)

@@ -1,18 +1,14 @@
-commit d017f578d01fa608d5ed40e343d0ffaf5fc0d476
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 19 23:06:46 2013 +0400
+commit 2f6e9a1e243c64f22d0f0542a05343bacf6d580b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Aug 19 16:22:33 2013 +1000
 
-    runtime: do not preempt race calls
-    In the crash stack trace race cgocall() calls endcgo(),
-    this means that m->racecall is wrong.
-    Indeed this can happen is a goroutine is rescheduled to another M
-    during race call.
-    Disable preemption for race calls.
-    Fixes #6155.
+    cmd/go: only try to clean executables for package main
     
-    R=golang-dev, rsc, cshapiro
+    Fixes #5665.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12866045
+    https://golang.org/cl/12807044
 
- src/pkg/runtime/race.c | 42 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
+ src/cmd/go/clean.go | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)

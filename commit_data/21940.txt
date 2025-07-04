@@ -1,16 +1,37 @@
-commit 4f97afcdf2d6914a1989afd2cbbcaf6a5b1342af
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 5 19:58:27 2015 -0800
+commit ff81c14fb27beb32201f673640d2ddb5e42355bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 11:55:51 2015 -0500
 
-    misc/swig/callback: fix test for SWIG -cgo support
+    cmd/gc: rename arch to thearch
     
-    The test used to import ../callback.  I forget why that ever worked,
-    but it probably had something to do with the shared libraries we used
-    to use with SWIG.  It doesn't work today.
+    Otherwise the exported variable collides with the type Arch.
     
-    Change-Id: Ib83d6c398aa46bf2fc66320b47b6e6d9897ee0b7
-    Reviewed-on: https://go-review.googlesource.com/7004
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    While we're here, remove arch.dumpit (now in portable code)
+    and add arch.defframe (forgotten originally, somehow).
+    
+    Change-Id: I1b3a7dd7e96c5f632dba7cd6c1217b42a2004d72
+    Reviewed-on: https://go-review.googlesource.com/4644
+    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/swig/callback/callback_test.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/5g/galign.c  | 80 ++++++++++++++++++++++++-------------------------
+ src/cmd/6g/galign.c  | 84 ++++++++++++++++++++++++++--------------------------
+ src/cmd/8g/galign.c  | 80 ++++++++++++++++++++++++-------------------------
+ src/cmd/8g/peep.c    |  4 +--
+ src/cmd/9g/galign.c  | 84 ++++++++++++++++++++++++++--------------------------
+ src/cmd/gc/align.c   | 18 +++++------
+ src/cmd/gc/closure.c |  2 +-
+ src/cmd/gc/cplx.c    | 50 +++++++++++++++----------------
+ src/cmd/gc/export.c  |  2 +-
+ src/cmd/gc/gen.c     | 52 ++++++++++++++++----------------
+ src/cmd/gc/go.h      |  9 +++---
+ src/cmd/gc/gsubr.c   | 38 ++++++++++++------------
+ src/cmd/gc/lex.c     | 34 ++++++++++-----------
+ src/cmd/gc/obj.c     | 20 ++++++-------
+ src/cmd/gc/pgen.c    | 40 ++++++++++++-------------
+ src/cmd/gc/plive.c   |  4 +--
+ src/cmd/gc/popt.c    | 57 +++++++++++++++++------------------
+ src/cmd/gc/reg.c     | 36 +++++++++++-----------
+ src/cmd/gc/sinit.c   |  2 +-
+ src/cmd/gc/subr.c    |  4 +--
+ src/cmd/gc/walk.c    |  6 ++--
+ 21 files changed, 351 insertions(+), 355 deletions(-)

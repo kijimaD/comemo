@@ -1,17 +1,18 @@
-commit 159c2b7e46f0b8293f1eed66ebec70ca845ac591
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 10 14:41:07 2013 -0400
+commit 7f062fa2dea2fc9b8b03d051375e7e22156ed8c9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 10 11:00:26 2013 -0700
 
-    cmd/go: fix error for 'go install x.go' when GOBIN is not set
+    cmd/go: build SWIG shared libraries in work directory
     
-    Fixes #6191.
-    Fixes #5426.
+    Remove test of whether SWIG shared library is older than
+    sources--should be covered by test of package file anyhow.
     
-    R=golang-dev, bradfitz
+    Fixes #5739.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/13234052
+    https://golang.org/cl/13352046
 
- src/cmd/go/build.go  | 5 ++++-
- src/cmd/go/pkg.go    | 1 +
- src/cmd/go/test.bash | 9 +++++++--
- 3 files changed, 12 insertions(+), 3 deletions(-)
+ src/cmd/go/build.go |  6 ++++--
+ src/cmd/go/pkg.go   | 17 +----------------
+ 2 files changed, 5 insertions(+), 18 deletions(-)

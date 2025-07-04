@@ -1,23 +1,20 @@
-commit 6436f5c13d6a5ced6cd5f3873f83ebfae32cce36
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Oct 7 16:26:29 2021 -0400
+commit 3f845b3b45a2aba58e3412f31fd1b4bd6c581d04
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Feb 2 13:04:16 2021 -0800
 
-    runtime: handle end PC in textAddr
+    [dev.typeparams] cmd/compile: deal with inferred type arguments
     
-    As the func table contains the end marker of the text section, we
-    sometimes need to get that address from an offset. Currently
-    textAddr doesn't handle that address, as it is not within any
-    text section. Instead of letting the callers not call textAddr
-    with the end offset, just handle it more elegantly in textAddr.
+    Create an extra OFUNCINST node as needed, if there are inferred type
+    arguments for a generic function call.
     
-    For #48837.
-    
-    Change-Id: I6e97e455f6cb66e9680a7aac6152ba6f4cda2e12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354635
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Id990c5bcbce2893377072a7e41c7c6785d1eab60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288952
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/symtab.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/expr.go    | 26 +++++++++++++++++++++-----
+ src/cmd/compile/internal/noder/helpers.go |  2 +-
+ 2 files changed, 22 insertions(+), 6 deletions(-)

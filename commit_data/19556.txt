@@ -1,19 +1,49 @@
-commit 63393faedf65b5b3719965cd4dead9a634be352f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jun 17 09:07:18 2014 -0700
+commit 5ce6d3e03e48cd453e414a0f64090004af9f319a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 17 08:10:21 2014 -0700
 
-    test: speed up chan/select5
+    undo CL 105260044 / afd6f214cc81
     
-    No functional changes.
+    The go:nosplit change wasn't the problem, reinstating.
     
-    Generating shorter functions improves compilation time. On my laptop, this test's running time goes from 5.5s to 1.5s; the wall clock time to run all tests goes down 1s. On Raspberry Pi, this CL cuts 50s off the wall clock time to run all tests.
+    ««« original CL description
+    undo CL 93380044 / 7f0999348917
     
-    Fixes #7503.
+    Partial undo, just of go:nosplit annotation.  Somehow it
+    is breaking the windows builders.
+    
+    TBR=bradfitz
+    
+    ««« original CL description
+    runtime: implement string ops in Go
+    
+    Also implement go:nosplit annotation.  Not really needed
+    for now, but we'll definitely need it for other conversions.
+    
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkRuneIterate      534           474           -11.24%
+    BenchmarkRuneIterate2     535           470           -12.15%
     
     LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    R=golang-codereviews, dave, bradfitz, minux
     CC=golang-codereviews
-    https://golang.org/cl/72590045
+    https://golang.org/cl/93380044
+    »»»
+    
+    TBR=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/105260044
+    »»»
+    
+    TBR=bradfitz
+    R=bradfitz, golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/103490043
 
- test/chan/select5.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gc/fmt.c   | 2 +-
+ src/cmd/gc/go.h    | 2 ++
+ src/cmd/gc/go.y    | 2 ++
+ src/cmd/gc/lex.c   | 4 ++++
+ src/cmd/gc/pgen.c  | 2 ++
+ src/cmd/gc/y.tab.c | 2 ++
+ 6 files changed, 13 insertions(+), 1 deletion(-)

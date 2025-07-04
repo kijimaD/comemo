@@ -1,22 +1,17 @@
-commit 7b325ba27d8a5a90d16793267523ebf52a18bf65
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jun 8 17:08:52 2023 +0000
+commit 833367e98af838a2511ee7e4e19dc8f1da7b8ed7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 9 00:29:45 2022 -0700
 
-    runtime: apply looser bound to /gc/heap/live:bytes in test
+    internal/buildcfg: enable unified IR by default
     
-    /gc/heap/live:bytes may exceed MemStats.HeapAlloc, even when all data is
-    flushed, becuase the GC may double-count objects when marking them. This
-    is an intentional design choice that is largely inconsequential. The
-    runtime is already robust to it, and the condition is rare.
+    Unified IR is now at feature parity with the non-unified frontend.
     
-    Fixes #60607.
-    
-    Change-Id: I4da402efc24327328d2d8780e4e49961b189f0ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501858
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I2a8cd41267a66f5eb1f425b89d18c6d501676e07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422235
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/metrics_test.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

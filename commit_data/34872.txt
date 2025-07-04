@@ -1,16 +1,31 @@
-commit e13a213c7f9d78cfb79f91bcf9b75e3d22362a92
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 26 17:45:01 2018 -0400
+commit 48e207d518b2924fee598a8442230635d60649a9
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Tue Nov 21 07:14:11 2017 -0800
 
-    runtime: distinguish semaphore wait from sync.Cond.Wait
+    cmd/compile: fix mapassign_fast* routines for pointer keys
     
-    Updates #24362.
+    The signature of the mapassign_fast* routines need to distinguish
+    the pointerness of their key argument.  If the affected routines
+    suspend part way through, the object pointed to by the key might
+    get garbage collected because the key is typed as a uint{32,64}.
     
-    Change-Id: Ided1ab31792f05d9d7a86f17c1bcbd9e9b80052c
-    Reviewed-on: https://go-review.googlesource.com/102606
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This is not a problem for mapaccess or mapdelete because the key
+    in those situations do not live beyond the call involved.  If the
+    object referenced by the key is garbage collected prematurely, the
+    code still works fine.  Even if that object is subsequently reallocated,
+    it can't be written to the map in time to affect the lookup/delete.
+    
+    Fixes #22781
+    
+    Change-Id: I0bbbc5e9883d5ce702faf4e655348be1191ee439
+    Reviewed-on: https://go-review.googlesource.com/79018
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/runtime/sema.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/builtin.go         |   2 +
+ src/cmd/compile/internal/gc/builtin/runtime.go |   2 +
+ src/cmd/compile/internal/gc/walk.go            |  31 +++--
+ src/runtime/hashmap_fast.go                    | 184 +++++++++++++++++++++++--
+ test/fixedbugs/issue22781.go                   |  29 ++++
+ 5 files changed, 227 insertions(+), 21 deletions(-)

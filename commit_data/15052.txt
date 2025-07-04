@@ -1,24 +1,15 @@
-commit bd75468a089c8ad38bcb1130c4ed7d2703ef85c1
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jan 31 17:17:37 2013 +1100
+commit 92bc89690988f30863fdafa4a2e353a99edf5ef1
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Wed Jan 30 17:53:53 2013 -0800
 
-    os: provide access to file LastAccessTime and CreationTime on windows
+    fmt: improve go syntax handling of byte-derived arrays and slices
     
-    Fixes #4569.
+    Fixes #4685.
     
-    R=bradfitz, rsc
+    R=golang-dev, adg, remyoudompheng, rsc
     CC=golang-dev
-    https://golang.org/cl/6972047
+    https://golang.org/cl/7205047
 
- src/pkg/os/file_windows.go  |  15 +++--
- src/pkg/os/stat_darwin.go   |   6 +-
- src/pkg/os/stat_freebsd.go  |   6 +-
- src/pkg/os/stat_linux.go    |   6 +-
- src/pkg/os/stat_netbsd.go   |   6 +-
- src/pkg/os/stat_openbsd.go  |   6 +-
- src/pkg/os/stat_plan9.go    |   6 +-
- src/pkg/os/stat_windows.go  | 149 ++++++--------------------------------------
- src/pkg/os/types.go         |  19 +-----
- src/pkg/os/types_notwin.go  |  25 ++++++++
- src/pkg/os/types_windows.go | 104 +++++++++++++++++++++++++++++++
- 11 files changed, 180 insertions(+), 168 deletions(-)
+ src/pkg/fmt/fmt_test.go | 12 ++++++++++++
+ src/pkg/fmt/print.go    | 38 +++++++++++++++++++++++---------------
+ 2 files changed, 35 insertions(+), 15 deletions(-)

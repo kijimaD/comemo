@@ -1,14 +1,29 @@
-commit bd45bce373db750580e1a0f9a45563f0c0991d46
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Wed Jul 8 10:05:39 2015 +1000
+commit 5c60a4fb0a7f49105e2daa10efe45faf2bf3a36b
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Wed May 27 11:44:19 2015 +0000
 
-    doc/go1.5: mention net/http.Request.Cancel
+    text/template: fix variadic function call corner case
     
-    This was added in commit 8b4278ffb75e79c277bfa90c5e473bfad9f7c1bd.
+    Executing a template involving variadic functions featuring
+    a []interface{} slice (such as printf) could result in a
+    panic in reflect.Value.Call, due to incorrect type checking.
     
-    Change-Id: I95279f2779c2bab2767e34389fb4324900c01e6c
-    Reviewed-on: https://go-review.googlesource.com/11952
+    The following expressions failed (with a panic):
+    {{true|printf}}
+    {{1|printf}}
+    {{1.1|printf}}
+    {{'x'|printf}}
+    {{1+2i|printf}}
+    
+    Implemented proper type checks for the fixed parameters of the
+    variadic functions.
+    
+    Fixes #10946
+    
+    Change-Id: Ia75333f651f73b3d2e024cb0c47cc30d90cb6852
+    Reviewed-on: https://go-review.googlesource.com/10403
     Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.5.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/text/template/exec.go      | 10 +++++++++-
+ src/text/template/exec_test.go | 17 +++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

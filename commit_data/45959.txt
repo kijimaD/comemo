@@ -1,31 +1,22 @@
-commit 63b968f4f86f4c23ce92b7ac2feda4fc7ca17c8e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jul 16 16:51:11 2021 -0400
+commit a17c5e2fce9340ec19d4019490b38a7645f244df
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 02:58:41 2020 -0800
 
-    doc/go1.17: clarify Modules changes
+    [dev.regabi] cmd/compile: add NewBasic and cleanup universe
     
-    Writing CL 333629 clarified my thinking about the behavioral changes
-    associated with lazy loading. There are really two interrelated
-    changes — graph pruning, and lazy loading proper — that are both made
-    possible by the added redundancy in the go.mod file.
+    This CL introduces types.NewBasic, for creating the predeclared
+    universal types, and reorganizes how the universe is initialized so
+    that all predeclared types are uniformly constructed.
     
-    (I had initially approached the whole cluster of features as “lazy
-    loading” because that was the starting point for the design. Graph
-    pruning came into the picture when we looked at how to bound the
-    worst-case behavior of lazy loading, but it is really the more
-    important of the two aspects of the design.)
+    There are now a bunch of Type fields that are no longer assigned
+    outside of the package, so this CL also introduces some new accessor
+    methods that a subsequent CL will mechanically introduce uses of.
     
-    Note that this change adds links to doc anchors added in CL 333629.
-    
-    Fixes #36460
-    Fixes #47397
-    
-    Change-Id: I0ef4af57f647bf5ee210ea7099191fb4befa2cc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/335135
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ie7996c3d5f1ca46cd5bfe45ecc91ebfa6a7b6c7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274435
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.17.html | 70 ++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 45 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/universe.go | 194 ++++++++++++--------------------
+ src/cmd/compile/internal/types/type.go  |  21 +++-
+ 2 files changed, 90 insertions(+), 125 deletions(-)

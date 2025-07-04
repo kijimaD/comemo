@@ -1,35 +1,15 @@
-commit e853131699680c875d2d4e6cf82d959272dacd00
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 7 15:15:57 2016 -0800
+commit 3ad3d5931be1aa1fd1b59874eebb40e4b22e2206
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 16:50:03 2015 +0000
 
-    cmd/internal/obj: stop using as+ALAST as an opcode
+    net: fix race in test
     
-    Currently, package obj reserves a range of 1<<12 opcodes for each
-    target architecture.  E.g., mips64 has [6<<12, 7<<12).
+    Fixes race builders, broken in https://golang.org/cl/16953
     
-    However, because mips.ABEQ and mips.ALAST are both within that range,
-    the expression mips.ABEQ+mips.ALAST in turn falls (far) outside that
-    range around 12<<12, meaning it could theoretically collide with
-    another arch's opcodes.
-    
-    More practically, it's a problem because 12<<12 overflows an int16,
-    which hampers fixing #14692.  (We could also just switch to uint16 to
-    avoid the overflow, but that still leaves the first problem.)
-    
-    As a workaround, use Michael Hudson-Doyle's solution from
-    https://golang.org/cl/20182 and use negative values for these variant
-    instructions.
-    
-    Passes toolstash -cmp for GOARCH=arm and GOARCH=mips64.
-    
-    Updates #14692.
-    
-    Change-Id: Iad797d10652360109fa4db19d4d1edb6529fc2c0
-    Reviewed-on: https://go-review.googlesource.com/20345
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id61171672b69d0ca412de4b44bf2c598fe557906
+    Reviewed-on: https://go-review.googlesource.com/17936
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/arm/asm5.go  | 16 ++++----
- src/cmd/internal/obj/mips/asm0.go | 78 +++++++++++++++++++--------------------
- 2 files changed, 47 insertions(+), 47 deletions(-)
+ src/net/dnsclient_unix_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

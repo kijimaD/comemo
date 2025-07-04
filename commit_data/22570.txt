@@ -1,39 +1,13 @@
-commit c1c667542cb831303d332f3699a9cf32dfa490e1
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 13 16:50:20 2015 -0400
+commit 63f59b6322c78e4b1dd256d8a5fe7e9c468183a4
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 24 12:58:51 2015 -0400
 
-    runtime: fix dangling pointer in readyExecute
+    doc/go1.4.html: fix typo
     
-    readyExecute passes a closure to mcall that captures an argument to
-    readyExecute. Since mcall is marked noescape, this closure lives on
-    the stack of the calling goroutine. However, the closure puts the
-    calling goroutine on the run queue (and switches to a new
-    goroutine). If the calling goroutine gets scheduled before the mcall
-    returns, this stack-allocated closure will become invalid while it's
-    still executing. One consequence of this we've observed is that the
-    captured gp variable can get overwritten before the call to
-    execute(gp), causing execute(gp) to segfault.
-    
-    Fix this by passing the currently captured gp variable through a field
-    in the calling goroutine's g struct so that the func is no longer a
-    closure.
-    
-    To prevent problems like this in the future, this change also removes
-    the go:noescape annotation from mcall. Due to a compiler bug, this
-    will currently cause a func closure passed to mcall to be implicitly
-    allocated rather than refusing the implicit allocation. However, this
-    is okay because there are no other closures passed to mcall right now
-    and the compiler bug will be fixed shortly.
-    
-    Fixes #10428.
-    
-    Change-Id: I49b48b85de5643323b89e9eaa4df63854e968c32
-    Reviewed-on: https://go-review.googlesource.com/8866
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5bfeeef53665b1ef79ec0e4a6ae0eb4aa3e95603
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8021
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc1.go    | 8 ++++++++
- src/runtime/runtime2.go | 1 +
- src/runtime/stubs.go    | 5 ++++-
- 3 files changed, 13 insertions(+), 1 deletion(-)
+ doc/go1.4.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

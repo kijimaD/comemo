@@ -1,12 +1,43 @@
-commit d21b1922c61b875bb9c1ee8be39f05ffe65c8571
+commit c8dcaeb25deddac52cfca6ae6882ce94780582d3
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 26 22:51:47 2013 -0500
+Date:   Tue Feb 26 22:38:14 2013 -0500
 
-    libmach: fix build (set and not used)
+    cmd/ld, runtime: adjust symbol table representation
     
-    TBR=golang-dev
+    This CL changes the encoding used for the Go symbol table,
+    stored in the binary and used at run time. It does not change
+    any of the semantics or structure: the bits are just packed
+    a little differently.
+    
+    The comment at the top of runtime/symtab.c describes the new format.
+    
+    Compared to the Go 1.0 format, the main changes are:
+    
+    * Store symbol addresses as full-pointer-sized host-endian values.
+      (For 6g, this means addresses are 64-bit little-endian.)
+    
+    * Store other values (frame sizes and so on) varint-encoded.
+    
+    The second change more than compensates for the first:
+    for the godoc binary on OS X/amd64, the new symbol table
+    is 8% smaller than the old symbol table (1,425,668 down from 1,546,276).
+    
+    This is a required step for allowing the host linker (gcc) to write
+    the final Go binary, since it will have to fill in the symbol address slots
+    (so the slots must be host-endian) and on 64-bit systems it may
+    choose addresses above 4 GB.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7401053
+    https://golang.org/cl/7403054
 
- src/libmach/sym.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/ld/data.c             |   1 -
+ src/cmd/ld/lib.c              |  34 ++++++++--
+ src/cmd/ld/symtab.c           | 108 ++++++++++++++++++------------
+ src/libmach/sym.c             | 148 +++++++++++++++++++++++++++++++----------
+ src/pkg/debug/gosym/symtab.go | 123 +++++++++++++++++++++++++++++-----
+ src/pkg/runtime/arch_386.h    |   1 +
+ src/pkg/runtime/arch_amd64.h  |   1 +
+ src/pkg/runtime/arch_arm.h    |   1 +
+ src/pkg/runtime/symtab.c      | 151 ++++++++++++++++++++++++++++++++++--------
+ 9 files changed, 442 insertions(+), 126 deletions(-)

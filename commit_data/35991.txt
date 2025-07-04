@@ -1,17 +1,62 @@
-commit c2eba53e7f80df21d51285879d51ab81bcfbf6bc
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Sun Jul 1 09:33:55 2018 +0930
+commit 377a2cb2d20f37f259ca533c7a4b026dbbf8e585
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Mar 27 13:24:45 2018 +0200
 
-    cmd/vet,sync: check lock values more precisely
+    cmd/compile: reduce allocations in regAllocState.regalloc
     
-    Fixes #26165
+    name      old time/op       new time/op       delta
+    Template        281ms ± 2%        282ms ± 3%    ~     (p=0.428 n=19+20)
+    Unicode         138ms ± 6%        138ms ± 7%    ~     (p=0.813 n=19+20)
+    GoTypes         901ms ± 2%        895ms ± 2%    ~     (p=0.050 n=19+20)
+    Compiler        4.25s ± 1%        4.23s ± 1%  -0.31%  (p=0.031 n=19+18)
+    SSA             9.77s ± 1%        9.78s ± 1%    ~     (p=0.512 n=20+20)
+    Flate           187ms ± 3%        187ms ± 4%    ~     (p=0.687 n=20+19)
+    GoParser        224ms ± 4%        222ms ± 3%    ~     (p=0.301 n=20+20)
+    Reflect         576ms ± 2%        576ms ± 2%    ~     (p=0.620 n=20+20)
+    Tar             262ms ± 3%        263ms ± 3%    ~     (p=0.599 n=19+18)
+    XML             322ms ± 4%        322ms ± 2%    ~     (p=0.512 n=20+20)
     
-    Change-Id: I1f3bd193af9b6f8461c736330952b6e50d3e00d9
-    Reviewed-on: https://go-review.googlesource.com/121876
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Rob Pike <r@golang.org>
+    name      old user-time/op  new user-time/op  delta
+    Template        403ms ± 3%        399ms ± 5%    ~     (p=0.149 n=17+20)
+    Unicode         217ms ±12%        217ms ± 9%    ~     (p=0.883 n=20+20)
+    GoTypes         1.24s ± 3%        1.24s ± 3%    ~     (p=0.718 n=20+20)
+    Compiler        5.90s ± 3%        5.84s ± 5%    ~     (p=0.217 n=18+20)
+    SSA             14.0s ± 6%        14.1s ± 5%    ~     (p=0.235 n=19+20)
+    Flate           253ms ± 6%        254ms ± 5%    ~     (p=0.749 n=20+19)
+    GoParser        309ms ± 7%        307ms ± 5%    ~     (p=0.398 n=20+20)
+    Reflect         772ms ± 3%        771ms ± 3%    ~     (p=0.901 n=20+19)
+    Tar             368ms ± 5%        369ms ± 8%    ~     (p=0.429 n=20+20)
+    XML             435ms ± 5%        434ms ± 5%    ~     (p=0.841 n=20+20)
+    
+    name      old alloc/op      new alloc/op      delta
+    Template       39.0MB ± 0%       38.9MB ± 0%  -0.21%  (p=0.000 n=20+19)
+    Unicode        29.0MB ± 0%       29.0MB ± 0%  -0.03%  (p=0.000 n=20+20)
+    GoTypes         116MB ± 0%        115MB ± 0%  -0.33%  (p=0.000 n=20+20)
+    Compiler        498MB ± 0%        496MB ± 0%  -0.37%  (p=0.000 n=19+20)
+    SSA            1.41GB ± 0%       1.40GB ± 0%  -0.24%  (p=0.000 n=20+20)
+    Flate          25.0MB ± 0%       25.0MB ± 0%  -0.22%  (p=0.000 n=20+19)
+    GoParser       31.0MB ± 0%       30.9MB ± 0%  -0.23%  (p=0.000 n=20+17)
+    Reflect        77.1MB ± 0%       77.0MB ± 0%  -0.12%  (p=0.000 n=20+20)
+    Tar            39.7MB ± 0%       39.6MB ± 0%  -0.17%  (p=0.000 n=20+20)
+    XML            44.9MB ± 0%       44.8MB ± 0%  -0.29%  (p=0.000 n=20+20)
+    
+    name      old allocs/op     new allocs/op     delta
+    Template         386k ± 0%         385k ± 0%  -0.28%  (p=0.000 n=20+20)
+    Unicode          337k ± 0%         336k ± 0%  -0.07%  (p=0.000 n=20+20)
+    GoTypes         1.20M ± 0%        1.20M ± 0%  -0.41%  (p=0.000 n=20+20)
+    Compiler        4.71M ± 0%        4.68M ± 0%  -0.52%  (p=0.000 n=20+20)
+    SSA             11.7M ± 0%        11.6M ± 0%  -0.31%  (p=0.000 n=20+19)
+    Flate            238k ± 0%         237k ± 0%  -0.28%  (p=0.000 n=18+20)
+    GoParser         320k ± 0%         319k ± 0%  -0.34%  (p=0.000 n=20+19)
+    Reflect          961k ± 0%         959k ± 0%  -0.12%  (p=0.000 n=20+20)
+    Tar              397k ± 0%         396k ± 0%  -0.23%  (p=0.000 n=20+20)
+    XML              419k ± 0%         417k ± 0%  -0.39%  (p=0.000 n=20+19)
+    
+    Change-Id: Ic7ec3614808d9892c1cab3991b996b7a3b8eff21
+    Reviewed-on: https://go-review.googlesource.com/102676
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/vet/copylock.go | 22 ++++++++++++++++------
- src/sync/cond.go        |  3 ++-
- 2 files changed, 18 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

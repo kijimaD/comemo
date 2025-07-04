@@ -1,23 +1,21 @@
-commit ddf3a1cd6d4c7e51e1a5b08f0320f86e5bc1c355
-Author: Rami <72725910+ramikg@users.noreply.github.com>
-Date:   Sun Jul 16 10:25:40 2023 +0000
+commit 3486735bf2ca08dcd84bb820fdcb0dea8102cf82
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Aug 6 13:54:28 2022 +0100
 
-    os: remove executable bits from os.OpenFile example
+    net/http/pprof: link docs to runtime/pprof
     
-    The mode used in the os.OpenFile example (0755) has all executable bits set.
-    I suspect that this ill-advised usage propagates to other codebases (by means of people carelessly copying the usage example), which is why I suggest modifying the example.
+    And add some documentation for the debug query param.
     
-    Change-Id: Ic36c8b41974f3fe00471822c2414e36b4e5dc1bc
-    GitHub-Last-Rev: 638f3beefe8926c8e5c2c4ab9a1a5899e55de892
-    GitHub-Pull-Request: golang/go#61384
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/510135
-    Reviewed-by: Rob Pike <r@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Fixes #27737
+    Fixes #53971
+    
+    Change-Id: I629aaa2d4a43175381eb04872f1caad238519a41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421635
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/pprof/pprof.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

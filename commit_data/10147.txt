@@ -1,28 +1,39 @@
-commit 0f6b80c69498d2047d584d365e4056ced9f38adc
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Oct 29 14:22:30 2011 -0400
+commit 604e10c34d359f6522b076e488dccd7b075f4bc7
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sat Oct 29 10:51:59 2011 +1100
 
-    exp/ssh: fix length header leaking into channel data streams.
+    html: adjust bookmark in "adoption agency" algorithm
     
-    The payload of a data message is defined as an SSH string type,
-    which uses the first four bytes to encode its length. When channelData
-    and channelExtendedData were added I defined Payload as []byte to
-    be able to use it directly without a string to []byte conversion. This
-    resulted in the length data leaking into the payload data.
+    In the adoption agency algorithm, the formatting element is sometimes
+    removed from the list of active formatting elements and reinserted at a later index.
+    In that case, the bookmark showing where it is to be reinserted needs to be moved,
+    so that its position relative to its neighbors remains the same
+    (and also so that it doesn't become out of bounds).
     
-    This CL fixes the bug, and restores agl's original fast path code.
+    Pass tests1.dat, test 70:
+    <DIV> abc <B> def <I> ghi <P> jkl </B>
     
-    Additionally, a bug whereby s.lock was not released if a packet arrived
-    for an invalid channel has been fixed.
+    | <html>
+    |   <head>
+    |   <body>
+    |     <div>
+    |       " abc "
+    |       <b>
+    |         " def "
+    |         <i>
+    |           " ghi "
+    |       <i>
+    |         <p>
+    |           <b>
+    |             " jkl "
     
-    Finally, as they were no longer used, I have removed
-    the channelData and channelExtedendData structs.
+    Also pass tests through test 76:
+    <test attribute---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->
     
-    R=agl, rsc
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5330053
+    https://golang.org/cl/5322052
 
- src/pkg/exp/ssh/client.go   |  90 ++++++++++++++++++------------
- src/pkg/exp/ssh/messages.go |  17 ------
- src/pkg/exp/ssh/server.go   | 130 ++++++++++++++++++++++++--------------------
- 3 files changed, 127 insertions(+), 110 deletions(-)
+ src/pkg/html/parse.go      | 4 ++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

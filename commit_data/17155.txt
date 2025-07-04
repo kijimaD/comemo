@@ -1,19 +1,14 @@
-commit ac0df6ce895c14216d5f57cc749e7080815860f9
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 12 13:05:40 2013 -0400
+commit 6b706cf50d128cd49192d4815bc25fec06514fe8
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 12 12:55:33 2013 +1000
 
-    cmd/8g: factor out prog information
+    bufio: make it clear that the client must call Writer.Flush
     
-    Like CL 12637051, but for 8g instead of 6g.
-    Fix a few minor 6g errors too.
+    Fixes #5530.
     
-    R=ken2
+    R=golang-dev, iant, com.liigo
     CC=golang-dev
-    https://golang.org/cl/12778043
+    https://golang.org/cl/12688044
 
- src/cmd/6g/prog.c |  16 ++-
- src/cmd/8g/opt.h  |  61 +++++++++
- src/cmd/8g/peep.c | 376 +++++++++---------------------------------------------
- src/cmd/8g/prog.c | 331 +++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/8g/reg.c  | 327 ++++-------------------------------------------
- 5 files changed, 491 insertions(+), 620 deletions(-)
+ src/pkg/bufio/bufio.go | 3 +++
+ 1 file changed, 3 insertions(+)

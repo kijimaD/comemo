@@ -1,19 +1,16 @@
-commit a2d12201adb3143c8f1f3d1528c1c0ab961ab98d
-Author: Billie H. Cleek <bhcleek@gmail.com>
-Date:   Sat Dec 20 17:05:05 2014 -0800
+commit 1e1c9dc2c8143127b1ef8bd5e32b294e856586a6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Mar 11 13:05:24 2015 -0400
 
-    cmd/go: detect which VCS to use with Bitbucket when the API call fails.
+    cmd/9g: use REGZERO instead of REG_R0 if we want the zero register
     
-          The API call will fail when Bitbucket repositories are private. In
-    that case, probe for the repository using vcsCmd.ping.
+    This will make the intention clearer.
+    This is migrated from pre-c2go CL 4930.
     
-          Fixes #5375
-    
-    Change-Id: Ia604ecf9014805579dfda4b5c8e627a52783d56e
-    Reviewed-on: https://go-review.googlesource.com/1910
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9103126a05323daedd729a43b94b2be8cd7408c9
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7410
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/bootstrap.go |  8 ++++++++
- src/cmd/go/http.go      | 14 +++++++++++++-
- src/cmd/go/vcs.go       | 23 +++++++++++++++++++----
- 3 files changed, 40 insertions(+), 5 deletions(-)
+ src/cmd/9g/ggen.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

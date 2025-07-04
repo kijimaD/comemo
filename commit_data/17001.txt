@@ -1,21 +1,12 @@
-commit 9cd570680bd1d6ea23e4f5da1fe3a50c6927d6d5
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Aug 2 13:03:14 2013 -0700
+commit e6ddddadda8e578838c7d8f692791ea74423b161
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 2 15:13:06 2013 -0400
 
-    runtime: reimplement reflect.call to not use stack splitting.
+    cmd/dist: fix build
     
-    R=golang-dev, r, khr, rsc
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/12053043
+    https://golang.org/cl/12369043
 
- misc/cgo/test/callback.go   |   1 +
- src/cmd/ld/lib.c            |   2 +-
- src/pkg/reflect/all_test.go |  11 +++++
- src/pkg/runtime/asm_386.s   |  97 +++++++++++++++++++++++++++++++++++++--
- src/pkg/runtime/asm_amd64.s |  98 ++++++++++++++++++++++++++++++++++++++--
- src/pkg/runtime/asm_arm.s   | 107 ++++++++++++++++++++++++++++++++++++++++++--
- src/pkg/runtime/panic.c     |   4 +-
- src/pkg/runtime/proc.c      |   6 +++
- src/pkg/runtime/runtime.h   |   1 +
- src/pkg/runtime/stack.c     |  18 ++++----
- 10 files changed, 321 insertions(+), 24 deletions(-)
+ src/cmd/dist/build.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

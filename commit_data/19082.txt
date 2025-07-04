@@ -1,23 +1,15 @@
-commit f400d9aafc961c18e3289a0e701e61b2482a342a
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Apr 9 21:23:36 2014 +0200
+commit 95ee7d6414c4a9a5da95ecb4fbefc3ac3e570d06
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 9 10:38:12 2014 -0400
 
-    cmd/6g: relax constraint on variables that need zeroing.
+    runtime: use 3x fewer nanotime calls in garbage collection
     
-    On amd64p32 pointers are 32-bit-aligned and cannot be assumed to
-    have an offset multiple of widthreg. Instead check that they are
-    withptr-aligned.
+    Cuts the number of calls from 6 to 2 in the non-debug case.
     
-    Also change the threshold for region merging to 2*widthreg
-    instead of 2*widthptr because performance on amd64 and amd64p32
-    is expected to be the same.
-    
-    Fixes #7712.
-    
-    LGTM=khr
-    R=rsc, dave, khr, brad, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/84690044
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=0intro, aram, golang-codereviews, khr
+    https://golang.org/cl/86040043
 
- src/cmd/6g/ggen.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/runtime/mgc0.c | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

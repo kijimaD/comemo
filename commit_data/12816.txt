@@ -1,12 +1,12 @@
-commit 48a76e13a5996a84b8c64349df9fa2b8c4b076a6
+commit f1a39ff003db83dad301a045f4796384a1037e62
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Apr 3 08:10:51 2012 +1000
+Date:   Tue Apr 3 08:10:21 2012 +1000
 
-    misc/dashboard: set api_version to go1
+    doc: sync playground.js
     
-    R=golang-dev
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5952046
+    https://golang.org/cl/5956043
 
- misc/dashboard/app/app.yaml | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/play/playground.js | 87 ++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 56 insertions(+), 31 deletions(-)

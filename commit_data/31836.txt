@@ -1,24 +1,21 @@
-commit 79d05e75ca38f0e4b9986bbba4cd56398428f9fb
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Wed Jun 14 11:36:36 2017 -0700
+commit 25b51810014cefb8dba31321fcf40eb1a008fc3e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 20 13:08:26 2017 -0700
 
-    runtime: restore arm assembly stubs for div/mod
+    cmd/gofmt: clarify doc string even more
     
-    These are used by DIV[U] and MOD[U] assembly instructions.
-    Add a test in the stdlib so we actually exercise linking
-    to these routines.
+    Since "columns of alignment" are terminated whenever indentation
+    changes from one line to the next, alignment with spaces will work
+    independent of the actually chosen tab width. Don't mention tab width
+    anymore.
     
-    Update #19507
+    Follow-up on https://golang.org/cl/38374/.
     
-    Change-Id: I0d8e19a53e3744abc0c661ea95486f94ec67585e
-    Reviewed-on: https://go-review.googlesource.com/45703
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    For #19618.
+    
+    Change-Id: I58e47dfde57834f56a98d9119670757a12fb9c41
+    Reviewed-on: https://go-review.googlesource.com/38379
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/obj/arm/asm5.go        |   8 +--
- src/runtime/softfloat_arm.go            |   6 +-
- src/runtime/vlop_arm.s                  | 112 ++++++++++++++++++++++++++++++++
- test/fixedbugs/issue19507.dir/div_arm.s |  12 ++++
- test/fixedbugs/issue19507.dir/main.go   |  16 +++++
- test/fixedbugs/issue19507.go            |   8 +++
- test/run.go                             |  59 ++++++++++++++++-
- 7 files changed, 215 insertions(+), 6 deletions(-)
+ src/cmd/gofmt/doc.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

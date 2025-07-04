@@ -1,16 +1,12 @@
-commit 7d9acff7511c85ee6d187bdb33b3237f0c04df55
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Oct 21 19:01:24 2013 -0400
+commit fae4553a9dd324a540c3a5a2cca4eb63c7a9b57c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Oct 21 17:32:45 2013 +1100
 
-    crypto/x509: name constraints should be a disjunction.
+    net/mail: fix minor doc typo.
     
-    The code was requiring that all constraints be met, but it should be
-    satisfied by meeting *any* of them.
-    
-    R=golang-dev, bradfitz, r
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/15570044
+    https://golang.org/cl/15510043
 
- src/pkg/crypto/x509/verify.go      |   6 +-
- src/pkg/crypto/x509/verify_test.go | 183 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 188 insertions(+), 1 deletion(-)
+ src/pkg/net/mail/message.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

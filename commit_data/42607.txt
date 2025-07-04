@@ -1,24 +1,29 @@
-commit 9699086043ae0ea01f14eca827837ad15bea8072
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 6 14:23:26 2020 -0700
+commit 64c22b70bf00e15615bb17c29f808b55bc339682
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Fri Jan 24 16:51:11 2020 +0000
 
-    runtime: mark OpenBSD raise function nosplit
+    Revert "runtime: don't hold worldsema across mark phase"
     
-    It is called by the signal handler before switching to gsignal
-    (sigtrampgo -> sigfwdgo -> dieFromSignal -> raise)
-    which means that it must not split the stack.
+    This reverts commit 7b294cdd8df0a9523010f6ffc80c59e64578f34b, CL 182657.
     
-    All other instances of raise are already marked nosplit.
+    Reason for revert: This change may be causing latency problems
+    for applications which call ReadMemStats, because it may cause
+    all goroutines to stop until the GC completes.
     
-    Fixes #40076
+    https://golang.org/cl/215157 fixes this problem, but it's too
+    late in the cycle to land that.
     
-    Change-Id: I4794491331af48c46d0d8ebc82d34c6483f0e6cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241121
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #19812.
+    
+    Change-Id: Iaa26f4dec9b06b9db2a771a44e45f58d0aa8f26d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216358
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/pipe_test.go       | 19 +++++++++++++++++++
- src/runtime/os_openbsd.go |  1 +
- 2 files changed, 20 insertions(+)
+ src/runtime/debug.go                  |  4 ++--
+ src/runtime/mgc.go                    |  9 -------
+ src/runtime/proc.go                   | 44 ++++-------------------------------
+ src/runtime/trace.go                  | 17 ++++++--------
+ src/runtime/trace/trace_stack_test.go |  1 -
+ 5 files changed, 13 insertions(+), 62 deletions(-)

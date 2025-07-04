@@ -1,0 +1,19 @@
+commit 8f22369136b264567955fb86cff491c247b45b8b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 16 16:49:00 2024 -0500
+
+    cmd/go/internal/fsys: refactor overlay consistency checks
+    
+    Do the overlay consistency checks separate from constructing
+    the overlay data structure. This makes sure that the data structure
+    can be changed without worrying about losing the checks.
+    
+    Change-Id: I9ff50cc366b5362adc5570f94e6caf646ddf5046
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628700
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/fsys/fsys.go      | 129 +++++++++++++++++++---------------
+ src/cmd/go/internal/fsys/fsys_test.go |   6 +-
+ 2 files changed, 73 insertions(+), 62 deletions(-)

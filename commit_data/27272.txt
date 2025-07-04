@@ -1,13 +1,17 @@
-commit 43d2a10e2647b2d6ee10a2a7629ee4055dcce740
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Apr 27 13:47:41 2016 -0400
+commit b2dc1f82a5b2aa3132cb1fb0135efe1202a1e837
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Mar 18 07:05:58 2016 -0500
 
-    runtime/internal/atomic: fix vet warnings
+    cmd/compile: perform minimal phi elimination during critical
     
-    Change-Id: Ib29cf7abbbdaed81e918e5e41bca4e9b8da24621
-    Reviewed-on: https://go-review.googlesource.com/22503
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Phi splitting sometimes leads to a phi with only a single predecessor.
+    This must be replaced with a copy to maintain a valid SSA form.
+    
+    Fixes #14857
+    
+    Change-Id: I5ab2423fb6c85a061928e3206b02185ea8c79cd7
+    Reviewed-on: https://go-review.googlesource.com/20826
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/internal/atomic/asm_mips64x.s    |  2 +-
- src/runtime/internal/atomic/atomic_mips64x.s | 12 ++++++------
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/critical.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

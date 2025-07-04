@@ -1,19 +1,149 @@
-commit 6c6ad08eb920d02947410919889229bbfa8c9915
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Aug 29 16:19:23 2016 -0700
+commit d8b7bd6a1f89df1fbcf43fcaee72a94e291dcdb1
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Apr 26 19:16:30 2016 +1000
 
-    go/types: fix bad variable shadowing in offsetsof
+    compress/flate: replace "Best Speed" with specialized version
     
-    Introduced in CL 26995.
+    This encoding algorithm, which prioritizes speed over output size, is
+    based on Snappy's LZ77-style encoder: github.com/golang/snappy
     
-    Fixes #16902
+    This commit keeps the diff between this package's encodeBestSpeed
+    function and and Snappy's encodeBlock function as small as possible (see
+    the diff below). Follow-up commits will improve this package's
+    performance and output size.
     
-    Change-Id: I8e749f598167e1f8b82cd5e735a7eb5291362e5e
-    Reviewed-on: https://go-review.googlesource.com/28070
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This package's speed benchmarks:
+    
+    name                    old speed      new speed      delta
+    EncodeDigitsSpeed1e4-8  40.7MB/s ± 0%  73.0MB/s ± 0%   +79.18%  (p=0.008 n=5+5)
+    EncodeDigitsSpeed1e5-8  33.0MB/s ± 0%  77.3MB/s ± 1%  +134.04%  (p=0.008 n=5+5)
+    EncodeDigitsSpeed1e6-8  32.1MB/s ± 0%  82.1MB/s ± 0%  +156.18%  (p=0.008 n=5+5)
+    EncodeTwainSpeed1e4-8   42.1MB/s ± 0%  65.0MB/s ± 0%   +54.61%  (p=0.008 n=5+5)
+    EncodeTwainSpeed1e5-8   46.3MB/s ± 0%  80.0MB/s ± 0%   +72.81%  (p=0.008 n=5+5)
+    EncodeTwainSpeed1e6-8   47.3MB/s ± 0%  81.7MB/s ± 0%   +72.86%  (p=0.008 n=5+5)
+    
+    Here's the milliseconds taken, before and after this commit, to compress
+    a number of test files:
+    
+    Go's src/compress/testdata files:
+    
+         4          1 e.txt
+         8          4 Mark.Twain-Tom.Sawyer.txt
+    
+    github.com/golang/snappy's benchmark files:
+    
+         3          1 alice29.txt
+        12          3 asyoulik.txt
+         6          1 fireworks.jpeg
+         1          1 geo.protodata
+         1          0 html
+         2          2 html_x_4
+         6          3 kppkn.gtb
+        11          4 lcet10.txt
+         5          1 paper-100k.pdf
+        14          6 plrabn12.txt
+        17          6 urls.10K
+    
+    Larger files linked to from
+    https://docs.google.com/spreadsheets/d/1VLxi-ac0BAtf735HyH3c1xRulbkYYUkFecKdLPH7NIQ/edit#gid=166102500
+    
+      2409       3182 adresser.001
+     16757      11027 enwik9
+     13764      12946 gob-stream
+    153978      74317 rawstudio-mint14.tar
+      4371        770 sharnd.out
+    
+    Output size is larger. In the table below, the first column is the input
+    size, the second column is the output size prior to this commit, the
+    third column is the output size after this commit.
+    
+        100003      47707      50006 e.txt
+        387851     172707     182930 Mark.Twain-Tom.Sawyer.txt
+        152089      62457      66705 alice29.txt
+        125179      54503      57274 asyoulik.txt
+        123093     122827     123108 fireworks.jpeg
+        118588      18574      20558 geo.protodata
+        102400      16601      17305 html
+        409600      65506      70313 html_x_4
+        184320      49007      50944 kppkn.gtb
+        426754     166957     179355 lcet10.txt
+        102400      82126      84937 paper-100k.pdf
+        481861     218617     231988 plrabn12.txt
+        702087     241774     258020 urls.10K
+    1073741824   43074110   57269781 adresser.001
+    1000000000  365772256  391052000 enwik9
+    1911399616  340364558  378679516 gob-stream
+    8558382592 3807229562 3972329193 rawstudio-mint14.tar
+     200000000  200061040  200015265 sharnd.out
+    
+    The diff between github.com/golang/snappy's encodeBlock function and
+    this commit's encodeBestSpeed function:
+    
+    1c1,7
+    < func encodeBlock(dst, src []byte) (d int) {
+    ---
+    > func encodeBestSpeed(dst []token, src []byte) []token {
+    >       // This check isn't in the Snappy implementation, but there, the caller
+    >       // instead of the callee handles this case.
+    >       if len(src) < minNonLiteralBlockSize {
+    >               return emitLiteral(dst, src)
+    >       }
+    >
+    4c10
+    <       // and len(src) <= maxBlockSize and maxBlockSize == 65536.
+    ---
+    >       // and len(src) <= maxStoreBlockSize and maxStoreBlockSize == 65535.
+    65c71
+    <                       if load32(src, s) == load32(src, candidate) {
+    ---
+    >                       if s-candidate < maxOffset && load32(src, s) == load32(src, candidate) {
+    73c79
+    <               d += emitLiteral(dst[d:], src[nextEmit:s])
+    ---
+    >               dst = emitLiteral(dst, src[nextEmit:s])
+    90c96
+    <                       // This is an inlined version of:
+    ---
+    >                       // This is an inlined version of Snappy's:
+    93c99,103
+    <                       for i := candidate + 4; s < len(src) && src[i] == src[s]; i, s = i+1, s+1 {
+    ---
+    >                       s1 := base + maxMatchLength
+    >                       if s1 > len(src) {
+    >                               s1 = len(src)
+    >                       }
+    >                       for i := candidate + 4; s < s1 && src[i] == src[s]; i, s = i+1, s+1 {
+    96c106,107
+    <                       d += emitCopy(dst[d:], base-candidate, s-base)
+    ---
+    >                       // matchToken is flate's equivalent of Snappy's emitCopy.
+    >                       dst = append(dst, matchToken(uint32(s-base-3), uint32(base-candidate-minOffsetSize)))
+    114c125
+    <                       if uint32(x>>8) != load32(src, candidate) {
+    ---
+    >                       if s-candidate >= maxOffset || uint32(x>>8) != load32(src, candidate) {
+    124c135
+    <               d += emitLiteral(dst[d:], src[nextEmit:])
+    ---
+    >               dst = emitLiteral(dst, src[nextEmit:])
+    126c137
+    <       return d
+    ---
+    >       return dst
+    
+    This change is based on https://go-review.googlesource.com/#/c/21021/ by
+    Klaus Post, but it is a separate changelist as cl/21021 seems to have
+    stalled in code review, and the Go 1.7 feature freeze approaches.
+    
+    Golang-dev discussion:
+    https://groups.google.com/d/topic/golang-dev/XYgHX9p8IOk/discussion and
+    of course cl/21021.
+    
+    Change-Id: Ib662439417b3bd0b61c2977c12c658db3e44d164
+    Reviewed-on: https://go-review.googlesource.com/22370
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/sizes.go      |  2 +-
- src/go/types/sizes_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ src/compress/flate/deflate.go      |  58 ++++++++++--
+ src/compress/flate/deflate_test.go |  88 +++++++++++++++++-
+ src/compress/flate/deflatefast.go  | 180 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 317 insertions(+), 9 deletions(-)

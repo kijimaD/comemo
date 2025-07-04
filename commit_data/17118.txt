@@ -1,16 +1,18 @@
-commit 01f1e3da484f74a7229c3c1eb719403b4e8c7a1c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 9 12:53:35 2013 +0400
+commit 66e8471391faa33aced2752f4c06a9fab444542b
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Fri Aug 9 16:05:40 2013 +1000
 
-    runtime: traceback running goroutines
-    Introduce freezetheworld function that is a best-effort attempt to stop any concurrently running goroutines. Call it during crash.
-    Fixes #5873.
+    cmd/gc: make missing package error fatal
     
-    R=golang-dev, rsc
+    No longer continue assuming package main.
+    
+    Fixes #4776.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12054044
+    https://golang.org/cl/12677043
 
- src/pkg/runtime/panic.c   |  1 +
- src/pkg/runtime/proc.c    | 54 +++++++++++++++++++++++++++++++++++++++++------
- src/pkg/runtime/runtime.h |  1 +
- 3 files changed, 49 insertions(+), 7 deletions(-)
+ src/cmd/gc/go.y             |  3 +--
+ src/cmd/gc/y.tab.c          |  3 +--
+ test/fixedbugs/issue4776.go | 10 ++++++++++
+ 3 files changed, 12 insertions(+), 4 deletions(-)

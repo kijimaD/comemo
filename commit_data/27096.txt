@@ -1,17 +1,29 @@
-commit d224e98d9ac969e733f5578dce3e1831c5c84f45
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 22 18:49:59 2016 -0700
+commit 09d40378b946f363c9c351c2fdc8be30a09b238d
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Mar 10 14:25:50 2016 -0800
 
-    cmd/link: add -dumpdep flag to dump linker dependency graph
+    crypto/x509/pkix: make 'v1' the default CRL version.
     
-    This is what led to https://golang.org/cl/20763 and
-    https://golang.org/cl/20765 to shrink binary sizes.
+    PKIX versions are off-by-one, so v1 is actually a zero on the wire, v2
+    is a one, and so on.
     
-    Change-Id: Id360d474e6153cfe32a525b0a720810fd113195b
-    Reviewed-on: https://go-review.googlesource.com/22392
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    The RFC says that the version in a CRL is optional, but doesn't say what
+    the default is. Since v2 is the only accepted version, I had made the
+    default v2. However, OpenSSL considers the default to be v1. Also, if
+    the default is v2 and the element is optional then we'll never actually
+    write v2 on the wire. That's contrary to the RFC which clearly assumes
+    that v2 will be expressed on the wire in some cases.
+    
+    Therefore, this change aligns with OpenSSL and assumes that v1 is the
+    default CRL version.
+    
+    Fixes #13931
+    
+    [1] https://tools.ietf.org/html/rfc5280#section-5.1
+    
+    Change-Id: Ic0f638ebdd21981d92a99a882affebf3a77ab71a
+    Reviewed-on: https://go-review.googlesource.com/20544
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/deadcode.go | 7 +++++++
- src/cmd/link/internal/ld/lib.go      | 1 +
- src/cmd/link/internal/ld/pobj.go     | 1 +
- 3 files changed, 9 insertions(+)
+ src/crypto/x509/pkix/pkix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

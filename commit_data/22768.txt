@@ -1,24 +1,22 @@
-commit e2b6cebcd697345495bafddba000ff82fc96c0db
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 28 17:58:17 2015 -0700
+commit 6e3a2a3f9fcd476a50ec75f7dd2db7adfe12ab57
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 3 04:37:18 2015 -0400
 
-    misc/cgo/test/issue9400: fix to build with gccgo
+    cmd/internal/obj/arm64, cmd/internal/ld, cmd/7l: remove absolute addressing in .text
     
-    This doesn't test much with gccgo, but at least it builds now, and the
-    test does, unsurprisingly, pass.  A proper test would require adding
-    assembly files in GCC syntax for all platforms that gccgo supports,
-    which would be infeasible.
+    This CL introduces R_ADDRARM64, which is similar to R_ADDRPOWER.
     
-    Also added copyright headers to the asm files.
+    Fixes #10112.
     
-    Change-Id: Icea5af29d7d521a0681506ddb617a79705b76d33
-    Reviewed-on: https://go-review.googlesource.com/9417
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f1
+    Reviewed-on: https://go-review.googlesource.com/8438
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- misc/cgo/test/issue9400/asm_386.s    |  6 ++++++
- misc/cgo/test/issue9400/asm_amd64x.s |  5 +++++
- misc/cgo/test/issue9400/asm_arm.s    |  6 ++++++
- misc/cgo/test/issue9400/asm_arm64.s  |  6 ++++++
- misc/cgo/test/issue9400/asm_ppc64x.s |  5 +++++
- misc/cgo/test/issue9400/gccgo.go     | 24 ++++++++++++++++++++++++
- 6 files changed, 52 insertions(+)
+ src/cmd/7l/asm.go                  |  60 ++++
+ src/cmd/7l/obj.go                  |   3 +-
+ src/cmd/internal/ld/elf.go         | 556 +++++++++++++++++++------------------
+ src/cmd/internal/ld/link.go        |   1 +
+ src/cmd/internal/obj/arm64/asm7.go |  84 +++---
+ src/cmd/internal/obj/link.go       |   1 +
+ 6 files changed, 392 insertions(+), 313 deletions(-)

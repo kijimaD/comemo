@@ -1,67 +1,16 @@
-commit c9591d73ef7a661ffaea9495694dc737829bb088
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Apr 25 18:14:42 2020 -0700
+commit eb55a0c86438b815e244c1f00dea273b3122592a
+Author: Gabriel Rosenhouse <rosenhouse@gmail.com>
+Date:   Mon Nov 11 19:50:55 2019 +0000
 
-    cmd/compile: eliminate some array equality alg loops
+    net/http: add DialTLSContext hook to Transport
     
-    type T [3]string
+    Fixes #21526
     
-    Prior to this change, we generated this equality alg for T:
-    
-    func eqT(p, q *T) (r bool) {
-        for i := range *p {
-            if len(p[i]) == len(q[i]) {
-            } else {
-                return
-            }
-        }
-        for j := range *p {
-            if runtime.memeq(p[j].ptr, q[j].ptr, len(p[j])) {
-            } else {
-                return
-            }
-        }
-        return true
-    }
-    
-    That first loop can be profitably eliminated;
-    it's cheaper to spell out 3 length equality checks.
-    
-    We now generate:
-    
-    func eqT(p, q *T) (r bool) {
-        if len(p[0]) == len(q[0]) &&
-            len(p[1]) == len(q[1]) &&
-            len(p[2]) == len(q[2]) {
-        } else {
-            return
-        }
-        for i := 0; i < len(p); i++ {
-            if runtime.memeq(p[j].ptr, q[j].ptr, len(p[j])) {
-            } else {
-                return
-            }
-        }
-        return true
-    }
-    
-    We now also eliminate loops for small float arrays as well,
-    and for any array of size 1.
-    
-    These cutoffs were selected to minimize code size on amd64
-    at this moment, for lack of a more compelling methodology.
-    Any smallish number would do.
-    
-    The switch from range loops to plain for loops allowed me
-    to use a temp instead of a named var, which eliminated
-    a pointless argument to checkAll.
-    The code to construct them is also a bit clearer, in my opinion.
-    
-    Change-Id: I1bdd8ee4a2739d00806e66b17a4e76b46e71231a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230210
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I2f8215cd671641cddfa8499f8a8c0130db93dbc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/61291
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/alg.go | 108 ++++++++++++++++++++++++-------------
- 1 file changed, 72 insertions(+), 36 deletions(-)
+ src/net/http/transport.go      | 41 +++++++++++++++-----
+ src/net/http/transport_test.go | 85 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 117 insertions(+), 9 deletions(-)

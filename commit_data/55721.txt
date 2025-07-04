@@ -1,18 +1,31 @@
-commit 98bccd3513f2638d8373b79c829186e9d524f45f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 26 13:26:39 2024 -0800
+commit 457fd1d52d17fc8e73d4890150eadab3128de64d
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Mar 1 15:17:35 2023 -0800
 
-    go/types: added test case for Checker.CheckExpr
+    net/http: support full-duplex HTTP/1 responses
     
-    For #65898.
+    Add support for concurrently reading from an HTTP/1 request body
+    while writing the response.
     
-    Change-Id: I495e53060ac56b88a551ccd9901f25bbce97c714
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567215
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Normally, the HTTP/1 server automatically consumes any remaining
+    request body before starting to write a response, to avoid deadlocking
+    clients which attempt to write a complete request before reading the
+    response.
+    
+    Add a ResponseController.EnableFullDuplex method which disables this
+    behavior.
+    
+    For #15527
+    For #57786
+    
+    Change-Id: Ie7ee8267d8333e9b32b82b9b84d4ad28ab8edf01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472636
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/go/types/eval_test.go | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ api/next/57786.txt                      |  1 +
+ src/net/http/responsecontroller.go      | 25 +++++++++++++++++
+ src/net/http/responsecontroller_test.go | 48 +++++++++++++++++++++++++++++++++
+ src/net/http/server.go                  | 25 +++++++++++------
+ 4 files changed, 91 insertions(+), 8 deletions(-)

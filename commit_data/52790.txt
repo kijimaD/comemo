@@ -1,49 +1,23 @@
-commit 39957b5d89fec8bc3a79f4a982452c6e3d5b3ad3
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Apr 13 14:27:33 2023 -0400
+commit 8a56c7742d96c8ef8e8dcecaf3d1c0e9f022f708
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 31 17:03:29 2022 -0400
 
-    coverage: fix count vs emit discrepancy in coverage counter data writing
+    cmd/go: set GIT_TRACE_CURL for tests on builders
     
-    This patch revises the way coverage counter data writing takes place
-    to avoid problems where useful counter data (for user-written functions)
-    is skipped in favor of counter data from stdlib functions that are
-    executed "late in the game", during the counter writing process itself.
+    We have noticed a pattern of connection timeouts connecting to
+    github.com on the builders. Adding tracing may shed some light on the
+    underlying cause.
     
-    Reading counter values from a running "--coverpkg=all" program is an
-    inherently racy operation; while the the code that scans the coverage
-    counter segment is reading values, the program is still executing,
-    potentially updating those values, and updates can include execution
-    of previously un-executed functions. The existing counter data writing
-    code was using a two-pass model (initial sweep over the counter
-    segment to count live functions, second sweep to actually write data),
-    and wasn't properly accounting for the fact that the second pass could
-    see more functions than the first.
+    For #52545.
     
-    In the bug in question, the first pass discovered an initial set of
-    1240 functions, but by the time the second pass kicked in, several
-    additional new functions were also live. The second pass scanned the
-    counter segment again to write out exactly 1240 functions, but since
-    some of the counters for the newly executed functions were earlier in
-    the segment (due to linker layout quirks) than the user's selected
-    function, the sweep terminated before writing out counters for the
-    function of interest.
-    
-    The fix rewrites the counter data file encoder to make a single sweep
-    over the counter segment instead of using a two-pass scheme.
-    
-    Fixes #59563.
-    
-    Change-Id: I5e908e226bb224adb90a2fb783013e52deb341da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484535
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ic73b494be9a3ea8ce3c7631ee8f62bd3d0d8e7bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409575
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/cmd/covdata/metamerge.go                       |  11 -
- src/internal/coverage/encodecounter/encode.go      |  69 +-
- src/internal/coverage/test/counter_test.go         |   4 -
- src/runtime/coverage/emit.go                       |  46 --
- src/runtime/coverage/emitdata_test.go              |  49 ++
- src/runtime/coverage/testdata/issue59563/repro.go  | 823 +++++++++++++++++++++
- .../coverage/testdata/issue59563/repro_test.go     |  14 +
- 7 files changed, 924 insertions(+), 92 deletions(-)
+ src/cmd/go/go_test.go     | 8 ++++++++
+ src/cmd/go/script_test.go | 8 ++++++++
+ 2 files changed, 16 insertions(+)

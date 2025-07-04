@@ -1,16 +1,26 @@
-commit 5b56053371a73b2a06869bc77152766eb76e96e4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 8 14:44:44 2018 -0400
+commit 1d8fc211f99ea813e3c6517c12d7758691bf0529
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Apr 12 17:06:33 2018 -0400
 
-    cmd/go: test package patterns with multiple modules
+    cmd/trace: change span id computation for trace view use
     
-    This change replaces https://golang.org/cl/125835.
+    golang.org/cl/102697 attempted to fix the span presentation by utilizing
+    the position of the span in the span slices of a task. But it is
+    not complete either.
     
-    Updates #26317.
+    First, id=0 is omitted in json encoding and the trace viewer silently
+    drops entries with the missing id field, so we must avoid zero-value id.
+    Second, it is possible that a goroutine handles multiple tasks. Then,
+    id collisions will happen.
     
-    Change-Id: I38ae1f93e5f5c86737a4b489df498c18b179781d
-    Reviewed-on: https://go-review.googlesource.com/128637
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This takes a simpler approach - have a counter that increments for every
+    emitSpan call, and use the value as the id value.
+    
+    Change-Id: Idaa9505634acf6d327c6f00af32d8260955b85e1
+    Reviewed-on: https://go-review.googlesource.com/106755
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/testdata/script/mod_patterns.txt | 77 +++++++++++++++++++++++++++++
- 1 file changed, 77 insertions(+)
+ src/cmd/trace/trace.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

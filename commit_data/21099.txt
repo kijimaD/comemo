@@ -1,12 +1,13 @@
-commit ddef2d27fec52c271ee72911e60b07f5f62cf3cb
-Author: Guobiao Mei <meiguobiao@gmail.com>
-Date:   Sat Dec 27 18:28:07 2014 -0500
+commit f9d56543f1b3fe3b8da9dbda8892c4a9d2b8a312
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Nov 14 17:03:17 2014 +1100
 
-    net/http: use t.Fatalf rather than t.Fatal in cookie_test.go
+    C: add Nick Cooper (Google CLA).
     
-    Change-Id: I60bbb7deb7462d1ca884677b4f86bd54b20b3f35
-    Reviewed-on: https://go-review.googlesource.com/2140
-    Reviewed-by: Minux Ma <minux@golang.org>
+    LGTM=dsymonds
+    R=dsymonds
+    CC=golang-codereviews, nmvc
+    https://golang.org/cl/169580043
 
- src/net/http/cookie_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

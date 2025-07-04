@@ -1,14 +1,12 @@
-commit a42e8a80864281807384a6e5a45bebf3327a53fe
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 16 11:53:26 2012 -0800
+commit aa3d05acc9d0e9fba63a3f5375682ae9c5d696b0
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Fri Nov 16 23:09:37 2012 +1100
 
-    go/ast: FuncType.Params may be nil (per AST documentation)
+    runtime: remove extra parentheses.
     
-    ast.Walk needs to check for it or it will crash.
-    
-    R=r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6852062
+    https://golang.org/cl/6843069
 
- src/pkg/go/ast/walk.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/runtime/debug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

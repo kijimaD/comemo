@@ -1,15 +1,18 @@
-commit 5f3e7aa76ddc190b199e207f2347ffffbb06b05a
-Author: Steve Francia <spf@golang.org>
-Date:   Thu Feb 9 15:33:13 2017 -0500
+commit 3f69822a9a68c76a8562a43f226951c33ed5694a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 22:46:39 2016 -0500
 
-    doc: reorganize the contribution guidelines into a guide
+    math/rand: export Source64, mainly for documentation value
     
-    Updates #17802
+    There is some code value too: types intending to implement
+    Source64 can write a conversion confirming that.
     
-    Change-Id: I65ea0f4cde973604c04051e7eb25d12e4facecd3
-    Reviewed-on: https://go-review.googlesource.com/36626
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    For #4254 and the Go 1.8 release notes.
+    
+    Change-Id: I7fc350a84f3a963e4dab317ad228fa340dda5c66
+    Reviewed-on: https://go-review.googlesource.com/33456
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/contribute.html | 527 ++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 343 insertions(+), 184 deletions(-)
+ src/math/rand/rand.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

@@ -1,19 +1,28 @@
-commit 1243ec9c177007879958443262fe4d25099c5ede
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Jun 29 02:05:21 2022 +0700
+commit 68152359fdd45e8d51aaaec64075aad4ff8f68b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 30 20:30:25 2021 -0700
 
-    cmd/compile: only check implicit dots for method call enabled by a type bound
+    cmd/compile/internal/types2: disallow aliases for generic types
     
-    Fixes #53419
+    The existing approach (alias name stands for generic type name)
+    is an exception: it's the only place where a generic type could
+    be used without explicit instantiation. The correct solution is
+    currently under discussion (see proposal issue #46477).
     
-    Change-Id: Ibad64f5c4af2112deeb0a9ecc9c589b17594bd05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414836
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    This CL requires that the RHS of an alias type declaration be
+    an instantiated non-generic type. If #46477 is accepted, the
+    implementation will require proper representation of alias
+    types.
+    
+    Change-Id: Ie85b923213a64f39837e56e38e14757458272b93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346294
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/noder/stencil.go | 14 ++++++++------
- test/run.go                               |  1 -
- 2 files changed, 8 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/decl.go                |  2 +-
+ .../internal/types2/testdata/check/typeinst.go2        | 10 ++++++----
+ .../internal/types2/testdata/fixedbugs/issue39768.go2  |  6 +++---
+ .../internal/types2/testdata/fixedbugs/issue47968.go2  |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go             | 18 ++++++------------
+ test/typeparam/aliasimp.dir/main.go                    | 13 ++++++++-----
+ 6 files changed, 25 insertions(+), 26 deletions(-)

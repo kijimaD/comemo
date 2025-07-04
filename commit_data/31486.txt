@@ -1,12 +1,27 @@
-commit e9635103307aef265c05df2a07c06c0229dcb0f6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 4 02:39:56 2017 +0000
+commit d9270ecb3ad35079df62ad85b3a5e52e46e4a1c0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 22 21:19:29 2017 -0800
 
-    spec: remove an unnecessary semicolon from code example
+    cmd/compile: evaluate zero-sized values converted to interfaces
     
-    Change-Id: Ie4c92da0e3cbb97d3d7e03c7d15196c34f58a2cd
-    Reviewed-on: https://go-review.googlesource.com/42613
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    CL 35562 substituted zerobase for the pointer for
+    interfaces containing zero-sized values.
+    However, it failed to evaluate the zero-sized value
+    expression for side-effects. Fix that.
+    
+    The other similar interface value optimizations
+    are not affected, because they all actually use the
+    value one way or another.
+    
+    Fixes #19246
+    
+    Change-Id: I1168a99561477c63c29751d5cd04cf81b5ea509d
+    Reviewed-on: https://go-review.googlesource.com/37395
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/walk.go |  1 +
+ test/fixedbugs/issue19246.go        | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

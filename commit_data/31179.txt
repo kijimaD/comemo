@@ -1,21 +1,25 @@
-commit 7b5e0b76886058cb7ce14658f1cf9be446fd8d05
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Apr 18 05:05:25 2017 +0900
+commit 6bc9844b63efaa5e29e3c93c1d27477b1663db09
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 13:24:01 2017 -0500
 
-    syscall: add Accept4 and SOCK_{CLOEXEC,NONBLOCK} on dragonfly
+    cmd/go: split out cmd/go/internal/env
     
-    This change just picks a few constants from DragonfFly BSD 4.6 kernel
-    and doesn't synchronize all the existing constants with the latest
-    DragonFly BSD kernels.
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
     
-    Updates #14222.
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
     
-    Change-Id: Ie107a8bee1a09393b3b42b6f82489532f5d13290
-    Reviewed-on: https://go-review.googlesource.com/40894
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: I28b20d53d20dff06eede574eb5c20359db0d3991
+    Reviewed-on: https://go-review.googlesource.com/36200
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/syscall/syscall_dragonfly.go        | 19 +++++++++++++++++++
- src/syscall/zerrors_dragonfly_amd64.go  |  2 ++
- src/syscall/zsyscall_dragonfly_amd64.go | 11 +++++++++++
- src/syscall/zsysnum_dragonfly_amd64.go  |  1 +
- 4 files changed, 33 insertions(+)
+ src/cmd/go/bug.go                    |  3 ++-
+ src/cmd/go/{ => internal/env}/env.go | 12 ++++++------
+ src/cmd/go/main.go                   |  5 +++--
+ 3 files changed, 11 insertions(+), 9 deletions(-)

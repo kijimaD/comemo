@@ -1,17 +1,14 @@
-commit 1aa571d38b88142ec604ba20c2f9de611ff6413d
+commit 502589e0304d2a196bbb2ff373ca2d82cd614df5
 Author: Adam Langley <agl@golang.org>
-Date:   Wed Jul 6 16:25:44 2011 -0400
+Date:   Wed Jul 6 16:22:21 2011 -0400
 
-    asn1: support T61 and UTF8 string.
+    crypto/tls: fix generate_cert.go
     
-    There is no end to the kitchen sink of string types in ASN.1.
-    
-    Fixes #1953.
+    Fixes #2030.
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4672045
+    https://golang.org/cl/4635092
 
- src/pkg/asn1/asn1.go   | 45 +++++++++++++++++++++++++++------------------
- src/pkg/asn1/common.go |  1 +
- 2 files changed, 28 insertions(+), 18 deletions(-)
+ src/pkg/crypto/tls/generate_cert.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

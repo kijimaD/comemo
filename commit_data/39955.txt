@@ -1,25 +1,18 @@
-commit a11644a26557ea436d456f005f39f4e01902bafe
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 18 16:59:17 2019 -0400
+commit ead895688def46f4c74c2a4c7ee560fc46663000
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 4 12:46:50 2019 -0400
 
-    cmd/go/internal/modload: do not prune the module root when walking directories
+    math/big: do not panic in Exp when y < 0 and x doesn't have an inverse
     
-    When walking filesystem paths to locate packages, we normally prune
-    out subdirectories with names beginning with ".", "_", or equal to
-    "testdata". However, we should not prune out such a directory if it is
-    at or above the module root, since its name is not part of the package
-    path.
+    If x does not have an inverse modulo m, and a negative exponent is used,
+    return nil just like ModInverse does now.
     
-    Fixes #28481
-    Updates #27852
-    
-    Change-Id: Ice82b1f908afaab50f5592f6c38ca6a0fe911edf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196297
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I8fa72f7a851e8cf77c5fab529ede88408740626f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170757
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modload/search.go              | 22 ++++++-----
- src/cmd/go/testdata/script/mod_in_testdata_dir.txt | 45 ++++++++++++++++++++++
- 2 files changed, 58 insertions(+), 9 deletions(-)
+ src/math/big/int.go      |  9 +++++++--
+ src/math/big/int_test.go | 18 +++++++++++++-----
+ 2 files changed, 20 insertions(+), 7 deletions(-)

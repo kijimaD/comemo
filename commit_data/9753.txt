@@ -1,21 +1,17 @@
-commit fd3978552ba514bff23ebadac6a75066c36f651d
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Sep 20 12:21:50 2011 -0400
+commit 3a013f117566fa58300a6f1c8f6e5d0b481315ec
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Mon Sep 19 20:52:14 2011 -0700
 
-    exp/ssh: refactor halfConnection to transport
-            This CL generalises the pair of halfConnection members that the
-            serverConn holds into a single transport struct that is shared by
-            both Server and Client, see also CL 5037047.
+    exp/template/html: change transition functions to return indices
     
-            This CL is a replacement for 5040046 which I closed by accident.
+    Formulaic changes to transition functions in preparation for CL 5074041.
+    This should be completely semantics preserving.
     
-    R=agl, bradfitz
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5075042
+    https://golang.org/cl/5091041
 
- src/pkg/exp/ssh/channel.go        |  14 +--
- src/pkg/exp/ssh/common.go         |   2 +-
- src/pkg/exp/ssh/server.go         |  79 ++++++-------
- src/pkg/exp/ssh/transport.go      | 232 ++++++++++++++++++++------------------
- src/pkg/exp/ssh/transport_test.go |  37 ++++++
- 5 files changed, 209 insertions(+), 155 deletions(-)
+ src/pkg/exp/template/html/escape.go     |  29 ++--
+ src/pkg/exp/template/html/html.go       |  29 ++--
+ src/pkg/exp/template/html/transition.go | 232 ++++++++++++++++----------------
+ 3 files changed, 147 insertions(+), 143 deletions(-)

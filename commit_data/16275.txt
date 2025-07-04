@@ -1,8 +1,20 @@
-commit a155a5a68fdfb809016295a27444be9bf7441782
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon May 6 17:34:17 2013 -0700
+commit f322c786923ebef0c012ff65df8bab767f0d1ace
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon May 6 16:15:03 2013 -0700
 
-    tag go1.1rc2
+    runtime: fix crash in badsignal()
+    The linker can generate split stack prolog when a textflag 7 function
+    makes an indirect function call.  If it happens, badsignal() crashes
+    trying to dereference g.
+    Fixes #5337.
+    
+    R=bradfitz, dave, adg, iant, r, minux.ma
+    CC=adonovan, golang-dev
+    https://golang.org/cl/9226043
 
- .hgtags | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/os_darwin.c  | 9 ++++++---
+ src/pkg/runtime/os_freebsd.c | 9 ++++++---
+ src/pkg/runtime/os_linux.c   | 9 ++++++---
+ src/pkg/runtime/os_netbsd.c  | 9 ++++++---
+ src/pkg/runtime/os_openbsd.c | 9 ++++++---
+ 5 files changed, 30 insertions(+), 15 deletions(-)

@@ -1,22 +1,32 @@
-commit a85afef27726b5870e02e50f8e210e0f16f89981
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Mar 11 03:51:06 2019 +0000
+commit 6994731ec2babb6a4f2bbbb08dbe649767a25942
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Aug 27 17:15:39 2018 -0400
 
-    cmd/compile: add handling for new floating-point comparisons flags
+    internal/bytealg: improve asm for memequal on ppc64x
     
-    The CL 164718 adds new condition flags for floating-point comparisons
-    in arm64 backend, but dose not add the handling in rewrite.go for
-    corresponding Ops, which causes issue 30679. And this CL fixes this
-    issue.
+    This includes two changes to the memequal function.
     
-    Fixes #30679
+    Previously the asm implementation on ppc64x for Equal called the internal
+    function memequal using a BL, whereas the other asm implementations for
+    bytes functions on ppc64x used BR. The BR is preferred because the BL
+    causes the calling function to stack a frame. This changes Equal so it
+    uses BR and is consistent with the others.
     
-    Change-Id: I8acc749f78227c3e9e74fa7938f05fb442fb62c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166579
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This also uses vsx instructions where possible to improve performance
+    of the compares for sizes over 32.
+    
+    Here are results from the sizes affected:
+    
+    Equal/32             8.40ns ± 0%     7.66ns ± 0%    -8.81%  (p=0.029 n=4+4)
+    Equal/4K              193ns ± 0%      144ns ± 0%   -25.39%  (p=0.029 n=4+4)
+    Equal/4M              346µs ± 0%      277µs ± 0%   -20.08%  (p=0.029 n=4+4)
+    Equal/64M            7.66ms ± 1%     7.27ms ± 0%    -5.10%  (p=0.029 n=4+4)
+    
+    Change-Id: Ib6ee2cdc3e5d146e2705e3338858b8e965d25420
+    Reviewed-on: https://go-review.googlesource.com/c/143060
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/rewrite.go | 16 ++++++++++++++++
- test/fixedbugs/issue30679.go            | 18 ++++++++++++++++++
- 2 files changed, 34 insertions(+)
+ src/internal/bytealg/equal_ppc64x.s | 64 +++++++++++++++----------------------
+ 1 file changed, 26 insertions(+), 38 deletions(-)

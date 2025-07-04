@@ -1,13 +1,14 @@
-commit db3474f1bb17e8443c7c4369a79d65242db08a14
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Aug 29 13:24:53 2012 +1000
+commit d199c34cf0b9c536ffd0167159fa50be2261935c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 28 15:33:05 2012 -0700
 
-    A+C: add Patrick Crosby (individual contributor)
+    test/bench/shootout: pidigits is much faster
+    Also fix a bug in the script (s/runonly/run/)
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6489049
+    https://golang.org/cl/6501051
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ test/bench/shootout/timing.log | 6 ++++++
+ test/bench/shootout/timing.sh  | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

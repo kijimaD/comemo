@@ -1,22 +1,20 @@
-commit 0d5fc4e1f01f320d9ce8fd14393241ac09cde791
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Jul 23 18:03:24 2024 -0400
+commit c2e0bf0abf8d0b22803521dfc2194dc56741e0dd
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 31 12:32:29 2023 -0400
 
-    cmd/go: fix TestNewReleaseRebuildsStalePackagesInGOPATH for runtime move
+    cmd/internal/testdir: pass if GOEXPERIMENT=cgocheck2 is set
     
-    CL 600436 moved runtime/internal/sys to internal/runtime/sys and updated
-    TestNewReleaseRebuildsStalePackagesInGOPATH in part accordingly. This is
-    the other part that's needed for it to pass.
+    Some testdir tests fail if GOEXPERIMENT=cgocheck2 is set. Fix this by
+    skipping these tests.
     
-    For #65355.
-    
-    Change-Id: I26cff96c15caf185a4ee2c8fb31ec6c877ab87e2
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600595
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I58d4ef0cceb86bcf93220b4a44de9b9dc4879b16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499675
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/go_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ test/codegen/structs.go      | 3 +++
+ test/fixedbugs/issue15747.go | 3 +++
+ test/fixedbugs/issue20250.go | 5 ++++-
+ 3 files changed, 10 insertions(+), 1 deletion(-)

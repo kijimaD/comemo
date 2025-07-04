@@ -1,31 +1,30 @@
-commit 1ed85ee228023d766b37db056311929c00091c9f
-Author: Joe Taber <infogulch@gmail.com>
-Date:   Mon Mar 18 05:52:30 2024 +0000
+commit dead7887b1a1a06aad8c80592045375401e4aeda
+Author: Matthieu Baerts <matthieu.baerts@tessares.net>
+Date:   Fri Feb 24 17:51:59 2023 +0100
 
-    text/template: simplify unwrapping reflect.Interface value
+    net: mptcp: fallback to TCP in case of any error
     
-    When text/template is evaluating a pipeline command and encounters an
-    `interface{}`, it "digs down one level to the thing inside". Currently it
-    does this with `value = reflect.ValueOf(value.Interface())`, which is
-    unnecessary since it could just use `value = value.Elem()`. This commit
-    changes it to use the latter.
+    Specific MPTCP errors could happen but only one is detectable: if
+    ENOPROTOOPT errno is returned, it likely means MPTCP has been disable
+    via this sysctl knob: net.mptcp.enabled.
     
-    Why it was written that way is mysterious because the proposed change
-    appears to be strictly better, but given the blame date (13 years ago)
-    it may have been written while reflect was still in development before
-    `Elem()` was added.
+    But because MPTCP could be blocked by the administrator using different
+    techniques (SELinux, etc.) making the socket creation returning other
+    errors, it looks better to always retry to create a "plain" TCP socket
+    when any errors are returned.
     
-    Change-Id: I6c4f6283e78de07732c4120ce11f26f113fa46e4
-    GitHub-Last-Rev: bdfc6973ab227f951f244fda4d803da55fb49e71
-    GitHub-Pull-Request: golang/go#66373
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572355
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    This work has been co-developed by Gregory Detal
+    <gregory.detal@tessares.net>.
+    
+    Updates #56539
+    
+    Change-Id: I94fb8448dae351e1d3135b4f182570979c6b36d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471138
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/text/template/exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/mptcpsock_linux.go | 30 ++++++++++++++++++++++--------
+ 1 file changed, 22 insertions(+), 8 deletions(-)

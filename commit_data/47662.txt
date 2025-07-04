@@ -1,35 +1,19 @@
-commit d34051bf16d86a88e6c5764aa076219069702045
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Dec 1 10:53:17 2021 -0800
+commit e617b2b0dd14faddad82599f31f64bce3ff2ca2f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 2 21:48:00 2021 -0400
 
-    cmd/compile: fix case where g.curDecl should be saved/restored
+    cmd/compile: add a debug flag to enable/disable open-coded defers
     
-    When we set g.curDecl for the type params created during fillinMethods
-    for an instantiated type, we need to save/restore its value, because
-    fillinMethods() may be called while processing a typeDecl. We want the
-    value of g.curDecl to continue to be correct for type params created in
-    the typeDecl. Because of ordering issues, not restoring g.curDecl
-    happens to cause problems (which don't always show up visibly) exactly
-    when a type param is not actually used in a type declaration.
+    For debugging.
     
-    Cleared g.curDecl to "" at the later points in typeDecl() and
-    funcDecl(). This allows adding asserts that g.curDecl is always empty
-    ("") when we set it in typeDecl() and funcDecl(), and always non-empty
-    when we use it in typ0().
-    
-    Fixes #49893
-    
-    Change-Id: Ic2fb1df791585bd257f2b86ffaae0453c31705c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368454
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I831947376569cd2285b713ad304329951adf60ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307230
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/noder/decl.go  |  6 ++++++
- src/cmd/compile/internal/noder/types.go |  7 ++++++-
- test/typeparam/issue49893.dir/a.go      | 15 +++++++++++++++
- test/typeparam/issue49893.dir/b.go      | 15 +++++++++++++++
- test/typeparam/issue49893.dir/main.go   | 15 +++++++++++++++
- test/typeparam/issue49893.go            |  7 +++++++
- 6 files changed, 64 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/base/debug.go | 1 +
+ src/cmd/compile/internal/ssagen/ssa.go | 2 ++
+ 2 files changed, 3 insertions(+)

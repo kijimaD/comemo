@@ -1,23 +1,48 @@
-commit 3711ea0b5d1bc381bda02ec3fe16369ed997eda6
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 16 17:29:38 2021 -0400
+commit 7c58ef732efd9bf0d0882bb95371ce1909924a75
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Sep 14 16:55:34 2020 +0200
 
-    cmd/compile: do not clobber arguments for reflect.callReflect and callMethod's ABI wrappers
+    runtime: implement GODEBUG=inittrace=1 support
     
-    reflect.callReflect and reflect.callMethod are called from special
-    functions makeFuncStub and methodValueCall. The runtime expects
-    that it can find the first argument (ctxt) at 0(SP) in
-    makeFuncStub and methodValueCall's frame. Normally callReflect and
-    callMethod already do not modify the argument, and keep it alive.
-    But the compiler-generated ABI wrappers don't do that. Special
-    case the wrappers to not clobber its arguments.
+    Setting inittrace=1 causes the runtime to emit a single line to standard error for
+    each package with init work, summarizing the execution time and memory allocation.
     
-    Change-Id: I1769f49b81c38eabe452d561001c418352814d86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310889
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    The emitted debug information for init functions can be used to find bottlenecks
+    or regressions in Go startup performance.
+    
+    Packages with no init function work (user defined or compiler generated) are omitted.
+    
+    Tracing plugin inits is not supported as they can execute concurrently. This would
+    make the implementation of tracing more complex while adding support for a very rare
+    use case. Plugin inits can be traced separately by testing a main package importing
+    the plugins package imports explicitly.
+    
+    $ GODEBUG=inittrace=1 go test
+    init internal/bytealg @0.008 ms, 0 ms clock, 0 bytes, 0 allocs
+    init runtime @0.059 ms, 0.026 ms clock, 0 bytes, 0 allocs
+    init math @0.19 ms, 0.001 ms clock, 0 bytes, 0 allocs
+    init errors @0.22 ms, 0.004 ms clock, 0 bytes, 0 allocs
+    init strconv @0.24 ms, 0.002 ms clock, 32 bytes, 2 allocs
+    init sync @0.28 ms, 0.003 ms clock, 16 bytes, 1 allocs
+    init unicode @0.44 ms, 0.11 ms clock, 23328 bytes, 24 allocs
+    ...
+    
+    Inspired by stapelberg@google.com who instrumented doInit
+    in a prototype to measure init times with GDB.
+    
+    Fixes #41378
+    
+    Change-Id: Ic37c6a0cfc95488de9e737f5e346b8dbb39174e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254659
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/liveness/plive.go | 23 +++++++++++++++++++----
- 1 file changed, 19 insertions(+), 4 deletions(-)
+ doc/diagnostics.html    |  2 ++
+ src/runtime/extern.go   | 13 ++++++++++
+ src/runtime/malloc.go   | 56 ++++++++++++++++++++++++---------------
+ src/runtime/proc.go     | 69 ++++++++++++++++++++++++++++++++++++++++++++-----
+ src/runtime/runtime1.go | 13 ++++++++--
+ src/runtime/symtab.go   | 16 ++++++++++++
+ 6 files changed, 140 insertions(+), 29 deletions(-)

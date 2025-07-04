@@ -1,33 +1,28 @@
-commit 8ef6d6a8f24354ef167f9dca54ab64e1ea6579f0
-Author: Sven Taute <sven.taute@gmail.com>
-Date:   Mon Sep 9 21:56:46 2019 +0000
+commit 39a51a4b0d698491baaa252e21be2a51516379ea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 25 17:39:11 2019 +0000
 
-    encoding/base32: increase performance and code reuse
+    sort, internal/reflectlite: flesh out reflectlite enough for use by sort
     
-    Add benchmarks for the Encode/Decode functions operating on []byte and increase decoding performance by removing the calls to strings.Map/bytes.Map and reusing the newline filtering code that is used by NewDecoder.
-    Cut allocations in half for DecodeString.
+    Now the net package is back to no longer depending on unicode. And lock that in
+    with a test.
     
-    Comparison using the new benchmarks:
-    name            old time/op    new time/op     delta
-    Encode            16.7µs ± 1%     17.0µs ± 2%    +2.25%  (p=0.000 n=9+9)
-    EncodeToString    21.1µs ± 1%     20.9µs ± 1%    -0.96%  (p=0.000 n=10+10)
-    Decode             141µs ± 1%       54µs ± 1%   -61.51%  (p=0.000 n=10+10)
-    DecodeString      81.4µs ± 0%     54.7µs ± 1%   -32.79%  (p=0.000 n=9+10)
+    Fixes #30440
     
-    name            old speed      new speed       delta
-    Encode           492MB/s ± 1%    481MB/s ± 2%    -2.19%  (p=0.000 n=9+9)
-    EncodeToString   389MB/s ± 1%    392MB/s ± 1%    +0.97%  (p=0.000 n=10+10)
-    Decode          93.0MB/s ± 1%  241.6MB/s ± 1%  +159.82%  (p=0.000 n=10+10)
-    DecodeString     161MB/s ± 0%    240MB/s ± 1%   +48.78%  (p=0.000 n=9+10)
-    
-    Change-Id: Id53633514a9e14ecd0389d52114b2b8ca64370cb
-    GitHub-Last-Rev: f4be3cf55caf5b89d76d14b7f32422faff39e3c3
-    GitHub-Pull-Request: golang/go#30376
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/163598
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I18b89b02f7d96488783adc07308da990f505affd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169137
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/base32/base32.go      | 47 +++++++++++++++++++-------------------
- src/encoding/base32/base32_test.go | 18 +++++++++++++++
- 2 files changed, 41 insertions(+), 24 deletions(-)
+ src/cmd/go/go_test.go               |  2 +-
+ src/cmd/go/internal/load/pkg.go     |  7 ++++
+ src/go/build/deps_test.go           | 10 ++++-
+ src/internal/reflectlite/swapper.go | 74 +++++++++++++++++++++++++++++++++++++
+ src/internal/reflectlite/type.go    |  8 ++++
+ src/internal/reflectlite/value.go   | 51 +++++++++++++++++++++++++
+ src/runtime/chan.go                 |  8 ++++
+ src/runtime/map.go                  | 12 ++++++
+ src/sort/slice.go                   | 16 ++++----
+ src/sort/slice_pre113.go            | 46 +++++++++++++++++++++++
+ 10 files changed, 224 insertions(+), 10 deletions(-)

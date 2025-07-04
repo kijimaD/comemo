@@ -1,25 +1,19 @@
-commit 85de30e72f62c41f21eb1eb2c8ad4a05a163c9c1
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Aug 20 17:53:41 2015 +0200
+commit e8f2eb43492df599efd65a2e01e9e8618fe46632
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 13:50:30 2015 -0400
 
-    cmd/compile: allow huge rsh in constants arithmetic
+    cmd/compile: allow linker to drop string headers when not needed
     
-    Currently an expression like
+    Compiling a simple file containing a slice of 100,000 strings,
+    the size of the resulting binary dropped from 5,896,224 bytes
+    to 3,495,968 bytes, which is the expected 2,400,000 bytes,
+    give or take.
     
-    var v = 0 >> 1000
+    Fixes #7384.
     
-    is rejected by gc with a "stupid shift" error, while gotype
-    compiles it successfully.
-    
-    As suggested by gri on the issue tracker, allow an rsh right
-    operand to be any valid uint value.
-    
-    Fixes #11328
-    
-    Change-Id: I6ccb3b7f842338d91fd26ae37dd4fa279d7fc440
-    Reviewed-on: https://go-review.googlesource.com/13777
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I3e551b5a1395b523a41b33518d81a1bf28da0906
+    Reviewed-on: https://go-review.googlesource.com/11698
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/mparith2.go | 2 +-
- test/const.go                           | 5 +++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/obj.go | 52 ++++++++++++++++++++++----------------
+ 1 file changed, 30 insertions(+), 22 deletions(-)

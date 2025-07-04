@@ -1,23 +1,21 @@
-commit 3ca57c7fb8bfc9b8b633f71a7aaa9de5fe76f63d
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Nov 29 17:39:19 2021 -0500
+commit 971c7154b04d8dd00da932a26ecb6bb8d8fc133d
+Author: Drew Richardson <drewrichardson@gmail.com>
+Date:   Thu Apr 1 17:05:24 2021 -0700
 
-    go/types, types2: handle case of no specific target types in conversion
+    io/fs: implement subFS.Sub
     
-    Avoid a panic by handling the case of no specific target type in a type
-    parameter to type parameter conversions.
+    Calling fs.Sub with the result of fs.Sub multiple times creates a deep
+    call stack for Open and other methods. Enhance the fs.FS returned by
+    fs.Sub to implement fs.SubFS and reduce the call stack.
     
-    Fixes #49864
+    Fixes #45349
     
-    Change-Id: I117dd80cc9d47c8c1e168f1caf0f281726270c84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367616
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I10e10501e030176e10e2ae5ad260212e5c784bed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306769
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/types2/conversions.go                   | 3 +++
- .../compile/internal/types2/testdata/fixedbugs/issue49864.go2    | 9 +++++++++
- src/go/types/conversions.go                                      | 3 +++
- src/go/types/testdata/fixedbugs/issue49864.go2                   | 9 +++++++++
- 4 files changed, 24 insertions(+)
+ src/io/fs/sub.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

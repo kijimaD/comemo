@@ -1,33 +1,13 @@
-commit 73b7afbebd4bc18084a334fa40ff957f1607e080
+commit ff0240da6db6bd7cb5f87b3b8bde965cf5dd22d5
 Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 17 14:34:48 2011 +1000
+Date:   Wed Aug 17 13:57:06 2011 +1000
 
-    template: delete old template code.
-    It's already in old/template; make that build.
-    Update a couple of references to point to the old template.
-    They can be updated later.
-    Update goplay to use exp/template.
+    misc: fix a couple of template uses preparatory to the big switch.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4902046
+    https://golang.org/cl/4876057
 
- doc/codelab/wiki/final-noclosure.go |   2 +-
- doc/codelab/wiki/final-noerror.go   |   2 +-
- doc/codelab/wiki/final.go           |   2 +-
- doc/codelab/wiki/htmlify.go         |   2 +-
- doc/codelab/wiki/index.html         |  14 +-
- doc/codelab/wiki/srcextract.go      |   2 +-
- doc/codelab/wiki/wiki.html          |  14 +-
- doc/effective_go.html               |   2 +-
- misc/goplay/goplay.go               |  18 +-
- src/pkg/Makefile                    |   2 +-
- src/pkg/old/template/Makefile       |   4 +-
- src/pkg/template/Makefile           |  14 -
- src/pkg/template/doc.go             |  91 ----
- src/pkg/template/execute.go         | 346 ----------------
- src/pkg/template/format.go          |  77 ----
- src/pkg/template/parse.go           | 743 ---------------------------------
- src/pkg/template/template_test.go   | 804 ------------------------------------
- test/chan/select5.go                |  11 +-
- 18 files changed, 35 insertions(+), 2115 deletions(-)
+ doc/tmpltohtml.go         | 2 +-
+ src/pkg/go/doc/comment.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,64 +1,21 @@
-commit 78e6f2a1c87df4d588b11b51da63a974ade0ca79
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jan 24 13:34:26 2025 -0500
+commit a9722bf9184d087c538855fb15f5a5d9a48a5819
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Nov 17 13:52:01 2023 +0000
 
-    runtime: rename mapiterinit and mapiternext
+    net: document IsNotFound field
     
-    mapiterinit allows external linkname. These users must allocate their
-    own iter struct for initialization by mapiterinit. Since the type is
-    unexported, they also must define the struct themselves. As a result,
-    they of course define the struct matching the old hiter definition (in
-    map_noswiss.go).
+    After CL 534937, the IsNotFound field is set to true on
+    nodata and NXDOMAIN conditions consistently across systems
+    and all lookup methods.
     
-    The old definition is smaller on 32-bit platforms. On those platforms,
-    mapiternext will clobber memory outside of the caller's allocation.
-    
-    On all platforms, the pointer layout between the old hiter and new
-    maps.Iter does not match. Thus the GC may miss pointers and free
-    reachable objects early, or it may see non-pointers that look like heap
-    pointers and throw due to invalid references to free objects.
-    
-    To avoid these issues, we must keep mapiterinit and mapiternext with the
-    old hiter definition. The most straightforward way to do this is to use
-    mapiterinit and mapiternext as a compatibility layer between the old and
-    new iter types.
-    
-    The first step to that is to move normal map use off of these functions,
-    which is what this CL does.
-    
-    Introduce new mapIterStart and mapIterNext functions that replace the
-    former functions everywhere in the toolchain. These have the same
-    behavior as the old functions.
-    
-    This CL temporarily makes the old functions throw to ensure we don't
-    have hidden dependencies on them. We cannot remove them entirely because
-    GOEXPERIMENT=noswissmap still uses the old names, and internal/goobj
-    requires all builtins to exist regardless of GOEXPERIMENT. The next CL
-    will introduce the compatibility layer.
-    
-    I want to avoid using linkname between runtime and reflect, as that
-    would also allow external linknames. So mapIterStart and mapIterNext are
-    duplicated in reflect, which can be done trivially, as it imports
-    internal/runtime/maps.
-    
-    For #71408.
-    
-    Change-Id: I6a6a636c6d4bd1392618c67ca648d3f061afe669
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643898
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I419d1c818f17e915cee4959c3a9ac92c2e4bb92c
+    GitHub-Last-Rev: 59c537fc0626bfa959f43f9e9958f7af0e54ca55
+    GitHub-Pull-Request: golang/go#63654
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536775
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- .../compile/internal/typecheck/_builtin/runtime.go |  6 ++-
- src/cmd/compile/internal/typecheck/builtin.go      |  2 +
- src/cmd/compile/internal/walk/range.go             |  9 +++-
- src/cmd/internal/goobj/builtinlist.go              |  2 +
- src/reflect/map_noswiss.go                         |  8 +++
- src/reflect/map_swiss.go                           | 51 +++++++++++++++----
- src/reflect/value.go                               |  6 ---
- src/runtime/map_swiss.go                           | 58 ++++++++++++++--------
- test/codegen/maps.go                               | 12 ++---
- test/live.go                                       |  6 +--
- test/live_regabi.go                                |  6 +--
- 11 files changed, 115 insertions(+), 51 deletions(-)
+ src/net/net.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

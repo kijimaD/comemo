@@ -1,22 +1,16 @@
-commit 98047376fbecedd42711c5d35ef62899dc249025
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Mar 20 21:12:38 2016 +1100
+commit e93410d3e51064e3ec119c9ec47766f8467a3a4c
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Feb 5 19:24:53 2016 +0300
 
-    path/filepath: use fsutil with TestEvalSymlinksCanonicalNames
+    [dev.ssa] cmd/compile: use INC/DEC instead of add when we can
     
-    TestEvalSymlinksCanonicalNames fails on system where 8dot3 name creation
-    is disabled. Add new test that temporarily changes 8dot3 name creation
-    file system setting and runs TestEvalSymlinksCanonicalNames under that
-    setting. New test requires administrator access and modifies important
-    file system setting, so don't run the test unless explicitly requested
-    by specifying new test flag.
+    INC/DEC produces slightly faster and smaller code.
     
-    Updates #13980
-    
-    Change-Id: I598b5b956e6bd0ed556e79d350cb244808c89c0b
-    Reviewed-on: https://go-review.googlesource.com/20863
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I329d9bdb01b90041be45e053d9df640818bf0c2d
+    Reviewed-on: https://go-review.googlesource.com/19238
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/path/filepath/path_windows_test.go | 105 +++++++++++++++++++++++++++++++++
- 1 file changed, 105 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 125 +++++++++++++++++++++++++++++++++----
+ 1 file changed, 114 insertions(+), 11 deletions(-)

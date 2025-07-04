@@ -1,20 +1,21 @@
-commit 6c8d5125d3fb170744b3c6813c977130bcb83622
-Author: griesemer <gri@golang.org>
-Date:   Mon Sep 18 11:49:47 2017 +0200
+commit dd61aa55e8f4d91fdcc098e64fa26854c860ff0d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Apr 21 19:18:36 2017 +0900
 
-    go/types, constant: remove superfluous import comment
+    cmd/cgo: support indirect macro expansion for string
     
-    The comment was a left-over from the long-past move
-    of these two packages from x/tools to the std lib.
+    Current code cannot handle string #define macros if those macros are
+    defined via other macros. This CL solve the issue.
     
-    Fixes #21791.
+    Updates #18720
     
-    Change-Id: I65cbebf479e609be0204b58edb6506c6403aec9b
-    Reviewed-on: https://go-review.googlesource.com/64250
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ibed0773d10db3d545bb246b97e81c0d19e3af3d5
+    Reviewed-on: https://go-review.googlesource.com/41312
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/go/constant/value.go | 2 +-
- src/go/types/api.go      | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/test/cgo_test.go   |   1 +
+ misc/cgo/test/issue18720.go |  19 ++++++
+ src/cmd/cgo/gcc.go          | 159 ++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 174 insertions(+), 5 deletions(-)

@@ -1,16 +1,25 @@
-commit 61049394326c9c7424747801c136312ab72d0e07
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 19 10:56:59 2018 -0800
+commit 0744c21b98e916470c97ff5816630398cf3213c8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 25 14:58:13 2017 -0400
 
-    runtime: pass dummy argc/argv correctly in r0_386_android_lib
+    runtime: make runtime.GC() trigger GC even if GOGC=off
     
-    Fix breakage introduced in CL 70530.
+    Currently, the priority of checks in (gcTrigger).test() puts the
+    gcpercent<0 test above gcTriggerCycle, which is used for runtime.GC().
+    This is an unintentional change from 1.8 and before, where
+    runtime.GC() triggered a GC even if GOGC=off.
     
-    Change-Id: I87f3da6b20554d4f405a1143b0d894c5953b63aa
-    Reviewed-on: https://go-review.googlesource.com/88516
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fix this by rearranging the priority so the gcTriggerCycle test
+    executes even if gcpercent < 0.
+    
+    Fixes #22023.
+    
+    Change-Id: I109328d7b643b6824eb9d79061a9e775f0149575
+    Reviewed-on: https://go-review.googlesource.com/65994
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/rt0_android_386.s | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/gc_test.go | 16 ++++++++++++++++
+ src/runtime/mgc.go     |  5 ++++-
+ 2 files changed, 20 insertions(+), 1 deletion(-)

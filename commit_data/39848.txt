@@ -1,18 +1,18 @@
-commit cf630586ca5901f4aa7817a536209f2366f9c944
-Author: andig <cpuidle@gmx.de>
-Date:   Mon Sep 9 18:47:43 2019 +0000
+commit b7b7b4d6d4304758c15de940c36ab7d063249ef2
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Mon Mar 25 20:29:18 2019 -0700
 
-    encoding/json: don't reset before returning buffer to pool
+    reflect: initialize ptrdata earlier in StructOf
     
-    Reset is already performed when retrieving from pool
+    It needs to be set before addTypeBits is called.
     
-    Change-Id: Ia810dd18d3e55a1565a5ad435a00d1e46724576c
-    GitHub-Last-Rev: d9df74a4aeb86e5d292c9fc33568a3c9a64a967d
-    GitHub-Pull-Request: golang/go#34195
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194338
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #31043
+    
+    Change-Id: I692b4047dc17bd68202d45da41dd55d432383e59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169318
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/encode.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

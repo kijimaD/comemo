@@ -1,19 +1,16 @@
-commit 0aac9bb82d9cbc34fa723fc653c6659ed48da772
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 28 17:23:32 2015 -0500
+commit b8fcae02b076cdef0bbef5bce5de090409858fba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 3 15:13:26 2015 -0800
 
-    build: give windows builders extra time for tests
+    math/big: fix %b format so it matches strconf %b format for non-zero values
     
-    In the tests, the runtime test fails after 2 minutes.
-    On an unloaded VM it only takes 45 seconds.
-    I think the difference is all the other build work going on
-    simultaneously with the running of the runtime test.
+    (For zero values the strconv %b format prints the bias-adjusted exponent;
+    there's no bias in Float.)
     
-    Change-Id: I41e95d2e4daea44ceaa8505f81aa7b5bcfa9ec77
-    Reviewed-on: https://go-review.googlesource.com/6364
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I6f4dda9c3a50d02eac375cfe2c927c1540aae865
+    Reviewed-on: https://go-review.googlesource.com/3841
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/run.bat | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/math/big/floatconv.go      |  12 ++---
+ src/math/big/floatconv_test.go | 106 ++++++++++++++++++++++-------------------
+ 2 files changed, 61 insertions(+), 57 deletions(-)

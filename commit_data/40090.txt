@@ -1,33 +1,18 @@
-commit c1635ad8f0bb9fbe5bfbf0a633c78a03930758c4
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Sep 30 09:44:37 2019 -0400
+commit 7cdacf558fde27e1ac76f2f839a8cd7690d7e2ad
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Tue Apr 16 23:48:19 2019 +0300
 
-    runtime: fix darwin syscall performance regression
+    test: add regress test for issue 28369
     
-    While understanding why syscall.Read is 2x slower on darwin/amd64, I found
-    out that, contrary to popular belief, the slowdown is not due to the migration
-    to use libSystem.dylib instead of direct SYSCALLs, i.e., CL 141639 (and #17490),
-    but due to a subtle change introduced in CL 141639.
+    Also gofmt test/escape5.go.
     
-    Previously, syscall.Read used syscall.Syscall(SYS_READ), whose preamble called
-    runtime.entersyscall, but after CL 141639, syscall.Read changes to call
-    runtime.syscall_syscall instead, which in turn calls runtime.entersyscallblock
-    instead of runtime.entersyscall. And the entire 2x slow down can be attributed
-    to this change.
+    Fixes #28369.
     
-    I think this is unnecessary as even though syscalls like Read might block, it
-    does not always block, so there is no need to handoff P proactively for each
-    Read. Additionally, we have been fine with not handing off P for each Read
-    prior to Go 1.12, so we probably don't need to change it. This changes restores
-    the pre-Go 1.12 behavior, where syscall preamble uses runtime.entersyscall,
-    and we rely on sysmon to take P back from g blocked in syscalls.
-    
-    Change-Id: If76e97b5a7040cf1c10380a567c4f5baec3121ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197938
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Change-Id: I0a11748fd2b5cf01cb5437ae15827d9db91c0c0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172358
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_darwin.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ test/escape5.go | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)

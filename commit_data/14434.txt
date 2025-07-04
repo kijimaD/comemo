@@ -1,14 +1,22 @@
-commit c8e7469fcdfccb6ba91d0a28c1d633a009de2932
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 19 08:25:51 2012 -0800
+commit 0bfece06d7e19b3caba6f1ee0a202e0c90fda23b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Nov 18 15:31:26 2012 +1100
 
-    net/http/cgi: make test more robust for Windows perl
+    net: remove unused nil check
     
-    Update #4401
+    This is part 1 of a series of proposals to fix issue 4369.
     
-    R=golang-dev, mattn.jp
+    In resolving issue 3507 it was decided not to nil out the inner conn.fd field to avoid a race. This implies the checks for fd == nil inside incref/decref are never true.
+    
+    Removing this logic removes one source of errClosing error values, which affects issue 4373 and moves towards bradfitz's request that fd.accept() return io.EOF when closed concurrently.
+    
+    Update #4369.
+    Update #4373.
+    
+    R=mikioh.mikioh, bradfitz, dvyukov, rsc
     CC=golang-dev
-    https://golang.org/cl/6853067
+    https://golang.org/cl/6852057
 
- src/pkg/net/http/cgi/testdata/test.cgi | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/net/fd_unix.go        | 6 ------
+ src/pkg/net/unixsock_posix.go | 4 +---
+ 2 files changed, 1 insertion(+), 9 deletions(-)

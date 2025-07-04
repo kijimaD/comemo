@@ -1,12 +1,21 @@
-commit 54c9fe88f57b78e13b420c0c583d1466eb51457d
-Author: Maxim Pimenov <mpimenov@google.com>
-Date:   Thu May 17 11:19:19 2012 -0700
+commit ec099b2bc7ef98af4711f4dab200ffadb26d24df
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu May 17 19:48:56 2012 +0200
 
-    go/build: fix some comments
+    exp/locale/collate: implementation of main collation functionality for
+    key and simple comparisson. Search is not yet implemented in this CL.
+    Changed some of the types of table_test.go to allow reuse in the new test.
+    Also reduced number of primary values for illegal runes to 1 (both map to
+    the same).
     
-    R=golang-dev, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6217044
+    https://golang.org/cl/6202062
 
- src/pkg/go/build/build.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/locale/collate/build/colelem.go |   2 +-
+ src/pkg/exp/locale/collate/colelem.go       |   4 +-
+ src/pkg/exp/locale/collate/collate.go       | 208 +++++++++++++-
+ src/pkg/exp/locale/collate/collate_test.go  | 422 ++++++++++++++++++++++++++++
+ src/pkg/exp/locale/collate/export_test.go   |  57 +++-
+ src/pkg/exp/locale/collate/table_test.go    | 146 +++++-----
+ 6 files changed, 750 insertions(+), 89 deletions(-)

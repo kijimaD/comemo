@@ -1,13 +1,12 @@
-commit a73817716a25c3e7584daf378c72d14c7a33ba18
-Author: Ken Thompson <ken@golang.org>
-Date:   Tue Mar 22 18:41:17 2011 -0700
+commit 005fe41125dc2a23bc25eb553d194a40dd4d99e0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 23 09:44:23 2011 +1100
 
-    chan: allocate a new chan with one
-    malloc rather than nelements + 1.
+    godoc: add -template flag to specify custom templates
     
-    R=rob
+    R=gri, niemeyer, rsc1
     CC=golang-dev
-    https://golang.org/cl/4291064
+    https://golang.org/cl/4291059
 
- src/pkg/runtime/chan.c | 24 ++++++++++++++++++++----
- 1 file changed, 20 insertions(+), 4 deletions(-)
+ src/cmd/godoc/godoc.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

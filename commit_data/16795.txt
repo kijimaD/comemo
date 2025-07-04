@@ -1,19 +1,25 @@
-commit b913cf84dc5bc78197b0ea42d9375ec1a7a01909
+commit a83748596c009db47bcd35a69531e485e2c7f924
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 17 14:03:27 2013 -0400
+Date:   Wed Jul 17 12:47:18 2013 -0400
 
-    runtime: re-enable preemption
+    runtime: use new frame argument size information
     
-    Update #543
+    With this CL, I believe the runtime always knows
+    the frame size during the gc walk. There is no fallback
+    to "assume entire stack frame of caller" anymore.
     
-    I believe the runtime is strong enough now to reenable
-    preemption during the function prologue.
-    Assuming this is or can be made stable, it will be in Go 1.2.
-    More aggressive preemption is not planned for Go 1.2.
-    
-    R=golang-dev, iant
+    R=golang-dev, khr, cshapiro, dvyukov
     CC=golang-dev
-    https://golang.org/cl/11433045
+    https://golang.org/cl/11374044
 
- src/pkg/runtime/proc.c | 6 ------
- 1 file changed, 6 deletions(-)
+ src/pkg/runtime/arch_386.h      |  3 +-
+ src/pkg/runtime/arch_amd64.h    |  3 +-
+ src/pkg/runtime/arch_arm.h      |  3 +-
+ src/pkg/runtime/panic.c         |  7 ++-
+ src/pkg/runtime/proc.c          |  9 ++++
+ src/pkg/runtime/runtime.h       |  1 +
+ src/pkg/runtime/softfloat_arm.c |  5 ++-
+ src/pkg/runtime/symtab.c        | 62 +++++++++++++++++---------
+ src/pkg/runtime/traceback_arm.c | 96 ++++++++++++++++++++++++-----------------
+ src/pkg/runtime/traceback_x86.c | 80 ++++++++++++++++++++++------------
+ 10 files changed, 177 insertions(+), 92 deletions(-)

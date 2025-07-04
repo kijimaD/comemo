@@ -1,57 +1,29 @@
-commit aef81a75516fa10338cf2e770914fad70037c49c
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Thu Oct 10 19:46:13 2024 +0800
+commit 06f420fc19f8af6a1935e4edbfd1af361f663190
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Apr 21 11:08:09 2023 +0800
 
-    cmd/compile: add rules to optimize go codes to constant 0 on loong64
+    runtime: remove the meaningless offset of 8 for duffzero on loong64
     
-    goos: linux
-    goarch: loong64
-    pkg: test/bench/go1
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                          │  old.bench  │             new.bench              │
-                          │   sec/op    │   sec/op     vs base               │
-    BinaryTree17             7.735 ± 1%    7.716 ± 1%  -0.23% (p=0.041 n=15)
-    Fannkuch11               2.645 ± 0%    2.646 ± 0%  +0.05% (p=0.013 n=15)
-    FmtFprintfEmpty         35.87n ± 0%   35.89n ± 0%  +0.06% (p=0.000 n=15)
-    FmtFprintfString        59.54n ± 0%   59.47n ± 0%       ~ (p=0.213 n=15)
-    FmtFprintfInt           62.23n ± 0%   62.06n ± 0%       ~ (p=0.212 n=15)
-    FmtFprintfIntInt        98.16n ± 0%   97.90n ± 0%  -0.26% (p=0.000 n=15)
-    FmtFprintfPrefixedInt   117.0n ± 0%   116.7n ± 0%  -0.26% (p=0.000 n=15)
-    FmtFprintfFloat         204.6n ± 0%   204.2n ± 0%  -0.20% (p=0.000 n=15)
-    FmtManyArgs             456.3n ± 0%   455.4n ± 0%  -0.20% (p=0.000 n=15)
-    GobDecode               7.210m ± 0%   7.156m ± 1%  -0.75% (p=0.000 n=15)
-    GobEncode               8.143m ± 1%   8.177m ± 1%       ~ (p=0.806 n=15)
-    Gzip                    280.2m ± 0%   279.7m ± 0%  -0.19% (p=0.005 n=15)
-    Gunzip                  32.71m ± 0%   32.65m ± 0%  -0.19% (p=0.000 n=15)
-    HTTPClientServer        53.76µ ± 0%   53.65µ ± 0%       ~ (p=0.083 n=15)
-    JSONEncode              9.297m ± 0%   9.295m ± 0%       ~ (p=0.806 n=15)
-    JSONDecode              46.97m ± 1%   47.07m ± 1%       ~ (p=0.683 n=15)
-    Mandelbrot200           4.602m ± 0%   4.600m ± 0%  -0.05% (p=0.001 n=15)
-    GoParse                 4.682m ± 0%   4.670m ± 1%  -0.25% (p=0.001 n=15)
-    RegexpMatchEasy0_32     59.80n ± 0%   59.63n ± 0%  -0.28% (p=0.000 n=15)
-    RegexpMatchEasy0_1K     458.3n ± 0%   457.3n ± 0%  -0.22% (p=0.001 n=15)
-    RegexpMatchEasy1_32     59.39n ± 0%   59.23n ± 0%  -0.27% (p=0.000 n=15)
-    RegexpMatchEasy1_1K     557.9n ± 0%   556.6n ± 0%  -0.23% (p=0.001 n=15)
-    RegexpMatchMedium_32    803.6n ± 0%   801.8n ± 0%  -0.22% (p=0.001 n=15)
-    RegexpMatchMedium_1K    27.32µ ± 0%   27.26µ ± 0%  -0.21% (p=0.000 n=15)
-    RegexpMatchHard_32      1.385µ ± 0%   1.382µ ± 0%  -0.22% (p=0.000 n=15)
-    RegexpMatchHard_1K      40.93µ ± 0%   40.83µ ± 0%  -0.24% (p=0.000 n=15)
-    Revcomp                 474.8m ± 0%   474.3m ± 0%       ~ (p=0.250 n=15)
-    Template                77.41m ± 1%   76.63m ± 1%  -1.01% (p=0.023 n=15)
-    TimeParse               271.1n ± 0%   271.2n ± 0%  +0.04% (p=0.022 n=15)
-    TimeFormat              290.0n ± 0%   289.8n ± 0%       ~ (p=0.118 n=15)
-    geomean                 51.73µ        51.64µ       -0.18%
+    Currently we subtract 8 from offset when calling duffzero because 8
+    is added to offset in the duffzero implementation. This operation is
+    meaningless, so remove it.
     
-    Change-Id: I45a1e6c85bb3cea0f62766ec932432803e9af10a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/619315
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Change-Id: I7e451d04d7e98ccafe711645d81d3aadf376766f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487295
+    Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules | 10 +++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 90 +++++++++++++++++++++++++
- test/codegen/bitfield.go                        |  4 ++
- 3 files changed, 104 insertions(+)
+ src/cmd/compile/internal/loong64/ggen.go        |  23 ++-
+ src/cmd/compile/internal/loong64/ssa.go         |  11 +-
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go           |   2 +-
+ src/runtime/duff_loong64.s                      | 256 ++++++++++++------------
+ src/runtime/mkduff.go                           |   4 +-
+ 6 files changed, 151 insertions(+), 149 deletions(-)

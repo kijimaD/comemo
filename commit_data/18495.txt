@@ -1,23 +1,23 @@
-commit eea28f6701ac888d5613470a88d09b634efc1d75
-Author: Michael T. Jones <mtj@google.com>
-Date:   Thu Feb 13 08:42:19 2014 -0800
+commit 86e3cb8da5a22794bbbdf34e934dc180e1c86d01
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 11:10:31 2014 -0500
 
-    math/big: add support for general encoding interfaces
-    TextMarshaller and TextUnmarshaller to ease transport of
-    unlimited precision rational numbers.
+    runtime: introduce MSpan.needzero instead of writing to span data
     
-    Fixes #7287.
+    This cleans up the code significantly, and it avoids any
+    possible problems with madvise zeroing out some but
+    not all of the data.
     
-    Consists of encode and decode functions and two test
-    functions, one using JSON and one using XML. Each
-    verifies round trips for integers (rationals with
-    denominator == 1) and for fractional vaues.
+    Fixes #6400.
     
-    LGTM=gri
-    R=gri, cookieo9, bradfitz, mtj
+    LGTM=dave
+    R=dvyukov, dave
     CC=golang-codereviews
-    https://golang.org/cl/61180043
+    https://golang.org/cl/57680046
 
- src/pkg/math/big/rat.go      | 13 +++++++++
- src/pkg/math/big/rat_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 78 insertions(+)
+ src/pkg/runtime/malloc.goc |  2 +-
+ src/pkg/runtime/malloc.h   |  3 ++-
+ src/pkg/runtime/mcentral.c |  4 ++--
+ src/pkg/runtime/mgc0.c     |  6 ++++--
+ src/pkg/runtime/mheap.c    | 44 +++++++++++---------------------------------
+ 5 files changed, 20 insertions(+), 39 deletions(-)

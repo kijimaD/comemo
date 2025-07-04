@@ -1,37 +1,13 @@
-commit ba2e3af1778da52340a9f3f7dd7262e5ebf64055
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Jul 20 12:47:02 2011 -0300
+commit 971459e826e705fc7c0ce4cd65609a19876627b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 20 11:41:41 2011 -0400
 
-    ld: remove overlap of ELF sections on dynamic binaries
+    net/textproto: fix build
     
-    The dynamic ELF sections were pointing to the proper data,
-    but that data was already owned by the rodata and text sections.
-    Some ELF references explicitly prohibit multiple sections from
-    owning the same data, and strip behaves accordingly.
-    
-    The data for these sections was moved out and their ranges are
-    now owned by their respective sections.  This change makes strip
-    happy both with and without -s being provided at link time.
-    
-    A test was added in debug/elf to ensure there are no regressions
-    on this area in the future.
-    
-    Fixes #1242.
-    Fixes #2022.
-    
-    NOTE: Tested on Linux amd64/386/arm only.
-    
-    R=rsc
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4808043
+    https://golang.org/cl/4815041
 
- src/cmd/5l/asm.c               | 52 ++++++++++++++++--------------
- src/cmd/5l/span.c              |  2 +-
- src/cmd/6l/asm.c               | 65 ++++++++++++++++++++++++--------------
- src/cmd/8l/asm.c               | 72 ++++++++++++++++++++++--------------------
- src/cmd/ld/data.c              | 48 +++++++++++++++++++++-------
- src/cmd/ld/elf.c               | 35 ++++----------------
- src/cmd/ld/lib.h               |  3 +-
- src/cmd/ld/pe.c                |  2 +-
- src/pkg/debug/elf/file_test.go | 29 +++++++++++++++++
- 9 files changed, 185 insertions(+), 123 deletions(-)
+ src/pkg/mime/multipart/multipart_test.go | 12 ++++++------
+ src/pkg/net/textproto/reader.go          | 15 ++++++++++++---
+ 2 files changed, 18 insertions(+), 9 deletions(-)

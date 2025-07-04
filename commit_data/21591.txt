@@ -1,49 +1,12 @@
-commit c4ee44b7b979f7c985fdc09e4a88c6d37957297c
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Feb 6 15:09:46 2015 +0300
+commit 5efcbba9eecf3d9b7a620b7b183840ba74e5e571
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 20 15:03:16 2015 +1100
 
-    cmd/gc: transform closure calls to function calls
+    misc/makerelease: send file size when uploading
     
-    Currently we always create context objects for closures that capture variables.
-    However, it is completely unnecessary for direct calls of closures
-    (whether it is func()(), defer func()() or go func()()).
-    This change transforms any OCALLFUNC(OCLOSURE) to normal function call.
-    Closed variables become function arguments.
-    This transformation is especially beneficial for go func(),
-    because we do not need to allocate context object on heap.
-    But it makes direct closure calls a bit faster as well (see BenchmarkClosureCall).
-    
-    On implementation level it required to introduce yet another compiler pass.
-    However, the pass iterates only over xtop, so it should not be an issue.
-    Transformation consists of two parts: closure transformation and call site
-    transformation. We can't run these parts on different sides of escape analysis,
-    because tree state is inconsistent. We can do both parts during typecheck,
-    we don't know how to capture variables and don't have call site.
-    We can't do both parts during walk of OCALLFUNC, because we can walk
-    OCLOSURE body earlier.
-    So now capturevars pass only decides how to capture variables
-    (this info is required for escape analysis). New transformclosure
-    pass, that runs just before order/walk, does all transformations
-    of a closure. And later walk of OCALLFUNC(OCLOSURE) transforms call site.
-    
-    benchmark                            old ns/op     new ns/op     delta
-    BenchmarkClosureCall                 4.89          3.09          -36.81%
-    BenchmarkCreateGoroutinesCapture     1634          1294          -20.81%
-    
-    benchmark                            old allocs     new allocs     delta
-    BenchmarkCreateGoroutinesCapture     6              2              -66.67%
-    
-    benchmark                            old bytes     new bytes     delta
-    BenchmarkCreateGoroutinesCapture     176           48            -72.73%
-    
-    Change-Id: Ic85e1706e18c3235cc45b3c0c031a9c1cdb7a40e
-    Reviewed-on: https://go-review.googlesource.com/4050
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1a1ed1e23067268a2bac08fc4c99c594fb723837
+    Reviewed-on: https://go-review.googlesource.com/3050
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gc/closure.c     | 174 ++++++++++++++++++++++++++++++++++-------------
- src/cmd/gc/go.h          |   2 +
- src/cmd/gc/lex.c         |  20 ++++--
- src/cmd/gc/walk.c        |  20 ++++++
- src/runtime/proc_test.go |  12 ++++
- test/fixedbugs/bug346.go |  27 ++++++--
- 6 files changed, 199 insertions(+), 56 deletions(-)
+ misc/makerelease/makerelease.go | 2 ++
+ 1 file changed, 2 insertions(+)

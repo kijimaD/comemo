@@ -1,21 +1,14 @@
-commit 31e852402fdf36ccc9fd84436d082e960b755cd3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 13 12:47:44 2015 -0800
+commit 695a0fb4ef35beaacc0dbfdd41d6008fc0c07ff4
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Jan 14 14:41:04 2015 -0500
 
-    math/big: fix aliasing error in Add, Sub
+    syscall: use name+(NN)FP on linux/amd64
     
-    Also:
-    - make representation more flexible (no need to store trailing 0 digits to match precision)
-    - simplify rounding as a consequence
-    - minor related fixes
+    Generated from a modified go vet.
     
-    TBR adonovan
-    
-    Change-Id: Ie91075990688b506d28371ec3b633b8267397ebb
-    Reviewed-on: https://go-review.googlesource.com/4841
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ibe82941283da9bd4dbc7fa624a33ffb12424daa2
+    Reviewed-on: https://go-review.googlesource.com/2817
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/float.go      | 90 ++++++++++++++++++++--------------------------
- src/math/big/float_test.go | 22 +++++++-----
- src/math/big/floatconv.go  |  4 +--
- 3 files changed, 54 insertions(+), 62 deletions(-)
+ src/syscall/asm_linux_amd64.s | 105 +++++++++++++++++++++---------------------
+ 1 file changed, 53 insertions(+), 52 deletions(-)

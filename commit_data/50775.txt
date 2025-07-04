@@ -1,19 +1,19 @@
-commit a8d180409d071ad327afeaf6f64fef635d8f6053
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Thu Sep 29 21:03:15 2022 +0800
+commit cb908f1d4dd24dad17105022df7b0e96ac1d6988
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 14:56:39 2021 -0500
 
-    cmd/trace: replace loop with append(slice, slice2...)
+    go/types: don't return an array type with invalid length
     
-    Change-Id: I4686f36a8f718fea1a08d816bc14e24e3528bb07
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436706
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: hopehook <hopehook@golangcn.org>
-    Run-TryBot: xie cui <523516579@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    In preparation for porting CL 361412, fix a discrepancy in go/types,
+    where [-1]T is returned for an array type with invalid length.
+    
+    Change-Id: Ia32f5b66c9c561ccf0c32af1922fc4690c66dbc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362738
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/trace/annotations.go | 4 +---
- src/cmd/trace/trace.go       | 6 ++----
- 2 files changed, 3 insertions(+), 7 deletions(-)
+ src/go/types/api_test.go |  2 +-
+ src/go/types/typexpr.go  | 12 +++++++-----
+ 2 files changed, 8 insertions(+), 6 deletions(-)

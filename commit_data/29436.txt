@@ -1,19 +1,44 @@
-commit f58ce7fe7954bd788072beaf1517303ebb5316eb
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:50:38 2016 +0200
+commit 82703f84e4e2ab5b68d43825e0f046a5ad990612
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Sep 15 14:34:20 2016 +1000
 
-    cmd/asm: add support for GOARCH=mips{,le}
+    cmd/compile/internal/gc: unexport helper functions
     
-    Change-Id: I6a5256a42f895bb93ac56764e91ade1861c00e04
-    Reviewed-on: https://go-review.googlesource.com/31476
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    After the removal of the old backend many types are no longer referenced
+    outside internal/gc. Make these functions private so that tools like
+    honnef.co/go/unused can spot when they become dead code. In doing so
+    this CL identified several previously public helpers which are no longer
+    used, so removes them.
+    
+    Change-Id: Idc2d485f493206de9d661bd3cb0ecb4684177b32
+    Reviewed-on: https://go-review.googlesource.com/29133
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/arch/arch.go                |  66 +++-
- src/cmd/asm/internal/arch/{mips64.go => mips.go} |  12 +-
- src/cmd/asm/internal/asm/asm.go                  |   8 +-
- src/cmd/asm/internal/asm/endtoend_test.go        |   3 +-
- src/cmd/asm/internal/asm/operand_test.go         |  87 +++++
- src/cmd/asm/internal/asm/testdata/mips.s         | 430 +++++++++++++++++++++++
- 6 files changed, 594 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/alg.go       |  4 +-
+ src/cmd/compile/internal/gc/align.go     | 19 -------
+ src/cmd/compile/internal/gc/bimport.go   |  8 +--
+ src/cmd/compile/internal/gc/const.go     |  6 +--
+ src/cmd/compile/internal/gc/dcl.go       |  4 +-
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/gen.go       |  8 +--
+ src/cmd/compile/internal/gc/gsubr.go     | 60 ++--------------------
+ src/cmd/compile/internal/gc/init.go      |  8 +--
+ src/cmd/compile/internal/gc/magic.go     |  4 +-
+ src/cmd/compile/internal/gc/order.go     |  4 +-
+ src/cmd/compile/internal/gc/parser.go    |  2 +-
+ src/cmd/compile/internal/gc/plive.go     |  4 +-
+ src/cmd/compile/internal/gc/racewalk.go  |  4 +-
+ src/cmd/compile/internal/gc/range.go     | 18 +++----
+ src/cmd/compile/internal/gc/reflect.go   |  4 +-
+ src/cmd/compile/internal/gc/select.go    |  8 +--
+ src/cmd/compile/internal/gc/sinit.go     | 20 ++++----
+ src/cmd/compile/internal/gc/subr.go      | 69 ++++++-------------------
+ src/cmd/compile/internal/gc/swt.go       |  6 +--
+ src/cmd/compile/internal/gc/swt_test.go  |  2 +-
+ src/cmd/compile/internal/gc/type.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 42 ++++++++--------
+ src/cmd/compile/internal/gc/walk.go      | 86 ++++++++++++++++----------------
+ 25 files changed, 143 insertions(+), 253 deletions(-)

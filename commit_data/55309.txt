@@ -1,29 +1,15 @@
-commit 2acbdd086d4660ae5e4adc429858df4758d675e3
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Wed Dec 13 19:58:23 2023 +0000
+commit 4e3abee245755d741987132fb22c442af2dab1de
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 26 14:43:12 2023 -0800
 
-    cmd/cgo/internal/testsanitizers: fix msan test failing with clang >= 16
+    cmd/compile: remove go119UseJumpTables flag
     
-    Clang 16 introduced a more aggressive behavior regarding uninitialized
-    memory in the memory sanitizer.
-    
-    The new option -fsanitize-memory-param-retval is enabled by default
-    and makes the test msan8 fail, since it uses an
-    uninitialized variable on purpose.
-    
-    Disable this behavior if we are running with clang 16+.
-    
-    Fixes #64616
-    
-    Change-Id: If366f978bef984ea73f6ae958f24c8fce99b59fe
-    GitHub-Last-Rev: 60bd64a8fb24a552fce23fb2b43a75e92443e039
-    GitHub-Pull-Request: golang/go#64691
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549297
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Iaaac46e96b74289096ce0c6186c73000d1fc6faa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463224
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/internal/testsanitizers/msan_test.go      | 5 ++++-
- src/cmd/cgo/internal/testsanitizers/testdata/msan8.go | 7 +++++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/walk/switch.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

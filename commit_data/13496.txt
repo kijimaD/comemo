@@ -1,14 +1,12 @@
-commit 9b1412701fc5f265c478153b2032ca90755c38cf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 25 10:17:27 2012 -0700
+commit 3e980e24c115dba89f53e09d8c597db32a6ffc2e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 25 09:31:27 2012 +1000
 
-    testing: allow concurrent use of T and B
+    encoding/gob: test for type registration name.
     
-    Notably, allow concurrent logging and failing.
-    
-    R=golang-dev, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6453045
+    https://golang.org/cl/6435044
 
- src/pkg/testing/testing.go | 27 ++++++++++++++++++++-------
- 1 file changed, 20 insertions(+), 7 deletions(-)
+ src/pkg/encoding/gob/type_test.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

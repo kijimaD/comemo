@@ -1,25 +1,21 @@
-commit f1ad4863aae1fd5cd5d0e3e4e6cb6bfae62951a6
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Oct 17 17:10:24 2016 -0400
+commit 57370a87d80be0ab588eb8bb9a5e2a31f4613355
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Aug 17 20:34:09 2016 +0200
 
-    runtime: get s390x vector facility availability from AT_HWCAP
+    encoding/hex: change lookup table from string to array
     
-    This is a more robust method for obtaining the availability of vx.
-    Since this variable may be checked frequently I've also now
-    padded it so that it will be in its own cache line.
+    name            old time/op  new time/op  delta
+    Encode/256-4     431ns ± 2%   391ns ± 2%   -9.36%  (p=0.000 n=8+8)
+    Encode/1024-4   1.68µs ± 0%  1.51µs ± 0%   -9.91%  (p=0.001 n=7+7)
+    Encode/4096-4   6.68µs ± 0%  6.03µs ± 1%   -9.69%  (p=0.000 n=8+8)
+    Encode/16384-4  27.0µs ± 1%  24.0µs ± 0%  -11.03%  (p=0.000 n=8+7)
     
-    I've kept the other check (in hash/crc32) the same for now until
-    I can figure out the best way to update it.
-    
-    Updates #15403.
-    
-    Change-Id: I74eed651afc6f6a9c5fa3b88fa6a2b0c9ecf5875
-    Reviewed-on: https://go-review.googlesource.com/31149
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I6994e02f77797349c4e188377d84f97dffe98399
+    Reviewed-on: https://go-review.googlesource.com/27254
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/asm_s390x.s        | 57 +++++-------------------------------------
- src/runtime/os_linux.go        |  1 +
- src/runtime/os_linux_arm.go    |  1 -
- src/runtime/os_linux_noauxv.go |  2 +-
- src/runtime/os_linux_s390x.go  | 32 ++++++++++++++++++++++++
- 5 files changed, 40 insertions(+), 53 deletions(-)
+ src/encoding/hex/hex.go      |  5 ++++-
+ src/encoding/hex/hex_test.go | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

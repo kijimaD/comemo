@@ -1,15 +1,22 @@
-commit 01156f05de8b3a54b37458dfa4b71dacc43d0c72
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 21 14:12:07 2012 +1100
+commit ccacab641af54f51bdca228445f464efde47e935
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 21 14:10:34 2012 +1100
 
-    doc: fix links in installation instructions
+    os: replace non-portable Waitmsg with portable ProcessState
+    Use methods for key questions.
+    Provide access to non-portable pieces through portable methods.
+    Windows and Plan 9 updated.
     
-    Fixes #3051.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz, bradfitz, r, dsymonds, rsc, iant, iant
     CC=golang-dev
-    https://golang.org/cl/5683056
+    https://golang.org/cl/5673077
 
- doc/install-source.html | 10 +++++-----
- doc/install.html        |  6 +++---
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/cgo/util.go        |  4 +--
+ src/cmd/godoc/main.go      |  8 +++--
+ src/pkg/os/exec/exec.go    | 16 +++++-----
+ src/pkg/os/exec_plan9.go   | 68 +++++++++++++++++++++++++++++++++++-------
+ src/pkg/os/exec_posix.go   | 73 ++++++++++++++++++++++++++++++----------------
+ src/pkg/os/exec_unix.go    | 28 +++++++++++++-----
+ src/pkg/os/exec_windows.go | 19 ++++++++++--
+ src/pkg/os/os_test.go      |  8 ++---
+ 8 files changed, 162 insertions(+), 62 deletions(-)

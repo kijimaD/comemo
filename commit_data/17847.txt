@@ -1,16 +1,15 @@
-commit 22b3822da77645648148e0528f6990bf852a228b
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Tue Oct 29 13:07:42 2013 -0400
+commit b8be100d35109e8cd0abac91edec206df37b07c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 29 11:50:18 2013 -0400
 
-    misc/emacs: various cleanups
+    cmd/gc: silence clang warning
     
-    - Use #' for function symbols
-    - Remove unused variables
-    - Use declare-function to shut up byte compiler
+    This code is only built when you run 'make' in cmd/gc,
+    not in all.bash.
     
-    R=adonovan
+    R=golang-dev, jsing, iant
     CC=golang-dev
-    https://golang.org/cl/19010044
+    https://golang.org/cl/19160043
 
- misc/emacs/go-mode.el | 46 +++++++++++++++++++++++-----------------------
- 1 file changed, 23 insertions(+), 23 deletions(-)
+ src/cmd/gc/mkbuiltin1.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

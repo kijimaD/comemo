@@ -1,40 +1,14 @@
-commit d94bf76239441a5a819043db37bde28f22e20621
+commit 4185a9e2b28f7ae29743f702d3b35fbc7edaebc6
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 24 16:45:45 2011 -0500
+Date:   Thu Feb 24 14:36:18 2011 -0500
 
-    ld: weak symbols
+    http: remove debugging log statement
     
-    A reference to the address of weak.foo resolves at link time
-    to the address of the symbol foo if foo would end up in the
-    binary anyway, or to zero if foo would not be in the binary.
+    Issue 1547 is fixed.
     
-    For example:
-    
-            int xxx = 1;
-            int yyy = 2;
-            int weak·xxx;
-            int weak·yyy;
-    
-            void main·main(void) {
-                    runtime·printf("%p %p %p\n", &xxx, &weak·xxx, &weak·yyy);
-            }
-    
-    prints the same non-nil address twice, then 0 (because yyy is not
-    referenced so it was dropped from the binary).
-    
-    This will be used by the reflection tables.
-    
-    R=iant
+    R=bradfitzgo, r
     CC=golang-dev
-    https://golang.org/cl/4223044
+    https://golang.org/cl/4209045
 
- src/cmd/5l/obj.c  |  1 +
- src/cmd/5l/pass.c | 12 ------------
- src/cmd/6l/obj.c  |  1 +
- src/cmd/6l/pass.c | 12 ------------
- src/cmd/8l/obj.c  |  1 +
- src/cmd/8l/pass.c | 12 ------------
- src/cmd/ld/go.c   | 31 +++++++++++++++++++++++++++++++
- src/cmd/ld/lib.c  | 12 ++++++++++++
- src/cmd/ld/lib.h  |  2 ++
- 9 files changed, 48 insertions(+), 36 deletions(-)
+ src/pkg/http/transport.go | 3 ---
+ 1 file changed, 3 deletions(-)

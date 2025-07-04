@@ -1,21 +1,29 @@
-commit abbfec2829b001cf758a058eba4ccdc940e029f4
-Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
-Date:   Sat Sep 11 00:33:34 2021 +0800
+commit 6a56c6c870a2ac8bae9e570641521ba5aa83ba51
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jan 11 16:16:54 2021 -0500
 
-    cmd/go: insert goroot to the hash of build cache when the packages include C files
+    [dev.typeparams] go/types: import dev.go2go changes to check tests
     
-    There are some absolute paths in the object file of the packages include C files. The path in C objects file can't be rewritten by linker. The goroot must be used as input for the hash when the packages include C files. So that the debug_info of the binary is correctly.
+    Import changes from go2go to automatically discover testdata-driven
+    check tests.
     
-    Fixes #48319
+    Tests for generics will be added in a subsequent CL.
     
-    Change-Id: I659a3d6d71c4e49fff83f5bcf53a0a417e552a93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348991
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I50d55141750caebf15f1f382e139edfe9920c14e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283132
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/work/exec.go                |  34 ++++--
- src/cmd/go/testdata/script/build_issue48319.txt | 153 ++++++++++++++++++++++++
- 2 files changed, 177 insertions(+), 10 deletions(-)
+ src/go/types/check_test.go                         | 127 +++++++++------------
+ src/go/types/testdata/{ => decls2}/decls2a.src     |   0
+ src/go/types/testdata/{ => decls2}/decls2b.src     |   0
+ .../testdata/{ => importdecl0}/importdecl0a.src    |   0
+ .../testdata/{ => importdecl0}/importdecl0b.src    |   0
+ .../testdata/{ => importdecl1}/importdecl1a.src    |   0
+ .../testdata/{ => importdecl1}/importdecl1b.src    |   0
+ .../testdata/{ => issue25008}/issue25008a.src      |   0
+ .../testdata/{ => issue25008}/issue25008b.src      |   0
+ 9 files changed, 51 insertions(+), 76 deletions(-)

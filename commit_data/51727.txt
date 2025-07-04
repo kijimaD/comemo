@@ -1,17 +1,88 @@
-commit 9411075748e305d0b31372cab48bc4ca2dd745fb
-Author: j2gg0s <j2gg0s@gmail.com>
-Date:   Wed Jan 18 15:08:29 2023 +0000
+commit 0b76afc75ca687fcd9a1a8e0b19670fb8f37fecb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 22 17:07:49 2022 -0500
 
-    runtime: remove duplicate check of work.full in gcMark.
+    crypto/rand: simplify Prime to use only rejection sampling
     
-    Change-Id: I659669d7259e7cf73f730232cda11d8525a4aabc
-    GitHub-Last-Rev: 5d183e81285aba64f1f76e5bddbe2f0ae012b138
-    GitHub-Pull-Request: golang/go#57901
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462281
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The old code picks a random number n and then tests n, n+2, n+4, up to
+    n+(1<<20) for primality before giving up and picking a new n.
+    (The chance of finishing the loop and picking a new n is infinitesimally
+    small.) This approach, called “incremental search” in the Handbook of
+    Applied Cryptography, section 4.51, demands fewer bits from the random
+    source and amortizes some of the cost of the small-prime division
+    checks across the incremented values.
+    
+    This commit deletes the n+2, n+4, ... checks, instead picking a series
+    of random n and stopping at the first one that is probably prime.
+    This approach is called “rejection sampling.”
+    
+    Reasons to make this change, in decreasing order of importance:
+    
+    1. Rejection sampling is simpler, and simpler is more clearly correct.
+    
+    2. The main benefit of incremental search was performance, and that is
+       less important than before. Incremental search required fewer random
+       bits and was able to amortize the checks for small primes across the
+       entire sequence. However, both random bit generation and primality
+       checks have gotten faster much quicker than typical primes have
+       gotten longer, so the benefits are not as important today.
+       Also, random prime generation is not typically on the critical path.
+    
+       Negating any lingering concerns about performance, rejection sampling
+       no slower in practice than the incremental search, perhaps because
+       the incremental search was using a somewhat inefficient test to
+       eliminate multiples of small primes; ProbablyPrime does it better.
+    
+       name              old time/op  new time/op  delta
+       Prime/MathRand    69.3ms ±23%  68.0ms ±37%   ~     (p=0.531 n=20+19)
+       Prime/CryptoRand  69.2ms ±27%  63.8ms ±36%   ~     (p=0.076 n=20+20)
+    
+       (Here, Prime/MathRand is the current Prime benchmark,
+       and Prime/CryptoRand is an adaptation to use crypto/rand.Reader
+       instead of math/rand's non-cryptographic randomness source,
+       just in case the quality of the bits affects the outcome.
+       If anything, rejection sampling is even better with cryptographically
+       random bits, but really the two are statistically indistinguishable
+       over 20 runs.)
+    
+    3. Incremental search has a clear bias when generating small primes:
+       a prime is more likely to be returned the larger the gap between
+       it and the next smaller prime. Although the bias is negligible in
+       practice for cryptographically large primes, people can measure the
+       bias for smaller prime sizes, and we have received such reports
+       extrapolating the bias to larger sizes and claiming a security bug
+       (which, to be clear, does not exist).
+    
+       However, given that rejection sampling is simpler, more clearly
+       correct and at least no slower than incremental search, the bias
+       is indefensible.
+    
+    4. Incremental search has a timing leak. If you can tell the incremental
+       search ran 10 times, then you know that p is such that there are no
+       primes in the range [p-20, p). To be clear, there are other timing
+       leaks in our current primality testing, so there's no definitive
+       benefit to eliminating this one, but there's also no reason to keep
+       it around.
+    
+       (See https://bugs.chromium.org/p/boringssl/issues/detail?id=238 for
+       all the work that would be needed to make RSA key generation
+       constant-time, which is definitely not something we have planned for
+       Go crypto.)
+    
+    5. Rejection sampling moves from matching OpenSSL to matching BoringSSL.
+       As a general rule BoringSSL is the better role model.
+       (Everyone started out using incremental search; BoringSSL switched
+       to rejection sampling in 2019, as part of the constant-time work
+       linked above.)
+    
+    Change-Id: Ie67e572a967c12d8728c752045c7e38f21804f8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387554
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/crypto/rand/util.go | 61 ++++++-------------------------------------------
+ 1 file changed, 7 insertions(+), 54 deletions(-)

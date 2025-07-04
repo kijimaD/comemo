@@ -1,14 +1,24 @@
-commit f062955ea78a4a57fbfe54fdc11b7aee7a1086d2
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Sat Jul 15 14:53:44 2017 -0600
+commit bda74b0e4a8eb1acae8c202efd62d298ec3268f0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 23 21:40:55 2017 -0500
 
-    runtime: fix duplicate "the"s
+    runtime: make TestMemStats failure messages useful
     
-    kicking off contributing again with a classic
+    Currently most TestMemStats failures dump the whole MemStats object if
+    anything is amiss without telling you what is amiss, or even which
+    field is wrong. This makes it hard to figure out what the actual
+    problem is.
     
-    Change-Id: Ifb0aed8f1dc854f85751ce0495967a3c4315128d
-    Reviewed-on: https://go-review.googlesource.com/49016
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Replace this with a reflection walk over MemStats and a map of
+    predicates to check. If one fails, we can construct a detailed and
+    descriptive error message. The predicates are a direct translation of
+    the current tests.
+    
+    Change-Id: I5a7cafb8e6a1eeab653d2e18bb74e2245eaa5444
+    Reviewed-on: https://go-review.googlesource.com/37512
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/symtab.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/malloc_test.go | 60 +++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 44 insertions(+), 16 deletions(-)

@@ -1,20 +1,13 @@
-commit 6ae448e8dfc675c0fbda18e2b555af54ae656f69
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Nov 6 20:11:16 2012 +0400
+commit 64ee6b64b5245c0f1250f696f7eb5adc092285f3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 5 22:48:27 2012 +0100
 
-    runtime: fix deadlock in parallel for test
-    The deadlock occurs when another goroutine requests GC
-    during the test. When wait=true the test expects physical parallelism,
-    that is, that P goroutines are all active at the same time.
-    If GC is requested, then part of the goroutines are not scheduled,
-    so other goroutines deadlock.
-    With wait=false, goroutines finish parallel for w/o waiting for all
-    other goroutines.
-    Fixes #3954.
+    A+C: Péter Surányi (individual CLA)
     
-    R=golang-dev, bradfitz
+    R=golang-dev, bradfitz, lvd
     CC=golang-dev
-    https://golang.org/cl/6820098
+    https://golang.org/cl/6819089
 
- src/pkg/runtime/parfor_test.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

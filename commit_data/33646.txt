@@ -1,55 +1,19 @@
-commit 868c8b374d766c46ebf09f056ff7eff6e2186c75
-Author: Jamie Liu <jamieliu@google.com>
-Date:   Wed Nov 15 12:47:22 2017 -0800
+commit 9e7b30b463bf6834f9ff01a33b60508984c47d20
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed Jun 21 21:58:42 2017 -0400
 
-    runtime: only sleep before stealing work from a running P
+    net/http: Set a timeout on Request.Context when using TimeoutHandler
     
-    The sleep in question does not make sense if the stolen-from P cannot
-    run the stolen G. The usleep(3) has been observed delaying execution of
-    woken G's by ~60us; skipping it reduces the wakeup-to-execution latency
-    to ~7us in these cases, improving CPU utilization.
+    In TimeoutHandler, use a request whose context has been configured with
+    the handler's timeout
     
-    Benchmarks added by this change:
+    Fixes #20712
     
-    name                             old time/op  new time/op  delta
-    WakeupParallelSpinning/0s-12     14.4µs ± 1%  14.3µs ± 1%     ~     (p=0.227 n=19+20)
-    WakeupParallelSpinning/1µs-12    18.3µs ± 0%  18.3µs ± 1%     ~     (p=0.950 n=20+19)
-    WakeupParallelSpinning/2µs-12    22.3µs ± 1%  22.3µs ± 1%     ~     (p=0.670 n=20+18)
-    WakeupParallelSpinning/5µs-12    31.7µs ± 0%  31.7µs ± 0%     ~     (p=0.460 n=20+17)
-    WakeupParallelSpinning/10µs-12   51.8µs ± 0%  51.8µs ± 0%     ~     (p=0.883 n=20+20)
-    WakeupParallelSpinning/20µs-12   91.9µs ± 0%  91.9µs ± 0%     ~     (p=0.245 n=20+20)
-    WakeupParallelSpinning/50µs-12    214µs ± 0%   214µs ± 0%     ~     (p=0.509 n=19+20)
-    WakeupParallelSpinning/100µs-12   335µs ± 0%   335µs ± 0%   -0.05%  (p=0.006 n=17+15)
-    WakeupParallelSyscall/0s-12       228µs ± 2%   129µs ± 1%  -43.32%  (p=0.000 n=20+19)
-    WakeupParallelSyscall/1µs-12      232µs ± 1%   131µs ± 1%  -43.60%  (p=0.000 n=19+20)
-    WakeupParallelSyscall/2µs-12      236µs ± 1%   133µs ± 1%  -43.44%  (p=0.000 n=18+19)
-    WakeupParallelSyscall/5µs-12      248µs ± 2%   139µs ± 1%  -43.68%  (p=0.000 n=18+19)
-    WakeupParallelSyscall/10µs-12     263µs ± 3%   150µs ± 2%  -42.97%  (p=0.000 n=18+20)
-    WakeupParallelSyscall/20µs-12     281µs ± 2%   170µs ± 1%  -39.43%  (p=0.000 n=19+19)
-    WakeupParallelSyscall/50µs-12     345µs ± 4%   246µs ± 7%  -28.85%  (p=0.000 n=20+20)
-    WakeupParallelSyscall/100µs-12    460µs ± 5%   350µs ± 4%  -23.85%  (p=0.000 n=20+20)
-    
-    Benchmarks associated with the change that originally added this sleep
-    (see https://golang.org/s/go15gomaxprocs):
-    
-    name        old time/op  new time/op  delta
-    Chain       19.4µs ± 2%  19.3µs ± 1%    ~     (p=0.101 n=19+20)
-    ChainBuf    19.5µs ± 2%  19.4µs ± 2%    ~     (p=0.840 n=19+19)
-    Chain-2     19.9µs ± 1%  19.9µs ± 2%    ~     (p=0.734 n=19+19)
-    ChainBuf-2  20.0µs ± 2%  20.0µs ± 2%    ~     (p=0.175 n=19+17)
-    Chain-4     20.3µs ± 1%  20.1µs ± 1%  -0.62%  (p=0.010 n=19+18)
-    ChainBuf-4  20.3µs ± 1%  20.2µs ± 1%  -0.52%  (p=0.023 n=19+19)
-    Powser       2.09s ± 1%   2.10s ± 3%    ~     (p=0.908 n=19+19)
-    Powser-2     2.21s ± 1%   2.20s ± 1%  -0.35%  (p=0.010 n=19+18)
-    Powser-4     2.31s ± 2%   2.31s ± 2%    ~     (p=0.578 n=18+19)
-    Sieve        13.6s ± 1%   13.6s ± 1%    ~     (p=0.909 n=17+18)
-    Sieve-2      8.02s ±52%   7.28s ±15%    ~     (p=0.336 n=20+16)
-    Sieve-4      4.00s ±35%   3.98s ±26%    ~     (p=0.654 n=20+18)
-    
-    Change-Id: I58edd8ce01075859d871e2348fc0833e9c01f70f
-    Reviewed-on: https://go-review.googlesource.com/78538
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ie670148f85fdad46841ff29232042309e15665ae
+    Reviewed-on: https://go-review.googlesource.com/46412
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/runtime/proc.go      |  35 ++++++++-------
- src/runtime/proc_test.go | 108 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 127 insertions(+), 16 deletions(-)
+ src/net/http/export_test.go |  7 ++++++-
+ src/net/http/server.go      | 20 +++++++++-----------
+ 2 files changed, 15 insertions(+), 12 deletions(-)

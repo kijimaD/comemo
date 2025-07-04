@@ -1,19 +1,23 @@
-commit add8028eb9925db0ec9d3d0f95dec65c8cab1d96
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 9 16:11:50 2016 -0800
+commit f13701bf2f32fe48f6dcf9149b35b9ce3effe022
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 15 13:04:50 2016 -0700
 
-    go/types: remove unused alias-related testdata files
+    test: make SSA tests unconditional
     
-    They interfere with gofmt -w across this directory.
+    Delete legacy backend tests, make SSA tests unconditional.
     
-    Follow-up on https://go-review.googlesource.com/32819.
+    Next CL will remove _ssa from the file names.
     
-    For #16339 (comment).
+    Update #16357
     
-    Change-Id: I4298b6117d89517d4fe6addce3942d950d821817
-    Reviewed-on: https://go-review.googlesource.com/33019
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2a7f5dcbc69455f63b5e6e6b2725df26ab86c8dd
+    Reviewed-on: https://go-review.googlesource.com/29231
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/testdata/alias.go      |  21 -------
- src/go/types/testdata/aliasdecl.src | 111 ------------------------------------
- 2 files changed, 132 deletions(-)
+ test/live.go        | 656 ----------------------------------------------------
+ test/live_ssa.go    |   1 -
+ test/nilptr3.go     | 224 ------------------
+ test/nilptr3_ssa.go |   1 -
+ 4 files changed, 882 deletions(-)

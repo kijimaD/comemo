@@ -1,13 +1,15 @@
-commit f4bf4c3b2fa5b757d9523d88b5d5ca34037d7820
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 13 16:32:23 2012 +1100
+commit d0a4c9bb626df78230613162b0dc07c72855b3c1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 13 16:03:19 2012 +1100
 
-    doc: update weekly notes, untag weekly
+    gc: allow ~ in import paths
+    Windows has paths like C:/Users/ADMIN~1. Also, it so happens
+    that go/parser allows ~ in import paths. So does the spec.
+    Fixes the build too.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5783093
+    https://golang.org/cl/5777073
 
- .hgtags               |  2 --
- doc/devel/weekly.html | 42 +++++++++++++++++++++++++++++-------------
- 2 files changed, 29 insertions(+), 15 deletions(-)
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

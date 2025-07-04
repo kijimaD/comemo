@@ -1,42 +1,19 @@
-commit 7f1467ff4ddd882acb318c0ffe24fd3702ce75cc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon May 22 13:25:15 2023 -0700
+commit e95fd4c2380b0adaa10be40812739156198037b7
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Mon Aug 1 21:19:29 2022 +0800
 
-    cmd/compile: incorporate inlined function names into closure naming
+    doc/go1.19: fix typo: EM_LONGARCH -> EM_LOONGARCH
     
-    In Go 1.17, cmd/compile gained the ability to inline calls to
-    functions that contain function literals (aka "closures"). This was
-    implemented by duplicating the function literal body and emitting a
-    second LSym, because in general it might be optimized better than the
-    original function literal.
+    Another last-minute fix. The whole repo is checked case-insensitively
+    against "longarch" and this is the only occurrence.
     
-    However, the second LSym was named simply as any other function
-    literal appearing literally in the enclosing function would be named.
-    E.g., if f has a closure "f.funcX", and f is inlined into g, we would
-    create "g.funcY" (N.B., X and Y need not be the same.). Users then
-    have no idea this function originally came from f.
-    
-    With this CL, the inlined call stack is incorporated into the clone
-    LSym's name: instead of "g.funcY", it's named "g.f.funcY".
-    
-    In the future, it seems desirable to arrange for the clone's name to
-    appear exactly as the original name, so stack traces remain the same
-    as when -l or -d=inlfuncswithclosures are used. But it's unclear
-    whether the linker supports that today, or whether any downstream
-    tooling would be confused by this.
-    
-    Updates #60324.
-    
-    Change-Id: Ifad0ccef7e959e72005beeecdfffd872f63982f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497137
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If13c123c1e44001a346f1df1df9d839c699703b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420494
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/inline/inl.go |  2 +-
- src/cmd/compile/internal/ir/func.go    | 18 ++++++++++++++---
- src/cmd/internal/obj/inl.go            | 32 +++++++++++++++++++-----------
- test/closure3.dir/main.go              | 28 +++++++++++++-------------
- test/codegen/issue60324.go             | 36 ++++++++++++++++++++++++++++++++++
- test/inline_unified.go                 |  4 ++--
- 6 files changed, 89 insertions(+), 31 deletions(-)
+ doc/go1.19.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

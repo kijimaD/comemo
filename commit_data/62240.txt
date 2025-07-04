@@ -1,0 +1,24 @@
+commit ca4649747a0057ea59c34c4126ab3eed6086dd88
+Author: Paul Murphy <murp@ibm.com>
+Date:   Wed Feb 12 08:45:34 2025 -0600
+
+    runtime: fix usleep on s390x/linux
+    
+    The timespec argument takes the remainder in nanoseconds, not
+    microseconds. Convert the remaining time to nsec.
+    
+    Fixes #71714
+    
+    Change-Id: I36cbbe3a088830c5e3afcc9516ef42e96ee21268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Axel Busch <axel.busch@ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Vishwanatha HD <vishwanatha.hd@ibm.com>
+
+ src/runtime/sys_linux_s390x.s | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

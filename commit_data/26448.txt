@@ -1,19 +1,12 @@
-commit 2a7e85f16242a47625994fa52d1e9668d6c4f9b9
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Mar 18 16:30:29 2016 -0400
+commit cedbbfaa45fac82a0088b3163c7137e814020a53
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 25 10:23:38 2016 -0800
 
-    cmd/internal/obj: add support for s390x
+    runtime: update heap dumper header to 1.6.
     
-    Adds a new R_PCRELDBL relocation for 2-byte aligned relative
-    relocations on s390x. Should be removed once #14218 is
-    implemented.
-    
-    Change-Id: I79dd2d8e746ba8cbc26c570faccfdd691e8161e8
-    Reviewed-on: https://go-review.googlesource.com/20941
+    Change-Id: Ic2a326d41783fb591148748dbcccfd3855091437
+    Reviewed-on: https://go-review.googlesource.com/18912
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/link.go | 5 +++++
- src/cmd/internal/obj/util.go | 1 +
- 2 files changed, 6 insertions(+)
+ src/runtime/heapdump.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

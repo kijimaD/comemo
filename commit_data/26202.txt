@@ -1,29 +1,38 @@
-commit 09d40378b946f363c9c351c2fdc8be30a09b238d
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Mar 10 14:25:50 2016 -0800
+commit 4b0bc7c3a14ac446bc13d22098de8db382205401
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 4 20:38:20 2016 +0000
 
-    crypto/x509/pkix: make 'v1' the default CRL version.
+    net/http: relax recently-updated rules and behavior of CloseNotifier
     
-    PKIX versions are off-by-one, so v1 is actually a zero on the wire, v2
-    is a one, and so on.
+    The CloseNotifier implementation and documentation was
+    substantially changed in https://golang.org/cl/17750 but it was a bit
+    too aggressive.
     
-    The RFC says that the version in a CRL is optional, but doesn't say what
-    the default is. Since v2 is the only accepted version, I had made the
-    default v2. However, OpenSSL considers the default to be v1. Also, if
-    the default is v2 and the element is optional then we'll never actually
-    write v2 on the wire. That's contrary to the RFC which clearly assumes
-    that v2 will be expressed on the wire in some cases.
+    Issue #13666 highlighted that in addition to breaking external
+    projects, even the standard library (httputil.ReverseProxy) didn't
+    obey the new rules about not using CloseNotifier until the
+    Request.Body is fully consumed.
     
-    Therefore, this change aligns with OpenSSL and assumes that v1 is the
-    default CRL version.
+    So, instead of fixing httputil.ReverseProxy, dial back the rules a
+    bit. It's now okay to call CloseNotify before consuming the request
+    body. The docs now say CloseNotifier may wait to fire before the
+    request body is fully consumed, but doesn't say that the behavior is
+    undefined anymore. Instead, we just wait until the request body is
+    consumed and start watching for EOF from the client then.
     
-    Fixes #13931
+    This CL also adds a test to ReverseProxy (using a POST request) that
+    would've caught this earlier.
     
-    [1] https://tools.ietf.org/html/rfc5280#section-5.1
+    Fixes #13666
     
-    Change-Id: Ic0f638ebdd21981d92a99a882affebf3a77ab71a
-    Reviewed-on: https://go-review.googlesource.com/20544
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib4e8c29c4bfbe7511f591cf9ffcda23a0f0b1269
+    Reviewed-on: https://go-review.googlesource.com/18144
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/x509/pkix/pkix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/httputil/reverseproxy_test.go | 42 +++++++++++++++++++-
+ src/net/http/request.go                    |  8 +++-
+ src/net/http/serve_test.go                 | 53 +++++++++++++++++++++++++
+ src/net/http/server.go                     | 63 +++++++++++++++++++++++++-----
+ src/net/http/transfer.go                   | 23 ++++++++++-
+ 5 files changed, 176 insertions(+), 13 deletions(-)

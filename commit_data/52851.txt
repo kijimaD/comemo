@@ -1,25 +1,17 @@
-commit 968ebb205e02ff4a1d63575a2af54e885b0ab4fc
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 2 09:37:00 2023 -0400
+commit 95b68e1e02fa713719f02f6c59fb1532bd05e824
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 4 14:46:42 2022 -0400
 
-    cmd/api: move support checks into individual tests
+    doc/go1.19: delete boringcrypto TODO
     
-    This makes 'go test -list cmd/api' work, and fixes an infinite
-    recursion via testenv.HasExec that would otherwise occur.
-    As of CL 488076, testenv.HasExec tries to re-exec the test
-    executable using -list to suppress running the tests, which
-    produces a fork bomb if TestMain itself calls HasExec.
+    Boringcrypto has never been officially supported and it remains unsupported.
+    It need not be mentioned in the release notes.
     
-    For this test, it turns out that the HasExec check is redundant
-    anyway: if we can exec 'go build', we can certainly exec programs in
-    general too.
-    
-    Change-Id: I165f98315c181098c8be8b7525b9dfa3f98e14f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491656
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I24a08d424982615244d51c1d250035d85a602023
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410362
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/api/api_test.go | 41 ++++++++++++++++++++---------------------
- 1 file changed, 20 insertions(+), 21 deletions(-)
+ doc/go1.19.html | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,20 +1,16 @@
-commit 658814fa386a08761032b659f64f4eecb79ca084
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 24 02:25:56 2016 -0400
+commit d7f7ea6ea894f197928cc728aef257c045e4e916
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Mar 30 16:19:10 2016 +0200
 
-    A+C: add Andre Nathan (individual CLA)
+    cmd/compile: ignore dead phis in fuse
     
-    Andre wrote https://golang.org/cl/13454043 (never submitted),
-    which served as the basis for Ross Light's https://golang.org/cl/19235.
+    Happens occasionally for boolean phis was used as a control.
     
-    Individual CLA verified by hand.
-    
-    Change-Id: Ic09e8efd84b7ded3ae472c204133e40cb85d97f7
-    Reviewed-on: https://go-review.googlesource.com/23377
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ie0f2483e9004c1706751d8dfb25ee2e5106d917e
+    Reviewed-on: https://go-review.googlesource.com/21310
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/compile/internal/ssa/fuse.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

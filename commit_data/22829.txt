@@ -1,23 +1,22 @@
-commit 80cedf3e8f912d7d7defd8e0495c6fd67d229555
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Fri May 1 18:20:31 2015 +0000
+commit eec6fdc90b64a4a2c579ef35b2ce6eaab1f62733
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 9 10:03:26 2015 -0400
 
-    text/template: detect unmatched else at parsing time
+    internal/trace: don't assume GC will start and end on same P
     
-    An unmatched {{else}} should trigger a parsing error.
+    Currently, GC disables preemption between the traceGCStart and
+    traceGCDone, so it never moves Ps. Consequently, the trace verifier
+    attaches information about GC to its per-P state and will fail if GC
+    starts on one P and ends on another.
     
-    The top level parser is able to issue an error in case
-    of unmatched {{end}}. It does it a posteriori (i.e. after having
-    parsed the action).
+    GC will soon be preemptible and may end on a different P than it
+    began. Hence, this change lifts this per-P verifier state to global
+    state.
     
-    Extend this behavior to also check for unmatched {{else}}
-    
-    Fixes #10611
-    
-    Change-Id: I1d4f433cc64e11bea5f4d61419ccc707ac01bb1d
-    Reviewed-on: https://go-review.googlesource.com/9620
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I82256e2baab1ff3c4453fec312079018423b4b51
+    Reviewed-on: https://go-review.googlesource.com/8714
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/text/template/parse/parse.go      | 7 ++++---
- src/text/template/parse/parse_test.go | 3 +++
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/internal/trace/parser.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

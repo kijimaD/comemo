@@ -1,28 +1,25 @@
-commit 8f8a8e8921eb46ffba9a5400a259e21eb2011bb7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Sep 18 16:14:08 2020 -0400
+commit ef44bd8413a9174f83af39538c62277ea195405a
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Feb 20 14:16:04 2020 -0500
 
-    cmd/go/internal/modload: eliminate QueryPackage
+    [dev.link] cmd/link: expose loader PatchDWARFName hook for asm subprogram DIEs
     
-    QueryPackage was a wrapper around QueryPattern with extra validation,
-    called only once from within the same package. Most of that validation
-    was already performed much earlier, in (*loader).Load. Inline the
-    remaining validation and remove the needless indirection.
+    Add a new loader method PatchDWARFName to patch up live DWARF function
+    DIEs during DWARF generation. This is needed to handle subprogram DIE
+    symbols emitted by the assembler, which still embeds "". package
+    tokens into the data sections of these dies.
     
-    For #36460
+    Note: this is expected to be a temporary hack, as we are going to
+    transition the assembler to do the patching itself when passed the
+    "-p" option (once this happens the plan is to toss all of the various
+    PatchDWARFName helpers).
     
-    Change-Id: I108a01d416197db8f886889554e07b29f0c37f3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256057
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Id689a751f08d7f4c096c4ac2f99991f9641959e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220986
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modload/import.go              | 12 +++---
- src/cmd/go/internal/modload/load.go                |  8 ++++
- src/cmd/go/internal/modload/query.go               | 14 -------
- .../go/testdata/script/mod_import_issue41113.txt   |  2 +-
- src/cmd/go/testdata/script/mod_import_meta.txt     | 45 ++++++++++++++++++++++
- 5 files changed, 60 insertions(+), 21 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 42 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

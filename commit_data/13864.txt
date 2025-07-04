@@ -1,17 +1,16 @@
-commit a29f3136b40c5a3b5da4034fe5def863d4ad2733
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 18 15:57:03 2012 -0400
+commit 99b6e9f73b2b6a9e4d415064a271bfe579b8b66c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Sep 18 23:42:18 2012 +0400
 
-    cmd/api: allow extension of interfaces with unexported methods
+    race: cmd/cgo changes
+    This is a part of a bigger change that adds data race detection feature:
+    https://golang.org/cl/6456044
+    This change breaks circular dependency between runtime/race and syscall packages.
     
-    Fixes #4061.
-    
-    R=golang-dev, bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6525047
+    https://golang.org/cl/6498079
 
- api/go1.txt                                | 24 ++++++++++----------
- src/cmd/api/goapi.go                       | 35 +++++++++++++++++++++++++-----
- src/cmd/api/testdata/src/pkg/p1/golden.txt |  7 +++++-
- src/cmd/api/testdata/src/pkg/p1/p1.go      | 10 +++++++++
- 4 files changed, 57 insertions(+), 19 deletions(-)
+ src/cmd/cgo/main.go | 1 +
+ src/cmd/cgo/out.go  | 8 ++++++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

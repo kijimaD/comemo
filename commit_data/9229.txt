@@ -1,16 +1,16 @@
-commit 890bdc53395676efae78218f5d9d6b6eddf26b76
+commit f91eb3c2f9e0621634a9cd16c2e9da903922fc53
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 27 19:31:11 2011 -0400
+Date:   Wed Jul 27 18:55:30 2011 -0400
 
-    gc: top-level closure bug
+    gc: composite literal double eval bug
     
-    Fixes #2055.
+    Fixes #2086.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4816059
+    https://golang.org/cl/4803055
 
- src/cmd/gc/closure.c     |  5 +++++
- src/cmd/gc/lex.c         |  5 +++--
- test/fixedbugs/bug355.go | 18 ++++++++++++++++++
- 3 files changed, 26 insertions(+), 2 deletions(-)
+ src/cmd/gc/pgen.c        |  2 +-
+ src/cmd/gc/sinit.c       |  2 +-
+ test/fixedbugs/bug354.go | 26 ++++++++++++++++++++++++++
+ 3 files changed, 28 insertions(+), 2 deletions(-)

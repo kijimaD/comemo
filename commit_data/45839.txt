@@ -1,24 +1,24 @@
-commit 460900a7b51f917888cb17608367979243178fe1
-Author: Andrew G. Morgan <agm@google.com>
-Date:   Sat Jun 19 09:46:52 2021 -0700
+commit 6965b01ea248cabb70c3749fd218b36089a21efb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 21 14:56:26 2020 +1100
 
-    os/signal: test with a significantly longer fatal timeout
+    runtime: allow for usleep2HighRes to run without TLS setup
     
-    We've observed some occasional os-arch specific timeouts
-    in signal.TestSignalTrace(). While the main purpose of a
-    short timeout is to ensure the passing tests complete
-    quickly, the unexpected failure path can tolerate waiting
-    longer (the test is not intended to test how slow or
-    overloaded the OS is at the time it is run).
+    This change adjusts usleep2HighRes so it does not crash when TLS is
+    not configured. When g is not available, usleep2HighRes just calls
+    usleep2 instead.
     
-    Fixes #46736
-    Change-Id: Ib392fc6ce485a919612784ca88ed76c30f4898e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329502
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #8687
+    
+    Change-Id: Idbb80f7b71d1da350a6a7df7c49154eb1ffe29a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271907
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Simon Rozman <simon@rozman.si>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
 
- src/os/signal/signal_test.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/runtime/sys_windows_386.s   | 11 ++++++++++-
+ src/runtime/sys_windows_amd64.s | 11 ++++++++++-
+ 2 files changed, 20 insertions(+), 2 deletions(-)

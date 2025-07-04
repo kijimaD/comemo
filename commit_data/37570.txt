@@ -1,17 +1,24 @@
-commit f91fd4f9da04f7675e5ef7dee2c70ae5059f5eed
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 3 15:45:10 2018 -0800
+commit 88aa208024f04845381a86f2d5679d2e520b1ff6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 25 09:20:14 2018 +0200
 
-    os: increase default write size for TestClosedPipeRaceWrite
+    syscall: use private copy of ustat_t on Linux
     
-    The original value of 65537 consistently caused the test to fail on
-    Solaris. The new value of 131073 consistently lets the test pass.
+    Port CL 120295 from golang.org/x/sys/unix to the syscall package.
     
-    Change-Id: If1a76ab89aa8f661ea049113addd04b23a116534
-    Reviewed-on: https://go-review.googlesource.com/c/152164
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The ustat syscall has been deprecated on Linux for a long time and the
+    upcoming glibc 2.28 will remove ustat.h and it can no longer be used to
+    to generate the Ustat_t wrapper type. Since Linux still provides the
+    syscall, let's not break this functionality and add a private copy of
+    struct ustat so Ustat_t can still be generated.
+    
+    Fixes golang/go#25990
+    
+    Change-Id: I0dab2ba1cc76fbd21553b499f9256fd9d59ca409
+    Reviewed-on: https://go-review.googlesource.com/120563
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/pipe_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/types_linux.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

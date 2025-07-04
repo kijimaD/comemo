@@ -1,17 +1,20 @@
-commit ec7963565af567b5b5a29eef53c5fb56801cb7ff
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 11 11:47:24 2011 -0700
+commit 690d59fa3e980ff20cc3d72d7d157467c8362ac1
+Author: Louis Kruger <louisk@google.com>
+Date:   Tue Oct 11 13:07:32 2011 -0400
 
-    godoc: show source code if -src flag is set in command-line mode
+    crypto/tls: add 3DES ciphersuites
     
-    This also shows the source code of exported functions in server
-    mode (e.g. pkg/big/?m=src).
+    The following ciphersuites are added:
+    TLS_RSA_WITH_3DES_EDE_CBC_SHA
+    TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+    This change helps conform to the TLS1.1 standard because
+    the first ciphersuite is "mandatory" in RFC4346
     
-    Fixes #2360.
-    
-    R=rsc
+    R=golang-dev, agl, rsc
     CC=golang-dev
-    https://golang.org/cl/5254057
+    https://golang.org/cl/5164042
 
- src/cmd/godoc/godoc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/tls/cipher_suites.go              |  29 +++-
+ src/pkg/crypto/tls/handshake_server_test.go      | 195 +++++++++++++++++++++++
+ src/pkg/crypto/tls/parse-gnutls-cli-debug-log.py |   2 +
+ 3 files changed, 218 insertions(+), 8 deletions(-)

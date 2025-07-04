@@ -1,19 +1,17 @@
-commit a95f1b51be6cdf39235dd4a00f03bab9bf17a3f3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 13 09:26:28 2021 -0700
+commit ab1812556777ffe61e554efb01c080cff90a6308
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 1 16:02:37 2020 -0800
 
-    test: change issue10441.go from "build" to "compile"
+    [dev.typeparams] cmd/compile/internal/types2: no "declared but not used" errors for invalid var decls
     
-    We use "build" for tests in the main package with a main function.
-    We use "compile" for tests that are not in the main package.
+    Matches compiler behavior.
     
-    Change-Id: I9876b55a9e4672277483fd24e69058d439c66658
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334329
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I87ca46fb7269fbac61ffbf8ed48902156b06f6e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274615
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- test/fixedbugs/issue10441.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/assignments.go       |  1 +
+ src/cmd/compile/internal/types2/decl.go              | 14 ++++++++++++++
+ src/cmd/compile/internal/types2/testdata/vardecl.src | 13 ++++++++++++-
+ 3 files changed, 27 insertions(+), 1 deletion(-)

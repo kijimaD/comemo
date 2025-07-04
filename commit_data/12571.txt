@@ -1,12 +1,14 @@
-commit d3191f5c2b10da7c7608828df648d01355e0e2f3
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Mar 13 03:24:13 2012 +0800
+commit d13b24598f3f63db601ac2e0caf3d66fc7431380
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Mon Mar 12 14:41:01 2012 -0400
 
-    gc: correct comment in runtime.go
+    cmd/go: allow ssh tunnelled bzr, git and svn
     
-    R=rsc, iant
+    This is often used in private hosting and collaborating environments.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5777057
+    https://golang.org/cl/5753063
 
- src/cmd/gc/runtime.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/vcs.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

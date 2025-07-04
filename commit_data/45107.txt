@@ -1,26 +1,22 @@
-commit e69f02265c74529a368a2ff27fdce4aeb3483e8b
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 13 08:32:21 2021 -0400
+commit 21eb3dcf93fc3698c9b8cd3ba83c9ddbef31e880
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 2 22:13:14 2020 +0200
 
-    runtime: use newm for profileloop
+    doc/go1.16: announce netbsd/arm64 support
     
-    This replaces the externalthreadhandler-based implementation of
-    profileloop with one that uses newm to start a new thread. This is a
-    step toward eliminating externalthreadhandler.
+    netbsd/arm64 now complies with all the requirements for a port as
+    specified on https://golang.org/wiki/PortingPolicy
     
-    For #45530.
+    Note that this was preliminarily announced in the Go 1.13 release notes
+    (CL 183637) but then removed again due to the port lacking a builder at
+    that time (CL 192997).
     
-    Change-Id: Id8e5540423fe2d2004024b649afec6998f77b092
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309633
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Updates #30824
+    
+    Change-Id: I2f40fabc84fe9cb699282e6a9d13ed9b64478e36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259277
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_windows.go       | 18 +++++++++---------
- src/runtime/sys_windows_386.s   |  9 ---------
- src/runtime/sys_windows_amd64.s |  6 ------
- src/runtime/sys_windows_arm.s   |  4 ----
- src/runtime/sys_windows_arm64.s |  4 ----
- 5 files changed, 9 insertions(+), 32 deletions(-)
+ doc/go1.16.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

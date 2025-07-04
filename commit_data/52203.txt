@@ -1,22 +1,15 @@
-commit f6cbc1da05da141a78ee33954b52d17642c95130
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Mar 4 14:35:35 2023 +1100
+commit c4b2288755d07b9505ef498819bb540b7b0fa215
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 14 13:14:18 2022 -0700
 
-    runtime: allow for 5 more threads in TestWindowsStackMemory*
+    cmd/compile: add jump table codegen test
     
-    Original version of TestWindowsStackMemory did not consider sysmon and
-    other threads running during the test. Allow for 5 extra threads in this
-    test - this should cover any new threads in the future.
-    
-    Fixes #58570
-    
-    Change-Id: I215790f9b94ff40a32ddd7aa54af715d1dc391c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473415
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ic67f676f5ebe146166a0d3c1d78a802881320e49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400375
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/testdata/testprog/syscall_windows.go  | 5 ++++-
- src/runtime/testdata/testprogcgo/stack_windows.go | 5 ++++-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ test/codegen/switch.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

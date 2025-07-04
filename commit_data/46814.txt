@@ -1,31 +1,25 @@
-commit 8c4ea3140e7c79d828fe7683a3dfe3474a9938fb
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Oct 8 10:33:47 2021 +1100
+commit c910fd7b771cfbfc1b11a6eef750f835bf66c96c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 2 13:20:03 2021 -0800
 
-    image/png: fix interlaced palette out-of-bounds
+    [dev.typeparams] cmd/compile: refuse excessively long constants
     
-    PNG images can be paletted, where each pixel value (a uint8) indexes a
-    slice of colors. In terms of wire format, the PLTE chunk explicitly
-    contains the palette length. However, in practice, some arguably
-    malformed images contain pixel values greater than or equal to the
-    explicit PLTE length.
+    The compiler uses 512 bit of precision for untyped constant
+    arithmetic but didn't restrict the length of incoming constant
+    literals in any way, possibly opening the door for excessively
+    long constants that could bring compilation to a crawl.
     
-    Go's image/png decoder accomodates such images by lengthening the
-    decoded image's palette if the implicit maximum is larger than the
-    explicit maximum. This was already done, prior to this commit, by the
-    "if len(paletted.Palette) <= int(idx)" lines in decoder.readImagePass.
+    Add a simple check that refuses excessively long constants.
+    Add test.
     
-    Separately, PNG images can also be interlaced, where the final image is
-    the result of merging multiple partial images, also called passes. Prior
-    to this commit, we applied the palette lengthening to the pass images
-    but not the final image. This commit fixes that.
-    
-    Fixes #48612
-    
-    Change-Id: I77606538cc9a504fbd726071756ebcd10c9da73f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354709
-    Trust: Nigel Tao <nigeltao@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I797cb2a8e677b8da2864eb92d686d271ab8a004d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289049
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/image/png/reader.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/noder.go | 14 ++++++
+ src/cmd/compile/internal/types2/expr.go | 17 ++++++++
+ test/const7.go                          | 77 +++++++++++++++++++++++++++++++++
+ 3 files changed, 108 insertions(+)

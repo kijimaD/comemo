@@ -1,14 +1,40 @@
-commit c3533d7a26d659c5ae3af27320a462c602bd25ee
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Sat Jul 28 01:22:24 2018 +0300
+commit 4869ec00e87ef49db2646c25d28d5c7e4f1caff8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 11 19:43:39 2018 +1000
 
-    cmd/cover: remove unused global var and the unquote function
+    syscall: introduce Pointer type and use it instead of uintptr
     
-    Change-Id: I52a39f2d8f1a296f23624e3ec577d9ad1b8302f1
-    Reviewed-on: https://go-review.googlesource.com/126555
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    Some syscall structures used by crypto/x509 have uintptr
+    fields that store pointers. These pointers are set with
+    a pointer to another Go structure. But the pointers are
+    not visible by garbage collector, and GC does not update
+    the fields after they were set. So when structure with
+    invalid uintptr pointers passed to Windows, we get
+    memory corruption.
+    
+    This CL introduces CertInfo, CertTrustListInfo and
+    CertRevocationCrlInfo types. It uses pointers to new types
+    instead of uintptr in CertContext, CertSimpleChain and
+    CertRevocationInfo.
+    
+    CertRevocationInfo, CertChainPolicyPara and
+    CertChainPolicyStatus types have uintptr field that can
+    be pointer to many different things (according to Windows
+    API). So this CL introduces Pointer type to be used for
+    those cases.
+    
+    As suggested by Austin Clements.
+    
+    Fixes #21376
+    Updates #24820
+    
+    Change-Id: If95cd9eee3c69e4cfc35b7b25b1b40c2dc8f0df7
+    Reviewed-on: https://go-review.googlesource.com/106275
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/cover/cover.go | 12 ------------
- 1 file changed, 12 deletions(-)
+ api/except.txt                  | 12 ++++++++++++
+ src/crypto/x509/root_windows.go |  2 +-
+ src/syscall/types_windows.go    | 32 ++++++++++++++++++++++++++------
+ 3 files changed, 39 insertions(+), 7 deletions(-)

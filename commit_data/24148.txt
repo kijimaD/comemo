@@ -1,21 +1,12 @@
-commit 43a7a9cf43319b2a473c9c3f604a694965e78903
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 31 14:36:36 2015 -0700
+commit 337b7e7e3bb3a6a141d4aa10f8ed79ee33b6f7e9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 13 17:30:42 2015 -0600
 
-    cmd/vet: diagnose using Printf on a function value
+    [dev.ssa] cmd/compile: handle OLITERAL nil expressions
     
-    Printing a function value is nearly useless outside of debugging, but
-    can occur by mistake when one forgets to call it. Diagnose this.
-    
-    I did this myself just the other day and it arose in cl/14031.
-    Easy to fix and seems worthwhile.
-    
-    Fixes #12295.
-    
-    Change-Id: Ice125a84559f0394f7fa7272b5d31ae602b07f83
-    Reviewed-on: https://go-review.googlesource.com/14122
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I02b8fb277b486eaf0916ddcd8f28c062d4022d4b
+    Reviewed-on: https://go-review.googlesource.com/12150
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/vet/print.go          | 19 ++++++++++++++++++-
- src/cmd/vet/testdata/print.go | 11 +++++++++--
- 2 files changed, 27 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 ++
+ 1 file changed, 2 insertions(+)

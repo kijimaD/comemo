@@ -1,0 +1,22 @@
+commit 1fe65836aca009343274443411f7120d70434ddb
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Dec 3 16:23:18 2024 -0500
+
+    cmd/go/testdata/script: skip EndSequence entries in build_trimpath_cgo
+    
+    The TestScript/build_trimpath_cgo test for cmd/go has been accessing a
+    nil pointer when it tries to look up LineEntry.File.Name on a line entry
+    with EndSequence set to true. The doc for EndSequence specifies that if
+    EndSequence is set, only it and the Address field are meaningful. Skip
+    the entries with EndSequence set when building the set of files.
+    
+    Fixes #70669
+    
+    Change-Id: I421a2a9348e727e3ac4a3d42baa4d206cfbc047b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633038
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+
+ src/cmd/go/testdata/script/build_trimpath_cgo.txt | 3 +++
+ 1 file changed, 3 insertions(+)

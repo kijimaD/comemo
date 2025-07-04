@@ -1,22 +1,53 @@
-commit cf4691650c3c556f19844a881a32792a919ee8d1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 13 15:07:56 2019 -0500
+commit daaf361f74c3665bcb364356c5a9dd9f536c78c3
+Author: Peter Weinberger <pjw@google.com>
+Date:   Wed Sep 26 10:10:48 2018 -0400
 
-    cmd/go: change the default value of GO111MODULE to 'on'
+    internal/traceparser: provide parser that uses less space and parses segments of runtime trace files
     
-    Fixes #30228
+    Traceparser generally takes 20-30% less space than internal/trace. The only
+    user of these pakcages is cmd/trace, and the new package lets it handle some
+    trace files that were too large. The new parser will also convert segments
+    of the raw trace file (e.g. the last 10 seconds) to Events. Trace files from
+    go 1.8 and before are not supported.
     
-    Change-Id: Ie45ba6483849b843eb6605272f686b9deffe5e48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/162698
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: If83fa183246db8f75182ccd3ba8df07673c0ebd0
+    Reviewed-on: https://go-review.googlesource.com/c/137635
+    Run-TryBot: Peter Weinberger <pjw@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/go/alldocs.go                             | 331 +++++++++++-----------
- src/cmd/go/help_test.go                           |   5 +
- src/cmd/go/internal/help/help.go                  |   7 +-
- src/cmd/go/internal/modload/help.go               |  39 +--
- src/cmd/go/internal/modload/init.go               |  35 +--
- src/cmd/go/main.go                                |  15 +-
- src/cmd/go/mkalldocs.sh                           |   2 +-
- src/cmd/go/testdata/script/mod_find.txt           |   2 +-
- src/cmd/go/testdata/script/mod_gobuild_import.txt |   6 +
- 9 files changed, 210 insertions(+), 232 deletions(-)
+ misc/nacl/README                                   |   4 +-
+ misc/nacl/testzip.proto                            |   3 +
+ src/go/build/deps_test.go                          |   2 +
+ src/internal/traceparser/consistent.go             | 313 +++++++++++
+ src/internal/traceparser/events.go                 | 312 +++++++++++
+ src/internal/traceparser/file.go                   | 247 +++++++++
+ src/internal/traceparser/filebuf/filebuf.go        | 165 ++++++
+ src/internal/traceparser/filebuf/filebuf_test.go   | 204 +++++++
+ src/internal/traceparser/filebuf/fromreader.go     |  71 +++
+ src/internal/traceparser/fuzz.go                   |  49 ++
+ src/internal/traceparser/goroutines.go             | 341 ++++++++++++
+ src/internal/traceparser/parser_test.go            | 107 ++++
+ src/internal/traceparser/raw.go                    | 106 ++++
+ src/internal/traceparser/robust.go                 | 585 +++++++++++++++++++++
+ .../06dfecf6e5dfb78e954e7892120b56bfca50af65-6.bad | Bin 0 -> 79 bytes
+ .../0e6dd1787a6339366dac733a2f957a05d7aa3ac7-3.bad | Bin 0 -> 50 bytes
+ ...6970d24ef6753d71953e20d10638705bdccc3ba-2.weird | Bin 0 -> 62 bytes
+ ...6492441b33e1bb93669f79cf3584755cc3ef7e8-2.weird | Bin 0 -> 70 bytes
+ .../2ccf452e473ded814ea880c602488637fc27e549.good  | Bin 0 -> 1982 bytes
+ ...4f92cd2ae08f558c494b2ef79e80b574c9f096c-8.weird | Bin 0 -> 60 bytes
+ .../4557f81f6aae617eeec8dd920997ea27b3dda12b.weird | Bin 0 -> 2199 bytes
+ ...95712b6e35ad7566869c887aa823fcbf69c0b80-1.weird | Bin 0 -> 27 bytes
+ .../63cd688ddff425bbbc220fbb7bd4fa11616a8b64-1.bad | Bin 0 -> 23 bytes
+ ...3df44bfc9d27851fb054ce03002e7e25f307e2f-5.weird | Bin 0 -> 65 bytes
+ .../6aa1a69b265c3092972a2a81e77fbcaa87061735-4.bad | Bin 0 -> 41 bytes
+ .../7b82e808a6a3471352a4197d44fedbe3f5fb6f77-1.bad | Bin 0 -> 36 bytes
+ ...4347dc6ca9c22daec04c5f2530b16ea60bb0ba2-7.weird | Bin 0 -> 59 bytes
+ ...fa93c88557e64b0714b8849aacf713d17ff928e-2.weird | Bin 0 -> 1683 bytes
+ ...bf7185aaf1cb69fb5fae50ba8546a7cdefade57-2.weird | Bin 0 -> 36 bytes
+ ...28fcef078c7dc722867d781b1fd7f37ca965372-7.weird | Bin 0 -> 62 bytes
+ ...70f178a3813df03f2aed0d47f6d9bc844b8cb57-4.weird | Bin 0 -> 40 bytes
+ ...68c3126700dda2c2ac3b8743e9f319cb313042a-1.weird | Bin 0 -> 32 bytes
+ src/internal/traceparser/tr.go                     | 498 ++++++++++++++++++
+ src/internal/traceparser/writer.go                 |  52 ++
+ 34 files changed, 3057 insertions(+), 2 deletions(-)

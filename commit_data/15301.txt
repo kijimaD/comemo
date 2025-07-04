@@ -1,12 +1,28 @@
-commit d251fc39f2b3fc27a526a02dfc39cb750746ed7f
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Feb 19 19:20:44 2013 +0800
+commit 6ab113531b49621394dbd274c44bb583ded1dc45
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Tue Feb 19 19:12:36 2013 +1100
 
-    doc/gccgo_contribute: mention gofrontend-dev@googlegroups.com mailing list
+    exp/cookiejar: store cookies under TLD+1 on nil public suffix list
     
-    R=iant
+    The current implementation would store all cookies received from
+    any .com domain under "com" in the entries map if a nil public
+    suffix list is used in constructing the Jar. This is inefficient.
+    
+    This CL uses the TLD+1 of the domain if the public suffix list
+    is nil which has two advantages:
+     - It uses the entries map efficiently.
+     - It prevents a host foo.com to set cookies for bar.com.
+       (It may set the cookie, but it won't be returned to bar.com.)
+    A domain like www.british-library.uk may still set a domain
+    cookie for .british-library.uk in this case.
+    
+    The behavior for a non-nil public suffix list is unchanged, cookies
+    are stored under eTLD+1 in this case.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/7323064
+    https://golang.org/cl/7312105
 
- doc/gccgo_contribute.html | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/exp/cookiejar/jar.go      | 33 +++++++++++++++++++--------------
+ src/pkg/exp/cookiejar/jar_test.go | 21 ++++++++++++++++++---
+ 2 files changed, 37 insertions(+), 17 deletions(-)

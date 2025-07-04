@@ -1,26 +1,48 @@
-commit 02f56bfb5c16cf51983f8d487124b34b080e5492
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 16 14:54:20 2014 -0800
+commit 2d917c0c26f9a3ecbb5918839f9cdb4cdc311f16
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:05:55 2014 -0500
 
-    test: add test case that gccgo failed to link
+    [dev.cc] runtime: convert signal handlers from C to Go
     
-    Gccgo creates a struct to hold the arguments for the deferred
-    function.  In this example the struct holds a type defined in a
-    different package.  The bug was that gccgo tried to create an equality
-    function for this struct, and it implemented that function by calling
-    the equality function for the type defined in the other package.
-    Since that type is not exported, the reference to the equality
-    function failed at link time.  Normally it is impossible for a struct
-    to directly contain a member that is an unexported type from another
-    package, but in this specific case it was possible.  Fixed in gccgo
-    with https://codereview.appspot.com/183500043 .
+    This code overused macros and could not be
+    converted automatically. Instead a new sigctxt
+    type had to be defined for each os/arch combination,
+    with a common (implicit) interface used by the
+    arch-specific signal handler code.
     
-    Change-Id: I8ec3a33631225b9ac2a4ac060cb4d10b4635e60b
-    Reviewed-on: https://go-review.googlesource.com/1690
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
+    
+    LGTM=r
+    R=r
+    CC=austin, dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/168500044
 
- test/fixedbugs/bug492.dir/a.go | 16 ++++++++++++++++
- test/fixedbugs/bug492.dir/b.go | 11 +++++++++++
- test/fixedbugs/bug492.go       |  9 +++++++++
- 3 files changed, 36 insertions(+)
+ src/runtime/signal.c               |  25 ------
+ src/runtime/signal.go              |  15 ++++
+ src/runtime/signal1_unix.go        | 111 +++++++++++++++++++++++++
+ src/runtime/signal_386.c           | 122 ---------------------------
+ src/runtime/signal_386.go          | 131 +++++++++++++++++++++++++++++
+ src/runtime/signal_amd64x.c        | 156 -----------------------------------
+ src/runtime/signal_amd64x.go       | 163 +++++++++++++++++++++++++++++++++++++
+ src/runtime/signal_arm.c           | 121 ---------------------------
+ src/runtime/signal_arm.go          | 126 ++++++++++++++++++++++++++++
+ src/runtime/signal_darwin.go       |  45 ++++++++++
+ src/runtime/signal_darwin_386.go   |  34 ++++++++
+ src/runtime/signal_darwin_386.h    |  23 ------
+ src/runtime/signal_darwin_amd64.go |  42 ++++++++++
+ src/runtime/signal_darwin_amd64.h  |  31 -------
+ src/runtime/signal_linux.go        |  78 ++++++++++++++++++
+ src/runtime/signal_linux_386.go    |  36 ++++++++
+ src/runtime/signal_linux_386.h     |  24 ------
+ src/runtime/signal_linux_amd64.go  |  46 +++++++++++
+ src/runtime/signal_linux_amd64.h   |  32 --------
+ src/runtime/signal_linux_arm.go    |  48 +++++++++++
+ src/runtime/signal_linux_arm.h     |  28 -------
+ src/runtime/signal_unix.c          | 119 ---------------------------
+ src/runtime/signal_unix.go         |   2 -
+ src/runtime/signals_darwin.h       |  53 ------------
+ src/runtime/signals_linux.h        |  86 -------------------
+ src/runtime/sigpanic_unix.go       |   9 +-
+ src/runtime/sigqueue.go            |   5 +-
+ 27 files changed, 882 insertions(+), 829 deletions(-)

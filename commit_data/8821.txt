@@ -1,13 +1,13 @@
-commit 8a4acd53f12014ba29de7fb12ab4e6d4c6ca7d9b
+commit 2e41120a824e178f63f78e360e801d6cd3b28aba
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 22 18:07:08 2011 -0400
+Date:   Wed Jun 22 17:00:46 2011 -0400
 
-    A+C: Ken Rockot (individual CLA)
+    build: explain $PWD use
     
-    R=golang-dev, dsymonds
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4648053
+    https://golang.org/cl/4639064
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
+ src/Make.ccmd | 1 +
+ src/Make.clib | 1 +
  2 files changed, 2 insertions(+)

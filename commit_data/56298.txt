@@ -1,22 +1,36 @@
-commit a4031ea1f5e0c40717c6f9d608e51ff3cef1a6eb
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Thu Apr 25 08:42:27 2024 +0000
+commit 6c1792d1ff5fa949e39e383828c7dc666f8ac4fe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 11 15:28:23 2023 -0700
 
-    all: fix typos in comments
+    crypto/sha1: add WriteString and WriteByte method
     
-    Change-Id: Ib2e77cff4c10f66316295cbd67f52606cbf9972b
-    GitHub-Last-Rev: 088c033b2d5b743ca7739300ad3e9fdf69846669
-    GitHub-Pull-Request: golang/go#67032
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581675
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This can reduce allocations when hashing a string or byte
+    rather than []byte.
+    
+    For #38776
+    
+    Change-Id: I7c1fbdf15abf79d2faf360f75adf4bc550a607e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483815
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/cmd/compile/internal/liveness/mergelocals.go | 2 +-
- src/cmd/compile/internal/types2/api.go           | 2 +-
- src/unique/handle.go                             | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/crypto/internal/boring/sha.go    | 14 +++++++++
+ src/crypto/sha1/sha1.go              | 61 ++++++++++++++++++++++++++++++------
+ src/crypto/sha1/sha1_test.go         | 33 ++++++++++++++++++-
+ src/crypto/sha1/sha1block.go         |  2 +-
+ src/crypto/sha1/sha1block_386.s      |  6 ++--
+ src/crypto/sha1/sha1block_amd64.go   | 33 ++++++++++++++-----
+ src/crypto/sha1/sha1block_amd64.s    | 12 +++----
+ src/crypto/sha1/sha1block_arm.s      |  9 +++---
+ src/crypto/sha1/sha1block_arm64.go   | 18 +++++++++--
+ src/crypto/sha1/sha1block_arm64.s    |  8 ++---
+ src/crypto/sha1/sha1block_decl.go    | 12 ++++++-
+ src/crypto/sha1/sha1block_generic.go |  4 +++
+ src/crypto/sha1/sha1block_s390x.go   |  9 +++++-
+ src/crypto/sha1/sha1block_s390x.s    |  8 ++---
+ 14 files changed, 183 insertions(+), 46 deletions(-)

@@ -1,31 +1,25 @@
-commit ddc93a536faf4576d182cd3197b116d61d05c484
+commit ebeab63d9515b539ae627f10cfc1766eecd243aa
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Aug 29 17:25:32 2022 +0700
+Date:   Tue Oct 5 23:53:07 2021 +0700
 
-    cmd/compile: fix unified IR shapifying recursive instantiated types
+    go/types: better error message for invalid untyped nil conversion
     
-    Shape-based stenciling in unified IR is done by converting type argument
-    to its underlying type. So it agressively check that type argument is
-    not a TFORW. However, for recursive instantiated type argument, it may
-    still be a TFORW when shapifying happens. Thus the assertion failed,
-    causing the compiler crashing.
+    This is port of CL 354049 for types2 to go/type.
     
-    To fix it, just allow fully instantiated type when shapifying.
+    The change is identical, but for some tweaks to the error message/position
+    in tests, since when go/types reports the exact operation "cannot convert"
+    instead of the general "invalid operation" like types2.
     
-    Fixes #54512
-    Fixes #54722
+    Updates #48784
     
-    Change-Id: I527e3fd696388c8a37454e738f0324f0c2ec16cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426335
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I3e99f2721501d23187fd0a8970eb1de28e0c41d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354050
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/base/debug.go   |  1 +
- src/cmd/compile/internal/noder/reader.go | 17 ++++++++++++++++-
- test/fixedbugs/issue54722.go             | 15 +++++++++++++++
- test/fixedbugs/issue54722b.go            | 30 ++++++++++++++++++++++++++++++
- test/typeparam/nested.go                 | 26 +++++---------------------
- 5 files changed, 67 insertions(+), 22 deletions(-)
+ src/go/types/errorcodes.go            | 2 +-
+ src/go/types/expr.go                  | 6 ++++++
+ src/go/types/testdata/check/expr2.src | 4 ++--
+ 3 files changed, 9 insertions(+), 3 deletions(-)

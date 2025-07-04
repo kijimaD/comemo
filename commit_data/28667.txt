@@ -1,17 +1,15 @@
-commit ee8ec42929541055a9e063b50f9ffd5ee9404517
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Sat Sep 10 17:04:41 2016 +0300
+commit e4dc7f1ed2f90b2f72b21f5f8e00287e3c409876
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Fri Jun 24 10:48:06 2016 -0400
 
-    cmd/vet: skip printf check for non-constant format string during failed import
+    context: update documentation on cancelation and go vet check.
     
-    Fixes #17006
+    Also replace double spaces after periods with single spaces.
     
-    Change-Id: I3c2060ca5384a4b9782a7d804305d2cf4388dd5a
-    Reviewed-on: https://go-review.googlesource.com/29014
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iedaea47595c5ce64e7e8aa3a368f36d49061c555
+    Reviewed-on: https://go-review.googlesource.com/24431
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/print.go          | 24 +++++++++++++++---------
- src/cmd/vet/testdata/print.go |  3 +++
- 2 files changed, 18 insertions(+), 9 deletions(-)
+ src/context/context.go | 73 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 38 insertions(+), 35 deletions(-)

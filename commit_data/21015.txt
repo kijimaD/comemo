@@ -1,12 +1,23 @@
-commit 6ce3cd18fa630fd5d0c97fa7903425dc4759f2a2
-Author: Guobiao Mei <meiguobiao@gmail.com>
-Date:   Thu Dec 18 10:53:00 2014 -0500
+commit f45fd5753c4f1fd6ab472e219598523516855b40
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 6 14:37:39 2014 -0500
 
-    runtime: fix a minor typo in comments
+    [dev.power64] gc: fix etype of strings
     
-    Change-Id: I13a8aacd1b8243c992b539ab6bf7b5dff2a1393a
-    Reviewed-on: https://go-review.googlesource.com/1757
-    Reviewed-by: Minux Ma <minux@golang.org>
+    The etype of references to strings was being incorrectly set
+    to TINT32 on all platforms.  Change it to TSTRING.  It seems
+    this doesn't matter for compilation, since x86 uses LEA
+    instructions to load string addresses and arm and power64
+    disassemble the string into its constituent pieces (with the
+    correct types), but it helps when debugging.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/170100043
 
- src/runtime/malloc2.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5g/gobj.c | 2 +-
+ src/cmd/6g/gobj.c | 2 +-
+ src/cmd/8g/gobj.c | 2 +-
+ src/cmd/9g/gobj.c | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

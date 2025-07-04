@@ -1,21 +1,24 @@
-commit 861885841de7b073130c04bee4eace896b0b050f
-Author: cui fliter <imcusg@gmail.com>
-Date:   Wed Sep 7 03:33:43 2022 +0000
+commit 5786a54cfe34069c865fead1b6d9c9e3485a40a5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 26 09:13:16 2021 +0200
 
-    go/ast: use strings.Builder
+    syscall: use dup3 in forkAndExecInChild on NetBSD
     
-    Change-Id: I9c4c3ada3a8f5d8d198cc42a4afc06972ee00c61
-    GitHub-Last-Rev: 4ed80119e3aef2e5bcfdb58a2d53ed64ef40892b
-    GitHub-Pull-Request: golang/go#54916
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428921
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Use dup3(oldfd, newfd, O_CLOEXEC) to atomically duplicate the file
+    descriptor and mark is as close-on-exec instead of dup2 & fcntl.
+    
+    The dup3 syscall was added in NetBSD 6.0.
+    
+    Change-Id: I01a4f8c62bfa8fb7f9f3166070380dd2002bb564
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358755
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/ast/commentmap_test.go | 4 ++--
- src/go/ast/example_test.go    | 6 +++---
- src/go/ast/filter_test.go     | 4 ++--
- src/go/ast/print_test.go      | 3 +--
- 4 files changed, 8 insertions(+), 9 deletions(-)
+ src/syscall/exec_bsd.go               | 33 +++++++++++++++++++++++++--------
+ src/syscall/syscall_dragonfly.go      |  2 ++
+ src/syscall/syscall_netbsd.go         |  2 ++
+ src/syscall/syscall_openbsd_mips64.go |  2 ++
+ 4 files changed, 31 insertions(+), 8 deletions(-)

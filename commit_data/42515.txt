@@ -1,25 +1,30 @@
-commit 8dae5390cbc2b4d3b772b8f17182e885523b698b
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jun 12 11:07:56 2020 -0700
+commit 52a9210a2c91098b667c2c8890c24dec89b5dfff
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 6 14:26:28 2020 -0500
 
-    runtime: raise alert threshold on window smhasher test
+    cmd/go: convert import comment tests to script framework
     
-    This alert is triggering occasionally. I've investigated the
-    collisions that happen, and they all seem to be pairwise, so they are
-    not a big deal.  "pairwise" = when there are 32 collisions, it is two
-    keys mapping to the same hash, 32 times, not 33 keys all mapping to
-    the same hash.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Add some t.Logf calls in case this comes back, which will help isolate
-    the problem.
+    Updates #36320
+    Updates #17751
     
-    Fixes #39352
-    
-    Change-Id: I1749d7c8efd0afcf9024d8964d15bc0f58a86e4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237718
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I30230ca3b4d8b037ea861db952b89e706ed8706d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213425
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/hash_test.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go                              | 31 --------------
+ src/cmd/go/testdata/importcom/bad.go               |  3 --
+ src/cmd/go/testdata/importcom/conflict.go          |  3 --
+ src/cmd/go/testdata/importcom/src/bad/bad.go       |  1 -
+ src/cmd/go/testdata/importcom/src/conflict/a.go    |  1 -
+ src/cmd/go/testdata/importcom/src/conflict/b.go    |  1 -
+ src/cmd/go/testdata/importcom/src/works/x/x.go     |  1 -
+ src/cmd/go/testdata/importcom/src/works/x/x1.go    |  1 -
+ src/cmd/go/testdata/importcom/src/wrongplace/x.go  |  1 -
+ src/cmd/go/testdata/importcom/works.go             |  3 --
+ src/cmd/go/testdata/importcom/wrongplace.go        |  3 --
+ .../go/testdata/script/build_import_comment.txt    | 47 ++++++++++++++++++++++
+ 12 files changed, 47 insertions(+), 49 deletions(-)

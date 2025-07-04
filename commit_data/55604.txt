@@ -1,18 +1,25 @@
-commit 74abbdfe62af117fef9514c7f9fa7317dc3a6298
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Fri Feb 16 09:52:40 2024 +0000
+commit 5e4e2acc8e53022f57398c4b0f3892f8113687f6
+Author: Xiangdong Ji <jixiangdong@bytedance.com>
+Date:   Thu Feb 9 17:31:14 2023 +0800
 
-    crypto/subtle: remove unused code
+    cmd/compile/internal/pgo: fix RedirectEdges
     
-    Change-Id: I4e360e643d101a8f2188a2318557b0430a89d5cd
-    GitHub-Last-Rev: 046943ff482ff8e5665a50f62fcb63fa3bcf868e
-    GitHub-Pull-Request: golang/go#65747
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564736
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    'RedirectEdges' may range over an out-edge slice under modification, leading to out-of-index
+    panic, and reuse an IREdge object by mistake if there are multiple inlining call-sites.
+    
+    Fix by rewriting part of the redirecting operation.
+    
+    Remove 'redirectEdges' as it's not used now and not working as expected in case of multiple
+    inlining call-sites.
+    
+    Fixes #58437.
+    
+    Change-Id: Ic344d4c262df548529acdc9380636cb50835ca51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/crypto/subtle/xor_test.go | 8 --------
- 1 file changed, 8 deletions(-)
+ src/cmd/compile/internal/pgo/irgraph.go | 41 ++++++++++++++++-----------------
+ 1 file changed, 20 insertions(+), 21 deletions(-)

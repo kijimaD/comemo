@@ -1,17 +1,12 @@
-commit 6b0bd51c1c7f34acdc5556d88a52d9a9f3b14da5
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Wed Apr 19 15:14:56 2017 -0400
+commit 936749efb07f87f99753f47d921e7659414fad2d
+Author: Shintaro Kaneko <kaneshin0120@gmail.com>
+Date:   Sat Jan 28 10:08:10 2017 +0000
 
-    cmd/internal/obj/s390x: delete unused REGZERO constant
+    test: improve output format of issue10607a.go test
     
-    When we switched to SSA R0 was made allocatable and no longer holds
-    zero on s390x.
-    
-    Change-Id: I1c752bb02da35462a535492379345fa9f4e12cb0
-    Reviewed-on: https://go-review.googlesource.com/41079
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iad5ff820a95f5082b75aa5260e40c33c7b0ecf22
+    Reviewed-on: https://go-review.googlesource.com/35990
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/s390x/a.out.go | 1 -
- 1 file changed, 1 deletion(-)
+ test/fixedbugs/issue10607a.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

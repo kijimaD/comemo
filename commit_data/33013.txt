@@ -1,32 +1,15 @@
-commit 4a2376ef027b0767bb6e0161ef8cfd13f3bc61bb
-Author: David Chase <drchase@google.com>
-Date:   Mon Oct 9 16:41:25 2017 -0400
+commit b4dd1d965dfbbde6a46bddaf6f446f4426a04b2e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jun 24 20:54:47 2017 -0700
 
-    cmd/compile: skip ssa/debug_test.go when gdb missing etc.
+    os/signal: check MustHaveExec in TestAtomicStop
     
-    CL50610 broke the build for noopt (different inlining
-    behavior) and clang (no gdb) so it needs to catch those
-    cases and skip.
-    
-    The run/no-run logic was slightly cleaned up,
-    the name of gdb on OSX was made more robust (tries gdb
-    first, then ggdb), and the file names were canonicalized
-    before loggging instead of in comparison to reduce
-    gratuitous noise in diffs when things aren't otherwise
-    equal.
-    
-    This probably doesn't fix problems on Alpine, but it should
-    provide a cleaner and less confusing failure.
-    
-    Change-Id: I26c65bff5a8d3d60f1cd6ae02a282558c53dda67
-    Reviewed-on: https://go-review.googlesource.com/69371
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I284ecfab574b3058ba66b75f8f8d2ccdb90a8a0c
+    Reviewed-on: https://go-review.googlesource.com/46650
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/debug_test.go         |  79 ++++--
- .../internal/ssa/testdata/hist-dbg.delve-nexts     | 274 +-------------------
- .../internal/ssa/testdata/hist-dbg.gdb-nexts       | 280 +--------------------
- .../internal/ssa/testdata/hist-opt.delve-nexts     | 118 ++-------
- .../internal/ssa/testdata/hist-opt.gdb-nexts       |  96 +------
- src/cmd/compile/internal/ssa/testdata/hist.go      |   2 +-
- 6 files changed, 80 insertions(+), 769 deletions(-)
+ src/os/signal/signal_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

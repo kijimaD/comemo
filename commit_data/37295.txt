@@ -1,19 +1,20 @@
-commit 0b071e40195c7f202933d3b3ec3da3b4f40cd472
-Author: diplozoon <huyuumi.dev@gmail.com>
-Date:   Fri Oct 26 05:03:15 2018 +0000
+commit ff5b54d24a7fda589d3fc4516aa153a3f2e1a224
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 17 11:36:29 2018 -0400
 
-    cmd/go: add /v2 to go.mod require example
+    runtime: disable compressed DWARF for lldb test
     
-    I added /v2 to go.mod require example
+    lldb doesn't support compressed DWARF, so right now we're just always
+    skipping the lldb test. This CL makes the test run again by disabling
+    compressed DWARF just for this test.
     
-    Fixes #28374
+    Updates #25925.
     
-    Change-Id: I74cca374838d106eb79acb9189a02fe9443962c0
-    Reviewed-on: https://go-review.googlesource.com/c/144917
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib9ddc442305fe6d37060d48f36bc4458b6fd8c86
+    Reviewed-on: https://go-review.googlesource.com/124385
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go               | 2 +-
- src/cmd/go/internal/modload/help.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/runtime-lldb_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

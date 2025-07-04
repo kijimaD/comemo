@@ -1,25 +1,23 @@
-commit b8dd33b2f69729b7fba01fd398514e7671bbdf0a
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Jan 30 14:18:42 2020 -0800
+commit 3d522b10885a21f2c07344748e36bbfdcad01990
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 9 17:31:23 2019 -0400
 
-    cmd/go.mod: sync x/crypto with std
+    cmd/go/internal/module: in VersionError, do not wrap an existing ModuleError
     
-        go get golang.org/x/crypto@v0.0.0-20200128174031-69ecbb4d6d5d
-        go mod vendor
-        git checkout -- vendor/golang.org/x/sys/unix/asm_linux_riscv64.s \
-            vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+    VersionError wraps the given error in a ModuleError struct.
     
-    Updates #36851
+    If the given error is already a ModuleError for the same path and
+    version, we now return it directly instead of wrapping.
+    This makes it safer to call VersionError if we don't know whether
+    a given error is already wrapped.
     
-    Change-Id: I95c0584ede599f600da927a04f135fe64a85037e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217118
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Updates #30748
+    
+    Change-Id: I41b23f6c3ead0ec382e848696da51f478da1ad35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189781
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go.mod                                                  | 2 +-
- src/cmd/go.sum                                                  | 2 ++
- src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go     | 4 ++++
- src/cmd/vendor/golang.org/x/crypto/ssh/terminal/util_windows.go | 4 ++--
- src/cmd/vendor/modules.txt                                      | 2 +-
- 5 files changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/module/module.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

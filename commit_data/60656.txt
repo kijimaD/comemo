@@ -1,0 +1,15 @@
+commit b538e953ee5e50a78880106452458c9694fe27e1
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 7 14:25:31 2024 -0700
+
+    cmd/compile: clean up some unused code in prove pass
+    
+    Change-Id: Ib695064c5a77a3f86d1d2a74f96823e65199b8e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603956
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go   | 82 +--------------------------------
+ src/cmd/compile/internal/ssa/rewrite.go | 55 ++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 81 deletions(-)

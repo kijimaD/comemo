@@ -1,25 +1,28 @@
-commit 157aae6eed1c092fd9e8ead3527185378eb828e1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 17:29:28 2022 -0700
+commit 4fb2e1cb86a1f15a69ebf97a80503e865287642c
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Oct 12 12:52:59 2021 -0700
 
-    go/types, types2: establish type-checker specific local tests
+    cmd/compile: allow spaces in types.(*Type).LinkString()
     
-    Establish testdata/local directory for tests that are not (yet)
-    shared between the go/types and types2. Move issue47996.go into
-    that directory.
+    Go back to allowing spaces in types.(*Type).LinkSring().
     
-    For #54511.
+    Delve folks prefer that there are spaces in type names, if needed, since
+    DWARF expects type names to be "a string representing the name as it
+    appears in the source program". At this point, it doesn't necessarily
+    seem worth having a separate function that removes spaces, only for use
+    when printing the type names in a function/method instantiation.
     
-    Change-Id: I274b119990a93cc3657bdddc5246948699226c21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426660
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Most names of function/method instantiations will still not have spaces,
+    since they most type args are named or builtin types. I confirmed that
+    we are back to the original definition of LinkString(), except for some
+    comment changes.
+    
+    Change-Id: Iab7143f659ddea4f099c6230cb134edf8aaef868
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355354
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/types2/check_test.go                    | 3 ++-
- .../compile/internal/types2/testdata/{ => local}/issue47996.go   | 0
- src/go/types/check_test.go                                       | 1 +
- src/go/types/testdata/local/issue47996.go                        | 9 +++++++++
- 4 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types/fmt.go | 45 +++++++----------------------------
+ 1 file changed, 9 insertions(+), 36 deletions(-)

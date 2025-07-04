@@ -1,16 +1,19 @@
-commit 9c147cc617ed8d9b22ee2637a7c7f7a28e1ee21c
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 20:08:30 2022 +0800
+commit 0ae0d5c62eae1a4043d1d9cb41acc563a5e75daa
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 21 19:15:24 2021 -0700
 
-    cmd/fix: use strings.Builder
+    cmd/compile: remove MarkUsedIfaceMethodIndex mechanism
     
-    Change-Id: I761766e147202970f82ce804dbaf5d491508995c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428289
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    We don't need it any more, after CL 357835.
+    
+    Change-Id: I1ff5f24b5540c3e80c4b35be8215a1c378952274
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357894
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/fix/main.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go       | 28 +++++--------------------
+ src/cmd/compile/internal/reflectdata/reflect.go | 10 ---------
+ 2 files changed, 5 insertions(+), 33 deletions(-)

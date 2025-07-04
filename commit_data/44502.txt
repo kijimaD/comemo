@@ -1,18 +1,16 @@
-commit a416efef5a278c9c8c5e133bbec5c2c1d0df9491
-Author: Tao Qingyun <qingyunha@gmail.com>
-Date:   Sat Nov 7 02:43:27 2020 +0000
+commit 074f2d800f2c7b741a080081cfcc5295b375b23d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jul 17 03:52:23 2020 -0400
 
-    runtime: remove a duplicated testcase of TestPallocDataFindScavengeCa…
+    doc/go1.15: surface the crypto/x509 CommonName deprecation note
     
-    Change-Id: Ib44729ffb5d4d7b84114dcf028b7e0418c9d5035
-    GitHub-Last-Rev: 13f59a650aa424b4852ee4a803eebc793dbbfc15
-    GitHub-Pull-Request: golang/go#42434
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268021
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Martin Möhrmann <moehrmann@google.com>
+    Updates #39568
+    Updates #37419
+    Updates #24151
+    
+    Change-Id: I44c940e09e26a039076396bbfecb2b1574197cf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243221
+    Reviewed-by: Kevin Burke <kev@inburke.com>
 
- src/runtime/mgcscavenge_test.go | 6 ------
- 1 file changed, 6 deletions(-)
+ doc/go1.15.html | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)

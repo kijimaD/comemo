@@ -1,17 +1,18 @@
-commit a152dd0438c7064edbe64d7d4b18e6a9e5c87760
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 22 16:08:43 2019 -0700
+commit ea509c95e9c91bdab8f76f81545d472094eadbe8
+Author: Bobby DeSimone <bobbydesimone@gmail.com>
+Date:   Tue Dec 4 00:56:04 2018 +0000
 
-    cmd/compile: respect -newescape in genwrapper
+    net/http/httputil: add tests for singleJoiningSlash.
     
-    Noticed while preparing a CL for Go 1.14 to remove esc.go.
+    These changes add tests for the unexported function singleJoiningSlash.
     
-    Change-Id: Ic12be33f5b16c8424d85f373fa450247be086078
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173298
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I107905aac4a3c2544be309098b67e970ea5b542c
+    GitHub-Last-Rev: ed6f86f619549f46ef53316b7febaac781b64e4b
+    GitHub-Pull-Request: golang/go#29088
+    Reviewed-on: https://go-review.googlesource.com/c/152337
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/esc.go  | 9 ++++++---
- src/cmd/compile/internal/gc/subr.go | 2 +-
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ src/net/http/httputil/reverseproxy_test.go | 41 +++++++++++++++++++++++-------
+ 1 file changed, 32 insertions(+), 9 deletions(-)

@@ -1,14 +1,12 @@
-commit 29de03adf38a1a813500e3fa2953740282b9a1e5
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Aug 31 16:29:50 2013 +0900
+commit 379096de053b989dc1d28428557eb15303762dfb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 30 17:39:58 2013 -0700
 
-    net: keep lookup IP stuff close
+    doc/go1.2.txt: add compress/gzip and database/sql lines
     
-    Also flattens import declaration.
-    
-    R=golang-dev, alex.brainman
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13373046
+    https://golang.org/cl/13316044
 
- src/pkg/net/lookup.go | 28 +++++++++++++---------------
- 1 file changed, 13 insertions(+), 15 deletions(-)
+ doc/go1.2.txt | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

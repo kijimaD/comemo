@@ -1,20 +1,12 @@
-commit e960302410fafaf595c1ad92c28c61da3a254d63
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Feb 21 13:56:08 2016 -0500
+commit b39329bff56abf35edc91537252782814a7a4f84
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Wed Oct 28 08:58:26 2015 +1100
 
-    runtime: when crash with panic, call user Error/String methods before freezing the world
+    unicode/utf8: don't imply that the empty string is incorrect UTF-8
     
-    Fixes #14432.
-    
-    Change-Id: I0a92ef86de95de39217df9a664d8034ef685a906
-    Reviewed-on: https://go-review.googlesource.com/19792
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idd9523949ee4f2f304b12be39f8940ba34a420be
+    Reviewed-on: https://go-review.googlesource.com/16361
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/crash_cgo_test.go                |  9 +++++++++
- src/runtime/crash_test.go                    | 16 +++++++++++++++
- src/runtime/panic.go                         | 19 ++++++++++++++++++
- src/runtime/testdata/testprog/deadlock.go    | 25 +++++++++++++++++++++++
- src/runtime/testdata/testprogcgo/deadlock.go | 30 ++++++++++++++++++++++++++++
- 5 files changed, 99 insertions(+)
+ src/unicode/utf8/utf8.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

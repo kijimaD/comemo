@@ -1,17 +1,15 @@
-commit c6bdef3fd83aa826abe14e8a63924365a286057f
-Author: Rob Pike <r@golang.org>
-Date:   Fri Oct 21 11:16:46 2011 -0700
+commit 2cab897ce055fd753821a85a2134affe64ffe8cb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 21 08:14:38 2011 -0700
 
-    gotest: make it easier to get the help string
-    Because gotest's args are mingled with the tests, it's
-    hard to get the usage message to print. This CL adds
-    explicit support for -help, spelled several different ways.
-    Gotest has special flags like -file that are somewhat
-    hidden otherwise.
+    http: Transport: with TLS InsecureSkipVerify, skip hostname check
+    
+    Fixes #2386
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5298052
+    https://golang.org/cl/5312045
 
- src/cmd/gotest/flag.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/http/client_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/http/transport.go   |  6 ++++--
+ 2 files changed, 28 insertions(+), 2 deletions(-)

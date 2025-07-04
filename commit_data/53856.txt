@@ -1,37 +1,18 @@
-commit 2350afd2e8ab054390e284c95d5b089c142db017
-Author: Roland Shoemaker <bracewell@google.com>
-Date:   Wed Jun 7 15:27:13 2023 -0700
+commit fbf452a89fe95b3a26069c6c5a43240798db2408
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Aug 31 11:27:52 2022 +0100
 
-    crypto/tls: restrict RSA keys in certificates to <= 8192 bits
+    runtime: remove unused parameter on runOpenDeferFrame
     
-    Extremely large RSA keys in certificate chains can cause a client/server
-    to expend significant CPU time verifying signatures. Limit this by
-    restricting the size of RSA keys transmitted during handshakes to <=
-    8192 bits.
+    Found via unparam.
     
-    Based on a survey of publicly trusted RSA keys, there are currently only
-    three certificates in circulation with keys larger than this, and all
-    three appear to be test certificates that are not actively deployed. It
-    is possible there are larger keys in use in private PKIs, but we target
-    the web PKI, so causing breakage here in the interests of increasing the
-    default safety of users of crypto/tls seems reasonable.
-    
-    Thanks to Mateusz Poliwczak for reporting this issue.
-    
-    Fixes #61460
-    Fixes CVE-2023-29409
-    
-    Change-Id: Ie35038515a649199a36a12fc2c5df3af855dca6c
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1912161
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
-    Run-TryBot: Roland Shoemaker <bracewell@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515257
+    Change-Id: I21126405beaf0be84e14ac165ecb68aeb0c9c823
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427014
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
 
- src/crypto/tls/handshake_client.go      |  8 ++++
- src/crypto/tls/handshake_client_test.go | 78 +++++++++++++++++++++++++++++++++
- src/crypto/tls/handshake_server.go      |  4 ++
- 3 files changed, 90 insertions(+)
+ src/runtime/panic.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,28 +1,29 @@
-commit b291538d33c2b79f592d4fef5e50eb12e95b1251
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Mar 18 19:51:52 2023 +1100
+commit edd1273b841050e96d9ddd937fc00c0eebe10f1b
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Sep 19 16:48:49 2022 -0500
 
-    runtime: rework asmcgocall on ppc64x
+    cmd/link: refactor usage of SymLocalentry helper functions
     
-    On some platforms asmcgocall can be called with a nil g. Additionally, it
-    can be called when already on a the system (g0) stack or on a signal stack.
-    In these cases we do not need to switch (and/or cannot switch) to the
-    system stack and as a result, do not need to save the g.
+    PPC64 ELFv2 uses the st_other field of a symbol to specify an offset
+    from the global entry point to its local entry point. Similarly, some
+    values (i.e 1) may also require additional linker support which is
+    missing today.
     
-    Rework asmcgocall on ppc64x to follow the pattern used on other architectures,
-    such as amd64 and arm64, where a separate nosave path is called in the above
-    cases. The nil g case will be needed to support openbsd/ppc64.
+    For now, generate an error if we encounter unsupported local entry
+    values on PPC64, and update the Localentry values to use bytes, not
+    32b instruction words.
     
-    Updates #56001
+    Similarly, ELFv2 1.5 also updates the wording of values 2-6. They
+    now map to a specific number of bytes.
     
-    Change-Id: I431d4200bcbc4aaddeb617aefe18590165ff2927
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478775
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Id1b71c3b0fea982bdcfb7eac91d9f93e04ae43f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431876
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/runtime/asm_ppc64x.s | 54 +++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 46 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 12 +++++++++---
+ src/cmd/link/internal/loader/loader.go |  5 ++---
+ src/cmd/link/internal/ppc64/asm.go     |  2 +-
+ 3 files changed, 12 insertions(+), 7 deletions(-)

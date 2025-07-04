@@ -1,14 +1,12 @@
-commit 02b124e59a444864b9a2b98f556ba606068305b6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 29 09:52:28 2012 -0800
+commit da633714fd14bbb52ef10bad8bc4c354305118ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 29 09:06:05 2012 -0800
 
-    net/http/httputil: make https DumpRequestOut less racy
-    
-    It's still racy in that it mutates req.Body, though.  *shrug*
+    spec: fix sentence
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5709054
+    https://golang.org/cl/5706065
 
- src/pkg/net/http/httputil/dump.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

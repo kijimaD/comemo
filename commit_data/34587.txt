@@ -1,15 +1,15 @@
-commit 0dfc740e6837b9ae14951f3b3b973879a3070ac7
-Author: Diogo Pinela <diogoid7400@gmail.com>
-Date:   Tue Mar 13 20:44:51 2018 +0000
+commit 0d101d1a9fea83fa2663b834933328c83f6e960b
+Author: Blixt <me@blixt.nyc>
+Date:   Wed Nov 1 16:25:24 2017 -0400
 
-    compress/gzip, compress/zlib: fix Writer documentation inconsistencies
+    time: fix incorrect "zero pad" comment in example
     
-    Fixes #24379.
+    The comment currently implies that a zero will be added, but the
+    underscore is used to add a space for single-digit dates.
     
-    Change-Id: Ibdc763a0c2b56e26f4269f8be429880e34a2558f
-    Reviewed-on: https://go-review.googlesource.com/100495
-    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Change-Id: Ib3bac8a16bc2d1fcb26ab3bb7ad172b89e1a4a24
+    Reviewed-on: https://go-review.googlesource.com/75230
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/compress/gzip/gzip.go   | 2 +-
- src/compress/zlib/writer.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/time/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

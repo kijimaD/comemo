@@ -1,0 +1,30 @@
+commit 0b0dfcd5404ce86d6c818d78bdb6348ded459e96
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Jul 24 10:24:06 2024 +0000
+
+    runtime: use slices and maps to clean up tests
+    
+    Replace reflect.DeepEqual with slices.Equal/maps.Equal, which is
+    much faster.
+    
+    Also remove some unecessary helper functions.
+    
+    Change-Id: I3e4fa2938fed1598278c9e556cd4fa3b9ed3ad6d
+    GitHub-Last-Rev: 69bb43fc6e5c4a4a7d028528fe00b43db784464e
+    GitHub-Pull-Request: golang/go#67603
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587815
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/callers_test.go             |  4 ++--
+ src/runtime/defer_test.go               |  4 ++--
+ src/runtime/map_test.go                 |  4 ++--
+ src/runtime/metrics/description_test.go |  4 ++--
+ src/runtime/metrics_test.go             |  4 ++--
+ src/runtime/pprof/label_test.go         | 11 +++--------
+ src/runtime/pprof/runtime_test.go       | 22 +++++++++++-----------
+ src/runtime/profbuf_test.go             |  6 +++---
+ src/runtime/race/sched_test.go          |  4 ++--
+ 9 files changed, 29 insertions(+), 34 deletions(-)

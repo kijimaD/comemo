@@ -1,23 +1,20 @@
-commit 1d3efd6533773138ac7c9d8ca1314459636d55d2
+commit 3b4d792606bf6de962bed73e79c261d7ddd7266c
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 16 22:43:05 2013 -0400
+Date:   Fri Aug 16 21:45:59 2013 -0400
 
-    net: limit number of concurrent cgo calls
+    cmd/gc: separate "has pointers" from "needs zeroing" in stack frame
     
-    The limit is 500. There is no way to change it.
-    This primarily affects name resolution.
-    If a million goroutines try to resolve DNS names,
-    only 500 will get to execute cgo calls at a time.
-    But in return the operating system will not crash.
+    When the new call site-specific frame bitmaps are available,
+    we can cut the zeroing to just those values that need it due
+    to scope escaping.
     
-    Fixes #5625.
-    
-    R=golang-dev, dan.kortschak, r, dvyukov
-    CC=bradfitz, golang-dev
-    https://golang.org/cl/13038043
+    R=cshapiro, cshapiro
+    CC=golang-dev
+    https://golang.org/cl/13045043
 
- src/pkg/net/cgo_unix.go        |  6 ++++++
- src/pkg/net/dialgoogle_test.go | 24 ++++++++++++++++++++++++
- src/pkg/net/lookup_windows.go  | 25 +++++++++++++++++++++++++
- src/pkg/net/net.go             | 16 ++++++++++++++++
- 4 files changed, 71 insertions(+)
+ src/cmd/5g/ggen.c | 10 +++++-----
+ src/cmd/6g/ggen.c | 10 +++++-----
+ src/cmd/8g/ggen.c | 10 +++++-----
+ src/cmd/gc/go.h   |  4 +++-
+ src/cmd/gc/pgen.c | 38 +++++++++++++++++++++++++-------------
+ 5 files changed, 43 insertions(+), 29 deletions(-)

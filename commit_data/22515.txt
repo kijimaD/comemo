@@ -1,12 +1,17 @@
-commit 07f00cf11e208510fd83b8d7328a52f9c1c97eee
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 15 14:47:08 2015 -0400
+commit fc28fd1eb8aa562e35174c2d5c1a6c20031ac546
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 16 15:31:32 2015 -0400
 
-    cmd/test: require external linking for c-archive
+    cmd/internal/obj: shuffle link.go to put declarations in original order
     
-    Change-Id: I9ceceb29291ea9f5d7b675dfabd665c5e3618471
-    Reviewed-on: https://go-review.googlesource.com/8955
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    I think the file ended up in the order of the typedefs instead of the
+    order of the actual struct definitions. You can see where some of
+    the declarations were because some of the comments didn't move.
+    Put things back in the original order.
+    
+    Change-Id: I0e3703008278b084b632c917cfb73bc81bdd4f23
+    Reviewed-on: https://go-review.googlesource.com/7743
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/link.go | 501 +++++++++++++++++++++----------------------
+ 1 file changed, 247 insertions(+), 254 deletions(-)

@@ -1,38 +1,31 @@
-commit 9b2dd1f7714b38f1bfe25676357b62c1bb4cad64
-Author: Katie Hockman <katie@golang.org>
-Date:   Wed Nov 3 14:44:16 2021 -0400
+commit fb03be9d5577a3d22834a25b3b62916aee30db2a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 2 10:27:18 2021 -0500
 
-    internal/fuzz: fix internal error handling
+    cmd/compile: use getcallersp for gorecover "fp" arg
     
-    This doesn't handle every possible scenario,
-    but improves the one we can control. For example,
-    if the worker panics for some reason, we have no
-    way of knowing whether the panic occurred in an
-    expected way (while executing the fuzz target) or
-    due to an internal error in the worker. So any
-    panic will still be treated as a crash.
+    Currently, the compiler synthesize a special ".fp" node, which
+    points to the FP of the current frame, be to used to call
+    gorecover. Later that node turns to an Arg in SSA that is not
+    really an arg, causing problems for the new ABI work which changes
+    the handling of Args, so we have to special-case that node.
     
-    However, if it fails due to some internal bug that
-    we know how to catch, then the error should be
-    reported to the user without a new crasher being
-    written to testdata.
+    This CL changes the compiler to get the FP by using getcallersp,
+    which is an intrinsic in SSA and works on all platforms. As we
+    need the FP, not the caller SP, one drawback is that we have to
+    add FixedFrameSize for LR machines. But it does allow us to remove
+    that special node.
     
-    This is very difficult to test. The reasons an
-    internal error would occur is because something went
-    very wrong, and we have a bug in our code (which is
-    why they were previously panics). So simulating
-    a problem like this in a test is not really feasible.
-    
-    Fixes #48804
-    
-    Change-Id: I334618f84eb4a994a8d17419551a510b1fdef071
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361115
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ie721d51efca8116c9d23cc4f79738fffcf847df8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297930
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/internal/fuzz/worker.go      | 47 +++++++++++++++++++++++-----------------
- src/internal/fuzz/worker_test.go |  2 +-
- 2 files changed, 28 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ir/name.go                   | 2 --
+ src/cmd/compile/internal/ssagen/pgen.go               | 7 +------
+ src/cmd/compile/internal/ssagen/ssa.go                | 4 ----
+ src/cmd/compile/internal/typecheck/builtin.go         | 1 +
+ src/cmd/compile/internal/typecheck/builtin/runtime.go | 1 +
+ src/cmd/compile/internal/typecheck/universe.go        | 5 -----
+ src/cmd/compile/internal/walk/expr.go                 | 9 ++++++++-
+ 7 files changed, 11 insertions(+), 18 deletions(-)

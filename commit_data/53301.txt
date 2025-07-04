@@ -1,45 +1,18 @@
-commit 1079e574d4f09520c987c7a0405c2d1ae2a275b3
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri May 5 11:29:39 2023 +0200
+commit 13bd6ddbe7a4fb24448546545da5df999267eb4e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 9 03:03:32 2022 +0700
 
-    crypto/rsa,crypto/internal/bigmod: optimized short exponentiations
+    cmd/compile/internal/typecheck: simplify tcAppend
     
-    RSA encryption and verification performs an exponentiation by a value
-    usually just a few bits long. The current strategy with table
-    precomputation is not efficient.
+    After CL 418514, Unified IR now always write concrete type of constant
+    expressions, thus we don't need to handle untyped string anymore.
     
-    Add an ExpShort bigmod method, and use it in RSA public key operations.
-    
-    After this, almost all CPU time in encryption/verification is spent
-    preparing the constants for the modulus, because PublicKey doesn't have
-    a Precompute function.
-    
-    This speeds up signing a bit too, because it performs a verification to
-    protect against faults.
-    
-    name                    old time/op  new time/op  delta
-    DecryptPKCS1v15/2048-4  1.13ms ± 0%  1.13ms ± 0%   -0.43%  (p=0.000 n=8+9)
-    DecryptPKCS1v15/3072-4  3.20ms ± 0%  3.15ms ± 0%   -1.59%  (p=0.000 n=10+8)
-    DecryptPKCS1v15/4096-4  6.45ms ± 0%  6.42ms ± 0%   -0.49%  (p=0.000 n=10+10)
-    EncryptPKCS1v15/2048-4   132µs ± 0%   108µs ± 0%  -17.99%  (p=0.000 n=10+10)
-    DecryptOAEP/2048-4      1.13ms ± 0%  1.14ms ± 0%   +0.91%  (p=0.000 n=10+10)
-    EncryptOAEP/2048-4       132µs ± 0%   108µs ± 0%  -18.09%  (p=0.000 n=10+10)
-    SignPKCS1v15/2048-4     1.18ms ± 0%  1.14ms ± 1%   -3.30%  (p=0.000 n=10+10)
-    VerifyPKCS1v15/2048-4    131µs ± 0%   107µs ± 0%  -18.30%  (p=0.000 n=9+10)
-    SignPSS/2048-4          1.18ms ± 0%  1.15ms ± 1%   -1.87%  (p=0.000 n=10+10)
-    VerifyPSS/2048-4         132µs ± 0%   108µs ± 0%  -18.30%  (p=0.000 n=10+9)
-    
-    Updates #57752
-    
-    Change-Id: Ic89273a58002b32b1c5c3185a35262694ceef409
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492935
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ic930ee2418746ca9f4a5122c614e077bef8d7eb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422041
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/internal/bigmod/nat.go      | 56 +++++++++++++++++++++++-----------
- src/crypto/internal/bigmod/nat_test.go | 11 +++++++
- src/crypto/rsa/rsa.go                  | 22 +++++--------
- 3 files changed, 57 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/typecheck/func.go | 5 -----
+ 1 file changed, 5 deletions(-)

@@ -1,14 +1,19 @@
-commit 7249fa773a452b57f9b6834e540fa4848d5fdd9a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Sep 23 18:16:13 2011 +1000
+commit e4790b5fa4d2e29892ab162a3148311c738320b3
+Author: Fumitoshi Ukai <ukai@google.com>
+Date:   Thu Sep 22 21:49:24 2011 -0400
 
-    syscall: mark stdin, stdout and stderr as non-inheritable by child process
+    websocket: add mutex to make websocket full-duplex
     
-    Fixes #2250.
+    One benefit of websocket is that it is full-duplex so that it could
+    send and receive at the same time.
+    This CL makes websocket goroutine safe, so user could use websocket
+    both on goroutine for read and on goroutine for write.
     
-    R=golang-dev, hectorchu
-    CC=golang-dev, vincent.vanackere
-    https://golang.org/cl/5086050
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5058043
 
- src/pkg/syscall/syscall_windows.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/websocket/hixie.go     |  2 ++
+ src/pkg/websocket/hybi.go      |  4 ++++
+ src/pkg/websocket/websocket.go | 11 +++++++++++
+ 3 files changed, 17 insertions(+)

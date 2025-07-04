@@ -1,38 +1,26 @@
-commit fac5338a6c788df948edafa055ed998c46ba545e
-Author: TomCao New Macbook Pro <jiepengthegreat@126.com>
-Date:   Tue Sep 27 04:18:15 2022 +0000
+commit d3f5dd57811ca6c55654e67c58cf594fc2e5091e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Nov 3 13:43:12 2021 -0700
 
-    all: replace [0-9] with \d in regexps
+    syscall: migrate new UDP send/recv API to internal/syscall/unix
     
-    1. replace [0-9] with \d in regexps
-    2. replace [a-zA-Z0-9_] with \w in regexps
+    CL 331490 and friends added new API to package syscall.
+    This was a mistake that we need to fix before Go 1.18 is released.
     
-    Change-Id: I9e260538252a0c1071e76aeb1c5f885c6843a431
-    GitHub-Last-Rev: 286e1a4619c4bdda7f461afbd6d30b9f312c0486
-    GitHub-Pull-Request: golang/go#54874
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428435
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I697c9a4fa649d564822f585dc163df5ab9e5ae08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361216
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/endtoend_test.go        | 2 +-
- src/cmd/cgo/out.go                               | 2 +-
- src/cmd/compile/internal/amd64/versions_test.go  | 4 ++--
- src/cmd/compile/internal/ssa/debug_lines_test.go | 4 ++--
- src/cmd/compile/internal/ssa/debug_test.go       | 6 +++---
- src/cmd/compile/internal/types/goversion.go      | 2 +-
- src/cmd/dist/test.go                             | 2 +-
- src/cmd/go/internal/work/exec.go                 | 2 +-
- src/cmd/go/script_test.go                        | 2 +-
- src/cmd/link/internal/ld/stackcheck_test.go      | 4 ++--
- src/cmd/link/internal/wasm/asm.go                | 2 +-
- src/cmd/vet/vet_test.go                          | 2 +-
- src/go/internal/gccgoimporter/importer_test.go   | 2 +-
- src/go/types/check_test.go                       | 2 +-
- src/go/types/example_test.go                     | 2 +-
- src/go/types/version.go                          | 2 +-
- test/run.go                                      | 4 ++--
- 17 files changed, 23 insertions(+), 23 deletions(-)
+ api/next.txt                                | 108 ----------------------------
+ src/internal/poll/fd_unix.go                |   9 +--
+ src/internal/poll/fd_windows.go             |   4 +-
+ src/internal/syscall/unix/net.go            |  28 ++++++++
+ src/internal/syscall/unix/net_js.go         |  28 ++++++++
+ src/internal/syscall/windows/net_windows.go |  18 +++++
+ src/syscall/net_js.go                       |  16 -----
+ src/syscall/syscall_unix.go                 |   8 +--
+ src/syscall/syscall_windows.go              |   4 +-
+ 9 files changed, 87 insertions(+), 136 deletions(-)

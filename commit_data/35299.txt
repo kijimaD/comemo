@@ -1,24 +1,14 @@
-commit a33c595753ea52421818069a923d8acccbf692ff
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat May 5 21:26:23 2018 -0700
+commit c3d83ee31c2ddff531f044288f2ddb38202a4de7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 5 20:37:31 2018 -0500
 
-    text/tabwriter: don't mimic previous lines on flush
+    [dev.boringcrypto] misc/boring: add go1.9.3b4 to RELEASES
     
-    \f triggers a flush.
-    
-    This is used (by gofmt, among others) to indicate that
-    the current aligned segment has ended.
-    
-    When flushed, it is unlikely that the previous line is
-    in fact a good predictor of the upcoming line,
-    so stop treating it as such.
-    
-    No performance impact on the existing benchmarks,
-    which do not perform any flushes.
-    
-    Change-Id: Ifdf3e6d4600713c90db7b51a10e429d9260dc08c
-    Reviewed-on: https://go-review.googlesource.com/111644
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Id35acb81b1d8e9cd17d3fe34ebe1395a4d1b6f0a
+    Reviewed-on: https://go-review.googlesource.com/92195
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/text/tabwriter/tabwriter.go | 25 +++++++++++++++----------
- 1 file changed, 15 insertions(+), 10 deletions(-)
+ misc/boring/RELEASES | 2 ++
+ 1 file changed, 2 insertions(+)

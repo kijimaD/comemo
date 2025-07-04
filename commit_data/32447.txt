@@ -1,34 +1,17 @@
-commit 3d62000adcec9b6e4a2d7ca89020f3bf68ece2ef
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Aug 23 18:36:46 2017 -0700
+commit 5d306dcdace2ec5cde7d0008d6126c3cffe25ea1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 25 20:08:31 2017 +0000
 
-    archive/tar: return better WriteHeader errors
+    net/http/cgi: fix plan9 build
     
-    WriteHeader may fail to encode a header for any number of reasons,
-    which can be frustrating for the user when trying to create a tar archive.
-    As we validate the Header, we generate an informative error message
-    intended for human consumption and return that if and only if no
-    format can be selected.
+    Cleanup CL https://golang.org/cl/41691 broke the plan9 build by removing
+    a use of a package but not removing the package import.
     
-    This allows WriteHeader to return informative errors like:
-        tar: cannot encode header: invalid PAX record: "linkpath = \x00hello"
-        tar: cannot encode header: invalid PAX record: "SCHILY.xattr.foo=bar = baz"
-        tar: cannot encode header: Format specifies GNU; and only PAX supports Xattrs
-        tar: cannot encode header: Format specifies GNU; and GNU cannot encode ModTime=1969-12-31 15:59:59.0000005 -0800 PST
-        tar: cannot encode header: Format specifies GNU; and GNU supports sparse files only with TypeGNUSparse
-        tar: cannot encode header: Format specifies USTAR; and USTAR cannot encode ModTime=292277026596-12-04 07:30:07 -0800 PST
-        tar: cannot encode header: Format specifies USTAR; and USTAR does not support sparse files
-        tar: cannot encode header: Format specifies PAX; and only GNU supports TypeGNUSparse
+    Trybots don't check that. I filed #20119 for that.
     
-    Updates #18710
-    
-    Change-Id: I82a498d6f29d02c4e73bce47b768eb578da8499c
-    Reviewed-on: https://go-review.googlesource.com/58310
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia030e6924665dfb871ca964455b899d51b0200c2
+    Reviewed-on: https://go-review.googlesource.com/41752
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/archive/tar/common.go      | 105 +++++++++++++++++++++++++++++++----------
- src/archive/tar/tar_test.go    |  43 +++++++++++++++--
- src/archive/tar/writer.go      |   5 +-
- src/archive/tar/writer_test.go |  24 ++++++----
- 4 files changed, 138 insertions(+), 39 deletions(-)
+ src/net/http/cgi/plan9_test.go | 1 -
+ 1 file changed, 1 deletion(-)

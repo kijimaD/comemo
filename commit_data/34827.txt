@@ -1,33 +1,28 @@
-commit 2a16176a47be30a8b90bb981c8893584e5084d3d
-Author: Lubomir I. Ivanov (VMware) <neolit123@gmail.com>
-Date:   Mon Apr 2 15:37:03 2018 +0000
+commit 2f1de1593e7993b233aa90ce874c407ae03741f8
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Nov 13 10:38:05 2017 -0800
 
-    os/user: obtain a user GID on Windows
+    crypto/x509: relax EKU checking in some cases.
     
-    Add the following helpers in lookup_windows.go:
-    1) lookupGroupName() is used to obtain the SID of a group based
-    on name.
-    2) listGroupsForUsernameAndDomain() uses NetUserGetLocalGroups()
-    as a WINAPI backend to obtain the list of local groups for this
-    user.
-    3) lookupUserPrimaryGroup() is now used to populate the User.Gid
-    field when looking up a user by name.
+    CL 71030 enforced EKU nesting at verification time, to go along with the
+    change in name constraints behaviour. From scanning the Certificate
+    Transparency logs, it's clear that some CAs are not getting EKU nesting
+    correct.
     
-    Implement listGroups(), lookupGroupId(), lookupGroup() and no longer
-    return unimplemented errors.
+    This change relaxes the EKU rules in a few ways:
+      ∙ EKUs in roots are no longer checked.
+      ∙ Any CA certificate may issue OCSP responder certificates.
+      ∙ The ServerAuth and SGC EKUs are treated as a single EKU when
+        checking nesting.
+      ∙ ServerAuth in a CA can now authorise ClientAuth.
+      ∙ The generic CodeSigning EKU can now authorise two, Microsoft-specific
+        code-signing EKUs.
     
-    Do not skip Windows User.Gid tests in user_test.go.
-    
-    Change-Id: I81fd41b406da51f9a4cb24e50d392a333df81141
-    GitHub-Last-Rev: d1448fd55d6eaa0f41bf347df18b40da06791df1
-    GitHub-Pull-Request: golang/go#24222
-    Reviewed-on: https://go-review.googlesource.com/98137
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7b7ac787709af0dcd177fe419ec2e485b8d85540
+    Reviewed-on: https://go-review.googlesource.com/77330
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/syscall/windows/security_windows.go |  43 ++++++
- src/internal/syscall/windows/zsyscall_windows.go |   9 ++
- src/os/user/lookup_windows.go                    | 178 +++++++++++++++++++++--
- src/os/user/user_test.go                         |   4 -
- 4 files changed, 218 insertions(+), 16 deletions(-)
+ src/crypto/x509/name_constraints_test.go |  5 +----
+ src/crypto/x509/verify.go                | 27 ++++++++++++++++++++++-----
+ src/crypto/x509/x509.go                  | 30 ++++++++++++++++++------------
+ 3 files changed, 41 insertions(+), 21 deletions(-)

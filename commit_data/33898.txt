@@ -1,16 +1,37 @@
-commit bfb8f2a765d6097c82b30ae2c19c99fa1082add3
-Author: Hana Kim <hakim@google.com>
-Date:   Thu Dec 14 16:11:03 2017 -0500
+commit c9e2d9eb06d2c57cb2a78707fb60a639a94efb42
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 12 16:19:24 2017 -0400
 
-    doc/debugging_with_gdb: update -gcflags usage
+    [dev.boringcrypto] crypto/rsa: add test for, fix observable reads from custom randomness
     
-    After go1.10, compiler/linker option flags apply only to the packages
-    listed directly on the command line unless the matching pattern is
-    specified. For debugging, we want to apply the flags to all packages.
+    In routines like GenerateKey, where bits from the randomness source have a
+    visible effect on the output, we bypass BoringCrypto if given a non-standard
+    randomness source (and also assert that this happens only during tests).
     
-    Change-Id: Ic69eee1491b1080fc140592f200c59a6e03d87ac
-    Reviewed-on: https://go-review.googlesource.com/84135
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    In the decryption paths, the randomness source is only for blinding and has
+    no effect on the output, so we unconditionally invoke BoringCrypto, letting it
+    use its own randomness source as it sees fit. This in turn lets us verify that
+    the non-BoringCrypto decryption function is never called, not even in tests.
+    
+    Unfortunately, while the randomness source has no visible effect on the
+    decrypt operation, the decrypt operation does have a visible effect on
+    the randomness source. If decryption doesn't use the randomness source,
+    and it's a synthetic stream, then a future operation will read a different
+    position in the stream and may produce different output. This happens
+    in tests more often than you'd hope.
+    
+    To keep behavior of those future operations unchanged while still
+    ensuring that the original decrypt is never called, this CL adds a
+    simulation of the blinding preparation, to discard the right amount
+    from the random source before invoking BoringCrypto.
+    
+    Change-Id: If2f87b856c811b59b536187c93efa99a97721419
+    Reviewed-on: https://go-review.googlesource.com/63912
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- doc/debugging_with_gdb.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/rsa/boring.go      |  39 ++++++++
+ src/crypto/rsa/boring_test.go | 220 ++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/rsa/pkcs1v15.go    |   4 +-
+ src/crypto/rsa/pss.go         |  18 +++-
+ src/crypto/rsa/rsa.go         |  33 ++++---
+ 5 files changed, 296 insertions(+), 18 deletions(-)

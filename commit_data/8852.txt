@@ -1,23 +1,18 @@
-commit dfacfd6431abd43e09eb4606569fdb899f3b1609
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 27 11:02:32 2011 -0400
+commit d1dbfe582748fd081ab1093564534bbda9a8b3bd
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Mon Jun 27 09:16:42 2011 -0400
 
-    syscall: regenerate zerrors for darwin/linux/freebsd
+    crypto: replace "crypto/block" with "crypto/cipher" in comments
     
-    did darwin on mac with older, not broken xcode.
-    did linux arm by copying diffs from linux 386.
-    did freebsd amd64 by copying diffs from freebsd 386.
+    Documentation mentioned the obsolete package "crypto/block",
+    which has been replaced with "crypto/cipher".
     
-    R=golang-dev, r, mikioh.mikioh
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/4629067
+    https://golang.org/cl/4654064
 
- src/pkg/syscall/mkerrors.sh              |  1 +
- src/pkg/syscall/zerrors_darwin_386.go    | 79 ++++++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_darwin_amd64.go  | 79 ++++++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_freebsd_386.go   | 72 +++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_freebsd_amd64.go | 72 +++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_linux_386.go     | 63 +++++++++++++++++++++++++
- src/pkg/syscall/zerrors_linux_amd64.go   | 63 +++++++++++++++++++++++++
- src/pkg/syscall/zerrors_linux_arm.go     | 59 ++++++++++++++++++++++++
- 8 files changed, 488 insertions(+)
+ src/pkg/crypto/aes/cipher.go      | 4 ++--
+ src/pkg/crypto/blowfish/cipher.go | 4 ++--
+ src/pkg/crypto/twofish/twofish.go | 2 +-
+ src/pkg/crypto/xtea/cipher.go     | 4 ++--
+ 4 files changed, 7 insertions(+), 7 deletions(-)

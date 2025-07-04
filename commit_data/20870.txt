@@ -1,27 +1,16 @@
-commit 7f0be1f781a523b5acafb527ca123f5b0eac1536
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 10 09:15:57 2014 +1100
+commit ab4af52a9b3f821a96daa5fcbf86ac1fed4343a3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 21 13:26:40 2014 +0200
 
-    all: use golang.org/x/... import paths
+    time: panic with a more helpful error on use of invalid Timer
     
-    LGTM=rsc, r
+    Fixes #8721
+    
+    LGTM=rsc
     R=r, rsc
-    CC=golang-codereview, golang-codereviews
-    https://golang.org/cl/168050043
+    CC=golang-codereviews
+    https://golang.org/cl/155620045
 
- doc/articles/go_command.html    |  13 +--
- doc/cmd.html                    |   6 +-
- doc/code.html                   | 183 +++++++++++++++++++++-------------------
- doc/contribute.html             |   2 +-
- doc/go1compat.html              |   6 +-
- doc/go_faq.html                 |   4 +-
- doc/install-source.html         |   6 +-
- lib/codereview/codereview.py    |   2 +-
- misc/benchcmp                   |   2 +-
- misc/makerelease/makerelease.go |  10 +--
- src/compress/lzw/reader.go      |   2 +-
- src/crypto/crypto.go            |  12 +--
- src/debug/goobj/read_test.go    |   2 +-
- src/net/http/cookiejar/jar.go   |   2 +-
- src/runtime/os_android.c        |   2 +-
- 15 files changed, 132 insertions(+), 122 deletions(-)
+ src/time/sleep.go      |  6 ++++++
+ src/time/sleep_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 27 insertions(+)

@@ -1,34 +1,32 @@
-commit 84e58c84fdbe4681b4cbfeb615aaba3437c8ac85
-Author: chenguoqi <chenguoqi@loongson.cn>
-Date:   Thu Oct 24 11:16:00 2024 +0800
+commit 4ee1d542eda8d8aab7ca2024a4a0a9068d3cad70
+Author: Yi Yang <qingfeng.yy@alibaba-inc.com>
+Date:   Thu Aug 31 02:48:34 2023 +0000
 
-    cmd/internal/obj: add tool to generate Cnames string
+    cmd/compile: sparse conditional constant propagation
     
-    Add cmd/internal/obj/mkcnames.go to do the generation and update
-    the architecture packages to use it to maintain the Cnames tables.
+    sparse conditional constant propagation can discover optimization
+    opportunities that cannot be found by just combining constant folding
+    and constant propagation and dead code elimination separately.
     
-    Currently works correctly on arm64,loong64,mips,ppc64 and s390x.
+    This is a re-submit of PR#59575, which fix a broken dominance relationship caught by ssacheck
     
-    Change-Id: I5220b0ba6d8a8a5fcc4d9774731eb2af69a671af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622256
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Updates https://github.com/golang/go/issues/59399
+    
+    Change-Id: I57482dee38f8e80a610aed4f64295e60c38b7a47
+    GitHub-Last-Rev: 830016f24e3a5320c6c127a48ab7c84e2fc672eb
+    GitHub-Pull-Request: golang/go#60469
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498795
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/arm64/a.out.go    |   1 +
- src/cmd/internal/obj/arm64/anames7.go  |  10 +--
- src/cmd/internal/obj/loong64/a.out.go  |   1 +
- src/cmd/internal/obj/loong64/cnames.go |   4 +-
- src/cmd/internal/obj/mips/a.out.go     |   1 +
- src/cmd/internal/obj/mips/anames0.go   |   5 +-
- src/cmd/internal/obj/mkcnames.go       | 136 +++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/ppc64/a.out.go    |   1 +
- src/cmd/internal/obj/ppc64/anames9.go  |   7 +-
- src/cmd/internal/obj/s390x/a.out.go    |   1 +
- src/cmd/internal/obj/s390x/anamesz.go  |   5 +-
- 11 files changed, 153 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |   2 +
+ src/cmd/compile/internal/ssa/block.go           |  10 +-
+ src/cmd/compile/internal/ssa/compile.go         |   1 +
+ src/cmd/compile/internal/ssa/sccp.go            | 578 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/sccp_test.go       |  95 ++++
+ test/checkbce.go                                |   4 +
+ test/codegen/compare_and_branch.go              |   4 +-
+ test/loopbce.go                                 |  33 +-
+ 8 files changed, 711 insertions(+), 16 deletions(-)

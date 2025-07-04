@@ -1,106 +1,23 @@
-commit 7df29b50b2d7fd9abcd2a070df407db57f3f79a6
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Aug 12 10:20:30 2017 +0200
+commit 9cc883a466fdbeba4371cdcc49b4bfdda0253341
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 20 14:05:48 2017 -0400
 
-    bytes: speed up Fields and FieldsFunc
+    runtime: allocate GC workbufs from manually-managed spans
     
-    Applies the optimizations from golang.org/cl/42810 and golang.org/cl/37959
-    done to the strings package to the bytes package.
+    Currently the runtime allocates workbufs from persistent memory, which
+    means they can never be freed.
     
-    name                      old time/op    new time/op     delta
-    Fields/ASCII/16              417ns ± 4%      118ns ± 3%    -71.65%  (p=0.000 n=10+10)
-    Fields/ASCII/256            5.95µs ± 3%     0.88µs ± 0%    -85.23%  (p=0.000 n=10+7)
-    Fields/ASCII/4096           92.3µs ± 1%     12.8µs ± 2%    -86.13%  (p=0.000 n=10+10)
-    Fields/ASCII/65536          1.49ms ± 1%     0.25ms ± 1%    -83.14%  (p=0.000 n=10+10)
-    Fields/ASCII/1048576        25.0ms ± 1%      6.5ms ± 2%    -74.04%  (p=0.000 n=10+10)
-    Fields/Mixed/16              406ns ± 1%      222ns ± 1%    -45.24%  (p=0.000 n=10+9)
-    Fields/Mixed/256            5.78µs ± 1%     2.27µs ± 1%    -60.73%  (p=0.000 n=9+10)
-    Fields/Mixed/4096           97.9µs ± 1%     40.5µs ± 3%    -58.66%  (p=0.000 n=10+10)
-    Fields/Mixed/65536          1.58ms ± 1%     0.69ms ± 1%    -56.58%  (p=0.000 n=10+10)
-    Fields/Mixed/1048576        26.6ms ± 1%     12.6ms ± 2%    -52.44%  (p=0.000 n=9+10)
-    FieldsFunc/ASCII/16          395ns ± 1%      188ns ± 1%    -52.34%  (p=0.000 n=10+10)
-    FieldsFunc/ASCII/256        5.90µs ± 1%     2.00µs ± 1%    -66.06%  (p=0.000 n=10+10)
-    FieldsFunc/ASCII/4096       92.5µs ± 1%     33.0µs ± 1%    -64.34%  (p=0.000 n=10+9)
-    FieldsFunc/ASCII/65536      1.48ms ± 1%     0.54ms ± 1%    -63.38%  (p=0.000 n=10+9)
-    FieldsFunc/ASCII/1048576    25.1ms ± 1%     10.5ms ± 3%    -58.24%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/16          401ns ± 1%      205ns ± 2%    -48.87%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/256        5.70µs ± 1%     1.98µs ± 1%    -65.28%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/4096       97.5µs ± 1%     35.4µs ± 1%    -63.65%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/65536      1.57ms ± 1%     0.61ms ± 1%    -61.20%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/1048576    26.5ms ± 1%     11.4ms ± 2%    -56.84%  (p=0.000 n=10+10)
+    Switch to allocating them from manually-managed heap spans. This
+    doesn't free them yet, but it puts us in a position to do so.
     
-    name                      old speed      new speed       delta
-    Fields/ASCII/16           38.4MB/s ± 4%  134.9MB/s ± 3%   +251.55%  (p=0.000 n=10+10)
-    Fields/ASCII/256          43.0MB/s ± 3%  290.6MB/s ± 1%   +575.97%  (p=0.000 n=10+8)
-    Fields/ASCII/4096         44.4MB/s ± 1%  320.0MB/s ± 2%   +620.90%  (p=0.000 n=10+10)
-    Fields/ASCII/65536        44.0MB/s ± 1%  260.7MB/s ± 1%   +493.15%  (p=0.000 n=10+10)
-    Fields/ASCII/1048576      42.0MB/s ± 1%  161.6MB/s ± 2%   +285.21%  (p=0.000 n=10+10)
-    Fields/Mixed/16           39.4MB/s ± 1%   71.7MB/s ± 1%    +82.20%  (p=0.000 n=10+10)
-    Fields/Mixed/256          44.3MB/s ± 1%  112.8MB/s ± 1%   +154.64%  (p=0.000 n=9+10)
-    Fields/Mixed/4096         41.9MB/s ± 1%  101.2MB/s ± 3%   +141.92%  (p=0.000 n=10+10)
-    Fields/Mixed/65536        41.5MB/s ± 1%   95.5MB/s ± 1%   +130.29%  (p=0.000 n=10+10)
-    Fields/Mixed/1048576      39.4MB/s ± 1%   82.9MB/s ± 2%   +110.28%  (p=0.000 n=9+10)
-    FieldsFunc/ASCII/16       40.5MB/s ± 1%   84.9MB/s ± 2%   +109.80%  (p=0.000 n=10+10)
-    FieldsFunc/ASCII/256      43.4MB/s ± 1%  127.9MB/s ± 1%   +194.58%  (p=0.000 n=10+10)
-    FieldsFunc/ASCII/4096     44.3MB/s ± 1%  124.2MB/s ± 1%   +180.44%  (p=0.000 n=10+9)
-    FieldsFunc/ASCII/65536    44.2MB/s ± 1%  120.6MB/s ± 1%   +173.06%  (p=0.000 n=10+9)
-    FieldsFunc/ASCII/1048576  41.8MB/s ± 1%  100.2MB/s ± 3%   +139.53%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/16       39.8MB/s ± 1%   77.8MB/s ± 2%    +95.46%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/256      44.9MB/s ± 1%  129.4MB/s ± 1%   +187.97%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/4096     42.0MB/s ± 1%  115.6MB/s ± 1%   +175.08%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/65536    41.6MB/s ± 1%  107.3MB/s ± 1%   +157.75%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/1048576  39.6MB/s ± 1%   91.8MB/s ± 2%   +131.72%  (p=0.000 n=10+10)
+    For #19325.
     
-    name                      old alloc/op   new alloc/op    delta
-    Fields/ASCII/16              80.0B ± 0%      80.0B ± 0%       ~     (all equal)
-    Fields/ASCII/256              768B ± 0%       768B ± 0%       ~     (all equal)
-    Fields/ASCII/4096           9.47kB ± 0%     9.47kB ± 0%       ~     (all equal)
-    Fields/ASCII/65536           147kB ± 0%      147kB ± 0%       ~     (all equal)
-    Fields/ASCII/1048576        2.27MB ± 0%     2.27MB ± 0%       ~     (all equal)
-    Fields/Mixed/16              96.0B ± 0%      96.0B ± 0%       ~     (all equal)
-    Fields/Mixed/256              768B ± 0%       768B ± 0%       ~     (all equal)
-    Fields/Mixed/4096           9.47kB ± 0%    24.83kB ± 0%   +162.16%  (p=0.000 n=10+10)
-    Fields/Mixed/65536           147kB ± 0%      497kB ± 0%   +237.24%  (p=0.000 n=10+10)
-    Fields/Mixed/1048576        2.26MB ± 0%     9.61MB ± 0%   +324.89%  (p=0.000 n=10+10)
-    FieldsFunc/ASCII/16          80.0B ± 0%      80.0B ± 0%       ~     (all equal)
-    FieldsFunc/ASCII/256          768B ± 0%       768B ± 0%       ~     (all equal)
-    FieldsFunc/ASCII/4096       9.47kB ± 0%    24.83kB ± 0%   +162.16%  (p=0.000 n=10+10)
-    FieldsFunc/ASCII/65536       147kB ± 0%      497kB ± 0%   +237.24%  (p=0.000 n=10+10)
-    FieldsFunc/ASCII/1048576    2.27MB ± 0%     9.61MB ± 0%   +323.72%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/16          96.0B ± 0%      96.0B ± 0%       ~     (all equal)
-    FieldsFunc/Mixed/256          768B ± 0%       768B ± 0%       ~     (all equal)
-    FieldsFunc/Mixed/4096       9.47kB ± 0%    24.83kB ± 0%   +162.16%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/65536       147kB ± 0%      497kB ± 0%   +237.24%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/1048576    2.26MB ± 0%     9.61MB ± 0%   +324.89%  (p=0.000 n=10+10)
-    
-    name                      old allocs/op  new allocs/op   delta
-    Fields/ASCII/16               1.00 ± 0%       1.00 ± 0%       ~     (all equal)
-    Fields/ASCII/256              1.00 ± 0%       1.00 ± 0%       ~     (all equal)
-    Fields/ASCII/4096             1.00 ± 0%       1.00 ± 0%       ~     (all equal)
-    Fields/ASCII/65536            1.00 ± 0%       1.00 ± 0%       ~     (all equal)
-    Fields/ASCII/1048576          1.00 ± 0%       1.00 ± 0%       ~     (all equal)
-    Fields/Mixed/16               1.00 ± 0%       1.00 ± 0%       ~     (all equal)
-    Fields/Mixed/256              1.00 ± 0%       1.00 ± 0%       ~     (all equal)
-    Fields/Mixed/4096             1.00 ± 0%       5.00 ± 0%   +400.00%  (p=0.000 n=10+10)
-    Fields/Mixed/65536            1.00 ± 0%      12.00 ± 0%  +1100.00%  (p=0.000 n=10+10)
-    Fields/Mixed/1048576          1.00 ± 0%      24.00 ± 0%  +2300.00%  (p=0.000 n=10+10)
-    FieldsFunc/ASCII/16           1.00 ± 0%       1.00 ± 0%       ~     (all equal)
-    FieldsFunc/ASCII/256          1.00 ± 0%       1.00 ± 0%       ~     (all equal)
-    FieldsFunc/ASCII/4096         1.00 ± 0%       5.00 ± 0%   +400.00%  (p=0.000 n=10+10)
-    FieldsFunc/ASCII/65536        1.00 ± 0%      12.00 ± 0%  +1100.00%  (p=0.000 n=10+10)
-    FieldsFunc/ASCII/1048576      1.00 ± 0%      24.00 ± 0%  +2300.00%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/16           1.00 ± 0%       1.00 ± 0%       ~     (all equal)
-    FieldsFunc/Mixed/256          1.00 ± 0%       1.00 ± 0%       ~     (all equal)
-    FieldsFunc/Mixed/4096         1.00 ± 0%       5.00 ± 0%   +400.00%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/65536        1.00 ± 0%      12.00 ± 0%  +1100.00%  (p=0.000 n=10+10)
-    FieldsFunc/Mixed/1048576      1.00 ± 0%      24.00 ± 0%  +2300.00%  (p=0.000 n=10+10)
-    
-    Change-Id: If1926782decc2f60d3b4b8c41c2ce7d8bdedfd8f
-    Reviewed-on: https://go-review.googlesource.com/55131
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I94b2512a2f2bbbb456cd9347761b9412e80d2da9
+    Reviewed-on: https://go-review.googlesource.com/38581
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/bytes/bytes.go      | 114 ++++++++++++++++++++++++++++++++++++------------
- src/bytes/bytes_test.go |  53 +++++++++++++++++++---
- 2 files changed, 132 insertions(+), 35 deletions(-)
+ src/runtime/mgc.go     | 10 ++++++++++
+ src/runtime/mgcwork.go | 38 +++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 47 insertions(+), 1 deletion(-)

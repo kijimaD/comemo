@@ -1,18 +1,16 @@
-commit a901d7fb8f3126f5fbaf3be097449769b490503a
+commit 88c08b06b97296e41fc3069f4afbc86d24707b05
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 14 13:03:02 2015 -0700
+Date:   Mon Apr 20 13:50:46 2015 -0700
 
-    cmd/dist: support test filtering via repurposed env variable, negation
+    cmd/internal: C->Go printf cleanup
     
-    For upcoming sharded ARM builders.
-    
-    Updates #10029
-    
-    Change-Id: I3b1df9560be697c514a8ced0462814d406e23132
-    Reviewed-on: https://go-review.googlesource.com/10055
+    Change-Id: I1cf94377c613fb51ae77f4fe1e3439268b1606a9
+    Reviewed-on: https://go-review.googlesource.com/9161
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 28 +++++++++++++++++++---------
- 1 file changed, 19 insertions(+), 9 deletions(-)
+ src/cmd/internal/gc/lex.go       | 5 +----
+ src/cmd/internal/gc/typecheck.go | 5 +----
+ src/cmd/internal/ld/sym.go       | 7 ++-----
+ src/cmd/internal/obj/flag.go     | 2 +-
+ src/cmd/internal/obj/util.go     | 8 ++++----
+ 5 files changed, 9 insertions(+), 18 deletions(-)

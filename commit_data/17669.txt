@@ -1,15 +1,16 @@
-commit e82031618aff8c69ed09970cce66b9fcaaa939b8
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Mon Sep 23 11:35:17 2013 +1000
+commit 3ec600d0ca0b7a8ee6af0620fc48b7185595492d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Sep 22 10:56:06 2013 -0700
 
-    misc/notepadplus: fix some number syntax highlight issue
+    runtime/race: update runtime to r191161.
+    Fixes #6305.
     
-    notepadplus can only support some normal golang's hex and imaginary numbers.
-    it can't detect some special number, eg. 1./1.e/1.i/1+0.1i (omit "0" in ".0").
-    
-    R=golang-dev, gvdschoot
-    CC=ajstarks, golang-dev
-    https://golang.org/cl/13401047
+    R=golang-dev, dave, alex.brainman, r
+    CC=golang-dev
+    https://golang.org/cl/13359046
 
- misc/notepadplus/userDefineLang.xml | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/runtime/race/README                  |   2 +-
+ src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 186024 -> 192988 bytes
+ src/pkg/runtime/race/race_linux_amd64.syso   | Bin 187616 -> 195144 bytes
+ src/pkg/runtime/race/race_windows_amd64.syso | Bin 160595 -> 161295 bytes
+ 4 files changed, 1 insertion(+), 1 deletion(-)

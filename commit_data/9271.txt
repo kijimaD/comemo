@@ -1,12 +1,12 @@
-commit 317911c9ff9df6339dc9822f0074b5a14898dd26
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Jul 31 19:54:47 2011 -0700
+commit 8800f7cb551616efe941e83f9c0a5fb53599e57d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 1 11:50:50 2011 +1000
 
-    5g: fix set but not used error
+    http: correct format flags when printing errors during tests
     
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4816061
+    https://golang.org/cl/4809065
 
- src/cmd/5g/ggen.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/http/fs_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,20 +1,14 @@
-commit 1a058cd04b7b902e59ff5584c7fda8ddfe388981
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Fri Oct 18 22:19:59 2019 -0400
+commit 6c842cc610bff3e025236dfe4ececbdf91aa66e3
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu May 16 16:16:26 2019 -0700
 
-    net/http: only decrement connection count if we removed a connection
+    cmd/compile: mention issue 28603 when discussing where inline marks go
     
-    The connection count must only be decremented if the persistent
-    connection was also removed.
+    Update #28603
     
-    Fixes #34941
-    
-    Change-Id: I5070717d5d9effec78016005fa4910593500c8cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202087
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8bdbea57b3661e15dcc760d27252b794daa476db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177697
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/net/http/transport.go      | 15 +++++++----
- src/net/http/transport_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 66 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

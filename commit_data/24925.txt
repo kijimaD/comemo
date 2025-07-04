@@ -1,18 +1,23 @@
-commit fbe855ba29229ad92c911898044409eb6784a079
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 16 15:34:41 2015 -0800
+commit af7c9a42c1112175650f5261a2363ca37eec3932
+Author: Shawn Walker-Salas <shawn.walker@oracle.com>
+Date:   Fri Sep 4 16:53:19 2015 -0700
 
-    test: fix test case
+    syscall: implement getwd on Solaris
     
-    Issue introduced by https://go-review.googlesource.com/#/c/16920/ .
+    In support of the changes required for #8609, it was suggested that
+    syscall.getwd() be updated to work on Solaris first since the runtime
+    uses it and today it's unimplemented.
     
-    TBR=rsc
+    Fixes #12507
     
-    Change-Id: I2a0e0c81f641f869568230837c566913f6538f37
-    Reviewed-on: https://go-review.googlesource.com/16990
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ifb58ac9db8540936d5685c2c58bdc465dbc836cb
+    Reviewed-on: https://go-review.googlesource.com/14420
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- test/fixedbugs/issue11590.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/syscall/mkerrors.sh               |  6 ++++++
+ src/syscall/mksyscall_solaris.pl      | 35 ++++++++++++++++++++++-------------
+ src/syscall/syscall_solaris.go        | 21 ++++++++++++++++-----
+ src/syscall/types_solaris.go          |  7 +++++++
+ src/syscall/zsyscall_solaris_amd64.go | 16 ++++++++++++++++
+ src/syscall/ztypes_solaris_amd64.go   |  1 +
+ 6 files changed, 68 insertions(+), 18 deletions(-)

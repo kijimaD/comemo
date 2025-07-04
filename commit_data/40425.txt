@@ -1,19 +1,22 @@
-commit 46e0d724b3f14fd0d350123bbf101e815b493791
-Author: pokutuna <popopopopokutuna@gmail.com>
-Date:   Fri Oct 25 18:58:48 2019 +0000
+commit d41a0a0690ccb699401c7c8904999895b2c92511
+Author: David Chase <drchase@google.com>
+Date:   Fri May 10 12:18:43 2019 -0400
 
-    net/http: fix comment TimeoutHandler no longer supports Flusher
+    cmd/compile: remove large intermediate slice from gc.scopePCs
     
-    Fixes #35161
-    Updates #34439
+    Three loops can be converted into one.
+    Minor reviewer-recommended refactoring.
+    Passes toolstash-check.
     
-    Change-Id: I978534cbb8b9fb32c115dba0066cf099c61d8ee9
-    GitHub-Last-Rev: d60581635e8cefb7cfc4b571057542395034c575
-    GitHub-Pull-Request: golang/go#35162
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203478
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Updates #27739.
+    
+    Change-Id: Ia87a11d88ae3ce56fcc4267fe6c5a9c13bf7f533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176577
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
 
- src/net/http/server.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/scope.go | 34 ++++------------------------------
+ src/cmd/internal/dwarf/dwarf.go      | 14 ++++++++++++++
+ 2 files changed, 18 insertions(+), 30 deletions(-)

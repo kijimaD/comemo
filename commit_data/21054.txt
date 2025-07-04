@@ -1,26 +1,13 @@
-commit fbc56cf05015899aba236d5a68096a770de3ad0a
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Dec 19 20:44:18 2014 -0800
+commit 0f8cd1438d46ecf7393305e8981857b940f50ef4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 11 23:46:20 2014 +1100
 
-    runtime: hashmap: move overflow pointer to end of bucket
+    doc/gopher: add jpgs of the 5th anniversary image
     
-    Pointers to zero-sized values may end up pointing to the next
-    object in memory, and possibly off the end of a span.  This
-    can cause memory leaks and/or confuse the garbage collector.
-    
-    By putting the overflow pointer at the end of the bucket, we
-    make sure that pointers to any zero-sized keys or values don't
-    accidentally point to the next object in memory.
-    
-    fixes #9384
-    
-    Change-Id: I5d434df176984cb0210b4d0195dd106d6eb28f73
-    Reviewed-on: https://go-review.googlesource.com/1869
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/172980043
 
- src/cmd/gc/reflect.c        | 30 +++++++++++++++---------------
- src/cmd/ld/dwarf.c          | 15 +++++++++++----
- src/reflect/type.go         |  9 +++++----
- src/runtime/hashmap.go      | 33 ++++++++++++++++++++-------------
- src/runtime/hashmap_fast.go | 12 ++++++------
- 5 files changed, 57 insertions(+), 42 deletions(-)
+ doc/gopher/fiveyears.jpg | Bin 0 -> 220526 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

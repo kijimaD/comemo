@@ -1,22 +1,20 @@
-commit e069587c8d530ec912614d138bbf59a1d1788fb9
-Author: Jin Lin <jinl@uber.com>
-Date:   Tue Jan 23 19:40:38 2024 -0800
+commit 5c5f8dc94793316ebeab24fc3e6cd6340a95df91
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Feb 9 14:41:42 2023 -0800
 
-    cmd/preprofile: Implement a tool to preprocess the PGO profile.
+    io: detect Writers that access io.Copy's buffer after returning
     
-    It fixes the issue https://github.com/golang/go/issues/65220.
-    It also includes  https://go.dev/cl/557458 from Michael.
+    When the race detector is enabled, scribble over copy buffers with
+    garbage after Write returns.
     
-    Change-Id: Ic6109e1b6a9045459ff4a54dea11cbfe732b01e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557918
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For #58452
+    
+    Change-Id: I25547684bcbef7d302d76736cb02e59c89a640ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466865
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/base/flag.go              |   2 +-
- src/cmd/compile/internal/pgo/irgraph.go            | 205 +++++++++++++++----
- src/cmd/compile/internal/test/pgo_inl_test.go      |  35 +++-
- .../testdata/pgo/inline/inline_hot.pprof.node_map  |  13 ++
- src/cmd/preprofile/main.go                         | 224 +++++++++++++++++++++
- .../internal/graph => internal/profile}/graph.go   |  13 +-
- 6 files changed, 448 insertions(+), 44 deletions(-)
+ src/io/io.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

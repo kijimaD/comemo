@@ -1,21 +1,12 @@
-commit 0a7ad329e17331a0ca4776b6b9ac67dfc32ad24d
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Feb 8 01:57:44 2012 -0200
+commit 63975807c92568f0f769eda01019dbf1ffbc933f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 8 14:54:14 2012 +1100
 
-    encoding/xml: add support for the omitempty flag
+    tag weekly.2012-02-07
     
-    This also changes the behavior of attribute marshalling so
-    that strings and byte slices are marshalled even if empty.
-    The omitempty flag may be used to obtain the previous behavior.
-    
-    Fixes #2899.
-    
-    R=rsc
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/5645050
+    https://golang.org/cl/5645052
 
- src/pkg/encoding/xml/marshal.go      | 36 ++++++++++++---
- src/pkg/encoding/xml/marshal_test.go | 86 +++++++++++++++++++++++++++++++++---
- src/pkg/encoding/xml/read_test.go    |  4 +-
- src/pkg/encoding/xml/typeinfo.go     | 17 ++++---
- 4 files changed, 124 insertions(+), 19 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

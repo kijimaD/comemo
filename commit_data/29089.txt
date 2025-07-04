@@ -1,18 +1,15 @@
-commit 51c959b62cbc97a41157a5644f5e010b4e39acc8
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Wed Oct 19 15:21:54 2016 +0200
+commit 78bc418f1d7f9346e3214ac40506624ab7f5f649
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 13:12:34 2016 -0700
 
-    crypto/tls: expand ClientHelloInfo
+    cmd/compile: remove unused importimport function
     
-    Fixes #17430
+    Functionality is present in bimport.go in slightly modified form.
     
-    Change-Id: Ia1c25363d64e3091455ce00644438715aff30a0d
-    Reviewed-on: https://go-review.googlesource.com/31391
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Change-Id: I6be79d91588873e6ba70d6ab07ba2caa12346dfc
+    Reviewed-on: https://go-review.googlesource.com/27672
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/tls/common.go           | 27 ++++++++++++++
- src/crypto/tls/handshake_server.go | 72 ++++++++++++++++++++++++++------------
- 2 files changed, 77 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go |  8 +++++++-
+ src/cmd/compile/internal/gc/export.go  | 28 ----------------------------
+ 2 files changed, 7 insertions(+), 29 deletions(-)

@@ -1,18 +1,22 @@
-commit 4aacb7ff0f103d95a724a91736823f44aa599634
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Mar 2 11:01:18 2022 -0800
+commit 909dd5e010c99d48f1dc72d7da61fd8d3fd8f030
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 7 10:51:33 2021 -0700
 
-    crypto/x509: add CertPool.Equal
+    strconv: ParseFloat: always return ErrSyntax for bad syntax
     
-    Fixes #46057
+    Previously we would sometimes return ErrRange if the parseable part of
+    the floating point number was out of range.
     
-    Change-Id: Id3af101c54108d6fd5b65946c4358872358eefcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388915
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Fixes #46628
+    
+    Change-Id: I15bbbb1e2a56fa27c19fe25ab5554d988cbfd9d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325750
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/cert_pool.go      | 13 +++++++++
- src/crypto/x509/cert_pool_test.go | 58 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+)
+ src/strconv/atof.go      | 2 +-
+ src/strconv/atof_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

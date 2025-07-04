@@ -1,21 +1,24 @@
-commit f8973fcafbb1172d2f1bf98cda5da5ddbe744aa3
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Feb 28 01:41:42 2018 +0000
+commit fcd32885dfd9f69d894f11e0802548071be5e326
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 24 14:45:41 2017 -0700
 
-    cmd/link: revert CL 89535: "fix up location lists for dsymutil"
+    cmd/compile: refactor method expression detection
     
-    This reverts commit 230b0bad1f9685e824c9096deb4badbe93377733.
+    Eliminates lots of ad hoc code for recognizing the same thing in
+    different ways.
     
-    Reason for revert: breaking the build.
+    Passes toolstash-check.
     
-    Fixes #24165
-    
-    Change-Id: I9d8dda59f97a47e5c436f1c061b34ced82bde8ec
-    Reviewed-on: https://go-review.googlesource.com/97575
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ic0bb005308e96331b4ef30f455b860e476725b61
+    Reviewed-on: https://go-review.googlesource.com/73190
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 71 ---------------------------------------
- 1 file changed, 71 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go   | 2 +-
+ src/cmd/compile/internal/gc/export.go    | 6 +++---
+ src/cmd/compile/internal/gc/inl.go       | 8 ++------
+ src/cmd/compile/internal/gc/sinit.go     | 2 +-
+ src/cmd/compile/internal/gc/syntax.go    | 5 +++++
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 6 files changed, 13 insertions(+), 12 deletions(-)

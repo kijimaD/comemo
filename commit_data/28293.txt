@@ -1,24 +1,26 @@
-commit f30598dd71b5bb7109eda56b02ea10d2b6cc1362
-Author: Joonas Kuorilehto <joneskoo@derbian.fi>
-Date:   Sat Sep 10 22:07:33 2016 +0300
+commit ef62f641c37431a870fa093c43b3ee51a06db0da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 12:40:17 2016 -0700
 
-    crypto/tls: Add mutex to protect KeyLogWriter
+    cmd/compile: use ONAME instead of OPACK in binary export format
     
-    Concurrent use of tls.Config is allowed, and may lead to
-    KeyLogWriter being written to concurrently. Without a mutex
-    to protect it, corrupted output may occur. A mutex is added
-    for correctness.
+    This is addressing feedback given on golang.org/cl/23052;
+    we do it in a separate CL to separate the functional from
+    the rename change.
     
-    The mutex is made global to save size of the config struct as
-    KeyLogWriter is rarely enabled.
+    ONAME was not used in the export data, but it's the natural node op
+    where we used OPACK instead. Renamed.
     
-    Related to #13057.
+    Furthermore, OPACK and ONONAME nodes are replaced by the type checker
+    with ONAME nodes, so OPACK nodes cannot occur when exporting type-checked
+    code. Removed a special-case for OPACK nodes since they don't appear.
     
-    Change-Id: I5ee55b6d8b43a191ec21f06e2aaae5002a71daef
-    Reviewed-on: https://go-review.googlesource.com/29016
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I78b01a1badbf60e9283eaadeca2578a65d28cbd2
+    Reviewed-on: https://go-review.googlesource.com/23053
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/tls/common.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/bexport.go | 21 +++++++--------------
+ src/cmd/compile/internal/gc/bimport.go | 17 +++++------------
+ 2 files changed, 12 insertions(+), 26 deletions(-)

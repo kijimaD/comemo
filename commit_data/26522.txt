@@ -1,17 +1,33 @@
-commit d0801f70b24ca90f2852f59f9f46865e02772545
-Author: David Benjamin <davidben@google.com>
-Date:   Mon Jan 4 16:11:02 2016 -0800
+commit 125f52dfa8ce6df0380b0bdc66effb8afd697bda
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 1 22:16:42 2016 +0000
 
-    encoding/asn1: tags should be encoded in minimal form.
+    net/http: update bundled http2, fix Transport memory leak
     
-    High tag number form may not be used for tag numbers that fit in low tag number
-    form.
+    Updates x/net/http2 to git rev 644ffc for three CLs since the last update:
     
-    Change-Id: I93edde0e1f86087047e0b3f2e55d6180b01e78bf
-    Reviewed-on: https://go-review.googlesource.com/18224
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    http2: don't add *Response to activeRes in Transport on Headers.END_STREAM
+    https://golang.org/cl/19134
+    
+    http2: add mechanism to send undeclared Trailers mid handler
+    https://golang.org/cl/19131
+    
+    http2: remove unused variable
+    https://golang.org/cl/18936
+    
+    The first in the list above is the main fix that's necessary. The
+    other are two are in the git history but along for the cmd/bundle
+    ride. The middle CL is well-tested, small (mostly comments),
+    non-tricky, and almost never seen (since nobody really uses Trailers).
+    The final CL is just deleting an unused global variable.
+    
+    Fixes #14084 again (with more tests)
+    
+    Change-Id: Iac51350acee9c51d32bf7779d57e9d5a5482b928
+    Reviewed-on: https://go-review.googlesource.com/19135
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/encoding/asn1/asn1.go      | 5 +++++
- src/encoding/asn1/asn1_test.go | 4 +++-
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/net/http/clientserver_test.go | 12 ++++---
+ src/net/http/h2_bundle.go         | 67 ++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 71 insertions(+), 8 deletions(-)

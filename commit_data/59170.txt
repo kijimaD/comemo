@@ -1,22 +1,19 @@
-commit 87d1833c66aa25a7e495987b066bdd22d1fe3105
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Mar 25 14:10:31 2025 -0400
+commit 4cd743e27eef7495a71cee08a9e8ca971ffcc0a5
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Nov 23 11:43:56 2023 -0800
 
-    cmd/go/internal/modload: improve ErrNoModRoot error text
+    os: use atomic.Uintptr for Process.handle
     
-    Before this change, in several cases where HasModRoot() returned false,
-    we'd return ErrNoModRoot. ErrNoModRoot would say that there was no
-    go.mod file but would not mention workspaces. With this change,
-    ErrNoModRoot will return error text that's different if we're in a
-    workspace, saying that there are no modules in the workspace.
-    
-    Fixes #54419
-    
-    Change-Id: I77c94d0011947bf8e33c066416ab3762502fd2e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660675
+    Suggested-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I116731b6c3738aae8ff1d3be227f8f51fa3320c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544795
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/modload/init.go                | 38 ++++++++++++++--------
- .../script/work_no_mod_root_issue54419.txt         | 13 ++++++++
- 2 files changed, 37 insertions(+), 14 deletions(-)
+ src/os/exec.go         | 5 +++--
+ src/os/exec_windows.go | 7 +++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

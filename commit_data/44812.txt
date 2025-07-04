@@ -1,24 +1,23 @@
-commit 53941b6150a1f9ca01c02316c8db51024294a4c9
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Mar 25 08:30:19 2021 -0400
+commit 717266b4c2bd178dcbd49f31048f216d8799e697
+Author: Daniel Cormier <dcormier@users.noreply.github.com>
+Date:   Tue Sep 1 21:13:01 2020 +0000
 
-    cmd/compile: fix defer desugar keepalive arg handling buglet
+    net/smtp: adds support for the SMTPUTF8 extension
     
-    Fix a bug in the go/defer desugar handling of keepalive arguments. The
-    go/defer wrapping code has special handling for calls whose arguments
-    are pointers that have been cast to "uintptr", so as to insure that
-    call "keepalive" machinery for such calls continues to work. This
-    patch fixes a bug in the special case code to insure that it doesn't
-    kick in for other situations where you have an unsafe.Pointer ->
-    uintptr argument (outside the keepalive context).
+    If the SMTP server supports the SMTPUTF8 extension,
+    the SMTPUTF8 parameter is added to the MAIL FROM
+    command by the (*Client).Mail method.
     
-    Fixes make.bat on windows with GOEXPERIMENT=regabidefer in effect.
+    Fixes #19860
     
-    Change-Id: I9db89c4c73f0db1235901a4fae57f62f88c94ac3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304457
-    Trust: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I3287faf114ee514e5faa815a6bbc1bf04cf60b0f
+    GitHub-Last-Rev: d6338bb802da7537223f1ec6eda960606febefb8
+    GitHub-Pull-Request: golang/go#40627
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/walk/order.go | 59 ++++++++++++++++++++++++++--------
- 1 file changed, 45 insertions(+), 14 deletions(-)
+ src/net/smtp/smtp.go      |   6 +-
+ src/net/smtp/smtp_test.go | 213 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 218 insertions(+), 1 deletion(-)

@@ -1,22 +1,15 @@
-commit 74f0ccb68b60a07a8730e16043f18d3749c15648
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri May 20 19:35:44 2022 -0400
+commit 0888a8cd2dc3ad66e30ccb30eae8fbed065ea0f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 9 15:13:22 2021 -0700
 
-    reflect: store receiver in pointer slot for reflect call
+    [dev.typeparams] cmd/compile/internal/types2: remove unused TypeParam.Bound method
     
-    The code comment says that the receiver doesn't need to go into
-    the pointer slot as it will be kept alive in this frame. But it
-    doesn't. There is no direct reference of rcvr or v (the receiver)
-    after storing the arguments. Also, it is clearer to explicitly
-    keep it alive.
+    Use TypeParam.Constraint instead.
     
-    Fixes #52800.
-    
-    Change-Id: Ie3fa8e83f6ecc69d62e8bfab767314d5181f5dc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407508
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iebd77d304f2b7238baa231fb9869c964f66ea355
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340990
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/reflect/value.go | 23 +++++++++++++++--------
- 1 file changed, 15 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/typeparam.go | 7 -------
+ 1 file changed, 7 deletions(-)

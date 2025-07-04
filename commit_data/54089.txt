@@ -1,15 +1,20 @@
-commit ce16086345435d85906de31ea4af486b69bae895
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 18 09:44:16 2023 -0700
+commit 65deb9c3cea2a57b2cba892bc3dc4344ff0783c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 22 20:56:38 2022 -0400
 
-    spec: correct type parameter name used in example
+    text/template/parse: fix confusion about markers near right delims
     
-    Change-Id: I40595a3f598483d029473af465c756f8777ecc91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520915
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #52527.
+    Fixes #55336.
+    
+    Change-Id: I8f5c521c693e74451a558788909e7e4ad1cc797a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433036
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/text/template/parse/lex.go      |  2 +-
+ src/text/template/parse/lex_test.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

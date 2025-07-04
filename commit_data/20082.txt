@@ -1,20 +1,26 @@
-commit afb2260491e6427fa9b2e7fc629dac736113cfa6
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 22 22:13:01 2014 +0400
+commit ba30c082c026b5ef029e5d855a90ea56ef9487ec
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 14 09:21:58 2014 -0700
 
-    runtime: convert note to Go
-    Note is required for timers and heap scavenger.
+    cmd/cgo: check for compiler errors in the C preamble
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=golang-codereviews, khr, rlh
-    https://golang.org/cl/128620043
+    E.g., here's the new "go build" output:
+    
+    $ go build misc/cgo/errors/issue8442.go
+    # command-line-arguments
+    could not determine kind of name for C.issue8442foo
+    
+    gcc errors for preamble:
+    misc/cgo/errors/issue8442.go:11:19: error: unknown type name 'UNDEF'
+    
+    Fixes #8442.
+    
+    LGTM=iant
+    R=iant, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/129160043
 
- src/cmd/api/goapi.go           |  1 +
- src/pkg/runtime/export_test.go |  1 -
- src/pkg/runtime/lock_futex.c   | 26 ++++++++++++++++++++++++++
- src/pkg/runtime/lock_sema.c    | 29 +++++++++++++++++++++++++++++
- src/pkg/runtime/proc.c         | 25 +++++++++++++++++++++++++
- src/pkg/runtime/runtime.h      |  1 +
- src/pkg/runtime/stubs.go       | 27 ++++++++++++++++++++++++++-
- 7 files changed, 108 insertions(+), 2 deletions(-)
+ misc/cgo/errors/issue8442.go | 17 +++++++++++++++++
+ misc/cgo/errors/test.bash    |  1 +
+ src/cmd/cgo/gcc.go           | 15 ++++++++++++---
+ 3 files changed, 30 insertions(+), 3 deletions(-)

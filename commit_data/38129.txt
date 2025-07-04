@@ -1,30 +1,15 @@
-commit 9650726e79e20386b59b253e98dcaaa768e06c95
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Feb 8 17:48:17 2019 +0100
+commit f1973f3164e5b570b8601c18fa484be7e97171f4
+Author: uropek <uropek@gmail.com>
+Date:   Wed Oct 3 23:52:49 2018 +0000
 
-    internal/reflectlite: lite version of reflect package
+    test: fix spelling of `caught be the compiler` to `caught by the compiler`
     
-    to be used by errors package for checking assignability
-    and setting error values in As.
-    
-    Updates #29934.
-    
-    Change-Id: I8c1d02a2c6efa0919d54b286cfe8b4edc26da059
-    Reviewed-on: https://go-review.googlesource.com/c/161759
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id21cdce35963dcdb96cc06252170590224c5aa17
+    GitHub-Last-Rev: 429dad0ceba123415af308179d0d2aa9773e6323
+    GitHub-Pull-Request: golang/go#28000
+    Reviewed-on: https://go-review.googlesource.com/c/139424
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/deps_test.go                 |    2 +
- src/internal/reflectlite/all_test.go      | 1046 +++++++++++++++++++++++++++++
- src/internal/reflectlite/asm.s            |    5 +
- src/internal/reflectlite/export_test.go   |  115 ++++
- src/internal/reflectlite/set_test.go      |   92 +++
- src/internal/reflectlite/tostring_test.go |   98 +++
- src/internal/reflectlite/type.go          |  904 +++++++++++++++++++++++++
- src/internal/reflectlite/value.go         |  448 ++++++++++++
- src/runtime/iface.go                      |    5 +
- src/runtime/malloc.go                     |    5 +
- src/runtime/mbarrier.go                   |    5 +
- src/runtime/runtime1.go                   |   12 +
- 12 files changed, 2737 insertions(+)
+ test/typeswitch2.go | 2 +-
+ test/typeswitch3.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

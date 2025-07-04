@@ -1,37 +1,17 @@
-commit fcba05148f50449eb4c2d97ef69519f69707da61
-Author: Balaram Makam <bmakam.qdt@qualcommdatacenter.com>
-Date:   Tue Jan 30 12:16:52 2018 -0500
+commit 85f93c889aafa253a784362051681ee76f1d3564
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 2 17:29:10 2017 -0400
 
-    cmd/compile: arm64 intrinsics for math/bits.OnesCount
+    cmd/compile: fix some plive comments
     
-    This adds math/bits intrinsics for OnesCount on arm64.
+    The liveness analysis no longer directly emits PCDATA. Fix stale
+    comments that say so.
     
-    name         old time/op  new time/op  delta
-    OnesCount    3.81ns ± 0%  1.60ns ± 0%  -57.96%  (p=0.000 n=7+8)
-    OnesCount8   1.60ns ± 0%  1.60ns ± 0%     ~     (all equal)
-    OnesCount16  2.41ns ± 0%  1.60ns ± 0%  -33.61%  (p=0.000 n=8+8)
-    OnesCount32  4.17ns ± 0%  1.60ns ± 0%  -61.58%  (p=0.000 n=8+8)
-    OnesCount64  3.80ns ± 0%  1.60ns ± 0%  -57.84%  (p=0.000 n=8+8)
-    
-    Update #18616
-    
-    Conflicts:
-            src/cmd/compile/internal/gc/asm_test.go
-    
-    Change-Id: I63ac2f63acafdb1f60656ab8a56be0b326eec5cb
-    Reviewed-on: https://go-review.googlesource.com/90835
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Id26b112ddf4c13a12ebf766f64bf57c68fbfe3ef
+    Reviewed-on: https://go-review.googlesource.com/67691
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64enc.s |   1 +
- src/cmd/compile/internal/arm64/ssa.go        |  14 +++
- src/cmd/compile/internal/gc/asm_test.go      |  24 +++++
- src/cmd/compile/internal/gc/ssa.go           |   9 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  10 ++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  29 +++---
- src/cmd/compile/internal/ssa/opGen.go        |  56 +++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 141 +++++++++++++++++++++++++++
- src/cmd/internal/obj/arm64/a.out.go          |   1 +
- src/cmd/internal/obj/arm64/anames.go         |   1 +
- src/cmd/internal/obj/arm64/asm7.go           |   5 +
- 11 files changed, 277 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

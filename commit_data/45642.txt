@@ -1,20 +1,22 @@
-commit 02699f810a05215060ba2181f394d551819ad7d4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 13 18:19:42 2021 -0400
+commit 3a76627df4f6bd38a3cfa21aeddcb871f6df1881
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 1 15:28:21 2020 -0500
 
-    runtime: mark osyield nosplit on OpenBSD
+    cmd/link: use internal linking for -race mode on darwin/arm64
     
-    osyield is called in code paths that are not allowed to split
-    stack, e.g. casgstatus called from entersyscall/exitsyscall.
-    It is nosplit on all other platforms. Mark it nosplit on OpenBSD
-    as well.
+    The code I wrote in ldmacho.go in CL 266373 was plainly wrong. It
+    didn't carry rAdd over correctly. Fixed. Also added sign extension
+    (as ld64 does).
     
-    Change-Id: I3fed5d7f58b3d50610beca6eed2c7e902b8ec52c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319969
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Internal linking with -race mode now works. Enable it.
+    
+    Updates #38485.
+    
+    Change-Id: I78aa949687bf6a0987913059059160b018c7560e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267097
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/sys_openbsd1.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/link/internal/ld/config.go         | 2 +-
+ src/cmd/link/internal/loadmacho/ldmacho.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,12 +1,18 @@
-commit 1a4c984baea846a06e95440b2192eec1bc29917a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 14 21:39:18 2015 +1100
+commit df1739c77d4eb4f700722b4eb70b6036df96a9b9
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 12 13:45:19 2014 -0800
 
-    misc/makerelease: check out core from git repo, use new oauth2 package
+    runtime: if key type is reflexive, don't call equal(k, k)
     
-    Change-Id: I072cf2b9149a05901cc19e7aeb0e9d0936a8dbe3
-    Reviewed-on: https://go-review.googlesource.com/2793
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Most types are reflexive (k == k for all k of type t), so don't
+    bother calling equal(k, k) when the key type is reflexive.
+    
+    Change-Id: Ia716b4198b8b298687843b94b878dbc5e8fc2c65
+    Reviewed-on: https://go-review.googlesource.com/1480
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/makerelease/makerelease.go | 76 ++++++++++++++++++++---------------------
- 1 file changed, 38 insertions(+), 38 deletions(-)
+ src/cmd/gc/reflect.c   | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/type.go    | 27 +++++++++++++++++++++++++++
+ src/runtime/hashmap.go |  6 +++---
+ src/runtime/type.go    |  1 +
+ 4 files changed, 81 insertions(+), 3 deletions(-)

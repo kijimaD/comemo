@@ -1,23 +1,16 @@
-commit 04105ef1da9e23dc78d0a68b089ea8bdcb120d20
-Author: David Chase <drchase@google.com>
-Date:   Fri Nov 16 16:20:28 2018 -0500
+commit 16ec18084e246b4a8dacf8bd1386e7f5c649eeab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 2 12:41:48 2018 -0700
 
-    cmd/compile: decompose composite OpArg before decomposeUser
+    doc/go1.11: remove go/scanner note
     
-    This makes it easier to track names of function arguments
-    for debugging purposes.
+    The relevant change was reverted in CL 127658.
     
-    Change-Id: Ic34856fe0b910005e1c7bc051d769d489a4b158e
-    Reviewed-on: https://go-review.googlesource.com/c/150098
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #26671
+    
+    Change-Id: I0c555c8e18f4c7e289de56d3ef840d79cf0adac2
+    Reviewed-on: https://go-review.googlesource.com/127659
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go        |   1 +
- src/cmd/compile/internal/ssa/decompose.go      |   4 +
- src/cmd/compile/internal/ssa/gen/decArgs.rules |  58 +++++
- src/cmd/compile/internal/ssa/gen/decArgsOps.go |  20 ++
- src/cmd/compile/internal/ssa/gen/generic.rules |  53 -----
- src/cmd/compile/internal/ssa/rewritedecArgs.go | 288 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 255 ----------------------
- 7 files changed, 371 insertions(+), 308 deletions(-)
+ doc/go1.11.html | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

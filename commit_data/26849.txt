@@ -1,22 +1,18 @@
-commit 501ddf7189cf97ef27eb870ad134a312f80ae585
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 11 18:16:55 2016 +0000
+commit 21f2cb60eaf6636f66062585cce575af3e11edb5
+Author: Benoit Sigoure <tsunanet@gmail.com>
+Date:   Sun Feb 28 21:30:32 2016 -0800
 
-    context: attempt to deflake timing tests
+    syscall: Fix generator for Linux syscalls.
     
-    Passes on OpenBSD now when running it with -count=500.
+    In golang.org/cl/14449 the `getdents' system call got changed to use
+    _SYS_getdents as a layer of indirection instead of SYS_GETDENTS64 for
+    compatibility with mips64, but this broke mksyscall.pl, which then
+    died with with:
+      syscall_linux.go:840: malformed //sys declaration
     
-    Presumably this will also fix the same problems seen on FreeBSD and
-    Windows.
-    
-    Fixes #15158
-    
-    Change-Id: I86451c901613dfa5ecff0c2ecc516527a3c011b3
-    Reviewed-on: https://go-review.googlesource.com/21840
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Icb61965d8730f6e81f9fb0fa28c7bab635470f09
+    Reviewed-on: https://go-review.googlesource.com/20051
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/context/context_test.go     | 65 ++++++++++++++++++-----------------------
- src/context/withtimeout_test.go |  4 +--
- 2 files changed, 30 insertions(+), 39 deletions(-)
+ src/syscall/mksyscall.pl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,12 @@
-commit 63e28ae4ab274d2ce3056e5adf76a2027e453ca7
+commit 108ba69ae3bcfbbbe32ed2ec1b20fb59774c7348
 Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 5 13:51:49 2011 -0700
+Date:   Tue Apr 5 13:25:58 2011 -0700
 
-    gotest: fix windows build.
+    roadmap: add sections on tools, packages.
     
-    R=rsc
+    R=golang-dev, rsc1, r2, bradfitzgo, gri
     CC=golang-dev
-    https://golang.org/cl/4339055
+    https://golang.org/cl/4344068
 
- src/cmd/gotest/gotest.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/devel/roadmap.html | 29 ++++++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)

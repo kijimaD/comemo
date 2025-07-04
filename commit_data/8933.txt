@@ -1,14 +1,12 @@
-commit db0e3580225ef11a3a8be0de608cb56ddd4aee55
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 4 11:45:31 2011 +1000
+commit 8c7a73bbbba1c6a374d3ab334e378299c6c4236b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 4 10:26:03 2011 +1000
 
-    reflect: allow Len on String values.
-    It's probably just an oversight that it doesn't work,
-    perhaps caused by analogy with Cap.
+    go/build: evaluate symlinks before comparing path to GOPATH
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4634125
+    https://golang.org/cl/4645078
 
- src/pkg/reflect/value.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/go/build/path.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,14 +1,16 @@
-commit 6763e5b6cde9fbd4f65527a2c01f3d700d8e90fd
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Jun 5 11:56:32 2012 +1000
+commit 7ab62b0baceb5bf72b5dcdd819159ca5120a6eeb
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Jun 4 23:31:31 2012 +0200
 
-    gc: fix typo.
+    test: avoid interface conversion in rotate.go
     
-    There already is a "Phase 6" a few lines above.
+    It is not necessary for the test to be effective and uses a
+    lot of resources in the compiler. Memory usage is halved and
+    compilation around 8x faster.
     
-    R=rsc
+    R=golang-dev, r, rsc, r
     CC=golang-dev
-    https://golang.org/cl/6270054
+    https://golang.org/cl/6290044
 
- src/cmd/gc/lex.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/rotate.go | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)

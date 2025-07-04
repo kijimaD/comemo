@@ -1,15 +1,44 @@
-commit 254d63baa78741fe415e58361ddc3e10a311458c
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Mar 18 17:14:23 2016 -0400
+commit a5ba581ae05a857a7828c5a883fab0d73a89f26d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 5 09:48:45 2016 -0500
 
-    cmd/go: add s390x support
+    cmd/asm: simplify golden test maintenance
     
-    Minimum architecture of z196 required so that GCC can assemble
-    gcc_s390x.S in runtime/cgo.
+    Instead of two parallel files that look almost identical,
+    mark the expected differences in the original file.
     
-    Change-Id: I603ed2edd39f826fb8193740ece5bd11d18c3dc5
-    Reviewed-on: https://go-review.googlesource.com/20876
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The annotations being added here keep the tests passing,
+    but they also make clear a number of printing or parsing
+    errors that were not as easily seen when the data was
+    split across two files.
+    
+    Fix a few diagnostic problems in cmd/internal/obj as well.
+    
+    A step toward #13822.
+    
+    Change-Id: I997172681ea6fa7da915ff0f0ab93d2b76f8dce2
+    Reviewed-on: https://go-review.googlesource.com/18823
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/build.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/asm/internal/arch/arm.go             |   1 +
+ src/cmd/asm/internal/asm/asm.go              |   2 +-
+ src/cmd/asm/internal/asm/endtoend_test.go    | 122 +++++++++++++++++++++------
+ src/cmd/asm/internal/asm/testdata/386.out    |  49 -----------
+ src/cmd/asm/internal/asm/testdata/386.s      |  37 ++++----
+ src/cmd/asm/internal/asm/testdata/amd64.out  |  57 -------------
+ src/cmd/asm/internal/asm/testdata/amd64.s    |  80 ++++++++++++------
+ src/cmd/asm/internal/asm/testdata/arm.out    |  60 -------------
+ src/cmd/asm/internal/asm/testdata/arm.s      |  47 ++++++-----
+ src/cmd/asm/internal/asm/testdata/arm64.out  |  55 ------------
+ src/cmd/asm/internal/asm/testdata/arm64.s    |  23 ++---
+ src/cmd/asm/internal/asm/testdata/mips64.out |  99 ----------------------
+ src/cmd/asm/internal/asm/testdata/mips64.s   |  41 +++++----
+ src/cmd/asm/internal/asm/testdata/ppc64.out  | 114 -------------------------
+ src/cmd/asm/internal/asm/testdata/ppc64.s    |  78 +++++++++--------
+ src/cmd/internal/obj/arm/anames5.go          |   1 +
+ src/cmd/internal/obj/arm/asm5.go             |   8 +-
+ src/cmd/internal/obj/arm64/a.out.go          |   7 --
+ src/cmd/internal/obj/arm64/anames.go         |   7 --
+ 19 files changed, 286 insertions(+), 602 deletions(-)

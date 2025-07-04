@@ -1,18 +1,14 @@
-commit 8c5976f8b33a4378ea18dd963317bcbd39fc309b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 3 16:02:10 2018 -0800
+commit 3333b6407d8bae64cb8bf62de1425abd8714a51c
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Mon Jun 18 12:48:30 2018 -0300
 
-    cmd/cgo: don't pass CGO_CFLAGS -g options to debug info generation
+    net/http: use internal/race
     
-    Fixes #26144
-    
-    Change-Id: Ie69dab1bd819eaf158be11769903b2636bbcf516
-    Reviewed-on: https://go-review.googlesource.com/c/152165
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Nikhil Benesch <nikhil.benesch@gmail.com>
+    Change-Id: Iaa5ded13e8ab4753e2e3d04c9fff203d854208ba
+    Reviewed-on: https://go-review.googlesource.com/119435
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cgo/gcc.go   | 8 +++++++-
- src/cmd/dist/test.go | 5 ++++-
- 2 files changed, 11 insertions(+), 2 deletions(-)
+ src/net/http/header.go      |  2 --
+ src/net/http/header_test.go |  3 ++-
+ src/net/http/race.go        | 11 -----------
+ 3 files changed, 2 insertions(+), 14 deletions(-)

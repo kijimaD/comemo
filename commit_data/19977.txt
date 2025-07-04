@@ -1,18 +1,15 @@
-commit fce63888cecd22dfc01bf1b6dcb5a1429aecbc17
-Author: Andres Erbsen <andreser@google.com>
-Date:   Mon Aug 11 16:40:42 2014 -0700
+commit 77a8dcab03c1bf8efa5cafaa2d9dc0a9f7a3dcf6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Aug 8 08:57:41 2014 +1000
 
-    crypto/tls: implement tls-unique channel binding (RFC 5929 section 3).
-    Tested against GnuTLS and Python.
+    encoding/json: document coercion of invalid UTF-8 characters
     
-    LGTM=agl
-    R=golang-codereviews, agl, ashankar
-    CC=agl, golang-codereviews
-    https://golang.org/cl/117100043
+    Fixes #8342.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/122180043
 
- src/pkg/crypto/tls/common.go           |  8 ++++++
- src/pkg/crypto/tls/conn.go             |  6 +++++
- src/pkg/crypto/tls/handshake_client.go | 14 ++++++-----
- src/pkg/crypto/tls/handshake_server.go | 14 ++++++-----
- src/pkg/crypto/tls/tls_test.go         | 45 ++++++++++++++++++++++++++++++++++
- 5 files changed, 75 insertions(+), 12 deletions(-)
+ src/pkg/encoding/json/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

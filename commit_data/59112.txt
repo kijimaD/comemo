@@ -1,17 +1,23 @@
-commit 48240ad3f927b593de69d9aa6b22f96db982c578
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Mar 19 13:13:51 2025 -0700
+commit 5258d4ed60ffe272fe51d7793c4ca6f8cc054299
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Feb 6 18:08:34 2024 -0500
 
-    internal/syscall/unix: use correct number of params in unlinkat, fchownat
+    cmd/link: add -randlayout flag to randomize function ordering
     
-    We were calling syscall6 with an incorrect parameter count, omitting
-    the flags parameter.
+    Sometimes we found that benchmark results may strongly depend on
+    the ordering of functions laid out in the binary. This CL adds a
+    flag -randlayout=seed, which randomizes the function layout (in a
+    deterministic way), so can verify the benchmark results against
+    different function ordering.
     
-    Change-Id: Ife606bd57c1e4b899c0340767e9197bbe0aa81a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659415
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I85f33881bbfd4ca6812fbd4bec00bf475755a09e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562157
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/internal/syscall/unix/at_libc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/data.go | 28 ++++++++++++++++++++++---
+ src/cmd/link/internal/ld/main.go |  1 +
+ src/cmd/link/internal/ld/pcln.go |  2 +-
+ src/cmd/link/link_test.go        | 44 ++++++++++++++++++++++++++++++++++++++--
+ 4 files changed, 69 insertions(+), 6 deletions(-)

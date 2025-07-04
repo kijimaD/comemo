@@ -1,14 +1,32 @@
-commit 66ce8e383f1070320b9d63d06dc7f5ec40d35135
-Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-Date:   Mon Sep 18 17:07:21 2017 +0200
+commit 1b53f15ebb00dd158af674df410c7941abb2b933
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 23 05:22:25 2017 +0000
 
-    bytes: removed unnecessary slicing on copy
+    cmd/go: include GOARM and GO386 in computed build ID
     
-    Change-Id: Ia42e3479c852a88968947411de8b32e5bcda5ae3
-    Reviewed-on: https://go-review.googlesource.com/64371
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Now:
+    $ GOARCH=arm GOARM=5 go install -x cmd/go
+    ... followed by:
+    $ GOARCH=arm GOARM= go install -x cmd/go
+    
+    ... actually does work. Previously the second "go install" would reuse
+    the cached binaries from the GOARM=5 command and not rebuild.
+    (Or vice versa from GOARM= to GOARM=5)
+    
+    And do the same for GO386.
+    
+    Fixes #9737
+    
+    Change-Id: I9630aab34d06465d5033e6743dfe6592c8247aa0
+    Reviewed-on: https://go-review.googlesource.com/43855
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bytes/buffer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/deps.go              | 45 ++++++++++++++++++++-------------------
+ src/cmd/go/go_test.go             | 39 +++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/cfg/cfg.go    |  7 ++++++
+ src/cmd/go/internal/envcmd/env.go |  4 ++--
+ src/cmd/go/internal/load/pkg.go   |  8 +++++++
+ 5 files changed, 79 insertions(+), 24 deletions(-)

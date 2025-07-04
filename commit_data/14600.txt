@@ -1,17 +1,17 @@
-commit 0d22573f6e053ae12c09d65a8b7c4d5b604317fb
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Tue Dec 11 17:36:10 2012 +0100
+commit dffdece81928103398e74d1b462bba03eb24552c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 10 20:20:00 2012 -0500
 
-    cmd/gc: remove bad check for BADWIDTH
+    godoc: move example list into index section
     
-    This check for BADWIDTH might happen while in defercheckwidth, making it raise errors for non-erroneous situations.
+    Putting it before the Index (where it is now) is wrong:
+    we don't even know what's in the package yet.
     
-    Fixes #4495.
+    Fixes #4484.
     
-    R=golang-dev, rsc
+    R=adg, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6927043
+    https://golang.org/cl/6868071
 
- src/cmd/gc/typecheck.c      |  2 --
- test/fixedbugs/issue4495.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 2 deletions(-)
+ lib/godoc/package.html | 29 ++++++++++++-----------------
+ 1 file changed, 12 insertions(+), 17 deletions(-)

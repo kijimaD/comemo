@@ -1,22 +1,28 @@
-commit 18ea6f597c031d5f3c5160217db72d80cb62f689
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 27 21:30:24 2020 -0400
+commit 402ea9e4f9ddcd2ed595ac12ce1b4e39f82e128f
+Author: Changkun Ou <hi@changkun.us>
+Date:   Mon Feb 3 14:42:32 2020 +0100
 
-    testing: restore os.Exit(0) after every call to (*M).Run
+    time: add Ticker.Reset
     
-    cmd/go.TestScript/test_main_twice demonstrates a program that invokes
-    (*M).Run twice in a row. If we only restore os.Exit(0) in m.afterOnce,
-    we will fail to restore it after the second run and fail the test
-    process despite both runs passing.
+    This CL implements Ticker.Reset method in time package.
     
-    Updates #29062
-    Updates #23129
+    Benchmark:
+    name                 time/op
+    TickerReset-12       6.41µs ±10%
+    TickerResetNaive-12  95.7µs ±12%
     
-    Change-Id: Id22ec68f1708e4583c8dda14a8ba0efae7178b85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251262
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #33184
+    
+    Change-Id: I4cbd31796efa012b2a297bb342158f11a4a31fef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220424
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/testing/testing.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ api/next.txt          |  1 +
+ doc/go1.15.html       | 10 ++++++++++
+ src/runtime/time.go   |  8 +++++++-
+ src/time/sleep.go     |  1 +
+ src/time/tick.go      |  9 +++++++++
+ src/time/tick_test.go | 36 +++++++++++++++++++++++++++++++++---
+ 6 files changed, 61 insertions(+), 4 deletions(-)

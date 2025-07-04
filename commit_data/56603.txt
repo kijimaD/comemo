@@ -1,19 +1,36 @@
-commit 5f6a85637c5f2b7e093044651f5557e08faa8351
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed May 22 22:24:27 2024 +0800
+commit 2693ade1fad8729b901382e418821866f64094d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 16 10:18:54 2023 -0700
 
-    doc: correct issue number for release note
+    cmd/gofmt: try to write original data on rewrite failure
     
-    Also simplify links.
+    When gofmt needs to rewrite a file, it first copies it into a backup.
+    If the rewrite fails, it used to rename the backup to the original.
+    However, if for some reason the file is owned by some other user,
+    and if the rewrite fails because gofmt doesn't have permission to
+    write to the file, then renaming the backup file will change
+    the file owner. This CL changes gofmt so that if it fails to rewrite
+    a file, it tries to write the original contents. If writing the original
+    content fails, it reports the problem to the user referring to the
+    backup file, rather than trying a rename.
     
-    Change-Id: I412d6c914d05bd093df46926a4f1742d664fefea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587355
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Also create the backup file with the correct permissions,
+    to avoid a tiny gap when some process might get write access to the
+    file contents that it shouldn't have. (This tiny gap only applies to
+    files that are not formatted correctly, and have read-only permission,
+    and are in a directory with write permission.)
+    
+    Fixes #60225
+    
+    Change-Id: Ic16dd0c85cf416d6b2345e0650d5e64413360847
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495316
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- doc/next/6-stdlib/3-structs.md               | 3 +--
- doc/next/6-stdlib/99-minor/go/types/66559.md | 2 +-
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/gofmt/gofmt.go           | 125 +++++++++++++++++++++++++++++++--------
+ src/cmd/gofmt/gofmt_unix_test.go |  67 +++++++++++++++++++++
+ 2 files changed, 166 insertions(+), 26 deletions(-)

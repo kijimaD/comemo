@@ -1,31 +1,28 @@
-commit 81a31f5dd542f9a4d656067c9ed3298fcfb6cfea
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 3 09:54:46 2023 -0400
+commit b6c16068897c370661f03af91e8ba46860408e61
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 8 16:33:45 2022 -0700
 
-    internal/godebug: add bisect support
+    internal/goarch, internal/goos: update generators for syslist.go
     
-    CL 491875 introduces a new bisect command, which we plan to
-    document for use by end users to debug semantic changes in
-    the compiler and in GODEBUGs.
+    Update the generator programs for the changes to syslist.go in CL
+    390274 and the changes to the generated files in CL 344955.
     
-    This CL adds bisect support to GODEBUGs, at least the ones
-    used via internal/godebug. Support for runtime-internal
-    GODEBUGs like panicnil will take a bit more work in followup CLs.
+    Tested by running the programs and verifying that the files did not
+    change.
     
-    The new API in internal/bisect to support stack-based bisecting
-    should be easily reusable in non-GODEBUG settings as well,
-    once we finalize and export the API.
+    Fixes #53299
     
-    Change-Id: I6cf779c775329aceb3f3b2b2b2f221ce8a67deee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491975
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I2b2c5769f7e9283aa05c803256d2ea1eb9ad1547
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411334
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/base/hashdebug.go |   6 +-
- src/go/build/deps_test.go                  |   1 +
- src/internal/bisect/bisect.go              | 326 +++++++++++++++++++++++++----
- src/internal/bisect/bisect_test.go         |  35 ----
- src/internal/godebug/godebug.go            |  52 ++++-
- src/internal/godebug/godebug_test.go       |  59 ++++++
- 6 files changed, 399 insertions(+), 80 deletions(-)
+ src/go/build/syslist.go          |  4 ++++
+ src/internal/goarch/gengoarch.go | 19 +++++++++++--------
+ src/internal/goos/gengoos.go     | 19 +++++++++++--------
+ 3 files changed, 26 insertions(+), 16 deletions(-)

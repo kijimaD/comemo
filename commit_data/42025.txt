@@ -1,14 +1,22 @@
-commit eec981e622743821a2113a892826a223fe169a04
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Apr 19 17:56:27 2020 -0700
+commit a2b1dc863fe8effbb2aba2598fd37d3944c1dc4f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Sep 20 03:25:16 2019 +1000
 
-    go/types: remove duplicate assert call (minor cleanup)
+    cmd/link,cmd/internal/objabi: factor out direct call identification
     
-    Change-Id: I6051b3305f8ee02bec4ff3dc7ec2217daed38d72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228903
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Factor out the direct CALL identification code from objabi.IsDirectJump and
+    use this in two places that have separately maintained lists of reloc types.
+    Provide an objabi.IsDirectCallOrJump function that implements the original
+    behaviour of objabi.IsDirectJump.
+    
+    Change-Id: I48131bae92b2938fd7822110d53df0b4ffb35766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196577
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/check.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/internal/objabi/reloctype.go | 30 ++++++++++++++++++++++++------
+ src/cmd/link/internal/ld/data.go     |  4 ++--
+ src/cmd/link/internal/ld/lib.go      | 10 ++++------
+ src/cmd/link/internal/ld/pcln.go     |  2 +-
+ 4 files changed, 31 insertions(+), 15 deletions(-)

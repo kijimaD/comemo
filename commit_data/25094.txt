@@ -1,24 +1,13 @@
-commit 5ff309f48d4a4ae1995cb930413e62d546079e9c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 30 19:33:49 2015 +0000
+commit 0befa47ae8a32fcc42bca8d126f9420da27b9e4b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 23 09:52:21 2015 -0700
 
-    mime: let FormatMediaType format slash-less media types, to mirror ParseMediaType.
+    strconv: slightly simplified roundShortest; better comments
     
-    A Content-Type always has a slash (type/subtype)
-    A Content-Disposition does not (e.g. "attachment" or "line").
-    A "media type" is either one of those, plus optional parameters afterwards.
-    
-    Our ParseMediaType and FormatMediaType weren't consistent in whether
-    they permitted Content-Dispositions. Now they both do.
-    
-    Fixes #11289
-    
-    Change-Id: Ia75723c9d7adb7f4de0f65482780f823cdadb5bd
-    Reviewed-on: https://go-review.googlesource.com/17135
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If886f15468680f7e1c589873066b4391eb9784b5
+    Reviewed-on: https://go-review.googlesource.com/14856
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/mime/mediatype.go      | 25 ++++++++++++++-----------
- src/mime/mediatype_test.go |  2 +-
- 2 files changed, 15 insertions(+), 12 deletions(-)
+ src/strconv/ftoa.go      | 18 ++++++++----------
+ src/strconv/ftoa_test.go |  6 +++---
+ 2 files changed, 11 insertions(+), 13 deletions(-)

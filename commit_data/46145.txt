@@ -1,19 +1,63 @@
-commit daa55b21d1e7707ed251336c851841bb0eca3021
-Author: crazycomputer <zhouguangyuan.xian@gmail.com>
-Date:   Sun Aug 22 17:26:20 2021 +0800
+commit edf80c4209a03bc656edfa5222b8fbd7fd072401
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 9 12:28:15 2020 -0800
 
-    cmd/link: guarantee "section .debug_gdb_scripts" is always "$GOROOT/src/runtime/runtime-gdb.py".
+    [dev.typeparams] cmd/compile/internal/types2: adjusted more error messages for compiler
     
-    to guarantee the "section .debug_gdb_scripts" is  always "$GOROOT/src/runtime/runtime-gdb.py" , a check for package name is needed when search "runtime/proc.go".
+    Triaged and adjusted more test/fixedbugs/* tests.
     
-    Fixes #47881
-    
-    Change-Id: Ib471314ca1a6777f625b488e5ae3790457540ef9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344229
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I80b9ead2445bb8d126b7d79db4bea9ddcb225a84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276812
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/link/internal/ld/dwarf.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/decl.go     |   6 +-
+ src/cmd/compile/internal/types2/expr.go     |  18 ++-
+ src/cmd/compile/internal/types2/resolver.go |  18 ++-
+ test/fixedbugs/issue13480.go                |  18 +--
+ test/fixedbugs/issue17588.go                |   2 +-
+ test/fixedbugs/issue18392.go                |   2 +-
+ test/fixedbugs/issue19323.go                |   4 +-
+ test/fixedbugs/issue19482.go                |   8 +-
+ test/fixedbugs/issue19699b.go               |   2 +-
+ test/fixedbugs/issue19880.go                |   2 +-
+ test/fixedbugs/issue19947.go                |   8 +-
+ test/fixedbugs/issue20185.go                |   4 +-
+ test/fixedbugs/issue20227.go                |  10 +-
+ test/fixedbugs/issue20415.go                |   6 +-
+ test/fixedbugs/issue20749.go                |   4 +-
+ test/fixedbugs/issue22389.go                |   2 +-
+ test/fixedbugs/issue22794.go                |   5 +-
+ test/fixedbugs/issue22822.go                |   3 +-
+ test/fixedbugs/issue22921.go                |   6 +-
+ test/fixedbugs/issue23094.go                |   2 +-
+ test/fixedbugs/issue23609.go                |   6 +-
+ test/fixedbugs/issue23823.go                |   2 +-
+ test/fixedbugs/issue24470.go                |   1 +
+ test/fixedbugs/issue25727.go                |   6 +-
+ test/fixedbugs/issue26416.go                |   6 +-
+ test/fixedbugs/issue26616.go                |  10 +-
+ test/fixedbugs/issue27595.go                |   6 +-
+ test/fixedbugs/issue28079c.go               |   2 +-
+ test/fixedbugs/issue28450.go                |  12 +-
+ test/fixedbugs/issue30085.go                |   5 +-
+ test/fixedbugs/issue30087.go                |   9 +-
+ test/fixedbugs/issue35291.go                |   2 +-
+ test/fixedbugs/issue38117.go                |   2 +-
+ test/fixedbugs/issue38745.go                |   2 +-
+ test/fixedbugs/issue3925.go                 |   2 +-
+ test/fixedbugs/issue4085a.go                |   8 +-
+ test/fixedbugs/issue41247.go                |   2 +-
+ test/fixedbugs/issue41440.go                |   2 +-
+ test/fixedbugs/issue41500.go                |   8 +-
+ test/fixedbugs/issue4215.go                 |  22 +--
+ test/fixedbugs/issue4251.go                 |   6 +-
+ test/fixedbugs/issue4429.go                 |   2 +-
+ test/fixedbugs/issue4458.go                 |   2 +-
+ test/fixedbugs/issue4470.go                 |   1 +
+ test/fixedbugs/issue4517d.go                |   2 +-
+ test/fixedbugs/issue4909a.go                |   4 +-
+ test/run.go                                 | 206 +++++++++++-----------------
+ 47 files changed, 226 insertions(+), 242 deletions(-)

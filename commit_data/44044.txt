@@ -1,24 +1,30 @@
-commit 89b44b4e2bb2f88474d6b8476f5c28ea2aea9b28
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Dec 20 01:15:46 2020 -0800
+commit 33249f46aae9a7ed951cd5691639a139aac3a990
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 29 18:31:50 2020 -0400
 
-    cmd/compile: recognize reassignments involving receives
+    crypto/tls: accept HelloRetryRequest messages with only a cookie
     
-    Previously, reassigned was failing to detect reassignments due to
-    channel receives in select statements (OSELRECV, OSELRECV2), or due to
-    standalone 2-value receive assignments (OAS2RECV). This was reported
-    as a devirtualization panic, but could have caused mis-inlining as
-    well.
+    Clients have to reject any HelloRetryRequest message that doesn't lead
+    to a change in the ClientHello. Instead, we were rejecting any HRR that
+    didn't select an alternative group, even if it sent a cookie, which
+    would change the CH.
     
-    Fixes #43292.
+    The good news is that I know of no TLS servers that use or need HRRs
+    exclusively for cookies (which are mostly useful in DTLS as a way to
+    verify the source address). The bad news is that we poisoned the
+    ecosystem as Go 1.12 to 1.14 will reject such HRRs. Oops, hopefully no
+    one needed this.
     
-    Change-Id: Ic8079c20c0587aeacff9596697fdeba80a697b12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279352
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    No tests because neither Go nor s_server support cookies. This would
+    presumably get covered once we integrate BoGo.
+    
+    Fixes #30149
+    
+    Change-Id: I760fb1ded81148ac3096cf201cbc1e941374b83d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231039
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/gc/inl.go |  8 ++++--
- test/fixedbugs/issue43292.go       | 59 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 65 insertions(+), 2 deletions(-)
+ src/crypto/tls/handshake_client_tls13.go | 75 ++++++++++++++++++--------------
+ 1 file changed, 43 insertions(+), 32 deletions(-)

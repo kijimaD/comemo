@@ -1,30 +1,43 @@
-commit f5f94340910421baea624ca08e5f51343515cae8
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 9 16:41:01 2021 -0500
+commit cc4e6160a78742bba6ac8e9be225cd7a58da7a60
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 11 10:49:55 2021 -0800
 
-    go/types: remove most asX converters (cleanup)
+    net: use mid-stack inlining with ReadFromUDP to avoid an allocation
     
-    This is a port of CL 362118 to go/types, which is itself a roll-forward
-    of CL 362254, containing a bugfix.
+    This commit rewrites ReadFromUDP to be mid-stack inlined
+    and pass a UDPAddr for lower layers to fill in.
     
-    Change-Id: I20067c7adf56bf64fe9ad080d998a7aefbdc1053
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362617
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    This lets performance-sensitive clients avoid an allocation.
+    It requires some care on their part to prevent the UDPAddr
+    from escaping, but it is now possible.
+    The UDPAddr trivially does not escape in the benchmark,
+    as it is immediately discarded.
+    
+    name                  old time/op    new time/op    delta
+    WriteToReadFromUDP-8    17.2µs ± 6%    17.1µs ± 5%     ~     (p=0.387 n=9+9)
+    
+    name                  old alloc/op   new alloc/op   delta
+    WriteToReadFromUDP-8      112B ± 0%       64B ± 0%  -42.86%  (p=0.000 n=10+10)
+    
+    name                  old allocs/op  new allocs/op  delta
+    WriteToReadFromUDP-8      3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=10+10)
+    
+    Updates #43451
+    
+    Co-authored-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I1f9d2ab66bd7e4eff07fe39000cfa0b45717bd13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291509
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/go/types/assignments.go |  2 +-
- src/go/types/builtins.go    |  8 ++++----
- src/go/types/call.go        |  2 +-
- src/go/types/context.go     |  3 +++
- src/go/types/conversions.go | 21 +++++++++++----------
- src/go/types/expr.go        |  6 +++---
- src/go/types/index.go       |  8 ++++----
- src/go/types/lookup.go      |  9 ++++-----
- src/go/types/predicates.go  |  5 +++--
- src/go/types/sizes.go       |  2 +-
- src/go/types/type.go        | 39 +--------------------------------------
- src/go/types/typestring.go  |  2 +-
- src/go/types/typexpr.go     |  2 +-
- 13 files changed, 38 insertions(+), 71 deletions(-)
+ src/cmd/compile/internal/test/inl_test.go |  5 ++++-
+ src/net/udpsock.go                        | 22 +++++++++++++---------
+ src/net/udpsock_plan9.go                  |  7 ++++---
+ src/net/udpsock_posix.go                  |  7 +++----
+ src/net/udpsock_test.go                   | 21 +++++++++++++++++++++
+ 5 files changed, 45 insertions(+), 17 deletions(-)

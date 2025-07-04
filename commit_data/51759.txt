@@ -1,18 +1,20 @@
-commit a11b8e37652ff60302b4a4a55a8a43db6a066ecf
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Jan 24 09:49:36 2023 +1100
+commit 1cf67709beb2d7e317cb6e6b983f3fc6304ebc1a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Mar 9 17:08:37 2022 -0500
 
-    os: have RemoveAll loop on EINTR
+    runtime: fix SegvInCgo skip check
     
-    Fixes #57966
+    CL 390034 changed this throw message to add the goid, breaking the
+    match.
     
-    Change-Id: Ia732d499ff9bd6e70030daab8fac42d1e204be37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463076
+    For #50979.
+    
+    Change-Id: I52d97695484938701e5b7c269e2caf0c87d44d7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391139
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Nigel Tao <nigeltao@golang.org>
-    Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
 
- src/os/removeall_at.go | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/runtime/crash_cgo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

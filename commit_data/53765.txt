@@ -1,24 +1,23 @@
-commit a3a9b1049e59672e4bd56b597b273ef1b07313a0
-Author: Jabar Asadi <jasadi@d2iq.com>
-Date:   Sun May 28 06:45:23 2023 +0000
+commit a31c062c9fbf212b244fbece6295a2a4279459e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 11:26:43 2022 -0700
 
-    os: ReadFile: don't check for re-allocation in the first iteration
+    go/parser: parse import specs the same way as the syntax parser
     
-    At the beginning of the for-loop iteration cap(data) > len(data) always.
-    Therefore, in the first iteration, this check becomes unnecessary.
-    we can move this check to after the read operation.
+    This results in better error recovery and allows us to use the
+    same tests for go/types and types2.
     
-    Change-Id: I205e4a842ced74f31124b45a39b70523b56ad840
-    GitHub-Last-Rev: 2fdf25dff2e9984d3a8f8e5e612ea802c88e88a1
-    GitHub-Pull-Request: golang/go#60473
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498915
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Rob Pike <r@golang.org>
+    For #54511.
+    
+    Change-Id: Ic11a9dafb8c62e0cb952b3924d55a28b438241c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427154
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/os/file.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/go/parser/parser.go                       | 13 ++++++++++---
+ src/go/types/resolver.go                      |  3 +++
+ src/go/types/testdata/fixedbugs/issue43190.go | 18 ++++++++++--------
+ 3 files changed, 23 insertions(+), 11 deletions(-)

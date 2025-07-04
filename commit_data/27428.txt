@@ -1,14 +1,17 @@
-commit d4ed8da9969dd04a3b10683971185359e5ec5302
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 18 13:02:39 2016 +0900
+commit 0cd9edf6e8346f63a39328c9361f4b44cee30189
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 25 18:17:37 2016 +0100
 
-    net: don't increase test table rows when using -test.count flag
+    cmd/go: fix proc-count accumulation in benchmark name
     
-    Change-Id: I7881e3353dc5cd9755a79ea0eab146c6a0a08306
-    Reviewed-on: https://go-review.googlesource.com/23195
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #14964
+    
+    Change-Id: I5f772426081efaa9315c4ecaf60de850af324f1d
+    Reviewed-on: https://go-review.googlesource.com/21139
+    Reviewed-by: Ahmed Waheed <oneofone@gmail.com>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/dial_test.go | 107 +++++++++++++++++++++++++--------------------------
- 1 file changed, 53 insertions(+), 54 deletions(-)
+ src/testing/benchmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

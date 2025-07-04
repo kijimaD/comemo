@@ -1,12 +1,22 @@
-commit e47ced78578c471cbcd34a7d6b223a71e84a46c8
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Fri Apr 5 14:31:54 2019 -0400
+commit e787b133284263e53154b8b2f8f6078e8f0c9850
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Nov 12 13:42:46 2018 -0500
 
-    doc: document Go 1.11.7
+    cmd/go: vet: pass non-.go files to vet tool
     
-    Change-Id: Iec5e69b3ea163f42234d3b73696427a7aa8732e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170884
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The "gofiles" cache entry has been renamed "srcfiles", and it includes
+    non-Go files (.s, .c, .cxx) that belong to the package. It does not
+    include raw cgo files.
+    
+    Added regression test.
+    
+    Fixes #27665
+    
+    Change-Id: I4884fe9b4f823f50705f8c2d357a04a8e567734f
+    Reviewed-on: https://go-review.googlesource.com/c/148904
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/devel/release.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/go/internal/work/exec.go       | 51 ++++++++++++++++++++++++----------
+ src/cmd/go/testdata/script/vet_asm.txt | 15 ++++++++++
+ src/cmd/vet/main.go                    |  8 +++++-
+ 3 files changed, 58 insertions(+), 16 deletions(-)

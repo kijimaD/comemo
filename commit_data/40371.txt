@@ -1,21 +1,13 @@
-commit 9093b1def0b5e6f3ac30d5f9c18b375e8f5964e9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 10 21:23:55 2019 -0700
+commit 2625fef642becd16773f2376a243029e5d62f739
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 8 16:30:29 2019 +0000
 
-    runtime: add new dodeltimer and dodeltimer0 functions
+    api: update next.txt
     
-    The dodeltimer function removes a timer from a heap. The dodeltimer0
-    function removes the first timer from a heap; in the old timer code
-    this common special case was inlined in the timerproc function.
-    
-    Updates #27707
-    
-    Change-Id: I1b7c0af46866abb4bffa8aa4d8e7143f9ae8f402
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171834
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I2f2a70dd9279ab95fdabee51579d49363a9f65b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176018
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/time.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 53 insertions(+)
+ api/next.txt | 48 ++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 46 insertions(+), 2 deletions(-)

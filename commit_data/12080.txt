@@ -1,24 +1,24 @@
-commit 8d7ee2b9987d2c7bb91a858d4dfa61f669cc3e8e
-Author: Joe Poirier <jdpoirier@gmail.com>
-Date:   Mon Feb 20 00:29:57 2012 -0600
+commit b5a3bd5ff6f735f39a312a43d3f0a647f4d76590
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 20 15:36:08 2012 +1100
 
-    misc/dist/windows: ongoing dev
+    os: drop the Wait function and the options to Process.Wait
+    They are portability problems and the options are almost always zero in practice anyway.
     
-    Embedded Go images in the installer dialog and
-    banner boxes, Go tree cloning uses version info
-    from the Go tool (readme updated), the installer
-    allows up/down-grading and reparing of the version
-    that's installed, added two registry values.
-    
-    R=golang-dev, bradfitz, bradfitz
+    R=golang-dev, dsymonds, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5683048
+    https://golang.org/cl/5688046
 
- misc/dist/windows/README                |  15 ++++++---
- misc/dist/windows/dist.bat              |   8 +++--
- misc/dist/windows/images/Banner.jpg     | Bin 0 -> 11219 bytes
- misc/dist/windows/images/Dialog.jpg     | Bin 0 -> 16428 bytes
- misc/dist/windows/images/DialogLeft.jpg | Bin 0 -> 12961 bytes
- misc/dist/windows/images/gopher.ico     | Bin 0 -> 42929 bytes
- misc/dist/windows/installer.wxs         |  58 +++++++++++++++++++++-----------
- 7 files changed, 56 insertions(+), 25 deletions(-)
+ doc/go1.html               | 17 +++++++++++---
+ doc/go1.tmpl               | 17 +++++++++++---
+ src/cmd/cgo/util.go        |  2 +-
+ src/cmd/fix/oswait.go      | 56 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/fix/oswait_test.go | 41 +++++++++++++++++++++++++++++++++
+ src/cmd/godoc/main.go      |  2 +-
+ src/pkg/os/exec/exec.go    |  2 +-
+ src/pkg/os/exec_plan9.go   | 19 ++--------------
+ src/pkg/os/exec_posix.go   | 14 ------------
+ src/pkg/os/exec_unix.go    | 28 ++++-------------------
+ src/pkg/os/exec_windows.go |  2 +-
+ src/pkg/os/os_test.go      |  4 ++--
+ 12 files changed, 137 insertions(+), 67 deletions(-)

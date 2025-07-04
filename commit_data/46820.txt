@@ -1,20 +1,21 @@
-commit a7d3a0e971818c754217829c8bd10b1e167d3481
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 8 09:49:22 2021 -0700
+commit afd67f333466fc67cd37433e45ecdb190efc8f51
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 4 10:27:41 2021 -0500
 
-    cmd/compile/internal/types2: use an identifier map rather than isubst for recv type params
+    [dev.regabi] go/types: no "declared but not used" errors for invalid var decls
     
-    This is a port of CL 354643 from go/types to types2 with adjustments:
-    - use of syntax rather than go/ast package as needed
-    - adjustments due to the different code for type parameter declarations
-    - rename of Checker.rparamMap to Checker.recvTParamMap, which seems clearer
+    This is a port of CL 274615, adapted to go/types. The only change was in
+    the positioning of expected errors in vardecl.src: in go/types they are
+    positioned on the identifier.
     
-    Change-Id: I5311a0c05a13c6b87ea1422b250b90c3d05c5dce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354693
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Iab03265a7c4287749373e4380c6db6a95f262f30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289712
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/check.go     |   8 +-
- src/cmd/compile/internal/types2/signature.go | 114 ++++++---------------------
- src/cmd/compile/internal/types2/typexpr.go   |  10 ++-
- 3 files changed, 36 insertions(+), 96 deletions(-)
+ src/go/types/assignments.go       |  1 +
+ src/go/types/decl.go              | 14 ++++++++++++++
+ src/go/types/testdata/vardecl.src | 14 +++++++++++++-
+ 3 files changed, 28 insertions(+), 1 deletion(-)

@@ -1,16 +1,13 @@
-commit e855fcc3073ccb4dc3fa7a3b7dc2b076e5bb54cf
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 9 11:56:38 2012 +1100
+commit 6f7b66db5008722a91a81b659fd9bb8dbdee050a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 8 17:14:44 2012 -0700
 
-    encoding/gob: fix data race in Register
-    Fixes #4214.
+    A+C: added Robin Eklind (individual CLA)
     
-    R=golang-dev, dsymonds, bradfitz
+    R=alex.brainman, r
     CC=golang-dev
-    https://golang.org/cl/6637047
+    https://golang.org/cl/6643045
 
- src/pkg/encoding/gob/decode.go    | 2 ++
- src/pkg/encoding/gob/encode.go    | 2 ++
- src/pkg/encoding/gob/type.go      | 3 +++
- src/pkg/encoding/gob/type_test.go | 5 ++++-
- 4 files changed, 11 insertions(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

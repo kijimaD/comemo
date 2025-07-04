@@ -1,14 +1,15 @@
-commit 63269404a8d588fb0af679adc1f940294cedc2c0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 4 14:53:41 2015 -0800
+commit e190e27143704a70ab2dbdc7d4cb818e3574bb0e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 17 13:37:06 2015 -0800
 
-    math/big: introduce Bits abstraction instead of using "untyped" []int bit lists
+    [dev.cc] misc/cgo/test: fix PC reference in arm assembler
     
-    Change-Id: I6caa6bdcf6643ce3015244397a752bd133f3d00c
-    Reviewed-on: https://go-review.googlesource.com/6840
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Use R15.
+    May fix build.
+    
+    Change-Id: Ia25b0936c5aab2a427f8e6531688c3e537fbfdd0
+    Reviewed-on: https://go-review.googlesource.com/5070
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/bits_test.go  | 114 +++++++++++++++++++++++++--------------------
- src/math/big/float.go      |   2 +-
- src/math/big/float_test.go |  32 ++++++-------
- 3 files changed, 80 insertions(+), 68 deletions(-)
+ misc/cgo/test/issue9400/asm_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

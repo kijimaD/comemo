@@ -1,15 +1,15 @@
-commit 81b46f1bcd082f255402d936f7d1e8c95389756a
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Dec 17 22:29:43 2012 +0100
+commit 2d3bdab0d61b9636e487ce4bc16429b8f0de8760
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 18 07:52:23 2012 +1100
 
-    cmd/6g: fix componentgen for funarg structs.
+    time: fix panic with time.Parse(time.StampNano, ... )
     
-    Fixes #4518.
+    Fixes #4502.
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6932045
+    https://golang.org/cl/6949058
 
- src/cmd/6g/cgen.c           |  6 ++++
- test/fixedbugs/issue4518.go | 67 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 73 insertions(+)
+ src/pkg/time/format.go    | 15 ++++++++++-----
+ src/pkg/time/time_test.go | 14 ++++++++++++--
+ 2 files changed, 22 insertions(+), 7 deletions(-)

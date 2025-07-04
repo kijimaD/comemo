@@ -1,20 +1,17 @@
-commit 265b59aefdd383fc60fcfc7a2838018b16d1d29a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 15 16:11:37 2021 -0700
+commit 7958a23ea326b48cb249840da5834188112889ea
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jan 1 23:20:47 2021 +0700
 
-    cmd/cgo: for godefs, don't let field prefix removal cause duplicates
+    [dev.regabi] cmd/compile: use *ir.Name where possible in inl.go
     
-    Fixes #48396
+    Passes toolstash -cmp.
     
-    Change-Id: Idd7cb66536ef513806c472d394a929bc271fc26b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350159
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Change-Id: Ic99a5189ad0fca37bccb0e4b4d13793adc4f8fd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280715
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- misc/cgo/testgodefs/testdata/issue48396.go | 18 ++++++++++++++++++
- misc/cgo/testgodefs/testdata/main.go       |  3 +++
- misc/cgo/testgodefs/testgodefs_test.go     |  1 +
- src/cmd/cgo/gcc.go                         | 25 +++++++++++++++++++++++++
- 4 files changed, 47 insertions(+)
+ src/cmd/compile/internal/inline/inl.go | 36 ++++++++++++++++++----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)

@@ -1,12 +1,13 @@
-commit cf7281e7289ffe861e2bfcac14d2e1b40416d741
-Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 1 09:45:04 2011 -0700
+commit b4df33a6eafea21afb7c85dafc7550f5fc339c7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 11:02:43 2011 -0400
 
-    doc/Makefile: add 'all' rule to build all docs
+    gc: test + fix escape analysis bug
     
-    R=golang-dev, rsc
+    R=lvd
     CC=golang-dev
-    https://golang.org/cl/5334044
+    https://golang.org/cl/5333049
 
- doc/Makefile | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/gc/esc.c |   1 +
+ test/escape2.go  | 158 +++++++++++++++++++++++++++++++------------------------
+ 2 files changed, 89 insertions(+), 70 deletions(-)

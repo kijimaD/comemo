@@ -1,25 +1,35 @@
-commit d5427658963083d5bcb87c3c79aa2b13fa769715
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Sep 20 16:41:06 2021 -0700
+commit 54bd1ccce240ca4d0efbbaf4af34339ac3ee5180
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 7 12:35:01 2021 -0800
 
-    cmd/go: disable gofuzzbeta build tag by default
+    cmd: update to latest golang.org/x/tools
     
-    It was enabled by default on the dev.fuzz branch so that users could
-    check in fuzz targets without breaking their builds.
+    In particular bring in CL 201973, which reverts support for multiple
+    keys in a struct tag.
     
-    Now that dev.fuzz is merged to master, users should switch to a go1.18
-    release constraint instead.
+    For #40281
+    For #43083
+    For #43226
     
-    For #47037
-    
-    Change-Id: I0475368eb4570fe0c7027a3ae8f6950449c1a9ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351118
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I66e76639cbbca55bdbff6956acdb0a97650fdd31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282412
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/go/internal/cfg/cfg.go               |  3 ---
- src/cmd/go/testdata/script/test_fuzz_tag.txt | 31 ----------------------------
- 2 files changed, 34 deletions(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ .../golang.org/x/tools/go/analysis/analysis.go     |  4 +
+ .../golang.org/x/tools/go/analysis/diagnostic.go   |  4 +
+ .../vendor/golang.org/x/tools/go/analysis/doc.go   |  4 +
+ .../go/analysis/internal/analysisflags/help.go     |  4 +
+ .../analysis/passes/internal/analysisutil/util.go  |  4 +
+ .../x/tools/go/analysis/passes/printf/types.go     |  4 +
+ .../go/analysis/passes/structtag/structtag.go      | 94 +++++++++-------------
+ .../go/analysis/unitchecker/unitchecker112.go      |  4 +
+ .../golang.org/x/tools/go/analysis/validate.go     |  4 +
+ .../golang.org/x/tools/go/ast/astutil/util.go      |  4 +
+ .../golang.org/x/tools/go/ast/inspector/typeof.go  |  4 +
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 14 files changed, 82 insertions(+), 60 deletions(-)

@@ -1,0 +1,17 @@
+commit 65004c7bf4a1193af7742a6de9bc515c4b07bb75
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Feb 3 21:05:51 2025 +0100
+
+    cmd/go: report gcc ld error message when linking fails
+    
+    The output of the gcc ld command is useful to understand why a package
+    that uses cgo can't use internal linking. We should log it.
+    
+    Change-Id: Id524065fc5348be57387f2b67d1e00861f9adf15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/work/exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

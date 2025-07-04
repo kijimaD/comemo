@@ -1,15 +1,18 @@
-commit 5b15941c61f478b8ed08b76a27186527ba73d273
-Author: yuz <re.yuz77777@gmail.com>
-Date:   Sun Mar 1 21:35:56 2020 +0900
+commit d0f10a6e68b3cd1a0bb8536317cae4e850f38ba5
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Oct 10 12:31:43 2019 +0530
 
-    flag: changed flag variable name in package doc, for clarity
+    runtime,internal/bytealg: optimize wasmZero, wasmMove, Compare
     
-    Changed the flag variable name to nFlag instead of flagname,
-    because flagname was confusing.
+    Coalesce set/get pairs into a tee.
     
-    Change-Id: I20dd4c4b4f605395d427a125ba4fd14580e5d766
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221678
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I88ccdcb148465615437bebf24145e941a037e0a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200357
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/flag/flag.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/internal/bytealg/compare_wasm.s | 3 +--
+ src/runtime/sys_wasm.s              | 6 ++----
+ 2 files changed, 3 insertions(+), 6 deletions(-)

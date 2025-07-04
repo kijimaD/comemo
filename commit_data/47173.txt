@@ -1,21 +1,28 @@
-commit c6a0b6f2de9a778b03a29c656531617a606761f0
+commit 09f4ef4fa73a110eefd2cb9d78439f51d9294f65
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 2 15:38:47 2021 +0000
+Date:   Fri Feb 19 14:03:45 2021 -0500
 
-    Revert "runtime: fix missing pprof labels"
+    cmd/go/internal/mvs: prune spurious dependencies in Downgrade
     
-    This reverts CL 351751.
+    Previously, mvs.Downgrade could introduce spurious dependencies if the
+    downgrade computed for one module lands on a “hidden” version (such as
+    a pseudo-version) due to a requirement introduced by the downgrade for
+    another module.
     
-    Reason for revert: new test is failing on many builders.
+    To eliminate those spurious dependencies, we can add one more call to
+    BuildList to recompute the “actual” downgraded versions, and then
+    including only those actual versions in the final call to BuildList.
     
-    Change-Id: I066211c9f25607ca9eb5299aedea2ecc5069e34f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360757
+    For #36460
+    
+    Change-Id: Icc6b54aa004907221b2bcbbae74598b0e4100776
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294294
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/runtime/cpuprof.go          | 11 ++++++-
- src/runtime/pprof/pprof_test.go | 67 -----------------------------------------
- src/runtime/proc.go             |  9 +-----
- 3 files changed, 11 insertions(+), 76 deletions(-)
+ src/cmd/go/internal/mvs/mvs.go                     | 35 ++++++++++++++++++++++
+ src/cmd/go/internal/mvs/mvs_test.go                |  7 +++--
+ .../script/mod_get_downup_pseudo_artifact.txt      |  9 ++----
+ 3 files changed, 42 insertions(+), 9 deletions(-)

@@ -1,19 +1,12 @@
-commit 3ba25e76a7dbb1574006081f597dcc6d9b569869
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Tue Aug 14 09:53:10 2012 +1000
+commit 058149f153d7ef7b777df1b3ca20edbc9f49c5c1
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 14 01:51:42 2012 +0400
 
-    exp/html: generate replacement for <isindex> correctly
+    runtime/pprof: fix comments
     
-    When generating replacement elements for an <isindex> tag, the old
-    addSyntheticElement method was producing the wrong nesting. Replace
-    it with parseImpliedToken.
-    
-    Pass the one remaining test in the test suite.
-    
-    R=nigeltao
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6453114
+    https://golang.org/cl/6460082
 
- src/pkg/exp/html/parse.go                  | 40 +++++++++++-------------------
- src/pkg/exp/html/testlogs/webkit02.dat.log |  2 +-
- 2 files changed, 16 insertions(+), 26 deletions(-)
+ src/pkg/runtime/pprof/pprof.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

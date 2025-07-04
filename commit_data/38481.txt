@@ -1,19 +1,39 @@
-commit 456f3e10cdee774ccf12121f47b88865a3777e7c
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 20 11:32:59 2019 +1100
+commit f5b695030b857b079a4cbcfb79564ff933c0c8f2
+Author: Travis Bischel <travis.bischel@gmail.com>
+Date:   Sun Sep 9 15:00:38 2018 -0700
 
-    cmd/go: fix minor grammatical nit: command-line is an adjective...
+    net/textproto: do not buffer a line if we know the next line is empty
     
-    while command line is a noun.
+    readContinuedLineSlice intends to buffer a continued line of text, where
+    a continued line can continue through newlines so long as the next line
+    begins with a space or tab.
     
-    Change-Id: I9dfc2f6841d1171854857a8daa785d55afe2c5f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167783
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    The current optimization is to not try to buffer and build a line if we
+    immediately see that the next line begins with an ASCII character.
+    
+    This adds avoiding copying the line if we see that the next line is \n
+    or \r\n as well.
+    
+    Notably, headers always end in \r\n\r\n. In the general, well formatted
+    header case, we can now avoid ever allocating textproto.Reader's
+    internal reusable buf.
+    
+    This can mildly be seen in net/http's BenchmarkClientServer:
+    
+    name            old time/op    new time/op    delta
+    ClientServer-4    66.4µs ± 0%    66.2µs ± 0%  -0.35%  (p=0.004 n=10+10)
+    
+    name            old alloc/op   new alloc/op   delta
+    ClientServer-4    4.87kB ± 0%    4.82kB ± 0%  -1.01%  (p=0.000 n=6+10)
+    
+    name            old allocs/op  new allocs/op  delta
+    ClientServer-4      64.0 ± 0%      63.0 ± 0%  -1.56%  (p=0.000 n=10+10)
+    
+    Change-Id: Id8c2ab69086ac481b90abda289396dcb7bfe8851
+    Reviewed-on: https://go-review.googlesource.com/c/134227
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go               | 2 +-
- src/cmd/go/go_test.go               | 2 +-
- src/cmd/go/internal/help/helpdoc.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/net/textproto/reader.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

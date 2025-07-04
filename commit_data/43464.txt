@@ -1,21 +1,22 @@
-commit 75032ad8cfac4aefbacd17b47346ac8c1b5ff33f
-Author: Mark Rushakoff <mark.rushakoff@gmail.com>
-Date:   Thu Oct 8 02:12:43 2020 +0000
+commit 60baf83a820785f26bc61521db8e931165accc24
+Author: Than McIntosh <thanm@google.com>
+Date:   Sun Apr 5 12:40:20 2020 -0400
 
-    cmd/go: break after terminal loop condition
+    [dev.link] cmd/link: fix bugs in setArchSyms
     
-    After the first time needCostly is set to true, there is no need to
-    continue checking the remaining args.
+    The code in setArchsyms that sets up TOC symbols was buggy; it was
+    kicking in only for aix-ppc64 and not linux-ppc64. These symbols are
+    required for both ABIs, so change the guard in question from
+    "ctx.IsAIX()" to "ctxt.IsPPC64()". Also, the code to create versioned
+    ".TOC." syms was not passing the correct symbol version to the loader
+    (now fixed).
     
-    Change-Id: I07171ce50d20e2a917117a0f84c442fe978cb274
-    GitHub-Last-Rev: 6d0c19341b7a85d507c3ec4967bab5f83b0fad8d
-    GitHub-Pull-Request: golang/go#41859
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260638
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I356071e528beadad20f61d067059eaf26f06e06b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227257
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/envcmd/env.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 49 ++++++++++++++++++++++-------------------
+ 1 file changed, 26 insertions(+), 23 deletions(-)

@@ -1,23 +1,24 @@
-commit acde81e0a9c17ea23a6fc545b40bfabc80133f78
-Author: David Chase <drchase@google.com>
-Date:   Fri Jun 19 15:29:51 2020 -0400
+commit 2172b229b95f483324825806f692303a0a132762
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 27 11:24:24 2020 -0800
 
-    cmd/compile: initialize ACArgs and ACResults AuxCall fields for static and interface calls.
+    runtime/pprof/internal/profile: make error message readable
     
-    Extend use of AuxCall
+    The error message for an unrecognized type in decodeField was using
+    string(i) for an int type i. It was recently changed (by  me) to
+    string(rune(i)), but that just avoided a vet warning without fixing
+    the problem. This CL fixes the problem by using fmt.Errorf.
     
-    Change-Id: I68b6d9bad09506532e1415fd70d44cf6c15b4b93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239081
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    We also change the message to "unknown wire type" to match the master
+    copy of this code in github.com/google/pprof/profile/proto.go.
+    
+    Updates #32479
+    
+    Change-Id: Ia91ea6d5edbd7cd946225d1ee96bb7623b52bb44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221384
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/gc/ssa.go                | 53 ++++++++++++++++++-----
- src/cmd/compile/internal/ssa/gen/generic.rules    |  4 +-
- src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
- src/cmd/compile/internal/ssa/op.go                | 50 ++++++++++++++++++---
- src/cmd/compile/internal/ssa/rewrite.go           |  5 ++-
- src/cmd/compile/internal/ssa/rewritegeneric.go    | 11 ++---
- src/cmd/compile/internal/ssa/writebarrier.go      |  6 ++-
- 7 files changed, 102 insertions(+), 29 deletions(-)
+ src/runtime/pprof/internal/profile/proto.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

@@ -1,12 +1,14 @@
-commit 3e80f9ce7bd102ff5b8ddb1c02bb1a5af9602452
+commit 0e3f4fdb520097b9c45264ebc97e246a156b51d2
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Nov 7 05:09:54 2012 +0800
+Date:   Wed Nov 7 05:03:16 2012 +0800
 
-    cmd/go: invoke gcc -print-libgcc-file-name only once
+    net/rpc: give hint to pass a pointer to Register
+    Fixes #4325.
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6741051
+    https://golang.org/cl/6819081
 
- src/cmd/go/build.go | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ src/pkg/net/rpc/server.go      | 61 ++++++++++++++++++++++++++++++------------
+ src/pkg/net/rpc/server_test.go | 17 +++++++++---
+ 2 files changed, 58 insertions(+), 20 deletions(-)

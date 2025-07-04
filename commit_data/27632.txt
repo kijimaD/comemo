@@ -1,31 +1,29 @@
-commit 26849746c9c7ca290d6cbb7ca5f3cf71c971e980
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Jun 2 11:07:55 2016 +1200
+commit 7f39f21c7be83b9ff59089b29fa9e723c13cafa9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 4 16:54:54 2016 +0000
 
-    cmd/internal/obj, runtime: fixes for defer in 386 shared libraries
+    io: add ReadAtSizer interface
     
-    Any defer in a shared object crashed when GOARCH=386. This turns out to be two
-    bugs:
+    ReadAtSizer is a common abstraction for a stateless,
+    concurrently-readable fixed number of bytes.
     
-     1) Calls to morestack were not processed to be PIC safe (must have been
-        possible to trigger this another way too)
-     2) jmpdefer needs to rewind the return address of the deferred function past
-        the instructions that load the GOT pointer into BX, not just past the call
+    This interface has existed in various codebases for over 3 years (previously
+    usually named SizeReaderAt). It is used inside Google in dl.google.com
+    (mentioned in https://talks.golang.org/2013/oscon-dl.slide) and other
+    packages. It is used in Camlistore, in Juju, in the Google API Go client, in
+    github.com/nightlyone/views, and 33 other pages of Github search results.
     
-    Bug 2) requires re-introducing the a way for .s files to know when they are
-    being compiled for dynamic linking but I've tried to do that in as minimal
-    a way as possible.
+    It is implemented by io.SectionReader, bytes.Reader, strings.Reader, etc.
     
-    Fixes #15916
+    Time to finally promote this interface to the standard library and give it a
+    standard name, blessing it as best practice.
     
-    Change-Id: Ia0d09b69ec272a176934176b8eaef5f3bfcacf04
-    Reviewed-on: https://go-review.googlesource.com/23623
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #7263
+    Updates #14889
+    
+    Change-Id: Id28c0cafa7d2d37e8887c54708b5daf1b11c83ea
+    Reviewed-on: https://go-review.googlesource.com/21492
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/testshared/src/depBase/dep.go |  1 +
- src/cmd/go/build.go                    | 10 +++++++++-
- src/cmd/internal/obj/x86/obj6.go       | 12 +++++++++++-
- src/runtime/asm_386.s                  |  9 ++++++++-
- 4 files changed, 29 insertions(+), 3 deletions(-)
+ src/io/io.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

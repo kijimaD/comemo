@@ -1,27 +1,40 @@
-commit d73a33f1c34f3cfdc136ac553e887b96614b9ee8
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Sep 7 12:41:37 2023 +0200
+commit 50557edf10161b1aedd3654d84a94b49bae05c43
+Author: Garet Halliday <me@garet.holiday>
+Date:   Fri Oct 21 22:22:12 2022 -0500
 
-    runtime: implement osyield in Go instead of assembly on Windows
+    runtime: add wasm bulk memory operations
     
-    Windows APIs are normally not arch-specific, so it's better to
-    implement them in Go instead of assembly.
+    The existing implementation uses loops to implement bulk memory
+    operations such as memcpy and memclr. Now that bulk memory operations
+    have been standardized and are implemented in all major browsers and
+    engines (see https://webassembly.org/roadmap/), we should use them
+    to improve performance.
     
-    It was previously implemented in assembly because it was the only way
-    to support calls without a valid g. This CL defines a new function,
-    stdcall_no_g, that can be used in such cases.
+    Updates #28360
     
-    Change-Id: I26a223b918c6c462b06ac256bdacf9ddb78752bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526476
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I28df0e0350287d5e7e1d1c09a4064ea1054e7575
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444935
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/runtime/os_windows.go       | 23 ++++++++++++++++++++---
- src/runtime/sys_windows_386.s   | 11 +++--------
- src/runtime/sys_windows_amd64.s | 16 ++++------------
- src/runtime/sys_windows_arm.s   | 13 +++----------
- src/runtime/sys_windows_arm64.s | 11 +++--------
- 5 files changed, 33 insertions(+), 41 deletions(-)
+ src/cmd/compile/internal/ir/symtab.go        |   4 -
+ src/cmd/compile/internal/ssa/_gen/Wasm.rules |  25 +----
+ src/cmd/compile/internal/ssa/_gen/WasmOps.go |   4 +-
+ src/cmd/compile/internal/ssa/rewriteWasm.go  |  79 ++-------------
+ src/cmd/compile/internal/ssagen/ssa.go       |   2 -
+ src/cmd/compile/internal/wasm/ssa.go         |   7 +-
+ src/cmd/internal/obj/wasm/a.out.go           |  11 ++
+ src/cmd/internal/obj/wasm/anames.go          |  10 ++
+ src/cmd/internal/obj/wasm/wasmobj.go         |  10 +-
+ src/cmd/link/internal/wasm/asm.go            |   2 -
+ src/runtime/asm_wasm.s                       |   4 +-
+ src/runtime/memclr_wasm.s                    |  33 ++----
+ src/runtime/memmove_wasm.s                   | 144 ++-------------------------
+ src/runtime/sys_wasm.go                      |   4 -
+ src/runtime/sys_wasm.s                       |  67 -------------
+ 15 files changed, 59 insertions(+), 347 deletions(-)

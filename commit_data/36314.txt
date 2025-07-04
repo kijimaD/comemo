@@ -1,34 +1,20 @@
-commit edae0ff8c13d607aee3fca7fb80faa1dfc2a2944
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Aug 20 17:28:55 2018 +0100
+commit f3962b1849a405995420fef4452f2a8493aa19e0
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Apr 18 15:49:06 2018 -0700
 
-    math: use s390x mnemonics rather than binary encodings
+    sync/atomic: use package prefix in examples
     
-    TMLL, LGDR and LDGR have all been added to the Go assembler
-    previously, so we don't need to encode them using WORD and BYTE
-    directives anymore. This is purely a cosmetic change, it does not
-    change the contents of any object files.
+    Previously these examples declared "var v Value" but any caller would
+    need to write "var v atomic.Value", so we should use the external
+    package declaration form to avoid confusion about where Value comes
+    from.
     
-    Change-Id: I93f815b91be310858297d8a0dc9e6d8e3f09dd65
-    Reviewed-on: https://go-review.googlesource.com/129895
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic0b1a05fb6b700da61cfc8efca594c49a9bedb69
+    Reviewed-on: https://go-review.googlesource.com/107975
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/acos_s390x.s  |  2 +-
- src/math/acosh_s390x.s |  8 ++++----
- src/math/asin_s390x.s  |  2 +-
- src/math/asinh_s390x.s |  8 ++++----
- src/math/atan2_s390x.s |  6 +++---
- src/math/atan_s390x.s  |  2 +-
- src/math/atanh_s390x.s |  6 +++---
- src/math/cbrt_s390x.s  |  6 +++---
- src/math/erf_s390x.s   |  6 +++---
- src/math/erfc_s390x.s  |  8 ++++----
- src/math/exp_s390x.s   | 10 +++++-----
- src/math/expm1_s390x.s | 10 +++++-----
- src/math/log1p_s390x.s | 10 +++++-----
- src/math/log_s390x.s   | 10 +++++-----
- src/math/pow_s390x.s   | 20 ++++++++++----------
- src/math/tan_s390x.s   |  4 ++--
- 16 files changed, 59 insertions(+), 59 deletions(-)
+ src/sync/atomic/example_test.go | 76 +++++++++++++++++++++++++++++++++++++++++
+ src/sync/atomic/value_test.go   | 67 ------------------------------------
+ 2 files changed, 76 insertions(+), 67 deletions(-)

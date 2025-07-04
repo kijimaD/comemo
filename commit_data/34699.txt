@@ -1,20 +1,27 @@
-commit d2dd2e15242a57f5bac04cdb70cb3736241b7973
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Mar 26 19:28:51 2018 +1100
+commit 183616048a7fe6af4853515ed8ea5bd87d8908b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 8 13:34:31 2017 -0500
 
-    os: do not test Lstat in TestDevNullFile
+    cmd/go: always update mtime during go install / go build -o / go test -c
     
-    CL 102456 added Lstat check to TestDevNullFile.
-    But some systems have /dev/null as a symlink,
-    so Lstat test is wrong. Remove the test.
+    Even if the go command can see that the target is up-to-date
+    an mtime-based build system invoking the go command may not
+    be able to tell. Update the mtime to make clear that the target is
+    up-to-date, and also to hide exactly how smart the go command
+    is or is not. This keeps users (and programs) from depending on
+    the exact details of the go command's staleness determination.
     
-    Fixes #24521
+    Without this I believe we will get a stream of (completely reasonable)
+    bug reports that "go install (or go test -c) did not update the binary
+    after I trivially changed the source code or touched a source file".
     
-    Change-Id: I149110b08dd05db6495ec4eccbcf943e444332f9
-    Reviewed-on: https://go-review.googlesource.com/102461
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I920e4aaed2a57319e3c0c37717f872bc059e484e
+    Reviewed-on: https://go-review.googlesource.com/76590
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/os/os_test.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/go/go_test.go              | 39 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/action.go | 28 ++++++++++++++++++---------
+ src/cmd/go/internal/work/exec.go   | 23 ++++++++++++++++++++++
+ 3 files changed, 81 insertions(+), 9 deletions(-)

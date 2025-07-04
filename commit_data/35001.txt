@@ -1,12 +1,19 @@
-commit 080c25c15e67907a8cf1e3527c1958aae5eb329e
-Author: quasilyte <quasilyte@gmail.com>
-Date:   Sun Apr 15 10:08:45 2018 +0300
+commit 2b9e7c1864c61c900b79deb9528fead33321a402
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 4 10:59:39 2017 -0800
 
-    C: add Iskander Sharipov's individual CLA mail
+    test: disable broken test for 1.10
     
-    Change-Id: I2e58e20e26674175b3e35b6c8a05998a93db4646
-    Reviewed-on: https://go-review.googlesource.com/107215
+    This test was added recently as a regress test for the spec relaxation
+    in #9060, but doesn't work correctly yet. Disable for now to fix noopt
+    builders.
+    
+    Updates #22444.
+    
+    Change-Id: I45c521ae0da7ffb0c6859d6f7220c59828ac6149
+    Reviewed-on: https://go-review.googlesource.com/81775
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/method7.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

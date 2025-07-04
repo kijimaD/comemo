@@ -1,28 +1,17 @@
-commit 5f073d361f96e38bd31cf9274769bd4d0f5e0a5a
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jun 21 15:32:29 2024 +0000
+commit 5f08963b2cbc90a287a4aef5cf8a3d6a3b221692
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 1 10:13:11 2023 -0400
 
-    cmd/trace: merge testdata debugging tools into the trace tool
+    cmd/go: fix TestScript/gotoolchain_net when $PATH contains golang.org/dl/go1.20.1
     
-    Currently internal/trace/testdata contains three debugging tools which
-    were written early in the trace rewrite for debugging. Two of these are
-    completely redundant with go tool trace -d=1 and go tool trace -d=2. The
-    only remaining one landed in the last cycle and could easily also be
-    another debug mode.
+    For #57001.
     
-    This change thus merges gotraceeventstats into go tool trace as a new
-    debug mode, and updates the debug mode flag (-d) to accept a string,
-    giving each mode a more descriptive name.
-    
-    Change-Id: I170f30440691b81de846b4e247deb3d0982fc205
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/593975
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Idcc291c872864bcce7e6d411cdd208db3b331282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499855
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/trace/main.go                              |  76 ++++++++++--
- src/internal/trace/raw/event.go                    |  16 +++
- .../trace/testdata/cmd/gotraceeventstats/main.go   | 136 ---------------------
- src/internal/trace/testdata/cmd/gotraceraw/main.go |  86 -------------
- .../trace/testdata/cmd/gotracevalidate/main.go     |  53 --------
- 5 files changed, 85 insertions(+), 282 deletions(-)
+ src/cmd/go/testdata/script/gotoolchain_net.txt | 9 +++++++++
+ 1 file changed, 9 insertions(+)

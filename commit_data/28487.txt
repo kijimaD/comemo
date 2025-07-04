@@ -1,12 +1,14 @@
-commit e69d63e807b7322e3a7d6c8ad83c251c9f46c9ca
-Author: Michal Bohuslávek <mbohuslavek@gmail.com>
-Date:   Wed Sep 21 14:49:51 2016 +0100
+commit 53af0d3476e3c5f5b71f0c5fcf2141c24cc102b2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat May 28 03:20:11 2016 +0900
 
-    net/http/cookiejar: fix typo
+    crypto/tls: fix race in Benchmark{Throughput,Latency}
     
-    Change-Id: I6ea8650927e7946c6fd4659f400fd91ddaae68af
-    Reviewed-on: https://go-review.googlesource.com/29510
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #15864.
+    
+    Change-Id: Ic12aa3654bf0b7e4a26df20ea92d07d7efe7339c
+    Reviewed-on: https://go-review.googlesource.com/23504
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/cookiejar/jar.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/tls_test.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

@@ -1,33 +1,15 @@
-commit 6de53832ae7678f18e1b4077134764b11687992d
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Nov 2 10:22:19 2017 +0100
+commit 4a5f85babbe5ca78ad38cb32b1b1f0259c8c1cef
+Author: Filippo Valsorda <filippo@cloudflare.com>
+Date:   Wed Jan 18 16:53:35 2017 +0000
 
-    cmd/dist: fix bad LC_TIME assumption in 'date' invocation
+    crypto/tls: disallow handshake messages fragmented across CCS
     
-    With GOBUILDTIMELOGFILE set, make.bash logs the starting time using
+    Detected by BoGo test FragmentAcrossChangeCipherSpec-Server-Packed.
     
-      $ echo $(date) > file
-    
-    and expects to be able to read the date back with
-    
-      time.Parse(time.UnixDate)
-    
-    but in some locales the default date format is not the same as
-    time.UnixDate; for example on LC_TIME="en_GB.UTF-8"
-    
-      $ locale date_fmt
-      %a %e %b %H:%M:%S %Z %Y
-    
-    Fix this by setting LC_TIME=C before the date command invocation.
-    
-    Fixes #22541
-    
-    Change-Id: I59bf944bb868e2acdd816c7e35134780cdbfc6a6
-    Reviewed-on: https://go-review.googlesource.com/75370
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9a76697b9cdeb010642766041971de5c7e533481
+    Reviewed-on: https://go-review.googlesource.com/48811
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/make.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/conn.go | 5 +++++
+ 1 file changed, 5 insertions(+)

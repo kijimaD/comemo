@@ -1,24 +1,21 @@
-commit 9ab2ffe8e92f9660cbde1a18921ae864c64f280b
-Author: Jordan Rhee <jordanrh@microsoft.com>
-Date:   Wed Nov 21 14:04:29 2018 -0800
+commit 51ddeb9965e942d5909c03fef005006457156638
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jul 24 09:59:57 2018 -0700
 
-    runtime: windows/arm fix tracebacks printed from sigpanic
+    math: add tests for erf and erfc
     
-    The exception handler modifies the stack and continuation context so
-    it looks like the faulting code calls sigpanic() directly. The call was
-    not set up correctly on ARM, because it did not handle the link register
-    correctly. This change handles the link register correctly for ARM.
+    Test large but not infinite arguments.
     
-    Updates #28854
+    This CL adds a test which breaks s390x.  Don't submit until
+    a fix for that is figured out.
     
-    Change-Id: I7ccf838adfc05cd968a5edd7d19ebba6a2478360
-    Reviewed-on: https://go-review.googlesource.com/c/150957
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Update #26477
+    
+    Change-Id: Ic86739fe3554e87d7f8e15482875c198fcf1d59c
+    Reviewed-on: https://go-review.googlesource.com/125641
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/defs_windows_386.go   |  7 ++++---
- src/runtime/defs_windows_amd64.go |  7 ++++---
- src/runtime/defs_windows_arm.go   |  5 +++--
- src/runtime/signal_windows.go     | 14 +++++++++++---
- 4 files changed, 22 insertions(+), 11 deletions(-)
+ src/math/all_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,14 +1,37 @@
-commit 592b480746bd2ac2140980d298a50563d484733d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 31 07:49:33 2013 -0800
+commit 354a3a151337d8997f97a8dabfd6d85377c5270f
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jan 31 08:52:46 2013 +0100
 
-    cmd/ld: retry short writes, to get error detail
+    cmd/8l: fix misassembling of MOVB involving (AX)(BX*1)
     
-    Fixes #3802.
+    The linker accepts MOVB involving non-byte-addressable
+    registers, by generating XCHG instructions to AX or BX.
+    It does not handle the case where nor AX nor BX are available.
     
-    R=golang-dev, bradfitz
+    See also revision 1470920a2804.
+    
+    Assembling
+        TEXT ·Truc(SB),7,$0
+        MOVB BP, (BX)(AX*1)
+        RET
+    
+    gives before:
+       08048c60 <main.Truc>:
+        8048c60:       87 dd         xchg   %ebx,%ebp
+        8048c62:       88 1c 03      mov    %bl,(%ebx,%eax,1)
+        8048c65:       87 dd         xchg   %ebx,%ebp
+        8048c67:       c3            ret
+    
+    and after:
+       08048c60 <main.Truc>:
+        8048c60:       87 cd         xchg   %ecx,%ebp
+        8048c62:       88 0c 03      mov    %cl,(%ebx,%eax,1)
+        8048c65:       87 cd         xchg   %ecx,%ebp
+        8048c67:       c3            ret
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7228066
+    https://golang.org/cl/7226066
 
- src/cmd/ld/lib.c | 31 ++++++++++++++++++++-----------
- 1 file changed, 20 insertions(+), 11 deletions(-)
+ src/cmd/8l/span.c | 80 ++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 65 insertions(+), 15 deletions(-)

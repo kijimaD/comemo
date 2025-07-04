@@ -1,27 +1,21 @@
-commit 0f64c21d90c7017df4f199a5852d60d4b474c03c
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Nov 19 13:28:49 2021 -0800
+commit 64ca7e2cb3af6135a46c9602b7650cad1381456a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 30 16:28:48 2021 -0400
 
-    cmd/compile: special packages must not have any path separators
+    cmd/compile: avoid generating duplicated in-register Arg
     
-    We want to distinguish special compiler-generated package paths,
-    like go.shape, from user paths, like go.opentelemetry.io/otel/semconv.
-    The former have no slash in them.
+    In expand_calls, when rewriting OpArg to OpArgIntReg/OpArgFloatReg,
+    avoid generating duplicates. Otherwise it will confuse the
+    register allocator: it would think the second occurance clobbers
+    the first's register, causing it to generate copies, which may
+    clobber other args.
     
-    Writing a test for this seems hard, as the dependency we'd need to
-    add would be non-hermetic. (Or it would need a new tricky run.go mode.)
-    
-    This CL does fix the example in the issue.
-    
-    Fixes #49606
-    
-    Change-Id: I38f1b970b6dd31e0617763a27ff227e3afee74d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365834
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: I4f1dc0519afb77500eae1c0e6ac8745e51f7aa4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306029
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types/pkg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 16 +++++++++++++++
+ test/abi/store_reg_args.go                   | 29 ++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

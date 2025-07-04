@@ -1,36 +1,31 @@
-commit 4d44a87243576bef5ec1e083eb85fe766f79727d
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Mon Nov 27 22:28:32 2017 -0800
+commit 37d56279c87818b496e5717bddd1f7c43bfa743d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 15:16:29 2018 -0500
 
-    math/big: return nil for nonexistent ModInverse
+    cmd/go: limit test input file change detection to local GOROOT/GOPATH tree
     
-    Currently, the behavior of z.ModInverse(g, n) is undefined
-    when g and n are not relatively prime.  In that case, no
-    ModInverse exists which can be easily checked during the
-    computation of the ModInverse.  Because the ModInverse does
-    not indicate whether the inverse exists, there are reimplementations
-    of a "checked" ModInverse in crypto/rsa.  This change removes the
-    undefined behavior.  If the ModInverse does not exist, the receiver z
-    is unchanged and the return value is nil. This matches the behavior of
-    ModSqrt for the case where the square root does not exist.
+    We've had a series of problems with tests unexpectedly (and innocently)
+    looking at system files that appear to (but don't) change in meaningful ways,
+    like /dev/null on OS X having a modification time set to the current time.
     
-    name          old time/op    new time/op    delta
-    ModInverse-4    2.40µs ± 4%    2.22µs ± 0%   -7.74%  (p=0.016 n=5+4)
+    Cut all these off by only applying file change detection to the local package
+    root: the GOROOT or specific sub-GOPATH in which the package being tested
+    is found.
     
-    name          old alloc/op   new alloc/op   delta
-    ModInverse-4    1.36kB ± 0%    1.17kB ± 0%  -14.12%  (p=0.008 n=5+5)
+    (This means that if you test reads /tmp/x and you change /tmp/x, the cached
+    result will still be used. Don't do that, or else use -count=1.)
     
-    name          old allocs/op  new allocs/op  delta
-    ModInverse-4      10.0 ± 0%       9.0 ± 0%  -10.00%  (p=0.008 n=5+5)
+    Fixes #23390.
     
-    Fixes #24922
-    
-    Change-Id: If7f9d491858450bdb00f1e317152f02493c9c8a8
-    Reviewed-on: https://go-review.googlesource.com/108996
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I30b6dd194835deb645a040aea5e6e4f68af09edb
+    Reviewed-on: https://go-review.googlesource.com/87015
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/rsa/rsa.go    | 39 +++++----------------------------------
- src/math/big/int.go      | 25 +++++++++++++++++--------
- src/math/big/int_test.go | 11 +++++++++++
- 3 files changed, 33 insertions(+), 42 deletions(-)
+ src/cmd/go/go_test.go            | 24 ++++++++++++++++++++++++
+ src/cmd/go/internal/load/path.go | 22 ----------------------
+ src/cmd/go/internal/load/pkg.go  | 12 ++++++------
+ src/cmd/go/internal/str/path.go  | 32 ++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/test/test.go | 20 ++++++++++++++++++++
+ 5 files changed, 82 insertions(+), 28 deletions(-)

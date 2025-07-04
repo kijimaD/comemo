@@ -1,20 +1,25 @@
-commit d859d7deee0845433b9e9770a99c6bcdbed3c920
-Author: Gustav Paul <gustav.paul@gmail.com>
-Date:   Sun Nov 27 09:59:20 2011 -0500
+commit 557ba72e69863ba7d839d86b78edace0c6e20886
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Nov 27 14:41:08 2011 +1100
 
-    exp/ssh: messages now contain remote channel's id instead of local id
+    html: ignore <head> tags in <head> element
     
-    According to http://www.ietf.org/rfc/rfc4254.txt most channel messages contain the channel id of the recipient channel, not the sender id. This allows the recipient connection multiplexer to route the message to the correct channel.
+    Pass tests3.dat, test 12:
+    <!DOCTYPE html><HTML><META><HEAD></HEAD></HTML>
     
-    This changeset fixes several messages that incorrectly send the local channel id instead of the remote channel's id.
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |     <meta>
+    |   <body>
     
-    While sessions were being created and closed in sequence channels in the channel pool were freed and reused on the server side of the connection at the same rate as was done on the client, so the channel local and remote channel ids always corresponded. As soon as I had concurrent sessions on the same clientConn the server started to complain of 'uknown channel id N' where N is the local channel id, which is actually paired with server channel id K.
+    Also pass tests through test 19:
+    <!DOCTYPE html><html><head></head><body><ul><li><div><p><li></ul></body></html>
     
-    R=golang-dev, dave, rsc, agl
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5433063
+    https://golang.org/cl/5436069
 
- src/pkg/exp/ssh/client.go  | 18 +++++++-----------
- src/pkg/exp/ssh/session.go | 14 +++++++-------
- src/pkg/exp/ssh/tcpip.go   |  4 ++--
- 3 files changed, 16 insertions(+), 20 deletions(-)
+ src/pkg/html/parse.go      | 3 +++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

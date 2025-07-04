@@ -1,27 +1,21 @@
-commit c513a61988a6d6f9778f50676681348364ccdfee
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Fri Jul 21 09:51:42 2023 +0000
+commit 48a58c5d2c24bcba9cd141b3c3d6344d52274bbd
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Sep 27 09:16:32 2022 +0000
 
-    net: use avoidDNS for search suffixes
+    cmd/go/internal: use strings.CutSuffix
     
-    The go resolver shouldn't attempt to query .onion domains, but
-    the restriction was not restricted for search domains.
+    Updates #42537
     
-    Also before this change query for "sth.onion" would
-    not be suffixed with any search domain (for "go.dev" search
-    domain, it should query fine the "std.onion.go.dev" domain).
-    
-    Change-Id: I0f3e1387e0d59721381695f94586e3743603c30e
-    GitHub-Last-Rev: 7e8ec44078529353c18c8fe34e5207014ce1e685
-    GitHub-Pull-Request: golang/go#60678
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501701
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I2d4c5e911c8a2ddfe9a976896b05d3cd8be61f6b
+    GitHub-Last-Rev: a87597d8a7a84c4975fb5e13004feda9b6abce34
+    GitHub-Pull-Request: golang/go#55830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433275
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/net/dnsclient_unix.go      | 16 ++++++++--------
- src/net/dnsclient_unix_test.go | 16 +++++++++++++++-
- 2 files changed, 23 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/clean/clean.go | 6 ++----
+ src/cmd/go/internal/load/pkg.go    | 4 ++--
+ 2 files changed, 4 insertions(+), 6 deletions(-)

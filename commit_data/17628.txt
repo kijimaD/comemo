@@ -1,18 +1,17 @@
-commit 16d6b6c77144bd26838d1cfd6631d159b419752b
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Mon Sep 16 19:03:19 2013 -0700
+commit 00061219f03d666e93947a3cb326256062a7a92c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 16 20:27:57 2013 -0400
 
-    runtime: export PCDATA value reader
+    cmd/nm: make -S listing a bit more accurate
     
-    This interface is required to use the PCDATA interface
-    implemented in Go 1.2.  While initially entirely private, the
-    FUNCDATA side of the interface has been made public.  This
-    change completes the FUNCDATA/PCDATA interface.
+    Hide container symbols like text and etext so that
+    the individual pieces inside are shown instead.
+    For example, if text and main.init have the same
+    address, it was a toss-up which name was printed.
     
-    R=golang-dev, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13735043
+    https://golang.org/cl/13722046
 
- src/pkg/runtime/runtime.h | 1 +
- src/pkg/runtime/symtab.c  | 6 +++---
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/nm/nm.c | 35 +++++++++++++++++++++++++++++++++--
+ 1 file changed, 33 insertions(+), 2 deletions(-)

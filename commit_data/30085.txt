@@ -1,18 +1,20 @@
-commit 7751d56e3955aaf5285f16b1643e6d8153e32b80
-Author: Peter Nguyen <peter@mictis.com>
-Date:   Fri Feb 3 21:45:50 2017 +0100
+commit 1b0cf430dd130ad53e9f43bc04d2ed91bcd87b26
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 19 15:32:14 2016 -0700
 
-    net/rpc/jsonrpc: Update package doc with info about JSON-RPC 2.0
+    cmd/compile: implement package-level aliases (no export yet)
     
-    Currently the net/rpc/jsonrpc package only implements JSON-RPC version
-    1.0. This change updates the package's documentation with link to find
-    packages for JSON-RPC 2.0.
+    Requires -newparser=1.
     
-    Fixes #10929
+    For #17487.
+    For #16339.
     
-    Change-Id: I3b6f1d17738a1759d7b62ab7b3ecef5b248d30ca
-    Reviewed-on: https://go-review.googlesource.com/36330
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I156fb0c0f8a97e8c72dbbfbd7fe821efee12b957
+    Reviewed-on: https://go-review.googlesource.com/31597
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/rpc/jsonrpc/client.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go  |  2 +
+ src/cmd/compile/internal/gc/noder.go | 91 +++++++++++++++++++++++++++++++++-
+ src/go/types/stdlib_test.go          |  1 +
+ test/alias2.go                       | 96 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 188 insertions(+), 2 deletions(-)

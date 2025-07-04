@@ -1,16 +1,19 @@
-commit 8f406af8e8a9c594cf40fcfbeaa78f589ed0ad27
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Sun Mar 11 04:07:58 2018 +0900
+commit 185257352189939e77de0172e17aadce2c355704
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Nov 1 15:47:46 2017 +0000
 
-    net: avoid unnecessary type conversions
+    go/types: sort unused declaration errors
     
-    CL generated mechanically with github.com/mdempsky/unconvert.
+    By position, to ensure deterministic output.
     
-    Change-Id: I6c555da5972618dca4302ef8be8d93c765f95db3
-    Reviewed-on: https://go-review.googlesource.com/100035
-    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
+    Fixes #22525.
+    
+    Change-Id: I28777d504a622416678b52afd6fc4c3ef32c12af
+    Reviewed-on: https://go-review.googlesource.com/75090
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/ip.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/go/types/issues_test.go | 22 ++++++++++++++++++++++
+ src/go/types/stmt.go        | 15 ++++++++++++---
+ 2 files changed, 34 insertions(+), 3 deletions(-)

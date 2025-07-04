@@ -1,0 +1,27 @@
+commit ea38fa534559d1c25e629d0b1e96a730fa96780b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Nov 3 21:27:00 2024 +0700
+
+    cmd/compile: fix mis-compilation with labeled fallthrough
+    
+    A fallthrough statement can be a labeled fallthrough per Go spec.
+    However, the hasFallthrough function is not considering this case,
+    causing mis-compilation.
+    
+    Fixing this by un-wrapping (possible nested) labeled fallthrough
+    statements if any.
+    
+    Fixes #70173
+    
+    Change-Id: Ic93d4fb75ff02703a32dfc63c3e84a8b7f78c261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624717
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Youlin Feng <fengyoulin@live.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/noder/writer.go       | 12 +++++++++++-
+ src/cmd/compile/testdata/script/issue70173.txt | 23 +++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

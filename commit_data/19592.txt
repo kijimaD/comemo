@@ -1,20 +1,15 @@
-commit e3e48cd075091d8f0e1265ae6a18e69ac83d2af4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jun 23 18:46:01 2014 +0900
+commit 9cddb486433bfb3e149df98f2940b25b00b8ed52
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Jun 23 10:29:56 2014 +1000
 
-    syscall: consolidate, simplify socket options for Unix-like systems
+    image/png: remove unnecessary function call
     
-    Also exposes common socket option functions on Solaris.
+    paeth(0, x, 0) == x for any uint8 value.
     
-    Update #7174
-    Update #7175
-    
-    LGTM=aram
-    R=golang-codereviews, aram
+    LGTM=nigeltao
+    R=golang-codereviews, bradfitz, nigeltao
     CC=golang-codereviews
-    https://golang.org/cl/107280044
+    https://golang.org/cl/105290049
 
- src/pkg/syscall/syscall_bsd.go   | 42 -----------------------
- src/pkg/syscall/syscall_linux.go | 34 ------------------
- src/pkg/syscall/syscall_unix.go  | 74 +++++++++++++++++++++++++++++++---------
- 3 files changed, 58 insertions(+), 92 deletions(-)
+ src/pkg/image/png/writer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

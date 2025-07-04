@@ -1,20 +1,18 @@
-commit f52ce42274573d39386f3bacc77ab2ef969d5a0d
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Thu Aug 17 09:16:32 2017 +0900
+commit 7189a02ca520df9e9a5612851bd7c68c55b678e3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 19 06:35:18 2017 -0700
 
-    debug/macho: add comments for ambiguious LoadCommand
+    cmd/compile: remove haslabelgoto
     
-    While LoadCmdDylib represents LC_LOAD_DYLIB,
-    LoadCmdDylinker represents LC_ID_DYLINKER.
-    This is confusing because there is another command called LC_LOAD_DYLINKER.
-    LC_ID_DYLINKER is not included in normal binary, it is only used for
-    /usr/lib/dyld as far as I know. So, perhaps this is a mistake.
+    As of CL 39998, it is no longer necessary.
     
-    Change-Id: I6ea61664a26998962742914af5688e094a233541
-    Reviewed-on: https://go-review.googlesource.com/56330
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #19699
+    
+    Change-Id: Ie1c49c8468073c6ddeb96c03668705cf81d40c98
+    Reviewed-on: https://go-review.googlesource.com/41051
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/debug/macho/macho.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 26 ++------------------------
+ 1 file changed, 2 insertions(+), 24 deletions(-)

@@ -1,16 +1,17 @@
-commit bfe80e21e4c0076fb75b14b04b9c9a1c3c4ee419
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 12 16:42:25 2013 -0400
+commit d825320550b87158286ec772baddab81d07079e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 12 13:06:55 2013 -0700
 
-    encoding/xml: reject > chain with non-element
+    go/doc: set receiver type position for embedded methods
     
-    Fixes #5033.
+    This was a bug that didn't manifest itself before CL 7674044;
+    but with that CL and without this fix, the go/doc tests fail.
+    (The bug fixed by 7674044 and the bug fixed here cancelled
+    each other out w/ respect to the go/doc tests).
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7764044
+    https://golang.org/cl/7628045
 
- src/pkg/encoding/xml/marshal.go      |  2 +-
- src/pkg/encoding/xml/marshal_test.go | 26 ++++++++++++++++++++++++--
- src/pkg/encoding/xml/typeinfo.go     | 17 ++++++++++-------
- 3 files changed, 35 insertions(+), 10 deletions(-)
+ src/pkg/go/doc/reader.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

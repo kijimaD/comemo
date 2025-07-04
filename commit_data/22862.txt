@@ -1,18 +1,27 @@
-commit 5a828cfcde20c25b9b3a3387159a77eb084383b8
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 30 14:56:35 2015 -0700
+commit 7d3f81a9f330330fbfc50c3a511e95febb080194
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Apr 11 14:58:42 2015 +0200
 
-    runtime: let freezetheworld work even when gomaxprocs=1
+    syscall: ignore getwd errors when fixing working directory on Plan 9
     
-    Freezetheworld still has stuff to do when gomaxprocs=1.
-    In particular, signals can come in on other Ms (like the GC M, say)
-    and the single user M is still running.
+    In Plan 9, goroutines can run in different processes,
+    which don't share their working directory. However,
+    Go expects the working directory to be program-wide.
     
-    Fixes #10546
+    We use a Fixwd function to fix the working directory
+    before calling system calls which depend on the
+    working directory.
     
-    Change-Id: I2f07f17d1c81e93cf905df2cb087112d436ca7e7
-    Reviewed-on: https://go-review.googlesource.com/9551
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    In fixwdLocked, the working directory is not fixed
+    when getwd returns an error. However, an error can
+    happen is some cases, notably when the directory
+    has been previously removed in another process.
+    
+    Fixes #10422.
+    
+    Change-Id: Ie0c36f97c4b5ebe27ff0ead360987c5b35f825e4
+    Reviewed-on: https://go-review.googlesource.com/8800
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc1.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/syscall/pwd_plan9.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

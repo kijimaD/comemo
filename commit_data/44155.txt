@@ -1,18 +1,14 @@
-commit 5a8a2265fb3f2a4f2b37737e8a69e1aea763325f
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 11 10:01:24 2021 -0500
+commit b0bc18d5bcb57b5b1645899e7fc865f31f10d6f4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 18 15:33:29 2020 -0700
 
-    cmd/cgo: report exec errors a bit more clearly
+    doc/go1.15: mention vet warning for string(x)
     
-    Change-Id: I0e6bebf0e2e6efdef4be880e0c6c7451b938924b
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/949417
-    Reviewed-by: Katie Hockman <katiehockman@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284781
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
+    For #32479
+    
+    Change-Id: I974709d471021d370aa9bdc5f24b02afa8bd9b54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234517
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/cgo/util.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.15.html | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

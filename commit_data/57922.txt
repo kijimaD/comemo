@@ -1,54 +1,18 @@
-commit 72a92ab5b72680e6e0f8acffcfd62b2c6fd98085
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Sat Apr 1 08:49:58 2023 +0800
+commit 5e31f78c8a4ed1b872ddc194f0cd1ae931b37d7e
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Sep 8 17:53:34 2023 +0800
 
-    cmd/compiler,internal/runtime/atomic: optimize xchg{32,64} on loong64
+    internal/cpu: fix wrong cache line size of riscv64
     
-    Use Loong64's atomic operation instruction AMSWAPDB{W,V} (full barrier)
-    to implement atomic.Xchg{32,64}
+    All of riscv CPU using 64B for cache-line size.
+    i.e. U540 of Hifive Unleashed (https://www.sifive.com/boards/hifive-unleashed)
     
-    goos: linux
-    goarch: loong64
-    pkg: internal/runtime/atomic
-    cpu: Loongson-3A5000 @ 2500.00MHz
-               |  old.bench    |  new.bench                          |
-               |  sec/op       |  sec/op        vs base              |
-    Xchg          26.44n ± 0%     12.01n ± 0%   -54.58% (p=0.000 n=20)
-    Xchg-2        30.10n ± 0%     25.58n ± 0%   -15.02% (p=0.000 n=20)
-    Xchg-4        30.06n ± 0%     24.82n ± 0%   -17.43% (p=0.000 n=20)
-    Xchg64        26.44n ± 0%     12.02n ± 0%   -54.54% (p=0.000 n=20)
-    Xchg64-2      30.10n ± 0%     25.57n ± 0%   -15.05% (p=0.000 n=20)
-    Xchg64-4      30.05n ± 0%     24.80n ± 0%   -17.47% (p=0.000 n=20)
-    geomean       28.81n          19.68n        -31.69%
-    
-    goos: linux
-    goarch: loong64
-    pkg: internal/runtime/atomic
-    cpu: Loongson-3A6000 @ 2500.00MHz
-               |  old.bench    |  new.bench                          |
-               |  sec/op       |  sec/op        vs base              |
-    Xchg          25.62n ± 0%     12.41n ± 0%  -51.56% (p=0.000 n=20)
-    Xchg-2        35.01n ± 0%     20.59n ± 0%  -41.19% (p=0.000 n=20)
-    Xchg-4        34.63n ± 0%     19.59n ± 0%  -43.42% (p=0.000 n=20)
-    Xchg64        25.62n ± 0%     12.41n ± 0%  -51.56% (p=0.000 n=20)
-    Xchg64-2      35.01n ± 0%     20.59n ± 0%  -41.19% (p=0.000 n=20)
-    Xchg64-4      34.67n ± 0%     19.59n ± 0%  -43.50% (p=0.000 n=20)
-    geomean       31.44n          17.11n       -45.59%
-    
-    Updates #59120.
-    
-    Change-Id: Ied74fc20338b63799c6d6eeb122c31b42cff0f7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481578
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Change-Id: I0d72d88ac026f45383c3b3eb3a77233d3c2e4004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526659
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/loong64/ssa.go         | 37 +++++--------------------
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 10 ++-----
- src/cmd/compile/internal/ssa/opGen.go           |  2 --
- src/internal/runtime/atomic/atomic_loong64.s    | 30 ++++++++++----------
- 4 files changed, 23 insertions(+), 56 deletions(-)
+ src/internal/cpu/cpu_riscv64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

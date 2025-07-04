@@ -1,17 +1,22 @@
-commit f839aaa22b66bc556fac72f7396082212d2ef45d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 16 14:25:50 2022 -0700
+commit 15a374d5c1336e9cc2f8b615477d5917e9477440
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 18 18:25:44 2021 -0400
 
-    syscall: allow EINVAL in TestSCMCredentials
+    test: check portable error message on issue46234.go
     
-    This can occur on NixOS.
+    issue46234.go expects an error output "segmentation violation",
+    which is UNIX-specific. Check for "nil pointer dereference"
+    instead, which is emitted by the Go runtime and should work on all
+    platforms.
     
-    Change-Id: I0571b0cc5345d01396dca6a4116aa1024c390a5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393437
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Should fix Windows builders.
+    
+    Change-Id: I3f5a66a687d43cae5eaf6a9e942b877e5a248900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321072
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/syscall/creds_test.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ test/fixedbugs/issue46234.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

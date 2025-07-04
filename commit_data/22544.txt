@@ -1,15 +1,15 @@
-commit db1f9cdd3fc3b7238b5fbd58447e6b742a90f422
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 16 16:58:16 2015 +0000
+commit 14082fad9b851267520d5d04aa314719bda47e9e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Mar 23 06:43:43 2015 +0900
 
-    Revert "fmt: add a few more reflect.Value tests"
+    net: fix TestInterfaces, TestInterfaceAddrs on platforms without loopback interface
     
-    This reverts commit 3e6b7f35de96414a3a393f0ad25326f411101776.
+    Fixes #10214.
     
-    Change-Id: Icad2b235b9880729fbdf80d7dfd71e56df4b1231
-    Reviewed-on: https://go-review.googlesource.com/8944
+    Change-Id: If29d26c590eb53d4976e0a6ace0ed33aaf0c3e80
+    Reviewed-on: https://go-review.googlesource.com/7924
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/fmt/fmt_test.go | 8 --------
- src/fmt/print.go    | 2 --
- 2 files changed, 10 deletions(-)
+ src/net/interface_test.go | 83 +++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 58 insertions(+), 25 deletions(-)

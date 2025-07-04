@@ -1,18 +1,13 @@
-commit 97266969d8f9b0b2fd6c37121a3f0d52872efced
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Jan 18 22:42:40 2016 -0500
+commit 7f762704e9319149540120a64ba7e90d8c7e50e2
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:33:39 2015 -0400
 
-    cmd/dist: pass -tags race to go list in -race mode
+    internal/syscall/unix: added support for linux/mips64{,le}
     
-    so that runtime/race tests are included in the race builder.
-    
-    Update #14011.
-    
-    Change-Id: I04ac6e47366fdb1fe84ba89da556c6d38f7d4a47
-    Reviewed-on: https://go-review.googlesource.com/18686
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib6f168b6a2daf3befbf75b4b95967ff91ac95d12
+    Reviewed-on: https://go-review.googlesource.com/14456
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/internal/syscall/unix/getrandom_linux_mips64x.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

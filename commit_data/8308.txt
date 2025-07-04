@@ -1,16 +1,12 @@
-commit d6dd80b65e5fde57b8a4a27c8da56c023cfe61fb
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 3 13:55:50 2011 -0400
+commit e49d50e203d6d2da9c9d26c5e1dd3ea56784a44c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 3 09:56:18 2011 -0700
 
-    doc: release.r57
+    gofmt: update test.sh (exclude a file w/ incorrect syntax)
     
-    R=golang-dev, r, adg, r2
+    R=iant, iant2
     CC=golang-dev
-    https://golang.org/cl/4457049
+    https://golang.org/cl/4453058
 
- doc/all.css            |    5 +-
- doc/devel/index.html   |    3 +-
- doc/devel/release.html | 3054 +++---------------------------------------------
- doc/devel/roadmap.html |   10 +-
- doc/devel/weekly.html  | 2944 ++++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 3096 insertions(+), 2920 deletions(-)
+ src/cmd/gofmt/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

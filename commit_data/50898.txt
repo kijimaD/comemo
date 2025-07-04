@@ -1,19 +1,20 @@
-commit 201759f959a6182215efe6070cf94dd4610cb3e9
-Author: ianwoolf <btw515wolf2@gmail.com>
-Date:   Wed Aug 31 23:34:26 2022 +0800
+commit 7f4a946fa26f2ffdc14c354f2f1cc193ab5d0e90
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 16 21:59:15 2021 +0700
 
-    cmd/go/internal/modload: return error when tidyRoots fail
+    cmd/compile: prevent irgen crashing for empty local declaration stmt
     
-    Fixes #51589
+    Updates #47631
+    Fixes #49611
     
-    Change-Id: Ie9c56110754f4a435b22e2d7a86ae34b0bd28909
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427054
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ib4a4466038e0d4a9aa9380d7909f29f7d15c6c69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364314
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modload/load.go                | 27 +++++++-------
- src/cmd/go/internal/web/api.go                     | 14 +++++---
- .../mod_fileproxy_vcs_missing_issue51589.txt       | 42 ++++++++++++++++++++++
- 3 files changed, 65 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/noder/stmt.go |  8 +++++---
+ test/fixedbugs/issue49611.go           | 11 +++++++++++
+ test/typeparam/issue49611.go           | 11 +++++++++++
+ 3 files changed, 27 insertions(+), 3 deletions(-)

@@ -1,41 +1,28 @@
-commit ddb503be96dd9a10c6591a2e6806548f9ddbac62
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 31 12:05:24 2018 -0500
+commit 66c03d39f3aa65ec522c41e56c569391786539a7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 9 11:33:40 2017 +1000
 
-    runtime: avoid bad unwinding from sigpanic in C code
+    path/filepath: re-implement windows EvalSymlinks
     
-    Currently, if a sigpanic call is injected into C code, it's possible
-    for preparePanic to leave the stack in a state where traceback can't
-    unwind correctly past the sigpanic.
+    CL 41834 used approach suggested by Raymond Chen in
+    https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
+    to implement os.Stat by getting Windows I/O manager
+    follow symbolic links.
     
-    Specifically, shouldPushPanic sniffs the stack to decide where to put
-    the PC from the signal context. In the cgo case, it will find that
-    !findfunc(pc).valid() because pc is in C code, and then it will check
-    if the top of the stack looks like a Go PC. However, this stack slot
-    is just in a C frame, so it could be uninitialized and contain
-    anything, including what looks like a valid Go PC. For example, in
-    https://build.golang.org/log/c601a18e2af24794e6c0899e05dddbb08caefc17,
-    it sees 1c02c23a <runtime.newproc1+682>. When this condition is met,
-    it skips putting the signal PC on the stack at all. As a result, when
-    we later unwind from the sigpanic, we'll "successfully" but
-    incorrectly unwind to whatever PC was in this uninitialized slot and
-    go who knows where from there.
+    Do the same for filepath.EvalSymlinks, when existing
+    strategy fails.
     
-    Fix this by making shouldPushPanic assume that the signal PC is always
-    usable if we're running C code, so we always make it appear like
-    sigpanic's caller.
+    Updates #19922
+    Fixes #20506
     
-    This lets us be pickier again about unexpected return PCs in
-    gentraceback.
-    
-    Updates #23640.
-    
-    Change-Id: I1e8ade24b031bd905d48e92d5e60c982e8edf160
-    Reviewed-on: https://go-review.googlesource.com/91137
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I15f3d3a80256bae86ac4fb321fd8877e84d8834f
+    Reviewed-on: https://go-review.googlesource.com/55612
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/panic.go     | 7 ++++++-
- src/runtime/traceback.go | 2 +-
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/go/build/deps_test.go                        |  2 +-
+ src/internal/syscall/windows/syscall_windows.go  | 16 ++++
+ src/internal/syscall/windows/zsyscall_windows.go | 44 +++++++----
+ src/os/os_windows_test.go                        |  9 ++-
+ src/path/filepath/path_windows_test.go           | 34 +++++++++
+ src/path/filepath/symlink_windows.go             | 97 +++++++++++++++++++++++-
+ 6 files changed, 183 insertions(+), 19 deletions(-)

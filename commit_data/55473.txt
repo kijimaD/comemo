@@ -1,25 +1,20 @@
-commit 923ab13f9bb6fccc362d5259e2f456abbeda0c51
-Author: aimuz <mr.imuz@gmail.com>
-Date:   Sat Nov 18 04:16:04 2023 +0000
+commit e0504bcd72a1ee477e29fb429c86f3af37197293
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Feb 8 08:44:32 2023 +0000
 
-    internal/zstd: avoid panic when windowSize is negative
+    net: remove unused cname return from cgoLookupIPCNAME
     
-    This change fixes an edge case in the zstd decompressor where
-    an int conversion could result in a negative window size.
-    
-    Fixes #63979
-    For #62513
-    
-    Change-Id: Ie714bf8fb51fa509b310deb8bd2c96bd87b52852
-    GitHub-Last-Rev: ab0be6578247da896f16d85e102b81994b8ee5c4
-    GitHub-Pull-Request: golang/go#63980
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540415
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: M Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
+    Change-Id: I4f9b84696f55c6b381de60682f8b242098b95b75
+    GitHub-Last-Rev: 74a6013a9e668119a0895c1250c3d4592bfd4072
+    GitHub-Pull-Request: golang/go#58402
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466335
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/internal/zstd/fuzz_test.go |  1 +
- src/internal/zstd/zstd.go      | 13 +++++++------
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/net/cgo_unix.go         | 22 ++++++----------------
+ src/net/cgo_unix_cgo.go     |  1 -
+ src/net/cgo_unix_syscall.go |  1 -
+ 3 files changed, 6 insertions(+), 18 deletions(-)

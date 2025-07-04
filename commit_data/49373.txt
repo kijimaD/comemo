@@ -1,19 +1,18 @@
-commit 73587b71a62f7c7a27664a207781dedae223774b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jun 2 21:10:26 2022 +0000
+commit ea8298e2f5e9f17372e818ffbd4fab951857ec6a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Aug 16 14:49:45 2021 +0000
 
-    runtime: avoid string allocation in printDebuglog
+    cmd/compile/internal/ssa: delete unused code
     
-    Either due to a new nowritebarrierrec annotation or a change in escape
-    analysis, printDebuglog can't be called from sighandler anymore.
+    Fixes #46186
     
-    Fix this by avoiding a string allocation that's the primary culprit.
-    
-    Change-Id: Ic84873a453f45852b0443a46597ed3ab8c9443fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410121
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Idb0674079f9484593e07cca172dfbb19be0e594d
+    GitHub-Last-Rev: 615fc5365510ff7a39af7569f05a0013b724d0c9
+    GitHub-Pull-Request: golang/go#46185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320111
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: David Chase <drchase@google.com>
 
- src/runtime/debuglog.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 17 -----------------
+ 1 file changed, 17 deletions(-)

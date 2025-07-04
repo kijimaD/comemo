@@ -1,32 +1,15 @@
-commit d0b59deb71b69c1a07b3e734b6f5ff66b3a4e2c8
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 2 16:21:15 2015 -0500
+commit 1e5d8bb5444368a7b6f2f169bbbb43452a0479d9
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 9 16:54:06 2015 -0800
 
-    cmd/internal/gc: replace hash tables with Go maps
+    cmd/go: document that -run isn't implemented
     
-    The C version of the compiler had just one hash table,
-    indexed by a (name string, pkg *Pkg) pair.
-    Because we always know the pkg during a lookup,
-    replace the one table with a per-Pkg map[string]*Sym.
-    This also lets us do non-allocating []byte key lookups.
+    I am an idiot but the failure to implement this means we can decide
+    exactly what its design should be for 1.5
     
-    This CL *does* change the generated object files.
-    In the old code, export data and init calls were emitted
-    in "hash table order". Now they are emitted in the order
-    in which they were added to the table.
-    
-    Change-Id: I5a48d5c9add996dc43ad04a905641d901522de0b
-    Reviewed-on: https://go-review.googlesource.com/6600
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ie2b025fcd899d306ddeddd09d1d0e8f9a99ab7a8
+    Reviewed-on: https://go-review.googlesource.com/4291
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/internal/gc/export.go    |  13 ++--
- src/cmd/internal/gc/fmt.go       |   2 +-
- src/cmd/internal/gc/go.go        |   7 +-
- src/cmd/internal/gc/go.y         |   2 +-
- src/cmd/internal/gc/init.go      |  28 ++------
- src/cmd/internal/gc/lex.go       |  53 ++++++++--------
- src/cmd/internal/gc/reflect.go   |   9 +--
- src/cmd/internal/gc/subr.go      | 134 +++++++++++++++++++--------------------
- src/cmd/internal/gc/typecheck.go |  20 ++----
- src/cmd/internal/gc/y.go         |   2 +-
- 10 files changed, 114 insertions(+), 156 deletions(-)
+ src/cmd/go/generate.go | 1 +
+ 1 file changed, 1 insertion(+)

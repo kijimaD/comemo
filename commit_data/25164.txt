@@ -1,27 +1,44 @@
-commit cd58f44b203b54ea3125637461d910fc447f0bad
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 4 16:10:15 2015 -0500
+commit 9a31d38f65354567719a31414ebcb31f0337b803
+Author: Austin Clements <austin@google.com>
+Date:   Sat Sep 26 14:00:57 2015 -0400
 
-    runtime/cgo: assume Solaris thread stack is at least 1 MB
+    runtime: remove sweep wait loop in finishsweep_m
     
-    When run with "ulimit -s unlimited", the misc/cgo/test test binary
-    finds a stack size of 0x3000 returned by getcontext, causing the
-    runtime to try to stay within those bounds and then fault when
-    called back in the test after 64 kB has been used by C.
+    In general, finishsweep_m must block until any spans that are
+    concurrently being swept have been swept. It accomplishes this by
+    looping over all spans, which, as in the previous commit, takes
+    ~1ms/heap GB. Unfortunately, we do this during the STW sweep
+    termination phase, so multi-gigabyte heaps can push our STW time past
+    10ms.
     
-    I suspect that Solaris is doing something clever like reporting the
-    current stack size and growing the stack as faults happen.
-    On all the other systems, getcontext reports the maximum stack size.
-    And when the ulimit is not unlimited, even Solaris reports the
-    maximum stack size.
+    However, there's no need to do this wait if the world is stopped
+    because, in effect, stopping the world already had to wait for
+    anything that was sweeping (and if it didn't, the wait in
+    finishsweep_m would deadlock). Hence, we can simply skip this loop if
+    the world is stopped, such as during sweep termination. In fact,
+    currently all calls to finishsweep_m are STW, but this hasn't always
+    been the case and may not be the case in the future, so we keep the
+    logic around.
     
-    Work around this by assuming that any stack on Solaris must be at least 1 MB.
+    For 24GB heaps, this reduces max pause time by 75% relative to tip and
+    by 90% relative to Go 1.5. Notably, all pauses are now well under
+    10ms. Here are the results for the garbage benchmark:
     
-    Fixes #12210.
+                   ------------- max pause ------------
+    Heap   Procs   after change   before change   1.5.1
+    24GB     12        3.8ms          16ms         37ms
+    24GB      4        3.7ms          16ms         37ms
+     4GB      4        3.7ms           3ms        6.9ms
     
-    Change-Id: I0a6ed0afb8a8f50aa1b2486f32b4ae470ab47dbf
-    Reviewed-on: https://go-review.googlesource.com/17452
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    In the 4GB/4P case, it seems the "before change" run got lucky: the
+    max went up, but the 99%ile pause time went down from 3ms to 2.04ms.
+    
+    Change-Id: Ica22189559f231d408ef2815019c9dbb5f38bf31
+    Reviewed-on: https://go-review.googlesource.com/15071
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgo/gcc_solaris_amd64.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/mgc.go      |  7 +++++--
+ src/runtime/mgcsweep.go | 24 ++++++++++++++++--------
+ 2 files changed, 21 insertions(+), 10 deletions(-)

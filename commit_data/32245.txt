@@ -1,21 +1,26 @@
-commit f4abbc0e61544ba33379ce37597a90fc3b0942d3
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 14 15:07:57 2017 -0700
+commit 3249cb0ab465c5310e09868236405ba6c40929a4
+Author: David Lazar <lazard@golang.org>
+Date:   Thu Apr 13 09:40:49 2017 -0400
 
-    cmd/link,compile: Provide size for func types
+    runtime/trace: iterate over frames instead of PCs
     
-    They are currently not given a size, which makes the DWARF reader
-    very confused. Particularly things like [4]func() get a size of -4, not 32.
+    Now the runtime/trace tests pass with -l=4.
     
-    Fixes #21097
+    This also gets rid of the frames cache for multiple reasons:
     
-    Change-Id: I01e754134d82fbbe6567e3c7847a4843792a3776
-    Reviewed-on: https://go-review.googlesource.com/55551
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    1) The frames cache was used to avoid repeated calls to funcname and
+    funcline. Now these calls happen inside the CallersFrames iterator.
+    
+    2) Maintaining a frames cache is harder: map[uintptr]traceFrame
+    doesn't work since each PC can map to multiple traceFrames.
+    
+    3) It's not clear that the cache is important.
+    
+    Change-Id: I2914ac0b3ba08e39b60149d99a98f9f532b35bbb
+    Reviewed-on: https://go-review.googlesource.com/40591
+    Run-TryBot: David Lazar <lazard@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/internal/dwarf/dwarf.go        |  1 +
- src/cmd/link/internal/ld/dwarf.go      |  1 +
- src/cmd/link/internal/ld/dwarf_test.go | 43 ++++++++++++++++++++++++++++++++++
- 3 files changed, 45 insertions(+)
+ src/runtime/trace.go | 40 ++++++++++++++++++++++------------------
+ 1 file changed, 22 insertions(+), 18 deletions(-)

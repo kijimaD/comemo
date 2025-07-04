@@ -1,0 +1,24 @@
+commit d11e41728515aea6f7def4a279a3a2591fb18650
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu May 2 15:05:27 2024 -0500
+
+    cmd/compile/internal/ssa: cleanup ANDCCconst rewrite rules on PPC64
+    
+    Avoid creating duplicate usages of ANDCCconst. This is preparation for
+    a patch to reintroduce ANDconst to simplify the lower pass while
+    treating ANDCCconst like other *CC* ssa opcodes.
+    
+    Also, move many of the similar rules wich retarget ANDCCconst users
+    to the flag result to a common rule for all compares against zero.
+    
+    Change-Id: Ida86efe17ff413cb82c349d8ef69d2899361f4c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585400
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  18 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 512 +++++++-------------------
+ test/codegen/arithmetic.go                    |   4 +-
+ 3 files changed, 140 insertions(+), 394 deletions(-)

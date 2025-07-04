@@ -1,37 +1,50 @@
-commit 330bc950933edad89abf6d1eedbfea378cf9fdf6
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Apr 15 16:13:57 2024 -0500
+commit d5514013b6110850789d5397b9b972527e1641cd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 14 15:34:10 2023 -0700
 
-    math/big: improve use of addze in mulAddVWW on ppc64x
+    runtime: add and use pollDesc fd sequence field
     
-    Improve the use of addze to avoid unnecessary register
-    moves on ppc64x.
+    It is possible for a netpoll file to be closed and for the pollDesc
+    to be reused while a netpoll is running. This normally only causes
+    spurious wakeups, but if there is an error on the old file then the
+    new file can be incorrectly marked as having an error.
     
-    goos: linux
-    goarch: ppc64le
-    pkg: math/big
-    cpu: POWER10
-                     │   old.out    │               new.out               │
-                     │    sec/op    │    sec/op     vs base               │
-    MulAddVWW/1         4.524n ± 3%   4.248n ±  0%   -6.10% (p=0.002 n=6)
-    MulAddVWW/2         5.634n ± 0%   5.283n ±  0%   -6.24% (p=0.002 n=6)
-    MulAddVWW/3         6.406n ± 0%   5.918n ±  0%   -7.63% (p=0.002 n=6)
-    MulAddVWW/4         6.484n ± 0%   5.859n ±  0%   -9.64% (p=0.002 n=6)
-    MulAddVWW/5         7.363n ± 0%   6.766n ±  0%   -8.11% (p=0.002 n=6)
-    MulAddVWW/10       10.920n ± 0%   9.856n ±  0%   -9.75% (p=0.002 n=6)
-    MulAddVWW/100       83.46n ± 0%   66.95n ±  0%  -19.78% (p=0.002 n=6)
-    MulAddVWW/1000      856.0n ± 0%   681.6n ±  0%  -20.38% (p=0.002 n=6)
-    MulAddVWW/10000     8.589µ ± 1%   6.774µ ±  0%  -21.14% (p=0.002 n=6)
-    MulAddVWW/100000    86.22µ ± 0%   67.71µ ± 43%  -21.48% (p=0.065 n=6)
-    geomean             73.34n        63.62n        -13.26%
+    Fix this problem on most systems by introducing an fd sequence field
+    and using that as a tag in a taggedPointer. The taggedPointer is
+    stored in epoll or kqueue or whatever is being used. If the taggedPointer
+    returned by the kernel has a tag that does not match the fd
+    sequence field, the notification is for a closed file, and we
+    can ignore it. We check the tag stored in the pollDesc, and we also
+    check the tag stored in the pollDesc.atomicInfo.
     
+    This approach does not work on 32-bit systems where the kernel
+    only provides a 32-bit field to hold a user value. On those systems
+    we continue to use the older method without the sequence protection.
+    This is not ideal, but it is not an issue on Linux because the kernel
+    provides a 64-bit field, and it is not an issue on Windows because
+    there are no poller errors on Windows. It is potentially an issue
+    on *BSD systems, but on those systems we already call fstat in newFile
+    in os/file_unix.go to avoid adding non-pollable files to kqueue.
+    So we currently don't know of any cases that will fail.
     
-    Change-Id: I95d6ac49ff6b64aa678e6896f57af9d85c923aad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/579235
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #59545
+    
+    Change-Id: I9a61e20dc39b4266a7a2978fc16446567fe683ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484837
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Orlando Labao <orlando.labao43@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/arith_ppc64x.s | 21 +++++++--------------
- 1 file changed, 7 insertions(+), 14 deletions(-)
+ src/os/fifo_test.go            | 96 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/netpoll.go         | 39 ++++++++++++++---
+ src/runtime/netpoll_aix.go     |  5 ++-
+ src/runtime/netpoll_epoll.go   | 13 ++++--
+ src/runtime/netpoll_kqueue.go  | 31 ++++++++++++--
+ src/runtime/netpoll_solaris.go | 20 +++++++--
+ src/runtime/netpoll_windows.go |  1 +
+ 7 files changed, 189 insertions(+), 16 deletions(-)

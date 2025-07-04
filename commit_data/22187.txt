@@ -1,18 +1,12 @@
-commit 222f371118754382145735186fe3aedfca16d5f4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 24 17:31:31 2015 -0700
+commit 5028f8c98d85032020ec670a4727987ba6d29f32
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Feb 27 07:06:34 2015 -0500
 
-    syscall: regenerate zsyscall_darwin_arm.go
+    cmd/objdump: skip fork test on darwin/arm
     
-    This is mostly straightforward but it does introduce an odd change to
-    Fchflags and adds the Mlock related functions.  These changes look
-    correct to me but I don't know why they weren't in the original file.
-    
-    Change-Id: I1a01e075566d327a78b77e7354c9fb85b6ad1f22
-    Reviewed-on: https://go-review.googlesource.com/8062
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I1d1eb71014381452d1ef368431cb2556245a35ab
+    Reviewed-on: https://go-review.googlesource.com/6250
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/syscall/zsyscall_darwin_arm.go | 109 ++++++++++++++++++++++++++++++++++---
- 1 file changed, 102 insertions(+), 7 deletions(-)
+ src/cmd/objdump/objdump_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

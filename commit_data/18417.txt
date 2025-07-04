@@ -1,14 +1,14 @@
-commit c66956cdb1f3e0c0e692f7d7ea6034b41c85af47
+commit 2b6eb111e2c1f610a2acfa82dcbf4d43acc6dd8e
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Feb 6 17:54:33 2014 -0500
+Date:   Thu Feb 6 16:09:01 2014 -0500
 
-    cmd/go: do not create world-writable files.
-    Fixes #7240.
+    doc/install.html: get rid of explicit version number in docs.
+    So that we don't need to update the file each time a new version is released.
     
-    LGTM=tommi.virtanen, bradfitz
-    R=golang-codereviews, tommi.virtanen, bradfitz
+    LGTM=dave, r, adg
+    R=golang-codereviews, dave, josharian, gobot, adg, r
     CC=golang-codereviews
-    https://golang.org/cl/60480045
+    https://golang.org/cl/48730043
 
- src/cmd/go/build.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ doc/install.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

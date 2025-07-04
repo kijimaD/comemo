@@ -1,19 +1,21 @@
-commit f5371581c73f2153bb7e7c85648896ff8bdce845
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Apr 3 14:25:58 2023 +0000
+commit 7dd988456247c66f2ae62a82e8d8fa0d843710d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 5 17:04:52 2022 -0700
 
-    Revert "cmd/compile: allow more inlining of functions that construct closures"
+    sync/atomic: don't run 64-bit uintptr tests on 32-bit systems
     
-    This reverts commit http://go.dev/cl//479095
+    The tests don't work on big-endian systems. This change handles more
+    of the tests added in CL 381317 like the other existing tests.
     
-    Reason for revert: causes failures in google-internal testing
+    Fixes #52723
     
-    Change-Id: If1018b35be0b8627e2959f116179ada24d44d67c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481637
+    Change-Id: Ie9e048e75dbe0b5aca61b51cd0c50d7d878ff6d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404495
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 11 ++++++-----
- test/closure3.dir/main.go              | 26 +++++++++++---------------
- 2 files changed, 17 insertions(+), 20 deletions(-)
+ src/sync/atomic/atomic_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

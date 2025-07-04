@@ -1,16 +1,19 @@
-commit 59c63c711c73f3872c3047c2e80debba5ff1b802
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 3 13:31:07 2016 -0700
+commit 395f6ebaf9fd2954f5db3da4c7ad2817b0aa7252
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Jun 17 16:09:15 2016 -0400
 
-    go/printer: support for printing alias declarations
+    CONTRIBUTORS: add people who contributed to s390x port (IBM CLA)
     
-    For #16339.
+    Add Bill O'Farrell (corporate CLA for IBM)
+    Add Karan Dhiman (corporate CLA for IBM)
+    Add Sam Ding (corporate CLA for IBM)
+    Add Tristan Amini (corporate CLA for IBM)
+    Add Yu Heng Zhang (corporate CLA for IBM)
+    Add Yu Xuan Zhang (corporate CLA for IBM)
     
-    Change-Id: Ie2e3338b87e84f45cda0868213bbcd2dae9ab6e3
-    Reviewed-on: https://go-review.googlesource.com/30212
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9ab15e33954afc2c208fc2e420a72c5a4d865f9b
+    Reviewed-on: https://go-review.googlesource.com/24350
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/printer/nodes.go                     | 66 ++++++++++++++++++++++++++---
- src/go/printer/testdata/declarations.golden | 46 ++++++++++++++++++++
- src/go/printer/testdata/declarations.input  | 46 ++++++++++++++++++++
- 3 files changed, 151 insertions(+), 7 deletions(-)
+ CONTRIBUTORS | 6 ++++++
+ 1 file changed, 6 insertions(+)

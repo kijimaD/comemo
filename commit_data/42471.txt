@@ -1,14 +1,19 @@
-commit 890707f88b75e7bef51f57ba37afd709502c4e80
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Fri Jun 5 18:05:39 2020 +0200
+commit 8cc2b73a7439e303d015e53176575e649ace68bf
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 18:49:27 2019 -0500
 
-    doc/go1.15: add release notes for io/ioutil
+    cmd/go: convert TestPluginNonMain to script framework
     
-    For #37419.
+    TestPluginNonMain was broken before this change! (It provided the
+    wrong directory for testdep/p2: testdata/testdep/p2 instead of
+    testdata/src/testdep/p2).
     
-    Change-Id: I6c7a7e9c91f7691a6ba2a7ac4dad92c64b48962f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236658
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ib815f119bae1d758b500cd8ad82c016cb630d71e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212938
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.15.html | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go                                | 14 --------------
+ src/cmd/go/testdata/script/build_plugin_non_main.txt | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 14 deletions(-)

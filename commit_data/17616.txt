@@ -1,12 +1,19 @@
-commit 92dfbd3611bde7432ea7a58f17e248b8fa7224e0
+commit 647eaed93b2aba07d4d4d032d5f58bf6dbc06e5a
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 16 14:21:54 2013 -0400
+Date:   Mon Sep 16 14:04:55 2013 -0400
 
-    cmd/cgo: fix build (missing file from earlier CL)
+    cmd/cgo: allow C.malloc(0) always
     
-    TBR=golang-dev
+    Because we can, and because it otherwise might crash
+    the program if we think we're out of memory.
+    
+    Fixes #6390.
+    
+    R=golang-dev, iant, minux.ma
     CC=golang-dev
-    https://golang.org/cl/13700045
+    https://golang.org/cl/13345048
 
- misc/cgo/test/issue6390.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ misc/cgo/test/cgo_test.go      | 1 +
+ src/cmd/cgo/out.go             | 2 ++
+ src/pkg/runtime/cgo/gcc_util.c | 2 ++
+ 3 files changed, 5 insertions(+)

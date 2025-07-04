@@ -1,12 +1,14 @@
-commit 7f0821805098ce7d7d58c6bf6c54d1a86b905ca9
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Nov 26 22:14:43 2012 +0400
+commit 7c295f3f0c0dbed86698699f499c5ad08c3b055b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Nov 27 01:46:54 2012 +0800
 
-    cnd/gc: fix build
+    cmd/gc: fix invalid indirect error at statement level
+    Fixes #4429.
     
-    R=golang-dev
+    R=golang-dev, remyoudompheng, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/6856097
+    https://golang.org/cl/6850097
 
- src/cmd/gc/racewalk.c | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/gc/typecheck.c      |  2 +-
+ test/fixedbugs/issue4429.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

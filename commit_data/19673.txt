@@ -1,25 +1,28 @@
-commit a31eeef7fff2a08306c622b8d16f1697b86eb249
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jul 7 17:10:33 2014 -0700
+commit 7b0ee5342919908e1a6b91d7c92a530ef45f5824
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 7 16:07:24 2014 -0700
 
-    undo CL 101670044 / 49a6cbd80cf2
+    cmd/ld: fix off-by-one in DWARF frame tables
+    The code generating the .debug_frame section emits pairs of "advance PC",
+    "set SP offset" pseudo-instructions. Before the fix, the PC advance comes
+    out before the SP setting, which means the emitted offset for a block is
+    actually the value at the end of the block, which is incorrect for the
+    block itself.
     
-    Broke build; missing deps_test change. Will re-send the original with the appropriate fix.
+    The easiest way to fix this problem is to emit the SP offset before the
+    PC advance.
     
-    ««« original CL description
-    net/rpc: use html/template to render html
+    One delicate point: the last instruction to come out is now an
+    "advance PC", which means that if there are padding intsructions after
+    the final RET, they will appear to have a non-zero offset. This is odd
+    but harmless because there is no legal way to have a PC in that range,
+    or to put it another way, if you get here the SP is certainly screwed up
+    so getting the wrong (virtual) frame pointer is the least of your worries.
     
-    Found using the vet check in CL 106370045.
-    
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=iant
+    R=rsc, iant, lvd
     CC=golang-codereviews
-    https://golang.org/cl/101670044
-    »»»
-    
-    TBR=r
-    CC=golang-codereviews
-    https://golang.org/cl/110880044
+    https://golang.org/cl/112750043
 
- src/pkg/net/rpc/debug.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/ld/dwarf.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

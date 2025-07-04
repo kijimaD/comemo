@@ -1,18 +1,30 @@
-commit 69f0d4c6bebc775cfbc50e9562b5533ba86b90c9
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 29 13:03:11 2015 -0400
+commit 65518032b946bbb640cf1e3d5e66f537642503ed
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 25 13:59:08 2015 +1200
 
-    cmd/link: detect -X setting non-string variable
+    cmd/link/internal/ld: put abi hash into a note
     
-    Fixes #9621.
+    This makes for a more stable API for tools (including cmd/link itself) to
+    extract the abi hash from a shared library and makes it possible at all for a
+    library that has had the local symbol table removed.
     
-    Change-Id: Ib9c6001378364af899f57fd4b89fb23af2042923
-    Reviewed-on: https://go-review.googlesource.com/11694
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    The existing note-writing code only supports writing notes into the very start
+    of the object file so they are easy to find in core dumps. This doesn't apply
+    to the "go" notes and means that all notes have to fit into a fixed size
+    budget. That's annoying now we have more notes (and the next CL will add
+    another one) so this does a little bit of work to make adding notes that do not
+    have to go at the start of the file easier and moves the writing of the package
+    list note over to that mechanism, which lets me revert a hack that increased
+    the size budget mentioned above for -buildmode=shared builds.
+    
+    Change-Id: I6077a68d395c8a2bc43dec8506e73c71ef77d9b9
+    Reviewed-on: https://go-review.googlesource.com/10375
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/data.go | 14 ++++++++++++++
- src/cmd/link/internal/ld/pobj.go |  1 +
- test/linkx.go                    |  3 +++
- test/linkx_run.go                | 18 ++++++++++++++++++
- 4 files changed, 36 insertions(+)
+ misc/cgo/testshared/shared_test.go | 176 +++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/amd64/obj.go |   8 --
+ src/cmd/link/internal/ld/data.go   |   7 ++
+ src/cmd/link/internal/ld/elf.go    | 112 +++++++++++++++--------
+ src/cmd/link/internal/ld/lib.go    |  65 ++++++++++++--
+ src/cmd/link/internal/ld/symtab.go |  12 +--
+ 6 files changed, 322 insertions(+), 58 deletions(-)

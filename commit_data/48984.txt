@@ -1,35 +1,41 @@
-commit b4d81147d8dc26c8f7d6822b6249311d569af1de
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Mar 30 22:10:49 2022 +0000
+commit a18726a648df48917e0ed1404cf6cdbc81acd495
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 1 15:23:41 2021 -0700
 
-    runtime: make the scavenger and allocator respect the memory limit
+    [dev.typeparams] cmd/compile: incremental typecheck during unified IR
     
-    This change does everything necessary to make the memory allocator and
-    the scavenger respect the memory limit. In particular, it:
+    This CL changes unified IR to incrementally typecheck the IR as it's
+    constructed. This is significant, because it means reader can now use
+    typecheck.Expr to typecheck sub-expressions when it's needed. This
+    should be helpful for construction and insertion of dictionaries.
     
-    - Adds a second goal for the background scavenge that's based on the
-      memory limit, setting a target 5% below the limit to make sure it's
-      working hard when the application is close to it.
-    - Makes span allocation assist the scavenger if the next allocation is
-      about to put total memory use above the memory limit.
-    - Measures any scavenge assist time and adds it to GC assist time for
-      the sake of GC CPU limiting, to avoid a death spiral as a result of
-      scavenging too much.
+    This CL does introduce two quirks outside of unified IR itself,
+    which simplify preserving binary output:
     
-    All of these changes have a relatively small impact, but each is
-    intimately related and thus benefit from being done together.
+    1. Top-level declarations are sorted after they're constructed, to
+    avoid worrying about the order that closures are added.
     
-    For #48409.
+    2. Zero-padding autotmp_N variable names. Interleaving typechecking
+    means autotmp variables are sometimes named differently (since their
+    naming depends on the number of variables declared so far), and this
+    ensures that code that sorts variables by names doesn't suddenly sort
+    autotmp_8/autotmp_9 differently than it would have sorted
+    autotmp_9/autotmp_10.
     
-    Change-Id: I35517a752f74dd12a151dd620f102c77e095d3e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397017
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    While at it, this CL also updated reader to use ir.WithFunc instead of
+    manually setting and restoring ir.CurFunc. There's now only one
+    remaining direct use of ir.CurFunc.
+    
+    Change-Id: I6233b4c059596e471c53166f94750917d710462f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332469
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/mgcmark.go     |   2 +-
- src/runtime/mgcpacer.go    |   2 +-
- src/runtime/mgcscavenge.go | 107 ++++++++++++++++++++++++++++++++++++---------
- src/runtime/mheap.go       |  82 ++++++++++++++++++++++------------
- src/runtime/mpagealloc.go  |   7 +++
- 5 files changed, 151 insertions(+), 49 deletions(-)
+ src/cmd/compile/internal/gc/main.go            |  15 ++++
+ src/cmd/compile/internal/noder/reader.go       | 100 ++++++++++++++++---------
+ src/cmd/compile/internal/noder/unified.go      |  17 -----
+ src/cmd/compile/internal/noder/unified_test.go |   2 +-
+ src/cmd/compile/internal/typecheck/dcl.go      |  11 ++-
+ 5 files changed, 92 insertions(+), 53 deletions(-)

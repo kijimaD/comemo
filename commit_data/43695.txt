@@ -1,28 +1,19 @@
-commit 5ca43acdb3e27117e6994141e518b8d55e4d32aa
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 2 03:58:08 2020 +1100
+commit f6b30e53bbb026ce1d0aeddd112a8bdb0cd836c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 20 16:30:43 2020 -0700
 
-    runtime: allow physical page aligned stacks to be allocated
+    reflect: return user-visible method name in panic string
     
-    Add a physPageAlignedStack boolean which if set, results in over allocation
-    by a physical page, the allocation being rounded to physical page alignment
-    and the unused memory surrounding the allocation being freed again.
+    This was accidentally broken in CL 166462, which introduce another
+    function in the panicking path without adjusting the argument to
+    runtime.Caller.
     
-    OpenBSD/octeon has 16KB physical pages and requires stacks to be physical page
-    aligned in order for them to be remapped as MAP_STACK. This change allows Go
-    to work on this platform.
-    
-    Based on a suggestion from mknyszek in issue #41008.
-    
-    Updates #40995
-    Fixes #41008
-    
-    Change-Id: Ia5d652292b515916db473043b41f6030094461d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266919
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ib6f9ed8673fefd458c7a4e3a918c45c5b31ca552
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229082
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mheap.go | 36 +++++++++++++++++++++++++++++++++++-
- 1 file changed, 35 insertions(+), 1 deletion(-)
+ src/reflect/all_test.go | 203 ++++++++++++++++++++++++++----------------------
+ src/reflect/value.go    |  21 +++--
+ 2 files changed, 127 insertions(+), 97 deletions(-)

@@ -1,16 +1,24 @@
-commit 59cb2d9ca67ec4be6eb118a7faa8139eedadba80
-Author: Guobiao Mei <meiguobiao@gmail.com>
-Date:   Tue Dec 23 10:47:12 2014 -0500
+commit 18ed947ee17be6bbd9d169256ad9382611eb3eb1
+Author: Rick Hudson <rlh@golang.org>
+Date:   Wed Nov 12 14:20:53 2014 -0500
 
-    math/rand: fix example_test to show with the correct method
+    [dev.garbage] runtime: Add write barriers to c code
+    Also improve missing GC mark diagnostics.
     
-    Originally it used r.Int63() to show "Uint32", and now we use the correct r.Uint32() method.
-    
-    Fixes #9429
-    
-    Change-Id: I8a1228f1ca1af93b0e3104676fc99000257c456f
-    Reviewed-on: https://go-review.googlesource.com/2069
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169450043
 
- src/math/rand/example_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mgc0.c         | 21 +++++++++++++++++++--
+ src/runtime/os_darwin.c    |  3 +++
+ src/runtime/os_dragonfly.c |  3 +++
+ src/runtime/os_freebsd.c   |  3 +++
+ src/runtime/os_linux.c     |  3 +++
+ src/runtime/os_nacl.c      |  3 +++
+ src/runtime/os_netbsd.c    |  3 +++
+ src/runtime/os_openbsd.c   |  3 +++
+ src/runtime/os_plan9.c     |  6 ++++++
+ src/runtime/os_solaris.c   |  3 +++
+ src/runtime/proc.c         |  2 ++
+ 11 files changed, 51 insertions(+), 2 deletions(-)

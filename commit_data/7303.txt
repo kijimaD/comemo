@@ -1,38 +1,14 @@
-commit e308d5597327cdc76872a7ccfd8a79b8a4b71232
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Feb 1 11:02:48 2011 -0500
+commit 400ea843c69350275474b607aa8b45c1cc403d81
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 1 08:46:21 2011 -0500
 
-    crypto: add package.
+    syscall: add network interface constants for freebsd/386, freebsd/amd64
     
-    The crypto package is added as a common place to store identifiers for
-    hash functions. At the moment, the rsa package has an enumeration of
-    hash functions and knowledge of their digest lengths. This is an
-    unfortunate coupling and other high level crypto packages tend to need
-    to duplicate this enumeration and knowledge (i.e. openpgp).
-    
-    crypto pulls this code out into a common location.
-    
-    It would also make sense to add similar support for ciphers to crypto,
-    but the problem there isn't as acute that isn't done in this change.
-    
-    R=bradfitzgo, r, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4080046
+    https://golang.org/cl/4105046
 
- src/pkg/Makefile                       |  2 +
- src/pkg/crypto/Makefile                | 11 +++++
- src/pkg/crypto/crypto.go               | 73 ++++++++++++++++++++++++++++++++++
- src/pkg/crypto/md4/md4.go              |  5 +++
- src/pkg/crypto/md5/md5.go              |  5 +++
- src/pkg/crypto/ocsp/ocsp.go            |  7 ++--
- src/pkg/crypto/ripemd160/ripemd160.go  |  5 +++
- src/pkg/crypto/rsa/pkcs1v15.go         | 65 ++++++++----------------------
- src/pkg/crypto/rsa/pkcs1v15_test.go    |  5 ++-
- src/pkg/crypto/sha1/sha1.go            |  5 +++
- src/pkg/crypto/sha256/sha256.go        |  6 +++
- src/pkg/crypto/sha512/sha512.go        |  6 +++
- src/pkg/crypto/tls/handshake_client.go |  3 +-
- src/pkg/crypto/tls/handshake_server.go |  3 +-
- src/pkg/crypto/tls/key_agreement.go    |  5 ++-
- src/pkg/crypto/x509/x509.go            |  7 ++--
- 16 files changed, 153 insertions(+), 60 deletions(-)
+ src/pkg/syscall/mkerrors.sh              |   7 ++
+ src/pkg/syscall/zerrors_freebsd_386.go   | 151 ++++++++++++++++++++++++++++++-
+ src/pkg/syscall/zerrors_freebsd_amd64.go | 142 ++++++++++++++++++++++++++++-
+ 3 files changed, 294 insertions(+), 6 deletions(-)

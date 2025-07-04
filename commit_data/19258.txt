@@ -1,14 +1,14 @@
-commit ace8bc35efa7fffb2a9cc751a9bc5097853e0b48
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Apr 30 23:26:07 2014 +0900
+commit 74dccea2f270d31d94e6cd27111d6b04c64db51c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 29 15:54:37 2014 -0400
 
-    net: enable builtin dns resolver tests on solaris
+    doc/go1.3.html: update for FreeBSD/ARM support.
+    FreeBSD 10 is fully supported.
     
-    LGTM=aram
-    R=golang-codereviews, aram
-    CC=golang-codereviews
-    https://golang.org/cl/99890045
+    LGTM=r
+    R=golang-codereviews, bradfitz, r
+    CC=dave, golang-codereviews
+    https://golang.org/cl/99810044
 
- src/pkg/net/dnsclient_unix_test.go | 2 +-
- src/pkg/net/dnsconfig_unix_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.3.html | 5 +++++
+ 1 file changed, 5 insertions(+)

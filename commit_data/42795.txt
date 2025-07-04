@@ -1,20 +1,20 @@
-commit 4e4d5df0b0af23d2fcb5690e89f27bd7e64e48f1
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Thu May 7 18:08:35 2020 +0800
+commit 06fa4c9589d5fec17cb507c471d57d6338afae74
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 20 00:30:48 2020 +0000
 
-    cmd/compile: complete adjust MIPS64x rewrite rules to use typed aux fields
+    Revert "cmd/go: convert TestShadowingLogic to the script framework"
     
-    Follow CL 228937
-    All MIPS64x rewrite rules has been converted into =>.
+    This reverts commit 8fa2b6dcde6008c107c097e44eb0ee94a2a8af3d.
     
-    toolstash-check passed for b1b67841d1..f2ad426737
+    Reason for revert: broke the build
     
-    Change-Id: I7eb7541ae1b86a005770003b61c555672660d2e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230778
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iae703b1b3dad6b363f57541641357eabca45e9e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220217
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/MIPS64.rules | 174 +++---
- src/cmd/compile/internal/ssa/rewriteMIPS64.go | 804 ++++++++++++++------------
- 2 files changed, 525 insertions(+), 453 deletions(-)
+ src/cmd/go/go_test.go                             | 45 +++++++++++++++++++++++
+ src/cmd/go/testdata/script/list_shadow.txt        | 25 -------------
+ src/cmd/go/testdata/shadow/root1/src/foo/foo.go   |  1 +
+ src/cmd/go/testdata/shadow/root1/src/math/math.go |  1 +
+ src/cmd/go/testdata/shadow/root2/src/foo/foo.go   |  1 +
+ 5 files changed, 48 insertions(+), 25 deletions(-)

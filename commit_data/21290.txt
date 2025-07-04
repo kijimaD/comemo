@@ -1,21 +1,17 @@
-commit e9ce76b0eca8fa95dddb90b0a72aadab58de2ffc
-Author: Bill Thiede <couchmoney@gmail.com>
-Date:   Sat Jan 17 21:09:15 2015 -0800
+commit 1965b035844b3e8e8b9dd3c21a113345c7eee8b1
+Author: Ben Burkert <ben@benburkert.com>
+Date:   Thu Dec 18 10:17:54 2014 -0800
 
-    runtime, syscall: use SYSCALL instruction on FreeBSD.
+    crypto/tls: enable TLS_FALLBACK_SCSV in server with default max version
     
-    This manually reverts 555da73 from #6372 which implies a
-    minimum FreeBSD version of 8-STABLE.
-    Updates docs to mention new minimum requirement.
+    Fix TLS_FALLBACK_SCSV check when comparing the client version to the
+    default max version. This enables the TLS_FALLBACK_SCSV check by default
+    in servers that do not explicitly set a max version in the tls config.
     
-    Fixes #9627
-    
-    Change-Id: I40ae64be3682d79dd55024e32581e3e5e2be8aa7
-    Reviewed-on: https://go-review.googlesource.com/3020
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5a51f9da6d71b79bc6c2ba45032be51d0f704b5e
+    Reviewed-on: https://go-review.googlesource.com/1776
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- doc/install.html                |  9 +++++----
- src/runtime/sys_freebsd_amd64.s | 25 -------------------------
- src/syscall/asm_freebsd_amd64.s |  5 -----
- 3 files changed, 5 insertions(+), 34 deletions(-)
+ src/crypto/tls/handshake_server.go      | 2 +-
+ src/crypto/tls/handshake_server_test.go | 6 +++++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

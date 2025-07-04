@@ -1,27 +1,22 @@
-commit 074547a5ce60c70f450e5e624c9f5d8f9a3e1295
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed Aug 30 08:20:43 2017 +0000
+commit 6e9b6e1d222a4f8ad3d50929ee1d6178fb3c6077
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed May 3 10:00:38 2017 +0200
 
-    cmd/internal/obj/arm: support more ARM VFP instructions
+    vendor/golang_org/x/crypto/chacha20poly1305: revendor
     
-    Add support of more ARM VFP instructions in the assembler.
-    They were introduced in ARM VFPv2.
+    Brings in chacha20poly1305 directory from golang.org/x/crypto revision
+    12e9ca725de4806fbda1610fd95aacad15bd6810, adding:
     
-    "NMULF/NMULD   Fm, Fn, Fd": Fd = -Fn*Fm
-    "MULAF/MULAD   Fm, Fn, Fd": Fd = Fd + Fn*Fm
-    "NMULAF/NMULAD Fm, Fn, Fd": Fd = -(Fd + Fn*Fm)
-    "MULSF/MULSD   Fm, Fn, Fd": Fd = Fd - Fn*Fm
-    "NMULSF/NMULSD Fm, Fn, Fd": Fd = -(Fd - Fn*Fm)
+    CL 41862: chacha20poly1305: add runtime internal independent cpu feature detection
+    CL 39952: add import comment
     
-    Change-Id: Icd302676ca44a9f5f153fce734225299403c4163
-    Reviewed-on: https://go-review.googlesource.com/60170
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic46ff24b081bc1c66b6317334d33180e33bfd318
+    Reviewed-on: https://go-review.googlesource.com/42513
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/testdata/armerror.s |  8 ++++++
- src/cmd/asm/internal/asm/testdata/armv6.s    | 12 +++++++++
- src/cmd/internal/obj/arm/a.out.go            | 10 ++++++++
- src/cmd/internal/obj/arm/anames.go           | 10 ++++++++
- src/cmd/internal/obj/arm/asm5.go             | 37 +++++++++++++++++++++++++++-
- 5 files changed, 76 insertions(+), 1 deletion(-)
+ .../x/crypto/chacha20poly1305/chacha20poly1305.go  |  2 +-
+ .../chacha20poly1305/chacha20poly1305_amd64.go     | 59 +++++++++++++++++++---
+ .../chacha20poly1305/chacha20poly1305_amd64.s      | 45 +++++++----------
+ 3 files changed, 73 insertions(+), 33 deletions(-)

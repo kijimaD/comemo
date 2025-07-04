@@ -1,31 +1,32 @@
-commit 6d0bf438e302afcb0db5422ea2da59d1995e08c1
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Nov 9 17:49:44 2022 -0800
+commit 3d3f5d912b776424e50be276bc3a4ae02bf8d143
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 10 17:29:21 2022 -0800
 
-    path/filepath: add IsLocal
+    go/types, types2: do not run CTI before FTI
     
-    IsLocal reports whether a path lexically refers to a location
-    contained within the directory in which it is evaluated.
-    It identifies paths that are absolute, escape a directory
-    with ".." elements, and (on Windows) paths that reference
-    reserved device names.
+    Until now, CTI (constraint type inference) was run before
+    FTI (function type inference). This lead to situations
+    where CTI infered a type that is missing necessary methods
+    even though a function argument of correct type was given.
+    This can happen when constraint type inference produces a
+    inferred type that is the structural type of multiple types,
+    which then is an underlying type, possibly without methods.
     
-    For #56219.
+    This CL removes the initial CTI step; it is only applied
+    after FTI with type arguments is run, and again after FTI
+    with untyped arguments is run.
     
-    Change-Id: I35edfa3ce77b40b8e66f1fc8e0ff73cfd06f2313
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449239
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Various comments are adjusted to reflect the new reality.
+    
+    Fixes #50426.
+    
+    Change-Id: I700ae6e762d7aa00d742943a2880f1a1db33c2b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377594
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- api/next/56219.txt                |  1 +
- doc/go1.20.html                   |  7 ++++
- src/path/filepath/path.go         | 40 +++++++++++++++++++++++
- src/path/filepath/path_plan9.go   |  4 +++
- src/path/filepath/path_test.go    | 54 +++++++++++++++++++++++++++++++
- src/path/filepath/path_unix.go    |  4 +++
- src/path/filepath/path_windows.go | 67 +++++++++++++++++++++++++++++++++++++++
- 7 files changed, 177 insertions(+)
+ src/cmd/compile/internal/types2/infer.go           | 34 ++++++-----------
+ .../types2/testdata/fixedbugs/issue50426.go2       | 44 ++++++++++++++++++++++
+ src/go/types/infer.go                              | 34 ++++++-----------
+ src/go/types/testdata/fixedbugs/issue50426.go2     | 44 ++++++++++++++++++++++
+ 4 files changed, 112 insertions(+), 44 deletions(-)

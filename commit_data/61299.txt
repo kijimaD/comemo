@@ -1,0 +1,22 @@
+commit ba1caa8b3051bc13bc353840946b404a13575410
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Oct 2 21:25:31 2024 +0200
+
+    crypto/internal/fips/sha3: test alternative s390x implementation
+    
+    The amd64 assembly is always-on, so we don't need to test disabling it.
+    
+    Fixes #36466
+    For #69536
+    
+    Change-Id: I2cd4befcde688a1ba202e61c7119e15454ff6854
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617535
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/fips/sha3/sha3_s390x.go | 15 ++++--
+ src/crypto/internal/fips/sha3/sha3_test.go  | 75 ++++++++++++++++++++++-------
+ 2 files changed, 69 insertions(+), 21 deletions(-)

@@ -1,22 +1,87 @@
-commit 646939c0e3b68c24908692696356a0b048a6ba69
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 3 18:26:36 2016 -0800
+commit 87d939dee835fa6eef62b00ecf3e6283a2e4f66a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 11 17:49:14 2015 -0500
 
-    cmd/compile: re-vendor math/big to pick up bug fix
+    runtime: fix (sometimes major) underestimation of heap_live
     
-    The changes to internal/big are completely automatic
-    by running vendor.bash in that directory.
+    Currently, we update memstats.heap_live from mcache.local_cachealloc
+    whenever we lock the heap (e.g., to obtain a fresh span or to release
+    an unused span). However, under the right circumstances,
+    local_cachealloc can accumulate allocations up to the size of
+    the *entire heap* without flushing them to heap_live. Specifically,
+    since span allocations from an mcentral don't lock the heap, if a
+    large number of pages are held in an mcentral and the application
+    continues to use and free objects of that size class (e.g., the
+    BinaryTree17 benchmark), local_cachealloc won't be flushed until the
+    mcentral runs out of spans.
     
-    Also added respective test case.
+    This is a problem because, unlike many of the memory statistics that
+    are purely informative, heap_live is used to determine when the
+    garbage collector should start and how hard it should work.
     
-    For #14553.
+    This commit eliminates local_cachealloc, instead atomically updating
+    heap_live directly. To control contention, we do this only when
+    obtaining a span from an mcentral. Furthermore, we make heap_live
+    conservative: allocating a span assumes that all free slots in that
+    span will be used and accounts for these when the span is
+    allocated, *before* the objects themselves are. This is important
+    because 1) this triggers the GC earlier than necessary rather than
+    potentially too late and 2) this leads to a conservative GC rate
+    rather than a GC rate that is potentially too low.
     
-    Change-Id: I98b124bcc9ad9e9bd987943719be27864423cb5d
-    Reviewed-on: https://go-review.googlesource.com/20199
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Alternatively, we could have flushed local_cachealloc when it passed
+    some threshold, but this would require determining a threshold and
+    would cause heap_live to underestimate the true value rather than
+    overestimate.
+    
+    Fixes #12199.
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.88s ± 4%     2.88s ± 1%    ~     (p=0.470 n=19+19)
+    Fannkuch11-12                2.48s ± 1%     2.48s ± 1%    ~     (p=0.243 n=16+19)
+    FmtFprintfEmpty-12          50.9ns ± 2%    50.7ns ± 1%    ~     (p=0.238 n=15+14)
+    FmtFprintfString-12          175ns ± 1%     171ns ± 1%  -2.48%  (p=0.000 n=18+18)
+    FmtFprintfInt-12             159ns ± 1%     158ns ± 1%  -0.78%  (p=0.000 n=19+18)
+    FmtFprintfIntInt-12          270ns ± 1%     265ns ± 2%  -1.67%  (p=0.000 n=18+18)
+    FmtFprintfPrefixedInt-12     235ns ± 1%     234ns ± 0%    ~     (p=0.362 n=18+19)
+    FmtFprintfFloat-12           309ns ± 1%     308ns ± 1%  -0.41%  (p=0.001 n=18+19)
+    FmtManyArgs-12              1.10µs ± 1%    1.08µs ± 0%  -1.96%  (p=0.000 n=19+18)
+    GobDecode-12                7.81ms ± 1%    7.80ms ± 1%    ~     (p=0.425 n=18+19)
+    GobEncode-12                6.53ms ± 1%    6.53ms ± 1%    ~     (p=0.817 n=19+19)
+    Gzip-12                      312ms ± 1%     312ms ± 2%    ~     (p=0.967 n=19+20)
+    Gunzip-12                   42.0ms ± 1%    41.9ms ± 1%    ~     (p=0.172 n=19+19)
+    HTTPClientServer-12         63.7µs ± 1%    63.8µs ± 1%    ~     (p=0.639 n=19+19)
+    JSONEncode-12               16.4ms ± 1%    16.4ms ± 1%    ~     (p=0.954 n=19+19)
+    JSONDecode-12               58.5ms ± 1%    57.8ms ± 1%  -1.27%  (p=0.000 n=18+19)
+    Mandelbrot200-12            3.86ms ± 1%    3.88ms ± 0%  +0.44%  (p=0.000 n=18+18)
+    GoParse-12                  3.67ms ± 2%    3.66ms ± 1%  -0.52%  (p=0.001 n=18+19)
+    RegexpMatchEasy0_32-12       100ns ± 1%     100ns ± 0%    ~     (p=0.257 n=19+18)
+    RegexpMatchEasy0_1K-12       347ns ± 1%     347ns ± 1%    ~     (p=0.527 n=18+18)
+    RegexpMatchEasy1_32-12      83.7ns ± 2%    83.1ns ± 2%    ~     (p=0.096 n=18+19)
+    RegexpMatchEasy1_1K-12       509ns ± 1%     505ns ± 1%  -0.75%  (p=0.000 n=18+19)
+    RegexpMatchMedium_32-12      130ns ± 2%     129ns ± 1%    ~     (p=0.962 n=20+20)
+    RegexpMatchMedium_1K-12     39.5µs ± 2%    39.4µs ± 1%    ~     (p=0.376 n=20+19)
+    RegexpMatchHard_32-12       2.04µs ± 0%    2.04µs ± 1%    ~     (p=0.195 n=18+17)
+    RegexpMatchHard_1K-12       61.4µs ± 1%    61.4µs ± 1%    ~     (p=0.885 n=19+19)
+    Revcomp-12                   540ms ± 2%     542ms ± 4%    ~     (p=0.552 n=19+17)
+    Template-12                 69.6ms ± 1%    71.2ms ± 1%  +2.39%  (p=0.000 n=20+20)
+    TimeParse-12                 357ns ± 1%     357ns ± 1%    ~     (p=0.883 n=18+20)
+    TimeFormat-12                379ns ± 1%     362ns ± 1%  -4.53%  (p=0.000 n=18+19)
+    [Geo mean]                  62.0µs         61.8µs       -0.44%
+    
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  5.89ms ± 2%  5.81ms ± 2%  -1.41%  (p=0.000 n=19+18)
+    
+    Change-Id: I96b31cca6ae77c30693a891cff3fe663fa2447a0
+    Reviewed-on: https://go-review.googlesource.com/17748
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/big/float.go      | 26 ++++++++++-------
- src/cmd/compile/internal/big/float_test.go | 47 ++++++++++++++++++++++++++++++
- src/cmd/compile/internal/big/floatconv.go  |  2 +-
- test/fixedbugs/issue14553.go               | 42 ++++++++++++++++++++++++++
- 4 files changed, 105 insertions(+), 12 deletions(-)
+ src/runtime/malloc.go   |  1 -
+ src/runtime/mcache.go   |  5 ++---
+ src/runtime/mcentral.go | 12 ++++++++++++
+ src/runtime/mgc.go      |  9 ++++++++-
+ src/runtime/mheap.go    | 10 ++--------
+ src/runtime/mstats.go   | 31 +++++++++++++++++++++++--------
+ 6 files changed, 47 insertions(+), 21 deletions(-)

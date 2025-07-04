@@ -1,21 +1,24 @@
-commit 40d356e9ab116fbf0f44b5b562ceb787f69fdc09
+commit b4f3533c92dc59f22bbddbc5b73a1575ce6f7f8b
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 19 16:31:52 2013 -0400
+Date:   Tue Mar 19 15:45:42 2013 -0400
 
-    cmd/ld: generate relocated DWARF in hostobj mode
+    cmd/ld: replace -hostobj with -linkmode
     
-    While we're here, downgrade DWARF to version 2.
-    We're not using any version 3 features, and OS X gdb
-    only supports version 2.
+    Still disabled. Need to fix TLS.
     
-    Fixes #3436.
-    
-    R=golang-dev, minux.ma
+    R=golang-dev, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7891044
+    https://golang.org/cl/7783044
 
- src/cmd/ld/dwarf.c      | 192 ++++++++++++++++++++++++++++++++++++++----------
- src/cmd/ld/dwarf_defs.h |   1 +
- src/cmd/ld/lib.c        |  20 ++++-
- src/cmd/ld/macho.c      |  25 ++++---
- 4 files changed, 184 insertions(+), 54 deletions(-)
+ src/cmd/5l/asm.c  |  2 +-
+ src/cmd/5l/obj.c  |  6 ++++++
+ src/cmd/6l/asm.c  |  4 ++--
+ src/cmd/6l/obj.c  | 30 ++++++++++++++----------------
+ src/cmd/8l/asm.c  |  4 ++--
+ src/cmd/8l/obj.c  | 30 ++++++++++++++----------------
+ src/cmd/ld/data.c |  8 ++++----
+ src/cmd/ld/elf.c  | 18 +++++++++---------
+ src/cmd/ld/go.c   | 25 +++++++++++++++++++------
+ src/cmd/ld/lib.h  |  1 +
+ src/run.bash      |  5 +++--
+ 11 files changed, 75 insertions(+), 58 deletions(-)

@@ -1,20 +1,13 @@
-commit e82c9bd81654dab14f786c26af2dd8ea3a7a1737
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 15 13:49:45 2020 +0200
+commit 601da819160bbb986e6640ab524aa5f6f13cc4f1
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 26 11:59:05 2020 -0500
 
-    os, internal/syscall/unix: use pipe2 instead of pipe on illumos
+    [dev.boringcrypto] misc/boring: make merge.sh and release.sh a little more robust
     
-    Illumos provides the pipe2 syscall. Add a wrapper to
-    internal/syscall/unix and use it to implement os.Pipe.
-    
-    Change-Id: I26ecdbcae1e8d51f80e2bc8a86fb129826387b1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254981
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie5f48a542889be5d5a15c16b6bd8ce19ee0f5bdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221277
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/internal/syscall/unix/pipe2_illumos.go | 34 ++++++++++++++++++++++++++++++
- src/os/pipe2_illumos.go                    | 25 ++++++++++++++++++++++
- src/os/pipe_bsd.go                         |  2 +-
- 3 files changed, 60 insertions(+), 1 deletion(-)
+ misc/boring/merge.sh   | 10 +++++-----
+ misc/boring/release.sh |  4 +++-
+ 2 files changed, 8 insertions(+), 6 deletions(-)

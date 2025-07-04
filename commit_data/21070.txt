@@ -1,17 +1,36 @@
-commit 200e7bf6b13a16452e5add94bb641ed434526e37
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 22 21:18:09 2014 -0500
+commit 9204821731bfdcbef0bd4af0c4d40acde23ec7ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:09:09 2014 -0500
 
-    misc/cgo: fix issue 9400 test on 386
+    [dev.cc] runtime: convert arch-specific .c and .h files to Go
     
-    issue9400_linux.go did not build on 386 because it used a constant
-    that was larger than a 32-bit int in a ... argument.  Fix this by
-    casting the constant to uint64 (to match how the constant is being
-    used).
+    The conversion was done with an automated tool and then
+    modified only as necessary to make it compile and run.
     
-    Change-Id: Ie8cb64c3910382a41c7852be7734a62f0b2d5a21
-    Reviewed-on: https://go-review.googlesource.com/2060
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    vlrt.c was only called from C. Pure delete.
+    
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
+    
+    LGTM=r
+    R=r, austin
+    CC=dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/174860043
 
- misc/cgo/test/issue9400_linux.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/arch1_386.go              |  15 +
+ src/runtime/arch1_amd64.go            |  15 +
+ src/runtime/arch1_arm.go              |  15 +
+ src/runtime/arch_386.h                |  17 -
+ src/runtime/arch_amd64.h              |  25 -
+ src/runtime/arch_arm.h                |  17 -
+ src/runtime/atomic.go                 |  51 --
+ src/runtime/atomic_386.c              |  46 --
+ src/runtime/atomic_386.go             |  91 ++++
+ src/runtime/atomic_amd64x.c           |  29 --
+ src/runtime/atomic_amd64x.go          |  82 +++
+ src/runtime/stubs.go                  |  77 +--
+ src/runtime/sys_arm.c                 |  35 --
+ src/runtime/sys_arm.go                |  35 ++
+ src/runtime/{sys_x86.c => sys_x86.go} |  57 +--
+ src/runtime/vlrt.c                    | 914 ----------------------------------
+ 16 files changed, 298 insertions(+), 1223 deletions(-)

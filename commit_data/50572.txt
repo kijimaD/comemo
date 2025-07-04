@@ -1,27 +1,22 @@
-commit 42a46206b97ca7cf4246d3c1230a70cf42ad5bb0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Sep 9 17:29:12 2022 -0400
+commit 8c8baad927b2fd0bca589bacab658fe0f7eb5dac
+Author: vpachkov <slava.pach@gmail.com>
+Date:   Sun Oct 31 11:06:27 2021 +0000
 
-    cmd/go: omit VCS stamping during bootstrap
+    runtime: check amd64 microarchitecture level at startup
     
-    cmd/dist can't easily hard-code -buildvcs=false because not all
-    versions of cmd/go supported for bootstrapping recognize that flag.
+    Make Go runtime throw if it's been compiled to assume instruction
+    set extensions that aren't available on the CPU.
+    Updates #48506
     
-    However, we don't want to stamp the bootstrap binaries: the stamping
-    is redundant with the VERSION file writted during bootstrapping (which
-    is why it is normally omitted for standard-library packages and
-    commands), and it may also interfere with building the Go repo from a
-    source tarball or zip file.
-    
-    Fixes #54852.
-    
-    Change-Id: If223f094af137c4c202d6bf622619bd2da397ec4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432435
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic4d6696e1cd6b28d389a86fe64e8175ea3ca135a
+    GitHub-Last-Rev: ba338377f549344b416fbd519576e95ce5d523be
+    GitHub-Pull-Request: golang/go#48514
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351191
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Martin Möhrmann <martin@golang.org>
 
- misc/reboot/reboot_test.go      | 24 ++++++++++++++++++++----
- src/cmd/go/internal/load/pkg.go |  6 ++++++
- 2 files changed, 26 insertions(+), 4 deletions(-)
+ src/runtime/asm_amd64.s | 137 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 135 insertions(+), 2 deletions(-)

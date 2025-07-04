@@ -1,0 +1,16 @@
+commit 9d6af4082b4ee0dc912a5cd108581f6eefd778a5
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jan 24 10:38:45 2025 -0800
+
+    crypto/tls: disable additional SSLv2 bogo tests
+    
+    We don't support SSLv2, at all.
+    
+    Change-Id: Icd0579b81393fbd82bf5b4d961470928faa7d09d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644017
+    Reviewed-by: Neal Patel <nealpatel@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/tls/bogo_config.json | 1 +
+ 1 file changed, 1 insertion(+)

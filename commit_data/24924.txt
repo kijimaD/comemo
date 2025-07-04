@@ -1,21 +1,17 @@
-commit 4d39bb6a3a06a7690242559113b7434591e97cbf
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 16 15:31:50 2015 -0500
+commit cf3134a0178c1c5a2c1b523dbdfa953dbf60481b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 9 11:01:01 2015 -0700
 
-    runtime: make mcache.tiny a uintptr
+    cmd/doc: the builtin package should always show unexported symbols
     
-    mcache.tiny is in non-GC'd memory, but points to heap memory. As a
-    result, there may or may not be write barriers when writing to
-    mcache.tiny. Make it clearer that funny things are going on by making
-    mcache.tiny a uintptr instead of an unsafe.Pointer.
+    Trivial fix: set unexported=true for builtin.
+    Godoc itself has a similar hack.
     
-    Change-Id: I732a5b7ea17162f196a9155154bbaff8d4d00eac
-    Reviewed-on: https://go-review.googlesource.com/16963
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #12541
+    
+    Change-Id: Ib701f867d117931eb6ec6de223941b52eb6cd4a7
+    Reviewed-on: https://go-review.googlesource.com/14441
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc.go | 8 ++++----
- src/runtime/mcache.go | 4 ++--
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/doc/main.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

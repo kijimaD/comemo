@@ -1,24 +1,20 @@
-commit 5c9b6e8e63e012513b1cb1a4a08ff23dec4137a1
-Author: Josh Rickmar <jrick@companyzero.com>
-Date:   Fri Mar 26 13:17:36 2021 +0000
+commit 069aef4067480ab29f5788b31171054954577661
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 1 10:25:20 2020 +0200
 
-    net: never probe IPv4 map support on DragonFly BSD, OpenBSD
+    syscall: use correct cmsg alignment for netbsd/arm64
     
-    DragonFly BSD and OpenBSD do not implement mapping IPv4 addresses to
-    the IPv6 address space, and a runtime check can be avoided.
+    netbsd/arm64 requires 128-bit alignment for cmsgs.
     
-    As the IP stack capabilities probe was only being called from
-    supportsIPv4map to check for this support, the OS-specific handling
-    can be added to this function rather than continuing to run the probe.
+    Re-submit of CL 258437 which was dropped due to #41718.
     
-    Change-Id: I5800c197b1be502a6efa79e3edd6356bde8637fb
-    GitHub-Last-Rev: 7eb67189cd955fb12382a6f2a05f324d2747dcc3
-    GitHub-Pull-Request: golang/go#45243
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304870
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I898043d79f513bebe1a5eb931e7ebd8e291a5aec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258677
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- src/net/ipsock.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/syscall/sockcmsg_unix_other.go | 4 ++++
+ 1 file changed, 4 insertions(+)

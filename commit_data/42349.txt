@@ -1,15 +1,15 @@
-commit cb11c981df7b4dc40550ab71cc097c25d24d7a71
-Author: pj <pj@pjebs.com.au>
-Date:   Tue May 12 05:14:25 2020 +0000
+commit 7bdef2dfa4fe7d4d424d5601973b07d42ffc869b
+Author: taisa <g5.taisa831@gmail.com>
+Date:   Wed Dec 4 17:31:59 2019 +0900
 
-    A+C: add Prasanga Siripala (individual CLA)
+    testing: fix testing docs
     
-    Change-Id: I15e5788ecfc94d8110dbea277beb14e3d4ff0672
-    GitHub-Last-Rev: 6305c599297730500b4a0372234172ad01fac97b
-    GitHub-Pull-Request: golang/go#39010
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233324
+    The Perm function return 0 or 1 or 2 or 3. 4 is not returned,
+    so that changed the argument to 5.
+    
+    Change-Id: Ic980c71a9f29f522bdeef4fce70a6c2dd136d791
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209777
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

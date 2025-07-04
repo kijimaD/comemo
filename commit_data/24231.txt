@@ -1,24 +1,14 @@
-commit 81a4bbffbf70edd3aaa401b38eb581ad94e2288f
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Sep 10 15:50:47 2015 +1000
+commit 9f70cd8223fd1570075a888e596759774c0cb66d
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Thu Jul 9 15:08:39 2015 +0200
 
-    cmd/go: use RawToken to parse remote package metadata
+    net/mail: add example to package
     
-    CL 14315 broke the tests for parsing loosely formed remote package
-    metadata. Switch the parsing to use RawToken to recover the previous
-    behaviour that Token provided.
-    
-    It could be argued that the parser should be stricter, but as remote
-    metadata has been readable with the parser for several years, it is
-    safer to change the parser to continue to accept the samples provided
-    in the test cases.
-    
-    Change-Id: I2a3ba1757d3cff53b1a1c4386276955bb46cf8cd
-    Reviewed-on: https://go-review.googlesource.com/14482
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Change-Id: I912cafc66463f81cde839afc8f06b7eadcbf6f57
+    Reviewed-on: https://go-review.googlesource.com/11992
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/discovery.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/mail/example_test.go | 77 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)

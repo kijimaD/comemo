@@ -1,28 +1,20 @@
-commit 3a7a856951c69e6c279b4305030c5da6ca8af913
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue May 20 16:21:22 2025 +0000
+commit 23fc9170604a3df9a0458849ffb16b570eadcc19
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Apr 3 11:24:36 2024 +0700
 
-    crypto/x509: disallow negative path length
+    reflect: add missing String case in Value.UnsafePointer doc
     
-    pathLenConstraint is restricted to unsigned integers.
-    Also the -1 value of cert.MaxPathLength has a special
-    meaning, so we shouldn't allow unmarshaling -1.
+    CL 516596 changes Value.UnsafePointer to handle String case. However,
+    the method's doc comment is not updated to reflect this change.
     
-    BasicConstraints ::= SEQUENCE {
-         cA                      BOOLEAN DEFAULT FALSE,
-         pathLenConstraint       INTEGER (0..MAX) OPTIONAL }
+    Updates #61308
     
-    Change-Id: I485a6aa7223127becc86c423e1ef9ed2fbd48209
-    GitHub-Last-Rev: 75a11b47b963ac383d1ad67dfc001648632a05f0
-    GitHub-Pull-Request: golang/go#60706
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502076
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I84e02fd969ae0244184e1a2f05cac4651cdf7bff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575956
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/crypto/x509/parser.go      |  7 +++++--
- src/crypto/x509/parser_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++
- src/crypto/x509/x509.go        |  4 ++++
- src/crypto/x509/x509_test.go   | 25 ++++++++++++++++++++++++
- 4 files changed, 77 insertions(+), 2 deletions(-)
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,22 +1,28 @@
-commit 9dc351beba464aa47048547e60ca4866e345d482
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Feb 28 17:53:31 2018 -0500
+commit f259aed0822dd42182b297740e3c5dcd09e40a84
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Oct 11 18:15:25 2017 +1100
 
-    cmd/compile/internal/ssa: batch up all zero-width instructions
+    [release-branch.go1.9] internal/poll: do not call SetFileCompletionNotificationModes if it is broken
     
-    When generating location lists, batch up changes for all zero-width
-    instructions, not just phis. This prevents the creation of location list
-    entries that don't actually cover any instructions.
+    Current code assumes that SetFileCompletionNotificationModes
+    is safe to call even if we know that it is not safe to use
+    FILE_SKIP_COMPLETION_PORT_ON_SUCCESS flag. It appears (see issue #22149),
+    SetFileCompletionNotificationModes crashes when we call it without
+    FILE_SKIP_COMPLETION_PORT_ON_SUCCESS flag.
     
-    This isn't perfect because of the caveats in the prior CL (Copy is
-    zero-width sometimes) but in practice this seems to fix all of the empty
-    lists in std.
+    Do not call SetFileCompletionNotificationModes in that situation.
+    We are allowed to do that, because SetFileCompletionNotificationModes
+    is just an optimisation.
     
-    Change-Id: Ice4a9ade36b6b24ca111d1494c414eec96e5af25
-    Reviewed-on: https://go-review.googlesource.com/97958
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Fixes #22149
+    
+    Change-Id: I0ad3aff4eabd8c27739417a62c286b1819ae166a
+    Reviewed-on: https://go-review.googlesource.com/69870
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/70989
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/ssa/debug.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/internal/poll/fd_windows.go | 64 ++++++++++++++++++++++++-----------------
+ 1 file changed, 37 insertions(+), 27 deletions(-)

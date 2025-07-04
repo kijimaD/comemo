@@ -1,0 +1,22 @@
+commit aed1f925f24d4ad6ff2f2d77c04e4c5b72fdb49f
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Mon Jun 10 20:49:33 2024 +1200
+
+    os/user: make Lookup* functions properly handle ENOENT
+    
+    The libc docs say that these functions can return ENOENT, and
+    per issue #67912, this does happen in practice sometimes. Handle
+    both the ENOENT and !found cases the same way, for Lookup,
+    LookupId, LookupGroup, LookupGroupId.
+    
+    Fixes #67912
+    
+    Change-Id: I993935af44c83ad785b6cd735fc313a3647daa19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591555
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/os/user/cgo_lookup_unix.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

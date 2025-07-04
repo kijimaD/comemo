@@ -1,19 +1,17 @@
-commit b625810d28adde8c24da4838525694e74e131520
-Author: Tormod Erevik Lea <tormodlea@gmail.com>
-Date:   Sat Sep 17 19:04:46 2016 +0200
+commit 56e5e0b69c92c9157c7db39112e27a4b5c026b48
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed May 25 13:19:11 2016 -0400
 
-    cmd/vet: hard-code program name in usage message
+    runtime: tell race detector about reflectOffs.lock
     
-    Example on linux_amd64 for 'go tool vet -h':
+    Fixes #15832
     
-    Before:
-            Usage of /usr/local/go/pkg/tool/linux_amd64/vet:
-    After:
-            Usage of vet:
-    
-    Change-Id: I11cb16b656bd097062d57a8c7441fbe66caaef78
-    Reviewed-on: https://go-review.googlesource.com/29294
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I6f3f45e3c21edd0e093ecb1d8a067907863478f5
+    Reviewed-on: https://go-review.googlesource.com/23441
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/vet/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/all_test.go    | 15 +++++++++++++++
+ src/reflect/export_test.go |  4 ++++
+ src/runtime/runtime1.go    |  4 ++--
+ src/runtime/type.go        | 26 ++++++++++++++++++++------
+ 4 files changed, 41 insertions(+), 8 deletions(-)

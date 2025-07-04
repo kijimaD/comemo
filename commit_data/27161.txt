@@ -1,19 +1,27 @@
-commit 78bcdeb6a36a6d45f93c8ff546fa946e5fbec093
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Apr 27 15:44:22 2016 -0400
+commit 13f74db304fdf6dc6241485d6e6f3f6a0327633c
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Mon Mar 14 19:11:19 2016 +0100
 
-    misc/cgo/testcarchive: fix path of libgo.a for darwin/arm
+    cmd/compile: fix no-opt build after moving decomposing user functions
     
-    After CL 22461, c-archive build on darwin/arm is by default compiled
-    with -shared, so update the install path.
+    decompose-builtin pass requires an opt pass, but -N disables
+    late-opt, the only opt pass (out of two) that happens
+    after decompose-builtin.  This CL enables both 'opt' and 'late opt'
+    passes. The extra compile time for 'late opt' in negligible
+    since most rewrites were already done in the first 'opt'
+    (also measured before). We should put some effort in splitting the
+    generic rules into required and optional.
     
-    Fix build.
+    Also update generic.rules comments about lowering
+    of StringMake and SliceMake.
     
-    Change-Id: Ie93dbd226ed416b834da0234210f4b98bc0e3606
-    Reviewed-on: https://go-review.googlesource.com/22507
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Tested with GO_GCFLAGS=-N ./all.bash
+    
+    Change-Id: I92999681aaa02587b6dc6e32ce997a91f1fc9499
+    Reviewed-on: https://go-review.googlesource.com/20682
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/compile.go        | 2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

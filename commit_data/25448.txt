@@ -1,14 +1,12 @@
-commit 901810ae5532b669d6e59c3ee64fd390f520499c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 11:27:14 2016 -0500
+commit ddbc802b075466b4663f142b40a52d2ac014ca6e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 29 14:46:47 2015 -0700
 
-    os/exec: document that examples assume Unix
+    cmd/compile/internal/gc: fix complex literal overflow
     
-    Fixes #13693.
-    
-    Change-Id: Ieb89d8a8874ee8c6b304de99dceb07193c26b60e
-    Reviewed-on: https://go-review.googlesource.com/18315
+    Change-Id: Ibb15282a2baeb58439b085d70b82797d8c71de36
+    Reviewed-on: https://go-review.googlesource.com/16502
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec/exec.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

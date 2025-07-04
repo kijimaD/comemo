@@ -1,16 +1,12 @@
-commit add1bed735e190abb03943a73e415576de211245
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 4 07:09:01 2012 -0800
+commit c2f9be10d4cf9b82b6fdeb23849a909a9923f6aa
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Tue Dec 4 17:40:38 2012 +1100
 
-    net/http: clarify that Request.Host may contain a port number
+    doc/articles/godoc_documenting_go_code: fix some format issues.
     
-    Fixes #4172
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6872055
+    https://golang.org/cl/6874056
 
- src/pkg/net/http/request.go      |  1 +
- src/pkg/net/http/request_test.go | 10 ++++++++++
- src/pkg/net/url/url.go           |  2 +-
- 3 files changed, 12 insertions(+), 1 deletion(-)
+ doc/articles/godoc_documenting_go_code.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

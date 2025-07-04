@@ -1,20 +1,13 @@
-commit 2961cab965591dda932bdff6a0caf94560a5f108
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 12 16:01:51 2015 -0700
+commit fd179afb569effd882ff0948389314404af3d6e7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jul 31 14:57:16 2015 +0900
 
-    runtime: remove _Kind constants
+    test/bench/shootout: fix build
     
-    The duplication of _Kind and kind constants is a legacy of the
-    conversion from C.
-    
-    Change-Id: I368b35a41f215cf91ac4b09dac59699edb414a0e
-    Reviewed-on: https://go-review.googlesource.com/15800
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic8ff6c28ec899cf5e01553b83110eb6262870995
+    Reviewed-on: https://go-review.googlesource.com/12918
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/export_test.go |  4 ++--
- src/runtime/typekind.go    | 60 +++++++++++++++++++++++-----------------------
- src/runtime/typekind1.go   | 39 ------------------------------
- 3 files changed, 32 insertions(+), 71 deletions(-)
+ test/bench/shootout/{fasta-1000.out => fasta-1000.txt} | 0
+ test/bench/shootout/timing.sh                          | 2 +-
+ 2 files changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,15 @@
-commit 96731619ce11de5ad51de2409cf9bd58990f77ba
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 23 10:19:29 2011 +1000
+commit d7df79a7e53e14c00f07d6ceae79245ef348d1fc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 23 10:15:46 2011 +1000
 
-    exp/template: make -0 be an unsigned int.
-    Fix (inconsequential) type error in list initializer.
+    go/build: include Import objects in Script Inputs
+    
+    This has the effect of making goinstall rebuild a package's
+    dependencies when they are newer than the current package object.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4638058
+    https://golang.org/cl/4627051
 
- src/pkg/exp/template/parse.go      | 12 ++++++++----
- src/pkg/exp/template/parse_test.go |  3 ++-
- 2 files changed, 10 insertions(+), 5 deletions(-)
+ src/pkg/go/build/build.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

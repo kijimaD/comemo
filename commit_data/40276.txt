@@ -1,41 +1,26 @@
-commit 80a6fedea05dbdab2e55b2ba922faeaf4155a981
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Feb 12 19:40:42 2019 -0800
+commit 88548d0211ba64896fa76a5d1818e4422847a879
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Mon Mar 11 15:52:20 2019 -0700
 
-    cmd/compile: add -d=checkptr to validate unsafe.Pointer rules
+    net/http: make Server return 501 for unsupported transfer-encodings
     
-    This CL adds -d=checkptr as a compile-time option for adding
-    instrumentation to check that Go code is following unsafe.Pointer
-    safety rules dynamically. In particular, it currently checks two
-    things:
+    Ensures that our HTTP/1.X Server properly responds
+    with a 501 Unimplemented as mandated by the spec at
+    RFC 7230 Section 3.3.1, which says:
+        A server that receives a request message with a
+        transfer coding it does not understand SHOULD
+        respond with 501 (Unimplemented).
     
-    1. When converting unsafe.Pointer to *T, make sure the resulting
-    pointer is aligned appropriately for T.
+    Fixes #30710
     
-    2. When performing pointer arithmetic, if the result points to a Go
-    heap object, make sure we can find an unsafe.Pointer-typed operand
-    that pointed into the same object.
-    
-    These checks are currently disabled for the runtime, and can also be
-    disabled through a new //go:nocheckptr annotation. The latter is
-    necessary for functions like strings.noescape, which intentionally
-    violate safety rules to workaround escape analysis limitations.
-    
-    Fixes #22218.
-    
-    Change-Id: If5a51273881d93048f74bcff10a3275c9c91da6a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/162237
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I096904e6df053cd1e4b551774cc27523ff3d09f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167017
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         |  7 ++-
- src/cmd/compile/internal/gc/builtin/runtime.go |  3 ++
- src/cmd/compile/internal/gc/inl.go             |  6 +++
- src/cmd/compile/internal/gc/lex.go             |  3 ++
- src/cmd/compile/internal/gc/main.go            |  7 +++
- src/cmd/compile/internal/gc/walk.go            | 73 ++++++++++++++++++++++++++
- src/reflect/value.go                           | 10 ++++
- src/runtime/checkptr.go                        | 50 ++++++++++++++++++
- src/strings/builder.go                         |  1 +
- 9 files changed, 159 insertions(+), 1 deletion(-)
+ src/net/http/serve_test.go    | 56 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go        | 34 ++++++++++++++++++--------
+ src/net/http/transfer.go      | 18 +++++++++++++-
+ src/net/http/transfer_test.go | 32 +++++++++++++++++++++++++
+ 4 files changed, 129 insertions(+), 11 deletions(-)

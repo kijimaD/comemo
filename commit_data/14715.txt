@@ -1,17 +1,15 @@
-commit 8f1d170fc6758842a1dc89075a050716fa4dc6c3
-Author: Adam Langley <agl@golang.org>
-Date:   Sat Dec 22 10:50:11 2012 -0500
+commit 407d0c5ab732c8a5ac003c41c294590d824b1eff
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 10:01:15 2012 -0500
 
-    crypto/des: add an example to demonstrate EDE2 operation.
+    cmd/gc: fix error line in switch expr eval
     
-    EDE2 is a rare DES mode that can be implemented with crypto/des, but
-    it's somewhat non-obvious so this CL adds an example of doing so.
+    Fixes #4562.
     
-    Fixes #3537.
-    
-    R=golang-dev, adg
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6721056
+    https://golang.org/cl/7008044
 
- src/pkg/crypto/des/des_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/gc/swt.c            |  6 +++---
+ test/fixedbugs/issue4562.go | 49 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 3 deletions(-)

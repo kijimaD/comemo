@@ -1,29 +1,20 @@
-commit 33d4a5105cf2b2d549922e909e9239a48b8cefcc
-Author: Nikita Vaniasin <nikita.vanyasin@gmail.com>
-Date:   Mon Aug 28 15:26:32 2023 +0200
+commit 0fec65d281af8932ce8da946faa55884f2427cfc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 29 08:40:37 2022 -0400
 
-    net: respect hosts file when resolving names for Windows
+    os/exec: add a GODEBUG setting to diagnose leaked processes
     
-    Fixes #57757.
+    Updates #52580.
+    For #50436.
     
-    Change-Id: I896dae8e5905ae98539ab83c9379fd1c9886d44a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467335
-    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Change-Id: I669f13863f1f85d576c3c94500b118e6989000eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436655
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/internal/syscall/windows/security_windows.go |  6 ++++++
- src/net/conf.go                                  | 11 +---------
- src/net/dnsclient_unix_test.go                   | 24 +++++++++++-----------
- src/net/hook.go                                  |  3 +--
- src/net/hook_plan9.go                            |  9 ++++++++
- src/net/hook_unix.go                             |  2 ++
- src/net/hook_windows.go                          |  2 ++
- src/net/hosts.go                                 |  2 +-
- src/net/hosts_test.go                            | 26 ++++++++++++------------
- src/runtime/os_windows.go                        |  5 +++++
- 10 files changed, 52 insertions(+), 38 deletions(-)
+ src/os/exec/dot_test.go  |  2 +-
+ src/os/exec/exec.go      | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/os/exec/exec_test.go | 15 +++++++++++++++
+ 3 files changed, 58 insertions(+), 1 deletion(-)

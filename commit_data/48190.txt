@@ -1,22 +1,26 @@
-commit 851ecea4cc99ab276109493477b2c7e30c253ea8
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Sun Feb 13 22:03:56 2022 +0800
+commit 95c5f4da80960d0e3511d39c9a9db7280099a37e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 10:20:38 2021 -0700
 
-    encoding/xml: embedded reference to substruct causes XML marshaller to panic on encoding
+    cmd/compile/internal/types2: list errors by default in TestManual
     
-    When encoding a xml attribute is zero value (IsValid == false), we need
-    a `continue` to jump over the attribute. If not, followed marshalAttr
-    function will panic.
+    TestManual is used for debugging; in this case we usually want to
+    see error messages reported rather than checked against ERROR comments
+    in the provided files. Make this the default. Use the new -verify
+    flag to verify reported errors against ERROR comments.
     
-    Fixes: #50164
-    Change-Id: I42e064558e7becfbf47728b14cbf5c7afa1e8798
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385514
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    With this change we cannot get an error list for the non-manual
+    tests, but that is usually not useful anyway because there are
+    usually many errors in those test files. Run those tests manually
+    instead.
+    
+    Also, corrected -lang flag synopsys: it applies to all tests, not
+    just TestManual.
+    
+    Change-Id: I56e0ea0583840fc3ea150d9ccfc330370b66191c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315729
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/encoding/xml/marshal.go      |  2 +-
- src/encoding/xml/marshal_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/check_test.go | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

@@ -1,12 +1,15 @@
-commit 293059ad85e95749f937fff04a96a8ec9b31136f
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Wed Nov 16 16:23:50 2011 -0500
+commit c9355596cde33fe025e801066ee718a9941124c9
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Nov 16 17:35:47 2011 -0200
 
-    cov: fix for Plan 9 build
+    net/http: fix EOF handling on response body
     
-    R=golang-dev
-    CC=golang-dev, rsc
-    https://golang.org/cl/5374086
+    http.Response is currently returning 0, nil on EOF.
+    
+    R=golang-dev, bradfitz, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5394047
 
- src/cmd/cov/main.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/pkg/net/http/client_test.go | 27 ++++++++++++++++++++++++++-
+ src/pkg/net/http/transfer.go    |  4 +++-
+ 2 files changed, 29 insertions(+), 2 deletions(-)

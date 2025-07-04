@@ -1,46 +1,23 @@
-commit a7b75972f267aac5607b16b0e9826d56386a92af
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Jan 4 05:20:58 2023 +0000
+commit 81f1cc52abb0b004d8cd1b130ea293026419acac
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Mar 5 14:48:27 2022 +0300
 
-    runtime: check for overflow in sweep assist
+    html/template: make FuncMap a type alias of text/template.FuncMap
     
-    The sweep assist computation is intentionally racy for performance,
-    since the specifics of sweep assist aren't super sensitive to error.
-    However, if overflow occurs when computing the live heap delta, we can
-    end up with a massive sweep target that causes the sweep assist to sweep
-    until sweep termination, causing severe latency issues. In fact, because
-    heapLive doesn't always increase monotonically then anything that
-    flushes mcaches will cause _all_ allocating goroutines to inevitably get
-    stuck in sweeping.
+    In preparation to make html/template and text/template use a
+    single generics package, this change make FuncMap a type alias
+    of text/template.FuncMap.
     
-    Consider the following scenario:
-    1. SetGCPercent is called, updating sweepHeapLiveBasis to heapLive.
-    2. Very shortly after, ReadMemStats is called, flushing mcaches and
-       decreasing heapLive below the value sweepHeapLiveBasis was set to.
-    3. Every allocating goroutine goes to refill its mcache, calls into
-       deductSweepCredit for sweep assist, and gets stuck sweeping until
-       the sweep phase ends.
+    Fixes #46121
     
-    Fix this by just checking for overflow in the delta live heap calculation
-    and if it would overflow, pick a small delta live heap. This probably
-    means that no sweeping will happen at all, but that's OK. This is a
-    transient state and the runtime will recover as soon as heapLive
-    increases again.
-    
-    Note that deductSweepCredit doesn't check overflow on other operations
-    but that's OK: those operations are signed and extremely unlikely to
-    overflow. The subtraction targeted by this CL is only a problem because
-    it's unsigned. An alternative fix would be to make the operation signed,
-    but being explicit about the overflow situation seems worthwhile.
-    
-    Fixes #57523.
-    
-    Change-Id: Ib18f71f53468e913548aac6e5358830c72ef0215
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460376
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I5e94cc8fdf4fe029ff223992b5cdfe79f9c098ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389156
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgcsweep.go | 25 ++++++++++++++++++++++---
- 1 file changed, 22 insertions(+), 3 deletions(-)
+ api/except.txt                | 2 ++
+ api/next/46121.txt            | 2 ++
+ src/html/template/template.go | 9 +--------
+ 3 files changed, 5 insertions(+), 8 deletions(-)

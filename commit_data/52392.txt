@@ -1,18 +1,32 @@
-commit d633f4b996dadb6b72c2c43d35092738b7c19e7f
-Author: Michał Matczuk <mmatczuk@gmail.com>
-Date:   Thu Mar 23 13:52:59 2023 +0000
+commit af99c2092a878500d508433baddcfcc12910c21b
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Wed Mar 30 15:47:04 2022 +0800
 
-    net/http: fix typo
+    cmd/internal/objabi: define Go relocation types for loong64
     
-    Change-Id: I6e39f14df65685451d3d98c6def1e0665da20590
-    GitHub-Last-Rev: d9de237bd24ab3deebdbdf1f75a1835169670c1d
-    GitHub-Pull-Request: golang/go#59200
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478855
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+    https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I8d31b3cd827325aa0ff748ca8c0c0da6df6ed99f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396734
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/net/http/transport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/objabi/reloctype.go        | 30 ++++++++++++++++++++++++++++-
+ src/cmd/internal/objabi/reloctype_string.go | 20 ++++++++++++-------
+ 2 files changed, 42 insertions(+), 8 deletions(-)

@@ -1,36 +1,15 @@
-commit 1a119edd8b4364a8c8342194648166ca5851f061
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 4 17:47:44 2020 +0700
+commit 490bc6097abda7dc769635f1a7ef8557b8f6ba93
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 24 17:10:50 2020 -0500
 
-    runtime: rotate map key seed on clearing up maps
+    cmd/link: stop requiring the math package on ARM
     
-    Same thing as CL 253020 did for map clear idiom.
+    It was needed for the old softfloat implementation, which has
+    long gone.
     
-    name                        old time/op  new time/op  delta
-    MapDelete/Int32/100-12      30.0ns ± 1%  30.7ns ± 3%   ~     (p=0.400 n=3+3)
-    MapDelete/Int32/1000-12     26.6ns ± 2%  28.1ns ± 3%   ~     (p=0.100 n=3+3)
-    MapDelete/Int32/10000-12    28.6ns ± 1%  31.9ns ± 1%   ~     (p=0.100 n=3+3)
-    MapDelete/Int64/100-12      30.2ns ± 0%  32.1ns ± 3%   ~     (p=0.100 n=3+3)
-    MapDelete/Int64/1000-12     26.5ns ± 1%  27.5ns ± 3%   ~     (p=0.100 n=3+3)
-    MapDelete/Int64/10000-12    29.6ns ± 1%  29.3ns ± 1%   ~     (p=0.300 n=3+3)
-    MapDelete/Str/100-12        19.5ns ± 3%  19.6ns ± 2%   ~     (p=0.800 n=3+3)
-    MapDelete/Str/1000-12       31.6ns ± 1%  31.4ns ± 1%   ~     (p=0.500 n=3+3)
-    MapDelete/Str/10000-12      37.8ns ± 1%  37.1ns ± 1%   ~     (p=0.100 n=3+3)
-    MapDelete/Pointer/100-12    15.9ns ± 1%  16.8ns ± 9%   ~     (p=0.200 n=3+3)
-    MapDelete/Pointer/1000-12   26.9ns ± 1%  26.2ns ± 2%   ~     (p=0.200 n=3+3)
-    MapDelete/Pointer/10000-12  30.6ns ± 1%  30.7ns ± 4%   ~     (p=0.700 n=3+3)
-    
-    Fixes #25237
-    
-    Change-Id: I353cf44a2f6158549f0ef563d867f0844fec7095
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252940
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib8d53689209a3b003d62f84c7c6047d8ec5df859
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220719
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/map.go         | 5 +++++
- src/runtime/map_fast32.go  | 5 +++++
- src/runtime/map_fast64.go  | 5 +++++
- src/runtime/map_faststr.go | 5 +++++
- 4 files changed, 20 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 3 ---
+ 1 file changed, 3 deletions(-)

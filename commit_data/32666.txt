@@ -1,16 +1,16 @@
-commit 43807e0f47e62fe5a33c3f0ebcaf9fafbb46b80d
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Sep 9 19:09:07 2017 +0900
+commit 1fcd7861e388082b59827e9ce9a7eaaea877f881
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat May 13 15:49:15 2017 +0000
 
-    cmd/internal/goobj: skip tests on some $GOOS/arm
+    builtin: fix signature of the builtin function make
     
-    Updates #21817
+    Fixes #20325
     
-    Change-Id: I77ffaf8a7e54465a5b73691b896edcb20c29440f
-    Reviewed-on: https://go-review.googlesource.com/62351
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie363fef73d0deae40af41ee3f4403ad18546eba6
+    Reviewed-on: https://go-review.googlesource.com/43460
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/goobj/goobj_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/builtin/builtin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

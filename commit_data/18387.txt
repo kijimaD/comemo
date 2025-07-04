@@ -1,14 +1,13 @@
-commit 1b2e435b15bd6907425f4b3f32d46f4e003a8c57
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Jan 31 18:09:53 2014 +0400
+commit 99d23dfdfd19204d76877a7322c298726aba6d9a
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Fri Jan 31 11:43:48 2014 +1100
 
-    runtime: fix typos in test
-    I don't know what is n, but it exists somewhere there.
+    crypto/rand: add tests for Int, Prime
     
-    LGTM=dave
-    R=golang-codereviews, dave
+    LGTM=rsc, dave
+    R=golang-codereviews, dave, josharian, rsc
     CC=golang-codereviews
-    https://golang.org/cl/58710043
+    https://golang.org/cl/46490043
 
- src/pkg/runtime/chan_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/crypto/rand/util_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

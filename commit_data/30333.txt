@@ -1,19 +1,26 @@
-commit e9abf1a7166186cdcf84ccfd028c2c66f1ec4788
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Feb 8 13:58:21 2017 +1100
+commit 40aaf283124de44d513ca086976194f0133faa82
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Fri Oct 28 14:42:42 2016 -0200
 
-    cmd/link: introduce shNames
+    runtime: get ppc64x ISA level and hardware capabilities from HWCAP/HWCAP2
     
-    Introduce a slice that keeps long pe section names as we add them.
-    It will be used later to output pe symbol table and dwarf relocations.
+    This implements a check that can be done at runtime for the ISA level and
+    hardware capability. It follows the same implementation as in s390x.
     
-    For #10776.
+    These checks will be important as we enable new instructions and write go
+    asm implementations using those.
     
-    Change-Id: I02f808a456393659db2354031baf1d4f9e0b2d61
-    Reviewed-on: https://go-review.googlesource.com/36977
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #15403
+    Fixes #16643
+    
+    Change-Id: Idfee374a3ffd7cf13a7d8cf0a6c83d247d3bee16
+    Reviewed-on: https://go-review.googlesource.com/32330
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/runtime/os_linux.go        |  1 +
+ src/runtime/os_linux_noauxv.go |  2 +-
+ src/runtime/os_linux_ppc64x.go | 60 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 62 insertions(+), 1 deletion(-)

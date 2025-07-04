@@ -1,19 +1,23 @@
-commit 7a5460ed9b53ac99805e6578cc67da8ef431c577
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Jan 25 09:21:06 2023 +0100
+commit 91daaabd56964d0cffae99825e4696f3f70a3857
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Apr 24 22:55:58 2021 -0700
 
-    runtime: mark amd64 runtime·rt0_go as NOFRAME
+    flag: add TextVar function
     
-    This CL adds the NOFRAME flag to runtime·rt0_go, which should
-    had been added in CL 459395 but didn't and broke fix windows-amd64-2008.
+    The TextVar function makes it easier to integrate the flag package
+    with any Go type that implements encoding.Text{Marshaler,Unmarshaler}.
     
-    Change-Id: I4583f2034bf114e1f7aaddef9ba505f53536c3eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463120
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Fixes #45754
+    
+    Change-Id: Id23c37d59cf8c9699a7943a22ce27a45eb685c0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313329
+    Trust: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/asm_amd64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next.txt                     |  2 ++
+ src/flag/example_textvar_test.go | 35 +++++++++++++++++++++++++
+ src/flag/flag.go                 | 56 ++++++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go        |  5 ++--
+ 4 files changed, 96 insertions(+), 2 deletions(-)

@@ -1,20 +1,34 @@
-commit 07e006dd9322cc484303e1bef3d58c7e51d4f92c
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Apr 28 10:02:16 2021 -0400
+commit ad642727247383079c8546ca365172859641a800
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Aug 25 12:34:02 2020 -0400
 
-    go/types: use a global atomic counter for type parameter ids
+    runtime: rename pageAlloc receiver
     
-    This is a 1:1 port of CL 309830 to go/types.
+    The history of pageAlloc using 's' as a receiver are lost to the depths
+    of time (perhaps it used to be called summary?), but it doesn't make
+    much sense anymore. Rename it to 'p'.
     
-    Change-Id: Ibf709f8194dd5e93a87145e5f9db674ce93af529
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314594
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Generated with:
+    
+    $ cd src/runtime
+    $ grep -R -b "func (s \*pageAlloc" . | awk -F : '{ print $1 ":#" $2+6 }' | xargs -n 1 -I {} env GOROOT=$(pwd)/../../ gorename -offset {} -to p -v
+    $ grep -R -b "func (s \*pageAlloc" . | awk -F : '{ print $1 ":#" $2+6 }' | xargs -n 1 -I {} env GOROOT=$(pwd)/../../ GOARCH=386 gorename -offset {} -to p -v
+    $ GOROOT=$(pwd)/../../ gorename -offset mpagecache.go:#2397 -to p -v
+    
+    ($2+6 to advance past "func (".)
+    
+    Plus manual comment fixups.
+    
+    Change-Id: I2d521a1cbf6ebe2ef6aae92e654bfc33c63d1aa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250517
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/go/types/api_test.go   |  1 +
- src/go/types/check.go      |  2 --
- src/go/types/type.go       | 13 +++++++++++--
- src/go/types/types_test.go | 13 +++++++++++++
- 4 files changed, 25 insertions(+), 4 deletions(-)
+ src/runtime/mgcscavenge.go      | 102 ++++++++++----------
+ src/runtime/mpagealloc.go       | 200 ++++++++++++++++++++--------------------
+ src/runtime/mpagealloc_32bit.go |  14 +--
+ src/runtime/mpagealloc_64bit.go |  30 +++---
+ src/runtime/mpagecache.go       |  42 ++++-----
+ 5 files changed, 194 insertions(+), 194 deletions(-)

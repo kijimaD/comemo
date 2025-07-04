@@ -1,17 +1,17 @@
-commit 0ec62565f911575beaf7d047dfe1eae2ae02bf67
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jun 15 10:52:42 2016 +1000
+commit 49e07f2b7e25a1f7a050f73fbb7807185e09e46b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 8 20:09:10 2016 +1000
 
-    net/http: pass through server side Transfer-Encoding headers
+    cmd/compile/internal/gc: unexport Export
     
-    Fixes #16063
+    Export does not need to be exported.
     
-    Change-Id: I2e8695beb657b0aef067e83f086828d8857787ed
-    Reviewed-on: https://go-review.googlesource.com/24130
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I252f0c024732f1d056817cab13e8e3c589b54d13
+    Reviewed-on: https://go-review.googlesource.com/21721
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/serve_test.go | 19 +++++++++++++++++++
- src/net/http/server.go     |  5 ++++-
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go | 4 ++--
+ src/cmd/compile/internal/gc/export.go  | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

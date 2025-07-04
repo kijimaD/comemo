@@ -1,17 +1,22 @@
-commit 4ae3835aa28d21fd9045223640b7617ca1b83dfe
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Thu Jun 13 10:12:06 2019 +0200
+commit 62f5e8156ef56fa61e6af56f4ccc633bde1a9120
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sat Feb 23 00:09:40 2019 +0100
 
-    cmd/go: silence ar with D flag failures
+    errors: add Unwrap, Is, and As
     
-    The first call of ar must not show its output in order to avoid useless
-    error messages about D flag.
+    Unwrap, Is and As are as defined in proposal
+    Issue #29934.
     
-    Change-Id: I3a2f5144b3bb271705000b67cd46cd02e98aca77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182077
-    Run-TryBot: Clément Chigot <clement.chigot@atos.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Also add Opaque for enforcing an error cannot
+    be unwrapped.
+    
+    Change-Id: I4f3feaa42e3ee7477b588164ac622ba4d5e77cad
+    Reviewed-on: https://go-review.googlesource.com/c/163558
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/go/internal/work/gccgo.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/errors/example_test.go |  15 +++
+ src/errors/wrap.go         | 106 +++++++++++++++++++
+ src/errors/wrap_test.go    | 258 +++++++++++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go  |   2 +-
+ 4 files changed, 380 insertions(+), 1 deletion(-)

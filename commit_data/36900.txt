@@ -1,19 +1,23 @@
-commit ccc337d8eeedbf94f56adb7ab22ce009056d0973
-Author: Ben Shi <powerman1st@163.com>
-Date:   Mon Oct 8 02:20:03 2018 +0000
+commit 17f54231e86591174b964c5ba93f9d578e2bfa01
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu May 17 09:39:21 2018 +1000
 
-    cmd/compile: combine similar code in amd64's assembly generator
+    cmd/go: don't refuse to update a present package only because of its source configuration
     
-    BSFQ/BSRQ/BSFL/BSRL/SQRTSD have similar logic in amd64's assembly
-    generator. This CL combines them together while does not impact
-    generated amd64 code. The total size of
-    pkg/linux_amd64/cmd/compile/internal decreases about 1.8KB.
+    If a package is checked out in the right place, but uses, for instance,
+    an unusual Git remote configuration, don't refuse to update just because
+    cmd/go can't parse it. In most cases, `git pull -ff-only` (or the
+    equivalent in other VCSes) works just fine.
     
-    Change-Id: I5f3210c5178c20ac9108877c69f17234baf5b6b7
-    Reviewed-on: https://go-review.googlesource.com/c/140438
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Updates #25432.
+    
+    Change-Id: I1952a0e6e03f185f34029b186e1756c9549689e1
+    Reviewed-on: https://go-review.googlesource.com/113456
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 37 ++++++++++++++---------------------
- 1 file changed, 15 insertions(+), 22 deletions(-)
+ src/cmd/go/go_test.go          | 34 ++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/get/get.go |  9 ++++++---
+ 2 files changed, 40 insertions(+), 3 deletions(-)

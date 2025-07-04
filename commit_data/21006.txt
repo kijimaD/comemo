@@ -1,14 +1,21 @@
-commit 1ba13a5ae8e36a346000d72e8cb9cfe349602265
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Dec 18 07:52:21 2014 +0100
+commit 590f5283762a6e80796c3ae2bde410319162cb45
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 6 09:57:46 2014 +1100
 
-    cmd/gc: fix warning on Plan 9
+    bufio: don't loop generating empty tokens
     
-    warning: src/cmd/gc/bits.c:101 non-interruptable temporary
+    The new rules for split functions mean that we are exposed
+    to the common bug of a function that loops forever at EOF.
+    Pick these off by shutting down the scanner if too many
+    consecutive empty tokens are delivered.
     
-    Change-Id: I74661fefab50455b912b8085d913fc45ba13c5c8
-    Reviewed-on: https://go-review.googlesource.com/1780
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #9020.
+    
+    LGTM=rsc, adg
+    R=golang-codereviews, rsc, adg, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/169970043
 
- src/cmd/gc/bits.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/bufio/scan.go      | 12 +++++++++++
+ src/bufio/scan_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+)

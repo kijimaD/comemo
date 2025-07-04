@@ -1,21 +1,22 @@
-commit ae84aaee44f0d978ea6906812ee73fc2bc6297c8
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Tue Aug 29 11:03:30 2017 +0200
+commit c4335f81a29dd6d43db7337707a27908c5059b0c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 17:18:02 2017 -0700
 
-    runtime: call sigtrampgo on solaris
+    cmd/compile: checkwidthj all expressions in walk
     
-    CL 57291 broke on solaris because it depends on signal forwarding
-    working for signals raised by dieFromSignal.
-    Call sigtrampgo instead of sighandler directly, like the other
-    unix platforms.
+    Instead of playing whack-a-mole finding all
+    the non-dowidth'd expressions that can sneak
+    out of the frontend and then deciding on
+    just the right place to handle them,
+    use a big hammer.
     
-    Fixes the solaris builders.
+    Fixes #20152
     
-    Change-Id: I6bf314c436d1edeaecc4b03f15a9155270919524
-    Reviewed-on: https://go-review.googlesource.com/59811
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Id452d9e8c4e9585216bd8bf0e0004c85aba4f9f7
+    Reviewed-on: https://go-review.googlesource.com/42021
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_solaris_amd64.s | 17 +----------------
- 1 file changed, 1 insertion(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

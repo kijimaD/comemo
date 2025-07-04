@@ -1,14 +1,12 @@
-commit 0359621241d09521978950ebc5e068352a549c64
+commit d3191f5c2b10da7c7608828df648d01355e0e2f3
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Mar 13 03:31:11 2012 +0800
+Date:   Tue Mar 13 03:24:13 2012 +0800
 
-    build: update Makefile to track source code dependencies better
-          Also update .hgignore to ignore y.output.
+    gc: correct comment in runtime.go
     
-    R=rsc
+    R=rsc, iant
     CC=golang-dev
-    https://golang.org/cl/5797061
+    https://golang.org/cl/5777057
 
- .hgignore           | 1 +
- src/cmd/gc/Makefile | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/gc/runtime.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

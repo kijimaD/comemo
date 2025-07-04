@@ -1,15 +1,47 @@
-commit e2774551645e5417c130ca56e56d71bd1d70d7b5
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Wed Sep 13 15:58:25 2023 -0400
+commit 27f094b17cf1e0495515614476ec9137c0ed0a82
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 18 12:34:50 2022 -0700
 
-    net/http: add test for registration errors
+    go/types, types2: consolidate helper functions for tests (cleanup)
     
-    Change-Id: Ice378e2f1c4cce180f020683d25070c5ae1edbad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528255
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Instead of having various inconsistent helper functions, rely on
+    4 helper functions with consistent naming and parameters:
+    
+    - parse and mustParse
+    - typecheck and mustTypecheck
+    
+    Panic rather than call t.Fatal in the mustX functions to simplify
+    their use.
+    
+    Use the new functions in tests consistently.
+    
+    Change-Id: Ib19dc5cc470b51512c23c09df32c379dc3eb8f4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443757
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/http/server.go      |  2 +-
- src/net/http/server_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/api_test.go        | 178 +++++++--------------
+ src/cmd/compile/internal/types2/example_test.go    |  11 +-
+ .../compile/internal/types2/instantiate_test.go    |  10 +-
+ src/cmd/compile/internal/types2/issues_test.go     |  43 +++--
+ src/cmd/compile/internal/types2/named_test.go      |   7 +-
+ src/cmd/compile/internal/types2/object_test.go     |   7 +-
+ src/cmd/compile/internal/types2/resolver_test.go   |   6 +-
+ src/cmd/compile/internal/types2/sizes_test.go      |  14 +-
+ src/cmd/compile/internal/types2/stdlib_test.go     |   6 +-
+ src/cmd/compile/internal/types2/typestring_test.go |  17 +-
+ src/go/types/api_test.go                           | 176 +++++++-------------
+ src/go/types/example_test.go                       |  11 +-
+ src/go/types/instantiate_test.go                   |  10 +-
+ src/go/types/issues_test.go                        |  40 ++---
+ src/go/types/methodset_test.go                     |   2 +-
+ src/go/types/named_test.go                         |   8 +-
+ src/go/types/object_test.go                        |   8 +-
+ src/go/types/resolver_test.go                      |   7 +-
+ src/go/types/sizes_test.go                         |  15 +-
+ src/go/types/stdlib_test.go                        |   6 +-
+ src/go/types/typestring_test.go                    |  21 +--
+ 21 files changed, 197 insertions(+), 406 deletions(-)

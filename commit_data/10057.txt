@@ -1,12 +1,12 @@
-commit 35b2bfc8daa9ebeabfae8106e39b223c137f523a
+commit bb8c4ed22abc40a93a31ef4c3c59841773d75e88
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 19 13:10:23 2011 -0400
+Date:   Wed Oct 19 12:49:01 2011 -0400
 
-    gotest: use $GCFLAGS like make does
+    exp/types: fix crash in parseBasicType on unknown type
     
-    R=golang-dev, bradfitz
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5297044
+    https://golang.org/cl/5302044
 
- src/cmd/gotest/gotest.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/exp/types/gcimporter.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

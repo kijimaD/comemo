@@ -1,16 +1,18 @@
-commit 6dc356a76a405ff12c884ab0a4acb2296d1618b7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 29 15:08:37 2016 -0700
+commit 0324a3f828d3a2f48751df2bbd54ad20499e598a
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Jun 8 16:11:44 2016 +0000
 
-    cmd/compile/internal/ssa: erase register copies deterministically
+    runtime/cgo: restore the g pointer correctly in crosscall_s390x
     
-    Fixes #17288.
+    R13 needs to be set to g because C code may have clobbered R13.
     
-    Change-Id: I2ddd01d14667d5c6a2e19bd70489da8d9869d308
-    Reviewed-on: https://go-review.googlesource.com/30072
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #16006.
+    
+    Change-Id: I66311fe28440e85e589a1695fa1c42416583b4c6
+    Reviewed-on: https://go-review.googlesource.com/23910
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 24 +++++++++++++++++-------
- 1 file changed, 17 insertions(+), 7 deletions(-)
+ src/runtime/cgo/gcc_s390x.S | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

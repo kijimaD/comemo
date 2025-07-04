@@ -1,14 +1,17 @@
-commit dd4fee7ec63a30783fac7bfdc9a26b1e06a4b376
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Thu Oct 24 14:11:30 2024 +0300
+commit 98c26afa8c9c1016d205408e2afaba5824f4d930
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 27 14:42:26 2023 -0700
 
-    net/http/pprof: fix typo in the symbol profile description
+    cmd/compile/internal/ssagen: stop canonicalizing symabis
     
-    Change-Id: I55e1c559bc73537c8cd42c213c56e2ddaf33aa44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622097
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    cmd/asm writes canonicalized symabis now.
+    
+    Change-Id: I65cc39ce1671a3c225f14003b336015f0cc33980
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523339
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/pprof/pprof.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssagen/abi.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

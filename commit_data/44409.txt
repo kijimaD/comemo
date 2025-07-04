@@ -1,23 +1,44 @@
-commit 8027343b6395536aa8bef8158bad8f4c290dd650
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Feb 24 13:03:17 2021 -0800
+commit 92051a989b65a366e46bde00cd6569a91fb655cb
+Merge: 7dbd40babf 186e61f319
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 26 14:25:33 2020 -0400
 
-    cmd/compile: disable inlining functions with closures for now
+    [dev.link] all: merge branch 'master' into dev.link
     
-    Added a flag '-d=inlfuncswithclosures=1' to allow inlining functions with
-    closures, and change the default to off for now, until #44370 is fixed.
+    Clean merge.
     
-    Updates #44370.
-    
-    Change-Id: Ic17723aa5c091d91f5f5004d8b63ec7125257acf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296049
-    Run-TryBot: Dan Scales <danscales@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: I2ae0e4cc67e24216c85619717657dce36e887a54
 
- src/cmd/compile/internal/base/debug.go | 45 +++++++++++++++++-----------------
- src/cmd/compile/internal/inline/inl.go | 12 ++++-----
- test/closure3.go                       |  2 +-
- test/inline.go                         |  2 +-
- 4 files changed, 31 insertions(+), 30 deletions(-)
+ doc/go1.14.html                                    |   10 +-
+ doc/go1.15.html                                    |   16 +-
+ doc/go_faq.html                                    |    2 +-
+ misc/cgo/testshared/shared_test.go                 |    6 +
+ misc/cgo/testshared/testdata/issue39777/a/a.go     |    9 +
+ misc/cgo/testshared/testdata/issue39777/b/b.go     |    7 +
+ src/cmd/compile/internal/ssa/deadstore.go          |   16 +-
+ src/cmd/dist/test.go                               |   12 +
+ src/cmd/link/internal/ld/ld.go                     |    7 +-
+ src/crypto/elliptic/elliptic.go                    |   11 +-
+ src/crypto/elliptic/elliptic_test.go               |   75 +-
+ src/crypto/tls/common.go                           |   82 +-
+ src/crypto/tls/example_test.go                     |   79 +-
+ src/crypto/tls/tls.go                              |    2 +-
+ src/crypto/x509/cert_pool.go                       |   12 +-
+ src/crypto/x509/root.go                            |    2 +
+ src/crypto/x509/root_cgo_darwin_amd64.go           |    2 +
+ src/crypto/x509/root_darwin_amd64.go               |    2 +
+ src/crypto/x509/root_darwin_arm64_gen.go           |  188 --
+ .../{root_darwin_arm64.go => root_darwin_ios.go}   | 2138 ++++++++++++++------
+ src/crypto/x509/root_darwin_ios_gen.go             |  179 ++
+ src/crypto/x509/root_omit.go                       |    3 +-
+ src/crypto/x509/root_omit_test.go                  |    3 +-
+ src/crypto/x509/x509.go                            |    4 -
+ src/net/http/fs.go                                 |   12 +-
+ src/net/net.go                                     |   34 +-
+ src/os/file_plan9.go                               |    4 +-
+ src/runtime/signal_unix.go                         |    2 +-
+ src/runtime/stubs.go                               |    2 +-
+ src/syscall/syscall_linux.go                       |   16 +-
+ src/text/template/parse/node.go                    |    2 +-
+ test/fixedbugs/issue39459.go                       |   22 +
+ 32 files changed, 2036 insertions(+), 925 deletions(-)

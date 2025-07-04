@@ -1,15 +1,14 @@
-commit b16f3a2d507fc718adcee19514a4c7b0081e726c
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Mon Jan 16 18:12:25 2012 -0500
+commit 3735cf7b09e029bb04995d082eeee12ff5834a80
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 16 17:49:58 2012 -0500
 
-    gc: don't fault on return outside function
+    exp/terminal: fix build on non-Linux using Makefiles
     
-    Fixes #2598.
+    The Makefiles will go away soon.
     
-    R=golang-dev, ality, minux.ma, mpimenov, rsc
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/5510043
+    https://golang.org/cl/5544081
 
- src/cmd/gc/go.y          |  2 +-
- test/fixedbugs/bug394.go | 10 ++++++++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/pkg/exp/terminal/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

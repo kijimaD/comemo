@@ -1,30 +1,29 @@
-commit e39b854a6797a7159602f0d6b351ef35ebfa01d0
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu May 13 15:33:48 2021 -0400
+commit 1a3e968b1fcb2082b1d99be563a7c9f8c61c66ba
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Feb 21 22:09:03 2021 +0700
 
-    crypto/elliptic: use complete addition formulas for P-521
+    cmd/compile: fix mishandling of unsafe-uintptr arguments with call method in go/defer
     
-    Complete formulas don't have exceptions for P = Q or P = 0, which makes
-    them significantly simpler and safer to implement. Notice how the
-    constant time IsZero checks are gone.
+    In CL 253457, we did the same fix for direct function calls. But for
+    method calls, the receiver argument also need to be passed through the
+    wrapper function, which we are not doing so the compiler crashes with
+    the code in #44415.
     
-    It's not free, but still well within the performance gains of CL 315271.
+    As we already rewrite t.M(...) into T.M(t, ...) during walkCall1, to fix
+    this, we can do the same trick in wrapCall, so the receiver argument
+    will be treated as others.
     
-    name                    old time/op    new time/op    delta
-    pkg:crypto/elliptic goos:darwin goarch:amd64
-    ScalarBaseMult/P521-16    1.34ms ± 3%    1.63ms ± 4%  +21.78%  (p=0.000 n=10+10)
-    ScalarMult/P521-16        1.35ms ± 3%    1.65ms ± 4%  +22.58%  (p=0.000 n=10+10)
-    pkg:crypto/ecdsa goos:darwin goarch:amd64
-    Sign/P521-16              1.45ms ± 2%    1.67ms ± 1%  +15.00%  (p=0.000 n=10+8)
-    Verify/P521-16            2.68ms ± 1%    3.10ms ± 2%  +16.02%  (p=0.000 n=10+9)
-    GenerateKey/P521-16       1.31ms ± 4%    1.53ms ± 1%  +16.89%  (p=0.000 n=10+9)
+    Fixes #44415
     
-    Change-Id: Ibd9a961e9865df68a1250aba739c190caf9a54de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320071
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I396182983c85d9c5e4494657da79d25636e8a079
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294849
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Julie Qiu <julie@golang.org>
 
- src/crypto/elliptic/p521.go | 261 ++++++++++++++++++++++----------------------
- 1 file changed, 131 insertions(+), 130 deletions(-)
+ src/cmd/compile/internal/walk/expr.go | 32 ++++++++++++++++++--------------
+ src/cmd/compile/internal/walk/stmt.go |  3 +++
+ test/fixedbugs/issue24491a.go         | 30 ++++++++++++++++++++++++++++++
+ test/fixedbugs/issue44415.go          | 21 +++++++++++++++++++++
+ 4 files changed, 72 insertions(+), 14 deletions(-)

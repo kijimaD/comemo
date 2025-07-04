@@ -1,14 +1,12 @@
-commit 878608bd29b936b889e130b0bb81cfbc523ae233
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 8 16:30:28 2012 +1100
+commit 3f6a517db6f5e63844c4bd7b8e1871314df8b10d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 00:22:38 2012 -0500
 
-    cmd/go: connect os.Stdin for go run
+    cmd/dist: respect $CC, as quietgcc.bash used to
     
-    Fixes #2875
-    
-    R=golang-dev, r, rsc
+    R=golang-dev, r, iant
     CC=golang-dev
-    https://golang.org/cl/5641052
+    https://golang.org/cl/5641051
 
- src/cmd/go/run.go | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.c | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

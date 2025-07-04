@@ -1,59 +1,14 @@
-commit bb1fd3b5ff10eb9ad1a40b5bf7c7f35bd20e626f
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Oct 30 12:30:45 2017 -0400
+commit dcdcc3844046af0182cd3a94c7bb78c99908020e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 14 11:44:27 2017 -0400
 
-    cmd/compile: add rules to improve consecutive byte loads and stores on ppc64le
+    [dev.boringcrypto] add README.boringcrypto.md, update VERSION
     
-    This adds new rules to recognize consecutive byte loads and
-    stores and lowers them to loads and stores such as lhz, lwz, ld,
-    sth, stw, std. This change only covers the little endian cases
-    on little endian machines, such as is found in encoding/binary
-    UintXX or PutUintXX for little endian. Big endian will be done
-    later.
-    
-    Updates were also made to binary_test.go to allow the benchmark
-    for Uint and PutUint to actually use those functions because
-    the way they were written, those functions were being
-    optimized out.
-    
-    Testcases were also added to cmd/compile/internal/gc/asm_test.go.
-    
-    Updates #22496
-    
-    The following improvement can be found in golang.org/x/crypto
-    
-    poly1305:
-    
-    Benchmark64-16              142           114           -19.72%
-    Benchmark1K-16              1717          1424          -17.06%
-    Benchmark64Unaligned-16     142           113           -20.42%
-    Benchmark1KUnaligned-16     1721          1428          -17.02%
-    
-    chacha20poly1305:
-    
-    BenchmarkChacha20Poly1305Open_64-16     1012       885   -12.55%
-    BenchmarkChacha20Poly1305Seal_64-16     971        836   -13.90%
-    BenchmarkChacha20Poly1305Open_1350-16   11113      9539  -14.16%
-    BenchmarkChacha20Poly1305Seal_1350-16   11013      9392  -14.72%
-    BenchmarkChacha20Poly1305Open_8K-16     61074      53431 -12.51%
-    BenchmarkChacha20Poly1305Seal_8K-16     61214      54806 -10.47%
-    
-    Other improvements of around 10% found in crypto/tls.
-    
-    Results after updating encoding/binary/binary_test.go:
-    
-    BenchmarkLittleEndianPutUint64-16     1.87      0.93      -50.27%
-    BenchmarkLittleEndianPutUint32-16     1.19      0.93      -21.85%
-    BenchmarkLittleEndianPutUint16-16     1.16      1.03      -11.21%
-    
-    Change-Id: I7bbe2fbcbd11362d58662fecd907a0c07e6ca2fb
-    Reviewed-on: https://go-review.googlesource.com/74410
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I415fcc23b62666d78aed3ddc7d2731127c810be3
+    Reviewed-on: https://go-review.googlesource.com/55471
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go      |    57 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules |   114 +
- src/cmd/compile/internal/ssa/rewritePPC64.go | 30270 ++++++++++++++++++++++++-
- src/encoding/binary/binary_test.go           |    30 +-
- 4 files changed, 30463 insertions(+), 8 deletions(-)
+ README.boringcrypto.md | 18 ++++++++++++++++++
+ VERSION                |  1 -
+ 2 files changed, 18 insertions(+), 1 deletion(-)

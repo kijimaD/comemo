@@ -1,18 +1,21 @@
-commit c54bc3448390d4ae4495d6d2c03c9dd4111b08f1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 18 21:37:56 2018 +0000
+commit 45ce10fa3a95cd949458c012d44f4e50b72acabd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Mar 31 20:18:01 2018 -0700
 
-    net/http: deflake TestClientTimeoutKillsConn_AfterHeaders
+    cmd/compile: use newfuncname in dclfunc
     
-    It was flaky on slower machines.
+    Eliminates an inconsistency between user functions and generated
+    functions.
     
-    Per report at https://github.com/golang/go/issues/23399#issuecomment-405792381
+    Passes toolstash-check.
     
-    Change-Id: I7cab02821f78b5ce02ea51089d7eb51723f9705f
-    Reviewed-on: https://go-review.googlesource.com/124835
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I946b511ca81d88a0024b5932cb50f3d8b9e808f4
+    Reviewed-on: https://go-review.googlesource.com/103863
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/transport_test.go | 44 ++++++++++++++++++++++++++----------------
- 1 file changed, 27 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 2 +-
+ src/cmd/compile/internal/gc/dcl.go     | 2 +-
+ src/cmd/compile/internal/gc/inl.go     | 4 ----
+ 3 files changed, 2 insertions(+), 6 deletions(-)

@@ -1,21 +1,20 @@
-commit 35ffca31b180e6f9da6035326132f048980dc58c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 21 07:14:51 2017 -0800
+commit 3c2f607274b2284826ea887fa9d2ef62817df608
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Nov 1 10:43:34 2016 -0500
 
-    os/exec: deflake TestStdinCloseRace
+    cmd/vendor/golang.org/x/arch/ppc64/ppc64asm: skip TestObjdumpPowerManual if not ppc64x
     
-    Stop reporting errors from cmd.Process.Kill; they don't matter for
-    purposes of this test, and they can occur if the process exits quickly.
+    Skip TestObjdumpPowerManual if the host system is not ppc64 or ppc64le.
+    This test depends on using the host objdump and comparing output, which
+    does not work as expected if the test is run on another host.
     
-    Fixes #19211.
-    Fixes #19213.
+    Orignates from golang.org/x/arch/ppc64/ppc64asm commit 8e2d4898.
     
-    Change-Id: I1a0bb9170220ca69199abb8e8811b1dde43e1897
-    Reviewed-on: https://go-review.googlesource.com/37309
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Fixes #17698
+    
+    Change-Id: I956b0fb78c5ec33641db752d46a755008403d269
+    Reviewed-on: https://go-review.googlesource.com/32531
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec/exec_test.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/objdumpext_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

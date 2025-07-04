@@ -1,29 +1,14 @@
-commit a768de8347c4aab00e48d4566274198c2e35e9bd
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 30 14:41:19 2012 -0400
+commit 3806cc7b05bfa99605d5f8559c4263066a3d8a85
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Wed May 30 14:38:40 2012 -0400
 
-    cmd/6g: avoid MOVSD between registers
+    A+C: add Mats Lidell.  He signed the agreement with the Sweden email
+    address, but his changelist is under the Gmail address.
     
-    MOVSD only copies the low half of the packed register pair,
-    while MOVAPD copies both halves.  I assume the internal
-    register renaming works better with the latter, since it makes
-    our code run 25% faster.
-    
-    Before:
-    mandelbrot 16000
-            gcc -O2 mandelbrot.c    28.44u 0.00s 28.45r
-            gc mandelbrot   44.12u 0.00s 44.13r
-            gc_B mandelbrot 44.17u 0.01s 44.19r
-    
-    After:
-    mandelbrot 16000
-            gcc -O2 mandelbrot.c    28.22u 0.00s 28.23r
-            gc mandelbrot   32.81u 0.00s 32.82r
-            gc_B mandelbrot 32.82u 0.00s 32.83r
-    
-    R=ken2
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6248068
+    https://golang.org/cl/6248069
 
- src/cmd/6g/peep.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

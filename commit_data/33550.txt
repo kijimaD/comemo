@@ -1,26 +1,26 @@
-commit 8cdd999bf54f5fae0acbf4a6d5a3911e4692ca28
-Author: Tw <tw19881113@gmail.com>
-Date:   Sat Jun 24 14:23:17 2017 +0800
+commit 8bbae3d5c9589635225b3a614ffda33989e1f424
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Aug 18 18:40:12 2017 +0200
 
-    net/http: don't set Content-Type with empty body automatically
+    cmd/compile: make argument length mismatch in mkcall an error
     
-    We set Content-Type to "text/plain; charset=utf-8" even with blank body
-    before. Let's strip this unnecessary header though it's harmless in most
-    cases.
+    mkcall is used to construct calls to builtin functions.
     
-    Fixes #20784
+    Instead of silently ignoring any additional arguments to mkcall
+    abort compilation with an error.
     
-    Signed-off-by: Tw <tw19881113@gmail.com>
+    This protects against accidentally supplying too many arguments to mkcall
+    when compiler changes are made.
     
-    Change-Id: Ic58a410dcbc89f457c6ddd92961d9cbf545b2f4f
-    Reviewed-on: https://go-review.googlesource.com/46631
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change appendslice and copyany to construct calls to
+    slicestringcopy and slicecopy explicitly instead of
+    relying on the old behavior as a feature.
+    
+    Change-Id: I3cfe815a57d454a129e3c08aac824f6107779a42
+    Reviewed-on: https://go-review.googlesource.com/57770
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/fs_test.go    | 11 ++++-------
- src/net/http/h2_bundle.go  |  2 +-
- src/net/http/serve_test.go |  3 ---
- src/net/http/server.go     |  2 +-
- src/net/http/sniff_test.go |  1 -
- 5 files changed, 6 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 32 ++++++++++++++++++++------------
+ 1 file changed, 20 insertions(+), 12 deletions(-)

@@ -1,28 +1,20 @@
-commit ce94e916fe262a51c398153b03dd9a657418bbe8
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Apr 3 14:55:21 2025 +0200
+commit ccbc725f2d678255df1bd326fa511a492aa3a0aa
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Feb 14 17:18:36 2024 -0800
 
-    internal/syscall/windows: define NtQueryInformationFile buffer as unsafe.Pointer
+    html/template: escape additional tokens in MarshalJSON errors
     
-    The unsafe.Pointer -> uintptr conversion must happen when calling
-    syscall.Syscall, not when calling the auto-generated wrapper function,
-    else the Go compiler doesn't know that it has to keep the pointer alive.
+    Escape "</script" and "<!--" in errors returned from MarshalJSON errors
+    when attempting to marshal types in script blocks. This prevents any
+    user controlled content from prematurely terminating the script block.
     
-    This can cause undefined behavior and stack corruption.
+    Fixes #65697
     
-    Fixes #73135.
-    Fixes #73112 (potentially).
-    Fixes #73128 (potentially).
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race
-    Change-Id: Ib3ad8b99618d8997bfd0742c0e44aeda696856c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662575
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Icf0e26c54ea7d9c1deed0bff11b6506c99ddef1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564196
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/internal/poll/fd_windows.go                  | 2 +-
- src/internal/syscall/windows/syscall_windows.go  | 2 +-
- src/internal/syscall/windows/zsyscall_windows.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/html/template/js.go      | 22 +++++++++-
+ src/html/template/js_test.go | 96 +++++++++++++++++++++++++-------------------
+ 2 files changed, 74 insertions(+), 44 deletions(-)

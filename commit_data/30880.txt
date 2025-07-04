@@ -1,20 +1,20 @@
-commit 4b50c81356b7e36ae1de1651eb3f5fb9df3211dd
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Feb 21 16:57:37 2017 -0600
+commit 1da1e432817eaf86734499826c6f3dcc1f65db65
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 13 15:00:59 2016 -0800
 
-    test/fixedbugs: add a test for 19201
+    go/internal/gccgoimporter: accept missed portions of v2 format
     
-    This was cherry-picked to 1.8 as CL 38587, but on master issue was fixed
-    by CL 37661. Add still relevant part (test) and close issue, since test passes.
+    Fixes #18301.
     
-    Fixes #19201
-    
-    Change-Id: I6415792e2c465dc6d9bd6583ba1e54b107bcf5cc
-    Reviewed-on: https://go-review.googlesource.com/37376
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I990c105904ab62f2225d671bbc10209ec51b12e2
+    Reviewed-on: https://go-review.googlesource.com/34371
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- test/fixedbugs/issue19201.go | 52 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 52 insertions(+)
+ src/go/internal/gccgoimporter/importer_test.go     |   7 +++++--
+ src/go/internal/gccgoimporter/parser.go            |  16 ++++++++++++++--
+ src/go/internal/gccgoimporter/testdata/time.gox    | Bin 0 -> 7977 bytes
+ src/go/internal/gccgoimporter/testdata/unicode.gox | Bin 0 -> 7945 bytes
+ 4 files changed, 19 insertions(+), 4 deletions(-)

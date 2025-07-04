@@ -1,58 +1,21 @@
-commit 08ecdf7c2e9e9ecc4e2d7c6d9438faeed2338140
+commit a06b08e7d1837df636d24f945fe9b3b2a369b450
 Author: Austin Clements <austin@google.com>
-Date:   Wed Dec 1 08:56:19 2021 -0500
+Date:   Fri Apr 2 17:20:15 2021 -0400
 
-    runtime: fix racy allgs access on weak memory architectures
+    cmd/internal/obj/ppc64: simplify huge frame prologue
     
-    Currently, markroot is very clever about accessing the allgs slice to
-    find stack roots. Unfortunately, on weak memory architectures, it's a
-    little too clever and can sometimes read a nil g, causing a fatal
-    panic.
+    CL 307010 for ppc64.
     
-    Specifically, gcMarkRootPrepare snapshots the length of allgs during
-    STW and then markroot accesses allgs up to this length during
-    concurrent marking. During concurrent marking, allgadd can append to
-    allgs *without synchronizing with markroot*, but the argument is that
-    the markroot access should be safe because allgs only grows
-    monotonically and existing entries in allgs never change.
+    I spent a long time trying to figure out how to use the carry bit from
+    ADDCCC to further simplify this (like what we do on arm64), but gave
+    up after I couldn't figure out how to access the carry bit without
+    just adding more instructions.
     
-    This reasoning is insufficient on weak memory architectures. Suppose
-    thread 1 calls allgadd during concurrent marking and that allgs is
-    already at capacity. On thread 1, append will allocate a new slice
-    that initially consists of all nils, then copy the old backing store
-    to the new slice (write A), then allgadd will publish the new slice to
-    the allgs global (write B). Meanwhile, on thread 2, markroot reads the
-    allgs slice base pointer (read A), computes an offset from that base
-    pointer, and reads the value at that offset (read B). On a weak memory
-    machine, thread 2 can observe write B *before* write A. If the order
-    of events from thread 2's perspective is write B, read A, read B,
-    write A, then markroot on thread 2 will read a nil g and then panic.
-    
-    Fix this by taking a snapshot of the allgs slice header in
-    gcMarkRootPrepare while the world is stopped and using that snapshot
-    as the list of stack roots in markroot. This eliminates all read/write
-    concurrency around the access in markroot.
-    
-    Alternatively, we could make markroot use the atomicAllGs API to
-    atomically access the allgs list, but in my opinion it's much less
-    subtle to just eliminate all of the interesting concurrency around the
-    allgs access.
-    
-    Fixes #49686.
-    Fixes #48845.
-    Fixes #43824.
-    (These are all just different paths to the same ultimate issue.)
-    
-    Change-Id: I472b4934a637bbe88c8a080a280aa30212acf984
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368134
+    Change-Id: I6cad51b93616865b203cb16554f16121375aabbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307149
     Trust: Austin Clements <austin@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/mgc.go     | 14 ++++++++++++++
- src/runtime/mgcmark.go | 14 ++++++--------
- src/runtime/proc.go    | 14 ++++++++++++++
- 3 files changed, 34 insertions(+), 8 deletions(-)
+ src/cmd/internal/obj/ppc64/obj9.go | 103 ++++++++++++++++---------------------
+ 1 file changed, 44 insertions(+), 59 deletions(-)

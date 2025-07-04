@@ -1,18 +1,25 @@
-commit 362a40e37da849696e1af6874d0d5f1275a1a386
+commit 7820d270498d6d4d960f7e34a0a80cafe2d05117
 Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu May 7 21:29:47 2015 +1200
+Date:   Wed Apr 1 16:20:44 2015 +1300
 
-    misc/cgo/testshared: rewrite in Go
+    cmd/internal/gc, cmd/internal/ld: fixes for global vars of types from other modules
     
-    And fix to work on filesystems with only 1s resolution.
+    To make the gcprog for global data containing variables of types defined in other shared
+    libraries, we need to know a lot about those types. So read the value of any symbol with
+    a name starting with "type.". If a type uses a mask, the name of the symbol defining the
+    mask unfortunately cannot be predicted from the type name so I have to keep track of the
+    addresses of every such symbol and associate them with the type symbols after the fact.
     
-    Fixes #10724
+    I'm not very happy about this change, but something like this is needed and this is as
+    pleasant as I know how to make it.
     
-    Change-Id: Ia07463f090b4290fc27f5953fa94186463d7afc7
-    Reviewed-on: https://go-review.googlesource.com/9768
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I408d831b08b3b31e0610688c41367b23998e975c
+    Reviewed-on: https://go-review.googlesource.com/8334
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testshared/shared_test.go | 364 +++++++++++++++++++++++++++++++++++++
- misc/cgo/testshared/test.bash      | 137 --------------
- src/cmd/dist/test.go               |   2 +-
- 3 files changed, 365 insertions(+), 138 deletions(-)
+ src/cmd/internal/ld/decodesym.go | 10 +++++++
+ src/cmd/internal/ld/lib.go       | 57 +++++++++++++++++++++++++++++++++++++++-
+ src/cmd/internal/ld/link.go      |  1 +
+ src/cmd/internal/ld/objfile.go   |  4 ++-
+ 4 files changed, 70 insertions(+), 2 deletions(-)

@@ -1,29 +1,17 @@
-commit 2dda040f19aa6a7551f090d8c5a3941e416b21df
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 26 20:10:23 2018 -0700
+commit 9daa35edf08bb76948368fecf388572a4a77c14f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 29 16:09:01 2018 -0400
 
-    cmd/compile/internal/gc: represent labels as bare Syms
+    runtime: tidy OpenBSD sysctl code
     
-    Avoids allocating an ONAME for OLABEL, OGOTO, and named OBREAK and
-    OCONTINUE nodes.
+    The OpenBSD sysctl code has been copy-pasted three times now. Abstract
+    it.
     
-    Passes toolstash-check.
-    
-    Change-Id: I359142cd48e8987b5bf29ac100752f8c497261c1
-    Reviewed-on: https://go-review.googlesource.com/c/145200
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia5558927f0bc2b218b5af425dab368b5485d266c
+    Reviewed-on: https://go-review.googlesource.com/121775
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/esc.go       | 17 +++++++++--------
- src/cmd/compile/internal/gc/fmt.go       |  6 +++---
- src/cmd/compile/internal/gc/iexport.go   |  3 ++-
- src/cmd/compile/internal/gc/iimport.go   |  7 ++++++-
- src/cmd/compile/internal/gc/inl.go       | 10 +++++-----
- src/cmd/compile/internal/gc/noder.go     |  4 ++--
- src/cmd/compile/internal/gc/ssa.go       |  8 ++++----
- src/cmd/compile/internal/gc/subr.go      |  4 ++--
- src/cmd/compile/internal/gc/swt.go       |  9 +++++----
- src/cmd/compile/internal/gc/syntax.go    |  8 ++++----
- src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
- 11 files changed, 47 insertions(+), 39 deletions(-)
+ src/runtime/os_openbsd.go | 35 ++++++++++++++++-------------------
+ 1 file changed, 16 insertions(+), 19 deletions(-)

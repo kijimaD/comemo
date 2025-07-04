@@ -1,12 +1,21 @@
-commit de4ca13eacecd65d3275ca4aec7a7bb0e8878fe7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Dec 20 09:59:51 2013 -0800
+commit 1334b794b74c535b0971ea51c940faa6b26fe184
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 20 12:10:53 2013 -0500
 
-    doc: fix typo in Effective Go
+    libmach: remove old object file readers
     
-    R=adg, bradfitz
+    These no longer work; removing them makes other refactoring easier.
+    The code for pack P being deleted in this CL does not work either.
+    I created issue 6989 to track restoring this functionality (probably not
+    until pack is written in Go).
+    
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/44430043
+    https://golang.org/cl/44300043
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/pack/ar.c  | 107 +-----------------
+ src/libmach/5obj.c | 171 -----------------------------
+ src/libmach/6obj.c | 173 -----------------------------
+ src/libmach/8obj.c | 170 ----------------------------
+ src/libmach/obj.c  | 316 -----------------------------------------------------
+ 5 files changed, 4 insertions(+), 933 deletions(-)

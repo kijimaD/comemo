@@ -1,15 +1,19 @@
-commit 2791ef0b6784f487738b7dbe6bda520b426131f3
+commit f3c1070fa4cb02c55b47b874076fe74879288a4c
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 12 22:04:10 2013 +0400
+Date:   Mon Aug 12 21:46:33 2013 +0400
 
-    runtime/race: add end-to-end test
-    Fixes #5933.
+    sync/atomic: specify argsize for asm routines
+    Fixes #6098.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12699051
+    https://golang.org/cl/12717043
 
- src/pkg/runtime/crash_test.go       |   6 +-
- src/pkg/runtime/race/output_test.go | 109 ++++++++++++++++++++++++++++++++++++
- src/run.bash                        |   3 +-
- 3 files changed, 115 insertions(+), 3 deletions(-)
+ src/pkg/sync/atomic/asm_386.s         | 46 +++++++++++++++++------------------
+ src/pkg/sync/atomic/asm_amd64.s       | 46 +++++++++++++++++------------------
+ src/pkg/sync/atomic/asm_arm.s         | 16 ++++++------
+ src/pkg/sync/atomic/asm_freebsd_arm.s |  4 +--
+ src/pkg/sync/atomic/asm_linux_arm.s   | 16 ++++++------
+ src/pkg/sync/atomic/asm_netbsd_arm.s  |  4 +--
+ src/pkg/sync/atomic/atomic_test.go    | 37 ++++++++++++++++++++++++++++
+ 7 files changed, 103 insertions(+), 66 deletions(-)

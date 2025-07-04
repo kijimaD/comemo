@@ -1,20 +1,22 @@
-commit da8f406f069490a14aef878559a6db08f4d53344
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Wed Sep 6 15:14:28 2023 +0300
+commit 0156b797e6f0d1a116a19cd852f569ec2c2eec11
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 27 08:28:06 2022 -0700
 
-    all: simplify bool conditions
+    cmd/compile: recognize when the result of append has a constant length
     
-    Change-Id: Id2079f7012392dea8dfe2386bb9fb1ea3f487a4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526015
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Fixes a performance regression due to CL 418554.
+    
+    Fixes #56440
+    
+    Change-Id: I6ff152e9b83084756363f49ee6b0844a7a284880
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445875
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/sha1/fallback_test.go   | 2 +-
- src/crypto/sha512/fallback_test.go | 2 +-
- src/database/sql/sql_test.go       | 2 +-
- src/math/big/arith_s390x_test.go   | 2 +-
- src/net/http/response_test.go      | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  7 +++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 40 +++++++++++++++++++++++++
+ test/codegen/issue56440.go                      | 18 +++++++++++
+ test/prove.go                                   |  2 +-
+ 4 files changed, 66 insertions(+), 1 deletion(-)

@@ -1,17 +1,22 @@
-commit 7a5e7047a4606e1deab7d4adcf9f057c7f8ce88c
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Jun 15 10:59:58 2021 -0400
+commit e37597f7f0ad0be32d854c9b7b3556009b728538
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 16 11:36:13 2020 -0500
 
-    doc/go1.17: add Go 1.18 pre-announcements
+    [dev.regabi] cmd/compile: rename a few 'base' identifiers
     
-    Updates #41682
-    Updates #45428
+    We want to introduce a package cmd/compile/internal/base,
+    and these will shadow it at points where it is needed.
     
-    Change-Id: Ia31d454284f0e114bd29ba398a2858fc90454032
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/327811
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: Ic936733fba1ccba8c2ca1fdedbd4d2989df4bbf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272249
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.17.html | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/compile/internal/gc/escape.go | 20 ++++++++++----------
+ src/cmd/compile/internal/gc/lex.go    |  4 ++--
+ src/cmd/compile/internal/gc/noder.go  |  8 ++++----
+ src/cmd/compile/internal/gc/obj.go    |  8 ++++----
+ src/cmd/compile/internal/gc/pgen.go   | 10 +++++-----
+ src/cmd/compile/internal/gc/swt.go    |  6 +++---
+ src/cmd/compile/internal/gc/unsafe.go |  8 ++++----
+ 7 files changed, 32 insertions(+), 32 deletions(-)

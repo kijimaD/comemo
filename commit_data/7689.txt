@@ -1,15 +1,17 @@
-commit 4c052844dd74f6be5401d343405ba5560dc95fdd
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 7 19:36:17 2011 -0500
+commit fb64e0d96fa56eb6eefd2e5083b0986f1cb33d10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 7 16:29:07 2011 -0800
 
-    gc: fix handling of return values named _
+    go spec: clarify return statement rules
     
-    Fixes #1586.
+    Added example of a return statement w/o expressions
+    in a function with a _ result parameter.
     
-    R=ken2
+    See also: http://code.google.com/p/go/issues/detail?id=1586
+    
+    R=rsc, r, iant
     CC=golang-dev
-    https://golang.org/cl/4244057
+    https://golang.org/cl/4266049
 
- src/cmd/gc/dcl.c         | 29 +++++++++++++++--------------
- test/fixedbugs/bug326.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 56 insertions(+), 14 deletions(-)
+ doc/go_spec.html | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

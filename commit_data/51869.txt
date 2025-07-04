@@ -1,26 +1,24 @@
-commit 2e71489ed1a30f95d0e11685536f5d61d9e858b3
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue Jan 31 09:00:22 2023 +0000
+commit 3f8a6941553ae007638335cb6af0b6a702adf64f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 18 17:02:52 2022 -0400
 
-    net: use net/netip for address parsing
+    cmd/compile: remove regabi magic names
     
-    Fixes #58098
+    When developing register ABI, for early testing the compiler
+    recognized a few magic names to trigger enabling register ABI.
+    After the development it is disabled (changed to a name that
+    cannot be spelled in the source code). Later in the development of
+    register ABI for ARM64 and PPC64, I don't think the magic names
+    were used. I think they can now be removed.
     
-    Change-Id: I6ef963ba2c110215b8eda763cbfb258a25c8199a
-    GitHub-Last-Rev: 3d22f076b725337fa97eedcf92a1520a72bf0c17
-    GitHub-Pull-Request: golang/go#58143
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463987
+    Keep the magic pragma for now in case it helps development.
+    
+    Change-Id: Icbc34e2786a80fd8fffe4a464c569dc03a54cd09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393877
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/cgo_unix.go       |  11 +-
- src/net/dnsconfig_unix.go |   5 +-
- src/net/hosts.go          |  15 +--
- src/net/ip.go             | 267 ++++------------------------------------------
- src/net/ip_test.go        |  16 +++
- src/net/lookup.go         |   8 +-
- 6 files changed, 51 insertions(+), 271 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 53 ----------------------------------
+ 1 file changed, 53 deletions(-)

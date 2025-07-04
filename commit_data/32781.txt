@@ -1,24 +1,29 @@
-commit a53e853964cc9220ebc4b35aeb81a382939fb479
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 19 12:45:17 2017 -0700
+commit d64c49098c626ea58f2265866dd576e138c15b29
+Author: Fatih Arslan <ftharsln@gmail.com>
+Date:   Sun May 28 02:42:34 2017 +0300
 
-    cmd/compile/internal/types: simplify dclstack
+    cmd/vet: set exit status to non zero for all cases
     
-    We used to backup symbol declarations using complete Syms, but this
-    was unnecessary: very few of Sym's fields were actually needed. Also,
-    to restore a symbol, we had to re-Lookup the Sym in its Pkg.
+    Vet returns with a nonzero exit for all possible messages in the
+    buildtag check. However for this file:
     
-    By introducing a new dedicated dsym type for this purpose, we can
-    address both of these deficiencies.
+        //+buildlinux
     
-    Passes toolstash-check.
+        package main
     
-    Change-Id: I39f3d672b301f84a3a62b9b34b4b2770cb25df79
-    Reviewed-on: https://go-review.googlesource.com/64811
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    vet returns a zero exit status:
+    
+        $ go vet main.go
+        demo.go:1: possible malformed +build comment
+        $ echo $?
+        0
+    
+    This CL sets the exit status to non zero for the remaining messages in
+    the buildtag check.
+    
+    Change-Id: Ia2c35ebc3ec5ac311d2a0295b5b9fdd997a85726
+    Reviewed-on: https://go-review.googlesource.com/44371
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/types/scope.go | 61 +++++++++++++++++++--------------
- src/cmd/compile/internal/types/sym.go   |  5 +--
- 2 files changed, 38 insertions(+), 28 deletions(-)
+ src/cmd/vet/buildtag.go | 2 ++
+ 1 file changed, 2 insertions(+)

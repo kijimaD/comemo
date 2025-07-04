@@ -1,22 +1,23 @@
-commit d2fd503f687ca686cb8fbee0b29e64ba529038fe
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 5 21:13:24 2021 -0400
+commit c45d78013f92a29285cd81488eb7a16819f01e18
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Oct 28 10:52:02 2020 -0400
 
-    text/template: fix type bug in eq
+    cmd/link: ignore "operation not permitted" fallocate errors.
     
-    {{eq .x 0}} where .x is a nil interface{} should be false, not a type error.
+    Ignore an additional class of errors form fallocate, falling back to
+    heap allocated buffers for output.
     
-    Similarly, {{eq .x .x}} should succeed, not panic in reflect.
+    Fixes #41356
     
-    Fixes #45982.
-    
-    Change-Id: I90aba82bb2f1a9e162bde1290c94f5028f56f412
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317470
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Iaaa91620cec644c78978e0b258f166bc204a3f85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254777
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/text/template/exec_test.go | 19 +++++++++++--------
- src/text/template/funcs.go     |  6 ++++--
- 2 files changed, 15 insertions(+), 10 deletions(-)
+ src/cmd/link/internal/ld/outbuf.go             | 9 ++++-----
+ src/cmd/link/internal/ld/outbuf_mmap.go        | 2 +-
+ src/cmd/link/internal/ld/outbuf_nofallocate.go | 4 +---
+ 3 files changed, 6 insertions(+), 9 deletions(-)

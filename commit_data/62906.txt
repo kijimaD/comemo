@@ -1,0 +1,23 @@
+commit 7785528c505f6ef9afdb3e089d23dadb860aee11
+Author: Josh Rickmar <jrick@zettaport.com>
+Date:   Thu May 1 15:09:40 2025 +0000
+
+    os: fix Root.Mkdir permission bits on OpenBSD
+    
+    Pass missing mode bits in the mkdirat() syscall wrapper.
+    
+    Fixes #73559
+    
+    Change-Id: I54b1985bd77b1fe5d1a48acab9f2597f8c931854
+    GitHub-Last-Rev: 669c17361d86bc9065bb6b47a2d60aa86bcfa12d
+    GitHub-Pull-Request: golang/go#73565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669375
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/internal/syscall/unix/at_openbsd.go | 2 +-
+ src/os/root_test.go                     | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

@@ -1,30 +1,22 @@
-commit c0dded04f7ded5048b44200078a1f723f5e1bcc1
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Tue Jul 14 01:41:03 2020 -0600
+commit fb93cd45a647087a11f96cf2610e64a257a68c19
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 4 19:41:48 2020 -0500
 
-    runtime: do not explicitly exit on ctrl handler
+    net: don't check LookupHost error in TestLookupNullByte
     
-    The default ctrl+c handler should process exits in situations where it
-    makes sense, like console apps, but not in situations where it doesn't,
-    like libraries or services. Therefore, we should remove the exit(2) so
-    that the default handler is used for this. This also uses the more
-    proper windows exit code of STATUS_CONTROL_C_EXIT, with the base case
-    handler installed by KernelBase.dll. In particular, this helps in the
-    case of services, which previously would terminate when receiving
-    shutdown signals, instead of passing them onward to the service program.
-    In this CL, contrary to CL 244959, we do not need to special case
-    services with expensive detection algorithms, or rely on hard-coded
-    library/archive flags.
+    net.LookupHost("foo\x00bar") may resolve successfully on some networks.
+    Reduce the scope of the test to check only that the call doesn't panic.
     
-    Fixes #40167.
-    Fixes #40074.
+    Also update the test comment to reference the relevant issue.
     
-    Change-Id: I9bf6ed6f65cefeff754d270aa33fa4df8d0b451f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243597
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Fixes #37031
+    Updates #31597
+    
+    Change-Id: If175deed8121625ef507598c6145e937ccffd89e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217729
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/runtime/os_windows.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/net/lookup_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

@@ -1,15 +1,15 @@
-commit 9585bb29c83a4a705e1f6135d9ca156a1b50ad89
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Jun 16 13:23:42 2015 -0400
+commit 351897d9d4f61dba5bd19270463c393a58d1f2ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 7 10:34:12 2015 -0400
 
-    go/types: disable example on darwin/arm
+    cmd/internal/gc: emit branches in -g mode
     
-    Sadly examples cannot use the new internal/testenv, so this is
-    extends the crude build tag restriction in this file.
+    The -g mode is a debugging mode that prints instructions
+    as they are constructed. Gbranch was just missing the print.
     
-    Change-Id: I49646ca71e45074a917813ae8e612cc715c78be8
-    Reviewed-on: https://go-review.googlesource.com/11086
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I3fb45fd9bd3996ed96df5be903b9fd6bd97148b0
+    Reviewed-on: https://go-review.googlesource.com/9827
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/go/types/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/gc/gsubr.go | 4 ++++
+ 1 file changed, 4 insertions(+)

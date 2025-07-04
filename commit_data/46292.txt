@@ -1,22 +1,23 @@
-commit 2a463a22cee8ddbd4801acd2ef34eefa551a718a
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Jun 21 20:23:36 2021 -0700
+commit e999c1702250222b069691491d24dd5d020744de
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 01:44:49 2020 -0500
 
-    net/http: close request body after recovering from a handler panic
+    [dev.regabi] cmd/compile: separate ssa from other phases
     
-    When recovering from a panic in a HTTP handler, close the request body
-    before closing the *conn, ensuring that the *conn's bufio.Reader is safe
-    to recycle.
+    isIntrinsicCall and ssaDumpInline are the only two "forward references"
+    to ssa by earlier phases. Make them a bit more explicit so that the
+    uses and the definitions can end up in different packages.
     
-    Fixes #46866.
-    
-    Change-Id: I3fe304592e3b423a0970727d68bc1229c3752939
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329922
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I02c7a27464fbedef9fee43c0e4094fa08b4d7a5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279300
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/server.go         | 10 ++++++++++
- src/net/http/transport_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/cmd/compile/internal/gc/inl.go   | 15 ++++++++++-----
+ src/cmd/compile/internal/gc/main.go  |  3 +++
+ src/cmd/compile/internal/gc/plive.go |  8 ++++----
+ src/cmd/compile/internal/gc/ssa.go   | 14 ++++++++++----
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 5 files changed, 28 insertions(+), 14 deletions(-)

@@ -1,18 +1,30 @@
-commit f0b01092429a449313c9f54434417337ed26b20b
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Nov 18 15:52:13 2024 -0800
+commit da7ac77380f68ed855ab4565c4ef2217249c53c2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Oct 13 10:32:57 2023 +0700
 
-    cmd/compile: pull multiple adds out of an unsafe.Pointer<->uintptr conversion
+    cmd/compile: fix funcdata encode for functions with large frame size
     
-    This came up in some swissmap code.
+    The funcdata is encoded as varint, with the upper limit set to 1e9.
+    However, the stack offsets could be up to 1<<30. Thus emitOpenDeferInfo
+    will trigger an ICE for function with large frame size.
     
-    Change-Id: I3c6705a5cafec8cb4953dfa9535cf0b45255cc83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629516
+    By using binary.PutUvarint, the frame offset could be encoded correctly
+    for value larger than 1<<35, allow the compiler to report the error.
+    
+    Further, the runtime also do validation when reading in the funcdata
+    value, so a bad offset won't likely cause mis-behavior.
+    
+    Fixes #52697
+    
+    Change-Id: I084c243c5d24c5d31cc22d5b439f0889e42b107c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535077
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules |  3 +
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 75 +++++++++++++++++++++++++
- test/codegen/unsafe.go                          | 16 ++++++
- 3 files changed, 94 insertions(+)
+ src/cmd/compile/internal/ssagen/ssa.go         | 24 +++++++-----------------
+ src/cmd/compile/internal/types2/stdlib_test.go |  1 +
+ src/go/types/stdlib_test.go                    |  1 +
+ test/fixedbugs/issue52697.go                   | 25 +++++++++++++++++++++++++
+ 4 files changed, 34 insertions(+), 17 deletions(-)

@@ -1,23 +1,18 @@
-commit e5ce93d7bfb7baead0671ad59bcd91ecb090a656
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Oct 26 11:29:23 2023 -0500
+commit e535d6776c060da5f1947c4290159be0eb60ed6c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 6 21:47:29 2022 +0000
 
-    cmd/internal/obj/ppc64: remove unused C_XER optab class
+    Revert "runtime/pprof: unskip TestTimeVDSO on Android"
     
-    This halves the size of the xcmp lookup table.
+    This reverts CL 455358, commit 98da0fb43fb481a25b3b4399cd9f517fe94d9f3f.
     
-    Change-Id: I543fb72709ca45c026e9b7d8084a78f2a8fcd43e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542295
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+    Reason for revert: still failing https://build.golang.org/log/c9f13a76069f523b5b4a37a75ec52b30a1f3427a
+    
+    Change-Id: I8246d233c4fb86781b882f19dea82065cc21bc26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455696
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/internal/obj/ppc64/a.out.go    | 1 -
- src/cmd/internal/obj/ppc64/anames9.go  | 1 -
- src/cmd/internal/obj/ppc64/asm9.go     | 5 +----
- src/cmd/internal/obj/ppc64/asm_test.go | 1 -
- 4 files changed, 1 insertion(+), 7 deletions(-)
+ src/runtime/pprof/pprof_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

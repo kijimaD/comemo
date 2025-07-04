@@ -1,15 +1,49 @@
-commit b9bed397149d6d48f06b18958fc2367a9b99df37
-Author: David du Colombier <0intro@gmail.com>
-Date:   Mon Dec 9 07:55:53 2013 -0500
+commit f606c1be805e939e1aebcb9d3e15adf4eb5f7016
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 8 22:51:55 2013 -0500
 
-    liblink: fix Plan 9 build
+    cmd/5g, cmd/6g, cmd/8g: use liblink
     
-    R=golang-dev, rsc
+    Preparation for golang.org/s/go13linker work.
+    
+    This CL does not build by itself. It depends on 35740044
+    and 35790044 and will be submitted at the same time.
+    
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/39280043
+    https://golang.org/cl/34590045
 
- include/plan9/386/u.h   | 2 ++
- include/plan9/amd64/u.h | 2 ++
- include/plan9/link.h    | 5 +++++
- src/liblink/data.c      | 4 ++--
- 4 files changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/5g/galign.c |   1 +
+ src/cmd/5g/gg.h     |  39 ---------
+ src/cmd/5g/ggen.c   |   2 +-
+ src/cmd/5g/gobj.c   | 245 ++--------------------------------------------------
+ src/cmd/5g/gsubr.c  |  48 +++++-----
+ src/cmd/5g/list.c   |  26 +++---
+ src/cmd/5g/peep.c   |  46 +++++-----
+ src/cmd/5g/reg.c    |  10 +--
+ src/cmd/6g/galign.c |   1 +
+ src/cmd/6g/gg.h     |  36 --------
+ src/cmd/6g/ggen.c   |   2 +-
+ src/cmd/6g/gobj.c   | 241 ++-------------------------------------------------
+ src/cmd/6g/gsubr.c  |  48 +++++-----
+ src/cmd/6g/list.c   |  10 +--
+ src/cmd/6g/peep.c   |  22 ++---
+ src/cmd/6g/reg.c    |   9 +-
+ src/cmd/8g/galign.c |   1 +
+ src/cmd/8g/gg.h     |  37 --------
+ src/cmd/8g/ggen.c   |   2 +-
+ src/cmd/8g/gobj.c   | 239 ++------------------------------------------------
+ src/cmd/8g/gsubr.c  |  50 +++++------
+ src/cmd/8g/list.c   |  10 +--
+ src/cmd/8g/peep.c   |  20 ++---
+ src/cmd/8g/reg.c    |   9 +-
+ src/cmd/gc/dcl.c    |   2 +-
+ src/cmd/gc/fmt.c    |  73 +---------------
+ src/cmd/gc/go.h     |  41 ++-------
+ src/cmd/gc/lex.c    |  20 +----
+ src/cmd/gc/obj.c    | 184 ++++-----------------------------------
+ src/cmd/gc/pgen.c   |   4 +-
+ src/cmd/gc/plive.c  |  24 ++---
+ src/cmd/gc/popt.c   |   4 +-
+ src/cmd/gc/subr.c   |  26 +-----
+ 33 files changed, 234 insertions(+), 1298 deletions(-)

@@ -1,19 +1,22 @@
-commit e50dd0e974bdd621e48de2f64e02b4db5d12b393
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat Aug 27 11:34:08 2022 +0800
+commit 834e36ec778c11b068a2d5354343d4668e5a9ceb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 28 16:23:51 2021 -0400
 
-    database: convert DB.{waitDuration,numClosed} to atomic type
+    net/http: restore generated // +build comment
     
-    Change-Id: I4a67a5e51a98938c07b3c38442f8d852db97cb2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426085
-    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    The upstream cmd/bundle tool does not yet omit it,
+    and the longtest builders test that the generated
+    file is not modified.
+    
+    For #41184.
+    
+    Change-Id: Ib68f532139ed1436cbaf3a756f300fe60f520cab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359484
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/database/sql/sql.go | 19 +++++++++----------
- 1 file changed, 9 insertions(+), 10 deletions(-)
+ src/net/http/h2_bundle.go | 1 +
+ 1 file changed, 1 insertion(+)

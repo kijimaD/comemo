@@ -1,16 +1,16 @@
-commit 8badef4cf64b5ace52b3e76b40f4702363a93b8a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Nov 8 21:03:18 2020 -0500
+commit d9d88dd27f31936e11dfa621937f09db9a23af36
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 00:30:14 2020 -0700
 
-    doc/articles/race_detector.html: add darwin/arm64
+    cmd/compile: allow named values on RHS of rewrite rules
     
-    Updates #38485.
+    Fixes #38621
     
-    Change-Id: I46f515973c0a31d7c3e0e05ce006121c60c4041e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268497
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idbffdcc70903290dc58e5abb4867718bd5449fe1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229701
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/articles/race_detector.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

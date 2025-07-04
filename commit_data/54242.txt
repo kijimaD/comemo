@@ -1,18 +1,17 @@
-commit 626a3cd9fa6ea412aa8ccd5f33ca836fa4ca116f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 28 11:26:17 2023 -0700
+commit d547ae2a8e2879aa330b9236e28873ddd714c1f8
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:49:07 2022 +0800
 
-    cmd/go: only print cgo.Incomplete warning if -x
+    cmd/internal/cov: use io.SeekStart, io.SeekCurrent, and io.SeekEnd
     
-    Change-Id: I1e0476d6d67f0b2d3d4ad487c2619e3d09f485d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523576
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibf7e33e42c649783eaa0e638babff22d96ab51c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436701
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/work/gccgo.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/cov/mreader.go     | 6 +++---
+ src/cmd/internal/cov/readcovdata.go | 3 ++-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

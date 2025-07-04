@@ -1,14 +1,14 @@
-commit bc244008afa9cb0bf6c900fe75673dc349b67a8c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jan 13 17:17:53 2015 +1100
+commit 5de497bc6fbae2470f700bb9d786a844cd7908db
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Dec 11 19:09:39 2014 +0100
 
-    runtime: move SetErrorMode constants into function so they are not exported
+    math: Added parity check to ProbablyPrime
     
-    Change-Id: Ib1a2adbcdbd7d96f9b4177abc3c9cf0ab09c1df4
-    Reviewed-on: https://go-review.googlesource.com/2716
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #9269
+    
+    Change-Id: I25751632e95978537b656aedfa5c35ab2273089b
+    Reviewed-on: https://go-review.googlesource.com/1380
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/os1_windows.go | 21 ++++++++++++---------
- 1 file changed, 12 insertions(+), 9 deletions(-)
+ src/math/big/nat.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,24 +1,23 @@
-commit 0d699b6cb3e6be63846bbbee8cc7bcbfd6cb9500
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Tue Apr 18 22:13:27 2023 +0200
+commit e66f895667cd51d0d28c42d369a803c12db8bb35
+Author: Alex Brachet <abrachet@google.com>
+Date:   Thu May 19 16:58:46 2022 +0000
 
-    io: ReadAll: do not check for realloc in first round
+    cmd/cgo: allow DW_TAG_variable's with no name
     
-    Refactor io.ReadAll to check for realloc of the buffer only after the
-    first read.
+    https://reviews.llvm.org/D123534 is emitting DW_TAG_variable's
+    that don't have a DW_AT_name. This is allowed in the DWARF
+    standard. It is adding DIE's for string literals for better
+    symbolization on buffer overlows etc on these strings. They
+    no associated name because they are not user provided variables.
     
-    Fixes: #59702
+    Fixes #53000
     
-    Change-Id: I93b99139e6756f21738d47e7d9ad08e1d167258e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486236
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I2cf063160508687067c7672cef0517bccd707d7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406816
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/io/io.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/cgo/gcc.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

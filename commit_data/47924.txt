@@ -1,34 +1,25 @@
-commit 8070e70d64c5f82f1cf4c2079d97766e5da9775e
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Mon Jan 10 23:04:22 2022 -0800
+commit ef57834360cf69f2e8b52b32c7a05d96bf6bbba7
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Sun Mar 28 16:39:47 2021 +0100
 
-    cmd/compile/types2, go/types: add position for "have" in failed interface satisfaction
+    crypto/tls: fix flaky handshake cancellation tests
     
-    With this change, we shall now see:
+    Simplified both tests significantly by removing logic for writing
+    the client/server side messages. The flake was likely because of a
+    race between the closing of the local pipe from inside the test
+    and closing of the pipe from within the handshakeContext goroutine.
+    Wait to close the local pipe in the test until after the test
+    has finished running.
     
-        *myS does not implement S (wrong type for DoSomething method)
-            have DoSomething() (string, error) at ./main.go:9:14
-            want DoSomething() (int, error)
+    Fixes #45106
+    Fixes #45299
     
-    instead of previously:
-    
-        *myS does not implement S (wrong type for DoSomething method)
-            have DoSomething() (string, error)
-            want DoSomething() (int, error)
-    
-    Fixes #42841
-    Fixes #45813
-    
-    Change-Id: I66990929e39b0d36f2e91da0d92f60586a9b84e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373634
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: If7ca75aeff7df70cda03c934fa9d8513276d465d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305250
+    Trust: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/types2/lookup.go                 | 14 +++++++-------
- src/cmd/compile/internal/types2/testdata/check/issues.src |  2 +-
- src/go/types/lookup.go                                    | 15 ++++++++-------
- test/fixedbugs/issue48471.go                              |  8 ++++----
- 4 files changed, 20 insertions(+), 19 deletions(-)
+ src/crypto/tls/handshake_client_test.go | 34 +++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_server_test.go | 26 +++++++++----------------
+ 2 files changed, 43 insertions(+), 17 deletions(-)

@@ -1,32 +1,29 @@
-commit 3ae819ad1c962e5b4e6d4a7d855477b02755951b
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Thu Jun 6 14:25:38 2024 +0800
+commit 548790e64a6ad186a85f7a75ee53f6fdc6a2aead
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jun 15 01:39:04 2023 -0400
 
-    cmd/internal/obj/loong64: add support for instructions FTINT{RM/RP/RZ/RNE}.{W/L}.{S/D}
+    net/http: close req.Body only when it's non-nil on js
     
-    These instructions convert floating-point numbers to fixed-point numbers
-    with the specified rounding pattern.
+    The main change here is fixing the panic where it was called even when
+    req.Body was nil. It might also work better to keep the req.Body.Close
+    calls closer after req.Body is read, so do that too.
     
-    Go asm syntax:
-                FTINT{RM/RP/RZ/RNE}{W/V}{F/D}       FJ, FD
+    Calling readableStreamPull.Release on a js.Func with a zero value
+    is currently a no-op, but it seems better to avoid it anyway.
     
-    Equivalent platform assembler syntax:
-                ftint{rm/rp/rz/rne}.{w/l}.{s/d}     fd, fj
+    Also remove readableStreamStart, readableStreamCancel while here.
+    They were used in the initial but not final patch set of CL 458395.
     
-    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    Fixes #60809.
     
-    Change-Id: I6d650d1b48b10296d01a98fadf9d806206f9b96e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590995
-    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Change-Id: I6ff2e3b6ec2cd4b0c9c67939903e32908312db8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503676
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 17 +++++++++
- src/cmd/internal/obj/loong64/a.out.go           | 18 ++++++++++
- src/cmd/internal/obj/loong64/anames.go          | 16 +++++++++
- src/cmd/internal/obj/loong64/asm.go             | 48 +++++++++++++++++++++++++
- 4 files changed, 99 insertions(+)
+ src/net/http/roundtrip_js.go | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)

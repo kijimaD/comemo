@@ -1,19 +1,25 @@
-commit 81d6ec204fcfbcbb617f38b8ee5183080669c066
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sat Oct 26 20:01:47 2019 +0200
+commit 54260c570f1202b992b7b6ee8f837dd717927d24
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 9 21:29:24 2019 -0400
 
-    os: remove read-only directories in RemoveAll on Windows
+    cmd/go: add more information to -debug-actiongraph
     
-    Remove skipping of TestRemoveUnreadableDir on Windows.
+    Add information about action and build IDs,
+    commands run, time spent in commands,
+    and overall time to -debug-actiongraph output.
     
-    Fixes #26295
+    Also avoid a terrible outcome in:
     
-    Change-Id: I364a3caa55406c855ece807759f6298f7e4ddf1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203599
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+            go build -debug-actiongraph x.go
+    
+    Change-Id: I7a3a638f4848d75f2bdc997517f4ab23656da4f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177138
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/os/removeall_noat.go | 8 ++++++++
- src/os/removeall_test.go | 2 +-
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/action.go  | 84 +++++++++++++++++++++++--------------
+ src/cmd/go/internal/work/buildid.go | 15 +++++++
+ src/cmd/go/internal/work/exec.go    | 63 +++++++++++++++++++++-------
+ src/cmd/go/internal/work/gc.go      |  2 +-
+ src/cmd/go/internal/work/gccgo.go   |  2 +-
+ 5 files changed, 116 insertions(+), 50 deletions(-)

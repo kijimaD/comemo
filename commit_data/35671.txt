@@ -1,32 +1,23 @@
-commit 021c39d7a3361290d9e29497cf2a4a8fd2ee7b5c
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Jun 7 12:19:42 2018 +0200
+commit 413d8a833d6eb98f2881ae10d1f9cd5286900047
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Feb 28 16:37:23 2018 -0500
 
-    runtime: use libc for signal functions on iOS
+    cmd/trace: skip tests if parsing fails with timestamp error
     
-    Also:
-     - Add extra SystemStack space for darwin/arm64 just
-    like for darwin/arm.
-     - Removed redundant stack alignment; the arm64 hardware enforces
-     the 16 byte alignment.
-     - Save and restore the g registers at library initialization.
-     - Zero g registers since libpreinit can call libc functions
-     that in turn use asmcgocall. asmcgocall requires an initialized g.
-     - Change asmcgocall to work even if no g is set. The change mimics
-     amd64.
+    runtime/trace test already skips tests in case of the timestamp
+    error.
     
-    Change-Id: I1b8c63b07cfec23b909c0d215b50dc229f8adbc8
-    Reviewed-on: https://go-review.googlesource.com/117176
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Moreover, relax TestAnalyzeAnnotationGC test condition to
+    deal with the inaccuracy caused from use of cputicks in tracing.
+    
+    Fixes #24081
+    Updates #16755
+    
+    Change-Id: I708ecc6da202eaec07e431085a75d3dbfbf4cc06
+    Reviewed-on: https://go-review.googlesource.com/97757
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/vet/all/whitelist/darwin_arm.txt   |   6 --
- src/cmd/vet/all/whitelist/darwin_arm64.txt |   2 -
- src/runtime/asm_arm.s                      |  71 +++++++++----
- src/runtime/asm_arm64.s                    |  34 +++++-
- src/runtime/rt0_darwin_arm64.s             |  37 ++++---
- src/runtime/stack.go                       |   4 +-
- src/runtime/sys_darwin_arm.s               | 157 ++++++++++++++-------------
- src/runtime/sys_darwin_arm64.s             | 165 +++++++++++++++--------------
- 8 files changed, 267 insertions(+), 209 deletions(-)
+ src/cmd/trace/annotations_test.go | 31 ++++++++++++++++++++-----------
+ 1 file changed, 20 insertions(+), 11 deletions(-)

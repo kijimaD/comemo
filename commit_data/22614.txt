@@ -1,24 +1,32 @@
-commit 2173a27903897c481b0a0daf3ca3e0a0685701db
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Apr 19 19:01:49 2015 +0900
+commit 2c9b491e01dbc5e06d7cf98deaf1b4f1779f5da9
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 26 10:49:03 2015 -0700
 
-    net: fix inconsistent error values on setters
+    [dev.ssa] cmd/internal/ssa: SSA cleanups
     
-    This change fixes inconsistent error values on
-    Set{Deadline,ReadDeadline,WriteDeadline,ReadBuffer,WriteBuffer} for
-    Conn, Listener and PacketConn, and
-    Set{KeepAlive,KeepAlivePeriod,Linger,NoDelay} for TCPConn.
+    Mostly suggested by Alan.
+    Convert Const* ops to just one Const op.
+    Use more of go/types.
+    Get rid of typers, all types must be specified explicitly.
     
-    Updates #4856.
-    
-    Change-Id: I34ca5e98f6de72863f85b2527478b20d8d5394dd
-    Reviewed-on: https://go-review.googlesource.com/9109
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id4758f2b887d8a6888e88a7e047d97af55e34b62
+    Reviewed-on: https://go-review.googlesource.com/8110
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/dial.go           |  4 ++--
- src/net/net.go            | 25 ++++++++++++++++++++-----
- src/net/tcpsock_plan9.go  | 19 ++++++++++++++-----
- src/net/tcpsock_posix.go  | 27 +++++++++++++++++++++------
- src/net/unixsock_plan9.go |  2 +-
- src/net/unixsock_posix.go |  7 +++++--
- 6 files changed, 63 insertions(+), 21 deletions(-)
+ src/cmd/internal/ssa/block.go                  |   1 +
+ src/cmd/internal/ssa/compile.go                |   2 +-
+ src/cmd/internal/ssa/deadcode.go               |   2 +-
+ src/cmd/internal/ssa/func.go                   |   2 +-
+ src/cmd/internal/ssa/generic.go                |  54 ++++++++----
+ src/cmd/internal/ssa/lowerAmd64.go             |  37 ++++----
+ src/cmd/internal/ssa/op.go                     |  76 +++++-----------
+ src/cmd/internal/ssa/op_string.go              |   4 +-
+ src/cmd/internal/ssa/rewrite.go                |  55 +++++-------
+ src/cmd/internal/ssa/rulegen/generic.rules     |   3 +-
+ src/cmd/internal/ssa/rulegen/lower_amd64.rules |  17 ++--
+ src/cmd/internal/ssa/rulegen/rulegen.go        |  25 ++----
+ src/cmd/internal/ssa/ssac/main.go              |   3 +-
+ src/cmd/internal/ssa/type.go                   |  34 ++++---
+ src/cmd/internal/ssa/types/sizes.go            | 117 +++++++++++++++++++++++++
+ src/cmd/internal/ssa/value.go                  |  13 +--
+ 16 files changed, 271 insertions(+), 174 deletions(-)

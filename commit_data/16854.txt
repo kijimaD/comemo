@@ -1,12 +1,17 @@
-commit ac94c06d1e57fb4e41b547ce7652a6d698cfcf17
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 24 10:54:33 2013 +1000
+commit a0a45bbb71d6232040d18ee5d8e3d6eebcbfe944
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 24 08:43:08 2013 +0900
 
-    doc/go1.2.txt: document new function unicode.In
+    net: consolidate listenerBacklog declaration
     
-    R=golang-dev, dsymonds
+    Also adds maxListenerBacklog placeholder for Plan 9.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/11745044
+    https://golang.org/cl/11674044
 
- doc/go1.2.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/ipsock_plan9.go |  3 ---
+ src/pkg/net/net.go          |  2 ++
+ src/pkg/net/sock_plan9.go   | 10 ++++++++++
+ src/pkg/net/sock_posix.go   |  2 --
+ 4 files changed, 12 insertions(+), 5 deletions(-)

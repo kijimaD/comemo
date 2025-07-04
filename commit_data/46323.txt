@@ -1,24 +1,123 @@
-commit a1938435d6361dcbc93a15ce0ace28748a45b85d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 6 19:02:34 2021 +0200
+commit 91cc51e0053b6ed6ab096c949f46364002b54be1
+Merge: e02a007ffd ec741b0447
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 22 17:08:15 2020 -0500
 
-    syscall: use dup3 in forkAndExecInChild1 on all Linux platforms
+    [dev.typeparams] all: merge dev.regabi (ec741b0) into dev.typeparams
     
-    The minimum required Linux kernel version for Go 1.18 will be changed to
-    2.6.32, see #45964. The dup3 syscall was added in 2.6.27, so the
-    fallback to use the dup2 syscall in forkAndExecInChild1 on some
-    platforms can be removed.
+    Conflicts:
     
-    For #45964
+    * src/cmd/compile/internal/gc/main.go
     
-    Change-Id: I8e04d7b5b2488990a061a080ed64ea303ad048b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347350
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Merge List:
+    
+    * 2020-12-22 ec741b0447 [dev.regabi] all: merge master (c9fb4eb) into dev.regabi
+    * 2020-12-22 acc32ea124 [dev.regabi] codereview.cfg: add config for dev.regabi
+    * 2020-12-22 c9fb4eb0a2 cmd/link: handle grouped resource sections
+    * 2020-12-22 c40934b33d [dev.regabi] cmd/compile: adjust one case in walkexpr
+    * 2020-12-22 280e7fd1ee [dev.regabi] cmd/compile: only access Func method on concrete types
+    * 2020-12-22 51ba53f5c2 [dev.regabi] cmd/compile: separate misc for gc split
+    * 2020-12-22 572f168ed2 [dev.regabi] cmd/compile: separate various from Main
+    * 2020-12-22 3b12c6dc08 [dev.regabi] cmd/compile: separate typecheck more cleanly
+    * 2020-12-22 7c8f5356ab [dev.regabi] cmd/compile: separate dowidth better
+    * 2020-12-22 c06a354bcc test: trigger SIGSEGV instead of SIGTRAP in issue11656.go
+    * 2020-12-22 0aa9b4709a cmd/pack: r command create output file if not exist
+    * 2020-12-22 cb28c96be8 [dev.regabi] cmd/compile,cmd/link: initial support for ABI wrappers
+    * 2020-12-22 c8610e4700 [dev.regabi] cmd/compile: add ir.BasicLit to represent literals
+    * 2020-12-22 3512cde10a [dev.regabi] cmd/compile: stop reusing Ntype for OSLICELIT length
+    * 2020-12-22 2755361e6a [dev.regabi] cmd/compile: change noder.declNames to returns ir.Names
+    * 2020-12-22 301af2cb71 [dev.regabi] runtime/race: adjust test pattern match for ABI wrapper
+    * 2020-12-22 4d27c4c223 runtime: correct error handling in several FreeBSD syscall wrappers
+    * 2020-12-22 9b6147120a cmd/pack: treat compiler's -linkobj output as "compiler object"
+    * 2020-12-22 306b2451c8 [dev.regabi] runtime: fix ABI targets in runtime.panic{Index,Slice} shims
+    * 2020-12-21 bc7e4d9257 syscall: don't generate ptrace on iOS
+    * 2020-12-21 94cfeca0a5 [dev.regabi] cmd/compile: stop using ONONAME with Name
+    * 2020-12-21 cb4898a77d [dev.regabi] cmd/compile: simplify declaration importing
+    * 2020-12-21 06915ac14d [dev.regabi] cmd/compile: move itabname call out of implements
+    * 2020-12-21 6cff874c47 runtime/metrics: add Read examples
+    * 2020-12-21 8438a5779b runtime: use _exit on darwin
+    * 2020-12-21 cb95819cf6 runtime: detect netbsd netpoll overrun in sysmon
+    * 2020-12-21 53c984d976 runtime: skip wakep call in wakeNetPoller on Plan 9
+    * 2020-12-21 9abbe27710 test: skip issue11656.go on mips/mips64/ppc64
+    
+    Change-Id: Ia12a1892195f5e08bb41465374124c71a1a135f6
 
- src/syscall/exec_linux.go         | 18 +++---------------
- src/syscall/syscall_dup2_linux.go | 11 -----------
- src/syscall/syscall_dup3_linux.go | 10 ----------
- 3 files changed, 3 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/base/debug.go             |   1 +
+ src/cmd/compile/internal/base/flag.go              |   3 +
+ src/cmd/compile/internal/gc/abiutils_test.go       |   9 +-
+ src/cmd/compile/internal/gc/alg.go                 |   4 +-
+ src/cmd/compile/internal/gc/align.go               |  29 +--
+ src/cmd/compile/internal/gc/closure.go             |   8 +-
+ src/cmd/compile/internal/gc/dcl.go                 |  29 +--
+ src/cmd/compile/internal/gc/embed.go               |   4 +-
+ src/cmd/compile/internal/gc/escape.go              |   9 +-
+ src/cmd/compile/internal/gc/export.go              | 109 +++------
+ src/cmd/compile/internal/gc/go.go                  |   2 -
+ src/cmd/compile/internal/gc/gsubr.go               | 191 +++++++++++++---
+ src/cmd/compile/internal/gc/iimport.go             |  93 ++++----
+ src/cmd/compile/internal/gc/initorder.go           |   1 +
+ src/cmd/compile/internal/gc/inl.go                 |  25 ++-
+ src/cmd/compile/internal/gc/main.go                | 246 +++++++--------------
+ src/cmd/compile/internal/gc/noder.go               |  20 +-
+ src/cmd/compile/internal/gc/obj.go                 |   8 +-
+ src/cmd/compile/internal/gc/order.go               |   2 +-
+ src/cmd/compile/internal/gc/pgen.go                |  19 +-
+ src/cmd/compile/internal/gc/racewalk.go            |   2 +-
+ src/cmd/compile/internal/gc/reflect.go             |  15 +-
+ src/cmd/compile/internal/gc/scc.go                 |   8 +-
+ src/cmd/compile/internal/gc/scope.go               |   2 +-
+ src/cmd/compile/internal/gc/sinit.go               |  21 +-
+ src/cmd/compile/internal/gc/ssa.go                 |  68 +++++-
+ src/cmd/compile/internal/gc/subr.go                |  20 +-
+ src/cmd/compile/internal/gc/timings.go             |   2 +
+ src/cmd/compile/internal/gc/typecheck.go           | 171 ++++++++++++--
+ src/cmd/compile/internal/gc/universe.go            |  15 +-
+ src/cmd/compile/internal/gc/walk.go                |  66 +++---
+ src/cmd/compile/internal/ir/expr.go                |  20 ++
+ src/cmd/compile/internal/ir/fmt.go                 |   1 +
+ src/cmd/compile/internal/ir/func.go                |  28 ++-
+ src/cmd/compile/internal/ir/name.go                |  53 +++--
+ src/cmd/compile/internal/ir/node_gen.go            |  15 ++
+ src/cmd/compile/internal/ir/stmt.go                |   7 +
+ src/cmd/compile/internal/ir/val.go                 |   7 +-
+ src/cmd/compile/internal/types/sym.go              |  17 ++
+ src/cmd/compile/internal/types/type.go             |  12 +
+ src/cmd/internal/obj/link.go                       |   6 +
+ src/cmd/internal/obj/plist.go                      |   6 +
+ src/cmd/internal/obj/textflag.go                   |   3 +
+ src/cmd/internal/obj/x86/obj6.go                   |   4 +-
+ src/cmd/link/internal/ld/lib.go                    |   2 +-
+ src/cmd/link/internal/ld/main.go                   |  12 +-
+ src/cmd/link/internal/ld/pe.go                     |  60 ++---
+ src/cmd/link/internal/ld/symtab.go                 |  37 +++-
+ src/cmd/link/internal/loadpe/ldpe.go               |  49 ++--
+ src/cmd/link/link_test.go                          |  19 ++
+ src/cmd/link/testdata/testPErsrc-complex/main.go   |  43 ++++
+ src/cmd/link/testdata/testPErsrc-complex/rsrc.syso | Bin 0 -> 352 bytes
+ src/cmd/pack/pack.go                               |  38 ++--
+ src/cmd/pack/pack_test.go                          |  89 ++++++++
+ src/runtime/asm_amd64.s                            |  32 +--
+ src/runtime/defs_freebsd_386.go                    |   9 +-
+ src/runtime/defs_freebsd_amd64.go                  |   9 +-
+ src/runtime/defs_freebsd_arm.go                    |   9 +-
+ src/runtime/defs_freebsd_arm64.go                  |   9 +-
+ src/runtime/metrics/example_test.go                |  96 ++++++++
+ src/runtime/os_freebsd.go                          |   3 +-
+ src/runtime/proc.go                                |  24 +-
+ src/runtime/race/output_test.go                    |  82 +++++--
+ src/runtime/sys_darwin.go                          |   2 +-
+ src/runtime/sys_freebsd_386.s                      |   6 +
+ src/runtime/sys_freebsd_amd64.s                    |   6 +
+ src/runtime/sys_freebsd_arm.s                      |   3 +
+ src/runtime/sys_freebsd_arm64.s                    |   6 +
+ src/runtime/textflag.h                             |   2 +
+ src/syscall/mksyscall.pl                           |   2 +-
+ src/syscall/ptrace_darwin.go                       |  14 ++
+ src/syscall/ptrace_ios.go                          |  12 +
+ src/syscall/syscall_darwin_amd64.go                |   2 +-
+ src/syscall/syscall_darwin_arm64.go                |   2 +-
+ src/syscall/zsyscall_darwin_amd64.go               |   2 +-
+ src/syscall/zsyscall_darwin_arm64.go               |   2 +-
+ test/fixedbugs/issue11656.go                       |  23 +-
+ test/nosplit.go                                    |   9 +-
+ 78 files changed, 1436 insertions(+), 660 deletions(-)

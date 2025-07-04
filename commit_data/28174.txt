@@ -1,17 +1,14 @@
-commit 7eddaf5f0b275cd2ff37b260246d276748ac6cd4
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Mon Aug 1 12:50:11 2016 -0400
+commit 4d5ac10f690bbc742a3cbf186ad8f3169a45ee26
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 3 23:33:32 2016 +0000
 
-    go/doc: allow ToHTML to properly handle URLs containing semicolons
+    cmd/vet: fix test's dependence on perl
     
-    Fixes #16565
-    
-    Change-Id: I3edfd2576a7ca5270644a4e7f126854f821f2c9a
-    Reviewed-on: https://go-review.googlesource.com/25385
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I774dbd4f90ef271a0969c3c8e65d145669312e3e
+    Reviewed-on: https://go-review.googlesource.com/22745
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ross Light <light@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/doc/comment.go      | 2 +-
- src/go/doc/comment_test.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/vet/vet_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

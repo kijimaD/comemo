@@ -1,22 +1,28 @@
-commit 862fa6d099fb046e90efd537b2c0ac2667c23d90
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jul 21 12:50:48 2023 -0700
+commit d394f99f49aa9249324f7c3ef3bc77a7cc1cebf7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 13:43:28 2022 -0700
 
-    sort: add gen_sort_variants support for x/exp/slices
+    go/parser: more tolerant parsing of import declarations
     
-    Also add a go:generate command to the standard library slices package.
+    This is a port of CL 427156 from the syntax package's parser
+    to go/parser.
     
-    For #61374
+    While at it, remove an unused token.Pos parameter from
+    parseSpecFunction and dependent declarations.
     
-    Change-Id: I7aae8e451b7c6c4390e0344257478d1a96a14189
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511660
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Also, consolidate the respective test file.
+    
+    For #54511.
+    
+    Change-Id: Id6a28eb3d23a46fa5fa1d85d2c4e634b7015513c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427157
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/slices/sort.go            |   2 +
- src/sort/gen_sort_variants.go | 125 ++++++++++++++++++++++++++++++------------
- 2 files changed, 92 insertions(+), 35 deletions(-)
+ .../types2/testdata/fixedbugs/issue43190.go        |  3 ++
+ src/go/parser/parser.go                            | 34 +++++++++++++---------
+ src/go/types/testdata/fixedbugs/issue43190.go      | 18 ++++++++----
+ 3 files changed, 36 insertions(+), 19 deletions(-)

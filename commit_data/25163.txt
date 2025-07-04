@@ -1,12 +1,38 @@
-commit 5c2483229375721e3273f61f41a9c885332592b3
-Author: Yann Kerhervé <yann.kerherve@gmail.com>
-Date:   Fri Dec 4 10:07:44 2015 -0800
+commit dac220b0a9d561744b01196c53dd1775cfb5492c
+Author: Austin Clements <austin@google.com>
+Date:   Sat Sep 26 12:31:59 2015 -0400
 
-    syscall: fix ParseRoutingSockaddr name in docs
+    runtime: remove in-use page count loop from STW
     
-    Change-Id: I3870150fc8e713f6164371299c029b31f18f250a
-    Reviewed-on: https://go-review.googlesource.com/17426
-    Reviewed-by: Minux Ma <minux@golang.org>
+    In order to compute the sweep ratio, the runtime needs to know how
+    many pages belong to spans in state _MSpanInUse. Currently it finds
+    this out by looping over all spans during mark termination. However,
+    this takes ~1ms/heap GB, so multi-gigabyte heaps can quickly push our
+    STW time past 10ms.
+    
+    Replace the loop with an actively maintained count of in-use pages.
+    
+    For multi-gigabyte heaps, this reduces max mark termination pause time
+    by 75%–90% relative to tip and by 85%–95% relative to Go 1.5.1. This
+    shifts the longest pause time for large heaps to the sweep termination
+    phase, so it only slightly decreases max pause time, though it roughly
+    halves mean pause time. Here are the results for the garbage
+    benchmark:
+    
+                   ---- max mark termination pause ----
+    Heap   Procs   after change   before change   1.5.1
+    24GB     12        1.9ms          18ms         37ms
+    24GB      4        3.7ms          18ms         37ms
+     4GB      4        920µs         3.8ms        6.9ms
+    
+    Fixes #11484.
+    
+    Change-Id: Ia2d28bb8a1e4f1c3b8ebf79fb203f12b9bf114ac
+    Reviewed-on: https://go-review.googlesource.com/15070
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/route_bsd.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go   | 13 ++++---------
+ src/runtime/mheap.go |  8 ++++++++
+ 2 files changed, 12 insertions(+), 9 deletions(-)

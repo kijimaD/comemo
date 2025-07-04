@@ -1,14 +1,23 @@
-commit 504deee6088c2448fc3e91c94a1ba69ec92fb7ef
-Author: gmarik <gmarik@gmail.com>
-Date:   Sat Jul 15 12:11:42 2017 -0600
+commit 2919132e1b7ade3faa394339d3199f243103dd72
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 30 14:59:53 2017 -0400
 
-    log: adds a Logger Output method Example
+    runtime: don't adjust GC trigger on forced GC
     
-    Change-Id: Ia3e351169a4ebe6db5e5f37b668f23dc8c992c78
-    Reviewed-on: https://go-review.googlesource.com/48877
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Forced GCs don't provide good information about how to adjust the GC
+    trigger. Currently we avoid adjusting the trigger on forced GC because
+    forced GC is also STW and we don't adjust the trigger on STW GC.
+    However, this will become a problem when forced GC is concurrent.
+    
+    Fix this by skipping trigger adjustment if the GC was user-forced.
+    
+    For #18216.
+    
+    Change-Id: I03dfdad12ecd3cfeca4573140a0768abb29aac5e
+    Reviewed-on: https://go-review.googlesource.com/38951
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/log/example_test.go | 26 +++++++++++++++++++++++---
- 1 file changed, 23 insertions(+), 3 deletions(-)
+ src/runtime/mgc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

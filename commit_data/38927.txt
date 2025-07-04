@@ -1,17 +1,20 @@
-commit f67f5511ee0f225bcc8943994ba6139eed375e85
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Apr 27 02:36:34 2019 +1000
+commit 56b70d98f522be3c1fed7df3d0359c913a2a1bc7
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Dec 10 15:32:17 2018 -0500
 
-    cmd/dist: add support for openbsd/arm64
+    doc: use https scheme in oss-distros link
     
-    Updates #31656
+    The https scheme is supported, and should be used per best practices.
     
-    Change-Id: If481df050cd879f7c7c22a79c17c33af00a8b389
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174125
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The previous http link redirected to https:
+    
+            $ curl -i 'http://oss-security.openwall.org/wiki/mailing-lists/distros'
+            HTTP/1.1 302 Moved Temporarily
+            Location: https://oss-security.openwall.org/wiki/mailing-lists/distros
+    
+    Change-Id: I857b93eeec45996d6dc05dbf7532d1759bf4d447
+    Reviewed-on: https://go-review.googlesource.com/c/153457
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/build.go | 1 +
- src/cmd/dist/main.go  | 5 +++--
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ doc/security.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

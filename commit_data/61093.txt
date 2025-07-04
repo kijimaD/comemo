@@ -1,0 +1,23 @@
+commit 89228ca439b7ecfc4fa6641e79bb3119e600e519
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 1 13:12:39 2024 -0400
+
+    runtime/pprof: add context to short stack panic
+    
+    Over the years we've had various bugs in pprof stack handling resulting
+    in appendLocsForStack crashing because stk is too short for a cached
+    location. i.e., the cached location claims several inlined frames. Those
+    should always appear together in stk. If some frames are missing from
+    stk, appendLocsForStack.
+    
+    If we find this case, replace the slice out of bounds panic with an
+    explicit panic that contains more context.
+    
+    Change-Id: I52725a689baf42b8db627ce3e1bc6c654ef245d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617135
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/pprof/proto.go | 4 ++++
+ 1 file changed, 4 insertions(+)

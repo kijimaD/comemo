@@ -1,21 +1,12 @@
-commit c6691d1fb4e59ba620dd7f4fdb3ea24e8a0ab404
-Author: Gustav Paul <gustav.paul@gmail.com>
-Date:   Tue Nov 29 12:26:39 2011 -0500
+commit 175e60a2ad47f477e5e3bfed83beaa9fe6a5ac85
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Nov 29 09:20:59 2011 -0500
 
-    exp/ssh: Add Start(cmd string) and Signal(sig string) to Session. Rename Exec to Run.
+    crypto/tls: add openbsd root certificate location
     
-    Exec() has been renamed to Run() in keeping with the os/exec API.
-    
-    Added func (*Session) Start(cmd string) which starts a remote process but unlike Run() doesn't wait for it to finish before returning.
-    
-    Run() has been refactored to use Start internally. Its really just a refactoring, no new code but some extra functionality was won.
-    
-    Also added func (*Session) Signal(sig signal) which sends a UNIX signal to a remote process. This is espcially useful in conjunction with Start() as the two allow you to start a remote process, monitor its stdout/stderr, and send it a TERM/HUP/etc signal when you want it to close.
-    
-    R=dave, rsc, agl, bradfitz, n13m3y3r, gustavo
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5437058
+    https://golang.org/cl/5437079
 
- src/pkg/exp/ssh/doc.go     |  4 +--
- src/pkg/exp/ssh/session.go | 64 ++++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 58 insertions(+), 10 deletions(-)
+ src/pkg/crypto/tls/root_unix.go | 1 +
+ 1 file changed, 1 insertion(+)

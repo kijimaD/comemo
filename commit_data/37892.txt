@@ -1,14 +1,16 @@
-commit 33caf3be833ba1fe9b74aa4c314f5b82bb696b86
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 17 14:49:30 2019 -0800
+commit b7182acf6101ba096a25073d8d083cca99ffcd06
+Author: Thanabodee Charoenpiriyakij <wingyminus@gmail.com>
+Date:   Fri Sep 7 18:52:41 2018 +0700
 
-    math/big: document that Rat.SetString accepts _decimal_ float representations
+    fmt: add example for Print
     
-    Updates #29799.
+    Updates #27376
     
-    Change-Id: I267c2c3ba3964e96903954affc248d0c52c4916c
-    Reviewed-on: https://go-review.googlesource.com/c/158397
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2fa63b0d1981a419626072d985e6f3326f6013ff
+    Reviewed-on: https://go-review.googlesource.com/134035
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/ratconv.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/fmt/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

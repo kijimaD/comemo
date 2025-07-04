@@ -1,21 +1,24 @@
-commit 82ac9ab83a47468046bda9bf6c4676a9695fae24
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 29 10:50:18 2021 -0700
+commit 92cb157cf3aa51d28e441dbb2b671795f22140f8
+Author: David Chase <drchase@google.com>
+Date:   Tue Dec 29 22:44:30 2020 -0500
 
-    text/template: check final value for short-circuit and/or
+    [dev.regabi] cmd/compile: late expansion of return values
     
-    There was a bug in the short-circuit code for and/or added in CL 321490:
-    it ignored the value passed in by an earlier pipeline.
+    By-hand rebase of earlier CL, because that was easier than
+    letting git try to figure things out.
     
-    For #31103
+    This will naively insert self-moves; in the case that these
+    involve memory, the expander detects these and removes them
+    and their vardefs.
     
-    Change-Id: Ic31f4d7cedfe563ef968cbb712ecfb2413c42eb5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353130
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Icf72575eb7ae4a186b0de462bc8cf0bedc84d3e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279519
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/text/template/exec.go      | 5 ++++-
- src/text/template/exec_test.go | 4 ++++
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/fmt.go           |  5 ++
+ src/cmd/compile/internal/ssa/expand_calls.go | 78 ++++++++++++++++++++++------
+ src/cmd/compile/internal/ssa/func.go         |  6 ++-
+ src/cmd/compile/internal/ssa/op.go           | 10 +++-
+ src/cmd/compile/internal/ssagen/ssa.go       | 77 ++++++++++++++++++++-------
+ 5 files changed, 138 insertions(+), 38 deletions(-)

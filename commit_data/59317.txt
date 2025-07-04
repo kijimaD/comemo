@@ -1,18 +1,28 @@
-commit ae5a5132eb105e712799be4717929d55d75a04b2
-Author: zxc111 <zxc9007@gmail.com>
-Date:   Tue May 11 12:57:36 2021 +0000
+commit b159c99eb7eb292b62ec120d83bd25454cfa1fae
+Author: huweiwen <huweiwen.hww@alibaba-inc.com>
+Date:   Thu Feb 22 03:10:48 2024 +0000
 
-    net/http: add test for proxyAuth
+    cmd/go/internal/vcs: use git log to avoid unnecessary objects
     
-    Change-Id: Ib4edae749ce8da433e992e08a90c9cf3d4357081
-    GitHub-Last-Rev: 19d87d12ab6b299b37e8907429f4dff52ab53745
-    GitHub-Pull-Request: golang/go#46102
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318690
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    "git show" by default shows the diff from the previous commit. "-s"
+    suppress all output from the diff machinery. But it will still try to
+    fetch the relevant objects, which may be unavailable if the repository
+    is a partial clone.
+    
+    Use "git log" instead, which only needs the commit object.
+    
+    Fixes #65339
+    
+    Change-Id: I766a680321cd22d5fdbd08d24cb777ef964bdb7c
+    GitHub-Last-Rev: 87a8ba435251f2a72aa18f2820ccb8ea5b379d69
+    GitHub-Pull-Request: golang/go#65341
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559075
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/net/http/proxy_test.go | 42 +++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 39 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go                     |  6 +--
+ .../go/testdata/script/build_git_missing_tree.txt  | 51 ++++++++++++++++++++++
+ .../go/testdata/script/version_buildvcs_git.txt    |  2 +-
+ 3 files changed, 55 insertions(+), 4 deletions(-)

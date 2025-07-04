@@ -1,24 +1,33 @@
-commit 1cf357981ee9ec838555585d52f86ca60097c6b1
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Apr 26 21:44:36 2020 +0100
+commit 795e8c2317a6a4d728a59caa7550312cdceab367
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 19 15:14:54 2019 -0400
 
-    cmd/compile: remove If type in rulegen
+    cmd/go: address DWARF linker issues with -buildmode=plugin on Darwin
     
-    We only generate if statements via CondBreak, which is nice as the
-    control flow is simple and easy to work with. It seems like the If type
-    was added but never used, so remove it to avoid confusion.
+    Assorted fixups in the linker needed to enable turning back on
+    DWARF generation when building plugins for Darwin. Includes:
     
-    We had a TODO about replacing CondBreak with If instead. I gave that a
-    try, but it doesn't seem worth the effort. The code gets more complex
-    and we don't really win anything in return.
+     - don't suppress import of runtime/cgo in the linker for
+       Darwin if we are linking in plugin mode
     
-    While at it, don't use op strings as format strings in exprf. This
-    doesn't cause any issue at the moment, but it's best to be explicit
-    about the operator not containing any formatting verbs.
+     - in calcCompUnitRanges handle the case where we encounter
+       linker-generated functions that have no associated Unit (and
+       also have no DWARF)
     
-    Change-Id: Ib59ad72d3628bf91594efc609e222232ad1e8748
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230257
-    Reviewed-by: Keith Randall <khr@golang.org>
+     - generalize a guard in relocsym() include so as to avoid
+       triggering a spurious error on go.info symbols in plugin mode
+    
+    Updates #21647.
+    Updates #27502.
+    
+    Change-Id: I317fea97bef2f3461e31498e63f9fd6d8b8f4b23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182959
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go | 20 ++------------------
- 1 file changed, 2 insertions(+), 18 deletions(-)
+ src/cmd/link/internal/ld/data.go  | 4 ++--
+ src/cmd/link/internal/ld/dwarf.go | 5 +++++
+ src/cmd/link/internal/ld/lib.go   | 2 +-
+ 3 files changed, 8 insertions(+), 3 deletions(-)

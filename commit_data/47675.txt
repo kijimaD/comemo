@@ -1,21 +1,25 @@
-commit f9b2733e3a8b4911b932671b0bd9fc4190cf59aa
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Dec 1 16:43:47 2021 -0500
+commit 27015152ec769aeed2ab92533772b97c0ef96b11
+Author: James Fennell <jpfennell@google.com>
+Date:   Mon Apr 5 18:21:59 2021 +0000
 
-    doc/go1.18: add docs on MapIter.Reset
+    flag: use strings.Builder instead of concatenating strings
     
-    From:
+    There is a single function in the flag package whose implementation
+    uses string concatenation instead of the recommended strings.Builder.
+    The function was last touched before strings.Builder was introduced
+    in Go 1.10, which explains the old style code. This PR updates
+    the implementation.
     
-    https://go-review.googlesource.com/c/go/+/321891
+    Fixes #45392
     
-    Updates #47694
-    
-    Change-Id: I2cdd5d9f3da62a5690cd2ef921ed48957c602d64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368360
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Id2d8f1788765a0c4faaeb1e6870914f72b3c8442
+    GitHub-Last-Rev: 0e12fe304593afc627fc4f1597670efd354809b0
+    GitHub-Pull-Request: golang/go#45393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307329
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/go1.18.html | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/flag/flag.go | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)

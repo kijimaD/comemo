@@ -1,31 +1,30 @@
-commit b0a85f5d93c3f0f5a53f09cdef1bdb72bfa313de
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 8 14:16:26 2015 -0400
+commit f00c19add5b5bd2126af689563ad24013e12faa9
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Mar 8 04:32:55 2015 -0400
 
-    runtime: darwin/amd64 library entry point
+    cmd/7g, cmd/7l, cmd/go: copy 9g/9l to 7g/7l, and build as tools
     
-    This is a practice run for darwin/arm.
+    Kick start the upstreaming of the arm64 port. The only manual
+    change is cmd/go/pkg.go.
     
-    Similar to the linux/amd64 shared library entry point. With several
-    pending linker changes I am successfully using this to implement
-    -buildmode=c-archive on darwin/amd64 with external linking.
-    
-    The same entry point can be reused to implement -buildmode=c-shared
-    on darwin/amd64, however that will require further ld changes to
-    remove all text relocations.
-    
-    One extra runtime change will follow this. According to the Go
-    execution modes document, -buildmode=c-archive should ignore the Go
-    main function. Right now it is being executed (and the process exits
-    if it doesn't block). I'm still searching for the right way to do
-    this.
-    
-    Change-Id: Id97901ddd4d46970996f222bd79731dabff66a3d
-    Reviewed-on: https://go-review.googlesource.com/8652
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0607ad045486f0998c4e21654b59276ca5348069
+    Reviewed-on: https://go-review.googlesource.com/7075
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Run-TryBot: Aram Hăvărneanu <aram@mgk.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/os1_darwin.go      | 32 +++++++++++++++++++++++++++++++-
- src/runtime/os_darwin.go       |  2 +-
- src/runtime/rt0_darwin_amd64.s | 34 ++++++++++++++++++++++++++++++++++
- src/runtime/sys_darwin_amd64.s |  8 ++++----
- 4 files changed, 70 insertions(+), 6 deletions(-)
+ src/cmd/7g/cgen.go   | 1882 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/7g/galign.go |   93 +++
+ src/cmd/7g/gg.go     |   28 +
+ src/cmd/7g/ggen.go   |  884 ++++++++++++++++++++++++
+ src/cmd/7g/gsubr.go  | 1147 ++++++++++++++++++++++++++++++
+ src/cmd/7g/opt.go    |   12 +
+ src/cmd/7g/peep.go   | 1053 ++++++++++++++++++++++++++++
+ src/cmd/7g/prog.go   |  316 +++++++++
+ src/cmd/7g/reg.go    |  162 +++++
+ src/cmd/7g/util.go   |   12 +
+ src/cmd/7l/asm.go    |  819 ++++++++++++++++++++++
+ src/cmd/7l/l.go      |   77 +++
+ src/cmd/7l/obj.go    |  165 +++++
+ src/cmd/go/pkg.go    |    2 +
+ 14 files changed, 6652 insertions(+)

@@ -1,19 +1,14 @@
-commit 461e7b7d409dad9406ae1e876ad7032f4356f501
-Author: Robert Obryk <robryk@gmail.com>
-Date:   Fri Mar 29 14:17:09 2013 -0700
+commit 0359af4fdb5cd27fc9dd7b6689149cd00cbf55a1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 29 14:09:31 2013 -0700
 
-    bytes: Benchmark Buffer's compactions
+    bytes: document that Buffer.Write grows the buffer
+    Do a little reformatting too.
+    Fixes #5152.
     
-    This benchmark verifies that CL #8173043 reduces time spent
-    sliding the Buffer's contents.
-    
-    Results without and with CL #8173043 applied:
-    benchmark                        old ns/op    new ns/op    delta
-    BenchmarkBufferFullSmallReads       755336       175054  -76.82%
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, bradfitz, gri
     CC=golang-dev
-    https://golang.org/cl/8174043
+    https://golang.org/cl/8157044
 
- src/pkg/bytes/buffer_test.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/pkg/bytes/buffer.go | 49 +++++++++++++++++++++----------------------------
+ 1 file changed, 21 insertions(+), 28 deletions(-)

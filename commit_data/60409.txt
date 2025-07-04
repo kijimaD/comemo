@@ -1,0 +1,19 @@
+commit 3bfbfa821fbf4835d6be2e3bfda4ccac397c74fa
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Jul 12 20:03:08 2024 +0100
+
+    encoding/json: document compact json output in Encoder.Encode
+    
+    Using the same wording as Compact.
+    
+    Fixes #67943
+    
+    Change-Id: I578874f3e917bba1634dd988895e622a5ac78c74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597976
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/encoding/json/stream.go | 1 +
+ 1 file changed, 1 insertion(+)

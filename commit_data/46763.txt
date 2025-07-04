@@ -1,34 +1,25 @@
-commit 72c52bfbe2f72fbcacc865e18f132366bdd2effa
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Jun 7 16:16:45 2021 -0700
+commit d39685e5e954aadcfca6ec3cf784d4af20fcae5d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 25 15:39:37 2021 -0800
 
-    net/http: parse HTTP version strings according to RFC 7230
+    [dev.typeparams] go/constant: choose internal float representations more consistently
     
-    RFC 2616 permits multiple digits in the major and minor numbers of an
-    HTTP version:
+    go/constant represents a Float constant either as a rational number
+    (if numerator and denominator are small enough), or, as a "catch-all",
+    as a arbitrary-precision floating-point number.
     
-            https://datatracker.ietf.org/doc/html/rfc2616#section-3.1
+    This CL cleans up some of these transitions by factoring out more
+    of the decision logic and documents the rationale between the state
+    transitions better.
     
-    RFC 7230 obsoletes 2616 and tightens the specification to permit only a
-    single digit in the major and minor number:
+    This CL also simplifies some unrelated code that was overly complex.
     
-            https://datatracker.ietf.org/doc/html/rfc7230#section-2.6
+    Updates #43908.
     
-    Use the stricter definition.
-    
-    Also fix a bug which caused version numbers with a leading "+" to
-    be accepted (e.g., "HTTP/1.+1".)
-    
-    Fixes #46587.
-    
-    Change-Id: Ic5923bb858e5ac402cfde486fba2c075e221553d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325874
-    Trust: Damien Neil <dneil@google.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iccdd2d6b7fb7ed13d68ed5e6d992d1bc56a065bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286572
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/request.go      | 19 ++++++++++---------
- src/net/http/request_test.go |  8 +++++++-
- 2 files changed, 17 insertions(+), 10 deletions(-)
+ src/go/constant/value.go | 97 +++++++++++++++++++++++++++++-------------------
+ 1 file changed, 59 insertions(+), 38 deletions(-)

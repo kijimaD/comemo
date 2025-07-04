@@ -1,18 +1,36 @@
-commit 38ca0466d3fa961b7841a3758948fd70448b84d6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 14 05:36:03 2016 +0000
+commit c17c42e8a5232d7e56225caf9048cfa89f6923d0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 11 16:13:51 2015 -0800
 
-    net/http: fix flaky TestServerValidatesHostHeader
+    runtime: rewrite lots of foo_Bar(f, ...) into f.bar(...)
     
-    Passes with go test -race -count=1000 -name=TestServerValidatesHostHeader now
-    without hanging.
+    Applies to types fixAlloc, mCache, mCentral, mHeap, mSpan, and
+    mSpanList.
     
-    Fixes #13950
+    Two special cases:
     
-    Change-Id: I41c3a555c642595c95c8c52f19a05a4c68e67630
-    Reviewed-on: https://go-review.googlesource.com/18660
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    1. mHeap_Scavenge() previously didn't take an *mheap parameter, so it
+    was specially handled in this CL.
+    
+    2. mHeap_Free() would have collided with mheap's "free" field, so it's
+    been renamed to (*mheap).freeSpan to parallel its underlying
+    (*mheap).freeSpanLocked method.
+    
+    Change-Id: I325938554cca432c166fe9d9d689af2bbd68de4b
+    Reviewed-on: https://go-review.googlesource.com/16221
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/serve_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/heapdump.go  |   2 +-
+ src/runtime/malloc.go    |  25 ++++---
+ src/runtime/mbitmap.go   |   2 +-
+ src/runtime/mcache.go    |  14 ++--
+ src/runtime/mcentral.go  |  50 +++++++-------
+ src/runtime/mfixalloc.go |   6 +-
+ src/runtime/mgcsweep.go  |  14 ++--
+ src/runtime/mheap.go     | 167 +++++++++++++++++++++++------------------------
+ src/runtime/mstats.go    |   2 +-
+ src/runtime/proc.go      |   2 +-
+ src/runtime/stack.go     |  36 +++++-----
+ 11 files changed, 158 insertions(+), 162 deletions(-)

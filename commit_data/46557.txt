@@ -1,16 +1,20 @@
-commit 5b75a9b2c3078ab2ef8398c47be5b30ea02c03d3
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Sep 22 13:23:47 2021 -0400
+commit 8123bc90b85ef685f1c877346c2378651a42d529
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 8 20:44:53 2021 -0800
 
-    cmd/compile: update comments with ABI aliases/wrappers
+    [dev.typeparams] cmd/go: relax test expectation
     
-    ABI aliases are gone.
+    go/types reports `"pkg/path" imported and not used` rather than
+    `imported and not used: "pkg/path"`, like cmd/compile. Relax the test
+    expectation to accomodate either.
     
-    Change-Id: I0f5676d8730cac14b7495dd6c0c1e08ca85a1c77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351531
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I318992946160a9090f8991f4c97784ba1d1b78b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282913
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssagen/abi.go      | 9 +++------
- src/cmd/compile/internal/staticdata/data.go | 2 +-
- 2 files changed, 4 insertions(+), 7 deletions(-)
+ src/cmd/go/testdata/script/vendor_test_issue14613.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

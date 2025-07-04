@@ -1,20 +1,37 @@
-commit 37c8112b825a2c60d1b3776c0b4f4c643391d490
-Author: Abirdcfly <fp544037857@gmail.com>
-Date:   Sun Jul 24 15:05:37 2022 +0000
+commit 5bc273aca54391177ad3f43a54d22021deb99114
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Aug 17 13:25:12 2021 -0700
 
-    internal/fuzz: fix typo in function comments
+    [dev.fuzz] internal/fuzz: minimize inputs that expand coverage
     
-    The correct word to use here is 'retrieve' not 'retrive'
+    When a fuzz worker discovers an input that activates coverage counters
+    that weren't previously activated, it sends that input back to the
+    coordinator, as before. If the coordinator also finds that input
+    provides new coverage (that is, some other input hasn't won the race),
+    the coordinator now sends the input back to workers for minimization.
     
-    Change-Id: I8de0961a254cf429ddbaf599fe996155e24c7af2
-    GitHub-Last-Rev: 65aaeec8db14c23e7bc8a62ce9ecfde98a263a49
-    GitHub-Pull-Request: golang/go#54026
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419317
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    The minimization procedure now supports minimizing these interesting
+    inputs. It attempts to find smaller inputs that preserve at least one
+    new coverage bit. If minimization succeeds, the coordinator adds the
+    smaller input to the corpus instead of the original. If minimization
+    fails, the coordinator adds the original input. If minimization finds
+    that the original input didn't provide new coverage after all (for
+    example, a counter was activated by an unrelated background goroutine
+    and was considered flaky), the input is ignored and not recorded.
+    
+    Change-Id: I81d98d6ec28abb0ac2a476f73480ceeaff674c08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342997
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/internal/fuzz/mem.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../script/test_fuzz_minimize_interesting.txt      | 112 ++++++++
+ src/internal/fuzz/fuzz.go                          | 301 +++++++++++++--------
+ src/internal/fuzz/minimize.go                      |  16 +-
+ src/internal/fuzz/minimize_test.go                 |  26 +-
+ src/internal/fuzz/queue.go                         |  71 +++++
+ src/internal/fuzz/queue_test.go                    |  58 ++++
+ src/internal/fuzz/worker.go                        | 162 +++++++----
+ 7 files changed, 580 insertions(+), 166 deletions(-)

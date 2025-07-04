@@ -1,22 +1,14 @@
-commit 754d4c052aa297ac5923d31924c882196ba0d0b2
-Author: Paul Marks <pmarks@google.com>
-Date:   Mon Aug 31 13:30:22 2015 -0700
+commit 683311175c83dc013030e23c4826fa95b59048ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 15:23:59 2015 -0400
 
-    net: Increase the acceptable delay in TestDialerDualstack
+    runtime: fix race in TestChanSendBarrier
     
-    This may fix the flakiness on Windows/x64, assuming that it's actually
-    due to a variance in the connection time which slightly exceeds 100ms.
+    Fixes race detector build.
     
-    150ms + 95ms = 245ms, which is still low enough to avoid triggering
-    Happy Eyeballs (300ms) on non-Windows platforms.
-    
-    Updates #12309
-    
-    Change-Id: I816a36fbc0a3e5c90e3cf1b75a134faf0d91557c
-    Reviewed-on: https://go-review.googlesource.com/14120
-    Run-TryBot: Paul Marks <pmarks@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8bdc78d57487580e6b5b8c415df4653a1ba69e37
+    Reviewed-on: https://go-review.googlesource.com/12087
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/dial_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/chanbarrier_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

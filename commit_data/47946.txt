@@ -1,20 +1,18 @@
-commit e4a6b84962cc2fb4f4b8bb532a84bab5bfd68d99
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Tue Jan 4 15:47:02 2022 +0100
+commit a9c244a849659a696a970b0cb862b2d1f66671bf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 17 00:46:53 2021 -0400
 
-    debug/elf: do not read unrelated bytes for SHT_NOBITS sections
+    test: add liveness test for regabi
     
-    SHT_NOBITS sections do not occupy space in the file and their offset is
-    "conceptual", reading their data should return all zeroes instead of
-    reading bytes from the section that follows them.
+    With defer/go wrapping and register arguments, some liveness info
+    changed and live.go test was disabled for regabi. This CL adds a
+    new one for regabi.
     
-    Change-Id: Iaa9634792c1909c3e87dab841dd646cd6dcf9027
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375216
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I65f03a6ef156366d8b76c62a16251c3e818f4b02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311369
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/debug/elf/elf_test.go | 22 ++++++++++++++++++++++
- src/debug/elf/file.go     | 12 ++++++++++++
- 2 files changed, 34 insertions(+)
+ test/live.go        |   3 +-
+ test/live_regabi.go | 719 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 721 insertions(+), 1 deletion(-)

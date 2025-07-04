@@ -1,17 +1,20 @@
-commit fa8efc13478ec2c39704e9662a06869e22b5f87c
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Jan 12 12:01:26 2022 +0000
+commit 3148694f607b77731420a20ef2117ac7d0d55ba3
+Author: Tim Heckman <t@heckman.io>
+Date:   Thu May 20 16:51:28 2021 -0700
 
-    cmd/compile: pre init shapeMap
+    cmd/go: remove warning from module deprecation notice printing
     
-    Change-Id: I4fea927b9d34e7bf382ddf148a787c1558176f2f
-    GitHub-Last-Rev: ff1fa78a3601243092f84a69e7332ec2ba9ec05a
-    GitHub-Pull-Request: golang/go#50568
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377994
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Fixes #46294
+    
+    Change-Id: I50023006dab83dee455f98a702ca1c72e61764ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321649
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/typecheck/subr.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/go/internal/modget/get.go                    | 2 +-
+ src/cmd/go/testdata/script/mod_deprecate_message.txt | 8 ++++----
+ src/cmd/go/testdata/script/mod_get_deprecated.txt    | 8 ++++----
+ 3 files changed, 9 insertions(+), 9 deletions(-)

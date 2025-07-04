@@ -1,0 +1,19 @@
+commit bc5aa2f7d3e1deb5468432230c438a8a9e8de316
+Author: Mark Freeman <mark@golang.org>
+Date:   Fri Apr 4 10:44:38 2025 -0700
+
+    go/types, types2: improve error message for init without body
+    
+    Change-Id: I8a684965e88e0e33a6ff33a16e08d136e3267f7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663636
+    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/resolver.go                   | 4 +---
+ src/go/internal/srcimporter/srcimporter_test.go               | 2 +-
+ src/go/internal/srcimporter/testdata/issue20855/issue20855.go | 2 +-
+ src/go/types/resolver.go                                      | 4 +---
+ src/internal/types/testdata/check/decls0.go                   | 2 +-
+ test/fixedbugs/issue3705.go                                   | 2 +-
+ 6 files changed, 6 insertions(+), 10 deletions(-)

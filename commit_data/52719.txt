@@ -1,28 +1,32 @@
-commit 54d429999c00f277c80b5698fb78c7b71f91aad9
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Apr 5 16:06:36 2023 -0700
+commit a7cc865edbb9568c1a695bde8e8459d97e129f08
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
 
-    context: add AfterFunc
+    runtime/internal/atomic: add atomic support for loong64
     
-    Add an AfterFunc function, which registers a function to run after
-    a context has been canceled.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Add support for contexts that implement an AfterFunc method, which
-    can be used to avoid the need to start a new goroutine watching
-    the Done channel when propagating cancellation signals.
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
     
-    Fixes #57928
+    Updates #46229
     
-    Change-Id: If0b2cdcc4332961276a1ff57311338e74916259c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482695
+    Change-Id: I0333503db044c6f39df2d7f8d9dff213b1361d6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342320
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- api/next/57928.txt            |   1 +
- src/context/afterfunc_test.go | 141 +++++++++++++++++++++++++++++++++++
- src/context/context.go        | 167 +++++++++++++++++++++++++++++++-----------
- src/context/context_test.go   |  26 ++++++-
- src/context/example_test.go   | 104 ++++++++++++++++++++++++++
- src/context/x_test.go         | 138 ++++++++++++++++++++++++++++++++++
- 6 files changed, 533 insertions(+), 44 deletions(-)
+ src/runtime/internal/atomic/atomic_loong64.go |  83 +++++++
+ src/runtime/internal/atomic/atomic_loong64.s  | 299 ++++++++++++++++++++++++++
+ 2 files changed, 382 insertions(+)

@@ -1,28 +1,21 @@
-commit f74b52cf505cba5ba8d3af0deae3bb1199c91aac
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Thu Aug 31 13:49:43 2017 +0900
+commit 71e63fa44f0017b03ba7ccd2bb8561c6a9ff17db
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 4 15:05:33 2017 +0000
 
-    cmd/cgo: support large unsigned macro again
+    all: use time.Time.Equal instead of == in some tests
     
-    The approach of https://golang.org/cl/43476 turned out incorrect.
-    The problem is that the sniff introduced by the CL only work for simple
-    expression. And when it fails it fallback to uint64, not int64, which
-    breaks backward compatibility.
-    In this CL, we use DWARF for guessing kind instead. That should be more
-    reliable than previous approach. And importanly, it fallbacks to int64 even
-    if it fails to guess kind.
+    (Found by making time.Time uncomparable and rerunning std tests
+    locally.)
     
-    Fixes #21708
-    
-    Change-Id: I39a18cb2efbe4faa9becdcf53d5ac68dba180d46
-    Reviewed-on: https://go-review.googlesource.com/60510
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4fa6fb0ba7334965362387e2f6541c17a27ac3aa
+    Reviewed-on: https://go-review.googlesource.com/42616
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue21708.go | 16 ++++++++++++++++
- src/cmd/cgo/doc.go          |  5 -----
- src/cmd/cgo/gcc.go          | 39 ++++++++++-----------------------------
- src/cmd/cgo/main.go         |  4 ++--
- 5 files changed, 29 insertions(+), 36 deletions(-)
+ src/cmd/go/go_test.go          | 2 +-
+ src/net/dial_test.go           | 2 +-
+ src/net/dnsclient_unix_test.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

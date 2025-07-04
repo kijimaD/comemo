@@ -1,18 +1,44 @@
-commit 7bebccb9725977e7730f0ff11db8c6641902d0b3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri May 1 15:10:24 2015 +0000
+commit a5dec3859a8b5fa674c48b7e7099c53a3461bb6d
+Author: Paul Marks <pmarks@google.com>
+Date:   Wed Apr 1 15:17:09 2015 -0700
 
-    Revert "runtime/pprof: write heap statistics to heap profile always"
+    net: make multi-IP resolution more flexible.
     
-    This reverts commit c26fc88d56ee4f93c98fc8923fe256121e6199cf.
+    Remove the "netaddr" type, which ambiguously represented either one
+    address, or a list of addresses. Instead, use "addrList" wherever
+    multiple addresses are supported.
     
-    This broke pprof. See the comments at 9491.
+    The "first" method returns the first address matching some condition
+    (e.g. "is it IPv4?"), primarily to support legacy code that can't handle
+    multiple addresses.
     
-    Change-Id: Ic99ce026e86040c050a9bf0ea3024a1a42274ad1
-    Reviewed-on: https://go-review.googlesource.com/9565
-    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    The "partition" method splits an addrList into two categories, as
+    defined by some strategy function. This is useful for implementing
+    Happy Eyeballs, and similar two-channel algorithms.
+    
+    Finally, internetAddrList (formerly resolveInternetAddr) no longer
+    mangles the ordering defined by getaddrinfo. In the future, this may
+    be used by a sequential Dial implementation.
+    
+    Updates #8453, #8455.
+    
+    Change-Id: I7375f4c34481580ab40e31d33002a4073a0474f3
+    Reviewed-on: https://go-review.googlesource.com/8360
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.5.txt              |  1 -
- src/runtime/pprof/pprof.go | 56 ++++++++++++++++++++++++----------------------
- 2 files changed, 29 insertions(+), 28 deletions(-)
+ src/net/dial.go              |  38 +++++++-----
+ src/net/interface_linux.go   |   8 +--
+ src/net/interface_windows.go |   4 +-
+ src/net/iprawsock.go         |  11 +---
+ src/net/iprawsock_posix.go   |   5 +-
+ src/net/ipsock.go            | 141 ++++++++++++++++++-----------------------
+ src/net/ipsock_test.go       | 145 ++++++++++++++++++++++++++++++++++---------
+ src/net/sock_posix.go        |   2 -
+ src/net/tcpsock.go           |  11 +---
+ src/net/udpsock.go           |  11 +---
+ src/net/udpsock_posix.go     |   5 +-
+ src/net/unixsock.go          |   7 ---
+ src/net/unixsock_posix.go    |   5 +-
+ 13 files changed, 225 insertions(+), 168 deletions(-)

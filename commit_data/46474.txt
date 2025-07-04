@@ -1,20 +1,26 @@
-commit 7f36ef0aff702f2598390d0349f9c9632942d40b
+commit bb1b6c95c2d312ec0e23a90dffd37a62f98af7ae
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 17 11:12:31 2021 -0700
+Date:   Sat Jan 2 03:23:49 2021 -0800
 
-    cmd/compile/internal/noder: hide TestUnifiedCompare behind -cmp flag
+    [dev.regabi] cmd/compile: remove Node.{,Set}Walkdef
     
-    This test is fragile and is starting to impede others' work. This CL
-    disables it until I have time to either find a solution for the issues
-    or decide to just delete the test altogether.
+    After the previous commit, we no longer access Walkdef on anything but
+    ir.Names, so we can remove them from the Node interface and miniNode.
     
-    Change-Id: Icefabb6d3fbedec5d16536de78be4ca20d63133c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350729
+    The flag bits storage should also move from miniNode.bits to
+    Name.flags, but the latter is already full at the moment. Leaving as a
+    TODO for now.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I2427e4cf7bc68dc1d1529f40fb93dd9f7a9149f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281005
     Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/noder/unified_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/ir/mini.go | 9 +--------
+ src/cmd/compile/internal/ir/name.go | 8 ++++++++
+ src/cmd/compile/internal/ir/node.go | 2 --
+ 3 files changed, 9 insertions(+), 10 deletions(-)

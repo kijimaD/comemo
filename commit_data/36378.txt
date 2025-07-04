@@ -1,15 +1,27 @@
-commit 94e4aca3e6566671b1140192ab48d48de38ceda8
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Tue Aug 21 14:55:17 2018 +0200
+commit 011f6c5fa03bdcd433315c60b94f2327beec22fc
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Apr 24 15:37:42 2018 -0400
 
-    doc: remove mentions of cloning from GitHub
+    cmd/trace: distinguish task endTimestamp and lastTimestamp
     
-    Complete CL117178 removing all references to GitHub, and leaving
-    a small note to make sure we remember that it's not supported.
+    A task may have other user annotation events after the task ends.
+    So far, task.lastTimestamp returned the task end event if the
+    event available. This change introduces task.endTimestamp for that
+    and makes task.lastTimestamp returns the "last" seen event's timestamp
+    if the task is ended.
     
-    Change-Id: Id4257515a864875808fa7a67f002ed52cfd635a3
-    Reviewed-on: https://go-review.googlesource.com/130395
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    If the task is not ended, both returns the last timestamp of the entire
+    trace assuming the task is still active.
+    
+    This fixes the task-oriented trace view mode not to drop user
+    annotation instances when they appear outside a task's lifespan.
+    Adds a test.
+    
+    Change-Id: Iba1062914f224edd521b9ee55c6cd5e180e55359
+    Reviewed-on: https://go-review.googlesource.com/109175
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- doc/contribute.html | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/trace/annotations.go | 31 +++++++++++++++--------
+ src/cmd/trace/trace.go       | 16 ++++++------
+ src/cmd/trace/trace_test.go  | 59 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 89 insertions(+), 17 deletions(-)

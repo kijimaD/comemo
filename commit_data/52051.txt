@@ -1,32 +1,17 @@
-commit 06b67591e7861d813e94fa76434af9c778d81cf5
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Feb 21 17:34:41 2023 -0500
+commit bb2b16d15ead9c5b6b9e2b699aed8bdfcf7e9518
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Nov 3 18:01:09 2021 +0800
 
-    cmd/link: default to external linking with cgo std packages
+    reflect, runtime: add reflect support for regabi on riscv64
     
-    Previously, when a program depends on cgo packages in the standard
-    library (e.g. net, os/user) but not otherwise use cgo, we default
-    to internal linking mode. As we shipped pre-built cgo-using packages
-    in Go distributions, we don't require a C compiler to build those
-    packages. Then, by using internal linking we can link programs
-    using those packages without requiring a C toolchain.
+    This CL adds regabi support needed for reflect and reimplement
+    of CL 360994, which is reverted.
     
-    As of Go 1.20, we stopped shipping those pre-built packages. If a
-    user doesn't have a C toolchain, they will use the non-cgo version
-    of the package. If they have a C toolchain, they can get cgo-using
-    packages but they can link with the external linker as well. So
-    there is no strong need to be able to link the cgo version of the
-    packages without a C toolchain. This CL makes it default to
-    external linking mode.
-    
-    Fixes #58619.
-    Fixes #58620.
-    
-    Change-Id: I62d3744c2b82ce734813c0e303e417d85dd29868
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470298
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I140673f09109dd9f72eff70aad64c0aa00d6857a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396077
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: mzh <mzh@golangcn.org>
 
- src/cmd/link/internal/ld/lib.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/reflect/asm_riscv64.s | 54 ++++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/stack.go      |  3 ++-
+ 2 files changed, 48 insertions(+), 9 deletions(-)

@@ -1,17 +1,15 @@
-commit 889c0a66fc7a43b23cc02ee42cfa17d221fce3c4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 22 14:50:20 2016 -0700
+commit 7a05fa8a70d0ddc109b246b4a3f0421ce2d64ea6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Mar 10 02:36:28 2016 -0500
 
-    cmd/compile: don't export pos info in new export format for now
+    doc: fix dead links in FAQ
     
-    Exporting filenames as part of the position information can lead
-    to different object files which breaks tests.
+    Fixes #14741.
     
-    Change-Id: Ia678ab64293ebf04bf83601e6ba72919d05762a4
-    Reviewed-on: https://go-review.googlesource.com/22385
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idb8de8b0c1059c15e4c3df4a60bbd340d4e74aba
+    Reviewed-on: https://go-review.googlesource.com/20487
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 15 +++++++++++++++
- src/cmd/compile/internal/gc/bimport.go | 11 +++++++++--
- src/go/internal/gcimporter/bimport.go  | 11 +++++++++--
- 3 files changed, 33 insertions(+), 4 deletions(-)
+ doc/go_faq.html | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

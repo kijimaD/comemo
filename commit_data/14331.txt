@@ -1,25 +1,26 @@
-commit abb313f8c8980ed69d4618823d9f4a05c7acff9d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Nov 7 12:06:27 2012 +0400
+commit eb2e6e59ee4154d0cfa017d1c1a84c52ed2f624b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Nov 7 16:58:20 2012 +1100
 
-    cmd/gc: racewalk: do not double function calls
-    Current racewalk transformation looks like:
-    x := <-makeChan().c
-    \/\/\/\/\/\/\/\/\/
-    runtime.raceread(&makeChan().c)
-    x := <-makeChan().c
-    and so makeChan() is called twice.
-    With this CL the transformation looks like:
-    x := <-makeChan().c
-    \/\/\/\/\/\/\/\/\/
-    chan *tmp = &(makeChan().c)
-    raceread(&*tmp)
-    x := <-(*tmp)
-    Fixes #4245.
+    net: implement IPv6 support for windows
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/6822075
+    Thank you zhoumichaely for original CL 5175042.
+    
+    Fixes #1740.
+    Fixes #2315.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh
+    CC=golang-dev, zhoumichaely
+    https://golang.org/cl/6822045
 
- src/cmd/gc/racewalk.c | 97 ++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 85 insertions(+), 12 deletions(-)
+ src/pkg/net/dialgoogle_test.go            |  7 +++++-
+ src/pkg/net/fd_unix.go                    |  3 +++
+ src/pkg/net/fd_windows.go                 |  5 +++-
+ src/pkg/net/ipsock.go                     |  7 +++++-
+ src/pkg/net/ipsock_plan9.go               |  3 +++
+ src/pkg/net/lookup_windows.go             | 35 +++++++++++++++++++++++++--
+ src/pkg/syscall/syscall_windows.go        | 39 ++++++++++++++++++++++++++++---
+ src/pkg/syscall/zsyscall_windows_386.go   | 15 ++++++++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 15 ++++++++++++
+ src/pkg/syscall/ztypes_windows.go         | 17 ++++++++++++++
+ 10 files changed, 138 insertions(+), 8 deletions(-)

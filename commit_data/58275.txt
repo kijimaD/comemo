@@ -1,23 +1,19 @@
-commit a8eddaf758c15404acbfe61af0739b6d099f2067
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Nov 21 17:32:22 2024 -0800
+commit c75a617af02fcfa53effed30803f2a96388680d5
+Author: Quan Tong <quantonganh@gmail.com>
+Date:   Thu Oct 19 11:44:32 2023 +0700
 
-    runtime, internal/synctest, syscall/js: keep bubble membership in syscalls
+    cmd/go/internal/work: set Incomplete to true if there is an error
     
-    Propagate synctest bubble membership through syscall/js.Func
-    functions. Avoids panics from cross-bubble channel operations
-    in js syscalls.
+    Fixes #57724
     
-    Fixes #70512
-    
-    Change-Id: Idbd9f95da8bc4f055a635dfac041359f848dad1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631055
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I3d419985ff41d5ee93bb56d8c7ca5cd1d7231920
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536418
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/go/build/deps_test.go         | 10 ++++-----
- src/internal/synctest/synctest.go | 45 +++++++++++++++++++++++++++++++++++++++
- src/runtime/synctest.go           | 27 +++++++++++++++++++++++
- src/syscall/js/func.go            | 27 ++++++++++++++++++-----
- 4 files changed, 99 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/work/exec.go             | 1 +
+ src/cmd/go/testdata/script/list_export_e.txt | 4 ++++
+ 2 files changed, 5 insertions(+)

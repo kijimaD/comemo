@@ -1,32 +1,29 @@
-commit 30bfafc319288e8cfe54111664e3f2f259998a0a
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Sep 17 00:22:56 2015 -0700
+commit a9407b5797c0d4dcbed965462204cdc4e38bb621
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Mar 20 10:25:46 2016 -0700
 
-    archive/tar: centralize all information about tar header format
+    cmd/compile: fix varexpr handling of ODOT
     
-    The Reader and Writer have hard-coded constants regarding the
-    offsets and lengths of certain fields in the tar format sprinkled
-    all over. This makes it harder to verify that the offsets are
-    correct since a reviewer would need to search for them throughout
-    the code. Instead, all information about the layout of header
-    fields should be centralized in one single file. This has the
-    advantage of being both centralized, and also acting as a form
-    of documentation about the header struct format.
+    For a long time varexpr has handled ODOT incorrectly: it has always
+    returned false.  Before https://golang.org/cl/20890 this has been
+    because an ODOT had a Right field with an ONAME with no Class, for which
+    varexpr returns false.  CL 20890 preserved the behavior of varexpr for
+    ODOT, so that the change would pass toolstash -cmp.
     
-    This method was chosen over using "encoding/binary" since that
-    method would cause an allocation of a header struct every time
-    binary.Read was called. This method causes zero allocations and
-    its logic is no longer than if structs were declared.
+    This CL fixes varexpr so that ODOT can return true in some cases.  This
+    breaks toolstash -cmp.  While the changed compiler allocates temporary
+    variables in a different order, I have not been able to find any
+    examples where the generated code is different, other than using
+    different stack offsets and, in some cases, registers.  It seems that
+    other parts of the compiler will force the ODOT into a temporary anyhow.
     
-    Updates #12594
+    Still, this change is clearly correct, and is a minor compiler cleanup.
     
-    Change-Id: Ic7a0565d2a2cd95d955547ace3b6dea2b57fab34
-    Reviewed-on: https://go-review.googlesource.com/14669
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I71506877aa3c13966bb03c281aa16271ee7fe80a
+    Reviewed-on: https://go-review.googlesource.com/20907
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/common.go      |  37 +-------
- src/archive/tar/format.go      | 197 +++++++++++++++++++++++++++++++++++++++++
- src/archive/tar/reader.go      | 167 +++++++++++++---------------------
- src/archive/tar/writer.go      | 100 +++++++++------------
- src/archive/tar/writer_test.go |  22 ++---
- 5 files changed, 314 insertions(+), 209 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

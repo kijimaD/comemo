@@ -1,0 +1,24 @@
+commit b50ccef67a5cd4a2919131cfeb6f3a21d6742385
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 6 11:10:02 2025 -0500
+
+    cmd/go/internal/modindex: don't write index entry if file open
+    
+    On Windows, we can't open a file that's already been opened. Before this
+    change, we'd try to write an index entry if mmapping the entry failed.
+    But that could happen either if the file doesn't exist or if there was a
+    problem mmapping an already opened file. Pass through information about
+    whether the file was actually opened so that we don't try to write to an
+    already opened file.
+    
+    For #71059
+    
+    Change-Id: I6adabe1093fed9ec37e7fafb13384c102786cbce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640577
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/cache/cache.go   | 12 ++++++------
+ src/cmd/go/internal/mmap/mmap.go     |  7 ++++---
+ src/cmd/go/internal/modindex/read.go | 22 ++++++++++++++++------
+ 3 files changed, 26 insertions(+), 15 deletions(-)

@@ -1,30 +1,21 @@
-commit 3664950ef68089716b9f22062db66a347c7246d4
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Sep 21 18:15:25 2021 -0400
+commit 7903214fcc52a53a7749b4634eb9e940c27ffe75
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 7 17:20:55 2021 -0800
 
-    go/types: tweaks to ArgumentError to be more idiomatic
+    [dev.typeparams] cmd/compile/internal/syntax: add ShortString tests
     
-    This CL makes a few changes to the new ArgumentError type to be more
-    idiomatic:
-     - Use a pointer receiver for methods.
-     - Export fields, similarly to Error. ArgumentError has a clear meaning
-       (an error associated with an index), so there is no need to hide its
-       representation.
-     - Add an Unwrap method to access the underlying error.
-     - Say explicitly that the error returned from Instantiate may wrap
-       *ArgumentError. There is no need to commit to an API that always
-       returns an error with dynamic type *ArgumentError.
+    This CL moves the exprstring_test.go from the types2
+    package into the syntax package (which contains the
+    actual ShortString function). The code is mostly un-
+    changed but for the updated TestShortString function.
     
-    Updates #47916
-    
-    Change-Id: Ib1a43e921f247794e7155280ccbf5a6775ed3978
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351335
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Ib39e3181e643fc0ac96ddf144a3114893a50c2fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282554
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/api.go         | 11 ++++-------
- src/go/types/api_test.go    | 11 ++++++++---
- src/go/types/instantiate.go |  6 +++---
- 3 files changed, 15 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/syntax/printer_test.go    | 87 +++++++++++++++++++
+ src/cmd/compile/internal/types2/exprstring_test.go | 98 ----------------------
+ 2 files changed, 87 insertions(+), 98 deletions(-)

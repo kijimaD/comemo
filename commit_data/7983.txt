@@ -1,16 +1,17 @@
-commit de3aac609cde6b02c9411a002ff07adb473df15a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 5 11:12:02 2011 -0400
+commit 7098f3d44279e7b753a27cebae9f09d406862edd
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Apr 5 10:59:10 2011 -0400
 
-    gofix: don't rewrite O_APPEND opens
+    crypto/des: new package providing implementations of DES and TDEA
+    Original code by Chris Lennert <cale...@gmail.com>
     
-    R=r, rog
+    R=rsc, agl1
     CC=golang-dev
-    https://golang.org/cl/4364041
+    https://golang.org/cl/4331054
 
- misc/dashboard/builder/exec.go      |  2 +-
- src/cmd/gofix/osopen.go             | 12 +++++++++++-
- src/cmd/gofix/osopen_test.go        |  2 ++
- src/cmd/goinstall/main.go           |  2 +-
- src/pkg/crypto/tls/generate_cert.go |  2 +-
- 5 files changed, 16 insertions(+), 4 deletions(-)
+ src/pkg/crypto/des/Makefile    |   13 +
+ src/pkg/crypto/des/block.go    |  130 ++++
+ src/pkg/crypto/des/cipher.go   |  113 +++
+ src/pkg/crypto/des/const.go    |  138 ++++
+ src/pkg/crypto/des/des_test.go | 1595 ++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 1989 insertions(+)

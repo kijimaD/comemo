@@ -1,0 +1,21 @@
+commit fdd7713fe5a7bc054fe08f79a1877f90c7188e53
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Mon Jul 1 00:49:11 2024 +0200
+
+    internal/goexperiment: fix godoc formatting
+    
+    In internal/goexperiment fix godoc formatting (list indent, add godoc
+    links).
+    
+    In internal/buildcfg fix godoc for Experiment.baseline.
+    
+    Change-Id: I30eaba60cbf3978a375b50dda19dbb2830903bdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595915
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/buildcfg/exp.go       |  4 ++--
+ src/internal/goexperiment/flags.go | 20 ++++++++++----------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

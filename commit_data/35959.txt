@@ -1,15 +1,24 @@
-commit d87f6356263ca8541f5bf097ad68ac479b8ed3e9
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 12 11:37:17 2018 +1000
+commit 8da180f6cac51f6cb8a316b962f797dbaf7ee96f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 24 15:49:43 2018 +0000
 
-    doc: clarify a sentence about *_js.go
+    all: remove some unused return parameters
     
-    Change "have to" to "need to" for clarity and to avoid a
-    peculiar English idiom.
+    As found by unparam. Picked the low-hanging fruit, consisting only of
+    errors that were always nil and results that were never used. Left out
+    those that were useful for consistency with other func signatures.
     
-    Change-Id: Iec2b1f841d0353dd7925f8f934fe82d4ed059d7d
-    Reviewed-on: https://go-review.googlesource.com/123495
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I06b52bbd3541f8a5d66659c909bd93cb3e172018
+    Reviewed-on: https://go-review.googlesource.com/102418
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/gob/decode.go   |  8 ++++----
+ src/internal/trace/parser.go |  9 +++------
+ src/regexp/syntax/prog.go    | 14 ++++++--------
+ src/runtime/pprof/proto.go   |  3 +--
+ src/time/format.go           |  2 +-
+ src/time/time.go             | 14 +++++++-------
+ src/time/zoneinfo.go         |  8 ++------
+ 7 files changed, 24 insertions(+), 34 deletions(-)

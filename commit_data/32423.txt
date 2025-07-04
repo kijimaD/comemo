@@ -1,23 +1,28 @@
-commit 0c7fd56951cff83bb7b23f64a712327bab154514
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Aug 21 11:00:31 2017 -0700
+commit d9b1f9e85ee097ebc95c5904cee921ba7be4f732
+Author: Andrew Benton <andrewmbenton@gmail.com>
+Date:   Tue Mar 7 14:00:54 2017 -0800
 
-    runtime: only clear pointer-containing memory during map delete
+    encoding/asn1: add NullBytes and NullRawValue for working with ASN.1 NULL
     
-    When deleting entries from a map, only clear the key and value
-    if they contain pointers. And use memclrHasPointers to do so.
+    There were a number of places in crypto/x509 that used hardcoded
+    representations of the ASN.1 NULL type, in both byte slice and
+    RawValue struct forms. This change adds two new exported vars to
+    the asn1 package for working with ASN.1 NULL in both its forms, and
+    converts all usages from the x509 package.
     
-    While we're here, specialize key clearing in mapdelete_faststr,
-    and fix another missed usage of add in mapdelete.
+    In addition, tests were added to exercise Marshal and Unmarshal on
+    both vars.
     
-    Benchmarking impeded by #21546.
+    See #19446 for discussion.
     
-    Change-Id: I3f6f924f738d6b899b722d6438e9e63f52359b84
-    Reviewed-on: https://go-review.googlesource.com/57630
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I63dbd0835841ccbc810bd6ec794360a84e933f1e
+    Reviewed-on: https://go-review.googlesource.com/38660
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/runtime/hashmap.go      | 18 +++++++++++-------
- src/runtime/hashmap_fast.go | 33 ++++++++++++++++++++++++---------
- 2 files changed, 35 insertions(+), 16 deletions(-)
+ src/crypto/x509/x509.go        | 30 +++++++++---------------------
+ src/encoding/asn1/asn1.go      |  8 ++++++++
+ src/encoding/asn1/asn1_test.go | 26 ++++++++++++++++++++++++++
+ src/encoding/asn1/common.go    |  1 +
+ 4 files changed, 44 insertions(+), 21 deletions(-)

@@ -1,19 +1,35 @@
-commit 947bf333fc2d93e519241b521ddc13c76daa4862
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Mar 23 17:13:38 2022 +0700
+commit 95748d1b741d2c612cf90d9b6f4f8bdb81800e23
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 18 01:20:13 2021 -0700
 
-    cmd/compile/internal/types: simplify AllowsGoVersion
+    [dev.typeparams] cmd/compile: avoid some redundant type construction
     
-    After CL 394556, only LocalPkg is passed to AllowsGoVersion, so simplify
-    the code to not depend on Pkg anymore.
+    This CL updates noder and typecheck to avoid a couple of instances of
+    redundant evaluation of type expressions:
     
-    Change-Id: I8f9bfd4090100eec60cf3959c0d8fa92a26fc32a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394954
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    1. When noding struct fields or parameter tuples, check for
+    syntax.Type reuse between adjacent fields and then reuse the
+    corresponding ir.Node type expression. It would perhaps be even better
+    to avoid re-noding the type expression too, but noder's days are
+    numbered anyway, so I'd rather be minimally invasive here.
+    
+    2. When importing an empty interface, reuse the same cached empty
+    interface instance that is used for empty interfaces that appear in
+    source. This matches types2's behavior, which uses a single
+    types2.Interface instance for all empty interfaces.
+    
+    These changes are motivated by making it possible to migrate from
+    typecheck to types2 while passing toolstash -cmp.
+    
+    Updates #46208.
+    
+    Change-Id: Ia6458894494464d863181db356f3284630c90ffe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320789
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/noder.go     |  2 +-
- src/cmd/compile/internal/types/goversion.go | 16 +++-------------
- 2 files changed, 4 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/noder/noder.go       | 6 ++++++
+ src/cmd/compile/internal/typecheck/iimport.go | 4 ++++
+ 2 files changed, 10 insertions(+)

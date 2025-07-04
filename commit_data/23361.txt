@@ -1,28 +1,14 @@
-commit 3ab9ff11072b0bd9852011b82b00d30c6ee04c4e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 4 15:35:58 2015 -0400
+commit c8b31c5cea0ecdb7eec44752701a653c325688df
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat May 9 21:53:33 2015 -0400
 
-    cmd/go: include Go toolchain information in build ID
+    go/build: fix typo
     
-    This causes packages and binaries built by Go 1.5 to look
-    out of date to Go 1.6 and vice versa, so that when you flip
-    between different Go versions but keep the same GOPATH,
-    the right rebuilding happens at each flip.
+    Thanks Dmitri Shuralyov for pointing it out.
     
-    Go 1.4 binaries will also look out of date to Go 1.5,
-    but Go 1.5 binaries will not look out of date to Go 1.4
-    (since Go 1.4 doesn't have anything like this).
-    People flipping between Go 1.4 and Go 1.5 will still
-    need to use go install -a every time to flip to Go 1.4,
-    but not when they flip back to Go 1.5.
-    
-    Fixes #6534.
-    Fixes #10702.
-    
-    Change-Id: I0ae7f268f822d483059a938a4f22846ff9275b4c
-    Reviewed-on: https://go-review.googlesource.com/10760
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: If9c5ac0e56d601d327b2b682ee3548037439cb83
+    Reviewed-on: https://go-review.googlesource.com/9881
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/pkg.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/go/build/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

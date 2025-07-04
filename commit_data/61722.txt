@@ -1,0 +1,23 @@
+commit 0a0a7a564271ab8acfe6210a6e1ca19e712e0d1f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 20 17:48:30 2024 -0800
+
+    cmd/compile: fix rewrite rules for multiply/add
+    
+    x - (y - c) == (x - y) + c, not (x - y) - c. Oops.
+    
+    Fixes #70481
+    
+    Change-Id: I0e54d8e65dd9843c6b92c543ac69d69ee21f617c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630397
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 32 +++++++++++++--------------
+ test/fixedbugs/issue70481.go                  | 20 +++++++++++++++++
+ test/fixedbugs/issue70481.out                 | 19 ++++++++++++++++
+ 4 files changed, 57 insertions(+), 18 deletions(-)

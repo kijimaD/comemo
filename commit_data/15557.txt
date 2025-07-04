@@ -1,12 +1,15 @@
-commit 1f74aa21d54244ea7ee4e0cabc101eb6f0ad19cb
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Mar 2 21:11:05 2013 +0100
+commit aa36afed3b521e617a6f396f26b62adb1fb442e5
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 2 11:45:22 2013 -0800
 
-    runtime: benchmark for appending N bytes should not append N² bytes.
+    old/netchan: delete as part of move to go.exp/old/netchan
     
-    R=golang-dev, r
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7420051
+    https://golang.org/cl/7450050
 
- src/pkg/runtime/append_test.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/pkg/old/netchan/common.go       | 338 ---------------------------
+ src/pkg/old/netchan/export.go       | 400 --------------------------------
+ src/pkg/old/netchan/import.go       | 287 -----------------------
+ src/pkg/old/netchan/netchan_test.go | 447 ------------------------------------
+ 4 files changed, 1472 deletions(-)

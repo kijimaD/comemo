@@ -1,46 +1,21 @@
-commit daaf1f222063174eb7f0938eee38f7f9f364263c
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Tue Apr 2 13:08:24 2024 +0000
+commit f00c54146ca0d9663f16f8ef2ea87862dc936ce3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 10 13:59:12 2023 +0000
 
-    all: use kind* of abi
+    net: avoid opening an external port in TestDialListenerAddr
     
-    For #59670
+    The behavior in #18806 can be tested with a localhost-only port,
+    provided that we're willing to assume what format the listener would
+    report for an external dual-stack port.
     
-    Change-Id: Id66e102f13e529dd041b68ce869026a56f0a1b9b
-    GitHub-Last-Rev: 43aa9376f72bc02a9d86518cdc99494a6b2f8573
-    GitHub-Pull-Request: golang/go#65564
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562298
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Fixes #59497.
+    
+    Change-Id: I171fb03eb46aee8e85480e04626a23f4f3b923e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482163
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 62 ++++++++++++-------------
- src/cmd/internal/objabi/typekind.go             | 40 ----------------
- src/cmd/link/internal/ld/deadcode.go            | 21 +++++----
- src/cmd/link/internal/ld/decodesym.go           | 18 +------
- src/cmd/link/internal/ld/dwarf.go               | 58 +++++++++++------------
- src/internal/abi/type.go                        |  4 +-
- src/reflect/export_test.go                      |  4 +-
- src/reflect/type.go                             | 38 +++++++--------
- src/runtime/alg.go                              | 28 +++++------
- src/runtime/arena.go                            | 23 ++++-----
- src/runtime/cgocall.go                          | 43 ++++++++---------
- src/runtime/cgocheck.go                         | 11 +++--
- src/runtime/debuglog.go                         |  5 +-
- src/runtime/error.go                            | 39 +++++++++-------
- src/runtime/export_debug_test.go                |  4 +-
- src/runtime/export_test.go                      |  2 +-
- src/runtime/heapdump.go                         |  2 +-
- src/runtime/mbitmap.go                          |  3 +-
- src/runtime/mbitmap_allocheaders.go             | 22 ++++-----
- src/runtime/mbitmap_noallocheaders.go           |  6 +--
- src/runtime/mfinal.go                           | 14 +++---
- src/runtime/pinner.go                           |  3 +-
- src/runtime/plugin.go                           |  7 ++-
- src/runtime/race.go                             |  8 ++--
- src/runtime/stkframe.go                         |  2 +-
- src/runtime/syscall_windows.go                  | 16 +++----
- src/runtime/type.go                             | 30 ++++++------
- src/runtime/typekind.go                         | 35 +-------------
- 28 files changed, 235 insertions(+), 313 deletions(-)
+ src/net/dial_test.go | 40 ++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 36 insertions(+), 4 deletions(-)

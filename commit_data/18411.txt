@@ -1,18 +1,21 @@
-commit 57bc80b5e8631637f0e756afa1872933ca9db231
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 4 11:53:13 2014 -0800
+commit c2d02b3b9fd6847535ac18b24582a8bb98a3eb30
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Feb 4 10:51:37 2014 -0500
 
-    cmd/go, doc/go1.3.txt: misc/benchcmp has been replaced by go tool benchcmp
+    crypto/tls: do not send the current time in hello messages
     
-    Fixes #7016.
+    This reduces the ability to fingerprint TLS connections.
     
-    LGTM=r
-    R=r
-    CC=adg, bradfitz, dave, golang-codereviews
-    https://golang.org/cl/60100043
+    The impeteus for this change was a recent change to OpenSSL
+    by Nick Mathewson:
+    
+    http://git.openssl.org/gitweb/?p=openssl.git;a=commit;h=2016265dfb
+    
+    LGTM=agl
+    R=agl
+    CC=golang-codereviews
+    https://golang.org/cl/57230043
 
- doc/go1.3.txt      |   1 +
- misc/benchcmp      | 124 -----------------------------------------------------
- src/cmd/go/pkg.go  |  21 ++++-----
- src/cmd/go/tool.go |   2 +-
- 4 files changed, 13 insertions(+), 135 deletions(-)
+ src/pkg/crypto/tls/handshake_client.go | 7 +------
+ src/pkg/crypto/tls/handshake_server.go | 9 ++-------
+ 2 files changed, 3 insertions(+), 13 deletions(-)

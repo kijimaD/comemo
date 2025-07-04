@@ -1,20 +1,12 @@
-commit 7500b29993f193e68a9785c3b729a45f4080042c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 24 17:26:32 2018 -0700
+commit 9c64c65d0ea251c3ac4d49556f10ad6ceb532f52
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Dec 19 12:31:14 2017 -0800
 
-    cmd/compile/internal/types: remove Field.Funarg
+    cmd/compile: fix spelling error
     
-    Passes toolstash-check.
-    
-    Change-Id: Idc00f15e369cad62cb8f7a09fd0ef09abd3fcdef
-    Reviewed-on: https://go-review.googlesource.com/109356
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ifc533ee98a7684060d20340087c1b29f722ae46b
+    Reviewed-on: https://go-review.googlesource.com/84835
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/closure.go |  1 -
- src/cmd/compile/internal/gc/dcl.go     |  5 -----
- src/cmd/compile/internal/gc/fmt.go     | 12 ++++++------
- src/cmd/compile/internal/gc/walk.go    | 21 +++++----------------
- src/cmd/compile/internal/types/type.go |  1 -
- 5 files changed, 11 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,49 +1,20 @@
-commit e5b76747c9f30a736c38137ad7f5939c02b3e285
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 10 17:50:06 2015 -0700
+commit d21cef1f8f7b09bac11642a705078675e8e59164
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 17 15:28:57 2015 -0400
 
-    go/importer: added go/importer package, adjusted go/types
+    runtime: remove pointless harvestwbufs
     
-    - The go/importer package provides access to compiler-specific importers.
-    - Adjusted go/internal/gcimporter and go/types as needed.
-    - types.Check was removed - not much simpler than calling types.Config.Check.
-    - Package "unsafe" is now handled by the type checker; importers are not
-      called for it anymore.
-    - In std lib tests, re-use importer for faster testing
-      (no need to re-import previously imported packages).
-    - Minor cleanups.
+    Currently we harvestwbufs the moment we enter the mark phase, even
+    before starting the world again. Since cached wbufs are only filled
+    when we're in mark or mark termination, they should all be empty at
+    this point, making the harvest pointless. Remove the harvest.
     
-    The code still needs cleanups before submitting.
+    We should, but do not currently harvest at the end of the mark phase
+    when we're running out of work to do.
     
-    Change-Id: Idd456da2e9641688fe056504367348926feb0755
-    Reviewed-on: https://go-review.googlesource.com/8767
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I5f4ba874f14dd915b8dfbc4ee5bb526eecc2c0b4
+    Reviewed-on: https://go-review.googlesource.com/7669
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/api/goapi.go                          | 21 ++++-----
- src/cmd/api/goapi_test.go                     |  6 ++-
- src/go/importer/importer.go                   | 46 +++++++++++++++++++
- src/go/internal/gcimporter/gcimporter.go      |  8 +---
- src/go/internal/gcimporter/gcimporter_test.go |  1 -
- src/go/types/api.go                           | 63 ++++++++-------------------
- src/go/types/api_test.go                      | 31 +++++++------
- src/go/types/builtins.go                      |  3 +-
- src/go/types/builtins_test.go                 |  4 +-
- src/go/types/check.go                         |  8 +---
- src/go/types/check_test.go                    |  3 +-
- src/go/types/decl.go                          |  3 +-
- src/go/types/eval_test.go                     |  4 +-
- src/go/types/expr.go                          |  3 +-
- src/go/types/hilbert_test.go                  |  4 +-
- src/go/types/issues_test.go                   |  5 ++-
- src/go/types/object.go                        |  3 +-
- src/go/types/operand.go                       |  3 +-
- src/go/types/resolver.go                      | 30 +++++--------
- src/go/types/resolver_test.go                 | 25 +++++++++--
- src/go/types/self_test.go                     |  4 +-
- src/go/types/stdlib_test.go                   | 18 +++++---
- src/go/types/stmt.go                          |  3 +-
- src/go/types/typestring_test.go               |  5 ++-
- src/go/types/typexpr.go                       |  3 +-
- src/go/types/universe.go                      |  3 +-
- 26 files changed, 169 insertions(+), 141 deletions(-)
+ src/runtime/mgc.go | 1 -
+ 1 file changed, 1 deletion(-)

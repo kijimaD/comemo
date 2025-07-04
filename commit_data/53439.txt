@@ -1,20 +1,34 @@
-commit 936ce874ace0bed17eac20dfa21fe04a45d30603
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 1 14:11:27 2023 -0400
+commit e1b62efaf33988a5153510898d37309cee78f26e
+Author: ErikPelli <erikpellizzon1@gmail.com>
+Date:   Sun Aug 14 07:46:22 2022 +0000
 
-    cmd/go: add gover.Max and gover.MaxToolchain
+    encoding/base64: optimize decodemap memory set
     
-    I've inlined these by hand enough times now.
+    The existing implementation has an execution time higher in the benchmark than this one.
+    This is an optimized implementation using the copy() function and a constant 256 bytes string with the values to be copied.
     
-    For #57001.
+    ```
+    name           old time/op    new time/op    delta
+    NewEncoding-4     329ns ± 1%     231ns ± 1%  -29.72%  (p=0.008 n=5+5)
     
-    Change-Id: Ia274bd444f12b07ce14eeb2b5a66546880db8f77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499982
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    name           old speed      new speed      delta
+    NewEncoding-4   778MB/s ± 1%  1108MB/s ± 1%  +42.29%  (p=0.008 n=5+5)
+    ```
+    
+    Fixes #53211
+    
+    Change-Id: I80fe62aa40623125ef81ae9164a8405eed30b71b
+    GitHub-Last-Rev: 55dce6f636ad29a70daa935169710c22f44ab31f
+    GitHub-Pull-Request: golang/go#53212
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410194
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/gover/gover.go | 20 ++++++++++++++++++++
- src/cmd/go/internal/modget/get.go  |  4 ++--
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/encoding/base32/base32.go      | 27 +++++++++++++++++++++------
+ src/encoding/base64/base64.go      | 25 ++++++++++++++++++++-----
+ src/encoding/base64/base64_test.go | 10 ++++++++++
+ 3 files changed, 51 insertions(+), 11 deletions(-)

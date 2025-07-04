@@ -1,21 +1,22 @@
-commit 4f45ec5963a4b72e0c4ddbdfa84f9cb374692eea
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Jan 20 12:46:38 2022 +0100
+commit 083811d079a659f459eaad4a9dbafec7a50e1a20
+Author: Sofía Celi <cherenkovd69@gmail.com>
+Date:   Thu Aug 26 12:52:02 2021 +0000
 
-    cmd/go: prepend builtin prolog when checking for preamble errors
+    [dev.boringcrypto] crypto/tls: use correct config in TestBoringClientHello
     
-    Fixes #50710
+    The existing implementation sets the ClientConfig to specific values to
+    check, but does not uses it in the actual testing. This commit make the
+    test to actually use it, which can be used to flag bugs in the future.
     
-    Change-Id: I62feddbe3eaae9605d196bec60d378614436603a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379754
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I8d883c11675169705771af3fcca11a303cfeb30f
+    GitHub-Last-Rev: 37841fd3561c95c8c9143c9fa4fff81268e18cdc
+    GitHub-Pull-Request: golang/go#47959
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345029
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- misc/cgo/errors/errors_test.go         |  1 +
- misc/cgo/errors/testdata/issue50710.go | 14 ++++++++++++++
- src/cmd/cgo/gcc.go                     |  2 +-
- 3 files changed, 16 insertions(+), 1 deletion(-)
+ src/crypto/tls/boring_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

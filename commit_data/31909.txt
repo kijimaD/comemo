@@ -1,18 +1,38 @@
-commit ddeab538263307f6d76e3a8a7f2c4b12383b61bc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 23 07:08:56 2017 -0700
+commit 86dc86b4f948e16001903879162e9cf8da8f0537
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Mar 18 11:16:30 2017 -0700
 
-    os: align siginfo argument to waitid
+    cmd/compile: don't merge load+op if other op arg is still live
     
-    I have no test case for this, but there is one report on the mailing list
-    (https://groups.google.com/d/msg/golang-dev/sDg-t1_DPw0/-AJmLxgPBQAJ)
-    in which waitid running on MIPS returns EFAULT.
+    We want to merge a load and op into a single instruction
     
-    Change-Id: I79bde63c7427eefc1f2925d78d97cc9cf2fffde3
-    Reviewed-on: https://go-review.googlesource.com/46511
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+        l = LOAD ptr mem
+        y = OP x l
+    
+    into
+    
+        y = OPload x ptr mem
+    
+    However, all of our OPload instructions require that y uses
+    the same register as x. If x is needed past this instruction, then
+    we must copy x somewhere else, losing the whole benefit of merging
+    the instructions in the first place.
+    
+    Disable this optimization if x is live past the OP.
+    
+    Also disable this optimization if the OP is in a deeper loop than the load.
+    
+    Update #19595
+    
+    Change-Id: I87f596aad7e91c9127bfb4705cbae47106e1e77a
+    Reviewed-on: https://go-review.googlesource.com/38337
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/os/wait_waitid.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go      |  41 +++++++--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  56 ++++++------
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  66 +++++++-------
+ src/cmd/compile/internal/ssa/likelyadjust.go |   8 ++
+ src/cmd/compile/internal/ssa/rewrite.go      |  28 +++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 112 +++++++++++------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 132 +++++++++++++--------------
+ 7 files changed, 249 insertions(+), 194 deletions(-)

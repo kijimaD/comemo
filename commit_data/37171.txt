@@ -1,25 +1,25 @@
-commit c803ffc67d0c90b24eb5a60a7d573eecc39e7753
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 4 15:33:08 2018 +0000
+commit 8d5fd871d79bd62b04bfadb3b7be0a896029e80c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 6 12:14:22 2018 -0700
 
-    runtime: scavenge large spans before heap growth
+    cmd/compile: fix "width not calculated" ICE
     
-    This change scavenges the largest spans before growing the heap for
-    physical pages to "make up" for the newly-mapped space which,
-    presumably, will be touched.
+    Expanding interface method sets is handled during width calculation,
+    which can't be performed concurrently. Make sure that we eagerly
+    expand interfaces in the frontend when importing them, even if they're
+    not actually used by code, because we might need to generate a type
+    description of them.
     
-    In theory, this approach to scavenging helps reduce the RSS of an
-    application by marking fragments in memory as reclaimable to the OS
-    more eagerly than before. In practice this may not necessarily be
-    true, depending on how sysUnused is implemented for each platform.
+    Fixes #25055.
     
-    Fixes #14045.
-    
-    Change-Id: Iab60790be05935865fc71f793cb9323ab00a18bd
-    Reviewed-on: https://go-review.googlesource.com/c/139719
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I6fd2756de2c7d5dbc33056f70b3028ca3aebab41
+    Reviewed-on: https://go-review.googlesource.com/122517
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mheap.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 48 insertions(+)
+ src/cmd/compile/internal/gc/iimport.go | 19 +++++++++++++++++++
+ test/fixedbugs/issue25055.dir/a.go     |  7 +++++++
+ test/fixedbugs/issue25055.dir/b.go     |  9 +++++++++
+ test/fixedbugs/issue25055.go           |  7 +++++++
+ 4 files changed, 42 insertions(+)

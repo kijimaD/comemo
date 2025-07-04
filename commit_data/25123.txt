@@ -1,13 +1,12 @@
-commit 5d53eeb20f40c89de96e416622ddaf140ca2cc1c
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Mon Nov 23 16:07:20 2015 -0800
+commit cbe8a3531adf2ad4c8353678be08cf401831cd2c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 28 10:47:39 2015 -0700
 
-    doc: document go1.5.2
+    encoding/json: document that encoding.TextMarshaler is used if no (json) Marshaler is present
     
-    Change-Id: Ib6a9e131113523e6b1e5b7604480028b9ffbfa93
-    Reviewed-on: https://go-review.googlesource.com/17178
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I63da54832548c325e47dc54aaa5b5112e1f3b3ba
+    Reviewed-on: https://go-review.googlesource.com/15048
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/devel/release.html  | 8 ++++++++
- doc/install-source.html | 4 ++--
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ src/encoding/json/encode.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

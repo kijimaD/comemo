@@ -1,16 +1,13 @@
-commit 46f482a2fc9db18b0ffedafc844b1796bc11a5fa
+commit bdbe0decc62dd63733ea37830aaa3c44ca16be43
 Author: Rob Pike <r@golang.org>
-Date:   Wed May 25 06:44:09 2011 +1000
+Date:   Wed May 25 06:00:07 2011 +1000
 
-    docs: remove some prose-unworthy empty parentheses.
-    In our evolving style, prose should name a function "f" not "f()".
+    spec: add missing comma.
+    A real humdinger.
     
-    R=gri, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4550075
+    https://golang.org/cl/4538089
 
- doc/effective_go.html | 36 +++++++++++++++++++-----------------
- doc/go_spec.html      | 12 ++++++------
- doc/go_tutorial.html  | 32 ++++++++++++++++----------------
- doc/go_tutorial.txt   | 32 ++++++++++++++++----------------
- 4 files changed, 57 insertions(+), 55 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

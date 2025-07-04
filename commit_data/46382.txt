@@ -1,23 +1,15 @@
-commit c84f3a4004076b0e3dcef0a17573d85eb90ef5fc
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 8 10:41:56 2021 +0200
+commit 2785c691c2ba63d284bdaf0f3bcdb678c3f16cd0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 24 16:03:47 2020 -0800
 
-    syscall: drop fallback to pipe in Pipe on linux/arm
+    [dev.regabi] cmd/compile: cleanup devirtualization docs
     
-    Follow-up for CL 346789
-    
-    The minimum required Linux kernel version for Go 1.18 will be changed to
-    2.6.32, see #45964. The pipe2 syscall was added in 2.6.27, so the
-    fallback to use pipe in Pipe on linux/arm can be removed.
-    
-    For #45964
-    
-    Change-Id: I8b18244ca1f849f10e90565b4fef80ce777fef69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347349
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I8e319f55fad6e9ed857aa020a96f3a89ccaadcea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280213
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/syscall/syscall_linux_arm.go | 4 ----
- 1 file changed, 4 deletions(-)
+ .../compile/internal/devirtualize/devirtualize.go  | 38 +++++++---------------
+ 1 file changed, 11 insertions(+), 27 deletions(-)

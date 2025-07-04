@@ -1,25 +1,36 @@
-commit dea9f417d2383c08d746e63a733063c309819826
+commit 198936f2b871669cefbeb26a6991fbfa3d934254
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 22 15:37:09 2011 -0800
+Date:   Thu Dec 22 15:28:15 2011 -0800
 
-    fix build: updated build scripts
+    go/doc, godoc: move export filtering into go/doc
     
-    R=golang-dev
+    - exports.go contains a stripped-down (but semantically unchanged)
+      version of the code in go/ast/filter.go for export filtering
+    - filter.go contains the documentation filtering code found before
+      at the end of doc.go; this is simply a code move w/o any semantic
+      changes
+    - godoc now relies on go/doc for export filtering when creating
+      documentation. It still has a separate form of export filtering
+      for showing the source code version. This needs to be consolidated
+      (perhaps the source form view should just be removed?).
+    - Stripping of function bodies (stripFunctionBodies function of
+      godoc.go) is now happening in doc.go (line 176).
+    - doc.NewPackageDoc has an extra parameter "exportsOnly. If set
+      to false, the behavior is as before. This function is only called
+      once in our source code; a gofix module is probably not warranted.
+    - Deleted doc.NewFileDoc - was never called.
+    
+    This change is mostly a code move w/ some minimal tweaks. It should
+    not cause any changes to the behavior of godoc. It's a prerequisite
+    for extracting anonymous embedded fields.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5504078
+    https://golang.org/cl/5502072
 
- src/buildscript_darwin_386.sh    | 2 +-
- src/buildscript_darwin_amd64.sh  | 3 ++-
- src/buildscript_freebsd_386.sh   | 2 +-
- src/buildscript_freebsd_amd64.sh | 3 ++-
- src/buildscript_linux_386.sh     | 2 +-
- src/buildscript_linux_amd64.sh   | 3 ++-
- src/buildscript_linux_arm.sh     | 2 +-
- src/buildscript_netbsd_386.sh    | 2 +-
- src/buildscript_netbsd_amd64.sh  | 3 ++-
- src/buildscript_openbsd_386.sh   | 2 +-
- src/buildscript_openbsd_amd64.sh | 3 ++-
- src/buildscript_plan9_386.sh     | 2 +-
- src/buildscript_windows_386.sh   | 2 +-
- src/buildscript_windows_amd64.sh | 3 ++-
- 14 files changed, 20 insertions(+), 14 deletions(-)
+ src/cmd/godoc/godoc.go    |  24 +++----
+ src/pkg/go/doc/Makefile   |   2 +
+ src/pkg/go/doc/doc.go     | 126 ++++------------------------------
+ src/pkg/go/doc/exports.go | 167 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/filter.go  | 105 +++++++++++++++++++++++++++++
+ 5 files changed, 297 insertions(+), 127 deletions(-)

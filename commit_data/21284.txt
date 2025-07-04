@@ -1,16 +1,16 @@
-commit d5d4e82fb28f506701791f622ec0b03b984e41a5
-Author: Hyang-Ah Hana Kim <hakim@google.com>
-Date:   Thu Jan 15 16:47:41 2015 -0500
+commit e0e1cee8e96176b7c3ee9804e326469edd22c33f
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Dec 18 09:36:07 2014 +0100
 
-    misc/android: choose the right subdirectory for bin under GOPATH.
+    cmd/gc: remove outdated warning from pre-go1.
     
-    This change includes the cleanup of temporary files created during
-    the binary execution as well.
+    People are probably not making this mistake anymore.
     
-    Change-Id: Ic01a0a537d1daafcaa3acda1ec344aff5dcddfc2
-    Reviewed-on: https://go-review.googlesource.com/2903
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #9164
+    
+    Change-Id: I86b440ed63d09b4ca676bba7034838860f1a5d8b
+    Reviewed-on: https://go-review.googlesource.com/1782
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- misc/android/README             |  4 +-
- misc/android/go_android_exec.go | 82 +++++++++++++++++++++++++++++------------
- 2 files changed, 61 insertions(+), 25 deletions(-)
+ src/cmd/gc/typecheck.c | 8 --------
+ 1 file changed, 8 deletions(-)

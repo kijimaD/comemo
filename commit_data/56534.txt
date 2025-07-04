@@ -1,33 +1,35 @@
-commit 192d65e46b38381653ccbe16cac49f7fa36aac93
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Thu May 16 22:12:47 2024 +0000
+commit 57009d45040e92124fb4aefd59825d3525fd7d3a
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 12 15:19:23 2023 -0400
 
-    sync/atomic: public And/Or ops and race instrumentation
+    cmd/cgo/internal/testsanitizers: build on all platforms
     
-    This CL implements the new sync/atomic AND and OR apis as well as their race
-    counterparts.
+    This test package uses the Pdeathsig field of syscall.SysProcAttr,
+    which is only available on a few platforms. Currently, dist test
+    checks for compatible platforms and only registers it as part of
+    all.bash on platforms where it can build. But this doesn't help if
+    you're just trying to type check everything in cmd.
     
-    Fixes #61395
+    Make this package pass type checking by moving the condition from dist
+    into build tags on the test package itself.
     
-    Change-Id: I294eefe4b3ac27bc4ed237edcbfa88a8c646d86f
-    GitHub-Last-Rev: f174297007c7b81b1ff4a687ef23d955a3ffd4db
-    GitHub-Pull-Request: golang/go#64331
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544455
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    For #60164.
+    Updates #37486.
+    
+    Change-Id: I58b12d547c323cec895320baa5fca1b82e99d1b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494658
     Auto-Submit: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- api/next/61395.txt                              |  20 +
- doc/next/6-stdlib/99-minor/sync/atomic/61395.md |   3 +
- src/runtime/race.go                             |  34 ++
- src/runtime/race_amd64.s                        |  51 +++
- src/runtime/race_arm64.s                        |  50 +++
- src/runtime/race_ppc64le.s                      |  46 +++
- src/runtime/race_s390x.s                        |  50 +++
- src/sync/atomic/asm.s                           |  30 ++
- src/sync/atomic/atomic_test.go                  | 466 ++++++++++++++++++++++++
- src/sync/atomic/doc.go                          |  50 +++
- src/sync/atomic/type.go                         |  40 ++
- 11 files changed, 840 insertions(+)
+ src/cmd/cgo/internal/testsanitizers/asan_test.go      | 2 ++
+ src/cmd/cgo/internal/testsanitizers/cc_test.go        | 5 +++++
+ src/cmd/cgo/internal/testsanitizers/cshared_test.go   | 2 ++
+ src/cmd/cgo/internal/testsanitizers/empty_test.go     | 8 ++++++++
+ src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go | 2 ++
+ src/cmd/cgo/internal/testsanitizers/msan_test.go      | 2 ++
+ src/cmd/cgo/internal/testsanitizers/tsan_test.go      | 2 ++
+ src/cmd/dist/test.go                                  | 6 +-----
+ 8 files changed, 24 insertions(+), 5 deletions(-)

@@ -1,21 +1,119 @@
-commit 30c99cbb7a7bd795a772bbc0f32a1266d86b29bb
-Author: markruler <csu0414@gmail.com>
-Date:   Tue Dec 22 17:22:17 2020 +0000
+commit 97240d546c3ae54871c7c196e504e4a0a06faf87
+Author: Andrew Ekstedt <andrew.ekstedt@gmail.com>
+Date:   Tue Aug 16 21:37:20 2016 -0700
 
-    cmd/go: add the Retract field to 'go help mod edit' definition of the GoMod struct
+    crypto/hmac: speed up repeated operations with the same key
     
-    Fixes #43281
+    Speed up repeated HMAC operations with the same key by not recomputing
+    the first block of the inner and outer hashes in Reset and Sum, saving
+    two block computations each time.
     
-    Change-Id: Ife26ca174a8818b56aaea9547976d97978478a5f
-    GitHub-Last-Rev: 85a3d30001672b371a58d1c8a2092fc9b937af6f
-    GitHub-Pull-Request: golang/go#43315
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279592
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    This is a significant win for applications which hash many small
+    messages with the same key. In x/crypto/pbkdf2 for example, this
+    optimization cuts the number of block computations in half, speeding it
+    up by 25%-40% depending on the hash function.
+    
+    The hash function needs to implement binary.Marshaler and
+    binary.Unmarshaler for this optimization to work, so that we can save
+    and restore its internal state. All hash functions in the standard
+    library are marshalable (CL 66710) but if the hash isn't marshalable, we
+    fall back on the old behaviour.
+    
+    Marshaling the hashes does add a couple unavoidable new allocations, but
+    this only has to be done once, so the cost is amortized over repeated
+    uses. To minimize impact to applications which don't (or can't) reuse
+    hmac objects, marshaling is performed in Reset (rather than in New),
+    since calling Reset seems like a good indication that the caller intends
+    to reuse the hmac object later.
+    
+    I had to add a boolean field to the hmac state to remember if we've
+    marshaled the hashes or not. This is paid for by removing the size and
+    blocksize fields, which were basically unused except for some
+    initialization work in New, and to fulfill the Size and Blocksize
+    methods. Size and Blocksize can just be forwarded to the underlying
+    hash, so there doesn't really seem to be any reason to waste space
+    caching their values.
+    
+    crypto/hmac benchmarks:
+    
+    name                    old time/op    new time/op     delta
+    HMAC_Reset/SHA1/1K-2      4.06µs ± 0%     3.77µs ± 0%   -7.29%         (p=0.000 n=8+10)
+    HMAC_Reset/SHA1/32-2      1.08µs ± 0%     0.78µs ± 1%  -27.67%        (p=0.000 n=10+10)
+    HMAC_Reset/SHA256/1K-2    10.3µs ± 0%      9.4µs ± 0%   -9.03%        (p=0.000 n=10+10)
+    HMAC_Reset/SHA256/32-2    2.32µs ± 0%     1.42µs ± 0%  -38.87%        (p=0.000 n=10+10)
+    HMAC_Reset/SHA512/1K-2    8.22µs ± 0%     7.04µs ± 0%  -14.32%          (p=0.000 n=9+9)
+    HMAC_Reset/SHA512/32-2    3.08µs ± 0%     1.89µs ± 0%  -38.54%         (p=0.000 n=10+9)
+    HMAC_New/SHA1/1K-2        4.86µs ± 1%     4.93µs ± 1%   +1.30%         (p=0.000 n=10+9)
+    HMAC_New/SHA1/32-2        1.91µs ± 1%     1.95µs ± 1%   +1.84%         (p=0.000 n=10+9)
+    HMAC_New/SHA256/1K-2      11.2µs ± 1%     11.2µs ± 0%     ~            (p=1.000 n=9+10)
+    HMAC_New/SHA256/32-2      3.22µs ± 2%     3.19µs ± 2%   -1.07%         (p=0.018 n=9+10)
+    HMAC_New/SHA512/1K-2      9.54µs ± 0%     9.66µs ± 1%   +1.31%         (p=0.000 n=9+10)
+    HMAC_New/SHA512/32-2      4.37µs ± 1%     4.46µs ± 1%   +1.97%         (p=0.000 n=10+9)
+    
+    name                    old speed      new speed       delta
+    HMAC_Reset/SHA1/1K-2     252MB/s ± 0%    272MB/s ± 0%   +7.86%         (p=0.000 n=8+10)
+    HMAC_Reset/SHA1/32-2    29.7MB/s ± 0%   41.1MB/s ± 1%  +38.26%        (p=0.000 n=10+10)
+    HMAC_Reset/SHA256/1K-2  99.1MB/s ± 0%  108.9MB/s ± 0%   +9.93%        (p=0.000 n=10+10)
+    HMAC_Reset/SHA256/32-2  13.8MB/s ± 0%   22.6MB/s ± 0%  +63.57%        (p=0.000 n=10+10)
+    HMAC_Reset/SHA512/1K-2   125MB/s ± 0%    145MB/s ± 0%  +16.71%          (p=0.000 n=9+9)
+    HMAC_Reset/SHA512/32-2  10.4MB/s ± 0%   16.9MB/s ± 0%  +62.69%         (p=0.000 n=10+9)
+    HMAC_New/SHA1/1K-2       211MB/s ± 1%    208MB/s ± 1%   -1.29%         (p=0.000 n=10+9)
+    HMAC_New/SHA1/32-2      16.7MB/s ± 1%   16.4MB/s ± 1%   -1.81%         (p=0.000 n=10+9)
+    HMAC_New/SHA256/1K-2    91.3MB/s ± 1%   91.5MB/s ± 0%     ~            (p=0.950 n=9+10)
+    HMAC_New/SHA256/32-2    9.94MB/s ± 2%  10.04MB/s ± 2%   +1.09%         (p=0.021 n=9+10)
+    HMAC_New/SHA512/1K-2     107MB/s ± 0%    106MB/s ± 1%   -1.29%         (p=0.000 n=9+10)
+    HMAC_New/SHA512/32-2    7.32MB/s ± 1%   7.18MB/s ± 1%   -1.89%         (p=0.000 n=10+9)
+    
+    name                    old alloc/op   new alloc/op    delta
+    HMAC_Reset/SHA1/1K-2      0.00B ±NaN%     0.00B ±NaN%     ~     (all samples are equal)
+    HMAC_Reset/SHA1/32-2      0.00B ±NaN%     0.00B ±NaN%     ~     (all samples are equal)
+    HMAC_Reset/SHA256/1K-2    0.00B ±NaN%     0.00B ±NaN%     ~     (all samples are equal)
+    HMAC_Reset/SHA256/32-2    0.00B ±NaN%     0.00B ±NaN%     ~     (all samples are equal)
+    HMAC_Reset/SHA512/1K-2    0.00B ±NaN%     0.00B ±NaN%     ~     (all samples are equal)
+    HMAC_Reset/SHA512/32-2    0.00B ±NaN%     0.00B ±NaN%     ~     (all samples are equal)
+    HMAC_New/SHA1/1K-2          448B ± 0%       448B ± 0%     ~     (all samples are equal)
+    HMAC_New/SHA1/32-2          448B ± 0%       448B ± 0%     ~     (all samples are equal)
+    HMAC_New/SHA256/1K-2        480B ± 0%       480B ± 0%     ~     (all samples are equal)
+    HMAC_New/SHA256/32-2        480B ± 0%       480B ± 0%     ~     (all samples are equal)
+    HMAC_New/SHA512/1K-2        800B ± 0%       800B ± 0%     ~     (all samples are equal)
+    HMAC_New/SHA512/32-2        800B ± 0%       800B ± 0%     ~     (all samples are equal)
+    
+    name                    old allocs/op  new allocs/op   delta
+    HMAC_Reset/SHA1/1K-2       0.00 ±NaN%      0.00 ±NaN%     ~     (all samples are equal)
+    HMAC_Reset/SHA1/32-2       0.00 ±NaN%      0.00 ±NaN%     ~     (all samples are equal)
+    HMAC_Reset/SHA256/1K-2     0.00 ±NaN%      0.00 ±NaN%     ~     (all samples are equal)
+    HMAC_Reset/SHA256/32-2     0.00 ±NaN%      0.00 ±NaN%     ~     (all samples are equal)
+    HMAC_Reset/SHA512/1K-2     0.00 ±NaN%      0.00 ±NaN%     ~     (all samples are equal)
+    HMAC_Reset/SHA512/32-2     0.00 ±NaN%      0.00 ±NaN%     ~     (all samples are equal)
+    HMAC_New/SHA1/1K-2          5.00 ± 0%       5.00 ± 0%     ~     (all samples are equal)
+    HMAC_New/SHA1/32-2          5.00 ± 0%       5.00 ± 0%     ~     (all samples are equal)
+    HMAC_New/SHA256/1K-2        5.00 ± 0%       5.00 ± 0%     ~     (all samples are equal)
+    HMAC_New/SHA256/32-2        5.00 ± 0%       5.00 ± 0%     ~     (all samples are equal)
+    HMAC_New/SHA512/1K-2        5.00 ± 0%       5.00 ± 0%     ~     (all samples are equal)
+    HMAC_New/SHA512/32-2        5.00 ± 0%       5.00 ± 0%     ~     (all samples are equal)
+    
+    x/crypto/pbkdf2 benchmarks:
+    
+    name          old time/op    new time/op    delta
+    HMACSHA1-2      4.63ms ± 0%    3.40ms ± 0%  -26.58%   (p=0.000 n=10+9)
+    HMACSHA256-2    9.75ms ± 0%    5.98ms ± 0%  -38.62%   (p=0.000 n=9+10)
+    
+    name          old alloc/op   new alloc/op   delta
+    HMACSHA1-2        516B ± 0%      708B ± 0%  +37.21%  (p=0.000 n=10+10)
+    HMACSHA256-2      549B ± 0%      772B ± 0%  +40.62%  (p=0.000 n=10+10)
+    
+    name          old allocs/op  new allocs/op  delta
+    HMACSHA1-2        8.00 ± 0%     10.00 ± 0%  +25.00%  (p=0.000 n=10+10)
+    HMACSHA256-2      8.00 ± 0%     10.00 ± 0%  +25.00%  (p=0.000 n=10+10)
+    
+    Fixes #19941
+    
+    Change-Id: I7077a6f875be68d3da05f7b3664e18514861886f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/27458
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/go/alldocs.go              | 1 +
- src/cmd/go/internal/modcmd/edit.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/crypto/hmac/hmac.go      | 80 +++++++++++++++++++++++++++++++++++++-------
+ src/crypto/hmac/hmac_test.go | 13 ++++++-
+ 2 files changed, 80 insertions(+), 13 deletions(-)

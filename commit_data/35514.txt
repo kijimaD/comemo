@@ -1,16 +1,18 @@
-commit 6070e432d2cbde0f04b7391069f5dbb27589b341
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 28 11:36:29 2018 -0700
+commit 9402a2bff75907668f8488ea9d32c56fdf101f04
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Fri Feb 16 14:56:03 2018 +0200
 
-    cmd/dist: report correct CC name in error about missing CC
+    cmd/go: document 'go run' exit codes
     
-    Fixes #25611
+    Updated docs that go run does not return the exit code of
+    the compiled binary.
     
-    Change-Id: I487463584e4d9d99cf5d8db0c9a4b4e66464ecd8
-    Reviewed-on: https://go-review.googlesource.com/114935
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #23716
+    
+    Change-Id: Ib85459974c4c6d2760ddba957ef711628098661f
+    Reviewed-on: https://go-review.googlesource.com/94795
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/alldocs.go          | 2 ++
+ src/cmd/go/internal/run/run.go | 2 ++
+ 2 files changed, 4 insertions(+)

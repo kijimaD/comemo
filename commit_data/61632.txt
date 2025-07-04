@@ -1,0 +1,26 @@
+commit ed413f3fe018e2290b1ebd6cc0975b7e828e1a6c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Oct 23 11:36:56 2024 +0200
+
+    crypto/internal/fips/mlkem: implement ML-KEM-1024
+    
+    Decided to automatically duplicate the high-level code to avoid growing
+    the ML-KEM-768 data structures.
+    
+    For #70122
+    
+    Change-Id: I5c705b71ee1e23adba9113d5cf6b6e505c028967
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621983
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/internal/fips/mlkem/field.go            |  97 +++++-
+ src/crypto/internal/fips/mlkem/field_test.go       |  78 +++++
+ src/crypto/internal/fips/mlkem/generate1024.go     | 123 ++++++++
+ src/crypto/internal/fips/mlkem/mlkem1024.go        | 342 +++++++++++++++++++++
+ src/crypto/internal/fips/mlkem/mlkem768.go         |  24 +-
+ .../fips/mlkem/{mlkem768_test.go => mlkem_test.go} |  95 +++++-
+ 6 files changed, 740 insertions(+), 19 deletions(-)

@@ -1,17 +1,50 @@
-commit b5e377cedcfd7eb629ee5718acabccad98281d51
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Fri Mar 22 01:26:02 2024 +0000
+commit 1e43cfa15b4b618812e85c00c9e92c2615b324c8
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Mar 20 10:43:19 2023 -0700
 
-    database/sql: fix typo in comment
+    mime/multipart: limit parsed mime message sizes
     
-    Change-Id: Ie8ac82b6a1685299a92ec59acbd80b6de38e377c
-    GitHub-Last-Rev: 325df8d1488b02bfa239d66cdf870e3d37169d76
-    GitHub-Pull-Request: golang/go#66457
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573615
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    The parsed forms of MIME headers and multipart forms can consume
+    substantially more memory than the size of the input data.
+    A malicious input containing a very large number of headers or
+    form parts can cause excessively large memory allocations.
+    
+    Set limits on the size of MIME data:
+    
+    Reader.NextPart and Reader.NextRawPart limit the the number
+    of headers in a part to 10000.
+    
+    Reader.ReadForm limits the total number of headers in all
+    FileHeaders to 10000.
+    
+    Both of these limits may be set with with
+    GODEBUG=multipartmaxheaders=<values>.
+    
+    Reader.ReadForm limits the number of parts in a form to 1000.
+    This limit may be set with GODEBUG=multipartmaxparts=<value>.
+    
+    Thanks for Jakob Ackermann (@das7pad) for reporting this issue.
+    
+    For CVE-2023-24536
+    For #59153
+    
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1802455
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Change-Id: I08dd297bd75724aade4b0bd6a7d19aeca5bbf99f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482077
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/database/sql/doc.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/mime/multipart/formdata.go       | 30 ++++++++++++++++--
+ src/mime/multipart/formdata_test.go  | 61 ++++++++++++++++++++++++++++++++++++
+ src/mime/multipart/multipart.go      | 33 ++++++++++++++-----
+ src/mime/multipart/readmimeheader.go |  2 +-
+ src/net/textproto/reader.go          | 19 ++++++-----
+ src/runtime/metrics.go               |  3 ++
+ src/runtime/metrics/description.go   | 21 +++++++++++++
+ src/runtime/metrics/doc.go           | 15 +++++++++
+ 8 files changed, 165 insertions(+), 19 deletions(-)

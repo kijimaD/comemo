@@ -1,18 +1,40 @@
-commit 448e1db103df7a9b29aa360f42fdcdc9b89fa399
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Oct 22 08:56:07 2016 -0700
+commit a072fc2e6714c20699ee627f88c5a5d5b948340f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Aug 19 11:35:54 2016 -0400
 
-    runtime: skip TestLldbPython
+    cmd/link/internal: rename LSym to Symbol, and add a doc comment.
     
-    The test is broken on macOS Sierra.
+    I'd also like to document some of its fields, but I don't know
+    what they are.
     
-    Updates #17463.
-    
-    Change-Id: Ifbb2379c640b9353a01bc55a5cb26dfaad9b4bdc
-    Reviewed-on: https://go-review.googlesource.com/31725
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I87d341e255f785d351a8a73e645be668e02b2689
+    Reviewed-on: https://go-review.googlesource.com/27399
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime-lldb_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/link/internal/amd64/asm.go    |  12 ++--
+ src/cmd/link/internal/arm/asm.go      |  14 ++---
+ src/cmd/link/internal/arm64/asm.go    |   6 +-
+ src/cmd/link/internal/ld/data.go      |  92 ++++++++++++++--------------
+ src/cmd/link/internal/ld/deadcode.go  |  10 ++--
+ src/cmd/link/internal/ld/decodesym.go |  64 ++++++++++----------
+ src/cmd/link/internal/ld/dwarf.go     | 110 +++++++++++++++++-----------------
+ src/cmd/link/internal/ld/elf.go       |  16 ++---
+ src/cmd/link/internal/ld/go.go        |   4 +-
+ src/cmd/link/internal/ld/ldelf.go     |  14 ++---
+ src/cmd/link/internal/ld/ldmacho.go   |  10 ++--
+ src/cmd/link/internal/ld/ldpe.go      |   8 +--
+ src/cmd/link/internal/ld/lib.go       |  24 ++++----
+ src/cmd/link/internal/ld/link.go      |  54 +++++++++--------
+ src/cmd/link/internal/ld/macho.go     |  14 ++---
+ src/cmd/link/internal/ld/objfile.go   |  22 +++----
+ src/cmd/link/internal/ld/pcln.go      |  18 +++---
+ src/cmd/link/internal/ld/pe.go        |  14 ++---
+ src/cmd/link/internal/ld/sym.go       |  14 ++---
+ src/cmd/link/internal/ld/symtab.go    |  14 ++---
+ src/cmd/link/internal/mips64/asm.go   |   6 +-
+ src/cmd/link/internal/ppc64/asm.go    |  18 +++---
+ src/cmd/link/internal/s390x/asm.go    |  10 ++--
+ src/cmd/link/internal/x86/asm.go      |  12 ++--
+ 24 files changed, 291 insertions(+), 289 deletions(-)

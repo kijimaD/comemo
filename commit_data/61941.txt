@@ -1,0 +1,19 @@
+commit 45f49139f5c0c4921239b7f0865c4041e663b1d0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Dec 19 20:58:19 2024 -0500
+
+    runtime: test trap panic parsing in TestTracebackSystem
+    
+    This mirrors https://go.dev/cl/637755, as x/telemetry is now aware of
+    sigpanic preceding trap frames.
+    
+    For #70637.
+    
+    Change-Id: I13a775f25e89047702d4f2d463ce3210bcf192d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638015
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/crash_test.go            |   7 +-
+ src/runtime/traceback_system_test.go | 249 +++++++++++++++++++++++++++--------
+ 2 files changed, 202 insertions(+), 54 deletions(-)

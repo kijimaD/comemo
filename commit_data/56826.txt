@@ -1,18 +1,52 @@
-commit e9a306e004fb6e9c6ca6045151be0ca8bddd242b
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Jun 21 14:45:26 2024 +0700
+commit 2a4f4fc5256f1c743c18979dbcc581c6498de76b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon May 22 11:06:58 2023 +0200
 
-    types2, go/types: correct NewTypeParam documentation
+    crypto/tls: add SessionState.Extra
     
-    Signature type does not have SetTypeParams method, only Named type.
+    This can be used by applications to store additional data in a session.
     
-    Change-Id: Ic7a25c24cb821540d921eb2c94dfff31f28f7aa4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/593955
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #57753
+    For #60105
+    
+    Change-Id: Ib42387ad64750fa8dbbdf51de5e9c86378bef0ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496822
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/typeparam.go | 4 ++--
- src/go/types/typeparam.go                    | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ api/next/60105.txt                                 |   1 +
+ src/crypto/tls/handshake_messages_test.go          |   1 +
+ .../testdata/Server-TLSv10-ExportKeyingMaterial    |  76 ++---
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  64 ++--
+ .../tls/testdata/Server-TLSv12-ALPN-Fallback       |  64 ++--
+ .../tls/testdata/Server-TLSv12-ALPN-NotConfigured  |  64 ++--
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    |  80 ++---
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  |  74 ++---
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   |  74 ++---
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  88 +++---
+ .../tls/testdata/Server-TLSv13-AES128-SHA256       | 166 +++++------
+ .../tls/testdata/Server-TLSv13-AES256-SHA384       | 172 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-ALPN         | 169 +++++------
+ .../tls/testdata/Server-TLSv13-ALPN-Fallback       | 164 +++++-----
+ .../tls/testdata/Server-TLSv13-ALPN-NotConfigured  | 166 +++++------
+ .../tls/testdata/Server-TLSv13-CHACHA20-SHA256     | 166 +++++------
+ .../Server-TLSv13-ClientAuthRequestedAndECDSAGiven | 332 ++++++++++-----------
+ ...erver-TLSv13-ClientAuthRequestedAndEd25519Given | 268 ++++++++---------
+ .../Server-TLSv13-ClientAuthRequestedAndGiven      | 326 ++++++++++----------
+ .../Server-TLSv13-ClientAuthRequestedNotGiven      | 178 +++++------
+ .../tls/testdata/Server-TLSv13-ECDHE-ECDSA-AES     | 158 +++++-----
+ src/crypto/tls/testdata/Server-TLSv13-Ed25519      | 122 ++++----
+ .../testdata/Server-TLSv13-ExportKeyingMaterial    | 166 +++++------
+ .../tls/testdata/Server-TLSv13-HelloRetryRequest   | 189 ++++++------
+ src/crypto/tls/testdata/Server-TLSv13-IssueTicket  | 166 +++++------
+ .../testdata/Server-TLSv13-IssueTicketPreDisable   | 166 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-P256         | 170 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 166 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-Resume       |  84 +++---
+ .../Server-TLSv13-Resume-HelloRetryRequest         | 130 ++++----
+ src/crypto/tls/testdata/Server-TLSv13-X25519       | 166 +++++------
+ src/crypto/tls/ticket.go                           |  17 ++
+ 32 files changed, 2208 insertions(+), 2185 deletions(-)

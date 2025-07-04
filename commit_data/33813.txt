@@ -1,12 +1,19 @@
-commit 28736053ad2829dcf576d05412a2def8bc3a1549
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Dec 6 10:59:40 2017 +0100
+commit d0285161f0efb1837ba0942263c33e3d53f59ece
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Aug 19 20:17:46 2017 +1000
 
-    doc: fix two spelling mistakes in contribute.html
+    misc/cgo/testcshared: use TestMain
     
-    Change-Id: Ife60468d508f90321733ebdbdb0e6cf443ba1659
-    Reviewed-on: https://go-review.googlesource.com/82156
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This CL uses TestMain to create and remove
+    pkg directory and libgo.so file.
+    
+    Fixes #21531
+    
+    Change-Id: I833cfb22b55d8eef98348dad4d56327ac4c07b36
+    Reviewed-on: https://go-review.googlesource.com/57270
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/contribute.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 145 ++++++++++++++++++++---------------
+ 1 file changed, 84 insertions(+), 61 deletions(-)

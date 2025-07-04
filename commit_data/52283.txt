@@ -1,21 +1,45 @@
-commit b5c8ae9816e705f2202242de9d570a33dabd3a0a
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Nov 4 13:27:23 2022 +0800
+commit bb004a179a034c799809f42d525801ec4a791987
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 24 16:54:13 2022 -0500
 
-    runtime: mark morestack_noctxt SPWRITE for linux/loong64
+    syscall: define Syscall in terms of RawSyscall on linux
     
-    ref. CL 425396
+    This is a re-do of CL 388477, fixing #52472.
     
-    Updates #54332.
+    It is unsafe to call syscall.RawSyscall from syscall.Syscall with
+    -coverpkg=all and -race. This is because:
     
-    Change-Id: I1a235b0cca4dbf79cf61cf5f40b594fc2d940857
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446895
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    1. Coverage adds a sync/atomic call in RawSyscall to increment the
+       coverage counter.
+    2. Race mode instruments sync/atomic calls with TSAN runtime calls. TSAN
+       eventually calls runtime.racecallbackfunc, which expects
+       getg().m.p != 0, which is no longer true after entersyscall().
+    
+    cmd/go actually avoids adding coverage instrumention to package runtime
+    in race mode entirely to avoid these kinds of problems. Rather than also
+    excluding all of syscall for this one function, work around by calling
+    RawSyscall6 instead, which avoids coverage instrumention both by being
+    written in assembly and in package runtime/*.
+    
+    For #51087
+    Fixes #52472
+    
+    Change-Id: Iaffd27df03753020c4716059a455d6ca7b62f347
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401654
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/asm_loong64.s | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/runtime/proc.go             |  2 +-
+ src/syscall/asm_linux_386.s     | 26 --------------------------
+ src/syscall/asm_linux_amd64.s   | 27 ---------------------------
+ src/syscall/asm_linux_arm.s     | 30 ------------------------------
+ src/syscall/asm_linux_arm64.s   | 27 ---------------------------
+ src/syscall/asm_linux_mips64x.s | 25 -------------------------
+ src/syscall/asm_linux_mipsx.s   | 23 -----------------------
+ src/syscall/asm_linux_ppc64x.s  | 25 -------------------------
+ src/syscall/asm_linux_riscv64.s | 24 ------------------------
+ src/syscall/asm_linux_s390x.s   | 26 --------------------------
+ src/syscall/syscall_linux.go    | 35 ++++++++++++++++++++++++++++++++++-
+ 11 files changed, 35 insertions(+), 235 deletions(-)

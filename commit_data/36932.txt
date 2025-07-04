@@ -1,17 +1,14 @@
-commit daf6f254336844ad8cf538640d81f0193988b62a
-Author: Rob Pike <r@golang.org>
-Date:   Thu Oct 11 13:13:03 2018 +1100
+commit 1352de3829df049f669d5a889832f4e06d4dab5b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 12 01:24:00 2018 +0000
 
-    unsafe: document that Alignof, Offsetof, and Sizeof return a constant
+    cmd/go/internal/cfg: note the copy of this code in x/tools/cmd/godoc
     
-    Nothing is changing but the documentation, which did not mention
-    this property of these functions.
+    Updates #23445
     
-    Fixes #27587.
-    
-    Change-Id: I75bcee4a1dd9ec8cd82826c9a6e02ba7d599f719
-    Reviewed-on: https://go-review.googlesource.com/c/141377
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4b09073e53b1cf04de698b711fb5fb0d08bc02df
+    Reviewed-on: https://go-review.googlesource.com/118077
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/unsafe/unsafe.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/internal/cfg/cfg.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

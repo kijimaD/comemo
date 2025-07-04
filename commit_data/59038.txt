@@ -1,20 +1,22 @@
-commit 7e8ceadf85d1b0fc177ef0754f779a7a87b2c2b9
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Mar 12 22:55:49 2025 +1100
+commit 4b0e086348c99eaa458f18e4b3e4498f0aaadc1a
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Feb 5 11:58:35 2024 -0500
 
-    cmd/compile/internal/ssagen: use an alias for math/bits.Len
+    dog/go1.22: tweak coverage testing notes
     
-    Rather than using a specific intrinsic for math/bits.Len, use a pair of
-    aliases instead. This requires less code and automatically adapts when
-    platforms have a math/bits.Len32 or math/bits.Len64 intrinsic.
+    Clarify the section in the "go" command notes that deals with the
+    changes to "go test -cover" for packages without tests, adding a note
+    that if a package has not tests and no executable code, you still get
+    a "package has no test files" diagnostic.
     
-    Change-Id: I28b300172daaee26ef82a7530d9e96123663f541
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656995
+    Fixes #65262.
+    
+    Change-Id: Ie960871f9d5c1a1965090738644eace28fc3e156
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561337
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Chris Hines <chris.cs.guy@gmail.com>
 
- src/cmd/compile/internal/ssagen/intrinsics.go | 11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+ doc/go1.22.html | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

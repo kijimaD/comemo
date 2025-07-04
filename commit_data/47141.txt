@@ -1,48 +1,46 @@
-commit fde4cc2a3189e2c964a0ce49de3cbe79ebedf985
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 5 10:35:31 2021 -0400
+commit e25040d16288563c89cead5e8da8d3b9c74ab655
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 4 16:42:35 2021 -0500
 
-    testing: reduce memory used by subtest names
+    cmd/compile: change StaticCall to return a "Results"
     
-    This is heavily based on CL 341336 by Joe Tsai and CL 351452 by
-    Jay Conrod.
+    StaticLECall (multiple value in +mem, multiple value result +mem) ->
+    StaticCall (multiple ergister value in +mem,
+       multiple register-sized-value result +mem) ->
+    ARCH CallStatic (multiple ergister value in +mem,
+       multiple register-sized-value result +mem)
     
-    T.Run and T.Name use a map[string]int64 to hold the next suffix to use
-    when duplicate names are passed to T.Run. This map necessarily retains
-    one entry per unique name. However, it's a waste of memory to retain
-    one entry per duplicate name: when we encounter the Nth duplicate, we
-    know that names 00 through N-1 have been used just by looking at N.
+    But the architecture-dependent stuff is indifferent to whether
+    it is mem->mem or (mem)->(mem) until Prog generation.
     
-    We do still need to store (and check for collisions againsts) explicit
-    names provided by the caller. For example, if the user passes in "a",
-    then "a#01", then "a" again, we cannot deduplicate the second "a" to
-    "a#01" — we need to instead skip ahead to "a#02". We can do so by
-    checking the count of "a", then generating a proposed deduplicated
-    name, then double-checking that proposed name against only the
-    explicit names so far.
+    Deal with OpSelectN -> Prog in ssagen/ssa.go, others, as they
+    appear.
     
-    This somewhat reduces memory usage for tests that spawn large numbers
-    of duplicate subtests, but doesn't solve the problem of memory growth
-    for fuzzing — we still have to track all of the explicit,
-    user-provided subtest names, and in a long-running fuzz test that set
-    alone may be unbounded.
+    For #40724.
     
-    This fixes memory growth for the example described in
-    https://golang.org/issue/44517#issuecomment-897104060,
-    but not the one in
-    https://golang.org/issue/44517#issuecomment-933825661.
-    
-    For #44517
-    
-    Change-Id: Ia159ecfcf44561ba67508d3af6377c27856df31d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354749
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I1d0436f6371054f1881862641d8e7e418e4a6a16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293391
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/testing/match.go      |  78 ++++++++++++++++++++++++++++-------
- src/testing/match_test.go | 101 +++++++++++++++++++++++++++++++---------------
- 2 files changed, 131 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go       |  83 ++++-
+ src/cmd/compile/internal/ssa/cse.go            |   2 +-
+ src/cmd/compile/internal/ssa/expand_calls.go   |  38 ++-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  54 +---
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   2 +-
+ src/cmd/compile/internal/ssa/location.go       |  14 +
+ src/cmd/compile/internal/ssa/lower.go          |   2 +-
+ src/cmd/compile/internal/ssa/op.go             |  10 +
+ src/cmd/compile/internal/ssa/opGen.go          |   2 +-
+ src/cmd/compile/internal/ssa/regalloc.go       |  20 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  14 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 411 ++++++++-----------------
+ src/cmd/compile/internal/ssa/schedule.go       |  16 +-
+ src/cmd/compile/internal/ssa/tighten.go        |   3 +-
+ src/cmd/compile/internal/ssa/tuple.go          |  40 ++-
+ src/cmd/compile/internal/ssa/writebarrier.go   |  17 +-
+ src/cmd/compile/internal/ssagen/ssa.go         |  18 +-
+ src/cmd/compile/internal/types/type.go         |  23 +-
+ 18 files changed, 387 insertions(+), 382 deletions(-)

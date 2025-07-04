@@ -1,16 +1,14 @@
-commit 19ac6a82d3be818572881d60026109946a5a69e6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 18 07:58:11 2018 -0700
+commit a8e67fe0ed72186c6c5673ed5fab37af0e843393
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon May 21 13:06:46 2018 +0200
 
-    runtime: ignore EAGAIN from exec in TestCgoExecSignalMask
+    runtime/pprof: update stale link in documentation
     
-    Fixes #27731
+    Fixes #25477
     
-    Change-Id: Ifb4d57923b1bba0210ec1f623d779d7b5f442812
-    Reviewed-on: https://go-review.googlesource.com/135995
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6f724bb855cfffa21de090c1fcb04d58d7cdd9d8
+    Reviewed-on: https://go-review.googlesource.com/113839
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/testdata/testprogcgo/exec.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/runtime/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

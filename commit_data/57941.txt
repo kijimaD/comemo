@@ -1,55 +1,33 @@
-commit 65ba6f94b3a69a71c830044cf0c0f63d4f3601f7
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Mon Nov 4 18:14:00 2024 +0800
+commit 2be7b1a4ace278a76ea9d34f8caa9290a249f28a
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Sat Sep 9 04:14:42 2023 -0700
 
-    cmd/internal/obj/loong64: add support of VMOVQ and XVMOVQ
+    os: fix TestRenameCaseDifference
     
-    This CL refers to the implementation of ARM64 and adds support for the following
-    types of SIMD instructions:
-    1. Move general-purpose register to a vector element, e.g.:
-          VMOVQ  Rj, <Vd>.<T>[index]
-          <T> can have the following values:
-           B, H, W, V
-    2. Move vector element to general-purpose register, e.g.:
-          VMOVQ     <Vj>.<T>[index], Rd
-          <T> can have the following values:
-           B, BU, H, HU, W, WU, VU
-    3. Duplicate general-purpose register to vector, e.g.:
-          VMOVQ    Rj, <Vd>.<T>
-          <T> can have the following values:
-           B16, H8, W4, V2, B32, H16, W8, V4
-    4. Move vector, e.g.:
-          XVMOVQ    Xj, <Xd>.<T>
-          <T> can have the following values:
-           B16, H8, W4, V2, Q1
-    5. Move vector element to scalar, e.g.:
-          XVMOVQ  Xj, <Xd>.<T>[index]
-          XVMOVQ  Xj.<T>[index], Xd
-          <T> can have the following values:
-           W, V
-    6. Move vector element to vector register, e.g.:
-           VMOVQ     <Vn>.<T>[index], Vn.<T>
-          <T> can have the following values:
-           B, H, W, V
+    Saw this failing on windows like this:
     
-    This CL only adds syntax and doesn't break any assembly that already exists.
+            --- FAIL: TestRenameCaseDifference (2.96s)
+            --- FAIL: TestRenameCaseDifference/dir (1.64s)
+                testing.go:1226: TempDir RemoveAll cleanup: remove C:\Users\gopher\AppData\Local\Temp\1\TestRenameCaseDifferencedir1375918868\001: The process cannot access the file because it is being used by another process.
+            --- FAIL: TestRenameCaseDifference/file (1.32s)
+                testing.go:1226: TempDir RemoveAll cleanup: remove C:\Users\gopher\AppData\Local\Temp\1\TestRenameCaseDifferencefile3272269402\001: The process cannot access the file because it is being used by another process.
+            FAIL
     
-    Change-Id: I7656efac6def54da6c5ae182f39c2a21bfdf92bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616258
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    The reason might be the directory fd is not closed. This may be
+    mitigated by retries in removeAll function from testing package,
+    but apparently it does not succeed all the time.
+    
+    A link to the failed run which made me look into this: https://ci.chromium.org/ui/p/golang/builders/try/gotip-windows-386/b8770439049015378129/overview
+    
+    Change-Id: Ibebe94958d1aef8d1d0eca8a969675708cd27a7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527175
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/arch/loong64.go            |  78 +++++++
- src/cmd/asm/internal/asm/parse.go               |  18 +-
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  60 +++++
- src/cmd/internal/obj/link.go                    |   8 +-
- src/cmd/internal/obj/loong64/a.out.go           |  56 ++++-
- src/cmd/internal/obj/loong64/asm.go             | 283 +++++++++++++++++++++++-
- src/cmd/internal/obj/loong64/cnames.go          |   2 +
- src/cmd/internal/obj/loong64/doc.go             |  98 ++++++++
- src/cmd/internal/obj/loong64/list.go            |  93 ++++++--
- src/cmd/internal/obj/util.go                    |   8 +-
- 10 files changed, 663 insertions(+), 41 deletions(-)
+ src/os/os_test.go | 1 +
+ 1 file changed, 1 insertion(+)

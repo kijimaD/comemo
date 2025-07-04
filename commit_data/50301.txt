@@ -1,25 +1,29 @@
-commit f798dc682539df0bc60b30bedce9d6f5d5192d47
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Thu Sep 1 14:06:55 2022 +0900
+commit 8c99421f01aca303240a8f809bc65fa0c56db861
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 13 18:50:06 2021 -0700
 
-    fmt: recycle printers with large buffers
+    cmd/compile/internal/types2: add debugging support for delayed actions
     
-    Previously when a printer had a large buffer we dropped both
-    the buffer and the printer. There is no need to drop the printer
-    in this case, as a printer with a nil buffer is valid. So we
-    just drop the buffer and recycle the printer anyway.
-    This saves one allocation in case the buffer is over the limit.
+    Add a simple mechanism to provide formatted descriptions for
+    delayed actions. The comment strings are printed when tracing
+    is enabled and the delayed action is executed. This results
+    in more easily decipherable tracing output.
     
-    Also tighten some of the tests for other unrelated cases.
+    Requires debug mode in order to minimize the overhead during normal
+    execution. Use the mechanism in a few places to show typical use.
     
-    Change-Id: Iba1b6a71ca4691464b8c68ab0b6ab0d4d5d6168c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427395
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Also cleaned up a few unrelated comments.
+    
+    Change-Id: Ic273c380c3963341500396ec62b694d143c25de2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355871
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/fmt/fmt_test.go | 15 ++++++++++-----
- src/fmt/print.go    | 14 ++++++++------
- 2 files changed, 18 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/types2/check.go       | 40 +++++++++++++++++++++++---
+ src/cmd/compile/internal/types2/decl.go        |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go |  3 +-
+ src/cmd/compile/internal/types2/interface.go   |  2 +-
+ src/cmd/compile/internal/types2/struct.go      |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go     |  2 --
+ 6 files changed, 40 insertions(+), 11 deletions(-)

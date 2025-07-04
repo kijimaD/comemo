@@ -1,19 +1,31 @@
-commit 8588a3fa08c1eb320869781926f83d3928a7de4e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Apr 19 22:00:23 2023 +0000
+commit ed7c487178fb0abdf7cecc9d3368c65ab96ca584
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
 
-    runtime: initialize scavengeIndex fields properly
+    runtime: add loong64 to architectures known to TestGCInfo
     
-    Currently these fields are uninitialized causing failures on aix-ppc64,
-    which has a slightly oddly-defined address space compared to the rest.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Change-Id: I2aa46731174154dce86c2074bd0b00eef955d86d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486655
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I61bef32b38ab07543a147cf172b169eae21b26cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368082
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/runtime/mgcscavenge.go | 7 +++++++
- src/runtime/mpagealloc.go  | 3 +++
- 2 files changed, 10 insertions(+)
+ src/runtime/gcinfo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

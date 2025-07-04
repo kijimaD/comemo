@@ -1,17 +1,28 @@
-commit a1a048a8abca89c39b0507c3a28c7d46a05bb6e3
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat May 20 01:14:32 2023 +0800
+commit 64cd6faa13e9155e7942f3f51127c1d61a38fcf7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 18 13:45:57 2022 -0700
 
-    maps: enhance the robustness of the tests
+    [dev.unified] cmd/compile/internal/noder: simplify mixed tag/case RTTI wiring
     
-    Change-Id: I908e11196f55069d6dca6a19cd206629618e9f37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496079
-    Auto-Submit: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The previous CL largely removed the need for worrying about mixed
+    tag/case comparisons in switch statements by ensuring they're always
+    converted to a common type, except for one annoying case: switch
+    statements with an implicit `true` tag, and case values of interface
+    type (which must be empty interface, because `bool`'s method set is
+    empty).
+    
+    It would be simpler to have writer.go desugar the implicit `true`
+    itself, because we already handle explicit `true` correctly. But the
+    existing code already works fine, and I don't want to add further
+    complexity to writer.go until dictionaries and stenciling is done.
+    
+    Change-Id: Ia8d44c425b1be7fc578cd570d15a7560fe9d2674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418102
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/maps/maps_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/reader.go | 30 ++++++++++++++----------------
+ 1 file changed, 14 insertions(+), 16 deletions(-)

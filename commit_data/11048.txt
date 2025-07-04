@@ -1,12 +1,12 @@
-commit 7478bb981a7f7fb1d9796a23a560c00013b9a7c1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jan 9 12:48:42 2012 +1100
+commit b7f44e97a362f3c57a33712b2b092dc9ca91e478
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Mon Jan 9 11:53:20 2012 +1100
 
-    doc: float -> float64 in Effective Go template
+    doc: float -> float64 in Effective Go
     
-    R=r, dsymonds
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5530047
+    https://golang.org/cl/5531046
 
- doc/effective_go.tmpl | 2 +-
+ doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

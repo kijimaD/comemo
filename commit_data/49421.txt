@@ -1,17 +1,30 @@
-commit 346698eea71139280e3b3380554371b5d332ce02
-Author: Damien Neil <dneil@google.com>
-Date:   Thu May 26 15:09:34 2022 -0700
+commit 3848488f0f9ea597e9fc69cfd8e942ea7cf35311
+Author: Colin Arnott <colin@urandom.co.uk>
+Date:   Sun Jul 18 08:12:23 2021 +0000
 
-    doc/go1.19: add release notes for net/http and net/url
+    cmd/go/internal/test: add an all sentinel to -vet
     
-    For #51400
+    The vet flag either accepts a list of vets to run, or a distinguished
+    value, off, to disable vet during test. By default only 100% reliable
+    checks are run, thus there is no way to run all vets. This change adds
+    another distinguished value, all, that runs every vet, by passing no
+    flags.
     
-    Change-Id: I6412132db79074eef7d2cb3d66456c48b0d745a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408877
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    During development it was discovered that parsing of the -vet flag value
+    is problematic, in that it accepts deprecated flags like -all. The root
+    cause is detailed in #47309, but for now passing distinguished values
+    (all, off) and anything else returns an error.
+    
+    Fixes #45963
+    
+    Change-Id: I39fafb7d717dad51b507d560b3f6e604510a2881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334873
+    Trust: Than McIntosh <thanm@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.19.html | 38 +++++++++++++++++++++++++++++++-------
- 1 file changed, 31 insertions(+), 7 deletions(-)
+ src/cmd/go/alldocs.go                   |  3 +-
+ src/cmd/go/internal/test/test.go        |  3 +-
+ src/cmd/go/internal/test/testflag.go    | 60 ++++++++++++++++++++-------------
+ src/cmd/go/testdata/script/test_vet.txt | 23 ++++++++++++-
+ 4 files changed, 63 insertions(+), 26 deletions(-)

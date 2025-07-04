@@ -1,28 +1,24 @@
-commit f707e53fd52284e58b9ea5d7889ad360d34d5116
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Feb 24 09:57:04 2025 +0100
+commit 15dcdeb5aacb4503e3d053f198bd4669d5cec2aa
+Author: Devon H. O'Dell <dhobsd@google.com>
+Date:   Thu Jan 4 11:49:17 2024 -0500
 
-    all: surround -test.run arguments with ^$
+    cmd/api: fix panic on exported basic type aliases
     
-    If the -test.run value is not surrounded by ^$ then any test that
-    matches the -test.run value will be run. This is normally not the
-    desired behavior, as it can lead to unexpected tests being run.
+    The order of emitting named type and type aliases in the `Walker`'s
+    `emitType` function is inverted. When the type alias references a basic
+    type, this causes a panic as the type assertion on `*types.Named` fails.
+    This change reorders the logic such that type aliases are emitted prior
+    to this type assertion.
     
-    Change-Id: I3447aaebad5156bbef7f263cdb9f6b8c32331324
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651956
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #64958
+    
+    Change-Id: I52dbe13999978912ded788d9cf4948103869bcfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554076
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt | 8 ++++----
- src/crypto/internal/fips140test/cast_test.go         | 2 +-
- src/crypto/internal/fips140test/check_test.go        | 4 ++--
- src/crypto/internal/sysrand/rand_test.go             | 2 +-
- src/crypto/rand/rand_test.go                         | 2 +-
- src/math/rand/default_test.go                        | 2 +-
- src/net/net_windows_test.go                          | 2 +-
- src/runtime/crash_test.go                            | 4 ++--
- src/runtime/debug/example_monitor_test.go            | 2 +-
- src/runtime/syscall_windows_test.go                  | 4 ++--
- src/syscall/exec_freebsd_test.go                     | 2 +-
- 11 files changed, 17 insertions(+), 17 deletions(-)
+ src/cmd/api/api_test.go                    | 19 +++++++++++++++++++
+ src/cmd/api/main_test.go                   | 10 +++++-----
+ src/cmd/api/testdata/src/issue64958/p/p.go |  3 +++
+ 3 files changed, 27 insertions(+), 5 deletions(-)

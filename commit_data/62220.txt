@@ -1,0 +1,25 @@
+commit 127288b4c6527e92ac788d32ece96ef67211b2c8
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Feb 10 15:17:54 2025 -0500
+
+    cmd/go: add errors obtaining c compiler version to cache key
+    
+    If there's an error getting the version of the c compiler, add the error
+    to the input used to produce the cache key. In the case where we can't
+    parse the version, the text of the output of the command is part of the
+    error, so different unparseable versions will produce different cache
+    keys. Before, we wouldn't add anything to the key when there was an
+    error getting the version, so we wouldn't distinguish a missing compiler
+    from one where we couldn't parse the version.
+    
+    Fixes #64589
+    
+    Change-Id: I27f853e8ff40002e2f045b2210633b38f93d0130
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648196
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/go/internal/work/exec.go                   |   6 ++
+ .../testdata/script/build_cc_cache_issue64589.txt  | 100 +++++++++++++++++++++
+ 2 files changed, 106 insertions(+)

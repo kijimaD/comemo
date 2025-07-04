@@ -1,14 +1,20 @@
-commit 9ccbd027dd070921ac1799bde5df044e50e33a99
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jan 19 17:19:46 2015 +0900
+commit 6ceb60444d7647fc62d692743ad98202c3669b8e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Dec 18 13:22:53 2014 -0800
 
-    cmd/go: make use of Runnable method
+    sort: deduplicate inner loop of Stable
     
-    Reported via unsupported Github pull request: #9299
+    benchmark                   old ns/op      new ns/op      delta
+    BenchmarkStableInt1K        117212         116287         -0.79%
+    BenchmarkStableInt64K       9632002        9587872        -0.46%
+    BenchmarkStable1e4          40044309       39865644       -0.45%
+    BenchmarkStable1e2          126985         126456         -0.42%
+    BenchmarkStableString1K     389774         391052         +0.33%
+    BenchmarkStable1e6          8183202516     8157693442     -0.31%
     
-    Change-Id: I0e98dd68cbc68fcc6bcec15c5b33f20b6a861ec6
-    Reviewed-on: https://go-review.googlesource.com/3025
+    Change-Id: I14e518ad49ecce3d1fc2b056e1acd5e5a2de8144
+    Reviewed-on: https://go-review.googlesource.com/1821
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/sort/sort.go | 31 +++++++++++++------------------
+ 1 file changed, 13 insertions(+), 18 deletions(-)

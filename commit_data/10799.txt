@@ -1,21 +1,13 @@
-commit 85fdd68bd963406a90ec68e1532bc6495e88e40b
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Dec 15 10:45:19 2011 +1100
+commit 076ebed0d87e1c9678ece352986d8b1ad877b440
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Dec 14 15:40:35 2011 -0800
 
-    html: don't leave "in column group" mode when ignoring a token
+    cgo: add basic gccgo support.
     
-    Pass tests6.dat, test 26:
-    foo<col>
-    
-    | <col>
-    
-    Also pass tests through test 35:
-    <table><tr><div><td>
-    
-    R=nigeltao
-    CC=golang-dev
-    https://golang.org/cl/5482074
+    R=rsc, iant
+    CC=golang-dev, remy
+    https://golang.org/cl/5485070
 
- src/pkg/html/parse.go      | 7 ++++---
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/cgo/main.go |  2 ++
+ src/cmd/cgo/out.go  | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 56 insertions(+), 3 deletions(-)

@@ -1,15 +1,26 @@
-commit 74ba70be680a9eb9740638b80f36f68baec5b35c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Sep 21 18:05:28 2021 -0400
+commit 7fd84c6e465d9c9d9424538ec99da2c59afdd469
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 4 16:33:30 2021 -0800
 
-    cmd/link: use keyed literal for AbiSymKindToSymKind
+    [dev.regabi] cmd/compile: remove OCLOSUREREAD
     
-    The correspondence is clearer. Also avoid accidental mismatch.
+    After the previous CLs, all closure reads are handled during SSA
+    construction.
     
-    Change-Id: Ibd9a31cfcd7c2301614f3496cac67cbae99972a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351334
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Iad67b01fa2d3798f50ea647be7ccf8195f189c27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281512
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/link/internal/sym/symkind.go | 38 +++++++++++++++++++-----------------
- 1 file changed, 20 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/escape/escape.go       |  4 ++--
+ src/cmd/compile/internal/ir/expr.go             | 17 ++--------------
+ src/cmd/compile/internal/ir/node.go             | 27 ++++++++++++-------------
+ src/cmd/compile/internal/ir/node_gen.go         | 16 ---------------
+ src/cmd/compile/internal/ir/op_string.go        | 27 ++++++++++++-------------
+ src/cmd/compile/internal/ssagen/ssa.go          |  7 -------
+ src/cmd/compile/internal/typecheck/typecheck.go |  3 ---
+ src/cmd/compile/internal/walk/expr.go           |  2 +-
+ src/cmd/compile/internal/walk/walk.go           |  2 +-
+ 9 files changed, 32 insertions(+), 73 deletions(-)

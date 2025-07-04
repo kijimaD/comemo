@@ -1,14 +1,37 @@
-commit f3f507b2d86bfb38c7e466a465d5b6463cfd4184
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 21 15:17:35 2017 -0800
+commit 4347baac7d7e99a9cf1500545860cc42ae217702
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 1 14:55:15 2017 -0700
 
-    spec: provide some (minimal) intuition for the notion of "terminating statement"
+    cmd/compile: eliminate OXFALL
     
-    Fixes #23215.
+    Previously, we used OXFALL vs OFALL to distinguish fallthrough
+    statements that had been validated. Because in the Node AST we flatten
+    statement blocks, OXCASE and OXFALL needed to keep track of their
+    block scopes for this purpose.
     
-    Change-Id: Ib20825bf08915b4daaabbfd91f168e24973c512d
-    Reviewed-on: https://go-review.googlesource.com/85215
-    Reviewed-by: Rob Pike <r@golang.org>
+    Now that we have an AST that keeps these separate, we can just perform
+    the validation earlier.
+    
+    Passes toolstash-check.
+    
+    Fixes #14540.
+    
+    Change-Id: I8421eaba16c2b3b72c9c5483b5cf20b14261385e
+    Reviewed-on: https://go-review.googlesource.com/61130
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go_spec.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go   |  4 +--
+ src/cmd/compile/internal/gc/bimport.go   |  6 ++--
+ src/cmd/compile/internal/gc/fmt.go       |  8 +----
+ src/cmd/compile/internal/gc/noder.go     | 54 ++++++++++++++++++++++++--------
+ src/cmd/compile/internal/gc/opnames.go   |  1 -
+ src/cmd/compile/internal/gc/order.go     |  1 -
+ src/cmd/compile/internal/gc/racewalk.go  |  1 -
+ src/cmd/compile/internal/gc/swt.go       | 18 ++---------
+ src/cmd/compile/internal/gc/syntax.go    |  5 ++-
+ src/cmd/compile/internal/gc/typecheck.go |  4 +--
+ src/cmd/compile/internal/gc/walk.go      |  4 ---
+ test/fixedbugs/issue14540.go             | 20 ++++++++++++
+ 12 files changed, 72 insertions(+), 54 deletions(-)

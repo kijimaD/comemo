@@ -1,25 +1,22 @@
-commit 8327d2150f97528dc6a3090ddee99db0e9872212
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 30 19:45:11 2021 -0400
+commit 3c55aea67aa65c62016020d5907b481da010f7e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 22 21:33:02 2020 -0400
 
-    cmd/compile: add traceback argument info to ABI0 assembly functions
+    cmd/go/internal/fsys: add Glob
     
-    For ABI0 assembly functions that have Go declarations, generate
-    traceback argument info and attach it to the assembly functions.
-    So we can print argument in tracebacks if e.g. assembly function
-    panics.
+    Glob is needed for //go:embed processing.
     
-    Only do this for ABI0 functions, as for ABIInternal assembly
-    functions it is likely that they never spill arguments to memory.
+    Also change TestReadDir to be deterministic
+    and print more output about failures.
     
-    Change-Id: I7e601ccd9aded5e6af2f02be975bf81ff9948f4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315870
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie22a9c5b32bda753579ff98cec1d28e3244c4e06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264538
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/gc/compile.go |  6 +++
- src/cmd/compile/internal/ssagen/ssa.go | 38 +++++++++--------
- src/cmd/internal/obj/plist.go          | 75 ++++++++++++++++++++--------------
- 3 files changed, 71 insertions(+), 48 deletions(-)
+ src/cmd/go/internal/fsys/fsys.go      | 163 +++++++++++++++++++++
+ src/cmd/go/internal/fsys/fsys_test.go | 258 +++++++++++++++++++++++++---------
+ 2 files changed, 353 insertions(+), 68 deletions(-)

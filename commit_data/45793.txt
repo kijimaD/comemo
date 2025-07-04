@@ -1,13 +1,43 @@
-commit 2721da26083f253c46c2fd0c1dadee14ae4202f5
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Thu Jun 10 15:05:07 2021 -0700
+commit 5b0ec1a6ac0e644c89940e0fe5f79863ad2eafaa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 18 12:08:59 2020 -0800
 
-    doc/go1.17: fix formatting near httptest
+    cmd/compile: fix panic in field tracking logic
     
-    Change-Id: Ic1a0add3a1e137ca5cd0f3e9ce3266191b0b55cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326777
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Within the frontend, we generally don't guarantee uniqueness of
+    anonymous types. For example, each struct type literal gets
+    represented by its own types.Type instance.
+    
+    However, the field tracking code was using the struct type as a map
+    key. This broke in golang.org/cl/256457, because that CL started
+    changing the inlined parameter variables from using the types.Type of
+    the declared parameter to that of the call site argument. These are
+    always identical types (e.g., types.Identical would report true), but
+    they can be different pointer values, causing the map lookup to fail.
+    
+    The easiest fix is to simply get rid of the map and instead use
+    Node.Opt for tracking the types.Field. To mitigate against more latent
+    field tracking failures (e.g., if any other code were to start trying
+    to use Opt on ODOT/ODOTPTR fields), we store this field
+    unconditionally. I also expect having the types.Field will be useful
+    to other frontend code in the future.
+    
+    Finally, to make it easier to test field tracking without having to
+    run make.bash with GOEXPERIMENT=fieldtrack, this commit adds a
+    -d=fieldtrack flag as an alternative way to enable field tracking
+    within the compiler. See also #42681.
+    
+    Fixes #42686.
+    
+    Change-Id: I6923d206d5e2cab1e6798cba36cae96c1eeaea55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271217
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.17.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/main.go      |  1 +
+ src/cmd/compile/internal/gc/typecheck.go | 15 ++-------------
+ src/cmd/compile/internal/gc/walk.go      |  5 ++++-
+ test/fixedbugs/issue42686.go             | 11 +++++++++++
+ 4 files changed, 18 insertions(+), 14 deletions(-)

@@ -1,32 +1,24 @@
-commit ee76992200a282f0ed4eb52e686ec254d8313cdc
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Oct 12 17:07:04 2018 -0400
+commit ed99fcf1cf0347c86618bff3b46502602fd6b3c0
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Thu May 24 08:36:00 2018 +0000
 
-    crypto/tls,crypto/x509: normalize RFC references
+    cmd/dist: run msan test only in testsanitizer on arm64
     
-    Use the format "RFC XXXX, Section X.X" (or "Appendix Y.X") as it fits
-    more properly in prose than a link, is more future-proof, and as there
-    are multiple ways to render an RFC. Capital "S" to follow the quoting
-    standard of RFCs themselves.
+    With latest gcc (7.3.0), misc/cgo/testsanitizer test will fail with reporting sigmentation
+    fault when running tsan test. On arm64, tsan is not supported currently and only msan test
+    can be run. So skip tsan test on arm64.
     
-    Applied the new goimports grouping to all files in those packages, too.
+    What needs to be pointed out is that msan test can be really run when setting clang
+    as c/c++ complier.
     
-    Change-Id: I01267bb3a3b02664f8f822e97b129075bb14d404
-    Reviewed-on: https://go-review.googlesource.com/c/141918
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Fixes #25601
+    
+    Change-Id: I6ab1a8d9edd243e2ee00ee40bc0abd6a0e6a125c
+    Reviewed-on: https://go-review.googlesource.com/114857
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/auth.go                    |  7 +++----
- src/crypto/tls/cipher_suites.go           |  8 +++-----
- src/crypto/tls/common.go                  | 27 +++++++++++--------------
- src/crypto/tls/conn.go                    |  2 +-
- src/crypto/tls/handshake_client.go        |  2 +-
- src/crypto/tls/handshake_messages.go      | 33 +++++++++++++++----------------
- src/crypto/tls/handshake_messages_test.go |  3 +--
- src/crypto/tls/handshake_server.go        |  4 ++--
- src/crypto/tls/key_agreement.go           |  5 ++---
- src/crypto/tls/prf.go                     | 15 +++++++-------
- src/crypto/x509/pem_decrypt.go            |  2 +-
- src/crypto/x509/pkix/pkix.go              |  2 +-
- src/crypto/x509/verify.go                 | 20 +++++++++----------
- src/crypto/x509/x509.go                   | 32 +++++++++++++-----------------
- 14 files changed, 72 insertions(+), 90 deletions(-)
+ misc/cgo/testsanitizers/tsan_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

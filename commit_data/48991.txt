@@ -1,22 +1,46 @@
-commit 35d02791b990082fe80da54352050bd095ebd1e7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue May 3 11:47:44 2022 +0200
+commit f35d86fd5febaa32a9a28b3a35bffaff43bc89bd
+Merge: b994cc69e0 912f075047
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 2 15:46:51 2021 -0700
 
-    net: remove fallback path in sysSocket
+    [dev.typeparams] all: merge master (912f075) into dev.typeparams
     
-    Support for operating system versions requiring this fallback path was
-    dropped from recent Go versions. The minimum Linux kernel version is
-    2.6.32 as of Go 1.18. FreeBSD 10 is no longer supported as of Go 1.13.
+    Conflicts:
     
-    Change-Id: I7e74768146dd43a36d0d26fcb08eed9ace82189f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403634
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    - src/cmd/compile/internal/escape/escape.go
+    
+      On master, CL 332230 changed the ">=" in HeapAllocReason to ">"; but
+      on dev.typeparams, CL 329989 moved HeapAllocReason into utils.go.
+    
+    Merge List:
+    
+    + 2021-07-02 912f075047 net/http: mention socks5 support in proxy
+    + 2021-07-02 287c5e8066 cmd/compile: fix stack growing algorithm
+    + 2021-07-02 743f03eeb0 spec, unsafe: clarify unsafe.Slice docs
+    + 2021-07-02 6125d0c426 cmd/dist: correct comment: SysProcAttri -> SysProcAttr
+    + 2021-07-01 03761ede02 net: don't reject null mx records
+    + 2021-07-01 877688c838 testing: add TB.Setenv
+    + 2021-07-01 ef8ae82b37 cmd/compile: fix bug in dwarf-gen var location generation
+    + 2021-07-01 770899f7e1 cmd/go: add a regression test for 'go mod vendor' path traversal
+    + 2021-07-01 835d86a17e cmd/go: use path.Dir instead of filepath.Dir for package paths in 'go mod vendor'
+    + 2021-07-01 eb437ba92c cmd/compile: make stack value size threshold comparisons consistent
+    + 2021-07-01 9d65578b83 cmd/compile: fix typos in document
+    
+    Change-Id: I08aa852441af0f070aa32dd2f99b6fa4e9d79cfa
 
- src/net/sock_cloexec.go | 25 -------------------------
- 1 file changed, 25 deletions(-)
+ api/go1.17.txt                                     |  1 +
+ doc/go_spec.html                                   |  8 +++--
+ src/cmd/compile/abi-internal.md                    |  2 +-
+ src/cmd/compile/internal/escape/utils.go           |  8 ++---
+ src/cmd/compile/internal/ssa/debug.go              | 19 ++++++----
+ src/cmd/compile/internal/walk/builtin.go           |  2 +-
+ src/cmd/dist/test.go                               |  2 +-
+ src/cmd/go/internal/modcmd/vendor.go               |  3 +-
+ .../go/testdata/script/mod_vendor_issue46867.txt   | 31 +++++++++++++++++
+ src/net/dnsclient_unix_test.go                     | 40 ++++++++++++++++++++++
+ src/net/http/transport.go                          |  1 +
+ src/net/lookup.go                                  |  4 ++-
+ src/runtime/stack.go                               |  4 ++-
+ src/testing/testing.go                             |  1 +
+ src/unsafe/unsafe.go                               |  6 ++--
+ 15 files changed, 111 insertions(+), 21 deletions(-)

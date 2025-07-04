@@ -1,59 +1,20 @@
-commit ed370d8720750ad670564079b1e0bcf74f75dd3a
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Jan 8 17:39:02 2023 +0100
+commit cc46cac3bc59c35e22e17471d70e28fd3705d4da
+Author: Philippe Antoine <contact@catenacyber.fr>
+Date:   Sun Mar 20 21:34:42 2022 +0000
 
-    crypto/internal/bigmod: flag amd64 assembly as noescape
+    strings: limits allocation size for SplitN
     
-    I had forgotten, which caused amd64 allocations to go back up
-    significantly. Added an allocations test.
+    So that `strings.SplitN("", "T", int(144115188075855872))` does not panic.
     
-    name                    old time/op    new time/op    delta
-    DecryptPKCS1v15/2048-8    1.50ms ± 0%    1.48ms ± 0%   -0.95%  (p=0.000 n=9+10)
-    DecryptPKCS1v15/3072-8    4.64ms ± 1%    4.60ms ± 0%   -0.82%  (p=0.000 n=8+10)
-    DecryptPKCS1v15/4096-8    10.7ms ± 0%    10.6ms ± 1%   -0.99%  (p=0.000 n=10+10)
-    EncryptPKCS1v15/2048-8     158µs ± 0%     157µs ± 0%   -0.63%  (p=0.000 n=10+10)
-    DecryptOAEP/2048-8        1.50ms ± 0%    1.48ms ± 0%   -1.09%  (p=0.000 n=9+10)
-    EncryptOAEP/2048-8         161µs ± 0%     160µs ± 0%   -0.34%  (p=0.000 n=9+10)
-    SignPKCS1v15/2048-8       1.55ms ± 0%    1.53ms ± 1%   -1.32%  (p=0.000 n=10+10)
-    VerifyPKCS1v15/2048-8      157µs ± 0%     157µs ± 0%   -0.33%  (p=0.004 n=9+10)
-    SignPSS/2048-8            1.55ms ± 0%    1.54ms ± 0%   -1.14%  (p=0.000 n=10+10)
-    VerifyPSS/2048-8           160µs ± 0%     160µs ± 0%   -0.32%  (p=0.000 n=10+10)
-    
-    name                    old alloc/op   new alloc/op   delta
-    DecryptPKCS1v15/2048-8    15.0kB ± 0%     0.6kB ± 0%  -95.74%  (p=0.000 n=10+10)
-    DecryptPKCS1v15/3072-8    17.9kB ± 0%     3.5kB ± 0%  -80.65%  (p=0.000 n=10+10)
-    DecryptPKCS1v15/4096-8    19.1kB ± 0%     4.7kB ± 0%  -75.25%  (p=0.000 n=10+10)
-    EncryptPKCS1v15/2048-8    7.51kB ± 0%    1.17kB ± 0%  -84.39%  (p=0.000 n=10+10)
-    DecryptOAEP/2048-8        15.3kB ± 0%     0.9kB ± 0%  -94.29%  (p=0.000 n=10+10)
-    EncryptOAEP/2048-8        7.74kB ± 0%    1.40kB ± 0%  -81.86%  (p=0.000 n=10+10)
-    SignPKCS1v15/2048-8       21.6kB ± 0%     0.9kB ± 0%  -95.86%  (p=0.000 n=10+10)
-    VerifyPKCS1v15/2048-8     7.25kB ± 0%    0.91kB ± 0%  -87.42%  (p=0.000 n=10+10)
-    SignPSS/2048-8            22.0kB ± 0%     1.3kB ± 0%  -94.12%  (p=0.000 n=10+10)
-    VerifyPSS/2048-8          7.46kB ± 0%    1.12kB ± 0%  -84.98%  (p=0.000 n=10+10)
-    
-    name                    old allocs/op  new allocs/op  delta
-    DecryptPKCS1v15/2048-8      54.0 ± 0%       4.0 ± 0%  -92.59%  (p=0.000 n=10+10)
-    DecryptPKCS1v15/3072-8      60.0 ± 0%      10.0 ± 0%  -83.33%  (p=0.000 n=10+10)
-    DecryptPKCS1v15/4096-8      60.0 ± 0%      10.0 ± 0%  -83.33%  (p=0.000 n=10+10)
-    EncryptPKCS1v15/2048-8      29.0 ± 0%       7.0 ± 0%  -75.86%  (p=0.000 n=10+10)
-    DecryptOAEP/2048-8          60.0 ± 0%      10.0 ± 0%  -83.33%  (p=0.000 n=10+10)
-    EncryptOAEP/2048-8          35.0 ± 0%      13.0 ± 0%  -62.86%  (p=0.000 n=10+10)
-    SignPKCS1v15/2048-8         77.0 ± 0%       5.0 ± 0%  -93.51%  (p=0.000 n=10+10)
-    VerifyPKCS1v15/2048-8       28.0 ± 0%       6.0 ± 0%  -78.57%  (p=0.000 n=10+10)
-    SignPSS/2048-8              82.0 ± 0%      10.0 ± 0%  -87.80%  (p=0.000 n=10+10)
-    VerifyPSS/2048-8            33.0 ± 0%      11.0 ± 0%  -66.67%  (p=0.000 n=10+10)
-    
-    Fixes #58501
-    
-    Change-Id: I418c5152833787b80220b556336ec284674c2493
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460542
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Iea00417e61780bcaf0fee02fa2b18026d89bc545
+    GitHub-Last-Rev: d1f45b44a8011ddb27c71e1bc9983b62b5d3d771
+    GitHub-Pull-Request: golang/go#51755
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393654
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/crypto/internal/bigmod/_asm/nat_amd64_asm.go |  1 +
- src/crypto/internal/bigmod/nat_amd64.go          |  1 +
- src/crypto/rsa/rsa_test.go                       | 27 ++++++++++++++++++++++++
- 3 files changed, 29 insertions(+)
+ src/strings/strings.go      | 3 +++
+ src/strings/strings_test.go | 2 ++
+ 2 files changed, 5 insertions(+)

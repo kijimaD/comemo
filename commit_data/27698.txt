@@ -1,12 +1,14 @@
-commit 20fd1bb8bdbd8ead3d707ad13b560a375a7b3967
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jun 20 10:40:07 2016 +0900
+commit 092ef8a2ca60e1a7573442757b02ec1efc456c2c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 8 14:27:35 2016 +1200
 
-    doc/go1.7.html: don't mention obsolete RFC
+    cmd/cgo: fix cgo with gccgo
     
-    Change-Id: Ia978c10a97e4c24fd7cf1fa4a7c3bd886d20bbf8
-    Reviewed-on: https://go-review.googlesource.com/24241
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I1780899255e22c16d7f8e9947609a1c284d7c42e
+    Reviewed-on: https://go-review.googlesource.com/21690
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.7.html | 2 +-
+ src/cmd/cgo/out.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

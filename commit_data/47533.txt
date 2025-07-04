@@ -1,25 +1,28 @@
-commit b95bff0318150e0b2869079bf2c0068fb4bcb17c
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 19:14:58 2021 -0500
+commit 74fe516c3549e8177aa5326e6ce17efd529e3383
+Author: Johan Jansson <johan.jansson@iki.fi>
+Date:   Wed Mar 24 17:14:29 2021 +0200
 
-    go/types: remove tparamIsIface flag and corresponding dead code
+    cmd/go: add -benchtime to cacheable test flags
     
-    This is a port of CL 363654 from types2 to go/types.
+    Add -benchtime to the list of flags that allow caching test results.
     
-    Change-Id: I64041615ccc7f11f2e4ae395b063ec5141ccf2cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364896
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    If -benchtime is set without -bench, no benchmarks are run. The cache
+    does not need to be invalidated in this case.
+    
+    If -benchtime is set with -bench, benchmarks are run. The cache is
+    invalidated due to the -bench flag in this case.
+    
+    Fixes #44555
+    
+    Change-Id: I2eb5c9f389a587d150fb984590d145251d0fa2dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304689
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/builtins.go   | 27 ++------------
- src/go/types/decl.go       |  4 +++
- src/go/types/expr.go       | 19 ++--------
- src/go/types/index.go      | 89 ++--------------------------------------------
- src/go/types/predicates.go | 18 ++--------
- src/go/types/sizes.go      |  7 +++-
- src/go/types/struct.go     | 11 +++---
- src/go/types/type.go       |  4 +--
- src/go/types/typeparam.go  | 17 ++-------
- 9 files changed, 27 insertions(+), 169 deletions(-)
+ src/cmd/go/alldocs.go                            |  4 ++--
+ src/cmd/go/internal/test/test.go                 |  7 ++++---
+ src/cmd/go/testdata/script/test_cache_inputs.txt | 13 +++++++++++++
+ 3 files changed, 19 insertions(+), 5 deletions(-)

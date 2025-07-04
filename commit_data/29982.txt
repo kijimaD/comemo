@@ -1,36 +1,12 @@
-commit b531eb30625a28eb99f9b0137ea5a409a733a1bb
+commit 13c65723419a41a8b5339e11f40fe2ecf0bbc8ab
 Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Jan 24 20:19:36 2017 -0800
+Date:   Wed Oct 19 11:06:36 2016 -0400
 
-    runtime: reorder modules so main.main comes first
+    plugin: mention OS X support and concurrency
     
-    Modules appear in the moduledata linked list in the order they are
-    loaded by the dynamic loader, with one exception: the
-    firstmoduledata itself the module that contains the runtime.
-    This is not always the first module (when using -buildmode=shared,
-    it is typically libstd.so, the second module).
-    
-    The order matters for typelinksinit, so we swap the first module
-    with whatever module contains the main function.
-    
-    Updates #18729
-    
-    This fixes the test case extracted with -linkshared, and now
-    
-            go test -linkshared encoding/...
-    
-    passes. However the original issue about a plugin failure is not
-    yet fixed.
-    
-    Change-Id: I9f399ecc3518e22e6b0a350358e90b0baa44ac96
-    Reviewed-on: https://go-review.googlesource.com/35644
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I4270bf81511a5bf80ed146f5e66e4f8aeede2aa2
+    Reviewed-on: https://go-review.googlesource.com/31463
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testshared/src/depBase/dep.go |  2 ++
- misc/cgo/testshared/src/exe/exe.go     |  9 +++++++++
- src/runtime/symtab.go                  | 19 +++++++++++++++++++
- 3 files changed, 30 insertions(+)
+ src/plugin/plugin.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

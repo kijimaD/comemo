@@ -1,20 +1,24 @@
-commit 0d1280c685c2353a9c982c11e77281ad4d34464a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Apr 26 18:32:28 2021 +0000
+commit c9c64886ef041b096d7f93c4e7d2ef5faf87ad43
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 19 10:40:24 2020 -0400
 
-    Revert "sync: improve sync.Pool object stealing"
+    cmd/internal/obj: reject too large symbols
     
-    This reverts CL 303949.
+    We never supported symbol larger than 2GB (issue #9862), so the
+    object file uses 32-bit for symbol sizes. Check and reject too
+    large symbol before truncating its size.
     
-    Reason for revert: broke linux-arm-aws TryBots.
+    Fixes #42054.
     
-    Change-Id: Ib44949df70520cdabff857846be0d2221403d2f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313630
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I0d1d585ebdba9556f2fd3a97043bd4296d5cc9e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263641
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/sync/pool.go      | 103 +++++---------------------------------------------
- src/sync/pool_test.go |  18 ---------
- 2 files changed, 10 insertions(+), 111 deletions(-)
+ src/cmd/internal/obj/objfile.go      |  7 +++++++
+ src/cmd/internal/obj/objfile_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue4348.go          |  4 +++-
+ 3 files changed, 46 insertions(+), 1 deletion(-)

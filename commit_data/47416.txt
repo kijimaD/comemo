@@ -1,18 +1,22 @@
-commit d60a4e69f16f5bc958094af206ac7e47f6bc8b04
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 11 08:36:15 2021 -0800
+commit a98a0a75b415d8e3adb3ff5a2c20e485d9c24ac0
+Author: Andrey Bokhanko <andreybokhanko@gmail.com>
+Date:   Thu Jan 14 15:30:14 2021 +0000
 
-    spec: fix a broken link
+    os/user: make user.LookupGroupId function work for large entries
     
-    Thanks for jtagcat@ for finding this.
+    The existing implementation of user.LookupGroupId function works
+    incorrectly with very large (>64K symbols) entries in /etc/group file.
+    This patch fixes this.
     
-    Change-Id: If7324808edbae19ec8bf503b04e0426f3fb3b47a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363394
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Fixes #43636
+    
+    Change-Id: I453321f1ab15fd4d0002f97fcec7d0789e1e0da5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283601
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- doc/go1.17_spec.html | 2 +-
- doc/go_spec.html     | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/os/user/lookup_unix.go      | 73 ++++++++++++++++++++++++++++++++++-------
+ src/os/user/lookup_unix_test.go | 16 +++++++--
+ 2 files changed, 75 insertions(+), 14 deletions(-)

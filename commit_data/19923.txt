@@ -1,21 +1,18 @@
-commit e359bea8ad0b381c1b28dd7c74ca17e17a7f3324
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 6 14:33:57 2014 -0700
+commit 4cc8be60e99286bcef6c4dc247d01210e89ba73f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 16:10:08 2014 -0400
 
-    runtime: clean up naming of mcallable functions.
+    codereview: fix submit of merge + include branch prefix in submitted message
     
-    Introduce the mFunction type to represent an mcall/onM-able function.
-    Name such functions using _m.
+    hg insists that we not list explicit files for a merge.
     
-    LGTM=bradfitz
-    R=bradfitz
+    for benefit of other tools reading logs, include branch prefix
+    at start of every commit message.
+    
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/121320043
+    https://golang.org/cl/124780044
 
- src/pkg/runtime/malloc.c  |  6 +++---
- src/pkg/runtime/malloc.go | 12 ++++++------
- src/pkg/runtime/mgc0.c    |  2 +-
- src/pkg/runtime/mprof.goc |  2 +-
- src/pkg/runtime/print.go  | 10 ++++++----
- src/pkg/runtime/stubs.go  | 28 ++++++++++++++++++----------
- 6 files changed, 35 insertions(+), 25 deletions(-)
+ lib/codereview/codereview.py | 29 +++++++++++++++++++++--------
+ 1 file changed, 21 insertions(+), 8 deletions(-)

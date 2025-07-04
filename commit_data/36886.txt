@@ -1,14 +1,25 @@
-commit 963776e689c4c015c89464ab4fef90ae50373f66
-Author: Roberto <empijei@users.noreply.github.com>
-Date:   Sat Oct 6 06:53:32 2018 +0000
+commit 33f1768381f0070d5ea8062a36f366d8a3142d96
+Author: 212472270 <ggp493@gmail.com>
+Date:   Tue Jun 5 16:15:40 2018 -0700
 
-    sync: fix typo in doc
+    crypto/cipher: replace NewGCMWithNonceAndTagSize with NewGCMWithTagSize
     
-    Change-Id: Ie1f35c7598bd2549a048d64e1b1279bf4acaa103
-    GitHub-Last-Rev: c8cc7dfef987cbd04f48daabf23efa64c0c67322
-    GitHub-Pull-Request: golang/go#28051
-    Reviewed-on: https://go-review.googlesource.com/c/140302
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    This function was added during the Go 1.11 dev cycle and isn't part of
+    the API compatibility promise yet.
+    
+    In the previous implementation, NewGCMWithNonceAndTagSize was being used
+    as a helper function for NewGCM, NewGCMWithTagSize, and NewGCMWithNonceSize.
+    With the removal of Nonce size from the name and parameters, we needed to
+    add an unexported helper function newGCMWithNonceAndTagSize.
+    
+    Fixes #24977
+    
+    Change-Id: Ie70f2a192d0556c4f890deb62e68cff6bbbccd33
+    Reviewed-on: https://go-review.googlesource.com/116435
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sync/runtime.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/cipher/gcm.go      | 14 +++++++++-----
+ src/crypto/cipher/gcm_test.go | 28 +++++++++++++++++++++++-----
+ 2 files changed, 32 insertions(+), 10 deletions(-)

@@ -1,19 +1,24 @@
-commit d75925d6bad2576bd80c442ff3b23ba22ffb2c68
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Feb 13 21:27:53 2017 -0500
+commit e12f6ee0ab1e7b4da818054d7ced4247c81fd164
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Oct 31 07:58:41 2016 -0700
 
-    cmd/compile: add a test for writebarrier pass with single-block loop
+    database/sql: fix TestPendingConnsAfterErr
     
-    The old writebarrier implementation fails to handle single-block
-    loop where a memory Phi value depends on the write barrier store
-    in the same block. The new implementation (CL 36834) doesn't have
-    this problem. Add a test to ensure it.
+    TestPendingConnsAfterErr showed a failure on slower systems.
+    Wait and check for the database to close all connections
+    before pronouncing failure.
     
-    Fix #19067.
+    A more careful method was attempted but the connection pool
+    behavior is too dependent on the scheduler behavior to be
+    predictable.
     
-    Change-Id: Iab13c6817edc12be8a048d18699b4450fa7ed712
-    Reviewed-on: https://go-review.googlesource.com/36940
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #15684
+    
+    Change-Id: Iafdbc90ba51170c76a079db04c3d5452047433a4
+    Reviewed-on: https://go-review.googlesource.com/33418
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/writebarrier_test.go | 24 +++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/database/sql/sql_test.go | 40 +++++++++++++++++++++++++++++++---------
+ 1 file changed, 31 insertions(+), 9 deletions(-)

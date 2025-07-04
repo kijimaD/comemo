@@ -1,17 +1,15 @@
-commit e3b48af57560e730a512d79f9d338aafac61f944
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 18:56:46 2021 -0500
+commit 4d66d77cd22812de4526e3973bc3314040a939a5
+Author: Elias506 <56119080+Elias506@users.noreply.github.com>
+Date:   Thu Mar 25 14:46:15 2021 +0000
 
-    go/types: remove a review comment in implicitTypeAndValue
+    database/sql: remove unnecessary types in composite literals
     
-    This is a clean port of CL 363440 from types2 to go/types.
-    
-    Change-Id: Ibbef41b5b599d5c88f7122670ab87aa5be512c0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364894
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I30c576f826c82cbc62ce28ea7f4886702bd6605d
+    GitHub-Last-Rev: 2fead200dba13ec74d81e842d8bae97d1e67fcc4
+    GitHub-Pull-Request: golang/go#42618
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270000
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Trust: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/expr.go | 24 ++++++++++--------------
- 1 file changed, 10 insertions(+), 14 deletions(-)
+ src/database/sql/fakedb_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

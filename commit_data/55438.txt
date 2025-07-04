@@ -1,21 +1,25 @@
-commit cad6629144ddb79401f90bd0388da14294f9131a
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Sat Dec 2 15:04:52 2023 +0000
+commit e0603bc6760ee48d32a4a96a0e9cc032698d8584
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Feb 4 11:30:18 2023 -0800
 
-    runtime: add crash stack support for s390x
+    log: fix and cleanup trailing newline logic
     
-    Change-Id: Ie923f7bbe5ef22e381ae4f421387fbd570622a28
-    GitHub-Last-Rev: f8f21635025eb6e26c6994679995ade501e870cf
-    GitHub-Pull-Request: golang/go#63908
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539296
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    The intent was to always append a newline if a newline was missing.
+    The older logic accidentally only checked the payload for newlines
+    and forgot to check the prefix as well. Fix it to check both together.
+    
+    This changes the output of Logger.Output in the situation where
+    the prefix contains a trailing newline and the output is empty.
+    This is a very rare combination and unlikely to occur in practice.
+    
+    Change-Id: Ic04ded6c29a90383e29bf7f59223a808ee1cbdc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465316
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/runtime/asm.s       |  2 ++
- src/runtime/asm_s390x.s | 39 +++++++++++++++++++++++++++++++--------
- src/runtime/proc.go     |  2 +-
- 3 files changed, 34 insertions(+), 9 deletions(-)
+ src/log/log.go      | 4 +---
+ src/log/log_test.go | 9 +++++++++
+ 2 files changed, 10 insertions(+), 3 deletions(-)

@@ -1,29 +1,16 @@
-commit 2ba3d5fc9661846cc3ef66ffc2b8bf2f91909d73
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Fri Jun 10 01:38:43 2016 -0700
+commit 95a895df0c64b0cd1283c4cf7794d491427d765c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Apr 7 10:07:10 2016 -0400
 
-    cmd/go: remove invalid space in import comment docs
+    go/types: make Identical(nil, T) == Identical(T, nil)
     
-    Generate package comment in alldocs.go using line comments rather than
-    general comments. This scales better, general comments cannot contain the
-    "*/" character sequence. Line comments do not have any restrictions on
-    the comment text that can be contained.
+    Fixes #15173
     
-    Remove the dependency on sed, which is not cross-platform, not go-gettable
-    external command.
-    
-    Remove trailing whitespace from usage string in test.go. It's unnecessary.
-    
-    Fixes #16030.
-    
-    Change-Id: I3c0bc9955e7c7603c3d1fb4878218b0719d02e04
-    Reviewed-on: https://go-review.googlesource.com/23968
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I353756f7bc36db0d2b24d40c80771481b7b18f6b
+    Reviewed-on: https://go-review.googlesource.com/21585
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go   | 3172 +++++++++++++++++++++++------------------------
- src/cmd/go/main.go      |   56 +-
- src/cmd/go/mkalldocs.sh |    3 +-
- src/cmd/go/test.go      |    6 +-
- 4 files changed, 1632 insertions(+), 1605 deletions(-)
+ src/go/types/api_test.go   | 17 +++++++++++++++++
+ src/go/types/predicates.go |  2 ++
+ 2 files changed, 19 insertions(+)

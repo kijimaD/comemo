@@ -1,31 +1,13 @@
-commit 6130b88130ac6954f557e4737d88419d063b32c3
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 3 08:20:31 2022 -0400
+commit 2721da26083f253c46c2fd0c1dadee14ae4202f5
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Jun 10 15:05:07 2021 -0700
 
-    go/doc/comment: add Printer and basic comment printing
+    doc/go1.17: fix formatting near httptest
     
-    [This CL is part of a sequence implementing the proposal #51082.
-    The design doc is at https://go.dev/s/godocfmt-design.]
-    
-    Implement printing of plain text doc paragraphs.
-    
-    For #51082.
-    
-    
-    Change-Id: Ieff0af64a900f566bfc833c3b5706488f1444798
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397279
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic1a0add3a1e137ca5cd0f3e9ce3266191b0b55cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326777
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- api/next/51082.txt                     |  12 ++++
- src/go/doc/comment/html.go             |  81 ++++++++++++++++++++++
- src/go/doc/comment/markdown.go         | 115 +++++++++++++++++++++++++++++++
- src/go/doc/comment/print.go            | 122 +++++++++++++++++++++++++++++++++
- src/go/doc/comment/testdata/blank.txt  |  12 ++++
- src/go/doc/comment/testdata/escape.txt |  55 +++++++++++++++
- src/go/doc/comment/testdata/hello.txt  |  29 ++++++--
- src/go/doc/comment/testdata_test.go    |   9 +++
- src/go/doc/comment/text.go             |  69 +++++++++++++++++++
- 9 files changed, 500 insertions(+), 4 deletions(-)
+ doc/go1.17.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

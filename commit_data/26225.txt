@@ -1,26 +1,25 @@
-commit 5aa5db7593537e43b024d65b07f2a9c3379f100e
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Mar 11 13:39:20 2016 -0500
+commit a4f27c42254a3a79d71e7d6a1b8f45970621a644
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 5 16:06:09 2016 -0800
 
-    cmd/compile: use bufio.Reader directly in lexer
+    net/http: update bundled copied of x/net/http2 to git rev 961116aee
     
-    Removes an intermediate layer of functions that was clogging up a
-    corner of the compiler's profile graph.
+    Update net/http's copy of http2 (sync as of x/net git rev 961116aee,
+    aka https://golang.org/cl/18266)
     
-    I can't measure a performance improvement running a large build
-    like jujud, but the profile reports less total time spent in
-    gc.(*lexer).getr.
+    Also adds some CONNECT tests for #13717 (mostly a copy of http2's
+    version of test, but in the main repo it also tests that http1 behaves
+    the same)
     
-    Change-Id: I3000585cfcb0f9729d3a3859e9023690a6528591
-    Reviewed-on: https://go-review.googlesource.com/20565
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Fixes #13668
+    Fixes #13717
+    
+    Change-Id: I7db93fe0b7c42bd17a43ef32953f2d20620dd3ea
+    Reviewed-on: https://go-review.googlesource.com/18269
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go |  20 +++---
- src/cmd/compile/internal/gc/export.go  |   3 +-
- src/cmd/compile/internal/gc/lex.go     | 123 ++++++++++++++-------------------
- src/cmd/compile/internal/gc/parser.go  |   8 +--
- src/cmd/internal/obj/util.go           |  23 ------
- test/syntax/ddd.go                     |  11 +++
- 6 files changed, 79 insertions(+), 109 deletions(-)
+ src/net/http/clientserver_test.go |  59 +++++++++++
+ src/net/http/h2_bundle.go         | 199 ++++++++++++++++++++++++++------------
+ 2 files changed, 196 insertions(+), 62 deletions(-)

@@ -1,25 +1,26 @@
-commit 587b3c1192397393afb0ec5acd608e3dfe9f2116
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Sep 28 16:20:29 2021 -0400
+commit 958927c8249fc7e073ffa5e5f0a8f7d3498b5616
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jan 15 11:08:02 2021 -0500
 
-    cmd/link: access pcdata via aux symbols
+    [dev.typeparams] go/parser: error for type instances without ParseTypeParams
     
-    Pcdata are now separate aux symbols. Read them from aux, instead
-    of using funcinfo.
+    It should be an invariant that the parser does not produce ast.CallExprs
+    with Brackets == true unless parsing with ParseTypeParams.
     
-    Now we can remove pcdata fields from funcinfo.
+    Fix the one case where this invariant was violated, and add a test for
+    errors produced in valid generic code when ParseTypeParams is unset. We
+    did have some coverage of errors in short_test.go, but I find them to be
+    easier to read in a testdata file and would like to gradually migrate
+    them there.
     
-    Change-Id: Ie65e3962edecc0f39127a5f6963dc59d1f141e67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352893
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: If2d174377087daa1b820cabc2b5bf8bcb0b39d8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284192
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/cmd/internal/goobj/funcinfo.go     |  55 +-------------
- src/cmd/internal/obj/objfile.go        |   8 --
- src/cmd/link/internal/ld/dwarf.go      |   2 +-
- src/cmd/link/internal/ld/lib.go        |   2 +-
- src/cmd/link/internal/ld/pcln.go       |  32 ++++----
- src/cmd/link/internal/loader/loader.go | 129 ++++++++++++++++-----------------
- 6 files changed, 86 insertions(+), 142 deletions(-)
+ src/go/parser/parser.go               |  7 +++++++
+ src/go/parser/testdata/typeparams.src | 17 +++++++++++++++++
+ 2 files changed, 24 insertions(+)

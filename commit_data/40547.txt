@@ -1,33 +1,15 @@
-commit a3ffb0d9eb948409c0898c6b1803401c9bc68ed4
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 16 19:10:06 2019 -0400
+commit cd0f5f39b7ae57d24b2e748d82ad667ce74fc190
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Fri May 24 15:04:28 2019 +0000
 
-    runtime: asynchronous preemption function for x86
+    image/draw: change argument type to be consistent with other args
     
-    This adds asynchronous preemption function for amd64 and 386. These
-    functions spill and restore all register state that can be used by
-    user Go code.
-    
-    For the moment we stub out the other arches.
-    
-    For #10958, #24543.
-    
-    Change-Id: I6f93fabe9875f4834922a5712362e79045c00aca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201759
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic5b01c0a6912d87e812331d6525939df8f525cca
+    GitHub-Last-Rev: b6ffefcf8f2ec1ed7ee13f36e8fef6af965ba332
+    GitHub-Pull-Request: golang/go#29993
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386Ops.go   |   2 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   2 +
- src/runtime/mkpreempt.go                     | 266 +++++++++++++++++++++++++++
- src/runtime/preempt.go                       |  15 ++
- src/runtime/preempt_386.s                    |  52 ++++++
- src/runtime/preempt_amd64.s                  |  79 ++++++++
- src/runtime/preempt_arm.s                    |   8 +
- src/runtime/preempt_arm64.s                  |   8 +
- src/runtime/preempt_mips64x.s                |  10 +
- src/runtime/preempt_mipsx.s                  |  10 +
- src/runtime/preempt_ppc64x.s                 |  10 +
- src/runtime/preempt_s390x.s                  |   8 +
- src/runtime/preempt_wasm.s                   |   8 +
- 13 files changed, 478 insertions(+)
+ src/image/draw/draw.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

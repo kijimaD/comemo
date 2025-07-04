@@ -1,27 +1,19 @@
-commit bf5b58708931bcbc04f5bb1359093c6fbc01cf0c
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 10 13:54:25 2022 -0500
+commit a20724d63425ccb871c57d45e2401af2401518bc
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Jan 11 12:53:25 2022 -0500
 
-    cmd/dist: convert host tests to use goTest
+    go/types, types2: mention type decl scopes in Info.Scopes documentation
     
-    This adds support for host tests to goTest and registerTest and
-    modifies all uses of registerHostTest to use goTest and registerTest.
+    We now may have a scope associated with a type declaration, so need to
+    update our API documentation accordingly.
     
-    This eliminates the last case where go test command lines are
-    constructed by hand. Next we'll clean up all of the infrastructure
-    support for that.
-    
-    I traced all exec calls from cmd/dist on linux/amd64 and this makes
-    only no-op changes (such as re-arranging the order of flags).
-    
-    Preparation for #37486.
-    
-    Change-Id: Icb7ec8efdac72bdb819ae24b2f585375d9d9d5b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450019
+    Change-Id: Ic66dc3b7cd1969b25fb7c4bee986d76ab3544042
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377655
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/dist/test.go | 155 +++++++++++++++++++++++++++++++++------------------
- 1 file changed, 101 insertions(+), 54 deletions(-)
+ src/cmd/compile/internal/types2/api.go | 1 +
+ src/go/types/api.go                    | 1 +
+ 2 files changed, 2 insertions(+)

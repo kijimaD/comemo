@@ -1,18 +1,16 @@
-commit ea8750175020f162a15c827225328f8ba9e1a118
+commit 69257d17fe1fbd81e7f720f1a7f4e4f003997ea3
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 24 20:53:50 2014 +0400
+Date:   Mon Feb 24 20:50:12 2014 +0400
 
-    runtime: fix heap memory corruption
-    With concurrent sweeping finc if modified by runfinq and queuefinalizer concurrently.
-    Fixes crashes like this one:
-    http://build.golang.org/log/6ad7b59ef2e93e3c9347eabfb4c4bd66df58fd5a
-    Fixes #7324.
-    Update #7396
+    runtime: use RunParallel in more benchmarks
     
-    LGTM=rsc
-    R=golang-codereviews, minux.ma, rsc
-    CC=golang-codereviews, khr
-    https://golang.org/cl/67980043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68020043
 
- src/pkg/runtime/mgc0.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/runtime/chan_test.go   | 52 ++++++++++-------------------------
+ src/pkg/runtime/mfinal_test.go | 62 +++++++++++++-----------------------------
+ src/pkg/runtime/norace_test.go | 36 ++++++++----------------
+ src/pkg/runtime/proc_test.go   | 23 ++++------------
+ 4 files changed, 50 insertions(+), 123 deletions(-)

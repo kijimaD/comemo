@@ -1,17 +1,20 @@
-commit 87fe958a493bd016519e88c8512f09d4cdd4da78
-Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 24 10:14:19 2011 -0800
+commit 75fb2f6c828410e349dcef51b7b1506993ef9fb2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 24 16:10:30 2011 +1100
 
-    fmt: stop giving characters to the Scan method of Scanner
-    when we hit a newline during *scanln routines.
+    8l/6l: new -Hwindowsgui flag allows to build windows gui pe
     
-    Fixes #1490.
+    Fixes #1516.
     
-    R=rsc
+    R=rsc, mattn
     CC=golang-dev
-    https://golang.org/cl/4209042
+    https://golang.org/cl/4214041
 
- src/pkg/fmt/doc.go       |  2 +-
- src/pkg/fmt/scan.go      | 23 +++++++++++++++----
- src/pkg/fmt/scan_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 78 insertions(+), 6 deletions(-)
+ src/cmd/6l/obj.c            |  1 +
+ src/cmd/8l/obj.c            |  1 +
+ src/cmd/ld/lib.c            |  4 +++-
+ src/cmd/ld/lib.h            | 46 +++++++++++++++++++++++----------------------
+ src/cmd/ld/pe.c             |  5 ++++-
+ src/cmd/ld/pe.h             |  3 +++
+ src/pkg/exp/wingui/Makefile |  2 ++
+ 7 files changed, 38 insertions(+), 24 deletions(-)

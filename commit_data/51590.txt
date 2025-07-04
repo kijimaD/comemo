@@ -1,18 +1,51 @@
-commit 79cdecc8522e37d2eac5592c12459cd95ff92171
-Author: Roland Illig <roland.illig@gmx.de>
-Date:   Wed Jan 4 06:59:03 2023 +0000
+commit d35ed094864617d82c5701f56811ad68b37eda6e
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Feb 16 20:11:52 2022 -0800
 
-    cmd/gofmt: fix a typo in a comment
+    cmd/compile: fix importers to deal with recursion through type constraints
     
-    Change-Id: I34b2b9f9b70e39c872d5edbbda4de0fe330211f5
-    GitHub-Last-Rev: 723e36e11ee011c54d3ffc8125d0477c8eed25a0
-    GitHub-Pull-Request: golang/go#57566
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460457
+    The code for issue #51219 reveals bugs in the types1 and types2
+    importers that can occur for recursive types that are recursive through
+    the type constraint.
+    
+    The crash in the issue is caused by the types1 bug, which leads to the
+    production of a type1 type which is incomplete and improperly has the
+    HasTParam flag set. The bug in the types1 importer is that we were not
+    deferring type instantiations when reading the type parameters, but we
+    need to do that exactly to correctly handle recursion through the type
+    constraint. So, the fix is to move the start of the deferrals (in the
+    'U' section of doDecl in typecheck/iimport.go) above the code that reads
+    the type params.
+    
+    Once that bug is fixed, the test still crashes due to a related types2
+    importer issues. The problem is that t.SetConstraint(c) requires c to be
+    fully constructed (have its underlying type set). Since that may not be
+    done yet in the 'U' case in (*importReader).obj() in
+    importer/iimport.go, we need to defer the call to SetConstraint() in
+    that case, until we are done importing all the types.
+    
+    I added a test case with recursion through a type constraint that causes
+    a problem that is fixed by the types1 importer change, though the error
+    is not the same as in the issue. I added more types in the test case
+    (which try to imitate the issue types more closely) the types2 bug, but
+    wasn't able to cause it yet with the smaller test case.
+    
+    Fixes #51219
+    
+    Change-Id: I85d860c98c09dddc37f76ce87a78a6015ec6fd20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386335
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/gofmt/rewrite.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/importer/iimport.go  | 22 +++++++++-
+ src/cmd/compile/internal/typecheck/iimport.go | 11 +++--
+ src/go/internal/gcimporter/iimport.go         | 23 ++++++++++-
+ test/typeparam/issue51219.dir/a.go            | 59 +++++++++++++++++++++++++++
+ test/typeparam/issue51219.dir/b.go            | 11 +++++
+ test/typeparam/issue51219.dir/main.go         | 18 ++++++++
+ test/typeparam/issue51219.go                  |  7 ++++
+ test/typeparam/issue51219.out                 |  1 +
+ 8 files changed, 146 insertions(+), 6 deletions(-)

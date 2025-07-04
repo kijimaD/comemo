@@ -1,24 +1,35 @@
-commit 6e8b10397b824b0064ff92977bd379b332a24da4
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Wed Jun 14 06:24:18 2017 +0000
+commit 7e07e635f37d2a2bf886e120f47e322c3a1c3b46
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 29 10:04:17 2017 -0700
 
-    cmd/internal/obj/arm64: fix assemble stxr/stxrw/stxrb/stxrh bug
+    cmd/compile: implement non-constant rotates
     
-    The stxr/stxrw/stxrb/stxrh instructions belong to STLXR-like instructions
-    set and they require special handling. The current code has no special
-    handling for those instructions.
+    Makes math/bits.Rotate{Left,Right} fast on amd64.
     
-    The fix adds the special handling for those instructions.
+    name              old time/op  new time/op  delta
+    RotateLeft-12     7.42ns ± 6%  5.45ns ± 6%  -26.54%   (p=0.000 n=9+10)
+    RotateLeft8-12    4.77ns ± 5%  3.42ns ± 7%  -28.25%   (p=0.000 n=8+10)
+    RotateLeft16-12   4.82ns ± 8%  3.40ns ± 7%  -29.36%  (p=0.000 n=10+10)
+    RotateLeft32-12   4.87ns ± 7%  3.48ns ± 7%  -28.51%    (p=0.000 n=8+9)
+    RotateLeft64-12   5.23ns ±10%  3.35ns ± 6%  -35.97%   (p=0.000 n=9+10)
+    RotateRight-12    7.59ns ± 8%  5.71ns ± 1%  -24.72%   (p=0.000 n=10+8)
+    RotateRight8-12   4.98ns ± 7%  3.36ns ± 9%  -32.55%  (p=0.000 n=10+10)
+    RotateRight16-12  5.12ns ± 2%  3.45ns ± 5%  -32.62%  (p=0.000 n=10+10)
+    RotateRight32-12  4.80ns ± 6%  3.42ns ±16%  -28.68%  (p=0.000 n=10+10)
+    RotateRight64-12  4.78ns ± 6%  3.42ns ± 6%  -28.50%  (p=0.000 n=10+10)
     
-    Uncomment stxr/stxrw/stxrb/stxrh test cases.
+    Update #18940
     
-    Fixes #21397
-    Change-Id: I31cee29dd6b30b1c25badd5c7574dda7a01bf016
-    Reviewed-on: https://go-review.googlesource.com/54951
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie79fb5581c489ed4d3b859314c5e669a134c119b
+    Reviewed-on: https://go-review.googlesource.com/39711
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/asm/internal/arch/arm64.go           | 3 ++-
- src/cmd/asm/internal/asm/testdata/arm64enc.s | 8 ++++----
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        |     2 +
+ src/cmd/compile/internal/gc/asm_test.go      |    57 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   171 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |     8 +
+ src/cmd/compile/internal/ssa/opGen.go        |   136 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 21068 ++++++++++++++++---------
+ 6 files changed, 13619 insertions(+), 7823 deletions(-)

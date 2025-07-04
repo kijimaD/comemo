@@ -1,23 +1,15 @@
-commit 4f26f24d2ae8c99bfaafb33db4b7be27ee13afab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 28 16:02:15 2018 -0800
+commit 3cb64ea39e0d71fe2af554cbf4e99d14bc08d41b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 9 16:14:27 2018 -0400
 
-    cmd/cgo: recognize untyped constants defined in different files
+    cmd/go/internal/modload: emit correct module in duplication error
     
-    An untyped constant can be defined in any input file, we shouldn't
-    segregate them by file.
+    Updates #26904.
     
-    Updates #28772
-    
-    Change-Id: I0347f15236833bb511eb49f86c449ee9241b0a25
-    Reviewed-on: https://go-review.googlesource.com/c/151600
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: If7f381c3f3a41bd62c5f8bcf4f92720badcaf5c6
+    Reviewed-on: https://go-review.googlesource.com/128878
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/test/issue28545.go |  2 +-
- misc/cgo/test/issue28772.go | 12 ++++++++++++
- src/cmd/cgo/ast.go          |  3 +--
- src/cmd/cgo/gcc.go          |  2 +-
- src/cmd/cgo/main.go         |  4 +++-
- 5 files changed, 18 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/modload/load.go        | 2 +-
+ src/cmd/go/testdata/script/mod_replace.txt | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

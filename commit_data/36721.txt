@@ -1,19 +1,17 @@
-commit 8d6a455df42b016ed2f7071e70718cad940937f9
-Author: Andrei Tudor Călin <mail@acln.ro>
-Date:   Fri Sep 21 03:32:47 2018 +0200
+commit a10d390676937ade864e8b20878a51d6e927ea2c
+Author: Martin Sucha <anty.sk+git@gmail.com>
+Date:   Sun May 20 21:42:25 2018 +0200
 
-    net: don't use splice for unix{packet,gram} connections
+    crypto/x509: document fields used in CreateCertificate
     
-    As pointed out in the aftermath of CL 113997, splice is not supported
-    for SOCK_SEQPACKET or SOCK_DGRAM unix sockets. Don't call poll.Splice
-    in those cases.
+    The added fields are used in buildExtensions so
+    should be documented too.
     
-    Change-Id: Ieab18fb0ae706fdeb249e3f54d51a3292e3ead62
-    Reviewed-on: https://go-review.googlesource.com/136635
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #21363
+    
+    Change-Id: Ifcc11da5b690327946c2488bcf4c79c60175a339
+    Reviewed-on: https://go-review.googlesource.com/113916
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/splice_linux.go |  5 ++++-
- src/net/splice_test.go  | 52 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 56 insertions(+), 1 deletion(-)
+ src/crypto/x509/x509.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

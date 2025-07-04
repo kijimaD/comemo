@@ -1,13 +1,20 @@
-commit ef2593905de3bcdd760bab020667a8aa972a951e
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Thu Feb 2 16:43:24 2017 -0800
+commit 452bbfc179d6739a404aacc819ec66acc71fc55c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 19 00:01:31 2016 -0400
 
-    readme: add attribution for the Gopher image
+    path/filepath: fix match of \\?\c:\* on Windows
     
-    Change-Id: I3b1317f0ab46e03d8c5a0af74c83183710a75055
-    Reviewed-on: https://go-review.googlesource.com/36214
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    \\?\c:\ is a "root directory" that is not subject to further matching,
+    but the ? makes it look like a pattern, which was causing an
+    infinite recursion. Make sure the code understands the ? is not a pattern.
+    
+    Fixes #15879.
+    
+    Change-Id: I3a4310bbc398bcae764b9f8859c875317345e757
+    Reviewed-on: https://go-review.googlesource.com/31460
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- README.md | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/path/filepath/match.go             | 18 +++++++++++-------
+ src/path/filepath/path_windows.go      |  2 +-
+ src/path/filepath/path_windows_test.go |  8 ++++++++
+ 3 files changed, 20 insertions(+), 8 deletions(-)

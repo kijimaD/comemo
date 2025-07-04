@@ -1,21 +1,60 @@
-commit c7c78f1a3a4c94043c140962f2916a69e466d255
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 9 10:15:27 2022 +0200
+commit fe8347b61a5e33506c9e3827877ec318c90377e6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Sep 17 16:53:11 2021 +1000
 
-    cmd/internal/osinfo: use unix.ByteSliceToString
+    cmd/compile: optimise immediate operands with constants on riscv64
     
-    The golang.org/x/sys/unix package is already imported for Utsname and
-    Uname. Use ByteSliceToString from that package as well to replace the
-    locally defined utsString helper which serves the same purpose and
-    matches ByteSliceToString's implementation.
+    Instructions with immediates can be precomputed when operating on a
+    constant - do so for SLTI/SLTIU, SLLI/SRLI/SRAI, NEG/NEGW, ANDI, ORI
+    and ADDI. Additionally, optimise ANDI and ORI when the immediate is
+    all ones or all zeroes.
     
-    Change-Id: I5d9de186a5aeb1feed1387beedefbcd260fe22ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415654
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    In particular, the RISCV64 logical left and right shift rules
+    (Lsh*x*/Rsh*Ux*) produce sequences that check if the shift amount
+    exceeds 64 and if so returns zero. When the shift amount is a
+    constant we can precompute and eliminate the filter entirely.
+    
+    Likewise the arithmetic right shift rules produce sequences that
+    check if the shift amount exceeds 64 and if so, ensures that the
+    lower six bits of the shift are all ones. When the shift amount
+    is a constant we can precompute the shift value.
+    
+    Arithmetic right shift sequences like:
+    
+       117fc:       00100513                li      a0,1
+       11800:       04053593                sltiu   a1,a0,64
+       11804:       fff58593                addi    a1,a1,-1
+       11808:       0015e593                ori     a1,a1,1
+       1180c:       40b45433                sra     s0,s0,a1
+    
+    Are now a single srai instruction:
+    
+       117fc:       40145413                srai    s0,s0,0x1
+    
+    Likewise for logical left shift (and logical right shift):
+    
+       1d560:       01100413                li      s0,17
+       1d564:       04043413                sltiu   s0,s0,64
+       1d568:       40800433                neg     s0,s0
+       1d56c:       01131493                slli    s1,t1,0x11
+       1d570:       0084f433                and     s0,s1,s0
+    
+    Which are now a single slli (or srli) instruction:
+    
+       1d120:       01131413                slli    s0,t1,0x11
+    
+    This removes more than 30,000 instructions from the Go binary and
+    should improve performance in a variety of areas - of note
+    runtime.makemap_small drops from 48 to 36 instructions. Similar
+    gains exist in at least other parts of runtime and math/bits.
+    
+    Change-Id: I33f6f3d1fd36d9ff1bda706997162bfe4bb859b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350689
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/osinfo/os_unix.go | 22 +++++-----------------
- 1 file changed, 5 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  38 +++--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 220 +++++++++++++++++++++++++
+ test/codegen/shift.go                          |  18 +-
+ 3 files changed, 257 insertions(+), 19 deletions(-)

@@ -1,24 +1,23 @@
-commit 430b82009c32e854a209e186f011d47f3241e9b4
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Oct 18 11:47:42 2016 -0400
+commit 1faea596e4f94e0a4170eda3d1a217b4936d8aa6
+Author: Keith Randall <khr@golang.org>
+Date:   Sun May 29 11:16:13 2016 -0700
 
-    cmd/internal/obj/{ppc64,s390x}: mark functions with small stacks NOSPLIT
+    cmd/compile: add size hint to map literal allocations
     
-    This change omits the stack check on ppc64 and s390x when the size of
-    a stack frame is less than obj.StackSmall. This is an optimization
-    x86 already performs.
+    Might as well tell the runtime how large the map is going to be.
+    This avoids grow work and allocations while the map is being built.
     
-    The effect on s390x isn't huge because we were already omitting the
-    stack check when the frame size was 0 (it shaves about 1K from the
-    size of bin/go). On ppc64 however this change reduces the size of the
-    .text section in bin/go by 33K (1%).
+    Will wait for 1.8.
     
-    Updates #13379 (for ppc64).
+    Fixes #15880
+    Fixes #16279
     
-    Change-Id: I6af0eb987646bea47fcaf0a812db3496bab0f680
-    Reviewed-on: https://go-review.googlesource.com/31357
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I377e3e5ec1e2e76ea2a50cc00810adda20ad0e79
+    Reviewed-on: https://go-review.googlesource.com/23558
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/ppc64/obj9.go |  8 +++++++-
- src/cmd/internal/obj/s390x/objz.go | 10 ++++++++--
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go  | 2 +-
+ src/cmd/compile/internal/gc/syntax.go | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,24 +1,14 @@
-commit 03d4c7c7d79bbe7e1912f407fe1d5ddbccf0f73b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 17 10:59:30 2012 +0900
+commit a15f59ef1da4c3ac23e46eef2fa679e0f41205bb
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 17 12:47:56 2012 +1100
 
-    net, os, syscall: delete os.EPLAN9
+    debug/dwarf: address TODO in doc comment for New
     
-    Also fixes plan9 cross-build.
+    Fixes #2844.
     
-    R=rsc, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5675073
+    https://golang.org/cl/5675072
 
- src/pkg/net/file_plan9.go            |  7 ++++---
- src/pkg/net/iprawsock_plan9.go       | 26 +++++++++++++-------------
- src/pkg/net/ipsock_plan9.go          |  7 ++++---
- src/pkg/net/lookup_plan9.go          |  3 ++-
- src/pkg/net/tcpsock_plan9.go         | 12 ++++++------
- src/pkg/net/udpsock_plan9.go         |  9 +++++----
- src/pkg/net/unixsock_plan9.go        | 26 +++++++++++++-------------
- src/pkg/os/exec/lp_plan9.go          |  3 ++-
- src/pkg/os/signal/signal_stub.go     | 11 +++++++++++
- src/pkg/syscall/syscall_plan9.go     |  8 ++++++++
- src/pkg/syscall/zerrors_plan9_386.go | 17 ++++++++++++++++-
- 11 files changed, 84 insertions(+), 45 deletions(-)
+ src/pkg/debug/dwarf/open.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

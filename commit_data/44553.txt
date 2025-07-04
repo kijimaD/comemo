@@ -1,20 +1,33 @@
-commit b4787201c9872fbbe8e1ebb2e2113b31ec2105a6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 7 14:48:08 2021 -0800
+commit a8463c32823d451800aae14226c1e36481d692bc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jul 30 19:17:48 2020 -0400
 
-    cmd/compile: minor doc improvements
+    [dev.link] cmd/internal/archive: rename from goobj
     
-    These are left over from comments I failed to leave on CL 249463;
-    apparently I never hit "Reply".
+    Rename cmd/internal/goobj package to cmd/internal/archive. This
+    is in preparation of a refactoring of object and archive file
+    reading packages.
     
-    Change-Id: Ia3f8a900703c347f8f98581ec1ac172c0f72cd9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299589
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    With this CL, the cmd/internal/archive contains logic about
+    reading Go object files. This will be moved to other places in
+    later CLs.
+    
+    Change-Id: Ided7287492a4766183d6e49be840a7f361504d1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246442
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/decompose.go | 2 +-
- src/cmd/compile/internal/ssa/rewrite.go   | 2 +-
- src/cmd/compile/internal/ssa/value.go     | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/internal/{goobj => archive}/goobj_test.go         | 0
+ src/cmd/internal/{goobj => archive}/read.go               | 0
+ src/cmd/internal/{goobj => archive}/readnew.go            | 0
+ src/cmd/internal/{goobj => archive}/testdata/go1.go       | 0
+ src/cmd/internal/{goobj => archive}/testdata/go2.go       | 0
+ src/cmd/internal/{goobj => archive}/testdata/mycgo/c1.c   | 0
+ src/cmd/internal/{goobj => archive}/testdata/mycgo/c2.c   | 0
+ src/cmd/internal/{goobj => archive}/testdata/mycgo/go.go  | 0
+ src/cmd/internal/{goobj => archive}/testdata/mycgo/go1.go | 0
+ src/cmd/internal/{goobj => archive}/testdata/mycgo/go2.go | 0
+ src/cmd/internal/objfile/goobj.go                         | 2 +-
+ 11 files changed, 1 insertion(+), 1 deletion(-)

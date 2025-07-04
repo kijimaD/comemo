@@ -1,20 +1,31 @@
-commit 09932f95f5619f44fa874c780dbbddc073be990a
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Fri Jun 10 19:06:30 2022 +0800
+commit 6acac8b6856b2531f4ac7ee0eb37048d588d98c7
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Sep 6 17:46:50 2021 -0700
 
-    cmd/compile: combine more constant stores on amd64
+    cmd/compile: delay all transforms for generic funcs/methods
     
-    Fixes #53324
+    This change cleans up the code, by just delaying all transforms on
+    generic function methods/functions until stenciling time. That way, we
+    don't have extra code to decide whether to delay, or an extra value for
+    the typecheck flag. We are already doing all possible transforms at
+    stencil time anyway, so no changes to the stenciling code.
     
-    Change-Id: I06149d860f858b082235e9d80bf0ea494679b386
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411614
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    transform.go includes a change for one case where we check for shape
+    rather than tparam, now that we only apply transforms to stenciled
+    functions, not generic functions. This change is to allow CONVIFACE node
+    to be correctly inserted (needed for dictionaries), even with this
+    strange code that doesn't add the CONVIFACE node if the concrete type is
+    NOT huge...
+    
+    Change-Id: I5f1e71fab11b53385902074915b3ad85f8e753fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350736
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  48 ++++++-------
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 104 ++++++++++++++-------------
- test/codegen/memcombine.go                   |  15 ++++
- 3 files changed, 95 insertions(+), 72 deletions(-)
+ src/cmd/compile/internal/ir/mini.go         |  2 +-
+ src/cmd/compile/internal/noder/helpers.go   | 60 +++++++++---------------
+ src/cmd/compile/internal/noder/stmt.go      | 71 ++++++-----------------------
+ src/cmd/compile/internal/noder/transform.go |  2 +-
+ 4 files changed, 37 insertions(+), 98 deletions(-)

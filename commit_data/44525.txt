@@ -1,27 +1,39 @@
-commit 2e794c2bb1302af764670dba894bbfe537bd63f0
-Author: Alexey Vilenski <bynovhack@gmail.com>
-Date:   Fri Mar 5 11:37:54 2021 +0000
+commit b56791cdea5caa87ffcd585d29c294bd3d08a06a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jul 13 19:51:50 2020 +0000
 
-    testing: add TB.Setenv
+    runtime: validate candidate searchAddr in pageAlloc.find
     
-    Add a new method TB.Setenv that'll set environment variables
-    only for the isolated lifetime of the test, and will clean up
-    and unset these variables when the test ends.
-    This method disables the test or benchmark from running in
-    parallel.
+    Currently pageAlloc.find attempts to find a better estimate for the
+    first free page in the heap, even if the space its looking for isn't
+    necessarily going to be the first free page in the heap (e.g. if npages
+    >= 2). However, in doing so it has the potential to return a searchAddr
+    candidate that doesn't actually correspond to mapped memory, but this
+    candidate might still be adopted. As a result, pageAlloc.alloc's fast
+    path may look at unmapped summary memory and segfault. This case is rare
+    on most operating systems since the heap is kept fairly contiguous, so
+    the chance that the candidate searchAddr discovered is unmapped is
+    fairly low. Even so, this is totally possible and outside the user's
+    control when it happens (in fact, it's likely to happen consistently for
+    a given user on a given system).
     
-    Fixes #41260
+    Fix this problem by ensuring that our candidate always points to mapped
+    memory. We do this by looking at mheap's arenas structure first. If it
+    turns out our candidate doesn't correspond to mapped memory, then we
+    look at inUse to round up the searchAddr to the next mapped address.
     
-    Change-Id: I0a18f094ec1c6ec3157b4b12993ea3075e2e9867
-    GitHub-Last-Rev: 0ca12fa565318f350b927e2ef94f3b4f792c75c2
-    GitHub-Pull-Request: golang/go#41857
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260577
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    While we're here, clean up some documentation related to searchAddr.
+    
+    Fixes #40191.
+    
+    Change-Id: I759efec78987e4a8fde466ae45aabbaa3d9d4214
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242680
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/testing/testing.go      | 42 +++++++++++++++++++++++
- src/testing/testing_test.go | 83 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 125 insertions(+)
+ src/runtime/mpagealloc.go      | 43 +++++++++++++++++++++++--------
+ src/runtime/mpagealloc_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mranges.go         | 19 ++++++++++++++
+ 3 files changed, 108 insertions(+), 11 deletions(-)

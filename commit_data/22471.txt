@@ -1,16 +1,14 @@
-commit fdab2f92eab01e8aca980c76cba18c2361cb0fc7
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Apr 13 11:31:14 2015 -0400
+commit 830abc957a106e44ed33c4eeb8cc9f0dd807fcc9
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 12 11:20:02 2015 -0400
 
-    misc/cgo/testcarchive: test -buildmode=c-archive
+    runtime: fix out of date comment
     
-    Change-Id: I1668a6885c45180ff88fe673d04cec7eba395ee7
-    Reviewed-on: https://go-review.googlesource.com/8861
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    scanobject no longer returns the new wbuf.
+    
+    Change-Id: I0da335ae5cd7ef7ea0e0fa965cf0e9f3a650d0e6
+    Reviewed-on: https://go-review.googlesource.com/7505
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- misc/cgo/testcarchive/main.c             | 34 ++++++++++++++++++++++++++++++++
- misc/cgo/testcarchive/src/libgo/libgo.go | 24 ++++++++++++++++++++++
- misc/cgo/testcarchive/src/p/p.go         | 10 ++++++++++
- misc/cgo/testcarchive/test.bash          | 31 +++++++++++++++++++++++++++++
- src/cmd/dist/test.go                     |  4 ++++
- 5 files changed, 103 insertions(+)
+ src/runtime/mgcmark.go | 1 -
+ 1 file changed, 1 deletion(-)

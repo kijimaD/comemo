@@ -1,20 +1,19 @@
-commit df08c9a82152fd6f2b2811db03b40fea8b6e5e9e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Apr 15 11:52:01 2022 -0400
+commit 795f4475e58ff7adaeaf949f8e79470a7c43f501
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Jun 9 18:46:30 2021 -0400
 
-    cmd/link: preserve symbol attributes when cloning to external
+    [dev.typeparams] go/types: convert testdata/examples tests to type set sytax
     
-    There are some symbol attributes that are encoded in the object
-    file. Currently, they are lost when cloning a symbol to external.
-    Copy them over.
+    This is a straightforward port of CL 324529 to go/types.
     
-    Also delete CopyAttributes as it is no longer called anywhere.
-    
-    Change-Id: I1497e3223a641704bf35aa3e904dd0eda2f8ec3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400574
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I788b1ac3d4e40060038a134c525c81624add8e81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326680
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/loader/loader.go | 29 ++++-------------------------
- 1 file changed, 4 insertions(+), 25 deletions(-)
+ src/go/types/testdata/examples/functions.go2 | 2 +-
+ src/go/types/testdata/examples/inference.go2 | 6 +++---
+ src/go/types/testdata/examples/types.go2     | 8 ++++----
+ 3 files changed, 8 insertions(+), 8 deletions(-)

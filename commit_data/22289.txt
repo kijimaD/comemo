@@ -1,16 +1,21 @@
-commit 13f749486db9835cad42aeec0d58adc4b73fad24
+commit 60b8908588eb60b7e0d2053e52d191987a868c74
 Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Apr 2 20:13:17 2015 -0400
+Date:   Tue Mar 3 20:45:00 2015 -0500
 
-    cmd/7g: FCMPS/FCMPD also should be RegRead instead of RightRead
+    cmd/internal/ld: fix symbol visibility for external linking
     
-    No test cases yet, but I found this while double checking the
-    proginfo table.
+    The original C code is: (x->type & SHIDDEN) ? 2 : 0, however when
+    cleaning up the code for c2go, the ternary operator is rewritten in
+    the exact opposite way.
     
-    Change-Id: Ib59675c117c676c1298bcab8765ca6a8fd234de8
-    Reviewed-on: https://go-review.googlesource.com/8431
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    We need a test for this, and that's being tracked as #10070.
+    
+    Fixes #10067.
+    
+    Change-Id: I24a5e021597d8bc44218c6e75bab6446513b76cf
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/6730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/7g/prog.go | 4 ++--
+ src/cmd/internal/ld/symtab.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

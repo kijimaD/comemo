@@ -1,19 +1,16 @@
-commit 9273e25eccbe82edff839b125b49bfb5578f24eb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 10 10:41:36 2016 -0700
+commit 9658b7ef83ae9c34f4a52680e7102d958577d5bb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 7 14:27:15 2016 -0400
 
-    cmd/go: remove obsolete comment referring to deleted parameter
+    cmd/link: hide go.dwarf symbols
     
-    The dir parameter was removed in https://golang.org/cl/5732045.
+    Fixes #15179
     
-    Fixes #15503.
-    
-    Change-Id: I02a6d8317233bea08633715a095ea2514822032b
-    Reviewed-on: https://go-review.googlesource.com/24011
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0f70b7ae1682eafaece7f22d8e76f0aa806f3ec9
+    Reviewed-on: https://go-review.googlesource.com/21589
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/build.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf.go | 2 ++
+ 1 file changed, 2 insertions(+)

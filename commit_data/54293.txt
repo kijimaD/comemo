@@ -1,36 +1,24 @@
-commit c9bb7ce2d7132debe50f024c50ed4ee1460d6af5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 28 05:13:03 2023 -0700
+commit fa463cc96d797c218be4e218723f83be47e814c8
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Oct 3 09:19:32 2022 -0700
 
-    cmd/internal/obj: simplify filename handling
+    crypto/x509/internal/macos: handle unexpected null returns
     
-    The old Go object file format used linker symbols like "gofile..foo"
-    to record references to the filename "foo". But the current object
-    file format has a dedicated section for file names, so we don't need
-    these useless prefixes anymore.
+    SecCreatePolicySSL returns null when called from a binary that has a
+    strange path. This seems to be a weirdo macos bug, but we should be
+    properly handling those null returns anyway. Also add handling for
+    SecTrustGetCertificateAtIndex.
     
-    Also, change DWARF generation to pass around the src.Pos directly,
-    rather than the old file symbols, which it just turned back into a
-    file index before writing out anyway.
+    Fixes #54590
     
-    Finally, directly record the FileIndex into src.PosBase, so that we
-    can skip the map lookups.
-    
-    Change-Id: Ia4a5ebfa95da271f2522e45befdb9f137c16d373
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523378
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I251e74f3b0bf65890a80b094b3e88718e13fd3db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/cmd/compile/internal/dwarfgen/dwinl.go |  6 ++--
- src/cmd/internal/dwarf/dwarf.go            | 23 ++++++--------
- src/cmd/internal/obj/dwarf.go              | 49 +++++++++++-----------------
- src/cmd/internal/obj/line.go               | 18 +++--------
- src/cmd/internal/obj/line_test.go          | 12 +++++--
- src/cmd/internal/obj/plist.go              |  2 +-
- src/cmd/internal/obj/sym.go                |  4 ---
- src/cmd/internal/src/pos.go                | 51 ++++++++++++++++--------------
- src/cmd/internal/src/xpos.go               | 51 +++++++++++++++++-------------
- src/cmd/internal/src/xpos_test.go          |  4 +--
- src/cmd/link/internal/ld/dwarf.go          |  4 ---
- 11 files changed, 103 insertions(+), 121 deletions(-)
+ src/crypto/x509/internal/macos/security.go | 22 ++++++++++------------
+ src/crypto/x509/internal/macos/security.s  |  2 --
+ src/crypto/x509/root_darwin.go             | 10 ++++++++--
+ 3 files changed, 18 insertions(+), 16 deletions(-)

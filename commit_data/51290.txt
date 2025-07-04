@@ -1,18 +1,27 @@
-commit 3e1519d05a640701e1a2f1d9ba737fc912a1b624
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:45:00 2022 -0500
+commit c295137ad8e5e947205d060a26164cb71952c1bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 6 14:10:45 2022 -0800
 
-    cmd/pack: use testenv.Command instead of exec.Command in tests
+    go/types, types2: disallow multiple blank type parameters
     
-    testenv.Command sets a default timeout based on the test's deadline
-    and sends SIGQUIT (where supported) in case of a hang.
+    Work-around for #50481: report an error for multiple
+    blank type parameters. It's always possible to use
+    non-blank names in those cases.
     
-    Change-Id: Ia1dd1bacfa2c9378401bbce304ebf7ee3f159352
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450707
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    We expect to lift this restriction for 1.19.
+    
+    For #50481.
+    
+    Change-Id: Ifdd2d91340aac1da3387f7d80d46e44f5997c2a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376058
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/pack/pack_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/decl.go | 11 +++++++++++
+ src/go/types/decl.go                    | 13 +++++++++++++
+ test/typeparam/issue50481.go            | 21 +++++++++++++++++++++
+ 3 files changed, 45 insertions(+)

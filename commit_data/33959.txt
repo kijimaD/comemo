@@ -1,14 +1,19 @@
-commit 91f99852f638c249007a5a80277f75aa7cc9e0e8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 5 21:31:57 2018 +0000
+commit 2f7b57e9d82c1d8d0bc15bd35b1acf084e1367d3
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Sep 21 12:56:30 2017 +0900
 
-    net/http: document cloning of Server.TLSConfig
+    cmd/nm: accept macho files which don't have symbol table in the archive
     
-    Updates #22018
+    After https://golang.org/cl/64793, we started to include Mach-O object
+    files which don't have symbol table into cgo archive.
+    However, toolchains didn't handle those files yet.
     
-    Change-Id: I8a85324e9d53dd4d279ed05cdb93f50d55cf767b
-    Reviewed-on: https://go-review.googlesource.com/86415
+    Fixes #21959
+    
+    Change-Id: Ibb2f6492f1fa59368f2dfd4cff19783997539875
+    Reviewed-on: https://go-review.googlesource.com/65170
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/server.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/internal/objfile/macho.go |  2 +-
+ src/cmd/nm/nm.go                  | 10 +++++++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

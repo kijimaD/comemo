@@ -1,12 +1,17 @@
-commit 40b7e814e5ed24227492900f2aa8f5d8865ea5a7
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Feb 2 15:18:33 2012 +1100
+commit 2b8d5be55f0201c3d4047ea8510b168eb37c5074
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 1 16:37:02 2012 -0800
 
-    godoc: update metadata in appinit.go
+    os/exec: make sure file is not closed early in leaked fd test
     
-    R=golang-dev, dsymonds, bradfitz
+    Without this change, fd3 can be collected by the garbage
+    collector and finalized, which causes the file descriptor to
+    be closed, which causes the call to os.Open to return 3 rather
+    than the expected descriptor number.
+    
+    R=golang-dev, gri, bradfitz, bradfitz, iant
     CC=golang-dev
-    https://golang.org/cl/5619050
+    https://golang.org/cl/5607056
 
- src/cmd/godoc/appinit.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/os/exec/exec_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

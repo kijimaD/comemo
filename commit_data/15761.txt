@@ -1,15 +1,12 @@
-commit f84d5dd4753890f32947e67c8a16d8ca22086551
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 14 10:10:12 2013 -0400
+commit f51ec00722b16d356d959065d035a880864795df
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 14 10:59:55 2013 +0400
 
-    runtime: make panic possible before malloc is ready
+    runtime: fix build
     
-    Otherwise startup problems can be difficult to debug.
-    
-    R=golang-dev, r
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7522046
+    https://golang.org/cl/7529049
 
- src/pkg/runtime/mfixalloc.c | 5 +++++
- src/pkg/runtime/panic.c     | 6 +++++-
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/pkg/runtime/netpoll.goc | 2 ++
+ 1 file changed, 2 insertions(+)

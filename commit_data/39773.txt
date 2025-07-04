@@ -1,30 +1,32 @@
-commit 03ac39ce5e6af4c4bca58b54d5b160a154b7aa0e
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Sep 2 14:17:23 2019 +0200
+commit 80b6812d7b33cbc16232a3b1b631aaa26be17a71
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 10 08:34:59 2019 -0700
 
-    std: remove unused bits of code all over the place
+    cmd/compile: move flagalloc op splitting to rewrite rules
     
-    Some were never used, and some haven't been used for years.
+    Flagalloc has the unenviable task of splitting
+    flag-generating ops that have been merged with loads
+    when the flags need to "spilled" (i.e. regenerated).
+    Since there weren't very many of them, there was a hard-coded list
+    of ops and bespoke code written to split them.
     
-    One exception is net/http's readerAndCloser, which was only used in a
-    test. Move it to a test file.
+    This change migrates load splitting into rewrite rules,
+    to make them easier to maintain.
     
-    While at it, remove a check in regexp that could never fire; the field
-    is an uint32, so it can never be negative.
-    
-    Change-Id: Ia2200f6afa106bae4034045ea8233b452f38747b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192621
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I7750eafb888a802206c410f9c341b3133e7748b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166978
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/database/sql/ctxutil.go       |  2 --
- src/encoding/json/decode_test.go  | 35 -----------------------------------
- src/encoding/xml/marshal_test.go  |  1 -
- src/internal/reflectlite/value.go | 13 -------------
- src/net/http/response_test.go     |  5 +++++
- src/net/http/transport.go         | 19 -------------------
- src/os/user/cgo_lookup_unix.go    |  4 ----
- src/reflect/type.go               |  9 ---------
- src/regexp/backtrack.go           |  2 +-
- 9 files changed, 6 insertions(+), 84 deletions(-)
+ src/cmd/compile/internal/ssa/config.go             |   4 +
+ src/cmd/compile/internal/ssa/flagalloc.go          |  83 +------
+ .../compile/internal/ssa/gen/386splitload.rules    |   9 +
+ .../compile/internal/ssa/gen/AMD64splitload.rules  |  16 ++
+ src/cmd/compile/internal/ssa/gen/main.go           |   1 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |  28 ++-
+ src/cmd/compile/internal/ssa/op.go                 |  12 +
+ .../compile/internal/ssa/rewrite386splitload.go    | 198 ++++++++++++++++
+ .../compile/internal/ssa/rewriteAMD64splitload.go  | 253 +++++++++++++++++++++
+ src/cmd/dist/buildtool.go                          |   1 +
+ 10 files changed, 513 insertions(+), 92 deletions(-)

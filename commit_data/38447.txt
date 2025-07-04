@@ -1,28 +1,20 @@
-commit 6ca51f78978de7e6206d38b99eef8172fc8540d0
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Nov 7 09:33:12 2018 +0100
+commit 5dd4d1f820a8e6a6407fac08cb41f1dec6a9f079
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 25 18:11:54 2018 +0000
 
-    runtime: replace division by span element size by multiply and shifts
+    runtime: add predecessor method to treap
     
-    Divisions are generally slow. The compiler can optimize a division
-    to use a sequence of faster multiplies and shifts (magic constants)
-    if the divisor is not know at compile time.
+    This change adds a method for computing a treap node's predecessor
+    to the treap, which will simplify the implementation of algorithms
+    used for heap growth scavenging.
     
-    The value of the span element size in mcentral.grow is not known at
-    compile time but magic constants to compute n / span.elementsize
-    are already stored in class_to_divmagic and mspan.
-    They however need to be adjusted to work for
-    (0 <= n <= span.npages * pagesize) instead of
-    (0 <= n <  span.npages * pagesize).
+    For #14045.
     
-    Change-Id: Ieea59f1c94525a88d012f2557d43691967900deb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/148057
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: Id203e4bd246db3504f2f0c5163ec36f4579167df
+    Reviewed-on: https://go-review.googlesource.com/c/144717
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mcentral.go      | 8 ++++----
- src/runtime/mksizeclasses.go | 4 ++--
- src/runtime/sizeclasses.go   | 2 +-
- 3 files changed, 7 insertions(+), 7 deletions(-)
+ src/runtime/mgclarge.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

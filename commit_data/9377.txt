@@ -1,14 +1,25 @@
-commit f12e543255894c82533f556b71ffc9f5ce94f286
+commit c8c6e1961d5c8a00138d96d27a3705792110d82b
 Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Tue Aug 16 14:22:12 2011 -0400
+Date:   Tue Aug 16 14:22:08 2011 -0400
 
-    5l, 6l, 8l: add varargck for %Z
+    5c, 6c, 6l: fix Plan 9 build warnings
+    
+    src/cmd/5c/reg.c:
+    . Added USED() attribute.
+    
+    src/cmd/6c/cgen.c:
+    . Revised code around "REGARG" to resemble use in "8c" and
+      consequently remove a warning.
+    
+    src/cmd/6l/asm.c:
+    . Added USED() attributes.
+    . Removed an unnecessary assignment.
     
     R=golang-dev
     CC=golang-dev, rsc
-    https://golang.org/cl/4837044
+    https://golang.org/cl/4836045
 
- src/cmd/5l/l.h | 1 +
- src/cmd/6l/l.h | 1 +
- src/cmd/8l/l.h | 5 +----
- 3 files changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/5c/reg.c  | 1 +
+ src/cmd/6c/cgen.c | 8 ++------
+ src/cmd/6l/asm.c  | 5 ++++-
+ 3 files changed, 7 insertions(+), 7 deletions(-)

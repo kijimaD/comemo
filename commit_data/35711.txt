@@ -1,14 +1,16 @@
-commit 7bab1ee5e0be7955e298eb956b7ddc921803e84f
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Sat Jun 9 02:39:06 2018 +0200
+commit dcedcaa5fb15748cc2e5cb9461fc6b4f4fc942cb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 27 17:23:14 2018 +0000
 
-    flag: fix headers in documentation, again
+    net: skip flaky TestLookupLongTXT for now
     
-    Godoc expects text after a header, not code.
+    Flaky tests failing trybots help nobody.
     
-    Change-Id: I99f412ad15e10bf9cea0dbd19019ed6ce477736c
-    Reviewed-on: https://go-review.googlesource.com/117595
-    Reviewed-by: Rob Pike <r@golang.org>
+    Updates #22857
+    
+    Change-Id: I87bc018651ab4fe02560a6d24c08a1d7ccd8ba37
+    Reviewed-on: https://go-review.googlesource.com/97416
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/flag/flag.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/lookup_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

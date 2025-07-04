@@ -1,16 +1,14 @@
-commit dc75670ae244a3f26771288d82eefc819b1e6716
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Jan 12 17:52:52 2013 +1100
+commit b78f5f0e3a88340bc3a047ffc5e2d222074e78b6
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sat Jan 12 11:18:15 2013 +1100
 
-    test: limit runoutput tests on arm platforms
+          testing: document whitespace trimming of example expected/actual output.
     
-    runoutput styles tests generally consume a lot of memory. On arm platforms rotate?.go consume around 200mb each to compile, and as tests are sorted alphabetically, they all tend to run at once.
+    Fixes #4642.
     
-    This change limits the number of runoutput jobs to 2 on arm platforms.
-    
-    R=minux.ma, remyoudompheng, bradfitz, lucio.dere
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7099047
+    https://golang.org/cl/7090044
 
- test/run.go | 33 +++++++++++++++++++++++++++------
- 1 file changed, 27 insertions(+), 6 deletions(-)
+ src/pkg/testing/testing.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

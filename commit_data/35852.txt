@@ -1,14 +1,16 @@
-commit 3198b90ea856f1658b4cd3c45231301310b9ab47
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 20 19:36:14 2018 +0000
+commit 09d4455f458478a9bc1f69fd29f1c5c70fefe23e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 13 12:59:41 2018 -0700
 
-    time: clarify Unix, UnixNano, and In a bit
+    cmd/compile: enable inlining variadic functions
     
-    Fixes #23316
+    As a side effect of working on mid-stack inlining, we've fixed support
+    for inlining variadic functions. Might as well enable it.
     
-    Change-Id: Ia1758b406d369bbfaace0bdfea02cd6f40735b65
-    Reviewed-on: https://go-review.googlesource.com/120060
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7f555f8b941969791db7eb598c0b49f6dc0820aa
+    Reviewed-on: https://go-review.googlesource.com/100456
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/time.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 16 +---------------
+ test/inline_variadic.go            |  4 ++--
+ 2 files changed, 3 insertions(+), 17 deletions(-)

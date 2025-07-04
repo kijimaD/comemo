@@ -1,18 +1,19 @@
-commit 197aa9e64ddcd1cdcb5f4843413da935a954d9f3
-Author: Rick Hudson <rlh@golang.org>
-Date:   Wed May 20 11:40:17 2015 -0400
+commit 4e32718d3e478278d0f7e3d6910d563c35f40be0
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 22 16:35:45 2015 -0400
 
-    runtime: remove unused quiesce code
+    runtime: use timer for GC control revise rather than timeout
     
-    This is dead code. If you want to quiesce the system the
-    preferred way is to use forEachP(func(*p){}).
+    Currently, we use a note sleep with a timeout in a loop in func gc to
+    periodically revise the GC control variables. Replace this with a
+    fully blocking note sleep and use a periodic timer to trigger the
+    revise instead. This is a step toward replacing the note sleep in func
+    gc.
     
-    Change-Id: Ic7677a5dd55e3639b99e78ddeb2c71dd1dd091fa
-    Reviewed-on: https://go-review.googlesource.com/10267
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I2d562f6b9b2e5f0c28e9a54227e2c0f8a2603f63
+    Reviewed-on: https://go-review.googlesource.com/9290
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mbarrier.go |  2 +-
- src/runtime/mgc.go      |  1 -
- src/runtime/mgcmark.go  |  2 +-
- src/runtime/proc1.go    | 63 -------------------------------------------------
- 4 files changed, 2 insertions(+), 66 deletions(-)
+ src/runtime/mgc.go | 27 +++++++++++++++++++--------
+ 1 file changed, 19 insertions(+), 8 deletions(-)

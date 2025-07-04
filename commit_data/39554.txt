@@ -1,18 +1,25 @@
-commit 8dddf7556ee90e82e02333164644914a2f1af87d
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Tue Jul 30 17:03:16 2019 -0400
+commit 583fddf3bc85802869ce2d286fe8b32cc6728bc8
+Author: Kshitij Saraogi <kshitijsaraogi@gmail.com>
+Date:   Mon Mar 4 16:29:25 2019 +0530
 
-    net/http: return nil from Header.Clone if the receiver is nil
+    net/http: remove discrepancies between the MIME Sniffing Spec and its implementation
     
-    Fixes #33141
+    The change fixes the following deviations between the existing implementation and the Spec:
+    1. Using pattern instead of "mask" for assertion and iteration in the Pattern Matching Algorithm.
+    2. Rename "image/vnd.microsoft.icon" to "image/x-icon" and add another signature for the same.
+    3. Using named strings instead of hexadecimal representation in "application/zip" and "application/x-rar-compressed".
+    4. Reordering "sniffSignatures" in accordance with the Spec section "Identifying a resource with an unknown MIME type".
     
-    Change-Id: I84a8b3496fc9396fd1c09ba9505697c34bdf7105
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188022
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    In addition to the above fixes, unit tests for Image MIME type group are added.
+    
+    Fixes #30570
+    
+    Change-Id: I97d2ae22b426c3c57bf8efd2ed9396c0be983688
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165277
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/header.go      | 6 +++++-
- src/net/http/header_test.go | 8 ++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/net/http/sniff.go      | 110 ++++++++++++++++++++++++++++++---------------
+ src/net/http/sniff_test.go |   6 +++
+ 2 files changed, 80 insertions(+), 36 deletions(-)

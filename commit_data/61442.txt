@@ -1,0 +1,14 @@
+commit f9159b11e501f1b4cb79fe6807b97b1a1bbd2544
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 8 19:58:26 2024 -0800
+
+    internal/runtime/maps: get rid of a few obsolete TODOs
+    
+    Change-Id: I7b3d95c0861ae2b6e0721b65aa75cda036435e9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625903
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/runtime/maps/table.go | 5 -----
+ 1 file changed, 5 deletions(-)

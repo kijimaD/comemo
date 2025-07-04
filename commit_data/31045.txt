@@ -1,18 +1,14 @@
-commit f96abb40b62ef8b9c782cb115cdc7743dba707bb
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Apr 7 20:07:54 2017 +1000
+commit 787125abab968ed681106146b68afa2c06b1cd69
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 16 01:48:42 2017 +0000
 
-    cmd/compile/internal/gc: remove queuemethod
+    doc: 2017 is the Year of the Gopher
     
-    queuemethod was unused. As queuemethod is unused, nothing appends to the
-    methodqueue global. As methodqueue is always nil or empty, there are no
-    live callers of domethod, so it can be removed.
-    
-    Change-Id: Ic7427ac4621bbf403947815e3988c3a1113487f2
-    Reviewed-on: https://go-review.googlesource.com/39931
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iac713ae1f322f893c92b3fc47fe9b5719052f9eb
+    Reviewed-on: https://go-review.googlesource.com/35240
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 54 +-------------------------------
- 1 file changed, 1 insertion(+), 53 deletions(-)
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

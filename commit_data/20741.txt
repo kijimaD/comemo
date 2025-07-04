@@ -1,35 +1,21 @@
-commit 65dde1ed4b1c71fad6d2b106b779c5191e5f7cd7
-Author: Rob Pike <r@golang.org>
-Date:   Fri Oct 17 20:51:15 2014 -0700
+commit 7e6e502f9b9a253603c43bb783b82a043a67c3d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 14:49:22 2014 -0400
 
-    encoding/gob: use simple append-only buffer for encoding
-    Bytes buffers have more API and are a little slower. Since appending
-    is a key part of the path in encode, using a faster implementation
-    speeds things up measurably.
-    The couple of positive swings are likely garbage-collection related
-    since memory allocation looks different in the benchmark now.
-    I am not concerned by them.
+    cmd/go: fix 'go vet' of package with external tests
     
-    benchmark                            old ns/op     new ns/op     delta
-    BenchmarkEndToEndPipe                6620          6388          -3.50%
-    BenchmarkEndToEndByteBuffer          3548          3600          +1.47%
-    BenchmarkEndToEndSliceByteBuffer     336678        367980        +9.30%
-    BenchmarkEncodeComplex128Slice       78199         71297         -8.83%
-    BenchmarkEncodeFloat64Slice          37731         32258         -14.51%
-    BenchmarkEncodeInt32Slice            26780         22977         -14.20%
-    BenchmarkEncodeStringSlice           35882         26492         -26.17%
-    BenchmarkDecodeComplex128Slice       194819        185126        -4.98%
-    BenchmarkDecodeFloat64Slice          120538        120102        -0.36%
-    BenchmarkDecodeInt32Slice            106442        107275        +0.78%
-    BenchmarkDecodeStringSlice           272902        269866        -1.11%
+    For example, fixes 'go vet syscall', which has source
+    files in package syscall_test.
     
-    LGTM=ruiu
-    R=golang-codereviews, ruiu
-    CC=golang-codereviews
-    https://golang.org/cl/160990043
+    Fixes #8511.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/152220044
 
- src/encoding/gob/codec_test.go | 12 +++----
- src/encoding/gob/decoder.go    |  2 +-
- src/encoding/gob/encode.go     | 73 ++++++++++++++++++++++++++++--------------
- src/encoding/gob/encoder.go    |  7 ++--
- 4 files changed, 59 insertions(+), 35 deletions(-)
+ src/cmd/go/test.bash                     | 14 ++++++++++++++
+ src/cmd/go/testdata/src/vetpkg/a_test.go |  1 +
+ src/cmd/go/testdata/src/vetpkg/b.go      |  7 +++++++
+ src/cmd/go/vet.go                        | 23 ++++++++++++++++++-----
+ 4 files changed, 40 insertions(+), 5 deletions(-)

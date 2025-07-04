@@ -1,24 +1,21 @@
-commit 3399fd254dcdf4e8a9be8c327076de5f9efe1b3a
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 22 17:45:55 2016 -0700
+commit 0457957c991dde4bbdeefb73bc9fb01827298bd9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 10 23:16:14 2016 +0000
 
-    runtime: remove unused gcstats
+    net/http: update bundled http2 for ErrAbortHandler support, document it more
     
-    The gcstats structure is no longer consumed by anything and no longer
-    tracks statistics that are particularly relevant to the concurrent
-    garbage collector. Remove it. (Having statistics is probably a good
-    idea, but these aren't the stats we need these days and we don't have
-    a way to get them out of the runtime.)
+    Updates http2 to x/net/http2 git rev 0e2717d for:
     
-    In preparation for #13613.
+       http2: conditionally log stacks from panics in Server Handlers like net/http
+       https://golang.org/cl/33102
     
-    Change-Id: Ib63e2f9067850668f9dcbfd4ed89aab4a6622c3f
-    Reviewed-on: https://go-review.googlesource.com/34936
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Fixes #17790
+    
+    Change-Id: Idd3f0c65540398d41b412a33f1d80de3f7f31409
+    Reviewed-on: https://go-review.googlesource.com/33103
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/runtime/heapdump.go |  2 +-
- src/runtime/mgcwork.go  |  7 -------
- src/runtime/mstats.go   | 18 ++----------------
- src/runtime/runtime2.go | 11 -----------
- 4 files changed, 3 insertions(+), 35 deletions(-)
+ src/net/http/clientserver_test.go |  3 ---
+ src/net/http/h2_bundle.go         | 16 +++++++++++-----
+ src/net/http/server.go            |  4 +++-
+ 3 files changed, 14 insertions(+), 9 deletions(-)

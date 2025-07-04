@@ -1,16 +1,21 @@
-commit 860c9c0b8df6c0a2849fdd274a0a9f142cba3ea5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 19 19:46:54 2016 -0800
+commit 0a0f4bc181835882717d2f4be75fced4061d4572
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Oct 12 11:34:47 2016 +0900
 
-    misc/cgo/testcshared: wait up to 1 second in main2.c
+    cmd/compile/internal/gc: cleanup esc.go
     
-    Wait longer in case the system is heavily loaded.
+    * convert important functions to methods
+    * rename EscXXX to XXX in NodeEscState
+    * rename local variables more friendly
+    * simplify redundant code
+    * update comments
     
-    Fixes #18324.
-    
-    Change-Id: If9a6da1cf32d0321302d244ee24fb3f80e54489d
-    Reviewed-on: https://go-review.googlesource.com/34653
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8442bf4f8dde84523d9a2ad3d04b1cd326bd4719
+    Reviewed-on: https://go-review.googlesource.com/30893
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- misc/cgo/testcshared/main2.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/esc.go | 622 ++++++++++++++++++-------------------
+ src/cmd/compile/internal/gc/fmt.go |   4 +-
+ 2 files changed, 311 insertions(+), 315 deletions(-)

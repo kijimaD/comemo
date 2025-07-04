@@ -1,50 +1,29 @@
-commit b6feb03b24a75164438c3419c0bc01fef62825a0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jan 31 21:01:55 2020 -0800
+commit 851b1f40b48c02f6eeee160957c40dbad46df3bc
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 25 12:39:20 2019 -0400
 
-    cmd/compile,runtime: pass only ptr and len to some runtime calls
+    [dev.link] cmd/link: add new slice interface for querying aux symbols
     
-    Some runtime calls accept a slice, but only use ptr and len.
-    This change modifies most such routines to accept only ptr and len.
+    Add a new loader.Loader.ReadAuxSyms method that returns a slice
+    containing the ids of the aux symbols for a specified global symbol.
+    This is similar to the new interface recently added that allows you to
+    get back a slice of relocations (as opposed to making calls into the
+    loader for each one). This was idea suggested by Cherry. Compilebench
+    numbers:
     
-    After this change, the only runtime calls that accept an unnecessary
-    cap arg are concatstrings and slicerunetostring.
-    Neither is particularly common, and both are complicated to modify.
+    name                      old time/op       new time/op       delta
+    LinkCompiler                    1.63s ± 9%        1.57s ± 7%  -3.84%  (p=0.006 n=20+20)
+    LinkWithoutDebugCompiler        1.15s ±11%        1.11s ±11%    ~     (p=0.108 n=20+20)
     
-    Negligible compiler performance impact. Shrinks binaries a little.
-    There are only a few regressions; the one I investigated was
-    due to register allocation fluctuation.
+    name                      old user-time/op  new user-time/op  delta
+    LinkCompiler                    1.99s ± 8%        2.00s ±12%    ~     (p=0.751 n=19+19)
+    LinkWithoutDebugCompiler        1.14s ±11%        1.19s ±21%    ~     (p=0.183 n=20+20)
     
-    Passes 'go test -race std cmd', modulo #38265 and #38266.
-    Wow, does that take a long time to run.
-    
-    Updates #36890
-    
-    file      before    after     Δ       %
-    compile   19655024  19655152  +128    +0.001%
-    cover     5244840   5236648   -8192   -0.156%
-    dist      3662376   3658280   -4096   -0.112%
-    link      6680056   6675960   -4096   -0.061%
-    pprof     14789844  14777556  -12288  -0.083%
-    test2json 2824744   2820648   -4096   -0.145%
-    trace     11647876  11639684  -8192   -0.070%
-    vet       8260472   8256376   -4096   -0.050%
-    total     115163736 115118808 -44928  -0.039%
-    
-    Change-Id: Idb29fa6a81d6a82bfd3b65740b98cf3275ca0a78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227163
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iab6cbe18419aaa61d9cadb3f626a4515c71f2686
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203501
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         | 32 ++++++------
- src/cmd/compile/internal/gc/builtin/runtime.go | 10 ++--
- src/cmd/compile/internal/gc/ssa.go             |  5 +-
- src/cmd/compile/internal/gc/subr.go            | 15 ++++++
- src/cmd/compile/internal/gc/walk.go            | 69 ++++++++++++++++++--------
- src/runtime/cgocheck.go                        | 13 ++---
- src/runtime/mbarrier.go                        | 28 +++++------
- src/runtime/os_linux.go                        |  7 +--
- src/runtime/slice.go                           | 36 +++++++-------
- src/runtime/string.go                          | 47 ++++++++++--------
- 10 files changed, 153 insertions(+), 109 deletions(-)
+ src/cmd/link/internal/ld/deadcode2.go  |  8 +++++---
+ src/cmd/link/internal/loader/loader.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 3 deletions(-)

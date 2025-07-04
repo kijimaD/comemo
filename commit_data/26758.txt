@@ -1,24 +1,14 @@
-commit 04945edd40fff4d66321a4f98c1bb070b6356008
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Mon Apr 4 19:23:41 2016 +0200
+commit db44223fde80485132f477a51b690d5d54dad56e
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 25 19:16:18 2016 +0100
 
-    cmd/compile: replaces ANDQ with MOV?ZX
+    runtime: fix getcallerpc args
     
-    Where possible replace ANDQ with MOV?ZX.
-    Takes care that we don't regress wrt bounds checking,
-    for example [1000]int{}[i&255].
-    
-    According to "Intel 64 and IA-32 Architectures Optimization Reference
-    Manual" Section: "3.5.1.13 Zero-Latency MOV Instructions"
-    MOV?ZX instructions have zero latency on newer processors.
-    
-    Updates #15105
-    
-    Change-Id: I63539fdbc5812d5563aa1ebc49eca035bd307997
-    Reviewed-on: https://go-review.googlesource.com/21508
-    Reviewed-by: Айнар Гарипов <gugl.zadolbal@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I6b14b8eecf125dd74bd40f4e7fff6b49de150e42
+    Reviewed-on: https://go-review.googlesource.com/19897
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  8 +++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 81 ++++++++++++++++++++++++++++
- 2 files changed, 89 insertions(+)
+ src/runtime/race/output_test.go | 17 +++++++++++++++++
+ src/runtime/string.go           |  4 ++--
+ 2 files changed, 19 insertions(+), 2 deletions(-)

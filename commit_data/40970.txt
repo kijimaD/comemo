@@ -1,19 +1,14 @@
-commit 3a3093d5c7e1fb557d7b598a758f4925db4b0f13
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Dec 9 14:29:29 2019 -0500
+commit 2b598944257fade6af18216acc94940a706d66da
+Author: Anderson Queiroz <contato@andersonq.eti.br>
+Date:   Fri Aug 23 15:02:40 2019 +0100
 
-    cmd/go: document 'go env GOMOD' outside modules
+    net/http: enhance documentation for Server.Addr
     
-    In documentation for 'go env GOMOD', note that the path will be
-    os.DevNull in module-aware mode when no go.mod file is present.
+    Fixes golang/go#31249
     
-    Fixes #36052
-    
-    Change-Id: I30ced1df02ccefe1970bd856190e79d6f0384375
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210577
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I3280f8ab170ed31d4efb71106533e016d430d44c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go               | 6 ++++--
- src/cmd/go/internal/help/helpdoc.go | 6 ++++--
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/net/http/server.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

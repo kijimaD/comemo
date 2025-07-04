@@ -1,15 +1,15 @@
-commit 5b8bcf2324fab8a5b7c32886dda828b934645ecc
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 11 11:12:15 2011 -0500
+commit 9f178edf516ee6420e6e6709ae4e91a0a360f3f7
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 11 11:12:06 2011 -0500
 
-    godefs: better handling of enums
+    cgo: export unsafe.Pointer as void*
     
-    Fixes #432.
+    This will enable functions which use unsafe.Pointer as an argument
+    to be correctly exported by cgo.
     
-    R=r, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3869043
+    https://golang.org/cl/3849043
 
- src/cmd/godefs/main.c  |  2 ++
- src/cmd/godefs/stabs.c | 13 +++++++++++--
- 2 files changed, 13 insertions(+), 2 deletions(-)
+ src/cmd/cgo/out.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,19 +1,17 @@
-commit 54ad7f33e4981a87bdd7dfac4d61ac5d21e195c3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 18 11:12:48 2022 -0700
+commit 353cb71ea29e02a41f77b7576d658de4515e264d
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 19:22:22 2021 -0500
 
-    go/types, types2: add test verifying types/values of type parameter "constants"
+    go/types: optimize common case in structuralType
     
-    Fixes #51093.
+    This is a port of CL 363668 from types2 to go/types.
     
-    Change-Id: Ida4025a125243159a2107dcc064a0d9addf0a675
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443756
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ic55acb2e27f57c33467cef2f687cd695e092ba6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364898
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/issues_test.go | 53 ++++++++++++++++++++++++++
- src/go/types/issues_test.go                    | 53 ++++++++++++++++++++++++++
- 2 files changed, 106 insertions(+)
+ src/go/types/type.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

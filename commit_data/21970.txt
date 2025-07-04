@@ -1,23 +1,14 @@
-commit d0eab030913e067012714d72811d959ce849e7a2
-Author: Rick Hudson <rlh@golang.org>
-Date:   Thu Mar 5 17:33:08 2015 -0500
+commit 7b36227002b8b442a55dfb975490a861a8aa2ff2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 13 12:09:12 2015 +0900
 
-    runtime: Adjust when write barriers are active
+    runtime: remove C-style strcmp and strncmp helpers
     
-    Even though the world is stopped the GC may do pointer
-    writes that need to be protected by write barriers.
-    This means that the write barrier must be on
-    continuously from the time the mark phase starts and
-    the mark termination phase ends. Checks were added to
-    ensure that no allocation happens during a GC.
-    
-    Hoist the logic that clears pools the start of the GC
-    so that the memory can be reclaimed during this GC cycle.
-    
-    Change-Id: I9d1551ac5db9bac7bac0cb5370d5b2b19a9e6a52
-    Reviewed-on: https://go-review.googlesource.com/6990
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I4aa23e3a0e765651c91907507a0194fd528b6223
+    Reviewed-on: https://go-review.googlesource.com/4662
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/malloc.go |  3 +++
- src/runtime/mgc.go    | 38 ++++++++++++++++++++++++++++++--------
- 2 files changed, 33 insertions(+), 8 deletions(-)
+ src/runtime/os3_plan9.go    | 15 +++++----------
+ src/runtime/signal_plan9.go | 30 +++++++++++++++---------------
+ src/runtime/string1.go      | 39 ---------------------------------------
+ 3 files changed, 20 insertions(+), 64 deletions(-)

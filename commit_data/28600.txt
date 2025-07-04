@@ -1,20 +1,22 @@
-commit 01661612e433deadec99229c6075baa4174ac743
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Sep 30 11:27:52 2016 +0200
+commit e3f1c66f313a59888620c415163b93c12153574e
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jun 9 11:07:36 2016 -0700
 
-    cmd/compile: update error messages in Mpint, Mpflt methods
+    cmd/compile: for tail calls in stubs, ensure args are alive
     
-    CL 20909 gave Mpint methods nice go-like names, but it
-    didn't update the names in the error strings. Fix them.
+    The generated code for interface stubs sometimes just messes
+    with a few of the args and then tail-calls to the target routine.
+    The args that aren't explicitly modified appear to not be used.
+    But they are used, by the thing we're tail calling.
     
-    Same for a couple of Mpflt methods.
+    Fixes #16016
     
-    Change-Id: I9c99653d4b922e32fd5ba18aba768a589a4c7869
-    Reviewed-on: https://go-review.googlesource.com/30091
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ib9b3a8311bb714a201daee002885fcb59e0463fa
+    Reviewed-on: https://go-review.googlesource.com/23960
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/mpfloat.go |  4 ++--
- src/cmd/compile/internal/gc/mpint.go   | 22 +++++++++++-----------
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/plive.go |  9 +++++++++
+ test/fixedbugs/issue16016.go         | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

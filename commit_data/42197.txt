@@ -1,25 +1,15 @@
-commit 35dce1d67c730a0f49c82660e94fe8305cac6861
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Dec 19 13:43:24 2019 -0500
+commit bf4990522263503a1219372cd8f1ee9422b51324
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 5 23:56:35 2019 +0700
 
-    cmd/go: trim source paths when compiling C with -trimpath
+    cmd/compile: update comments to refer to Order methods
     
-    When then go command is run with -trimpath, it will now use
-    -fdebug-prefix-map when invoking the C compiler (if supported) to
-    replace the source root directory with a dummy root directory.
-    
-    This should prevent source directories from appearing either literally
-    or in compressed DWARF in linked binaries.
-    
-    Updates #36072
-    
-    Change-Id: Iedd08d5e886f81e981f11248a1be4ed4f58bdd29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212101
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I09090effcc5d814d4e024da3f944e825365588f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205477
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/exec.go                  |  33 +++++
- src/cmd/go/internal/work/gc.go                    |   4 +
- src/cmd/go/testdata/script/build_trimpath_cgo.txt | 156 ++++++++++++++++++++++
- 3 files changed, 193 insertions(+)
+ src/cmd/compile/internal/gc/range.go |  8 ++++----
+ src/cmd/compile/internal/gc/walk.go  | 16 ++++++++--------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

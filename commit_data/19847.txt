@@ -1,14 +1,16 @@
-commit d703ac338e86cefc1219e47a4055e66fb392cc21
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jul 30 09:18:00 2014 -0700
+commit fe4fc94b044df5e6d08ad9e480f0bce70cc4e5d5
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Tue Jul 29 18:24:50 2014 -0700
 
-    runtime: fix freebsd build.  Assignment is int32* on 32 bit
-    machines and int64* on 64 bit machines.
+    mime/multipart: delay reading random source
+    
+    If a user sets his/her own boundary string with SetBoundary,
+    we don't need to call randomBoundary at all.
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/117330044
+    https://golang.org/cl/95760043
 
- src/pkg/runtime/os_freebsd.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/mime/multipart/writer.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

@@ -1,24 +1,16 @@
-commit ffc742b65803ac3ceee522b145380ad731317eed
+commit a72f9f46a2aacb522eb5da6bea9ea9a02a1aaea8
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 3 00:03:10 2013 -0500
+Date:   Sat Feb 2 23:17:25 2013 -0500
 
-    cmd/gc: allow new conversion syntax
+    cmd/gc: avoid duplicate allocation during inlining
     
-    For consistency with conversions that look like function calls,
-    conversions that don't look like function calls now allow an
-    optional trailing comma.
-    
-    That is, int(x,) has always been syntactically valid.
-    Now []int(x,) is valid too.
-    
-    Fixes #4162.
+    Fixes #4667.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/7288045
+    https://golang.org/cl/7275046
 
- src/cmd/gc/go.y             |    2 +-
- src/cmd/gc/y.tab.c          | 1296 ++++++++++++++++++++++---------------------
- src/cmd/gc/yerr.h           |    8 +-
- test/fixedbugs/issue4162.go |   17 +
- 4 files changed, 675 insertions(+), 648 deletions(-)
+ src/cmd/gc/gen.c            |  2 ++
+ src/cmd/gc/inl.c            |  7 ++++++-
+ test/fixedbugs/issue4667.go | 37 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+), 1 deletion(-)

@@ -1,15 +1,23 @@
-commit 1898fce1e70b0a2038d71363d38e8b10b269c1c4
-Author: mbj36 <mohitbajo36@gmail.com>
-Date:   Sun Apr 15 22:50:14 2018 +0530
+commit 9d70b3ae04316c5753435dddee54fe7373502e09
+Author: Keith Randall <khr@google.com>
+Date:   Mon Dec 4 13:30:13 2017 -0800
 
-    doc: improve commit messages
+    cmd/compile: fix noopt builder, weird append case
     
-    Fixes #24852
+    Turn off append-to-itself optimization if optimizations are turned off.
     
-    Change-Id: I71d0d7f75108bf4ad606733a45bb71baa66a4e91
-    Reviewed-on: https://go-review.googlesource.com/107197
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    This optimization triggered a bug when doing
+      s = append(s, s)
+    where we write to the leftmost s before reading the rightmost s.
+    
+    Update #17039
+    
+    Change-Id: I21996532d20a75db6ec8d49db50cb157a1360b80
+    Reviewed-on: https://go-review.googlesource.com/81816
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/contribute.html | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

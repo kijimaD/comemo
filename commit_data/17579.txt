@@ -1,15 +1,14 @@
-commit 1a819be59053fa1d6b76cb9549c9a117758090ee
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Sep 12 11:20:16 2013 +0100
+commit 28a8e9ba2f27326efcef7a1f5085ac19120f7216
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 12 15:12:40 2013 +0900
 
-    net/http: document ServeMux handling of pattern "/"
+    doc/go1.2.html: happy eyeballs on net
     
-    Fixes #4799
+    Also fix trivial nits.
     
-    R=golang-dev, dave, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13457047
+    https://golang.org/cl/13532046
 
- src/pkg/net/http/example_test.go | 18 ++++++++++++++++++
- src/pkg/net/http/server.go       |  4 ++++
- 2 files changed, 22 insertions(+)
+ doc/go1.2.html | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

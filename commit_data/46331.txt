@@ -1,24 +1,20 @@
-commit 903958d2f506decf92a1bfd63dfbecadf8375735
-Author: korzhao <korzhao@tencent.com>
-Date:   Wed Aug 4 02:47:57 2021 +0000
+commit 8b1fbd8215699a864ed315e3306e118558c8e243
+Merge: 23922cf83b 6d03cde88a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 22 23:27:16 2020 -0500
 
-    encoding/gob: marshal maps using reflect.Value.MapRange
+    [dev.typeparams] all: merge dev.regabi (6d03cde) into dev.typeparams
     
-    golang.org/cl/33572 added a map iterator.
+    Conflicts:
     
-    use the reflect.Value.MapRange to fix map keys that contain a NaN
+    * src/cmd/dist/buildtool.go
     
-    Fixes #24075
+    Merge List:
     
-    Change-Id: I0214d6f26c2041797703e48eac16404f189d6982
-    GitHub-Last-Rev: 5c01e117f4451dbaec657d02d006905df1d0055d
-    GitHub-Pull-Request: golang/go#47476
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338609
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    * 2020-12-23 6d03cde88a [dev.regabi] cmd/dist: automatically bootstrap cmd subdirs
+    
+    Change-Id: I44ecf3dd626cbd8d0b4cd1616edfd6f3db62029b
 
- src/encoding/gob/encode.go       | 10 ++++----
- src/encoding/gob/encoder_test.go | 50 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+), 5 deletions(-)
+ src/cmd/dist/buildtool.go           | 115 ++++++++++++++----------------------
+ src/cmd/internal/archive/archive.go |  10 ++--
+ 2 files changed, 49 insertions(+), 76 deletions(-)

@@ -1,63 +1,18 @@
-commit 17228f44b223c146714040143baa336f4a1d3021
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 17 12:03:22 2015 -0400
+commit 41f9c430f3cc8c991981e5c6daa63f8718c800b9
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Tue Mar 24 18:33:37 2015 +0100
 
-    cmd/internal/gc: make use of new String methods in prints
+    runtime, syscall: fix Solaris exec tests
     
-    $ sam -d cmd/internal/gc/*.{go,y} cmd/?g/*.go
-    X ,s/, (gc\.)?[BFHNST]conv\(([^()]+), 0\)/, \2/g
-    X/'/w
-    q
-    $
+    Also fixes a long-existing problem in the fork/exec path.
     
-    Change-Id: Ic28a4807d237b8ae53ceca1e4e7fdb43580ab560
-    Reviewed-on: https://go-review.googlesource.com/9032
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Idec40b1cee0cfb1625fe107db3eafdc0d71798f2
+    Reviewed-on: https://go-review.googlesource.com/8030
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/5g/cgen.go               |   4 +-
- src/cmd/5g/cgen64.go             |   4 +-
- src/cmd/5g/ggen.go               |   4 +-
- src/cmd/5g/gsubr.go              |   8 +-
- src/cmd/6g/gsubr.go              |   4 +-
- src/cmd/7g/cgen.go               |   4 +-
- src/cmd/7g/ggen.go               |   4 +-
- src/cmd/7g/gsubr.go              |   2 +-
- src/cmd/8g/cgen64.go             |   2 +-
- src/cmd/8g/ggen.go               |   4 +-
- src/cmd/8g/gsubr.go              |  20 ++--
- src/cmd/9g/cgen.go               |   4 +-
- src/cmd/9g/ggen.go               |   4 +-
- src/cmd/9g/gsubr.go              |   4 +-
- src/cmd/internal/gc/align.go     |  18 +--
- src/cmd/internal/gc/cgen.go      |   4 +-
- src/cmd/internal/gc/closure.go   |   4 +-
- src/cmd/internal/gc/const.go     |  26 ++---
- src/cmd/internal/gc/cplx.go      |   4 +-
- src/cmd/internal/gc/dcl.go       |  54 ++++-----
- src/cmd/internal/gc/esc.go       |  22 ++--
- src/cmd/internal/gc/export.go    |  36 +++---
- src/cmd/internal/gc/fmt.go       | 198 ++++++++++++++++----------------
- src/cmd/internal/gc/gen.go       |  28 ++---
- src/cmd/internal/gc/go.y         |   8 +-
- src/cmd/internal/gc/gsubr.go     |  10 +-
- src/cmd/internal/gc/inl.go       |  20 ++--
- src/cmd/internal/gc/lex.go       |   2 +-
- src/cmd/internal/gc/mparith3.go  |  18 +--
- src/cmd/internal/gc/obj.go       |   4 +-
- src/cmd/internal/gc/order.go     |   6 +-
- src/cmd/internal/gc/pgen.go      |   2 +-
- src/cmd/internal/gc/plive.go     |  34 +++---
- src/cmd/internal/gc/popt.go      |  14 +--
- src/cmd/internal/gc/racewalk.go  |   6 +-
- src/cmd/internal/gc/range.go     |   6 +-
- src/cmd/internal/gc/reflect.go   |  18 +--
- src/cmd/internal/gc/reg.go       |   4 +-
- src/cmd/internal/gc/sinit.go     |  22 ++--
- src/cmd/internal/gc/subr.go      |  86 +++++++-------
- src/cmd/internal/gc/swt.go       |  18 +--
- src/cmd/internal/gc/typecheck.go | 242 +++++++++++++++++++--------------------
- src/cmd/internal/gc/unsafe.go    |  10 +-
- src/cmd/internal/gc/walk.go      |  36 +++---
- src/cmd/internal/gc/y.go         |   8 +-
- 45 files changed, 520 insertions(+), 520 deletions(-)
+ src/runtime/syscall2_solaris.go  |  2 +-
+ src/syscall/exec_solaris_test.go | 29 +++++++++++++++++++++++++++++
+ src/syscall/exec_unix_test.go    | 15 +++------------
+ src/syscall/export_unix_test.go  | 12 ++++++++++++
+ 4 files changed, 45 insertions(+), 13 deletions(-)

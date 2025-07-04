@@ -1,29 +1,26 @@
-commit 4396ea96c43e1df585c648762b6993e84cb6a2e5
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Mar 11 18:29:12 2015 +0300
+commit 02d80b9e937aa1ea142bac016f35011bae72907f
+Author: Jan Kratochvil <jan.kratochvil@redhat.com>
+Date:   Sat Feb 21 17:35:01 2015 +0100
 
-    runtime: remove futile wakeups from trace
+    gdb: fix "gdb.error: No struct named reflect.rtype."
     
-    Channels and sync.Mutex'es allow another goroutine to acquire resource
-    ahead of an unblocked goroutine. This is good for performance, but
-    leads to futile wakeups (the unblocked goroutine needs to block again).
-    Futile wakeups caused user confusion during the very first evaluation
-    of tracing functionality on a real server (a goroutine as if acquires a mutex
-    in a loop, while there is no loop in user code).
+    With a trivial Golang-built program loaded in gdb-7.8.90.20150214-7.fc23.x86_64
+    I get this error:
     
-    This change detects futile wakeups on channels and emits a special event
-    to denote the fact. Later parser finds entire wakeup sequences
-    (unblock->start->block) and removes them.
+    (gdb) source ./src/runtime/runtime-gdb.py
+    Loading Go Runtime support.
+    Traceback (most recent call last):
+      File "./src/runtime/runtime-gdb.py", line 230, in <module>
+        _rctp_type = gdb.lookup_type("struct reflect.rtype").pointer()
+    gdb.error: No struct type named reflect.rtype.
+    (gdb) q
     
-    sync.Mutex will be supported in a separate change.
+    No matter if this struct should or should not be in every Golang-built binary
+    this change should fix that with no disadvantages.
     
-    Change-Id: Iaaaee9d5c0921afc62b449a97447445030ac19d3
-    Reviewed-on: https://go-review.googlesource.com/7380
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0c490d3c9bbe93c65a2183b41bfbdc0c0f405bd1
+    Reviewed-on: https://go-review.googlesource.com/5521
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/trace/parser.go    | 65 +++++++++++++++++++++++++++++-
- src/runtime/chan.go             |  8 ++--
- src/runtime/pprof/trace_test.go | 88 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/select.go           |  4 +-
- src/runtime/trace.go            | 15 ++++++-
- 5 files changed, 171 insertions(+), 9 deletions(-)
+ src/runtime/runtime-gdb.py | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

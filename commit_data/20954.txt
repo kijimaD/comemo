@@ -1,18 +1,53 @@
-commit bee8ae11859d6d421027f012c3a7a3fc592f662d
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Dec 10 09:29:24 2014 -0500
+commit a22c11b9957cf3f0d66dd6d1d38172d5ac0ec54a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 15:14:24 2014 -0400
 
-    runtime: send android stderr to /dev/log/main
+    runtime: fix line number in first stack frame in printed stack trace
     
-    I tried to submit this in Go 1.4 as cl/107540044 but tripped over the
-    changes for getting C off the G stack. This is a rewritten version that
-    avoids cgo and works directly with the underlying log device.
+    Originally traceback was only used for printing the stack
+    when an unexpected signal came in. In that case, the
+    initial PC is taken from the signal and should be used
+    unaltered. For the callers, the PC is the return address,
+    which might be on the line after the call; we subtract 1
+    to get to the CALL instruction.
     
-    Change-Id: I14c227dbb4202690c2c67c5a613d6c6689a6662a
-    Reviewed-on: https://go-review.googlesource.com/1285
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Traceback is now used for a variety of things, and for
+    almost all of those the initial PC is a return address,
+    whether from getcallerpc, or gp->sched.pc, or gp->syscallpc.
+    In those cases, we need to subtract 1 from this initial PC,
+    but the traceback code had a hard rule "never subtract 1
+    from the initial PC", left over from the signal handling days.
+    
+    Change gentraceback to take a flag that specifies whether
+    we are tracing a trap.
+    
+    Change traceback to default to "starting with a return PC",
+    which is the overwhelmingly common case.
+    
+    Add tracebacktrap, like traceback but starting with a trap PC.
+    
+    Use tracebacktrap in signal handlers.
+    
+    Fixes #7690.
+    
+    LGTM=iant, r
+    R=r, iant
+    CC=golang-codereviews
+    https://golang.org/cl/167810044
 
- src/runtime/print1.go               |  2 +-
- src/runtime/print1_write.go         |  9 ++++++++
- src/runtime/print1_write_android.go | 44 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 54 insertions(+), 1 deletion(-)
+ src/runtime/heapdump.c         |  2 +-
+ src/runtime/mgc0.c             |  4 ++--
+ src/runtime/mprof.go           |  2 +-
+ src/runtime/os_plan9_386.c     |  2 +-
+ src/runtime/os_plan9_amd64.c   |  2 +-
+ src/runtime/os_windows_386.c   |  2 +-
+ src/runtime/os_windows_amd64.c |  2 +-
+ src/runtime/proc.c             |  6 +++---
+ src/runtime/runtime.h          |  8 ++++++-
+ src/runtime/signal_386.c       |  2 +-
+ src/runtime/signal_amd64x.c    |  2 +-
+ src/runtime/signal_arm.c       |  2 +-
+ src/runtime/stack.c            |  2 +-
+ src/runtime/traceback.go       | 33 ++++++++++++++++++++--------
+ test/fixedbugs/issue7690.go    | 49 ++++++++++++++++++++++++++++++++++++++++++
+ 15 files changed, 95 insertions(+), 25 deletions(-)

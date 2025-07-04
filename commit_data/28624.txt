@@ -1,12 +1,19 @@
-commit fe77c5b36994d907a6c0f4cd8ffb0a2ad6cfde5e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 3 11:25:25 2016 -0700
+commit c4692da9231c244a1275d42055e703b3f1dac25b
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Tue Jun 14 16:48:42 2016 -0400
 
-    doc: add PKG_CONFIG and GIT_ALLOW_PROTOCOL env vars to go1.8.txt
+    context: document how to release resources associated with Contexts.
     
-    Change-Id: I592b87f49fc636b89807d911132f69257d718afd
-    Reviewed-on: https://go-review.googlesource.com/30168
+    Some users don't realize that creating a Context with a CancelFunc
+    attaches a subtree to the parent, and that that subtree is not released
+    until the CancelFunc is called or the parent is canceled.  Make this
+    clear early in the package docs, so that people learning about this
+    package have the right conceptual model.
+    
+    Change-Id: I7c77a546c19c3751dd1f3a5bc827ad106dd1afbf
+    Reviewed-on: https://go-review.googlesource.com/24090
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.8.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ src/context/context.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

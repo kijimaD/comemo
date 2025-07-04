@@ -1,21 +1,38 @@
-commit 65219650fff0cd8317b3f031784c4471f3fd7073
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Jan 9 16:22:01 2020 -0500
+commit 9f89edcd9668bb3b011961fbcdd8fc2796acba5d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 30 10:56:30 2019 -0700
 
-    cmd/go: remove references to 1.13 in 'go help modules'
+    cmd/compile: silence esc diagnostics about directiface OCONVIFACEs
     
-    In "Module support" section, there were two mentions of "Go 1.13",
-    assuming that's the latest version. Rather than update these to 1.14,
-    this CL changes those to "The go command".
+    In general, a conversion to interface type may require values to be
+    boxed, which in turn necessitates escape analysis to determine whether
+    the boxed representation can be stack allocated.
     
-    Also, a minor change in wording for finding go.mod files.
+    However, esc.go used to unconditionally print escape analysis
+    decisions about OCONVIFACE, even for conversions that don't require
+    boxing (e.g., pointers, channels, maps, functions).
     
-    Change-Id: Id194be9405b540f221464814e71c361a22cc0f55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214140
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    For test compatibility with esc.go, escape.go similarly printed these
+    useless diagnostics. This CL removes the diagnostics, and updates test
+    expectations accordingly.
+    
+    Change-Id: I97c57a4a08e44d265bba516c78426ff4f2bf1e12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192697
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go               | 7 ++++---
- src/cmd/go/internal/modload/help.go | 7 ++++---
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/escape.go |  7 ---
+ test/escape2.go                       | 80 +++++++++++++++++------------------
+ test/escape2n.go                      | 80 +++++++++++++++++------------------
+ test/escape5.go                       |  4 +-
+ test/escape_closure.go                | 12 +++---
+ test/escape_field.go                  | 30 ++++++-------
+ test/escape_iface.go                  | 54 +++++++++++------------
+ test/escape_indir.go                  |  4 +-
+ test/escape_level.go                  | 20 ++++-----
+ test/escape_map.go                    |  2 +-
+ test/escape_param.go                  | 44 +++++++++----------
+ test/escape_unsafe.go                 |  4 +-
+ test/fixedbugs/issue12006.go          | 10 ++---
+ 13 files changed, 172 insertions(+), 179 deletions(-)

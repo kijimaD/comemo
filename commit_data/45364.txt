@@ -1,22 +1,20 @@
-commit bc6288794de10fddea0a3c3cfcb1cfd2bf2aa8a0
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Apr 7 17:43:09 2021 -0400
+commit b04eb73a6891e81e2e611ee93b3aa8c4769d5967
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Tue Oct 20 13:50:52 2020 -0700
 
-    go/scanner: improve variety in benchmarks for file scanning
+    crypto/x509: bypass signature verification in CreateCertificate when using MD5WithRSA
     
-    BenchmarkScanFile was scanning scanner.go, which makes comparison
-    difficult for a CL modifying that file. That file is also is not
-    necessarily representative syntax.
+    Bypasses the signature verification check we previously added if the
+    signature algorithm is MD5WithRSA, as we only support this algorithm
+    for signing and not verification.
     
-    Add a few additional files as subtests to provide a larger variety of
-    metrics.
-    
-    Change-Id: Ib78303c2546debd84a0b5478ae438ba891d9e6e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308610
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Idba6dbba8b365d6199d467526746b88a5f734af1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264019
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
 
- src/go/scanner/scanner_test.go | 49 ++++++++++++++++++++++++++----------------
- 1 file changed, 30 insertions(+), 19 deletions(-)
+ src/crypto/x509/x509.go      |  8 ++++++--
+ src/crypto/x509/x509_test.go | 16 ++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

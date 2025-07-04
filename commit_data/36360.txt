@@ -1,19 +1,19 @@
-commit c544e0fbdb7344b2025650aaf70bab3b09d72003
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 2 20:02:24 2018 +0000
+commit c0769741f541d2382c5c9b4506d684a738d7e53e
+Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
+Date:   Sat Apr 21 22:24:25 2018 +0000
 
-    strings: select Replacer algorithm and build machine lazily
+    doc: correct statement in go1.10 release notes
     
-    Saves 22KB of memory in stdlib packages.
+    The language spec requires the RHS operand of shift expressions to be unsigned integers.
     
-    Updates #26775
+    The changes in CL 60230 and the related CL 81277 refer to a variable s of type uint.
+    The "untyped constant" here refers to 1.0, not s.
     
-    Change-Id: Ia19fe7aff61f6e2ddd83cd35969d7ff94526591f
-    Reviewed-on: https://go-review.googlesource.com/127661
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id2b884816af7f79f453afcb8c34ade2d34e18bc2
+    GitHub-Last-Rev: b26c853cae2adea7235a51ad726308e337494385
+    GitHub-Pull-Request: golang/go#24989
+    Reviewed-on: https://go-review.googlesource.com/108676
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/strings/export_test.go |  2 ++
- src/strings/replace.go     | 28 ++++++++++++++++++++++------
- 2 files changed, 24 insertions(+), 6 deletions(-)
+ doc/go1.10.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

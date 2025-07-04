@@ -1,12 +1,14 @@
-commit 76eb911a3ccb386bc94f13f491ec78caa42a2bf7
+commit 649f771b7b3538711bc8954c4a6f726d89c1226a
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Feb 17 13:20:11 2012 +0400
+Date:   Fri Feb 17 11:42:02 2012 +0400
 
-    sync: say that Cond.Wait can not return spuriously
+    net/rpc: fix spurious panic in test
+    The panic happens if -benchtime flag is specified:
+    go test -bench=EndToEndAsyncHTTP -benchtime=120
     
-    R=golang-dev, r, rsc, remyoudompheng, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5674086
+    https://golang.org/cl/5677075
 
- src/pkg/sync/cond.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/net/rpc/server_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

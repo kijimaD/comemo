@@ -1,30 +1,21 @@
-commit 9c7f0b1ccd37b6f41a5326c451c633c92e93870c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Apr 11 18:57:44 2022 -0400
+commit 723f199edd8619c8eedc1c4e8df1e5f96599d51a
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 15 08:01:54 2021 -0400
 
-    cmd/link: mangle symbol ABI name for linker-generated symbols
+    cmd/link: set correct flags in .dynamic for PIE buildmode
     
-    The ABI mangling code skips symbols that are not loaded from Go
-    objects. Usually that is fine, as other symbols don't need name
-    mangling. But trampolines are linker generated and have the same
-    symbol version (ABI) as the underlying symbol. We need to avoid
-    symbol name collisions for trampolines, such as a trampoline to
-    f<ABI0> and a trampoline to f<ABIInternal>. We could explicitly
-    incorportate the ABI into the trampoline name. But as we already
-    have the name mangling scheme we could just use that.
+    For internal linking, when generating a PIE binary, set the proper
+    .dynamic section flags to mark the binary as position-independent.
     
-    The original code excludes external symbols probably because
-    symbols from C object don't need mangling. But a C symbol and a
-    Go symbol shouldn't have same name, and so the condition won't
-    apply.
+    Fixes #46747.
     
-    Also exclude static symbols as they don't need mangling.
-    
-    Change-Id: I298eb1d64bc0c3da0154f0146b95c4d26ca2f47a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399894
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I2b899148c6d06f92c9d12257a9761278b4236dfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328089
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/cmd/link/internal/ld/symtab.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/elf.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,19 +1,21 @@
-commit 580987cd5884c21dc2411244e6c9f6fbf6f963a1
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Aug 31 17:00:59 2021 -0400
+commit a997543292df533f5951cd8fda39692a44077151
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 16:07:38 2020 -0500
 
-    go/types: remove need for the instance struct
+    [dev.regabi] cmd/compile: fix potential closure waste in Order
     
-    This is a port of CL 345177 to go/types.
+    I haven't measured this, but it's the only use of EditChildren
+    where we aren't careful to allocate a closure once and use it
+    for the whole recursion. This one is allocating a closure at
+    every level of the recursion, and it was an oversight that it
+    wasn't cleaned up in the original CL.
     
-    Change-Id: I79fcfbf5b28e9a7a2e66c81bc831e164a8da8bbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346551
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I5e3f1795c6f64c5867a19c077f797643aa1066a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277914
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/instantiate.go |  2 +-
- src/go/types/named.go       | 18 +++++-------------
- src/go/types/typestring.go  |  2 +-
- 3 files changed, 7 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

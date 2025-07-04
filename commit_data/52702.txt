@@ -1,27 +1,26 @@
-commit d959dd97b12f4067c8511fb11493e3bf47eb9737
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 14 14:36:12 2023 -0700
+commit 9bc544a1580a67166060aabc5af91227092f6a39
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 19 10:26:53 2022 -0400
 
-    runtime: change lfstack support to taggedPointer
+    misc/cgo: invoke "go" from $GOROOT/bin instead of $PATH
     
-    This is a refactoring with no change in behavior, in preparation
-    for future netpoll work.
+    If PATH doesn't contain GOROOT/bin as the first element, this could
+    otherwise end up running entirely the wrong command (and from the
+    wrong GOROOT, even).
     
-    For #59545
+    I pre-tested this change on release-branch.go1.17 using a gomote.
+    I believe that it will fix the test failure on that branch,
+    but will need to be backported.
     
-    Change-Id: I493c5fd0f49f31b75787f7b5b89c544bed73f64f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484836
+    For #52995.
+    
+    Change-Id: Ib0c43289a1e0ccf9409f0f0ef8046501a955ce65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407294
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Orlando Labao <orlando.labao43@gmail.com>
 
- src/runtime/lfstack.go                            |  8 ++++
- src/runtime/lfstack_32bit.go                      | 19 --------
- src/runtime/malloc.go                             |  4 ++
- src/runtime/tagptr.go                             | 14 ++++++
- src/runtime/tagptr_32bit.go                       | 30 +++++++++++++
- src/runtime/{lfstack_64bit.go => tagptr_64bit.go} | 53 +++++++++++++++--------
- 6 files changed, 92 insertions(+), 36 deletions(-)
+ misc/cgo/testplugin/plugin_test.go |  9 ++++++++-
+ misc/cgo/testshared/shared_test.go | 14 ++++++++------
+ 2 files changed, 16 insertions(+), 7 deletions(-)

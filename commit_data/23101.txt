@@ -1,14 +1,23 @@
-commit 91191e7b7bc8c0e1a6d49c7a9b3adeb1ab39a423
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue May 19 00:19:04 2015 -0400
+commit 8566979972d51236c37b2823d2c0d52c6efe5406
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Thu Apr 23 17:27:38 2015 -0400
 
-    encoding/gob: fix docs
+    misc/cgo/testcshared: add a c-shared test for android/arm.
     
-    Fixes #10908.
+    - main3.c tests main.main is exported when compiled for GOOS=android.
+    - wait longer for main2.c (it's slow on android/arm)
+    - rearranged test.bash
     
-    Change-Id: I5ac4bd90204bc230610dcced47ce5b2253e5a004
-    Reviewed-on: https://go-review.googlesource.com/10250
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #10070.
+    
+    Change-Id: I6e5a98d1c5fae776afa54ecb5da633b59b269316
+    Reviewed-on: https://go-review.googlesource.com/9296
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/encoding/gob/doc.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ misc/cgo/testcshared/main2.c            |  2 +-
+ misc/cgo/testcshared/main3.c            | 29 ++++++++++++
+ misc/cgo/testcshared/src/libgo/libgo.go |  1 -
+ misc/cgo/testcshared/test.bash          | 83 ++++++++++++++++++++++++++++-----
+ src/cmd/dist/test.go                    | 27 ++++++-----
+ 5 files changed, 115 insertions(+), 27 deletions(-)

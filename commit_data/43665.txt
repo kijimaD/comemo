@@ -1,15 +1,172 @@
-commit 9933f6655589b1da9da7f61f04f74d921a2d67bf
+commit 7658648871019b4893ae11ce2e02d3c187493ed9
+Merge: c364079a53 1f0738c157
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 30 18:44:22 2020 -0400
+Date:   Mon Apr 20 11:57:20 2020 -0400
 
-    runtime: remove residual !go115NewMCentralImpl fields
+    [dev.link] all: merge branch 'master' into dev.link
     
-    Change-Id: I1685721c82be4ac3c854084592e5e0f182b367ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266858
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Clean merge.
+    
+    Change-Id: I514936d6d2a30c6f801686801209759d15ce06bd
 
- src/runtime/mcentral.go | 4 ----
- 1 file changed, 4 deletions(-)
+ doc/go1.15.html                                    |    27 +-
+ lib/time/update.bash                               |     2 +
+ misc/cgo/test/testx.go                             |    10 +
+ src/all.rc                                         |     2 +-
+ src/cmd/cgo/gcc.go                                 |    12 +-
+ src/cmd/compile/internal/gc/alg.go                 |     2 +
+ src/cmd/compile/internal/gc/algkind_string.go      |    48 +
+ src/cmd/compile/internal/gc/dcl.go                 |    36 +-
+ src/cmd/compile/internal/gc/fmt.go                 |     2 +-
+ src/cmd/compile/internal/gc/go.go                  |     8 +
+ src/cmd/compile/internal/gc/inl.go                 |     2 +-
+ src/cmd/compile/internal/gc/obj.go                 |   140 +-
+ src/cmd/compile/internal/gc/sinit.go               |    42 +-
+ src/cmd/compile/internal/gc/subr.go                |    17 +-
+ src/cmd/compile/internal/gc/swt.go                 |    43 +-
+ src/cmd/compile/internal/gc/walk.go                |     8 +-
+ src/cmd/compile/internal/ssa/addressingmodes.go    |    29 +
+ src/cmd/compile/internal/ssa/block.go              |     4 +-
+ src/cmd/compile/internal/ssa/check.go              |    13 +-
+ src/cmd/compile/internal/ssa/gen/386.rules         |   461 +-
+ .../compile/internal/ssa/gen/AMD64splitload.rules  |     9 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules       |   176 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go       |    22 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules     |    64 +-
+ src/cmd/compile/internal/ssa/gen/main.go           |     9 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |   376 +-
+ src/cmd/compile/internal/ssa/op.go                 |    41 +-
+ src/cmd/compile/internal/ssa/opGen.go              |    12 +-
+ src/cmd/compile/internal/ssa/regalloc.go           |    31 +-
+ src/cmd/compile/internal/ssa/rewrite.go            |    19 +
+ src/cmd/compile/internal/ssa/rewrite386.go         |   459 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |   808 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |   624 +-
+ src/cmd/compile/internal/ssa/value.go              |     4 +-
+ src/cmd/doc/doc_test.go                            |    19 +
+ src/cmd/doc/pkg.go                                 |    13 +-
+ src/cmd/go.mod                                     |     2 +-
+ src/cmd/go.sum                                     |     4 +-
+ src/cmd/go/go_test.go                              |    46 -
+ src/cmd/go/testdata/script/list_case_collision.txt |    36 +
+ src/cmd/internal/obj/objfile.go                    |    15 +-
+ src/cmd/internal/obj/ppc64/asm9.go                 |    31 +-
+ src/cmd/internal/obj/ppc64/asm_test.go             |    42 +-
+ src/cmd/internal/obj/riscv/obj.go                  |    12 +
+ .../obj/riscv/testdata/testbranch/branch_test.go   |    18 +-
+ src/cmd/internal/obj/util.go                       |   167 +-
+ src/cmd/internal/src/pos.go                        |    40 +-
+ src/cmd/internal/src/pos_test.go                   |     6 +-
+ src/cmd/link/internal/ld/deadcode.go               |     9 +-
+ src/cmd/link/internal/ld/deadcode2.go              |     4 +-
+ src/cmd/link/internal/ld/deadcode_test.go          |    61 +
+ .../golang.org/x/crypto/ssh/terminal/terminal.go   |     8 +
+ src/cmd/vendor/modules.txt                         |     2 +-
+ src/crypto/tls/conn.go                             |    11 +-
+ src/crypto/tls/link_test.go                        |   121 +
+ src/crypto/tls/tls.go                              |    15 +-
+ src/crypto/x509/x509.go                            |     4 +
+ src/debug/pe/file_test.go                          |     2 +-
+ src/go.mod                                         |     2 +-
+ src/go.sum                                         |     4 +-
+ src/go/build/deps_test.go                          |   102 +-
+ src/go/doc/example.go                              |     6 +-
+ src/go/doc/example_test.go                         |    76 +-
+ src/go/types/expr.go                               |     8 +-
+ src/go/types/lookup.go                             |    17 +-
+ src/go/types/operand.go                            |     5 +-
+ src/go/types/testdata/issues.src                   |     5 +-
+ src/html/template/content_test.go                  |    70 +-
+ src/html/template/escape_test.go                   |     6 +-
+ src/html/template/example_test.go                  |     6 +-
+ src/html/template/js.go                            |    70 +-
+ src/html/template/js_test.go                       |    68 +-
+ src/html/template/template_test.go                 |    39 +
+ src/{runtime/pprof => }/internal/profile/encode.go |     0
+ src/{runtime/pprof => }/internal/profile/filter.go |     0
+ .../pprof => }/internal/profile/legacy_profile.go  |     0
+ src/internal/profile/merge.go                      |   461 +
+ .../pprof => }/internal/profile/profile.go         |    55 +-
+ .../pprof => }/internal/profile/profile_test.go    |     0
+ src/{runtime/pprof => }/internal/profile/proto.go  |     0
+ .../pprof => }/internal/profile/proto_test.go      |     0
+ src/{runtime/pprof => }/internal/profile/prune.go  |     0
+ src/math/big/floatconv.go                          |     2 +-
+ src/math/big/int.go                                |     4 +-
+ src/math/big/link_test.go                          |    62 +
+ src/math/big/sqrt.go                               |    74 +-
+ src/net/http/pprof/pprof.go                        |    90 +
+ src/net/http/pprof/pprof_test.go                   |   187 +
+ src/net/url/example_test.go                        |    24 +-
+ src/net/url/url.go                                 |    69 +-
+ src/net/url/url_test.go                            |    32 +-
+ src/os/exec/exec_linux_test.go                     |    45 +
+ src/os/exec/exec_test.go                           |   109 +-
+ src/os/exec/read3.go                               |    99 +
+ src/os/signal/signal_test.go                       |    19 +-
+ src/regexp/syntax/parse.go                         |    16 +-
+ src/runtime/lockrank.go                            |     3 +-
+ src/runtime/malloc.go                              |    11 +-
+ src/runtime/mgc.go                                 |    10 +-
+ src/runtime/mkpreempt.go                           |    29 +-
+ src/runtime/os_windows.go                          |    19 +-
+ src/runtime/pprof/mprof_test.go                    |     2 +-
+ src/runtime/pprof/pprof.go                         |    27 +-
+ src/runtime/pprof/pprof_test.go                    |     6 +-
+ src/runtime/pprof/proto_test.go                    |     2 +-
+ src/runtime/pprof/protomem_test.go                 |     2 +-
+ src/runtime/preempt_riscv64.s                      |   127 +-
+ src/runtime/proc_test.go                           |    13 +
+ src/runtime/signal_386.go                          |     2 -
+ src/runtime/signal_amd64.go                        |     3 -
+ src/runtime/signal_arm.go                          |     2 -
+ src/runtime/signal_arm64.go                        |     2 -
+ src/runtime/signal_linux_s390x.go                  |     2 -
+ src/runtime/signal_mips64x.go                      |     2 -
+ src/runtime/signal_mipsx.go                        |     2 -
+ src/runtime/signal_ppc64x.go                       |     2 -
+ src/runtime/signal_riscv64.go                      |    14 +-
+ src/runtime/signal_unix.go                         |     7 +-
+ src/text/template/exec_test.go                     |     6 +-
+ src/text/template/funcs.go                         |    79 +-
+ src/text/template/link_test.go                     |    64 +
+ src/text/template/multi_test.go                    |     2 +-
+ src/text/template/template.go                      |     2 +-
+ src/time/embed.go                                  |    12 +
+ src/time/export_test.go                            |     4 +
+ src/time/tzdata/generate_zipdata.go                |    78 +
+ src/time/tzdata/tzdata.go                          |   109 +
+ src/time/tzdata/zipdata.go                         | 13048 +++++++++++++++++++
+ src/time/tzdata_test.go                            |    99 +
+ src/time/zoneinfo_read.go                          |    23 +
+ .../golang.org/x/crypto/chacha20/chacha_arm64.go   |     3 +-
+ .../golang.org/x/crypto/chacha20/chacha_arm64.s    |     3 +-
+ .../golang.org/x/crypto/chacha20/chacha_generic.go |    27 +
+ .../golang.org/x/crypto/chacha20/chacha_noasm.go   |     2 +-
+ .../golang.org/x/crypto/chacha20/chacha_ppc64le.go |     2 +-
+ .../golang.org/x/crypto/chacha20/chacha_ppc64le.s  |     2 +-
+ .../golang.org/x/crypto/chacha20/chacha_s390x.go   |     2 +-
+ .../golang.org/x/crypto/chacha20/chacha_s390x.s    |     2 +-
+ .../chacha20poly1305/chacha20poly1305_amd64.go     |     2 +-
+ .../chacha20poly1305/chacha20poly1305_amd64.s      |     2 +-
+ .../chacha20poly1305/chacha20poly1305_noasm.go     |     2 +-
+ .../golang.org/x/crypto/poly1305/mac_noasm.go      |     2 +-
+ .../golang.org/x/crypto/poly1305/sum_amd64.go      |     2 +-
+ .../golang.org/x/crypto/poly1305/sum_amd64.s       |     2 +-
+ .../golang.org/x/crypto/poly1305/sum_noasm.go      |     2 +-
+ .../golang.org/x/crypto/poly1305/sum_ppc64le.go    |     2 +-
+ .../golang.org/x/crypto/poly1305/sum_ppc64le.s     |     2 +-
+ .../golang.org/x/crypto/poly1305/sum_s390x.go      |     2 +-
+ .../golang.org/x/crypto/poly1305/sum_s390x.s       |     2 +-
+ .../golang.org/x/crypto/poly1305/sum_vmsl_s390x.s  |     2 +-
+ src/vendor/modules.txt                             |     2 +-
+ test/codegen/memops.go                             |    28 +-
+ test/fixedbugs/issue38356.go                       |    54 +
+ test/fixedbugs/issue38496.go                       |    20 +
+ test/makechan.go                                   |     6 -
+ test/makemap.go                                    |     6 -
+ test/reflectmethod5.go                             |    30 +
+ test/reflectmethod6.go                             |    32 +
+ test/typecheck.go                                  |    12 +-
+ test/writebarrier.go                               |     8 +-
+ 160 files changed, 17812 insertions(+), 2350 deletions(-)

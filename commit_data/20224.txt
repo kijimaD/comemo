@@ -1,21 +1,16 @@
-commit 47d6af2f68d43d496f7155d705f269b126f8f108
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Aug 30 11:03:28 2014 -0700
+commit 236cf308c298b49d64d32a76f5ee242a2b3bc1b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 25 15:29:47 2014 -0700
 
-    runtime: convert chanrecv to Go
+    cmd/gofmt: don't permit -w with stdin
     
-    LGTM=rsc, dvyukov
-    R=golang-codereviews, bradfitz, rsc, dvyukov
+    Also: use 0x644 file permission if a new file
+    is created (should not happen anymore, though).
+    
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/136980044
+    https://golang.org/cl/126610044
 
- src/pkg/runtime/asm_386.s           |   3 +
- src/pkg/runtime/asm_amd64.s         |   3 +
- src/pkg/runtime/asm_amd64p32.s      |   3 +
- src/pkg/runtime/asm_arm.s           |   3 +
- src/pkg/runtime/chan.go             | 302 +++++++++++++++++++++++++-
- src/pkg/runtime/chan.goc            | 418 +-----------------------------------
- src/pkg/runtime/pprof/pprof_test.go |   4 +-
- src/pkg/runtime/stubs.go            |   3 +
- src/pkg/runtime/thunk.s             |   6 +
- 9 files changed, 328 insertions(+), 417 deletions(-)
+ src/cmd/gofmt/gofmt.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

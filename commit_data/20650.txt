@@ -1,16 +1,19 @@
-commit ab724f928fa8dd95e3fccbf112e7a87a5f37d408
+commit ce143f25e625ce40f4655185372dc93661545df0
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 6 19:22:48 2014 -0400
+Date:   Fri Sep 26 13:50:02 2014 -0400
 
-    os, syscall: test Chtimes on directories, fix on Windows
+    cmd/go: add test -o flag to control where test binary is written
     
-    Fixes #8090.
+    While we are here, remove undocumented, meaningless test -file flag.
     
-    LGTM=alex.brainman
-    R=alex.brainman
-    CC=golang-codereviews
-    https://golang.org/cl/154020043
+    Fixes #7724.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/149070043
 
- src/os/os_test.go              | 47 ++++++++++++++++++++++++++++++++++--------
- src/syscall/syscall_windows.go |  4 ++--
- 2 files changed, 40 insertions(+), 11 deletions(-)
+ src/cmd/go/test.bash   | 24 +++++++++++++++++++++++
+ src/cmd/go/test.go     | 52 +++++++++++++++++++++++++++++++++-----------------
+ src/cmd/go/testflag.go |  7 ++++---
+ 3 files changed, 63 insertions(+), 20 deletions(-)

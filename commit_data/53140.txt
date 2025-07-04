@@ -1,22 +1,239 @@
-commit 78df00dd6f47eb13ff2873fb92223d8b64323d32
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 19 15:56:07 2023 +0000
+commit de649a2a98b2775fad65a06cbbf641545a65a245
+Merge: 055a5e55fa 8e1e64c16a
+Author: David Chase <drchase@google.com>
+Date:   Tue Jul 19 16:55:13 2022 -0400
 
-    runtime: fix lockrank ordering for pinner implementation
+    [dev.unified] all: merge master (8e1e64c) into dev.unified
     
-    The new Pinner API's implementation imposes some partial-orders that are
-    safe but previously did not exist between a mspanSpecial, mheapSpecial,
-    and mheap. Fix that up in the lock ranking.
+    Conflicts:
     
-    For #46787.
+    - test/run.go
+    Conflicts in the known-fails list, plus removed a test from the known-fails that now works.
     
-    Change-Id: I51cc8f7f069240caeb44d749bed43515634f4814
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496193
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Merge List:
+    
+    + 2022-07-19 8e1e64c16a cmd/compile: fix mknode script
+    + 2022-07-19 28be440d34 A+C: add Weizhi Yan
+    + 2022-07-19 85a482fc24 runtime: revert to using the precomputed trigger for pacer calculations
+    + 2022-07-19 ae7340ab68 CONTRIBUTORS: update for the Go 1.19 release
+    + 2022-07-18 de8101d21b runtime: fix typos
+    + 2022-07-18 967a3d985d cmd/compile: revert "remove -installsuffix flag"
+    + 2022-07-18 c0c1bbde17 http: improve Get documentation
+    + 2022-07-15 2aa473cc54 go/types, types2: correct alignment of atomic.Int64
+    + 2022-07-15 4651ebf961 encoding/gob: s/TestIngoreDepthLimit/TestIgnoreDepthLimit/
+    + 2022-07-14 dc00aed6de go/parser: skip TestParseDepthLimit for short tests
+    + 2022-07-14 783ff7dfc4 encoding/xml: skip TestCVE202230633 for short tests
+    + 2022-07-14 aa80228526 cmd/go/internal/modfetch: avoid duplicating path components in Git fetch errors
+    + 2022-07-14 b9d5a25442 cmd/go: save zip sums for downloaded modules in 'go mod download' in a workspace
+    + 2022-07-14 a906d3dd09 cmd/go: avoid re-enqueuing workspace dependencies with errors
+    + 2022-07-14 266c70c263 doc/go1.19: add a release note for 'go list -json=SomeField'
+    + 2022-07-13 558785a0a9 cmd/compile: remove -installsuffix flag
+    + 2022-07-13 1355ea3045 cmd/compile: remove -importmap flag
+    + 2022-07-13 f71f3d1b86 misc/cgo/testshared: run tests only in GOPATH mode
+    + 2022-07-13 feada53661 misc/cgo/testcshared: don't rely on an erroneous install target in tests
+    + 2022-07-13 c006b7ac27 runtime: clear timerModifiedEarliest when last timer is deleted
+    + 2022-07-13 923740a8cc cmd/compile: fix type assert in dict pass
+    + 2022-07-12 bf2ef26be3 cmd/go: in script tests, avoid checking non-main packages for staleness
+    + 2022-07-12 5f5cae7200 cmd/go: avoid indexing GOROOT packages when the compiler is 'gccgo'
+    + 2022-07-12 c2edb2c841 cmd/go: port TestIssue16471 to a script test and add verbose logging
+    + 2022-07-12 9c2526e637 cmd/go/internal/modfetch/codehost: add missing newline in '# lock' log message
+    + 2022-07-12 85486bcccb image/jpeg: increase TestLargeImageWithShortData timeout by an order of magnitude
+    + 2022-07-12 27794c4d4a cmd/go/internal/modload: ignore disallowed errors when checking for updates
+    + 2022-07-12 b2b8872c87 compress/gzip: fix stack exhaustion bug in Reader.Read
+    + 2022-07-12 ac68c6c683 path/filepath: fix stack exhaustion in Glob
+    + 2022-07-12 fa2d41d0ca io/fs: fix stack exhaustion in Glob
+    + 2022-07-12 6fa37e98ea encoding/gob: add a depth limit for ignored fields
+    + 2022-07-12 695be961d5 go/parser: limit recursion depth
+    + 2022-07-12 08c46ed43d encoding/xml: use iterative Skip, rather than recursive
+    + 2022-07-12 c4c1993fd2 encoding/xml: limit depth of nesting in unmarshal
+    + 2022-07-12 913d05133c cmd/go: avoid spurious readdir during fsys.Walk
+    + 2022-07-12 d3d7998756 net/http: clarify that MaxBytesReader returns *MaxBytesError
+    + 2022-07-11 126c22a098 syscall: gofmt after CL 412114
+    + 2022-07-11 123a6328b7 internal/trace: don't report regions on system goroutines
+    + 2022-07-11 846490110a runtime/race: update amd64 syso images to avoid sse4
+    + 2022-07-11 b75ad09cae cmd/trace: fix typo in web documentation
+    + 2022-07-11 7510e597de cmd/go: make module index loading O(1)
+    + 2022-07-11 b8bf820d5d cmd/nm: don't rely on an erroneous install target in tests
+    + 2022-07-11 ad641e8521 misc/cgo/testcarchive: don't rely on an erroneous install target in tests
+    + 2022-07-11 bf5898ef53 net/url: use EscapedPath for url.JoinPath
+    + 2022-07-11 398dcd1cf0 database/sql: make TestTxContextWaitNoDiscard test more robust
+    + 2022-07-11 f956941b0f cmd/go: use package index for std in load.loadPackageData
+    + 2022-07-11 59ab6f351a net/http: remove Content-Encoding in writeNotModified
+    + 2022-07-08 c1a4e0fe01 cmd/compile: fix libfuzzer instrumentation line number
+    + 2022-07-08 5c1a13e7a4 cmd/go: avoid setting variables for '/' and ':' in TestScript subprocess environments
+    + 2022-07-08 180bcad33d net/http: wait for listeners to exit in Server.Close and Shutdown
+    + 2022-07-08 14abe8aa73 cmd/compile: don't convert to interface{} for un-comparable types in generic switch
+    + 2022-07-07 1ebc983000 runtime: overestimate the amount of allocated memory in heapLive
+    + 2022-07-07 c177d9d98a crypto/x509: restrict CRL number to <=20 octets
+    + 2022-07-07 486fc01770 crypto/x509: correctly parse CRL entry extensions
+    + 2022-07-07 8ac58de185 crypto/x509: populate Number and AKI of parsed CRLs
+    + 2022-07-07 0c7fcf6bd1 cmd/link: explicitly disable PIE for windows/amd64 -race mode
+    + 2022-07-07 eaf2125654 cmd/go: default to "exe" build mode for windows -race
+    + 2022-07-06 1243ec9c17 cmd/compile: only check implicit dots for method call enabled by a type bound
+    + 2022-07-06 c391156f96 cmd/go: set up git identity for build_buildvcs_auto.txt
+    + 2022-07-06 2acd3646fc cmd/compile: rework induction variable detector
+    + 2022-07-06 53a4152d47 os/exec: clarify that Wait must be called
+    + 2022-07-06 177306f630 cmd/internal/notsha256: add purego tag as needed
+    + 2022-07-06 f4755fc733 cmd/dist: use purego tag when building the bootstrap binaries
+    + 2022-07-06 4484c30f78 misc/cgo/test: make TestSetgidStress cheaper
+    + 2022-07-06 2007599dc8 test: recognize new gofrontend error message
+    + 2022-07-05 d602380f58 cmd/compile: drop "buildcfg" from no instrument packages
+    + 2022-07-05 c111091071 cmd/go: make module@nonexistentversion failures reusable
+    + 2022-07-05 5f305ae8e5 cmd/go: add -reuse flag to make proxy invocations more efficient
+    + 2022-07-05 84e091eef0 cmd/go: record origin metadata during module download
+    + 2022-07-04 ceda93ed67 build/constraint: update doc to mention a feature added in Go 1.17
+    + 2022-07-04 3cf79d9610 runtime: pass correct string to exits on Plan 9
+    + 2022-07-01 e822b1e26e net/http: omit invalid header value from error message
+    + 2022-07-01 4a2a3bca18 cmd/go, go/build: clarify build constraint docs
+    + 2022-07-01 9a4d5357f4 flag: highlight support for double dashes in docs
+    + 2022-07-01 c847a2c9f0 go/types, types2: document that exported predicates are unspecified for invalid type arguments
+    + 2022-06-30 405c269b85 go/types, types2: re-enable a couple of commented out tests
+    + 2022-06-30 aad9382e59 go/doc/comment: support links in lists in comments
+    + 2022-06-30 af725f4286 os: fix a typo in path_windows.go
+    
+    Change-Id: I381728322188aca0bfa81a946d6aedda8c07903c
 
- src/runtime/lockrank.go   | 22 +++++++++++-----------
- src/runtime/mklockrank.go |  8 ++++++--
- 2 files changed, 17 insertions(+), 13 deletions(-)
+ AUTHORS                                            |   1 +
+ CONTRIBUTORS                                       | 104 ++++-
+ doc/go1.19.html                                    |   9 +
+ misc/cgo/test/setgid2_linux.go                     |   5 +-
+ misc/cgo/testcarchive/carchive_test.go             |  20 +-
+ misc/cgo/testcshared/cshared_test.go               |  35 +-
+ misc/cgo/testshared/shared_test.go                 |   9 +
+ src/cmd/compile/doc.go                             |   3 -
+ src/cmd/compile/internal/base/base.go              |   1 -
+ src/cmd/compile/internal/base/flag.go              |  19 +-
+ src/cmd/compile/internal/ir/mini.go                |   1 +
+ src/cmd/compile/internal/ir/mknode.go              |   9 +
+ src/cmd/compile/internal/noder/stencil.go          |  19 +-
+ src/cmd/compile/internal/ssa/loopbce.go            | 340 ++++++++-------
+ src/cmd/compile/internal/types/size.go             |   2 +
+ src/cmd/compile/internal/types2/api.go             |  15 +-
+ src/cmd/compile/internal/types2/sizes.go           |  23 +
+ src/cmd/compile/internal/types2/sizes_test.go      |  41 +-
+ .../types2/testdata/fixedbugs/issue39634.go        |  13 +-
+ src/cmd/compile/internal/walk/order.go             |   8 +-
+ src/cmd/dist/buildtool.go                          |   4 +-
+ src/cmd/go/alldocs.go                              |  48 ++-
+ src/cmd/go/go_test.go                              |  24 +-
+ src/cmd/go/internal/fsys/fsys.go                   |  89 +++-
+ src/cmd/go/internal/help/helpdoc.go                |  13 +-
+ src/cmd/go/internal/list/list.go                   |  27 +-
+ src/cmd/go/internal/load/pkg.go                    |   9 +-
+ src/cmd/go/internal/modcmd/download.go             |  66 ++-
+ src/cmd/go/internal/modcmd/why.go                  |   2 +-
+ src/cmd/go/internal/modfetch/cache.go              |  88 ++--
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  96 ++++-
+ src/cmd/go/internal/modfetch/codehost/git.go       | 151 ++++++-
+ src/cmd/go/internal/modfetch/codehost/git_test.go  |  87 +++-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       |  43 +-
+ src/cmd/go/internal/modfetch/coderepo.go           |  88 +++-
+ src/cmd/go/internal/modfetch/coderepo_test.go      |  12 +-
+ src/cmd/go/internal/modfetch/proxy.go              |  38 +-
+ src/cmd/go/internal/modfetch/repo.go               |  39 +-
+ src/cmd/go/internal/modindex/index_test.go         |  87 ++++
+ src/cmd/go/internal/modindex/read.go               | 461 ++++++++++-----------
+ src/cmd/go/internal/modindex/scan.go               |   2 +
+ src/cmd/go/internal/modindex/write.go              |  46 +-
+ src/cmd/go/internal/modinfo/info.go                |  22 +-
+ src/cmd/go/internal/modload/build.go               |  69 ++-
+ src/cmd/go/internal/modload/buildlist.go           |   5 +-
+ src/cmd/go/internal/modload/edit.go                |   2 +-
+ src/cmd/go/internal/modload/list.go                |  60 ++-
+ src/cmd/go/internal/modload/mvs.go                 |  15 +-
+ src/cmd/go/internal/modload/query.go               | 104 ++++-
+ src/cmd/go/internal/modload/search.go              |  13 +-
+ src/cmd/go/internal/work/build.go                  |   9 +-
+ src/cmd/go/internal/work/init.go                   |   6 +-
+ src/cmd/go/script_test.go                          |  19 +-
+ .../mod/example.com_retract_noupgrade_v1.0.0.txt   |   9 +
+ src/cmd/go/testdata/script/README                  |  17 +-
+ src/cmd/go/testdata/script/build_buildvcs_auto.txt |   4 +
+ src/cmd/go/testdata/script/build_overlay.txt       |  20 +-
+ src/cmd/go/testdata/script/fsys_walk.txt           |   6 +
+ src/cmd/go/testdata/script/get_issue16471.txt      |  22 +
+ src/cmd/go/testdata/script/index.txt               |   6 +
+ .../script/{list_permissions.txt => list_perm.txt} |   3 +-
+ .../go/testdata/script/mod_download_issue51114.txt |  21 +
+ .../testdata/script/mod_download_private_vcs.txt   |  10 +-
+ src/cmd/go/testdata/script/mod_perm.txt            |  23 +
+ .../go/testdata/script/mod_retract_noupgrade.txt   |  11 +
+ src/cmd/go/testdata/script/reuse_git.txt           | 425 +++++++++++++++++++
+ src/cmd/go/testdata/script/test_fuzz_cache.txt     |  11 +-
+ src/cmd/go/testdata/script/work_goproxy_off.txt    |  59 +++
+ .../go/testdata/script/work_why_download_graph.txt |  10 +-
+ src/cmd/internal/notsha256/sha256block_386.s       |   3 +
+ src/cmd/internal/notsha256/sha256block_amd64.go    |   3 +
+ src/cmd/internal/notsha256/sha256block_amd64.s     |   3 +
+ src/cmd/internal/notsha256/sha256block_decl.go     |   3 +-
+ src/cmd/internal/notsha256/sha256block_generic.go  |   4 +-
+ src/cmd/internal/notsha256/sha256block_ppc64x.s    |   3 +-
+ src/cmd/link/internal/ld/lib.go                    |  13 +
+ src/cmd/nm/nm_test.go                              |  13 +-
+ src/cmd/trace/main.go                              |   4 +-
+ src/cmd/trace/trace.go                             |   8 +-
+ src/compress/gzip/gunzip.go                        |  60 ++-
+ src/compress/gzip/gunzip_test.go                   |  16 +
+ src/crypto/x509/parser.go                          |  22 +-
+ src/crypto/x509/x509.go                            |  11 +-
+ src/crypto/x509/x509_test.go                       |  75 ++++
+ src/database/sql/sql_test.go                       |  45 +-
+ src/encoding/gob/decode.go                         |  19 +-
+ src/encoding/gob/gobencdec_test.go                 |  24 ++
+ src/encoding/xml/read.go                           |  42 +-
+ src/encoding/xml/read_test.go                      |  31 ++
+ src/flag/flag.go                                   |   3 +-
+ src/go/build/build.go                              |   3 +
+ src/go/build/constraint/expr.go                    |   4 +-
+ src/go/build/doc.go                                |   7 +-
+ src/go/doc/comment/parse.go                        |   7 +
+ src/go/doc/comment/testdata/linklist.txt           |  18 +
+ src/go/doc/comment/testdata/linklist2.txt          |  39 ++
+ src/go/doc/comment/testdata/linklist3.txt          |  31 ++
+ src/go/doc/comment/testdata/linklist4.txt          |  36 ++
+ src/go/parser/interface.go                         |  10 +-
+ src/go/parser/parser.go                            |  54 ++-
+ src/go/parser/parser_test.go                       | 165 ++++++++
+ src/go/parser/resolver.go                          |   9 +-
+ src/go/types/api.go                                |  15 +-
+ src/go/types/sizes.go                              |  23 +
+ src/go/types/sizes_test.go                         |  41 +-
+ src/go/types/testdata/fixedbugs/issue39634.go      |  13 +-
+ src/image/jpeg/reader_test.go                      |  23 +-
+ src/internal/trace/goroutines.go                   |  37 +-
+ src/io/fs/glob.go                                  |  14 +-
+ src/io/fs/glob_test.go                             |  10 +
+ src/net/http/fs.go                                 |   1 +
+ src/net/http/fs_test.go                            |  54 +++
+ src/net/http/header.go                             |   3 +-
+ src/net/http/request.go                            |   4 +-
+ src/net/http/server.go                             |  22 +-
+ src/net/http/transport.go                          |   3 +-
+ src/net/http/transport_test.go                     |  16 +-
+ src/net/url/url.go                                 |   2 +-
+ src/net/url/url_test.go                            |  10 +
+ src/os/exec/exec.go                                |   4 +-
+ src/os/path_windows.go                             |   2 +-
+ src/path/filepath/match.go                         |  12 +-
+ src/path/filepath/match_test.go                    |  10 +
+ src/runtime/mcache.go                              |  36 +-
+ src/runtime/mgcpacer.go                            |  22 +-
+ src/runtime/mprof.go                               |   2 +-
+ src/runtime/os_plan9.go                            |   2 +-
+ src/runtime/race/README                            |   6 +-
+ src/runtime/race/race_darwin_amd64.syso            | Bin 538536 -> 541464 bytes
+ src/runtime/race/race_freebsd_amd64.syso           | Bin 710664 -> 712464 bytes
+ src/runtime/race/race_linux_amd64.syso             | Bin 552768 -> 557744 bytes
+ src/runtime/time.go                                |  12 +-
+ src/runtime/traceback.go                           |   2 +-
+ src/syscall/exec_linux.go                          |   4 +-
+ test/fixedbugs/issue27938.go                       |   6 +-
+ test/fixedbugs/issue53600.go                       |  11 +
+ test/fixedbugs/issue53600.out                      |   1 +
+ test/fixedbugs/issue53635.go                       |  31 ++
+ test/fixedbugs/issue53653.go                       |  42 ++
+ test/fixedbugs/issue53653.out                      |   8 +
+ test/loopbce.go                                    |  65 ++-
+ test/run.go                                        |   1 -
+ test/typeparam/issue53762.go                       |  18 +
+ 143 files changed, 3559 insertions(+), 995 deletions(-)

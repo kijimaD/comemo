@@ -1,24 +1,22 @@
-commit bf88adadac9bbb1b190ba7af1010373823dabb06
-Author: Roi Martin <jroi.martin@gmail.com>
-Date:   Thu Nov 25 13:47:39 2021 +0100
+commit 41e8a9f1cf78933ebdaf9fa29694df5129f1862c
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 31 12:13:58 2021 -0400
 
-    cmd/doc: fix "builtin" package parsing
+    runtime: fix TestGCTestMoveStackOnNextCall flakes
     
-    As stated in the code, "The builtin package needs special treatment: its
-    symbols are lower case but we want to see them, always". Thus, cmd/doc
-    forces the -u flag if the package being queried is called "builtin".
-    However, this happens after having already parsed the package. This
-    CL forces the -u flag just after parsing the command arguments and
-    before parsing any package.
+    gcTestMoveStackOnNextCall can fail to move the stack in very rare
+    cases if there's an unfortunately timed preemption that clobbers the
+    stack guard. This won't happen multiple times in quick succession, so
+    make the test just retry a few times.
     
-    Fixes #49796.
-    
-    Change-Id: If690a900c7cfd1700feecb9529bd4344c3c249d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367134
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I247dc0551514e269e7132cee7945291429b0e865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306671
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/doc/main.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/runtime/gc_test.go | 18 ++++++++++++++----
+ src/runtime/mgc.go     |  3 +++
+ 2 files changed, 17 insertions(+), 4 deletions(-)

@@ -1,15 +1,24 @@
-commit 16d8b411b2f6d652e4e27c3ea8391d9c1e5ce8c2
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Mar 24 02:23:22 2015 -0400
+commit 045f9df466ac6d12a2be66a1c5d4659d113719bd
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Wed Feb 25 19:13:43 2015 +0100
 
-    nacltest.bash: reduce test time by using bootstrapping Go to build fstest_nacl.go
+    mime/quotedprintable: create the package
     
-    One full round of make.bash is saved with this change.
+    This commit creates the mime/quotedprintable package. It moves and
+    exports the QP reader of mime/internal/quotedprintable.
     
-    Change-Id: I8ad1442e9e1255b9abe14dbfec4c903d897d6015
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/7976
+    The code is almost unchanged to preserve the commit history.
+    
+    Updates #4943
+    
+    Change-Id: I4b7b5a2a40a4c84346d42e4cdd2c11a91b28f9e3
+    Reviewed-on: https://go-review.googlesource.com/5940
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/nacltest.bash | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/go/build/deps_test.go                          |  2 +-
+ src/mime/multipart/multipart.go                    |  2 +-
+ .../reader.go}                                     | 27 +++++++++++-----------
+ .../reader_test.go}                                | 24 +++++++++----------
+ 4 files changed, 28 insertions(+), 27 deletions(-)

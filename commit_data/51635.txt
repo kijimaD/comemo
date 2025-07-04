@@ -1,26 +1,16 @@
-commit 3c357409d1e9797bec88a5a1dafae13ba2c45a18
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 5 15:07:04 2023 -0800
+commit 6d881da9c894dfcd8c3dda0057a7c63a3ab59ea2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 14 08:54:37 2022 -0800
 
-    cmd/compile/internal/syntax: remove Crawl, not needed anymore (cleanup)
+    cmd/compile: shuffle and simplify sync markers
     
-    This also brings some of the types2 testing code better in sync with
-    go/types.
-    
-    Also: fix a minor bug in resolver_test.go (continue traversing
-          SelectorExpr if the first part is not an identifier).
-    
-    Change-Id: Ib6c5f6228812b49c185b52a4f02ca5b393418e01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460760
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I5894ac4697212267380b7a03876927bbf3e1de2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385999
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/irgen.go          |  4 ++--
- src/cmd/compile/internal/syntax/walk.go          | 22 +++-------------------
- src/cmd/compile/internal/types2/issues_test.go   |  4 ++--
- src/cmd/compile/internal/types2/resolver_test.go | 16 ++++++++--------
- src/go/types/resolver_test.go                    |  2 +-
- 5 files changed, 16 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/noder/sync.go             | 148 +++++-----------
+ .../compile/internal/noder/syncmarker_string.go    | 193 +++++++--------------
+ 2 files changed, 105 insertions(+), 236 deletions(-)

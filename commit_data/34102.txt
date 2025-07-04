@@ -1,20 +1,26 @@
-commit 24dd83d7eb0f08ea5cf541ead3f2b36448468bfa
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 15 14:54:24 2017 -0800
+commit d8ff3d592088ef175222dbf69991887f0dd458d6
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Sep 30 11:44:21 2017 +0200
 
-    runtime: buffered write barrier for amd64p32
+    runtime: fix wall time computation in macOS High Sierra
     
-    Updates #22460.
+    Latest macOS High Sierra changed how the wall time information
+    is exported into the commpage. Backward compatibility was partly
+    preserved, that is previous Go versions are basically forced to
+    go through a syscall which is much slower and is not able to
+    get nanosecond precision.
     
-    Change-Id: I6656d478625e5e54aa2eaa38d99dfb0f71ea1fdd
-    Reviewed-on: https://go-review.googlesource.com/92697
-    Run-TryBot: Austin Clements <austin@google.com>
+    Implement the new commpage layout and wall time computation,
+    using a version check to fallback to the previous code on
+    older operating systems.
+    
+    Fixes #22037
+    
+    Change-Id: I8c2176eaca83a5d7be23443946a6b4c653ec7f68
+    Reviewed-on: https://go-review.googlesource.com/67332
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/main.go          |  2 +-
- src/cmd/compile/internal/ssa/config.go       |  3 ++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
- src/cmd/vet/all/whitelist/nacl_amd64p32.txt  |  2 +
- src/runtime/asm_amd64p32.s                   | 81 ++++++++++++++++++++++++++++
- 5 files changed, 88 insertions(+), 2 deletions(-)
+ src/runtime/sys_darwin_amd64.s | 86 ++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 82 insertions(+), 4 deletions(-)

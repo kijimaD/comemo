@@ -1,16 +1,45 @@
-commit 84e20465fc33f1702d6dfc7ed1c05b457acb1b5b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Nov 2 11:07:22 2012 +1100
+commit 159302f36f2355f35db51d07a892672adffed6ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 1 15:38:17 2012 -0700
 
-    net: use better error messages on windows
+    exp/types: move exp/types/staging -> exp/types
     
-    Fixes #4320.
+    - removes exp/types/staging
+    - the only code change is in exp/gotype/gotype.go
     
-    R=golang-dev, rsc
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/6810064
+    https://golang.org/cl/6822068
 
- src/pkg/net/fd_unix.go    |  3 ---
- src/pkg/net/fd_windows.go | 11 +++++++----
- src/pkg/net/net.go        |  2 ++
- 3 files changed, 9 insertions(+), 7 deletions(-)
+ src/pkg/exp/gotype/gotype.go                             | 2 +-
+ src/pkg/exp/types/{staging => }/builtins.go              | 0
+ src/pkg/exp/types/{staging => }/check.go                 | 0
+ src/pkg/exp/types/{staging => }/check_test.go            | 0
+ src/pkg/exp/types/{staging => }/const.go                 | 0
+ src/pkg/exp/types/{staging => }/conversions.go           | 0
+ src/pkg/exp/types/{staging => }/errors.go                | 0
+ src/pkg/exp/types/{staging => }/exportdata.go            | 0
+ src/pkg/exp/types/{staging => }/expr.go                  | 0
+ src/pkg/exp/types/{staging => }/gcimporter.go            | 0
+ src/pkg/exp/types/{staging => }/gcimporter_test.go       | 0
+ src/pkg/exp/types/{staging => }/operand.go               | 0
+ src/pkg/exp/types/{staging => }/predicates.go            | 0
+ src/pkg/exp/types/{staging => }/resolver_test.go         | 0
+ src/pkg/exp/types/{staging => }/stmt.go                  | 0
+ src/pkg/exp/types/{staging => }/testdata/builtins.src    | 0
+ src/pkg/exp/types/{staging => }/testdata/const0.src      | 0
+ src/pkg/exp/types/{staging => }/testdata/conversions.src | 0
+ src/pkg/exp/types/{staging => }/testdata/decls0.src      | 0
+ src/pkg/exp/types/{staging => }/testdata/decls1.src      | 0
+ src/pkg/exp/types/{staging => }/testdata/decls2a.src     | 0
+ src/pkg/exp/types/{staging => }/testdata/decls2b.src     | 0
+ src/pkg/exp/types/{staging => }/testdata/exports.go      | 0
+ src/pkg/exp/types/{staging => }/testdata/expr0.src       | 0
+ src/pkg/exp/types/{staging => }/testdata/expr1.src       | 0
+ src/pkg/exp/types/{staging => }/testdata/expr2.src       | 0
+ src/pkg/exp/types/{staging => }/testdata/expr3.src       | 0
+ src/pkg/exp/types/{staging => }/testdata/stmt0.src       | 0
+ src/pkg/exp/types/{staging => }/types.go                 | 0
+ src/pkg/exp/types/{staging => }/types_test.go            | 0
+ src/pkg/exp/types/{staging => }/universe.go              | 0
+ 31 files changed, 1 insertion(+), 1 deletion(-)

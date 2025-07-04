@@ -1,29 +1,19 @@
-commit 630ef2edc2a7f6138c9eb0ed8eb8216a32ed0339
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon May 1 12:54:27 2023 -0400
+commit c1e2ecbaf93b360f3384a23c77a01c2280b9e58e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 3 21:18:14 2022 -0700
 
-    cmd/link: remove allocation in decoding type name
+    doc/go1.19: document Resolver.PreferGo
     
-    The type name symbol is always from a Go object file and we never
-    change it. Convert the data to string using unsafe conversion
-    without allocation.
+    Updates #51400
     
-    Linking cmd/go (on macOS/amd64),
-    
-    name           old alloc/op   new alloc/op   delta
-    Deadcode_GC      1.25MB ± 0%    1.17MB ± 0%   -6.29%  (p=0.000 n=20+20)
-    
-    name           old allocs/op  new allocs/op  delta
-    Deadcode_GC       8.98k ± 0%     0.10k ± 3%  -98.91%  (p=0.000 n=20+20)
-    
-    Change-Id: I33117ad1f991e4f14ce0b38cceec50b041e3c0a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490915
+    Change-Id: I61733574362d4cf3cb65122bd13361e5c0f6728c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410375
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/internal/goobj/objfile.go      |  9 +++++++++
- src/cmd/link/internal/ld/deadcode.go   |  2 +-
- src/cmd/link/internal/ld/decodesym.go  | 10 +++++++---
- src/cmd/link/internal/loader/loader.go | 10 ++++++++++
- 4 files changed, 27 insertions(+), 4 deletions(-)
+ doc/go1.19.html | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

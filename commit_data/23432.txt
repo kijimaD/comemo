@@ -1,17 +1,12 @@
-commit 18d9a8d05f5c9f13b8c2a06ce3a11a2c04d19536
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 11 12:32:11 2015 -0700
+commit b83b01110090c41fc24750ecabf0b87c5fbff233
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 14 12:26:27 2015 +0900
 
-    cmd/go: format temporary Go files in testsuite
+    net: fix vet missed format error in test
     
-    Indent the temporary file source code embedded in go_test.go, so that
-    we don't have temporary Go code in the first column.
-    
-    No real changes to the tests, just formatting.
-    
-    Change-Id: I416b4a812c8db452ea61afe63a00989ec598c228
-    Reviewed-on: https://go-review.googlesource.com/10926
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I73c0aeb4b27fec84149c8e89753b27ff2190eabf
+    Reviewed-on: https://go-review.googlesource.com/10074
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/go/go_test.go | 83 +++++++++++++++++++++++++--------------------------
- 1 file changed, 41 insertions(+), 42 deletions(-)
+ src/net/error_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

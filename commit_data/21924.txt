@@ -1,15 +1,18 @@
-commit 84f53339befccbb4c3449955e205a6a727282f10
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 5 09:52:41 2015 -0500
+commit 3813799931f5819b86d5d58f0787a5f8600ae69b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Feb 8 18:09:23 2015 -0500
 
-    runtime: apply comments from CL 3742
+    cmd/go: make consistent use of leading Tabs
     
-    I asked for this in CL 3742 and it was ignored.
+    The only remaining uses of four spaces instead of a tab is
+    when the line is too long (e.g. type Package).
     
-    Change-Id: I30ad05f87c7d9eccb11df7e19288e3ed2c7e2e3f
-    Reviewed-on: https://go-review.googlesource.com/6930
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Fixes #9809
+    
+    Change-Id: Ifffd3639aa9264e795686ef1879a7686f182d2e5
+    Reviewed-on: https://go-review.googlesource.com/4182
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/panic.go | 16 ++++++++--------
- src/runtime/proc.go  | 16 ++++++++--------
- 2 files changed, 16 insertions(+), 16 deletions(-)
+ src/cmd/go/doc.go  | 42 +++++++++++++++++++++---------------------
+ src/cmd/go/main.go |  4 ++--
+ 2 files changed, 23 insertions(+), 23 deletions(-)

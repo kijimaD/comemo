@@ -1,20 +1,18 @@
-commit ae585ee52c2437bfd0e955ad6fc8911bf292f51d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Aug 3 19:31:23 2020 +0000
+commit fd7666881beb9bb598e8e4e0c2ba9cd3a9ee4466
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 8 19:45:12 2020 -0400
 
-    runtime: remove memstats.heap_alloc
+    [dev.link] cmd/link: add methods for adding relocations in Reloc2 format
     
-    memstats.heap_alloc is 100% a duplicate and unnecessary copy of
-    memstats.alloc which exists because MemStats used to be populated from
-    memstats via a memmove.
+    This is in prepration of removing the old loader.Reloc. This also
+    introduces a way of adding a slice of relocations more
+    efficiently (will be used in the next CL).
     
-    Change-Id: I995489f61be39786e573b8494a8ab6d4ea8bed9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246975
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I3eaee7fb3a3e102a8670990f4a31c40d0b17b8c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227761
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/heapdump.go |  2 +-
- src/runtime/mstats.go   | 13 +++++--------
- 2 files changed, 6 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/loader/symbolbuilder.go | 33 +++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

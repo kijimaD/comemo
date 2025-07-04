@@ -1,21 +1,16 @@
-commit d82c9a167d9e3a09eb27a00b6125e1a3fea6dc3d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jan 15 19:37:17 2019 +1100
+commit 262d4f321a885908def68adc4bed68428722b954
+Author: Warren Fernandes <warren.f.fernandes@gmail.com>
+Date:   Mon Sep 3 12:32:02 2018 -0600
 
-    path/filepath: skip part of TestNTNamespaceSymlink
+    fmt: add example for GoStringer interface
     
-    Recent CL 156398 extended TestNTNamespaceSymlink. But new code
-    fails, if user running the test does not have sufficient privilege
-    to create file symlink. Skip part of TestNTNamespaceSymlink, if
-    user cannot create symlink.
+    Updates golang/go#27376.
     
-    Fixes #29745
-    
-    Change-Id: Ie4176429ba9dd98553ce9e91fd19851cc7353f42
-    Reviewed-on: https://go-review.googlesource.com/c/157917
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ia8608561eb6a268aa7eae8c39c7098df100b643a
+    Reviewed-on: https://go-review.googlesource.com/133075
+    Reviewed-by: Kevin Burke <kev@inburke.com>
+    Run-TryBot: Kevin Burke <kev@inburke.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/path/filepath/path_windows_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/fmt/gostringer_example_test.go | 59 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 59 insertions(+)

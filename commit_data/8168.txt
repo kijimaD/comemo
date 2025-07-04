@@ -1,12 +1,16 @@
-commit 98cf39e270c3d64a3f45f1e152e59696fd4a9c08
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 20 18:19:22 2011 -0400
+commit c4cc9c282f29156cd5ed4133830c0ad379332393
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 20 14:22:52 2011 -0700
 
-    run.bash: remove redundant rebuilds
+    gob: have errorf always prefix the message with "gob: "
+    to regularize the errors.
     
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4449041
+    https://golang.org/cl/4446055
 
- src/run.bash | 11 +----------
- 1 file changed, 1 insertion(+), 10 deletions(-)
+ src/pkg/gob/debug.go  |  2 +-
+ src/pkg/gob/decode.go | 28 ++++++++++++++--------------
+ src/pkg/gob/encode.go | 12 ++++++------
+ src/pkg/gob/error.go  |  3 ++-
+ 4 files changed, 23 insertions(+), 22 deletions(-)

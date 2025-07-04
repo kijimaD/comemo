@@ -1,19 +1,20 @@
-commit 97d17dc02398730822abba75a3d3ae26c0f3c0fd
-Author: korzhao <korzhao95@gmail.com>
-Date:   Sat Aug 21 02:51:51 2021 +0800
+commit 3904a6282945276ec72683920c278b2e3141a1fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 6 12:38:11 2020 -0500
 
-    test/typeparam: add a test case for issue46591
+    [dev.regabi] cmd/compile: remove mode.Sprintf etc in printer
     
-    Fixes #46591
+    This code is now hardly used and not worth the complexity.
+    It also tangles together Nodes and Types in a way that keeps
+    this code in package ir instead of package types.
     
-    Change-Id: I4875092ecd7760b0cd487e793576ef7a9a569a0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343970
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I2e829c1f6b602acbdc8ab4aac3b798f9ded762ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275777
+    Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- test/typeparam/issue46591.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/cmd/compile/fmtmap_test.go     |   1 -
+ src/cmd/compile/internal/ir/fmt.go | 111 +++++++++++--------------------------
+ 2 files changed, 32 insertions(+), 80 deletions(-)

@@ -1,16 +1,19 @@
-commit 862e45d49d07ab1cdf79763763cc29ed6d311a20
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 14 21:39:28 2017 +0000
+commit df6025bc0d7746fdf40a39398e5d8799ccf78a55
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 16 17:02:24 2017 -0400
 
-    time: remove some redundant equality comparison documentation
+    runtime: disallow malloc or panic in scavenge
     
-    Updates to CL 45698
+    Mallocs and panics in the scavenge path are particularly nasty because
+    they're likely to silently self-deadlock on the mheap.lock. Avoid
+    sinking lots of time into debugging these issues in the future by
+    turning these into immediate throws.
     
-    Updates #19510
-    
-    Change-Id: Iec7a455b6c4d5f96d0b674459bf1455c99102d62
-    Reviewed-on: https://go-review.googlesource.com/45779
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib36fdda33bc90b21c32432b03561630c1f3c69bc
+    Reviewed-on: https://go-review.googlesource.com/38293
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/time/time.go | 13 ++++---------
- 1 file changed, 4 insertions(+), 9 deletions(-)
+ src/runtime/mheap.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

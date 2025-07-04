@@ -1,28 +1,18 @@
-commit 76483877052eaa9b2242deee2239e82d3953fd16
-Author: Austin Clements <austin@google.com>
-Date:   Wed Dec 2 12:20:29 2015 -0500
+commit a4fc3512ba85125d51e5e27491a6dd331cd2599b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 28 14:42:21 2015 -0700
 
-    debug/elf: transparently decompress compressed sections
+    go/format, cmd/gofmt: avoid dependency on internal package format
     
-    This adds support for compressed ELF sections. This compression is
-    treated as a framing issue and hence the package APIs all
-    transparently decompress compressed sections. This requires some
-    subtlety for (*Section).Open, which returns an io.ReadSeeker: since
-    the decompressed data comes from an io.Reader, this commit introduces
-    a Reader-to-ReadSeeker adapter that is efficient for common uses of
-    Seek and does what it can otherwise.
+    Fixes #11844.
     
-    Fixes #11773.
-    
-    Change-Id: Ic0cb7255a85cadf4c1d15fb563d5a2e89dbd3c36
-    Reviewed-on: https://go-review.googlesource.com/17341
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I32edd39e79f7c9bdc132c49bd06081f35dac245d
+    Reviewed-on: https://go-review.googlesource.com/15114
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/debug/elf/elf.go                     |  39 +++++
- src/debug/elf/file.go                    |  76 +++++++--
- src/debug/elf/file_test.go               | 278 +++++++++++++++++++++++--------
- src/debug/elf/reader.go                  | 108 ++++++++++++
- src/debug/elf/testdata/compressed-32.obj | Bin 0 -> 2208 bytes
- src/debug/elf/testdata/compressed-64.obj | Bin 0 -> 3280 bytes
- 6 files changed, 424 insertions(+), 77 deletions(-)
+ src/cmd/gofmt/gofmt.go                             |   5 +-
+ src/cmd/gofmt/internal.go                          | 166 +++++++++++++++++++++
+ src/cmd/gofmt/long_test.go                         |   5 +-
+ src/go/format/format.go                            |   5 +-
+ .../format/format.go => go/format/internal.go}     |  25 ++--
+ 5 files changed, 186 insertions(+), 20 deletions(-)

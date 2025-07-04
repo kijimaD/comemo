@@ -1,12 +1,13 @@
-commit a5aa4d3307ccc557127d333b7b084b52d5097979
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jan 17 10:59:39 2012 +0900
+commit b24d1cb5ec707eee1bba219e1e09240f2433a2d2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Jan 16 19:29:54 2012 -0500
 
-    net: fix unintentional error variable shadowing
+    5l: remove redundant code
+            5l/asm.c: code in line 311-319 has already outputed segtext.sect->next;
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5543065
+    https://golang.org/cl/5532048
 
- src/pkg/net/sock.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/5l/asm.c | 5 -----
+ 1 file changed, 5 deletions(-)

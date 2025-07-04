@@ -1,31 +1,17 @@
-commit cb95819cf6e969dc7dcc64ec7820d3995379c9f4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Dec 11 14:14:30 2020 -0500
+commit 7d232ab276fe81c1c8552d4a809af7a593bb294b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 30 16:01:02 2020 -0400
 
-    runtime: detect netbsd netpoll overrun in sysmon
+    crypto/x509: improve VerifyOptions and VerifyHostname docs
     
-    The netbsd kernel has a bug [1] that occassionally prevents netpoll from
-    waking with netpollBreak, which could result in missing timers for an
-    unbounded amount of time, as netpoll can't restart with a shorter delay
-    when an earlier timer is added.
+    Before going around making changes, surface the current behavior in the
+    docs as a starting point. No behavior changes.
     
-    Prior to CL 232298, sysmon could detect these overrun timers and
-    manually start an M to run them. With this fallback gone, the bug
-    actually prevents timer execution indefinitely.
-    
-    As a workaround, we add back sysmon detection only for netbsd.
-    
-    [1] https://gnats.netbsd.org/cgi-bin/query-pr-single.pl?number=50094
-    
-    Updates #42515
-    
-    Change-Id: I8391f5b9dabef03dd1d94c50b3b4b3bd4f889e66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277332
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
+    Change-Id: If8096cedbba7eda37694dbb7f438046d590c3bcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231377
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/proc.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/crypto/x509/verify.go | 32 +++++++++++++++++++++++++++-----
+ 1 file changed, 27 insertions(+), 5 deletions(-)

@@ -1,12 +1,12 @@
-commit e81d72100aaf98f4aabf19337923981979f1410f
+commit 33d00fae30a8079db004f6ecaa618a49955b34b4
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 14 11:29:11 2011 -0400
+Date:   Wed Sep 14 11:29:01 2011 -0400
 
-    websocket: rename websocket.WebSocketAddr to *websocket.Addr.
+    runtime: track HeapIdle
     
-    R=ukai
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4999043
+    https://golang.org/cl/4995045
 
- src/pkg/websocket/websocket.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/runtime/mheap.c | 2 ++
+ 1 file changed, 2 insertions(+)

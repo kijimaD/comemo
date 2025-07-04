@@ -1,21 +1,19 @@
-commit ba048f7ce4a14e956635efc80fc1447c3b8851dd
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 20 20:26:31 2016 -0400
+commit f1ebe8a03c397fd5a14dde71994f170c303bbf26
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Sep 4 01:39:16 2016 +0000
 
-    sync: enable Pool when using race detector
+    Revert "cmd/compile/internal/gc: clean up sinit.go"
     
-    Disabled by https://golang.org/cl/53020044 due to false positives.
-    Reenable and model properly.
+    Revert to make josharians branch land cleanly
     
-    Fixes #17306.
+    This reverts commit 38abd43b6a4d215375901d137a3eac9d0d3393a5.
     
-    Change-Id: I28405ddfcd17f58cf1427c300273212729154359
-    Reviewed-on: https://go-review.googlesource.com/31589
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Idde1df953baf6e5742c87c4edd4bee0b6b418aca
+    Reviewed-on: https://go-review.googlesource.com/28480
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/race/testdata/pool_test.go | 47 ++++++++++++++++++++
- src/runtime/stubs.go                   |  3 ++
- src/sync/pool.go                       | 81 +++++++++++++++++++++-------------
- 3 files changed, 101 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go | 83 +++++++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 2 files changed, 54 insertions(+), 31 deletions(-)

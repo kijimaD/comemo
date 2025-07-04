@@ -1,23 +1,27 @@
-commit 6d087c807e558a7e4f7da29fd44998e6f605c27d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 29 16:36:50 2020 -0400
+commit f5291cf03d58e004eae67eeb904efbf46aba666a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Apr 18 14:38:09 2020 +0100
 
-    cmd/go/internal/modload: handle NotExist errors in (*mvsReqs).Previous
+    cmd/compile: use exported field names in rulegen
     
-    Previous is used during downgrading. If the module proxy does not
-    advertise any versions (for example, because it contains only
-    pseudo-versions), then Previous should return "none" instead of a
-    non-nil error.
+    The types used while generating code, such as Rule and File, have been
+    exported for a while. This is harmless for a main package, and lets us
+    easily differentiate types from variables and functions, as well as use
+    names like "If" since "if" is a keyword.
     
-    For #37438
+    However, the fields remained unexported. This was a bit inconsistent,
+    and also meant that we couldn't use some intuitive names like If.else.
+    Export them.
     
-    Change-Id: I4edfec19cfeb3ffe50df4979f99a01321c442509
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266370
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Besides the capitalization, the only change is that the If type now has
+    the fields Then and Else, instead of stmt and alt.
+    
+    Change-Id: I426ff140c6ca186fec394f17b29165861da5fd98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228821
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modload/mvs.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/ssa/gen/main.go    |   3 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 296 ++++++++++++++--------------
+ 2 files changed, 151 insertions(+), 148 deletions(-)

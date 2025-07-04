@@ -1,18 +1,13 @@
-commit a608377545e95200a94040eff7b62b95c9ab41ed
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Apr 21 19:43:18 2015 +0000
+commit ffe7fbf33b7dd284e67bb9ba0043910c68d1237e
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 27 12:34:45 2015 -0400
 
-    Revert "go/internal/gcimporter: populate (*types.Package).Imports"
+    cmd/internal/gc: convert some comment text from C to Go syntax
     
-    This reverts commit 8d7d02f14525874eafb6b0a00916bdb0bc24bc03.
-    
-    Reverted because it breaks go/build's "deps" test.
-    
-    Change-Id: I61db6b2431b3ba0d2b3ece5bab7a04194239c34b
-    Reviewed-on: https://go-review.googlesource.com/9174
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Icbc42bcff5a3eabe9f43cff7fcc126141e209ded
+    Reviewed-on: https://go-review.googlesource.com/8203
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gcimporter/gcimporter.go      | 90 +++++++++------------------
- src/go/internal/gcimporter/gcimporter_test.go | 22 ++-----
- src/go/types/package.go                       |  6 +-
- 3 files changed, 35 insertions(+), 83 deletions(-)
+ src/cmd/internal/gc/walk.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

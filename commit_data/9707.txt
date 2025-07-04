@@ -1,16 +1,18 @@
-commit 642d272c3cdaea58decce1a9cf6e9668b1b16f67
+commit 66e44000d4158c96154dc572a76182ca6799c56a
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 15 16:47:01 2011 -0700
+Date:   Thu Sep 15 16:21:42 2011 -0700
 
-    godoc: remove dependency of syscall
+    godoc: use new index/suffixarray serialization code
     
-    On app-engine, we cannot import syscall.
-    The respective constants are already defined
-    elsewhere for the same reason.
+    When saving/restoring the fulltext index, the entire
+    respective suffixarray is now saved/restored (as opposed
+    to the indexed data only, and the suffixarray recreated).
+    This saves significant start-up time for large indexes,
+    at the cost of significantly larger index files.
     
-    R=r, dsymonds
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5036042
+    https://golang.org/cl/5037043
 
- src/cmd/godoc/godoc.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/godoc/index.go | 38 +++++++++++++++++++++++---------------
+ 1 file changed, 23 insertions(+), 15 deletions(-)

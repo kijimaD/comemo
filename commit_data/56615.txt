@@ -1,23 +1,22 @@
-commit 5ab8f90745efee77cae39f4ba9547298977fcc65
+commit 66432e1b62c440b16b76e920aa59f1658678df93
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 21 15:48:06 2024 -0700
+Date:   Tue May 16 14:15:07 2023 -0700
 
-    go/types, types2: operand.convertibleTo must consider Alias types
+    go/types, types2: remove argument "getter" use from Checker.builtins (cleanup)
     
-    Fixes regression from Go 1.22.
+    Check all arguments for validity once, in the beginning.
+    Conservatively replace arg(x, i) calls with *x = args[i].
+    Use y (2nd arguments) directly, w/o copying.
+    Remove unnecessary copies and slice creations in append.
     
-    Fixes #67540.
-    For #67547.
-    
-    Change-Id: I61f642970c6a9bd8567654bb5ecf645ae77b3bcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587159
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I1e2891cba9658f5b3cdf897e81db2f690a99b16b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495515
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/conversions.go     | 11 +++---
- src/go/types/conversions.go                        | 11 +++---
- .../types/testdata/fixedbugs/issue67547.go         | 40 ++++++++++++++++++++++
- 3 files changed, 54 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go | 102 ++++++++++-----------------
+ src/go/types/builtins.go                    | 104 ++++++++++------------------
+ 2 files changed, 71 insertions(+), 135 deletions(-)

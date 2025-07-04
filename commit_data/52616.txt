@@ -1,24 +1,24 @@
-commit 5a962bfc3408c89a92c064b0c740458f169251ec
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 11 11:54:46 2023 -0700
+commit 7e33e9e7a39de0dc384f65ddc17c00bdedf85b81
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu May 12 10:03:25 2022 -0700
 
-    crypto/internal/nistec: update generator for re-enabled s390x asm
+    cmd/go: don't assume decimal in test_fuzz_mutate_crash
     
-    CL 404058 modified the generated file p256.go without modifying
-    the generator program. This CL updates the generator program so
-    that it generates the p256.go file currently in the tree.
+    In the float test in test_fuzz_mutate_crash, don't assume the mutator
+    will generate a decimal during mutation. The probability it will is
+    quite high, but it is not guaranteed, which can cause a flake. Since we
+    are not really testing that the mutator will do this kind of mutation,
+    just that a mutation happens, just check that the input is not the zero
+    value like the rest of the targets.
     
-    For #52709
+    Fixes #52852
     
-    Change-Id: I86927a8bb84b2e17426b7ba74a86f1aba781628e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483715
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I4640be640204ced01b4dc749c74b46da968ea7df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405855
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/nistec/generate.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

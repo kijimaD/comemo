@@ -1,22 +1,12 @@
-commit 164718ae2a35d368bf5611bf77c0e8ca1c8ab6a5
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu May 3 13:43:52 2018 +0200
+commit f8610bbd5c00bb801df3d37fe9cc39b5055167c9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jan 29 11:59:53 2018 +0100
 
-    misc/ios: improve detection of missing developer image
+    doc: fix two small mistakes in 1.10 release notes
     
-    It turns out that a non-empty result from ideviceimagemounter does
-    not mean an image is mounted. Use ideviceimagemounter's xml output
-    mode to improve the check.
-    
-    Also, iOS versions are reported as major.minor or major.minor.patch.
-    Developer images are only specific to major.minor version, so cut
-    off the patch number in the search, if present.
-    
-    Change-Id: Ia182e6f4655b7e6aa6feb8005cd3b533535b73cd
-    Reviewed-on: https://go-review.googlesource.com/111235
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: If928b14f6cd89b1d78745e8bc7a081ccbd7fd38f
+    Reviewed-on: https://go-review.googlesource.com/90515
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 109 ++++++++++++++++++++++++++++-------------
- 1 file changed, 74 insertions(+), 35 deletions(-)
+ doc/go1.10.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

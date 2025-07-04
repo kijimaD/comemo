@@ -1,18 +1,12 @@
-commit f91326b7b1de0f699fff4051e41318b7278b4af0
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 7 13:50:31 2012 +1100
+commit 7db4384354e43e41e34f17299ff33cd1a895d769
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 7 13:34:01 2012 +1100
 
-    strconv: remove dependence on unicode and strings
-    We need a compact, reasonably efficient IsPrint. That adds about 2K of data,
-    plus a modest amount of code, but now strconv is a near-leaf package.
+    misc/dist: fix glob pattern under windows
     
-    R=r, bradfitz, adg, rsc, minux.ma
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5756050
+    https://golang.org/cl/5753066
 
- src/pkg/go/build/deps_test.go  |   2 +-
- src/pkg/strconv/isprint.go     | 268 ++++++++++++++++++++---------------------
- src/pkg/strconv/makeisprint.go |  25 ++--
- src/pkg/strconv/quote.go       |  68 ++++++++---
- src/pkg/strconv/quote_test.go  |  15 +++
- 5 files changed, 215 insertions(+), 163 deletions(-)
+ misc/dist/bindist.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

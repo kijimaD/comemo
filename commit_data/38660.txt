@@ -1,19 +1,28 @@
-commit db0c524211d82af1f632b78c80d22d734c8b1be2
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Apr 5 17:10:40 2019 +0200
+commit e51b19a993efa61b7d8f8d2828d9ee95ea82c98c
+Author: Martin Garton <garton@gmail.com>
+Date:   Tue Nov 13 13:34:42 2018 +0000
 
-    syscall: allow empty string argument to SetsockoptString
+    bufio: make Reader.Peek invalidate Unreads
     
-    Don't panic with "index out of range" on empty string argument.
+    Since Reader.Peek potentially reads from the underlying io.Reader,
+    discarding previous buffers, UnreadRune and UnreadByte cannot
+    necessarily work.  Change Peek to invalidate the unread buffers in all
+    cases (as allowed according to the documentation) and thus prevent
+    hiding bugs in the caller.
     
-    Fixes golang/go#31277
+    (This change was previoiusly merged and then reverted due concern about
+    being too close to a release)
     
-    Change-Id: I005f9523caec76337cb2ec87272a6be4736bce18
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170937
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #18556
+    
+    Change-Id: I9027d75aa834d4b27703f37711ba25de04d89f3c
+    GitHub-Last-Rev: 917ef1e51131d734f92efc946a0ab5ca4ff69be6
+    GitHub-Pull-Request: golang/go#28768
+    Reviewed-on: https://go-review.googlesource.com/c/149297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/syscall_unix.go      | 6 +++++-
- src/syscall/syscall_unix_test.go | 8 ++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/bufio/bufio.go      |  3 +++
+ src/bufio/bufio_test.go | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+)

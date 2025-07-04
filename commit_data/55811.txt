@@ -1,17 +1,23 @@
-commit 63c910a670731eee559f7264e5aaf4147094e550
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Sun Mar 3 03:49:32 2024 +0000
+commit 70308d1375414d6224752214d2dbf4517e0c7632
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 15 11:22:53 2023 -0700
 
-    lib/time: use consistent directory in mkzip usage message
+    internal/fuzz: improve debugging messages
     
-    Change-Id: I6de70064222038d7d15557be9e85b66f944ac554
-    GitHub-Last-Rev: fe7d6e94903620a525584eceec00e4801de0faa2
-    GitHub-Pull-Request: golang/go#66021
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568077
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Also enable debugging information in TestScript/test_fuzz_cov, which
+    hits a deadlock on builders, but I am unable to trigger locally. This
+    should make it somewhat easier to track down where the issue actually
+    is.
+    
+    Updates #51484
+    
+    Change-Id: I98124f862242798f2d9eba15cacefbd02924cfe2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476595
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- lib/time/mkzip.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/testdata/script/test_fuzz_cov.txt |  5 +-
+ src/internal/fuzz/fuzz.go                    | 68 ++++++++++++++++++----------
+ 2 files changed, 47 insertions(+), 26 deletions(-)

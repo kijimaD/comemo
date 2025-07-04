@@ -1,0 +1,19 @@
+commit 4f48ad5c6b2775ab295ea0062b93527cbf4ea9d0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 29 03:18:01 2025 +0100
+
+    cmd/link/internal/loader: fix linknames from FIPS 140 frozen tree
+    
+    blockedLinknames was updated in CL 635676 after the lib/fips140 zip
+    mechanism was last tested. linknames from crypto/internal/fips140/v1.0.0
+    need to be allowed if they'd be allowed from crypto/internal/fips140.
+    
+    Change-Id: I6a6a4656022118d4739ae14831f2ad721951c192
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645195
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/cmd/link/internal/loader/loader.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,49 +1,14 @@
-commit bcf964de5e16486cec2e102c929768778f50eea2
-Author: kirk <kirk91.han@gmail.com>
-Date:   Mon Dec 4 10:53:53 2017 +0800
+commit 9dba7335c041677c18eaa245a106f9865b651d84
+Author: Elbert Fliek <efliek@gmail.com>
+Date:   Tue Sep 5 20:21:41 2017 +0200
 
-    database/sql: fix transaction leak
+    time: add an example to the NewTicker function
     
-    When the user context which passed in (*DB)BeginTx is canceled or
-    timeout, the current implementation could cause db transaction leak
-    in some extreme scenario.
-    
-    Goroutine 1:
-            Call (*DB) BeginTx begins a transaction with a userContext.
-            In (*DB)BeginTx, a new goroutine (*Tx)awaitDone
-            which monitor context and rollback tx if needed will be created
-    
-    Goroutine 2(awaitDone):
-            block on tx.ctx.Done()
-    
-    Goroutine 1:
-            Execute some insert or update sqls on the database
-    
-    Goroutine 1:
-            Commit the transaction, (*Tx)Commit set
-            the atomic variable tx.done to 1
-    
-    Goroutine 3(maybe global timer):
-            Cancel userContext which be passed in Tx
-    
-    Goroutine 1:
-            (*Tx)Commit checks tx.ctx.Done().
-            Due to the context has been canceled, it will return
-            context.Canceled or context.DeadlineExceeded error immediately
-            and abort the real COMMIT operation of transaction
-    
-    Goroutine 2:
-            Release with tx.ctx.Done() signal, execute (*Tx)rollback.
-            However the atomic variable tx.done is 1 currently,
-            it will return ErrTxDone error immediately and
-            abort the real ROLLBACK operation of transaction
-    
-    Fixes #22976
-    
-    Change-Id: I3bc23adf25db823861d91e33d3cca6189fb1171d
-    Reviewed-on: https://go-review.googlesource.com/81736
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: Idad9cdee36679373ee223ff2bd4c021ea0afcce1
+    Reviewed-on: https://go-review.googlesource.com/61710
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/sql.go | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/time/example_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

@@ -1,23 +1,14 @@
-commit 08362246b6a1dd7bffeb68f1d5116b9b2fe6209a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 13 09:28:15 2017 -0400
+commit 7c946c6d61a9ef0203fba73be6c462215f0e5795
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 24 09:54:13 2017 -0700
 
-    cmd/go/internal/work: factor build.go into multiple files
+    .github: recommend 'go bug' when filing an issue
     
-    build.go - commands and misc helpers
-    action.go - action graph construction
-    exec.go - action graph execution
-    gc.go - gc toolchain
-    gccgo.go - gccgo toolchain
+    It was released with 1.8, so it should be widely available.
     
-    Change-Id: I39b6e2490ac05334c2321e9ad88df694a6efa82f
-    Reviewed-on: https://go-review.googlesource.com/70671
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I7dcf205009b528071ea63f99cb5da0db183df341
+    Reviewed-on: https://go-review.googlesource.com/50932
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/action.go |  691 +++++++
- src/cmd/go/internal/work/build.go  | 3485 ------------------------------------
- src/cmd/go/internal/work/exec.go   | 1904 ++++++++++++++++++++
- src/cmd/go/internal/work/gc.go     |  481 +++++
- src/cmd/go/internal/work/gccgo.go  |  497 +++++
- 5 files changed, 3573 insertions(+), 3485 deletions(-)
+ CONTRIBUTING.md | 1 +
+ 1 file changed, 1 insertion(+)

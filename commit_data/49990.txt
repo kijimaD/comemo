@@ -1,31 +1,27 @@
-commit a5370d038e56ced398c982f6a610a2ddde1703ff
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jul 19 13:15:05 2022 -0700
+commit ba7673069d9be4972a864023d74e9e0dd6a77b80
+Author: korzhao <korzhao95@gmail.com>
+Date:   Sat Sep 25 01:13:27 2021 +0800
 
-    cmd/compile: remove OFORUNTIL
+    cmd/compile: add required CONVIFACE nodes when translating OFUNCINST node
     
-    Not used any more.
+    In CL 349614. we removed the early transformation code that
+    was needed to create the implicit CONVIFACE nodes.
     
-    Fixes #53860
+    Because the transformCall function is not called when translating OFUNCINST.
+    So we add in needed CONVIFACE nodes via typecheckaste().
     
-    Change-Id: Id0b1c3ed30b576d6c5f08f064d1262de337262b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418374
+    Fixes #48598
+    
+    Change-Id: If9dc7040cdc38ef2e52fdbb08c840095651426f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351856
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/escape/stmt.go         |  2 +-
- src/cmd/compile/internal/ir/fmt.go              | 18 ++-----
- src/cmd/compile/internal/ir/node.go             | 26 +++-------
- src/cmd/compile/internal/ir/node_gen.go         |  5 --
- src/cmd/compile/internal/ir/op_string.go        | 69 ++++++++++++-------------
- src/cmd/compile/internal/ir/stmt.go             |  9 ----
- src/cmd/compile/internal/ssa/prove.go           |  3 +-
- src/cmd/compile/internal/ssagen/ssa.go          | 50 ++++++------------
- src/cmd/compile/internal/typecheck/stmt.go      |  3 --
- src/cmd/compile/internal/typecheck/typecheck.go |  6 +--
- src/cmd/compile/internal/walk/range.go          | 13 -----
- src/cmd/compile/internal/walk/stmt.go           |  7 +--
- 12 files changed, 69 insertions(+), 142 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go   |  4 ++++
+ src/cmd/compile/internal/noder/transform.go |  6 ++++++
+ test/typeparam/issue48598.go                | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 38 insertions(+)

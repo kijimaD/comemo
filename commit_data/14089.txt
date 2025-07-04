@@ -1,16 +1,20 @@
-commit e9f0fc8823178470fa429379ba873567b8496f8c
-Author: Robin Eklind <r.eklind.87@gmail.com>
-Date:   Tue Oct 9 11:15:53 2012 +1100
+commit 4fb89c9d6a686780037ad9e49998fe8e46402b80
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Oct 9 09:57:51 2012 +1100
 
-    debug/pe: support PE files which contain no symbol table (if NumberOfSymbols is equal to 0 in the IMAGE_FILE_HEADER structure).
+    godoc: support Playground examples on App Engine
     
-    No longer assume that e_lfanew (in the IMAGE_DOS_HEADER strcuture) is always one byte. It is now regarded as a 4 byte uint32.
+    Updates setup-godoc-app.bash to produce a working godoc app
+    by substituting the go1.0.x go/... packages with those from tip.
     
-    Fixes #4177.
-    
-    R=golang-dev, alex.brainman, dave, minux.ma
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/6587048
+    https://golang.org/cl/6587080
 
- src/pkg/debug/pe/file.go | 78 +++++++++++++++++++++++++-----------------------
- 1 file changed, 41 insertions(+), 37 deletions(-)
+ src/cmd/godoc/appinit.go           |  2 ++
+ src/cmd/godoc/main.go              | 31 +---------------
+ src/cmd/godoc/play-appengine.go    | 35 ++++++++++++++++++
+ src/cmd/godoc/play-local.go        | 41 +++++++++++++++++++++
+ src/cmd/godoc/play.go              | 73 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/godoc/setup-godoc-app.bash | 63 ++++++++++++++++++++------------
+ 6 files changed, 193 insertions(+), 52 deletions(-)

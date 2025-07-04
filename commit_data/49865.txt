@@ -1,29 +1,20 @@
-commit 58a1dabfd1b2bbc2a6a9a2e1cda3e98d93d61258
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 18:01:31 2022 -0400
+commit 1a49dcb82f1ef0d028f74f4fd955ee01b09b466d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 17 14:23:04 2021 +0200
 
-    runtime: convert schedt.npidle to atomic type
+    syscall: remove //sysnb comment generating Setreuid for linux/arm64
     
-    Note that this converts npidle from uint32 to int32 for consistency with
-    the other count fields in schedt and the type of p.id.
+    CL 210639 moved the //sysnb for Setreuid from syscall_linux_$GOARCH.go
+    to syscall_linux.go but forgot to remove the comment from
+    syscall_linux_arm64.go which leads to Setreuid being generated twice for
+    linux/arm64. Remove that //sysnb comment to avoid this.
     
-    Note that this changes previously unsynchronized operations to
-    synchronized operations in:
-      * handoffp
-      * injectglist
-      * schedtrace
-      * schedEnableUser
-      * sync_runtime_canSpin
-    
-    For #53821.
-    
-    Change-Id: I36d1b3b4a28131c9d47884fade6bc44439dd6937
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419445
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I2c8ad95f786530ca964685b0a4fe463c64764307
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350531
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgcpacer.go |  2 +-
- src/runtime/proc.go     | 29 ++++++++++++++---------------
- src/runtime/runtime2.go |  2 +-
- 3 files changed, 16 insertions(+), 17 deletions(-)
+ src/syscall/syscall_linux_arm64.go | 1 -
+ 1 file changed, 1 deletion(-)

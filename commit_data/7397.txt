@@ -1,12 +1,13 @@
-commit 1c315893757f5803aef4278b041fa3c7e8f13992
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Feb 9 12:34:50 2011 +1100
+commit 5080d7617a03197dc7319eaf1a8f76d5288f0a46
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Feb 8 17:30:23 2011 -0800
 
-    .hgignore: ignore src/pkg/runtime/version_*.go
+    cgen64: dont use MVN instruction
     
-    R=golang-dev, r2
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4159041
+    https://golang.org/cl/4154043
 
- .hgignore | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/5g/cgen64.c |  8 ++++++--
+ src/cmd/5g/peep.c   | 36 ++++++++++++++++++------------------
+ 2 files changed, 24 insertions(+), 20 deletions(-)

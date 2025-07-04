@@ -1,35 +1,25 @@
-commit 72dec90bfdb60a0ca2ac1b743db472d2e689414e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Oct 24 13:14:36 2020 -0400
+commit 240eac38e1be22d8dfaf96731c337afa479248ff
+Author: Eric <eric@tnz.fr>
+Date:   Mon Apr 13 21:28:47 2020 +0000
 
-    runtime: set up TLS without cgo on darwin/arm64
+    io: simplify Examples
     
-    Currently, on darwin/arm64 we set up TLS using cgo. TLS is not
-    set for pure Go programs. As we use libc for syscalls on darwin,
-    we need to save the G register before the libc call. Otherwise it
-    is not signal-safe, as a signal may land during the execution of
-    a libc function, where the G register may be clobbered.
+    - CopyN: 5 creates ambiguity with respect to whitespace and upperbound
+    - TeeReader less boilerplate and displays a common usage of it
+    - SectionReader_* all sections unified to 5:17 for clarity
+    - SectionReader_Seek uses io.Copy to stdout like other examples
+    - Seeker_Seek remove useless prints
+    - Pipe print reader like other examples
     
-    This CL initializes TLS in Go, by calling the pthread functions
-    directly without cgo. This makes it possible to save the G
-    register to TLS in pure Go programs (done in a later CL).
+    Updates #36417
     
-    Inspired by Elias's CL 209197. Write the logic in Go instead of
-    assembly.
-    
-    Updates #38485, #35853.
-    
-    Change-Id: I257ba2a411ad387b2f4d50d10129d37fec7a226e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265118
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Trust: Elias Naur <mail@eliasnaur.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ibd01761d5a5786cdb1ea934f7a98f8302430c8a5
+    GitHub-Last-Rev: 4c17f9a8e32d89743b7eaec7c52032256972cc0a
+    GitHub-Pull-Request: golang/go#38379
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227868
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_arm64.s            | 15 ++++++++-
- src/runtime/cgo/gcc_darwin_arm64.c | 36 +---------------------
- src/runtime/defs_darwin_arm64.go   |  4 +++
- src/runtime/sys_darwin_arm64.go    | 62 ++++++++++++++++++++++++++++++++++++++
- src/runtime/sys_darwin_arm64.s     | 12 ++++++++
- 5 files changed, 93 insertions(+), 36 deletions(-)
+ src/io/example_test.go | 47 +++++++++++++++--------------------------------
+ 1 file changed, 15 insertions(+), 32 deletions(-)

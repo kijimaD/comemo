@@ -1,34 +1,27 @@
-commit 636c5f02082e4be5ef2d9a66c99c9e31b72246a3
-Author: Axel Busch <94176305+abuschIBM@users.noreply.github.com>
-Date:   Tue May 10 13:48:19 2022 +0000
+commit 311baf65f49f4b15396f7e88c05bc97d47f2e4ed
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 2 15:42:20 2021 -0700
 
-    runtime: enable vDSO support for s390x architecture
+    [dev.typeparams] test: cleanup 'go env' and -goexperiment
     
-    This change adds support for vDSO for s390x architecture. This avoids the use of system calls in nanotime and walltime and accelerates them by factor 4-5.
+    This CL makes two related changes:
     
-    Benchmarks:
-    100,000,000 x time.Now():
-    syscall fallback        13923ms         139.23 ns/op
-    vDSO enabled            2640ms          26.40 ns/op
+    1. It uses 'go env -json' to query the environment configuration,
+    rather than attempting to manually reconstruct the values that cmd/go
+    is going to use.
     
-    Change-Id: Ic679fe31048379e59ccf83b400140f13c9d49696
-    GitHub-Last-Rev: 8f6e918a45cf8c5aadc5c203949a8ce4e372086f
-    GitHub-Pull-Request: golang/go#49717
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365995
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Jonathan Albrecht <jonathan.albrecht@ibm.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    2. It changes the -goexperiment flag to *extend* any ambient
+    GOEXPERIMENT configuration. Notably, this means that '-goexperiment
+    fieldtrack' now tests fieldtracking in conjunction with any other
+    experiments (e.g., unified IR). Tests that want to test an exact
+    GOEXPERIMENT config should use '-goexperiment none,foo' instead.
+    
+    Change-Id: I96a97198209e540e934fe7035110c3ae3a8f0e6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332610
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/os_linux_novdso.go  |   2 +-
- src/runtime/signal_unix.go      |   2 +-
- src/runtime/sys_linux_s390x.s   | 174 +++++++++++++++++++++++++++++++++++++---
- src/runtime/vdso_elf64.go       |   2 +-
- src/runtime/vdso_in_none.go     |   2 +-
- src/runtime/vdso_linux.go       |  10 ++-
- src/runtime/vdso_linux_s390x.go |  26 ++++++
- 7 files changed, 197 insertions(+), 21 deletions(-)
+ test/run.go | 66 +++++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 38 insertions(+), 28 deletions(-)

@@ -1,12 +1,15 @@
-commit 2c3d13b21045c337475ac0c08b226e4dd51f2280
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 5 15:40:32 2017 +1000
+commit 0e497971bb8a34f00d94ff3e5f0571855d7073dc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:36:34 2017 -0700
 
-    cmd/link: introduce and use peSection.pad
+    cmd/compile: update dalgsym to use obj.LSym
     
-    Change-Id: I068e9bb6e692b5eff193ddb46af3f04785f98518
-    Reviewed-on: https://go-review.googlesource.com/56316
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I00a8200370d56772f604a099654f9d838c4f62e2
+    Reviewed-on: https://go-review.googlesource.com/41405
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 58 +++++++++++++++++-----------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

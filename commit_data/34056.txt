@@ -1,47 +1,35 @@
-commit ff6d7c2b27697e9f2bf35c97c230afbae11f3f9f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 11 15:30:39 2017 -0800
+commit 0828ec1ea8f1733d61db0893fe8c03abbcebc2e5
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Sep 27 20:31:55 2017 -0300
 
-    go/types: delay type-checking of function literals
+    flag: align multi-line usage strings
     
-    R=go1.11
+    Previously, a multi-line flag usage string would not be indented with the
+    rest of the usage strings. This made long usage strings difficult to read.
     
-    Functions (at the package level) were collected and their bodies
-    type-checked after all other package-level objects were checked.
-    But function literals where type-checked right away when they were
-    encountered so that they could see the correct, partially populated
-    surrounding scope, and also to mark variables of the surrounding
-    function as used.
+    For example, the usage for flag.String("A", "", "1\n2\n3") would be printed
+    as:
     
-    This approach, while simple, breaks down in esoteric cases where
-    a function literal appears inside the declaration of an object
-    that its body depends on: If the body is type-checked before the
-    object is completely set up, the literal may use incomplete data
-    structures, possibly leading to spurious errors.
+      -A    1
+    2
+    3
     
-    This change postpones type-checking of function literals to later;
-    after the current expression or statement, but before any changes
-    to the enclosing scope (so that the delayed type-checking sees the
-    correct scope contents).
+    But will now be printed as:
     
-    The new mechanism is general and now is also used for other
-    (non-function) delayed checks.
+      -A    1
+            2
+            3
     
-    Fixes #22992.
+    Also fixes a slight error in the FlagSet.PrintDefaults documentation.
     
-    Change-Id: Ic95f709560858b4bdf8c645be70abe4449f6184d
-    Reviewed-on: https://go-review.googlesource.com/83397
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #20799
+    
+    Change-Id: I4379c6b7590fdb93a2809a01046a0f6ae32c3e5d
+    Reviewed-on: https://go-review.googlesource.com/66711
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/check.go               | 31 +++++++------------------------
- src/go/types/decl.go                | 14 +++++++++++++-
- src/go/types/expr.go                | 18 ++++++++----------
- src/go/types/resolver.go            | 11 +++++++----
- src/go/types/stmt.go                | 17 ++++++++---------
- src/go/types/testdata/constdecl.src | 13 +++++++++++++
- src/go/types/testdata/cycles.src    | 11 +++++++++++
- src/go/types/testdata/cycles5.src   |  4 +++-
- src/go/types/testdata/init0.src     |  2 +-
- src/go/types/testdata/vardecl.src   | 15 ++++++++++++++-
- src/go/types/typexpr.go             |  6 +++---
- 11 files changed, 88 insertions(+), 54 deletions(-)
+ src/flag/flag.go      | 10 ++++++----
+ src/flag/flag_test.go |  8 ++++++++
+ 2 files changed, 14 insertions(+), 4 deletions(-)

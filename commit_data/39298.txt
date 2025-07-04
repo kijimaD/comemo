@@ -1,25 +1,21 @@
-commit 5e2af2b0d2e7e367e461d4162b0338ff2dc08033
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri May 31 20:33:01 2019 +1000
+commit 1e4a88fa0a599cb8c201996a5f7b069b85be9905
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 19 13:48:15 2019 -0500
 
-    errors: fix package example
+    cmd/link/internal/ld: make dwarf_test and associated testdata module-agnostic
     
-    The example in example_test.go requires that the whole file be
-    displayed; the addition of ExampleAs meant that only the body of the
-    package example function was shown, rather than the surrounding context.
+    Updates #30228
     
-    This change moves ExampleAs to the file wrap_test.go file, restoring the
-    package example to its former glory.
-    
-    Update #31716
-    
-    Change-Id: Id0ea77bc06023b239a63c1d6a7c8b3c1dae91ce9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179737
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-    Reviewed-by: Jean de Klerk <deklerk@google.com>
-    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: I31aac4cb113c0c88a54329181ad27aee3d8acc71
+    Reviewed-on: https://go-review.googlesource.com/c/162835
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/errors/example_test.go | 16 ----------------
- src/errors/wrap_test.go    | 14 ++++++++++++++
- 2 files changed, 14 insertions(+), 16 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go             | 24 ++++++----------------
+ .../ld/testdata/httptest/{src => }/main/main.go    |  0
+ .../ld/testdata/issue25459/{src => }/a/a.go        |  0
+ .../ld/testdata/issue25459/{src => }/main/main.go  |  2 +-
+ .../ld/testdata/issue26237/{src => }/b.dir/b.go    |  0
+ .../ld/testdata/issue26237/{src => }/main/main.go  |  2 +-
+ 6 files changed, 8 insertions(+), 20 deletions(-)

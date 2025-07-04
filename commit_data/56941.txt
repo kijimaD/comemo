@@ -1,30 +1,15 @@
-commit df009eead9c2d213bc9c6057f07d2c319f71b50b
-Author: Keith Randall <khr@golang.org>
-Date:   Wed May 29 19:37:43 2024 -0700
+commit 73a29bad0bd24cdd70bbf468fa12fbe7760ef47d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 1 09:03:50 2023 -0700
 
-    cmd/cgo: error on multiple incompatible function declarations
+    doc/go1.21: correct links in go/build note
     
-    When there are multiple declarations of a function, ensure that
-    those declarations at least agree on the size/alignment of arguments
-    and return values.
-    
-    It's hard to be stricter given existing code and situations where
-    arguments differ only by typedefs. For instance:
-        int usleep(unsigned);
-        int usleep(useconds_t);
-    
-    Fixes #67699.
-    
-    Change-Id: I3b4b17afee92b55f9e712b4590ec608ab1f7ac91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588977
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ie84cad994c1ffb2c91ce45b2dfb9257e6a7f309b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499957
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
 
- doc/next/3-tools.md                                |  6 +++
- src/cmd/cgo/internal/testerrors/errors_test.go     | 22 +++++++--
- .../internal/testerrors/testdata/issue67699a.go    | 16 ++++++
- .../internal/testerrors/testdata/issue67699b.go    | 16 ++++++
- src/cmd/cgo/main.go                                | 57 ++++++++++++++++++++--
- 5 files changed, 110 insertions(+), 7 deletions(-)
+ doc/go1.21.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

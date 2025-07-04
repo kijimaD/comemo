@@ -1,16 +1,17 @@
-commit b39bbf1e5b908070ee348c1ba6006da8ff1374c8
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Apr 18 13:26:35 2012 +1000
+commit 90aa56f271bf76bd829ff5b7453e65a88c73aa8a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 17 18:46:35 2012 -0700
 
-    exp/html: adjust beforeHTMLIM to match spec
+    os/user: simplify test
     
-    Add case for doctype tokens (which are ignored).
+    Don't require the home directory to exist. Just check
+    that it returns something.
     
-    This CL does not change the status of any tests.
+    Fixes #3531
     
-    R=golang-dev, nigeltao
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6061047
+    https://golang.org/cl/6056045
 
- src/pkg/exp/html/parse.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/os/user/user_test.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

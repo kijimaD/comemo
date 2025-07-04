@@ -1,18 +1,23 @@
-commit 02913aa51c1f1c1338596310ceafc63d4a93a19d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 22 22:11:17 2021 -0700
+commit cd5b74d2dfe6009d55c86e90f6c204e58c229c16
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 12 11:34:00 2021 -0800
 
-    test/fixedbugs: adjust test case (fix longtest builders)
+    [dev.regabi] cmd/compile: call NeedFuncSym in InitLSym
     
-    For #33232.
+    InitLSym is where we're now generating ABI wrappers, so it seems as
+    good a place as any to make sure we're generating the degenerate
+    closure wrappers for declared functions and methods.
     
-    Change-Id: Id95a92bfdad91e3ccde9f5654c3b1b02ca95f6ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351731
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I097f34bbcee65dee87a97f9ed6f3f38e4cf2e2b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283312
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- test/fixedbugs/issue14652.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go             |  2 --
+ src/cmd/compile/internal/ssagen/abi.go          |  5 ++++-
+ src/cmd/compile/internal/staticdata/data.go     | 13 ++++++++-----
+ src/cmd/compile/internal/typecheck/func.go      |  4 ----
+ src/cmd/compile/internal/typecheck/typecheck.go |  7 -------
+ 5 files changed, 12 insertions(+), 19 deletions(-)

@@ -1,18 +1,33 @@
-commit 3db4888a05fb15035d332a360cb610f2c05370ab
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 2 10:42:43 2021 +0700
+commit 27aba226518fd126f6dd3413298c919a1eeb9040
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 18:45:14 2020 -0500
 
-    cmd/compile: use types2.Unsafe to represent package unsafe in gcimports
+    [dev.regabi] cmd/compile: cleanup for concrete types - walk
     
-    Followup todo in CL 346769.
+    An automated rewrite will add concrete type assertions after
+    a test of n.Op(), when n can be safely type-asserted
+    (meaning, n is not reassigned a different type, n is not reassigned
+    and then used outside the scope of the type assertion,
+    and so on).
     
-    Change-Id: I6c870014523426d65d135da999f97a818a997237
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347270
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    This sequence of CLs handles the code that the automated
+    rewrite does not: adding specific types to function arguments,
+    adjusting code not to call n.Left() etc when n may have multiple
+    representations, and so on.
+    
+    This CL focuses on walk.go.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I7aab57e4077cf10da1994625575c5e42ad114a9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277921
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/noder/irgen.go   | 2 +-
- src/cmd/compile/internal/noder/reader2.go | 4 ----
- 2 files changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/alg.go   |  28 +-
+ src/cmd/compile/internal/gc/go.go    |   4 +-
+ src/cmd/compile/internal/gc/sinit.go |   2 +-
+ src/cmd/compile/internal/gc/walk.go  | 645 ++++++++++++++++++-----------------
+ 4 files changed, 350 insertions(+), 329 deletions(-)

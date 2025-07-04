@@ -1,16 +1,12 @@
-commit 861aa4698ada865ab402b47e6c201da8f4e567b3
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Mar 16 00:37:28 2013 +0100
+commit 3fdeb8614df66396c8d746187f42ea19933ba73d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 15 15:55:31 2013 -0700
 
-    cmd/gc: missing type inference for untyped complex() calls.
+    go/doc: fix TODO
     
-    Fixes #5014.
-    
-    R=golang-dev, r, rsc, daniel.morsing
+    R=r
     CC=golang-dev
-    https://golang.org/cl/7664043
+    https://golang.org/cl/7716049
 
- src/cmd/gc/const.c     | 26 ++++++++++++++++++++++++++
- src/cmd/gc/typecheck.c |  6 ++++--
- test/shift1.go         | 12 ++++++++++++
- 3 files changed, 42 insertions(+), 2 deletions(-)
+ src/pkg/go/doc/filter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

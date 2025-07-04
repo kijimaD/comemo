@@ -1,21 +1,33 @@
-commit 05dc6b26ca337b80f9424aa9b78f4b45f6e44c8d
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 17 10:48:40 2016 -0500
+commit c2735039f3ea4e44a3c1df6ef6715e83bc5257b1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Sep 25 21:33:27 2016 -0700
 
-    runtime: improve diagnostics for "scan missed a g"
+    runtime: unify sigtrampgo
     
-    Currently there are no diagnostics for mark root check during marking.
-    Fix this by printing out the same diagnostics we print during mark
-    termination.
+    Combine the various versions of sigtrampgo into a single function in
+    signal_unix.go. This requires defining a fixsigcode method on sigctxt
+    for all operating systems; it only does something on Darwin. This also
+    requires changing the darwin/amd64 signal handler to call sigreturn
+    itself, rather than relying on sigtrampgo to call sigreturn for it. We
+    can then drop the Darwin sigreturn function, as it is no longer used.
     
-    Also, drop the allglock before throwing. Holding that across a throw
-    causes a self-deadlock with tracebackothers.
-    
-    For #16083.
-    
-    Change-Id: Ib605f3ae0c17e70704b31d8378274cfaa2307dc2
-    Reviewed-on: https://go-review.googlesource.com/33339
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I5a0b9d2d2c141957e151b41e694efeb20e4b4b9a
+    Reviewed-on: https://go-review.googlesource.com/29761
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgcmark.go | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+ src/runtime/os3_solaris.go     |  3 +++
+ src/runtime/os_dragonfly.go    |  3 +++
+ src/runtime/os_freebsd.go      |  3 +++
+ src/runtime/os_linux.go        |  3 +++
+ src/runtime/os_netbsd.go       |  3 +++
+ src/runtime/os_openbsd.go      |  3 +++
+ src/runtime/signal_darwin.go   | 45 -----------------------------------
+ src/runtime/signal_freebsd.go  | 37 -----------------------------
+ src/runtime/signal_openbsd.go  | 37 -----------------------------
+ src/runtime/signal_sigtramp.go | 54 ------------------------------------------
+ src/runtime/signal_unix.go     | 48 +++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_darwin_386.s   | 21 +++-------------
+ src/runtime/sys_darwin_amd64.s | 22 +++++++----------
+ 13 files changed, 78 insertions(+), 204 deletions(-)

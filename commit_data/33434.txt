@@ -1,20 +1,15 @@
-commit 989cc80167e0ec4e8c220f1aec308dbdf4b9b0e9
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Nov 4 14:09:50 2017 -0700
+commit e82e1204290ffb4b6b4953d25c5451bc2a0f2f1a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 15 09:50:44 2017 -0400
 
-    cmd/compile: fix test to use correct go binary
+    misc/nacl: add cmd/vendor/golang.org/x/arch/arm64/arm64asm testdata
     
-    Use internal/testenv package to get the right go binary.
-    Otherwise, I think we're just grabbing an old one from the environment.
+    This should fix NaCl build failure for CL 49530.
     
-    Fixes #22560.
-    
-    Change-Id: Id5b743b24717e15ec8ffbcfae4dc3e5f6a87b9a9
-    Reviewed-on: https://go-review.googlesource.com/76090
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Id9a54f0c81b1b5db5b5efb12a2ad6509c4ab42b3
+    Reviewed-on: https://go-review.googlesource.com/55770
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ misc/nacl/testzip.proto | 4 ++++
+ 1 file changed, 4 insertions(+)

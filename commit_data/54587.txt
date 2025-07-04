@@ -1,35 +1,37 @@
-commit c9c885f92f540878d85c02b510c62a3ebf87baf6
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Jul 5 11:56:03 2023 -0700
+commit c53390b078b4d3b18e3aca8970d4b31d4d82cce1
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Thu Oct 27 01:43:16 2022 +0000
 
-    html/template: support parsing complex JS template literals
+    net: store IPv4 returned from cgo resolver as 4-byte slice net.IP
     
-    This change undoes the restrictions added in CL 482079, which added a
-    blanket ban on using actions within JS template literal strings, and
-    adds logic to support actions while properly applies contextual escaping
-    based on the correct context within the literal.
+    net.IP states that a 16-byte slice can still be an IPv4 address.
+    But after netip.Addr is introduced, it requires extra care to keep
+    it as an IPv4 address when converting it to a netip.Addr using
+    netip.AddrFromSlice.
     
-    Since template literals can contain both normal strings, and nested JS
-    contexts, logic is required to properly track those context switches
-    during parsing.
+    To address this issue, let's change the cgo resolver to return
+    4-byte net.IP for IPv4. The change will save us 12 bytes too.
     
-    ErrJsTmplLit is deprecated, and the GODEBUG flag jstmpllitinterp no
-    longer does anything.
+    Please note that the go resolver already return IPv4 as 4-byte
+    slice.
     
-    Fixes #61619
+    The test TestResolverLookupIP has been modified to cover this
+    behavior. So no new test is added.
     
-    Change-Id: I0338cc6f663723267b8f7aaacc55aa28f60906f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507995
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Fixes #53554.
+    
+    Change-Id: I0dc2a59ad785c0c67a7bc22433105529f055997f
+    GitHub-Last-Rev: bd7bb2f17bd8e07ea5b39e4a24512ed35d316bb8
+    GitHub-Pull-Request: golang/go#53638
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415580
+    Auto-Submit: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- api/next/61619.txt                |   1 +
- src/html/template/context.go      |  24 +++----
- src/html/template/error.go        |   4 ++
- src/html/template/escape.go       |  48 +++++++-------
- src/html/template/escape_test.go  | 135 ++++++++++++++++++++++++++++++++++----
- src/html/template/js.go           |  30 +++++++++
- src/html/template/state_string.go |   6 +-
- src/html/template/transition.go   |  63 ++++++++++++++++--
- 8 files changed, 253 insertions(+), 58 deletions(-)
+ src/net/cgo_unix.go       |  9 ---------
+ src/net/ip.go             |  6 ++++++
+ src/net/lookup_test.go    | 23 +++++++++++------------
+ src/net/lookup_windows.go |  4 ++--
+ 4 files changed, 19 insertions(+), 23 deletions(-)

@@ -1,28 +1,16 @@
-commit 1962dc88eb89cd37d3f9f85e8e4b7ad4915db089
-Author: Raghavendra Nagaraj <jamdagni86@gmail.com>
-Date:   Tue Jun 18 08:30:24 2019 +0000
+commit 4a91d5501754f36dd09c23d99bbfa0bba37fe6f6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 26 16:50:31 2019 -0800
 
-    net/http: fix Server.IdleTimeout and Server.ReadHeaderTimeout docs
+    cmd/go: preserve more env vars for TestScript child processes
     
-    CL 46434 changed the doc for Server.IdleTimeout to include
-    falling back to Server.ReadHeaderTimeout if both
-    Server.IdleTimeout and Server.ReadTimeout are zero.
-    However, we explicitly set the ReadDeadlines firstly based
-    off Server.IdleTimeout or Server.ReadTimeout before attempting
-    to read the next request, thus the current doc is incorrect.
+    These are required when testing gccgo.
     
-    This CL reverts CL 46434 and also updates the doc for
-    Server.ReadHeaderTimeout to documenting falling back
-    to Server.ReadTimeout, if the former is zero, otherwise
-    there is no timeout.
-    
-    Fixes #32053
-    
-    Change-Id: I43dd0252d1bcee6c29a8529abd84c84a49b2fba9
-    GitHub-Last-Rev: e1cdb599772476e0b52d9d2374c3ea3893844eb4
-    GitHub-Pull-Request: golang/go#32164
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178337
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I6a81d7f4d48292c32a8b3b15ef44d859ab3aa26e
+    Reviewed-on: https://go-review.googlesource.com/c/163861
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/server.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/go/script_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

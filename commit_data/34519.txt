@@ -1,45 +1,28 @@
-commit 3d69ef37b8b3f7db8162689c88180781612b83c7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 7 22:46:48 2018 -0800
+commit 2beb173e9858c966a1db351883cfdccc8cdca583
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 30 15:28:11 2017 -0400
 
-    runtime: use systemstack around throw in sysSigaction
+    all: respect $GO_GCFLAGS during run.bash
     
-    Try to fix the build on ppc64-linux and ppc64le-linux, avoiding:
+    If the go install doesn't use the same flags as the main build
+    it can overwrite the installed standard library, leading to
+    flakiness and slow future tests.
     
-    --- FAIL: TestInlinedRoutineRecords (2.12s)
-            dwarf_test.go:97: build: # command-line-arguments
-                    runtime.systemstack: nosplit stack overflow
-                            752     assumed on entry to runtime.sigtrampgo (nosplit)
-                            480     after runtime.sigtrampgo (nosplit) uses 272
-                            400     after runtime.sigfwdgo (nosplit) uses 80
-                            264     after runtime.setsig (nosplit) uses 136
-                            208     after runtime.sigaction (nosplit) uses 56
-                            136     after runtime.sysSigaction (nosplit) uses 72
-                            88      after runtime.throw (nosplit) uses 48
-                            16      after runtime.dopanic (nosplit) uses 72
-                            -16     after runtime.systemstack (nosplit) uses 32
+    Force uses of 'go install' etc to propagate $GO_GCFLAGS
+    or disable them entirely, to avoid problems.
     
-            dwarf_test.go:98: build error: exit status 2
-    --- FAIL: TestAbstractOriginSanity (10.22s)
-            dwarf_test.go:97: build: # command-line-arguments
-                    runtime.systemstack: nosplit stack overflow
-                            752     assumed on entry to runtime.sigtrampgo (nosplit)
-                            480     after runtime.sigtrampgo (nosplit) uses 272
-                            400     after runtime.sigfwdgo (nosplit) uses 80
-                            264     after runtime.setsig (nosplit) uses 136
-                            208     after runtime.sigaction (nosplit) uses 56
-                            136     after runtime.sysSigaction (nosplit) uses 72
-                            88      after runtime.throw (nosplit) uses 48
-                            16      after runtime.dopanic (nosplit) uses 72
-                            -16     after runtime.systemstack (nosplit) uses 32
+    As I understand it, the main place this happens is the ssacheck builder.
+    If there are other uses that need to run some of the now-disabled
+    tests we can reenable fixed tests in followup CLs.
     
-            dwarf_test.go:98: build error: exit status 2
-    FAIL
-    FAIL    cmd/link/internal/ld    13.404s
-    
-    Change-Id: I4840604adb0e9f68a8d8e24f2f2a1a17d1634a58
-    Reviewed-on: https://go-review.googlesource.com/99415
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ib860a253539f402f8a96a3c00ec34f0bbf137c9a
+    Reviewed-on: https://go-review.googlesource.com/74470
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/os_linux.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go                 |  7 ++++++-
+ src/cmd/go/go_test.go                |  7 +++++++
+ src/cmd/internal/goobj/goobj_test.go |  2 +-
+ src/internal/testenv/testenv.go      | 10 ++++++++++
+ src/runtime/crash_test.go            |  4 ++--
+ test/run.go                          | 20 ++++++++++++++------
+ 6 files changed, 40 insertions(+), 10 deletions(-)

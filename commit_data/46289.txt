@@ -1,57 +1,38 @@
-commit d01388b04f391ac0c9872729920ebbdb0e4e6861
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Sep 2 11:27:12 2021 -0400
+commit 1a3b036b836d5b41871515ec350b203377e087a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 01:29:02 2020 -0500
 
-    all: update vendored golang.org/x/crypto
+    [dev.regabi] cmd/compile: collect global compilation state
     
-    Ran the following commands inside std and cmd modules:
+    There are various global variables tracking the state of the
+    compilation. Collect them in a single global struct instead.
+    The struct definition is in package ir, but the struct itself is
+    still in package gc. It may eventually be threaded through the
+    code, but in the short term will end up in package typecheck.
     
-            go get -d golang.org/x/crypto@32db794688a5a24a23a43f2a984cecd5b3d8da58  # master
-            go mod tidy
-            go mod vendor
-    
-    Also add the new golang.org/x/crypto/curve25519/internal/field package
-    (it was created in x/crypto CL 315269) to TestDependencies in go/build.
-    Position it next to its upstream copy, since its required dependencies
-    are expected to be identical.
-    
-    For #36905.
-    
-    Change-Id: I589499cd7176c9b4b8758e59025653d19b58130e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347190
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I019db07aaedaed2c9b67dd45a4e138dc6028e54c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279297
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go.mod                                     |    2 +-
- src/cmd/go.sum                                     |    4 +-
- src/cmd/vendor/modules.txt                         |    2 +-
- src/go.mod                                         |    2 +-
- src/go.sum                                         |    4 +-
- src/go/build/deps_test.go                          |    2 +-
- .../golang.org/x/crypto/chacha20/chacha_arm64.s    |    1 +
- .../golang.org/x/crypto/chacha20/chacha_ppc64le.s  |    1 +
- .../golang.org/x/crypto/chacha20/chacha_s390x.s    |    1 +
- .../chacha20poly1305/chacha20poly1305_amd64.s      |    1 +
- .../golang.org/x/crypto/curve25519/curve25519.go   |   52 +-
- .../x/crypto/curve25519/curve25519_amd64.go        |  241 ---
- .../x/crypto/curve25519/curve25519_amd64.s         | 1793 --------------------
- .../x/crypto/curve25519/curve25519_generic.go      |  828 ---------
- .../x/crypto/curve25519/curve25519_noasm.go        |   12 -
- .../x/crypto/curve25519/internal/field/README      |    7 +
- .../x/crypto/curve25519/internal/field/fe.go       |  416 +++++
- .../x/crypto/curve25519/internal/field/fe_amd64.go |   13 +
- .../x/crypto/curve25519/internal/field/fe_amd64.s  |  379 +++++
- .../curve25519/internal/field/fe_amd64_noasm.go    |   12 +
- .../x/crypto/curve25519/internal/field/fe_arm64.go |   16 +
- .../x/crypto/curve25519/internal/field/fe_arm64.s  |   43 +
- .../curve25519/internal/field/fe_arm64_noasm.go    |   12 +
- .../crypto/curve25519/internal/field/fe_generic.go |  264 +++
- .../curve25519/internal/field/sync.checkpoint      |    1 +
- .../x/crypto/curve25519/internal/field/sync.sh     |   19 +
- .../golang.org/x/crypto/poly1305/sum_amd64.s       |    1 +
- .../golang.org/x/crypto/poly1305/sum_ppc64le.s     |    1 +
- .../golang.org/x/crypto/poly1305/sum_s390x.s       |    1 +
- src/vendor/modules.txt                             |    3 +-
- 30 files changed, 1250 insertions(+), 2884 deletions(-)
+ src/cmd/compile/internal/gc/alg.go     |  4 +--
+ src/cmd/compile/internal/gc/bexport.go |  2 +-
+ src/cmd/compile/internal/gc/closure.go |  8 +++---
+ src/cmd/compile/internal/gc/dcl.go     |  8 +++---
+ src/cmd/compile/internal/gc/embed.go   |  8 +++---
+ src/cmd/compile/internal/gc/export.go  |  8 +++---
+ src/cmd/compile/internal/gc/go.go      |  4 ---
+ src/cmd/compile/internal/gc/iexport.go |  4 +--
+ src/cmd/compile/internal/gc/iimport.go |  2 +-
+ src/cmd/compile/internal/gc/init.go    | 13 +++------
+ src/cmd/compile/internal/gc/inl.go     |  6 ++---
+ src/cmd/compile/internal/gc/main.go    | 49 +++++++++++++++++++---------------
+ src/cmd/compile/internal/gc/noder.go   |  9 ++++---
+ src/cmd/compile/internal/gc/obj.go     | 46 ++++++++++++++-----------------
+ src/cmd/compile/internal/gc/pgen.go    |  2 +-
+ src/cmd/compile/internal/gc/subr.go    |  2 +-
+ src/cmd/compile/internal/gc/walk.go    |  2 +-
+ src/cmd/compile/internal/ir/package.go | 35 ++++++++++++++++++++++++
+ 18 files changed, 116 insertions(+), 96 deletions(-)

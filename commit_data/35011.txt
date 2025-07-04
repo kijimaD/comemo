@@ -1,39 +1,23 @@
-commit 58cdecb9c8d04d7eb1209d2877d541d34e23c9d3
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Apr 12 15:24:08 2018 +0100
+commit 0b3b5113c0bbc62306a0404b235cbdf5a431bf67
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Dec 1 11:41:46 2017 -0800
 
-    cmd/compile: generate constants for NeqPtr, EqPtr and IsNonNil ops
+    encoding/csv: truncate carriage returns at EOF
     
-    If both inputs are constant offsets from the same pointer then we
-    can evaluate NeqPtr and EqPtr at compile time. Triggers a few times
-    during all.bash. Removes a conditional branch in the following
-    code:
+    This fixes a regression where only CRLF was folded into LF at EOF.
+    Now, we also truncate trailing CR at EOF to preserve the old behavior.
     
-    copy(x[1:], x[:])
+    Every one of the test cases added exactly matches the behavior
+    of Go1.9, even if the results are somewhat unexpected.
     
-    This branch was recently added as an optimization in CL 94596. We
-    now skip the memmove if the pointers are equal. However, in the
-    above code we know at compile time that they are never equal.
+    Fixes #22937
     
-    Also, when the offset is variable, check if the offset is zero
-    rather than if the pointers are equal. For example:
-    
-    copy(x[a:], x[:])
-    
-    This would now skip the copy if a == 0, rather than if x + a == x.
-    
-    Finally I've also added a rule to make IsNonNil true for pointers
-    to values on the stack. The nil check elimination pass will catch
-    these anyway, but eliminating them here might eliminate branches
-    earlier.
-    
-    Change-Id: If72f436fef0a96ad0f4e296d3a1f8b6c3e712085
-    Reviewed-on: https://go-review.googlesource.com/106635
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I1bc6550533163ae489ea77ec1e598163267b7eec
+    Reviewed-on: https://go-review.googlesource.com/81577
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |   32 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 1500 ++++++++++++++++--------
- test/codegen/{movesmall.go => copy.go}         |   28 +-
- 3 files changed, 1089 insertions(+), 471 deletions(-)
+ src/encoding/csv/reader.go      |  4 ++++
+ src/encoding/csv/reader_test.go | 38 +++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 41 insertions(+), 1 deletion(-)

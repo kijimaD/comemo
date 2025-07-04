@@ -1,12 +1,12 @@
-commit 71c6da39ce58c6d2b4a7ce365257c9ea51de6c99
+commit d1cefd6b6d6c0fc5b7dfe527cc8527401709f21d
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 13 12:18:29 2013 -0400
+Date:   Tue Aug 13 17:21:33 2013 +0400
 
-    runtime/pprof: fix test
+    doc: update go1.2.txt
     
-    R=golang-dev, bradfitz, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12790043
+    https://golang.org/cl/12851043
 
- src/pkg/runtime/pprof/pprof_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.2.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

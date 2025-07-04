@@ -1,30 +1,27 @@
-commit 9f5673d9307572ff3b435a845470e3b7fd3c6a43
-Author: David Chase <drchase@google.com>
-Date:   Mon Nov 14 18:00:17 2016 -0500
+commit 3311275ce8eef87a64b78589e0da0bf115f9be07
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Sep 22 14:54:45 2016 -0500
 
-    cmd/compile: ensure necessary types appear in .debug_info
+    math, cmd/internal/obj/ppc64: improve floor, ceil, trunc with asm
     
-    Autotmp filtering was too aggressive and excluded types
-    necessary to make debuggers work properly.  Restore the
-    "late filter" in dwarf.go based on names to exclude autotmps,
-    and remove the "early filter" in pgen.go based on how the
-    name was introduced.  However, the updated naming scheme
-    with a dot prefix is retained to prevent accidental clashes
-    with legal Go identifier names.
+    This adds the instructions frim, frip, and friz to the ppc64x
+    assembler for use in implementing the math.Floor, math.Ceil, and
+    math.Trunc functions to improve performance.
     
-    Includes test (grouped with runtime gdb tests),
-    verified to fail without the fix.
+    Fixes #17185
     
-    Updates #17644.
-    Fixes #17830.
+    BenchmarkCeil-128                    21.4          6.99          -67.34%
+    BenchmarkFloor-128                   13.9          6.37          -54.17%
+    BenchmarkTrunc-128                   12.7          6.33          -50.16%
     
-    Change-Id: I7ec3f7230083889660236e5f6bc77ba5fe434e93
-    Reviewed-on: https://go-review.googlesource.com/33233
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I96131bd4e8c9c8dbafb25bfeb544cf9d2dbb4282
+    Reviewed-on: https://go-review.googlesource.com/29654
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/cmd/compile/internal/gc/pgen.go |  5 ++-
- src/cmd/internal/dwarf/dwarf.go     |  4 +++
- src/runtime/runtime-gdb_test.go     | 70 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 76 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/ppc64/a.out.go  |  6 ++++++
+ src/cmd/internal/obj/ppc64/anames.go |  6 ++++++
+ src/cmd/internal/obj/ppc64/asm9.go   | 18 ++++++++++++++++++
+ src/math/floor_ppc64x.s              | 25 +++++++++++++++++++++++++
+ src/math/stubs_ppc64x.s              |  9 ---------
+ 5 files changed, 55 insertions(+), 9 deletions(-)

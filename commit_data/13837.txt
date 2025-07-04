@@ -1,15 +1,12 @@
-commit af832ac0b9609922d486f511dad04fba7a24dc44
+commit 129b2bb19a6b6849bc8e42512460a77393c56172
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 17 11:21:02 2012 -0700
+Date:   Mon Sep 17 11:05:43 2012 -0700
 
-    misc/dashboard/builder: reinstate 'go get -d' error handling hack
+    misc/dashboard/builder: increase default command timeout
     
-    I thought this was redundant since the behavior of 'go get -d' had
-    changed. I was wrong. Should have tested more thoroughly.
-    
-    R=golang-dev, minux.ma
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6500136
+    https://golang.org/cl/6499127
 
- misc/dashboard/builder/main.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ misc/dashboard/builder/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

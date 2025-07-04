@@ -1,13 +1,20 @@
-commit d7c699d9935ce2f99419faf81909b36409171705
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 5 20:40:40 2016 +0000
+commit d337e55672c0ea6c29af2615e5fa345941f822c4
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Tue Feb 23 21:48:33 2016 +0100
 
-    crypto/rsa, crypto/ecdsa: fail earlier on zero parameters
+    [dev.ssa] cmd/compile/internal/ssa: simplify convert in more cases
     
-    Change-Id: Ia6ed49d5ef3a256a55e6d4eaa1b4d9f0fc447013
-    Reviewed-on: https://go-review.googlesource.com/21560
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Saves about 2k for binaries in pkg/tool/linux_amd64.
+    Also useful when opt runs after cse (as in 12960) which reorders
+    arguments for commutative operations such as Add64.
+    
+    Change-Id: I49ad53afa53db9736bd35c425f4fb35fb511fd63
+    Reviewed-on: https://go-review.googlesource.com/19827
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/ecdsa/ecdsa.go | 11 ++++++++---
- src/crypto/rsa/rsa.go     |  5 ++++-
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 21 +++++++++++++++++++++
+ 2 files changed, 22 insertions(+)

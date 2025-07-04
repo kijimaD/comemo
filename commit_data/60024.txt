@@ -1,0 +1,14 @@
+commit 4c1cc1c97f1858fc1bb4edda629097fcd8ecedfb
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu May 16 12:26:59 2024 -0400
+
+    doc/next/64910.md: reword release note
+    
+    Change-Id: I41a01dd2bcaf5716703946bad42830d4e8095c11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586136
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/99-minor/net/http/64910.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

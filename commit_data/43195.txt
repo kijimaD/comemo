@@ -1,19 +1,16 @@
-commit 694025e74f861bf48a737a8b42612d6397f1879b
-Author: David Chase <drchase@google.com>
-Date:   Mon Oct 5 12:07:00 2020 -0400
+commit ff1eb428654b7815a8fc825f1cc29d6cf72cc2f7
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Mon Feb 3 10:47:41 2020 +0200
 
-    cmd/compile: avoid applying ARM CMP->CMN rewrite in unsigned context
+    time: fix time.Before to reuse t.sec(), u.sec()
     
-    Fixes #41780.
+    Fixes #36987
     
-    Change-Id: I1dc7c19a9f057650905da3a96214c2ff4abb51be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259450
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I91ea1a42f75302de5256a22d382ab7f1b307a498
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217360
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules |   4 +-
- src/cmd/compile/internal/ssa/rewriteARM.go | 243 +++++++++++++++++++++++++----
- test/fixedbugs/issue41780.go               |  39 +++++
- 3 files changed, 257 insertions(+), 29 deletions(-)
+ src/time/time.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

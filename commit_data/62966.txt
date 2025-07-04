@@ -1,0 +1,42 @@
+commit 7bc714d60173af7e783fc69e1bc532ab4aab11ba
+Author: limeidan <limeidan@loongson.cn>
+Date:   Wed Apr 23 11:04:15 2025 +0800
+
+    internal/bytealg: optimize the function indexbyte using SIMD on loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: bytes
+    cpu: Loongson-3C5000 @ 2200.00MHz
+                  │     old      │                 new                 │
+                  │    sec/op    │   sec/op     vs base                │
+    IndexByte/10     19.32n ± 0%   11.84n ± 0%  -38.72% (p=0.000 n=10)
+    IndexByte/32     49.34n ± 0%   14.11n ± 0%  -71.40% (p=0.000 n=10)
+    IndexByte/4K    5608.0n ± 0%   138.8n ± 0%  -97.52% (p=0.000 n=10)
+    IndexByte/4M    3822.8µ ± 0%   119.4µ ± 0%  -96.88% (p=0.000 n=10)
+    IndexByte/64M   61.826m ± 1%   3.812m ± 0%  -93.83% (p=0.000 n=10)
+    geomean          16.61µ        1.602µ       -90.35%
+    
+    goos: linux
+    goarch: loong64
+    pkg: bytes
+    cpu: Loongson-3A6000-HV @ 2500.00MHz
+                  │      old      │                 new                  │
+                  │    sec/op     │    sec/op     vs base                │
+    IndexByte/10      6.809n ± 0%   5.804n ±  0%  -14.75% (p=0.000 n=10)
+    IndexByte/32     16.015n ± 0%   6.404n ±  0%  -60.01% (p=0.000 n=10)
+    IndexByte/4K    1651.00n ± 0%   52.83n ±  0%  -96.80% (p=0.000 n=10)
+    IndexByte/4M    1680.76µ ± 0%   91.10µ ±  0%  -94.58% (p=0.000 n=10)
+    IndexByte/64M    26.878m ± 0%   2.010m ± 27%  -92.52% (p=0.000 n=10)
+    geomean           6.054µ        815.0n        -86.54%
+    
+    Change-Id: Ib75b997249708f921c6717eba43543c6650bf376
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668055
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+
+ src/internal/bytealg/indexbyte_loong64.s | 298 ++++++++++++++++++++++++++++---
+ 1 file changed, 269 insertions(+), 29 deletions(-)

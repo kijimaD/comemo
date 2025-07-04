@@ -1,15 +1,12 @@
-commit 36708a40e0511d7654f30615e9ca4452a4d90cc4
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Mar 6 17:21:39 2012 +1100
+commit f35fa85a3fa52b954a057ad7057a74c169e13103
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 6 16:56:30 2012 +1100
 
-    cmd/dist: use correct hg tag for go version
+    doc/gopher: flip frontpage gopher's eyes
     
-    When looking for suitable tag always start
-    from current version, not the tip.
-    
-    R=minux.ma, rsc
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/5731059
+    https://golang.org/cl/5759045
 
- src/cmd/dist/build.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/gopher/frontpage.png | Bin 31610 -> 17668 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

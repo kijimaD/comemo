@@ -1,18 +1,16 @@
-commit 22738f07c88ac9dd1159da15675fedeeba80c45d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 2 18:47:06 2019 +0000
+commit d3b9572759770443d6f89f8e07c1a98eec1cf769
+Author: Venil Noronha <veniln@vmware.com>
+Date:   Thu Aug 30 12:24:05 2018 -0600
 
-    runtime: add GODEBUG=madvdontneed=1
+    fmt: add an example for Sprintf
     
-    Fixes #28466
+    Signed-off-by: Venil Noronha <veniln@vmware.com>
     
-    Change-Id: I05b2e0da09394d111913963b60f2ec865c9b4744
-    Reviewed-on: https://go-review.googlesource.com/c/155931
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie5f50bc31db1eee11582b70b0e25c726090d4037
+    Reviewed-on: https://go-review.googlesource.com/132236
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/extern.go    | 5 +++++
- src/runtime/mem_linux.go | 7 ++++++-
- src/runtime/runtime1.go  | 2 ++
- 3 files changed, 13 insertions(+), 1 deletion(-)
+ src/fmt/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

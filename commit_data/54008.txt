@@ -1,25 +1,24 @@
-commit 23e4a4b6e5ef46f2ea3fa3a95efda46df1084cf7
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Aug 11 18:54:52 2023 +1000
+commit c075c21ba532bd4d00158708e8c2981b8fdc19ca
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Mon Sep 12 12:13:12 2022 -0500
 
-    runtime/cgo: consolidate linux cgo code
+    cmd/asm, cmd/internal/obj/ppc64: increase asm test coverage for PPC64
     
-    Much of the gcc_linux_*.c code is identical and duplicated across
-    architectures. Consolidate code for 386, arm, loong64, mips* and
-    riscv64, where the only difference is the build tags (386 also
-    has some non-functional ordering differences).
+    This CL adds tests for some of the instructions that were
+    missing. A minor change was made to asm9.go to ensure EXTSWSLICC
+    test works.
     
-    Change-Id: I14ee9a4cc6b72e165239d196b68b6343efaddf0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518620
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I95cd096c85778fc93856d213aa4fb14c35228cec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430376
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
 
- src/runtime/cgo/{gcc_linux_386.c => gcc_linux.c} |  6 ++-
- src/runtime/cgo/gcc_linux_arm.c                  | 63 ----------------------
- src/runtime/cgo/gcc_linux_loong64.c              | 63 ----------------------
- src/runtime/cgo/gcc_linux_mips64x.c              | 65 -----------------------
- src/runtime/cgo/gcc_linux_mipsx.c                | 66 ------------------------
- src/runtime/cgo/gcc_linux_riscv64.c              | 63 ----------------------
- 6 files changed, 4 insertions(+), 322 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 88 +++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/asm9.go        |  2 +-
+ 2 files changed, 89 insertions(+), 1 deletion(-)

@@ -1,12 +1,20 @@
-commit 3906706297a78df69d7f87748963bf375b4c4511
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 12 11:06:26 2012 -0800
+commit bf59aafddc92ef52e9e5c61152e2c1d182f453bf
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Dec 12 16:43:54 2012 +0100
 
-    spec: index and array/slice size constants must fit into an int
+    cmd/gc: Give better line numbers for errors in composite literals.
     
-    R=r, rsc, iant, ken
+    Credit to Russ for suggesting this fix.
+    
+    Fixes #3925.
+    
+    R=golang-dev, franciscossouza, rsc
     CC=golang-dev
-    https://golang.org/cl/6903048
+    https://golang.org/cl/6920051
 
- doc/go_spec.html | 40 ++++++++++++++++++++++++----------------
- 1 file changed, 24 insertions(+), 16 deletions(-)
+ src/cmd/gc/go.y             |   29 +-
+ src/cmd/gc/y.tab.c          | 3280 ++++++++++++++++++++++++-------------------
+ src/cmd/gc/y.tab.h          |   36 +-
+ src/cmd/gc/yerr.h           |    2 +-
+ test/fixedbugs/issue3925.go |   23 +
+ 5 files changed, 1869 insertions(+), 1501 deletions(-)

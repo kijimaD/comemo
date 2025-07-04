@@ -1,14 +1,22 @@
-commit 04d71354eb54b62e9fc520a2fbff8dd76a5782d0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 4 06:43:48 2016 -0700
+commit 6758eedf898c48d6ca4abd42f44622abf7c005c2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 12 13:27:36 2016 -0700
 
-    runtime: remove useless assignment in test code
+    cmd/compile: remove Pointer from builtin/unsafe.go
     
-    Change-Id: I5fecdf52e9e3035ea8feb5768985ed5200dbd6af
-    Reviewed-on: https://go-review.googlesource.com/32752
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    We already explicitly construct the "unsafe.Pointer" type in typeinit
+    because we need it for Types[TUNSAFEPTR]. No point in also having it
+    in builtin/unsafe.go if it just means (*importer).importtype needs to
+    fix it.
+    
+    Change-Id: Ife8a5a73cbbe2bfcabe8b25ee4f7e0f5fd0570b4
+    Reviewed-on: https://go-review.googlesource.com/29082
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <martisch@uos.de>
 
- src/runtime/crash_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/gc/bimport.go        | 7 -------
+ src/cmd/compile/internal/gc/builtin.go        | 5 ++---
+ src/cmd/compile/internal/gc/builtin/unsafe.go | 2 +-
+ src/cmd/compile/internal/gc/universe.go       | 1 -
+ 4 files changed, 3 insertions(+), 12 deletions(-)

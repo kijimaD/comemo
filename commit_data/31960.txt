@@ -1,22 +1,21 @@
-commit 912bb817b08669acf99d0c2a665acf69558d93a6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 29 17:06:54 2017 +0000
+commit 166160b44664e75ffc6e51cd795956fd586196e4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 26 07:46:30 2017 -0700
 
-    Revert "encoding/json: reduce unmarshal mallocs for unmapped fields"
+    cmd/internal/obj/x86: make ctxt.Cursym local
     
-    This reverts commit df68afd07ce67727 (https://golang.org/cl/33276)
+    Thread it through as an argument instead of using a global.
     
-    Reason for revert: made other benchmarks worse
+    Passes toolstash-check -all.
     
-    Fixes #20693 (details)
-    Updates #17914
-    Updates #10335
+    Updates #15756
     
-    Change-Id: If451b620803ccb0536b89c76c4353d2185d57d7e
-    Reviewed-on: https://go-review.googlesource.com/47211
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia8c6ce09b43dbb2e6c7d889ded8dbaeb5366048d
+    Reviewed-on: https://go-review.googlesource.com/38667
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/decode.go | 62 +++++++++++++++++++++++++--------------------
- 1 file changed, 34 insertions(+), 28 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go | 195 ++++++++++++++++++---------------------
+ src/cmd/internal/obj/x86/obj6.go |  28 +++---
+ 2 files changed, 101 insertions(+), 122 deletions(-)

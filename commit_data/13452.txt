@@ -1,21 +1,12 @@
-commit 685a61df7ec3c559b1369576731b66d32a5790b8
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jul 10 15:57:51 2012 -0400
+commit 106dd3c93f7a065238ad7151bda4c70b5313db79
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Mon Jul 9 09:37:56 2012 -0700
 
-    crypto/x509: exempt broken Entrust certificate from checks.
+    syscall/freebsd: remove Sendfile from unimplemented list
     
-    Entrust have issued a root certificate that's not marked as valid for
-    signing certificates.
-    
-    This results in Go programs failing to validate certificates that
-    chain up to this root (i.e. gateway.push.apple.com:2195).
-    
-    Although this is clearly a mistake on Entrust's part, it seems that we
-    will have to bodge around it.
-    
-    R=golang-dev, dave, r
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/6346064
+    https://golang.org/cl/6343084
 
- src/pkg/crypto/x509/x509.go | 55 +++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 53 insertions(+), 2 deletions(-)
+ src/pkg/syscall/syscall_freebsd.go | 1 -
+ 1 file changed, 1 deletion(-)

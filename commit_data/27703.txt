@@ -1,27 +1,16 @@
-commit 09834d1c082a2437b12584bebaa7353377e66f1a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 20 15:53:11 2016 -0700
+commit 9d4efdfd12f47f1ed8ce482ebeeb4d4e30a2dbc6
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 8 20:44:56 2016 +1000
 
-    runtime: panic with the right error on iface conversion
+    cmd/internal/bio: move Bgetc to link/internal/ld
     
-    A straight conversion from a type T to an interface type I, where T does
-    not implement I, should always panic with an interface conversion error
-    that shows the missing method.  This was not happening if the conversion
-    was done once using the comma-ok form (the result would not be OK) and
-    then again in a straight conversion.  Due to an error in the runtime
-    package the second conversion was failing with a nil pointer
-    dereference.
+    Also, remove bio.Brdline.
     
-    Fixes #16130.
-    
-    Change-Id: I8b9fca0f1bb635a6181b8b76de8c2385bb7ac2d2
-    Reviewed-on: https://go-review.googlesource.com/24284
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michel Lespinasse <walken@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3e0caed27a373fd71737cf6892de5e8fc208b776
+    Reviewed-on: https://go-review.googlesource.com/21783
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
 
- src/runtime/iface.go         |  2 +-
- test/fixedbugs/issue16130.go | 43 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 1 deletion(-)
+ src/cmd/internal/bio/buf.go     | 21 ---------------------
+ src/cmd/link/internal/ld/lib.go | 33 ++++++++++++++++++++++-----------
+ 2 files changed, 22 insertions(+), 32 deletions(-)

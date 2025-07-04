@@ -1,18 +1,21 @@
-commit 630d4fb600ae309476c87a4ca0e29b60425bc0c1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 1 15:03:25 2024 -0700
+commit 11390998ff04414545de38a5a47aa2e94e3df964
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 17 13:03:21 2023 -0700
 
-    spec: document that alias declarations can have type parameters with 1.24
+    cmd/internal/buildid: don't crash on 0 phdr.p_align field
     
-    For #46477.
+    A 0 in phdr.p_align is the same as 1, meaning no alignment.
     
-    Change-Id: Id02d8f67fe82228bab3f26b1cb4ebd6ee67c4634
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616816
+    Fixes #62097
+    
+    Change-Id: I931bab443fd6a89b5b45c8f99ead217f02e9b453
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520597
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 31 +++++++++++++++++++++++++++++--
- 1 file changed, 29 insertions(+), 2 deletions(-)
+ src/cmd/internal/buildid/buildid_test.go | 65 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/buildid/note.go         |  8 ++--
+ 2 files changed, 70 insertions(+), 3 deletions(-)

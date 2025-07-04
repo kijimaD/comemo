@@ -1,23 +1,76 @@
-commit 5ff12f6269c5851cfb762357d12e9ed1e3d582e9
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat May 25 14:23:34 2019 +0200
+commit a5fdd58c84b6b0a1ae5a53faebc0550024e3a066
+Author: Mikio Hara <mikioh.public.networking@gmail.com>
+Date:   Sun Mar 10 14:30:06 2019 +0900
 
-    net/url: use strings.IndexByte instead of strings.Index in split function
+    runtime, internal/poll, net: report event scanning error on read event
     
-    Production profiling shows ~15% of url.Parse time being spend in the overhead
-    of calling strings.IndexByte through strings.Index instead of calling
-    strings.IndexByte directly.
+    This change makes it possible the runtime-integrated network poller and
+    APIs in the package internal/poll to report an event scanning error on a
+    read event.
     
-    name   old time/op  new time/op  delta
-    Split  15.5ns ± 2%  10.7ns ± 3%  -30.98%  (p=0.000 n=20+19)
+    The latest Go releases open up the way of the manipulation of the poller
+    for users. On the other hand, it starts misleading users into believing
+    that the poller accepts any user-configured file or socket perfectly
+    because of not reporting any error on event scanning, as mentioned in
+    issue 30426. The initial implementation of the poller was designed for
+    just well-configured, validated sockets produced by the package net.
+    However, the assumption is now obsolete.
     
-    Change-Id: Ie25dd4afa93539a1335a91ab2a4a367f97bd3df0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178877
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Fixes #30624.
+    
+    Benchmark results on linux/amd64:
+    
+    benchmark                              old ns/op     new ns/op     delta
+    BenchmarkTCP4OneShot-4                 24649         23979         -2.72%
+    BenchmarkTCP4OneShotTimeout-4          25742         24411         -5.17%
+    BenchmarkTCP4Persistent-4              5139          5222          +1.62%
+    BenchmarkTCP4PersistentTimeout-4       4919          4892          -0.55%
+    BenchmarkTCP6OneShot-4                 21182         20767         -1.96%
+    BenchmarkTCP6OneShotTimeout-4          23364         22305         -4.53%
+    BenchmarkTCP6Persistent-4              4351          4366          +0.34%
+    BenchmarkTCP6PersistentTimeout-4       4227          4255          +0.66%
+    BenchmarkTCP4ConcurrentReadWrite-4     2309          1839          -20.36%
+    BenchmarkTCP6ConcurrentReadWrite-4     2180          1791          -17.84%
+    
+    benchmark                              old allocs     new allocs   delta
+    BenchmarkTCP4OneShot-4                 26             26           +0.00%
+    BenchmarkTCP4OneShotTimeout-4          26             26           +0.00%
+    BenchmarkTCP4Persistent-4              0              0            +0.00%
+    BenchmarkTCP4PersistentTimeout-4       0              0            +0.00%
+    BenchmarkTCP6OneShot-4                 26             26           +0.00%
+    BenchmarkTCP6OneShotTimeout-4          26             26           +0.00%
+    BenchmarkTCP6Persistent-4              0              0            +0.00%
+    BenchmarkTCP6PersistentTimeout-4       0              0            +0.00%
+    BenchmarkTCP4ConcurrentReadWrite-4     0              0            +0.00%
+    BenchmarkTCP6ConcurrentReadWrite-4     0              0            +0.00%
+    
+    benchmark                              old bytes     new bytes     delta
+    BenchmarkTCP4OneShot-4                 2000          2000          +0.00%
+    BenchmarkTCP4OneShotTimeout-4          2000          2000          +0.00%
+    BenchmarkTCP4Persistent-4              0             0             +0.00%
+    BenchmarkTCP4PersistentTimeout-4       0             0             +0.00%
+    BenchmarkTCP6OneShot-4                 2144          2144          +0.00%
+    BenchmarkTCP6OneShotTimeout-4          2144          2145          +0.05%
+    BenchmarkTCP6Persistent-4              0             0             +0.00%
+    BenchmarkTCP6PersistentTimeout-4       0             0             +0.00%
+    BenchmarkTCP4ConcurrentReadWrite-4     0             0             +0.00%
+    BenchmarkTCP6ConcurrentReadWrite-4     0             0             +0.00%
+    
+    Change-Id: Iab60e504dff5639e688dc5420d852f336508c0af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166497
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/url/url.go      | 20 ++++++++++----------
- src/net/url/url_test.go |  9 +++++++++
- 2 files changed, 19 insertions(+), 10 deletions(-)
+ src/internal/poll/error_linux_test.go | 31 ++++++++++++++++++++++++
+ src/internal/poll/error_stub_test.go  | 21 +++++++++++++++++
+ src/internal/poll/error_test.go       | 44 +++++++++++++++++++++++++++++++++++
+ src/internal/poll/fd.go               |  4 ++++
+ src/internal/poll/fd_poll_runtime.go  |  2 ++
+ src/net/error_test.go                 |  4 ++--
+ src/runtime/netpoll.go                | 14 ++++++++---
+ src/runtime/netpoll_aix.go            |  4 ++++
+ src/runtime/netpoll_epoll.go          |  5 +++-
+ src/runtime/netpoll_kqueue.go         |  7 +++++-
+ src/runtime/netpoll_solaris.go        |  4 ++++
+ 11 files changed, 133 insertions(+), 7 deletions(-)

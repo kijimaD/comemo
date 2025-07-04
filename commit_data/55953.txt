@@ -1,30 +1,22 @@
-commit 88480fadcc5874f880623ca50713d0c62cc5259b
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Mar 13 17:49:32 2024 +0000
+commit c52069361a3730f81c7be63251fa2064986cf867
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon Mar 27 11:44:05 2023 +0800
 
-    cmd/link: support -bindnow option and permit use of "-Wl,-z,now"
+    runtime: clean atomic_loong64.s of unnecessary package references
     
-    This is a partial roll-forward of CL 473495, which was subsequently
-    reverted. The second half of CL 473495 will appear in a future CL.
+    The symbols are all defined within the same file, no need
+    to reference through package names.
     
-    In this patch we introduce a new Go linker "-bindnow" command line
-    flag, and update the Go command to permit the use of the -Wl,-z,now
-    option, to allow users to produce binaries that have immediate
-    binding.
-    
-    Updates #45681.
-    
-    Change-Id: Idd61b0d6597bcd37b16c343714c55a4ef6dfb534
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571416
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I81c27831e85666ebd26d346aeb8f023e52d98acc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479497
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
 
- src/cmd/go/internal/work/security.go      |   3 +-
- src/cmd/go/internal/work/security_test.go |   4 +
- src/cmd/link/doc.go                       |   2 +
- src/cmd/link/internal/ld/elf.go           |  12 ++-
- src/cmd/link/internal/ld/elf_test.go      | 150 ++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/lib.go           |   8 +-
- src/cmd/link/internal/ld/main.go          |   1 +
- src/internal/testenv/testenv.go           |   9 ++
- 8 files changed, 182 insertions(+), 7 deletions(-)
+ src/runtime/internal/atomic/atomic_loong64.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

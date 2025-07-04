@@ -1,14 +1,14 @@
-commit 4aab04178dcfd977ef6b2ccad85de37c044d4d81
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Nov 29 19:24:57 2011 +1100
+commit 929290d5a0e276bf6fde0c6d3c41b9611231fbb5
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Nov 29 18:20:59 2011 +1100
 
-    dashboard: more tests, bug fixes, and /packages handler
+    html: spin doctype.go out of parse.go.
     
-    R=golang-dev, dsymonds
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/5441053
+    https://golang.org/cl/5445049
 
- misc/dashboard/app/app.yaml       |  2 +-
- misc/dashboard/app/build/build.go | 47 +++++++++++++++++++++++++++++-----
- misc/dashboard/app/build/test.go  | 54 +++++++++++++++++++++++++++++++--------
- 3 files changed, 86 insertions(+), 17 deletions(-)
+ src/pkg/html/Makefile   |   1 +
+ src/pkg/html/doctype.go | 156 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/html/parse.go   | 147 ---------------------------------------------
+ 3 files changed, 157 insertions(+), 147 deletions(-)

@@ -1,14 +1,16 @@
-commit 53d24f76fb129fe682cc92cc99c69998af4212b2
-Author: Andrii Soldatenko <andrii.soldatenko@gmail.com>
-Date:   Sun Sep 3 17:23:39 2017 +0300
+commit 0e7518296d04977db0c71e2f326d473782973739
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 5 12:47:53 2017 -0700
 
-    doc: Fixed missing dot in effective_go.html
+    go/importer: report import path if package is not found
     
-    First sentence of https://golang.org/doc/effective_go.html#maps dot is missing.
+    Fixes #20230.
     
-    Change-Id: Ic93b407945a6ad24a73ae9f7b6076ac9619871db
-    Reviewed-on: https://go-review.googlesource.com/61020
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I2e9b9e9d2540eb66c8411ac7910962933bc2c0e9
+    Reviewed-on: https://go-review.googlesource.com/42870
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/internal/gcimporter/gcimporter.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

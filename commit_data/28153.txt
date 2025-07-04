@@ -1,19 +1,24 @@
-commit 04ade8e428fdd302ab8666d3fc5d8953caa4abcb
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu Aug 25 16:39:07 2016 +0300
+commit abc1472d78c70888473634497b49b1c2e1bb6569
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 30 21:11:42 2016 -0500
 
-    cmd/internal/obj/x86: Make VPSHUFD accept negative constant
+    net/http: add Transport.IdleConnTimeout
     
-    This partially reverts commit 4e24e1d9996b0b0155c8349e49244d9694c89708.
-    Since in release 1.7 VPSHUFD support negative constant as an argument,
-    removing it as part of 4e24e1d9996b0b0155c8349e49244d9694c89708 was wrong.
-    Add it back.
+    Don't keep idle HTTP client connections open forever. Add a new knob,
+    Transport.IdleConnTimeout, and make the default be 90 seconds. I
+    figure 90 seconds is more than a minute, and less than infinite, and I
+    figure enough code has things waking up once a minute polling APIs.
     
-    Change-Id: Id1a3e062fe8fb4cf538edb3f9970f0664f3f545f
-    Reviewed-on: https://go-review.googlesource.com/27712
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This also removes the Transport's idleCount field which was unused and
+    redundant with the size of the idleLRU map (which was actually used).
+    
+    Change-Id: Ibb698a9a9a26f28e00a20fe7ed23f4afb20c2322
+    Reviewed-on: https://go-review.googlesource.com/22670
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/net/http/export_test.go    | 19 ++++++++++-----
+ src/net/http/transport.go      | 51 ++++++++++++++++++++++++++++++++-------
+ src/net/http/transport_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 110 insertions(+), 14 deletions(-)

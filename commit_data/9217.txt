@@ -1,14 +1,12 @@
-commit 100a034120e7f68ba5ca687b98bb930f4f539b9b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 27 12:41:46 2011 -0400
+commit c913cb8ba517bdcfc5fc5a46df70145e3a30338b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 27 13:44:57 2011 +1000
 
-    runtime: higher goroutine arg limit, clearer error
+    reflect: rename new TestVariadic to TestVariadicType.
     
-    Fixes #591.
-    
-    R=ken2
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/4803054
+    https://golang.org/cl/4825050
 
- src/pkg/runtime/proc.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/pkg/reflect/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

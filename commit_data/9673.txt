@@ -1,14 +1,24 @@
-commit 1a35450a10a9afe4c3e8e974ee0eb2c4d01b90b7
+commit aa75bee7a5cfcfdf829897fc11fef4f51f10a179
 Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Sep 14 22:09:46 2011 +1000
+Date:   Wed Sep 14 21:39:49 2011 +1000
 
-    image/draw: unbreak build for image.NewXxx change.
+    image: change the NewXxx functions to take a Rectangle instead of
+    taking (w, h int).
     
-    TBR=rsc
+    R=rsc, bsiegert, r
     CC=golang-dev
-    https://golang.org/cl/5016044
+    https://golang.org/cl/4964073
 
- src/pkg/image/draw/bench_test.go | 12 ++++++------
- src/pkg/image/draw/clip_test.go  |  6 +++---
- src/pkg/image/draw/draw_test.go  | 18 +++++++++---------
- 3 files changed, 18 insertions(+), 18 deletions(-)
+ src/cmd/gofix/Makefile           |  1 +
+ src/cmd/gofix/imagenew.go        | 82 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/imagenew_test.go   | 53 ++++++++++++++++++++++++++
+ src/pkg/exp/gui/x11/conn.go      |  2 +-
+ src/pkg/image/bmp/reader.go      |  4 +-
+ src/pkg/image/gif/reader.go      |  5 +--
+ src/pkg/image/image.go           | 45 +++++++++++++---------
+ src/pkg/image/image_test.go      | 26 ++++++-------
+ src/pkg/image/jpeg/reader.go     |  2 +-
+ src/pkg/image/png/reader.go      | 18 ++++-----
+ src/pkg/image/png/writer_test.go |  8 ++--
+ src/pkg/image/tiff/reader.go     |  8 ++--
+ 12 files changed, 198 insertions(+), 56 deletions(-)

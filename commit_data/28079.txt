@@ -1,17 +1,16 @@
-commit a46ea907053d6ad116e49f76f58b69633c6039d3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jul 14 14:07:18 2016 -0700
+commit cad04e7e66d51486b9d3b63bf1b9281a0153dd9f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Apr 28 01:01:15 2016 +0200
 
-    go/build: don't alter InstallSuffix for default compile options
+    net/http: skip TestTransportRemovesDeadIdleConnections on Plan 9
     
-    Fixes #16378.
+    Updates #15464.
     
-    Change-Id: I99a064f1afec78fb63cb3719061d20be0f21d45d
-    Reviewed-on: https://go-review.googlesource.com/24930
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If3221034bb10751c6fcf1fbeba401a879c18079f
+    Reviewed-on: https://go-review.googlesource.com/22513
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testshared/shared_test.go | 4 ++--
- src/cmd/go/build.go                | 9 ++++++---
- 2 files changed, 8 insertions(+), 5 deletions(-)
+ src/net/http/transport_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

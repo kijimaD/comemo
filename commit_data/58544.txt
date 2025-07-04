@@ -1,17 +1,23 @@
-commit 4ebd5bf85594f97ae8ea1aa8f08125f41a110b87
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 27 20:41:55 2025 -0800
+commit e5ce93d7bfb7baead0671ad59bcd91ecb090a656
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Oct 26 11:29:23 2023 -0500
 
-    internal/goexperiment: update location of baseline experiment in comment
+    cmd/internal/obj/ppc64: remove unused C_XER optab class
     
-    It moved in CL 310731.
+    This halves the size of the xcmp lookup table.
     
-    Change-Id: I97340848b55e327d3b25949ec3850aec33448bbe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644955
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I543fb72709ca45c026e9b7d8084a78f2a8fcd43e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542295
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/internal/goexperiment/flags.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/ppc64/a.out.go    | 1 -
+ src/cmd/internal/obj/ppc64/anames9.go  | 1 -
+ src/cmd/internal/obj/ppc64/asm9.go     | 5 +----
+ src/cmd/internal/obj/ppc64/asm_test.go | 1 -
+ 4 files changed, 1 insertion(+), 7 deletions(-)

@@ -1,45 +1,27 @@
-commit 20ea98842159d7cde30062711527495ac00bcacd
-Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
-Date:   Mon Feb 20 07:10:37 2023 +0100
+commit 646c3eee06fa4b1b869e8183977aa46d4d4eb646
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Aug 28 02:32:06 2022 +1000
 
-    math: huge argument handling for sin/cos in s390x
+    cmd/compile: negate comparision with FNES/FNED on riscv64
     
-    Currently s390x, sin/cos assembly implementation not handling huge
-    arguments. This change reverts assembly routine to native go implementation
-    for huge arguments. Implementing the changes in assembly giving better
-    performance than native go changes in terms of execution/cycles.
+    The FNES and FNED instructions are pseudo-instructions, which the
+    assembler expands to FEQS/NEG or FEQD/NEG - if we're comparing the
+    result via a branch instruction, we can avoid an instruction by
+    negating both the branch comparision and the floating point
+    comparision.
     
-    name                                         Go_changes     Asm_changes
-    Sin/input_size_(0.5)-8                      11.85ns ± 0%   5.32ns ± 1%
-    Sin/input_size_(1<<20)-8                    15.32ns ± 0%   9.75ns ± 3%
-    Sin/input_size_(1<<_40)-8                   17.9ns  ± 0%   10.3ns ± 6%
-    Sin/input_size_(1<<50)-8                    16.33ns ± 0%   9.75ns ± 6%
-    Sin/input_size_(1<<60)-8                    33.0ns  ± 1%   29.1ns ± 0%
-    Sin/input_size_(1<<80)-8                    29.9ns  ± 0%   27.2ns ± 2%
-    Sin/input_size_(1<<200)-8                   31.5ns  ± 1%   28.3ns ± 0%
-    Sin/input_size_(1<<480)-8                   29.4ns  ± 1%   28.0ns ± 1%
-    Sin/input_size_(1234567891234567_<<_180)-8  29.3ns  ± 1%   28.0ns ± 0%
-    Cos/input_size_(0.5)-8                      10.33ns ± 0%   5.69ns ± 1%
-    Cos/input_size_(1<<20)-8                    16.67ns ± 0%   9.18ns ± 0%
-    Cos/input_size_(1<<_40)-8                   18.50ns ± 0%   9.45ns ± 3%
-    Cos/input_size_(1<<50)-8                    16.67ns ± 0%   9.18ns ± 1%
-    Cos/input_size_(1<<60)-8                    31.6ns  ± 1%   26.7ns ± 2%
-    Cos/input_size_(1<<80)-8                    31.3ns  ± 0%   25.5ns ± 1%
-    Cos/input_size_(1<<200)-8                   30.0ns  ± 0%   26.7ns ± 1%
-    Cos/input_size_(1<<480)-8                   31.9ns  ±2%   27.0ns ± 0%
-    Cos/input_size_(1234567891234567_<<_180)-8  31.8ns  ± 0%   26.9ns ± 0%
+    This only removes a handful of instructions from the Go binary,
+    however, it will provide benefit to floating point intensive code.
     
-    Fixes #29240
-    
-    Change-Id: Id2ebcfa113926f27510d527e80daaddad925a707
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/469635
+    Change-Id: I4e3124440b7659acc4d9bc9948b755a4900a422f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426261
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/sin_s390x.s | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 68 ++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+)

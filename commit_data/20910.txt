@@ -1,15 +1,35 @@
-commit 8cda58c25ebdd46dc29c6aee776e286ed8c31081
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Nov 22 13:37:46 2014 -0500
+commit 062e354c8412e338a3a7c7c2c81d72226e431bd5
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 27 17:27:03 2014 -0400
 
-    cmd/go: fix running pprof on windows.
+    [dev.power64] runtime: power64 fixes and ports of changes
     
-    Fixes #9149.
+    Fix include paths that got moved in the great pkg/ rename.  Add
+    missing runtime/arch_* files for power64.  Port changes that
+    happened on default since branching to
+    runtime/{asm,atomic,sys_linux}_power64x.s (precise stacks,
+    calling convention change, various new and deleted functions.
+    Port struct renaming and fix some bugs in
+    runtime/defs_linux_power64.h.
     
-    LGTM=alex.brainman, rsc
-    R=rsc, dave, alex.brainman
+    LGTM=rsc
+    R=rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/176170043
+    https://golang.org/cl/161450043
 
- src/cmd/go/tool.go | 12 +-----------
- 1 file changed, 1 insertion(+), 11 deletions(-)
+ src/math/stubs_power64x.s         |   2 +-
+ src/runtime/arch_power64.go       |   8 +
+ src/runtime/arch_power64le.go     |   8 +
+ src/runtime/asm_power64x.s        | 478 ++++++++++++++++----------------------
+ src/runtime/atomic_power64x.s     |  11 +-
+ src/runtime/debug/stubs.s         |   6 +
+ src/runtime/defs_linux_power64.h  |  19 +-
+ src/runtime/memclr_power64x.s     |   2 +-
+ src/runtime/memmove_power64x.s    |   2 +-
+ src/runtime/rt0_linux_power64.s   |   6 +-
+ src/runtime/rt0_linux_power64le.s |   6 +-
+ src/runtime/sys_linux_power64x.s  | 166 +++++++------
+ src/sync/atomic/asm_power64x.s    |   2 +-
+ src/syscall/asm.s                 |   7 +
+ src/syscall/asm_linux_power64x.s  |   2 +-
+ 15 files changed, 342 insertions(+), 383 deletions(-)

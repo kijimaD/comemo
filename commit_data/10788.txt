@@ -1,14 +1,18 @@
-commit 34c7765fe5488191ba3a20cacc10d7e5d0c3acfe
-Author: Rob Pike <r@golang.org>
-Date:   Wed Dec 14 11:03:28 2011 -0800
+commit 465aba66c1080b44bc669dd60aa1dc29e01c4a6f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 14 10:45:59 2011 -0800
 
-    json: treat renamed byte slices the same as []byte
-    Fixes #2163.
+    strconv: even faster int conversion
+    
+    benchmark                           old ns/op    new ns/op    delta
+    strconv_test.BenchmarkFormatInt         10038         8217  -18.14%
+    strconv_test.BenchmarkAppendInt          6822         4969  -27.16%
+    strconv_test.BenchmarkFormatUint         2811         1814  -35.47%
+    strconv_test.BenchmarkAppendUint         2349         1360  -42.10%
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5488068
+    https://golang.org/cl/5488083
 
- src/pkg/encoding/json/encode.go      | 13 +++++++------
- src/pkg/encoding/json/encode_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 6 deletions(-)
+ src/pkg/strconv/itoa.go | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)

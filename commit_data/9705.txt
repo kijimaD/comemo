@@ -1,14 +1,15 @@
-commit bd80b1198bf26e6abd317638d3861101b6ff72ad
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 15 16:21:21 2011 -0700
+commit f5181ae9d7cf35894efc3e8d7b042dc0314dc86b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 15 14:29:59 2011 -0700
 
-    index/suffixarray: support for serialization
+    textproto: parse RFC 959 multiline responses correctly
     
-    R=r
+    Fixes #2218
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5040041
+    https://golang.org/cl/5037041
 
- src/pkg/index/suffixarray/qsufsort.go         | 38 +++++++++---------
- src/pkg/index/suffixarray/suffixarray.go      | 56 +++++++++++++++++++++++++--
- src/pkg/index/suffixarray/suffixarray_test.go | 29 +++++++++++++-
- 3 files changed, 99 insertions(+), 24 deletions(-)
+ src/pkg/net/textproto/reader.go      | 33 ++++++++++++++++------
+ src/pkg/net/textproto/reader_test.go | 53 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+), 8 deletions(-)

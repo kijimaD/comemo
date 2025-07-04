@@ -1,16 +1,12 @@
-commit 24ed667b33aa634081a4f562f1503c758a208ddc
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Mar 14 23:54:40 2012 +0800
+commit d6ea81e0b9f078253151dbca0341f44ba7e9d466
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 14 08:24:11 2012 -0700
 
-    os: IsNotExist() should also consider ERROR_PATH_NOT_FOUND on Windows
-        Also update documentation about IsExist() and IsNotExist(), they are not
-        about files only.
+    misc/dist: don't lose mode bits when setting tar permissions
     
-    R=rsc
+    R=golang-dev, bsiegert, rsc
     CC=golang-dev
-    https://golang.org/cl/5794073
+    https://golang.org/cl/5822046
 
- src/pkg/os/error.go         |  8 +++----
- src/pkg/os/error_test.go    | 54 +++++++++++++++++++++++++++++++++++++++++++--
- src/pkg/os/error_windows.go |  7 +++---
- 3 files changed, 60 insertions(+), 9 deletions(-)
+ misc/dist/bindist.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

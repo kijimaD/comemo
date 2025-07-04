@@ -1,17 +1,12 @@
-commit 61650b21d6a40970441b304c5f1d1cea4ff3ef59
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 6 16:04:55 2011 -0700
+commit 62b10ad0ba0302c726ecc0795548d7f58aeeb9ca
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 6 15:59:21 2011 -0700
 
-    cleanup: gofmt -s -w src misc
+    template: slightly simplify the test for assignability of arguments
     
-    R=r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4984052
+    https://golang.org/cl/4951066
 
- src/pkg/crypto/x509/verify_test.go | 10 +++++-----
- src/pkg/http/cgi/host.go           | 14 +++++++-------
- src/pkg/http/fcgi/fcgi_test.go     |  6 +++---
- src/pkg/http/spdy/read.go          |  6 +++---
- src/pkg/json/decode_test.go        |  2 +-
- src/pkg/path/filepath/path_test.go |  2 +-
- 6 files changed, 20 insertions(+), 20 deletions(-)
+ src/pkg/template/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

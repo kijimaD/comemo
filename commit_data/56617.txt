@@ -1,30 +1,18 @@
-commit 44079f39eb751ff21cea18d795cc842b51910461
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon May 20 19:24:42 2024 -0400
+commit 44b8f3907c034af0c3282f4ca888e2008d6ccb51
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 16 20:05:13 2023 -0700
 
-    cmd/compile: keep closure pointer live for range body closures
+    go/types, types2: reduce differences between go/types and types2 builtins.go
     
-    For range-over-function, the compiler generates a hidden closure
-    for the range body, and call the iterator function with the hidden
-    closure as the yield parameter. For debuggers, if it stops inside
-    the range body (hidden closure), it needs some way to find the
-    outer function (that contains the range statement), to access the
-    variables that are in scope. To do this, we keep the closure
-    pointer live on stack with a special name ".closureptr", so the
-    debugger can look for this name and find the closure pointer. In
-    the usual case, the closure is a struct defined in the outer
-    frame, so following the pointer it will find the frame. We do this
-    in SSA generation, so if the range func is inlined and there is no
-    actual closure, we don't generate any extra code. In the case that
-    there is an actual closure, it's just a single store to the stack,
-    so the overhead is still small.
-    
-    TODO: add some test
-    
-    Change-Id: I0e8219b895733f8943a13c67b03ca776bdc02bc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586975
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I2946e061c70d31df3ba2aa3582700c3785b647e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495615
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/compile/internal/types2/builtins.go | 28 +++++++-----
+ src/go/types/api.go                         |  4 ++
+ src/go/types/builtins.go                    | 70 +++++++++++++++--------------
+ 3 files changed, 56 insertions(+), 46 deletions(-)

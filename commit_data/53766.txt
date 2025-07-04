@@ -1,24 +1,17 @@
-commit 6f597a8a9370e1389399520d721b594277a6766b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jul 21 14:35:01 2023 -0400
+commit a330ca5c541e99e4561420c852b14df63574a065
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 12:14:58 2022 -0700
 
-    os: mark the share created by TestNetworkSymbolicLink as temporary
+    cmd/compile/internal/syntax: more tolerant parsing of import declarations
     
-    Also use a unique share name for each run of the test.
-    
-    This may help with #61467, but since I couldn't reproduce the failure
-    in the first place I don't know. It passes locally for me.
-    
-    For #61467.
-    
-    Change-Id: Ie51e3cf381063e02e4849af5c1a1ed7441ce21c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512075
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I114548640d51bf69833259578609901fa1602510
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427156
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/internal/syscall/windows/syscall_windows.go |  6 ++++-
- src/os/os_windows_test.go                       | 29 ++++++++++++++++---------
- 2 files changed, 24 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go          | 25 +++++++++++++---------
+ .../types2/testdata/fixedbugs/issue43190.go        | 12 +++++++++--
+ 2 files changed, 25 insertions(+), 12 deletions(-)

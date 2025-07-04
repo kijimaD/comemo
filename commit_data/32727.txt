@@ -1,24 +1,24 @@
-commit f351dbfa4de7ee38b3d9b50413fbc432b4531412
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Sep 13 21:03:20 2017 +0200
+commit 6a6c792eef55eded7fb3165a330ec2b239b83960
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat May 20 18:19:54 2017 -0600
 
-    cmd/compile: expand inlining test to multiple pkgs
+    net/http: make ServeMux preserve query string during redirects
     
-    Rework the test to work with any number of std packages. This was done
-    to include a few funcs from unicode/utf8. Adding more will be much
-    simpler too.
+    Ensure that the implicitly created redirect
+    for
+      "/route"
+    after
+      "/route/"
+    has been registered doesn't lose the query string information.
     
-    While at it, add more runtime funcs by searching for "inlined" or
-    "inlining" in the git log of its directory. These are: addb, subtractb,
-    fastrand and noescape.
+    Fixes #17841.
     
-    Updates #21851.
-    
-    Change-Id: I4fb2bd8aa6a5054218f9b36cb19d897ac533710e
-    Reviewed-on: https://go-review.googlesource.com/63611
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ib7df9242fab8c9368a18fc0da678003d6bec63b8
+    Reviewed-on: https://go-review.googlesource.com/43779
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go | 50 +++++++++++++++++++++++++++------
- 1 file changed, 41 insertions(+), 9 deletions(-)
+ src/net/http/serve_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  9 +++++++++
+ 2 files changed, 51 insertions(+)

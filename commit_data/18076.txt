@@ -1,15 +1,16 @@
-commit 0594f8948904149a907e634d343bf6307903a10b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 18 18:24:55 2013 -0800
+commit 7eb45d3c4a0956fc2207001360472ad048e544bc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 19 10:00:15 2013 +0900
 
-    compress/flate: use io.ByteReader in docs
+    net: don't return a nested error when happy eyeballs dialing
     
-    We did this elsewhere when io.ByteReader was added
-    but forgot this one.
+    Also removes an unused variable.
     
-    R=golang-dev, khr
+    Fixes #6795.
+    
+    R=adg, dave, bradfitz, gobot
     CC=golang-dev
-    https://golang.org/cl/43480052
+    https://golang.org/cl/29440043
 
- src/pkg/compress/flate/inflate.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/dial.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

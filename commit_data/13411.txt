@@ -1,12 +1,12 @@
-commit 71643b2fdbc600fea6498ed20a17ec14bb13a841
+commit f009fefd7977354b4800dc7a242d5c04f50c9778
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 27 17:32:41 2012 -0400
+Date:   Wed Jun 27 17:02:39 2012 -0400
 
-    runtime: fix string optimization
+    net: fix build (FreeBSD sendfile)
     
-    R=golang-dev, r
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/6354048
+    https://golang.org/cl/6358043
 
- src/pkg/runtime/string.goc | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/net/sendfile_freebsd.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

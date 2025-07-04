@@ -1,19 +1,25 @@
-commit 02789816c46993c1c093500d94b8ebb4b622b77a
-Author: David Chase <drchase@google.com>
-Date:   Thu Jun 15 13:56:02 2023 -0400
+commit a6e6b11e3a443ef532bc9b710e893e111f8ea2a3
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 23 10:40:31 2022 -0700
 
-    internal/bisect: add 'q' hash option for quiet hash behavior switching
+    runtime: initialize pointer bits of noscan spans
     
-    This is intended for the specific case of 'fmahash=qn' where someone
-    wants to disable fma without all the hash-search-handshake output.
-    There are cases where arm64, ppc64, and s390x users might want to do
-    this.
+    Some code paths in the runtime (cgo, heapdump) request heap bits
+    without first checking that the span is !noscan. Instead of trying
+    to find and work around all those cases, just set the pointer bits
+    of noscan spans correctly. It's somewhat safer than ensuring we
+    caught all the possible cases.
     
-    Change-Id: Iaf46c68a00d7c9f7f82fd98a4548b72610f84bed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503776
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #54557
+    Fixes #54558
+    
+    Change-Id: Ibd476e6cdea77c962e4d15aad26f29df66fd94e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425194
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/bisect/bisect.go | 30 ++++++++++++++++++++----------
- 1 file changed, 20 insertions(+), 10 deletions(-)
+ src/runtime/mbitmap.go | 23 ++++++++++++++++-------
+ src/runtime/mgcmark.go |  2 ++
+ 2 files changed, 18 insertions(+), 7 deletions(-)

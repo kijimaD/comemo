@@ -1,18 +1,16 @@
-commit 249aca5deebcc22cc5169814207416a40f14cd86
-Author: Hajime Hoshi <hajimehoshi@gmail.com>
-Date:   Sat Feb 11 02:09:57 2017 +0900
+commit 0dabbcdc435e4babf76bd561cfe67a486404d73a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 27 16:42:42 2016 -0400
 
-    cmd/compile/internal/gc: unexport or remove global functions
+    math/big: flip long/short flag on TestFloat32Distribution
     
-    Change-Id: Ib2109ab773fbf2a35188300cf91a54735f75fc7c
-    Reviewed-on: https://go-review.googlesource.com/36736
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    It looks like a typo in CL 30707.
+    
+    Change-Id: Ia2d013567dbd1a49901d9be0cd2d5a103e6e38cf
+    Reviewed-on: https://go-review.googlesource.com/32187
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/alg.go       |  4 ++--
- src/cmd/compile/internal/gc/lex.go       |  2 +-
- src/cmd/compile/internal/gc/noder.go     |  8 ++++----
- src/cmd/compile/internal/gc/sinit.go     |  2 +-
- src/cmd/compile/internal/gc/subr.go      | 27 ++-------------------------
- src/cmd/compile/internal/gc/typecheck.go |  6 +++---
- src/cmd/compile/internal/gc/walk.go      | 32 ++++++++++++++++----------------
- 7 files changed, 29 insertions(+), 52 deletions(-)
+ src/math/big/rat_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

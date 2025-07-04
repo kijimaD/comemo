@@ -1,29 +1,20 @@
-commit aa311fecda008d26f97af0a8e7f57dcd04cae6ae
-Author: Jordan Rhee <jordanrh@microsoft.com>
-Date:   Tue Jul 24 15:13:41 2018 -0700
+commit 7500b29993f193e68a9785c3b729a45f4080042c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 24 17:26:32 2018 -0700
 
-    cmd/link: support windows/arm
+    cmd/compile/internal/types: remove Field.Funarg
     
-    Enable the Go linker to generate executables for windows/arm.
+    Passes toolstash-check.
     
-    Generates PE relocation tables, which are used by Windows to
-    dynamically relocate the Go binary in memory. Windows on ARM
-    requires all modules to be relocatable, unlike x86/amd64 which are
-    permitted to have fixed base addresses.
-    
-    Updates #26148
-    
-    Change-Id: Ie63964ff52c2377e121b2885e9d05ec3ed8dc1cd
-    Reviewed-on: https://go-review.googlesource.com/125648
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idc00f15e369cad62cb8f7a09fd0ef09abd3fcdef
+    Reviewed-on: https://go-review.googlesource.com/109356
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/objfile/pe.go       |   3 +
- src/cmd/link/internal/arm/asm.go     |  41 ++++++
- src/cmd/link/internal/arm/obj.go     |   5 +
- src/cmd/link/internal/ld/config.go   |   2 +-
- src/cmd/link/internal/ld/data.go     |   8 +-
- src/cmd/link/internal/ld/pe.go       | 265 ++++++++++++++++++++++++++++++-----
- src/cmd/link/internal/loadpe/ldpe.go |  71 +++++++---
- 7 files changed, 338 insertions(+), 57 deletions(-)
+ src/cmd/compile/internal/gc/closure.go |  1 -
+ src/cmd/compile/internal/gc/dcl.go     |  5 -----
+ src/cmd/compile/internal/gc/fmt.go     | 12 ++++++------
+ src/cmd/compile/internal/gc/walk.go    | 21 +++++----------------
+ src/cmd/compile/internal/types/type.go |  1 -
+ 5 files changed, 11 insertions(+), 29 deletions(-)

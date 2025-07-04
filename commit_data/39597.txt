@@ -1,12 +1,22 @@
-commit ad4ed87f80c33f23bdd3767ef3208f15a1fb5c90
-Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-Date:   Wed Aug 14 05:26:56 2019 +0000
+commit 3a62f4ee40212c363ae7ebf5e28954efb7ff7ee6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 6 17:57:35 2019 -0500
 
-    doc/go1.13: add missing periods
+    cmd/link: fix suspicious code in emitPcln
     
-    Change-Id: If9ad650174572c475f0b3d3394208c2a9dd0a596
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190237
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    In cmd/link/internal/ld/pcln.go:emitPcln, the code and the
+    comment don't match. I think the comment is right. Fix the code.
+    
+    As a consequence, on Linux/AMD64, internal linking with PIE
+    buildmode with cgo (at least the cgo packages in the standard
+    library) now works. Add a test.
+    
+    Change-Id: I091cf81ba89571052bc0ec1fa0a6a688dec07b04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166017
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.13.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go             | 11 +++++++++++
+ src/cmd/link/internal/ld/pcln.go |  5 +----
+ 2 files changed, 12 insertions(+), 4 deletions(-)

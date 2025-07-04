@@ -1,23 +1,15 @@
-commit 9799622f09ba2ece6fa8eb7607d0d471d75d9915
+commit 3cfc757c625d8f9fabf2c52e2ae3a8eab3fbdf61
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 8 17:30:45 2017 -0800
+Date:   Wed Oct 26 15:52:56 2016 -0700
 
-    cmd/compile/internal/syntax: differentiate between ';' and '\n' in syntax errors
+    go/scanner: recognize invalid floating-point constant exponent
     
-    Towards better syntax error messages: With this change, the parser knows whether
-    a semicolon was an actual ';' in the source, or whether it was an automatically
-    inserted semicolon as result of a '\n' or EOF. Using this information in error
-    messages makes them more understandable.
+    Fixes #17621.
     
-    For #17328.
-    
-    Change-Id: I8cd9accee8681b62569d0ecef922d38682b401eb
-    Reviewed-on: https://go-review.googlesource.com/36636
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Id3e75c9b7fba2cf8e791c8817f890556ca238e9d
+    Reviewed-on: https://go-review.googlesource.com/32096
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/syntax/parser.go       | 4 ++--
- src/cmd/compile/internal/syntax/scanner.go      | 6 +++++-
- src/cmd/compile/internal/syntax/scanner_test.go | 8 ++++++++
- test/fixedbugs/issue14520.go                    | 2 +-
- test/syntax/semi6.go                            | 6 +++---
- 5 files changed, 19 insertions(+), 7 deletions(-)
+ src/go/scanner/scanner.go      | 6 +++++-
+ src/go/scanner/scanner_test.go | 1 +
+ 2 files changed, 6 insertions(+), 1 deletion(-)

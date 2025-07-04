@@ -1,20 +1,26 @@
-commit aad06da2b9b293fd245626fc8e116e3b56654dae
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 23 17:30:41 2017 -0800
+commit 2f7f679c79009137bd34fcc33a6d3a6762f45e75
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 23:22:38 2016 -0400
 
-    cmd/link: mark DWARF function symbols as reachable
+    html/template, text/template: clarify template redefinition behavior
     
-    Otherwise we don't emit any required ELF relocations when doing an
-    external link, because elfrelocsect skips unreachable symbols.
+    Make two important points clearer:
     
-    Fixes #18745.
+     - Giving a template definition containing
+       nothing but spaces has no effect.
+     - Giving a template definition containing
+       non-spaces can only be done once per template.
     
-    Change-Id: Ia3583c41bb6c5ebb7579abd26ed8689370311cd6
-    Reviewed-on: https://go-review.googlesource.com/35590
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #16912.
+    Fixes #16913.
+    Fixes #17360.
+    
+    Change-Id: Ie3971b83ab148b7c8bb800fe4a21579566378e3e
+    Reviewed-on: https://go-review.googlesource.com/31459
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go |  2 +-
- src/runtime/runtime-gdb_test.go   | 22 ++++++++++++++++++++--
- 2 files changed, 21 insertions(+), 3 deletions(-)
+ src/html/template/template.go | 24 ++++++++++++++----------
+ src/text/template/template.go | 15 ++++++++++++---
+ 2 files changed, 26 insertions(+), 13 deletions(-)

@@ -1,18 +1,14 @@
-commit 75c0566b55b7a6ee4866f632fc123b70673ee78f
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Apr 1 14:57:34 2015 +1300
+commit c23e21e672873bf02946002df61e9127964aa44b
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Fri Mar 13 11:54:25 2015 +0100
 
-    cmd/6l: support -linkshared
+    .gitignore: ignore ARM64 build products
     
-    Change-Id: Id469165b1acd383837b1f4e1e6f961e10dfa5d61
-    Reviewed-on: https://go-review.googlesource.com/8332
+    Change-Id: I56297aac4ee282fd117ec525b88dee4769477111
+    Reviewed-on: https://go-review.googlesource.com/7560
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/internal/ld/go.go     |   4 ++
- src/cmd/internal/ld/ld.go     |  30 +++++++--
- src/cmd/internal/ld/lib.go    | 142 +++++++++++++++++++++++++++++++++++++++---
- src/cmd/internal/ld/link.go   |   2 +
- src/cmd/internal/ld/pobj.go   |  10 ++-
- src/cmd/internal/ld/symtab.go |   3 +
- 6 files changed, 174 insertions(+), 17 deletions(-)
+ .gitignore | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

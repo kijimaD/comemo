@@ -1,21 +1,21 @@
-commit ad1644943ba691740c3bec29280f350f9d81c1b1
-Author: Iskander Sharipov <quasilyte@gmail.com>
-Date:   Sat Dec 29 23:16:01 2018 +0300
+commit 2975914a1a0b60132352cf0c34a39bea1197d789
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 17 14:38:34 2018 -0400
 
-    cmd/compile/internal/gc: remove unused methodbyname type
+    cmd/link: move Localentry field in sym.Symbol to cold section
     
-    methodbyname was used for sorting in bexport.go, until
-    https://golang.org/cl/139338 removed the code that
-    invoked sorting function.
+    The sym.Symbol 'Localentry' field is used only with cgo and/or
+    external linking on MachoPPC. Relocate it to sym.AuxSymbol since it is
+    infrequently used, so as to shrink the main Symbol struct.
     
-    R=1.13
+    Updates #26186
     
-    Change-Id: I13e313fb60111a142ed3883d81916af254445fdc
-    Reviewed-on: https://go-review.googlesource.com/c/155959
-    Run-TryBot: Iskander Sharipov <quasilyte@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5872aa3f059270c2a091016d235a1a732695e411
+    Reviewed-on: https://go-review.googlesource.com/125477
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/export.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go   |  2 +-
+ src/cmd/link/internal/ppc64/asm.go       |  2 +-
+ src/cmd/link/internal/sym/sizeof_test.go |  2 +-
+ src/cmd/link/internal/sym/symbol.go      | 19 ++++++++++++++++++-
+ 4 files changed, 21 insertions(+), 4 deletions(-)

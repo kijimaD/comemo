@@ -1,0 +1,23 @@
+commit eb975601a07ad25a47fdcb0cc6166ec695973d3e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Sep 5 18:56:26 2024 -0400
+
+    cmd/compile: correct wasmexport result type checking
+    
+    The function resultsToWasmFields was originally for only
+    wasmimport. I adopted it for wasmexport as well, but forgot to
+    update a few places that were wasmimport-specific. This leads to
+    compiler panic if an invalid result type is passed, and also
+    unsafe.Pointer not actually supported. This CL fixes it.
+    
+    Updates #65199.
+    
+    Change-Id: I9bbd7154b70422504994840ff541c39ee596ee8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611315
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssagen/abi.go | 4 +++-
+ test/wasmexport2.go                    | 9 +++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,24 +1,19 @@
-commit e6e6cad632f6192a146bbc586a62f2e34c96c2bf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 24 00:05:04 2017 +0000
+commit 6533cc1ce899fa3c7fac1a85ad724e333fb9710f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 6 10:14:15 2017 -0800
 
-    net/http: update bundled x/net/http2
+    cmd/internal/goobj: update to support go19ld
     
-    This updates the bundled copy of x/net/http2 to x/net git rev a8e8f92cd6 for:
+    Updates the disassembler to support the same object file version used
+    by the assembler and linker.
     
-        http2: remove extra goroutine stack from awaitGracefulShutdown
-        https://golang.org/cl/43230
+    Related #14782.
     
-        http2: Discard DATA frames from the server after the response body is closed
-        https://golang.org/cl/43810
-    
-    Fixes #20302
-    Fixes #18471
-    Fixes #20448
-    
-    Change-Id: I00972836deb2fe6049f631ee44901732a641b171
-    Reviewed-on: https://go-review.googlesource.com/44006
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Change-Id: I4cd7560c4e4e1350cfb27ca9cbe0fde25fe693cc
+    Reviewed-on: https://go-review.googlesource.com/37797
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/h2_bundle.go | 237 ++++++++++++++++++++++++++++++----------------
- 1 file changed, 157 insertions(+), 80 deletions(-)
+ src/cmd/internal/goobj/read.go | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)

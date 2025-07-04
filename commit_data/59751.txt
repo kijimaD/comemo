@@ -1,17 +1,26 @@
-commit cc119ee391575fb11bdefaeac7155bcb9c2652be
-Author: Mark Freeman <mark@golang.org>
-Date:   Fri May 30 14:45:38 2025 -0400
+commit 68c0ad3a689833344fada8acc1f36a06c343caa4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 18 13:52:44 2024 -0400
 
-    cmd/compile/internal/noder: stub type section and adjust others
+    cmd/go: only attempt to match subset of $GOCACHE in test
     
-    The type definition and object definition sections have nearly the same
-    structure - help illustrate that through consistent naming.
+    This test attempted to be clever by looking for the entirety of $GOCACHE
+    in the compile command line to ensure that the profile was coming from
+    cache.
     
-    Change-Id: Ibed374fca4883a293a7fc16b36034e1acb38362a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677378
-    Auto-Submit: Mark Freeman <mark@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Unfortunately, on Windows $GOCACHE contains \, which needs extra
+    escaping in a regexp. As an approximate alternative, just look for the
+    "gocache" component specified when defining GOCACHE.
+    
+    This fixes the Windows longtest builders.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
+    Change-Id: If6c77cf066d8612431e0720405254e1fdf528e9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580137
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/noder/doc.go | 87 +++++++++++++++++++++++++++++------
- 1 file changed, 72 insertions(+), 15 deletions(-)
+ src/cmd/go/testdata/script/build_cache_pgo.txt | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

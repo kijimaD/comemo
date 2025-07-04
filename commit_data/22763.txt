@@ -1,20 +1,19 @@
-commit 6abfdc3fdd49d7691e1cdc3028849fa40e4a41f2
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Apr 29 13:51:49 2015 +1000
+commit a175fa3bc3a69b4090eb594af9203d0f0fb9cf44
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Apr 4 01:47:55 2015 -0400
 
-    image/gif: check that individual frame's bounds are within the overall
-    GIF's bounds.
+    cmd/asm/internal/asm: parse arm64 register pairs for LDP/STP
     
-    Also change the implicit Config Width and Height to be the
-    Rectangle.Max, not the Dx and Dy, of the first frame's bounds. For the
-    case where the first frame's bounds is something like (5,5)-(8,8), the
-    overall width should be 8, not 3.
+    Add test, and while we're at here, also add a test for ARM.
     
-    Change-Id: I3affc484f5e32941a36f15517a92ca8d189d9c22
-    Reviewed-on: https://go-review.googlesource.com/9465
+    Fixes #10343.
+    
+    Change-Id: Ic914df8233d4f1f495e2cc0743fbd37b7671bc91
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8472
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/image/gif/reader.go      | 11 +++++---
- src/image/gif/writer.go      | 10 ++++---
- src/image/gif/writer_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 74 insertions(+), 9 deletions(-)
+ src/cmd/asm/internal/asm/operand_test.go |  2 ++
+ src/cmd/asm/internal/asm/parse.go        | 10 ++++++----
+ 2 files changed, 8 insertions(+), 4 deletions(-)

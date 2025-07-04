@@ -1,33 +1,25 @@
-commit 3cf56e78d812069d2ffb65b5c29a76961b0b0af8
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 29 23:21:29 2019 -0500
+commit 94f48ddb96c4dfc919ae024f64df19d764f5fb5b
+Author: Ian Gudger <igudger@google.com>
+Date:   Wed Sep 5 23:53:36 2018 -0700
 
-    text/template: accept new number syntax
+    net: fail fast for DNS rcode success with no answers of requested type
     
-    This CL updates text/template's scanner to accept the
-    new number syntaxes:
+    DNS responses which do not contain answers of the requested type return
+    errNoSuchHost, the same error as rcode name error. Prior to
+    golang.org/cl/37879, both cases resulted in no additional name servers
+    being consulted for the question. That CL changed the behavior for both
+    cases. Issue #25336 was filed about the rcode name error case and
+    golang.org/cl/113815 fixed it. This CL fixes the no answers of requested
+    type case as well.
     
-     - Hexadecimal floating-point values.
-     - Digit-separating underscores.
-     - Leading 0b and 0o prefixes.
+    Fixes #27525
     
-    See golang.org/design/19308-number-literals for background.
-    
-    For #12711.
-    For #19308.
-    For #28493.
-    For #29008.
-    
-    Change-Id: I68c16ea35c3f506701063781388de72bafee6b8d
-    Reviewed-on: https://go-review.googlesource.com/c/160248
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I52fadedcd195f16adf62646b76bea2ab3b15d117
+    Reviewed-on: https://go-review.googlesource.com/133675
+    Run-TryBot: Ian Gudger <igudger@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/html/template/template_test.go    |  6 ++++++
- src/text/template/exec.go             |  6 +++---
- src/text/template/exec_test.go        | 21 +++++++++++++++++++++
- src/text/template/parse/lex.go        | 21 ++++++++++++++++-----
- src/text/template/parse/lex_test.go   | 12 +++++++++++-
- src/text/template/parse/node.go       |  2 +-
- src/text/template/parse/parse_test.go | 12 ++++++++++++
- 7 files changed, 70 insertions(+), 10 deletions(-)
+ src/net/dnsclient_unix.go      | 115 ++++++++++++++++++++-------------
+ src/net/dnsclient_unix_test.go | 143 +++++++++++++++++++++++++----------------
+ 2 files changed, 158 insertions(+), 100 deletions(-)

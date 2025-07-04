@@ -1,42 +1,25 @@
-commit 38cfeb9cb5925466c93b191c03f647566bddced4
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Oct 7 13:49:44 2017 -0400
+commit 835dfef939879b284d4c0f4e1726491f27e4f1ee
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Thu May 4 16:45:29 2017 +0200
 
-    cmd/link: move Headtype global to ctxt
+    runtime/pprof: prevent a deadlock that SIGPROF might create on mips{,le}
     
-    For #22095
+    64bit atomics on mips/mipsle are implemented using spinlocks. If SIGPROF
+    is received while the program is in the critical section, it will try to
+    write the sample using the same spinlock, creating a deadloop.
+    Prevent it by creating a counter of SIGPROFs during atomic64 and
+    postpone writing the sample(s) until called from elsewhere, with
+    pc set to _LostSIGPROFDuringAtomic64.
     
-    Change-Id: Idcfdfe8a94db8626392658bb93429454238f648a
-    Reviewed-on: https://go-review.googlesource.com/70835
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Added a test case, per Cherry's suggestion. Works around #20146.
+    
+    Change-Id: Icff504180bae4ee83d78b19c0d9d6a80097087f9
+    Reviewed-on: https://go-review.googlesource.com/42652
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/amd64/asm.go   | 20 +++++++-------
- src/cmd/link/internal/amd64/obj.go   |  4 +--
- src/cmd/link/internal/arm/asm.go     | 10 +++----
- src/cmd/link/internal/arm/obj.go     |  4 +--
- src/cmd/link/internal/arm64/asm.go   | 14 +++++-----
- src/cmd/link/internal/arm64/obj.go   |  4 +--
- src/cmd/link/internal/ld/data.go     | 50 +++++++++++++++++-----------------
- src/cmd/link/internal/ld/deadcode.go |  2 +-
- src/cmd/link/internal/ld/dwarf.go    | 10 +++----
- src/cmd/link/internal/ld/elf.go      | 30 ++++++++++----------
- src/cmd/link/internal/ld/go.go       |  8 +++---
- src/cmd/link/internal/ld/lib.go      | 53 ++++++++++++++++++------------------
- src/cmd/link/internal/ld/link.go     |  3 +-
- src/cmd/link/internal/ld/main.go     | 20 +++++++-------
- src/cmd/link/internal/ld/pcln.go     |  2 +-
- src/cmd/link/internal/ld/sym.go      |  4 +--
- src/cmd/link/internal/ld/symtab.go   |  2 +-
- src/cmd/link/internal/mips/asm.go    |  2 +-
- src/cmd/link/internal/mips/obj.go    |  4 +--
- src/cmd/link/internal/mips64/asm.go  |  6 ++--
- src/cmd/link/internal/mips64/obj.go  |  4 +--
- src/cmd/link/internal/ppc64/asm.go   |  6 ++--
- src/cmd/link/internal/ppc64/obj.go   |  4 +--
- src/cmd/link/internal/s390x/asm.go   |  2 +-
- src/cmd/link/internal/s390x/obj.go   |  4 +--
- src/cmd/link/internal/x86/asm.go     | 14 +++++-----
- src/cmd/link/internal/x86/obj.go     |  4 +--
- 27 files changed, 145 insertions(+), 145 deletions(-)
+ src/runtime/cpuprof.go          |  9 +++++++++
+ src/runtime/pprof/pprof_test.go | 31 +++++++++++++++++++++++++++++++
+ src/runtime/proc.go             | 31 +++++++++++++++++++++++++++----
+ 3 files changed, 67 insertions(+), 4 deletions(-)

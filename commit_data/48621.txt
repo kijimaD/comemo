@@ -1,31 +1,18 @@
-commit bdd0f0f780cf650ed7844dbc1bcfab20460783cc
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Mar 26 10:05:04 2022 -0700
+commit 6b1e4430bb79674ff523240608f106a1aeb7302e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 3 12:23:14 2021 -0400
 
-    cmd/compile: better propagation of desired registers
+    [dev.typeparams] cmd/compile: implement clobberdead mode on ARM64
     
-    This fixes two independent problems:
+    For debugging.
     
-    We normally propagate desired registers backwards through opcodes that
-    are marked resultInArg0. Unfortunately for the desired register
-    computation, ADDQconst is not marked as resultInArg0. This is because
-    the amd64 backend can write it out as LEAQ instead if the input and
-    output registers don't match. For desired register purposes, we want
-    to treat ADDQconst as resultInArg0, so that we get an ADDQ instead of
-    a LEAQ if we can.
-    
-    Desired registers don't currently work for tuple-generating opcodes.
-    Declare that the desired register applies to the first element of the
-    tuple, and propagate the desired register back through Select0.
-    
-    Noticed when fixing #51964
-    
-    Change-Id: I83346b988882cd58c2d7e7e5b419a2b9a244ab66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396035
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I5875ccd2413b8ffd2ec97a0ace66b5cae7893b24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324765
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 23 ++++++++++++++++-------
- 1 file changed, 16 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go | 30 ++++++++++++++++++++++++++++--
+ test/codegen/clobberdead.go           |  7 +++++--
+ 2 files changed, 33 insertions(+), 4 deletions(-)

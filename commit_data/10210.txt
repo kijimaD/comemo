@@ -1,21 +1,13 @@
-commit 8089e578124227a322a77f9c5599d2244f9d0cfc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 2 11:46:04 2011 -0700
+commit cefee3c919221a38d6eb93c8199d3d88ad5ae0b7
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Nov 2 14:01:21 2011 -0400
 
-    exp/sql: finish transactions, flesh out types, docs
+    math: improved accuracy for Tan
     
-    Fixes #2328 (float, bool)
-    
-    R=rsc, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5294067
+    https://golang.org/cl/5298087
 
- src/pkg/Makefile                     |   1 -
- src/pkg/exp/sql/convert.go           |  71 ++++++----
- src/pkg/exp/sql/convert_test.go      |  52 +++++++
- src/pkg/exp/sql/driver/driver.go     |  14 +-
- src/pkg/exp/sql/driver/types.go      |  62 ++++++++-
- src/pkg/exp/sql/driver/types_test.go |  57 ++++++++
- src/pkg/exp/sql/fakedb_test.go       |   2 +-
- src/pkg/exp/sql/sql.go               | 258 ++++++++++++++++++++++++++++-------
- 8 files changed, 433 insertions(+), 84 deletions(-)
+ src/pkg/math/all_test.go |  13 +----
+ src/pkg/math/tan.go      | 140 ++++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 104 insertions(+), 49 deletions(-)

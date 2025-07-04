@@ -1,22 +1,15 @@
-commit d16ceca5c59c79c63f4847244d784ac49c944ff4
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Sep 21 12:36:17 2011 -0300
+commit 96f968df9ca9533b5f6bd04bc288a047e275b9a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 21 08:30:47 2011 -0700
 
-    bytes: fix Replace so it actually copies
+    http: add a (disabled) test for TLS handshake timeouts
     
-    The documentation for bytes.Replace says it copies
-    the slice but it won't necessarily copy them.  Since
-    the data is mutable, breaking the contract is an issue.
+    It's currently broken and disabled, pending a fix
+    for Issue 2281.
     
-    We either have to fix this by making the copy at all
-    times, as suggested in this CL, or we should change the
-    documentation and perhaps make better use of the fact
-    it's fine to mutate the slice in place otherwise.
-    
-    R=golang-dev, bradfitz, adg, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5081043
+    https://golang.org/cl/5092045
 
- src/pkg/bytes/bytes.go      | 19 ++++++++++++-------
- src/pkg/bytes/bytes_test.go |  8 +++++++-
- 2 files changed, 19 insertions(+), 8 deletions(-)
+ src/pkg/http/serve_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

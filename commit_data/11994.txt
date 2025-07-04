@@ -1,23 +1,12 @@
-commit b27bd42a9a4bd3e358499f517e8102fa152dd2ba
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 16 23:46:28 2012 -0500
+commit d8e715cab4f790e033c8d22ad07e9ca5ff9d343b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 17 15:31:07 2012 +1100
 
-    net/url: API
+    net/url: spell the package name correctly.
     
-    Convert cryptotype to general go1rename fix.
-    Add os.Exec -> syscall.Exec fix along with new
-    URL fixes.
-    
-    Fixes #2946.
-    
-    R=golang-dev, r, dsymonds
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5672072
+    https://golang.org/cl/5676076
 
- src/cmd/fix/go1pkgrename_test.go                   |  4 +--
- src/cmd/fix/{cryptotype.go => go1rename.go}        | 33 ++++++++++++++++---
- .../fix/{cryptotype_test.go => go1rename_test.go}  | 18 +++++++++--
- src/pkg/net/http/request.go                        |  4 +--
- src/pkg/net/url/url.go                             | 37 +++++++++-------------
- src/pkg/net/url/url_test.go                        | 35 +++-----------------
- 6 files changed, 67 insertions(+), 64 deletions(-)
+ src/pkg/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

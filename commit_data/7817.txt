@@ -1,14 +1,12 @@
-commit 338185dabb6a0c966e366c56ab89d749d27a33f9
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 21 11:24:48 2011 +1100
+commit 19aecba1d5ae30411ddb1bc885da33d12d2eafd8
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Sun Mar 20 11:45:43 2011 -0700
 
-    path/filepath: fix TestEvalSymlinks when run under symlinked GOROOT
+    flag: document Nflag function
     
-    Fixes #1622.
-    
-    R=rsc, bradfitzgo
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4287063
+    https://golang.org/cl/4279065
 
- src/pkg/path/filepath/path_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/flag/flag.go | 1 +
+ 1 file changed, 1 insertion(+)

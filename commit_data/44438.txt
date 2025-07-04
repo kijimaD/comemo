@@ -1,37 +1,35 @@
-commit f41460145ef6b75303e5f766a676274f456387d3
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Thu Feb 4 00:11:12 2021 +0100
+commit 8c46cb1bf534adb169a8789489e85bf777655066
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Jul 4 18:14:08 2020 -0400
 
-    cmd/link: recognize ARM64 PE files and relocations
+    [dev.link] cmd/link: write ELF relocations in mmap on all architectures
     
-    For now, this only add a single relocation type, which is sufficient for
-    Windows resources. Later we'll see if we need more for cgo.
+    In CL 240399 we changed to precompute the size for ELF relocation
+    records and use mmap to write them, but we left architectures
+    where elfreloc1 write non-fixed number of bytes. This CL handles
+    those architectures. When a Go relocation will turn into multiple
+    ELF relocations, in relocsym we account this difference and add
+    it to the size calculation. So when emitting ELF relocations, we
+    know the number of ELF relocations to be emitted.
     
-    In order to ensure these code paths are actually tested, this expands
-    the rsrc tests to include all the architectures of PE objects that we
-    need to be recognizing, and splits things more clearly between binutils
-    and llvm objects, which have a slightly different layout, so that we
-    test both.
-    
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    
-    Change-Id: Ia1ee840265e9d12c0b12dd1c5d0810f8b300e557
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/289429
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I6732ab674b442f4618405e5412a77f6e4a3315d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241079
     Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/link/internal/ld/lib.go                    |   6 +++-
- src/cmd/link/internal/loadpe/ldpe.go               |  29 ++++++++++++++++
- src/cmd/link/link_test.go                          |  38 +++++++++++++++------
- .../testdata/{testPErsrc => pe-binutils}/main.go   |   7 ++--
- src/cmd/link/testdata/pe-binutils/rsrc_386.syso    | Bin 0 -> 228 bytes
- .../rsrc.syso => pe-binutils/rsrc_amd64.syso}      | Bin
- .../{testPErsrc-complex => pe-llvm}/main.go        |   4 +--
- src/cmd/link/testdata/pe-llvm/rsrc_386.syso        | Bin 0 -> 352 bytes
- .../rsrc.syso => pe-llvm/rsrc_amd64.syso}          | Bin 352 -> 352 bytes
- src/cmd/link/testdata/pe-llvm/rsrc_arm.syso        | Bin 0 -> 352 bytes
- src/cmd/link/testdata/pe-llvm/rsrc_arm64.syso      | Bin 0 -> 352 bytes
- 11 files changed, 67 insertions(+), 17 deletions(-)
+ src/cmd/link/internal/amd64/asm.go   |  4 +--
+ src/cmd/link/internal/arm/asm.go     | 10 ++++----
+ src/cmd/link/internal/arm64/asm.go   | 48 ++++++++++++++++++++----------------
+ src/cmd/link/internal/arm64/obj.go   |  1 +
+ src/cmd/link/internal/ld/data.go     | 28 ++++++++++++++++-----
+ src/cmd/link/internal/ld/elf.go      | 42 ++++++++++++++-----------------
+ src/cmd/link/internal/ld/lib.go      | 11 +++++----
+ src/cmd/link/internal/mips/asm.go    | 12 ++++-----
+ src/cmd/link/internal/mips64/asm.go  | 12 ++++-----
+ src/cmd/link/internal/ppc64/asm.go   | 34 +++++++++++++------------
+ src/cmd/link/internal/ppc64/obj.go   |  1 +
+ src/cmd/link/internal/riscv64/asm.go |  8 +++---
+ src/cmd/link/internal/s390x/asm.go   |  4 +--
+ src/cmd/link/internal/x86/asm.go     |  4 +--
+ src/cmd/link/internal/x86/obj.go     |  1 +
+ 15 files changed, 121 insertions(+), 99 deletions(-)

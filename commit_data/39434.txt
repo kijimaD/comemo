@@ -1,28 +1,18 @@
-commit e28f0d92991e60ac3174b2ebf224f37be22c8fad
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jun 24 12:29:28 2019 -0400
+commit 9f9c5fa8c7b8ad4d6a691aa3f1b557a9216d838f
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Jan 23 09:01:37 2019 +0100
 
-    cmd/go/internal/modfetch: return structured errors from proxy operations
+    cmd/link: fix -a with external linker
     
-    CL 181881 added structured error types for direct fetches.
-    Use those same structured errors to format proxy errors consistently.
+    This commit fixes a panic when -a was used with external linkmode.
     
-    Also ensure that an empty @v/list is treated as equivalent to the module
-    not existing at all.
+    Fixes #29807
     
-    Updates #27173
-    Updates #32715
-    
-    Change-Id: I203fd8259bc4f28b3389745f1a1fde936b0fa24d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183619
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I8cd42775f2953cec620cbc9ab345421c2694c9a2
+    Reviewed-on: https://go-review.googlesource.com/c/158998
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modfetch/codehost/codehost.go | 14 +++++-
- src/cmd/go/internal/modfetch/codehost/git.go      |  2 +-
- src/cmd/go/internal/modfetch/proxy.go             | 52 ++++++++++++++++-------
- src/cmd/go/internal/modload/query.go              |  9 +++-
- src/cmd/go/internal/module/module.go              |  5 ++-
- src/cmd/go/testdata/script/mod_query_empty.txt    | 52 +++++++++++++++++++++++
- 6 files changed, 113 insertions(+), 21 deletions(-)
+ src/cmd/link/internal/ld/data.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

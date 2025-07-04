@@ -1,20 +1,31 @@
-commit efea01788d5d8b14426e31698ca30f27365c0670
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Fri Jul 6 09:14:30 2018 +0930
+commit 546bab8c295895368ce8ec3d97ff65472c1032ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 12 17:00:55 2018 -0700
 
-    testshared/src/depBase: conform build tag comment to convention
+    go/scanner: report errors for incorrect line directives
     
-    Also add missing copyright headers with year determined from git log.
+    Based on decision for #24183. This makes the go/scanner behavior
+    match cmd/compile behavior. Adjusted a go/printer test that assumed
+    silent behavior for invalid line directive, and added more scanner
+    tests verifying the correct error position and message for invalid
+    line directives.
     
-    Change-Id: Iafc9881e746543f0a582dad2b0874d8399baf618
-    Reviewed-on: https://go-review.googlesource.com/122415
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
+    The filenames in line directives now remain untouched by the scanner;
+    there is no cleanup or conversion of relative into absolute paths
+    anymore, in sync with what the compiler's scanner/parser are doing.
+    Any kind of filename transformation has to be done by a client. This
+    makes the scanner code simpler and also more predictable.
+    
+    For #24183.
+    
+    Change-Id: Ia091548e1d3d89dfdf6e7d82dab50bea05742ce3
+    Reviewed-on: https://go-review.googlesource.com/100235
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/testshared/src/depBase/asm.s    | 2 +-
- misc/cgo/testshared/src/depBase/dep.go   | 4 ++++
- misc/cgo/testshared/src/depBase/gccgo.go | 6 +++++-
- misc/cgo/testshared/src/depBase/stubs.go | 6 +++++-
- 4 files changed, 15 insertions(+), 3 deletions(-)
+ src/go/printer/testdata/comments.golden |   5 +-
+ src/go/printer/testdata/comments.input  |   5 +-
+ src/go/scanner/scanner.go               |  30 ++-------
+ src/go/scanner/scanner_test.go          | 112 +++++++++++++++++++-------------
+ 4 files changed, 77 insertions(+), 75 deletions(-)

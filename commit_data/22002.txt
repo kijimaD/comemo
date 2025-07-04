@@ -1,21 +1,15 @@
-commit 8a6eca43dfeeb0ff370c34995bb7626522f174c1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 5 13:10:33 2015 -0800
+commit 228698991294f28bfbe88aca712b740b723c4022
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 13 14:42:31 2015 -0500
 
-    math/big: handle NaNs in Float.Cmp
+    [dev.cc] cmd/gc, cmd/ld, runtime: minor tweaks for c2go
     
-    Also:
-    - Implemented NewFloat convenience factory function (analogous to
-      NewInt and NewRat).
-    - Implemented convenience accessors for Accuracy values returned
-      from Float.Cmp.
-    - Added test and example.
-    
-    Change-Id: I985bb4f86e6def222d4b2505417250d29a39c60e
-    Reviewed-on: https://go-review.googlesource.com/6970
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I3be69a4ebf300ad24b55b5f43fd7ad1f001c762e
+    Reviewed-on: https://go-review.googlesource.com/4838
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/float.go             | 95 ++++++++++++++++++++++---------------
- src/math/big/float_test.go        | 58 ++++++++++++++++++-----
- src/math/big/floatexample_test.go | 99 ++++++++++++++++++++++++++++++++++++---
- 3 files changed, 194 insertions(+), 58 deletions(-)
+ src/cmd/gc/popt.h   | 7 +++++--
+ src/cmd/gc/walk.c   | 2 +-
+ src/cmd/ld/dwarf.c  | 2 +-
+ src/runtime/stack.h | 4 ++++
+ 4 files changed, 11 insertions(+), 4 deletions(-)

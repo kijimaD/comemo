@@ -1,42 +1,19 @@
-commit ccf75b36ff884c5a6839be143dd4366824c85aca
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 12 22:56:23 2023 -0400
+commit 2cc6983a2103d64cd33a0fb67dc7ea2adcac3ba8
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 18 19:15:20 2022 +0200
 
-    cmd/internal/obj: make aix/ppc64 builds reproducible
+    runtime/pprof: report MaxRSS on windows
     
-    sort.Slice was being used to sort some newly added entries by name
-    to make the ctxt.Data slice reproducible, but some existing entries
-    have the same name, and the effect was to take the non-determinism
-    of the tail entries and scatter it into the earlier, deterministic section
-    when multiple entries had the same name.
+    Use GetProcessMemoryInfo to report MaxRSS in memory profiles on windows.
     
-    The specific entries with the same name are type SDWARFVAR, which
-    all have an empty name but different relocations. If they are shuffled,
-    then the relocation symbols are visited in a different order, which
-    enters them into the string table in a different order, which results in
-    different object files, different object file hashes, and different build IDs
-    for the final executables.
-    
-    Use sort.SliceStable to avoid reordering entries we don't mean to reorder.
-    
-    Also add a simple test for scheduling-related non-determinism.
-    I debugged this originally using 'go install -race cmd/compile',
-    but that was slow and turned out not to be terribly reliable.
-    Using a few different GOMAXPROCS settings turns out to be a much more
-    effective (and faster) way to scramble scheduling decisions.
-    
-    Fixes #60759.
-    
-    Change-Id: Ia966b02b9fdaefa971f998a09319ca375bdf8604
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502755
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I4ac5fe58961b1d5da8a5c1caa8a6e3d0a3281837
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424414
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/testdata/script/repro_build.txt | 22 ++++++++++++++++++++++
- src/cmd/internal/obj/sym.go                | 14 +++++++++-----
- 2 files changed, 31 insertions(+), 5 deletions(-)
+ src/runtime/pprof/pprof_norusage.go |  2 +-
+ src/runtime/pprof/pprof_windows.go  | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

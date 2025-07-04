@@ -1,0 +1,27 @@
+commit 8194d735cff90871b1ea5c92e83ddd50abdd4185
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Aug 13 16:48:11 2024 +0000
+
+    cmd/go: add GOAUTH mechanism for HTTP authentication
+    
+    This change adds a new environment variable GOAUTH which takes a semicolon-separated list of commands to run for authentication during go-import resolution and HTTPS module mirror protocol interactions.
+    This CL only supports netrc and off. Future CLs to follow will extend support to git and a custom authenticator command.
+    
+    For #26232
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I6cfa4c89fd27a7a4e7d25c8713d191dc82b7e28a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605256
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/go/alldocs.go                       |   6 ++
+ src/cmd/go/internal/auth/auth.go            | 105 ++++++++++++++++++++++++----
+ src/cmd/go/internal/auth/auth_test.go       |  51 ++++++++++++++
+ src/cmd/go/internal/cfg/cfg.go              |   1 +
+ src/cmd/go/internal/envcmd/env.go           |   1 +
+ src/cmd/go/internal/help/helpdoc.go         |   6 ++
+ src/cmd/go/testdata/script/goauth_netrc.txt |  65 +++++++++++++++++
+ src/internal/cfg/cfg.go                     |   1 +
+ 8 files changed, 221 insertions(+), 15 deletions(-)

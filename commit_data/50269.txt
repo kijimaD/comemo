@@ -1,40 +1,19 @@
-commit 321a220d506fe1445302706f1725017a42fc1510
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Sep 1 19:31:04 2022 -0400
+commit aded1679ef6a33ef6fe6c0b466ecf59186706d23
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Tue Oct 12 00:33:43 2021 +0900
 
-    cmd/link: only add dummy XCOFF reference if the symbol exists
+    internal/poll,net: support poll.Sendfile for darwin
     
-    On AIX when external linking, for some symbols we need to add
-    dummy references to prevent the external linker from discarding
-    them. Currently we add the reference unconditionally. But if the
-    symbol doesn't exist, the linking fails in a later stage for
-    generating external relocation of a nonexistent symbol. The
-    symbols are special symbols that almost always exist, except that
-    go:buildid may not exist if the linker is invoked without the
-    -buildid flag. The go command invokes the linker with the flag, so
-    this can only happen with manual linker invocation. Specifically,
-    test/run.go does this in some cases.
+    darwin already supports syscall.Sendfile.
     
-    Fix this by checking the symbol existence before adding the
-    reference. Re-enable tests on AIX.
-    
-    Perhaps the linker should always emit a dummy buildid even if the
-    flag is not set...
-    
-    Fixes #54814.
-    
-    Change-Id: I43d81587151595309e189e38960cbda9a1c5ca32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427620
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Id3db06591ffad0550b4173bacddeb0acfe355f9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355109
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
 
- src/cmd/link/internal/ld/symtab.go | 6 +++++-
- test/fixedbugs/bug514.go           | 2 +-
- test/fixedbugs/issue40954.go       | 2 +-
- test/fixedbugs/issue42032.go       | 2 +-
- test/fixedbugs/issue42076.go       | 2 +-
- test/fixedbugs/issue46903.go       | 2 +-
- test/fixedbugs/issue51733.go       | 2 +-
- 7 files changed, 11 insertions(+), 7 deletions(-)
+ src/internal/poll/sendfile_bsd.go | 4 ++--
+ src/net/sendfile_stub.go          | 4 ++--
+ src/net/sendfile_unix_alt.go      | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)

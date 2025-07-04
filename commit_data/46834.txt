@@ -1,18 +1,29 @@
-commit 34f7b1f841cc450cc3aba42019e613fd03a84fce
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Oct 8 11:14:35 2021 -0400
+commit 8fa84772ba035b74975572fbc9df0330523cc388
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Feb 4 12:59:06 2021 -0500
 
-    go/parser: clean up unnecessary arguments and replace an if statement
+    [dev.regabi] runtime: delete gosave function
     
-    Eliminate an unnecessary argument from parseGenericType, and replace an
-    if statement with a switch.
+    The runtime.gosave function is not used anywhere. Delete.
     
-    Change-Id: Iaa8afeface929332579f183c8e523961cca9aca4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354869
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Note: there is also a gosave<> function, which is actually used
+    and not deleted.
+    
+    Change-Id: I64149a7afdd217de26d1e6396233f2becfad7153
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289719
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/go/parser/parser.go | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ src/runtime/asm_386.s     | 19 -------------------
+ src/runtime/asm_amd64.s   | 20 --------------------
+ src/runtime/asm_arm.s     | 17 -----------------
+ src/runtime/asm_arm64.s   | 17 -----------------
+ src/runtime/asm_mips64x.s | 15 ---------------
+ src/runtime/asm_mipsx.s   | 15 ---------------
+ src/runtime/asm_ppc64x.s  | 17 -----------------
+ src/runtime/asm_riscv64.s | 15 ---------------
+ src/runtime/asm_s390x.s   | 15 ---------------
+ src/runtime/stubs.go      |  1 -
+ 10 files changed, 151 deletions(-)

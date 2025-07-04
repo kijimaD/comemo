@@ -1,15 +1,20 @@
-commit 075d66646c8f8fec90a7c3b9de7bacb2a0eadacf
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 21 10:43:32 2016 -0700
+commit 2eb8d94dbd822fab695f2781c8b6d14345be1d07
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 21 20:48:21 2016 -0500
 
-    cmd/compile: remove formatting dreg
+    cmd/asm: add test for verification of instruction encodings
     
-    Left over from CL 20931.
+    Not much testing yet, but the test now exists.
     
-    Change-Id: I3b8dd9ef748bcbf70b5118da28135aaa1e5ba3a8
-    Reviewed-on: https://go-review.googlesource.com/20955
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Another step toward #13822.
+    
+    Change-Id: Idb2b06bf53a6113c83008150b4c0b631bb195279
+    Reviewed-on: https://go-review.googlesource.com/18844
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/endtoend_test.go | 146 ++++++++++++++++++++++++++----
+ src/cmd/asm/internal/asm/testdata/amd64.s |   2 +-
+ src/cmd/asm/internal/asm/testdata/arm.s   |   2 +-
+ src/cmd/internal/obj/arm/asm5.go          |   2 +-
+ 4 files changed, 132 insertions(+), 20 deletions(-)

@@ -1,0 +1,25 @@
+commit 5eeba95bada12992b666f2ae33fafb5991b3ca46
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Aug 7 15:06:20 2024 -0400
+
+    cmd: update golang.org/x/telemetry to 38c23d2
+    
+    Commands run:
+        go get golang.org/x/telemetry@38c23d2
+        go mod tidy
+        go mod vendor
+    
+    This also pulls in golang.org/x/sync@v0.8.0 as a module requirement, but
+    no changes need to be vendored from that module.
+    
+    Change-Id: I2238388b6dc2a4a29a53e7b8ddea29eb677a97b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603898
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/go.mod                                                    | 4 ++--
+ src/cmd/go.sum                                                    | 8 ++++----
+ src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go   | 5 ++++-
+ .../vendor/golang.org/x/telemetry/internal/telemetry/proginfo.go  | 4 +++-
+ src/cmd/vendor/modules.txt                                        | 4 ++--
+ 5 files changed, 15 insertions(+), 10 deletions(-)

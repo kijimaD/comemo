@@ -1,26 +1,35 @@
-commit 23493579ead6512185bdb7a0bdfa512e9dea813e
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Nov 6 11:08:51 2024 -0800
+commit 746f7e17449c82e58e33ea8f9b61107cff0317f2
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 18 16:17:12 2023 -0400
 
-    net/http: 308 redirects should use the previous hop's body
+    cmd/compile/internal/inline/inlheur: assign scores to callsites
     
-    On a 301 redirect, the HTTP client changes the request to be
-    a GET with no body.
+    Assign scores to callsites based on previously computed function
+    properties and callsite properties. This currently works by taking the
+    size score for the function (as computed by CanInline) and then making
+    a series of adjustments, positive or negative based on various
+    function and callsite properties.
     
-    On a 308 redirect, the client leaves the request method and
-    body unchanged.
+    NB: much work also remaining on deciding what are the best score
+    adjustment values for specific heuristics. I've picked a bunch of
+    arbitrary constants, but they will almost certainly need tuning and
+    tweaking to arrive at something that has good performance.
     
-    A 308 following a 301 should preserve the rewritten request
-    from the first redirect: GET with no body. We were preserving
-    the method, but sending the original body. Fix this.
+    Updates #61502.
     
-    Fixes #70180
-    
-    Change-Id: Ie20027a6058a82bfdffc7197d07ac6c7f98099e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626055
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I887403f95e76d7aa2708494b8686c6026861a6ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511566
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/net/http/client.go      | 11 ++++++++---
- src/net/http/client_test.go |  6 +++---
- 2 files changed, 11 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/inline/inl.go             |  18 +-
+ src/cmd/compile/internal/inline/inlheur/analyze.go |  35 +++-
+ .../inline/inlheur/analyze_func_callsites.go       |  84 +++++++-
+ .../compile/internal/inline/inlheur/callsite.go    |  42 ++--
+ .../internal/inline/inlheur/funcprops_test.go      |  40 ++--
+ .../inline/inlheur/scoreadjusttyp_string.go        |  74 +++++++
+ src/cmd/compile/internal/inline/inlheur/scoring.go | 232 +++++++++++++++++++++
+ .../inline/inlheur/testdata/props/acrosscall.go    |  30 +--
+ .../inline/inlheur/testdata/props/calls.go         |  88 ++++++--
+ .../inline/inlheur/testdata/props/funcflags.go     |   4 +-
+ 10 files changed, 574 insertions(+), 73 deletions(-)

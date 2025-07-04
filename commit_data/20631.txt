@@ -1,21 +1,16 @@
-commit a0c5adc35cbfe071786b6115d63abc7ad90578a9
-Author: Rob Pike <r@golang.org>
-Date:   Fri Oct 3 20:27:08 2014 -0700
+commit af282f0011cec87f3c9358c339bb63700b499b81
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 25 13:11:57 2014 -0400
 
-    fmt: print &map like &slice and &struct
-    It was inconsistent.
-    Also test these better.
-    Also document the default format for types.
-    This wasn't written down.
+    [dev.garbage] lib/codereview: allow hg submit to commit new branch if CL description says so
     
-    Fixes #8470.
+    This means I won't have to edit the plugin when I create
+    the next dev branch.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=r, adg
+    R=r, adg
     CC=golang-codereviews
-    https://golang.org/cl/154870043
+    https://golang.org/cl/148950045
 
- src/fmt/doc.go      | 17 ++++++++++++++++-
- src/fmt/fmt_test.go | 34 ++++++++++++++++++++++++++++++++--
- src/fmt/print.go    |  4 ++++
- 3 files changed, 52 insertions(+), 3 deletions(-)
+ lib/codereview/codereview.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

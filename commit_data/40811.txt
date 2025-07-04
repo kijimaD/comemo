@@ -1,25 +1,23 @@
-commit d856e05d64591d3dec6411e3d86fe325e85eecc5
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sun Nov 10 08:42:54 2019 +0100
+commit a5f3823c27d93f16dfde56509071a20130e0c731
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Jul 11 09:43:38 2019 +0200
 
-    cmd/link/internal/ld: set MachO platform to PLATFORM_IOS on iOS
+    net: set TestNotTemporaryRead flaky for AIX
     
-    CL 205340 changed the linker to skip certain flags when linking
-    for iOS. However, for host linking on iOS (such as on the Corellium
-    darwin/arm64 builders) the MachO platform defaults to PLATFORM_MACOS,
-    and the flags are not skipped.
+    This test sometimes times out when the machine is busy.
+    The reason behind is still a bit blurry. But it seems to comes from
+    the fact that on AIX, once a listen is performed a socket, every
+    connection will be accepted even before an accept is made (which only
+    occurs when a machine is busy). On Linux, a socket is created as a
+    "passive socket" which seems to wait for the accept before allowing
+    incoming connections.
     
-    Avoids warnings such as
+    Updates #29685
     
-        ld: warning: -no_pie ignored for arm64
-    
-    Updates #32963
-    
-    Change-Id: Ib6b4c2375fd14cf89410bf5ff1537b692b7a1c15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206337
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I41b053b7d5f5b4420b72d6a217be72e41220d769
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185717
+    Run-TryBot: Clément Chigot <clement.chigot@atos.net>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/macho.go | 35 ++++++++++++++++++++---------------
- 1 file changed, 20 insertions(+), 15 deletions(-)
+ src/net/net_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

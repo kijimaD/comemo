@@ -1,96 +1,25 @@
-commit a8049f58f9e3336554da1b0a4f8ea3b9c5cd669c
-Author: David Leon Gil <coruus@gmail.com>
-Date:   Mon Jan 26 23:00:21 2015 -0800
+commit 0d4ea0c70d2c8fbdf1f9263f919c79c33b4ce8e0
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Thu Dec 18 21:33:34 2014 +0100
 
-    crypto/ecdsa: make Sign safe with broken entropy sources
+    mime/multipart: moved some code to mime/internal/quotedprintable
     
-    ECDSA is unsafe to use if an entropy source produces predictable
-    output for the ephemeral nonces. E.g., [Nguyen]. A simple
-    countermeasure is to hash the secret key, the message, and
-    entropy together to seed a CSPRNG, from which the ephemeral key
-    is derived.
+    The code concerning quoted-printable encoding (RFC 2045) and its
+    variant for MIME headers (RFC 2047) is currently spread in
+    mime/multipart and net/mail. It is also not exported.
     
-    Fixes #9452
+    This commit is the first step to fix that issue. It moves the
+    quoted-printable decoding code from mime/multipart to
+    mime/internal/quotedprintable. The exposed API is unchanged.
     
-    --
+    Concerns #4943.
     
-    This is a minimalist (in terms of patch size) solution, though
-    not the most parsimonious in its use of primitives:
-    
-       - csprng_key = ChopMD-256(SHA2-512(priv.D||entropy||hash))
-       - reader = AES-256-CTR(k=csprng_key)
-    
-    This, however, provides at most 128-bit collision-resistance,
-    so that Adv will have a term related to the number of messages
-    signed that is significantly worse than plain ECDSA. This does
-    not seem to be of any practical importance.
-    
-    ChopMD-256(SHA2-512(x)) is used, rather than SHA2-256(x), for
-    two sets of reasons:
-    
-    *Practical:* SHA2-512 has a larger state and 16 more rounds; it
-    is likely non-generically stronger than SHA2-256. And, AFAIK,
-    cryptanalysis backs this up. (E.g., [Biryukov] gives a
-    distinguisher on 47-round SHA2-256 with cost < 2^85.) This is
-    well below a reasonable security-strength target.
-    
-    *Theoretical:* [Coron] and [Chang] show that Chop-MD(F(x)) is
-    indifferentiable from a random oracle for slightly beyond the
-    birthday barrier. It seems likely that this makes a generic
-    security proof that this construction remains UF-CMA is
-    possible in the indifferentiability framework.
-    
-    --
-    
-    Many thanks to Payman Mohassel for reviewing this construction;
-    any mistakes are mine, however. And, as he notes, reusing the
-    private key in this way means that the generic-group (non-RO)
-    proof of ECDSA's security given in [Brown] no longer directly
-    applies.
-    
-    --
-    
-    [Brown]: http://www.cacr.math.uwaterloo.ca/techreports/2000/corr2000-54.ps
-    "Brown. The exact security of ECDSA. 2000"
-    
-    [Coron]: https://www.cs.nyu.edu/~puniya/papers/merkle.pdf
-    "Coron et al. Merkle-Damgard revisited. 2005"
-    
-    [Chang]: https://www.iacr.org/archive/fse2008/50860436/50860436.pdf
-    "Chang and Nandi. Improved indifferentiability security analysis
-    of chopMD hash function. 2008"
-    
-    [Biryukov]: http://www.iacr.org/archive/asiacrypt2011/70730269/70730269.pdf
-    "Biryukov et al. Second-order differential collisions for reduced
-    SHA-256. 2011"
-    
-    [Nguyen]: ftp://ftp.di.ens.fr/pub/users/pnguyen/PubECDSA.ps
-    "Nguyen and Shparlinski. The insecurity of the elliptic curve
-    digital signature algorithm with partially known nonces. 2003"
-    
-    New tests:
-    
-      TestNonceSafety: Check that signatures are safe even with a
-        broken entropy source.
-    
-      TestINDCCA: Check that signatures remain non-deterministic
-        with a functional entropy source.
-    
-    Updated "golden" KATs in crypto/tls/testdata that use ECDSA suites.
-    
-    Change-Id: I55337a2fbec2e42a36ce719bd2184793682d678a
-    Reviewed-on: https://go-review.googlesource.com/3340
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I11352afbb2edb4d6ef62870b9bc5c87c639eff12
+    Reviewed-on: https://go-review.googlesource.com/1810
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/ecdsa/ecdsa.go                          |  59 +++++-
- src/crypto/ecdsa/ecdsa_test.go                     |  72 ++++++++
- .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  |  90 +++++-----
- .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  48 ++---
- .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     | 129 ++++++--------
- .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  |  93 +++++-----
- .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  54 +++---
- .../tls/testdata/Server-TLSv10-ECDHE-ECDSA-AES     |  79 +++++----
- .../Server-TLSv12-CipherSuiteCertPreferenceECDSA   | 176 +++++++++---------
- .../Server-TLSv12-CipherSuiteCertPreferenceRSA     | 197 +++++++++++----------
- .../tls/testdata/Server-TLSv12-ECDHE-ECDSA-AES     |  86 ++++-----
- 11 files changed, 605 insertions(+), 478 deletions(-)
+ src/go/build/deps_test.go                                           | 2 +-
+ src/mime/{multipart => internal/quotedprintable}/quotedprintable.go | 4 ++--
+ .../{multipart => internal/quotedprintable}/quotedprintable_test.go | 6 +++---
+ src/mime/multipart/multipart.go                                     | 3 ++-
+ 4 files changed, 8 insertions(+), 7 deletions(-)

@@ -1,17 +1,27 @@
-commit e5489a34ca2c31608821d3ac4ec07892fb6a2272
-Author: Wesley Beary <geemus@gmail.com>
-Date:   Mon Dec 2 15:47:31 2024 +0000
+commit b46aec07655bb5536fd9b9dbff0680de805214e8
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Oct 27 15:01:35 2023 +0000
 
-    crypto/x509: add missing `be` to comment about serial number positivity
+    bytes,internal/bytealg: eliminate HashStrBytes,HashStrRevBytes using …
     
-    Change-Id: I4e0e5309eb3cb1c6820f1a034a5f52adffe35645
-    GitHub-Last-Rev: 74b2e89bbdba1b0ec64b22ec7ce0e8f1b071473b
-    GitHub-Pull-Request: golang/go#70639
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632815
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    …generics
+    
+    The logic of HashStrBytes, HashStrRevBytes and HashStr, HashStrRev,
+    are exactly the same, except that the types are different.
+    
+    Since the bootstrap toolchain is bumped to 1.20, we can eliminate them
+    by using generics.
+    
+    Change-Id: I4336b1cab494ba963f09646c169b45f6b1ee62e3
+    GitHub-Last-Rev: b11a2bf9476d54bed4bd18a3f9269b5c95a66d67
+    GitHub-Pull-Request: golang/go#63766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538175
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/crypto/x509/x509.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/bytes/bytes.go              |  2 +-
+ src/internal/bytealg/bytealg.go | 46 ++++++-----------------------------------
+ 2 files changed, 7 insertions(+), 41 deletions(-)

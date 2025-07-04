@@ -1,12 +1,15 @@
-commit f26b1f8056284537b05be8003973abb4e84da811
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Mar 13 16:50:44 2012 +1100
+commit 4ca59a010e42978d168a6c92335557a088284b99
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Mar 13 13:48:07 2012 +0800
 
-    make.bat: properly handle directories with spaces
+    os: remove document duplication in error predicate functions
     
-    R=golang-dev, minux.ma
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5797079
+    https://golang.org/cl/5783092
 
- src/make.bat | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/os/error.go         | 18 ++++++++++++++++++
+ src/pkg/os/error_plan9.go   |  9 +++------
+ src/pkg/os/error_posix.go   | 12 +++---------
+ src/pkg/os/error_windows.go | 12 +++---------
+ 4 files changed, 27 insertions(+), 24 deletions(-)

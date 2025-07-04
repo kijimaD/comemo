@@ -1,26 +1,41 @@
-commit 4f11f8ff7db476c534b9b1ad8910dcdd8bbcf022
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Mar 24 04:24:35 2025 -0400
+commit 3580c212c2e3276077540afdab3478a7336d698b
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Jun 20 11:16:56 2023 +0800
 
-    runtime: rename runfinq to runFinalizersAndCleanups
+    cmd/asm, cmd/internal/obj: enable rounding mode suffix for riscv64
     
-    Users see this frame in tracebacks and it serves as a hint that what is
-    running here is a finalizer or cleanup. But runfinq is a rather dense
-    name. We can give it a more obvious name to help users realize what it
-    is.
+    This CL adds rounding modes for riscv64 floating point conversion
+    instructions by suffix with 5 modes: RNE, RTZ, RDN, RUP and RMM.
     
-    For #73011.
+    For example, for round to nearest (RNE), we can use `FCVTLD.RNE`
+    According to RISCV manual 8.7 and 9.5, we changed these
+    conversion instructions:
     
-    Change-Id: I6a6a636ce9a493fd00d4b4c60c23f2b1c96d3568
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660296
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    FCVTWS
+    FCVTLS
+    FCVTWUS
+    FCVTLUS
+    FCVTWD
+    FCVTLD
+    FCVTWUD
+    FCVTLUD
+    
+    Note: Round towards zero (RTZ) by default for all these instructions above.
+    
+    Change-Id: I491e522e14d721e24aa7f528ee0c4640c54c5808
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504736
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: M Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/internal/objabi/funcid.go | 42 +++++++++++++++++++--------------------
- src/internal/abi/symtab.go        |  2 +-
- src/runtime/crash_test.go         | 27 ++++++++++++++-----------
- src/runtime/mfinal.go             |  8 ++++----
- src/runtime/pprof/pprof_test.go   |  4 ++--
- src/runtime/traceback.go          | 12 ++++++-----
- 6 files changed, 50 insertions(+), 45 deletions(-)
+ src/cmd/asm/internal/asm/asm.go             |  7 +++-
+ src/cmd/asm/internal/asm/parse.go           |  4 +--
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 40 ++++++++++++++++++++++
+ src/cmd/internal/obj/link.go                |  2 +-
+ src/cmd/internal/obj/riscv/cpu.go           | 51 ++++++++++++++++++++++++++++-
+ src/cmd/internal/obj/riscv/list.go          | 16 +++++++++
+ src/cmd/internal/obj/riscv/obj.go           | 17 ++++++++--
+ 7 files changed, 130 insertions(+), 7 deletions(-)

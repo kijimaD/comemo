@@ -1,22 +1,18 @@
-commit 2951f909eae0afc4bea4067c98fef1a4f760006c
-Author: Florian Uekermann <florian@uekermann.me>
-Date:   Fri Oct 6 17:16:43 2017 +0200
+commit 2b079c3c04b747451d70861451186cda4b1f935a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 28 09:55:18 2017 -0700
 
-    time: enable Location loading from user provided timezone data
+    cmd/compile: use keyed struct for asm tests
     
-    The return values of the LoadLocation are inherently dependent
-    on the runtime environment. Add LoadLocationFromTZData, whose
-    results depend only on the timezone data provided as arguments.
+    Just to make it clearer which regexps are positive and which
+    regexps are negative.
     
-    Fixes #20629
-    
-    Change-Id: I43b181f4c05c219be3ec57327540263b7cb3b2aa
-    Reviewed-on: https://go-review.googlesource.com/68890
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia190e89be28048fcae2491506f552afad90a5f85
+    Reviewed-on: https://go-review.googlesource.com/59490
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/export_test.go   |  1 +
- src/time/internal_test.go |  6 +++---
- src/time/zoneinfo.go      |  2 +-
- src/time/zoneinfo_read.go | 13 +++++++------
- src/time/zoneinfo_test.go | 25 +++++++++++++++++++++++++
- 5 files changed, 37 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 1046 +++++++++++++------------------
+ 1 file changed, 423 insertions(+), 623 deletions(-)

@@ -1,23 +1,21 @@
-commit ed33ae10a011c85f51be2c970f52d769722b0ec7
+commit 31ee4bb28dff98f29654e7f1b43488641b3157db
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 21 10:14:20 2023 -0800
+Date:   Thu Mar 31 12:30:14 2022 -0700
 
-    debug/macho: use saferio to read symbol table strings
+    strconv: quote rune 007F as \x7f, not \u007f
     
-    No test case because the problem can only happen for invalid data. Let
-    the fuzzer find cases like this.
+    \u007f is not wrong but it's weird to use \u when we could use the
+    shorter \x.
     
-    For #47653
-    Fixes #58603
+    Fixes #52062
     
-    Change-Id: I67fc45365c1a5b0b4b381f541bf2fee8ce8ddc3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/469895
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ica4bdc2463128051876f44e15297ed1e9edf1de8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397255
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/debug/macho/file.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ api/go1.1.txt             |  2 +-
+ doc/go1.19.html           | 12 +++++++++++-
+ src/strconv/quote.go      |  2 +-
+ src/strconv/quote_test.go |  1 +
+ 4 files changed, 14 insertions(+), 3 deletions(-)

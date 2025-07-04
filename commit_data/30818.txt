@@ -1,17 +1,14 @@
-commit 536a2257fba6dd18c74506988bdf3d6a15e52831
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 23 19:40:16 2017 +0000
+commit d4b46aa1b8c2e62b1e13de15741c7330fd2e9e3a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 7 17:13:35 2016 -0800
 
-    Revert "cmd/compile: strengthen SetFields/Width safety guarantee"
+    os: document that Rename does not replace an existing directory
     
-    This reverts commit b1b4f67169c5ceb3c81ba900c5022722d28755ab.
+    Fixes #18240.
     
-    Reason for revert: Broke the build.
-    
-    Change-Id: I5c99779896e39137c93c77d016ce683c872a69d7
-    Reviewed-on: https://go-review.googlesource.com/38532
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ife951e2c1320b3f1362c85642615b24fd4291189
+    Reviewed-on: https://go-review.googlesource.com/34135
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 4 ++++
- src/cmd/compile/internal/gc/type.go    | 9 ---------
- 2 files changed, 4 insertions(+), 9 deletions(-)
+ src/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

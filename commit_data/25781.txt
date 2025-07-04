@@ -1,18 +1,18 @@
-commit c8e7b34b599c9e3c6747b3e8182e65a2145fd06f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 18 11:04:05 2016 -0800
+commit 624d798a41675a543c6b969715c4750f376b71da
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 20 14:12:04 2015 -0500
 
-    runtime: skip cgo check for non-pointer slice elements
+    runtime/pprof: disable TestStackBarrierProfiling on ppc64
     
-    Fixes #14387.
+    This test depends on GODEBUG=gcstackbarrierall, which doesn't work on
+    ppc64.
     
-    Change-Id: Icc98be80f549c5e1f55c5e693bfea97b456a6c41
-    Reviewed-on: https://go-review.googlesource.com/19621
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #13334.
+    
+    Change-Id: Ie554117b783c4e999387f97dd660484488499d85
+    Reviewed-on: https://go-review.googlesource.com/17120
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/cgocall.go                  |  3 +++
- src/runtime/crash_cgo_test.go           | 31 +++++++++++++++++++++++++++++++
- src/runtime/testdata/testprogcgo/cgo.go | 10 ++++++++++
- 3 files changed, 44 insertions(+)
+ src/runtime/pprof/pprof_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

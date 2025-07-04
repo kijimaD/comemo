@@ -1,22 +1,24 @@
-commit 8801bdf2b3cb8f3d59664f56fba7eeb7a2cf0bdb
-Author: Aamir Khan <syst3m.w0rm@gmail.com>
-Date:   Tue May 19 13:49:53 2015 +0900
+commit e2b6cebcd697345495bafddba000ff82fc96c0db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 28 17:58:17 2015 -0700
 
-    text/template: template must be initialized at the time of creation
+    misc/cgo/test/issue9400: fix to build with gccgo
     
-    t.init() should be called at the time of template creation
-    i.e, template.New() and t.New() instead of later in the process.
+    This doesn't test much with gccgo, but at least it builds now, and the
+    test does, unsurprisingly, pass.  A proper test would require adding
+    assembly files in GCC syntax for all platforms that gccgo supports,
+    which would be infeasible.
     
-    - Removed calls of t.init() from t.Parse(), t.Execute(), t.Funcs()
-    - Also got rid of t.common != nil checks as it should never be nil
+    Also added copyright headers to the asm files.
     
-    Fixes #10879
-    
-    Change-Id: I1b7ac812f02c841ae80037babce7e2b0a2df13e8
-    Reviewed-on: https://go-review.googlesource.com/10240
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Icea5af29d7d521a0681506ddb617a79705b76d33
+    Reviewed-on: https://go-review.googlesource.com/9417
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/text/template/exec.go       |  4 ----
- src/text/template/multi_test.go |  6 ++++++
- src/text/template/template.go   | 19 +++++++------------
- 3 files changed, 13 insertions(+), 16 deletions(-)
+ misc/cgo/test/issue9400/asm_386.s    |  6 ++++++
+ misc/cgo/test/issue9400/asm_amd64x.s |  5 +++++
+ misc/cgo/test/issue9400/asm_arm.s    |  6 ++++++
+ misc/cgo/test/issue9400/asm_arm64.s  |  6 ++++++
+ misc/cgo/test/issue9400/asm_ppc64x.s |  5 +++++
+ misc/cgo/test/issue9400/gccgo.go     | 24 ++++++++++++++++++++++++
+ 6 files changed, 52 insertions(+)

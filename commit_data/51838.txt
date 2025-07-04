@@ -1,17 +1,28 @@
-commit 45bee5e72b350ae3aa871e114267b8722dbd68f4
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 27 16:34:00 2023 -0500
+commit f02108636c3b098b3153e90b6478e292628ac4f9
+Author: Nuno Cruces <ncruces@users.noreply.github.com>
+Date:   Thu Mar 17 16:38:00 2022 +0000
 
-    cmd/dist: keep flag list sorted
+    runtime: allow TestCtrlHandler to run in ConPTY
     
-    force before no-*
+    Fixes #51602. Previous test would not run in a pseudo-console (ConPTY).
     
-    Change-Id: Ia1273cd676f8fe7d116e84db2d33728561e7b17e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464136
+    New test avoids taskkill entirely by having the child request its own
+    console window be closed.
+    
+    Verified that this runs locally (within a real console), over SSH
+    (within a pseudo-console), and that it breaks if #41884 were reverted.
+    
+    Change-Id: If868b92ec36647e5d0e4107e29a2a6e048d35ced
+    GitHub-Last-Rev: b1421e4bed2dc729c266928f002b39374d7e391a
+    GitHub-Pull-Request: golang/go#51681
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392874
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/dist/build.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/runtime/signal_windows_test.go         | 32 +++++++++-----------------
+ src/runtime/testdata/testwinsignal/main.go | 36 +++++++++++++++++++++++++++++-
+ 2 files changed, 45 insertions(+), 23 deletions(-)

@@ -1,18 +1,15 @@
-commit ecc174324cd47cac7b1e68ed3e33f1ed674f5da3
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Mar 17 19:50:01 2013 +0900
+commit 464257eeffedcf2c9e04fd8c47edc1f1fc491b62
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 15 17:08:07 2013 -0700
 
-    net: revert Zone in IPNet temporally
+    bytes,string: move the BUG to the comment of the function it's about
+    Avoids printing it every time we ask a question about the package from
+    the command line.
     
-    Update #4501.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7853047
+    https://golang.org/cl/7789048
 
- src/pkg/net/interface_bsd.go     | 1 -
- src/pkg/net/interface_darwin.go  | 1 -
- src/pkg/net/interface_freebsd.go | 1 -
- src/pkg/net/interface_linux.go   | 6 ------
- src/pkg/net/ip.go                | 1 -
- 5 files changed, 10 deletions(-)
+ src/pkg/bytes/bytes.go     | 4 ++--
+ src/pkg/strings/strings.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,23 +1,45 @@
-commit 5d92aefc18317578226a3873fb8fc37411cd2184
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 18 16:18:32 2016 +0000
+commit 8eec2bbfbc4f209950f677906c6ce67e01d32930
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 11 00:10:52 2016 -0500
 
-    vendor, net/http: update vendored hpack
+    cmd/compile: added some intrinsics to SSA back end
     
-    Updates x/net/http2/hpack to rev 6050c111 for:
+    One intrinsic was needed to help get the very best
+    performance out of a future GC; as long as that one was
+    being added, I also added Bswap since that is sometimes
+    a handy thing to have.  I had intended to fill out the
+    bit-scan intrinsic family, but the mismatch between the
+    "scan forward" instruction and "count leading zeroes"
+    was large enough to cause me to leave it out -- it poses
+    a dilemma that I'd rather dodge right now.
     
-       http2/hpack: forbid excess and invalid padding in hpack decoder
-       https://golang.org/cl/23067
+    These intrinsics are not exposed for general use.
+    That's a separate issue requiring an API proposal change
+    ( https://github.com/golang/proposal )
     
-    Updates #15614
+    All intrinsics are tested, both that they are substituted
+    on the appropriate architecture, and that they produce the
+    expected result.
     
-    Change-Id: I3fbf9b265bfa5e49e6aa97d8c34e08214cfcc49a
-    Reviewed-on: https://go-review.googlesource.com/23208
-    Reviewed-by: Carl Mastrangelo <notcarl@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5848037cfd97de4f75bdc33bdd89bba00af4a8ee
+    Reviewed-on: https://go-review.googlesource.com/20564
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .../golang.org/x/net/http2/hpack/hpack_test.go     | 41 +++++++++++++++++++++
- src/vendor/golang.org/x/net/http2/hpack/huffman.go | 42 ++++++++++++++++------
- 2 files changed, 73 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/amd64/prog.go         |  58 ++--
+ src/cmd/compile/internal/amd64/ssa.go          |  36 ++-
+ src/cmd/compile/internal/gc/go.go              |   7 +-
+ src/cmd/compile/internal/gc/inl.go             |   2 +-
+ src/cmd/compile/internal/gc/ssa.go             |  77 ++++-
+ src/cmd/compile/internal/ssa/compile.go        |  18 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  32 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  29 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  11 +
+ src/cmd/compile/internal/ssa/opGen.go          | 278 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 383 +++++++++++++++++++++++++
+ src/runtime/internal/sys/intrinsics.go         | 105 +++++++
+ test/intrinsic.dir/main.go                     | 109 +++++++
+ test/intrinsic.go                              |   8 +
+ test/run.go                                    |  26 +-
+ 15 files changed, 1143 insertions(+), 36 deletions(-)

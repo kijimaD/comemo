@@ -1,19 +1,59 @@
-commit bad791343f50a165e27f9f9bda6ba42af05b1869
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Feb 15 04:45:04 2025 +1100
+commit 788a22775931ed6ca26426c5bf78ce3716b304ba
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Dec 7 11:09:29 2023 -0800
 
-    internal/syscall/unix: correct fchmodat on openbsd
+    cmd/compile: fix SCCP propagation into jump tables
     
-    This is incorrectly calling the fchownat trampoline - call fchmodat
-    as intended.
+    We can't delete all the outgoing edges and then add one back in, because
+    then we've lost the argument of any phi at the target. Instead, move
+    the important target to the front of the list and delete the rest.
     
-    Change-Id: I7b1e758d456006303ca95b70df9e6b52d3020158
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649655
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Damien Neil <dneil@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Commit-Queue: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    This normally isn't a problem, because there is never normally a phi
+    at the target of a jump table. But this isn't quite true when in race
+    build mode, because there is a phi of the result of a bunch of raceread
+    calls.
+    
+    The reason this happens is that each case is written like this (where e
+    is the runtime.eface we're switching on):
+    
+    if e.type == $type.int32 {
+       m = raceread(e.data, m1)
+    }
+    m2 = phi(m1, m)
+    if e.type == $type.int32 {
+       .. do case ..
+       goto blah
+    }
+    
+    so that if e.type is not $type.int32, it falls through to the default
+    case. This default case will have a memory phi for all the (jumped around
+    and not actually called) raceread calls.
+    
+    If we instead did it like
+    
+    if e.type == $type.int32 {
+      raceread(e.data)
+      .. do case ..
+      goto blah
+    }
+    
+    That would paper over this bug, as it is the only way to construct
+    a jump table whose target is a block with a phi in it. (Yet.)
+    
+    But we'll fix the underlying bug in this CL. Maybe we can do the
+    rewrite mentioned above later.  (It is an optimization for -race mode,
+    which isn't particularly important.)
+    
+    Fixes #64606
+    
+    Change-Id: I6f6e3c90eb1e2638112920ee2e5b6581cef04ea4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548356
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/syscall/unix/at_openbsd.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/block.go    | 17 ++++++++++++++++-
+ src/cmd/compile/internal/ssa/deadcode.go |  2 ++
+ src/cmd/compile/internal/ssa/sccp.go     |  8 ++++----
+ test/fixedbugs/issue64606.go             | 32 ++++++++++++++++++++++++++++++++
+ 4 files changed, 54 insertions(+), 5 deletions(-)

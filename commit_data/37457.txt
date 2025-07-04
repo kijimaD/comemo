@@ -1,19 +1,17 @@
-commit aff2f6ece896e0fe76a2c8853abf868f689006f0
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Tue Nov 20 21:49:41 2018 +0100
+commit 27a9b1bbecc0b1aa02d88128ef36904e6f56ec43
+Author: as <as.utf8@gmail.com>
+Date:   Wed Aug 1 18:38:46 2018 +0000
 
-    misc/wasm: add stub for fs.read on browsers
+    cmd/go: avoid panic on 'go mod' without arguments
     
-    Using fmt.Scanln in a browser environment caused a panic, since there
-    was no stub for fs.read. This commit adds a stub that returns ENOSYS.
+    Fixes #26738
     
-    Fixes #27773.
-    
-    Change-Id: I79b019039e4bc90da51d71a4edddf3bd7809ff45
-    Reviewed-on: https://go-review.googlesource.com/c/150617
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Change-Id: Icede3f59acb5b0e388660653cefc24a195b5d43b
+    GitHub-Last-Rev: 9989b74c12e94163c1f18859485a4ac0d74c5453
+    GitHub-Pull-Request: golang/go#26739
+    Reviewed-on: https://go-review.googlesource.com/127160
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- misc/wasm/wasm_exec.js | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

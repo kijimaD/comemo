@@ -1,13 +1,21 @@
-commit 09f3c2f10f3336375975620c8ea47e03f2850c92
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 19 12:36:15 2012 -0800
+commit ca8aac698f1766f80f68bcf5581361a784ef10d9
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Mon Nov 19 10:22:47 2012 -0800
 
-    doc/articles/wiki: fix racy test
+    runtime: gdb support: use parse_and_eval to get the goroutine id
     
-    R=golang-dev, r
+    This enables to loop over some goroutines, e.g. to print the
+    backtrace of goroutines 1 to 9:
+    
+            set $i = 1
+            while $i < 10
+            printf "backtrace of goroutine %d:\n", $i
+            goroutine $i++ bt
+            end
+    
+    R=lvd, lvd
     CC=golang-dev
-    https://golang.org/cl/6853069
+    https://golang.org/cl/6843071
 
- doc/articles/wiki/get.go    | 19 ++++++++++++++-----
- doc/articles/wiki/test.bash |  4 +---
- 2 files changed, 15 insertions(+), 8 deletions(-)
+ src/pkg/runtime/runtime-gdb.py | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,27 +1,22 @@
-commit c41137d2428587b7e6df09952cddabd6441bc4b7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 8 02:25:23 2016 +0000
+commit f9e9412ce26ca208c1d25a6b854259c94aa54030
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 10 18:53:30 2016 -0700
 
-    syscall: fix name of prlimit parameters
+    cmd/dist: run vet/all on dedicated builders
     
-    Fixes #17606
+    We will soon add dedicated builders for running vet/all.
+    Their name will end with "-vetall".
+    On those builders, run vet/all and nothing else.
+    On all other builders, including local all.bash,
+    don't run vet/all at all, because it is slow.
     
-    Change-Id: I040c7621cef265d44b58f16556e6d58660a2245d
-    Reviewed-on: https://go-review.googlesource.com/32889
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This will probably be refined more over time.
+    
+    Change-Id: Ib1d0337adda84353931a325515c132068d4320cd
+    Reviewed-on: https://go-review.googlesource.com/28962
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/syscall_linux.go           | 2 +-
- src/syscall/zsyscall_linux_386.go      | 4 ++--
- src/syscall/zsyscall_linux_amd64.go    | 4 ++--
- src/syscall/zsyscall_linux_arm.go      | 4 ++--
- src/syscall/zsyscall_linux_arm64.go    | 4 ++--
- src/syscall/zsyscall_linux_mips.go     | 4 ++--
- src/syscall/zsyscall_linux_mips64.go   | 4 ++--
- src/syscall/zsyscall_linux_mips64le.go | 4 ++--
- src/syscall/zsyscall_linux_mipsle.go   | 4 ++--
- src/syscall/zsyscall_linux_ppc64.go    | 4 ++--
- src/syscall/zsyscall_linux_ppc64le.go  | 4 ++--
- src/syscall/zsyscall_linux_s390x.go    | 4 ++--
- 12 files changed, 23 insertions(+), 23 deletions(-)
+ src/cmd/dist/test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

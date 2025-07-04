@@ -1,26 +1,25 @@
-commit e709992afda6a96f0a5691aaf0883e3cfbd46946
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Thu Jun 6 13:50:29 2024 +0000
+commit 26f25692b8107f06a16dd103672ba4b5c3e4571f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon May 22 10:38:12 2023 -0500
 
-    cmd/go: avoid when go.env contain GOTOOLCHAIN=local test fail
+    debug/elf: define R_PPC64_REL24_P9NOTOC
     
-    The test fail when $GOROOT/go.env contain GOTOOLCHAIN=local
-    because GOTOOLCHAIN=local is assumed to be a non-default value.
-    This CL fixed the test failure
-    by using go.env from the test as $GOROOT/go.env throughout the test.
-    Test have also been added to ensure that
-    when $GOROOT/go.env contain GOTOOLCHAIN=local,
-    GOTOOLCHAIN=local is not taken as a non-default value.
+    This relocation is not (yet?) defined in ELFv2, but has been added to
+    gnu gas a couple years ago. It is the same reloc as
+    R_PPC64_REL24_NOTOC, but hints power10 instructions should not be
+    emitted.
     
-    Fixes #67793
+    See binutils commit 7aba54da426b9999085d8f84e7896b8afdbb9ca6.
     
-    Change-Id: Ibc5057d38d36c6c55726a039de1e7c37d6935b52
-    GitHub-Last-Rev: 12b62464e671021320c54e251dfb1ebcb5925096
-    GitHub-Pull-Request: golang/go#67807
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590196
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #60348
+    
+    Change-Id: Ie953cd7bf1ffc621b498d4dbebb5de1231833c8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496918
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/testdata/script/env_changed.txt | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ api/next/60348.txt   | 2 ++
+ src/debug/elf/elf.go | 2 ++
+ 2 files changed, 4 insertions(+)

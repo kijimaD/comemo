@@ -1,46 +1,16 @@
-commit 42526e21874fb2b47ed74d7b0f14ee44faee1a6c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 31 18:44:20 2012 -0500
+commit f7d473dd33e90e28285fcdbf8876ffbe1caed3a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 31 15:41:25 2012 -0800
 
-    cmd/go: improvements
+    go/doc: added error, rune to list of predeclared types
     
-    Print all the syntax errors.  Fixes issue 2811.
+    Don't throw away factory functions returning error or rune.
     
-    Change Windows binary removal strategy.
-    This should keep the temporary files closer to
-    the binaries they are for, which will make it
-    more likely that the rename is not cross-device
-    and also make it easier to clean them up.
-    Fixes #2604 (as much as we can).
+    Fixes #2820.
     
-    The standard build does not use the go command
-    to install the go command anymore, so issue 2604
-    is less of a concern than it originally was.
-    (It uses the go_bootstrap command to install
-    the go command.)
-    
-    Buffer 'go list' output.
-    
-    R=golang-dev, bradfitz, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5604048
+    https://golang.org/cl/5604046
 
- src/buildscript/darwin_386.sh    | 60 ++++++++++++++++++++--------------------
- src/buildscript/darwin_amd64.sh  | 60 ++++++++++++++++++++--------------------
- src/buildscript/freebsd_386.sh   | 60 ++++++++++++++++++++--------------------
- src/buildscript/freebsd_amd64.sh | 60 ++++++++++++++++++++--------------------
- src/buildscript/linux_386.sh     | 60 ++++++++++++++++++++--------------------
- src/buildscript/linux_amd64.sh   | 60 ++++++++++++++++++++--------------------
- src/buildscript/linux_arm.sh     | 60 ++++++++++++++++++++--------------------
- src/buildscript/netbsd_386.sh    | 60 ++++++++++++++++++++--------------------
- src/buildscript/netbsd_amd64.sh  | 60 ++++++++++++++++++++--------------------
- src/buildscript/openbsd_386.sh   | 60 ++++++++++++++++++++--------------------
- src/buildscript/openbsd_amd64.sh | 60 ++++++++++++++++++++--------------------
- src/buildscript/plan9_386.sh     | 60 ++++++++++++++++++++--------------------
- src/buildscript/windows_386.sh   | 60 ++++++++++++++++++++--------------------
- src/buildscript/windows_amd64.sh | 60 ++++++++++++++++++++--------------------
- src/cmd/go/build.go              | 58 +++++++++++++-------------------------
- src/cmd/go/list.go               | 12 ++++++--
- src/cmd/go/pkg.go                | 16 +++++++++++
- src/cmd/go/tool.go               |  2 +-
- 18 files changed, 465 insertions(+), 463 deletions(-)
+ src/pkg/go/doc/reader.go | 2 ++
+ 1 file changed, 2 insertions(+)

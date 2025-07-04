@@ -1,27 +1,30 @@
-commit 9114c51521c641ff6c33648da03774dc3eb86b79
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Wed May 29 16:43:38 2024 +0000
+commit 40bdc5618053c16e171473b99186affcbda2166c
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue May 9 11:24:28 2023 -0400
 
-    Revert "runtime: prepare for extensions to waiting M list"
+    go/types: resolve cgo base type names
     
-    This reverts commit be0b569caa0eab1a7f30edf64e550bbf5f6ff235 (CL 585635).
+    When associating methods with their receiver base, we need to implement
+    the same indirection through Cgo types as is done for selector
+    expressions. This fixes a bug where methods declared on aliases of Cgo
+    types were not associated with their receiver.
     
-    Reason for revert: This is part of a patch series that changed the
-    handling of contended lock2/unlock2 calls, reducing the maximum
-    throughput of contended runtime.mutex values, and causing a performance
-    regression on applications where that is (or became) the bottleneck.
+    While porting to types2, align the types2 testFiles helper with the
+    go/types implementation. In order to avoid call-site bloat, switch to an
+    options pattern for configuring the Config used to type-check.
     
-    Updates #66999
-    Updates #67585
+    Fixes golang/go#59944
     
-    Change-Id: I7843ccaecbd273b7ceacfa0f420dd993b4b15a0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589117
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Id14101f01c122b6c856ae5453bd00ec07e83f414
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493877
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/lock_sema.go | 10 +++++-----
- src/runtime/mprof.go     | 11 -----------
- src/runtime/runtime2.go  |  2 +-
- 3 files changed, 6 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go  | 93 ++++++++++++++------------
+ src/cmd/compile/internal/types2/issues_test.go | 69 +++++++++++++++++++
+ src/cmd/compile/internal/types2/resolver.go    | 42 +++++++++---
+ src/go/types/check_test.go                     | 64 +++++++++---------
+ src/go/types/issues_test.go                    | 79 +++++++++++++++++++++-
+ src/go/types/resolver.go                       | 43 ++++++++++--
+ 6 files changed, 298 insertions(+), 92 deletions(-)

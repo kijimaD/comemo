@@ -1,15 +1,48 @@
-commit 4094c1bae7cb6ace9311e560623bc0eb80bae91e
-Author: Han-Wen Nienhuys <hanwen@google.com>
-Date:   Thu Nov 1 14:49:38 2012 -0400
+commit 5d15963a1fff87c94b5fe4e5e9de814c126096ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 1 11:23:27 2012 -0700
 
-    syscall: add {Get,Set,List,Remove}xattr on Linux.
+    exp/types/staging: filling in more blanks
     
-    R=golang-dev, minux.ma, fullung, dave, rsc, hanwenn
+    - simplified assignment checking by removing duplicate code
+    - implemented field lookup (methods, structs, embedded fields)
+    - importing methods (not just parsing them)
+    - type-checking functions and methods
+    - typechecking more statements (inc/dec, select, return)
+    - tracing support for easier debugging
+    - handling nil more correctly (comparisons)
+    - initial support for [...]T{} arrays
+    - initial support for method expressions
+    - lots of bug fixes
+    
+    All packages under pkg/go as well as pkg/exp/types typecheck
+    now with pkg/exp/gotype applied to them; i.e., a significant
+    amount of typechecking works now (several statements are not
+    implemented yet, but handling statements is almost trivial in
+    comparison with typechecking expressions).
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6350074
+    https://golang.org/cl/6768063
 
- src/pkg/syscall/syscall_linux.go        |  9 ++--
- src/pkg/syscall/zsyscall_linux_386.go   | 95 +++++++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_linux_amd64.go | 95 +++++++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_linux_arm.go   | 95 +++++++++++++++++++++++++++++++++
- 4 files changed, 289 insertions(+), 5 deletions(-)
+ src/pkg/exp/types/exportdata.go                |   3 +-
+ src/pkg/exp/types/staging/builtins.go          |   6 +-
+ src/pkg/exp/types/staging/check.go             | 115 ++++++-----
+ src/pkg/exp/types/staging/const.go             |   2 +-
+ src/pkg/exp/types/staging/conversions.go       |   4 +-
+ src/pkg/exp/types/staging/errors.go            |  35 +++-
+ src/pkg/exp/types/staging/exportdata.go        |   3 +-
+ src/pkg/exp/types/staging/expr.go              | 229 ++++++++++++++-------
+ src/pkg/exp/types/staging/gcimporter.go        | 101 +++++----
+ src/pkg/exp/types/staging/operand.go           | 153 ++++++++++++--
+ src/pkg/exp/types/staging/predicates.go        |  17 +-
+ src/pkg/exp/types/staging/stmt.go              | 274 ++++++++++++-------------
+ src/pkg/exp/types/staging/testdata/const0.src  |   6 +
+ src/pkg/exp/types/staging/testdata/decls2b.src |  13 ++
+ src/pkg/exp/types/staging/testdata/expr0.src   |  14 +-
+ src/pkg/exp/types/staging/testdata/expr2.src   |   5 +
+ src/pkg/exp/types/staging/testdata/expr3.src   |  14 ++
+ src/pkg/exp/types/staging/testdata/stmt0.src   |  32 +++
+ src/pkg/exp/types/staging/types.go             |  10 +-
+ src/pkg/exp/types/staging/types_test.go        |   8 +-
+ 20 files changed, 682 insertions(+), 362 deletions(-)

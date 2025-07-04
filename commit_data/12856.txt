@@ -1,16 +1,14 @@
-commit f6d582db6123e3b199fa34334505f952e554312d
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Mon Apr 9 15:04:59 2012 -0400
+commit 494fe3b08fd78752497a1dc5838777dc4fb52650
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 9 11:19:52 2012 -0700
 
-    cmd/yacc: spring cleaning for units.y
+    debug/gosym: in test, use temp binary name in /tmp, and clean up.
     
-    * sort imports
-    * use runtime.GOROOT
-    * fix some typos
+    This fixes all.bash on shared machines.
     
-    R=golang-dev, dave, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5987054
+    https://golang.org/cl/5992078
 
- src/cmd/yacc/units.y | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/debug/gosym/pclntab_test.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

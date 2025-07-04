@@ -1,41 +1,17 @@
-commit 443eb9757cd09ada43ceb9ee80f33bc84e892645
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Mar 28 14:48:59 2023 -0400
+commit cce00643992995ce3ca4eca301bac77a72e10d8e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 3 15:17:32 2022 -0700
 
-    runtime: get a better g0 stack bound in needm
+    cmd/compile/internal/typecheck: trim unused code
     
-    Currently, when C calls into Go the first time, we grab an M
-    using needm, which sets m.g0's stack bounds using the SP. We don't
-    know how big the stack is, so we simply assume 32K. Previously,
-    when the Go function returns to C, we drop the M, and the next
-    time C calls into Go, we put a new stack bound on the g0 based on
-    the current SP. After CL 392854, we don't drop the M, and the next
-    time C calls into Go, we reuse the same g0, without recomputing
-    the stack bounds. If the C code uses quite a bit of stack space
-    before calling into Go, the SP may be well below the 32K stack
-    bound we assumed, so the runtime thinks the g0 stack overflows.
+    Unused since CL 403839.
     
-    This CL makes needm get a more accurate stack bound from
-    pthread. (In some platforms this may still be a guess as we don't
-    know exactly where we are in the C stack), but it is probably
-    better than simply assuming 32K.
-    
-    For #59294.
-    
-    Change-Id: Ie52a8f931e0648d8753e4c1dbe45468b8748b527
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479915
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib416778738523be11213c82a9e1a4cdaa8afb294
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403847
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- misc/cgo/testcarchive/carchive_test.go     | 54 ++++++++++++++++++++++++++++++
- misc/cgo/testcarchive/testdata/libgo9/a.go | 14 ++++++++
- misc/cgo/testcarchive/testdata/main9.c     | 24 +++++++++++++
- src/runtime/cgo.go                         |  2 ++
- src/runtime/cgo/callbacks.go               |  9 +++++
- src/runtime/cgo/gcc_stack_darwin.c         | 21 ++++++++++++
- src/runtime/cgo/gcc_stack_unix.c           | 32 ++++++++++++++++++
- src/runtime/cgo/gcc_stack_windows.c        |  7 ++++
- src/runtime/proc.go                        | 22 +++++++++---
- src/runtime/signal_unix.go                 |  4 +--
- 10 files changed, 182 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/typecheck/dcl.go | 29 -----------------------------
+ 1 file changed, 29 deletions(-)

@@ -1,18 +1,40 @@
-commit 42da27002428ed27f9aeee5800120e2222c226a0
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 27 16:08:11 2015 -0400
+commit c264c87335ff4b3111d43f830dbe37eac1509f2e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 22 14:15:47 2015 -0800
 
-    runtime: fix race in BenchmarkPingPongHog
+    bytes, strings: add Reader.Size methods
     
-    The master goroutine was returning before
-    the child goroutine had done its final i < b.N
-    (the one that fails and causes it to exit the loop)
-    and then the benchmark harness was updating
-    b.N, causing a read+write race on b.N.
+    As noted on recently on golang-nuts, there's currently no way to know
+    the total size of a strings.Reader or bytes.Reader when using ReadAt
+    on them. Most callers resort to wrapping it in an io.SectionReader to
+    retain that information.
     
-    Change-Id: I2504270a0de30544736f6c32161337a25b505c3e
-    Reviewed-on: https://go-review.googlesource.com/9368
-    Reviewed-by: Austin Clements <austin@google.com>
+    The SizeReaderAt abstraction (an io.ReaderAt with a Size() int64
+    method) has proven useful as a way of expressing a concurrency-safe
+    read-only number of bytes.
+    
+    As one example, see http://talks.golang.org/2013/oscon-dl.slide#49 and
+    the rest of that presentation for its use in dl.google.com.
+    
+    SizeReaderAt is also used in the open source google-api-go-client, and
+    within Google's internal codebase, where it exists in a public package
+    created in 2013 with the package comment: "These may migrate to the
+    standard library after we have enough experience with their feel."
+    
+    I'm still as happy with the SizeReaderAt abstraction and its
+    composabilty as I was in 2013, so I'd like to make these two Readers
+    also be SizeReaderAts.
+    
+    Fixes #9667
+    
+    Change-Id: Ie6f145ada419dd116280472d8c029f046d5edf70
+    Reviewed-on: https://go-review.googlesource.com/3199
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/proc_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/bytes/reader.go        |  6 ++++++
+ src/bytes/reader_test.go   | 12 ++++++++++++
+ src/strings/reader.go      |  6 ++++++
+ src/strings/reader_test.go | 13 +++++++++++++
+ 4 files changed, 37 insertions(+)

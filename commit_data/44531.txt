@@ -1,23 +1,18 @@
-commit d4247f516724cae2e84a4d1bef71bd47aa2fd1d8
-Author: Adrien Delorme <azr@users.noreply.github.com>
-Date:   Fri Mar 5 15:59:12 2021 +0000
+commit f92337422ef2ca27464c198bb3426d2dc4661653
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 1 12:55:47 2020 -0700
 
-    text/template: wrap errors returned by template functions instead of stringifying them
+    runtime/race: fix ppc64le build
     
-    Fixes #34201
+    The .syso test also fails for ppc64le. Not sure why. For now, just
+    disable the test for that architecture. The test really only needs to
+    run on a single builder of any arch.
     
-    Change-Id: Ic2e2967e4b01167345cf38bd006cabb206a64377
-    GitHub-Last-Rev: 5d0c4856550614484a8dbfb68c37aa1abcfcc529
-    GitHub-Pull-Request: golang/go#42398
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267838
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Pontus Leitzler <leitzler@gmail.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I346cdc01ada09d43c4c504fbc30be806f59d5422
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246358
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/exec.go      |  2 +-
- src/text/template/exec_test.go | 22 ++++++++++++++++++++++
- src/text/template/funcs.go     |  5 ++++-
- 3 files changed, 27 insertions(+), 2 deletions(-)
+ src/runtime/race/syso_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

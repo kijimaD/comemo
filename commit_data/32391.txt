@@ -1,12 +1,15 @@
-commit 44211c14e475e239415d02220521e473ae8403af
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 5 15:53:08 2017 +1000
+commit 0d1e903c8a1d6060a1bb82eb8f78fc4de35425b7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:40:05 2017 -0700
 
-    cmd/link: remove pensect
+    cmd/compile: unify a Linksym call in dcommontype
     
-    Change-Id: Ia4abb76a8fa9e9ab280cd9162238ebd3fba79e4d
-    Reviewed-on: https://go-review.googlesource.com/56318
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I9940909949da58e780696e6de0c21f95be7a8816
+    Reviewed-on: https://go-review.googlesource.com/41407
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

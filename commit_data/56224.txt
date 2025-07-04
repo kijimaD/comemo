@@ -1,27 +1,19 @@
-commit c686783cabd4603cdff662f8cf9180c4f76b7928
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Apr 11 15:16:22 2024 +0000
+commit 522eace4ca496626bcb3b65f9dcb6e8db2673fed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 18 19:20:28 2023 -0700
 
-    cmd/compile/internal/ssa: delay rewrite cycle detection for huge funcs
+    go/types, types2: be deliberate with Checker.use in Checker.assignVar
     
-    The SSA rewrite pass has some logic that looks to see whether a
-    suspiciously large number of rewrites is happening, and if so, turns
-    on logic to try to detect rewrite cycles. The cycle detection logic is
-    quite expensive (hashes the entire function), meaning that for very
-    large functions we might get a successful compilation in a minute or
-    two with no cycle detection, but take a couple of hours once cycle
-    detection kicks in.
+    Follow-up on comment in CL 486135. Cleanup.
     
-    This patch moves from a fixed limit of 1000 iterations to a limit set
-    partially based on the size of the function (meaning that we'll wait
-    longer before turning cycle detection for a large func).
-    
-    Fixes #66773.
-    
-    Change-Id: I72f8524d706f15b3f0150baf6abeab2a5d3e15c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578215
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib0480d52e30687350f8328965c18fa83262df0a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486215
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/rewrite.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/assignments.go | 3 ++-
+ src/go/types/assignments.go                    | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

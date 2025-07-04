@@ -1,29 +1,25 @@
-commit c81d216d844f165b729fa3dbb0c3d834eb4268a8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 17 10:51:53 2018 -0400
+commit ea3f329613c28cf8d8e955135616ee061ce0a012
+Author: David Url <david@urld.io>
+Date:   Mon Apr 2 12:57:59 2018 +0200
 
-    go/doc: allow interior dot in heading, as in "go.mod"
+    net/http: omit forbidden Trailer headers from response
     
-    Only the expected headings are affected.
-    Diffing the output of "go run headscan.go" before and after:
+    Use the vendored ValidTrailerHeader function from x/net/http/httpguts to
+    check Trailer headers according to RFC 7230. The previous implementation
+    only omitted illegal Trailer headers defined in RFC 2616.
     
-    $ diff head1 head2
-    26a27,28
-    >       Edit go.mod from tools or scripts
-    >       Make go.mod semantically consistent
-    168c170
-    < 141 headings found
-    ---
-    > 143 headings found
-    $
+    This CL adds x/net/http/httpguts from CL 104042 (git rev a35a21de97)
     
-    Fixes #26938.
+    Fixes #23908
     
-    Change-Id: I204fd982a60773aa26880cd19eed890c373b8ab6
-    Reviewed-on: https://go-review.googlesource.com/129677
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ib2329a384040494093c18e209db9b62aaf86e921
+    Reviewed-on: https://go-review.googlesource.com/104075
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/doc/comment.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/go/build/deps_test.go                         | 14 ++++---
+ src/net/http/httptest/recorder.go                 | 13 +++---
+ src/net/http/server.go                            |  7 ++--
+ src/vendor/golang_org/x/net/http/httpguts/guts.go | 50 +++++++++++++++++++++++
+ 4 files changed, 67 insertions(+), 17 deletions(-)

@@ -1,17 +1,15 @@
-commit 2ee775fd9b58247618cf8bc06935f33875bdc872
-Author: Harald Nordgren <haraldnordgren@gmail.com>
-Date:   Sun Feb 23 10:43:23 2025 +0000
+commit 35222eeb78ddb84f5787729c5f149cfd73d63ef8
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Dec 19 08:14:50 2023 -0800
 
-    net/http: remove unused err parameter from cancel
+    doc: add html/template release note
     
-    Change-Id: I91f1b93298671bcb2aa5f86a59f5794bd3e3b2a9
-    GitHub-Last-Rev: f2e7ffb45f7b201381e1f1a3018b523dea4249f8
-    GitHub-Pull-Request: golang/go#71911
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651220
+    Updates #61422
+    
+    Change-Id: Ie86e8545d55cfd0898d21387d8b48d9392f85bf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551335
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/http/transport.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.22.html | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)

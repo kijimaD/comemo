@@ -1,12 +1,24 @@
-commit f4b8a5194eccb6865c7dcadc79430d9af930c48a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 16 17:05:59 2018 +0000
+commit 976a852d4c26b80f4084151c36f3024c180aa3b9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 16 19:08:59 2018 -0800
 
-    doc: flesh out go1.11 notes
+    cmd/go: if -race, don't run coverage on runtime packages
     
-    Change-Id: I0152d3c1d980e271fbcdb9d5def094d3c837a4f4
-    Reviewed-on: https://go-review.googlesource.com/124055
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Don't compile the runtime packages with coverage when using the race
+    detector. The user can, perhaps accidentally, request coverage for the
+    runtime by using -coverpkg=all. If using the race detector, the
+    runtime package coverage will call into the race detector before it
+    has been initialized. This will cause the program to crash
+    mysteriously on startup.
+    
+    Fixes #23882
+    
+    Change-Id: I9a63867a9138797d8b8afb0856ae21079accdb27
+    Reviewed-on: https://go-review.googlesource.com/94898
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- doc/go1.11.html | 39 ++++++++++++++++++++++++++++-----------
- 1 file changed, 28 insertions(+), 11 deletions(-)
+ src/cmd/go/go_test.go            | 15 +++++++++++++++
+ src/cmd/go/internal/test/test.go |  8 ++++++++
+ 2 files changed, 23 insertions(+)

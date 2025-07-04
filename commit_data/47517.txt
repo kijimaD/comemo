@@ -1,17 +1,20 @@
-commit 03dd049d6efcbca6b829d7ed504ceea6318f2036
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 16 17:51:58 2021 -0800
+commit 29ed12d4c7e61f6b4cc38d5b3d5eb885294f7878
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 23 15:44:46 2021 -0700
 
-    go/types: make sure we are safe for nil in underIs
+    testing: update permitted number of -race goroutines
     
-    This CL is a clean port CL 363658 from types2 to go/types.
+    The value 8128 appears to be correct as of 2021-03-23. The value is
+    determined by the value of kMaxTid currently at
     
-    Change-Id: Ie2032f85a9cfca62161c2e629c78f1ecd8c6e4c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364537
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/tsan/rtl/tsan_defs.h#L68
+    
+    Fixes #45193
+    
+    Change-Id: If4a30d7dbebd6775bede42f565dc8a741b8b036c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304254
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/go/types/expr.go       | 3 +++
- src/go/types/predicates.go | 4 +++-
- src/go/types/type.go       | 3 +++
- 3 files changed, 9 insertions(+), 1 deletion(-)
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

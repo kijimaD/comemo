@@ -1,14 +1,60 @@
-commit 6129e331acbb2158f015e3b48b82da330087621a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 6 09:03:59 2018 -0500
+commit 328adf9d62b681bf4f7cb0c41a3f16272cf5f4a2
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu May 17 19:50:29 2018 +0300
 
-    doc: announce the end of support for binary-only packages
+    cmd/link: fewer allocs in ld.Arch.Archreloc
     
-    Updates #28152
+    Archreloc had this signature:
     
-    Change-Id: If859221afc683b392f649e79d7ff0a06125cbe10
-    Reviewed-on: https://go-review.googlesource.com/c/152918
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+            func(*Link, *sym.Reloc, *sym.Symbol, *int64) bool
+    
+    The last *int64 argument is used as out parameter.
+    Passed valus could be allocated on stack, but escape analysis
+    fails here, leading to high number of unwanted allocs.
+    
+    If instead 4th arg is passed by value, and modified values is returned,
+    no problems with allocations arise:
+    
+            func(*Link, *sym.Reloc, *sym.Symbol, int64) (int64, bool)
+    
+    There are 2 benefits:
+    1. code becomes more readable.
+    2. less allocations.
+    
+    For linking "hello world" example from net/http:
+    
+            name      old time/op  new time/op  delta
+            Linker-4   530ms ± 2%   520ms ± 2%  -1.83%  (p=0.001 n=17+16)
+    
+    It's top 1 in alloc_objects from memprofile:
+    
+            flat   flat%  sum%       cum    cum%
+            229379 33.05% 33.05%     229379 33.05%  cmd/link/internal/ld.relocsym
+            ...
+    
+    list relocsym:
+    
+            229379     229379 (flat, cum) 33.05% of Total
+            229379     229379    183:    var o int64
+    
+    After the patch, ~230k of int64 allocs (~ 1.75mb) removed.
+    
+    Passes toolshash-check (toolstash cmp).
+    
+    Change-Id: I25504fe27967bcff70c4b7338790f3921d15473d
+    Reviewed-on: https://go-review.googlesource.com/113637
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.12.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/link/internal/amd64/asm.go  |  4 +--
+ src/cmd/link/internal/arm/asm.go    | 30 +++++++------------
+ src/cmd/link/internal/arm64/asm.go  | 60 +++++++++++++++++--------------------
+ src/cmd/link/internal/ld/data.go    |  4 ++-
+ src/cmd/link/internal/ld/lib.go     |  2 +-
+ src/cmd/link/internal/mips/asm.go   | 37 ++++++++++-------------
+ src/cmd/link/internal/mips64/asm.go | 28 +++++++----------
+ src/cmd/link/internal/ppc64/asm.go  | 47 +++++++++++++----------------
+ src/cmd/link/internal/s390x/asm.go  | 12 ++++----
+ src/cmd/link/internal/x86/asm.go    | 12 ++++----
+ 10 files changed, 100 insertions(+), 136 deletions(-)

@@ -1,15 +1,12 @@
-commit 6d94b14e1981f960f45deb9a57f4360c79593238
+commit de2184f3a8e7a7a55beb9293125a24a8de6933f1
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jan 20 21:24:15 2011 +1100
+Date:   Thu Jan 20 19:18:04 2011 +1100
 
-    syscall: include all, even duplictate, invented error messages
+    net: get tests working to fix windows build
     
-    Otherwise syscall.Errstr() returns "" for some (EWOULDBLOCK) errors.
-    
-    R=rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/3941041
+    https://golang.org/cl/4089041
 
- src/pkg/syscall/mkerrors_windows.sh    | 10 +---------
- src/pkg/syscall/zerrors_windows_386.go |  3 +++
- 2 files changed, 4 insertions(+), 9 deletions(-)
+ src/pkg/net/resolv_windows.go | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

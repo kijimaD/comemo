@@ -1,20 +1,20 @@
-commit ccdca2cd6b84f290b0cf8709b11353e58cafdba9
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Fri May 4 03:48:34 2012 -0700
+commit fe5005f721d3036dd3c6fa5c0e7b43c188342859
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri May 4 03:44:41 2012 -0700
 
-    pkg/runtime: Plan 9 signal handling in Go
+    syscall: remove the Signal type on Plan 9
     
-    This adds proper note handling for Plan 9,
-    and fixes the issue of properly killing go procs.
-    Without this change, the first go proc that dies
-    (using runtime·exit()) would kill all the running
-    go procs. Proper signal handling is needed.
+    Instead use a new type, "Note", whose underlying
+    type is just a string.  This change allows us to
+    remove the exported os.Plan9Note type.
     
-    R=golang-dev, ality, rminnich, rsc
-    CC=golang-dev, john, mirtchovski
-    https://golang.org/cl/5617048
+    R=bradfitz, seed, rsc
+    CC=golang-dev
+    https://golang.org/cl/6015046
 
- src/pkg/runtime/os_plan9.h      |  10 +++
- src/pkg/runtime/sys_plan9_386.s |  10 +++
- src/pkg/runtime/thread_plan9.c  | 145 +++++++++++++++++++++++++++++++++++-----
- 3 files changed, 147 insertions(+), 18 deletions(-)
+ src/pkg/os/exec.go                   |  8 --------
+ src/pkg/os/exec_plan9.go             | 40 +++++++++++++++++++++---------------
+ src/pkg/os/exec_posix.go             |  8 ++++++++
+ src/pkg/syscall/syscall_plan9.go     | 18 ++++++++--------
+ src/pkg/syscall/zerrors_plan9_386.go |  3 ---
+ 5 files changed, 42 insertions(+), 35 deletions(-)

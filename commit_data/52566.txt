@@ -1,39 +1,21 @@
-commit 10c079a0ad2283be3761a47eda6e41bde38fd16b
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Apr 7 18:21:00 2023 +0100
+commit d28616d4697bf8ec02e8afed39013721e4567f9a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 9 15:33:22 2022 -0700
 
-    encoding/xml: use reflect.Value.Grow
+    syscall: update broken links
     
-    Like https://go.dev/cl/481376 did for encoding/gob,
-    but now for encoding/xml, which had very similar code.
+    Remove one link which isn't very interesting, and update another to
+    point to the current location.
     
-    One minor difference is that encoding/xml now needs a SetLen before the
-    call to Index, as otherwise we index just past the length.
-    Still, calling Grow and SetLen is easier to understand,
-    and avoids needing to make a new zero value.
+    Fixes #52753
     
-            goos: linux
-            goarch: amd64
-            pkg: encoding/xml
-            cpu: AMD Ryzen 7 PRO 5850U with Radeon Graphics
-                                    │     old     │                new                │
-                                    │   sec/op    │   sec/op     vs base              │
-            Unmarshal-8   6.904µ ± 1%   6.980µ ± 1%  +1.10% (p=0.009 n=6)
-    
-                                    │     old      │                new                 │
-                                    │     B/op     │     B/op      vs base              │
-            Unmarshal-8   7.656Ki ± 0%   7.586Ki ± 0%  -0.92% (p=0.002 n=6)
-    
-                                    │    old     │               new                │
-                                    │ allocs/op  │ allocs/op   vs base              │
-            Unmarshal-8   188.0 ± 0%   185.0 ± 0%  -1.60% (p=0.002 n=6)
-    
-    Change-Id: Id83feb467a9c59c80c7936aa892780aae7e8b809
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483135
+    Change-Id: I5f53ede35b0ded197bc0e6d41eabf28d736de5b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405296
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Hajime Hoshi <hajimehoshi@gmail.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/encoding/xml/read.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/syscall/syscall_windows.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

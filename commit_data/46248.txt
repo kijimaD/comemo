@@ -1,21 +1,47 @@
-commit 0df6df17e12d4cf8c2ed7c68ce8841a18f739f63
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Aug 31 18:12:15 2021 -0400
+commit f6efa3d4a4a10c28d7bf13f8416022aa5fc4fa1c
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 12 18:50:21 2020 -0500
 
-    go/types: generalize instanceHash to accept any type, rename to typeHash
+    [dev.regabi] cmd/compile: simplify ir.Find, replace ir.Inspect with ir.Visit
     
-    This is a port of CL 345791 to go/types.
+    It seems clear after using these for a week that Find need not return
+    anything other than a bool saying whether the target was found.
+    The main reason for not using the boolean earlier was to avoid confusion
+    with Inspect: for Find, returning true means "it was found! stop walking"
+    while for Inspect, returning true means "keep walking the children".
     
-    Change-Id: I673c22ad8b668f07aae4117555b1c0efb273fb78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346556
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    But it turns out that none of the uses of Inspect need the boolean.
+    This makes sense because types can contain expressions, expressions
+    can contain statements (inside function literals), and so on, so there
+    are essentially no times when you can say based on the current AST node
+    that the children are irrelevant to a particular operation.
+    
+    So this CL makes two changes:
+    
+    1) Change Find to return a boolean and to take a callback function
+    returning a boolean. This simplifies all existing calls to Find.
+    
+    2) Rename Inspect to Visit and change it to take a callback with no
+    result at all. This simplifies all existing calls to Inspect.
+    
+    Removing the boolean result from Inspect's callback avoids having
+    two callbacks with contradictory boolean results in different APIs.
+    Renaming Inspect to Visit avoids confusion with ast.Inspect.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I344ebb5e00b6842012be33e779db483c28e5f350
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277919
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/instantiate.go |  2 +-
- src/go/types/named.go       |  2 +-
- src/go/types/stmt.go        | 43 ++++++++++++++++++++++++++++++++++++++++++-
- src/go/types/subst.go       | 28 ++++++++++++++++++++--------
- src/go/types/typestring.go  | 28 +++++++++++++++-------------
- 5 files changed, 79 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/gc/alg.go       | 10 ++--
+ src/cmd/compile/internal/gc/const.go     |  7 ++-
+ src/cmd/compile/internal/gc/dcl.go       | 11 ++--
+ src/cmd/compile/internal/gc/escape.go    |  4 +-
+ src/cmd/compile/internal/gc/initorder.go | 17 +++---
+ src/cmd/compile/internal/gc/inl.go       | 28 ++++------
+ src/cmd/compile/internal/gc/scc.go       |  3 +-
+ src/cmd/compile/internal/gc/walk.go      | 15 +++---
+ src/cmd/compile/internal/ir/visit.go     | 90 +++++++++++++-------------------
+ 9 files changed, 77 insertions(+), 108 deletions(-)

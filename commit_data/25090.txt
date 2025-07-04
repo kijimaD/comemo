@@ -1,14 +1,18 @@
-commit 7305b55e98a6ff747491f39e72bfd1195f1161da
+commit 4fc9565ffce91c4299903f7c17a275f0786734a1
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 30 14:18:09 2015 -0800
+Date:   Tue Sep 22 17:32:54 2015 -0700
 
-    spec: clarify examples for struct field tags
+    math/big: implement negative precision for Float.Append/Text
     
-    Fixes #13420.
+    Enabled all but a handful of disabled Float formatting test cases.
     
-    Change-Id: Id64ebd0527881450fdaffbb66d8b1831a6b7c43c
-    Reviewed-on: https://go-review.googlesource.com/17263
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #10991.
+    
+    Change-Id: Id18e160e857be2743429a377000e996978015a1a
+    Reviewed-on: https://go-review.googlesource.com/14850
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/go_spec.html | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ src/math/big/decimal.go        |  2 +-
+ src/math/big/floatconv_test.go | 84 ++++++++++++++++++++-------------------
+ src/math/big/ftoa.go           | 90 ++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 127 insertions(+), 49 deletions(-)

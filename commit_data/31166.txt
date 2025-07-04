@@ -1,20 +1,77 @@
-commit 2c1bff6e0681ff2cace0f69c28b05f47d4262aa3
-Author: Mostyn Bramley-Moore <mostyn@antipode.se>
-Date:   Mon Apr 17 21:01:10 2017 +0200
+commit b612ab3acbf3a11ea6dbaac8f244b4bdfed308cd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jan 14 23:43:26 2017 -0800
 
-    io/ioutil: make TestTempFile more robust
+    cmd/compile: make liveness more efficient
     
-    The first part of this test tries to confirm that we can't create
-    a TempFile in a non-existent directory, but does not ensure that
-    the non-existent directory really does not exist.  Instead, let's
-    create an empty temp directory, and use a non-existent subdir of
-    that.
+    When the number of variables in a function is very large,
+    liveness analysis gets less efficient, since every bit vector
+    is O(number of variables).
     
-    Change-Id: I176f14ed5f5a2d7a8c29d8f6949755db69d7dbb6
-    Reviewed-on: https://go-review.googlesource.com/40914
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Improve the situation by returning a sparse representation
+    from progeffects. In all scenarios, progeffects either
+    returns a slice that is shared function-wide,
+    and which is usually small, or a slice that is guaranteed
+    to have at most three values.
+    
+    Reduces compilation time for the code in #8225 Comment 1 by ~10%.
+    Minor effects on regular packages (below).
+    
+    Passes toolstash -cmp.
+    
+    Updates #8225
+    
+    name       old time/op      new time/op      delta
+    Template        215ms ± 2%       212ms ± 4%  -1.31%  (p=0.001 n=30+30)
+    Unicode        98.3ms ± 3%      98.4ms ± 5%    ~     (p=0.971 n=30+30)
+    GoTypes         657ms ± 3%       651ms ± 2%  -0.98%  (p=0.001 n=30+27)
+    Compiler        2.78s ± 2%       2.77s ± 2%  -0.60%  (p=0.006 n=30+30)
+    Flate           130ms ± 4%       130ms ± 4%    ~     (p=0.712 n=29+30)
+    GoParser        159ms ± 5%       158ms ± 3%    ~     (p=0.331 n=29+30)
+    Reflect         406ms ± 3%       404ms ± 3%  -0.69%  (p=0.041 n=29+30)
+    Tar             117ms ± 4%       117ms ± 3%    ~     (p=0.886 n=30+29)
+    XML             219ms ± 2%       217ms ± 2%    ~     (p=0.091 n=29+24)
+    
+    name       old user-ns/op   new user-ns/op   delta
+    Template   272user-ms ± 3%  270user-ms ± 3%  -1.03%  (p=0.004 n=30+30)
+    Unicode    138user-ms ± 2%  138user-ms ± 3%    ~     (p=0.902 n=29+29)
+    GoTypes    891user-ms ± 2%  883user-ms ± 2%  -0.95%  (p=0.000 n=29+29)
+    Compiler   3.85user-s ± 2%  3.84user-s ± 2%    ~     (p=0.236 n=30+30)
+    Flate      167user-ms ± 2%  166user-ms ± 4%    ~     (p=0.511 n=28+30)
+    GoParser   211user-ms ± 4%  210user-ms ± 3%    ~     (p=0.287 n=29+30)
+    Reflect    539user-ms ± 3%  536user-ms ± 2%  -0.59%  (p=0.034 n=29+30)
+    Tar        154user-ms ± 3%  155user-ms ± 4%    ~     (p=0.786 n=30+30)
+    XML        289user-ms ± 3%  288user-ms ± 4%    ~     (p=0.249 n=30+26)
+    
+    name       old alloc/op     new alloc/op     delta
+    Template       40.7MB ± 0%      40.8MB ± 0%  +0.09%  (p=0.001 n=30+30)
+    Unicode        30.8MB ± 0%      30.8MB ± 0%    ~     (p=0.112 n=30+30)
+    GoTypes         123MB ± 0%       124MB ± 0%  +0.09%  (p=0.000 n=30+30)
+    Compiler        473MB ± 0%       473MB ± 0%  +0.05%  (p=0.000 n=30+30)
+    Flate          26.5MB ± 0%      26.5MB ± 0%    ~     (p=0.186 n=29+30)
+    GoParser       32.3MB ± 0%      32.4MB ± 0%  +0.07%  (p=0.021 n=28+30)
+    Reflect        84.4MB ± 0%      84.6MB ± 0%  +0.21%  (p=0.000 n=30+30)
+    Tar            27.3MB ± 0%      27.3MB ± 0%  +0.09%  (p=0.010 n=30+28)
+    XML            44.7MB ± 0%      44.7MB ± 0%  +0.07%  (p=0.002 n=30+30)
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         401k ± 1%        400k ± 1%    ~     (p=0.321 n=30+30)
+    Unicode          331k ± 1%        331k ± 1%    ~     (p=0.357 n=30+28)
+    GoTypes         1.24M ± 0%       1.24M ± 1%  -0.19%  (p=0.001 n=30+30)
+    Compiler        4.27M ± 0%       4.27M ± 0%  -0.13%  (p=0.000 n=30+30)
+    Flate            252k ± 1%        251k ± 1%  -0.30%  (p=0.005 n=30+30)
+    GoParser         325k ± 1%        325k ± 1%    ~     (p=0.224 n=28+30)
+    Reflect         1.06M ± 0%       1.05M ± 0%  -0.34%  (p=0.000 n=30+30)
+    Tar              266k ± 1%        266k ± 1%    ~     (p=0.333 n=30+30)
+    XML              416k ± 1%        415k ± 1%    ~     (p=0.144 n=30+29)
+    
+    
+    Change-Id: I6ba67a9203516373062a2618122306da73333d98
+    Reviewed-on: https://go-review.googlesource.com/36211
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/io/ioutil/tempfile_test.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/bv.go    |  12 +-
+ src/cmd/compile/internal/gc/plive.go | 225 +++++++++++++++++++++--------------
+ 2 files changed, 142 insertions(+), 95 deletions(-)

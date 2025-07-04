@@ -1,17 +1,17 @@
-commit d9f1ddbee19c7b665d50bb1f8b218f5430347995
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 25 10:19:39 2011 -0500
+commit 90294a08c830b22acb8ab58113d02ae816b82274
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Tue Jan 25 17:56:33 2011 +1100
 
-    make.bash: stricter selinux test
+    runtime: make Walk webbrowser example work
     
-    SELinux can be installed but not turned on.
-    Don't complain unless it is actually turned on.
-    
-    https://bugzilla.redhat.com/show_bug.cgi?id=652987#c20
-    
-    R=agl
+    R=rsc, brainman, lxn
     CC=golang-dev
-    https://golang.org/cl/3979044
+    https://golang.org/cl/4005045
 
- src/make.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/wingui/gui.go          |  2 +-
+ src/pkg/exp/wingui/winapi.go       |  2 +-
+ src/pkg/runtime/386/asm.s          |  2 +-
+ src/pkg/runtime/windows/386/sys.s  | 32 +++++++++++++++++---------------
+ src/pkg/runtime/windows/thread.c   | 12 ++++++------
+ src/pkg/syscall/syscall_windows.go |  5 +++--
+ 6 files changed, 29 insertions(+), 26 deletions(-)

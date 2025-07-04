@@ -1,12 +1,20 @@
-commit ad832284c7441da9b2eaecdd0f634af6b35a75a4
-Author: Austin Clements <austin@google.com>
-Date:   Sat Apr 13 10:27:35 2019 -0400
+commit 8c5c2b71f4124eb5e72cde327d740a8dbdd4eeb8
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Wed Nov 21 19:06:28 2018 +0200
 
-    runtime: remove some unused fields in m and p
+    cmd/compile: fix TestFormats by using valid formats
     
-    Change-Id: Ie0171f48aaf48d8399ef578f95352445741d83a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171773
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    CL 142517 has used some formats incorrectly. This change fixes it
+    by using %v for errors and invoking Block.Kind.String().
+    Format map stays intact.
+    
+    Updates #28177
+    
+    Change-Id: If53b6cc54ba3c1ffc17b005225787e3b546de404
+    Reviewed-on: https://go-review.googlesource.com/c/150798
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/runtime2.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/html.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,15 +1,19 @@
-commit 4f2620285d7ce1802aff3d1f85e5ab0168d57bf3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 24 21:12:06 2021 -0700
+commit 41d8e61a6b9d8f9db912626eb2bbc535e929fefc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 13:32:14 2020 -0500
 
-    cmd/compile/internal/types2: fix type set printing and add test
+    doc: make clear that Go 1.4 is not required for bootstrap
     
-    Change-Id: I44ca1f889b041467d5febacaf6037cfd75859175
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344873
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Go 1.4 does not work on some systems, including the most
+    recent versions of macOS. Make it clearer that that's not the only
+    way to bootstrap Go.
+    
+    Change-Id: I7c03d6808e43bf26283a53eab2bb0b2dc4af73af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277216
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/typeset.go      | 12 ++---
- src/cmd/compile/internal/types2/typeset_test.go | 67 ++++++++++++++++++++++++-
- 2 files changed, 71 insertions(+), 8 deletions(-)
+ doc/install-source.html | 67 ++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 44 insertions(+), 23 deletions(-)

@@ -1,15 +1,12 @@
-commit aef23cc49e745e619c10bd8e4f9d4555de3a9c5c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 15 07:39:46 2012 -0800
+commit 0724e5cefe92f9f4fd52101e3a7a25299a2b7f63
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 15 23:52:07 2012 +0900
 
-    test: add new test of indirect type references
-    
-    Similar to bug190, but without recursive reference.  Crashed
-    gccgo.
+    build: fix clean.bash
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5672053
+    https://golang.org/cl/5672052
 
- test/fixedbugs/bug417.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/clean.bash | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

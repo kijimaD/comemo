@@ -1,15 +1,17 @@
-commit a8eb6d51bbd668b9e6fefa9f0cf39fccde3a305e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 23 15:18:09 2016 -0700
+commit 3a72d626a8bae104c658f361d97f992f609d91e7
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Apr 26 21:37:49 2016 +1200
 
-    cmd/compile: simplify field/method export (internal cleanup)
+    cmd/link: pass -no-pie (if supported) when creating a race-enabled executable.
     
-    Towards a fix for #15514.
+    Fixes #15443
     
-    Change-Id: I62073e9fdcfe5ddda9b0a47fe8554b524191a77c
-    Reviewed-on: https://go-review.googlesource.com/27638
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia3593104fc1a4255926ae5675c25390604b44b7b
+    Reviewed-on: https://go-review.googlesource.com/22453
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 43 +++++++++++-----------------------
- src/cmd/compile/internal/gc/bimport.go |  2 +-
- 2 files changed, 15 insertions(+), 30 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

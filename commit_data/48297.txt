@@ -1,38 +1,18 @@
-commit 8893175c3b5267f1eb70c518b5de6f03037c4d03
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Mar 6 11:26:11 2022 +0000
+commit 43c390a1fabfa5eb81529f399bb4d1875f1ca35d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 5 21:32:04 2021 -0400
 
-    flag: make tests silent
+    crypto/ed25519: skip allocations test on -noopt builder
     
-    A few of the tests were printing garbage to stderr,
-    since FlagSet's default Output is os.Stderr:
+    Without optimizations, there will be unexpected allocations.
     
-            $ go test
-            flag provided but not defined: -x
-            invalid value "1" for flag -v: test error
-            Usage of test:
-            flag needs an argument: -b
-            Usage of test:
-              -b    usage
-            PASS
-            ok      flag    0.008s
-    
-    Add the remaining SetOutput(io.Discard) method calls.
-    
-    Note that TestUserDefinedFunc was a tricky one.
-    Even with the added SetOutput calls,
-    the last part of the test would still print usage text to stderr.
-    It took me a while to figure out the problem was copying FlagSet.
-    I've filed go.dev/issue/51507 to record this particular sharp edge,
-    and the test code now avoids making FlagSet copies to avoid the bug.
-    
-    Change-Id: I323f24091b98386312aa72df3eb890af6625628d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390234
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I90dc2636279b7fda7689eabc763251c4cdd25874
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317370
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/flag/export_test.go | 6 +++++-
- src/flag/flag_test.go   | 9 ++++++---
- 2 files changed, 11 insertions(+), 4 deletions(-)
+ src/crypto/ed25519/ed25519_test.go                            | 3 +++
+ src/crypto/ed25519/internal/edwards25519/edwards25519_test.go | 5 +++++
+ 2 files changed, 8 insertions(+)

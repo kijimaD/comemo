@@ -1,15 +1,29 @@
-commit 685ecc7f027051f0380dc5c9575595c145eb625a
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue May 22 22:09:35 2018 +0200
+commit d3f6d11d845fafe849d33505194b3ea1787e73a8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 14 14:08:17 2018 -0800
 
-    internal/cpu: fix test build on ppc64
+    cmd/compile: fix typechecking of untyped boolean expressions
     
-    The runtime import is unused.
+    Previously, if we typechecked a statement like
     
-    Change-Id: I37fe210256ddafa579d9e6d64f3f0db78581974e
-    Reviewed-on: https://go-review.googlesource.com/114175
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+        var x bool = p1.f == p2.f && p1.g == p2.g
+    
+    we would correctly update the '&&' node's type from 'untyped bool' to
+    'bool', but the '==' nodes would stay 'untyped bool'. This is
+    inconsistent, and caused consistency checks during walk to fail.
+    
+    This CL doesn't pass toolstash because it seems to slightly affect the
+    register allocator's heuristics. (Presumably 'untyped bool's were
+    previously making it all the way through SSA?)
+    
+    Fixes #23414.
+    
+    Change-Id: Ia85f8cfc69b5ba35dfeb157f4edf57612ecc3285
+    Reviewed-on: https://go-review.googlesource.com/94022
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/internal/cpu/cpu_ppc64x_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/gc/const.go | 14 ++++++++++----
+ test/fixedbugs/issue23414.go         | 13 +++++++++++++
+ 2 files changed, 23 insertions(+), 4 deletions(-)

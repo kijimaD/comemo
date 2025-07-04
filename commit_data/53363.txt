@@ -1,26 +1,27 @@
-commit 3824d3d71ef1479b71ca624b728356657f62e1d3
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri May 26 15:49:22 2023 -0400
+commit 502b6057d2a30b284a3889e4439b47289244382b
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 20 14:12:56 2022 -0400
 
-    cmd/go: always track visited packages in setPGOProfilePath
+    runtime: add mayAcquire annotation for trace.lock
     
-    Currently we only track visited (copied) packages when a copy is
-    required. When a copy is not required, we will rewalk each package's
-    entire dependency graph every time we see it, which is terribly
-    inefficient.
+    Now that we've moved the trace locks to the leaf of the lock graph, we
+    can safely annotate that any trace event may acquire trace.lock even
+    if dynamically it turns out a particular event doesn't need to flush
+    and acquire this lock.
     
-    Pull the visited package check up a level so that we visit packages only
-    once regardless of how many times they are visited.
+    This reveals a new edge where we can trace while holding the mheap
+    lock, so we add this to the lock graph.
     
-    Fixes #60455.
-    Fixes #60428.
+    For #53789.
+    Updates #53979.
     
-    Change-Id: I4e9b31eeeaa170db650c461a5de2ca984b9aba0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498735
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I13e2f6cd1b621cca4bed0cc13ef12e64d05c89a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418720
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/load/pkg.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ src/runtime/lockrank.go   |  4 ++--
+ src/runtime/mklockrank.go |  1 +
+ src/runtime/trace.go      | 15 +++++++++++++++
+ 3 files changed, 18 insertions(+), 2 deletions(-)

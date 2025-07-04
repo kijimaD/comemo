@@ -1,17 +1,12 @@
-commit c70b4b5f7e419214c8c61ba5306b569fbab7dc30
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 6 12:22:05 2015 -0400
+commit 9cde36be54cb106d00cc6446117a2f2999d9928a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 16 13:39:16 2015 -0400
 
-    cmd/internal/gc: show register dump before crashing on register left allocated
+    runtime/cgo: enable arm64 EXC_BAD_ACCESS handler
     
-    If you are using -h to get a stack trace at the site of the failure,
-    Yyerror will never return. Dump the register allocation sites
-    before calling Yyerror.
-    
-    Change-Id: I51266c03e06cb5084c2eaa89b367b9ed85ba286a
-    Reviewed-on: https://go-review.googlesource.com/9788
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I8e912ff9327a4163b63b8c628aa3546e86ddcc02
+    Reviewed-on: https://go-review.googlesource.com/8983
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/internal/gc/gsubr.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/cgo/gcc_darwin_arm64.c | 5 +++++
+ 1 file changed, 5 insertions(+)

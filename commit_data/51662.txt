@@ -1,26 +1,38 @@
-commit 2e792a8295d7c7f082cf2e3b163a3d4d30b6df7e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jan 18 10:08:34 2023 -0500
+commit 6c6a8fb702fcf3c2d23dc68976a831b2bdcad03e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Feb 18 16:10:27 2022 +0100
 
-    cmd/go: do not attempt to install cmd/addr2line in TestScript/mod_outside
+    syscall: remove accept on Linux
     
-    Tests must not write to GOROOT: it might not writable (for example, if
-    it is owned by root and the user is non-root), and in general we can't
-    assume that the configuration in which the test is run matches the
-    configuration with which the installed tools were built.
+    accept is no longer used on Linux since CL 346849 changed Accept to use
+    accept4 only.
     
-    In this specific case, CL 454836 (for #57007) installs 'cmd' with
-    CGO_ENABLED=0, but most builders still run the tests with CGO_ENABLED
-    unset.
+    For #45964
     
-    Updates #57007.
-    
-    Change-Id: I2795fcd3ff61c164dc730b62f697f307ab3a167b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461689
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I72c13df1457016c4785ec13d356ab89cbca644b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386415
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/mod_outside.txt | 7 -------
- 1 file changed, 7 deletions(-)
+ src/syscall/syscall_linux_386.go       |  8 --------
+ src/syscall/syscall_linux_amd64.go     |  1 -
+ src/syscall/syscall_linux_arm.go       |  1 -
+ src/syscall/syscall_linux_arm64.go     |  1 -
+ src/syscall/syscall_linux_mips64x.go   |  1 -
+ src/syscall/syscall_linux_mipsx.go     |  1 -
+ src/syscall/syscall_linux_ppc64x.go    |  1 -
+ src/syscall/syscall_linux_riscv64.go   |  1 -
+ src/syscall/syscall_linux_s390x.go     |  8 --------
+ src/syscall/zsyscall_linux_amd64.go    | 11 -----------
+ src/syscall/zsyscall_linux_arm.go      | 11 -----------
+ src/syscall/zsyscall_linux_arm64.go    | 11 -----------
+ src/syscall/zsyscall_linux_mips.go     | 11 -----------
+ src/syscall/zsyscall_linux_mips64.go   | 11 -----------
+ src/syscall/zsyscall_linux_mips64le.go | 11 -----------
+ src/syscall/zsyscall_linux_mipsle.go   | 11 -----------
+ src/syscall/zsyscall_linux_ppc64.go    | 11 -----------
+ src/syscall/zsyscall_linux_ppc64le.go  | 11 -----------
+ src/syscall/zsyscall_linux_riscv64.go  | 11 -----------
+ 19 files changed, 133 deletions(-)

@@ -1,22 +1,20 @@
-commit 469a87d7a57572148a176db1f43767aa90cdd10d
-Author: Abirdcfly <fp544037857@gmail.com>
-Date:   Mon Jul 25 06:31:46 2022 +0000
+commit 960d036f8f7387de9b06fde6601af43ecaa650e6
+Author: Hossein Zolfi <hossein.zolfi@gmail.com>
+Date:   Mon Sep 13 19:16:28 2021 +0000
 
-    net/http: remove unused method needsSniff
+    cmd/go: add missing parenthesis in a call to "PrintVersion"
     
-    Change-Id: Ia8c67d148fc7e71cac8954ccce6fffb8a6f423df
-    GitHub-Last-Rev: 9441b8f0c510a3a03dc22816e2616d57f1411965
-    GitHub-Pull-Request: golang/go#54036
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419322
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Javad Rajabzadeh <ja7ad@live.com>
-    Reviewed-by: hopehook <hopehook@qq.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    For #45713
+    
+    Change-Id: I16e548e6c10e58da815d08897f4ba5d71eeb17e4
+    GitHub-Last-Rev: 4a0c5d0cdaba94e5950effdcb0ef6b736c9556d1
+    GitHub-Pull-Request: golang/go#48360
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349599
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/http/response_test.go | 13 -------------
- src/net/http/server.go        |  6 ------
- 2 files changed, 19 deletions(-)
+ src/cmd/go/testdata/script/work_prune.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

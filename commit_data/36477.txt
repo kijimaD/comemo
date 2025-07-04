@@ -1,12 +1,18 @@
-commit 97cc4b5123a71193cbb207a40a14b9025e769ec7
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Fri Aug 24 15:20:33 2018 -0400
+commit a4aa2e0c280237f5e4d22f84386bcfee2f9cec3f
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Apr 30 17:36:23 2018 +0900
 
-    doc: document Go 1.10.4
+    cmd/cgo: visit cgo type inside ellipsis node
     
-    Change-Id: I7383e7d37a71defcad79fc662c4b4d1ca02189d1
-    Reviewed-on: https://go-review.googlesource.com/131336
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #25143
+    
+    Change-Id: Ide654fe70651fda827cdeeaaa73d2a1f8aefd7e7
+    Reviewed-on: https://go-review.googlesource.com/110159
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/devel/release.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue25143.go | 22 ++++++++++++++++++++++
+ src/cmd/cgo/ast.go          |  1 +
+ 3 files changed, 24 insertions(+)

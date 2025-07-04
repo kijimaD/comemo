@@ -1,15 +1,12 @@
-commit 87c35d8df1607c0a13840390bee5e1de3eb7838a
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Sun Oct 7 16:47:53 2012 +0200
+commit 9224b4c873f09c310787b12830acdb5577a099c9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Oct 7 14:14:46 2012 +0800
 
-    cmd/gc: Don't accept qualified names as literal keys
+    cmd/gc: fix output filename generation on Windows
     
-    Fixes #4067.
-    
-    R=golang-dev, minux.ma, dave, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6622056
+    https://golang.org/cl/6610060
 
- src/cmd/gc/typecheck.c   | 10 ++++++----
- test/fixedbugs/bug462.go | 19 +++++++++++++++++++
- 2 files changed, 25 insertions(+), 4 deletions(-)
+ src/cmd/gc/lex.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

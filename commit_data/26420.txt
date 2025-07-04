@@ -1,38 +1,13 @@
-commit b2cf57104090b0cc148c0608f10f33cdfb48ec11
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Mon Mar 21 00:13:36 2016 +0100
+commit c7f5831fa9277edebb863ab11c9527fb09637ce9
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 22 10:06:08 2016 +1100
 
-    all: delete dead test code
+    lib/time: update to IANA release 2015g.
     
-    This deletes unused code and helpers from tests.
-    
-    Change-Id: Ie31d46115f558ceb8da6efbf90c3c204e03b0d7e
-    Reviewed-on: https://go-review.googlesource.com/20927
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id82209dc313fa6b54e623eb325412737e7a055fe
+    Reviewed-on: https://go-review.googlesource.com/18794
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/archive/zip/zip_test.go      | 21 -------------------
- src/bufio/scan_test.go           |  4 ----
- src/bytes/bytes_test.go          | 26 ------------------------
- src/cmd/doc/doc_test.go          |  5 -----
- src/cmd/go/go_test.go            | 12 -----------
- src/crypto/x509/verify_test.go   | 44 ----------------------------------------
- src/database/sql/fakedb_test.go  |  7 -------
- src/debug/gosym/pclntab_test.go  |  2 --
- src/encoding/gob/encoder_test.go |  4 ----
- src/encoding/xml/xml_test.go     |  6 ------
- src/fmt/scan_test.go             |  6 ------
- src/go/build/deps_test.go        | 15 --------------
- src/go/types/hilbert_test.go     | 13 ------------
- src/math/all_test.go             |  7 -------
- src/math/big/arith_test.go       | 15 --------------
- src/math/cmplx/cmath_test.go     |  4 ++--
- src/net/conf_test.go             |  1 -
- src/net/http/export_test.go      |  5 ++---
- src/net/http/fs_test.go          |  3 ---
- src/net/mockserver_test.go       |  7 -------
- src/reflect/all_test.go          |  4 ----
- src/regexp/exec_test.go          |  2 --
- src/regexp/onepass_test.go       |  2 --
- 23 files changed, 4 insertions(+), 211 deletions(-)
+ lib/time/update.bash  |   5 +++--
+ lib/time/zoneinfo.zip | Bin 359824 -> 360617 bytes
+ 2 files changed, 3 insertions(+), 2 deletions(-)

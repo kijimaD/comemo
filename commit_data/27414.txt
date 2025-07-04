@@ -1,20 +1,17 @@
-commit ccdca832c569727f7985966a3324421a69739f57
-Author: andrew werner <andrew@upthere.com>
-Date:   Tue Dec 15 14:42:28 2015 -0800
+commit 640164bc1ca8382fc02ab978f7857d01d4262eb7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Mar 25 14:28:15 2016 -0400
 
-    io: make chained multiReader Read more efficient
+    reflect: test name data is aligned
     
-    before this change, when io.MultiReader was called many times but contain few
-    underlying readers, calls to Read were unnecessarily expensive.
+    For #14962.
     
-    Fixes #13558
-    
-    Change-Id: I3ec4e88c7b50c075b148331fb1b7348a5840adbe
-    Reviewed-on: https://go-review.googlesource.com/17873
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3539d882487c99dee99ac953e039b79c6b963cf9
+    Reviewed-on: https://go-review.googlesource.com/21150
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/multi.go      |  7 +++++++
- src/io/multi_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/reflect/all_test.go    | 13 +++++++++++++
+ src/reflect/export_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

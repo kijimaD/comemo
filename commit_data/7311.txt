@@ -1,15 +1,13 @@
-commit 05b9050bda586eff8be1cc7c262dd57d0a009175
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 1 14:00:36 2011 -0500
+commit 865d5767022326e097482ec211ab24b9418afda7
+Author: Jose Luis Vázquez González <josvazg@gmail.com>
+Date:   Tue Feb 1 13:58:59 2011 -0500
 
-    gc: handle invalid name in type switch
+    http: add host patterns
     
-    Fixes #1453.
-    
-    R=ken2
+    R=bradfitzgo, rsc
     CC=golang-dev
-    https://golang.org/cl/4125043
+    https://golang.org/cl/4070043
 
- src/cmd/gc/go.y       | 11 +++++++++--
- test/syntax/typesw.go | 13 +++++++++++++
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/pkg/http/serve_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/server.go     | 50 ++++++++++++++++++++---------------
+ 2 files changed, 94 insertions(+), 21 deletions(-)

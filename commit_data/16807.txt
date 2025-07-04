@@ -1,17 +1,22 @@
-commit ff52cadc01756d097e5f3e3fe5ff2634d8825ffb
+commit c3de91bb15cf23bd1757c63c581f9da4b7e14598
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 18 11:40:59 2013 -0400
+Date:   Thu Jul 18 10:43:22 2013 -0400
 
-    cmd/ld: refine test for history stack pop (fix Windows build)
+    cmd/ld, runtime: use new contiguous pcln table
     
-    This should fix the Windows build, or at least
-    what's breaking it at the moment.
-    
-    Fixes #5904.
-    
-    TBR=golang-dev
+    R=golang-dev, r, dave
     CC=golang-dev
-    https://golang.org/cl/11519044
+    https://golang.org/cl/11494043
 
- src/cmd/ld/lib.c | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/cmd/5l/obj.c                |   1 -
+ src/cmd/6l/obj.c                |   1 -
+ src/cmd/8l/obj.c                |   1 -
+ src/cmd/ld/lib.c                | 272 +++++++++++++---------------------------
+ src/cmd/ld/lib.h                |   3 +-
+ src/cmd/ld/symtab.c             |   2 +-
+ src/pkg/runtime/mgc0.c          |   4 +-
+ src/pkg/runtime/runtime.h       |   7 +-
+ src/pkg/runtime/symtab.c        | 111 +++++++++-------
+ src/pkg/runtime/traceback_arm.c |  12 +-
+ src/pkg/runtime/traceback_x86.c |  12 +-
+ 11 files changed, 177 insertions(+), 249 deletions(-)

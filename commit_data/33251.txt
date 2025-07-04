@@ -1,26 +1,23 @@
-commit 4d8d138318123d2cb92fb2674bfb910282516550
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 26 12:00:18 2017 -0400
+commit 254f8ea9eafd1678e178b3292a00b8aca517a864
+Author: Wei Congrui <crvv.mail@gmail.com>
+Date:   Sat Jul 29 18:23:00 2017 +0800
 
-    vendor/golang_org/x/net/route: refresh from upstream
+    crypto/{aes,cipher,rc4}: fix out of bounds write in stream ciphers
     
-    This picks up a few changes and should stop the macOS crashes.
+    Functions XORKeyStream should panic if len(dst) < len(src), but it
+    write to dst before bounds checking. In asm routines and fastXORBytes,
+    this is an out of bounds write.
     
-    Fixes #22456.
+    Fixes #21104
     
-    Change-Id: I7e0aae119a5564fcfaa16eeab7422bdd5ff0497b
-    Reviewed-on: https://go-review.googlesource.com/73691
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I354346cda8d63910f3bb619416ffd54cd0a04a0b
+    Reviewed-on: https://go-review.googlesource.com/52050
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/vendor/golang_org/x/net/route/defs_openbsd.go  | 11 +++++++++++
- src/vendor/golang_org/x/net/route/route_classic.go | 10 +++++++++-
- src/vendor/golang_org/x/net/route/route_test.go    |  4 ++++
- src/vendor/golang_org/x/net/route/sys_darwin.go    |  4 ++--
- src/vendor/golang_org/x/net/route/sys_dragonfly.go |  4 ++--
- src/vendor/golang_org/x/net/route/sys_freebsd.go   |  4 ++--
- src/vendor/golang_org/x/net/route/sys_netbsd.go    |  4 ++--
- src/vendor/golang_org/x/net/route/sys_openbsd.go   |  5 +++--
- src/vendor/golang_org/x/net/route/zsys_openbsd.go  | 13 ++++++++++++-
- 9 files changed, 47 insertions(+), 12 deletions(-)
+ src/crypto/aes/ctr_s390x.go   |  4 +++
+ src/crypto/cipher/xor.go      |  9 +++++--
+ src/crypto/issue21104_test.go | 61 +++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/rc4/rc4_asm.go     |  2 ++
+ 4 files changed, 74 insertions(+), 2 deletions(-)

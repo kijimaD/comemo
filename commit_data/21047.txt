@@ -1,12 +1,13 @@
-commit 1e93125aa61a2695682e7cd43fd36b6356b9b08e
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 18 15:28:58 2014 -0500
+commit e522a477c298dac1e26e8bbd6ac262911d7ed8f9
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Nov 11 16:06:47 2014 +1100
 
-    cmd/ld: clean up nested if when loading bind local syms
+    doc: update go1.4.html's minor library changes.
     
-    Change-Id: I15269722ca3d2654a9dd7a3f8a89ad375dc9bee0
-    Reviewed-on: https://go-review.googlesource.com/1759
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/173920043
 
- src/cmd/ld/ldelf.c | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ doc/go1.4.html | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)

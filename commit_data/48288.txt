@@ -1,19 +1,19 @@
-commit 2b8aa2b734721487bb718ee5fb6080f51b57efd9
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Feb 28 05:42:11 2022 -0800
+commit 18e666bad75362ef7d031ebf557effdc42dd290f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 5 11:24:24 2021 -0400
 
-    internal/fuzz: handle Inf/NaN float values
+    cmd/go: skip TestExecInDeletedDir on aix and solaris-based platforms
     
-    Fixes #51258
+    They empirically do not seem to support deleting the current working
+    directory.
     
-    Change-Id: I3c8b785ac912d66e1a6e2179625e6903032b8330
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388354
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #34499
+    
+    Change-Id: I705cdf8b545fbb837d5b75d2904a7c2a89276fa5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317249
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/fuzz/encoding.go      | 115 +++++++++++++++++++++++++++++--------
- src/internal/fuzz/encoding_test.go |  14 +++++
- 2 files changed, 104 insertions(+), 25 deletions(-)
+ src/cmd/go/go_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

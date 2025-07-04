@@ -1,18 +1,15 @@
-commit c00804c55c9ecc65728387a1902e414cac03de10
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 9 14:19:21 2014 -0700
+commit 2182d5786b728bc2371b40f689ca73ee9df0cd88
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 9 16:04:03 2014 -0400
 
-    encoding/binary: document that Read requires exported struct fields
+    math/cmplx: specify which square root Sqrt returns
     
-    Add a test for the current behaviour.
+    Fixes #7851.
     
-    Fixes #7482.
-    
-    LGTM=adg
-    R=golang-codereviews, adg
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/95160043
+    https://golang.org/cl/93200043
 
- src/pkg/encoding/binary/binary.go      |  1 +
- src/pkg/encoding/binary/binary_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 25 insertions(+)
+ src/pkg/math/cmplx/sqrt.go | 1 +
+ 1 file changed, 1 insertion(+)

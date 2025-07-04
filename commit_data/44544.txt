@@ -1,14 +1,17 @@
-commit 7205a4fbdc98f22fc2f0df7d12a242f9096bebbf
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Mar 2 13:21:53 2021 -0500
+commit 64fdc8b47a77d090def16d76ddf3522fac035a1e
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Aug 6 09:54:54 2020 -0400
 
-    cmd/internal/goobj: regenerate builtin list
+    [dev.link] cmd/link: fix preallocation for function names
     
-    Change-Id: Ib8cb5f90e084838f00ecba78641bbb5d48ecac32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297931
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    This preallocation is way too large, and showed up in the metrics. Just
+    remove it all together.
+    
+    Change-Id: Ib4646b63cd0a903656ada244f15e977cde2a2c4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247177
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/internal/goobj/builtinlist.go | 7 ++++---
- src/cmd/internal/goobj/mkbuiltin.go   | 4 ++--
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

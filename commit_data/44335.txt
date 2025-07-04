@@ -1,32 +1,13 @@
-commit 1126bbb82ab2f81dcb33df696a1bb601a98d3174
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Feb 22 15:39:00 2021 -0500
+commit 7d975ae9c04ca7e1c605ac051a13a4d5ff99fca3
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Jun 12 15:12:52 2020 +0800
 
-    go/parser: return ast.BadExpr for missing index operands
+    A+C: change email address for Meng Zhuo
     
-    The parser was returning the indexed operand when a slice or index or
-    instance expression was missing any index arguments (as in the
-    expression `a[]`). This can result in returning an *ast.Ident for the
-    LHS of the (invalid) assignment `a[] = ...` -- in this case parsing the
-    LHS as just `a`. Unfortunately, as the indexed operand `a` has already
-    been resolved, this results in a panic for duplicate resolution.
-    
-    Fix this by instead returning an ast.BadExpr. This can suppress some
-    subsequent errors from the typechecker, but those errors may or may not
-    be correct anyway. Other interpretations, such as an *ast.IndexExpr with
-    bad or missing X, run into potential misinterpretations downstream (both
-    caused errors in go/types and/or gopls).
-    
-    Fixes #44504
-    
-    Change-Id: I5ca8bed4a1861bcc7db8898770b08937110981d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295151
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I60965f6193256959055824749ed08ce86f6ba482
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237541
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/parser/parser.go               |  3 ++-
- src/go/parser/testdata/issue44504.src | 13 +++++++++++++
- src/go/types/fixedbugs/issue39634.go2 |  2 +-
- 3 files changed, 16 insertions(+), 2 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

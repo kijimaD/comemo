@@ -1,17 +1,22 @@
-commit 324cf21f781c651ad4e7a0ba9480b6ab85b7c0d1
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Mon Jul 29 20:24:22 2019 +0700
+commit b4fbd291b3872706422d39fd1140b7b929c77622
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 9 19:34:58 2019 -0800
 
-    cmd/compile: remove adjustctx from inline test
+    cmd/compile: normalize more whitespace in rewrite rules
     
-    After golang.org/cl/33895, function adjustctx can not be inlined,
-    cost 82 exceeds budget 80
+    If you write a rewrite rule:
     
-    Change-Id: Ie559ed80ea2c251add940a99f11b2983f6cbddbc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187977
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    (something) && noteRule("X")-> (something)
+    
+    then rulegen will panic with an error message about commutativity.
+    The real problem is the lack of a space between the ) and the ->.
+    Normalize that bit of whitespace too.
+    
+    Change-Id: Idbd53687cd0398fe275ff2702667688cad05b4ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166427
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 1 +
+ 1 file changed, 1 insertion(+)

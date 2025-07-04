@@ -1,28 +1,53 @@
-commit 98534fd1a0dbb354a5e10d3de3a58ebdcfd2b5f6
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Dec 5 15:31:39 2024 -0500
+commit 0330aad03839fe24d15b1f4b012e908ae3b4614d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 26 12:06:04 2023 -0400
 
-    cmd/go: consistently use DefaultExecName for executable name
+    os: report IO_REPARSE_TAG_DEDUP files as regular in Stat and Lstat
     
-    go tool, go run, and the executable caching logic have all used
-    path.Base of a package's import path to set the name of the executable
-    produced. But the base name for a package name that's the same as a
-    module name ending in a major version is just that major version, which
-    is not very useful. For go build and go install, we use
-    load.DefaultExecName as the name of the binary which will select the
-    second to last element of the import path as the name of the executable
-    produced. This change changes go tool, go run, and the executable
-    caching logic to all use DefaultExecName consistently to pick the name
-    of the executable.
+    Prior to CL 460595, Lstat reported most reparse points as regular
+    files. However, reparse points can in general implement unusual
+    behaviors (consider IO_REPARSE_TAG_AF_UNIX or IO_REPARSE_TAG_LX_CHR),
+    and Windows allows arbitrary user-defined reparse points, so in
+    general we must not assume that an unrecognized reparse tag represents
+    a regular file; in CL 460595, we began marking them as irregular.
     
-    Change-Id: I8e615bbc6a4f9cc4549165c31954fab181d63318
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/634039
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    As it turns out, the Data Deduplication service on Windows Server runs
+    an Optimization job that turns regular files into reparse files with
+    the tag IO_REPARSE_TAG_DEDUP. Those files still behave more-or-less
+    like regular files, in that they have well-defined sizes and support
+    random-access reads and writes, so most programs can treat them as
+    regular files without difficulty. However, they are still reparse
+    files: as a result, on servers with the Data Deduplication service
+    enabled, files could arbitrarily change from “regular” to “irregular”
+    without explicit user intervention.
+    
+    Since dedup files are converted in the background and otherwise behave
+    like regular files, this change adds a special case to report DEDUP
+    reparse points as regular.
+    
+    Fixes #63429.
+    
+    No test because to my knowledge we don't have any Windows builders
+    that have the deduplication service enabled, nor do we have a way to
+    reliably guarantee the existence of an IO_REPARSE_TAG_DEDUP file.
+    
+    (In theory we could add a builder with the service enabled on a
+    specific volume, write a test that encodes knowledge of that volume,
+    and use the GO_BUILDER_NAME environment variable to run that test only
+    on the specially-configured builders. However, I don't currently have
+    the bandwidth to reconfigure the builders in this way, and given the
+    simplicity of the change I think it is unlikely to regress
+    accidentally.)
+    
+    Change-Id: I649e7ef0b67e3939a980339ce7ec6a20b31b23a1
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537915
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Conrad Irwin <conrad.irwin@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/run/run.go              |  3 +-
- src/cmd/go/internal/tool/tool.go            | 11 ++++++--
- src/cmd/go/internal/work/buildid.go         |  3 +-
- src/cmd/go/testdata/script/tool_exename.txt | 43 ++++++++++++++++++++++++++++-
- 4 files changed, 52 insertions(+), 8 deletions(-)
+ src/internal/syscall/windows/reparse_windows.go |  1 +
+ src/os/types_windows.go                         | 18 +++++++++++++++++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)

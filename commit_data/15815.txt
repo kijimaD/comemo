@@ -1,20 +1,20 @@
-commit ba50e4f1203ad5cc20b7ada2fce4da62ab195622
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Mar 18 20:11:11 2013 +0100
+commit a7a803c7b7b5322c90d093cc603ebafd0c3c320a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 18 11:39:00 2013 -0700
 
-    runtime: fix tv_sec 32-bit overflows in sleep routines.
+    database/sql: allow simultaneous queries, etc in a Tx
     
-    Fixes #5063.
+    Now that revision 0c029965805f is in, it's easy
+    to guarantee that we never access a driver.Conn
+    concurrently, per the database/sql/driver contract,
+    so we can remove this overlarge mutex.
     
-    R=golang-dev, minux.ma, rsc
+    Fixes #3857
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7876043
+    https://golang.org/cl/7707047
 
- src/pkg/runtime/export_futex_test.go | 13 +++++++++++++
- src/pkg/runtime/futex_test.go        | 31 +++++++++++++++++++++++++++++++
- src/pkg/runtime/os_darwin.c          |  7 ++++++-
- src/pkg/runtime/os_freebsd.c         |  7 ++++++-
- src/pkg/runtime/os_linux.c           | 10 ++++++----
- src/pkg/runtime/os_netbsd.c          |  7 ++++++-
- src/pkg/runtime/os_openbsd.c         |  7 ++++++-
- 7 files changed, 74 insertions(+), 8 deletions(-)
+ src/pkg/database/sql/sql.go      | 26 +++++---------------------
+ src/pkg/database/sql/sql_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 21 deletions(-)

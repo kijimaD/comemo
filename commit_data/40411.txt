@@ -1,22 +1,23 @@
-commit 4f70c151db6a2f169058a193232263733aa3947e
-Author: Rob Pike <r@golang.org>
-Date:   Thu Oct 24 18:22:43 2019 +1100
+commit 1d1ff469660437e4d4992b421beb6e31b19e1970
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 10 11:10:50 2019 -0400
 
-    fmt: fix handling of %% verb in Scanf
+    cmd/go/testdata/script: remove skips and clarify comments in mod_*_upgrade_pseudo tests
     
-    There were a couple of bugs, including not requiring a percent and
-    returning the wrong error for a bad format containing %%.
+    These tests were added in CL 174206.
     
-    Both are addressed by fixing the first.
+    They required a 'git' binary and network access in an earlier draft,
+    but now use the test-local module proxy instead, so no longer need to
+    be skipped when those resources are not present.
     
-    Fixes #34180.
+    Updates #30634
     
-    Change-Id: If96c0c0258bcb95eec49871437d719cb9d399d9b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202879
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I5f36c6c776209a89bc45d133847df5052b55da59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176537
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/fmt/scan.go      | 13 +++++++++++++
- src/fmt/scan_test.go | 19 ++++++++++++-------
- 2 files changed, 25 insertions(+), 7 deletions(-)
+ .../go/testdata/script/mod_get_upgrade_pseudo.txt   | 21 ++++++++-------------
+ .../go/testdata/script/mod_list_upgrade_pseudo.txt  | 21 ++++++++-------------
+ 2 files changed, 16 insertions(+), 26 deletions(-)

@@ -1,26 +1,28 @@
-commit 22db3c5a62b01dba6122230aa71d35c48107c70c
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Sat Apr 23 21:00:38 2016 +0300
+commit 11a80860ada89b5ce8fc34ee2d91f73dfa89ab7b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 14 21:01:43 2016 -0700
 
-    cmd/vet: improve checking unkeyed fields in composite literals
+    cmd/compile: move testdclstack out of the xdcl_list loop
     
-    - Simplified the code.
+    This is a band-aid, but it fixes the problem
+    until a deeper fix is in place.
     
-    - Removed types for slice aliases from composite literals' whitelist, since they
-    are properly handled by vet.
+    Testing with genpkg -n 50000, I see:
     
-    Fixes #15408
-    Updates #9171
-    Updates #11041
+    Before:
     
-    Change-Id: Ia1806c9eb3f327c09d2e28da4ffdb233b5a159b0
-    Reviewed-on: https://go-review.googlesource.com/22318
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+          154.67 real       184.66 user         3.15 sys
+    
+    After:
+    
+           61.82 real        96.99 user         2.17 sys
+    
+    
+    Fixes #14781.
+    
+    Change-Id: I24c7822d60c289bdd6a18a7840b984954c95f7d4
+    Reviewed-on: https://go-review.googlesource.com/20696
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/vet/composite.go                    | 110 +++++++++-------------------
- src/cmd/vet/internal/whitelist/whitelist.go |  36 ++-------
- src/cmd/vet/testdata/composite.go           |  52 +++++++++++--
- src/cmd/vet/types.go                        |  23 ------
- 4 files changed, 82 insertions(+), 139 deletions(-)
+ src/cmd/compile/internal/gc/parser.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

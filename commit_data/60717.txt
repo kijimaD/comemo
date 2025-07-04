@@ -1,0 +1,26 @@
+commit 1a90dcdaaf46d9dd0ee61781dcb9b6e05b80d926
+Author: Tim King <taking@google.com>
+Date:   Thu Aug 15 16:48:42 2024 -0700
+
+    go/types, types2: unalias tilde terms in underIs
+    
+    Unalias the ~T terms during underIs. Before, if T was an alias
+    of U, it may pass T to the iteration function. The iterator
+    function expects an underlying type, under(U), to be passed.
+    This caused several bugs where underIs is used without
+    eventually taking the underlying type.
+    
+    Updates #68935
+    Fixes #68903
+    
+    Change-Id: Ie8691d8dddaea00e1dcba94d17c0f1b021fc49a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606075
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/typeset.go         |  4 ++--
+ src/go/types/typeset.go                            |  4 ++--
+ .../types/testdata/fixedbugs/issue68903.go         | 24 ++++++++++++++++++++
+ .../types/testdata/fixedbugs/issue68935.go         | 26 ++++++++++++++++++++++
+ 4 files changed, 54 insertions(+), 4 deletions(-)

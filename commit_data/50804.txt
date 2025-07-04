@@ -1,20 +1,22 @@
-commit 3a37b112816d0002ed29804401560e0419b11a92
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Tue Oct 4 10:30:55 2022 +0800
+commit a01a6d6efea52802f455849cd52ef7f8d049033a
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Nov 10 01:04:12 2021 +0100
 
-    cmd/go: add @latest suffix for go install
+    net: add conversion from AddrPort to TCPAddr to complement existing inverse
     
-    Fixes #56014.
+    We already have various member functions of TCPAddr that return an
+    AddrPort, but we don't have a helper function to go from a AddrPort to a
+    TCPAddr. UDP has this, but it was left out of TCP. This commit adds the
+    corresponding function.
     
-    Change-Id: I75a3960e092459531de43868750f1684ed2ccb70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/437998
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Updates #49298.
+    
+    Change-Id: I85732cf34f47c792fe13a6b4af64fd4b0e85d06a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362596
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go          | 2 +-
- src/cmd/go/internal/vet/vet.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/net/tcpsock.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

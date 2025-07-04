@@ -1,24 +1,18 @@
-commit 51504f0a2d65a7f7fcf63c25c2cb306a6863d07d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 21 14:25:45 2019 -0700
+commit 2729cd07510b38c6be4f99beebe32ccb888d1f0f
+Author: Bobby DeSimone <bobbydesimone@gmail.com>
+Date:   Mon May 6 21:26:08 2019 +0000
 
-    go/types: don't update package-external types when checking validity
+    net/url: add tests for URLHostname
     
-    The recently added type-validity check uses a new field of Named
-    types for marking (to detect cycles). That field was modified even
-    if the type was not part of the current package or belonged to the
-    Universe scope (error type). This led to race conditions if the
-    package's type was imported by multiple, concurrently type-checked
-    packages.
+    These changes add tests for URLHostname.
     
-    A test would be nice but it's a bit cumbersome to set one up.
-    Verified manually that package-external types are left alone.
-    
-    Fixes #35049.
-    
-    Change-Id: I51686bef47fcca48b99b91ecb1b2e9d58e135ea6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202483
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie474516401a2236a9be65fb5c4e478322b1a199c
+    GitHub-Last-Rev: 18f2d597be960c4d13cde12fef5d115926bff7bd
+    GitHub-Pull-Request: golang/go#31832
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175142
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/decl.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/net/url/url_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

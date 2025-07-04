@@ -1,19 +1,14 @@
-commit 12b2022a3b20565c0c995f86de4f072964679047
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 29 12:40:13 2012 -0700
+commit a0efca84e61f6d98587d8b49d69c78bdc1acc6b4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 29 22:30:56 2012 +0400
 
-    net/http: flush server response gracefully when ignoring request body
+    time: fix deadlock in Sleep(0)
+    See time/sleep_test.go for repro.
     
-    This prevents clients from seeing RSTs and missing the response
-    body.
-    
-    TCP stacks vary. The included test failed on Darwin before but
-    passed on Linux.
-    
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/6256066
+    R=golang-dev, r, rsc
+    CC=golang-dev, patrick.allen.higgins
+    https://golang.org/cl/6250072
 
- src/pkg/net/http/serve_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/server.go     | 33 +++++++++++++++++++++++++++---
- 2 files changed, 76 insertions(+), 3 deletions(-)
+ src/pkg/runtime/time.goc   |  5 ++++-
+ src/pkg/time/sleep_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

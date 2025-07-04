@@ -1,21 +1,87 @@
-commit 4c49d52439805c248f4a01d529b90b22e821b7d6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 22 14:04:43 2023 -0700
+commit bccce9028996502e62a92255d79d5e003fbae63b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 22 15:38:00 2022 -0700
 
-    go/types, types2: remove unnecessary tests for x.typ == Typ[Invalid]
+    vendor, cmd/vendor: update to current x/sys repo
     
-    In the worst case (x.mode != invalid but x.typ == Typ[Invalid]) we
-    may get unexpected additional errors; but we don't seem to have
-    any such situations, at least in the existing tests.
+    Ran, in src and src/cmd:
     
-    Change-Id: I86ae607b4ac9b926264bb6a967627c40e5a86ade
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478715
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+        go get -u golang.org/x/sys
+        go mod vendor
+        go mod tidy
+    
+    This brings in loong64 support.
+    
+    Change-Id: Ide30bd7bd073f473be9d8329e6a4f1d2c903d9a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401855
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/assignments.go | 10 +++-------
- src/go/types/assignments.go                    | 10 +++-------
- 2 files changed, 6 insertions(+), 14 deletions(-)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../golang.org/x/sys/unix/asm_linux_loong64.s      |  54 ++
+ .../vendor/golang.org/x/sys/unix/endian_little.go  |   4 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   3 +
+ .../vendor/golang.org/x/sys/unix/syscall_bsd.go    |  11 +-
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |  41 +-
+ .../golang.org/x/sys/unix/syscall_dragonfly.go     |   5 -
+ .../golang.org/x/sys/unix/syscall_freebsd.go       |   5 -
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |  11 +-
+ .../golang.org/x/sys/unix/syscall_linux_amd64.go   |   1 +
+ .../golang.org/x/sys/unix/syscall_linux_arm64.go   |   1 +
+ .../golang.org/x/sys/unix/syscall_linux_loong64.go | 191 +++++
+ .../vendor/golang.org/x/sys/unix/syscall_netbsd.go |   5 -
+ .../golang.org/x/sys/unix/syscall_openbsd.go       |   5 -
+ .../golang.org/x/sys/unix/syscall_solaris.go       | 120 ++-
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  30 +-
+ .../golang.org/x/sys/unix/zerrors_linux_loong64.go | 818 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |  13 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  |   8 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |  13 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  |   8 +-
+ .../vendor/golang.org/x/sys/unix/zsyscall_linux.go |  99 +++
+ .../golang.org/x/sys/unix/zsyscall_linux_amd64.go  |  11 +
+ .../golang.org/x/sys/unix/zsyscall_linux_arm64.go  |  11 +
+ .../x/sys/unix/zsyscall_linux_loong64.go           | 552 ++++++++++++++
+ .../golang.org/x/sys/unix/zsysnum_linux_386.go     |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm.go     |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_loong64.go | 313 ++++++++
+ .../golang.org/x/sys/unix/zsysnum_linux_mips.go    |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips64.go  |   1 +
+ .../x/sys/unix/zsysnum_linux_mips64le.go           |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mipsle.go  |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc.go     |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64.go   |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64le.go |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_s390x.go   |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |   1 +
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |  62 +-
+ .../golang.org/x/sys/unix/ztypes_linux_386.go      |  13 +
+ .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |  14 +
+ .../golang.org/x/sys/unix/ztypes_linux_arm.go      |  13 +
+ .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |  14 +
+ .../golang.org/x/sys/unix/ztypes_linux_loong64.go  | 679 +++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_linux_mips.go     |  13 +
+ .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |  14 +
+ .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |  14 +
+ .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |  13 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc.go      |  13 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |  14 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |  14 +
+ .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |  14 +
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |  14 +
+ .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |  14 +
+ .../golang.org/x/sys/windows/syscall_windows.go    |   7 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   4 +-
+ src/vendor/golang.org/x/sys/cpu/byteorder.go       |   1 +
+ src/vendor/golang.org/x/sys/cpu/cpu_loong64.go     |  13 +
+ src/vendor/modules.txt                             |   2 +-
+ 64 files changed, 3170 insertions(+), 146 deletions(-)

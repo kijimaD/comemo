@@ -1,16 +1,12 @@
-commit 0ac317817bfdde4de178893b9489aac007210280
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Nov 8 08:22:40 2012 +1100
+commit f59a605645def8e5afd5052e0e47836921c59c05
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Nov 7 21:35:21 2012 +0100
 
-    archive/tar: avoid writing ModTime that is out of range.
-    
-    Update #4358
-    Still to do: support binary numeric format in Reader.
+    runtime: use runtime·callers when racefuncenter's pc is on the heap.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6818101
+    https://golang.org/cl/6821069
 
- src/pkg/archive/tar/tar_test.go | 43 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/archive/tar/writer.go   | 39 ++++++++++++++++++++++++-------------
- 2 files changed, 69 insertions(+), 13 deletions(-)
+ src/pkg/runtime/race.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

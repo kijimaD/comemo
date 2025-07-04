@@ -1,18 +1,20 @@
-commit 3f4f119b5e5a48c558c2b318b32f036e1062b108
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 28 15:01:18 2017 -0700
+commit 96414ca39f4a63d04ddc5cea6d4c63237f2a5fd4
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Dec 10 13:30:13 2016 -0500
 
-    cmd/compile/internal/gc: npos(p, nod(o, l, r)) -> nodl(p, o, l, r)
+    cmd/link: do not export plugin C symbols
     
-    Prepared with gofmt -r.
+    Explicitly filter any C-only cgo functions out of pclntable,
+    which allows them to be duplicated with the host binary.
     
-    Passes toolstash-check.
+    Updates #18190.
     
-    Change-Id: I8a4f7a8c365dfe464dfc5868a18c67d56af37749
-    Reviewed-on: https://go-review.googlesource.com/38739
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I50d8706777a6133b3e95f696bc0bc586b84faa9e
+    Reviewed-on: https://go-review.googlesource.com/34199
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go | 50 +++++++++++++++++-----------------
- 1 file changed, 25 insertions(+), 25 deletions(-)
+ misc/cgo/testplugin/src/plugin2/plugin2.go | 13 ++++++++++--
+ src/cmd/link/internal/ld/macho.go          | 19 ++++++++++++++++--
+ src/cmd/link/internal/ld/pcln.go           | 18 ++++++++++++++++-
+ src/runtime/plugin.go                      | 32 ++++++++++++++++++++++++++++++
+ 4 files changed, 77 insertions(+), 5 deletions(-)

@@ -1,19 +1,20 @@
-commit e3b536a054603789ad8dc8481b88cf3c82eb4bf6
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Feb 26 03:17:01 2020 +1100
+commit 047141797c160430c9f41e1225bbfbf562fd7795
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Sep 29 23:42:42 2019 +0700
 
-    test: re-enable open-coded defer test on riscv64
+    cmd/compile: lookup methods of base type for named pointer type
     
-    Open-coded defers were fixed and re-enabled on riscv64, however this test was
-    inadvertantly left disabled.
+    Passed toolstash-check.
     
-    Updates #36786
+    Updates #21738
+    Fixes #21934
     
-    Change-Id: I128fc84baa3d51f50d173e19e52051dc4d9a07c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220920
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I59f0b2c9890146565ff913b04aeeeff7dc7a4499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197561
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/defererrcheck.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/compile/internal/gc/subr.go |  7 ++++++-
+ test/fixedbugs/issue21934.go        | 26 ++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

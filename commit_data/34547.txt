@@ -1,16 +1,29 @@
-commit ad466d8b87da200fa682f59eca79665addf75138
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Mar 9 11:35:18 2018 +0100
+commit 2596a0c075aeddec571cd658f748ac7a712a2b69
+Author: Ivan Bertona <ivan.bertona@gmail.com>
+Date:   Tue Oct 31 13:16:38 2017 -0700
 
-    go/internal/gcimporter: simplify defer
+    encoding/json: disallow unknown fields in Decoder
     
-    Directly use rc.Close instead of wrapping it with a closure.
+    Add a DisallowUnknownFields flag to Decoder.
     
-    Change-Id: I3dc1c21ccbfe031c230b035126d5ea3bc62055c3
-    Reviewed-on: https://go-review.googlesource.com/99716
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    DisallowUnknownFields causes the Decoder to return an error when
+    the the decoding destination is a struct and the input contains
+    object keys which do not match any non-ignored, public field the
+    destination, including keys whose value is set to null.
+    
+    Note: this fix has already been worked on in 27231, which seems
+    to be abandoned. This version is a slightly simpler implementation
+    and is up to date with the master branch.
+    
+    Fixes #15314
+    
+    Change-Id: I987a5857c52018df334f4d1a2360649c44a7175d
+    Reviewed-on: https://go-review.googlesource.com/74830
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Run-TryBot: Joe Tsai <joetsai@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/internal/gcimporter/gcimporter.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/encoding/json/decode.go      | 12 ++++--
+ src/encoding/json/decode_test.go | 88 +++++++++++++++++++++++++++++++++++++---
+ src/encoding/json/stream.go      |  5 +++
+ 3 files changed, 95 insertions(+), 10 deletions(-)

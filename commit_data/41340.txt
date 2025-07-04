@@ -1,65 +1,28 @@
-commit 6dd11bcb35cba37f5994c1b9aaaf7d2dc13fd7cf
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jan 21 20:53:30 2020 -0800
+commit eb96f8a57444d174bba500b3a5d2a8b21b7e6d1e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jun 25 19:06:57 2019 +0000
 
-    cmd/compile: remove chunking of rewrite rules
+    runtime: scavenge on growth instead of inline with allocation
     
-    We added chunking of rewrite rules to speed up compiling package SSA.
-    This series of changes has significantly shrunk the number of
-    rewrite rules, and they are no longer being added nearly as fast.
-    Now that we are sharing v.Args across multiple rewrite rules,
-    there is additional benefit to having more rules in a single function.
-    Removing chunking now has an incidental impact on compiling package SSA,
-    marginally speeds up other compilation, shrinks the cmd/compile binary,
-    and simplifies the code.
+    Inline scavenging causes significant performance regressions in tail
+    latency for k8s and has relatively little benefit for RSS footprint.
     
-    name        old time/op       new time/op       delta
-    Template          211ms ± 2%        210ms ± 2%  -0.50%  (p=0.000 n=91+97)
-    Unicode          81.9ms ± 3%       81.8ms ± 3%    ~     (p=0.179 n=96+91)
-    GoTypes           731ms ± 2%        731ms ± 1%    ~     (p=0.442 n=94+96)
-    Compiler          3.43s ± 2%        3.41s ± 2%  -0.36%  (p=0.001 n=98+94)
-    SSA               8.30s ± 2%        8.32s ± 2%  +0.19%  (p=0.034 n=94+95)
-    Flate             135ms ± 2%        134ms ± 1%  -0.30%  (p=0.006 n=98+94)
-    GoParser          167ms ± 1%        167ms ± 1%  -0.22%  (p=0.001 n=92+94)
-    Reflect           453ms ± 2%        453ms ± 3%    ~     (p=0.306 n=98+97)
-    Tar               184ms ± 2%        183ms ± 2%  -0.31%  (p=0.012 n=94+94)
-    XML               249ms ± 2%        248ms ± 1%  -0.26%  (p=0.002 n=96+92)
-    [Geo mean]        419ms             418ms       -0.21%
+    We disabled inline scavenging in Go 1.12.5 (CL 174102) as well, but
+    we thought other changes in Go 1.13 had mitigated the issues with
+    inline scavenging. Apparently we were wrong.
     
-    name        old user-time/op  new user-time/op  delta
-    Template          273ms ± 2%        272ms ± 2%  -0.46%  (p=0.000 n=93+96)
-    Unicode           116ms ± 4%        117ms ± 4%    ~     (p=0.433 n=98+98)
-    GoTypes           977ms ± 2%        977ms ± 1%    ~     (p=0.971 n=92+99)
-    Compiler          4.56s ± 6%        4.53s ± 6%    ~     (p=0.081 n=100+100)
-    SSA               11.1s ± 2%        11.1s ± 2%    ~     (p=0.064 n=99+96)
-    Flate             167ms ± 2%        167ms ± 1%  -0.24%  (p=0.004 n=95+96)
-    GoParser          203ms ± 1%        203ms ± 2%  -0.14%  (p=0.049 n=96+97)
-    Reflect           595ms ± 2%        595ms ± 2%    ~     (p=0.544 n=95+92)
-    Tar               225ms ± 2%        224ms ± 2%    ~     (p=0.562 n=99+99)
-    XML               312ms ± 2%        311ms ± 1%    ~     (p=0.050 n=97+93)
-    [Geo mean]        543ms             542ms       -0.13%
+    This CL switches back to only doing foreground scavenging on heap
+    growth, rather than doing it when allocation tries to allocate from
+    scavenged space.
     
-    Change-Id: I8d34ab59f154b28f20c6f9e416b976bfce339baa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216220
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #32828.
+    
+    Change-Id: I1f5df44046091f0b4f89fec73c2cde98bf9448cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183857
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go        |   72 +-
- src/cmd/compile/internal/ssa/rewrite386.go         | 1461 +++++++-------
- .../compile/internal/ssa/rewrite386splitload.go    |   24 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go       | 2099 +++++++++----------
- .../compile/internal/ssa/rewriteAMD64splitload.go  |   32 +-
- src/cmd/compile/internal/ssa/rewriteARM.go         | 1719 ++++++++--------
- src/cmd/compile/internal/ssa/rewriteARM64.go       | 2108 +++++++++-----------
- src/cmd/compile/internal/ssa/rewriteMIPS.go        | 1051 +++++-----
- src/cmd/compile/internal/ssa/rewriteMIPS64.go      | 1243 ++++++------
- src/cmd/compile/internal/ssa/rewritePPC64.go       | 1543 +++++++-------
- src/cmd/compile/internal/ssa/rewriteRISCV64.go     | 1000 +++++-----
- src/cmd/compile/internal/ssa/rewriteS390X.go       | 1703 ++++++++--------
- src/cmd/compile/internal/ssa/rewriteWasm.go        | 1147 ++++++-----
- src/cmd/compile/internal/ssa/rewritedec.go         |   44 +-
- src/cmd/compile/internal/ssa/rewritedec64.go       |  232 +--
- src/cmd/compile/internal/ssa/rewritedecArgs.go     |    9 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go     | 1040 +++++-----
- 17 files changed, 7786 insertions(+), 8741 deletions(-)
+ src/runtime/mheap.go | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)

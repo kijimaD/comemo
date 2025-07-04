@@ -1,15 +1,14 @@
-commit 6e03ed32c7044ceae083b0042132e1c68f197d99
+commit dd7403b1b82b6b5882589bc8f53c1d77133da364
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 17 16:33:26 2011 -0500
+Date:   Thu Feb 17 16:32:50 2011 -0500
 
-    gc: interface error message fixes
+    net: remove comment fragments
     
-    Fixes #1526.
+    I have no idea how I meant to complete that sentence.
     
-    R=ken2
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4190051
+    https://golang.org/cl/4191046
 
- src/cmd/gc/subr.c      | 8 ++++++--
- src/cmd/gc/typecheck.c | 4 ++--
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/pkg/net/net.go | 3 ---
+ 1 file changed, 3 deletions(-)

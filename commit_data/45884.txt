@@ -1,23 +1,122 @@
-commit f9d50953b94c15936a72a39a205b3d72ea6dee41
-Author: Xiangdong Ji <xiangdong.ji@gmail.com>
-Date:   Mon Jun 28 20:27:30 2021 +0800
+commit 26b66fd60b258d323d7b8df2c489d5bd292c0809
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 19 20:49:23 2020 -0500
 
-    net: fix failure of TestCVE202133195
+    [dev.regabi] cmd/compile: introduce cmd/compile/internal/base [generated]
     
-    TestCVE202133195 fails in testing LookupSRV if /etc/resolv.conf sets the option
-    'ndots' larger than the number of dots in the domain name under query.
+    Move Flag, Debug, Ctxt, Exit, and error messages to
+    new package cmd/compile/internal/base.
     
-    Fix the issue by making the input domain name in test codes 'rooted' to skip search
-    list qualifying.
+    These are the core functionality that everything in gc uses
+    and which otherwise prevent splitting any other code
+    out of gc into different packages.
     
-    Fixes #46955
+    A minor milestone: the compiler source code
+    no longer contains the string "yy".
     
-    Change-Id: I1909fa7e54e9c9af57623e57cafc905729ff99fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330842
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+            mv atExit AtExit
+            mv Ctxt atExitFuncs AtExit Exit base.go
+    
+            mv lineno Pos
+            mv linestr FmtPos
+            mv flusherrors FlushErrors
+            mv yyerror Errorf
+            mv yyerrorl ErrorfAt
+            mv yyerrorv ErrorfVers
+            mv noder.yyerrorpos noder.errorAt
+            mv Warnl WarnfAt
+            mv errorexit ErrorExit
+    
+            mv base.go debug.go flag.go print.go cmd/compile/internal/base
+    '
+    
+    : # update comments
+    sed -i '' 's/yyerrorl/ErrorfAt/g; s/yyerror/Errorf/g' *.go
+    
+    : # bootstrap.go is not built by default so invisible to rf
+    sed -i '' 's/Fatalf/base.Fatalf/' bootstrap.go
+    goimports -w bootstrap.go
+    
+    : # update cmd/dist to add internal/base
+    cd ../../../dist
+    sed -i '' '/internal.amd64/a\
+            "cmd/compile/internal/base",
+    ' buildtool.go
+    gofmt -w buildtool.go
+    
+    Change-Id: I59903c7084222d6eaee38823fd222159ba24a31a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272250
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/dnsclient_unix_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go         |   3 +-
+ src/cmd/compile/internal/amd64/ssa.go          |   9 +-
+ src/cmd/compile/internal/arm/ssa.go            |   7 +-
+ src/cmd/compile/internal/arm64/ssa.go          |   7 +-
+ src/cmd/compile/internal/base/base.go          |  28 ++
+ src/cmd/compile/internal/{gc => base}/debug.go |   2 +-
+ src/cmd/compile/internal/{gc => base}/flag.go  |   3 +-
+ src/cmd/compile/internal/{gc => base}/print.go |  53 +--
+ src/cmd/compile/internal/gc/alg.go             |  29 +-
+ src/cmd/compile/internal/gc/align.go           |  51 +--
+ src/cmd/compile/internal/gc/bootstrap.go       |   7 +-
+ src/cmd/compile/internal/gc/bv.go              |  12 +-
+ src/cmd/compile/internal/gc/closure.go         |  45 +--
+ src/cmd/compile/internal/gc/const.go           |  91 ++---
+ src/cmd/compile/internal/gc/dcl.go             | 127 +++----
+ src/cmd/compile/internal/gc/dump.go            |   3 +-
+ src/cmd/compile/internal/gc/dwinl.go           |  65 ++--
+ src/cmd/compile/internal/gc/embed.go           |  43 +--
+ src/cmd/compile/internal/gc/esc.go             |  53 +--
+ src/cmd/compile/internal/gc/escape.go          |  99 ++---
+ src/cmd/compile/internal/gc/export.go          |  31 +-
+ src/cmd/compile/internal/gc/fmt.go             |  15 +-
+ src/cmd/compile/internal/gc/gen.go             |   9 +-
+ src/cmd/compile/internal/gc/go.go              |   7 +-
+ src/cmd/compile/internal/gc/gsubr.go           |  33 +-
+ src/cmd/compile/internal/gc/iexport.go         |  57 +--
+ src/cmd/compile/internal/gc/iimport.go         |  75 ++--
+ src/cmd/compile/internal/gc/init.go            |   5 +-
+ src/cmd/compile/internal/gc/initorder.go       |  22 +-
+ src/cmd/compile/internal/gc/inl.go             | 121 +++----
+ src/cmd/compile/internal/gc/lex.go             |   3 +-
+ src/cmd/compile/internal/gc/main.go            | 261 +++++++-------
+ src/cmd/compile/internal/gc/noder.go           | 115 +++---
+ src/cmd/compile/internal/gc/obj.go             | 109 +++---
+ src/cmd/compile/internal/gc/order.go           |  45 +--
+ src/cmd/compile/internal/gc/pgen.go            |  69 ++--
+ src/cmd/compile/internal/gc/plive.go           |  41 +--
+ src/cmd/compile/internal/gc/racewalk.go        |  15 +-
+ src/cmd/compile/internal/gc/range.go           |  25 +-
+ src/cmd/compile/internal/gc/reflect.go         | 119 +++---
+ src/cmd/compile/internal/gc/scope.go           |   3 +-
+ src/cmd/compile/internal/gc/select.go          |  43 +--
+ src/cmd/compile/internal/gc/sinit.go           |  47 +--
+ src/cmd/compile/internal/gc/ssa.go             | 143 ++++----
+ src/cmd/compile/internal/gc/subr.go            |  97 ++---
+ src/cmd/compile/internal/gc/swt.go             |  51 +--
+ src/cmd/compile/internal/gc/syntax.go          |  33 +-
+ src/cmd/compile/internal/gc/trace.go           |   8 +-
+ src/cmd/compile/internal/gc/typecheck.go       | 477 +++++++++++++------------
+ src/cmd/compile/internal/gc/universe.go        |   5 +-
+ src/cmd/compile/internal/gc/unsafe.go          |  14 +-
+ src/cmd/compile/internal/gc/util.go            |  59 ++-
+ src/cmd/compile/internal/gc/walk.go            | 179 +++++-----
+ src/cmd/compile/internal/mips/ggen.go          |   5 +-
+ src/cmd/compile/internal/mips/ssa.go           |   7 +-
+ src/cmd/compile/internal/mips64/ssa.go         |   7 +-
+ src/cmd/compile/internal/ppc64/ggen.go         |   9 +-
+ src/cmd/compile/internal/ppc64/ssa.go          |   9 +-
+ src/cmd/compile/internal/riscv64/ggen.go       |   3 +-
+ src/cmd/compile/internal/riscv64/ssa.go        |  15 +-
+ src/cmd/compile/internal/s390x/ggen.go         |   3 +-
+ src/cmd/compile/internal/s390x/ssa.go          |   7 +-
+ src/cmd/compile/internal/wasm/ssa.go           |   7 +-
+ src/cmd/compile/internal/x86/galign.go         |   5 +-
+ src/cmd/compile/internal/x86/ssa.go            |  13 +-
+ src/cmd/compile/main.go                        |   3 +-
+ src/cmd/dist/buildtool.go                      |   2 +
+ 67 files changed, 1626 insertions(+), 1542 deletions(-)

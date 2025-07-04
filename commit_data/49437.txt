@@ -1,22 +1,19 @@
-commit 899f0a29c7be2bba3f8f0bc2987f7c2d70a6c4ec
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Jun 7 13:53:40 2022 -0400
+commit c85695a117f1ec3b800ba14570876cfcd2075c1f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 18 14:36:45 2021 -0700
 
-    cmd/go: enable module index by default
+    cmd/compile: add support for //go:nointerface for -G=3
     
-    This changes the module index to be enabled by default, rather than
-    disabled by default. The index can still be disabled by setting
-    GODEBUG=index=0.
+    This is used within Google's internal code repo, so getting it working
+    is a pre-req for enabling -G=3 by default.
     
-    Fixes #53290.
-    
-    Change-Id: Ic3728fc69d96bb6ef56b56e8c9f2dce35f2923cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410821
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Icbc570948c852ca09cdb2a59f778140f620244b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343429
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/modindex/read.go | 13 ++++++++++---
- src/cmd/go/script_test.go            |  1 -
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/decl.go | 11 +++++++++++
+ test/run.go                            |  2 --
+ 2 files changed, 11 insertions(+), 2 deletions(-)

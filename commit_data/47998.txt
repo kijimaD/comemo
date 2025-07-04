@@ -1,21 +1,18 @@
-commit 7520c080b45e9493b289d622aed8d8a0da528089
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 19 18:10:40 2022 -0800
+commit 35806efda21242df2c56ca276a842481acf6fea0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 19 16:05:01 2021 -0700
 
-    go/types, types2: in SetUnderlying, set Named.fromRHS if not set yet
+    io/fs: document that caller can modify slice returned by ReadFile
     
-    This is necessary for cycle detection over imported types whose
-    underlying types are set by importers with SetUnderlying.
+    Also add a test to testing/fstest.
     
-    Preparation for fixing issue #48962.
+    Fixes #45186
     
-    Change-Id: I3218cda7feb06440fdb8345c94bcaa5f7d64e94e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379694
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I00e5f46ccd5269dbc266a8f2ebc9a62ebb1297b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311649
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/named.go | 3 +++
- src/go/types/named.go                    | 3 +++
- 2 files changed, 6 insertions(+)
+ src/io/fs/readfile.go        |  3 +++
+ src/testing/fstest/testfs.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

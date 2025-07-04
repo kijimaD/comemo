@@ -1,12 +1,12 @@
-commit 44870547517e84cfd6ddb0b744823069ce83bf10
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 10 09:02:22 2013 -0700
+commit 6cbc5387c30b7358d930c10f465c70c16357fd36
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 10 15:13:45 2013 +1000
 
-    runtime: clean up / align comment tabbing
+    doc/go1.2.html: introduction, language changes
     
-    R=golang-dev, r
+    R=golang-dev, remyoudompheng, dominik.honnef, adg
     CC=golang-dev
-    https://golang.org/cl/13336046
+    https://golang.org/cl/13341049
 
- src/pkg/runtime/runtime.h | 30 +++++++++++++++---------------
- 1 file changed, 15 insertions(+), 15 deletions(-)
+ doc/go1.2.html | 231 ++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 147 insertions(+), 84 deletions(-)

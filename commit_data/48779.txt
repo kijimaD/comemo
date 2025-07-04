@@ -1,23 +1,59 @@
-commit d2552037426fe5a190c74172562d897d921fe311
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Wed Apr 13 00:32:15 2022 +0000
+commit 4d6f9d60cf597a49b918fc1d445251d6b643f860
+Merge: ee0420d3b5 785a8f677f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 16 14:52:05 2021 +0700
 
-    cmd/compile: remove unused offset calculation in ssagen#rtcall
+    [dev.typeparams] all: merge master (785a8f6) into dev.typeparams
     
-    This offR accumulation isn't used and some really similar code is done
-    later in the Load results block.
+    - test/run.go
     
-    Change-Id: I2f77a7bfd568e7e5eb9fc519e7c552401b3af9b8
-    GitHub-Last-Rev: 2c91e5c8987d21203c494f278ff1e05aa3941211
-    GitHub-Pull-Request: golang/go#52316
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400094
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+      CL 328050 added fixedbugs/issue46749.go to -G=3 excluded files list
+    
+    Merge List:
+    
+    + 2021-06-16 785a8f677f cmd/compile: better error message for invalid untyped operation
+    + 2021-06-16 a752bc0746 syscall: fix TestGroupCleanupUserNamespace test failure on Fedora
+    + 2021-06-15 d77f4c0c5c net/http: improve some server docs
+    + 2021-06-15 219fe9d547 cmd/go: ignore UTF8 BOM when reading source code
+    + 2021-06-15 723f199edd cmd/link: set correct flags in .dynamic for PIE buildmode
+    + 2021-06-15 4d2d89ff42 cmd/go, go/build: update docs to use //go:build syntax
+    + 2021-06-15 033d885315 doc/go1.17: document go run pkg@version
+    + 2021-06-15 ea8612ef42 syscall: disable c-shared test when no cgo, for windows/arm
+    + 2021-06-15 abc56fd1a0 internal/bytealg: remove duplicate go:build line
+    + 2021-06-15 4061d3463b syscall: rewrite handle inheritance test to use C rather than Powershell
+    + 2021-06-15 cf4e3e3d3b reflect: explain why convertible or comparable types may still panic
+    + 2021-06-14 7841cb14d9 doc/go1.17: assorted fixes
+    + 2021-06-14 8a5a6f46dc debug/elf: don't apply DWARF relocations for ET_EXEC binaries
+    + 2021-06-14 9d13f8d43e runtime: update the variable name in comment
+    + 2021-06-14 0fd20ed5b6 reflect: use same conversion panic in reflect and runtime
+    + 2021-06-14 6bbb0a9d4a cmd/internal/sys: mark windows/arm64 as c-shared-capable
+    + 2021-06-14 d4f34f8c63 doc/go1.17: reword "results" in stack trace printing
+    
+    Change-Id: I60d1f67c4d48cd4093c350fc89bd60c454d23944
 
- src/cmd/compile/internal/ssagen/ssa.go | 7 -------
- 1 file changed, 7 deletions(-)
+ doc/go1.17.html                                    | 31 +++++++++++++---
+ src/cmd/compile/internal/typecheck/const.go        | 20 ++++++-----
+ src/cmd/dist/test.go                               |  2 +-
+ src/cmd/go/alldocs.go                              | 42 ++++++++++------------
+ src/cmd/go/internal/help/helpdoc.go                | 42 ++++++++++------------
+ src/cmd/go/internal/imports/read.go                | 18 ++++++++--
+ src/cmd/go/internal/imports/read_test.go           | 26 ++++++++++++++
+ .../testdata/script/build_ignore_leading_bom.txt   | 27 ++++++++++++++
+ src/cmd/internal/sys/supported.go                  |  2 +-
+ src/cmd/link/internal/ld/elf.go                    |  5 +++
+ src/debug/elf/file.go                              |  7 ++++
+ src/go/build/doc.go                                |  2 +-
+ src/go/build/read.go                               | 13 ++++++-
+ src/go/build/read_test.go                          | 36 +++++++++++++++++++
+ src/internal/bytealg/index_generic.go              |  1 -
+ src/internal/bytealg/index_native.go               |  1 -
+ src/net/http/server.go                             | 10 +++---
+ src/reflect/all_test.go                            |  2 +-
+ src/reflect/type.go                                |  4 +++
+ src/reflect/value.go                               |  2 +-
+ src/runtime/proc.go                                |  4 +--
+ src/syscall/exec_linux_test.go                     |  1 +
+ src/syscall/syscall_windows_test.go                | 39 +++++++++++---------
+ test/fixedbugs/issue46749.go                       | 37 +++++++++++++++++++
+ test/run.go                                        |  1 +
+ 25 files changed, 281 insertions(+), 94 deletions(-)

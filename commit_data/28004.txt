@@ -1,16 +1,16 @@
-commit 2d85e87f08c325f8be869718c4ac0d7c069161c0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 2 11:42:53 2016 -0700
+commit 093ac15a14137b4a9454442ae9fea282e5c09180
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Apr 24 15:09:00 2016 +1000
 
-    runtime/cgo: add tsan acquire/release around setenv/unsetenv
+    debug/pe: better error messages
     
-    Change-Id: Iabb25e97714d070c31c657559a97a3bfc979da18
-    Reviewed-on: https://go-review.googlesource.com/25403
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #15345
+    
+    Change-Id: Iae35d3e378cbc8157ba1ff91e4971ed4515a5e5c
+    Reviewed-on: https://go-review.googlesource.com/22394
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testsanitizers/test.bash |  3 +++
- misc/cgo/testsanitizers/tsan7.go  | 40 +++++++++++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_setenv.c      |  4 ++++
- 3 files changed, 47 insertions(+)
+ src/debug/pe/file.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

@@ -1,24 +1,25 @@
-commit 5ed81a3d14aa4eda5de87d7fe074b4c913b58511
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Nov 3 16:59:25 2020 -0600
+commit 47cac82e36d08198afac646c3f46d24255cf9d61
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 20 18:42:35 2020 -0400
 
-    cmd/asm: fix rlwnm reg,reg,const,reg encoding on ppc64
+    [dev.link] cmd/link: convert symtab pass to new style
     
-    The wrong value for the first reg parameter was selected.
-    Likewise the wrong opcode was selected.  This should match
-    rlwnm (rrr type), not rlwinm (irr type).
+    This is more or less a direct translation, to get things going.
+    There are more things we can do to make it better, especially on
+    the handling of container symbols.
     
-    Similarly, fix the optab matching rules so clrlslwi does
-    not match reg,reg,const,reg arguments.  This is not a valid
-    operand combination for clrlslwi.
-    
-    Fixes #42368
-    
-    Change-Id: I4eb16d45a760b9fd3f497ef9863f82465351d39f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267421
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I11a0087e402be8d42b9d06869385ead531755272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229125
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |  2 ++
- src/cmd/internal/obj/ppc64/asm9.go        | 26 ++++++--------------------
- 2 files changed, 8 insertions(+), 20 deletions(-)
+ src/cmd/link/internal/ld/data.go              |  34 +--
+ src/cmd/link/internal/ld/lib.go               |  32 +-
+ src/cmd/link/internal/ld/main.go              |   4 +-
+ src/cmd/link/internal/ld/pcln.go              |  12 +-
+ src/cmd/link/internal/ld/symtab.go            | 421 +++++++++++++-------------
+ src/cmd/link/internal/loader/loader.go        |  42 ++-
+ src/cmd/link/internal/loader/symbolbuilder.go |   5 +
+ 7 files changed, 297 insertions(+), 253 deletions(-)

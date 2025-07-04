@@ -1,22 +1,24 @@
-commit 29253f4d513f1d3fe549db39a8daa311492138b3
-Author: apocelipes <seve3r@outlook.com>
-Date:   Mon Jul 31 19:40:37 2023 +0000
+commit 07b19bf5ab1160814ffedd448ce65c0eb6e9643a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 17:59:50 2022 +0800
 
-    os/exec: Use the built-in function min instead of minInt
+    html/template: use strings.Builder
     
-    The built-in function `min` has been implemented and can now be used to replace some manually written `minType` helper functions.
-    
-    Change-Id: Ie8ffc7881c8652ece752751214f1242bf76a6e7e
-    GitHub-Last-Rev: 5db344f13142c78f437571e3a1cdc0b02c0589cb
-    GitHub-Pull-Request: golang/go#60866
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504315
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iab6ef8c6c74c09e8358f7d7088a82089725479ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428260
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/os/exec/exec.go | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ src/html/template/clone_test.go    |  5 ++---
+ src/html/template/content_test.go  |  4 ++--
+ src/html/template/escape_test.go   | 16 ++++++++--------
+ src/html/template/exec_test.go     | 18 +++++++++---------
+ src/html/template/html.go          |  2 +-
+ src/html/template/js_test.go       |  3 +--
+ src/html/template/multi_test.go    |  6 +++---
+ src/html/template/template_test.go |  4 ++--
+ src/html/template/url.go           | 11 +++++------
+ 9 files changed, 33 insertions(+), 36 deletions(-)

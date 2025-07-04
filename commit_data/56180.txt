@@ -1,24 +1,26 @@
-commit 890179d949da55aaa09d60c4fe2c25397d2ce906
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Sun Apr 7 09:27:11 2024 -0700
+commit 70451004bd9d30257aa0c9d02df27a51d9367e73
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 13 17:44:32 2023 +0700
 
-    misc/wasm: drop wasmtime < 14 support
+    cmd/compile: stop constructing untyped nodes when instrumenting asan
     
-    For Go 1.23, we decided to no longer support the old CLI interface
-    exposed by wasmtime. This removes the extra logic included to support
-    both the new and the old CLI interface. Now only versions of wasmtime
-    14 and newer are supported.
+    The code is using typecheck.ConvNop to convert from untyped int to
+    uintptr. However, that left the literal node untyped. It often does not
+    matter, because typecheck.EvalConst will see the OCONVNOP, and replace
+    the node with a new constant node.
     
-    Fixes #63718
+    This CL changes the code to construct the constant node directly using
+    typecheck.DefaultLit, so the last dependecy of typecheck.EvalConst will
+    go away, next CL can safely remove it from the code base.
     
-    Change-Id: Iea31388dc41bc8d73caa923c7e4acae2228bf515
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/577135
-    Reviewed-by: Randy Reddig <randy.reddig@fastly.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ie5a3d1ff6d3b72be7b8c43170eaa4f6cbb3206fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484317
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/next/7-ports.md           |  6 ++++++
- misc/wasm/go_wasip1_wasm_exec | 10 +---------
- 2 files changed, 7 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/pkginit/init.go            | 2 +-
+ src/cmd/compile/internal/pkginit/initAsanGlobals.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

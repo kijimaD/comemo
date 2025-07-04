@@ -1,13 +1,15 @@
-commit d3f8f0c258be17e742abb59da26025a6b5656c7b
+commit 0a6e2461e39aeffa517ed238e4f6592aa4a50477
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 8 14:37:47 2012 +1100
+Date:   Wed Feb 8 14:34:40 2012 +1100
 
-    weekly.2012-02-07
+    archive/zip: tweak API and docs.
     
-    R=golang-dev, dsymonds, r
+    Fixes #2835.
+    
+    R=golang-dev, n13m3y3r, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5615056
+    https://golang.org/cl/5645051
 
- .hgtags               |   1 -
- doc/devel/weekly.html | 190 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 190 insertions(+), 1 deletion(-)
+ src/pkg/archive/zip/reader.go | 2 +-
+ src/pkg/archive/zip/writer.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

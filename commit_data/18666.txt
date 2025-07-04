@@ -1,47 +1,16 @@
-commit 3b5278fca624e802ae71351626719ba262d0c5d1
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Feb 26 15:52:58 2014 -0800
+commit 3081261b588b1c93da8bf4292e99a535bdb86a3f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 26 12:25:13 2014 -0800
 
-    runtime: get rid of the settype buffer and lock.
+    cmd/gc: fix bad checknil with ints on 32 bit compilers
     
-    MCaches now hold a MSpan for each sizeclass which they have
-    exclusive access to allocate from, so no lock is needed.
+    Fixes #7413.
     
-    Modifying the heap bitmaps also no longer requires a cas.
-    
-    runtime.free gets more expensive.  But we don't use it
-    much any more.
-    
-    It's not much faster on 1 processor, but it's a lot
-    faster on multiple processors.
-    
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkSetTypeNoPtr1           24           23   -0.42%
-    BenchmarkSetTypeNoPtr2           33           34   +0.89%
-    BenchmarkSetTypePtr1             51           49   -3.72%
-    BenchmarkSetTypePtr2             55           54   -1.98%
-    
-    benchmark                old ns/op    new ns/op    delta
-    BenchmarkAllocation          52739        50770   -3.73%
-    BenchmarkAllocation-2        33957        34141   +0.54%
-    BenchmarkAllocation-3        33326        29015  -12.94%
-    BenchmarkAllocation-4        38105        25795  -32.31%
-    BenchmarkAllocation-5        68055        24409  -64.13%
-    BenchmarkAllocation-6        71544        23488  -67.17%
-    BenchmarkAllocation-7        68374        23041  -66.30%
-    BenchmarkAllocation-8        70117        20758  -70.40%
-    
-    LGTM=rsc, dvyukov
-    R=dvyukov, bradfitz, khr, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/46810043
+    LGTM=rsc
+    R=remyoudompheng
+    CC=golang-codereviews, r, rsc
+    https://golang.org/cl/69180044
 
- src/pkg/runtime/gc_test.go |  70 ++++++++++++++
- src/pkg/runtime/malloc.goc | 229 +++++++++++++++++----------------------------
- src/pkg/runtime/malloc.h   |  34 +++----
- src/pkg/runtime/mcache.c   | 122 +++++++++++++++++-------
- src/pkg/runtime/mcentral.c | 145 +++++++++++++++++++---------
- src/pkg/runtime/mgc0.c     |  62 ++++--------
- src/pkg/runtime/mheap.c    |   2 +
- src/pkg/runtime/runtime.h  |   4 -
- 8 files changed, 382 insertions(+), 286 deletions(-)
+ src/cmd/gc/pgen.c |  4 ++--
+ test/nilptr4.go   | 24 ++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

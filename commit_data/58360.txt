@@ -1,32 +1,19 @@
-commit 312f7c1bd300d374f7078c4449c5ad142e0c3a5e
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Dec 6 15:37:34 2024 -0500
+commit 6a7ef3646654cb13e0466aba822b54cb15cb057c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 1 16:09:45 2023 -0700
 
-    runtime: add note that Callers never returns an entry PC
+    test: run range-over-integer tests without need for -goexperiment
     
-    The presence of a pc > entry check in CallersFrame implies we might
-    actually see pc == entry, when in reality Callers will never return such
-    a PC. This check is actually just a safety check for avoid reporting
-    completely nonsensical from bad input.
+    Move the range-over-function tests into range4.go.
     
-    all.bash reports two violations to this invariant:
-    
-    TestCallersFromWrapper, which explicitly constructs a CallersFrame input
-    with an entry PC.
-    
-    runtime/pprof.printStackRecord, which passes pprof stacks to
-    CallersFrame (technically not a valid use of CallersFrames!).
-    runtime/pprof.(*Profile).Add can add the entry PC of
-    runtime/pprof.lostProfileEvent to samples.
-    
-    (CPU profiles do lostProfileEvent + 1. I will send a second CL to fix
-    Add.)
-    
-    Change-Id: Iac2a2f0c15117d4a383bd84cddf0413b2d7dd3ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/634315
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Idccf30a0c7d7e8d2a17fb1c5561cf21e00506135
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539095
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/runtime/symtab.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ test/range3.go | 324 +-------------------------------------------------------
+ test/range4.go | 326 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 329 insertions(+), 321 deletions(-)

@@ -1,18 +1,20 @@
-commit 93e97ef066d3aad0a51a4a54212382f04c142255
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 20 15:22:21 2017 -0700
+commit 673fdea5e798baa98c418cba86cf50c8d80cbc36
+Author: Julio Montes <julio.montes@intel.com>
+Date:   Mon May 22 10:33:31 2017 -0500
 
-    cmd/compile/internal/gc: update comment in plive.go
+    syscall: allow processes steal a controlling terminal on Linux
     
-    onebitwalktype1 no longer appears to be a bottleneck for the mentioned
-    test case. In fact, we appear to compile it significantly faster now
-    than Go 1.4 did (~1.8s vs ~3s).
+    The current implementation of forkAndExecInChild for Linux does not allow
+    spawned processes steal the controlling terminal from a different session
+    group. This patch passes 1 as the argument to TIOCSCTTY in order to allow
+    spawned processes steal controlling terminals.
     
-    Fixes #21951.
+    Fixes #20454
     
-    Change-Id: I315313e906092a7d6ff4ff60a918d80a4cff7a7f
-    Reviewed-on: https://go-review.googlesource.com/65110
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I171b8981509d648b07f89bddc1e9d45cb70e00e6
+    Reviewed-on: https://go-review.googlesource.com/44343
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/syscall/exec_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

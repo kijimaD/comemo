@@ -1,17 +1,12 @@
-commit 594cddd62598dcfc1fe6ee1c3e5978063f498dc1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Sep 28 13:31:33 2016 +1000
+commit b4c7f6280ed00316e410261adbc804f6ddd209cc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 3 10:09:08 2016 -0700
 
-    testing: add Name method to *T and *B
+    doc/go1.7.html: add missing <code> and </a>
     
-    Fixes #17231
-    
-    Change-Id: I0d6007ab504f2277cb6affc9e2050157a6ad4d5e
-    Reviewed-on: https://go-review.googlesource.com/29970
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5f4bf89345dc139063dcf34da653e914386bcde6
+    Reviewed-on: https://go-review.googlesource.com/23735
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/testing/testing.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/go1.7.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

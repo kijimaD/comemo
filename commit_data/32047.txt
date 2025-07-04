@@ -1,13 +1,30 @@
-commit f4643972bd4c17a235559069fbfe75c4a7f47fea
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 6 14:45:05 2017 -0400
+commit 44ed88a5a768a54c1880c58f3438bf2fa8639c4c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 2 16:28:35 2017 -0500
 
-    doc/go1.9: minor clarifications and grammar nits
+    runtime: track the number of active sweepone calls
     
-    Change-Id: I55f50e45f8872f063c3b6c9e89261d14689e77ce
-    Reviewed-on: https://go-review.googlesource.com/47692
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    sweepone returns ^uintptr(0) when there are no more spans to *start*
+    sweeping, but there may be spans being swept concurrently at the time
+    and there's currently no efficient way to tell when the sweeper is
+    done sweeping all the spans.
+    
+    We'll need this for concurrent runtime.GC(), so add a count of the
+    number of active sweepone calls to make it possible to block until
+    sweeping is truly done.
+    
+    This is also useful for more accurately printing the gcpacertrace,
+    since that should be printed after all of the sweeping stats are in
+    (currently we can print it slightly too early).
+    
+    For #18216.
+    
+    Change-Id: I06e6240c9e7b40aca6fd7b788bb6962107c10a0f
+    Reviewed-on: https://go-review.googlesource.com/37716
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go1.9.html | 51 ++++++++++++++++++++++++++++-----------------------
- 1 file changed, 28 insertions(+), 23 deletions(-)
+ src/runtime/mgcsweep.go | 34 +++++++++++++++++++++-------------
+ src/runtime/mheap.go    |  3 ++-
+ 2 files changed, 23 insertions(+), 14 deletions(-)

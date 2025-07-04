@@ -1,23 +1,26 @@
-commit c3cb1ecc36512a00492f27fa3ba19e5dad6194f1
-Author: Amelia Downs <adowns@vmware.com>
-Date:   Mon Sep 27 16:54:39 2021 -0400
+commit ebb92dfed96fadb3c563ff11cead85bbb7536793
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 1 19:55:22 2021 +0100
 
-    internal/fuzz: minimize bytes to be human readable
+    internal/poll, runtime: handle netpollopen error in poll_runtime_pollOpen
     
-    Try to replace every byte with one of the following printable
-    characters: "012789ABCXYZabcxyz !\"#$%&'()*+,.".
+    When netpollopen in poll_runtime_pollOpen returns an error, the work in
+    runtime_pollUnblock and runtime_pollClose can be avoided since the
+    underlying system call to set up the poller failed.
     
-    Fixes #48129
+    E.g. on linux, this avoids calling netpollclose and thus epoll_ctl(fd,
+    EPOLL_CTL_DEL, ...) in case the file does not support epoll, i.e.
+    epoll_ctl(fd, EPOLL_CTL_ADD, ...) in netpollopen failed.
     
-    Change-Id: Ie58f6bbc3431d50d9f0a3f608ba63e854ac6ce79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352614
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Amelia Downs <adowns@vmware.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Trust: Julie Qiu <julie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Fixes #44552
+    
+    Change-Id: I564d90340fd1ab3a6490526353616a447ae0cfb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297392
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/fuzz/minimize.go      | 19 ++++++++++++++++++
- src/internal/fuzz/minimize_test.go | 41 +++++++++++++++++++++++++++++++++++++-
- 2 files changed, 59 insertions(+), 1 deletion(-)
+ src/internal/poll/fd_poll_runtime.go | 4 ----
+ src/runtime/netpoll.go               | 9 ++++++---
+ 2 files changed, 6 insertions(+), 7 deletions(-)

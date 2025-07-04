@@ -1,25 +1,52 @@
-commit 0f27b915228ff661aeaf823fa90db023765cbe5d
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu May 21 17:51:34 2015 -0400
+commit 653d56075dbe24239e4cc0a8e020e57383593035
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 24 14:13:06 2015 -0400
 
-    cmd/internal/obj: make arm64 use RegTo2 instead of a full fledged Addr To2
+    cmd/internal/gc: inline writeBarrierEnabled check before calling writebarrierptr
     
-    It shrinks Prog type from 448 bytes down to 376 bytes on amd64.
+    I believe the benchmarks that get slower are under register pressure,
+    and not making the call unconditionally makes the pressure worse,
+    and the register allocator doesn't do a great job. But part of the point
+    of this sequence is to get the write barriers out of the way so I can work
+    on the register allocator, so that's okay.
     
-    It also makes sense, because I don't know of any modern architecture
-    that have instructions which can write to two destinations, none of
-    which is a register (even x86 doesn't have such instructions).
+    name                                       old                     new          delta
+    BenchmarkBinaryTree17              17.9s × (1.00,1.01)     18.0s × (0.99,1.01)  ~
+    BenchmarkFannkuch11                4.43s × (1.00,1.00)     4.43s × (1.00,1.00)  ~
+    BenchmarkFmtFprintfEmpty           110ns × (1.00,1.06)     114ns × (0.95,1.05)  ~
+    BenchmarkFmtFprintfString          487ns × (0.99,1.00)     468ns × (0.99,1.01)  -4.00%
+    BenchmarkFmtFprintfInt             450ns × (0.99,1.00)     433ns × (1.00,1.01)  -3.88%
+    BenchmarkFmtFprintfIntInt          762ns × (1.00,1.00)     748ns × (0.99,1.01)  -1.84%
+    BenchmarkFmtFprintfPrefixedInt     584ns × (0.99,1.01)     547ns × (0.99,1.01)  -6.26%
+    BenchmarkFmtFprintfFloat           738ns × (1.00,1.00)     756ns × (1.00,1.01)  +2.37%
+    BenchmarkFmtManyArgs              2.80µs × (1.00,1.01)    2.79µs × (1.00,1.01)  ~
+    BenchmarkGobDecode                39.0ms × (0.99,1.00)    39.6ms × (0.99,1.00)  +1.54%
+    BenchmarkGobEncode                37.8ms × (0.98,1.01)    37.6ms × (1.00,1.01)  ~
+    BenchmarkGzip                      661ms × (0.99,1.01)     663ms × (0.99,1.02)  ~
+    BenchmarkGunzip                    142ms × (1.00,1.00)     142ms × (1.00,1.00)  ~
+    BenchmarkHTTPClientServer          132µs × (0.99,1.01)     132µs × (0.99,1.01)  ~
+    BenchmarkJSONEncode               56.3ms × (0.99,1.01)    56.2ms × (0.99,1.01)  ~
+    BenchmarkJSONDecode                138ms × (0.99,1.01)     138ms × (1.00,1.00)  ~
+    BenchmarkMandelbrot200            6.01ms × (1.00,1.00)    6.03ms × (1.00,1.01)  +0.23%
+    BenchmarkGoParse                  10.2ms × (0.87,1.05)     9.8ms × (0.93,1.10)  ~
+    BenchmarkRegexpMatchEasy0_32       208ns × (1.00,1.00)     207ns × (1.00,1.00)  ~
+    BenchmarkRegexpMatchEasy0_1K       588ns × (1.00,1.00)     581ns × (1.00,1.01)  -1.27%
+    BenchmarkRegexpMatchEasy1_32       182ns × (0.99,1.01)     185ns × (0.99,1.01)  +1.65%
+    BenchmarkRegexpMatchEasy1_1K       986ns × (1.00,1.01)     975ns × (1.00,1.01)  -1.17%
+    BenchmarkRegexpMatchMedium_32      323ns × (1.00,1.01)     328ns × (0.99,1.00)  +1.55%
+    BenchmarkRegexpMatchMedium_1K     89.9µs × (1.00,1.00)    88.6µs × (1.00,1.01)  -1.38%
+    BenchmarkRegexpMatchHard_32       4.72µs × (0.95,1.01)    4.69µs × (0.95,1.03)  ~
+    BenchmarkRegexpMatchHard_1K        133µs × (1.00,1.01)     133µs × (1.00,1.01)  ~
+    BenchmarkRevcomp                   900ms × (1.00,1.05)     902ms × (0.99,1.05)  ~
+    BenchmarkTemplate                  168ms × (0.99,1.01)     174ms × (0.99,1.01)  +3.30%
+    BenchmarkTimeParse                 637ns × (1.00,1.00)     639ns × (1.00,1.00)  +0.31%
+    BenchmarkTimeFormat                738ns × (1.00,1.00)     736ns × (1.00,1.01)  ~
     
-    Change-Id: I3061f1c9ac93d79ee2b92ecb9049641d0e0f6300
-    Reviewed-on: https://go-review.googlesource.com/10330
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I03ce152852edec404538f6c20eb650fac82e2aa2
+    Reviewed-on: https://go-review.googlesource.com/9224
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/asm/internal/asm/asm.go        | 5 ++++-
- src/cmd/compile/internal/arm64/peep.go | 4 ++--
- src/cmd/internal/obj/arm64/asm7.go     | 4 ++--
- src/cmd/internal/obj/link.go           | 2 +-
- src/cmd/internal/obj/util.go           | 4 ++--
- src/cmd/internal/obj/x86/obj6.go       | 3 ---
- 6 files changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/internal/gc/builtin.go         |  1 +
+ src/cmd/internal/gc/builtin/runtime.go |  4 +++-
+ src/cmd/internal/gc/cgen.go            | 27 ++++++++++++++++++++++-----
+ 3 files changed, 26 insertions(+), 6 deletions(-)

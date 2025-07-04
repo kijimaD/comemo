@@ -1,47 +1,21 @@
-commit 9ad2319bbca45b0750366e99b79db8889f0dfc5b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 6 14:03:55 2017 -0400
+commit 070b82e2e8b28b067e08927228ee651dd54a4236
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 29 00:10:57 2017 +0000
 
-    cmd/buildid: add new tool factoring out code needed by go command
+    net/http: update bundled http2
     
-    This CL does a few things.
+    Updates http2 to x/net/http2 git rev d4223d6710a for:
     
-    1. It moves the existing "read a build ID" code out of the go command
-    and into cmd/internal/buildid.
+        http2: refund connection flow control on DATA frames received after reset
+        https://golang.org/cl/46591
     
-    2. It adds new code there to "write a build ID".
+    Fixes #46591
     
-    3. It adds better tests.
-    
-    4. It encapsulates cmd/internal/buildid into a new standalone program
-    "go tool buildid".
-    
-    The go command is going to use the new "write a build ID" functionality
-    in a future CL. Adding the separate "go tool buildid" gives "go build -x"
-    a printable command to explain what it is doing in that new step.
-    (This is similar to the go command printing "go tool pack" commands
-    equivalent to the actions it is taking, even though it's not invoking pack
-    directly.) Keeping go build -x honest means that other build systems can
-    potentially keep up with the go command.
-    
-    Change-Id: I01c0a66e30a80fa7254e3f2879283d3cd7aa03b4
-    Reviewed-on: https://go-review.googlesource.com/69053
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I5e6999599e921fed279c6d29ae77439191e99615
+    Reviewed-on: https://go-review.googlesource.com/47096
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- misc/nacl/testzip.proto                      |   3 +
- src/cmd/buildid/buildid.go                   |  73 ++++++++++++++
- src/cmd/buildid/doc.go                       |  18 ++++
- src/cmd/dist/deps.go                         | 123 ++++++++++++------------
- src/cmd/dist/mkdeps.go                       |   6 +-
- src/cmd/go/internal/load/pkg.go              |   6 +-
- src/cmd/go/internal/work/build.go            |   2 +-
- src/cmd/go/note_test.go                      |  32 ++-----
- src/cmd/{go => }/internal/buildid/buildid.go |  68 +++++--------
- src/cmd/internal/buildid/buildid_test.go     | 137 +++++++++++++++++++++++++++
- src/cmd/{go => }/internal/buildid/note.go    |  18 ++--
- src/cmd/internal/buildid/rewrite.go          |  91 ++++++++++++++++++
- src/cmd/internal/buildid/testdata/a.elf      | Bin 0 -> 12768 bytes
- src/cmd/internal/buildid/testdata/a.macho    | Bin 0 -> 13472 bytes
- src/cmd/internal/buildid/testdata/a.pe       | Bin 0 -> 3584 bytes
- src/cmd/internal/buildid/testdata/p.a        | Bin 0 -> 682 bytes
- 16 files changed, 436 insertions(+), 141 deletions(-)
+ src/net/http/h2_bundle.go | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

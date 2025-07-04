@@ -1,20 +1,31 @@
-commit a814c05ebac9409caed705900c8c06c09e36cba2
-Author: Péter Surányi <speter.go1@gmail.com>
-Date:   Mon Feb 2 21:37:52 2015 +0900
+commit 44e903158faca58bf495dc2f263d6973f62b9d17
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 6 21:18:41 2015 +1100
 
-    io: clarify Copy docs regarding error handling
+    cmd/internal/gc: more Node cleanups
     
-    "returns ... the first error" was misleading or at least confusing:
-    in case a Read results in an error with non-zero bytes read, and the
-    subsequent Write also results in an error, the error from Write is
-    returned, which is the second one (in the temporal dimension).
+    More Node cleanups, these ones touch go.y.
     
-    Fixes #9744
+    - convert Node.Implicit to bool
+    - convert Node.Used to bool
     
-    Change-Id: If8925a701e4fae820cd9df7446503403fc0785d4
-    Reviewed-on: https://go-review.googlesource.com/3686
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I85c7ff9e66cee7122b560adedc995166c874f2f2
+    Reviewed-on: https://go-review.googlesource.com/7124
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/io/io.go      |  5 +++--
- src/io/io_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 2 deletions(-)
+ src/cmd/internal/gc/closure.go   |  8 ++++----
+ src/cmd/internal/gc/esc.go       |  2 +-
+ src/cmd/internal/gc/fmt.go       | 24 ++++++++++++------------
+ src/cmd/internal/gc/gen.go       |  2 +-
+ src/cmd/internal/gc/go.y         | 20 ++++++++++----------
+ src/cmd/internal/gc/gsubr.go     |  8 ++++----
+ src/cmd/internal/gc/inl.go       |  6 +++---
+ src/cmd/internal/gc/lex.go       |  6 +++---
+ src/cmd/internal/gc/pgen.go      | 10 +++++-----
+ src/cmd/internal/gc/select.go    |  2 +-
+ src/cmd/internal/gc/subr.go      |  6 +++---
+ src/cmd/internal/gc/syntax.go    |  4 ++--
+ src/cmd/internal/gc/typecheck.go | 26 +++++++++++++-------------
+ src/cmd/internal/gc/walk.go      | 10 +++++-----
+ src/cmd/internal/gc/y.go         | 20 ++++++++++----------
+ 15 files changed, 77 insertions(+), 77 deletions(-)

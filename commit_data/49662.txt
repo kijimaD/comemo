@@ -1,19 +1,22 @@
-commit 2ff563a00e45308fad74f1f86d816f4f636584a0
-Author: jacobishao <shaojacobi@gmail.com>
-Date:   Sun Jul 24 12:38:48 2022 +0000
+commit 2a463a22cee8ddbd4801acd2ef34eefa551a718a
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jun 21 20:23:36 2021 -0700
 
-    cmd/compile/internal/noder: correct spelling errors for instantiation
+    net/http: close request body after recovering from a handler panic
     
-    Change-Id: I8091b3181e6dd0c335763c411a6a64026fe5a651
-    GitHub-Last-Rev: 505c6caa9cd4538f76dde4287b9266e8947e395e
-    GitHub-Pull-Request: golang/go#54024
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419315
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    When recovering from a panic in a HTTP handler, close the request body
+    before closing the *conn, ensuring that the *conn's bufio.Reader is safe
+    to recycle.
+    
+    Fixes #46866.
+    
+    Change-Id: I3fe304592e3b423a0970727d68bc1229c3752939
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329922
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/server.go         | 10 ++++++++++
+ src/net/http/transport_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

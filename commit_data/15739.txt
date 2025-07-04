@@ -1,12 +1,12 @@
-commit ba6ea4a95c6975735d18ba4f9d233d312038b425
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 12 16:46:38 2013 -0700
+commit 9f399a0301fd5fd055dfcecfa366935ce3b01e16
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 13 07:26:21 2013 +0800
 
-    test/bench/go1: add http test
+    net: make sure to use /tmp in unix domain socket tests
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7529048
+    https://golang.org/cl/7547044
 
- test/bench/go1/http_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 45 insertions(+)
+ src/pkg/net/protoconn_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

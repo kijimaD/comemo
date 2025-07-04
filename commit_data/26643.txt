@@ -1,23 +1,14 @@
-commit 36feb1a00aef40b793c173859aab49f8080b71fc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 31 00:06:27 2016 -0700
+commit 0d5e6a3f07414ecf6a14bc601532aa305296f562
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 19 11:42:34 2016 -0800
 
-    net/http: limit Transport's reading of response header bytes from servers
+    cmd/api: fix benchmark to ignore internal packages
     
-    The default is 10MB, like http2, but can be configured with a new
-    field http.Transport.MaxResponseHeaderBytes.
-    
-    Fixes #9115
-    
-    Change-Id: I01808ac631ce4794ef2b0dfc391ed51cf951ceb1
-    Reviewed-on: https://go-review.googlesource.com/21329
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I8ee46287ae0744efa83ad343997ad6835520fa5c
+    Reviewed-on: https://go-review.googlesource.com/19688
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/http.go           | 12 ++++++
- src/net/http/server.go         |  2 +-
- src/net/http/transport.go      | 95 +++++++++++++++++++++++++++++-------------
- src/net/http/transport_test.go | 36 ++++++++++++++++
- 4 files changed, 116 insertions(+), 29 deletions(-)
+ src/cmd/api/goapi_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

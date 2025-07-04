@@ -1,14 +1,21 @@
-commit 5bddca64a84edae33a8ffaa74abcd3a8c966ea0c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jun 20 08:34:39 2016 -0700
+commit efb0c55407cdbef6aa5471f057b8afd1d0303369
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 11 13:54:55 2016 -0500
 
-    cmd/compile: minor cleanup in mapinit
+    runtime: avoid span root marking entirely during mark termination
     
-    Change-Id: I7d58d200f7e8b2c0a6e35371da0dafd9b44e9057
-    Reviewed-on: https://go-review.googlesource.com/26757
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Currently we enqueue span root mark jobs during both concurrent mark
+    and mark termination, but we make the job a no-op during mark
+    termination.
+    
+    This is silly. Instead of queueing them up just to not do them, don't
+    queue them up in the first place.
+    
+    Change-Id: Ie1d36de884abfb17dd0db6f0449a2b7c997affab
+    Reviewed-on: https://go-review.googlesource.com/20666
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/runtime/mgcmark.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

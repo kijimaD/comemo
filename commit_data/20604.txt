@@ -1,13 +1,23 @@
-commit 7210753f1f1b951817c71ceb0af5cefff9c69c31
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 1 08:30:51 2014 +1000
+commit 1193993c1db83ee8c0a8e86e6d41db1dd1982002
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 23 18:24:35 2014 -0700
 
-    doc: document go1.3.3
+    cmd/pack: fix c command for existing file
+    There were at least two bugs:
+    1) It would overwrite a non-archive.
+    2) It would truncate a non-archive and then fail.
+    In general the file handling was too clever to be correct.
+    Make it more straightforward, doing the creation
+    separately from archive management.
     
-    LGTM=r
-    R=r
+    Fixes #8369.
+    
+    LGTM=adg, iant
+    R=golang-codereviews, adg, iant
     CC=golang-codereviews
-    https://golang.org/cl/149280044
+    https://golang.org/cl/147010046
 
- doc/devel/release.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/pack/doc.go       |  4 ++++
+ src/cmd/pack/pack.go      | 50 +++++++++++++++++++++++++++++++++--------------
+ src/cmd/pack/pack_test.go | 23 +++++++++++++++++-----
+ 3 files changed, 57 insertions(+), 20 deletions(-)

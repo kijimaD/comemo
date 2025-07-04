@@ -1,14 +1,15 @@
-commit 3974357ecd2f63842b081331d485c168e3407e4d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 3 16:41:00 2015 -0400
+commit ffd334493c69bb39bf12ec639f33f8718bff998b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri May 1 12:38:11 2015 +1000
 
-    cmd/dist: one more file for CL 9152
+    cmd/cover: fix build
     
-    This one didn't get written out.
+    Fix the various builds which don't have a real filesystem or don't support forking.
     
-    Change-Id: Iee173861fb4dc7cafa64ba5f601f4664b6e8da4e
-    Reviewed-on: https://go-review.googlesource.com/10681
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I3075c662fe6191ecbe70ba359b73d9a88bb06f35
+    Reviewed-on: https://go-review.googlesource.com/9528
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/dist/buildgo.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/cover/cover_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

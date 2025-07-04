@@ -1,14 +1,13 @@
-commit 99e2a5678601b7452172283d02f5da5cacad6fa2
+commit 366f88f3e4449c609f3a5310c79536cfcd22f5c2
 Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Jul 10 15:15:41 2014 -0400
+Date:   Thu Jul 10 15:15:24 2014 -0400
 
-    nacltest.bash: nacl/arm support.
-    Also detect GOARCH automatically based on `uname -m`.
+    cmd/dist: always use GOARM=7 for nacl/arm
     
-    LGTM=crawshaw, dave, rsc
-    R=rsc, iant, crawshaw, dave
+    LGTM=dave, rsc
+    R=rsc, iant, dave
     CC=golang-codereviews
-    https://golang.org/cl/111780043
+    https://golang.org/cl/101590044
 
- src/nacltest.bash | 23 ++++++++++++++++++++++-
- 1 file changed, 22 insertions(+), 1 deletion(-)
+ src/cmd/dist/arm.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,18 +1,19 @@
-commit c9ed561db438ba413ba8cfac0c292a615bda45a8
-Author: Peter Collingbourne <pcc@google.com>
-Date:   Tue Mar 12 20:01:40 2024 -0700
+commit a933d06271f6ce42cf56edb012cc6361e6551f5e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 22 16:28:05 2023 -0700
 
-    debug/elf: avoid using binary.Read() in NewFile()
+    go/types, types2: remove return values from Checker.assignVar/initVar
     
-    With this change my test program that reads a tree of ELF files runs
-    1.71 ± 0.12 times faster without parallelism or 1.39 ± 0.06 times
-    faster using 8 goroutines.
+    Not needed anymore.
     
-    Change-Id: I443d1a02736f16f5532ef28e1447c97aa87c7126
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571436
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I5229d556ba1625f53b9fa23b496c17138a92fc3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478717
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/debug/elf/file.go | 207 +++++++++++++++++++++++++-------------------------
- 1 file changed, 103 insertions(+), 104 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go | 29 +++++++++-----------------
+ src/go/types/assignments.go                    | 29 +++++++++-----------------
+ 2 files changed, 20 insertions(+), 38 deletions(-)

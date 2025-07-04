@@ -1,24 +1,21 @@
-commit db37e1600fb2fc698b14e745005c4cf44251d2a9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 17 23:56:11 2018 -0400
+commit 3d4c9cecc8781364df0f1084594bccbb0378021d
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Jan 17 20:26:23 2018 +0100
 
-    go/parser: make sure we have a valid AST when 'if' condition is missing
+    cmd/compile: change type of clear argument of ordercopyexpr to bool
     
-    This prevents a crash in go/types due to a nil condition in an 'if'
-    statement. There's more we can do to make go/types more robust but
-    this will address the immediate cause and also makes sure that the
-    parser returns a valid AST in this case.
+    ordercopyexpr is only called with 0 or 1 as value for the clear
+    argument. The clear variable in ordercopyexpr is only used in the
+    call to ordertemp which has a clear argument of type bool.
     
-    Fixes #25438.
+    Change the clear argument of ordercopyexpr from int to bool and change
+    calls to ordercopyexpr to use false instead of 0 and true instead of 1.
     
-    Change-Id: Ie55dc2c722352a5ecb17af6a16983741e8a8b515
-    Reviewed-on: https://go-review.googlesource.com/113735
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: Ic264aafd3b0c8b99f6ef028ffaa2e30f23f9125a
+    Reviewed-on: https://go-review.googlesource.com/88115
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Dominik Honnef <dominik@honnef.co>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/go/parser/parser.go          | 6 ++++++
- src/go/types/testdata/issues.src | 8 ++++++++
- 2 files changed, 14 insertions(+)
+ src/cmd/compile/internal/gc/order.go | 44 ++++++++++++++++++------------------
+ 1 file changed, 22 insertions(+), 22 deletions(-)

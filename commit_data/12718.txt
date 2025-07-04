@@ -1,13 +1,25 @@
-commit 2795a15c0c460fac9a760557a8c18d79a857faab
-Author: Rob Pike <r@golang.org>
-Date:   Thu Mar 22 19:20:03 2012 +1100
+commit 289a357104854d5f58102b05b40154c727657408
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Thu Mar 22 18:25:40 2012 +1100
 
-    doc/articles/gobs_of_data.html: delete extra word
-    Putt putt putt our way towards felicity.
+    doc: add JSON and Go article
     
-    R=golang-dev, bsiegert
+    Originally published on The Go Programming Language Blog, January 25, 2011.
+    
+    http://blog.golang.org/2011/01/json-and-go.html
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5874048
+    https://golang.org/cl/5846044
 
- doc/articles/gobs_of_data.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/Makefile                    |   1 +
+ doc/articles/json_and_go.html   | 356 ++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html                   |   2 +-
+ doc/progs/json1.go              |  88 ++++++++++
+ doc/progs/json2.go              |  42 +++++
+ doc/progs/json3.go              |  73 ++++++++
+ doc/progs/json4.go              |  45 +++++
+ doc/progs/json5.go              |  31 ++++
+ doc/progs/run                   |  14 +-
+ src/pkg/encoding/json/encode.go |   2 +-
+ 10 files changed, 651 insertions(+), 3 deletions(-)

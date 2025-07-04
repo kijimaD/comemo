@@ -1,28 +1,15 @@
-commit 451a1fa46d0449dc6982b38ba51cf94ebc750eca
+commit c93b6a1756be708ba2d6c8c91c4dabdbbd653cbe
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 1 21:49:44 2011 -0400
+Date:   Tue Nov 1 21:49:33 2011 -0400
 
-    exec: introduce ExitError
+    exp/ebnf: manual fixup for error
     
-    The existing code uses *os.Waitmsg as an os.Error,
-    but *os.Waitmsg is really just a stringer.
+    (The definition of ErrorList is in another file, so gofix
+    has no hope of getting this right.)
     
-    Introduce an explicit error type for the real error.
-    
-    Not to be submitted until just before error goes in;
-    the gofix for error updates type assertions
-            err.(*os.Waitmsg)
-    to
-            err.(*exec.ExitError)
-    
-    The seemingly redundant String method will become
-    an Error method when error goes in, and will no longer
-    be redundant.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5331044
+    https://golang.org/cl/5330043
 
- src/pkg/exec/exec.go      | 15 ++++++++++++---
- src/pkg/exec/exec_test.go |  8 ++++----
- 2 files changed, 16 insertions(+), 7 deletions(-)
+ src/pkg/exp/ebnf/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

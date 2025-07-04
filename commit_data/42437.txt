@@ -1,24 +1,20 @@
-commit ee776b41267ee910196b616b7104f0e5ed63d2b2
-Author: David Chase <drchase@google.com>
-Date:   Mon Jun 1 14:30:24 2020 -0400
+commit 3c3ba97ba5e0f0a9b8455d53e2790851c6ba0c7b
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Dec 12 11:28:07 2019 -0500
 
-    runtime: repair slice, string, and channel printing in gdb
+    [dev.link] cmd/link: add loader method to sort sub-symbols of outer symbol
     
-    "Something" changed the names of types in gdb, causing the
-    pretty-printer matchers to fail to match.  This tracks that
-    change.
+    Add a new loader method SymSortSub that sorts the sub-symbols
+    of a given outer symbol (designed to be compatible with the
+    existing sym.Symbol method).
     
-    Updated runtime-gdb_test.go to include a slice and a channel printing test.
-    
-    (The straightforward printing of a slicevar doesn't work because
-    of compiler DWARF problems describing the slicevar, not gdb problems).
-    
-    Change-Id: I21607a955b9c894f11ecf3763aea2a6dd59a3f42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235926
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Icd6627b2e6d04524d657e712cfd39fda0e0e080b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211297
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/runtime-gdb.py      | 19 ++++++++------
- src/runtime/runtime-gdb_test.go | 55 +++++++++++++++++++++++++++++++++++------
- 2 files changed, 60 insertions(+), 14 deletions(-)
+ src/cmd/link/internal/loader/loader.go      | 41 +++++++++++++++++++++++++++++
+ src/cmd/link/internal/loader/loader_test.go | 35 ++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+)

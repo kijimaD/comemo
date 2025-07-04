@@ -1,0 +1,22 @@
+commit b6f05cc3335d8a3058a7892835b10d82fad31046
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Aug 4 14:19:57 2024 +1000
+
+    cmd/compile/internal/ssagen: improve intrinsic architecture handling
+    
+    The architecture handling code for intrinsics is more complex than
+    it needs to be. sys.Archs is already an array of *sys.Arch and the
+    existing InFamily function can be used instead of a reimplementation.
+    
+    Add some test coverage for sys.Arch.InFamily while here.
+    
+    Change-Id: Ia764f211114fea65424c09a421c5ccb02b7187b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605476
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 16 ++++------------
+ src/cmd/internal/sys/arch_test.go      | 24 ++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 12 deletions(-)

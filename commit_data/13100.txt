@@ -1,15 +1,15 @@
-commit 40b310706b37b4154cae32d9ed5099dcfb80e11c
+commit 67a0c4f7f9c4bb2c76b738ca41171785cb16c35c
 Author: Joel Sing <jsing@google.com>
-Date:   Mon May 21 00:38:14 2012 +1000
+Date:   Mon May 21 00:13:22 2012 +1000
 
-    net: reduce dial tests on netbsd
+    syscall: fix SockaddrDatalink on netbsd
     
-    Add NetBSD to the list of operating systems that have a reduced set
-    of dial tests.
+    RawSockaddrDatalink and SockaddrDatalink need to match - make Data
+    have length 12 for both.
     
-    R=golang-dev, r
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6208083
+    https://golang.org/cl/6223051
 
- src/pkg/net/dial_test.go | 2 +-
+ src/pkg/syscall/syscall_netbsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

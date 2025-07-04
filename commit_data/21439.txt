@@ -1,12 +1,20 @@
-commit c901bd01c131b6a3d1bbc7dde9de02cb7ce2544a
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 3 08:35:38 2015 -0500
+commit 54bb4dc3906578403aca1c57b482761a6824f079
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 29 10:07:47 2014 -0500
 
-    runtime: add missing \n to error message
+    runtime: use typed memmove (write barriers) for chan, map, interface content
     
-    Change-Id: Ife7d30f4191e6a8aaf3a442340d277989f7a062d
-    Reviewed-on: https://go-review.googlesource.com/3780
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Found with GODEBUG=wbshadow=2 mode.
+    Eventually that will run automatically, but right now
+    it still detects other missing write barriers.
+    
+    Change-Id: Iea83d693480c2f3008b4e80d55821acff65970a6
+    Reviewed-on: https://go-review.googlesource.com/2277
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/stack1.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/chan.go    |  8 ++++----
+ src/runtime/hashmap.go | 16 ++++++++--------
+ src/runtime/iface.go   | 49 ++++++++++++++++++++++++++++++++-----------------
+ src/runtime/mgc0.go    |  9 +++++----
+ src/runtime/select.go  |  8 ++++----
+ 5 files changed, 53 insertions(+), 37 deletions(-)

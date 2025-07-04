@@ -1,12 +1,20 @@
-commit 64f75f103408b5cfd94d1aacf400e7f9ce3fe58a
+commit 145108ed368e66c04231880d2d4c12b50d075b64
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 8 09:58:18 2011 -0800
+Date:   Tue Mar 8 09:41:12 2011 -0800
 
-    strings: better benchmark names; add BenchmarkIndex
+    strings: add IndexRune tests, ASCII fast path
     
-    R=dsymonds
+    $ gotest -test.v -test.run=IndexRune -test.bench=.*
+    === RUN  strings_test.TestIndexRune
+    --- PASS: strings_test.TestIndexRune (0.0 seconds)
+    PASS
+    strings_test.BenchmarkIndexRune 20000000   105 ns/op
+    strings_test.BenchmarkIndexByte 50000000    48 ns/op
+    
+    R=rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4264052
+    https://golang.org/cl/4267050
 
- src/pkg/strings/strings_test.go | 22 +++++++++++++++++-----
- 1 file changed, 17 insertions(+), 5 deletions(-)
+ src/pkg/strings/strings.go      | 16 +++++++++++++---
+ src/pkg/strings/strings_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 3 deletions(-)

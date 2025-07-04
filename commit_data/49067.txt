@@ -1,34 +1,26 @@
-commit 7f71e1fc28f03afe987881c679a925a6f7e99cac
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu May 5 20:46:29 2022 +0200
+commit 3d8453e00e3d0a6f23cec06bcad08cf740ec5940
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 15 16:42:25 2021 -0700
 
-    runtime/cgo: remove memset in _cgo_sys_thread_start on linux
+    [dev.typeparams] cmd/compile/internal/types2: more consistent handling of predeclared "any"
     
-    pthread_attr_init in glibc and musl libc already explicitly clear the
-    pthread_attr argument before setting it, see
-    https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/pthread_attr_init.c
-    and https://git.musl-libc.org/cgit/musl/log/src/thread/pthread_attr_init.c
+    Rather than removing "any" from the universe scope, keep it predeclared
+    but provide a better error message.
     
-    It looks like pthread_attr_init has been implemented like this for a
-    long time in both libcs. The comment and memset in _cgo_sys_thread_start
-    probably stem from a time where not all libcs did the explicit memset in
-    pthread_attr_init.
+    While at it, remove some unnecessary type assertions.
     
-    Also, the memset in _cgo_sys_thread_start is not performed on all linux
-    platforms further indicating that this isn't an issue anymore.
-    
-    Change-Id: I920148b5d24751195ced7af5bb7c52a7f8293259
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404275
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I10603274282ea6afc107f703ab194f32bd334dd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334911
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/cgo/gcc_darwin_arm64.c  | 1 -
- src/runtime/cgo/gcc_linux_386.c     | 5 -----
- src/runtime/cgo/gcc_linux_arm.c     | 5 -----
- src/runtime/cgo/gcc_linux_arm64.c   | 5 -----
- src/runtime/cgo/gcc_linux_mips64x.c | 5 -----
- src/runtime/cgo/gcc_linux_mipsx.c   | 6 ------
- src/runtime/cgo/gcc_linux_riscv64.c | 5 -----
- 7 files changed, 32 deletions(-)
+ src/cmd/compile/internal/types2/decl.go            |  5 +++--
+ src/cmd/compile/internal/types2/object_test.go     |  2 +-
+ .../internal/types2/testdata/check/typeparams.go2  |  8 +++----
+ src/cmd/compile/internal/types2/typexpr.go         | 13 ++++++++++-
+ src/cmd/compile/internal/types2/universe.go        | 26 +++++++++-------------
+ test/fixedbugs/issue14652.go                       |  2 +-
+ test/typeparam/tparam1.go                          |  4 ++--
+ 7 files changed, 33 insertions(+), 27 deletions(-)

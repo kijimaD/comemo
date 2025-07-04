@@ -1,18 +1,58 @@
-commit b1a12dd2ed4f6d7cdde913cddf77871f1c701bdc
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sun Dec 17 09:47:10 2023 +0000
+commit abd55d84832b1ca4129bfa0fbc13dba64d2164d2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Feb 5 14:33:32 2023 +0700
 
-    cmd/link: use MapMaxKeyBytes,MapMaxElemBytes,MapBucketCount of internal/abi
+    cmd/compile: fix inline static init arguments substitued tree
     
-    For #59670
+    Blank node must be ignored when building arguments substitued tree.
+    Otherwise, it could be used to replace other blank node in left hand
+    side of an assignment, causing an invalid IR node.
     
-    Change-Id: I248bad2d2f9d05903b80022e52a795ff7a4fae93
-    GitHub-Last-Rev: df6a7bf29a2012eb681ce391dc9cf295370b5b2e
-    GitHub-Pull-Request: golang/go#64775
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/550596
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Consider the following code:
+    
+            type S1 struct {
+                    s2 S2
+            }
+    
+            type S2 struct{}
+    
+            func (S2) Make() S2 {
+                    return S2{}
+            }
+    
+            func (S1) Make() S1 {
+                    return S1{s2: S2{}.Make()}
+            }
+    
+            var _ = S1{}.Make()
+    
+    After staticAssignInlinedCall, the assignment becomes:
+    
+            var _ = S1{s2: S2{}.Make()}
+    
+    and the arg substitued tree is "map[*ir.Name]ir.Node{_: S1{}}". Now,
+    when doing static assignment, if there is any assignment to blank node,
+    for example:
+    
+            _ := S2{}
+    
+    That blank node will be replaced with "S1{}":
+    
+            S1{} := S2{}
+    
+    So constructing an invalid IR which causes the ICE.
+    
+    Fixes #58325
+    
+    Change-Id: I21b48357f669a7e02a7eb4325246aadc31f78fb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465098
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/link/internal/ld/dwarf.go | 29 +++++++++++------------------
- 1 file changed, 11 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/staticinit/sched.go |  3 +++
+ test/fixedbugs/issue58325.go                 | 23 +++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

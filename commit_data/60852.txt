@@ -1,0 +1,24 @@
+commit 21ac23a96f204dfb558a8d3071380c1d105a93ba
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 4 16:46:33 2024 +0000
+
+    unique: don't retain uncloned input as key
+    
+    Currently the unique package tries to clone strings that get stored in
+    its internal map to avoid retaining large strings.
+    
+    However, this falls over entirely due to the fact that the original
+    string is *still* stored in the map as a key. Whoops. Fix this by
+    storing the cloned value in the map instead.
+    
+    This change also adds a test which fails without this change.
+    
+    Change-Id: I1a6bb68ed79b869ea12ab6be061a5ae4b4377ddb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610738
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/unique/handle.go      |  7 ++++---
+ src/unique/handle_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)

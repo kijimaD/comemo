@@ -1,19 +1,22 @@
-commit 933ca0cfdc5b16a28661707b95485ce6d739bb97
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Aug 12 12:59:55 2020 -0400
+commit d91c3bc20393cab601d372547471468c869320af
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jan 31 13:21:57 2020 -0500
 
-    doc: add a release notes blurb on 1.16 linker improvements
+    doc/go1.14: move "Minor changes to the library" heading up
     
-    Add a draft version of a blurb on improvements to the linker. This
-    will need to be finalized later in the release since there are still
-    some additional changes to be made to the linker in 1.16.
+    This heading was below the minor changes to the standard library.
+    It should be on top.
     
-    Updates #40703.
+    Many of the minor changes have been documented, so remove the broad
+    TODO comment. It is still a TODO to highlight more prominent changes
+    to the library, if there are any, under the "Core library" heading.
     
-    Change-Id: Id85c7e129071cc2faacb09c53a2968bd52b0a7b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248238
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Updates #36878
+    
+    Change-Id: If7fd9af9a933af917523e33fd2922c5f3c02c98b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217277
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- doc/go1.16.html | 21 ++++++++++++++++++++-
- 1 file changed, 20 insertions(+), 1 deletion(-)
+ doc/go1.14.html | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

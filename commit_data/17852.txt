@@ -1,13 +1,24 @@
-commit e6c4fa58b5a0c77c9c95d227ed5f36937df0544d
-Author: Julien Schmidt <google@julienschmidt.com>
-Date:   Tue Oct 29 16:03:13 2013 -0700
+commit a508381e89523c6a1682a1498b196d4262a1504a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 29 17:11:51 2013 -0400
 
-    database/sql: Fix typos in doc
+    time: correct path to time zone zip file on Unix
     
-    R=golang-dev
-    CC=bradfitz, golang-dev
-    https://golang.org/cl/17590043
+    Most Unix systems have their own time zone data,
+    so we almost never get far enough in the list to
+    discover that we cannot fall back to the zip file.
+    Adjust testing to exercise the final fallback.
+    
+    Plan 9 and Windows were already correct
+    (and are the main users of the zip file).
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/19280043
 
- src/pkg/database/sql/driver/driver.go | 4 ++--
- src/pkg/database/sql/sql.go           | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/time/export_test.go      |  5 ++++-
+ src/pkg/time/time_test.go        | 10 ++++++++++
+ src/pkg/time/zoneinfo_plan9.go   |  4 ++++
+ src/pkg/time/zoneinfo_unix.go    | 14 +++++++++++++-
+ src/pkg/time/zoneinfo_windows.go |  4 ++++
+ 5 files changed, 35 insertions(+), 2 deletions(-)

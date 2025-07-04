@@ -1,26 +1,18 @@
-commit d497eeb00540cebe5fb875570a06cc0083e8016b
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Aug 27 10:59:43 2015 +1200
+commit b6ead9f171742cd5b519a22ecc690354b0d1ce27
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 17:51:20 2015 -0400
 
-    runtime: remove unused xchgp/xchgp1
+    cmd/go: disable vendoredImportPath for code outside $GOPATH
     
-    I noticed that they were unimplemented on arm64 but then that they were
-    in fact not used at all.
+    It was crashing.
+    This fixes the build for
+    GO15VENDOREXPERIMENT=1 go test -short runtime
     
-    Change-Id: Iee579feda2a5e374fa571bcc8c89e4ef607d50f6
-    Reviewed-on: https://go-review.googlesource.com/13951
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #11416.
+    
+    Change-Id: I74a9114cdd8ebafcc9d2a6f40bf500db19c6e825
+    Reviewed-on: https://go-review.googlesource.com/11964
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/asm_386.s         |  7 -------
- src/runtime/asm_amd64.s       |  7 -------
- src/runtime/asm_amd64p32.s    |  7 -------
- src/runtime/asm_ppc64x.s      |  3 ---
- src/runtime/atomic_386.go     |  3 ---
- src/runtime/atomic_amd64x.go  |  3 ---
- src/runtime/atomic_arm.go     | 10 ----------
- src/runtime/atomic_arm64.go   |  3 ---
- src/runtime/atomic_pointer.go |  9 +--------
- src/runtime/atomic_ppc64x.go  |  3 ---
- 10 files changed, 1 insertion(+), 54 deletions(-)
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

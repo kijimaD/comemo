@@ -1,18 +1,23 @@
-commit d152fe74e18032cf5678c29ec9f5f56bbc6cc5bb
+commit 4b1170d2b1985a7530a559b9ef3dfdd350fb422e
 Author: Rob Pike <r@golang.org>
-Date:   Sat Jun 11 00:03:02 2011 +0000
+Date:   Sat Jun 11 09:25:18 2011 +1000
 
-    fmt: debugging formats for characters: %+q %#U
-    %+q uses strconv.Quote[Rune]ToASCII, guaranteeing ASCII-only output.
-    %#U a quoted character if the rune is printable: 'x'=U+0078; otherwise
-    it's as before: U+000A.
+    sort: change IntArray etc. to IntSlice for better name hygiene.
     
-    R=golang-dev, gri, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4589047
+    https://golang.org/cl/4602054
 
- src/pkg/fmt/doc.go      |  6 ++++--
- src/pkg/fmt/fmt_test.go |  9 +++++++++
- src/pkg/fmt/format.go   | 34 ++++++++++++++++++++++++++++++++--
- src/pkg/fmt/print.go    |  5 +++++
- 4 files changed, 50 insertions(+), 4 deletions(-)
+ doc/go_tutorial.html          | 12 ++++++------
+ doc/go_tutorial.txt           |  2 +-
+ doc/progs/sort.go             | 36 ++++++++++++++++++------------------
+ doc/progs/sortmain.go         |  4 ++--
+ src/pkg/flag/flag.go          |  2 +-
+ src/pkg/sort/search.go        |  4 ++--
+ src/pkg/sort/search_test.go   |  4 ++--
+ src/pkg/sort/sort.go          | 32 ++++++++++++++++----------------
+ src/pkg/sort/sort_test.go     |  8 ++++----
+ src/pkg/syscall/exec_plan9.go |  6 +++---
+ src/pkg/syscall/exec_unix.go  | 10 +++++-----
+ src/pkg/unicode/maketables.go |  4 ++--
+ 12 files changed, 62 insertions(+), 62 deletions(-)

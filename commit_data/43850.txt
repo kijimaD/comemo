@@ -1,18 +1,60 @@
-commit 5e58ae43bedeae5964e668755049088938320740
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Nov 18 17:07:30 2020 -0500
+commit 7eab9506c92562fe49861597e7bf1fcb28f2fd40
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 24 15:59:17 2020 -0700
 
-    cmd/go: report changes and resolved versions in 'go get'
+    cmd/compile: improve equality algs for arrays of interfaces
     
-    Fixes #33284
+    type T [8]interface{}
     
-    Change-Id: I33daa5eb518985bc7308f29655e04c57e244b479
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269018
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Prior to this change, we generated this equality algorithm for T:
+    
+    func eqT(p, q *T) bool {
+        for i := range *p {
+            if p[i] != q[i] {
+                return false
+            }
+        }
+        return true
+    }
+    
+    This change splits this into two loops, so that we can do the
+    cheap (type) half early and only then do the expensive (data) half.
+    
+    We now generate:
+    
+    func eqT(p, q *T) (r bool) {
+        for i := range *p {
+            if p[i].type == q[i].type {
+            } else {
+                return
+            }
+        }
+        for j := range *p {
+            if runtime.efaceeq(p[j].type, p[j].data, q[j].data) {
+            } else {
+                return
+            }
+        }
+        return true
+    }
+    
+    The use of a named return value and a bare return is to work
+    around some typechecking problems that stymied me.
+    
+    The structure of using equals and else (instead of not equals and then)
+    was for implementation convenience and clarity. As a bonus,
+    it generates slightly shorter code on AMD64, because zeroing a register
+    to return is cheaper than writing $1 to it.
+    
+    The generated code is typically ~17% larger because it contains
+    two loops instead of one. In the future, we might want to unroll
+    the first loop when the array is small.
+    
+    Change-Id: I5b2c8dd3384852f085c4f3e1f6ad20bc5ae59062
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230208
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modget/get.go              | 125 +++++++++++++++----------
- src/cmd/go/testdata/script/mod_get_changes.txt |  70 ++++++++++++++
- 2 files changed, 145 insertions(+), 50 deletions(-)
+ src/cmd/compile/internal/gc/alg.go | 95 ++++++++++++++++++++++++++------------
+ 1 file changed, 66 insertions(+), 29 deletions(-)

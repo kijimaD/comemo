@@ -1,19 +1,19 @@
-commit 2cd96806f4b04545b056ddaa53234fd15e821a1f
-Author: Michael Matloob <matloob@google.com>
-Date:   Thu Feb 14 11:26:21 2013 -0800
+commit 248d1446b53900b90d1279631a035508942d332c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 14 11:23:58 2013 -0800
 
-    go/parser: stop ParseFile after ten errors.
+    syscall: don't make //sys lines be doc comments
     
-    There wil be a panic if more than ten errors are encountered. ParseFile
-    will recover and return the ErrorList.
+    Cleans up godoc and makes it consistent. (some had it, some
+    didn't)
     
-    Fixes #3943.
+    This still keeps the information there, though, for people
+    looking at the source directly.
     
-    R=golang-dev, gri
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/7307085
+    https://golang.org/cl/7324056
 
- src/pkg/go/parser/error_test.go |  1 +
- src/pkg/go/parser/interface.go  | 53 ++++++++++++++++++++++-------------------
- src/pkg/go/parser/parser.go     |  6 +++++
- 3 files changed, 36 insertions(+), 24 deletions(-)
+ src/pkg/syscall/syscall_bsd.go   |  1 +
+ src/pkg/syscall/syscall_linux.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+)

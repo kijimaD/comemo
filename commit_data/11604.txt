@@ -1,17 +1,16 @@
-commit 278369152267b79853a9cceaa0390d6c7e1d86b9
-Author: Rob Pike <r@golang.org>
-Date:   Sat Feb 4 07:49:51 2012 +1100
+commit 3fe3ae74765e61eebda2cfdaa30772896f7da77c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 3 15:22:19 2012 -0500
 
-    docs: replace references to gofix etc. with tool invocations
+    test: fix bug headers
     
-    R=rsc
+    The letter is $A, not $O.
+    ($O is set accidentally, but not for long.)
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5630045
+    https://golang.org/cl/5629045
 
- doc/effective_go.html |  5 ++++-
- doc/effective_go.tmpl |  5 ++++-
- doc/go1.html          | 58 ++++++++++++++++++++++++++-------------------------
- doc/go1.tmpl          | 58 ++++++++++++++++++++++++++-------------------------
- doc/install.html      |  2 +-
- src/cmd/nm/doc.go     |  3 +--
- 6 files changed, 70 insertions(+), 61 deletions(-)
+ test/fixedbugs/bug385_32.go | 2 +-
+ test/fixedbugs/bug385_64.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,19 +1,15 @@
-commit fbc5acbd704ff2640d0aed19f116b862f858a549
+commit 5538ecadca6b500f3ccd428f247f7502c12ae246
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 8 17:30:55 2019 -0800
+Date:   Tue Oct 23 16:01:43 2018 -0700
 
-    cmd/compile: remove work-arounds for handling underscores in numbers
+    cmd/compile: better error for embedded field referring to missing import
     
-    With math/big supporting underscores directly, there is no need to
-    manually remove them before calling the math/big conversion routines.
+    Fixes #27938.
     
-    Updates #28493.
-    
-    Change-Id: I6f865c8f87c3469ffd6c33f960ed540135055226
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166417
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I16263ac6c0b8903b8a16f02e8db0e1a16d1c95b4
+    Reviewed-on: https://go-review.googlesource.com/c/144261
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/mpfloat.go | 4 ----
- src/cmd/compile/internal/gc/mpint.go   | 4 ----
- 2 files changed, 8 deletions(-)
+ src/cmd/compile/internal/gc/noder.go | 11 ++++++++---
+ test/fixedbugs/issue27938.go         | 23 +++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 3 deletions(-)

@@ -1,17 +1,19 @@
-commit 47acf167098639ce182417548669a4776507f7b7
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Apr 2 09:17:42 2014 -0700
+commit 67a5181045d1601820ea98dff06832339e19fd16
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 2 19:42:05 2014 +0900
 
-    cmd/gc: Don't zero more than we need.
+    net: make WriteTo, WriteToUnix and WriteMsgUnix fail when connectionless-mode UnixConn is already connected
     
-    Don't merge with the zero range, we may
-    end up zeroing more than we need.
+    This CL tries to fill the gap between Linux and other Unix-like systems
+    in the same way UDPConn already did.
     
-    LGTM=rsc
-    R=rsc
+    Fixes #7677.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/83430044
+    https://golang.org/cl/83330045
 
- src/cmd/6g/ggen.c | 2 +-
- src/cmd/8g/ggen.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/unix_test.go      | 67 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/unixsock_posix.go |  6 ++++
+ 2 files changed, 73 insertions(+)

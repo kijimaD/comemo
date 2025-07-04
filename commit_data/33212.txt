@@ -1,15 +1,18 @@
-commit 81ec7256072ed5e20b8827c583193258769aebc0
-Author: Nils Larsgård <nilsmagnus@gmail.com>
-Date:   Tue Oct 24 19:21:58 2017 +0200
+commit ac0ccf3cd2464c6df3193ad8aec8d6053000cdb5
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Thu Aug 3 16:51:32 2017 +0200
 
-    mime/multipart: permit empty file name
+    doc/1.9: add CL 36696 for crypto/x509 to the release notes
     
-    Fixes #19183
+    add https://go-review.googlesource.com/c/36696
+    "crypto/x509: ignore CN if SAN extension present"
+    to the release notes.
     
-    Change-Id: I11502d855f5b521b03ed7a63a990cca2d0ed4083
-    Reviewed-on: https://go-review.googlesource.com/70931
+    Fixes #21289
+    
+    Change-Id: Ifa184d3816806a8da3c67b68476c923329acf13e
+    Reviewed-on: https://go-review.googlesource.com/53030
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/mime/multipart/formdata.go      |  3 ++-
- src/mime/multipart/formdata_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ doc/go1.9.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

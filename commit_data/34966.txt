@@ -1,22 +1,25 @@
-commit 2d4ccbfe51c3a51cf59c91ac384a37aa3d427176
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 29 17:55:59 2018 -0700
+commit 7e394a23e585485d5a1e09765829c06c104a2758
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 30 23:08:22 2017 +0000
 
-    crypto/x509: don't return nil, nil from SystemCertPool
+    net/http: update bundled http2
     
-    If there are no certs, return an empty pool, not nil.
+    Updates http2 to x/net git rev 894f8ed58 for:
     
-    Fixes #21405
+        http2: fix flake in net/http's TestCloseIdleConnections_h2
+        https://golang.org/cl/80139
     
-    Change-Id: Ib4ac9d5c4a8cef83dd53565b0707a63b73ba0a8b
-    Reviewed-on: https://go-review.googlesource.com/103596
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+        http2: fix leak in activeRes by removing activeRes
+        https://golang.org/cl/80137
+    
+    Fixes #22413
+    Fixes #21543
+    
+    Change-Id: Ic8ea20f8ddae2fde17884ed045f9fa7058a4bd23
+    Reviewed-on: https://go-review.googlesource.com/81276
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/crypto/x509/root_plan9.go     | 3 +++
- src/crypto/x509/root_unix.go      | 2 +-
- src/crypto/x509/root_unix_test.go | 4 ----
- src/crypto/x509/x509_test.go      | 3 ---
- 4 files changed, 4 insertions(+), 8 deletions(-)
+ src/net/http/h2_bundle.go | 42 +++++++++++++++++++-----------------------
+ 1 file changed, 19 insertions(+), 23 deletions(-)

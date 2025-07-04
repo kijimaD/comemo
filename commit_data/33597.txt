@@ -1,21 +1,20 @@
-commit 8c47aa155f944278c0a79454af35c55528d02c30
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 10 15:46:56 2017 -0500
+commit a9f832a6aedbce206d44d099c67448e8aa747690
+Author: griesemer <gri@golang.org>
+Date:   Thu Aug 24 15:20:18 2017 +0200
 
-    cmd/go: make file:line for cgo files look like non-cgo files
+    spec: clarify zero value for complex types
     
-    Passing the absolute path to cgo puts the absolute path in the
-    generated file's //line directives, which then shows that path
-    in the compiler output, which the go command can then
-    make relative to the current directory, same as it does for
-    other compiler output.
+    The enumeration of numeric types missed the complex types.
+    Clarify by removing the explicit enumeration and referring
+    to numeric types instead.
     
-    Change-Id: Ia2064fea40078c46fd97e3a3b8c9fa1488f913e3
-    Reviewed-on: https://go-review.googlesource.com/77154
+    Fixes #21579.
+    
+    Change-Id: If36c2421f8501eeec82a07f442ac2e16a35927ba
+    Reviewed-on: https://go-review.googlesource.com/58491
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/cgo/out.go                     |  3 ++-
- src/cmd/go/go_test.go                  |  9 +++++----
- src/cmd/go/internal/work/exec.go       | 35 ++++++++++++++++++++--------------
- src/cmd/go/testdata/src/coverbad/p1.go |  7 +++++++
- 4 files changed, 35 insertions(+), 19 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

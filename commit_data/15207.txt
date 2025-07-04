@@ -1,18 +1,18 @@
-commit 37aba1aa776c613d5a56fc4d001adbb4b4558a11
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Feb 13 01:00:04 2013 +0800
+commit ae8da3a28c4182acec1f74f22a615a68fc5c195d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 11 22:39:55 2013 -0800
 
-    runtime: NetBSD/ARM support
+    go/types: len(((*T)(nil)).X) is const if X is an array
     
-    R=rsc, dave
+    Fixes #4744.
+    
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/7289044
+    https://golang.org/cl/7305080
 
- src/pkg/runtime/asm_arm.s           |   9 +-
- src/pkg/runtime/defs_netbsd_arm.h   | 140 +++++++++++++++++
- src/pkg/runtime/os_netbsd.h         |   4 +
- src/pkg/runtime/rt0_netbsd_arm.s    |   8 +
- src/pkg/runtime/signal_netbsd_arm.c | 197 ++++++++++++++++++++++++
- src/pkg/runtime/sys_netbsd_arm.s    | 293 ++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/thread_netbsd.c     |   4 -
- 7 files changed, 650 insertions(+), 5 deletions(-)
+ src/pkg/exp/gotype/gotype_test.go      |  2 +-
+ src/pkg/go/types/builtins.go           | 32 ++++++++++++++++++--------------
+ src/pkg/go/types/check.go              | 34 ++++++++++++++++++----------------
+ src/pkg/go/types/conversions.go        |  1 +
+ src/pkg/go/types/testdata/builtins.src |  8 ++++++++
+ 5 files changed, 46 insertions(+), 31 deletions(-)

@@ -1,21 +1,36 @@
-commit 17360accab554328f61bf7c057e05e0aea585140
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 19 17:03:01 2015 -0800
+commit 956f3199a397ef05a4a34b2059d15c033556517a
+Author: David Chase <drchase@google.com>
+Date:   Fri Sep 11 16:40:05 2015 -0400
 
-    cmd/cgo: make the char * pointer in GoString const
+    [dev.ssa] cmd/compile: addressed vars and closures
     
-    This makes it more convenient for C code to use GoString with string
-    constants.  Since Go string values are immutable, the const qualifier is
-    appropriate in C.
+    Cleaned up first-block-in-function code.
+    Added cases for |PHEAP for PPARAM and PAUTO.
+    Made PPARAMOUT act more like PAUTO for purposes
+    of address generation and vardef placement.
+    Added cases for OCLOSUREVAR and Ops for getting closure
+    pointer.  Closure ops are scheduled at top of entry block
+    to capture DX.
     
-    Change-Id: I5fb3cdce2ce5079f1f0467a1544bb3a1eb27b811
-    Reviewed-on: https://go-review.googlesource.com/17067
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Wrote test that seems to show proper behavior for addressed
+    parameters, locals, and returns.
+    
+    Change-Id: Iee93ebf9e3d9f74cfb4d1c1da8038eb278d8a857
+    Reviewed-on: https://go-review.googlesource.com/14650
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- misc/cgo/test/callback.go  | 17 +++++++++++++++++
- misc/cgo/test/callback_c.c |  8 ++++++++
- misc/cgo/test/cgo_test.go  |  1 +
- src/cmd/cgo/out.go         |  2 +-
- 4 files changed, 27 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/plive.go               |   2 +-
+ src/cmd/compile/internal/gc/ssa.go                 |  56 +++++-
+ src/cmd/compile/internal/gc/ssa_test.go            |   2 +
+ src/cmd/compile/internal/gc/syntax.go              |   2 +-
+ .../compile/internal/gc/testdata/addressed_ssa.go  | 216 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/check.go              |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |   4 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |   1 +
+ src/cmd/compile/internal/ssa/opGen.go              |  14 ++
+ src/cmd/compile/internal/ssa/regalloc.go           |  10 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |  14 ++
+ src/cmd/compile/internal/ssa/schedule.go           |  37 +++-
+ 13 files changed, 339 insertions(+), 22 deletions(-)

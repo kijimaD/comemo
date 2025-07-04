@@ -1,37 +1,22 @@
-commit 09d76e59d2e4e1c8d2c2ea99570647890057966f
-Author: limeidan <limeidan@loongson.cn>
-Date:   Tue Mar 25 15:02:03 2025 +0800
+commit b2bd7ebafcd8588fadef6b73755ee98bc8889233
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:56:57 2024 -0500
 
-    cmd/compile: set unalignedOK to make memcombine work properly on loong64
+    runtime: merge timerModifiedEarlier and timerModifierLater
     
-    goos: linux
-    goarch: loong64
-    pkg: unicode/utf8
-    cpu: Loongson-3A6000-HV @ 2500.00MHz
-                                │     old     │                 new                 │
-                                │   sec/op    │   sec/op     vs base                │
-    ValidTenASCIIChars            7.604n ± 0%   6.805n ± 0%  -10.51% (p=0.000 n=10)
-    Valid100KASCIIChars           37.41µ ± 0%   16.58µ ± 0%  -55.67% (p=0.000 n=10)
-    ValidTenJapaneseChars         60.84n ± 0%   58.62n ± 0%   -3.64% (p=0.000 n=10)
-    ValidLongMostlyASCII          113.5µ ± 0%   113.5µ ± 0%        ~ (p=0.303 n=10)
-    ValidLongJapanese             204.6µ ± 0%   206.8µ ± 0%   +1.07% (p=0.000 n=10)
-    ValidStringTenASCIIChars      7.604n ± 0%   6.803n ± 0%  -10.53% (p=0.000 n=10)
-    ValidString100KASCIIChars     38.05µ ± 0%   17.14µ ± 0%  -54.97% (p=0.000 n=10)
-    ValidStringTenJapaneseChars   60.58n ± 0%   59.48n ± 0%   -1.82% (p=0.000 n=10)
-    ValidStringLongMostlyASCII    113.5µ ± 0%   113.4µ ± 0%   -0.10% (p=0.000 n=10)
-    ValidStringLongJapanese       205.9µ ± 0%   207.3µ ± 0%   +0.67% (p=0.000 n=10)
-    geomean                       3.324µ        2.756µ       -17.08%
+    Nothing actually needs to know the difference between these
+    two states, so merge them.
     
-    Change-Id: Id43b6e2e41907bd4b92f421dacde31f048db47d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662495
+    This is part of a larger simplification of the state set.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: Ia30699ac92e66467773942e7df1fb21470a6e51a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564119
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/config.go |  1 +
- src/cmd/internal/sys/arch.go           |  2 +-
- test/codegen/memcombine.go             | 12 ++++++------
- 3 files changed, 8 insertions(+), 7 deletions(-)
+ src/runtime/time.go | 76 ++++++++++++++++-------------------------------------
+ 1 file changed, 23 insertions(+), 53 deletions(-)

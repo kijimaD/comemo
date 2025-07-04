@@ -1,0 +1,18 @@
+commit d0631b90a3b0934d0fe223e2d889d785d297f083
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 22 17:24:56 2024 -0700
+
+    runtime/debug: minor cleanups after CL 384154
+    
+    Change some vars to consts, remove some unneeded string conversions.
+    
+    Change-Id: Ib12eed11ef080c4b593c8369bb915117e7100045
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621838
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/runtime/debug/mod.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

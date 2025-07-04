@@ -1,16 +1,15 @@
-commit 9eeb90945eb56edc9095c662741b89170e522419
+commit 1fc9a17c7ea276ee80045dc8cc9411eb024cf8ea
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Mar 14 13:07:25 2012 +0900
+Date:   Wed Mar 14 12:49:59 2012 +0900
 
-    runtime/cgo: linux signal masking
+    runtime/cgo: darwin signal masking
     
-    Fixes #3314.
     Fixes #3101 (again).
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5820047
+    https://golang.org/cl/5825043
 
- src/pkg/runtime/cgo/gcc_linux_386.c   | 8 ++++++++
- src/pkg/runtime/cgo/gcc_linux_amd64.c | 8 ++++++++
+ src/pkg/runtime/cgo/gcc_darwin_386.c   | 8 ++++++++
+ src/pkg/runtime/cgo/gcc_darwin_amd64.c | 8 ++++++++
  2 files changed, 16 insertions(+)

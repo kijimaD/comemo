@@ -1,12 +1,19 @@
-commit c4f5421bc773f55be51097b9e29d70b68edb7f99
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Tue Nov 12 09:28:07 2013 +1100
+commit 597b9c0d19a7ce569574e67a455cdffca8894688
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Fri Nov 8 15:23:12 2013 -0500
 
-    misc/vim: add a gofmt_command flag for :Fmt
+    misc/emacs: various cleanups
     
-    R=dsymonds, dominik.honnef, n13m3y3r, rsc, kamil.kisiel
+    - Use #' for function symbols
+    - Remove unused variables
+    - Use declare-function to shut up byte compiler
+    
+    This is identical to CL 19010044 with one exception: Making sure
+    it doesn't break on Emacs 22.1
+    
+    R=adonovan, bradfitz, shendaras
     CC=golang-dev
-    https://golang.org/cl/22940044
+    https://golang.org/cl/20100043
 
- misc/vim/ftplugin/go/fmt.vim | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ misc/emacs/go-mode.el | 51 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 27 insertions(+), 24 deletions(-)

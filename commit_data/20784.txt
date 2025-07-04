@@ -1,13 +1,13 @@
-commit ffa5e5f7fc51e791427468ebe00a6479191430d7
-Author: Peter Collingbourne <pcc@google.com>
-Date:   Sat Oct 25 10:30:14 2014 -0700
+commit 9be9861c91aa42fc8cea8a9c902af6873b96b3b9
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Oct 9 11:21:21 2014 +0200
 
-    cmd/go: pass $CGO_LDFLAGS to linker with the "gccgo" toolchain.
+    net/rpc: fix build
     
-    LGTM=iant
-    R=iant, minux
-    CC=golang-codereviews, golang-dev
-    https://golang.org/cl/157460043
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/151620043
 
- src/cmd/go/build.go | 1 +
+ src/net/rpc/client_test.go | 1 +
  1 file changed, 1 insertion(+)

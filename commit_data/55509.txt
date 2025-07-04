@@ -1,20 +1,39 @@
-commit 244ccf4769b1794aa81a13d36142bc2bec4d26dc
-Author: Quim Muntal <quimmuntal@gmail.com>
-Date:   Fri Feb 2 13:30:55 2024 +0000
+commit 95eb5abd6340b271ae728f99986eeccbc0354ab1
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Dec 12 16:43:37 2022 -0800
 
-    Revert "cmd/go: add telemetry counters for flag names and subcommand"
+    path/filepath: do not Clean("a/../c:/b") into c:\b on Windows
     
-    This reverts CL 559519.
+    Do not permit Clean to convert a relative path into one starting
+    with a drive reference. This change causes Clean to insert a .
+    path element at the start of a path when the original path does not
+    start with a volume name, and the first path element would contain
+    a colon.
     
-    Reason for revert: Broke windows/386. See https://build.golang.org/log/03594b706c425bd61fb3c65495aae6dd01b4a81b.
+    This may introduce a spurious but harmless . path element under
+    some circumstances. For example, Clean("a/../b:/../c") becomes `.\c`.
     
-    Fixes #65447.
+    This reverts CL 401595, since the change here supersedes the one
+    in that CL.
     
-    Change-Id: I567bca0368168dbfb256fadba37bce3cd31aceb2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560655
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Thanks to RyotaK (https://twitter.com/ryotkak) for reporting this issue.
+    
+    Fixes #57274
+    Fixes CVE-2022-41722
+    
+    Change-Id: I837446285a03aa74c79d7642720e01f354c2ca17
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1675249
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    TryBot-Result: Security TryBots <security-trybots@go-security-trybots.iam.gserviceaccount.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468123
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/main.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/path/filepath/path.go              | 27 ++++++++++++++-------------
+ src/path/filepath/path_test.go         |  8 ++++++++
+ src/path/filepath/path_windows_test.go |  2 +-
+ 3 files changed, 23 insertions(+), 14 deletions(-)

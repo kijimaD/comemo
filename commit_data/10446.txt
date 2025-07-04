@@ -1,14 +1,23 @@
-commit 151bcb11a8fe353530d614adcffa1f3ee2099ba4
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Nov 18 15:30:36 2011 +0300
+commit 5ca38eda49119804d790b70a11f884f72a9e26bd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 18 21:33:04 2011 +1100
 
-    exp/terminal: fix Makefile formatting for deps.bash
-    deps.bash does not understand current format,
-    so make.bash fails (with MAKEFLAGS=-j20).
+    undo CL 5395044 / d88e746d3785
     
-    R=golang-dev, bradfitz
+    Breaks with hg 1.6.4. Roll back until it's fixed.
+    
+    ««« original CL description
+    codereview: cleanup + basic tests
+    
+    R=adg, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5410046
+    https://golang.org/cl/5395044
+    »»»
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5410047
 
- src/pkg/exp/terminal/Makefile | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ lib/codereview/codereview.py | 1296 +++++++++++++++++++-----------------------
+ lib/codereview/test.sh       |  198 -------
+ 2 files changed, 597 insertions(+), 897 deletions(-)

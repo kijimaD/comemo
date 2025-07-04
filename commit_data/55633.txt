@@ -1,23 +1,38 @@
-commit af3f94ce646201914a62145821630cc232c1d014
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Feb 14 16:42:27 2024 -0600
+commit 7a0799b2c0bdfaf745dbd8c74a3db2f3d238fd1b
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Feb 8 11:40:06 2023 -0500
 
-    cmd/cgo/internal/test: disable issue8694 and issue9510 on ppc64x with internal linking
+    cmd/dist, test: convert test/run.go runner to a cmd/go test
     
-    These link in libgcc functions which require more advanced handling
-    of small toc relocations. The internal linker is not capable of
-    placing these functions to ensure they are always resolvable.
+    As motivated on the issue, we want to move the functionality of the
+    run.go program to happen via a normal go test. Each .go test case in
+    the GOROOT/test directory gets a subtest, and cmd/go's support for
+    parallel test execution replaces run.go's own implementation thereof.
     
-    Change-Id: Idd4a0264bfbbd7016472120dc4bee84814e8c2eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564235
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    The goal of this change is to have fairly minimal and readable diff
+    while making an atomic changeover. The working directory is modified
+    during the test execution to be GOROOT/test as it was with run.go,
+    and most of the test struct and its run method are kept unchanged.
+    The next CL in the stack applies further simplifications and cleanups
+    that become viable.
+    
+    There's no noticeable difference in test execution time: it takes around
+    60-80 seconds both before and after on my machine. Test caching, which
+    the previous runner lacked, can shorten the time significantly.
+    
+    For #37486.
+    Fixes #56844.
+    
+    Change-Id: I209619dc9d90e7529624e49c01efeadfbeb5c9ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463276
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- .../test/cgo_stubs_ppc64x_internal_linking_test.go        | 15 +++++++++++++++
- src/cmd/cgo/internal/test/issue8694.go                    |  2 +-
- src/cmd/cgo/internal/test/issue9510.go                    |  2 +-
- 3 files changed, 17 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go                               |  66 ++----
+ .../run.go => src/internal/testdir/testdir_test.go | 235 ++++++---------------
+ test/README.md                                     |   4 +-
+ test/codegen/README                                |  13 +-
+ 4 files changed, 88 insertions(+), 230 deletions(-)

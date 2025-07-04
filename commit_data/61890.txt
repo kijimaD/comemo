@@ -1,0 +1,16 @@
+commit d5c1333eb452e37f80af797c6c26a93b00697f7f
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Dec 11 09:49:36 2024 -0800
+
+    net/http: document zero value of Protocols
+    
+    For #67814
+    
+    Change-Id: I182e9c7e720493adb9d2384336e757dace818525
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635335
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/net/http/http.go | 1 +
+ 1 file changed, 1 insertion(+)

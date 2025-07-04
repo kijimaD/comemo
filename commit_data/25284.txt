@@ -1,18 +1,20 @@
-commit 86f1944e86ae3e07651dcbfafee37f1e3b0a917d
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Dec 6 17:35:12 2015 -0500
+commit 243757576da812d16e79a721353edb48f55492ec
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Fri Oct 16 14:01:45 2015 -0700
 
-    cmd/dist, runtime: make runtime version available as runtime.buildVersion
+    runtime: merge race1.go -> race.go
     
-    So that there is a uniformed way to retrieve Go version from a Go
-    binary, starting from Go 1.4 (see https://golang.org/cl/117040043)
+    * append contents of race1.go to race.go
+    * delete "Implementation of the race detector API." comment
+      from race1.go
     
-    Updates #13507.
+    Updates #12952
     
-    Change-Id: Iaa2b14fca2d8c4d883d3824e2efc82b3e6fe2624
-    Reviewed-on: https://go-review.googlesource.com/17459
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ibdd9c4dc79a63c3bef69eade9525578063c86c1c
+    Reviewed-on: https://go-review.googlesource.com/16023
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/buildruntime.go | 6 ++----
- src/runtime/proc.go          | 6 ++++--
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/race.go  | 305 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/race1.go | 315 ---------------------------------------------------
+ 2 files changed, 305 insertions(+), 315 deletions(-)

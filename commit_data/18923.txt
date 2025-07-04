@@ -1,15 +1,13 @@
-commit 9cb4963d187e044353e83e7919d2a5302bdd72ac
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Mar 24 12:34:09 2014 +1100
+commit 160649ff9adaffddf91c45da2767f3fdc99f6d73
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Sun Mar 23 15:07:26 2014 -0700
 
-    misc/nacl: add Native Client support scripts and documentation
+    unicode/utf16: remove unnecessary type conversions
     
-    LGTM=josharian, dan.kortschak
-    R=golang-codereviews, josharian, dan.kortschak
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/75080043
+    https://golang.org/cl/79080044
 
- misc/nacl/README                | 65 +++++++++++++++++++++++++++++++++++++++++
- misc/nacl/go_nacl_386_exec      | 10 +++++++
- misc/nacl/go_nacl_amd64p32_exec | 10 +++++++
- 3 files changed, 85 insertions(+)
+ src/pkg/unicode/utf16/utf16.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

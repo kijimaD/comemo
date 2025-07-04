@@ -1,14 +1,16 @@
-commit 81a89606ef7e1334a0a23dab2eaa295b381caebc
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue May 10 11:48:48 2016 -0700
+commit 7177cb9fa4c748e45aa4866ee77d648961368c3f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 22 09:43:28 2016 -0700
 
-    doc: remove mention of %HOME% from installation instructions
+    cmd/compile: remove dots from register names
     
-    Fixes #15598
+    They are kind of useless and are cluttering up
+    https://go-review.googlesource.com/c/21000/
     
-    Change-Id: I4cfb8799dab0e9e34cae2e61839911fd65e4cfa3
-    Reviewed-on: https://go-review.googlesource.com/23004
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iafdec75ada11c7ebdc40540d251fdc514bb00d3d
+    Reviewed-on: https://go-review.googlesource.com/21001
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- doc/install.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   73 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 1316 +++++++++++++-------------
+ 2 files changed, 693 insertions(+), 696 deletions(-)

@@ -1,13 +1,26 @@
-commit fa3a2a84cc2f4aa10ddb2a205e9fb0656d46ff83
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 10 13:52:58 2014 +0400
+commit 414b45d91a3bcb5dacd5061c9a93cb8936592b87
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Feb 10 10:41:47 2014 +1100
 
-    misc/pprof: support web profiles on windows
+    cmd/go: fix test.bash
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz, alex.brainman
+    Fixes #7260.
+    
+    Fix three broken tests in test.bash
+    
+    The test for issue 4568 was confused by go $ACTION . producing a package root of "", avoiding this mode fixes the test but weakens the test.
+    
+    The test for issue 4773 was broken on linux because math/Rand would fail to resolve as a package causing the test for duplicates to be skipped.
+    
+    Finally, the last breakage was a small change in the error message.
+    
+    Also, add test for foldDup.
+    
+    LGTM=iant
+    R=iant, rsc
     CC=golang-codereviews
-    https://golang.org/cl/61260044
+    https://golang.org/cl/61070044
 
- misc/pprof | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/go/pkg_test.go | 27 +++++++++++++++++++++++++++
+ src/cmd/go/test.bash   | 20 +++++++++++++-------
+ 2 files changed, 40 insertions(+), 7 deletions(-)

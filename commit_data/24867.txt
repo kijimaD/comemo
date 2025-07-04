@@ -1,17 +1,25 @@
-commit 2ac993107fcae841ca6e81ad75e88d8b5973a115
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Oct 16 15:54:10 2015 +1300
+commit 22452ac5924faaf95ecb49fb345fea3fdd783bb6
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Sep 5 12:30:13 2015 +1000
 
-    cmd/internal/obj, cmd/link: access global data via GOT when dynlinking on ppc64le
+    cmd/compile: use []*Node instead of NodeList in bottomUpVisitor
     
-    Change-Id: I79c60241df6c785f35371e70c777a7bd6e93571c
-    Reviewed-on: https://go-review.googlesource.com/15968
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This one of a set of changes to make the transition away from NodeList
+    easier by removing cases in which NodeList doesn't act semi-trivially like a
+    []*Node.
+    
+    This CL was originally prepared by Josh Bleecher Snyder <josharian@gmail.com>.
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I582ff8b077eb384b84721a1edb0c1efbc0c40059
+    Reviewed-on: https://go-review.googlesource.com/14304
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/link.go          |   5 ++
- src/cmd/internal/obj/ppc64/a.out.go   |   1 +
- src/cmd/internal/obj/ppc64/anames9.go |   1 +
- src/cmd/internal/obj/ppc64/asm9.go    |  18 +++++
- src/cmd/internal/obj/ppc64/obj9.go    | 127 ++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ppc64/asm.go    |   7 ++
- 6 files changed, 159 insertions(+)
+ src/cmd/compile/internal/gc/esc.go  | 47 ++++++++++++++++++-------------------
+ src/cmd/compile/internal/gc/lex.go  | 12 ++++++----
+ src/cmd/compile/internal/gc/subr.go |  2 +-
+ 3 files changed, 31 insertions(+), 30 deletions(-)

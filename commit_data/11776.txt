@@ -1,12 +1,14 @@
-commit ce63ec93ce47cd18e08b525fc6b84ab1c2abc920
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 10 01:11:56 2012 -0500
+commit 62b328ed1914f9650675af52156254454b4fc4e5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 10 16:29:50 2012 +1100
 
-    regexp/syntax: delete old package comment
+    all.bat: report error code back to the gobuilder
     
-    R=golang-dev, r
+    not sure that it will work, but.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5651057
+    https://golang.org/cl/5649051
 
- src/pkg/regexp/syntax/regexp.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/all.bat | 1 +
+ 1 file changed, 1 insertion(+)

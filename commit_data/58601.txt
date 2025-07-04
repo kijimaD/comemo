@@ -1,23 +1,21 @@
-commit 5c2b5e02c422ab3936645e2faa4489bf32fa8a57
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Dec 22 20:20:17 2024 -0800
+commit 3107fa99acdcf26394e4bd96a176622d4034b10f
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 20:54:16 2023 +0800
 
-    os: separate Process.handle into a separate memory allocation
+    runtime: make duff device as ABIInternal for loong64
     
-    This is a step toward using AddCleanup rather than SetFinalizer
-    to close process handles.
+    Update #40724
     
-    For #70907
-    
-    Change-Id: I7fb37461dd67b27135eab46fbdae94f0058ace85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638575
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I243e60489dc5fd162ad91d6426bf32cf0e13d9e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521782
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: David Chase <drchase@google.com>
 
- src/os/exec.go          | 94 +++++++++++++++++++++++++++++++++++++++----------
- src/os/exec_linux.go    |  4 +--
- src/os/exec_nohandle.go |  4 ++-
- src/os/exec_windows.go  |  4 +--
- 4 files changed, 82 insertions(+), 24 deletions(-)
+ src/runtime/duff_loong64.s | 4 ++--
+ src/runtime/mkduff.go      | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

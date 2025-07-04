@@ -1,19 +1,22 @@
-commit bd9776357732eb3a3c635427bb3591e4cbc79cc5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 23 17:38:55 2021 -0700
+commit 89f465c2b59cea32c10ed69eaa07e17f85c910e2
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Dec 9 06:10:52 2020 -0500
 
-    cmd/compile/internal/types2: use an opaque environment for Instantiate
+    go/types: avoid endless recursion in the Comparable predicate
     
-    This is a port of CL 343930 from go/types, adjusted to work for
-    the compiler: here Environment carries a *Checker, if available.
+    This is a port of CL 276374 from the dev.typeparams branch. Avoid an
+    endless recursion in Comparable by tracking types that have already been
+    considered.
     
-    Change-Id: I44544fad7da870fa0c02832baa6abd2909d50304
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344612
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Fixes #43088
+    
+    Change-Id: I927b29ac544df9bfb5c8c04699d57fafe6cfff73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276552
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Trust: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/reader2.go      |  2 +-
- src/cmd/compile/internal/types2/instantiate.go | 26 +++++++++++++++++++++++---
- 2 files changed, 24 insertions(+), 4 deletions(-)
+ src/go/types/issues_test.go | 26 ++++++++++++++++++++++++++
+ src/go/types/predicates.go  | 16 ++++++++++++++--
+ 2 files changed, 40 insertions(+), 2 deletions(-)

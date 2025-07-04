@@ -1,22 +1,23 @@
-commit e7fbd28a4dbf92721f040dfb2c877153333054d1
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Fri Sep 1 14:59:27 2023 -0700
+commit 3380ee2520165187c3d1476c46d16bc76376d4d4
+Author: Bryan Mills <bcmills@google.com>
+Date:   Tue Oct 4 19:55:56 2022 +0000
 
-    syscall: inline TestUseCgroupFDHelper
+    Revert "os/exec: make StdoutPipe and StderrPipe safe to Close concurrently"
     
-    This way, the test case is self-contained, and the test output no longer
-    has useless lines related to TestUseCgroupFDHelper.
+    This reverts CL 437176.
     
-    Change-Id: I575a03b678c8c08a87353f6dc00c35a90ec561ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525196
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reason for revert: broke programs that plumb StdoutPipe from one command to Stdin on another and then call Wait on the former.
+    
+    os/exec itself uses a type-assertion to *os.File to determine whether to copy stdin using a goroutine or just pass a file descriptor. An early Wait using a *os.File is benign (because closing the pipe doesn't close the child's inherited file descriptor), but an early Wait using a non-*os.File is not.
+    
+    Updates #50436.
+    
+    Change-Id: I4a2993e290982834f91696d890dfe77364c0cc50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438695
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/syscall/exec_linux_test.go | 28 +++++++++++++---------------
- 1 file changed, 13 insertions(+), 15 deletions(-)
+ src/os/exec/exec.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

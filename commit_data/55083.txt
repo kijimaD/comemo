@@ -1,20 +1,38 @@
-commit 7b26cb954050291b593b36170d25214e948ceba5
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Aug 15 19:38:33 2023 +0800
+commit 458241f981e0a8e1d9e0b2f6ae53be62f00001d2
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Dec 14 09:55:06 2022 -0800
 
-    internal/abi: define loong64 regABI constants
+    net/http/httputil: don't add X-Forwarded-{Host,Proto} after invoking Director funcs
     
-    Update #40724
+    This reverts CL 407414.
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: Id580d9e22a562adee2ae02a467ac38a54949e737
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521778
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    When forwarding an inbound request that contains an existing
+    X-Forwarded-Host or X-Forwarded-Proto header, a proxy might want
+    to preserve the header from the inbound request, replace it with
+    its own header, or not include any header at all.
+    
+    CL 407414 replaces inbound X-Forwarded-{Host,Proto} headers by default,
+    and allows a Director func to disable sending these headers at all.
+    However, the Director hook API isn't sufficiently flexible to permit the
+    previous behavior of preserving inbound values unchanged.
+    
+    The new Rewrite API does have this flexibility; users of Rewrite can
+    easily pick the exact behavior they want.
+    
+    Revert the change to ReverseProxy when using a Director func.
+    Users who want a convenient way to set X-Forwarded-* headers to
+    reasonable values can migrate to Rewrite at their convenience,
+    and users depending on the current behavior will be unaffected.
+    
+    For #50465.
+    Fixes #57132.
+    
+    Change-Id: Ic42449c1bb525d6c9920bf721efbc519697f4f20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457595
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/internal/abi/abi_loong64.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/net/http/httputil/reverseproxy.go      | 30 +++++++------------
+ src/net/http/httputil/reverseproxy_test.go | 47 ++----------------------------
+ 2 files changed, 12 insertions(+), 65 deletions(-)

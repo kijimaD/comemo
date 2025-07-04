@@ -1,13 +1,23 @@
-commit c241f696f87a1d0aaf1cc28eb6383e73184ef837
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jan 15 08:52:22 2013 +0900
+commit 5e5c0a9fbb3adf832fe5eb7d47883318a73c8400
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 14 15:19:32 2013 -0800
 
-    syscall: simplify socket control messages
+    go/types: various minor fixes
     
-    R=golang-dev, iant
+    - always set the Pkg field in QualifiedIdents
+    - call Context.Ident for all identifiers in the AST that denote
+      a types.Object (bug fix)
+    - added test that Context.Ident is called for all such identifiers
+    
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/7016044
+    https://golang.org/cl/7101054
 
- src/pkg/syscall/sockcmsg_linux.go | 26 +++++++-------
- src/pkg/syscall/sockcmsg_unix.go  | 76 +++++++++++++++++----------------------
- 2 files changed, 45 insertions(+), 57 deletions(-)
+ src/pkg/go/types/api.go           | 13 +++++--
+ src/pkg/go/types/check.go         |  4 +-
+ src/pkg/go/types/expr.go          | 10 ++---
+ src/pkg/go/types/resolve.go       | 51 +++++++++++++------------
+ src/pkg/go/types/resolver_test.go | 78 +++++++++++++++++++++++++++++++++++++--
+ src/pkg/go/types/types.go         | 16 +-------
+ src/pkg/go/types/universe.go      |  3 +-
+ 7 files changed, 121 insertions(+), 54 deletions(-)

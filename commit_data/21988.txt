@@ -1,16 +1,15 @@
-commit 0d6a0d6c3f98fcdd5f5826106bc9c49f348e3d75
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Mar 11 12:07:50 2015 -0400
+commit f20826692bbf35ae09d3a988dbc4a028fb00a50f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 17 15:21:11 2015 +1100
 
-    runtime: don't return a slice with nil ptr but non-zero len from growslice
+    syscall: make mksyscall_windows.go to work even when output does not uses unsafe package
     
-    Fixes #10135.
+    Fixes #9900
     
-    Change-Id: Ic4c5ab15bcb7b9c3fcc685a788d3b59c60c26e1e
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/7400
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5dd401e8d2040e84ccb97c2fe9f5c5a28095b538
+    Reviewed-on: https://go-review.googlesource.com/5005
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/slice.go         |  4 +++-
- test/fixedbugs/issue10135.go | 25 +++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/syscall/mksyscall_windows.go | 2 ++
+ src/syscall/zsyscall_windows.go  | 2 ++
+ 2 files changed, 4 insertions(+)

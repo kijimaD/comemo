@@ -1,26 +1,18 @@
-commit e9347c781be66056bbc724f4d70d4b8b9bc0288c
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Thu Apr 10 18:44:44 2014 +0400
+commit d7ac73c869cce4f8fe5978345d74de94c319b1c0
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Apr 10 06:37:30 2014 +0200
 
-    sync: fix spurious wakeup from WaitGroup.Wait
+    runtime: no longer skip stack growth test in short mode
     
-    There is a race condition that causes spurious wakeup from Wait
-    in the following case:
+    We originally decided to skip this test in short mode
+    to prevent the parallel runtime test to timeout on the
+    Plan 9 builder. This should no longer be required since
+    the issue was fixed in CL 86210043.
     
-     G1: decrement wg.counter, observe the counter is now 0
-         (should unblock goroutines queued *at this moment*)
-     G2: increment wg.counter
-     G2: call Wait() to add itself to the wait queue
-     G1: acquire wg.m, unblock all waiting goroutines
-    
-    In the last step G2 is spuriously woken up by G1.
-    Fixes #7734.
-    
-    LGTM=rsc, dvyukov
-    R=dvyukov, 0xjnml, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/85580043
+    LGTM=dave, bradfitz
+    R=dvyukov, dave, bradfitz
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/84790044
 
- src/pkg/sync/waitgroup.go      | 10 ++++++----
- src/pkg/sync/waitgroup_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 4 deletions(-)
+ src/pkg/runtime/stack_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

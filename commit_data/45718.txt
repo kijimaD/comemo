@@ -1,16 +1,25 @@
-commit ccd9784edf556673a340f3a8d55d9a8c64b95f59
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 27 16:16:37 2021 -0700
+commit 01cdd365a9c9e934d878553016377dc476c3fa4f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Aug 31 17:09:57 2020 -0400
 
-    doc/go1.17: document new debug/elf constant
+    crypto/tls: drop macFunction abstraction
     
-    For #39677
-    For #44513
+    Since we dropped SSLv3, there is only one MAC scheme, and it doesn't
+    need any state beyond a keyed HMAC, so we can replace the macFunction
+    with the hash.Hash it wraps.
     
-    Change-Id: I8c4193fd4359b83e6739e7e30a3a42b5f21b0f1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323275
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Pointed out by mtp@.
+    
+    Change-Id: I5545be0e6ccb34a3055fad7f6cb5f628ff748e9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251859
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
 
- doc/go1.17.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/crypto/tls/cipher_suites.go    | 51 +++++++++++---------------------------
+ src/crypto/tls/conn.go             | 46 ++++++++++++++++------------------
+ src/crypto/tls/handshake_client.go |  7 +++---
+ src/crypto/tls/handshake_server.go |  7 +++---
+ 4 files changed, 45 insertions(+), 66 deletions(-)

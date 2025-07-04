@@ -1,21 +1,14 @@
-commit 2c8d2a0c51f4085e56b5ab05ed9fb17fc6d08261
-Author: Steven Hartland <steven.hartland@multiplay.co.uk>
-Date:   Mon Aug 31 21:37:40 2020 +0100
+commit 975c01342a25899962969833d8b2873dc8856a4f
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Feb 24 17:25:08 2020 -0500
 
-    net/http: fix data race due to writeLoop goroutine left running
+    crypto/x509: use new ecdsa.VerifyASN1 API
     
-    Fix a data race for clients that mutate requests after receiving a
-    response error which is caused by the writeLoop goroutine left
-    running, this can be seen on cancelled requests.
-    
-    Fixes #37669
-    
-    Change-Id: Ia4743c6b8abde3a7503de362cc6a3782e19e7f60
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251858
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ia4f77d2965e34454e8dd3f2d8bf9c4f3065a9fbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220721
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/net/http/transport.go      | 10 ++++-
- src/net/http/transport_test.go | 99 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 108 insertions(+), 1 deletion(-)
+ src/crypto/x509/x509.go | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)

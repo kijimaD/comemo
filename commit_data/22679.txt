@@ -1,19 +1,18 @@
-commit 9406f68e6afd02fd588e8ca05ebb729a4f4b8d0d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 17 00:34:18 2015 -0400
+commit 52c84c34fdb7c28d8f5c32458bad84b096af2797
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 2 12:15:03 2015 +0900
 
-    cmd/internal/gc: add and test write barrier debug output
+    net: move test flags into main_test.go
     
-    We can expand the test cases as we discover problems.
-    This is some basic tests plus all the things I got wrong
-    in some recent work.
+    Also updates the comments on test flags.
     
-    Change-Id: Id875fcfaf74eb087ae42b441fe47a34c5b8ccb39
-    Reviewed-on: https://go-review.googlesource.com/9158
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I8dbd90270e08728ab309ab88a3030e0f8e547175
+    Reviewed-on: https://go-review.googlesource.com/8394
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/gc/lex.go  |   3 ++
- src/cmd/internal/gc/walk.go |   3 ++
- test/writebarrier.go        | 110 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 116 insertions(+)
+ src/net/dial_test.go       |  3 ---
+ src/net/dialgoogle_test.go |  4 ----
+ src/net/lookup_test.go     |  5 -----
+ src/net/main_test.go       | 21 +++++++++++++++++++++
+ src/net/server_test.go     |  7 -------
+ 5 files changed, 21 insertions(+), 19 deletions(-)

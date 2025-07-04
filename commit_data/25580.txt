@@ -1,16 +1,18 @@
-commit 353ee32f8846defc1cea6e08a351efadc1169dc2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 13 21:13:02 2016 -0500
+commit d727312cbfd7212950b12ec078030c62c83a9064
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 10 20:12:37 2015 -0500
 
-    doc: document archive/tar changes
+    runtime: remove unused marking parfor
     
-    Fixes #13647.
+    The GC now handles the root marking jobs as part of general marking,
+    so work.markfor is no longer used.
     
-    Change-Id: I28df7ade9b5abd79ce6b9c3d14ceaa988e86fc01
-    Reviewed-on: https://go-review.googlesource.com/18642
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I6c3b23fed27e4e7ea6430d6ca7ba25ae4d04ed14
+    Reviewed-on: https://go-review.googlesource.com/16811
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.6.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/runtime/mgc.go     | 2 --
+ src/runtime/mgcmark.go | 4 ++--
+ 2 files changed, 2 insertions(+), 4 deletions(-)

@@ -1,12 +1,12 @@
-commit bba8b89aa5ee9ef9d6981deeac4dea5393c7d4ca
+commit fa851b17a2fd2350043b3e56dce398a606692c23
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 25 10:08:17 2015 -0800
+Date:   Mon Feb 2 11:02:09 2015 -0800
 
-    math/big: improve some doc strings
+    go/printer: clearer logic (clenaup)
     
-    Change-Id: Ie37673d4af2fa7476d67ffb686641611ab6a8e6b
-    Reviewed-on: https://go-review.googlesource.com/5930
+    Change-Id: I278ce47b38ec5732d981aec06b71f9ee5747c3bb
+    Reviewed-on: https://go-review.googlesource.com/3730
     Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/math/big/float.go | 44 ++++++++++++++++++++++++--------------------
- 1 file changed, 24 insertions(+), 20 deletions(-)
+ src/go/printer/printer.go | 27 +++++++++++++--------------
+ 1 file changed, 13 insertions(+), 14 deletions(-)

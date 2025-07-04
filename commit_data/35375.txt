@@ -1,33 +1,23 @@
-commit 6495bf17105fbf5c76a719bdea3f383eea8b28db
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Thu May 10 10:10:36 2018 +0200
+commit 2ae1e1ae2f8726057914f26d5360c3403b8f049a
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 15 14:54:24 2017 -0800
 
-    cmd/compile: ensure init of memclr happens after growslice in extendslice
+    runtime: buffered write barrier for s390x
     
-    Using the extendslice init node list to add the init nodes for the memclr
-    call could add init nodes for memclr function before the growslice call
-    created by extendslice.
+    Updates #22460.
     
-    As all arguments of the memclr were explicitly set in OAS nodes before
-    the memclr call this does not change the generated code currently.
-    ./all.bash runs fine when replacing memclr init with nil suggesting there
-    are currently no additional nodes added to the init of extendslice by
-    the memclr call.
-    
-    Add the init nodes for the memclr call directly before the node of the
-    memclr call to prevent additional future init nodes for function calls
-    and argument evaluations to be evaluated too early when other compiler
-    code is added.
-    
-    passes toolstash -cmp
-    
-    Updates #21266
-    
-    Change-Id: I44bd396fe864bfda315175aa1064f9d51c5fb57a
-    Reviewed-on: https://go-review.googlesource.com/112595
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I3f793e69577c1b837ad2666e6209a97a452405d4
+    Reviewed-on: https://go-review.googlesource.com/92703
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/walk.go | 32 +++++++++++++-------------------
- 1 file changed, 13 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/main.go          |  2 +-
+ src/cmd/compile/internal/s390x/ssa.go        |  5 +++
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  3 ++
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  6 +++
+ src/cmd/compile/internal/ssa/opGen.go        | 15 +++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 20 +++++++++
+ src/cmd/vet/all/whitelist/s390x.txt          |  2 +
+ src/runtime/asm_s390x.s                      | 66 ++++++++++++++++++++++++++++
+ 8 files changed, 118 insertions(+), 1 deletion(-)

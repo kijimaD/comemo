@@ -1,33 +1,16 @@
-commit 24ee948269580391dda0e3ec50136d25a5778280
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 26 18:48:42 2015 -0400
+commit 7ff6254c5066ad951ba03a85c05f1527e0b24ab2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 3 17:54:42 2015 -0500
 
-    runtime: update gctrace line for new garbage collector
+    misc/ios: run lldb commands much more carefully
     
-    GODEBUG=gctrace=1 turns on a per-GC cycle trace line. The current line
-    is left over from the STW garbage collector and includes a lot of
-    information that is no longer meaningful for the concurrent GC and
-    doesn't include a lot of information that is important.
+    We now wait until we see the completed prompt from a command before
+    proceeding. This seems to cut down on a spurious error I have seen
+    this afternoon.
     
-    Replace this line with a new line designed for the new garbage
-    collector.
-    
-    This new line is focused more on helping the user understand the
-    impact of the garbage collector on their program and less on telling
-    us, the runtime developers, everything that's happening inside
-    GC. It's designed to fit in 80 columns and intentionally omit some
-    potentially useful things that were in the old line. We might want a
-    "verbose" mode that adds information for us.
-    
-    We'll be able to further simplify the line once we eliminate the STW
-    around enabling the write barrier. Then we'll have just one STW phase,
-    one concurrent phase, and one more STW phase, so we'll be able to
-    reduce the number of times from five to three.
-    
-    Change-Id: Icc30939fe4576fb4491b4eac811649395727aa2a
-    Reviewed-on: https://go-review.googlesource.com/8208
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic0a3481d8c265c3c3b4449ec7ac1c2752b85b0b6
+    Reviewed-on: https://go-review.googlesource.com/6691
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/runtime/mgc.go  | 125 ++++++++++++++++++++++++++++++++--------------------
- src/runtime/proc.go |   6 +++
- 2 files changed, 84 insertions(+), 47 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 47 ++++++++++++++++++++++++------------------
+ 1 file changed, 27 insertions(+), 20 deletions(-)

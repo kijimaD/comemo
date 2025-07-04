@@ -1,20 +1,21 @@
-commit e9d9d0befc634f6e9f906b5ef7476fbd7ebd25e3
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Mar 25 07:10:45 2015 -0400
+commit c62b003eba484d54c2707b379d29240e5367e98f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Feb 27 17:51:25 2015 +0100
 
-    runtime, runtime/cgo: make needextram a bool
+    build: restore original timeouts in run.rc
     
-    Also invert it, which means it no longer needs to cross the cgo
-    package boundary.
+    The timeouts were increased in CL 2462 and CL 2510
+    to work around a slowness issue when running Go
+    programs on a Plan 9 machine on GCE.
     
-    Change-Id: I393cd073bda02b591a55d6bc6b8bb94970ea71cd
-    Reviewed-on: https://go-review.googlesource.com/8082
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Since we figured out this issue, we can restore
+    the timeouts to their original values.
+    
+    Updates #10028.
+    
+    Change-Id: I2e5b91666461715df69df97ea791f3d88d9de4d0
+    Reviewed-on: https://go-review.googlesource.com/6261
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/cgo.go       | 7 +++++++
- src/runtime/cgo/iscgo.go | 3 ---
- src/runtime/proc1.go     | 6 +++---
- src/runtime/runtime2.go  | 2 --
- 4 files changed, 10 insertions(+), 8 deletions(-)
+ src/run.rc | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

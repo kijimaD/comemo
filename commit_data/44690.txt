@@ -1,39 +1,17 @@
-commit 0ec2c4abbad7d678ebc4afc4c69af7d952fc3404
-Author: David Chase <drchase@google.com>
-Date:   Wed Mar 10 20:54:11 2021 -0500
+commit b0cc02e8c2bdba5401838d9d70a859191af9bfa5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 19 16:54:36 2020 +0200
 
-    cmd/compile: (fixed) spill output parameters passed in registers as autos
+    internal/poll: treat copy_file_range EPERM as not-handled
     
-    Repair of CL 300749.
+    Fixes #40893
     
-    ALSO:
-    found evidence that stack maps for bodyless methods are wrong.
-    gofmt in test/abi
-    removed never-executed code in types/size.go
-    
-    Updates #44816.
-    Updates #40724.
-    
-    Change-Id: Ifeb5fee60f60e7c7b58ee0457f58a3265d6cf3f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302071
-    Trust: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I938ea4796c1e1d1e136117fe78b06ad6da8e40de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249257
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Antonio Troina <thoeni@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go          | 31 ++++++++--
- src/cmd/compile/internal/dwarfgen/dwarf.go        | 10 ++-
- src/cmd/compile/internal/gc/compile.go            |  2 +-
- src/cmd/compile/internal/ir/name.go               | 75 ++++++++++++-----------
- src/cmd/compile/internal/liveness/plive.go        | 19 ++++--
- src/cmd/compile/internal/ssa/op.go                | 10 +++
- src/cmd/compile/internal/ssagen/pgen.go           | 18 ++++--
- src/cmd/compile/internal/ssagen/ssa.go            | 30 +++++----
- src/cmd/compile/internal/test/abiutilsaux_test.go |  2 +-
- src/cmd/compile/internal/types/size.go            | 12 +---
- src/cmd/compile/internal/types/type.go            |  4 +-
- test/abi/fibish2.go                               |  4 +-
- test/abi/leaf.go                                  | 36 +++++++++++
- test/abi/leaf2.go                                 | 43 +++++++++++++
- test/abi/methods.go                               | 11 ++--
- test/abi/spills3.go                               | 48 +++++++++++++++
- test/abi/spills4.go                               | 44 +++++++++++++
- 17 files changed, 309 insertions(+), 90 deletions(-)
+ src/internal/poll/copy_file_range_linux.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

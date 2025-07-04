@@ -1,0 +1,23 @@
+commit 074f2761b5ff54c9c9d2e2a720abd29efa5474cc
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Jul 24 10:32:31 2024 +0000
+
+    crypto/x509,embed: use slices to clean up tests
+    
+    Replace reflect.DeepEqual with slices.Equal, which is much faster.
+    
+    Change-Id: Ia93cc153d1f71ce92656129843be8dadcefbbca3
+    GitHub-Last-Rev: 0af0cc4205f51b31780ca2cbefe780e7256b1188
+    GitHub-Pull-Request: golang/go#67610
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587817
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/crypto/x509/root_unix_test.go          |  4 ++--
+ src/crypto/x509/verify_test.go             |  3 +--
+ src/crypto/x509/x509_test.go               | 22 +++++++++++-----------
+ src/embed/internal/embedtest/embed_test.go |  3 ++-
+ 4 files changed, 16 insertions(+), 16 deletions(-)

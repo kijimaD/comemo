@@ -1,14 +1,17 @@
-commit ed9fc7531d80d0894d52c96a4a79968842df945b
+commit 7fc64a2a1da272361fc78453c7ffea17def3bcb0
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 1 08:33:52 2013 -0800
+Date:   Thu Jan 31 22:02:20 2013 -0800
 
-    cmd/cgo: document //export preamble restriction
+    cmd/dist: redirect acid output to file to separate from errors
     
-    Fixes #3497.
+    If runtime's proc.c does not compile, cmd/dist used to show
+    the compile errors in a sea of acid output, making them impossible
+    to find. Change the command invocation to write the acid output
+    to a file, so that the errors are the only thing shown on failure.
     
     R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7235075
+    https://golang.org/cl/7221082
 
- src/cmd/cgo/doc.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/dist/buildruntime.c | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

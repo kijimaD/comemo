@@ -1,21 +1,22 @@
-commit ca854f3cdaa577930b385b61571d5176193b738e
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Tue Apr 28 07:31:12 2020 -0700
+commit 62dfb278279575715010fdce346f39a2072b73dd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Nov 11 16:49:29 2019 -0500
 
-    database/sql: document Connect and Close may need a timeout
+    [dev.link] cmd/link: delete old object file format support
     
-    Opening a connection with Connect should still create a derived
-    context with a timeout because some clients will not use a timeout
-    and the connection pool may open a connection asynchronously.
+    There are more cleanups to do, but I want to keep this CL mostly
+    a pure deletion.
     
-    Likewise, if a connection close makes a network operation it should
-    provide some type of sane timeout for the operation.
-    
-    Fixes #38185
-    
-    Change-Id: I9b7ce2996c81c486170dcc84b12672a99610fa27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230438
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I30f4891a2ea54545fd6b83041746ab65895537e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206558
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/database/sql/driver/driver.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/dist/buildtool.go                |   1 -
+ src/cmd/link/internal/ld/deadcode.go     | 301 +-------------
+ src/cmd/link/internal/ld/go.go           |   8 +-
+ src/cmd/link/internal/ld/lib.go          | 115 ++----
+ src/cmd/link/internal/ld/main.go         |   5 +-
+ src/cmd/link/internal/objfile/objfile.go | 659 -------------------------------
+ 6 files changed, 39 insertions(+), 1050 deletions(-)

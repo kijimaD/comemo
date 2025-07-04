@@ -1,18 +1,27 @@
-commit 117c9c35cde8444d26db91bfa8346dde252989b1
-Author: Carl Johnson <me@carlmjohnson.net>
-Date:   Tue Oct 25 22:35:01 2016 -0400
+commit 6af7639ae147689cbabd06287bf4ff15a4dfd896
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Aug 20 01:46:32 2016 -0700
 
-    net/http: Improve docs for Response.ParseForm
+    archive/tar: isolate regular and sparse file handling as methods
     
-    - Removes a subject-verb disagreement.
-    - Documents that PATCH requests also populate PostForm.
-    - Explains that r.PostForm is always set (but blank for GET etc.).
+    Factor out the regular file handling logic into handleRegularFile
+    from nextHeader. We will need to reuse this logic when fixing #15573
+    in a future CL.
     
-    Fixes #16609
+    Factor out the sparse file handling logic into handleSparseFile.
+    Currently this logic is split between nextHeader (for GNU sparse
+    files) and Next (for PAX sparse files). Instead, we move this
+    related code into a single method.
     
-    Change-Id: I6b4693f8eb6db7c66fd9b9cd1df8927f50d46d50
-    Reviewed-on: https://go-review.googlesource.com/32091
+    There is no overall logic change. Thus, no unit tests.
+    
+    Updates #15573 #15564
+    
+    Change-Id: I3b8270d8b4e080e77d6c0df6a123d677c82cc466
+    Reviewed-on: https://go-review.googlesource.com/27454
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/request.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ src/archive/tar/reader.go | 135 ++++++++++++++++++++++++++--------------------
+ 1 file changed, 77 insertions(+), 58 deletions(-)

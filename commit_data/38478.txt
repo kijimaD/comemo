@@ -1,23 +1,17 @@
-commit fc1e6915dc04aeb95c2f736f8c8805ba6a696c30
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 18 07:33:43 2019 -0700
+commit 6c9b655ac1ab99eb2d3f944deb09b0339717f8cc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 31 15:06:59 2018 -0700
 
-    cmd/internal/obj/x86: minor clean-up in span6
+    os: don't create files in local directory
     
-    * Reduce the scope of q.
-    * Remove duplicate handling of AADJSP.
-    * Move ab declaration closer to use.
-    * Collapse nested if statements.
-    * Change declaration of n for increased readability in context.
-    * Simplify AADJSP handling.
+    Also, use a random temporary directory rather than os.TempDir.  Defer
+    removal of existing random temporary directories.
     
-    Passes toolstash-check.
-    
-    Change-Id: I046369477db567f2f7c4a9c8d400ec9dd9c32f3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168342
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Id7549031cdf78a2bab28c07b6eeff621bdf6e49c
+    Reviewed-on: https://go-review.googlesource.com/c/146457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/internal/obj/x86/asm6.go | 51 ++++++++++------------------------------
- 1 file changed, 13 insertions(+), 38 deletions(-)
+ src/os/removeall_test.go | 31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)

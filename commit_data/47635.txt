@@ -1,25 +1,20 @@
-commit 1970e3e3b7b6c42676acc22071ced887ac68b520
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 24 16:18:57 2021 -0800
+commit 2ebe77a2fda1ee9ff6fd9a3e08933ad1ebaea039
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 2 13:32:08 2021 -0400
 
-    go/types: restore original assignment error messages
+    cmd/internal/obj: use REGENTRYTMP* in a few more places
     
-    This is the missing portion of the port of CL 351669
-    from types2 to go/types, now that we have a local flag
-    to control for compiler error messages.
+    There are a few remaining places in obj6 where we hard-code
+    safe-on-entry registers. Fix those to use the consts.
     
-    Mostly a clean port but for adjustments to error reporting
-    which requires error codes in go/types.
+    For #40724.
     
-    Prerequisite for port of CL 364874.
-    
-    Change-Id: I5fc8c83003e4396351f42e9adb08f4ebc8a05653
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367195
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ie640521aa67d6c99bc057553dc122160049c6edc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307009
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/assignments.go | 35 +++++++++++++++++++++++++++++++++--
- src/go/types/expr.go        |  6 +++++-
- 2 files changed, 38 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

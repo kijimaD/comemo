@@ -1,12 +1,32 @@
-commit 4e032ce301f980d238d876278d60a4937c772814
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Mar 12 21:39:49 2013 +0400
+commit 4dd3e1e844cfab83b73b4ca417a0095ae7b0ef66
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 12 11:46:12 2013 -0400
 
-    runtime: fix build
+    encoding/xml: name space bug fixes
     
-    R=golang-dev
+    If two fields have the same name but different explicit name spaces,
+    treat as non-conflicting. This allows parsing common XML formats
+    that have ns1:tag and ns2:tag in the same XML element.
+    Fixes #4691.
+    
+    Allow setting the default name space for unadorned tags, by
+    writing to Decoder.DefaultSpace. This allows turned the job of
+    parsing common XML formats that have tag and ns2:tag in the
+    same XML element into the first case by setting DefaultSpace="ns1".
+    Fixes #3703.
+    
+    Use name space attributes when decoding.
+    Attach name space to attributes when encoding.
+    Could be done with fewer annotations, but semantically correct as is.
+    Fixes #3526.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7760043
+    https://golang.org/cl/7227056
 
- src/pkg/runtime/netpoll_stub.c | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/encoding/xml/marshal.go   |  15 +++
+ src/pkg/encoding/xml/read.go      |   4 +-
+ src/pkg/encoding/xml/read_test.go | 208 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/encoding/xml/typeinfo.go  |   3 +
+ src/pkg/encoding/xml/xml.go       |   7 ++
+ 5 files changed, 235 insertions(+), 2 deletions(-)

@@ -1,69 +1,24 @@
-commit b8ac64a581b1e8e033cd7c9919d7dcf8fb16d17b
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Thu May 17 13:45:53 2018 +0000
+commit 999e230ac17390f8e1dd917db1769c447b10585b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Apr 28 12:27:53 2018 +0900
 
-    all: this big patch remove whitespace from assembly files
+    net/http: use DialWithConn method of socks.Dialer
     
-    Don't worry, this patch just remove trailing whitespace from
-    assembly files, and does not touch any logical changes.
+    This change uses the DialWithConn method of socks.Dialer to ensure that
+    the bundled SOCKS client implementation is agnostic to the behavior and
+    capabilities of transport connections.
     
-    Change-Id: Ia724ac0b1abf8bc1e41454bdc79289ef317c165d
-    Reviewed-on: https://go-review.googlesource.com/c/113595
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Also updates the bundled golang.org/x/net/internal/socks at git rev
+    7594486. (golang.org/cl/110135)
+    
+    Updates #25104.
+    
+    Change-Id: I87c2e99eeb857f182ea5d8ef569181d4f45f2e5d
+    Reviewed-on: https://go-review.googlesource.com/110136
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/testdata/386.s   |  2 +-
- src/cmd/asm/internal/asm/testdata/ppc64.s |  2 +-
- src/crypto/md5/md5block_386.s             |  2 +-
- src/crypto/md5/md5block_amd64.s           |  4 +-
- src/crypto/md5/md5block_amd64p32.s        |  4 +-
- src/crypto/sha1/sha1block_386.s           |  8 +--
- src/crypto/sha1/sha1block_amd64.s         | 10 ++--
- src/crypto/sha1/sha1block_amd64p32.s      | 10 ++--
- src/crypto/sha1/sha1block_arm.s           | 10 ++--
- src/internal/bytealg/compare_amd64.s      |  2 +-
- src/internal/bytealg/compare_amd64p32.s   |  2 +-
- src/internal/bytealg/equal_amd64.s        |  2 +-
- src/internal/bytealg/equal_amd64p32.s     |  2 +-
- src/internal/bytealg/equal_arm.s          |  2 +-
- src/math/big/arith_386.s                  |  2 +-
- src/math/big/arith_amd64.s                |  6 +--
- src/math/big/arith_arm.s                  |  4 +-
- src/math/big/arith_s390x.s                | 14 +++---
- src/math/expm1_386.s                      |  4 +-
- src/math/sin_386.s                        |  2 +-
- src/math/sqrt_386.s                       |  2 +-
- src/math/sqrt_arm.s                       |  2 +-
- src/runtime/asm_386.s                     | 84 +++++++++++++++----------------
- src/runtime/asm_amd64.s                   | 26 +++++-----
- src/runtime/asm_amd64p32.s                |  4 +-
- src/runtime/asm_arm.s                     |  8 +--
- src/runtime/cgo/asm_amd64.s               |  6 +--
- src/runtime/cgo/asm_arm.s                 |  2 +-
- src/runtime/cgo/signal_darwin_arm64.s     |  2 +-
- src/runtime/memmove_amd64p32.s            |  2 +-
- src/runtime/memmove_arm.s                 |  2 +-
- src/runtime/memmove_plan9_386.s           |  2 +-
- src/runtime/memmove_plan9_amd64.s         |  2 +-
- src/runtime/rt0_linux_ppc64le.s           |  2 +-
- src/runtime/rt0_nacl_amd64p32.s           |  2 +-
- src/runtime/sys_dragonfly_amd64.s         |  2 +-
- src/runtime/sys_freebsd_386.s             |  4 +-
- src/runtime/sys_linux_amd64.s             |  2 +-
- src/runtime/sys_nacl_386.s                |  8 +--
- src/runtime/sys_nacl_amd64p32.s           |  4 +-
- src/runtime/sys_netbsd_amd64.s            |  2 +-
- src/runtime/sys_openbsd_386.s             |  2 +-
- src/runtime/sys_plan9_386.s               |  2 +-
- src/runtime/sys_plan9_amd64.s             |  2 +-
- src/runtime/sys_solaris_amd64.s           |  8 +--
- src/runtime/sys_windows_386.s             |  8 +--
- src/runtime/sys_windows_amd64.s           |  2 +-
- src/runtime/vlop_arm.s                    |  2 +-
- src/syscall/asm_nacl_386.s                |  2 +-
- src/syscall/asm_nacl_amd64p32.s           |  2 +-
- src/syscall/asm_nacl_arm.s                |  2 +-
- src/syscall/asm_plan9_386.s               | 20 ++++----
- src/syscall/asm_plan9_amd64.s             | 20 ++++----
- 53 files changed, 168 insertions(+), 168 deletions(-)
+ src/net/http/socks_bundle.go | 79 ++++++++++++++++++++++++++++++++++++--------
+ src/net/http/transport.go    |  5 +--
+ 2 files changed, 66 insertions(+), 18 deletions(-)

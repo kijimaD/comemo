@@ -1,20 +1,38 @@
-commit 34620364cb2ea52e0ebf400a9cda91f86cb38a25
-Author: David Chase <drchase@google.com>
-Date:   Tue Apr 13 14:12:43 2021 -0400
+commit 9dc65d7dc9268d5150174ec55cc4753fe18f554c
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 3 16:44:22 2020 -0400
 
-    runtime, cgo/test: improve debugging output
+    runtime: correct signature of call16
     
-    tests that run commands should log their actions in a
-    shell-pasteable way.
+    The signature of call16 is currently missing the "typ" parameter. This
+    CL fixes this. This wasn't caught by vet because call16 is defined by
+    macro expansion (see #17544), and we didn't notice the mismatch with
+    the other call* functions because call16 is defined only on 32-bit
+    architectures and lives alone in stubs32.go.
     
-    Change-Id: Ifeee88397047ef5a76925c5f30c213e83e535038
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309770
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Unfortunately, this means its GC signature is also wrong: the "arg"
+    parameter is treated as a scalar rather than a pointer, so GC won't
+    trace it and stack copying won't adjust it. This turns out to matter
+    in exactly one case right now: on 32-bit architectures (which are the
+    only architectures where call16 is defined), a stack-allocated defer
+    of a function with a 16-byte or smaller argument frame including a
+    non-empty result area can corrupt memory if the deferred function
+    grows the stack and is invoked during a panic. Whew. All other current
+    uses of reflectcall pass a heap-allocated "arg" frame (which happens
+    to be reachable from other stack roots, so tracing isn't a problem).
+    
+    Curiously, in 2016, the signatures of all call* functions were wrong
+    in exactly this way. CL 31654 fixed all of them in stubs.go, but
+    missed the one in stubs32.go.
+    
+    Fixes #41795.
+    
+    Change-Id: I31e3c0df201f79ee5707eeb8dc4ff0d13fc10ada
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259338
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/testplugin/plugin_test.go | 67 ++++++++++++++++++++++++++++++++++++++
- src/runtime/plugin.go              |  3 +-
- src/runtime/symtab.go              | 12 +++++--
- 3 files changed, 79 insertions(+), 3 deletions(-)
+ src/runtime/stubs32.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

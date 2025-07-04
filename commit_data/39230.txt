@@ -1,20 +1,35 @@
-commit 7a567a631f48f19817a4c9a221e9951ffebfa8cb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 21 19:02:00 2019 +0000
+commit faf187fb8e2ca074711ed254c72ffbaed4383c64
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jan 29 19:58:29 2019 +0000
 
-    cmd/dist: support using cross-compiled std test binaries for slow builders
+    runtime: add credit system for scavenging
     
-    We want the builders to be able to cross-compile test binaries for a
-    few of the super slow builders that require either slow hardware or
-    slow full CPU emulation.
+    When scavenging small amounts it's possible we over-scavenge by a
+    significant margin since we choose to scavenge the largest spans first.
+    This over-scavenging is never accounted for.
     
-    Updates golang/go#31217
+    With this change, we add a scavenge credit pool, similar to the reclaim
+    credit pool. Any time scavenging triggered by RSS growth starts up, it
+    checks if it can cash in some credit first. If after using all the
+    credit it still needs to scavenge, then any extra it does it adds back
+    into the credit pool.
     
-    Change-Id: I8d33b18efaf788f6f131354b2917ac9738ca975e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178399
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change mitigates the performance impact of golang.org/cl/159500 on
+    the Garbage benchmark. On Go1 it suggests some improvements, but most of
+    that is within the realm of noise (Revcomp seems very sensitive to
+    GC-related changes, both postively and negatively).
+    
+    Garbage: https://perf.golang.org/search?q=upload:20190131.5
+    Go1:     https://perf.golang.org/search?q=upload:20190131.4
+    
+    Performance change with both changes:
+    
+    Garbage: https://perf.golang.org/search?q=upload:20190131.7
+    Go1:     https://perf.golang.org/search?q=upload:20190131.6
+    
+    Change-Id: I87bd3c183e71656fdafef94714194b9fdbb77aa2
+    Reviewed-on: https://go-review.googlesource.com/c/160297
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go | 71 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 70 insertions(+), 1 deletion(-)
+ src/runtime/mheap.go | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

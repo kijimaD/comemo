@@ -1,0 +1,24 @@
+commit eae89f37db1ba00db7b1e6955cb7090541cb4103
+Author: xieyuschen <xieyuschen@gmail.com>
+Date:   Mon Sep 30 13:53:09 2024 +0800
+
+    os: check permissions of CopyFS copied files
+    
+    CopyFS stipulates the permissions of the created files,
+    we should test them in the unit test.
+    
+    * chmod x for testdata/x to test CopyFS for executable
+    
+    * check the files permissions to ensure CopyFS follows the stipulated
+      convention
+    
+    Change-Id: Id13a8ad920ad0c1ff4b801dec3bfa6869cb3101f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/os_test.go           | 124 ++++++++++++++++++++++++++++++++------------
+ src/os/testdata/dirfs/dir/x |   0
+ 2 files changed, 91 insertions(+), 33 deletions(-)

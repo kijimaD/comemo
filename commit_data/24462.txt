@@ -1,20 +1,19 @@
-commit bf3bf092d1ae9b2b693b0326dcf36cf773853482
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 7 07:24:20 2015 -0700
+commit 7cabaded5118883a8e038df6c4365cbca4df7f1e
+Author: Andrey Petrov <andrey.petrov@shazow.net>
+Date:   Thu Jul 30 11:47:01 2015 +0200
 
-    debug/gosym: clean up and modernize pclntab_test
+    math/rand: warn against using package for security-sensitive work
     
-    The self tests do not need to build the binary; they won't read it.  The
-    self tests should work on any ELF system.
+    Urge users of math/rand to consider using crypto/rand when doing
+    security-sensitive work.
     
-    Use t.Skip instead of panic.  Use internal/testenv.  Don't worry about a
-    space in the temporary directory name.
+    Related to issue #11871. While we haven't reached consensus on how
+    to make the package inherently safer, everyone agrees that the docs
+    for math/rand can be improved.
     
-    Change-Id: I66ef0af90520d330820afa7b6c6b3a132ab27454
-    Reviewed-on: https://go-review.googlesource.com/15495
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I576a312e51b2a3445691da6b277c7b4717173197
+    Reviewed-on: https://go-review.googlesource.com/12900
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/debug/gosym/pclntab_test.go | 48 ++++++++++++++++++-----------------------
- 1 file changed, 21 insertions(+), 27 deletions(-)
+ src/math/rand/rand.go | 3 +++
+ 1 file changed, 3 insertions(+)

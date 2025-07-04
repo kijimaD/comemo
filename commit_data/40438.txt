@@ -1,45 +1,15 @@
-commit 8714e39497dba141ce7ed83c6a18c3c0def66e77
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 14 17:05:56 2019 -0400
+commit f68244e6660d86b3d0be9258a5d35c109abc749f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 13 13:15:10 2019 -0700
 
-    runtime: M-targeted signals for BSDs
+    cmd/objdump: ensure that test executable files are distinct
     
-    For these, we split up the existing runtime.raise assembly
-    implementation into its constituent "get thread ID" and "signal
-    thread" parts. This lets us implement signalM and reimplement raise in
-    pure Go. (NetBSD conveniently already had lwp_self.)
+    This fixes test failures introduced by CL 176901.
     
-    We also change minit to store the procid directly, rather than
-    depending on newosproc to do so. This is because newosproc isn't
-    called for the bootstrap M, but we need a procid for every M. This is
-    also simpler overall.
-    
-    For #10958, #24543.
-    
-    Change-Id: Ie5f1fcada6a33046375066bcbe054d1f784d39c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201402
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I133299ba3be3a15ced076c95e4833ba6070d7eb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176903
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/defs_freebsd_386.go   |  2 ++
- src/runtime/defs_freebsd_amd64.go |  2 ++
- src/runtime/defs_freebsd_arm.go   |  2 ++
- src/runtime/defs_freebsd_arm64.go |  2 ++
- src/runtime/os_dragonfly.go       | 25 +++++++++++++++++++------
- src/runtime/os_freebsd.go         | 29 ++++++++++++++++++++---------
- src/runtime/os_netbsd.go          | 17 ++++++++++++++++-
- src/runtime/os_openbsd.go         | 19 +++++++++++++------
- src/runtime/sys_dragonfly_amd64.s | 12 ++++++++----
- src/runtime/sys_freebsd_386.s     | 15 +++++++--------
- src/runtime/sys_freebsd_amd64.s   | 15 +++++++++------
- src/runtime/sys_freebsd_arm.s     | 15 +++++++++------
- src/runtime/sys_freebsd_arm64.s   | 16 +++++++++++-----
- src/runtime/sys_netbsd_386.s      |  7 +++----
- src/runtime/sys_netbsd_amd64.s    |  8 +++-----
- src/runtime/sys_netbsd_arm.s      |  6 +++---
- src/runtime/sys_netbsd_arm64.s    |  7 +++----
- src/runtime/sys_openbsd_386.s     |  9 +++++++--
- src/runtime/sys_openbsd_amd64.s   | 10 +++++++---
- src/runtime/sys_openbsd_arm.s     | 10 +++++++---
- src/runtime/sys_openbsd_arm64.s   | 10 +++++++---
- 21 files changed, 160 insertions(+), 78 deletions(-)
+ src/cmd/objdump/objdump_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

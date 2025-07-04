@@ -1,15 +1,18 @@
-commit bd6845965c298b250f8af577a24416de0661c53d
-Author: Mostafa Solati <mostafa.solati@gmail.com>
-Date:   Mon Jun 8 22:04:09 2020 +0430
+commit 7ad6596c4711c48ef95334c9c6516a0c30979bd9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 15:20:37 2020 -0500
 
-    reflect: add example for FieldByIndex
+    io/fs: fix Sub method error text
     
-    Change-Id: I539453e50ab85ec1b023bc9e329e6451c674e0c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236937
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Noticed in (and alternative to) CL 275520.
+    
+    Change-Id: If6c107ee9928dd1910facd4dc66da7234cb91c39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275879
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/reflect/example_test.go | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ src/io/fs/sub.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

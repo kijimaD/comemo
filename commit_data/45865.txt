@@ -1,18 +1,126 @@
-commit cce621431a9bce86527b25898a01a7a693cc56a8
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Jun 25 01:45:32 2021 +0700
+commit 7d72951229a4d55c5643d0ec7d7f7653d6efda3d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Nov 13 23:36:48 2020 -0800
 
-    cmd/compile: fix wrong type in SSA generation for OSLICE2ARRPTR
+    [dev.regabi] cmd/compile: replace Val with go/constant.Value
     
-    Fixes #46907
+    This replaces the compiler's legacy constant representation with
+    go/constant, which is used by go/types. This should ease integrating
+    with the new go/types-based type checker in the future.
     
-    Change-Id: I6a2728d2f2159df583b32f40f6100d3e90c34dd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330672
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Performance difference is mixed, but there's still room for
+    improvement.
+    
+    name                      old time/op       new time/op       delta
+    Template                        280ms ± 6%        281ms ± 6%    ~     (p=0.488 n=592+587)
+    Unicode                         132ms ±11%        129ms ±11%  -2.61%  (p=0.000 n=592+591)
+    GoTypes                         865ms ± 3%        866ms ± 3%  +0.16%  (p=0.019 n=572+577)
+    Compiler                        3.60s ± 3%        3.60s ± 3%    ~     (p=0.083 n=578+582)
+    SSA                             8.27s ± 2%        8.28s ± 2%  +0.14%  (p=0.002 n=575+580)
+    Flate                           177ms ± 8%        176ms ± 8%    ~     (p=0.133 n=580+590)
+    GoParser                        238ms ± 7%        237ms ± 6%    ~     (p=0.569 n=587+591)
+    Reflect                         542ms ± 4%        543ms ± 4%    ~     (p=0.064 n=581+579)
+    Tar                             244ms ± 6%        244ms ± 6%    ~     (p=0.880 n=586+584)
+    XML                             322ms ± 5%        322ms ± 5%    ~     (p=0.449 n=589+590)
+    LinkCompiler                    454ms ± 6%        453ms ± 6%    ~     (p=0.249 n=585+583)
+    ExternalLinkCompiler            1.35s ± 4%        1.35s ± 4%    ~     (p=0.968 n=590+588)
+    LinkWithoutDebugCompiler        279ms ± 7%        280ms ± 7%    ~     (p=0.270 n=589+586)
+    [Geo mean]                      535ms             534ms       -0.17%
+    
+    name                      old user-time/op  new user-time/op  delta
+    Template                        599ms ±22%        602ms ±21%    ~     (p=0.377 n=588+590)
+    Unicode                         410ms ±43%        376ms ±39%  -8.36%  (p=0.000 n=596+586)
+    GoTypes                         1.96s ±15%        1.97s ±17%  +0.70%  (p=0.031 n=596+594)
+    Compiler                        7.47s ± 9%        7.50s ± 8%  +0.38%  (p=0.031 n=591+583)
+    SSA                             16.2s ± 4%        16.2s ± 5%    ~     (p=0.617 n=531+531)
+    Flate                           298ms ±25%        292ms ±30%  -2.14%  (p=0.001 n=594+596)
+    GoParser                        379ms ±20%        381ms ±21%    ~     (p=0.312 n=578+584)
+    Reflect                         1.24s ±20%        1.25s ±23%  +0.88%  (p=0.031 n=592+596)
+    Tar                             471ms ±23%        473ms ±21%    ~     (p=0.616 n=593+587)
+    XML                             674ms ±20%        681ms ±21%  +1.03%  (p=0.050 n=584+587)
+    LinkCompiler                    842ms ±10%        839ms ±10%    ~     (p=0.074 n=587+590)
+    ExternalLinkCompiler            1.65s ± 7%        1.65s ± 7%    ~     (p=0.767 n=590+585)
+    LinkWithoutDebugCompiler        378ms ±11%        379ms ±12%    ~     (p=0.677 n=591+586)
+    [Geo mean]                      1.02s             1.02s       -0.52%
+    
+    name                      old alloc/op      new alloc/op      delta
+    Template                       37.4MB ± 0%       37.4MB ± 0%  +0.06%  (p=0.000 n=589+585)
+    Unicode                        29.6MB ± 0%       28.6MB ± 0%  -3.11%  (p=0.000 n=574+566)
+    GoTypes                         120MB ± 0%        120MB ± 0%  -0.01%  (p=0.000 n=594+593)
+    Compiler                        568MB ± 0%        568MB ± 0%  -0.02%  (p=0.000 n=588+591)
+    SSA                            1.45GB ± 0%       1.45GB ± 0%  -0.16%  (p=0.000 n=596+592)
+    Flate                          22.6MB ± 0%       22.5MB ± 0%  -0.36%  (p=0.000 n=593+595)
+    GoParser                       30.1MB ± 0%       30.1MB ± 0%  -0.01%  (p=0.000 n=590+594)
+    Reflect                        77.8MB ± 0%       77.8MB ± 0%    ~     (p=0.631 n=584+591)
+    Tar                            34.1MB ± 0%       34.1MB ± 0%  -0.04%  (p=0.000 n=584+588)
+    XML                            43.6MB ± 0%       43.6MB ± 0%  +0.07%  (p=0.000 n=593+591)
+    LinkCompiler                   98.6MB ± 0%       98.6MB ± 0%    ~     (p=0.096 n=590+589)
+    ExternalLinkCompiler           89.6MB ± 0%       89.6MB ± 0%    ~     (p=0.695 n=590+587)
+    LinkWithoutDebugCompiler       57.2MB ± 0%       57.2MB ± 0%    ~     (p=0.674 n=590+589)
+    [Geo mean]                     78.5MB            78.3MB       -0.28%
+    
+    name                      old allocs/op     new allocs/op     delta
+    Template                         379k ± 0%         380k ± 0%  +0.33%  (p=0.000 n=593+590)
+    Unicode                          344k ± 0%         338k ± 0%  -1.67%  (p=0.000 n=594+589)
+    GoTypes                         1.30M ± 0%        1.31M ± 0%  +0.19%  (p=0.000 n=592+591)
+    Compiler                        5.40M ± 0%        5.41M ± 0%  +0.23%  (p=0.000 n=587+585)
+    SSA                             14.2M ± 0%        14.2M ± 0%  +0.08%  (p=0.000 n=594+591)
+    Flate                            231k ± 0%         230k ± 0%  -0.42%  (p=0.000 n=588+589)
+    GoParser                         314k ± 0%         315k ± 0%  +0.16%  (p=0.000 n=587+594)
+    Reflect                          975k ± 0%         976k ± 0%  +0.10%  (p=0.000 n=590+594)
+    Tar                              344k ± 0%         345k ± 0%  +0.24%  (p=0.000 n=595+590)
+    XML                              422k ± 0%         424k ± 0%  +0.57%  (p=0.000 n=590+589)
+    LinkCompiler                     538k ± 0%         538k ± 0%  -0.00%  (p=0.045 n=592+587)
+    ExternalLinkCompiler             593k ± 0%         593k ± 0%    ~     (p=0.171 n=588+587)
+    LinkWithoutDebugCompiler         172k ± 0%         172k ± 0%    ~     (p=0.996 n=590+585)
+    [Geo mean]                       685k              685k       -0.02%
+    
+    name                      old maxRSS/op     new maxRSS/op     delta
+    Template                        53.7M ± 8%        53.8M ± 8%    ~     (p=0.666 n=576+574)
+    Unicode                         54.4M ±12%        55.0M ±10%  +1.15%  (p=0.000 n=591+588)
+    GoTypes                         95.1M ± 4%        95.1M ± 4%    ~     (p=0.948 n=589+591)
+    Compiler                         334M ± 6%         334M ± 6%    ~     (p=0.875 n=592+593)
+    SSA                              792M ± 5%         791M ± 5%    ~     (p=0.067 n=592+591)
+    Flate                           39.9M ±11%        40.0M ±10%    ~     (p=0.131 n=596+596)
+    GoParser                        45.2M ±11%        45.3M ±11%    ~     (p=0.353 n=592+590)
+    Reflect                         76.1M ± 5%        76.2M ± 5%    ~     (p=0.114 n=594+594)
+    Tar                             49.4M ±10%        49.6M ± 9%  +0.57%  (p=0.015 n=590+593)
+    XML                             57.4M ± 9%        57.7M ± 8%  +0.67%  (p=0.000 n=592+580)
+    LinkCompiler                     183M ± 2%         183M ± 2%    ~     (p=0.229 n=587+591)
+    ExternalLinkCompiler             187M ± 2%         187M ± 3%    ~     (p=0.362 n=571+562)
+    LinkWithoutDebugCompiler         143M ± 3%         143M ± 3%    ~     (p=0.350 n=584+586)
+    [Geo mean]                       103M              103M       +0.23%
+    
+    Passes toolstash-check.
+    
+    Fixes #4617.
+    
+    Change-Id: Id4f6759b4afc5e002770091d0d4f6e272ee6cbdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272654
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go |  2 +-
- test/fixedbugs/issue46907.go           | 11 +++++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/fmtmap_test.go           |  12 +-
+ src/cmd/compile/internal/gc/const.go     | 895 ++++++++++++-------------------
+ src/cmd/compile/internal/gc/dcl.go       |   4 +-
+ src/cmd/compile/internal/gc/export.go    |   2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  84 ++-
+ src/cmd/compile/internal/gc/go.go        |   8 -
+ src/cmd/compile/internal/gc/iexport.go   |  30 +-
+ src/cmd/compile/internal/gc/iimport.go   |  36 +-
+ src/cmd/compile/internal/gc/main.go      |   7 +-
+ src/cmd/compile/internal/gc/mpfloat.go   | 357 ------------
+ src/cmd/compile/internal/gc/mpint.go     | 303 -----------
+ src/cmd/compile/internal/gc/noder.go     |  85 ++-
+ src/cmd/compile/internal/gc/obj.go       |  71 ++-
+ src/cmd/compile/internal/gc/sinit.go     |  20 +-
+ src/cmd/compile/internal/gc/ssa.go       |  43 +-
+ src/cmd/compile/internal/gc/subr.go      |   9 +-
+ src/cmd/compile/internal/gc/swt.go       |   3 +-
+ src/cmd/compile/internal/gc/syntax.go    |  16 +-
+ src/cmd/compile/internal/gc/typecheck.go |  55 +-
+ src/cmd/compile/internal/gc/universe.go  |  33 --
+ src/cmd/compile/internal/gc/walk.go      |  20 +-
+ src/cmd/compile/internal/types/type.go   |  14 +-
+ test/fixedbugs/issue20232.go             |   4 +-
+ 23 files changed, 572 insertions(+), 1539 deletions(-)

@@ -1,23 +1,33 @@
-commit 390abbbbf1018f9bb814baf6ab38e31efaf58666
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Oct 24 17:12:57 2022 -0500
+commit b37a5391f9e452aa779205add12bd89f44e3fcf0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 6 13:38:04 2021 -0500
 
-    codegen: check for PPC64 ISEL in condmove tests
+    cmd/link, cmd/go: make version info easier to extract
     
-    ISEL is roughly equivalent to CMOV on PPC64. Verify ISEL generation
-    in all reasonable cases.
+    Reading the version information to date has required evaluating
+    two pointers to strings (which themselves contain pointers to data),
+    which means applying relocations, which can be very system-dependent.
     
-    Note "ISEL test x y z" is the same as "ISEL !test y x z". test is
-    always one of LT (0), GT (1), EQ (2), SO (3). Sometimes x and y are
-    swapped if GE/LE/NE is desired.
+    To simplify the lookup, inline the string data into the build info blob.
     
-    Change-Id: Ie1bf029224064e004d855099731fe5e8d05aa990
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445215
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    This makes go version work on binaries built with external linking
+    on darwin/arm64.
+    
+    Also test that at least the very basics work on a trivial binary,
+    even in short mode.
+    
+    Change-Id: I463088c19e837ae0ce57e1278c7b72e74a80b2c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369977
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- test/codegen/condmove.go | 24 +++++++++++++++++++++++-
- 1 file changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/build.go   | 35 ++++++++--------------
+ src/cmd/go/internal/work/exec.go       | 10 +++++--
+ src/cmd/go/testdata/script/version.txt | 13 +++++++-
+ src/cmd/link/internal/ld/data.go       | 29 +++++++++++-------
+ src/cmd/link/internal/ld/deadcode.go   |  6 ----
+ src/cmd/link/internal/ld/ld.go         |  6 ++++
+ src/debug/buildinfo/buildinfo.go       | 54 ++++++++++++++++++++++++----------
+ 7 files changed, 93 insertions(+), 60 deletions(-)

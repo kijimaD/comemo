@@ -1,13 +1,19 @@
-commit 37b178739279d2ab17b836de64375401abdda8ae
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Fri Feb 11 12:23:54 2011 +0100
+commit 28a2369414eacb9ebc08bd8f0df0ef274df5e368
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Feb 10 19:59:12 2011 -0500
 
-    flag: allow hexadecimal and octal input for integer flags.
+    crypto/openpgp/packet: add remainder of packet types.
     
-    R=r
+    (The unittest for Signature may seem a little small, but it's tested by
+    the higher level code.)
+    
+    R=bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4182043
+    https://golang.org/cl/4173043
 
- src/pkg/flag/flag.go      | 8 ++++----
- src/pkg/flag/flag_test.go | 6 +++---
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/crypto/openpgp/packet/encrypted_key.go     |  66 +++
+ .../crypto/openpgp/packet/encrypted_key_test.go    |  67 +++
+ src/pkg/crypto/openpgp/packet/reader.go            |  63 +++
+ src/pkg/crypto/openpgp/packet/signature.go         | 468 +++++++++++++++++++++
+ src/pkg/crypto/openpgp/packet/signature_test.go    |  28 ++
+ 5 files changed, 692 insertions(+)

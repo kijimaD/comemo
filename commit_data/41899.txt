@@ -1,41 +1,26 @@
-commit a1550d3ca3a6a90b8bbb610950d1b30649411243
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Apr 1 10:30:05 2020 -0400
+commit 48c0cef6dc9e7c95edaffb261250f99732686466
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 29 13:27:00 2019 +0700
 
-    cmd/compile: use isel with variable shifts on ppc64x
+    bufio: return the underlying error in ReadFrom if not nil
     
-    This changes the code generated for variable length shift
-    counts to use isel instead of instructions that set and
-    read the carry flag.
+    If a previous Write returned an error, any subsequent Write or ReadFrom
+    must return that error before any operations.
     
-    This reduces the generated code for shifts like this
-    by 1 instruction and avoids the use of instructions to
-    set and read the carry flag.
+    However, only Write behaved correctly and this change fixes that problem
+    by making sure that ReadFrom firstly checks for the underlying error.
     
-    This sequence can be found in strconv with these results
-    on power9:
+    Fixes #35194
     
-    Atof64Decimal                          71.6ns ± 0%  68.3ns ± 0%   -4.61%
-    Atof64Float                            95.3ns ± 0%  90.9ns ± 0%   -4.62%
-    Atof64FloatExp                          153ns ± 0%   149ns ± 0%   -2.61%
-    Atof64Big                               234ns ± 0%   232ns ± 0%   -0.85%
-    Atof64RandomBits                        348ns ± 0%   369ns ± 0%   +6.03%
-    Atof64RandomFloats                      262ns ± 0%   262ns ± 0%     ~
-    Atof32Decimal                          72.0ns ± 0%  68.2ns ± 0%   -5.28%
-    Atof32Float                            92.1ns ± 0%  87.1ns ± 0%   -5.43%
-    Atof32FloatExp                          159ns ± 0%   158ns ± 0%   -0.63%
-    Atof32Random                            194ns ± 0%   191ns ± 0%   -1.55%
-    
-    Some tests in codegen/shift.go are enabled to verify the
-    expected instructions are generated.
-    
-    Change-Id: I968715d10ada405a8c46132bf19b8ed9b85796d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227337
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I31356a9e8bd945bc0168b2e3be470f3ae69d4813
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204000
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  99 +--
- src/cmd/compile/internal/ssa/rewritePPC64.go | 940 +++++++++++++++------------
- test/codegen/shift.go                        |  24 +
- 3 files changed, 606 insertions(+), 457 deletions(-)
+ src/bufio/bufio.go      |  3 +++
+ src/bufio/bufio_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

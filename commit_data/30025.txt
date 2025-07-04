@@ -1,24 +1,22 @@
-commit 90de5e817c257ffea8dbba12a9f012e22b8c0c7c
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Feb 1 12:28:47 2017 +0100
+commit e64e858c51bc7739a308fa0749ded1123da2e89c
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Oct 20 09:35:19 2016 -0700
 
-    misc/ios: use the default go test timeout
+    vendor/golang_org/x/crypto/curve25519: update to f62085100e1abe3d5c9b3b8c9a38d50b71323f64
     
-    If -test.timeout is not specified to go test, it will time out after
-    a default 10 minutes.
+    This change updates the vendored copy of x/crypto/curve25519,
+    specifically to include the following changes:
+      f620851 curve25519: eliminate unnecessary "callee save" prologues
+      722a7b7 curve25519: fix confusing SP adjustments
     
-    The iOS exec wrapper also contains a fail safe timeout mechanism for
-    a stuck device. However, if no explicit -test.timeout is specified,
-    it will use a timeout of 0, plus some constant amount.
-    
-    Use the same default timeout in the exec wrapper as for go test,
-    10 minutes.
-    
-    Change-Id: I6465ccd9f7b9ce08fa302e6697f7938a0ea9af34
-    Reviewed-on: https://go-review.googlesource.com/36062
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: I1b16aba12c744ac32f925654a136a8f52cd40fc2
+    Reviewed-on: https://go-review.googlesource.com/31666
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../golang_org/x/crypto/curve25519/freeze_amd64.s  |  25 +-
+ .../x/crypto/curve25519/ladderstep_amd64.s         | 665 ++++++++++-----------
+ .../golang_org/x/crypto/curve25519/mul_amd64.s     |  40 +-
+ .../golang_org/x/crypto/curve25519/square_amd64.s  |  25 +-
+ 4 files changed, 331 insertions(+), 424 deletions(-)

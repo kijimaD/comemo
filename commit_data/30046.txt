@@ -1,20 +1,19 @@
-commit f395e878887df1a28966353f32f5ee70973c8f3f
-Author: David Lazar <lazard@golang.org>
-Date:   Fri Jan 27 15:24:48 2017 -0500
+commit 0eaa8fe03f46d9cc35d81e872b4b23442609ed80
+Author: Quentin Smith <quentin@golang.org>
+Date:   Fri Oct 21 17:30:15 2016 -0400
 
-    io: fix test when MultiReader is inlined with -l=3
+    bufio: remove unnecessary "continue"
     
-    This ensures there isn't a live reference to buf1 on our stack
-    when MultiReader is inlined.
+    After resizing the scan buffer, we can immediately read into the
+    newly-resized buffer since we know there is now space.
     
-    Fixes #18819.
+    Fixes #15712.
     
-    Change-Id: I96a8cdc1ffad8f8a10c0ddcbf0299005f3176b61
-    Reviewed-on: https://go-review.googlesource.com/35931
-    Run-TryBot: David Lazar <lazard@golang.org>
+    Change-Id: I56fcfaeb67045ee753a012c37883aa7c81b6e877
+    Reviewed-on: https://go-review.googlesource.com/31715
+    Run-TryBot: Quentin Smith <quentin@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/io/multi_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/bufio/scan.go | 1 -
+ 1 file changed, 1 deletion(-)

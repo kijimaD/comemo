@@ -1,16 +1,14 @@
-commit 9f232c1786f57051d34848db48ece398ad0329db
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Mar 29 10:55:46 2017 +1100
+commit 49e5bdfe79cf779224e97096b592c4d45fda1184
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 13 22:35:26 2016 +0100
 
-    cmd/compile/internal/gc: remove unused state.placeholder field
+    test: enable fixedbugs/issue10607 test on GOARCH=mips{,le}
     
-    gc.state.placeholder was added in 5a6e511c61 but never used.
-    
-    Change-Id: I5a621507279d5bb1f3991b7a412d9a63039c464e
-    Reviewed-on: https://go-review.googlesource.com/38755
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I00c97c36e8fdc79582eaed21877e4c8f44568666
+    Reviewed-on: https://go-review.googlesource.com/34316
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 3 ---
- 1 file changed, 3 deletions(-)
+ test/fixedbugs/issue10607.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

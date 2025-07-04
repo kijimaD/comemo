@@ -1,14 +1,16 @@
-commit 0d9db86f74aa58efed564963d64684252a7e94ea
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Aug 14 21:24:48 2013 +0200
+commit 84b0842a59b8bf8e890861f7859869fb73d8681c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 14:57:45 2013 -0400
 
-    cmd/5g, cmd/6g, cmd/8g: restore occurrences of R replaced by nil in comments.
+    encoding/xml: add, support Unmarshaler interface
     
-    R=golang-dev, bradfitz, rsc
+    See golang.org/s/go12xml for design.
+    
+    R=golang-dev, dominik.honnef, dan.kortschak
     CC=golang-dev
-    https://golang.org/cl/12842043
+    https://golang.org/cl/12556043
 
- src/cmd/5g/peep.c | 10 +++++-----
- src/cmd/6g/peep.c |  6 +++---
- src/cmd/8g/peep.c |  6 +++---
- 3 files changed, 11 insertions(+), 11 deletions(-)
+ src/pkg/encoding/xml/read.go      | 122 +++++++++++++++++++++++++++++--
+ src/pkg/encoding/xml/read_test.go |  64 ++++++++++++++++
+ src/pkg/encoding/xml/xml.go       | 149 +++++++++++++++++++++++++++++++++-----
+ 3 files changed, 313 insertions(+), 22 deletions(-)

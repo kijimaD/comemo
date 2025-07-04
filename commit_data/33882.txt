@@ -1,20 +1,16 @@
-commit d45298671fb9a7d1fb6fd551476f138ed51dba8d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 13 20:04:43 2017 -0500
+commit af860838123548e67232373d86453cdc4838e9d6
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Sep 14 19:47:18 2017 -0500
 
-    testing: define Run result a little more clearly
+    cmd/compile: fix typo in floating point rule
     
-    t.Run(f) does not wait for f after f calls t.Parallel.
-    Otherwise it would be impossible to create new
-    parallel sibling subtests for f.
-    
-    Fixes #22993.
-    
-    Change-Id: I27e1555ab1ff608eb8155db261d5e7ee8f486aef
-    Reviewed-on: https://go-review.googlesource.com/83880
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Idfb64fcb26f48d5b70bab872f9a3d96a036be681
+    Reviewed-on: https://go-review.googlesource.com/63950
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/testing/testing.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/float_test.go      | 13 +++++++++++++
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  4 ++--
+ 3 files changed, 16 insertions(+), 3 deletions(-)

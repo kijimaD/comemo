@@ -1,16 +1,13 @@
-commit 339a24da6611487308b497a2ba7506c5451c637f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Aug 19 08:50:35 2014 -0700
+commit dbf406a9d89c00ec1975368ae95a70da9f704eaa
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 22:07:15 2014 -0400
 
-    runtime: fix typo in comment
+    [dev.power64] cmd/gc: disable magic multiply optimizations for now
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/125500043
+    https://golang.org/cl/126110043
 
- src/pkg/runtime/asm_386.s      | 2 +-
- src/pkg/runtime/asm_amd64.s    | 2 +-
- src/pkg/runtime/asm_amd64p32.s | 2 +-
- src/pkg/runtime/asm_arm.s      | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/gc/walk.c | 4 ++++
+ 1 file changed, 4 insertions(+)

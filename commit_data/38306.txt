@@ -1,24 +1,30 @@
-commit 9153a3ef059a37796dceea555785b695ecbd4189
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Mar 7 08:33:01 2019 +0100
+commit 0a8e3477519fe4a657f5a8fc212223a436a17f57
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 24 13:22:21 2017 -0800
 
-    cmd/cgo: adjust comment about ignored pragma warnings
+    test: update issue5089.go for recent gccgo changes
     
-    The warnings are not strictly tied to FreeBSD but to the clang version.
-    People could still be building with an old version of clang even if not
-    on FreeBSD. The -Wpragmas and -Waddress-of-packed-member warnings were
-    introduced in clang 4.0, so also adjust the comment accordingly.
+    As of https://golang.org/cl/43456 gccgo now gives a better error
+    message for this test.
     
-    This was discussed as part of CL 160777 which introduced these comments.
+    Before:
+        fixedbugs/issue5089.go:13:1: error: redefinition of ‘bufio.Buffered’: receiver name changed
+         func (b *bufio.Reader) Buffered() int { // ERROR "non-local|redefinition"
+         ^
+        fixedbugs/issue5089.go:11:13: note: previous definition of ‘bufio.Buffered’ was here
+         import "bufio" // GCCGO_ERROR "previous"
+                     ^
     
-    Updates #27619
+    Now:
+        fixedbugs/issue5089.go:13:7: error: may not define methods on non-local type
+         func (b *bufio.Reader) Buffered() int { // ERROR "non-local|redefinition"
+               ^
     
-    Change-Id: I4988ffd08797dcc72cdc264d4abd20a114f70473
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165800
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I4112ca8d91336f6369f780c1d45b8915b5e8e235
+    Reviewed-on: https://go-review.googlesource.com/c/130955
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cgo/out.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ test/fixedbugs/issue5089.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

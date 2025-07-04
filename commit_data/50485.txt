@@ -1,24 +1,21 @@
-commit 5760fde4df4f1e9303de122ae3b5ac80b7ef681d
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Wed Sep 7 17:40:11 2022 +0800
+commit 5fce1d96137e1079c393c94febfac49d1e2979b0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Oct 27 16:07:40 2021 -0400
 
-    cmd/compile: avoid sign extension after word arithmetic on riscv64
+    runtime: disable TestSegv panic check on darwin, illumos, solaris
     
-    These instructions already do sign extension on output, so we can get rid of it.
+    CL 339990 made this test more strict, exposing pre-existing issues on
+    these OSes. Skip for now until they can be resolved.
     
-    Note: (MOVWreg (MULW x y)) may araise from divisions by constant,
-    generic rules replace them with multiply and may produce (Rsh32x64 (Mul32 _ _) _).
+    Updates #49182
     
-    Change-Id: I41bc9b519e38bc6027311de604dadb962cd0bbf4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429757
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Change-Id: I3ac400dcd21b801bf4ab4eeb630e23b5c66ba563
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359254
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules | 10 +++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 88 ++++++++++++++++++++++++++
- 2 files changed, 98 insertions(+)
+ src/runtime/crash_cgo_test.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

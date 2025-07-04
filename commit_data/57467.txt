@@ -1,23 +1,16 @@
-commit 4f95ad8ca2864268fe086e23ec5d0ee8b6d5e1c1
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sat Sep 14 07:48:31 2024 -0400
+commit d9f7e1dc7349140aa85f82daa6706a1c205d0768
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 9 02:51:59 2023 -0700
 
-    cmd/preprofile, runtime/coverage: add package comment
+    runtime: fix asan asm on amd64
     
-    As https://go.dev/doc/comment#package says, every package
-    should have a package comment. Command cmd/preprofile had
-    one, it was just not being recognized due to a blank line.
+    On amd64, the 8-byte move instruction is MOVQ, not MOVD.
     
-    For #51430.
-    For #58102.
-    
-    Change-Id: I73e31158e0f244f6453728ab68c5c8da4cfb38b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613375
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I48d9b6f5f9f6c7f2e3fe20fd017b816cfb3983a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517635
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/preprofile/main.go       | 3 ---
- src/runtime/coverage/coverage.go | 2 ++
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ src/runtime/asan_amd64.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

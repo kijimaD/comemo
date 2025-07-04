@@ -1,49 +1,21 @@
-commit 2a61b3c59088115245d084d5ae07dd4be5fbe1b0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 11 10:52:44 2021 -0400
+commit 0387bedadf8ec0ec4139af7c1361abaa47a6c03a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 1 17:05:32 2020 -0500
 
-    regexp: fix repeat of preferred empty match
+    cmd/compile: remove racefuncenterfp when it is not needed
     
-    In Perl mode, (|a)* should match an empty string at the start of the
-    input. Instead it matches as many a's as possible.
-    Because (|a)+ is handled correctly, matching only an empty string,
-    this leads to the paradox that e* can match more text than e+
-    (for e = (|a)) and that e+ is sometimes different from ee*.
+    We already remove racefuncenter and racefuncexit if they are not
+    needed (i.e. the function doesn't have any other race  calls).
+    racefuncenterfp is like racefuncenter but used on LR machines.
+    Remove unnecessary racefuncenterfp as well.
     
-    This is a very old bug that ultimately derives from the picture I drew
-    for e* in https://swtch.com/~rsc/regexp/regexp1.html. The picture is
-    correct for longest-match (POSIX) regexps but subtly wrong for
-    preferred-match (Perl) regexps in the case where e has a preferred
-    empty match. Pointed out by Andrew Gallant in private mail.
-    
-    The current code treats e* and e+ as the same structure, with
-    different entry points. In the case of e* the preference list ends up
-    not quite in the right order, in part because the “before e” and
-    “after e” states are the same state. Splitting them apart fixes the
-    preference list, and that can be done by compiling e* as if it were
-    (e+)?.
-    
-    Like with any bug fix, there is a very low chance of breaking a
-    program that accidentally depends on the buggy behavior.
-    
-    RE2, Go, and Rust all have this bug, and we've all agreed to fix it,
-    to keep the implementations in sync.
-    
-    Fixes #46123.
-    
-    Change-Id: I70e742e71e0a23b626593b16ddef3c1e73b413b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318750
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I65edb00e19c6d9ab55a204cbbb93e9fb710559f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267099
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/regexp/find_test.go                    |   1 +
- src/regexp/onepass_test.go                 |   2 +-
- src/regexp/syntax/compile.go               |  29 ++++--
- src/regexp/syntax/prog_test.go             |  15 +++
- src/regexp/testdata/basic.dat              |  12 +--
- src/regexp/testdata/nullsubexpr.dat        |  18 ++--
- src/regexp/testdata/re2-exhaustive.txt.bz2 | Bin 394016 -> 428262 bytes
- src/regexp/testdata/re2-search.txt         | 145 +++++++++++++++++++++++++----
- 8 files changed, 176 insertions(+), 46 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 6 +++---
+ test/codegen/race.go                    | 2 ++
+ 2 files changed, 5 insertions(+), 3 deletions(-)

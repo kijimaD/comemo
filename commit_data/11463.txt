@@ -1,12 +1,29 @@
-commit ed7a8f71590bcd704335bab5c07e3164431e43e1
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Mon Jan 30 07:57:50 2012 -0800
+commit dcbc77d2cfb37985f1ccc712a7626945a6b1f5b2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jan 30 22:59:10 2012 +1100
 
-    net/http: Fix nil pointer dereference in error case.
+    os/user: windows implementation
     
-    R=golang-dev
-    CC=bradfitz, golang-dev
-    https://golang.org/cl/5598044
+    pjmlp gets credit for initial version.
+    
+    Fixes #1789.
+    
+    R=paulo.jpinto, bradfitz, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/5543069
 
- src/pkg/net/http/client.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/buildscript/windows_386.sh            |   2 +-
+ src/buildscript/windows_amd64.sh          |   2 +-
+ src/pkg/os/user/Makefile                  |   7 +
+ src/pkg/os/user/lookup_stubs.go           |  12 +-
+ src/pkg/os/user/lookup_unix.go            |  18 +-
+ src/pkg/os/user/lookup_windows.go         | 117 ++++++++++
+ src/pkg/os/user/user.go                   |  10 +-
+ src/pkg/os/user/user_test.go              |  74 ++++--
+ src/pkg/syscall/Makefile                  |   3 +-
+ src/pkg/syscall/mkall.sh                  |   3 +
+ src/pkg/syscall/security_windows.go       | 359 ++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_windows_386.go   | 160 ++++++++++++-
+ src/pkg/syscall/zsyscall_windows_amd64.go | 160 ++++++++++++-
+ src/pkg/syscall/ztypes_windows.go         |   5 +-
+ 14 files changed, 897 insertions(+), 35 deletions(-)

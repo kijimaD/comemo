@@ -1,18 +1,12 @@
-commit 9979366e07fa8aa6fac81702a70f6eacf427c431
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Oct 19 16:14:51 2019 +0700
+commit 1560264f70a90de8d8b68e246c476d79e4d60574
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon May 6 15:56:43 2019 -0400
 
-    cmd/compile: disable checkptr for //go:nosplit functions
+    doc: document Go 1.12.5
     
-    Make go test -a -short -gcflags=all=-d=checkptr passes on darwin.
-    
-    Update #34972
-    
-    Change-Id: I71cf14ec1faccd4837713aa30c90ed665899b908
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202158
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9986a323db2a8f5fa74b071cfd04e8c786da0cb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175438
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

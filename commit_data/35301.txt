@@ -1,35 +1,40 @@
-commit 8e9386db0ee72ffa847b1673d15f6092291724d9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 7 19:09:16 2018 +0000
+commit fd7331a821a6b79d5f2f82075c032ac459670d7d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 5 15:50:29 2018 -0800
 
-    vendor, net/http: update x/net for httplex to httpguts merge
+    text/template: revert CL 66410 "add break, continue actions in ranges"
     
-    Updates x/net to git rev cbb82b59bc for:
+    The new break and continue actions do not work in html/template, and
+    fixing them requires thinking about security issues that seem too
+    tricky at this stage of the release. We will try again for 1.11.
     
-        lex/httplex, http/httpguts: merge the httplex package into httpguts
-        https://golang.org/cl/111875
+    Original CL description:
     
-        http2: set nextStreamID to 3 when AllowHTTP is set
-        https://golang.org/cl/111835
+        text/template: add break, continue actions in ranges
     
-        http2: terminate await request cancel goroutine on conn close
-        https://golang.org/cl/108415
+        Adds the two range control actions "break" and "continue". They act the
+        same as the Go keywords break and continue, but are simplified in that
+        only the innermost range statement can be broken out of or continued.
     
-    Fixes #24776 (CL 111655 didn't actually include it)
+        Fixes #20531
     
-    Change-Id: I0a21e169ebba2ec35219f347f1e31cd4c67bebdf
-    Reviewed-on: https://go-review.googlesource.com/111876
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Kunpei Sakai <namusyaka@gmail.com>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Updates #20531
+    Updates #23683
+    
+    Change-Id: Ia7fd3c409163e3bcb5dc42947ae90b15bdf89853
+    Reviewed-on: https://go-review.googlesource.com/92155
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/build/deps_test.go                          |  1 -
- src/net/http/h2_bundle.go                          | 30 ++++++++++++++--------
- src/net/http/http.go                               |  4 +--
- src/net/http/server.go                             |  7 +++--
- src/net/http/transfer.go                           |  6 ++---
- src/net/http/transport.go                          |  6 ++---
- .../net/{lex/httplex => http/httpguts}/httplex.go  |  7 +----
- .../{lex/httplex => http/httpguts}/httplex_test.go |  2 +-
- 8 files changed, 32 insertions(+), 31 deletions(-)
+ api/go1.10.txt                        | 18 --------
+ doc/go1.10.html                       | 14 ------
+ src/text/template/doc.go              |  6 ---
+ src/text/template/exec.go             | 84 ++++++++++-------------------------
+ src/text/template/exec_test.go        |  4 --
+ src/text/template/parse/lex.go        |  4 --
+ src/text/template/parse/lex_test.go   |  6 +--
+ src/text/template/parse/node.go       | 64 --------------------------
+ src/text/template/parse/parse.go      | 44 +++---------------
+ src/text/template/parse/parse_test.go | 12 -----
+ 10 files changed, 31 insertions(+), 225 deletions(-)

@@ -1,14 +1,12 @@
-commit 69a5b23dc58a589f491e5524d3e32019a5de69b5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 2 11:49:28 2012 -0800
+commit e10150f96d9d7dd8f3ab45a04288a75dc1f3c218
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 2 14:25:13 2012 -0500
 
-    test: make map nan timing test more robust
+    codereview: don't check default paths when codereview disabled
     
-    take 2
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5617045
+    https://golang.org/cl/5622043
 
- test/map.go | 25 ++++++++++++++++++++-----
- 1 file changed, 20 insertions(+), 5 deletions(-)
+ lib/codereview/codereview.py | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

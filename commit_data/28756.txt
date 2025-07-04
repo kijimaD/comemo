@@ -1,28 +1,30 @@
-commit 0aadaf2ad5fa8cc1c00256840e37f422dda9689f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 22:01:33 2016 -0700
+commit 14cf6e20832dd64d79c345e0fd59169c5bd0eb35
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 13 13:43:08 2016 -0700
 
-    cmd/pprof: instruction-level granularity in callgrind output
+    [dev.ssa] cmd/compile: initial 386 SSA port
     
-    When generating callgrind format output, produce cost lines at
-    instruction granularity. This allows visualizers supporting the
-    callgrind format to display instruction-level profiling information.
+    Basically just copied all the amd64 files, removed all the *Q ops,
+    and rebuilt.
     
-    We also need to provide the object file (ob=) in order for tools to find
-    the object file to disassemble when displaying assembly.
+    Compiles fib successfully.
     
-    We opportunistically group cost lines corressponding to the same
-    function together, reducing the number of superfluous description lines.
-    Subposition compression (relative position numbering) is also used to
-    reduce the output size.
+    Still need to do:
+     - all the 64->32 bit op translations.
+     - audit for instructions that aren't available on 386.
+     - GO386=387?
     
-    Change-Id: Id8e960b81dc7a47ec1dfbae877521f76972431c4
-    Reviewed-on: https://go-review.googlesource.com/23781
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Raul Silvera <rsilvera@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Update #16358
+    
+    Change-Id: Ib8c684586416a554a527a5eefa0cff71424e36f5
+    Reviewed-on: https://go-review.googlesource.com/24912
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/pprof/driver/driver.go |  8 ++---
- src/cmd/internal/pprof/report/report.go | 60 ++++++++++++++++++++++++++++-----
- 2 files changed, 54 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssa/config.go     |    10 +-
+ src/cmd/compile/internal/ssa/gen/386.rules |  1181 +++
+ src/cmd/compile/internal/ssa/gen/386Ops.go |   477 +
+ src/cmd/compile/internal/ssa/opGen.go      |  2521 +++++
+ src/cmd/compile/internal/ssa/rewrite386.go | 14189 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/x86/galign.go     |     5 +
+ src/cmd/compile/internal/x86/ssa.go        |   959 ++
+ 7 files changed, 19340 insertions(+), 2 deletions(-)

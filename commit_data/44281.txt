@@ -1,33 +1,25 @@
-commit a1e9148e3dbb20a18e0139583e7d835cc7a820bf
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 26 21:26:01 2021 -0500
+commit 78b96db04ec9937de53c6bba0db3aeb9fff470db
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 4 12:01:53 2020 -0400
 
-    runtime: print hex numbers with hex prefixes in traceback debug
+    [dev.link] cmd/link: reuse slice memory in deadcode pass
     
-    If traceback fails, it prints a helpful hex dump of the stack.
-    But the hex numbers have no 0x prefix, which might make it
-    a little unclear that they are hex.
-    We only print two per line, so there is plenty of room for the 0x.
-    Print it, which lets us delete a custom hex formatter.
+    Reuse slice memory in the deadcode pass, reduce allocations.
     
-    Also, in the translated <name+off> hints, print off in hex
-    (with a 0x prefix). The offsets were previously decimal, which
-    could have been confused for hex since none of the hex had
-    0x prefixes. And decimal is kind of useless anyway since the
-    offsets shown in the main traceback are hex, so you can't
-    easily match them up without mental base conversions.
+    Linking cmd/compile,
     
-    Just print hex everywhere, clearly marked by 0x.
+    name           old alloc/op   new alloc/op   delta
+    Deadcode_GC      2.10MB ± 0%    1.41MB ± 0%  -32.61%  (p=0.008 n=5+5)
     
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
+    name           old allocs/op  new allocs/op  delta
+    Deadcode_GC       8.46k ± 0%     5.55k ± 0%  -34.45%  (p=0.008 n=5+5)
     
-    Change-Id: I72d26a4e41ada38b620bf8fe3576d787a2e59b47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288809
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib9ba0928d68a65879007218697712b53acd3c5c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236566
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/print.go | 26 ++++++++------------------
- 1 file changed, 8 insertions(+), 18 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

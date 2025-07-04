@@ -1,34 +1,16 @@
-commit 9ad772033f04ea9b3082440d306e17802a08b4b4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 17 18:09:55 2022 -0700
+commit 516d75ccf1879cba1277cc92d0c6b61725b4aab5
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Aug 30 11:56:58 2021 -0500
 
-    go/types, types2: consolidate testdata/examples test files
+    cmd/internal/obj/ppc64: add a test for long branch fixups
     
-    Besides applying gofmt (which doesn't damage the tests in this case),
-    the ERROR comments in the types2 files now match the go/types files.
-    But because types2 still reports some errors are different positions,
-    the checking code now allows for some position discrepancy (similar
-    to what we do for other tests).
+    Cribbed and modified from arm64, verify each transformation
+    rewrites a too-far conditional branch as expected.
     
-    Except for an outstanding TODO in go/types/testdata/examples/types.go
-    the test files are now identical.
-    
-    For #54511.
-    
-    Change-Id: I5748e0f678d11c5c0bdf4fdf28bd04f0b11b5b23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424674
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I87d35085158ed7d7478aa9725b273401fcd0bd01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347049
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/types2/check_test.go      |  2 +-
- .../internal/types2/testdata/examples/functions.go |  2 +-
- .../internal/types2/testdata/examples/inference.go | 20 +++----
- .../internal/types2/testdata/examples/types.go     |  2 +-
- .../internal/types2/testdata/examples/typesets.go  | 17 +++---
- src/go/types/testdata/examples/functions.go        |  1 +
- src/go/types/testdata/examples/inference.go        | 16 +++---
- src/go/types/testdata/examples/types.go            | 62 ++++++++++------------
- src/go/types/testdata/examples/typesets.go         | 15 +++---
- 9 files changed, 67 insertions(+), 70 deletions(-)
+ src/cmd/internal/obj/ppc64/asm_test.go | 127 +++++++++++++++++++++++++++++++++
+ 1 file changed, 127 insertions(+)

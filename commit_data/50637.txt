@@ -1,18 +1,41 @@
-commit e8afb2911125ad65ddc02f7b83ab78a3e2f573b7
-Author: David Chase <drchase@google.com>
-Date:   Thu Sep 22 22:27:33 2022 -0400
+commit 901bf291bc90819cb6dad76064475cf9ecbc9651
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Dec 3 13:29:58 2020 +0100
 
-    cmd/compile: introduce "temporary" readers for more storage reuse
+    runtime: allow builtin write function to be redirected with function pointer
     
-    Change-Id: Id05d6099624284a9c1583b066d1a703e806b1e22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/433037
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    The x/sys/windows package currently uses go:linkname for other facilities
+    inside of runtime that are not suitable to be exposed as a public API
+    due to their dangers but are still necessary for manipulating any
+    low-level plumbing that the runtime controls.
+    
+    Logging, via the built-in println and panic handler, is one such
+    low-level plumbing feature. In this case, x/sys/windows/svc needs to be
+    able to redirect panics to the Windows event log. Because the event log
+    is a complicated interface, this requires a bit more fiddling than the
+    simple solution used on Android (baking it into runtime itself), and
+    because Windows services are very diverse, the event log might not even
+    always be a desirable destination.
+    
+    This commit accomplishes this by exposing a function pointer called
+    "overrideWrite" that low-level runtime packages like x/sys/windows/svc
+    can use to redirect output logs toward the event log or otherwise.
+    
+    It is not safe or acceptable to use as a generic mechanism, and for that
+    reason, we wouldn't want to expose this as a real stable API, similar to
+    the other instances of go:linkname in x/sys/windows. But for packages
+    that must interoperate with low-level Go runtime fundamentals, this is a
+    safety hatch for packages that are developed in tandem with the runtime.
+    x/sys/windows is one such package.
+    
+    Updates #42888.
+    
+    Change-Id: I77a32ff7e1494324e8cc38e792e007f86d32672d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278792
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/importer/ureader.go |  89 ++++++++++++++---------
- src/go/internal/gcimporter/ureader.go        | 101 +++++++++++++++++----------
- src/internal/pkgbits/decoder.go              |  70 ++++++++++++++++---
- 3 files changed, 183 insertions(+), 77 deletions(-)
+ src/runtime/time_nofake.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,26 +1,14 @@
-commit 508e76197842792f87504d9f031ce4f7bf453c4f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Apr 24 11:19:17 2024 -0400
+commit 1d00dc39851cba737d3ada9a9cb4a99e525b3e9f
+Author: Sameer Ajmani <sameer@google.com>
+Date:   Mon Apr 24 09:34:24 2023 -0400
 
-    cmd/compile: bail PGO method lookup on interface types
+    doc: fix typo in Go 1.21 release notes
     
-    Interface types don't have concrete method implementations, so it does
-    not make sense to attempt a lookup.
-    
-    An interface method would not normally appear in a PGO profile as it has
-    no symbol in the final binary. However it can appear if the method was
-    concrete when the profile was collected and it has since been refactored
-    to an interface method in the code being compiled.
-    
-    The guards here (OTYPE, !Alias, !IsInterface) now match
-    noder.linker.relocObj, which does a similar iteration of all methods.
-    
-    Fixes #67016.
-    
-    Change-Id: I858c58929c890ac0b2019fbd7c99f683ab63f8bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581436
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib32567fdd12079cd171a4e1bc118ce27d8ce2a5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488035
+    Run-TryBot: Sameer Ajmani <sameer@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/unified.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,19 @@
-commit 45baff61e37cb8ac497ca395d8da3f3e87601bb2
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 5 12:31:00 2016 -0400
+commit ec75230b55281a84cd1a9aa52d33d5e552c82dd4
+Author: Ross Light <light@google.com>
+Date:   Tue Aug 16 11:10:36 2016 -0700
 
-    runtime: expand comment on work.spans
+    reflect: document equality guarantee for Type
     
-    Change-Id: I4b8a6f5d9bc5aba16026d17f99f3512dacde8d2d
-    Reviewed-on: https://go-review.googlesource.com/30534
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    The only previous mention of this property was in the String() method.
+    Since this is the only way to uniquely identify a type and we can't
+    change this property without breaking the Go 1 guarantee, it seems
+    better to document this property than hiding it on a method.
+    
+    Fixes #16348
+    
+    Change-Id: I3d25f7d6e6007e3c15c2e13010869888d0181fc2
+    Reviewed-on: https://go-review.googlesource.com/27170
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/reflect/type.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

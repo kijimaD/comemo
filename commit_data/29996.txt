@@ -1,17 +1,14 @@
-commit 048b8cecc6e74b50205e803ca387ffaa7e9f37fe
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Jan 31 12:54:45 2017 -0800
+commit 7bc42a145a03d61b504b18d20f2a4e5d8e2436fd
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 12 17:48:34 2016 -0400
 
-    reflect: adjust documentation on Value
+    runtime: don't reserve space for stack barriers if they're off
     
-    Make the documentation more explicit that it is not safe to directly
-    compare Value. Get straight to the point on how to do it correctly.
-    
-    Updates #18871
-    
-    Change-Id: I2aa3253f779636b2f72a1aae8c9bb45d3c32c902
-    Reviewed-on: https://go-review.googlesource.com/36018
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I79ebccdaefc434c47b77bd545cc3c50723c18b61
+    Reviewed-on: https://go-review.googlesource.com/31135
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/reflect/value.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mstkbar.go | 4 ++++
+ 1 file changed, 4 insertions(+)

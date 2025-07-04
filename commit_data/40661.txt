@@ -1,43 +1,18 @@
-commit 21445b091ec0a0625282603e2730d10b34396375
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 17 15:35:54 2019 +0000
+commit bdd420155236768033b05524490738ca97645166
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 6 14:43:28 2019 -0400
 
-    runtime: make the scavenger self-paced
+    cmd/go: allow GOPROXY to elide the "https://" prefix
     
-    Currently the runtime background scavenger is paced externally,
-    controlled by a collection of variables which together describe a line
-    that we'd like to stay under.
+    Fixes #32191
     
-    However, the line to stay under is computed as a function of the number
-    of free and unscavenged huge pages in the heap at the end of the last
-    GC. Aside from this number being inaccurate (which is still acceptable),
-    the scavenging system also makes an order-of-magnitude assumption as to
-    how expensive scavenging a single page actually is.
-    
-    This change simplifies the scavenger in preparation for making it
-    operate on bitmaps. It makes it so that the scavenger paces itself, by
-    measuring the amount of time it takes to scavenge a single page. The
-    scavenging methods on mheap already avoid breaking huge pages, so if we
-    scavenge a real huge page, then we'll have paced correctly, otherwise
-    we'll sleep for longer to avoid using more than scavengePercent wall
-    clock time.
-    
-    Unfortunately, all this involves measuring time, which is quite tricky.
-    Currently we don't directly account for long process sleeps or OS-level
-    context switches (which is quite difficult to do in general), but we do
-    account for Go scheduler overhead and variations in it by maintaining an
-    EWMA of the ratio of time spent scavenging to the time spent sleeping.
-    This ratio, as well as the sleep time, are bounded in order to deal with
-    the aforementioned OS-related anomalies.
-    
-    Updates #35112.
-    
-    Change-Id: Ieca8b088fdfca2bebb06bcde25ef14a42fd5216b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201763
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I6eebe1d4975e904c906e6b839cd6cab9447cbb34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181019
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgcscavenge.go | 252 +++++++++++++--------------------------------
- src/runtime/mheap.go       |  33 ++----
- 2 files changed, 83 insertions(+), 202 deletions(-)
+ src/cmd/go/internal/modfetch/proxy.go          |  9 +++++++++
+ src/cmd/go/internal/modfetch/sumdb.go          |  2 +-
+ src/cmd/go/testdata/script/mod_proxy_https.txt | 19 +++++++++++++++++++
+ 3 files changed, 29 insertions(+), 1 deletion(-)

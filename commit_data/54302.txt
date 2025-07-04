@@ -1,23 +1,23 @@
-commit 05d4b57c9fd082c8f68f454d1bb4ae26a3c7f5b9
-Author: zhangjian <zj.cosmos@gmail.com>
-Date:   Sun Jun 11 11:29:55 2023 +0000
+commit 58158e990f272774e615c9abd8662bf0198c29aa
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Oct 4 15:59:56 2022 +0000
 
-    cmd/compile/internal/liveness: remove excess bits for stackmap
+    all: use fmt.Appendf
     
-    ArgWidth() already includes the stack space required for
-    input parameters and return values, so their offset will
-    not exceed the value of ArgWidth(), so there is no need
-    to double it.
-    
-    Change-Id: I10fde7afbf2a5714b5142075c2116af14debc7e8
-    GitHub-Last-Rev: eaf3fd5eb86ed1d968a6d5962c71ee3144424598
-    GitHub-Pull-Request: golang/go#60591
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500675
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: guangyuan zhou <zhouguangyuan@golangcn.org>
+    Change-Id: I45f941ba3db26a12b3f56d93bdcd7f9e1d490346
+    GitHub-Last-Rev: 22b51167b08a1770a63a8b768a60451bc2ff0dc5
+    GitHub-Pull-Request: golang/go#56030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438539
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/liveness/plive.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/coderepo.go | 2 +-
+ src/cmd/go/internal/modload/build.go     | 4 ++--
+ src/cmd/trace/annotations.go             | 2 +-
+ src/net/smtp/auth.go                     | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

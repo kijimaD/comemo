@@ -1,14 +1,13 @@
-commit ecf4a9216edfdcc48327382697fed5d98d7faf46
-Author: Christoph Hack <christoph@tux21b.org>
-Date:   Mon Dec 12 18:01:06 2011 -0500
+commit fbff033ecf3a644f083552e04958a14aa3b5c91d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 12 18:01:02 2011 -0500
 
-    godoc: added an opensearch description document.
+    A+C: add Christoph Hack (individual CLA)
     
-    R=golang-dev, r, tux21b, rsc
+    R=golang-dev, dsymonds, gri
     CC=golang-dev
-    https://golang.org/cl/5479062
+    https://golang.org/cl/5485048
 
- lib/godoc/godoc.html     |  3 +++
- lib/godoc/opensearch.xml | 11 +++++++++++
- src/cmd/godoc/godoc.go   | 15 ++++++++++++++-
- 3 files changed, 28 insertions(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

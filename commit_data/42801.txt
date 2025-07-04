@@ -1,17 +1,35 @@
-commit 94953d3e5928c8a577bad7911aabbf627269ef77
-Author: Changkun Ou <hi@changkun.us>
-Date:   Mon Aug 24 13:45:27 2020 +0200
+commit 73269b8e7539541a69fa8b04bf10549bbcb48aa9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jan 6 23:45:57 2020 -0800
 
-    sync: delete dirty keys inside Map.LoadAndDelete
+    cmd/compile: generate commutative rules when a condition is present
     
-    Fixes #40999
+    The commutative rule generator has an optimization
+    where given (Add x y) with no other uses of x and y in the matching rule,
+    it doesn't generate the commutative match (Add y x).
     
-    Change-Id: Ie32427e5cb5ed512b976b554850f50be156ce9f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250197
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    However, if there is also a condition referring to x or y,
+    such as (Add x y) && isFoo(x), then we should generate the commutative rule.
+    This change parses the condition, extracts all idents, and takes them
+    into consideration.
+    
+    This doesn't yield any new optimizations now.
+    However, it is the right thing to do;
+    otherwise we'll have to track it down and fix it again later.
+    
+    It is also expensive now, in terms of additional generated code.
+    However, it will be much, much less expensive soon,
+    once our generated code for commutative ops gets smaller.
+    
+    Change-Id: I52c2016c884bbc7789bf8dfe9b9c56061bc028ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213702
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/sync/map.go      |  1 +
- src/sync/map_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 25 insertions(+)
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |   20 +-
+ src/cmd/compile/internal/ssa/rewrite386.go   |  295 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |  420 +++-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 3455 ++++++++++++++++++++++----
+ src/cmd/compile/internal/ssa/rewritePPC64.go |   80 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go |  390 ++-
+ 6 files changed, 4108 insertions(+), 552 deletions(-)

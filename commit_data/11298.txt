@@ -1,15 +1,12 @@
-commit 0796c1c3ec8b6555ff03d617f8fcbc43aa564063
+commit 6923f6d12aad4fb196bff109f091b042a2d17f39
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 20 12:57:53 2012 -0800
+Date:   Fri Jan 20 12:57:43 2012 -0800
 
-    encoding/varint: deleted WriteXvarint
+    doc/go1.html: fix broken links
     
-    Fixes #2748.
-    
-    R=rsc, r, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5557072
+    https://golang.org/cl/5555060
 
- src/pkg/encoding/binary/varint.go      | 17 -----------------
- src/pkg/encoding/binary/varint_test.go | 32 ++++++++------------------------
- 2 files changed, 8 insertions(+), 41 deletions(-)
+ doc/go1.html | 40 +++++++++++++++++++++-------------------
+ 1 file changed, 21 insertions(+), 19 deletions(-)

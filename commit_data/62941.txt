@@ -1,0 +1,23 @@
+commit d6c8bedc7b3d2de7714dca75bd05912b371538f1
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Apr 1 15:43:22 2025 -0700
+
+    runtime, testing/synctest: stop advancing time when main goroutine exits
+    
+    Once the goroutine started by synctest.Run exits, stop advancing
+    the fake clock in its bubble. This avoids confusing situations
+    where a bubble remains alive indefinitely while a background
+    goroutine reads from a time.Ticker or otherwise advances the clock.
+    
+    For #67434
+    
+    Change-Id: Id608ffe3c7d7b07747b56a21f365787fb9a057d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662155
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/internal/synctest/synctest_test.go | 24 ++++++++++++++++++++++++
+ src/runtime/synctest.go                | 34 ++++++++++++++++++++++++++--------
+ src/testing/synctest/synctest.go       |  5 ++++-
+ 3 files changed, 54 insertions(+), 9 deletions(-)

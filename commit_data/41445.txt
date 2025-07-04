@@ -1,20 +1,29 @@
-commit 089e482b3dd2026178c8ee5b90d9aadb6bf81239
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Feb 15 19:23:07 2020 -0800
+commit d79380026cd9f3a65e4896e77a7f3fbe1a954934
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 11 15:57:39 2019 -0400
 
-    runtime: reorder race detector calls in slicecopy
+    [dev.link] cmd/internal/goobj: support parsing new object file
     
-    In rare circumstances, this helps report a race which would
-    otherwise go undetected.
+    Add support of parsing new object file format. We use the new
+    parser if the magic string matches the new one, otherwise use the
+    old one.
     
-    Fixes #36794
+    The parsed data are still filled into the current goobj API. In
+    the future we may consider to change the goobj API to a close
+    match of the object file data.
     
-    Change-Id: I8a3c9bd6fc34efa51516393f7ee72531c34fb073
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220685
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Now objdump and nm commands support new object file format.
+    
+    For a reference to a symbol defined in another package, with the
+    new object file format we don't know its name. Write it as
+    pkg.<#nn> for now, where nn is its symbol index.
+    
+    Change-Id: I06d05b2ca834ba36980da3c5d76aee16c3b0a483
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196031
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/race/testdata/slice_test.go | 16 ++++++++++++++++
- src/runtime/slice.go                    |  4 ++--
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/internal/goobj/read.go    |   5 ++
+ src/cmd/internal/goobj/readnew.go | 163 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 168 insertions(+)

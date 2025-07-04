@@ -1,24 +1,22 @@
-commit f99a214d96c14c5c4287a39f99342ae895194cc0
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Thu Nov 14 16:00:43 2024 -0500
+commit ff722e607cc131903181fe9d686d4d91ade15a2d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 21 16:51:57 2023 +0000
 
-    crypto/internal/fips140test: add EDDSA ACVP tests
+    internal/trace/v2: dump text trace on failure only if it fits in the log
     
-    This commit adds ACVP test coverage for EDDSA (Ed25519, and
-    HashEd25519/Ed25519ph) for the keyGen, keyVer, sigGen, and sigVer
-    capabilities.
+    Currently we dump text traces to the build log on failure
+    unconditionally, but this may cause the old infrastructure's builds'
+    logs to get truncated. Avoid that by setting a threshold on the maximum
+    size of the text trace we're willing to dump.
     
-    Updates #69642
+    We don't need this workaround on the new infrastructure -- logs don't
+    get truncated there.
     
-    Change-Id: I5122d86180bd4d2f7d94570a6dc939808aa24fc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621135
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I0f50f50bb4b90f87250b673fbe56f48235325610
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544216
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- .../internal/fips140test/acvp_capabilities.json    |   7 +-
- .../internal/fips140test/acvp_test.config.json     |   4 +-
- src/crypto/internal/fips140test/acvp_test.go       | 129 +++++++++++++++++++++
- 3 files changed, 138 insertions(+), 2 deletions(-)
+ src/internal/trace/v2/trace_test.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

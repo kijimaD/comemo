@@ -1,14 +1,30 @@
-commit e92be18fd8b525b642ca25bdb3e2056b35d9d73c
-Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
-Date:   Wed Jun 10 13:30:42 2020 +0000
+commit f266cce6763aeb1b9200dcf193826dcfba5127b7
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Nov 19 13:58:28 2019 -0800
 
-    runtime: fix typo in FuncForPC doc
+    runtime: avoid potential deadlock when tracing memory code
     
-    Change-Id: I04037e13b131e79ebc5af84896bfeda49ddc0eaa
-    GitHub-Last-Rev: b0d0de930862e4f163e158876cba70d81ed2d52e
-    GitHub-Pull-Request: golang/go#39500
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237220
-    Reviewed-by: Keith Randall <khr@golang.org>
+    In reclaimChunk, the runtime is calling traceGCSweepDone() while holding the mheap
+    lock. traceGCSweepDone() can call traceEvent() and traceFlush(). These functions
+    not only can get various trace locks, but they may also do memory allocations
+    (runtime.newobject) that may end up getting the mheap lock. So, there may be
+    either a self-deadlock or a possible deadlock between multiple threads.
+    
+    It seems better to release the mheap lock before calling traceGCSweepDone(). It is
+    fine to release the lock, since the operations to get the index of the chunk of
+    work to do are atomic. We already release the lock to call sweep, so there is no
+    new behavior for any of the callers of reclaimChunk.
+    
+    With this change, mheap is a leaf lock (no other lock is ever acquired while it
+    is held).
+    
+    Testing: besides normal all.bash, also ran all.bash with --long enabled, since
+    it does longer tests of runtime/trace.
+    
+    Change-Id: I4f8cb66c24bb8d424f24d6c2305b4b8387409248
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207846
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/symtab.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mheap.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,12 +1,13 @@
-commit a1457cac9cc3901df2db9e669a4018141ef12e57
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Dec 26 01:08:23 2014 -0500
+commit 1d0c7792f172ab0485edf2818398deffe3d452ba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 9 11:31:23 2015 -0800
 
-    sync/atomic: darwin/arm support
+    runtime: add missing copyright notices
     
-    Change-Id: I213a8ab0b8c027a7b73567aeefdca73fd10eae28
-    Reviewed-on: https://go-review.googlesource.com/2122
+    Change-Id: Icecfe9223d8457de067391fffa9f0fcee4292be7
+    Reviewed-on: https://go-review.googlesource.com/2620
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/sync/atomic/asm_darwin_arm.s | 99 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 99 insertions(+)
+ src/runtime/print1_write.go         | 4 ++++
+ src/runtime/print1_write_android.go | 4 ++++
+ 2 files changed, 8 insertions(+)

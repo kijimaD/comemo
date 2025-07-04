@@ -1,20 +1,29 @@
-commit a9bd84e03786e8bd4bfb3780ce3283b0f3e1f3bf
-Author: Tim King <taking@google.com>
-Date:   Tue Sep 10 22:56:40 2024 +0000
+commit 023668638298d0abf81090dd44464d3c8b724aa7
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Jul 29 08:27:21 2023 +0000
 
-    Revert "runtime: Goexit on C-created thread report more useful error message"
+    os: fix test failure when Workstation service is not enabled
     
-    This reverts CL 602296.
+    TestNetworkSymbolicLink needs to enable the Workstation service, otherwise it will fail.
     
-    Reason for revert: Failing on several builders.
+    This CL avoids failure by skipping testing when the Workstation service is not enabled.
     
-    Change-Id: I889c566d34294032c330d4f9402300ad0d5d3bf5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611919
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #61467
+    
+    Change-Id: I395952fc18329e0b0dfdec55c8a18f4007ea91de
+    
+    Change-Id: I395952fc18329e0b0dfdec55c8a18f4007ea91de
+    GitHub-Last-Rev: 7f089d1dff3ca939915fc8b3e49eba3908f15180
+    GitHub-Pull-Request: golang/go#61564
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512736
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/panic.go                         |  2 --
- src/runtime/proc.go                          |  3 ---
- src/runtime/proc_test.go                     | 10 ----------
- src/runtime/testdata/testprogcgo/callback.go | 11 -----------
- 4 files changed, 26 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go  | 19 ++++++++++++++++
+ src/internal/syscall/windows/zsyscall_windows.go | 29 ++++++++++++++++++++++++
+ src/os/os_windows_test.go                        | 23 +++++++++++++++++++
+ 3 files changed, 71 insertions(+)

@@ -1,25 +1,20 @@
-commit 78ce3a0368279653d05cbd1003e801363caba75a
+commit ce5c3871a461b0a2c8737b0d31215012d7a04d24
 Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 7 20:59:04 2018 -0700
+Date:   Mon Apr 30 19:25:46 2018 -0700
 
-    reflect: use a bigger object when we need a finalizer to run
+    runtime: move more syscalls to libc on Darwin
     
-    If an object is allocated as part of a tinyalloc, then other live
-    objects in the same tinyalloc chunk keep the finalizer from being run,
-    even if the object that has the finalizer is dead.
+    Moving mmap, munmap, madvise, usleep.
     
-    Make sure the object we're setting the finalizer on is big enough
-    to not trigger tinyalloc allocation.
+    Also introduce __error function to get at libc's errno variable.
     
-    Fixes #26857
-    Update #21717
-    
-    Change-Id: I56ad8679426283237ebff20a0da6c9cf64eb1c27
-    Reviewed-on: https://go-review.googlesource.com/128475
+    Change-Id: Ic47ac1d9eb71c64ba2668ce304644dd7e5bdfb5a
+    Reviewed-on: https://go-review.googlesource.com/110437
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/all_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/sys_darwin.go      |  6 +++
+ src/runtime/sys_darwin_386.s   | 96 ++++++++++++++++++++++++++++--------------
+ src/runtime/sys_darwin_amd64.s | 73 +++++++++++++++++---------------
+ 3 files changed, 110 insertions(+), 65 deletions(-)

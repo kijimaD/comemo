@@ -1,17 +1,28 @@
-commit 507f4d5f48919097e5b85b145d337e89d1a2f252
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu May 4 16:49:23 2017 +1000
+commit fb1f47a77c642f36fc7a80d468ad1cda8bb66361
+Author: Lorenzo Masini <rugginoso@develer.com>
+Date:   Mon Feb 20 17:17:28 2017 +0100
 
-    cmd/link: do not read .bss sections in ldpe
+    cmd/compile: speed up TestAssembly
     
-    For .bss section symbol ldelf does not set P (raw symbol data).
-    Make ldpe do the same.
+    TestAssembly was very slow, leading to it being skipped by default.
+    This is not surprising, it separately invoked the compiler and
+    parsed the result many times.
     
-    Change-Id: Ib3d558456f505ee568d0972465fa9b08b5794a87
-    Reviewed-on: https://go-review.googlesource.com/42631
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Now the test assembles one source file for arch/os combination,
+    containing the relevant functions.
+    
+    Tests for each arch/os run in parallel.
+    
+    Now the test runs approximately 10x faster on my Intel(R) Core(TM)
+    i5-6600 CPU @ 3.30GHz.
+    
+    Fixes #18966
+    
+    Change-Id: I45ab97630b627a32e17900c109f790eb4c0e90d9
+    Reviewed-on: https://go-review.googlesource.com/37270
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/ldpe.go | 29 +++++++++--------------------
- 1 file changed, 9 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 997 ++++++++++++++++++--------------
+ 1 file changed, 559 insertions(+), 438 deletions(-)

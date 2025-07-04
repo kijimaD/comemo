@@ -1,18 +1,18 @@
-commit 4757518737c8866db012c6ca9ebe04597f12f5df
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 20 17:11:43 2019 -0700
+commit 2d21bf4252781e3997c30a873e56325436ca3f76
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 13 15:51:15 2019 -0700
 
-    test: add test that failed with gccgo
+    cmd/compile: cleanup OREAL/OIMAG constant folding
     
-    Updates #33739
+    Based on suggestion from gri@ on golang.org/cl/166980.
     
-    Change-Id: Ib7ce4bc51972fe49998f37f6e27baa6a2a036d5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191001
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Passes toolstash-check.
+    
+    Change-Id: I79b66bb09b5635f3a9daecaa5d605b661a0ab108
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167501
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/issue33739.dir/a.go | 11 +++++++++++
- test/fixedbugs/issue33739.dir/b.go | 11 +++++++++++
- test/fixedbugs/issue33739.go       |  9 +++++++++
- 3 files changed, 31 insertions(+)
+ src/cmd/compile/internal/gc/const.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

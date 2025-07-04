@@ -1,29 +1,24 @@
-commit 3d15bfaa3e05c321dbec48bbcc634a3759b0b18a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Aug 20 15:07:00 2023 -0700
+commit 56fb2cff9f127a2a7dad0b44bb5522785aa06ddf
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 00:28:49 2022 +0800
 
-    cmd/compile/internal/types: simplify iterating all parameters
+    crypto: use bytes.Clone
     
-    The types.RecvsParamsResults, etc. helpers existed to make it "easier"
-    to iterate over all parameters, or recvs+params, or params+results;
-    but they end up still being quite clumsy to use due to the design goal
-    of not allocating temporary slices.
-    
-    Now that recvs+params+results are stored in a single consecutive slice
-    anyway, we can just return different subslices and simplify the loops.
-    
-    Change-Id: I84791b80dc099dfbfbbe6eddbc006135528c23b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521375
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I92e110023739c6f8f7815c7e47ad7639c4e8812d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435279
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
 
- src/cmd/compile/internal/dwarfgen/dwarf.go | 10 ++---
- src/cmd/compile/internal/escape/escape.go  |  8 +---
- src/cmd/compile/internal/noder/linker.go   |  6 +--
- src/cmd/compile/internal/noder/reader.go   |  6 +--
- src/cmd/compile/internal/types/identity.go | 20 ++++-----
- src/cmd/compile/internal/types/type.go     | 72 +++++++++++++++---------------
- 6 files changed, 56 insertions(+), 66 deletions(-)
+ src/crypto/cipher/cbc.go                         | 3 ++-
+ src/crypto/cipher/cipher.go                      | 8 --------
+ src/crypto/cipher/ctr.go                         | 3 ++-
+ src/crypto/ed25519/ed25519.go                    | 4 +---
+ src/crypto/internal/boring/aes.go                | 4 ++--
+ src/crypto/internal/boring/hmac.go               | 4 ++--
+ src/crypto/x509/internal/macos/corefoundation.go | 5 ++---
+ src/crypto/x509/root_windows.go                  | 4 ++--
+ 8 files changed, 13 insertions(+), 22 deletions(-)

@@ -1,12 +1,12 @@
-commit 52700d24bc828945a30f3d95301133307f34096f
-Author: Duncan Holm <mail@frou.org>
-Date:   Thu Apr 4 16:36:10 2013 +1100
+commit 19cc9f91fa233e6846cbb582e26c31fa9748730d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 4 16:13:29 2013 +1100
 
-    doc: use the already defined GOPATH in PATH
+    doc/go1.1.html: mention cgo and cross compilation
     
-    R=golang-dev, adg
+    R=r, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8248044
+    https://golang.org/cl/8304043
 
- doc/code.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.1.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

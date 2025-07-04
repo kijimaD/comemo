@@ -1,13 +1,17 @@
-commit 125e8277d57cb98d1342687fd0468d6aa50c05d2
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 14 10:38:15 2011 +1000
+commit 0bf36ce8fbc4c9468e7a253f6341a3bf7b425029
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Wed Jul 13 16:29:37 2011 -0700
 
-    reflect: trivial addition: Value.NumMethod.
-    Just an oversight it was missing.
+    os: Plan 9: add Process.Signal as a way to send notes.
+    Move the Signal interface from exec_posix.go to exec.go.
+    Remove some unsused code from file_plan9.go.
     
-    R=rsc, dsymonds, bradfitz, r
+    R=fshahriar, rsc
     CC=golang-dev
-    https://golang.org/cl/4695059
+    https://golang.org/cl/4683044
 
- src/pkg/reflect/value.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/pkg/os/exec.go       |  5 +++++
+ src/pkg/os/exec_plan9.go | 22 ++++++++++++++++++++++
+ src/pkg/os/exec_posix.go |  5 -----
+ src/pkg/os/file_plan9.go | 15 ---------------
+ 4 files changed, 27 insertions(+), 20 deletions(-)

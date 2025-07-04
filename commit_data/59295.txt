@@ -1,27 +1,20 @@
-commit e0dba45c620866bb16cd0db2c51732f03a9b27f3
-Author: Dmitrii Martynov <fkr011288@gmail.com>
-Date:   Mon Apr 7 17:08:19 2025 +0300
+commit 038fbf9f285d09663670d7cbc9a0185e06bf5e2f
+Author: suntala <artichaut2023@gmail.com>
+Date:   Thu Feb 22 22:49:36 2024 +0000
 
-    runtime: size field for gQueue and gList
+    cmd/go/internal/envcmd: show GODEBUG in 'go env' output
     
-    Before CL, all instances of gQueue and gList stored the size of
-    structures in a separate variable. The size changed manually and passed
-    as a separate argument to different functions. This CL added an
-    additional field to gQueue and gList structures to store the size. Also,
-    the calculation of size was moved into the implementation of API for
-    these structures. This allows to reduce possible errors by eliminating
-    manual calculation of the size and simplifying functions' signatures.
+    Fixes #65777
     
-    Change-Id: I087da2dfaec4925e4254ad40fce5ccb4c175ec41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664777
+    Change-Id: I62067d8212bfd9f9475ecad036a1218ffc5c2130
+    GitHub-Last-Rev: a395b0293a4796e4ac5db64c1521ade4ede0dfd8
+    GitHub-Pull-Request: golang/go#65888
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566097
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/runtime/mgc.go      |   4 +-
- src/runtime/mgcmark.go  |   8 +--
- src/runtime/proc.go     | 155 ++++++++++++++++++++----------------------------
- src/runtime/runtime2.go |  10 +---
- 4 files changed, 72 insertions(+), 105 deletions(-)
+ src/cmd/go/internal/envcmd/env.go        | 3 ++-
+ src/cmd/go/testdata/script/env_write.txt | 6 ++++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

@@ -1,14 +1,13 @@
-commit 1648df672824f64f30070d0c6b671329ce0e2b77
+commit 331bf64d175805f9060160c00dbf1290ae34c303
 Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Tue Jul 8 14:47:52 2014 -0400
+Date:   Tue Jul 8 13:45:31 2014 -0400
 
-    runtime: skip crash test on android
+    cmd/addr2line: skip test on android
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz, minux
+    LGTM=minux
+    R=golang-codereviews, minux
     CC=golang-codereviews
-    https://golang.org/cl/110400043
+    https://golang.org/cl/104600043
 
- src/pkg/runtime/crash_test.go   | 5 +++--
- src/pkg/runtime/runtime_test.go | 5 +++--
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/addr2line/addr2line_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

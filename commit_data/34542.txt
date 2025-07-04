@@ -1,34 +1,21 @@
-commit 53c416396fafb9f73b24159134836bbbd2266d29
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 8 16:06:16 2018 -0800
+commit 7cb3e4fb1d6b2704ecdc3d6983587975ce077a34
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Oct 28 17:35:27 2017 +0100
 
-    go/printer: simplify handling of line directives
+    all: unindent some if bodies by exiting early
     
-    Strangely enough, the existing implementation used adjusted (by line
-    directives) source positions to determine layout and thus required
-    position corrections when printing a line directive.
+    All of these had a return or break in the else body, so flipping the
+    condition means we can unindent and simplify.
     
-    Instead, just use the unadjusted, absolute source positions and then
-    printing a line directive doesn't require any adjustments, only some
-    care to make sure it remains in column 1 as before.
-    
-    The new code doesn't need to parse line directives anymore and simply
-    ensures that comments with the //line prefix and starting in column 1
-    remain in that position. That is a slight change from the old behavior
-    (which ignored incorrect line directives, e.g. because they had an
-    invalid line number) but unlikely to show up in real code.
-    
-    This is prep work for handling of line directives that also specify
-    columns (which now won't require much special handling anymore).
-    
-    For #24143.
-    
-    Change-Id: I07eb2e1b35b37337e632e3dbf5b70c783c615f8a
-    Reviewed-on: https://go-review.googlesource.com/99621
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If93e97504480d18a0dac3f2c8ffe57ab8bcb929c
+    Reviewed-on: https://go-review.googlesource.com/74190
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/printer/printer.go               | 27 ++++++---------------------
- src/go/printer/printer_test.go          |  3 ++-
- src/go/printer/testdata/comments.golden |  5 +++--
- src/go/printer/testdata/comments.input  |  3 ++-
- 4 files changed, 13 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 19 +++++++++----------
+ src/cmd/link/internal/ld/data.go       |  9 ++++-----
+ src/mime/mediatype.go                  | 18 +++++++++---------
+ src/reflect/value.go                   | 13 ++++++-------
+ src/regexp/exec.go                     | 13 ++++++-------
+ src/text/tabwriter/tabwriter.go        | 23 +++++++++++------------
+ 6 files changed, 45 insertions(+), 50 deletions(-)

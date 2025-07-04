@@ -1,28 +1,15 @@
-commit de9bffb5f12c4985d8369c39e158fe946f369e82
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Dec 1 16:33:59 2022 -0800
+commit 3c2e73c8c3323887e6b95f72adb6242b8727ba8b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 11 08:20:55 2022 +0100
 
-    cmd/compile: change some unreachable code paths into Fatalf
+    runtime/pprof: use syscall.RUSAGE_SELF
     
-    Now that GOEXPERIMENT=nounified is removed, we can assume InlineCall
-    and HaveInlineBody will always be overridden with the unified
-    frontend's implementations. Similarly, we can assume expandDecl will
-    never be called.
-    
-    This CL changes the code paths into Fatalfs, so subsequent CLs can
-    remove all the unreachable code.
-    
-    Updates #57410.
-    
-    Change-Id: I2a0c3edb32916c30dd63c4dce4f1bd6f18e07468
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458618
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idc37429de5a48e708eda868ca7fa26b28620bac0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391854
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/inline/inl.go          |  5 ++++-
- src/cmd/compile/internal/typecheck/iimport.go   | 12 ++----------
- src/cmd/compile/internal/typecheck/typecheck.go | 17 ++---------------
- 3 files changed, 8 insertions(+), 26 deletions(-)
+ src/runtime/pprof/pprof_rusage.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

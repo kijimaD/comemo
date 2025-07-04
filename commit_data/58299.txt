@@ -1,18 +1,21 @@
-commit b6fed7199f026ac1a16de6f1eeaafd0e5a539204
-Author: zhangjian <zj.cosmos@gmail.com>
-Date:   Wed Nov 27 16:35:49 2024 +0000
+commit 57322b3cbf1ed26c3b19c6edcd5758c794a36467
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 18 17:30:31 2023 -0700
 
-    cmd/preprofile: correct -V flag
+    debug/elf: return error in DynString for invalid dynamic section size
     
-    Change-Id: I9a0dc3a4b4c81f0f6942badcd4643a74c5046440
-    GitHub-Last-Rev: d1fa4e51569b1b1b70e4617ac41740cc21d4325a
-    GitHub-Pull-Request: golang/go#66949
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580615
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    No test case because the problem can only happen for invalid data.
+    Let the fuzzer find cases like this.
+    
+    Fixes #63610
+    
+    Change-Id: I797b4d9bdb08286ad3e3a9a6f800ee8c90cb7261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536400
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Veronica Silina <veronicasilina@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
 
- src/cmd/preprofile/main.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/debug/elf/file.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

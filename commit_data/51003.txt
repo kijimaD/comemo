@@ -1,20 +1,13 @@
-commit 51af90445696772703ed88d967e8c23c8e9e992d
+commit ce2a20af467c8dfa10874abc4b45af413e2b1954
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 25 21:07:11 2022 -0700
+Date:   Sat Nov 20 13:17:27 2021 -0800
 
-    go/types, types2: use correct shift value when typechecking constant shift
+    spec: adjust conversion rules for type parameters
     
-    Fixes #56425.
-    
-    Change-Id: Ieae3fdb5326d4b6f6ec1cdcd579051559e34b35b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445515
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I7bfddf4be0d1d95419f312bb349ae2e16b74b795
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365915
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/expr.go             | 5 +++--
- src/go/types/expr.go                                | 5 +++--
- src/internal/types/testdata/fixedbugs/issue56425.go | 8 ++++++++
- 3 files changed, 14 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)

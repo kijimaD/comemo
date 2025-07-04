@@ -1,21 +1,18 @@
-commit ab3c2b6d89daa54679cdaa0d78d2902473e0d63b
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 17 15:32:41 2023 -0400
+commit a906d3dd099424ff17d7e46c4ecf793012d50197
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 14 10:51:56 2022 -0400
 
-    cmd/cgo/internal/testtls: build and run everywhere
+    cmd/go: avoid re-enqueuing workspace dependencies with errors
     
-    This makes testtls build and run on all platforms in the default build
-    configuration (though it will Skip on some).
+    Fixes #53874.
     
-    Change-Id: I6aba96a82d618c9798a0d4418b40b2644cfceec9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496177
+    Change-Id: I41ab15cb9b86b807a9d9ad21fe21fb7aa5fbb46f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417594
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/cgo/internal/testtls/{tls_unix.c => tls.c} |  4 ++++
- src/cmd/cgo/internal/testtls/tls.go                |  2 +-
- src/cmd/cgo/internal/testtls/tls_none.go           | 13 +++++++++++++
- src/cmd/cgo/internal/testtls/tls_test.go           |  2 --
- src/cmd/dist/test.go                               |  2 +-
- 5 files changed, 19 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/modload/buildlist.go        |  5 +--
+ src/cmd/go/testdata/script/work_goproxy_off.txt | 59 +++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 3 deletions(-)

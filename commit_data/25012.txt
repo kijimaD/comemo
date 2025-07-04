@@ -1,14 +1,14 @@
-commit 54bd5a71d37f1c69d070af5daa0949092ad59c8b
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Sat Nov 21 15:24:34 2015 +0530
+commit f0ea976ee4591785fb028b77bcd02fb8590650ed
+Author: Tormod Erevik Lea <tormodlea@gmail.com>
+Date:   Wed Sep 16 10:54:31 2015 +0200
 
-    misc/cgo/testshared: add format specifier in Errorf calls
+    cmd/go: indent first test binary flag description for `go test -h`
     
-    Found by cmd/vet
+    Fixes #12642
     
-    Change-Id: I29dd207ecd40fe703054e8ad4e81b3267ca89da2
-    Reviewed-on: https://go-review.googlesource.com/17160
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I0b94437055b7d444f5caf7ea310e85357c467bdf
+    Reviewed-on: https://go-review.googlesource.com/14612
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testshared/shared_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/go/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

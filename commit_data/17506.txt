@@ -1,15 +1,14 @@
-commit a7d8b35aacf00a87953a67c9d1f793c16a5440ef
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 9 12:00:16 2013 -0400
+commit 5f75314e18f726bd4c19bafd95c6c5b1d0db2dc5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 9 15:50:11 2013 +1000
 
-    cmd/gc: fix 'internal error: typename ideal bool'
+    time: allow more time for TestOverflowRuntimeTimer to succeed
     
-    Fixes #6298.
+    Attempting to fix windows gobuilders
     
-    R=ken2
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13624043
+    https://golang.org/cl/13507044
 
- src/cmd/gc/walk.c           |  2 ++
- test/fixedbugs/issue6298.go | 15 +++++++++++++++
- 2 files changed, 17 insertions(+)
+ src/pkg/time/internal_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

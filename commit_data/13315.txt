@@ -1,20 +1,17 @@
-commit f51390b23cb94614ed8ba6b7a89b396c27c80511
+commit 2a9410c19c681f663aee1606289110881c62d640
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 7 12:37:50 2012 -0400
+Date:   Thu Jun 7 11:59:18 2012 -0400
 
-    cmd/cgo: make Go code order deterministic
+    cmd/gc: fix LEAQ $0, SI bug
     
-    The type declarations were being generated using
-    a range over a map, which meant that successive
-    runs produced different orders. This will make sure
-    successive runs produce the same files.
+    Cannot take effective address of constant.
     
-    Fixes #3707.
+    Fixes #3670.
     
-    R=golang-dev, bradfitz
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6300062
+    https://golang.org/cl/6299055
 
- src/cmd/cgo/main.go | 16 ++++++++++++----
- src/cmd/cgo/out.go  | 12 ++++++++----
- 2 files changed, 20 insertions(+), 8 deletions(-)
+ src/cmd/gc/gen.c         |  3 +++
+ test/fixedbugs/bug444.go | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+)

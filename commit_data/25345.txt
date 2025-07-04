@@ -1,17 +1,19 @@
-commit 2f08bd96a0f291450c0f8cd41741fa475309cfc4
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 17 00:37:09 2015 -0500
+commit c27925094640f0d151da92663d19d511d8dfdc31
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 21 10:40:39 2015 -0700
 
-    cmd/go: for go get -insecure, do not fall back to HTTP for non-200 responses
+    runtime: change functype's in and out fields to []*_type
     
-    Since we allow non-200 responses from HTTPS in normal operation,
-    it seems odd to reject them in -insecure operation.
+    Allows removing a few gratuitous unsafe.Pointer conversions and
+    parallels the type of reflect.funcType's in and out fields ([]*rtype).
     
-    Fixes #13037 (again).
-    
-    Change-Id: Ie232f7544ab192addfad407525888db6b967befe
-    Reviewed-on: https://go-review.googlesource.com/17945
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie5ca230a94407301a854dfd8782a3180d5054bc4
+    Reviewed-on: https://go-review.googlesource.com/16163
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/http.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/runtime/mfinal.go          | 7 +++----
+ src/runtime/syscall_windows.go | 8 ++++----
+ src/runtime/type.go            | 4 ++--
+ 3 files changed, 9 insertions(+), 10 deletions(-)

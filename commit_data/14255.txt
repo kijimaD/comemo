@@ -1,28 +1,15 @@
-commit 4c1a6f84f8d85ad809ef14a685e173b73abb4621
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Oct 31 14:28:18 2012 +0100
+commit 7dc1182c274e469c5b27e2284bc4876118b2ae6d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 30 20:56:32 2012 -0700
 
-    exp/locale/collate: removed weights struct to allow for faster and easier
-    incremental comparisons. Instead, processing is now done directly on colElems.
-    As a result, the size of the weights array is now reduced by 75%.
-    Details:
-    - Primary value of type 1 colElem is shifted by 1 bit so that primaries
-      of all types can be compared without shifting.
-    - Quaternary values are now stored in the colElem itself. This is possible
-      as quaternary values other than 0 or maxQuaternary are only needed when other
-      values are ignored.
-    - Simplified processWeights by removing cases that are needed for ICU but not
-      for us (our CJK primary values fit in a single value).
+    test: match gccgo error messages for bug358.go
     
-    R=r
+    I fixed a bug in gccgo that was causing it to only give an
+    error for the first package that was imported and not used.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6817054
+    https://golang.org/cl/6813058
 
- src/pkg/exp/locale/collate/build/colelem.go      |   4 +-
- src/pkg/exp/locale/collate/build/colelem_test.go |   2 +-
- src/pkg/exp/locale/collate/colelem.go            | 108 +++++++++++++++++------
- src/pkg/exp/locale/collate/colelem_test.go       |  27 ++++--
- src/pkg/exp/locale/collate/collate.go            |  44 +++++----
- src/pkg/exp/locale/collate/export_test.go        |  18 ++--
- src/pkg/exp/locale/collate/table.go              |  34 +++----
- 7 files changed, 150 insertions(+), 87 deletions(-)
+ test/fixedbugs/bug358.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

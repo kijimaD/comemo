@@ -1,23 +1,17 @@
-commit 128a99decdfd697f6426e3ee651e852081dd7ac5
-Author: limeidan <limeidan@loongson.cn>
-Date:   Fri Mar 1 11:13:21 2024 +0800
+commit fe786638bb878c726d8500ceb21e81de7f38c554
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 19 17:04:15 2023 -0400
 
-    cmd/link/internal/loong64: correct the musl dynamic linker path
+    cmd/dist: remove unused functionality
     
-    Musl libc already supports loongarch64, the dynamic linker path is the
-    same as other architectures: /lib/ld-musl-$ARCH.so.1
+    The moved_goroot test was the last user of the goroot functionality.
+    Now that it's been deleted, drop this and clean up loose ends.
     
-    Ref: https://git.musl-libc.org/cgit/musl/tree/INSTALL#n141
-    
-    Change-Id: Ie31d4254f6e14a5d634b2a7b5fa4c6270e2c0dc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569475
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Change-Id: Ie5e95644022dab76b1c06cf37f7729ee6616311f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496520
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/internal/loong64/obj.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/test.go | 35 +++++++++--------------------------
+ 1 file changed, 9 insertions(+), 26 deletions(-)

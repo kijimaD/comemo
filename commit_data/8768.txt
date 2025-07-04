@@ -1,18 +1,12 @@
-commit e852202f376ea4b6af99294586ae9c1e4471283f
+commit f4c7db0ed96b985942a21e94496717ece0fc940e
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 17 15:23:27 2011 -0400
+Date:   Fri Jun 17 12:49:04 2011 -0400
 
-    gc: descriptive panic for nil pointer -> value method call
+    spec: disallow goto into blocks
     
-    R=ken2
+    R=gri, r, r
     CC=golang-dev
-    https://golang.org/cl/4646042
+    https://golang.org/cl/4631045
 
- src/cmd/5g/reg.c          |  1 +
- src/cmd/6g/reg.c          |  1 +
- src/cmd/8g/reg.c          |  1 +
- src/cmd/gc/builtin.c.boot |  4 +++-
- src/cmd/gc/runtime.go     |  1 +
- src/cmd/gc/subr.c         | 30 ++++++++++++++++++++++++++----
- src/pkg/runtime/error.go  |  5 +++++
- 7 files changed, 38 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 33 ++++++++++++++++++++++++++-------
+ 1 file changed, 26 insertions(+), 7 deletions(-)

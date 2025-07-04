@@ -1,14 +1,14 @@
-commit 9dfa4cb0260427c29137568c880aeae5e2a7f058
-Author: Eric Lagergren <eric@ericlagergren.com>
-Date:   Tue Aug 27 19:32:17 2019 -0700
+commit 6aa710f7231bd02eac4389579dc11bb7d9c1bdad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 13 20:49:19 2019 +0000
 
-    math/big: document that Rat.Denom might modify the receiver
+    cmd/go/internal/work: remove commented-out import
     
-    Fixes #33792
+    Somebody wasn't using goimports. :)
     
-    Change-Id: I306a95883c3db2d674d3294a6feb50adc50ee5d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192017
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ibad3c0781ea70d538592b2e90d8b578e4fae8173
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167385
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/math/big/rat.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/internal/work/build.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,13 +1,25 @@
-commit 5103fbfdb29278533c666163a9d56f85408224d9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 6 02:51:55 2016 +0000
+commit 039d455f9d3d5d5109424f15d86b7f9b63768b42
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Feb 24 19:00:10 2016 +0100
 
-    runtime: merge os_linux.go into os1_linux.go
+    cmd/compile: don't use duffzero on Plan 9
     
-    Change-Id: I791c47014fe69e8529c7b2f0b9a554e47902d46c
-    Reviewed-on: https://go-review.googlesource.com/21566
-    Reviewed-by: Minux Ma <minux@golang.org>
+    In CL 14408, the implementation of duffzero on amd64
+    was changed to replace the use of the MOVQ instructions
+    by MOVUPS.
+    
+    However, it broke the build on plan9/amd64, since
+    Plan 9 doesn't allow floating point in note handler.
+    
+    This change disables the use of duffzero on Plan 9.
+    We also take care to not use the MOVUPS instruction.
+    
+    Fixes #14471.
+    
+    Change-Id: I8277b485dfe65a68d7d8338e52a048c5d45069bf
+    Reviewed-on: https://go-review.googlesource.com/19890
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os1_linux.go | 29 +++++++++++++++++++++++++++++
- src/runtime/os_linux.go  | 36 ------------------------------------
- 2 files changed, 29 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)

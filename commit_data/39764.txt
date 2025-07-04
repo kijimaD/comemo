@@ -1,22 +1,15 @@
-commit e6d2544d20f028dffc529ba58249e11f709382e4
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Sep 1 17:30:56 2019 +0200
+commit bf103723f829b206bd24e4cf3c4306c4232b6fc7
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:46:47 2019 +0100
 
-    test/codegen: mention -all_codegen in the README
+    runtime: fix sigfwd for aix/ppc64
     
-    For performance reasons (avoiding costly cross-compilations) CL 177577
-    changed the codegen test harness to only run the tests for the
-    machine's GOARCH by default.
+    This commit fixes runtime.sigfwd for aix/ppc64. fn is a function
+    descriptor and not a function. R2 must be saved and restored.
     
-    This change updates the codegen README accordingly, explaining what
-    all.bash does run by default and how to perform the tests for all
-    architectures.
-    
-    Fixes #33924
-    
-    Change-Id: I43328d878c3e449ebfda46f7e69963a44a511d40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192619
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ie506b0bdde562ca37202d19973ba1d537c3d64e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164015
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/codegen/README | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ src/runtime/sys_aix_ppc64.s | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

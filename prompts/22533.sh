@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 22533: 110fa22c4562b0f9ada3c81b9bceeb76763f5608
+# Index 22533: 11dba2ec2d8fcedc1da0103925c254586ef51120
 
 echo "🚀 Generating explanation for commit 22533..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 22533
-- **コミットハッシュ**: 110fa22c4562b0f9ada3c81b9bceeb76763f5608
-- **GitHub URL**: https://github.com/golang/go/commit/110fa22c4562b0f9ada3c81b9bceeb76763f5608
+- **コミットハッシュ**: 11dba2ec2d8fcedc1da0103925c254586ef51120
+- **GitHub URL**: https://github.com/golang/go/commit/11dba2ec2d8fcedc1da0103925c254586ef51120
 
 ### 章構成
 

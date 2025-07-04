@@ -1,31 +1,21 @@
-commit b62847000b3c9c3f7837b54dab0d1234944b0722
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Fri Jan 18 16:43:25 2013 -0500
+commit 47568c747d3a407f390045310c3e843b439904f0
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Jan 18 13:39:53 2013 -0800
 
-    syscall, os: fix a fork-exec/wait race in Plan 9.
+    cmd/5a, cmd/5c, cmd/6a, cmd/6c, cmd/8a, cmd/8c, cmd/ld: update reference
     
-    On Plan 9, only the parent of a given process can enter its wait
-    queue. When a Go program tries to fork-exec a child process
-    and subsequently waits for it to finish, the goroutines doing
-    these two tasks do not necessarily tie themselves to the same
-    (or any single) OS thread. In the case that the fork and the wait
-    system calls happen on different OS threads (say, due to a
-    goroutine being rescheduled somewhere along the way), the
-    wait() will either return an error or end up waiting for a
-    completely different child than was intended.
+    Reference the 80386 compiler documentation now that the
+    documentation for the 68020 is offline.
     
-    This change forces the fork and wait syscalls to happen in the
-    same goroutine and ties that goroutine to its OS thread until
-    the child exits. The PID of the child is recorded upon fork and
-    exit, and de-queued once the child's wait message has been read.
-    The Wait API, then, is translated into a synthetic implementation
-    that simply waits for the requested PID to show up in the queue
-    and then reads the associated stats.
-    
-    R=rsc, rminnich, npe, mirtchovski, ality
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6545051
+    https://golang.org/cl/7127053
 
- src/pkg/os/exec_plan9.go      | 16 ++------
- src/pkg/syscall/exec_plan9.go | 94 ++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 97 insertions(+), 13 deletions(-)
+ src/cmd/5a/doc.go | 2 +-
+ src/cmd/5c/doc.go | 2 +-
+ src/cmd/6a/doc.go | 2 +-
+ src/cmd/6c/doc.go | 2 +-
+ src/cmd/8a/doc.go | 2 +-
+ src/cmd/8c/doc.go | 2 +-
+ src/cmd/ld/doc.go | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

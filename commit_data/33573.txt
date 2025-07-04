@@ -1,19 +1,14 @@
-commit e671a552fe9ba75a04b65fe689d004dc64b87975
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 14 14:54:10 2017 -0500
+commit 83ae9b07b8a99e21a1a2d7a19b253ae01cb84f06
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 23 07:48:04 2017 -0700
 
-    io: document and test MultiWriter error behavior
+    runtime: convert more unsafe.Pointer arithmetic to add
     
-    MultiWriter(w1, w2) only writes to w2 if w1.Write succeeds.
-    I did not know this, and it was not documented.
-    Document and test.
-    
-    Change-Id: Idec2e8444d5a7aca0b95d07814a28daa454eb1d3
-    Reviewed-on: https://go-review.googlesource.com/78123
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icfe24d5660666093f3e645f82d30b7687c8077be
+    Reviewed-on: https://go-review.googlesource.com/58370
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/io/multi.go      |  4 ++++
- src/io/multi_test.go | 15 +++++++++++++++
- 2 files changed, 19 insertions(+)
+ src/runtime/hashmap_fast.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

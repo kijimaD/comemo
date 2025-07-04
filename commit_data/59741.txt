@@ -1,16 +1,19 @@
-commit 29782bd347a1c707b6804ea6ee7da3a70ba9fd4a
-Author: Roxy Light <roxy@zombiezen.com>
-Date:   Sat May 24 16:07:58 2025 -0700
+commit e718aee5f50b06d73ad4e679d0862267147347b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 17 18:40:27 2024 -0700
 
-    os: add implementation of fs.ReadLinkFS to *rootFS
+    go/types: track gotypesalias non-default behavior
     
-    Fixes #73887
+    Fixes #66216.
     
-    Change-Id: I43f3f4324d740b5381615bce864b7ec31415a635
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/676135
+    Change-Id: I04d7389e5712b35db078844ce424e10f5b96156c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579936
+    Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/os/root.go | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ src/go/types/decl.go           | 7 +++++++
+ src/internal/godebugs/table.go | 2 +-
+ src/runtime/metrics/doc.go     | 4 ++++
+ 3 files changed, 12 insertions(+), 1 deletion(-)

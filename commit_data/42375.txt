@@ -1,14 +1,16 @@
-commit 4ec4a792f6e60c9c4f40a928650c66419ee0e446
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed May 20 14:39:13 2020 +1200
+commit 33d20760a23acffd3b200b922c5687ed2aeb74cc
+Author: Alex Harford <alex.harford@saucelabs.com>
+Date:   Fri Dec 6 23:27:29 2019 +0000
 
-    cmd/go: accept smart quotes when checking for missing gold in TestNoteReading
+    crypto/tls: fix a typo in TLS handshake comment
     
-    Fixes #39157
+    Fix a minor typo in the TLS handshake comment.
     
-    Change-Id: Ia983f5e66698519cd19c1565cfb80e86d08fdfc6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234380
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0fd243e5440f6c77c97e844e6669a7974a2c8798
+    GitHub-Last-Rev: 21e91a1a48e8a9200e6fca89a988e1383ded7bb2
+    GitHub-Pull-Request: golang/go#36030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210289
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/note_test.go | 2 +-
+ src/crypto/tls/conn.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

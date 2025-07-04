@@ -1,20 +1,14 @@
-commit cbe849fc38a63d55d74738276baab2fbc33e0c0d
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 18 09:38:49 2016 -0500
+commit 69c09afb0dee368ef2fbcf9fec27bd04c2e63798
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Wed Dec 2 23:28:49 2015 +0100
 
-    runtime: eliminate unused _Genqueue state
+    net/mail: add test index to error messages in a recent test
     
-    _Genqueue and _Gscanenqueue were introduced as part of the GC quiesce
-    code. The quiesce code was removed by 197aa9e, but these states and
-    some associated code stuck around. Remove them.
+    Add the test index so it is easier to find which test case failed.
     
-    Change-Id: I69df81881602d4a431556513dac2959668d27c20
-    Reviewed-on: https://go-review.googlesource.com/19638
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic04682651b26b137355950ff0c51bdbdb1d85a9c
+    Reviewed-on: https://go-review.googlesource.com/17351
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go      | 20 +-------------------
- src/runtime/runtime2.go  |  4 ++--
- src/runtime/traceback.go |  1 -
- 3 files changed, 3 insertions(+), 22 deletions(-)
+ src/net/mail/message_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

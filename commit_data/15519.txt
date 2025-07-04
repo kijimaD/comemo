@@ -1,14 +1,12 @@
-commit 3889d8afe531ddabc1833e7ef60aba45d99d532e
+commit 211589a9edf433019e8ad5937afe3bb98ebebc35
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Mar 1 14:49:55 2013 +1100
+Date:   Fri Mar 1 14:19:56 2013 +1100
 
-    path/filepath: better error reporting during TestWinSplitListTestsAreValid
+    run.bat: disable race detector test
     
-    Fixes #4930.
-    
-    R=golang-dev, minux.ma
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7424043
+    https://golang.org/cl/7439048
 
- src/pkg/path/filepath/path_windows_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/run.bat | 2 ++
+ 1 file changed, 2 insertions(+)

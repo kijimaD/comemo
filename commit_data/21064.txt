@@ -1,12 +1,25 @@
-commit 005ba4db82c93298dbfdf0866c613f86df713b87
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 16 14:08:39 2014 -0500
+commit 0c3c2c17243545e9bc7c5d158c5230fe299e8b73
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:07:06 2014 -0500
 
-    cmd/9l: improve R_CALLPOWER error messages
+    [dev.cc] runtime: convert basic library routines from C to Go
     
-    Change-Id: I8670540a2a9647efbd8b072a54272a04c530e54b
-    Reviewed-on: https://go-review.googlesource.com/2001
-    Reviewed-by: Minux Ma <minux@golang.org>
+    float.c held bit patterns for special float64 values,
+    hiding from the real uses. Rewrite Go code not to
+    refer to those values directly.
+    
+    Convert library routines in runtime.c and string.c.
+    
+    LGTM=r
+    R=r, dave
+    CC=austin, dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/170330043
 
- src/cmd/9l/asm.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/complex.go  |  39 +++--
+ src/runtime/float.c     |  10 --
+ src/runtime/runtime.c   | 399 -----------------------------------------------
+ src/runtime/runtime1.go | 402 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sqrt.go     |   5 +-
+ src/runtime/string.c    | 226 ---------------------------
+ src/runtime/string1.go  | 108 +++++++++++++
+ 7 files changed, 540 insertions(+), 649 deletions(-)

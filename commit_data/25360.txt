@@ -1,14 +1,14 @@
-commit b73e247a8eeef69ea87afea80c7a7a1b88e61553
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 18 18:26:51 2015 +0000
+commit 151f4ec95d26ed702160f61760cc80aa29b6fd3b
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Thu Oct 22 13:03:04 2015 +1100
 
-    net/http: document that Server.TLSNextProto has automatic HTTP/2 also
+    runtime: remove unused printpc and printbyte functions
     
-    Copy the same sentence from Transport.TLSNextProto.
-    
-    Change-Id: Ib67bf054e891a68be8ba466a8c52968363374d16
-    Reviewed-on: https://go-review.googlesource.com/18031
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I40e338f6b445ca72055fc9bac0f09f0dca904e3a
+    Reviewed-on: https://go-review.googlesource.com/16191
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/print.go | 8 --------
+ 1 file changed, 8 deletions(-)

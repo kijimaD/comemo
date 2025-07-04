@@ -1,35 +1,15 @@
-commit 65cd1ba682a1588e7e6e6903695772216881b3f0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 16 10:11:26 2015 -0800
+commit d076ef749b8628c9743f6544eb30e8fde5d7f289
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Oct 15 20:25:32 2015 -0500
 
-    cmd/compile: re-vendor math/big so we use latest version in compiler
+    [dev.ssa] cmd/compile/internal/ssa: reuse symbols
     
-    This simply copies the current version of math/big into the
-    compiler directory. The change was created automatically by
-    running cmd/compile/internal/big/vendor.bash. No other manual
-    changes.
+    Reuse the ArgSymbol for nodes so that the Aux values will be equal for cse.
     
-    Change-Id: Ica225d196b3ac10dfd9d4dc1e4e4ef0b22812ff9
-    Reviewed-on: https://go-review.googlesource.com/17900
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iaae80bd19ff2d3f51b6c9049fd860e04baa6f175
+    Reviewed-on: https://go-review.googlesource.com/15930
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Todd Neal <todd@tneal.org>
 
- src/cmd/compile/internal/big/decimal.go           |  18 ++-
- src/cmd/compile/internal/big/decimal_test.go      |  10 ++
- src/cmd/compile/internal/big/float.go             |   6 +-
- src/cmd/compile/internal/big/floatconv.go         | 110 ++++++++-----
- src/cmd/compile/internal/big/floatconv_test.go    | 175 ++++++++++++++++-----
- src/cmd/compile/internal/big/floatexample_test.go |  30 ++++
- src/cmd/compile/internal/big/ftoa.go              | 104 ++++++++++---
- src/cmd/compile/internal/big/int.go               | 126 ++++++---------
- src/cmd/compile/internal/big/int_test.go          | 182 ++++++----------------
- src/cmd/compile/internal/big/intconv.go           |  78 ++++++----
- src/cmd/compile/internal/big/intconv_test.go      |  89 ++++++++---
- src/cmd/compile/internal/big/nat.go               |  70 ++++-----
- src/cmd/compile/internal/big/nat_test.go          | 103 ++++++++++--
- src/cmd/compile/internal/big/natconv.go           |  75 +++++----
- src/cmd/compile/internal/big/natconv_test.go      |  85 +++++-----
- src/cmd/compile/internal/big/rat.go               |  60 -------
- src/cmd/compile/internal/big/rat_test.go          | 114 --------------
- src/cmd/compile/internal/big/ratconv.go           |  36 +++--
- 18 files changed, 773 insertions(+), 698 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 34 ++++++++++++++++++++++++++++++----
+ 1 file changed, 30 insertions(+), 4 deletions(-)

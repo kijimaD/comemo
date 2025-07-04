@@ -1,23 +1,23 @@
-commit 526ee96f4992ff3a1e1c219fe8dc9870098bacba
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Nov 6 17:37:03 2020 -0800
+commit 96e83664378918980bd8f60822c4bc39befcb668
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 30 19:09:38 2020 +0000
 
-    os: avoid allocation in File.WriteString
+    Revert "cmd/link: fix GC data reading from shared library"
     
-    Instead of alloc+copy to convert the string
-    to a byte slice, do an unsafe conversion.
+    This reverts CL 240462.
     
-    Rely on the kernel not to scribble on the
-    buffer during the write.
+    Reason for revert: test fails on PPC64LE.
     
-    Fixes #42406
+    Updates #39927.
     
-    Change-Id: I66f4838b43a11bcc3d67bbfa1706726318d55343
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268020
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I4f14fd0c36e604a80ae9f2f86d1e643e28945e93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240616
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/os/file.go    |  9 ++++++++-
- src/os/os_test.go | 18 ++++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ misc/cgo/testshared/shared_test.go               | 16 ----------
+ misc/cgo/testshared/testdata/gcdata/main/main.go | 37 ------------------------
+ misc/cgo/testshared/testdata/gcdata/p/p.go       |  7 -----
+ src/cmd/link/internal/ld/decodesym.go            | 27 +++++------------
+ src/cmd/link/internal/ld/lib.go                  |  4 +--
+ 5 files changed, 9 insertions(+), 82 deletions(-)

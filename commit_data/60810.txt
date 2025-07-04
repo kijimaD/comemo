@@ -1,0 +1,40 @@
+commit bc7e378b3487aa96d8685db3dd6e244f752f60bf
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 26 23:04:40 2024 -0700
+
+    os: Getwd: fallback to slow method on ENAMETOOLONG
+    
+    As of CL 257637, all currently supported platforms have syscall.Getwd
+    implemented, so the code which deduces wd by traversing up to root
+    directory is never used and thus can be removed.
+    
+    Or, as it was suggested by Ian Lance Taylor in CL 607436 review
+    comments, it can be reused when syscall.Getwd returns ENAMETOOLONG
+    (which usually happens than the current working dir is longer than
+    syscall.PathMax).
+    
+    Let's do that. The only caveat is, such a long path returned from Getwd
+    couldn't be used for any file-related operations (they will probably
+    fail with ENAMETOOLONG).
+    
+    While at it:
+     - make the stat(".") code conditional, slightly improving the
+       performance on Unix when $PWD is not set;
+     - reuse variables dir and err;
+     - use openDirNolog instead of openFileNolog to obtain a dirfd;
+     - ensure the errors returned are wrapped;
+     - document the new functionality;
+     - add test cases (which fail before this change).
+    
+    Change-Id: I60f7a70e6ebb1751699416f587688a1a97305fd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608635
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/error_errno.go     |  2 ++
+ src/os/error_plan9.go     |  2 ++
+ src/os/getwd.go           | 49 +++++++++++++++++++---------
+ src/os/getwd_unix_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 119 insertions(+), 15 deletions(-)

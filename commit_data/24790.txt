@@ -1,18 +1,12 @@
-commit f84420c20daddf5f0a3e73f64bd2d39cebd22218
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 29 22:40:36 2015 -0400
+commit 3b7f0c9cba109cb629d023918520f916fcbb1343
+Author: Todd Neal <todd@tneal.org>
+Date:   Sun Aug 30 22:04:38 2015 -0500
 
-    runtime: clean up park messages
+    [dev.ssa] cmd/compile: fix typo in log
     
-    This changes "mark worker (idle)" to "GC worker (idle)" so it's more
-    clear to users that these goroutines are GC-related. It changes "GC
-    assist" to "GC assist wait" to make it clear that the assist is
-    blocked.
-    
-    Change-Id: Iafbc0903c84f9250ff6bee14baac6fcd4ed5ef76
-    Reviewed-on: https://go-review.googlesource.com/16511
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ic7be8fa3a89e46a93df181df3163ec1bf7e96a23
+    Reviewed-on: https://go-review.googlesource.com/14076
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/mgc.go     | 2 +-
- src/runtime/mgcmark.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

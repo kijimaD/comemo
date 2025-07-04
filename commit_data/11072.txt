@@ -1,13 +1,18 @@
-commit 6dfdd4c1e34c753fb9c897eee355ee6ca3f007a8
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 9 18:45:59 2012 -0800
+commit cbf4f4b8d03493c112b472b8fcf3d499dc4e6bc9
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon Jan 9 19:55:18 2012 -0500
 
-    runtime: add NumCPU
+    strconv: return ErrSyntax when unquoting illegal octal sequences.  This
+    is consistent with what the Go compiler returns when such sequences
+    appear in string literals.
     
-    R=golang-dev, bradfitz
+    Fixes #2658.
+    
+    R=golang-dev, rsc, r, r, nigeltao
     CC=golang-dev
-    https://golang.org/cl/5528061
+    https://golang.org/cl/5530051
 
- src/pkg/runtime/extern.go    | 3 +++
- src/pkg/runtime/runtime1.goc | 4 ++++
- 2 files changed, 7 insertions(+)
+ src/pkg/html/template/escape_test.go | 22 ++++++++++++----------
+ src/pkg/strconv/quote.go             |  1 +
+ src/pkg/strconv/quote_test.go        |  6 ++++++
+ 3 files changed, 19 insertions(+), 10 deletions(-)

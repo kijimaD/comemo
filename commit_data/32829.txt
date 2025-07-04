@@ -1,16 +1,15 @@
-commit 14a1d934b60549e7604637fb08e65d4685146bd9
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Sat Sep 23 17:04:51 2017 -0700
+commit dc6ae87c8caa0dabdaa0ca85fbefb0c2a61c8602
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 6 14:21:16 2017 -0700
 
-    database/sql: update minor sql docs
+    math: clarify comment about bit-identical results across architectures
     
-    Replace the work "session" with "connection" in docs. Fix
-    The ErrConnDone documentation. Clarify what the context is used
-    for in StmtContext.
+    Updates #18354.
     
-    Change-Id: I2f07e58d0cd6321b386a73b038cf6070cb8e2572
-    Reviewed-on: https://go-review.googlesource.com/65732
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I76bc4a73d8dc99eeda14b395e451d75a65184191
+    Reviewed-on: https://go-review.googlesource.com/45013
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/database/sql/sql.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/math/const.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

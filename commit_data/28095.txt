@@ -1,18 +1,25 @@
-commit 8dd069b52a87d482e219e16e92390b1d415db486
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 28 08:53:20 2016 -0700
+commit 1518d431321100cd9f0e18d740da7c835ba438dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 16 11:57:06 2016 -0700
 
-    androidtest.bash: require GOARCH
+    net/http, net/http/httptrace: new package for tracing HTTP client requests
     
-    When finding the pkg dir, androidtest.bash assumes
-    that GOARCH is set. Require it up front.
+    Updates #12580
     
-    Change-Id: I143f7b59ad9d98b9c3cfb53c1d65c2d33a6acc12
-    Reviewed-on: https://go-review.googlesource.com/27926
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9f9578148ef2b48dffede1007317032d39f6af55
+    Reviewed-on: https://go-review.googlesource.com/22191
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/androidtest.bash | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/go/build/deps_test.go            |   6 +-
+ src/internal/nettrace/nettrace.go    |  43 +++++++
+ src/net/dial.go                      |  11 ++
+ src/net/http/httptrace/trace.go      | 225 +++++++++++++++++++++++++++++++++++
+ src/net/http/httptrace/trace_test.go |  62 ++++++++++
+ src/net/http/request.go              |  22 +++-
+ src/net/http/transport.go            |  94 +++++++++++----
+ src/net/http/transport_test.go       | 100 ++++++++++++++++
+ src/net/lookup.go                    |  44 +++++--
+ 9 files changed, 573 insertions(+), 34 deletions(-)

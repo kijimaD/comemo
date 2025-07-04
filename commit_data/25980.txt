@@ -1,14 +1,14 @@
-commit a6c95ae1df496acd05ef4302b23555baf228f137
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 29 20:07:09 2016 -0800
+commit 1be2ddda9a372de052ba3428128085152b2e9044
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 8 14:09:59 2015 -0500
 
-    cmd/compile: remove some unnecessary EType/int conversions
+    encoding/json: document Indent's preservation of trailing spaces
     
-    Change-Id: I2d8efef333f2441da6742e125e23ff57c9853ebd
-    Reviewed-on: https://go-review.googlesource.com/20078
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fixes #13520.
+    
+    Change-Id: Ia70cc44be3912167b369d7f74d3436331975c300
+    Reviewed-on: https://go-review.googlesource.com/17561
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/encoding/json/indent.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

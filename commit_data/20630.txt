@@ -1,13 +1,17 @@
-commit 668ea79283735b35d5234d0b4c4e9f87ce0615d1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 3 18:12:05 2014 -0700
+commit 53c66543e022b1a96a599fee0819f6b16e92bead
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 25 13:08:37 2014 -0400
 
-    doc/go1.4: mention that we are going to need a new version of SWIG
+    cmd/gc: avoid infinite recursion on invalid recursive type
     
-    Update #8750
+    Fixes #8507.
     
-    CC=golang-codereviews
-    https://golang.org/cl/153950044
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/144560043
 
- doc/go1.4.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gc/align.c          |  4 +++-
+ src/cmd/gc/subr.c           |  3 ++-
+ test/fixedbugs/issue8507.go | 16 ++++++++++++++++
+ 3 files changed, 21 insertions(+), 2 deletions(-)

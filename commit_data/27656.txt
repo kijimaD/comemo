@@ -1,19 +1,20 @@
-commit f3689d138256c36dbe0004459f79d570f5345f74
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Jun 6 16:00:33 2016 -0400
+commit d636d7907c46b728b07b58669ec1fa1158105579
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 5 15:43:07 2016 -0700
 
-    cmd/compile: nilcheck interface value in go/defer interface call for SSA
+    bytes: add ContainsAny
     
-    This matches the behavior of the legacy backend.
+    This function is present in the strings package but missing from bytes,
+    and we would like to keep the two packages consistent.
     
-    Fixes #15975 (if this is the intended behavior)
+    Add it to bytes, and copy the test over as well.
     
-    Change-Id: Id277959069b8b8bf9958fa8f2cbc762c752a1a19
-    Reviewed-on: https://go-review.googlesource.com/23820
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #15140
+    
+    Change-Id: I5dbd28da83a9fe741885794ed15f2af2f826cb3c
+    Reviewed-on: https://go-review.googlesource.com/21562
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go |  3 +++
- test/fixedbugs/issue15975.go       | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/bytes/bytes.go      |  5 +++++
+ src/bytes/bytes_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

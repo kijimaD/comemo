@@ -1,24 +1,45 @@
-commit bba88467f86472764a656e61f5f3265ed6853692
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 19 17:48:42 2020 -0700
+commit 8714e39497dba141ce7ed83c6a18c3c0def66e77
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 14 17:05:56 2019 -0400
 
-    cmd/compile: add indexed-load CMP instructions
+    runtime: M-targeted signals for BSDs
     
-    Things like CMPQ 4(AX)(BX*8), CX
+    For these, we split up the existing runtime.raise assembly
+    implementation into its constituent "get thread ID" and "signal
+    thread" parts. This lets us implement signalM and reimplement raise in
+    pure Go. (NetBSD conveniently already had lwp_self.)
     
-    Fixes #37955
+    We also change minit to store the procid directly, rather than
+    depending on newosproc to do so. This is because newosproc isn't
+    called for the bootstrap M, but we need a procid for every M. This is
+    also simpler overall.
     
-    Change-Id: Icbed430f65c91a0e3f38a633d8321d79433ad8b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224219
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    For #10958, #24543.
+    
+    Change-Id: Ie5f1fcada6a33046375066bcbe054d1f784d39c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201402
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go              |  13 +
- src/cmd/compile/internal/ssa/addressingmodes.go    |  26 ++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |  19 ++
- .../compile/internal/ssa/gen/AMD64splitload.rules  |  10 +
- src/cmd/compile/internal/ssa/opGen.go              | 225 +++++++++++++
- .../compile/internal/ssa/rewriteAMD64splitload.go  | 371 +++++++++++++++++++++
- test/codegen/memops.go                             |  60 ++++
- 7 files changed, 724 insertions(+)
+ src/runtime/defs_freebsd_386.go   |  2 ++
+ src/runtime/defs_freebsd_amd64.go |  2 ++
+ src/runtime/defs_freebsd_arm.go   |  2 ++
+ src/runtime/defs_freebsd_arm64.go |  2 ++
+ src/runtime/os_dragonfly.go       | 25 +++++++++++++++++++------
+ src/runtime/os_freebsd.go         | 29 ++++++++++++++++++++---------
+ src/runtime/os_netbsd.go          | 17 ++++++++++++++++-
+ src/runtime/os_openbsd.go         | 19 +++++++++++++------
+ src/runtime/sys_dragonfly_amd64.s | 12 ++++++++----
+ src/runtime/sys_freebsd_386.s     | 15 +++++++--------
+ src/runtime/sys_freebsd_amd64.s   | 15 +++++++++------
+ src/runtime/sys_freebsd_arm.s     | 15 +++++++++------
+ src/runtime/sys_freebsd_arm64.s   | 16 +++++++++++-----
+ src/runtime/sys_netbsd_386.s      |  7 +++----
+ src/runtime/sys_netbsd_amd64.s    |  8 +++-----
+ src/runtime/sys_netbsd_arm.s      |  6 +++---
+ src/runtime/sys_netbsd_arm64.s    |  7 +++----
+ src/runtime/sys_openbsd_386.s     |  9 +++++++--
+ src/runtime/sys_openbsd_amd64.s   | 10 +++++++---
+ src/runtime/sys_openbsd_arm.s     | 10 +++++++---
+ src/runtime/sys_openbsd_arm64.s   | 10 +++++++---
+ 21 files changed, 160 insertions(+), 78 deletions(-)

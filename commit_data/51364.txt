@@ -1,24 +1,17 @@
-commit 8893da7c724cf5df859a3c4ef6f32d94f0b39a00
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Thu Nov 17 18:10:00 2022 +0800
+commit 626f13d0ca08f04f98e7a29a08028c21e38868c0
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jan 18 13:45:05 2022 -0800
 
-    cmd/compile: fix wrong optimization for eliding Not in Phi
+    cmd/compile: add missing copyright notice
     
-    The previous rule may move the phi value into a wrong block.
-    This CL make it only rewrite the phi value not the If block,
-    so that the phi value will stay in old block.
+    Also, simplify one expression (missed comment on previous review).
     
-    Fixes #56777
-    
-    Change-Id: I9479a5c7f28529786968413d35b82a16181bb1f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451496
+    Change-Id: Ic2d212442c2738e03c733336bb990e28c8912ca4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379254
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules |  3 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 58 ++++++++++++-------------
- test/fixedbugs/issue56777.go                    | 56 ++++++++++++++++++++++++
- 3 files changed, 87 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/types/structuraltype.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

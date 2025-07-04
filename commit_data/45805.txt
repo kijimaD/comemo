@@ -1,27 +1,16 @@
-commit 326ea438bb579a2010e38e00f515a04344ff96b0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Jun 13 22:28:44 2021 +0700
+commit add45938b53114656980ecc47021b4463d9f2507
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 19 15:01:34 2020 +0000
 
-    cmd/compile: rewrite a, b = f() to use temporaries when type not identical
+    runtime/metrics: clarify memory and GC metrics documentation
     
-    If any of the LHS expressions of an OAS2FUNC are not identical to the
-    respective function call results, escape analysis mishandles the
-    implicit conversion, causes memory corruption.
-    
-    Instead, we should insert autotmps like we already do for f(g()) calls
-    and return g() statements.
-    
-    Fixes #46725
-    
-    Change-Id: I71a08da0bf1a03d09a023da5b6f78fb37a4a4690
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/327651
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I8940990a591a808ddd4b8613531f52453f85bde1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271557
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/typecheck/stmt.go      | 14 +++++++-
- src/cmd/compile/internal/typecheck/typecheck.go | 10 ++++++
- test/declbad.go                                 |  4 +--
- test/fixedbugs/issue46725.go                    | 48 +++++++++++++++++++++++++
- 4 files changed, 73 insertions(+), 3 deletions(-)
+ src/runtime/metrics/description.go | 29 +++++++++++++++++------------
+ src/runtime/metrics/doc.go         | 23 +++++++++++++++--------
+ 2 files changed, 32 insertions(+), 20 deletions(-)

@@ -1,26 +1,19 @@
-commit 8f41b1ff968387fd897748578d7b0fa7546226b2
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 8 13:49:25 2020 -0500
+commit dfbc9c83a910c79cb3cc34dbfaed3c436e1b6ecb
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Sep 17 04:23:23 2019 +1000
 
-    cmd/go: convert tests using testdata/testinternal* to script framework
+    cmd/internal/obj/riscv: add load, store and multiplication instructions
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Add support for assembling load, store and multiplication instructions.
     
-    Updates #36320
-    Updates #17751
+    Based on the riscv-go port.
     
-    Change-Id: I94a99c339f527da8ffacc73f1b36a7ac860522ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213819
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #27532
+    
+    Change-Id: Ia7b6e60ae45416a82f240e7b7fc101a36ce18886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195917
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/go_test.go                              | 29 --------------
- src/cmd/go/testdata/script/build_internal.txt      | 44 ++++++++++++++++++++++
- src/cmd/go/testdata/testinternal/p.go              |  3 --
- src/cmd/go/testdata/testinternal2/p.go             |  3 --
- .../testdata/testinternal2/x/y/z/internal/w/w.go   |  1 -
- src/cmd/go/testdata/testinternal3/t.go             |  3 --
- src/cmd/go/testdata/testinternal4/src/p/p.go       |  6 ---
- .../testdata/testinternal4/src/q/internal/x/x.go   |  1 -
- src/cmd/go/testdata/testinternal4/src/q/j/j.go     |  3 --
- 9 files changed, 44 insertions(+), 49 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 50 +++++++++++++++++++++++---
+ src/cmd/internal/obj/riscv/obj.go            | 53 ++++++++++++++++++++++++++++
+ 2 files changed, 99 insertions(+), 4 deletions(-)

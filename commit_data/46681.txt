@@ -1,19 +1,23 @@
-commit b043d231fa1e1cbc17ddcfb007d92d83dee72428
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Sep 30 11:46:41 2021 -0400
+commit 19a6db6b63fd53d36b2eef5823e107a25a8062c0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jan 20 14:26:42 2021 +0700
 
-    debug/gosym: fix version check in file table access
+    [dev.regabi] cmd/compile: make sure mkcall* passed non-nil init
     
-    Go 1.16 and 1.18 table are the same for that part. Accept 1.18
-    version number in that code.
+    So next CL can pass temporaries assignments for function arguments in to
+    init instead of CallExpr.Rargs.
     
-    Fixes #48699.
+    Passes toolstash -cmp.
     
-    Change-Id: I44eafa279a94bd06444f61518aedd541b25390fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353329
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2c3cb6a63e8bf9d0418052b39c1db58050f71305
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284893
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/debug/gosym/pclntab.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/walk/race.go   |  9 ++++-----
+ src/cmd/compile/internal/walk/range.go  | 16 +++++++++-------
+ src/cmd/compile/internal/walk/select.go |  8 +++++---
+ src/cmd/compile/internal/walk/walk.go   | 17 +++++++++++++++++
+ 4 files changed, 35 insertions(+), 15 deletions(-)

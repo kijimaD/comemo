@@ -1,22 +1,17 @@
-commit ad39fd94860661d022c633cd2856a76221adedc8
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Feb 7 21:12:05 2025 +1100
+commit 2f706871b95ceedecb0d0cf62b83e4f0f9a403b7
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Dec 14 13:12:45 2023 +0000
 
-    internal/bytealg: clean up and simplify the riscv64 equal implementation
+    runtime: delete todo of the list field for mspan
     
-    Now that riscv64 is only regabi, remove the entrypoint separation and
-    have runtime.memequal_varlen call runtime.memequal. Add a zero byte
-    length check and replace the equal and not equal exit paths with a
-    single exit path that conditions on length reaching zero.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
-    Change-Id: Ida4e54378daa7fd423f759753eba04ce513a27cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648855
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I10a3308c19da08d2ff0c8077bb74ad888ee04fea
+    GitHub-Last-Rev: 3e95b71384a25e0b29029731b72cf2c7f6a96055
+    GitHub-Pull-Request: golang/go#64077
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541755
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/internal/bytealg/equal_riscv64.s | 62 +++++++++++++++++-------------------
- 1 file changed, 29 insertions(+), 33 deletions(-)
+ src/runtime/mheap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

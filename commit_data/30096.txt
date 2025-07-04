@@ -1,18 +1,17 @@
-commit 6aee6b895c219300c9c089b79f81c80f0e468dd7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Feb 4 14:05:20 2017 -0800
+commit 3ef07c412f068144554648c0d209bef444a2ee27
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Oct 23 16:11:13 2016 -0400
 
-    runtime: remove markBits.clearMarkedNonAtomic
+    cmd, runtime: remove s390x 3 operand immediate logical ops
     
-    It's not used, it's never been used, and it doesn't do what its doc
-    comment says it does.
+    These are emulated by the assembler and we don't need them.
     
-    Fixes #18941.
-    
-    Change-Id: Ia89d97fb87525f5b861d7701f919e0d6b7cbd376
-    Reviewed-on: https://go-review.googlesource.com/36322
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I2b07c5315a5b642fdb5e50b468453260ae121164
+    Reviewed-on: https://go-review.googlesource.com/31758
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mbitmap.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/compile/internal/s390x/ssa.go   | 11 +++--
+ src/cmd/internal/obj/s390x/asmz.go      | 77 ++++++++++++---------------------
+ src/runtime/asm_s390x.s                 |  9 ++--
+ src/runtime/internal/atomic/asm_s390x.s |  6 ++-
+ 4 files changed, 43 insertions(+), 60 deletions(-)

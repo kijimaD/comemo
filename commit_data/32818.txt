@@ -1,21 +1,24 @@
-commit 354fa9a84f7b88fe6b9ebf578e6671c2b511a402
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jun 12 14:24:16 2017 -0400
+commit b1af5393d9eaa9360f6d08e36653c383394d8b9a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 2 15:56:35 2017 -0700
 
-    runtime: simplify stack walk in panicwrap
+    runtime: save and restore CR for ppc64le
     
-    panicwrap currently uses runtime.Callers and runtime.CallersFrames to
-    find the name of its caller. Simplify this by using getcallerpc.
+    C code expects CR2, CR3, and CR4 to be preserved across function calls.
+    Preserve the entire CR register across function calls in
+    _rt0_ppc64le_linux_lib and crosscall2. The standard ppc64le call frame
+    uses 8(R1) as the place to save CR; emulate that.
     
-    This will be important for #16723, since to fix that we're going to
-    make CallersFrames skip the wrapper method, which is exactly what
-    panicwrap needs to see.
+    It's hard to write a reliable test for this as it requires writing C
+    code that sets CR2, CR3, or CR4 across a call to a Go function.
     
-    Change-Id: Icb0776d399966e31595f3ee44f980290827e32a6
-    Reviewed-on: https://go-review.googlesource.com/45411
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: If39e771a5b574602b848227312e83598fe74eab7
+    Reviewed-on: https://go-review.googlesource.com/44733
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/runtime/error.go | 23 ++++++++++-------------
- 1 file changed, 10 insertions(+), 13 deletions(-)
+ src/runtime/cgo/asm_ppc64x.s    | 4 ++++
+ src/runtime/rt0_linux_ppc64le.s | 4 ++++
+ 2 files changed, 8 insertions(+)

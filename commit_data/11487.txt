@@ -1,12 +1,13 @@
-commit 2ea25e240ef4a3e20be35c3ccdf5a3813c8ecd36
+commit 1f5f457ba350dfa9d5b03fe4b707967b000e1990
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jan 31 12:15:33 2012 +1100
+Date:   Tue Jan 31 12:09:56 2012 +1100
 
-    doc: update weekly snapshot notes with subrepo changes
+    dashboard: better ui layout for subrepo status
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5599051
+    https://golang.org/cl/5595048
 
- doc/devel/weekly.html | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ misc/dashboard/app/build/ui.go   |  57 +++++++++--------
+ misc/dashboard/app/build/ui.html | 131 ++++++++++++++++++++++++---------------
+ 2 files changed, 112 insertions(+), 76 deletions(-)

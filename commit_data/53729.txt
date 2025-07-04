@@ -1,25 +1,24 @@
-commit 7b625d1f65a6224968d8668c1ae1b0730dabb605
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 20 14:00:20 2023 -0700
+commit da6556968f3545aa6c4e5a3c3aef151bb9b1d439
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu Aug 11 00:07:40 2022 +0800
 
-    go/types, types2: make sure info recording is executed in test runs
+    cmd/compile: simplify bounded shift on riscv64
     
-    Issue #61486 causes a compiler crash but is not detected when running
-    stand-alone type-checker tests because no types are recorded.
+    The prove pass will mark some shifts bounded, and then we can use that
+    information to generate better code on riscv64.
     
-    Set up Config.Info map with all maps when when running local tests
-    so that type/object recording code is executed during local tests.
-    
-    For #61486.
-    
-    Change-Id: I8eb40c8525dac3da65db0dc7e0e654842713b9a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511657
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ia22f43d0598453c9417adac7017db28d7240948b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422616
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/check_test.go | 12 +++++++++++-
- src/go/types/check_test.go                    | 12 +++++++++++-
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 111 +--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 920 ++++++++++++++++++++++++-
+ test/codegen/shift.go                          |  34 +-
+ 3 files changed, 996 insertions(+), 69 deletions(-)

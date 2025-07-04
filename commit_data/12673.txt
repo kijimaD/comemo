@@ -1,12 +1,12 @@
-commit c3eaef71ab3039921f4cf28bd4abd22aae002922
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Mar 17 15:53:40 2012 +0800
+commit 2b3fd37066694374d6ea6c6c6f2df8cad08410eb
+Author: Johan Euphrosine <proppy@google.com>
+Date:   Fri Mar 16 15:33:05 2012 -0700
 
-    doc/go_faq: minor update
+    godoc: use FormatText for formating code in html template.
     
-    R=adg, r
+    R=golang-dev, rsc, r, adg, gri, r
     CC=golang-dev
-    https://golang.org/cl/5849052
+    https://golang.org/cl/5835046
 
- doc/go_faq.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/godoc/template.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

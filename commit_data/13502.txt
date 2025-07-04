@@ -1,18 +1,13 @@
-commit 55f0c8b2cddff16de2bf101ec997bf96813615d4
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Fri Jul 27 09:27:10 2012 +1000
+commit fda29b6a4204d8658b3c1f763ac775afcc6cac00
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 26 11:47:29 2012 -0700
 
-    exp/html: replace NUL bytes in plaintext, raw text, and RCDATA
+    A+C: added Andrew Wilkins (individual contributor)
     
-    If NUL bytes occur inside certain elements, convert them to U+FFFD
-    replacement character.
-    
-    Pass 1 additional test.
-    
-    R=nigeltao
+    R=rsc, minux.ma, iant
     CC=golang-dev
-    https://golang.org/cl/6452047
+    https://golang.org/cl/6447050
 
- src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log |  2 +-
- src/pkg/exp/html/token.go                           | 14 ++++++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,19 +1,18 @@
-commit 7e29f1add8a4cebf533a70236fd1c9c0b21c1a9a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 27 10:37:33 2011 -0700
+commit 9843ca5e2bb1a3b5ab76348cde006705c1a695d9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 27 13:31:40 2011 -0400
 
-    http: do TLS handshake explicitly before copying TLS state
+    gotest: add -test.benchtime and -test.cpu flags.
+    -test.benchtime allows to specify benchmark execution time.
+    -test.cpu allows to execute tests/benchmarks for several
+    values of GOMAXPROCS.
     
-    Previously we were snapshotting the TLS state into *Request
-    before we did the HTTP ReadRequest, the first Read of which
-    triggered the TLS handshake implicitly.
-    
-    Fixes #1956
-    
-    R=golang-dev, rsc
-    CC=agl, golang-dev
-    https://golang.org/cl/4630072
+    R=r, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4662046
 
- src/pkg/http/serve_test.go | 22 ++++++++++++----------
- src/pkg/http/server.go     |  1 +
- 2 files changed, 13 insertions(+), 10 deletions(-)
+ src/cmd/gotest/doc.go        | 11 ++++++-
+ src/cmd/gotest/flag.go       |  4 +++
+ src/pkg/testing/benchmark.go | 28 ++++++++++-------
+ src/pkg/testing/testing.go   | 72 ++++++++++++++++++++++++++++++--------------
+ 4 files changed, 80 insertions(+), 35 deletions(-)

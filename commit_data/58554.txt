@@ -1,24 +1,36 @@
-commit e81f7155154c0f5d40363e84a8f24a5b559b5eed
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jan 29 03:49:06 2025 +0100
+commit 631a6c2abfb2cf7a877ea80f98c504fc4e0077be
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Nov 13 08:57:14 2023 +0000
 
-    lib/fips140: freeze v1.0.0 FIPS 140 module zip file
+    all: add missing copyright header
     
-        make v1.0.0.zip
-        make v1.0.0.test
-        make updatesum
-    
-    Changed the v%.zip Makefile target to use the default of origin/master,
-    as per its comment and intention, instead of the local master.
-    
-    Change-Id: I6a6a4656c097d11b8cdc96766394c984f9c47f82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644645
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ic61fb181923159e80a86a41582e83ec466ab9bc4
+    GitHub-Last-Rev: 92469845665fa1f864d257c8bc175201a43b4d43
+    GitHub-Pull-Request: golang/go#64080
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541741
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
 
- lib/fips140/Makefile    |   2 +-
- lib/fips140/fips140.sum |   1 +
- lib/fips140/v1.0.0.zip  | Bin 0 -> 650281 bytes
- 3 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/cgo/internal/test/issue4339.c             | 4 ++++
+ src/cmd/cgo/internal/test/issue4339.h             | 4 ++++
+ src/cmd/cgo/internal/test/issue8756.go            | 4 ++++
+ src/cmd/cgo/internal/test/issue8756/issue8756.go  | 4 ++++
+ src/cmd/cgo/internal/test/issue8828/trivial.go    | 4 ++++
+ src/cmd/cgo/internal/test/issue9026/issue9026.go  | 4 ++++
+ src/cmd/cgo/internal/test/issue9510a/a.go         | 4 ++++
+ src/cmd/cgo/internal/test/issue9510b/b.go         | 4 ++++
+ src/cmd/compile/internal/ssa/_gen/allocators.go   | 4 ++++
+ src/cmd/compile/internal/ssa/nilcheck_test.go     | 4 ++++
+ src/cmd/compile/internal/test/logic_test.go       | 4 ++++
+ src/cmd/compile/internal/test/math_test.go        | 4 ++++
+ src/cmd/compile/internal/test/test.go             | 4 ++++
+ src/internal/trace/v2/version/version.go          | 4 ++++
+ src/log/slog/internal/benchmarks/handlers_test.go | 4 ++++
+ src/net/http/responsecontroller_test.go           | 4 ++++
+ src/runtime/internal/sys/intrinsics_test.go       | 4 ++++
+ src/runtime/netpoll_os_test.go                    | 4 ++++
+ src/runtime/pprof/label_test.go                   | 4 ++++
+ src/runtime/test_amd64.s                          | 4 ++++
+ 20 files changed, 80 insertions(+)

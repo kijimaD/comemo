@@ -1,18 +1,17 @@
-commit e8475c94b82813889daa2b8188135f32f0625429
+commit 5c160b28baceb263fbd95ea0c95f5083e191c114
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 6 20:27:33 2017 -0700
+Date:   Thu Jan 12 14:35:20 2017 -0800
 
-    cmd/compile/internal/types: shorten struct type names
+    [dev.typealias] cmd/compile: improved error message for cyles involving type aliases
     
-    They are in the types package, no need to mention the Type suffix.
+    Known issue: #18640 (requires a bit more work, I believe).
     
-    Change-Id: Ie4fe1e3c1793514145e33f9df373d715f63e1aad
-    Reviewed-on: https://go-review.googlesource.com/39911
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    For #18130.
+    
+    Change-Id: I53dc26012070e0c79f63b7c76266732190a83d47
+    Reviewed-on: https://go-review.googlesource.com/35129
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/align.go          |   4 +-
- src/cmd/compile/internal/gc/bimport.go        |   8 +-
- src/cmd/compile/internal/types/sizeof_test.go |  24 ++--
- src/cmd/compile/internal/types/type.go        | 188 +++++++++++++-------------
- 4 files changed, 112 insertions(+), 112 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go       |  4 +++-
+ src/cmd/compile/internal/gc/typecheck.go | 27 +++++++++++++++++----------
+ 2 files changed, 20 insertions(+), 11 deletions(-)

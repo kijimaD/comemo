@@ -1,19 +1,16 @@
-commit cd285f1c6fc613fa0f097443ae1d21d6c4491386
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Aug 8 16:17:14 2016 +0200
+commit 082881daf84a0ce3aae847c64b483c04d471e088
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Tue May 3 11:10:26 2016 +0200
 
-    runtime: fix global buffer reset in StopTrace
+    misc/cgo/fortran: fix gfortran compile test
     
-    We reset global buffer only if its pos != 0.
-    We ought to do it always, but queue it only if pos != 0.
-    This is a latent bug. Currently it does not fire because
-    whenever we create a global buffer, we increment pos.
+    Fixes #14544
     
-    Change-Id: I01e28ae88ce9a5412497c524391b8b7cb443ffd9
-    Reviewed-on: https://go-review.googlesource.com/25574
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I58b0b164ebbfeafe4ab32039a063df53e3018a6d
+    Reviewed-on: https://go-review.googlesource.com/22730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Sean Lake <odysseus9672@gmail.com>
 
- src/runtime/trace.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ misc/cgo/fortran/test.bash | 16 ++++++++++++++++
+ src/cmd/dist/test.go       |  2 +-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

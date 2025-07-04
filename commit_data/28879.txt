@@ -1,18 +1,17 @@
-commit 4a5b3ef9b90b2a724fbe9557b4cb15a65d2be87b
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sun Oct 16 14:31:18 2016 +0900
+commit fe27291c0039d4de0748ebd512cb236ca3c24ff6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 15 21:09:39 2016 -0700
 
-    encoding/asn1: return error instead of dereferencing nil *big.Int in marshaling
+    cmd/compile: reduce garbage from autolabel
     
-    Fixes #17461
+    Follow-up to CL 26661
     
-    Change-Id: I9954f6ae46c7e15560d7460841be8f2bc37233a9
-    Reviewed-on: https://go-review.googlesource.com/31121
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I67c58d17313094675cf0f30ce50d486818ae0dcb
+    Reviewed-on: https://go-review.googlesource.com/27113
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/asn1/asn1_test.go    |  6 +++++-
- src/encoding/asn1/marshal.go      | 18 +++++++++++-------
- src/encoding/asn1/marshal_test.go | 24 ++++++++++++++++++++++++
- 3 files changed, 40 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/inl.go  | 2 +-
+ src/cmd/compile/internal/gc/subr.go | 9 +++++++--
+ src/cmd/compile/internal/gc/swt.go  | 4 ++--
+ 3 files changed, 10 insertions(+), 5 deletions(-)

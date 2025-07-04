@@ -1,26 +1,27 @@
-commit 5c9a96c420ce8eace6168defa0a8eff05c55ef60
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 27 10:46:18 2019 -0500
+commit 112f28defcbd8f48de83f4502093ac97149b4da6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Oct 3 21:01:14 2018 +0100
 
-    misc/cgo/test: skip TestCrossPackageTests on Android
+    io: export StringWriter
     
-    This test currently fails in the Android builders, with the message
-            pkg_test.go:64: go test -short: exec: "go": executable file not found in $PATH
-    (https://build.golang.org/log/39ec0da5bfb7793359e199cc8e358ca5a8257840)
+    And start using it elsewhere in the standard library, removing the
+    copies in the process.
     
-    I was not able to test this change, because I can't get 'gomote
-    create' to return an instance of anything Android. However, I will
-    watch the build dashboard after submitting to verify that the fix
-    works.
+    While at it, rewrite the io.WriteString godoc to be more clear, since it
+    can now make reference to the defined interface.
     
-    Updates #30228
+    Fixes #27946.
     
-    Android appears to lack a 'go' command in the.
-    
-    Change-Id: Ieacac7f50d19e2cfef2f5d60e79a159e55b5cfa8
-    Reviewed-on: https://go-review.googlesource.com/c/164097
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Change-Id: Id5ba223c09c19e5fb49815bd3b1bd3254fc786f3
+    Reviewed-on: https://go-review.googlesource.com/c/139457
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/pkg_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/fmt/fmt_test.go        | 7 +------
+ src/io/io.go               | 8 ++++----
+ src/io/multi.go            | 4 ++--
+ src/net/http/header.go     | 6 +-----
+ src/net/http/serve_test.go | 9 +++------
+ src/strings/replace.go     | 8 ++------
+ 6 files changed, 13 insertions(+), 29 deletions(-)

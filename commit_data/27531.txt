@@ -1,15 +1,20 @@
-commit 6247ca2dbbdc13d6c80666119d182e119a2e7a5b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 26 09:59:29 2016 -0400
+commit 9f66636c93affa363f59196cacd160fa17deeb96
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 31 14:09:04 2016 -0700
 
-    cmd/dist: drop testcarchive on ppc64le
+    cmd/compile: don't put SP in index slot
     
-    It is timing out on the dashboard.
-    (We enabled it as an experiment to see if it was still broken. Looks that way.)
+    For idx1 ops, SP can appear in the index slot.
+    Swap SP into the base register slot so we can encode
+    the instruction.
     
-    Change-Id: I425b7e54a2ab95b623ab7a15554b4173078f75e2
-    Reviewed-on: https://go-review.googlesource.com/23480
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #15053
+    
+    Change-Id: I19000cc9d6c86c7611743481e6e2cb78b1ef04eb
+    Reviewed-on: https://go-review.googlesource.com/21384
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go | 40 ++++++++++++++++++++++++++---------
+ 1 file changed, 30 insertions(+), 10 deletions(-)

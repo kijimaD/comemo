@@ -1,26 +1,17 @@
-commit 0c66ae5c27706d4fe5c43fc71f92b52052b24497
-Author: aimuz <mr.imuz@gmail.com>
-Date:   Mon Nov 13 00:43:31 2023 +0000
+commit cc7530daa112f0b1501c220fd665b8d4bea8f201
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Nov 26 16:27:40 2022 -0800
 
-    cmd/compile: remove redundant function pkgNameOf
+    doc/go1.20: fix HTML closing tag
     
-    Replace calls to pkgNameOf with calls to types2.Info.PkgNameOf.
-    Delete function pkgNameOf and file decl.go which are not needed anymore.
-    
-    For #62037
-    
-    Change-Id: Ib8a0411cc9eb9fdd42ee6e73c23deed2daaf73d5
-    GitHub-Last-Rev: 3c8928fb5144f92ad9447e806e8d9b9ebf71003f
-    GitHub-Pull-Request: golang/go#64075
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541738
+    Change-Id: I7e2519601bfe1a59a48e240ff67868b1d74d55d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453516
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/noder/decl.go   | 18 ------------------
- src/cmd/compile/internal/noder/writer.go |  2 +-
- 2 files changed, 1 insertion(+), 19 deletions(-)
+ doc/go1.20.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

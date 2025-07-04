@@ -1,22 +1,24 @@
-commit 93fcb922570ac3b601f5addbe408866641783dac
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 20 22:04:12 2014 -0400
+commit dcc4a674d85fc2b0a434d71c1a504ebc559118bf
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 7 15:21:00 2014 -0700
 
-    cmd/gc: disallow call of *T method using **T variable
+    runtime: zero pointer-looking scalararg values
     
-    This brings cmd/gc in line with the spec on this question.
-    It might break existing code, but that code was not conformant
-    with the spec.
+    I have a CL which at every gc looks through data and bss
+    sections for nonpointer data (according to gc maps) that
+    looks like a pointer.  These are potential missing roots.
     
-    Credit to Rémy for finding the broken code.
+    The only thing it finds are begnign, storing stack pointers
+    into m0.scalararg[1] and never cleaning them up.  Let's
+    clean them up now so the test CL passes all.bash cleanly.
     
-    Fixes #6366.
+    The test CL can't be checked in because we might store
+    pointer-looking things in nonpointer data by accident.
     
-    LGTM=r
-    R=golang-codereviews, r
-    CC=adonovan, golang-codereviews, gri
-    https://golang.org/cl/129550043
+    LGTM=iant
+    R=golang-codereviews, iant, khr
+    CC=golang-codereviews
+    https://golang.org/cl/153210043
 
- src/cmd/gc/typecheck.c   | 7 +++++--
- test/fixedbugs/bug371.go | 6 +++---
- 2 files changed, 8 insertions(+), 5 deletions(-)
+ src/runtime/panic.c | 2 ++
+ 1 file changed, 2 insertions(+)

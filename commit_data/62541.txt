@@ -1,0 +1,19 @@
+commit 4ff70cf868c9bc9d3836c53b998c8f9d9f3ede21
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Tue Mar 11 09:52:10 2025 +0100
+
+    cmd/compile: add MakeTuple generic SSA op to remove duplicate Select[01] rules
+    
+    Change-Id: Id94a5e503f02aa29dc1e334b521770107d4261db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656615
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  13 +-
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |   1 +
+ src/cmd/compile/internal/ssa/opGen.go           |   6 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 296 ++++++++++--------------
+ 4 files changed, 136 insertions(+), 180 deletions(-)

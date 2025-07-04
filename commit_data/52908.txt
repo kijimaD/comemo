@@ -1,26 +1,20 @@
-commit 10ad6c91de1e6de122edb7f5c3f6eae344ee861e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue May 2 17:15:10 2023 -0400
+commit fbc75dff2fa5bac474936e611ff1b7e778617be3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 10 16:49:51 2022 -0700
 
-    runtime, runtime/pprof: record instantiated symbol name in CPU profile
+    cmd/cgo: remove -fsanitize=hwaddress hardware tags
     
-    For generic functions, the previous CL makes it record the full
-    instantiated symbol name in the runtime func table. This CL
-    changes the pprof package to use that name in CPU profile. This
-    way, it matches the symbol name the compiler sees, so it can apply
-    PGO.
+    No test because this isn't support on any of the builders.
     
-    TODO: add a test.
+    Fixes #53285
     
-    Fixes #58712.
-    
-    Change-Id: If40db01cbef5f73c279adcc9c290a757ef6955b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491678
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: If8d17bdcdac81a6ce404a35a289bf83f07f02855
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411698
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/runtime/pprof/proto.go   |  2 +-
- src/runtime/pprof/runtime.go |  7 +++++++
- src/runtime/symtab.go        | 14 ++++++++++++++
- 3 files changed, 22 insertions(+), 1 deletion(-)
+ src/cmd/cgo/gcc.go | 37 +++++++++++++++++++++++++++++--------
+ 1 file changed, 29 insertions(+), 8 deletions(-)

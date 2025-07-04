@@ -1,24 +1,39 @@
-commit 8dd27b1864f334fa82e0ead5bd8b9448e295e316
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 17 12:40:18 2018 -0400
+commit 58cdecb9c8d04d7eb1209d2877d541d34e23c9d3
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Apr 12 15:24:08 2018 +0100
 
-    cmd/go: report which patterns match each package in list
+    cmd/compile: generate constants for NeqPtr, EqPtr and IsNonNil ops
     
-    It's important for some uses of go/packages, as well as for some
-    of go/packages's internal use, to be able to tell which results from
-    go list output correspond to which patterns, keeping in mind that
-    a single package might have been matched by multiple patterns.
+    If both inputs are constant offsets from the same pointer then we
+    can evaluate NeqPtr and EqPtr at compile time. Triggers a few times
+    during all.bash. Removes a conditional branch in the following
+    code:
     
-    Also adds test for #26925.
+    copy(x[1:], x[:])
     
-    Change-Id: I708ac162f65d9946fe6afb244b08dc7b04d2b530
-    Reviewed-on: https://go-review.googlesource.com/129060
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    This branch was recently added as an optimization in CL 94596. We
+    now skip the memmove if the pointers are equal. However, in the
+    above code we know at compile time that they are never equal.
+    
+    Also, when the offset is variable, check if the offset is zero
+    rather than if the pointers are equal. For example:
+    
+    copy(x[a:], x[:])
+    
+    This would now skip the copy if a == 0, rather than if x + a == x.
+    
+    Finally I've also added a rule to make IsNonNil true for pointers
+    to values on the stack. The nil check elimination pass will catch
+    these anyway, but eliminating them here might eliminate branches
+    earlier.
+    
+    Change-Id: If72f436fef0a96ad0f4e296d3a1f8b6c3e712085
+    Reviewed-on: https://go-review.googlesource.com/106635
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/list/list.go            | 37 ++++++++++----------
- src/cmd/go/internal/load/pkg.go             | 15 ++++----
- src/cmd/go/internal/modload/load.go         | 17 +++++----
- src/cmd/go/testdata/script/mod_patterns.txt | 53 +++++++++++------------------
- 4 files changed, 56 insertions(+), 66 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   32 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1500 ++++++++++++++++--------
+ test/codegen/{movesmall.go => copy.go}         |   28 +-
+ 3 files changed, 1089 insertions(+), 471 deletions(-)

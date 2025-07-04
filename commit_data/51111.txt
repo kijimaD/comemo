@@ -1,21 +1,18 @@
-commit ada9385a5fd3908243dbb514040c07a41e4806bb
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Nov 4 13:54:59 2022 -0400
+commit 0bbb74b5ac8c01def959ef2e32ac3295d4f2707e
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Dec 2 13:22:46 2021 -0500
 
-    cmd/compile: fix PGO cross-package inlining
+    doc/go1.18: add changes to regexp to release notes
     
-    With CL 447015, we identify hot callees from edge weights, but
-    the code only traverses edges for calls from the current package.
-    If the callee is in a different package, when compiling that
-    package, the edge was not visited, so the callee was not actually
-    marked inline candidate. This CL fixes it by traversing all hot
-    edges.
+    CL 354569
     
-    Change-Id: If668c1a16ebe34e3474376b88ab3a84be76b8562
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448015
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Updates #47694
+    
+    Change-Id: I78536c110215b3c9f247c1420bcaa5fc3d8fb930
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368795
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/inline/inl.go | 22 ++++++++++++++++------
- 1 file changed, 16 insertions(+), 6 deletions(-)
+ doc/go1.18.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

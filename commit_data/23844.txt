@@ -1,14 +1,15 @@
-commit 4c9464525ed393793ca74126135f2ca22863d718
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 21 11:45:55 2015 -0400
+commit 2aabacdb5aa4176f3c2916a096d8ac6934113562
+Author: Michael Matloob <matloob@google.com>
+Date:   Tue Jun 16 17:58:03 2015 -0700
 
-    runtime: document gctrace format
+    [dev.ssa] cmd/compile/internal/gc: support CALLFUNC as statement
     
-    Fixes #10348.
+    I don't have strong understanding of the AST structure, so I'm
+    not sure if this is the right way to handle function call statements.
     
-    Change-Id: I3eea9738e3f6fdc1998d04a601dc9b556dd2db72
-    Reviewed-on: https://go-review.googlesource.com/12453
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib526f667ab483b32d9fd17da800b5d6f4b26c4c9
+    Reviewed-on: https://go-review.googlesource.com/11139
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/extern.go | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

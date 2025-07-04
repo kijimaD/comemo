@@ -1,36 +1,21 @@
-commit aa5aaabb0d18d21d97e9c98d7dfde4899a498335
+commit 92cbf82f1443223e21856f408b50821082babecc
 Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Feb 21 12:48:38 2013 -0500
+Date:   Thu Feb 21 12:14:33 2013 -0500
 
-    exp/ssa/interp: (#6 of 5): test interpretation of SSA form of $GOROOT/test/*.go.
+    exp/ssa: add dedicated Panic instruction.
     
-    The interpreter's os.Exit now triggers a special panic rather
-    than kill the test process.  (It's semantically dubious, since
-    it will run deferred routines.)  Interpret now returns its
-    exit code rather than calling os.Exit.
+    By avoiding the need for self-loops following calls to panic,
+    we reduce the number of basic blocks considerably.
     
-    Also:
-    - disabled parts of a few $GOROOT/tests via os.Getenv("GOSSAINTERP").
-    - remove unnecessary 'slots' param to external functions; they
-      are never closures.
-    
-    Most of the tests are disabled until go/types supports shifts.
-    They can be reenabled if you patch this workaround:
-    https://golang.org/cl/7312068
-    
-    R=iant, bradfitz
-    CC=golang-dev, gri
-    https://golang.org/cl/7313062
+    R=gri
+    CC=golang-dev, iant
+    https://golang.org/cl/7403043
 
- src/pkg/exp/ssa/interp/external.go          |  49 +++--
- src/pkg/exp/ssa/interp/external_unix.go     |   4 +-
- src/pkg/exp/ssa/interp/external_windows.go  |   4 +-
- src/pkg/exp/ssa/interp/interp.go            |  46 +++--
- src/pkg/exp/ssa/interp/interp_test.go       | 222 +++++++++++++++++++++
- src/pkg/exp/ssa/interp/reflect.go           |  89 ++++-----
- src/pkg/exp/ssa/interp/testdata/coverage.go | 294 ++++++++++++++++++++++++++++
- test/blank.go                               |  19 +-
- test/cmp.go                                 |  18 +-
- test/const.go                               |  41 ++--
- test/recover.go                             |  12 +-
- 11 files changed, 674 insertions(+), 124 deletions(-)
+ src/pkg/exp/ssa/builder.go       | 30 ++++++++++++------------------
+ src/pkg/exp/ssa/emit.go          | 12 ------------
+ src/pkg/exp/ssa/interp/interp.go |  5 ++++-
+ src/pkg/exp/ssa/interp/ops.go    |  5 +++++
+ src/pkg/exp/ssa/print.go         |  4 ++++
+ src/pkg/exp/ssa/sanity.go        |  8 +++++++-
+ src/pkg/exp/ssa/ssa.go           | 23 ++++++++++++++++++++++-
+ 7 files changed, 54 insertions(+), 33 deletions(-)

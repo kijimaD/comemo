@@ -1,22 +1,21 @@
-commit 27ebc84716f19e1c5b21e3a14de3204d19f28499
-Author: Alexandru Moșoi <brtzsnr@gmail.com>
-Date:   Sat Apr 2 10:29:11 2016 +0200
+commit bc8458ab02878ae64af860f1cade78b6fa97e994
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 4 16:12:52 2015 -0700
 
-    cmd/compile: handle non-negatives in prove
+    cmd/compile: use && in generated eq algs
     
-    Handle this case:
-    if 0 <= i && i < len(a) {
-            use a[i]
-    }
+    This allows the compiler to generate better code
+    containing fewer jumps and only a single return value.
     
-    Shaves about 5k from pkg/tools/linux_amd64/*.
+    Cuts 12k off cmd/go and 16k off golang.org/x/tools/cmd/godoc, approx 0.1% each.
     
-    Change-Id: I6675ff49aa306b0d241b074c5738e448204cd981
-    Reviewed-on: https://go-review.googlesource.com/21431
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    For #6853 and #9930
+    
+    Change-Id: I009616df797760b01e09f06357a2d6fd6ebcf307
+    Reviewed-on: https://go-review.googlesource.com/19767
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 12 ++++++++++--
- test/prove.go                         | 25 ++++++++++++++++++++++---
- 2 files changed, 32 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 65 +++++++++++++++++++++----------------
+ 1 file changed, 37 insertions(+), 28 deletions(-)

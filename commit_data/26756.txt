@@ -1,31 +1,19 @@
-commit 2cefd12a1bf7ee1d1aad03e17c4680d4b611d6da
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 6 19:02:27 2016 +0000
+commit 5abd327d0069af3abc353ba8ee77dd7d1c0c3e75
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Wed Feb 24 19:25:38 2016 -0500
 
-    net, runtime: skip flaky tests on OpenBSD
+    expvar: document that Get returns nil for non-existent vars
     
-    Flaky tests are a distraction and cover up real problems.
+    Also added a test to ensure the behavior.
     
-    File bugs instead and mark them as flaky.
+    Fixes #14150
     
-    This moves the net/http flaky test flagging mechanism to internal/testenv.
-    
-    Updates #15156
-    Updates #15157
-    Updates #15158
-    
-    Change-Id: I0e561cd2a09c0dec369cd4ed93bc5a2b40233dfe
-    Reviewed-on: https://go-review.googlesource.com/21614
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ib3ee9fdae59826fa594ce1be3c49b51d740b56eb
+    Reviewed-on: https://go-review.googlesource.com/19915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/context/context_test.go     | 4 ++++
- src/go/build/deps_test.go       | 2 +-
- src/internal/testenv/testenv.go | 9 +++++++++
- src/net/dial_test.go            | 4 ++++
- src/net/http/main_test.go       | 9 ---------
- src/net/http/transport_test.go  | 3 ++-
- src/net/timeout_test.go         | 4 ++++
- src/net/unixsock_test.go        | 4 ++++
- src/runtime/pprof/pprof_test.go | 3 +++
- 9 files changed, 31 insertions(+), 11 deletions(-)
+ src/expvar/expvar.go      | 3 ++-
+ src/expvar/expvar_test.go | 8 ++++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

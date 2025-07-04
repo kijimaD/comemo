@@ -1,22 +1,12 @@
-commit 5ee06f547122b7417b70ada55bb0d633e2094d88
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Nov 2 10:02:38 2018 +0100
+commit 5f0402a26b98d4fb80910b7001748b6aa4ee1334
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jul 3 15:12:08 2018 -0400
 
-    internal/poll, os/exec, runtime: replace PollDescriptor by IsPollDescriptor
+    [dev.boringcrypto] misc/boring: support build.release on macOS
     
-    This commit changes poll.PollDescriptor by poll.IsPollDescriptor. This
-    is needed for OS like AIX which have more than one FD using inside their
-    netpoll implementation.
-    
-    Change-Id: I49e12a8d74045c501e19fdd8527cf166a3c64850
-    Reviewed-on: https://go-review.googlesource.com/c/146938
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I067850371deff4984f3023e2aa3be452f490cd1b
+    Reviewed-on: https://go-review.googlesource.com/122077
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/internal/poll/fd_plan9.go        |  8 ++++----
- src/internal/poll/fd_poll_nacljs.go  |  8 ++++----
- src/internal/poll/fd_poll_runtime.go | 10 +++++-----
- src/os/exec/exec_test.go             | 10 +++++++---
- src/runtime/netpoll.go               | 19 +++++++++++++------
- 5 files changed, 33 insertions(+), 22 deletions(-)
+ misc/boring/build.release | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

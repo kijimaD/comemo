@@ -1,19 +1,15 @@
-commit a17c092c2c5e8ad45482ebbb9e17ef7f92edb96c
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Mar 17 15:43:47 2025 -0700
+commit 2a5904142043e8998eaa15728150c48bcfdca7d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 11 19:54:52 2024 -0800
 
-    net/http: add onClose hook to fake net listener
+    internal/safefilepath: use bytealg to search for zero byte
     
-    Avoids a race condition: If we set an onClose hook on a conn
-    created by a listener, then setting the hook can race with
-    the connection closing.
-    
-    Change-Id: Ibadead3abbe4335d41f1e2cf84f4696fe98166b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658655
+    Change-Id: I20e72d421d89095c460495001969291b99cdf59e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563139
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/http/netconn_test.go   | 9 ++++++---
- src/net/http/transport_test.go | 8 ++++----
- 2 files changed, 10 insertions(+), 7 deletions(-)
+ src/internal/safefilepath/path_other.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

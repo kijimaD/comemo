@@ -1,51 +1,44 @@
-commit 6abc4a7c3eb7b7ed35e7d14e9afb18900367b58a
-Author: Dmitriy Dudkin <dudkin.dmitriy@gmail.com>
-Date:   Thu Feb 25 04:00:01 2016 +0200
+commit ed9362f769626b1cdaf2eb1da63d5f25cadc979b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Jun 27 21:37:19 2016 -0400
 
-    cmd/go: fix go get -u wildcard corner case
+    reflect, runtime: optimize Name method
     
-    Suppose you have already downloaded "foo.bar/baz", where the repo
-    is for all of foo.bar/, and you then "go get -u foo.bar/...".
-    The command-line wildcard expands to foo.bar/baz,
-    and go get updates the foo.bar/ repo.
-    Suppose that the repo update brought in foo.bar/quux,
-    though, which depends on other.site/bar.
-    Download does not consider foo.bar/quux, since it's
-    only looking at foo.bar/baz, so it didn't download other.site/bar.
-    After the download, we call importPaths(args) to decide what to install.
-    That call was reevaluating the original wildcard with the new repo
-    and matching foo.bar/quux, which was missing its dependency
-    other.site/bar, causing a build failure.
+    Several minor changes that remove a good chunk of the overhead added
+    to the reflect Name method over the 1.7 cycle, as seen from the
+    non-SSA architectures.
     
-    The fix in this CL is to remember the pre-download expansion
-    of the argument list and pass it to the installer. Then only the things
-    we tried to download get installed.
+    In particular, there are ~20 fewer instructions in reflect.name.name
+    on 386, and the method now qualifies for inlining.
     
-    The case where foo.bar/ is not even checked out yet continues to work,
-    because in that case we leave the wildcard in place, and download
-    reevaluates it during the download.
+    The simple JSON decoding benchmark on darwin/386:
     
-    The fix in this CL may not be the right long-term fix, but it is at least a fix.
-    It may be that download should be passed all the original wildcards
-    so that it can reexpand them as new code is downloaded, ideally reaching
-    a fixed point. That can be left for another day.
+            name           old time/op    new time/op    delta
+            CodeDecoder-8    49.2ms ± 0%    48.9ms ± 1%  -0.77%  (p=0.000 n=10+9)
     
-    In short:
+            name           old speed      new speed      delta
+            CodeDecoder-8  39.4MB/s ± 0%  39.7MB/s ± 1%  +0.77%  (p=0.000 n=10+9)
     
-    - The problem is that the "install" half of "go get" was trying to install
-      more than the "download" half was properly downloading.
-    - The fix in this CL is to install just what was downloaded (install less).
-    - It may be that a future CL should instead download what will be installed (download more).
+    On darwin/amd64 the effect is less pronounced:
     
-    Fixes #14450.
+            name           old time/op    new time/op    delta
+            CodeDecoder-8    38.9ms ± 0%    38.7ms ± 1%  -0.38%  (p=0.005 n=10+10)
     
-    Change-Id: Ia1984761d24439549b7cff322bc0dbc262c1a653
-    Reviewed-on: https://go-review.googlesource.com/19892
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+            name           old speed      new speed      delta
+            CodeDecoder-8  49.9MB/s ± 0%  50.1MB/s ± 1%  +0.38%  (p=0.006 n=10+10)
+    
+    Counterintuitively, I get much more useful benchmark data out of my
+    MacBook Pro than a linux workstation with more expensive Intel chips.
+    While the laptop has fewer cores and an active GUI, the single-threaded
+    performance is significantly better (nearly 1.5x decoding throughput)
+    so the differences are more pronounced.
+    
+    For #16117.
+    
+    Change-Id: I4e0cc1cc2d271d47d5127b1ee1ca926faf34cabf
+    Reviewed-on: https://go-review.googlesource.com/24510
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/get.go     |  3 ++-
- src/cmd/go/go_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 1 deletion(-)
+ src/reflect/type.go | 18 +++++-------------
+ src/runtime/type.go | 41 +++++++++++++++++++----------------------
+ 2 files changed, 24 insertions(+), 35 deletions(-)

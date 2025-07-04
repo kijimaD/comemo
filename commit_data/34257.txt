@@ -1,16 +1,19 @@
-commit eb5925f5ff6e3690ce2d9fa680829560cbb11970
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Feb 19 21:03:12 2018 +0000
+commit 6054f87f3ac704a59502176f4c16a5cef2e6cec2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 11 21:34:02 2017 -0400
 
-    text/template: remove associate's error return
+    cmd/go: delete p.Internal.Target in favor of p.Target
     
-    It's always nil, so simplify its signature. Found with unparam.
+    The two are not meaningfully different, and it is confusing to have two.
     
-    Change-Id: I45dd0f868ec2f5de98a970776be686417c8d73b6
-    Reviewed-on: https://go-review.googlesource.com/95235
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie6a355ea4d79fb4bb79bf5124071a866038b19ba
+    Reviewed-on: https://go-review.googlesource.com/70211
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/text/template/template.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/clean/clean.go |  6 +++---
+ src/cmd/go/internal/load/pkg.go    | 37 +++++++++++++++++--------------------
+ src/cmd/go/internal/run/run.go     |  2 +-
+ src/cmd/go/internal/test/test.go   |  4 ++--
+ src/cmd/go/internal/work/build.go  | 30 +++++++++++++++---------------
+ 5 files changed, 38 insertions(+), 41 deletions(-)

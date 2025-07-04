@@ -1,15 +1,13 @@
-commit 02395953064127f7dd54b238442eb71a2077ddb8
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 30 12:30:31 2014 -0400
+commit 93e5cc224e3e5c6dfaad4fc835cc89e33fb957c6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 22 09:13:09 2014 -0400
 
-    compress/zlib: mention that NewReaderDict can return ErrDictionary
+    net/http: replace z_last_test hack with testing.Main
     
-    Fixes #7935.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=golang-codereviews, ruiu
-    https://golang.org/cl/147390043
+    LGTM=adg
+    R=rsc, adg
+    CC=golang-codereviews
+    https://golang.org/cl/144240043
 
- src/compress/zlib/reader.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/http/{z_last_test.go => main_test.go} | 30 +++++++++++++++++++--------
+ 1 file changed, 21 insertions(+), 9 deletions(-)

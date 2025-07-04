@@ -1,24 +1,29 @@
-commit 46d4aa273d0b7bbfb758f1ac6b03e016ad803623
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Nov 5 20:39:45 2018 -0500
+commit 269a93823c68ca4ac7e7f9e60b0dc3731fc9f6b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 13:23:17 2018 -0400
 
-    crypto/tls: implement TLS 1.3 downgrade protection
+    cmd/go: convert final module tests to scripts
     
-    TLS_FALLBACK_SCSV is extremely fragile in the presence of sparse
-    supported_version, but gave it the best try I could.
-    
-    Set the server random canaries but don't check them yet, waiting for the
-    browsers to clear the way of misbehaving middleboxes.
-    
-    Updates #9671
-    
-    Change-Id: Ie55efdec671d639cf1e716acef0c5f103e91a7ce
-    Reviewed-on: https://go-review.googlesource.com/c/147617
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: Iba68b3aaf4a132bd4ca44edf4912a46549d2ef8f
+    Reviewed-on: https://go-review.googlesource.com/124700
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/crypto/tls/common.go                 | 16 ++++++++++++++++
- src/crypto/tls/handshake_client_test.go  |  2 +-
- src/crypto/tls/handshake_server.go       | 18 ++++++++++++++----
- src/crypto/tls/handshake_server_test.go  |  5 +++++
- src/crypto/tls/handshake_server_tls13.go | 21 +++++++++++++++++++++
- 5 files changed, 57 insertions(+), 5 deletions(-)
+ src/cmd/go/mod_test.go                             | 573 ---------------------
+ src/cmd/go/proxy_test.go                           |   2 +
+ src/cmd/go/script_test.go                          | 225 ++++++--
+ src/cmd/go/testdata/mod/mod_sync.txt               |  57 ++
+ src/cmd/go/testdata/script/README                  |  10 +
+ src/cmd/go/testdata/script/mod_convert_dep.txt     |   9 +
+ src/cmd/go/testdata/script/mod_convert_git.txt     |  10 +
+ src/cmd/go/testdata/script/mod_convert_glide.txt   |   9 +
+ .../go/testdata/script/mod_convert_glockfile.txt   |   9 +
+ src/cmd/go/testdata/script/mod_convert_godeps.txt  |  10 +
+ src/cmd/go/testdata/script/mod_convert_tsv.txt     |   9 +
+ .../go/testdata/script/mod_convert_vendor_conf.txt |   9 +
+ .../go/testdata/script/mod_convert_vendor_json.txt |  10 +
+ .../script/mod_convert_vendor_manifest.txt         |  10 +
+ .../go/testdata/script/mod_convert_vendor_yml.txt  |   9 +
+ src/cmd/go/testdata/script/mod_edit.txt            | 131 +++++
+ src/cmd/go/testdata/script/mod_find.txt            |  87 ++++
+ src/cmd/go/testdata/script/mod_vendor.txt          | 224 ++++++++
+ 18 files changed, 800 insertions(+), 603 deletions(-)

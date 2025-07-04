@@ -1,14 +1,15 @@
-commit 0065cbe5d015aa155c2a3e91d8c17f6474fef5e8
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 22 11:46:10 2014 +0400
+commit 4f557008e85ee0381bc1955b943cc9f6d9679af0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 14 11:57:10 2014 -0400
 
-    syscall: fix nacl build
-    Timer callback does not accept now as first arg anymore.
+    [dev.power64] liblink: fix $large(SP) for floating point load/store
     
-    LGTM=dave
-    R=golang-codereviews, dave
+    Fixes test/cmplxdivide.
+    
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/126530043
+    https://golang.org/cl/128190045
 
- src/pkg/syscall/net_nacl.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/liblink/asm9.c | 24 ++++++++++++++++--------
+ 1 file changed, 16 insertions(+), 8 deletions(-)

@@ -1,17 +1,13 @@
-commit 358ae207775e146df1e96e463fc074aa5cc1dd12
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 10 12:24:43 2013 -0400
+commit 02faa939d3e419b14db5d1da41de6147a2123238
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Sep 10 20:00:21 2013 +0900
 
-    libmach: change three more BGET macro invocations back
+    net: remove dreg of obsoleted network poller
     
-    Various compilers complain about the macro expansion not
-    being used. I fixed a few yesterday. More today.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/13643044
+    https://golang.org/cl/13396051
 
- src/libmach/5obj.c | 4 ++--
- src/libmach/6obj.c | 2 +-
- src/libmach/8obj.c | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/net/fd_posix_test.go | 57 --------------------------------------------
+ src/pkg/net/net.go           | 34 --------------------------
+ 2 files changed, 91 deletions(-)

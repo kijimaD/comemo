@@ -1,25 +1,35 @@
-commit 601eb78de263023fc068c978858e2774faa915c0
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Nov 4 16:14:29 2023 +0800
+commit 5a7793b7b81e1069cc830a14997ede3730295175
+Author: David Chase <drchase@google.com>
+Date:   Wed Jan 25 17:08:16 2023 -0500
 
-    text: add available godoc link
+    cmd/compile: add flag to FOR/RANGE to preserve loop semantics across inlines
     
-    Change-Id: Idbc110cfc4fd6bbbc8b79807ac14abf7b30e0e65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539855
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    This modifies the loopvar change to be tied to the
+    package if it is specified that way, and preserves
+    the change across inlining.
+    
+    Down the road, this will be triggered (and flow correctly)
+    if the changed semantics are tied to Go version specified
+    in go.mod (or rather, for the compiler, by the specified
+    version for compilation).
+    
+    Includes tests.
+    
+    Change-Id: If54e8b6dd23273b86be5ba47838c90d38af9bd1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463595
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/text/scanner/scanner.go      | 36 ++++++++++++++++++------------------
- src/text/tabwriter/tabwriter.go  | 18 +++++++++---------
- src/text/template/exec.go        |  6 +++---
- src/text/template/funcs.go       |  6 +++---
- src/text/template/helper.go      | 10 +++++-----
- src/text/template/parse/node.go  |  6 +++---
- src/text/template/parse/parse.go |  4 ++--
- src/text/template/template.go    |  6 +++---
- 8 files changed, 46 insertions(+), 46 deletions(-)
+ src/cmd/compile/internal/escape/stmt.go          |  2 +
+ src/cmd/compile/internal/ir/fmt.go               |  6 +++
+ src/cmd/compile/internal/ir/stmt.go              | 36 ++++++++-------
+ src/cmd/compile/internal/loopvar/loopvar.go      | 27 ++++++-----
+ src/cmd/compile/internal/loopvar/loopvar_test.go | 58 +++++++++++++++++++++++-
+ src/cmd/compile/internal/noder/reader.go         |  6 ++-
+ src/cmd/compile/internal/noder/writer.go         |  1 +
+ src/cmd/compile/internal/reflectdata/alg.go      |  4 +-
+ src/cmd/compile/internal/ssagen/ssa.go           |  1 +
+ src/cmd/compile/internal/walk/complit.go         |  2 +-
+ src/cmd/compile/internal/walk/range.go           |  3 +-
+ 11 files changed, 112 insertions(+), 34 deletions(-)

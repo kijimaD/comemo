@@ -1,14 +1,18 @@
-commit bb6616454284d21800d32c1ff3840db9194141af
-Author: Rob Pike <r@golang.org>
-Date:   Wed Nov 9 16:14:18 2011 -0800
+commit e4eacf39e9db9357fa4823c9c8c230e444ab6170
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Wed Nov 9 17:20:34 2011 -0600
 
-    effective_go: a little more about comma ok and type assertion
-    Fixes #2416.
+    misc/windows: Go for Windows installer in MSI format
     
-    R=golang-dev, iant
+    Requesting suggestions for the comment and description strings in installer.wxs.
+    Fixes #2394.
+    
+    R=rsc, alex.brainman, tjyang2001
     CC=golang-dev
-    https://golang.org/cl/5370049
+    https://golang.org/cl/5339046
 
- doc/effective_go.html | 12 ++++++++++++
- doc/effective_go.tmpl | 12 ++++++++++++
- 2 files changed, 24 insertions(+)
+ misc/windows/README        |  7 ++--
+ misc/windows/installer.iss | 98 ----------------------------------------------
+ misc/windows/installer.wxs | 80 +++++++++++++++++++++++++++++++++++++
+ misc/windows/package.bash  | 26 +++++++-----
+ 4 files changed, 101 insertions(+), 110 deletions(-)

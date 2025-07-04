@@ -1,28 +1,23 @@
-commit 2d83b646d677ceb3df2ea592b7938efe8214c52a
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Mon May 1 09:08:01 2023 -0400
+commit 46ddf0873e48de0062fbc67d058ddb13147cb9fe
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Jun 6 22:23:48 2022 +0700
 
-    runtime/trace: enable frame pointer unwinding by default for amd64 and arm64
+    [dev.unified] cmd/compile: export/import implicit attribute for conversion exprs
     
-    Re-enable frame pointer unwinding for execution tracing on amd64 by
-    default, now that CL 489015 and CL 488755 have fixed recently-discovered
-    crashes. This reverts CL 486382.
+    So they can be formatted more presicely, and make it easier in the
+    transition to Unified IR.
     
-    These fixes, together with CL 241158 to fix up frame pointers when
-    copying stacks on arm64, also make frame pointer unwinding for tracing
-    safe to enable for arm64. This should significantly reduce the CPU and
-    latency overhead of execution tracing on arm64, as it has for amd64.
+    Updates #53058
     
-    Co-Authored-By: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Change-Id: I64a88bd69dfd8cb13956ec46f8b1203dbeaa26a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490815
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I8b5a46db05a2e2822289458995b8653f0a3ffbbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410594
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/runtime1.go | 1 -
- src/runtime/trace.go    | 6 ++----
- 2 files changed, 2 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 1 +
+ src/cmd/compile/internal/typecheck/iimport.go | 4 +++-
+ test/fixedbugs/issue42284.dir/b.go            | 2 +-
+ test/run.go                                   | 1 -
+ 4 files changed, 5 insertions(+), 3 deletions(-)

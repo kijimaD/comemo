@@ -1,12 +1,29 @@
-commit a65fa20541d7cc423e1e3c5b20114b04f77fb957
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Mon Aug 3 16:32:28 2015 -0700
+commit 4e834cff4f7d4f736600d36d209ea6f388a44c44
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Jun 24 07:48:35 2015 -0500
 
-    cmd/go: documented default value of the -timeout testflag
+    fmt: handle negative width/prec when supplied as an argument
     
-    Change-Id: I4dc75065038a9cfd06f61c0deca1c86c70713d3a
-    Reviewed-on: https://go-review.googlesource.com/13091
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Negative width arguments now left align the way a minus-width in the
+    format string aligns. The minus in the format string overrides the sign
+    of the argument as in C.
+    
+    Precision behavior is modified to include an error if the argument is
+    negative.  This differs from a negative precision in a format string
+    which just terminates the format.
+    
+    Additional checks for large magnitude widths and precisions are added to
+    make the runtime behavior (failure, but with different error messages),
+    more consistent between format string specified width/precision and
+    argument specified width/precision.
+    
+    Fixes #11376
+    
+    Change-Id: I8c7ed21088e9c18128a45d4c487c5ab9fafd13ef
+    Reviewed-on: https://go-review.googlesource.com/11405
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
 
- src/cmd/go/test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/fmt/fmt_test.go | 12 +++++++++++-
+ src/fmt/print.go    | 28 +++++++++++++++++++++++++---
+ 2 files changed, 36 insertions(+), 4 deletions(-)

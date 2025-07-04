@@ -1,23 +1,16 @@
-commit 8ce2fedaeb1b4e5c61a811223dd07fc1dff6b81f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Mar 1 23:54:39 2024 +0700
+commit 62bf7a4809d37ff09ad256a3eaca977bae9284e7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 9 20:02:24 2023 +0000
 
-    cmd/compile: add test case for using Alias types
+    runtime: hide trace.shutdown behind traceShuttingDown
     
-    CL 579935 disabled usage of Alias types in the compiler, and tracks
-    the problem with issue #66873. The test case in #65893 passes now
-    with the current tip. This CL adds a test case to ensure there is no
-    regression once Alias types are enabled for the compiler.
-    
-    Updates #66873
-    Fixes #65893
-    
-    Change-Id: I51b51bb13ca59549bc5925dd95f73da40465556d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568455
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I0b123e65f40570caeee611679d80dc27034d5a52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494183
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- test/fixedbugs/issue65893.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/runtime/proc.go  | 4 ++--
+ src/runtime/trace.go | 5 +++++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

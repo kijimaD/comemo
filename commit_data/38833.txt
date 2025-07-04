@@ -1,18 +1,14 @@
-commit 059f2d4a467465183820710df43a234f02d9c255
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Fri Apr 19 15:41:38 2019 +0300
+commit 96a6bd4bf6281a57c933bdcc1da96a7608cf20d7
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Nov 30 12:09:59 2018 +0100
 
-    os: disable the use of netpoll on directories as well on *BSDs
+    cmd/go/internal/lockedfile/internal/filelock: fix test on iOS
     
-    Follow up CL 156379.
-    
-    Updates #19093
-    
-    Change-Id: I5ea3177fc5911d3af71cbb32584249e419e9d4a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172937
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0390b382db0ca36de20af0ef15204c5bfc084d3d
+    Reviewed-on: https://go-review.googlesource.com/c/151937
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/os/file_unix.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

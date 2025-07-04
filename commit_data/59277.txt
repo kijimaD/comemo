@@ -1,53 +1,22 @@
-commit 432fd9c60fac4485d0473173171206f1ef558829
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Apr 5 14:36:32 2025 -0400
+commit 606b8ff5eff5e83e92b5b7466f9682115c1a6883
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Feb 27 14:53:33 2024 -0800
 
-    math/big: remove copy responsibility from, rename shlVU, shrVU
+    net/http: make timeout errors match context.DeadlineExceeded
     
-    It is annoying that non-x86 implementations of shlVU and shrVU
-    have to go out of their way to handle the trivial case shift==0
-    with their own copy loops. Instead, arrange to never call them
-    with shift==0, so that the code can be removed.
+    When returning an error which implements net.Error and reports
+    itself as a timeout, also report it as matching context.DeadlineExceeded.
+    This matches the behavior of timeout errors in the net package
+    and elsewhere.
     
-    Unfortunately, there are linknames of shlVU, so we cannot
-    change that function. But we can rename the functions and
-    then leave behind a shlVU wrapper, so do that.
+    Fixes #50856
     
-    Since the big.Int API calls the operations Lsh and Rsh, rename
-    shlVU/shrVU to lshVU/rshVU. Also rename various other shl/shr
-    methods and functions to lsh/rsh.
-    
-    Change-Id: Ieaf54e0110a298730aa3e4566ce5be57ba7fc121
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664896
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I2ca911e3677a699af27ba89b1200401baa8b3b1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567537
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/math/big/arith.go           |   4 +-
- src/math/big/arith_386.s        |   8 +--
- src/math/big/arith_amd64.s      |   8 +--
- src/math/big/arith_arm.s        |  26 ++-----
- src/math/big/arith_arm64.s      |  50 ++------------
- src/math/big/arith_decl.go      |  18 ++++-
- src/math/big/arith_decl_pure.go |   8 +--
- src/math/big/arith_loong64.s    |   8 +--
- src/math/big/arith_mips64x.s    |   8 +--
- src/math/big/arith_mipsx.s      |   8 +--
- src/math/big/arith_ppc64x.s     |  59 ++--------------
- src/math/big/arith_riscv64.s    |   8 +--
- src/math/big/arith_s390x.s      |  12 ++--
- src/math/big/arith_test.go      | 148 ++++++++++++++++++----------------------
- src/math/big/arith_wasm.s       |   8 +--
- src/math/big/decimal.go         |  12 ++--
- src/math/big/float.go           |  30 ++++----
- src/math/big/ftoa.go            |  12 ++--
- src/math/big/int.go             |   6 +-
- src/math/big/int_test.go        |   2 +-
- src/math/big/nat.go             |  27 +++++---
- src/math/big/nat_test.go        |  12 ++--
- src/math/big/natconv.go         |   2 +-
- src/math/big/natdiv.go          |  14 +++-
- src/math/big/natmul.go          |   2 +-
- src/math/big/prime.go           |   6 +-
- src/math/big/rat.go             |   8 +--
- src/math/big/ratconv.go         |   6 +-
- 28 files changed, 213 insertions(+), 307 deletions(-)
+ src/net/http/client.go      | 10 ++--------
+ src/net/http/client_test.go |  9 +++++++++
+ src/net/http/transport.go   | 16 +++++++++-------
+ 3 files changed, 20 insertions(+), 15 deletions(-)

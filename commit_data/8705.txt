@@ -1,34 +1,20 @@
-commit 8d8ac637eee69aac0c4037661d7f53c5430cd2ca
+commit 9968090dddb74e7b5cd1352d791b7cf8cb7a6045
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 13 15:28:54 2011 -0400
+Date:   Mon Jun 13 14:43:54 2011 -0400
 
-    build: stop early if commands are missing
+    cgo: handle new Apple LLVM-based gcc from Xcode 4.2
     
-    If we fail due to a missing command (always bison)
-    during the build, it is running many things in parallel
-    and the error message gets lost in the noise.
-    Also diagnose bison++.
+    That gcc does not include enumerator names and values
+    in its DWARF debug output.  Create a data block from which
+    we can read the values instead.
     
-    $ ./make.bash
-    Your system's bison is bison++, a buggy copy of the original bison.
-    Go needs the original bison instead.
-    See http://golang.org/doc/install.html#ctools
-    $ sudo apt-get remove bison++
-    ... ridiculous amount of output ...
-    $ ./make.bash
-    Cannot find 'bison' on search path.
-    See http://golang.org/doc/install.html#ctools
-    $ sudo apt-get install bison
-    ... ridiculous amount of output ...
-    $ ./make.bash
-    ... works
+    Fixes #1881.
     
-    Fixes #1938.
-    Fixes #1946.
-    
-    R=bradfitz
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/4528137
+    https://golang.org/cl/4607045
 
- src/env.bash | 45 ++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 44 insertions(+), 1 deletion(-)
+ src/cmd/cgo/gcc.go          | 89 ++++++++++++++++++++++++++++++++++++---------
+ src/pkg/debug/dwarf/type.go |  4 +-
+ src/pkg/debug/elf/file.go   |  6 +++
+ 3 files changed, 80 insertions(+), 19 deletions(-)

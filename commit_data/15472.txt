@@ -1,13 +1,48 @@
-commit 029457aab54c8c8ae25aaf51725d002aaba8749c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 27 14:24:41 2013 -0800
+commit 1c5e079600a820bdb9a61d1813ab2a342cc70ce9
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Feb 27 16:43:16 2013 -0500
 
-    go/types: don't crash when assigning to undefined variables
+    exp/ssa: a number of bug fixes.
     
-    R=adonovan
+    ssadump:
+    - permit naming a package (not just *.go files) on command line.
+    - set BuildSerially flag when setting Log* flags
+      (Q. should instead the logging functions take a lock?)
+    
+    Builder:
+    - fixed bug when calling variadic function with zero '...'-params.
+      Added regression test.
+    
+    interp:
+    - more external functions:
+       the 'error' interface
+       bytes.{Equal,IndexByte}
+       reflect.(Value).{Bool,NumOut,Out}
+       syscall.{Close,Fstat,Read,Open,Stat,Lstat,Fstat,
+         Getdents,ParseDirents,Getwd}
+    - permit comparisons between *Function and *closure.
+    
+    With this CL, ssadump can now interpret ssadump itself (!),
+    loading, parsing, typing, SSA-building, and running
+    println("Hello, World!").  While a fmt-based equivalent still
+    lacks some external routines, e.g. math/big, I think there are
+    diminishing returns in expanding the interpreter (and
+    debugging it is starting to feel like "Inception").
+    
+    I'm pretty confident this package is now good enough for wider use.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/7369059
+    https://golang.org/cl/7392053
 
- src/pkg/go/types/stmt.go            | 4 ++++
- src/pkg/go/types/testdata/stmt0.src | 2 ++
- 2 files changed, 6 insertions(+)
+ src/pkg/exp/ssa/builder.go                  |   4 +-
+ src/pkg/exp/ssa/interp/external.go          |  62 +++++++++++--
+ src/pkg/exp/ssa/interp/external_plan9.go    |  30 ++++++-
+ src/pkg/exp/ssa/interp/external_unix.go     | 129 +++++++++++++++++++++++++---
+ src/pkg/exp/ssa/interp/external_windows.go  |  25 +++++-
+ src/pkg/exp/ssa/interp/interp.go            |   9 +-
+ src/pkg/exp/ssa/interp/reflect.go           |  33 +++++++
+ src/pkg/exp/ssa/interp/testdata/coverage.go |   7 ++
+ src/pkg/exp/ssa/interp/value.go             |   6 +-
+ src/pkg/exp/ssa/ssadump.go                  |  63 ++++++++------
+ 10 files changed, 312 insertions(+), 56 deletions(-)

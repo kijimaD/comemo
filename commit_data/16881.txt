@@ -1,26 +1,16 @@
-commit a0f74093b2f3aa0d8d2b69c881a75f40d296355f
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Jul 26 09:10:29 2013 +0200
+commit 32a3ce67993fab5d0a46dd697d0fbd5b2c4e306e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jul 26 13:38:24 2013 +1000
 
-    crypto/des: faster block expansion.
+    gc: fix line directive processing on windows
     
-    On amd64:
+    This change should have been part of 5671737303a0.
     
-    benchmark           old ns/op    new ns/op    delta
-    BenchmarkEncrypt         6170         3593  -41.77%
-    BenchmarkDecrypt         6209         3564  -42.60%
+    Fixes #5904
     
-    benchmark            old MB/s     new MB/s  speedup
-    BenchmarkEncrypt         1.30         2.23    1.72x
-    BenchmarkDecrypt         1.29         2.24    1.74x
-    
-    Update #4299.
-    
-    R=golang-dev, agl, bradfitz, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/11874043
+    https://golang.org/cl/11894043
 
- src/pkg/crypto/des/block.go    | 14 +++++++++++++-
- src/pkg/crypto/des/const.go    | 11 -----------
- src/pkg/crypto/des/des_test.go | 28 ++++++++++++++++++++++++++++
- 3 files changed, 41 insertions(+), 12 deletions(-)
+ src/cmd/gc/obj.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

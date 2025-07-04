@@ -1,25 +1,21 @@
-commit 7406180012d828f536112c9bffb7d3edd9ea5c7e
-Author: Branden J Brown <zephyrtronium@gmail.com>
-Date:   Wed Jun 2 14:55:34 2021 -0400
+commit 86954d5246339231dc0c45f5547c37a1c3650264
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Nov 13 14:42:45 2020 -0500
 
-    fmt: split package documentation into more sections
+    cmd/compile: mark plugin-exported types as used in interface
     
-    The package-level documentation on fmt previously had only two formal
-    sections, for printing and scanning. Because of this, the section on
-    printing was very long, including some pseudo-sections describing
-    particular features. This feature makes those pseudo-sections into
-    proper sections, both to improve readability and so that those sections
-    have hyperlinks on documentation sites.
+    Plugin exports symbols as interfaces. Mark their types as used in
+    interfaces, so their methods will be kept alive by the linker.
     
-    Fixes #46522
+    Fixes #42579.
     
-    Change-Id: I38b7bc3447610faca446051da235edcbbd063f61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324349
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: If1b5aacc21510c20c25f88bb131bca61db6f1d56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269819
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/fmt/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testplugin/plugin_test.go            | 14 ++++++++++++++
+ misc/cgo/testplugin/testdata/method/main.go   | 26 ++++++++++++++++++++++++++
+ misc/cgo/testplugin/testdata/method/plugin.go | 13 +++++++++++++
+ src/cmd/compile/internal/gc/reflect.go        |  6 +++++-
+ 4 files changed, 58 insertions(+), 1 deletion(-)

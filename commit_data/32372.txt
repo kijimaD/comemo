@@ -1,17 +1,22 @@
-commit e0b34e7be73ed192db8ab3fb83fcd44976d67075
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Aug 17 10:37:17 2017 -0700
+commit 227fff2ea4f21ec357eebe27324cc04b7c9919c7
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 4 13:26:28 2017 -0400
 
-    runtime: split advanceEvacuationMark from evacuate
+    runtime/debug: don't trigger a GC on SetGCPercent
     
-    Minor refactoring. This is a step towards specializing evacuate
-    for mapfast key types.
+    Currently SetGCPercent forces a GC in order to recompute GC pacing.
+    Since we can now recompute pacing on the fly using gcSetTriggerRatio,
+    change SetGCPercent (really runtime.setGCPercent) to go through
+    gcSetTriggerRatio and not trigger a GC.
     
-    Change-Id: Icffe2759b7d38e5c008d03941918d5a912ce62f6
-    Reviewed-on: https://go-review.googlesource.com/56933
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #19076.
+    
+    Change-Id: Ib30d7ab1bb3b55219535b9f238108f3d45a1b522
+    Reviewed-on: https://go-review.googlesource.com/39835
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/hashmap.go | 43 +++++++++++++++++++++++--------------------
- 1 file changed, 23 insertions(+), 20 deletions(-)
+ src/runtime/debug/garbage.go      |  6 +-----
+ src/runtime/debug/garbage_test.go |  2 ++
+ src/runtime/mgc.go                | 31 ++++++++++++++-----------------
+ 3 files changed, 17 insertions(+), 22 deletions(-)

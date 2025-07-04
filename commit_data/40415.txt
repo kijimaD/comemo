@@ -1,18 +1,37 @@
-commit 00d6b28d4ed7b2e8be9fd2efe8f7b1908b1f3301
-Author: ZYunH <zyunhjob@163.com>
-Date:   Fri Oct 25 07:44:57 2019 +0000
+commit 49a1a01bb106f0e65a5147be5eb5f8dd60323e39
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed May 8 13:38:14 2019 -0700
 
-    internal/singleflight: format someErr
+    cmd/go: move automatic testing.Init call into generated test code
     
-    Error string should not be capitalized.
+    In CL 173722, we moved the flag registration in the testing package into
+    an Init function. In order to avoid needing changes to user code, we
+    called Init automatically as part of testing.MainStart.
     
-    Change-Id: I8e1d148c6b999450bcd702f420c2a240f82aadc7
-    GitHub-Last-Rev: 6ca1b3edb4a61723fa6472a0f54cc6329898edbc
-    GitHub-Pull-Request: golang/go#35147
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203339
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    However, that isn't early enough if flag.Parse is called before the
+    tests run, as part of package initialization.
+    
+    Fix this by injecting a bit of code to call testing.Init into test
+    packages. This runs before any other initialization code in the user's
+    test package, so testing.Init will be called before any user code can
+    call flag.Parse.
+    
+    Fixes #31859
+    
+    Change-Id: Ib42cd8d3819150c49a3cecf7eef2472319d0c7e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176098
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/singleflight/singleflight_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go                              |  6 --
+ src/cmd/go/internal/list/list.go                   |  2 +-
+ src/cmd/go/internal/load/pkg.go                    |  3 +-
+ src/cmd/go/internal/load/test.go                   | 44 +++++++++-
+ src/cmd/go/internal/test/test.go                   |  2 +-
+ src/cmd/go/internal/work/exec.go                   |  9 ++
+ src/cmd/go/testdata/flag_test.go                   |  9 +-
+ src/cmd/go/testdata/script/test_init.txt           | 98 ++++++++++++++++++++++
+ .../go/testdata/standalone_testmain_flag_test.go   | 29 -------
+ src/testing/testing.go                             |  5 ++
+ 10 files changed, 163 insertions(+), 44 deletions(-)

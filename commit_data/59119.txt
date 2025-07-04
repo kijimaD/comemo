@@ -1,22 +1,20 @@
-commit 03cb8d408e0372693f165b63dff1410c47d9cd1b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Mar 20 00:09:52 2025 +1100
+commit 720eadead23fcf76c0d783cf0b200ed252b5ea22
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Wed Feb 14 21:01:53 2024 +0000
 
-    cmd/compile/internal/ssagen: use an alias for math/bits.OnesCount
+    cmd/go: do not embed checksums when building with vendor
     
-    Currently, only amd64 has an intrinsic for math/bits.OnesCount, which
-    generates the same code as math/bits.OnesCount64. Replace this with
-    an alias that maps math/bits.OnesCount to math/bits.OnesCount64 on
-    64 bit platforms.
+    Fixes #46400
     
-    Change-Id: Ifa12a2173a201aacd52c3c22b9a948be6e314405
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659215
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Tested: Ran go test cmd/go
+    Change-Id: I60655129c55d40a70a13ed23937ef990f315fd73
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564195
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Sam Thanawalla <samthanawalla@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Commit-Queue: Sam Thanawalla <samthanawalla@google.com>
 
- src/cmd/compile/internal/ssagen/intrinsics.go      | 5 ++---
- src/cmd/compile/internal/ssagen/intrinsics_test.go | 6 ++++++
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/load/pkg.go                    |  2 +-
+ .../go/testdata/script/mod_gomodcache_vendor.txt   | 32 ++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

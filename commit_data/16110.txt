@@ -1,16 +1,12 @@
-commit 1142c2f418993b9ae635005cabb4eb93c512b74b
-Author: John Howard Palevich <jack.palevich@gmail.com>
-Date:   Sun Apr 7 04:06:11 2013 +0800
+commit 07c70629c23ae709ae387e1cfe8237ed36e71ba7
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Fri Apr 5 15:23:03 2013 -0700
 
-    cmd/go: fix capitalization of Bitbucket, document Git support
+    net/http: fix typo in ErrMissingBoundary
     
-    Fixes #5226.
-    
-    R=golang-dev, minux.ma, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8320044
+    https://golang.org/cl/8429045
 
- src/cmd/go/doc.go  | 2 +-
- src/cmd/go/help.go | 8 ++++----
- src/cmd/go/vcs.go  | 2 +-
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/net/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

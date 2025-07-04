@@ -1,12 +1,15 @@
-commit 2b600f77dd19b9d04f473eb12179437afefde26a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Dec 13 10:27:17 2011 -0500
+commit 7cf4825425be6098b95a313ebe8008ea59c23611
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Dec 13 09:15:46 2011 +0100
 
-    exp/ssh: improve client channel close behavior
+    gc: small fixes to fmt.c
     
-    R=gustav.paul
+    don't crash when printing error messages about symbols in a garbled state.
+    render OCOMPLIT in export mode.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5480062
+    https://golang.org/cl/5466045
 
- src/pkg/exp/ssh/client.go | 58 +++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 49 insertions(+), 9 deletions(-)
+ src/cmd/gc/fmt.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

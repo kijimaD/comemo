@@ -1,12 +1,31 @@
-commit ea347c0142c0cdcb268aed94952b394262358045
+commit d571c5ca78a58489a1fd223dd6749a650668ccdc
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 25 17:09:50 2012 -0800
+Date:   Wed Jan 25 16:48:06 2012 -0800
 
-    go/doc: fix typo
+    go/doc: revert API change (per former discussion) and cleanup
     
-    R=golang-dev, iant
+    Separating Method from Func made the code only more complicated
+    without adding much to the useability/readability of the API.
+    Reverted to where it was, but leaving the new method-specific
+    fields Orig and Level.
+    
+    Former clients (godoc) of doc.Method only used the Func fields;
+    and because Func was embedded, no changes are needed with respect
+    to the removal of Method.
+    
+    Changed type of Func.Recv from ast.Expr to string. This was a
+    long-standing TODO. Also implemented Func.Orig field (another TODO).
+    
+    No further go/doc API changes are expected for Go 1.
+    
+    R=rsc, r, r
     CC=golang-dev
-    https://golang.org/cl/5574071
+    https://golang.org/cl/5577043
 
- src/pkg/go/doc/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.html             |   5 +-
+ doc/go1.tmpl             |   5 +-
+ lib/godoc/package.html   |   2 +-
+ src/pkg/go/doc/doc.go    |  30 ++++-----
+ src/pkg/go/doc/filter.go |  13 +---
+ src/pkg/go/doc/reader.go | 164 ++++++++++++++++++++---------------------------
+ 6 files changed, 88 insertions(+), 131 deletions(-)

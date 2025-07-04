@@ -1,27 +1,22 @@
-commit 3c656445f139d8b6def40aa7beffd5da9fceccdb
+commit a19a4dcb987d010b5ed0cecc4b377382f42a6ecc
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 21 16:33:42 2021 -0400
+Date:   Fri Oct 30 22:13:51 2020 -0400
 
-    cmd/go: in TestScript/mod_replace, download an explicit module path
+    cmd/go/internal/mvs: in Upgrade, pass upgrades to buildList as upgrades
     
-    As of CL 318629, 'go mod download' without arguments does not save
-    checksums for module source code. Without a checksum, 'go list' will
-    not report the location of the source code even if it is present, in
-    order to prevent accidental access of mismatched code.
+    This has no impact on the resulting build list, but provides clearer
+    diagnostics if reqs.Required returns an error for one of the upgraded
+    modules.
     
-    Downloading an explicit module here also more clearly expresses the
-    intent of the test (“download this module and see where it is”), and
-    may be somewhat more efficient (since the test doesn't need source
-    code for the other modules in the build list).
+    For #37438
     
-    Updates #45332
-    
-    Change-Id: Ic589b22478e3ed140b95365bb6729101dd598ccc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321956
+    Change-Id: I5cd8f72a9b7b9a0b185e1a728f46fefbd2f09b4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266897
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/testdata/script/mod_replace.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/mvs/mvs.go      | 51 ++++++++++++++++++++++++++-----------
+ src/cmd/go/internal/mvs/mvs_test.go |  4 +--
+ 2 files changed, 38 insertions(+), 17 deletions(-)

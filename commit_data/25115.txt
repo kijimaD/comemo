@@ -1,25 +1,13 @@
-commit 0c516c16328575ab78a4cce49874955dd590efa2
-Author: INADA Naoki <songofacandy@gmail.com>
-Date:   Tue Mar 3 21:27:07 2015 +0900
+commit 59129c6a9356af5831b3f0a4bc581ba6abf26c8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 25 15:11:14 2015 -0700
 
-    database/sql: Add DB.SetConnMaxLifetime
+    math/big: remove some string conversions in Int encoding
     
-    Long lived connections may make some DB operation difficult.
-    (e.g. retiring load balanced DB server.)
-    So SetConnMaxLifetime closes long lived connections.
-    
-    It can be used to limit maximum idle time, too.
-    Closing idle connections reduces active connections while application is idle
-    and avoids connections are closed by server side (cause errBadConn while querying).
-    
-    fixes #9851
-    
-    Change-Id: I2e8e824219c1bee7f4b885d38ed96d11b7202b56
-    Reviewed-on: https://go-review.googlesource.com/6580
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1180aa3d30fb8563c8e6ecefeb3296af0a88f5a6
+    Reviewed-on: https://go-review.googlesource.com/14998
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/database/sql/sql.go      | 129 ++++++++++++++++++++++++++++++++++++++----
- src/database/sql/sql_test.go | 131 +++++++++++++++++++++++++++++++++----------
- 2 files changed, 219 insertions(+), 41 deletions(-)
+ src/math/big/intmarsh.go | 18 ++++++++++++------
+ src/math/big/ratmarsh.go |  2 ++
+ 2 files changed, 14 insertions(+), 6 deletions(-)

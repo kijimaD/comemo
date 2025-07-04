@@ -1,19 +1,15 @@
-commit df52d2ebd12687617da16b78076fc541f2622e33
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 25 10:32:46 2014 -0700
+commit ca85d572d64e6d038ac8216a39a05980320c8a03
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 18 21:06:56 2014 -0400
 
-    encoding/json: make ,string work when encoding pointer fields
+    liblink: use pc-relative addressing for all memory references in amd64 code
     
-    It was respected by unmarshal, but not marshal, so they didn't
-    round-trip.
-    
-    Fixes #8582
-    
-    LGTM=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/132960043
+    LGTM=rminnich, iant
+    R=golang-codereviews, rminnich, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/125140043
 
- src/pkg/encoding/json/encode.go      |  4 ++--
- src/pkg/encoding/json/encode_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 2 deletions(-)
+ src/cmd/6l/asm.c   | 17 +++++++++++++----
+ src/cmd/ld/data.c  | 10 +++++++---
+ src/liblink/asm6.c | 29 ++++++++---------------------
+ 3 files changed, 28 insertions(+), 28 deletions(-)

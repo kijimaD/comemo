@@ -1,21 +1,19 @@
-commit ef37184c07d501f76edfa36b8bf1101d5dc8b44d
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 6 09:01:32 2015 +1000
+commit b0da62903d045f6d3e832ba1181387a1e9ad33f1
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 29 16:20:33 2015 -0700
 
-    doc: tools for go1.5.html
+    [dev.ssa] cmd/compile/internal/ssa: Add code to test generated opcode counts
     
-    Don't know why, but git deleted the previous version of this change.
-    This is the same change as https://go-review.googlesource.com/11884,
-    which I will now abandon, with a couple of fixes.
+    Add test handler to count and check generated opcodes.  This will be
+    useful for testing that certain optimizations don't regress.
     
-    Almost all done now. Could use help with the TODOs.
+    Also pass a *Config to the Fun constructor so that compile() works.
     
-    Major missing piece is the trace command. Vendoring
-    section is also weak, but it's also undocumented elsewhere.
-    
-    Change-Id: I5d8556b23aa6628eb7bf0e330d4dd8d4ac2157c5
-    Reviewed-on: https://go-review.googlesource.com/11887
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iee679e87cf0bc635ddcbe433fc1bd4c1d9c953cc
+    Reviewed-on: https://go-review.googlesource.com/10502
+    Reviewed-by: Michael Matloob <michaelmatloob@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.5.html | 377 ++++++++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 303 insertions(+), 74 deletions(-)
+ src/cmd/compile/internal/ssa/deadcode_test.go |  9 +++--
+ src/cmd/compile/internal/ssa/func_test.go     | 54 ++++++++++++++++++++-------
+ 2 files changed, 46 insertions(+), 17 deletions(-)

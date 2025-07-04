@@ -1,125 +1,29 @@
-commit 46b7557836c8a7f8a481946eebbf4a1b0947b332
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Oct 9 10:44:33 2019 -0400
+commit 8feeada50cf3f783fe3c8113d5da51ad8c0b3014
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed Jan 30 12:38:15 2019 +0700
 
-    cmd/compile: walk progs to generate debug_lines data
+    time: fix misleading error with the leading zero format
     
-    Walking the progs is simpler than using the is_stmt symbol shenanigans.
-    This is a reinstatement of CL 196661, which was rolled back due to tests
-    failing. Unlike that original CL, this change should output the same
-    debug_lines data the original approach wrote.
+    When the leading zero format is used, we currently don't handle the
+    month and year properly.
     
-    The stats for JUST this CLC, note teh small speedup in compilation, and
-    the lack of difference in binary size.
+    For the month, we were reporting an out of range error when getnum
+    returns zero of its own, as it also returns the month 0. That's
+    confusing, so only check the range when getnum returns a nil error.
     
-    name                      old time/op       new time/op       delta
-    Template                        229ms ± 4%        218ms ± 1%  -4.95%  (p=0.000 n=10+8)
-    Unicode                        92.6ms ± 9%       88.6ms ±13%    ~     (p=0.089 n=10+10)
-    GoTypes                         850ms ± 2%        831ms ± 4%  -2.23%  (p=0.009 n=10+10)
-    Compiler                        3.99s ± 1%        3.93s ± 1%  -1.29%  (p=0.000 n=10+9)
-    SSA                             13.7s ± 1%        13.7s ± 1%    ~     (p=0.912 n=10+10)
-    Flate                           140ms ± 3%        138ms ± 3%  -1.90%  (p=0.009 n=10+10)
-    GoParser                        172ms ± 2%        169ms ± 4%    ~     (p=0.095 n=9+10)
-    Reflect                         530ms ± 3%        516ms ± 5%    ~     (p=0.052 n=10+10)
-    Tar                             202ms ± 1%        196ms ± 3%  -2.83%  (p=0.002 n=9+10)
-    XML                             280ms ± 3%        270ms ± 4%  -3.48%  (p=0.009 n=10+10)
-    LinkCompiler                    927ms ± 2%        907ms ± 4%    ~     (p=0.052 n=10+10)
-    ExternalLinkCompiler            1.97s ± 2%        1.97s ± 3%    ~     (p=0.853 n=10+10)
-    LinkWithoutDebugCompiler        549ms ± 3%        543ms ± 5%    ~     (p=0.481 n=10+10)
-    StdCmd                          12.0s ± 1%        12.0s ± 1%    ~     (p=0.905 n=9+10)
+    For the year, we don't restore the value when parsing error occurs. For
+    example, with the incorrect input "111-01", "01" will be used to report
+    an error. So restore the value when an error occurs fix the problem.
     
-    name                      old user-time/op  new user-time/op  delta
-    Template                        372ms ±18%        344ms ±11%    ~     (p=0.190 n=10+10)
-    Unicode                         264ms ±23%        241ms ±43%    ~     (p=0.315 n=8+10)
-    GoTypes                         1.56s ±22%        1.68s ± 5%    ~     (p=0.237 n=10+8)
-    Compiler                        7.41s ± 2%        7.31s ± 3%    ~     (p=0.123 n=10+10)
-    SSA                             24.5s ± 2%        24.7s ± 1%    ~     (p=0.133 n=10+9)
-    Flate                           199ms ± 6%        188ms ±28%    ~     (p=0.353 n=10+10)
-    GoParser                        243ms ±11%        240ms ± 6%    ~     (p=0.968 n=10+9)
-    Reflect                         929ms ±21%        862ms ±35%    ~     (p=0.190 n=10+10)
-    Tar                             284ms ± 9%        296ms ±17%    ~     (p=0.497 n=9+10)
-    XML                             386ms ±21%        398ms ±28%    ~     (p=1.000 n=9+10)
-    LinkCompiler                    1.13s ± 9%        1.12s ± 8%    ~     (p=0.546 n=9+9)
-    ExternalLinkCompiler            2.37s ±15%        2.30s ± 9%    ~     (p=0.549 n=10+9)
-    LinkWithoutDebugCompiler        646ms ±10%        642ms ±13%    ~     (p=0.853 n=10+10)
+    Fixes #29918
+    Fixes #29916
     
-    name                      old alloc/op      new alloc/op      delta
-    Template                       36.5MB ± 0%       36.5MB ± 0%  -0.11%  (p=0.000 n=10+9)
-    Unicode                        28.5MB ± 0%       28.5MB ± 0%    ~     (p=0.190 n=10+10)
-    GoTypes                         121MB ± 0%        121MB ± 0%  -0.10%  (p=0.000 n=9+10)
-    Compiler                        549MB ± 0%        549MB ± 0%  -0.10%  (p=0.000 n=9+10)
-    SSA                            1.92GB ± 0%       1.92GB ± 0%  -0.13%  (p=0.000 n=10+10)
-    Flate                          23.0MB ± 0%       23.0MB ± 0%  -0.07%  (p=0.000 n=10+10)
-    GoParser                       27.9MB ± 0%       27.9MB ± 0%  -0.09%  (p=0.000 n=10+10)
-    Reflect                        77.9MB ± 0%       77.8MB ± 0%  -0.13%  (p=0.000 n=9+10)
-    Tar                            34.5MB ± 0%       34.4MB ± 0%  -0.09%  (p=0.000 n=10+10)
-    XML                            44.3MB ± 0%       44.3MB ± 0%  -0.08%  (p=0.000 n=10+10)
-    LinkCompiler                    229MB ± 0%        225MB ± 0%  -1.74%  (p=0.000 n=10+10)
-    ExternalLinkCompiler            233MB ± 0%        242MB ± 0%  +3.81%  (p=0.000 n=10+10)
-    LinkWithoutDebugCompiler        156MB ± 0%        152MB ± 0%  -2.29%  (p=0.000 n=10+9)
-    
-    name                      old allocs/op     new allocs/op     delta
-    Template                         373k ± 0%         373k ± 0%  -0.21%  (p=0.000 n=10+10)
-    Unicode                          340k ± 0%         340k ± 0%  -0.04%  (p=0.000 n=10+10)
-    GoTypes                         1.33M ± 0%        1.33M ± 0%  -0.20%  (p=0.000 n=10+9)
-    Compiler                        5.39M ± 0%        5.38M ± 0%  -0.16%  (p=0.000 n=10+10)
-    SSA                             18.3M ± 0%        18.2M ± 0%  -0.15%  (p=0.000 n=10+10)
-    Flate                            235k ± 0%         234k ± 0%  -0.23%  (p=0.000 n=10+7)
-    GoParser                         309k ± 0%         308k ± 0%  -0.20%  (p=0.000 n=10+10)
-    Reflect                          970k ± 0%         968k ± 0%  -0.30%  (p=0.000 n=10+10)
-    Tar                              347k ± 0%         347k ± 0%  -0.22%  (p=0.000 n=10+10)
-    XML                              425k ± 0%         424k ± 0%  -0.16%  (p=0.000 n=10+10)
-    LinkCompiler                     602k ± 0%         601k ± 0%  -0.03%  (p=0.000 n=9+10)
-    ExternalLinkCompiler            1.65M ± 0%        1.65M ± 0%  -0.02%  (p=0.000 n=10+10)
-    LinkWithoutDebugCompiler         220k ± 0%         220k ± 0%  -0.03%  (p=0.016 n=10+9)
-    
-    name                      old object-bytes  new object-bytes  delta
-    Template                        553kB ± 0%        553kB ± 0%  -0.01%  (p=0.000 n=10+10)
-    Unicode                         215kB ± 0%        215kB ± 0%    ~     (all equal)
-    GoTypes                        2.02MB ± 0%       2.02MB ± 0%  -0.00%  (p=0.000 n=10+10)
-    Compiler                       7.98MB ± 0%       7.98MB ± 0%  -0.01%  (p=0.000 n=10+10)
-    SSA                            27.1MB ± 0%       27.1MB ± 0%  -0.00%  (p=0.000 n=10+10)
-    Flate                           340kB ± 0%        340kB ± 0%  -0.01%  (p=0.000 n=10+10)
-    GoParser                        434kB ± 0%        434kB ± 0%  -0.00%  (p=0.000 n=10+10)
-    Reflect                        1.34MB ± 0%       1.34MB ± 0%  -0.01%  (p=0.000 n=10+10)
-    Tar                             479kB ± 0%        479kB ± 0%  -0.00%  (p=0.000 n=10+10)
-    XML                             618kB ± 0%        618kB ± 0%  -0.01%  (p=0.000 n=10+10)
-    
-    name                      old export-bytes  new export-bytes  delta
-    Template                       20.4kB ± 0%       20.4kB ± 0%    ~     (all equal)
-    Unicode                        8.21kB ± 0%       8.21kB ± 0%    ~     (all equal)
-    GoTypes                        36.6kB ± 0%       36.6kB ± 0%    ~     (all equal)
-    Compiler                        116kB ± 0%        116kB ± 0%  +0.00%  (p=0.000 n=10+10)
-    SSA                             141kB ± 0%        141kB ± 0%  +0.00%  (p=0.000 n=10+10)
-    Flate                          5.10kB ± 0%       5.10kB ± 0%    ~     (all equal)
-    GoParser                       8.92kB ± 0%       8.92kB ± 0%    ~     (all equal)
-    Reflect                        11.8kB ± 0%       11.8kB ± 0%    ~     (all equal)
-    Tar                            10.9kB ± 0%       10.9kB ± 0%    ~     (all equal)
-    XML                            17.4kB ± 0%       17.4kB ± 0%    ~     (all equal)
-    
-    name                      old text-bytes    new text-bytes    delta
-    HelloSize                       742kB ± 0%        742kB ± 0%    ~     (all equal)
-    CmdGoSize                      10.6MB ± 0%       10.6MB ± 0%    ~     (all equal)
-    
-    name                      old data-bytes    new data-bytes    delta
-    HelloSize                      10.7kB ± 0%       10.7kB ± 0%    ~     (all equal)
-    CmdGoSize                       312kB ± 0%        312kB ± 0%    ~     (all equal)
-    
-    name                      old bss-bytes     new bss-bytes     delta
-    HelloSize                       122kB ± 0%        122kB ± 0%    ~     (all equal)
-    CmdGoSize                       146kB ± 0%        146kB ± 0%    ~     (all equal)
-    
-    name                      old exe-bytes     new exe-bytes     delta
-    HelloSize                      1.10MB ± 0%       1.10MB ± 0%    ~     (all equal)
-    CmdGoSize                      14.9MB ± 0%       14.9MB ± 0%  -0.03%  (p=0.000 n=10+10)
-    
-    Change-Id: Ie078a42b29353b96654fa1f0f47d600b5a53762d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200017
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Change-Id: I3145f8c46813a0457766b7c302482e6b56f94ed6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160338
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/dwarf.go | 104 +++++++++++++++---------------------------
- src/cmd/internal/obj/pcln.go  |  34 --------------
- 2 files changed, 36 insertions(+), 102 deletions(-)
+ src/time/format.go      |  7 +++++--
+ src/time/format_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 2 deletions(-)

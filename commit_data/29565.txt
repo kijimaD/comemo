@@ -1,19 +1,14 @@
-commit 0df762ed7b2ac9484a4f64450424529ecee8aa7f
-Author: Kevin Burke <kev@inburke.com>
-Date:   Thu Nov 3 15:34:05 2016 -0700
+commit fd296282e0a5058351954f1a7ea2dac5ef87f052
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Sep 19 14:14:58 2016 -0400
 
-    net: add example for CIDRMask
+    cmd/dist: enable plugin test on darwin/amd64
     
-    I had trouble translating the documentation language into a subnet
-    - e.g. whether /31 was CIDRMask(1, 31) or CIDRMask(1, 32) or
-    CIDRMask(31, 32) so I thought I'd add a short example showing how to
-    create the right masks.
-    
-    Change-Id: Ia6a6de08c5c30b6d2249b3194cced2d3c383e317
-    Reviewed-on: https://go-review.googlesource.com/32677
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6071881a5f7b9638bca0bfef76d6f4f45c9202a6
+    Reviewed-on: https://go-review.googlesource.com/29396
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/example_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/dist/test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

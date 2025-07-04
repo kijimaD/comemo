@@ -1,15 +1,22 @@
-commit 7ef28cbd12d1777748affe9dccf20679665c06f9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 25 07:01:45 2020 -0700
+commit 40ebcfaa174a0e789cd214236d9edaaa8a8262d3
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 29 14:24:43 2019 -0400
 
-    testing: give short package variable a longer name
+    cmd/compile: enable nil check logging for other architectures.
     
-    (Update to CL 229837)
-    
-    Change-Id: Ieab46bd384f76f678ef0d6a38dc043bc4b0c458a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230157
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If82ebd9cd6470863eb5de9e031e7905a66218857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204159
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/testing/testing.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go  | 2 +-
+ src/cmd/compile/internal/arm/ssa.go    | 4 ++++
+ src/cmd/compile/internal/arm64/ssa.go  | 4 ++++
+ src/cmd/compile/internal/mips/ssa.go   | 4 ++++
+ src/cmd/compile/internal/mips64/ssa.go | 4 ++++
+ src/cmd/compile/internal/ppc64/ssa.go  | 4 ++++
+ src/cmd/compile/internal/s390x/ssa.go  | 4 ++++
+ src/cmd/compile/internal/wasm/ssa.go   | 4 ++++
+ src/cmd/compile/internal/x86/ssa.go    | 4 ++++
+ 9 files changed, 33 insertions(+), 1 deletion(-)

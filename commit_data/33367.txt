@@ -1,30 +1,17 @@
-commit eb2b0ed5b59cfb340de0118235bfda60e0de4a8d
-Author: Evan Jones <ej@evanjones.ca>
-Date:   Wed Nov 1 12:44:14 2017 -0400
+commit 445717530ca2e2d5e9a6fc21b0222206f22e64d9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 7 09:55:05 2017 -0700
 
-    syscall: use setattrlist for UtimesNano on Darwin for ns resolution
+    runtime: refactor out tophash calculation
     
-    Mac OS X 10.13 introduced APFS which stores nanosecond resolution
-    timestamps. The implementation of os.Stat already returns full
-    resolution timestamps, but os.Chtimes only sets timestamps with
-    microsecond resolution.
+    No functional changes; tophash is inlined.
     
-    Fix this by using setattrlist on Darwin, which takes a struct timeval
-    with nanosecond resolution. This is what Mac OS X 10.13 appears uses
-    to implement utimensat, according to dtruss.
-    
-    Fixes #22528
-    
-    Change-Id: I397dabef6b2b73a081382999aa4c4405ab8c6015
-    Reviewed-on: https://go-review.googlesource.com/74952
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic8ce95b3622eafbddcfbc97f8c630ab8c5bfe7ad
+    Reviewed-on: https://go-review.googlesource.com/55233
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/syscall_bsd.go       |  7 ++++++-
- src/syscall/syscall_darwin.go    | 30 ++++++++++++++++++++++++++++++
- src/syscall/syscall_dragonfly.go |  5 +++++
- src/syscall/syscall_freebsd.go   |  5 +++++
- src/syscall/syscall_netbsd.go    |  5 +++++
- src/syscall/syscall_openbsd.go   |  5 +++++
- 6 files changed, 56 insertions(+), 1 deletion(-)
+ src/runtime/hashmap.go      | 39 +++++++++++++++------------------------
+ src/runtime/hashmap_fast.go | 40 ++++++++--------------------------------
+ 2 files changed, 23 insertions(+), 56 deletions(-)

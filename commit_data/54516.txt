@@ -1,25 +1,23 @@
-commit 4d700a719bacb4286032c66e4e68d74024f8e748
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Tue Sep 19 17:03:45 2023 -0400
+commit 3afba3124df90f1b2f56d3324793f16649a2d93a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 12:53:30 2022 -0400
 
-    net/http: test index exhaustively
+    all: remove uses of rand.Seed
     
-    Replace the fuzz test with one that enumerates all relevant patterns
-    up to a certain length.
+    As of CL 443058, rand.Seed is not necessary to call,
+    nor is it a particular good idea.
     
-    For conflict detection, we don't need to check every possible method,
-    host and segment, only a few that cover all the possibilities. There
-    are only 2400 distinct patterns in the corpus we generate, and the
-    test generates, indexes and compares them all in about a quarter of a
-    second.
+    For #54880.
     
-    Change-Id: I9fde88e87cec07b1b244306119e4e71f7205bb77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529556
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: If9d70763622c09008599db8c97a90fcbe285c6f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445395
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/http/routing_index_test.go                 | 240 ++++++++-------------
- .../http/testdata/fuzz/FuzzIndex/48161038f0c8b2da  |   2 -
- .../http/testdata/fuzz/FuzzIndex/716514f590ce7ab3  |   2 -
- 3 files changed, 93 insertions(+), 151 deletions(-)
+ src/cmd/compile/internal/ssagen/pgen.go |  9 ---------
+ src/crypto/rand/rand_batched_test.go    |  5 -----
+ src/math/rand/example_test.go           | 24 ------------------------
+ src/strconv/atof_test.go                |  2 --
+ 4 files changed, 40 deletions(-)

@@ -1,40 +1,11 @@
-commit 64c2083ebc4a071f842368154c77601e9463f5d5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 14 20:56:37 2014 -0400
+commit 81e661aa4556901de303e2a87e078896a53df6a6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 14 15:45:14 2014 -0700
 
-    runtime: refactor routines for stopping, running goroutine from m
+    doc/go1.4.txt: permit for range x
     
-    This CL adds 'dropg', which is called to drop the association
-    between m and its current goroutine, and it makes schedule
-    handle locked goroutines correctly, instead of requiring all
-    callers of schedule to do that.
-    
-    The effect is that if you want to take over an m for, say,
-    garbage collection work while still allowing the current g
-    to run on some other m, you can do an mcall to a function
-    that is:
-    
-            // dissociate gp
-            dropg();
-            gp->status = Gwaiting; // for ready
-    
-            // put gp on run queue for others to find
-            runtime·ready(gp);
-    
-            /* ... do other work here ... */
-    
-            // done with m, let it run goroutines again
-            schedule();
-    
-    Before this CL, the dropg() body had to be written explicitly,
-    and the check for lockedg before schedule had to be
-    written explicitly too, both of which make the code a bit
-    more fragile than it needs to be.
-    
-    LGTM=iant
-    R=dvyukov, iant
-    CC=golang-codereviews, rlh
-    https://golang.org/cl/113110043
+    CC=golang-codereviews
+    https://golang.org/cl/110640044
 
- src/pkg/runtime/proc.c | 47 +++++++++++++++++++++++++++++++----------------
- 1 file changed, 31 insertions(+), 16 deletions(-)
+ doc/go1.4.txt | 2 ++
+ 1 file changed, 2 insertions(+)

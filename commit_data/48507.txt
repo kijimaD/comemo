@@ -1,22 +1,16 @@
-commit 0eb2c771248c74e462d3ed77dab23bb2de566de1
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Mar 23 01:27:11 2022 +0700
+commit a92460fd2f5537bbd91a713ced00731d429563ac
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 26 12:18:32 2021 -0400
 
-    cmd/compile: remove types.Field.{Broken,SetBroken}
+    doc/go1.17: add release notes for runtime/metrics package
     
-    SetBroken is never called and Broken always returns false.
+    Updates #44513.
     
-    Updates #51691
-    
-    Change-Id: I7e3fd3f2121268596d2e93a28c69e895bcf802ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394558
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I571a791e9c76371be3b3f1a323f1ea8ff485cf0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322857
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/typecheck/stmt.go      | 4 ++--
- src/cmd/compile/internal/typecheck/subr.go      | 3 ---
- src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
- src/cmd/compile/internal/types/type.go          | 3 ---
- 4 files changed, 3 insertions(+), 9 deletions(-)
+ doc/go1.17.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

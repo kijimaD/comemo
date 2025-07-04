@@ -1,14 +1,20 @@
-commit 86092b3d450da7f4075d96c4b0cb27c31500bcc8
-Author: Michael Lewis <mikelikespie@gmail.com>
-Date:   Tue Apr 3 15:36:48 2012 -0700
+commit 7a33265ccdf37b7f15125f7e561e4da3a0e0ad9d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 4 06:54:39 2012 +1000
 
-    sql: Propagate error from subsetTypeArgs in Exec
+    time.RFC822: make the string standard-compliant
+    For mysterious reasons, the existing string was just wrong: it was missing a colon.
+    There is no apparent reason for this discrepancy.
     
-    Fixes #3449
+    This should be safe to fix because existing uses would not be RFC822-compliant;
+    people cannot be depending on it to generate correct mail headers.
     
-    R=golang-dev
-    CC=bradfitz, golang-dev
-    https://golang.org/cl/5970076
+    Fixes #3444.
+    
+    R=golang-dev, dsymonds, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/5969072
 
- src/pkg/database/sql/sql.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/time/format.go    | 4 ++--
+ src/pkg/time/time_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

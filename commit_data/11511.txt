@@ -1,17 +1,12 @@
-commit c86e03975ce6fd0fcf7dcf35e8110057234170ab
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jan 31 11:22:47 2012 -0500
+commit 31d908baaf480db25db3d1fa2c229410fa0e76c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 31 11:20:34 2012 -0500
 
-    crypto/tls: better error message when connecting to SSLv3 servers.
+    net: fix windows build
     
-    We support SSLv3 as a server but not as a client (and we don't want to
-    support it as a client). This change fixes the error message when
-    connecting to an SSLv3 server since SSLv3 support on the server side
-    made mutualVersion accept SSLv3.
-    
-    R=golang-dev, rsc
+    TBR=mikioh
     CC=golang-dev
-    https://golang.org/cl/5545073
+    https://golang.org/cl/5588048
 
- src/pkg/crypto/tls/handshake_client.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_windows.go | 1 +
+ 1 file changed, 1 insertion(+)

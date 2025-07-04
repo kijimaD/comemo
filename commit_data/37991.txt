@@ -1,29 +1,19 @@
-commit f8abdd6c8a6bb4882e708f87d1e83ba5f897aeff
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 13 16:38:01 2019 -0800
+commit 9a033bf9d3f5f7485d82836ec95e51a3fa74a926
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Sep 20 01:26:17 2018 +0000
 
-    cmd/gofmt: normalize integer imaginary literals starting with 0
+    cmd/compile: optimize 386's assembly generator
     
-    An 'i' suffix on an integer literal marks the integer literal as
-    a decimal integer imaginary value, even if the literal without the
-    suffix starts with a 0 and thus looks like an octal value:
+    The ADDconstmodify has similar logic with other constmodify like
+    instructions. This CL optimize them to share code via fallthrough.
+    And the size of pkg/linux_386/cmd/compile/internal/x86.a decreases
+    about 0.3KB.
     
-            0123i == 123i // != 0123 * 1i
-    
-    This is at best confusing, and at worst a potential source of bugs.
-    It is always safe to rewrite such literals into the equivalent
-    literal without the leading 0.
-    
-    This CL implements this normalization.
-    
-    Change-Id: Ib77ad535f98b5be912ecbdec20ca1b472c1b4973
-    Reviewed-on: https://go-review.googlesource.com/c/162538
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibdf06228afde875e8fe8e30851b50ca2be513dd9
+    Reviewed-on: https://go-review.googlesource.com/136398
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/gofmt/gofmt.go                   | 51 ++++++++++++++++++++++++--------
- src/cmd/gofmt/testdata/go2numbers.golden | 14 ++++++++-
- src/cmd/gofmt/testdata/go2numbers.input  | 12 ++++++++
- 3 files changed, 63 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/x86/ssa.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

@@ -1,15 +1,15 @@
-commit 609d996fac7f68b34032572b7bde627f658b95f2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 6 14:17:48 2014 -0400
+commit 2fa3e43fae867f5b8757780eb2bbf7444b56f5d5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 25 12:52:05 2014 -0700
 
-    cmd/8l: accept R_386_GOT32 in push instruction
+    spec: clarify scope and re-use of iteration variables
     
-    Fixes #8382.
+    Fixes #7834.
     
-    LGTM=iant
-    R=iant
+    LGTM=iant, rsc, r
+    R=r, rsc, iant, ken
     CC=golang-codereviews
-    https://golang.org/cl/149540045
+    https://golang.org/cl/148940044
 
- src/cmd/8l/asm.c | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

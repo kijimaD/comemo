@@ -1,14 +1,63 @@
-commit c6d660a330cc12849aceb27b72abc74eb54393fe
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Fri Dec 4 16:31:20 2015 -0700
+commit 608c1b0d56200a66e4e0a0f9902f0b5103683e60
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 24 14:39:27 2015 -0400
 
-    net/http: make TestRedirect also test in http2 mode
+    runtime: scan objects with finalizers concurrently
     
-    Change-Id: Idfbe91abc11b2b3b735cd8d11fb1938f9e5c0473
-    Reviewed-on: https://go-review.googlesource.com/17437
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This reduces pause time by ~25% relative to tip and by ~50% relative
+    to Go 1.5.1.
+    
+    Currently one of the steps of STW mark termination is to loop (in
+    parallel) over all spans to find objects with finalizers in order to
+    mark all objects reachable from these objects and to treat the
+    finalizer special as a root. Unfortunately, even if there are no
+    finalizers at all, this loop takes roughly 1 ms/heap GB/core, so
+    multi-gigabyte heaps can quickly push our STW time past 10ms.
+    
+    Fix this by moving this scan from mark termination to concurrent scan,
+    where it can run in parallel with mutators. The loop itself could also
+    be optimized, but this cost is small compared to concurrent marking.
+    
+    Making this scan concurrent introduces two complications:
+    
+    1) The scan currently walks the specials list of each span without
+    locking it, which is safe only with the world stopped. We fix this by
+    speculatively checking if a span has any specials (the vast majority
+    won't) and then locking the specials list only if there are specials
+    to check.
+    
+    2) An object can have a finalizer set after concurrent scan, in which
+    case it won't have been marked appropriately by concurrent scan. If
+    the finalizer is a closure and is only reachable from the special, it
+    could be swept before it is run. Likewise, if the object is not marked
+    yet when the finalizer is set and then becomes unreachable before it
+    is marked, other objects reachable only from it may be swept before
+    the finalizer function is run. We fix this issue by making
+    addfinalizer ensure the same marking invariants as markroot does.
+    
+    For multi-gigabyte heaps, this reduces max pause time by 20%–30%
+    relative to tip (depending on GOMAXPROCS) and by ~50% relative to Go
+    1.5.1 (where this loop was neither concurrent nor parallel). Here are
+    the results for the garbage benchmark:
+    
+                   ---------------- max pause ----------------
+    Heap   Procs   Concurrent scan   STW parallel scan   1.5.1
+    24GB     12         18ms              23ms            37ms
+    24GB      4         18ms              25ms            37ms
+     4GB      4         3.8ms            4.9ms           6.9ms
+    
+    In all cases, 95%ile pause time is similar to the max pause time. This
+    also improves mean STW time by 10%–30%.
+    
+    Fixes #11485.
+    
+    Change-Id: I9359d8c3d120a51d23d924b52bf853a1299b1dfd
+    Reviewed-on: https://go-review.googlesource.com/14982
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/request_test.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/runtime/mgc.go     | 20 ++++++++++++++++++
+ src/runtime/mgcmark.go | 57 +++++++++++++++++++++++++++++++++++++++++++++++---
+ src/runtime/mheap.go   | 25 ++++++++++++++++++++--
+ 3 files changed, 97 insertions(+), 5 deletions(-)

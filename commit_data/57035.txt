@@ -1,27 +1,23 @@
-commit b60f88d81022e4172e44aef2f0bdade87ed6916d
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Jul 29 17:40:10 2024 +0000
+commit 1fd3cc7cd095377f8a742d55b6c04516b9139b03
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 9 19:59:37 2023 -0700
 
-    cmd/internal/script: new hook for adding in toolchain script conditions
+    cmp, builtin: document NaN behavior
     
-    Introduce a new function AddToolChainScriptConditions that augments a
-    default "script.Cond" set with a collection of useful conditions,
-    including godebug/goexperiment, cgo, race support, buildmode, asan,
-    msan, and so on. Having these conditions available makes it easier to
-    write script tests that deal with specific build-flavor corner cases.
-    The functions backing the new conditions are helper functions migrated
-    over from the Go command's script test setup.
+    Add notes for cmp.Ordered and builtin.{min,max}.
     
-    Updates #68606.
+    Fixes #60648
     
-    Change-Id: I14def1115b54dc47529c983abcd2c5ea9326b9de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601715
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I81806af2d9a0613befde3f2bbfbc2720f0726912
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502235
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- .../compile/testdata/script/script_test_basics.txt |   1 +
- src/cmd/go/script_test.go                          |   2 +-
- src/cmd/go/scriptconds_test.go                     |  88 +---------------
- src/cmd/internal/script/scripttest/conditions.go   | 116 +++++++++++++++++++++
- src/cmd/internal/script/scripttest/run.go          |  12 +--
- 5 files changed, 126 insertions(+), 93 deletions(-)
+ src/builtin/builtin.go | 4 ++++
+ src/cmp/cmp.go         | 5 +++++
+ 2 files changed, 9 insertions(+)

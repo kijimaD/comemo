@@ -1,19 +1,18 @@
-commit 3033ef00164c5c38a25a33aae1720d216ffafb58
-Author: Alexander Musman <alexander.musman@gmail.com>
-Date:   Fri Mar 7 21:49:56 2025 +0300
+commit 519a7bb1e77365b0ce056215dc70687666fc3c5b
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Wed Feb 21 02:23:29 2024 +0000
 
-    cmd/compile: Remove unused 'NoInline' field from CallExpr stucture
+    crypto/x509: fix typo
     
-    Remove the 'NoInline' field from CallExpr stucture, as it's no longer
-    used after enabling of tail call inlining.
-    
-    Change-Id: Ief3ada9938589e7a2f181582ef2758ebc4d03aad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655816
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I0911c59280e4a208a3deee1f70b47adc60fb734b
+    GitHub-Last-Rev: 12e95ade68c2f2dd8f87126eae9f3a75841ec8bc
+    GitHub-Pull-Request: golang/go#65833
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565439
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 2 +-
- src/cmd/compile/internal/ir/expr.go    | 1 -
- 2 files changed, 1 insertion(+), 2 deletions(-)
+ src/crypto/x509/hybrid_pool_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

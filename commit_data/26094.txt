@@ -1,22 +1,13 @@
-commit 0de0cafb9f5b20058741c68c8dddf79ffc8492d7
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Wed Jan 27 16:31:24 2016 +0000
+commit 2ae895c0ce36ffb607442ff053bd19cb5fcd6fd6
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Dec 16 11:26:26 2015 -0800
 
-    runtime: new files for plan9_arm support
+    archive/tar: spell license correctly in example
     
-    Implementation more or less follows plan9_386 version.
-    Revised 7 March to correct a bug in runtime.seek and
-    tidy whitespace for 8-column tabs.
-    
-    Change-Id: I2e921558b5816502e8aafe330530c5a48a6c7537
-    Reviewed-on: https://go-review.googlesource.com/18966
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ice85d161f026a991953bd63ecc6ec80f8d06dfbd
+    Reviewed-on: https://go-review.googlesource.com/17901
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/defs_plan9_arm.go               |  63 ++++++
- src/runtime/internal/atomic/sys_plan9_arm.s |  11 +
- src/runtime/os_plan9_arm.go                 |  17 ++
- src/runtime/rt0_plan9_arm.s                 |  17 ++
- src/runtime/sys_plan9_arm.s                 | 318 ++++++++++++++++++++++++++++
- 5 files changed, 426 insertions(+)
+ src/archive/tar/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

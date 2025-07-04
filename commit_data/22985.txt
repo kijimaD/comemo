@@ -1,28 +1,14 @@
-commit f8d14fc3a00052727c717f62908a9db661483093
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 6 12:28:19 2015 -0400
+commit 449969a4ac5e9e1e5c41dac645e2b75a8a95fc08
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 16 10:08:20 2015 -0700
 
-    cmd/internal/gc: add backend ginscmp function to emit a comparison
+    cmd/internal/ld, cmd/dist: support -buildmode=c-archive on linux
     
-    This lets us abstract away which arguments can be constants and so on
-    and lets the back ends reverse the order of arguments if that helps.
-    
-    Change-Id: I283ec1d694f2dd84eba22e5eb4aad78a2d2d9eb0
-    Reviewed-on: https://go-review.googlesource.com/9810
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I8c97751a79b57197428b0f0b66fc9575708a2eb0
+    Reviewed-on: https://go-review.googlesource.com/8979
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/5g/cgen.go          | 22 -------------
- src/cmd/5g/galign.go        |  1 +
- src/cmd/5g/ggen.go          | 18 +++++++++++
- src/cmd/6g/galign.go        |  1 +
- src/cmd/6g/gsubr.go         | 36 +++++++++++++++++++++
- src/cmd/7g/galign.go        |  1 +
- src/cmd/7g/gsubr.go         | 28 ++++++++++++++++
- src/cmd/8g/galign.go        |  1 +
- src/cmd/8g/gsubr.go         | 39 ++++++++++++++++++++++
- src/cmd/9g/galign.go        |  1 +
- src/cmd/9g/gsubr.go         | 28 ++++++++++++++++
- src/cmd/internal/gc/cgen.go | 79 +++++++--------------------------------------
- src/cmd/internal/gc/gen.go  | 12 +++----
- src/cmd/internal/gc/go.go   | 15 ++++++++-
- 14 files changed, 183 insertions(+), 99 deletions(-)
+ src/cmd/dist/test.go       | 23 +++++++++++++++++++++--
+ src/cmd/internal/ld/lib.go |  4 +++-
+ 2 files changed, 24 insertions(+), 3 deletions(-)

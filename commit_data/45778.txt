@@ -1,16 +1,35 @@
-commit bcecae2af6ee43abebf84411385d538ec4e7d0ea
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 8 12:42:02 2021 -0700
+commit 041a4e4c34e21d769de35c54a86b32cdb0475f65
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 22:23:48 2020 -0800
 
-    doc/go1.17: mention new possibility of type conversion panicking
+    go/types: add test case for incorrect map index expression
     
-    For #44513
-    For #46020
+    The existing code for map index expressions checked the
+    wrong variable (x rather than key) to see if the index
+    assignment was correct. Since x.mode was always valid in
+    that case, type-checking didn't follow the error exit in
+    case of an incorrect map index expression.
     
-    Change-Id: I07c7a4268465c536d1866cc6bb1fad76b2b88b15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326149
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    However, since we know the correct map element type
+    irrespective of the validity of the map key, the existing
+    code path is preferrable over exiting early via an error
+    because the map index expression returns a valid type which
+    then can be used for further type-checking.
+    
+    Removed the unneeded 'if' statement and added a test case
+    producing the expected two errors (rather than only one if
+    we would "correct" the 'if' statement instead).
+    
+    In summary, this commit adds a test but doesn't change the
+    behavior of type-checking of map index expressions.
+    
+    Change-Id: I67845bfaa03600c9400f9a1462d7a68a66921ad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270658
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go1.17.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/go/types/expr.go            | 4 +---
+ src/go/types/testdata/expr3.src | 1 +
+ 2 files changed, 2 insertions(+), 3 deletions(-)

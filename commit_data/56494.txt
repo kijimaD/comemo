@@ -1,24 +1,19 @@
-commit 7730e5b78308b966a1fe913cdd3086c84e0a2e25
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Mar 11 17:16:44 2024 -0400
+commit a2737b1aab2d351792291c5967147220f9327dc4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 9 19:48:29 2023 +0000
 
-    go/ast: add Preorder go1.23 iterator
+    runtime: hide trace lock init details
     
-    This CL adds a new function Preorder that makes it
-    easier to iterate over the nodes of a syntax tree.
-    In particular, break, continue, and return retain
-    their usual continuations.
+    This change is in service of hiding more execution trace implementation
+    details for big changes to come.
     
-    Fixes #66339
-    
-    Change-Id: I438b3c23780c91ed589871ad3b8822d54e8fabc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570680
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I49b9716a7bf285d23c86b58912a05eff4ddc2213
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494182
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/66339.txt                         |  1 +
- doc/next/6-stdlib/99-minor/go/ast/66339.md |  2 ++
- src/go/ast/example_test.go                 | 35 ++++++++++++++++++++++++++++++
- src/go/ast/walk.go                         | 22 ++++++++++++++++++-
- 4 files changed, 59 insertions(+), 1 deletion(-)
+ src/runtime/proc.go  | 5 +----
+ src/runtime/trace.go | 8 ++++++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

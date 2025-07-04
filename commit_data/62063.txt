@@ -1,0 +1,20 @@
+commit 90ec9996cb6e7ea98ffeab1b6e28037d79e81026
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jan 24 14:08:03 2025 -0800
+
+    crypto/pbkdf2: add keyLength limit
+    
+    As specified by RFC 8018. Also prevent unexpected overflows on 32 bit
+    systems.
+    
+    Change-Id: I50c4a177b7d1ebb15f9b3b96e515d93f19d3f68e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644122
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/crypto/internal/fips140/pbkdf2/pbkdf2.go | 20 ++++++++++++++++++-
+ src/crypto/pbkdf2/pbkdf2.go                  |  3 +++
+ src/crypto/pbkdf2/pbkdf2_test.go             | 30 ++++++++++++++++++++++++++++
+ 3 files changed, 52 insertions(+), 1 deletion(-)

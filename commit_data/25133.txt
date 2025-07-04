@@ -1,14 +1,20 @@
-commit d5e8f4dbb8b8c7ae4892ada9a3d1780f4f891c26
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 3 18:47:37 2015 +0000
+commit 7e1d1f899cbfb302447324e96da0e913ef94096c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 29 15:34:29 2015 -0700
 
-    doc: remove shallow clone mention from go1.6.txt
+    go/types: move gotype command into this directory
     
-    It was reverted.
+    This is a copy of x/tools/cmd/gotype/gotype.go with the corresponding
+    x/tools/cmd/gotype/doc.go prepended and including a build tag (ignore).
     
-    Change-Id: Ie30d8df9f2e5b14ff823fe81f5e538ee47064662
-    Reviewed-on: https://go-review.googlesource.com/17317
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This way, go/types can be built unaffected. If we need the gotype command,
+    it is trivially built in the go/types directory with: go build gotype.go .
+    
+    Fixes #12303.
+    
+    Change-Id: I2d792fcb39719cc5cc300f657e4735901cd20faa
+    Reviewed-on: https://go-review.googlesource.com/15152
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.6.txt | 1 -
- 1 file changed, 1 deletion(-)
+ src/go/types/gotype.go | 322 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 322 insertions(+)

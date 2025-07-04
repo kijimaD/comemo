@@ -1,16 +1,18 @@
-commit bfccf4071eb9401cb906b203659010f9422c524f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 26 15:02:55 2016 -0400
+commit 8677cad1992af3ba4ce7cdfdaca8bcdbf320eaa8
+Author: Christopher Nelson <nadiasvertex@gmail.com>
+Date:   Thu Mar 31 16:22:54 2016 -0400
 
-    cmd/dist: drop ppc64le from testcshared
+    cmd/link: Replace fmt.Sprintf with filepath.Join
     
-    I'm glad my CL fixed the library use case inside Google.
-    It fixes neither of the two tests here.
+    In a number of places the code was joining filepaths explicitly with
+    "/", instead of using filepath.Join. This may cause problems on Windows
+    (or other) platforms.
     
-    Change-Id: Ica91722dced8955a0a8ba3aad3d288816b46564e
-    Reviewed-on: https://go-review.googlesource.com/23482
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This is in support of https://go-review.googlesource.com/#/c/18057
+    
+    Change-Id: Ieb1334f35ddb2e125be690afcdadff8d7b0ace10
+    Reviewed-on: https://go-review.googlesource.com/21369
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

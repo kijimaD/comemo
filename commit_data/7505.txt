@@ -1,14 +1,20 @@
-commit d3ac545f80a17772baf0795733c78fac7f1d8b84
+commit afac1c26549eb134e27cf208ba44430e1f48a93f
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 18 11:35:43 2011 -0500
+Date:   Fri Feb 18 11:35:36 2011 -0500
 
-    runtime: record $GOROOT_FINAL for runtime.GOROOT
+    ld: drop rpath
+    
+    Was required by old cgo but we don't
+    generate stub .so files anymore.
     
     Update #1527.
     
-    R=adg, oerdnj
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/4171060
+    https://golang.org/cl/4168056
 
- src/pkg/runtime/Makefile | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5l/obj.c   | 4 +---
+ src/cmd/6l/obj.c   | 4 +---
+ src/cmd/8l/obj.c   | 3 ---
+ src/cmd/ld/macho.c | 7 -------
+ 4 files changed, 2 insertions(+), 16 deletions(-)

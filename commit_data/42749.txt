@@ -1,21 +1,18 @@
-commit 78a1064d5dd05fc669342df3a6a5e11d49749d85
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Jul 27 14:05:05 2020 -0700
+commit f81594e1e395a17e8d762f8984bb80fa063f64f3
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jan 14 13:58:50 2020 -0500
 
-    runtime: remove scase.releasetime field
+    cmd/go/testdata/script: skip cover_cgo.* tests in short mode
     
-    selectgo will report at most one block event, so there's no need to
-    keep a releasetime for every select case. It suffices to simply track
-    the releasetime of the case responsible for the wakeup.
+    The original tests called tooSlow, but I neglected to skip in short
+    mode on golang.org/cl/212621
     
-    Updates #40410.
-    
-    Change-Id: I72679cd43dde80d7e6dbab21a78952a4372d1e79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/245122
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ifb5b8a405094b2ba53419184fa358b1e51e7b123
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214698
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/select.go |  1 -
- src/runtime/select.go                 | 23 ++++++++++-------------
- 2 files changed, 10 insertions(+), 14 deletions(-)
+ src/cmd/go/testdata/script/cover_cgo.txt            | 1 +
+ src/cmd/go/testdata/script/cover_cgo_extra_file.txt | 1 +
+ src/cmd/go/testdata/script/cover_cgo_extra_test.txt | 1 +
+ src/cmd/go/testdata/script/cover_cgo_xtest.txt      | 1 +
+ 4 files changed, 4 insertions(+)

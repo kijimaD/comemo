@@ -1,22 +1,12 @@
-commit 0389051aac628de7a5a93fb2a7e107bb2daba9b0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 10 11:09:56 2011 -0700
+commit 69a91663d25df694ec3a85d32b77c37444f1dac6
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue May 10 13:47:56 2011 -0400
 
-    go/ast, go/doc, godoc: consider struct fields and interface methods when filtering ASTs
+    runtime: add newline to "finalizer already set" error
     
-    So far, only top-level names where considered when trimming ASTs
-    using a filter function. For instance, "godoc reflect Implements"
-    didn't show the "Implements" method of the type Interface because
-    the local method name was not considered (on the other hand, "top-
-    level" declared methods associated with types were considered).
-    
-    With this CL, AST filter functions look also at struct fields
-    and interface methods.
-    
-    R=rsc, r
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4518050
+    https://golang.org/cl/4523047
 
- src/pkg/go/ast/filter.go | 59 +++++++++++++++++++++++++++++++++++++++---------
- src/pkg/go/doc/doc.go    | 34 +++++-----------------------
- 2 files changed, 54 insertions(+), 39 deletions(-)
+ src/pkg/runtime/malloc.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

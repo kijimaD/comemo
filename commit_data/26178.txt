@@ -1,28 +1,17 @@
-commit 0cff505871434711804308152679840505e8a824
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 9 20:45:18 2016 -0800
+commit b6473ff132d580ca7ca1ff6d6523fa595016a8a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 16:15:36 2015 -0500
 
-    cmd/compile: add Recv0 and Field helper methods for Type
+    cmd/dist: run wiki, shootout etc tests only on builders
     
-    Accessing the n'th field of a struct is fairly common, and in
-    particular accessing the 0'th field of the receiver parameter list is
-    very common. Add helper methods for both of these tasks and update
-    code to make use of them.
+    These find approximately nothing.
+    Takes 5% off my all.bash run time.
     
-    Change-Id: I81f551fecdca306b3800636caebcd0dc106f2ed7
-    Reviewed-on: https://go-review.googlesource.com/20498
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    For #10571.
+    
+    Change-Id: I21d3a844af756eb37f59bba0064f24995626da0d
+    Reviewed-on: https://go-review.googlesource.com/18198
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/cgen.go      |  8 +++---
- src/cmd/compile/internal/gc/dcl.go       |  4 +--
- src/cmd/compile/internal/gc/esc.go       |  4 +--
- src/cmd/compile/internal/gc/export.go    |  4 +--
- src/cmd/compile/internal/gc/gsubr.go     |  2 +-
- src/cmd/compile/internal/gc/inl.go       |  6 ++--
- src/cmd/compile/internal/gc/reflect.go   |  4 +--
- src/cmd/compile/internal/gc/ssa.go       |  2 +-
- src/cmd/compile/internal/gc/subr.go      |  4 +--
- src/cmd/compile/internal/gc/type.go      | 47 +++++++++++++++++---------------
- src/cmd/compile/internal/gc/typecheck.go |  8 +++---
- 11 files changed, 48 insertions(+), 45 deletions(-)
+ src/cmd/dist/test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,40 +1,28 @@
-commit 48ec5122ff439ae2c8619fb29a82339555403a9f
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Sep 24 11:16:52 2017 +0100
+commit f425f549573e5017861216d62ccb22ee37b68004
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 6 15:08:59 2017 -0700
 
-    cmd/go: move GOOS/GOARCH and tags checks to Init
+    runtime: intercept munmap as we do mmap
     
-    They were in Do, which is the method that actually starts the build.
-    However, we can already run these checks in Init, since we already have
-    all the information necessary to do the checks.
+    For cgo programs on linux-amd64 we call the C function mmap.
+    This supports programs such as the C memory sanitizer that need to
+    intercept all calls to mmap. It turns out that there are programs that
+    intercept both mmap and munmap, or that at least expect that if they
+    intercept mmap, they also intercept munmap. So, if we permit mmap
+    to be intercepted, also permit munmap to be intercepted.
     
-    More importantly, some work happens between Init and Do, namely package
-    loading. That may exit with an error, meaning that in some cases the
-    user gets a confusing error instead of the correct one.
+    No test, as it requires two odd things: a C program that intercepts
+    mmap and munmap, and a Go program that calls munmap.
     
-    For example, using a GOOS typo, before showed:
-    
-            $ GOOS=windwos go build
-            can't load package: package p: build constraints exclude all Go files in ...
-    
-    And now:
-    
-            $ GOOS=windwos go build
-            cmd/go: unsupported GOOS/GOARCH pair windwos/amd64
-    
-    Also had to tweak TestGoEnv to modify GOOS as well as GOARCH. Otherwise,
-    on windows this would result in the invalid GOOS/GOARCH pair
-    windows/arm, which would error given that we now check that in non-build
-    commands such as "go env".
-    
-    Fixes #21999.
-    
-    Change-Id: Iff9890dea472bff0179a9d703d6f698a0e3187c1
-    Reviewed-on: https://go-review.googlesource.com/65656
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Iec33f47d59f70dbb7463fd12d30728c24cd4face
+    Reviewed-on: https://go-review.googlesource.com/45016
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/go_test.go             | 10 ++++++++++
- src/cmd/go/internal/work/build.go | 22 +++++++++++-----------
- 2 files changed, 21 insertions(+), 11 deletions(-)
+ src/runtime/cgo/gcc_mmap.c    | 14 ++++++++++++++
+ src/runtime/cgo/mmap.go       |  9 +++++++++
+ src/runtime/cgo_mmap.go       | 20 ++++++++++++++++++++
+ src/runtime/mmap.go           |  3 +++
+ src/runtime/stubs2.go         |  2 --
+ src/runtime/sys_linux_amd64.s | 15 ++++++++++++++-
+ 6 files changed, 60 insertions(+), 3 deletions(-)

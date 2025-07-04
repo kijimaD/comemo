@@ -1,14 +1,16 @@
-commit 5c0aab9cae055203ad9afe8a116874dd1c53f51c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jan 31 12:50:50 2011 -0500
+commit 176d5769d9b0c1ce450423545aa05761f18e516d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 31 12:38:54 2011 -0500
 
-    syscall: add network interface constants for darwin/386, darwin/amd64
+    lib9: update to Unicode 6.0.0
     
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4079049
+    https://golang.org/cl/4121042
 
- src/pkg/syscall/mkerrors.sh             |  5 ++
- src/pkg/syscall/zerrors_darwin_386.go   | 90 +++++++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_darwin_amd64.go | 90 +++++++++++++++++++++++++++++++++
- 3 files changed, 185 insertions(+)
+ src/lib9/utf/Makefile             |   16 +
+ src/lib9/utf/mkrunetype.c         |   10 +-
+ src/lib9/utf/runetype.c           |   47 +-
+ src/lib9/utf/runetypebody-6.0.0.c | 1565 +++++++++++++++++++++++++++++++++++++
+ src/lib9/utf/utf.h                |    6 -
+ 5 files changed, 1588 insertions(+), 56 deletions(-)

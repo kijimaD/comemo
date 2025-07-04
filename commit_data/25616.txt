@@ -1,18 +1,16 @@
-commit 754216d1d7642e8f254d0c8b8cd47ce3426ea051
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 20 16:08:31 2016 -0800
+commit 58bc561d1a94b789eabefba278fb6587b391f03b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 11 20:47:25 2015 -0800
 
-    text/template: fix documentation for pipelines
+    runtime: fix vet warning about +build rule
     
-    The header was in the wrong place, so the definition of a pipeline
-    was not in the section labeled "Pipelines".
+    cgo_ppc64x.go:7: +build comment must appear before package clause and be followed by a blank line
     
-    Fixes #13972
-    
-    Change-Id: Ibca791a4511ca112047b57091c391f6e959fdd78
-    Reviewed-on: https://go-review.googlesource.com/18775
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib6dedddae70cc75dc3f137eb37ea338a64f8b595
+    Reviewed-on: https://go-review.googlesource.com/16835
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/text/template/doc.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/cgo_ppc64x.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

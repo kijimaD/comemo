@@ -1,15 +1,12 @@
-commit 8a2d70648721478fb6560fa6684a36c97fa9e076
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 1 17:48:42 2011 -0800
+commit 97ce34244ff021bf54d8b8b8a573fc3d2377f27c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 2 12:11:29 2011 +1100
 
-    regexp tests: make some benchmarks more meaningful
-    The first two "Literal" tests were silly.
-    Also fix a naming typo in a couple of tests.
+    tag release.2011-02-01.1
     
-    R=rsc
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4127045
+    https://golang.org/cl/4023061
 
- src/pkg/regexp/all_test.go  | 8 ++++----
- src/pkg/regexp/find_test.go | 4 ++--
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,18 +1,18 @@
-commit c14c4e55e00ff06b83063cc2117444a2d75a3b0d
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Fri Feb 4 14:33:21 2011 -0500
+commit 6c5e4e18541d1e254de7bf26be849f09b2c1e8cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 4 14:33:08 2011 -0500
 
-    8l: fix crash writing Plan 9 binaries
+    build: allow clean.bash to work on fresh checkout
     
-    Was crashing with GOOS=plan9 unless -s was passed.
-    Add symbols and line numbers to Plan 9 a.out.
+    Must be invoked as ./clean.bash --gomake make
+    (or --gomake gmake, depending on the name of
+    GNU make).
     
-    R=rsc
+    R=niemeyer
     CC=golang-dev
-    https://golang.org/cl/4080050
+    https://golang.org/cl/4023065
 
- src/cmd/8l/asm.c    | 88 ++++++++++++++++++++++++++++++++---------------------
- src/cmd/8l/l.h      |  2 +-
- src/cmd/ld/lib.h    |  1 +
- src/cmd/ld/symtab.c | 56 ++++++++++++++++++++++++++++++++++
- 4 files changed, 111 insertions(+), 36 deletions(-)
+ src/clean.bash     |  4 ++--
+ src/cmd/clean.bash |  7 ++++++-
+ src/pkg/Makefile   | 10 +++++-----
+ 3 files changed, 13 insertions(+), 8 deletions(-)

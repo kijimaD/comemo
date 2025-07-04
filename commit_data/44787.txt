@@ -1,27 +1,18 @@
-commit d8960e65a2386c899d50d7f0c355080865225b94
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Mar 23 17:03:46 2021 -0400
+commit 5d0b35ca98f57b378e8b45839721d60c06603af2
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Fri Jun 12 16:27:08 2020 +0000
 
-    cmd/go: move psuedo-version and version sorting to x/mod
+    cmd/asm: Always use go-style arrangement specifiers on ARM64
     
-    Fixes #44969
+    Fixing several error message and comment texts of the ARM64 assembler
+    to use arrangement specifiers of Go's assembly style.
     
-    Change-Id: I01e7b1cf73f0f506aa805bbfe4a9ccaed3d44efe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304229
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Icdbb14fba7aaede40d57d0d754795b050366a1ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237859
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- src/cmd/go/internal/modfetch/cache.go              |   4 +-
- src/cmd/go/internal/modfetch/coderepo.go           |  30 ++--
- src/cmd/go/internal/modfetch/proxy.go              |  10 +-
- src/cmd/go/internal/modfetch/pseudo_test.go        | 154 ---------------------
- src/cmd/go/internal/modfetch/repo.go               |  14 +-
- src/cmd/go/internal/modload/import.go              |   6 +-
- src/cmd/go/internal/modload/query.go               |  20 +--
- src/cmd/go/proxy_test.go                           |   7 +-
- .../golang.org/x/mod/module}/pseudo.go             |  18 ++-
- src/cmd/vendor/golang.org/x/mod/semver/semver.go   |  20 +++
- src/cmd/vendor/modules.txt                         |   2 +-
- 13 files changed, 71 insertions(+), 220 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 4 ++--
+ src/cmd/internal/obj/arm64/asm7.go           | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

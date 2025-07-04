@@ -1,16 +1,29 @@
-commit 82d1019c60af4a013f2ffbff87e0cad028a073d7
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 18:43:28 2022 +0800
+commit 9ff91b90988945c7bbe85fdef4a16d5f1af6b2c2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 21 14:31:40 2021 +0700
 
-    net/textproto: use strings.Builder
+    cmd/compile: only look for struct type when crawling inline body
     
-    Change-Id: I2ed993a804dd830b9ff445c467eb224b7aaa3401
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428273
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    CL 356254 fixed crawling of embeddable types during inline. However, we
+    are too agressive, since when we call markEmbed for every type seen
+    during inlining function body. That leads to false positive that for a
+    non-embedded type, its unexported methods are also marked inline.
+    
+    Instead, we should only look at struct type that we seen during inlining
+    function body, and calling markEmbed for all of its embedded fields.
+    
+    Fixes #49094
+    
+    Change-Id: I6ef9a8bf1fc649ec6bf75e4883f6031ec8560ba1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357232
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/textproto/writer_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/typecheck/crawler.go |  8 +++++++-
+ test/fixedbugs/issue49094.dir/a.go            | 11 +++++++++++
+ test/fixedbugs/issue49094.dir/b.go            | 11 +++++++++++
+ test/fixedbugs/issue49094.dir/p.go            | 15 +++++++++++++++
+ test/fixedbugs/issue49094.go                  |  7 +++++++
+ 5 files changed, 51 insertions(+), 1 deletion(-)

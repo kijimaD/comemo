@@ -1,22 +1,22 @@
-commit 6b18311bbc94864af48d10aad73fd4eb7ea0d9a1
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Mar 18 13:00:42 2025 -0400
+commit e17e5308fd5a26da5702d16cc837ee77cdb30ab6
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Feb 9 10:18:38 2024 -0500
 
-    cmd/go/internal/clean: add logging to help debug openbsd flakes
+    net/http: refine trailing-slash redirect logic
     
-    This change adds extra logging in the case where there's an error
-    removing all the files in the gomodcache using modfetch.RemoveAll.
-    It logs the names of the files found in GOMODCACHE as well as their
-    modes. The modes are included because they should all be writable by the
-    time we call robustio.RemoveAll.
+    Do not add a trailing slash and redirect if the path already
+    ends in a slash.
     
-    For #68087
+    Also, and unrelatedly, add a test for cleanPath.
     
-    Change-Id: Id9ae68bf6a3392baf88ec002d08fed1faf525927
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658816
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #65624.
+    
+    Change-Id: Ifcf9edc929d2eb6db88132c09d2bade85c5dda3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562557
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/clean/clean.go | 34 ++++++++++++++++++++++++++++++++++
- 1 file changed, 34 insertions(+)
+ src/net/http/serve_test.go  | 16 ++++++++++++++++
+ src/net/http/server.go      |  4 ++--
+ src/net/http/server_test.go | 18 ++++++++++++++++++
+ 3 files changed, 36 insertions(+), 2 deletions(-)

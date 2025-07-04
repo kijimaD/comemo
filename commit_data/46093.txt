@@ -1,28 +1,21 @@
-commit bacbc33439b124ffd7392c91a5f5d96eca8c0c0b
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Aug 18 11:49:29 2021 -0700
+commit 50cdb2d8e9ca8d7b79a05121c88271b46f7c9607
+Author: Tonis Tiigi <tonistiigi@gmail.com>
+Date:   Sun Dec 6 20:13:47 2020 +0000
 
-    archive/zip: prevent preallocation check from overflowing
+    runtime/cgo: fix building on musl
     
-    If the indicated directory size in the archive header is so large that
-    subtracting it from the archive size overflows a uint64, the check that
-    the indicated number of files in the archive can be effectively
-    bypassed. Prevent this from happening by checking that the indicated
-    directory size is less than the size of the archive.
+    sys/unistd.h only exists in glibc and not in musl so use the standard
+    location. This is a regression from CL 210639
     
-    Thanks to the OSS-Fuzz project for discovering this issue and to
-    Emmanuel Odeke for reporting it.
-    
-    Fixes #47801
-    Fixes CVE-2021-39293
-    
-    Change-Id: Ifade26b98a40f3b37398ca86bd5252d12394dd24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343434
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: Idd4c75510d9829316b44300c36c34df6d667cc05
+    GitHub-Last-Rev: 0fa4162f1c7c460bda7585300285f47d1781985d
+    GitHub-Pull-Request: golang/go#43038
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275732
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew G. Morgan <agm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
 
- src/archive/zip/reader.go      |  2 +-
- src/archive/zip/reader_test.go | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/runtime/cgo/linux_syscall.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

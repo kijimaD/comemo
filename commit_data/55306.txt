@@ -1,39 +1,19 @@
-commit 9b4b3e5acca2dabe107fa2c3ed963097d78a4562
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Dec 13 15:07:28 2023 -0500
+commit d0851777daaec578ff94e9cbae0cedbff4ac625b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 8 14:22:42 2022 -0500
 
-    runtime: properly model rwmutex in lock ranking
+    runtime/debug: expand fuzz corpus for FuzzParseBuildInfoRoundTrip
     
-    Currently, lock ranking doesn't really try to model rwmutex. It records
-    the internal locks rLock and wLock, but in a subpar fashion:
+    Updates #51026
     
-    1. wLock is held from lock to unlock, so it works OK, but it conflates
-       write locks of all rwmutexes as rwmutexW, rather than allowing
-       different rwmutexes to have different rankings.
-    2. rLock is an internal implementation detail that is only taken when
-       there is contention in rlock. As as result, the reader lock path is
-       almost never checked.
-    
-    Add proper modeling. rwmutexR and rwmutexW remain as the ranks of the
-    internal locks, which have their own ordering. The new init method is
-    passed the ranks of the higher level lock that this represents, just
-    like lockInit for mutex.
-    
-    execW ordered before MALLOC captures the case from #64722. i.e., there
-    can be allocation between BeforeFork and AfterFork.
-    
-    For #64722.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-staticlockranking
-    Change-Id: I23335b28faa42fb04f1bc9da02fdf54d1616cd28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549536
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id7af2ffa8c99970274b2a2b12622d986ea105b1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384161
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/runtime/export_test.go  |  4 +++
- src/runtime/lockrank.go     | 87 +++++++++++++++++++++++++++------------------
- src/runtime/mklockrank.go   | 39 ++++++++++++++++----
- src/runtime/proc.go         |  2 ++
- src/runtime/rwmutex.go      | 48 ++++++++++++++++++++++---
- src/runtime/rwmutex_test.go |  4 +++
- 6 files changed, 138 insertions(+), 46 deletions(-)
+ .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/5501685e611fa764    | 2 ++
+ .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/71634114e78567cf    | 2 ++
+ .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/c73dce23c1f2494c    | 2 ++
+ 3 files changed, 6 insertions(+)

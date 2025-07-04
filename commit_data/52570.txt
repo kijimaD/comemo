@@ -1,27 +1,23 @@
-commit 46a49eb52e6402708446a7a71db8a29dbdb99139
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Apr 6 20:26:55 2023 -0400
+commit ccb798741b9bd9d5eda56648a8b3383e6e55cfcd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 28 09:30:41 2022 -0700
 
-    cmd/internal/objfile: align the load address of ELF binary
+    runtime: change maxSearchAddr into a helper function
     
-    The ELF ABI just requires that the address and the offset of a
-    segment are congruent modulo the alignment, but does not require
-    the start address to be aligned. While usually the segment's
-    start address is aligned, apparently the zig linker generates
-    binary with unaligned address.
+    This avoids a dependency on the compiler statically initializing
+    maxSearchAddr, which is necessary so we can disable the (overly
+    aggressive and spec non-conforming) optimizations in cmd/compile and
+    gccgo.
     
-    At the run time, the memory mapping that contains the segment
-    starts at an aligned address (rounding down). Use the aligned
-    address for the load address, which matches the mapping.
-    Apparently this is what the pprof library expects.
+    Updates #51913.
     
-    Fixes #59466.
-    
-    Change-Id: Ife78909b20b7bc975ac4c76f2c5f5db325ddec9b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483035
+    Change-Id: I424e62c81c722bb179ed8d2d8e188274a1aeb7b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396194
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/objfile/elf.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/runtime/mpagealloc.go | 17 +++++++++++------
+ src/runtime/mpagecache.go |  2 +-
+ 2 files changed, 12 insertions(+), 7 deletions(-)

@@ -1,44 +1,52 @@
-commit 7ef0237d89b7cf5ca9537e926aca3ca59944e1e0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 16 17:00:02 2021 -0400
+commit befc62a2c47859d4cb63ee1f9b6e0b7f95a4c50a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 19 21:10:37 2020 -0700
 
-    cmd/go/internal/modload: clean up error reporting
+    [dev.typeparams] cmd/compile/internal/types2: add testdata directory
     
-    • Consolidate 'if ld.AllowErrors' conditions into an 'ld.errorf'
-      method.
+    Exact copy of src/go/types/testdata. Testdata tests still disabled.
     
-    • Rename SilenceErrors to SilencePackageErrors and clarify its
-      documentation. (There is currently no way to silence errors in the
-      module graph. Perhaps we should add one, but for now let's at least
-      clarify the existing behavior.)
-    
-    • Move 'tidy -v' verbose logging into LoadPackages, where other
-      logging happens.
-    
-    • Make checkMultiplePaths a loader method (since it only matters
-      during package loading anyway).
-    
-    • Check package and module-graph errors in loadFromRoots instead of
-      LoadPackages. These checks were previously omitted on the
-      ImportFromFiles path, which seems likely to be a bug. (We now
-      suppress package errors explicitly in ImportFromFiles, which at
-      least makes the bug more explicit.)
-    
-    This somewhat simplifies the code structure in preparation for
-    the lazy-mode tidy implementation.
-    
-    For #36460
-    
-    Change-Id: I3ce3586c6934989d5194f00f99e7cc4423cf767f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313229
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Idff5fff7f1adcfd626f700b1f21f5a14ce1a74f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263630
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/load/pkg.go          |   2 +-
- src/cmd/go/internal/modcmd/why.go        |   2 +-
- src/cmd/go/internal/modget/get.go        |   2 +-
- src/cmd/go/internal/modload/buildlist.go |  65 ++---------
- src/cmd/go/internal/modload/load.go      | 192 +++++++++++++++++++++++--------
- 5 files changed, 156 insertions(+), 107 deletions(-)
+ src/cmd/compile/internal/types2/testdata/blank.src |   5 +
+ .../compile/internal/types2/testdata/builtins.src  | 902 +++++++++++++++++++
+ .../compile/internal/types2/testdata/const0.src    | 350 ++++++++
+ .../compile/internal/types2/testdata/const1.src    | 322 +++++++
+ .../compile/internal/types2/testdata/constdecl.src | 110 +++
+ .../internal/types2/testdata/conversions.src       |  93 ++
+ .../internal/types2/testdata/conversions2.src      | 313 +++++++
+ .../compile/internal/types2/testdata/cycles.src    | 174 ++++
+ .../compile/internal/types2/testdata/cycles1.src   |  77 ++
+ .../compile/internal/types2/testdata/cycles2.src   |  98 +++
+ .../compile/internal/types2/testdata/cycles3.src   |  60 ++
+ .../compile/internal/types2/testdata/cycles4.src   | 110 +++
+ .../compile/internal/types2/testdata/cycles5.src   | 200 +++++
+ .../compile/internal/types2/testdata/decls0.src    | 206 +++++
+ .../compile/internal/types2/testdata/decls1.src    | 144 +++
+ .../compile/internal/types2/testdata/decls3.src    | 309 +++++++
+ .../compile/internal/types2/testdata/decls4.src    | 199 +++++
+ .../compile/internal/types2/testdata/decls5.src    |  10 +
+ .../compile/internal/types2/testdata/errors.src    |  60 ++
+ src/cmd/compile/internal/types2/testdata/expr0.src | 180 ++++
+ src/cmd/compile/internal/types2/testdata/expr1.src | 127 +++
+ src/cmd/compile/internal/types2/testdata/expr2.src | 260 ++++++
+ src/cmd/compile/internal/types2/testdata/expr3.src | 562 ++++++++++++
+ src/cmd/compile/internal/types2/testdata/gotos.src | 560 ++++++++++++
+ .../compile/internal/types2/testdata/importC.src   |  54 ++
+ src/cmd/compile/internal/types2/testdata/init0.src | 106 +++
+ src/cmd/compile/internal/types2/testdata/init1.src |  97 ++
+ src/cmd/compile/internal/types2/testdata/init2.src | 139 +++
+ .../compile/internal/types2/testdata/issues.src    | 365 ++++++++
+ .../compile/internal/types2/testdata/labels.src    | 207 +++++
+ .../compile/internal/types2/testdata/literals.src  | 111 +++
+ .../internal/types2/testdata/methodsets.src        | 214 +++++
+ .../compile/internal/types2/testdata/shifts.src    | 395 +++++++++
+ src/cmd/compile/internal/types2/testdata/stmt0.src | 980 +++++++++++++++++++++
+ src/cmd/compile/internal/types2/testdata/stmt1.src | 259 ++++++
+ .../compile/internal/types2/testdata/vardecl.src   | 206 +++++
+ 36 files changed, 8564 insertions(+)

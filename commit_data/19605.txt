@@ -1,15 +1,19 @@
-commit eb4c3455de0ae2383038b5756e8948ca2516f090
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jun 25 08:22:22 2014 +1000
+commit 0c7ddfaab61e40b5f6a9344cc30aaa0e36a9ad82
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jun 25 05:01:09 2014 +0900
 
-    cmd/go: build test files containing non-runnable examples
+    syscall: add source-specific multicast socket options for Darwin
     
-    Even if we can't run them, we should at least check that they compile.
+    Update #8266
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/107320046
+    https://golang.org/cl/101460043
 
- src/cmd/go/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/types_darwin.go         |  9 +++++++++
+ src/pkg/syscall/zerrors_darwin_386.go   |  9 +++++++++
+ src/pkg/syscall/zerrors_darwin_amd64.go |  9 +++++++++
+ src/pkg/syscall/ztypes_darwin_386.go    | 22 ++++++++++++++++++++++
+ src/pkg/syscall/ztypes_darwin_amd64.go  | 22 ++++++++++++++++++++++
+ 5 files changed, 71 insertions(+)

@@ -1,23 +1,16 @@
-commit 858cd8da569938913541d013af27a2a2a875fcb5
-Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
-Date:   Wed Nov 29 11:04:57 2023 -0800
+commit 1c2c225d6f84ba9c29a4be4767412dc6935053c2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 17 16:27:56 2023 -0800
 
-    runtime/pprof: retry vmmap invocation if it failed due to a reported temporary resource shortage
+    go/types, types2: factor out type parameter renaming (cleanup)
     
-    As per #62352 the invocation of vmmap may fail (very rarely) due to
-    a temporary lack of resources on the test runner machine. This PR
-    allows for retrying the invocation a fixed number of times before
-    giving up. This is because we suspect the failure is due to
-    sensible to retry.
-    
-    Fixes: #62352
-    Change-Id: I51aa66b949753d8127cc307181b6ef32e91d5b05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545935
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I2d7e32ee2496d391f334ad9956e8d37c53f9be98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461687
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/runtime/pprof/vminfo_darwin_test.go | 33 +++++++++++++++++++++++++++------
- 1 file changed, 27 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/infer.go | 94 +++++++++++++++++---------------
+ 1 file changed, 49 insertions(+), 45 deletions(-)

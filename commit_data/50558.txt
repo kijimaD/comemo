@@ -1,57 +1,37 @@
-commit bcd44b61d3154b22ffce10302ea9c34ba639a98e
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Sep 8 14:57:44 2022 -0700
+commit a97c527ac491cc13f6778010a2a81c84642ea1ca
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Wed Sep 29 17:35:27 2021 -0700
 
-    time: optimize Parse for []byte arguments
+    runtime: add padding to Linux kernel structures
     
-    When one has a []byte on hand, but desires to call the Parse function,
-    the conversion from []byte to string would allocate.
-    This occurs frequently through UnmarshalText and UnmarshalJSON.
+    Go exchanges siginfo and sigevent structures with the kernel. They
+    contain unions, but Go's use is limited to the first few fields. Pad out
+    the rest so the size Go sees is the same as what the Linux kernel sees.
     
-    This changes it such that the input string never escapes from
-    any of the Parse functions. Together with the compiler optimization
-    where the compiler stack allocates any string smaller than 32B
-    this makes most valid inputs for Parse(layout, string(input))
-    not require an allocation for the input string.
+    This is a follow-up to CL 342052 which added the sigevent struct without
+    padding, and to CL 353136 which added the padding but with an assertion
+    that confused several type-checkers. It updates the siginfo struct as
+    well so there are no bad examples in the defs_linux_*.go files.
     
-    This optimization works well for most RFC3339 timestamps.
-    All timestamps with second resolution
-    (e.g., 2000-01-01T00:00:00Z or 2000-01-01T00:00:00+23:59)
-    or timestamps with nanosecond resolution in UTC
-    (e.g., 2000-01-01T00:00:00.123456789Z)
-    are less than 32B and benefit from this optimization.
-    Unfortunately, nanosecond timestamps with non-UTC timezones
-    (e.g., 2000-01-01T00:00:00.123456789+23:59)
-    do not benefit since they are 35B long.
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353136
     
-    Previously, this was not possible since the input leaked
-    to the error and calls to FixedZone with the zone name,
-    which causes the prover to give up and heap copy the []byte.
-    We fix this by copying the input string in both cases.
-    The advantage of this change is that you can now call Parse
-    with a []byte without allocating (most of the times).
-    The detriment is that the timezone and error path has an extra allocation.
-    Handling of timezones were already expensive (3 allocations and 160B allocated),
-    so the additional cost of another string allocation is relatively minor.
-    We should optimize for the common case, rather than the exceptional case.
-    
-    Performance:
-    
-        name                  old time/op  new time/op  delta
-        ParseRFC3339UTCBytes  54.4ns ± 1%  40.3ns ± 1%  -25.91%  (p=0.000 n=9+10)
-    
-    Now that parsing of RFC3339 has been heavily optimized in CL 425197,
-    the performance gains by this optimization becomes relatively more notable.
-    
-    Related to CL 345488.
-    
-    Change-Id: I2a8a9cd6354b3bd46c2f57818ed2646a2e485f36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429862
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I9610632ff0ec43eba91f560536f5441fa907b36f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360094
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/time/format.go    | 36 ++++++++++++++++++++++++++----------
- src/time/time_test.go | 34 ++++++++++++++++++++++++++++++++--
- 2 files changed, 58 insertions(+), 12 deletions(-)
+ src/runtime/defs_linux_386.go     | 20 ++++++++++++++++++--
+ src/runtime/defs_linux_amd64.go   | 20 ++++++++++++++++++--
+ src/runtime/defs_linux_arm.go     | 20 ++++++++++++++++++--
+ src/runtime/defs_linux_arm64.go   | 20 ++++++++++++++++++--
+ src/runtime/defs_linux_mips64x.go | 20 ++++++++++++++++++--
+ src/runtime/defs_linux_mipsx.go   | 20 ++++++++++++++++++--
+ src/runtime/defs_linux_ppc64.go   | 20 ++++++++++++++++++--
+ src/runtime/defs_linux_ppc64le.go | 20 ++++++++++++++++++--
+ src/runtime/defs_linux_riscv64.go | 20 ++++++++++++++++++--
+ src/runtime/defs_linux_s390x.go   | 20 ++++++++++++++++++--
+ src/runtime/export_linux_test.go  |  5 +++++
+ src/runtime/os_linux.go           | 16 ++++++++++------
+ src/runtime/runtime_linux_test.go | 11 +++++++++++
+ 13 files changed, 206 insertions(+), 26 deletions(-)

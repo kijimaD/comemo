@@ -1,30 +1,19 @@
-commit 74604bb517b8615331aae44166e0368b25f6a4cb
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu May 17 15:20:57 2018 +0200
+commit 8de2f604c0b225aa41cb1b4e2ab97e3512a51445
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 14 07:20:26 2018 +0900
 
-    net: skip external net tests on iOS
+    go/build: add go1.11 build tag
     
-    CL 113095 tried to deflake net tests on iOS by skipping the test
-    that uses the most sockets. That didn't work well enough and will
-    be reverted in CL 113555.
+    As usual, adding go1.11 early in the cycle so that we can start
+    regression testing of the master toolchain.
     
-    The flakes appeared after the iOS exec harness started to forward
-    environment variables, causing testenv.Builder to be non-empty on
-    the iOS builder. This CL attempts to fix the flakes with the more
-    conservative strategy of skipping tests that only run on builders.
-    
-    The skipped tests happen to be those requiring external network
-    access; it's plausible that the iOS builder network isn't reliable
-    enough to run the many parallel DNS lookups and dial outs, while
-    keeping the number of open file descriptors below the 250 limit.
-    
-    Change-Id: I9cafdaf2845dd6f3844c4819dcaaaa5970f5da15
-    Reviewed-on: https://go-review.googlesource.com/113575
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie96eca7223722d60d7acc6b3b996b76740c36419
+    Reviewed-on: https://go-review.googlesource.com/93775
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/dial_test.go         | 17 ++++++++++----
- src/net/lookup_test.go       | 56 +++++++++++---------------------------------
- src/net/tcpsock_unix_test.go |  6 ++---
- 3 files changed, 28 insertions(+), 51 deletions(-)
+ src/go/build/build.go | 2 +-
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

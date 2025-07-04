@@ -1,83 +1,29 @@
-commit c61d322d5f9e3fcffa4c523892af432dca030c12
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 22 09:44:56 2022 -0500
+commit 08ed4882aaa50c9629a3e8636b699ceff6592ad6
+Author: alex.schade <39062967+aschade92@users.noreply.github.com>
+Date:   Tue Feb 15 15:35:03 2022 +0000
 
-    runtime: call __fork instead of fork on darwin
+    cmd/go/internal/modfetch: avoid leaking a lockedfile.File in case of write errors
     
-    Issues #33565 and #56784 were caused by hangs in the child process
-    after fork, while it ran atfork handlers that ran into slow paths that
-    didn't work in the child.
+    The go modules download command has a method called hashZip which checks the
+    hash of a zipped directory versus an expected value, and then writes it out
+    to a file. In the event that the write operation is not successful, we do
+    not close the file, leading to it being leaked. This could happen if the
+    user runs out of disk space, causing the underlying OS write command to
+    return an error. Ultimately, this led to a panic in lockfile.OpenFile which
+    was invoked from a finalizer garbage collecting the leaked file. The result
+    was a stack trace that didn't show the call stack from where the write
+    operation actually failed.
     
-    CL 451735 worked around those two issues by calling a couple functions
-    at startup to try to warm up those child paths. That mostly worked,
-    but it broke programs using cgo with certain macOS frameworks (#57263).
+    Fixes #50858
     
-    CL 459175 reverted CL 451735.
-    
-    This CL introduces a different fix: bypass the atfork child handlers
-    entirely. For a general fork call where the child and parent are both
-    meant to keep executing the original program, atfork handlers can be
-    necessary to fix any state that would otherwise be tied to the parent
-    process. But Go only uses fork as preparation for exec, and it takes
-    care to limit what it attempts to do in the child between the fork and
-    exec. In particular it doesn't use any of the things that the macOS
-    atfork handlers are trying to fix up (malloc, xpc, others). So we can
-    use the low-level fork system call (__fork) instead of the
-    atfork-wrapped one.
-    
-    The full list of functions that can be called in a child after fork in
-    exec_libc2.go is:
-    
-     - ptrace
-     - setsid
-     - setpgid
-     - getpid
-     - ioctl
-     - chroot
-     - setgroups
-     - setgid
-     - setuid
-     - chdir
-     - dup2
-     - fcntl
-     - close
-     - execve
-     - write
-     - exit
-    
-    I disassembled all of these while attached to a hung exec.test binary
-    and confirmed that nearly all of them are making direct kernel calls,
-    not using anything that the atfork handler needs to fix up.
-    The exceptions are ioctl, fcntl, and exit.
-    
-    The ioctl and fcntl implementations do some extra work around the
-    kernel call but don't call any other functions, so they should still
-    be OK. (If not, we could use __ioctl and __fcntl instead, but without
-    a good reason, we should keep using the standard entry points.)
-    
-    The exit implementation calls atexit handlers. That is almost
-    certainly inappropriate in a failed fork child, so this CL changes
-    that call to __exit on darwin. To avoid making unnecessary changes at
-    this point in the release cycle, this CL leaves OpenBSD calling plain
-    exit, even though that is probably a bug in the OpenBSD port
-    (filed #57446).
-    
-    Fixes #33565.
-    Fixes #56784.
-    Fixes #57263.
-    
-    Change-Id: I26812c26a72bdd7fcf72ec41899ba11cf6b9c4ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/459176
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I4a24d2ab13dc903d623bbf8252b37bb9d724b8de
+    GitHub-Last-Rev: 354ef1d29ed9d9bb2d9bfe4b73306c550aab07fd
+    GitHub-Pull-Request: golang/go#51058
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383915
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/syscall/exec_libc2.go            |  4 ++--
- src/syscall/syscall_darwin.go        | 32 ++++++++++++++++++++++++++++++--
- src/syscall/syscall_openbsd_libc.go  |  6 +++++-
- src/syscall/zsyscall_darwin_amd64.go | 22 ++++++++++++++++++----
- src/syscall/zsyscall_darwin_amd64.s  |  6 ++++--
- src/syscall/zsyscall_darwin_arm64.go | 22 ++++++++++++++++++----
- src/syscall/zsyscall_darwin_arm64.s  |  6 ++++--
- 7 files changed, 81 insertions(+), 17 deletions(-)
+ src/cmd/go/internal/modfetch/fetch.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

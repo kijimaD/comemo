@@ -1,19 +1,21 @@
-commit 541bf9f8ea458560353acf78d940c69f5080750a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Oct 27 18:13:17 2017 +0900
+commit f4abbc0e61544ba33379ce37597a90fc3b0942d3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 14 15:07:57 2017 -0700
 
-    net/smtp: don't call testing.T.Fatal{,f} from goroutines not running Test function
+    cmd/link,compile: Provide size for func types
     
-    Also replaces verbs for error message from %s to %v. In general, low
-    level IO APIs return an error value containing non-string types and
-    there's no guarantee that all the types implement fmt.Stringer
-    interface.
+    They are currently not given a size, which makes the DWARF reader
+    very confused. Particularly things like [4]func() get a size of -4, not 32.
     
-    Change-Id: I8a6e2a80d5c721c772a83b9556bac16556eaa771
-    Reviewed-on: https://go-review.googlesource.com/73931
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #21097
+    
+    Change-Id: I01e754134d82fbbe6567e3c7847a4843792a3776
+    Reviewed-on: https://go-review.googlesource.com/55551
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/smtp/smtp_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go        |  1 +
+ src/cmd/link/internal/ld/dwarf.go      |  1 +
+ src/cmd/link/internal/ld/dwarf_test.go | 43 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+)

@@ -1,50 +1,14 @@
-commit 20101894078199a3a9014ca99ec4e2a0a16a0869
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jan 15 12:27:17 2018 -0500
+commit 52abe50c33b3ecfff2d324ca9d74a1c5c0f719e5
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Wed Oct 4 16:58:36 2017 +0300
 
-    runtime: remove legacy eager write barrier
+    bytes: correct Map documentation
     
-    Now that the buffered write barrier is implemented for all
-    architectures, we can remove the old eager write barrier
-    implementation. This CL removes the implementation from the runtime,
-    support in the compiler for calling it, and updates some compiler
-    tests that relied on the old eager barrier support. It also makes sure
-    that all of the useful comments from the old write barrier
-    implementation still have a place to live.
+    Fix incorrect reference to string instead of byte slice.
     
-    Fixes #22460.
-    
-    Updates #21640 since this fixes the layering concerns of the write
-    barrier (but not the other things in that issue).
-    
-    Change-Id: I580f93c152e89607e0a72fe43370237ba97bae74
-    Reviewed-on: https://go-review.googlesource.com/92705
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I95553da32acfbcf5dde9613b07ea38408cb31ae8
+    Reviewed-on: https://go-review.googlesource.com/68090
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go        |   2 +-
- src/cmd/compile/internal/gc/builtin.go         | 144 ++++++++++++-------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   2 -
- src/cmd/compile/internal/gc/go.go              |   1 -
- src/cmd/compile/internal/gc/main.go            |  10 --
- src/cmd/compile/internal/gc/ssa.go             |   7 --
- src/cmd/compile/internal/ssa/config.go         |   1 -
- src/cmd/compile/internal/ssa/export_test.go    |   1 -
- src/cmd/compile/internal/ssa/writebarrier.go   |  19 ++--
- src/cmd/vet/all/whitelist/386.txt              |   2 -
- src/cmd/vet/all/whitelist/all.txt              |   3 +
- src/cmd/vet/all/whitelist/amd64.txt            |   1 -
- src/cmd/vet/all/whitelist/arm.txt              |   2 -
- src/cmd/vet/all/whitelist/arm64.txt            |   2 -
- src/cmd/vet/all/whitelist/mips64x.txt          |   2 -
- src/cmd/vet/all/whitelist/mipsx.txt            |   2 -
- src/cmd/vet/all/whitelist/nacl_amd64p32.txt    |   2 -
- src/cmd/vet/all/whitelist/ppc64x.txt           |   2 -
- src/cmd/vet/all/whitelist/s390x.txt            |   2 -
- src/runtime/asm_amd64.s                        |   8 +-
- src/runtime/mbarrier.go                        | 121 +++------------------
- src/runtime/mwbbuf.go                          |  22 +++-
- test/fixedbugs/issue15747.go                   |  14 +--
- test/fixedbugs/issue20250.go                   |   8 +-
- 24 files changed, 129 insertions(+), 251 deletions(-)
+ src/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,24 +1,19 @@
-commit d0712096b32d032b0b83a5eb899a7359a830732b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Apr 12 10:27:42 2018 +0200
+commit ea0d2c14f8010f31dc7b892e6a546cfdb4d8ef21
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 1 17:00:58 2017 +0000
 
-    runtime: use internal/cpu.X86.HasAVX2 instead of support_avx2
+    net/url: document Parse more
     
-    After CL 104636 cpu.X86.HasAVX is set early enough that it can be used
-    in runtime·memclrNoHeapPointers. Add an offset to use in assembly and
-    replace the only occurence of support_avx2.
+    That Parse doesn't parse ("foo.com/path" or "foo.com:443/path") has
+    become something of a FAQ.
     
-    Change-Id: Icada62efeb3e24d71251d55623a8a8602364c9a8
-    Reviewed-on: https://go-review.googlesource.com/106595
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Updates #19779
+    Updates #21415
+    Updates #22955
+    
+    Change-Id: Ib68efddb67f59b1374e8ed94effd4a326988dee7
+    Reviewed-on: https://go-review.googlesource.com/81436
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_386.s         | 10 +---------
- src/runtime/asm_amd64.s       | 10 +---------
- src/runtime/asm_amd64p32.s    | 10 +---------
- src/runtime/cpuflags_amd64.go | 10 +++++++++-
- src/runtime/memclr_amd64.s    |  3 ++-
- src/runtime/runtime2.go       |  1 -
- 6 files changed, 14 insertions(+), 30 deletions(-)
+ src/net/url/url.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

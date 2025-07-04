@@ -1,12 +1,22 @@
-commit 11c1227493f2661e34ad35f5dce0fd798a7e5927
+commit 43e6923131c4c83e02f5263a9632d81819f15a62
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Feb 4 09:32:44 2015 -0800
+Date:   Mon Dec 22 11:33:47 2014 -0800
 
-    go1.5.txt: array generation support in testing/quick
+    cmd/gc: optimize existence-only map lookups
     
-    Change-Id: I00f18a8c62a8d63822d7e07fee1ac5f088cc9587
-    Reviewed-on: https://go-review.googlesource.com/3866
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    The compiler converts 'val, ok = m[key]' to
+    
+            tmp, ok = <runtime call>
+            val = *tmp
+    
+    For lookups of the form '_, ok = m[key]',
+    the second statement is unnecessary.
+    By not generating it we save a nil check.
+    
+    Change-Id: I21346cc195cb3c62e041af8b18770c0940358695
+    Reviewed-on: https://go-review.googlesource.com/1975
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gc/walk.c | 17 +++++++++++------
+ test/nilcheck.go  |  5 +++++
+ 2 files changed, 16 insertions(+), 6 deletions(-)

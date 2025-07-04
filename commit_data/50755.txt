@@ -1,20 +1,24 @@
-commit 76c1a501a5bb1e511655d89195b3b94b7a621cf9
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 30 22:34:42 2022 +0700
+commit 15a54d627ca7a0bdf45a3d1862b35a892024cacc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Nov 9 11:35:52 2021 -0500
 
-    test: enable issue47631.go for Unified IR
+    runtime: add upper half and carry bit with zero
     
-    Updates #53058
+    https://golang.org/cl/246763 accidentally changed this from upper + 0 +
+    carry to upper + old vdsoSP + carry.
     
-    Change-Id: Ieaa500bea11f26f9a039196592bea67405bdf0ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/437215
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    The old value of vdsoPC is usually zero, so this typically works.
+    However, the reentrant case will have a non-zero value, resulting in a
+    bogus returned time.
+    
+    Fixes #49481
+    
+    Change-Id: I0110b84277bf911804cb0ff8097aebf1b7eb100a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362674
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/go/internal/gcimporter/gcimporter_test.go |  1 +
- test/run.go                                   |  3 +--
- test/typeparam/issue47631.go                  | 17 +++++++----------
- 3 files changed, 9 insertions(+), 12 deletions(-)
+ src/runtime/sys_linux_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

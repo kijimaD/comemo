@@ -1,24 +1,23 @@
-commit 83c814066237bf6e8490d83643ba76513082a158
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 12 11:44:55 2014 -0700
+commit a5bb1af43214c3da52d1752e58d03ed968e6a11b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 12 07:51:32 2014 -0700
 
-    time: avoid broken fix for buggy TestOverflowRuntimeTimer
-    The test requires that timerproc runs, but busy loops and starves
-    the scheduler so that, with high probability, timerproc doesn't run.
-    Avoid the issue by expecting the test to succeed; if not, a major
-    outside timeout will kill it and let us know.
+    testing: make benchmarking faster
     
-    As you can see from the diffs, there have been several attempts to
-    fix this with chicanery, but none has worked. Don't bother trying
-    any more.
+    Allow the number of benchmark iterations to grow faster for fast benchmarks, and don't round up twice.
     
-    Fixes #8136.
+    Using the default benchtime, this CL reduces wall clock time to run benchmarks:
     
-    LGTM=rsc
-    R=rsc, josharian
+    net/http        49s   -> 37s   (-24%)
+    runtime         8m31s -> 5m55s (-30%)
+    bytes           2m37s -> 1m29s (-43%)
+    encoding/json   29s   -> 21s   (-27%)
+    strings         1m16s -> 53s   (-30%)
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
     CC=golang-codereviews
-    https://golang.org/cl/105140043
+    https://golang.org/cl/101970047
 
- src/pkg/time/internal_test.go | 51 ++++++++-----------------------------------
- src/pkg/time/sleep_test.go    |  6 ++---
- 2 files changed, 12 insertions(+), 45 deletions(-)
+ src/pkg/testing/benchmark.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

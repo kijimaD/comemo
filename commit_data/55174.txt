@@ -1,24 +1,26 @@
-commit bda1ef13f8f9954d20b712ece649776c272f8526
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Nov 30 10:04:16 2023 -0800
+commit 2e792a8295d7c7f082cf2e3b163a3d4d30b6df7e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 18 10:08:34 2023 -0500
 
-    cmd/compile: fix memcombine pass for big endian, > 1 byte elements
+    cmd/go: do not attempt to install cmd/addr2line in TestScript/mod_outside
     
-    The shift amounts were wrong in this case, leading to miscompilation
-    of load combining.
+    Tests must not write to GOROOT: it might not writable (for example, if
+    it is owned by root and the user is non-root), and in general we can't
+    assume that the configuration in which the test is run matches the
+    configuration with which the installed tools were built.
     
-    Also the store combining was not triggering when it should.
+    In this specific case, CL 454836 (for #57007) installs 'cmd' with
+    CGO_ENABLED=0, but most builders still run the tests with CGO_ENABLED
+    unset.
     
-    Fixes #64468
+    Updates #57007.
     
-    Change-Id: Iaeb08972c5fc1d6f628800334789c6af7216e87b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546355
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I2795fcd3ff61c164dc730b62f697f307ab3a167b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461689
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/memcombine.go       |  12 +--
- src/cmd/compile/internal/test/memcombine_test.go | 126 +++++++++++++++++++++++
- test/codegen/memcombine.go                       |  37 +++++++
- 3 files changed, 169 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/script/mod_outside.txt | 7 -------
+ 1 file changed, 7 deletions(-)

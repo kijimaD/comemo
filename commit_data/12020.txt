@@ -1,20 +1,12 @@
-commit 3e804f98d75515bba73a86f563257eabceb1afe1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Feb 18 11:48:33 2012 +1100
+commit 3063ff5168d11c88b58e125124f84d8ae5d885db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 17 14:48:44 2012 -0800
 
-    pkg: a slew of examples
+    crypto/dsa: add missing period in package comment
     
-    R=golang-dev, gri, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5676071
+    https://golang.org/cl/5673087
 
- src/pkg/archive/zip/example_test.go   | 75 +++++++++++++++++++++++++++++++++++
- src/pkg/crypto/md5/md5_test.go        | 13 +++++-
- src/pkg/crypto/sha1/sha1_test.go      | 12 +++++-
- src/pkg/encoding/json/example_test.go | 33 +++++++++++++++
- src/pkg/errors/errors_test.go         | 30 +++++++++++---
- src/pkg/errors/example_test.go        | 34 ++++++++++++++++
- src/pkg/net/example_test.go           | 35 ++++++++++++++++
- src/pkg/net/url/example_test.go       | 41 +++++++++++++++++++
- src/pkg/sync/example_test.go          | 34 ++++++++++++++++
- 9 files changed, 298 insertions(+), 9 deletions(-)
+ src/pkg/crypto/dsa/dsa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

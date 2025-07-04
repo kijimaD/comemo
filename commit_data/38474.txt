@@ -1,22 +1,18 @@
-commit 834d229eb6cec7d5b2c4b645985921266e645cb1
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 11 10:27:11 2019 -0400
+commit 3553eca27c31e9709e9831f3d26ec555b904dcd4
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Mon Oct 29 12:06:58 2018 +0530
 
-    testing: add B.ReportMetric for custom benchmark metrics
+    doc: replace command line usages of godoc with go doc
     
-    This adds a ReportMetric method to testing.B that lets the user report
-    custom benchmark metrics and override built-in metrics.
+    Effective Go and the FAQ still had some instances which showed the command line
+    usage of godoc. Changed them to use go doc.
     
-    Fixes #26037.
+    Updates #25443
     
-    Change-Id: I8236fbde3683fc27bbe45cbbedfd377b435edf64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166717
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If550963322034e6848bc466f79e968e7220e4a88
+    Reviewed-on: https://go-review.googlesource.com/c/145222
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/benchmark.go      | 134 ++++++++++++++++++++++++++++++++++++------
- src/testing/benchmark_test.go |  63 ++++++++++++++++++++
- src/testing/export_test.go    |   1 +
- 3 files changed, 179 insertions(+), 19 deletions(-)
+ doc/effective_go.html | 10 ++++++----
+ doc/go_faq.html       |  2 +-
+ 2 files changed, 7 insertions(+), 5 deletions(-)

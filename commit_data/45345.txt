@@ -1,26 +1,19 @@
-commit 9f601690da59e601ff68f9868d5eb863bd770eae
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Apr 24 02:12:55 2021 -0700
+commit 7f736694fe9b254efa7155a0a5da87c2c18e6078
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 20 12:54:20 2020 -0700
 
-    cmd/compile: workaround inlining of closures with type switches
+    runtime: use GOTRACEBACK=system for TestCgoExecSignalMask
     
-    Within clovar, n.Defn can also be *ir.TypeSwitchGuard. The proper fix
-    here would be to populate m.Defn and have it filled in too, but we
-    already leave it nil in inlvar. So for consistency, this CL does the
-    same in clovar too.
+    Try to get a bit more information to understand #42093.
     
-    Eventually inl.go should be rewritten to fully respect IR invariants.
+    For #42093
     
-    Fixes #45743.
-    
-    Change-Id: I8b38e5d8b2329ad242de97670f2141f713954d28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313289
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I818feb08d7561151d52eba3e88c418b55b9f9c1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264018
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/inline/inl.go |  2 ++
- test/fixedbugs/issue45743.go           | 20 ++++++++++++++++++++
- 2 files changed, 22 insertions(+)
+ src/runtime/crash_cgo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,15 @@
-commit c8fe9c7606cd00e2b68d0b619d81edc92e4e7ec7
-Author: Andrew Radev <andrey.radev@gmail.com>
-Date:   Mon Oct 29 22:10:59 2012 +1100
+commit b506c3e17aad13ec64ff24d86ec034259bd224d1
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Oct 29 22:03:58 2012 +1100
 
-    misc/vim: fix reimport guard and remove K mapping.
+    misc/dashboard/codereview: only accept "NOT LGTM" on the first line of a message.
     
-    The "did_ftplugin" lines were ineffective and the "K" mapping was too
-    invasive, which is why it was removed.
+    Too many people quote entire emails and put their reply at the top ("top posting"),
+    so we shouldn't recognise review commands anywhere in the review text.
     
-    R=golang-dev, dsymonds, minux.ma
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6823044
+    https://golang.org/cl/6815048
 
- misc/vim/ftplugin/go/fmt.vim    |  5 +++++
- misc/vim/ftplugin/go/godoc.vim  | 13 -------------
- misc/vim/ftplugin/go/import.vim |  4 +++-
- misc/vim/readme.txt             |  1 -
- 4 files changed, 8 insertions(+), 15 deletions(-)
+ misc/dashboard/codereview/dashboard/cl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,33 @@
+commit 767e7680ec7ed541ccc2e1f32d04b077f5422d25
+Author: Than McIntosh <thanm@golang.org>
+Date:   Tue Nov 12 12:02:17 2024 -0500
+
+    cmd/link, cmd/internal/dwarf: add DWARF5 line table support
+    
+    This patch rolls out the necessary changes to migrate the DWARF line
+    table support in the compiler and linker to DWARF version 5, gated by
+    the "dwarf5" GOEXPERIMENT.
+    
+    DWARF version 5 includes a number of changes to the line table,
+    notably a revamped prolog section and a change in the indexing system
+    used to refer to files and directories within the line table
+    program. Specifically, prior to DWARF 4 a compilation's directory
+    table was considered to have an implicit zero entry containing the
+    compilation directory of the translation unit (package), and the file
+    table was considered to have an implicit zero entry storing the
+    "primary source file" (stored in the compilation unit DIE name).
+    DWARF 5 does away with these implicity entries meaning that files and
+    dirs are now effectively a 0-based index.
+    
+    Updates #26379.
+    
+    Change-Id: I9b4f1be5415aacec1ba57366d60bd48819c56ea5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633879
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go   |  10 ++-
+ src/cmd/link/internal/ld/dwarf.go | 139 ++++++++++++++++++++++++++++++++------
+ 2 files changed, 128 insertions(+), 21 deletions(-)

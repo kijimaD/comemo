@@ -1,17 +1,19 @@
-commit 683810a36805cd81e59be9984001bd0f604b6024
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Jun 13 11:31:06 2025 -0400
+commit a62c290c5056d838c1a3c8f3a6375b5bc51c7666
+Author: gucio321 <gucio321@protonmail.com>
+Date:   Tue Apr 23 09:55:15 2024 +0000
 
-    cmd/link: block new standard library linknames
+    src/buildall.bash: use grep -E instead of egrep
     
-    In Go 1.25 we added a number of new linknames for standard library
-    internal uses. Add them to the linker's blocklist to keep them
-    internal.
+    according to https://www.phoronix.com/news/GNU-Grep-3.8-Stop-egrep-fgrep egrep and fgrep should not be used anymore. thats why using buildall.bash throws the following warning: egrep: warning: egrep is obsolescent; using grep -E
     
-    Change-Id: I5b6051a669b7ff132a1d2c05deefbbf74701c5d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/681475
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I2f3be55ebaa7826a7f89a93d756e083b9bddfb03
+    GitHub-Last-Rev: 60be0651afd68671dce2e701f9b8bfe1c16a3da8
+    GitHub-Pull-Request: golang/go#66990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581055
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/link/internal/loader/loader.go | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/buildall.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

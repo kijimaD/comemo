@@ -1,70 +1,32 @@
-commit fa316ba4d85b4b5df3f47ac3ac8dfbdbedcc2948
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Nov 13 07:39:18 2012 +0100
+commit 677c6e6ee7da904e9858ba57afdb92088fd81fe4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Nov 13 12:56:28 2012 +0900
 
-    cmd/8g: eliminate obviously useless temps before regopt.
+    net: protocol specific listen functions return a proper local socket address
     
-    This patch introduces a sort of pre-regopt peephole optimization.
-    When a temporary is introduced that just holds a value for the
-    duration of the next instruction and is otherwise unused, we
-    elide it to make the job of regopt easier.
+    When a nil listener address is passed to some protocol specific
+    listen function, it will create an unnamed, unbound socket because
+    of the nil listener address. Other listener functions may return
+    invalid address error.
     
-    Since x86 has very few registers, this situation happens very
-    often. The result is large savings in stack variables for
-    arithmetic-heavy functions.
+    This CL allows to pass a nil listener address to all protocol
+    specific listen functions to fix above inconsistency. Also make it
+    possible to return a proper local socket address in case of a nil
+    listner address.
     
-    crypto/aes
+    Fixes #4190.
+    Fixes #3847.
     
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkEncrypt               1301          392  -69.87%
-    BenchmarkDecrypt               1309          368  -71.89%
-    BenchmarkExpand                2913         1036  -64.44%
-    benchmark                  old MB/s     new MB/s  speedup
-    BenchmarkEncrypt              12.29        40.74    3.31x
-    BenchmarkDecrypt              12.21        43.37    3.55x
-    
-    crypto/md5
-    
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes            1761          914  -48.10%
-    BenchmarkHash1K               16912         5570  -67.06%
-    BenchmarkHash8K              123895        38286  -69.10%
-    benchmark                  old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes            4.54         8.75    1.93x
-    BenchmarkHash1K               60.55       183.83    3.04x
-    BenchmarkHash8K               66.12       213.97    3.24x
-    
-    bench/go1
-    
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkBinaryTree17    8364835000   8303154000   -0.74%
-    BenchmarkFannkuch11      7511723000   6381729000  -15.04%
-    BenchmarkGobDecode         27764090     27103270   -2.38%
-    BenchmarkGobEncode         11240880     11184370   -0.50%
-    BenchmarkGzip            1470224000    856668400  -41.73%
-    BenchmarkGunzip           240660800    201697300  -16.19%
-    BenchmarkJSONEncode       155225800    185571900  +19.55%
-    BenchmarkJSONDecode       243347900    282123000  +15.93%
-    BenchmarkMandelbrot200     12240970     12201880   -0.32%
-    BenchmarkParse              8837445      8765210   -0.82%
-    BenchmarkRevcomp         2556310000   1868566000  -26.90%
-    BenchmarkTemplate         389298000    379792000   -2.44%
-    benchmark                  old MB/s     new MB/s  speedup
-    BenchmarkGobDecode            27.64        28.32    1.02x
-    BenchmarkGobEncode            68.28        68.63    1.01x
-    BenchmarkGzip                 13.20        22.65    1.72x
-    BenchmarkGunzip               80.63        96.21    1.19x
-    BenchmarkJSONEncode           12.50        10.46    0.84x
-    BenchmarkJSONDecode            7.97         6.88    0.86x
-    BenchmarkParse                 6.55         6.61    1.01x
-    BenchmarkRevcomp              99.43       136.02    1.37x
-    BenchmarkTemplate              4.98         5.11    1.03x
-    
-    Fixes #4035.
-    
-    R=golang-dev, minux.ma, rsc
+    R=rsc, iant
     CC=golang-dev
-    https://golang.org/cl/6828056
+    https://golang.org/cl/6525048
 
- src/cmd/8g/reg.c | 121 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 121 insertions(+)
+ src/pkg/net/ipraw_test.go      | 30 ++++++++++++++++++++++
+ src/pkg/net/iprawsock_posix.go |  4 +--
+ src/pkg/net/tcp_test.go        | 30 ++++++++++++++++++++++
+ src/pkg/net/tcpsock_plan9.go   |  2 +-
+ src/pkg/net/tcpsock_posix.go   | 58 +++++++++++++++++++++++++-----------------
+ src/pkg/net/udp_test.go        | 30 ++++++++++++++++++++++
+ src/pkg/net/udpsock_plan9.go   |  2 +-
+ src/pkg/net/udpsock_posix.go   |  2 +-
+ 8 files changed, 130 insertions(+), 28 deletions(-)

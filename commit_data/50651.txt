@@ -1,16 +1,24 @@
-commit 09919ac3396f1de63dd5556758ac2dd10ecb9b9f
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Sep 28 00:29:30 2022 +0800
+commit 99699d14fe538f6886948ee6d3cc57f7f2a9bff7
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Nov 4 11:59:17 2021 -0700
 
-    encoding/xml: use bytes.Clone
+    cmd/compile: fix TypeDefn to deal with node with no Ntype set
     
-    Change-Id: I3218b1e3f8869f579facddb29471df13c835dc66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435281
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Adjust TypeDefn(), which is used by reportTypeLoop(), to work for nodes
+    with no Ntype set (which are all nodes in -G=3 mode). Normally,
+    reportTypeLoop() would not be called, because the types2 typechecker
+    would have already caught it. This is a possible way to report an
+    unusual type loop involving type params, which is not being caught by
+    the types2 type checker.
+    
+    Updates #48962
+    
+    Change-Id: I55edee46026eece2e8647c5b5b4d8dfb39eeb5f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361398
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/encoding/xml/xml.go | 14 ++++----------
- 1 file changed, 4 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ir/name.go |  5 ++++-
+ test/typeparam/issue48962.go        | 15 +++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

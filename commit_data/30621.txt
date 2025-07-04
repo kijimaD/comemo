@@ -1,16 +1,14 @@
-commit da0d23e5cdb305681a55c5475ff2db3e9a254cd4
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Mar 10 17:07:42 2017 +0000
+commit fbf92436b95d91151ce6717f40c46614ee68d487
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 16 11:23:53 2016 -0800
 
-    runtime: remove unused ratep parameter
+    doc: add FAQ: why no conversion from []T1 to []T2?
     
-    Found by github.com/mvdan/unparam.
+    Fixes #16934.
     
-    Change-Id: Iabcdfec2ae42c735aa23210b7183080d750682ca
-    Reviewed-on: https://go-review.googlesource.com/38030
-    Reviewed-by: Peter Weinberger <pjw@google.com>
-    Run-TryBot: Peter Weinberger <pjw@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I725704e4c4aae7023fd89edc42af7ba0d242fec8
+    Reviewed-on: https://go-review.googlesource.com/33327
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mprof.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ doc/go_faq.html | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

@@ -1,20 +1,23 @@
-commit 499e334a28c63c15e0b1add8172fd48b3c19e1ce
+commit 506fd520d5cd6ea075ac82e79a23c502c1540170
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu May 12 15:46:59 2022 -0700
+Date:   Wed Jul 28 13:17:32 2021 -0700
 
-    cmd/compile/internal/staticdata: remove use of `""` in embed linker symbols
+    [dev.typeparams] cmd/compile: don't compile blank functions
     
-    Not strictly necessary for CL 393715, but this is necessary if we want
-    to remove the logic from cmd/internal/obj for substituting `""` in
-    linker symbol names.
+    After typechecking a blank function, we can clear out its body and
+    skip applying middle-end optimizations (inlining, escape analysis). We
+    already skip sending them through SSA, and the previous CL updated
+    inlining and escape analysis regress tests to not depend on compiling
+    blank functions.
     
-    Updates #51734.
+    Updates #47446.
     
-    Change-Id: Ib13cb12fa3973389ca0c1c9a9209e00c30dc9431
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406058
+    Change-Id: Ie678763b0e6ff13dd606ce14906b1ccf1bbccaae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338095
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/staticdata/embed.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/typecheck.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

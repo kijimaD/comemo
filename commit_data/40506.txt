@@ -1,25 +1,14 @@
-commit cd18da451faedc4218a5fd0e38f9b3d13aa5da01
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Oct 29 16:46:26 2019 -0400
+commit 776e1709e59c2c50d93467e666d4bb8955b32ed3
+Author: adarsh ravichandran <adarshravichandran91@gmail.com>
+Date:   Mon May 20 16:27:13 2019 +0530
 
-    crypto/tls: improve error messages for invalid certificates and signatures
+    math/bits: add example for OnesCount function
     
-    Also, fix the alert value sent when a signature by a client certificate
-    is invalid in TLS 1.0-1.2.
-    
-    Fixes #35190
-    
-    Change-Id: I2ae1d5593dfd5ee2b4d979664aec74aab4a8a704
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204157
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: Id87db9bed5e8715d554c1bf95c063d7d0a03c3e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178117
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/auth.go                   | 21 +++++++-------
- src/crypto/tls/common.go                 | 49 +++++++++++++++++++++-----------
- src/crypto/tls/handshake_client.go       | 12 ++++----
- src/crypto/tls/handshake_client_tls13.go | 19 ++++++-------
- src/crypto/tls/handshake_server.go       | 15 ++++------
- src/crypto/tls/handshake_server_tls13.go | 19 ++++++-------
- src/crypto/tls/key_agreement.go          |  5 +++-
- src/crypto/tls/prf.go                    | 29 ++++---------------
- src/crypto/tls/tls_test.go               | 17 +++++++++++
- 9 files changed, 96 insertions(+), 90 deletions(-)
+ src/math/bits/example_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

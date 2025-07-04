@@ -1,14 +1,16 @@
-commit 8bcfad269e0326004dce1d9bd77e6a4f6d0468e4
+commit f735d2d9d3d9665d0e5058615ac6f62e2ba79887
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 12 23:41:07 2012 -0500
+Date:   Sun Feb 12 23:39:40 2012 -0500
 
     testing: use runtime/debug to format panics
     
-    Sorry, Mercurial failed me.
+    Among other things, this avoids putting a testing.go:nnn:
+    prefix on every line of the stack trace.
     
-    TBR=r, dsymonds
+    R=golang-dev, r, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/5649080
+    https://golang.org/cl/5651081
 
- src/pkg/testing/testing.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/pkg/runtime/debug/stack_test.go |  3 ++-
+ src/pkg/testing/testing.go          | 25 +++++++------------------
+ 2 files changed, 9 insertions(+), 19 deletions(-)

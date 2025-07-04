@@ -1,12 +1,21 @@
-commit a0288928824a56e4e04bfcd025e444ae762a031b
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Tue Dec 8 19:29:22 2015 -0700
+commit 6e5ccce87f444545de14dff7190171f0b4b15a12
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 13 10:05:13 2015 -0700
 
-    net/http: annotate equivalent h2 tests for h1
+    misc/cgo/test: fix go vet warnings
     
-    Change-Id: Ic639443d4a8536dd54c5b0cf5a9b6d1474448f77
-    Reviewed-on: https://go-review.googlesource.com/17593
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes these warnings from go vet:
+    buildid_linux.go:25: no formatting directive in Fatalf call
+    callback.go:180: arg pc[i] for printf verb %p of wrong type: uintptr
+    env.go:34: possible misuse of unsafe.Pointer
+    issue7665.go:22: possible misuse of unsafe.Pointer
+    
+    Change-Id: I83811b9c10c617139713a626b4a34ab05564d4fe
+    Reviewed-on: https://go-review.googlesource.com/15802
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/http/serve_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/test/buildid_linux.go | 2 +-
+ misc/cgo/test/callback.go      | 2 +-
+ misc/cgo/test/env.go           | 2 +-
+ misc/cgo/test/issue7665.go     | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

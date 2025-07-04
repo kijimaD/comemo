@@ -1,15 +1,19 @@
-commit 7de0c315f68035456c764f6edea393bc1581dc80
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 30 12:08:22 2014 -0400
+commit 0306478fe57767530164b43c12969ca91496db47
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 19 16:33:14 2014 -0700
 
-    CONTRIBUTORS: add Raul Silvera (Google CLA)
+    runtime: Fix interaction between Goexit and defers
     
-    Raul wrote the pprof code in CL 153750043.
+    When running defers, we must check whether the defer
+    has already been marked as started so we don't run it twice.
     
-    LGTM=bradfitz, r
-    R=r, bradfitz
+    Fixes #8774.
+    
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/146450043
+    https://golang.org/cl/142280044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/crash_test.go | 88 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/panic.go      | 18 +++++++++-
+ 2 files changed, 105 insertions(+), 1 deletion(-)

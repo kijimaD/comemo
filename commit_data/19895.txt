@@ -1,18 +1,13 @@
-commit de14137b4f179d97ac303d20330ba0ad622eab28
+commit 61b1d3a719e470b1136ba089addbf4a5986cfc1d
 Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Aug 6 00:24:55 2014 -0400
+Date:   Wed Aug 6 00:24:31 2014 -0400
 
-    runtime: get rid of SA_RESTORER on ARM.
+    runtime: remove dead code
     
-    The manpages says SA_RESTORER is obsolete, and indeed, not every architecture
-    support it. However, sadly it's required on x86_64, see http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/arch/x86/kernel/signal.c?id=26bcd8b72563b4c54892c4c2a409f6656fb8ae8b#n430, so only use it on x86.
-    
-    LGTM=rsc
-    R=rsc, iant
+    LGTM=bradfitz, dave, ruiu
+    R=rsc, iant, bradfitz, dave, ruiu
     CC=golang-codereviews
-    https://golang.org/cl/115450043
+    https://golang.org/cl/116610043
 
- src/pkg/runtime/defs_linux_arm.h |  2 +-
- src/pkg/runtime/os_linux.c       | 12 +++++++++---
- src/pkg/runtime/sys_linux_arm.s  |  5 -----
- 3 files changed, 10 insertions(+), 9 deletions(-)
+ src/pkg/runtime/sys_linux_amd64.s | 1 -
+ 1 file changed, 1 deletion(-)

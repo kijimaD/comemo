@@ -1,16 +1,39 @@
-commit 8fb55f9d4155f0f4dcbd6e783b8b076d963b4ff2
-Author: Minux Ma <minux@golang.org>
-Date:   Tue May 5 07:35:08 2015 +0000
+commit dc2d64bf81b3342d35bdbfa42b971087ade6dfc6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 10 15:59:06 2015 +0200
 
-    Revert "cmd/internal: disable OSQRT on GOARM=5"
+    cmd/go: cache results of HTTP requests done during meta tag discovery
     
-    I just submitted the real fix for #10641.
+    Previously, running
     
-    This reverts commit 3120adc21294829c230005a89e9bb0ad63de606b.
+      $ go get -u -v golang.org/x/tools/cmd/godoc
     
-    Change-Id: I55051515f697e27ca887ed21c2ac985f0b9b062b
-    Reviewed-on: https://go-review.googlesource.com/9720
-    Reviewed-by: Joel Sing <jsing@google.com>
+    would results in dozens of HTTP requests for
+    
+      https://golang.org/x/tools?go-get=1
+    
+    once per package under x/tools.
+    
+    Now it caches the results. We still end up doing one HTTP request for
+    all the packages under x/tools, but this reduces the total number of
+    HTTP requests in ~half.
+    
+    This also moves the singleflight package back into an internal
+    package. singleflight was originally elsewhere as a package, then got
+    copied into "net" (without its tests). But now that we have internal,
+    put it in its own package, and restore its test.
+    
+    Fixes #9249
+    
+    Change-Id: Ieb5cf04fc4d0a0c188cb957efdc7ea3068c34e3f
+    Reviewed-on: https://go-review.googlesource.com/8727
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/gc/walk.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/dist/build.go                              |  1 +
+ src/cmd/go/vcs.go                                  | 92 +++++++++++++++++-----
+ src/go/build/deps_test.go                          |  2 +-
+ src/{net => internal/singleflight}/singleflight.go | 34 ++++----
+ src/internal/singleflight/singleflight_test.go     | 73 +++++++++++++++++
+ src/net/lookup.go                                  |  9 ++-
+ 6 files changed, 170 insertions(+), 41 deletions(-)

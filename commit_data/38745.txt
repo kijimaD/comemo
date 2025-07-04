@@ -1,46 +1,19 @@
-commit 60a8dbf3b4e10627b9f5c3a0a0bf4462247270c8
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Mar 23 16:20:35 2019 +0000
+commit aadffd5b675254ce6235b74353ac260d2a5848e1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 20 18:35:56 2018 +0000
 
-    go/token: add IsIdentifier, IsKeyword, and IsExported
+    mime: remove allocation introduced in recent fix
     
-    Telling whether a string is a valid Go identifier can seem like an easy
-    task, but it's easy to forget about the edge cases. For example, some
-    implementations out there forget that an empty string or keywords like
-    "func" aren't valid identifiers.
+    CL 150417 was submitted before I could recommend this change to remove
+    an unnecessary allocation.
     
-    Add a simple implementation with proper Unicode support, and start using
-    it in cmd/cover and cmd/doc. Other pieces of the standard library
-    reimplement part of this logic, but don't use a "func(string) bool"
-    signature, so we're leaving them untouched for now.
+    Updates #28849
     
-    Add some tests too, to ensure that we actually got these edge cases
-    correctly.
-    
-    Since telling whether a string is a valid identifier requires knowing
-    that it's not a valid keyword, add IsKeyword too. The internal map was
-    already accessible via Lookup, but "Lookup(str) != IDENT" isn't as easy
-    to understand as IsKeyword(str). And, as per Josh's suggestion, we could
-    have IsKeyword (and probably Lookup too) use a perfect hash function
-    instead of a global map.
-    
-    Finally, for consistency with these new functions, add IsExported. That
-    makes go/ast.IsExported a bit redundant, so perhaps it can be deprecated
-    in favor of go/token.IsExported in the future. Clarify that
-    token.IsExported doesn't imply token.IsIdentifier, to avoid ambiguity.
-    
-    Fixes #30064.
-    
-    Change-Id: I0e0e49215fd7e47b603ebc2b5a44086c51ba57f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169018
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I4cd655f62bb3d00eda6c997f074785385bceee0c
+    Reviewed-on: https://go-review.googlesource.com/c/150498
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/cover/cover.go     | 19 +------------------
- src/cmd/doc/main.go        | 23 +++++++----------------
- src/go/ast/ast.go          | 15 ++++-----------
- src/go/token/token.go      | 34 +++++++++++++++++++++++++++++++++-
- src/go/token/token_test.go | 33 +++++++++++++++++++++++++++++++++
- 5 files changed, 78 insertions(+), 46 deletions(-)
+ src/mime/mediatype.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,15 +1,16 @@
-commit 5b6502356391a59441dee6056f92832295e66f65
+commit b5aa4789f93be669696f2a9b95eb018b931993d8
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Nov 28 17:01:59 2012 +1100
+Date:   Wed Nov 28 17:00:50 2012 +1100
 
-    os: include 0111 in directory file mode on windows
+    net/http: fix broken TestIssue4191_InfiniteGetToPutTimeout
     
-    Fixes #4444.
+    Test creates 2 tcp connections for put and get. Make sure
+    these are closed properly after test is over, otherwise
+    server hangs waiting for connection to be closed.
     
-    R=golang-dev, minux.ma, rsc
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/6858079
+    https://golang.org/cl/6842109
 
- src/pkg/os/os_test.go      | 12 ++++++++++++
- src/pkg/os/stat_windows.go |  2 +-
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/pkg/net/http/transport_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

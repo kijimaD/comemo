@@ -1,30 +1,22 @@
-commit 2f54081adfc967836842c96619d241378400ece6
-Author: Changkun Ou <hi@changkun.us>
-Date:   Sun Feb 16 14:42:29 2020 +0100
+commit 8d2ea2936b337f6276054dd4ac40999dd0f22dbc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 17 16:28:38 2019 -0700
 
-    testing: do not require os.Exit in TestMain
+    go/types: don't update the underlying type of an imported type
     
-    If TestMain reports a wrong exit code to os.Exit, the test will be
-    exited with exist code inconsist with test results.
+    Updating the underlying type of an imported type (even though
+    is was set to the same type again) leads to a race condition
+    if the imported package is imported by separate, concurrently
+    type-checked packages.
     
-    This CL eliminates the requirement of calling os.Exit in TestMain.
-    Now, m.Run records the execution status of its test, the outer
-    main func will call os.Exit with that exit code if TestMain does
-    not call os.Exit.
+    Fixes #31749.
     
-    If TestMain does not call m.Run, the outer main func remain calls
-    os.Exit(0) as before.
-    
-    Fixes #34129
-    
-    Change-Id: I9598023e03b0a6260f0217f34df41c231c7d6489
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219639
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iabb8e8593eb067eb4816c1df81e545ff52d32c6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201838
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.15.html                                  |  7 ++++++
- src/cmd/go/internal/load/test.go                 |  5 +++-
- src/cmd/go/testdata/script/list_importmap.txt    |  2 +-
- src/cmd/go/testdata/script/list_test_imports.txt |  2 +-
- src/cmd/go/testdata/script/test_main.txt         | 26 ++++++++++++++++++++
- src/testing/testing.go                           | 31 +++++++++++++++++-------
- 6 files changed, 61 insertions(+), 12 deletions(-)
+ src/go/types/decl.go        | 21 ++++++++++++++-------
+ src/go/types/issues_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 7 deletions(-)

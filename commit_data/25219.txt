@@ -1,30 +1,17 @@
-commit c2ef005486fa05cbeddc74c7faac8f6a867703d4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 9 22:02:46 2015 +0000
+commit 3be4d5982020bf60d1ed98fd7b9e40edd4c797ee
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Fri Oct 9 11:15:53 2015 -0700
 
-    net/http: run more tests in http2 mode
+    runtime: remove redundant type cast
     
-    Failing ones are marked skipped.
+      (*T)(unsafe.Pointer(&t)) === &t
+    for t of type T
     
-    Fixes #13543 (was just a test issue)
-    Updates #13555 (to be fixed later)
-    Updates #13556 (to be fixed later)
-    Updates #13557 (to be fixed later)
-    Fixes bug in golang.org/cl/17428 (http1 now uses HTTP status 431, not 413)
-    
-    Change-Id: I8f7431fee35f2fc081cfe2c232ae75a00800a60b
-    Reviewed-on: https://go-review.googlesource.com/17683
-    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Burcu Dogan <jbd@google.com>
+    Change-Id: I43c1aa436747dfa0bf4cb0d615da1647633f9536
+    Reviewed-on: https://go-review.googlesource.com/15656
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/client_test.go       |  37 +++++-----
- src/net/http/clientserver_test.go |  15 ++--
- src/net/http/fs_test.go           |  21 +++++-
- src/net/http/request_test.go      |   5 +-
- src/net/http/serve_test.go        | 150 ++++++++++++++++++++++----------------
- src/net/http/server.go            |   2 +-
- src/net/http/sniff_test.go        |  19 ++---
- 7 files changed, 144 insertions(+), 105 deletions(-)
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

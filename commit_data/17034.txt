@@ -1,18 +1,19 @@
-commit 19e292268896c245c781e711ae3fff5ff5e127e5
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 5 13:24:33 2013 -0700
+commit 8a0779f9b91e3392d90dab9217be7fdbee08f523
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 5 16:08:08 2013 -0400
 
-    cmd/gc: get rid of redundant slice bound check.
+    compress/bzip2: support concatenated files
     
-    For normal slices a[i:j] we're generating 3 bounds
-    checks: j<={len(string),cap(slice)}, j<=j (!), and i<=j.
-    Somehow snuck in as part of the [i:j:k] implementation
-    where the second check does something.
-    Remove the second check when we don't need it.
+    While we're here, add a test for the same functionality in gzip,
+    which was already implemented, and add bzip2 CRC checks.
     
-    R=rsc, r
+    Fixes #5772.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12311046
+    https://golang.org/cl/12387044
 
- src/cmd/gc/walk.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/compress/bzip2/bzip2.go      | 161 +++++++++++++++++++++++++++--------
+ src/pkg/compress/bzip2/bzip2_test.go |  13 +++
+ src/pkg/compress/gzip/gzip_test.go   |  17 ++++
+ 3 files changed, 156 insertions(+), 35 deletions(-)

@@ -1,18 +1,18 @@
-commit d284d4ff9204e42c3cfc5424880d74063ed08b23
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Sep 19 12:02:58 2016 +1200
+commit 0e930015c16b73dc9f98776b6624f02ea41d8268
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 24 15:43:25 2016 -0700
 
-    cmd/link: split "bag of Symbols" functionality out of Link
+    cmd/compile: log rules to a file for rule coverage tool
     
-    Mechanical refactorings to follow.
+    When rules are generated with -log, log rule application to a file.
     
-    Change-Id: I9b98e69a58c3cba7c7d1d3e3f600d4ed99d4fce2
-    Reviewed-on: https://go-review.googlesource.com/29342
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The file is opened in append mode so multiple calls to the compiler
+    union their logs.
+    
+    Change-Id: Ib35c7c85bf58e5909ea9231043f8cbaa6bf278b7
+    Reviewed-on: https://go-review.googlesource.com/23406
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/link/internal/ld/link.go    | 30 +++++--------
- src/cmd/link/internal/ld/sym.go     | 42 +++++------------
- src/cmd/link/internal/ld/symbols.go | 90 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 111 insertions(+), 51 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go |  7 ++-----
+ src/cmd/compile/internal/ssa/rewrite.go     | 27 +++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 5 deletions(-)

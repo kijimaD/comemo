@@ -1,12 +1,18 @@
-commit bbf79575a56afdd4f2aadbdcee6bdd700160516a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 17 13:19:33 2015 -0700
+commit 7de86a1b1c7f145cb574796dce6992fb12c91381
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue May 12 16:54:39 2015 +0200
 
-    math/big: incorporate feedback by josharian (Example_fibonacci)
+    runtime: terminate exit status buffer on Plan 9
     
-    Change-Id: I376ff39594b532a5490f13e3985b7a6ff4b6761d
-    Reviewed-on: https://go-review.googlesource.com/11191
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    The status buffer built by the exit function
+    was not nil-terminated.
+    
+    Fixes #10789.
+    
+    Change-Id: I2d34ac50a19d138176c4b47393497ba7070d5b61
+    Reviewed-on: https://go-review.googlesource.com/9953
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/example_test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/runtime/os1_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,26 +1,12 @@
-commit cb4428e555f664a64b0e2f5f4fe6e3c5991dbdd7
+commit b12c299a5cef14c9673f6ee944cd0ec425a6bd5c
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 15 00:00:02 2013 -0400
+Date:   Thu Mar 14 23:59:41 2013 -0400
 
-    os/signal: add Stop, be careful about SIGHUP
+    CONTRIBUTORS: add Jonathan Nieder (Google CLA)
     
-    Fixes #4268.
-    Fixes #4491.
-    
-    R=golang-dev, nightlyone, fullung, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7546048
+    https://golang.org/cl/7842043
 
- src/pkg/os/signal/sig.s            |   3 +
- src/pkg/os/signal/signal.go        |  91 +++++++++++++++++++++++------
- src/pkg/os/signal/signal_stub.go   |   8 ++-
- src/pkg/os/signal/signal_test.go   | 113 +++++++++++++++++++++++++++++++++++--
- src/pkg/os/signal/signal_unix.go   |  25 ++++++--
- src/pkg/runtime/os_plan9_386.c     |   6 ++
- src/pkg/runtime/os_plan9_amd64.c   |   6 ++
- src/pkg/runtime/os_windows_386.c   |   6 ++
- src/pkg/runtime/os_windows_amd64.c |   6 ++
- src/pkg/runtime/runtime.h          |   3 +
- src/pkg/runtime/signal_unix.c      |  51 +++++++++++++----
- src/pkg/runtime/sigqueue.goc       |  18 +++---
- 12 files changed, 289 insertions(+), 47 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

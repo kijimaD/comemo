@@ -1,19 +1,22 @@
-commit ba6aeb6ce8b28a295792520a42717cd4472738bc
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Oct 12 02:43:29 2019 +0700
+commit e85d61953040b5e44abbb974d8bfa8802c2e891a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Apr 27 11:02:31 2019 +1000
 
-    cmd/compile: simplify OAS2XXX nodes handle in order
+    cmd/go/internal/renameio: use ERROR_ACCESS_DENIED to check for errors
     
-    Passes toolstash-check.
+    CL 172418 added code to check for "Access is denied" error.
+    But "Access is denied" error will be spelled differently on
+    non-English version of Windows.
     
-    Updates #23017
+    Check if error is ERROR_ACCESS_DENIED instead.
     
-    Change-Id: I0ae82e28a6e9e732ba2a6aa98f9b35551efcea10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200580
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #31247
+    
+    Change-Id: I7b1633013d563f7c06c1f12a9be75122106834f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174123
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/gc/order.go | 63 +++++++++++++-----------------------
- src/cmd/compile/internal/gc/walk.go  |  4 +--
- 2 files changed, 24 insertions(+), 43 deletions(-)
+ src/cmd/go/internal/renameio/error.go         | 12 ++++++++++++
+ src/cmd/go/internal/renameio/error_windows.go | 23 +++++++++++++++++++++++
+ src/cmd/go/internal/renameio/renameio.go      |  4 +---
+ 3 files changed, 36 insertions(+), 3 deletions(-)

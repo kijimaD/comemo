@@ -1,12 +1,12 @@
-commit bcb39a778cbf06582615e9110a480cedd096bb8b
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 20 15:38:51 2013 -0700
+commit 5ae4012b64024c3861f3c9e0f6139a145e31a80f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 20 15:03:30 2013 -0700
 
-    runtime: free map structures more aggressively
+    go/parser: use method values
     
-    R=rsc, bradfitz, khr
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7849047
+    https://golang.org/cl/7858045
 
- src/pkg/runtime/hashmap.c | 62 ++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 50 insertions(+), 12 deletions(-)
+ src/pkg/go/parser/parser.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

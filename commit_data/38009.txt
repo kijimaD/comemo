@@ -1,17 +1,15 @@
-commit 56e4b0b3a2520015cb1d38b5bf67820e75e16f83
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 21 09:20:42 2019 -0500
+commit 206fd7886b717d49758de9c125c1fd3575d74ef6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 21 21:03:35 2018 -0700
 
-    misc/android: add build constraints on files intended to be built by filename only
+    spec: be more precise about the moment deferred functions are executed
     
-    Updates #30228
+    Fixes #27802.
     
-    Change-Id: I91a763d94de935d9102d927b5cefee564bbf049b
-    Reviewed-on: https://go-review.googlesource.com/c/163208
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7ea9f7279300a55b0cb851893edc591a6f84e324
+    Reviewed-on: https://go-review.googlesource.com/136758
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/android/cleaner.go         | 2 ++
- misc/android/go_android_exec.go | 2 ++
- 2 files changed, 4 insertions(+)
+ doc/go_spec.html | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

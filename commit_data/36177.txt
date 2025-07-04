@@ -1,32 +1,25 @@
-commit b7d3f4c0b2f421c6b7bf6ce3533f1b34b470b39d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 30 14:53:44 2018 -0400
+commit 954f651ccc2f779a8e570a669a0a89bba53c2789
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Tue Apr 10 22:33:03 2018 +0800
 
-    cmd/doc: adapt directory search for modules
+    internal/cpu,runtime: call cpu.initialize before alginit
     
-    Previously, cmd/doc treated GOROOT/src and GOPATH/src
-    as the roots of the directory trees holding packages, assuming
-    that the import path would be the path elements after the src directory.
+    runtime.alginit needs runtime/support_{aes,ssse3,sse41} feature flag
+    to init aeshash function but internal/cpu.init not be called yet.
+    This CL will call internal/cpu.initialize before runtime.alginit, so
+    that we can move all cpu features related code to internal/cpu.
     
-    With modules, each module serves as its own root of a file tree,
-    and the import path prefix starts with the module path before
-    adding the path elements after the module root.
-    
-    There are ways we could make this more efficient,
-    but for now this is a fairly small adjustment to get 'go doc'
-    working OK for modules for Go 1.11.
-    
-    Fixes #26635.
-    
-    Change-Id: Ifdee4194601312846c7b1fc67f2fe7a4a44269cc
-    Reviewed-on: https://go-review.googlesource.com/126799
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I00b8e403ace3553f8c707563d95f27dade0bc853
+    Reviewed-on: https://go-review.googlesource.com/104636
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/doc/dirs.go                    | 125 ++++++++++++++++++++++++++-------
- src/cmd/doc/doc_test.go                |   5 +-
- src/cmd/doc/main.go                    |  21 ++++--
- src/cmd/doc/pkg.go                     |  26 ++++++-
- src/cmd/go/testdata/script/mod_doc.txt |  34 +++++++++
- 5 files changed, 180 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/internal/cpu/cpu.go                 |  7 +++++++
+ src/internal/cpu/cpu_arm64.go           |  2 +-
+ src/internal/cpu/cpu_no_init.go         | 13 +++++++++++++
+ src/internal/cpu/cpu_x86.go             |  2 +-
+ src/runtime/proc.go                     | 12 ++++++++----
+ 6 files changed, 31 insertions(+), 7 deletions(-)

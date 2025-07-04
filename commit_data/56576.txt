@@ -1,29 +1,29 @@
-commit f9ba2cff2286d378eca28c841bea8488c69fc30e
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Thu May 16 15:48:36 2024 -0700
+commit 6d1c507bfc360ba72ca716bb7cb7bd9105a45af4
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 16 15:16:06 2023 -0700
 
-    runtime: improve runtime-internal mutex profile tests
+    slices: for Insert and Replace, grow slices like append does
     
-    Have the test use the same clock (cputicks) as the profiler, and use the
-    test's own measurements as hard bounds on the magnitude to expect in the
-    profile.
+    At least when we're inserting/replacing near the end of a slice, when
+    we have to grow it use the same multiplicative growth factor that the
+    runtime uses for append.
     
-    Compare the depiction of two users of the same lock: one where the
-    critical section is fast, one where it is slow. Confirm that the profile
-    shows the slow critical section as a large source of delay (with #66999
-    fixed), rather than showing the fast critical section as a large
-    recipient of delay.
+    Before this CL, we would grow the slice one page (8192 bytes) at a time
+    for large slices. This would cause O(n^2) work when appending near the
+    end should only take O(n) work.
     
-    For #64253
-    For #66999
+    This doesn't fix the problem if you insert/replace near the start of the
+    array, but maybe that doesn't need fixing because it is O(n^2) anyway.
     
-    Change-Id: I784c8beedc39de564dc8cee42060a5d5ce55de39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586237
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Fixes #60134
+    
+    Change-Id: If05376bc512ab839769180e5ce4cb929f47363b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495296
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/export_test.go  |   2 +
- src/runtime/metrics_test.go | 171 +++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 146 insertions(+), 27 deletions(-)
+ src/slices/slices.go      |  6 ++----
+ src/slices/slices_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 4 deletions(-)

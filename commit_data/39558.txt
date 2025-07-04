@@ -1,28 +1,26 @@
-commit 8a317ebc0f50339628c003bf06107cd865406dd4
-Author: Keith Randall <khr@google.com>
-Date:   Tue Jul 30 16:14:20 2019 -0700
+commit 80f10965ee9f6063f587baffce9c1fa8fc80a5ba
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 16:16:38 2019 +0100
 
-    cmd/compile: don't eliminate all registers when restricting to desired ones
+    cmd/link, runtime: allow external linking for aix/ppc64
     
-    We shouldn't mask to desired registers if we haven't masked out all the
-    forbidden registers yet.  In this path we haven't masked out the nospill
-    registers yet. If the resulting mask contains only nospill registers, then
-    allocReg fails.
+    This commit adds external linking in cmd/link for aix/ppc64.
+    As relocations on .text data aren't possible on AIX, Segrelrodata is
+    used to move all these datas to .data section.
     
-    This can only happen on resultNotInArgs-marked instructions, which exist
-    only on the ARM64, MIPS, MIPS64, and PPC64 ports.
-    
-    Maybe there's a better way to handle resultNotInArgs instructions.
-    But for 1.13, this is a low-risk fix.
-    
-    Fixes #33355
-    
-    Change-Id: I1082f78f798d1371bde65c58cc265540480e4fa4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188178
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I4d1361c1fc9290e11e6f5560864460c76551dbeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164003
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go |   2 +-
- test/fixedbugs/issue33355.go             | 147 +++++++++++++++++++++++++++++++
- 2 files changed, 148 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/config.go |   6 +-
+ src/cmd/link/internal/ld/data.go   |  17 ++-
+ src/cmd/link/internal/ld/dwarf.go  |   1 +
+ src/cmd/link/internal/ld/lib.go    |  19 +++-
+ src/cmd/link/internal/ld/xcoff.go  | 208 +++++++++++++++++++++++++++++++++++--
+ src/cmd/link/internal/ppc64/asm.go |  53 +++++++++-
+ src/cmd/link/internal/ppc64/obj.go |   1 +
+ src/runtime/asm_ppc64x.s           |   7 ++
+ src/runtime/rt0_aix_ppc64.s        |   9 ++
+ 9 files changed, 297 insertions(+), 24 deletions(-)

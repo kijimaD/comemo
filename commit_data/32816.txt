@@ -1,31 +1,25 @@
-commit 8cb2952f2f9c80246572b951e2663e79962796c0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 22 12:03:52 2017 -0700
+commit 51711d1429cb592c9ddc772e6362e74ac8545dc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 11:33:04 2017 -0400
 
-    os/exec: remove protection against simultaneous Wait/Write
+    cmd/link: fix accidentally-quadratic library loading
     
-    CL 31148 added code to protect again simultaneous calls to Close and
-    Wait when using the standard input pipe, to fix the race condition
-    described in issue #9307. That issue is a special case of the race
-    between Close and Write described by issue #7970. Since issue #7970
-    was not fixed, CL 31148 fixed the problem specific to os/exec.
+    Programs built from N libraries required O(N²) time to do the
+    deduplication checks, even if there were never any duplicates.
+    In most programs N is small enough not to worry, but this may
+    affect large programs.
     
-    Since then, issue #7970 has been fixed, so the specific fix in os/exec
-    is no longer necessary. Remove it, effectively reverting CL 31148 and
-    followup CL 33298.
+    Noticed by inspection, not any specific bug report.
     
-    Updates #7970
-    Updates #9307
-    Updates #17647
+    Fixes #20578.
     
-    Change-Id: Ic0b62569cb0aba44b32153cf5f9632bd1f1b411a
-    Reviewed-on: https://go-review.googlesource.com/65490
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Miguel Bernabeu <miguelbernadi@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Change-Id: Ic4108f1058be39da990a79b1e0b8ce95fde44cef
+    Reviewed-on: https://go-review.googlesource.com/44852
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec/exec.go | 56 +++--------------------------------------------------
- 1 file changed, 3 insertions(+), 53 deletions(-)
+ src/cmd/link/internal/ld/ld.go   | 17 +++++++----------
+ src/cmd/link/internal/ld/link.go | 17 +++++++++--------
+ src/cmd/link/internal/ld/sym.go  |  3 ++-
+ 3 files changed, 18 insertions(+), 19 deletions(-)

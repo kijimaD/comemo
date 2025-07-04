@@ -1,37 +1,23 @@
-commit 162d4f9c92cb618e8b434e445a842351160fb84d
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Apr 27 12:40:43 2021 -0400
+commit 8e2370bf7f0c992ce1ea5dc54b43551cea71a485
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Aug 6 19:04:46 2020 +0000
 
-    cmd/compile: regabi support for DWARF location expressions
+    runtime,runtime/metrics: add object size distribution metrics
     
-    Revise the code that generates DWARF location expressions for input
-    parameters to get it to work properly with the new register ABI when
-    optimization is turned off.
+    This change adds metrics for the distribution of objects allocated and
+    freed by size, mirroring MemStats' BySize field.
     
-    The previously implementation assumed stack locations for all
-    input+output parameters when -N (disable optimization) was in effect.
-    In the new implementation, a register-resident input parameter is
-    given a 2-element location list, the first list element pointing to
-    the ABI register(s) containing the param, and the second element
-    pointing to the stack home once it has been spilled.
+    For #37112.
     
-    NB, this change fixes a bunch of the Delve pkg/proc unit tests (maybe
-    about half of the outstanding failures). Still a good number that need
-    to be investigated, however.
-    
-    Updates #40724.
-    Updates #45720.
-    
-    Change-Id: I743bbb9af187bcdebeb8e690fdd6db58094ca415
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314431
-    Trust: Than McIntosh <thanm@google.com>
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Ibaf1812da93598b37265ec97abc6669c1a5efcbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247045
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/dwarfgen/dwarf.go |  34 ++++
- src/cmd/compile/internal/ssa/debug.go      | 244 ++++++++++++++++++++++++++++-
- src/cmd/compile/internal/ssagen/ssa.go     |   7 +-
- 3 files changed, 282 insertions(+), 3 deletions(-)
+ src/runtime/metrics.go             | 52 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/metrics/description.go | 10 ++++++++
+ src/runtime/metrics/doc.go         |  6 +++++
+ src/runtime/metrics_test.go        | 36 ++++++++++++++++++++++++++
+ 4 files changed, 104 insertions(+)

@@ -1,20 +1,17 @@
-commit 5d0cab036712539d50435904ded466bf6b7b0884
-Author: Wèi Cōngruì <crvv.mail@gmail.com>
-Date:   Thu Nov 2 14:23:32 2017 +0800
+commit e0b34e7be73ed192db8ab3fb83fcd44976d67075
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 17 10:37:17 2017 -0700
 
-    net/textproto: ignore initial lines with leading whitespaces in ReadMIMEHeader
+    runtime: split advanceEvacuationMark from evacuate
     
-    A header line with leading whitespaces is not valid in HTTP as per
-    RFC7230. This change ignores these invalid lines in ReadMIMEHeader.
+    Minor refactoring. This is a step towards specializing evacuate
+    for mapfast key types.
     
-    Updates #22464
-    
-    Change-Id: Iff9f00380d28a9617a55ff7888a76fba82001402
-    Reviewed-on: https://go-review.googlesource.com/75350
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icffe2759b7d38e5c008d03941918d5a912ce62f6
+    Reviewed-on: https://go-review.googlesource.com/56933
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/readrequest_test.go | 20 ++++++++++++++++++++
- src/net/http/response_test.go    | 22 ++++++++++++++++++++++
- src/net/textproto/reader.go      |  8 ++++++++
- src/net/textproto/reader_test.go | 19 +++++++++++++++++++
- 4 files changed, 69 insertions(+)
+ src/runtime/hashmap.go | 43 +++++++++++++++++++++++--------------------
+ 1 file changed, 23 insertions(+), 20 deletions(-)

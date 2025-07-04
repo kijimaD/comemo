@@ -1,13 +1,19 @@
-commit 846db08936ee89b95d002b6f38e26d84eece6eec
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 25 18:02:30 2014 +0400
+commit 65d8cb985f790f272e4f0827f4fab75e223a15b6
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Aug 18 20:26:10 2014 +0200
 
-    runtime: fix plan9 HeapSys accounting
+    unicode: strconv: regexp: Upgrade to Unicode 7.0.0.
     
-    LGTM=0intro
-    R=0intro
+    LGTM=r, bradfitz
+    R=r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/131190043
+    https://golang.org/cl/127470043
 
- src/pkg/runtime/mem_plan9.c | 24 +++++++++++++++++++-----
- 1 file changed, 19 insertions(+), 5 deletions(-)
+ api/except.txt                 |    1 +
+ api/next.txt                   |   24 +
+ src/pkg/regexp/syntax/parse.go |    2 +-
+ src/pkg/strconv/isprint.go     |  196 ++++---
+ src/pkg/unicode/maketables.go  |    2 +-
+ src/pkg/unicode/script_test.go |   27 +-
+ src/pkg/unicode/tables.go      | 1248 ++++++++++++++++++++++++++++++----------
+ 7 files changed, 1124 insertions(+), 376 deletions(-)

@@ -1,29 +1,23 @@
-commit 3a3b8164fdcb071955284c13cda6ee0f29fc8bd3
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Mar 1 10:34:08 2021 +0800
+commit b6ad2880323191713a5525bae5eb27d62c1d1c35
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Jun 13 10:37:22 2020 +0530
 
-    cmd/dist: refactor test constraints for misc/cgo/testsantizers
+    net/http: avoid setting body when NoBody is set for js/wasm
     
-    Currently, the cmd/dist runs test cases in misc/cgo/testsantizers only
-    when memeory sanitizer is supported, but the tsan tests in
-    misc/cgo/testsanitizers do not require support for -msan option, which
-    makes tsan tests can not be run on some unsupported -msan option platforms.
+    When http.NoBody is set, it is equivalent to Body being zero bytes.
+    We therefore set the body only if it is of length greater than 0.
     
-    Therefore, this patch moves the test constraints from cmd/dist to
-    msan_test.go, so that the tsan tests in misc/cgo/testsanitizers
-    can be run on any system where the C compiler supports -fsanitize=thread
-    option.
+    Manually verified with wasmbrowsertest.
     
-    Change-Id: I779c92eedd0270050f1a0b1a69ecce50c3712bc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297774
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #36339
+    
+    Change-Id: I9c108c38f99409f72ea101819af572429505a8ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237758
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- misc/cgo/testsanitizers/cc_test.go      | 11 +++++++++++
- misc/cgo/testsanitizers/cshared_test.go | 11 +++++++++++
- misc/cgo/testsanitizers/msan_test.go    | 13 +++++++++++++
- src/cmd/dist/test.go                    | 16 +++-------------
- src/cmd/internal/sys/supported.go       |  3 ++-
- 5 files changed, 40 insertions(+), 14 deletions(-)
+ src/net/http/roundtrip_js.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

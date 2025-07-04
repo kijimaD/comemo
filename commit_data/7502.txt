@@ -1,12 +1,21 @@
-commit 547918e3632121cd2fa40e8d6d8f5f0b2e2778c2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 17 17:22:16 2011 -0800
+commit 6d9db54be5327617d0c234ae0b0d07c41696c5b0
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Feb 17 16:17:33 2011 -0800
 
-    go/scanner: update comment
+    testing: rename cmdline flags to avoid conflicts
     
-    R=r, r2
+    Flags defined in the testing package may conflict
+    with real flags defined in the main package, or in
+    any other imported package.
+    
+    This change makes them less likely to be used for
+    other purposes.
+    
+    R=r, rsc, r2
     CC=golang-dev
-    https://golang.org/cl/4184053
+    https://golang.org/cl/4167055
 
- src/pkg/go/scanner/scanner.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/gotest/doc.go        | 18 +++++++++---------
+ src/pkg/testing/benchmark.go |  4 ++--
+ src/pkg/testing/testing.go   |  6 +++---
+ 3 files changed, 14 insertions(+), 14 deletions(-)

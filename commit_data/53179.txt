@@ -1,31 +1,24 @@
-commit 1dad7ef572d725ac1c4349d3dbb15bdc9e30618d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 22 09:44:42 2023 -0700
+commit 9b70178d58060764cbaedf3d4542bd67f9aafede
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 22 23:33:30 2022 -0700
 
-    go/types, types2: remove unnecessary pkg argument from verifyVersion
+    [dev.unified] cmd/compile: write RTTI into unified IR export data
     
-    Change-Id: I802a9b8039740e71463694eb5503a81b2b75971d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496919
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    This CL adds `rtype` methods for unified IR for writing/reading types
+    that need to have their *runtime._type value available.
+    
+    For now, this just builds on the existing type writing/reading
+    mechanics and calling reflectdata.TypePtrAt; but longer term, reading
+    of derived types can be changed to use dictionary lookups instead.
+    
+    Change-Id: I6f803b84546fa7df2877a8a3bcbf2623e4b03449
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419456
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types2/builtins.go | 14 +++++++-------
- src/cmd/compile/internal/types2/call.go     |  6 +++---
- src/cmd/compile/internal/types2/decl.go     |  4 ++--
- src/cmd/compile/internal/types2/expr.go     |  2 +-
- src/cmd/compile/internal/types2/resolver.go |  6 +++---
- src/cmd/compile/internal/types2/typeset.go  |  6 +++---
- src/cmd/compile/internal/types2/typexpr.go  |  4 ++--
- src/cmd/compile/internal/types2/version.go  |  7 ++++---
- src/go/types/builtins.go                    | 14 +++++++-------
- src/go/types/call.go                        |  6 +++---
- src/go/types/decl.go                        |  4 ++--
- src/go/types/expr.go                        |  2 +-
- src/go/types/resolver.go                    |  6 +++---
- src/go/types/typeset.go                     |  6 +++---
- src/go/types/typexpr.go                     |  4 ++--
- src/go/types/version.go                     |  7 ++++---
- 16 files changed, 50 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 59 ++++++++++++++++--------------
+ src/cmd/compile/internal/noder/writer.go | 63 ++++++++++++++++++++++++++++++--
+ src/internal/pkgbits/sync.go             |  1 +
+ 3 files changed, 91 insertions(+), 32 deletions(-)

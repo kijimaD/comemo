@@ -1,17 +1,14 @@
-commit f0f97c1f47377a735b13dac32af9222905821d67
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Mon Jun 24 13:28:10 2013 +1000
+commit 28a55111b25a9f0b6b683509bac25836750eec2e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jun 24 11:23:37 2013 +1000
 
-    misc/notepadplus: add missing delete keyword
+    os: rename error_posix.go to error_unix.go
     
-    In general the description should describe what is added or fixed, not how it was done (the code does this), but in this case the cause was delete was missing, so the fix is to add it.
+    The tradition is to use _posix when the platform extends beyond unix variants. As windows has its own file, rename to the more usual _unix.
     
-    Fixes #5759.
-    
-    R=adg
-    CC=dave, dominik.honnef, gobot, golang-dev
-    https://golang.org/cl/10476043
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10320043
 
- misc/notepadplus/go.xml             | 1 +
- misc/notepadplus/userDefineLang.xml | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/os/{error_posix.go => error_unix.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,34 +1,23 @@
-commit e0dde990de11c73ae11b2f1a42de37143c6bfb7c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 13 09:58:35 2019 +0700
+commit 2ebdb5ec0652742afe7f0c58f708ca5128ef5d5e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 11 15:42:21 2019 -0400
 
-    cmd/compile: remove n.SetLikely(false) usage
+    os: fix aliasing bug in RemoveAllTestHook restoration
     
-    n.SetLikely(false) is probably mean to indicate that the branch is
-    "unlikely", but it has the real effect of not marking branch as likely.
+    The code to swap RemoveAllTestHook in and out in
+    TestRemoveAllWithMoreErrorThanReqSize was making a copy of the
+    RemoveAllTestHook pointer, then attempting to restore by loading from
+    the copy of that pointer. Since the two copies of the pointer aliased
+    the same address, the restore operation had no effect, and any
+    RemoveAll tests that happened to run after
+    TestRemoveAllWithMoreErrorThanReqSize would fail.
     
-    So invert the test condition, we can use more meaningful n.SetLikely(true).
+    Fixes #31421
     
-    Before:
-    
-            if l2 < 0 {
-                    panicmakeslicelen()
-            }
-    
-    After:
-    
-            if l2 >= 0 {
-            } else {
-                    panicmakeslicelen
-            }
-    
-    Fixes #32486
-    
-    Change-Id: I156fdba1f9a5d554a178c8903f1a391ed304199d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195197
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I7028475f5ceb3b0a2fa69d22af8d3379508c4531
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171777
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/os/removeall_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

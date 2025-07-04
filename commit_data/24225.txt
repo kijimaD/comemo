@@ -1,23 +1,19 @@
-commit 918c82308a8b489cc5f179f4e18531ad12cd6692
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Fri Sep 4 18:07:55 2015 -0700
+commit 766bcc92a5b693f336deffc347be52fe68af884a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 16 12:45:22 2015 -0600
 
-    html/template: preserve attr in stateBeforeValue
+    [dev.ssa] cmd/compile: don't Compile if Unimplemented
     
-    Context: #12149. The problem there is that contents of
-    <script type="text/template"> are treated as JS, and thus // is treated
-    as regexp.
+    If we've already hit an Unimplemented, there may be important
+    SSA invariants that do not hold and which could cause
+    ssa.Compile to hang or spin.
     
-    Preserve context.attr while we are in the attribute, in particular in
-    stateBeforeValue, so we have attr when reading attr value.
+    While we're here, make detected dependency cycles stop execution.
     
-    Next CL will actually fix the bug.
-    
-    Change-Id: I99add2237b0885ecdcc08b4f7c25d0af99173e53
-    Reviewed-on: https://go-review.googlesource.com/14335
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ic7d4eea659e1fe3f2c9b3e8a4eee5567494f46ad
+    Reviewed-on: https://go-review.googlesource.com/12310
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/html/template/context.go     |   3 +-
- src/html/template/escape_test.go | 124 ++++++++++++++++++++-------------------
- src/html/template/transition.go  |   2 +-
- 3 files changed, 67 insertions(+), 62 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go    |  9 +++++----
+ src/cmd/compile/internal/ssa/print.go | 13 ++++++++++---
+ 2 files changed, 15 insertions(+), 7 deletions(-)

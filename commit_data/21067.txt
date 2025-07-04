@@ -1,24 +1,24 @@
-commit 3ffc9756d1963e834fbce63ff969de8959216c2b
-Author: George Shammas <george@shamm.as>
-Date:   Wed Dec 17 23:22:49 2014 -0500
+commit 59e3e5354d7fbb896022eb5bf57e8ad850c42dd1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:08:14 2014 -0500
 
-    net/http/cgi: Correctly pass down the REMOTE_PORT value for CGI requests.
+    [dev.cc] runtime: convert race implementation from C to Go
     
-    Currently when we get a CGI or FCGI request, the remote port of the client
-    is hard coded to zero, despite nearly every webserver passing down the
-    REMOTE_PORT variable.
+    The conversion was done with an automated tool and then
+    modified only as necessary to make it compile and run.
     
-    This was likely originally excluded because the CGI RFC (rfc3875) does not
-    mention anything about the remote port of the client. However every webserver
-    tested does pass REMOTE_PORT down. This includes Apache 2.2, Apache 2.4,
-    nginx and lighttpd.
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
     
-    Fixes #8351
-    
-    Change-Id: I4c6366cb39f0ccc05e038bd31d85f93b76e8d0c8
-    Reviewed-on: https://go-review.googlesource.com/1750
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=r
+    R=r
+    CC=austin, dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/172250044
 
- src/net/http/cgi/child.go      |  6 +++---
- src/net/http/cgi/child_test.go | 21 ++++++++++++++++++++-
- 2 files changed, 23 insertions(+), 4 deletions(-)
+ src/runtime/norace_test.go |   4 +-
+ src/runtime/race.c         | 314 ---------------------------------------------
+ src/runtime/race.go        |  38 ------
+ src/runtime/race.h         |  34 -----
+ src/runtime/race0.go       |   2 +-
+ src/runtime/race1.go       | 304 +++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 307 insertions(+), 389 deletions(-)

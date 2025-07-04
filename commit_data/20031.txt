@@ -1,11 +1,15 @@
-commit 2e2beb567cb2a59a8b54d8f2cd3fbd8eb1116013
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 18 21:07:11 2014 -0400
+commit ab29d5b4ae54f256cb8bbed366b7c028e4993e99
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 19:50:30 2014 -0400
 
-    doc/go1.4: mention pc-relative addressing on amd64
+    [dev.power64] runtime: add defs3_linux.go to generate defs_linux_power64{,le}.h
     
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/124580043
+    https://golang.org/cl/128070043
 
- doc/go1.4.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/defs1_linux.go |  6 ++++--
+ src/pkg/runtime/defs3_linux.go | 43 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/defs_linux.go  | 11 ++++++-----
+ 3 files changed, 53 insertions(+), 7 deletions(-)

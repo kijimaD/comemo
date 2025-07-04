@@ -1,17 +1,15 @@
-commit 7c7d22ac5f29c610d6e0f781370c3e44c8443f69
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 29 11:42:18 2013 +1000
+commit a8b4a1e63a55f55bfbb9edc34be841d802444874
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 28 19:49:17 2013 +0900
 
-    runtime: re-enable TestParForParallel
+    net: BUG section for ReadFrom, ReadFromIP methods of IPConn on "ip4" network
     
-    See how it flies. We'll disable it again if the underlying issue is not resolved.
-    See issue 4155 for details.
+    Fixes #3944.
     
-    Fixes #4155.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13368045
+    https://golang.org/cl/13263043
 
- src/pkg/runtime/parfor_test.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/pkg/net/ipraw_test.go      |  2 +-
+ src/pkg/net/iprawsock_posix.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

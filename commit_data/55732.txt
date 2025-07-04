@@ -1,19 +1,19 @@
-commit d3e827d371ac2e6bb68c81d992f99ccd4b1b2cf1
-Author: Deleplace <deleplace@google.com>
-Date:   Thu Feb 22 23:44:31 2024 +0100
+commit aafc734c7807bafeb8aa69c019494f69965154b0
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 9 16:30:46 2023 +0000
 
-    slices: Delete clears the tail when j == len(s)
+    Revert "cmd/internal/objabi: regenerate RelocType stringer file"
     
-    Fixes #65669
+    This reverts commit 99914db5eea927c7694276169585f1fff9e614c8.
+    aka CL 473875
     
-    Change-Id: Ifd2011dd604fef399e4352b804fc2f6a9e74096e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566237
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reason for revert: init order change that required this CL is causing some problems in some internal Google programs.
+    
+    Change-Id: I801e278ab58d542c05c0332a9f1977b9588b6151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474975
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/slices/slices.go      |  6 +++++-
- src/slices/slices_test.go | 13 +++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/cmd/internal/objabi/reloctype_string.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

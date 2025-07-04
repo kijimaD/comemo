@@ -1,19 +1,15 @@
-commit 812b34efaed87584977dd56fbd3b366e13b314f5
-Author: Mark Pulford <mark@kyne.com.au>
-Date:   Sun Sep 3 23:53:38 2017 +1000
+commit 6d9b900a6f25274ca28a33c2cb5550dbb5f01be1
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri May 5 16:44:42 2017 +1000
 
-    cmd/compile: ignore non-code nodes when inlining
+    image/gif: don't panic on large or nil-containing color.Palettes.
     
-    Avoid counting nodes that don't generate code (eg, constants) against the
-    inlining budget.
+    Fixes #20249
     
-    Fixes #21749
-    
-    Change-Id: I10fca073e64be7d304709ef33e125eb8c78d5e4d
-    Reviewed-on: https://go-review.googlesource.com/61250
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5dceaef31de96345f8e6c155e12775dc4cc31bfb
+    Reviewed-on: https://go-review.googlesource.com/42790
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/image/gif/writer.go      | 37 +++++++++++++++++++++++++++++--------
+ src/image/gif/writer_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 8 deletions(-)

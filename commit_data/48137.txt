@@ -1,16 +1,25 @@
-commit c4b87b8d08af1243a8ef0add245f10f878879a57
-Author: Suvaditya Sur <suvaditya.sur@gmail.com>
-Date:   Thu Feb 10 11:56:55 2022 +0530
+commit ea65a12f895ce67ee6fd843b9cee97d42f6ad0b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 27 12:12:01 2021 -0700
 
-    abi-internal: Fix typo in register assignment documentation
+    cmd/compile/internal/types2: catch unexpected expression lists
     
-    If register assignment fails, revert back the value to stack
+    This is a modified port of the https://golang.org/cl/313909
+    change for go/types.
     
-    Change-Id: I6f65092461ad4d793206a679a5fef1b560b387f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384455
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    - add catch-all cases for unexpected expression lists
+    - add Checker.singleIndex function to check single indices
+    - better syntax error handling in parser for invalid type
+      instantiations that are missing a type argument
+    
+    Change-Id: I6f0f396d637ad66b79f803d886fdc20ee55a98b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314409
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/abi-internal.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/parser.go          | 13 +++--
+ src/cmd/compile/internal/types2/expr.go            |  6 +++
+ .../internal/types2/fixedbugs/issue45635.go2       | 32 +++++++++++++
+ src/cmd/compile/internal/types2/index.go           | 55 +++++++++++++++-------
+ .../compile/internal/types2/testdata/typeinst.go2  |  6 +--
+ 5 files changed, 86 insertions(+), 26 deletions(-)

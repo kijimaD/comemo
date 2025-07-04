@@ -1,21 +1,13 @@
-commit 08b19a1c5938cad574e812cad784e587855e3df6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Nov 28 10:04:29 2017 -0800
+commit 3bd79713b7381f6984c596a84f38e2a485fa0efd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Aug 29 13:09:59 2017 +1000
 
-    cmd/compile: use NoXPos instead of lineno in typenod
+    cmd/link: introduce and use peFile.addDWARF
     
-    typenod is only used for anonymous types, which don't logically have
-    position information.
-    
-    Passes toolstash-check.
-    
-    Updates #19683.
-    
-    Change-Id: I505424ae980b88c7deed5f23502c3cecb3dc0702
-    Reviewed-on: https://go-review.googlesource.com/80298
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I2c217e03779772605aa0b5a33ef80459333eeebc
+    Reviewed-on: https://go-review.googlesource.com/59790
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf.go | 16 ----------------
+ src/cmd/link/internal/ld/pe.go    | 21 ++++++++++++++++++---
+ 2 files changed, 18 insertions(+), 19 deletions(-)

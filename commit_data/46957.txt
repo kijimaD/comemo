@@ -1,21 +1,26 @@
-commit 1b24c9e42e527b93a39b6a6b16c20672dd2d9a03
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 19 13:44:01 2021 -0700
+commit e7ee3c1fa87556245e38b662ea5b3002bbeb32b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 30 07:27:24 2021 -0500
 
-    go/types, types2: always accept type parameters when running Manual test
+    os: report Windows exit status in hex
     
-    This makes it easier to run tests on existing generic code that is
-    not using the `.go2` ending currently used by type checker tests.
+    We print things like “exit status 3221225477”
+    but the standard Windows form is 0xc0000005.
     
-    For #49074.
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
     
-    Change-Id: I1501463c55dbe1d709918786e1a43b6d1bf1629a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357050
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Iefe447d4d1781b53bef9619f68d386f2866b2934
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288792
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/check_test.go | 2 +-
- src/go/types/check_test.go                    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/os/exec_posix.go |  7 ++++++-
+ src/os/str.go        | 36 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 40 insertions(+), 3 deletions(-)

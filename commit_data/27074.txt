@@ -1,24 +1,16 @@
-commit 3c1a4c1902711c16489ed0c3506df97439ffbd85
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 19 21:06:53 2016 -0700
+commit 49dad0f5716484ec2f3b2e1480801c134933f1ab
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 20:29:09 2016 -0800
 
-    cmd/compile: don't nilcheck newobject and return values from mapaccess{1,2}
+    cmd/compile: support arbitrarily deep embedded fields
     
-    They are guaranteed to be non-nil, no point in inserting
-    nil checks for them.
+    Fixes #13337.
     
-    Fixes #15390
-    
-    Change-Id: I3b9a0f2319affc2139dcc446d0a56c6785ae5a86
-    Reviewed-on: https://go-review.googlesource.com/22291
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ie74d00390111796619150287d3f7a147750ab456
+    Reviewed-on: https://go-review.googlesource.com/19932
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/cgen.go      | 24 ++++++++++++++++++++----
- src/cmd/compile/internal/gc/fmt.go       |  6 ++++++
- src/cmd/compile/internal/gc/ssa.go       | 30 +++++++++++++++++-------------
- src/cmd/compile/internal/gc/syntax.go    |  1 +
- src/cmd/compile/internal/gc/walk.go      |  9 +++++----
- src/cmd/compile/internal/ssa/nilcheck.go |  2 --
- test/nilptr3.go                          | 21 +++++++++++++++++++++
- test/nilptr3_ssa.go                      | 21 +++++++++++++++++++++
- 8 files changed, 91 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/go.go   |   6 --
+ src/cmd/compile/internal/gc/subr.go | 186 ++++++++++++++++++++----------------
+ test/fixedbugs/issue13337.go        |  30 ++++++
+ 3 files changed, 131 insertions(+), 91 deletions(-)

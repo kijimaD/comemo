@@ -1,14 +1,16 @@
-commit b26a4a140111260f8de73e798bff42101f54bba3
-Author: Joe Kyo <xunianzu@gmail.com>
-Date:   Wed Nov 15 08:48:49 2017 +0000
+commit 70576947fdc74261577bfeeb0c5c03d2afffd4f0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 11 16:05:10 2017 -0400
 
-    compress/bzip2: use sort.Slice in huffman.go
+    test: skip issue22200b.go on mipsle
     
-    Change-Id: Ie4d23cdb81473a4c989a977a127479cf825084dc
-    Reviewed-on: https://go-review.googlesource.com/77850
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    It should be skipped on 32-bit architectures.
+    
+    Change-Id: If7a64b9e90e47c3e8734dd62729bfd2944ae926c
+    Reviewed-on: https://go-review.googlesource.com/70071
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/compress/bzip2/huffman.go | 60 ++++++++++++-------------------------------
- 1 file changed, 17 insertions(+), 43 deletions(-)
+ test/fixedbugs/issue22200b.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

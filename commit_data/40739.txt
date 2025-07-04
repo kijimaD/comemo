@@ -1,27 +1,24 @@
-commit ad7ce3911f4947b4cccb435b6374e3808f0062db
-Author: Lorenz Brun <lorenz@brun.one>
-Date:   Wed Oct 30 02:29:23 2019 +0000
+commit 19690053606dd14dedcf028bb37df79e3e33c003
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 21 15:13:10 2019 -0400
 
-    crypto/x509: fix CreateCRL for Ed25519 CAs
+    cmd/go/internal/modfetch: filter pseudo-versions from proxy /list endpoints
     
-    This makes Ed25519 certificates work for CreateCRL(). This previously
-    failed (panic: crypto: requested hash function #0 is unavailable) because
-    the hash could not be skipped, but Ed25519 uses no hash.
+    The /list files in the module cache include pseudo-versions, but the
+    documentation for (*modfetch).Repo.Versions explicitly states that
+    they are not included in the output of that method.
     
-    A similar fix has been applied in a few other places when Ed25519 was added
-    when Ed25519 certificates were originally introduced, but was missed
-    here.
+    Fixes #32715
     
-    Change-Id: I16fcfcd53ba3bb8f773e5de972b8fedde1f6350e
-    
-    Change-Id: I16fcfcd53ba3bb8f773e5de972b8fedde1f6350e
-    GitHub-Last-Rev: bf7f1458f850d01605c619c3f53f86649477dd4d
-    GitHub-Pull-Request: golang/go#35241
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204046
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ieba1500b91f52b5fa689e70e16dbe3ad40de20f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183402
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/crypto/x509/x509.go      | 11 ++++--
- src/crypto/x509/x509_test.go | 94 ++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 88 insertions(+), 17 deletions(-)
+ src/cmd/go/internal/modfetch/proxy.go              | 54 +++++++++++++++++-----
+ ...modtest5_v0.0.0-20190619020302-197a620e0c9a.txt | 10 ++++
+ ..._v0.5.0-alpha.0.20190619023908-3da23a9deb9e.txt | 10 ++++
+ ...hub.com_dmitshur-test_modtest5_v0.5.0-alpha.txt | 10 ++++
+ src/cmd/go/testdata/script/mod_list_pseudo.txt     | 50 ++++++++++++++++++++
+ 5 files changed, 123 insertions(+), 11 deletions(-)

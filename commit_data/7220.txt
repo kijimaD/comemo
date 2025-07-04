@@ -1,13 +1,16 @@
-commit 850ed709ff9b35b4b62091913b403c41470cfc6a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jan 24 18:09:10 2011 +1000
+commit a0a4e85ad6495b14fe944e82af58aed8e8dc99c2
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 22 00:10:11 2011 -0800
 
-    A+C: Pieter Droogendijk
+    gob: report an error when encoding a non-empty struct with
+    no public fields.
+    Fix a couple of tests caught out by this change.
     
-    R=nigeltao, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4061044
+    https://golang.org/cl/4044043
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/gob/codec_test.go   |  4 ++--
+ src/pkg/gob/encode.go       | 19 +++++++++----------
+ src/pkg/gob/encoder_test.go |  2 +-
+ 3 files changed, 12 insertions(+), 13 deletions(-)

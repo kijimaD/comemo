@@ -1,25 +1,26 @@
-commit 0c5afc4fb7e3349ec4efdce6554f83554e3d087c
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 7 17:50:14 2021 -0500
+commit 7cfa7d69259590319524c3715df4a39b39924bc3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri May 8 14:14:15 2020 +0100
 
-    testing/fstest,os: clarify racy behavior of TestFS
+    testing: tests and benchmarks can assume flag.Parsed
     
-    The testing.TestFS function assumes that the file system it's testing
-    doesn't change under it. Clarify this in the documentation and fix the
-    use of os.TestDirFS that's currently susceptible to this race.
+    testing.M.Run has this bit of code:
     
-    Fixes #42637.
+            if !flag.Parsed() {
+                    flag.Parse()
+            }
     
-    Change-Id: Ia7792380726177f8953d150ee87381b66cb01cb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282452
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    It makes sense, and it's common knowledge for many Go developers that
+    test flags are automatically parsed by the time tests and benchmarks are
+    run. However, the docs didn't clarify that. The previous wording only
+    mentioned that flag.Parse isn't run before TestMain, which doesn't
+    necessarily mean that it's run afterwards.
+    
+    Fixes #38952.
+    
+    Change-Id: I85f7a9dce637a23c5cb9abc485d47415c1a1ca27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232806
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/os_test.go            | 2 +-
- src/os/testdata/dirfs/a      | 0
- src/os/testdata/dirfs/b      | 0
- src/os/testdata/dirfs/dir/x  | 0
- src/testing/fstest/testfs.go | 1 +
- 5 files changed, 2 insertions(+), 1 deletion(-)
+ src/testing/testing.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

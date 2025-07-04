@@ -1,18 +1,17 @@
-commit b225396f935737cbd64164b67aeb8f1bb8ac08be
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Apr 8 13:16:26 2017 +0900
+commit b6e0d4647f9f9534c5dc215570ee80b6a4717928
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 20 22:54:39 2017 -0800
 
-    mime: re-accept empty encoded-text
+    runtime: update assembly var names after monotonic time changes
     
-    https://go-review.googlesource.com/37812 prohibits empty encoded-text.
-    This CL accepts it again for backward compatibility.
-    
-    Change-Id: I0e0840b501927f147160b999bb59d2d029ea314c
-    Reviewed-on: https://go-review.googlesource.com/40051
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I721045120a4df41462c02252e2e5e8529ae2d694
+    Reviewed-on: https://go-review.googlesource.com/37303
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/mime/encodedword.go      | 7 ++++---
- src/mime/encodedword_test.go | 2 +-
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/runtime/sys_darwin_arm.s  | 4 ++--
+ src/runtime/sys_linux_386.s   | 4 ++--
+ src/runtime/sys_netbsd_386.s  | 4 ++--
+ src/runtime/sys_windows_386.s | 6 +++---
+ 4 files changed, 9 insertions(+), 9 deletions(-)

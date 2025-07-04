@@ -1,19 +1,18 @@
-commit 93553dd216e59cb382d61e2352a2afb4b28135a6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Apr 1 12:21:15 2015 +0900
+commit 85c6f71b08f43ba8ceea4bc64c53d6873ac0eaad
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 27 20:44:45 2015 +0000
 
-    net: fix data race in benchmarks
+    cmd/internal/gc: clean up switch code
     
-    Fixes #10307.
+    This CL makes the switch walking and typechecking code
+    more idiomatic and adds documentation.
+    It also removes all but one global variable.
     
-    Change-Id: If70f36a6f1c4e465a47a0bc4d38b318424111106
-    Reviewed-on: https://go-review.googlesource.com/8330
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    No functional changes. Confirmed with toolstash -cmp on the stdlib.
+    
+    Change-Id: Ic3f38acc66e906edd722498839aeb557863639cf
+    Reviewed-on: https://go-review.googlesource.com/6268
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/dnsclient_unix_test.go |  9 +++------
- src/net/dnsname_test.go        |  3 +--
- src/net/interface_test.go      | 18 ++++++------------
- src/net/ip_test.go             |  9 +++------
- src/net/main_test.go           | 10 ++++++++--
- src/net/tcp_test.go            |  7 +++----
- 6 files changed, 24 insertions(+), 32 deletions(-)
+ src/cmd/internal/gc/swt.go | 1255 +++++++++++++++++++-------------------------
+ 1 file changed, 549 insertions(+), 706 deletions(-)

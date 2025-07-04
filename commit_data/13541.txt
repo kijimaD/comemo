@@ -1,12 +1,15 @@
-commit 4e7f765b12e6501450f44fb3b6529f52bb3a3256
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jul 31 20:58:35 2012 +0900
+commit dd62bb4753147ff832eb769af892054fb1562c7c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Jul 30 18:44:48 2012 -0400
 
-    net: disable IPv6 multicast tests unless external IPv6 connection is present
+    cmd/cgo: use 1 as last entry for __cgodebug_data
+            LLVM-based gcc will place all-zero data in a zero-filled
+            section, but our debug/macho can't handle that.
+            Fixes #3821.
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6398052
+    https://golang.org/cl/6444049
 
- src/pkg/net/multicast_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/gcc.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

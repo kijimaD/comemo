@@ -1,23 +1,26 @@
-commit a7fd2fab0e865f7fcedd3b437f1fa6e958bacc61
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 14 15:12:11 2023 -0500
+commit 6269dc29a04c4f430a851551d85aa956fb10cc94
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 24 12:47:23 2022 -0500
 
-    doc: add godebug.md, documenting GODEBUG
+    crypto/aes: move ppc64le to cipher_asm.go
     
-    Document the changes to GODEBUG implemented as
-    part of proposal #56986.
+    Move the aesCipherGCM struct definition into cipher_asm.go, it is
+    needed to compile this file, but isn't used on PPC64.
     
-    Fixes #56986.
+    Also, generate a KeySizeError if the key length is not supported
+    as was done in the ppc64le implementation, and is done in the
+    generic code.
     
-    Change-Id: I23153a123e23820c5b22db4767620e037bbdd083
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462202
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I025fc63d614b57dac65a18d1ac3dbeec99356292
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399254
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
 
- doc/godebug.md                      | 181 ++++++++++++++++++++++++++++++++++++
- src/cmd/go/alldocs.go               |   2 +-
- src/cmd/go/internal/help/helpdoc.go |   2 +-
- 3 files changed, 183 insertions(+), 2 deletions(-)
+ src/crypto/aes/aes_gcm.go        |  7 ----
+ src/crypto/aes/cipher_asm.go     | 15 ++++++-
+ src/crypto/aes/cipher_ppc64le.go | 87 ----------------------------------------
+ 3 files changed, 13 insertions(+), 96 deletions(-)

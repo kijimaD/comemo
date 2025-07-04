@@ -1,23 +1,29 @@
-commit 5a3d871831c9febebe513863a26ecc6da1c9c4f3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 22 12:20:26 2021 -0500
+commit 06ad41642c6e06ddb6faa8575fcc3cfafa6a13d1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Mar 29 14:17:18 2021 -0400
 
-    net: allow more generous slop in Fluctuation tests
+    cmd/compile: wrap defer/go call with results
     
-    It appears that at least the OpenBSD kernel gets sloppier the longer
-    the timeout we give it, up to an observed overhead of around 25%.
-    Let's give it a little more than that (33%) in the comparison, and
-    also increase the growth curve to match the actual observed times
-    instead of exponential initial growth.
+    CL 298669 implemented wrapping for defer/go calls so the function
+    being called with defer or go statement has no arguments. This
+    simplifies the compiler and the runtime, especially with the
+    new ABI.
     
-    Fixes #36108
+    Currently, it does not wrap functions that has no arguments but
+    only results. For defer/go calls, the results are not used. But
+    the runtime needs to allocate stack space for the callee to store
+    the results. Wrapping functions with results makes the runtime
+    simpler.
     
-    Change-Id: Id3e54559b7c45b7c8bc0ca07dce74ca60e77e7ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366176
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TODO: maybe not wrap if all results are in registers.
+    
+    Updates #40724.
+    
+    Change-Id: I74d2f4db1cbf9979afbcd846facb30d11d72ab23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305550
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/timeout_test.go | 61 +++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 46 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 6 +++---
+ src/cmd/compile/internal/walk/order.go | 7 +++++--
+ 2 files changed, 8 insertions(+), 5 deletions(-)

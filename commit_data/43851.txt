@@ -1,20 +1,53 @@
-commit c306fd6d0b208f67208fb4a1b5bb82e0338a080c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Nov 20 14:09:01 2020 +0700
+commit 1c4e9b2edaa741860944edef83b7ce8eac00079e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 25 15:14:35 2020 -0700
 
-    cmd/compile: allow loading single field of typed-interface{} OpIData
+    cmd/compile: improve equality algs for arrays of strings
     
-    Same reason as CL 270057, but for OpLoad.
+    type T [8]string
     
-    Fixes #42727
+    Prior to this change, we generated this equality algorithm for T:
     
-    Change-Id: Iebb1a8110f29427a0aed3b5e3e84f0540de3d1b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271906
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    func eqT(p, q *T) (r bool) {
+        for i := range *p {
+            if p[i] == q[i] {
+                    } else {
+                return
+            }
+        }
+        return true
+    }
+    
+    This change splits this into two loops, so that we can do the
+    cheap (length) half early and only then do the expensive (contents) half.
+    
+    We now generate:
+    
+    func eqT(p, q *T) (r bool) {
+        for i := range *p {
+            if len(p[i]) == len(q[i]) {
+            } else {
+                return
+            }
+        }
+        for j := range *p {
+            if runtime.memeq(p[j].ptr, q[j].ptr, len(p[j])) {
+            } else {
+                return
+            }
+        }
+        return true
+    }
+    
+    The generated code is typically ~17% larger because it contains
+    two loops instead of one. In the future, we might want to unroll
+    the first loop when the array is small.
+    
+    Change-Id: I26b2793b90ec6aff21766a411b15a4ff1096c03f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230209
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go |  2 +-
- test/fixedbugs/issue42727.go                 | 23 +++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/alg.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

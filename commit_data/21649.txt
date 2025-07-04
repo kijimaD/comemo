@@ -1,12 +1,12 @@
-commit 3ad906b20874f28a4bc48ef767d2138be1b53f28
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 18 13:40:57 2015 +1100
+commit dfc4997ede7c4dc1f10263ab00e3f196dfb8c313
+Author: Andrew Ekstedt <andrew.ekstedt@gmail.com>
+Date:   Sat Jan 24 14:57:01 2015 -0800
 
-    doc: document Go 1.4.2
+    image: fix typo in Alpha16 doc comment
     
-    Change-Id: Ia87047cbc720fb03d2f67aec48abe18bce8dbf78
-    Reviewed-on: https://go-review.googlesource.com/5112
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie7031ae37f52ea1f229bfb769daf306d537b3d3e
+    Reviewed-on: https://go-review.googlesource.com/3300
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- doc/devel/release.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/image/image.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

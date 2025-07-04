@@ -1,27 +1,20 @@
-commit 04f7521b0aef10d523d6de006e723afd349b4b95
-Author: Fabio Falzoi <fabio.falzoi84@gmail.com>
-Date:   Sat Sep 25 18:44:24 2021 +0200
+commit 7ce2a8383d154ca1860286a9b5c8a1e6cf151a90
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 16 19:35:39 2021 -0800
 
-    reflect: add Value.{CanInt, CanUint, CanFloat, CanComplex}
+    [dev.regabi] cmd/compile: simplify stack temp initialization
     
-    As discussed in #47658, Value already has CanAddr and CanInterface to
-    test if a call to Addr or Inteface, respectively, does not result in a
-    panic.
-    Therefore we add CanInt, CanUint, CanFloat and CanComplex to ease the
-    test for a possible panic in calling, respectively, Int, Uint, Float and
-    Complex.
+    This CL simplifies the previous one a little bit further, by combining
+    reordering stack-temporary initialization and getting rid of an
+    unneeded temporary variable. (Does not pass toolstash -cmp.)
     
-    Fixes #47658
-    
-    Change-Id: I58b77d77e6eec9f34234e985f631eab72b5b935e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352131
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I17799dfe368484f33a8ddd0ab4f68647d6262147
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284225
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: David Chase <drchase@google.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/test/inl_test.go |  4 ++
- src/reflect/all_test.go                   | 69 +++++++++++++++++++++++++++++++
- src/reflect/value.go                      | 40 ++++++++++++++++++
- 3 files changed, 113 insertions(+)
+ src/cmd/compile/internal/walk/complit.go | 17 +++++++----------
+ src/cmd/compile/internal/walk/temp.go    | 19 ++++++-------------
+ 2 files changed, 13 insertions(+), 23 deletions(-)

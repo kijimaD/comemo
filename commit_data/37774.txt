@@ -1,26 +1,27 @@
-commit 429bae715876c69853bb63db1733f580e293c916
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Dec 20 20:21:45 2018 +0000
+commit 21af0c1699909454baa4fc6890fe9a1d337faf9c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Aug 26 08:35:24 2018 -0600
 
-    runtime: skip TestLockOSThreadAvoidsStatePropagation if one can't unshare
+    encoding/json: get rid of the stream_test.go TODOs
     
-    This change splits a testprog out of TestLockOSThreadExit and makes it
-    its own test. Then, this change makes the testprog exit prematurely with
-    a special message if unshare fails with EPERM because not all of the
-    builders allow the user to call the unshare syscall.
+    TestRawMessage now passes without the need for the RawMessage field to
+    be a pointer. The TODO dates all the way back to 2010, so I presume the
+    issue has since been fixed.
     
-    Also, do some minor cleanup on the TestLockOSThread* tests.
+    TestNullRawMessage tested the decoding of a JSON null into a
+    *RawMessage. The existing behavior was correct, but for the sake of
+    completeness a non-pointer RawMessage field has been added too. The
+    non-pointer field behaves differently, as one can read in the docs:
     
-    Fixes #29366.
+            To unmarshal JSON into a value implementing the Unmarshaler
+            interface, Unmarshal calls that value's UnmarshalJSON method,
+            including when the input is a JSON null.
     
-    Change-Id: Id8a9f6c4b16e26af92ed2916b90b0249ba226dbe
-    Reviewed-on: https://go-review.googlesource.com/c/155437
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Iabaed75d4ed10ea427d135ee1b80c6e6b83b2e6e
+    Reviewed-on: https://go-review.googlesource.com/131377
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc_test.go                        | 21 +++++----
- src/runtime/testdata/testprog/lockosthread.go   |  4 ++
- src/runtime/testdata/testprog/syscalls.go       | 47 +-------------------
- src/runtime/testdata/testprog/syscalls_linux.go | 59 +++++++++++++++++++++++++
- 4 files changed, 78 insertions(+), 53 deletions(-)
+ src/encoding/json/stream_test.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

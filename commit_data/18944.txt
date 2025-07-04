@@ -1,19 +1,20 @@
-commit a837347dd95d045e05bf0e6df9bf1c9b157c7c53
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Mar 26 11:13:50 2014 +1100
+commit aa2d4dee60131b4c05d90efbb9a2bc414aea8240
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 25 15:19:58 2014 -0700
 
-    runtime: use VEH for windows/amd64 exception handling
+    net/http: disable recently-introduced flaky test on Windows
     
-    Fixes windows/amd64 build.
+    Disable it until it's debugged so it doesn't hide other real
+    problems on Windows. The test was known to be unreliable
+    anyway (which is why it only needed 1 of 20 runs to pass), but
+    apparently it never passes on Windows. Figure out why later.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    Update #7634
+    
+    LGTM=alex.brainman
+    R=adg, alex.brainman
     CC=golang-codereviews
-    https://golang.org/cl/79470046
+    https://golang.org/cl/80110043
 
- src/cmd/ld/pe.c                     | 44 ------------------
- src/pkg/runtime/os_windows.c        |  3 --
- src/pkg/runtime/os_windows_amd64.c  | 33 +++++++++++--
- src/pkg/runtime/sys_windows_386.s   |  8 ----
- src/pkg/runtime/sys_windows_amd64.s | 93 +++++++++++++++++--------------------
- 5 files changed, 70 insertions(+), 111 deletions(-)
+ src/pkg/net/http/transport_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,12 +1,12 @@
-commit 348e31f8f70f9e06d90aa03419907ce91122c402
-Author: Josh Holland <jrh@joshh.co.uk>
-Date:   Thu Sep 27 15:47:54 2012 +1000
+commit b46dd48dd3be07216eb8940aa1e2c131adbab405
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 27 15:39:56 2012 +1000
 
-    text/template: fix typo of errorf as error in comment.
+    cmd/api: delete redundant text from deletion message
     
-    R=r, minux.ma
-    CC=gobot, golang-dev
-    https://golang.org/cl/6506120
+    R=bradfitz, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6543064
 
- src/pkg/text/template/parse/lex.go | 34 +++++++++++++++++-----------------
- 1 file changed, 17 insertions(+), 17 deletions(-)
+ src/cmd/api/goapi.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

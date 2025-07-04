@@ -1,19 +1,47 @@
-commit 3fb9e08758df3f2ace772271c73692e483d85a80
-Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
-Date:   Mon Oct 26 20:10:54 2015 +0800
+commit acc90c53e8b5448afee8455ee7c4917af25c6bc9
+Author: acanino <anthony.canino1@gmail.com>
+Date:   Fri Aug 21 22:24:20 2015 -0400
 
-    cmd/vet: make "-all -shadow" mean all default checks and -shadow
+    cmd/compile: Fix `internal compiler: getinarg: not a func` when returning invalid interface.
     
-    Prior to this change "go tool vet -all -shadow" ran only -shadow check.
+    Internal error arose from calling methodfunc on a invalid interface
+    field during the implements check. int obviously isn't a function,
+    and errors on getinarg...
     
-    Also fix godoc package path in the usage text.
+    for im := iface.Type; im != nil; im = im.Down {
+      imtype = methodfunc(im.Type, nil)
+      // ...
+    }
     
-    Fixes #13020
+    Fix handles the internal compiler error, but does not throw an
+    additional error, i.e. the following code will error on the I
+    interface, but type A will pass the implements check since
+    'Read(string) string' is implemented and 'int' is skipped
     
-    Change-Id: I87c60d6b06a02106ae8bff56adb79df032cc4646
-    Reviewed-on: https://go-review.googlesource.com/16325
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    type I interface {
+      Read(string) string
+      int
+    }
+    
+    type A struct {
+    }
+    
+    func (a *A) Read(s string) string {
+      return s
+    }
+    
+    func New() I {
+      return new(A)
+    }
+    
+    Fixes #10975
+    
+    Change-Id: I4b54013afb2814db3f315515f0c742d8631ca500
+    Reviewed-on: https://go-review.googlesource.com/13747
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/doc.go  |  2 +-
- src/cmd/vet/main.go | 12 ++++++------
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/subr.go |  3 +++
+ test/fixedbugs/issue10975.go        | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+)

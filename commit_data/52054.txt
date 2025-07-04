@@ -1,19 +1,25 @@
-commit 8aa0175368ec8822f8bf14c89a5a2ba56dc4e0fa
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jan 7 18:36:38 2023 +1100
+commit 029d2c4524e729dbd913475ca4a5138bb6c5e099
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 30 10:37:07 2022 +1100
 
-    cmd/internal/obj/arm64: remove bogus omovlit return value check
+    flag: recover panic when calling String on zero value in PrintDefaults
     
-    omovlit never returns zero, so it does not make any sense to check for that.
-    Additionally, no other call site does this.
+    When printing the usage message, recover panics when calling String
+    methods on reflect-constructed flag.Value zero values. Collect the panic
+    messages and include them at the end of the PrintDefaults output so that
+    the programmer knows to fix the panic.
     
-    Change-Id: I5769dcdb557bed4ec4d727abe0869a1549fcf04c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461136
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Eric Fang <eric.fang@arm.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Fixes #28667
+    
+    Change-Id: Ic4378a5813a2e26f063d5580d678add65ece8f97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396574
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Trust: Andrew Gerrand <adg@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/flag/flag.go      | 31 ++++++++++++++++++++++++++++---
+ src/flag/flag_test.go | 33 ++++++++++++++++++++++++++++++++-
+ 2 files changed, 60 insertions(+), 4 deletions(-)

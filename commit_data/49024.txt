@@ -1,15 +1,23 @@
-commit ed462a66a5e4b57402b509aa27c90342075231f0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu May 5 02:52:07 2022 +0700
+commit ce76298ee7b2cc237b015f798abbfe891a6f5463
+Author: makdon <makdon@makdon.me>
+Date:   Mon May 17 16:27:11 2021 +0000
 
-    cmd/compile: use appendWalkStmt when possible
+    Update oudated comment
     
-    Change-Id: I718ad2fd98a3d30087e169abdd5ba3cc4f4b36ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403999
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Update comment cause gc/select.go has been moved to walk/select.go and gc/reflect.go has been moved to reflectdata/reflect.go
+    
+    Change-Id: I6894527e1e9dbca50ace92a51bf942f9495ce88c
+    GitHub-Last-Rev: 6d6a4471440403218b68ba32d4038ca41eae2901
+    GitHub-Pull-Request: golang/go#45976
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317191
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/walk/complit.go | 16 ++++------------
- 1 file changed, 4 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/link/internal/ld/decodesym.go           |  4 ++--
+ src/internal/reflectlite/type.go                |  4 ++--
+ src/reflect/type.go                             | 10 +++++-----
+ src/runtime/runtime2.go                         |  4 ++--
+ src/runtime/select.go                           |  2 +-
+ src/runtime/type.go                             |  6 +++---
+ 7 files changed, 16 insertions(+), 16 deletions(-)

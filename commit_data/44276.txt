@@ -1,40 +1,12 @@
-commit 776ee4079a1d5fabd855a05b300aebdc3ea53efb
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 29 09:05:10 2021 -0500
+commit 9d715e0bffe895187bd602d58a4cf2c348f07e49
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 4 10:44:46 2020 -0400
 
-    runtime: do not treat morestack as a topofstack
+    doc/go1.15: 1.15 supports OpenBSD 6.7 on arm and arm64
     
-    I added morestack to this list in 2013 with an explanation
-    that they were needed if we “start a garbage collection on g0
-    during a stack split or unsplit”.
-    (https://golang.org/cl/11533043)
-    
-    This explanation no longer applies for a handful of reasons,
-    most importantly that if we did stop a stack scan in the middle
-    of a call to morestack, we'd ignore pointers above the split,
-    which would lead to memory corruption. But we don't scan
-    goroutine stacks during morestack now, so that can't happen.
-    If we did see morestack during a GC, that would be a good time
-    to crash the program.
-    
-    The real problem with morestack is during profiling, as noted
-    in the code review conversation during 2013. And in profiling
-    we just need to know to stop and not unwind further, which
-    the new SPWRITE bit will do for us.
-    
-    So remove from topofstack and let the program crash if GC
-    sees morestack and otherwise let the SPWRITE stop morestack
-    unwinding during profiling.
-    
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
-    
-    Change-Id: I06d95920b18c599c7c46f64c21028104978215d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288804
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ibea6fbb73abdb7201855e80967120c07484d6460
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/traceback.go | 1 -
- 1 file changed, 1 deletion(-)
+ doc/go1.15.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

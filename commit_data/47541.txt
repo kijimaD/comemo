@@ -1,21 +1,20 @@
-commit f6647f2e3bc0b803a67c97a7d5d8733cefbd5d5b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 10 09:44:58 2021 -0800
+commit 5cec8b85e5dc75ef21b62efb6bd93f9007385e34
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 25 11:11:03 2021 -0700
 
-    spec: generalize method sets and interface types to type sets
+    net/http/httptest: wait for user ConnState hooks
     
-    This is the first of several CLs that update the existing
-    Go 1.17 spec for type parameters.
+    Ensure that user ConnState callbacks have completed before returning
+    from (*httptest.Server).Close.
     
-    This CL updates the section on method sets and interface types.
-    It also adds "any", "comparable" to the list of predeclared
-    identifiers.
-    
-    Change-Id: I0ce25dc02791c33150c0d949528512610faf3eab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362999
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes: #37510
+    Fixes: #37505
+    Fixes: #45237
+    Change-Id: I8fe7baa089fbe4f3836bf6ae9767c7b1270d1331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304829
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go_spec.html | 245 ++++++++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 207 insertions(+), 38 deletions(-)
+ src/net/http/httptest/server.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

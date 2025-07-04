@@ -1,22 +1,17 @@
-commit 321a3d6e85e6440b5c753b3fd6a0e028dcc08143
-Author: David Chase <drchase@google.com>
-Date:   Thu Nov 15 14:11:19 2018 -0500
+commit 1040626c0ce4a1bc2b312aa0866ffeb2ff53c1ab
+Author: Florian Forster <octo@google.com>
+Date:   Wed Mar 7 10:45:00 2018 +0100
 
-    cmd/compile: Avoid and filter out zero-length location-lists.
+    net/url: escape URL.RawQuery on Parse if it contains invalid characters
     
-    This change avoids creating zero length location lists by
-    repairing an overly aggressive change in CL146718
-    and by explicitly checking for and filtering out any
-    zero-length lists that are detected (building
-    compiler+runtime creates a single one).
+    Fixes #22907
     
-    Updates #28486.
-    
-    Change-Id: I01c571fee2376474c7f3038e801bd58fd9e0b820
-    Reviewed-on: https://go-review.googlesource.com/c/150097
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I7abcf53ab92768514e13ce2554a6c25dcde8218e
+    Reviewed-on: https://go-review.googlesource.com/99135
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/debug.go | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
+ src/net/url/url.go      | 51 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/net/url/url_test.go | 11 +++++++++++
+ 2 files changed, 61 insertions(+), 1 deletion(-)

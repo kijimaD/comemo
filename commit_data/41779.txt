@@ -1,23 +1,16 @@
-commit d99fe1f40dfacfdebee22c13ed4471fd50f2cc1a
-Author: PetarDambovaliev <petar.atanasov.1987@gmail.com>
-Date:   Sat Mar 28 08:00:17 2020 +0000
+commit f922cc64463939d5561abf5f6e30291b4c034892
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 24 11:29:33 2019 -0400
 
-    time: remove some unnecessary/duplicated global slices
+    cmd/go: correct GoMod field in 'go list' for replacements that lack an explicit go.mod file
     
-    Removes two variables:
-    
-    - days which is unused, and similar usage provided by longDayNames
-    - months in favour of using longMonthNames
-    
-    Fixes #36359
-    
-    Change-Id: I51b6b7408db9359c658462ba73e59ed432f655a6
-    GitHub-Last-Rev: 778d3ea157d363fcb5bced6d318381b44a1cac50
-    GitHub-Pull-Request: golang/go#36372
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213177
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I241a3bbaf9c4b779b74146232d2f144bb46a0dc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203178
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/time/time.go | 29 ++---------------------------
- 1 file changed, 2 insertions(+), 27 deletions(-)
+ src/cmd/go/internal/modload/build.go               |  3 +-
+ .../testdata/mod/not-rsc.io_quote_v0.1.0-nomod.txt | 59 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_replace.txt         |  7 +++
+ 3 files changed, 68 insertions(+), 1 deletion(-)

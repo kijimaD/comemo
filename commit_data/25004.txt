@@ -1,13 +1,18 @@
-commit 7218b79f23186420b7ae5535bb5157923473e63e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 19 15:43:05 2015 -0800
+commit 448f84a43ab14a30a6bada6ce22a6dc6e89ea85e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 15 10:59:27 2015 -0700
 
-    cmd/compile: match markdcl and popdcl even in case of errors
+    internal/obj: protect against nil addr.Sym
     
-    Change-Id: I22a8a233bc157fa09cd0283fcd4bc14d90faed70
-    Reviewed-on: https://go-review.googlesource.com/17066
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    This has been the root cause of a number of crashes caused by
+    fuzz throwing modem noise at the assembler, which in turn attempts
+    to print diagnostics but instead just gets crashes.
+    
+    Fixes #12627.
+    
+    Change-Id: I72c2da79d8eb240e1a37aa6140454c552b05e0f1
+    Reviewed-on: https://go-review.googlesource.com/14595
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 22 +++++++++++++---------
- test/switch2.go                       | 24 ++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 9 deletions(-)
+ src/cmd/internal/obj/util.go | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

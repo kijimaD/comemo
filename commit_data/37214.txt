@@ -1,23 +1,13 @@
-commit a86f549703c107c8b4d83d8e7527521c9e215d9a
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Oct 31 17:03:35 2018 +0100
+commit eb9356b7a296cb3ee6dc355191cab23d29ed3427
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 10 17:14:14 2018 -0400
 
-    runtime: add and use modtimer in netpoll
+    doc/go1.11: mention import path restriction
     
-    Currently when netpoll deadline is incrementally prolonged,
-    we delete and re-add timer each time.
-    Add modtimer function that does both and use it when we need
-    to modify an existing netpoll timer to avoid unnecessary lock/unlock.
-    
-    TCP4OneShotTimeout-6  17.2µs ± 0%  17.0µs ± 0%  -0.82%  (p=0.008 n=5+5)
-    SetReadDeadline-6      274ns ± 2%   261ns ± 0%  -4.89%  (p=0.008 n=5+5)
-    
-    Update #25729
-    
-    Change-Id: I08b89dbbc1785dd180e967a37b0aa23b0c4613a8
-    Reviewed-on: https://go-review.googlesource.com/c/146339
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I18a6915614a317adb4da710a01268b574300f0e0
+    Reviewed-on: https://go-review.googlesource.com/123096
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/netpoll.go | 46 ++++++++++++++++++++++++----------------------
- src/runtime/time.go    | 31 +++++++++++++++++++++++++++----
- 2 files changed, 51 insertions(+), 26 deletions(-)
+ doc/go1.11.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

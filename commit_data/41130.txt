@@ -1,18 +1,26 @@
-commit 91d75f4e4c32b737baf32cac42756c70fbd487e8
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 4 05:09:14 2019 +1100
+commit 2da9c3e0f99b72cf8f3bdca01b57e7a68a546c5b
+Author: K. "pestophagous" Heller <pestophagous@gmail.com>
+Date:   Tue Aug 20 23:13:25 2019 -0700
 
-    reflect: add support for riscv64
+    cmd/compile: improve errors for invalid conversions of consts
     
-    Based on riscv-go port.
+    Follow-up to Change-Id: If6e52c59eab438599d641ecf6f110ebafca740a9
     
-    Update #27532
+    This addresses the remaining tech debt on issue 21979.
     
-    Change-Id: I791924f71078fd8dfe9c2fc03a3f21a3bc673721
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204634
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    The aforementioned previous CL silenced one of two mostly redundant
+    compiler errors. However, the silenced error was the more expressive
+    error. This CL now imbues the surviving error with the same level
+    of expressiveness as the old semi-redundant error.
+    
+    Fixes #21979
+    
+    Change-Id: I3273d48c88bbab073fabe53421d801df621ce321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191079
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/reflect/asm_riscv64.s | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ src/cmd/compile/internal/gc/const.go | 10 +++--
+ test/fixedbugs/issue21979.go         | 75 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 3 deletions(-)

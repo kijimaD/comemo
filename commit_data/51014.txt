@@ -1,40 +1,20 @@
-commit 50557edf10161b1aedd3654d84a94b49bae05c43
-Author: Garet Halliday <me@garet.holiday>
-Date:   Fri Oct 21 22:22:12 2022 -0500
+commit b2a5a3771f5efdb499da215298c7bcc2f493b4f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 24 10:35:21 2021 -0500
 
-    runtime: add wasm bulk memory operations
+    cmd/dist: add buildtag parsing test
     
-    The existing implementation uses loops to implement bulk memory
-    operations such as memcpy and memclr. Now that bulk memory operations
-    have been standardized and are implemented in all major browsers and
-    engines (see https://webassembly.org/roadmap/), we should use them
-    to improve performance.
+    Forgot to 'git add' this test written as part of CL 359314.
     
-    Updates #28360
+    For #41184.
     
-    Change-Id: I28df0e0350287d5e7e1d1c09a4064ea1054e7575
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444935
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Change-Id: I2ebd48fd62a2053c8b16e5a8c48c1e11d1b86d5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366894
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ir/symtab.go        |   4 -
- src/cmd/compile/internal/ssa/_gen/Wasm.rules |  25 +----
- src/cmd/compile/internal/ssa/_gen/WasmOps.go |   4 +-
- src/cmd/compile/internal/ssa/rewriteWasm.go  |  79 ++-------------
- src/cmd/compile/internal/ssagen/ssa.go       |   2 -
- src/cmd/compile/internal/wasm/ssa.go         |   7 +-
- src/cmd/internal/obj/wasm/a.out.go           |  11 ++
- src/cmd/internal/obj/wasm/anames.go          |  10 ++
- src/cmd/internal/obj/wasm/wasmobj.go         |  10 +-
- src/cmd/link/internal/wasm/asm.go            |   2 -
- src/runtime/asm_wasm.s                       |   4 +-
- src/runtime/memclr_wasm.s                    |  33 ++----
- src/runtime/memmove_wasm.s                   | 144 ++-------------------------
- src/runtime/sys_wasm.go                      |   4 -
- src/runtime/sys_wasm.s                       |  67 -------------
- 15 files changed, 59 insertions(+), 347 deletions(-)
+ src/cmd/dist/buildtag_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/go_test.go         |  6 +++---
+ 2 files changed, 46 insertions(+), 3 deletions(-)

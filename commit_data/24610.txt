@@ -1,12 +1,15 @@
-commit 3319ea98cd04789e4c16d8b96bf3ca59175c4841
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 22 10:04:23 2015 -0700
+commit dee1f2750b544dc2dd109231d5f8347beb142b8d
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Aug 10 21:05:35 2015 -0500
 
-    cmd/compile/internal/gc: fixed comments (cosmetic change)
+    [dev.ssa] cmd/compile/ssa: eliminate Zero with dse
     
-    Change-Id: I9cbbfcf55ce3cccb6f14b9ffe6777567dcdad9c9
-    Reviewed-on: https://go-review.googlesource.com/16179
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Consider OpZero to be a store so it can be eliminated by dse.
+    
+    Change-Id: Idebb6a190657b76966f0c5b20f2ec9f52fe47499
+    Reviewed-on: https://go-review.googlesource.com/13447
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/deadstore.go      | 20 ++++++++++++++++----
+ src/cmd/compile/internal/ssa/deadstore_test.go | 18 ++++++++++++------
+ 2 files changed, 28 insertions(+), 10 deletions(-)

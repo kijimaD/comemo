@@ -1,16 +1,14 @@
-commit 9bd1cc3fa1145182e9ce041d0e96bd2051cd7fcf
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 1 13:29:17 2017 +0000
+commit 2b445c76453ee79d02ea50f50f619d8f7250fa87
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 5 13:14:23 2016 -0700
 
-    Revert "cmd/vet/all: remove pprof from the whitelist"
+    go/constant: document that BinaryOp doesn't handle comparisons or shifts
     
-    This reverts commit 12b6c18139233abd7b1af1fc0a07279d56df3642.
+    Fixes #17797.
     
-    Reason for revert: Broke vet builder. #19322 was not fully fixed.
-    
-    Change-Id: Id85131d4d0b8915480d65e3532da62b769463d70
-    Reviewed-on: https://go-review.googlesource.com/37625
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I544df81c4bcf3cbd36a793be40050f14f9a9974f
+    Reviewed-on: https://go-review.googlesource.com/32761
+    Reviewed-by: Dominik Honnef <dominik@honnef.co>
 
- src/cmd/vet/all/main.go | 3 +++
+ src/go/constant/value.go | 3 +++
  1 file changed, 3 insertions(+)

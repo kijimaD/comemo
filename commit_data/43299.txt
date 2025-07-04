@@ -1,17 +1,16 @@
-commit fbf62beb4ed00bd4f93cf64316757be065c4249b
-Author: alandonovan <adonovan@google.com>
-Date:   Tue Oct 13 16:22:29 2020 -0400
+commit 9f343b1942356e0c87c6994118be298f634e6b4d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 24 13:13:38 2020 -0700
 
-    sort: document requirements of Less relation
+    os/exec: for TestExtraFiles failure, print readlink of unexpected fd
     
-    Fixes #34915
+    For #25628
     
-    Change-Id: Ia62ff3b6f198ddcd79e8afc7b4f5514a44f2442c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261959
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Akhil Indurti <aindurti@gmail.com>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: If1dce7ba9310e1418e67b9954c989471b775a28e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225278
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sort/sort.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/os/exec/exec_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

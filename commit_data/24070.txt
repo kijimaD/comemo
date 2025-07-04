@@ -1,19 +1,14 @@
-commit 7ebaa43754872d4da1f58e8fbd2d2db077af5f0f
-Author: Todd Neal <todd@tneal.org>
-Date:   Mon Aug 24 18:30:53 2015 -0500
+commit 09b5463d9bcdd7b9562838e0b44029b6c04c487d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 12:56:51 2015 +1000
 
-    encoding/gob: remove always false comparison
+    doc: finish the small library changes in go1.5.html; start work on tools
     
-    This is not a functional change. nr is a uint64 and can never be less
-    than zero, remove the no-op comparison.
+    Also add words about the assembler.
     
-    Fixes #11279
-    
-    Change-Id: Iebb36cc8fe97428b503e65d01b5e67d2b2bc7369
-    Reviewed-on: https://go-review.googlesource.com/13876
-    Run-TryBot: Todd Neal <todd@tneal.org>
+    Change-Id: I9bd8cc88076f06b0eef36a07f57d1ad5d9261d8d
+    Reviewed-on: https://go-review.googlesource.com/11853
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/gob/decode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.5.html | 252 +++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 220 insertions(+), 32 deletions(-)

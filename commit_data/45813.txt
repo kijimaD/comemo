@@ -1,24 +1,19 @@
-commit cf4e3e3d3b3a713ec4df7e995d5bf5caef045a09
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Jun 12 12:25:12 2021 -0700
+commit 66c02645062561ac29d00297e8d8c49698b2e4da
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 19 19:15:57 2020 -0800
 
-    reflect: explain why convertible or comparable types may still panic
+    net, internal/poll: reset value before adding in minor kernel version
     
-    Conversions of slices to arrays may panic since the slice is too short.
-    Comparibility of interfaces may panic since the underlying value is incomparable.
+    Fixes #42733
     
-    This is a follow-up to CL 301652
-    
-    Change-Id: Ia5d84a6e556a7b82c39add4be93ed7463e63cc8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/327589
-    Trust: Joe Tsai <joetsai@digital-static.net>
-    Trust: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I5446aeb5de13cd70212755fb12c9bc484f343c74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271846
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/type.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/internal/poll/copy_file_range_linux.go | 1 +
+ src/net/sock_linux.go                      | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,40 +1,12 @@
-commit 07cb48c31fbe1c2ee6d4996b882b296e162e4464
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jun 25 20:27:19 2013 +0400
+commit 05cf6fe0c1c1a61fa95e4a3ab25c5b4f1a0ad499
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jun 25 08:06:34 2013 +0200
 
-    sync: fix race instrumentation of WaitGroup
-    Currently more than 1 gorutine can execute raceWrite() in Wait()
-    in the following scenario:
-    1. goroutine 1 executes first check of wg.counter, sees that it's == 0
-    2. goroutine 2 executes first check of wg.counter, sees that it's == 0
-    3. goroutine 2 locks the mutex, sees that he is the first waiter and executes raceWrite()
-    4. goroutine 2 block on the semaphore
-    5. goroutine 3 executes Done() and unblocks goroutine 2
-    6. goroutine 1 lock the mutex, sees that he is the first waiter and executes raceWrite()
+    test: add shift expression incorrectly rejected by gccgo.
     
-    It produces the following false report:
-    WARNING: DATA RACE
-    Write by goroutine 35:
-      sync.raceWrite()
-          src/pkg/sync/race.go:41 +0x33
-      sync.(*WaitGroup).Wait()
-          src/pkg/sync/waitgroup.go:103 +0xae
-      command-line-arguments_test.TestNoRaceWaitGroupMultipleWait2()
-          src/pkg/runtime/race/testdata/waitgroup_test.go:156 +0x19a
-      testing.tRunner()
-          src/pkg/testing/testing.go:361 +0x108
-    
-    Previous write by goroutine 36:
-      sync.raceWrite()
-          src/pkg/sync/race.go:41 +0x33
-      sync.(*WaitGroup).Wait()
-          src/pkg/sync/waitgroup.go:103 +0xae
-      command-line-arguments_test.func·012()
-          src/pkg/runtime/race/testdata/waitgroup_test.go:148 +0x4d
-    
-    R=golang-dev, r
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/10424043
+    https://golang.org/cl/10483045
 
- src/pkg/sync/waitgroup.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ test/shift2.go | 1 +
+ 1 file changed, 1 insertion(+)

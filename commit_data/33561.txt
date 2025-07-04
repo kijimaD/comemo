@@ -1,36 +1,26 @@
-commit 89b7a08aea13d750f0bb48d88fea7dc867c9295c
-Author: Austin Clements <austin@google.com>
-Date:   Tue Nov 14 15:08:32 2017 -0800
+commit 8f1e2a2610765528068107e33ab0d1d2ff224ce3
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Jun 13 12:24:19 2017 +0000
 
-    runtime: fix gctrace STW CPU time and CPU fraction
+    cmd/internal/obj/arm64: fix assemble fcmp/fcmpe bug
     
-    The CPU time reported in the gctrace for STW phases is simply
-    work.stwprocs times the wall-clock duration of these phases. However,
-    work.stwprocs is set to gcprocs(), which is wrong for multiple
-    reasons:
+    The current code treats floating-point constant as integer
+    and does not treat fcmp/fcmpe as the comparison instrucitons
+    that requires special handling.
     
-    1. gcprocs is intended to limit the number of Ms used for mark
-       termination based on how well the garbage collector actually
-       scales, but the gctrace wants to report how much CPU time is being
-       stolen from the application. During STW, that's *all* of the CPU,
-       regardless of how many the garbage collector can actually use.
+    The fix corrects the type of immediate arguments and adds fcmp/fcmpe
+    in the special handing.
     
-    2. gcprocs assumes it's being called during STW, so it limits its
-       result to sched.nmidle+1. However, we're not calling it during STW,
-       so sched.nmidle is typically quite small, even if GOMAXPROCS is
-       quite large.
+    Uncomment the fcmp/fcmpe cases.
     
-    Fix this by setting work.stwprocs to min(ncpu, GOMAXPROCS). This also
-    fixes the overall GC CPU fraction, which is based on the computed CPU
-    times.
-    
-    Fixes #22725.
-    
-    Change-Id: I64b5ce87e28dbec6870aa068ce7aecdd28c058d1
-    Reviewed-on: https://go-review.googlesource.com/77710
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #21567
+    Change-Id: I6782520e2770f6ce70270b667dd5e68f71e2d5ad
+    Reviewed-on: https://go-review.googlesource.com/57852
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/mgc.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arm64.go           |  4 +++-
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 16 ++++++++--------
+ src/cmd/internal/obj/arm64/asm7.go           |  2 +-
+ 3 files changed, 12 insertions(+), 10 deletions(-)

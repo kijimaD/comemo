@@ -1,33 +1,23 @@
-commit 4bb0847b088eb3eb6122a18a87e1ca7756281dcc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Jun 25 11:07:28 2021 -0700
+commit b9365488f017ba88540f21927a69e34351941db1
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Nov 24 17:48:38 2020 +0100
 
-    cmd/compile,runtime: change unsafe.Slice((*T)(nil), 0) to return []T(nil)
+    cmd/internal/objabi: assume GOARM=7 on Android
     
-    This CL removes the unconditional OCHECKNIL check added in
-    walkUnsafeSlice by instead passing it as a pointer to
-    runtime.unsafeslice, and hiding the check behind a `len == 0` check.
+    CL 34641 changed the Go runtime to assume GOARM=7 support on Android.
+    This change completes that by assuming GOARM=7 in the toolchain, fixing
+    the gotcha of inexplicably slow performance on non-arm64 Android devices.
     
-    While here, this CL also implements checkptr functionality for
-    unsafe.Slice and disallows use of unsafe.Slice with //go:notinheap
-    types.
+    There is already code in cmd/dist to force GOARM to 7 on GOOS=android. However,
+    dist is most likely run with GOOS != android.
     
-    Updates #46742.
-    
-    Change-Id: I743a445ac124304a4d7322a7fe089c4a21b9a655
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331070
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5e2bf11c3ecd0f6c193229eaa8ddc570722799d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272846
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Elias Naur <mail@eliasnaur.com>
 
- src/cmd/compile/internal/typecheck/builtin.go      |  5 +++--
- .../compile/internal/typecheck/builtin/runtime.go  |  5 +++--
- src/cmd/compile/internal/typecheck/func.go         |  7 ++++++
- src/cmd/compile/internal/walk/builtin.go           | 26 ++++++++--------------
- src/runtime/checkptr.go                            | 21 ++++++++++++++++-
- src/runtime/checkptr_test.go                       |  2 ++
- src/runtime/slice.go                               | 24 +++++++++++++++++---
- src/runtime/testdata/testprog/checkptr.go          | 13 +++++++++++
- test/unsafebuiltins.go                             |  7 ++++--
- 9 files changed, 83 insertions(+), 27 deletions(-)
+ src/cmd/dist/util.go            | 6 ------
+ src/cmd/internal/objabi/util.go | 7 ++++++-
+ 2 files changed, 6 insertions(+), 7 deletions(-)

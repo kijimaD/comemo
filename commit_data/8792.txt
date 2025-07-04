@@ -1,20 +1,12 @@
-commit f7d754fcce193a1ef8629361095b86c75a6313af
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Jun 20 22:23:43 2011 +1000
+commit f22e5cfc6d58fec0f130957af6a0e30b75565d24
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 20 16:39:16 2011 +1000
 
-    build: exclude packages that fail on Plan 9 (for now)
-    
-    All but two packages depend on net:
-            debug/proc
-            os/signal
-    
-    With this change, we can produce
-    a working build with GOOS=plan9.
+    goinstall: update doc.go
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4639053
+    https://golang.org/cl/4645048
 
- src/pkg/Makefile             | 30 ++++++++++++++++++++++++++++++
- src/pkg/runtime/cgo/Makefile |  4 ++++
- 2 files changed, 34 insertions(+)
+ src/cmd/goinstall/doc.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

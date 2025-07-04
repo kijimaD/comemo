@@ -1,12 +1,16 @@
-commit 951ba56adb90214796e39582e9134c52d3dee663
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 2 10:30:35 2011 -0800
+commit 8a8445ba71b18f9a4dcdd7e50a6e821afcbfe2ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 2 13:11:30 2011 -0500
 
-    goinstall: fix typo in comment
+    spec: pointer to array can be sliced
     
-    R=golang-dev, bradfitz
+    This has always been true, but we lost it from the spec
+    somewhere along the way, probably when we disallowed
+    the general 'pointer to anything sliceable' slice case.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5449068
+    https://golang.org/cl/5437121
 
- src/cmd/goinstall/main.go | 2 +-
+ doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

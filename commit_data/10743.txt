@@ -1,14 +1,12 @@
-commit 61655bc513cc3180504e8a847b45a65496c459b1
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 13 13:25:48 2011 -0500
+commit 2b600f77dd19b9d04f473eb12179437afefde26a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 13 10:27:17 2011 -0500
 
-    gc: delete DUPOK definition
+    exp/ssh: improve client channel close behavior
     
-    The relevant header is already included.
-    
-    R=ken2
+    R=gustav.paul
     CC=golang-dev
-    https://golang.org/cl/5487062
+    https://golang.org/cl/5480062
 
- src/cmd/gc/pgen.c | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/exp/ssh/client.go | 58 +++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 49 insertions(+), 9 deletions(-)

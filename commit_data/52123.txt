@@ -1,32 +1,34 @@
-commit 4d180f71dca041a39b50b9dec8a0ebec5cc02b90
-Author: ruinan <ruinan.sun@arm.com>
-Date:   Thu Aug 18 01:31:57 2022 +0000
+commit 3a0cda43a49793429bc38bdcb1d2112179b02fe1
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Mar 31 14:16:49 2022 +1100
 
-    cmd/compile: omit redundant sign/unsign extension on arm64
+    image/draw: have draw.Src preserve NRGBA colors
     
-    On Arm64, all 32-bit instructions will ignore the upper 32 bits and
-    clear them to zero for the result. No need to do an unsign extend before
-    a 32 bit op.
+    This reverts a behavior change introduced in Go 1.18 (commit 9f69a443;
+    CL 340049). In Go 1.17 and earlier, draw.Draw(etc, draw.Src) with
+    image.NRGBA dst and src images would pass through a (heap allocated)
+    color.Color interface value holding a color.NRGBA concrete value.
+    Threading that color.NRGBA value all the way through preserves
+    non-premultiplied alpha transparency information (distinguishing e.g.
+    transparent blue from transparent red).
     
-    This CL removes the redundant unsign extension only for the existing
-    32-bit opcodes, and also omits the sign extension when the upper bit of
-    the result can be predicted.
+    CL 340049 optimized out that heap allocation (per pixel), calling new
+    SetRGBA64At and RGBA64At methods instead. However, these methods (like
+    the existing image/color Color.RGBA method) work in premultiplied alpha,
+    so any distinction between transparent colors is lost.
     
-    Fixes #42162
+    This commit re-introduces the preservation of distinct transparencies,
+    when dst and src are both *image.NRGBA (or both *image.NRGBA64) and the
+    op is draw.Src.
     
-    Change-Id: I61e6670bfb8982572430e67a4fa61134a3ea240a
-    CustomizedGitHooks: yes
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427454
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #51893
+    
+    Change-Id: Id9c64bfeeaecc458586f169f50b99d6c8aa52a7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396795
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules | 10 +++
- src/cmd/compile/internal/ssa/_gen/ARM64Ops.go |  1 +
- src/cmd/compile/internal/ssa/rewrite.go       |  4 ++
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 68 +++++++++++++++++++
- test/codegen/noextend.go                      | 94 +++++++++++++++++++++++++++
- 5 files changed, 177 insertions(+)
+ doc/go1.19.html             | 13 +++++++++
+ src/image/draw/draw.go      | 59 ++++++++++++++++++++++++++++++-----------
+ src/image/draw/draw_test.go | 64 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 121 insertions(+), 15 deletions(-)

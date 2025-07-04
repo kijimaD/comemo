@@ -1,13 +1,14 @@
-commit eb825b58ccbda0f748406a6cf9f76833774ab30e
+commit 228f44a1f5b63233a007f52f6553df4acaa7180c
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Feb 27 17:37:59 2012 +1100
+Date:   Mon Feb 27 16:29:22 2012 +1100
 
-    archive/zip: use smarter putUintXX functions to hide offsets
+    archive/zip: stop using encoding/binary
     
-    R=bradfitz, r, dsymonds, kyle
+    R=golang-dev, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5701055
+    https://golang.org/cl/5694085
 
- src/pkg/archive/zip/reader_test.go |   2 +-
- src/pkg/archive/zip/writer.go      | 117 ++++++++++++++++++++-----------------
- 2 files changed, 63 insertions(+), 56 deletions(-)
+ src/pkg/archive/zip/reader.go |  93 +++++++++++++------------
+ src/pkg/archive/zip/struct.go |  10 ---
+ src/pkg/archive/zip/writer.go | 156 +++++++++++++++++++++++-------------------
+ 3 files changed, 131 insertions(+), 128 deletions(-)

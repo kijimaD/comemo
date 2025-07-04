@@ -1,24 +1,25 @@
-commit eabf59bc47484e3f09fe46cafe10221e6c345ccb
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat May 4 20:13:15 2024 +0800
+commit 968ebb205e02ff4a1d63575a2af54e885b0ab4fc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 2 09:37:00 2023 -0400
 
-    all: make use of stringslite.{HasPrefix, HasSuffix}
+    cmd/api: move support checks into individual tests
     
-    Just a code cleanup.
+    This makes 'go test -list cmd/api' work, and fixes an infinite
+    recursion via testenv.HasExec that would otherwise occur.
+    As of CL 488076, testenv.HasExec tries to re-exec the test
+    executable using -list to suppress running the tests, which
+    produces a fork bomb if TestMain itself calls HasExec.
     
-    Change-Id: Ie887ab2c71de11b4844c4e6fd4e5aca3265ac3aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583216
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    For this test, it turns out that the HasExec check is redundant
+    anyway: if we can exec 'go build', we can certainly exec programs in
+    general too.
+    
+    Change-Id: I165f98315c181098c8be8b7525b9dfa3f98e14f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491656
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/crypto/internal/boring/boring.go      |  7 ++-----
- src/crypto/internal/boring/fipstls/tls.go | 11 +++++------
- src/internal/poll/fd_plan9.go             |  5 +++--
- src/internal/poll/strconv.go              | 13 -------------
- src/net/conf.go                           |  5 +++--
- src/net/interface_plan9.go                |  3 ++-
- src/net/lookup_plan9.go                   | 13 +++++++------
- src/net/parse.go                          | 11 -----------
- 8 files changed, 22 insertions(+), 46 deletions(-)
+ src/cmd/api/api_test.go | 41 ++++++++++++++++++++---------------------
+ 1 file changed, 20 insertions(+), 21 deletions(-)

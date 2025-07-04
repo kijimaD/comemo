@@ -1,29 +1,19 @@
-commit 4b439e41e2cdd78e0eeed05942c93364c5d99b6b
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Jun 1 12:17:41 2018 +0100
+commit af5143e384535f824a22e71f33e36f0503ae3bb9
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Apr 25 12:50:31 2018 -0400
 
-    cmd/vet: check embedded field tags too
+    cmd/trace: use different colors for tasks
     
-    We can no longer use the field's position for the duplicate field tag
-    warning - since we now check embedded tags, the positions may belong to
-    copmletely different packages.
+    and assign the same colors for spans belong to the tasks
+    (sadly, the trace viewer will change the saturation/ligthness
+    for asynchronous slices so exact color mapping is impossible.
+    But I hope they are not too far from each other)
     
-    Instead, keep track of the lowest field that's still part of the
-    top-level struct type that we are checking.
-    
-    Finally, be careful to not repeat the independent struct field warnings
-    when checking fields again because they are embedded into another
-    struct. To do this, separate the duplicate tag value logic into a func
-    that recurses into embedded fields on a per-encoding basis.
-    
-    Fixes #25593.
-    
-    Change-Id: I3bd6e01306d8ec63c0314d25e3136d5e067a9517
-    Reviewed-on: https://go-review.googlesource.com/115677
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Idaaf0828a1e0dac8012d336dcefa1c6572ddca2e
+    Reviewed-on: https://go-review.googlesource.com/109338
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/vet/structtag.go          | 110 +++++++++++++++++++++++---------------
- src/cmd/vet/testdata/structtag.go |  29 ++++++----
- 2 files changed, 87 insertions(+), 52 deletions(-)
+ src/cmd/trace/trace.go | 101 ++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 66 insertions(+), 35 deletions(-)

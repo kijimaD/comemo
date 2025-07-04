@@ -1,16 +1,18 @@
-commit 4fbb4e74aa3b9e83d812e494766cff41e57dd5a8
-Author: Mickey Reiss <mickeyreiss@gmail.com>
-Date:   Thu May 23 05:15:49 2019 +0000
+commit 3fc276ccf8c95a799c240905d35ad187abd34b20
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 2 16:03:28 2019 -0800
 
-    bufio: Fix typo in scan.go documentation
+    cmd/cgo: don't copy a simple variable x in &x[0]
     
-    Apologies for the the nitpicky PR. I believe there is a minor typo in the documentation of `MaxScanTokenSize`, which confused me for a moment when I went to search for the referenced method, `Scan.Buffer`. Thanks!
+    Fixes #30065
     
-    Change-Id: I5d21e77276285206497fe75291001032c255cace
-    GitHub-Last-Rev: 635e35c0191c11f2b6966b5e58cf91a1064099da
-    GitHub-Pull-Request: golang/go#32193
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178637
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3d0fb03bab397548653d5f3b386cfe2980ac1030
+    Reviewed-on: https://go-review.googlesource.com/c/160830
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/bufio/scan.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue30065.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 38 ++++++++++++++++++++++++++++++++------
+ 3 files changed, 71 insertions(+), 6 deletions(-)

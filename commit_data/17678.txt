@@ -1,28 +1,15 @@
-commit 0fc9db794492323e0a4b8c7bf8c8f4069257f58a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 23 15:58:35 2013 -0400
+commit 60513bf2f4c465adafe45fae639a77a2c94ac07b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Sep 23 13:08:00 2013 -0400
 
-    undo CL 13321048 / 9567c5da6e25
+    cmd/ld: fix "_image_base__ not defined" problem for cmd/8l.
+    Fixes #6431.
     
-    Makes build unnecessarily slower. Will fix the parser instead.
+    Change suggested by kin.wilson.za.
     
-    ««« original CL description
-    runtime/pprof: run TestGoroutineSwitch for longer
-    
-    Short test now takes about 0.5 second here.
-    
-    Fixes #6417.
-    
-    The failure was also seen on our builders.
-    
-    R=golang-dev, minux.ma, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/13321048
-    »»»
-    
-    R=golang-dev, minux.ma
-    CC=golang-dev
-    https://golang.org/cl/13720048
+    https://golang.org/cl/13314048
 
- src/pkg/runtime/pprof/pprof_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/ld/pe.c | 1 +
+ 1 file changed, 1 insertion(+)

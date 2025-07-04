@@ -1,20 +1,23 @@
-commit 6f0185bf38a679f468b6a4209f15188a11662eb5
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Oct 27 12:17:21 2021 -0400
+commit 37805292550e7144200b09320ffb61f21d421f8d
+Author: David Benjamin <davidben@google.com>
+Date:   Fri Dec 25 12:02:55 2020 -0500
 
-    go/types: factor out slice elem computation for copy built-in
+    unicode: correctly handle negative runes
     
-    This is a port of CL 357413 to go/types. Some test constraints are also
-    updated to remove 'interface', to coincide with the corresponding test
-    data file in types2.
+    Is and isExcludingLatin did not handle negative runes when dispatching
+    to is16. TestNegativeRune covers this along with the existing uint32
+    casts in IsGraphic, etc. (For tests, I picked the smallest non-Latin-1
+    code point in each range.)
     
-    Change-Id: I5248190501c2e4381eb7625f8d4fb269301d6e16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359138
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Updates #43254
+    
+    Change-Id: I17261b91f0d2b5b5125d19219411b45c480df74f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280493
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/go/types/builtins.go                 | 59 ++++++++++++++++++++++++--------
- src/go/types/testdata/check/builtins.go2 | 18 ++++++----
- 2 files changed, 56 insertions(+), 21 deletions(-)
+ src/unicode/letter.go      |  6 ++--
+ src/unicode/letter_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 2 deletions(-)

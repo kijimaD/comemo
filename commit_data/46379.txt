@@ -1,25 +1,26 @@
-commit 2481f6e367a56207b6c873180e0db9bc4f2b6365
+commit 27b248b307e6db463930231a7820d5335424c04e
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 9 01:11:26 2021 +0700
+Date:   Thu Dec 24 13:09:20 2020 +0700
 
-    cmd/compile: fix wrong instantiated type for embedded receiver
+    [dev.regabi] cmd/compile: separate range stmt Vars to Key, Value nodes
     
-    In case of embedded field, if the receiver was fully instantiated, we
-    must use its instantiated type, instead of passing the type params of
-    the base receiver.
+    Passes buildall w/ toolstash -cmp.
     
-    Fixes #47797
-    Fixes #48253
-    
-    Change-Id: I97613e7e669a72605137e82406f7bf5fbb629378
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348549
+    Change-Id: I9738fcabc8ebf3afa34d102afadf1b474b50db35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279435
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/noder/expr.go | 18 +++---------------
- test/typeparam/issue47797.go           | 22 ++++++++++++++++++++++
- test/typeparam/issue48253.go           | 34 ++++++++++++++++++++++++++++++++++
- 3 files changed, 59 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/escape/escape.go     | 18 +++---
+ src/cmd/compile/internal/ir/fmt.go            | 13 ++--
+ src/cmd/compile/internal/ir/node_gen.go       |  7 ++-
+ src/cmd/compile/internal/ir/stmt.go           | 11 ++--
+ src/cmd/compile/internal/noder/noder.go       |  8 ++-
+ src/cmd/compile/internal/typecheck/iexport.go |  2 +-
+ src/cmd/compile/internal/typecheck/iimport.go |  4 +-
+ src/cmd/compile/internal/typecheck/stmt.go    | 91 ++++++++++-----------------
+ src/cmd/compile/internal/walk/order.go        |  5 +-
+ src/cmd/compile/internal/walk/range.go        | 18 +-----
+ 10 files changed, 73 insertions(+), 104 deletions(-)

@@ -1,14 +1,13 @@
-commit 35dc312e722b8f485a9929f7c3415a93a02d1c2d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 19 17:38:46 2014 -0800
+commit 18b4f06b13d68c418dc8cb9712424671b63a4254
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 10 09:30:57 2014 +1100
 
-    misc/cgo/test/backdoor: add gc build tag for thunk.s
+    cmd/api: bump go.tools golden CL hash
     
-    Change-Id: I6be5f610af5c56131a9d887569919372bab1d02c
-    Reviewed-on: https://go-review.googlesource.com/1903
-    Reviewed-by: Minux Ma <minux@golang.org>
+    TBR=bradfitz
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166380043
 
- misc/cgo/test/backdoor/backdoor.go     | 2 +-
- misc/cgo/test/backdoor/runtime_gccgo.c | 2 +-
- misc/cgo/test/backdoor/thunk.s         | 1 +
- 3 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/api/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

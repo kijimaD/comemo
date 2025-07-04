@@ -1,40 +1,19 @@
-commit d2d1fd68b6299d4645298e6d70fe8e8cfd98001a
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Mar 20 12:41:21 2025 -0700
+commit 5a412045046586d35488c34fd3ce21ef0960ce44
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Feb 20 17:15:51 2024 +0000
 
-    os: add Root.Link
+    net: mention the cgo thread limit in package docs
     
-    For #67002
+    Updates #63978
     
-    Change-Id: I223f3f2dbc8b02726f4ce5a017c628c4a20f109a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659757
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I39a5c812b4f604baf4ca5ffcff52b8dc17d4990d
+    GitHub-Last-Rev: 4ab6e262f4fd37ff32d6b3eb756fea187e5d6e53
+    GitHub-Pull-Request: golang/go#63990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539361
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- api/next/67002.txt                               |   1 +
- doc/next/6-stdlib/99-minor/os/67002.md           |   1 +
- src/internal/syscall/unix/asm_darwin.s           |   1 +
- src/internal/syscall/unix/asm_openbsd.s          |   2 +
- src/internal/syscall/unix/at.go                  |  22 ++++
- src/internal/syscall/unix/at_aix.go              |   1 +
- src/internal/syscall/unix/at_darwin.go           |  26 +++++
- src/internal/syscall/unix/at_libc.go             |  26 ++++-
- src/internal/syscall/unix/at_openbsd.go          |  26 +++++
- src/internal/syscall/unix/at_solaris.go          |   1 +
- src/internal/syscall/unix/at_sysnum_dragonfly.go |   1 +
- src/internal/syscall/unix/at_sysnum_freebsd.go   |   1 +
- src/internal/syscall/unix/at_sysnum_linux.go     |   1 +
- src/internal/syscall/unix/at_sysnum_netbsd.go    |   1 +
- src/internal/syscall/unix/at_wasip1.go           |  19 ++++
- src/internal/syscall/windows/at_windows.go       |  48 +++++++++
- src/internal/syscall/windows/types_windows.go    |   8 ++
- src/os/os_test.go                                |  33 ++++--
- src/os/root.go                                   |  12 +++
- src/os/root_noopenat.go                          |  18 ++++
- src/os/root_openat.go                            |  13 +++
- src/os/root_test.go                              | 128 +++++++++++++++++++++--
- src/os/root_unix.go                              |   4 +
- src/os/root_windows.go                           |   4 +
- 24 files changed, 377 insertions(+), 21 deletions(-)
+ src/net/net.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

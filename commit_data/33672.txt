@@ -1,14 +1,12 @@
-commit 5051671c7e1dd026c6b19a83e944b6b43f5fe5c3
-Author: Tom Lanyon <tomlanyon@google.com>
-Date:   Tue Nov 7 16:16:24 2017 +1100
+commit fe1ccc5b88e60d897137c41bdcc2824556793105
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:42:06 2017 +1000
 
-    os/exec: update docs for cmd.Std{out,err} and cmd.Wait to clarify how copying is done
+    cmd/link: introduce and use peFile.writeSymbolTableAndStringTable
     
-    Fixes #22610.
-    
-    Change-Id: I172fe1d1941a8a2750af7ee75f7af7e81a702c40
-    Reviewed-on: https://go-review.googlesource.com/76320
+    Change-Id: I506f5e146f3b5bf359d6932a85ac5572d3a3f103
+    Reviewed-on: https://go-review.googlesource.com/59426
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec/exec.go | 20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 59 +++++++++++++++++++++---------------------
+ 1 file changed, 30 insertions(+), 29 deletions(-)

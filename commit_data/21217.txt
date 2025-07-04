@@ -1,12 +1,12 @@
-commit fbe2845cdda98e5327ab6dc3ba29b3650414464d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 8 13:09:22 2015 -0800
+commit 36e443342d766be454c71f14948fdaa6ca4d7829
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Dec 8 18:50:50 2014 +1100
 
-    doc: document math/big performance improvements
+    doc: remove obsolete FAQ entry about using Mercurial vs. Git.
     
-    Change-Id: I2b40cd544dda550ac6ac6da19ba3867ec30b2774
-    Reviewed-on: https://go-review.googlesource.com/2563
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I9d9b02ad745208e7297cb75c86af49b2d858b12d
+    Reviewed-on: https://go-review.googlesource.com/1176
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/go1.5.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go_faq.html | 26 --------------------------
+ 1 file changed, 26 deletions(-)

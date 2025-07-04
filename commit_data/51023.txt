@@ -1,19 +1,17 @@
-commit 4c69d0eeb869cdc987e35d09a052a0e0320c0c96
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 28 12:33:49 2022 -0700
+commit a142d6587cb6a7ac59ebf49120167c96bdc3bcf6
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Mon Nov 22 01:26:48 2021 +0000
 
-    testing: change Error to Errorf in comment
+    doc: go1.18 release notes for CLs 323318/332771
     
-    Fixes #56479
+    Updates #47694
     
-    Change-Id: I1d97eb3ea97304e429e178ad05cb9f861b2bce84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446275
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib76737996a701906117e096eb6d05b388576a874
+    GitHub-Last-Rev: 05b96499651bb4e90617460a72f1df9f2c8615f3
+    GitHub-Pull-Request: golang/go#49588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363840
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.18.html | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

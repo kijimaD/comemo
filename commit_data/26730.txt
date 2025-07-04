@@ -1,23 +1,20 @@
-commit e0307c25bebd694b98ae538065cda0681ef9ecf1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 5 15:59:55 2016 +0000
+commit 8dd2ce2b980d341a4c88e4f3c95e4eca396b6a07
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 23 22:04:20 2016 -0800
 
-    net/http: document that Handlers shouldn't mutate Request
+    cmd/compile: factor our literal lexing from main lexer function
     
-    Also, don't read from the Request.Headers in the http Server code once
-    ServeHTTP has started. This is partially redundant with documenting
-    that handlers shouldn't mutate request, but: the space is free due to
-    bool packing, it's faster to do the checks once instead of N times in
-    writeChunk, and it's a little nicer to code which previously didn't
-    play by the unwritten rules. But I'm not going to fix all the cases.
+    Further reduces complexity of lexer.next which is now readable.
+    Also removes the need to initialize various local variables in
+    each next call even if they are not used for the current token.
     
-    Fixes #14940
+    No measurable performance change for `time go build -a net/http`
+    (best of 5 runs): difference < 0.3% (in the noise).
     
-    Change-Id: I612a8826b41c8682b59515081c590c512ee6949e
-    Reviewed-on: https://go-review.googlesource.com/21530
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0d74caa2768920af1ceee027e0f46595119d4210
+    Reviewed-on: https://go-review.googlesource.com/19865
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/server.go | 27 +++++++++++++++++++--------
- 1 file changed, 19 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 459 +++++++++++++++++++------------------
+ 1 file changed, 231 insertions(+), 228 deletions(-)

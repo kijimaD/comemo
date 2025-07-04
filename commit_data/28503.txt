@@ -1,29 +1,21 @@
-commit 88d2f9112a0a8afd3a29ac1479d4f17847f16803
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 20 16:34:30 2016 -0700
+commit d2c92f8453cab8d042b794c8ce398f6ff8e6f650
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 30 12:57:20 2016 -0700
 
-    cmd/compile: fix type of static closure pointer
+    path/filepath: prevent infinite recursion on Windows on UNC input
     
-      var x *X = ...
-      defer x.foo()
+    This is a minimal fix to prevent this and
+    other possible future infinite recursion.
+    We can put in a proper fix for UNC in Go 1.8.
     
-    As part of the defer, we need to calculate &(*X).foo·f.  This expression
-    is the address of the static closure that will call (*X).foo when a
-    pointer to that closure is used in a call/defer/go.  This pointer is not
-    currently properly typed in SSA.  It is a pointer type, but the base
-    type is nil, not a proper type.
+    Updates #15879
     
-    This turns out not to be a problem currently because we never use the
-    type of these SSA values.  But I'm trying to change that (to be able to
-    spill them) in CL 28391.  To fix, use uint8 as the fake type of the
-    closure.
-    
-    Change-Id: Ieee388089c9af398ed772ee8c815122c347cb633
-    Reviewed-on: https://go-review.googlesource.com/29444
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I3653cf5891bab8511adf66fa3c1a1d8912d1a293
+    Reviewed-on: https://go-review.googlesource.com/23572
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go  | 6 ++++++
- src/cmd/compile/internal/gc/subr.go | 3 +++
- 2 files changed, 9 insertions(+)
+ src/path/filepath/match.go      | 5 +++++
+ src/path/filepath/match_test.go | 6 ++++++
+ 2 files changed, 11 insertions(+)

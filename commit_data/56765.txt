@@ -1,28 +1,31 @@
-commit 5532427c4b1c5e962ad5484258be0071bd270e53
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Wed Jun 5 19:06:31 2024 +0000
+commit 392fbaa0f394592a9924daf498f58226fd9b3e79
+Author: miller <millerresearch@gmail.com>
+Date:   Wed Mar 1 16:55:45 2023 +0000
 
-    os/exec: on Windows look for extensions in Run if not already done
+    os: make TestProgWideChdir detect more possible failure cases
     
-    CL 512155 fixed #36768, but introduced #62596.
-    CL 527820 fixed #62596, but meant that the code failed to look up
-    file extensions on Windows for a relative path.
-    This CL fixes that problem by recording whether it has already
-    looked up file extensions.
-    This does mean that if Path is set manually then we do not update
-    it with file extensions, as doing that would be racy.
+    This test is meant to detect the effect of Chdir not being
+    observed in other concurrent goroutines, possible in Plan 9
+    because each M runs in a separate OS process with its own
+    working directory. The test depends on Getwd to report the
+    correct working directory, but if Chdir fails then Getwd
+    may fail for the same reasons. We add a consistency check
+    that Stat(Getwd()) and Stat(".") refer to the same file.
     
-    Fixes #66586
+    Also change channel usage and add a sync.WaitGroup to
+    ensure test goroutines are not left blocked or running
+    when the main test function exits.
     
-    Change-Id: I9a0305d1e466c5e07bfbe442566ea12f5255a96e
-    GitHub-Last-Rev: dc3169f2350f61acac5ef7842b7514013abacbe1
-    GitHub-Pull-Request: golang/go#67035
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581695
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    For #58802
+    
+    Change-Id: I80d554fcf3617427c28bbe16e5e396367dcfe673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472555
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec/exec.go      | 16 ++++++++++------
- src/os/exec/exec_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 6 deletions(-)
+ src/os/os_test.go | 91 ++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 53 insertions(+), 38 deletions(-)

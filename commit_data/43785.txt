@@ -1,15 +1,19 @@
-commit 141fa337ad2f118e4e99dc554e95c336810a07cf
-Author: Federico Guerinoni <guerinoni.federico@gmail.com>
-Date:   Sun Nov 8 15:35:35 2020 +0100
+commit f790533d9ffd6d50c8efccf8f8edac0ef76b3da4
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 23 20:54:04 2020 -0400
 
-    bytes: add example for (*Buffer).Bytes
+    [dev.link] cmd/link: support new dodata for elf/386
     
-    Change-Id: I49ac604530fff7928fa15de07563418b104da5e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268260
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
+    Add elf/386 arch support for the new dodata() phase.
+    
+    Change-Id: I78341dfe70a90719d95c0044183980f348a3369f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229797
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/bytes/example_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/link/internal/ld/main.go  |   5 +-
+ src/cmd/link/internal/x86/asm.go  | 253 +++++++++++++++++++---------------
+ src/cmd/link/internal/x86/asm2.go | 283 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/x86/obj.go  |   1 +
+ 4 files changed, 429 insertions(+), 113 deletions(-)

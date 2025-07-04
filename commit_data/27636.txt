@@ -1,12 +1,17 @@
-commit b4c7f6280ed00316e410261adbc804f6ddd209cc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 3 10:09:08 2016 -0700
+commit e095f53e9be7aadc74fddf5532296a438410df40
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 6 02:38:45 2016 +0000
 
-    doc/go1.7.html: add missing <code> and </a>
+    runtime: merge os{,2}_windows.go into os1_windows.go.
     
-    Change-Id: I5f4bf89345dc139063dcf34da653e914386bcde6
-    Reviewed-on: https://go-review.googlesource.com/23735
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    A future CL will rename os1_windows.go to os_windows.go.
+    
+    Change-Id: I223e76002dd1e9c9d1798fb0beac02c7d3bf4812
+    Reviewed-on: https://go-review.googlesource.com/21564
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- doc/go1.7.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/os1_windows.go | 40 +++++++++++++++++++++++++++++++++++++++-
+ src/runtime/os2_windows.go | 19 -------------------
+ src/runtime/os_windows.go  | 32 --------------------------------
+ 3 files changed, 39 insertions(+), 52 deletions(-)

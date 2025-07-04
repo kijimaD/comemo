@@ -1,12 +1,12 @@
-commit 356b8ee26fa02643b166ae77870e24293260ba90
+commit 7600281bda2611d4a832a0b0bff6ef2e5dfb0abd
 Author: Christopher Wedgwood <cw@f00f.org>
-Date:   Mon Nov 28 09:51:03 2011 -0800
+Date:   Mon Nov 28 09:50:51 2011 -0800
 
-    strings: fix test output
+    bytes: fix test output
     
     R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/5445044
+    https://golang.org/cl/5441048
 
- src/pkg/strings/strings_test.go | 2 +-
+ src/pkg/bytes/bytes_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

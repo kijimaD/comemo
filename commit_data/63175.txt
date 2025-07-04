@@ -1,0 +1,19 @@
+commit e4216d54f58616b862013e2810436462db08b6ed
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Sep 30 16:52:50 2024 +0200
+
+    internal/cpu: add ARM64.HasSHA3
+    
+    For #69536
+    
+    Change-Id: If237226ba03e282443b4fc90484968c903198cb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616715
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/internal/cpu/cpu.go              |  1 +
+ src/internal/cpu/cpu_arm64.go        |  7 +++++++
+ src/internal/cpu/cpu_arm64_darwin.go | 14 ++++++++++----
+ src/internal/cpu/cpu_arm64_hwcap.go  |  4 ++++
+ 4 files changed, 22 insertions(+), 4 deletions(-)

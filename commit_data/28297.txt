@@ -1,15 +1,18 @@
-commit 8e84a5dd47d5c27e83f40439a4240a7504134039
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Sep 10 15:24:28 2016 -0700
+commit 81b70f3751374ccd1eda2f536156dd91cd9f9c9b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 11 16:16:37 2016 +1000
 
-    cmd/vet/all/whitelist: add readme.txt
+    syscall: make mksyscall_windows.go -systemdll flag true by default
     
-    This was written for CL 27811,
-    but it got lost in the sea of new files.
+    Updates #15167
     
-    Change-Id: I5c52cb23dda499b21a6bb32ed5c586779ccbc2f1
-    Reviewed-on: https://go-review.googlesource.com/28960
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I826f67e75011ba79325a1294ac0d70d7c6a3e32f
+    Reviewed-on: https://go-review.googlesource.com/23022
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/all/whitelist/readme.txt | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/internal/syscall/windows/registry/syscall.go | 2 +-
+ src/internal/syscall/windows/syscall_windows.go  | 2 +-
+ src/syscall/mksyscall_windows.go                 | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

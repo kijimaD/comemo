@@ -1,36 +1,24 @@
-commit e2d9574b14b3db044331da0c6fadeb62315c644a
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Nov 2 10:04:21 2023 -0700
+commit a8f9d3f0afa793b5496a5881c74fcd218c130dbc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 17 14:25:50 2022 -0800
 
-    crypto/x509: fix certificate policy marshaling
+    go/types, types2: replace (internal) writePackage with packagePrefix
     
-    CL 520535 added the new OID type, and the Certificate field Policies to
-    replace PolicyIdentifiers. During review I missed three problems: (1)
-    the marshaling of Certificate didn't take into account the case where
-    both fields were populated with the same OIDs (which would be the case
-    if you parsed a certificate and used it as a template), (2)
-    buildCertExtensions only generated the certificate policies extension if
-    PolicyIdentifiers was populated, and (3) how we would marshal an empty
-    OID (i.e. OID{}).
+    This makes it easier to use the package string prefix in some cases
+    (cleanup).
     
-    This change makes marshaling a certificate with an empty OID an error,
-    and only adds a single copy of any OID that appears in both Policies and
-    PolicyIdentifiers to the certificate policies extension. This should
-    make the round trip behavior for certificates reasonable.
-    
-    Additionally this change documents that CreateCertificate uses the
-    Policies field from the template, and fixes buildCertExtensions to
-    populate the certificate policies extension if _either_
-    PolicyIdentifiers or Policies is populated, not just PolicyIdentifiers.
-    
-    Fixes #63909
-    
-    Change-Id: I0fcbd3ceaab7a376e7e991ff8b37e2145ffb4a61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539297
-    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I0ae74bf8770999110e7d6e49eac4e42962e78596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451795
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/x509/x509.go      | 19 ++++++++++++++++++-
- src/crypto/x509/x509_test.go | 21 +++++++++++++++++++--
- 2 files changed, 37 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/decl.go       |  6 +-----
+ src/cmd/compile/internal/types2/object.go     | 12 ++++++------
+ src/cmd/compile/internal/types2/typestring.go |  4 +---
+ src/go/types/decl.go                          |  6 +-----
+ src/go/types/object.go                        | 12 ++++++------
+ src/go/types/typestring.go                    |  4 +---
+ 6 files changed, 16 insertions(+), 28 deletions(-)

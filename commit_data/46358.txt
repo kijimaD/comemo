@@ -1,18 +1,252 @@
-commit cb9ccd494b778577d01cd6053b8288fc6d665de7
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Sep 3 11:17:37 2021 -0400
+commit d99dd178277c32c982ac2393446e503e76b9f56d
+Merge: 8b1fbd8215 37f138df6b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 01:43:22 2020 -0500
 
-    go/types: move typeHash to environment.go
+    [dev.typeparams] all: merge dev.regabi (37f138d) into dev.typeparams
     
-    This is a pure code move, with no other changes.
+    Conflicts:
     
-    Change-Id: Id31f1f960d3208dc614556de89bf39b7ca77df3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347560
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    * src/cmd/compile/fmtmap_test.go
+    * src/cmd/compile/internal/gc/go.go
+    * src/cmd/compile/internal/gc/main.go
+    * src/cmd/compile/internal/noder/noder.go
+    
+    Merge List:
+    
+    * 2020-12-23 37f138df6b [dev.regabi] cmd/compile: split out package test [generated]
+    * 2020-12-23 3d8a3cb06b [dev.regabi] cmd/compile: split out package pkginit [generated]
+    * 2020-12-23 3f04d964ab [dev.regabi] cmd/compile: split up walkexpr1, walkstmt [generated]
+    * 2020-12-23 e4895ab4c0 [dev.regabi] cmd/compile: split out package walk [generated]
+    * 2020-12-23 01fd2d05c8 [dev.regabi] cmd/compile: split out package dwarfgen [generated]
+    * 2020-12-23 6c34d2f420 [dev.regabi] cmd/compile: split out package ssagen [generated]
+    * 2020-12-23 de65151e50 [dev.regabi] cmd/compile: split out package reflectdata [generated]
+    * 2020-12-23 4dfb5d91a8 [dev.regabi] cmd/compile: split out package staticdata [generated]
+    * 2020-12-23 fbc82f03b1 [dev.regabi] cmd/compile: split out package noder [generated]
+    * 2020-12-23 de454eef5f [dev.regabi] cmd/compile: split out package escape [generated]
+    * 2020-12-23 071ab0a14c [dev.regabi] cmd/compile: split out package liveness [generated]
+    * 2020-12-23 0ced54062e [dev.regabi] cmd/compile: split out package objw [generated]
+    * 2020-12-23 575fd6ff0a [dev.regabi] cmd/compile: split out package inline [generated]
+    * 2020-12-23 0256ba99a8 [dev.regabi] cmd/compile: split up typecheck1 [generated]
+    * 2020-12-23 b9693d7627 [dev.regabi] cmd/compile: split out package typecheck [generated]
+    * 2020-12-23 dac0de3748 [dev.regabi] cmd/compile: move type size calculations into package types [generated]
+    * 2020-12-23 527a1895d6 [dev.regabi] cmd/compile: move helpers into package ir [generated]
+    * 2020-12-23 65c4c6dfb2 [dev.regabi] cmd/compile: group known symbols, packages, names [generated]
+    * 2020-12-23 9ee309255a [dev.regabi] cmd/compile: move helpers into package types [generated]
+    * 2020-12-23 ead4957892 [dev.regabi] cmd/compile: move helpers into package base [generated]
+    * 2020-12-23 440308ffd7 [dev.regabi] cmd/compile: simplify Nodes usage [generated]
+    * 2020-12-23 f9d373720e [dev.regabi] cmd/compile: remove Left, Right etc methods [generated]
+    * 2020-12-23 14d667341f [dev.regabi] cmd/compile: remove Node.Left etc [generated]
+    * 2020-12-23 6f27d29be0 [dev.regabi] cmd/compile: remove ir.Nod [generated]
+    * 2020-12-23 69cf39089f [dev.regabi] cmd/compile: do not die in early base.FlushErrors
+    
+    Change-Id: Ic4686e77c6ee38b3cd7d37fc7f3e93aaa9017b7a
 
- src/go/types/environment.go | 36 ++++++++++++++++++++++++++++++++++--
- src/go/types/subst.go       | 36 +-----------------------------------
- 2 files changed, 35 insertions(+), 37 deletions(-)
+ src/cmd/compile/fmtmap_test.go                     |    2 +-
+ src/cmd/compile/internal/amd64/galign.go           |    4 +-
+ src/cmd/compile/internal/amd64/ggen.go             |   54 +-
+ src/cmd/compile/internal/amd64/ssa.go              |   89 +-
+ src/cmd/compile/internal/arm/galign.go             |    6 +-
+ src/cmd/compile/internal/arm/ggen.go               |   38 +-
+ src/cmd/compile/internal/arm/ssa.go                |   50 +-
+ src/cmd/compile/internal/arm64/galign.go           |    6 +-
+ src/cmd/compile/internal/arm64/ggen.go             |   52 +-
+ src/cmd/compile/internal/arm64/ssa.go              |   62 +-
+ src/cmd/compile/internal/base/base.go              |   51 +
+ src/cmd/compile/internal/base/flag.go              |    3 +
+ src/cmd/compile/internal/base/print.go             |    6 +-
+ src/cmd/compile/internal/{gc => base}/timings.go   |    4 +-
+ src/cmd/compile/internal/bitvec/bv.go              |  190 +
+ .../internal/{gc/pgen.go => dwarfgen/dwarf.go}     |  679 +---
+ src/cmd/compile/internal/{gc => dwarfgen}/dwinl.go |    9 +-
+ src/cmd/compile/internal/{gc => dwarfgen}/scope.go |   11 +-
+ .../internal/{gc => dwarfgen}/scope_test.go        |    5 +-
+ src/cmd/compile/internal/{gc => escape}/escape.go  |  683 ++--
+ src/cmd/compile/internal/gc/abiutils.go            |    6 +-
+ src/cmd/compile/internal/gc/abiutils_test.go       |   23 +-
+ src/cmd/compile/internal/gc/abiutilsaux_test.go    |   11 +-
+ src/cmd/compile/internal/gc/bexport.go             |  185 -
+ src/cmd/compile/internal/gc/builtin.go             |  343 --
+ src/cmd/compile/internal/gc/bv.go                  |  280 --
+ src/cmd/compile/internal/gc/closure.go             |  570 ---
+ src/cmd/compile/internal/gc/compile.go             |  178 +
+ src/cmd/compile/internal/gc/dcl.go                 | 1002 -----
+ src/cmd/compile/internal/gc/export.go              |  192 +-
+ src/cmd/compile/internal/gc/gen.go                 |   96 -
+ src/cmd/compile/internal/gc/go.go                  |  243 --
+ src/cmd/compile/internal/gc/gsubr.go               |  465 ---
+ src/cmd/compile/internal/gc/main.go                |  867 +---
+ src/cmd/compile/internal/gc/obj.go                 |  458 +--
+ src/cmd/compile/internal/gc/racewalk.go            |   95 -
+ src/cmd/compile/internal/gc/range.go               |  617 ---
+ src/cmd/compile/internal/gc/select.go              |  368 --
+ src/cmd/compile/internal/gc/sinit.go               | 1175 ------
+ src/cmd/compile/internal/gc/subr.go                | 1575 --------
+ src/cmd/compile/internal/gc/swt.go                 |  762 ----
+ src/cmd/compile/internal/gc/typecheck.go           | 4213 --------------------
+ src/cmd/compile/internal/gc/types_acc.go           |    8 -
+ src/cmd/compile/internal/gc/unsafe.go              |   85 -
+ src/cmd/compile/internal/gc/walk.go                | 4104 -------------------
+ src/cmd/compile/internal/{gc => inline}/inl.go     |  540 +--
+ src/cmd/compile/internal/ir/cfg.go                 |   26 +
+ src/cmd/compile/internal/ir/const.go               |   99 +
+ src/cmd/compile/internal/ir/dump.go                |    2 +-
+ src/cmd/compile/internal/ir/expr.go                |  589 ++-
+ src/cmd/compile/internal/ir/fmt.go                 |  240 +-
+ src/cmd/compile/internal/ir/func.go                |   72 +-
+ src/cmd/compile/internal/ir/mini.go                |  112 +-
+ src/cmd/compile/internal/ir/name.go                |   27 +-
+ src/cmd/compile/internal/ir/node.go                |  334 +-
+ src/cmd/compile/internal/ir/node_gen.go            |   78 +-
+ src/cmd/compile/internal/{gc => ir}/scc.go         |   66 +-
+ src/cmd/compile/internal/ir/stmt.go                |  217 +-
+ src/cmd/compile/internal/ir/symtab.go              |   82 +
+ src/cmd/compile/internal/ir/visit.go               |   10 +-
+ src/cmd/compile/internal/liveness/bvset.go         |   97 +
+ src/cmd/compile/internal/{gc => liveness}/plive.go |  313 +-
+ src/cmd/compile/internal/mips/galign.go            |    6 +-
+ src/cmd/compile/internal/mips/ggen.go              |   25 +-
+ src/cmd/compile/internal/mips/ssa.go               |   50 +-
+ src/cmd/compile/internal/mips64/galign.go          |    6 +-
+ src/cmd/compile/internal/mips64/ggen.go            |   36 +-
+ src/cmd/compile/internal/mips64/ssa.go             |   52 +-
+ src/cmd/compile/internal/noder/import.go           |  493 +++
+ src/cmd/compile/internal/{gc => noder}/lex.go      |   17 +-
+ src/cmd/compile/internal/{gc => noder}/lex_test.go |    5 +-
+ src/cmd/compile/internal/{gc => noder}/noder.go    |  482 ++-
+ src/cmd/compile/internal/objw/objw.go              |   72 +
+ src/cmd/compile/internal/objw/prog.go              |  218 +
+ src/cmd/compile/internal/{gc => pkginit}/init.go   |   84 +-
+ .../compile/internal/{gc => pkginit}/initorder.go  |   47 +-
+ src/cmd/compile/internal/ppc64/galign.go           |    4 +-
+ src/cmd/compile/internal/ppc64/ggen.go             |   42 +-
+ src/cmd/compile/internal/ppc64/ssa.go              |   66 +-
+ .../compile/internal/{gc => reflectdata}/alg.go    |  639 ++-
+ .../internal/{gc => reflectdata}/reflect.go        |  850 ++--
+ src/cmd/compile/internal/riscv64/galign.go         |    4 +-
+ src/cmd/compile/internal/riscv64/ggen.go           |   34 +-
+ src/cmd/compile/internal/riscv64/gsubr.go          |    4 +-
+ src/cmd/compile/internal/riscv64/ssa.go            |   48 +-
+ src/cmd/compile/internal/s390x/galign.go           |    4 +-
+ src/cmd/compile/internal/s390x/ggen.go             |   22 +-
+ src/cmd/compile/internal/s390x/ssa.go              |   64 +-
+ src/cmd/compile/internal/ssa/export_test.go        |    1 -
+ src/cmd/compile/internal/ssa/value.go              |   11 +
+ src/cmd/compile/internal/ssagen/abi.go             |  367 ++
+ src/cmd/compile/internal/ssagen/arch.go            |   42 +
+ src/cmd/compile/internal/ssagen/nowb.go            |  200 +
+ src/cmd/compile/internal/ssagen/pgen.go            |  279 ++
+ .../compile/internal/{gc => ssagen}/pgen_test.go   |   18 +-
+ src/cmd/compile/internal/{gc => ssagen}/phi.go     |   23 +-
+ src/cmd/compile/internal/{gc => ssagen}/ssa.go     | 1392 ++++---
+ src/cmd/compile/internal/staticdata/data.go        |  353 ++
+ .../compile/internal/{gc => staticdata}/embed.go   |  102 +-
+ src/cmd/compile/internal/staticinit/sched.go       |  596 +++
+ .../compile/internal/{gc => test}/bench_test.go    |    2 +-
+ .../internal/{gc => test}/constFold_test.go        |    2 +-
+ src/cmd/compile/internal/{gc => test}/dep_test.go  |    2 +-
+ .../internal/{gc => test}/fixedbugs_test.go        |    2 +-
+ .../compile/internal/{gc => test}/float_test.go    |    2 +-
+ .../compile/internal/{gc => test}/global_test.go   |    2 +-
+ .../compile/internal/{gc => test}/iface_test.go    |    8 +-
+ src/cmd/compile/internal/{gc => test}/inl_test.go  |    2 +-
+ src/cmd/compile/internal/{gc => test}/lang_test.go |    2 +-
+ .../compile/internal/{gc => test}/logic_test.go    |    2 +-
+ .../{gc => test}/reproduciblebuilds_test.go        |    2 +-
+ .../compile/internal/{gc => test}/shift_test.go    |    2 +-
+ src/cmd/compile/internal/{gc => test}/ssa_test.go  |    2 +-
+ .../{gc => test}/testdata/addressed_test.go        |    0
+ .../internal/{gc => test}/testdata/append_test.go  |    0
+ .../{gc => test}/testdata/arithBoundary_test.go    |    0
+ .../{gc => test}/testdata/arithConst_test.go       |    0
+ .../internal/{gc => test}/testdata/arith_test.go   |    0
+ .../internal/{gc => test}/testdata/array_test.go   |    0
+ .../internal/{gc => test}/testdata/assert_test.go  |    0
+ .../internal/{gc => test}/testdata/break_test.go   |    0
+ .../internal/{gc => test}/testdata/chan_test.go    |    0
+ .../internal/{gc => test}/testdata/closure_test.go |    0
+ .../{gc => test}/testdata/cmpConst_test.go         |    0
+ .../internal/{gc => test}/testdata/cmp_test.go     |    0
+ .../{gc => test}/testdata/compound_test.go         |    0
+ .../internal/{gc => test}/testdata/copy_test.go    |    0
+ .../internal/{gc => test}/testdata/ctl_test.go     |    0
+ .../{gc => test}/testdata/deferNoReturn_test.go    |    0
+ .../{gc => test}/testdata/divbyzero_test.go        |    0
+ .../internal/{gc => test}/testdata/dupLoad_test.go |    0
+ .../{gc => test}/testdata/flowgraph_generator1.go  |    0
+ .../internal/{gc => test}/testdata/fp_test.go      |    0
+ .../{gc => test}/testdata/gen/arithBoundaryGen.go  |    0
+ .../{gc => test}/testdata/gen/arithConstGen.go     |    0
+ .../{gc => test}/testdata/gen/cmpConstGen.go       |    0
+ .../{gc => test}/testdata/gen/constFoldGen.go      |    0
+ .../internal/{gc => test}/testdata/gen/copyGen.go  |    0
+ .../internal/{gc => test}/testdata/gen/zeroGen.go  |    0
+ .../{gc => test}/testdata/loadstore_test.go        |    0
+ .../internal/{gc => test}/testdata/map_test.go     |    0
+ .../{gc => test}/testdata/namedReturn_test.go      |    0
+ .../internal/{gc => test}/testdata/phi_test.go     |    0
+ .../{gc => test}/testdata/regalloc_test.go         |    0
+ .../testdata/reproducible/issue20272.go            |    0
+ .../testdata/reproducible/issue27013.go            |    0
+ .../testdata/reproducible/issue30202.go            |    0
+ .../testdata/reproducible/issue38068.go            |    0
+ .../internal/{gc => test}/testdata/short_test.go   |    0
+ .../internal/{gc => test}/testdata/slice_test.go   |    0
+ .../{gc => test}/testdata/sqrtConst_test.go        |    0
+ .../internal/{gc => test}/testdata/string_test.go  |    0
+ .../internal/{gc => test}/testdata/unsafe_test.go  |    0
+ .../internal/{gc => test}/testdata/zero_test.go    |    0
+ .../internal/{gc => test}/truncconst_test.go       |    2 +-
+ .../internal/{gc => test}/zerorange_test.go        |    6 +-
+ src/cmd/compile/internal/typecheck/bexport.go      |  102 +
+ src/cmd/compile/internal/typecheck/builtin.go      |  344 ++
+ .../internal/{gc => typecheck}/builtin/runtime.go  |    0
+ .../internal/{gc => typecheck}/builtin_test.go     |    3 +-
+ .../compile/internal/{gc => typecheck}/const.go    |  309 +-
+ src/cmd/compile/internal/typecheck/dcl.go          |  705 ++++
+ src/cmd/compile/internal/typecheck/export.go       |   79 +
+ src/cmd/compile/internal/typecheck/expr.go         | 1001 +++++
+ src/cmd/compile/internal/typecheck/func.go         | 1029 +++++
+ .../compile/internal/{gc => typecheck}/iexport.go  |  262 +-
+ .../compile/internal/{gc => typecheck}/iimport.go  |  183 +-
+ .../internal/{gc => typecheck}/mapfile_mmap.go     |    2 +-
+ .../internal/{gc => typecheck}/mapfile_read.go     |    2 +-
+ .../internal/{gc => typecheck}/mkbuiltin.go        |    2 +-
+ src/cmd/compile/internal/typecheck/stmt.go         |  752 ++++
+ src/cmd/compile/internal/typecheck/subr.go         |  793 ++++
+ src/cmd/compile/internal/typecheck/syms.go         |  104 +
+ .../internal/{gc/types.go => typecheck/target.go}  |    9 +-
+ src/cmd/compile/internal/typecheck/type.go         |  122 +
+ src/cmd/compile/internal/typecheck/typecheck.go    | 2324 +++++++++++
+ .../compile/internal/{gc => typecheck}/universe.go |  125 +-
+ src/cmd/compile/internal/types/alg.go              |  173 +
+ .../internal/{gc => types}/algkind_string.go       |    2 +-
+ src/cmd/compile/internal/types/fmt.go              |   11 +
+ src/cmd/compile/internal/types/goversion.go        |   96 +
+ src/cmd/compile/internal/types/pkg.go              |    4 +
+ src/cmd/compile/internal/types/scope.go            |    8 +-
+ .../internal/{gc/align.go => types/size.go}        |  289 +-
+ src/cmd/compile/internal/types/sort.go             |   14 +
+ src/cmd/compile/internal/types/type.go             |  212 +-
+ src/cmd/compile/internal/types/utils.go            |    2 -
+ src/cmd/compile/internal/walk/assign.go            |  920 +++++
+ src/cmd/compile/internal/walk/builtin.go           |  699 ++++
+ src/cmd/compile/internal/walk/closure.go           |  197 +
+ src/cmd/compile/internal/walk/compare.go           |  507 +++
+ src/cmd/compile/internal/walk/complit.go           |  682 ++++
+ src/cmd/compile/internal/walk/convert.go           |  502 +++
+ src/cmd/compile/internal/walk/expr.go              | 1009 +++++
+ src/cmd/compile/internal/{gc => walk}/order.go     |  664 +--
+ src/cmd/compile/internal/walk/race.go              |   48 +
+ src/cmd/compile/internal/walk/range.go             |  496 +++
+ src/cmd/compile/internal/walk/select.go            |  297 ++
+ src/cmd/compile/internal/walk/stmt.go              |  315 ++
+ src/cmd/compile/internal/walk/switch.go            |  550 +++
+ src/cmd/compile/internal/walk/walk.go              |  570 +++
+ src/cmd/compile/internal/wasm/ssa.go               |   61 +-
+ src/cmd/compile/internal/x86/galign.go             |    4 +-
+ src/cmd/compile/internal/x86/ggen.go               |   32 +-
+ src/cmd/compile/internal/x86/ssa.go                |   69 +-
+ src/cmd/compile/main.go                            |    3 +-
+ src/cmd/internal/archive/archive.go                |   21 +
+ 207 files changed, 23455 insertions(+), 22881 deletions(-)

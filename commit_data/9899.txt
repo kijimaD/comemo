@@ -1,14 +1,19 @@
-commit af2070598fad4770ba972c537ea6357bca0ac737
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Oct 7 13:33:34 2011 +1100
+commit 5782ea9646bf14b619a0c29140df3a4aa9e89e3e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 17:37:59 2011 -0700
 
-    image: delete obsolete color.go
+    go/token: document deserialization property
     
-    I accidentally left it off of https://golang.org/cl/5132048/.
+    FileSet deserialization (Read) uses its own instance of a gob decoder.
+    If the FileSet data may be followed by other data on the reader, Read
+    may consume too much data that is lost unless the reader implements
+    ReadByte.
+    
+    Also: Minor internal refactoring for symmetry.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/5202042
+    https://golang.org/cl/5233041
 
- src/pkg/image/color.go | 251 -------------------------------------------------
- 1 file changed, 251 deletions(-)
+ src/pkg/go/token/serialize.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

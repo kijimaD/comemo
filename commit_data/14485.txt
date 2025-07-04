@@ -1,20 +1,13 @@
-commit af375cde206ff131acf3e9afd126b36a8ff7b39e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Nov 27 03:05:46 2012 +0800
+commit f4ed50c26054492e4a2e726d89feffb2dd535ef8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Nov 26 22:28:39 2012 +0400
 
-    libmach, cmd/cc, cmd/cov, cmd/ld, cmd/prof: check malloc return value
+    net: add deadline prolongation test
+    Currently the test exposes data races on deadline vars.
     
-    Update #4415.
-    
-    R=golang-dev, rsc
+    R=golang-dev, dave, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6856080
+    https://golang.org/cl/6845091
 
- src/cmd/cc/dcl.c         | 4 ++++
- src/cmd/cov/main.c       | 4 ++++
- src/cmd/cov/tree.c       | 2 ++
- src/cmd/ld/dwarf.c       | 8 ++++++++
- src/cmd/prof/main.c      | 8 ++++++++
- src/libmach/executable.c | 9 +++++++++
- src/libmach/obj.c        | 2 ++
- 7 files changed, 37 insertions(+)
+ src/pkg/net/timeout_test.go | 48 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

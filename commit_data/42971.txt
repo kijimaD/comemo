@@ -1,21 +1,21 @@
-commit 86dbeefe1f2770daad3c8d8b46a8b7f21b2c69e1
-Author: Clément Chigot <chigot.c@gmail.com>
-Date:   Mon Sep 14 13:06:40 2020 +0200
+commit 62ff72d87669b85f89417186bd79ad31aa0c3055
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 15:39:20 2020 -0500
 
-    syscall: fix fsync for read-only files on aix
+    cmd/go: convert TestLinkXImportPathEscape to the script framework
     
-    AIX fsync syscall doesn't work on read-only files. Using fsync_range
-    instead allows syscall.Fsync to work on any files.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Fixes #41372
+    Updates #36320
+    Updates #17751
     
-    Change-Id: I66d33e847875496af53da60828c1bddf6c2b76b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254657
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib386838081abad8bc6b01c1f0a4656553d0b6ff3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214579
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/syscall/syscall_aix.go        |  6 +++++-
- src/syscall/zsyscall_aix_ppc64.go | 26 +++++++++++++-------------
- 2 files changed, 18 insertions(+), 14 deletions(-)
+ src/cmd/go/go_test.go                              | 44 ----------------------
+ .../script/build_link_x_import_path_escape.txt     | 18 +++++++++
+ src/cmd/go/testdata/src/my.pkg/main/main.go        |  7 ----
+ src/cmd/go/testdata/src/my.pkg/pkg.go              |  3 --
+ 4 files changed, 18 insertions(+), 54 deletions(-)

@@ -1,30 +1,35 @@
-commit 792548a4835f019b40bf8bd4442c893eae280467
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri May 30 16:16:27 2025 -0400
+commit 104c293ffe0037de2462cdd404a6910dcf58298d
+Author: Jacob <vattlabs@gmail.com>
+Date:   Thu Apr 18 16:24:24 2024 +0000
 
-    cmd/go/internal/cfg: fix GOROOT setting when forcing host config
+    syscall/js: allocate arg slices on stack for small numbers of args
     
-    We manage the state using a bunch of global config, so we need to make
-    sure we're doing things in the right order. In this case, the SetGOROOT
-    function was being called in init, setting the GOROOT on the global
-    Context, but when we reset the context in ForceHost we lost the goroot
-    configuration. We need to call SetGOROOT in ForceHost to re-set the
-    GOROOT on the new context.
+    The existing implementation causes unnecessary heap allocations for
+    javascript syscalls: Call, Invoke, and New. The new change seeks to
+    hint the Go compiler to allocate arg slices with length <=16 to the
+    stack.
     
-    This was uncovered by CL 677558 because a go command that was built with
-    trimpath would try to use its runtime.GOROOT(), which wouldn't be valid
-    in trimpath mode. Setting GOROOT properly with SetGOROOT will use the
-    value from findGOROOT, assuming GOROOT isn't set in the environment,
-    and findGOROOT will try to determine GOROOT using the path of the go
-    command executable.
+    Original Work: CL 367045
+    - Calling a JavaScript function with 16 arguments or fewer will not
+    induce two additional heap allocations, at least with the current Go
+    compiler.
+    - Using syscall/js features with slices and strings of
+    statically-known length will not cause them to be escaped to the heap,
+    at least with the current Go compiler.
+    - The reduction in allocations has the additional benefit that the
+    garbage collector runs less often, blocking WebAssembly's one and only
+    thread less often.
     
-    For #71867
+    Fixes #39740
     
-    Change-Id: I731b6c5d859b4504fc128b29ab904e3a2886ff3c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677636
+    Change-Id: I815047e1d4f8ada796318e2064d38d3e63f73098
+    GitHub-Last-Rev: 36df1b33a4506e216767d8a73395f2fafdd80eba
+    GitHub-Pull-Request: golang/go#66684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576575
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/cfg/cfg.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/syscall/js/js.go      | 105 ++++++++++++++++++++++++++++++++++++++++++----
+ src/syscall/js/js_test.go |  74 ++++++++++++++++++++++++++++++++
+ 2 files changed, 170 insertions(+), 9 deletions(-)

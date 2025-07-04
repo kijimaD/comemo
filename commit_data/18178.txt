@@ -1,22 +1,20 @@
-commit 8f9844348fc66b560e5193cb402085d91f466788
-Author: Joel Sing <jsing@google.com>
-Date:   Tue Jan 7 23:04:17 2014 +1100
+commit 78c16c9b16dc9c64d1ddad6db5afaab12e87e8f2
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jan 6 16:11:58 2014 -0500
 
-    syscall: include mmap constants in netbsd zerror* files
+    crypto/rsa: support unpadded signatures.
     
-    Include the <sys/mman.h> header for NetBSD mkerrors.sh. This brings
-    in constants used with mmap(2), msync(2) and mlockall(2).
+    Usually when a message is signed it's first hashed because RSA has low
+    limits on the size of messages that it can sign. However, some
+    protocols sign short messages directly. This isn't a great idea because
+    the messages that can be signed suddenly depend on the size of the RSA
+    key, but several people on golang-nuts have requested support for
+    this and it's very easy to do.
     
-    The regeneration of the NetBSD zerror* files also picks clone(2)
-    related constants.
-    
-    Update #4929.
-    
-    R=golang-codereviews, bradfitz
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/45510044
+    https://golang.org/cl/44400043
 
- src/pkg/syscall/mkerrors.sh             |  1 +
- src/pkg/syscall/zerrors_netbsd_386.go   | 51 ++++++++++++++++++++++++++++++++-
- src/pkg/syscall/zerrors_netbsd_amd64.go | 51 ++++++++++++++++++++++++++++++++-
- 3 files changed, 101 insertions(+), 2 deletions(-)
+ src/pkg/crypto/rsa/pkcs1v15.go      | 12 ++++++++++--
+ src/pkg/crypto/rsa/pkcs1v15_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

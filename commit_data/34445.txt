@@ -1,64 +1,23 @@
-commit 403ab0f2214f583db84a2dae275389be92072a35
-Author: Keith Randall <khr@google.com>
-Date:   Thu Mar 1 16:38:41 2018 -0800
+commit f36b12657c71753029aeefa5e0af3c1607ffe9bb
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Sep 12 12:22:22 2017 -0400
 
-    internal/bytealg: move IndexByte asssembly to the new bytealg package
+    [release-branch.go1.9] runtime: in cpuProfile.addExtra, set p.lostExtra to 0 after flush
     
-    Move the IndexByte function from the runtime to a new bytealg package.
-    The new package will eventually hold all the optimized assembly for
-    groveling through byte slices and strings. It seems a better home for
-    this code than randomly keeping it in runtime.
+    After the number of lost extra events are written to the the cpuprof log,
+    the number of lost extra events should be set to zero, or else, the next
+    time time addExtra is logged, lostExtra will be overcounted. This change
+    resets lostExtra after its value is written to the log.
     
-    Once this is in, the next step is to move the other functions
-    (Compare, Equal, ...).
+    Fixes #21836
     
-    Update #19792
-    
-    This change seems complicated enough that we might just declare
-    "not worth it" and abandon.  Opinions welcome.
-    
-    The core assembly is all unchanged, except minor modifications where
-    the code reads cpu feature bits.
-    
-    The wrapper functions have been cleaned up as they are now actually
-    checked by vet.
-    
-    Change-Id: I9fa75bee5d85db3a65b3fd3b7997e60367523796
-    Reviewed-on: https://go-review.googlesource.com/98016
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I8a6ac9c61e579e7a5ca7bdb0f3463f8ae8b9f864
+    Reviewed-on: https://go-review.googlesource.com/63270
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/70974
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/bytes/bytes_decl.go                     |   4 +-
- src/cmd/dist/build.go                       |   5 +
- src/cmd/link/internal/ld/data.go            |   5 +-
- src/cmd/vet/all/whitelist/all.txt           |   4 +-
- src/cmd/vet/all/whitelist/amd64.txt         |   1 -
- src/cmd/vet/all/whitelist/nacl_amd64p32.txt |   1 -
- src/cmd/vet/all/whitelist/s390x.txt         |   1 -
- src/go/build/deps_test.go                   |   6 +-
- src/internal/bytealg/indexbyte_386.s        |  40 ++++
- src/internal/bytealg/indexbyte_amd64.s      | 169 +++++++++++++++
- src/internal/bytealg/indexbyte_amd64p32.s   | 129 +++++++++++
- src/internal/bytealg/indexbyte_arm.s        |  60 +++++
- src/internal/bytealg/indexbyte_arm64.s      | 140 ++++++++++++
- src/internal/bytealg/indexbyte_generic.go   |  47 ++++
- src/internal/bytealg/indexbyte_mips64x.s    |  60 +++++
- src/internal/bytealg/indexbyte_mipsx.s      |  58 +++++
- src/internal/bytealg/indexbyte_native.go    |  23 ++
- src/internal/bytealg/indexbyte_ppc64x.s     | 325 ++++++++++++++++++++++++++++
- src/internal/bytealg/indexbyte_s390x.s      | 122 +++++++++++
- src/internal/cpu/cpu.go                     |   8 +
- src/runtime/asm_386.s                       |  28 ---
- src/runtime/asm_amd64.s                     | 142 ------------
- src/runtime/asm_amd64p32.s                  | 107 ---------
- src/runtime/asm_arm.s                       |  48 ----
- src/runtime/asm_arm64.s                     | 120 ----------
- src/runtime/asm_mips64x.s                   |  46 ----
- src/runtime/asm_mipsx.s                     |  44 ----
- src/runtime/asm_ppc64x.s                    | 302 --------------------------
- src/runtime/asm_s390x.s                     | 102 ---------
- src/runtime/error.go                        |  11 +-
- src/runtime/os_linux_s390x.go               |   3 +
- src/strings/strings_decl.go                 |   2 +-
- 32 files changed, 1204 insertions(+), 959 deletions(-)
+ src/runtime/cpuprof.go | 1 +
+ 1 file changed, 1 insertion(+)

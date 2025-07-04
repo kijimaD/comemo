@@ -1,40 +1,16 @@
-commit a73506cff560c4d95ac604f4f76d58386ca29ed9
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Aug 18 13:43:47 2022 -0700
+commit 85cbdda5a6d8525973580776c835e725452db898
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 14 15:40:44 2021 -0700
 
-    internal/syscall/unix: consolidate kernelVersion implementations
+    doc/go1.18: add release notes for build and VCS info
     
-    Currently, there are 3 functions returning Linux kernel version numbers.
+    Fixes #37475
+    For #39301
     
-    Two of them are identical:
-     - in net, initially added by commit 0a9dd47dd817904e;
-     - in internal/poll, initially added by commit 1c7650aa93bd53;
-    
-    (both were later fixed by commit 66c02645062561a).
-    
-    The third one is a more complex, regexp-based implementation in
-    runtime/pprof, which is only used for a test.
-    
-    Instead of adding one more, let's consolidate existing ones.
-    
-    Remove the complex implementation, and move the simple one into
-    internal/syscall/unix. Use it from all the three places mentioned above.
-    
-    Change-Id: I4a34d9ca47257743c16def30e4dd634e36056091
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424896
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I765bc667004931ff8973b947f2e95624a4a0375d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356013
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/internal/poll/copy_file_range_linux.go        | 37 +-------------
- src/internal/syscall/unix/kernel_version_linux.go | 49 ++++++++++++++++++
- src/internal/syscall/unix/kernel_version_other.go | 11 ++++
- src/net/sock_linux.go                             | 42 ++--------------
- src/net/sock_linux_test.go                        |  3 +-
- src/runtime/pprof/pprof_test.go                   |  8 ++-
- src/runtime/pprof/uname_linux_test.go             | 61 -----------------------
- src/runtime/pprof/uname_other_test.go             | 15 ------
- 8 files changed, 71 insertions(+), 155 deletions(-)
+ doc/go1.18.html | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

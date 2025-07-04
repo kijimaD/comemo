@@ -1,14 +1,17 @@
-commit 0822a62cb76e347a4ac2a8731e7d24b4c894f79f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 14 15:25:42 2013 -0800
+commit fd1abac71c1792527943696c1c84bbbe7dac2ac3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 14 14:09:42 2013 -0800
 
-    go/types: set type of lhs ident in type switch guards
+    time: fix race
     
-    (bug fix)
+    Fixes #4622
     
-    R=adonovan
+    R=golang-dev, dave, dvyukov
     CC=golang-dev
-    https://golang.org/cl/7098059
+    https://golang.org/cl/7103046
 
- src/pkg/go/types/stmt.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/time/export_test.go   | 19 +++++++++++++++++++
+ src/pkg/time/internal_test.go |  2 +-
+ src/pkg/time/time.go          |  4 ++--
+ src/pkg/time/time_test.go     | 16 ++++++++++++++++
+ 4 files changed, 38 insertions(+), 3 deletions(-)

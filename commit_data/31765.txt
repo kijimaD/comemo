@@ -1,23 +1,20 @@
-commit cfae35efa582eedb83f483b52fa35cf1269c562d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jun 8 15:56:53 2017 +1000
+commit 2d78538c12ed63cc931b552c9c98b7c93b91b21d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 9 12:15:41 2017 -0800
 
-    syscall: make windows Exit call runtime.exit
+    cmd/compile: refactor liveness analysis for moving to SSA
     
-    Both runtime.exit and syscall.Exit call Windows ExitProcess.
-    But recently (CL 34616) runtime.exit was changed to ignore
-    Windows CreateThread errors if ExitProcess is called.
+    In the SSA CFG, TEXT, RET, and JMP instructions correspond to Blocks,
+    not Values. Rework liveness analysis so that progeffects only cares
+    about Progs that result from Values, and handle Blocks separately.
     
-    This CL adjusts syscall.Exit to do the same.
+    Passes toolstash-check -all.
     
-    Fixes #18253 (maybe)
-    
-    Change-Id: I6496c31b01e7c7d73b69c0b2ae33ed7fbe06736b
-    Reviewed-on: https://go-review.googlesource.com/45115
+    Change-Id: Ic23719c75b0421fdb51382a08dac18c3ba042b32
+    Reviewed-on: https://go-review.googlesource.com/38085
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/syscall_windows.go | 6 ++++++
- src/syscall/syscall_windows.go | 3 ++-
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/plive.go | 132 ++++++++++++++++-------------------
+ 1 file changed, 62 insertions(+), 70 deletions(-)

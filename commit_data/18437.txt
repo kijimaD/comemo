@@ -1,33 +1,19 @@
-commit 0229dc6dbe969ee06f0e1f13df70b9c7fead68dd
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 10 15:40:55 2014 +0400
+commit ff5f9bbf6a5d5281a2bf5326ce43df65deef4ac1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Feb 10 13:35:39 2014 +1100
 
-    runtime: do not cpu profile idle threads on windows
-    Currently this leads to a significant skew towards 'etext' entry,
-    since all idle threads are profiled every tick.
-    Before:
-    Total: 66608 samples
-       63188  94.9%  94.9%    63188  94.9% etext
-         278   0.4%  95.3%      278   0.4% sweepspan
-         216   0.3%  95.6%      448   0.7% runtime.mallocgc
-         122   0.2%  95.8%      122   0.2% scanblock
-         113   0.2%  96.0%      113   0.2% net/textproto.canonicalMIMEHeaderKey
-    After:
-    Total: 8008 samples
-        3949  49.3%  49.3%     3949  49.3% etext
-         231   2.9%  52.2%      231   2.9% scanblock
-         211   2.6%  54.8%      211   2.6% runtime.cas64
-         182   2.3%  57.1%      408   5.1% runtime.mallocgc
-         178   2.2%  59.3%      178   2.2% runtime.atomicload64
+    cmd/go: skip $ORIGIN test on darwin systems
     
-    LGTM=alex.brainman
-    R=golang-codereviews, alex.brainman
+    Fixes #7293.
+    
+    Update #7261
+    
+    The bsd ld(1) does not understand $ORIGIN and has restrictions on using -rpath when using clang(1), the default compiler on darwin.
+    
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/61250043
+    https://golang.org/cl/58480045
 
- src/pkg/runtime/lock_futex.c | 12 ++++++++++--
- src/pkg/runtime/lock_sema.c  |  9 +++++++++
- src/pkg/runtime/os_windows.c |  7 +++++--
- src/pkg/runtime/proc.c       |  4 ++--
- src/pkg/runtime/runtime.h    |  3 ++-
- 5 files changed, 28 insertions(+), 7 deletions(-)
+ src/cmd/go/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

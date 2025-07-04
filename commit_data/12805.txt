@@ -1,12 +1,15 @@
-commit 28ac033b2ec29a86cd6b7b0f804272abee6d5f94
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Mon Apr 2 16:34:11 2012 +1000
+commit cb871ce3e0f573c51be58deaff7971daa6b5a9eb
+Author: Aaron Kemp <kemp.aaron@gmail.com>
+Date:   Fri Mar 30 17:51:24 2012 -0700
 
-    dist: make sure OS X packages follow symlinks when installing
+    doc/effective_go.html: Add missing '...' for fmt.Sprintf()
     
-    R=adg
+    The '...' was missing on a call to fmt.Sprintf() which would result in
+    the slice being printed instead of the correct result.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5970061
+    https://golang.org/cl/5967051
 
- misc/dist/bindist.go | 37 ++++++++++++++++++++++++++++++++++---
- 1 file changed, 34 insertions(+), 3 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

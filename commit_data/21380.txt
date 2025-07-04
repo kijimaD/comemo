@@ -1,24 +1,19 @@
-commit 13aff7831d32c80b98ede611f1ffb0476f16ec51
-Author: Rick Hudson <rlh@golang.org>
-Date:   Mon Jan 26 13:51:39 2015 -0500
+commit b1f29b2d443f5c8df15d6702937ae786660375be
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Dec 27 20:32:11 2014 -0800
 
-    runtime: avoid redundant scans
+    runtime: get rid of goalg, no longer needed
     
-    During a concurrent GC stacks are scanned in
-    an initial scan phase informing the GC of all
-    pointers on the stack. The GC only needs to rescan
-    the stack if it potentially changes which can only
-    happen if the goroutine runs.
-    This CL tracks whether the Goroutine has run
-    since it was last scanned and thus may have changed
-    its stack. If necessary the stack is rescanned.
+    The goalg function was a holdover from when we had algorithm
+    tables in both C and Go.  It is no longer needed.
     
-    Change-Id: I5fb1c4338d42e3f61ab56c9beb63b7b2da25f4f1
-    Reviewed-on: https://go-review.googlesource.com/3275
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia0c1af35bef3497a899f22084a1a7b42daae72a0
+    Reviewed-on: https://go-review.googlesource.com/2099
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc.go   |  8 ++++++++
- src/runtime/mgc.go      | 13 +++++++++++--
- src/runtime/proc1.go    | 13 ++++++++++++-
- src/runtime/runtime2.go |  1 +
- 4 files changed, 32 insertions(+), 3 deletions(-)
+ src/reflect/type.go         |  3 ++-
+ src/runtime/alg.go          | 13 ++++---------
+ src/runtime/hashmap.go      | 16 ++++++++--------
+ src/runtime/hashmap_fast.go | 12 ++++++------
+ src/runtime/type.go         |  2 +-
+ 5 files changed, 21 insertions(+), 25 deletions(-)

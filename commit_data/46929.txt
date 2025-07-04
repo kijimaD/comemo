@@ -1,20 +1,23 @@
-commit 33b3260c1e765ef66500ce155c6d5a526d8852e9
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Oct 14 10:48:08 2021 -0500
+commit 2f0da6d9e29d9b9d5a4d10427ca9f71d12bbacc8
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Feb 16 20:01:32 2021 -0500
 
-    cmd/compile/internal/ssagen: set BitLen32 as intrinsic on PPC64
+    go/types: revert "no 'declared but not used' errors for invalid var decls"
     
-    It was noticed through some other investigation that BitLen32
-    was not generating the best code and found that it wasn't recognized
-    as an intrinsic. This corrects that and enables the test for PPC64.
+    This reverts commit CL 289712 (afd67f3). It breaks x/tools tests, and
+    those tests highlight that perhaps I didn't think through the
+    repercussions of this change as much as I should have.
     
-    Change-Id: Iab496a8830c8552f507b7292649b1b660f3848b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355872
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Fixes #44316
+    
+    Change-Id: I5db39b4e2a3714131aa22423abfe0f34a0376192
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292751
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 4 ++--
- test/codegen/mathbits.go               | 2 ++
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/go/types/assignments.go       |  1 -
+ src/go/types/decl.go              | 14 --------------
+ src/go/types/testdata/vardecl.src | 14 +-------------
+ 3 files changed, 1 insertion(+), 28 deletions(-)

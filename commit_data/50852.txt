@@ -1,22 +1,25 @@
-commit 1b316e3571190964d960c6a7af3e17e887c70d45
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Oct 10 14:45:12 2022 -0400
+commit 787708a6ff66092678cd4312358e90a5085eac89
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 12 08:59:49 2021 -0800
 
-    internal/coverage: minor code cleanups
+    cmd/compile/internal/types2: remove tparamIsIface flag and corresponding dead code
     
-    Delete some unused code, various cleanups to fix staticcheck warnings.
+    Added/clarified some comments.
     
-    Change-Id: Ie475d57735a83351a4977f0dd4bc1387ce06a20e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/441935
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ib08d3343ff08c23cc8880a27a0148d1ff077a80f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363654
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- .../coverage/decodecounter/decodecounterfile.go    | 12 --------
- src/internal/coverage/encodecounter/encode.go      |  4 +--
- src/internal/coverage/encodemeta/encode.go         |  2 +-
- src/internal/coverage/encodemeta/encodefile.go     | 10 +++----
- src/internal/coverage/pods/pods_test.go            |  3 +-
- src/internal/coverage/slicewriter/slw_test.go      | 32 +++++++++++-----------
- src/internal/coverage/stringtab/stringtab.go       |  2 +-
- src/internal/coverage/test/counter_test.go         | 14 ++++++++--
- src/internal/coverage/test/roundtrip_test.go       |  7 +++--
- 9 files changed, 42 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go   | 27 +-------
+ src/cmd/compile/internal/types2/decl.go       |  4 ++
+ src/cmd/compile/internal/types2/expr.go       | 15 +----
+ src/cmd/compile/internal/types2/index.go      | 89 +--------------------------
+ src/cmd/compile/internal/types2/predicates.go | 18 +-----
+ src/cmd/compile/internal/types2/sizes.go      |  7 ++-
+ src/cmd/compile/internal/types2/struct.go     |  5 +-
+ src/cmd/compile/internal/types2/type.go       |  4 +-
+ src/cmd/compile/internal/types2/typeparam.go  | 17 +----
+ 9 files changed, 24 insertions(+), 162 deletions(-)

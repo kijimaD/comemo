@@ -1,20 +1,18 @@
-commit 66fbb80b7280ae39d91af77f43593388923fc10c
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Sep 22 15:31:43 2020 +0200
+commit 69d9664f18803b01927f27b607fa565301f7873e
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Mar 10 10:08:50 2020 -0400
 
-    cmd/compile: more amd64 typed rules
+    [dev.link] cmd/link: use shared reloc slice in writelines method
     
-    Passes
+    Move to a shared/reused slice of loader.Reloc's in a couple of places
+    in the linker's DWARF writelines method, as opposed to allocating a
+    new slice each time. Small performance improvement.
     
-      gotip build -toolexec 'toolstash -cmp' -a std
-    
-    Change-Id: I2621f9ab48199204cf6116941b19b6df4170d0e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256497
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I06c64cf7ca00162d24d9421f1d6405c8808ebb83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222758
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  89 +++++-----
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 235 +++++++++++++--------------
- 2 files changed, 156 insertions(+), 168 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

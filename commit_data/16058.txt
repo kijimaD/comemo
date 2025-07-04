@@ -1,14 +1,51 @@
-commit 26e0ddcf2a0de1fbbed87cfe1f33d18731813a0c
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 2 16:49:45 2013 -0700
+commit 3d5daa23198f4b7ee71dd7647d5d061e1c883fce
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 2 16:26:15 2013 -0700
 
-    lib/time: update time zone to IANA version 2013b
-    Update #4553.
+    runtime: Implement faster equals for strings and bytes.
     
-    R=golang-dev, bradfitz
+    (amd64)
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkEqual0            16            6  -63.15%
+    BenchmarkEqual9            22            7  -65.37%
+    BenchmarkEqual32           36            9  -74.91%
+    BenchmarkEqual4K         2187          120  -94.51%
+    
+    benchmark            old MB/s     new MB/s  speedup
+    BenchmarkEqual9        392.22      1134.38    2.89x
+    BenchmarkEqual32       866.72      3457.39    3.99x
+    BenchmarkEqual4K      1872.73     33998.87   18.15x
+    
+    (386)
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkEqual0            16            5  -63.85%
+    BenchmarkEqual9            22            7  -67.84%
+    BenchmarkEqual32           34           12  -64.94%
+    BenchmarkEqual4K         2196          113  -94.85%
+    
+    benchmark            old MB/s     new MB/s  speedup
+    BenchmarkEqual9        405.81      1260.18    3.11x
+    BenchmarkEqual32       919.55      2631.21    2.86x
+    BenchmarkEqual4K      1864.85     36072.54   19.34x
+    
+    Update #3751
+    
+    R=bradfitz, r, khr, dave, remyoudompheng, fullung, minux.ma, ality
     CC=golang-dev
-    https://golang.org/cl/8293043
+    https://golang.org/cl/8056043
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 370359 -> 374065 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/bytes/asm_386.s          |  16 ------
+ src/pkg/bytes/asm_amd64.s        |  17 ------
+ src/pkg/bytes/bytes_decl.go      |   2 +-
+ src/pkg/bytes/bytes_test.go      |  76 ++++++++++++++++++++++++++
+ src/pkg/bytes/equal_test.go      |  45 +++++++++++++++
+ src/pkg/runtime/alg.c            |  23 ++------
+ src/pkg/runtime/asm_386.s        | 115 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/asm_amd64.s      | 112 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/asm_arm.s        |  19 ++++++-
+ src/pkg/runtime/hashmap.c        |   2 +-
+ src/pkg/runtime/mapspeed_test.go |  11 ++++
+ src/pkg/runtime/runtime.h        |   2 +
+ src/pkg/runtime/string.goc       |  10 +---
+ src/pkg/runtime/string_test.go   |  28 ++++++++++
+ 14 files changed, 416 insertions(+), 62 deletions(-)

@@ -1,13 +1,18 @@
-commit cebf55dc9b2bf6b298f60cf3bffb4ad7a4583f05
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Thu Dec 15 11:23:01 2011 -0500
+commit fc6df2fdd81f2837033ffa73141b6079d04855ff
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Dec 15 11:06:10 2011 -0500
 
-    time: new AddDate method
+    exp/ssh: rename ClientAuthPublicKey helper ClientAuthKeyring
     
-    R=rsc
+    Also, rename ServerConfig.PubKeyCallback to PublicKeyCallback.
+    
+    R=rsc, agl
     CC=golang-dev
-    https://golang.org/cl/5465044
+    https://golang.org/cl/5477059
 
- src/pkg/time/time.go      | 14 ++++++++++++++
- src/pkg/time/time_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+)
+ src/pkg/exp/ssh/client_auth.go      |  4 ++--
+ src/pkg/exp/ssh/client_auth_test.go | 10 +++++-----
+ src/pkg/exp/ssh/client_func_test.go |  2 +-
+ src/pkg/exp/ssh/server.go           | 12 ++++++------
+ src/pkg/exp/ssh/session_test.go     |  2 +-
+ 5 files changed, 15 insertions(+), 15 deletions(-)

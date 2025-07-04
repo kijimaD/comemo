@@ -1,36 +1,19 @@
-commit 3e9d8e2e1bb94c3e302da8121f9cc018d86d1e71
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Fri May 17 17:25:07 2019 +0700
+commit 6f4dc1ccf9735013fdb7cd044bda29d19bebb906
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Feb 1 13:51:31 2019 +0200
 
-    test/fixedbugs: fix some tests will not be run
+    cmd/cgo: ignore unrecognized GCC warning group pragmas
     
-    Currently, some tests under test/fixedbugs never run:
+    CL 159859 causes build failure with old clang versions (3.4.1) on FreeBSD 10.3/10.4.
     
-            $ for d in test/fixedbugs/*.dir; do
-              ! test -f "${d%.dir}.go" && echo "$d"
-            done
-            test/fixedbugs/issue15071.dir
-            test/fixedbugs/issue15609.dir
-            test/fixedbugs/issue29612.dir
+    Update #29962
+    Update #27619
     
-    Because they missed the corresponding ".go" file, so "go run run.go"
-    will skip them.
-    
-    Add missing ".go" files for those tests to make sure they will be
-    collected and run.
-    
-    While at it, add another action "runindir", which does "go run ."
-    inside the t.goDirName then check the output.
-    
-    Change-Id: I88000b3663a6a615d90c1cf11844ea0377403e3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177798
+    Change-Id: I78264ac5d8d17eeae89a982e89aac988eb22b286
+    Reviewed-on: https://go-review.googlesource.com/c/160777
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue15071.dir/{exp => }/exp.go |  0
- test/fixedbugs/issue15071.go                   |  7 ++++++
- test/fixedbugs/issue15609.go                   |  7 ++++++
- test/fixedbugs/issue29612.go                   |  7 ++++++
- test/run.go                                    | 31 +++++++++++++++++++++++---
- 5 files changed, 49 insertions(+), 3 deletions(-)
+ src/cmd/cgo/out.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

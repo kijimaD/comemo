@@ -1,26 +1,20 @@
-commit a610957f2e48c5b917126b1d0b5f930f05ca8841
-Author: Nathan Caza <mastercactapus@gmail.com>
-Date:   Fri Feb 10 21:09:21 2017 -0600
+commit 8044b77a57f9d22e0815ed1476ffa8156b622862
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 19 16:00:07 2016 -0400
 
-    net/http: handle absolute paths in mapDirOpenError
+    runtime: eliminate write barriers from dropg
     
-    The current implementation does not account for Dir being
-    initialized with an absolute path on systems that start
-    paths with filepath.Separator. In this scenario, the
-    original error is returned, and not checked for file
-    segments.
+    Currently this contains no write barriers because it's writing nil
+    pointers, but with the hybrid barrier, even these will produce write
+    barriers. However, since these are *gs and *ms, they don't need write
+    barriers, so we can simply eliminate them.
     
-    This change adds a test for this case, and corrects the
-    behavior by ignoring blank path segments in the loop.
+    Updates #17503.
     
-    Refs #18984
-    
-    Change-Id: I9b79fd0a73a46976c8e2feda0283ef0bb2b62ea1
-    Reviewed-on: https://go-review.googlesource.com/36804
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib188a60492c5cfb352814bf9b2bcb2941fb7d6c0
+    Reviewed-on: https://go-review.googlesource.com/31570
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/fs.go      |  3 +++
- src/net/http/fs_test.go | 37 ++++++++++++++++++++++++-------------
- 2 files changed, 27 insertions(+), 13 deletions(-)
+ src/runtime/proc.go     |  4 ++--
+ src/runtime/runtime2.go | 16 ++++++++++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

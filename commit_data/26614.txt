@@ -1,39 +1,17 @@
-commit 1a9373bc570cf408cecdfab5d531e8041f354a54
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Mar 31 11:58:19 2016 +1100
+commit 1a94431a78c4de5182dd43b438701cca80455746
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 13 15:51:16 2016 -0800
 
-    cmd/compile/internal/gc: avoid append when building Type fields
+    cmd/cgo: support multiple-value special form in VarDecl
     
-    As a followup to CL 21296, avoid append operations when constructing the
-    fields of a Type if the length is known beforehand
+    Fixes #13930.
     
-    This also includes some small scoping driveby cleanups, and a change to
-    tointerface0 to avoid iterating over the field list twice.
-    
-    compilebench shows a very small reduction in allocations.
-    
-     name      old time/op    new time/op    delta
-    Template     364ms ± 5%     363ms ± 4%    ~     (p=0.945 n=20+19)
-    Unicode      182ms ±11%     185ms ±12%    ~     (p=0.445 n=20+20)
-    GoTypes      1.14s ± 2%     1.14s ± 3%    ~     (p=0.221 n=20+20)
-    Compiler     5.85s ± 2%     5.84s ± 2%    ~     (p=0.369 n=20+20)
-    
-    name      old alloc/op   new alloc/op   delta
-    Template    56.7MB ± 0%    56.7MB ± 0%  -0.04%  (p=0.000 n=20+20)
-    Unicode     38.3MB ± 0%    38.3MB ± 0%    ~     (p=0.728 n=20+19)
-    GoTypes      180MB ± 0%     180MB ± 0%  -0.02%  (p=0.000 n=20+20)
-    Compiler     812MB ± 0%     812MB ± 0%  -0.02%  (p=0.000 n=19+20)
-    
-    name      old allocs/op  new allocs/op  delta
-    Template      482k ± 0%      480k ± 0%  -0.34%  (p=0.000 n=20+20)
-    Unicode       377k ± 0%      377k ± 0%  -0.04%  (p=0.010 n=20+20)
-    GoTypes      1.36M ± 0%     1.35M ± 0%  -0.24%  (p=0.000 n=20+20)
-    Compiler     5.47M ± 0%     5.46M ± 0%  -0.11%  (p=0.000 n=20+18)
-    
-    Change-Id: Ibb4c40229fa3816acd8de98ba41d1571a2aabacf
-    Reviewed-on: https://go-review.googlesource.com/21352
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Change-Id: I124b7d31d1f2be05b7f23dafd1e52d9f3f02f3f0
+    Reviewed-on: https://go-review.googlesource.com/18623
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go | 27 +++++++++++----------------
- 1 file changed, 11 insertions(+), 16 deletions(-)
+ misc/cgo/test/issue13930.go | 13 +++++++++++++
+ src/cmd/cgo/ast.go          |  6 +++++-
+ src/cmd/cgo/doc.go          |  3 ++-
+ 3 files changed, 20 insertions(+), 2 deletions(-)

@@ -1,18 +1,22 @@
-commit 0b204f958e0960fab34e09812eb5a3396ed3f1c9
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Wed Oct 9 11:13:42 2019 +0200
+commit 57076b8e6edb6ee19b86ab349b8f7a85819e0085
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 24 08:27:04 2019 -0400
 
-    go/build: allow ~ and ^ in #cgo directives for sr.ht import paths
+    test: new test for issue 31637
     
-    Fixes #32260
+    This pair of packages caused a crash in gollvm, due to a glitch in the
+    way the front end handles empty/non-name parameters for functions that
+    are inline candidates.
     
-    Change-Id: Ib44ee33b8143d523875cf5a2bc5e36bf082801a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199918
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Updates #31637.
+    
+    Change-Id: I571c0658a00974dd36025e571638c0c836a3cdfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173617
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/build.go      | 3 ++-
- src/go/build/build_test.go | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ test/fixedbugs/issue31637.dir/a.go | 15 +++++++++++++++
+ test/fixedbugs/issue31637.dir/b.go | 19 +++++++++++++++++++
+ test/fixedbugs/issue31637.go       | 11 +++++++++++
+ 3 files changed, 45 insertions(+)

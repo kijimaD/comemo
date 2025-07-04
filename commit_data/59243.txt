@@ -1,17 +1,30 @@
-commit a08d2db6d1b8a46d2fc909b848da20ef1b8f5e8f
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Mon Apr 7 11:45:45 2025 -0400
+commit b847d4cd2c2293d025720d4ae57b2e9578831d29
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 21 18:50:11 2024 +0700
 
-    doc/go1.25: document macOS requirements
+    cmd/compile: fix early deadcode with label statement
     
-    For #69839.
-    For #71661.
+    CL 517775 moved early deadcode into unified writer. with new way to
+    handle dead code with label statement involved: any statements after
+    terminating statement will be considered dead until next label
+    statement.
     
-    Change-Id: Ic13f4b7fb81461d55216b260384ee10037b86054
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663515
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    However, this is not safe, because code after label statement may still
+    refer to dead statements between terminating and label statement.
+    
+    It's only safe to remove statements after terminating *and* label one.
+    
+    Fixes #65593
+    
+    Change-Id: Idb630165240931fad50789304a9e4535f51f56e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565596
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- doc/next/7-ports.md | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/noder/writer.go | 15 +++++++++++----
+ test/fixedbugs/issue65593.go             | 21 +++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 4 deletions(-)

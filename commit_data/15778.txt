@@ -1,12 +1,14 @@
-commit 247bc7213170feb4706de889fc71ac8f8cc3ac92
+commit b7f29e259d2b0255ce22060ca7b8f8aaf2679487
 Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Mar 15 14:45:00 2013 +1100
+Date:   Fri Mar 15 14:33:00 2013 +1100
 
-    misc/dashboard/codereview: better debugging when some fetches fail.
+    misc/dashboard/codereview: add more people.
     
-    R=rsc
+    I picked everyone who has committed a CL on behalf of someone else in recent times.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/7836045
+    https://golang.org/cl/7836044
 
- misc/dashboard/codereview/dashboard/cl.go | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+ misc/dashboard/codereview/dashboard/people.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

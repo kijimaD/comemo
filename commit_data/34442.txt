@@ -1,18 +1,16 @@
-commit 1c9297c365d6e53d4a813192c46dc6e7e953946f
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Mar 2 22:20:36 2018 +0100
+commit f69668e1d0831ab3d3c8a6590e0d5b477ae74c1a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 13 12:22:20 2017 -0700
 
-    cmd/compile: skip TestEmptyDwarfRanges on Plan 9
+    [release-branch.go1.9] os: skip TestPipeThreads as flaky for 1.9
     
-    TestEmptyDwarfRanges has been added in CL 94816.
-    This test is failing on Plan 9 because executables
-    don't have a DWARF symbol table.
+    Updates #21559
     
-    Fixes #24226.
-    
-    Change-Id: Iff7e34b8c2703a2f19ee8087a4d64d0bb98496cd
-    Reviewed-on: https://go-review.googlesource.com/98275
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I90fa8b4ef97c4251440270491ac4c833d76ee872
+    Reviewed-on: https://go-review.googlesource.com/70771
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/scope_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/os/os_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

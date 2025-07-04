@@ -1,35 +1,19 @@
-commit 530511bacccdea0bb8a0fec644887c2613535c50
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 16 18:02:11 2022 -0400
+commit daa55b21d1e7707ed251336c851841bb0eca3021
+Author: crazycomputer <zhouguangyuan.xian@gmail.com>
+Date:   Sun Aug 22 17:26:20 2021 +0800
 
-    cmd/go/internal/modindex: avoid walking modules when not needed
+    cmd/link: guarantee "section .debug_gdb_scripts" is always "$GOROOT/src/runtime/runtime-gdb.py".
     
-    Due to a missed condition in CL 412394, we were walking all modules
-    (instead of just the ones contained in GOROOT) at each invocation of a
-    devel version of cmd/go.
+    to guarantee the "section .debug_gdb_scripts" is  always "$GOROOT/src/runtime/runtime-gdb.py" , a check for package name is needed when search "runtime/proc.go".
     
-    Moreover, while we were running cmd/go tests, we were re-walking
-    GOROOT at each 'go' invocation in the test even though we expect
-    GOROOT to be stable within a test run.
+    Fixes #47881
     
-    This change always avoids walking non-GOROOT modules, and also adds a
-    salt (configurable via GODEBUG) and uses it to avoid walking GOROOT
-    modules when GOROOT is known to be stable (such as over the course of
-    a 'cmd/go' test run).
-    
-    This should fix the cmd/go test timeouts that are currently occurring
-    on the dragonfly-amd64 builder, such as this one:
-    https://build.golang.org/log/21c01c3ae5490d387d84abeaf872b3a0a76ab8e5
-    
-    Updates #53290.
-    
-    Change-Id: Ic807d215831a3cd21c63e0bccd3d7acd10d8f2b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412779
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ib471314ca1a6777f625b488e5ae3790457540ef9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344229
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/go_test.go                | 14 ++++++++++++
- src/cmd/go/internal/modindex/read.go | 44 ++++++++++++++++++------------------
- 2 files changed, 36 insertions(+), 22 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

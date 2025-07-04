@@ -1,23 +1,20 @@
-commit 53c8f6161ce2273f87f4ddfcbf4ded545a415fa0
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Apr 8 17:52:16 2018 +0100
+commit c866110689796c42ab379de1402462d03dfe23fa
+Author: Tom Lanyon <tomlanyon@google.com>
+Date:   Thu Nov 23 12:21:25 2017 +1100
 
-    doc: add a note about loading profile files
+    os/exec: Stdout/Stderr doc cleanup.
     
-    If one is somewhat new to the command line or shell, it might be
-    surprising that changes applied to a file like $HOME/.profile will
-    seemingly not take effect, even if new shells are started.
+    Following comments on CL 76320.
     
-    Add a note about how shells usually only load these when the user logs
-    into a machine, to minimize the amount of people stuck and confused by
-    this.
+    Breaks Cmd.Std{out,err} doc into three paragraphs and updates Cmd.Stdin
+    formatting to match.
     
-    Fixes #24756.
+    Fixes an erroneous reference to Stdin in the output goroutine comment, while
+    keeping the wording consistent between Stdin and Stdout/Stderr.
     
-    Change-Id: Ic68d8c97933f3f080b151a107633ecad76a163a4
-    Reviewed-on: https://go-review.googlesource.com/105557
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I186a0e2d4b85dfb939443a17e62a1eb2ef64b1bf
+    Reviewed-on: https://go-review.googlesource.com/79595
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/install.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/os/exec/exec.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

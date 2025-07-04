@@ -1,16 +1,22 @@
-commit 9d907160d46ee56169b910673c0a934a0422cd73
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Oct 5 08:28:20 2018 +0900
+commit 11f6cb43a0db4f8c8a7c91c23cb88a30c5ed37bf
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jun 5 22:41:10 2018 +0200
 
-    vendor: update golang_org/x/net/route from upstream
+    crypto/x509: use SecItemExport instead of deprecated SecKeychainItemExport
     
-    Updates the route package to git rev 146acd2 for:
-    - 146acd2 don't run NET_RT_IFLIST vs. NET_RT_IFLISTL test in 386 emulation (again)
+    SecKeychainItemExport is deprecated as of macOS 10.7. The minimum
+    supported version is macOS 10.10, so use SecItemExport instead.
     
-    Change-Id: I24de1eb31b2ca0e24cb9ab1648f7a71b5067cf97
-    Reviewed-on: https://go-review.googlesource.com/c/139937
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    While at it also bump macosx-version-min to 10.10 and
+    __MAC_OS_X_VERSION_MAX_ALLOWED to 101300 (for macOS 10.13).
+    
+    Tested on macOS 10.10, 10.11 and 10.12.
+    
+    Updates #23122
+    
+    Change-Id: Id4cd6a5cea93315791253dc248e40e5615760a6c
+    Reviewed-on: https://go-review.googlesource.com/116396
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../golang_org/x/net/route/message_freebsd_test.go      |  8 ++------
- src/vendor/golang_org/x/net/route/sys_freebsd.go        | 17 +++++++++++------
- 2 files changed, 13 insertions(+), 12 deletions(-)
+ src/crypto/x509/root_cgo_darwin.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

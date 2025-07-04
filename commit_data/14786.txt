@@ -1,16 +1,15 @@
-commit 14b654369dcf62505ad9bf8650cbd19d95e1f026
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Jan 3 16:30:25 2013 +1100
+commit 614b02d22a66cfcd9f5c9631246b4b529484e642
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 2 18:11:49 2013 -0800
 
-    go/types: add more logging to gc import test
+    spec: clarify language about unary operator &
     
-    * Extended deadline to 30 seconds
-    * Added logging of the duration of each package import
-    * Fail the test immediately if directories cannot be read
+    A composite literal may be parenthesized when
+    used as operand for the unary operator &.
     
-    R=gri, minux.ma
+    R=rsc, iant, r, ken
     CC=golang-dev
-    https://golang.org/cl/7030055
+    https://golang.org/cl/6996053
 
- src/pkg/go/types/gcimporter_test.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

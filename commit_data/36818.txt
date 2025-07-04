@@ -1,27 +1,32 @@
-commit a73d8f5a86185aeb39e398d0226d56be7d9247ca
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 25 20:59:52 2018 +0000
+commit 31e1c30f55165785dd12e7c67babedeb950a721d
+Author: David Chase <drchase@google.com>
+Date:   Fri May 25 16:08:13 2018 -0400
 
-    net/http: make Transport send WebSocket upgrade requests over HTTP/1
+    cmd/compile: do not allow regalloc to LoadReg G register
     
-    WebSockets requires HTTP/1 in practice (no spec or implementations
-    work over HTTP/2), so if we get an HTTP request that looks like it's
-    trying to initiate WebSockets, use HTTP/1, like browsers do.
+    On architectures where G is stored in a register, it is
+    possible for a variable to allocated to it, and subsequently
+    that variable may be spilled and reloaded, for example
+    because of an intervening call.  If such an allocation
+    reaches a join point and it is the primary predecessor,
+    it becomes the target of a reload, which is only usually
+    right.
     
-    This is part of a series of commits to make WebSockets work over
-    httputil.ReverseProxy. See #26937.
+    Fix: guard all the LoadReg ops, and spill value in the G
+    register (if any) before merges (in the same way that 387
+    FP registers are freed between blocks).
     
-    Updates #26937
+    Includes test.
     
-    Change-Id: I6ad3df9b0a21fddf62fa7d9cacef48e7d5d9585b
-    Reviewed-on: https://go-review.googlesource.com/c/137437
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #25504.
+    
+    Change-Id: I0482a53e20970c7315bf09c0e407ae5bba2fe05d
+    Reviewed-on: https://go-review.googlesource.com/114695
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/clientserver_test.go | 24 ++++++++++++++++++++++-
- src/net/http/export_test.go       |  6 +++---
- src/net/http/proxy_test.go        |  2 +-
- src/net/http/request.go           |  7 +++++++
- src/net/http/transport.go         | 41 ++++++++++++++++++++++++++++++++-------
- 5 files changed, 68 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/export_test.go   |  1 +
+ src/cmd/compile/internal/ssa/regalloc.go      | 17 ++++++++++
+ src/cmd/compile/internal/ssa/regalloc_test.go | 49 +++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+)

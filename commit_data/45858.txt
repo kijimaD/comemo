@@ -1,30 +1,67 @@
-commit 0ebd5a8de05823109263bef31b38be8c29d2cd54
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 21 14:48:54 2021 -0700
+commit fd11a32c92a2621c6f52edec2a0339f4b7d794e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 16 17:00:10 2020 -0500
 
-    cmd/go: update ToolTags based on GOARCH value
+    [dev.regabi] cmd/compile: clean up Node.Func
     
-    The build.Context ToolTags value is set based on the set of enabled
-    experiments, which in turn depends on GOARCH. Before this CL the set
-    of experiments was being set based on GOARCH in the environment.
-    That is normally fine, but fails with cmd/go when somebody has run
-    "go env -w GOARCH=val"; in that case cmd/go changes its GOARCH value
-    after initialization. The new GOARCH value was affect the set of
-    enabled experiments, which can affect the ToolTags value. With this
-    CL, we update ToolTags in cmd/go based on the GOARCH value it is using.
+    The original meaning of type Func was "extra fields factored out
+    of a few cases of type Node having to do with functions",
+    but those specific cases didn't necessarily have any relation.
+    A typical declared function is represented by an ODCLFUNC Node
+    at its declaration and an ONAME node at its uses, and both those
+    have a .Func field, but they are *different* Funcs.
+    Similarly, a closure is represented both by an OCLOSURE Node for
+    the value itself and an ODCLFUNC Node for the underlying function
+    implementing the closure. Those too have *different* Funcs,
+    and the Func.Closure field in one points to the other and vice versa.
+    This has led to no end of confusion over the years.
     
-    This is a pretty ugly fix. We should do something cleaner for 1.18.
+    This CL elevates type Func to be the canonical identifier for
+    a given Go function.
     
-    Fixes #46815
+    This looks like a trivial CL but in fact is the result of a lot of
+    scaffolding and rewriting, discarded once the result was achieved, to
+    separate out the three different kinds of Func nodes into three
+    separate fields, limited in use to each specific Node type, to
+    understand which Func fields are used by which Node types and what the
+    possible overlaps are. There were a few overlaps, most notably around
+    closures, which led to more fields being added to type Func to keep
+    them separate even though there is now a single Func instead of two
+    different ones for each function.
     
-    Change-Id: Ie9416781a168248813c3da8afdc257acdd3fef7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329930
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    A future CL can and should change Curfn to be a *Func instead of
+    a *Node, finally eliminating the confusion about whether Curfn
+    is an ODCLFUNC node (as it is most of the time) or an ONAME node
+    (as it is when type-checking an inlined function body).
+    
+    Although sizeof_test.go makes it look like Func is growing by two
+    words, there are now half as many Funcs in a running compilation,
+    so the memory footprint has actually been reduced substantially.
+    
+    Change-Id: I598bd96c95728093dc769a835d48f2154a406a61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272253
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/cfg/cfg.go                 |  8 +++++++
- src/cmd/go/testdata/script/env_cross_build.txt | 29 ++++++++++++++++++++++++++
- src/internal/buildcfg/exp.go                   | 13 +++++++++---
- 3 files changed, 47 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/closure.go     | 155 ++++++++++++++---------------
+ src/cmd/compile/internal/gc/dcl.go         |  20 ++--
+ src/cmd/compile/internal/gc/esc.go         |   5 +-
+ src/cmd/compile/internal/gc/escape.go      |   6 +-
+ src/cmd/compile/internal/gc/fmt.go         |  12 +--
+ src/cmd/compile/internal/gc/gen.go         |   2 +-
+ src/cmd/compile/internal/gc/iimport.go     |   2 +-
+ src/cmd/compile/internal/gc/initorder.go   |   2 +-
+ src/cmd/compile/internal/gc/inl.go         |  10 +-
+ src/cmd/compile/internal/gc/main.go        |   6 +-
+ src/cmd/compile/internal/gc/noder.go       |   2 +-
+ src/cmd/compile/internal/gc/order.go       |   2 +-
+ src/cmd/compile/internal/gc/pgen.go        |  65 ++++++++----
+ src/cmd/compile/internal/gc/scc.go         |   2 +-
+ src/cmd/compile/internal/gc/sinit.go       |   2 +-
+ src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/gc/subr.go        |   3 +-
+ src/cmd/compile/internal/gc/syntax.go      |  86 ++++++++--------
+ src/cmd/compile/internal/gc/walk.go        |   7 +-
+ 19 files changed, 210 insertions(+), 181 deletions(-)

@@ -1,19 +1,21 @@
-commit 4b21be46701cca3dcfc81ecf2841dc71f041f553
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Apr 9 20:10:16 2015 +1000
+commit 8a6eca43dfeeb0ff370c34995bb7626522f174c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 5 13:10:33 2015 -0800
 
-    cmd/internal/gc: clean up Componentgen
+    math/big: handle NaNs in Float.Cmp
     
-    Update #9855
+    Also:
+    - Implemented NewFloat convenience factory function (analogous to
+      NewInt and NewRat).
+    - Implemented convenience accessors for Accuracy values returned
+      from Float.Cmp.
+    - Added test and example.
     
-    In preparation for introducing direct use of a zero register on
-    platforms that support it, take the opportunity to clean up
-    Componentgen a bit.
-    
-    Change-Id: I120ce1ffcca8c4f7603bfe76bfa1aedd27ebb4d2
-    Reviewed-on: https://go-review.googlesource.com/8691
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I985bb4f86e6def222d4b2505417250d29a39c60e
+    Reviewed-on: https://go-review.googlesource.com/6970
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/internal/gc/gen.go | 82 +++++++++++++++-------------------------------
- 1 file changed, 26 insertions(+), 56 deletions(-)
+ src/math/big/float.go             | 95 ++++++++++++++++++++++---------------
+ src/math/big/float_test.go        | 58 ++++++++++++++++++-----
+ src/math/big/floatexample_test.go | 99 ++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 194 insertions(+), 58 deletions(-)

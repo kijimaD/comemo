@@ -1,30 +1,19 @@
-commit c0bbeb0982403db17bacb1533776fb638cb449ae
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 1 17:02:28 2022 -0700
+commit 63dcab2e91cfa40ae6dc1f0455b1f3c2801a00ec
+Author: Tim King <taking@google.com>
+Date:   Tue May 25 19:23:02 2021 -0700
 
-    cmd/compile: adjust types2 shift check to match go/types (cleanup)
+    doc/go1.17: mention new vet checks sigchanyzer and stdmethods.
     
-    With this change, the shift checking code matches the corresponding
-    go/types code, but for the differences in the internal error reporting,
-    and call of check.overflow.
+    These vet checks were added in CL 299532 and CL 321389.
     
-    The change leads to the recording of an untyped int value if the RHS
-    of a non-constant shift is an untyped integer value. Adjust the type
-    in the compiler's irgen accordingly. Add test/shift3.go to verify
-    behavior.
+    Also adds a TODO for buildtags.
     
-    Change-Id: I20386fcb1d5c48becffdc2203081fb70c08b282d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398236
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I516dc77729f6d2dc147318260fe452831b115dfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322769
+    Trust: Tim King <taking@google.com>
+    Run-TryBot: Tim King <taking@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/noder/expr.go             |  9 +++++
- src/cmd/compile/internal/types2/api_test.go        | 12 ++++++
- src/cmd/compile/internal/types2/expr.go            | 46 +++++++++++++++-------
- .../types2/testdata/fixedbugs/issue52031.go        | 33 ++++++++++++++++
- test/shift3.go                                     | 41 +++++++++++++++++++
- 5 files changed, 126 insertions(+), 15 deletions(-)
+ doc/go1.17.html | 45 +++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 43 insertions(+), 2 deletions(-)

@@ -1,29 +1,14 @@
-commit 54575631a52d8afbc9f77cb2a7a456e1592a801d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 18 11:15:15 2015 -0400
+commit 162d2c1608eae600dd38d47586b194638d2c9e16
+Author: Tom Heng <zhm20070928@gmail.com>
+Date:   Mon Jun 29 21:55:13 2015 +0800
 
-    doc: adjust binary install page supported system list
+    cmd/go: 'go env' print GO15VENDOREXPERIMENT in Go1.5
     
-    Make clear that this list is the list of supported systems
-    for binary distributions, and that other systems may be
-    able to build the distribution from source, in addition
-    to using gccgo.
+    Fixes #11410
     
-    Drop freebsd/arm from the list on this page.
-    We have never issued a binary distribution for freebsd/arm,
-    and we're not going to start in Go 1.5, since we don't even
-    have a working builder for it.
-    
-    Drop freebsd/386 from the list on the page,
-    because we are unable to build binary distributions, per adg.
-    
-    I think the wording here should probably be revised further,
-    but not now.
-    
-    Change-Id: Ib43b6b64f5c438bfb9aa4d3daa43393f1e33b71f
-    Reviewed-on: https://go-review.googlesource.com/13690
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9d01be3e01f74f4b12a516aba8a5d20d9b277ec6
+    Reviewed-on: https://go-review.googlesource.com/11539
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/install.html | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/go/env.go | 1 +
+ 1 file changed, 1 insertion(+)

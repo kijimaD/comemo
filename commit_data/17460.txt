@@ -1,12 +1,16 @@
-commit 54b2a83d9ae31bdb7a6c5aa97f7dfa219b40035d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Sep 4 10:04:12 2013 +0900
+commit 8272c14f7e70fef1dd102e10936577d5156d649f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 3 09:11:25 2013 -0700
 
-    net/http: remove dreg of obsoleted network poller
+    net/http: sniff less
     
-    R=golang-dev, r
+    We were reading 1024 bytes but only using 512.
+    
+    Fixes #6311
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13261049
+    https://golang.org/cl/13289047
 
- src/pkg/net/http/z_last_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/net/http/fs.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

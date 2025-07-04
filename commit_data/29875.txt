@@ -1,26 +1,25 @@
-commit f419b56354aee87c5173253e2d19cc51cc269f3c
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Dec 22 18:31:17 2016 +0100
+commit 86b2f29676c52774d91dda96e0ba5d4d7bcd3b47
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Oct 6 11:06:21 2016 -0700
 
-    runtime: skip floating point hardware check on Android
+    database/sql: add support for multiple result sets
     
-    CL 33652 removed the fake auxv for Android, and replaced it with
-    a /proc/self/auxv fallback. When /proc/self/auxv is unreadable,
-    however, hardware capabilities detection won't work and the runtime
-    will mistakenly think that floating point hardware is unavailable.
+    Many database systems allow returning multiple result sets
+    in a single query. This can be useful when dealing with many
+    intermediate results on the server and there is a need
+    to return more then one arity of data to the client.
     
-    Fix this by always assuming floating point hardware on Android.
+    Fixes #12382
     
-    Manually tested on a Nexus 5 running Android 6.0.1. I suspect the
-    android/arm builder has a readable /proc/self/auxv and therefore
-    does not trigger the failure mode.
-    
-    Change-Id: I95c3873803f9e17333c6cb8b9ff2016723104085
-    Reviewed-on: https://go-review.googlesource.com/34641
+    Change-Id: I480a9ac6dadfc8743e0ba8b6d868ccf8442a9ca1
+    Reviewed-on: https://go-review.googlesource.com/30592
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/os_linux_arm.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/database/sql/driver/driver.go |  16 +++
+ src/database/sql/example_test.go  |  62 +++++++++++
+ src/database/sql/fakedb_test.go   | 223 +++++++++++++++++++++++---------------
+ src/database/sql/sql.go           |  44 +++++++-
+ src/database/sql/sql_test.go      |  76 +++++++++++++
+ 5 files changed, 334 insertions(+), 87 deletions(-)

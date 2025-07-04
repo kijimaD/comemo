@@ -1,13 +1,12 @@
-commit ec892be1af5c2341c07fa77399a7f177b24e0f16
+commit 0ba5f755132386604f811aaaf587cfc65a36bc38
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 22 13:06:43 2013 -0500
+Date:   Fri Feb 22 12:11:12 2013 -0500
 
-    runtime: preserve DX during racefuncenter
+    runtime: avoid closure in parfor test
     
     R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/7382049
+    https://golang.org/cl/7395051
 
- src/pkg/runtime/race.c       |  4 ++--
- src/pkg/runtime/race_amd64.s | 11 +++++++++++
- 2 files changed, 13 insertions(+), 2 deletions(-)
+ src/pkg/runtime/parfor_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

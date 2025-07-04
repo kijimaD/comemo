@@ -1,0 +1,33 @@
+commit 68bc0d84e9dd74a02472bfff744e0650b4b1653c
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 15 11:03:15 2025 -0700
+
+    encoding/json: avoid supurious synctest deadlock detection
+    
+    Use a sync.OnceValue rather than a sync.WaitGroup to
+    coordinate access to encoderCache entries.
+    
+    The OnceValue better expresses the intent of the code
+    (we want to initialize the cache entry only once).
+    
+    However, the motivation for this change is to avoid
+    testing/synctest incorrectly reporting a deadlock
+    when multiple bubbles call Marshal at the same time.
+    Goroutines blocked on WaitGroup.Wait are "durably blocked",
+    causing confusion when a goroutine in one bubble Waits
+    for a goroutine in a different bubble. Goroutines blocked
+    on OnceValue are not durably blocked, avoiding the problem.
+    
+    Fixes #73733
+    For #67434
+    
+    Change-Id: I81cddda80af67cf5c280fd4327620bc37e7a6fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673335
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/encoding/json/encode.go         | 23 ++++++++++-------------
+ src/encoding/json/encode_test.go    | 20 ++++++++++++++++++++
+ src/encoding/json/v2_encode_test.go | 20 ++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 13 deletions(-)

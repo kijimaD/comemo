@@ -1,23 +1,14 @@
-commit 7b0c73aa28f4b06f7901e9e0400b123f731655de
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Mar 10 19:40:09 2015 +0300
+commit 581c309d8f6151a55f8d9d726103b2cdf84973fe
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 15 15:37:28 2015 -0800
 
-    cmd/trace: move goroutine analysis code to internal/trace
+    [dev.cc] cmd/internal/obj/arm: add a couple of missing settings of Ctxt
     
-    This allows to test goroutine analysis code in runtime/pprof tests.
-    Also fix a nil-deref crash in goroutine analysis code that happens on runtime/pprof tests.
-    
-    Change-Id: Id7884aa29f7fe4a8d7042482a86fe434e030461e
-    Reviewed-on: https://go-review.googlesource.com/7301
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ic33431cdcc93db300fc2c3467eafdb5340ee4896
+    Reviewed-on: https://go-review.googlesource.com/4924
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/trace/goroutines.go           | 182 ++--------------------------------
- src/cmd/trace/trace.go                |   2 +-
- src/internal/trace/goroutines.go      | 180 +++++++++++++++++++++++++++++++++
- src/internal/trace/parser.go          |  19 ++--
- src/runtime/pprof/trace_stack_test.go |   2 +-
- src/runtime/pprof/trace_test.go       |  19 +++-
- 6 files changed, 221 insertions(+), 183 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go | 4 ++++
+ src/cmd/internal/obj/arm/obj5.go | 1 +
+ 2 files changed, 5 insertions(+)

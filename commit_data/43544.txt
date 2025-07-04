@@ -1,17 +1,13 @@
-commit 69496a22682108bed606d4d509cfa3253f0cac3b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 27 10:41:25 2020 -0400
+commit b10849fbb97a2244c086991b4623ae9f32c212d0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Apr 10 11:01:14 2020 +1000
 
-    cmd/go: fix bug introduced in CL 264537
+    strconv: add comment re extFloat errorscale
     
-    Shadowing bug noted after submit by Tom Thorogood.
-    
-    Change-Id: I5f40cc3863dcd7dba5469f8530e9d0460e7c3e7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265537
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I6f006ba72e1711ba2a24cd71552855ad88284eec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227797
+    Reviewed-by: Rémy Oudompheng <remyoudompheng@gmail.com>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/go/internal/fsys/fsys.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/strconv/extfloat.go | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

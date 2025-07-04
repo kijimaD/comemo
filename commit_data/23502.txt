@@ -1,18 +1,66 @@
-commit cd0a8ed48a4a71fb4fdb3d3b22f91d2335e4793a
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Jun 24 19:25:51 2015 +0200
+commit 8903b3db0e889f08587a09566927d6252c9f9ebc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 18 11:40:29 2015 -0400
 
-    cmd/compile: add instrumentation of OKEY
+    runtime: add fast check for self-loop pointer in scanobject
     
-    Instrument operands of OKEY.
-    Also instrument OSLICESTR. Previously it was not needed
-    because of preceeding bounds checks (which were instrumented).
-    But the preceeding bounds checks have disappeared.
+    Addresses a problem reported on the mailing list.
     
-    Change-Id: I3b0de213e23cbcf5b8ef800abeded5eeeb3f8287
-    Reviewed-on: https://go-review.googlesource.com/11417
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This will come up mainly in programs custom allocators that batch allocations,
+    but it still helps in our programs, which mainly do not have such allocations.
+    
+    name                   old mean              new mean              delta
+    BinaryTree17            5.95s × (0.97,1.03)   5.93s × (0.97,1.04)    ~    (p=0.613)
+    Fannkuch11              4.46s × (0.98,1.04)   4.33s × (0.99,1.01)  -2.93% (p=0.000)
+    FmtFprintfEmpty        86.6ns × (0.98,1.03)  86.8ns × (0.98,1.02)    ~    (p=0.523)
+    FmtFprintfString        290ns × (0.98,1.05)   287ns × (0.98,1.03)    ~    (p=0.061)
+    FmtFprintfInt           271ns × (0.98,1.04)   286ns × (0.99,1.01)  +5.54% (p=0.000)
+    FmtFprintfIntInt        495ns × (0.98,1.04)   489ns × (0.99,1.01)  -1.24% (p=0.015)
+    FmtFprintfPrefixedInt   391ns × (0.99,1.02)   407ns × (0.99,1.01)  +4.00% (p=0.000)
+    FmtFprintfFloat         578ns × (0.99,1.01)   559ns × (0.99,1.01)  -3.35% (p=0.000)
+    FmtManyArgs            1.96µs × (0.98,1.05)  1.94µs × (0.99,1.01)  -1.33% (p=0.030)
+    GobDecode              15.9ms × (0.97,1.05)  15.7ms × (0.99,1.01)  -1.35% (p=0.044)
+    GobEncode              11.4ms × (0.97,1.05)  11.3ms × (0.98,1.03)    ~    (p=0.141)
+    Gzip                    658ms × (0.98,1.05)   648ms × (0.99,1.01)  -1.59% (p=0.009)
+    Gunzip                  144ms × (0.99,1.03)   144ms × (0.99,1.01)    ~    (p=0.867)
+    HTTPClientServer       92.1µs × (0.97,1.05)  90.3µs × (0.99,1.01)  -1.89% (p=0.005)
+    JSONEncode             31.0ms × (0.96,1.07)  30.2ms × (0.98,1.03)  -2.66% (p=0.001)
+    JSONDecode              110ms × (0.97,1.04)   107ms × (0.99,1.01)  -2.59% (p=0.000)
+    Mandelbrot200          6.15ms × (0.98,1.04)  6.07ms × (0.99,1.02)  -1.32% (p=0.045)
+    GoParse                6.79ms × (0.97,1.04)  6.74ms × (0.97,1.04)    ~    (p=0.242)
+    RegexpMatchEasy0_32     158ns × (0.98,1.05)   155ns × (0.99,1.01)  -1.64% (p=0.010)
+    RegexpMatchEasy0_1K     548ns × (0.97,1.04)   540ns × (0.99,1.01)  -1.34% (p=0.042)
+    RegexpMatchEasy1_32     133ns × (0.97,1.04)   132ns × (0.97,1.05)    ~    (p=0.466)
+    RegexpMatchEasy1_1K     899ns × (0.96,1.05)   878ns × (0.99,1.01)  -2.32% (p=0.002)
+    RegexpMatchMedium_32    250ns × (0.96,1.03)   243ns × (0.99,1.01)  -2.90% (p=0.000)
+    RegexpMatchMedium_1K   73.4µs × (0.98,1.04)  73.0µs × (0.98,1.04)    ~    (p=0.411)
+    RegexpMatchHard_32     3.87µs × (0.97,1.07)  3.84µs × (0.98,1.04)    ~    (p=0.273)
+    RegexpMatchHard_1K      120µs × (0.97,1.08)   117µs × (0.99,1.01)  -2.06% (p=0.010)
+    Revcomp                 940ms × (0.96,1.07)   924ms × (0.97,1.07)    ~    (p=0.071)
+    Template                128ms × (0.96,1.05)   128ms × (0.99,1.01)    ~    (p=0.502)
+    TimeParse               632ns × (0.96,1.07)   616ns × (0.99,1.01)  -2.58% (p=0.001)
+    TimeFormat              671ns × (0.97,1.06)   657ns × (0.99,1.02)  -2.10% (p=0.002)
+    
+    In contrast to the one in test/bench/go1 (above), the binarytree program on the
+    shootout site uses more goroutines, batches allocations, and sets GOMAXPROCS
+    to runtime.NumCPU()*2.
+    
+    Using that version, before vs after:
+    
+    name          old mean             new mean             delta
+    BinaryTree20  18.6s × (0.96,1.05)  11.3s × (0.98,1.02)  -39.46% (p=0.000)
+    
+    And Go 1.4 vs after:
+    
+    name          old mean             new mean             delta
+    BinaryTree20  13.0s × (0.97,1.02)  11.3s × (0.98,1.02)  -13.21% (p=0.000)
+    
+    There is still a scheduling problem - the raw run times are hiding the fact that
+    this chews up 2x the CPU - but we'll take care of that separately.
+    
+    Change-Id: I3f5da879b24ae73a0d06745381ffb88c3744948b
+    Reviewed-on: https://go-review.googlesource.com/10220
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/racewalk.go | 11 ++++++++---
- src/runtime/race/testdata/slice_test.go | 12 ++++++++++++
- 2 files changed, 20 insertions(+), 3 deletions(-)
+ src/runtime/mgcmark.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

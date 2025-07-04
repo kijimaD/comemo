@@ -1,19 +1,35 @@
-commit 6165bb11d7256cf55dde8bf5fb23bdf96c932197
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Jun 11 10:25:33 2024 -0400
+commit 5b93af7f4f61ccc7d770ee24641b2fd9c71c0329
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 9 15:10:26 2023 -0700
 
-    doc/next: resolve a TODO for openbsd/riscv64 port
+    testing: only report subtest races once
     
-    I think we want to keep the "experimental" as we did before. Also
-    added "64-bit" to be more specific.
+    Before this CL the code would record the number of race detector
+    errors seen before starting a test, and then report an error
+    if there were more race detector errors after the test completed.
+    That approach did not work well for subtests or parallel tests.
+    Race detector errors could be reported multiple times at each
+    level of subtest, and parallel tests could accidentally drop
+    race detector errors.
     
-    For #65614.
+    Instead, report each race detector error at most once, associated
+    with whatever test noticed the new error. This is still imperfect,
+    as it may report race detector errors for the wrong parallel test.
+    But it shouldn't drop any errors entirely, and it shouldn't report
+    any errors more than once.
     
-    Change-Id: I928d0ba6f1b53efa1f882f81f68bfb2446c7ab42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591896
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #60083
+    
+    Change-Id: Ic9afea5c692b6553896757766f631cd0e86192ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494057
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- doc/next/7-ports.md | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/testing/benchmark.go    |   5 +-
+ src/testing/testing.go      |  64 ++++++++++++++++++++++----
+ src/testing/testing_test.go | 108 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 164 insertions(+), 13 deletions(-)

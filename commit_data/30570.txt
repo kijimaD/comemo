@@ -1,22 +1,16 @@
-commit d3f5e3691712a2098fc8171574748389cec931a1
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Mar 5 19:57:26 2017 +1100
+commit 4bee9012b31a762799ea861cd5f55583f1f602f5
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Nov 12 22:12:22 2016 +0100
 
-    cmd/link: use IMAGE_SYM_CLASS_STATIC for local symbols
+    net/http/httptest: remove workaround on Plan 9
     
-    Sometimes asm code in 2 different packages name its global
-    symbols with the same name. When these symbols are passed
-    to gcc, it refuses to link them thinking they are duplicate.
-    Mark these symbols with IMAGE_SYM_CLASS_STATIC.
+    This issue has been fixed in CL 31390.
     
-    Fixes #19198.
-    
-    Change-Id: Ia5f59ede47354a2b48ce60b7d406c9f097ff2000
-    Reviewed-on: https://go-review.googlesource.com/37810
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0c2425fd33be878037d10d612a50116a7b693431
+    Reviewed-on: https://go-review.googlesource.com/33195
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go          | 44 ++++++++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/pe.go |  6 +++++-
- 2 files changed, 49 insertions(+), 1 deletion(-)
+ src/net/http/httptest/server.go | 10 ----------
+ 1 file changed, 10 deletions(-)

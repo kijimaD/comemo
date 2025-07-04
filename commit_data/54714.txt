@@ -1,19 +1,18 @@
-commit 860c2557ab7995e64e5cc0f045ff676f1fcec0a0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Oct 18 00:26:42 2023 +0700
+commit 2cea6cdb6016708e89c9472cdb0504731699681d
+Author: David Chase <drchase@google.com>
+Date:   Thu Nov 10 11:45:23 2022 -0500
 
-    cmd/internal/testdir: accept build go1.x build tag
+    cmd/internal/obj: adjust (*Link).AllPos comment in inl.go
     
-    While at it, also using "slices" package to simplify code.
+    AllPos truncates and overwrites its slice-storage input instead
+    of appending.  This makes that clear.
     
-    For #63489
-    
-    Change-Id: I72b325f6ad379b996c108145885fa71706f6659f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536055
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I81653ff49a4a7d14fe9446fd6620943f3b20bbd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449478
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/testdir/testdir_test.go | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/inl.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

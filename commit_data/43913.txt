@@ -1,28 +1,20 @@
-commit cf7aa585ac8b3a2db8e0792d6d7c14259568823e
+commit 095d2a453265acea44bea04620258f1ae5bb12bc
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Nov 22 11:43:29 2020 -0500
+Date:   Sun Apr 26 01:42:55 2020 -0400
 
-    cmd/link: invalidate kernel cache on darwin
+    [dev.link] cmd/link: support external linking in new reloc implementation
     
-    Apparently, the darwin kernel may cache the code signature at
-    mmap. When we mmap the output buffer, it doesn't have a code
-    signature (as we haven't generated one). Invalidate the kernel
-    cache after writing the file.
+    Support external linking for the new reloc pass as well, and
+    enable it on AMD64 and 386.
     
-    See https://github.com/golang/go/issues/42684#issuecomment-731704900
-    for more information.
-    
-    Updates #38485.
-    Fixes #42684.
-    
-    Change-Id: Iac2ef756ca1454c856944423e5040b8e17a6b420
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272258
-    Trust: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia71aec3d7c14e9d661e0748d2e988f29f220d1e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230308
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/internal/ld/outbuf.go           | 1 +
- src/cmd/link/internal/ld/outbuf_darwin.go    | 9 +++++++++
- src/cmd/link/internal/ld/outbuf_notdarwin.go | 9 +++++++++
- 3 files changed, 19 insertions(+)
+ src/cmd/link/internal/ld/data.go       | 357 ++++++++++++++++++---------------
+ src/cmd/link/internal/ld/main.go       |   6 +-
+ src/cmd/link/internal/loader/loader.go |  55 ++++-
+ 3 files changed, 247 insertions(+), 171 deletions(-)

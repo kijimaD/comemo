@@ -1,22 +1,41 @@
-commit f46239b85c97ef32ef4f5c9476d77c812125b441
-Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
-Date:   Sun Oct 30 12:47:53 2016 -0700
+commit bea39e63ecf0e29323a93b3353a40eacbd815dc9
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Wed May 11 14:57:24 2016 +0300
 
-    cmd/compile: initialize Decldepth in all cases
+    regexp: reduce mallocs in Regexp.Find* and Regexp.ReplaceAll*.
     
-    Previously, on encountering Func.Nname.Type == nil, typecheckfunc()
-    returned without initializing Decldepth for that func. This causes
-    typecheckclosure() to fatal. This change ensures that we initialize
-    Decldepth in all cases.
+    This improves Regexp.Find* and Regexp.ReplaceAll* speed:
     
-    Fixes #17588.
+    name                  old time/op    new time/op    delta
+    Find-4                   345ns ± 1%     314ns ± 1%    -8.94%    (p=0.000 n=9+8)
+    FindString-4             341ns ± 1%     308ns ± 0%    -9.85%   (p=0.000 n=10+9)
+    FindSubmatch-4           440ns ± 1%     404ns ± 0%    -8.27%   (p=0.000 n=10+8)
+    FindStringSubmatch-4     426ns ± 0%     387ns ± 0%    -9.07%   (p=0.000 n=10+9)
+    ReplaceAll-4            1.75µs ± 1%    1.67µs ± 0%    -4.45%   (p=0.000 n=9+10)
     
-    Change-Id: I2e3c81ad52e8383395025388989e8dbf03438b68
-    Reviewed-on: https://go-review.googlesource.com/32415
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    name                  old alloc/op   new alloc/op   delta
+    Find-4                   16.0B ± 0%     0.0B ±NaN%  -100.00%  (p=0.000 n=10+10)
+    FindString-4             16.0B ± 0%     0.0B ±NaN%  -100.00%  (p=0.000 n=10+10)
+    FindSubmatch-4           80.0B ± 0%     48.0B ± 0%   -40.00%  (p=0.000 n=10+10)
+    FindStringSubmatch-4     64.0B ± 0%     32.0B ± 0%   -50.00%  (p=0.000 n=10+10)
+    ReplaceAll-4              152B ± 0%      104B ± 0%   -31.58%  (p=0.000 n=10+10)
+    
+    name                  old allocs/op  new allocs/op  delta
+    Find-4                    1.00 ± 0%     0.00 ±NaN%  -100.00%  (p=0.000 n=10+10)
+    FindString-4              1.00 ± 0%     0.00 ±NaN%  -100.00%  (p=0.000 n=10+10)
+    FindSubmatch-4            2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
+    FindStringSubmatch-4      2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
+    ReplaceAll-4              8.00 ± 0%      5.00 ± 0%   -37.50%  (p=0.000 n=10+10)
+    
+    Fixes #15643
+    
+    Change-Id: I594fe51172373e2adb98d1d25c76ca2cde54ff48
+    Reviewed-on: https://go-review.googlesource.com/23030
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 12 ++++++------
- test/fixedbugs/issue17588.go             | 20 ++++++++++++++++++++
- 2 files changed, 26 insertions(+), 6 deletions(-)
+ src/regexp/all_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/regexp/exec.go     | 31 ++++++++++++++----------
+ src/regexp/regexp.go   | 35 ++++++++++++++------------
+ 3 files changed, 104 insertions(+), 28 deletions(-)

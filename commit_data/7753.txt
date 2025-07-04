@@ -1,18 +1,16 @@
-commit 3479bb6c12a38552cc3ebf0398b238f1a5c0cb67
+commit 1c96562f36e354328fb7c6c29b00a4048f852630
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Mar 12 16:05:07 2011 -0800
+Date:   Sat Mar 12 09:58:53 2011 -0800
 
-    ioutil: add NopCloser
+    http: use Header.Del not empty Set(k, "")
     
-    R=rsc, dsymonds
+    Also don't serialize empty headers.
+    
+    R=dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/4278044
+    https://golang.org/cl/4275045
 
- src/pkg/archive/zip/reader.go      |  9 ++-------
- src/pkg/http/cgi/child.go          | 10 ++--------
- src/pkg/http/client.go             | 11 +++--------
- src/pkg/http/dump.go               |  4 ++--
- src/pkg/http/requestwrite_test.go  |  5 +++--
- src/pkg/http/responsewrite_test.go |  7 ++++---
- src/pkg/io/ioutil/ioutil.go        | 12 ++++++++++++
- 7 files changed, 28 insertions(+), 30 deletions(-)
+ src/pkg/http/response.go   |  5 ++++-
+ src/pkg/http/serve_test.go | 23 +++++++++++++++++++++++
+ src/pkg/http/server.go     |  6 +++---
+ 3 files changed, 30 insertions(+), 4 deletions(-)

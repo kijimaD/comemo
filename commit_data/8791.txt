@@ -1,12 +1,13 @@
-commit f22e5cfc6d58fec0f130957af6a0e30b75565d24
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jun 20 16:39:16 2011 +1000
+commit b7b8f2b0862061e4ca67a6157c30c0880dda9e54
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Mon Jun 20 14:46:32 2011 +1000
 
-    goinstall: update doc.go
+    misc/godashboard: Accept sub-directories for goinstall's report.
+    Fixed issue 1155.
     
-    R=golang-dev, r
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/4645048
+    https://golang.org/cl/4592059
 
- src/cmd/goinstall/doc.go | 24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+ misc/dashboard/godashboard/package.py | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

@@ -1,17 +1,12 @@
-commit c13866db7feaa9bcd3398184f8722aca23b1a26f
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Jan 12 09:16:50 2013 +0100
+commit 39ffa83fdbbb21d59ecc07afb201b3839968587b
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Jan 11 16:58:46 2013 -0800
 
-    cmd/5c: fix handling of side effects when assigning a struct literal.
+    build: add missing function declarations for Plan 9
     
-    Also undo revision a5b96b602690 used to workaround the bug.
-    
-    Fixes #4643.
-    
-    R=rsc, golang-dev, dave, minux.ma, lucio.dere, bradfitz
+    R=golang-dev, minux.ma, rsc, ality, seed
     CC=golang-dev
-    https://golang.org/cl/7090043
+    https://golang.org/cl/7034052
 
- src/cmd/5c/cgen.c      |  4 ++--
- src/pkg/runtime/mgc0.c | 12 ++++--------
- 2 files changed, 6 insertions(+), 10 deletions(-)
+ include/plan9/libc.h | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

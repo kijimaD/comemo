@@ -1,21 +1,39 @@
-commit 1ab9df4849d1bb527035ccf475cc5b7b4aa9b789
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Nov 16 13:00:55 2023 -0500
+commit 45f5ef4ed7a774b6911650319a265e17ee9e6e0e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 2 14:11:00 2022 -0500
 
-    cmd/compile: allow disable of PGO function value devirtualization with flag
+    cmd/go: remove TestScript/version_buildvcs_git_gpg
     
-    Extend the pgodevirtualize debug flag to distinguish interface and
-    function devirtualization. Setting 1 keeps interface devirtualization
-    enabled but disables function value devirtualization.
+    This was a regression test added for a 'git' command line
+    used for build stamping. Unfortunately, 'gpg' has proved to
+    be extremely fragile:
     
-    For #64209.
+    * In recent versions, it appears to always require 'gpg-agent' to be
+      installed for anything involving secret keys, but for some reason is
+      not normally marked as requiring gpg-agent in Debian's package
+      manager.
     
-    Change-Id: I33aa7eb95ca0bdb215256d8c7cc8f9dac53ae30e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543115
+    * It tries to create a Unix domain socket in a subdirectory of $TMPDIR
+      without checking the path length, which fails when $TMPDIR is too
+      long to fit in the 'sun_path' field of a sockaddr_un struct (which
+      typically tops out somewhere between 92 and 108 bytes).
+    
+    We could theoretically address those by artificially reducing the
+    script's TMPDIR length and checking for gpg-agent in addition to gpg,
+    but arguably those should both be fixed upstream instead. On balance,
+    the incremental value that this test provides does not seem worth the
+    complexity of dealing with such a fragile third-party tool.
+    
+    Updates #50675.
+    Updates #48802.
+    Fixes #57034.
+    
+    Change-Id: Ia3288c2f84f8db86ddfa139b4d1c0112d67079ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454502
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/base/debug.go       | 2 +-
- src/cmd/compile/internal/base/flag.go        | 2 +-
- src/cmd/compile/internal/devirtualize/pgo.go | 8 ++++++++
- 3 files changed, 10 insertions(+), 2 deletions(-)
+ .../testdata/script/version_buildvcs_git_gpg.txt   | 107 ---------------------
+ 1 file changed, 107 deletions(-)

@@ -1,25 +1,19 @@
-commit 1d0f5c478ac176fa99d0f3d6bd540e5fb422187a
-Author: Matt T. Proud <matt.proud@gmail.com>
-Date:   Sat Sep 28 14:25:38 2024 +0000
+commit f278ae61d551ebd12956a1ed21ad6131495a2513
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Aug 16 10:53:49 2023 +0000
 
-    errors: reference Go 1.13 article about errors
+    fmt: amend comment for getField
     
-    This commit amends package errors' documentation to include a reference
-    to the https://go.dev/blog/go1.13-errors blog article. The motivation
-    is multi-fold, but chiefly the article includes good information about
-    error philosophy (e.g., when to wrap), and developers who have come to
-    Go in the intervening five years are likely not have seen this article
-    at all given the nature of blog publishing and post fanfare. The
-    material deserves a promotion in visibility.
-    
-    Change-Id: Ia6f8307784521dd59de3a3d638dbc0a7fcd445e6
-    GitHub-Last-Rev: 20980dd5070cde495ebb08386ae7b4cd78ccc612
-    GitHub-Pull-Request: golang/go#69698
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616341
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I52c9ed0c1a178f3ae3eb4f135d8f11018075fe3b
+    GitHub-Last-Rev: 407aa89c88fc7bb3e4ad9ef55c2a0c5c2f92642c
+    GitHub-Pull-Request: golang/go#62061
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519935
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/errors/errors.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/fmt/print.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

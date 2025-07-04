@@ -1,15 +1,14 @@
-commit 97edf7790375604f4b22d30b22b88968ff199ce9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jul 24 17:09:15 2019 -0700
+commit 243c8eb8c290ebbf2e2811da2dd7538200dde6b3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 4 16:48:28 2019 -0800
 
-    cmd/compile: refactor expandiface
+    cmd/compile: add pure Go math/big functions to TestIntendedInlining
     
-    Move checkdupfields call into expandiface, and inline/simplify offmod.
-    More prep work for implementing #6977.
-    
-    Change-Id: I958ae87f761ec25a8fa7298a2a3019eeca5b25ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187518
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Id29a9e48a09965e457f923a0ff023722b38b27ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165157
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/align.go | 29 +++++++++--------------------
- 1 file changed, 9 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

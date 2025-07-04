@@ -1,27 +1,21 @@
-commit 098504c73ff6ece19566a1ac811ceed73be7c81d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Feb 16 10:20:58 2021 -0500
+commit a9cc1051c11f821cb03d63fb9e05930f9e2f9fa5
+Author: David Golden <david@autopragmatic.com>
+Date:   Wed Apr 22 21:16:49 2020 -0400
 
-    cmd/link: generate trampoline for inter-dependent packages
+    time: note that formats may parse invalid strings
     
-    Currently, in the trampoline generation pass we expect packages
-    are laid out in dependency order, so a cross-package jump always
-    has a known target address so we can check if a trampoline is
-    needed. With linknames, there can be cycles in the package
-    dependency graph, making this algorithm no longer work. For them,
-    as the target address is unkown we conservatively generate a
-    trampoline. This may generate unnecessary trampolines (if the
-    packages turn out laid together), but package cycles are extremely
-    rare so this is fine.
+    The existing documentation for time format constants doesn't mention
+    that they may parse technically-invalid strings, such as single-digit
+    hours when a two-digit hour is required by a specification.  This commit
+    adds a short warning note to that effect.
     
-    Updates #44073.
+    Fixes #37616
     
-    Change-Id: I2dc2998edacbda27d726fc79452313a21d07787a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292490
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I6e5e12bd42dc368f8ca542b4c0527a2b7d30acaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229460
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/arm/asm.go   | 16 +++++++++++-----
- src/cmd/link/internal/ld/data.go   | 12 +++++-------
- src/cmd/link/internal/ppc64/asm.go | 12 +++++++++---
- 3 files changed, 25 insertions(+), 15 deletions(-)
+ src/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,45 +1,26 @@
-commit 88756931d0a6e23aeaf61caa6a7363ac04be2063
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri May 25 08:30:26 2018 +0200
+commit 07f0f0956355266dafc36aadb66928e7450210ea
+Author: Chad Rosier <mrosier.qdt@qualcommdatacenter.com>
+Date:   Fri Feb 16 09:22:32 2018 -0500
 
-    cmd/vendor/golang.org/x: pick up fixes for broken android and linux tests
+    cmd/compile: make math.Ceil/Floor/Round/Trunc intrinsics on arm64
     
-    While fixing some failing tests, CL 114416 also picked up the newly
-    added TestXattr from golang.org/x/sys/unix which fails on android. Pick
-    up CL 114535 to fix it as well.
+    name       old time/op  new time/op  delta
+    Ceil        550ns ± 0%   486ns ± 7%  -11.64%  (p=0.000 n=13+18)
+    Floor       495ns ±19%   512ns ±12%     ~     (p=0.164 n=20+20)
+    Round       550ns ± 0%   487ns ± 8%  -11.49%  (p=0.000 n=12+19)
+    Trunc       563ns ± 7%   488ns ±13%  -13.44%  (p=0.000 n=15+2)
     
-    Also pick up CL 114616 to fix TestStatx occasionally failing on linux.
-    
-    Change-Id: I6ebebd7761fa7a086d96ee0447dbbc5c6b94131d
-    Reviewed-on: https://go-review.googlesource.com/114575
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I53f234b160b3c026a277506e2cf977d150379464
+    Reviewed-on: https://go-review.googlesource.com/88295
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   2 +
- .../golang.org/x/sys/unix/syscall_linux_test.go    |   8 -
- src/cmd/vendor/golang.org/x/sys/unix/xattr_test.go |  11 +-
- .../golang.org/x/sys/unix/zerrors_linux_386.go     |  29 ++
- .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |  29 ++
- .../golang.org/x/sys/unix/zerrors_linux_arm.go     |  29 ++
- .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |  29 ++
- .../golang.org/x/sys/unix/zerrors_linux_mips.go    |  29 ++
- .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |  29 ++
- .../x/sys/unix/zerrors_linux_mips64le.go           |  29 ++
- .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |  29 ++
- .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |  29 ++
- .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |  29 ++
- .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |  29 ++
- .../golang.org/x/sys/unix/ztypes_linux_386.go      | 458 +++++++++++++++++++++
- .../golang.org/x/sys/unix/ztypes_linux_amd64.go    | 458 +++++++++++++++++++++
- .../golang.org/x/sys/unix/ztypes_linux_arm.go      | 458 +++++++++++++++++++++
- .../golang.org/x/sys/unix/ztypes_linux_arm64.go    | 458 +++++++++++++++++++++
- .../golang.org/x/sys/unix/ztypes_linux_mips.go     | 458 +++++++++++++++++++++
- .../golang.org/x/sys/unix/ztypes_linux_mips64.go   | 458 +++++++++++++++++++++
- .../golang.org/x/sys/unix/ztypes_linux_mips64le.go | 458 +++++++++++++++++++++
- .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   | 458 +++++++++++++++++++++
- .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    | 458 +++++++++++++++++++++
- .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  | 458 +++++++++++++++++++++
- .../golang.org/x/sys/unix/ztypes_linux_s390x.go    | 458 +++++++++++++++++++++
- src/cmd/vendor/vendor.json                         |  30 +-
- 26 files changed, 5380 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        |  6 ++-
+ src/cmd/compile/internal/gc/asm_test.go      | 43 ++++++++++++++++++++-
+ src/cmd/compile/internal/gc/ssa.go           |  8 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  6 +++
+ src/cmd/compile/internal/ssa/opGen.go        | 56 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 52 ++++++++++++++++++++++++++
+ 7 files changed, 170 insertions(+), 6 deletions(-)

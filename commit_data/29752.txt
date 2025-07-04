@@ -1,14 +1,14 @@
-commit 94a4485f702c9681a12b25b6db2ef1be68cffc01
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 6 22:15:12 2016 +0000
+commit 33faa4ebb9aedbe821b57b9c645d3be72100ebe3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 5 15:25:28 2016 -0700
 
-    doc: mention more binary download architectures
+    go/importer: better error messages when export data is not found
     
-    Fixes #18207
+    Fixes #17281.
     
-    Change-Id: Ibe85ab0acba7553b93603a31140b31bd9e4802cf
-    Reviewed-on: https://go-review.googlesource.com/34015
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4e639998dbe3baa98879f1becc37d7c4d19351e7
+    Reviewed-on: https://go-review.googlesource.com/30473
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/install.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/internal/gcimporter/exportdata.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

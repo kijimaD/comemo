@@ -1,18 +1,29 @@
-commit f98081e51585ebb6c321ee2145b1e38312759ea3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 3 17:01:18 2018 +0000
+commit cc880de4bebf9b9242a8f5d1d7e9cf01863bb701
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 17 22:32:22 2018 -0400
 
-    net/http: document CanonicalHeaderKey from Header
+    cmd/go: allow 'go run x.go' to use nearby internal imports in module mode
     
-    And remove some unnecessary textproto references. (The net/http
-    package's CanonicalHeaderKey just calls textproto's
-    CanonicalMIMEHeaderKey)
+    In GOPATH mode the rule has always been that 'go run x.go' can
+    import whatever the package in x.go's directory would be able to
+    import. Apply the same rule here.
     
-    Fixes #28894
+    The bad import path was triggering other mysterious errors
+    during 'go run' in other circumstances. Setting it correctly fixes
+    those too.
     
-    Change-Id: Ibd277893a168368c593147a2677ad6130870cb88
-    Reviewed-on: https://go-review.googlesource.com/c/152157
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #26046.
+    Fixes #27022.
+    
+    Change-Id: I0a9b0a154a20f48add5a199da85572e7ffe0cde4
+    Reviewed-on: https://go-review.googlesource.com/129798
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/header.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/load/pkg.go                 | 56 +++++++++++++------------
+ src/cmd/go/internal/modload/init.go             |  1 +
+ src/cmd/go/internal/modload/load.go             | 22 ++++++++++
+ src/cmd/go/testdata/script/mod_run_internal.txt | 46 ++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_run_path.txt     | 15 +++++++
+ 5 files changed, 114 insertions(+), 26 deletions(-)

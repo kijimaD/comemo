@@ -1,19 +1,64 @@
-commit a90fc6d2d4b7a1a054de50841a8bebfc2c2668e9
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Jan 17 21:00:26 2018 +0100
+commit 0011cfbe2b57b385bac25a3daf9de581ee263661
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Sat Sep 23 00:34:37 2017 +0300
 
-    cmd/compile: replace range loop over list of nodes with orderexprlistinplace
+    cmd/compile: optimize signed non-negative div/mod by a power of 2
     
-    Replace explicit range loop that applies orderexprinplace on a
-    list of nodes with existing helper function orderexprlistinplace.
+    This CL optimizes assembly for len() or cap() division
+    by a power of 2 constants:
     
-    Passes toolstash -cmp.
+        func lenDiv(s []int) int {
+            return len(s) / 16
+        }
     
-    Change-Id: Ic8098ed08cf67f319de3faa83b00a5b73bbde95d
-    Reviewed-on: https://go-review.googlesource.com/88815
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    amd64 assembly before the CL:
+    
+        MOVQ    "".s+16(SP), AX
+        MOVQ    AX, CX
+        SARQ    $63, AX
+        SHRQ    $60, AX
+        ADDQ    CX, AX
+        SARQ    $4, AX
+        MOVQ    AX, "".~r1+32(SP)
+        RET
+    
+    amd64 assembly after the CL:
+    
+        MOVQ    "".s+16(SP), AX
+        SHRQ    $4, AX
+        MOVQ    AX, "".~r1+32(SP)
+        RET
+    
+    The CL relies on the fact that len() and cap() result cannot
+    be negative.
+    
+    Trigger stats for the added SSA rules on linux/amd64 when running
+    make.bash:
+    
+         46 Div64
+         12 Mod64
+    
+    The added SSA rules may trigger on more cases in the future
+    when SSA values will be populated with the info on their
+    lower bounds.
+    
+    For instance:
+    
+        func f(i int16) int16 {
+            if i < 3 {
+                return -1
+            }
+    
+            // Lower bound of i is 3 here -> i is non-negative,
+            // so unsigned arithmetics may be used here.
+            return i % 16
+        }
+    
+    Change-Id: I8bc6be5a03e71157ced533c01416451ff6f1a7f0
+    Reviewed-on: https://go-review.googlesource.com/65530
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go        | 104 ++++++++++++
+ src/cmd/compile/internal/ssa/gen/generic.rules |  14 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 213 +++++++++++++++++++++++++
+ 3 files changed, 331 insertions(+)

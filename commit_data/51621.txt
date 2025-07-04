@@ -1,23 +1,33 @@
-commit 6cb8c43b842daffe628e8ee7a94ea3b1ba17299d
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Jan 13 16:46:49 2023 -0500
+commit a064a4f29a97a4fc7398d1ac9d7c53c5ba0bc646
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 25 15:10:24 2022 -0800
 
-    cmd/go: include coverage build flags for "go list"
+    cmd/compile: ensure dictionary assignment statements are defining statements
     
-    This patch ensures that the go command's "list" subcommand accepts
-    coverage-related build options, which were incorrectly left out when
-    "go build -cover" was rolled out. This is needed in order to do things
-    like check the staleness of an installed cover-instrumented target.
+    The problem in 51355 is that escape analysis decided that the
+    dictionary variable was captured by reference instead of by value. We
+    want dictionaries to always be captured by value.
     
-    Fixes #57785.
+    Escape analysis was confused because it saw what it thought was a
+    reassignment of the dictionary variable. In fact, it was the only
+    assignment, it just wasn't marked as the defining assignment. Fix
+    that.
     
-    Change-Id: I140732ff1e6b83cd9c453701bb8199b333fc0f2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462116
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Add an assert to make sure this stays true.
+    
+    Fixes #51355
+    
+    Change-Id: Ifd9342455fa107b113f5ff521a94cdbf1b8a7733
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388115
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/list/list.go          |  3 +++
- src/cmd/go/testdata/script/cover_list.txt | 28 ++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/cmd/compile/internal/escape/escape.go |  4 ++++
+ src/cmd/compile/internal/noder/stencil.go |  4 +++-
+ test/typeparam/issue51355.go              | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 38 insertions(+), 1 deletion(-)

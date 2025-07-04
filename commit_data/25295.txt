@@ -1,18 +1,20 @@
-commit 6bcec09ceba8698deb51ed10d13b66f3c12754c3
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 9 11:53:04 2015 -0500
+commit feb92a8e8cadcd79e24d3caeab64149eb096363f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 15 15:44:16 2015 -0400
 
-    math/big: additional Montgomery cleanup
+    runtime: remove work.partial queue
     
-    Also fix bug reported in CL 17510.
+    This work queue is no longer used (there are many reads of
+    work.partial, but the only write is in putpartial, which is never
+    called).
     
-    Found during fix of #13515 in CL 17672, but separate from the fix.
+    Fixes #11922.
     
-    Change-Id: I4b1024569a98f5cfd2ebb442ec3d64356164d284
-    Reviewed-on: https://go-review.googlesource.com/17673
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I08b76c0c02a0867a9cdcb94783e1f7629d44249a
+    Reviewed-on: https://go-review.googlesource.com/15892
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/math/big/int_test.go |  9 +++++++++
- src/math/big/nat.go      | 41 ++++++++++++++++++-----------------------
- src/math/big/nat_test.go |  6 ++++++
- 3 files changed, 33 insertions(+), 23 deletions(-)
+ src/runtime/mgc.go     | 15 ++++--------
+ src/runtime/mgcmark.go |  2 +-
+ src/runtime/mgcwork.go | 66 ++++++--------------------------------------------
+ 3 files changed, 13 insertions(+), 70 deletions(-)

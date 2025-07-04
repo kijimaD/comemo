@@ -1,18 +1,18 @@
-commit 9e29dd42df18141506dcfc2513e8a653564fdbf1
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Dec 7 14:29:21 2021 -0500
+commit 19034fa855783d78cc4c40d3708bcc01a8900a1d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 8 16:47:13 2021 -0400
 
-    doc: document cmd/vet changes for generics in 1.18
+    cmd/objdump: update test with register ABI
     
-    Fixes #50011
-    Updates #47694
+    With register ABI, the disassembly of the function may not
+    contain a "movq" instruction (which used to be e.g. storing
+    arguments to stack). Look for "jmp" instruction instead. This is
+    also in consistent with the test for Go assembly syntax.
     
-    Change-Id: Id3d43f2f72de61b360b79c2b375ca1372d5f4692
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369979
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tim King <taking@google.com>
+    Change-Id: Ifc9e48bbc4f85c4e4aace5981b3a0f8ae925f6d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308652
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.18.html | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/cmd/objdump/objdump_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

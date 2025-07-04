@@ -1,21 +1,25 @@
-commit 7dd988456247c66f2ae62a82e8d8fa0d843710d1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 5 17:04:52 2022 -0700
+commit 0941dbca6ae805dd7b5f7871d5811b7b7f14f77f
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Wed Jul 14 22:42:31 2021 +0200
 
-    sync/atomic: don't run 64-bit uintptr tests on 32-bit systems
+    testing: clarify in docs that TestMain is advanced
     
-    The tests don't work on big-endian systems. This change handles more
-    of the tests added in CL 381317 like the other existing tests.
+    Beginner and intermediate Go users periodically use TestMain when
+    requirements do not necessitate TestMain (exceeding least-mechanism
+    design). This commit expands package testing's documentation to convey
+    that the TestMain feature itself is somewhat low-level and potentially
+    unsuitable for casual testing where ordinary test functions would
+    suffice.
     
-    Fixes #52723
+    Fixes #42161
+    Updates #44200
     
-    Change-Id: Ie9e048e75dbe0b5aca61b51cd0c50d7d878ff6d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404495
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I91ba0b048c3d6f79110fe8f0fbb58d896edca366
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334649
+    Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/sync/atomic/atomic_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/testing/testing.go | 2 ++
+ 1 file changed, 2 insertions(+)

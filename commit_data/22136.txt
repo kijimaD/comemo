@@ -1,15 +1,13 @@
-commit 14082fad9b851267520d5d04aa314719bda47e9e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Mar 23 06:43:43 2015 +0900
+commit 88cbe09202d54b6cd3f4d8c0fa8b50e13c7372cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 24 21:05:12 2015 -0800
 
-    net: fix TestInterfaces, TestInterfaceAddrs on platforms without loopback interface
+    math/big: permit passing of an *Int to Float.Int to avoid allocation
     
-    Fixes #10214.
-    
-    Change-Id: If29d26c590eb53d4976e0a6ace0ed33aaf0c3e80
-    Reviewed-on: https://go-review.googlesource.com/7924
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I50e83248357928e56c94b88a8764de828f4f5c76
+    Reviewed-on: https://go-review.googlesource.com/5890
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/interface_test.go | 83 +++++++++++++++++++++++++++++++++--------------
- 1 file changed, 58 insertions(+), 25 deletions(-)
+ src/math/big/float.go      | 26 +++++++++++++++++---------
+ src/math/big/float_test.go | 13 +++++++++++--
+ 2 files changed, 28 insertions(+), 11 deletions(-)

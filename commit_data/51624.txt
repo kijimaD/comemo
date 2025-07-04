@@ -1,21 +1,24 @@
-commit c0799f7015e6cae37c21294bb94f56050fda5f4e
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Jan 17 11:30:48 2023 -0500
+commit 0907d57abf34e1d11debef2ea7bb4d7b2c11f51e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 25 16:06:53 2022 -0800
 
-    os: document that Rename is not atomic on non-Unix platforms
+    cmd/compile: emit types of constants which are instantiated generic types
     
-    Windows provides no reliable way to rename files atomically.
+    Normally types of constants are emitted when the type is defined (an
+    ODCLTYPE). However, the types of constants where the type is an
+    instantiated generic type made inside the constant declaration, do not
+    normally get emitted. But the DWARF processor in the linker wants
+    to see those types. So we emit them during stenciling.
     
-    The Plan 9 implementation of os.Rename performs a deletion
-    if the target exists.
+    Fixes #51245
     
-    Change-Id: Ife5f9c97b21f48c11e300cd76d8c7f715db09fd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462395
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I59f20f1d7b91501c9ac760cf839a354356331fc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388117
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/file.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/obj.go |  4 ++++
+ test/typeparam/issue51245.go       | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+)

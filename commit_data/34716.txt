@@ -1,21 +1,20 @@
-commit 131901e80d5f73780328d129bd6274237318988c
-Author: Tim Wright <tenortim@gmail.com>
-Date:   Mon Mar 26 19:00:15 2018 -0700
+commit 7badae85f20f1bce4cc344f9202447618d45d414
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 9 19:54:42 2017 -0500
 
-    cmd/go, cmd/link, runtime: enable PIE build mode, cgo race tests on FreeBSD
+    cmd/go: guarantee all test output is on stdout
     
-    Fixes #24546
+    In past releases, whether test output appears on stdout or stderr
+    has varied depending on exactly how go test was invoked and
+    also (indefensibly) on the number of CPUs available.
+    Standardize on standard output for all test output.
+    This is easy to explain and makes go test | go tool test2json work nicely.
     
-    Change-Id: I99ebd5bc18e5c5e42eee4689644a7a8b02405f31
-    Reviewed-on: https://go-review.googlesource.com/102616
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I605641213fbc6c7ff49e1fd38a0f732045a8383d
+    Reviewed-on: https://go-review.googlesource.com/76871
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go                        | 5 +++--
- src/cmd/go/internal/work/init.go             | 3 ++-
- src/cmd/link/internal/ld/config.go           | 2 +-
- src/runtime/crash_cgo_test.go                | 4 ++--
- src/runtime/testdata/testprogcgo/raceprof.go | 2 +-
- src/runtime/testdata/testprogcgo/racesig.go  | 2 +-
- 6 files changed, 10 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/test/test.go | 56 ++++++++++++++--------------------------
+ 1 file changed, 19 insertions(+), 37 deletions(-)

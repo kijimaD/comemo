@@ -1,36 +1,23 @@
-commit a82f69f60e976d1a99c477903f5de98839c24f70
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Wed Apr 19 14:24:33 2023 -0400
+commit 1292176bc98be4b7b9d24abec05e88b3dbd89e21
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 8 14:26:44 2022 -0400
 
-    log/slog: built-in handler constructors take options as a second arg
+    cmd/go: clean paths before using them form index functions
     
-    There is now one constructor function for each built-in handler, with
-    signature
+    We use str.TrimFilePathPrefix to trim the module root prefix and get the
+    relative path of each package in the module when scanning the module
+    and in the RelPath function.  Make sure to clean the path before
+    indexing and in RelPath to ensure that each path starts with that
+    prefix, because walk will clean the root path before joining each
+    subdirectory path to it.
     
-        NewXXXHandler(io.Writer, *HandlerOptions) *XXXHandler
-    
-    Fixes #59339.
-    
-    Change-Id: Ia02183c5ce0dc15c64e33ad05fd69bca09df2d2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486415
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I1dc1eddbd42030eb6d5d8e76a8675f94216447c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411118
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- api/next/56345.txt                                  |  4 ----
- api/next/59339.txt                                  |  2 ++
- src/log/slog/doc.go                                 |  6 +++---
- src/log/slog/example_custom_levels_test.go          |  4 ++--
- src/log/slog/example_level_handler_test.go          |  2 +-
- src/log/slog/example_logvaluer_secret_test.go       |  3 +--
- src/log/slog/example_test.go                        |  2 +-
- src/log/slog/example_wrap_test.go                   |  2 +-
- src/log/slog/handler_test.go                        | 10 +++++-----
- src/log/slog/internal/benchmarks/benchmarks_test.go |  4 ++--
- src/log/slog/json_handler.go                        | 15 +++++++--------
- src/log/slog/json_handler_test.go                   |  6 +++---
- src/log/slog/logger_test.go                         | 10 +++++-----
- src/log/slog/text_handler.go                        | 15 +++++++--------
- src/log/slog/text_handler_test.go                   |  6 +++---
- src/testing/slogtest/example_test.go                |  2 +-
- 16 files changed, 44 insertions(+), 49 deletions(-)
+ src/cmd/go/internal/modindex/read.go               |  3 +-
+ .../script/list_replace_absolute_windows.txt       | 37 ++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

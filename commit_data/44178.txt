@@ -1,13 +1,23 @@
-commit b634f5d97a6e65f19057c00ed2095a1a872c7fa8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 22 20:38:29 2021 -0800
+commit 39ea0ea05dcfa281dc5977410b60458f2d2adb99
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 18 15:23:46 2020 -0400
 
-    doc/go1.16: add crypto/x509 memory optimization
+    cmd/link: fix size calculation for file space preallocation on darwin
     
-    Change-Id: I0c61b0e0d1430f66e3f7dbf07817264258a1c15a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285682
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    On darwin, we preallocate file storage space with fcntl
+    F_ALLOCATEALL in F_PEOFPOSMODE mode. This is specified as
+    allocating from the physical end of the file. So the size we give
+    it should be the increment, instead of the total size.
+    
+    Fixes #39044.
+    
+    Change-Id: I10c7ee8d51f237b4a7604233ac7abc6f91dcd602
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234481
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.16.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/link/internal/ld/fallocate_test.go | 50 ++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/outbuf_darwin.go  | 17 +++++++---
+ 2 files changed, 63 insertions(+), 4 deletions(-)

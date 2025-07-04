@@ -1,20 +1,27 @@
-commit 4aa1c02daee42c37ddd30ae2aa91bd3fd3b72e77
-Author: David Chase <drchase@google.com>
-Date:   Mon Nov 18 14:55:12 2024 -0500
+commit 67359829a20ee3be5d97e5f7677871e95fff87a5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 16 23:07:49 2023 +0700
 
-    cmd/compile: refactor inline interleaving
+    runtime: speed up readvarintUnsafe
     
-    This is intended to simplify future experiments/changes.
-    It does slightly change the fixedpoint order (across all
-    functions in a func+closures set or recursive set, but
-    that seems not to affect tests or benchmarks).
+    The documentation of readvarintUnsafe claims itself and readvarint are
+    duplicated. However, two implementation are not in synced, since when
+    readvarint got some minor improvements in CL 43150.
     
-    Change-Id: I80bcaabf277b317523e538f5fd4d2ff6dc08c033
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630595
-    Reviewed-by: Keith Randall <khr@google.com>
+    Updating readvarintUnsafe to match readvarint implementation to gain a
+    bit of speed. While at it, also updating its documentation to clarify
+    the main difference.
+    
+    name                    time/op
+    ReadvarintUnsafe/old-8  6.04ns ± 2%
+    ReadvarintUnsafe/new-8  5.31ns ± 3%
+    
+    Change-Id: Ie1805d0747544f69de88f6ba9d1b3960f80f00e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535815
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .../inline/inlheur/testdata/props/calls.go         |  15 +-
- .../internal/inline/interleaved/interleaved.go     | 332 +++++++++++++--------
- 2 files changed, 218 insertions(+), 129 deletions(-)
+ src/runtime/panic.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

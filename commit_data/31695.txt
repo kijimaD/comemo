@@ -1,36 +1,48 @@
-commit 3bdc2f3abf0f9cffc8f4e294ef22a23b82e88415
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Fri Apr 14 13:53:40 2017 -0500
+commit 2123a6c64455f6e1cceeefa97e4a033c873e2631
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 7 15:58:28 2017 -0800
 
-    cmd/compile/internal/gc: speed-up small array comparison
+    cmd/compile: fix recorded export data position info
     
-    Currently we inline array comparisons for arrays with at most 4 elements.
-    Compare arrays with small size, but more than 4 elements (e. g. [16]byte)
-    with larger compares. This provides very slightly smaller binaries,
-    and results in faster code.
+    The position information recorded now consists of the line-
+    directive relative filename and line number. It would be
+    relatively easy to also encode absolute position information
+    as necessary (by serializing src.PosBase data).
     
-    ArrayEqual-6  7.41ns ± 0%  3.17ns ± 0%  -57.15%  (p=0.000 n=10+10)
+    For example, given $GOROOT/src/tmp/x.go:
     
-    For go tool:
-    global text (code) = -559 bytes (-0.014566%)
+            package p
     
-    This also helps mapaccess1_faststr, and maps in general:
+            const C0 = 0
     
-    MapDelete/Str/1-6               195ns ± 1%     186ns ± 2%   -4.47%  (p=0.000 n=10+10)
-    MapDelete/Str/2-6               211ns ± 1%     177ns ± 1%  -16.01%  (p=0.000 n=10+10)
-    MapDelete/Str/4-6               225ns ± 1%     183ns ± 1%  -18.49%  (p=0.000 n=8+10)
-    MapStringKeysEight_16-6        31.3ns ± 0%    28.6ns ± 0%   -8.63%  (p=0.000 n=6+9)
-    MapStringKeysEight_32-6        29.2ns ± 0%    27.6ns ± 0%   -5.45%  (p=0.000 n=10+10)
-    MapStringKeysEight_64-6        29.1ns ± 1%    27.5ns ± 0%   -5.46%  (p=0.000 n=10+10)
-    MapStringKeysEight_1M-6        29.1ns ± 1%    27.6ns ± 0%   -5.49%  (p=0.000 n=10+10)
+            //line c.go:10
+            const C1 = 1
     
-    Change-Id: I9ec98e41b233031e0e96c4e13d86a324f628ed4a
-    Reviewed-on: https://go-review.googlesource.com/40771
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+            //line t.go:20
+            type T int
+    
+            //line v.go:30
+            var V T
+    
+            //line f.go:40
+            func F() {}
+    
+    The recorded positions for the exported entities are:
+    
+            C0 $GOROOT/src/tmp/x.go 3
+            C1 c.go 10
+            T t.go 20
+            V v.go 30
+            F f.go 40
+    
+    Fix verified by manual inspection. There's currently no easy way
+    to test this, but it will eventually be tested when we fix #7311.
+    
+    Fixes #19391.
+    
+    Change-Id: I6269067ea58358250fe6dd1f73bdf9e5d2adfe3d
+    Reviewed-on: https://go-review.googlesource.com/37936
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go | 31 ++++++++++++++-
- src/cmd/compile/internal/gc/walk.go     | 69 ++++++++++++++++++++++++++++++---
- src/runtime/hashmap_fast.go             |  2 -
- 3 files changed, 93 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

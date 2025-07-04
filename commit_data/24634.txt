@@ -1,15 +1,14 @@
-commit 0be3c4093d2ac0c59c392298f08a58bc09fd2616
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Oct 26 11:15:09 2015 -0400
+commit 270e2152c4645a72ac3263fcc92ce878e8035d71
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 17 00:18:31 2015 -0700
 
-    androidtest.bash: set GOARM=7
+    [dev.ssa] cmd/compile: fix dev.ssa build
     
-    It's the only ARM version we have ever supported on android.
-    (Not setting it caused some builder timeouts.)
+    Broken by CL 13472.
     
-    Change-Id: I26061434252ff2a236bb31d95787a1c582d24b3f
-    Reviewed-on: https://go-review.googlesource.com/16295
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: Ib65331b291c8fab4238ca91e085779bb954d70e8
+    Reviewed-on: https://go-review.googlesource.com/13638
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/androidtest.bash | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/internal/obj/obj.go | 4 ++++
+ 1 file changed, 4 insertions(+)

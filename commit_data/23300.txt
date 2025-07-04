@@ -1,19 +1,17 @@
-commit 10425507fd6f36bfe0fefa759d12322eba72b9b5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 8 17:56:27 2015 -0700
+commit 83b25d9342b0ce6620f38419ff74c6d16b43f554
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 30 15:45:33 2015 +0200
 
-    cmd/dist: move guts of race.bash into dist
+    cmd/ld: make .rela and .rela.plt sections contiguous
     
-    After a little build coordinator change, this will get us sharding of
-    the race builder.
+    ELF normally requires this and Solaris runtime loader will crash if we
+    don't do it.
     
-    Update #11074
+    Fixes Solaris build.
     
-    Change-Id: I4c55267563b6f5e213def7dd6707c837ae2106bf
-    Reviewed-on: https://go-review.googlesource.com/10845
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I0482eed890aff2d346136ae7f9caf8f094f502ed
+    Reviewed-on: https://go-review.googlesource.com/8216
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 69 +++++++++++++++++++++++++++++++++++++++++++++++++---
- src/race.bash        |  9 +------
- src/race.bat         | 10 +-------
- 3 files changed, 67 insertions(+), 21 deletions(-)
+ src/cmd/internal/ld/data.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

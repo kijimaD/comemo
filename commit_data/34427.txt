@@ -1,19 +1,33 @@
-commit 87736fc450c943ca3792406d7a47790091404255
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Mon Feb 19 17:11:22 2018 +0100
+commit 0ab99b396df9fc45c5cf1ac412da4f1848c3462c
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Sep 19 17:36:57 2017 -0400
 
-    cmd/compile: fix dwarf ranges of inlined subroutine entries
+    [release-branch.go1.9] cmd/compile: fix regression in PPC64.rules move zero
     
-    DWARF ranges are half-open.
+    When a MOVDstorezero (8 bytes) is used the offset field
+    in the instruction must be a multiple of 4. This situation
+    had been corrected in the rules for other types of stores
+    but not for the zero case.
     
-    Fixes #23928
+    This also removes some of the special MOVDstorezero cases since
+    they can be handled by the general LowerZero case.
     
-    Change-Id: I71b3384d1bc2c65bd37ca8a02a0b7ff48fec3688
-    Reviewed-on: https://go-review.googlesource.com/94816
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Updates made to the ssa test for lowering zero moves to
+    include cases where the target is not aligned to at least 4.
+    
+    Fixes #21947
+    
+    Change-Id: I7cceceb1be4898c77cd3b5e78b58dce0a7e28edd
+    Reviewed-on: https://go-review.googlesource.com/64970
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-on: https://go-review.googlesource.com/70978
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/dwinl.go      |  6 ++--
- src/cmd/compile/internal/gc/scope_test.go | 57 +++++++++++++++++++++++++++++--
- 2 files changed, 57 insertions(+), 6 deletions(-)
+ .../compile/internal/gc/testdata/gen/zeroGen.go    |  63 ++++++
+ src/cmd/compile/internal/gc/testdata/zero.go       | 216 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules       |  58 ++----
+ src/cmd/compile/internal/ssa/rewritePPC64.go       | 172 +++++-----------
+ 4 files changed, 350 insertions(+), 159 deletions(-)

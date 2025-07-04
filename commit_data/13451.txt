@@ -1,41 +1,23 @@
-commit d6147d8102b095caac3267f9864a4025650c43f8
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jul 10 07:44:23 2012 +0200
+commit e66d29cdcfc85cdd33f52b7739122a1d2db9197f
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Mon Jul 9 09:16:10 2012 +1000
 
-    strconv: extend Grisu3 algorithm to float32.
+    pkg: Removing duplicated words ("of of", etc.), mostly from comments.
     
-    Also improve extfloat.Normalize to obtain a modest performance
-    gain in parsing, and add a shortcut path for exact integers.
+    Ran 'double.pl' on the pkg tree to identify doubled words.
+    One change to an error string return in x509;  the rest are in comments.
+    Thanks to Matt Jibson for the idea.
     
-    benchmark                              old ns/op    new ns/op    delta
-    BenchmarkAtof64Decimal                        73           73   -0.54%
-    BenchmarkAtof64Float                          91           91   -0.54%
-    BenchmarkAtof64FloatExp                      198          180   -9.09%
-    BenchmarkAtof64Big                           307          308   +0.33%
-    
-    BenchmarkAtof32Decimal                        72           72   +0.42%
-    BenchmarkAtof32Float                          83           83   -0.72%
-    BenchmarkAtof32FloatExp                      212          186  -12.26%
-    BenchmarkAtof32Random                        262          250   -4.58%
-    
-    BenchmarkAppendFloatDecimal                  474          305  -35.65%
-    BenchmarkAppendFloat                         497          489   -1.61%
-    BenchmarkAppendFloatExp                      493          483   -2.03%
-    BenchmarkAppendFloatNegExp                   481          481   +0.00%
-    BenchmarkAppendFloatBig                      667          652   -2.25%
-    
-    BenchmarkAppendFloat32Integer                338          307   -9.17%
-    BenchmarkAppendFloat32ExactFraction          364          439  +20.60%
-    BenchmarkAppendFloat32Point                 1299          490  -62.28%
-    BenchmarkAppendFloat32Exp                   2593          489  -81.14%
-    BenchmarkAppendFloat32NegExp                5116          481  -90.60%
-    
-    R=rsc, r
-    CC=golang-dev, remy
-    https://golang.org/cl/6303087
+    R=golang-dev, bsiegert
+    CC=golang-dev
+    https://golang.org/cl/6344089
 
- src/pkg/strconv/decimal.go   |  2 +-
- src/pkg/strconv/extfloat.go  | 77 +++++++++++++++++++++++++++-----------------
- src/pkg/strconv/ftoa.go      |  4 +--
- src/pkg/strconv/ftoa_test.go | 42 ++++++++----------------
- 4 files changed, 65 insertions(+), 60 deletions(-)
+ src/pkg/crypto/x509/verify.go       | 2 +-
+ src/pkg/database/sql/fakedb_test.go | 6 +++---
+ src/pkg/go/doc/reader.go            | 2 +-
+ src/pkg/html/template/url.go        | 2 +-
+ src/pkg/mime/grammar.go             | 2 +-
+ src/pkg/os/exec/exec.go             | 2 +-
+ src/pkg/regexp/regexp.go            | 4 ++--
+ src/pkg/unsafe/unsafe.go            | 2 +-
+ 8 files changed, 11 insertions(+), 11 deletions(-)

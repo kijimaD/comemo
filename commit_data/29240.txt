@@ -1,31 +1,21 @@
-commit 7ba36f4adb43355ef4b870d64d23f9988b1279ea
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Oct 26 21:25:56 2016 -0700
+commit fd41951c2b243a80e7b2b5d28a90839c928cfd2e
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Sep 3 18:39:25 2016 +0200
 
-    runtime: compute size classes statically
+    unicode/utf8: reduce bounds checks in EncodeRune
     
-    No point in computing this info on startup.
-    Compute it at build time.
-    This lets us spend more time computing & checking the size classes.
+    Provide bounds elim hints in EncodeRune.
     
-    Improve the div magic for rounding to the start of an object.
-    We can now use 32-bit multiplies & shifts, which should help
-    32-bit platforms.
+    name                  old time/op  new time/op  delta
+    EncodeASCIIRune-4     2.69ns ± 2%  2.69ns ± 2%    ~     (p=0.193 n=47+46)
+    EncodeJapaneseRune-4  5.97ns ± 2%  5.38ns ± 2%  -9.93%  (p=0.000 n=49+50)
     
-    The static data is <1KB.
-    
-    The actual size classes are not changed by this CL.
-    
-    Change-Id: I6450cec7d1b2b4ad31fd3f945f504ed2ec6570e7
-    Reviewed-on: https://go-review.googlesource.com/32219
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1a6dcffff3bdd64ab93c2130021e3b00981de4c8
+    Reviewed-on: https://go-review.googlesource.com/28492
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/malloc.go        |  32 ++---
- src/runtime/mbitmap.go       |   4 +-
- src/runtime/mheap.go         |   4 +-
- src/runtime/mksizeclasses.go | 309 +++++++++++++++++++++++++++++++++++++++++++
- src/runtime/msize.go         | 252 +----------------------------------
- src/runtime/sizeclasses.go   |  27 ++++
- 6 files changed, 356 insertions(+), 272 deletions(-)
+ src/unicode/utf8/utf8.go | 3 +++
+ 1 file changed, 3 insertions(+)

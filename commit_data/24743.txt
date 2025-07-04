@@ -1,20 +1,22 @@
-commit 6083bd65f7a8e621efe9b6381c040ffab7f8d189
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Nov 5 10:20:32 2015 +0100
+commit 35ad1fcb11c64ebd7e54f8eebf065ba118045357
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 27 10:11:08 2015 -0700
 
-    cmd/go: skip TestBuildOutputToDevNull on Plan 9
+    [dev.ssa] cmd/compile: fix OANDAND and OOROR type
     
-    TestBuildOutputToDevNull was added in CL 16585.
-    However, copying to /dev/null couldn't work on Plan 9,
-    because /dev/null is a regular file. Since it's not
-    different from any other file, the logic in copyFile
-    couldn't distinguish it from another, already existing,
-    file, that we wouldn't want to overwrite.
+    The old backend doesn't like ideal types,
+    and we want to reuse its stackmap generation.
     
-    Change-Id: Ie8d353f318fedfc7cfb9541fed00a2397e232592
-    Reviewed-on: https://go-review.googlesource.com/16691
+    OOROR and OANDAND expressions have ideal type.
+    The old backend didn't care,
+    because those expressions got rewritten away into
+    jumps before stackmap generation.
+    
+    Fix the type during conversion.
+    
+    Change-Id: I488e7499298d9aec71da39c202f6a7235935bc8d
+    Reviewed-on: https://go-review.googlesource.com/13980
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
 
- src/cmd/go/go_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

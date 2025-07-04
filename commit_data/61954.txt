@@ -1,0 +1,19 @@
+commit 39794819aa0950f143fa59c41b577bf6a2f81455
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 27 11:25:06 2024 -0500
+
+    doc/initial: remove fixed-width spacing notice
+    
+    Ever since CL 362015 in 2021 it hasn't been necessary to set
+    "fixed-width phrases with non-fixed-width spaces" because the site CSS
+    now takes care of this typesetting convention.
+    
+    Change-Id: Id84f711b65cddf389dc485aa362b23c9c531cbfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638565
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/initial/1-intro.md | 6 ------
+ 1 file changed, 6 deletions(-)

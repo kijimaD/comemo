@@ -1,23 +1,24 @@
-commit 03631f027e2e2e6a162de2f270016470f9a10b3e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 11 14:35:23 2023 -0700
+commit a29739145d8a46786d503bfc8a8ecf47a7381710
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Sep 12 10:15:37 2022 -0700
 
-    cmd/compile: remove reflectdata.{TypePtr,ITabAddr} wrappers
+    compress/flate: update NewReader documentation
     
-    Remove these in favor of the explicit *At variants that take a
-    src.XPos.
+    Calling close is no longer necessary.
+    It was was originally necessary to cleanup goroutines
+    spawned to decompress the stream.
+    This has not been the case since CL 4548079.
     
-    Change-Id: I2c095b75e43b58fe31e3e1b15c811a66ac5a0f83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518956
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Update the documentation to mention how it handles trailing data
+    after the end of the DEFLATE stream.
+    
+    Change-Id: Ieacba264230560713b7b8d604665223fd096f4ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430377
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 10 ----------
- src/cmd/compile/internal/staticinit/sched.go    |  4 ++--
- src/cmd/compile/internal/walk/assign.go         |  4 ++--
- src/cmd/compile/internal/walk/builtin.go        |  2 +-
- src/cmd/compile/internal/walk/expr.go           |  2 +-
- 5 files changed, 6 insertions(+), 16 deletions(-)
+ src/compress/flate/inflate.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

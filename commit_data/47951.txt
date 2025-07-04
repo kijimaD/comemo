@@ -1,22 +1,18 @@
-commit 3b5eec937018be98549dea7067964018f0e5824c
+commit bbb510ccc96e2ca1d0d1c91d244fba4e735d5a80
 Author: Austin Clements <austin@google.com>
-Date:   Fri Jan 14 13:11:36 2022 -0500
+Date:   Wed Apr 14 12:37:04 2021 -0400
 
-    runtime/race: be less picky about test run time
+    internal/buildcfg: enable regabig by default
     
-    Currently, there are two regexps in the race detector output tests
-    that assume subtests will complete in < 1 second. This isn't necessary
-    and very occasionally fails (on builders that are probably very
-    loaded). Make these tests less picky about timing.
+    For #40724.
     
-    Fixes #50612.
-    
-    Change-Id: Ib3f94d6c5dc37541dbeb06de71cf462a74af844b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378581
+    Change-Id: Ibf4ff8b24b501813839657ac195b909682ac7d0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310173
     Trust: Austin Clements <austin@google.com>
+    Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/race/output_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

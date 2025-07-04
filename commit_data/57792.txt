@@ -1,21 +1,23 @@
-commit b33fc480a25c30d38104a9efaf73326c888e8557
+commit cab416f3394ee0211f221f5df0a145ddbfd16e5f
 Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Oct 25 14:34:46 2024 +0200
+Date:   Thu Aug 31 09:13:06 2023 +0200
 
-    crypto/internal/hpke: use internal/byteorder instead of encoding/binary
+    runtime: remove unnecessary timeout in TestCallbackInAnotherThread
     
-    crypto/internal/hpke is the only package under crypto that imports
-    encoding/binary. Other packages use internal/byteorder instead, which
-    notably doesn't depend on the reflect package.
+    Waiting only for 100ms might be not enough for the callback to be
+    called. It is more reliable to wait infinitely and rely on the
+    test timeout to fail the test if the callback is not called.
     
-    Updates #54097
+    Fixes #62206
     
-    Change-Id: I77a3ac5f4588527a2f82574df4cb84d30630d73f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622497
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I06b5eadae1dd334a2afc41af31a44b42cb5e596d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524695
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/crypto/internal/hpke/hpke.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/runtime/syscall_windows_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

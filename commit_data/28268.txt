@@ -1,27 +1,20 @@
-commit f27c1bda5165f94115458908b5222d992010cbee
-Author: Dave Day <djd@golang.org>
-Date:   Thu Sep 1 13:13:37 2016 +1000
+commit 42b647bde669ffa1d6f056eac20a683b9d02a786
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue May 10 07:50:09 2016 +0200
 
-    net/url: handle escaped paths in ResolveReference
+    go/internal/gccgoimporter: remove workaround on Plan 9
     
-    Currently, path resolution is done using the un-escaped version of
-    paths. This means that path elements like one%2ftwo%2fthree are
-    handled incorrectly, and optional encodings (%2d vs. -) are dropped.
+    We fixed the implementation of the pread syscall in
+    the Plan 9 kernel, so calling pread doesn't update the
+    channel offset when reading a file.
     
-    This function makes escaped handling consistent with Parse: provided
-    escapings are honoured, and RawPath is only set if necessary.
+    Fixes #11194.
     
-    A helper method setPath is introduced to handle the correct setting of
-    Path and RawPath given the encoded path.
-    
-    Fixes #16947
-    
-    Change-Id: I40b1215e9066e88ec868b41635066eee220fde37
-    Reviewed-on: https://go-review.googlesource.com/28343
-    Run-TryBot: Dave Day <djd@golang.org>
+    Change-Id: Ie4019e445542a73479728af861a50bb54caea3f6
+    Reviewed-on: https://go-review.googlesource.com/22245
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/url/url.go      | 42 ++++++++++++++++++++++++++++++++----------
- src/net/url/url_test.go | 17 +++++++++++++----
- 2 files changed, 45 insertions(+), 14 deletions(-)
+ src/go/internal/gccgoimporter/importer.go | 6 ------
+ 1 file changed, 6 deletions(-)

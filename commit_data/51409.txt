@@ -1,22 +1,28 @@
-commit 089dcd7b07f047e29d8a2f6e3a68aba00ec78de6
-Author: David Chase <drchase@google.com>
-Date:   Mon Nov 21 16:00:43 2022 -0500
+commit 078ddecc327a20cec4751e66911197409e01f6d9
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jan 25 09:50:03 2022 -0800
 
-    cmd/dist: add serial/small build option for GOMAXPROCS=1
+    test: add a new test absdiff3.go which uses function callback
     
-    If GOMAXPROCS=1, force serial execution, which is better for
-    debugging build problems and also minimizes footprint, if that
-    happens to matter.
+    We have disallowed having a typeparam on the right-hand-side of a type
+    declaration. So, we disabled much of the test absdiff.go. I recently
+    wrote a new test absdiff2.go to use a structure containing the type
+    param type, so I could attach a method properly and run the full test.
     
-    This wasn't good when the bootstrap was 1.4 because there
-    default GOMAXPROCS=1, but that is no longer the bootstrap
-    version.
+    As a contrast, I thought I would create absdiff3.go, where the Abs
+    functionality is passed in as a function callback (but derived from a
+    generic function). This is simpler, and more inline with some of the
+    guidelines that Ian has been proposing (use passed-in functions rather
+    than requiring methods, when possible, for greater ease-of-use).
     
-    Change-Id: I637e25c8acb4758795fceef63921eda359a7be29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452556
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Only adds a new test absdiff3.go. (And fixes a comment in absdiff2.go.)
+    
+    Change-Id: I6dd185b50a3baeec31f689a892319963468a7201
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380774
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/dist/main.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ test/typeparam/absdiff2.go          |  5 ++-
+ test/typeparam/absdiff3.go          | 82 +++++++++++++++++++++++++++++++++++++
+ test/typeparam/absdiffimp2.dir/a.go |  2 +-
+ 3 files changed, 87 insertions(+), 2 deletions(-)

@@ -1,24 +1,14 @@
-commit 500d79c410f8e9ad762ba318a0a4b05d0d4d1751
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Apr 30 15:48:56 2018 +0200
+commit 984e81f64e0c8ec67497fde5ea0dcbefcd1e51b1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 19 09:34:24 2018 -0800
 
-    cmd/compile: refactor memclrrange for arrays and slices
+    doc/faq: clarify that concurrent maps reads are safe
     
-    Rename memclrrange to signify that it does not handle
-    all types of range clears.
+    Fixes #23480
     
-    Simplify checks to detect the range clear idiom for
-    arrays and slices.
-    
-    Add tests to verify the optimization for the slice
-    range clear idiom is being applied by the compiler.
-    
-    Change-Id: I5c3b7c9a479699ebdb4c407fde692f30f377860c
-    Reviewed-on: https://go-review.googlesource.com/110477
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I33b4bdc60b9983ab62d87bfa0ae3ff33304269c0
+    Reviewed-on: https://go-review.googlesource.com/88515
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/range.go | 11 ++++++++---
- test/codegen/slices.go               | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 3 deletions(-)
+ doc/go_faq.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,15 +1,12 @@
-commit f878b67b0f9f3e66ec96f7c48f40e8a02fbd3ac0
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Tue Mar 12 14:29:25 2013 -0700
+commit 4e6e9f9b28bf7f76a8164efdf812c23923558df5
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue Mar 12 22:25:15 2013 +0100
 
-    misc/bbedit, misc/notepadplus: remove executable bits from files.
+    test/bench/garbage: fix parser benchmark
     
-    R=golang-dev, dave, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7765043
+    https://golang.org/cl/7762046
 
- misc/bbedit/Go.plist                | 0
- misc/notepadplus/README             | 0
- misc/notepadplus/go.xml             | 0
- misc/notepadplus/userDefineLang.xml | 0
- 4 files changed, 0 insertions(+), 0 deletions(-)
+ test/bench/garbage/parser.go | 1 -
+ 1 file changed, 1 deletion(-)

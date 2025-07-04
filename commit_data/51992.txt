@@ -1,28 +1,16 @@
-commit 1e9925f461c54f5fdc100f9f23916b3df81262ce
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 10 13:52:37 2023 -0800
+commit c05c0ca8cfba2c9b78e92e71907c3a1ee344aa23
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Mar 30 11:57:48 2022 -0400
 
-    slices: new package
+    go/types, types2: add commentary on (non-)guarantees when using contexts
     
-    This copies parts of x/exp/slices into the standard library.
-    We omit all functions that depend on constraints.Ordered,
-    and the Func variants of all such functions. In particular this
-    omits the various Sort and Search functions.
-    
-    Fixes #57433
-    
-    Change-Id: I3c28f4c2e6bd1e3c9ad70e120a0dd68065388f77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467417
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I29347e340725fa2892eb115b530de82969835412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396776
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- api/next/57433.txt        |  14 ++
- src/go/build/deps_test.go |   2 +-
- src/go/doc/comment/std.go |   1 +
- src/slices/slices.go      | 196 +++++++++++++++
- src/slices/slices_test.go | 604 ++++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 816 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/context.go | 20 ++++++++++++++++++++
+ src/go/types/context.go                    | 20 ++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

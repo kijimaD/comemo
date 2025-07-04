@@ -1,60 +1,15 @@
-commit 543c6d2e0dcd24886fce6c00e84b7238c30c1c0b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 4 19:43:45 2019 -0500
+commit 5d2377a6070ced8a158365addce94f9677246924
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 6 14:30:56 2019 -0400
 
-    math, cmd/compile: rename Fma to FMA
+    cmd/go/internal/modload: propagate errors from Query in 'list -versions'
     
-    This API was added for #25819, where it was discussed as math.FMA.
-    The commit adding it used math.Fma, presumably for consistency
-    with the rest of the unusual names in package math
-    (Sincos, Acosh, Erfcinv, Float32bits, etc).
+    Fixes #32335
     
-    I believe that using an idiomatic Go name is more important here
-    than consistency with these other names, most of which are historical
-    baggage from C's standard library.
-    
-    Early additions like Float32frombits happened before "uppercase for export"
-    (so they were originally like "float32frombits") and they were not properly
-    reconsidered when we uppercased the symbols to export them.
-    That's a mistake we live with.
-    
-    The names of functions we have added since then, and even a few
-    that were legacy, are more properly Go-cased, such as IsNaN, IsInf,
-    and RoundToEven, rather than Isnan, Isinf, and Roundtoeven.
-    And also constants like MaxFloat32.
-    
-    For new API, we should keep using proper Go-cased symbols
-    instead of minimally-upper-cased-C symbols.
-    
-    So math.FMA, not math.Fma.
-    
-    This API has not yet been released, so this change does not break
-    the compatibility promise.
-    
-    This CL also modifies cmd/compile, since the compiler knows
-    the name of the function. I could have stopped at changing the
-    string constants, but it seemed to make more sense to use a
-    consistent casing everywhere.
-    
-    Change-Id: I0f6f3407f41e99bfa8239467345c33945088896e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205317
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1cf8645ecc5ba0866d9b3589a18bb500ea17f865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181018
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/ssa.go             | 12 ++++++------
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules     |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  2 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |  4 ++--
- src/cmd/compile/internal/ssa/gen/S390X.rules   |  2 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go |  2 +-
- src/cmd/compile/internal/ssa/opGen.go          |  4 ++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go   |  8 ++++----
- src/cmd/compile/internal/ssa/rewriteARM.go     |  8 ++++----
- src/cmd/compile/internal/ssa/rewriteARM64.go   |  8 ++++----
- src/cmd/compile/internal/ssa/rewritePPC64.go   |  8 ++++----
- src/cmd/compile/internal/ssa/rewriteS390X.go   |  8 ++++----
- src/math/all_test.go                           | 10 +++++-----
- src/math/fma.go                                |  5 +++--
- test/codegen/math.go                           |  2 +-
- 16 files changed, 44 insertions(+), 43 deletions(-)
+ src/cmd/go/internal/modload/list.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

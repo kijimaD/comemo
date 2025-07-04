@@ -1,18 +1,38 @@
-commit 90870e61b7311a0c2b4d3059368cf75006157a50
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Thu Jul 17 09:55:12 2014 -0700
+commit cf521ce64f50c4f300294d6b649f34eca87bb8a3
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu Jul 17 17:02:46 2014 +1000
 
-    strings: remove byteBitmap
+    os: Implement symlink support for Windows
     
-    Previously we had a bitmap to check whether or not a byte
-    appears in a string should be replaced. But we don't actually
-    need a separate bitmap for that purpose. Removing the bitmap
-    makes the code simpler.
+    Fixes #5750.
     
-    LGTM=dave, iant, nigeltao
-    R=golang-codereviews, dave, gobot, nigeltao, iant, bradfitz, rsc
+    https://code.google.com/p/go/issues/detail?id=5750
+    
+    os: Separate windows from posix. Implement windows support.
+    path/filepath: Use the same implementation as other platforms
+    syscall: Add/rework new APIs for Windows
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman, gobot, rsc, minux
     CC=golang-codereviews
-    https://golang.org/cl/110100043
+    https://golang.org/cl/86160044
 
- src/pkg/strings/replace.go | 100 ++++++++++++++++-----------------------------
- 1 file changed, 35 insertions(+), 65 deletions(-)
+ src/pkg/os/file_posix.go                   | 20 ------
+ src/pkg/os/file_unix.go                    | 20 ++++++
+ src/pkg/os/file_windows.go                 | 98 ++++++++++++++++++++++++++++++
+ src/pkg/os/os_test.go                      | 16 ++++-
+ src/pkg/os/os_windows_test.go              | 27 ++++++++
+ src/pkg/os/path_test.go                    |  6 +-
+ src/pkg/os/stat_windows.go                 | 50 ++++++++-------
+ src/pkg/os/types_windows.go                |  3 +
+ src/pkg/path/filepath/match_test.go        |  7 ++-
+ src/pkg/path/filepath/path_test.go         | 12 ++--
+ src/pkg/path/filepath/path_windows_test.go | 20 ++++++
+ src/pkg/path/filepath/symlink.go           | 19 +++---
+ src/pkg/path/filepath/symlink_unix.go      |  7 +++
+ src/pkg/path/filepath/symlink_windows.go   |  5 ++
+ src/pkg/syscall/syscall_windows.go         | 43 +++++++++++--
+ src/pkg/syscall/zsyscall_windows_386.go    | 39 ++++++++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go  | 39 ++++++++++++
+ src/pkg/syscall/ztypes_windows.go          | 46 ++++++++++----
+ 18 files changed, 404 insertions(+), 73 deletions(-)

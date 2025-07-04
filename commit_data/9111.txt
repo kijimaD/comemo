@@ -1,33 +1,14 @@
-commit caa56474083c7be36c73ba8c7b9d8cc6fba90daf
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 18 12:04:09 2011 -0400
+commit 870fdd760ab256ce02955488a3e47fea5af24e55
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Mon Jul 18 11:21:59 2011 -0400
 
-    ld: allow seek within write buffer
+    syscall: Parse and encode SCM_RIGHTS and SCM_CREDENTIALS.
     
-    Reduces number of write+seek's from 88516 to 2080
-    when linking godoc with 6l.
-    
-    Thanks to Alex Brainman for pointing out the
-    many small writes.
-    
-    R=golang-dev, r, alex.brainman, robert.hencke
+    R=rsc, agl, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/4743043
+    https://golang.org/cl/4667066
 
- src/cmd/5l/asm.c   | 41 +++++++---------------------
- src/cmd/5l/l.h     | 17 ------------
- src/cmd/5l/obj.c   |  1 -
- src/cmd/6l/asm.c   | 35 ++++++------------------
- src/cmd/6l/l.h     | 22 ---------------
- src/cmd/6l/obj.c   |  1 -
- src/cmd/8l/asm.c   | 33 +++++------------------
- src/cmd/8l/l.h     | 16 -----------
- src/cmd/8l/obj.c   |  1 -
- src/cmd/ld/data.c  |  4 +--
- src/cmd/ld/dwarf.c | 29 +++++++-------------
- src/cmd/ld/elf.c   |  4 +--
- src/cmd/ld/lib.c   | 79 +++++++++++++++++++++++++++++++++++++++++++++++-------
- src/cmd/ld/lib.h   | 26 ++++++++++++++++--
- src/cmd/ld/macho.c | 10 +++----
- src/cmd/ld/pe.c    | 26 +++++++++---------
- 16 files changed, 149 insertions(+), 196 deletions(-)
+ src/pkg/syscall/Makefile          |  1 +
+ src/pkg/syscall/sockcmsg_linux.go | 38 ++++++++++++++++++++++++++++
+ src/pkg/syscall/sockcmsg_unix.go  | 52 +++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 89 insertions(+), 2 deletions(-)

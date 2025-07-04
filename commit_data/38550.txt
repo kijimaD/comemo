@@ -1,19 +1,14 @@
-commit 17f888c5a8479b0915f23c4a9a453430f276c53b
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Mon Mar 25 19:16:46 2019 -0700
+commit 3377b4673d6e0ca1a9bba1c7196d7e673ddb8108
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 2 21:41:41 2018 -0700
 
-    reflect: fix typeptrdata
+    cmd/compile: encapsulate and document two types.Type internal fields
     
-    We can't use ptrdata inside of typeptrdata, because it won't be
-    properly initialized until typeptrdata returns.
-    
-    Fixes #31039
-    
-    Change-Id: Ib8c89191a7e4cce678a05d351bb6ded81ba23aae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169317
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5f7d2155c2c3a47dabdf16fe46b122ede81de4fc
+    Reviewed-on: https://go-review.googlesource.com/c/147284
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/type.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go   |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  6 ++----
+ src/cmd/compile/internal/types/type.go   | 20 ++++++++++++++------
+ 3 files changed, 17 insertions(+), 11 deletions(-)

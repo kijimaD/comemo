@@ -1,16 +1,45 @@
-commit 6decd3d984dd0bb213837b64ab6870568b33f197
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 5 16:57:49 2018 -0700
+commit 788464724cb061198bab1fb4f7885eb46d38f847
+Author: Austin Clements <austin@google.com>
+Date:   Fri Feb 23 12:03:00 2018 -0500
 
-    reflect: add StructOf test case that gccgo used to fail
+    runtime: reduce arena size to 4MB on 64-bit Windows
     
-    Updates #25284
+    Currently, we use 64MB heap arenas on 64-bit platforms. This works
+    well on UNIX-like OSes because they treat untouched pages as
+    essentially free. However, on Windows, committed memory is charged
+    against a process whether or not it has demand-faulted physical pages
+    in. Hence, on Windows, even a process with a tiny heap will commit
+    64MB for one heap arena, plus another 32MB for the arena map. Things
+    are much worse under the race detector, which increases the heap
+    commitment by a factor of 5.5X, leading to 384MB of committed memory
+    at runtime init.
     
-    Change-Id: I8ca382dd85b428ad6899d9277cf7f3ce34e35e9a
-    Reviewed-on: https://go-review.googlesource.com/116416
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fix this by reducing the heap arena size to 4MB on Windows.
+    
+    To counterbalance the effect of increasing the arena map size by a
+    factor of 16, and to further reduce the impact of the commitment for
+    the arena map, we switch from a single entry L1 arena map to a 64
+    entry L1 arena map.
+    
+    Compared to the original arena design, this slows down the
+    x/benchmarks garbage benchmark by 0.49% (the slow down of this commit
+    alone is 1.59%, but the previous commit bought us a 1% speed-up):
+    
+    name                       old time/op  new time/op  delta
+    Garbage/benchmem-MB=64-12  2.28ms ± 1%  2.29ms ± 1%  +0.49%  (p=0.000 n=17+18)
+    
+    (https://perf.golang.org/search?q=upload:20180223.1)
+    
+    (This was measured on linux/amd64 by modifying its arena configuration
+    as above.)
+    
+    Fixes #23900.
+    
+    Change-Id: I6b7fa5ecebee2947bf20cfeb78c248809469c6b1
+    Reviewed-on: https://go-review.googlesource.com/96780
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/reflect/all_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/runtime/malloc.go | 31 ++++++++++++++++++++++++++++---
+ 1 file changed, 28 insertions(+), 3 deletions(-)

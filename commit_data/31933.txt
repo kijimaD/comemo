@@ -1,17 +1,19 @@
-commit e7823d656e8118534d9ddbd6d2b948c6fdad0549
-Author: Shawn Walker-Salas <shawn.walker@oracle.com>
-Date:   Tue Jun 27 16:49:09 2017 -0700
+commit 6652572b75bae4d358cf193a95f688d9b67c5722
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 23 16:39:04 2017 -0700
 
-    runtime: temporarily skip gdb python-related tests on solaris
+    cmd/compile: thread Curfn through to debuginfo
     
-    Updates #20821
+    Updates #15756
     
-    Change-Id: I77a5b9a3bbb931845ef52a479549d71069af9540
-    Reviewed-on: https://go-review.googlesource.com/46913
-    Run-TryBot: Shawn Walker-Salas <shawn.walker@oracle.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I860dd45cae9d851c7844654621bbc99efe7c7f03
+    Reviewed-on: https://go-review.googlesource.com/38591
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/runtime-gdb_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/gsubr.go | 12 +++++++-----
+ src/cmd/compile/internal/gc/pgen.go  |  7 ++++---
+ src/cmd/internal/obj/link.go         |  2 +-
+ src/cmd/internal/obj/objfile.go      |  4 ++--
+ src/cmd/internal/obj/plist.go        |  3 ++-
+ 5 files changed, 16 insertions(+), 12 deletions(-)

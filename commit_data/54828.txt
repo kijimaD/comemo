@@ -1,21 +1,20 @@
-commit 68e52bc03cd3072985ead4895a3ae97f43c02331
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Oct 27 16:20:44 2023 +0000
+commit e6eaf39cfaf253ebaff7fff3737f0f1d91024345
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Jul 7 14:26:31 2022 -0500
 
-    bytes,internal/bytealg: eliminate IndexRabinKarpBytes using generics
+    cmd/internal/obj/ppc64: add ISA 3.1B opcodes
     
-    This is a follow-up to CL 538175.
+    A few new opcodes are added to support ROP mitigation on
+    Power10.
     
-    Change-Id: Iec2523b36a16d7e157c17858c89fcd43c2470d58
-    GitHub-Last-Rev: 812d36e57c71ea3bf44d2d64bde0703ef02a1b91
-    GitHub-Pull-Request: golang/go#63770
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538195
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I13045aebc0b6fb09c64dc234ee5741318670d7ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425597
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/bytes/bytes.go              |  2 +-
- src/internal/bytealg/bytealg.go | 35 +++--------------------------------
- 2 files changed, 4 insertions(+), 33 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64_p10.s |  7 +++++
+ src/cmd/internal/obj/ppc64/asm9_gtables.go    | 44 +++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

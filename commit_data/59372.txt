@@ -1,34 +1,41 @@
-commit 9f55e7bc2180fefd64723ae6e9524a20a098b19a
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Apr 5 20:35:12 2025 +0200
+commit 8590f0aef30d1e4d242af97ae15266facb26493b
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Thu Mar 7 10:28:46 2024 +0000
 
-    runtime: don't read /dev/random on Plan 9
+    net/http: remove persistConn reference from wantConn
     
-    In CL 656755, the readRandom function was modified
-    to read an integer from /dev/random.
+    Transport getConn creates wantConn w, tries to obtain idle connection for it
+    based on the w.key and, when there is no idle connection, puts wantConn into
+    idleConnWait wantConnQueue.
     
-    However, on Plan 9, /dev/random can only return
-    a few hundred bits a second.
+    Then getConn dials connection for w in a goroutine and blocks.
+    After dial succeeds getConn unblocks and returns connection to the caller.
     
-    The issue is that readRandom is called by randinit,
-    which is called at the creation of Go processes.
+    At this point w is stored in the idleConnWait and will not be evicted
+    until another wantConn with the same w.key is requested or alive
+    connection returned into the idle pool which may not happen e.g. if
+    server closes the connection.
     
-    Consequently, it lead the Go programs to be very
-    slow on Plan 9.
+    The problem is that even after tryDeliver succeeds w references
+    persistConn wrapper that allocates bufio.Reader and bufio.Writer and
+    prevents them from being garbage collected.
     
-    This change reverts the change done in CL 656755
-    to make the readRandom function always returning 0
-    on Plan 9.
+    To fix the problem this change removes persistConn and error references
+    from wantConn and delivers them via channel to getConn.
     
-    Change-Id: Ibe1bf7e4c8cbc82998e4f5e1331f5e29a047c4fc
-    Cq-Include-Trybots: luci.golang.try:gotip-plan9-arm
+    This way wantConn could be kept in wantConnQueues arbitrary long.
     
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663195
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Richard Miller <millerresearch@gmail.com>
+    Fixes #43966
+    Fixes #50798
+    
+    Change-Id: I77942552f7db04c225fb40d770b3101a8cfe655d
+    GitHub-Last-Rev: 027a0833f98b23ddadb3ec7ee4f2e62653bc7705
+    GitHub-Pull-Request: golang/go#62227
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522095
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/runtime/os_plan9.go | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ src/net/http/transport.go | 125 +++++++++++++++++++++++-----------------------
+ 1 file changed, 62 insertions(+), 63 deletions(-)

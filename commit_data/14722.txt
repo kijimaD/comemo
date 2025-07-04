@@ -1,28 +1,16 @@
-commit 9aef20e823f43eadc2171ea4cf713dddf60cd4dd
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Dec 22 19:16:31 2012 +0100
+commit c956dcdc54937ac17a4e1a01e7353cd9110b7400
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Dec 22 17:36:10 2012 +0100
 
-    cmd/gc: fix wrong interaction between inlining and embedded builtins.
+    cmd/gc: Reject parenthesised .(type) expressions.
     
-    The patch makes the compile user an ordinary package-local
-    symbol for the name of embedded fields of builtin type.
+    Fixes #4470.
     
-    This is incompatible with the fix delivered for issue 2687
-    (revision 3c060add43fb) but fixes it in a different way, because
-    the explicit symbol on the field makes the typechecker able to
-    find it in lookdot.
-    
-    Fixes #3552.
-    
-    R=lvd, rsc, daniel.morsing
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6866047
+    https://golang.org/cl/6949073
 
- src/cmd/gc/dcl.c                                   |  3 +
- src/cmd/gc/fmt.c                                   | 11 +---
- test/bugs/bug434.go                                | 10 ---
- .../bug434.dir => fixedbugs/issue3552.dir}/one.go  |  0
- .../bug434.dir => fixedbugs/issue3552.dir}/two.go  |  0
- test/fixedbugs/issue3552.go                        | 10 +++
- test/run.go                                        | 73 +++++++++++-----------
- 7 files changed, 50 insertions(+), 57 deletions(-)
+ src/cmd/gc/go.y             |   1 +
+ src/cmd/gc/y.tab.c          | 331 ++++++++++++++++++++++----------------------
+ test/fixedbugs/issue4470.go |  16 +++
+ 3 files changed, 183 insertions(+), 165 deletions(-)

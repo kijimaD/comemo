@@ -1,37 +1,25 @@
-commit 1e3cdd1edce67350f8007e4a9b9b555f1e27c5b4
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Mar 11 18:53:08 2019 -0400
+commit ba2e8a629b36e43cc27b23470b631a1dfee0900f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 19 16:24:59 2018 -0400
 
-    cmd/go: print require chains in build list errors
+    cmd/asm: add mode to collect symbol ABIs
     
-    mvs.BuildList and functions that invoke it directly (UpgradeAll) now
-    return an *mvs.BuildListError when there is an error retrieving the
-    requirements for a module. This new error prints the chain of
-    requirements from the main module to the module where the error
-    occurred.
+    This adds a -symabis flag that runs the assembler in a special mode
+    that outputs symbol definition and reference ABIs rather than
+    assembling the code. This uses a fast and somewhat lax parser because
+    the go_asm.h definitions may not be available.
     
-    These errors come up most commonly when a go.mod file has an
-    unexpected module path or can't be parsed for some other reason. It's
-    currently difficult to debug these errors because it's not clear where
-    the "bad" module is required from. Tools like "go list -m" and
-    "go mod why" don't work without the build graph.
+    For #27539.
     
-    Fixes #30661
-    
-    Change-Id: I3c9d4683dcd9a5d7c259e5e4cc7e1ee209700b10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166984
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I248ba0ebab7cc75dcb2a90e82a82eb445da7e88e
+    Reviewed-on: https://go-review.googlesource.com/c/147098
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modload/load.go                |  23 +---
- src/cmd/go/internal/mvs/mvs.go                     | 122 ++++++++++++++++-----
- src/cmd/go/internal/mvs/mvs_test.go                |   5 +-
- .../testdata/mod/example.com_badchain_a_v1.0.0.txt |  12 ++
- .../testdata/mod/example.com_badchain_a_v1.1.0.txt |  12 ++
- .../testdata/mod/example.com_badchain_b_v1.0.0.txt |  12 ++
- .../testdata/mod/example.com_badchain_b_v1.1.0.txt |  12 ++
- .../testdata/mod/example.com_badchain_c_v1.0.0.txt |   8 ++
- .../testdata/mod/example.com_badchain_c_v1.1.0.txt |   8 ++
- src/cmd/go/testdata/script/mod_load_badchain.txt   |  41 +++++++
- 10 files changed, 209 insertions(+), 46 deletions(-)
+ src/cmd/asm/internal/asm/operand_test.go | 43 +++++++++++++++++
+ src/cmd/asm/internal/asm/parse.go        | 81 ++++++++++++++++++++++++++++++++
+ src/cmd/asm/internal/flags/flags.go      |  1 +
+ src/cmd/asm/main.go                      | 22 ++++++---
+ 4 files changed, 140 insertions(+), 7 deletions(-)

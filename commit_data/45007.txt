@@ -1,20 +1,19 @@
-commit 2123dfba651e3522ed039d1b38fde91ededf47a3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 8 05:48:34 2021 +0000
+commit bc320fc1f5bc5d6019e3d8d62aa32eac3417bb7f
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Sep 23 12:52:27 2020 -0400
 
-    Revert "cmd/compile/internal/noder: limit the number of goroutine"
+    doc: update overview for authentication
     
-    This reverts commit c274a7c03be7b69d54d3307b954f6a0eb298c860.
+    The instructions have already been updated in greater
+    detail in "Step 2: Configure git authentication", but
+    the overview needs updated to reflect the new workflow.
     
-    Reason for revert: this can cause a compiler deadlock, and there's
-    no demonstrable benefit to making the change.
-    
-    Change-Id: I42325ddea68d37db16fd0061c5baaee112b755b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308369
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I6f411a3dc500a9058036a4a828403c0153e4220a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256857
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/noder.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

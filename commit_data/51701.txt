@@ -1,33 +1,15 @@
-commit c641d48afdf05de8aa15b4110cb07a2165c5f935
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Jan 8 22:56:40 2023 +0000
+commit 45f45444b307cea7c8330b100b30382e642e010f
+Author: Adam Shannon <adamkshannon@gmail.com>
+Date:   Wed Mar 2 15:05:39 2022 -0800
 
-    go/types: use internal/lazyregexp for goVersionRx
+    fmt: clarify right-padded strings use spaces
     
-    With benchinit, we see a noticeable improvement in init times:
+    Fixes #51419
     
-            name     old time/op    new time/op    delta
-            GoTypes    83.4µs ± 0%    43.7µs ± 1%  -47.57%  (p=0.029 n=4+4)
-    
-            name     old alloc/op   new alloc/op   delta
-            GoTypes    26.5kB ± 0%    18.8kB ± 0%  -29.15%  (p=0.029 n=4+4)
-    
-            name     old allocs/op  new allocs/op  delta
-            GoTypes       238 ± 0%       154 ± 0%  -35.29%  (p=0.029 n=4+4)
-    
-    Port the same change to cmd/compile/internal/types and types2.
-    
-    Updates #26775.
-    
-    Change-Id: Ia1f7c4a4ce9a22d66e2aa9c9b9c341036993adca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460544
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I0a32f41a6e6e01481ad58c7dddb57ec7085d77af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389434
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types/goversion.go | 4 ++--
- src/cmd/compile/internal/types2/version.go  | 4 ++--
- src/go/build/deps_test.go                   | 2 +-
- src/go/types/version.go                     | 4 ++--
- 4 files changed, 7 insertions(+), 7 deletions(-)
+ src/fmt/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,21 +1,20 @@
-commit f027241445f3064b41f5d5e68f86370d37bad0be
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 22 07:14:10 2016 -0700
+commit d3794f88e9b4e87567cb3fdc0a42159934db65e0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 20:07:00 2016 -0800
 
-    cmd/compile: give gc.Op a String method, use it
+    cmd/compile: eliminate uses of Type.Down in alg.go
+    
+    This could be done by threading the Iter value down through memrun and
+    ispaddedfield, but that ends up a bit clunky. This way is also closer
+    to how we'll want the code to look once fields are kept in slices.
     
     Passes toolstash -cmp.
     
-    Change-Id: I915e76374fd64aa2597e6fa47e4fa95ca00ca643
-    Reviewed-on: https://go-review.googlesource.com/22380
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I8a44445c85f921eb18d97199df2026c5ce0f4f67
+    Reviewed-on: https://go-review.googlesource.com/20558
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |  6 +++---
- src/cmd/compile/internal/gc/bimport.go |  2 +-
- src/cmd/compile/internal/gc/fmt.go     |  4 ++++
- src/cmd/compile/internal/gc/obj.go     |  6 +++---
- src/cmd/compile/internal/gc/sinit.go   |  2 +-
- src/cmd/compile/internal/gc/ssa.go     | 14 +++++++-------
- 6 files changed, 19 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/alg.go | 112 +++++++++++++++++++------------------
+ 1 file changed, 57 insertions(+), 55 deletions(-)

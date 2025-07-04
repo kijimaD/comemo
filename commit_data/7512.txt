@@ -1,13 +1,12 @@
-commit 79ba1ce076561fb8f75d2f55f9c4cb810feee996
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Feb 19 07:37:24 2011 +1100
+commit 90847a85774a5c340266576f6b5a538f1fed7129
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Feb 18 13:48:13 2011 -0500
 
-    misc/dashboard: tweak build fail notification email
+    net: fix multicast tests
     
-    R=rsc
+    R=rsc, mikioh, rsc1, dho
     CC=golang-dev
-    https://golang.org/cl/4170063
+    https://golang.org/cl/4174056
 
- misc/dashboard/godashboard/const.py   | 1 +
- misc/dashboard/godashboard/gobuild.py | 3 ++-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/net/multicast_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

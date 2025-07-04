@@ -1,0 +1,16 @@
+commit 9896da303a74c7af02f711fbb49ac08e4ef3590b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jan 14 11:26:06 2025 +0100
+
+    internal/poll: use ignoringEINTR2 in (*FD).Pread
+    
+    Change-Id: I2af5f3f039b6c0e8e77484bd6b2cdb88e919a85d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641759
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/fd_unix.go | 13 +++----------
+ 1 file changed, 3 insertions(+), 10 deletions(-)

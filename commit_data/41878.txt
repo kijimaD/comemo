@@ -1,17 +1,22 @@
-commit a59465b545cd66e0796b5c7649a87a6f1b657cb4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 7 21:47:13 2020 -0700
+commit 17190de08570d36dda9b2904609271354cc3c64a
+Author: Lorenz Bauer <lmb@cloudflare.com>
+Date:   Wed Oct 30 11:30:57 2019 +0000
 
-    runtime: add a couple of writeBarrier.needed checks
+    syscall: treat ENFILE as a temporary error
     
-    Make typedmemmove, typedmemclr, typedmemclrpartial look more like other
-    callers of bulkBarrierPreWrite.
+    ENFILE is returned from accept when the whole system has run out of
+    file descriptors. Mark the error as temporary, so that accept loops
+    continue working.
     
-    Change-Id: Ic47030d88bf07d290f91198b7810ffc16d9769e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227541
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #35131
+    Updates #1891
+    
+    Change-Id: Idf44c084731898ff4c720d06c250d3b8a42de312
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203117
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mbarrier.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/syscall/syscall_unix.go      | 2 +-
+ src/syscall/syscall_unix_test.go | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

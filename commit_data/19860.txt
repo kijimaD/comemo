@@ -1,29 +1,29 @@
-commit a2a97684146d63cbde77b5c95b4403da53b79459
+commit 721c8735dffcf488b1ff1c072909eb84426f3da3
 Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 31 15:07:05 2014 -0700
+Date:   Thu Jul 31 13:48:48 2014 -0700
 
-    runtime: convert hash functions to Go calling convention.
+    runtime: move built-in print routines to go.
     
-    Create proper closures so hash functions can be called
-    directly from Go.  Rearrange calling convention so return
-    value is directly accessible.
+    Fixes #8297
     
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov, dave, khr
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, khr, dave, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/119360043
+    https://golang.org/cl/119240043
 
- src/cmd/gc/reflect.c            |   9 +-
- src/cmd/gc/subr.c               |  69 +++++++------
- src/pkg/runtime/alg.goc         | 221 +++++++++-------------------------------
- src/pkg/runtime/asm_386.s       |  76 ++++----------
- src/pkg/runtime/asm_amd64.s     |  76 ++++----------
- src/pkg/runtime/asm_amd64p32.s  |  36 +------
- src/pkg/runtime/asm_arm.s       |  36 +------
- src/pkg/runtime/export_test.go  |   6 --
- src/pkg/runtime/hashmap.go      |  16 +--
- src/pkg/runtime/hashmap_fast.go |  12 +--
- src/pkg/runtime/iface.goc       |   7 +-
- src/pkg/runtime/runtime.h       |  24 +++--
- src/pkg/runtime/stubs.go        |  24 +++++
- 13 files changed, 196 insertions(+), 416 deletions(-)
+ src/pkg/runtime/alg.goc         |   8 +--
+ src/pkg/runtime/gc_test.go      |  24 ++++++++
+ src/pkg/runtime/iface.goc       |   8 ---
+ src/pkg/runtime/os_darwin.c     |  18 +++---
+ src/pkg/runtime/os_dragonfly.c  |   6 +-
+ src/pkg/runtime/os_freebsd.c    |   6 +-
+ src/pkg/runtime/print.c         | 128 ++++++++++++++++++++++++++++------------
+ src/pkg/runtime/print.go        | 109 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h       |  26 ++++----
+ src/pkg/runtime/slice.c         |  27 ---------
+ src/pkg/runtime/slice.go        |  11 ----
+ src/pkg/runtime/traceback_arm.c |   2 +-
+ src/pkg/runtime/traceback_x86.c |   2 +-
+ test/print.go                   |  42 +++++++++++++
+ test/print.out                  |  24 ++++++++
+ 15 files changed, 322 insertions(+), 119 deletions(-)

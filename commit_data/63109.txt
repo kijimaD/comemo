@@ -1,0 +1,17 @@
+commit 4cdca1342b1d3d9591d72a7e7cf67068aa54c524
+Author: khr@golang.org <khr@golang.org>
+Date:   Tue May 20 15:56:29 2025 -0700
+
+    runtime: disable stack allocation test when instrumentation is on
+    
+    Should fix some asan build failures.
+    
+    Change-Id: Ic0a816b56a1a278aa0ad541aea962f9fea7b10fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674696
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/runtime_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

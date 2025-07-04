@@ -1,18 +1,14 @@
-commit 208d4d222786f3e51749a6b50e4f3fd8f8d9777f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 1 16:50:00 2016 +0000
+commit 3f952b75046548881709086cc20ab3c5fca2f52e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 4 14:40:38 2016 -0700
 
-    net/http: clarify Request.Context's lifetime
+    cmd/compile/internal/ssa: update BlockKind documentation
     
-    Reverts https://golang.org/cl/23672 and tweaks the text to clarify
-    HTTP/2 request cancelations also cancel the context (not just closing
-    the TCP conn).
+    BlockCall was removed in golang.org/cl/28950.
     
-    Fixes #18143
-    
-    Change-Id: I9f838e09b906d455c98f676e5bc5559f8f7ecb17
-    Reviewed-on: https://go-review.googlesource.com/33769
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: Ib8d9f3111bf3dc01956dd776afeb345ede8bc933
+    Reviewed-on: https://go-review.googlesource.com/30353
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/request.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/block.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

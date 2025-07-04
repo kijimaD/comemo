@@ -1,13 +1,13 @@
-commit 83da2014a84878382b213beea69ac2e4f3b0729e
+commit 2fdd60b9b66f26720ea571345785285d4037dce5
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Feb 13 02:27:42 2013 +0800
+Date:   Wed Feb 13 01:06:52 2013 +0800
 
-    encoding/xml: fix htmlAutoClose and its generating script
-    Thanks Mitică for reporting this.
+    go/build, runtime/cgo: cgo support for NetBSD/ARM
     
-    R=golang-dev, rsc
+    R=golang-dev, rsc, dave
     CC=golang-dev
-    https://golang.org/cl/7308081
+    https://golang.org/cl/7229082
 
- src/pkg/encoding/xml/xml.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/go/build/build.go            |   1 +
+ src/pkg/runtime/cgo/gcc_netbsd_arm.c | 117 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 118 insertions(+)

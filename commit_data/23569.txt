@@ -1,23 +1,38 @@
-commit 8b4278ffb75e79c277bfa90c5e473bfad9f7c1bd
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Mon Jun 29 10:07:31 2015 +1000
+commit cfc2aa56b0bf6b7dfb8f38cd2cfbe8799fc5a31a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon May 18 16:44:20 2015 -0700
 
-    net/http: add a Request.Cancel channel.
+    [dev.ssa] cmd/internal/ssa: Handle more instructions + some cleanup
     
-    This allows for "race free" cancellation, in the sense discussed in
-    issue #11013: in contrast to Transport.CancelRequest, the cancellation
-    will not be lost if the user cancels before the request is put into the
-    transport's internal map.
+    Add & as an input op.  Add several output ops (loads & stores, TESTB,
+    LEAQglobal, branches, memcopy)
     
-    Fixes #11013.
+    Some other small things:
+    - Add exprAddr to builder to generate addresses of expressions.  Use it in
+      various places that had ad-hoc code.
+    - Separate out nil & bounds check generation to separate functions.
+    - Add explicit FP and SP ops so we dont need specialized *FP and *SP opcodes.
+    - Fix fallthrough at end of functions with no return values.
+    - rematerialization of more opcodes.
     
-    Change-Id: I0b5e7181231bdd65d900e343f764b4d1d7c422cd
-    Reviewed-on: https://go-review.googlesource.com/11601
-    Run-TryBot: David Symonds <dsymonds@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I781decfcef9770fb15f0cd6b061547f7824a2d5e
+    Reviewed-on: https://go-review.googlesource.com/10213
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/http/request.go        |  7 ++++
- src/net/http/transport.go      | 13 ++++++-
- src/net/http/transport_test.go | 87 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 105 insertions(+), 2 deletions(-)
+ src/cmd/internal/gc/ssa.go                     | 371 ++++++++++++++++------
+ src/cmd/internal/obj/x86/6.out.go              |  32 +-
+ src/cmd/internal/ssa/check.go                  |   6 +-
+ src/cmd/internal/ssa/config.go                 |   6 +-
+ src/cmd/internal/ssa/generic.go                | 189 ++++++++----
+ src/cmd/internal/ssa/lower.go                  | 115 ++++---
+ src/cmd/internal/ssa/lowerAmd64.go             | 408 +++++++++++++------------
+ src/cmd/internal/ssa/op.go                     |  19 +-
+ src/cmd/internal/ssa/op_string.go              |  12 +-
+ src/cmd/internal/ssa/opamd64.go                |  57 ++--
+ src/cmd/internal/ssa/regalloc.go               |  43 ++-
+ src/cmd/internal/ssa/rewrite.go                |  33 +-
+ src/cmd/internal/ssa/rulegen/generic.rules     |  21 +-
+ src/cmd/internal/ssa/rulegen/lower_amd64.rules |  49 +--
+ src/cmd/internal/ssa/rulegen/rulegen.go        |  35 ++-
+ src/cmd/internal/ssa/stackalloc.go             |  12 +-
+ 16 files changed, 905 insertions(+), 503 deletions(-)

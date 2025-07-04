@@ -1,17 +1,17 @@
-commit 81acd308a4577af3f0c3e191b16e125c5d10bbf4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 16 14:15:23 2017 -0800
+commit 61ffec4b52f64793ad450d1a2d8c4144fa3d5f18
+Author: Quentin Renard <contact@asticode.com>
+Date:   Sat Oct 8 15:52:25 2016 +0200
 
-    math/bits: expand doc strings for all functions
+    net/http: returned typed error on Transport proxy dial
     
-    Follow-up on https://go-review.googlesource.com/36315.
-    No functionality change.
+    Fixes #16997
     
-    For #18616.
-    
-    Change-Id: Id4df34dd7d0381be06eea483a11bf92f4a01f604
-    Reviewed-on: https://go-review.googlesource.com/37140
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9ca27d8cff1905584862997d0e8a11ce3c4c21cb
+    Reviewed-on: https://go-review.googlesource.com/30750
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/bits/bits.go | 136 +++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 101 insertions(+), 35 deletions(-)
+ src/net/http/transport.go      |  3 ++-
+ src/net/http/transport_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 1 deletion(-)

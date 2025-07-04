@@ -1,22 +1,20 @@
-commit c8bd8010ff7c0115bf186443119216ba51f09d2b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Jan 28 19:19:47 2021 +1100
+commit c0e8e405c02388fb8e7d3bea092f5aa8b19b2ad9
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Tue May 26 17:45:11 2020 +0300
 
-    syscall: generate readlen/writelen for openbsd libc
+    cmd/go: clean -cache -n should not delete cache
     
-    Rather than hand rolling readlen and writelen, move it to being generated
-    via mksyscall.pl, as is done for most other functions.
+    Uses the `cfg.BuildN` flag to avoid deleting inside the `if cleanCache`
+    block. Introduces a test in src/cmd/go/testdata/script.
     
-    Updates #36435
+    Fixes #39250
     
-    Change-Id: I649aed7b182b41c8639686feae25ce19dab812c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/287532
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I857c441b1d7aa7c68cfd646d6833e6eaca5b18d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235140
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/syscall/syscall_openbsd_libc.go   | 28 ++++++----------------------
- src/syscall/zsyscall_openbsd_amd64.go | 22 ++++++++++++++++++++++
- src/syscall/zsyscall_openbsd_arm64.go | 22 ++++++++++++++++++++++
- 3 files changed, 50 insertions(+), 22 deletions(-)
+ src/cmd/go/internal/clean/clean.go           | 25 ++++++++++++++++---------
+ src/cmd/go/testdata/script/clean_cache_n.txt | 25 +++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 9 deletions(-)

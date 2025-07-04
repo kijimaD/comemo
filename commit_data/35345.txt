@@ -1,18 +1,26 @@
-commit 814c749c8fa815a8ddf8184bcac8990ef0dea006
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 4 14:32:59 2018 -0700
+commit fc31d4e28d65a2843c45352170a189b5e64cdb58
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 16 15:28:57 2018 -0800
 
-    cmd/go: force untranslated output when running GCC/clang driver
+    go/parser: improved error recovery after missing type
     
-    When we look for the tool ID to use for a compiler, force untranslated
-    output so that we can match the literal string "version".
+    R=go1.11
     
-    Fixes https://gcc.gnu.org/PR84765
+    This CL also introduces a new TODO in parser.go. To be
+    addressed in a separate CL to make this easier to review.
     
-    Change-Id: I607df445dbd3c5a7c3a6907601adcb039ac16fc1
-    Reviewed-on: https://go-review.googlesource.com/111575
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Also: Make parser's test harness easier to use by ignoring
+    auto-inserted (invisible) semicolons when computing error
+    positions. Adjusted testdata/commas.src accordingly.
+    
+    Fixes #23434.
+    
+    Change-Id: I050592d11d5f984f71185548394c000eea509205
+    Reviewed-on: https://go-review.googlesource.com/87898
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/work/buildid.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/go/parser/error_test.go           |  6 +++++
+ src/go/parser/parser.go               | 42 ++++++++++++++++++++++++++++-------
+ src/go/parser/testdata/commas.src     |  4 ++--
+ src/go/parser/testdata/issue23434.src | 25 +++++++++++++++++++++
+ 4 files changed, 67 insertions(+), 10 deletions(-)

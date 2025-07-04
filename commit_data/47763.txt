@@ -1,20 +1,40 @@
-commit 766f89b5c625f8c57492cf5645576d9e6f450cc2
-Author: Tim King <taking@google.com>
-Date:   Thu Dec 9 11:06:25 2021 -0800
+commit 74f49f3366826f95a464cc15838a0668c92e3357
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 7 17:11:48 2021 -0700
 
-    doc: document cmd/vet changes for 1.18 release
+    [dev.fuzz] internal/fuzz: implement coverage and trace instrumentation
     
-    cmd/vet has several precision improvements for the checkers copylock, printf, sortslice, testinggoroutine, and tests. Adds a high level mention in the release notes and an example of string constant concatenation.
+    This CL makes two main changes to allow internal/fuzz to support
+    -d=libfuzzer instrumentation:
     
-    Updates #47694
+    1. It extends cmd/link to define _counters and _ecounters symbols so
+    internal/fuzz can find the coverage counters.
     
-    Change-Id: I7a342a57ca3fd9e2f3e8ec99f7b647269798317f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370734
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Trust: Tim King <taking@google.com>
-    Run-TryBot: Tim King <taking@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    2. It adds "trace" stub functions that implement the ABI expected by
+    cmd/compile for comparison instrumentation.
+    
+    N.B., that -tags=libfuzzer should *not* be set, so that
+    internal/fuzz's trace routines will be used instead of runtime's
+    libfuzzer trampolines.
+    
+    Also, the current implementation doesn't support multi-module builds
+    (i.e., compiling a Go program that spans multiple .so/.dll files).
+    Presumably this isn't an issue, since "go test -fuzz" will need to
+    recompile the binary with instrumentation anyway so it can make sure
+    to always use a single-module build. But we can revisit this if
+    necessary.
+    
+    Change-Id: I9b1619119ab7477bebcfd5988b4b60499a7ab0d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308289
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.18.html | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/link/internal/ld/data.go | 24 ++++++++++++++++--------
+ src/internal/fuzz/coverage.go    | 23 ++++++++++++++++++++++-
+ src/internal/fuzz/trace.go       | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 9 deletions(-)

@@ -1,14 +1,16 @@
-commit ffccc026cb027136234be4ed5d58906f88d5034c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Jul 30 18:02:09 2011 -0700
+commit 7162f39fc322f16624814363f2fc7ca5bad15d4e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Jul 30 17:11:52 2011 -0700
 
-    exp/norm: correct package doc comment
+    exp/template: fix endless loop
     
-    Fixes #2118.
+    No progress was made in indirect() if the reflect.Value
+    was an non-nil and non-empty interface.
     
-    R=golang-dev, r, iant
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/4815073
+    https://golang.org/cl/4810060
 
- src/pkg/exp/norm/normalize.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/template/exec.go      |  6 +++---
+ src/pkg/exp/template/exec_test.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 3 deletions(-)

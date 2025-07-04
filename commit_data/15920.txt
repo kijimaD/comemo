@@ -1,14 +1,13 @@
-commit 2f2f9fef90d8397e666eed45b312d055099cb218
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Mar 25 13:25:28 2013 +0900
+commit 976d99b9a883631af276a4cd8e0205095457b430
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 25 03:18:05 2013 +0800
 
-    net: disable tests with controlling network facilities in short mode
+    build, cmd/5l: actually report failures for -linkmode tests
     
-    Perhaps it would make FreeBSD 10-CURRENT/ARM on Raspberry Pi builders happy.
-    
-    R=golang-dev, dave
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/8008043
+    https://golang.org/cl/7938046
 
- src/pkg/net/interface_unix_test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/5l/obj.c | 4 +++-
+ src/run.bash     | 1 +
+ 2 files changed, 4 insertions(+), 1 deletion(-)

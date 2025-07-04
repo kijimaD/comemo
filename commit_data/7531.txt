@@ -1,16 +1,13 @@
-commit a1368a6ad0f413c57b2487806c7058146b21678b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 22 15:31:57 2011 -0800
+commit 52943bfe4d1a85e64e35a5c1173ce04ae2b98bb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 22 18:23:29 2011 -0500
 
-    go spec: make condition mandatory in if statements
+    gc: require if condition
     
-    Plus a few minor HTML fixes.
-    
-    Fixes #1535.
-    
-    R=r, rsc, ken2, iant, r2
+    R=ken2, r2
     CC=golang-dev
-    https://golang.org/cl/4185065
+    https://golang.org/cl/4195045
 
- doc/go_spec.html | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/gc/go.y   |  9 +++++++--
+ test/syntax/if.go | 15 +++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

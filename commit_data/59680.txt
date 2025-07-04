@@ -1,41 +1,68 @@
-commit edcde86990abd9d7336eee5115b63d8c0863a5dd
+commit 1bac2528fc83f0b75c436184c010697198eb0782
 Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed May 21 23:55:43 2025 +0200
+Date:   Wed Dec 6 16:51:11 2023 +0100
 
-    crypto,hash: add and implement hash.Cloner
+    crypto/internal/mlkem768: new package
     
-    Fixes #69521
+    This was initially developed at github.com/FiloSottile/mlkem768.
     
-    Co-authored-by: qiulaidongfeng <2645477756@qq.com>
-    Change-Id: I6a6a465652f5ab7e6c9054e826e17df2b8b34e41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675197
+    + 5ce9162 - mlkem768,xwing: add SeedSize <Filippo Valsorda>
+    + b43add9 - mlkem768,xwing: add NewKeyFromSeed <Filippo Valsorda>
+    + e000fa4 - mlkem768: improve RoundTrip benchmark <Filippo Valsorda>
+    + 344d5ee - mlkem768: add exhaustive tests for compress and decompress (#4) <David Buchanan>
+    + 08fb36c - mlkem768: do not panic <Filippo Valsorda>
+    + 9e9fcc2 - mlkem768: add proposed Wycheproof test vectors <Filippo Valsorda>
+    + 5e630b8 - mlkem768: add more tests <Filippo Valsorda>
+    + e3fb5df - mlkem768: add TestUnluckyVector <Filippo Valsorda>
+    + 3f410e9 - mlkem768: add accumulated pq-crystals vectors <Filippo Valsorda>
+    + 9897e2f - mlkem768: add other known test vectors <Filippo Valsorda>
+    + cffbfb9 - mlkem768: update sampleNTT comment <Filippo Valsorda>
+    + df1b265 - mlkem768: use uint16 reads, simpler bit twiddling <Josh Bleecher Snyder>
+    + 50a7fad - mlkem768: unroll ntt inner loop <Josh Bleecher Snyder>
+    + cd8140e - mlkem768: avoid extra data copies <Josh Bleecher Snyder>
+    + 0c68443 - mlkem768: buffer reads from sha3 <Josh Bleecher Snyder>
+    + bb784ff - mlkem768: create README.md <Filippo Valsorda>
+    + 35e7ada - mlkem768: add package docs and LICENSE <Filippo Valsorda>
+    + 2e6a3df - mlkem768: drop performance optimization notes <Filippo Valsorda>
+    + d5449de - mlkem768: add benchmarks <Filippo Valsorda>
+    + 3294fee - mlkem768: implement ML-KEM <Filippo Valsorda>
+    + 4cb306e - mlkem768: reimplement compress and decompress <Filippo Valsorda>
+    + 48e4c4c - mlkem768: fix AHat draft spec typo <Filippo Valsorda>
+    + c34ddcf - mlkem768: make better use of constants <Filippo Valsorda>
+    + 3b485e1 - mlkem768: initial commit, a full K-PKE implementation <Filippo Valsorda>
+    
+    Submitting changes on behalf of Josh Bleecher Snyder as authorized at
+    https://go-review.googlesource.com/c/go/+/547357/comment/61f8433f_04dc9c5d/
+    and of David Buchanan as authorized at
+    https://github.com/FiloSottile/mlkem768/pull/4#issuecomment-1975330952.
+    
+    Updates #64537
+    
+    Change-Id: I50607336282434d64a1255901b0ef40dbfd47e91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550215
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- api/next/69521.txt                               |  9 +++++
- doc/next/6-stdlib/99-minor/crypto/sha3/69521.md  |  1 +
- doc/next/6-stdlib/99-minor/hash/69521.md         |  2 ++
- doc/next/6-stdlib/99-minor/hash/maphash/69521.md |  1 +
- src/crypto/hmac/hmac_test.go                     | 12 +++++++
- src/crypto/internal/cryptotest/hash.go           |  6 ++++
- src/crypto/internal/fips140/hmac/hmac.go         | 26 +++++++++++++++
- src/crypto/internal/fips140/sha256/sha256.go     |  6 ++++
- src/crypto/internal/fips140/sha512/sha512.go     |  6 ++++
- src/crypto/md5/md5.go                            |  5 +++
- src/crypto/md5/md5_test.go                       |  9 ++++-
- src/crypto/sha1/sha1.go                          |  5 +++
- src/crypto/sha1/sha1_test.go                     |  9 ++++-
- src/crypto/sha256/sha256_test.go                 | 15 ++++++---
- src/crypto/sha3/sha3.go                          |  6 ++++
- src/crypto/sha3/sha3_test.go                     | 15 +++++----
- src/crypto/sha512/sha512_test.go                 | 23 ++++++++-----
- src/hash/adler32/adler32.go                      |  5 +++
- src/hash/crc32/crc32.go                          |  5 +++
- src/hash/crc64/crc64.go                          |  5 +++
- src/hash/fnv/fnv.go                              | 30 +++++++++++++++++
- src/hash/hash.go                                 | 12 +++++++
- src/hash/maphash/maphash.go                      | 10 +++++-
- src/internal/testhash/hash.go                    | 42 ++++++++++++++++++++++++
- 24 files changed, 243 insertions(+), 22 deletions(-)
+ src/compress/gzip/issue14937_test.go               |   4 +
+ src/crypto/internal/mlkem768/mlkem768.go           | 813 +++++++++++++++++++++
+ src/crypto/internal/mlkem768/mlkem768_test.go      | 438 +++++++++++
+ src/go/build/deps_test.go                          |   7 +-
+ src/vendor/golang.org/x/crypto/sha3/doc.go         |  62 ++
+ src/vendor/golang.org/x/crypto/sha3/hashes.go      |  97 +++
+ .../golang.org/x/crypto/sha3/hashes_generic.go     |  27 +
+ src/vendor/golang.org/x/crypto/sha3/keccakf.go     | 414 +++++++++++
+ .../golang.org/x/crypto/sha3/keccakf_amd64.go      |  13 +
+ .../golang.org/x/crypto/sha3/keccakf_amd64.s       | 390 ++++++++++
+ src/vendor/golang.org/x/crypto/sha3/register.go    |  18 +
+ src/vendor/golang.org/x/crypto/sha3/sha3.go        | 197 +++++
+ src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go  | 288 ++++++++
+ src/vendor/golang.org/x/crypto/sha3/sha3_s390x.s   |  33 +
+ src/vendor/golang.org/x/crypto/sha3/shake.go       | 172 +++++
+ .../golang.org/x/crypto/sha3/shake_generic.go      |  19 +
+ src/vendor/golang.org/x/crypto/sha3/xor.go         |  23 +
+ src/vendor/golang.org/x/crypto/sha3/xor_generic.go |  28 +
+ .../golang.org/x/crypto/sha3/xor_unaligned.go      |  66 ++
+ src/vendor/modules.txt                             |   1 +
+ 20 files changed, 3108 insertions(+), 2 deletions(-)

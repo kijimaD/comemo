@@ -1,17 +1,30 @@
-commit 4a4e3b0bc7e74aa45ac29bf1446e9af69ec13dcd
-Author: Keith Randall <khr@google.com>
-Date:   Mon Aug 6 10:42:28 2018 -0700
+commit 9ecf899b295c3661bb6ad0e7345fb479986d13f0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Apr 29 22:17:23 2018 +0900
 
-    cmd/compile: remove vet-blocking hack
+    cmd: remove some unnecessary gotos
     
-    ...and add the vet failures to the vet whitelist.
+    Pick the low-hanging fruit, which are the gotos that don't go very far
+    and labels that aren't used often. All of them have easy replacements
+    with breaks and returns.
     
-    Change-Id: Idcf4289f39dda561c85f3b0afe396e5299e6495f
-    Reviewed-on: https://go-review.googlesource.com/127995
-    Run-TryBot: Keith Randall <khr@golang.org>
+    One slightly tricky rewrite is defaultlitreuse. We cannot use a defer
+    func to reset lineno, because one of its return paths does not reset
+    lineno, and thus broke toolstash -cmp.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: Id1c0967868d69bb073addc7c5c3017ca91ff966f
+    Reviewed-on: https://go-review.googlesource.com/110063
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/testdata/novet.go |  9 ---------
- src/cmd/vet/all/whitelist/all.txt             | 19 +++++++++++++++++++
- 2 files changed, 19 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 15 ++++-----------
+ src/cmd/compile/internal/gc/walk.go  |  5 ++---
+ src/cmd/internal/obj/arm64/asm7.go   | 10 ++++------
+ src/cmd/internal/obj/mips/asm0.go    | 10 ++++------
+ src/cmd/internal/obj/mips/obj0.go    |  7 +++----
+ src/cmd/internal/obj/ppc64/asm9.go   | 10 ++++------
+ src/cmd/internal/obj/s390x/asmz.go   |  9 ++++-----
+ 7 files changed, 25 insertions(+), 41 deletions(-)

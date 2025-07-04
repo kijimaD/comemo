@@ -1,17 +1,23 @@
-commit 236fe24ed5e27e7b91e79f2e199b10fca13a99ba
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Apr 10 21:00:41 2024 +0800
+commit e7b04a3e166b47c1591eab13f4a451d939ae8941
+Author: Daniel Frederick Crisman <daniel@crisman.org>
+Date:   Thu Apr 13 21:34:31 2023 +0000
 
-    doc: update relnote for sync.Map.Clear
+    doc: correct spelling on placeholder
     
-    Change-Id: I28baf375502ccf3b0dfcc8250650e914ac7bae78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/577835
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    "placeholder" (no space) is already used in the spec and seems to be
+    the preferred option.
+    
+    Removed space from "place holder".
+    
+    Change-Id: I9b98f62f0e3f5adb019b99f5271cc9d19abf505e
+    GitHub-Last-Rev: ed5aaf9d02c294e87688066f6218e5d58b0f62bf
+    GitHub-Pull-Request: golang/go#59626
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484576
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- doc/next/6-stdlib/99-minor/sync/61696.md | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

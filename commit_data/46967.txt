@@ -1,20 +1,65 @@
-commit 3ff39c5eda6aa869cbc3a19237750fa7cf495832
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 20 12:18:40 2021 -0700
+commit 4dd77bdc910494adcd57fe9d87cd46f72d8d8985
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 15:21:33 2021 -0500
 
-    cmd/compile/internal/types2: use correct types when checking generic conversions
+    cmd/asm, cmd/link, runtime: introduce FuncInfo flag bits
     
-    Iterate through the actual, possibly defined types of constraints
-    when type-checking generic conversions, not the underlying types.
+    The runtime traceback code has its own definition of which functions
+    mark the top frame of a stack, separate from the TOPFRAME bits that
+    exist in the assembly and are passed along in DWARF information.
+    It's error-prone and redundant to have two different sources of truth.
+    This CL provides the actual TOPFRAME bits to the runtime, so that
+    the runtime can use those bits instead of reinventing its own category.
     
-    For #47150.
+    This CL also adds a new bit, SPWRITE, which marks functions that
+    write directly to SP (anything but adding and subtracting constants).
+    Such functions must stop a traceback, because the traceback has no
+    way to rederive the SP on entry. Again, the runtime has its own definition
+    which is mostly correct, but also missing some functions. During ordinary
+    goroutine context switches, such functions do not appear on the stack,
+    so the incompleteness in the runtime usually doesn't matter.
+    But profiling signals can arrive at any moment, and the runtime may
+    crash during traceback if it attempts to unwind an SP-writing frame
+    and gets out-of-sync with the actual stack. The runtime contains code
+    to try to detect likely candidates but again it is incomplete.
+    Deriving the SPWRITE bit automatically from the actual assembly code
+    provides the complete truth, and passing it to the runtime lets the
+    runtime use it.
     
-    Change-Id: Ia7af313bf46d6f6b0ad5292ff793b030b8e2d3d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357333
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: I227f53b23ac5b3dabfcc5e8ee3f00df4e113cf58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288800
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/compile/internal/types2/conversions.go           | 16 ++++++++--------
- .../internal/types2/testdata/examples/conversions.go2    | 14 ++++++++++++++
- 2 files changed, 22 insertions(+), 8 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go       |  2 +
+ src/cmd/asm/internal/flags/flags.go             |  2 +
+ src/cmd/asm/main.go                             |  1 +
+ src/cmd/compile/internal/test/fixedbugs_test.go |  2 +-
+ src/cmd/compile/internal/test/global_test.go    |  4 +-
+ src/cmd/internal/goobj/funcinfo.go              | 60 ++++++-------------------
+ src/cmd/internal/goobj/objfile.go               |  2 -
+ src/cmd/internal/obj/arm/obj5.go                | 16 +++++++
+ src/cmd/internal/obj/arm64/obj7.go              | 16 +++++++
+ src/cmd/internal/obj/link.go                    | 23 ++++++----
+ src/cmd/internal/obj/mips/obj0.go               | 16 +++++++
+ src/cmd/internal/obj/objfile.go                 | 12 +++--
+ src/cmd/internal/obj/plist.go                   | 10 ++++-
+ src/cmd/internal/obj/ppc64/obj9.go              | 16 +++++++
+ src/cmd/internal/obj/riscv/obj.go               | 16 +++++++
+ src/cmd/internal/obj/s390x/objz.go              | 16 +++++++
+ src/cmd/internal/obj/util.go                    |  2 +-
+ src/cmd/internal/obj/x86/obj6.go                | 15 +++++++
+ src/cmd/internal/objabi/funcid.go               | 11 ++++-
+ src/cmd/link/internal/ld/dwarf.go               |  4 +-
+ src/cmd/link/internal/ld/pcln.go                |  9 +++-
+ src/cmd/link/internal/loader/loader.go          | 37 +++++----------
+ src/runtime/runtime2.go                         |  9 ++--
+ src/runtime/symtab.go                           |  9 ++++
+ 24 files changed, 209 insertions(+), 101 deletions(-)

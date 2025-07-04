@@ -1,36 +1,16 @@
-commit cd94cabad6091af76c2d4950f11442bdb40b7b46
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 8 20:22:38 2013 -0800
+commit 1b8f51c91794e3fb90e582ba22ad06b6ad28e1d4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Mar 9 00:41:03 2013 +0100
 
-    cmd/ld: external linking fixes for linux/386
+    runtime: fix integer overflow in amd64 memmove.
     
-    The sticking point on 386 has been the "PC relative" relocations
-    used to point the garbage collection metadata at the type info.
-    These aren't in the code segment, and I don't trust that the linker
-    isn't doing something special that would be okay in code but
-    not when interpreting the pointers as data (for example, a PLT
-    jump table would be terrible).
+    Fixes #4981.
     
-    Solve the problem in two steps:
-    
-    1. Handle "PC relative" relocations within a section internally,
-    so that the external linker never sees them.
-    
-    2. Move the gcdata and gcbss tables into the rodata section,
-    where the type information lives, so that the relocations can
-    be handled internally.
-    
-    (To answer the obvious question, we make the gc->type
-    references relative so that they need not be relocated
-    individually when generating a shared object file.)
-    
-    R=golang-dev, iant
+    R=bradfitz, fullung, rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7629043
+    https://golang.org/cl/7474047
 
- src/cmd/ld/data.c   | 63 +++++++++++++++--------------------------------------
- src/cmd/ld/elf.c    |  4 +++-
- src/cmd/ld/lib.c    |  2 --
- src/cmd/ld/lib.h    |  2 --
- src/cmd/ld/symtab.c |  6 ++---
- 5 files changed, 22 insertions(+), 55 deletions(-)
+ src/pkg/runtime/memmove_amd64.s             |  5 ++-
+ src/pkg/runtime/memmove_linux_amd64_test.go | 61 +++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h                   |  2 +-
+ 3 files changed, 65 insertions(+), 3 deletions(-)

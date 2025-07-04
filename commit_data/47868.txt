@@ -1,31 +1,17 @@
-commit e39ab9b01cbbdac0750fc13fa8fb1de4f07aa79a
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Dec 15 18:42:00 2021 -0800
+commit 492faaeda8d1d673c4b5d7f3983f3fcd072608de
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Wed Apr 14 12:57:21 2021 +0200
 
-    cmd/compile: pop instantiations of local types when leaving scope
+    os/exec: replace os.Setenv with T.Setenv
     
-    Since we use existing instantiations from the symbol table when possible
-    (to make sure each instantiation is unique), we need to pop
-    instantiations of local types when leaving the containing scope.
-    g.stmts() now pushes and pops scope, and we do a Pushdcl() in g.typ0()
-    when creating an instantiation of a local type.
+    Updates #45448
     
-    Non-instantiated local types (generic or not) are translated directly
-    from types2, so they don't need to be pushed/popped. We don't export
-    function bodies with local types, so there is no issue during import.
-    
-    We still don't support local types in generic functions/methods.
-    
-    Fixes #50177
-    
-    Change-Id: If2d2fe71aec003d13f0338565c7a0da2c9580a14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372654
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I570e9894c4976d0a875388ef9ea4a2aa31b78013
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310031
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/noder/stmt.go  |   3 +
- src/cmd/compile/internal/noder/types.go |   9 ++-
- test/typeparam/issue50177.go            | 101 ++++++++++++++++++++++++++++++++
- 3 files changed, 112 insertions(+), 1 deletion(-)
+ src/os/exec/lp_unix_test.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

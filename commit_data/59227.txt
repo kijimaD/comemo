@@ -1,20 +1,17 @@
-commit 822031dffc43567b4c60e12e77afe48a00028c0e
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Thu Apr 3 23:10:16 2025 +0800
+commit dfb2a894744fddfc7a93e3045f8296fb8e22add4
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Tue Feb 20 06:20:13 2024 +0000
 
-    sync: add WaitGroup.Go
+    html/template: replace bytes.Compare call with bytes.Equal
     
-    Fixes #63796
-    
-    Change-Id: I2a941275dd64ef858cbf02d31a759fdc5c082ceb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662635
+    Change-Id: I1bd3fdf0ceb9a83dbcc07f55b81489eb2c82c9ba
+    GitHub-Last-Rev: 05d49d7fb921e59529f7105a93b4b7fba51ab525
+    GitHub-Pull-Request: golang/go#65418
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560115
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- api/next/63796.txt                       |  1 +
- doc/next/6-stdlib/99-minor/sync/63769.md |  2 ++
- src/sync/waitgroup.go                    | 47 ++++++++++++++++++++++++++++++--
- src/sync/waitgroup_test.go               | 12 ++++++++
- 4 files changed, 60 insertions(+), 2 deletions(-)
+ src/html/template/transition.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

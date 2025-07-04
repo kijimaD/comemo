@@ -1,15 +1,26 @@
-commit f6f125dd072ed16efdede5a28defe7d8c552a02c
-Author: griesemer <gri@golang.org>
-Date:   Tue Aug 15 13:46:16 2017 +0200
+commit dc444418d919b72f7744a521cc898252f3f355df
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Apr 17 18:46:09 2017 -0500
 
-    go/types: document that Signature.Recv() is ignored for type identity
+    cmd/internal: remove duplicate pathToPrefix function
     
-    Fixes #21367.
+    goobj.importPathToPrefix is 3x faster than gc.pathToPrefix so rename and
+    move it to cmd/internal/objabi which is already imported by both goobj and
+    gc.
     
-    Change-Id: I50704c5a613abcce57b340db8992c7bcb1cb728f
-    Reviewed-on: https://go-review.googlesource.com/55710
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I10eda5bce95ef6d5d888818c5c47258c2833ea45
+    Reviewed-on: https://go-review.googlesource.com/40875
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/predicates.go | 6 ++++--
- src/go/types/type.go       | 3 ++-
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/compile/fmt_test.go          |  1 -
+ src/cmd/compile/internal/gc/subr.go  | 30 +-------------------------
+ src/cmd/internal/goobj/read.go       | 41 +-----------------------------------
+ src/cmd/internal/goobj/read_test.go  | 28 ------------------------
+ src/cmd/internal/objabi/path.go      | 41 ++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/objabi/path_test.go | 33 +++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/data.go     |  2 +-
+ src/cmd/link/internal/ld/lib.go      | 35 +++---------------------------
+ src/cmd/link/internal/ld/objfile.go  |  8 +++----
+ 9 files changed, 84 insertions(+), 135 deletions(-)

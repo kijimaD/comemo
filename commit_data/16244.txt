@@ -1,12 +1,14 @@
-commit 5c0d782ab8a5bffab7de9c91ebfb7fe3f32de1bd
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 30 09:49:36 2013 -0700
+commit e2b2e0d8d19e747ffe2059ed8426f5b12b77ff0f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 30 09:47:23 2013 -0400
 
-    cmd/ld: another attempt at the relocation overflow fix
+    doc/go1.1: remove discussion of "go run" change
     
-    R=golang-dev, iant
+    Update #5164
+    
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/9036046
+    https://golang.org/cl/9049043
 
- src/cmd/ld/data.c | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ doc/go1.1.html | 10 ----------
+ 1 file changed, 10 deletions(-)

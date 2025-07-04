@@ -1,14 +1,23 @@
-commit ece4e23d9aaed3e11f7a0b9a3f15c592c96b065d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Oct 22 06:39:12 2016 -0700
+commit 3de7dbb19145dcc6b7db8da7aef695961dbb5ece
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 19 16:03:14 2016 -0400
 
-    net/http: document Transport.ExpectContinueTimeout a bit more
+    runtime: fix check for vacuous page boundary rounding again
     
-    Fixes #16003
+    The previous fix for this, commit 336dad2a, had everything right in
+    the commit message, but reversed the test in the code. Fix the test in
+    the code.
     
-    Change-Id: I76a8da24b9944647ec40ef2ca4fc93c175ff5a25
-    Reviewed-on: https://go-review.googlesource.com/31723
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This reversal effectively disabled the scavenger on large page systems
+    *except* in the rare cases where this code was originally wrong, which
+    is why it didn't obviously show up in testing.
+    
+    Fixes #16644. Again. :(
+    
+    Change-Id: I27cce4aea13de217197db4b628f17860f27ce83e
+    Reviewed-on: https://go-review.googlesource.com/27402
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport.go | 4 +++-
+ src/runtime/mheap.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)

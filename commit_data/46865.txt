@@ -1,25 +1,38 @@
-commit 78d01be00b68d1f5c3f5eb493f053ba97adc92df
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Oct 12 11:54:09 2021 -0400
+commit 12e15d430d408ff9a961bdfb72cfc7f0b521a354
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Feb 8 14:33:51 2021 -0800
 
-    cmd/api: use placeholder names for type parameters
+    [dev.typeparams] cmd/compile: handle calling a method on a type param in stenciling
     
-    Changing type parameter names is not a breaking API change, so we should
-    not include these names in the output of cmd/api. Instead print a
-    placeholder '$<index>' wherever type parameters are referenced.
+     - Have to delay the extra transformation on methods invoked on a type
+       param, since the actual transformation (including path through
+       embedded fields) will depend on the instantiated type. I am currently
+       doing the transformation during the stencil substitution phase. We
+       probably should have a separate pass after noder2 and stenciling,
+       which drives the extra transformations that were in the old
+       typechecker.
     
-    This is valid for cmd/api as there is at most one type parameter list in
-    scope for any exported declaration. If we ever support method type
-    parameters, we'll need to revisit this syntax.
+     - We handle method values (that are not called) and method calls. We
+       don't currently handle method expressions.
     
-    Change-Id: I7e677b1dab6ffeb0b79afefdb8d2580bef93891c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355389
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+     - Handle type substitution in function types, which is needed for
+       function args in generic functions.
+    
+     - Added stringer.go and map.go tests, testing the above changes
+       (including constraints with embedded interfaces).
+    
+    Change-Id: I3831a937d2b8814150f75bebf9f23ab10b93fa00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290550
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/api/goapi.go                       | 5 +++--
- src/cmd/api/testdata/src/pkg/p4/golden.txt | 9 +++++----
- src/cmd/api/testdata/src/pkg/p4/p4.go      | 4 ++++
- 3 files changed, 12 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/expr.go    | 19 +++++--
+ src/cmd/compile/internal/noder/helpers.go | 10 ++++
+ src/cmd/compile/internal/noder/stencil.go | 77 +++++++++++++++++++++++----
+ src/cmd/compile/internal/types/type.go    |  1 +
+ test/typeparam/map.go                     | 39 ++++++++++++++
+ test/typeparam/stringer.go                | 88 +++++++++++++++++++++++++++++++
+ 6 files changed, 219 insertions(+), 15 deletions(-)

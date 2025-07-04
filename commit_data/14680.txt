@@ -1,12 +1,15 @@
-commit 5b46fc417fdc908fd41d1e88a909d8e92a29504c
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Dec 18 12:19:04 2012 +1100
+commit 81b46f1bcd082f255402d936f7d1e8c95389756a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Dec 17 22:29:43 2012 +0100
 
-    go/doc: add "hdr-" prefix to headers generated from package overviews.
+    cmd/6g: fix componentgen for funarg structs.
     
-    R=golang-dev, bradfitz, gri
+    Fixes #4518.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6935071
+    https://golang.org/cl/6932045
 
- src/pkg/go/doc/comment.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/6g/cgen.c           |  6 ++++
+ test/fixedbugs/issue4518.go | 67 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+)

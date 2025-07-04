@@ -1,18 +1,15 @@
-commit 5626bd9e383f692c4f52049a6a5ba4b7785fa6f9
+commit c63a88072b581eb6f77087daced3bd1ed62d3ba3
 Author: Adam Langley <agl@golang.org>
-Date:   Sat Feb 5 13:54:25 2011 -0500
+Date:   Sat Feb 5 12:06:42 2011 -0500
 
-    crypto/tls: load a chain of certificates from a file.
+    crypto/openpgp/packet: two more packet types.
     
-    Many recently issued certificates are chained: there's one or more
-    intermediate certificates between the host certificate and the root CA
-    certificate. This change causes the code to load any number of
-    certificates from the certificate file. This matches the behaviour of
-    common webservers, and the output of OpenSSL's command line tools.
-    
-    R=golang-dev, r2
+    R=bradfitzgo, r
     CC=golang-dev
-    https://golang.org/cl/4119057
+    https://golang.org/cl/4124054
 
- src/pkg/crypto/tls/tls.go | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ src/pkg/crypto/openpgp/packet/compressed.go       |  39 +++++
+ src/pkg/crypto/openpgp/packet/compressed_test.go  |  41 ++++++
+ src/pkg/crypto/openpgp/packet/private_key.go      | 164 ++++++++++++++++++++++
+ src/pkg/crypto/openpgp/packet/private_key_test.go |  37 +++++
+ 4 files changed, 281 insertions(+)

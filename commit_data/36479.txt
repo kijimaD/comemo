@@ -1,22 +1,37 @@
-commit ed21535a60162372ae80b5e4e34be1ffe673eeb8
-Author: Keith Randall <khr@google.com>
-Date:   Tue Jul 31 14:20:22 2018 -0700
+commit 004260afdee7c2040f3b52e7517be4f172aa0d58
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 7 14:26:27 2017 -0800
 
-    cmd/compile: move over more compiler tests to new test infrastructure
+    cmd/compile: open code select{send,recv,default}
     
-    R=go1.12
+    Registration now looks like:
     
-    Update #26469
+            var cases [4]runtime.scases
+            var order [8]uint16
+            cases[0].kind = caseSend
+            cases[0].c = c1
+            cases[0].elem = &v1
+            if raceenabled || msanenabled {
+                    selectsetpc(&cases[0])
+            }
+            cases[1].kind = caseRecv
+            cases[1].c = c2
+            cases[1].elem = &v2
+            if raceenabled || msanenabled {
+                    selectsetpc(&cases[1])
+            }
+            ...
     
-    Change-Id: Iad75edfc194f8391a8ead09bfa68d446155e84ac
-    Reviewed-on: https://go-review.googlesource.com/127055
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib9bcf426a4797fe4bfd8152ca9e6e08e39a70b48
+    Reviewed-on: https://go-review.googlesource.com/37934
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/ssa_test.go            |  13 -
- .../gc/testdata/{arith.go => arith_test.go}        | 384 +++++--------
- src/cmd/compile/internal/gc/testdata/assert.go     | 147 -----
- .../compile/internal/gc/testdata/assert_test.go    | 128 +++++
- .../internal/gc/testdata/{fp.go => fp_test.go}     | 602 +++++++++------------
- 5 files changed, 537 insertions(+), 737 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 110 ++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
+ src/cmd/compile/internal/gc/select.go          |  85 ++++++++++++++-----
+ src/cmd/compile/internal/gc/ssa.go             |   2 +-
+ src/runtime/select.go                          |  65 +++++----------
+ test/live.go                                   |  20 ++---
+ 6 files changed, 151 insertions(+), 135 deletions(-)

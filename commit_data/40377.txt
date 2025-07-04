@@ -1,16 +1,14 @@
-commit 432ca0ea83d12519004c6f7f7c1728410923987f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 10 22:07:21 2019 -0700
+commit 591454c44c4157af1b05ef98607b23f17b3a0bc3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 8 18:40:20 2019 +0000
 
-    runtime: add new runtimer function
+    internal/syscall/windows/sysdll: mark package as Windows-only
     
-    Updates #27707
+    Updates #31920
     
-    Change-Id: I1e65effb708911c727d126c51e0f50fe219f42ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171878
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ie24ed5bab249e2f90d1740f42a8b8d94fd0983f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176019
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/time.go | 108 ++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 105 insertions(+), 3 deletions(-)
+ src/internal/syscall/windows/sysdll/sysdll.go | 2 ++
+ 1 file changed, 2 insertions(+)

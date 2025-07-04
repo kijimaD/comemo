@@ -1,17 +1,18 @@
-commit 718d6c5880fe3507b1d224789b29bc2410fc9da5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 16 10:44:06 2018 -0700
+commit 8615cbffe27c223230785502939ae14498f673ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 3 19:17:43 2017 -0400
 
-    crypto/x509: don't require C99 mode in Darwin cgo code
+    time: fix Time package doc paragraph order
     
-    Fixes #24425
+    Introduce the presence of the monotonic time reading first,
+    before the paragraph about comparison that mentions it multiple times.
     
-    Change-Id: I2aacbced8cd14da67fe9a4cbd62b434c18b5fce2
-    Reviewed-on: https://go-review.googlesource.com/101215
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I91e31e118be013eee6c258163a1bb2cb42501527
+    Reviewed-on: https://go-review.googlesource.com/76010
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/root_cgo_darwin.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/time/time.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

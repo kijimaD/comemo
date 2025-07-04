@@ -1,38 +1,27 @@
-commit d5f7da79870800ac2f7c2a68501f73a83d481d16
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Mon Aug 19 00:07:37 2024 +0300
+commit 87350393e684f1eb10f28b6b1d712a6d60093f49
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 11 15:15:51 2023 -0400
 
-    all: remove duplicated words in comments
+    cmd/go: fix GOTOOLCHAIN parsing for +auto
     
-    Change-Id: Id991ec0826a4e2857f00330b4b7ff2b71907b789
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606615
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    The call from toolchain.Select to gover.FromToolchain was passing the
+    wrong argument but this was masked by gover.IsValid being a little bit
+    too lax.
+    
+    Fix and test IsValid, which then breaks the existing gotoolchain_local
+    test, and then fix toolchain.Select to fix the test.
+    
+    Fixes #61068.
+    
+    Change-Id: I505ceb227457d6a51bd5e47f009b2fb1010c0d1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508820
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/bytes/bytes_test.go                               | 2 +-
- src/cmd/compile/internal/devirtualize/devirtualize.go | 2 +-
- src/cmd/compile/internal/devirtualize/pgo.go          | 2 +-
- src/cmd/compile/internal/ir/reassignment.go           | 2 +-
- src/cmd/compile/internal/liveness/intervals.go        | 2 +-
- src/cmd/compile/internal/liveness/mergelocals.go      | 2 +-
- src/cmd/compile/internal/ssa/prove.go                 | 2 +-
- src/cmd/compile/internal/types2/signature.go          | 2 +-
- src/cmd/compile/internal/types2/typeset.go            | 2 +-
- src/cmd/go/internal/modcmd/download.go                | 2 +-
- src/cmd/go/internal/modload/buildlist.go              | 4 ++--
- src/cmd/go/internal/modload/edit.go                   | 2 +-
- src/cmd/internal/objabi/reloctype.go                  | 2 +-
- src/cmd/internal/testdir/testdir_test.go              | 2 +-
- src/cmd/link/internal/ld/lib.go                       | 2 +-
- src/go/token/position.go                              | 2 +-
- src/go/types/signature.go                             | 2 +-
- src/go/types/typeset.go                               | 2 +-
- src/internal/trace/internal/oldtrace/parser.go        | 2 +-
- src/internal/trace/traceviewer/emitter.go             | 2 +-
- src/strings/strings_test.go                           | 2 +-
- src/syscall/syscall_wasip1.go                         | 4 ++--
- 22 files changed, 24 insertions(+), 24 deletions(-)
+ src/cmd/go/internal/gover/gover.go               |  3 +++
+ src/cmd/go/internal/gover/gover_test.go          | 19 +++++++++++++++++++
+ src/cmd/go/internal/gover/toolchain.go           |  2 +-
+ src/cmd/go/internal/toolchain/select.go          |  2 +-
+ src/cmd/go/testdata/script/gotoolchain_local.txt |  4 ++--
+ 5 files changed, 26 insertions(+), 4 deletions(-)

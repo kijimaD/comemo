@@ -1,19 +1,12 @@
-commit bb282baa93bbb3158f6e52cb1436286a544000e3
-Author: David Anderson <danderson@google.com>
-Date:   Fri Oct 14 09:19:45 2011 -0700
+commit 8225f4d71f701263181556218994bcf7464d74c7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 14 17:53:01 2011 +1100
 
-    syscall: adjust Mount to accomodate stricter FS implementations.
+    crypto/tls: disable root cert fetching to fix windows build
     
-    Notably, the "data" argument should be nil if no options are
-    given, or (at least) the cgroup filesystem will refuse to
-    mount.
-    
-    R=bradfitz, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5147047
+    https://golang.org/cl/5267044
 
- src/pkg/syscall/syscall_linux.go        | 11 ++++++++++-
- src/pkg/syscall/zsyscall_linux_386.go   | 16 ++++++++--------
- src/pkg/syscall/zsyscall_linux_amd64.go | 16 ++++++++--------
- src/pkg/syscall/zsyscall_linux_arm.go   | 16 ++++++++--------
- 4 files changed, 34 insertions(+), 25 deletions(-)
+ src/pkg/crypto/tls/root_windows.go | 3 +++
+ 1 file changed, 3 insertions(+)

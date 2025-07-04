@@ -1,15 +1,15 @@
-commit 5ad3bd99b5f997c55fa7c3d01eeeddc835631ba0
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 31 14:16:53 2016 -0400
+commit 266c6223df73c5f90d2da6e271c8a415392e066c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 16:19:50 2016 -0700
 
-    api: sort except.txt
+    cmd/compile: implement fmt.Formatter for Nodes formats %s, %v
     
-    Make it easier to find lines and update the file.
-    
-    Change-Id: I9db78ffd7316fbc17c5488e178e23777756d8f47
-    Reviewed-on: https://go-review.googlesource.com/32454
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iac3a72cb6c5394f3c1a49f39125b0256d570e006
+    Reviewed-on: https://go-review.googlesource.com/28339
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- api/except.txt | 182 ++++++++++++++++++++++++++++-----------------------------
- 1 file changed, 91 insertions(+), 91 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go |  2 +-
+ src/cmd/compile/internal/gc/fmt.go     | 57 +++++++++++++++++-----------------
+ src/cmd/compile/internal/gc/inl.go     |  8 ++---
+ src/cmd/compile/internal/gc/walk.go    |  2 +-
+ 4 files changed, 35 insertions(+), 34 deletions(-)

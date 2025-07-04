@@ -1,29 +1,19 @@
-commit d14c02a20ca6937d46e4bf67e328627b773786b1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 18 12:37:56 2022 -0700
+commit 02beecb3974e9010d2deefaf09266286b0c6f408
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 26 13:43:15 2021 -0700
 
-    test: remove obsolete test case that misuses -p
+    mime: document use of the Shared MIME-Info Database
     
-    bug302 compiles p.go with -p=p, and then manually creates a pp.a
-    archive, and imports it as both "p" and "pp". This is a misuse of
-    cmd/compile's -p flag, and it isn't representative of how any actual
-    Go build systems work anyway.
+    For #44513.
+    Fixes #46013.
     
-    This test made sense back when cmd/compile still wrote out bare object
-    files, which was then split into separate __.PKGDEF and _go_.o archive
-    entries when added to a pack archive. But since CL 102236, cmd/compile
-    always writes out pack files.
-    
-    Updates #51734.
-    
-    Change-Id: I4b5de22d348ecc0a72c98b512351c2d267c77736
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393896
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I382603208aa94b66d5220cf0f418b8528a4e4148
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322892
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/bug302.dir/main.go |   11 -
- test/fixedbugs/bug302.dir/p.go    | 1011 -------------------------------------
- test/fixedbugs/bug302.go          |   45 --
- 3 files changed, 1067 deletions(-)
+ doc/go1.17.html  | 4 +++-
+ src/mime/type.go | 6 ++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

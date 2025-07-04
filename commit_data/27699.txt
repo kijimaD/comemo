@@ -1,14 +1,31 @@
-commit 349f0fb89a11c9aa579bc0facab375d6ffb7ad43
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jun 20 15:33:52 2016 +1000
+commit 6fee4aa5c76612d133d2b01441e608cfa696bae9
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Apr 9 12:54:45 2016 +1000
 
-    doc: update architectures on source install instructions
+    cmd/link/internal: make ld.Bso a *bio.Writer
     
-    Fixes #16099
+    This is a pre requesite of CL 21722 and removes a lot of unidiomatic
+    boilerplate in the linker.
     
-    Change-Id: I334c1f04dfc98c4a07e33745819d890b5fcb1673
-    Reviewed-on: https://go-review.googlesource.com/24243
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If7491b88212b2be7b0c8c588e9c196839131f8ad
+    Reviewed-on: https://go-review.googlesource.com/21780
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/install-source.html | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/amd64/asm.go  | 16 ++++++-------
+ src/cmd/link/internal/arm/asm.go    | 12 +++++-----
+ src/cmd/link/internal/arm64/asm.go  | 12 +++++-----
+ src/cmd/link/internal/ld/ar.go      |  2 +-
+ src/cmd/link/internal/ld/data.go    | 46 ++++++++++++++++++-------------------
+ src/cmd/link/internal/ld/dwarf.go   |  2 +-
+ src/cmd/link/internal/ld/ldelf.go   |  8 +++----
+ src/cmd/link/internal/ld/ldpe.go    |  2 +-
+ src/cmd/link/internal/ld/lib.go     | 34 +++++++++++++--------------
+ src/cmd/link/internal/ld/pcln.go    |  2 +-
+ src/cmd/link/internal/ld/pobj.go    | 15 ++++++------
+ src/cmd/link/internal/mips64/asm.go | 12 +++++-----
+ src/cmd/link/internal/ppc64/asm.go  | 12 +++++-----
+ src/cmd/link/internal/s390x/asm.go  | 14 +++++------
+ src/cmd/link/internal/x86/asm.go    | 14 +++++------
+ 15 files changed, 102 insertions(+), 101 deletions(-)

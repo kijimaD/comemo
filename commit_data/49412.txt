@@ -1,18 +1,17 @@
-commit d2630aa4b20b6ebd2a5a37628c2f1b9d7158621f
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Jun 3 11:48:43 2022 -0700
+commit d3deb2c359ec1d3b9fbfdfa224c0f03ecdde2c02
+Author: wangyuntao <ytcoode@gmail.com>
+Date:   Tue Aug 17 03:24:15 2021 +0000
 
-    doc/go1.19: add various crypto release notes
+    cmd/compile: fix typos
     
-    For #51400
-    
-    Change-Id: I908f53a54c6603e1bf2c9238cd51cf5c4a24407b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410295
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+    Change-Id: I88a3e69e232bf94296fe97621c5d395fc1296bbb
+    GitHub-Last-Rev: f1cc29dc287eb02881fead0b815e1b45e23adfa4
+    GitHub-Pull-Request: golang/go#47482
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338751
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/go1.19.html | 77 ++++++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 68 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/escape/graph.go | 2 +-
+ src/cmd/compile/internal/ir/expr.go      | 2 +-
+ src/cmd/compile/internal/ir/stmt.go      | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

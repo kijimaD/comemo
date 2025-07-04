@@ -1,13 +1,19 @@
-commit 4ad64cadf8a5d1b57c8af4ae146d83cd0ea97cae
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 11 17:50:22 2015 -0500
+commit 9358f7fa6117445af2775076600d8df76616a7fc
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Thu Oct 15 19:00:12 2015 -0700
 
-    runtime: trace sweep completion in gcpacertrace mode
+    runtime: merge panic1.go into panic.go
     
-    Change-Id: I7991612e4d064c15492a39c19f753df1db926203
-    Reviewed-on: https://go-review.googlesource.com/17747
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    A TODO to merge is removed from panic1.go.
+    The rest is appended to panic.go
+    
+    Updates #12952
+    
+    Change-Id: Ied4382a455abc20bc2938e34d031802e6b4baf8b
+    Reviewed-on: https://go-review.googlesource.com/15905
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgcsweep.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/panic.go  | 142 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/panic1.go | 150 --------------------------------------------------
+ 2 files changed, 142 insertions(+), 150 deletions(-)

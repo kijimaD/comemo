@@ -1,27 +1,19 @@
-commit 93477f0770a1a0514916e458d077d767787d72f5
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 11 16:20:36 2023 -0400
+commit 14abe8aa7324bdf0e09e1dfebfb3519cc30f4918
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jul 1 16:33:54 2022 +0700
 
-    cmd/dist: add -json flag
+    cmd/compile: don't convert to interface{} for un-comparable types in generic switch
     
-    This enables JSON output for all tests run by dist.
+    Fixes #53635
     
-    Most the complexity here is that, in order to disambiguate JSON
-    records from different package variants, we have to rewrite the JSON
-    stream on the fly to include variant information. We do this by
-    rewriting the Package field to be pkg:variant so existing CI systems
-    will naturally pick up the disambiguated test name.
-    
-    Fixes #37486.
-    
-    Change-Id: I0094e5e27b3a02ffc108534b8258c699ed8c3b87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494958
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I41f383be8870432fc0d29fa83687911ddd8217f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415634
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/test.go          |  96 +++++++++++++++++++----
- src/cmd/dist/testjson.go      | 176 ++++++++++++++++++++++++++++++++++++++++++
- src/cmd/dist/testjson_test.go |  86 +++++++++++++++++++++
- 3 files changed, 344 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  3 +++
+ test/fixedbugs/issue53635.go              | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

@@ -1,15 +1,12 @@
-commit 42973dddf46876119cfba7f44eb190de56f3144b
-Author: Kyle Consalus <consalus@gmail.com>
-Date:   Fri Feb 4 16:37:30 2011 -0800
+commit eeafc06538bd137bab71c745e94c1219d99134ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 4 15:36:32 2011 -0800
 
-    template: Add simple formatter chaining.
+    gofmt: no need for lexical compare of src and res (optimization)
     
-    Fixes #676.
-    
-    R=r, rsc, r2
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4127043
+    https://golang.org/cl/4130046
 
- src/pkg/template/template.go      |  91 +++++++++++++++------------
- src/pkg/template/template_test.go | 126 +++++++++++++++++++++++++-------------
- 2 files changed, 137 insertions(+), 80 deletions(-)
+ src/cmd/gofmt/gofmt.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

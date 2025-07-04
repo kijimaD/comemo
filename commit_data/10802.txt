@@ -1,18 +1,29 @@
-commit c26ca912e500bd0e681cfda366d3b69f8769c9c2
-Author: Rob Pike <r@golang.org>
-Date:   Wed Dec 14 21:52:41 2011 -0800
+commit 2ad8a9c507ede9621bb1cd1f8d02f6cdac7a9e88
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 14 22:42:42 2011 -0500
 
-    spec: skip carriage returns in raw literals
+    go: implement build, install, run
     
-    This change guarantees that whether the line ending convention
-    when the source is created includes carriage returns is irrelevant
-    to the value of the string. See issue 680.
+    clean is gone; all the intermediate files are created
+    in a temporary tree that is wiped when the command ends.
     
-    The compilers do not yet implement this.
+    Not using go/build's Script because it is not well aligned
+    with this API.  The various builder methods are copied from
+    go/build and adapted.  Probably once we delete goinstall
+    we can delete the Script API too.
     
-    R=golang-dev, adg, r, gri, rsc, iant
+    R=rogpeppe, adg, adg
     CC=golang-dev
-    https://golang.org/cl/5491043
+    https://golang.org/cl/5483069
 
- doc/go_spec.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/cgo/gcc.go  |  20 +-
+ src/cmd/cgo/main.go |  12 +-
+ src/cmd/cgo/out.go  |  36 ++--
+ src/cmd/go/Makefile |   2 +-
+ src/cmd/go/build.go | 589 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/go/clean.go |  31 ---
+ src/cmd/go/list.go  |  11 +-
+ src/cmd/go/main.go  |  78 ++++++-
+ src/cmd/go/pkg.go   |  34 ++-
+ src/cmd/go/run.go   |  47 +++++
+ 10 files changed, 778 insertions(+), 82 deletions(-)

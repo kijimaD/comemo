@@ -1,18 +1,24 @@
-commit 58244eee01e58c383f501207afd9cb90ec060602
+commit 06915ac14dfb7c80f384e3446bc6fa474e6bfa94
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 2 12:14:47 2021 -0700
+Date:   Sat Dec 19 19:26:06 2020 -0800
 
-    test: only test -G=3 by default
+    [dev.regabi] cmd/compile: move itabname call out of implements
     
-    -G=0 is in maintenance mode, so limit testing it to the longtest
-    builders.
+    We only need to call itabname when actually creating the OCONVIFACE
+    ops, not any time we test whether a type implements an
+    interface. Additionally, by moving this call out of implements, we
+    make it purely based on types, which makes it safe to move to package
+    types.
     
-    Change-Id: Ie8a01866b506183d0201f2a3730377cfa663da80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347298
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Does not pass toolstash -cmp, because it shuffles symbol creation
+    order.
+    
+    Change-Id: Iea8e0c9374218f4d97b4339020ebd758d051bd03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279333
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- test/run.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

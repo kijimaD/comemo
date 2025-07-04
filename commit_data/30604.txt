@@ -1,23 +1,17 @@
-commit 91563ced5897faf729a34be7081568efcfedda31
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Mar 9 13:20:54 2017 +0100
+commit 26069e1981ba8500baf35ff5aec79531e4882543
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Nov 16 14:28:12 2016 +0000
 
-    time: make the ParseInLocation test more robust
+    cmd/compile: remove some unused code
     
-    The tzdata 2017a update (2017-02-28) changed the abbreviation of the
-    Asia/Baghdad time zone (used in TestParseInLocation) from 'AST' to the
-    numeric '+03'.
+    The use of these has been removed in recent commits.
     
-    Update the test so that it skips the checks if we're using a recent
-    tzdata release.
-    
-    Fixes #19457
-    
-    Change-Id: I45d705a5520743a611bdd194dc8f8d618679980c
-    Reviewed-on: https://go-review.googlesource.com/37964
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iff36a3ee4dcdfe39c40e93e2601f44d3c59f7024
+    Reviewed-on: https://go-review.googlesource.com/33274
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/format_test.go | 41 +++++++++++++++++++++++++++++++----------
- 1 file changed, 31 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/swt.go  |  3 ---
+ src/cmd/compile/internal/gc/walk.go | 37 -------------------------------------
+ 2 files changed, 40 deletions(-)

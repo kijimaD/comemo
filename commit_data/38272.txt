@@ -1,22 +1,18 @@
-commit 1650f1ba0b964a06a242c3318e85b3b46f010614
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Mar 6 14:24:29 2019 -0500
+commit 3785be3093ef8a8ea3c71ff9608451de1ad85db8
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Oct 16 04:02:03 2018 +0000
 
-    cmd/go: drop support for binary-only packages
+    test/codegen: fix confusing test cases
     
-    Fixes #28152
+    ARMv7's MULAF/MULSF/MULAD/MULSD are not fused,
+    this CL fixes the confusing test cases.
     
-    Change-Id: I98db923bdf8de7acf2df452313427bfea43b63c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165746
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I35022e207e2f0d24a23a7f6f188e41ba8eee9886
+    Reviewed-on: https://go-review.googlesource.com/c/142439
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Akhil Indurti <aindurti@gmail.com>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/go/alldocs.go                      | 11 +------
- src/cmd/go/go_test.go                      | 51 +++++-------------------------
- src/cmd/go/internal/help/helpdoc.go        |  9 ------
- src/cmd/go/internal/list/list.go           |  2 +-
- src/cmd/go/internal/work/exec.go           | 18 ++---------
- src/cmd/go/testdata/script/binary_only.txt | 12 -------
- src/go/build/doc.go                        | 24 ++++++++------
- 7 files changed, 27 insertions(+), 100 deletions(-)
+ test/codegen/floats.go | 4 ----
+ 1 file changed, 4 deletions(-)

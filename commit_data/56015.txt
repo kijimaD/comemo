@@ -1,33 +1,22 @@
-commit aa1b50e1793dcbd5a23470bffd983d7c127b6cd3
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Feb 28 23:25:52 2024 +0000
+commit ca26c9835109f8f3e72bbc069a6361bdf24e271d
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Thu Mar 30 12:14:55 2023 -0700
 
-    runtime: make tidExists more robust
+    cmd/go: add wasip1 to modindex syslist
     
-    The LockThreadExit tests in the runtime have been observed to fail after
-    reading /proc/self/task/<tid>/stat and blindly assuming its contents
-    followed a specific format. The parsing code is also wrong, because
-    splitting by spaces doesn't work when the comm name contains a space.
-    It also ignores errors without reporting them, which isn't great.
+    This was intended to be merged together with changes in CL 479616.
     
-    This change rewrites tidExists to be more robust by using
-    /proc/self/task/<tid>/status instead. It also modifies tidExists'
-    signature to report an error to its caller. Its caller then prints that
-    error.
+    For #58141
     
-    Ignoring a non-not-exist error with opening this file is the likely but
-    unconfirmed cause of #65736 (ESRCH). This change also checks for that
-    error explicitly as an optimistic fix.
-    
-    Fixes #65736.
-    
-    Change-Id: Iea560b457d514426da2781b7eb7b8616a91ec23b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567938
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I76c38d3d4dfee93a1a170e28af28f0c9d6382830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480656
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/testdata/testprog/lockosthread.go   |  6 +++-
- src/runtime/testdata/testprog/syscalls_linux.go | 42 +++++++++++++++++++++----
- src/runtime/testdata/testprog/syscalls_none.go  |  4 +--
- 3 files changed, 43 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/modindex/syslist.go | 1 +
+ 1 file changed, 1 insertion(+)

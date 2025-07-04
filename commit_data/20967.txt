@@ -1,12 +1,13 @@
-commit afc2890291feea1d1d46eb9808118dbd7c28ddb2
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Dec 12 11:38:07 2014 +1100
+commit 4cf28a11e3807f2f34785d6d4e6aac0821bac654
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 30 12:08:21 2014 -0400
 
-    doc/play: revise peano.go comment again.
+    [dev.power64] runtime: fix out-of-date comment in panic
     
-    Change-Id: I412358e99301d1c9603960fd34601dae60fca3cb
-    Reviewed-on: https://go-review.googlesource.com/1400
-    Reviewed-by: Rob Pike <r@golang.org>
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/162500043
 
- doc/play/peano.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/panic.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

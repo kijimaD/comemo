@@ -1,21 +1,23 @@
-commit 96ef6abcca2f3ba43ae822d5a6e46fc02092e0a3
-Author: Andy Pan <i@andypan.me>
-Date:   Fri Aug 16 11:42:25 2024 +0800
+commit 651869716a449a1868f5a5333796ab47482d7c65
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Jul 7 09:11:46 2023 -0400
 
-    os: only employ sendfile(3ext) on illumos when target is regular file
+    log/slog: replace nil contexts with context.Background()
     
-    Follows up CL 605355
-    Fixes #68863
+    Passing nil for a context is discouraged. We should avoid it.
     
-    Change-Id: I56e05822502e66eed610d5e924d110607ce146b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606135
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Fixes #61219.
+    
+    Change-Id: I664387070aacb56af580b6b0791ca40982d2a711
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508437
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/os/readfrom_unix_test.go | 21 ++++++++++++++++-----
- src/os/zero_copy_solaris.go  |  4 ++--
- 2 files changed, 18 insertions(+), 7 deletions(-)
+ src/log/slog/doc.go                        |  2 +-
+ src/log/slog/example_custom_levels_test.go |  8 +++---
+ src/log/slog/handler_test.go               |  4 +--
+ src/log/slog/json_handler_test.go          |  6 +++--
+ src/log/slog/logger.go                     | 16 +++++------
+ src/log/slog/logger_test.go                | 43 ++++++++++++++++--------------
+ 6 files changed, 42 insertions(+), 37 deletions(-)

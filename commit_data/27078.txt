@@ -1,19 +1,32 @@
-commit babd5da61fbaa7a1b3a5413c3c8947d71fa1001d
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Apr 21 08:00:07 2016 -0400
+commit b4b2ddb86771753aebd4383847e708cb61e94c73
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Feb 16 12:24:12 2016 -0600
 
-    crypto/aes: use asm for BenchmarkExpand on amd64
+    math: improve sqrt for ppc64le,ppc64
     
-    This reverses the change to this benchmark made in 9b6bf20.
+    The existing implementation uses code written in Go to
+    implement Sqrt; this adds the assembler to use the sqrt
+    instruction for Power and makes the necessary changes to
+    allow it to be inlined.
     
-    Change-Id: I79ab88286c3028d3be561957140375bbc413e7ab
-    Reviewed-on: https://go-review.googlesource.com/22340
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The following tests showed this relative improvement:
+    
+    benchmark                 delta
+    BenchmarkSqrt             -97.91%
+    BenchmarkSqrtIndirect     -96.65%
+    BenchmarkSqrtGo           -35.93%
+    BenchmarkSqrtPrime        -96.94%
+    
+    Fixes #14349
+    
+    Change-Id: I8074f4dc63486e756587564ceb320aca300bf5fa
+    Reviewed-on: https://go-review.googlesource.com/19515
     Reviewed-by: Minux Ma <minux@golang.org>
 
- src/crypto/aes/aes_test.go       |  2 +-
- src/crypto/aes/cipher_amd64.go   | 17 +++++++++++++++++
- src/crypto/aes/cipher_generic.go |  6 ++++++
- src/crypto/aes/cipher_s390x.go   |  6 ++++++
- 4 files changed, 30 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go     |  2 +-
+ src/cmd/compile/internal/ppc64/gsubr.go |  4 ++++
+ src/cmd/compile/internal/ppc64/peep.go  |  3 ++-
+ src/cmd/compile/internal/ppc64/prog.go  |  1 +
+ src/math/sqrt_ppc64x.s                  | 14 ++++++++++++++
+ src/math/stubs_ppc64x.s                 |  3 ---
+ 6 files changed, 22 insertions(+), 5 deletions(-)

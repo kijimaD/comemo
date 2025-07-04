@@ -1,44 +1,31 @@
-commit 4aa50434e13d12eb9755a992d6d4ad93e201d624
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jul 30 09:01:52 2014 -0700
+commit 678ba85e5370e509c1fbfe9adb9a70d2b9212bca
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 30 10:02:16 2014 +0900
 
-    runtime: rewrite malloc in Go.
+    undo CL 107280044 / ee11f19bc514
     
-    This change introduces gomallocgc, a Go clone of mallocgc.
-    Only a few uses have been moved over, so there are still
-    lots of uses from C. Many of these C uses will be moved
-    over to Go (e.g. in slice.goc), but probably not all.
-    What should remain of C's mallocgc is an open question.
+    preparing for the syscall package freeze.
     
-    LGTM=rsc, dvyukov
-    R=rsc, khr, dave, bradfitz, dvyukov
+    ««« original CL description
+    syscall: consolidate, simplify socket options for Unix-like systems
+    
+    Also exposes common socket option functions on Solaris.
+    
+    Update #7174
+    Update #7175
+    
+    LGTM=aram
+    R=golang-codereviews, aram
     CC=golang-codereviews
-    https://golang.org/cl/108840046
+    https://golang.org/cl/107280044
+    »»»
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/121880043
 
- src/cmd/api/goapi.go                     |   2 +-
- src/cmd/cc/godefs.c                      |  28 +-
- src/cmd/gc/builtin.c                     |   2 +-
- src/cmd/gc/runtime.go                    |   2 +-
- src/cmd/gc/walk.c                        |   2 +-
- src/pkg/runtime/asm_386.s                |  50 ++++
- src/pkg/runtime/asm_amd64.s              |  50 ++++
- src/pkg/runtime/asm_amd64p32.s           |  51 ++++
- src/pkg/runtime/asm_arm.s                |  50 ++++
- src/pkg/runtime/extern.go                |  44 ----
- src/pkg/runtime/hashmap.go               |  18 +-
- src/pkg/runtime/{malloc.goc => malloc.c} | 295 +++++----------------
- src/pkg/runtime/malloc.go                | 426 +++++++++++++++++++++++++++++++
- src/pkg/runtime/malloc.h                 |   8 +-
- src/pkg/runtime/mem.go                   |   3 -
- src/pkg/runtime/mgc0.c                   |  90 ++++---
- src/pkg/runtime/mprof.goc                |  31 +++
- src/pkg/runtime/proc.c                   |   1 +
- src/pkg/runtime/race.go                  |   7 -
- src/pkg/runtime/runtime.h                |  17 +-
- src/pkg/runtime/string.go                |  53 ++++
- src/pkg/runtime/stubs.go                 |  61 +++--
- src/pkg/runtime/stubs.goc                |  81 +++---
- src/pkg/runtime/traceback_arm.c          |   6 +
- src/pkg/runtime/traceback_x86.c          |   6 +
- test/live.go                             |  10 +-
- 26 files changed, 989 insertions(+), 405 deletions(-)
+ src/pkg/syscall/syscall_bsd.go   | 42 +++++++++++++++++++++++
+ src/pkg/syscall/syscall_linux.go | 34 ++++++++++++++++++
+ src/pkg/syscall/syscall_unix.go  | 74 +++++++++-------------------------------
+ 3 files changed, 92 insertions(+), 58 deletions(-)

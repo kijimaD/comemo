@@ -1,19 +1,29 @@
-commit 60e9cf0f93e58742b0aa491c6425d9c0ef970ed4
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Sun Jun 9 13:46:40 2024 -0700
+commit 229cde5149fb30b5207c03e7ad296d9dbe027e66
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jul 14 14:50:37 2023 -0400
 
-    os: rm reiserfs exception from TestSeek
+    cmd/go: fix tests when go.env sets GOPROXY=direct GOSUMDB=off
     
-    This exception was originally added by CL 152108 in November 2009. I'm
-    pretty sure no one uses reiserfs nowadays (and if someone does, this bug
-    must have been fixed by now).
+    Tested locally by changing GOROOT/go.env. At some point perhaps we
+    should also set up a builder that runs with some common expected
+    modifications to go.env
+    (such as GOTOOLCHAIN=local GOPROXY=direct GOSUMDB=off).
     
-    Change-Id: I274ebe2f7910cab81b70a44b2da3f6fe761073bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591417
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #61358.
+    Updates #61359.
+    
+    Change-Id: I365ec536bec86370e302fb726fa897400ab42cf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509637
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/os/os_test.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/go/scriptconds_test.go                     |  1 +
+ src/cmd/go/testdata/script/README                  |  2 ++
+ src/cmd/go/testdata/script/gotoolchain_net.txt     |  4 +++-
+ src/cmd/go/testdata/script/gotoolchain_version.txt | 13 +++++++++++--
+ .../go/testdata/script/mod_prefer_compatible.txt   | 20 +++++++++++++++++---
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt |  4 +++-
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt    | 22 +++++++++++-----------
+ 7 files changed, 48 insertions(+), 18 deletions(-)

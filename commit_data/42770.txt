@@ -1,24 +1,30 @@
-commit 46ca7b5ee2a8582736f1ddac27d8660e1104c345
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Aug 15 08:08:37 2020 -0700
+commit a9d344dac0031abda87f224a124c485c9381643e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 9 16:34:29 2020 -0500
 
-    cmd/internal/obj: stop removing NOPs from instruction stream
+    cmd/go: convert some go get tests to the script framework
     
-    This has already been done for s390x, ppc64. This CL is for
-    all the other architectures.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Fixes #40796
+    Updates #36320
+    Updates #17751
     
-    Change-Id: Idd1816e057df63022d47e99fa06617811d8c8489
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248684
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1de2b428ea7dac5429020742bf12bea910a02079
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214141
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/internal/obj/arm/asm5.go   |  3 ++
- src/cmd/internal/obj/arm/obj5.go   | 46 -------------------------------
- src/cmd/internal/obj/arm64/asm7.go |  3 ++
- src/cmd/internal/obj/arm64/obj7.go | 56 ++------------------------------------
- src/cmd/internal/obj/mips/asm0.go  |  3 ++
- src/cmd/internal/obj/mips/obj0.go  | 26 ++----------------
- 6 files changed, 14 insertions(+), 123 deletions(-)
+ src/cmd/go/go_test.go                              | 244 ---------------------
+ .../testdata/script/get_custom_domain_wildcard.txt |   5 +
+ src/cmd/go/testdata/script/get_dash_t.txt          |   8 +
+ src/cmd/go/testdata/script/get_domain_root.txt     |  19 ++
+ .../go/testdata/script/get_dot_slash_download.txt  |   9 +
+ src/cmd/go/testdata/script/get_goroot.txt          |  52 +++++
+ .../go/testdata/script/get_internal_wildcard.txt   |   5 +
+ src/cmd/go/testdata/script/get_issue11307.txt      |   8 +
+ src/cmd/go/testdata/script/get_race.txt            |   7 +
+ src/cmd/go/testdata/script/get_test_only.txt       |   5 +
+ src/cmd/go/testdata/script/get_update.txt          |  24 ++
+ src/cmd/go/testdata/script/get_update_all.txt      |   7 +
+ src/cmd/go/testdata/script/get_update_wildcard.txt |  15 ++
+ 13 files changed, 164 insertions(+), 244 deletions(-)

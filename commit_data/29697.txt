@@ -1,23 +1,17 @@
-commit 3a369a0f59b9c5771c23ec50af21625b103b2d7c
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Nov 29 23:29:49 2016 -0500
+commit 39055700b1c69e791405518a914017b8c5551436
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 11:40:43 2016 -0700
 
-    cmd/dist: add -check-armv6k command to check for ARMv6K
+    cmd/compile: ignore struct tags when converting structs
     
-    so that our release note can reference a simple command to check if
-    the processor implements ARMv6K or not.
+    Implementation of spec change https://golang.org/cl/24190/.
     
-    Updates #17082.
+    For #16085.
     
-    Change-Id: I9ca52051e5517394a7cd6b778fb822c3ee435f84
-    Reviewed-on: https://go-review.googlesource.com/33686
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id71ef29af5031b073e8be163f578d1bb768ff97a
+    Reviewed-on: https://go-review.googlesource.com/30169
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/util.go       | 8 ++++++++
- src/cmd/dist/util_gc.go    | 5 +++++
- src/cmd/dist/util_gccgo.go | 2 ++
- src/cmd/dist/vfp_arm.s     | 9 +++++++++
- src/cmd/dist/vfp_default.s | 3 +++
- 5 files changed, 27 insertions(+)
+ src/cmd/compile/internal/gc/subr.go |  29 ++--
+ test/convert2.go                    | 315 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 332 insertions(+), 12 deletions(-)

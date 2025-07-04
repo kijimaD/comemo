@@ -1,12 +1,32 @@
-commit 5d6ea6f70ee340f13beeee9af0b326d302cabfe7
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 30 15:32:51 2013 +1000
+commit 9456adb36b3731e1e4accadddd7cd2abf5a911b8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 29 17:26:00 2013 -0700
 
-    doc/go1.2.txt: compress/flate changes
+    undo CL 10726044 / c9bea548fb6f
     
-    R=golang-dev, bradfitz
+    Breaks build, and has a race.
+    
+    ««« original CL description
+    database/sql: add SetMaxOpenConns
+    
+    Update #4805
+    
+    Add the ability to set an open connection limit.
+    Fixed case where the Conn finalCloser was being called with db.mu locked.
+    Added seperate benchmarks for each path for Exec and Query.
+    Replaced slice based idle pool with list based idle pool.
+    
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/13324046
+    https://golang.org/cl/10726044
+    
+    »»»
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/13252046
 
- doc/go1.2.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/database/sql/fakedb_test.go |  28 +-
+ src/pkg/database/sql/sql.go         | 261 +++-------------
+ src/pkg/database/sql/sql_test.go    | 594 ++----------------------------------
+ 3 files changed, 70 insertions(+), 813 deletions(-)

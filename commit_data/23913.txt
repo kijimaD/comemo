@@ -1,26 +1,56 @@
-commit 6f6bcadc17087f564f1d5d915f08765b0a1e7263
-Author: David Chase <drchase@google.com>
-Date:   Thu Jul 30 12:31:18 2015 -0400
+commit 874a605af0764a8f340c3de65406963f514e21bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 19 17:04:56 2015 -0400
 
-    cmd/compile: add case for ODOTTYPE to escwalk
+    net/url: add RawPath field, a hint at the desired encoding of Path
     
-    ODOTTYPE should be treated a whole lot like ODOT,
-    but it was missing completely from the switch in
-    escwalk and thus escape status did not propagate
-    to fields.
+    Historically we have declined to try to provide real support for URLs
+    that contain %2F in the path, but they seem to be popping up more
+    often, especially in (arguably ill-considered) REST APIs that shoehorn
+    entire paths into individual path elements.
     
-    Since interfaces are required to trigger this bug,
-    the test was added to escape_iface.go.
+    The obvious thing to do is to introduce a URL.RawPath field that
+    records the original encoding of Path and then consult it during
+    URL.String and URL.RequestURI. The problem with the obvious thing
+    is that it breaks backward compatibility: if someone parses a URL
+    into u, modifies u.Path, and calls u.String, they expect the result
+    to use the modified u.Path and not the original raw encoding.
     
-    Fixes #11931.
+    Split the difference by treating u.RawPath as a hint: the observation
+    is that there are many valid encodings of u.Path. If u.RawPath is one
+    of them, use it. Otherwise compute the encoding of u.Path as before.
     
-    Change-Id: Id0383981cc4b1a160f6ad447192a112eed084538
-    Reviewed-on: https://go-review.googlesource.com/12921
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    If a client does not use RawPath, the only change will be that String
+    selects a different valid encoding sometimes (the original passed
+    to Parse).
+    
+    This ensures that, for example, HTTP requests use the exact
+    encoding passed to http.Get (or http.NewRequest, etc).
+    
+    Also add new URL.EscapedPath method for access to the actual
+    escaped path. Clients should use EscapedPath instead of
+    reading RawPath directly.
+    
+    All the old workarounds remain valid.
+    
+    Fixes #5777.
+    Might help #9859.
+    Fixes #7356.
+    Fixes #8767.
+    Fixes #8292.
+    Fixes #8450.
+    Fixes #4860.
+    Fixes #10887.
+    Fixes #3659.
+    Fixes #8248.
+    Fixes #6658.
+    Reduces need for #2782.
+    
+    Change-Id: I77b88f14631883a7d74b72d1cf19b0073d4f5473
+    Reviewed-on: https://go-review.googlesource.com/11302
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/esc.go |  1 +
- test/escape_iface.go               | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+)
+ src/net/url/example_test.go | 15 +++++++++++
+ src/net/url/url.go          | 55 ++++++++++++++++++++++++++++++++-----
+ src/net/url/url_test.go     | 66 +++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 124 insertions(+), 12 deletions(-)

@@ -1,21 +1,26 @@
-commit 7485050c0f55492c0fdfc41f7564f3da37a1a308
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jan 6 15:36:42 2020 -0800
+commit 30d7b6400860d87d810a0db3593b28dfb72879f2
+Author: W. Trevor King <wking@tremily.us>
+Date:   Wed Oct 2 17:49:49 2019 +0000
 
-    reflect: when Converting between float32s, don't lose signal NaNs
+    crypto/x509: add Detail to Expired errors
     
-    When converting from float32->float64->float32, any signal NaNs
-    get converted to quiet NaNs. Avoid that so using reflect.Value.Convert
-    between two float32 types keeps the signal bit of NaNs.
+    Because errors like:
     
-    Update #36400
+        certificate has expired or is not yet valid
     
-    Change-Id: Ic4dd04c4be7189d2171d12b7e4e8f7cf2fb22bb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213497
-    Run-TryBot: Keith Randall <khr@golang.org>
+    make it difficult to distinguish between "certificate has expired" and
+    "my local clock is skewed".  Including our idea of the local time
+    makes it easier to identify the clock-skew case, and including the
+    violated certificate constraint saves folks the trouble of looking it
+    up in the target certificate.
+    
+    Change-Id: I52e0e71705ee36f6afde1bb5a47b9b42ed5ead5b
+    GitHub-Last-Rev: db2ca4029c1e0b17363772d9824e3042d5501d48
+    GitHub-Pull-Request: golang/go#34646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198046
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/all_test.go | 11 +++++++++++
- src/reflect/value.go    | 14 ++++++++++++++
- 2 files changed, 25 insertions(+)
+ src/crypto/x509/verify.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

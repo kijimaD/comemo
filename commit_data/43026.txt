@@ -1,15 +1,44 @@
-commit 1ee30d25c517cfa5674a35754602f1a9ba3562f4
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 17 16:22:14 2020 -0400
+commit a2bff7c2964c6bf2c9741eb767d749d773f20770
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 1 16:44:06 2020 -0800
 
-    runtime: correctly log stderr in TestFakeTime
+    cmd/compile: make pre-elimination of rulegen bounds checks more precise
     
-    Change-Id: Iaf122ce7a8b8fb431199399aeed67b128a34d20b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255720
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    In cases in which we had a named value whose args were all _,
+    like this rule from ARM.rules:
+    
+    (MOVBUreg x:(MOVBUload _ _)) -> (MOVWreg x)
+    
+    We previously inserted
+    
+    _ = x.Args[1]
+    
+    even though it is unnecessary.
+    This change eliminates this pointless bounds check.
+    And in other cases, we now check bounds just as far as strictly necessary.
+    
+    No significant movement on any compiler metrics.
+    Just nicer (and less) code.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I075dfe9f926cc561cdc705e9ddaab563164bed3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221781
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/time_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  25 +--
+ src/cmd/compile/internal/ssa/rewrite386.go     |  15 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  82 +++------
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  92 +++-------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  92 ++--------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  35 +---
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  19 --
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  30 +---
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 233 +++++--------------------
+ src/cmd/compile/internal/ssa/rewriteWasm.go    |  12 --
+ src/cmd/compile/internal/ssa/rewritedec.go     |   5 -
+ src/cmd/compile/internal/ssa/rewritedec64.go   |  13 --
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 162 +++--------------
+ 13 files changed, 170 insertions(+), 645 deletions(-)

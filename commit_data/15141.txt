@@ -1,16 +1,14 @@
-commit dff017ea990795b43684d986dce3e0b9c23c2d65
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Tue Feb 5 07:06:00 2013 -0500
+commit f1c409b98b8f9359d3e561a3a3f8d2ca514b1d44
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Feb 5 20:50:20 2013 +1100
 
-    container/heap: fix comment typo in example test
+    misc/dashboard/app: trim old builds from the history
     
-    This updates a bad reference to a method name in the example priority queue test.
+    The dashboard is currently failing to store results of new builds for some keys, notable the go.codereview sub repository. This is causing the builders to mark the entire triggering commit as failed. With the help of David Symonds we think it is because the results value has breached the 1mb datastore limit on AppEngine.
     
-    The error was introduced in the example refactoring in rev. 2ea8f07b2ffe.
-    
-    R=golang-dev, minux.ma
+    R=dsymonds, adg
     CC=golang-dev
-    https://golang.org/cl/7279045
+    https://golang.org/cl/6858094
 
- src/pkg/container/heap/example_pq_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dashboard/app/build/build.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

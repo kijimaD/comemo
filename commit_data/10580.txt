@@ -1,15 +1,19 @@
-commit 1e5aecf6ce72fa16f9e834702d083325646108b7
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Fri Dec 2 09:52:31 2011 +1100
+commit 15a3a5cf6c3ba9ef29f086d20dd41a377428fadb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 14:33:24 2011 -0800
 
-    godoc: improved output of examples in html.
+    gofmt: applied gofmt -w -s src misc
     
-    Fixes #2467.
-    Fixes #2464.
-    
-    R=golang-dev, rsc, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5447051
+    https://golang.org/cl/5451070
 
- lib/godoc/example.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ misc/cgo/gmp/pi.go                   | 2 +-
+ misc/swig/callback/run.go            | 2 +-
+ src/cmd/godoc/httpzip.go             | 4 ++--
+ src/cmd/gofix/timefileinfo.go        | 2 +-
+ src/pkg/archive/zip/writer_test.go   | 4 ++--
+ src/pkg/html/render_test.go          | 8 ++++----
+ src/pkg/html/template/escape.go      | 2 +-
+ src/pkg/html/template/escape_test.go | 2 +-
+ 8 files changed, 13 insertions(+), 13 deletions(-)

@@ -1,25 +1,31 @@
-commit d585f04fd39f86edaa2aafd776e9ad037d075396
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jan 26 11:55:00 2019 -0800
+commit b2fcfc1a50fbd46556f7075f7f1fbf600b5c9e5d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 12 09:26:31 2018 +0200
 
-    cmd/compile: base PPC64 trunc rules on final type, not op type
+    encoding/json: use panics for phase errors
     
-    Whether a truncation should become a MOVWreg or a MOVWZreg doesn't
-    depend on the type of the operand, it depends on the type of the final
-    result.  If the final result is unsigned, we can use MOVWZreg.  If the
-    final result is signed, we can use MOVWreg.  Checking the type of the
-    operand does the wrong thing if truncating an unsigned value to a
-    signed value, or vice-versa.
+    Having these panic-like errors used to be ok, since they were used in
+    the internal decoder state instead of passed around via return
+    parameters.
     
-    Fixes #29943
+    Recently, the decoder was rewritten to use explicit error returns
+    instead. This error is a terrible fit for error returns; a handful of
+    functions must return an error because of it, and their callers must
+    check for an error that should never happen.
     
-    Change-Id: Ia6fc7d006486fa02cffd0bec4d910bdd5b6365f8
-    Reviewed-on: https://go-review.googlesource.com/c/159760
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This is precisely what panics are for, so use them. The test coverage of
+    the package goes up from 91.3% to 91.6%, and performance is unaffected.
+    We can also get rid of some unnecessary verbosity in the code.
+    
+    name           old time/op    new time/op    delta
+    CodeDecoder-4    27.5ms ± 1%    27.5ms ± 1%   ~     (p=0.937 n=6+6)
+    
+    Change-Id: I01033b3f5b7c0cf0985082fa272754f96bf6353c
+    Reviewed-on: https://go-review.googlesource.com/134835
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  6 ++--
- src/cmd/compile/internal/ssa/rewritePPC64.go | 42 ++++++++++++++++------------
- test/fixedbugs/issue29943.go                 | 28 +++++++++++++++++++
- 3 files changed, 55 insertions(+), 21 deletions(-)
+ src/encoding/json/decode.go | 110 ++++++++++++++++++--------------------------
+ 1 file changed, 44 insertions(+), 66 deletions(-)

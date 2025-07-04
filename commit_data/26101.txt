@@ -1,19 +1,18 @@
-commit 7893442011c680a549b50673ec59e8dbf6f4fe95
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 7 11:36:05 2016 -0800
+commit 7a2913c9f551588b351efc6d026c1c6f187442e1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Dec 16 23:10:14 2015 -0800
 
-    cmd/internal/obj: simplify Optab range handling code
+    archive/tar: document how Reader.Read handles header-only files
     
-    Use slices as slices, instead of as clumsy pointers.
+    Commit dd5e14a7511465d20c6e95bf54c9b8f999abbbf6 ensured that no data
+    could be read for header-only files regardless of what the Header.Size
+    said. We should document this fact in Reader.Read.
     
-    Passes toolstash/buildall.
+    Updates #13647
     
-    Change-Id: If09eacc2d8805d7d5eaa5566f9b6305541074371
-    Reviewed-on: https://go-review.googlesource.com/20322
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4df9a2892bc66b49e0279693d08454bf696cfa31
+    Reviewed-on: https://go-review.googlesource.com/17913
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 56 ++++++++++++++------------------------
- src/cmd/internal/obj/ppc64/asm9.go | 54 +++++++++++++-----------------------
- 2 files changed, 39 insertions(+), 71 deletions(-)
+ src/archive/tar/reader.go | 4 ++++
+ 1 file changed, 4 insertions(+)

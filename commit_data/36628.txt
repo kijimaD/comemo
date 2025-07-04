@@ -1,28 +1,30 @@
-commit 3a18f0ecb5748488501c565e995ec12a29e66966
-Author: Kevin Burke <kev@inburke.com>
-Date:   Sat Sep 8 12:35:03 2018 -0700
+commit 9ccfde6ee7df654be64a79c79ec4178c10d8fd18
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 13:03:03 2018 -0400
 
-    os/user: retrieve Current username from /etc/passwd, not $USER
+    cmd/go: add support for 'go run pkg' or 'go run .'
     
-    Per golang/go#27524 there are situations where the username for the
-    uid does not match the value in the $USER environment variable and it
-    seems sensible to choose the value in /etc/passwd when they disagree.
+    To date, go run has required a list of .go files.
+    This CL allows in place of that list a single import path
+    or a directory name or a pattern matching a single patckage.
+    This allows 'go run pkg' or 'go run dir', most importantly 'go run .'.
     
-    This may make the Current() call slightly more expensive, since we
-    read /etc/passwd with cgo disabled instead of just checking the
-    environment. However, we cache the result of Current() calls, so we
-    only invoke this cost once in the lifetime of the process.
+    The discussion in #22726 gives more motivation.
+    The basic idea is that you can already run 'go test .'
+    but if you're developing a command it's pretty awkward
+    to iterate at the same speed. This lets you do that,
+    by using 'go run . [args]'.
     
-    Fixes #14626.
-    Fixes #27524.
-    Updates #24884.
+    Fixes #22726.
     
-    Change-Id: I0dcd224cf7f61dd5292f3fcc363aa2e9656a2cb1
-    Reviewed-on: https://go-review.googlesource.com/134218
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibfc8172a4f752588ad96df0a6b0928e9b61fa27f
+    Reviewed-on: https://go-review.googlesource.com/109341
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/os/user/lookup_stubs.go | 11 +++++++++--
- src/os/user/user_test.go    | 18 ++----------------
- 2 files changed, 11 insertions(+), 18 deletions(-)
+ src/cmd/go/alldocs.go                  |  9 ++++---
+ src/cmd/go/go_test.go                  | 12 ++++++++++
+ src/cmd/go/internal/run/run.go         | 44 ++++++++++++++++++++++++----------
+ src/cmd/go/testdata/src/hello/hello.go |  5 ++++
+ 4 files changed, 54 insertions(+), 16 deletions(-)

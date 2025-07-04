@@ -1,18 +1,35 @@
-commit 749720a0362557eabbf87ef9f1494b18444c0adb
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Dec 5 15:57:45 2016 -0800
+commit dd1dcf949676a5f091d8f17ad9a64f6336aa371b
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Oct 4 15:35:28 2016 -0400
 
-    cmd/compile: fix static-initialization compilation failure
+    cmd/{asm,compile}: add ANDW, ORW and XORW instructions to s390x
     
-    Fixes #13263.
+    Adds the following instructions and uses them in the SSA backend:
     
-    Change-Id: Ie1cafc62b6bfe6c5381c35d9a95563267b4cc9b0
-    Reviewed-on: https://go-review.googlesource.com/33970
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+     - ANDW
+     - ORW
+     - XORW
+    
+    The instruction encodings for 32-bit operations are typically shorter,
+    particularly when an immediate is used. For example, XORW $-1, R1
+    only requires one instruction, whereas XOR requires two.
+    
+    Also removes some unused instructions (that were emulated):
+    
+     - ANDN
+     - NAND
+     - ORN
+     - NOR
+    
+    Change-Id: Iff2a16f52004ba498720034e354be9771b10cac4
+    Reviewed-on: https://go-review.googlesource.com/30291
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/sinit.go |  4 +++-
- test/fixedbugs/issue13263.go         | 15 +++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s    |  36 +++++++
+ src/cmd/compile/internal/s390x/prog.go       |   3 +
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  28 +++---
+ src/cmd/compile/internal/ssa/opGen.go        |  12 +--
+ src/cmd/internal/obj/s390x/a.out.go          |   7 +-
+ src/cmd/internal/obj/s390x/anames.go         |   7 +-
+ src/cmd/internal/obj/s390x/asmz.go           | 137 ++++++++++++---------------
+ 7 files changed, 125 insertions(+), 105 deletions(-)

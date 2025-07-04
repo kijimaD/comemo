@@ -1,58 +1,16 @@
-commit 14f5eb7f31305c682c9734d682e7baa54a1cf63b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Aug 20 10:05:29 2023 -0700
+commit 6c3567873c4c58fe5b9e9abe77fed826a8e2ac97
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Sep 27 23:06:11 2022 +0800
 
-    cmd/compile/internal/types: overhaul and simplify API
+    runtime: using bytes.CutPrefix
     
-    This CL removes a lot of the redundant methods for accessing struct
-    fields and signature parameters. In particular, users never have to
-    write ".Slice()" or ".FieldSlice()" anymore; the exported APIs just do
-    what you want.
-    
-    Further internal refactorings to follow.
-    
-    Change-Id: I45212f6772fe16aad39d0e68b82d71b0796e5639
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521295
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I3f2dae17496b5b4efbdc022802f941a616abd87a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435276
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/abi/abiutils.go           |  18 +--
- src/cmd/compile/internal/compare/compare.go        |   6 +-
- .../compile/internal/devirtualize/devirtualize.go  |   4 +-
- src/cmd/compile/internal/devirtualize/pgo.go       |   2 +-
- src/cmd/compile/internal/dwarfgen/dwarf.go         |   5 +-
- src/cmd/compile/internal/escape/call.go            |   4 +-
- src/cmd/compile/internal/escape/escape.go          |   6 +-
- src/cmd/compile/internal/escape/solve.go           |   2 +-
- src/cmd/compile/internal/escape/stmt.go            |   2 +-
- src/cmd/compile/internal/gc/export.go              |   2 +-
- src/cmd/compile/internal/inline/inl.go             |   2 +-
- src/cmd/compile/internal/ir/expr.go                |   2 +-
- src/cmd/compile/internal/ir/node.go                |   2 +-
- src/cmd/compile/internal/liveness/plive.go         |   2 +-
- src/cmd/compile/internal/noder/linker.go           |   6 +-
- src/cmd/compile/internal/noder/reader.go           |  46 +++----
- src/cmd/compile/internal/reflectdata/alg.go        |   4 +-
- src/cmd/compile/internal/reflectdata/reflect.go    |  34 ++---
- src/cmd/compile/internal/ssagen/abi.go             |   4 +-
- src/cmd/compile/internal/ssagen/ssa.go             |  24 ++--
- src/cmd/compile/internal/typebits/typebits.go      |   2 +-
- src/cmd/compile/internal/typecheck/dcl.go          |  12 +-
- src/cmd/compile/internal/typecheck/func.go         |   6 +-
- src/cmd/compile/internal/typecheck/subr.go         |  34 ++---
- src/cmd/compile/internal/typecheck/typecheck.go    | 111 ++--------------
- src/cmd/compile/internal/types/alg.go              |   4 +-
- src/cmd/compile/internal/types/fmt.go              |  16 +--
- src/cmd/compile/internal/types/identity.go         |  12 +-
- src/cmd/compile/internal/types/size.go             |  18 +--
- src/cmd/compile/internal/types/type.go             | 148 ++++++++++-----------
- src/cmd/compile/internal/walk/assign.go            |   6 +-
- src/cmd/compile/internal/walk/builtin.go           |   4 +-
- src/cmd/compile/internal/walk/closure.go           |   6 +-
- src/cmd/compile/internal/walk/expr.go              |   8 +-
- src/cmd/compile/internal/walk/range.go             |   2 +-
- src/cmd/compile/internal/walk/select.go            |   4 +-
- 36 files changed, 241 insertions(+), 329 deletions(-)
+ src/runtime/testdata/testprog/traceback_ancestors.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

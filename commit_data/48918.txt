@@ -1,21 +1,33 @@
-commit 24b570354caee33d4fb3934ce7ef1cc97fb403fd
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Tue Apr 26 23:55:11 2022 +0000
+commit 942edc750292060450fda38835c452f6125447c3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 25 10:04:51 2021 -0700
 
-    time: document hhmmss formats
+    [dev.typeparams] cmd/compile: rename types.Type.{Short,Long}String to {Link,Name}String
     
-    Fixes #52516
+    The original names "ShortString" and "LongString" refer back to the
+    fmt verbs used to request their formatting styles. However, I always
+    get confused working with them, in particular because (1) the
+    "ShortString" description, which uses package-path qualification, is
+    actually generally longer than the "LongString" description, which
+    uses package-name qualification; and (2) the documentation mentions
+    how they're often used, but doesn't actually describe why they're safe
+    for those purposes.
     
-    Change-Id: I173fdb09c245563e09be4e1aacfd374c3a764d74
-    GitHub-Last-Rev: 14a81e50616e0f268fee9323d0621de861885475
-    GitHub-Pull-Request: golang/go#52538
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402058
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This CL renames them to "LinkString" and "NameString", respectively,
+    based on their primary use cases. It also attempts to more completely
+    describe the strings they return and how they can be used correctly.
+    
+    Change-Id: I9158ae3eafa8ac53da31a78c7a6d929dc0199afe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330910
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/time/example_test.go | 11 +++++++++++
- src/time/format.go       | 16 ++++++++++------
- 2 files changed, 21 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/reader.go        |  4 +--
+ src/cmd/compile/internal/reflectdata/reflect.go |  8 +++---
+ src/cmd/compile/internal/typecheck/stmt.go      |  2 +-
+ src/cmd/compile/internal/types/fmt.go           | 38 +++++++++++++++++++------
+ src/cmd/compile/internal/types/type.go          |  2 +-
+ src/cmd/compile/internal/walk/order.go          |  4 +--
+ 6 files changed, 39 insertions(+), 19 deletions(-)

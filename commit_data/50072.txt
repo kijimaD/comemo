@@ -1,26 +1,15 @@
-commit be9e2440a766f4cd1069945ebd2e527cb7fd7594
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jul 2 13:15:37 2021 -0400
+commit 7162c4c7caf72a3f29d3ceee48ff352dab659472
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Sep 29 13:09:34 2021 +0200
 
-    cmd/go/internal/modload: remove ImportMap and PackageDir
+    crypto: document the extended key interfaces
     
-    These two functions together duplicated much of the functionality of
-    modload.Lookup. Use that instead in modcmd.vendorPkg, and reduce the
-    modload surface area.
-    
-    Updates #42504
-    Updates #40775
-    For #26904
-    
-    Change-Id: Ib8aaac495d090178dd56971aef9e5aa44ffa818b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/332571
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Iaff3f77b0a168e8bde981c791035a6451b3a49ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353049
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Julie Qiu <julie@golang.org>
 
- src/cmd/go/internal/modcmd/vendor.go | 23 ++++++++++++++---------
- src/cmd/go/internal/modload/load.go  | 22 ----------------------
- 2 files changed, 14 insertions(+), 31 deletions(-)
+ src/crypto/crypto.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

@@ -1,18 +1,15 @@
-commit 6d5ebc70225aeb71a60061e5cf755c5852ac13da
-Author: erifan01 <eric.fang@arm.com>
-Date:   Tue Nov 28 03:38:03 2017 +0000
+commit ef544b64d7417aa58d41b50ec7f9b1134ca1d638
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 5 13:24:45 2017 -0800
 
-    math: add a testcase for Mod and Remainder respectively
+    flag: clarify comment to avoid shell syntax confusion
     
-    One might try to implement the Mod or Remainder function with the expression
-    x - TRUNC(x/y + 0.5)*y, but in fact this method is wrong, because the rounding
-    of (x/y + 0.5) to initialize the argument of TRUNC may lose too much precision.
-    However, the current test cases can not detect this error. This CL adds two
-    test cases to prevent people from continuing to do such attempts.
+    Updates #22961
     
-    Change-Id: I6690f5cffb21bf8ae06a314b7a45cafff8bcee13
-    Reviewed-on: https://go-review.googlesource.com/84275
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ib2f41aefb4f6470598d8637611da5491156ea840
+    Reviewed-on: https://go-review.googlesource.com/82015
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/all_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/flag/flag.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

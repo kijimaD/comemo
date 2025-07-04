@@ -1,20 +1,21 @@
-commit a3aed62512dd5b5239762e8c93a79122a2849a7d
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed Feb 9 11:48:31 2022 -0500
+commit f68878f0fc542708bbe1dc4f131d32b21fac0d3c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Dec 8 04:30:22 2020 +1100
 
-    doc/go1.18: update Go 1.18 release note TODOs using relnote
+    cmd/dist,runtime: support cgo on openbsd/mips64
     
-    For #47694.
+    Add support for cgo on openbsd/mips64.
     
-    Change-Id: I5f6850e171f574a5342671778df854dc68a5148f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384554
-    Trust: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Alex Rakoczy <alex@golang.org>
-    Trust: Alex Rakoczy <alex@golang.org>
-    Run-TryBot: Alex Rakoczy <alex@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #43005
+    
+    Change-Id: I2386204f53fa984a01a9d89f0b6c96455768f326
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275896
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 26 +++++++++++++++++++++++++-
- 1 file changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.go                |  2 +-
+ src/cmd/link/internal/mips64/asm.go  | 15 +++++++-
+ src/cmd/nm/nm_cgo_test.go            |  2 +-
+ src/runtime/cgo/gcc_openbsd_mips64.c | 67 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 83 insertions(+), 3 deletions(-)

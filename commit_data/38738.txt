@@ -1,17 +1,15 @@
-commit c40bffd90535bd9d5bf6a398f5227ff2c9aaed52
-Author: Romain Baugue <romain.baugue@elwinar.com>
-Date:   Wed Apr 10 16:20:43 2019 +0200
+commit 485218482b3fcfced2ed73c35137f37b1ba9a9a1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Nov 18 14:52:22 2018 +0100
 
-    reflect: add Value.IsZero
+    doc/go1.12: announce deprecation of support for FreeBSD 10.x
     
-    Fixes #7501
+    Fixes #27619
     
-    Change-Id: Iac7c79cd4b30a90b14ed84bf1eba758972232a6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171337
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If18df696c0778efe894a4a249d4964db1b02e5d6
+    Reviewed-on: https://go-review.googlesource.com/c/150159
+    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/all_test.go | 107 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/value.go    |  40 ++++++++++++++++++
- 2 files changed, 147 insertions(+)
+ doc/go1.12.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

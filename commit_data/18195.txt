@@ -1,25 +1,19 @@
-commit 06c0280440689be695fb3375105e09f58b44e82e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 8 20:37:27 2014 -0500
+commit 43108ee53a62bdbafc16a1224eeed3c0e2fa71a6
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jan 8 23:34:11 2014 +0100
 
-    libmach: use different names for different Ureg types
+        libmach: use Go's ureg headers on Plan 9
     
-    Everything was doing this already with #defines.
-    Do it right.
+        The CL 49090043 renamed Ureg structures to Ureg386,
+        UregArm and UregAmd64. This broke build on Plan 9,
+        since ureg_x86.h includes /386/include/ureg.h, which
+        declares a structure named Ureg instead of Ureg386.
     
-    R=golang-codereviews, jsing, 0intro, iant
-    CC=golang-codereviews
-    https://golang.org/cl/49090043
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/49260043
 
- include/ureg_amd64.h |  3 ++-
- include/ureg_arm.h   |  3 ++-
- include/ureg_x86.h   |  3 ++-
- src/cmd/prof/main.c  | 23 +++++++---------
- src/libmach/5.c      |  4 +--
- src/libmach/5db.c    |  2 --
- src/libmach/6.c      |  4 +--
- src/libmach/8.c      |  4 +--
- src/libmach/8db.c    |  7 -----
- src/libmach/darwin.c | 75 ++++++++++++++++++++++++----------------------------
- src/libmach/linux.c  | 54 +++++++++++++++++--------------------
- 11 files changed, 79 insertions(+), 103 deletions(-)
+ include/plan9/ureg_amd64.h | 2 +-
+ include/plan9/ureg_arm.h   | 2 +-
+ include/plan9/ureg_x86.h   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

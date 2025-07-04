@@ -1,20 +1,16 @@
-commit 2b59307ac21135ab8db58e08fb98211fbedbb10d
-Author: Michael Knyszek <mknyszek@google.com>
-Date:   Fri Nov 11 18:34:18 2022 +0000
+commit d7b035f930549bc6b6192f73351bce138130350e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 21 14:33:47 2021 -0800
 
-    Revert "runtime: delay incrementing freeindex in malloc"
+    doc/go1.18: mention testing.F in testing package section
     
-    This reverts commit bed2b7cf41471e1521af5a83ae28bd643eb3e038.
+    For #47694
     
-    Reason for revert: I clicked submit by accident on the wrong CL.
-    
-    Change-Id: Iddf128cb62f289d472510eb30466e515068271b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449501
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I27d88d864319bd8dbabfa6675a6abf2f74c50717
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373914
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
 
- src/runtime/malloc.go   | 40 +++++++++++++++++-----------------------
- src/runtime/mbitmap.go  | 17 ++++-------------
- src/runtime/mcentral.go |  1 +
- 3 files changed, 22 insertions(+), 36 deletions(-)
+ doc/go1.18.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

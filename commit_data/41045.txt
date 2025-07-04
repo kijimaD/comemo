@@ -1,28 +1,28 @@
-commit 9c3869d25933f4e885e0174fde666dba3faca764
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Dec 30 19:45:29 2019 -0500
+commit 117400ec095335f24e5363f61d60f8baad6be3ce
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 28 21:56:47 2019 -0700
 
-    cmd/go: convert TestGoTestImportErrorStack to the script framework
+    cmd/compile/internal/syntax: add BasicLit.Bad field for lexical errors
     
-    The literal string match had to be turned into a regexp, otherwise
-    pretty straightforward.
+    The new (internal) field scanner.bad indicates whether a syntax error
+    occurred while scanning a literal; the corresponding scanner.lit
+    string may be syntactically incorrect in that case. Store the value
+    of scanner.bad together with the scanner.lit in BasicLit.
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Clean up error handling so that all syntactic errors use one of the
+    scanner's error reporting methods which also set scanner.bad. Make
+    use of the new field in a few places where we used to track a prior
+    error separately.
     
-    Updates #36320
-    Updates #17751
+    Preliminary step towards fixing #32133 in a comprehensive manner.
     
-    Change-Id: I46f62312f02dc9adf83ed91c6f807420d29fbb12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212939
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I4d79ad6e3b50632dd5fb3fc32ca3df0598ee77b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192278
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go                                  | 14 --------------
- src/cmd/go/testdata/script/test_import_error_stack.txt | 17 +++++++++++++++++
- src/cmd/go/testdata/src/testdep/p1/p1.go               |  1 -
- src/cmd/go/testdata/src/testdep/p1/p1_test.go          |  3 ---
- src/cmd/go/testdata/src/testdep/p2/p2.go               |  3 ---
- src/cmd/go/testdata/src/testdep/p3/p3.go               |  3 ---
- 6 files changed, 17 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/syntax/nodes.go        |  1 +
+ src/cmd/compile/internal/syntax/parser.go       | 15 ++---
+ src/cmd/compile/internal/syntax/scanner.go      | 77 ++++++++++++++-----------
+ src/cmd/compile/internal/syntax/scanner_test.go |  6 +-
+ src/cmd/compile/internal/syntax/tokens.go       |  2 +-
+ 5 files changed, 57 insertions(+), 44 deletions(-)

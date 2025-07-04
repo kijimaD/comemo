@@ -1,24 +1,20 @@
-commit d396b9df10bcdb14f06c14b82c293a07ebdee77b
-Author: Rob Pike <r@golang.org>
-Date:   Mon Oct 6 14:50:58 2014 -0700
+commit 7fa96f08a4b11d710c8b1cb0d8f29e131e1793db
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 12:09:27 2014 -0400
 
-    go/build: do not consider "android.go" to be android-specific
-    A file name must have a non-empty underscore-separated
-    prefix before its suffix matches GOOS. This is what the
-    documentation already said but is not what the code did.
+    cmd/go: fix 'go get vanity/repo/...' in clean GOPATH
     
-    Fixes #8838.
+    The pattern was only working if the checkout had
+    already been done, but the code was trying to make
+    it work even the first time. Test and fix.
     
-    This needs to be called out in the release notes.
-    The he single affected file
-            code.google.com/p/go.text/collate/tools/colcmp/darwin.go
-    could use a renaming but works because it has a build tag inside.
+    Fixes #8335.
     
-    LGTM=adg, rsc
-    R=golang-codereviews, adg, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/147690043
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/146310043
 
- src/go/build/build.go      | 12 ++++++++++++
- src/go/build/build_test.go |  4 ++++
- 2 files changed, 16 insertions(+)
+ src/cmd/go/test.bash | 12 ++++++++++++
+ src/cmd/go/vcs.go    |  9 ++++++++-
+ 2 files changed, 20 insertions(+), 1 deletion(-)

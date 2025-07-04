@@ -1,26 +1,19 @@
-commit 2cab41d5cb813956a367c464afc0b16b2c418331
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 13 14:51:57 2017 -0500
+commit 95f3e47456e42899b64d3740eab1dd7ee1db5bf9
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 24 14:19:18 2016 -0500
 
-    cmd/go: split out cmd/go/internal/help
+    cmd/compile: add rule to use ANDN for a&^b on ppc64x
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
+    Adds a rule to generate ANDN for AND x ^y.
     
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
+    Fixes #17567
     
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
-    
-    For #18653.
-    
-    Change-Id: I4cf05b076d81b780c87a31378523929b5da8964b
-    Reviewed-on: https://go-review.googlesource.com/36194
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I3b978058d5663f32c42b1af19bb207eac5622615
+    Reviewed-on: https://go-review.googlesource.com/31769
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/base/base.go                 |   4 +
- src/cmd/go/internal/help/help.go                 | 178 ++++++++++++++++++++
- src/cmd/go/{help.go => internal/help/helpdoc.go} |  16 +-
- src/cmd/go/main.go                               | 196 ++---------------------
- 4 files changed, 205 insertions(+), 189 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+)

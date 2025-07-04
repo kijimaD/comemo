@@ -1,21 +1,12 @@
-commit 84ef97b59c89b7d9fdc04a1a8a438cd3257bf521
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Apr 14 21:34:08 2012 +1000
+commit 0e596024c203b27e4940fba0844a58f4e3abc989
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Apr 14 13:27:11 2012 +1000
 
-    strconv: make malloc tests more reliable
+    doc: update Mercurial installation instructions
     
-    Fixes #3495.
-    
-    I adapted fmt.TestCountMallocs to fix the
-    existing tests. As the resulting tests did not
-    appear to belong to either itoa or ftoa I moved
-    them into their own file.
-    
-    R=bradfitz, fullung
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5985072
+    https://golang.org/cl/6031046
 
- src/pkg/strconv/ftoa_test.go    | 17 --------------
- src/pkg/strconv/itoa_test.go    | 30 ------------------------
- src/pkg/strconv/strconv_test.go | 51 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 51 insertions(+), 47 deletions(-)
+ doc/install-source.html | 21 ++++-----------------
+ 1 file changed, 4 insertions(+), 17 deletions(-)

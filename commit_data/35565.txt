@@ -1,16 +1,18 @@
-commit 424c2157392d46220213610a290a275c36ddcd97
-Author: Hana Kim <hakim@google.com>
-Date:   Thu May 31 13:16:24 2018 -0400
+commit 8993e16932f58b9f1e1838d5d2bbd20e20a92e10
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Feb 21 12:41:34 2018 +0100
 
-    cmd/pprof: fix help message formatting error
+    cmd/compile: use | in the most repetitive mips64 rules
     
-    Pprof usage message includes "%" symbols. Misuse of Fprintf caused
-    the message to be interpreted as a format string and corrupted the usage
-    message.
+    For now, limited to the most repetitive rules that are also short and
+    simple, so that we can have a substantial conciseness win without
+    compromising rules readability.
     
-    Change-Id: I4732b491e2368cff9fdbfe070c125228d6f506fd
-    Reviewed-on: https://go-review.googlesource.com/115595
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Ran rulegen, no change in the actual compiler code (as expected).
+    
+    Change-Id: Ia74acc389cd8310eb7fe8f927171fa3d292d2a86
+    Reviewed-on: https://go-review.googlesource.com/95797
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/pprof/readlineui.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules | 94 +++++++--------------------
+ 1 file changed, 25 insertions(+), 69 deletions(-)

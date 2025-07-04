@@ -1,14 +1,16 @@
-commit b3de7f28a8c111043013cc539421021a32176c33
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Thu Aug 28 16:02:15 2014 -0700
+commit a6950fe0f9c23fe681109db746038092b5a04728
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Aug 24 12:41:23 2014 +0400
 
-    runtime: fix Plan 9 build for new C calling convention
+    runtime: convert synchronous semaphores to Go
     
-    LGTM=0intro, rsc
-    R=rsc, 0intro
-    CC=golang-codereviews
-    https://golang.org/cl/132320043
+    LGTM=rsc
+    R=golang-codereviews, khr, rsc
+    CC=golang-codereviews, rlh
+    https://golang.org/cl/130340043
 
- src/pkg/runtime/sys_plan9_386.s   | 27 ++++++++++++++-------------
- src/pkg/runtime/sys_plan9_amd64.s | 29 +++++++++++++++--------------
- 2 files changed, 29 insertions(+), 27 deletions(-)
+ src/pkg/runtime/sema.go  | 117 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/sema.goc |  90 ------------------------------------
+ src/pkg/runtime/thunk.s  |  21 +++++++++
+ src/pkg/sync/runtime.go  |   8 +++-
+ 4 files changed, 144 insertions(+), 92 deletions(-)

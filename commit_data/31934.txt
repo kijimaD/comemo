@@ -1,14 +1,23 @@
-commit 1a56a27c58cb7c59d8b073a78b96833f9ebe4b75
-Author: Gabriel Nicolas Avellaneda <avellaneda.gabriel@gmail.com>
-Date:   Tue Jun 27 18:00:59 2017 -0300
+commit 7202341de92927484a3eed101d3b77653b8b8bd1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 24 09:36:31 2017 -0700
 
-    doc: Proper default value for the $GOPATH.
+    cmd/compile: only SSA [0]T when T is SSA-able
     
-    It should be $HOME/go instead of $HOME/work
+    Almost never happens in practice.
+    The compiler will generate reasonable code anyway,
+    since assignments involving [0]T never do any work.
     
-    Change-Id: I22e0a89deff30f935c3e25a237d6c0c161103339
-    Reviewed-on: https://go-review.googlesource.com/46890
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #19696
+    Fixes #19671
+    
+    Change-Id: I350d2e0c5bb326c4789c74a046ab0486b2cee49c
+    Reviewed-on: https://go-review.googlesource.com/38599
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/code.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go |  5 +----
+ test/fixedbugs/issue19671.go       | 16 ++++++++++++++++
+ test/fixedbugs/issue19696.go       | 20 ++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 4 deletions(-)

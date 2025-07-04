@@ -1,26 +1,19 @@
-commit 6fcbd0369d3ac9002e2b46229f90ce64ce0539e4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 18 10:37:04 2023 -0500
+commit ec4687f337465b719efdeef72b357fa0b05879bb
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 26 15:31:20 2022 -0500
 
-    cmd: update x/tools to latest internal Go 1.20 branch
+    cmd/go: allow users to specify required fields in JSON output
     
-    Import x/tools as of CL 462596 (070db2996ebe, Jan 18 2022),
-    to bring in two vet analysis fixes (printf and loopclosure).
+    For #29666
     
-    For #57911.
-    Fixes #57903.
-    Fixes #57904.
-    
-    Change-Id: I82fe4e9bd56fb8e64394ee8618c155316942a517
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462555
+    Change-Id: Ibae3d75bb2c19571c8d473cb47d6c4b3a880bba8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381035
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go.mod                                                       | 2 +-
- src/cmd/go.sum                                                       | 4 ++--
- .../golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go | 5 +++++
- .../vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go    | 2 +-
- src/cmd/vendor/modules.txt                                           | 2 +-
- 5 files changed, 10 insertions(+), 5 deletions(-)
+ src/cmd/go/alldocs.go                           |  5 +-
+ src/cmd/go/internal/list/list.go                | 98 ++++++++++++++++++++-----
+ src/cmd/go/testdata/script/list_json_fields.txt | 52 +++++++++++++
+ 3 files changed, 137 insertions(+), 18 deletions(-)

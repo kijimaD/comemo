@@ -1,33 +1,18 @@
-commit 5e21032b3d179a8bc0d9e70e4725629defad9d8b
+commit e44a031651d042107d446b4038a70c6da763e2d5
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jul 18 17:34:59 2019 -0400
+Date:   Tue Mar 5 09:28:50 2019 -0500
 
-    Revert "cmd/go: move automatic testing.Init call into generated test code"
+    cmd/go/internal/modload: do not fetch modules in searchPackages if -mod=vendor is set
     
-    This reverts CL 176098.
+    Updates #30228
+    Updates #30241
     
-    Reason for revert: added complexity, but did not completely fix the
-    underlying problem. A complete solution would not be worth the
-    complexity, and as a partial solution this is probably not worth the
-    complexity either.
-    
-    Updates #31859
-    
-    Change-Id: Ifd34c292fd1b811c60afe3c339e5edd3f37190c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186817
+    Change-Id: I6b5f842d00ba273ed241abe55a1ea71c105ec284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165377
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/go_test.go                              |  6 ++
- src/cmd/go/internal/list/list.go                   |  2 +-
- src/cmd/go/internal/load/pkg.go                    |  3 +-
- src/cmd/go/internal/load/test.go                   | 43 +----------
- src/cmd/go/internal/test/test.go                   |  2 +-
- src/cmd/go/internal/work/exec.go                   |  9 ---
- src/cmd/go/testdata/flag_test.go                   |  9 +--
- src/cmd/go/testdata/script/test_init.txt           | 86 ----------------------
- .../go/testdata/standalone_testmain_flag_test.go   | 29 ++++++++
- src/testing/testing.go                             |  5 --
- 10 files changed, 44 insertions(+), 150 deletions(-)
+ src/cmd/go/internal/modload/search.go           | 5 +++++
+ src/cmd/go/testdata/script/mod_vendor_build.txt | 6 ++++++
+ 2 files changed, 11 insertions(+)

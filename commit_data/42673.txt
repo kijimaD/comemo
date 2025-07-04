@@ -1,14 +1,19 @@
-commit 24ff2af65e27eed1e8c7f09c21a5ca68fc2e07ab
-Author: lufia <lufia@lufia.org>
-Date:   Sun Jul 26 19:04:37 2020 +0900
+commit b8d339bc8dbb0754d1b6aa8a748598907e5b2dd2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Feb 2 14:43:54 2020 +0100
 
-    cmd/dist: fix typo
+    doc/go1.14: remove TODO about Dragonfly passing
     
-    Change-Id: Ib5d7f3eadff03070043d52659af4312ee293c586
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244817
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Both the Dragonfly release and tip builder have been passing for a
+    while. The net package's interface API is working on both builders since
+    CL 202317 which has been re-vendored in CL 202438.
+    
+    Updates #34368
+    Updates #36878
+    
+    Change-Id: I187178b3a59f2604187af453207fb4e24a56105c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217358
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.14.html | 6 ------
+ 1 file changed, 6 deletions(-)

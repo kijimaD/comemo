@@ -1,20 +1,20 @@
-commit 845992eeed01643bfb2e88aa559413908b3cb508
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 21 15:33:04 2016 -0700
+commit de7ee57c7ead59899d5b412a839c995de0e813b5
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Fri Apr 8 18:19:10 2016 +0200
 
-    test: add -s flag to commands understood by run.go
+    cmd: remove bio.Bread
     
-    If -s is specified, each file is considered a separate
-    package even if multiple files have the same package names.
+    Replace calls to bio.Bread with calls to io.ReadFull.
     
-    For instance, the action and flag "errorcheckdir -s"
-    will compile all files in the respective directory as
-    individual packages.
-    
-    Change-Id: Ic5c2f9e915a669433f66c2d3fe0ac068227a502f
-    Reviewed-on: https://go-review.googlesource.com/24313
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2ee8739d01e04a4da9c20b6ce7d1d5b89914b8ad
+    Reviewed-on: https://go-review.googlesource.com/21750
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- test/run.go | 35 ++++++++++++++++++++++-------------
- 1 file changed, 22 insertions(+), 13 deletions(-)
+ src/cmd/internal/bio/buf.go         | 11 -----------
+ src/cmd/link/internal/ld/ar.go      | 10 +++++-----
+ src/cmd/link/internal/ld/go.go      |  3 ++-
+ src/cmd/link/internal/ld/ldelf.go   | 10 ++++++----
+ src/cmd/link/internal/ld/ldmacho.go | 34 +++++++++++++++++++++++++---------
+ src/cmd/link/internal/ld/ldpe.go    | 14 +++++++++-----
+ src/cmd/link/internal/ld/lib.go     | 21 +++++++++++++--------
+ 7 files changed, 60 insertions(+), 43 deletions(-)

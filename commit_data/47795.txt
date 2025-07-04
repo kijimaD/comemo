@@ -1,17 +1,15 @@
-commit fc8ae9860a820e2d5179fc3b15b247e0545f2a28
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Dec 14 16:15:30 2021 -0500
+commit 16cd770e0668a410a511680b2ac1412e554bd27b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Apr 11 14:49:38 2021 +0200
 
-    doc/go1.18: move debug/buildinfo to core library section
+    cmd/cgo: throw if C.malloc returns NULL in C.CString or C.CBytes
     
-    It is a new package and seems a major change.
-    
-    Updates #47694.
-    
-    Change-Id: If854e494e28bcd1e79c99e59119755b9cb6793d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371816
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Iea07b7f3e64f5938cfb1cd1c07bdce4adf8e4470
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308992
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.18.html | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+ src/cmd/cgo/out.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

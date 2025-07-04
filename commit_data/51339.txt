@@ -1,30 +1,31 @@
-commit 42d975e5fe91fbe7719422248ad320c04dda5414
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Thu Nov 17 12:19:49 2022 +0000
+commit ce01afe907f7f37b465bda529a339a7a8b98c59e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 7 16:52:53 2022 -0500
 
-    time: avoid creating a parse error from the next chunk of the value
+    cmd/go: reset modfetch state between modules in go work sync
     
-    When it reports a parse error, it uses the "value" variable as the
-    value element of the parse error. Previously, in some of the cases,
-    the "value" variable is always updated to the next chunk of the value
-    to be parsed (even if an earlier chunk is invalid). The reported
-    parse error is confusing in this case.
+    go work sync resets the state in the modload package before each
+    iteration where it updates the workspace modules' go.mod files. But
+    before this change it wasn't resetting the global state in the modfetch
+    package. This is necessary because the modfetch package keeps track of
+    the sums that will be written to go.sum. Further, the fetch caches
+    will update information about which modules are used when fetching
+    packages, and so those caches need to be cleared between each workspace
+    module.
     
-    This CL addresses this issue by holding the original value, and when
-    it fails to parse the time, use it to create the parse error.
+    Thanks bcmills for helping me debug!
     
-    Fixes #56730.
+    Fixes #50038
     
-    Change-Id: I445b1d8a1b910208d0608b2186881746adb550e0
-    GitHub-Last-Rev: 67b1102b5e9b345beb2ddcc529a8e608e5afc865
-    GitHub-Pull-Request: golang/go#56754
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450936
+    Change-Id: I5679c18a80feb7c5194c4a5f7e7129c7d198ef7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376655
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/time/format.go      |  9 +++++----
- src/time/format_test.go | 22 ++++++++++++++--------
- 2 files changed, 19 insertions(+), 12 deletions(-)
+ src/cmd/go/internal/modfetch/fetch.go        | 22 +++++++++++++++
+ src/cmd/go/internal/modload/init.go          |  1 +
+ src/cmd/go/internal/workcmd/sync.go          |  4 +--
+ src/cmd/go/testdata/script/work_sync_sum.txt | 40 ++++++++++++++++++++++++++++
+ 4 files changed, 65 insertions(+), 2 deletions(-)

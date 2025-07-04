@@ -1,18 +1,22 @@
-commit 841a9136b3d737d1252f7c5c371f109f23d76b2d
-Author: Johan Brandhorst <johan.brandhorst@gmail.com>
-Date:   Sat Aug 4 09:45:36 2018 +0100
+commit 58c231f244feda52f66dd4692229f740d3c3b988
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Thu Apr 19 17:52:14 2018 +0300
 
-    strings, bytes: avoid unnecessary function literals
+    runtime: FreeBSD fast clock_gettime HPET timecounter support
     
-    A number of explicit function literals found through the
-    unlambda linter are removed.
+    This is a followup for CL 93156.
     
-    Fixes #26802
+    Fixes #22942.
     
-    Change-Id: I0b122bdd95e9cb804c77efe20483fdf681c8154e
-    Reviewed-on: https://go-review.googlesource.com/127756
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Ic6e2de44011d041b91454353a6f2e3b0cf590060
+    Reviewed-on: https://go-review.googlesource.com/108095
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bytes/bytes.go     | 6 +++---
- src/strings/strings.go | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/defs_freebsd.go       |  1 +
+ src/runtime/defs_freebsd_386.go   |  1 +
+ src/runtime/defs_freebsd_amd64.go |  1 +
+ src/runtime/defs_freebsd_arm.go   |  1 +
+ src/runtime/vdso_freebsd.go       | 43 +++++++++++++-------------
+ src/runtime/vdso_freebsd_x86.go   | 63 ++++++++++++++++++++++++++++++++++++++-
+ 6 files changed, 89 insertions(+), 21 deletions(-)

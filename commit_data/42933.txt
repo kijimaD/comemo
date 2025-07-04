@@ -1,29 +1,21 @@
-commit 26d27f96fec733fe09751b49b47282c9109fb8ad
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 27 16:34:59 2020 -0400
+commit ee46f135a92c982d1dfcfd742729df372d70a69c
+Author: TennyZhuang <zty0826@gmail.com>
+Date:   Wed Jan 29 11:47:49 2020 +0800
 
-    cmd/go/internal/modload: remove (*loader).forceStdVendor
+    cmd/compile: output cost while inlining function with Debug['m'] > 1
     
-    forceStdVendor was a special-case mechanism to allow Go contributors
-    to use vendored dependencies by default when working in GOROOT/src.
+    The existing implementation outputs inline cost iff function cannot be inlined with Debug['m'] > 1, the cost info is also useful if the function is inlineable.
     
-    As of Go 1.14,¹ the 'go' command uses vendored dependencies by default
-    within all modules, so the 'std' and 'cmd' modules no longer need to
-    be special cases, and we can remove this special-case code.
+    Fixes #36780
     
-    ¹ https://golang.org/doc/go1.14#vendor
-    
-    Updates #33848
-    Updates #30241
-    
-    Change-Id: Ib2fb5841c253113b17fa86a086ce85a22ac3d121
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251159
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic96f6baf96aee25fb4b33d31d4d644dc2310e536
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216778
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/internal/modload/load.go           | 25 +++++------
- src/cmd/go/testdata/script/mod_list_std.txt   | 64 ++++++++++++++++++---------
- src/cmd/go/testdata/script/mod_std_vendor.txt |  6 +--
- 3 files changed, 57 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 2 +-
+ test/fixedbugs/issue24651a.go      | 2 +-
+ test/fixedbugs/issue24651b.go      | 4 ++--
+ test/inline_big.go                 | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

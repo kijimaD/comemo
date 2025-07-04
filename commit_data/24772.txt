@@ -1,17 +1,29 @@
-commit c776cb999bf0dc650e233839ed5e99f9df231f24
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Nov 6 17:29:27 2015 +1100
+commit 186cf1b9ba1358344b8ce6f2fb4a62302b98ba90
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 28 16:45:17 2015 -0700
 
-    net: fix off by one error while counting interfaces on windows
+    [dev.ssa] cmd/compile/internal/ssa: handle dead code a different way
     
-    Fixes #12301
+    Instead of trying to delete dead code as soon as we find it, just
+    mark it as dead using a PlainAndDead block kind.  The deadcode pass
+    will do the real removal.
     
-    Change-Id: I8d01ec9551c6cff7e6129e06a7deb36a3be9de41
-    Reviewed-on: https://go-review.googlesource.com/16751
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This way is somewhat more efficient because we don't need to mess
+    with successor and predecessor lists of all the dead blocks.
+    
+    Fixes #12347
+    
+    Change-Id: Ia42d6b5f9cdb3215a51737b3eb117c00bd439b13
+    Reviewed-on: https://go-review.googlesource.com/14033
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/interface_windows.go |  2 +-
- src/net/net_windows_test.go  | 53 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/check.go          |   7 +
+ src/cmd/compile/internal/ssa/deadcode.go       | 186 +++++++++++++------------
+ src/cmd/compile/internal/ssa/gen/generic.rules |   6 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   2 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   5 +-
+ src/cmd/compile/internal/ssa/nilcheck.go       |   8 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   2 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  49 +++----
+ test/fixedbugs/issue12347.go                   |  16 +++
+ 9 files changed, 154 insertions(+), 127 deletions(-)

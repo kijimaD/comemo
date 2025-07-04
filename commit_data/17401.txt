@@ -1,15 +1,14 @@
-commit 4fc7ff497d4133899afed2a3f866d32cb7df5df0
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Aug 27 21:09:16 2013 +0200
+commit 8b047893a08f316a5f5179e2d71b45a068c9108a
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Aug 27 09:03:38 2013 -0700
 
-    cmd/5g: avoid clash between R13 and F3 registers.
+    go/ast: fix comment formatting
     
-    Fixes #6247.
+    A bullet list was getting mangled in godoc.
     
-    R=golang-dev, lucio.dere, bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13216043
+    https://golang.org/cl/13060047
 
- src/cmd/5g/gg.h             |  2 +-
- test/fixedbugs/issue6247.go | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/pkg/go/ast/commentmap.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

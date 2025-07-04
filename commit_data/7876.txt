@@ -1,27 +1,14 @@
-commit d406f8f650f26d567f543b33bd409bca9a434f50
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 25 14:50:44 2011 -0700
+commit 47c1cef56b77263bcabada3f193d1c8f271879e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 13:31:30 2011 -0700
 
-    testing: set up structure for faster testing using the new -test.short flag.
-    New make target "testshort" runs "gotest -test.short" and is invoked
-    by run.bash, which is invoked by all.bash.
+    test: match gccgo error messages for bug016.go.
     
-    Use -test.short to make one package (crypto ecdsa) run much faster.
-    More changes to come.
+    bug016.go:11:8: error: negative shift count
     
-    Once this is in, I will update the long-running tests to use the new flag.
-    
-    R=rsc
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/4317043
+    https://golang.org/cl/4312055
 
- src/Make.pkg                       |  3 +++
- src/cmd/gofix/Makefile             |  3 +++
- src/cmd/goinstall/Makefile         |  3 +++
- src/cmd/gotest/doc.go              |  4 ++++
- src/cmd/gotype/Makefile            |  3 +++
- src/pkg/Makefile                   |  6 ++++++
- src/pkg/crypto/ecdsa/ecdsa_test.go |  9 +++++++++
- src/pkg/testing/testing.go         | 12 ++++++++++++
- src/run.bash                       |  4 ++--
- 9 files changed, 45 insertions(+), 2 deletions(-)
+ test/fixedbugs/bug016.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,13 @@
-commit 46031400d0c0745ef8e764a4872f5aaaa143d199
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 5 15:51:58 2012 -0800
+commit 6b2586d29a61bc2d7753821850f1141d06f1b878
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 5 15:50:48 2012 -0800
 
-    reflect: fix comment spacing
+    misc/xcode: fix typos
     
-    R=golang-dev, bradfitz
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/5757043
+    https://golang.org/cl/5756043
 
- src/pkg/reflect/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/xcode/3/README | 2 +-
+ misc/xcode/4/README | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

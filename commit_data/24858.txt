@@ -1,25 +1,15 @@
-commit c5f0f881ad3066e92621339484f1183c86bd9a37
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Nov 12 14:12:48 2015 +0100
+commit 617e892b87fd2f74317a9ebf5d8b90bb9144957b
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 4 13:16:07 2015 -0700
 
-    runtime/race: update race runtime
+    [dev.ssa] cmd/compile: teach live variable analysis about LEAW
     
-    The new revision is 389d49d4943780efbfcd2a434f4462b6d0f23c44 (Nov 13, 2015).
-    The runtimes are built using the new x/build/cmd/racebuild utility.
-    This update fixes a bug in race detection algorithm that can
-    lead to occasional false negatives (#10589). But generally just
-    brings in an up-to-date runtime.
+    SSA uses this opcode, the old compiler doesn't.
     
-    Update #8653
-    Fixes #10589
-    
-    Change-Id: I7ac9614d014ee89c2302ce5e096d326ef293f367
-    Reviewed-on: https://go-review.googlesource.com/16827
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic3dde6216496b4b89d570584d34cb0971fdf379d
+    Reviewed-on: https://go-review.googlesource.com/14330
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/race/README                  |  11 +++--------
- src/runtime/race/race_darwin_amd64.syso  | Bin 314000 -> 300192 bytes
- src/runtime/race/race_freebsd_amd64.syso | Bin 316816 -> 368688 bytes
- src/runtime/race/race_linux_amd64.syso   | Bin 330232 -> 352664 bytes
- src/runtime/race/race_windows_amd64.syso | Bin 331489 -> 349411 bytes
- 5 files changed, 3 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/amd64/prog.go | 1 +
+ src/cmd/compile/internal/x86/prog.go   | 1 +
+ 2 files changed, 2 insertions(+)

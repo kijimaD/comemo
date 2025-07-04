@@ -1,53 +1,17 @@
-commit 35455fff0ebb7dd1b8e698f245a823ef8c711ac9
-Author: Daniel S Fava <danielsfava@gmail.com>
-Date:   Thu Nov 12 17:25:47 2020 +0100
+commit c53d1236dfaa900387519810c8de1a9353c55bab
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Apr 24 17:24:16 2020 +0200
 
-    runtime: swap the order of raceacquire() and racerelease()
+    cmd/compile: use typed aux for first half of arm64 lowering
     
-    In chansend() and chanrecv() of chan.go, the order of calls to
-    raceacquire() and racerelease() was swapped, which meant that the
-    code was not following the memory model "by the letter of the law."
-    Similar for bufrecv and bufsend in select.go
+    Passes
     
-    The memory model says:
+      GOARCH=arm64 gotip build -toolexec 'toolstash -cmp' -a std
     
-    - A send happens before the corresponding receive completes, and
-    - the kth receive on a channel with capacity C happens before the
-    k+C send on that channel completes.
-    
-    The operative word here is "completes."  For example, a sender obtains
-    happens-before information on completion of the send-operation, which
-    means, after the sender has deposited its message onto the channel.
-    Similarly for receives.
-    
-    If the order of raceacquire() and racerelease() is incorrect, the race
-    detector may fail to report some race conditions.
-    
-    The fix is minimal from the point of view of Go.  The fix does, however,
-    rely on a new function added to TSan:
-    
-    https://reviews.llvm.org/D76322
-    
-    This commit only affects execution when race detection is enabled.
-    
-    Added two tests into `runtime/race/output_test.go`:
-    
-    - `chanmm` tests for the issue addressed by this patch
-    - `mutex` is a test for inverted semaphores, which must not be broken
-      by this (or any other) patch
-    
-    Fixes #37355
-    
-    Change-Id: I5e886879ead2bd456a4b7dd1d17253641b767f63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220419
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Icb530d8d128d9938ab44a9c716c8dd09a34ededf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229937
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/chan.go             | 18 ++++------
- src/runtime/race.go             | 17 ++++++++++
- src/runtime/race/output_test.go | 73 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/race0.go            |  2 ++
- src/runtime/select.go           |  6 ++--
- 5 files changed, 100 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 374 +++++++++++++--------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 324 ++++++++++++++++-------
+ 2 files changed, 417 insertions(+), 281 deletions(-)

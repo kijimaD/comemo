@@ -1,19 +1,14 @@
-commit 71bf182028c2c7dd70e6a391a6519eb17dd06b3c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue May 12 11:34:23 2015 +1000
+commit 7ae9d06880c35432fc605bacc1c039858b61f439
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 16 21:32:48 2015 +1000
 
-    net: relax error checking in TestAcceptIgnoreSomeErrors
+    runtime/pprof: disable TestTraceStressStartStop
     
-    TestAcceptIgnoreSomeErrors was created to test that network
-    accept function ignores some errors. But conditions created
-    by the test also affects network reads. Change the test to
-    ignore these read errors when acceptable.
+    Updates #10476
     
-    Fixes #10785
-    
-    Change-Id: I3da85cb55bd3e78c1980ad949e53e82391f9b41e
-    Reviewed-on: https://go-review.googlesource.com/9942
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic4414f669104905c6004835be5cf0fa873553ea6
+    Reviewed-on: https://go-review.googlesource.com/8962
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/net_windows_test.go | 43 +++++++++++++++++++++++++++++++------------
- 1 file changed, 31 insertions(+), 12 deletions(-)
+ src/runtime/pprof/trace_test.go | 1 +
+ 1 file changed, 1 insertion(+)

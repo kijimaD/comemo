@@ -1,19 +1,16 @@
-commit e71d64012c9d9dc744bc9a780b4afccd8f5b029d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 4 20:03:20 2015 +0000
+commit 47ccf96a9581c3db8ed5dbcb2a6318e8b9566557
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Jul 20 12:33:39 2015 -0400
 
-    sort: improve average quicksort performance
+    runtime: darwin/386 entrypoint for c-archive
     
-    Revert "Revert "sort: improve average quicksort performance""
-    This reverts commit 30b87bb9aa0c6658830f3d111920e2f366476644.
-    
-    See https://golang.org/cl/15688 for the CL being replayed.
-    
-    Change-Id: I2ba36334003f4971f95a10536adfdd86be9a50de
-    Reviewed-on: https://go-review.googlesource.com/17389
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic22597b5e2824cffe9598cb9b506af3426c285fd
+    Reviewed-on: https://go-review.googlesource.com/12412
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/sort/example_multi_test.go |   4 +-
- src/sort/sort.go               | 112 ++++++++++++++++++++++++++---------------
- 2 files changed, 73 insertions(+), 43 deletions(-)
+ src/cmd/dist/test.go              |  2 +-
+ src/cmd/link/internal/ld/macho.go |  2 +-
+ src/runtime/rt0_darwin_386.s      | 55 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+), 2 deletions(-)

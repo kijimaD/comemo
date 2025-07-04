@@ -1,16 +1,13 @@
-commit 4d6788ecae127017ab4ab4d5d5907b8912a08bd6
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Thu May 5 00:04:54 2016 +0530
+commit 872ca73cadf589bd4adf76d0fac9b07c52ac75c8
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 16:41:51 2016 +0100
 
-    runtime: clean up profiling data files produced by TestCgoPprof
+    runtime: don't assume b.N > 0
     
-    Fixes #15541
-    
-    Change-Id: I9b6835157db0eb86de13591e785f971ffe754baa
-    Reviewed-on: https://go-review.googlesource.com/22783
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2e26717f2563d7633ffd15f4adf63c3d0ee3403f
+    Reviewed-on: https://go-review.googlesource.com/20856
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/crash_cgo_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/proc_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

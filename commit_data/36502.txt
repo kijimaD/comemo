@@ -1,18 +1,36 @@
-commit 096229b2ec60c51b65746dfd1a5bf443ac8e5a0f
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed Aug 8 02:04:49 2018 +0000
+commit c2366b27abe7e18b1b5642e5a9a009f5c41723ae
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Apr 4 14:59:27 2018 +0530
 
-    cmd/compile: add missing type information for some arm/arm64 rules
+    go/ast: hide unexported fields in composite literals
     
-    Some indexed load/store rules lack of type information, and this
-    CL adds that for them.
+    In ast/ast.go, added an Incomplete field inside CompositeLit
+    to denote that fields are missing.
     
-    Change-Id: Icac315ccb83a2f5bf30b056d4667d5b59eb4e5e2
-    Reviewed-on: https://go-review.googlesource.com/128455
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    In ast/filter.go, added a new function to go through the expression list
+    checking for KeyValue expressions inside composite literals.
+    Filter out entries with an unexported key.
+    
+    In printer/nodes.go, checking if the Incomplete field is set,
+    and accordingly print the filtered message with proper indentation.
+    
+    Copying over similar functionality in doc/exports.go so as to
+    maintain parity with ast/filter.go and such that godoc
+    can show the output correctly.
+    
+    Fixes #22803
+    
+    Change-Id: I57a3b999521933e32411a18e02d0b94d2ea2e6f6
+    Reviewed-on: https://go-review.googlesource.com/106395
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 24 +++++++++++-----------
- src/cmd/compile/internal/ssa/gen/ARMOps.go   | 30 ++++++++++++++--------------
- 2 files changed, 27 insertions(+), 27 deletions(-)
+ src/go/ast/ast.go                     |  9 ++---
+ src/go/ast/filter.go                  | 29 ++++++++++++++++
+ src/go/doc/exports.go                 | 29 ++++++++++++++++
+ src/go/printer/nodes.go               | 50 ++++++++++++++++++++-------
+ src/go/printer/printer_test.go        |  1 +
+ src/go/printer/testdata/complit.input | 65 +++++++++++++++++++++++++++++++++++
+ src/go/printer/testdata/complit.x     | 62 +++++++++++++++++++++++++++++++++
+ 7 files changed, 228 insertions(+), 17 deletions(-)

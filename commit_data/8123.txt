@@ -1,12 +1,12 @@
-commit 07dc26f88df9d14d7caa58010ab5992e00a9f3a7
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 15 08:31:32 2011 -0700
+commit b7065c5da4794e4d5d4b68cce06acd527a7a605a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 15 11:21:29 2011 -0400
 
-    6l: fix another "set and not used".
+    net: disable one more external network test
     
-    R=rsc
+    R=golang-dev, r2
     CC=golang-dev
-    https://golang.org/cl/4433042
+    https://golang.org/cl/4442042
 
- src/cmd/6l/asm.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/net/srv_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

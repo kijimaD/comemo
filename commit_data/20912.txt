@@ -1,19 +1,16 @@
-commit 355f25305b058f9975ce61401d7226e376e2db77
+commit aec37e7cb1d34896f65948e88465376ceca68e0c
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 24 20:18:44 2014 -0500
+Date:   Mon Oct 27 18:58:25 2014 -0400
 
-    go/build: build $GOOS_test.go always
+    encoding/json: encode \t as \t instead of \u0009
     
-    We decided to build $GOOS.go always
-    but forgot to test $GOOS_test.go.
+    Shorter and easier to read form for a common character.
     
-    Fixes #9159.
-    
-    LGTM=r
-    R=r
-    CC=golang-codereviews
-    https://golang.org/cl/176290043
+    LGTM=bradfitz
+    R=adg, bradfitz
+    CC=golang-codereviews, zimmski
+    https://golang.org/cl/162340043
 
- src/go/build/build.go      | 8 +++++---
- src/go/build/build_test.go | 1 +
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/encoding/json/encode.go      |  8 ++++++-
+ src/encoding/json/encode_test.go | 52 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 1 deletion(-)

@@ -1,26 +1,23 @@
-commit b8da7e4c4c9e97b3d1ebfb07506acdd61277b988
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Oct 20 13:56:15 2021 -0700
+commit 0c633125f25966fa749ff8003393216aa454e909
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 09:25:40 2021 -0500
 
-    cmd/compile: fix inlining of labeled for loops
+    cmd/dist: add windows/arm64 support
     
-    There is already a mechanism using inlgen to rename labels insided
-    inlined functions so that they are unique and don't clash with loops in
-    the outer function. This is used for OLABEL and OGOTO. Now that we are
-    doing inlining of OFOR loops, we need to do this translation for OBREAK,
-    OCONTINUE, and OFOR. I also added the translation for ORANGE loops, in
-    anticipation of a CL that will allow inlining of ORANGE for loops.
+    - Add Windows SystemInfo constant for arm64
+    - Add windows/arm64 to GOOS/GOARCH list
     
-    Fixes #49100
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
     
-    Change-Id: I2ccddc3350370825c386965f4a1e4bc54d3c369b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357649
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: I6109bd87512b5cb1d227d7a85fd0ac20eb2259e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288819
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/inline/inl.go | 35 ++++++++++++++++++++++++++++------
- test/fixedbugs/issue49100.go           | 27 ++++++++++++++++++++++++++
- test/fixedbugs/issue49100.out          | 12 ++++++++++++
- 3 files changed, 68 insertions(+), 6 deletions(-)
+ src/cmd/dist/build.go       | 1 +
+ src/cmd/dist/sys_windows.go | 5 +++++
+ 2 files changed, 6 insertions(+)

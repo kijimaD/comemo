@@ -1,17 +1,20 @@
-commit 677c4acc98fe22a8be14148f61c0c637a34c01d9
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Thu Aug 30 20:09:08 2018 -0700
+commit 5cf3e34f96f0ea975e0ce5fb8a5f3b036a916500
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat May 5 07:18:21 2018 -0700
 
-    doc: recommend benchstat for performance commits
+    database/sql: make error prefixes consistent
     
-    The benchstat tool computes statistics about benchmarks, including
-    whether any differences are statistically significant. Recommend its use
-    in commit messages of performance-related changes rather than the
-    simpler benchcmp tool.
+    Ensure all error prefixes in the "database/sql" package start with
+    "sql: ". Do not prefix errors for type conversions because they
+    are always embedded in another error message with a specific
+    context.
     
-    Change-Id: I4b35c2d892b48e60c3064489b035774792c19c30
-    Reviewed-on: https://go-review.googlesource.com/132515
+    Fixes #25251
+    
+    Change-Id: I349d9804f3bfda4eeb755b32b508ec5992c28e07
+    Reviewed-on: https://go-review.googlesource.com/111637
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/database/sql/fakedb_test.go | 23 +++++++++++------------
+ src/database/sql/sql.go         |  4 ++--
+ 2 files changed, 13 insertions(+), 14 deletions(-)

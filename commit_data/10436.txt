@@ -1,22 +1,27 @@
-commit ac17fd4cd2daba25471c07d25d618171e905fd2d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Nov 18 10:07:36 2011 +1100
+commit 9859af879bb303acfb37300e314d3057e98a5eaf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 17 14:47:49 2011 -0800
 
-    mime: implement TypeByExtension for windows
+    godoc: provide mode for flat (non-indented) directory listings
     
-    Fixes #2071.
+    This feature should make it easier to look at very large
+    directory trees.
     
-    R=golang-dev, hcwfrichter, pascal, rsc
-    CC=golang-dev
-    https://golang.org/cl/5369056
+    - a new mode (URL: /pkg/?m=flat) shows directory listings w/o
+      indentation and entries with full path (html and text mode)
+    - in text mode, hierarchical (non-flat) directory listings are
+      now presented with indentation (/pkg/?m=text)
+    - in html mode, hierarchical (non-flat) directory listings are
+      presented with slightly less indentation
+    - there is an internal hook for programmatic control of the
+      display mode (for specialized versions of godoc).
+    
+    R=bradfitz
+    CC=golang-dev, rsc
+    https://golang.org/cl/5410043
 
- src/pkg/mime/Makefile                     | 20 ++++++++++
- src/pkg/mime/type.go                      | 45 ++--------------------
- src/pkg/mime/type_test.go                 |  8 +---
- src/pkg/mime/type_unix.go                 | 59 +++++++++++++++++++++++++++++
- src/pkg/mime/type_windows.go              | 62 +++++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_windows.go        |  5 +++
- src/pkg/syscall/zsyscall_windows_386.go   | 35 +++++++++++++++++
- src/pkg/syscall/zsyscall_windows_amd64.go | 35 +++++++++++++++++
- src/pkg/syscall/ztypes_windows.go         | 40 ++++++++++++++++++++
- 9 files changed, 260 insertions(+), 49 deletions(-)
+ lib/godoc/package.html | 18 +++++++++++++-----
+ lib/godoc/package.txt  |  9 +++++----
+ src/cmd/godoc/doc.go   |  7 ++++---
+ src/cmd/godoc/godoc.go | 30 ++++++++++++++++++++++++++----
+ 4 files changed, 48 insertions(+), 16 deletions(-)

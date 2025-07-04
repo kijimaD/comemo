@@ -1,12 +1,15 @@
-commit 38c082f69e08d7dbb56392b54a546801224ee239
+commit 49dfaad870208969ff3129ed1e1bda8f12302c03
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Nov 25 13:32:44 2011 +1100
+Date:   Fri Nov 25 12:53:05 2011 +1100
 
-    html/template: fix documentation indent
+    dashboard: builder-facing implementation and tests
     
-    R=nigeltao
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5437061
+    https://golang.org/cl/5431048
 
- src/pkg/html/template/content.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ misc/dashboard/app/app.yaml       |   5 +
+ misc/dashboard/app/build/build.go | 327 ++++++++++++++++++++++++++++++++++++--
+ misc/dashboard/app/build/key.go   |  16 ++
+ misc/dashboard/app/build/test.go  | 141 ++++++++++++++++
+ 4 files changed, 473 insertions(+), 16 deletions(-)

@@ -1,24 +1,14 @@
-commit e3c9565b438cb2eb4be6c2bd57696e378f754e46
-Author: Eric Eisner <eric.d.eisner@gmail.com>
-Date:   Tue Jan 11 21:46:50 2011 -0800
+commit 6f62e407733cb8b340e75bc91bc2633976675d9d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 11 21:42:24 2011 -0800
 
-    suffixarray: faster creation algorithm
+    C&A for Eric Eisner
+    there is something funny in the database; trying to recreate the change.
     
-    This implements the algorithm qsufsort using the sort package
-    as a sorting primitive. Its worst-case performance is O(N*log(N)), and it
-    uses only an additional slice of N ints of memory during creation.
-    
-    Benchmarks (seconds):
-               old    new
-    10k nulls          149    0.044
-    1M English corpus  32.0   3.6
-    
-    R=gri, gri1
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/3752044
+    https://golang.org/cl/3900044
 
- src/pkg/index/suffixarray/Makefile            |   1 +
- src/pkg/index/suffixarray/qsufsort.go         | 164 ++++++++++++++++++++++++++
- src/pkg/index/suffixarray/suffixarray.go      |  25 +---
- src/pkg/index/suffixarray/suffixarray_test.go |  18 +++
- 4 files changed, 185 insertions(+), 23 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

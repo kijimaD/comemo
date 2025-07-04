@@ -1,20 +1,22 @@
-commit 9d81ade223e105880853ff31d0e04affd2fec488
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 11 00:08:07 2014 -0400
+commit 9b3e2aa1dbfdb98f634dacf0cbca802221af1f36
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 10 17:01:21 2014 -0700
 
-    runtime: make stack growth test shorter
+    net/http: document, test, define, clean up Request.Trailer
     
-    It runs too long in -short mode.
+    Go's had pretty decent HTTP Trailer support for a long time, but
+    the docs have been largely non-existent. Fix that.
     
-    Disable the one in init, because it doesn't respect -short.
+    In the process, re-learn the Trailer code, clean some stuff
+    up, add some error checks, remove some TODOs, fix a minor bug
+    or two, and add tests.
     
-    Make the part that claims to test execution in a finalizer
-    actually execute the test in the finalizer.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=aram.h, golang-codereviews, iant, khr
-    https://golang.org/cl/86550045
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=dsymonds, golang-codereviews, rsc
+    https://golang.org/cl/86660043
 
- src/pkg/runtime/stack_test.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/pkg/net/http/client_test.go | 92 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/request.go     | 51 ++++++++---------------
+ src/pkg/net/http/transfer.go    | 66 +++++++++++++++++------------
+ 3 files changed, 150 insertions(+), 59 deletions(-)

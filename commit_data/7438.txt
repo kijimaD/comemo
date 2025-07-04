@@ -1,19 +1,15 @@
-commit 7e77623120105b51f4a348d56798cb49007de029
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Fri Feb 11 13:39:05 2011 -0500
+commit bbfad5f1cc5b8480ac41a3df7c98b5267c1a3327
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri Feb 11 12:39:18 2011 -0500
 
-    8l, runtime: place G and M pointers relative to _tos on Plan 9, instead of hardcoded values for USTKTOP.
+    bytes: fix bugs in buffer.ReadBytes
     
-    This should allow executing both on native Plan 9 and inside 9vx.
+    Fixes #1498.
     
-    R=rsc
+    R=golang-dev, mattn, r, rsc
     CC=golang-dev
-    https://golang.org/cl/3993044
+    https://golang.org/cl/4140041
 
- src/cmd/8l/obj.c                 |  1 +
- src/cmd/8l/pass.c                | 29 +++++++++++++++++++++++++----
- src/pkg/runtime/mkasmh.sh        |  6 +++---
- src/pkg/runtime/plan9/386/defs.h |  1 +
- src/pkg/runtime/plan9/386/sys.s  |  5 +++--
- src/pkg/runtime/plan9/mem.c      | 29 ++++++++++++++++++-----------
- 6 files changed, 51 insertions(+), 20 deletions(-)
+ src/pkg/bytes/buffer.go      |  3 ++-
+ src/pkg/bytes/buffer_test.go | 35 +++++++++++++++++++++++------------
+ 2 files changed, 25 insertions(+), 13 deletions(-)

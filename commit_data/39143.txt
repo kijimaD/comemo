@@ -1,30 +1,20 @@
-commit 45d74aad539c645d4e50a405f55ca46811dd70d6
-Author: Bjørn Erik Pedersen <bjorn.erik.pedersen@gmail.com>
-Date:   Sun Mar 10 21:43:45 2019 +0000
+commit e3eb2ff8270a3d0f542808136519a044f39c50d9
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Tue Jan 8 00:54:58 2019 +0200
 
-    text/template: fix truth handling of typed interface nils in if and with
+    runtime: disable GDB tests on freebsd on all GOARCH values
     
-    Before this commit, the two logically equivalent conditionals below would
-    produce different output:
+    The in-tree GDB is too old (6.1.1) on all the builders except the
+    FreeBSD 12.0 one, where it was removed from the base system.
     
-        {{ if not .NonEmptyInterfaceTypedNil }}OK{{ else }}{{ end }}
-        {{ if .NonEmptyInterfaceTypedNil }}{{ else }}OK{{ end }}
+    Update #29508
     
-    The functions `not`, `or`, and `and` all use the same `truth` function, which
-    unwraps any concrete interface value before passing it to `isTrue`.
-    
-    `if` and `with` also use `isTrue` to establish truth, but was missing the
-    interface indirect call.
-    
-    Fixes #30501
-    
-    Change-Id: I9c49eed41e737d8f162e39bef1c3b82fd5518fed
-    GitHub-Last-Rev: 95fc2c82f26d24a457de4deaa7e5756718fbf07c
-    GitHub-Pull-Request: golang/go#30534
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164958
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ib6091cd86440ea005f3f903549a0223a96621a6f
+    Reviewed-on: https://go-review.googlesource.com/c/156717
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/text/template/exec.go      | 2 +-
- src/text/template/exec_test.go | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/runtime-gdb_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

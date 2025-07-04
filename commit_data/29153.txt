@@ -1,16 +1,15 @@
-commit 0dabbcdc435e4babf76bd561cfe67a486404d73a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Oct 27 16:42:42 2016 -0400
+commit 428d79bd38db30405fe2b5d264d856e52030c338
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Sun Aug 28 23:11:00 2016 -0700
 
-    math/big: flip long/short flag on TestFloat32Distribution
+    os: add example for OpenFile
     
-    It looks like a typo in CL 30707.
+    New beginners are not familiar with open(2)-style masking of the
+    flags. Add an example demonstrates the flag or'ing.
     
-    Change-Id: Ia2d013567dbd1a49901d9be0cd2d5a103e6e38cf
-    Reviewed-on: https://go-review.googlesource.com/32187
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ifa8009c55173ba0dc6642c1d3b3124c766b1ebbb
+    Reviewed-on: https://go-review.googlesource.com/27996
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/rat_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/example_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

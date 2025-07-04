@@ -1,39 +1,24 @@
-commit 51ff3a6965b3fc40aceebe90eaf15a8a1a00a452
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Nov 30 15:56:01 2020 -0800
+commit 152468070946c6b8688bff2c0cccd2bc72904722
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 28 14:20:31 2020 -0400
 
-    crypto/x509: rewrite certificate parser
+    cmd/go: allow 'go get' to downgrade to replacement-only versions
     
-    Replaces the encoding/asn1 certificate parser with a
-    x/crypto/cryptobyte based parser. This provides a significant increase
-    in performance, mostly due to a reduction of lots of small allocs,
-    as well as almost entirely removing reflection.
+    This fixes a case missed in CL 258220.
     
-    Since this is a rather large rewrite only the certificate parser is
-    replaced, leaving the parsers for CSRs, CRLs, etc for follow-up work.
-    Since some of the functions that the other parsers use are replaced
-    with cryptobyte versions, they still get a not insignificant performance
-    boost.
+    For #36460
+    Updates #26241
+    Updates #37438
     
-    name                           old time/op    new time/op    delta
-    ParseCertificate/ecdsa_leaf-8    44.6µs ± 9%    12.7µs ± 4%  -71.58%  (p=0.000 n=20+18)
-    ParseCertificate/rsa_leaf-8      46.4µs ± 4%    13.2µs ± 2%  -71.49%  (p=0.000 n=18+19)
-    
-    name                           old allocs/op  new allocs/op  delta
-    ParseCertificate/ecdsa_leaf-8       501 ± 0%       164 ± 0%  -67.27%  (p=0.000 n=20+20)
-    ParseCertificate/rsa_leaf-8         545 ± 0%       182 ± 0%  -66.61%  (p=0.000 n=20+20)
-    
-    Fixes #21118
-    Fixes #44237
-    
-    Change-Id: Id653f6ae5e405c3cbf0c5c48abb30aa831e30107
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274234
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: I5e8c2ee1e08e41cc2eb34e54c617cb5e4bf69c5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266018
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/crypto/x509/parser.go    | 1005 ++++++++++++++++++++++++++++++++++++++++++
- src/crypto/x509/x509.go      |  672 ----------------------------
- src/crypto/x509/x509_test.go |  179 ++++++++
- 3 files changed, 1184 insertions(+), 672 deletions(-)
+ src/cmd/go/internal/modload/mvs.go                |   6 +-
+ src/cmd/go/testdata/script/mod_get_replaced.txt   |   4 +-
+ src/cmd/go/testdata/script/mod_lazy_downgrade.txt | 145 ++++++++++++++++++++++
+ 3 files changed, 152 insertions(+), 3 deletions(-)

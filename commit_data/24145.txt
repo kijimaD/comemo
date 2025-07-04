@@ -1,16 +1,27 @@
-commit e8da46f6db134573efdd0d5cf8ec4fce5919be57
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Tue Sep 1 21:41:58 2015 +0200
+commit 777ab5ce1a47bc7cc71e6a675c2dcc76e69e11d5
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 1 11:04:19 2015 -0400
 
-    cmd/compile/internal/gc: remove dead code found by vet
+    runtime: fix MemStats.{PauseNS,PauseEnd,PauseTotalNS,LastGC}
     
-    See report in commit 3c9fa388df826a67cb5042513e3df079709e6b8b.
+    These memstats are currently being computed by gcMark, which was
+    appropriate in Go 1.4, but gcMark is now just one part of a bigger
+    picture. In particular, it can't account for the sweep termination
+    pause time, it can't account for all of the mark termination pause
+    time, and the reported "pause end" and "last GC" times will be
+    slightly earlier than they really are.
     
-    Change-Id: I74a5995a1c1ca62b8d01857e89b084502e7da928
-    Reviewed-on: https://go-review.googlesource.com/14170
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Lift computing of these statistics into func gc, which has the
+    appropriate visibility into the process to compute them correctly.
+    
+    Fixes one of the issues in #10323. This does not add new statistics
+    appropriate to the concurrent collector; it simply fixes existing
+    statistics that are being misreported.
+    
+    Change-Id: I670cb16594a8641f6b27acf4472db15b6e8e086e
+    Reviewed-on: https://go-review.googlesource.com/11794
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/gen.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/malloc_test.go | 17 ++++++++++++++++-
+ src/runtime/mgc.go         | 42 ++++++++++++++++++++++++++----------------
+ 2 files changed, 42 insertions(+), 17 deletions(-)

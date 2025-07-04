@@ -1,12 +1,23 @@
-commit 38e512824336971bcb3d067ad46d01728501b959
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jul 22 14:57:17 2011 +1000
+commit 226fb099d9c1f81296ba4395c839c52875c0b7be
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 22 00:55:01 2011 -0400
 
-    archive/zip: handle zip files with more than 65535 files
+    runtime: add UpdateMemStats, use in tests
     
-    R=r
+    Drops mallocrep1.go back to a reasonable
+    amount of time.  (154 -> 0.8 seconds on my Mac)
+    
+    Fixes #2085.
+    
+    R=golang-dev, dvyukov, r
     CC=golang-dev
-    https://golang.org/cl/4812048
+    https://golang.org/cl/4811045
 
- src/pkg/archive/zip/reader.go | 22 ++++++++++++++++++----
- 1 file changed, 18 insertions(+), 4 deletions(-)
+ src/pkg/runtime/mem.go |  7 ++++++-
+ src/pkg/runtime/mgc0.c | 16 ++++++++++++++++
+ test/gc2.go            |  3 ++-
+ test/malloc1.go        |  1 +
+ test/mallocrand.go     |  1 +
+ test/mallocrep.go      |  6 ++++--
+ test/mallocrep1.go     |  9 ++++++---
+ 7 files changed, 36 insertions(+), 7 deletions(-)

@@ -1,13 +1,12 @@
-commit b6f671b90124e0326e32793bbaeb59eaa43b4c2f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 25 15:30:03 2012 -0500
+commit 2355d18e3cc781c9e61208db7ac0bec6a8ebea87
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 25 15:26:19 2012 -0500
 
-    gofix: update go1pkgrename for subrepositories
+    gofix: add -debug flag for quicker diagnosis of internal errors
     
-    R=golang-dev, bradfitz
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5576044
+    https://golang.org/cl/5564055
 
- src/cmd/gofix/go1pkgrename.go      | 26 ++++++++++++++++++++++++++
- src/cmd/gofix/go1pkgrename_test.go |  4 ++++
- 2 files changed, 30 insertions(+)
+ src/cmd/gofix/main.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

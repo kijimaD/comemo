@@ -1,25 +1,31 @@
-commit 58340240576a9ad254d90da4570e5e6afb913959
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 20 12:24:09 2022 -0400
+commit 2a7900762c24a4b04d0d51c833e22bc319d0234e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jun 17 10:14:07 2021 +0700
 
-    cmd/link: fix StackCheckOutput on AIX
+    [dev.typeparams] go/types: report better error for invalid untyped operation
     
-    This test forces GOARCH to amd64, but currently uses the default GOOS.
-    This works on every OS that supports amd64, which is every OS we
-    support except AIX. Hence, on AIX this fails with an unsupported
-    GOOS/GOARCH combination.
+    This is port of CL 328053 for types2 to go/type.
     
-    Fix this by forcing GOOS to linux.
+    The change is identical, but for some tweaks to the error positions in
+    tests.
     
-    Fixes #52451.
+    Updates #46749
     
-    Change-Id: I9321dd6386c7ef0fe2b47d77ed900aafc53f2a46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401334
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8d34c5b1669e59e4ec7d91f81dcf655b2bfd89a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328869
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/stackcheck.go      |  2 +-
- src/cmd/link/internal/ld/stackcheck_test.go | 19 +++++++++----------
- 2 files changed, 10 insertions(+), 11 deletions(-)
+ src/go/types/errorcodes.go             |  2 +-
+ src/go/types/expr.go                   | 28 +++++++++++++++++++++-------
+ src/go/types/testdata/check/const0.src |  2 +-
+ src/go/types/testdata/check/decls1.src |  2 +-
+ src/go/types/testdata/check/expr1.src  |  4 ++--
+ src/go/types/testdata/check/expr2.src  |  2 +-
+ src/go/types/testdata/check/expr3.src  |  2 +-
+ src/go/types/testdata/check/stmt0.src  | 12 ++++++------
+ 8 files changed, 34 insertions(+), 20 deletions(-)

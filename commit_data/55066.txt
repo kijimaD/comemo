@@ -1,15 +1,23 @@
-commit cc7b4b3c3685a688638363bf5be9150b04b75945
-Author: Anton Telyshev <ant.telishev@gmail.com>
-Date:   Sun Oct 29 23:06:44 2023 +0200
+commit cb07765045aed5104a3df31507564ac99e6ddce8
+Author: miller <millerresearch@gmail.com>
+Date:   Tue Dec 13 10:43:23 2022 +0000
 
-    cmd/vet: add lost checks in doc
+    syscall: fix closing of reordered FDs in plan9 ForkExec
     
-    Change-Id: Iacbcb582e263149fede734822cba2df4b8162968
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544015
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    After dup'ing file descriptors in syscall.ProcAttr.Files to pass
+    to the exec'ed process, the logic for closing the old descriptors
+    was incorrect and could close the new descriptor instead.
+    
+    Fixes #57180
+    
+    Change-Id: I7725f21a465ffba57050fe4e36f3d36ba181cfb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457115
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/vet/doc.go | 54 ++++++++++++++++++++++++++++++++----------------------
- 1 file changed, 32 insertions(+), 22 deletions(-)
+ src/syscall/exec_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

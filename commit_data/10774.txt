@@ -1,14 +1,14 @@
-commit 1e63a4e4242389fdd1c5f90efa8c221c3bd2701b
-Author: Christopher Wedgwood <cw@f00f.org>
-Date:   Tue Dec 13 21:28:43 2011 -0800
+commit 6481e37d28b61bfae99a6fe2f70fa0412da16de6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 14 00:08:38 2011 -0500
 
-    runtime: bump gc 'extra bytes' check
+    8c: handle 64-bit switch value
+    Cases must still be 32-bit values, but one thing at a time.
     
-    (needed for non-zero GOMAXPROCS)
-    
-    R=iant, rsc
-    CC=go.peter.90, golang-dev
-    https://golang.org/cl/5486059
+    R=ality, ken2, ken
+    CC=golang-dev
+    https://golang.org/cl/5485063
 
- src/pkg/runtime/gc_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/8c/swt.c  | 50 +++++++++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/cc/pgen.c | 12 ++----------
+ 2 files changed, 47 insertions(+), 15 deletions(-)

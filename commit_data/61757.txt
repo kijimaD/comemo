@@ -1,0 +1,36 @@
+commit 66abc557077c026cf21b228fe0f53afe652a4d1c
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 4 11:21:04 2024 -0800
+
+    net/http: add support for unencrypted HTTP/2
+    
+    Add an UnencryptedHTTP2 protocol value.
+    
+    Both Server and Transport implement "HTTP/2 with prior knowledge"
+    as described in RFC 9113, section 3.3. Neither supports the
+    deprecated HTTP/2 upgrade mechanism (RFC 7540, section 3.2 "h2c").
+    
+    For Server, UnencryptedHTTP2 controls whether the server
+    will accept HTTP/2 connections on unencrypted ports.
+    When enabled, the server checks new connections for
+    the HTTP/2 preface and routes them appropriately.
+    
+    For Transport, enabling UnencryptedHTTP2 and disabling HTTP1
+    causes http:// requests to be made over unencrypted HTTP/2
+    connections.
+    
+    For #67816
+    
+    Change-Id: I2763c4cdec1c2bc6bb8157edb93b94377de8a59b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622976
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/next/67816.txt                           |  2 +
+ doc/next/6-stdlib/99-minor/net/http/67816.md | 15 +++++
+ src/net/http/http.go                         | 12 ++++
+ src/net/http/server.go                       | 84 +++++++++++++++++++++++++++-
+ src/net/http/transport.go                    | 23 +++++++-
+ src/net/http/transport_test.go               | 64 +++++++++++++++++++++
+ 6 files changed, 198 insertions(+), 2 deletions(-)

@@ -1,17 +1,29 @@
-commit f5f8b38462983a06ec07d6c394834af50eef6698
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Feb 25 17:27:10 2016 -0800
+commit 481eedce62015f9f7ed390bb01b1afc63300b0e6
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Dec 2 15:48:06 2015 -0800
 
-    cmd/compile: eliminate prectab
+    archive/tar: properly format GNU base-256 encoding
     
-    While here, merge LINC and LDEC into LINCOP.
+    Motivation:
+    * Previous implementation silently failed when an integer overflow
+    occurred. Now, we report an ErrFieldTooLong.
+    * Previous implementation did not encode in two's complement format and was
+    unable to encode negative numbers.
     
-    Fixes #13244.
+    The relevant GNU specification says:
+    <<<
+    GNU format uses two's-complement base-256 notation to store values
+    that do not fit into standard ustar range.
+    >>>
     
-    Change-Id: I8ea426f986d60d35c3b1a80c056a7aa49d22d802
-    Reviewed-on: https://go-review.googlesource.com/19928
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #12436
+    
+    Change-Id: I09c20602eabf8ae3a7e0db35b79440a64bfaf807
+    Reviewed-on: https://go-review.googlesource.com/17425
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/lex.go    | 181 ++++++++++++++++++----------------
- src/cmd/compile/internal/gc/parser.go |  72 +++-----------
- 2 files changed, 111 insertions(+), 142 deletions(-)
+ src/archive/tar/writer.go      | 26 +++++++++++--
+ src/archive/tar/writer_test.go | 83 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 105 insertions(+), 4 deletions(-)

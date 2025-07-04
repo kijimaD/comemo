@@ -1,17 +1,19 @@
-commit 879f595f7eacbd53d25fe21cac4b2b0cfde36449
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Sep 28 08:23:21 2022 +0800
+commit 6b223e872a255b2722ea921c9d42adcbb5d1d4d5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Oct 31 19:23:14 2021 -0400
 
-    net/http: use time.Compare
+    crypto/x509: disable SHA-1 signature verification
     
-    Change-Id: I4730673130bdfbda9987dcb5869f421082f92150
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435615
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Updates #41682
+    
+    Change-Id: Ib766d2587d54dd3aeff8ecab389741df5e8af7cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359777
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/net/http/cookiejar/jar.go | 4 ++--
- src/net/http/fs.go            | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/crypto/x509/verify_test.go |  4 +++
+ src/crypto/x509/x509.go        | 39 +++++++++++++++++-----
+ src/crypto/x509/x509_test.go   | 75 +++++++++++++++++++++++++++++++-----------
+ 3 files changed, 90 insertions(+), 28 deletions(-)

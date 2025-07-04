@@ -1,33 +1,14 @@
-commit f14f7b31416ee655dc588eb3a1772a7a4be2a61c
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Oct 10 17:36:03 2017 +0100
+commit 09899d9b91f56d57104e2b633a3f9849c7f26184
+Author: Gabríel Arthúr Pétursson <gabriel@system.is>
+Date:   Mon Jun 26 23:54:04 2017 +0000
 
-    cmd/compile: make bad Ctypes be only 0
+    test/fixedbugs: Close opening parenthesis in comment in issue20789.go
     
-    Before, -1 meant a node being nil or not an OLITERAL, and 0 meant an
-    OLITERAL missing a Val.
+    Updates #20789
     
-    However, the use of this value was confusing and led to some issues,
-    such as swt.go checking for < 0 instead of <= 0, causing panics.
-    
-    We never need to differentiate these two cases, so collapse both into 0.
-    To make it clear that negative values can no longer happen, make Ctype
-    an uint8.
-    
-    With this change, we can now get rid of the two n.Type == nil checks
-    in swt.go added to fix a couple of these panics.
-    
-    Thanks to Matthew Dempsky for spotting this inconsistency.
-    
-    Fixes #22001.
-    
-    Change-Id: I51c65a76f38a3e16788b6a3b57932dad3436dc7e
-    Reviewed-on: https://go-review.googlesource.com/69510
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic7a94394e283bc1b667cdad999ceee9513f35e37
+    Reviewed-on: https://go-review.googlesource.com/46770
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 10 +++++-----
- src/cmd/compile/internal/gc/order.go |  2 +-
- src/cmd/compile/internal/gc/swt.go   | 16 +++-------------
- 3 files changed, 9 insertions(+), 19 deletions(-)
+ test/fixedbugs/issue20789.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

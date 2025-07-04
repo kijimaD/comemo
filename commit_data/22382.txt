@@ -1,23 +1,18 @@
-commit 00bc19e996253afd5a3ed763d7a575f56c07d7db
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Mar 30 02:59:10 2015 +0000
+commit b353a69509423c8fe509d3268ae336e9a45478de
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 10 19:39:17 2015 +1100
 
-    cmd/internal/ld: support for -buildmode=shared
+    debug/elf: fix arm build
     
-    Change-Id: Id4997d611ced29397133f14def6abc88aa9e811e
-    Reviewed-on: https://go-review.googlesource.com/8252
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This change adds the minimum necessary to implement applyRelocations.
+    
+    For adg, this code uses the switch statement.
+    
+    Change-Id: I0989daab8d0e36c2a4f6a315ced258b832744616
+    Reviewed-on: https://go-review.googlesource.com/7266
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/6l/asm.go              |  6 +++-
- src/cmd/6l/obj.go              |  2 +-
- src/cmd/internal/ld/data.go    | 19 ++++++++---
- src/cmd/internal/ld/elf.go     |  2 +-
- src/cmd/internal/ld/go.go      | 73 ++++++++++++++++++++++++------------------
- src/cmd/internal/ld/lib.go     | 41 ++++++++++++++++++++++--
- src/cmd/internal/ld/link.go    |  1 +
- src/cmd/internal/ld/objfile.go |  2 ++
- src/cmd/internal/ld/pcln.go    |  1 +
- src/cmd/internal/ld/pobj.go    | 18 +++++++++--
- src/cmd/internal/ld/symtab.go  | 35 +++++++++++++-------
- 11 files changed, 146 insertions(+), 54 deletions(-)
+ src/debug/elf/file.go                              |  56 +++++++++++++++++----
+ src/debug/elf/file_test.go                         |   6 +++
+ .../elf/testdata/go-relocation-test-gcc492-arm.obj | Bin 0 -> 2648 bytes
+ 3 files changed, 53 insertions(+), 9 deletions(-)

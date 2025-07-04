@@ -1,41 +1,34 @@
-commit 39263f34a307814a74823b280a313829dad374e5
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Sep 6 13:59:35 2023 -0700
+commit bdd1e283a914d4d161589adce4f2ad79767d029d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Nov 2 11:11:03 2022 -0400
 
-    cmd/compile: add a cache to interface type switches
+    cmd/compile/internal/pgo: match on call line offsets
     
-    That way we don't need to call into the runtime when the type being
-    switched on has been seen many times before.
+    Rather than matching calls to edges in the profile based directly on
+    line number in the source file, use the line offset from the start of
+    the function. This makes matching robust to changes in the source file
+    above the function containing the call.
     
-    The cache is just a hash table of a sample of all the concrete types
-    that have been switched on at that source location.  We record the
-    matching case number and the resulting itab for each concrete input
-    type.
+    The start line in the profile comes from Function.start_line, which is
+    included in Go pprof output since CL 438255.
     
-    The caches seldom get large. The only two in a run of all.bash that
-    get more than 100 entries, even with the sampling rate set to 1, are
+    Currently it is an error if no samples set start_line to help users
+    detect profiles missing this information. In the future, we should
+    fallback to using absolute lines, which is better than nothing.
     
-    test/fixedbugs/issue29264.go, with 101
-    test/fixedbugs/issue29312.go, with 254
+    For #55022.
     
-    Both happen at the type switch in fmt.(*pp).handleMethods, perhaps
-    unsurprisingly.
-    
-    name                                 old time/op  new time/op  delta
-    SwitchInterfaceTypePredictable-24    25.8ns ± 2%   2.5ns ± 3%  -90.43%  (p=0.000 n=10+10)
-    SwitchInterfaceTypeUnpredictable-24  37.5ns ± 2%  11.2ns ± 1%  -70.02%  (p=0.000 n=10+10)
-    
-    Change-Id: I4961ac9547b7f15b03be6f55cdcb972d176955eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526658
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ie621950cfee1fef8fb200907a2a3f1ded41d04fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447315
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go    | 104 +++++++++++++++++++++++++++++-
- src/cmd/compile/internal/test/inl_test.go |   3 +
- src/cmd/compile/internal/walk/switch.go   |   9 ++-
- src/internal/abi/switch.go                |  31 +++++++++
- src/runtime/iface.go                      |  98 +++++++++++++++++++++++++++-
- test/codegen/switch.go                    |   4 +-
- 6 files changed, 239 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/inline/inl.go             |  15 ++-
+ src/cmd/compile/internal/pgo/irgraph.go            | 127 +++++++++++----------
+ src/cmd/compile/internal/test/pgo_inl_test.go      | 115 +++++++++++++++++--
+ .../test/testdata/pgo/inline/inline_hot.go         |   6 +-
+ .../test/testdata/pgo/inline/inline_hot.pprof      | Bin 1423 -> 943 bytes
+ .../test/testdata/pgo/inline/inline_hot_test.go    |   6 +-
+ 6 files changed, 186 insertions(+), 83 deletions(-)

@@ -1,0 +1,21 @@
+commit ca17bda85638ae2a1e8e73ae624d83bb5e64ecfd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 21 15:16:25 2024 -0700
+
+    go/types, types2: underIs must consider Alias types
+    
+    Fixes regression from Go 1.22.
+    
+    For #67547.
+    
+    Change-Id: I012681c7b8b01b02018b313dd3804690bc7aeed1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587158
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/expr.go             | 1 +
+ src/go/types/expr.go                                | 1 +
+ src/internal/types/testdata/fixedbugs/issue67547.go | 6 ++++++
+ 3 files changed, 8 insertions(+)

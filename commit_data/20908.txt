@@ -1,29 +1,17 @@
-commit 2b3f37908060837f8715c61af110b01b8a590c7c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Nov 20 09:51:02 2014 -0500
+commit 6be0c8a566f6747fd18e9f5f49df37a6cd289407
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 27 17:19:41 2014 -0400
 
-    runtime: fix atomic operations on non-heap addresses
-    Race detector runtime does not tolerate operations on addresses
-    that was not previously declared with __tsan_map_shadow
-    (namely, data, bss and heap). The corresponding address
-    checks for atomic operations were removed in
-    https://golang.org/cl/111310044
-    Restore these checks.
-    It's tricker than just not calling into race runtime,
-    because it is the race runtime that makes the atomic
-    operations themselves (if we do not call into race runtime
-    we skip the atomic operation itself as well). So instead we call
-    __tsan_go_ignore_sync_start/end around the atomic operation.
-    This forces race runtime to skip all other processing
-    except than doing the atomic operation itself.
-    Fixes #9136.
+    [dev.power64] liblink: fix lost branch target
+    
+    A recent commit lost the branch target in the really-big-stack
+    case of splitstack, causing an infinite loop stack preempt
+    case.  Revive the branch target.
     
     LGTM=rsc
     R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/179030043
+    https://golang.org/cl/157790044
 
- src/runtime/race.c                 | 13 ++++++------
- src/runtime/race/race_unix_test.go | 30 ++++++++++++++++++++++++++
- src/runtime/race_amd64.s           | 43 ++++++++++++++++++++++++++++++++------
- 3 files changed, 73 insertions(+), 13 deletions(-)
+ src/liblink/obj9.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

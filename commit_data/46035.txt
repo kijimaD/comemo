@@ -1,20 +1,30 @@
-commit ddffe30a21c909314a7bab8815505b709e921c3c
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 16 13:37:45 2021 -0400
+commit 84cb51d7d7a936d56d6287ca075dd578097499a9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 3 11:56:29 2020 -0800
 
-    go/types: rename TypeParams to TParamList
+    [dev.regabi] cmd/compile: eliminate more SetOrig
     
-    This is a straightforward port of CL 341861 to go/types.
+    This CL consolidates and cleans up fmt.go's logic for skipping past
+    Nodes introduced during typechecking. This allows eliminating SetOrig
+    on ConvExpr and Name. Also changes ConstExpr.SetOrig to a panic for
+    good measure.
     
-    Change-Id: I4f21170eb2ea1e5395a6eba5132f34aa1d53bb20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342481
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    The only remaining SetOrig uses now are for rewriting multi-value
+    "f(g())" calls and "return g()" statements, and type-checking
+    composite literals. It should be possible to eliminate both of those
+    as well.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I478aea1a17dfb7a784293b930bf9081637eb2d7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275179
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/decl.go      |  2 +-
- src/go/types/named.go     |  6 +++---
- src/go/types/signature.go |  8 ++++----
- src/go/types/typeparam.go | 14 +++++++-------
- 4 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/subr.go |  1 -
+ src/cmd/compile/internal/ir/expr.go |  4 +---
+ src/cmd/compile/internal/ir/fmt.go  | 47 ++++++++++++++++++++-----------------
+ src/cmd/compile/internal/ir/name.go |  2 --
+ 4 files changed, 26 insertions(+), 28 deletions(-)

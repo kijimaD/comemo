@@ -1,14 +1,21 @@
-commit 61ca7e5ccffbe6970da2462c2da535f5e021ee65
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Nov 4 21:20:33 2015 -0500
+commit dc110f245d9469874b17709351ba637a5287f3eb
+Author: Andy Maloney <asmaloney@gmail.com>
+Date:   Mon Aug 3 09:25:33 2015 -0400
 
-    crypto/x509: add /etc/ssl/certs to certificate directories
+    cmd/cgo: annotate named return struct members in comments
     
-    Fixes #12139.
+    If an exported function has named return variables, then show the names
+    as comments in the return struct we create in the header file.
     
-    Change-Id: Ied760ac37e2fc21ef951ae872136dc3bfd49bf9f
-    Reviewed-on: https://go-review.googlesource.com/16671
+    Example here:
+    
+     https://groups.google.com/forum/#!topic/golang-nuts/r393ne4zIfY
+    
+    Change-Id: I21fb4ca2673f6977bec35ccab0cef7d42b311f96
+    Reviewed-on: https://go-review.googlesource.com/13061
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/root_unix.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/cgo/out.go | 56 +++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 32 insertions(+), 24 deletions(-)

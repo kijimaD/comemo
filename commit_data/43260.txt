@@ -1,22 +1,27 @@
-commit 112c4d569e8881cc9910039bf4c45176a9b1f619
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 29 14:20:04 2020 -0400
+commit bb929b7452b5b8a6a584a94a110c98b0c6543a6e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 12 12:14:02 2020 -0700
 
-    cmd/fix: print warning to stderr, show provenance
+    cmd/compile: skip generating args_stackmap for "pulled" funcs
     
-    This cgo warning shows up when running "go test" in cmd/fix:
+    In golang.org/cl/171464, we cleaned up generation of .stkobj linker
+    symbols, but we couldn't figure out why a similar cleanup to
+    .args_stackmap linker symbols caused problems.
     
-            warning: no cgo types: exit status 1
+    The issue is that we only need/want to generate .args_stackmap for
+    functions that are implemented in assembly in the same package. When
+    "pulling" a function from another package via //go:linkname, we can
+    safely skip emitting .args_stackmap, because compiling that package
+    will have generated it, if necessary.
     
-    (It may show up at other times too.)
+    Fixes #31615.
     
-    Warnings belong on standard error, and while we're here,
-    make it say where it came from.
-    
-    Change-Id: I3eaba592a219cc6abf2d584762374f9d6ec5135e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240597
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: If8680aa7dd5b4e8f268b6b032d746f1b8536c867
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223238
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/fix/typecheck.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

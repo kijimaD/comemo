@@ -1,27 +1,19 @@
-commit 83dfe5cf62234427eae04131dc6e4551fd283463
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 23 14:23:31 2023 -0400
+commit a34a97d88d9aac5f0ca8422243ea15c89fa8d880
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 9 00:25:32 2022 +0700
 
-    cmd/go: implement 'toolchain local'
+    cmd/compile: disable append of make test on noopt builder
     
-    The actual selection code already worked
-    (except for the x/mod parser not reading the file),
-    so all that is necessary is a test.
-    For the test, move the version check up before
-    the module line presence check.
+    Updates #53888
     
-    For #57001.
-    
-    Change-Id: Iaa4f9b92d38fcfd99dc1665ec8d3eb0e52007bb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497555
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I34ef2c5bd23816e1991cfec2bef4cae72676b523
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422037
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/gotoolchain.go                  | 56 +++++++++++++++--------
- src/cmd/go/internal/gover/toolchain.go     | 25 ++++++++++
- src/cmd/go/internal/modload/init.go        | 15 +++---
- src/cmd/go/internal/modload/modfile.go     |  3 ++
- src/cmd/go/internal/version/version.go     |  7 ++-
- src/cmd/go/testdata/script/gotoolchain.txt | 73 +++++++++++++++++++++++-------
- 6 files changed, 136 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/test/issue53888_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

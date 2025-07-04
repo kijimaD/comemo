@@ -1,24 +1,28 @@
-commit ca56c590d4dfaa655d2355b382d6a950911f3263
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 3 14:11:17 2016 -0800
+commit 0cbf8d13a791ab5212c53dbcd58d0fdd622023b1
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 14 14:30:25 2015 -0500
 
-    cmd/compile: add setNodeSeq, and use it in bimport.go
+    runtime: recycle large stack spans
     
-    Also rewrite bexport.go to use nodeSeqIterate.
+    To prevent races with the garbage collector, stack spans cannot be
+    reused as heap spans during a GC. We deal with this by caching stack
+    spans during GC and releasing them at the end of mark termination.
+    However, while our cache lets us reuse small stack spans, currently
+    large stack spans are *not* reused. This can cause significant memory
+    growth in programs that allocate large stacks rapidly, but grow the
+    heap slowly (such as in issue #13552).
     
-    The new setNodeSeq is a transitional generic function to set either a
-    NodeList or a slice to either a NodeList or a slice.  This should permit
-    us to flip fields from *NodeList to []*Node, or Nodes, without changing
-    other code.
+    Fix this by adding logic to reuse large stack spans for other stacks.
     
-    Passes toolstash -cmp.
+    Fixes #11466.
     
-    Change-Id: I872cbfe45bc5f432595737c1f6da641c502b1ab6
-    Reviewed-on: https://go-review.googlesource.com/20194
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #13552. Without this change, the program in this issue creeps to
+    over 1GB of memory over the course of a few hours. With this change,
+    it stays rock solid at around 30MB.
+    
+    Change-Id: If8b2d85464aa80c96230a1990715e39aa803904f
+    Reviewed-on: https://go-review.googlesource.com/17814
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go   | 42 +++++--------------
- src/cmd/compile/internal/gc/bimport.go   | 69 ++++++++++++++----------------
- src/cmd/compile/internal/gc/syntax.go    | 72 +++++++++++++++++++++++++++++++-
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- 4 files changed, 114 insertions(+), 71 deletions(-)
+ src/runtime/stack.go | 78 +++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 56 insertions(+), 22 deletions(-)

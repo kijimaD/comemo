@@ -1,15 +1,25 @@
-commit 2a12035f8ec18f0a577853fda78faf2826397131
-Author: Scott Bell <scott@sctsm.com>
-Date:   Wed May 18 18:44:46 2016 -0700
+commit 361b334cbd68e23427d68580c09e7ff80cd3c82e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 28 14:31:57 2016 -0700
 
-    expvar: slightly expand documentation for Var's String method
+    cmd/compile: encapsulate Type.Argwid
     
-    Fixes #15088.
+    Passes toolstash -cmp.
     
-    Change-Id: I7727829a4062e15c0e5e3beff4d0bfc1fa327b0f
-    Reviewed-on: https://go-review.googlesource.com/23232
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I72fb271052e449a83adfa9bd3b923d40781d6341
+    Reviewed-on: https://go-review.googlesource.com/21243
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/expvar/expvar.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/amd64/ggen.go  | 2 +-
+ src/cmd/compile/internal/arm/ggen.go    | 2 +-
+ src/cmd/compile/internal/arm64/ggen.go  | 2 +-
+ src/cmd/compile/internal/gc/pgen.go     | 2 +-
+ src/cmd/compile/internal/gc/plive.go    | 2 +-
+ src/cmd/compile/internal/gc/ssa.go      | 2 +-
+ src/cmd/compile/internal/gc/subr.go     | 2 +-
+ src/cmd/compile/internal/gc/type.go     | 7 +++++++
+ src/cmd/compile/internal/mips64/ggen.go | 2 +-
+ src/cmd/compile/internal/ppc64/ggen.go  | 2 +-
+ src/cmd/compile/internal/x86/ggen.go    | 2 +-
+ 11 files changed, 17 insertions(+), 10 deletions(-)

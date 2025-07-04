@@ -1,25 +1,27 @@
-commit 7b689dcbefbe5442b8b59a56efc1eced4fce233c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Aug 29 16:27:00 2022 -0400
+commit 4ffa2f1c23d5d43be18c4ebf74ca553119683670
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Aug 4 16:07:28 2021 -0700
 
-    cmd/go/internal/modfetch: distinguish "unsupported" errors from RecentTag
+    time: fallback to slower TestTicker test after one failure
     
-    CL 426079 started checking errors from RecentTag.
-    Unfortunately, we forgot to run "-longtest" SlowBots, and it turns out
-    to have broken non-short tests for non-git VCS implementations,
-    because those don't implement the RecentTag method.
+    TestTicker is sensitive to overloaded or slow systems, where a 20ms
+    ticker running for 10 ticks has a total run time out of the range
+    [110ms, 290ms]. To counter this flakiness, it tries five times to
+    get a successful result. This is insufficient--an overloaded test
+    machine can introduce more than 100ms of delay across the test.
     
-    Updates #53935.
+    Reduce the five attempts to two, but use a 1s ticker for 8 ticks
+    in the second attempt.
     
-    Change-Id: I5935f2f4b3f684515e99e8bf70a840154c36249f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426495
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #46474.
+    Updates #35692.
+    
+    Change-Id: Ibd5187b00ccceeb981b652f2af9a1c3766357b78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339892
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/codehost.go | 13 +++++++++++++
- src/cmd/go/internal/modfetch/codehost/vcs.go      | 12 ++++++------
- src/cmd/go/internal/modfetch/coderepo.go          |  2 +-
- 3 files changed, 20 insertions(+), 7 deletions(-)
+ src/time/tick_test.go | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

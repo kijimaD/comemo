@@ -1,28 +1,37 @@
-commit 74350dd603a3480e1402a6ec98608ccb11246fb1
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Sep 21 13:47:05 2023 -0400
+commit 335e7647f53293eb320c1f069eaf0ff641810d6d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 18 20:58:12 2022 +0100
 
-    cmd/compile/internal/inline/inlheur: remove pkg-level call site table
+    crypto/internal/bigmod: add amd64 assembly core
     
-    Remove the global package-level call site table; no need to have this
-    around since we can just iterate over the function-level tables where
-    needed, saving a bit of memory. No change in inliner or heuristics
-    functionality.
+    With this change, we are down to 1.2x the running time of the previous
+    variable time implementation.
     
-    Change-Id: I319a56cb766178e98b7eebc7c577a0336828ce0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530576
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    name                    old time/op  new time/op    delta
+    DecryptPKCS1v15/2048-4  1.37ms ± 0%    1.61ms ± 0%    +17.54%  (p=0.000 n=18+10)
+    DecryptPKCS1v15/3072-4  3.99ms ± 1%    5.46ms ± 1%    +36.64%  (p=0.000 n=20+10)
+    DecryptPKCS1v15/4096-4  8.95ms ± 1%   12.04ms ± 0%    +34.53%  (p=0.000 n=20+10)
+    EncryptPKCS1v15/2048-4  9.24µs ± 7%  223.34µs ± 0%  +2317.67%  (p=0.000 n=20+9)
+    DecryptOAEP/2048-4      1.38ms ± 1%    1.62ms ± 0%    +17.31%  (p=0.000 n=20+10)
+    EncryptOAEP/2048-4      11.5µs ± 6%   225.4µs ± 0%  +1851.82%  (p=0.000 n=20+10)
+    SignPKCS1v15/2048-4     1.38ms ± 0%    1.68ms ± 0%    +21.25%  (p=0.000 n=20+9)
+    VerifyPKCS1v15/2048-4   8.75µs ±11%  221.94µs ± 0%  +2435.02%  (p=0.000 n=20+9)
+    SignPSS/2048-4          1.39ms ± 1%    1.68ms ± 0%    +21.18%  (p=0.000 n=20+10)
+    VerifyPSS/2048-4        11.1µs ± 8%   224.7µs ± 0%  +1917.03%  (p=0.000 n=20+8)
+    
+    Change-Id: I2a91ba99fcd0f86f2b5191d17170da755d7c4690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452095
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/compile/internal/inline/inl.go             |  2 +-
- src/cmd/compile/internal/inline/inlheur/analyze.go | 44 ++++++++++------------
- .../inline/inlheur/analyze_func_callsites.go       | 14 +++----
- .../internal/inline/inlheur/analyze_func_flags.go  | 10 ++---
- .../internal/inline/inlheur/analyze_func_params.go |  4 +-
- .../inline/inlheur/analyze_func_returns.go         |  6 +--
- .../compile/internal/inline/inlheur/callsite.go    | 21 +++++------
- .../internal/inline/inlheur/funcprops_test.go      | 30 +++++++--------
- .../inline/inlheur/score_callresult_uses.go        | 14 +++----
- src/cmd/compile/internal/inline/inlheur/scoring.go |  9 +++--
- .../compile/internal/inline/inlheur/serialize.go   | 32 ++++++++--------
- 11 files changed, 90 insertions(+), 96 deletions(-)
+ src/crypto/internal/bigmod/_asm/go.mod           |  12 +++
+ src/crypto/internal/bigmod/_asm/go.sum           |  32 ++++++
+ src/crypto/internal/bigmod/_asm/nat_amd64_asm.go | 130 +++++++++++++++++++++++
+ src/crypto/internal/bigmod/nat.go                |  64 ++++++-----
+ src/crypto/internal/bigmod/nat_amd64.go          |   7 ++
+ src/crypto/internal/bigmod/nat_amd64.s           |  68 ++++++++++++
+ src/crypto/internal/bigmod/nat_noasm.go          |  11 ++
+ 7 files changed, 299 insertions(+), 25 deletions(-)

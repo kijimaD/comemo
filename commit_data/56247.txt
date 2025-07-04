@@ -1,17 +1,55 @@
-commit d428a63875d335d1e1b9a3b3b45ad58f46e1e6bc
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Apr 19 11:39:29 2024 -0400
+commit d22f287f12f4782082cd93785ad91e78dbe0d4d6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 11 14:27:45 2023 +0000
 
-    internal/goexperiment: remove unused range experiment
+    cmd/dist: refactor generated cgo-support logic
     
-    This experiment was added mistakenly in https://go.dev/cl/537980,
-    probably as the result of a bad rebase on https://go.dev/cl/539277.
+    During bootstrapping, cmd/dist writes a file indicating which
+    GOOS/GOARCH combinations are valid, and which support cgo-enabled
+    builds. That information previously went into the go/build package,
+    but today it fits in more naturally in the internal/platform package
+    (which already has a number of functions indicating feature support
+    for GOOS/GOARCH combinations).
     
-    Change-Id: Ia3fc75725535ac70a2e6dd655440a2f515405c48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580375
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Moreover, as of CL 450739 the cmd/go logic for determining whether to
+    use cgo is somewhat more nuanced than the go/build logic: cmd/go
+    checks for the presence of a C compiler, whereas go/build does not
+    (mostly because it determines its configuration at package-init time,
+    and checking $PATH for a C compiler is somewhat expensive).
+    
+    To simplify this situation, this change:
+    
+            - consolidates the “cgo supported” check in internal/platform
+              (alongside many other platform-support checks) instead of making
+              it a one-off in go/build,
+    
+            - and updates a couple of tests to use testenv.HasCGO instead of
+              build.Default.CgoEnabled to decide whether to test a cgo-specific
+              behavior.
+    
+    For #58884.
+    For #59500.
+    
+    Change-Id: I0bb2502dba4545a3d98c9e915727382ce536a0f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483695
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/internal/goexperiment/flags.go | 3 ---
- 1 file changed, 3 deletions(-)
+ .gitignore                                      |  1 +
+ src/cmd/dist/build.go                           | 11 ++++---
+ src/cmd/dist/buildgo.go                         | 38 +------------------------
+ src/cmd/dist/buildruntime.go                    | 24 ++++++++++++++++
+ src/cmd/dist/buildtool.go                       |  1 +
+ src/cmd/go/internal/cfg/cfg.go                  |  1 +
+ src/cmd/go/internal/work/action.go              |  3 +-
+ src/cmd/go/internal/work/init.go                |  2 +-
+ src/cmd/go/note_test.go                         |  4 +--
+ src/cmd/go/testdata/script/list_all_gobuild.txt |  1 +
+ src/cmd/go/testdata/script/tooltags.txt         |  2 ++
+ src/cmd/objdump/objdump_test.go                 |  3 +-
+ src/go/build/build.go                           |  3 +-
+ src/go/build/deps_test.go                       |  2 +-
+ src/internal/platform/supported.go              |  8 ++++++
+ 15 files changed, 55 insertions(+), 49 deletions(-)

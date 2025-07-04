@@ -1,32 +1,21 @@
-commit 7fcba81549b7088e8f4cda3a2702d948de42839e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Apr 24 17:01:11 2019 +0000
+commit c52beb108779b8d983136fa5200ab91005c6de49
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Dec 17 01:18:51 2018 +1100
 
-    runtime: remove sys.HugePageSize
+    runtime,cmd/dist,cmd/link: add cgo support on openbsd/arm
     
-    sys.HugePageSize was superceded in the last commit by physHugePageSize
-    which is determined dynamically by querying the operating system.
+    Add support for cgo on openbsd/arm.The gcc shipped with base OpenBSD armv7
+    is old/inadequate, so use clang by default.
     
-    For #30333.
-    
-    Change-Id: I827bfca8bdb347e989cead31564a8fffe56c66ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173757
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I945a26d369378952d357727718e69249411e1127
+    Reviewed-on: https://go-review.googlesource.com/c/154381
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/internal/sys/arch_386.go      |  1 -
- src/runtime/internal/sys/arch_amd64.go    |  1 -
- src/runtime/internal/sys/arch_amd64p32.go |  1 -
- src/runtime/internal/sys/arch_arm.go      |  1 -
- src/runtime/internal/sys/arch_arm64.go    |  1 -
- src/runtime/internal/sys/arch_mips.go     |  1 -
- src/runtime/internal/sys/arch_mips64.go   |  1 -
- src/runtime/internal/sys/arch_mips64le.go |  1 -
- src/runtime/internal/sys/arch_mipsle.go   |  1 -
- src/runtime/internal/sys/arch_ppc64.go    |  1 -
- src/runtime/internal/sys/arch_ppc64le.go  |  1 -
- src/runtime/internal/sys/arch_s390x.go    |  1 -
- src/runtime/internal/sys/arch_wasm.go     |  1 -
- src/runtime/mem_linux.go                  | 28 ++++++++++++----------------
- 14 files changed, 12 insertions(+), 29 deletions(-)
+ src/cmd/dist/build.go             |  2 +-
+ src/cmd/dist/main.go              |  7 ++++
+ src/cmd/link/internal/ld/lib.go   |  6 ++++
+ src/runtime/cgo/gcc_openbsd_arm.c | 67 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_openbsd_arm.s     |  7 ++--
+ 5 files changed, 85 insertions(+), 4 deletions(-)

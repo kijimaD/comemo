@@ -1,40 +1,15 @@
-commit 44078a32288ee8890882cb1578160715324407ff
-Author: Austin Clements <austin@google.com>
-Date:   Wed Sep 30 11:52:54 2015 -0400
+commit 67df7934cc9f11a31395e2ade1d6c332aab67e23
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 28 11:08:44 2015 -0700
 
-    runtime: adjust huge page flags only on huge page granularity
+    [dev.ssa] cmd/compile: respect Xoffset of static data
     
-    This fixes an issue where the runtime panics with "out of memory" or
-    "cannot allocate memory" even though there's ample memory by reducing
-    the number of memory mappings created by the memory allocator.
+    Together with teaching SSA to generate static data,
+    this fixes the encoding/pem and hash/adler32 tests.
     
-    Commit 7e1b61c worked around issue #8832 where Linux's transparent
-    huge page support could dramatically increase the RSS of a Go process
-    by setting the MADV_NOHUGEPAGE flag on any regions of pages released
-    to the OS with MADV_DONTNEED. This had the side effect of also
-    increasing the number of VMAs (memory mappings) in a Go address space
-    because a separate VMA is needed for every region of the virtual
-    address space with different flags. Unfortunately, by default, Linux
-    limits the number of VMAs in an address space to 65530, and a large
-    heap can quickly reach this limit when the runtime starts scavenging
-    memory.
-    
-    This commit dramatically reduces the number of VMAs. It does this
-    primarily by only adjusting the huge page flag at huge page
-    granularity. With this change, on amd64, even a pessimal heap that
-    alternates between MADV_NOHUGEPAGE and MADV_HUGEPAGE must reach 128GB
-    to reach the VMA limit. Because of this rounding to huge page
-    granularity, this change is also careful to leave large used and
-    unused regions huge page-enabled.
-    
-    This change reduces the maximum number of VMAs during the runtime
-    benchmarks with GODEBUG=scavenge=1 from 692 to 49.
-    
-    Fixes #12233.
-    
-    Change-Id: Ic397776d042f20d53783a1cacf122e2e2db00584
-    Reviewed-on: https://go-review.googlesource.com/15191
+    Change-Id: I75f81f6c995dcb9c6d99bd3acda94a4feea8b87b
+    Reviewed-on: https://go-review.googlesource.com/12791
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mem_linux.go | 94 +++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 77 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

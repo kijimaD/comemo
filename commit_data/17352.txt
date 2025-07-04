@@ -1,12 +1,12 @@
-commit 2f2d4c6bc3dfe374ead3296b2191d51a1ba6037f
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 21 14:21:02 2013 +0400
+commit c1dd7f4322dc2ed6869da606b9bf9f3db6be9b5a
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Aug 21 17:45:35 2013 +1000
 
-    net: ensure that Read/Write on all platforms do 0 mallocs
+    doc/go1.2.txt: cmd/5l: support for external linking for linux/arm
     
-    R=golang-dev, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/12780045
+    https://golang.org/cl/13019044
 
- src/pkg/net/tcp_test.go | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

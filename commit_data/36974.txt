@@ -1,14 +1,14 @@
-commit e47c11d8b1bc26ce3283df6bc04f8ca4cf1b074b
-Author: Ivan Sharavuev <shpiwan@gmail.com>
-Date:   Sat Oct 13 13:25:20 2018 +0300
+commit fc0e1d2b6fbcb9c27b1eed5892de62de6b1fbae6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 12 19:33:23 2018 +0000
 
-    pprof: replace bits = bits + "..." to bits += "..." where bits is a string.
+    archive/zip: warn about FileHeader.Name being unvalidated on read
     
-    Change-Id: Ic77ebbdf2670b7fdf2c381cd1ba768624b07e57c
-    Reviewed-on: https://go-review.googlesource.com/c/141998
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #25849
+    
+    Change-Id: I09ee928b462ab538a9d38c4e317eaeb8856919f2
+    Reviewed-on: https://go-review.googlesource.com/118335
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/runtime/pprof/internal/profile/profile.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/archive/zip/struct.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

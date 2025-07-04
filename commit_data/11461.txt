@@ -1,14 +1,19 @@
-commit 2d13e1f16e4b6709dc98f2cc45d717af8807005a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jan 30 16:43:28 2012 +1100
+commit a94bd4d7c324648f1736e8f7fb1a0fd4b13bacc6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jan 29 21:04:13 2012 -0800
 
-    build: use correct go-tool directory location
+    cmd/goapi: expand embedded interfaces
     
-    R=golang-dev, rsc, cw, rsc
+    Fixes #2801
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5576070
+    https://golang.org/cl/5576068
 
- src/cmd/cov/Makefile  | 2 +-
- src/cmd/go/tool.go    | 3 ++-
- src/cmd/prof/Makefile | 4 ++--
- 3 files changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/goapi/goapi.go                             | 218 ++++++++++++++++++---
+ src/cmd/goapi/goapi_test.go                        |   9 +-
+ src/cmd/goapi/testdata/{ => src/pkg}/p1/golden.txt |   9 +-
+ src/cmd/goapi/testdata/{ => src/pkg}/p1/p1.go      |  18 +-
+ src/cmd/goapi/testdata/src/pkg/p2/golden.txt       |   2 +
+ src/cmd/goapi/testdata/src/pkg/p2/p2.go            |   5 +
+ 6 files changed, 221 insertions(+), 40 deletions(-)

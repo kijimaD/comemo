@@ -1,44 +1,27 @@
-commit e23322e2ccd19b5802a823d20a089540afef79ce
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Apr 17 10:02:48 2023 -0500
+commit a2bca290e7bc8ab0cdd6c26038f15ac1bb9f8628
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat May 21 19:00:18 2022 +0700
 
-    cmd/internal/obj/ppc64: modify PCALIGN to ensure alignment
+    cmd/compile: fix loong64 constant folding in division rules
     
-    The initial purpose of PCALIGN was to identify code
-    where it would be beneficial to align code for performance,
-    but avoid cases where too many NOPs were added. On p10, it
-    is now necessary to enforce a certain alignment in some
-    cases, so the behavior of PCALIGN needs to be slightly
-    different.  Code will now be aligned to the value specified
-    on the PCALIGN instruction regardless of number of NOPs added,
-    which is more intuitive and consistent with power assembler
-    alignment directives.
+    The divisor must be non-zero for the rule to be triggered.
     
-    This also adds 64 as a possible alignment value.
+    Fixes #53018
     
-    The existing values used in PCALIGN were modified according to
-    the new behavior.
-    
-    A testcase was updated and performance testing was done to
-    verify that this does not adversely affect performance.
-    
-    Change-Id: Iad1cf5ff112e5bfc0514f0805be90e24095e932b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485056
+    Change-Id: Id56b8d986945bbb66e13131d11264ee438de5cb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407655
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
 
- src/cmd/internal/obj/ppc64/asm9.go     | 43 ++++++++--------------------------
- src/cmd/internal/obj/ppc64/asm_test.go |  2 +-
- src/cmd/internal/obj/ppc64/doc.go      | 11 +++++++--
- src/crypto/aes/asm_ppc64x.s            |  4 ++--
- src/internal/bytealg/compare_ppc64x.s  |  2 +-
- src/internal/bytealg/equal_ppc64x.s    |  2 +-
- src/internal/bytealg/index_ppc64x.s    |  4 ++--
- src/math/big/arith_ppc64x.s            | 14 +++++------
- src/runtime/memclr_ppc64x.s            |  2 +-
- src/runtime/memmove_ppc64x.s           |  4 ++--
- 10 files changed, 36 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/ssa/gen/LOONG64.rules |  8 +++----
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go | 16 ++++++++++++++
+ test/fixedbugs/issue53018.go                   | 30 ++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 4 deletions(-)

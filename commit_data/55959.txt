@@ -1,28 +1,42 @@
-commit 411d7a5c9e4e29691e85baa2decf8782a186071b
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Mar 14 17:14:31 2024 -0400
+commit c2923971600a89db65daee86858f5fc054322129
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Mar 29 17:04:54 2023 +0000
 
-    cmd: vendor in golang.org/x/telemetry@abedc37
+    encoding/asn1: improve memory efficiency of ObjectIdentifier.String
     
-    This pulls in the changes to remove 1.18 support in counter and
-    countertest, to add counter.CountCommandLineFlags, and to add
-    countertest.SupportedPlatform
+    name                      old time/op    new time/op    delta
+    ObjectIdentifierString-4     670ns ± 9%     157ns ±14%  -76.59%  (p=0.000 n=10+9)
     
-    Commands run:
-            go get golang.org/x/telemetry@abedc37
-            go mod tidy
-            go mod vendor
+    name                      old alloc/op   new alloc/op   delta
+    ObjectIdentifierString-4      184B ± 0%       32B ± 0%  -82.61%  (p=0.000 n=10+10)
     
-    Change-Id: I5c17c5b3ca38df14883ba43316d59437a737b28b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571801
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    name                      old allocs/op  new allocs/op  delta
+    ObjectIdentifierString-4      14.0 ± 0%       1.0 ± 0%  -92.86%  (p=0.000 n=10+10)
+    
+    This also improves the x509 certificate parser performance by ~12-15%
+    
+    name                           old time/op    new time/op    delta
+    ParseCertificate/ecdsa_leaf-4    24.5µs ± 8%    20.9µs ±11%  -14.66%  (p=0.000 n=10+10)
+    ParseCertificate/rsa_leaf-4      26.6µs ± 5%    23.5µs ± 7%  -11.83%  (p=0.000 n=8+10)
+    
+    name                           old alloc/op   new alloc/op   delta
+    ParseCertificate/ecdsa_leaf-4    12.5kB ± 0%    12.0kB ± 0%   -3.72%  (p=0.000 n=10+10)
+    ParseCertificate/rsa_leaf-4      13.9kB ± 0%    13.4kB ± 0%   -3.34%  (p=0.000 n=10+10)
+    
+    name                           old allocs/op  new allocs/op  delta
+    ParseCertificate/ecdsa_leaf-4       238 ± 0%       165 ± 0%  -30.67%  (p=0.000 n=10+10)
+    ParseCertificate/rsa_leaf-4         262 ± 0%       189 ± 0%  -27.86%  (p=0.000 n=10+10)
+    
+    Change-Id: I49905bbf8319b840e9211da73570db35d1445217
+    GitHub-Last-Rev: 361d68dc9b64c50e3b20e2cf91bffe54cfaf10d4
+    GitHub-Pull-Request: golang/go#59198
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478836
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +--
- .../golang.org/x/telemetry/counter/counter.go      | 27 ++++++++++++++++---
- .../golang.org/x/telemetry/counter/counter_118.go  | 30 ----------------------
- .../x/telemetry/counter/countertest/countertest.go |  5 ++--
- .../counter/countertest/countertest_go118.go       | 21 ---------------
- src/cmd/vendor/modules.txt                         |  2 +-
- 7 files changed, 31 insertions(+), 60 deletions(-)
+ src/encoding/asn1/asn1.go      | 11 +++++++----
+ src/encoding/asn1/asn1_test.go |  7 +++++++
+ 2 files changed, 14 insertions(+), 4 deletions(-)

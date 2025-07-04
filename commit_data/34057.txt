@@ -1,19 +1,20 @@
-commit 973393c2930237649760be16e7132a42f4c93141
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 12 17:46:57 2017 -0800
+commit a2993456bb765e9a4c556e3529a01975764d28ae
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Sep 28 20:44:21 2017 +0100
 
-    go/types: accept iotas inside closures of const init expressions
+    cmd/compile: add reflect to TestIntendedInlining
     
-    R=go1.11
+    Add the package to the table and start it off with a few small, basic
+    functions. Inspired by CL 66331, which added flag.ro.
     
-    Fixes #22345.
+    Updates #21851.
     
-    Change-Id: I7cf22d17bdd0143efb6ee48981e649ffe797aed9
-    Reviewed-on: https://go-review.googlesource.com/83579
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I3995cde1ff7bb09a718110473bed8b193c2232a5
+    Reviewed-on: https://go-review.googlesource.com/66990
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/decl.go             |  9 +--------
- src/go/types/expr.go             |  3 ++-
- src/go/types/stmt.go             |  7 ++-----
- src/go/types/testdata/const0.src | 41 ++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 46 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

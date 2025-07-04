@@ -1,22 +1,25 @@
-commit 02d7eab52796574b44717d45d5def42c9068b56a
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Oct 31 11:33:00 2021 -0400
+commit c2360956389a30a27407fb857fd4916f20f8dc01
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Mar 14 20:13:05 2021 -0700
 
-    go/parser: allow parsing aliases with type parameters
+    cmd/compile: add support for generic maps
     
-    We already guard against this in the type checker, and it will
-    eventually be allowed per the accepted proposal.
+    Add support for maps in subster.typ(). Add new test cases maps.go and set.go.
     
-    Add a placeholder error code for the corresponding type checker error.
+    Change substitution of a TFUNC in subster.typ() to always create new
+    param and result structs if any of the receiver, param, or result
+    structs get substituted. All these func structs must be copied, because
+    they have offset fields that are dependent, and so must have an
+    independent copy for each new signature (else there will be an error
+    later when frame offsets are calculated).
     
-    Change-Id: I5cc2f1413ecc89ec2094f7178fdb156fb8cc2e43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360235
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I576942a62f06b46b6f005abc98f65533008de8dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301670
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/parser/parser.go     | 6 ++++--
- src/go/parser/short_test.go | 2 +-
- src/go/types/decl.go        | 2 +-
- 3 files changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  41 ++++-
+ test/typeparam/maps.go                    | 260 +++++++++++++++++++++++++++
+ test/typeparam/sets.go                    | 280 ++++++++++++++++++++++++++++++
+ 3 files changed, 572 insertions(+), 9 deletions(-)

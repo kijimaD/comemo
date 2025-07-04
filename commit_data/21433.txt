@@ -1,30 +1,26 @@
-commit 20a6ff7261adecc1ba0dc3f3cd6a29054fdf90b7
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jan 27 18:29:02 2015 -0500
+commit 3191a235158233bb6f6d960d7ae0cb925606f817
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Dec 23 12:10:36 2014 -0800
 
-    runtime: eliminate uses of BP on amd64
+    go/doc: propagate types from unexported constants
     
-    Any place that clobbers BP in the runtime can potentially interfere
-    with frame pointer unwinding with GOEXPERIMENT=framepointer.  This
-    change eliminates uses of BP in the runtime to address this problem.
-    We have spare registers everywhere this occurs, so there's no downside
-    to eliminating BP.  Where possible, this uses the same new register as
-    the amd64p32 runtime, which doesn't use BP due to restrictions placed
-    on it by NaCL.
+    When constants were declared using unexported constants,
+    the type information was lost when those constants were filtered out.
+    This CL propagates the type information of unexported constants
+    so that it is available for display.
     
-    One nice side effect of this is that it will let perf/VTune unwind the
-    call stack even through a call to systemstack, which will let us get
-    really good call graphs from the garbage collector.
+    This is a follow-up to CL 144110044, which fixed this problem
+    specifically for _ constants.
     
-    Change-Id: I0ffa14cb4dd2b613a7049b8ec59df37c52286212
-    Reviewed-on: https://go-review.googlesource.com/3390
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Updates #5397.
+    
+    Change-Id: I3f0c767a4007d88169a5634ab2870deea4e6a740
+    Reviewed-on: https://go-review.googlesource.com/2091
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/asm_amd64.s           | 92 +++++++++++++++++++--------------------
- src/runtime/sys_dragonfly_amd64.s |  6 +--
- src/runtime/sys_freebsd_amd64.s   |  6 +--
- src/runtime/sys_linux_amd64.s     |  6 +--
- src/runtime/sys_netbsd_amd64.s    |  6 +--
- src/runtime/sys_openbsd_amd64.s   |  6 +--
- 6 files changed, 61 insertions(+), 61 deletions(-)
+ src/go/doc/exports.go              | 51 ++++++++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/blank.0.golden | 22 +++++++++++++++-
+ src/go/doc/testdata/blank.1.golden | 25 ++++++++++++++++++-
+ src/go/doc/testdata/blank.2.golden | 22 +++++++++++++++-
+ src/go/doc/testdata/blank.go       | 24 +++++++++++++++++-
+ 5 files changed, 140 insertions(+), 4 deletions(-)

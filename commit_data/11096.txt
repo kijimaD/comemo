@@ -1,25 +1,12 @@
-commit a6d8b483b6b2a33a9a2c4deebb9e94188b3c1d23
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 10 19:49:11 2012 -0800
+commit 2b6288113e0582ac323b1d7b28f4298f93dc7480
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 10 18:31:27 2012 -0800
 
-    runtime: make garbage collector faster by deleting code
+    go/scanner: fix documentation
     
-    Suggested by Sanjay Ghemawat.  5-20% faster depending
-    on the benchmark.
-    
-    Add tree2 garbage benchmark.
-    Update other garbage benchmarks to build again.
-    
-    R=golang-dev, r, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5530074
+    https://golang.org/cl/5528070
 
- src/pkg/runtime/malloc.h     |  7 ++--
- src/pkg/runtime/mgc0.c       | 56 ++--------------------------
- test/bench/garbage/Makefile  |  1 +
- test/bench/garbage/parser.go | 63 +++++++++++++++----------------
- test/bench/garbage/peano.go  |  7 ++--
- test/bench/garbage/stats.go  |  5 ++-
- test/bench/garbage/tree.go   |  6 +--
- test/bench/garbage/tree2.go  | 88 ++++++++++++++++++++++++++++++++++++++++++++
- 8 files changed, 134 insertions(+), 99 deletions(-)
+ src/pkg/go/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

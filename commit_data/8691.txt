@@ -1,23 +1,14 @@
-commit 4b1170d2b1985a7530a559b9ef3dfdd350fb422e
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jun 11 09:25:18 2011 +1000
+commit 18333f2de55880a413046f3d8dd667e0cb14ee0d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 10 12:31:10 2011 -0700
 
-    sort: change IntArray etc. to IntSlice for better name hygiene.
+    Go memory model: minor clarification
     
-    R=golang-dev, gri
+    Fixes #1941.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4602054
+    https://golang.org/cl/4576053
 
- doc/go_tutorial.html          | 12 ++++++------
- doc/go_tutorial.txt           |  2 +-
- doc/progs/sort.go             | 36 ++++++++++++++++++------------------
- doc/progs/sortmain.go         |  4 ++--
- src/pkg/flag/flag.go          |  2 +-
- src/pkg/sort/search.go        |  4 ++--
- src/pkg/sort/search_test.go   |  4 ++--
- src/pkg/sort/sort.go          | 32 ++++++++++++++++----------------
- src/pkg/sort/sort_test.go     |  8 ++++----
- src/pkg/syscall/exec_plan9.go |  6 +++---
- src/pkg/syscall/exec_unix.go  | 10 +++++-----
- src/pkg/unicode/maketables.go |  4 ++--
- 12 files changed, 62 insertions(+), 62 deletions(-)
+ doc/go_mem.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

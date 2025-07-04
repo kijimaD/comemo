@@ -1,0 +1,23 @@
+commit a17356cd23163997031b648def23d56cbb76ae9a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 4 17:15:57 2024 -0700
+
+    go/types, types2: factor type checking of func literals and generate go/types code
+    
+    Move the code for type checking of function literals into
+    literals.go.
+    
+    In go/types, the respective code is now generated from the types2 source.
+    
+    Change-Id: Ic81ab3c0d3c66d99bc0f2e21d66bf9a896ef9375
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610996
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go     | 25 ++-----------------------
+ src/cmd/compile/internal/types2/literals.go | 28 ++++++++++++++++++++++++++++
+ src/go/types/expr.go                        | 25 ++-----------------------
+ src/go/types/literals.go                    | 28 ++++++++++++++++++++++++++++
+ 4 files changed, 60 insertions(+), 46 deletions(-)

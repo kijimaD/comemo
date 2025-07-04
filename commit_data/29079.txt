@@ -1,34 +1,22 @@
-commit 70d685dc7244d46b3c22c4ac9588e51d76087ded
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 25 15:43:05 2016 -0700
+commit e9267ca8259dd56ae01db3c6a6350f007c1b84f2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 24 00:44:03 2016 +0900
 
-    cmd/compile: don't wrap numeric or type literals in OPAREN
+    vendor: update vendored route
     
-    It's only necessary to wrap named OTYPE or OLITERAL nodes, because
-    their line numbers reflect the line number of the declaration, rather
-    than use.
+    Updates golang_org/x/net/route to rev 4d38db7 for:
+    - route: don't crash or hang up with corrupted messages
     
-    Saves a lot of wrapper nodes in composite-literal-heavy packages like
-    Unicode.
-    
-    name       old alloc/op    new alloc/op    delta
-    Template      41.8MB ± 0%     41.8MB ± 0%  -0.07%        (p=0.000 n=10+10)
-    Unicode       36.6MB ± 0%     34.2MB ± 0%  -6.55%        (p=0.000 n=10+10)
-    GoTypes        123MB ± 0%      123MB ± 0%  -0.02%        (p=0.004 n=10+10)
-    Compiler       495MB ± 0%      495MB ± 0%  -0.03%        (p=0.000 n=10+10)
-    
-    name       old allocs/op   new allocs/op   delta
-    Template        409k ± 0%       409k ± 0%  -0.05%        (p=0.029 n=10+10)
-    Unicode         371k ± 0%       354k ± 0%  -4.48%         (p=0.000 n=10+9)
-    GoTypes        1.22M ± 0%      1.22M ± 0%    ~           (p=0.075 n=10+10)
-    Compiler       4.44M ± 0%      4.44M ± 0%  -0.02%        (p=0.000 n=10+10)
-    
-    Change-Id: Id1183170835125c778fb41b7e76d06d5ecd4f7a1
-    Reviewed-on: https://go-review.googlesource.com/32021
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I22492f56a5e211b5a0479f1e07ad8f42f7b9ea03
+    Reviewed-on: https://go-review.googlesource.com/27574
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 7 ++++++-
- src/cmd/compile/internal/gc/subr.go  | 4 ++--
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/vendor/golang_org/x/net/route/address.go       | 18 ++++++++++++++---
+ .../golang_org/x/net/route/interface_freebsd.go    | 12 +++++------
+ .../golang_org/x/net/route/interface_openbsd.go    |  9 ++++++++-
+ src/vendor/golang_org/x/net/route/message.go       |  6 ++++++
+ src/vendor/golang_org/x/net/route/message_test.go  | 23 ++++++++++++++++++++++
+ src/vendor/golang_org/x/net/route/route_openbsd.go |  6 +++++-
+ 6 files changed, 63 insertions(+), 11 deletions(-)

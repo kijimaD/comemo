@@ -1,15 +1,19 @@
-commit fa4781a41502b283b270f7d83e2678152fd01682
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Apr 24 13:52:28 2023 -0400
+commit 11195c60e6197016c0d5d32b04d4cb0ca7594014
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue May 3 13:17:08 2022 -0400
 
-    cmd/go/internal/script: log the stop message instead of the state when stopping
+    cmd/go: use index to match packages in dependency modules
     
-    Change-Id: I3c887b5f3716e78dfffad6869f986c4381fae3e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/488235
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    If we're trying to search in a module in the module cache, instead
+    iterate over the packages in the index.
+    Change-Id: Ia94cbe6e9690110c28b93dbb33810680e3010381
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403756
     Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/script/engine.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modindex/read.go  |  2 +-
+ src/cmd/go/internal/modindex/scan.go  |  7 ++--
+ src/cmd/go/internal/modload/search.go | 63 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 68 insertions(+), 4 deletions(-)

@@ -1,23 +1,16 @@
-commit 03ca047dd334f6018f06f7fc9a7a4e2608b1f8d3
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Nov 12 17:57:35 2016 +1100
+commit f05cd4cde5f7023b1db23b7499cf9b1a6f3ffdec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Sep 25 12:37:00 2016 -0700
 
-    debug/pe: do not create symbol table if FileHeader.PointerToSymbolTable is 0
+    runtime: simplify conditions testing g.paniconfault
     
-    https://github.com/tpn/pdfs/raw/master/Microsoft Portable Executable and Common Object File Format Specification - 1999 (pecoff).doc
-    says this about PointerToSymbolTable:
+    Implement a comment by Ralph Corderoy on CL 29754.
     
-    File offset of the COFF symbol table or 0 if none is present.
-    
-    Do as it says.
-    
-    Fixes #17809.
-    
-    Change-Id: Ib1ad83532f36a3e56c7e058dc9b2acfbf60c4e72
-    Reviewed-on: https://go-review.googlesource.com/33170
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I22bbede211ddcb8a057f16b4f47d335a156cc8d2
+    Reviewed-on: https://go-review.googlesource.com/29756
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/pe/symbol.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/signal_unix.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

@@ -1,22 +1,19 @@
-commit 72954ebcfdeb5354e43ed781061d46e48137bfc0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 19 06:51:14 2019 -0700
+commit 86ad85ce98264f79d7f5fc60c38f81275c40d7a6
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Wed Oct 31 17:15:32 2018 +0200
 
-    cmd/cgo: accept __uint8_t as the uint8_t type
+    time: display results in examples rather soon
     
-    This works around the NetBSD <stdint.h> which defines the type using
-    "#define" rather than typedef.
+    We have fixed the playground to display results of
+    the program when it was timed out.
     
-    Fixes #30918
-    Updates #29878
+    This CL fixes how soon results will be displayed to the user.
     
-    Change-Id: I8998eba52139366ae46762bdad5fcae85f9b4027
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168337
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ifb75828e0de12c726c8ca6e2d04947e01913dc73
+    Reviewed-on: https://go-review.googlesource.com/c/146237
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cgo/gcc.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/time/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

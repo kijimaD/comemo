@@ -1,27 +1,21 @@
-commit f84dea3a01ea86a8d51cd55318e9ec9b1724b24f
+commit df0a1297899aff1c46b66523e75aa12b0ff5049f
 Author: Damien Neil <dneil@google.com>
-Date:   Tue Jun 4 11:06:44 2024 -0700
+Date:   Mon Jul 24 16:19:49 2023 +0000
 
-    net/http: add HTTP2Config
+    Revert "net/http: use Copy in ServeContent if CopyN not needed"
     
-    Add a field to Server and Transport containing HTTP/2 configuration
-    parameters.
+    This reverts CL 446276.
     
-    This field will have no effect until golang.org/x/net/http2 is updated
-    to make use of it, and h2_bundle.go is updated with the new http2
-    package.
+    Reason for revert: Causing surprising performance regression.
     
-    For #67813
+    Fixes #61530
     
-    Change-Id: I81d7f8e9ddea78f9666383983aec43e3884c13ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602175
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Ic970f2e05d875b606ce274ea621f7e4c8c337481
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512615
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/67813.txt                           | 14 ++++++
- doc/next/6-stdlib/99-minor/net/http/67813.md |  2 +
- src/net/http/http.go                         | 65 ++++++++++++++++++++++++++++
- src/net/http/server.go                       |  6 +++
- src/net/http/transport.go                    | 10 +++++
- src/net/http/transport_test.go               |  1 +
- 6 files changed, 98 insertions(+)
+ src/net/http/fs.go      |  9 ++-------
+ src/net/http/fs_test.go | 43 ++-----------------------------------------
+ 2 files changed, 4 insertions(+), 48 deletions(-)

@@ -1,33 +1,28 @@
-commit ee5ce77c62483933ae4d5dbdbcbadf6f82dd3f6c
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jan 26 17:25:44 2023 -0800
+commit 1cfe1007cdf17ee381443cd0d8ae31962805f96e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 15 22:44:31 2022 -0700
 
-    cmd/asm: reject avx512 .Z instructions without a mask register
+    cmd/compile: remove typecheckdef and Name.Walkdef
     
-    Zeroing requires a non-K0 mask register be specified.
-    (gcc enforces this when assembling.)
+    The only remaining use for typecheckdef after CL 393256 is to
+    typecheck the ONAME node that represents function names, so we might
+    as well just move that code into tcFunc instead.
     
-    The non-K0 restriction is already handled by the Yknot0 restriction.
-    But if the mask register is missing altogether, we misassemble the
-    instruction.
+    Updates #51691.
     
-    Fixes #57952
-    
-    Not sure if this is really worth mentioning in the release notes,
-    but just in case I'll mark it.
-    RELNOTE=yes
-    
-    Change-Id: I8f05d3155503f1f16d1b5ab9d67686fe5b64dfea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463229
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Icbca51d4b0fb33c90faa95f16254c7171b171d8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393367
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Илья Токарь <tocarip@gmail.com>
-    Reviewed-by: Iskander Sharipov <quasilyte@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s |  2 +-
- src/cmd/asm/internal/asm/testdata/amd64error.s     |  4 ++++
- src/cmd/internal/obj/x86/asm6.go                   | 10 ++++++++++
- 3 files changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/mini.go             |  5 +--
+ src/cmd/compile/internal/ir/name.go             |  7 ---
+ src/cmd/compile/internal/noder/expr.go          |  1 -
+ src/cmd/compile/internal/noder/object.go        |  1 -
+ src/cmd/compile/internal/noder/reader.go        |  1 -
+ src/cmd/compile/internal/typecheck/func.go      |  8 +++-
+ src/cmd/compile/internal/typecheck/stmt.go      |  1 -
+ src/cmd/compile/internal/typecheck/typecheck.go | 60 -------------------------
+ 8 files changed, 9 insertions(+), 75 deletions(-)

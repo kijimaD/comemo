@@ -1,21 +1,20 @@
-commit f6d0054e718817df636a1281a2f8de04ac663ee8
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 14 16:36:41 2015 -0500
+commit fde3ab843faaf4ba7a741bfdc192dbb5f2ddf209
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 15 15:00:56 2014 +1100
 
-    runtime: avoid race checking for preemption
+    cmd/go: handle \r in input text
     
-    Moving the "don't really preempt" check up earlier in the function
-    introduced a race where gp.stackguard0 might change between
-    the early check and the later one. Since the later one is missing the
-    "don't really preempt" logic, it could decide to preempt incorrectly.
-    Pull the result of the check into a local variable and use an atomic
-    to access stackguard0, to eliminate the race.
+    Remove carriage returns from //go:generate lines.
+    Carriage returns are the predecessor of BOMs and still
+    live on Windows.
     
-    I believe this will fix the broken OS X and Solaris builders.
+    Fixes #9264
     
-    Change-Id: I238350dd76560282b0c15a3306549cbcf390dbff
-    Reviewed-on: https://go-review.googlesource.com/2823
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I637748c74335c696b3630f52f2100061153fcdb4
+    Reviewed-on: https://go-review.googlesource.com/1564
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/stack1.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/go/generate.go      | 4 ++++
+ src/cmd/go/generate_test.go | 6 ++++++
+ 2 files changed, 10 insertions(+)

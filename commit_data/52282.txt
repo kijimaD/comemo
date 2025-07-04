@@ -1,20 +1,26 @@
-commit 574c6209019f1efbca2a058b576b227c2e7b5e61
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Mon Jul 25 15:30:53 2022 +0800
+commit 889a902d215c57fe2032181370a9a2c30c531c99
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 12 18:27:28 2022 -0500
 
-    runtime: refactor the linux/loong64 entrypoint
+    cmd/trace: embed static content
     
-    Remove the meaningless jump, and add the missing NOFRAME flag to _rt0_loong64_linux.
+    cmd/trace is currently somewhat painful to use in odd environments since
+    it depends on the presence of $GOROOT/misc/trace to serve the static
+    trace viewer content.
     
-    Change-Id: I1aec68c556615b42042684bd176dfc2a8af094d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420977
-    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Use //go:embed to embed this content directly into cmd/trace for easier
+    use.
+    
+    Change-Id: I83b7d97dbecc9773f3b5a6b3bc4a6597473bc01a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378194
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
 
- src/runtime/rt0_linux_loong64.s | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/bootstrap.bash                                 |  2 +-
+ {misc/trace => src/cmd/trace/static}/README.md     |  4 ++--
+ .../cmd/trace/static}/trace_viewer_full.html       |  0
+ .../cmd/trace/static}/webcomponents.min.js         |  0
+ src/cmd/trace/trace.go                             | 26 ++++++++--------------
+ 5 files changed, 12 insertions(+), 20 deletions(-)

@@ -1,31 +1,27 @@
-commit a3559f3301b54468c14d4997af0d617db60f4915
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 28 10:54:37 2022 -0400
+commit a412b5f0d803b261b8075289bf41599490f237cc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 30 23:21:39 2021 +0100
 
-    net: use libc (not cgo) for DNS on macOS
+    runtime: skip TestSignalIgnoreSIGTRAP on all OpenBSD builders
     
-    Change the macOS implementation to use libc calls.
-    Using libc calls directly is what we do for all the runtime and os syscalls.
-    Doing so here as well improves consistency and also makes it possible
-    to cross-compile (from non-Mac systems) macOS binaries that use the
-    native name resolver.
+    TestSignalIgnoreSIGTRAP is flaky on OpenBSD and the cause is suspected
+    to be a kernel bug. This test is currently only skipped on the previous
+    OpenBSD 6.2 and 6.4 builders for #17496. In the meantime the OpenBSD
+    builders were upgraded to more recent OpenBSD versions (currently 6.8
+    and 7.0). It seems the issue is still present in these OpenBSD versions
+    and there is no obvious workaround in Go. Thus, skip the flaky test on
+    OpenBSD in general.
     
-    Fixes #12524.
+    Updates #17496
+    Updates #49725
     
-    Change-Id: I011f4fcc5c50fbb5396e494889765dcbb9342336
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446178
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I3577d287dcfaad7a81679db2e71540854fce065a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367115
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/syscall/unix/asm_darwin.s         |  12 +++
- src/internal/syscall/unix/getentropy_darwin.go |   4 -
- src/internal/syscall/unix/net_darwin.go        | 116 +++++++++++++++++++++++++
- src/net/cgo_resnew.go                          |   2 +-
- src/net/cgo_sockold.go                         |   2 +-
- src/net/cgo_unix.go                            | 116 +++++++++++--------------
- src/net/cgo_unix_cgo.go                        |  71 +++++++++++++++
- src/net/cgo_unix_syscall.go                    |  85 ++++++++++++++++++
- src/runtime/sys_darwin.go                      |  13 ++-
- src/runtime/sys_darwin_amd64.s                 |  59 +++++++++++++
- src/runtime/sys_darwin_arm64.s                 |  57 ++++++++++++
- 11 files changed, 467 insertions(+), 70 deletions(-)
+ src/runtime/crash_unix_test.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

@@ -1,16 +1,28 @@
-commit ec3026d032be065fb26c5826b9abb7b6b806d7ef
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Jun 9 11:04:58 2021 -0400
+commit 399b5d14d4114b326096127df9a89342eb1fc2ad
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Nov 17 10:13:29 2020 +0100
 
-    doc/go1.17: remove TODO for ports section
+    cmd/compile: stop MOVW-ing -1 as SRA shift amount in mips
     
-    I'm not aware of anything more to mention for ports.
+    The shift amount in SRAconst needs to be in the [0,31] range, so stop
+    MOVWing -1 to SRA in the Rsh lowering rules.
     
-    Change-Id: I686df8a230a55ad7f4c5eae43ca27f85fad9dd84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326409
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Also see CL 270117.
+    
+    Passes
+    
+      $ GOARCH=mips go build -toolexec 'toolstash -cmp' -a std
+      $ GOARCH=mipsle go build -toolexec 'toolstash -cmp' -a std
+    
+    Updates #42587
+    
+    Change-Id: Ib5eb99b82310e404cc2d6f0c619b21b8a15406ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270558
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.17.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/MIPS.rules | 18 +++++++--------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go | 36 ++++++++++++++---------------
+ 2 files changed, 27 insertions(+), 27 deletions(-)

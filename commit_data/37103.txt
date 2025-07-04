@@ -1,27 +1,16 @@
-commit c942191c203c096637e1e8d27dfccc4968ce5436
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 15 08:21:44 2018 +0300
+commit 1a3957b828389fb38df0f60d43f08da15bc125c1
+Author: Adam Shannon <adamkshannon@gmail.com>
+Date:   Wed Jun 27 21:40:22 2018 -0500
 
-    crypto/tls, net/http: reject HTTP requests to HTTPS server
+    crypto/x509: better debug output for verify-cert calls
     
-    This adds a crypto/tls.RecordHeaderError.Conn field containing the TLS
-    underlying net.Conn for non-TLS handshake errors, and then uses it in
-    the net/http Server to return plaintext HTTP 400 errors when a client
-    mistakenly sends a plaintext HTTP request to an HTTPS server. This is the
-    same behavior as Apache.
+    Now that pkix.Name offers String() we should use that as some CN's are blank.
     
-    Also in crypto/tls: swap two error paths to not use a value before
-    it's valid, and don't send a alert record when a handshake contains a
-    bogus TLS record (a TLS record in response won't help a non-TLS
-    client).
+    Updates #24084
     
-    Fixes #23689
-    
-    Change-Id: Ife774b1e3886beb66f25ae4587c62123ccefe847
-    Reviewed-on: https://go-review.googlesource.com/c/143177
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I268196f04b98c2bd4d5d0cf1fecd2c9bafeec0f1
+    Reviewed-on: https://go-review.googlesource.com/121357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/conn.go     | 25 +++++++++++++++----------
- src/net/http/serve_test.go | 26 ++++++++++++++++++++++++++
- src/net/http/server.go     | 20 ++++++++++++++++++++
- 3 files changed, 61 insertions(+), 10 deletions(-)
+ src/crypto/x509/root_darwin.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

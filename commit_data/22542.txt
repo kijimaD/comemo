@@ -1,14 +1,12 @@
-commit 015c7608932d98255dbaa34b6954e80441ac8efe
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 14 15:22:02 2015 -0700
+commit 25bf792197ff737fc84c8b1dd46be8a6b066333a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Mar 19 09:46:43 2015 +1100
 
-    os: clarify that ModePerm permission bits are the Unix ones
+    image/color: add alpha-premultiplied comment.
     
-    Fixes #7075
-    
-    Change-Id: I57fcebaaef768b00263b6b91211b1434f6a4b229
-    Reviewed-on: https://go-review.googlesource.com/8919
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9968f53a8286a0e5ccc197a9b5fae499e2f95326
+    Reviewed-on: https://go-review.googlesource.com/7790
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/types.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/image/color/color.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

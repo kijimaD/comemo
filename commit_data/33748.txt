@@ -1,19 +1,18 @@
-commit 301b127a058c9bf3859e2a8c49e1ffc3c3398077
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 29 15:38:52 2017 -0500
+commit 03c3bb5f843cbda7382b5618de82a74adb779393
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Thu May 18 22:15:18 2017 +1000
 
-    runtime/pprof: read memstats earlier in profile handler
+    math: Add Round function (ties away from zero)
     
-    Reading the mem stats before our own allocations
-    avoids cluttering memory stats with our recent garbage.
+    This function avoids subtle faults found in many ad-hoc implementations,
+    and is simple enough to be inlined by the compiler.
     
-    Fixes #20565.
+    Fixes #20100
     
-    Change-Id: I3b0046c8300dca83cea24013ffebc32b2ae7f742
-    Reviewed-on: https://go-review.googlesource.com/80739
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib320254e9b1f1f798c6ef906b116f63bc29e8d08
+    Reviewed-on: https://go-review.googlesource.com/43652
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/pprof/pprof.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/math/all_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/floor.go    | 45 ++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 93 insertions(+), 1 deletion(-)

@@ -1,31 +1,15 @@
-commit e3c7ffcd957785bc9d3e1f2db9219bd74a96bbb1
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Dec 4 14:58:04 2019 -0800
+commit bc405df3914e82c9967e029a0235e19ba4461072
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 14 17:37:20 2019 -0700
 
-    os: reset dirinfo when seeking on Darwin
+    spec: allow embedding overlapping interfaces
     
-    The first Readdirnames calls opendir and caches the result.
-    The behavior of that cached opendir result isn't specified on a seek
-    of the underlying fd. Free the opendir result on a seek so that
-    we'll allocate a new one the next time around.
+    Updates #6977.
     
-    Also fix wasm behavior in this regard, so that a seek to the
-    file start resets the Readdirnames position, regardless of platform.
-    
-    p.s. I hate the Readdirnames API.
-    
-    Fixes #35767.
-    
-    Change-Id: Ieffb61b3c5cdd42591f69ab13f932003966f2297
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209961
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6eda4be550e7c7ea1e1bac3222850002d90a81a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190378
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/dir_darwin.go         | 10 +++++++++
- src/os/dir_unix.go           |  2 ++
- src/os/file_unix.go          |  1 +
- src/syscall/fs_js.go         |  8 ++++---
- test/fixedbugs/issue35767.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 69 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 64 ++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 41 insertions(+), 23 deletions(-)

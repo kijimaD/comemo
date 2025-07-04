@@ -1,23 +1,15 @@
-commit 31f71506d7026595be76713af25197a8c0022ac8
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Nov 3 02:11:51 2020 +1100
+commit 340e29257cda1b3e4519e27c0adfa9dbd585506e
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Apr 24 16:57:07 2020 -0400
 
-    syscall: use correct type for TIOCSPGRP/TIOCGPGRP
+    doc/go1.15: include changes in net/http/pprof and runtime/pprof
     
-    These ioctls take a pid_t (generally a C integer aka int32) and not an int64 - we
-    currently get away with this on little endian 64 bit platforms, since the bytes
-    fall into the correct place, however this breaks on big endian 64 bit platforms
-    (like openbsd/mips64).
+    net/http/pprof: delta profile support
+    runtime/pprof: profile labels plumbing for goroutine profiles
     
-    Update #40995
-    
-    Change-Id: I622a0543fd562d97f76a7376a84fd2641e6d6a24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267605
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I92e750dc894c8c6b3c3ba10f7be58bb541d3c289
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230023
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_bsd.go       | 6 ++++--
- src/syscall/exec_unix_test.go | 4 +++-
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ doc/go1.15.html | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

@@ -1,28 +1,16 @@
-commit 4956c3437bd2f4448bcec51321f123d03731ddfc
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Nov 27 15:17:11 2023 -0500
+commit 4cc8d0eea93a83e36ad68e655d770f53d16253fd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 11 16:01:56 2023 -0800
 
-    syscall: remove ptrace1 on darwin
+    go/types: allow filename arguments to generator for easier manual use
     
-    On Darwin, the ptrace syscall is called in ptrace1, which then be
-    called in ptrace. This allows ptrace1 be disabled on iOS (by
-    implementing ptrace differently). But we can also achieve this by
-    adding a conditional directly in ptrace. This reduces stack usage
-    with -N -l, while keeping ptrace disabled on iOS.
-    
-    For #64113.
-    
-    Change-Id: I89d8e317e77352fffdbb5a25ba21ee9cdf2e1e20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545276
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I96b25fae1dcbfae55f57c07de9529c6663ad28d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461602
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/syscall/mksyscall.pl             | 12 +++++++++++-
- src/syscall/ptrace_darwin.go         | 14 --------------
- src/syscall/ptrace_ios.go            | 14 --------------
- src/syscall/syscall_darwin_amd64.go  |  2 +-
- src/syscall/syscall_darwin_arm64.go  |  2 +-
- src/syscall/zsyscall_darwin_amd64.go |  6 +++++-
- src/syscall/zsyscall_darwin_arm64.go |  6 +++++-
- 7 files changed, 23 insertions(+), 33 deletions(-)
+ src/go/types/generator.go | 64 ++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 41 insertions(+), 23 deletions(-)

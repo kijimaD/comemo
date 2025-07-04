@@ -1,20 +1,20 @@
-commit cc46cac3bc59c35e22e17471d70e28fd3705d4da
-Author: Philippe Antoine <contact@catenacyber.fr>
-Date:   Sun Mar 20 21:34:42 2022 +0000
+commit cc52fdd1f3ec9ee24c0a0d6223ac934672c9569c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 1 23:05:25 2021 -0700
 
-    strings: limits allocation size for SplitN
+    [dev.typeparams] cmd/compile/internal/importer: review of exportdata.go
     
-    So that `strings.SplitN("", "T", int(144115188075855872))` does not panic.
+    This CL removes the // UNREVIEWED disclaimer at the top of the
+    file. This file is essentially a copy of its reviewed version
+    at src/go/internal/gcimporter/exportdata.go with adjustments to
+    make it work for the compiler and types2. To see the changes
+    made with respect to the original, compare patchset 1 against
+    patchset 2.
     
-    Change-Id: Iea00417e61780bcaf0fee02fa2b18026d89bc545
-    GitHub-Last-Rev: d1f45b44a8011ddb27c71e1bc9983b62b5d3d771
-    GitHub-Pull-Request: golang/go#51755
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393654
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I276d898ef238afa37ec6b9605496407df36cf7d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324133
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/strings/strings.go      | 3 +++
- src/strings/strings_test.go | 2 ++
- 2 files changed, 5 insertions(+)
+ src/cmd/compile/internal/importer/exportdata.go | 1 -
+ 1 file changed, 1 deletion(-)

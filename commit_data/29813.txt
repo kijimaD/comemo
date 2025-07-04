@@ -1,20 +1,20 @@
-commit 96414ca39f4a63d04ddc5cea6d4c63237f2a5fd4
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Dec 10 13:30:13 2016 -0500
+commit 56b5546b9138f80bb0b20aebcc1fa551096e87df
+Author: Gustav Westling <gustav@westling.xyz>
+Date:   Fri Aug 5 16:13:23 2016 +0200
 
-    cmd/link: do not export plugin C symbols
+    cmd/gofmt: simplify map key literals
     
-    Explicitly filter any C-only cgo functions out of pclntable,
-    which allows them to be duplicated with the host binary.
+    Simplify map key literals in "gofmt -s"
     
-    Updates #18190.
+    Fixes #16461.
     
-    Change-Id: I50d8706777a6133b3e95f696bc0bc586b84faa9e
-    Reviewed-on: https://go-review.googlesource.com/34199
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia61739b34a30ac27f6696f94a98809109a8a7b61
+    Reviewed-on: https://go-review.googlesource.com/25530
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testplugin/src/plugin2/plugin2.go | 13 ++++++++++--
- src/cmd/link/internal/ld/macho.go          | 19 ++++++++++++++++--
- src/cmd/link/internal/ld/pcln.go           | 18 ++++++++++++++++-
- src/runtime/plugin.go                      | 32 ++++++++++++++++++++++++++++++
- 4 files changed, 77 insertions(+), 5 deletions(-)
+ src/cmd/gofmt/simplify.go                | 60 +++++++++++++++++++-------------
+ src/cmd/gofmt/testdata/composites.golden | 14 ++++++++
+ src/cmd/gofmt/testdata/composites.input  | 14 ++++++++
+ 3 files changed, 64 insertions(+), 24 deletions(-)

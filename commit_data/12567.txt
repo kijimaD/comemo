@@ -1,13 +1,16 @@
-commit b23b001bd2e780ddb1eacded10797e92be1f3650
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 12 14:25:52 2012 -0400
+commit e8deb3f828886afe3dc7403f128cbafebe9fb1a1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 12 10:42:25 2012 -0700
 
-    A+C: add Ingo Oeser (individual CLA)
+    net/http: return appropriate errors from ReadRequest
     
-    R=golang-dev, bradfitz
+    Fixes #3298
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5794061
+    https://golang.org/cl/5783080
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/net/http/request.go      |  6 ++++--
+ src/pkg/net/http/request_test.go | 19 +++++++++++++++++++
+ src/pkg/net/http/server.go       |  2 +-
+ 3 files changed, 24 insertions(+), 3 deletions(-)

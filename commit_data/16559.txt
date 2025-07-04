@@ -1,12 +1,20 @@
-commit e59a09fb1aa386aa7e9258cd1bf8a7c7ed03d6fe
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 13 12:52:02 2013 +1000
+commit 28a1c36d627f179001a9d7180f81d947e6ecdaaf
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 12 18:13:34 2013 -0700
 
-    tag go1.1.1
+    testing: add -outputdir flag so "go test" controls where the files are written
+    Obscure misfeature now fixed: When run from "go test", profiles were always
+    written in the package's source directory. This change puts them in the directory
+    where "go test" is run.
+    Also fix a couple of problems causing errors in testing.after to go unreported
+    unless -v was set.
     
-    R=golang-dev, dave, iant
+    R=rsc, minux.ma, iant, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/10254043
+    https://golang.org/cl/10234044
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/doc.go          |  4 ++++
+ src/cmd/go/test.go         |  4 ++++
+ src/cmd/go/testflag.go     | 13 +++++++++++
+ src/pkg/testing/testing.go | 54 ++++++++++++++++++++++++++++++++++++++--------
+ 4 files changed, 66 insertions(+), 9 deletions(-)

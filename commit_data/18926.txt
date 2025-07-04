@@ -1,20 +1,15 @@
-commit 4ffc799295fbe564edf1880a5f4317330c59bcb1
+commit de1ea5de8637876c81a6c05e5a9cc9e572a5c62f
 Author: Rui Ueyama <ruiu@google.com>
-Date:   Mon Mar 24 11:48:34 2014 -0700
+Date:   Sun Mar 23 18:58:35 2014 -0700
 
-    bufio: fix bug that ReadFrom stops before EOF or error
+    strings: minor cleanup
     
-    ReadFrom should not return until it receives a non-nil error
-    or too many contiguous (0, nil)s from a given reader.
-    Currently it immediately returns if it receives one (0, nil).
-    Fixes #7611.
+    bi is a slice and not an array, so bi[:] does not make much sense.
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/76400048
+    https://golang.org/cl/79280043
 
- src/pkg/bufio/bufio.go      | 14 +++++++++---
- src/pkg/bufio/bufio_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/bufio/scan.go       |  2 +-
- 3 files changed, 66 insertions(+), 4 deletions(-)
+ src/pkg/strings/replace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

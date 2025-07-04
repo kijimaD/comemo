@@ -1,23 +1,33 @@
-commit 08270c3e18673f7f1319dce9d27d84c9a4c8eb49
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 9 23:58:42 2017 -0500
+commit f1517ec6e5d1ccf04c1266e710545436b972750f
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 24 15:23:27 2017 -0700
 
-    cmd/cover: do not report coverage for assembly functions
+    cmd/compile: remove more nil ptr checks after newobject
     
-    cover -func mode was reporting a coverage for function
-    declarations without bodies - assembly functions.
-    Since we are not annotating their code, we have no data
-    for those functions and should not report them at all.
+    For code like the following (where x escapes):
     
-    Fixes #6880.
+       x := []int{1}
     
-    Change-Id: I4b8cd90805accf61f54e3ee167f54f4dc10c7c59
-    Reviewed-on: https://go-review.googlesource.com/77152
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    We're currently generating a nil check.  The line above is really 3 operations:
+    
+            t := new([1]int)
+            t[0] = 1
+            x := t[:]
+    
+    We remove the nil check for t[0] = 1, but not for t[:].
+    
+    Our current nil check removal rule is too strict about the possible
+    memory arguments of the nil check. Unlike zeroing or storing to the
+    result of runtime.newobject, the nilness of runtime.newobject is
+    always false, even after other stores have happened in the meantime.
+    
+    Change-Id: I95fad4e3a59c27effdb37c43ea215e18f30b1e5f
+    Reviewed-on: https://go-review.googlesource.com/58711
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/cover/func.go                      |  4 ++++
- src/cmd/go/go_test.go                      | 13 +++++++++++++
- src/cmd/go/testdata/src/coverasm/p.go      |  7 +++++++
- src/cmd/go/testdata/src/coverasm/p.s       |  2 ++
- src/cmd/go/testdata/src/coverasm/p_test.go |  7 +++++++
- 5 files changed, 33 insertions(+)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 10 ++++------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 22 ++++++++++++----------
+ test/nilptr3.go                                |  7 +++++++
+ 3 files changed, 23 insertions(+), 16 deletions(-)

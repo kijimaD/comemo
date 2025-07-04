@@ -1,12 +1,30 @@
-commit bdac989ef7f7f3223d8dd4928dee3da595260f47
+commit 46e30c7d70fd30b5d67b93625cf97110dc751f68
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Jun 11 02:52:07 2013 +0800
+Date:   Tue Jun 11 02:47:04 2013 +0800
 
-    doc/go_spec: more examples for unspecified cases of the evaluation order
+    syscall: add {Set,Get}priority for Linux, and consistency tests
     
-    R=golang-dev, bradfitz, gri, iant, rsc
+    R=golang-dev, iant, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/7235044
+    https://golang.org/cl/7430044
 
- doc/go_spec.html | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/syscall/consistency_unix_test.go | 25 +++++++++++++++++++++++++
+ src/pkg/syscall/mkerrors.sh              |  2 ++
+ src/pkg/syscall/syscall_linux.go         |  4 ++--
+ src/pkg/syscall/zerrors_darwin_386.go    |  3 +++
+ src/pkg/syscall/zerrors_darwin_amd64.go  |  3 +++
+ src/pkg/syscall/zerrors_freebsd_386.go   |  3 +++
+ src/pkg/syscall/zerrors_freebsd_amd64.go |  3 +++
+ src/pkg/syscall/zerrors_freebsd_arm.go   |  3 +++
+ src/pkg/syscall/zerrors_linux_386.go     |  3 +++
+ src/pkg/syscall/zerrors_linux_amd64.go   |  3 +++
+ src/pkg/syscall/zerrors_linux_arm.go     |  3 +++
+ src/pkg/syscall/zerrors_netbsd_386.go    |  3 +++
+ src/pkg/syscall/zerrors_netbsd_amd64.go  |  3 +++
+ src/pkg/syscall/zerrors_netbsd_arm.go    |  3 +++
+ src/pkg/syscall/zerrors_openbsd_386.go   |  3 +++
+ src/pkg/syscall/zerrors_openbsd_amd64.go |  3 +++
+ src/pkg/syscall/zsyscall_linux_386.go    | 21 +++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go  | 21 +++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go    | 21 +++++++++++++++++++++
+ 19 files changed, 131 insertions(+), 2 deletions(-)

@@ -1,12 +1,13 @@
-commit 3108f3f4a0025ad9079aa884dbf31cde268732c3
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Tue Feb 8 22:30:06 2011 -0500
+commit 642c7740818834faf752e9c64b7e746762194663
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 9 12:37:08 2011 +1100
 
-    codereview: use cmd.communicate.
+    src/run.bash: get rid of long windows expression
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4145046
+    https://golang.org/cl/4138041
 
- lib/codereview/codereview.py | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/env.bash |  2 +-
+ src/run.bash | 34 ++++++++++++++--------------------
+ 2 files changed, 15 insertions(+), 21 deletions(-)

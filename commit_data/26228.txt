@@ -1,23 +1,17 @@
-commit 998b6dd75cf205b37a3f145bc93c50e44150af2c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 11 14:28:16 2016 -0800
+commit e24b2445b4d3fc77034b6ad42c8258d41a4133d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 4 16:19:38 2016 -0800
 
-    cmd/compile: move lexer into separate file (cleanup)
+    os/signal: Stop restores original signal handling
     
-    This is really moving all the non-lexer pieces out of lex.go
-    into main.go. It's always been confusing that the top-most
-    compiler entry point (Main) is in the same file with the
-    lexer. Both files remain of substantial size (> 1000 lines),
-    which justifies this even more.
+    Since Stop was introduced, it would revert to the system default for the
+    signal, rather than to the default Go behavior.  Change it to revert to
+    the default Go behavior.
     
-    No other changes.
-    
-    Change-Id: I03895589d5e3cc2340580350bbc1420539893dfc
-    Reviewed-on: https://go-review.googlesource.com/20601
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I345467ece0e49e31b2806d6fce2f1937b17905a6
+    Reviewed-on: https://go-review.googlesource.com/18229
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/lex.go  | 1173 +---------------------------------
- src/cmd/compile/internal/gc/main.go | 1184 +++++++++++++++++++++++++++++++++++
- 2 files changed, 1185 insertions(+), 1172 deletions(-)
+ src/os/signal/signal_test.go |  3 ++-
+ src/runtime/signal1_unix.go  | 55 ++++++++++++++++++++++++++++----------------
+ 2 files changed, 37 insertions(+), 21 deletions(-)

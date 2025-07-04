@@ -1,26 +1,24 @@
-commit f432b5f756c223564fd397b7568bd2ce949c7c6f
-Author: Vladimir Varankin <vladimir@varank.in>
-Date:   Tue Aug 20 09:19:22 2024 +0000
+commit 089e37a931d30d4055c7468facb602c4cfa9b537
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Jun 30 13:48:10 2023 -0700
 
-    testing: add Context
+    bytes: remove builders check from compare test
     
-    Adds a new Context method to testing.T, that returns a context, that is
-    canceled before the end of its test function.
+    TestCompareBytes already took into account the -short
+    testing flag, however, only if not run on one of the Go builders.
+    This extra condition is no longer necessary as we have much
+    better longtest coverage than we did when the check was added.
     
-    Fixes #36532.
+    Fixes #61071
     
-    Change-Id: I9315ad4dad25529d0b5be809e2d9db4e7528b5f2
-    GitHub-Last-Rev: 1c3fd6c4d8a9cc68a61f2df284d04d3d080216be
-    GitHub-Pull-Request: golang/go#68828
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603959
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I0fc716f4e7baa04019ee00608f223f27c931edcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507416
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Bypass: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- api/next/36532.txt                          |  4 +++
- doc/next/6-stdlib/99-minor/testing/36532.md |  2 ++
- doc/next/6-stdlib/99-minor/testing/62516.md |  4 +--
- src/testing/testing.go                      | 54 ++++++++++++++++++++++-------
- src/testing/testing_test.go                 | 28 +++++++++++++++
- 5 files changed, 77 insertions(+), 15 deletions(-)
+ src/bytes/compare_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

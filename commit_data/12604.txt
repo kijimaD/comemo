@@ -1,12 +1,14 @@
-commit daacba518425fe2dcbdfd89ff43f8ab11cdabea8
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 13 15:35:08 2012 +1100
+commit 677caf78139a3f4f46bbc2f96146561232702e2b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 13 15:31:39 2012 +1100
 
-    gc: include full text of import path in error message
+    misc/dist: trim space from version string
     
-    R=golang-dev, dsymonds
+    This prevents us from writing filenames like "weekly.2012-03-12\n.foo.bar.tar.gz".
+    
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5783091
+    https://golang.org/cl/5783090
 
- src/cmd/gc/subr.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ misc/dist/bindist.go | 1 +
+ 1 file changed, 1 insertion(+)

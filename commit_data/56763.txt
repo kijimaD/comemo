@@ -1,21 +1,35 @@
-commit 9d2aeae72d34880510c7221f35ab61171cec1ffd
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 31 20:22:32 2024 +0000
+commit 0df681248862a34ff1233cdc4cf0b036e4761652
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Fri May 19 10:10:21 2023 -0700
 
-    iter: propagate runtime.Goexit from iterator passed to Pull
+    slices: add sorting and comparison functions
     
-    This change propagates a runtime.Goexit initiated by the iterator into
-    the caller of next and/or stop.
+    Now that the `cmp` package exists, sorting and comparison functions from
+    `x/exp/slices` can be ported to the standard library, using the
+    `cmp.Ordered` type and the `cmp.Less` and `cmp.Compare` functions.
     
-    Fixes #67712.
+    This move also includes adjustments to the discussions in #60091 w.r.t.
+    NaN handling and cmp vs. less functions, and adds Min/Max functions.
+    The final API is taken from
+    https://github.com/golang/go/issues/60091#issuecomment-1553850782
     
-    Change-Id: I5bb8d22f749fce39ce4f587148c5fc71aee2af65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589137
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Updates #60091
+    
+    Change-Id: Id7e6c88035b60d4ddd0c48dd82add8e8bc4e22d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496078
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/iter/iter.go      | 55 ++++++++++++++++++++++++-------
- src/iter/pull_test.go | 89 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/coro.go   |  2 +-
- 3 files changed, 133 insertions(+), 13 deletions(-)
+ api/next/60091.txt                |  13 ++
+ src/go/build/deps_test.go         |   9 +-
+ src/slices/slices.go              |  45 ++++
+ src/slices/slices_test.go         | 208 +++++++++++++++++
+ src/slices/sort.go                | 190 +++++++++++++++
+ src/slices/sort_benchmark_test.go | 238 +++++++++++++++++++
+ src/slices/sort_test.go           | 414 ++++++++++++++++++++++++++++++++
+ src/slices/zsortanyfunc.go        | 479 +++++++++++++++++++++++++++++++++++++
+ src/slices/zsortordered.go        | 481 ++++++++++++++++++++++++++++++++++++++
+ src/sort/gen_sort_variants.go     |  14 +-
+ 10 files changed, 2080 insertions(+), 11 deletions(-)

@@ -1,19 +1,29 @@
-commit a2eb643cbf5b68b50dd2dd5b62e605ca90ababe4
-Author: limeidan <limeidan@loongson.cn>
-Date:   Mon Oct 9 17:32:03 2023 +0800
+commit 7979c8f5881b5ab183acc096f33dfcb1cab995fa
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Feb 22 14:06:28 2024 +0000
 
-    cmd/dist, internal/platform: enable internal linking feature and test on loong64
+    cmd/compile/internal/liveness: introduce "live intervals" utility
     
-    Change-Id: Ifea676e9eb44281465832fc4050f6286e50f4543
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533717
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Introduce a helper type "Intervals" that contains sets of sorted
+    disjoint ranges corresponding to live ranges within a function.
+    Example: the Intervals set "{ [0,1), [4,10) }" would indicate that
+    something is live starting at instruction 0, then up to but not
+    including instruction 1, then dead from 1-3, then live again at
+    instruction 4 up to (but not including) instruction 10.
+    
+    This patch provides APIs for constructing interval sets, testing to
+    see whether two sets overlap, and unioning/merging together two
+    intervals sets.
+    
+    Updates #62737.
+    Updates #65532.
+    Updates #65495.
+    
+    Change-Id: I7140a5989eba93bf3b8762d9224261f5eba0646d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566177
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/dist/build.go              | 2 +-
- src/cmd/dist/test.go               | 4 ++--
- src/internal/platform/supported.go | 4 ++--
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/liveness/intervals.go     | 387 +++++++++++++++
+ .../compile/internal/liveness/intervals_test.go    | 527 +++++++++++++++++++++
+ 2 files changed, 914 insertions(+)

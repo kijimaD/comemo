@@ -1,29 +1,27 @@
-commit 0ba03b8f42dc09212dfa28baa374577168a2bce7
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Jul 19 10:41:54 2018 +0200
+commit ac43de3ae5027f61e6b028c806f6b83f80ee5d3b
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Apr 3 18:58:01 2018 +0200
 
-    cmd/go: fix TestScript on Plan 9
+    cmd/compile: in prove, complete support for OpIsInBounds/OpIsSliceInBounds
     
-    CL 123577 added TestScript. The install_rebuild_gopath
-    test was failing on Plan 9 because it defines a GOPATH
-    using the ':' separator, while Plan 9 expects the '\000'
-    separator in environment variables.
+    The logic in addBranchRestrictions didn't allow to correctly
+    model OpIs(Slice)Bound for signed domain, and it was also partly
+    implemented within addRestrictions.
     
-    This change fixes the script engine by defining a new
-    ":" environment variable set to OS-specific path list
-    separator.
+    Thanks to the previous changes, it is now possible to handle
+    the negative conditions correctly, so that we can learn
+    both signed/LT + unsigned/LT on the positive side, and
+    signed/GE + unsigned/GE on the negative side (but only if
+    the index can be proved to be non-negative).
     
-    The install_rebuild_gopath test has been updated to use
-    "${:}" instead of ":".
+    This is able to prove ~50 more slice accesses in std+cmd.
     
-    Fixes #26421.
-    
-    Change-Id: I58a97f882cdb48cc0836398b0d98a80ea58041ba
-    Reviewed-on: https://go-review.googlesource.com/124435
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9858080dc03b16f85993a55983dbc4b00f8491b0
+    Reviewed-on: https://go-review.googlesource.com/104037
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/script_test.go                             | 1 +
- src/cmd/go/testdata/script/README                     | 2 +-
- src/cmd/go/testdata/script/install_rebuild_gopath.txt | 3 +--
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 59 ++++++++++++++++-------------------
+ test/prove.go                         | 15 +++++++++
+ 2 files changed, 42 insertions(+), 32 deletions(-)

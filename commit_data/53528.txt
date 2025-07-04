@@ -1,26 +1,29 @@
-commit f35d2dae74d12b06df061d909cb9721f27208a15
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 6 14:30:31 2023 -0700
+commit 48297f1fb15206cd13e0f31647e909292fb21975
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri May 27 15:44:55 2022 +0200
 
-    go/types, types2: use inexact unification when unifying against core types
+    unicode/utf16: add AppendRune
     
-    Follow-up on CL 498955 which introduced a unification mode, to be used
-    to control the precision of unification of element types (CL 498895):
-    When unifying against core types of unbound type parameters, we must
-    use inexact unification at the top (irrespective of the unification mode),
-    otherwise it may fail when unifying against a defined type (core types
-    are always underlying types).
+    AppendRune appends the UTF-16 encoding of a rune to a []uint16.
     
-    No specific test case (I have not been able to create one yet).
+        BenchmarkEncodeValidASCII-12                24.61ns 16B 1allocs
+        BenchmarkEncodeValidJapaneseChars-12        18.79ns 8B  1allocs
+        BenchmarkAppendRuneValidASCII-12            6.826ns 0B  0allocs
+        BenchmarkAppendRuneValidJapaneseChars-12    3.547ns 0B  0allocs
     
-    Change-Id: Ie15e98f4b9e9fb60d6857d34b03d350ebbf0375e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501302
+    The ASCII case is written to be inlineable.
+    
+    Fixes #51896
+    
+    Change-Id: I593b1029f603297ef6e80e036f2fee2a0938d38d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409054
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/cmd/compile/internal/types2/unify.go | 6 +++++-
- src/go/types/unify.go                    | 6 +++++-
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ api/next/51896.txt              |  1 +
+ src/unicode/utf16/utf16.go      | 17 +++++++++++++++++
+ src/unicode/utf16/utf16_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 52 insertions(+)

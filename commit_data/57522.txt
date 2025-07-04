@@ -1,22 +1,21 @@
-commit b17a55d0953429c9b23ef89407734ac9bba159f5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 24 14:08:28 2024 -0700
+commit f2781229a91129fff9c34e48f957b588d30b13b3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 23:02:32 2023 +1000
 
-    go/types, types2: move Checker.indexedElts into literals.go where it belongs
+    runtime/cgo: consolidate openbsd cgo code
     
-    The function is only used by Checker.compositeLit.
-    Also, now its go/types source can be gerated from the types2 source.
-    No other code changes.
+    All openbsd architectures now use the same code, deduplicate accordingly.
     
-    Change-Id: I88b7ad371d809a5d9bf8e635d9e003ba0a71ab78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615635
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I65f1d9bd78c97dbdf552ec95ebba7ec4d04c8d2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518622
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/index.go    | 47 -----------------------------
- src/cmd/compile/internal/types2/literals.go | 47 +++++++++++++++++++++++++++++
- src/go/types/index.go                       | 47 -----------------------------
- src/go/types/literals.go                    | 47 +++++++++++++++++++++++++++++
- 4 files changed, 94 insertions(+), 94 deletions(-)
+ .../cgo/{gcc_openbsd_386.c => gcc_openbsd.c}       |  2 +
+ src/runtime/cgo/gcc_openbsd_amd64.c                | 59 ---------------------
+ src/runtime/cgo/gcc_openbsd_arm.c                  | 60 ----------------------
+ src/runtime/cgo/gcc_openbsd_arm64.c                | 60 ----------------------
+ src/runtime/cgo/gcc_openbsd_mips64.c               | 60 ----------------------
+ 5 files changed, 2 insertions(+), 239 deletions(-)

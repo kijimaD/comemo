@@ -1,15 +1,14 @@
-commit 91d08e3bca1c12f45d105ada3f4f46a73375dac9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 14 12:18:10 2017 -0700
+commit ff191dd7268937902e9181495765a61497fcf5ca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 21 21:51:01 2016 +0000
 
-    cmd/compile/internal/ssa: remove unused OpFunc
+    net/http: maybe fix TestLinuxSendfile on mips64
     
-    Change-Id: I0f7eec2e0c15a355422d5ae7289508a5bd33b971
-    Reviewed-on: https://go-review.googlesource.com/38171
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #18008
+    
+    Change-Id: I8fde0d71d15b416db4d262f6db8ef32a209a192f
+    Reviewed-on: https://go-review.googlesource.com/33426
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/genericOps.go | 7 +++----
- src/cmd/compile/internal/ssa/opGen.go          | 8 --------
- 2 files changed, 3 insertions(+), 12 deletions(-)
+ src/net/http/fs_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

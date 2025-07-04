@@ -1,21 +1,20 @@
-commit d6fa0d2ef3fc29c38af2675d395a089cc73af996
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 8 17:10:06 2023 -0500
+commit df08c9a82152fd6f2b2811db03b40fea8b6e5e9e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 15 11:52:01 2022 -0400
 
-    net/http: remove arbitrary timeout in TestServerAllowsBlockingRemoteAddr
+    cmd/link: preserve symbol attributes when cloning to external
     
-    If the test actually deadlocks, we probably want a goroutine dump to
-    debug it anyway. Otherwise, the arbitrary timeout can only cause
-    spurious failures.
+    There are some symbol attributes that are encoded in the object
+    file. Currently, they are lost when cloning a symbol to external.
+    Copy them over.
     
-    Fixes #36179.
+    Also delete CopyAttributes as it is no longer called anywhere.
     
-    Change-Id: Ic2037496959a38d3231eefdbc1dd5d45eebdf306
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474582
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I1497e3223a641704bf35aa3e904dd0eda2f8ec3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400574
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/http/serve_test.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 29 ++++-------------------------
+ 1 file changed, 4 insertions(+), 25 deletions(-)

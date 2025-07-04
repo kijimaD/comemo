@@ -1,24 +1,26 @@
-commit 7007dfcd0c32c1be83c921b0859dd48464c7c5aa
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Apr 8 12:12:37 2025 +0200
+commit 09bfea95cff2ae1fe5afba4049bfaedac7f31d76
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:56:58 2024 -0500
 
-    os: clean-up NewFile tests
+    runtime: merge timerRemoving into timerModifying
     
-    This CL removes some unnecessary code and duplicated NewFile tests
-    cases.
+    timerRemoving is just a kind of "locked for modification",
+    so merge it into timerModifying. This does potentially remove
+    a fast path from deltimer, in that deltimer of timerRemoving
+    is a fast-path exit while deltimer of timerModifying has to
+    wait for the timer to settle. Since all the timerModifying
+    critical paths are bounded and short, this should not matter.
     
-    It also simplifies TestPipeCanceled by removing the need for using
-    SetReadDeadline. Using CancelIoEx instead of CancelIo makes the cancel
-    operations to finish almost instantly. The latter could take more than
-    20s to finish if called from a thread different from the one that
-    called ReadFile.
+    This is part of a larger simplification of the state set.
     
-    Change-Id: I9033cbcad277666bc2aec89b3e5a3ef529da2cd8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663755
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I039bf6a5a041a158dc3d1af8127f28eed50fc540
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564120
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/os/os_windows_test.go | 19 ++++++-------------
- 1 file changed, 6 insertions(+), 13 deletions(-)
+ src/runtime/time.go | 42 +++++++++++++++---------------------------
+ 1 file changed, 15 insertions(+), 27 deletions(-)

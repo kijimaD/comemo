@@ -1,20 +1,26 @@
-commit ffbd194f5cf399a98578ea950c969d07a751ecfd
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Jan 10 15:22:11 2023 -0800
+commit 9faef5a6540f56af0129610db8a55b443229075f
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Oct 22 14:36:06 2021 +0800
 
-    test: remove TODO in issue20250.go
+    cmd/compile,bytealg: change context register on riscv64
     
-    This has been investigated and explained on the issue tracker.
+    The register ABI will use X8-X23 (CL 356519),
+    this CL changes context register from X20(S4) to X26(S10) to meet the
+    prerequisite.
     
-    Fixes #54402.
+    Update #40724
     
-    Change-Id: I4d8b971faa810591983ad028b7db16411f3b3b4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461456
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I93d51d22fe7b3ea5ceffe96dff93e3af60fbe7f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357974
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- test/fixedbugs/issue20250.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/riscv64/ssa.go        | 2 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go | 4 ++--
+ src/cmd/compile/internal/ssa/opGen.go          | 4 ++--
+ src/cmd/internal/obj/riscv/cpu.go              | 6 +++---
+ src/internal/bytealg/equal_riscv64.s           | 2 +-
+ 5 files changed, 9 insertions(+), 9 deletions(-)

@@ -1,21 +1,14 @@
-commit 22dbc96d8a004bb78a0efd329d0f48b6f0a8b9e5
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Nov 27 20:01:50 2018 +1100
+commit 8cc7540ecb592e8f9fdb429c3c7f5ede9548dfca
+Author: Keith Randall <khr@google.com>
+Date:   Mon Aug 6 10:17:52 2018 -0700
 
-    debug/pe: correct TestImportTableInUnknownSection error message
+    doc: describe cgo ptr->uintptr changes for 1.11.
     
-    TestImportTableInUnknownSection uses kernel32.dll file, but the error
-    message mentions atmfd.dll. Adjust error message to match the test.
+    Fixes #26721
     
-    This change should have been part of CL 151137.
-    
-    Updates #27904
-    
-    Change-Id: Ifc31a12134b328472191122f8426ab6ed234fbd4
-    Reviewed-on: https://go-review.googlesource.com/c/151477
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Icc4660327a9ba668c88f8d9e0b9f206ba8f6dc27
+    Reviewed-on: https://go-review.googlesource.com/127975
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/pe/file_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ doc/go1.11.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

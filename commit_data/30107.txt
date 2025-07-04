@@ -1,28 +1,23 @@
-commit 5f374ea8fb3754703a01ddf94e729f926317bf67
+commit a2f77e9ef8ba2e956453ad0dda1ebdf4ae7c4fdb
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 6 13:40:19 2017 -0800
+Date:   Wed Oct 19 13:13:31 2016 -0700
 
-    cmd/compile/internal/gc: stop exporting *gc.Sym-typed globals
+    cmd/compile: cleanup gdata slightly
     
-    The arch-specific SSA backends now no longer use gc.Sym either.
+    In sinit.go, gdata can already handle strings and complex, so no
+    reason to handle them separately.
+    
+    In obj.go, inline gdatastring and gdatacomplex into gdata, since it's
+    the only caller. Allows extracting out the common Linksym calls.
     
     Passes toolstash -cmp.
     
-    Change-Id: Ic13b934b92a1b89b4b79c6c4796ab0a137608163
-    Reviewed-on: https://go-review.googlesource.com/36416
+    Change-Id: I3cb18d9b4206a8a269c36e0d30a345d8e6caba1f
+    Reviewed-on: https://go-review.googlesource.com/31498
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/amd64/ssa.go  |  6 +++---
- src/cmd/compile/internal/arm/ssa.go    |  6 +++---
- src/cmd/compile/internal/arm64/ssa.go  |  6 +++---
- src/cmd/compile/internal/gc/go.go      |  5 +++--
- src/cmd/compile/internal/gc/pgen.go    | 26 +++++++++++++-------------
- src/cmd/compile/internal/gc/ssa.go     | 10 +++++-----
- src/cmd/compile/internal/mips/ssa.go   |  6 +++---
- src/cmd/compile/internal/mips64/ssa.go |  6 +++---
- src/cmd/compile/internal/ppc64/ssa.go  |  6 +++---
- src/cmd/compile/internal/s390x/ssa.go  |  6 +++---
- src/cmd/compile/internal/x86/ssa.go    |  6 +++---
- 11 files changed, 45 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/gc/obj.go   | 56 ++++++++++++++----------------------
+ src/cmd/compile/internal/gc/sinit.go | 25 ++--------------
+ 2 files changed, 24 insertions(+), 57 deletions(-)

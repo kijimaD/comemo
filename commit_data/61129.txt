@@ -1,0 +1,85 @@
+commit a62566fbb9e5d96b08869634d70a4e5a34f89958
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Aug 1 16:28:24 2024 +0200
+
+    crypto/rand: remove /dev/urandom fallback and improve getrandom batching
+    
+    The fallback was reachable on
+    
+        - Linux, where starting in Go 1.24 we require a kernel with
+          getrandom(2), see #67001.
+    
+        - FreeBSD, which added getrandom(2) in FreeBSD 12.0, which we
+          require since Go 1.19.
+    
+        - OpenBSD, which added getentropy(2) in OpenBSD 5.6, and we only
+          support the latest version.
+    
+        - DragonFly BSD, which has getrandom(2) and where we support only
+          the latest version.
+    
+        - NetBSD, where we switched to kern.arandom in CL 511036, available
+          since NetBSD 4.0.
+    
+        - illumos, which has getrandom(2). (Supported versions unclear.)
+    
+        - Solaris, which had getrandom(2) at least since Oracle
+          Solaris 11.4.
+    
+        - AIX, which... ugh, fine, but that code is now in rand_aix.go.
+    
+    At the end of the day the platform-specific code is just a global
+    func(b []byte) error, so simplified the package around that assumption.
+    
+    This also includes the following change, which used to be a separate CL.
+    
+        crypto/rand: improve getrandom batching and retry logic
+    
+        The previous logic assumed getrandom never returned short, and then
+        applied stricter-than-necessary batch size limits, presumably to
+        avoid short returns.
+    
+        This was still not sufficient because above 256 bytes getrandom(2)
+        can be interrupted by a signal and return short *or* it can simply
+        return EINTR if the pool is not initialized (regardless of buffer
+        size).
+    
+        https://man.archlinux.org/man/getrandom.2#Interruption_by_a_signal_handler
+    
+        Whether this ever failed in practice is unknown: it would have been
+        masked by the /dev/urandom fallback before.
+    
+        Instead, we apply buffer size limits only where necessary (really,
+        only Solaris in practice and FreeBSD in theory) and then handle
+        gracefully short returns and EINTR.
+    
+        Change-Id: I8677b457aab68a8fb6137a3b43538efc62eb7c93
+    
+    It turns out that we now know that large getrandom calls *did* fail in
+    practice, falling back on /dev/urandom, because when we removed the
+    fallback TestBidiStreamReverseProxy with its 4KiB read started failing.
+    
+    https://cr-buildbucket.appspot.com/build/8740779846954406033
+    
+    For #66821
+    
+    Change-Id: Iaca62997604f326501a51401cdc2659c2790ff22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602495
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/rand/rand.go            | 48 ++++++++++++++++++---
+ src/crypto/rand/rand_aix.go        | 56 ++++++++++++++++++++++++
+ src/crypto/rand/rand_darwin.go     | 21 ++++-----
+ src/crypto/rand/rand_getentropy.go |  6 +--
+ src/crypto/rand/rand_getrandom.go  | 69 +++++++++++++++++-------------
+ src/crypto/rand/rand_js.go         | 24 ++---------
+ src/crypto/rand/rand_plan9.go      | 46 +++++++++-----------
+ src/crypto/rand/rand_test.go       | 81 ++++++++++++++++++++++++++++++++++-
+ src/crypto/rand/rand_unix.go       | 87 --------------------------------------
+ src/crypto/rand/rand_wasip1.go     | 16 +------
+ src/crypto/rand/rand_windows.go    | 18 ++------
+ src/net/http/clientserver_test.go  |  1 +
+ 12 files changed, 259 insertions(+), 214 deletions(-)

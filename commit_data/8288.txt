@@ -1,14 +1,55 @@
-commit 3599e3fc12e0b2056b15ce4286af9c332b0157dd
+commit 16381b145e606729332793cade647d8eb76c042b
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 2 10:05:43 2011 -0700
+Date:   Mon May 2 09:17:46 2011 -0700
 
-    go/printer: make tests follow syntactic restrictions
+    go/token: faster FileSet.Position implementation
     
-    R=rsc
+    - added a cache for last file looked up: avoids binary
+      search if the file matches
+    
+    - don't look up extra line info if not present
+      (it is almost never present)
+    
+    - inline one critical binary search call (inlining
+      provides almost 30% improvement in this case)
+    
+    Together, these changes make the go/printer benchmark
+    more than twice as fast (53% improvement). gofmt also
+    sped up by about the same amount.
+    
+    Also: removed an unused internal field from FileSet.
+    
+    Measurements (always best of 5 runs):
+    
+    * original:
+      printer.BenchmarkPrint     5    238354200 ns/op (100%)
+    
+    * using last file cache:
+      printer.BenchmarkPrint    10    201796600 ns/op (85%)
+    
+    * avoiding lookup of extra line info:
+      printer.BenchmarkPrint    10    157072700 ns/op (66%)
+    
+    * inlining a critical binary search call:
+      printer.BenchmarkPrint    10    111523500 ns/op (47%)
+    
+    gofmt (always best of 3 runs):
+    
+    * before:
+      time gofmt -l src misc
+      real  0m33.316s
+      user  0m31.298s
+      sys   0m0.319s
+    
+    * after:
+      time gofmt -l src misc
+      real  0m15.889s
+      user  0m14.596s
+      sys   0m0.224s
+    
+    R=r, dfc, bradfitz, rsc1
     CC=golang-dev
-    https://golang.org/cl/4439087
+    https://golang.org/cl/4433086
 
- src/pkg/go/printer/testdata/expressions.golden | 97 +++++++++++++++-----------
- src/pkg/go/printer/testdata/expressions.input  | 97 +++++++++++++++-----------
- src/pkg/go/printer/testdata/expressions.raw    | 97 +++++++++++++++-----------
- 3 files changed, 174 insertions(+), 117 deletions(-)
+ src/pkg/go/token/position.go | 52 ++++++++++++++++++++++++++++++++------------
+ 1 file changed, 38 insertions(+), 14 deletions(-)

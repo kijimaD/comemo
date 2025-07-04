@@ -1,21 +1,19 @@
-commit 2eba2ff8a1572d7fcba65a5f9d54f73e307a0054
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 25 14:50:27 2022 -0700
+commit f1f626de5382220f3b34fd3f5616d5c0868b3561
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Oct 5 10:48:24 2021 -0400
 
-    go/types: provide a better error message for [...] array types
+    cmd/link: mangle function name with ABI on XCOFF
     
-    This matches types2 behavior.
+    This is like CL 304432 and CL 307229, for XCOFF.
     
-    For #54511.
+    With this, GOEXPERIMENT=regabi works on AIX/PPC64.
     
-    Change-Id: Iea906e9fec7e334b7aa7f481de87373fa93d1c7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425715
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8cf00681df5c93f397913febd78f38099d91e7c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353972
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/types/testdata/check/decls0.go |  2 +-
- src/go/types/typexpr.go               | 10 +++++++++-
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/xcoff.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

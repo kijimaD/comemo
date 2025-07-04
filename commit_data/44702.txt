@@ -1,45 +1,287 @@
-commit 119d76d98e4a367ad9b35dfa436692e2976c99aa
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Tue Mar 16 16:31:08 2021 +0800
+commit 0ef562592fe05b50b0ae8fce495ee7e2eec791f0
+Merge: ac5c406ef0 9679b30733
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Aug 21 14:18:06 2020 -0400
 
-    math/bits: folded reverse tables by using const string
+    [dev.link] all: merge branch 'master' into dev.link
     
-    linux/mips64le
-    
-    name            old time/op  new time/op  delta
-    Reverse         2.31ns ± 1%  2.27ns ± 1%  -1.53%  (p=0.001 n=10+10)
-    Reverse8        0.65ns ± 1%  0.65ns ± 1%  -1.19%  (p=0.000 n=9+10)
-    Reverse16       1.15ns ± 2%  1.14ns ± 2%    ~     (p=0.062 n=9+10)
-    Reverse32       1.96ns ± 1%  1.94ns ± 1%  -1.16%  (p=0.000 n=10+9)
-    Reverse64       2.29ns ± 1%  2.26ns ± 0%  -0.94%  (p=0.000 n=9+9)
-    ReverseBytes    0.66ns ± 3%  0.65ns ± 1%  -1.58%  (p=0.006 n=9+10)
-    ReverseBytes16  0.66ns ± 2%  0.65ns ± 1%  -2.05%  (p=0.000 n=10+9)
-    ReverseBytes32  0.41ns ± 1%  0.40ns ± 0%  -1.68%  (p=0.000 n=10+10)
-    ReverseBytes64  0.66ns ± 1%  0.65ns ± 1%  -1.50%  (p=0.000 n=10+9)
-    
-    cpu=1 benchtime=100ms count=100
-    
-    name            old time/op  new time/op  delta
-    Reverse         28.0ns ± 3%  27.7ns ± 3%   -0.80%  (p=0.000 n=100+98)
-    Reverse8        2.24ns ± 1%  2.24ns ± 1%     ~     (p=0.142 n=98+100)
-    Reverse16       4.07ns ± 3%  4.05ns ± 3%   -0.66%  (p=0.000 n=99+99)
-    Reverse32       11.3ns ± 0%  11.3ns ± 0%     ~     (p=0.283 n=94+97)
-    Reverse64       12.6ns ± 0%  12.6ns ± 0%   +0.60%  (p=0.000 n=100+98)
-    ReverseBytes    5.25ns ± 1%  5.24ns ± 1%   -0.18%  (p=0.000 n=100+100)
-    ReverseBytes16  2.00ns ± 0%  2.21ns ± 3%  +10.07%  (p=0.000 n=88+100)
-    ReverseBytes32  4.08ns ± 2%  4.13ns ± 2%   +1.39%  (p=0.000 n=99+99)
-    ReverseBytes64  5.48ns ± 1%  5.45ns ± 1%   -0.50%  (p=0.000 n=98+99)
-    
-    Update #43403
-    
-    Change-Id: I7e7e00bb17608739d9f6b927c6dfef2580493a0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/280645
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ic66b5138f3ecd9e9a48d7ab05782297c06e4a5b5
 
- src/math/bits/bits_tables.go | 140 +++++++++++++++++++++----------------------
- src/math/bits/make_tables.go |  13 ++--
- 2 files changed, 74 insertions(+), 79 deletions(-)
+ api/except.txt                                     |   1 +
+ api/next.txt                                       |   5 +
+ doc/articles/wiki/index.html                       |   1 +
+ doc/go1.15.html                                    |  18 +-
+ doc/go1.16.html                                    |  32 +-
+ doc/progs/run.go                                   |   2 +-
+ src/bufio/bufio.go                                 |   2 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s          |   4 +
+ src/cmd/asm/internal/asm/testdata/ppc64.s          |   2 +
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s       |   2 +
+ src/cmd/cgo/out.go                                 |   1 +
+ src/cmd/compile/internal/gc/builtin.go             | 199 ++++----
+ src/cmd/compile/internal/gc/builtin/runtime.go     |   4 +-
+ src/cmd/compile/internal/gc/closure.go             |  14 +-
+ src/cmd/compile/internal/gc/esc.go                 |   7 +
+ src/cmd/compile/internal/gc/iimport.go             |   6 +-
+ src/cmd/compile/internal/gc/obj.go                 |   2 +-
+ src/cmd/compile/internal/gc/plive.go               | 118 +----
+ src/cmd/compile/internal/gc/racewalk.go            |   2 +-
+ src/cmd/compile/internal/gc/select.go              | 143 +++---
+ src/cmd/compile/internal/gc/sinit.go               |   6 +-
+ src/cmd/compile/internal/gc/ssa.go                 |  26 +-
+ src/cmd/compile/internal/gc/syntax.go              |   4 +-
+ src/cmd/compile/internal/gc/walk.go                |   7 +-
+ src/cmd/compile/internal/ppc64/ssa.go              |  14 +
+ src/cmd/compile/internal/ssa/compile.go            |   7 +-
+ src/cmd/compile/internal/ssa/debug.go              |   1 +
+ src/cmd/compile/internal/ssa/func.go               |  18 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |  16 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |   2 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules       |  11 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go       |   2 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules       |   3 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go       |   6 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules       |  51 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   4 +
+ src/cmd/compile/internal/ssa/opGen.go              |  22 +-
+ src/cmd/compile/internal/ssa/passbm_test.go        |   1 +
+ src/cmd/compile/internal/ssa/phiopt.go             |   2 +-
+ src/cmd/compile/internal/ssa/prove.go              |   2 +-
+ src/cmd/compile/internal/ssa/rewrite.go            |   9 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 128 +++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go       | 216 ++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |  21 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go       | 268 +++++-----
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  80 +++
+ src/cmd/compile/internal/test/mulconst_test.go     | 242 +++++++++
+ src/cmd/compile/internal/types/type.go             |   3 +-
+ src/cmd/compile/internal/types/type_test.go        |  28 ++
+ src/cmd/cover/cover_test.go                        |   2 +-
+ src/cmd/dist/build.go                              |   2 +-
+ src/cmd/dist/buildtool.go                          |   3 +-
+ src/cmd/dist/test.go                               |  24 +-
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/internal/base/base.go                   |   3 +-
+ src/cmd/go/internal/bug/bug.go                     |   3 +-
+ src/cmd/go/internal/cfg/cfg.go                     |   1 +
+ src/cmd/go/internal/clean/clean.go                 |   5 +-
+ src/cmd/go/internal/doc/doc.go                     |   3 +-
+ src/cmd/go/internal/envcmd/env.go                  |   6 +-
+ src/cmd/go/internal/fix/fix.go                     |   5 +-
+ src/cmd/go/internal/fmtcmd/fmt.go                  |   5 +-
+ src/cmd/go/internal/generate/generate.go           |   5 +-
+ src/cmd/go/internal/get/get.go                     |  11 +-
+ src/cmd/go/internal/list/list.go                   |  22 +-
+ src/cmd/go/internal/load/pkg.go                    |  55 ++-
+ src/cmd/go/internal/load/test.go                   |  20 +-
+ src/cmd/go/internal/modcmd/download.go             |  78 +--
+ src/cmd/go/internal/modcmd/edit.go                 |   3 +-
+ src/cmd/go/internal/modcmd/graph.go                |  24 +-
+ src/cmd/go/internal/modcmd/init.go                 |   6 +-
+ src/cmd/go/internal/modcmd/tidy.go                 |  43 +-
+ src/cmd/go/internal/modcmd/vendor.go               |   5 +-
+ src/cmd/go/internal/modcmd/verify.go               |   5 +-
+ src/cmd/go/internal/modcmd/why.go                  |  11 +-
+ src/cmd/go/internal/modconv/convert.go             |  59 ++-
+ src/cmd/go/internal/modconv/convert_test.go        |   5 +-
+ src/cmd/go/internal/modfetch/fetch.go              | 126 +++--
+ src/cmd/go/internal/modfetch/insecure.go           |   5 +-
+ src/cmd/go/internal/modfetch/proxy.go              |  13 +-
+ src/cmd/go/internal/modfetch/repo.go               |   4 +-
+ src/cmd/go/internal/modfetch/sumdb.go              |   3 +-
+ .../internal/modfetch/zip_sum_test/zip_sum_test.go |   3 +-
+ src/cmd/go/internal/modget/get.go                  |  74 +--
+ src/cmd/go/internal/modload/build.go               |  17 +-
+ src/cmd/go/internal/modload/import.go              |   9 +-
+ src/cmd/go/internal/modload/import_test.go         |   5 +-
+ src/cmd/go/internal/modload/init.go                |  85 +++-
+ src/cmd/go/internal/modload/list.go                |  58 ++-
+ src/cmd/go/internal/modload/load.go                |  62 +--
+ src/cmd/go/internal/modload/mvs.go                 |   5 +-
+ src/cmd/go/internal/modload/query.go               |  55 ++-
+ src/cmd/go/internal/modload/query_test.go          |   5 +-
+ src/cmd/go/internal/modload/search.go              |   5 +-
+ src/cmd/go/internal/run/run.go                     |  11 +-
+ src/cmd/go/internal/str/path.go                    |  45 --
+ src/cmd/go/internal/test/test.go                   |  55 ++-
+ src/cmd/go/internal/test/testflag.go               |  29 +-
+ src/cmd/go/internal/tool/tool.go                   |   3 +-
+ src/cmd/go/internal/trace/trace.go                 | 206 ++++++++
+ src/cmd/go/internal/version/version.go             |   5 +-
+ src/cmd/go/internal/vet/vet.go                     |  32 +-
+ src/cmd/go/internal/work/action.go                 |  25 +-
+ src/cmd/go/internal/work/build.go                  |  26 +-
+ src/cmd/go/internal/work/exec.go                   |  41 +-
+ src/cmd/go/main.go                                 |  25 +-
+ src/cmd/go/proxy_test.go                           |   6 +
+ src/cmd/go/script_test.go                          |  38 ++
+ src/cmd/go/testdata/script/README                  |   1 +
+ src/cmd/go/testdata/script/build_GOTMPDIR.txt      |  49 +-
+ .../go/testdata/script/build_cache_disabled.txt    |  46 ++
+ src/cmd/go/testdata/script/list_case_collision.txt |  25 +-
+ src/cmd/go/testdata/script/mod_proxy_invalid.txt   |   8 +
+ src/cmd/go/testdata/script/mod_query_empty.txt     |   2 +-
+ src/cmd/go/testdata/script/mod_sum_lookup.txt      |  33 ++
+ src/cmd/go/testdata/script/mod_tidy_old.txt        |  46 ++
+ src/cmd/go/testdata/script/mod_verify.txt          |   8 +-
+ src/cmd/go/testdata/script/test_flags.txt          |  35 +-
+ src/cmd/go/testdata/script/test_json_exit.txt      | 102 ++++
+ .../go/testdata/script/test_json_interleaved.txt   |  27 +
+ src/cmd/internal/archive/archive.go                |   6 +
+ src/cmd/internal/obj/arm/asm5.go                   |   3 +
+ src/cmd/internal/obj/arm/obj5.go                   |  46 --
+ src/cmd/internal/obj/arm64/a.out.go                |   4 +
+ src/cmd/internal/obj/arm64/anames.go               |   4 +
+ src/cmd/internal/obj/arm64/asm7.go                 |  19 +
+ src/cmd/internal/obj/arm64/obj7.go                 |  56 +--
+ src/cmd/internal/obj/link.go                       |   3 -
+ src/cmd/internal/obj/mips/asm0.go                  |   3 +
+ src/cmd/internal/obj/mips/obj0.go                  |  26 +-
+ src/cmd/internal/obj/pcln.go                       |  15 +
+ src/cmd/internal/obj/plist.go                      |   4 -
+ src/cmd/internal/obj/ppc64/asm9.go                 |  33 +-
+ src/cmd/internal/obj/ppc64/obj9.go                 |  11 +-
+ src/cmd/internal/obj/s390x/objz.go                 |  11 -
+ src/cmd/internal/objfile/goobj.go                  |  32 +-
+ src/cmd/internal/test2json/test2json.go            |  44 +-
+ .../internal/test2json/testdata/benchshort.json    |   1 -
+ src/cmd/internal/test2json/testdata/empty.json     |   1 -
+ src/cmd/internal/traceviewer/format.go             |  38 ++
+ src/cmd/link/doc.go                                |   2 +-
+ src/cmd/link/internal/arm/asm.go                   |   2 +-
+ src/cmd/link/internal/benchmark/bench_test.go      |   1 +
+ src/cmd/link/internal/ld/elf.go                    |   1 +
+ src/cmd/link/internal/ld/elf_test.go               |  55 +++
+ src/cmd/link/internal/ld/errors.go                 |   1 +
+ src/cmd/link/internal/ld/go.go                     |   3 +
+ src/cmd/link/internal/ld/testdata/issue39256/x.go  |  20 +
+ src/cmd/link/internal/ld/testdata/issue39256/x.s   |  10 +
+ src/cmd/test2json/main.go                          |   6 +-
+ src/cmd/trace/trace.go                             | 125 ++---
+ src/cmd/trace/trace_test.go                        |   7 +-
+ src/cmd/trace/trace_unix_test.go                   |   3 +-
+ src/cmd/vendor/golang.org/x/mod/module/module.go   |  47 ++
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/crypto/elliptic/p256_asm_amd64.s               |   5 +-
+ src/crypto/md5/md5block_amd64.s                    |   2 +-
+ src/database/sql/sql.go                            |   5 +-
+ src/database/sql/sql_test.go                       |  35 ++
+ src/encoding/asn1/common.go                        |  11 +-
+ src/fmt/fmt_test.go                                |   8 +-
+ src/fmt/print.go                                   |   6 +-
+ src/go/types/gotype.go                             |   8 +-
+ src/hash/maphash/maphash_test.go                   |  29 ++
+ src/image/gif/writer_test.go                       |  53 +-
+ src/internal/bytealg/compare_arm64.s               |   3 +-
+ src/internal/bytealg/index_amd64.s                 |  52 +-
+ src/internal/poll/copy_file_range_linux.go         |  10 +-
+ src/internal/poll/fd_fsync_posix.go                |   4 +-
+ src/internal/poll/fd_opendir_darwin.go             |   8 +-
+ src/internal/poll/fd_posix.go                      |  28 +-
+ src/internal/poll/fd_unix.go                       |  22 +-
+ src/math/big/arith_ppc64x.s                        |   9 +-
+ src/math/log1p.go                                  |   5 +-
+ src/net/http/client.go                             |   2 +-
+ src/net/http/roundtrip_js.go                       |   8 +-
+ src/net/rawconn_unix_test.go                       |  20 +-
+ src/net/rawconn_windows_test.go                    |  20 +-
+ src/os/dir_darwin.go                               |   3 +
+ src/os/file.go                                     |   5 +-
+ src/os/file_plan9.go                               |   4 +
+ src/os/file_posix.go                               |  32 +-
+ src/os/file_unix.go                                |  40 +-
+ src/os/getwd.go                                    |  11 +-
+ src/os/stat_unix.go                                |   8 +-
+ src/path/example_test.go                           |   5 +
+ src/path/filepath/example_unix_test.go             |   4 +
+ src/reflect/all_test.go                            |  29 +-
+ src/reflect/deepequal.go                           |  18 +-
+ src/reflect/type.go                                |  12 +-
+ src/runtime/asm.s                                  |  21 -
+ src/runtime/asm_ppc64x.s                           |  41 +-
+ src/runtime/asm_riscv64.s                          |   2 +-
+ src/runtime/cgocall.go                             |   2 +-
+ src/runtime/chan.go                                |  25 +-
+ src/runtime/checkptr_test.go                       |   1 +
+ src/runtime/closure_test.go                        |   1 +
+ src/runtime/defs_linux_386.go                      |  11 -
+ src/runtime/defs_linux_amd64.go                    |  11 -
+ src/runtime/export_test.go                         |   2 -
+ src/runtime/gcinfo_test.go                         |  19 +-
+ src/runtime/heapdump.go                            |   2 +-
+ src/runtime/lockrank.go                            |  16 +-
+ src/runtime/malloc.go                              |   8 +-
+ src/runtime/map_benchmark_test.go                  |   1 +
+ src/runtime/map_fast32.go                          |   8 +-
+ src/runtime/map_fast64.go                          |   8 +-
+ src/runtime/map_test.go                            |  22 +
+ src/runtime/mbitmap.go                             | 201 ++------
+ src/runtime/mcache.go                              |   6 +-
+ src/runtime/mcentral.go                            | 239 +--------
+ src/runtime/mcheckmark.go                          | 100 ++++
+ src/runtime/mgc.go                                 |  14 +-
+ src/runtime/mgcmark.go                             | 190 +------
+ src/runtime/mgcsweep.go                            | 237 +--------
+ src/runtime/mgcsweepbuf.go                         | 176 -------
+ src/runtime/mheap.go                               |  48 +-
+ src/runtime/mkpreempt.go                           |   2 +-
+ src/runtime/mpallocbits.go                         | 188 ++++---
+ src/runtime/mpallocbits_test.go                    |  69 ++-
+ src/runtime/os_linux.go                            |  13 +-
+ src/runtime/os_linux_x86.go                        | 118 +----
+ src/runtime/os_netbsd.go                           |  28 +-
+ src/runtime/os_plan9.go                            |  18 +-
+ src/runtime/os_windows.go                          |   5 -
+ src/runtime/panic.go                               |  10 -
+ src/runtime/proc.go                                |  21 +-
+ src/runtime/rt0_freebsd_arm64.s                    |   3 +-
+ src/runtime/rt0_netbsd_arm64.s                     |   3 +-
+ src/runtime/rt0_openbsd_arm64.s                    |   3 +-
+ src/runtime/runtime1.go                            |   5 +-
+ src/runtime/runtime2.go                            |  10 +-
+ src/runtime/select.go                              | 230 +++++----
+ src/runtime/signal_unix.go                         |  23 +-
+ src/runtime/slice_test.go                          |   1 +
+ src/runtime/string.go                              |  50 --
+ src/runtime/string_test.go                         |  31 --
+ src/runtime/sys_darwin.go                          |   6 -
+ src/runtime/sys_linux_386.s                        |  19 -
+ src/runtime/sys_linux_amd64.s                      |  61 +--
+ src/runtime/testdata/testprog/checkptr.go          |   8 +
+ src/runtime/time.go                                |   2 +-
+ src/runtime/trace/trace_stack_test.go              |   2 +-
+ src/runtime/traceback.go                           |  16 +-
+ src/strconv/isprint.go                             |  98 ++--
+ src/strings/strings.go                             |  12 +-
+ src/strings/strings_test.go                        |   9 +
+ src/sync/cond_test.go                              |   1 +
+ src/sync/mutex_test.go                             |   2 +-
+ src/syscall/asm_linux_riscv64.s                    |  22 +
+ src/syscall/exec_linux.go                          |   6 +-
+ src/syscall/syscall_linux_riscv64.go               |   4 +-
+ src/syscall/syscall_unix_test.go                   |  14 +-
+ src/testing/iotest/example_test.go                 |  22 +
+ src/testing/iotest/logger_test.go                  |  12 +-
+ src/testing/iotest/reader.go                       |  14 +
+ src/testing/iotest/reader_test.go                  |  25 +
+ src/testing/testing.go                             |  25 +-
+ src/unicode/tables.go                              | 544 +++++++++++++--------
+ test/codegen/arithmetic.go                         |  18 +-
+ test/codegen/bits.go                               |  13 +-
+ test/codegen/comparisons.go                        |  49 ++
+ test/codegen/logic.go                              |  24 +
+ test/escape5.go                                    |   7 +
+ test/fixedbugs/bug509.go                           |  30 ++
+ test/fixedbugs/issue15281.go                       |   1 +
+ test/fixedbugs/issue17758.go                       |  17 +
+ test/fixedbugs/issue38905.go                       |  18 +
+ test/fixedbugs/issue39292.go                       |  29 ++
+ test/fixedbugs/issue40152.go                       |  21 +
+ test/fixedbugs/issue40252.dir/a.go                 |  14 +
+ test/fixedbugs/issue40252.dir/main.go              |  16 +
+ test/fixedbugs/issue40252.go                       |   8 +
+ test/fixedbugs/issue40629.go                       |  69 +++
+ test/fixedbugs/issue40746.go                       |  19 +
+ test/fixedbugs/issue40917.go                       |  23 +
+ 277 files changed, 4922 insertions(+), 3438 deletions(-)

@@ -1,0 +1,21 @@
+commit f916d93e415068e0ec286249f96e6164ad822731
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 18 16:19:12 2024 +0100
+
+    crypto/cipher: add NewGCMWithRandomNonce
+    
+    Fixes #69981
+    
+    Change-Id: I0cad11f5d7673304c5a6d85fc598ddc27ab93738
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629175
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/next/69981.txt                                |   1 +
+ doc/next/6-stdlib/99-minor/crypto/cipher/69981.md |   3 +
+ src/crypto/cipher/gcm.go                          | 117 ++++++++++++++++++++++
+ src/crypto/cipher/gcm_test.go                     |   9 ++
+ src/crypto/internal/cryptotest/aead.go            |  26 ++++-
+ 5 files changed, 151 insertions(+), 5 deletions(-)

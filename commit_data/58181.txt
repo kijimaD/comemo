@@ -1,17 +1,22 @@
-commit e0b569842d0ef5deed5c455eef001b02aec27934
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 18 20:06:13 2024 -0800
+commit 1493dd3cfc34dbf18d30ff551bfaf3996430c38a
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 10 12:18:43 2023 -0400
 
-    spec: document restrictions for method receivers that are aliases
+    cmd/compile: get rid of zero-sized values in call expansion
     
-    For #70417.
+    Do this by removing all stores of zero-sized anything.
     
-    Change-Id: I5e6b3011f356c7ecd8f64f5dcf0a6a77dcb21bbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629577
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Fixes #63433.
+    
+    Change-Id: I5d8271edab992d15d02005fa3fe31835f2eff8fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534296
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go_spec.html | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/dec.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewritedec.go  | 12 ++++++++++
+ test/fixedbugs/issue63490.go                | 36 +++++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+)

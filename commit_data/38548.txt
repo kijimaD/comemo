@@ -1,14 +1,14 @@
-commit 270de1c110221c309c832b526012f3e21b35f581
-Author: Neven Sajko <nsajko@gmail.com>
-Date:   Mon Mar 25 22:40:27 2019 +0000
+commit e72595ee0f97746be3ce594834a7003d5e804795
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 25 15:03:44 2017 -0400
 
-    math: use Sincos instead of Sin and Cos in Jn and Yn
+    cmd/trace: notes on MMU view improvements
     
-    Change-Id: I0da3857013f1d4e90820fb043314d78924113a27
-    GitHub-Last-Rev: 7c3d813c6e188a4afda54b736db14370e52b6f94
-    GitHub-Pull-Request: golang/go#31019
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169078
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ib9dcdc76095f6718f1cdc83349503f52567c76d4
+    Reviewed-on: https://go-review.googlesource.com/c/60801
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/math/jn.go | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/trace/mmu.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

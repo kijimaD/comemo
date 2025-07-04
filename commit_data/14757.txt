@@ -1,17 +1,56 @@
-commit be7c0f31c798c0c826e7b92d705a270f2e870ca5
-Author: Péter Surányi <speter.go1@gmail.com>
-Date:   Sat Dec 29 10:41:39 2012 +1100
+commit 73aaa44c24308e5a75f95a5462e96b6ff557bc20
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 28 11:41:44 2012 -0800
 
-    doc: fix id attributes in links to godoc
+    go/types: moved from exp/types
     
-    CL6449105 changed godoc id attributes to ensure uniqueness.
-    This CL updates links to godoc pages in documents that used
-    the old id attributes.
+    This is a just a file move with no other changes
+    besides the manual import path adjustments in these
+    two files:
     
-    R=golang-dev, dsymonds
-    CC=golang-dev, speter.go1
-    https://golang.org/cl/7015051
+    src/pkg/exp/gotype/gotype.go
+    src/pkg/exp/gotype/gotype_test.go
+    
+    Note: The go/types API continues to be subject to
+    possibly significant changes until Go 1.1. Do not
+    rely on it being stable at this point.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7013049
 
- doc/articles/godoc_documenting_go_code.html | 2 +-
- doc/go1.html                                | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/exp/gotype/gotype.go                       | 2 +-
+ src/pkg/exp/gotype/gotype_test.go                  | 2 +-
+ src/pkg/{exp => go}/types/api.go                   | 0
+ src/pkg/{exp => go}/types/builtins.go              | 0
+ src/pkg/{exp => go}/types/check.go                 | 0
+ src/pkg/{exp => go}/types/check_test.go            | 0
+ src/pkg/{exp => go}/types/const.go                 | 0
+ src/pkg/{exp => go}/types/conversions.go           | 0
+ src/pkg/{exp => go}/types/errors.go                | 0
+ src/pkg/{exp => go}/types/exportdata.go            | 0
+ src/pkg/{exp => go}/types/expr.go                  | 0
+ src/pkg/{exp => go}/types/gcimporter.go            | 0
+ src/pkg/{exp => go}/types/gcimporter_test.go       | 0
+ src/pkg/{exp => go}/types/operand.go               | 0
+ src/pkg/{exp => go}/types/predicates.go            | 0
+ src/pkg/{exp => go}/types/resolver_test.go         | 0
+ src/pkg/{exp => go}/types/stmt.go                  | 0
+ src/pkg/{exp => go}/types/testdata/builtins.src    | 0
+ src/pkg/{exp => go}/types/testdata/const0.src      | 0
+ src/pkg/{exp => go}/types/testdata/conversions.src | 0
+ src/pkg/{exp => go}/types/testdata/decls0.src      | 0
+ src/pkg/{exp => go}/types/testdata/decls1.src      | 0
+ src/pkg/{exp => go}/types/testdata/decls2a.src     | 0
+ src/pkg/{exp => go}/types/testdata/decls2b.src     | 0
+ src/pkg/{exp => go}/types/testdata/decls3.src      | 0
+ src/pkg/{exp => go}/types/testdata/exports.go      | 0
+ src/pkg/{exp => go}/types/testdata/expr0.src       | 0
+ src/pkg/{exp => go}/types/testdata/expr1.src       | 0
+ src/pkg/{exp => go}/types/testdata/expr2.src       | 0
+ src/pkg/{exp => go}/types/testdata/expr3.src       | 0
+ src/pkg/{exp => go}/types/testdata/stmt0.src       | 0
+ src/pkg/{exp => go}/types/types.go                 | 0
+ src/pkg/{exp => go}/types/types_test.go            | 0
+ src/pkg/{exp => go}/types/universe.go              | 0
+ 34 files changed, 2 insertions(+), 2 deletions(-)

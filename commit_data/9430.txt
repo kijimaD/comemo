@@ -1,14 +1,13 @@
-commit ab44a814c2bcc54975d145ee437a9adf54475d18
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 22 13:22:42 2011 +1000
+commit 95aea24990c8fcd7113e62122120a33411e905d4
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Aug 22 11:03:17 2011 +1000
 
-    reflect: remove references to container/vector.
-    It's not even using vectors - the references are just examples.
+    build: build more packages/commands for Plan 9
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4938043
+    https://golang.org/cl/4921041
 
- src/pkg/reflect/all_test.go | 6 +++---
- src/pkg/reflect/type.go     | 4 ++--
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/pkg/Makefile          | 22 ----------------------
+ src/pkg/os/error_plan9.go |  1 +
+ 2 files changed, 1 insertion(+), 22 deletions(-)

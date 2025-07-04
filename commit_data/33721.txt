@@ -1,28 +1,32 @@
-commit 79bd50852a6e9d93e2c49f7ab64d1063715b88a4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 29 19:41:11 2017 +0000
+commit 4641d78a59f37b2a976d98b14ccb1ba5a2d379b0
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Fri Aug 25 15:00:00 2017 -0300
 
-    vendor: update golang.org/x/net/nettest from upstream
+    runtime: fix regression in BenchmarkCompareBytes* for ppc64x
     
-    Updates to x/net git rev a8b92947779 for CL 80755
+    Between go1.7 and go1.8, a performance regression was introduced in some of the
+    BenchmarkCompareBytes benchmarks.
     
-    Updates #22927
+    Go1.7 vs Go1.8:
+    BenchmarkCompareBytesToNil-8               7.44          8.44          +13.44%
+    BenchmarkCompareBytesIdentical-8           6.96          11.5          +65.23%
+    BenchmarkCompareBytesBigIdentical-8        6.65          47112         +708351.13%
     
-    Change-Id: I84aad75afd954c9a6c57ad9a76328b99f1dc74a1
-    Reviewed-on: https://go-review.googlesource.com/80758
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This change fixes the problem by optimizing the case where the byte slices being
+    compared are equal:
+    
+    Go1.9 vs current:
+    BenchmarkCompareBytesToNil-8               7.35          7.00          -4.76%
+    BenchmarkCompareBytesIdentical-8           11.4          6.81          -40.26%
+    BenchmarkCompareBytesBigIdentical-8        48396         9.26          -99.98%
+    
+    runtime.cmpstring can benefit from the same approach and is also changed.
+    
+    Change-Id: I3cb25f59d8b940a83a2cf687eea764cfeff90688
+    Reviewed-on: https://go-review.googlesource.com/59650
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- .../x/net/internal/nettest/helper_bsd.go           |  53 +++++++
- .../x/net/internal/nettest/helper_nobsd.go         |  15 ++
- .../x/net/internal/nettest/helper_posix.go         |  31 +++++
- .../x/net/internal/nettest/helper_stub.go          |  32 +++++
- .../x/net/internal/nettest/helper_unix.go          |  29 ++++
- .../x/net/internal/nettest/helper_windows.go       |  42 ++++++
- .../golang_org/x/net/internal/nettest/interface.go |  94 +++++++++++++
- .../golang_org/x/net/internal/nettest/rlimit.go    |  11 ++
- .../golang_org/x/net/internal/nettest/stack.go     | 152 +++++++++++++++++++++
- .../golang_org/x/net/nettest/conntest_test.go      |  58 +-------
- 10 files changed, 463 insertions(+), 54 deletions(-)
+ src/runtime/asm_ppc64x.s | 41 +++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 39 insertions(+), 2 deletions(-)

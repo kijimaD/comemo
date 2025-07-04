@@ -1,16 +1,13 @@
-commit fdaeec580ffb554b7314f814eaa2353459b1e400
-Author: Rob Pike <r@golang.org>
-Date:   Sun Aug 3 15:14:59 2014 -0700
+commit fe513d8b3e4a24897fa3c03002121819cf03a801
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Fri Aug 1 16:45:33 2014 -0700
 
-    encoding/gob: save a call to userType
-    Avoid some pressure on the global mutex by lifting the call to userType
-    out of the closure.
-    TOTH to Matt Harden.
+    cmd/go: use correct link flags if main package contains C++/ObjC files
     
-    LGTM=crawshaw, ruiu
-    R=golang-codereviews, crawshaw, ruiu
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/117520043
+    https://golang.org/cl/117470043
 
- src/pkg/encoding/gob/decode.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

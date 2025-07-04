@@ -1,16 +1,14 @@
-commit 81bcc470416e97a63570536fd6f1f191347a9adb
-Author: Michel Lespinasse <walken@google.com>
-Date:   Sat Mar 18 19:02:20 2017 -0700
+commit 0b1b6d4ce32818e0aa6db3bd37c6ca4a4d5613af
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 29 17:04:31 2016 -0800
 
-    cmd/pprof: use proxy from environment
+    doc: remove remaining cmd/go entries from go1.8.txt
     
-    See #18736
+    None of them need to be called out in the release notes.
     
-    Change-Id: I9c16357c05c16db677125d3077ee466b71559c7a
-    Reviewed-on: https://go-review.googlesource.com/38343
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I143a1879b25063574e4107c1e89264434d45d1d5
+    Reviewed-on: https://go-review.googlesource.com/33676
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/pprof/pprof.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ doc/go1.8.txt | 12 ------------
+ 1 file changed, 12 deletions(-)

@@ -1,15 +1,27 @@
-commit 35d721b0cb3da3f464af26fb8503a521cf9901ff
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat Jun 8 09:47:51 2024 +0800
+commit 02d234e34dafe81bffb0165970e4d2a914d5abcd
+Author: Bryan Mills <bcmills@google.com>
+Date:   Wed May 24 12:14:38 2023 +0000
 
-    time: correct spelling, queing -> queuing
+    Revert "cmd/compile: sparse conditional constant propagation"
     
-    Change-Id: I418953a766db22b134a9569161f06cf8682c1eef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591336
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This reverts CL 483875.
+    
+    Reason for revert: appears to cause internal compiler errors on the ssacheck builder.
+    
+    Change-Id: I662418384291470c1962c417797a5890dd9aa7a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497855
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/time/tick_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |   2 -
+ src/cmd/compile/internal/ssa/block.go           |  10 +-
+ src/cmd/compile/internal/ssa/compile.go         |   1 -
+ src/cmd/compile/internal/ssa/sccp.go            | 576 ------------------------
+ src/cmd/compile/internal/ssa/sccp_test.go       |  95 ----
+ test/checkbce.go                                |   4 -
+ test/codegen/compare_and_branch.go              |  12 +-
+ test/loopbce.go                                 |  33 +-
+ 8 files changed, 20 insertions(+), 713 deletions(-)

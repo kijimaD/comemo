@@ -1,74 +1,15 @@
-commit 193daab9889708f7a20ff46efe0fa4b2bf0468d3
+commit 3d2321f639452afbccc2249153c16abec2a6607f
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 24 16:55:26 2014 -0400
+Date:   Tue Sep 16 10:01:28 2014 -0400
 
-    cmd/cc, cmd/ld, runtime: disallow conservative data/bss objects
+    io: clarify Reader returning 0, nil
     
-    In linker, refuse to write conservative (array of pointers) as the
-    garbage collection type for any variable in the data/bss GC program.
+    Fixes #8317.
     
-    In the linker, attach the Go type to an already-read C declaration
-    during dedup. This gives us Go types for C globals for free as long
-    as the cmd/dist-generated Go code contains the declaration.
-    (Most runtime C declarations have a corresponding Go declaration.
-    Both are bss declarations and so the linker dedups them.)
-    
-    In cmd/dist, add a few more C files to the auto-Go-declaration list
-    in order to get Go type information for the C declarations into the linker.
-    
-    In C compiler, mark all non-pointer-containing global declarations
-    and all string data as NOPTR. This allows them to exist in C files
-    without any corresponding Go declaration. Count C function pointers
-    as "non-pointer-containing", since we have no heap-allocated C functions.
-    
-    In runtime, add NOPTR to the remaining pointer-containing declarations,
-    none of which refer to Go heap objects.
-    
-    In runtime, also move os.Args and syscall.envs data into runtime-owned
-    variables. Otherwise, in programs that do not import os or syscall, the
-    runtime variables named os.Args and syscall.envs will be missing type
-    information.
-    
-    I believe that this CL eliminates the final source of conservative GC scanning
-    in non-SWIG Go programs, and therefore...
-    
-    Fixes #909.
-    
-    LGTM=iant
-    R=iant
+    LGTM=bradfitz
+    R=bradfitz, iant, r
     CC=golang-codereviews
-    https://golang.org/cl/149770043
+    https://golang.org/cl/143100043
 
- src/cmd/cc/dcl.c                |  9 ++++++---
- src/cmd/cc/lex.c                |  2 ++
- src/cmd/cgo/out.go              | 13 +++++++++++++
- src/cmd/dist/buildruntime.c     |  2 ++
- src/cmd/ld/data.c               |  1 +
- src/liblink/objfile.c           |  6 ++++--
- src/os/proc.go                  |  6 ++++++
- src/runtime/asm_386.s           |  2 --
- src/runtime/asm_amd64.s         |  2 --
- src/runtime/asm_amd64p32.s      |  2 --
- src/runtime/heapdump.c          |  3 +++
- src/runtime/malloc.c            | 23 -----------------------
- src/runtime/malloc.h            |  2 --
- src/runtime/mcache.c            |  2 +-
- src/runtime/mgc0.c              |  5 ++---
- src/runtime/os_windows.c        |  6 +++---
- src/runtime/proc.c              | 30 +++++++++---------------------
- src/runtime/proc.go             |  8 ++++++++
- src/runtime/runtime.c           | 25 ++++++++++++++++---------
- src/runtime/runtime.go          | 11 +++++++++++
- src/runtime/signals_darwin.h    |  3 +++
- src/runtime/signals_dragonfly.h |  3 +++
- src/runtime/signals_freebsd.h   |  3 +++
- src/runtime/signals_linux.h     |  3 +++
- src/runtime/signals_nacl.h      |  3 +++
- src/runtime/signals_netbsd.h    |  3 +++
- src/runtime/signals_openbsd.h   |  3 +++
- src/runtime/signals_plan9.h     |  3 +++
- src/runtime/signals_solaris.h   |  3 +++
- src/runtime/stack.c             |  4 ++--
- src/runtime/thunk.s             |  8 +++++++-
- src/syscall/env_unix.go         |  4 +++-
- 32 files changed, 126 insertions(+), 77 deletions(-)
+ src/io/io.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

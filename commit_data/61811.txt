@@ -1,0 +1,18 @@
+commit b6fed7199f026ac1a16de6f1eeaafd0e5a539204
+Author: zhangjian <zj.cosmos@gmail.com>
+Date:   Wed Nov 27 16:35:49 2024 +0000
+
+    cmd/preprofile: correct -V flag
+    
+    Change-Id: I9a0dc3a4b4c81f0f6942badcd4643a74c5046440
+    GitHub-Last-Rev: d1fa4e51569b1b1b70e4617ac41740cc21d4325a
+    GitHub-Pull-Request: golang/go#66949
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Veronica Silina <veronicasilina@google.com>
+
+ src/cmd/preprofile/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,20 +1,44 @@
-commit fab3fcaf750445c0016a44376aa81c720133e02c
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Nov 12 06:50:24 2016 -0500
+commit 2bc5f1258e049e1d59711046e5c865500eefa159
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 20 19:45:37 2016 +0000
 
-    cmd/go: use build ID as plugin symbol prefix
+    net: add Resolver type, Dialer.Resolver, and DefaultResolver
     
-    Updates #17821
+    The new Resolver type (a struct) has 9 Lookup methods, all taking a
+    context.Context.
     
-    Change-Id: Iebd2e88b2d4f3d757ffad72456f4bfc0607d8110
-    Reviewed-on: https://go-review.googlesource.com/33162
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    There's now a new DefaultResolver global, like http's
+    DefaultTransport and DefaultClient.
+    
+    net.Dialer now has an optional Resolver field to set the Resolver.
+    
+    This also does finishes some resolver cleanup internally, deleting
+    lookupIPMerge and renaming lookupIPContext into Resolver.LookupIPAddr.
+    
+    The Resolver currently doesn't let you tweak much, but it's a struct
+    specifically so we can add knobs in the future. Currently I just added
+    a bool to force the pure Go resolver. In the future we could let
+    people provide an interface to implement the methods, or add a Timeout
+    time.Duration, which would wrap all provided contexts in a
+    context.WithTimeout.
+    
+    Fixes #16672
+    
+    Change-Id: I7ba1f886704f06def7b6b5c4da9809db51bc1495
+    Reviewed-on: https://go-review.googlesource.com/29440
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testplugin/src/host/host.go | 31 +++++++++++++++++++++++++++++++
- misc/cgo/testplugin/test.bash        |  5 ++++-
- misc/cgo/testplugin/unnamed1.go      | 12 ++++++++++++
- misc/cgo/testplugin/unnamed2.go      | 12 ++++++++++++
- src/cmd/go/build.go                  |  6 +++++-
- 5 files changed, 64 insertions(+), 2 deletions(-)
+ src/net/dial.go           |  21 +++--
+ src/net/dnsclient_unix.go |   5 +-
+ src/net/iprawsock.go      |   2 +-
+ src/net/ipsock.go         |   6 +-
+ src/net/lookup.go         | 196 +++++++++++++++++++++++++++++++---------------
+ src/net/lookup_nacl.go    |   4 +
+ src/net/lookup_plan9.go   |   2 +
+ src/net/lookup_test.go    |   4 +-
+ src/net/lookup_windows.go |   8 +-
+ src/net/tcpsock.go        |   2 +-
+ src/net/udpsock.go        |   2 +-
+ 11 files changed, 170 insertions(+), 82 deletions(-)

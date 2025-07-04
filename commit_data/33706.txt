@@ -1,15 +1,14 @@
-commit 992ce90f662467f04dd93b3bb565bb0414f82999
-Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 28 16:05:59 2017 +1100
+commit 2548d36c86bf78f4a535c8ffac6de2e2421e76df
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Aug 29 21:32:41 2017 +0200
 
-    doc/faq: explain why goroutines are anonymous
+    cmd/compile: simplify check for pointers in map bucket
     
-    Fixes #22770.
-    
-    Change-Id: Ief62043fb6895e215d2530d2a3bf88f7ea58c875
-    Reviewed-on: https://go-review.googlesource.com/80195
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie5e977c54f50274421962a7ca268ae71a6f19cef
+    Reviewed-on: https://go-review.googlesource.com/60050
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go_faq.html | 47 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 47 insertions(+)
+ src/cmd/compile/internal/gc/reflect.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

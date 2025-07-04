@@ -1,17 +1,24 @@
-commit dae8e719614f6e3d2e4e66071e5c91964b404676
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Oct 9 11:10:48 2019 -0400
+commit be857a63658653828248cd080bc8a33d3893135a
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Apr 25 09:01:11 2019 +0200
 
-    cmd/go: document multiple conditions in TestScript
+    net: fix lookupHost to return DNSError on Plan 9
     
-    This functionality already exists but was undocumented. Related to
-    comments in CL 198797.
+    CL 168597 added IsNotFound field to DNSError.
+    However, this change broke TestLookupNonLDH on Plan 9
+    because LookupHost is expected to return a DNSError,
+    while on Plan 9, it returned an error string.
     
-    Change-Id: Icce40bd7c362423e6ed9c20673ce3de1311e5fd5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200040
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    This change fixes the implementation of lookupHost on
+    Plan 9 to return a DNSError instead of an error string.
+    
+    Fixes #31672.
+    
+    Change-Id: Ia805c8965af63ddee7ccfdebb9462a5502b0269d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173857
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/testdata/script/README | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/net/lookup_plan9.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

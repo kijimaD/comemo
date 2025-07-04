@@ -1,16 +1,16 @@
-commit e1364a6d0ecd5ba50845f416bb3c016bc54a3648
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Sep 28 23:52:08 2014 -0700
+commit 84f9c42bbbfb67c2ef78d4a4e19417329d7f8f5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 20:13:07 2014 -0400
 
-    runtime: fix cgo_topofstack to save clobbered registers
+    os: skip TestRemoveAllRace on Windows
     
-    Fixes #8816
+    It's just fundamentally incompatible with
+    Windows' pickiness about removing things
+    that are in use.
     
-    At least, I hope it does.
-    
-    TBR=rsc
+    TBR=brainman
     CC=golang-codereviews
-    https://golang.org/cl/153730043
+    https://golang.org/cl/142270043
 
- src/runtime/asm_arm.s | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/os/os_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

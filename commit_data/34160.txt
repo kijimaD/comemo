@@ -1,37 +1,17 @@
-commit cdd961630cd26c5e42a537aaa52c669cf667d0be
-Author: Chad Rosier <mrosier.qdt@qualcommdatacenter.com>
-Date:   Wed Feb 7 15:37:33 2018 -0500
+commit 9f9bb9742080f4ca795e8c255ad381f0b6110f84
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 30 17:28:05 2017 +0000
 
-    cmd/compile: generate tbz/tbnz when comparing against zero on arm64
+    cmd/link: give the object reader its own package
     
-    The tbz/tbnz checks the sign bit to determine if the value is >= 0 or < 0.
+    For #22095
     
-    go1 benchmark results:
-    name                   old speed      new speed      delta
-    JSONEncode             94.4MB/s ± 1%  95.7MB/s ± 0%  +1.36%  (p=0.000 n=10+9)
-    JSONDecode             19.7MB/s ± 1%  19.9MB/s ± 1%  +1.08%  (p=0.000 n=9+10)
-    Gzip                   45.5MB/s ± 0%  46.0MB/s ± 0%  +1.06%  (p=0.000 n=10+10)
-    Revcomp                 376MB/s ± 0%   379MB/s ± 0%  +0.69%  (p=0.000 n=10+10)
-    RegexpMatchHard_1K     12.6MB/s ± 0%  12.7MB/s ± 0%  +0.57%  (p=0.000 n=10+8)
-    RegexpMatchMedium_32   3.21MB/s ± 0%  3.22MB/s ± 0%  +0.31%  (p=0.000 n=9+10)
-    RegexpMatchEasy1_1K    1.27GB/s ± 0%  1.27GB/s ± 0%  +0.23%  (p=0.000 n=9+9)
-    RegexpMatchHard_32     11.4MB/s ± 0%  11.4MB/s ± 1%  +0.19%  (p=0.036 n=10+8)
-    RegexpMatchEasy0_1K    1.77GB/s ± 0%  1.77GB/s ± 0%  +0.13%  (p=0.000 n=9+10)
-    RegexpMatchMedium_1K   19.3MB/s ± 0%  19.3MB/s ± 0%  +0.04%  (p=0.008 n=10+8)
-    RegexpMatchEasy0_32     131MB/s ± 0%   131MB/s ± 0%    ~     (p=0.211 n=10+10)
-    GobDecode              57.5MB/s ± 1%  57.6MB/s ± 2%    ~     (p=0.469 n=10+10)
-    GobEncode              58.6MB/s ± 1%  58.5MB/s ± 2%    ~     (p=0.781 n=10+10)
-    GoParse                9.40MB/s ± 0%  9.39MB/s ± 0%  -0.19%  (p=0.005 n=10+9)
-    RegexpMatchEasy1_32     133MB/s ± 0%   133MB/s ± 0%  -0.48%  (p=0.000 n=10+10)
-    Template               20.9MB/s ± 0%  20.6MB/s ± 0%  -1.54%  (p=0.000 n=8+10)
-    
-    Change-Id: I411efe44db35c3962445618d5a47c12e31b3925b
-    Reviewed-on: https://go-review.googlesource.com/92715
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie9ae84c758af99ac7daed26d0b3e3b0a47599edd
+    Reviewed-on: https://go-review.googlesource.com/67315
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go      | 40 ++++++++++++++++
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 +++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 68 ++++++++++++++++++++++++++++
- 3 files changed, 114 insertions(+)
+ src/cmd/dist/buildtool.go                        |  1 +
+ src/cmd/link/internal/ld/lib.go                  |  9 +++++----
+ src/cmd/link/internal/{ld => objfile}/objfile.go | 14 +++++++++-----
+ 3 files changed, 15 insertions(+), 9 deletions(-)

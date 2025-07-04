@@ -1,16 +1,14 @@
-commit fb1a5fcacf837f1004cebc392dfbc2594c2ead65
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Tue Feb 28 11:34:48 2012 -0500
+commit e0aa36147d7cf0a127815d5941a8e43162b1093e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 28 13:39:42 2012 +0800
 
-    crypto/tls: force OS X target version to 10.6 for API compatibility
+    encoding/gob: fix "// +build" comment for debug.go
     
-    This is a band-aid until we can use weak imports with cgo.
-    
-    Fixes #3131.
-    
-    R=minux.ma, rsc
+    R=golang-dev, rsc, adg, r, r
     CC=golang-dev
-    https://golang.org/cl/5700083
+    https://golang.org/cl/5693060
 
- src/pkg/crypto/tls/root_darwin.go | 32 ++++++++------------------------
- 1 file changed, 8 insertions(+), 24 deletions(-)
+ src/pkg/encoding/gob/Makefile | 9 ---------
+ src/pkg/encoding/gob/debug.go | 5 +++--
+ src/pkg/encoding/gob/dump.go  | 1 +
+ 3 files changed, 4 insertions(+), 11 deletions(-)

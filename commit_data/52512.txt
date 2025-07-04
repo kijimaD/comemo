@@ -1,34 +1,24 @@
-commit 3c010f2c2182a12f28ad86c5e1ff984f1f2d880a
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Mar 16 16:56:12 2023 -0700
+commit 12420f9c01d6966c2994dbcc506a9d783a30ebdb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 6 15:57:21 2022 -0400
 
-    net/textproto, mime/multipart: improve accounting of non-file data
+    cmd/link: resolve relocations to .TOC. symbol
     
-    For requests containing large numbers of small parts,
-    memory consumption of a parsed form could be about 250%
-    over the estimated size.
+    CL 404296 breaks the PPC64LE build because the .TOC. symbol is
+    visibility hidden and was skipped from the "unresolved symbol"
+    check (the check needs to be fix). In face, the .TOC. symbol is
+    special in that it doesn't have a type but we have special logic
+    to assign a value to it in the address pass. So we can actually
+    resolve a relocation to .TOC.. We already have a special case
+    for PIE. It also applies to non-PIE as well.
     
-    When considering the size of parsed forms, account for the size of
-    FileHeader structs and increase the estimate of memory consumed by
-    map entries.
+    Fix PPC64LE builds.
     
-    Thanks to Jakob Ackermann (@das7pad) for reporting this issue.
-    
-    For CVE-2023-24536
-    For #59153
-    
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1802454
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    Change-Id: I9620758495ed77c09ca6dc5db4b723c29f3baad8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482076
+    Change-Id: Iaf7e36f10c4d0a40fc56b2135e5ff38815e203b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404302
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/mime/multipart/formdata.go      |  9 ++++--
- src/mime/multipart/formdata_test.go | 55 ++++++++++++++++---------------------
- src/net/textproto/reader.go         |  8 +++++-
- 3 files changed, 37 insertions(+), 35 deletions(-)
+ src/cmd/link/internal/ld/data.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

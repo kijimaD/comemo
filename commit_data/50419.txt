@@ -1,18 +1,22 @@
-commit 530a2369746555ce099870e88714a54c4f4473d1
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 19:04:44 2022 +0800
+commit 60c3069dd82eee30c00f2a8d829ba74b11bcf07e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 22 14:19:34 2021 -0700
 
-    runtime/pprof: use strings.Builder
+    internal/poll: avoid tiny allocator for splicePipe
     
-    Change-Id: I0407d96e2ba1376cc33fe91b52b6a8d7e81f59ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428277
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    We want to set a finalizer on splicePipe, so make it large enough to
+    not use the tiny allocator. Otherwise the finalizer will not run until
+    the rest of the tiny allocation can be freed. This only matters on
+    32-bit systems.
+    
+    Fixes #48968
+    
+    Change-Id: I8eb3c9f48fdccab7dc79c5b918d4257b6151ee91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358114
+    Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/pprof/pprof.go      |  3 +--
- src/runtime/pprof/pprof_test.go | 24 ++++++++++++------------
- src/runtime/pprof/proto_test.go |  2 +-
- 3 files changed, 14 insertions(+), 15 deletions(-)
+ src/internal/poll/splice_linux.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,51 +1,25 @@
-commit 5f305ae8e5796ea3821088863a6842117c58da72
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 10 12:03:06 2022 -0400
+commit 86fa510d2456e20ceaa518f97f0c1c89d2ebd81c
+Author: Quim Muntal <quimmuntal@gmail.com>
+Date:   Sun Aug 29 22:57:36 2021 +0200
 
-    cmd/go: add -reuse flag to make proxy invocations more efficient
+    go/types, types2: types in method expressions must be instantiated
     
-    The go list -m and go mod download commands now have a -reuse flag,
-    which is passed the name of a file containing the JSON output from a
-    previous run of the same command. (It is up to the caller to ensure
-    that flags such as -versions or -retracted, which affect the output,
-    are consistent between the old and new run.)
+    Use varType instead of instantiatedOperand to check if the type of a method expressions is instantiated.
     
-    The new run uses the old JSON to evaluate whether the answer is
-    unchanged since the old run. If so, it reuses that information,
-    avoiding a costly 'git fetch', and sets a new Reuse: true field in its
-    own JSON output.
+    This removes the last usage of instantiatedOperand, so it can be deleted.
     
-    This dance with saving the JSON output and passing it back to -reuse
-    is not necessary on most systems, because the go command caches
-    version control checkouts in the module cache. That cache means that a
-    new 'git fetch' would only download the commits that are new since the
-    previous one (often none at all).
+    Fixes #48048
     
-    The dance becomes important only on systems that do not preserve the
-    module cache, for example by running 'go clean -modcache' aggressively
-    or by running in some environment that starts with an empty file
-    system.
-    
-    For #53644.
-    
-    Change-Id: I447960abf8055f83cc6dbc699a9fde9931130004
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411398
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I2b219dafe2bba3603100bb8f25b8ff4e8ef53841
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345970
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/alldocs.go                             |  26 +-
- src/cmd/go/internal/list/list.go                  |  27 +-
- src/cmd/go/internal/modcmd/download.go            |  40 ++-
- src/cmd/go/internal/modcmd/why.go                 |   2 +-
- src/cmd/go/internal/modfetch/cache.go             |  20 ++
- src/cmd/go/internal/modfetch/codehost/codehost.go |  17 +-
- src/cmd/go/internal/modfetch/codehost/git.go      |   5 +-
- src/cmd/go/internal/modfetch/coderepo.go          |  36 ++-
- src/cmd/go/internal/modinfo/info.go               |  22 +-
- src/cmd/go/internal/modload/build.go              |  62 +++-
- src/cmd/go/internal/modload/edit.go               |   2 +-
- src/cmd/go/internal/modload/list.go               |  60 +++-
- src/cmd/go/internal/modload/mvs.go                |  11 +-
- src/cmd/go/internal/modload/query.go              |  75 ++++-
- src/cmd/go/testdata/script/reuse_git.txt          | 371 ++++++++++++++++++++++
- 15 files changed, 711 insertions(+), 65 deletions(-)
+ src/cmd/compile/internal/types2/call.go                   | 12 +++---------
+ .../internal/types2/testdata/fixedbugs/issue48048.go2     | 15 +++++++++++++++
+ src/go/types/call.go                                      | 12 +++---------
+ src/go/types/testdata/fixedbugs/issue48048.go2            | 15 +++++++++++++++
+ 4 files changed, 36 insertions(+), 18 deletions(-)

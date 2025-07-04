@@ -1,24 +1,17 @@
-commit 8b1e8a424afb5d1c347653cc016a94e91cb1318b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 19 14:29:10 2019 -0500
+commit 7b8234b48fb66e9932abfbbaa24307480682e9b9
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat Jul 27 14:29:02 2019 -0400
 
-    cmd/dist: remove redundant 'go test -race' call
+    go1.13.html: release note for %w
     
-    In CL 207962, I removed a seemingly-redundant -i flag. As it turns
-    out, the -i flag has *two* meanings: “install dependencies”, and “do
-    not actually run the test”. Without the flag, we omit the former
-    behavior, but add the latter.
+    Also, reorder packages so the list is in alphabetical order.
     
-    We're about to run specific tests from these binaries on the very next
-    line, so don't preemptively run all of the tests.
+    Fixes #32914.
     
-    Updates #30316
-    
-    Change-Id: Ie3d8a37dc5f6bd98c232b308b0a6a165b5d82f7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207966
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifa504cb7e48df31ba6dc0e5756148430b59fa139
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187797
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/dist/test.go | 1 -
- 1 file changed, 1 deletion(-)
+ doc/go1.13.html | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

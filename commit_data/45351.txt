@@ -1,18 +1,124 @@
-commit 3cc3a16029eea1c3d9fefa77a24a89760c7aa27d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 21 16:04:26 2021 -0400
+commit ca36ba83ab86b9eb1ddc076f0ebfda648ce31d6b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 19 15:28:22 2020 -0700
 
-    cmd/go: add tests for convergence in 'go mod tidy'
+    [dev.typeparams] cmd/compile/internal/importer, types2: initial check-in of types2 and importer
     
-    For #36460
+    This is a copy of the importer and types2 (unreviewed) prototype version
+    excluding the testdata directory containing tests (see below). Each file
+    is marked with the comment
     
-    Change-Id: I40194bb1ebab77459e5c9d43bdac4d9c1b826ac2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312449
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    // UNREVIEWED
+    
+    on the first line. The plan is to check in this code wholesale (it runs and
+    passes all tests) and then review the code file-by-file via subsequent CLs
+    and remove the "// UNREVIEWED" comments as we review the files.
+    
+    Since most tests are unchanged from the original go/types, the next CL will
+    commit those tests as they don't need to be reviewed again. (Eventually we
+    may want to factor them out and share them from a single place, e.g. the
+    test directory.)
+    
+    The existing file fmtmap_test.go was updated.
+    
+    Change-Id: I9bd0ad1a7e7188b501423483a44d18e623c0fe71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263624
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .../go/testdata/script/mod_tidy_convergence.txt    | 174 +++++++++++++
- .../testdata/script/mod_tidy_convergence_loop.txt  | 272 +++++++++++++++++++++
- 2 files changed, 446 insertions(+)
+ src/cmd/compile/fmtmap_test.go                     |   51 +-
+ src/cmd/compile/internal/importer/exportdata.go    |   92 +
+ src/cmd/compile/internal/importer/gcimporter.go    |  175 ++
+ .../compile/internal/importer/gcimporter_test.go   |  612 +++++++
+ src/cmd/compile/internal/importer/iimport.go       |  616 +++++++
+ src/cmd/compile/internal/importer/support.go       |  144 ++
+ src/cmd/compile/internal/importer/testdata/a.go    |   15 +
+ src/cmd/compile/internal/importer/testdata/b.go    |   12 +
+ .../compile/internal/importer/testdata/exports.go  |   89 +
+ .../internal/importer/testdata/issue15920.go       |   12 +
+ .../internal/importer/testdata/issue20046.go       |   10 +
+ .../internal/importer/testdata/issue25301.go       |   18 +
+ .../internal/importer/testdata/issue25596.go       |   14 +
+ src/cmd/compile/internal/importer/testdata/p.go    |   14 +
+ .../internal/importer/testdata/versions/test.go    |   29 +
+ src/cmd/compile/internal/types2/api.go             |  426 +++++
+ src/cmd/compile/internal/types2/api_test.go        | 1741 ++++++++++++++++++
+ src/cmd/compile/internal/types2/assignments.go     |  359 ++++
+ src/cmd/compile/internal/types2/builtins.go        |  777 ++++++++
+ src/cmd/compile/internal/types2/builtins_test.go   |  219 +++
+ src/cmd/compile/internal/types2/call.go            |  808 +++++++++
+ src/cmd/compile/internal/types2/check.go           |  449 +++++
+ src/cmd/compile/internal/types2/check_test.go      |  269 +++
+ src/cmd/compile/internal/types2/conversions.go     |  164 ++
+ src/cmd/compile/internal/types2/decl.go            |  981 ++++++++++
+ src/cmd/compile/internal/types2/errors.go          |  159 ++
+ src/cmd/compile/internal/types2/errors_test.go     |   26 +
+ src/cmd/compile/internal/types2/example_test.go    |  324 ++++
+ .../compile/internal/types2/examples/functions.go2 |  216 +++
+ .../compile/internal/types2/examples/methods.go2   |   97 +
+ src/cmd/compile/internal/types2/examples/types.go2 |  261 +++
+ src/cmd/compile/internal/types2/expr.go            | 1906 ++++++++++++++++++++
+ src/cmd/compile/internal/types2/exprstring.go      |  287 +++
+ src/cmd/compile/internal/types2/exprstring_test.go |   97 +
+ .../internal/types2/fixedbugs/issue39634.go2       |   92 +
+ .../internal/types2/fixedbugs/issue39664.go2       |   16 +
+ .../internal/types2/fixedbugs/issue39680.go2       |   28 +
+ .../internal/types2/fixedbugs/issue39693.go2       |   15 +
+ .../internal/types2/fixedbugs/issue39699.go2       |   30 +
+ .../internal/types2/fixedbugs/issue39711.go2       |   12 +
+ .../internal/types2/fixedbugs/issue39723.go2       |   10 +
+ .../internal/types2/fixedbugs/issue39725.go2       |   17 +
+ .../internal/types2/fixedbugs/issue39754.go2       |   21 +
+ .../internal/types2/fixedbugs/issue39755.go2       |   24 +
+ .../internal/types2/fixedbugs/issue39768.go2       |   21 +
+ .../internal/types2/fixedbugs/issue39938.go2       |   51 +
+ .../internal/types2/fixedbugs/issue39948.go2       |   10 +
+ .../internal/types2/fixedbugs/issue39976.go2       |   17 +
+ .../internal/types2/fixedbugs/issue39982.go2       |   37 +
+ .../internal/types2/fixedbugs/issue40038.go2       |   16 +
+ .../internal/types2/fixedbugs/issue40056.go2       |   16 +
+ .../internal/types2/fixedbugs/issue40057.go2       |   18 +
+ .../internal/types2/fixedbugs/issue40301.go2       |   13 +
+ .../internal/types2/fixedbugs/issue40684.go2       |   16 +
+ .../internal/types2/fixedbugs/issue41124.go2       |   92 +
+ src/cmd/compile/internal/types2/gccgosizes.go      |   41 +
+ src/cmd/compile/internal/types2/hilbert_test.go    |  220 +++
+ src/cmd/compile/internal/types2/importer_test.go   |   36 +
+ src/cmd/compile/internal/types2/infer.go           |  359 ++++
+ src/cmd/compile/internal/types2/initorder.go       |  298 +++
+ src/cmd/compile/internal/types2/issues_test.go     |  533 ++++++
+ src/cmd/compile/internal/types2/labels.go          |  260 +++
+ src/cmd/compile/internal/types2/lookup.go          |  493 +++++
+ src/cmd/compile/internal/types2/methodset.go       |  261 +++
+ src/cmd/compile/internal/types2/object.go          |  492 +++++
+ src/cmd/compile/internal/types2/object_test.go     |   89 +
+ src/cmd/compile/internal/types2/objset.go          |   32 +
+ src/cmd/compile/internal/types2/operand.go         |  315 ++++
+ src/cmd/compile/internal/types2/package.go         |   65 +
+ src/cmd/compile/internal/types2/pos.go             |  364 ++++
+ src/cmd/compile/internal/types2/predicates.go      |  413 +++++
+ src/cmd/compile/internal/types2/resolver.go        |  714 ++++++++
+ src/cmd/compile/internal/types2/resolver_test.go   |  223 +++
+ src/cmd/compile/internal/types2/return.go          |  180 ++
+ src/cmd/compile/internal/types2/sanitize.go        |  149 ++
+ src/cmd/compile/internal/types2/scope.go           |  217 +++
+ src/cmd/compile/internal/types2/selection.go       |  144 ++
+ src/cmd/compile/internal/types2/self_test.go       |   97 +
+ src/cmd/compile/internal/types2/sizes.go           |  266 +++
+ src/cmd/compile/internal/types2/sizes_test.go      |  108 ++
+ src/cmd/compile/internal/types2/stdlib_test.go     |  320 ++++
+ src/cmd/compile/internal/types2/stmt.go            |  919 ++++++++++
+ src/cmd/compile/internal/types2/subst.go           |  554 ++++++
+ src/cmd/compile/internal/types2/type.go            | 1061 +++++++++++
+ src/cmd/compile/internal/types2/typestring.go      |  480 +++++
+ src/cmd/compile/internal/types2/typestring_test.go |  221 +++
+ src/cmd/compile/internal/types2/typexpr.go         | 1280 +++++++++++++
+ src/cmd/compile/internal/types2/unify.go           |  454 +++++
+ src/cmd/compile/internal/types2/universe.go        |  282 +++
+ src/cmd/compile/internal/types2/walk.go            |  322 ++++
+ 90 files changed, 24300 insertions(+), 3 deletions(-)

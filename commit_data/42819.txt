@@ -1,18 +1,15 @@
-commit 41bc0a1713b9436e96c2d64211ad94e42cafd591
-Author: SparrowLii <liyuancylx@gmail.com>
-Date:   Mon Aug 24 14:43:32 2020 +0800
+commit e932f0addc7d764a6bd534979b5cabaf0c1a6ad8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 21:45:11 2020 -0800
 
-    math/big: fix TestShiftOverlap for test -count arguments > 1
+    cmd/compile: coalesce some 386 shift lowering rules
     
-    Don't overwrite incoming test data.
+    No changes to generated rule matching code.
     
-    The change uses copy instead of assigning statement to avoid this.
-    
-    Change-Id: Ib907101822d811de5c45145cb9d7961907e212c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250137
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I0009146a6be30e151a403c4801c03abf0646703d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216999
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/math/big/arith_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules | 42 +++++++-----------------------
+ 1 file changed, 9 insertions(+), 33 deletions(-)

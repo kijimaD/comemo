@@ -1,19 +1,18 @@
-commit 83dfc0d02d005f7de3b8a57ea29dacf8609edba8
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Oct 6 20:36:52 2020 -0400
+commit b3b174ffcf8ab4977dba1e9e18b91993a8c5a253
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 18 16:32:31 2020 -0700
 
-    time: enable system zoneinfo on macOS/ARM64
+    runtime: minor updates to netpoll comments
     
-    Updates #38485.
+    In Go 1.4 we renamed READY to pdReady and WAIT to pdWait as part of
+    rewriting netpoll from C to Go. Finish updating the comments to use
+    the new names.
     
-    Change-Id: I4a8b509dc4ad03706235289fbe8c2a675453c871
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260339
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6cefc698b46c58211fd6be1489bdd70419454962
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223998
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/{zoneinfo_darwin_arm64.go => zoneinfo_ios.go} | 0
- src/time/zoneinfo_unix.go                              | 2 +-
- src/time/zoneinfo_unix_test.go                         | 2 +-
- 3 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/netpoll.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

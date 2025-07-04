@@ -1,15 +1,23 @@
-commit be587a4d5366ea1d53967dfdbd7539b6168c6af2
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 8 10:31:06 2011 +1100
+commit 2e3bd890c5942a00f6271ffe419c1e62ef5e2a73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 7 14:45:45 2011 -0800
 
-    gobuilder: goinstall packages after building go tree
+    strconv: fix documentation
+    
+    Also: minor performance fix for large precision results.
+    
+    benchmark                                   old ns/op    new ns/op    delta
+    strconv_test.BenchmarkFormatFloatDecimal         2734         2734   +0.00%
+    strconv_test.BenchmarkFormatFloat                3141         3139   -0.06%
+    strconv_test.BenchmarkFormatFloatExp             8970         8989   +0.21%
+    strconv_test.BenchmarkFormatFloatBig             3228         3208   -0.62%
+    
+    Fixes #2535.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5450100
+    https://golang.org/cl/5435089
 
- misc/dashboard/builder/exec.go    |  2 +-
- misc/dashboard/builder/http.go    | 26 +++++++++------
- misc/dashboard/builder/main.go    | 70 +++++++++++++++++++++++++++++++++++----
- misc/dashboard/builder/package.go |  2 +-
- 4 files changed, 82 insertions(+), 18 deletions(-)
+ src/pkg/strconv/atoi.go | 8 ++++----
+ src/pkg/strconv/ftoa.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

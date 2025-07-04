@@ -1,19 +1,20 @@
-commit 481fe5901232583340159415f3f5c83af28c1fa4
-Author: Todd Neal <todd@tneal.org>
-Date:   Mon Mar 7 18:43:05 2016 -0600
+commit cfc9fde54d2d27486edede6dccf107889f0d2cc6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 16:45:31 2015 +0000
 
-    cmd/compile: fix load combining from a non-zero pointer offset
+    net/http: updated bundled http2 to finish trailer support
     
-    When the pointer offset is non-zero in the small loads, we need to add the offset
-    when converting to the larger load.
+    This updates the bundled copy of x/net/http2 to git rev d2ecd08
+    for https://golang.org/cl/17912 (http2: send client trailers)
+    and enables the final Trailer test for http2.
     
-    Fixes #14694
+    Fixes #13557
     
-    Change-Id: I5ba8bcb3b9ce26c7fae0c4951500b9ef0fed54cd
-    Reviewed-on: https://go-review.googlesource.com/20333
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iaa15552b82bf7a2cb01b7787a2e1ec5ee680a9d3
+    Reviewed-on: https://go-review.googlesource.com/17935
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/testdata/arith_ssa.go | 35 +++++++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/AMD64.rules      |  6 ++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go      | 21 ++++++++++----
- 3 files changed, 53 insertions(+), 9 deletions(-)
+ src/net/http/clientserver_test.go |   5 +-
+ src/net/http/h2_bundle.go         | 125 +++++++++++++++++++++++++++++---------
+ 2 files changed, 96 insertions(+), 34 deletions(-)

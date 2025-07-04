@@ -1,20 +1,14 @@
-commit dd3a3cfa4939e54490d8dd0c1c121869c7eddde3
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Jun 22 11:03:40 2013 +1000
+commit fc1e298ba1dfa404e2036d7461110511fdc28422
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 21 15:09:04 2013 -0700
 
-    syscall: reduce duplication between *bsd and linux
+    go/parser: always provide a non-nil path for imports
     
-    See discussion: https://groups.google.com/forum/#!topic/golang-dev/zSmH0lQxKAs
+    The go/ast ImportSpec always requires a non-nil path.
     
-    Part 1 of several.
-    
-    Move identical types and functions to syscall_unix.go.
-    
-    R=rsc, mikioh.mikioh, r
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/10392048
+    https://golang.org/cl/10402047
 
- src/pkg/syscall/syscall_bsd.go   | 60 ----------------------------------------
- src/pkg/syscall/syscall_linux.go | 60 ----------------------------------------
- src/pkg/syscall/syscall_unix.go  | 60 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 60 insertions(+), 120 deletions(-)
+ src/pkg/go/parser/parser.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

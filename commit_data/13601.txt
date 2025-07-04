@@ -1,12 +1,12 @@
-commit 4939b7b065d2eee1c37201c0d42ed4dd06d22265
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Aug 8 15:41:47 2012 +1000
+commit 4230dd4c6c4c08f1559d85bc135991627fd89d92
+Author: Yves Junqueira <yves.junqueira@gmail.com>
+Date:   Wed Aug 8 12:04:54 2012 +1000
 
-    io: amend ReaderFrom doc as per r's comment
+    crypto/rand: Example for Read.
     
-    R=r
+    R=adg, remyoudompheng, rsc, r
     CC=golang-dev
-    https://golang.org/cl/6458097
+    https://golang.org/cl/6457085
 
- src/pkg/io/io.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/crypto/rand/example_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

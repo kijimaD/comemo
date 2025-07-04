@@ -1,29 +1,33 @@
-commit e8bb9129d185bf98ba173ec018bf2b6c9d62aa6c
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Fri Nov 1 13:43:34 2024 -0400
+commit b0ae440bf05cd19f5a6a111317c0ae553c9298be
+Author: Archana <aravinda@redhat.com>
+Date:   Mon Jul 24 20:17:02 2023 +0530
 
-    runtime/pprof: relax TestProfilerStackDepth
+    runtime: support for debugger function calls on linux/ppc64le
     
-    The TestProfilerStackDepth/heap test can spuriously fail if the profiler
-    happens to capture a stack with an allocation several frames deep into
-    runtime code. The pprof API hides runtime frames at the leaf-end of
-    stacks, but those frames still count against the profiler's stack depth
-    limit. The test checks only the first stack it finds with the desired
-    prefix and fails if it's not deep enough or doesn't have the right root
-    frame. So it can fail in that scenario, even though the implementation
-    isn't really broken.
+    This CL adds support for debugger function calls on linux ppc64le
+    platform. The protocol is basically the same as in CL 395754, except for
+    the following differences:
+    1, The abi differences which affect parameter passing and frame layout.
+    2, The closure register is R11.
+    3, Minimum framesize on pp64le is 32 bytes
+    4, Added functions to return parent context structure for general purpose
+       registers in order to work with the way these structures are defined in
+       ppc64le
     
-    Relax the test to check that there is at least one stack with desired
-    prefix, depth, and root frame.
-    
-    Fixes #70112
-    
-    Change-Id: I337fb3cccd1ddde76530b03aa1ec0f9608aa4112
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623998
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I58e01fedad66a818ab322e2b2d8f5104cfa64f39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512575
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Archana Ravindar <aravinda@redhat.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/pprof/pprof_test.go | 35 +++++++++++++++++++++++++----------
- 1 file changed, 25 insertions(+), 10 deletions(-)
+ src/runtime/asm_ppc64x.s                 | 219 ++++++++++++++++++++++++++++++-
+ src/runtime/debug_test.go                |   2 +-
+ src/runtime/debugcall.go                 |   5 +-
+ src/runtime/export_debug_ppc64le_test.go | 131 ++++++++++++++++++
+ src/runtime/export_debug_test.go         |   2 +-
+ src/runtime/signal_linux_ppc64x.go       |   3 +-
+ src/runtime/signal_ppc64x.go             |   3 +-
+ 7 files changed, 359 insertions(+), 6 deletions(-)

@@ -1,20 +1,23 @@
-commit 465ba6b78c636a501a353a5e8ea971d29f11440a
-Author: Joel Sing <jsing@google.com>
-Date:   Sat Aug 31 09:32:07 2013 -0700
+commit fb376021bea084d5320a8059176ab86880832f5c
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 31 09:09:50 2013 -0700
 
-    runtime, syscall: add support for dragonfly/386
+    runtime: record type information for hashtable internal structures.
+    Remove all hashtable-specific GC code.
     
-    Add runtime and syscall support for dragonfly/386.
+    Fixes bug 6119.
     
-    R=golang-dev, iant
+    R=cshapiro, dvyukov, khr
     CC=golang-dev
-    https://golang.org/cl/13237051
+    https://golang.org/cl/13078044
 
- src/pkg/runtime/defs_dragonfly_386.h     | 198 +++++++++++++++++
- src/pkg/runtime/rt0_dragonfly_386.s      |  16 ++
- src/pkg/runtime/signal_dragonfly_386.h   |  23 ++
- src/pkg/runtime/sys_dragonfly_386.s      | 369 +++++++++++++++++++++++++++++++
- src/pkg/syscall/asm_dragonfly_386.s      | 139 ++++++++++++
- src/pkg/syscall/mkall.sh                 |   6 +
- src/pkg/syscall/syscall_dragonfly_386.go |  58 +++++
- 7 files changed, 809 insertions(+)
+ src/cmd/gc/go.h           |   4 +
+ src/cmd/gc/reflect.c      | 139 ++++++++++++++++++++++-
+ src/pkg/reflect/type.go   | 138 ++++++++++++++++++++---
+ src/pkg/runtime/hashmap.c | 280 ++++++----------------------------------------
+ src/pkg/runtime/hashmap.h |  29 -----
+ src/pkg/runtime/malloc.h  |   3 +-
+ src/pkg/runtime/mgc0.c    | 111 +-----------------
+ src/pkg/runtime/mgc0.h    |   1 -
+ src/pkg/runtime/type.h    |   2 +
+ 9 files changed, 304 insertions(+), 403 deletions(-)

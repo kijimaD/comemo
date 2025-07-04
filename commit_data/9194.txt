@@ -1,37 +1,31 @@
-commit a1e7cd97d509bae39d9e6a964b8920b1863a4e22
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 24 17:00:28 2011 -0400
+commit fc2480da3c759dc444993d8e4b11ab5fe0777406
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Jul 24 13:43:08 2011 +1000
 
-    exp/regexp: implement regexp API using exp/regexp/syntax
+    goinstall: write to goinstall.log in respective GOPATH
+    goinstall: report every newly installed package to the dashboard
     
-    Still need to write tests for new syntax
-    and fix bugs that the tests find, but this
-    is a good check point.
+    This makes "goinstall -a" work on systems with GOROOTs that are
+    not user-writable, as is the case with Debian's Go packages.
     
-    All tests pass.
+    This also makes goinstall.log the canonical list of installed
+    packages, in that only packages new to goinstall.log are reported to
+    the dashboard.
     
-    Compared against existing regexp:
+    A side-effect is that writing to goinstall.log is now mandatory.
+    (A bug in the original implementation meant this was the case, anyway.)
     
-    benchmark                                old ns/op    new ns/op    delta
-    regexp.BenchmarkLiteral                       1869          620  -66.83%
-    regexp.BenchmarkNotLiteral                    9489         7823  -17.56%
-    regexp.BenchmarkMatchClass                   10372         8386  -19.15%
-    regexp.BenchmarkMatchClass_InRange           10800         7750  -28.24%
-    regexp.BenchmarkReplaceAll                   13492         8519  -36.86%
-    regexp.BenchmarkAnchoredLiteralShortNonMatch   747          339  -54.62%
-    regexp.BenchmarkAnchoredLiteralLongNonMatch    599          335  -44.07%
-    regexp.BenchmarkAnchoredShortMatch            2137          917  -57.09%
-    regexp.BenchmarkAnchoredLongMatch             2029          917  -54.81%
+    The principal benefit of this change is that multiple packages from the
+    same repository can now be reported to the dashboard.  It is also less
+    likely for a user to report multiple installations of the same package
+    to the dashboard (they would need to remove the package from
+    goinstall.log first).
     
-    R=r, r
-    CC=golang-dev, sam.thorogood
-    https://golang.org/cl/4820046
+    R=rsc, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/4786041
 
- src/pkg/exp/regexp/Makefile          |  12 +
- src/pkg/exp/regexp/all_test.go       | 429 +++++++++++++++++++
- src/pkg/exp/regexp/exec.go           | 295 +++++++++++++
- src/pkg/exp/regexp/find_test.go      | 472 +++++++++++++++++++++
- src/pkg/exp/regexp/regexp.go         | 795 +++++++++++++++++++++++++++++++++++
- src/pkg/exp/regexp/syntax/compile.go |   1 +
- src/pkg/exp/regexp/syntax/prog.go    |  55 +++
- 7 files changed, 2059 insertions(+)
+ src/cmd/goinstall/doc.go      |  1 -
+ src/cmd/goinstall/download.go | 45 +++++++++--------------
+ src/cmd/goinstall/main.go     | 84 +++++++++++++++++++++++++------------------
+ 3 files changed, 66 insertions(+), 64 deletions(-)

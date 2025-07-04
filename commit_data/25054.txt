@@ -1,18 +1,21 @@
-commit 3f6b91b1136e25e75da71b727e536ba4f4066fd5
-Author: Charles Weill <weill@google.com>
-Date:   Fri Oct 23 16:08:20 2015 -0400
+commit c742ff6adc1487fbdbeca7e71fa61d80bbb41624
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 18 21:17:07 2015 -0400
 
-    encoding/xml: Add CDATA-wrapper output support to xml.Marshal.
+    runtime: remove flaky TestInvalidptrCrash to fix build
     
-    Fixes #12963
+    This test fails on arm64 and some amd64 OSs and fails on Linux/amd64
+    if you remove the first runtime.GC(), which should be unnecessary, and
+    run it in all.bash (but not if you run it in isolation). I don't
+    understand any of these failures, so for now just remove this test.
     
-    Change-Id: Icc50dfb6130fe1e189d45f923c2f7408d3cf9401
-    Reviewed-on: https://go-review.googlesource.com/16047
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    TBR=rlh
+    
+    Change-Id: Ibed00671126000ed7dc5b5d4af1f86fe4a1e30e1
+    Reviewed-on: https://go-review.googlesource.com/14767
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/xml/marshal.go      | 34 ++++++++++++++++++++--------
- src/encoding/xml/marshal_test.go | 49 ++++++++++++++++++++++++++++++++++++++++
- src/encoding/xml/read.go         |  2 +-
- src/encoding/xml/typeinfo.go     |  7 ++++--
- src/encoding/xml/xml.go          | 40 ++++++++++++++++++++++++++++++++
- 5 files changed, 120 insertions(+), 12 deletions(-)
+ src/runtime/crash_test.go | 37 -------------------------------------
+ 1 file changed, 37 deletions(-)

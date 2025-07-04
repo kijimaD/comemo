@@ -1,13 +1,26 @@
-commit 7f762704e9319149540120a64ba7e90d8c7e50e2
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 11:33:39 2015 -0400
+commit 10f38f51ef51467b5df1fb8f744a5597f87efb1e
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 3 09:09:59 2015 -0700
 
-    internal/syscall/unix: added support for linux/mips64{,le}
+    [dev.ssa] cmd/compile/internal/ssa: distinguish exit and return blocks
     
-    Change-Id: Ib6f168b6a2daf3befbf75b4b95967ff91ac95d12
-    Reviewed-on: https://go-review.googlesource.com/14456
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    It is confusing to have exceptional edges jump back into
+    real code.  Distinguish return blocks, which execute acutal
+    code, and the exit block, which is a merge point for the regular
+    and exceptional return flow.
+    
+    Prevent critical edge insertion from adding blocks on edges
+    into the exit block.  These added blocks serve no purpose and
+    add a bunch of dead jumps to the assembly output.  Furthermore,
+    live variable analysis is confused by these jumps.
+    
+    Change-Id: Ifd69e6c00e90338ed147e7cb351b5100dc0364df
+    Reviewed-on: https://go-review.googlesource.com/14254
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/internal/syscall/unix/getrandom_linux_mips64x.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             |  2 ++
+ src/cmd/compile/internal/ssa/check.go          | 10 ++++++++++
+ src/cmd/compile/internal/ssa/critical.go       |  2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          |  2 ++
+ 5 files changed, 16 insertions(+), 1 deletion(-)

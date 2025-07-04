@@ -1,53 +1,25 @@
-commit dbf442b1b2c28b77db288121ee3a7bc669cdc768
-Author: Austin Clements <austin@google.com>
-Date:   Sat Aug 13 21:39:56 2022 -0400
+commit 4cbc0a555474f59b8600e7e8ecba5c70d619ba0b
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Oct 14 11:34:00 2021 -0400
 
-    runtime: replace stkframe.arglen/argmap with methods
+    cmd/go: produce a better error for generic test functions
     
-    Currently, stkframe.arglen and stkframe.argmap are populated by
-    gentraceback under a particular set of circumstances. But because they
-    can be constructed from other fields in stkframe, they don't need to
-    be computed eagerly at all. They're also rather misleading, as they're
-    only part of computing the actual argument map and most callers should
-    be using getStackMap, which does the rest of the work.
+    Test functions with type parameters cannot be invoked without type
+    arguments, so cmd/go would previously fail with a type-checking error in
+    the test harness.
     
-    This CL drops these fields from stkframe. It shifts the functions that
-    used to compute them, getArgInfoFast and getArgInfo, into
-    corresponding methods stkframe.argBytes and stkframe.argMapInternal.
-    argBytes is expected to be used by callers that need to know only the
-    argument frame size, while argMapInternal is used only by argBytes and
-    getStackMap.
+    Avoid this by producing an error explaining that test functions cannot
+    have type parameters.
     
-    We also move some of the logic from getStackMap into argMapInternal
-    because the previous split of responsibilities didn't make much sense.
-    This lets us return just a bitvector from argMapInternal, rather than
-    both a bitvector, which carries a size, and an "actually use this
-    size".
+    Fixes #48953
     
-    The getArgInfoFast function was inlined before (and inl_test checked
-    this). We drop that requirement from stkframe.argBytes because the
-    uses of this have shifted and now it's only called from heap dumping
-    (which never happens) and conservative stack frame scanning (which
-    very, very rarely happens).
-    
-    There will be a few follow-up clean-up CLs.
-    
-    For #54466. This is a nice clean-up on its own, but it also serves to
-    remove pointers from the traceback state that would eventually become
-    troublesome write barriers once we stack-rip gentraceback.
-    
-    Change-Id: I107f98ed8e7b00185c081de425bbf24af02a4163
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424514
-    Run-TryBot: Austin Clements <austin@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I4e39c9b7a06c964fad5f12d74d262aa090c25d79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355889
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/test/inl_test.go |  1 -
- src/runtime/heapdump.go                   |  2 +-
- src/runtime/mgcmark.go                    |  4 +-
- src/runtime/runtime2.go                   | 12 +++---
- src/runtime/stack.go                      | 51 +++++++++++-------------
- src/runtime/traceback.go                  | 66 ++++++++++++++++---------------
- 6 files changed, 65 insertions(+), 71 deletions(-)
+ src/cmd/go/internal/load/test.go             | 10 ++++++++--
+ src/cmd/go/testdata/script/list_test_err.txt | 14 ++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

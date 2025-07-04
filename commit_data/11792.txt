@@ -1,19 +1,12 @@
-commit ca5da31f83517780893423e46665d48149e545ee
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 10 22:19:34 2012 -0500
+commit 76a1cb5a009d919f4f57e5cdf4ff46d9633fe118
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Feb 11 11:51:12 2012 +0900
 
-    6g: fix out of registers bug
+    net: fix comment, make use of listenerBacklog
     
-    Fix it twice: reuse registers more aggressively in cgen abop,
-    and also release R14 and R15, which are no longer m and g.
-    
-    Fixes #2669.
-    
-    R=ken2
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5655056
+    https://golang.org/cl/5653056
 
- src/cmd/6g/cgen.c        |  4 ++--
- src/cmd/6g/gsubr.c       | 24 +++++++++++++-----------
- test/fixedbugs/bug410.go | 24 ++++++++++++++++++++++++
- 3 files changed, 39 insertions(+), 13 deletions(-)
+ src/pkg/net/dial_test.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

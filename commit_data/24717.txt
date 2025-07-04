@@ -1,19 +1,20 @@
-commit e50a4c698752928cf7c0638e947c43e36d69b671
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 3 11:00:37 2015 -0800
+commit 6ec1809b8372028e0bf1f87b15cddf06a6dbc8af
+Author: Ulrich Kunitz <uli.kunitz@gmail.com>
+Date:   Thu Aug 20 18:56:18 2015 +0200
 
-    net/http: register HTTP/2 before listening in ListenAndServe
+    cmd/compile: fix register allocation for == operator
     
-    Change-Id: Icf9b6802945051aa484fb9ebcce71704f5655474
-    Reviewed-on: https://go-review.googlesource.com/16630
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The issue 12226 has been caused by the allocation of the same register
+    for the equality check of two byte values. The code in cgen.go freed the
+    register for the second operand before the allocation of the register
+    for the first operand.
+    
+    Fixes #12226
+    
+    Change-Id: Ie4dc33a488bd48a17f8ae9b497fd63c1ae390555
+    Reviewed-on: https://go-review.googlesource.com/13771
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/build/deps_test.go         |  2 +-
- src/net/http/export_test.go       |  2 ++
- src/net/http/httptest/server.go   | 39 ++----------------------
- src/net/http/internal/testcert.go | 41 ++++++++++++++++++++++++++
- src/net/http/serve_test.go        | 62 ++++++++++++++++++++++++++++++++++++++-
- src/net/http/server.go            | 43 +++++++++++++++++++++------
- 6 files changed, 141 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/gc/cgen.go |  2 +-
+ test/fixedbugs/issue12226.go        | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

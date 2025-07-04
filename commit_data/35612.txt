@@ -1,17 +1,51 @@
-commit ca8ec69ce6253bf222ab408e6ce0cb7247d1572e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 6 11:36:35 2018 -0700
+commit 7a218942be57765f842786abff85d3a813592d70
+Author: Lubomir I. Ivanov (VMware) <neolit123@gmail.com>
+Date:   Sat Feb 24 12:06:06 2018 +0000
 
-    go/types: don't report errors referring to invalid types or operands
+    os/user: obtain a user home path on Windows
     
-    Such errors are likely spurious and caused by previously reported
-    errors; they don't add valuable information. Simply drop them.
+    newUserFromSid() is extended so that the retriaval of the user home
+    path based on a user SID becomes possible.
     
-    Fixes #24182.
+    (1) The primary method it uses is to lookup the Windows registry for
+    the following key:
+      HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\[SID]
     
-    Change-Id: I0ac48c41647c628aa7636b29eaedfd9d01913762
-    Reviewed-on: https://go-review.googlesource.com/116735
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    If the key does not exist the user might not have logged in yet.
+    If (1) fails it falls back to (2)
+    
+    (2) The second method the function uses is to look at the default home
+    path for users (e.g. WINAPI's GetProfilesDirectory()) and append
+    the username to that. The procedure is in the lines of:
+      c:\Users + \ + <username>
+    
+    The function newUser() now requires the following arguments:
+      uid, gid, dir, username, domain
+    This is done to avoid multiple calls to usid.String() and
+    usid.LookupAccount("") in the case of a newUserFromSid()
+    call stack.
+    
+    The functions current() and newUserFromSid() both call newUser()
+    supplying the arguments in question. The helpers
+    lookupUsernameAndDomain() and findHomeDirInRegistry() are
+    added.
+    
+    This commit also updates:
+    - go/build/deps_test.go, so that the test now includes the
+    "internal/syscall/windows/registry" import.
+    - os/user/user_test.go, so that User.HomeDir is tested on Windows.
+    
+    GitHub-Last-Rev: 25423e2a3820121f4c42321e7a77a3977f409724
+    GitHub-Pull-Request: golang/go#23822
+    Change-Id: I6c3ad1c4ce3e7bc0d1add024951711f615b84ee5
+    Reviewed-on: https://go-review.googlesource.com/93935
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/errors.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/go/build/deps_test.go                        |  2 +-
+ src/internal/syscall/windows/security_windows.go |  2 +
+ src/internal/syscall/windows/zsyscall_windows.go | 14 ++++
+ src/os/user/lookup_windows.go                    | 94 +++++++++++++++++++++---
+ src/os/user/user_test.go                         | 10 +--
+ 5 files changed, 104 insertions(+), 18 deletions(-)

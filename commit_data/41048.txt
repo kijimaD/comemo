@@ -1,24 +1,23 @@
-commit 2ee2c6232c3cb7e2927b964701a81c1591c410db
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Dec 30 11:26:17 2019 -0500
+commit 579c69ac1ca63d56a1861998f13fb87aeda6d72e
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sat Jul 27 10:13:51 2019 -0700
 
-    runtime: don't use R11 in nanotime1/walltime1 on ARM
+    internal/fmtsort: don't out-of-bounds panic if there's a race condition
     
-    R11 a.k.a. REGTMP is the temp register used by the assembler. It
-    may be clobbered if the assembler needs to synthesize
-    instructions. In particular, in nanotime1/walltime1, the load of
-    global variable runtime.iscgo clobbers it. So, avoid using R11
-    to hold a long-lived value.
+    Raising an out-of-bounds panic is confusing. There's no indication
+    that the underlying problem is a race.
     
-    Fixes #36309.
+    The runtime already does a pretty good job of detecting this kind of
+    race (modification while iterating). We might as well just reorganize
+    a bit to avoid the out-of-bounds panic.
     
-    Change-Id: Iec2ab9d664532cad8fbf58da17f580e64a744f62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212641
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Andrew G. Morgan <agm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #33275
+    
+    Change-Id: Icdd337ad2eb3c84f999db0850ec1d2ff2c146b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191197
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/runtime/sys_linux_arm.s | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/internal/fmtsort/sort.go     | 14 +++++++++-----
+ test/fixedbugs/issue33275.go     | 34 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue33275_run.go | 25 +++++++++++++++++++++++++
+ 3 files changed, 68 insertions(+), 5 deletions(-)

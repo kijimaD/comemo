@@ -1,30 +1,18 @@
-commit d58bf64d5acbcad1ae5b605228ce51038d4df631
-Author: Bryan A Ford <brynosaurus@gmail.com>
-Date:   Sat Jun 10 09:34:40 2017 +0200
+commit 8a9d4184e6e175194e262bde5fe321838b5d40c4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 17 17:41:44 2017 -0700
 
-    crypto/subtle: simplify and speed up constant-time primitives
+    runtime: simplify evacuate's handling of NaNs
     
-    This changes improves the ConstantTimeByteEq and ConstantTimeEq
-    primitives to both simplify them and improve their performance.
+    The new code is not quite equivalent to the old,
+    in that if newbit was very large it might have altered the new tophash.
+    The old behavior is unnecessary and probably undesirable.
     
-    Also, since there were no benchmarks for this package before,
-    this change adds benchmarks for ConstantTimeByteEq,
-    ConstantTimeEq, and ConstantTimeLessOrEq.
-    
-    benchmarks on darwin/amd64, 10 runs on old vs new code:
-    
-    name                    old time/op  new time/op  delta
-    ConstantTimeByteEq-4    2.28ns ±16%  1.53ns ± 2%  -33.09%  (p=0.000 n=10+9)
-    ConstantTimeEq-4        2.77ns ±10%  1.51ns ± 2%  -45.59%  (p=0.000 n=10+9)
-    ConstantTimeLessOrEq-4  1.52ns ± 8%  1.50ns ± 2%     ~     (p=0.866 n=9+9)
-    
-    Change-Id: I29b8cbcf158e1f30411720db82d38b4ecd166b15
-    Reviewed-on: https://go-review.googlesource.com/45310
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I7fb3222520cb61081a857adcddfbb9078ead7122
+    Reviewed-on: https://go-review.googlesource.com/56930
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/subtle/constant_time.go      | 16 ++--------------
- src/crypto/subtle/constant_time_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 14 deletions(-)
+ src/runtime/hashmap.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

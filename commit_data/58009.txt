@@ -1,43 +1,19 @@
-commit f9a95b1bdcff42730c836a792b27740b9c0df645
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 17 17:27:00 2023 -0400
+commit c6312973257928acdc5f89662a0dd8f8e61ce19c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 18 17:41:55 2023 +0200
 
-    cmd/go: print build errors during go test -json in JSON
+    os/exec: adjust function name in fatal message
     
-    Currently, if a test or imported package fails to build during "go
-    test -json", the build error text will be interleaved with the JSON
-    output of tests. Furthermore, there’s currently no way to reliably
-    associate a build error with the test package or packages it affected.
-    This creates unnecessary friction and complexity in tools that consume
-    the "go test -json" output.
+    CL 481620 changed the test to use LookPath.
     
-    This CL makes "go test -json" enable JSON reporting of build errors.
-    It also adds a "FailedBuild" field to the "fail" TestEvent, which
-    gives the package ID of the package that failed to build and caused
-    the test to fail.
-    
-    Using this, CI systems should be able to consume the entire output
-    stream from "go test -json" in a structured way and easily associate
-    build failures with test failures during reporting.
-    
-    Fixes #62067.
-    Updates #35169.
-    Updates #37486.
-    
-    Change-Id: I49091dcc7aa52db01fc9fa6042771633e97b8407
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536399
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie7b3110775b586701b6df6aeee38f26402227eb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529095
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/next/3-tools.md                            |  6 ++
- src/cmd/go/alldocs.go                          | 16 ++++-
- src/cmd/go/internal/help/helpdoc.go            | 15 ++++-
- src/cmd/go/internal/list/list.go               |  8 +--
- src/cmd/go/internal/load/test.go               | 11 ++--
- src/cmd/go/internal/test/test.go               | 42 ++++++++-----
- src/cmd/go/internal/test/testflag.go           |  3 +
- src/cmd/go/internal/vet/vet.go                 |  6 +-
- src/cmd/go/testdata/script/test_json_build.txt | 81 ++++++++++++++++++++++++++
- src/cmd/internal/test2json/test2json.go        | 27 +++++++--
- src/cmd/test2json/main.go                      | 18 ++++--
- 11 files changed, 190 insertions(+), 43 deletions(-)
+ src/os/exec/lp_linux_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

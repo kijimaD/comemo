@@ -1,18 +1,17 @@
-commit 204a8f55dc2e0ac8d27a781dab0da609b98560da
-Author: Michael McLoughlin <mmcloughlin@gmail.com>
-Date:   Mon Dec 31 17:14:54 2018 -0800
+commit 289dce24c173fa2e87db83caa675c964c403553f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 29 14:49:42 2018 -0400
 
-    runtime: fix REFLECTMETHOD macro
+    test: fix nosplit test on 386
     
-    Removes spurious equals sign from REFLECTMETHOD macro.
+    The 120->124 change in https://go-review.googlesource.com/c/go/+/61511/21/test/nosplit.go#143
+    looks accidental. Change back to 120.
     
-    Fixes #29487
-    
-    Change-Id: Iaa3d85ff57087aa79a259f28816f8b0a552536f3
-    Reviewed-on: https://go-review.googlesource.com/c/155927
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1690a8ae2d32756ba05544d2ed1baabfa64e1704
+    Reviewed-on: https://go-review.googlesource.com/131958
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/textflag.h | 2 +-
+ test/nosplit.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

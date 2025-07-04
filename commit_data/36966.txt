@@ -1,14 +1,17 @@
-commit e489a236b40febae0c2df0462ae8dd6cffdd3646
-Author: avsharapov <analytics.kzn@gmail.com>
-Date:   Sat Oct 13 13:31:39 2018 +0300
+commit 537fb06c5dabfc5329bd8535c63d6a0f1ccbb1b4
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Jun 13 13:37:33 2018 -0400
 
-    jpeg: simplify 'x = x op ...' to 'x op= ...'
+    runtime/pprof: skip TestMapping if CGO is not available
     
-    Change-Id: Id431969e42f0d9bd28bbf163d10378a6de2416f2
-    Reviewed-on: https://go-review.googlesource.com/c/141999
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    The test requires cgo
+    
+    Change-Id: I1bffee5f187afcf4b7e27516451c56ddfc263a26
+    Reviewed-on: https://go-review.googlesource.com/118638
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
 
- src/image/jpeg/fdct.go | 32 ++++++++++++++++----------------
- 1 file changed, 16 insertions(+), 16 deletions(-)
+ src/runtime/pprof/proto_test.go | 1 +
+ 1 file changed, 1 insertion(+)

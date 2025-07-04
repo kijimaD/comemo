@@ -1,15 +1,19 @@
-commit 899e0e35253e8463ca74d75638c07bd54dca251c
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Fri Jun 22 14:25:08 2018 -0400
+commit 8b766e5d09bc4bf2e4fc365111b60a400b144f83
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 8 02:20:26 2018 -0800
 
-    api: promote next to go1.11
+    cmd/compile: remove state.exitCode
     
-    Change-Id: Ib8fa0a12363993033201ff707c315f4030811f89
-    Reviewed-on: https://go-review.googlesource.com/120595
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    We're holding onto the function's complete AST anyway, so might as
+    well grab the exit code from there.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I851b5dfdb53f991e9cd9488d25d0d2abc2a8379f
+    Reviewed-on: https://go-review.googlesource.com/99417
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/go1.11.txt | 546 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 546 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

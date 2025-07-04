@@ -1,13 +1,12 @@
-commit 3b4a8ff604655b67dbda7621658fb9f66653a725
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 13 08:16:01 2011 -0700
+commit e113e405dedbb5b446d86d2b395c406cb814ea84
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 13 08:12:34 2011 -0700
 
-    A+C: Eivind Uggedal (individual CLA)
+    doc: auto-generated html change missing from 7ee7980ea06d
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4519055
+    https://golang.org/cl/4515077
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ doc/codelab/wiki/index.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

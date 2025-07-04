@@ -1,24 +1,33 @@
-commit 7619a4528d506277f44e8d4b70366b5b5633b40f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri May 21 09:35:46 2021 -0700
+commit 280e7fd1ee47ad92b0031bbc0fa103ac25552950
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 15:10:26 2020 -0500
 
-    reflect: improve panic when MapIter has no associated map Value
+    [dev.regabi] cmd/compile: only access Func method on concrete types
     
-    it := new(reflect.MapIter)
-    it.Next()
+    Sets up for removing Func from Node interface.
+    That means that once the Name reorg is done,
+    which will let us remove Name, Sym, and Val,
+    Node will be basically a minimal interface.
     
-    This generates a nil pointer dereference panic from reflect.Value.pointer.
-    Generate a clearer panic.
+    Passes buildall w/ toolstash -cmp.
     
-    For #46293
-    
-    Change-Id: I32a22c797e1ba3a7b4e70b38ceb4dedb44d264fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321890
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6e87897572debd7f8e29b4f5167763dc2792b408
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279484
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/value.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/closure.go   |  8 ++++----
+ src/cmd/compile/internal/gc/dcl.go       |  1 +
+ src/cmd/compile/internal/gc/escape.go    |  5 +++--
+ src/cmd/compile/internal/gc/iimport.go   |  4 ++--
+ src/cmd/compile/internal/gc/initorder.go |  1 +
+ src/cmd/compile/internal/gc/inl.go       |  3 ++-
+ src/cmd/compile/internal/gc/main.go      |  9 ++++++---
+ src/cmd/compile/internal/gc/scc.go       |  8 ++++++--
+ src/cmd/compile/internal/gc/scope.go     |  2 +-
+ src/cmd/compile/internal/gc/sinit.go     |  1 +
+ src/cmd/compile/internal/gc/typecheck.go | 10 +++++++---
+ src/cmd/compile/internal/gc/walk.go      |  7 ++++---
+ src/cmd/compile/internal/ir/fmt.go       |  1 +
+ src/cmd/compile/internal/ir/func.go      | 28 ++++++++++++++++++++++++----
+ 14 files changed, 63 insertions(+), 25 deletions(-)

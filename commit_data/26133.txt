@@ -1,12 +1,12 @@
-commit 1264f6e2d4c32c60604ff6b9753f1560c9344e92
+commit 41af93f6a345f4ba38ba53bf333e2844a0e532c6
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 8 19:16:04 2016 +0000
+Date:   Thu Dec 17 13:34:41 2015 -0800
 
-    cmd/compile: gofmt
+    doc: change go1.6 http heading
     
-    Change-Id: I754861147838d0f6c184d8deb8a028062a1d3214
-    Reviewed-on: https://go-review.googlesource.com/20400
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iae05082530891175e9c86da244e610bc92759561
+    Reviewed-on: https://go-review.googlesource.com/17918
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 4 ++--
+ doc/go1.6.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

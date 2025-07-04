@@ -1,24 +1,25 @@
-commit 60ee99cf5d38801507042df3a00c622027ef5588
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 3 18:33:49 2024 +0000
+commit 738d2d9068492dfb81dc350db005fdd52f2481b6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 22 11:32:20 2023 -0400
 
-    runtime: break out the debug.malloc codepaths into functions
+    os: use testenv.Command and os.Executable in tests
     
-    This change breaks out the debug.malloc codepaths into dedicated
-    functions, both for making mallocgc easier to read, and to reduce the
-    function's size (currently all that code is inlined and really doesn't
-    need to be).
+    On Unix platforms, testenv.Command sends SIGQUIT to stuck commands
+    before the test times out. For subprocesses that are written in Go,
+    that causes the runtime to dump running goroutines, and in other
+    languages it triggers similar behavior (such as a core dump).
+    If the subprocess is stuck due to a bug (such as #57999), that may
+    help to diagnose it.
     
-    This is a microoptimization that on its own changes very little, but
-    together with other optimizations and a breaking up of the various
-    malloc paths will matter all together ("death by a thousand cuts").
+    For #57999.
     
-    Change-Id: I30b3ab4a1f349ba85b4a1b5b2c399abcdfe4844f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617879
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I00f381b8052cbbb1a7eea90e7f102a3f68c842d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521817
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/runtime/malloc.go | 88 +++++++++++++++++++++++++++++----------------------
- 1 file changed, 50 insertions(+), 38 deletions(-)
+ src/os/signal/signal_cgo_test.go | 45 +++++++++++++++++++++++++++++++---------
+ src/os/signal/signal_test.go     |  2 +-
+ 2 files changed, 36 insertions(+), 11 deletions(-)

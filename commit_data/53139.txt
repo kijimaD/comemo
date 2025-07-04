@@ -1,28 +1,17 @@
-commit f283cba396d40b8ae8e724d7368480a85a255c7f
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Apr 2 15:49:58 2023 +0800
+commit 176b63e7113b82c140a4ecb2620024526c2c42e3
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sun Jul 17 08:43:55 2022 +0930
 
-    maps,runtime: improve maps.Keys
+    crypto/internal/nistec,debug/gosym: fix typos
     
-    name     old time/op    new time/op    delta
-    Keys-10    8.65ms ± 0%    7.06ms ± 0%  -18.41%  (p=0.000 n=9+9)
-    
-    name     old alloc/op   new alloc/op   delta
-    Keys-10    58.2kB ± 1%    47.4kB ± 2%  -18.54%  (p=0.000 n=10+10)
-    
-    name     old allocs/op  new allocs/op  delta
-    Keys-10      0.00           0.00          ~     (all equal)
-    
-    Change-Id: Ia7061c37be89e906e79bc3ef3bb1ef0d7913f9f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481435
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I228a23754656b41843573bd4217de4df46c9df36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417954
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/go/build/deps_test.go |  4 ++-
- src/maps/maps.go          | 15 ++++++++---
- src/maps/maps_test.go     | 32 ++++++++++++++++++++++++
- src/runtime/map.go        | 64 +++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 111 insertions(+), 4 deletions(-)
+ src/crypto/internal/nistec/p224_sqrt.go | 2 +-
+ src/debug/gosym/symtab.go               | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

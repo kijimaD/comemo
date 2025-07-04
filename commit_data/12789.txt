@@ -1,12 +1,12 @@
-commit 70a8948a39eb2bcca635e2a3beb39812bb7122db
+commit 16fd9fd64083872fe7c2bc4d4585556731634898
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 28 12:24:43 2012 +1100
+Date:   Wed Mar 28 11:38:34 2012 +1100
 
-    misc/dist: support upload only (no build)
+    doc: link to Go Project Dashboard from package list
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5940050
+    https://golang.org/cl/5937048
 
- misc/dist/bindist.go | 49 +++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 39 insertions(+), 10 deletions(-)
+ lib/godoc/package.html | 3 +++
+ 1 file changed, 3 insertions(+)

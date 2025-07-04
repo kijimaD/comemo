@@ -1,17 +1,14 @@
-commit 1d3ca9236e93c8e0ba3cd7f14b758fc2c791ad34
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Feb 16 23:42:19 2012 +0100
+commit f43d2b7fa89e148b1570551d5a27e0c155a03cb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 16 14:13:31 2012 -0800
 
-    cmd/gc: correctly typecheck expression lists in returns.
+    go/parser: imaginary constants and ! may start an expression
     
-    Invalid return statements were accidentally compiling or
-    triggering internal errors.
-    Fixes #3044.
+    Complete list of tokens that can start a top-level expression.
     
-    R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5673074
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5671074
 
- src/cmd/gc/typecheck.c   |  5 ++++-
- test/fixedbugs/bug418.go | 22 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ src/pkg/go/parser/parser.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,17 +1,17 @@
-commit 08d10f9af1429d19633722e36f7bfeda6c000aa5
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Aug 16 16:31:45 2018 -0400
+commit 04a27bef6f2c96251161d63761617542ddc762bc
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Apr 16 10:11:55 2018 -0700
 
-    doc: describe golang.org/x/go/packages in go1.11 release notes
+    os/user: fix build on darwin with "osusergo" build tag
     
-    Also, rename an HTML element ID to avoid duplicate.
+    Fixes #24841
+    Updates #24845
     
-    Fixes golang/go#27038
-    
-    Change-Id: Icc064a1cc86ddc794fc085d98b4cde3effff8ad0
-    Reviewed-on: https://go-review.googlesource.com/129635
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Ian Cottrell <iancottrell@google.com>
+    Change-Id: Ia7e2deefe64c12ee8a76ce6ed9f9e003e912b161
+    Reviewed-on: https://go-review.googlesource.com/107299
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.11.html | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/os/user/getgrouplist_darwin.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,21 +1,21 @@
-commit 5367d696f7a610b0e3826914d2633888e66b9f0b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Feb 7 23:15:07 2023 +1100
+commit ada5f8a46d7bf62c879aa918ac808081fb83b252
+Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
+Date:   Fri May 26 10:43:01 2023 +0800
 
-    math/big: simplify divBasic ujn assignment
+    cmd/compile: fold most repetitive operations to simplify riscv64 rules
     
-    Rather than conditionally assigning ujn, initialise ujn above the
-    loop to invent the leading 0 for u, then unconditionally load ujn
-    at the bottom of the loop. This code operates on the basis that
-    n >= 2, hence j+n-1 is always greater than zero.
+    Most of repetitive rules in riscv64 are simple, so that we can simplify and fold it with | without losting rules readability.
     
-    Change-Id: I1272ef30c787ed8707ae8421af2adcccc776d389
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467555
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Robert Griesemer <gri@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    No change in the actual compiler code after running rulegen.
+    
+    Change-Id: Id0bbfd93e63b49b7f66ecb62eb9440b4900c7938
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498455
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
 
- src/math/big/natdiv.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 109 ++++++------------------
+ 1 file changed, 28 insertions(+), 81 deletions(-)

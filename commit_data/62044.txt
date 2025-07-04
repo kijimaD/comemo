@@ -1,0 +1,21 @@
+commit 6fc23a3cff5e38ff72923fee50f51254dcdc6e93
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Jan 21 16:03:14 2025 -0800
+
+    crypto/internal/fips140/nistec: make p256NegCond constant time on ppc64le
+    
+    Remove the branching instruction from p256NegCond which made it variable
+    time. The technique used matches that used in p256MovCond.
+    
+    Fixes #71383
+    Fixes CVE-2025-22866
+    
+    Change-Id: Ibc2a46814d856cbbdaf6cc0c5a415ed5d42ca793
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643735
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .../internal/fips140/nistec/p256_asm_ppc64le.s       | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

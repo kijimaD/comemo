@@ -1,63 +1,17 @@
-commit e57e673e7ff4f5b61180a07a1a73bd5bd524981a
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Dec 6 11:55:54 2022 -0500
+commit 20c300bc70e10071bb15091f37a8bb3464cf13e3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 8 18:40:28 2022 -0800
 
-    api: promote next to go1.20
+    spec: the type of a constant cannot be a type parameter
     
-    Change-Id: I180f262837b164095f9ac9459d900ec1ac0585a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455697
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Add corresponding rules and a couple of examples.
+    
+    Fixes #50202.
+    
+    Change-Id: I4287b5e2d0fd29a0c871795e07f1bb529c9c6004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384240
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/go1.20.txt     | 428 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next/19974.txt |   1 -
- api/next/20661.txt |   1 -
- api/next/31804.txt |   5 -
- api/next/41773.txt |   1 -
- api/next/42537.txt |   4 -
- api/next/43620.txt |   1 -
- api/next/43958.txt |   1 -
- api/next/45038.txt |   1 -
- api/next/45899.txt |   5 -
- api/next/46731.txt |  14 --
- api/next/46746.txt |   2 -
- api/next/47209.txt |   2 -
- api/next/48000.txt |   1 -
- api/next/48152.txt |   5 -
- api/next/50429.txt |   1 -
- api/next/50436.txt |   3 -
- api/next/50770.txt |   1 -
- api/next/51246.txt |  72 ---------
- api/next/51365.txt |   3 -
- api/next/51430.txt |   5 -
- api/next/51668.txt |   1 -
- api/next/51766.txt |   1 -
- api/next/51777.txt |   1 -
- api/next/51896.txt |   1 -
- api/next/51972.txt |   3 -
- api/next/52221.txt |  19 ---
- api/next/52376.txt |   1 -
- api/next/52746.txt |   6 -
- api/next/53002.txt |   6 -
- api/next/53021.txt |   1 -
- api/next/53200.txt |   1 -
- api/next/53202.txt |   2 -
- api/next/53280.txt |  42 ------
- api/next/53346.txt |   1 -
- api/next/53356.txt |   1 -
- api/next/53435.txt |   1 -
- api/next/53482.txt |   2 -
- api/next/54136.txt |   6 -
- api/next/54222.txt |  78 ----------
- api/next/54251.txt |   6 -
- api/next/54299.txt |   1 -
- api/next/54345.txt | 108 --------------
- api/next/55301.txt |   1 -
- api/next/55356.txt |   2 -
- api/next/56041.txt |   2 -
- api/next/56088.txt |   2 -
- api/next/56219.txt |   1 -
- api/next/56319.txt |   1 -
- api/next/56548.txt |   1 -
- 50 files changed, 428 insertions(+), 428 deletions(-)
+ doc/go_spec.html | 31 ++++++++++++++++++++++++++++---
+ 1 file changed, 28 insertions(+), 3 deletions(-)

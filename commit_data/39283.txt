@@ -1,23 +1,19 @@
-commit 2165452a37b156d154a6e2dc85495b23a4a61565
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri May 31 20:59:35 2019 +1000
+commit 5aac0f0d1edbeb03ffe1c189ec97d55c2a7c1e84
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 23 20:47:44 2019 -0800
 
-    strconv: document handling of NaN and ±Inf
+    go/types: include test/fixedbugs/bug073.go again in test
     
-    In addition to the example that was added in 203b80ab, mention these
-    special cases in the doc comment. This change also adjusts the example
-    to include "+Inf", as it was not otherwise mentioned that the plus
-    symbol may be present.
+    This test was excluded from the go/types std lib test
+    because it tested old behavior (shift count must be
+    an unsigned int). With the compiler changes made and
+    the test adjusted accordingly, we can include it again.
     
-    Fix #30990
+    Updates #19113.
     
-    Change-Id: I97d66f4aff6a17a6ccc0ee2e7f32e39ae91ae454
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179738
-    Reviewed-by: Alex Miasoedov <msoedov@gmail.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If9b6b83505d2bd2b426fcefa225986d73658a229
+    Reviewed-on: https://go-review.googlesource.com/c/159319
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/strconv/atof.go         | 3 +++
- src/strconv/example_test.go | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/go/types/stdlib_test.go | 1 -
+ 1 file changed, 1 deletion(-)

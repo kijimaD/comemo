@@ -1,12 +1,12 @@
-commit e6cf42c39a77efd911b60bd4c1eb6e3bc88d1fc8
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 13 13:49:24 2011 -0700
+commit 4c5dd0e1eed79cf530c6963ce34ce78d950e0e79
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 13 16:26:25 2011 -0400
 
-    gofix: fix embarrassing typo in osopen.go
+    libmach: fix freebsd compiler errors
     
-    R=rsc, gri
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/4411044
+    https://golang.org/cl/4396045
 
- src/cmd/gofix/osopen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/libmach/freebsd.c | 5 +++++
+ 1 file changed, 5 insertions(+)

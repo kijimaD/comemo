@@ -1,17 +1,20 @@
-commit 2834526fd9de26079bebc726d3ce3ccaaf38a0aa
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 23 15:28:36 2016 -0700
+commit 1faa8869c6c72f055cdaa2b547964830909c96c6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 6 12:31:55 2016 -0700
 
-    time: update documentation for Duration.String regarding the zero value
+    net/http: set the Request context for incoming server requests
     
-    It was out of date; in 1.7 the format changes to 0s.
+    Updates #13021
+    Updates #15224
     
-    Change-Id: I2013a1b0951afc5607828f313641b51c74433257
-    Reviewed-on: https://go-review.googlesource.com/24421
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia3cd608bb887fcfd8d81b035fa57bd5eb8edf09b
+    Reviewed-on: https://go-review.googlesource.com/21810
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/time.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/net/http/request.go    |  8 ++++--
+ src/net/http/serve_test.go | 67 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 28 ++++++++++++++-----
+ 3 files changed, 95 insertions(+), 8 deletions(-)

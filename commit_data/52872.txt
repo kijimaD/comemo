@@ -1,40 +1,13 @@
-commit 1596aeec8ecc8f115bffad49a3d92944fc278f9a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 1 17:38:08 2023 -0700
+commit decdd87bea5ab380b6c2a656735db9b2eb08a202
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat May 28 12:39:35 2022 +0800
 
-    all: add String for fs.{FileInfo,DirEntry} implementations
+    doc/go1.19: mention riscv64 supported regabi
     
-    The new String methods use the new FormatFileInfo and
-    FormatDirEntry functions.
-    
-    Fixes #54451
-    
-    Change-Id: I414cdfc212ec3c316fb2734756d2117842a23631
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491175
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I715e53e4baf67f896fa9c240f7668ce11f7b33c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409195
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/archive/tar/common.go                |  4 ++++
- src/archive/zip/reader.go                |  4 ++++
- src/archive/zip/struct.go                |  4 ++++
- src/cmd/distpack/archive.go              |  4 ++++
- src/cmd/go/internal/fsys/fsys.go         | 12 ++++++++++++
- src/cmd/go/internal/modfetch/coderepo.go |  4 ++++
- src/cmd/gofmt/long_test.go               |  4 ++++
- src/cmd/pack/pack_test.go                |  4 ++++
- src/embed/embed.go                       |  4 ++++
- src/io/fs/readdir.go                     |  4 ++++
- src/io/fs/walk.go                        |  4 ++++
- src/net/http/fs_test.go                  |  4 ++++
- src/os/dir_plan9.go                      |  5 +++++
- src/os/dir_windows.go                    |  5 +++++
- src/os/file_unix.go                      |  5 +++++
- src/path/filepath/path.go                |  4 ++++
- src/path/filepath/path_test.go           |  4 ++++
- src/testing/fstest/mapfs.go              |  4 ++++
- 18 files changed, 83 insertions(+)
+ doc/go1.19.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

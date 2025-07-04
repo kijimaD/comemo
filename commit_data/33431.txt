@@ -1,35 +1,20 @@
-commit 38c725b14830bc1a95eb48cfb04d5f4c6d916a28
-Author: David Chase <drchase@google.com>
-Date:   Tue Oct 24 17:51:05 2017 -0400
+commit e70fae8a649ebc35867cc4ba937d4ffd4488fe05
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Jul 19 19:52:29 2017 -0700
 
-    cmd/compile: repair name propagation into aggregate parts
+    cmd/link: fix bad dwarf for sudog<T>
     
-    For structs, slices, strings, interfaces, etc, propagation of
-    names to their components (e.g., complex.real, complex.imag)
-    is fragile (depends on phase ordering) and not done right
-    for the "dec" pass.
+    The DWARF entries for type-specific sudog entries used the
+    channel value type instead of a pointer-to-value type for the elem field.
     
-    The dec pass is subsumed into decomposeBuiltin,
-    and then names are pushed into the args of all
-    OpFooMake opcodes.
+    Fixes #21094
     
-    compile/ssa/debug_test.go was fixed to pay attention to
-    variable values, and the reference files include checks
-    for the fixes in this CL (which make debugging better).
+    R=go1.10
     
-    Change-Id: Ic2591ebb1698d78d07292b92c53667e6c37fa0cd
-    Reviewed-on: https://go-review.googlesource.com/73210
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I3f63a5664f42b571f729931309f2c9f6f38ab031
+    Reviewed-on: https://go-review.googlesource.com/50170
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go            |   1 -
- src/cmd/compile/internal/ssa/debug_test.go         |  13 +++
- src/cmd/compile/internal/ssa/decompose.go          | 100 +++++++++---------
- src/cmd/compile/internal/ssa/opt.go                |   7 --
- .../internal/ssa/testdata/hist.dbg-dlv.nexts       |  56 +++++-----
- .../internal/ssa/testdata/hist.dbg-gdb.nexts       |  56 +++++-----
- src/cmd/compile/internal/ssa/testdata/hist.go      |  10 +-
- .../internal/ssa/testdata/hist.opt-dlv.nexts       |   4 +-
- .../internal/ssa/testdata/hist.opt-gdb.nexts       | 116 ++++++++++++++++-----
- 9 files changed, 212 insertions(+), 151 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go      | 10 ++-----
+ src/cmd/link/internal/ld/dwarf_test.go | 55 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 8 deletions(-)

@@ -1,29 +1,22 @@
-commit dd789550a74817e88466cdb583ae86c4c1426380
-Author: Keith Randall <khr@google.com>
-Date:   Tue Oct 23 14:38:22 2018 -0700
+commit d21bdf125c76cc4f5b5efad59f39c435ca8aaa14
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 28 20:34:05 2018 -0400
 
-    cmd/compile: intrinsify math/bits.Sub on amd64
+    cmd/compile: check SSAability in handling of INDEX of 1-element array
     
-    name             old time/op  new time/op  delta
-    Sub-8            1.12ns ± 1%  1.17ns ± 1%   +5.20%          (p=0.008 n=5+5)
-    Sub32-8          1.11ns ± 0%  1.11ns ± 0%     ~     (all samples are equal)
-    Sub64-8          1.12ns ± 0%  1.18ns ± 1%   +5.00%          (p=0.016 n=4+5)
-    Sub64multiple-8  4.10ns ± 1%  0.86ns ± 1%  -78.93%          (p=0.008 n=5+5)
+    SSA can handle 1-element array, but only when the element type
+    is SSAable. When building SSA for INDEX of 1-element array, we
+    did not check the element type is SSAable. And when it's not,
+    it resulted in an unhandled SSA op.
     
-    Fixes #28273
+    Fixes #26120.
     
-    Change-Id: Ibcb6f2fd32d987c3bcbae4f4cd9d335a3de98548
-    Reviewed-on: https://go-review.googlesource.com/c/144258
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Id709996b5d9d90212f6c56d3f27eed320a4d8360
+    Reviewed-on: https://go-review.googlesource.com/121496
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/amd64/ssa.go          |   9 +-
- src/cmd/compile/internal/gc/ssa.go             |   7 ++
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   9 ++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  16 ++-
- src/cmd/compile/internal/ssa/gen/genericOps.go |   1 +
- src/cmd/compile/internal/ssa/opGen.go          |  74 +++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 141 +++++++++++++++++++++++++
- test/codegen/mathbits.go                       |  60 +++++++++++
- 8 files changed, 312 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go |  3 ++-
+ test/fixedbugs/issue26120.go       | 23 +++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

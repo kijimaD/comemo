@@ -1,27 +1,26 @@
-commit 3c588b3fe7e1394f7df981284f1dc4c0a2b32b14
-Author: jimmyfrasche <soapboxcicero@gmail.com>
-Date:   Sun Apr 1 11:15:17 2018 -0700
+commit c8691f3ac1bb7c175aa066b78d3c895afe1981f9
+Author: Kevin Burke <kev@inburke.com>
+Date:   Fri Jul 14 16:20:27 2017 -0600
 
-    flag: correct zero values when printing defaults
+    crypto/cipher: use raw bytes for keys in docs
     
-    When the flag package first begin printing nonzero defaults, the test
-    was against a fixed set of string representations of zero values.
-    This worked until the string representation of a time.Duration
-    changed from "0" to "0s", causing the zero Duration to register as
-    nonzero. The flag package then added reflect-based code that fell back
-    to the old test. This failed to work when a nonzero default for a flag
-    happened to be the string representation of one the original fixed set
-    of zero values in the original test. This change removes the original
-    test, allowing the reflect-based code to be the only deciding factor.
+    Using ASCII values for keys is a bad idea since it makes them vastly
+    easier to guess. Instead, use the same method as the examples in the
+    golang.org/x/crypto/nacl package to load keys from a hex value.
     
-    Fixes #23543
+    Changing the key required updating the ciphertext in many of the
+    examples.
     
-    Change-Id: I582ce554d6729e336fdd96fb27340674c15350d8
-    Reviewed-on: https://go-review.googlesource.com/103867
+    I am still worried about the fact the examples ask the user to
+    authenticate messages; authentication isn't trivial, and to be honest
+    it may be better to steer people to a higher level primitive like
+    secretbox, unless people really need AES.
+    
+    Fixes #21012.
+    
+    Change-Id: I8d918cf194694cd380b06c2d561178167ca61adb
+    Reviewed-on: https://go-review.googlesource.com/48596
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/flag/flag.go      | 14 +++-----------
- src/flag/flag_test.go |  3 +++
- 2 files changed, 6 insertions(+), 11 deletions(-)
+ src/crypto/cipher/example_test.go | 76 +++++++++++++++++++++++++++++----------
+ 1 file changed, 57 insertions(+), 19 deletions(-)

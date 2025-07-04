@@ -1,21 +1,34 @@
-commit 80b83770498dd1d4a4b13ac2d016419a65026f1b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Oct 26 11:41:02 2018 -0400
+commit 52e782a2d6e83065e394d127ea5df20e4aaaa8af
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 20 16:25:41 2018 -0400
 
-    crypto/tls: bump test timeouts from 1s to 1m for slow builders
+    runtime: initialize g0 stack bounds on Windows to full stack
     
-    The arm5 and mips builders are can't-send-a-packet-to-localhost-in-1s
-    slow apparently. 1m is less useful, but still better than an obscure
-    test timeout panic.
+    Currently, we allocate 1MB or 2MB thread stacks on Windows, but in
+    non-cgo binaries still set the g0 stack bounds assuming only 64k is
+    available. While this is fine in pure Go binaries, a non-cgo Go binary
+    on Windows can use the syscall package to call arbitrary DLLs, which
+    may call back into Go. If a DLL function uses more than 64k of stack
+    and then calls back into Go, the Go runtime will believe that it's out
+    of stack space and crash.
     
-    Fixes #28405
+    Fix this by plumbing the correct stack size into the g0 stacks of
+    non-cgo binaries. Cgo binaries already use the correct size because
+    their g0 stack sizes are set by a different code path.
     
-    Change-Id: I2feeae6ea1b095114caccaab4f6709f405faebad
-    Reviewed-on: https://go-review.googlesource.com/c/145037
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Fixes #20975.
+    
+    Change-Id: Id6fb559cfe1e1ea0dfac56d4654865c20dccf68d
+    Reviewed-on: https://go-review.googlesource.com/120195
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/handshake_client_test.go | 6 +++---
- src/crypto/tls/handshake_server_test.go | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/pe.go      |  4 ++--
+ src/runtime/cgo/gcc_windows_386.c   |  2 +-
+ src/runtime/cgo/gcc_windows_amd64.c |  2 +-
+ src/runtime/os_windows.go           | 19 ++++++++++++++++---
+ src/runtime/sys_windows_386.s       |  3 ++-
+ src/runtime/sys_windows_amd64.s     |  3 ++-
+ 6 files changed, 24 insertions(+), 9 deletions(-)

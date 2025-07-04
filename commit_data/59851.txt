@@ -1,19 +1,24 @@
-commit 2f653a5a9e9112ff64f1392ff6e1d404aaf23e8c
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri May 23 20:28:36 2025 +0200
+commit e602625c5e65da607b99f72082dd60ff70cafe04
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 2 13:38:55 2024 -0700
 
-    crypto/tls: ensure the ECDSA curve matches the signature algorithm
+    cmd/go: pass -Wl,-z,nodelete for c-shared mode with gccgo
     
-    Change-Id: I6a6a4656c1b47ba6bd652d4da18922cb6b80a8ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675836
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    This is the gccgo version of CL 15605.
+    
+    For https://gcc.gnu.org/PR114699
+    
+    For #11100
+    For #12582
+    For #12873
+    
+    Change-Id: I30e23130737022d772971f0bd629b57269174886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582975
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/crypto/tls/auth.go                   | 59 ++++++++++++++------------------
- src/crypto/tls/bogo_config.json          |  2 --
- src/crypto/tls/handshake_client_tls13.go |  3 +-
- src/crypto/tls/handshake_server_tls13.go |  3 +-
- 4 files changed, 29 insertions(+), 38 deletions(-)
+ src/cmd/go/internal/work/gccgo.go | 3 +++
+ 1 file changed, 3 insertions(+)

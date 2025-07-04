@@ -1,20 +1,25 @@
-commit ea65d015b838f2ca75debacacbbb039fe5e96b26
-Author: Ggicci <ggicci.t@gmail.com>
-Date:   Mon Feb 11 18:00:02 2019 +0800
+commit de72c43f78cf31e672cfc93474c9bbb8a1eec925
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Sep 30 16:07:27 2018 +1000
 
-    net/http: clean the path of the stripped URL by StripPrefix
+    net: skip TestUnixConnLocalWindows on windows/386
     
-    The path of the new stripped URL should also be cleaned. Since an empty path
-    may cause unexpected errors in some HTTP handlers, e.g. http.ServeFile.
+    Recent CL 125456 implemented Unix Socket functionality on windows.
+    But that functionality does not appear to be working when 32-bit
+    code is used. So disable TestUnixConnLocalWindows.
     
-    Fixes #30165
+    windows/386 builder does not appear to be complaining about
+    TestUnixConnLocalWindows, because new functionality requires
+    Windows 10 Build 17063. windows/386 builder uses Windows 2008.
     
-    Change-Id: Ib44fdce6388b5d62ffbcab5266925ef8f13f26e2
-    Reviewed-on: https://go-review.googlesource.com/c/161738
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #27943
+    
+    Change-Id: Iea91b86aaa124352d198ca0cd03fff1e7542f949
+    Reviewed-on: https://go-review.googlesource.com/138676
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/serve_test.go | 9 +++++++++
- src/net/http/server.go     | 2 +-
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/net/unixsock_windows_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

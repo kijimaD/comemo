@@ -1,0 +1,16 @@
+commit e689a7c8e8ed6c690adec8a125b242608a3c0815
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 3 13:44:20 2024 +0100
+
+    crypto/internal/fips/subtle: move constant time functions from crypto/subtle
+    
+    Change-Id: I267a3cac168fc0366fafac4c26e6a80ca545436a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624755
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ src/crypto/internal/fips/subtle/constant_time.go | 60 ++++++++++++++++++++++++
+ src/crypto/subtle/constant_time.go               | 36 ++++----------
+ 2 files changed, 70 insertions(+), 26 deletions(-)

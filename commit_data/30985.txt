@@ -1,34 +1,14 @@
-commit 095a62c3494e5ca6290357d1b4d307f502257578
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 29 09:08:39 2017 -0700
+commit a37b9e8e70fd8e614caa6077b3b8afb488f7f59e
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Thu Jan 5 12:28:06 2017 -0800
 
-    cmd/compile: refactor maplit
+    doc: explain how to set GOPATH to a custom value
     
-    Instead of walking the list of nodes twice,
-    once to find static entries to add to an array
-    and once to find dynamic entries to generate code for,
-    do the split once up front, into two slices.
-    Then process each slice individually.
-    This makes the code easier to read
-    and more importantly, easier to modify.
+    Updates #18294.
     
-    While we're here, add a TODO to avoid
-    using temporaries for mapassign_fast calls.
-    It's not an important TODO;
-    the generated code would be basically identical.
-    It would just avoid a minor amount of
-    pointless SSA optimization work.
-    
-    Passes toolstash-check.
-    No measureable compiler performance impact.
-    
-    Updates #19751
-    
-    Change-Id: I84a8f2c22f9025c718ef34639059d7bd02a3c406
-    Reviewed-on: https://go-review.googlesource.com/39351
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ib6b84243a15ed921cc8960e5fa355fd7594181e6
+    Reviewed-on: https://go-review.googlesource.com/34821
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 108 ++++++++++++++++-------------------
- 1 file changed, 48 insertions(+), 60 deletions(-)
+ doc/code.html | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

@@ -1,16 +1,12 @@
-commit 0de0ed369f902675cdfa9ed164497ae81c42bcdd
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 9 10:25:15 2018 -0700
+commit 8a092b74fce0d6cf20be1e9d8855beace7db03cd
+Author: Tom Levy <tomlevy93@gmail.com>
+Date:   Thu Nov 23 14:32:03 2017 +1300
 
-    test: check that unaligned load-add opcodes work.
+    doc: fix typo in Effective Go: s/ReaderWriter/ReadWriter/
     
-    A test for CL 102036.
-    
-    Change-Id: Ief6dcb4f478670813fbe22ea75a06815a4b201a3
-    Reviewed-on: https://go-review.googlesource.com/105875
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I3bfe1b11265f0def4701faf2cfc1ad10a666a473
+    Reviewed-on: https://go-review.googlesource.com/79596
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/align.go | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

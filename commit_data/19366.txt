@@ -1,15 +1,14 @@
-commit 208a1ea564e8b1ce8d6d85a315a410f29d5e952e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 15 16:16:26 2014 -0400
+commit 27b98974964e9fd5d25ebef96b4ba11b99aaa8e1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 15 12:41:45 2014 -0700
 
-    doc/go1.3.html: add note about unsafe.Pointer strictness
+    net/http: fix nits found by go tool vet
     
-    The vet check is in CL 10470044.
-    
-    LGTM=bradfitz, r
-    R=r, bradfitz
+    LGTM=ruiu
+    R=golang-codereviews, ruiu
     CC=golang-codereviews
-    https://golang.org/cl/91480044
+    https://golang.org/cl/91480043
 
- doc/go1.3.html | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/pkg/net/http/serve_test.go     | 2 +-
+ src/pkg/net/http/transport_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

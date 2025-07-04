@@ -1,31 +1,21 @@
-commit 19ee2ef9502795dd9517b6b7fa789922241d2a03
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Oct 23 19:57:07 2017 +0100
+commit ca886e0673ab1e199b722d4828b35f6a9c995cbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 16 11:49:33 2017 -0500
 
-    cmd/compile: introduce gc.Node.copy method
+    cmd/go/internal/cache: fix build failure introduced in CL 78176
     
-    When making a shallow copy of a node, various methods were used,
-    including calling nod(OXXX, nil, nil) and then overwriting it, or
-    "n1 := *n" and then using &n1.
+    Maybe a bad git merge - not sure.
+    In any event, I do miss the trybots.
     
-    Add a copy method instead, simplifying all of those and making them
-    consistent.
+    Noticed while fixing: change print-to-stderr+panic
+    to pure panic, just so that the test (which catches the panic)
+    does not print any errors before passing.
     
-    Passes toolstash -cmp on std cmd.
-    
-    Change-Id: I3f3fc88bad708edc712bf6d87214cda4ddc43b01
-    Reviewed-on: https://go-review.googlesource.com/72710
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If25153ea64e81066455401110ae7a79c36f2f712
+    Reviewed-on: https://go-review.googlesource.com/78316
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/const.go     |  6 ++---
- src/cmd/compile/internal/gc/dcl.go       |  6 ++---
- src/cmd/compile/internal/gc/inl.go       | 10 +++-----
- src/cmd/compile/internal/gc/order.go     | 24 +++++++++---------
- src/cmd/compile/internal/gc/racewalk.go  |  6 ++---
- src/cmd/compile/internal/gc/sinit.go     | 43 ++++++++++++++------------------
- src/cmd/compile/internal/gc/subr.go      | 20 ++++++++-------
- src/cmd/compile/internal/gc/typecheck.go |  4 +--
- src/cmd/compile/internal/gc/walk.go      |  4 +--
- 9 files changed, 57 insertions(+), 66 deletions(-)
+ src/cmd/go/internal/cache/cache.go      |  4 ++--
+ src/cmd/go/internal/cache/cache_test.go | 24 ++++++++++++------------
+ 2 files changed, 14 insertions(+), 14 deletions(-)

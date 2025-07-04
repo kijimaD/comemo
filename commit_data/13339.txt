@@ -1,12 +1,32 @@
-commit f4240666be0a267b4e5c793b795e9af11b080e9f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 13 10:29:06 2012 -0700
+commit 38735b957c2e7d1f93021943dafc5b931b9ccab3
+Author: Christopher Swenson <cswenson@google.com>
+Date:   Wed Jun 13 09:31:20 2012 -0700
 
-    math/big: fix binaryGCD
+          math/big: Implemented binary GCD algorithm
     
-    R=rsc
+    benchmark                    old ns/op    new ns/op    delta
+    BenchmarkGCD10x10                 4383         2126  -51.49%
+    BenchmarkGCD10x100                5612         2124  -62.15%
+    BenchmarkGCD10x1000               8843         2622  -70.35%
+    BenchmarkGCD10x10000             17025         6576  -61.37%
+    BenchmarkGCD10x100000           118985        48130  -59.55%
+    BenchmarkGCD100x100              45328        11683  -74.23%
+    BenchmarkGCD100x1000             50141        12678  -74.72%
+    BenchmarkGCD100x10000           110314        26719  -75.78%
+    BenchmarkGCD100x100000          630000       156041  -75.23%
+    BenchmarkGCD1000x1000           654809       137973  -78.93%
+    BenchmarkGCD1000x10000          985683       159951  -83.77%
+    BenchmarkGCD1000x100000        4920792       366399  -92.55%
+    BenchmarkGCD10000x10000       16848950      3732062  -77.85%
+    BenchmarkGCD10000x100000      55401500      4675876  -91.56%
+    BenchmarkGCD100000x100000   1126775000    258951800  -77.02%
+    
+    R=gri, rsc, bradfitz, remyoudompheng, mtj
     CC=golang-dev
-    https://golang.org/cl/6297085
+    https://golang.org/cl/6305065
 
- src/pkg/math/big/int.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/pkg/math/big/gcd_test.go | 47 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/big/int.go      | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/big/int_test.go |  7 ++++++
+ src/pkg/math/big/rat.go      | 24 ++++++--------------
+ 4 files changed, 114 insertions(+), 17 deletions(-)

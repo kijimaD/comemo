@@ -1,18 +1,21 @@
-commit ca804118b1ff4ea6cd0b83808e140671d7e10f6f
+commit e39c7a37f0f1a992eb65202d05c3148524c5c0ef
 Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Dec 7 00:59:54 2023 +0100
+Date:   Mon Jan 23 15:13:20 2023 +0100
 
-    doc: document that the Windows hosts file is now respected
+    runtime: run TestVectoredHandlerDontCrashOnLibrary on 386 and arm64
     
-    For #57757.
-    For #61422.
+    This CL updates TestVectoredHandlerDontCrashOnLibrary so it can run on
+    windows/386 and windows/arm64. It still can't run on windows/arm as
+    it does not support c-shared buildmode (see #43800).
     
-    Change-Id: Icbe9a86b43eb0816dc5899a1c14b50ee22db1c5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548095
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id1577687e165e77d27633c632634ecf86e6e9d6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463117
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/go1.22.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/signal_windows_test.go     | 7 +++++--
+ src/runtime/testdata/testwinlib/main.c | 9 ++++++++-
+ 2 files changed, 13 insertions(+), 3 deletions(-)

@@ -1,17 +1,18 @@
-commit 4a5c37793cf72987b3884b246c9b590d1ed1e565
-Author: Guilherme Rezende <guilhermebr@gmail.com>
-Date:   Tue Aug 29 13:14:05 2017 -0300
+commit e5c9358fe2ff1d0c1e9a76e5e5d0e7d65c308da6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 13:15:24 2017 -0700
 
-    mime: ignore key on ParseMediaType when value don't pass RFC 2231 check
+    cmd/compile: move writebarrier pass after dse
     
-    Also add more test cases.
+    This avoids generating writeBarrier.enabled
+    blocks for dead stores.
     
-    Change-Id: I53cc6484b25560fc7a4b5d44e73bbd9270c25769
-    Reviewed-on: https://go-review.googlesource.com/59950
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib11d8e2ba952f3f1f01d16776e40a7200a7683cf
+    Reviewed-on: https://go-review.googlesource.com/42012
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/mime/mediatype.go      |  25 +++++--
- src/mime/mediatype_test.go | 183 ++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 198 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go |  2 +-
+ test/writebarrier.go                    | 39 +++++++++++++++++++++------------
+ 2 files changed, 26 insertions(+), 15 deletions(-)

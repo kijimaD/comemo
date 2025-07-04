@@ -1,12 +1,17 @@
-commit d3ca620bafa28393acb726455a1d875df87ed653
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 4 16:35:40 2011 -0400
+commit 60c4c3464b48b8238f29376c2911922fe207d853
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 4 13:09:34 2011 -0700
 
-    gotest: fix build
+    path/filepath.Glob: add an error return.
+    The error will only occur for invalid patterns, but without this
+    error path there is no way to know that Glob has failed due to
+    an invalid pattern.
     
-    TBR=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4351047
+    https://golang.org/cl/4346044
 
- src/cmd/gotest/gotest.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gotest/gotest.go            |  7 +++++--
+ src/pkg/path/filepath/match.go      | 36 +++++++++++++++++++++-------------
+ src/pkg/path/filepath/match_test.go | 39 ++++++++++++++++++++++++-------------
+ 3 files changed, 53 insertions(+), 29 deletions(-)

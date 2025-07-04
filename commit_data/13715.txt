@@ -1,17 +1,18 @@
-commit 85ce3c724167f82793c0c2be0edf611c70cede49
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Fri Aug 31 13:02:29 2012 -0400
+commit db7dbe32aa449d64194f811d532c9d3fcc5c3255
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Fri Aug 31 12:00:01 2012 -0400
 
-    cmd/gc: mark broken type declarations as broken.
+    net/http: fix inserting of implicit redirects in serve mux
     
-    This fixes a spurious 'invalid recursive type' error, and stops the compiler from emitting errors on uses of the invalid type.
+    In serve mux, if pattern contains a host name, pass only the path to
+    the redirect handler.
     
-    Fixes #3766.
+    Add tests for serve mux redirections.
     
-    R=golang-dev, dave, minux.ma, rsc
-    CC=golang-dev
-    https://golang.org/cl/6443100
+    R=rsc
+    CC=bradfitz, gobot, golang-dev
+    https://golang.org/cl/6329045
 
- src/cmd/gc/typecheck.c   |  1 +
- test/fixedbugs/bug451.go | 35 ++++-------------------------------
- 2 files changed, 5 insertions(+), 31 deletions(-)
+ src/pkg/net/http/serve_test.go | 19 ++++++++++++++++---
+ src/pkg/net/http/server.go     | 10 +++++++++-
+ 2 files changed, 25 insertions(+), 4 deletions(-)

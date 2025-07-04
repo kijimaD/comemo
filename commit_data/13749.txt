@@ -1,13 +1,12 @@
-commit 96f740c8c48d334759090d9f134d3ccb47a63cb1
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Sep 5 14:52:12 2012 +1000
+commit ee911c426574d5421d7b227eda07b7b62f9dbfdf
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Sep 4 16:35:05 2012 -0400
 
-    A+C: Oling Cat (individual CLA)
+    runtime: fix typo in openbsd-only symbol name.
     
-    R=dsymonds
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6503070
+    https://golang.org/cl/6490076
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/runtime/thread_openbsd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

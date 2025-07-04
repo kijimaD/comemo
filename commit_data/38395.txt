@@ -1,14 +1,20 @@
-commit 0a04c0430e9671bd531a2928a8416424da1e3dde
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 27 18:27:13 2019 -0800
+commit 9627180f0f1f016307f4987cec6594baf90d64ae
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Oct 25 23:11:10 2018 +0200
 
-    cmd/compile: restore constant folding optimization within OADDSTR
+    misc/wasm: improve detection of Node.js
     
-    Change-Id: Ib55f2458c75aee49302f0dd4e2a819f9931a5ed3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166982
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This commit adds a check of "process.title" to detect Node.js.
+    
+    The web app bundler Parcel sets "process" to an empty object. This
+    incorrectly got detected as Node.js, even though the script was
+    running in a browser.
+    
+    Fixes #28364.
+    
+    Change-Id: Iecac7f8fc3cc4ac7ddb42dd43c5385681a3282de
+    Reviewed-on: https://go-review.googlesource.com/c/144658
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ misc/wasm/wasm_exec.js | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)

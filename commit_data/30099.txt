@@ -1,29 +1,16 @@
-commit fd37b8ccf2262bb3f0a608f7545f78a72e8d661f
-Author: David R. Jenni <david.r.jenni@gmail.com>
-Date:   Sun Feb 5 11:02:03 2017 +0100
+commit 79b5d329011823c2dff403a98e5a6a4f5946cde2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 25 06:45:35 2016 -0700
 
-    sort: optimize average calculation in binary search
+    crypto/tls: fix vet issues again
     
-    Use fewer instructions to calculate the average of i and j without
-    overflowing at the addition.
+    While we're here, use test[%d] in place of #%d.
     
-    Even if both i and j are math.MaxInt{32,64}, the sum fits into a
-    uint{32,64}. Because the sum of i and j is always ≥ 0, the right
-    shift by one does the same as a division by two. The result of the
-    shift operation is at most math.MaxInt{32,64} and fits again into
-    an int{32,64}.
-    
-    name              old time/op  new time/op  delta
-    SearchWrappers-4   153ns ± 3%   143ns ± 6%  -6.33%  (p=0.000 n=90+100)
-    
-    This calculation is documented in:
-    https://research.googleblog.com/2006/06/extra-extra-read-all-about-it-nearly.html
-    
-    Change-Id: I2be7922afc03b3617fce32e59364606c37a83678
-    Reviewed-on: https://go-review.googlesource.com/36332
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ie30afcab9673e78d3ea7ca80f5e662fbea897488
+    Reviewed-on: https://go-review.googlesource.com/31936
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/sort/search.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/handshake_client_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

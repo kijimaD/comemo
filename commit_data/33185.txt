@@ -1,24 +1,16 @@
-commit 6738c494ad675c0fdd309c9b5c6b7f0c08f00022
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Oct 7 13:28:51 2017 -0400
+commit 3d9475c04bbc78ad5052521b2881d93fb9dc27da
+Author: Zac Bergquist <zbergquist99@gmail.com>
+Date:   Tue Jul 25 14:08:47 2017 -0400
 
-    cmd/link: move FlagLinkshared global to ctxt
+    doc: cleanup editor page
     
-    For #22095
+    Fix some UI issues introduced with CL50952:
+    - increase header colspan to account for additional column
+    - remove ':' character from footnotes
     
-    Change-Id: Ica6b3391541fe5a0355620d7c4a5107cf53eee82
-    Reviewed-on: https://go-review.googlesource.com/70833
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I56f59b8e4b2852612b3c6c7c0dfe99125dd8b57b
+    Reviewed-on: https://go-review.googlesource.com/51113
+    Reviewed-by: Jaana Burcu Dogan <jbd@google.com>
 
- src/cmd/link/internal/ld/config.go   |  2 +-
- src/cmd/link/internal/ld/data.go     |  2 +-
- src/cmd/link/internal/ld/deadcode.go |  2 +-
- src/cmd/link/internal/ld/elf.go      |  2 +-
- src/cmd/link/internal/ld/ld.go       |  4 ++--
- src/cmd/link/internal/ld/lib.go      | 14 +++++++-------
- src/cmd/link/internal/ld/link.go     |  5 +++--
- src/cmd/link/internal/ld/main.go     |  4 ++--
- 8 files changed, 18 insertions(+), 17 deletions(-)
+ doc/editors.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

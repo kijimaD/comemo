@@ -1,17 +1,16 @@
-commit b39d0eab902cb6b90aa99bcf11ca622c00219c7c
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Tue Apr 16 14:19:18 2019 +0200
+commit bb3b24bffc4f50c64504c1c5f899aad0281a449a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 26 15:58:56 2018 +1100
 
-    syscall: move helper handler before AIX handler in TestPassFD
+    fmt: update formatting example for maps
     
-    The AIX special handler which skips this test if unix network isn't
-    supported, doesn't need to be called inside the helper process.
+    Now that maps are printed in deterministic order, the map example
+    can have multiple keys without breaking the build.
     
-    Change-Id: I7ff2c4e6b20eceb977380294858cae63034ffe0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172160
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Iccec0cd76a3d41c75d8d4eb768ec0ac09ad9f2ad
+    Reviewed-on: https://go-review.googlesource.com/c/151218
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/syscall_unix_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/fmt/example_test.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

@@ -1,32 +1,25 @@
-commit 26aa8d6eb8faf05bbbb87a4f531e3e0fe4feed44
-Author: Mark D Ryan <markdryan@rivosinc.com>
-Date:   Fri Aug 23 08:17:25 2024 +0000
+commit 65d4723b49cedaf533a21845013814fc4d0a467f
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Mon Jul 31 20:58:45 2023 +0000
 
-    runtime: add asm_riscv64.h
+    net/http: add ServeFileFS, FileServerFS, NewFileTransportFS
     
-    asm_riscv64.h will be used to define macros for each riscv64
-    extension that is not part of the rva20u64 base profile but that the
-    _riscv64.s assembly files are allowed to use because the user has
-    specified a more capable profile in the GORISCV64 variable. This will
-    allow us, for example, to test for the hasZba macro in those assembly
-    files instead of the GORISCV64_rva22u64 macro before using a Zba
-    instruction.  This is important as it means that in the future when
-    we add support for new profiles that support Zba, e.g., rva23u64,
-    we only need to update asm_riscv64.h to indicate rva23u64 supports
-    Zba.  We will not need to update every assembly language file that
-    already uses Zba instructions.
+    These new apis are analogous to ServeFile, FileServer and NewFileTransport respectively. The main difference is that these functions operate on an fs.FS.
     
-    Updates #61476
+    Fixes #51971
     
-    Change-Id: I83abfeb20d08a87ac8ea88f4d8a93437f0631353
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608255
-    Auto-Submit: Tim King <taking@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie56b245b795eeb7edf613657578592306945469b
+    GitHub-Last-Rev: 26e75c0368f155a2299fbdcb72f47036b71a5e06
+    GitHub-Pull-Request: golang/go#61641
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513956
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/dist/build.go     |  2 ++
- src/runtime/asm_riscv64.h | 12 ++++++++++++
- 2 files changed, 14 insertions(+)
+ api/next/51971.txt                 |  3 +++
+ src/net/http/filetransport.go      | 19 +++++++++++++++
+ src/net/http/filetransport_test.go | 42 ++++++++++++++++++++++++++++++++
+ src/net/http/fs.go                 | 50 +++++++++++++++++++++++++++++++++++---
+ src/net/http/fs_test.go            | 49 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 160 insertions(+), 3 deletions(-)

@@ -1,60 +1,35 @@
-commit 25b040c287b0935685ac16c05bd67f34436c3b12
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Fri Jul 28 22:29:30 2017 -0700
+commit a41b1d50523c3fc6fb874310d4340b845b13b250
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 12 14:42:24 2017 -0700
 
-    math/big: recognize z.Mul(x, x) as squaring of x
+    runtime: convert hmap.overflow into hmap.extra
     
-    updates #13745
+    Any change to how we allocate overflow buckets
+    will require some extra hmap storage,
+    but we don't want hmap to grow,
+    particular as small maps usually don't need overflow buckets.
     
-    Multiprecision squaring can be done in a straightforward manner
-    with about half the multiplications of a basic multiplication
-    due to the symmetry of the operands.  This change implements
-    basic squaring for nat types and uses it for Int multiplication
-    when the same variable is supplied to both arguments of
-    z.Mul(x, x). This has some overhead to allocate a temporary
-    variable to hold the cross products, shift them to double and
-    add them to the diagonal terms.  There is a speed benefit in
-    the intermediate range when the overhead is neglible and the
-    asymptotic performance of karatsuba multiplication has not been
-    reached.
+    This CL converts the existing hmap overflow field,
+    which is usually used for pointer-free maps,
+    into a generic extra field.
     
-    basicSqrThreshold = 20
-    karatsubaSqrThreshold = 400
+    This extra field can be used to hold data that is optional.
+    If it is valuable enough to do have special
+    handling of overflow buckets, which are medium-sized,
+    it is valuable enough to pay an extra alloc and two extra words for.
     
-    Were set by running calibrate_test.go to measure timing differences
-    between the algorithms.  Benchmarks for squaring:
+    Adding fields to extra would entail adding overhead to pointer-free maps;
+    any mapextra fields added would need to be weighed against that.
+    This CL is just rearrangement, though.
     
-    name           old time/op  new time/op  delta
-    IntSqr/1-4     51.5ns ±25%  25.1ns ± 7%  -51.38%  (p=0.008 n=5+5)
-    IntSqr/2-4     79.1ns ± 4%  72.4ns ± 2%   -8.47%  (p=0.008 n=5+5)
-    IntSqr/3-4      102ns ± 4%    97ns ± 5%     ~     (p=0.056 n=5+5)
-    IntSqr/5-4      161ns ± 4%   163ns ± 7%     ~     (p=0.952 n=5+5)
-    IntSqr/8-4      277ns ± 5%   267ns ± 6%     ~     (p=0.087 n=5+5)
-    IntSqr/10-4     358ns ± 3%   360ns ± 4%     ~     (p=0.730 n=5+5)
-    IntSqr/20-4    1.07µs ± 3%  1.01µs ± 6%     ~     (p=0.056 n=5+5)
-    IntSqr/30-4    2.36µs ± 4%  1.72µs ± 2%  -27.03%  (p=0.008 n=5+5)
-    IntSqr/50-4    5.19µs ± 3%  3.88µs ± 4%  -25.37%  (p=0.008 n=5+5)
-    IntSqr/80-4    11.3µs ± 4%   8.6µs ± 3%  -23.78%  (p=0.008 n=5+5)
-    IntSqr/100-4   16.2µs ± 4%  12.8µs ± 3%  -21.49%  (p=0.008 n=5+5)
-    IntSqr/200-4   50.1µs ± 5%  44.7µs ± 3%  -10.65%  (p=0.008 n=5+5)
-    IntSqr/300-4    105µs ±11%    95µs ± 3%   -9.50%  (p=0.008 n=5+5)
-    IntSqr/500-4    231µs ± 5%   227µs ± 2%     ~     (p=0.310 n=5+5)
-    IntSqr/800-4    496µs ± 9%   459µs ± 3%   -7.40%  (p=0.016 n=5+5)
-    IntSqr/1000-4   700µs ± 3%   710µs ± 5%     ~     (p=0.841 n=5+5)
+    Updates #19931
+    Updates #19992
     
-    Show a speed up of 10-25% in the range where basicSqr is optimal,
-    improved single word squaring and no significant difference when
-    the fallback to standard multiplication is used.
-    
-    Change-Id: Iae2c82ca91cf890823f91e5c83bbe9a2c534b72b
-    Reviewed-on: https://go-review.googlesource.com/53638
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: If8537a206905b9d4dc6cd9d886184ece671b3f80
+    Reviewed-on: https://go-review.googlesource.com/40976
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/big/calibrate_test.go | 86 +++++++++++++++++++++++++++++++++++++++---
- src/math/big/int.go            |  5 +++
- src/math/big/int_test.go       | 22 +++++++++++
- src/math/big/nat.go            | 57 +++++++++++++++++++++++++++-
- src/math/big/nat_test.go       | 46 ++++++++++++++++++++++
- 5 files changed, 210 insertions(+), 6 deletions(-)
+ src/runtime/hashmap.go | 35 ++++++++++++++++++++---------------
+ 1 file changed, 20 insertions(+), 15 deletions(-)

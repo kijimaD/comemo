@@ -1,12 +1,16 @@
-commit 0fc441b053097ad07f20a77cb1a71a366b820a01
+commit 343059930624b1e5b54fae8a092819db95b40cca
 Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Feb 16 14:54:45 2012 +1100
+Date:   Thu Feb 16 14:47:14 2012 +1100
 
-    debug/gosym: dump 6a/6l output to process stdout/stderr so we can see failures.
+    debug/gosym: Remove Makefile, rewrite test using go tool.
     
-    TBR=r
+    Update #2573.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5671060
+    https://golang.org/cl/5656071
 
- src/pkg/debug/gosym/pclntab_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/debug/gosym/Makefile                       | 19 --------------
+ .../debug/gosym/{pclinetest.s => pclinetest.asm}   |  2 --
+ src/pkg/debug/gosym/pclntab_test.go                | 30 ++++++++++++++++++----
+ 3 files changed, 25 insertions(+), 26 deletions(-)

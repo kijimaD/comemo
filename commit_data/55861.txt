@@ -1,28 +1,23 @@
-commit 5a329c3bfb6328a66812e21bd1a5a32f8a5c76b0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Mar 7 14:49:30 2024 +0700
+commit 6f2ef5ec98e1a14ee7a2805f68241cfa5feff8bd
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Mon Mar 13 16:20:50 2023 +0800
 
-    cmd/compile: fix copying SSA-able variables optimization
+    cmd/asm, runtime: remove the RSB register from loong64
     
-    CL 541715 added an optimization to copy SSA-able variables.
+    It was carryover from the mips64 port (where it represented the platform
+    GP register) but LoongArch platform ABI doesn't have the GP concept.
     
-    When handling m[k] = append(m[k], ...) case, it uses ir.SameSafeExpr to
-    check that m[k] expressions are the same, then doing type assertion to
-    convert the map index to ir.IndexExpr node. However, this assertion is
-    not safe for m[k] expression in append(m[k], ...), since it may be
-    wrapped by ir.OCONVNOP node.
-    
-    Fixing this by un-wrapping any ir.OCONVNOP before doing type assertion.
-    
-    Fixes #66096
-    
-    Change-Id: I9ff7165ab97bc7f88d0e9b7b31604da19a8ca206
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569716
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Iea326ae13676e95b040b52aaadc08d311b507bd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475815
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/walk/order.go |  7 ++++++-
- test/fixedbugs/issue66096.go           | 17 +++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arch.go        | 1 -
+ src/cmd/asm/internal/asm/operand_test.go | 4 ++--
+ src/runtime/mkpreempt.go                 | 8 +++-----
+ src/runtime/preempt_loong64.s            | 4 ++--
+ src/runtime/signal_loong64.go            | 4 +---
+ 5 files changed, 8 insertions(+), 13 deletions(-)

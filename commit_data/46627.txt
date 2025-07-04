@@ -1,31 +1,44 @@
-commit f0c79caa1398b6a840ec9406eb34b46a125ecb82
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Sep 21 14:22:51 2021 -0700
+commit 78e5aabcdb8aeae58a6437a3051fde3555ee0bf2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 16 16:59:19 2021 -0800
 
-    runtime: move entry method from _func to funcInfo
+    [dev.regabi] cmd/compile: replace Node.HasCall with walk.mayCall
     
-    This will be required when we change from storing entry PCs in _func
-    to entry PC offsets, which are relative to the containing module.
+    After CL 284220, we now only need to detect expressions that contain
+    function calls in the arguments list of further function calls. So we
+    can simplify Node.HasCall/fncall/etc a lot.
     
-    Notably, almost all uses of the entry method were already called
-    on a funcInfo. Only Func.Entry incurs the additional module
-    lookup cost.
+    Instead of incrementally tracking whether an expression contains
+    function calls all throughout walk, simply check once at the point of
+    using an expression as a function call argument. Since any expression
+    checked here will itself become a function call argument, it won't be
+    checked again because we'll short circuit at the enclosing function
+    call.
     
-    This makes Entry considerably slower, but it is probably
-    still fast enough in absolute terms that it is OK.
+    Also, restructure the recursive walk code to use mayCall, and trim
+    down the list of acceptable expressions. It should be okay to be
+    stricter, since we'll now only see function call arguments and after
+    they've already been walked.
     
-    name             old time/op  new time/op  delta
-    Func/Name-8      8.86ns ± 0%  8.33ns ± 2%    -5.92%  (p=0.000 n=12+13)
-    Func/Entry-8     0.64ns ± 0%  2.62ns ±36%  +310.07%  (p=0.000 n=14+15)
-    Func/FileLine-8  24.5ns ± 0%  25.0ns ± 4%    +2.21%  (p=0.015 n=14+13)
+    It's possible I was overly aggressive removing Ops here. But if so,
+    we'll get an ICE, and it'll be easy to re-add them. I think this is
+    better than the alternative of accidentally allowing expressions
+    through that risk silently clobbering the stack.
     
-    Change-Id: Ia2d5de5f2f83fab334f1875452b9e8e87651d340
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351461
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: I585ef35dcccd9f4018e4bf2c3f9ccb1514a826f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284223
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/test/inl_test.go |  2 +-
- src/runtime/symtab.go                     | 13 ++++++++-----
- 2 files changed, 9 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ir/expr.go     |   5 +-
+ src/cmd/compile/internal/ir/mini.go     |   5 +-
+ src/cmd/compile/internal/ir/node.go     |   3 -
+ src/cmd/compile/internal/ir/stmt.go     |   8 +-
+ src/cmd/compile/internal/walk/assign.go |  27 +-----
+ src/cmd/compile/internal/walk/expr.go   |  18 ++--
+ src/cmd/compile/internal/walk/walk.go   | 155 ++++++++++----------------------
+ 7 files changed, 65 insertions(+), 156 deletions(-)

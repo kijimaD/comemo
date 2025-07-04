@@ -1,26 +1,24 @@
-commit 1cc19e5ba0a008df7baeb78e076e43f9d8e0abf2
+commit 14a41387acb6389a8f2f97d337b68c4bc2730eb4
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 8 12:33:10 2023 -0500
+Date:   Mon Nov 21 19:45:46 2022 -0500
 
-    cmd/go: allow toolchain upgrades in 'go mod download' when we would already allow go.mod updates
+    misc/cgo/testcshared: reapply CL 451816
     
-    This fixes an inconsistency that was introduced in CL 537480 and noted
-    in the review on CL 539697.
+    I accidentally reverted its edits with a bad cherry-pick in CL 452457.
     
-    In particular, 'go mod download' already updates the go.mod file when
-    other kinds of updates are needed. (#45551 suggested that it should
-    not do so, but that part of the change was not implemented yet;
-    finishing that change is proposed as #64008.)
+    This should re-fix the windows-.*-newcc builders that regressed at
+    that change.
     
-    Updates #62054.
+    Updates #47257.
+    Updates #35006.
+    Updates #53540.
     
-    Change-Id: Ic659eb8538f4afdec0454737e982d42ef8957e56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540779
+    Change-Id: I5818416af7c4c8c1593c36aa0198331b42b6c7d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452675
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/modcmd/download.go             | 25 +++++++++++++---------
- src/cmd/go/testdata/script/gotoolchain_modcmds.txt |  7 +++---
- .../script/mod_download_exec_toolchain.txt         | 11 +++++-----
- 3 files changed, 24 insertions(+), 19 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 60 +++++++++++++++++++++++-------------
+ 1 file changed, 38 insertions(+), 22 deletions(-)

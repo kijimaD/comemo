@@ -1,12 +1,77 @@
-commit d2d840aae6baeccf96f10dd5d830f243a9f6685c
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Apr 28 09:42:21 2015 -0700
+commit 92c826b1b2473e743964d3478b73a9c39a579abf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 3 12:23:28 2015 -0400
 
-    doc: mention several recent crypto changes in go1.5.txt
+    cmd/internal/gc: inline runtime.getg
     
-    Change-Id: Icf212fc7ea108ff22bb7fa9da137410d729d2569
-    Reviewed-on: https://go-review.googlesource.com/9413
-    Reviewed-by: Adam Langley <agl@golang.org>
+    This more closely restores what the old C runtime did.
+    (In C, g was an 'extern register' with the same effective
+    implementation as in this CL.)
+    
+    On a late 2012 MacBookPro10,2, best of 5 old vs best of 5 new:
+    
+    benchmark                          old ns/op      new ns/op      delta
+    BenchmarkBinaryTree17              4981312777     4463426605     -10.40%
+    BenchmarkFannkuch11                3046495712     3006819428     -1.30%
+    BenchmarkFmtFprintfEmpty           89.3           79.8           -10.64%
+    BenchmarkFmtFprintfString          284            262            -7.75%
+    BenchmarkFmtFprintfInt             282            262            -7.09%
+    BenchmarkFmtFprintfIntInt          480            448            -6.67%
+    BenchmarkFmtFprintfPrefixedInt     382            358            -6.28%
+    BenchmarkFmtFprintfFloat           529            486            -8.13%
+    BenchmarkFmtManyArgs               1849           1773           -4.11%
+    BenchmarkGobDecode                 12835963       11794385       -8.11%
+    BenchmarkGobEncode                 10527170       10288422       -2.27%
+    BenchmarkGzip                      436109569      438422516      +0.53%
+    BenchmarkGunzip                    110121663      109843648      -0.25%
+    BenchmarkHTTPClientServer          81930          85446          +4.29%
+    BenchmarkJSONEncode                24638574       24280603       -1.45%
+    BenchmarkJSONDecode                93022423       85753546       -7.81%
+    BenchmarkMandelbrot200             4703899        4735407        +0.67%
+    BenchmarkGoParse                   5319853        5086843        -4.38%
+    BenchmarkRegexpMatchEasy0_32       151            151            +0.00%
+    BenchmarkRegexpMatchEasy0_1K       452            453            +0.22%
+    BenchmarkRegexpMatchEasy1_32       131            132            +0.76%
+    BenchmarkRegexpMatchEasy1_1K       761            722            -5.12%
+    BenchmarkRegexpMatchMedium_32      228            224            -1.75%
+    BenchmarkRegexpMatchMedium_1K      63751          64296          +0.85%
+    BenchmarkRegexpMatchHard_32        3188           3238           +1.57%
+    BenchmarkRegexpMatchHard_1K        95396          96756          +1.43%
+    BenchmarkRevcomp                   661587262      687107364      +3.86%
+    BenchmarkTemplate                  108312598      104008540      -3.97%
+    BenchmarkTimeParse                 453            459            +1.32%
+    BenchmarkTimeFormat                475            441            -7.16%
+    
+    The garbage benchmark from the benchmarks subrepo gets 2.6% faster as well.
+    
+    Change-Id: I320aeda332db81012688b26ffab23f6581c59cfa
+    Reviewed-on: https://go-review.googlesource.com/8460
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.5.txt | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/5g/galign.go             |  1 +
+ src/cmd/5g/ggen.go               |  7 +++++++
+ src/cmd/6g/galign.go             |  1 +
+ src/cmd/6g/ggen.go               | 17 +++++++++++++++++
+ src/cmd/7g/galign.go             |  1 +
+ src/cmd/7g/ggen.go               |  7 +++++++
+ src/cmd/8g/galign.go             |  1 +
+ src/cmd/8g/ggen.go               | 17 +++++++++++++++++
+ src/cmd/9g/galign.go             |  1 +
+ src/cmd/9g/ggen.go               |  7 +++++++
+ src/cmd/internal/gc/cgen.go      |  4 ++++
+ src/cmd/internal/gc/fmt.go       |  3 ++-
+ src/cmd/internal/gc/gen.go       |  4 ++++
+ src/cmd/internal/gc/go.go        |  1 +
+ src/cmd/internal/gc/syntax.go    |  1 +
+ src/cmd/internal/gc/typecheck.go | 12 ++++++++++++
+ src/cmd/internal/gc/walk.go      |  6 ++++--
+ src/runtime/asm_386.s            |  6 ------
+ src/runtime/asm_amd64.s          |  6 ------
+ src/runtime/asm_amd64p32.s       |  6 ------
+ src/runtime/asm_arm.s            |  4 ----
+ src/runtime/asm_arm64.s          |  4 ----
+ src/runtime/asm_ppc64x.s         |  4 ----
+ src/runtime/stubs.go             |  3 +++
+ 24 files changed, 91 insertions(+), 33 deletions(-)

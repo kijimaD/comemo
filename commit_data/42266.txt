@@ -1,13 +1,16 @@
-commit 03e6073b1340f9a9d92dc4902108ace36f9d5531
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Mar 16 03:13:17 2020 +1100
+commit 8c51b665f0cac0875f440774cbc8229362ab83bf
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Wed Nov 20 10:45:02 2019 +0800
 
-    math: implement Min/Max in riscv64 assembly
+    cmd/go: skip mod_convert_tsv_insecure test when no network is avaliable
     
-    Change-Id: If34422859d47bc8f44974a00c6b7908e7655ff41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223561
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #35703
+    
+    Change-Id: I476efad38897cae93f298af86784bbc2cc2449a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208037
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/math/dim_riscv64.s   | 70 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/math/stubs_riscv64.s |  6 -----
- 2 files changed, 70 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt | 3 +++
+ 1 file changed, 3 insertions(+)

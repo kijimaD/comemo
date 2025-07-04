@@ -1,19 +1,17 @@
-commit 3cbe7ea7e9de8547699537e78b76cfbc119e485d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Apr 13 12:11:00 2015 +0900
+commit 7c2c0b4e533d3d75df8993eb87f6948c49c04cc8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 16 16:31:13 2015 -0700
 
-    os: fix TestProgWideChdir on darwin
+    [dev.ssa] cmd/internal/ssa: minor cleanup
     
-    On darwin, /tmp and /var directories are usually linked to /private.
+    These were review comments for CL 6681 that didn't get sent in time.
     
-    % cd $TMPDIR; pwd -L
-    /var/.../T
-    % pwd -P
-    /private/var/.../T
-    
-    Change-Id: I277ff2d096344d9a80e6004a83e9fc3e1716348c
-    Reviewed-on: https://go-review.googlesource.com/8842
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: If161af3655770487f3ba34535d3fb55dbfde7917
+    Reviewed-on: https://go-review.googlesource.com/7644
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/os_test.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/internal/ssa/deadcode.go | 13 ++++++++-----
+ src/cmd/internal/ssa/op.go       |  2 +-
+ src/cmd/internal/ssa/type.go     |  2 +-
+ src/cmd/internal/ssa/value.go    |  9 ++++++++-
+ 4 files changed, 18 insertions(+), 8 deletions(-)

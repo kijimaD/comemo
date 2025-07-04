@@ -1,44 +1,20 @@
-commit 4f9fe6d50965020053ab80bf115f08070ce97f33
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Sep 4 09:55:01 2023 -0400
+commit 85b02de083b5e337bcb581005d0efca883fdb3d9
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sun Oct 16 20:00:42 2022 +1030
 
-    runtime: allow update of system stack bounds on callback from C thread
+    runtime: remove redundant conversion
     
-    [This is a redo of CL 525455 with the test fixed on darwin by defining
-    _XOPEN_SOURCE, and disabled with android, musl, and openbsd, which do
-    not provide getcontext.]
+    This appears to have been left over from a C cast during the rewrite of
+    malloc into Go in https://golang.org/cl/108840046.
     
-    Since CL 495855, Ms are cached for C threads calling into Go, including
-    the stack bounds of the system stack.
-    
-    Some C libraries (e.g., coroutine libraries) do manual stack management
-    and may change stacks between calls to Go on the same thread.
-    
-    Changing the stack if there is more Go up the stack would be
-    problematic. But if the calls are completely independent there is no
-    particular reason for Go to care about the changing stack boundary.
-    
-    Thus, this CL allows the stack bounds to change in such cases. The
-    primary downside here (besides additional complexity) is that normal
-    systems that do not manipulate the stack may not notice unintentional
-    stack corruption as quickly as before.
-    
-    Note that callbackUpdateSystemStack is written to be usable for the
-    initial setup in needm as well as updating the stack in cgocallbackg.
-    
-    Fixes #62440.
-    For #62130.
-    
-    Change-Id: I0fe0134f865932bbaff1fc0da377c35c013bd768
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527715
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I88f212089c2bcf79d5881b3e8bf3f94f343331d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443235
+    Run-TryBot: Dan Kortschak <dan@kortschak.io>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/cgocall.go                          |  70 ++++++++++++++++
- src/runtime/crash_cgo_test.go                   |  17 ++++
- src/runtime/proc.go                             |  33 ++------
- src/runtime/testdata/testprogcgo/stackswitch.c  | 104 ++++++++++++++++++++++++
- src/runtime/testdata/testprogcgo/stackswitch.go |  43 ++++++++++
- 5 files changed, 243 insertions(+), 24 deletions(-)
+ src/runtime/malloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

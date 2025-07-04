@@ -1,23 +1,14 @@
-commit b906df653b58bc2ab9b93e18f62adccc8c1419b7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 15 17:55:28 2016 -0800
+commit a7dc821d6447f9bdfb54e2fad2ab76f6d40873ca
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 22 10:58:43 2016 +1000
 
-    os/exec: add closeOnce.WriteString method
+    crypto/rsa: clarify comment on maximum message length.
     
-    Add an explicit WriteString method to closeOnce that acquires the
-    writers lock.  This overrides the one promoted from the
-    embedded *os.File field.  The promoted one naturally does not acquire
-    the lock, and can therefore race with the Close method.
+    See https://groups.google.com/d/topic/golang-nuts/stbum5gZbAc/discussion
     
-    Fixes #17647.
-    
-    Change-Id: I3460f2a0d503449481cfb2fd4628b4855ab0ecdf
-    Reviewed-on: https://go-review.googlesource.com/33298
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2e78e8d0dadd78c8b0389514cad3c45d061b663b
+    Reviewed-on: https://go-review.googlesource.com/29496
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go     |  4 ++--
- src/os/exec/exec.go      |  7 +++++++
- src/os/exec/exec_test.go | 26 ++++++++++++++++++++++++++
- 3 files changed, 35 insertions(+), 2 deletions(-)
+ src/crypto/rsa/rsa.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

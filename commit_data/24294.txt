@@ -1,15 +1,28 @@
-commit b0507f15798af22f2c23042ec6308702380112c4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 14 16:59:15 2015 -0700
+commit 1a99ba55df902a2657d1ccfc52a60024c22dba98
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Tue Apr 28 11:20:19 2015 +0000
 
-    go/parser: better error message for incorrect type switch header
+    encoding/json: fix decoding of JSON null values
     
-    Fixes 11829.
+    JSON decoding currently fails for null values bound to any type
+    which does implement the JSON Unmarshaler interface without checking
+    for null values (such as time.Time).
     
-    Change-Id: I2e39f61e12953147b0cd6a11d29179c500c94964
-    Reviewed-on: https://go-review.googlesource.com/14566
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    It also fails for types implementing the TextUnmarshaler interface.
+    
+    The expected behavior of the JSON decoding engine in such case is
+    to process null by keeping the value unchanged without producing
+    any error.
+    
+    Make sure null values are handled by the decoding engine itself,
+    and never passed to the UnmarshalText or UnmarshalJSON methods.
+    
+    Fixes #9037
+    
+    Change-Id: I261d85587ba543ef6f1815555b2af9311034d5bb
+    Reviewed-on: https://go-review.googlesource.com/9376
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/parser/parser.go     | 19 ++++++++++++++-----
- src/go/parser/short_test.go |  2 +-
- 2 files changed, 15 insertions(+), 6 deletions(-)
+ src/encoding/json/decode.go      |  2 +-
+ src/encoding/json/decode_test.go | 76 +++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 76 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit dc49aba8e41350ab039a23890fa987cfe6ddaa9c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Mar 18 20:28:34 2025 +0100
+
+    net/smtp: make test certificate FIPS 140-3 compliant
+    
+    The key was too small and was getting rejected by crypto/tls if running
+    tests in FIPS 140-3 mode.
+    
+    Change-Id: I6a6a4656374b942aeeca55d5c0464c965db0f6de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658935
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/net/smtp/smtp_test.go | 70 +++++++++++++++++++++++++++++------------------
+ 1 file changed, 44 insertions(+), 26 deletions(-)

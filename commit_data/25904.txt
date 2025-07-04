@@ -1,18 +1,13 @@
-commit a337e30620ca8557943190a988f53487ced68f05
-Author: kortschak <dan.kortschak@adelaide.edu.au>
-Date:   Thu Feb 25 17:39:45 2016 +1030
+commit 5d53eeb20f40c89de96e416622ddaf140ca2cc1c
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Nov 23 16:07:20 2015 -0800
 
-    cmd/dist: don't run fortran test if fortran compilation fails
+    doc: document go1.5.2
     
-    Fixes #14498.
-    
-    Change-Id: I4cfab3e45898466179cefbd31c6f7f796da82363
-    Reviewed-on: https://go-review.googlesource.com/19874
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib6a9e131113523e6b1e5b7604480028b9ffbfa93
+    Reviewed-on: https://go-review.googlesource.com/17178
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- misc/cgo/fortran/helloworld/helloworld.f90 |  3 +++
- misc/cgo/fortran/test.bash                 | 22 ++++++++++++++++++++++
- src/cmd/dist/test.go                       |  2 +-
- 3 files changed, 26 insertions(+), 1 deletion(-)
+ doc/devel/release.html  | 8 ++++++++
+ doc/install-source.html | 4 ++--
+ 2 files changed, 10 insertions(+), 2 deletions(-)

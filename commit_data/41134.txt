@@ -1,17 +1,29 @@
-commit 02816a2cad23a9399a6ad18033db0586c110de70
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Jan 20 02:00:44 2020 +1100
+commit ad1f2c96189be58c3c3c248af279b63a4f2466c1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 4 17:45:50 2019 -0700
 
-    reflect: correct riscv64 assembly
+    cmd/compile: use CTNIL for pointer-typed OLITERALs
     
-    R0 is not a thing in riscv64 assembly - use ZERO (rather than X0) since
-    the rest of this currently uses ABI names.
+    We used to be more aggressive about constant folding in the frontend,
+    handling expressions that the Go spec does not consider constant;
+    e.g., "(*int)(unsafe.Pointer(uintptr(200)))". However, that led to a
+    lot of subtle Go spec conformance issues, so we've since abandoned
+    that effort (CL 151320), leaving SSA to handle these cases instead.
     
-    Updates #27532
+    As such, the only time we now end up with pointer-typed OLITERALs is
+    when "nil" is implicitly converted to a pointer-typed variable.
+    Instead of representing these OLITERALs with an CTINT of 0, we can
+    just use CTNIL.
     
-    Change-Id: I28fb68e9f80d05231a07c5921e7062777234e2c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215437
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Saves a few bytes of memory and lines of code.
+    
+    Change-Id: Ibc5c756b992fdc89c3bdaf4fda3aa352e8e2b101
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193437
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/reflect/asm_riscv64.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go         | 25 ++-----------------------
+ src/cmd/compile/internal/gc/iexport.go       |  5 ++---
+ src/cmd/compile/internal/ssa/writebarrier.go |  6 +++---
+ 3 files changed, 7 insertions(+), 29 deletions(-)

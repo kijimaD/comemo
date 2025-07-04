@@ -1,0 +1,16 @@
+commit 069471838998c304ac751b031a19283a9ad30bdb
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Mar 6 10:25:01 2025 +0800
+
+    runtime: add function runtime.cgoSigtramp support on loong64 and enable cgo-traceback testcases
+    
+    Change-Id: I82f6ebd5636bfa112ad3e25dd9b77d7778469a1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604176
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/runtime/crash_cgo_test.go   |   4 +-
+ src/runtime/sys_linux_loong64.s | 104 +++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 105 insertions(+), 3 deletions(-)

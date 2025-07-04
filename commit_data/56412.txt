@@ -1,31 +1,43 @@
-commit dd6dee48b27e35e3d6ba0723b6851b5fe17d1049
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 15 12:56:23 2024 -0400
+commit 06fd1f30e92e0951b7a0d348221d968190da8888
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 26 01:43:20 2023 -0400
 
-    net/http: remove misleading response headers on error
+    cmd/go: save checksums for go.mod files needed for go version lines
     
-    This is a reapply of CL 544019 and CL 569815, but with
-    less aggressive semantics as discussed in proposal #66343.
+    When we load a package from a module, we need the go version line from
+    that module's go.mod file to know what language semantics to use for
+    the package. We need to save a checksum for the go.mod file even if
+    the module's requirements are pruned out of the module graph.
+    Previously, we were missing checksums for test dependencies of
+    packages in 'all' and packages passed to 'go get -t'.
     
-    Error deletes Content-Encoding, since it is writing the response
-    and any preset encoding may not be correct.
+    This change preserves the existing bug for 'go mod tidy' in older
+    module versions, but fixes it for 'go mod tidy' in modules at go 1.21
+    or higher and for 'go get -t' at all versions.
     
-    On the error-serving path in ServeContent/ServeFile/ServeFS,
-    these functions delete additional headers: Etag, Last-Modified,
-    and Cache-Control. The caller may have set these intending
-    them for the success response, and they may well not be correct
-    for error responses.
+    Fixes #56222.
     
-    Fixes #50905.
-    Fixes #66343.
-    
-    Change-Id: I873d33edde1805990ca16d85ea8d7735b7448626
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571995
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Icd6acce348907621ae0b02dbeac04fb180353dcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489075
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/net/http/fs.go         | 32 +++++++++++------
- src/net/http/fs_test.go    | 85 +++++++++++++++++++++++++++++++++++++++++++---
- src/net/http/serve_test.go | 22 ++++++++++++
- src/net/http/server.go     | 19 +++++++++--
- 4 files changed, 140 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/list/list.go                   |  2 +-
+ src/cmd/go/internal/modload/import.go              | 12 ++++
+ src/cmd/go/internal/modload/init.go                | 14 +++-
+ src/cmd/go/internal/modload/modfile.go             | 15 +++--
+ src/cmd/go/testdata/script/list_parse_err.txt      |  4 +-
+ src/cmd/go/testdata/script/list_test_cycle.txt     |  2 +-
+ .../go/testdata/script/mod_install_pkg_version.txt |  3 +-
+ src/cmd/go/testdata/script/mod_list_sums.txt       |  2 +-
+ src/cmd/go/testdata/script/mod_run_pkg_version.txt |  3 +-
+ src/cmd/go/testdata/script/mod_sum_issue56222.txt  | 74 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_sum_readonly.txt    |  6 +-
+ src/cmd/go/testdata/script/mod_tidy_compat.txt     |  2 +-
+ .../testdata/script/mod_tidy_compat_ambiguous.txt  |  2 +-
+ .../testdata/script/mod_tidy_compat_implicit.txt   | 10 +--
+ .../script/mod_tidy_compat_incompatible.txt        |  2 +-
+ .../testdata/script/mod_tidy_compat_irrelevant.txt |  2 +-
+ 16 files changed, 131 insertions(+), 24 deletions(-)

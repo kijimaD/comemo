@@ -1,20 +1,21 @@
-commit cd41db34bcd1776a783fb7507b68705a7de4e54a
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Jan 30 22:01:00 2016 +0100
+commit 10cb39afc4e81d126c71153dba7b9f1878bae61a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 25 13:09:14 2015 -0800
 
-    regexp: remove unreachable code
+    cmd/cgo: fix C.complexfloat and C.complexdouble
     
-    Found running go vet on the package. It barks that
-            regexp/backtrack.go:257: unreachable code
-            regexp/backtrack.go:302: unreachable code
+    This also fixes an unintended behavior where C's "complex float" and
+    "complex double" types were interchangeable with Go's "complex64" and
+    "complex128" types.
     
-    For #11041
+    Fixes #13402.
     
-    Change-Id: I0f5ba0d6183108fba3d144991b826273db0ffb09
-    Reviewed-on: https://go-review.googlesource.com/19824
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I73f96d9a4772088d495073783c6982e9634430e8
+    Reviewed-on: https://go-review.googlesource.com/17208
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/regexp/backtrack.go | 2 --
- 1 file changed, 2 deletions(-)
+ misc/cgo/test/issue13402.go | 10 ++++++++++
+ misc/cgo/test/issue8694.go  |  4 ++--
+ src/cmd/cgo/doc.go          |  3 ++-
+ src/cmd/cgo/gcc.go          |  8 +++-----
+ 4 files changed, 17 insertions(+), 8 deletions(-)

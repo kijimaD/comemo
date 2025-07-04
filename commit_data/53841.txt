@@ -1,25 +1,24 @@
-commit d4b46b0956a6581b62a0534d4eb1d5b5342c3b6f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 31 10:30:27 2023 -0700
+commit ab87db8b46fcd987f0d42ecdd03c149288bc9383
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 17:44:30 2022 +0800
 
-    encoding/gob: use reflect.TypeFor for known types
+    encoding: use strings.Builder
     
-    This avoids several mildly confusing Elem calls.
-    
-    For #60088
-    
-    Change-Id: If7b83d2ab10537c7e886a035b43cb272130c1669
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514455
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib07699df8ea41fd8d1bca8ad050859fac24623de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428258
+    Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/encoding/gob/decode.go         |  2 +-
- src/encoding/gob/gobencdec_test.go |  2 +-
- src/encoding/gob/type.go           | 28 ++++++++++++++--------------
- src/encoding/gob/type_test.go      |  8 ++++----
- 4 files changed, 20 insertions(+), 20 deletions(-)
+ src/encoding/ascii85/ascii85_test.go | 4 ++--
+ src/encoding/base32/base32_test.go   | 6 +++---
+ src/encoding/base64/base64_test.go   | 4 ++--
+ src/encoding/csv/writer_test.go      | 3 ++-
+ src/encoding/gob/codec_test.go       | 2 +-
+ src/encoding/hex/hex_test.go         | 4 ++--
+ src/encoding/json/stream_test.go     | 6 +++---
+ src/encoding/xml/marshal_test.go     | 8 ++++----
+ src/encoding/xml/xml_test.go         | 2 +-
+ 9 files changed, 20 insertions(+), 19 deletions(-)

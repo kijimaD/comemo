@@ -1,32 +1,20 @@
-commit 639cb1b629e575487af78bb3f60af24a7df7a3f7
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 16 00:00:32 2021 -0400
+commit 373695727b8975d20168ca0d6ae338f98a4a079a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 12 11:56:15 2020 -0400
 
-    runtime: mark stdcallN functions cgo_unsafe_args
+    net/http: deflake TestTransportPersistConnLeak on macOS
     
-    These functions take the address of an argument and expect to be able
-    to reach later arguments from that pointer. This means they must be
-    laid out sequentially in memory (using ABI0) and all arguments must be
-    live even though they don't all appear to be referenced. This is
-    exactly what go:cgo_unsafe_args does.
+    On a loaded system, sometimes connections don't work out.
+    Ignore those in TestTransportPersistConnLeak to avoid flakes.
     
-    Without this, GOEXPERIMENT=regabi,regabiargs on windows/amd64 crashes
-    on runtime startup because the stdcall functions are called with their
-    arguments in registers, so taking the address of one of them has no
-    bearing on the memory locations of the following arguments.
+    For #33585.
     
-    With this, GOEXPERIMENT=regabi,regabiargs on windows/amd64 passes
-    all.bash.
-    
-    For #40724.
-    
-    Change-Id: I4a4d6a913f85799b43f61c234d21ebb113a9b527
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310733
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ic07057532dc0ea5115d6ec49c3c29099a9382295
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261538
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Russ Cox <rsc@golang.org>
 
- src/runtime/os_windows.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/net/http/transport_test.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

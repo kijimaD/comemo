@@ -1,46 +1,19 @@
-commit e41fb5591fa02f69b046a14048215f2d96414f96
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed May 3 07:45:20 2017 -0700
+commit a1261b8b0a38814df453defb2fc2cae3ba0c956a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 17 10:17:42 2017 -0500
 
-    cmd/compile: avoid panic when printing *<N>
+    runtime: do not allocate on every time.Sleep
     
-    When compiling the program:
+    It's common for some goroutines to loop calling time.Sleep.
+    Allocate once per goroutine, not every time.
+    This comes up in runtime/pprof's background reader.
     
-    package p
-    
-    func _(){
-            *;:=
-    }
-    
-    Before:
-    
-    x.go:4:3: syntax error: unexpected semicolon, expecting expression
-    x.go:4:4: non-name *%!v(PANIC=runtime error: invalid memory address or nil pointer dereference) on left side of :=
-    x.go:5:1: syntax error: unexpected }, expecting expression
-    
-    After:
-    
-    x.go:4:3: syntax error: unexpected semicolon, expecting expression
-    x.go:4:4: non-name *<N> on left side of :=
-    x.go:5:1: syntax error: unexpected }, expecting expression
-    
-    No test because:
-    
-    (1) we don't have a good mechanism to check for the
-        absence of the string "PANIC" in an error message
-    (2) the string "*<N>", while better, is itself ugly enough
-        that I don't want to actively check for it
-    (3) the bug isn't very important, the kind of thing only fuzzers encounter
-    (4) the fix is obvious and trivial
-    
-    Fixes #20220
-    
-    Change-Id: I35faa986b60b671414ee999d6264b06937f250e3
-    Reviewed-on: https://go-review.googlesource.com/42498
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I89d17dc7379dca266d2c9cd3aefc2382f5bdbade
+    Reviewed-on: https://go-review.googlesource.com/37162
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ src/runtime/proc.go     | 1 +
+ src/runtime/runtime2.go | 1 +
+ src/runtime/time.go     | 7 ++++++-
+ 3 files changed, 8 insertions(+), 1 deletion(-)

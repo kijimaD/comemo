@@ -1,20 +1,19 @@
-commit ec71ee078fd3243b78c0d404c8634bd97e38d7eb
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 22 12:17:21 2017 -0400
+commit 8d2b3bb7b1a96c8373f9493ccb41860d07b48efc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 15 10:47:57 2017 -0700
 
-    cmd/go: reject update of VCS inside VCS
+    Revert "cmd/compile: skip reexporting types in reexportdep"
     
-    This can only lead to confusion.
+    This reverts commit edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc.
     
-    Change-Id: Iae84c6404ab5eeb6950faa2364f97a017c67c506
-    Reviewed-on: https://go-review.googlesource.com/68110
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #20682.
+    
+    Change-Id: If998c8b4bf177d5da9e26f75579bd5497ec86d38
+    Reviewed-on: https://go-review.googlesource.com/45911
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Simon Rawet <Simon@rawet.se>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_test.go          | 19 ++++++++++++++
- src/cmd/go/internal/get/get.go |  5 ++++
- src/cmd/go/internal/get/vcs.go | 58 +++++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 81 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go |  9 ++++-
+ src/cmd/compile/internal/gc/export.go  | 73 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+), 1 deletion(-)

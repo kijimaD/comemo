@@ -1,21 +1,24 @@
-commit 603af813d6b93cf734b67551c2e776a1417e4603
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 28 10:24:39 2017 -0400
+commit 204c618f0a0b175d840bfeb50cb5356deb165f51
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jul 11 12:30:05 2018 -0400
 
-    cmd/trace: list and link to worst mutator utilization windows
+    cmd/link: eliminate a couple of unused DWARF attrs
     
-    This adds the ability to click a point on the MMU graph to show a list
-    of the worst 10 mutator utilization windows of the selected size. This
-    list in turn links to the trace viewer to drill down on specifically
-    what happened in each specific window.
+    The linker's DWARF generation occasionally computes and attaches an
+    attribute X to a type even though the type's abbrev doesn't have the
+    specified attr. For example, the DW_TAG_subroutine_type abbrev entry
+    has no type attribute, but a type attr is given to it (wasting
+    memory). Similarly there are some places where a byte size attr is
+    added to a DIE whose abbrev lacks that attr. This patch trims away a
+    few of these not-needed attrs, saving some very tiny amount of memory.
     
-    Change-Id: Ic1b72d8b37fbf2212211c513cf36b34788b30133
-    Reviewed-on: https://go-review.googlesource.com/c/60795
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Updates #26186
+    
+    Change-Id: I69e853df468ac54b07772a614b4106d7c4dae01d
+    Reviewed-on: https://go-review.googlesource.com/123296
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/trace/main.go  |  2 +-
- src/cmd/trace/mmu.go   | 81 ++++++++++++++++++++++++++++++++++++++++++++++++--
- src/cmd/trace/trace.go | 30 +++++++++++++------
- 3 files changed, 101 insertions(+), 12 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 3 ---
+ 1 file changed, 3 deletions(-)

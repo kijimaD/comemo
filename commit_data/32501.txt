@@ -1,19 +1,52 @@
-commit 9e7b30b463bf6834f9ff01a33b60508984c47d20
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Wed Jun 21 21:58:42 2017 -0400
+commit be2ee2a4b46d1dbaf8d455038cd12d883714f08d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Apr 19 15:15:35 2017 +1200
 
-    net/http: Set a timeout on Request.Context when using TimeoutHandler
+    cmd/internal/objabi, cmd/link: move linker-only symkind values into linker
     
-    In TimeoutHandler, use a request whose context has been configured with
-    the handler's timeout
+    Many (most!) of the values of objapi.SymKind are used only in the linker, so
+    this creates a separate cmd/link/internal/ld.SymKind type, removes most values
+    from SymKind and maps one to the other when reading object files in the linker.
     
-    Fixes #20712
+    Two of the remaining objapi.SymKind values are only checked for, never set and
+    so will never be actually found but I wanted to keep this to the most
+    mechanical change possible.
     
-    Change-Id: Ie670148f85fdad46841ff29232042309e15665ae
-    Reviewed-on: https://go-review.googlesource.com/46412
-    Run-TryBot: Tom Bergan <tombergan@google.com>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Change-Id: I4bbc5aed6713cab3e8de732e6e288eb77be0474c
+    Reviewed-on: https://go-review.googlesource.com/40985
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/export_test.go |  7 ++++++-
- src/net/http/server.go      | 20 +++++++++-----------
- 2 files changed, 15 insertions(+), 12 deletions(-)
+ src/cmd/internal/objabi/symkind.go         |  96 ++--------
+ src/cmd/internal/objabi/symkind_string.go  |   4 +-
+ src/cmd/internal/objfile/goobj.go          |   8 +-
+ src/cmd/link/internal/amd64/asm.go         |  40 ++--
+ src/cmd/link/internal/arm/asm.go           |  30 +--
+ src/cmd/link/internal/arm64/asm.go         |  12 +-
+ src/cmd/link/internal/ld/ar.go             |   2 +-
+ src/cmd/link/internal/ld/data.go           | 292 ++++++++++++++---------------
+ src/cmd/link/internal/ld/deadcode.go       |   4 +-
+ src/cmd/link/internal/ld/decodesym.go      |   4 +-
+ src/cmd/link/internal/ld/dwarf.go          |  24 +--
+ src/cmd/link/internal/ld/elf.go            |  52 ++---
+ src/cmd/link/internal/ld/go.go             |  10 +-
+ src/cmd/link/internal/ld/ldelf.go          |  30 +--
+ src/cmd/link/internal/ld/ldmacho.go        |  14 +-
+ src/cmd/link/internal/ld/ldpe.go           |  22 +--
+ src/cmd/link/internal/ld/lib.go            | 102 +++++-----
+ src/cmd/link/internal/ld/link.go           |   2 +-
+ src/cmd/link/internal/ld/macho.go          |  21 +--
+ src/cmd/link/internal/ld/objfile.go        |  20 +-
+ src/cmd/link/internal/ld/pcln.go           |  14 +-
+ src/cmd/link/internal/ld/pe.go             |  24 +--
+ src/cmd/link/internal/ld/symkind.go        | 152 +++++++++++++++
+ src/cmd/link/internal/ld/symkind_string.go |  16 ++
+ src/cmd/link/internal/ld/symtab.go         | 114 +++++------
+ src/cmd/link/internal/ld/typelink.go       |   2 +-
+ src/cmd/link/internal/mips/asm.go          |   2 +-
+ src/cmd/link/internal/mips64/asm.go        |   2 +-
+ src/cmd/link/internal/ppc64/asm.go         |  20 +-
+ src/cmd/link/internal/s390x/asm.go         |  24 +--
+ src/cmd/link/internal/x86/asm.go           |  34 ++--
+ 31 files changed, 643 insertions(+), 550 deletions(-)

@@ -1,41 +1,32 @@
-commit 497ea0610ea3757c6171cae3a85627459b572e5d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 21 20:20:00 2020 -0700
+commit 2f8798ed071072dbb6801c5dbc5a4368cb5984e9
+Author: diaxu01 <dianhong.xu@arm.com>
+Date:   Fri Sep 6 09:55:54 2019 +0000
 
-    cmd/compile: allow inlining of "for" loops
+    cmd/internal/obj/arm64: add support of PCALIGN directive
     
-    We already allow inlining "if" and "goto" statements, so we might as
-    well allow "for" loops too. The majority of frontend support is
-    already there too.
+    Recently, we get requirements of instructions and functions alignment
+    from the gVisor project. To fit the alignment requirement of interrupt
+    table, they require an instruction's address to be aligned 128 bytes
+    and a function's entry address to be aligned 2K bytes. Thus we add
+    support for PCALIGN directive first. Below is a discussion about this
+    topic. https://groups.google.com/forum/m/#!topic/golang-dev/RPj90l5x86I
     
-    The critical missing feature at the moment is that inlining doesn't
-    properly reassociate OLABEL nodes with their control statement (e.g.,
-    OFOR) after inlining. This eventually causes SSA construction to fail.
+    Functions in Go are aligned to 16 bytes on arm64, thus now we only
+    support 8 and 16 bytes alignment.
     
-    As a workaround, this CL only enables inlining for unlabeled "for"
-    loops. It's left to a (yet unplanned) future CL to add support for
-    labeled "for" loops.
+    This patch adds support for PCALIGN directive. This directive can be
+    used within Go asm to align instruction by padding NOOP directives.
     
-    The increased opportunity for inlining leads to a small growth in
-    binary size. For example:
+    This patch also adds a test to verify the correnctness of the PCALIGN
+    directive. The test is contributed by Fannie Zhang <Fannie.Zhang@arm.com>.
     
-    $ size go.old go.new
-       text    data     bss     dec     hex filename
-    9740163  320064  230656 10290883         9d06c3 go.old
-    9793399  320064  230656 10344119         9dd6b7 go.new
-    
-    Updates #14768.
-    Fixes #41474.
-    
-    Change-Id: I827db0b2b9d9fa2934db05caf6baa463f0cd032a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256459
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I709e6b94847fe9e1824f42f4155355f90c63d523
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207117
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 18 ++++++++++++++----
- test/closure3.dir/main.go          |  3 +--
- test/inline.go                     | 23 +++++++++++++++++++++++
- 3 files changed, 38 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go     | 70 +++++++++++++++++++++++++++++-----
+ src/cmd/internal/obj/arm64/asm_test.go | 49 ++++++++++++++++++++++++
+ 2 files changed, 109 insertions(+), 10 deletions(-)

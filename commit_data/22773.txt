@@ -1,25 +1,14 @@
-commit 4b78c9575d3b1190c63b25761dfb86f4d1715c2e
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 28 14:53:19 2015 -0700
+commit bc2860f3d8182875adced9c35616812d804b90da
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 3 04:37:29 2015 -0400
 
-    runtime: print stack of G during a signal
+    go/build: cgo is supported on linux/arm64 (external linking only)
     
-    Sequence of operations:
-    - Go code does a systemstack call
-    - during the systemstack call, receive a signal
-    - signal requests a traceback of all goroutines
+    Fixes #10107.
     
-    The orignal G is still marked as _Grunning, so the traceback code
-    refuses to print its stack.
-    
-    Fix by allowing traceback of Gs whose caller is on the same M as G is.
-    G can't be modifying its stack if that is the case.
-    
-    Fixes #10546
-    
-    Change-Id: I2bcea48c0197fbf78ab6fa080027cd80181083ad
-    Reviewed-on: https://go-review.googlesource.com/9435
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f6
+    Reviewed-on: https://go-review.googlesource.com/8453
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/runtime/traceback.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/go/build/build.go | 1 +
+ 1 file changed, 1 insertion(+)

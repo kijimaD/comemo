@@ -1,18 +1,23 @@
-commit 8c74139cada0b7da5a0914ee0afd75837b6f682d
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Oct 11 14:45:29 2016 -0700
+commit 243d51f05e5dc263e185f9b1f7f1fe96a2098644
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 21 16:58:18 2016 +0000
 
-    crypto/tls: fix printing of OpenSSL output when updating a test fails.
+    misc/trace: disable trace resolution warning
     
-    When updating the test data against OpenSSL, the handshake can fail and
-    the stdout/stderr output of OpenSSL is very useful in finding out why.
+    It was removed in upstream Chrome https://codereview.chromium.org/2016863004
     
-    However, printing that output has been broken for some time because its
-    no longer sent to a byte.Buffer. This change fixes that.
+    Rather than update to the latest version, make the minimal change for Go 1.7 and
+    change the "showToUser" boolean from true to false.
     
-    Change-Id: I6f846c7dc80f1ccee9fa1be36f0b579b3754e05f
-    Reviewed-on: https://go-review.googlesource.com/30823
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Tested by hand that it goes away after this change.
+    
+    Updates #16247
+    
+    Change-Id: I051f49da878e554b1a34a88e9abc70ab50e18780
+    Reviewed-on: https://go-review.googlesource.com/25117
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/handshake_client_test.go | 2 +-
+ misc/trace/trace_viewer_lean.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

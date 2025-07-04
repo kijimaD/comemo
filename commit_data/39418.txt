@@ -1,20 +1,19 @@
-commit 3f1422c799edb143303c86c0e875d44c3612df64
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jun 20 09:02:05 2019 -0400
+commit 694cd005c3943027a4533a0a534837108ccd66f6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Dec 2 10:15:35 2018 -0800
 
-    cmd/link: revise previous __DWARF segment protection fix
+    runtime: speed up ifaceeq for direct ifaces
     
-    Tweak the previous fix for issue 32673 (in CL 182958) to work around
-    problems with c-shared build mode that crop up on some of the builders
-    (10.11, 10.12).  We now consistently set vmaddr and vmsize to zero
-    for the DWARF segment regardless of build mode.
+    name                    old time/op  new time/op  delta
+    EfaceCmpDiff-8           421ns ± 3%   299ns ± 3%  -28.93%  (p=0.000 n=92+94)
+    EfaceCmpDiffIndirect-8   497ns ± 4%   496ns ± 3%     ~     (p=0.840 n=98+92)
     
-    Updates #32673
-    
-    Change-Id: Id1fc213590ad00c28352925e2d754d760e022b5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183237
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Id1a8c779413ba35ab0f58d055870b6a0714b51b7
+    Reviewed-on: https://go-review.googlesource.com/c/152163
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/macho_combine_dwarf.go | 34 +++++++++++++------------
- 1 file changed, 18 insertions(+), 16 deletions(-)
+ src/runtime/alg.go          |  8 ++++++--
+ src/runtime/runtime_test.go | 12 ++++++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

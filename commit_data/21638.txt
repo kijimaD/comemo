@@ -1,12 +1,27 @@
-commit 38be309dcfebb07dd7ca286509c1ee1f4abd9592
-Author: mattn <mattn.jp@gmail.com>
-Date:   Tue Feb 17 09:16:06 2015 +0900
+commit 86426395754da512cb8017169d1be75dd6aca817
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 22 10:48:02 2015 -0800
 
-    os: fix typo in doc
+    [dev.cc] cmd/asm: add lex internal package
     
-    Change-Id: I9797b44dfa7c2c853b7a656f4f722df2c862824b
-    Reviewed-on: https://go-review.googlesource.com/4991
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Add the lexing code for the new portable assembler.
+    It is internal to the assembler, so lives in a subdirectory of cmd/asm/internal.
+    
+    Its only new dependency is the flags package for the assembler, so
+    add that too; it's trivial. That package manages the command-line
+    flags in a central place.
+    
+    The lexer builds on text/scanner to lex the input, including doing a
+    Plan 9-level implementation of the C preprocessor.
+    
+    Change-Id: I262e8717b8c797010afaa5051920839906c0dd19
+    Reviewed-on: https://go-review.googlesource.com/3195
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/env.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/flags/flags.go   |  70 ++++++
+ src/cmd/asm/internal/lex/input.go     | 414 ++++++++++++++++++++++++++++++++++
+ src/cmd/asm/internal/lex/lex.go       | 136 +++++++++++
+ src/cmd/asm/internal/lex/slice.go     |  54 +++++
+ src/cmd/asm/internal/lex/stack.go     |  56 +++++
+ src/cmd/asm/internal/lex/tokenizer.go | 146 ++++++++++++
+ 6 files changed, 876 insertions(+)

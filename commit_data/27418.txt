@@ -1,14 +1,16 @@
-commit 1a3e4f05a067f37e8ee8f7a0d5eec39a7e0cad84
-Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
-Date:   Tue May 17 20:16:41 2016 +0800
+commit eb033b1d22eaf4dc9dbdb2839c4174d905529eb5
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Fri Mar 25 10:06:19 2016 -0700
 
-    os/signal: fix wrong constant name in the documentation
+    compress/gzip: clean up zero-mtimes test
     
-    os.SIGINT is not defined, os.Interrupt or syscall.SIGINT should be used.
+    - Fix a typo.
+    - Skip this test on -short on non-builders.
     
-    Change-Id: I39867726d28e179d1160a4fd353b7bea676c9dbb
-    Reviewed-on: https://go-review.googlesource.com/23127
+    Change-Id: Id102eceb59451694bf92b618e02ccee6603b6852
+    Reviewed-on: https://go-review.googlesource.com/21113
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/signal/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/compress/gzip/issue14937_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

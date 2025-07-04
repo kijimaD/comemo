@@ -1,24 +1,25 @@
-commit 9b5d27faf93d326bb634946b720900e5c5da515c
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu May 23 13:07:31 2024 +0000
+commit 656a20a52a51f4790ccddca5a7a1226993867e33
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed May 17 18:21:04 2023 +0200
 
-    cmd/go,testdeps: move import of internal/coverage/cfile to testmain
+    net: make Dial fail faster on Windows closed loopback devices
     
-    Instead of having testing/internal/testdeps import the
-    internal/coverage/cfile package directly, have the code in testmain
-    pass in pointers to cfile functions during setup in the case that
-    we're running a "go test -cover" binary. This reduces the size of
-    regular non-coverage test binaries back to what they were before CL
-    585820.
+    On Windows when connecting to an unavailable port, ConnectEx() will
+    retry for 2s, even on loopback devices.
     
-    Updates #67401.
-    Fixes #67588.
+    This CL uses a call to WSAIoctl to make the ConnectEx() call fail
+    faster on local connections.
     
-    Change-Id: Iaf1a613bc7d3c9df9943189065d0161ca9120d34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587795
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #23366
+    
+    Change-Id: Iafeca8ea0053f01116b2504c45d88120f84d05e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495875
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/load/test.go      | 10 ++++++++++
- src/testing/internal/testdeps/deps.go | 17 +++++++++++++----
- 2 files changed, 23 insertions(+), 4 deletions(-)
+ src/internal/syscall/windows/net_windows.go | 22 +++++++++++++
+ src/net/dial_test.go                        | 48 +++++++++++++++++++++++++++++
+ src/net/fd_windows.go                       | 27 ++++++++++++++++
+ 3 files changed, 97 insertions(+)

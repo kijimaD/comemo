@@ -1,22 +1,22 @@
-commit 005686ff9711287ac97c294cb55a014bce6fbac0
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Feb 3 15:08:53 2012 -0500
+commit 1f565e7d20d994909e6d7b274734a746639de504
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 4 07:03:20 2012 +1100
 
-    crypto/...: changes to address some of bug 2841.
+    tools: update references to "x" to be "go tool x"
+    For instance, don't talk about gofix, talk about the
+    fix tool or "go tool fix".
     
-    This change addresses a subset of the issues raised in bug 2841.
-    
-    R=rsc
+    R=golang-dev, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5629044
+    https://golang.org/cl/5608053
 
- src/pkg/crypto/cipher/cbc.go       |   2 +-
- src/pkg/crypto/cipher/ocfb.go      | 138 -------------------------------------
- src/pkg/crypto/cipher/ocfb_test.go |  44 ------------
- src/pkg/crypto/crypto.go           |  27 +++++---
- src/pkg/crypto/des/cipher.go       |   4 +-
- src/pkg/crypto/rsa/pkcs1v15.go     |   2 +-
- src/pkg/crypto/rsa/rsa.go          |   2 +-
- src/pkg/crypto/tls/tls.go          |  28 +++-----
- src/pkg/crypto/x509/pkix/pkix.go   |   2 +
- 9 files changed, 34 insertions(+), 215 deletions(-)
+ src/cmd/cgo/doc.go               |  2 +-
+ src/cmd/go/doc.go                | 12 ++++++------
+ src/cmd/go/fix.go                |  2 +-
+ src/cmd/go/get.go                |  2 +-
+ src/cmd/go/vet.go                |  4 ++--
+ src/cmd/gofmt/test.sh            |  2 +-
+ src/cmd/prof/doc.go              |  3 +--
+ src/pkg/exp/ebnflint/doc.go      |  2 +-
+ src/pkg/exp/ebnflint/ebnflint.go |  2 +-
+ 9 files changed, 15 insertions(+), 16 deletions(-)

@@ -1,12 +1,14 @@
-commit b9bd0c758a0c654d62fb26268ba87232b8184731
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Dec 5 13:44:22 2011 +1100
+commit dbaeb0cf13b7e2e0d7cffe61774e069368e4f7e5
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Dec 5 10:05:29 2011 +1100
 
-    misc/dashboard/app: revert gofix of app engine file
+    net/mail: correctly compare parsed times in the test.
     
-    R=dsymonds
+    Fixes #2522.
+    
+    R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5451092
+    https://golang.org/cl/5449084
 
- misc/dashboard/app/build/test.go | 2 +-
+ src/pkg/net/mail/message_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

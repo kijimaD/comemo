@@ -1,23 +1,42 @@
-commit 20f4b6d8f910adb5a3739dce5f4ffcfd2eb491c4
-Author: Nicolas Hillegeer <aktau@google.com>
-Date:   Thu Feb 8 08:56:33 2024 -0800
+commit bd8ec78b08ead1fb34ec8dc7bc4bf2ff7a9e8b82
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 29 13:30:50 2022 -0500
 
-    runtime: call traceAdvance before exiting
+    cmd/go, go/build: parse directives in file headers
     
-    This ensures the trace buffers are as up-to-date as possible right
-    before crashing. It increases the chance of finding the culprit for the
-    crash when looking at core dumps, e.g. if slowness is the cause for the
-    crash (monitor kills process).
+    For #56986, go/build needs to report up to cmd/go
+    about //go:debug lines found in the source code.
+    Rather than make a special case for //go:debug,
+    this change gathers all top-level directives above the
+    package line and includes them in the result.
     
-    Fixes #65319.
+    The go command's module index must match go/build,
+    so this CL contains the code to update the index as well.
     
-    Change-Id: Iaf5551911b3b3b01ba65cb8749cf62a411e02d9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562616
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    A future CL will use the //go:debug lines to prepare the default
+    GODEBUG settings, as well as rejecting such lines in non-main
+    packages.
+    
+    Change-Id: I66ab8dc72f9cd65c503b10b744367caca233f8a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453603
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/crash_test.go | 70 +++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/panic.go      | 10 +++++++
- src/runtime/trace.go      |  3 ++
- 3 files changed, 83 insertions(+)
+ api/next/56986.txt                         |  6 ++++++
+ src/cmd/go/internal/load/pkg.go            |  6 ++++++
+ src/cmd/go/internal/modindex/build.go      | 15 +++++++------
+ src/cmd/go/internal/modindex/build_read.go | 13 ++++++++++++
+ src/cmd/go/internal/modindex/read.go       | 26 +++++++++++++++++++++++
+ src/cmd/go/internal/modindex/scan.go       |  3 +++
+ src/cmd/go/internal/modindex/write.go      |  8 ++++++-
+ src/go/build/build.go                      | 34 ++++++++++++++++++++++++------
+ src/go/build/build_test.go                 | 25 ++++++++++++++++++++++
+ src/go/build/read.go                       | 12 +++++++++++
+ src/go/build/testdata/directives/a.go      |  3 +++
+ src/go/build/testdata/directives/a_test.go |  3 +++
+ src/go/build/testdata/directives/b_test.go |  5 +++++
+ src/go/build/testdata/directives/c_test.go |  5 +++++
+ src/go/build/testdata/directives/d_test.go |  4 ++++
+ src/go/build/testdata/directives/eve.go    |  4 ++++
+ 16 files changed, 157 insertions(+), 15 deletions(-)

@@ -1,21 +1,37 @@
-commit 5f0170f9a529c7113ac12f1270e00e5bdc444803
-Author: Michal Bohuslávek <mbohuslavek@gmail.com>
-Date:   Thu Aug 18 11:02:38 2022 +0200
+commit ff7b04136091f8208352e97c117ca6489ca95a86
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Sep 14 16:23:10 2021 -0700
 
-    bytes, strings: s/after/before/ in CutSuffix
+    cmd/go: 'go get' no longer builds or installs packages
     
-    This follows on CL 407176 which added this function (in both
-    packages). This CL makes it consistent with the Cut function,
-    which uses “before” and “after” in return variable names.
+    As part of #40267, 'go install' is now fully responsible for building
+    and installing executables. 'go get' will only be used to change
+    versions in go.mod. The -d flag no longer has any effect; its behavior
+    is the default.
     
-    Change-Id: Id4345d2fe0f50bf301a880803e87bf356986b518
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424922
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    When 'go get' is invoked inside a module on a main package outside of
+    the main module, it no longer prints any warning. In 1.16-1.17, we
+    suggested using -d in this situation, but we want
+    'go get example.com/cmd' to be able to upgrade a tool dependency
+    without needing -d to suppress the warning.
+    
+    For #43684
+    
+    Change-Id: I9daf29c123a5a0e382aa326d62721cb26fc26c19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349997
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/bytes/bytes.go     | 2 +-
- src/strings/strings.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go                              | 24 ++----
+ src/cmd/go/internal/modget/get.go                  | 95 ++++------------------
+ src/cmd/go/testdata/script/build_trimpath.txt      |  3 +-
+ .../{mod_get_svn.txt => mod_download_svn.txt}      | 15 +---
+ src/cmd/go/testdata/script/mod_get_cmd.txt         | 20 -----
+ src/cmd/go/testdata/script/mod_get_commit.txt      |  9 +-
+ .../testdata/script/mod_get_deprecate_install.txt  | 16 ++--
+ src/cmd/go/testdata/script/mod_get_errors.txt      | 22 ++---
+ src/cmd/go/testdata/script/mod_get_tags.txt        | 13 +--
+ src/cmd/go/testdata/script/mod_outside.txt         | 24 ------
+ 10 files changed, 48 insertions(+), 193 deletions(-)

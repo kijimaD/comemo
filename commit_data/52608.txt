@@ -1,20 +1,18 @@
-commit 0d82f584c223fb045496f3e063bf93416a24e0b0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Apr 11 16:26:53 2023 +0000
+commit da0a6f4b57fc9eb4779c295bc9620c5ed271a641
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 12 13:25:01 2022 -0700
 
-    net: allow TestDialListenerAddr without an external network
+    spec: fix prose about promoted methods of embedded fields
     
-    As of CL 482163, this test now works when only a loopback network is
-    available.
+    The types of embedded fields must be named, but they don't
+    need to be defined types (e.g. if the type name is an alias).
     
-    Updates #59497.
+    Fixes #41687.
     
-    Change-Id: I32be4b74bbc663eb109763ea19d79f22c63f50ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483696
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ib9de65dfab0e23c27d8303875fa45c217aa03331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406054
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/net/dial_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

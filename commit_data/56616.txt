@@ -1,18 +1,20 @@
-commit 197101a84a563ee8fb6ac58bb91ab2de49f0cbce
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon May 20 20:18:02 2024 +0000
+commit 8e3dfe783ab5ed110b6b338662ee1dee6a7dc51b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 16 17:24:16 2023 -0700
 
-    runtime: correctly account for allocated objects in allocfree trace
+    go/types, types2: assert that builtin reports valid operand mode upon success
     
-    The current implementation doesn't handle s.freeindex at all, which
-    means it'll skip a whole bunch of recently-made allocations, because the
-    span may have not been swept yet.
+    Fix a case where x.mode == invalid was returned despite builtin
+    returning true.
     
-    Change-Id: I8c5e360f5927ffe7e9abb448b352a59875e31b02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586996
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Iae9c18aac16bcbadc3530d341b380e05c8743fcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495299
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/traceallocfree.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go | 14 +++++++++-----
+ src/go/types/builtins.go                    | 14 +++++++++-----
+ 2 files changed, 18 insertions(+), 10 deletions(-)

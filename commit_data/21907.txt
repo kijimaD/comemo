@@ -1,18 +1,15 @@
-commit 43941d85cf35fae53005bb51d545614651b3d8c2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 3 22:29:03 2015 -0500
+commit cdc2b0568feac1867377dddccf6eafa45cd27352
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 11 23:20:15 2015 -0800
 
-    cmd/internal/ld: cache file name construction in linkgetline
+    runtime: remove obsolete SELinux execmem comment
     
-    This avoids repeated allocation and map lookups
-    when constructing the pcln tables.
+    We don't have executable memory anymore.
     
-    For 6g compiling cmd/internal/gc/*.go this saves about 8% wall time.
-    
-    Change-Id: I6a1a80e278ae2c2a44bd1537015ea7b4e7a4d6ca
-    Reviewed-on: https://go-review.googlesource.com/6793
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9835f03a7bcd97d809841ecbed8718b3048bfb32
+    Reviewed-on: https://go-review.googlesource.com/4681
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/internal/obj/link.go |  8 -------
- src/cmd/internal/obj/obj.go  | 54 ++++++++++++++++++++++++++++++--------------
- 2 files changed, 37 insertions(+), 25 deletions(-)
+ src/runtime/mem_linux.go | 1 -
+ 1 file changed, 1 deletion(-)

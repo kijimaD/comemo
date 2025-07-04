@@ -1,46 +1,16 @@
-commit 17df5ed910cab9c68bc781b06d83b8db3fd0f75c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 27 13:50:08 2018 -0700
+commit 294963fb7f8983c7f5560dc20ab75c869f30da14
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 22 21:58:57 2017 -0500
 
-    cmd/compile: insert instrumentation during SSA building
+    runtime: document sigtrampgo better
     
-    Insert appropriate race/msan calls before each memory operation during
-    SSA construction.
+    Add an explanation of why sigtrampgo is nosplit.
     
-    This is conceptually simple, but subtle because we need to be careful
-    that inserted instrumentation calls don't clobber arguments that are
-    currently being prepared for a user function call.
+    Updates #21314.
     
-    reorder1 already handles introducing temporary variables for arguments
-    in some cases. This CL changes it to use them for all arguments when
-    instrumenting.
-    
-    Also, we can't SSA struct types with more than one field while
-    instrumenting. Otherwise, concurrent uses of disjoint fields within an
-    SSA-able struct can introduce false races.
-    
-    This is both somewhat better and somewhat worse than the old racewalk
-    instrumentation pass. We're now able to easily recognize cases like
-    constructing non-escaping closures on the stack or accessing closure
-    variables don't need instrumentation calls. On the other hand,
-    spilling escaping parameters to the heap now results in an
-    instrumentation call.
-    
-    Overall, this CL results in a small net reduction in the number of
-    instrumentation calls, but a small net increase in binary size for
-    instrumented executables. cmd/go ends up with 5.6% fewer calls, but a
-    2.4% larger binary.
-    
-    Fixes #19054.
-    
-    Change-Id: I70d1dd32ad6340e6fdb691e6d5a01452f58e97f3
-    Reviewed-on: https://go-review.googlesource.com/102817
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I3f5909d2b2c180f9fa74d53df13e501826fd4316
+    Reviewed-on: https://go-review.googlesource.com/79615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/go.go            |   6 +
- src/cmd/compile/internal/gc/racewalk.go      | 516 +--------------------------
- src/cmd/compile/internal/gc/ssa.go           |  83 ++++-
- src/cmd/compile/internal/gc/syntax.go        |   3 +
- src/cmd/compile/internal/gc/walk.go          |  44 ++-
- src/cmd/compile/internal/ssa/writebarrier.go |  34 ++
- 6 files changed, 167 insertions(+), 519 deletions(-)
+ src/runtime/signal_unix.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

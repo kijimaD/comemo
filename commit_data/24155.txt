@@ -1,18 +1,16 @@
-commit 499c827516b3877497b1533f44912f037b388a90
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 27 15:40:46 2015 +1000
+commit 4e204b42f5b66ea36f0421098a42addc7c2ba6c7
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 13 23:52:59 2015 -0700
 
-    doc: add Go Security Policy document
+    [dev.ssa] cmd/compile/internal/ssa: ensure Phi ops are scheduled first
     
-    Bring in the text from the proposal (with minor edits):
-    https://github.com/golang/proposal/blob/master/design/11502-securitypolicy.md
+    Phi ops should always be scheduled first.  They have the semantics
+    of all happening simultaneously at the start of the block.  The regalloc
+    phase assumes all the phis will appear first.
     
-    Fixes #11502
-    
-    Change-Id: I92a987be66a0df60c1fad6c6c79f89bd8e9c12a8
-    Reviewed-on: https://go-review.googlesource.com/13955
-    Reviewed-by: Jason Buberel <jbuberel@google.com>
+    Change-Id: I30291e1fa384a0819205218f1d1ec3aef6d538dd
+    Reviewed-on: https://go-review.googlesource.com/12154
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/contrib.html  |   4 +-
- doc/security.html | 174 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 177 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/schedule.go | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)

@@ -1,26 +1,14 @@
-commit a00cec90cadb023637622905c3bbb867de494cf3
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 10 13:41:03 2015 -0700
+commit e33d6b3d4d0c224b8ff7ba039ec4e4bcec7d52cb
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 17 09:49:33 2015 -0700
 
-    fmt: allow any type in a format's width argument
+    runtime: remove out-of-date comment
     
-    The construction
-            fmt.Printf("%*d", n, 4)
-    reads the argument n as a width specifier to use when printing 4.
-    Until now, only strict int type was accepted here and it couldn't
-    be fixed because the fix, using reflection, broke escape analysis
-    and added an extra allocation in every Printf call, even those that
-    do not use this feature.
+    An out-of-date comment snuck in to cc8f544. Remove it.
     
-    The compiler has been fixed, although I am not sure when exactly,
-    so let's fix Printf and then write
-    
-    Fixes #10732.
-    
-    Change-Id: I79cf0c4fadd876265aa39d3cb62867247b36ab65
-    Reviewed-on: https://go-review.googlesource.com/14491
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5bc7c17e737d1cabe57b88de06d7579c60ca28ff
+    Reviewed-on: https://go-review.googlesource.com/12328
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/fmt/fmt_test.go | 13 ++++++++++---
- src/fmt/print.go    | 23 +++++++++++++++++++++--
- 2 files changed, 31 insertions(+), 5 deletions(-)
+ src/runtime/mgcsweep.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

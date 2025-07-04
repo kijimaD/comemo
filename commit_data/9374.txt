@@ -1,45 +1,21 @@
-commit a5d7c1f45e0b36a34462fd8ce10b869e7a12f246
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 16 11:14:26 2011 -0400
+commit 53573c02b8195a55f1c91c2df39e6f1c08cd33d5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 16 18:34:56 2011 +1000
 
-    errchk: allow multiple patterns
+    rpc: make Server.Mutex unexported
+    Currently it's possible to write:
+    var s rpc.Server
+    ...
+    // reuse for my own purposes
+    s.Lock()
+    ...
+    s.Unlock()
+    which is seemingly not intended.
     
-    // ERROR "pattern1" "pattern2"
-    
-    means that there has to be one or more
-    lines matching pattern1 and then excluding
-    those, there have to be one or more lines
-    matching pattern2.  So if you expect two
-    different error messages from a particular
-    line, writing two separate patterns checks
-    that both errors are produced.
-    
-    Also, errchk now flags lines that produce
-    more errors than expected.  Before, as long as
-    at least one error matched the pattern, all the
-    others were ignored.
-    
-    Revise tests to expect or silence these
-    additional errors.
-    
-    R=lvd, r, iant
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4869044
+    https://golang.org/cl/4888049
 
- test/declbad.go            |  2 +-
- test/errchk                | 49 +++++++++++++++++++++++++---------------------
- test/fixedbugs/bug205.go   |  2 +-
- test/fixedbugs/bug228.go   |  2 +-
- test/fixedbugs/bug229.go   |  2 +-
- test/fixedbugs/bug231.go   |  2 +-
- test/fixedbugs/bug297.go   |  2 +-
- test/fixedbugs/bug351.go   |  2 ++
- test/fixedbugs/bug359.go   |  2 +-
- test/import1.go            |  4 ++--
- test/initializerr.go       |  2 +-
- test/interface/explicit.go |  2 +-
- test/interface/pointer.go  |  2 +-
- test/nul1.go               |  6 +++---
- test/rename1.go            |  2 +-
- test/shift1.go             |  6 +++---
- 16 files changed, 48 insertions(+), 41 deletions(-)
+ src/pkg/rpc/debug.go  |  4 ++--
+ src/pkg/rpc/server.go | 10 +++++-----
+ 2 files changed, 7 insertions(+), 7 deletions(-)

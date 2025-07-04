@@ -1,13 +1,20 @@
-commit c3480878c48927622021ad9a7835c5c1fca22942
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 7 15:00:32 2011 -0500
+commit e4de2e7fd04c92d4035cd268d5043f2380aef437
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Dec 7 14:52:17 2011 -0500
 
-    A+C: Olivier Duperray, Taru Karttunen (individual CLA)
+    math: document special-cases behavior for Dim, Max and Min
     
-    R=golang-dev, bradfitz
+    Max returns +Inf if x or y is +Inf; else it returns NaN if either x or y is NaN. Max(-0, -0) returns -0.
+    Min returns -Inf if x or y is -Inf; else it returns NaN if either x or y is NaN. Min(+0, -0) returns -0.
+    Dim(+Inf, +Inf) = NaN, Dim(-Inf, -Inf) = NaN and Dim(NaN, anything) = NaN.
+    Also, change "conditions" to "cases" for Sin (missed it in previous CL).
+    
+    R=rsc, dave
     CC=golang-dev
-    https://golang.org/cl/5451121
+    https://golang.org/cl/5437137
 
- AUTHORS      | 2 ++
- CONTRIBUTORS | 2 ++
- 2 files changed, 4 insertions(+)
+ src/pkg/math/all_test.go |  84 +++++++++++++++++++++++++++++++
+ src/pkg/math/dim.go      |  49 ++++++++++++++++--
+ src/pkg/math/dim_amd64.s | 126 +++++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/math/sin.go      |   2 +-
+ 4 files changed, 251 insertions(+), 10 deletions(-)

@@ -1,23 +1,22 @@
-commit 5249947f11b8238c2e2b878665be411fc6ba194b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Nov 21 22:42:35 2023 +0000
+commit 526b8956c23dee7be386720247e143f87e5ec2d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 8 08:29:14 2022 -0800
 
-    runtime: don't hold the table lock in (*traceStackTable).dump
+    go/types: add commentMap and test
     
-    There's a conceptual cycle between traceStackTable.lock and
-    allocation-related locks, but it can't happen in practice because the
-    caller guarantees that there are no more writers to the table at the
-    point that dump is called.
+    This adds the (adjusted) syntax.CommentMap function and corresponding
+    test to the types_test package so that we can use it for collecting
+    ERROR comments in the next CL.
     
-    But if that's true, then the lock isn't necessary at all. It would be
-    difficult to model this quiesence in the lockrank mode, so just don't
-    hold the lock and expand the documentation of the dump method.
+    For #51006.
     
-    Change-Id: Id4db61363f075b7574135529915e8bd4f4f4c082
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544177
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I63ce96e7394c28c02d5a292250586cc49c1f6e19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456125
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/runtime/trace2stack.go | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/go/types/commentMap_test.go | 103 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 103 insertions(+)

@@ -1,18 +1,22 @@
-commit 7a4211bc1f03672422ff0d761d3bf9d9f97b8997
-Author: Alexandru Moșoi <brtzsnr@gmail.com>
-Date:   Fri Apr 1 00:54:13 2016 +0200
+commit 5a9c128a0313df72973259bea946262cb8973d86
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Feb 19 22:45:38 2016 +0100
 
-    cmd/compile: constant fold ANDs.
+    fmt: remove math package dependency and avoid float operations
     
-    ANDQConst show up occassionally because of right shifting lowering.
-    ORs and XORs are already folded properly during generic.
+    Remove floating point comparisons and rely only on the information
+    directly provided by appendFloat.
+    Make restoring the zero padding flag explicit instead of using a defer.
+    Rearrange some case distinctions to remove duplicated code.
+    Add more test cases for zero padded floating point numbers with sign.
     
-    Change-Id: I2f9134679555029c641264ce5333d70e167c65f7
-    Reviewed-on: https://go-review.googlesource.com/21375
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkSprintfFloat-4     187           180           -3.74%
+    
+    Change-Id: Ifa2ae85257909f40b1b18118c92b516933271729
+    Reviewed-on: https://go-review.googlesource.com/19721
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 +++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 64 ++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+)
+ src/fmt/fmt_test.go |  6 ++++++
+ src/fmt/format.go   | 43 +++++++++++++++++--------------------------
+ 2 files changed, 23 insertions(+), 26 deletions(-)

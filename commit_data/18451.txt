@@ -1,13 +1,13 @@
-commit 120218afeb74e717adf1397f04ef4ca6a10add03
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Feb 11 09:34:43 2014 +0100
+commit c4b279ba5ac2226a36434a6d715f2d7713e987e1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 11 16:27:14 2014 +1100
 
-    runtime: homogenize panic strings on Plan 9
+    archive/zip: use correct test, fix 32-bit build
     
-    LGTM=rsc
-    R=rsc
+    LGTM=dsymonds
+    R=dsymonds
     CC=golang-codereviews
-    https://golang.org/cl/61410046
+    https://golang.org/cl/61070047
 
- src/pkg/runtime/os_plan9.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/archive/zip/reader_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

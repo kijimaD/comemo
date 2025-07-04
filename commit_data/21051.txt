@@ -1,16 +1,25 @@
-commit a824ffcc93724053d73c286b1176b2c709ce25a6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 22 13:40:28 2014 -0800
+commit 729847cf8a8db1c5d64f64539be4f641985e613f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 01:27:55 2014 -0500
 
-    go/build: fix field mismatch in unkeyed struct literal
+    [dev.cc] cmd/go: adjust go, cgo builds & disable cc
     
-    Fixes #9409
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
     
-    Change-Id: I2404cd8bf3ebb07f4b6a2b3e1d58ab69b9f1e8d8
-    Reviewed-on: https://go-review.googlesource.com/2040
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Make gcToolchain.cc return an error (no C compiler!).
+    
+    Adjust expectations of cgo, now that cgo does not write any C files
+    (no C compiler!).
+    
+    For packages with .s files, invoke Go compiler with -asmhdr go_asm.h
+    so that assembly files can use it. This applies to all packages but is only
+    needed today by package runtime.
+    
+    LGTM=r
+    R=r
+    CC=austin, golang-codereviews, iant, khr
+    https://golang.org/cl/171470043
 
- src/go/build/build.go      |  6 +++++-
- src/go/build/build_test.go | 11 ++++++++++-
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go | 54 ++++++++++++++++++++++-------------------------------
+ 1 file changed, 22 insertions(+), 32 deletions(-)

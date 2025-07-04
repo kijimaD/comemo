@@ -1,18 +1,32 @@
-commit e658b85f26f1de6f49578b7dac95eee0da880ab9
-Author: Shamil Garatuev <garatuev@gmail.com>
-Date:   Tue Feb 27 21:26:17 2018 +0300
+commit 79996e4a1d33b7404ee076d7455ff8dcc7270250
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 28 12:57:52 2017 -0700
 
-    internal/syscall/windows/registry: improve ReadSubKeyNames permissions
+    [release-branch.go1.9] cmd/compile: avoid generating large offsets
     
-    Make ReadSubKeyNames work even if key is opened with only
-    ENUMERATE_SUB_KEYs access rights mask.
+    The assembler barfs on large offsets. Make sure that all the
+    instructions that need to have their offsets in an int32
+      1) check on any rule that computes offsets for such instructions
+      2) change their aux fields so the check builder checks it.
     
-    Fixes #23869
+    The assembler also silently misassembled offsets between 1<<31
+    and 1<<32. Add a check in the assembler to barf on those as well.
     
-    Change-Id: I138bd51715fdbc3bda05607c64bde1150f4fe6b2
-    Reviewed-on: https://go-review.googlesource.com/97435
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Fixes #21655
+    
+    Change-Id: Iebf24bf10f9f37b3ea819ceb7d588251c0f46d7d
+    Reviewed-on: https://go-review.googlesource.com/59630
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-on: https://go-review.googlesource.com/70981
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/syscall/windows/registry/key.go           | 10 ++++------
- src/internal/syscall/windows/registry/registry_test.go |  2 +-
- 2 files changed, 5 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 140 +++++------
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  17 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  16 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 362 +++++++++++++++++++++------
+ src/cmd/internal/obj/x86/asm6.go             |   7 +
+ test/fixedbugs/issue21655.go                 |  40 +++
+ 6 files changed, 414 insertions(+), 168 deletions(-)

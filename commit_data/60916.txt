@@ -1,0 +1,21 @@
+commit 8f2486d2e03e26ea9bc5f680c1a5795256459b7b
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 18:59:49 2024 -0700
+
+    cmd/internal: use t.TempDir in tests
+    
+    Change-Id: I3d4c66793afa3769a8450e2d65093a0f9115596e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611043
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/internal/goobj/objfile_test.go      |  8 ++------
+ src/cmd/internal/obj/loong64/asm_test.go    |  6 +-----
+ src/cmd/internal/obj/objfile_test.go        |  8 ++------
+ src/cmd/internal/obj/ppc64/asm_test.go      | 24 ++++++------------------
+ src/cmd/internal/obj/riscv/asm_test.go      | 24 ++++--------------------
+ src/cmd/internal/obj/x86/obj6_test.go       |  6 +-----
+ src/cmd/internal/obj/x86/pcrelative_test.go |  8 ++------
+ 7 files changed, 18 insertions(+), 66 deletions(-)

@@ -1,31 +1,104 @@
-commit 0d478d8e07f9667d7c32ea5bb10647dd14725829
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 11 08:57:37 2024 -0700
+commit f0d575c2662229b6e4c51f2d0483b56542ae7661
+Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
+Date:   Tue May 9 17:40:06 2023 +0800
 
-    go/types, types2: add missing Unalias calls in type unifier
+    cmd/compile: optimize math.Float64(32)bits and math.Float64(32)frombits on mips64x
     
-    The unification code has "early exits" when the compared
-    types are pointer-identical.
+    This CL use MFC1/MTC1 instructions to move data between GPR and FPR instead of stores and loads to move float/int values.
     
-    Because of Alias nodes, we cannot simply compare x == y but we
-    must compare Unalias(x) == Unalias(y). Still, in the common case
-    there are no aliases, so as a minor optimization we write:
+    goos: linux
+    goarch: mips64le
+    pkg: math
+                          │   oldmath    │              newmath               │
+                          │    sec/op    │   sec/op     vs base               │
+    Acos-4                   258.2n ± 0%   258.2n ± 0%        ~ (p=0.859 n=8)
+    Acosh-4                  378.7n ± 0%   323.9n ± 0%  -14.47% (p=0.000 n=8)
+    Asin-4                   255.1n ± 2%   255.5n ± 0%   +0.16% (p=0.002 n=8)
+    Asinh-4                  407.1n ± 0%   348.7n ± 0%  -14.35% (p=0.000 n=8)
+    Atan-4                   189.5n ± 0%   189.9n ± 3%        ~ (p=0.205 n=8)
+    Atanh-4                  355.6n ± 0%   323.4n ± 2%   -9.03% (p=0.000 n=8)
+    Atan2-4                  284.1n ± 7%   280.1n ± 4%        ~ (p=0.313 n=8)
+    Cbrt-4                   314.3n ± 0%   236.4n ± 0%  -24.79% (p=0.000 n=8)
+    Ceil-4                   144.3n ± 3%   139.6n ± 0%        ~ (p=0.069 n=8)
+    Compare-4               21.100n ± 0%   7.035n ± 0%  -66.66% (p=0.000 n=8)
+    Compare32-4             20.100n ± 0%   6.030n ± 0%  -70.00% (p=0.000 n=8)
+    Copysign-4              34.970n ± 0%   6.221n ± 0%  -82.21% (p=0.000 n=8)
+    Cos-4                    183.4n ± 3%   184.1n ± 5%        ~ (p=0.159 n=8)
+    Cosh-4                   487.9n ± 2%   419.6n ± 0%  -14.00% (p=0.000 n=8)
+    Erf-4                    160.6n ± 0%   157.9n ± 0%   -1.68% (p=0.009 n=8)
+    Erfc-4                   183.7n ± 4%   169.8n ± 0%   -7.54% (p=0.000 n=8)
+    Erfinv-4                 191.5n ± 4%   183.6n ± 0%   -4.13% (p=0.023 n=8)
+    Erfcinv-4                192.0n ± 7%   184.3n ± 0%        ~ (p=0.425 n=8)
+    Exp-4                    398.2n ± 0%   340.1n ± 4%  -14.58% (p=0.000 n=8)
+    ExpGo-4                  383.3n ± 0%   327.3n ± 0%  -14.62% (p=0.000 n=8)
+    Expm1-4                  248.7n ± 5%   216.0n ± 0%  -13.11% (p=0.000 n=8)
+    Exp2-4                   372.8n ± 0%   316.9n ± 3%  -14.98% (p=0.000 n=8)
+    Exp2Go-4                 374.1n ± 0%   320.5n ± 0%  -14.33% (p=0.000 n=8)
+    Abs-4                    3.013n ± 0%   3.016n ± 0%   +0.10% (p=0.020 n=8)
+    Dim-4                    5.021n ± 0%   5.022n ± 0%        ~ (p=0.270 n=8)
+    Floor-4                  127.5n ± 4%   126.2n ± 3%        ~ (p=0.186 n=8)
+    Max-4                    72.32n ± 0%   61.33n ± 0%  -15.20% (p=0.000 n=8)
+    Min-4                    83.33n ± 1%   61.36n ± 0%  -26.37% (p=0.000 n=8)
+    Mod-4                    690.7n ± 0%   454.5n ± 0%  -34.20% (p=0.000 n=8)
+    Frexp-4                 116.30n ± 1%   71.80n ± 1%  -38.26% (p=0.000 n=8)
+    Gamma-4                  389.0n ± 0%   355.9n ± 1%   -8.48% (p=0.000 n=8)
+    Hypot-4                 102.40n ± 0%   83.90n ± 0%  -18.07% (p=0.000 n=8)
+    HypotGo-4               105.45n ± 4%   84.82n ± 2%  -19.56% (p=0.000 n=8)
+    Ilogb-4                  99.13n ± 4%   63.71n ± 2%  -35.73% (p=0.000 n=8)
+    J0-4                     859.7n ± 0%   854.8n ± 0%   -0.57% (p=0.000 n=8)
+    J1-4                     873.9n ± 0%   875.7n ± 0%   +0.21% (p=0.007 n=8)
+    Jn-4                     1.855µ ± 0%   1.867µ ± 0%   +0.65% (p=0.000 n=8)
+    Ldexp-4                 130.50n ± 2%   64.35n ± 0%  -50.69% (p=0.000 n=8)
+    Lgamma-4                 208.8n ± 0%   200.9n ± 0%   -3.78% (p=0.000 n=8)
+    Log-4                    294.1n ± 0%   255.2n ± 3%  -13.22% (p=0.000 n=8)
+    Logb-4                  105.45n ± 1%   66.81n ± 1%  -36.64% (p=0.000 n=8)
+    Log1p-4                  268.2n ± 0%   211.3n ± 0%  -21.21% (p=0.000 n=8)
+    Log10-4                  295.4n ± 0%   255.2n ± 2%  -13.59% (p=0.000 n=8)
+    Log2-4                   152.9n ± 1%   127.5n ± 0%  -16.61% (p=0.000 n=8)
+    Modf-4                  103.40n ± 0%   75.36n ± 0%  -27.12% (p=0.000 n=8)
+    Nextafter32-4           121.20n ± 1%   78.40n ± 0%  -35.31% (p=0.000 n=8)
+    Nextafter64-4           110.40n ± 1%   64.91n ± 0%  -41.20% (p=0.000 n=8)
+    PowInt-4                 509.8n ± 1%   369.3n ± 1%  -27.56% (p=0.000 n=8)
+    PowFrac-4               1189.0n ± 0%   947.8n ± 0%  -20.29% (p=0.000 n=8)
+    Pow10Pos-4               15.07n ± 0%   15.07n ± 0%        ~ (p=0.733 n=8)
+    Pow10Neg-4               20.10n ± 0%   20.10n ± 0%        ~ (p=0.576 n=8)
+    Round-4                  44.22n ± 0%   26.12n ± 0%  -40.92% (p=0.000 n=8)
+    RoundToEven-4            46.22n ± 0%   27.12n ± 0%  -41.31% (p=0.000 n=8)
+    Remainder-4              539.0n ± 1%   417.1n ± 1%  -22.62% (p=0.000 n=8)
+    Signbit-4               17.985n ± 0%   5.694n ± 0%  -68.34% (p=0.000 n=8)
+    Sin-4                    185.7n ± 5%   172.9n ± 0%   -6.89% (p=0.001 n=8)
+    Sincos-4                 176.6n ± 0%   200.9n ± 0%  +13.76% (p=0.000 n=8)
+    Sinh-4                   495.8n ± 0%   435.9n ± 0%  -12.09% (p=0.000 n=8)
+    SqrtIndirect-4           5.022n ± 0%   5.024n ± 0%        ~ (p=0.083 n=8)
+    SqrtLatency-4            8.038n ± 0%   8.044n ± 0%        ~ (p=0.524 n=8)
+    SqrtIndirectLatency-4    8.035n ± 0%   8.039n ± 0%   +0.06% (p=0.017 n=8)
+    SqrtGoLatency-4          340.1n ± 0%   278.3n ± 0%  -18.19% (p=0.000 n=8)
+    SqrtPrime-4              5.381µ ± 0%   5.386µ ± 0%        ~ (p=0.662 n=8)
+    Tan-4                    198.6n ± 1%   183.1n ± 0%   -7.85% (p=0.000 n=8)
+    Tanh-4                   491.3n ± 1%   440.8n ± 1%  -10.29% (p=0.000 n=8)
+    Trunc-4                  121.7n ± 0%   121.7n ± 0%        ~ (p=0.769 n=8)
+    Y0-4                     855.1n ± 0%   859.8n ± 0%   +0.54% (p=0.007 n=8)
+    Y1-4                     862.3n ± 0%   865.1n ± 0%   +0.32% (p=0.007 n=8)
+    Yn-4                     1.830µ ± 0%   1.837µ ± 0%   +0.36% (p=0.011 n=8)
+    Float64bits-4           13.060n ± 0%   3.016n ± 0%  -76.91% (p=0.000 n=8)
+    Float64frombits-4       13.060n ± 0%   3.018n ± 0%  -76.90% (p=0.000 n=8)
+    Float32bits-4           13.060n ± 0%   3.016n ± 0%  -76.91% (p=0.000 n=8)
+    Float32frombits-4       13.070n ± 0%   3.013n ± 0%  -76.94% (p=0.000 n=8)
+    FMA-4                    446.0n ± 0%   413.1n ± 1%   -7.38% (p=0.000 n=8)
+    geomean                  143.4n        108.3n       -24.49%
     
-            x == y || Unalias(x) == Unalias(y)
-    
-    to test whether x and y are (pointer-) identical.
-    Add the missing Unalias calls in the place where we forgot them.
-    
-    Fixes #67872.
-    
-    Change-Id: Ia26ffe7205b0417fc698287a4aeb1c900d30cc0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591975
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I2067f7a5ae1126ada7ab3fb2083710e8212535e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493815
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/types2/unify.go            |  2 +-
- src/go/types/unify.go                               |  2 +-
- src/internal/types/testdata/fixedbugs/issue67872.go | 14 ++++++++++++++
- 3 files changed, 16 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/mips64/ssa.go         |   4 +
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules |  13 +++
+ src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go |  10 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  56 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 139 +++++++++++++++++++++++++
+ test/codegen/math.go                           |   4 +
+ 6 files changed, 224 insertions(+), 2 deletions(-)

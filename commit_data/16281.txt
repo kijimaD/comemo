@@ -1,23 +1,12 @@
-commit 26d95d802750371cdfa50e7fe0a305c20dac1826
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 8 14:58:34 2013 -0700
+commit f0c3d264731afe8c252acae89013ee1865656cbe
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 8 09:23:50 2013 -0700
 
-    runtime: fix crash in select
-    runtime.park() can access freed select descriptor
-    due to a racing free in another thread.
-    See the comment for details.
+    doc: pull front page featured articles using new blog JSON feed
     
-    Slightly modified version of dvyukov's CL 9259045.
-    
-    No test yet.  Before this CL, the test described in issue 5422
-    would fail about every 40 times for me.  With this CL, I ran
-    the test 5900 times with no failures.
-    
-    Fixes #5422.
-    
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/9311043
+    https://golang.org/cl/9288045
 
- src/pkg/runtime/chan.c | 29 ++++++++++++++++++++---------
- 1 file changed, 20 insertions(+), 9 deletions(-)
+ doc/root.html | 41 +++++++++++++++++++++--------------------
+ 1 file changed, 21 insertions(+), 20 deletions(-)

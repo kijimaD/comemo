@@ -1,12 +1,16 @@
-commit 4b4a1ea899e6a269ee01c811b9f6998a1541ceab
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 7 11:00:57 2011 -0800
+commit e08f0c18c9b50bfe7d3079508b1254adff4340bb
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Mar 7 12:53:39 2011 -0500
 
-    misc/dashboard/builder/doc.go: gofmt it
+    goinstall: handle .c files with gc when cgo isn't used
     
-    R=r, adg
+    As a data point, this enables goinstall to handle the standard
+    syscall package almost unchanged (there's one file with the _bsd
+    extension, and a .c file which isn't supposed to be compiled in).
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4256052
+    https://golang.org/cl/4259057
 
- misc/dashboard/builder/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/goinstall/make.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

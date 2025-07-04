@@ -1,23 +1,22 @@
-commit e89e880eacb1aceaa14733f44c38e6748d5ffa9c
-Author: Clide Stefani <cstefani.sites@gmail.com>
-Date:   Tue Jun 11 14:42:13 2024 -0400
+commit ccc42b0f91a7fc44b0353dea3f302f79fb28b300
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 26 14:04:37 2023 -0700
 
-    crypto/tls: add support for -reject-alpn and -decline-alpn flags to bogo_shim_test
+    doc/go1.21: document clear builtin and init order changes
     
-    The existing implementation of bogo_shim_test does not support tests
-    which use the reject-alpn or the decline-alpn flag.
-    This change adds support for these flags in bogo_shim_test.
+    Also move all the language changes to the same part of the release notes.
     
-    Updates #51434
-    Updates #46310
+    For #56351
+    For #57411
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Change-Id: I3ff23ff4edd8f4c6c37ee6c9f2ee4689066c4e00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592198
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id1c51b5eb8f7d85e61a2ae44ee7d73bb13036631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498755
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/bogo_shim_test.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ doc/go1.21.html | 68 ++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 46 insertions(+), 22 deletions(-)

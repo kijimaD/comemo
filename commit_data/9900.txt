@@ -1,16 +1,14 @@
-commit f198bbc850ed352b04772ee34c1b5e87b38ea0f5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 6 21:46:05 2011 -0700
+commit af2070598fad4770ba972c537ea6357bca0ac737
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Oct 7 13:33:34 2011 +1100
 
-    godoc: use scanner instead of go/scanner for ebnf processing of spec
+    image: delete obsolete color.go
     
-    Also: Fewer calls to flush for faster processing (once per identifier
-    or error instead of once per token).
+    I accidentally left it off of https://golang.org/cl/5132048/.
     
-    R=golang-dev, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5236041
+    https://golang.org/cl/5202042
 
- src/cmd/godoc/godoc.go |   2 +-
- src/cmd/godoc/spec.go  | 135 +++++++++++++++++++++----------------------------
- 2 files changed, 59 insertions(+), 78 deletions(-)
+ src/pkg/image/color.go | 251 -------------------------------------------------
+ 1 file changed, 251 deletions(-)

@@ -1,0 +1,18 @@
+commit 1ffadf146665c52b1d583bb20dc21a1fa6c02ead
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 26 18:02:56 2024 -0800
+
+    doc/next: document new language feature (alias type parameters)
+    
+    For #46477.
+    For #68545.
+    
+    Change-Id: I54a36f24167a1f909a865f8f6cf416d7378faa4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632055
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/next/2-language.md | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

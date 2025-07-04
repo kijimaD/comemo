@@ -1,23 +1,25 @@
-commit cc795a01dcec7c97044b31571af88ac98310f2b3
+commit 0ad46889a140c3b2e72b8aa4a47ac242571c521f
 Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 9 12:51:29 2021 -0500
+Date:   Thu Apr 8 17:38:25 2021 -0400
 
-    testenv: kill subprocess if SIGQUIT doesn't do it
+    cmd/compile/abi-internal: declare X15 scratch in function bodies
     
-    This makes testenv.RunWithTimeout first attempt to SIGQUIT the
-    subprocess to get a useful Go traceback, but if that doesn't work, it
-    sends a SIGKILL instead to make sure we tear down the subprocess. This
-    is potentially important for non-Go subprocesses.
+    X15 must be zero at function calls and returns, but can be used as
+    scratch in the middle of a function. This allows things like memmove
+    and the hashing functions to use X15 temporarily, as long as they set
+    it back to 0 before returning.
     
-    For #37405.
+    This CL also clarifies the distinction between register meanings on
+    function call versus function return, since some of them have fixed
+    meanings at both call and return, while others only have a fixed
+    meaning at calls.
     
-    Change-Id: I9e7e118dc5769ec3f45288a71658733bff30c9cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370702
+    Updates #40724.
+    
+    Change-Id: I9dad3abde42cd4d2788e8435cde6d55073dd75a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308929
     Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/internal/testenv/testenv.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/abi-internal.md | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

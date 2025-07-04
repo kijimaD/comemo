@@ -1,13 +1,12 @@
-commit d0f3100b477fb42d37cdb948ebbf80b3951141d2
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Apr 17 14:55:07 2015 +0900
+commit e89fdb825983976c0983f4083b7b63b6df67dc6b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 24 22:31:35 2015 -0400
 
-    net: break up TestErrorNil into Test{Dial,Listen,ListenPacket}Error
+    doc/go1.5: add nacl get_random_bytes change, pepper-39+ required
     
-    Change-Id: I7c6c91a0551aacb49e1beb4a39215b93c8c7fcfa
-    Reviewed-on: https://go-review.googlesource.com/8997
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib7374dc87fa4d4ad5854155049e511a1ff51ca97
+    Reviewed-on: https://go-review.googlesource.com/8081
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/error_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/net/net_test.go   | 38 --------------------------------------
- 2 files changed, 51 insertions(+), 38 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

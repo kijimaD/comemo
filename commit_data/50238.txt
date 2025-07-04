@@ -1,20 +1,29 @@
-commit 36f191abcd633a7795195adf89153cc7f373c90f
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Sat Aug 13 12:53:37 2022 -0700
+commit 70235351263caee1fd9840d1d652bf28778cd51d
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Oct 7 12:21:01 2021 -0700
 
-    syscall: make mkall.sh accept file list
+    cmd/compile: adjust debug/gosym to deal with instantiated types/funcs/methods
     
-    Amend the "mkall.sh -syscalls" implementation to
-     - prepend ./ before mksyscalls.pl;
-     - accept the optional file list argument.
+    This changes debug/gosym so it can deal with instantiated
+    types/funcs/methods. I also added tests for instantiated names. My
+    assumption is that the concatenation of PackageName, ReceiverName, and
+    BaseName in order should cover the entire symbol name, so either the
+    ReceiverName or the BaseName should include any bracketed information
+    (either the instantiation of the receiver of a method or the
+    instantiation of function).
     
-    This is a preparation for CL 416115.
+    This can provide a model for how to parse instantiated functions and
+    method names.
     
-    Change-Id: Ib4dc2b4aa0d2dd22a256414864e92f2d2fd957a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423676
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #48032
+    
+    Change-Id: I476781de2d6fc096efbb4be85c197d6f1cafac21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354689
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/mkall.sh | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/debug/gosym/symtab.go      | 53 +++++++++++++++++++++++++++++++++++++-----
+ src/debug/gosym/symtab_test.go | 19 +++++++++++++++
+ 2 files changed, 66 insertions(+), 6 deletions(-)

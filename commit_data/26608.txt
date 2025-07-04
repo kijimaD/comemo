@@ -1,21 +1,13 @@
-commit d8f1f8d8568d680be0845379d477264fd09324c3
-Author: Alexandru Moșoi <brtzsnr@gmail.com>
-Date:   Thu Mar 24 22:46:37 2016 +0100
+commit 6030c7531539619003e651e8836f451ea6b832b0
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Feb 17 14:02:26 2016 -0800
 
-    cmd/compile: generalize strength reduction of mulq
+    doc: document Go 1.6
     
-    * This is an improved version of an earlier patch.
-    * Verified with gcc up to 100.
-    * Limited to two instructions based on costs from
-    https://gmplib.org/~tege/x86-timing.pdf
-    
-    Change-Id: Ib7c37de6fd8e0ba554459b15c7409508cbcf6728
-    Reviewed-on: https://go-review.googlesource.com/21103
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4910105d48ed650289ecb1490d556929db05bc38
+    Reviewed-on: https://go-review.googlesource.com/19526
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/19527
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  23 ++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 257 ++++++++++++++++++++++++++-
- test/strength.go                             |  45 +++++
- 3 files changed, 319 insertions(+), 6 deletions(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

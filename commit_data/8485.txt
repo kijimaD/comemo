@@ -1,15 +1,15 @@
-commit 7b03f2a9901785fdf4dd4177682c4673c0d48f97
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 25 21:25:15 2011 +1000
+commit ddcdbd447084da04aede72356dadd99a08a96cc9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 24 22:53:37 2011 -0700
 
-    fmt: make %q work for integers, printing a quoted character literal.
+    os: Fix test to work on Solaris.
     
-    R=rsc
+    On Solaris /bin is a symlink to /usr/bin, so running "pwd" in
+    the directory "/bin" prints out "/usr/bin".
+    
+    R=rsc, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4556060
+    https://golang.org/cl/4559043
 
- src/pkg/fmt/doc.go      |  1 +
- src/pkg/fmt/fmt_test.go | 11 +++++++++++
- src/pkg/fmt/format.go   |  7 +++++++
- src/pkg/fmt/print.go    | 13 +++++++++++++
- 4 files changed, 32 insertions(+)
+ src/pkg/os/os_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

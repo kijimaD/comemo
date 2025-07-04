@@ -1,15 +1,13 @@
-commit 96f968df9ca9533b5f6bd04bc288a047e275b9a2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 21 08:30:47 2011 -0700
+commit 1262f6bde78e92b2156a7ae8acfeb5ed81bfecdb
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Sep 20 22:55:14 2011 -0700
 
-    http: add a (disabled) test for TLS handshake timeouts
+    exp/template/html: fix bug, '<' normalization for text nodes that change context
     
-    It's currently broken and disabled, pending a fix
-    for Issue 2281.
-    
-    R=golang-dev, adg
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5092045
+    https://golang.org/cl/5080042
 
- src/pkg/http/serve_test.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/pkg/exp/template/html/escape.go      | 13 +++++++++++--
+ src/pkg/exp/template/html/escape_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

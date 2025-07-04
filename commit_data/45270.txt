@@ -1,18 +1,26 @@
-commit 614a9c2613484de952785dc851e08ae81197df2c
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Apr 20 22:23:14 2021 -0400
+commit 03f181a90ef4de680a666ca86c7988915e892e8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 23:32:51 2020 -0400
 
-    go/types: simplify Checker.funcInst
+    io: unexport ErrBadWriteCount
     
-    This is a port of CL 306169 to go/types, adjusted only for use of the
-    typeparams package, and the different positioning API.
+    It was added in CL 240740 to fix #39978
+    but without any discussion of the exported API.
     
-    Change-Id: I3095f4b0dae4473e75ec2a988ea282bac1a4bab3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312189
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    The error can still be returned to fix the issue,
+    without adding new public API to package io.
+    
+    Also fix the error message to refer to lower-case write
+    like the other errors in the package.
+    
+    Change-Id: I134de5eaf3ac903d73913c5cadcde904c5255d79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262877
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/call.go | 37 +++++++++----------------------------
- 1 file changed, 9 insertions(+), 28 deletions(-)
+ src/io/export_test.go | 8 ++++++++
+ src/io/io.go          | 8 ++++----
+ src/io/io_test.go     | 2 +-
+ 3 files changed, 13 insertions(+), 5 deletions(-)

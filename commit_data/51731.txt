@@ -1,19 +1,45 @@
-commit 35755d772fab1828c9b79563b98912f3c6025b7a
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Sun Dec 4 21:41:47 2022 +0100
+commit d3070a767bc0ddfdca1f84e2018de1c906b817ca
+Author: thepudds <thepudds@users.noreply.github.com>
+Date:   Tue Mar 8 14:51:27 2022 +0000
 
-    cmd/compile: teach prove about unsigned division, modulus and rsh
+    cmd/compile/internal/types2: more consistently print "check go.mod" if language version < 1.18
     
-    Fixes: #57077
-    Change-Id: Icffcac42e28622eadecdba26e3cd7ceca6c4aacc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455095
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    If you attempt to instantiate a generic type or func and run 'go build'
+    with a language version < 1.18 in the 'go' directive inside the go.mod
+    file, cmd/compile emits a friendly message that includes the suggestion
+    to 'check go.mod':
+    
+        type instantiation requires go1.18 or later (-lang was set to go1.17; check go.mod)
+    
+    However, if the code instead only declares a generic type or func
+    without instantiating, cmd/compile currently emits a less friendly
+    message:
+    
+        type parameters require go1.18 or later
+    
+    With this CL, the error in that situation becomes:
+    
+        type parameter requires go1.18 or later (-lang was set to go1.17; check go.mod)
+    
+    Within cmd/compile/internal/types2, it already calls check.versionErrorf
+    in a dozen or so places, including three existing calls to
+    check.versionErrorf within typeset.go (e.g., for embedding a constraint
+    interface).
+    
+    This CL adds two more calls to check.versionErrorf, replacing calls to
+    check.softErrorf. Both check.versionErrorf and check.softErrorf call
+    check.err(at, <string>, true) after massaging the string message.
+    
+    Fixes #51531
+    
+    Change-Id: If54e179f5952b97701d1dfde4abb08101de07811
+    GitHub-Last-Rev: b0b7c1346f3a92f70e6cd5ff9ef047f441b09895
+    GitHub-Pull-Request: golang/go#51536
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390578
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/prove.go |  9 ++++++++
- test/prove.go                         | 39 +++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+ src/cmd/compile/internal/types2/resolver.go                 |  4 ++--
+ .../internal/types2/testdata/fixedbugs/issue47818.go2       |  6 +++---
+ test/fixedbugs/issue51531.go                                | 13 +++++++++++++
+ 3 files changed, 18 insertions(+), 5 deletions(-)

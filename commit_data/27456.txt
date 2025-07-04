@@ -1,17 +1,19 @@
-commit 086d7b0e9e34555f32248c9242b641273a32bc7e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu May 19 17:36:47 2016 +0900
+commit 7043d2bb5e8275df308abe9a2367fb1622be0313
+Author: Michel Lespinasse <walken@google.com>
+Date:   Fri Mar 18 15:16:53 2016 -0700
 
-    net: deflake TestDialerDualStackFDLeak
+    runtime: insert itabs into hash table during init
     
-    Fixes #14717.
-    Updates #15157.
+    See #14874
     
-    Change-Id: I7238b4fe39f3670c2dfe09b3a3df51a982f261ed
-    Reviewed-on: https://go-review.googlesource.com/23244
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This change makes the runtime register all compiler generated itabs
+    (as obtained from the moduledata) during init.
+    
+    Change-Id: I9969a0985b99b8bda820a631f7fe4c78f1174cdf
+    Reviewed-on: https://go-review.googlesource.com/20900
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Michel Lespinasse <walken@google.com>
 
- src/net/dial_test.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/runtime/iface.go | 55 +++++++++++++++++++++++++++++++++++-----------------
+ src/runtime/proc.go  |  1 +
+ 2 files changed, 38 insertions(+), 18 deletions(-)

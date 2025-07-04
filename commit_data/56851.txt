@@ -1,17 +1,18 @@
-commit b0927fdd494a79458ff151ce8db59963f67b80be
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Jun 28 00:00:00 2024 +0800
+commit f9d114d0e85eba7a79b9656aa65f0ba939787fb6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 24 13:23:14 2023 -0700
 
-    slices: update docs for All, Backward, Values
+    spec: document min and max built-ins
     
-    For #61899
+    For #59488.
     
-    Change-Id: I3586b9b59e87159d21e1a270dabb3af213592739
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595515
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I50f65216bf02b42c1e0619702833f4a6dbed8925
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498136
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- src/slices/iter.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 67 insertions(+), 2 deletions(-)

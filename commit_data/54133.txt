@@ -1,20 +1,19 @@
-commit 47645420348778a9b289e979ac5f757e64a78696
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Aug 20 10:23:03 2023 -0700
+commit b0f8e20d041cdb739db558c00edf14eb7e01c3da
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 27 09:10:21 2022 -0700
 
-    cmd/compile/internal/compare: simplify unit test framework
+    reflect: clarify that Value.Comparable checks the value
     
-    This CL refactors the compare unit tests to be simpler and to stop
-    using the types API in non-idiomatic ways, to facilitate further
-    refactoring of the API.
+    For #46746
     
-    Change-Id: I864a66b2842a0d8dd45f4e3d773144d71666caf2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521275
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic7a31ddf7cd6bf6dd0db6b9eb3fee68fc180f72e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435277
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/compare/compare_test.go | 155 ++++++-----------------
- 1 file changed, 37 insertions(+), 118 deletions(-)
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

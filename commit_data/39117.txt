@@ -1,16 +1,18 @@
-commit 309ab1ecc810fad29d09bbf91c22c6bfd1683c6f
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri May 10 16:57:22 2019 -0400
+commit af4320350b3a156de0d1cfa9845ab1e48dcbfefa
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Jan 3 11:03:19 2019 -0800
 
-    cmd/go: add generated code comment to _testmain.go template
+    runtime: add test for go function argument scanning
     
-    Fixes #31971
+    Derived from Naoki's reproducer.
     
-    Change-Id: I127659be145e348fae20930615666d67dc7971ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176468
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Update #29362
+    
+    Change-Id: I1cbd33b38a2f74905dbc22c5ecbad4a87a24bdd1
+    Reviewed-on: https://go-review.googlesource.com/c/156122
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/load/test.go                   |  2 ++
- src/cmd/go/testdata/script/test_generated_main.txt | 35 ++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ test/fixedbugs/issue29362.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

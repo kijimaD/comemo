@@ -1,12 +1,14 @@
-commit 13ba968d750f0bbf8cb5214c366ef98adada1a85
+commit a21b4bca0c82098f3a445d663365c9afea8fa699
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 10:50:52 2016 -0500
+Date:   Fri Oct 30 11:08:25 2015 -0400
 
-    runtime/pprof: point to new docs about kernel bugs
+    doc/go1.6.txt: mention possible GOTRACEBACK change
     
-    Change-Id: I8ee338c1244fc4e2fb75deec752a7f83239c33ea
-    Reviewed-on: https://go-review.googlesource.com/18257
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For CL 16512, #12366, #13107.
+    
+    Change-Id: I0ed1bb9597ac3db3fa35a037c304060d5a7e6d51
+    Reviewed-on: https://go-review.googlesource.com/16513
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/pprof/pprof.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

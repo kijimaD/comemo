@@ -1,15 +1,36 @@
-commit 9bfe9dfde7844029bd95793a2f985cabd83c5f70
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Nov 18 13:24:17 2011 +1100
+commit 984b4e381dc571e961934acbd5d4af329ae8afb9
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Thu Nov 17 17:54:06 2011 -0600
 
-    mime: remove ".wav" from tests (to fix build)
+    misc/windows packager development intermediate check-in
     
-    It looks like not all computers have
-    mime type for .wav extension.
+    The installer now: allows a user to select an alternative
+    install directory, it now adds a Go folder to the Programs
+    Menu, and it places two shortcuts on the user's desktop.
+    The Program Menu folder contains shortcuts to the uninstaller
+    and two batch files, go.bat and godoc.bat. The desktop
+    shortcuts also point to go.bat and godoc.bat.
     
-    R=golang-dev, bradfitz
+    go.bat sets the Go environment, including Path, and spawns a
+    Window's shell. godoc.bat starts the godoc server at
+    localhost:6060 then spawns a browser window pointing to the
+    document server.
+    
+    Setting the environment temporarily and spawning a shell, via
+    go.bat, should be safer than messing with the system's environment
+    and it makes the user experience a bit more streamlined.
+    
+    The packager does work in its current state but it still needs
+    some polishing. And yes, the plan is to add a dialogue to allow
+    the user to decline the desktop shortcuts.
+    
+    R=rsc, alex.brainman, tjyang2001
     CC=golang-dev
-    https://golang.org/cl/5415045
+    https://golang.org/cl/5399042
 
- src/pkg/mime/type_windows.go | 1 -
- 1 file changed, 1 deletion(-)
+ misc/windows/LICENSE         | Bin 0 -> 1687 bytes
+ misc/windows/godocserver.bat |  14 +++
+ misc/windows/goenv.bat       |  29 +++++++
+ misc/windows/installer.wxs   | 202 +++++++++++++++++++++++++++++--------------
+ misc/windows/package.bash    |   4 +-
+ 5 files changed, 182 insertions(+), 67 deletions(-)

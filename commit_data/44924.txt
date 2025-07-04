@@ -1,21 +1,35 @@
-commit 971c7154b04d8dd00da932a26ecb6bb8d8fc133d
-Author: Drew Richardson <drewrichardson@gmail.com>
-Date:   Thu Apr 1 17:05:24 2021 -0700
+commit 4f915911e84819b69329a224d5b646983ac9fed7
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 26 14:07:35 2020 -0700
 
-    io/fs: implement subFS.Sub
+    cmd/compile: allow aliases to go:notinheap types
     
-    Calling fs.Sub with the result of fs.Sub multiple times creates a deep
-    call stack for Open and other methods. Enhance the fs.FS returned by
-    fs.Sub to implement fs.SubFS and reduce the call stack.
+    The alias doesn't need to be marked go:notinheap. It gets its
+    notinheap-ness from the target type.
     
-    Fixes #45349
+    Without this change, the type alias test in the notinheap.go file
+    generates these two errors:
     
-    Change-Id: I10e10501e030176e10e2ae5ad260212e5c784bed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306769
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    notinheap.go:62: misplaced compiler directive
+    notinheap.go:63: type nih must be go:notinheap
+    
+    The first is a result of go:notinheap pragmas not applying
+    to type alias declarations.
+    The second is the result of then trying to match the notinheap-ness
+    of the alias and the target type.
+    
+    Add a few more go:notinheap tests while we are here.
+    
+    Update #40954
+    
+    Change-Id: I067ec47698df6e9e593e080d67796fd05a1d480f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250939
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/io/fs/sub.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/notinheap.go                        |  8 ++++++++
+ test/notinheap2.go                       | 10 +++++++---
+ 3 files changed, 16 insertions(+), 4 deletions(-)

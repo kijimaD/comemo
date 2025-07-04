@@ -1,19 +1,24 @@
-commit f7b05a08b8e7fb79e7b4ca75d530deb198ac1f5c
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jul 14 14:52:31 2018 +1000
+commit aaeaad687065f45efedf2e070780b8db6ceb7f17
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Mar 27 14:41:19 2018 -0400
 
-    doc: update Values, Writing Code, and Pointers and Allocation sections of the FAQ
+    cmd/trace: assign a unique span id for slice representation
     
-    Significant surgery done to the Versioning section, bringing it closer to
-    modern thinking.
+    Spans are represented using Async Event types of chrome trace viewer.
+    According to the doc, the 'id' should be unique within category, scope.
     
-    Also add a question about constants.
+    https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#heading=h.jh64i9l3vwa1
     
-    Update #26107.
+    Use the index in the task's span slice as the slice id, so it
+    can be unique within the task. The scope is the task id which
+    is unique.
     
-    Change-Id: Icf70b7228503c6baaeab0b95ee3e6bee921575aa
-    Reviewed-on: https://go-review.googlesource.com/123918
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This fixes a visualization bug that caused incorrect or missing
+    presentation of nested spans.
+    
+    Change-Id: If1537ee00247f71fa967abfe45569a9e7dbcdce7
+    Reviewed-on: https://go-review.googlesource.com/102697
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- doc/go_faq.html | 126 ++++++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 86 insertions(+), 40 deletions(-)
+ src/cmd/trace/trace.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

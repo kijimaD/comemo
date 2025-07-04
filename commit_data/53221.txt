@@ -1,35 +1,45 @@
-commit a6a25869f07beeca8d4a2098d9f896a8a10f5b1e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 23 12:37:01 2023 -0400
+commit c9f2150cfb3c1db87f6434f727c25403d985a6e4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jul 31 18:48:16 2022 -0700
 
-    cmd/go: set default GOTOOLCHAIN in GOROOT/go.env
+    [dev.unified] cmd/compile: start using runtime dictionaries
     
-    As part of the work for #57179 we moved configurable defaults
-    to GOROOT/go.env, so that packagers don't have to modify
-    source code to change those defaults. Since packagers may want
-    to modify GOTOOLCHAIN's default, move it to go.env too.
+    This CL switches unified IR to start using runtime dictionaries,
+    rather than pure stenciling. In particular, for each instantiated
+    function `F[T]`, it now:
     
-    This CL modifies 'go env' to print GOTOOLCHAIN by default.
-    It also refines CL 496957 from yesterday to recognize any env
-    var in either go.env or the user go/env, not just the user go/env.
-    When I put GOTOOLCHAIN in go.env, but before I added it to
-    the default printing list, 'go env GOTOOLCHAIN' was printing
-    an empty string, and it was incredibly confusing.
+    1. Generates a global variable `F[T]-dict` of type `[N]uintptr`, with
+    all of the `*runtime._type` values needed by `F[T]`.
     
-    For #57001.
-    Fixes #60361 while we're here.
+    2. Generates a function `F[T]-shaped`, with an extra
+    `.dict *[N]uintptr` parameter and indexing into that parameter for
+    derived types. (N.B., this function is not yet actually using shape
+    types.)
     
-    Also includes a fix for a review comment on CL 497079 that I forgot to mail.
+    3. Changes `F[T]` to instead be a wrapper function that calls
+    `F[T]-shaped` passing `&F[T]-dict` as the `.dict` parameter.
     
-    Change-Id: I7b904d9202f05af789aaa33aed93f903b515aa28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497437
+    This is done in one pass to make sure the overall wiring is all
+    working (especially, function literals and inlining).
+    
+    Subsequent CLs will write more information into `F[T]-dict` and update
+    `F[T]-shaped` to use it instead of relying on `T`-derived information
+    itself. Once that's done, `F[T]-shaped` can be changed to
+    `F[shapify(T)]` (e.g., `F[go.shape.int]`) and deduplicated.
+    
+    Change-Id: I0e802a4d9934794e01a6bfc367820af893335155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420416
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- go.env                                     |  4 ++++
- src/cmd/go/gotoolchain.go                  | 11 ++++++++++-
- src/cmd/go/internal/cfg/cfg.go             |  5 +++++
- src/cmd/go/internal/envcmd/env.go          | 14 +++++++++-----
- src/cmd/go/testdata/script/gotoolchain.txt | 26 +++++++++++++++++---------
- 5 files changed, 45 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/noder/reader.go         | 318 ++++++++++++++++++++---
+ src/cmd/compile/internal/noder/unified.go        |   4 +-
+ src/cmd/compile/internal/noder/writer.go         |  22 +-
+ src/cmd/compile/internal/ssa/debug_lines_test.go |   4 +-
+ src/internal/pkgbits/encoder.go                  |   1 -
+ 5 files changed, 308 insertions(+), 41 deletions(-)

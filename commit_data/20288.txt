@@ -1,14 +1,18 @@
-commit b1d01529975d2d87921c88891f85f3faa65e8cea
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Sep 4 08:36:18 2014 +0200
+commit 9f0b749ba57dc4e922c1d16919cde4b7f9813f58
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Fri Aug 29 17:17:48 2014 +1000
 
-    runtime: fix Plan 9 build
+    image/png: do not apply filters if level is NoCompression
     
-    LGTM=rsc
-    R=rsc
+    PNG filters are applied to get better compression ratio.
+    It does not make sense to apply them if we are not going
+    to compress.
+    
+    LGTM=nigeltao
+    R=nigeltao
     CC=golang-codereviews
-    https://golang.org/cl/138050043
+    https://golang.org/cl/137830043
 
- src/pkg/runtime/os_plan9.c  | 6 ------
- src/pkg/runtime/os_plan9.go | 4 ++++
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ src/pkg/image/png/writer.go      |  5 ++++-
+ src/pkg/image/png/writer_test.go | 15 +++++++++------
+ 2 files changed, 13 insertions(+), 7 deletions(-)

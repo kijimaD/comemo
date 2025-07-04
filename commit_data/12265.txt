@@ -1,14 +1,14 @@
-commit 2c9e1637d2388005dc4d71dd4990b73b13c79ad0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 28 17:44:24 2012 -0800
+commit b69fa69a8bf53fb4714d96b4daf80fd6de597111
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 28 16:49:57 2012 -0800
 
-    go spec: inside functions, variables must be evaluated.
+    doc: update Go For C++ Programmers
     
-    Fixes #1612.
+    Minor cleanups to look more like current Go.
     
-    R=r, rsc, iant, ken, remyoudompheng, ken, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5700068
+    https://golang.org/cl/5707053
 
- doc/go_spec.html | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+ doc/go_for_cpp_programmers.html | 205 +++++++++++++++++++++++++++++-----------
+ 1 file changed, 151 insertions(+), 54 deletions(-)

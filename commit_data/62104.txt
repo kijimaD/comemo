@@ -1,0 +1,36 @@
+commit ad7b46ee4ac1cee5095d64b01e8cf7fcda8bee5e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 25 13:08:34 2024 -0800
+
+    go/parser, go/types, syntax, types2: report invalid uses of ... by parsers
+    
+    Check correct use of ...'s in parameter lists in parsers.
+    This allows the type checkers to assume correct ASTs with
+    respect to ... use.
+    
+    Adjust some error messages: if a ... is used in a result
+    parameter list, the error is now more accurate.
+    
+    Eliminate a now unused error code.
+    
+    Change-Id: I66058e114e84805e24c59e570604b607ef5ff1fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631135
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go     | 36 +++++++++----
+ src/cmd/compile/internal/types2/expr.go       |  5 +-
+ src/cmd/compile/internal/types2/signature.go  |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go    |  6 +--
+ src/go/parser/parser.go                       | 76 +++++++++++++++------------
+ src/go/parser/short_test.go                   |  8 +++
+ src/go/types/expr.go                          |  5 +-
+ src/go/types/signature.go                     |  2 +-
+ src/go/types/typexpr.go                       |  6 +--
+ src/internal/types/errors/code_string.go      |  7 ++-
+ src/internal/types/errors/codes.go            |  5 +-
+ src/internal/types/testdata/check/issues0.go  |  6 +--
+ src/internal/types/testdata/examples/types.go |  2 +-
+ 13 files changed, 96 insertions(+), 70 deletions(-)

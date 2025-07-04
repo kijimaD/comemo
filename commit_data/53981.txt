@@ -1,39 +1,17 @@
-commit e7e5913161e94f77f29443e8b8ddd22714a0f01d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 9 08:39:47 2023 -0700
+commit 585c438615cf1e840afc270d7632ee836ced1de8
+Author: jiepeng <jiepengthegreat@126.com>
+Date:   Wed Sep 7 02:59:46 2022 +0000
 
-    cmd/compile: cleanup ir.Package
+    cmd/go/internal/vcs: replace [A-Za-z0-9_] with \w in regexps
     
-    Decls used to contain initializer statement for package-level
-    variables, but now it only contains ir.Funcs. So we might as well
-    rename it to Funcs and tighten its type to []*ir.Func.
-    
-    Similarly, Externs always contains *ir.Names, so its type can be
-    constrained too.
-    
-    Change-Id: I85b833e2f83d9d3559ab0ef8ab5d8324f4bc37b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517855
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibcc7dbb528585b019ff1b743792a52f43a4c2233
+    GitHub-Last-Rev: e907fb00e3202ce394750542084569058b7d960e
+    GitHub-Pull-Request: golang/go#54882
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428535
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/coverage/cover.go  | 10 ++----
- src/cmd/compile/internal/escape/escape.go   |  2 +-
- src/cmd/compile/internal/gc/main.go         | 29 +++++++--------
- src/cmd/compile/internal/gc/obj.go          | 21 ++++++-----
- src/cmd/compile/internal/inline/inl.go      | 56 ++++++++++++++---------------
- src/cmd/compile/internal/ir/func.go         |  2 +-
- src/cmd/compile/internal/ir/package.go      | 10 +++---
- src/cmd/compile/internal/ir/scc.go          |  9 ++---
- src/cmd/compile/internal/noder/reader.go    | 19 ++++++----
- src/cmd/compile/internal/noder/unified.go   | 32 ++++++-----------
- src/cmd/compile/internal/pgo/irgraph.go     |  6 ++--
- src/cmd/compile/internal/pkginit/init.go    |  6 ++--
- src/cmd/compile/internal/reflectdata/alg.go |  4 +--
- src/cmd/compile/internal/ssagen/abi.go      |  8 ++---
- src/cmd/compile/internal/ssagen/nowb.go     | 14 ++------
- src/cmd/compile/internal/typecheck/subr.go  | 33 ++++++++---------
- 16 files changed, 117 insertions(+), 144 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

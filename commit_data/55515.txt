@@ -1,20 +1,40 @@
-commit 9819d8265f92e0797df646f9a7056bb979d0005b
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jan 31 17:56:47 2024 -0500
+commit 30151f2aac2882dcb369019acfec95d16fea3c02
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 9 16:35:04 2023 -0500
 
-    cmd/compile: avoid reading entire PGO profile just to check the header
+    cmd/go: fuzz test splitPkgConfigOutput and fix minor bugs
     
-    isPreProfileFile reads the entire file into memory just to check the
-    first few bytes, and then throws it all away. We can avoid this by just
-    peeking at the beginning.
+    In reviewing CL 466875, I noticed that the implementation of
+    splitPkgConfigOutput from CL 86541 referred to another specific
+    implementation, and that implementation has had recent changes to fix
+    deviations from the POSIX specification for shell argument parsing.
     
-    For #58102.
+    Curious about those changes, I decided to fuzz the function to check
+    whether it agreed in practice with the way a real shell parses
+    arguments in POSIX mode. It turned out to deviate in several edge
+    cases, such as backslash-escapes within single quotes, quoted empty
+    strings, and carriage returns. (We do not expect to see carriage
+    returns in pkg-config output anyway, but the quote handling might
+    matter.)
     
-    Change-Id: Id2c2844e5e44a2f3a9c7cdb9a027d94d26bdf71d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560035
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    This change updates the implementation to refer to the POSIX
+    documentation instead of another implementation, and confirms the
+    behavior with a fuzz test. It may introduce minor deviations from the
+    pkgconf implementation that was previously used as a reference, but if
+    so it is plausible that those could be fixed upstream in pkgconf
+    (like the other recent changes there).
+    
+    For #35262.
+    Updates ##23373.
+    
+    Change-Id: Ifab76e94af0ca9a6d826379f4a6e2028561e615c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466864
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/pgo/irgraph.go | 71 +++++++++++++++------------------
- 1 file changed, 33 insertions(+), 38 deletions(-)
+ src/cmd/go/internal/work/build_test.go |  13 +--
+ src/cmd/go/internal/work/exec.go       | 112 ++++++++++++++++++--------
+ src/cmd/go/internal/work/shell_test.go | 139 +++++++++++++++++++++++++++++++++
+ 3 files changed, 225 insertions(+), 39 deletions(-)

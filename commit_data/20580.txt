@@ -1,16 +1,15 @@
-commit b4380a3ba2da2515225ab45ff07082d67399757a
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Sep 29 14:05:33 2014 -0700
+commit 88d53ddb17d985693b2b5f065286d2647e4cb72d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 22:33:49 2014 -0400
 
-    runtime: delete unused variables.
+    runtime: release Windows thread handle in unminit
     
-    We're not comparing with code addresses any more.  Instead,
-    we use nil algorithm functions to mark uncomparable types.
+    Fixes #8517.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=dvyukov, alex.brainman
+    R=golang-codereviews, dvyukov, alex.brainman
     CC=golang-codereviews
-    https://golang.org/cl/151040044
+    https://golang.org/cl/145890044
 
- src/runtime/stubs.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/runtime/os_windows.c | 2 ++
+ 1 file changed, 2 insertions(+)

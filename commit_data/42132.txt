@@ -1,25 +1,21 @@
-commit 09630172d45c09e150bd1329e37b74611d4af830
-Author: Tyson Andre <tysonandre775@gmail.com>
-Date:   Sat Apr 25 21:39:19 2020 +0000
+commit 47bc24091af46408814d4e4b3a596fa720c7fd80
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Nov 10 19:59:00 2019 +0000
 
-    net/http/httputil: fix typo in unit test name
+    Revert "net: halve the allocs in ParseCIDR by sharing slice backing"
     
-    Everywhere else is using "cancellation"
+    This reverts CL 129118 (commit aff3aaa47f16d69efc50b6fec0ddc938176695eb)
     
-    The reasoning is mentioned in 170060
+    Reason for revert: It was retracted by the author in a comment on the PR
+    but that doesn't get synced to Gerrit, and the Gerrit CL wasn't closed
+    when the PR was closed.
     
-    > Though there is variation in the spelling of canceled,
-    > cancellation is always spelled with a double l.
-    >
-    > Reference: https://www.grammarly.com/blog/canceled-vs-cancelled/
-    
-    Change-Id: Ifc97c6785afb401814af77c377c2e2745ce53c5a
-    GitHub-Last-Rev: 05edd7477da46ca5c02703e139dbfc0cd05408ac
-    GitHub-Pull-Request: golang/go#38662
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230200
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5ad16e96f98a927972187dc5c9df3a0e9b9fafa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206377
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/net/http/httputil/reverseproxy_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/ip.go      | 161 +++++++++++++----------------------------------------
+ src/net/ip_test.go |  40 +------------
+ 2 files changed, 41 insertions(+), 160 deletions(-)

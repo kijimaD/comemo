@@ -1,19 +1,14 @@
-commit 7ee43faf78f3b0c97c315c28f13dd802047af0c8
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Mar 13 11:35:39 2017 +1100
+commit afb0ae67b7d37b6678179f236c98ef0d952c0403
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 17 16:28:45 2016 +0000
 
-    runtime: remove sizeToClass
+    runtime/pprof: fix typo in test
     
-    CL 32219 added precomputed sizeclass tables.
+    Not sure what I was thinking.
     
-    Remove the unused sizeToClass method which was previously only
-    called from initSizes.
-    
-    Change-Id: I907bf9ed78430ecfaabbec7fca77ef2375010081
-    Reviewed-on: https://go-review.googlesource.com/38113
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I143cdf7c5ef8e7b2394afeca6b30c46bb2c19a55
+    Reviewed-on: https://go-review.googlesource.com/33340
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/msize.go | 22 ----------------------
- 1 file changed, 22 deletions(-)
+ src/runtime/pprof/pprof_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

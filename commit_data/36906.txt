@@ -1,23 +1,24 @@
-commit 7d2f46dacddba279c5b6b7520c7f6a475e6fffbc
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 8 19:24:46 2018 -0400
+commit abeac0912a037ac557861e6522204627585d6517
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Jun 8 10:14:29 2018 +0200
 
-    runtime: fix non-in-use span check
+    cmd/cover: fix TestCoverHTML on Plan 9
     
-    Lazy mcache flushing (golang.org/cl/134783) introduced a second value
-    for sweepgen that indicates a span has been swept. I missed adding
-    this case to a sanity check in sweepone, so it can now panic if it
-    finds a non-in-use spans that's been swept *and* put in an mcache.
+    CL 116975 added TestCoverHTML. However, this test is failing
+    on Plan 9, because the GNU diff tool is called "ape/diff"
+    instead of "diff" on Plan 9.
     
-    Fix this by adding the second sweepgen case to this check.
+    This change replaces the "diff" command by the "ape/diff"
+    command on Plan 9.
     
-    Fixes #27997.
+    Fixes #25795.
     
-    Change-Id: I568d9f2cc8923396ca897a37d154cd2c859c7bef
-    Reviewed-on: https://go-review.googlesource.com/c/140697
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I15b49868cd09f3f977aa13fffdfc430c882bf757
+    Reviewed-on: https://go-review.googlesource.com/117415
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgcsweep.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cover/cover_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

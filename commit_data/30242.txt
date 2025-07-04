@@ -1,16 +1,24 @@
-commit 15c62e8535125f096c2425330fe9b561c38e7ee4
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Mon Feb 13 14:40:48 2017 -0500
+commit ef3df18944d2d210f99de88fee01414ab1fa8f66
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 23:15:30 2016 -0400
 
-    net/http: document Response.Header values that are subordinate to other fields
+    mime/multipart: simplify Part.Read
     
-    I noticed that Content-Length may appear in http.Response.Header, but the docs
-    say it should be omitted.  Per discussion with bradfitz@, updating the docs to
-    indicate that the struct fields are authoritative.
+    The basic structure of Part.Read should be simple:
+    do what you can with the current buffered data,
+    reading more as you need it. Make it that way.
     
-    Change-Id: Id1807ff9d4ba5de425d8b147205f29b18351230f
-    Reviewed-on: https://go-review.googlesource.com/36842
+    Working entirely in the bufio.Reader's buffer eliminates
+    the need for an additional bytes.Buffer.
+    
+    This structure should be easier to extend in the future as
+    more special cases arise.
+    
+    Change-Id: I83cb24a755a1767c4c037f9ece6716460c3ecd01
+    Reviewed-on: https://go-review.googlesource.com/32092
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/response.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/mime/multipart/multipart.go | 219 ++++++++++++++++++++--------------------
+ 1 file changed, 108 insertions(+), 111 deletions(-)

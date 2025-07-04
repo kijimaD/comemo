@@ -1,31 +1,23 @@
-commit 508ef8702c013f74bba620faba7a5213c55bdfad
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 12 14:57:39 2023 -0400
+commit c177d9d98a7bfb21346f6309c115d0a2bf3167e3
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Jun 29 11:30:47 2022 -0700
 
-    cmd/dist: make it possible to filter output of background commands
+    crypto/x509: restrict CRL number to <=20 octets
     
-    Many of the commands dist test executes are "background" commands run
-    by a work queue system. The work queue allows it to run commands in
-    parallel, but still serialize their output. Currently, the work queue
-    system assumes that exec.Cmd.Stdout and Stderr will be nil and that it
-    can take complete control over them.
+    Similar to certificate serial numbers, RFC 5280 restricts the length of
+    the CRL number field to no more than 20 octets. Enforce this in
+    CreateRevocationList.
     
-    We're about to inject output filters on many of these commands, so we
-    need a way to interpose on Stdout and Stderr. This CL rearranges
-    responsibilities in the work queue system to make that possible. Now,
-    the thing enqueuing the work item is responsible to constructing the
-    Cmd to write its output to work.out. There's only one place that
-    constructs work objects (there used to be many more), so that's
-    relatively easy, and sets us up to add filters.
+    Fixes #53543
     
-    For #37486.
-    
-    Change-Id: I55ab71ddd456a12fdbf676bb49f698fc08a5689b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494957
+    Change-Id: If392ef6b0844db716ae9ee6ef317135fceab039c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415134
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
 
- src/cmd/dist/test.go | 42 ++++++++++++++++++++++++------------------
- 1 file changed, 24 insertions(+), 18 deletions(-)
+ src/crypto/x509/x509.go      |  4 ++++
+ src/crypto/x509/x509_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

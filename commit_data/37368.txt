@@ -1,29 +1,15 @@
-commit 5cf2b4c2d39e0490b235822f5ea7fa105280b9f2
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 12 16:49:52 2018 -0500
+commit b47927cc2657ca1e3a1b898632b577cacb3b440c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jul 13 17:24:05 2018 -0400
 
-    cmd/compile: fix race on initializing Sym symFunc flag
+    cmd/go/internal/list: do not examine TestmainGo if the test fails to load
     
-    SSA lowering can create PFUNC ONAME nodes when compiling method calls.
-    Since we generally initialize the node's Sym to a func when we set its
-    class to PFUNC, we did this here, too. Unfortunately, since SSA
-    compilation is concurrent, this can cause a race if two function
-    compilations try to initialize the same symbol.
+    Fixes #25980.
     
-    Luckily, we don't need to do this at all, since we're actually just
-    wrapping an ONAME node around an existing Sym that's already marked as
-    a function symbol.
-    
-    Fixes the linux-amd64-racecompile builder, which was broken by CL
-    147158.
-    
-    Updates #27539.
-    
-    Change-Id: I8ddfce6e66a08ce53998c5bfa6f5a423c1ffc1eb
-    Reviewed-on: https://go-review.googlesource.com/c/149158
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I33c8e72871ffbb1cd1babbcd5dabc8cac0bbcaed
+    Reviewed-on: https://go-review.googlesource.com/123758
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/list/list.go           | 17 +++++++++--------
+ src/cmd/go/testdata/script/list_test_e.txt |  9 +++++++++
+ 2 files changed, 18 insertions(+), 8 deletions(-)

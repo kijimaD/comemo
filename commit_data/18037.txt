@@ -1,12 +1,17 @@
-commit 8eb508dd08bdebe3c37fc16e7d13b4fc7c078b73
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Tue Dec 17 23:18:12 2013 -0500
+commit 8ce584c2aaf3cb3afbb6bf4b8fde340dbe38532a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Dec 17 22:40:13 2013 -0500
 
-    flag: remove unused FlagSet.exitOnError field
+    liblink: rewrite '\\' in paths to '/' on windows
+    At least three Go tests rely on that (log, runtime/{pprof,debug}).
     
-    R=golang-dev, rsc
+    Fixes #6972.
+    Fixes #6974.
+    Fixes #6975.
+    
+    R=alex.brainman, mattn.jp, rsc
     CC=golang-dev
-    https://golang.org/cl/14279043
+    https://golang.org/cl/43150043
 
- src/pkg/flag/flag.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/liblink/objfile.c | 35 +++++++++++++++++++++++++++++++++--
+ 1 file changed, 33 insertions(+), 2 deletions(-)

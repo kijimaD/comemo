@@ -1,29 +1,21 @@
-commit 123594d3863b0a4b9094a569957d1bd94ebe7512
-Author: Kyle Xiao <xiaost7@gmail.com>
-Date:   Wed Sep 4 11:55:52 2024 +0800
+commit d50272a8c17920d0eac2d765194d4cd0355a1d34
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Jul 31 16:56:01 2023 +0200
 
-    runtime: remove cloudwego/frugal unused linkname from comment
+    cmd/cgo/internal/testerrors: unskip TestPointerChecks on Windows
     
-    frugal no longer uses these methods from next Go version
+    All TestPointerChecks cases can be executed on Windows with some minor
+    tweaks.
     
-    Fixes #69222
+    It seems that the skip has been cargo-culted from when cgo error tests
+    were first added in https://codereview.appspot.com/13498046.
     
-    Change-Id: Ie71de0752cabef7d5584d3392d6e5920ba742350
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609918
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I39cd05f4c90965b669d2b403f7fcd9dd9c69016c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514296
+    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/alg.go                 |  1 -
- src/runtime/map_fast32_noswiss.go  |  1 -
- src/runtime/map_fast64_noswiss.go  |  2 --
- src/runtime/map_faststr_noswiss.go |  1 -
- src/runtime/map_noswiss.go         | 14 -----------
- src/runtime/mgc.go                 |  1 -
- src/runtime/runtime1.go            |  1 -
- src/runtime/string.go              | 10 --------
- src/runtime/stubs.go               | 12 ---------
- src/runtime/symtab.go              | 51 +-------------------------------------
- src/runtime/type.go                | 18 --------------
- 11 files changed, 1 insertion(+), 111 deletions(-)
+ src/cmd/cgo/internal/testerrors/ptr_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

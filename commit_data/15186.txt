@@ -1,18 +1,14 @@
-commit 81eb930f7e021e334ec2b54dc4ba6b1ab825887f
+commit 1b3083e68d2c9b93fe6ecaa1758dbf5e214e6784
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 9 17:36:31 2013 -0500
+Date:   Sat Feb 9 14:46:55 2013 -0500
 
-    spec: clarify that any unsafe.Pointer type is okay in conversion
+    spec: clarify that f(g()) requires that g return >= 1 value
     
-    The spec is not clear about whether this is allowed or not,
-    but both compilers allow it, because the reflect implementation
-    takes advantage of it. Document current behavior.
+    Fixes #4573.
     
-    Fixes #4679.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7303064
+    https://golang.org/cl/7322043
 
- doc/go_spec.html | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

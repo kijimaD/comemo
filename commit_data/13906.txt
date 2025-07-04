@@ -1,12 +1,19 @@
-commit ca5e9bfabc3747b7c199cee5b9644c90178ecf6c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Sep 23 15:05:44 2012 +0800
+commit 05ac300830ab89c46a259b3bb9d57a4a5a080a15
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 22 20:42:11 2012 -0400
 
-    cmd/5g: fix build
+    cmd/gc: fix use of nil interface, slice
     
-    R=rsc, r
+    Fixes #3670.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6552061
+    https://golang.org/cl/6542058
 
- src/cmd/5g/cgen.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5g/cgen.c        | 15 +++++++++++++++
+ src/cmd/6g/cgen.c        | 14 ++++++++++++++
+ src/cmd/6g/gsubr.c       |  7 +++++++
+ src/cmd/8g/cgen.c        | 14 ++++++++++++++
+ src/cmd/8g/gsubr.c       |  6 ++++++
+ test/fixedbugs/bug444.go | 19 ++++++++++++++++++-
+ 6 files changed, 74 insertions(+), 1 deletion(-)

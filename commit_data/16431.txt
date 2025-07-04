@@ -1,20 +1,19 @@
-commit a3e0002e6a6d466a505d9d13c75880bf960df512
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Wed May 29 17:51:17 2013 +0200
+commit ca986a2c81f85af0ae009e6b90098c703766c28a
+Author: John Shahid <jvshahid@gmail.com>
+Date:   Wed May 29 11:21:32 2013 -0400
 
-    runtime: remove all badcallback() functions
+          crypto/tls: Check all certificates in the path.
     
-    R=iant
-    CC=golang-dev
-    https://golang.org/cl/9738046
+    Currently we only check the leaf node's issuer against the list of
+    distinguished names in the server's CertificateRequest message. This
+    will fail if the client certiciate has more than one certificate in
+    the path and the leaf node issuer isn't in the list of distinguished
+    names, but the issuer's issuer was in the distinguished names.
+    
+    R=agl, agl
+    CC=gobot, golang-dev
+    https://golang.org/cl/9795043
 
- src/pkg/runtime/os_darwin.c         | 11 -----------
- src/pkg/runtime/os_freebsd.c        | 11 -----------
- src/pkg/runtime/os_linux.c          | 11 -----------
- src/pkg/runtime/os_netbsd.c         | 11 -----------
- src/pkg/runtime/os_openbsd.c        | 11 -----------
- src/pkg/runtime/os_plan9.c          | 11 -----------
- src/pkg/runtime/os_windows.c        |  4 ----
- src/pkg/runtime/sys_windows_386.s   | 20 --------------------
- src/pkg/runtime/sys_windows_amd64.s | 27 ---------------------------
- 9 files changed, 117 deletions(-)
+ src/pkg/crypto/tls/handshake_client.go      |  52 +-
+ src/pkg/crypto/tls/handshake_client_test.go | 912 ++++++++++++++++++++++++++++
+ 2 files changed, 940 insertions(+), 24 deletions(-)

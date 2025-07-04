@@ -1,25 +1,13 @@
-commit 6ebf59b953776042452245a8b6b923c39993a0ec
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Feb 9 16:45:38 2014 -0500
+commit 65675a3e24931dda1812cf5090ef7334dca8891e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Feb 9 17:20:59 2014 +0900
 
-    include, linlink, cmd/6l, cmd/ld: part 1 of solaris/amd64 linker changes.
-    rsc suggested that we split the whole linker changes into three parts.
-    This is the first one, mostly dealing with adding Hsolaris.
+    syscall: add missing include statement to bootstrap error code and signal generator
     
     LGTM=iant
-    R=golang-codereviews, iant, dave
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/54210050
+    https://golang.org/cl/54300054
 
- include/link.h     |  1 +
- src/cmd/5l/asm.c   |  1 +
- src/cmd/6l/asm.c   |  4 ++++
- src/cmd/6l/obj.c   |  2 ++
- src/cmd/8l/asm.c   |  1 +
- src/cmd/ld/doc.go  |  2 ++
- src/cmd/ld/elf.c   | 34 ++++++++++++++++++++++++----------
- src/cmd/ld/elf.h   |  1 +
- src/cmd/ld/lib.c   |  4 +++-
- src/liblink/obj6.c |  6 ++++--
- src/liblink/sym.c  |  2 ++
- 11 files changed, 45 insertions(+), 13 deletions(-)
+ src/pkg/syscall/mkerrors.sh | 1 +
+ 1 file changed, 1 insertion(+)

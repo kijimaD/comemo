@@ -1,18 +1,15 @@
-commit 163871feb177ca0d7c690052b4cdd17bd57fcc04
-Author: Riley Avron <ra.git@posteo.net>
-Date:   Tue Sep 14 18:45:53 2021 +0000
+commit 9eef49cfa6eb016e3b20df189e540c6c5a71f365
+Author: Toasa <atsushi.tohyama.160.333@gmail.com>
+Date:   Mon Jan 4 12:58:18 2021 +0000
 
-    time: re-add space-padded day of year to docs
+    math/rand: fix typo in comment
     
-    CL 320252 reworked the time docs, but accidentally deleted the format __2
-    from the sentence describing the three-character day of year component.
-    
-    Change-Id: I3f583733028657c2a677358a25e062ea81835ce8
-    GitHub-Last-Rev: 2fa98324191500fd6a37097a9712ae23cc509269
-    GitHub-Pull-Request: golang/go#48387
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349929
+    Change-Id: I57fbabf272bdfd61918db155ee6f7091f18e5979
+    GitHub-Last-Rev: e138804b1ab8086b3742861873b077d6cca8108a
+    GitHub-Pull-Request: golang/go#43495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281373
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Carlos Amedee <carlos@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/time/format.go | 2 +-
+ src/math/rand/gen_cooked.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

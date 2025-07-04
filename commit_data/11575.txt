@@ -1,15 +1,15 @@
-commit b9474de2bef8469a61b22ba17f18c28ab4c58fd8
-Author: Gary Burd <gary@beagledreams.com>
-Date:   Thu Feb 2 17:02:05 2012 -0800
+commit cce3de79f69c4bccc606776f84f0b9a022ac1057
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 3 11:52:04 2012 +1100
 
-    go/doc: Fix URL linking in ToHTML.
+    encoding/base32: add DecodeString and EncodeToString helper methods.
     
-    Fixes issue: 2832
+    This makes encoding/base32 be consistent with encoding/base64.
     
-    R=rsc, gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5616060
+    https://golang.org/cl/5615053
 
- src/pkg/go/doc/comment.go      |  8 ++++----
- src/pkg/go/doc/comment_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 4 deletions(-)
+ src/pkg/encoding/base32/base32.go      | 14 ++++++++++++++
+ src/pkg/encoding/base32/base32_test.go |  9 ++++++---
+ 2 files changed, 20 insertions(+), 3 deletions(-)

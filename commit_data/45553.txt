@@ -1,19 +1,40 @@
-commit d0583b131a1c4c99249aa1b158492cd99d7ee904
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 3 01:59:13 2021 -0400
+commit c1afbf69c71bc624a4766a48ef637a5f726dfe4e
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Sun Oct 25 11:52:29 2020 +0100
 
-    cmd/go: spot-check the explicit requirements of root module dependencies when loading packages from them
+    cmd/compile: use magic multiply for unsigned values less than 1<<16 on 32-bit architectures
     
-    For #36460
+    This is done by decomposing the number to be divided in 32-bit
+    components and using the 32-bit magic multiply. For the lowering to be
+    effective the constant must fit in 16 bits.
     
-    Change-Id: I725ef5445b2bac7af827fb38373e8cd6dbad2d09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316249
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    On ARM the expression n / 5 compiles to 25 instructions.
+    
+    Benchmark for GOARCH=arm (Cortex-A53)
+    
+    name                     old time/op  new time/op  delta
+    DivconstU64/3-6          1.19µs ± 0%  0.03µs ± 1%  -97.40%  (p=0.000 n=9+9)
+    DivconstU64/5-6          1.18µs ± 1%  0.03µs ± 1%  -97.38%  (p=0.000 n=10+8)
+    DivconstU64/37-6         1.13µs ± 1%  0.04µs ± 1%  -96.51%  (p=0.000 n=10+8)
+    DivconstU64/1234567-6     852ns ± 0%   901ns ± 1%   +5.73%  (p=0.000 n=8+9)
+    
+    Benchmark for GOARCH=386 (Haswell)
+    
+    name                     old time/op  new time/op  delta
+    DivconstU64/3-4          18.0ns ± 2%   5.6ns ± 1%  -69.06%  (p=0.000 n=10+10)
+    DivconstU64/5-4          17.8ns ± 1%   5.5ns ± 1%  -68.87%  (p=0.000 n=9+10)
+    DivconstU64/37-4         17.8ns ± 1%   7.3ns ± 0%  -58.90%  (p=0.000 n=10+10)
+    DivconstU64/1234567-4    17.5ns ± 1%  16.0ns ± 0%   -8.55%  (p=0.000 n=10+9)
+    
+    Change-Id: I38a19b4d59093ec021ef2e5241364a3dad4eae73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264683
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/go/internal/modload/buildlist.go           | 112 +++++++++++++++++----
- .../go/testdata/script/mod_lazy_consistency.txt    |  95 +++++++++++++++++
- 2 files changed, 188 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/walk.go            |  5 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules | 40 +++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 60 +++++++++++++++++++
+ src/cmd/compile/internal/test/divconst_test.go | 81 +++++++++++++++++++++++++-
+ 4 files changed, 182 insertions(+), 4 deletions(-)

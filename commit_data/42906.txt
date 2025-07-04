@@ -1,24 +1,20 @@
-commit 612b1194475a23760ec502b48a93fea7237f3ae6
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Sep 2 21:04:12 2020 -0400
+commit b2696fde403a5b059936ac6dd22b6ec9a899e084
+Author: Corne van der Plas <vdplas@gmail.com>
+Date:   Tue Nov 19 13:22:55 2019 +0100
 
-    cmd/link: pass darwin/amd64-specific flags only on AMD64
+    cmd/link: Revert -buildmode=pie to internal linking
     
-    The linker assumed macOS is AMD64 (and 386 in the past). It
-    passes darwin/amd64-specific flags to the external linker when
-    building for macOS. They don't work for ARM64-based macOS. So
-    only pass them on AMD64.
+    When internal linking was broken buildmode PIE is set to external
+    linking. Now internal linking is fixed, -buildmode=pie can default to
+    internal linking again.
     
-    Disable DWARF combining for macOS ARM64 for now. The generated
-    binary doesn't run. (TODO: fix.)
+    Fixes #35545
     
-    For macOS ARM64 port. External linking now works.
-    
-    Change-Id: Iab53bc48f4fadd9b91de8898b4b450ea442667a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253019
+    Change-Id: Iaf86b3047eb76babebc1545a79125586a7a3980e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207877
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/ld/lib.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/config.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,12 @@
-commit a1a3d213559861f407a9f5bc7db3c3ae0d7fe5c5
-Author: Arne Hormann <arnehormann@gmail.com>
-Date:   Wed Dec 18 08:17:43 2013 +1100
+commit ff8e45828c044665b60c37287e4f2d9e91754333
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 17 12:25:32 2013 -0800
 
-    database/sql: fix typo in comment
+    os: avoid a string concat in readdir
     
-    R=golang-dev, adg
+    R=golang-dev, crawshaw
     CC=golang-dev
-    https://golang.org/cl/43300043
+    https://golang.org/cl/37690045
 
- src/pkg/database/sql/fakedb_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/os/file_unix.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

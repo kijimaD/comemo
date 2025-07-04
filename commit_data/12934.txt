@@ -1,14 +1,16 @@
-commit b678c197855ef8417cd8ba5df40904c66d60a4c7
-Author: Pascal S. de Kloe <pascal@quies.net>
-Date:   Mon Apr 23 10:26:10 2012 -0700
+commit e7e7b1c55ce7d73812caff018d02545f8f5740aa
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 23 23:47:36 2012 +0800
 
-    net/http: lex cleanup
+    math: ARM assembly implementation for Abs
     
-    R=rsc, bradfitz
+    Obtained on 700MHz OMAP4460:
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkAbs           61           23  -61.63%
+    
+    R=dave, remyoudompheng, mtj, rsc
     CC=golang-dev
-    https://golang.org/cl/6099043
+    https://golang.org/cl/6094047
 
- src/pkg/net/http/cookie.go   |   7 +-
- src/pkg/net/http/lex.go      | 206 +++++++++++++++++--------------------------
- src/pkg/net/http/lex_test.go |  65 +++-----------
- 3 files changed, 97 insertions(+), 181 deletions(-)
+ src/pkg/math/abs_arm.s | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,22 +1,23 @@
-commit 628403fd6b02a8e71926b0cbc7c893121482628a
-Author: Seebs <seebachp@gmail.com>
-Date:   Thu Oct 18 17:00:02 2018 -0500
+commit 0c9be48a90bfafac68cde05c4d7db8eee17492f6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 19 16:53:18 2018 -0700
 
-    text/template: drop unused sortKeys function
+    go/internal/gccgoimporter: read export data from archives
     
-    Recent change golang.org/cl/142737 drops the only call site for the
-    sortKeys function. If it's not in use, it should probably not be there in
-    the code, lurking and preparing to bite us when someone calls that instead
-    of the new key sorter in fmtsort, resulting in strange inconsistencies.
+    When used with the go tool, gccgo will normally generate archive files.
+    This change teaches the gccgoimporter package how to read the export
+    data from an archive.
     
-    Since the function isn't called, this should have no impact.
-    Related to, but does not fix, #21095.
+    This is needed by, for example, cmd/vet, when typechecking packages.
     
-    Change-Id: I4695503ef4d5ce90d989ec952f01ea00cc15c79d
-    Reviewed-on: https://go-review.googlesource.com/c/143178
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I21267949a7808cd81c0042af425c774a4ff7d82f
+    Reviewed-on: https://go-review.googlesource.com/119895
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/text/template/exec.go | 27 ---------------------------
- 1 file changed, 27 deletions(-)
+ src/go/internal/gccgoimporter/ar.go                | 148 +++++++++++++++++++++
+ src/go/internal/gccgoimporter/importer.go          |  50 ++++---
+ src/go/internal/gccgoimporter/importer_test.go     |   1 +
+ .../internal/gccgoimporter/testdata/libimportsar.a | Bin 0 -> 9302 bytes
+ 4 files changed, 178 insertions(+), 21 deletions(-)

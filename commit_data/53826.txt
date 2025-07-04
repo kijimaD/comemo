@@ -1,21 +1,17 @@
-commit f6966577a227ee6a79c91e8901d2a9594d3f8b51
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Jul 28 19:59:36 2023 +1000
+commit 02700e55a57647c837618d713102c8f8214657d8
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Sep 2 10:37:16 2022 +0800
 
-    cmd/internal/obj/mips: use more appropriate register types for OP_RRR
+    runtime: convert local var cunlock at doTestParallelReaders to atomic type
     
-    Rather than passing registers as uint32, use int16 and cast to uint32 in
-    the OP_RRR implementation. This allows a large number of casts to be removed
-    and code simplified at call sites.
+    For #53821
     
-    Change-Id: I2194ea07a6f89861530cd88c4b60c993bb0fa0c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514097
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rong Zhang <rongrong@oss.cipunited.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: I17440ea30827976a8d3755851a2496f26aea13b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427137
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/internal/obj/mips/asm0.go | 111 +++++++++++++++++++-------------------
- 1 file changed, 55 insertions(+), 56 deletions(-)
+ src/runtime/rwmutex_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

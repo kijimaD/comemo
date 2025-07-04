@@ -1,14 +1,12 @@
-commit b88e4ad613deec84650fb763bf6005eacee4cf79
-Author: Milan Knezevic <milan.knezevic@mips.com>
-Date:   Wed Aug 29 13:56:37 2018 +0200
+commit 5b976d3783cc7e626a384a4d57b4a57decea05ba
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Sat May 5 13:08:17 2018 +0000
 
-    doc: add GOMIPS64 to source installation docs
+    plugin: make stub lookup signature match dlopen version
     
-    Fixes #27258
-    
-    Change-Id: I1ac75087e2b811e6479990e12d71f2c1f4f47b64
-    Reviewed-on: https://go-review.googlesource.com/132015
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I64958f8f1a935adc07868362975447d0c0033084
+    Reviewed-on: https://go-review.googlesource.com/111716
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/install-source.html | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/plugin/plugin_stubs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

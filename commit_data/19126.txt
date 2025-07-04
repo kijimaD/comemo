@@ -1,13 +1,13 @@
-commit 071a0f4d18c5b5869bdcb6b0ca0e396cfa4506c6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 14 10:19:10 2014 -0700
+commit 1e1506a2c1f12362ee5015ef23e9cf092ff284e4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 14 09:36:47 2014 -0700
 
-    doc: add go1.3 note about the http Transport closing Request.Body
+    libbio: add casts to eliminate -Wconversion warning
     
-    LGTM=rsc
-    R=rsc, r
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/87620043
+    https://golang.org/cl/87140044
 
- doc/go1.3.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/libbio/bgetc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

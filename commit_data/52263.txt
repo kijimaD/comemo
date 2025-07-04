@@ -1,26 +1,17 @@
-commit 90dde5dec1126ddf2236730ec57511ced56a512d
-Author: Geon Kim <geon0250@gmail.com>
-Date:   Sat Mar 11 00:57:57 2023 +0000
+commit a4bbcd4b1fc9dd40e0f86416d37bdd9e6d430f3f
+Author: zhangyunhao <zhangyunhao@bytedance.com>
+Date:   Tue Apr 19 14:20:29 2022 +0800
 
-    time: fix timezone lookup logic for non-DST zones
+    net: use fastrand64 in randInt
     
-    This change fixes time.LoadLocationFromTZData and time.Location.lookup logic if the given time is after the last transition and the extend string doesn't have the DST rule.
-    
-    Fixes #58682
-    
-    Change-Id: Ie34a6d658d14c2b33098b29ab83c041ef0d34266
-    GitHub-Last-Rev: f6681eb44c0ea0772004e56eb68fcbd9023d971e
-    GitHub-Pull-Request: golang/go#58684
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471020
+    Change-Id: If3d8391d81e8de869dbb3c857f0570817e8aa440
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400914
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/time/time_test.go     | 26 ++++++++++++++++++--------
- src/time/zoneinfo.go      |  8 ++++----
- src/time/zoneinfo_read.go |  2 +-
- src/time/zoneinfo_test.go |  1 +
- 4 files changed, 24 insertions(+), 13 deletions(-)
+ src/net/dnsclient.go | 7 ++-----
+ src/runtime/stubs.go | 4 ++--
+ 2 files changed, 4 insertions(+), 7 deletions(-)

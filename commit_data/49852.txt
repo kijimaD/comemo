@@ -1,22 +1,21 @@
-commit 7367aedfd2b787cff5ea0f883ed7805ead4d4ba6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat May 28 19:23:11 2022 -0700
+commit e09dcc211a338450d3f680fe39abc13b79ddbb29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 16 15:09:31 2021 -0700
 
-    debug/elf: use saferio to read section data
+    go/types, types2: add an additional shift test case
     
-    For #47653
-    Fixes #45599
-    Fixes #52522
+    The extra test just confirms that the type-checker internally
+    agrees with the spec with the (otherwise invisible) type given
+    to an untyped constant in a specific shift expression.
     
-    Change-Id: Id6a80186434080cb0a205978ad7f224252674604
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408679
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    For #48422.
+    
+    Change-Id: I6d98045f90bd20b0cc0a96a147bec9701039cb07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350410
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/debug/elf/file.go | 15 +++++----------
- 1 file changed, 5 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 1 +
+ src/go/types/api_test.go                    | 1 +
+ 2 files changed, 2 insertions(+)

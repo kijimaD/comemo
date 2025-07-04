@@ -1,14 +1,12 @@
-commit 8b96bc6818ca673b4d6b832190f7e823c80804ca
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Feb 26 21:50:44 2016 -0800
+commit 5c2483229375721e3273f61f41a9c885332592b3
+Author: Yann Kerhervé <yann.kerherve@gmail.com>
+Date:   Fri Dec 4 10:07:44 2015 -0800
 
-    cmd/compile: remove unneeded test binary
+    syscall: fix ParseRoutingSockaddr name in docs
     
-    Accidentally added in https://golang.org/cl/19968.
-    
-    Change-Id: Id70917c4d1f69db149688d797c90a19557d16f72
-    Reviewed-on: https://go-review.googlesource.com/19985
+    Change-Id: I3870150fc8e713f6164371299c029b31f18f250a
+    Reviewed-on: https://go-review.googlesource.com/17426
     Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/test | Bin 2243120 -> 0 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/syscall/route_bsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

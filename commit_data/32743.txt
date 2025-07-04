@@ -1,14 +1,26 @@
-commit de25b12d9f1aeea5fda59d98fb1084aeda2967a1
-Author: Andrzej Żeżel <andrii.zhezhel@gmail.com>
-Date:   Sat Sep 16 16:58:10 2017 +0200
+commit 8a1c5b2e486be7a2df7667582a1b8cd53c8c7745
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 18 13:59:00 2017 -0400
 
-    bytes: add example for Len function of Reader
+    runtime: fix stackFromSystem returning memory
     
-    Change-Id: If7ecdc57f190f647bfc673bde8e66b4ef12aa906
-    Reviewed-on: https://go-review.googlesource.com/64190
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The stackFromSystem debug mode has two problems:
+    
+    1) It rounds the stack allocation to _PageSize. If the physical page
+    size is >8K, this can cause unmapping the memory later to either
+    under-unmap or over-unmap.
+    
+    2) It doesn't return the rounded-up allocation size to its caller, so
+    when we later unmap the memory, we may pass the wrong length.
+    
+    Fix these problems by rounding the size up to the physical page size
+    and putting that rounded-up size in the returned stack bounds.
+    
+    Fixes #17289.
+    
+    Change-Id: I6b854af3b06bb16e3750798397bb5e2a722ec1cb
+    Reviewed-on: https://go-review.googlesource.com/43636
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/bytes/example_test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/runtime/stack.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

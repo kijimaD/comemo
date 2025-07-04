@@ -1,12 +1,15 @@
-commit b65271d008daae3c9b424a0519d6cf79f0583675
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Sat May 18 15:47:15 2013 -0700
+commit 70f3b6097bb3c083f39c313fba3889d4e39ef680
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Sat May 18 19:22:30 2013 +0800
 
-    runtime: fix newproc debugging print
+    cmd/go: Update documentation of go run to match current behaviour.
     
-    R=golang-dev, remyoudompheng, r
+    Fixes #5511.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/9249044
+    https://golang.org/cl/9530043
 
- src/pkg/runtime/proc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/doc.go | 1 -
+ src/cmd/go/run.go | 1 -
+ 2 files changed, 2 deletions(-)

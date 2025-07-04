@@ -1,0 +1,26 @@
+commit 9326d9d01231a1834458810c3cb01701bf7293a9
+Author: 0x2b3bfa0 <0x2b3bfa0+git@googlemail.com>
+Date:   Fri Feb 28 10:05:52 2025 +0100
+
+    make.bat: fix GOROOT_BOOTSTRAP detection
+    
+    Due to a flaw in the %GOROOT_BOOTSTRAP% detection logic, the last Go
+    executable found by `where go` was taking precedence over the first one.
+    
+    In batch scripts, environment variable expansion happens when each line
+    of the script is read, not when it is executed. Thus, the check in the
+    loop for GOROOT_BOOTSTRAP being unset would always be true, even when
+    the variable had been set in a previous loop iteration.
+    
+    See SET /? for more information.
+    
+    Change-Id: I15ddcbe771a902acb47a1f07ba7f4cb8a311e0dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653535
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/make.bat | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

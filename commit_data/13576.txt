@@ -1,23 +1,17 @@
-commit 77f3e189d2bd4eb015235d200ca75803e45c87ef
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Aug 5 21:35:41 2012 +0200
+commit ea392b8849e886e2548246666026db5dfca929f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 5 14:32:09 2012 -0400
 
-    runtime: faster string equality.
+    bufio: discourage use of ReadLine
     
-    benchmark                                old ns/op    new ns/op    delta
-    BenchmarkCompareStringEqual                     51           35  -30.20%
-    BenchmarkCompareStringIdentical                 51            7  -85.71%
-    BenchmarkCompareStringSameLength                25           18  -28.29%
-    BenchmarkCompareStringDifferentLength            2            2   +1.46%
+    Too many people use it without reading what it does.
+    Those people want ReadBytes or ReadString.
     
-    R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/6450092
+    Fixes #3906.
+    
+    R=golang-dev, iant, r
+    CC=golang-dev
+    https://golang.org/cl/6442087
 
- src/cmd/gc/builtin.c           |  1 +
- src/cmd/gc/runtime.go          |  1 +
- src/cmd/gc/walk.c              | 29 ++++++++++++++++-----------
- src/pkg/runtime/alg.c          |  4 ++++
- src/pkg/runtime/string.goc     | 20 +++++++++++++++++++
- src/pkg/runtime/string_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 89 insertions(+), 11 deletions(-)
+ src/pkg/bufio/bufio.go | 3 +++
+ 1 file changed, 3 insertions(+)

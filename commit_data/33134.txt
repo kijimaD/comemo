@@ -1,21 +1,13 @@
-commit 913fb18e7e16b95ef4f3c491c3079c4f80e4c562
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Mon Oct 16 13:57:54 2017 +0200
+commit 7390d2f2db23d93ff88d57d4b75d5e8b1ab8cf13
+Author: Pat Moroney <pat@pat.email>
+Date:   Sat Jul 15 14:39:00 2017 -0600
 
-    runtime/cgo: declare crosscall2 frame using TEXT for amd64 and 386
+    time: clarify documentation for Location.String
     
-    Use TEXT pseudo-instruction to adjust SP instead of a SUB instruction
-    so that the assembler knows how to fill in the pcsp table and the frame
-    description entry correctly.
-    
-    Updates #21569
-    
-    Change-Id: I436c840b2af99bbb3042ecd38a7d7c1ab4d7372a
-    Reviewed-on: https://go-review.googlesource.com/70937
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5c32a968303848304cbd6fe1e83bed0af11f6440
+    Reviewed-on: https://go-review.googlesource.com/48960
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/cgo/asm_386.s   | 33 +++++++++++++++------------------
- src/runtime/cgo/asm_amd64.s | 12 ++----------
- 2 files changed, 17 insertions(+), 28 deletions(-)
+ src/time/zoneinfo.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

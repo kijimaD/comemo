@@ -1,37 +1,23 @@
-commit ab5031fb86e6d7121483e38d742235994972a0cf
-Author: Wei Xiao <wei.xiao@arm.com>
-Date:   Thu May 31 06:46:50 2018 +0000
+commit f5de42001df2e61233c7ec7bbbd014bbaeaee242
+Author: erifan01 <eric.fang@arm.com>
+Date:   Fri Jan 26 10:18:50 2018 +0000
 
-    syscall: fix EpollWait for arm64
+    cmd/asm: add arm64 instructions for math optimization
     
-    The SYS_EPOLL_WAIT syscall doesn't exist on arm64. This CL implements EpollWait
-    with SYS_EPOLL_PWAIT syscall.
+    Add arm64 HW instructions FMADDD, FMADDS, FMSUBD, FMSUBS, FNMADDD, FNMADDS,
+    FNMSUBD, FNMSUBS, VFMLA, VFMLS, VMOV (element) for math optimization.
     
-    Change-Id: Ica9107a58d7da45351fe2e900f59bec5b7b18f39
-    Reviewed-on: https://go-review.googlesource.com/115735
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Add check on register element index and test cases.
+    
+    Change-Id: Ice07c50b1a02d488ad2cde2a4e8aea93f3e3afff
+    Reviewed-on: https://go-review.googlesource.com/90876
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/syscall_linux.go           |  1 -
- src/syscall/syscall_linux_386.go       |  1 +
- src/syscall/syscall_linux_amd64.go     |  1 +
- src/syscall/syscall_linux_arm.go       |  1 +
- src/syscall/syscall_linux_arm64.go     |  1 +
- src/syscall/syscall_linux_mips64x.go   |  1 +
- src/syscall/syscall_linux_mipsx.go     |  1 +
- src/syscall/syscall_linux_ppc64x.go    |  1 +
- src/syscall/syscall_linux_s390x.go     |  1 +
- src/syscall/zsyscall_linux_386.go      | 34 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_amd64.go    | 34 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_arm.go      | 34 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_arm64.go    | 34 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_mips.go     | 34 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_mips64.go   | 34 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_mips64le.go | 34 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_mipsle.go   | 34 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_ppc64.go    | 34 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_ppc64le.go  | 34 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_s390x.go    | 34 +++++++++++++++++-----------------
- 20 files changed, 195 insertions(+), 188 deletions(-)
+ src/cmd/asm/internal/arch/arm64.go             |  21 +++
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  39 +++--
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  56 ++++++--
+ src/cmd/internal/obj/arm64/a.out.go            |   2 +
+ src/cmd/internal/obj/arm64/anames.go           |   2 +
+ src/cmd/internal/obj/arm64/asm7.go             | 188 +++++++++++++++++++++----
+ src/cmd/internal/obj/arm64/doc.go              |  54 +++++++
+ 7 files changed, 314 insertions(+), 48 deletions(-)

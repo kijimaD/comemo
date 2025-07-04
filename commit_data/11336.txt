@@ -1,13 +1,18 @@
-commit a937bff52ca4b0d2389e88915272029f3bc141d5
+commit 633a2ce096464a63d939c645f31c6bf9d245b042
 Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 23 08:40:34 2012 -0800
+Date:   Mon Jan 23 08:40:13 2012 -0800
 
-    gob: annotate debug.go so it's not normally built
-    So it's not included in the package by the go tool.
+    spec: function invocation, panic on *nil
+    Document that indirection through a nil pointer will panic.
+    Explain function invocation.
+    This section will need more work, but it's a start.
     
-    R=iant, fullung, rsc
+    Fixes #1865.
+    Fixes #2252.
+    
+    R=rsc, iant, r
     CC=golang-dev
-    https://golang.org/cl/5563049
+    https://golang.org/cl/5532114
 
- src/pkg/encoding/gob/debug.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go_spec.html | 48 ++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 36 insertions(+), 12 deletions(-)

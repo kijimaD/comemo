@@ -1,14 +1,12 @@
-commit 7f5acfb2835b096434bafa237c43b2d87d50ea71
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 23 07:47:53 2011 +1100
+commit bd44684fa01601a2df6c8e260e010d3ba7859aff
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 22 15:42:10 2011 -0500
 
-    misc/dashboard/builder: talk to hg with utf-8 encoding always.
+    .hgignore: add *.cgo*.{c,go}
     
-    Fixes #1465.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4172063
+    https://golang.org/cl/4168059
 
- misc/dashboard/builder/hg.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ .hgignore | 2 ++
+ 1 file changed, 2 insertions(+)

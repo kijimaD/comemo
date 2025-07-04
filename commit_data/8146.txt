@@ -1,25 +1,15 @@
-commit b331f3cfd08ac496f9c5ebda85e34498a57e1509
+commit 857f17d346b41979d7f1db8a1d21f4fd2a6e79b1
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 18 18:50:31 2011 -0400
+Date:   Mon Apr 18 16:03:24 2011 -0400
 
-    5c: make alignment rules match 5g, just like 6c matches 6g
+    http: fix IP confusion in TestServerTimeouts
     
-    I should have done this a year ago in:
+    Don't assume that localhost == 127.0.0.1.
+    It might be ::1.
     
-            changeset:   5137:686b18098944
-            user:        Russ Cox <rsc@golang.org>
-            date:        Thu Mar 25 14:05:54 2010 -0700
-            files:       src/cmd/8c/swt.c
-            description:
-            make alignment rules match 8g, just like 6c matches 6g.
-    
-            R=ken2
-            CC=golang-dev
-            https://golang.org/cl/760042
-    
-    R=ken2
+    R=bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4437054
+    https://golang.org/cl/4430055
 
- src/cmd/5c/swt.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/http/serve_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

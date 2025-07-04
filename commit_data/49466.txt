@@ -1,12 +1,18 @@
-commit c29be2d41c6c3ed78a76b4d8d8c1c22d7e0ad5b7
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 18 13:20:54 2022 -0400
+commit 96d816c5740f7576ed0f6346f70958ce9ef1e3b4
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Dec 12 16:46:01 2020 +0100
 
-    runtime: add HACKING section on nosplit functions
+    runtime: fix buckHashSize duplication
     
-    Change-Id: I247874d5c49d2c0d8db2a3d227aa848093551d9b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401759
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    We have a constant for 179999, don't duplicate it.
+    
+    Change-Id: Iefb9c4746f6dda2e08b42e3c978963198469ee8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277375
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/runtime/HACKING.md | 48 ++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 38 insertions(+), 10 deletions(-)
+ src/runtime/mprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

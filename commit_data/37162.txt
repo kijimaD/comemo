@@ -1,17 +1,13 @@
-commit 455ef3f6bce369bf6a91b181cbd9ef689c850c5d
-Author: Ben Shi <powerman1st@163.com>
-Date:   Mon Oct 29 09:01:14 2018 +0000
+commit 4f72b7b8305e669e23be4aeb1b51a3a4c7ecaf4c
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Fri Jul 6 09:33:07 2018 +0930
 
-    test/codegen: improve arithmetic tests
+    A+C: add additional email address
     
-    This CL fixes several typos and adds two more cases
-    to arithmetic test.
-    
-    Change-Id: I086560162ea351e2166866e444e2317da36c1729
-    Reviewed-on: https://go-review.googlesource.com/c/145210
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic636be3ffe5c9e9dc0dd8faba7898142f5231d15
+    Reviewed-on: https://go-review.googlesource.com/122417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/codegen/arithmetic.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

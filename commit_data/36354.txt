@@ -1,20 +1,26 @@
-commit 46033d7639cb1399029b99bb0cdc53d2b8f4bd08
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Aug 18 14:16:26 2018 -0400
+commit bdb65da0490e695da0de6eba2b0d5da244e88293
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 13 15:55:43 2018 -0400
 
-    cmd/go: add go.sum entries to go mod download -json output
+    cmd/compile: don't compact liveness maps in place
     
-    Clients of 'go mod download', particularly proxies, may need
-    the hashes of the content they downloaded, for checking against
-    go.sum entries or recording elsewhere.
+    Currently Liveness.compact rewrites the Liveness.livevars slice in
+    place. However, we're about to add register maps, which we'll want to
+    track in livevars, but compact independently from the stack maps.
+    Hence, this CL modifies Liveness.compact to consume Liveness.livevars
+    and produce a new slice of deduplicated stack maps. This is somewhat
+    clearer anyway because it avoids potential confusion over how
+    Liveness.livevars is indexed.
     
-    Change-Id: Ic36c882cefc540678e1bc5a3dae1e865d181aa69
-    Reviewed-on: https://go-review.googlesource.com/129802
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Passes toolstash -cmp.
+    
+    For #24543.
+    
+    Change-Id: I7093fbc71143f8a29e677aa30c96e501f953ca2b
+    Reviewed-on: https://go-review.googlesource.com/108498
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/modcmd/download.go      | 38 ++++++++++++++++++-----------
- src/cmd/go/internal/modfetch/cache.go       | 17 +++++++++++++
- src/cmd/go/internal/modfetch/fetch.go       | 11 ++++++---
- src/cmd/go/testdata/script/mod_download.txt |  2 ++
- 4 files changed, 51 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 56 +++++++++++++++++-------------------
+ 1 file changed, 26 insertions(+), 30 deletions(-)

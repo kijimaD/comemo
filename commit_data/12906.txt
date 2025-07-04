@@ -1,17 +1,14 @@
-commit 90aa56f271bf76bd829ff5b7453e65a88c73aa8a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 17 18:46:35 2012 -0700
+commit b2c6116843a8881debb003168aacaf7c9d488472
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 18 09:57:00 2012 +1000
 
-    os/user: simplify test
+    lib9: fix warning under clang 3.1
     
-    Don't require the home directory to exist. Just check
-    that it returns something.
+    Fixes #3534.
     
-    Fixes #3531
-    
-    R=golang-dev, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6056045
+    https://golang.org/cl/6035054
 
- src/pkg/os/user/user_test.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/lib9/ctime.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

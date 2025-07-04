@@ -1,21 +1,20 @@
-commit a6ddb15f8f5955d93eeb2f674ec564ffd4530c18
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jan 24 16:11:06 2023 +0000
+commit 0d33a9967540fe06f5ce7b14790e9be8da576936
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Wed Mar 9 07:56:04 2022 -0800
 
-    Revert "cmd/compile: teach prove about bitwise OR operation"
+    runtime/pprof: fix pcDeck's frame indexing
     
-    This reverts commit 3680b5e9c4f42fcf9155aa42b3b344d1fbe19571.
+    When building the inlining deck, correctly identify which is the last
+    frame in the deck. Otherwise, when some forms of inlining cause a PC to
+    expand to multiple frames, the length of the deck's two slices will
+    diverge.
     
-    Reason for revert: causes long compile times on certain functions. See issue #57959
+    Fixes #51567
     
-    Change-Id: Ie9e881ca8abbc79a46de2bfeaed0b9d6c416ed42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463295
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I24e7ba32cb16b167f4307178b3f03c29e5362c4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391134
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 3 ---
- test/prove.go                         | 5 -----
- 2 files changed, 8 deletions(-)
+ src/runtime/pprof/proto.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

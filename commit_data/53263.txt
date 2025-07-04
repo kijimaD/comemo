@@ -1,35 +1,28 @@
-commit 5b93af7f4f61ccc7d770ee24641b2fd9c71c0329
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 9 15:10:26 2023 -0700
+commit fefac44a62fe0cfda73ab4abf15bf35b58faa6ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 4 16:44:29 2022 -0400
 
-    testing: only report subtest races once
+    go/build: add GO$GOARCH-based ToolTags
     
-    Before this CL the code would record the number of race detector
-    errors seen before starting a test, and then report an error
-    if there were more race detector errors after the test completed.
-    That approach did not work well for subtests or parallel tests.
-    Race detector errors could be reported multiple times at each
-    level of subtest, and parallel tests could accidentally drop
-    race detector errors.
+    Implement proposal #45454, providing build tags based on the
+    sub-architecture information in the GO$GOARCH variable
+    (for example, GOARM for GOARCH=arm).
     
-    Instead, report each race detector error at most once, associated
-    with whatever test noticed the new error. This is still imperfect,
-    as it may report race detector errors for the wrong parallel test.
-    But it shouldn't drop any errors entirely, and it shouldn't report
-    any errors more than once.
+    For example, when GOAMD64=v2, the additional build tags
+    amd64.v1 and amd64.v2 are defined to be true.
     
-    Fixes #60083
+    Fixes #45454.
     
-    Change-Id: Ic9afea5c692b6553896757766f631cd0e86192ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494057
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I7be56060d47fc61843b97fd8a78498e8202c1ee7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421434
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/testing/benchmark.go    |   5 +-
- src/testing/testing.go      |  64 ++++++++++++++++++++++----
- src/testing/testing_test.go | 108 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 164 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/cfg/cfg.go          | 11 ++++--
+ src/cmd/go/testdata/script/tooltags.txt | 45 ++++++++++++++++++++++++
+ src/go/build/build.go                   |  9 +----
+ src/internal/buildcfg/cfg.go            | 61 ++++++++++++++++++++++++++++++++-
+ 4 files changed, 114 insertions(+), 12 deletions(-)

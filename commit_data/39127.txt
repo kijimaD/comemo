@@ -1,18 +1,28 @@
-commit c2f7dd182ea54d53897b16bbab231a59e2a29ba0
-Author: Shulhan <m.shulhan@gmail.com>
-Date:   Sun May 5 11:25:46 2019 +0800
+commit 4c3b4dfd798fa24ef33cd0f5c80e4b9857d9849e
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jan 3 19:44:55 2019 -0500
 
-    doc: use consistent path in example code
+    CONTRIBUTORS: first round of automated updates for Go 1.12
     
-    Previous section of documentation said that if GOPATH is not set then
-    it will be default to "$HOME/go", not "$HOME/work".
+    These updates have been automatically generated using a modified
+    version of the updateac command with the following changes:
     
-    This change fix the path in example code to "$HOME/go", and while at it
-    fix the output of git command after commit.
+    -       code to automatically update the AUTHORS file has been removed,
+            since we're not updating that file automatically after Go 1.11
+            (see CL 128877)
+    -       CLA checking code has been removed, since it was primarily needed
+            for updating the AUTHORS file
+    -       instead of executing the misc/sortac binary, its code was embedded
+            into the updateac command itself
     
-    Change-Id: Ifedca6c3997efd07e865c27b7321d755acad0254
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175258
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    The modified updateac command will be added to x/build repository soon,
+    and the misc/sortac command can be removed afterwards.
+    
+    Updates #12042
+    
+    Change-Id: Ibf73068698b14b1aad4df4490747b488508ff5fd
+    Reviewed-on: https://go-review.googlesource.com/c/156278
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- doc/code.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ CONTRIBUTORS | 159 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 159 insertions(+)

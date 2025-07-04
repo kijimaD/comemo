@@ -1,14 +1,39 @@
-commit 984e81f64e0c8ec67497fde5ea0dcbefcd1e51b1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 19 09:34:24 2018 -0800
+commit 3f04db41a8dbf6f64304f3e1d34b4c7775fbe55e
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 21 12:52:38 2017 -0700
 
-    doc/faq: clarify that concurrent maps reads are safe
+    cmd/compile: fix sign-extension merging rules
     
-    Fixes #23480
+    If we have
     
-    Change-Id: I33b4bdc60b9983ab62d87bfa0ae3ff33304269c0
-    Reviewed-on: https://go-review.googlesource.com/88515
-    Reviewed-by: Rob Pike <r@golang.org>
+      y = <int16> (MOVBQSX x)
+      z = <int32> (MOVWQSX y)
+    
+    We used to use this rewrite rule:
+    
+    (MOVWQSX x:(MOVBQSX _)) -> x
+    
+    But that resulted in replacing z with a value whose type
+    is only int16.  Then if z is spilled and restored, it gets
+    zero extended instead of sign extended.
+    
+    Instead use the rule
+    
+    (MOVWQSX (MOVBQSX x)) -> (MOVBQSX x)
+    
+    The result is has the correct type, so it can be spilled
+    and restored correctly.  It might mean that a few more extension
+    ops might not be eliminated, but that's the price for correctness.
+    
+    Fixes #21963
+    
+    Change-Id: I6ec82c3d2dbe43cc1fee6fb2bd6b3a72fca3af00
+    Reviewed-on: https://go-review.googlesource.com/65290
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_faq.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  26 ++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 144 +++++++++++++--------------
+ test/fixedbugs/issue21963.go                 |  27 +++++
+ 3 files changed, 113 insertions(+), 84 deletions(-)

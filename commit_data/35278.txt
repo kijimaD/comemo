@@ -1,15 +1,20 @@
-commit 88d677be96b95cec8cb78abd00a94a613df94b3c
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Fri May 4 19:10:27 2018 +0200
+commit 926f27873f6239ce97ca42de9f36a24669ba9459
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Tue Jan 30 18:28:50 2018 +0530
 
-    vendor: update golang.org/x/net/internal/nettest from upstream
+    cmd/fix: cleanup directories created during typecheck
     
-    Updates to x/net git rev 640f462 for CL 109995.
+    Executing
     
-    Change-Id: I081d4c2265c576d61833bdf31ef8e388588053d3
-    Reviewed-on: https://go-review.googlesource.com/111555
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    $ go tool dist test -run=^go_test:cmd/fix$
+    
+    leaves a number of directories (fix_cgo_typecheck*) in TMPDIR.
+    
+    Change-Id: Ia5bdc2f7d884333771d50365063faf514ebf6eae
+    Reviewed-on: https://go-review.googlesource.com/90795
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/vendor/golang_org/x/net/internal/nettest/helper_stub.go | 2 +-
- src/vendor/golang_org/x/net/internal/nettest/stack.go       | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/fix/typecheck.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,23 +1,24 @@
-commit 4300f105147dc0da9d1034704ad1cd24bedde5da
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 6 13:36:42 2021 -0500
+commit 5159c836410535fad0ae0b23329ef91347c1b133
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 6 17:04:52 2021 -0400
 
-    build: for default bootstrap, use Go 1.17 if present, falling back to Go 1.4
+    runtime,cmd/link: include GOEXPERIMENTs in runtime.Version(), "go version X"
     
-    Preparation for #44505, but safe for Go 1.18.
-    Also fixes the default build on Macs, at least for
-    people who have a $HOME/go1.17 or have run
+    This adds the set of GOEXPERIMENTs to the build version if it differs
+    from the default set of experiments. This exposes the experiment
+    settings via runtime.Version() and "go version <binary>".
     
-            go install golang.org/dl/go1.17@latest
-            go1.17 download
-    
-    Change-Id: I822f93e75498620fad87db2436376148c42f6bff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369914
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I143dbbc50f66a4cf175469199974e18848075af6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307820
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/buildtool.go | 13 ++++++++++++-
- src/make.bash             |  9 ++++++++-
- src/make.bat              |  2 ++
- src/make.rc               |  3 +++
- 4 files changed, 25 insertions(+), 2 deletions(-)
+ src/cmd/dist/buildruntime.go                        |  2 --
+ src/cmd/go/testdata/script/version_goexperiment.txt | 16 ++++++++++++++++
+ src/cmd/link/internal/ld/main.go                    |  6 ++++++
+ src/internal/goexperiment/flags.go                  |  3 +++
+ src/runtime/extern.go                               | 12 +++++++++++-
+ src/runtime/proc.go                                 |  2 --
+ 6 files changed, 36 insertions(+), 5 deletions(-)

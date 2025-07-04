@@ -1,21 +1,27 @@
-commit b810a74da3c4de519433208163ea257ab33b2d24
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Mar 18 18:23:44 2022 -0400
+commit 3c656445f139d8b6def40aa7beffd5da9fceccdb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 21 16:33:42 2021 -0400
 
-    internal/abi, internal/buildcfg: always enable register ABI on PPC64
+    cmd/go: in TestScript/mod_replace, download an explicit module path
     
-    In last cycle we developed register ABI for ARM64, enabled by
-    default as a GOEXPERIMENT. This cycle we turn it on all the time.
-    Later CLs will clean up fallback code.
+    As of CL 318629, 'go mod download' without arguments does not save
+    checksums for module source code. Without a checksum, 'go list' will
+    not report the location of the source code even if it is present, in
+    order to prevent accidental access of mismatched code.
     
-    Change-Id: Idac4dcff634791cbc3d30988052ecd742b55ab8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394214
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Downloading an explicit module here also more clearly expresses the
+    intent of the test (“download this module and see where it is”), and
+    may be somewhat more efficient (since the test doesn't need source
+    code for the other modules in the build list).
+    
+    Updates #45332
+    
+    Change-Id: Ic589b22478e3ed140b95365bb6729101dd598ccc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321956
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/internal/abi/abi_generic.go | 2 +-
- src/internal/abi/abi_ppc64x.go  | 2 +-
- src/internal/buildcfg/exp.go    | 4 +---
- 3 files changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/go/testdata/script/mod_replace.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

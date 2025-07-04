@@ -1,17 +1,16 @@
-commit 6374a6607ba601b8d15514b0ce9462ea50fed0a5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 23 22:35:15 2017 +0000
+commit ad74e450ca94b3d9e37efd47c234ca1eeee2889d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Mar 6 09:59:36 2017 +0100
 
-    net/http/httptest: make ResponseRecorder.Result.Status match http.Transport
+    regexp/syntax: remove unused flags parameter
     
-    Fixes #18438
+    Found by github.com/mvdan/unparam.
     
-    Change-Id: I9599c1536d5e8bad7662b8ffa19e9b0746e27e60
-    Reviewed-on: https://go-review.googlesource.com/44000
+    Change-Id: I186d2afd067e97eb05d65c4599119b347f82867d
+    Reviewed-on: https://go-review.googlesource.com/37840
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/httptest/recorder.go      |  3 ++-
- src/net/http/httptest/recorder_test.go | 13 +++++++++++--
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ src/regexp/syntax/parse.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

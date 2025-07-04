@@ -1,25 +1,19 @@
-commit 2783249068e415556e962c50d9427a21fdc9a875
-Author: Xiangdong Ji <xiangdong.ji@arm.com>
-Date:   Tue Jan 7 11:09:33 2020 +0000
+commit 2bf7a925712dca5646f9215cda17c5b61eea14ce
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Wed Oct 2 11:50:34 2019 +0800
 
-    cmd/asm: add asimd instruction 'rev16' on arm64
+    cmd/asm: add VLD[1-4]R vector instructions on arm64
     
-    Add support to the asimd instruction rev16 which reverses elements in
-    16-bit halfwords.
+    This change adds VLD1R, VLD2R, VLD3R, VLD4R
     
-    syntax:
-            VREV16 <Vn>.<T>, <Vd>.<T>
-    <T> should be either B8 or B16.
-    
-    Change-Id: I7a7b8e772589c51ca9eb6dca98bab1aac863c6c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213738
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie19e9ae02fdfc94b9344acde8c9938849efb0bf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181697
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64enc.s   | 2 ++
- src/cmd/asm/internal/asm/testdata/arm64error.s | 3 +++
- src/cmd/internal/obj/arm64/a.out.go            | 1 +
- src/cmd/internal/obj/arm64/anames.go           | 1 +
- src/cmd/internal/obj/arm64/asm7.go             | 8 ++++++++
- 5 files changed, 15 insertions(+)
+ src/cmd/asm/internal/asm/testdata/arm64.s | 12 +++++++
+ src/cmd/internal/obj/arm64/a.out.go       |  4 +++
+ src/cmd/internal/obj/arm64/anames.go      |  4 +++
+ src/cmd/internal/obj/arm64/asm7.go        | 52 ++++++++++++++++++++-----------
+ 4 files changed, 53 insertions(+), 19 deletions(-)

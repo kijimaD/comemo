@@ -1,19 +1,20 @@
-commit ab2ef4aaa77dff91cd98ded88aeba0bf5b5b2e80
-Author: Damien Neil <dneil@google.com>
-Date:   Wed May 26 18:06:26 2021 -0700
+commit 65607683f531e30071e450858ef6bdc283a0280c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 29 15:49:05 2020 -0400
 
-    doc/go1.17: document reflect changes
+    cmd/go: print deprecation messages for 'go get' installing executables
     
-    For #44513.
-    Fixes #46019.
+    For #40276
     
-    Change-Id: Ica84edd5703a4ccf343ff01e10483f8d51d1c79f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323069
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I5e631a4c9ce07f23640fb56eb455457bc55072c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266360
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.17.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ doc/go1.16.html                                    | 10 +++++
+ src/cmd/go/alldocs.go                              | 15 +++++--
+ src/cmd/go/internal/modget/get.go                  | 49 ++++++++++++++++++----
+ .../testdata/script/mod_get_deprecate_install.txt  | 22 ++++++++++
+ 4 files changed, 83 insertions(+), 13 deletions(-)

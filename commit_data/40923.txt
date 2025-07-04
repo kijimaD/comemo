@@ -1,14 +1,23 @@
-commit f805b05b39a28a85017df4540f1770f0d833e3d2
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed Dec 4 13:14:04 2019 -0500
+commit 65e624e7b9c9bbeb04a3c3a29a88986a4b8b816c
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Aug 22 12:40:52 2019 -0400
 
-    doc: document Go 1.12.14
+    syscall: document relationship among Errno, errors.Is and os.Err*
     
-    Change-Id: I7589ef4bdac776c8f141e9cc60f59f8643649310
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209840
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    - Add doc to syscall.Errno (and syscall.ErrorString for plan9).
+    
+    - Mention under `syscall` in release notes.
+    
+    Fixes #33436.
+    
+    Change-Id: I032ffebaa76ed67eb9d748e7645ca73f26144ea0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191337
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/devel/release.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/go1.13.html                | 7 +++++++
+ src/syscall/syscall_js.go      | 6 ++++++
+ src/syscall/syscall_nacl.go    | 6 ++++++
+ src/syscall/syscall_plan9.go   | 6 ++++++
+ src/syscall/syscall_unix.go    | 6 ++++++
+ src/syscall/syscall_windows.go | 6 ++++++
+ 6 files changed, 37 insertions(+)

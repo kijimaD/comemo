@@ -1,26 +1,17 @@
-commit fce2a94d84dd5e39e0d53e60beda22da7b6f55b0
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Feb 17 15:51:05 2021 -0500
+commit e64675a79fef5924f268425de021372df874010e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 8 14:35:07 2020 -0700
 
-    cmd/compile: fix buglet in inlined info abstract function dwarf-gen
+    os: always check for EINTR in calls to open
     
-    When generating DWARF inlined info records, it's possible to have a
-    local function whose only callsites are inlined away, meaning that we
-    emit an abstract function DIE but no regular subprogram DIE. When
-    emitting DWARF scope info we need to handle this case (specifically
-    when scoping PCs, check for the case that the func in question has
-    been entirely deleted).
+    For #11180
+    For #20400
+    For #39237
     
-    Fixes #44344.
-    
-    Change-Id: I9f5bc692f225aa4c5c23f7bd2e50bcf7fe4fc5f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293309
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I8de97517c8f92c08f0c8a51f651a17e31617979b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236997
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/dwarfgen/scope.go |  4 +++-
- test/fixedbugs/issue44344.go               | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+ src/os/file_unix.go    | 6 ++----
+ src/os/removeall_at.go | 3 +--
+ 2 files changed, 3 insertions(+), 6 deletions(-)

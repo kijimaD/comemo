@@ -1,30 +1,26 @@
-commit a369004e2318ad0f139f967c764918bd939980ce
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Dec 16 09:36:50 2011 +1100
+commit 9f65e99ad4bdc85e979f12fb5e4d7f4e4b8a7693
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 15 13:51:47 2011 -0800
 
-    html: handle end tags in foreign objects.
+    go/printer, gofmt: don't write too many newlines
     
-    I'm not 100% sure I get all the corner cases right, for end tags, but
-    I'll let the test suite smoke it out.
+    In some rare cases, gofmt would accept more than the maximum
+    number of empty lines (1) between source code snippets.
     
-    Pass tests10.dat, test 1:
-    <!DOCTYPE html><svg></svg><![CDATA[a]]>
+    The actual change is in printer.go, lines 773-775; the rest
+    is some minor restructuring.
     
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |   <body>
-    |     <svg svg>
-    |     <!-- [CDATA[a]] -->
+    Applied gofmt -w src misc .
     
-    Also pass tests through test 5:
-    <!DOCTYPE html><body><table><svg></svg></table>
+    Fixes #2387.
     
-    R=andybalholm
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5495044
+    https://golang.org/cl/5496047
 
- src/pkg/html/const.go      | 12 +++++++++++-
- src/pkg/html/parse.go      | 21 ++++++++++++++++-----
- src/pkg/html/parse_test.go |  1 +
- 3 files changed, 28 insertions(+), 6 deletions(-)
+ src/cmd/cgo/godefs.go                         |   1 -
+ src/pkg/bytes/buffer_test.go                  |   1 -
+ src/pkg/go/printer/nodes.go                   |   5 +-
+ src/pkg/go/printer/printer.go                 | 100 +++++++++++++-------------
+ src/pkg/go/printer/testdata/statements.golden |   2 -
+ 5 files changed, 55 insertions(+), 54 deletions(-)

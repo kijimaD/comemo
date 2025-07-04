@@ -1,15 +1,18 @@
-commit aaa0bc1043883390e052ec6f6775cbf0395dceb1
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 17 02:34:29 2015 -0500
+commit ef986fa3fc9b8035151e10658de66873bb25bba5
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Wed Oct 21 09:38:27 2015 +1100
 
-    net/http: document a few ServeMux behaviors
+    runtime: change odd 'print1_write' file names
     
-    Fixes #13639.
-    Fixes #11757.
+    The '1' part is left over from the C conversion, but no longer makes
+    sense given that print1.go no longer exists.
     
-    Change-Id: Iecf9ebcd652c23c96477305a41082e5b63b41d83
-    Reviewed-on: https://go-review.googlesource.com/17955
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iec171251370d740f234afdbd6fb1a4009fde6696
+    Reviewed-on: https://go-review.googlesource.com/16036
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/runtime/{print1_write.go => write_err.go}                 | 0
+ src/runtime/{print1_write_android.go => write_err_android.go} | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)

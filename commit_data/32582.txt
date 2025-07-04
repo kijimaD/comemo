@@ -1,25 +1,16 @@
-commit e3e09e3d5f2e4276bda8f1b821424a6bb9976943
-Author: Francesc Campoy Flores <campoy@golang.org>
-Date:   Thu Aug 3 10:52:42 2017 -0700
+commit 4d7a5edb7e476a321365151a3253395c25185341
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Nov 16 01:05:34 2016 -0500
 
-    doc: add error handling on http.ListenAndServe
+    cmd/link/internal/ld: always show output from external linker
     
-    Fixes #19511
+    Fixes #17935.
     
-    Change-Id: I5585726773b822dba0be0196961132323ebbe084
-    Reviewed-on: https://go-review.googlesource.com/53071
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: I49b0f6cee29ea76ed62b8faa5d6d1f51be41bf84
+    Reviewed-on: https://go-review.googlesource.com/33301
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/articles/wiki/final-noclosure.go     | 3 ++-
- doc/articles/wiki/final-noerror.go       | 3 ++-
- doc/articles/wiki/final-parsetemplate.go | 3 ++-
- doc/articles/wiki/final-template.go      | 3 ++-
- doc/articles/wiki/final-test.patch       | 2 +-
- doc/articles/wiki/final.go               | 3 ++-
- doc/articles/wiki/http-sample.go         | 3 ++-
- doc/articles/wiki/index.html             | 6 ++++++
- doc/articles/wiki/notemplate.go          | 3 ++-
- doc/articles/wiki/part2.go               | 3 ++-
- doc/articles/wiki/part3-errorhandling.go | 3 ++-
- doc/articles/wiki/part3.go               | 3 ++-
- 12 files changed, 27 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

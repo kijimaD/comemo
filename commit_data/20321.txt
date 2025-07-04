@@ -1,17 +1,20 @@
-commit e8d65b92d7129edf4ca495206467f600960e803e
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Sep 6 14:53:44 2014 -0400
+commit a287567d3cd108513d337f647a3902d3b7fade34
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Aug 30 18:15:55 2014 -0700
 
-    liblink: fix arm build errors
+    runtime: fix Linux build
     
-    This was supposed to be in CL 135490044
-    but got lost in a transfer from machine to machine.
+    Make the definition of the EpollEvent data field consistent
+    across architectures, adapt the other use of it in
+    netpoll_epoll for the new definition, and use uint64 rather
+    than uintptr.
     
-    TBR=khr
-    R=khr
+    LGTM=dave
+    R=rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/135560043
+    https://golang.org/cl/137890043
 
- src/liblink/asm5.c |  6 ++++--
- src/liblink/obj5.c | 12 ++++--------
- 2 files changed, 8 insertions(+), 10 deletions(-)
+ src/pkg/runtime/defs_linux_386.h | 2 +-
+ src/pkg/runtime/defs_linux_arm.h | 2 +-
+ src/pkg/runtime/netpoll_epoll.c  | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

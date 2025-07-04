@@ -1,14 +1,23 @@
-commit 10c8b2374f413ef6225555893cad5d2a530f77d5
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 25 17:24:11 2016 -0400
+commit af517da2f918835176862aec8690ddc6bb783af1
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 31 09:34:35 2016 -0700
 
-    runtime: align C library startup calls on amd64
+    cmd/compile: Add more idx1 load/store instructions
     
-    This makes GOEXPERIMENT=framepointer, GOOS=darwin, and buildmode=carchive coexist.
+    Helpful for indexed loads and stores when the stride is not equal to
+    the size being loaded/stored.
     
-    Change-Id: I9f6fb2f0f06f27df683e5b51f2fa55cd21872453
-    Reviewed-on: https://go-review.googlesource.com/23454
-    Reviewed-by: Austin Clements <austin@google.com>
+    Update #7927
+    
+    Change-Id: I8714dd4c7b18a96a611bf5647ee21f753d723945
+    Reviewed-on: https://go-review.googlesource.com/21346
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/runtime/rt0_darwin_amd64.s | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go        |   35 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   75 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   14 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  141 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1476 +++++++++++++++++++++++++-
+ 5 files changed, 1668 insertions(+), 73 deletions(-)

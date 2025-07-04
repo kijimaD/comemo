@@ -1,24 +1,16 @@
-commit e12f6ee0ab1e7b4da818054d7ced4247c81fd164
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Mon Oct 31 07:58:41 2016 -0700
+commit c5434f2973a87acff76bac359236e690d632ce95
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Sep 29 13:59:10 2016 +0200
 
-    database/sql: fix TestPendingConnsAfterErr
+    time: update test for tzdata-2016g
     
-    TestPendingConnsAfterErr showed a failure on slower systems.
-    Wait and check for the database to close all connections
-    before pronouncing failure.
+    Fixes #17276
     
-    A more careful method was attempted but the connection pool
-    behavior is too dependent on the scheduler behavior to be
-    predictable.
-    
-    Fixes #15684
-    
-    Change-Id: Iafdbc90ba51170c76a079db04c3d5452047433a4
-    Reviewed-on: https://go-review.googlesource.com/33418
+    Change-Id: I0188cf9bc5fdb48c71ad929cc54206d03e0b96e4
+    Reviewed-on: https://go-review.googlesource.com/29995
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/sql_test.go | 40 +++++++++++++++++++++++++++++++---------
- 1 file changed, 31 insertions(+), 9 deletions(-)
+ src/time/time_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

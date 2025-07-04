@@ -1,12 +1,20 @@
-commit c37a0c541477de4dd98b09d6a672fe66b0a59871
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 14 09:27:51 2011 +1100
+commit b448263f7929554c1a54474826722cebb751f4e7
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Fri Jan 14 09:10:02 2011 +1100
 
-    CONTRIBUTORS: add bradfitz@golang.org
+    http: fix scheme-relative URL parsing; add ParseRequestURL
     
-    R=bradfitz, dangabrad
+    Also adds some tests for Issue 900 which was the reason
+    the current URL parsing is broken.  (the previous fix
+    was wrong)
+    
+    R=rsc, adg, dangabrad, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/3998041
+    https://golang.org/cl/3910042
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/readrequest_test.go | 35 +++++++++++++++++
+ src/pkg/http/request.go          |  2 +-
+ src/pkg/http/serve_test.go       | 85 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/url.go              | 30 +++++++++++++-
+ src/pkg/http/url_test.go         | 80 ++++++++++++++++++++++++++++++++++---
+ 5 files changed, 223 insertions(+), 9 deletions(-)

@@ -1,31 +1,12 @@
-commit fc2480da3c759dc444993d8e4b11ab5fe0777406
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sun Jul 24 13:43:08 2011 +1000
+commit d56c8132e8f70629cccf2f851cb50846b1a3ef09
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Jul 24 10:51:19 2011 +1000
 
-    goinstall: write to goinstall.log in respective GOPATH
-    goinstall: report every newly installed package to the dashboard
+    unicode: fix doc comment for Range32
     
-    This makes "goinstall -a" work on systems with GOROOTs that are
-    not user-writable, as is the case with Debian's Go packages.
-    
-    This also makes goinstall.log the canonical list of installed
-    packages, in that only packages new to goinstall.log are reported to
-    the dashboard.
-    
-    A side-effect is that writing to goinstall.log is now mandatory.
-    (A bug in the original implementation meant this was the case, anyway.)
-    
-    The principal benefit of this change is that multiple packages from the
-    same repository can now be reported to the dashboard.  It is also less
-    likely for a user to report multiple installations of the same package
-    to the dashboard (they would need to remove the package from
-    goinstall.log first).
-    
-    R=rsc, n13m3y3r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4786041
+    https://golang.org/cl/4811050
 
- src/cmd/goinstall/doc.go      |  1 -
- src/cmd/goinstall/download.go | 45 +++++++++--------------
- src/cmd/goinstall/main.go     | 84 +++++++++++++++++++++++++------------------
- 3 files changed, 66 insertions(+), 64 deletions(-)
+ src/pkg/unicode/letter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

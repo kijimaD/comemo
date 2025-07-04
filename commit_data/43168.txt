@@ -1,17 +1,25 @@
-commit 41df0e22184a0fcfb1e67e994c993239e9c2efc7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 1 14:55:11 2020 -0700
+commit 0e06775eebf6d357f604a55c803aab5cc8054e67
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 13 11:43:35 2020 -0400
 
-    reflect: add test for variadic reflect.Type.Method
+    [dev.link] cmd/link: don't truncate external relocation type
     
-    For #41737
+    In CL 222244, we store external relocations in the same format as
+    Go object files. In Go object file format, the relocation type is
+    a uint8. However, for external relocations the type may not
+    always fit in a uint8. Truncating it will result in a bad
+    relocation. Fix this by storing the external reloc type on the
+    side. (An alternative is to extend the Go object file format to
+    use a uint16, but it is not necessary for Go relocations and
+    will waste some binary size.)
     
-    Change-Id: Id065880dd7da54dec1b45662c202aeb7f8397c60
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258819
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fix ARM build.
+    
+    Change-Id: I343e240d38ee0e2cc91e0e7754d03b19b525a014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223338
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/reflect/all_test.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

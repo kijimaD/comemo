@@ -1,15 +1,17 @@
-commit 880442f110ce33b2981561461841979d58848b78
-Author: Emil Hessman <c.emil.hessman@gmail.com>
-Date:   Fri Jan 3 10:13:28 2014 -0800
+commit 8778760a7edb8bb1b756b6d3dbf20edb1308159e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 3 10:41:56 2014 +1100
 
-    encoding/json: Fix missing error when trying to unmarshal null string into int, for successive ,string option
+    runtime: increase attempt count for map iteration order test.
     
-    Fixes #7046.
+    Some builders broke on this test; I'm guessing that was because
+    this test didn't try hard enough to find a different iteration order.
     
-    R=golang-codereviews, bradfitz
+    Update #6719
+    
+    R=dave
     CC=golang-codereviews
-    https://golang.org/cl/47260043
+    https://golang.org/cl/47300043
 
- src/pkg/encoding/json/decode.go      |  1 +
- src/pkg/encoding/json/decode_test.go | 19 +++++++++++++++++--
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ src/pkg/runtime/map_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

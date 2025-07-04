@@ -1,22 +1,16 @@
-commit 8999b1d6c9be053f0e8c07ac3516eef7dc8a1830
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Jan 28 19:46:57 2018 +0100
+commit c996d07feed18fdebaadf2c61e62cd8b14fe1aa7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Oct 13 16:50:45 2017 -0400
 
-    runtime: shorten reflect.unsafe_New call chain
+    cmd/link: use the correct module data on ppc64le
     
-    reflect.unsafe_New is an often called function according
-    to profiling in a large production environment.
+    Fixes #22250
     
-    Since newobject is not inlined currently there
-    is call overhead that can be avoided by calling
-    mallocgc directly.
-    
-    name  old time/op  new time/op  delta
-    New   32.4ns ± 2%  29.8ns ± 1%  -8.03%  (p=0.000 n=19+20)
-    
-    Change-Id: I572e4be830ed8e5c0da555dc3a8864c8363112be
-    Reviewed-on: https://go-review.googlesource.com/95015
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I0e39d10ff6f0785cd22b0105de2d839e569db4b7
+    Reviewed-on: https://go-review.googlesource.com/70810
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/malloc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ppc64/asm.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

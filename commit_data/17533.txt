@@ -1,20 +1,12 @@
-commit d5fbad0de86169d996fcb136cb6c1e57a3649c43
+commit b1e81a54622280ea200b1b90b9d2c97913c11646
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 10 13:17:21 2013 -0400
+Date:   Tue Sep 10 13:00:01 2013 -0400
 
-    cmd/go: better error for shadowed directories in GOPATH
+    CONTRIBUTORS: add Alexis Imperial-Legrand (Google CLA)
     
-    Fixes #5774.
-    
-    R=golang-dev, adg, r, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/9164043
+    R=golang-dev, bradfitz
+    CC=ail, golang-dev
+    https://golang.org/cl/13441050
 
- src/cmd/go/build.go                               |  6 ++++-
- src/cmd/go/pkg.go                                 | 20 ++++++++-------
- src/cmd/go/test.bash                              | 31 +++++++++++++++++++++++
- src/cmd/go/testdata/shadow/root1/src/foo/foo.go   |  1 +
- src/cmd/go/testdata/shadow/root1/src/math/math.go |  1 +
- src/cmd/go/testdata/shadow/root2/src/foo/foo.go   |  1 +
- src/pkg/go/build/build.go                         | 25 ++++++++++--------
- 7 files changed, 64 insertions(+), 21 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

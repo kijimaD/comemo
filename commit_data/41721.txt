@@ -1,18 +1,17 @@
-commit 6aded2524cb77eeab907e64512c5f7c54b530756
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Mon Mar 23 04:53:40 2020 +0000
+commit d29c14f3d2519d72a24c7060d99935f562c37db3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 22 02:44:42 2019 -0700
 
-    strings: narrow the search range of IndexByte in Index
+    runtime: factor signal stack code out of sigtrampgo
     
-    Same as https://golang.org/cl/224589.
+    This reduces the required nosplit stack size, which permits building
+    on Solaris with -gcflags=all=-N -l.
     
-    Change-Id: I6a9e2ea60bf6e1888a95bad0331c92079a7eff99
-    GitHub-Last-Rev: 81c13c0f5b2ee6ae7842a7b73799b7821f78be59
-    GitHub-Pull-Request: golang/go#38016
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224593
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #35046
+    
+    Change-Id: Icb3a421bb791c73e2f670ecfadbe32daea79789f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202446
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/strings/strings.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/signal_unix.go | 84 ++++++++++++++++++++++++++--------------------
+ 1 file changed, 48 insertions(+), 36 deletions(-)

@@ -1,34 +1,12 @@
-commit 4cc7bf326a26d3cc18f049424729784812fe16b6
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Oct 6 12:56:04 2012 +0400
+commit 16bea49ede776bd781515546e9a3df22c3dcfe06
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Sat Oct 6 13:56:12 2012 +0800
 
-    pprof: add goroutine blocking profiling
-    The profiler collects goroutine blocking information similar to Google Perf Tools.
-    You may see an example of the profile (converted to svg) attached to
-    http://code.google.com/p/go/issues/detail?id=3946
-    The public API changes are:
-    +pkg runtime, func BlockProfile([]BlockProfileRecord) (int, bool)
-    +pkg runtime, func SetBlockProfileRate(int)
-    +pkg runtime, method (*BlockProfileRecord) Stack() []uintptr
-    +pkg runtime, type BlockProfileRecord struct
-    +pkg runtime, type BlockProfileRecord struct, Count int64
-    +pkg runtime, type BlockProfileRecord struct, Cycles int64
-    +pkg runtime, type BlockProfileRecord struct, embedded StackRecord
+    cmd/cc: map C int to int32 in Go defs
     
-    R=rsc, dave, minux.ma, r
-    CC=gobot, golang-dev, r, remyoudompheng
-    https://golang.org/cl/6443115
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6621052
 
- src/cmd/go/test.go                 |  12 ++++
- src/cmd/go/testflag.go             |   4 ++
- src/pkg/net/http/pprof/pprof.go    |   4 ++
- src/pkg/runtime/chan.c             |  36 +++++++++++
- src/pkg/runtime/debug.go           |  25 ++++++++
- src/pkg/runtime/mprof.goc          | 121 +++++++++++++++++++++++++++++++------
- src/pkg/runtime/pprof/pprof.go     |  65 ++++++++++++++++++++
- src/pkg/runtime/runtime.c          |  37 ++++++++++++
- src/pkg/runtime/runtime.h          |   3 +
- src/pkg/runtime/sema.goc           |  48 ++++++++++-----
- src/pkg/runtime/signal_linux_arm.c |  14 ++---
- src/pkg/testing/testing.go         |  33 +++++++---
- 12 files changed, 350 insertions(+), 52 deletions(-)
+ src/cmd/cc/godefs.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

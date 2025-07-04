@@ -1,27 +1,19 @@
-commit ae8708f7441b24dac126122c5365327d29fa0012
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Sep 6 15:51:44 2024 +0200
+commit faa549e4c7aeb997a7fa802f5f9398db5a57c32c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 20 13:14:11 2023 -0400
 
-    os/user: fix Current().GroupIds() for AD joined users on Windows
+    cmd/go: keep BuildInfo list sorted even with -pgo
     
-    This CL special-case User.GroupIds to get the group IDs from the user's
-    token when the user is the current user.
+    The -pgo build setting is added late, so sort it into place.
+    Noticed while working on CL 504536.
     
-    This approach is more efficient than calling NetUserGetLocalGroups.
-    It is also more reliable for users joined to an Active Directory domain,
-    where NetUserGetLocalGroups is likely to fail.
-    
-    Updates #26041.
-    Fixes #62712.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64
-    Change-Id: If7c30287192872077b98a514bd6346dbd1a64fb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611116
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I080d2389dc0b3176fb72c9e2434e5f3ae70e294e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504537
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/syscall/windows/security_windows.go | 35 +++++++++++++++++
- src/os/user/lookup_windows.go                    | 50 ++++++++++++++++++------
- 2 files changed, 74 insertions(+), 11 deletions(-)
+ src/cmd/go/internal/load/pkg.go               | 6 +++++-
+ src/cmd/go/testdata/script/build_pgo_auto.txt | 3 +++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

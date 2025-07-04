@@ -1,22 +1,20 @@
-commit 0239a5c47856f758b9277e23c40a067c9644a7c8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Apr 18 18:00:40 2020 -0700
+commit 6dc250f456e078b213cee0f1099e915aa0d4d4d9
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Tue Nov 5 16:31:05 2019 +0100
 
-    cmd/compile: use fuse to implement shortcircuit loop
+    cmd/link: fix the size of typerel.* with c-archive buildmode
     
-    The rewrite loop in shortcircuit is identical to the one in fuse.
-    That's not surprising; shortcircuit is fuse-like.
+    With buildmode=c-archive, "runtime.types" type isn't STYPE but
+    STYPERELRO.
+    On AIX, this symbol is present in the symbol table and not under
+    typerel.* outersymbol. Therefore, the size of typerel.* must be adapted.
     
-    Take advantage of that by merging the two loops.
+    Fixes #35342
     
-    Passes toolstash-check.
-    
-    Change-Id: I642cb39a23d2ac8964ed577678f062fce721439c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229003
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib982c6557d9b41bc3d8775e4825650897f9e0ee6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205338
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/fuse.go         |  4 ++++
- src/cmd/compile/internal/ssa/shortcircuit.go | 15 +--------------
- 2 files changed, 5 insertions(+), 14 deletions(-)
+ src/cmd/link/internal/ld/xcoff.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

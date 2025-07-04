@@ -1,25 +1,13 @@
-commit 18248ced3643a2cfcb4119bd5120aaa2a49b6cc8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 18 10:28:58 2011 -0700
+commit acfb0a1584215c80e773256f25438131a57e74c3
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Thu Aug 18 12:37:42 2011 -0400
 
-    go/parser: fix type switch scoping
-    
-    The variable declared by a TypeSwitchGuard must be
-    visible in each TypeCaseClause and must not conflict
-    with other variables declared by the initial SimpleStmt
-    of a type switch.
-    
-    Also:
-    - explicitly detect type switches (as opposed to detecting
-      regular (expression switches) and then do extra testing
-      for type switches
-    - fix all outstanding TODOs in parser.go
+    runtime: ctrlhandler for windows amd64
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4896053
+    https://golang.org/cl/4825047
 
- src/cmd/gotype/testdata/test1.go | 17 ++++++++
- src/pkg/go/parser/parser.go      | 90 +++++++++++++++++++++++++++-------------
- src/pkg/go/parser/parser_test.go |  3 ++
- 3 files changed, 82 insertions(+), 28 deletions(-)
+ src/pkg/runtime/windows/amd64/signal.c |  1 +
+ src/pkg/runtime/windows/amd64/sys.s    | 38 ++++++++++++++++++++++++++++++++--
+ 2 files changed, 37 insertions(+), 2 deletions(-)

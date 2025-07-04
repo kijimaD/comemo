@@ -1,12 +1,36 @@
-commit 95902d10d2de03b1c22c626462627fb2251cf55b
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Feb 15 08:42:16 2012 +1100
+commit 9f333170bf4d8d15b6f9c53caf9a44ef00758ea6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 16:39:20 2012 -0500
 
-    build: fix sudo.bash.
+    cmd/go: a raft of fixes
     
-    R=golang-dev, rsc
+    * add -work option to save temporary files (Fixes issue 2980)
+    * fix go test -i to work with cgo packages (Fixes issue 2936)
+    * do not overwrite/remove empty directories or non-object
+      files during build (Fixes issue 2829)
+    * remove package main vs package non-main heuristic:
+      a directory must contain only one package (Fixes issue 2864)
+    * to make last item workable, ignore +build tags for files
+      named on command line: go build x.go builds x.go even
+      if it says // +build ignore.
+    * add // +build ignore tags to helper programs
+    
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/5647063
+    https://golang.org/cl/5674043
 
- src/sudo.bash | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/build.go                 | 64 +++++++++++++++++++++++++++++++++----
+ src/cmd/go/main.go                  |  2 +-
+ src/cmd/go/pkg.go                   | 25 ++++++++++++---
+ src/cmd/go/test.go                  |  4 +++
+ src/pkg/crypto/tls/generate_cert.go |  2 ++
+ src/pkg/encoding/gob/dump.go        |  2 ++
+ src/pkg/exp/norm/maketables.go      |  2 ++
+ src/pkg/exp/norm/maketesttables.go  |  2 ++
+ src/pkg/exp/norm/normregtest.go     |  2 ++
+ src/pkg/exp/norm/triegen.go         |  2 ++
+ src/pkg/go/build/dir.go             | 28 +++++++---------
+ src/pkg/go/doc/headscan.go          |  2 ++
+ src/pkg/net/http/triv.go            |  2 ++
+ src/pkg/unicode/maketables.go       |  2 ++
+ 14 files changed, 113 insertions(+), 28 deletions(-)

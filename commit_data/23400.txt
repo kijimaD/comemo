@@ -1,27 +1,18 @@
-commit f6ae5f96c7a1919d2d6f4d658737bc5082d9e996
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 16 16:28:57 2015 -0700
+commit 6439010e52610650f8aa048173832f94006ebdbd
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 12 10:29:53 2015 -0700
 
-    go/internal/gccgoimporter: unmodified copy of x/tools/go/gccgoimporter
+    encoding/gob: add "too big" check when writing a message
     
-    This change will brake the build. The immediately following change
-    contains the necessary adjustments to make it work again. We're
-    doing this in two steps to expose the manual changes applied.
+    Messages that are too big are rejected when read, so they should
+    be rejected when written too.
     
-    Change-Id: I225947da23e190b12e12cbd0c5e6e91628de7f53
-    Reviewed-on: https://go-review.googlesource.com/11151
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #10518.
+    
+    Change-Id: I96678fbe2d94f51b957fe26faef33cd8df3823dd
+    Reviewed-on: https://go-review.googlesource.com/9965
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gccgoimporter/gccgoinstallation.go |  95 +++
- .../gccgoimporter/gccgoinstallation_test.go        | 194 +++++
- src/go/internal/gccgoimporter/importer.go          | 199 +++++
- src/go/internal/gccgoimporter/importer_test.go     | 167 ++++
- src/go/internal/gccgoimporter/parser.go            | 856 +++++++++++++++++++++
- src/go/internal/gccgoimporter/parser_test.go       |  73 ++
- .../internal/gccgoimporter/testdata/complexnums.go |   6 +
- .../gccgoimporter/testdata/complexnums.gox         |   8 +
- src/go/internal/gccgoimporter/testdata/imports.go  |   5 +
- src/go/internal/gccgoimporter/testdata/imports.gox |   7 +
- src/go/internal/gccgoimporter/testdata/pointer.go  |   3 +
- src/go/internal/gccgoimporter/testdata/pointer.gox |   4 +
- 12 files changed, 1617 insertions(+)
+ src/encoding/gob/encoder.go      |  6 ++++++
+ src/encoding/gob/encoder_test.go | 18 ++++++++++++++++++
+ 2 files changed, 24 insertions(+)

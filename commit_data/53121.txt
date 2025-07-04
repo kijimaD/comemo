@@ -1,20 +1,27 @@
-commit 18ffa7185d42427dbdc0144956fece6c2b54b27a
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 10 14:28:30 2023 -0400
+commit 558785a0a9df5fbb7e9617c05059cf2892884620
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 29 13:20:36 2022 -0700
 
-    cmd/dist: let several cgo tests run as regular cmd tests
+    cmd/compile: remove -installsuffix flag
     
-    Several cgo tests no longer have any special conditions, so they can
-    just be normal cmd tests. This brings dist's "go_test:.*" tests much
-    closer to what "go test std cmd" runs.
+    Obsoleted by -importcfg.
     
-    Change-Id: I4d09f60628a41081e97e6b6e7dd0d93df47a65bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495919
+    cmd/link has a similar flag, but it seems to still be needed at least
+    for misc/cgo/testshared.TestGopathShlib. I can't immediately tell why
+    (has something to do with finding .so files), but it doesn't appear to
+    possibly affect cmd/compile.
+    
+    Updates #51225.
+    
+    Change-Id: I80c6aef860bd162c010ad4a1a4f532b400cf901c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415236
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/dist/test.go | 31 +++----------------------------
- 1 file changed, 3 insertions(+), 28 deletions(-)
+ src/cmd/compile/doc.go                   | 3 ---
+ src/cmd/compile/internal/base/flag.go    | 1 -
+ src/cmd/compile/internal/noder/import.go | 4 +---
+ src/cmd/go/internal/work/gc.go           | 3 ---
+ 4 files changed, 1 insertion(+), 10 deletions(-)

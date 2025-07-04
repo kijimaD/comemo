@@ -1,49 +1,18 @@
-commit b40831b115e46e9de719bddccf2d27d7d4940756
-Author: griesemer <gri@golang.org>
-Date:   Mon Aug 21 15:47:51 2017 +0200
+commit 259d60995d735523fc25939c35847538eb0d0670
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Apr 24 17:26:41 2017 +0300
 
-    spec: explicitly define notion of "representability" (clarification)
+    runtime: align mcentral by cache line size
     
-    Throughout the spec we use the notion of a constant x being
-    representable by a value of type T. While intuitively clear,
-    at least for floating-point and complex constants types, the
-    concept was not well-defined. In the section on Conversions
-    there was an extra rule for floating-point types only and it
-    missed the case of floating-point values overflowing to an
-    infinity after rounding.
+    This may improve perormance during concurrent access
+    to mheap.central array from multiple CPU cores.
     
-    Since the concept is important to Go, and a compiler most
-    certainly will have a function to test "representability",
-    it seems warranted to define the term explicitly in the spec.
-    
-    This change introduces a new entry "Representability" under
-    the section on "Properties of types and values", and defines
-    the term explicitly, together with examples.
-    
-    The phrase used is "representable by" rather than "representable as"
-    because the former use is prevalent in the spec.
-    
-    Additionally, it clarifies that a floating-point constant
-    that overflows to an infinity after rounding is never
-    representable by a value of a floating-point type, even though
-    infinities are valid values of IEEE floating point types.
-    This is required because there are not infinite value constants
-    in the language (like there is also no -0.0) and representability
-    also matters for constant conversions. This is not a language
-    change, and type-checkers have been following this rule before.
-    
-    The change also introduces links throughout the spec to the new
-    section as appropriate and removes duplicate text and examples
-    elsewhere (Constants and Conversions sections), leading to
-    simplifications in the relevant paragraphs.
-    
-    Fixes #15389.
-    
-    Change-Id: I8be0e071552df0f18998ef4c5ef521f64ffe8c44
-    Reviewed-on: https://go-review.googlesource.com/57530
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8f48dd2e72aa62e9c32de07ae60fe552d8642782
+    Reviewed-on: https://go-review.googlesource.com/41550
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 117 +++++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 80 insertions(+), 37 deletions(-)
+ src/runtime/mheap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

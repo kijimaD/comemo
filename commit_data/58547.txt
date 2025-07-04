@@ -1,16 +1,31 @@
-commit 28d389ef30fc4c542a80603123990115035c6422
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 23 17:37:29 2025 -0800
+commit bb8a96fa547985168241eea72ee2bec15e749eff
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 16 14:11:18 2023 -0500
 
-    internal/godebug: check error from os.ReadFile in test
+    cmd/go: check that expected Origin fields are present to reuse module info
     
-    Change-Id: I4770443c8eaa12add2e04cbf9d18ebfbbd851162
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643259
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    When 'go list' or 'go mod download' uses a proxy to resolve a version
+    query like "@latest", it may have origin metadata about the resolved
+    version but not about the inputs that would be needed to resolve the
+    same query without using the proxy.
+    
+    We shouldn't just redact the incomplete information, because it might
+    be useful independent of the -reuse flag. Instead, we examine the
+    query to decide which origin information it ought to need, and avoid
+    reusing it if that information isn't included.
+    
+    Fixes #61423.
+    
+    Change-Id: Ibeaa46ebba284beee285cbb1898e271e5a5b257b
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543155
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Commit-Queue: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/godebug/godebug_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  7 +-
+ src/cmd/go/internal/modload/build.go               | 25 +++---
+ src/cmd/go/internal/modload/query.go               | 74 ++++++++++++++++--
+ src/cmd/go/testdata/script/mod_list_issue61423.txt | 89 ++++++++++++++++++++++
+ 4 files changed, 176 insertions(+), 19 deletions(-)

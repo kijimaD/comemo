@@ -1,33 +1,23 @@
-commit 241b23606c4c1d37071669c6e07c1918501835ff
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 9 17:08:09 2012 -0700
+commit 32316bba5b7c198c320681104c9bfcbc622e31df
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 9 15:29:43 2012 -0700
 
-    go/printer: idempotent comment formatting
+    cmd/ld: add -B option to set build ID
     
-    Also:
+    Background on build ID:
+    http://fedoraproject.org/wiki/RolandMcGrath/BuildID
     
-    - Refactored testing framework to permit easier
-    idempotency testing.
-    
-    - Applied gofmt -w src misc
-    
-    This CL depends on CL 6639044 being applied first.
-    
-    Formatting is not idempotent for all files: In those
-    files the comment position has changed (due to missing
-    precise location information) and/or the comment formatting
-    cannot/is not aware of independent code re-formatting.
-    In general it is very hard to make format idempotent when
-    running it in one pass only. Leaving that aside for now.
-    
-    Fixes #1835.
-    
-    R=r, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6624051
+    https://golang.org/cl/6625072
 
- src/pkg/go/printer/printer.go                |  33 ++++--
- src/pkg/go/printer/printer_test.go           | 150 +++++++++++++++++----------
- src/pkg/go/printer/testdata/comments2.golden |  79 ++++++++++++++
- src/pkg/go/printer/testdata/comments2.input  |  79 ++++++++++++++
- 4 files changed, 277 insertions(+), 64 deletions(-)
+ src/cmd/5l/asm.c  | 30 +++++++++++++++++++----
+ src/cmd/5l/obj.c  |  4 +++
+ src/cmd/6l/asm.c  | 30 +++++++++++++++++++----
+ src/cmd/6l/obj.c  |  4 +++
+ src/cmd/8l/asm.c  | 30 +++++++++++++++++++----
+ src/cmd/8l/obj.c  |  4 +++
+ src/cmd/ld/doc.go |  3 +++
+ src/cmd/ld/elf.c  | 73 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/elf.h  |  4 +++
+ 9 files changed, 167 insertions(+), 15 deletions(-)

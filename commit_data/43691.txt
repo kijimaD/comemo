@@ -1,22 +1,19 @@
-commit ecd7b7e991d802db2bb63ccf7cede83f62e4e1c9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 3 15:00:07 2020 +0000
+commit 066c47ca5fac1c49f754029f1e61323f74f6d93d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 20 15:40:38 2020 -0700
 
-    Revert "cmd/go: support cgo files in overlays"
+    cmd/compile: use cheaper implementation of oneBit
     
-    This reverts CL 267197.
+    Updates #38547
     
-    Reason for revert: tests failing on windows-amd64-longtest builder (https://build.golang.org/log/83afde1aac3ea49debddb8996d089a741c3b1cf1).
+    file    before    after     Δ       %
+    compile 19678112  19669808  -8304   -0.042%
+    total   113143160 113134856 -8304   -0.007%
     
-    Change-Id: I0d7c706144e34b1715316ca2ee9662c901b7f8f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267357
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I5f8afe17401dbdb7c7b3d66d95fe40821c499a92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229127
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/exec.go                  | 48 ++-----------
- src/cmd/go/internal/work/gc.go                    |  9 +--
- src/cmd/go/testdata/script/build_overlay.txt      | 83 +----------------------
- src/cmd/go/testdata/script/build_trimpath_cgo.txt | 28 --------
- 4 files changed, 12 insertions(+), 156 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

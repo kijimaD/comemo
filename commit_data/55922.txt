@@ -1,63 +1,21 @@
-commit 508bb17edd04479622fad263cd702deac1c49157
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 14 20:36:47 2024 -0500
+commit ea2d4a7ef674b4a0ea0e53ffecbc63320b91f25f
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Mar 21 19:27:30 2023 -0400
 
-    time: garbage collect unstopped Tickers and Timers
+    log/slog: clarify the limits of TextHandler output parseability
     
-    From the beginning of Go, the time package has had a gotcha:
-    if you use a select on <-time.After(1*time.Minute), even if the select
-    finishes immediately because some other case is ready, the underlying
-    timer from time.After keeps running until the minute is over. This
-    pins the timer in the timer heap, which keeps it from being garbage
-    collected and in extreme cases also slows down timer operations.
-    The lack of garbage collection is the more important problem.
+    Give an example illustrating the problem with dots inside groups
+    or keys. Clarify that to fix it in general, you need to do more
+    than escape the keys, since that won't distinguish the group "a.b"
+    from the two groups "a" and "b".
     
-    The docs for After warn against this scenario and suggest using
-    NewTimer with a call to Stop after the select instead, purely to work
-    around this garbage collection problem.
+    Updates #56345.
     
-    Oddly, the docs for NewTimer and NewTicker do not mention this
-    problem, but they have the same issue: they cannot be collected until
-    either they are Stopped or, in the case of Timer, the timer expires.
-    (Tickers repeat, so they never expire.) People have built up a shared
-    knowledge that timers and tickers need to defer t.Stop even though the
-    docs do not mention this (it is somewhat implied by the After docs).
-    
-    This CL fixes the garbage collection problem, so that a timer that is
-    unreferenced can be GC'ed immediately, even if it is still running.
-    The approach is to only insert the timer into the heap when some
-    channel operation is blocked on it; the last channel operation to stop
-    using the timer takes it back out of the heap. When a timer's channel
-    is no longer referenced, there are no channel operations blocked on
-    it, so it's not in the heap, so it can be GC'ed immediately.
-    
-    This CL adds an undocumented GODEBUG asynctimerchan=1
-    that will disable the change. The documentation happens in
-    the CL 568341.
-    
-    Fixes #8898.
-    Fixes #61542.
-    
-    Change-Id: Ieb303b6de1fb3527d3256135151a9e983f3c27e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512355
-    Reviewed-by: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ide301899c548d50b0a1f18e93e93d6e11ad485cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478199
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/godebug.md                 |   2 +
- src/internal/godebugs/table.go |   1 +
- src/runtime/chan.go            |  25 ++-
- src/runtime/lockrank.go        |  48 +++---
- src/runtime/mgcscavenge.go     |   2 +-
- src/runtime/mklockrank.go      |   9 +-
- src/runtime/netpoll.go         |   6 +-
- src/runtime/runtime1.go        |  25 ++-
- src/runtime/select.go          |  11 ++
- src/runtime/time.go            | 167 ++++++++++++++++++--
- src/runtime/trace2.go          |   2 +-
- src/time/internal_test.go      |   4 +-
- src/time/sleep.go              |  62 ++++++--
- src/time/sleep_test.go         |  31 +++-
- src/time/tick.go               |  27 +++-
- src/time/tick_test.go          | 350 +++++++++++++++++++++++++++++++++++++++++
- 16 files changed, 699 insertions(+), 73 deletions(-)
+ src/log/slog/text_handler.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

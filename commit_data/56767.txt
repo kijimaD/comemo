@@ -1,30 +1,25 @@
-commit c83b1a7013784098c2061ae7be832b2ab7241424
-Author: Rodrigo Orselli <97564847+orsll@users.noreply.github.com>
-Date:   Fri Jun 7 19:51:10 2024 +0000
+commit 0c3015191f085fe4941da677d1a7787379bc57d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 22 12:26:15 2023 -0400
 
-    sync: include links to the Go memory model in package documentation
+    cmd/go: add mod edit -toolchain and work edit -toolchain
     
-    The lack of links to https://go.dev/ref/mem in the sync package
-    documentation makes it difficult to read for people who have no previous
-    knowledge of that page.  This PR includes the links where needed.
+    We have added a new toolchain directive in go.mod and go.work.
+    This CL adds support in mod edit and work edit for changing the toolchain line.
     
-    Fixes #67891
+    For #57001.
     
-    Change-Id: I0e1344cc6d7b702f4cb2e55fe0fcee3eb089391a
-    GitHub-Last-Rev: 427cf58aaeaae2e4b060248dd592e5fe8c6b7df4
-    GitHub-Pull-Request: golang/go#67892
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591395
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I36a960796630a359b8a587877cb9548c299d5c87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497296
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/sync/atomic/doc.go | 4 +++-
- src/sync/cond.go       | 3 ++-
- src/sync/map.go        | 4 +++-
- src/sync/mutex.go      | 4 +++-
- src/sync/once.go       | 4 +++-
- src/sync/pool.go       | 4 +++-
- src/sync/rwmutex.go    | 4 +++-
- src/sync/waitgroup.go  | 4 +++-
- 8 files changed, 23 insertions(+), 8 deletions(-)
+ src/cmd/go/alldocs.go                              | 24 ++++---
+ src/cmd/go/internal/modcmd/edit.go                 | 76 ++++++++++++++--------
+ src/cmd/go/internal/workcmd/edit.go                | 57 ++++++++++------
+ src/cmd/go/testdata/script/mod_edit_go.txt         |  5 +-
+ src/cmd/go/testdata/script/mod_edit_toolchain.txt  | 18 +++++
+ src/cmd/go/testdata/script/work_edit.txt           |  4 ++
+ src/cmd/go/testdata/script/work_edit_toolchain.txt | 20 ++++++
+ 7 files changed, 147 insertions(+), 57 deletions(-)

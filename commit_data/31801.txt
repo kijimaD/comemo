@@ -1,23 +1,21 @@
-commit fcb45b9c61c369ac340b1cecac770fe0f64c4859
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 13 16:19:16 2017 -0400
+commit b9f6b22a0100716db1f196a395f9ded8456337f8
+Author: Alexey Neganov <neganovalexey@gmail.com>
+Date:   Tue Mar 14 21:11:42 2017 +0300
 
-    runtime: increase MaxGomaxprocs to 1024
+    mime: handling invalid mime media parameters
     
-    Currently MaxGomaxprocs is 256. The previous CL saved enough per-P
-    static space that we can quadruple MaxGomaxprocs (and hence the static
-    size of allp) and still come out ahead.
+    Sometimes it's necessary to deal with emails that do not follow the specification; in particular, it's possible to download such email via gmail.
+    When the existing implementation handle invalid mime media parameters, it returns nils and error, although there is a valid media type, which may be returned.
+    If this behavior changes, it may not affect any existing programs, but it will help to parse some emails.
     
-    This is safe for Go 1.9. In Go 1.10 we'll eliminate the hard-coded
-    limit entirely.
+    Fixes #19498
     
-    Updates #15131.
-    
-    Change-Id: I919ea821c1ce64c27812541dccd7cd7db4122d16
-    Reviewed-on: https://go-review.googlesource.com/45673
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ieb2fdbddfd93857faee941d2aa49d59e286d57fd
+    Reviewed-on: https://go-review.googlesource.com/38190
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/runtime2.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/mime/mediatype.go      | 10 +++++++++-
+ src/mime/mediatype_test.go | 18 +++++++++++++-----
+ 2 files changed, 22 insertions(+), 6 deletions(-)

@@ -1,21 +1,12 @@
-commit f979528ce6057e3e16307a8ce11760bfb1785c29
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Mon Jul 23 12:39:58 2012 +1000
+commit 614cb3b8dd0d6c1f0ddd631db6adb793df24655d
+Author: Patrick Mylund Nielsen <patrick@patrickmn.com>
+Date:   Sun Jul 22 10:26:32 2012 +1000
 
-    exp/html: special handling for entities in attributes
+    encoding/binary: fix typo: ReadVarint returns an int64, not a uint64.
     
-    Don't unescape entities in attributes when they don't end with
-    a semicolon and they are followed by '=', a letter, or a digit.
-    
-    Pass 6 more tests from the WebKit test suite, plus one that was
-    commented out in token_test.go.
-    
-    R=nigeltao
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6405073
+    https://golang.org/cl/6432062
 
- src/pkg/exp/html/escape.go                   |  9 +++++----
- src/pkg/exp/html/testlogs/entities02.dat.log | 12 ++++++------
- src/pkg/exp/html/token.go                    |  4 ++--
- src/pkg/exp/html/token_test.go               | 13 +++++--------
- 4 files changed, 18 insertions(+), 20 deletions(-)
+ src/pkg/encoding/binary/varint.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

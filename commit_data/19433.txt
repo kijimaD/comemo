@@ -1,26 +1,20 @@
-commit eb34288ad17bd624cfb4f40a3ab3095698624d95
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed May 21 23:24:38 2014 +0200
+commit 2de449e7a04a571a4aefefc83601802af214ea0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 21 17:12:06 2014 -0400
 
-    cmd/objdump: fix dissasembly of Plan 9 object files
+    test/float_lit2.go: rewrite to test values near boundaries
     
-    Ignore symbols that aren't text, data, or bss since they cause
-    problems when dissassembling instructions with small immediate
-    values.
+    Add larger comment explaining testing methodology,
+    and derive tests arithmetically.
     
-    Before:
-            build.go:142    0x10ee  83ec50      SUBL $text/template/parse.autotmp_1293(SB), SP
+    (These tests are checking rounding again; the derived
+    tests they replace were checking exact values.)
     
-    After:
-            build.go:142    0x10ee  83ec50      SUBL $0x50, SP
-    
-    Fixes #7947.
-    
-    LGTM=rsc
-    R=rsc, 0intro
+    LGTM=r, gri
+    R=gri, r
     CC=golang-codereviews
-    https://golang.org/cl/93520045
+    https://golang.org/cl/100660044
 
- src/cmd/objdump/objdump_test.go |  4 ----
- src/cmd/objdump/plan9obj.go     | 15 +++++++++++++++
- 2 files changed, 15 insertions(+), 4 deletions(-)
+ test/float_lit2.go | 202 +++++++++++++++++++++++++++++++++++------------------
+ test/float_lit3.go |  52 +++++++++-----
+ 2 files changed, 170 insertions(+), 84 deletions(-)

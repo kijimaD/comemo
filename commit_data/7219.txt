@@ -1,16 +1,21 @@
-commit a0a4e85ad6495b14fe944e82af58aed8e8dc99c2
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jan 22 00:10:11 2011 -0800
+commit f0b8f84d3735f94724e4255dd074db18b807f897
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jan 22 13:55:53 2011 +1100
 
-    gob: report an error when encoding a non-empty struct with
-    no public fields.
-    Fix a couple of tests caught out by this change.
+    runtime: implementation of callback functions for windows
     
-    R=rsc
+    R=rsc, lxn, alex.brainman, dho
     CC=golang-dev
-    https://golang.org/cl/4044043
+    https://golang.org/cl/1696051
 
- src/pkg/gob/codec_test.go   |  4 ++--
- src/pkg/gob/encode.go       | 19 +++++++++----------
- src/pkg/gob/encoder_test.go |  2 +-
- 3 files changed, 12 insertions(+), 13 deletions(-)
+ src/pkg/exp/wingui/Makefile         |  26 +++++
+ src/pkg/exp/wingui/gui.go           | 157 ++++++++++++++++++++++++++
+ src/pkg/exp/wingui/winapi.go        | 148 +++++++++++++++++++++++++
+ src/pkg/exp/wingui/zwinapi.go       | 214 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/386/asm.s           |   2 +-
+ src/pkg/runtime/windows/386/sys.s   |  41 ++++++-
+ src/pkg/runtime/windows/os.h        |   4 +
+ src/pkg/runtime/windows/syscall.goc |   4 +
+ src/pkg/runtime/windows/thread.c    |  84 ++++++++++++++
+ src/pkg/syscall/syscall_windows.go  |  20 ++++
+ 10 files changed, 698 insertions(+), 2 deletions(-)

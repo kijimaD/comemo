@@ -1,22 +1,22 @@
-commit 3e5c2c155645ebaed62e4481430c455045b0fff5
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Nov 17 08:49:32 2022 +0000
+commit 3b5eec937018be98549dea7067964018f0e5824c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 14 13:11:36 2022 -0500
 
-    net: return errNoSuchHost when no entry found in /etc/hosts and order is hostLookupFiles
+    runtime/race: be less picky about test run time
     
-    When /etc/nsswitch.conf lists: "hosts: files" then LookupHost returns two nils when no entry inside /etc/hosts is found.
+    Currently, there are two regexps in the race detector output tests
+    that assume subtests will complete in < 1 second. This isn't necessary
+    and very occasionally fails (on builders that are probably very
+    loaded). Make these tests less picky about timing.
     
-    Change-Id: I96d68a079dfe009655c84cf0e697ce19a5bb6698
-    GitHub-Last-Rev: 894f066bbcc7c975f1975bd0d1dcb5726f590bc5
-    GitHub-Pull-Request: golang/go#56747
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450875
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #50612.
+    
+    Change-Id: Ib3f94d6c5dc37541dbeb06de71cf462a74af844b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378581
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/conf_test.go           |  2 +-
- src/net/dnsclient_unix.go      |  6 ++-
- src/net/dnsclient_unix_test.go | 91 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 97 insertions(+), 2 deletions(-)
+ src/runtime/race/output_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

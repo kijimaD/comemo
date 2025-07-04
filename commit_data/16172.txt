@@ -1,16 +1,14 @@
-commit 968732b677e592019526fe1afe0bbf45f52df4b7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 12 21:28:38 2013 -0700
+commit 4925f8aa79db712f746cc4abbff643e90d7200b2
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Apr 12 16:04:19 2013 -0700
 
-    go/scanner: reject BOMs that are not at the beginning
+    test: make goprint.go wait longer for go its routine to execute
     
-    For compliance with gc. See also issue 5265.
-    Not Go1.1 critical, but harmless.
+    Update #5281
     
-    R=r
+    R=golang-dev, r, bradfitz, cshapiro
     CC=golang-dev
-    https://golang.org/cl/8736043
+    https://golang.org/cl/8631047
 
- src/pkg/go/scanner/scanner.go      | 13 ++++++++++---
- src/pkg/go/scanner/scanner_test.go |  5 ++++-
- 2 files changed, 14 insertions(+), 4 deletions(-)
+ test/goprint.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

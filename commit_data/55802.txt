@@ -1,29 +1,21 @@
-commit 5cbea577533dd15a7fcb7c8962f41e179931f14e
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Feb 29 12:49:05 2024 -0500
+commit 2e51f6f25cfc37f1e1d6fd3a90f0570979939a21
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Mar 11 12:03:28 2023 -0800
 
-    src/cmd: update golang.org/x/telemetry to 3d5706d and vendor it
+    encoding/json: make use of Buffer.AvailableBuffer
     
-    Ran commands:
-            go get golang.org/x/telemetry@3d5706d
-            go mod vendor
+    Use the explicit API for acquiring an empty available buffer,
+    rather than the hack that's implemented in terms of Bytes and Len.
     
-    Change-Id: Ia1749267e30222ff8d3186c6156c739df6be6f55
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568256
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If286ed42693acd61ffe28dc849ed4b76c3ae4434
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476337
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +-
- .../golang.org/x/telemetry/counter/counter.go      | 10 +++-
- .../{counter_disabled.go => counter_118.go}        |  2 +-
- .../vendor/golang.org/x/telemetry/counter/doc.go   | 61 +++++++++++++++-------
- .../x/telemetry/internal/counter/counter.go        | 35 ++++++++++++-
- .../x/telemetry/internal/counter/file.go           |  3 ++
- .../x/telemetry/internal/counter/stackcounter.go   | 19 +++----
- .../x/telemetry/internal/mmap/mmap_windows.go      | 14 +++--
- .../x/telemetry/internal/telemetry/mode.go         |  7 ++-
- .../x/telemetry/internal/telemetry/types.go        | 51 ++++++++++++++++++
- src/cmd/vendor/modules.txt                         |  2 +-
- 12 files changed, 160 insertions(+), 50 deletions(-)
+ src/encoding/json/encode.go |  8 ++------
+ src/encoding/json/indent.go | 11 +++--------
+ 2 files changed, 5 insertions(+), 14 deletions(-)

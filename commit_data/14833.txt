@@ -1,14 +1,16 @@
-commit f1cc0f44e384ff33179a2cc6d19369237cdc64cd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 9 11:31:32 2013 -0800
+commit f38df4e8790969180aee6b5889305f41539a8693
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 9 10:33:46 2013 -0800
 
-    spec: clarify short variable declaration corner cases
+    net/http: don't buffer request writing if dest is already buffered
     
-    Fixes #4612.
+    The old code made it impossible to implement a reverse proxy
+    with anything less than 4k write granularity to the backends.
     
-    R=rsc, iant, ken, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7076043
+    https://golang.org/cl/7060059
 
- doc/go_spec.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/net/http/request.go      | 32 ++++++++++++++++++++++----------
+ src/pkg/net/http/request_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 10 deletions(-)

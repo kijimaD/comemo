@@ -1,23 +1,51 @@
-commit 8566979972d51236c37b2823d2c0d52c6efe5406
-Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
-Date:   Thu Apr 23 17:27:38 2015 -0400
+commit e5a0d6399e00cec2a35b77a79d81a9435b0ee909
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 20 13:35:02 2015 -0700
 
-    misc/cgo/testcshared: add a c-shared test for android/arm.
+    cmd/internal/gc/big: vendored math/big for use by gc
     
-    - main3.c tests main.main is exported when compiled for GOOS=android.
-    - wait longer for main2.c (it's slow on android/arm)
-    - rearranged test.bash
+    This is vendored copy of the pure-Go version of math/big.
+    To update, run vendor.bash in place.
     
-    Fixes #10070.
+    This will permit the use of the new big.Float functionality in
+    gc (which is not available in 1.4, the version used for bootstrapping).
     
-    Change-Id: I6e5a98d1c5fae776afa54ecb5da633b59b269316
-    Reviewed-on: https://go-review.googlesource.com/9296
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I4dcdea875d54710005ca3fdea2e0e30422b1b46d
+    Reviewed-on: https://go-review.googlesource.com/7857
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testcshared/main2.c            |  2 +-
- misc/cgo/testcshared/main3.c            | 29 ++++++++++++
- misc/cgo/testcshared/src/libgo/libgo.go |  1 -
- misc/cgo/testcshared/test.bash          | 83 ++++++++++++++++++++++++++++-----
- src/cmd/dist/test.go                    | 27 ++++++-----
- 5 files changed, 115 insertions(+), 27 deletions(-)
+ src/cmd/internal/gc/big/accuracy_string.go     |   16 +
+ src/cmd/internal/gc/big/arith.go               |  291 ++++
+ src/cmd/internal/gc/big/arith_decl.go          |   55 +
+ src/cmd/internal/gc/big/arith_test.go          |  456 +++++++
+ src/cmd/internal/gc/big/bits_test.go           |  224 ++++
+ src/cmd/internal/gc/big/calibrate_test.go      |   88 ++
+ src/cmd/internal/gc/big/decimal.go             |  258 ++++
+ src/cmd/internal/gc/big/decimal_test.go        |  106 ++
+ src/cmd/internal/gc/big/example_test.go        |   51 +
+ src/cmd/internal/gc/big/float.go               | 1702 ++++++++++++++++++++++++
+ src/cmd/internal/gc/big/float_test.go          | 1682 +++++++++++++++++++++++
+ src/cmd/internal/gc/big/floatconv.go           |  350 +++++
+ src/cmd/internal/gc/big/floatconv_test.go      |  391 ++++++
+ src/cmd/internal/gc/big/floatexample_test.go   |  137 ++
+ src/cmd/internal/gc/big/ftoa.go                |  190 +++
+ src/cmd/internal/gc/big/gcd_test.go            |   47 +
+ src/cmd/internal/gc/big/hilbert_test.go        |  160 +++
+ src/cmd/internal/gc/big/int.go                 |  845 ++++++++++++
+ src/cmd/internal/gc/big/int_test.go            | 1348 +++++++++++++++++++
+ src/cmd/internal/gc/big/intconv.go             |  228 ++++
+ src/cmd/internal/gc/big/intconv_test.go        |  342 +++++
+ src/cmd/internal/gc/big/nat.go                 | 1155 ++++++++++++++++
+ src/cmd/internal/gc/big/nat_test.go            |  518 ++++++++
+ src/cmd/internal/gc/big/natconv.go             |  495 +++++++
+ src/cmd/internal/gc/big/natconv_test.go        |  425 ++++++
+ src/cmd/internal/gc/big/rat.go                 |  570 ++++++++
+ src/cmd/internal/gc/big/rat_test.go            |  736 ++++++++++
+ src/cmd/internal/gc/big/ratconv.go             |  251 ++++
+ src/cmd/internal/gc/big/ratconv_test.go        |  451 +++++++
+ src/cmd/internal/gc/big/roundingmode_string.go |   16 +
+ src/cmd/internal/gc/big/vendor.bash            |   22 +
+ 31 files changed, 13606 insertions(+)

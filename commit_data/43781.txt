@@ -1,15 +1,69 @@
-commit 26a860706a0ed4c3cb4228b0265dbd5eba8547d3
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Nov 10 11:31:31 2020 -0800
+commit a02349bc9d7a6ab27dcd2d205c871be4d4874d6c
+Merge: ee8972cd12 67bf856b96
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 24 10:30:33 2020 -0400
 
-    doc/go1.16: add crypto/x509 CSR release note
+    cmd: merge branch 'dev.link' into master
     
-    Change-Id: If74d49c3be9299d8c136003673e0fee2a563389d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268957
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    In the dev.link branch we continued developing the new object
+    file format support and the linker improvements described in
+    https://golang.org/s/better-linker . Since the last merge, more
+    progress has been made to improve the new linker.
+    
+    This is a clean merge.
+    
+    Change-Id: I57c510b651a39354d78478a9a4499f770eef2eb1
 
- doc/go1.16.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/internal/goobj/goobj_test.go               |  19 +-
+ src/cmd/internal/goobj/readnew.go                  |   9 +-
+ src/cmd/internal/goobj2/builtinlist.go             |  15 +-
+ src/cmd/internal/goobj2/mkbuiltin.go               |   9 +-
+ src/cmd/link/internal/amd64/asm.go                 |   5 -
+ src/cmd/link/internal/arm/asm.go                   |  86 +--
+ src/cmd/link/internal/arm64/asm.go                 |   4 -
+ src/cmd/link/internal/ld/data.go                   | 814 +++++++++++----------
+ src/cmd/link/internal/ld/deadcode.go               | 386 +++++++++-
+ src/cmd/link/internal/ld/deadcode2.go              | 385 ----------
+ src/cmd/link/internal/ld/decodesym.go              |   8 +-
+ src/cmd/link/internal/ld/decodesym2.go             |  43 ++
+ src/cmd/link/internal/ld/dwarf.go                  | 153 ++--
+ src/cmd/link/internal/ld/dwarf2.go                 |  77 +-
+ src/cmd/link/internal/ld/elf.go                    |  17 +-
+ src/cmd/link/internal/ld/go.go                     |   1 +
+ src/cmd/link/internal/ld/lib.go                    |  71 +-
+ src/cmd/link/internal/ld/link.go                   |   3 -
+ src/cmd/link/internal/ld/macho.go                  |  10 +-
+ src/cmd/link/internal/ld/main.go                   |  23 +-
+ src/cmd/link/internal/ld/outbuf.go                 | 188 +++--
+ src/cmd/link/internal/ld/outbuf_darwin.go          |  26 +
+ src/cmd/link/internal/ld/outbuf_linux.go           |  11 +
+ src/cmd/link/internal/ld/outbuf_mmap.go            |  34 +-
+ src/cmd/link/internal/ld/outbuf_nofallocate.go     |  13 +
+ src/cmd/link/internal/ld/outbuf_nommap.go          |  12 +-
+ src/cmd/link/internal/ld/outbuf_test.go            |  63 ++
+ src/cmd/link/internal/ld/outbuf_windows.go         |   9 +-
+ src/cmd/link/internal/ld/pcln.go                   |  44 +-
+ src/cmd/link/internal/ld/pe.go                     |  10 +-
+ src/cmd/link/internal/ld/symtab.go                 | 421 +++++------
+ src/cmd/link/internal/ld/target.go                 |   4 +
+ src/cmd/link/internal/ld/xcoff.go                  |  13 +-
+ src/cmd/link/internal/loader/loader.go             | 180 +++--
+ src/cmd/link/internal/loader/symbolbuilder.go      |  26 +
+ src/cmd/link/internal/mips/asm.go                  |   2 -
+ src/cmd/link/internal/mips64/asm.go                |   4 -
+ src/cmd/link/internal/ppc64/asm.go                 |   8 +-
+ src/cmd/link/internal/riscv64/asm.go               |   2 -
+ src/cmd/link/internal/s390x/asm.go                 |   2 -
+ src/cmd/link/internal/sym/segment.go               |   1 +
+ src/cmd/link/internal/wasm/asm.go                  |   2 -
+ src/cmd/link/internal/x86/asm.go                   |  53 +-
+ src/cmd/link/link_test.go                          |  51 +-
+ .../link/testdata/{ => testBuildFortvOS}/lib.go    |   0
+ .../link/testdata/{ => testBuildFortvOS}/main.m    |   0
+ src/cmd/nm/nm_test.go                              |  10 +-
+ src/cmd/objdump/objdump_test.go                    |  12 +-
+ src/cmd/oldlink/internal/arm/asm.go                |  82 +--
+ src/cmd/oldlink/internal/ld/data.go                |  10 +-
+ src/cmd/oldlink/internal/ld/deadcode.go            |  13 +-
+ src/cmd/oldlink/internal/x86/asm.go                |  48 +-
+ 52 files changed, 1814 insertions(+), 1678 deletions(-)

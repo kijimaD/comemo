@@ -1,18 +1,30 @@
-commit 0d1a98e21080f7471b8a9306e1ad0ef55d2727ca
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Feb 29 17:50:00 2016 -0900
+commit c2ef005486fa05cbeddc74c7faac8f6a867703d4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 9 22:02:46 2015 +0000
 
-    cmd/link: rename Hide to Hidden and make a bool
+    net/http: run more tests in http2 mode
     
-    Change-Id: Ic99bd63c96b1eba5cc2b5cd2be3a575890a02996
-    Reviewed-on: https://go-review.googlesource.com/20103
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Failing ones are marked skipped.
+    
+    Fixes #13543 (was just a test issue)
+    Updates #13555 (to be fixed later)
+    Updates #13556 (to be fixed later)
+    Updates #13557 (to be fixed later)
+    Fixes bug in golang.org/cl/17428 (http1 now uses HTTP status 431, not 413)
+    
+    Change-Id: I8f7431fee35f2fc081cfe2c232ae75a00800a60b
+    Reviewed-on: https://go-review.googlesource.com/17683
+    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Burcu Dogan <jbd@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go  | 16 ++++++++--------
- src/cmd/link/internal/ld/go.go     |  4 ++--
- src/cmd/link/internal/ld/lib.go    |  2 +-
- src/cmd/link/internal/ld/link.go   |  2 +-
- src/cmd/link/internal/ld/symtab.go | 12 ++++++------
- 5 files changed, 18 insertions(+), 18 deletions(-)
+ src/net/http/client_test.go       |  37 +++++-----
+ src/net/http/clientserver_test.go |  15 ++--
+ src/net/http/fs_test.go           |  21 +++++-
+ src/net/http/request_test.go      |   5 +-
+ src/net/http/serve_test.go        | 150 ++++++++++++++++++++++----------------
+ src/net/http/server.go            |   2 +-
+ src/net/http/sniff_test.go        |  19 ++---
+ 7 files changed, 144 insertions(+), 105 deletions(-)

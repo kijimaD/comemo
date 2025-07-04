@@ -1,61 +1,24 @@
-commit 7866538d250e1693bacb6e5a29c74b01588155d5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Aug 12 21:40:46 2022 +0000
+commit 92655582d0d3b739a1fc88c73cc49a24eb57f845
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 11:47:55 2021 -0500
 
-    runtime: add safe arena support to the runtime
+    cmd/compile/internal/types2: add a check for nil reason in assignableTo
     
-    This change adds an API to the runtime for arenas. A later CL can
-    potentially export it as an experimental API, but for now, just the
-    runtime implementation will suffice.
+    A recent change to error message formatting was missing a nil check.
     
-    The purpose of arenas is to improve efficiency, primarily by allowing
-    for an application to manually free memory, thereby delaying garbage
-    collection. It comes with other potential performance benefits, such as
-    better locality, a better allocation strategy, and better handling of
-    interior pointers by the GC.
+    Fixes #49592
     
-    This implementation is based on one by danscales@google.com with a few
-    significant differences:
-    * The implementation lives entirely in the runtime (all layers).
-    * Arena chunks are the minimum of 8 MiB or the heap arena size. This
-      choice is made because in practice 64 MiB appears to be way too large
-      of an area for most real-world use-cases.
-    * Arena chunks are not unmapped, instead they're placed on an evacuation
-      list and when there are no pointers left pointing into them, they're
-      allowed to be reused.
-    * Reusing partially-used arena chunks no longer tries to find one used
-      by the same P first; it just takes the first one available.
-    * In order to ensure worst-case fragmentation is never worse than 25%,
-      only types and slice backing stores whose sizes are 1/4th the size of
-      a chunk or less may be used. Previously larger sizes, up to the size
-      of the chunk, were allowed.
-    * ASAN, MSAN, and the race detector are fully supported.
-    * Sets arena chunks to fault that were deferred at the end of mark
-      termination (a non-public patch once did this; I don't see a reason
-      not to continue that).
-    
-    For #51317.
-    
-    Change-Id: I83b1693a17302554cb36b6daa4e9249a81b1644f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423359
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic1843e0277ba75eec0e8e41fe34b59c323d7ea31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364034
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/arena.go          | 905 ++++++++++++++++++++++++++++++++++++++++++
- src/runtime/arena_test.go     | 377 ++++++++++++++++++
- src/runtime/export_test.go    |  67 ++++
- src/runtime/lockrank.go       | 179 +++++----
- src/runtime/malloc.go         |  27 +-
- src/runtime/mbitmap.go        |   6 +-
- src/runtime/mcache.go         |   2 +-
- src/runtime/mcentral.go       |   2 +-
- src/runtime/mgc.go            |   9 +
- src/runtime/mgcsweep.go       |  42 +-
- src/runtime/mheap.go          |  26 +-
- src/runtime/mklockrank.go     |   6 +-
- src/runtime/mranges.go        |  24 ++
- src/runtime/os_plan9.go       |   9 +-
- src/runtime/signal_unix.go    |   9 +-
- src/runtime/signal_windows.go |   9 +-
- 16 files changed, 1595 insertions(+), 104 deletions(-)
+ src/cmd/compile/internal/types2/operand.go                  |  4 +++-
+ .../internal/types2/testdata/fixedbugs/issue49592.go2       | 11 +++++++++++
+ src/go/types/testdata/fixedbugs/issue49592.go2              | 11 +++++++++++
+ test/fixedbugs/issue49592.go                                | 13 +++++++++++++
+ 4 files changed, 38 insertions(+), 1 deletion(-)

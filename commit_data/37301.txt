@@ -1,14 +1,17 @@
-commit d258bac41c05bfa320b1d124a8592772e235a48e
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed Nov 7 19:56:30 2018 +0530
+commit 940811922fb528fabda91a2b2dbb401a06aeb1b3
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Wed Jul 4 23:32:59 2018 +0200
 
-    time: document that a marshaled time does not include location name
+    path/filepath: make Walk example runnable in the playground
     
-    Fixes #28421
+    Relates to #9679
     
-    Change-Id: I00878ec246d5249d910f2b57749f74cfc38dbec6
-    Reviewed-on: https://go-review.googlesource.com/c/148117
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I68951f664d2a03812dae309c580c181869d8af21
+    Reviewed-on: https://go-review.googlesource.com/122237
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/time.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/path/filepath/example_unix_test.go      | 23 ----------
+ src/path/filepath/example_unix_walk_test.go | 66 +++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 23 deletions(-)

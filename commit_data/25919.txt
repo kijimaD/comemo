@@ -1,16 +1,28 @@
-commit 8d94b9b820b093a32b7eb83d6481bc3da7ca276e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 25 21:16:45 2016 -0800
+commit 76483877052eaa9b2242deee2239e82d3953fd16
+Author: Austin Clements <austin@google.com>
+Date:   Wed Dec 2 12:20:29 2015 -0500
 
-    runtime: more deflaking of TestCgoCheckBytes
+    debug/elf: transparently decompress compressed sections
     
-    Fixes #14519.
+    This adds support for compressed ELF sections. This compression is
+    treated as a framing issue and hence the package APIs all
+    transparently decompress compressed sections. This requires some
+    subtlety for (*Section).Open, which returns an io.ReadSeeker: since
+    the decompressed data comes from an io.Reader, this commit introduces
+    a Reader-to-ReadSeeker adapter that is efficient for common uses of
+    Seek and does what it can otherwise.
     
-    Change-Id: I8f78f67a463e6467e09df90446f7ebd28789d6c9
-    Reviewed-on: https://go-review.googlesource.com/19933
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #11773.
+    
+    Change-Id: Ic0cb7255a85cadf4c1d15fb563d5a2e89dbd3c36
+    Reviewed-on: https://go-review.googlesource.com/17341
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/runtime/crash_cgo_test.go           | 36 +++++++++++++++++++++++----------
- src/runtime/testdata/testprogcgo/cgo.go | 14 +++++++++++--
- 2 files changed, 37 insertions(+), 13 deletions(-)
+ src/debug/elf/elf.go                     |  39 +++++
+ src/debug/elf/file.go                    |  76 +++++++--
+ src/debug/elf/file_test.go               | 278 +++++++++++++++++++++++--------
+ src/debug/elf/reader.go                  | 108 ++++++++++++
+ src/debug/elf/testdata/compressed-32.obj | Bin 0 -> 2208 bytes
+ src/debug/elf/testdata/compressed-64.obj | Bin 0 -> 3280 bytes
+ 6 files changed, 424 insertions(+), 77 deletions(-)

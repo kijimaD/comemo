@@ -1,17 +1,22 @@
-commit 90ffc40e4f3d81ad6b9f57092074f8fef68cf128
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sun Aug 13 00:19:51 2017 +0900
+commit 3b6ecdf93463dd09506596872f5147a781b416b1
+Author: Andreas Auernhammer <aead@mail.de>
+Date:   Fri Apr 14 11:38:53 2017 +0200
 
-    cmd/link: correct Mach-O file flag
+    vendor: update golang_org/x/crypto packages
     
-    Only set MH_NOUNDEFS if there are no undefined symbols.
-    Doesn't seem to matter, but may as well do it right.
+    Update the poly1305 and curve25519 packages to the current state of /x/crypto.
     
-    Change-Id: I6c472e000578346c28cf0e10f24f870e3a0de628
-    Reviewed-on: https://go-review.googlesource.com/55310
+    Updates #19967
+    
+    Change-Id: Ib71534f78040f31bfd5debb06f3c4a54a77955b3
+    Reviewed-on: https://go-review.googlesource.com/40711
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/macho.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ .../golang_org/x/crypto/curve25519/cswap_amd64.s   |  131 +-
+ .../golang_org/x/crypto/curve25519/curve25519.go   |   23 +-
+ .../x/crypto/curve25519/curve25519_test.go         |   10 +
+ .../golang_org/x/crypto/poly1305/poly1305_test.go  |   67 +
+ src/vendor/golang_org/x/crypto/poly1305/sum_ref.go | 1634 ++------------------
+ 5 files changed, 261 insertions(+), 1604 deletions(-)

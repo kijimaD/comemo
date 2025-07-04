@@ -1,31 +1,20 @@
-commit 0eeb5cf088bbfd21f500e132fc4bb9a149376246
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 27 13:50:26 2015 -0800
+commit 7505cd8b23eaa521d9bcba0660c5430d1c09e647
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 4 11:56:34 2015 -0500
 
-    cmd/internal/obj: clean up handling of register list operand on ARM
+    Revert "runtime: bound defer pools"
     
-    ARM operands for MOVM have lists of registers: [R1,R2,R5-R8].
-    Handle them cleanly.
+    This reverts commit 805907115352801a54f987fc9079251b478cce3f.
     
-    It was TYPE_CONST with special handling, which meant operand printing
-    didn't work right and the special handling was ugly. Add a new TYPE_REGLIST
-    for this case and it all gets cleaner.
+    Conflicts:
+            src/runtime/proc1.go (resolved by hand)
     
-    Change-Id: I4a64f70fb9765e63cb636619a7a8553611bfe970
-    Reviewed-on: https://go-review.googlesource.com/6300
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic62e3e802f0007ff9012b37bc5fd41fcafc153d0
+    Reviewed-on: https://go-review.googlesource.com/3885
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/5a/a.y                            |  4 ++--
- src/cmd/5a/y.go                           |  4 ++--
- src/cmd/asm/internal/asm/operand_test.go  | 11 +++++------
- src/cmd/asm/internal/asm/parse.go         |  2 +-
- src/cmd/asm/internal/asm/testdata/arm.out |  4 ++--
- src/cmd/internal/obj/arm/5.out.go         |  1 +
- src/cmd/internal/obj/arm/asm5.go          |  7 +++++--
- src/cmd/internal/obj/arm/list5.go         | 13 +------------
- src/cmd/internal/obj/link.go              |  7 +++++++
- src/cmd/internal/obj/pass.go              |  7 +++++--
- src/cmd/internal/obj/util.go              | 28 ++++++++++++++++++++++++++++
- 11 files changed, 59 insertions(+), 29 deletions(-)
+ src/runtime/mgc0.go     | 27 ++++++++++++---------------
+ src/runtime/panic.go    | 40 +++++-----------------------------------
+ src/runtime/proc1.go    | 10 ----------
+ src/runtime/runtime2.go |  7 +------
+ 4 files changed, 18 insertions(+), 66 deletions(-)

@@ -1,14 +1,24 @@
-commit c52b7db470880681d8467e87830dc24a1196be63
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 1 13:59:57 2011 -0500
+commit a6729b3085d764b845de505606008311860512b7
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Dec 1 09:49:58 2011 -0800
 
-    gofix: add time+fileinfo fix
+    go/doc: Detect headings in comments and format them as h3 in html.
     
-    R=adg, rogpeppe, r, cw
+    To structure larger sections of comments in html output headings
+    are detected in comments and formated as h3 in the generated html.
+    A simple heuristic is used to detect headings in comments:
+    A heading is a non-blank, non-indented line preceded by a blank
+    line. It is followed by a blank and a non-blank, non-indented line.
+    A heading must start with an uppercase letter and end with a letter,
+    digit or a colon.  A heading may not contain punctuation characters.
+    
+    R=jan.mercl, gri, adg, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5450050
+    https://golang.org/cl/5437056
 
- src/cmd/gofix/Makefile             |   1 +
- src/cmd/gofix/timefileinfo.go      | 298 +++++++++++++++++++++++++++++++++++++
- src/cmd/gofix/timefileinfo_test.go | 161 ++++++++++++++++++++
- 3 files changed, 460 insertions(+)
+ doc/all.css                    |  3 ++
+ src/pkg/go/doc/Makefile        |  6 ++++
+ src/pkg/go/doc/comment.go      | 74 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/comment_test.go | 39 ++++++++++++++++++++++
+ src/pkg/go/doc/headscan.go     | 53 ++++++++++++++++++++++++++++++
+ 5 files changed, 175 insertions(+)

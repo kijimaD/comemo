@@ -1,21 +1,18 @@
-commit 312ea5bf8ff76d8ea4ea0b92df29de5204446b46
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Feb 1 18:41:27 2017 +0100
+commit 448e1db103df7a9b29aa360f42fdcdc9b89fa399
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Oct 22 08:56:07 2016 -0700
 
-    misc/ios: allow exit code 0 to mean test success
+    runtime: skip TestLldbPython
     
-    Tests that use TestMain might never call m.Run(), and simply return
-    from TestMain. In that case, the iOS test harness never sees the
-    PASS from the testing framework and assumes the test failed.
+    The test is broken on macOS Sierra.
     
-    Allow an exit with exit code 0 to also mean test success, thereby
-    fixing the objdump test on iOS.
+    Updates #17463.
     
-    Change-Id: I1fe9077b05931aa0905e41b88945cd153c5b35b6
-    Reviewed-on: https://go-review.googlesource.com/36065
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Ifbb2379c640b9353a01bc55a5cb26dfaad9b4bdc
+    Reviewed-on: https://go-review.googlesource.com/31725
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/runtime-lldb_test.go | 1 +
+ 1 file changed, 1 insertion(+)

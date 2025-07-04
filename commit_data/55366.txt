@@ -1,24 +1,42 @@
-commit 0f3876f8c12ba3746a1dfec68422e9cce5c2ff39
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jan 11 12:52:16 2024 -0800
+commit 7d7fd6d3627f7dbba250ecfecea2f5ffe6c5aaa7
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Dec 9 09:56:15 2022 -0800
 
-    runtime: ensure we free unrolled GC bitmaps
+    io: allocate copy buffers from a pool
     
-    CL 555355 has a bug in it - the GC program flag was also used to decide
-    when to free the unrolled bitmap. After that CL, we just don't free any
-    unrolled bitmaps, leading to a memory leak.
+    CopyBuffer allocates a 32k buffer when no buffer is available.
+    Allocate these buffers from a sync.Pool.
     
-    Use a separate flag to track types that need to be freed when their
-    corresponding object is freed.
+    This removes an optimization where the copy buffer size was
+    reduced when the source is a io.LimitedReader (including the
+    case of CopyN) with a limit less than the default buffer size.
+    This change could cause a program which only uses io.Copy
+    with sources with a small limit to allocate unnecessarily
+    large buffers. Programs which care about the transient
+    buffer allocation can avoid this by providing their own buffer.
     
-    Change-Id: I841b65492561f5b5e1853875fbd8e8a872205a84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/555416
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    name           old time/op    new time/op    delta
+    CopyNSmall-10     165ns ± 7%     117ns ± 7%  -29.19%  (p=0.001 n=7+7)
+    CopyNLarge-10    7.33µs ±34%    4.07µs ± 2%  -44.52%  (p=0.001 n=7+7)
+    
+    name           old alloc/op   new alloc/op   delta
+    CopyNSmall-10    2.20kB ±12%    1.20kB ± 4%  -45.24%  (p=0.000 n=8+7)
+    CopyNLarge-10     148kB ± 9%      81kB ± 4%  -45.26%  (p=0.000 n=8+7)
+    
+    name           old allocs/op  new allocs/op  delta
+    CopyNSmall-10      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=8+8)
+    CopyNLarge-10      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=8+8)
+    
+    For #57202
+    
+    Change-Id: I2292226da9ba1dc09a2543f5d74fe5da06080d49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Thomas Austad <thomas.austad@gmail.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/abi/type.go            | 6 ++++++
- src/runtime/mbitmap_allocheaders.go | 1 +
- src/runtime/mgcsweep.go             | 3 ++-
- 3 files changed, 9 insertions(+), 1 deletion(-)
+ src/io/io.go           | 30 ++++++++++++------------------
+ src/net/http/server.go | 17 +++--------------
+ 2 files changed, 15 insertions(+), 32 deletions(-)

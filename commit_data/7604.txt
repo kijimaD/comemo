@@ -1,12 +1,19 @@
-commit 9a8c0790758811181300c1df460adba0ba1f5a21
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Mar 2 14:22:39 2011 -0500
+commit 9704d4ec3d42b5b02ae93ec2300add08f72e9449
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Mar 2 14:22:33 2011 -0500
 
-    build: fix race condition building enam.o
+    cgo: put temporary source files in _obj.
+    Fixes #1572.
+    Initially I tried changing things so all object
+    files get put in _obj, but it's too much - everything
+    needs changing. Perhaps some other time.
     
-    R=golang-dev, rsc
-    CC=albert.strasheim, golang-dev
-    https://golang.org/cl/4240055
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4237050
 
- src/cmd/Makefile | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/Make.pkg        | 48 ++++++++++++++++++++++++------------------------
+ src/cmd/cgo/gcc.go  |  2 +-
+ src/cmd/cgo/main.go |  4 ++++
+ src/cmd/cgo/out.go  | 27 +++++++++------------------
+ 4 files changed, 38 insertions(+), 43 deletions(-)

@@ -1,19 +1,16 @@
-commit 63ac89bfb15b2036741e40b2167d1d2f70af3e40
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Nov 2 13:50:59 2018 +0100
+commit 1b870077c896379c066b41657d3c9062097a6943
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 3 16:58:07 2018 +0000
 
-    cmd/link/internal/ld: remove R_ADDR relocations inside XCOFF text sections
+    net: skip flaky TestNotTemporaryRead on FreeBSD
     
-    On XCOFF, it is forbidden relocation of a DATA pointer to a text
-    section. It happens when a RODATA symbol needs a DATA symbol's address.
-    This commit moves every RODATA symbols with a R_ADDR on a data symbol to
-    .data sections to avoid these relocations.
+    Updates #25289
     
-    Change-Id: I7f34d8e0ebdc8352a74e6b40e4c893d8d9419f4d
-    Reviewed-on: https://go-review.googlesource.com/c/146977
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I662760b921be625aca988cd0b43c648ac5dfd814
+    Reviewed-on: https://go-review.googlesource.com/127837
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/data.go  |  3 +--
- src/cmd/link/internal/ld/xcoff.go | 32 ++++++++++++++++++++++++++++++++
- src/runtime/alg.go                |  4 ++++
- 3 files changed, 37 insertions(+), 2 deletions(-)
+ src/net/net_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

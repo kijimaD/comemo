@@ -1,24 +1,20 @@
-commit 52d0667e6ba69059422a138dd6589f3f697fc0db
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Mon Aug 8 16:07:05 2022 +0000
+commit 9e1eea6f8b0d0266c481df5bc3c808defeaa6f44
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 8 18:16:36 2021 -0400
 
-    cmd/compile,runtime: panic when unsafe.Slice param is nil and > 0
+    go/types: detect constraint type inference cycles
     
-    Fixes #54092
+    This is a port of CL 347300 to go/types. The test was adjusted to match
+    the differing error positioning in go/types: errors are placed on the
+    ast.CallExpr.Fun, rather than the Lparen.
     
-    Change-Id: Ib917922ed36ee5410e5515f812737203c44f46ae
-    GitHub-Last-Rev: dfd0c3883cf8b10479d9c5b389baa1a04c52dd34
-    GitHub-Pull-Request: golang/go#54107
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419755
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I3dee5d7d75bae18817cc1f04ab0d357d3a6a8198
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348689
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/walk/builtin.go | 19 +++++++++++++++++++
- src/runtime/crash_test.go                |  8 ++++++++
- src/runtime/slice.go                     |  6 ++++++
- src/runtime/testdata/testprog/unsafe.go  | 12 ++++++++++++
- 4 files changed, 45 insertions(+)
+ src/go/types/infer.go                          | 124 +++++++++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue48136.go2 |  36 +++++++
+ 2 files changed, 160 insertions(+)

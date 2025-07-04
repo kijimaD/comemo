@@ -1,22 +1,18 @@
-commit aea1259a7288d71736273b494e60bd424ea1946c
-Author: David Chase <drchase@google.com>
-Date:   Sun Feb 28 21:48:20 2021 -0500
+commit e88ea87e7b886815cfdadc4cd3d70bf5ef833bd7
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jul 7 14:17:30 2020 -0400
 
-    cmd/link: disable flaky Darwin "symbols" test
+    cmd/go: include GOMODCACHE in 'go help environment'
     
-    About one run out of 3 it fails on my laptop, and
-    I am tired of having to be a nanny for my tests just
-    because of this one flaky test.  This has been a problem
-    for months.
+    Updates #34527
+    Fixes #40089
     
-    Updates #32218.
-    
-    Change-Id: I2871d4c6f47e9432d189ed7bdcda8f9c0871cfc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297469
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie9c8573536e5c31e874d755f4d888ffc805b796f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241275
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/link/dwarf_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/alldocs.go               | 2 ++
+ src/cmd/go/internal/help/helpdoc.go | 2 ++
+ 2 files changed, 4 insertions(+)

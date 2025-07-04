@@ -1,29 +1,19 @@
-commit feada5366134772c4c6462e4a12150410741a00f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jul 12 13:43:02 2022 -0400
+commit 50f38d040532edde038c992ddbe978658556c51f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 1 11:53:36 2021 -0700
 
-    misc/cgo/testcshared: don't rely on an erroneous install target in tests
+    cmd/compile: emit unified IR wrappers after inlining
     
-    Non-main packages in module mode should not be installed to
-    GOPATH/pkg, but due to #37015 they were installed there anyway.
+    This CL delays unified IR's wrapper generation to after inlining.
     
-    This change switches the 'go install' command in createHeaders to
-    instead use 'go build' (with an extension determined by the install
-    target for 'runtime/cgo', which is well-defined at least for the
-    moment), and switches TestCachedInstall (which appears to be
-    explicitly testing 'go install') to explicitly request GOPATH mode
-    (which provides a well-defined install target for the library).
-    
-    This change follows a similar structure to CL 416954.
-    
-    For #37015.
-    
-    Change-Id: I22ae4af0f0d4c50adc9e0f0dc279859d1f258cc8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417096
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Idfe496663489d6b797a647eb17200c6322d0334a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347029
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- misc/cgo/testcshared/cshared_test.go | 35 +++++++++++++++++++++++++----------
- 1 file changed, 25 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/main.go       |  1 +
+ src/cmd/compile/internal/noder/reader.go  | 83 +++++++++++++++++--------------
+ src/cmd/compile/internal/noder/unified.go |  5 --
+ 3 files changed, 47 insertions(+), 42 deletions(-)

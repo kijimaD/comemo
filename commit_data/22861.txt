@@ -1,84 +1,13 @@
-commit 055ecb7be5805e07498488c59c6f01644fdacccc
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Apr 21 21:20:15 2015 +0900
+commit 63c16b1878497e807d0045064214e0e546c7be26
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Sun Apr 12 12:08:06 2015 -0400
 
-    net: fix inconsistent errors
+    cmd/go: fix a typo.
     
-    These a series of changes fix inconsistent errors on the package net
-    APIs. Now almost all the APIs return OpError as a common error type
-    except Lookup, Resolve and Parse APIs. The Lookup, Resolve and Parse
-    APIs return more specific errors such as DNSError, AddrError or
-    ParseError.
-    
-    An OpError may contain nested error information. For example, Dial may
-    return an OpError containing a DNSError, AddrError, unexposed type/value
-    or other package's type/value like the following:
-            OpError{/* dial info */, Err: &DNSError{}}
-            OpError{/* dial info */, Err: &AddrError{}}
-            OpError{/* dial info */, Err: <unexposed type or value>}
-            OpError{/* dial info */, Err: <other package's type or value>}
-    
-    and Read and Write may return an OpError containing other OpError when
-    an application uses io.Copy or similar:
-            OpError{/* for io.Reader */, Err: &OpError{/* for io.Writer */}}
-    
-    When an endpoint is created for connection-oriented byte-stream
-    protocols, Read may return an io.EOF when the connection is closed by
-    remote endpoint.
-    
-    Fixes #4856.
-    
-    A series of changes:
-    - net: fix inconsistent error values on Dial, Listen partially
-      https://go.googlesource.com/go/+/89b7c66d0d14462fd7893be4290bdfe5f9063ae1
-    - net: fix inconsistent error values on Read
-      https://go.googlesource.com/go/+/ec1144423f45e010c72363fe59291d43214b6e31
-    - net: fix inconsistent error values on Write
-      https://go.googlesource.com/go/+/11b5f98bf0d5eb8854f735cc332c912725070214
-    - net: fix inconsistent error values on Close
-      https://go.googlesource.com/go/+/310db63c5bc121e7bfccb494c01a6b91a257e7fc
-    - net: fix inconsistent error values on Accept
-      https://go.googlesource.com/go/+/4540e162b1aefda8157372764ad3d290a414ef1d
-    - net: fix inconsistent error values on File
-      https://go.googlesource.com/go/+/885111365ba0a74421059bfbd18f4c57c1e70332
-    - net: fix inconsistent error values on setters
-      https://go.googlesource.com/go/+/2173a27903897c481b0a0daf3ca3e0a0685701db
-    - net: fix inconsistent error values on Interface
-      https://go.googlesource.com/go/+/456cf0f22c93e1a6654980f4a48a564555f6c8a2
-    - net: fix inconsistent error values on Lookup
-      https://go.googlesource.com/go/+/0fc582e87942b2e52bed751b6c56660ba99e9a7d
-    - net: add Source field to OpError
-      https://go.googlesource.com/go/+/afd2d2b6df3ebfe99faf347030f15adfdf422fa0
-    
-    Change-Id: Id678e369088dc9fbe9073cfe7ff8a8754a57d61f
-    Reviewed-on: https://go-review.googlesource.com/9236
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic453da17817f66e1073f6ba740b830b8daf2fc38
+    Reviewed-on: https://go-review.googlesource.com/8829
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/fd_plan9.go           |  2 +-
- src/net/fd_unix.go            | 47 +++++++++++++++++++++++++++---------
- src/net/fd_windows.go         | 41 ++++++++++++++++++++++++-------
- src/net/file_plan9.go         |  4 ++--
- src/net/file_unix.go          |  4 ++--
- src/net/interface_bsd.go      | 13 +++++-----
- src/net/interface_darwin.go   | 11 +++++----
- src/net/interface_freebsd.go  | 11 +++++----
- src/net/interface_linux.go    | 13 +++++-----
- src/net/interface_windows.go  |  5 ++--
- src/net/ip.go                 | 20 ++++------------
- src/net/ip_test.go            |  8 +++----
- src/net/ipsock.go             | 12 +++++-----
- src/net/ipsock_plan9.go       |  9 ++++---
- src/net/ipsock_posix.go       |  6 ++---
- src/net/lookup_plan9.go       |  9 ++++---
- src/net/lookup_windows.go     | 23 +++++++++---------
- src/net/mac.go                |  6 +----
- src/net/net.go                | 56 +++++++++++++++++++++++++++++--------------
- src/net/sendfile_dragonfly.go |  3 +++
- src/net/sendfile_freebsd.go   |  3 +++
- src/net/sendfile_linux.go     |  3 +++
- src/net/sendfile_windows.go   |  2 +-
- src/net/sock_cloexec.go       | 27 ++++++++++++++-------
- src/net/sock_windows.go       | 10 ++++++--
- src/net/sys_cloexec.go        | 13 ++++++----
- src/net/tcpsockopt_windows.go |  2 +-
- 27 files changed, 225 insertions(+), 138 deletions(-)
+ src/cmd/go/build.go | 2 +-
+ src/cmd/go/doc.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

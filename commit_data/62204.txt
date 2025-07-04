@@ -1,0 +1,20 @@
+commit 0158ddad9893ea1ab332be39f192aefdbd7b65c8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Feb 1 05:26:17 2025 +0000
+
+    internal/trace: move maxArgs into tracev2 and validate specs
+    
+    This change moves maxArgs to tracev2 and renames it MaxTimedEventArgs.
+    It also updates the tests to make sure the specs conform to this
+    requirement.
+    
+    Change-Id: I7b0c888a4dfd83306a470a4c9b0f9e44fe2e7818
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646016
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/base.go                | 6 +-----
+ src/internal/trace/tracev2/events.go      | 3 +++
+ src/internal/trace/tracev2/events_test.go | 3 +++
+ 3 files changed, 7 insertions(+), 5 deletions(-)

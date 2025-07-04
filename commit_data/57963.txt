@@ -1,26 +1,16 @@
-commit 673a53917043afaf0fd89868251fc08dc98a89df
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 13 00:08:49 2024 +0100
+commit da13da1fceff5439af70571826e2dd35925d86a5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 12 14:43:38 2023 -0400
 
-    cmd/go: code cleanups and go env output sorting
+    cmd/compile/internal/pgo: remove stale comment
     
-    Sort the table of variables in the envcmd source code,
-    because all tables in all source code should be sorted
-    unless there's a reason they can't be.
+    targetDeclFuncs was removed before CL 492436 was ever merged.
     
-    Sort the go env output as well.
-    
-    Sort the flag registrations, same reason.
-    
-    Remove redundant range variable.
-    
-    Change-Id: I5f1af3e22a09621706eb57c369bd2675b754b063
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627476
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I1aafc28446ad23f63bcafc144b91f924dacd676e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528176
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/envcmd/env.go   | 11 ++++++++---
- src/cmd/go/internal/modload/load.go |  2 +-
- src/cmd/go/internal/work/build.go   |  8 ++++----
- 3 files changed, 13 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/pgo/irgraph.go | 6 ------
+ 1 file changed, 6 deletions(-)

@@ -1,16 +1,17 @@
-commit dc3961cfdc636ed6526a452051d41e1a12bfa386
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 29 23:49:27 2015 -0500
+commit 79c4fad8c2416bd7c7865b337d70bc7f92153415
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Wed Dec 31 21:18:59 2014 +0100
 
-    cmd/5l, cmd/8g: fix build failures
+    os: replace itod on posix with general itoa and fix possible infinite recursion
     
-    REG_R0 etc are defined in <ucontext.h> on ARM systems.
-    Possible use of uninitialized n in 8g/reg.c.
+    Remove use of itod on posix systems and replace with call to itoa.
+    Build and use same itoa function on all systems.
+    Fix infinite recursion in iota function for the case -1<<63.
     
-    Change-Id: I6e8ce83a6515ca2b779ed8a344a25432db629cc2
-    Reviewed-on: https://go-review.googlesource.com/3578
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I89d7e742383c5c4aeef8780501c78a3e1af87a6f
+    Reviewed-on: https://go-review.googlesource.com/2213
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/5l/5.out.h | 18 ++++++++++++++++++
- src/cmd/8g/reg.c   |  2 ++
- 2 files changed, 20 insertions(+)
+ src/os/exec_posix.go | 31 ++-----------------------------
+ src/os/str.go        | 25 ++++++++++++++++++-------
+ 2 files changed, 20 insertions(+), 36 deletions(-)

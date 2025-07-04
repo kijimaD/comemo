@@ -1,20 +1,20 @@
-commit 994b2d46455509f95d60f0abd0d37d3d789f89f2
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri May 22 12:55:47 2015 +1000
+commit 14a4649fe2c1cb90093e5a7653c95169cde6cc67
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Fri Jan 9 00:11:44 2015 +0100
 
-    net: fix panic in TestDialerDualStack
+    cmd/pprof: handle empty profile gracefully
     
-    This change ensures that the test does not try to close dual stack
-    listeners which have not yet been opened.
+    The command "go tool pprof -top $GOROOT/bin/go /dev/null" now logs that
+    profile is empty instead of panicking.
     
-    Spotted in crash here
-    http://build.golang.org/log/e5843777df400868ce708b7f00c50dc32c2ec478
+    Fixes #9207
     
-    Change-Id: I79d513e166effb3e018e2b9dfc23751d92fcbe4b
-    Reviewed-on: https://go-review.googlesource.com/10371
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3d55c179277cb19ad52c8f24f1aca85db53ee08d
+    Reviewed-on: https://go-review.googlesource.com/2571
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/mockserver_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/pprof/internal/driver/driver.go        |  4 ++++
+ src/cmd/pprof/internal/profile/profile.go      |  5 +++++
+ src/cmd/pprof/internal/profile/profile_test.go | 24 ++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+)

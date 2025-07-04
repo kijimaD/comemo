@@ -1,28 +1,160 @@
-commit 022548cfe82915e5bf14ce7cb28f3ec651550662
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Tue Apr 12 16:58:56 2016 -0300
+commit 9d854fd44ae669f60c15133a4d2ce407ea2bccc4
+Merge: dd0a128a02 6b3462c784
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 1 12:50:17 2016 -0800
 
-    all: standardize RFC mention format
+    Merge branch 'dev.ssa' into mergebranch
     
-    Standardize on space between "RFC" and number. Additionally change
-    the couple "a RFC" instances to "an RFC."
+    Merge dev.ssa branch back into master.
     
-    Fixes #15258
-    
-    Change-Id: I2b17ecd06be07dfbb4207c690f52a59ea9b04808
-    Reviewed-on: https://go-review.googlesource.com/21902
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie6fac3f8d355ab164f934415fe4fc7fcb8c3db16
 
- src/crypto/tls/common.go     | 2 +-
- src/crypto/tls/prf.go        | 2 +-
- src/crypto/x509/pkcs8.go     | 2 +-
- src/crypto/x509/sec1.go      | 4 ++--
- src/mime/encodedword.go      | 2 +-
- src/net/dnsname_test.go      | 2 +-
- src/net/http/request.go      | 2 +-
- src/net/http/response.go     | 2 +-
- src/net/http/server.go       | 2 +-
- src/net/http/transfer.go     | 4 ++--
- src/net/mail/message.go      | 4 ++--
- src/net/mail/message_test.go | 2 +-
- 12 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/asm/internal/asm/operand_test.go           |     3 +
+ src/cmd/asm/internal/asm/testdata/amd64.s          |    14 +
+ src/cmd/asm/internal/asm/testdata/amd64error.s     |     3 +-
+ src/cmd/cgo/out.go                                 |     1 +
+ src/cmd/compile/internal/amd64/prog.go             |     2 +
+ src/cmd/compile/internal/gc/closure.go             |     1 +
+ src/cmd/compile/internal/gc/fmt.go                 |     1 +
+ src/cmd/compile/internal/gc/gen.go                 |     4 +-
+ src/cmd/compile/internal/gc/go.go                  |    11 +-
+ src/cmd/compile/internal/gc/gsubr.go               |    15 +-
+ src/cmd/compile/internal/gc/init.go                |    31 +-
+ src/cmd/compile/internal/gc/lex.go                 |    23 +-
+ src/cmd/compile/internal/gc/opnames.go             |     4 +
+ src/cmd/compile/internal/gc/order.go               |     1 +
+ src/cmd/compile/internal/gc/pgen.go                |    20 +
+ src/cmd/compile/internal/gc/plive.go               |    18 +-
+ src/cmd/compile/internal/gc/racewalk.go            |     4 +-
+ src/cmd/compile/internal/gc/reflect.go             |     3 +-
+ src/cmd/compile/internal/gc/sinit.go               |    36 +-
+ src/cmd/compile/internal/gc/ssa.go                 |  5235 +++++++
+ src/cmd/compile/internal/gc/ssa_test.go            |    99 +
+ src/cmd/compile/internal/gc/syntax.go              |     2 +-
+ .../compile/internal/gc/testdata/addressed_ssa.go  |   216 +
+ src/cmd/compile/internal/gc/testdata/append_ssa.go |    70 +
+ .../internal/gc/testdata/arithBoundary_ssa.go      |   735 +
+ .../compile/internal/gc/testdata/arithConst_ssa.go | 12671 +++++++++++++++
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go  |   438 +
+ src/cmd/compile/internal/gc/testdata/array_ssa.go  |   142 +
+ src/cmd/compile/internal/gc/testdata/assert_ssa.go |   147 +
+ src/cmd/compile/internal/gc/testdata/break_ssa.go  |   255 +
+ src/cmd/compile/internal/gc/testdata/chan_ssa.go   |    73 +
+ .../compile/internal/gc/testdata/closure_ssa.go    |    38 +
+ src/cmd/compile/internal/gc/testdata/cmp_ssa.go    |    48 +
+ .../compile/internal/gc/testdata/compound_ssa.go   |   145 +
+ src/cmd/compile/internal/gc/testdata/copy_ssa.go   |   726 +
+ src/cmd/compile/internal/gc/testdata/ctl_ssa.go    |   161 +
+ .../internal/gc/testdata/deferNoReturn_ssa.go      |    17 +
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go     |  1741 +++
+ .../internal/gc/testdata/gen/arithBoundaryGen.go   |   214 +
+ .../internal/gc/testdata/gen/arithConstGen.go      |   294 +
+ .../compile/internal/gc/testdata/gen/copyGen.go    |    93 +
+ .../compile/internal/gc/testdata/gen/zeroGen.go    |    88 +
+ .../compile/internal/gc/testdata/loadstore_ssa.go  |   117 +
+ src/cmd/compile/internal/gc/testdata/map_ssa.go    |    45 +
+ src/cmd/compile/internal/gc/testdata/phi_ssa.go    |   103 +
+ .../compile/internal/gc/testdata/regalloc_ssa.go   |    57 +
+ src/cmd/compile/internal/gc/testdata/short_ssa.go  |    60 +
+ src/cmd/compile/internal/gc/testdata/string_ssa.go |   161 +
+ src/cmd/compile/internal/gc/testdata/unsafe_ssa.go |   148 +
+ src/cmd/compile/internal/gc/testdata/zero_ssa.go   |   563 +
+ src/cmd/compile/internal/gc/type.go                |   388 +
+ src/cmd/compile/internal/gc/walk.go                |     2 +-
+ src/cmd/compile/internal/ssa/TODO                  |    68 +
+ src/cmd/compile/internal/ssa/block.go              |   118 +
+ src/cmd/compile/internal/ssa/check.go              |   291 +
+ src/cmd/compile/internal/ssa/compile.go            |   261 +
+ src/cmd/compile/internal/ssa/config.go             |   235 +
+ src/cmd/compile/internal/ssa/copyelim.go           |    60 +
+ src/cmd/compile/internal/ssa/critical.go           |    39 +
+ src/cmd/compile/internal/ssa/cse.go                |   304 +
+ src/cmd/compile/internal/ssa/cse_test.go           |   123 +
+ src/cmd/compile/internal/ssa/deadcode.go           |   270 +
+ src/cmd/compile/internal/ssa/deadcode_test.go      |   134 +
+ src/cmd/compile/internal/ssa/deadstore.go          |   116 +
+ src/cmd/compile/internal/ssa/deadstore_test.go     |    97 +
+ src/cmd/compile/internal/ssa/decompose.go          |   261 +
+ src/cmd/compile/internal/ssa/dom.go                |   367 +
+ src/cmd/compile/internal/ssa/dom_test.go           |   422 +
+ src/cmd/compile/internal/ssa/export_test.go        |    67 +
+ src/cmd/compile/internal/ssa/flagalloc.go          |   131 +
+ src/cmd/compile/internal/ssa/func.go               |   352 +
+ src/cmd/compile/internal/ssa/func_test.go          |   445 +
+ src/cmd/compile/internal/ssa/fuse.go               |   158 +
+ src/cmd/compile/internal/ssa/fuse_test.go          |   129 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |  1164 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |   535 +
+ src/cmd/compile/internal/ssa/gen/README            |     7 +
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   740 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |   416 +
+ src/cmd/compile/internal/ssa/gen/main.go           |   262 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |   630 +
+ src/cmd/compile/internal/ssa/html.go               |   478 +
+ src/cmd/compile/internal/ssa/id.go                 |    28 +
+ src/cmd/compile/internal/ssa/layout.go             |   102 +
+ src/cmd/compile/internal/ssa/likelyadjust.go       |   300 +
+ src/cmd/compile/internal/ssa/location.go           |    38 +
+ src/cmd/compile/internal/ssa/lower.go              |    34 +
+ src/cmd/compile/internal/ssa/magic.go              |   260 +
+ src/cmd/compile/internal/ssa/nilcheck.go           |   163 +
+ src/cmd/compile/internal/ssa/nilcheck_test.go      |   433 +
+ src/cmd/compile/internal/ssa/op.go                 |   118 +
+ src/cmd/compile/internal/ssa/opGen.go              |  5264 +++++++
+ src/cmd/compile/internal/ssa/opt.go                |    10 +
+ src/cmd/compile/internal/ssa/passbm_test.go        |   101 +
+ src/cmd/compile/internal/ssa/phielim.go            |    68 +
+ src/cmd/compile/internal/ssa/phiopt.go             |    86 +
+ src/cmd/compile/internal/ssa/print.go              |   149 +
+ src/cmd/compile/internal/ssa/prove.go              |   351 +
+ src/cmd/compile/internal/ssa/regalloc.go           |  1658 ++
+ src/cmd/compile/internal/ssa/regalloc_test.go      |    33 +
+ src/cmd/compile/internal/ssa/rewrite.go            |   261 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 15394 +++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite_test.go       |   102 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  7936 ++++++++++
+ src/cmd/compile/internal/ssa/schedule.go           |   195 +
+ src/cmd/compile/internal/ssa/schedule_test.go      |    57 +
+ src/cmd/compile/internal/ssa/shift_test.go         |    48 +
+ src/cmd/compile/internal/ssa/shortcircuit.go       |   144 +
+ src/cmd/compile/internal/ssa/shortcircuit_test.go  |    50 +
+ src/cmd/compile/internal/ssa/sparsemap.go          |    69 +
+ src/cmd/compile/internal/ssa/sparseset.go          |    79 +
+ src/cmd/compile/internal/ssa/sparsetree.go         |   129 +
+ src/cmd/compile/internal/ssa/stackalloc.go         |   321 +
+ src/cmd/compile/internal/ssa/tighten.go            |    88 +
+ src/cmd/compile/internal/ssa/trim.go               |    37 +
+ src/cmd/compile/internal/ssa/type.go               |   131 +
+ src/cmd/compile/internal/ssa/type_test.go          |   100 +
+ src/cmd/compile/internal/ssa/value.go              |   259 +
+ src/cmd/compile/internal/ssa/zcse.go               |    90 +
+ src/cmd/compile/internal/x86/prog.go               |     2 +
+ src/cmd/dist/buildtool.go                          |     1 +
+ src/cmd/internal/obj/link.go                       |     6 +-
+ src/cmd/internal/obj/obj.go                        |    29 +-
+ src/cmd/internal/obj/pass.go                       |     1 -
+ src/cmd/internal/obj/util.go                       |     3 +
+ src/cmd/internal/obj/x86/a.out.go                  |    38 +-
+ src/cmd/internal/obj/x86/asm6.go                   |    33 +-
+ src/cmd/internal/obj/x86/obj6.go                   |    37 +-
+ src/cmd/internal/obj/x86/obj6_test.go              |     4 +-
+ src/crypto/x509/sec1_test.go                       |     4 +-
+ src/runtime/mgc.go                                 |     7 +-
+ src/runtime/race_amd64.s                           |    16 +-
+ src/runtime/runtime-gdb_test.go                    |     7 -
+ test/fixedbugs/issue12347.go                       |    16 +
+ test/goto.go                                       |    72 +-
+ test/label.go                                      |     7 +-
+ test/label1.go                                     |    32 +-
+ test/live.go                                       |     1 +
+ test/live2.go                                      |     1 +
+ test/nilcheck.go                                   |    98 +-
+ test/nilptr3.go                                    |     2 +-
+ test/nilptr3_ssa.go                                |   209 +
+ test/nosplit.go                                    |     5 +-
+ test/opt_branchlikely.go                           |    85 +
+ test/phiopt.go                                     |    43 +
+ test/prove.go                                      |   207 +
+ test/run.go                                        |    15 +
+ test/sliceopt.go                                   |     1 +
+ 148 files changed, 69628 insertions(+), 207 deletions(-)

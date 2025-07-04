@@ -1,0 +1,21 @@
+commit a9e6a96ac092cc5191d759488ee761e9a403ab8f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Aug 17 17:53:19 2024 -0700
+
+    context: document that WithValue returns a derived context
+    
+    Also replace "copy of parent" with "derived context" in doc comments.
+    
+    Fixes #68923
+    
+    Change-Id: I319c1594f390e35b32b4e58ee979927bb84bfdf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606555
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Sameer Ajmani <sameer@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/context/context.go | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

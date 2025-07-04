@@ -1,22 +1,22 @@
-commit 65a864a628cb9ab767fb973d82ed979d6046f4f2
-Author: Leigh McCulloch <leighmcc@gmail.com>
-Date:   Tue Nov 7 05:33:35 2017 +0000
+commit 77412b9300582a5f1882b66e1b39ac7d96178dbe
+Author: Lakshay Garg <lakshay.garg.1996@gmail.com>
+Date:   Wed Jun 28 22:07:55 2017 +0530
 
-    encoding/xml: add Marshal doc about name conflicts
+    math: implement the erfinv function
     
-    The docs for xml.Marshal state that the XML elements name is derived
-    from one of five locations in a specific order of precedence, but does
-    not mention that if the field is a struct type and has its name defined
-    in a tag and in the types XMLName field that an error will occur. This
-    is documented in the structFieldInfo function but not in the function
-    documentation, and the existing docs in Marshal are misleading without
-    this behavior being discussed.
+    This commit defines the inverse of error function (erfinv) in the
+    math package. The function is based on the rational approximation
+    of percentage points of normal distribution available at
+    https://www.jstor.org/stable/pdf/2347330.pdf.
     
-    Fixes #18564
+    Fixes #6359
     
-    Change-Id: I29042f124a534bd1bc993f1baeddaa0af2e72fed
-    Reviewed-on: https://go-review.googlesource.com/76321
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icfe4508f623e0574c7fffdbf7aa929540fd4c944
+    Reviewed-on: https://go-review.googlesource.com/46990
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/encoding/xml/marshal.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/math/all_test.go |  61 +++++++++++++++++++++++++++
+ src/math/erfinv.go   | 116 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 177 insertions(+)

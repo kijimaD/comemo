@@ -1,21 +1,17 @@
-commit 01b8f5d7cf3c5ee83034135870edd8837eae4cba
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 6 18:00:13 2018 -0500
+commit cb3dc8ba79823b0eae4727e0b7f70d5c3dfaff98
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 9 16:25:59 2017 -0400
 
-    runtime: remove legacy comments and code from arm morestack
+    cmd/go: drop PackageInternal.External, SFiles
     
-    CL 137410043 deleted support for split stacks, which means morestack
-    no longer needed to save its caller's frame or argument size or its
-    caller's argument pointer. However, this commit failed to update the
-    comment or delete the line that computed the caller's argument
-    pointer. Clean these up now.
+    These are no longer used.
     
-    Change-Id: I65725d3d42c86e8adb6645d5aa80c305d473363d
-    Reviewed-on: https://go-review.googlesource.com/92437
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I17fa29bbf90b1a41109fde4504eeff06af1eb8be
+    Reviewed-on: https://go-review.googlesource.com/56281
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/vet/all/whitelist/arm.txt | 3 ---
- src/runtime/asm_arm.s             | 4 ----
- 2 files changed, 7 deletions(-)
+ src/cmd/go/internal/load/pkg.go  | 14 +++-----------
+ src/cmd/go/internal/test/test.go |  5 ++---
+ 2 files changed, 5 insertions(+), 14 deletions(-)

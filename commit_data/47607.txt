@@ -1,27 +1,23 @@
-commit 9e7600d3fccf1920028bc808c755198db73482c0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 22 16:04:17 2021 -0800
+commit 44dd06670f522e66e7ebfa0bffe14d2b44c93ff8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Mar 9 21:13:34 2021 +0000
 
-    go/types: print "nil" rather than "untyped nil"
+    runtime: support register ABI Go functions from Windows callbacks
     
-    This is a port of CL 366276 from types2 to go/types
-    with minor adjustments due to the slightly different
-    handling of nil in go/types.
+    This change modifies the system that allows Go functions to be set as
+    callbacks in various Windows systems to support the new register ABI.
     
-    It uses some more detailed error strings in stmt0.src;
-    the same changes are made to the corresponding types2
-    file.
+    For #40724.
     
-    For #48852.
-    
-    Change-Id: I2cdf258799bcbe2d12bbadaf67b8b4504b356bd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366277
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ie067f9e8a76c96d56177d7aa88f89cbe7223e12e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300113
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- .../compile/internal/types2/testdata/check/stmt0.src   |  6 +++---
- src/go/types/operand.go                                |  5 +++++
- src/go/types/testdata/check/stmt0.src                  |  6 +++---
- src/go/types/testdata/fixedbugs/issue49296.go2         |  2 +-
- src/go/types/testdata/spec/assignability.go2           | 18 +++++++++---------
- 5 files changed, 21 insertions(+), 16 deletions(-)
+ src/runtime/export_test.go          |   4 +-
+ src/runtime/syscall_windows.go      | 277 ++++++++++++++++++++++++++----------
+ src/runtime/syscall_windows_test.go | 105 +++++++++++++-
+ 3 files changed, 305 insertions(+), 81 deletions(-)

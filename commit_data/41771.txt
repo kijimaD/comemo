@@ -1,35 +1,30 @@
-commit 4a8b9bd2646a5b297197ffd1c412ef6afebe5c0d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Mar 26 15:10:21 2020 -0400
+commit dc77dc2b9bd0f232631f683638bd7a23fab3598c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 23 16:10:55 2019 -0400
 
-    runtime/pprof: increment fake overflow record PC
+    cmd/go/internal/list: ensure that cfg.BuildMod is initialized before reading it in 'go list -m'
     
-    gentraceback generates PCs which are usually following the CALL
-    instruction. For those that aren't, it fixes up the PCs so that
-    functions processing the output can unconditionally decrement the PC.
+    The default value of cfg.BuildMod depends on the 'go' version in the
+    go.mod file. The go.mod file is read and parsed, and its settings are
+    applied, in modload.InitMod.
     
-    runtime_expandInlineFrames does this unconditional decrement when
-    looking up the function. However, the fake stack frame generated for
-    overflow records fails to meet the contract, and decrementing the PC
-    results in a PC in the previous function. If that function contains
-    inlined call, runtime_expandInlineFrames will not short-circuit and will
-    panic trying to look up a PC that doesn't exist.
+    As it turns out, modload.Enabled does not invoke InitMod, so
+    cfg.BuildMod is not necessarily set even if modload.Enabled returns
+    true.
     
-    Note that the added test does not fail at HEAD. It will only fail (with
-    a panic) if the function preceeding lostProfileEvent contains inlined
-    function calls. At the moment (on linux/amd64), that is
-    runtime/pprof.addMaxRSS, which does not.
+    Updates #33848
     
-    Fixes #38096
-    
-    Change-Id: Iad0819f23c566011c920fd9a5b1254719228da0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225661
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I13a4dd80730528e6f1a5acc492fcfe07cb59d94e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202917
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/pprof/pprof_test.go | 12 ++++++++++++
- src/runtime/pprof/proto.go      |  5 ++++-
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/list/list.go                           | 10 +++++++++-
+ src/cmd/go/internal/modload/init.go                        |  3 +++
+ src/cmd/go/testdata/script/mod_convert_vendor_json.txt     |  2 +-
+ src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt |  2 +-
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt          |  2 +-
+ src/cmd/go/testdata/script/mod_vendor.txt                  |  2 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt             | 13 +++++++++++--
+ 7 files changed, 27 insertions(+), 7 deletions(-)

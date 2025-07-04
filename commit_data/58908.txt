@@ -1,25 +1,21 @@
-commit f4750a6cfb8ae84acee56cca1a51c886fa16cc32
+commit 558919b45474bcdf191e9c9d8865699b036bc054
 Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Feb 28 20:21:44 2025 +0100
+Date:   Fri Jan 19 10:59:39 2024 +0100
 
-    cmd/go/internal/work: use par.Cache to cache tool IDs.
+    runtime: avoid loading winmm.dll on newer Windows versions
     
-    The tool IDs can be calculated once and reused across multiple
-    threads. This is a small optimization that helps optimize system
-    resources.
+    winmm.dll is only used for timeBeginPeriod and timeEndPeriod, which are
+    not needed on Windows versions supporting high resolution timers, that
+    is Windows 10 version 1803, and later.
     
-    On a normal Windows machine with 12 virtual CPUs, the time to build
-    a hello world program is reduced from over 1 second, with spikes of 2
-    seconds, to a consistent 0.7 seconds.
+    Updates #56745.
     
-    Updates #71981.
-    
-    Change-Id: I85f4a19f8ad4230afa32213780c761b7eb22fa29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/653715
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ie9576638fb8d2b4e648283bec3170aefa76f9f82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556935
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/go/internal/work/action.go  | 10 +++--
- src/cmd/go/internal/work/buildid.go | 84 ++++++++++++++++---------------------
- 2 files changed, 42 insertions(+), 52 deletions(-)
+ src/runtime/os_windows.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

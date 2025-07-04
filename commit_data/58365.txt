@@ -1,22 +1,30 @@
-commit e3e1d735287a3bab5b060415513bd64785c4e209
-Author: Petr Osetrov <paradoxfilm2013@gmail.com>
-Date:   Fri Dec 6 21:51:36 2024 +0000
+commit 5622a4b2054664edcdd64974b9df73b440aedfae
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Nov 1 17:06:08 2023 -0400
 
-    bufio: make the description of Peek's behavior better
+    os/signal: remove go t.Run from TestNohup
     
-    Previously, based on the description, it was not obvious that Peek could
-    change the buffer. It may have been mistakenly assumed that Peek would
-    always return an error if n is greater than b.Buffered().
+    Since CL 226138, TestNohup has a bit of a strange construction: it wants
+    to run the "uncaught" subtests in parallel with each other, and the
+    "nohup" subtests in parallel with each other, but also needs join
+    between "uncaught" and "nohop" so it can Stop notifying for SIGHUP.
     
-    Change-Id: I095006dd2ba1c2138bb193396cb24e2dda42d771
-    GitHub-Last-Rev: 9d48f8ac81f46d5b8f4a1885af28cbccd1747c3b
-    GitHub-Pull-Request: golang/go#70712
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/634175
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    It achieves this by doing `go t.Run` with a WaitGroup rather than using
+    `t.Parallel` in the subtest (which would make `t.Run` return immediately).
+    
+    However, this makes things more difficult to understand than necessary.
+    As noted on https://pkg.go.dev/testing#hdr-Subtests_and_Sub_benchmarks,
+    a second layer of subtest can be used to join parallel subtests.
+    
+    Switch to this form, which makes the test simpler to follow
+    (particularly the cleanup that goes with "uncaught").
+    
+    For #63799.
+    
+    Change-Id: Ibfce0f439508a7cfca848c7ccfd136c9c453ad8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538899
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/bufio/bufio.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/os/signal/signal_test.go | 162 +++++++++++++++++++++----------------------
+ 1 file changed, 80 insertions(+), 82 deletions(-)

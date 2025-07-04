@@ -1,19 +1,24 @@
-commit 77d9252ddfc6b3e2e48916240340ea5470b005a6
-Author: Khaled Yakdan <yakdan@code-intelligence.com>
-Date:   Mon May 23 23:20:00 2022 +0000
+commit 29ec74fb82328f4c005d556291ea687da7aad4b0
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 20:13:25 2021 -0400
 
-    runtime: fix inline assembly trampoline for arm64
+    go/types: check if the interface is already complete in Complete
     
-    Use the program counter to compute the address of the first instruction
-    of the ret sled. The ret sled is located after 5 instructions from the
-    MOVD instruction saving the value of the program counter.
+    Once Interfaces have been completed they must never be written again,
+    as they may be used concurrently.
     
-    Change-Id: Ie7ae7a0807785d6fea035cf7a770dba7f37de0ec
-    GitHub-Last-Rev: 2719208c6a3b049e0f394e5311ce3282b58f8516
-    GitHub-Pull-Request: golang/go#53039
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407895
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Avoid writing Interface.complete unnecessarily in Complete. Also, update
+    documentation to reflect that Complete must be called before the
+    Interface may be considered safe for concurrent use.
+    
+    For #47726
+    
+    Change-Id: Ic9fd1395ab0dd6d3499f7a698dadf315abcddab8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342749
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/libfuzzer_arm64.s | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/go/types/interface.go | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)

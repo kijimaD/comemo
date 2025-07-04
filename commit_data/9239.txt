@@ -1,15 +1,15 @@
-commit e0d6f95069aef81ba682be6c99bfa2d2dddec9f7
+commit 438919266995560920fa109e199cf9cbf2660e41
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 28 13:04:30 2011 -0400
+Date:   Thu Jul 28 13:03:30 2011 -0400
 
-    build: update all-qemu.bash
+    gc: shift type bug
     
-    nothing but GOARCH=arm makes sense.
-    http/cgi uses network too.
+    Fixes #1664.
     
-    R=golang-dev, r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4800053
+    https://golang.org/cl/4798056
 
- src/all-qemu.bash | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/const.c       | 20 ++++++++++++++++++--
+ test/fixedbugs/bug363.go | 21 +++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 2 deletions(-)

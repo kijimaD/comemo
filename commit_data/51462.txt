@@ -1,21 +1,20 @@
-commit 53c480077ab6729e64a4129162664adb70b18c62
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Nov 29 10:48:37 2022 -0500
+commit 77eff30ec0bc63df61ea742bb8278f92e2c133dc
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Feb 2 13:47:31 2022 -0500
 
-    doc/go1.20: revise linker release note
+    go/types, types2: add a const to control recursion panics in unification
     
-    I misunderstood CL 420774. We didn't remove GO_LDSO, just that
-    make.bash no longer tries to set it automatically. If GO_LDSO is
-    explicitly set at make.bash, it is still used as the default
-    dynamic interpreter.
+    Add a panicAtUnificationDepthLimit const to replace the use of the debug
+    const to control whether to panic when the unification recursion depth
+    is reached. Our tests should pass when debug==true.
     
-    For #54202.
-    
-    Change-Id: Ided775438b8e4b87a6acd9bc87657657dbd3d91c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453601
+    Change-Id: I58847f49d66010bd4ca01c0408ec10acac95cba6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382534
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.20.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/unify.go | 14 ++++++++++----
+ src/go/types/unify.go                    | 14 ++++++++++----
+ 2 files changed, 20 insertions(+), 8 deletions(-)

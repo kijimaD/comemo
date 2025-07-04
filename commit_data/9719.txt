@@ -1,18 +1,12 @@
-commit 44f12eb5ad7c08b8303ec2ab2f7013b675d725fa
-Author: Michael Shields <mshields@google.com>
-Date:   Fri Sep 16 20:30:54 2011 -0700
+commit 46eb718c99355315f7a26de4745b95eac8a54081
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 16 20:30:17 2011 -0700
 
-    filepath: fix Glob to return no error on nonmatching patterns
+    CONTRIBUTORS: add googler Michael Shields
     
-    filepath.Glob is documented to return nil if no files match
-    and an error only if the pattern is invalid.  This change
-    fixes it to work as documented and adds a regression test.
-    
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/5040045
+    R=golang-dev, dsymonds
+    CC=golang-dev, mshields
+    https://golang.org/cl/5042045
 
- src/pkg/path/filepath/match.go      |  2 +-
- src/pkg/path/filepath/match_test.go | 10 ++++++++++
- src/pkg/template/helper.go          |  6 +++++-
- 3 files changed, 16 insertions(+), 2 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

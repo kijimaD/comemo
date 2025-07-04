@@ -1,20 +1,53 @@
-commit b656fa33123709b381f688c92b7421b43d877715
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat Jul 1 14:01:23 2023 +0000
+commit dbf442b1b2c28b77db288121ee3a7bc669cdc768
+Author: Austin Clements <austin@google.com>
+Date:   Sat Aug 13 21:39:56 2022 -0400
 
-    cmd/internal/goobj: use unsafe.String in toString func
+    runtime: replace stkframe.arglen/argmap with methods
     
-    Change-Id: I93a5e0996e48cc74e6b2e39c3a4c7aa68fd6a3a0
-    GitHub-Last-Rev: afd8feb0deac34f671e0ed11ad55f6be427bd8b1
-    GitHub-Pull-Request: golang/go#61137
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507517
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Currently, stkframe.arglen and stkframe.argmap are populated by
+    gentraceback under a particular set of circumstances. But because they
+    can be constructed from other fields in stkframe, they don't need to
+    be computed eagerly at all. They're also rather misleading, as they're
+    only part of computing the actual argument map and most callers should
+    be using getStackMap, which does the rest of the work.
+    
+    This CL drops these fields from stkframe. It shifts the functions that
+    used to compute them, getArgInfoFast and getArgInfo, into
+    corresponding methods stkframe.argBytes and stkframe.argMapInternal.
+    argBytes is expected to be used by callers that need to know only the
+    argument frame size, while argMapInternal is used only by argBytes and
+    getStackMap.
+    
+    We also move some of the logic from getStackMap into argMapInternal
+    because the previous split of responsibilities didn't make much sense.
+    This lets us return just a bitvector from argMapInternal, rather than
+    both a bitvector, which carries a size, and an "actually use this
+    size".
+    
+    The getArgInfoFast function was inlined before (and inl_test checked
+    this). We drop that requirement from stkframe.argBytes because the
+    uses of this have shifted and now it's only called from heap dumping
+    (which never happens) and conservative stack frame scanning (which
+    very, very rarely happens).
+    
+    There will be a few follow-up clean-up CLs.
+    
+    For #54466. This is a nice clean-up on its own, but it also serves to
+    remove pointers from the traceback state that would eventually become
+    troublesome write barriers once we stack-rip gentraceback.
+    
+    Change-Id: I107f98ed8e7b00185c081de425bbf24af02a4163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424514
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/goobj/objfile.go | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ src/cmd/compile/internal/test/inl_test.go |  1 -
+ src/runtime/heapdump.go                   |  2 +-
+ src/runtime/mgcmark.go                    |  4 +-
+ src/runtime/runtime2.go                   | 12 +++---
+ src/runtime/stack.go                      | 51 +++++++++++-------------
+ src/runtime/traceback.go                  | 66 ++++++++++++++++---------------
+ 6 files changed, 65 insertions(+), 71 deletions(-)

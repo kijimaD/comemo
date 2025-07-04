@@ -1,25 +1,26 @@
-commit ba6df85c7c94c7b26d4979e92fdb9ec7fa4cc1e4
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Wed Mar 30 19:27:21 2022 +0800
+commit 9d669ed47a502ca540c7f3329f84d89fc0c53971
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 4 08:16:58 2021 -0700
 
-    cmd/compile: add MOVBEWstore support for GOAMD64>=3
+    misc/cgo/errors: use expected column numbers
     
-    This CL add MOVBE support for 16-bit version, but MOVBEWload is
-    excluded because it does not satisfy zero extented.
+    The test was using the wrong column numbers, and was erroneously
+    passing because there happened to be line numbers that matched those
+    column numbers. Change the test harness to require the expected line
+    number for the ERROR HERE regexp case, so that this doesn't happen again.
     
-    For #51724
+    Also rename a couple of variables in the test to avoid useless
+    redeclaration errors.
     
-    Change-Id: I3fadf20bcbb9b423f6355e6a1e340107e8e621ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396617
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Fixes #46534
+    
+    Change-Id: I2fcbf5e379c346de5346035c73d174a3980c0927
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324970
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go        |  2 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 ++
- src/cmd/compile/internal/ssa/opGen.go        | 15 ++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 52 ++++++++++++++++++++++++++++
- test/codegen/memcombine.go                   | 17 +++++----
- 6 files changed, 82 insertions(+), 8 deletions(-)
+ misc/cgo/errors/errors_test.go   |  3 ++-
+ misc/cgo/errors/testdata/err2.go | 12 ++++++------
+ 2 files changed, 8 insertions(+), 7 deletions(-)

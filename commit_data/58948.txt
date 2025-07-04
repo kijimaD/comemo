@@ -1,16 +1,37 @@
-commit f7204d76bc3af681c12e8ed9bfb18c20bf6f8bc1
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri May 19 20:11:19 2023 +0100
+commit 4f4d6508b9dd704c527b54063faee6d809e647cf
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jan 24 22:15:15 2024 +0100
 
-    html/template: example for disallowed script type change
+    net/netip: optimize Addr.String for 4in6 addresses
     
-    Fixes #59112
+    name                      old time/op    new time/op    delta
+    AddrString/v4-8             20.0ns ± 0%    19.7ns ± 1%   -1.42%  (p=0.000 n=9+10)
+    AddrString/v6-8             58.9ns ± 6%    57.1ns ± 0%   -3.08%  (p=0.000 n=10+9)
+    AddrString/v6_ellipsis-8    59.9ns ± 1%    59.5ns ± 0%   -0.53%  (p=0.027 n=8+10)
+    AddrString/v6_v4-8          33.7ns ± 1%    24.3ns ± 0%  -27.82%  (p=0.000 n=9+10)
+    AddrString/v6_zone-8        61.4ns ± 1%    61.6ns ± 0%     ~     (p=0.190 n=9+9)
     
-    Change-Id: I617f8a4581a55a0f134f488462f415ec22eb4ee3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496145
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    name                      old alloc/op   new alloc/op   delta
+    AddrString/v4-8              16.0B ± 0%     16.0B ± 0%     ~     (all equal)
+    AddrString/v6-8              48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    AddrString/v6_ellipsis-8     24.0B ± 0%     24.0B ± 0%     ~     (all equal)
+    AddrString/v6_v4-8           24.0B ± 0%     24.0B ± 0%     ~     (all equal)
+    AddrString/v6_zone-8         24.0B ± 0%     24.0B ± 0%     ~     (all equal)
+    
+    name                      old allocs/op  new allocs/op  delta
+    AddrString/v4-8               1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrString/v6-8               1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrString/v6_ellipsis-8      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrString/v6_v4-8            1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrString/v6_zone-8          1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    
+    Change-Id: Ie611ee8629a2ff457dcff83b08d0c94c93af3182
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557777
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/html/template/error.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/net/netip/netip.go      | 13 ++++++++-----
+ src/net/netip/netip_test.go |  2 +-
+ 2 files changed, 9 insertions(+), 6 deletions(-)

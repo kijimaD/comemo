@@ -1,26 +1,25 @@
-commit b53bdd496c2de8d33e1e65452f184c829303de9f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 10 09:46:27 2014 +1100
+commit 1e30bb027ac6f5d88c40fd9280805bc5f7a0d9be
+Author: Jens Frederich <jfrederich@gmail.com>
+Date:   Wed Oct 22 10:56:26 2014 +1100
 
-    undo CL 169000043 / 05b838013df9
+    misc/makerelease: set version number in Windows installer
     
-    This was a mistake. The cmd/api tool
-    depends on an old version of go/types.
+    Set correct version number at Windows installer based on
+    Go's Mercurial tag.
     
-    ««« original CL description
-    cmd/api: use golang.org/x/... import paths
+    Name                                     | Version
+    ------------------------------------------------
+    Go Programming Language amd64 go1.3.3    | 1.3.3
+    Go Programming Language amd64 go1.2rc3   | 1.2
+    Go Programming Language amd64 go1.2beta1 | 1.2
     
-    LGTM=bradfitz, rsc
-    R=rsc, bradfitz
+    Fixes #8239.
+    
+    LGTM=adg
+    R=adg, c.emil.hessman, alex.brainman
     CC=golang-codereviews
-    https://golang.org/cl/169000043
-    »»»
-    
-    TBR=rsc, bradfitz
-    R=bradfitz, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/169320043
+    https://golang.org/cl/160950044
 
- src/cmd/api/goapi.go | 2 +-
- src/cmd/api/run.go   | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ misc/makerelease/makerelease.go        | 19 ++++++++++++++++++-
+ misc/makerelease/windows/installer.wxs |  5 ++---
+ 2 files changed, 20 insertions(+), 4 deletions(-)

@@ -1,26 +1,25 @@
-commit bc1d71ff64b01ac912cb0fa28c0f6dd5904fcd56
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Thu Jun 15 15:09:11 2023 -0400
+commit da6042e82eb7fe5ba40a5c17959a31e19a44c3e8
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 14 16:24:44 2022 -0400
 
-    cmd/compile: add a 'Tips' section to README to help new contributors
+    cmd/compile: fix position of fake receivers; be more careful in logopt
     
-    This CL adds a new 'Tips' section to the cmd/compile README.
+    The src.NoXPos in fake receivers was leaking, through a series of
+    mishaps, all the way to logopt.  If done just so, this can lead to
+    a compiler crash.  This makes logopt crash-proof and eliminates the
+    root cause as well.
     
-    The primary intent is to help new-ish contributors.
+    I'm reluctant to write a test for this because it's kinda slow
+    and involved; my working test is "compile something that mentions
+    the flag package with -json=0,$TMPDIR flag, then be sure that
+    $TMPDIR/flag/__unnamed__.json was not created".
     
-    It includes some basics on getting started, testing changes,
-    viewing coverage, juggling different compiler versions,
-    some links to additional tools, and so on.
-    
-    Updates #30074
-    
-    Change-Id: I393bf1137db9d2bb851f7e254b08455273ccad8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503895
+    Change-Id: I384b717c0e7522953d22d61f7e06319e11192d7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443156
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: t hepudds <thepudds1460@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/README.md | 170 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 170 insertions(+)
+ src/cmd/compile/internal/logopt/log_opts.go | 3 +++
+ src/cmd/compile/internal/types/type.go      | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

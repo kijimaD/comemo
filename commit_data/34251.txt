@@ -1,21 +1,22 @@
-commit a4e950ec9ed4b862245451a5d167138c73d8c2e9
-Author: Yazen2017 <yazen.shunnar@gmail.com>
-Date:   Sat Feb 17 17:24:21 2018 -0500
+commit 926373ea79cb590352c9acae96288935ec2c8f47
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Oct 12 01:39:46 2017 +0200
 
-    doc: improve clarity of map index examples
+    runtime: fix crash on Plan 9
     
-    The fourth example for map indexing states you have a map of type [K]V
-    and attempts to read in a variable of type T.  Further, the example
-    is meant to showcase the boolean return variable saying whether the
-    map contained a key, but overrides to type T.  This will not compile.
+    Since CL 46037, the runtime is crashing after calling
+    exitThread on Plan 9.
     
-    Changed last updated date to February 18
+    The exitThread function shouldn't be called on
+    Plan 9, because the system manages thread stacks.
     
-    Fixes: #23895
+    Fixes #22221.
     
-    Change-Id: I63c52adbcd989afd4855e329e6c727f4c01f7881
-    Reviewed-on: https://go-review.googlesource.com/94906
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I5d61c9660a87dc27e4cfcb3ca3ddcb4b752f2397
+    Reviewed-on: https://go-review.googlesource.com/70190
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go_spec.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/runtime/proc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,14 +1,17 @@
-commit b66df0e9bad6b9dca4935a5128b2f696156c2d8a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 11 09:20:52 2013 -0700
+commit fadeafac9391942af19cfa5cc3fc9ccedcd87b47
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Mon Mar 11 07:43:57 2013 -0700
 
-    spec: typed indices must be of integer type
+    net/http: add additional status codes defined in RFC 6585
     
-    The same rules apply for make arguments.
+    428 Precondition Required
+    429 Too Many Requests
+    431 Request Header Fields Too Large
+    511 Network Authentication Required
     
-    R=r, rsc, iant, ken
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7656043
+    https://golang.org/cl/7678043
 
- doc/go_spec.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/net/http/status.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

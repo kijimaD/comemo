@@ -1,24 +1,16 @@
-commit a19c0ceda59b2223ca873b61f059c8ccb447fa80
+commit 5126feadd6e4ca890da0156c59b159085959120e
 Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Mon Jul 8 20:33:42 2019 +0530
+Date:   Mon Jan 14 13:43:11 2019 +0530
 
-    Revert "go/parser: include more comments in a struct or interface"
+    bufio: fix emptyFinalToken example to handle multiple Reads
     
-    This reverts commit https://golang.org/cl/161177/.
+    Fixes #25909
     
-    Reason for revert: this led to non-contiguous comments spaced
-    by an empty line to be grouped into a single CommentGroup
-    
-    Fixes #32944
-    Updates #10858
-    
-    Change-Id: I5e16663b308c3b560496da8e66c33befdf9ed9dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185040
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I9a53a1a06aab5d1877a8e9b1b8b782d77d6027a8
+    Reviewed-on: https://go-review.googlesource.com/c/157758
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/doc/testdata/issue10858.0.golden |  79 -------------------------
- src/go/doc/testdata/issue10858.1.golden |  79 -------------------------
- src/go/doc/testdata/issue10858.2.golden |  79 -------------------------
- src/go/doc/testdata/issue10858.go       | 102 --------------------------------
- src/go/parser/parser.go                 |  15 +----
- 5 files changed, 1 insertion(+), 353 deletions(-)
+ src/bufio/example_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

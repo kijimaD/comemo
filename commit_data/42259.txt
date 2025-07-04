@@ -1,27 +1,24 @@
-commit be08e10b3bc07f3a4e7b27f44d53d582e15fd6c7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 1 12:26:30 2020 -0700
+commit e0306c1d62d7d10e1e5239f51e01792b28e8001b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 11 18:19:04 2019 -0500
 
-    syscall: if Setctty, require that Ctty be a child descriptor
+    doc: add glossary to module reference documentation
     
-    Ctty was always handled as a child descriptor, but in some cases
-    passing a parent descriptor would also work. This depended on
-    unpredictable details of the implementation. Reject those cases to
-    avoid confusion.
+    These terms will be defined throughout the document, and more terms
+    will be added. After drafting a few sections, it's clear that a
+    glossary will be useful. There are enough terms that it would be
+    overwhelming at the beginning.
     
-    Also reject setting both Setctty and Foreground, as they use Ctty
-    in incompatible ways. It's unlikely that any programs set both fields,
-    as they don't make sense together.
+    Also, add anchors for each heading and add a couple more headings.
     
-    Fixes #29458
+    Updates #33637
     
-    Change-Id: Ieba2d625711fd4b82c8e65e1feed02fd1fb25e6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231638
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I0017064f0b1e5e656dd280018ca0379484345df1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206478
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
 
- doc/go1.15.html                  | 22 ++++++++++++++++++++++
- src/os/signal/signal_cgo_test.go |  2 +-
- src/syscall/exec_unix.go         | 10 ++++++++++
- src/syscall/exec_unix_test.go    | 28 ++++++++++++++++++++++++++++
- 4 files changed, 61 insertions(+), 1 deletion(-)
+ doc/modules.md | 170 ++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 161 insertions(+), 9 deletions(-)

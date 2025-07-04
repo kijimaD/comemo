@@ -1,25 +1,13 @@
-commit 077902d1a6f03b54e7f0786e33b8f4ca91708f97
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 1 11:22:03 2016 -0700
+commit 64d2a88105d503d1a0275388823b8112a870d13b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 19 17:34:54 2016 +0900
 
-    cmd/compile: cleanup algtype code
+    net/internal/socktest: add missing support for AcceptEx
     
-    Add AlgKind enum type to represent AFOO values.
-    
-    Add IsComparable, IsRegularMemory, IncomparableField helper methods to
-    codify common higher-level idioms.
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: I54c544953997a8ccc72396b3058897edcbbea392
-    Reviewed-on: https://go-review.googlesource.com/21420
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I37faedc6fa316fffac80093b01e15429995b0f5b
+    Reviewed-on: https://go-review.googlesource.com/19705
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/alg.go       | 117 ++++++++++++++++++-------------
- src/cmd/compile/internal/gc/reflect.go   |   4 +-
- src/cmd/compile/internal/gc/subr.go      |  21 ++----
- src/cmd/compile/internal/gc/swt.go       |  13 ++--
- src/cmd/compile/internal/gc/typecheck.go |  17 ++---
- src/cmd/compile/internal/gc/walk.go      |  35 +++++----
- 6 files changed, 110 insertions(+), 97 deletions(-)
+ src/net/internal/socktest/switch.go      |  2 +-
+ src/net/internal/socktest/sys_windows.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

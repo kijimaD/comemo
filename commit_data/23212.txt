@@ -1,15 +1,12 @@
-commit 477614e4a12899c72aeaa0e5cee2f3283929542f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed May 27 13:10:43 2015 -0700
+commit 09edc5c6ac60e597a2b4807c018325f220c974ab
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Apr 30 10:19:24 2015 +0300
 
-    doc: move pre-go1 release notes to separate file
+    doc/go1.5.txt: bytes, strings: add LastIndexByte
     
-    Fixes #10924
-    
-    Change-Id: I0caf5f8f82682ee48e95270d43328550bfd8b6e1
-    Reviewed-on: https://go-review.googlesource.com/10440
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I05cfacd746e87011de8b659ab3b2fbe23146a7f3
+    Reviewed-on: https://go-review.googlesource.com/9504
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- doc/devel/pre_go1.html | 455 +++++++++++++++++++++++++++++++++++++++++++++++++
- doc/devel/release.html | 445 +----------------------------------------------
- 2 files changed, 458 insertions(+), 442 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

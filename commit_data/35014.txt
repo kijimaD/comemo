@@ -1,21 +1,16 @@
-commit a3df9c475509d92d2995bc33e10b987bc330dee8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 16 21:34:12 2018 +0000
+commit 358d7c93e2df39e1e76d27d79fa18e584dca9d5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 20:40:26 2017 -0500
 
-    os/user: fix osusergo build on Solaris
+    net/url: fix PathUnescape, QueryUnescape number grammar
     
-    Verified that on on Linux, with:
+    They do not convert a plural into a singular.
+    (Introduced recently, in CL 77050.)
     
-    CGO_ENABLED=1 GOOS=solaris go install --tags=osusergo
-    
-    ... it builds now.
-    
-    Updates #24841
-    Updates #24845
-    
-    Change-Id: I49f40532bc2a13a9d282771592fc8d7f116b1902
-    Reviewed-on: https://go-review.googlesource.com/107304
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I3b6c4d03b1866d4133e90b8ab05e8d4bfbd55125
+    Reviewed-on: https://go-review.googlesource.com/82078
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/user/listgroups_solaris.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/url/url.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

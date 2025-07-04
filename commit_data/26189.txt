@@ -1,14 +1,12 @@
-commit 1d809c5c1476338af180014e2152b3f5b0fac327
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Feb 28 11:47:04 2016 -0800
+commit e2093cdeef8dcf0303ce3d8e79247c71ed53507d
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Sun Jan 3 21:34:49 2016 +0100
 
-    runtime: fix names in SetFinalizer doc comment
+    doc: fix typo in install-source.html.
     
-    Fixes #14554.
-    
-    Change-Id: I37ab4e4dc1aee84ac448d437314f8eecbbc02994
-    Reviewed-on: https://go-review.googlesource.com/20021
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6ea7339ff9412111319e46f2962c6b3880987a1e
+    Reviewed-on: https://go-review.googlesource.com/18174
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/mfinal.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

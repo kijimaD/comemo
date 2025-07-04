@@ -1,14 +1,28 @@
-commit ea9eddb3e77f69bc559b8d8e647cb6d3b0562b80
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 28 02:09:32 2019 +0000
+commit 40f585b21b7547031823d26fa6635500b2cff8da
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 16:00:33 2018 -0700
 
-    net/http: fix typo in Response.Body field docs
+    cmd/go: pass go language version to cmd/compile
     
-    Fixes #31096
+    Pass the Go language version specified in the go.mod file to
+    cmd/compile.
     
-    Change-Id: I5b36bfc6d18eb8c1bbf15abcd92b0e6559cda3c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169683
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Also, change the behavior when the go.mod file requests a Go version
+    that is later than the current one. Previously cmd/go would give a
+    fatal error in this situation. With this change it attempts the
+    compilation, and if (and only if) the compilation fails it adds a note
+    saying that the requested Go version is newer than the known version.
+    This is as described in https://golang.org/issue/28221.
+    
+    Updates #28221.
+    
+    Change-Id: I46803813e7872d4a418a3fd5299880be3b73a971
+    Reviewed-on: https://go-review.googlesource.com/c/147278
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/http/response.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/exec.go              | 13 ++++++++-----
+ src/cmd/go/internal/work/gc.go                |  3 +++
+ src/cmd/go/testdata/script/mod_go_version.txt | 16 ++++++++++++++--
+ 3 files changed, 25 insertions(+), 7 deletions(-)

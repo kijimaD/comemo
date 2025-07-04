@@ -1,16 +1,15 @@
-commit 9a91713090f22eb7bc2b0b3af7576fe6e86bebfe
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Jun 17 20:30:27 2018 +0000
+commit 85dcc709a8523877063b05c6806631c7f47e99ab
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Mar 6 09:39:14 2018 +0100
 
-    cmd/dist: don't test Examples for js/wasm
+    test/codegen: port math/bits.TrailingZeros tests to codegen
     
-    Fixes #25913
+    And remove them from ssa_test.
     
-    Change-Id: I4701ec94fa4b07211a8beed85c02ee5aa4fe3eb3
-    Reviewed-on: https://go-review.googlesource.com/119377
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Change-Id: Ib5de5c0d908f23915e0847eca338cacf2fa5325b
+    Reviewed-on: https://go-review.googlesource.com/98795
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/dist/test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/asm_test.go | 65 ---------------------------------
+ test/codegen/mathbits.go                | 34 +++++++++++++++++
+ 2 files changed, 34 insertions(+), 65 deletions(-)

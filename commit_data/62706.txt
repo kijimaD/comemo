@@ -1,0 +1,35 @@
+commit 5fb9e5dc19c48c8de09720bd4cb64eccd933153d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Mar 25 15:09:31 2025 -0400
+
+    cmd/link: handle Mach-O X86_64_RELOC_SUBTRACTOR in internal linking
+    
+    With recent LLVM toolchain, on macOS/AMD64, the race detector syso
+    file built from it contains X86_64_RELOC_SUBTRACTOR relocations,
+    which the Go linker currently doesn't handle in internal linking
+    mode. To ensure internal linking mode continue to work with the
+    race detector syso, this CL adds support of X86_64_RELOC_SUBTRACTOR
+    relocations.
+    
+    X86_64_RELOC_SUBTRACTOR is actually a pair of relocations that
+    resolves to the difference between two symbol addresses (each
+    relocation specifies a symbol). For the cases we care (the race
+    syso), the symbol being subtracted out is always in the current
+    section, so we can just convert it to a PC-relative relocation,
+    with the addend adjusted. If later we need the more general form,
+    we can introduce a new mechanism (say, objabi.R_DIFF) that works
+    as a pair of relocations like the Mach-O one.
+    
+    As we expect the pair of relocations be consecutive, don't reorder
+    (sort) relocation records when loading Mach-O objects.
+    
+    Change-Id: I757456b07270fb4b2a41fd0fef67a2b39dd6b238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660715
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/link/internal/amd64/asm.go            | 32 +++++++++++++++++++++++++++
+ src/cmd/link/internal/loader/symbolbuilder.go |  5 +++++
+ src/cmd/link/internal/loadmacho/ldmacho.go    |  2 --
+ 3 files changed, 37 insertions(+), 2 deletions(-)

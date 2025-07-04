@@ -1,22 +1,21 @@
-commit 3bdc1799d6ce441d7a972faf1452e34b6dce0826
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Wed Aug 11 12:14:41 2021 +0100
+commit 2d4c95565a770227ef2943b68ebe9fac02f79377
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 5 16:33:59 2020 -0800
 
-    io: unexport internal methods
+    [dev.regabi] cmd/compile: change nowritebarrierrec to use map[*ir.Func]
     
-    The methods on the pipe type don't need to be exported. Doing so sets
-    a bad precedent that it's OK to export methods to indicate an internal
-    public API.  That's not a good idea in general, because exported methods
-    increase cognitive load when reading code: the reader needs to consider
-    whether the exported method might be used via some external interface
-    or reflection.
+    All of the uses were already using *ir.Func index operands, so only
+    needs the map type itself updated.
     
-    Change-Id: Ib13f1b3f9fe0ff251628f31b776182a0953268ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341409
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Passes buildall w/ toolstash -cmp.
+    
+    Updates #42982.
+    
+    Change-Id: I568d8601f3eb077e07e887f2071aa1a2667d803c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275754
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/io/pipe.go | 50 ++++++++++++++++++++++++++------------------------
- 1 file changed, 26 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,12 +1,18 @@
-commit d7ae8b3c11b027721f0878caac0620ccb7f81048
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 2 09:24:43 2016 +1000
+commit 036d09d5bff8b9da789ba0c914e5966055d9d7fe
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Mar 29 13:53:34 2016 +0300
 
-    api: update next.txt
+    cmd/compile/internal/amd64: Use 32-bit operands for byte operations
     
-    Change-Id: I04da6a56382d3bd96e3c849a022618553039b2db
-    Reviewed-on: https://go-review.googlesource.com/23651
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    We already generate ADDL for byte operations, reflect this in code.
+    This also allows inc/dec for +-1 operation, which are 1-byte shorter,
+    and enables lea for 3-operand addition/subtraction.
+    
+    Change-Id: Ibfdfee50667ca4cd3c28f72e3dece0c6d114d3ae
+    Reviewed-on: https://go-review.googlesource.com/21251
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/next.txt | 39 +++++++++++++++++++++++++++++++++------
- 1 file changed, 33 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go | 58 ++++++++++++-----------------------
+ 1 file changed, 20 insertions(+), 38 deletions(-)

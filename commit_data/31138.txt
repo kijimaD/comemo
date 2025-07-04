@@ -1,28 +1,21 @@
-commit f75b5e99ed19e97ea78e62a406d03c1632efa7d4
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Wed Apr 12 18:37:27 2017 -0400
+commit 312ea5bf8ff76d8ea4ea0b92df29de5204446b46
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Feb 1 18:41:27 2017 +0100
 
-    cmd/compile: fix s390x unsigned comparison constant merging rules
+    misc/ios: allow exit code 0 to mean test success
     
-    On s390x unsigned integer comparisons with immediates require the immediate
-    to be an unsigned 32-bit integer. The rule was checking that the immediate
-    was a signed 32-bit integer.
+    Tests that use TestMain might never call m.Run(), and simply return
+    from TestMain. In that case, the iOS test harness never sees the
+    PASS from the testing framework and assumes the test failed.
     
-    This CL also adds a test for comparisons that could be turned into compare
-    with immediate or equivalent instructions (depending on architecture and
-    optimizations applied).
+    Allow an exit with exit code 0 to also mean test success, thereby
+    fixing the objdump test on iOS.
     
-    Fixes #19940.
-    
-    Change-Id: Ifd6aa989fd3d50e282f7d30fec9db462c28422b1
-    Reviewed-on: https://go-review.googlesource.com/40433
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Change-Id: I1fe9077b05931aa0905e41b88945cd153c5b35b6
+    Reviewed-on: https://go-review.googlesource.com/36065
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/ssa_test.go            |    3 +
- src/cmd/compile/internal/gc/testdata/cmpConst.go   | 2217 ++++++++++++++++++++
- .../internal/gc/testdata/gen/cmpConstGen.go        |  248 +++
- src/cmd/compile/internal/ssa/gen/S390X.rules       |    4 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go       |    8 +-
- 5 files changed, 2474 insertions(+), 6 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

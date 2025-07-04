@@ -1,12 +1,14 @@
-commit d5ab44e2fe6fbc11528c7b3bb0f306167d8f1b1b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 7 13:56:31 2012 -0700
+commit 412c60f1fa97ae15b625f84ec467227d71ac08ac
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Fri Sep 7 10:31:17 2012 -0700
 
-    go/scanner: skip first character if it's a BOM
+    syscall: Test SCM credentials on Linux.
     
-    R=r
+    This test was previously removed in 087c6e15702e.
+    
+    R=bradfitz, rsc, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6490095
+    https://golang.org/cl/6506061
 
- src/pkg/go/scanner/scanner.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/syscall/creds_test.go | 109 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 109 insertions(+)

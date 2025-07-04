@@ -1,17 +1,16 @@
-commit 987a580b9f91dfe0709d6927525952acf9101fc9
+commit 105c5fa666fd29967a8818d3ccbc455722274496
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 01:55:17 2012 -0500
+Date:   Wed Mar 7 01:54:39 2012 -0500
 
-    cmd/gc: do not confuse unexported methods of same name
+    test: invoke go command in run.go
     
-    Fixes #3146.
+    Lets us run multifile tests and tests with arguments.
     
-    R=ken2
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5756074
+    https://golang.org/cl/5753068
 
- src/cmd/gc/dcl.c                                   | 15 +++++++++++----
- test/bugs/424.go                                   |  9 ---------
- test/{bugs/424.dir => fixedbugs/bug424.dir}/lib.go |  0
- test/{bugs/424.dir/main.go => fixedbugs/bug424.go} | 18 ++++++++++++++++--
- 4 files changed, 27 insertions(+), 15 deletions(-)
+ test/cmplxdivide.go |   2 +-
+ test/run.go         | 109 ++++++++++++++++++++++++++--------------------------
+ test/testlib        |  16 +++++++-
+ 3 files changed, 70 insertions(+), 57 deletions(-)

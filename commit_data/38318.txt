@@ -1,15 +1,21 @@
-commit 359fb4a9afe273c1ef5600c0c7308dc167c0d4eb
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Feb 20 16:26:54 2019 +0100
+commit 34585ba51e365e5041f5ee0264e0b46b0ccc95db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 18 17:39:35 2018 -0700
 
-    cmd/link: on AIX generate export file for host linker
+    go/types: fix unsymmetric test when typechecking comparisons
     
-    Change-Id: I6638cb0f9ed751c76a29cae62a93a923f18f14f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164005
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The existing code assumed that comparability and orderedness
+    was implied for the 2nd operand if the 1st operand satisfied
+    these predicates.
+    
+    Fixes #28164.
+    
+    Change-Id: I61d4e5eedb3297731a20a14acb3645d11b36fcc5
+    Reviewed-on: https://go-review.googlesource.com/c/143277
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/lib.go   |  4 +++
- src/cmd/link/internal/ld/xcoff.go | 57 ++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 60 insertions(+), 1 deletion(-)
+ src/go/types/expr.go            |  4 ++--
+ src/go/types/testdata/expr2.src | 13 +++++++++++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)

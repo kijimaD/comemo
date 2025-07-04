@@ -1,25 +1,32 @@
-commit f1ea0249ed2a1e91095ed20cca31378027847c7d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Feb 28 19:10:44 2023 -0500
+commit 078cc6a04f1dc0ef46f1bd5c27dc20a6fcfbabcf
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 29 18:25:41 2022 -0500
 
-    cmd/link: update -T flag's documentation
+    go/printer: format doc comments
     
-    The -T flag actually means the start address of text symbols, not
-    the text sections, which may differ by the header size. It has
-    been behaving like this since at least 2009. Make it clear in the
-    documentation.
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
     
-    Also remove the -D flag from the doc. The flag doesn't actually
-    exist in the implementation.
+    Use go/doc/comment to reformat doc comments into a
+    standard form, enabling future expansion later and generally
+    making it easier to edit and read doc comments.
     
-    Fixes #58727.
+    For #51082.
     
-    Change-Id: Ic5b7e93adca3f1ff9f0de33dbb6089f46cdf4738
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472356
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I6ab3b80846f03d781951111e4c36f86f47d21bb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384264
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/doc.go              | 4 +---
- src/cmd/link/internal/ld/main.go | 2 +-
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/go/ast/ast.go                        |   1 +
+ src/go/printer/comment.go                | 152 +++++++++++++++++++++++++++++++
+ src/go/printer/printer.go                |  19 +++-
+ src/go/printer/printer_test.go           |   4 +-
+ src/go/printer/testdata/comments.golden  |  11 ++-
+ src/go/printer/testdata/comments.input   |  18 ++--
+ src/go/printer/testdata/comments.x       |   1 -
+ src/go/printer/testdata/comments2.golden |   1 -
+ src/go/printer/testdata/doc.golden       |  21 +++++
+ src/go/printer/testdata/doc.input        |  20 ++++
+ 10 files changed, 234 insertions(+), 14 deletions(-)

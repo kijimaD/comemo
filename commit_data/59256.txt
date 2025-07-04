@@ -1,17 +1,14 @@
-commit 8433412b741e60f8a6f9608bcf81a6ce1a10a75e
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Apr 8 14:12:00 2025 -0400
+commit ed07e16ffd899e6473cd7a4700d38a9054ecbcf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 28 10:30:16 2024 -0500
 
-    go/types: document that Defs[id] may be missing in ill-typed code
+    cmd/go: fix TestScript/mod_vendor_goversion for CL 567476
     
-    Updates #70968
-    
-    Change-Id: Id0a4acd6bad917ba8a5c439625bca14469b6eb7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663895
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Change-Id: I00b9934a4942a662a2eb14941c9d07e8750aa1b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567815
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/api.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

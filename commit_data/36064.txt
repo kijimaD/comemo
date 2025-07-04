@@ -1,22 +1,32 @@
-commit d286d4b1415de23464e0d6a38ce31c72bafb24fd
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 17 22:35:10 2018 -0400
+commit b44e73eacbce790a1dfcad293604a4b9f5f6976f
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Mon Apr 2 22:50:20 2018 +0300
 
-    cmd/go: convert module tests to scripts
+    test/fixedbugs: fix bug248 and bug345
     
-    Change-Id: If0976d15027db795f1383ef709c49c838cbb6953
-    Reviewed-on: https://go-review.googlesource.com/124696
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    When test/run script was removed, these two tests
+    were changed to be executed by test/run.go.
+    Because errchk does not exit with non-zero status on
+    errors, they were silently failing for a while.
+    
+    This change makes 2 things:
+    
+    1. Compile tested packages in GOROOT/test to match older runner script
+       behavior (strictly required only in bug345, optional in bug248)
+    
+    2. Check command output with "(?m)^BUG" regexp.
+       It approximates older `grep -q '^BUG' that was used before.
+    
+    See referenced issue for detailed explanation.
+    
+    Fixes #24629
+    
+    Change-Id: Ie888dcdb4e25cdbb19d434bbc5cb03eb633e9ee8
+    Reviewed-on: https://go-review.googlesource.com/104095
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/mod_test.go                           | 172 -----------------------
- src/cmd/go/script_test.go                        |   6 +-
- src/cmd/go/testdata/script/README                |  10 +-
- src/cmd/go/testdata/script/mod_build_tags.txt    |  30 ++++
- src/cmd/go/testdata/script/mod_enabled.txt       |  67 +++++++++
- src/cmd/go/testdata/script/mod_fs_patterns.txt   |  54 +++++++
- src/cmd/go/testdata/script/mod_import_mod.txt    |   7 +
- src/cmd/go/testdata/script/mod_local_replace.txt |  23 +++
- src/cmd/go/testdata/script/mod_versions.txt      |  14 ++
- 9 files changed, 205 insertions(+), 178 deletions(-)
+ test/fixedbugs/bug248.go | 17 +++++++++--------
+ test/fixedbugs/bug345.go | 12 +++++++-----
+ 2 files changed, 16 insertions(+), 13 deletions(-)

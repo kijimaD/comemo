@@ -1,21 +1,24 @@
-commit b7c2ade6964139b99d35f8f4d10d061e4443985f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 1 18:42:36 2012 -0700
+commit a04d4f02a4ff68e0ef7a222d6e301225877ded90
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 1 16:27:49 2012 -0700
 
-    api: add FreeBSD to go1 API
+    go/parser: ~15% faster parsing
     
-    Now that gri has made go/parser 15% faster, I offer this
-    change to slow back down cmd/api ~proportionately, adding
-    FreeBSD to the go1-checked set of platforms.
+    - only compute current line position if needed
+      (i.e., if a comment is present)
     
-    Really we should have done this earlier. This will prevent us
-    from breaking FreeBSD compatibility accidentally in the
-    future.
+    - added benchmark
+    
+    benchmark         old ns/op    new ns/op    delta
+    BenchmarkParse     10902990      9313330  -14.58%
+    
+    benchmark          old MB/s     new MB/s  speedup
+    BenchmarkParse         5.31         6.22    1.17x
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6279044
+    https://golang.org/cl/6270043
 
- api/go1.txt          | 4069 +++++++++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/api/goapi.go |    2 +
- 2 files changed, 4064 insertions(+), 7 deletions(-)
+ src/pkg/go/parser/parser.go           |  4 ++--
+ src/pkg/go/parser/performance_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

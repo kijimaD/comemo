@@ -1,20 +1,17 @@
-commit 143b13ae82d81020dfa6db40818bef5a1f701c3f
-Author: Austin Clements <austin@google.com>
-Date:   Thu Aug 16 12:17:32 2018 -0400
+commit 679004f484f0902b6eb8c66eb40c88f98a1163f1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 30 10:10:08 2018 +0200
 
-    runtime: clean up remaining mark work check
+    cmd/dist: remove support for macOS 10.9 and earlier
     
-    Now that STW GC marking is unified with concurrent marking, there
-    should never be mark work remaining in mark termination. Hence, we can
-    make that check unconditional.
+    Updates #23122
     
-    Updates #26903. This is a follow-up to unifying STW GC and concurrent GC.
-    
-    Change-Id: I43a21df5577635ab379c397a7405ada68d331e03
-    Reviewed-on: https://go-review.googlesource.com/c/134781
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I14cfb83f3f78cdbe5880bd29209388ad12b9ee89
+    Reviewed-on: https://go-review.googlesource.com/115236
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go | 26 +++++---------------------
- 1 file changed, 5 insertions(+), 21 deletions(-)
+ src/cmd/dist/main.go | 26 ++------------------------
+ 1 file changed, 2 insertions(+), 24 deletions(-)

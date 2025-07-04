@@ -1,38 +1,27 @@
-commit f1fc9da3167e4424935524a1479442d28e9fd72a
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Jan 24 13:26:15 2018 -0500
+commit 87b3a2783973b75357f8844a12aa36abcc479374
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Sep 27 13:36:54 2017 +0200
 
-    cmd/link: fix up location lists for dsymutil
+    [release-branch.go1.9] net: bump TestDialerDualStackFDLeak timeout on iOS
     
-    LLVM tools, particularly lldb and dsymutil, don't support base address
-    selection entries in location lists. When targeting GOOS=darwin,
-    mode, have the linker translate location lists to CU-relative form
-    instead.
+    On an iPhone 6 running iOS 11, the TestDialerDualStackFDLeak test
+    started failing with dial durations just above the limit:
     
-    Technically, this isn't necessary when linking internally, as long as
-    nobody plans to use anything other than Delve to look at the DWARF. But
-    someone might want to use lldb, and it's really confusing when dwarfdump
-    shows gibberish for the location entries. The performance cost isn't
-    noticeable, so enable it even for internal linking.
+    FAIL: TestDialerDualStackFDLeak (0.21s)
     
-    Doing this in the linker is a little weird, but it was more expensive in
-    the compiler, probably because the compiler is much more stressful to
-    the GC. Also, if we decide to only do it for external linking, the
-    compiler can't see the link mode.
+            dial_test.go:90: got 101.154ms; want <= 95ms
     
-    Benchmark before and after this commit on Mac with -dwarflocationlists=1:
+    Bump the timeout on iOS.
     
-    name        old time/op       new time/op       delta
-    StdCmd            21.3s ± 1%        21.3s ± 1%    ~     (p=0.310 n=27+27)
+    For the iOS builder.
     
-    Only StdCmd is relevant, because only StdCmd runs the linker. Whatever
-    the cost is here, it's not very large.
-    
-    Change-Id: Ic8ef780d0e263230ce6aa3ca3a32fc9abd750b1e
-    Reviewed-on: https://go-review.googlesource.com/97956
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: Id42b471e7cf7d0c84f6e83ed04b395fa1a2d449d
+    Reviewed-on: https://go-review.googlesource.com/66491
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/70987
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 71 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 71 insertions(+)
+ src/net/dial_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

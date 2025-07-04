@@ -1,16 +1,115 @@
-commit 5e35845a4aedd86d51a6b189bbcac688af446ce3
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Dec 10 11:57:35 2019 +0100
+commit 52ae04fdfc66664b327a4cb4057e339f132de8f9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 20 21:15:35 2019 -0700
 
-    runtime: use MRS instruction to read system registers on freebsd/arm64
+    cmd/compile: improve shortcircuit pass
     
-    Support for these was added in CL 189577
+    While working on #30645, I noticed that many instances
+    in which the walkinrange optimization could apply
+    were not even being considered.
     
-    Change-Id: Iaf2a774b141995cbbdfb3888aea67ae9c7f928b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210677
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    This was because of extraneous blocks in the CFG,
+    of the type that shortcircuit normally removes.
+    
+    The change improves the shortcircuit pass to handle
+    most of those cases. (There are a few that can only be
+    reasonably detected later in compilation, after other
+    optimizations have been run, but not enough to be worth chasing.)
+    
+    Notable changes:
+    
+    * Instead of calculating live-across-blocks values, use v.Uses == 1.
+      This is cheaper and more straightforward.
+      v.Uses did not exist when this pass was initially written.
+    * Incorporate a fusePlain and loop until stable.
+      This is necessary to find many of the instances.
+    * Allow Copy and Not wrappers around Phi values.
+      This significantly increases effectiveness.
+    * Allow removal of all preds, creating a dead block.
+      The previous pass stopped unnecessarily at one pred.
+    * Use phielimValue during cleanup instead of manually
+      setting the op to OpCopy.
+    
+    The result is marginally faster compilation and smaller code.
+    
+    name        old time/op       new time/op       delta
+    Template          213ms ± 2%        212ms ± 2%  -0.63%  (p=0.002 n=49+48)
+    Unicode          90.0ms ± 2%       89.8ms ± 2%    ~     (p=0.122 n=48+48)
+    GoTypes           710ms ± 3%        711ms ± 2%    ~     (p=0.433 n=45+49)
+    Compiler          3.23s ± 2%        3.22s ± 2%    ~     (p=0.124 n=47+49)
+    SSA               10.0s ± 1%        10.0s ± 1%  -0.43%  (p=0.000 n=48+50)
+    Flate             135ms ± 3%        135ms ± 2%    ~     (p=0.311 n=49+49)
+    GoParser          158ms ± 2%        158ms ± 2%    ~     (p=0.757 n=48+48)
+    Reflect           447ms ± 2%        447ms ± 2%    ~     (p=0.815 n=49+48)
+    Tar               189ms ± 2%        189ms ± 3%    ~     (p=0.530 n=47+49)
+    XML               251ms ± 3%        250ms ± 1%  -0.75%  (p=0.002 n=49+48)
+    [Geo mean]        427ms             426ms       -0.25%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          265ms ± 2%        265ms ± 2%    ~     (p=0.969 n=48+50)
+    Unicode           119ms ± 6%        119ms ± 6%    ~     (p=0.738 n=50+50)
+    GoTypes           923ms ± 2%        925ms ± 2%    ~     (p=0.057 n=43+47)
+    Compiler          4.37s ± 2%        4.37s ± 2%    ~     (p=0.691 n=50+46)
+    SSA               13.4s ± 1%        13.4s ± 1%    ~     (p=0.282 n=42+49)
+    Flate             162ms ± 2%        162ms ± 2%    ~     (p=0.774 n=48+50)
+    GoParser          186ms ± 2%        186ms ± 3%    ~     (p=0.213 n=47+47)
+    Reflect           572ms ± 2%        573ms ± 3%    ~     (p=0.303 n=50+49)
+    Tar               240ms ± 3%        240ms ± 2%    ~     (p=0.939 n=46+44)
+    XML               302ms ± 2%        302ms ± 2%    ~     (p=0.399 n=47+47)
+    [Geo mean]        540ms             541ms       +0.07%
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         36.8MB ± 0%       36.7MB ± 0%  -0.42%  (p=0.008 n=5+5)
+    Unicode          28.1MB ± 0%       28.1MB ± 0%    ~     (p=0.151 n=5+5)
+    GoTypes           124MB ± 0%        124MB ± 0%  -0.26%  (p=0.008 n=5+5)
+    Compiler          571MB ± 0%        566MB ± 0%  -0.84%  (p=0.008 n=5+5)
+    SSA              1.86GB ± 0%       1.85GB ± 0%  -0.58%  (p=0.008 n=5+5)
+    Flate            22.8MB ± 0%       22.8MB ± 0%  -0.17%  (p=0.008 n=5+5)
+    GoParser         27.3MB ± 0%       27.3MB ± 0%  -0.20%  (p=0.008 n=5+5)
+    Reflect          79.5MB ± 0%       79.3MB ± 0%  -0.20%  (p=0.008 n=5+5)
+    Tar              34.7MB ± 0%       34.6MB ± 0%  -0.42%  (p=0.008 n=5+5)
+    XML              45.4MB ± 0%       45.3MB ± 0%  -0.29%  (p=0.008 n=5+5)
+    [Geo mean]       80.0MB            79.7MB       -0.34%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           378k ± 0%         377k ± 0%  -0.22%  (p=0.008 n=5+5)
+    Unicode            339k ± 0%         339k ± 0%    ~     (p=0.643 n=5+5)
+    GoTypes           1.36M ± 0%        1.36M ± 0%  -0.10%  (p=0.008 n=5+5)
+    Compiler          5.51M ± 0%        5.50M ± 0%  -0.13%  (p=0.008 n=5+5)
+    SSA               17.5M ± 0%        17.5M ± 0%  -0.14%  (p=0.008 n=5+5)
+    Flate              234k ± 0%         234k ± 0%  -0.04%  (p=0.008 n=5+5)
+    GoParser           299k ± 0%         299k ± 0%  -0.05%  (p=0.008 n=5+5)
+    Reflect            978k ± 0%         979k ± 0%  +0.02%  (p=0.016 n=5+5)
+    Tar                351k ± 0%         351k ± 0%  -0.04%  (p=0.008 n=5+5)
+    XML                435k ± 0%         435k ± 0%  -0.11%  (p=0.008 n=5+5)
+    [Geo mean]         840k              840k       -0.08%
+    
+    file      before    after     Δ       %
+    go        14794788  14770212  -24576  -0.166%
+    addr2line 4203688   4199592   -4096   -0.097%
+    api       5954056   5941768   -12288  -0.206%
+    asm       4862704   4846320   -16384  -0.337%
+    cgo       4778920   4770728   -8192   -0.171%
+    compile   24001568  23923792  -77776  -0.324%
+    cover     5198440   5190248   -8192   -0.158%
+    dist      3595248   3587056   -8192   -0.228%
+    doc       4618504   4610312   -8192   -0.177%
+    fix       3337416   3333320   -4096   -0.123%
+    link      6120408   6116312   -4096   -0.067%
+    nm        4149064   4140872   -8192   -0.197%
+    objdump   4555608   4547416   -8192   -0.180%
+    pprof     14616324  14595844  -20480  -0.140%
+    test2json 2766328   2762232   -4096   -0.148%
+    trace     11638844  11622460  -16384  -0.141%
+    vet       8274936   8258552   -16384  -0.198%
+    total     132520780 132270972 -249808 -0.189%
+    
+    Change-Id: Ifcd235a2a6e5f13ed5c93e62523e2ef61321fccf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178197
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/sys_freebsd_arm64.s | 25 ++++++++++---------------
- 1 file changed, 10 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go      |   1 +
+ src/cmd/compile/internal/ssa/shortcircuit.go | 169 ++++++++++++++++-----------
+ 2 files changed, 105 insertions(+), 65 deletions(-)

@@ -1,14 +1,17 @@
-commit 2b239969390553726d5042e723b344f897bf810d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 10 17:02:07 2018 -0700
+commit 07a2ffaf0b2961c76e69e3ca910b6a08a687626b
+Author: Leigh McCulloch <leighmcc@gmail.com>
+Date:   Sat Nov 4 20:54:30 2017 +0000
 
-    cmd/compile: use existing flag bits to record 'used' property of Names (cleanup)
+    doc: move single change workflow note in contribution guide
     
-    Change-Id: I804d5ab111e33bd2c2554e2bac75b5273b0b4160
-    Reviewed-on: https://go-review.googlesource.com/106121
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    The note about the single change workflow is included in the
+    git-codereview installation instructions, but it has nothing to do with
+    installing git-codereview. This note is more relevant for when a change
+    is actually being made.
+    
+    Change-Id: Iccb90f3b7da87fab863fa4808438cd69a21a2fce
+    Reviewed-on: https://go-review.googlesource.com/76317
+    Reviewed-by: Steve Francia <spf@golang.org>
 
- src/cmd/compile/internal/gc/syntax.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ doc/contribute.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

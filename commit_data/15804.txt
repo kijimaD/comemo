@@ -1,15 +1,19 @@
-commit 552207611bc21a0feae14fb8d961668d14729c06
+commit caf513a66c93edb89a4156e4a49f5ece867e21bd
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 15 15:58:43 2013 -0700
+Date:   Fri Mar 15 15:09:17 2013 -0700
 
-    net/http: fix test breakage on Windows
+    net/http: less flaky leaking goroutine test
     
-    Treat the Windows net server as uninteresting for leak
-    purposes too.
+    Fixes #5005
     
-    R=golang-dev, r
+    R=golang-dev, adg, fullung
     CC=golang-dev
-    https://golang.org/cl/7818048
+    https://golang.org/cl/7777043
 
- src/pkg/net/http/z_last_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/http/client_test.go    | 34 +++++++++++------------
+ src/pkg/net/http/fs_test.go        | 26 +++++++++---------
+ src/pkg/net/http/serve_test.go     | 44 +++++++++++++++---------------
+ src/pkg/net/http/sniff_test.go     |  6 ++--
+ src/pkg/net/http/transport_test.go | 56 +++++++++++++++++++-------------------
+ src/pkg/net/http/z_last_test.go    | 51 +++++++++++++++++++++++++++-------
+ 6 files changed, 124 insertions(+), 93 deletions(-)

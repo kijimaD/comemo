@@ -1,22 +1,22 @@
-commit 20de705b711778864f285f06e42393c9ea2dad36
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Mar 3 06:22:11 2016 +0900
+commit a8fc547f786f17ad5a2176d9041a8d1f76895748
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 11:36:36 2016 -0500
 
-    net: deduplicate UDP socket code
+    cmd/compile: apply -importmap to imports before checking for package unsafe
     
-    This change consolidates functions and methods related to UDPAddr and
-    UDPConn for maintenance purpose, especially for documentation.
+    There are fewer special cases this way: the import map applies
+    to all import paths, not just the ones not spelled "unsafe".
     
-    The followup changes will update comments and examples.
+    This is also consistent with what the code in cmd/go and go/build expects.
+    They make no exception for "unsafe".
     
-    Updates #10624.
+    For #13703.
     
-    Change-Id: Idfe9be8ea46ade1111b0ae176862b2048eafc7be
-    Reviewed-on: https://go-review.googlesource.com/20120
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I622295261ca35a6c1e83e8508d363bddbddb6c0a
+    Reviewed-on: https://go-review.googlesource.com/18438
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/udpsock.go       | 178 +++++++++++++++++++++++++++++++++++++++++++++++
- src/net/udpsock_plan9.go | 139 +++++-------------------------------
- src/net/udpsock_posix.go | 176 ++++++----------------------------------------
- 3 files changed, 216 insertions(+), 277 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

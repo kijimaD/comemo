@@ -1,34 +1,35 @@
-commit 39d3c4ad35984b470b2928a37ea4a7e721b1225a
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Oct 24 16:24:39 2023 +0800
+commit 81c9b1d65f3e416e134a30484c4bd6563aa825b5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Nov 17 01:02:26 2022 +0700
 
-    debug/elf,cmd/link: add additional relocations for loong64
+    cmd/compile: fix broken IR for iface -> eface
     
-    The Linker Relaxation feature on Loong64 is already supported in binutils 2.41.
-    The intermediate code generated after enabling this feature introduces three
-    reloc types R_LARCH_B26, R_LARCH_ADD32 and R_LARCH_SUB32.
+    For implementing interface to empty interface conversion, the compiler
+    generate code like:
     
-    The other relocation types are not currently used when running all.bash, but
-    in order to avoid the host tool chain making the decision to use it we don't
-    have to catch it every time.
+            var res *uint8
+            res = itab
+            if res != nil {
+                    res = res.type
+            }
     
-    The LoongArch ABI at here:
-    https://github.com/loongson/la-abi-specs/blob/release/la-abi.adoc
+    However, itab has type *uintptr, so the assignment is broken. The
+    problem is not shown up, until CL 450215, which call typecheck on this
+    broken assignment.
     
-    Corresponding binutils implementation:
-    https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=be1ebb6710a8f707bd4b0eecbd00f4f4964050e5
-    https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=1b6fccd28db14fffe75ff6755307047ef932c81e
+    To fix this, just cast itab to *uint8 when doing the conversion.
     
-    Fixes #63725
+    Fixes #56768
     
-    Change-Id: I891115cfdbcf785ab494c881d5f9d1bf8748da8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/537615
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id42792d18e7f382578b40854d46eecd49673792c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451256
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- api/next/63725.txt                     | 18 ++++++++++++++++++
- src/cmd/link/internal/loadelf/ldelf.go | 18 +++++++++++++++++-
- src/debug/elf/elf.go                   | 18 ++++++++++++++++++
- 3 files changed, 53 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/walk/convert.go |  8 ++++---
+ test/fixedbugs/issue56768.go             | 37 ++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)

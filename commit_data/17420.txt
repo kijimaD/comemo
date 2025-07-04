@@ -1,16 +1,28 @@
-commit 65f21ca2c6e62cc9fb77a285764420df9e7f248f
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 29 17:15:35 2013 +1000
+commit 27f4166e372084e1d78119183d14b76391c803cb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 29 14:45:59 2013 +1000
 
-    cmd/go: make it work for code.google.com cloned repositories
+    undo CL 13180043 / 318540e7857f
     
-    Thanks to beatgammit for the fix.
+    Accidentally submitted.
     
-    Fixes #5408.
+    ««« original CL description
+    encoding/json: add "overflow" struct tag option
     
-    R=golang-dev, bradfitz
+    Fixes #6213.
+    
+    R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13261048
+    https://golang.org/cl/13180043
+    »»»
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/13234045
 
- src/cmd/go/vcs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/json/decode.go       | 102 ++++++++++++++--------------------
+ src/pkg/encoding/json/decode_test.go  |  20 -------
+ src/pkg/encoding/json/encode.go       |  65 ++--------------------
+ src/pkg/encoding/json/encode_test.go  |  56 -------------------
+ src/pkg/encoding/json/example_test.go |  46 ---------------
+ 5 files changed, 49 insertions(+), 240 deletions(-)

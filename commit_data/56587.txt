@@ -1,21 +1,20 @@
-commit 4b778470f834f80aaa84d2066da12889e8ab285f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 21 15:05:55 2024 -0700
+commit bf8571c5d6ce823e3ad7491429cf26d3a74461aa
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri May 5 13:22:02 2023 +0200
 
-    go/types, types2: coreType/String must consider Alias types
+    crypto/ed25519,crypto/rsa: make Equal methods constant time
     
-    Fixes regression from Go 1.22.
+    Fixes #53849
+    Updates #57752
     
-    For #67547.
-    
-    Change-Id: Idd319b9d2a73c824caa2c821df0e2fcd4f58cb08
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587176
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I055564f31a47c79565b82bf9844fcf626989b295
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492955
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/under.go            |  2 ++
- src/go/types/under.go                               |  2 ++
- src/internal/types/testdata/fixedbugs/issue67547.go | 12 ++++++++++++
- 3 files changed, 16 insertions(+)
+ src/crypto/ed25519/ed25519.go |  5 +++--
+ src/crypto/rsa/rsa.go         | 12 +++++++++---
+ 2 files changed, 12 insertions(+), 5 deletions(-)

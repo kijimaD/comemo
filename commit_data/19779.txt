@@ -1,16 +1,24 @@
-commit a7fe1f1612051f683971d3fb22341c6f63c25033
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Sun Jul 20 13:14:53 2014 +0300
+commit a91c1f5c833b7a9b1d0c8620a66ba5ee9dc286d9
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Jul 19 12:16:16 2014 +0300
 
-    build: be verbose when running tests on Plan 9
+    cmd/addr2line, cmd/objdump: fix on amd64 Plan 9
     
-    This is a temporary change to see how far the
-    builder gets when it times out.
+    Fix virtual address of the start of the text segment
+    on amd64 Plan 9.
     
-    LGTM=aram, 0intro
-    R=0intro, aram
-    CC=golang-codereviews, mischief
-    https://golang.org/cl/111400043
+    This issue has been partially fixed in cmd/add2line,
+    as part of CL 106460044, but we forgot to report the
+    change to cmd/objdump.
+    
+    In the meantime, we also fixed the textStart address
+    in both cmd/add2line and cmd/objdump.
+    
+    LGTM=aram, ality, mischief
+    R=rsc, mischief, aram, ality
+    CC=golang-codereviews, jas
+    https://golang.org/cl/117920043
 
- src/run.rc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/addr2line/main.go |  9 +++------
+ src/cmd/objdump/main.go   | 13 +++----------
+ 2 files changed, 6 insertions(+), 16 deletions(-)

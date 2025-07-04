@@ -1,12 +1,16 @@
-commit 1a03580ef112d7e7103790e102a5582b8dcbaf0d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jan 16 14:05:41 2013 -0800
+commit 399a36a634d58f14f1945b83a84b884c9dfb72da
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 15 19:25:16 2013 +1100
 
-    net/http: Serve creates service goroutines, not service threads
+    doc: fix various fragment links
     
-    R=bradfitz
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/7132045
+    https://golang.org/cl/7094058
 
- src/pkg/net/http/server.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/articles/c_go_cgo.html           | 4 ++--
+ doc/articles/go_command.html         | 2 +-
+ doc/articles/laws_of_reflection.html | 2 +-
+ doc/code.html                        | 4 ++--
+ doc/go_faq.html                      | 4 ++--
+ 5 files changed, 8 insertions(+), 8 deletions(-)

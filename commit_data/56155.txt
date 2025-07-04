@@ -1,25 +1,31 @@
-commit 8008998b14a6e704b38244f7dff878753d5d179b
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Apr 5 18:22:10 2024 -0400
+commit c38d122fd4df8481a5b57a696945d65b7d4fc28e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 13 03:19:20 2023 +0000
 
-    all: update vendored golang.org/x/net
+    cmd/internal/moddeps: preserve PWD more carefully in commands
     
-    Pull in CL 576895:
+    On macOS, TMPDIR is typically a symlink, and the GOROOT for the
+    buildlet is in TMPDIR as well. PWD must be preserved in order for
+    os.Getwd (and functions based on it) to report paths that remain
+    relative to GOROOT, and paths relative to GOROOT are necessary in
+    order for filepath.Rel to report subdirectories as subdirectories
+    (rather than paths with long "../../…" prefixes).
     
-            ec05fdcd http2: don't retry the first request on a connection on GOAWAY error
+    Fortunately, the (*Cmd).Environ method added for #50599 makes
+    preserving PWD somewhat easier.
     
-    For #66668.
-    Fixes #60636.
+    This fixes 'go test cmd/internal/moddeps' on the new
+    darwin-amd64-longtest builder.
     
-    Change-Id: I9903607e3d432a5db0325da82eb7f4b378fbddde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576976
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #35678.
+    
+    Change-Id: Ibaa458bc9a94b44ba455519bb8da445af07fe0d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484295
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/go.mod                |  2 +-
- src/go.sum                |  4 ++--
- src/net/http/h2_bundle.go | 15 ++++++++++++++-
- src/vendor/modules.txt    |  2 +-
- 4 files changed, 18 insertions(+), 5 deletions(-)
+ src/cmd/internal/moddeps/moddeps_test.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

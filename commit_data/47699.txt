@@ -1,20 +1,19 @@
-commit 1876b38263407ba51f9f3fa2e412ac3f84d3cb95
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Thu Dec 2 13:37:25 2021 -0500
+commit 0a510478b0294744894385c6c6f5ded6829b6524
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 5 20:26:11 2021 -0400
 
-    doc/go1.18: add docs for SysProcAttr.Pdeathsig
+    runtime: use register ABI for race detector functions
     
-    CL 355570
+    runtime.raceread/racewrite/racewriterange are functions that are
+    called from compiler instrumented code, follwoing ABIInternal.
+    They are assembly functions defined as ABIInternal in the runtime,
+    in order to avoid wrappers because they need to get the caller's
+    PC. This CL makes them to use the actual internal ABI.
     
-    Updates #47694
-    
-    Change-Id: I922cda28ca4cf1ae6d5e4f457cc66d5041b0e3e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368798
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Id91d73cf257f7b11a858958d85c38c4aa904d9c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307812
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/go1.18.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/race_amd64.s | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,19 +1,27 @@
-commit a9e2479a4453ce1a2b3583212a6e64c99c31bbfe
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 30 16:05:18 2017 -0700
+commit b9a79f32b19eac12f3e161a339a8c1b751e47320
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 14 18:38:46 2017 -0700
 
-    bytes: set cap of slices returned by Split and Fields and friends
+    archive/tar: make Writer error handling consistent
     
-    This avoids the problem in which appending to a slice returned by
-    Split can affect subsequent slices.
+    The Writer logic was not consistent about when an IO error would
+    persist across multiple calls on Writer's methods.
     
-    Fixes #21149.
+    Thus, to make the error handling more consistent we always check
+    the persistent state of the error prior to every exported method
+    call, and return an error if set. Otherwise, it is the responsibility
+    of every exported method to persist any fatal errors that may occur.
     
-    Change-Id: Ie3df2b9ceeb9605d4625f47d49073c5f348cf0a1
-    Reviewed-on: https://go-review.googlesource.com/74510
-    Reviewed-by: Jelte Fennema <github-tech@jeltef.nl>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    As a simplification, we can remove the close field since that
+    information can be represented by simply storing ErrWriteAfterClose
+    in the err field.
+    
+    Change-Id: I8746ca36b3739803e0373253450db69b3bd12f38
+    Reviewed-on: https://go-review.googlesource.com/55590
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bytes/bytes.go      | 10 ++++----
- src/bytes/bytes_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 65 insertions(+), 7 deletions(-)
+ src/archive/tar/writer.go      |  83 +++++++++++++++-------------
+ src/archive/tar/writer_test.go | 122 +++++++++++++++++++++++++++++++----------
+ 2 files changed, 137 insertions(+), 68 deletions(-)

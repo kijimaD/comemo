@@ -1,15 +1,13 @@
-commit 1e0b37890559538efbde6e1fb013b8b676db7d17
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 31 09:32:09 2014 -0700
+commit 17992f7a06c99b85429aa16118388551a7cc38bb
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jul 31 17:34:48 2014 +1000
 
-    runtime: use right mask to extract type kind
+    image/jpeg: rename some internal variables.
     
-    Cleanup from recent malloc changes.
-    
-    LGTM=dvyukov
-    R=dvyukov
+    LGTM=dsymonds
+    R=dsymonds
     CC=golang-codereviews
-    https://golang.org/cl/120960043
+    https://golang.org/cl/120980043
 
- src/pkg/runtime/race.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/image/jpeg/scan.go | 33 ++++++++++++++++-----------------
+ 1 file changed, 16 insertions(+), 17 deletions(-)

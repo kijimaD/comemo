@@ -1,12 +1,16 @@
-commit 5512ac2786f505dc4e63235de1e593ab295a15be
-Author: Rob Pike <r@golang.org>
-Date:   Wed Sep 16 10:55:25 2015 -0700
+commit 23f4e43564a674ed6768bb262fa8c7263bc4aead
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 22 12:42:28 2015 +1000
 
-    doc: go1.6.txt: add math/rand.Read
+    lib/time: update to IANA release 2015e.
     
-    Change-Id: I94af55bb894409b77bd87df36be9471dcc544fda
-    Reviewed-on: https://go-review.googlesource.com/14627
+    Fixes #11810.
+    
+    Change-Id: I8453e53a72e242a69ea34eb393999e7291d4358f
+    Reviewed-on: https://go-review.googlesource.com/12502
+    Run-TryBot: David Symonds <dsymonds@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.6.txt | 1 +
- 1 file changed, 1 insertion(+)
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 360713 -> 359824 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

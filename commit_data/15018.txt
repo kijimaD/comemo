@@ -1,12 +1,21 @@
-commit ba4197851606c9cd95e98b75d86c47604c5ffce8
-Author: Francesc Campoy <campoy@golang.org>
-Date:   Tue Jan 29 15:17:39 2013 -0800
+commit ad37081b672a22f573f91aca7a5828e2c9718314
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 13:34:18 2013 -0800
 
-    go/misc/dist: Keep file modes when copying.
+    encoding/json: add test for Unmarshal of malformed data
     
-    R=adg
+    Roll back CL making primitive type unmarshal faster,
+    because it broke the Unmarshal of malformed data.
+    
+    Add benchmarks for unmarshal of primitive types.
+    
+    Update #3949.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7221055
+    https://golang.org/cl/7228061
 
- misc/dist/bindist.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/pkg/encoding/json/bench_test.go  | 34 +++++++++++++++++++++++++++++++++-
+ src/pkg/encoding/json/decode.go      | 19 -------------------
+ src/pkg/encoding/json/decode_test.go | 23 ++++++++++++++++++++++-
+ 3 files changed, 55 insertions(+), 21 deletions(-)

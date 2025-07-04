@@ -1,31 +1,12 @@
-commit dc6df1b07093ffa0568a581251e8ddd38f707ed6
-Author: Shawn Walker-Salas <shawn.walker@oracle.com>
-Date:   Thu Sep 17 15:47:20 2015 -0700
+commit a60c5366f91934a36793bde74556f4b637954665
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Jul 24 15:35:45 2015 +1200
 
-    cmd/go: elide -rpath when not applicable and used via LDFLAGS
+    test: do not run external linking test on ppc64le
     
-    Some linker flags should only be applied when performing the final
-    linking step for a shared library or executable, etc. In other
-    contexts, they're either invalid, or meaningless to apply (so should
-    not be specified).
-    
-    When an external linker is used (either directly by Go or by the
-    compiler driver used by cgo), -rpath and -rpath-link should only be
-    specified in the final linking step.  On platforms such as Solaris,
-    ld(1) will reject its use in any other scenario (such as when linking
-    relocatable objects).
-    
-    This change is necessary because Go does not currently offer a way to
-    specify LDFLAGS based on when they should be applied.
-    
-    Fixes #12115
-    
-    Change-Id: If35a18d8eee8ec7ddcca2d4ccd41ab6ffcf93b41
-    Reviewed-on: https://go-review.googlesource.com/14674
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9b8a6ac1ff6bef3b7f1e033bfd029f2a59e30297
+    Reviewed-on: https://go-review.googlesource.com/12623
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/build.go | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ test/fixedbugs/issue10607.go | 1 +
+ 1 file changed, 1 insertion(+)

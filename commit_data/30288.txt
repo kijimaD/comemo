@@ -1,13 +1,35 @@
-commit a6b33312366ad321ea6ac6957e6a53bdd41e892e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 15 13:12:53 2017 -0800
+commit b4e714e59efd21f9140a3e8e2b0182c74bfde437
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Oct 29 12:25:20 2016 -0700
 
-    cmd/compile/internal/gc: skip useless loads for non-SSA params
+    compress/gzip: only encode MTIME if it is valid
     
-    Change-Id: I78ca43a0f0a6a162a2ade1352e2facb29432d4ac
-    Reviewed-on: https://go-review.googlesource.com/37102
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The GZIP format records the ModTime as an uint32 counting seconds since
+    the Unix epoch. The zero value is explicitly defined in section 2.3.1
+    as meaning no timestamp is available.
+    
+    Currently, the Writer always encodes the ModTime even if it is the zero
+    time.Time value, which causes the Writer to try and encode the value
+    -62135596800 into the uint32 MTIME field. This causes an overflow and
+    results in our GZIP files having MTIME fields indicating a date in 2042-07-13.
+    
+    We alter the Writer to only encode ModTime if the value does not underflow
+    the MTIME field (i.e., it is newer than the Unix epoch). We do not attempt
+    to fix what happens when the timestamp overflows in the year 2106.
+    
+    We alter the Reader to only decode ModTime if the value is non-zero.
+    There is no risk of overflowing time.Time when decoding.
+    
+    Fixes #17663
+    
+    Change-Id: Ie1b65770c6342cd7b14aeebe10e5a49e6c9eb730
+    Reviewed-on: https://go-review.googlesource.com/32325
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 14 +++-----------
- 1 file changed, 3 insertions(+), 11 deletions(-)
+ src/compress/gzip/gunzip.go          |  6 +++++-
+ src/compress/gzip/gzip.go            | 14 +++++++-------
+ src/compress/gzip/gzip_test.go       |  4 ++++
+ src/compress/gzip/issue14937_test.go |  9 ++++++---
+ 4 files changed, 22 insertions(+), 11 deletions(-)

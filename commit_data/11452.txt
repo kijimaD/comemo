@@ -1,14 +1,12 @@
-commit 108961b21649cd7c2d8f9650542b2228fea09613
-Author: Rob Pike <r@golang.org>
-Date:   Sun Jan 29 11:06:39 2012 -0800
+commit fd693388e6f9dfb7f1a0c3980acdcef7aac77638
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 29 14:04:24 2012 -0500
 
-    cmd/go: slightly less confusing error message
-    If the argument to go fix isn't a package directory, the message said nothing helpful.
-    Now it at least says a package couldn't be found.
+    codereview: fix initialization check
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5577072
+    https://golang.org/cl/5596046
 
- src/cmd/go/pkg.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ lib/codereview/codereview.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

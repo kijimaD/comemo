@@ -1,36 +1,26 @@
-commit d94b7a187685942579e7d7dc00bf58448cdafce8
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Aug 7 13:02:43 2024 -0400
+commit 47112996619da0683eb15e611a1e2df85416feee
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 17 14:20:21 2023 -0700
 
-    cmd/compile,internal/runtime/maps: add extendible hashing
+    cmd/compile: use jump tables for large type switches
     
-    Extendible hashing splits a swisstable map into many swisstables. This
-    keeps grow operations small.
+    For large interface -> concrete type switches, we can use a jump
+    table on some bits of the type hash instead of a binary search on
+    the type hash.
     
-    For #54766.
+    name                        old time/op  new time/op  delta
+    SwitchTypePredictable-24    1.99ns ± 2%  1.78ns ± 5%  -10.87%  (p=0.000 n=10+10)
+    SwitchTypeUnpredictable-24  11.0ns ± 1%   9.1ns ± 2%  -17.55%  (p=0.000 n=7+9)
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-amd64-longtest-swissmap
-    Change-Id: Id91f34af9e686bf35eb8882ee479956ece89e821
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604936
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ida4768e5d62c3ce1c2701288b72664aaa9e64259
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521497
     Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/reflectdata/map_swiss.go | 163 ++++---
- src/internal/runtime/maps/export_noswiss_test.go  |   4 +-
- src/internal/runtime/maps/export_swiss_test.go    |   4 +-
- src/internal/runtime/maps/export_test.go          |  27 +-
- src/internal/runtime/maps/fuzz_test.go            |  12 +-
- src/internal/runtime/maps/map.go                  | 278 ++++++++++-
- src/internal/runtime/maps/map_swiss_test.go       | 228 ++++++++++
- src/internal/runtime/maps/map_test.go             | 211 +++++++--
- src/internal/runtime/maps/table.go                | 532 ++++++++++++++--------
- src/internal/runtime/maps/table_debug.go          |   8 +-
- src/runtime/map_benchmark_test.go                 |   5 +-
- src/runtime/map_swiss.go                          |   2 +-
- src/runtime/map_swiss_test.go                     |   8 +-
- src/runtime/map_test.go                           |  27 ++
- test/live.go                                      |   2 +-
- test/live2.go                                     |   4 +-
- test/live_regabi_swiss.go                         |   2 +-
- 17 files changed, 1183 insertions(+), 334 deletions(-)
+ src/cmd/compile/internal/test/switch_test.go | 42 ++++++++++++++
+ src/cmd/compile/internal/walk/switch.go      | 82 +++++++++++++++++++++++++++-
+ test/codegen/switch.go                       | 19 +++++++
+ 3 files changed, 142 insertions(+), 1 deletion(-)

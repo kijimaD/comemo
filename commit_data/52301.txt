@@ -1,22 +1,23 @@
-commit 3128edfe59d3f0d677ae9ad24bf2c7474056787a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Mar 15 19:26:33 2023 +0100
+commit 534a911338a05b74b5c419080d563c6ae06d6dc8
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Apr 20 12:46:17 2022 -0400
 
-    syscall: let EPLAN9 and EWINDOWS implement errors.ErrUnsupported
+    runtime: skip TestNoShrinkStackWhileParking on openbsd
     
-    As suggested by Bryan. This should fix the failing
-    TestIPConnSpecificMethods on plan9 after CL 476217 was submitted.
+    The test has proven to be flaky on OpenBSD since March, and there
+    hasn't been progress on resolving this finding. Mark the test as
+    flaky to so that this problem doesn't block the Go 1.19 release.
     
-    For #41198
+    Updates #51482.
     
-    Change-Id: I18e87b3aa7c9f7d48a1bd9c2819340acd1d2ca4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476578
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I92ad7498c20cfa94565880363bec85f9a4f3e916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401335
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/syscall/syscall_plan9.go   | 3 +++
- src/syscall/syscall_windows.go | 2 ++
- 2 files changed, 5 insertions(+)
+ src/runtime/chan_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

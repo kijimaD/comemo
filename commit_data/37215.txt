@@ -1,31 +1,14 @@
-commit a1ee0a21cfd3d44f4585c1eb57698460abbfc7f1
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Oct 31 17:27:16 2018 +0100
+commit d49572eaf38f85b661078ec6a628ce0fa3903275
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 10 13:25:46 2018 -0700
 
-    runtime, time: refactor startNano handling
+    test: add order of evaluation test case that gccgo got wrong
     
-    Move startNano from runtime to time package.
-    In preparation for a subsequent change that speeds up Since and Until.
-    This also makes code simpler as we have less assembly as the result,
-    monotonic time handling is better localized in time package.
-    This changes values returned from nanotime on windows
-    (it does not account for startNano anymore), current comments state
-    that it's important, but it's unclear how it can be important
-    since no other OS does this.
+    Updates #23188
     
-    Update #25729
-    
-    Change-Id: I2275d57b7b5ed8fd0d53eb0f19d55a86136cc555
-    Reviewed-on: https://go-review.googlesource.com/c/146340
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idc5567546d1c4c592f997a4cebbbf483b85331e0
+    Reviewed-on: https://go-review.googlesource.com/123115
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go             |  3 +--
- src/runtime/sys_windows_386.s   |  7 +------
- src/runtime/sys_windows_amd64.s |  2 --
- src/runtime/sys_windows_arm.s   | 12 ++----------
- src/runtime/time.go             |  8 --------
- src/runtime/timeasm.go          |  2 --
- src/runtime/timestub.go         |  2 +-
- src/time/sleep.go               |  3 ---
- src/time/time.go                | 12 ++++++++++++
- 9 files changed, 17 insertions(+), 34 deletions(-)
+ test/fixedbugs/issue23188.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

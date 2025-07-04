@@ -1,19 +1,26 @@
-commit 8f1099b5850747cf61738606f6a3d1386f4458c6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 5 15:48:32 2021 -0700
+commit d42b32e321fa5c5d2c93b2ad22d48e804c9f45d2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Aug 21 11:51:25 2020 -0400
 
-    cmd/compile/internal/syntax, types2: move cmpPos to pos.Cmp
+    runtime: add sched.lock assertions
     
-    Make position comparison generally available.
+    Functions that require holding sched.lock now have an assertion.
     
-    Change-Id: I94b6f658fa19a15b30574dbb2181879115c131a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307215
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    A few places with missing locks have been fixed in this CL:
+    
+    Additionally, locking is added around the call to procresize in
+    schedinit. This doesn't technically need a lock since the program is
+    still starting (thus no concurrency) when this is called, but lock held
+    checking doesn't know that.
+    
+    Updates #40677
+    
+    Change-Id: I198d3cbaa727f7088e4d55ba8fa989cf1ee8f9cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250261
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/syntax/pos.go     | 39 ++++++++++++++++++++++++++++++
- src/cmd/compile/internal/syntax/testing.go |  8 +++---
- src/cmd/compile/internal/types2/decl.go    | 35 +--------------------------
- src/cmd/compile/internal/types2/scope.go   |  4 +--
- src/cmd/compile/internal/types2/stmt.go    |  2 +-
- 5 files changed, 47 insertions(+), 41 deletions(-)
+ src/runtime/proc.go | 62 ++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 49 insertions(+), 13 deletions(-)

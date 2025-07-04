@@ -1,18 +1,30 @@
-commit 205640ed7b6b93d88351c85f0ecfb37d075f8dcf
-Author: Changkun Ou <hi@changkun.de>
-Date:   Fri Aug 27 17:08:23 2021 +0200
+commit 18bd7aa62581f313c86164d763b1e246307888a9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 20 17:03:36 2021 -0800
 
-    runtime: avoid run TestSyscallN in parallel
+    [dev.typeparams] cmd/compile: use nil instead of syntax.ImplicitOne
     
-    Fixes #48012
+    Represent x++/-- as x +=/-= with the RHS of the assignment being nil
+    rather than syntax.ImplicitOne.
     
-    Change-Id: Ie27eb864ac387ecf5155a3aefa81661f1448ace5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345670
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Dependent code already had to check for syntax.ImplicitOne, but
+    then shared some existing code for regular assignment operations.
+    Now always handle this case fully explicit, which simplifies the
+    code.
+    
+    Change-Id: I28c7918153c27cbbf97b041d0c85ff027c58687c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285172
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/syscall_windows_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/noder/expr.go     |  4 --
+ src/cmd/compile/internal/noder/noder.go    | 16 ++++----
+ src/cmd/compile/internal/noder/stmt.go     |  2 +-
+ src/cmd/compile/internal/syntax/nodes.go   |  2 +-
+ src/cmd/compile/internal/syntax/parser.go  |  6 +--
+ src/cmd/compile/internal/syntax/printer.go |  2 +-
+ src/cmd/compile/internal/syntax/walk.go    |  4 +-
+ src/cmd/compile/internal/types2/expr.go    |  1 +
+ src/cmd/compile/internal/types2/pos.go     |  2 +-
+ src/cmd/compile/internal/types2/stmt.go    | 62 +++++++++++++++---------------
+ 10 files changed, 48 insertions(+), 53 deletions(-)

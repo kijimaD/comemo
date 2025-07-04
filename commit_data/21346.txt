@@ -1,12 +1,12 @@
-commit 891d344cd0b9c43b6dc89a0920c57442b93326cf
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 23 11:08:32 2015 -0500
+commit 8a853aa5cbe4432cd7794e791676821af94f0946
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Dec 14 07:59:11 2014 -0800
 
-    cmd/go: on arm, all binaries depend on math
+    runtime: correct ptrSize test in Linux version of sysReserve
     
-    Change-Id: I10b781927245a3e9822f9cffe254f226a5b93213
-    Reviewed-on: https://go-review.googlesource.com/3279
+    Change-Id: I90a8ca51269528a307e0d6f52436fc7913cd7900
+    Reviewed-on: https://go-review.googlesource.com/1541
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/pkg.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/mem_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

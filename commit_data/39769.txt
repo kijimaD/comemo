@@ -1,20 +1,17 @@
-commit 9c295bdeabb47891e216139d88881613a52514b8
-Author: Derek Phan <derekphan94@gmail.com>
-Date:   Tue Aug 13 01:05:19 2019 +0000
+commit b4f3b8a313a81105d923d2b7ed0b8b7524084b63
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Mar 19 15:52:10 2019 +0200
 
-    net/http: remove redundant port validation
+    cmd/go/internal/work: whitelist tvOS and watchOS compiler flags
     
-    The URL port is already checked in net/url, so we can remove the redundant validation in net/http.
+    Updates #22395
     
-    Fixes #33600
-    
-    Change-Id: I62511a452df6262d4b66180933758d34627ff9df
-    GitHub-Last-Rev: c19afa31025fee68ba0601bb75e9e20e09a36822
-    GitHub-Pull-Request: golang/go#33611
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190057
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I6c207934b32d38374875f756c4f8c6dfe38d8cb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168318
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/transport.go | 22 ----------------------
- 1 file changed, 22 deletions(-)
+ src/cmd/go/internal/work/security.go | 4 ++++
+ 1 file changed, 4 insertions(+)

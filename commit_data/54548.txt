@@ -1,19 +1,32 @@
-commit 451e4727ec825a7ce6f6e6f82761ff90c33fec83
-Author: Rob Pike <r@golang.org>
-Date:   Sat Sep 16 15:22:44 2023 +1000
+commit e943dc5a8ccab90286d3882e5d13e9fa9516f243
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Mon Oct 31 17:18:32 2022 +0000
 
-    runtime: reword the documentation for Pinner
+    net/http: deflake TestCancelRequestWhenSharingConnection
     
-    I found the documentation for Pinner itself to contain too little information.
-    Rewrite it to give a summary and redirect to the relevant methods.
-    Also reformat the ragged comment for Pin.
+    The test sleeps for 1 millisecond to give the cancellation a moment
+    to take effect. This is flaky because the request can finish before
+    the cancellation of the context is seen. It's easy to verify by adding
     
-    Change-Id: I9c786817f43dfc9c72178127c141c35dae221104
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528855
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+        time.Sleep(2*time.Millisecond)
+    
+    after https://github.com/golang/go/blob/0a6c4c87404ecb018faf002919e5d5db04c69ee2/src/net/http/transport.go#L2619.
+    With this modification, the test fails about 5 times out of 10 runs.
+    
+    The fix is easy. We just need to block the handler of the second
+    request until this request is cancelled. I have verify that the
+    updated test can uncover the issue fixed by CL 257818.
+    
+    Fixes #55226.
+    
+    Change-Id: I81575beef1a920a2ffaa5c6a5ca70a4008bd5f94
+    GitHub-Last-Rev: 99cb1c2eaed7839394adbb6bbcd4950cd4bfb6f3
+    GitHub-Pull-Request: golang/go#56500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446676
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/pinner.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/net/http/transport_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

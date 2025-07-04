@@ -1,16 +1,14 @@
-commit 7412583e8939061a9028b1b16b95cae1b1c5ea6f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 20 11:01:21 2011 -0700
+commit 123e89fef1aceac1c8fa5a0201c851734beb577d
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Wed Apr 20 10:07:56 2011 -0700
 
-    gofix, gofmt: update documentation
+    gofmt: add -diff
     
-    gofmt: also fix a typo in gofmt.go
+    Some code duplication with gofix.
     
-    R=rsc, r
+    R=rsc, gri, bradfitzgo, r2, adg, peterGo, r, brainman
     CC=golang-dev
-    https://golang.org/cl/4431055
+    https://golang.org/cl/4430054
 
- src/cmd/gofix/doc.go   |  4 +++-
- src/cmd/gofmt/doc.go   | 26 +++++++++++++++++---------
- src/cmd/gofmt/gofmt.go |  2 +-
- 3 files changed, 21 insertions(+), 11 deletions(-)
+ src/cmd/gofmt/gofmt.go | 46 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 45 insertions(+), 1 deletion(-)

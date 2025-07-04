@@ -1,21 +1,15 @@
-commit 36a3d4f3fea7bbb22be061fbe830420990cd3ecf
-Author: Ian Davis <nospam@iandavis.com>
-Date:   Tue Sep 25 15:33:49 2018 +0100
+commit 5776bd558fd0cfe40c71dac549db148ea16c0fce
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed May 23 05:33:06 2018 +0000
 
-    image: avoid sharing test images between tests and benchmarks
+    misc/android: add a NL at the of README
     
-    CL 136796 introduced benchmarks and refactored tests to use a
-    common list of test images. The tests now fail when run with
-    count > 2 since they rely on a fresh image each run.
+    There is no NL at the end of README, and that make it strange
+    when doing "cat misc/android/README".
     
-    Fix this by changing the list of test images to a list of test
-    image generator functions.
-    
-    Change-Id: I5884c6bccba5e29bf84ee546fa501bc258379f42
-    Reviewed-on: https://go-review.googlesource.com/137295
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib47953d7b16e8927a4d6be7d5be8de8f2ddbcc39
+    Reviewed-on: https://go-review.googlesource.com/114010
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
 
- src/image/image_test.go | 38 ++++++++++++++++++++++----------------
- 1 file changed, 22 insertions(+), 16 deletions(-)
+ misc/android/README | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit be152920b90dd0fd73e2b2d6ffea294e09fc36be
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jul 2 17:17:39 2024 +0700
+
+    cmd/compile: fix ICE when compiling global a, b = f()
+    
+    CL 327651 rewrites a, b = f() to use temporaries when types are not
+    identical. That would leave OAS2 node appears in body of init function
+    for global variables initialization. The staticinit pass is not updated
+    to handle OAS2 node, causing ICE when compiling global variables.
+    
+    To fix this, handle OAS2 nodes like other OAS2*, since they mostly
+    necessitate dynamic execution anyway.
+    
+    Fixes #68264
+    
+    Change-Id: I1eff8cc3e47035738a2c70d3169e35ec36ee9242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596055
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/staticinit/sched.go | 14 ++++++++++++++
+ test/fixedbugs/issue68264.go                 | 15 +++++++++++++++
+ 2 files changed, 29 insertions(+)

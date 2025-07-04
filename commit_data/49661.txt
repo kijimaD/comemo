@@ -1,31 +1,78 @@
-commit c5da4fb7ac5cb7434b41fc9a1df3bee66c7f1a4d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Jul 21 18:23:39 2022 -0400
+commit ead3fe0dbac8f59a7199dddd4e092cac2d73aa65
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Sep 1 20:04:30 2021 -0400
 
-    cmd/compile: make jump table symbol local
+    all: update vendored dependencies for Go 1.18
     
-    When using plugins, if the plugin and the main executable both
-    have the same function, and if it uses jump table, currently the
-    jump table symbol have the same name so it will be deduplicated by
-    the dynamic linker. This causes a function in the plugin may (in
-    the middle of the function) jump to the function with the same name
-    in the main executable (or vice versa). But the function may be
-    compiled slightly differently, because the plugin needs to be PIC.
-    Jumping from the middle of one function to the other will not work.
-    Avoid this problem by marking the jump table symbol local to a DSO.
+    Go 1.18 development is well underway. This is a time to update all
+    golang.org/x/... module versions that contribute packages to the std
+    and cmd modules in the standard library to latest master versions.
     
-    Fixes #53989.
+            gotip $ updatestd -goroot=$(pwd) -branch=master
+            > go version
+            go version devel go1.18-2872496ba5 Wed Sep 1 23:41:53 2021 +0000 darwin/amd64
+            > go env GOROOT
+            /Users/dmitshur/gotip
+            > go version -m /Users/dmitshur/go/bin/bundle
+            /Users/dmitshur/go/bin/bundle: go1.17
+                    path    golang.org/x/tools/cmd/bundle
+                    mod     golang.org/x/tools      v0.1.5  h1:ouewzE6p+/VEB31YYnTbEJdi8pFqKp4P4n85vwo3DHA=
+                    dep     golang.org/x/mod        v0.4.2  h1:Gz96sIWK3OalVv/I/qNygP42zyoKp3xptRVCWRFEBvo=
+                    dep     golang.org/x/sys        v0.0.0-20210510120138-977fb7262007      h1:gG67DSER+11cZvqIMb8S8bt0vZtiN6xWYARwirrOSfE=
+                    dep     golang.org/x/xerrors    v0.0.0-20200804184101-5ec99f83aff1      h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
     
-    Change-Id: I2b573b9dfc22401c8a09ffe9b9ea8bb83d3700ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418960
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+            skipping github.com/chzyer/logex (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/chzyer/readline (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/chzyer/test (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/google/pprof (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/ianlancetaylor/demangle (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/yuin/goldmark (out of scope, it's not a golang.org/x dependency)
+            skipping golang.org/x/tools (temporarily out of scope due to golang.org/issue/48124)
+            skipping rsc.io/pdf (out of scope, it's not a golang.org/x dependency)
+            updating module cmd in /Users/dmitshur/gotip/src/cmd
+            > go mod edit -go=1.18
+            > go get -d golang.org/x/arch@ebb09ed340f18f7e2a2200f1adf792992c448346 golang.org/x/crypto@32db794688a5a24a23a43f2a984cecd5b3d8da58 golang.org/x/mod@1b1db11ec8f43eeafa9418698423dc637655ff0c golang.org/x/net@e898025ed96aa6d08e98132b8dca210e9e7a0cd2 golang.org/x/sync@036812b2e83c0ddf193dd5a34e034151da389d09 golang.org/x/sys@f4d43177bf5e2ee98617956e417d0555d4b69c17 golang.org/x/term@6886f2dfbf5b25f595b4fe4279c49956e867c59b golang.org/x/text@383b2e75a7a4198c42f8f87833eefb772868a56f golang.org/x/xerrors@5ec99f83aff198f5fbd629d6c8d8eb38a04218ca
+            go get: upgraded golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e => v0.0.0-20210901143047-ebb09ed340f1
+            go get: upgraded golang.org/x/mod v0.5.1-0.20210827163434-4029241eb1d5 => v0.5.1-0.20210830214625-1b1db11ec8f4
+            go get: upgraded golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 => v0.0.0-20210825183410-e898025ed96a
+            go get: upgraded golang.org/x/term v0.0.0-20210503060354-a79de5458b56 => v0.0.0-20210615171337-6886f2dfbf5b
+            go get: upgraded golang.org/x/text v0.3.3 => v0.3.7
+            > go mod tidy
+            > go mod vendor
+    
+            skipping golang.org/x/tools (temporarily out of scope due to golang.org/issue/48124)
+            updating module std in /Users/dmitshur/gotip/src
+            > go mod edit -go=1.18
+            > go get -d golang.org/x/crypto@32db794688a5a24a23a43f2a984cecd5b3d8da58 golang.org/x/net@e898025ed96aa6d08e98132b8dca210e9e7a0cd2 golang.org/x/sys@f4d43177bf5e2ee98617956e417d0555d4b69c17 golang.org/x/term@6886f2dfbf5b25f595b4fe4279c49956e867c59b golang.org/x/text@383b2e75a7a4198c42f8f87833eefb772868a56f
+            go get: upgraded golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 => v0.0.0-20210615171337-6886f2dfbf5b
+            go get: upgraded golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f => v0.3.7
+            > go mod tidy
+            > go mod vendor
+    
+            updating bundles in /Users/dmitshur/gotip/src
+            > go generate -run=bundle std cmd
+    
+    The x/tools module will be updated in a following CL,
+    after issue #48124 is resolved.
+    
+    The module in GOROOT/src/crypto/ed25519/internal/edwards25519/field/_asm
+    directory is not updated in this CL.
+    
+    For #36905.
+    
+    Change-Id: I728000e8465c0fbf6976629e6da42cc4f9be20fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347191
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- misc/cgo/testplugin/plugin_test.go                |  6 +++
- misc/cgo/testplugin/testdata/issue53989/main.go   | 32 ++++++++++++++
- misc/cgo/testplugin/testdata/issue53989/p/p.go    | 52 +++++++++++++++++++++++
- misc/cgo/testplugin/testdata/issue53989/plugin.go | 13 ++++++
- src/cmd/compile/internal/ssa/rewrite.go           |  1 +
- 5 files changed, 104 insertions(+)
+ src/cmd/go.mod                                     |  6 ++---
+ src/cmd/go.sum                                     | 12 ++++-----
+ .../golang.org/x/arch/arm64/arm64asm/plan9x.go     |  2 +-
+ src/cmd/vendor/golang.org/x/mod/zip/zip.go         | 29 ++++++++++++++++------
+ src/cmd/vendor/modules.txt                         |  6 ++---
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 +--
+ src/vendor/modules.txt                             |  2 +-
+ 8 files changed, 38 insertions(+), 25 deletions(-)

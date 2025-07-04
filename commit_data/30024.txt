@@ -1,23 +1,23 @@
-commit 7ef746961cec772635b83553fec6836956387954
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Feb 1 12:11:54 2017 +0100
+commit a50fbcd331c57b885c13a6c0c2502202417ce312
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 21 13:55:25 2016 -0700
 
-    syscall: regenerate zsyscall_darwin_arm64.go with mksyscall.pl
+    net/http: update bundled http2
     
-    Notably, this change fixes the TestTCPReadWriteAllocs test because
-    the errnoErr wrapper is now used, elimitating the allocation for
-    common errnos.
+    Updates http2 to x/net/http2 git rev 40a0a18 for:
     
-    The change to Dup is caused by a CL 8095 that changed the Dup* calls
-    to use Syscall instead of RawSyscall.
+        http2: fix Server race with concurrent Read/Close
+        http2: make Server reuse 64k request body buffer between requests
+        http2: never Read from Request.Body in Transport to determine ContentLength
     
-    Found while working on the new iOS builders.
+    Fixes #17480
+    Updates #17071
     
-    Change-Id: I44ab9dcad27db190e175aa149865b33944f48674
-    Reviewed-on: https://go-review.googlesource.com/36061
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: If142925764a2e148f95957f559637cfc1785ad21
+    Reviewed-on: https://go-review.googlesource.com/31737
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/zsyscall_darwin_arm64.go | 212 +++++++++++++++++------------------
- 1 file changed, 105 insertions(+), 107 deletions(-)
+ src/net/http/h2_bundle.go | 123 +++++++++++++++++++++++-----------------------
+ 1 file changed, 62 insertions(+), 61 deletions(-)

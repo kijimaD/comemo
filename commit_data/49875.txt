@@ -1,17 +1,21 @@
-commit 57c1edcaec010874ed4a8491ca4ba3a2dda77339
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Aug 12 16:38:56 2022 +0700
+commit 4b654c0eeca65ffc6588ffd9c99387a7e48002c1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 17 16:26:13 2021 -0400
 
-    runtime: mark atomic methods which call nosplit functions as nosplit
+    cmd/compile: SSA ".this" variable
     
-    Fixes #54411
+    We used to not SSA ".this" variable, because in tail-call method
+    wrappers it relies on updating ".this" in place in memory, and
+    the tail call IR node and SSA op do not have an explicit use of
+    ".this". It is no longer the case for the new tail call
+    representation. Remove the restriction.
     
-    Change-Id: I482ebca7365862bfb82a9daf8111c6f395aa1170
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423255
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I4e1ce8459adbb0d5a80c64f1ece982737bd95305
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350751
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/internal/atomic/types.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/compile/internal/ssagen/ssa.go | 6 ------
+ 1 file changed, 6 deletions(-)

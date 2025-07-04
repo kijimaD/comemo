@@ -1,15 +1,15 @@
-commit d30d42915ab9ae24b20674ef20a9f1eac745c714
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Mar 4 09:26:28 2014 +0900
+commit 13ab78fdd995cf328c341d86cdcffd154e3441b7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 4 10:36:04 2014 +1100
 
-    api: add FreeBSD 10 exceptions
+    runtime: update CBARGS macro for nacl/amd64p32
     
-    Update #7193
+    CBARGS is unused on amd64p32 so make this explicit.
     
-    LGTM=minux.ma
-    R=golang-codereviews, rsc, minux.ma, iant
+    LGTM=bradfitz
+    R=rsc, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/57210043
+    https://golang.org/cl/70940043
 
- api/except.txt | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 76 insertions(+)
+ src/pkg/runtime/cgocall.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

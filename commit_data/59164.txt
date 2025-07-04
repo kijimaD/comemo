@@ -1,18 +1,22 @@
-commit fd0805b660890d791a7bcfb76491dd6f87b69641
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Feb 27 18:23:42 2023 +1100
+commit cc276a768feddf6ae1d82b581e0d975a8990d18a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 20 15:40:44 2024 -0800
 
-    cmd/internal/obj/arm64: move register encoding into opldrr/opstrr
+    go/types: generate conversions.go from types2 source
     
-    Rather than having register encoding knowledge in each caller of opldrr/opstrr
-    (and in a separate olsxrr function), pass the registers into opldrr/opstrr and
-    let them handle the encoding. This reduces duplication and improves readability.
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 300 LOC.
     
-    Change-Id: I50a25263f305d01454f3ff95e8b6e7c76e760ab0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471521
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I749e47668e90e77e99109005fbe19045d4a5ad29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565437
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 117 ++++++++++++++++++-------------------
- 1 file changed, 58 insertions(+), 59 deletions(-)
+ src/cmd/compile/internal/types2/conversions.go | 13 +++++++------
+ src/cmd/compile/internal/types2/util.go        |  2 ++
+ src/go/types/conversions.go                    | 11 ++++++++---
+ src/go/types/generate_test.go                  |  1 +
+ src/go/types/util.go                           |  2 ++
+ 5 files changed, 20 insertions(+), 9 deletions(-)

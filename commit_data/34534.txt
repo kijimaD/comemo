@@ -1,35 +1,69 @@
-commit 6436270dadb232e3ef1afc0d4cf714bcb9434910
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 11 16:32:02 2018 -0500
+commit fc768da8b8030e6f344be6bbc86ae08c30f02849
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 29 15:18:52 2017 -0400
 
-    cmd/compile: add fence-post implications to prove
+    cmd/vet: tighten printf format error messages
     
-    This adds four new deductions to the prove pass, all related to adding
-    or subtracting one from a value. This is the first hint of actual
-    arithmetic relations in the prove pass.
+    Every time I see an error that begins `missing argument for Fprintf("%s")`
+    my mental type-checker goes off, since obviously "%s" is not a valid first
+    argument to Fprintf. Writing Printf("%s") to report an error in Printf("hello %s")
+    is almost as confusing.
     
-    The most effective of these is
+    This CL rewords the errors reported by vet's printf check to be more
+    consistent with each other, avoid placing context like "in printf call"
+    in the middle of the message, and to avoid the imprecisions above by
+    not quoting the format string at all.
     
-       x-1 >= w && x > min  ⇒  x > w
+    Before:
     
-    This helps eliminate bounds checks in code like
+            bad.go:9: no formatting directive in Printf call
+            bad.go:10: missing argument for Printf("%s"): format reads arg 1, have only 0 args
+            bad.go:11: wrong number of args for format in Printf call: 1 needed but 2 args
+            bad.go:12: bad syntax for printf argument index: [1]
+            bad.go:13: index value [0] for Printf("%[0]s"); indexes start at 1
+            bad.go:14: missing argument for Printf("%[2]s"): format reads arg 2, have only 1 args
+            bad.go:15: bad syntax for printf argument index: [abc]
+            bad.go:16: unrecognized printf verb 'z'
+            bad.go:17: arg "hello" for * in printf format not of type int
+            bad.go:18: arg fmt.Sprint in printf call is a function value, not a function call
+            bad.go:19: arg fmt.Sprint in Print call is a function value, not a function call
+            bad.go:20: arg "world" for printf verb %d of wrong type: string
+            bad.go:21: missing argument for Printf("%q"): format reads arg 2, have only 1 args
+            bad.go:22: first argument to Print is os.Stderr
+            bad.go:23: Println call ends with newline
+            bad.go:32: arg r in Sprint call causes recursive call to String method
+            bad.go:34: arg r for printf causes recursive call to String method
     
-      if x > 0 {
-        // do something with s[x-1]
-      }
+    After:
     
-    Altogether, these deductions prove an additional 260 branches in std
-    and cmd. Furthermore, they will let us eliminate some tricky
-    compiler-inserted panics in the runtime that are interfering with
-    static analysis.
+            bad.go:9: Printf call has arguments but no formatting directives
+            bad.go:10: Printf format %s reads arg #1, but have only 0 args
+            bad.go:11: Printf call needs 1 args but has 2 args
+            bad.go:12: Printf format %[1 is missing closing ]
+            bad.go:13: Printf format has invalid argument index [0]
+            bad.go:14: Printf format has invalid argument index [2]
+            bad.go:15: Printf format has invalid argument index [abc]
+            bad.go:16: Printf format %.234z has unknown verb z
+            bad.go:17: Printf format %.*s uses non-int "hello" as argument of *
+            bad.go:18: Printf format %s arg fmt.Sprint is a func value, not called
+            bad.go:19: Print arg fmt.Sprint is a func value, not called
+            bad.go:20: Printf format %d has arg "world" of wrong type string
+            bad.go:21: Printf format %q reads arg #2, but have only 1 args
+            bad.go:22: Print does not take io.Writer but has first arg os.Stderr
+            bad.go:23: Println args end with redundant newline
+            bad.go:32: Sprint arg r causes recursive call to String method
+            bad.go:34: Sprintf format %s with arg r causes recursive String method call
     
-    Fixes #23354.
-    
-    Change-Id: I7088223e0e0cd6ff062a75c127eb4bb60e6dce02
-    Reviewed-on: https://go-review.googlesource.com/87480
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+    Change-Id: I5719f0fb9f2cd84df8ad4c7754ab9b79c691b060
+    Reviewed-on: https://go-review.googlesource.com/74352
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 73 +++++++++++++++++++++++++++++++++++
- test/prove.go                         | 54 ++++++++++++++++++++++++++
- 2 files changed, 127 insertions(+)
+ src/cmd/dist/test.go                  |   2 +-
+ src/cmd/go/go_test.go                 |   6 +-
+ src/cmd/vet/all/whitelist/windows.txt |   2 -
+ src/cmd/vet/print.go                  |  85 +++++++++-----
+ src/cmd/vet/testdata/print.go         | 211 ++++++++++++++++++----------------
+ src/cmd/vet/testdata/shift.go         |   7 +-
+ 6 files changed, 173 insertions(+), 140 deletions(-)

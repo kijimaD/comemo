@@ -1,20 +1,19 @@
-commit 6237ab2c3155ed4c4fa064d1f0cb4f81eda10be1
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Sep 12 14:23:09 2017 -0500
+commit 26a852112d1c0505846fa3efbc1060a4dbdd7ae5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 18 14:53:12 2017 -0700
 
-    unicode/utf8: make FullRune inlinable
+    test: gofmt chan/*.go
     
-    This has same readability and allows to inline FullRune for massive
-    performance gain:
+    These are functional tests, so it is safe to gofmt them.
     
-    FullASCIIRune-6                      4.36ns ± 0%  1.25ns ± 0%  -71.33%  (p=0.000 n=8+10)
-    FullJapaneseRune-6                   4.70ns ± 0%  1.42ns ± 1%  -69.68%  (p=0.000 n=9+10)
-    
-    Change-Id: I95edd6292417a28aac244e40afb713596a087d93
-    Reviewed-on: https://go-review.googlesource.com/63332
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I3067279c1d49809ac6a62054448ab8a6c3de9bda
+    Reviewed-on: https://go-review.googlesource.com/43623
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/unicode/utf8/utf8.go | 20 ++++++++------------
- 1 file changed, 8 insertions(+), 12 deletions(-)
+ test/chan/fifo.go     |   1 -
+ test/chan/perm.go     |  26 ++--
+ test/chan/powser1.go  | 322 +++++++++++++++++++++------------------
+ test/chan/powser2.go  | 408 +++++++++++++++++++++++++++-----------------------
+ test/chan/select3.go  |   7 +-
+ test/chan/sendstmt.go |   2 +-
+ 6 files changed, 410 insertions(+), 356 deletions(-)

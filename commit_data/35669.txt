@@ -1,34 +1,19 @@
-commit adeb7e640b04526c38c481aff85b923ca14fc92b
-Author: Thomas Wanielista <tomwans@gmail.com>
-Date:   Fri Dec 22 16:17:56 2017 -0500
+commit 1e308fbc1a5cc07c2a587bb56a175a0e2980f2e8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Feb 27 18:54:50 2018 +0000
 
-    go/doc: classify function returning slice or array of T as constructor
+    cmd/compile: improved error message when calling a shadowed builtin
     
-    Previously, go/doc would only consider functions and slices that
-    return types of T or any number of pointers to T: *T, **T, etc. This
-    change expands the definition of a constructor to include functions
-    that return arrays of a type (or pointer to that type) in its first
-    return.
+    Otherwise, the error can be confusing if one forgets or doesn't know
+    that the builtin is being shadowed, which is not common practice.
     
-    With this change, the following return types also classify a function
-    as a constructor of type T:
+    Fixes #22822.
     
-    [1]T
-    [1]*T
-    [1]**T
-    (and so on)
-    
-    Fixes #22856.
-    
-    Change-Id: I37957c5f2d6a7b2ceeb3fbaef359057f2039393d
-    Reviewed-on: https://go-review.googlesource.com/85355
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I735393b5ce28cb83815a1c3f7cd2e7bb5080a32d
+    Reviewed-on: https://go-review.googlesource.com/97455
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/doc/reader.go                                   |  6 +++---
- .../{issue18063.0.golden => issue22856.0.golden}       | 18 +++++++++---------
- .../{issue18063.1.golden => issue22856.1.golden}       | 18 +++++++++---------
- .../{issue18063.2.golden => issue22856.2.golden}       | 18 +++++++++---------
- src/go/doc/testdata/{issue18063.go => issue22856.go}   | 12 +++---------
- 5 files changed, 33 insertions(+), 39 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 10 +++++++++-
+ src/cmd/compile/internal/gc/universe.go  | 11 +++++++++++
+ test/fixedbugs/issue22822.go             | 16 ++++++++++++++++
+ 3 files changed, 36 insertions(+), 1 deletion(-)

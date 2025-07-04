@@ -1,14 +1,19 @@
-commit 3908467b1f5e4f591616081088145a833cf77655
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 16 14:13:17 2012 -0800
+commit 4b171e5040935f65c011ea58dde6fb49fcd9e6b3
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 17 08:49:41 2012 +1100
 
-    go spec: struct comparison only compares non-blank fields
+    runtime: rename Cgocalls and Goroutines to NumCgoCall and NumGoroutine, respectively.
+    Update some other docs too.
     
-    Fixes #3031.
+    Update #2955.
     
-    R=golang-dev, rsc, r, iant
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5676054
+    https://golang.org/cl/5676060
 
- doc/go_spec.html | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/net/http/transport_test.go | 6 +++---
+ src/pkg/runtime/cgocall.c          | 2 +-
+ src/pkg/runtime/debug.go           | 8 ++++----
+ src/pkg/runtime/extern.go          | 4 ++--
+ src/pkg/runtime/proc.c             | 4 ++--
+ 5 files changed, 12 insertions(+), 12 deletions(-)

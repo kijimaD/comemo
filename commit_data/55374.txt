@@ -1,25 +1,21 @@
-commit 8e658eee9c7a67a8a79a8308695920ac9917566c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 16 16:59:31 2024 -0800
+commit de2efc2aa1448cfcf28fec66ce0ff3f979fc2f12
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Jan 31 18:38:01 2023 +0000
 
-    cmd/compile: call types2.Unalias to be ready for GODEBUG=gotypesalias=1
+    net: report IsNotFound when getnameinfo returns EAI_NONAME
     
-    types2.Unalias is not needed if we know we have a core or underlying
-    type. Also, types of declared functions (signatures) cannot be aliases
-    (this includes tuples).
+    Fixes #57548
     
-    Fixes #65125.
-    
-    Change-Id: I1faa26b66f6c646719e830dd661136fae86f3775
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/556036
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Change-Id: I4092624b1e906fbcd520f43aa4bc71c144dea3b6
+    GitHub-Last-Rev: ab048359473978ee245188710b6d6e12d50fb0ab
+    GitHub-Pull-Request: golang/go#57549
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460255
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/noder/helpers.go |  5 +++--
- src/cmd/compile/internal/noder/irgen.go   |  4 ++--
- src/cmd/compile/internal/noder/writer.go  | 18 +++++++++---------
- 3 files changed, 14 insertions(+), 13 deletions(-)
+ src/net/cgo_unix.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

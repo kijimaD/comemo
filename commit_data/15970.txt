@@ -1,14 +1,12 @@
-commit e3b767a5a1dd4f45b04de991e29cacdbe9f0d041
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Mar 27 21:51:07 2013 +0100
+commit 584a66b785af8c99b4bba3cb31c2b5e22f689438
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 27 13:35:41 2013 -0700
 
-    cmd/gc: update runtime.go for new map implementation.
+    net/http: new server-only, single-connection keep-alive benchmark
     
-    R=golang-dev, bradfitz, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8051044
+    https://golang.org/cl/8046043
 
- src/cmd/gc/builtin.c  | 1 +
- src/cmd/gc/mkbuiltin  | 1 +
- src/cmd/gc/runtime.go | 6 ++++++
- 3 files changed, 8 insertions(+)
+ src/pkg/net/http/serve_test.go | 97 +++++++++++++++++++++++++++++++++---------
+ 1 file changed, 77 insertions(+), 20 deletions(-)

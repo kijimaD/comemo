@@ -1,28 +1,19 @@
-commit 79db59ded9dab276507f3a045e42b76eef5a35b4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jan 10 22:59:26 2022 +0000
+commit 9fe7c38d3d7cd8a90e33515981dd00e1233563c9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 25 01:49:26 2021 -0700
 
-    runtime: make alloc count metrics truly monotonic
+    [dev.typeparams] cmd/compile: fix TestUnifiedCompare
     
-    Right now we export alloc count metrics via the runtime/metrics package
-    and mark them as monotonic, but that's not actually true. As an
-    optimization, the runtime assumes a span is always fully allocated
-    before being uncached, and updates the accounting as such. In the rare
-    case that it's wrong, the span has enough information to back out what
-    did not get allocated.
+    We need to start the capture walk from expr.Body, not expr, otherwise
+    in quirks mode we'll set all of the captured variables' positions to
+    expr.Body.Rbrace.
     
-    This change uses 16 bits of padding in the mspan to house another field
-    that represents the amount of mspan slots filled just as the mspan is
-    cached. This is information is enough to get an exact count, allowing us
-    to make the metrics truly monotonic.
-    
-    Change-Id: Iaff3ca43f8745dc1bbb0232372423e014b89b920
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377516
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic93f2773ae3756c2ec88dac17b4e9fb5a0771734
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330889
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/mcache.go       | 63 +++++++++++++++------------------
- src/runtime/metrics_test.go | 86 +++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/mheap.go        | 21 +++++------
- 3 files changed, 125 insertions(+), 45 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

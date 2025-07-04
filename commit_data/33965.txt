@@ -1,34 +1,21 @@
-commit 9044f018ec7bf35ac030dc5aec1acd7d18d6691c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 8 12:11:00 2018 -0500
+commit 57e7d62455ae85a9d9471353286a7c640ecd0bc3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Sep 12 17:09:46 2017 +0200
 
-    cmd/test2json: emit Benchmark name output early
+    all: use sort.Slice in a few more places
     
-    When benchmarks run, they print lines like:
+    Do the low-hanging fruit - tiny Less functions that are used exactly
+    once. This reduces the amount of code and puts the logic in a single
+    place.
     
-      BenchmarkGenericNoMatch-8   3000000 385 ns/op
-    
-    The first field, padded by spaces and followed by a tab,
-    is printed when the benchmark begins running.
-    The rest of the line is printed when the benchmark ends.
-    Tools and people can watch the timing of these prints
-    to see which benchmark is running.
-    
-    To allow tools consuming json output to continue to be
-    able to see which benchmark is running, this CL adds a
-    special case to the usual "line at a time" behavior to flush
-    the benchmark name if it is observed separately from the
-    rest of the line.
-    
-    Fixes #23352.
-    
-    Change-Id: I7b6410698d78034eec18745d7f57b7d8e9575dbb
-    Reviewed-on: https://go-review.googlesource.com/86695
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I9d4544cd68de5a95e55019bdad1fca0a1dbfae9c
+    Reviewed-on: https://go-review.googlesource.com/63171
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/test2json/test2json.go            | 25 ++++++++++++++++++++++
- .../internal/test2json/testdata/benchshort.json    |  7 ++++++
- .../internal/test2json/testdata/benchshort.test    |  5 +++++
- 3 files changed, 37 insertions(+)
+ src/runtime/pprof/pprof.go | 20 +++++++++-----------
+ src/text/template/exec.go  | 39 ++++++++++++---------------------------
+ src/time/genzabbrs.go      | 16 ++++++----------
+ src/unicode/maketables.go  | 10 +++-------
+ 4 files changed, 30 insertions(+), 55 deletions(-)

@@ -1,27 +1,15 @@
-commit 913db7685ec80bc9c56f357b09ced127fbf09a1e
-Author: Rick Hudson <rlh@golang.org>
-Date:   Mon May 18 16:02:37 2015 -0400
+commit aef54d40ac514cc3dac4b24d0c9a89e0ab027a44
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Thu Apr 23 13:55:56 2015 -0400
 
-    runtime: run background mark helpers only if work is available
+    runtime: disable TestNewOSProc0 on android/arm.
     
-    Prior to this CL whenever the GC marking was enabled and
-    a P was looking for work we supplied a G to help
-    the GC do its marking tasks. Once this G finished all
-    the marking available it would release the P to find another
-    available G. In the case where there was no work the P would drop
-    into findrunnable which would execute the mark helper G which would
-    immediately return and the P would drop into findrunnable again repeating
-    the process. Since the P was always given a G to run it never blocks.
-    This CL first checks if the GC mark helper G has available work and if
-    not the P immediately falls through to its blocking logic.
+    newosproc0 does not work on android/arm.
+    See issue #10548.
     
-    Fixes #10901
-    
-    Change-Id: I94ac9646866ba64b7892af358888bc9950de23b5
-    Reviewed-on: https://go-review.googlesource.com/10189
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ieaf6f5d0b77cddf5bf0b6c89fd12b1c1b8723f9b
+    Reviewed-on: https://go-review.googlesource.com/9293
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/mgc.go     | 12 ++++++++++++
- src/runtime/mgcwork.go |  7 +++++++
- src/runtime/proc1.go   |  2 +-
- 3 files changed, 20 insertions(+), 1 deletion(-)
+ src/runtime/norace_linux_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

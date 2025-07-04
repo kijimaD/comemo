@@ -1,21 +1,23 @@
-commit f12dfeac89637dd509cb3eaa81d3116fc49a4daf
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Apr 26 22:25:20 2021 -0400
+commit 57af9745bfad2c20ed6842878e373d6c5b79285a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Oct 22 18:00:20 2020 +0200
 
-    cmd/link: support trampoline insertion on ARM64
+    crypto/x509: deprecate legacy PEM encryption
     
-    Compared to ARM32 or PPC64, ARM64 has larger range for direct jumps.
-    But for very large programs it can still go over the limit. Add
-    trampoline insertion for ARM64.
+    It's unfortunate that we don't implement PKCS#8 encryption (#8860)
+    so we can't recommend an alternative but PEM encryption is so broken
+    that it's worth deprecating outright.
     
-    Updates #40492.
+    Fixes #41949
+    Fixes #32777
     
-    Change-Id: Id97301dbc35fb577ba3f8d5f3316a8424d4f53c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314451
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ieb46444662adec108d0de3550b693a50545c2344
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264159
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/link/internal/arm64/asm.go | 132 +++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/arm64/obj.go |   2 +
- src/cmd/link/link_test.go          |   2 +-
- 3 files changed, 135 insertions(+), 1 deletion(-)
+ src/crypto/x509/pem_decrypt.go | 35 ++++++++++++++++++++++++-----------
+ 1 file changed, 24 insertions(+), 11 deletions(-)

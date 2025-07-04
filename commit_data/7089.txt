@@ -1,27 +1,13 @@
-commit a41d85498eed6b606d261e3da84c760538d71b4f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Jan 12 11:48:15 2011 +1100
+commit 217693e93c23fed2f3224dfaf1eb730d8e5256bb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 12 11:08:39 2011 +1100
 
-    runtime: revert 6974:1f3c3696babb
+    os: add Sync to *File, wraps syscall.Fsync
     
-    I missed that environment is used during runtime setup,
-    well before go init() functions run. Implemented os-dependent
-    runtime.goenvs functions to allow for different unix, plan9 and
-    windows versions of environment discovery.
-    
-    R=rsc, paulzhol
+    R=rsc, brainman, r, r2
     CC=golang-dev
-    https://golang.org/cl/3787046
+    https://golang.org/cl/3887042
 
- src/pkg/os/env_windows.go        |  1 -
- src/pkg/runtime/darwin/thread.c  |  6 ++++++
- src/pkg/runtime/freebsd/thread.c |  6 ++++++
- src/pkg/runtime/linux/thread.c   |  6 ++++++
- src/pkg/runtime/plan9/thread.c   |  5 +++++
- src/pkg/runtime/proc.c           |  1 +
- src/pkg/runtime/runtime.c        | 40 +++++++++++++++++++++-------------------
- src/pkg/runtime/runtime.h        |  4 ++++
- src/pkg/runtime/string.goc       | 30 ++++++++++++++++++++++++++++++
- src/pkg/runtime/tiny/thread.c    |  6 ++++++
- src/pkg/runtime/windows/thread.c | 36 ++++++++++++++++++++++++++++++++++++
- 11 files changed, 121 insertions(+), 20 deletions(-)
+ src/pkg/os/file.go                 | 13 +++++++++++++
+ src/pkg/syscall/syscall_windows.go |  3 +++
+ 2 files changed, 16 insertions(+)

@@ -1,20 +1,18 @@
-commit f715d28cea22de3a5752bdf019c1a00d4dcadf63
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Nov 30 12:04:59 2022 -0500
+commit 9ed0d81fb5b2a7e6707010a226b72626433b83d2
+Author: Eric Lagergren <eric@ericlagergren.com>
+Date:   Tue Feb 8 22:38:28 2022 -0800
 
-    doc/go1.20: add section on coverage
+    crypto/aes: fix key size typo
     
-    Add some basic material on the changes to code coverage testing
-    to the release notes.
+    AES-196 does not exist, but AES-192 does.
     
-    For #54202.
-    
-    Change-Id: I28200d43b4952ce8e8ecf46c8fe8e97c81d245e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453857
+    Signed-off-by: Eric Lagergren <eric@ericlagergren.com>
+    Change-Id: I8c9ac67735e99e5b2ee7fb9824029c1164221153
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384374
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- doc/go1.20.html | 29 ++++++++++++++++++++++++++++-
- 1 file changed, 28 insertions(+), 1 deletion(-)
+ src/crypto/aes/asm_amd64.s | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,28 +1,16 @@
-commit bedfeed54a7a80123c07f83c325a0bcfe5c43398
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Aug 7 16:28:35 2020 +0000
+commit 70cad2744b57691962645681722ce756e81791c1
+Author: hk <hk@tinyclouds.cn>
+Date:   Mon Oct 19 12:11:13 2020 +0000
 
-    runtime,runtime/metrics: add metric to track scheduling latencies
+    cmd/compile/internal/gc: use plural nouns in comments
     
-    This change adds a metric to track scheduling latencies, defined as the
-    cumulative amount of time a goroutine spends being runnable before
-    running again. The metric is an approximations and samples instead of
-    trying to record every goroutine scheduling latency.
-    
-    This change was primarily authored by mknyszek@google.com.
-    
-    Change-Id: Ie0be7e6e7be421572eb2317d3dd8dd6f3d6aa152
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308933
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I99a5b5b88495cfaef16d41ee4b962c5d0b3488aa
+    GitHub-Last-Rev: fa0d895b3a87e45f499f02651a5f0e4946124765
+    GitHub-Pull-Request: golang/go#42059
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263617
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/runtime/histogram.go           |  4 ++++
- src/runtime/metrics.go             |  9 +++++++++
- src/runtime/metrics/description.go |  5 +++++
- src/runtime/metrics/doc.go         |  4 ++++
- src/runtime/proc.go                | 41 ++++++++++++++++++++++++++++++++++++++
- src/runtime/runtime2.go            | 17 ++++++++++++++++
- src/runtime/sizeof_test.go         |  2 +-
- 7 files changed, 81 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/go.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

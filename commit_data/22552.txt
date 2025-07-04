@@ -1,13 +1,12 @@
-commit f68f554d4e1c7e6d9f218d33ae81b7f8523efeea
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Apr 11 06:01:54 2015 -0400
+commit 715d017b3424f87a1681fe33e19d49e9a04f77f8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 23 12:17:20 2015 -0800
 
-    doc: mention darwin/arm64 port in go1.5.txt
+    doc: add cmd/trace to go1.5.txt
     
-    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f08
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/8787
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I4d35a96ace71b68a91561c08fd7331859d9dd19d
+    Reviewed-on: https://go-review.googlesource.com/5593
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)

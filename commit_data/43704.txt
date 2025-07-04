@@ -1,26 +1,21 @@
-commit 63fd764502e08d067293a93d6d1a566951255ce5
-Author: Derek Parker <parkerderek86@gmail.com>
-Date:   Wed Oct 28 20:54:27 2020 +0000
+commit 4f27e1d7aadba639cceaa93f77ec0c7ee3fee01b
+Author: BurtonQin <bobbqqin@gmail.com>
+Date:   Tue Apr 21 11:37:41 2020 +0000
 
-    cmd/internal/obj: add prologue_end DWARF stmt for ppc64
+    cmd/go/internal/modfetch: add Unlock before return in checkModSum
     
-    This patch adds a prologue_end statement to the DWARF information for
-    the ppc64 arch.
+    In cmd/go/internal/modfetch/fetch.go,
+    `checkModSum()` forgets Unlock before return, which may lead to deadlock.
+    https://github.com/golang/go/blob/876c1feb7d5e10a6ff831de9db19b9ff0ea92fa8/src/cmd/go/internal/modfetch/fetch.go#L514-L520
+    The fix is to add `goSum.mu.Unlock()` before return.
     
-    Prologue end is used by the Delve debugger in order to determine where
-    to set a breakpoint to avoid the stacksplit prologue.
-    
-    Updates #36612
-    
-    Change-Id: Ifb16c1476fe716a0bf493c5486d1d88ebe8d0253
-    GitHub-Last-Rev: 77a217206d529df8bf8d4ef10a5347b6ae524612
-    GitHub-Pull-Request: golang/go#42261
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266019
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I855b1c1bc00aeada2c1e84aabb5328f02823007d
+    GitHub-Last-Rev: afeb3763dd1d08c4c15c4c4183fd5705da60dc4c
+    GitHub-Pull-Request: golang/go#38563
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229219
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/internal/obj/ppc64/obj9.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/fetch.go | 1 +
+ 1 file changed, 1 insertion(+)

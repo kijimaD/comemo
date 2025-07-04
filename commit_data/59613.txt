@@ -1,48 +1,24 @@
-commit 4ce1c8e9e1aab695bb0da506f2de336a5caa81f6
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Tue May 20 10:28:17 2025 +0800
+commit e565720e4920fe14eaeac55c8a271444d5499e44
+Author: Mohammad Abbasi <mohammad.v184@gmail.com>
+Date:   Sun Mar 12 00:23:14 2023 +0000
 
-    cmd/compile: add rules about ORN and ANDN
+    database/sql: refactor unused variables to use blank identifiers
     
-    Reduce the number of go toolchain instructions on loong64 as follows.
+    Hi
+    I've replaced unused variables in database/sql with blank identifiers to improve code readability.
     
-        file      before    after     Δ       %
-        addr2line 279880    279776  -104   -0.0372%
-        asm       556638    556410  -228   -0.0410%
-        buildid   272272    272072  -200   -0.0735%
-        cgo       481522    481318  -204   -0.0424%
-        compile   2457788   2457580 -208   -0.0085%
-        covdata   323384    323280  -104   -0.0322%
-        cover     518450    518234  -216   -0.0417%
-        dist      340790    340686  -104   -0.0305%
-        distpack  282456    282252  -204   -0.0722%
-        doc       789932    789688  -244   -0.0309%
-        fix       324332    324228  -104   -0.0321%
-        link      704622    704390  -232   -0.0329%
-        nm        277132    277028  -104   -0.0375%
-        objdump   507862    507758  -104   -0.0205%
-        pack      221774    221674  -100   -0.0451%
-        pprof     1469816   1469552 -264   -0.0180%
-        test2json 254836    254732  -104   -0.0408%
-        trace     1100002   1099738 -264   -0.0240%
-        vet       781078    780874  -204   -0.0261%
-        go        1529116   1528848 -268   -0.0175%
-        gofmt     318556    318448  -108   -0.0339%
-        total     13792238 13788566 -3672  -0.0266%
+    This change has no impact on the functionality of the code, but makes it easier to read and understand.
     
-    Change-Id: I23fb3ebd41309252c7075e57ea7094e79f8c4fef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674335
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I701e93fd9bf86725f411085bf2e8f8e6b235af14
+    GitHub-Last-Rev: eb40bd5e2ef9e28871fae2e97b4433e8d6e2c652
+    GitHub-Pull-Request: golang/go#58986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475675
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/loong64/ssa.go         |  2 ++
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 ++
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  2 ++
- src/cmd/compile/internal/ssa/opGen.go           | 30 ++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 47 +++++++++++++++++++++++++
- test/codegen/bits.go                            |  6 ++++
- 6 files changed, 90 insertions(+)
+ src/database/sql/convert.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,18 +1,26 @@
-commit 728a876ae291a2229047f2d112e0dffc71950dee
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 16 21:55:40 2019 +0000
+commit 720af3c8c4a0223f605b45b80c6a46f46321c760
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Wed May 1 00:01:39 2019 +0300
 
-    net: skip some interface tests on Dragonfly for now
+    cmd/asm: reject BSWAPW on amd64
     
-    Skipping tests isn't great, but neither is a wall of red masking other
-    potential regressions.
+    Since BSWAP operation on 16-bit registers is undefined,
+    forbid the usage of BSWAPW. Users should rely on XCHGB instead.
     
-    Updates #34368
+    This behavior is consistent with what GAS does.
     
-    Change-Id: I5fdfa54846dd8d648001594c74f059af8af52247
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201482
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #29167
+    
+    Change-Id: I3b31e3dd2acfd039f7564a1c17e6068617bcde8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174312
+    Run-TryBot: Iskander Sharipov <quasilyte@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/interface_test.go | 29 +++++++++++++++++------------
- 1 file changed, 17 insertions(+), 12 deletions(-)
+ src/cmd/asm/internal/asm/line_test.go        | 4 ++++
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 2 --
+ src/cmd/internal/obj/x86/aenum.go            | 1 -
+ src/cmd/internal/obj/x86/anames.go           | 1 -
+ src/cmd/internal/obj/x86/asm6.go             | 1 -
+ src/cmd/internal/obj/x86/obj6.go             | 1 -
+ 6 files changed, 4 insertions(+), 6 deletions(-)

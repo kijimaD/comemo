@@ -1,27 +1,16 @@
-commit 8331f19d9700457d74bf377755ca270a32d2faa3
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Wed Oct 21 11:09:00 2015 -0700
+commit 9a6a8a0586117f67ae6dd9eae5811d1fc2ba8575
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Sep 16 22:06:16 2015 +1200
 
-    fmt: check newline in the end of input
+    cmd/link: fix addition of -Wl,-z,relro
     
-    Sscanf doc says:
-    Newlines in the input must match newlines in the format.
+    Not sure how I managed to do this, or get it past review.
     
-    However Sscanf didn't check newline in the end of input (EOF).
-    A test for the case is broken.
-    
-    * check newline in EOF
-    * fix the test
-    * slightly simplify ss.doScanf
-    
-    Fixes #12788
-    
-    Change-Id: Iaf6b7d81324a72e557543ac22ecea5cecb72e0d6
-    Reviewed-on: https://go-review.googlesource.com/16165
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I141b97ef8e09dcc9c910c45493a584a3dced2b28
+    Reviewed-on: https://go-review.googlesource.com/14634
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/fmt/scan.go      | 19 ++++++++++++-------
- src/fmt/scan_test.go | 10 +++++++++-
- 2 files changed, 21 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,18 +1,15 @@
-commit 17a256bf22352c2beb9fc25ff76462fb16f3e6b2
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Oct 19 12:54:38 2015 -0400
+commit e019767ecb8c8e39c99a1c16960990d63ea8154a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 5 09:40:33 2015 +1000
 
-    cmd/go: -buildmode=pie for android/arm
+    doc: bump minimum requirement to OS X 10.7
     
-    Also make PIE executables the default build mode, as PIE executables
-    are required as of Android L.
+    Fixes #11995
     
-    For #10807
-    
-    Change-Id: I86b7556b9792105cd2531df1b8f3c8f7a8c5d25c
-    Reviewed-on: https://go-review.googlesource.com/16055
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I9e2901d77ebde705f59822e7d4a8163cbacffcd7
+    Reviewed-on: https://go-review.googlesource.com/13150
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/build.go | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ doc/install-source.html | 2 +-
+ doc/install.html        | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

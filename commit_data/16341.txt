@@ -1,44 +1,12 @@
-commit d4cbc80d106a3f3b53631aa60b400c790b14bb52
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun May 19 20:15:40 2013 -0700
+commit fee1d1cda04e6a936d62be6d06c838150a03d2de
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun May 19 19:35:09 2013 +0400
 
-    net/http: fewer allocations in the server path
+    runtime: properly set G status after syscall
     
-    Don't allocate for the Date or Content-Length headers.
-    A custom Date header formatter replaces use of time.Format.
-    
-    benchmark                                   old ns/op    new ns/op    delta
-    BenchmarkClientServer                           67791        64424   -4.97%
-    BenchmarkClientServerParallel4                  62956        58533   -7.03%
-    BenchmarkClientServerParallel64                 62043        54789  -11.69%
-    BenchmarkServer                                254609       229060  -10.03%
-    BenchmarkServerFakeConnNoKeepAlive              17038        16316   -4.24%
-    BenchmarkServerFakeConnWithKeepAlive            14184        13226   -6.75%
-    BenchmarkServerFakeConnWithKeepAliveLite         8591         7532  -12.33%
-    BenchmarkServerHandlerTypeLen                   10750         9961   -7.34%
-    BenchmarkServerHandlerNoLen                      9535         8935   -6.29%
-    BenchmarkServerHandlerNoType                     9858         9362   -5.03%
-    BenchmarkServerHandlerNoHeader                   7754         6856  -11.58%
-    
-    benchmark                                  old allocs   new allocs    delta
-    BenchmarkClientServer                              68           66   -2.94%
-    BenchmarkClientServerParallel4                     68           66   -2.94%
-    BenchmarkClientServerParallel64                    68           66   -2.94%
-    BenchmarkServer                                    21           19   -9.52%
-    BenchmarkServerFakeConnNoKeepAlive                 32           30   -6.25%
-    BenchmarkServerFakeConnWithKeepAlive               27           25   -7.41%
-    BenchmarkServerFakeConnWithKeepAliveLite           12           10  -16.67%
-    BenchmarkServerHandlerTypeLen                      19           18   -5.26%
-    BenchmarkServerHandlerNoLen                        17           15  -11.76%
-    BenchmarkServerHandlerNoType                       17           16   -5.88%
-    BenchmarkServerHandlerNoHeader                     12           10  -16.67%
-    
-    Update #5195
-    
-    R=nigeltao
+    R=golang-dev, r, dave
     CC=golang-dev
-    https://golang.org/cl/9432046
+    https://golang.org/cl/9307045
 
- src/pkg/net/http/serve_test.go |  3 ++
- src/pkg/net/http/server.go     | 69 ++++++++++++++++++++++++++++++++++--------
- 2 files changed, 59 insertions(+), 13 deletions(-)
+ src/pkg/runtime/proc.c | 2 ++
+ 1 file changed, 2 insertions(+)

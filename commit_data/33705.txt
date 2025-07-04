@@ -1,27 +1,19 @@
-commit a5b759aab8b9e866c0bf2dd91ffde68b6bc6766b
-Author: David Chase <drchase@google.com>
-Date:   Mon Nov 27 18:06:17 2017 -0500
+commit 54125d191d967da12c5aab957bf6ffcb222df9ed
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Aug 29 13:31:45 2017 +0200
 
-    cmd/compile: adjust lineno during import to get Pos right
+    runtime: move dynamic makemap checks into cmd/compile
     
-    Binary import sometimes constructs nodes using functions
-    that use the global lineno for the Position.  This causes
-    spurious numbers to appear in the assembly and the
-    debugging output.
+    Check map invariants, type size and alignments during compile time.
     
-    Fix (targeted, because late in the cycle): save and restore
-    lineno around bimport calls known to use lineno-sensitive
-    functions.
+    Keep runtime checks for reflect by adding them to reflect_makemap.
     
-    Updates #22600.
-    (Comment: "This is a weird line to step through")
-    
-    Change-Id: I9c4094670380609fe4b6696443fb02579521c596
-    Reviewed-on: https://go-review.googlesource.com/80115
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ia28610626591bf7fafb7d5a1ca318da272e54879
+    Reviewed-on: https://go-review.googlesource.com/59914
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go             | 34 +++++++++++++++-------
- .../internal/ssa/testdata/hist.opt-dlv.nexts       |  2 --
- 2 files changed, 24 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 62 ++++++++++++++++++++++++++---
+ src/runtime/hashmap.go                 | 72 ++++++++++++++++++----------------
+ 2 files changed, 94 insertions(+), 40 deletions(-)

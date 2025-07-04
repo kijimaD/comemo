@@ -1,28 +1,14 @@
-commit 94e6d3de725780952ea9d81ebb5b4bf5f7308593
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 2 14:57:31 2017 -0400
+commit 491ec4dff51dfe7ba721c85da0a30eceb99aa85c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 13 22:50:35 2017 +0000
 
-    cmd/dist: change mkdeps to be more merge-friendly
+    doc: add go-contrib-init mention to contributing docs
     
-    In addition to the obvious formatting change, this also drops
-    from deps.go any indirect dependencies, so that when you add
-    a new import to one package, the resulting diff only affects that
-    one package, not every package that imports that package
-    directly or indirectly. That makes the file a bit easier to understand,
-    if you need to debug it or deal with a possible merge conflict.
+    Fixes #17802
     
-    The code to trim the import lists (but not too much) was more
-    than I wanted to do in shell, so I rewrote mkdeps in Go.
-    
-    The shell script is left behind for backwards-compatibility with
-    people who have learned to run ./mkdeps.bash (or documentation
-    suggesting the same).
-    
-    Change-Id: I0bf27b5b27d0440e11ea830b00735c73f58eae03
-    Reviewed-on: https://go-review.googlesource.com/67650
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I245552534c3e21d95c569ac7118ba289244ba11d
+    Reviewed-on: https://go-review.googlesource.com/45652
+    Reviewed-by: Steve Francia <spf@golang.org>
 
- src/cmd/dist/deps.go     | 951 ++++++++++++++++++++++++++++++++++++++++++-----
- src/cmd/dist/mkdeps.bash |  54 +--
- src/cmd/dist/mkdeps.go   | 183 +++++++++
- 3 files changed, 1054 insertions(+), 134 deletions(-)
+ doc/contribute.html | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

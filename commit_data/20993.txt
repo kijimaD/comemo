@@ -1,16 +1,16 @@
-commit 207950ad5160f5219134fd2e52c5be7e5e3979a4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 16 13:01:48 2014 +1100
+commit d10a115ef9511b9be8b1f7b0fb5a292a9917aab9
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 3 17:25:03 2014 -0500
 
-    net/http: make Transport send 'Connection: close' when DisableKeepAlives
+    [dev.power64] test: disable nilptr3 test on power64x
     
-    No bug was open, but I found an old email to myself to investigate
-    when I suspected this was happening.
+    The remaining failures in this test are because of incomplete
+    optimization support on power64x.  Tracked in issue 9058.
     
-    Change-Id: Icedefec6f15a000eaabb2693b0640b3b6c8bf82c
-    Reviewed-on: https://go-review.googlesource.com/1578
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/168130043
 
- src/net/http/transport.go      |  4 ++++
- src/net/http/transport_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ test/nilptr3.go | 2 ++
+ 1 file changed, 2 insertions(+)

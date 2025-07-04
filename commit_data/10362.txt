@@ -1,14 +1,27 @@
-commit 59a92cde3dce85cc091c1134fae1bc08f056c445
+commit 3ee171d174e401950d2d508583d090ee1a79e884
 Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Nov 13 20:57:15 2011 -0500
+Date:   Sun Nov 13 14:48:22 2011 -0500
 
-    exp/ssh: use ClientConfig.rand() for publickey authentication
+    exp/ssh: add client side support for publickey auth
     
-    Closes TODO from 5373055
+    client.go/client_auth.go:
+    * add support for publickey key auth using the interface
+      outlined by rsc in the previous auth CL
     
-    R=agl
-    CC=golang-dev
-    https://golang.org/cl/5375081
+    client_auth_test.go:
+    * password and publickey tests against server.go
+    
+    common.go/server.go:
+    * move some helper methods from server.go into common.go
+    * generalise serializeRSASignature
+    
+    R=rsc, agl, huin
+    CC=cw, golang-dev, n13m3y3r
+    https://golang.org/cl/5373055
 
- src/pkg/exp/ssh/client_auth.go | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+ src/pkg/exp/ssh/client.go           |   9 +-
+ src/pkg/exp/ssh/client_auth.go      | 150 +++++++++++++++++++++-
+ src/pkg/exp/ssh/client_auth_test.go | 248 ++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/ssh/common.go           |  85 ++++++++++++
+ src/pkg/exp/ssh/server.go           |  43 +------
+ 5 files changed, 483 insertions(+), 52 deletions(-)

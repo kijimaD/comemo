@@ -1,21 +1,27 @@
-commit e8776e19b93dc59860dad2f23da68d373b3fea39
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Wed Jul 31 13:45:53 2024 -0700
+commit 30b17f4f97d37f654c5090001c5b44c331b00d0c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jun 15 02:08:47 2023 -0400
 
-    runtime: benchmark mutex handoffs
+    net/http: only disable Fetch API in tests
     
-    The speed of handing off a mutex to a waiting thread is sensitive to the
-    configuration of the spinning section of lock2. Measure that latency
-    directly, to complement our existing benchmarks of mutex throughput.
+    The Fetch API was meant to only be disabled in tests.
+    Since wasm_exec.js defines a global 'process' object,
+    it ended up being disabled anywhere that script is used.
     
-    For #68578
+    Make the heuristic stricter so that it's less likely to
+    trigger anywhere but when testing js/wasm using Node.js.
     
-    Change-Id: I7637684bcff62eb05cc008491f095f653d13af4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602176
+    For #57613.
+    Fixes #60808.
+    
+    Change-Id: Ief8def802b466ef4faad16daccefcfd72e4398b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503675
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/runtime_test.go | 110 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 110 insertions(+)
+ src/net/http/roundtrip_js.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

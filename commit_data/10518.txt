@@ -1,16 +1,13 @@
-commit ffa6b383f5ac5ab317701a4cccea3aa5b585f477
-Author: Maxim Pimenov <mpimenov@google.com>
-Date:   Mon Nov 28 11:52:16 2011 -0500
+commit 1e85f41fd512d570b04f87d906d44e456f1c2108
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 28 11:51:34 2011 -0500
 
-    gc: fix copying of types
-    reset xmethod during copytype
+    http: fix sniffing bug causing short writes
     
-    Fixes #2497
-    
-    R=rsc, dvyukov
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5441045
+    https://golang.org/cl/5442045
 
- src/cmd/gc/typecheck.c   |  1 +
- test/fixedbugs/bug378.go | 19 +++++++++++++++++++
- 2 files changed, 20 insertions(+)
+ src/pkg/net/http/server.go     |  2 +-
+ src/pkg/net/http/sniff_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

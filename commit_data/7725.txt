@@ -1,13 +1,14 @@
-commit dc06ad5ad7bf53ac33d96751bab9e4a715e7d121
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 10 07:22:53 2011 -0800
+commit dd5adcc3c3fdc36e34df72ece0bc56d0cf7c38e9
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Mar 10 10:14:31 2011 -0500
 
-    tls: move PeerCertificates to ConnectionState
+    crypto/openpgp: bug fixes and fix misnamed function.
     
-    R=agl, agl1
-    CC=golang-dev, rsc
-    https://golang.org/cl/4248078
+    R=rsc, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4244066
 
- src/pkg/crypto/tls/common.go |  4 ++++
- src/pkg/crypto/tls/conn.go   | 10 +---------
- 2 files changed, 5 insertions(+), 9 deletions(-)
+ src/pkg/crypto/openpgp/packet/packet.go      | 16 ++++++++--------
+ src/pkg/crypto/openpgp/packet/packet_test.go | 20 ++++++++++++++++++++
+ src/pkg/crypto/openpgp/write.go              |  2 +-
+ 3 files changed, 29 insertions(+), 9 deletions(-)

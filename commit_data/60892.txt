@@ -1,0 +1,16 @@
+commit e3f30831134b8767aeed00a356eda9087b52aeba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 4 16:37:45 2024 -0700
+
+    go/types: generate literals.go from corresponding types2 source
+    
+    Change-Id: I0635101b984725ee24c2207ebfdb413d29212b67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610558
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/types/generate_test.go | 12 +++++++++---
+ src/go/types/literals.go      |  9 +++++----
+ 2 files changed, 14 insertions(+), 7 deletions(-)

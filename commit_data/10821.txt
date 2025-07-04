@@ -1,25 +1,18 @@
-commit 29264c6f4f341586b733e2c5b165ca627b6050d8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 15 11:21:21 2011 -0800
+commit 143f3b38f5fe48d33bff8f76728739694b3e060f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 15 13:54:19 2011 -0500
 
-    json: use strconv.Append variants to avoid allocations in encoding
+    go: help messages for 'go test'
     
-    Before/after, best of 3:
-    json.BenchmarkCodeEncoder  10  183495300 ns/op  10.58 MB/s
-    ->
-    json.BenchmarkCodeEncoder  10  133025100 ns/op  14.59 MB/s
+    The plan is to make 'go test' replace gotest entirely, so it
+    cannot refer to gotest's godoc.  Instead, copy gotest's
+    documentation in as three different help messages:
+    'go help test', 'go help testflag', and 'go help testfunc'.
     
-    But don't get too excited about this.  These benchmarks, while
-    stable at any point of time, fluctuate wildly with any line of
-    code added or removed anywhere in the path due to stack splitting
-    issues.
-    
-    It's currently much faster, though, and this is the API that
-    doesn't allocate so should always be faster in theory.
-    
-    R=golang-dev, dsymonds, rsc, r, gri
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5411052
+    https://golang.org/cl/5491048
 
- src/pkg/encoding/json/encode.go | 25 +++++++++++++++++++------
- 1 file changed, 19 insertions(+), 6 deletions(-)
+ src/cmd/go/main.go |   2 +
+ src/cmd/go/test.go | 141 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 139 insertions(+), 4 deletions(-)

@@ -1,14 +1,16 @@
-commit 7c2607a91da900b92aae1e9a4ff22354f07206bf
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 14 09:29:51 2012 +1100
+commit 422826270de705ddb1c4982f4d544f46f7bdd55b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 16:02:13 2012 -0500
 
-    runtime, syscall: fix freebsd build
+    cmd/cgo: omit //line in -godefs, -cdefs output
     
-    R=golang-dev, bradfitz
+    Makes files like src/pkg/syscall/ztypes_linux_amd64.go easier to read.
+    (The copy that is checked in predates the //line output mode,
+    so this also preserves the status quo.)
+    
+    R=golang-dev, iant, gri
     CC=golang-dev
-    https://golang.org/cl/5661047
+    https://golang.org/cl/5655068
 
- src/pkg/runtime/os_freebsd.h             |   1 +
- src/pkg/runtime/signal_freebsd_amd64.c   |   1 +
- src/pkg/syscall/zerrors_freebsd_amd64.go | 131 +++++++++++++++++++++++--------
- 3 files changed, 99 insertions(+), 34 deletions(-)
+ src/cmd/cgo/main.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

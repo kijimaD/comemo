@@ -1,32 +1,27 @@
-commit e90e7a59dc1aa9cd488400d58405064943b4d3c0
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Dec 16 19:11:28 2018 +0100
+commit 067bb443af6b44cb026ab182a26d157dbd1b2dd6
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Sep 28 13:50:57 2018 -0400
 
-    encoding/base32: simplify and speed up decoder
+    compress: move benchmark text from src/testdata to src/compress/testdata
     
-    First, we can lift the enc.decodeMap nil check out of the loop.
+    This text is used mainly for benchmark compression testing, and in one
+    net test. The text was prevoiusly in a src/testdata directory, but since
+    that directory would only include one file, the text is moved to the
+    existing src/compression/testdata directory.
     
-    Second, we can make it clear to the compiler that 'in := src[0]' doesn't
-    need a bounds check, by making len(src)==0 a single if check that always
-    stops the loop. This is by far the largest speed-up.
+    This does not cause any change to the benchmark results.
     
-    Third, we can use a dst slice index instead of reslicing dst, which
-    removes work from the loop body.
+    Updates #27151
     
-    While at it, we can merge the two 'switch dlen' pieces of code, which
-    simplifies the code and doesn't affect performance.
-    
-    name            old time/op    new time/op    delta
-    DecodeString-8    80.2µs ± 0%    67.5µs ± 0%  -15.81%  (p=0.002 n=6+6)
-    
-    name            old speed      new speed      delta
-    DecodeString-8   163MB/s ± 0%   194MB/s ± 0%  +18.78%  (p=0.002 n=6+6)
-    
-    Change-Id: Iefeaae94c03453f8760452b1da706a77b3522718
-    Reviewed-on: https://go-review.googlesource.com/c/154422
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I38ab5089dfe744189a970947d15be50ef1d48517
+    Reviewed-on: https://go-review.googlesource.com/138495
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/base32/base32.go | 52 ++++++++++++++++++-------------------------
- 1 file changed, 22 insertions(+), 30 deletions(-)
+ misc/nacl/testzip.proto                              | 2 --
+ src/compress/flate/deflate_test.go                   | 4 ++--
+ src/compress/flate/reader_test.go                    | 2 +-
+ src/{ => compress}/testdata/Isaac.Newton-Opticks.txt | 0
+ src/net/sendfile_test.go                             | 2 +-
+ 5 files changed, 4 insertions(+), 6 deletions(-)

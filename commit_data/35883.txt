@@ -1,17 +1,15 @@
-commit 36c623046b9d9da2ae614f9dd526709271160c3c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 3 12:05:51 2018 -0700
+commit ded9a1b3723e2c16f2ac0373ef4593f09e65f54d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 15 10:06:37 2018 +0100
 
-    cmd/go: don't pass both -static and -pie to cgo compiler
+    test/codegen: port len/cap pow2 div tests to codegen
     
-    Along with CL 122135,
-    Fixes #26197
+    And delete them from asm_test.
     
-    Change-Id: I61e8cfb0dcc39885acf8ffa1ffb34cbbe4dc1dc3
-    Reviewed-on: https://go-review.googlesource.com/122155
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I29c8d098a8893e6b669b6272a2f508985ac9d618
+    Reviewed-on: https://go-review.googlesource.com/100876
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/work/exec.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go | 104 --------------------------------
+ test/codegen/arithmetic.go              |  39 ++++++++++++
+ 2 files changed, 39 insertions(+), 104 deletions(-)

@@ -1,15 +1,21 @@
-commit 00812ee8c1d4ac89b2610931eb9662899db1a14c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 14 16:50:03 2014 -0700
+commit 3f32a51242c2567d79681b2d4e002684f21d4a5c
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Apr 14 13:23:58 2014 -0700
 
-    net/http: clarify Response.Body Close responsibility
+    crypto/x509: fix Windows build.
     
-    Per TODO email in my inbox.
+    Windows is building a chain to the AddTrust root which is different
+    from the native Go code and causing a build failure.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=adg, dsymonds, golang-codereviews, r
-    https://golang.org/cl/87550045
+    This change alters the test so that both should build to the AddTrust
+    root.
+    
+    R=bradfitz
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/87570044
 
- src/pkg/net/http/response.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/crypto/x509/verify_test.go | 33 ++++++++++++++++++++++++++++++---
+ 1 file changed, 30 insertions(+), 3 deletions(-)

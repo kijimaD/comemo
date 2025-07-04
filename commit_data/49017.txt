@@ -1,23 +1,23 @@
-commit fd6ef06296b55a234d4fd5ebf5dd3e5bfd8f4e25
-Author: Carl Johnson <me@carlmjohnson.net>
-Date:   Mon Mar 28 18:49:05 2022 +0000
+commit 60cb2cab97ca6a28dcb4a58776ed85f840f534d5
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Jul 7 12:03:41 2021 -0700
 
-    io: add an Err field to LimitedReader
+    [dev.typeparams] cmd/compile: fix bug with types2.Instantiate with interface type param
     
-    Fixes #51115
+    types2.subst has an assertion that check is non-nil, but which breaks
+    Instantiate() with an interface type param (used when re-importing
+    instatiated type to types2). But this check was added when Instantiate()
+    was added, and things seem to work fine when the assertion is removed.
     
-    Change-Id: I3c5296e4adc71c1c1b1808a45abd4801ae43465a
-    GitHub-Last-Rev: 4c197acd51e1cac051302deba57b97da66e004e1
-    GitHub-Pull-Request: golang/go#51990
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396215
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes test/typeparam/mdempsky/7.go.
+    
+    Change-Id: I4980f0b202a0b310a3c91a7a87f97576f54911de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333155
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- api/next/51115.txt     |  1 +
- src/io/example_test.go | 14 ++++++++++++++
- src/io/io.go           | 16 +++++++++++-----
- 3 files changed, 26 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/subst.go | 3 ---
+ test/run.go                              | 1 -
+ 2 files changed, 4 deletions(-)

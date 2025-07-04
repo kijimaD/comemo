@@ -1,15 +1,21 @@
-commit e5babeff8a2096a5404aed68a1e26b9cba317ae3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 16 16:30:39 2013 -0700
+commit 37db8804691f0a5e618cbc041909895c9709263c
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Wed Oct 16 09:22:57 2013 -0700
 
-    database/sql: fix some test fmt verbs
+    database/sql: Fix connection leak and potential deadlock
     
-    Found by vet.
+    CL 10726044 introduced a race condition which causes connections
+    to be leaked under certain circumstances. If SetMaxOpenConns is
+    used, the application eventually deadlocks. Otherwise, the number
+    of open connections just keep growing indefinitely.
     
-    R=golang-dev, r
+    Fixes #6593
+    
+    R=golang-dev, bradfitz, tad.glines, bketelsen
     CC=golang-dev
-    https://golang.org/cl/14762044
+    https://golang.org/cl/14611045
 
- src/pkg/database/sql/convert_test.go      | 4 ++--
- src/pkg/database/sql/driver/types_test.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/database/sql/fakedb_test.go |  6 +++++
+ src/pkg/database/sql/sql.go         |  9 ++++---
+ src/pkg/database/sql/sql_test.go    | 51 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 63 insertions(+), 3 deletions(-)

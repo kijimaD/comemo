@@ -1,24 +1,12 @@
-commit 95864504d2d2690c428c6349d4cad3d61bddff7e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jan 20 09:12:24 2015 +1100
+commit ddb24da850d5034d8f63dd3d900f7db7e569d2a1
+Author: Emil Hessman <emil@hessman.se>
+Date:   Fri Dec 19 08:37:52 2014 +0100
 
-    misc/dashboard/codereview: delete
+    doc: fix typo in gccgo contribute
     
-    This dashboard is no longer in use, and doesn't work with Gerrit.
-    
-    Change-Id: Ib7c367dcad97322566610157b15e23db5bec58ff
-    Reviewed-on: https://go-review.googlesource.com/3028
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Change-Id: Ib9699fc9c45f61e9d75e9d9ae69167f039a66dfc
+    Reviewed-on: https://go-review.googlesource.com/1890
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- misc/dashboard/codereview/app.yaml               |  24 --
- misc/dashboard/codereview/cron.yaml              |   4 -
- misc/dashboard/codereview/dashboard/cl.go        | 493 -----------------------
- misc/dashboard/codereview/dashboard/front.go     | 299 --------------
- misc/dashboard/codereview/dashboard/gc.go        |  47 ---
- misc/dashboard/codereview/dashboard/mail.go      |  68 ----
- misc/dashboard/codereview/dashboard/people.go    |  65 ---
- misc/dashboard/codereview/index.yaml             |  25 --
- misc/dashboard/codereview/queue.yaml             |   4 -
- misc/dashboard/codereview/static/gopherstamp.jpg | Bin 16996 -> 0 bytes
- misc/dashboard/codereview/static/icon.png        | Bin 412 -> 0 bytes
- 11 files changed, 1029 deletions(-)
+ doc/gccgo_contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

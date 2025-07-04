@@ -1,18 +1,21 @@
-commit 08a6e080cae0277f0c5458da84c7e3ca4d8f8199
-Author: Jonathan Hall <flimzy@flimzy.com>
-Date:   Wed Jan 10 21:23:25 2024 +0100
+commit 7ea03753b464e1e9e7508bf69d1e309b10d0c97c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 26 16:52:28 2023 -0700
 
-    database/sql/driver: fix name in comment
+    doc/go1.21: mention multipath TCP support
     
-    DefaultValueConverter => DefaultParameterConverter
+    For #56539
+    For #59166
     
-    Change-Id: I0e726cfdbf21a5e00928899d1fd9144f89dcb805
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/555235
+    Change-Id: Ief392464916a1a74a8fcc6c3c7bdb213e8c6ef98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498601
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Shay Nehmad <dude500@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthieu Baerts <matthieu.baerts@tessares.net>
 
- src/database/sql/driver/driver.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.21.html | 45 +++++++++++++++++++++++++++------------------
+ 1 file changed, 27 insertions(+), 18 deletions(-)

@@ -1,12 +1,16 @@
-commit 5332b5e75acdd17c6d0afe84c014be8528765fe2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jul 27 14:16:45 2018 -0700
+commit 0de0ed369f902675cdfa9ed164497ae81c42bcdd
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 9 10:25:15 2018 -0700
 
-    doc: mention Faccessat flags support in go1.11
+    test: check that unaligned load-add opcodes work.
     
-    Change-Id: I4d01be5330db06877065aabe7a3faf69bce0dfb2
-    Reviewed-on: https://go-review.googlesource.com/126515
+    A test for CL 102036.
+    
+    Change-Id: Ief6dcb4f478670813fbe22ea75a06815a4b201a3
+    Reviewed-on: https://go-review.googlesource.com/105875
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.11.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ test/align.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

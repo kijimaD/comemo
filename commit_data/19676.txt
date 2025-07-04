@@ -1,13 +1,16 @@
-commit e50d059862dbb14225a4e1a17df42be984b93404
+commit 8b6dafa80eadf44a4854c5b0deca1f879e38eb73
 Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Tue Jul 8 13:43:02 2014 -0400
+Date:   Tue Jul 8 13:41:18 2014 -0400
 
-    crypto/x509: skip test on android (no Go tool)
+    net: treat android like linux in tests
     
-    LGTM=minux
-    R=golang-codereviews, minux
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/111970043
+    https://golang.org/cl/112810043
 
- src/pkg/crypto/x509/x509_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/net/conn_test.go      |  2 +-
+ src/pkg/net/multicast_test.go |  2 +-
+ src/pkg/net/parse_test.go     |  4 ++--
+ src/pkg/net/unix_test.go      | 15 +++++++++++----
+ 4 files changed, 15 insertions(+), 8 deletions(-)

@@ -1,17 +1,30 @@
-commit d8c9dd604801958c649a32511deef373adeecfe0
-Author: OneOfOne <oneofone@gmail.com>
-Date:   Sun Apr 10 03:50:11 2016 +0200
+commit c69e6869c9793872cb0282008ea8ab643a92da65
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Mon Feb 29 17:46:48 2016 -0300
 
-    math/big: implement GobDecode/Encode for big.Float
+    net/http/httptest: record trailing headers in ResponseRecorder
     
-    Added GobEncode/Decode and a test for them.
+    Trailers() returns the headers that were set by the handler after the
+    headers were written "to the wire" (in this case HeaderMap) and that
+    were also specified in a proper header called "Trailer".
     
-    Fixes #14593
+    Neither HeaderMap or trailerMap (used for Trailers()) are manipulated by
+    the handler code, instead a third stagingMap is given to the
+    handler. This avoid a reference kept by handler to affect the recorded
+    results.
     
-    Change-Id: Ic8d3efd24d0313a1a66f01da293c4c1fd39764a8
-    Reviewed-on: https://go-review.googlesource.com/21755
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    If a handler just modify the header but doesn't call any Write or Flush
+    method from ResponseWriter (or Flusher) interface, HeaderMap will not be
+    updated. In this case, calling Flush in the recorder is enough to get
+    the HeaderMap filled.
+    
+    Fixes #14531.
+    Fixes #8857.
+    
+    Change-Id: I42842341ec3e95c7b87d7e6f178c65cd03d63cc3
+    Reviewed-on: https://go-review.googlesource.com/20047
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/floatmarsh.go      | 65 ++++++++++++++++++++++++++++++++++++++++-
- src/math/big/floatmarsh_test.go | 63 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 127 insertions(+), 1 deletion(-)
+ src/net/http/httptest/recorder.go      | 66 +++++++++++++++++++++++++++-------
+ src/net/http/httptest/recorder_test.go | 64 +++++++++++++++++++++++++++++++++
+ 2 files changed, 118 insertions(+), 12 deletions(-)

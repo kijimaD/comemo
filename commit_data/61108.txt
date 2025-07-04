@@ -1,0 +1,24 @@
+commit dc8902f4eb00c66ba4f300c640dcea723abdf146
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Mon Aug 19 13:58:42 2024 -0700
+
+    cmd/compile/internal/ssa: intrinsify atomic.Xchg8 on amd64
+    
+    For #68578
+    
+    Change-Id: Ia9580579bfc4709945bfcf6ec3803d5d11812187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606901
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules      |  1 +
+ src/cmd/compile/internal/ssa/_gen/genericOps.go    |  1 +
+ src/cmd/compile/internal/ssa/opGen.go              |  7 +++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 17 +++++++++++++++++
+ src/cmd/compile/internal/ssagen/intrinsics.go      |  7 +++++++
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  1 +
+ 6 files changed, 34 insertions(+)

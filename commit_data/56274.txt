@@ -1,28 +1,38 @@
-commit 552faa8927a23fd5967435295c14af1741ac3653
-Author: Sabyrzhan Tasbolatov <snovitoll@gmail.com>
-Date:   Sun Apr 14 16:55:57 2024 +0500
+commit 00401835c1d5122a84f0500e48655cd787402f3f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 29 09:12:20 2023 -0700
 
-    runtime: reduced struct sizes found via pahole
+    flag: panic if a flag is defined after being set
     
-    During my research of pahole with Go structs, I've found couple of
-    structs in runtime/ pkg where we can reduce several structs' sizes
-    highligted by pahole tool which detect byte holes and paddings.
+    As part of developing #57411, we ran into cases where a flag was
+    defined in one package init and Set in another package init, and there
+    was no init ordering implied by the spec between those two
+    packages. Changes in initialization ordering as part of #57411 caused
+    a Set to happen before the definition, which makes the Set silently
+    fail.
     
-    Overall, there are 80 bytes reduced.
+    This CL makes the Set fail loudly in that situation.
     
-    Change-Id: I398e5ed6f5b199394307741981cb5ad5b875e98f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578795
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Joedian Reid <joedian@google.com>
+    Currently Set *does* fail kinda quietly in that situation, in that it
+    returns an error. (It seems that no one checks the error from Set,
+    at least for string flags.) Ian suggsted that instead we panic at
+    the definition site if there was previously a Set called on that
+    (at the time undefined) flag.
+    
+    So Set on an undefined flag is ok and returns an error (as before),
+    but defining a flag which has already been Set causes a panic.  (The
+    API for flag definition has no way to return an error, and does
+    already panic in some situations like a duplicate definition.)
+    
+    Update #57411
+    
+    Change-Id: I39b5a49006f9469de0b7f3fe092afe3a352e4fcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480215
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/mgclimit.go    | 27 ++++++++++++++-------------
- src/runtime/mgcscavenge.go | 14 +++++++-------
- src/runtime/netpoll.go     |  4 ++--
- src/runtime/proc.go        |  2 +-
- src/runtime/runtime2.go    |  6 +++---
- src/runtime/sizeof_test.go |  2 +-
- src/runtime/symtab.go      |  3 +--
- 7 files changed, 29 insertions(+), 29 deletions(-)
+ src/flag/flag.go      | 30 ++++++++++++++++++++++++++++--
+ src/flag/flag_test.go | 14 +++++++++++++-
+ 2 files changed, 41 insertions(+), 3 deletions(-)

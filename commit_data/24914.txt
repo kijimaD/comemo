@@ -1,22 +1,25 @@
-commit 1860a0fa571ff13ed2c4a23d50d55945720c86bb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 12 14:57:53 2015 -0800
+commit a7cfc759f2b03cb1155477d99384578f2910139c
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 8 16:04:37 2015 -0700
 
-    cmd/dist: check more GOOS/GOARCH combinations in mkdeps.bash
+    [dev.ssa] cmd/compile/internal/ssa: handle returns correctly
     
-    The current mkdeps.bash just checks for dependencies for GOOS=windows
-    with the current GOARCH.  This is not always accurate as some package
-    imports only happen on specific GOOS/GOARCH combinations.  Check a
-    selected, easily changed, combination of GOOS/GOARCH values.
+    Make sure that return blocks take a store as their control.  Without
+    this, code was getting inserted between the return and exit blocks.
     
-    This generates a deps.go identical to the one in the repository today.
+    Use AEND to mark the end of code.  The live variable analysis gets
+    confused when routines end like:
+        JMP earlier
+        RET
+    because the RET is unreachable.  The RET was incorrectly added to the
+    last basic block, rendering the JMP invisible to the CFG builder.
     
-    Fixes #13221.
-    
-    Change-Id: I96d67d49c8c63641d578acedbb28be807607db65
-    Reviewed-on: https://go-review.googlesource.com/16882
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I91b32c8b37075347243ff039b4e4385856fba7cd
+    Reviewed-on: https://go-review.googlesource.com/14398
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/dist/mkdeps.bash | 31 ++++++++++++++++++++++++++++---
- 1 file changed, 28 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/plive.go           | 6 ++++--
+ src/cmd/compile/internal/gc/ssa.go             | 9 ++++++---
+ src/cmd/compile/internal/ssa/check.go          | 7 +++++--
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 4 +++-
+ 4 files changed, 18 insertions(+), 8 deletions(-)

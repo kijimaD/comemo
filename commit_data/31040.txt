@@ -1,13 +1,17 @@
-commit dc243f257bc5b9aff59782abae35a2868d593947
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 7 10:53:40 2017 -0700
+commit 6a3c6c0de822d5fb426f21c20529c9222c1ebee0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jan 14 03:19:54 2017 +0000
 
-    cmd/compile/internal/types: don't return *Sym from Pushdcl (it's never used)
+    net/http: add another hijack-after-background-read test
     
-    Change-Id: Ib55f7ea3f7dcd9d02f6027121663870a65cb886c
-    Reviewed-on: https://go-review.googlesource.com/39924
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Follow-up test from Ian's comments in https://golang.org/cl/35232
+    after submit.
+    
+    Change-Id: Ifa504bd8d09e555c3c7738376199dfc9b99130cf
+    Reviewed-on: https://go-review.googlesource.com/35234
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/gc/noder.go    | 2 +-
- src/cmd/compile/internal/types/scope.go | 3 +--
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ src/net/http/serve_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

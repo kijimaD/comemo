@@ -1,19 +1,20 @@
-commit 7d63ff09a5ce65c91021acaf79b1d281cba55f07
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Fri Apr 20 10:48:10 2012 +1000
+commit 49a7da2dd94347f0e019e832fd4584c4263bf7ff
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Thu Apr 19 16:31:26 2012 -0700
 
-    exp/html: improve afterHeadIM
+    syscall: cleanly exit all Go procs on Plan 9
     
-    Clean up the flow of control.
-    Fix the TODO for handling <html> tags.
-    Add a case to ignore doctype declarations.
+    syscall.Exit would originally kill only the calling
+    Go proc, leaving behind other procs in the
+    same group. This change makes syscall.Exit call
+    runtime·exit, which due to CL
+    https://golang.org/cl/5617048
+    will cleanly exit all the Go procs in the group.
     
-    Pass one additional test.
-    
-    R=nigeltao
-    CC=golang-dev
-    https://golang.org/cl/6072047
+    R=golang-dev, rsc, rminnich, remyoudompheng, ality, john
+    CC=golang-dev, mirtchovski
+    https://golang.org/cl/6036051
 
- src/pkg/exp/html/parse.go                 | 39 +++++++++++--------------------
- src/pkg/exp/html/testlogs/tests19.dat.log |  2 +-
- 2 files changed, 14 insertions(+), 27 deletions(-)
+ src/pkg/syscall/asm_plan9_386.s  |  8 ++++++++
+ src/pkg/syscall/syscall_plan9.go | 19 +++----------------
+ 2 files changed, 11 insertions(+), 16 deletions(-)

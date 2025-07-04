@@ -1,16 +1,16 @@
-commit f58a5cb9e2d03ff1baa37cce63766cdb8cba7221
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 7 06:51:44 2015 -0500
+commit d5d4e82fb28f506701791f622ec0b03b984e41a5
+Author: Hyang-Ah Hana Kim <hakim@google.com>
+Date:   Thu Jan 15 16:47:41 2015 -0500
 
-    cmd/gc: avoid %#016x, which really means Go's %#014x
+    misc/android: choose the right subdirectory for bin under GOPATH.
     
-    (In non-Go print formats, the 016 includes the leading 0x prefix.
-    No one noticed, but we were printing hex numbers with a minimum
-    of 30 digits, not 32.)
+    This change includes the cleanup of temporary files created during
+    the binary execution as well.
     
-    Change-Id: I10ff7a51a567ad7c8440418ac034be9e4b2d6bc1
-    Reviewed-on: https://go-review.googlesource.com/4592
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ic01a0a537d1daafcaa3acda1ec344aff5dcddfc2
+    Reviewed-on: https://go-review.googlesource.com/2903
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/gc/reflect.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/android/README             |  4 +-
+ misc/android/go_android_exec.go | 82 +++++++++++++++++++++++++++++------------
+ 2 files changed, 61 insertions(+), 25 deletions(-)

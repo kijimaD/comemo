@@ -1,26 +1,44 @@
-commit 2c4f389c0298a37f1f3c000ad8b87e65d46c757f
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 23 16:17:00 2021 -0500
+commit e6c973198d9f8e68e4dce8637e2d1492032ce939
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 18:56:36 2020 -0800
 
-    cmd/link: enable internal linker in more cases for ppc64le
+    [dev.regabi] cmd/compile: stop mangling SelectorExpr.Sel for ODOTMETH
     
-    The internal linker is capable of linking the ppc64le linux
-    race detector and approved cgo packages.
+    ODOTMETH is unique among SelectorExpr expressions, in that Sel gets
+    mangled so that it no longer has the original identifier that was
+    selected (e.g., just "Foo"), but instead the qualified symbol name for
+    the selected method (e.g., "pkg.Type.Foo"). This is rarely useful, and
+    instead results in a lot of compiler code needing to worry about
+    undoing this change.
     
-    Likewise, ppc64/linux and ppc64/aix do not support the race
-    detector. Thus, extra code to enforce external linking when
-    using the race detector on ppc64/ppc64le can be removed
-    entirely.
+    This CL changes ODOTMETH to leave the original symbol in place. The
+    handful of code locations where the mangled symbol name is actually
+    wanted are updated to use ir.MethodExprName(n).Sym() or (equivalently)
+    ir.MethodExprName(n).Func.Sym() instead.
     
-    Fixes #21961
+    Historically, the compiler backend has mistakenly used types.Syms
+    where it should have used ir.Name/ir.Funcs. And this change in
+    particular may risk breaking something, as the SelectorExpr.Sel will
+    no longer point at a symbol that uniquely identifies the called
+    method. However, I expect CL 280294 (desugar OCALLMETH into OCALLFUNC)
+    to have substantially reduced this risk, as ODOTMETH expressions are
+    now replaced entirely earlier in the compiler.
     
-    Change-Id: I10db14f65ee616ee3291e17409e8333e3af7d4df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304459
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: If3c9c3b7df78ea969f135840574cf89e1d263876
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280436
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/dist/test.go               |  5 -----
- src/cmd/link/internal/ld/config.go | 12 ++++--------
- 2 files changed, 4 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/inline/inl.go          | 24 ++++++++++----------
+ src/cmd/compile/internal/ir/fmt.go              |  4 ++--
+ src/cmd/compile/internal/typecheck/expr.go      |  8 +++----
+ src/cmd/compile/internal/typecheck/func.go      | 29 ++++++-------------------
+ src/cmd/compile/internal/typecheck/iexport.go   | 22 ++++++-------------
+ src/cmd/compile/internal/typecheck/typecheck.go |  1 -
+ src/cmd/compile/internal/types/fmt.go           | 14 ++++--------
+ test/fixedbugs/issue31053.dir/main.go           |  6 ++---
+ 8 files changed, 38 insertions(+), 70 deletions(-)

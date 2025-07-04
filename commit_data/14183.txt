@@ -1,13 +1,12 @@
-commit 0ae408eb727e8abf25cd7e7001422dc7684c16f6
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Oct 21 14:20:17 2012 +1100
+commit bcdb7926dd5f020e0cc67ca8cbec872dd666f172
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Oct 20 17:23:48 2012 +0800
 
-    A+C: add Willem van der Schyff (Individual CLA).
+    codereview: protect against read-only upstream repository
     
-    R=golang-dev, bradfitz, dave
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6733047
+    https://golang.org/cl/6742053
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ lib/codereview/codereview.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

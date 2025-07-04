@@ -1,23 +1,19 @@
-commit ba5deb408f50f31a872f114c5ef7b52090e4b753
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Aug 14 14:41:19 2022 +0800
+commit d9952ff5119d35751d44d5cd66c7164c7bc21ce0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 4 12:51:06 2021 -0400
 
-    go/types,types2: add support for unsafe.{String,StringData,SliceData}
+    cmd/compile: set opendefer info symbol as content-addressable
     
-    For #53003
-    Change-Id: Id3125268523fed855ffac20cde6128010e3513f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423754
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Also move the logic of setting arginfo symbols content-addressable
+    to the place of symbol creation.
+    
+    Change-Id: Ia5c3d77b1cec988c42c84d573170120948575c07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353830
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/builtins.go      | 70 ++++++++++++++++++++++--
- src/cmd/compile/internal/types2/builtins_test.go |  9 +++
- src/cmd/compile/internal/types2/universe.go      | 16 ++++--
- src/go/types/builtins.go                         | 70 ++++++++++++++++++++++--
- src/go/types/builtins_test.go                    |  9 +++
- src/go/types/errorcodes.go                       | 35 ++++++++++++
- src/go/types/universe.go                         | 16 ++++--
- 7 files changed, 207 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/obj.go     | 1 -
+ src/cmd/compile/internal/ssagen/ssa.go | 5 +++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

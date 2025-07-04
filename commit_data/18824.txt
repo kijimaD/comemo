@@ -1,19 +1,16 @@
-commit 4e5f31a760be4321777a57d1fa991a05c2d6a233
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 11 14:04:44 2014 -0400
+commit 3877f1d9c80f57beb8a8dde778f6239598fd4a58
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Mar 11 17:35:49 2014 +0400
 
-    liblink: fix bad code generated for MOVFD/MOVDF when reg > 7
+    runtime: remove atomic CAS loop from marknogc
+    Spans are now private to threads, and the loop
+    is removed from all other functions.
+    Remove it from marknogc for consistency.
     
-    The byte that r is or'd into is already 0x7, so the failure to zero r only
-    impacts the generated machine code if the register is > 7.
-    
-    Fixes #7044.
-    
-    LGTM=dave, minux.ma, rsc
-    R=dave, minux.ma, bradfitz, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/73730043
+    LGTM=khr, rsc
+    R=golang-codereviews, bradfitz, khr
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/72520043
 
- src/liblink/asm5.c          |  3 ++-
- test/fixedbugs/issue7044.go | 43 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c | 18 ++----------------
+ 1 file changed, 2 insertions(+), 16 deletions(-)

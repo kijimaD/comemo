@@ -1,22 +1,26 @@
-commit 90614ff46236e970acbcb3645edd03186718667a
-Author: Jeff Widman <jeff@jeffwidman.com>
-Date:   Wed Apr 28 17:21:43 2021 +0000
+commit e223c6cf073fe1228c54050a43042b9c5721d4f8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 16 17:07:14 2020 -0400
 
-    cmd/go/internal/modfetch: fix comment that mentions no-longer returned error
+    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on PPC64
     
-    In c9211577eb77df9c51f0565f1da7d20ff91d59df @bcmills removed the returned error from
-    `Lookup`. However, the function docstring still mentions that this can return an error.
+    This is a simple case of changing the operand size of the existing 8-bit
+    And/Or.
     
-    So this corrects the docs.
+    I've also updated a few operand descriptions that were out-of-sync with
+    the implementation.
     
-    Change-Id: Idca74a200dfdb024e3d7ff6c439c70632cfec11a
-    GitHub-Last-Rev: 62eaacf70c3886d8aba25b79212c61485a89fde0
-    GitHub-Pull-Request: golang/go#45822
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314572
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I95ac4445d08f7958768aec9a233698a2d652a39a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263150
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modfetch/repo.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go           |  4 ++--
+ src/cmd/compile/internal/ppc64/ssa.go        | 22 +++++++++++++++++-----
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  6 ++++--
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 16 +++++++---------
+ src/cmd/compile/internal/ssa/opGen.go        | 28 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go |  6 ++++++
+ 6 files changed, 64 insertions(+), 18 deletions(-)

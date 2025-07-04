@@ -1,12 +1,15 @@
-commit b6cb4f9bf4896a3274ed0e0e4cffa0f78c822ff0
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sun Apr 24 19:25:49 2011 +1000
+commit 057fa94d3160a31b29d7a3bde9727dd1df0e31e2
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Sat Apr 23 11:34:08 2011 -0700
 
-    jpeg: decode to a YCbCr image instead of an RGBA image.
+    rc/env.bash: fix for Go tool-chain build on windows under msys.
     
-    R=r
+    The path conversion is done automatically if msys' builtin
+    shell commands are used.
+    
+    R=rsc1, peterGo, brainman, Mr_Dark, r
     CC=golang-dev
-    https://golang.org/cl/4436053
+    https://golang.org/cl/4452042
 
- src/pkg/image/jpeg/reader.go | 140 ++++++++++++++++++++++---------------------
- 1 file changed, 72 insertions(+), 68 deletions(-)
+ src/env.bash | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,26 +1,19 @@
-commit 94e720059f902339699b8bf7b2b10897311b50f8
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Tue Aug 21 19:30:30 2018 +0900
+commit 63ac89bfb15b2036741e40b2167d1d2f70af3e40
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 2 13:50:59 2018 +0100
 
-    net/http: introduce DialerAndTLSConfigSupportsHTTP2 in Transport
+    cmd/link/internal/ld: remove R_ADDR relocations inside XCOFF text sections
     
-    Even when a custom TLS config or custom dialer is specified,
-    enables HTTP/2 if DialerAndTLSConfigSupportsHTTP2 is true.
-    By this change, avoid automatically enabling HTTP/2 if DialContext is set.
+    On XCOFF, it is forbidden relocation of a DATA pointer to a text
+    section. It happens when a RODATA symbol needs a DATA symbol's address.
+    This commit moves every RODATA symbols with a R_ADDR on a data symbol to
+    .data sections to avoid these relocations.
     
-    This change also ensures that DefaultTransport still automatically
-    enable HTTP/2 as discussed in #14391.
-    
-    Updates #14391
-    Fixes #27011
-    
-    Change-Id: Icc46416810bee61dbd65ebc96468335030b80573
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/130256
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7f34d8e0ebdc8352a74e6b40e4c893d8d9419f4d
+    Reviewed-on: https://go-review.googlesource.com/c/146977
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/transport.go      | 18 +++++++++++++-----
- src/net/http/transport_test.go | 14 ++++++++++++++
- 2 files changed, 27 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/data.go  |  3 +--
+ src/cmd/link/internal/ld/xcoff.go | 32 ++++++++++++++++++++++++++++++++
+ src/runtime/alg.go                |  4 ++++
+ 3 files changed, 37 insertions(+), 2 deletions(-)

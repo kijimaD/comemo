@@ -1,17 +1,25 @@
-commit 01af72705255fbb48ea3ff3558766537dd0a8ee0
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 19 23:38:24 2015 +0000
+commit 7c7126cfeb82894229b9c3d5109e4b04e6cfde0c
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Feb 23 13:28:57 2015 -0800
 
-    Revert "cmd/internal/gc: add internConcat for alloc-free string concatenation"
+    crypto/rsa: drop the primality check in crypto/rsa.Validate.
     
-    This reverts commit 42fcc6fea03673eeed1447eaab78a7df9385246e.
+    This check is expensive and adversely impacts startup times for some
+    servers with several, large RSA keys.
     
-    Change-Id: If860b7cbff5b5d288c1df1405c1765275dfba7cb
-    Reviewed-on: https://go-review.googlesource.com/7860
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    It was nice to have, but it's not really going to stop a targetted
+    attack and was never designed to – hopefully people's private keys
+    aren't attacker controlled!
+    
+    Overall I think the feeling is that people would rather have the CPU
+    time back.
+    
+    Fixes #6626.
+    
+    Change-Id: I0143a58c9f22381116d4ca2a3bbba0d28575f3e5
+    Reviewed-on: https://go-review.googlesource.com/5641
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/cmd/internal/gc/lex.go      |  9 ---------
- src/cmd/internal/gc/lex_test.go | 22 ----------------------
- src/cmd/internal/gc/subr.go     |  6 +++---
- src/cmd/internal/gc/walk.go     | 19 +++++++++----------
- 4 files changed, 12 insertions(+), 44 deletions(-)
+ src/crypto/rsa/rsa.go | 10 ----------
+ 1 file changed, 10 deletions(-)

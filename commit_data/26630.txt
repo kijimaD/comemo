@@ -1,18 +1,22 @@
-commit 43a274fd67747a70bb7c2f97db219f5d9ee8c07c
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Mar 30 11:15:01 2016 -0400
+commit 9aa630faa868fde13af74e5b22ddba89a635d837
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 8 07:08:14 2016 -0500
 
-    cmd/compile: include pkgPath on all struct types
+    cmd/dist: accept "//+build" with no spaces, like go/build
     
-    Fixes #15026.
+    The go/build parser accepts "//+build", with no spaces.
+    Make the cmd/dist bootstrap parser do the same.
+    While in theory we should always use the space form,
+    I copied some code that did not into the standard tree,
+    and I was very confused that 'go test' had had no problem
+    but then make.bash died.
     
-    Change-Id: I61ed71152b99973270d79264d1e8f466f7343c02
-    Reviewed-on: https://go-review.googlesource.com/21286
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    (As a reminder, cmd/dist does not use go/build because
+    cmd/dist must build against earlier versions of Go.)
+    
+    Change-Id: I90a18014bd878247b8811487e5c1a7589260cbfc
+    Reviewed-on: https://go-review.googlesource.com/19618
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |  2 +-
- src/reflect/all_test.go                | 27 +++++++++++++++++++++++++++
- src/reflect/export_test.go             |  5 +++++
- 3 files changed, 33 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

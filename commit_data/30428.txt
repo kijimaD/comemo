@@ -1,15 +1,16 @@
-commit 31f9769c910e1470125fc80ff134e872980a3951
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 28 18:12:32 2017 +0000
+commit fa770016484165d65200243811f177f1332a9e94
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:25 2016 +0200
 
-    cmd/dist: make the vetall builder have test shards per os/arch
+    runtime/internal/sys: add arch defs for GOARCH=mips{,le}
     
-    This makes the vetall builder friendly to auto-sharding by the build
-    coordinator.
-    
-    Change-Id: I0893f5051ec90e7a6adcb89904ba08cd2d590549
-    Reviewed-on: https://go-review.googlesource.com/37572
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I6288f1fca1ae4c64b3907af700811ee842053020
+    Reviewed-on: https://go-review.googlesource.com/31472
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ src/runtime/internal/sys/arch.go           |  1 +
+ src/runtime/internal/sys/arch_mips.go      | 18 ++++++++++++++++++
+ src/runtime/internal/sys/arch_mipsle.go    | 18 ++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_mips.go   | 26 ++++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_mipsle.go | 26 ++++++++++++++++++++++++++
+ 5 files changed, 89 insertions(+)

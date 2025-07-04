@@ -1,16 +1,28 @@
-commit 7ab62b0baceb5bf72b5dcdd819159ca5120a6eeb
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Jun 4 23:31:31 2012 +0200
+commit 25922c06582a91ae02ca8a632b2a75aeb7cdc887
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 4 17:07:59 2012 -0400
 
-    test: avoid interface conversion in rotate.go
+    cmd/gc: introduce hidden closure functions earlier
     
-    It is not necessary for the test to be effective and uses a
-    lot of resources in the compiler. Memory usage is halved and
-    compilation around 8x faster.
+    The original implementation of closures created the
+    underlying top-level function during walk, which is fairly
+    late in the compilation process and caused ordering-based
+    complications due to earlier stages that had to be repeated
+    any number of times.
     
-    R=golang-dev, r, rsc, r
+    Create the underlying function during typecheck, much
+    earlier, so that later stages can be run just once.
+    
+    The result is a simpler compilation sequence.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6290044
+    https://golang.org/cl/6279049
 
- test/rotate.go | 28 +++++++++++++++++-----------
- 1 file changed, 17 insertions(+), 11 deletions(-)
+ src/cmd/gc/closure.c | 38 +++++++++++++++++++------------
+ src/cmd/gc/esc.c     | 63 ++++++++++++++++++++++------------------------------
+ src/cmd/gc/fmt.c     |  4 +++-
+ src/cmd/gc/inl.c     |  4 ++--
+ src/cmd/gc/lex.c     | 25 +++++----------------
+ src/cmd/gc/sinit.c   |  3 +++
+ 6 files changed, 64 insertions(+), 73 deletions(-)

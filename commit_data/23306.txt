@@ -1,19 +1,12 @@
-commit 50e657fbfa10d5dbc7e5a5f3210b06e23cfeb4af
-Author: Carl Jackson <carl@stripe.com>
-Date:   Fri Apr 17 00:52:40 2015 -0700
+commit 2b90c3e8edf36c0a76545fa13c195bca68a29420
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 30 23:15:51 2015 +0200
 
-    crypto/cipher: Support unusual GCM nonce lengths
+    go/build: enable cgo by default on solaris/amd64
     
-    GCM is traditionally used with a 96-bit nonce, but the standard allows
-    for nonces of any size. Non-standard nonce sizes are required in some
-    protocols, so add support for them in crypto/cipher's GCM
-    implementation.
-    
-    Change-Id: I7feca7e903eeba557dcce370412b6ffabf1207ab
-    Reviewed-on: https://go-review.googlesource.com/8946
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I0110b01fe4c64851ac2cfb5a92c31ce156831bc8
+    Reviewed-on: https://go-review.googlesource.com/8265
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/crypto/cipher/gcm.go      | 70 ++++++++++++++++++++++++++++++-------------
- src/crypto/cipher/gcm_test.go | 31 ++++++++++++++++++-
- 2 files changed, 80 insertions(+), 21 deletions(-)
+ src/go/build/build.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,12 +1,13 @@
-commit c0decc35ae031333a61b816670d668f01f594dd8
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu May 26 22:05:25 2011 +1000
+commit 4923ba91553c7def753c3c3990163a2bc960474c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 25 19:21:05 2011 -0700
 
-    exp/eval: fix compile error.
+    mime/multipart: misc code/doc fixes
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4550086
+    https://golang.org/cl/4532089
 
- src/pkg/exp/eval/gen.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/mime/multipart/writer.go      | 73 ++++++++++++++++-------------------
+ src/pkg/mime/multipart/writer_test.go |  2 +-
+ 2 files changed, 34 insertions(+), 41 deletions(-)

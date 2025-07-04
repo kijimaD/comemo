@@ -1,14 +1,13 @@
-commit 2a642c34e55bcafd57cca9c84c63cba3902c6a79
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Aug 17 14:15:01 2012 +1000
+commit 9d303b8aace05fac837871c72f6071271fdf0e0d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Aug 17 09:10:01 2012 +0800
 
-    misc/cgo/test: disable test on windows (attempt to fix windows build)
+    misc/cgo/life: remove -lmsvcrt to fix windows/amd64 build
+            I guess this is the problem as I can't reproduce the failure.
     
-    see issus 3358 for similar problem
-    
-    R=golang-dev
-    CC=golang-dev, minux.ma
-    https://golang.org/cl/6464072
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6465060
 
- src/run.bat | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ misc/cgo/life/life.go | 1 -
+ 1 file changed, 1 deletion(-)

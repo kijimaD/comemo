@@ -1,40 +1,26 @@
-commit ff9e8364c6501e9092564dd1e1fadf27f91b2fbb
-Author: Nehal J Wani <nehaljw.kkd1@gmail.com>
-Date:   Wed Jan 27 16:24:14 2021 +0000
+commit 7260ad6f52d0397000701abf3e71e7aac1456dc5
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu May 21 17:07:25 2020 -0400
 
-    cmd/go: skip issue33139 when the 'cc' script command is unavailable
+    [dev.link] cmd/link: move asmb2 elf to generic handling
     
-    With CGO disabled, the test suite tries to run the following and fail:
-    
-    CGO_ENABLED=0 go test -run=TestScript/link_syso_issue33139 cmd/go
-    go test proxy running at GOPROXY=http://127.0.0.1:38829/mod
-    --- FAIL: TestScript (0.01s)
-        --- FAIL: TestScript/link_syso_issue33139 (0.01s)
-            script_test.go:215:
-                # Test that we can use the external linker with a host syso file that is
-                # embedded in a package, that is referenced by a Go assembly function.
-                # See issue 33139. (0.000s)
-                # External linking is not supported on linux/ppc64.
-                # See: https://github.com/golang/go/issues/8912 (0.000s)
-                # External linking is not supported on linux/riscv64.
-                # See: https://github.com/golang/go/issues/36739 (0.001s)
-                > [linux] [riscv64] skip
-                > cc -c -o syso/objTestImpl.syso syso/src/objTestImpl.c
-                FAIL: testdata/script/link_syso_issue33139.txt:15:
-                    unexpected error starting command:
-                            fork/exec /dev/null: permission denied
-    
-    CC was set to /dev/null (during build) in the scenario mentioned above
-    
-    This patch replaces [!exec:cc] with [!cgo] because we care about the
-    availability of the 'cc' builtin and not the 'cc' executable in $PATH
-    
-    Change-Id: Ifbd2441f5f8e903ca3da213aba76f44c2e2eebab
-    GitHub-Last-Rev: 3b743787d08502f7a936e800ee7b6909fcf56068
-    GitHub-Pull-Request: golang/go#43912
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/286633
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic3e90793f0ce49909c4f76df1272b25a1d61ebdf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234887
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/testdata/script/link_syso_issue33139.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go   | 57 ++++--------------------------------
+ src/cmd/link/internal/arm/asm.go     | 45 ++++------------------------
+ src/cmd/link/internal/arm64/asm.go   | 56 -----------------------------------
+ src/cmd/link/internal/arm64/obj.go   |  1 -
+ src/cmd/link/internal/ld/asmb.go     | 20 +++++++++++++
+ src/cmd/link/internal/mips/asm.go    | 41 --------------------------
+ src/cmd/link/internal/mips/obj.go    |  1 -
+ src/cmd/link/internal/mips64/asm.go  | 51 --------------------------------
+ src/cmd/link/internal/mips64/obj.go  |  1 -
+ src/cmd/link/internal/ppc64/asm.go   | 41 +++-----------------------
+ src/cmd/link/internal/riscv64/asm.go | 40 -------------------------
+ src/cmd/link/internal/riscv64/obj.go |  1 -
+ src/cmd/link/internal/s390x/asm.go   | 41 --------------------------
+ src/cmd/link/internal/s390x/obj.go   |  1 -
+ src/cmd/link/internal/x86/asm.go     | 45 ++++------------------------
+ 15 files changed, 42 insertions(+), 400 deletions(-)

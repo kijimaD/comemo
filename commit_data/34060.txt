@@ -1,27 +1,23 @@
-commit 38f9d7519565d70b5921984e50036c55984b38a9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 21 14:15:20 2017 -0800
+commit bad5abf64d76f9c302c084c5f62e6f70920d3c81
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Sat Sep 23 01:20:12 2017 +0200
 
-    go/types: correctly determine if panic call refers to built-in
+    cmd/compile: avoid copying in nilcheckelim2
     
-    R=go1.11
+    nilcheckelim2 cleans up by copying b.Values in a loop, omitting
+    OpUnknowns. However, the common case is that there are no OpUnknowns,
+    in which case we can skip a lot of work.
     
-    The terminating statement check for functions that declare result
-    parameters was using the wrong scope to look up calls to `panic`
-    which in esoteric cases lead to a false positive.
+    So we track the first nilcheck which was eliminated, if any, and only
+    start copying from there. If no nilcheck was eliminated we won't copy at all.
     
-    Instead of looking up a panic call again at a time when correct
-    scope information would have to be recomputed, collect calls to
-    predeclared panic in a set when type-checking that call.
+    Fixes #20964
     
-    Fixes #23218.
-    
-    Change-Id: I35eaf010e5cb8e43696efba7d77cefffb6f3deb2
-    Reviewed-on: https://go-review.googlesource.com/85198
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Icd44194cf8ac81ce6485ce257b4d33e093003a40
+    Reviewed-on: https://go-review.googlesource.com/65651
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/builtins.go        | 13 +++++++++++++
- src/go/types/check.go           | 15 ++++++++-------
- src/go/types/return.go          | 12 +++---------
- src/go/types/testdata/stmt1.src | 18 ++++++++++++++++++
- 4 files changed, 42 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/ssa/nilcheck.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

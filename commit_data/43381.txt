@@ -1,20 +1,25 @@
-commit 55b2d479d774d9887a6ec32b34e2c413f7c84f78
-Author: Nikhil Benesch <nikhil.benesch@gmail.com>
-Date:   Sun Oct 18 21:55:55 2020 -0400
+commit a3d8c210ad7d6dea9996200fc1596c310b9775b5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 31 01:57:52 2020 +1100
 
-    net/http/cgi: preserve LD_LIBRARY_PATH on NetBSD, too
+    cmd/asm,cmd/internal/obj/riscv: provide branch pseudo-instructions
     
-    This makes the behavior of the cgi package on NetBSD consistent with its
-    behavior on the other BSDs. It is also necessary for the test suite to
-    pass on NetBSD with gccgo (see CL 261137).
+    Implement various branch pseudo-instructions for riscv64. These make it easier
+    to read/write assembly and will also make it easier for the compiler to generate
+    optimised code.
     
-    Change-Id: I531a6e0954f895a921204dcc61e3f3e90860a23d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263577
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: Ic31a7748c0e1495522ebecf34b440842b8d12c04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226397
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/cgi/host.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arch.go                  |   3 +-
+ src/cmd/asm/internal/asm/testdata/riscvenc.s       |  13 +++
+ src/cmd/internal/obj/riscv/anames.go               |  10 ++
+ src/cmd/internal/obj/riscv/asm_test.go             |  18 ++++
+ src/cmd/internal/obj/riscv/cpu.go                  |  10 ++
+ src/cmd/internal/obj/riscv/obj.go                  |  64 ++++++++++--
+ .../obj/riscv/testdata/testbranch/branch_test.go   |  94 +++++++++++++++++
+ .../obj/riscv/testdata/testbranch/branch_test.s    | 111 +++++++++++++++++++++
+ 8 files changed, 311 insertions(+), 12 deletions(-)

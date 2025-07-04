@@ -1,20 +1,32 @@
-commit b2110bcdde636b77412778a8c1eab6e50163ca1c
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Thu Sep 1 21:40:08 2022 +0800
+commit 46796703d739ba77913b0a2addab093a02b6d79d
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:20 2021 -0600
 
-    types2: use strings.Builder in errors.go
+    cmd/internal/obj/ppc64: support alignment of prefixed insn
     
-    Permissible now because go1.17 is used for bootstrapping.
+    Insert machine NOPs when a prefixed instruction crosses a 64B boundary.
+    ISA 3.1 prohibits prefixed instructions being placed across them. Such
+    instructions generate SIGILL if executed.
     
-    Change-Id: Ia6f314f9314eda1cc42002dcbdfa551196df76f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427554
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Likewise, adjust the function alignment to guarantee such instructions
+    can never cross one. And, don't pad the PC based on alignment. The
+    linker can fit these more optimally.
+    
+    Likewise, include the function alignment when printing function debug
+    information. This is needed to verify function alignment happens.
+    
+    Updates #44549
+    
+    Change-Id: I434fb0ee4e984ca00dc4566f7569c3bcdf93f910
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347050
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/types2/errors.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/internal/obj/objfile.go        |   2 +-
+ src/cmd/internal/obj/ppc64/a.out.go    |  24 +++--
+ src/cmd/internal/obj/ppc64/anames.go   |   1 +
+ src/cmd/internal/obj/ppc64/asm9.go     |  72 +++++++++++---
+ src/cmd/internal/obj/ppc64/asm_test.go | 174 +++++++++++++++++++++++++++++++--
+ 5 files changed, 245 insertions(+), 28 deletions(-)

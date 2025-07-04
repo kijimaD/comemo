@@ -1,0 +1,19 @@
+commit 0d8c512ce9186b7e188713ec3a29f9dbb4817668
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jan 27 16:50:35 2025 -0500
+
+    internal/poll: note that copy_file_range bug is fixed
+    
+    We shouldn't drop the workaround in case we're running on an unpatched
+    kernel.
+    
+    For #44272.
+    
+    Change-Id: I6a6a636cb81c31856ac9b682e7d02fa1d8efa5d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644878
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/copy_file_range_linux.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

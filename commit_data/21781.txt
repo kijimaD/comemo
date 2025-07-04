@@ -1,16 +1,12 @@
-commit d68f52aa43d7f22df7f68052915fc3d386120c9f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Feb 27 17:40:34 2015 +0900
+commit 5ae67e1e4ee87b468e268b21d8f0127b5b0257f8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 4 10:07:16 2015 +1100
 
-    cmd/internal/gc: restore mkbuiltin
+    include: restore use of signal.h on windows (fixes build)
     
-    Change-Id: I6cc4061fef9d3c3530406ab3d4811192b7175e89
-    Reviewed-on: https://go-review.googlesource.com/6233
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ifd983cf50b1ccbe64a45d3b3ad171ef67f608033
+    Reviewed-on: https://go-review.googlesource.com/3831
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/internal/gc/builtin.go          | 166 ++++++++++++++++++++++++++-
- src/cmd/internal/gc/builtins/runtime.go | 191 ++++++++++++++++++++++++++++++++
- src/cmd/internal/gc/builtins/unsafe.go  |  18 +++
- src/cmd/internal/gc/lex.go              |   1 +
- src/cmd/internal/gc/mkbuiltin.go        | 104 +++++++++++++++++
- 5 files changed, 477 insertions(+), 3 deletions(-)
+ include/u.h | 4 ++++
+ 1 file changed, 4 insertions(+)

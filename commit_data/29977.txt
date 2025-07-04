@@ -1,22 +1,21 @@
-commit 98842cabb6133ab7b8f2b323754a48085eed82f3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 24 17:52:54 2017 +0000
+commit 6c295a9a71924478a344e7b447ff3b44b1e94511
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 22:56:14 2016 -0400
 
-    net/http: don't send body on redirects for 301, 302, 303 when GetBody is set
+    syscall: for ForkExec on Linux, always use 32-bit setgroups system call
     
-    The presence of Request.GetBody being set on a request was causing all
-    redirected requests to have a body, even if the redirect status didn't
-    warrant one.
+    Fixes #17092.
     
-    This bug came from 307/308 support (https://golang.org/cl/29852) which
-    removed the line that set req.Body to nil after POST/PUT redirects.
-    
-    Change-Id: I2a4dd5320f810ae25cfd8ea8ca7c9700e5dbd369
-    Reviewed-on: https://go-review.googlesource.com/35633
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: If203d802a919e00594ddc1282782fc59a083fd63
+    Reviewed-on: https://go-review.googlesource.com/31458
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/client.go      | 21 ++++++++++------
- src/net/http/client_test.go | 61 ++++++++++++++++++++++++++++++---------------
- 2 files changed, 54 insertions(+), 28 deletions(-)
+ src/syscall/exec_linux.go            | 2 +-
+ src/syscall/syscall_linux_386.go     | 5 +++--
+ src/syscall/syscall_linux_amd64.go   | 5 +++--
+ src/syscall/syscall_linux_arm.go     | 5 +++--
+ src/syscall/syscall_linux_arm64.go   | 5 +++--
+ src/syscall/syscall_linux_mips64x.go | 3 ++-
+ src/syscall/syscall_linux_ppc64x.go  | 5 +++--
+ src/syscall/syscall_linux_s390x.go   | 5 +++--
+ 8 files changed, 21 insertions(+), 14 deletions(-)

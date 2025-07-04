@@ -1,15 +1,12 @@
-commit f20826692bbf35ae09d3a988dbc4a028fb00a50f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Feb 17 15:21:11 2015 +1100
+commit 07a27ce09ea01c1939389d5f5e1d3414fc893882
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 23 11:08:51 2015 -0500
 
-    syscall: make mksyscall_windows.go to work even when output does not uses unsafe package
+    [dev.cc] cmd/dist: show bootstrap build progress in real time
     
-    Fixes #9900
-    
-    Change-Id: I5dd401e8d2040e84ccb97c2fe9f5c5a28095b538
-    Reviewed-on: https://go-review.googlesource.com/5005
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I97bbf7a276c8f99554f0e3a9bcc8d3792a5e0f65
+    Reviewed-on: https://go-review.googlesource.com/3221
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/mksyscall_windows.go | 2 ++
- src/syscall/zsyscall_windows.go  | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/dist/util.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

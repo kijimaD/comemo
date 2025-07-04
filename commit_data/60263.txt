@@ -1,0 +1,23 @@
+commit 4b0dd556080fc207962fabdd93007cd4c6ebb04a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jun 3 18:42:12 2024 -0400
+
+    cmd/go/internal/modload: add line numbers to godebug errors
+    
+    In addition, add a line number to the go.work error for multiple use statements
+    for the same directory. Also clean up the error prefix for go.work
+    errors now containing line numbers.
+    
+    Fixes #67623
+    
+    Change-Id: Ia7edcc50f7d7ec907b4a9eb4fe270c75d04c1fa5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590135
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modload/init.go            | 12 +++----
+ src/cmd/go/testdata/script/mod_errors_pos.txt  | 11 ++++++
+ src/cmd/go/testdata/script/work.txt            |  2 +-
+ src/cmd/go/testdata/script/work_errors_pos.txt | 46 ++++++++++++++++++++++++++
+ 4 files changed, 64 insertions(+), 7 deletions(-)

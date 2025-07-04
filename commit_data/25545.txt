@@ -1,20 +1,28 @@
-commit 7b1f055eb1fb5f600081563d3cb2f987fe400e46
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jan 11 16:52:11 2016 -0500
+commit a4dcc692011bf1ceca9b1a363fd83f3e59e399ee
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Nov 8 19:10:14 2015 -0800
 
-    runtime: remove out-of-date comment
+    crypto/tls: don't send IP literals as SNI values.
     
-    It used to be the case that repeatedly getting one GC pointer and
-    enqueuing one GC pointer could cause contention on the work buffers as
-    each operation passed over the boundary of a work buffer. As of
-    b6c0934, we use a two buffer cache that prevents this sort of
-    contention.
+    https://tools.ietf.org/html/rfc6066#section-3 states:
     
-    Change-Id: I4f1111623f76df9c5493dd9124dec1e0bfaf53b7
-    Reviewed-on: https://go-review.googlesource.com/18532
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+      “Literal IPv4 and IPv6 addresses are not permitted in "HostName".”
+    
+    However, if an IP literal was set as Config.ServerName (which could
+    happen as easily as calling Dial with an IP address) then the code would
+    send the IP literal as the SNI value.
+    
+    This change filters out IP literals, as recognised by net.ParseIP, from
+    being sent as the SNI value.
+    
+    Fixes #13111.
+    
+    Change-Id: Ie9ec7acc767ae172b48c9c6dd8d84fa27b1cf0de
+    Reviewed-on: https://go-review.googlesource.com/16742
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/runtime/mgcmark.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/crypto/tls/common.go                |  3 ++-
+ src/crypto/tls/handshake_client.go      |  9 ++++++++-
+ src/crypto/tls/handshake_client_test.go | 27 +++++++++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 2 deletions(-)

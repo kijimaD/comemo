@@ -1,27 +1,17 @@
-commit c6c00ed4827c68e3c041ec501e823a3b0aa07850
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 3 18:16:42 2012 -0500
+commit 278369152267b79853a9cceaa0390d6c7e1d86b9
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 4 07:49:51 2012 +1100
 
-    cmd/dist: generate files for package runtime
-    goc2c moves here.
-    parallel builds like old makefiles (-j4).
-    add clean command.
-    add banner command.
-    implement Go version check.
-    real argument parsing (same as 6g etc)
+    docs: replace references to gofix etc. with tool invocations
     
-    Windows changes will be a separate CL.
-    
-    R=golang-dev, bradfitz, iant
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5622058
+    https://golang.org/cl/5630045
 
- src/cmd/dist/a.h            |  24 +-
- src/cmd/dist/arg.h          |  50 +++
- src/cmd/dist/buf.c          |  28 +-
- src/cmd/dist/build.c        | 749 ++++++++++++++++++++++++++++++++++----------
- src/cmd/dist/buildruntime.c | 346 ++++++++++++++++++++
- src/cmd/dist/goc2c.c        | 727 ++++++++++++++++++++++++++++++++++++++++++
- src/cmd/dist/main.c         |  17 +-
- src/cmd/dist/unix.c         | 134 +++++++-
- 8 files changed, 1892 insertions(+), 183 deletions(-)
+ doc/effective_go.html |  5 ++++-
+ doc/effective_go.tmpl |  5 ++++-
+ doc/go1.html          | 58 ++++++++++++++++++++++++++-------------------------
+ doc/go1.tmpl          | 58 ++++++++++++++++++++++++++-------------------------
+ doc/install.html      |  2 +-
+ src/cmd/nm/doc.go     |  3 +--
+ 6 files changed, 70 insertions(+), 61 deletions(-)

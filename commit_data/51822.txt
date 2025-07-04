@@ -1,23 +1,38 @@
-commit d42c08a2be456d353a7aca3110edeb9bdb66ebd0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Dec 15 18:14:13 2022 +0700
+commit 8427429c592588af8c49522c76b3e0e0e335d270
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 14 11:27:46 2022 -0400
 
-    reflect,runtime: add Value.Clear
+    os: raise open file rlimit at startup
     
-    Fixes #55002
+    Some systems set an artificially low soft limit on open file count,
+    for compatibility with code that uses select and its hard-coded
+    maximum file descriptor (limited by the size of fd_set).
     
-    Change-Id: I7d0f14cc54f67f2769b51d2efafc4ae3714f0e3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/457895
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Go does not use select, so it should not be subject to these limits.
+    On some systems the limit is 256, which is very easy to run into, even
+    in simple programs like gofmt when they parallelize walking a file tree.
+    
+    After a long discussion on go.dev/issue/46279, we decided the best
+    approach was for Go to raise the limit unconditionally for itself, and
+    then leave old software to set the limit back as needed. Code that
+    really wants Go to leave the limit alone can set the hard limit, which
+    Go of course has no choice but to respect.
+    
+    Take 2, after CL 392415 was rolled back for macOS and OpenBSD failures.
+    The macOS failures should be handled by the new call to sysctl("kern.maxfilesperproc"),
+    and the OpenBSD failures are handled by skipping the test (and filing #51713).
+    
+    Fixes #46279.
+    
+    Change-Id: I45c81b94590b447b483018a05ae980b8f02dc5de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393354
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/55002.txt      |  1 +
- src/reflect/all_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/value.go    | 24 ++++++++++++++++++++++++
- src/runtime/map.go      |  5 +++++
- src/runtime/mbarrier.go |  9 +++++++++
- 5 files changed, 84 insertions(+)
+ src/os/rlimit.go        | 32 ++++++++++++++++++++++++++++++++
+ src/os/rlimit_darwin.go | 22 ++++++++++++++++++++++
+ src/os/rlimit_stub.go   | 12 ++++++++++++
+ src/os/rlimit_test.go   | 37 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 103 insertions(+)

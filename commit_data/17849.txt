@@ -1,16 +1,16 @@
-commit 2e984c2180ae6ae2b1cc678ca9f5b4d6b0fc3747
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 29 17:11:25 2013 -0400
+commit 22b3822da77645648148e0528f6990bf852a228b
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Oct 29 13:07:42 2013 -0400
 
-    encoding/xml: fix doc comment
+    misc/emacs: various cleanups
     
-    The tag is ",chardata" not "chardata".
+    - Use #' for function symbols
+    - Remove unused variables
+    - Use declare-function to shut up byte compiler
     
-    Fixes #6631.
-    
-    R=golang-dev, bradfitz
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/19300046
+    https://golang.org/cl/19010044
 
- src/pkg/encoding/xml/read.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/emacs/go-mode.el | 46 +++++++++++++++++++++++-----------------------
+ 1 file changed, 23 insertions(+), 23 deletions(-)

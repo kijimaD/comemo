@@ -1,15 +1,31 @@
-commit c4b2288755d07b9505ef498819bb540b7b0fa215
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 14 13:14:18 2022 -0700
+commit 0e67ce3d28320e816dd8e7cf7d701c1804fb977e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 15 12:05:01 2021 -0400
 
-    cmd/compile: add jump table codegen test
+    cmd/go: in lazy modules, add transitive imports for 'go get' arguments
     
-    Change-Id: Ic67f676f5ebe146166a0d3c1d78a802881320e49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400375
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    I needed to also update TestScript/mod_sumdb_golang.
+    It had been relying on 'go list -mod=mod' to add both the go.mod and
+    go.sum entries for the named package, but when 'go get' actually adds
+    all of the needed dependencies, lazy loading kicks in and 'go list'
+    doesn't end up needing the checksums for go.mod files.
+    We didn't detect the skew before because the 'go list' command was
+    (unexpectedly) also adding the missing dependencies, which triggered a
+    deep scan of the complete module graph.
+    
+    For #45979
+    
+    Change-Id: Ica917dee22c83ffa71c6ad0f2e189f911b73edf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328231
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- test/codegen/switch.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 50 insertions(+)
+ src/cmd/go/internal/modget/get.go                  |  1 +
+ src/cmd/go/internal/modload/buildlist.go           | 12 +++++---
+ src/cmd/go/internal/modload/init.go                |  2 +-
+ src/cmd/go/internal/modload/load.go                | 25 +++++++++++++--
+ .../go/testdata/script/mod_get_lazy_indirect.txt   | 26 +++++++++-------
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt    | 36 +++++++++++++++++++---
+ 6 files changed, 79 insertions(+), 23 deletions(-)

@@ -1,30 +1,16 @@
-commit bb5974e0cb507487ab7a164c08452456840d3ad7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 4 14:10:59 2023 -0700
+commit 51fdfeb1ce89c61332e28ef97a3e72a1d327c2df
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 19:07:30 2022 +0800
 
-    runtime, cmd/compile: optimize open-coded defers
+    runtime/race: use strings.Builder
     
-    This CL optimizes open-coded defers in two ways:
-    
-    1. It modifies local variable sorting to place all open-coded defer
-    closure slots in order, so that rather than requiring the metadata to
-    contain each offset individually, we just need a single offset to the
-    first slot.
-    
-    2. Because the slots are in ascending order and can be directly
-    indexed, we can get rid of the count of how many defers are in the
-    frame. Instead, we just find the top set bit in the active defers
-    bitmask, and load the corresponding closure.
-    
-    Change-Id: I6f912295a492211023a9efe12c94a14f449d86ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516199
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I644f696d00b5bce448e0a00835b3162f5203f346
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428278
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssagen/pgen.go | 16 +++++++
- src/cmd/compile/internal/ssagen/ssa.go  | 27 +++++++-----
- src/runtime/panic.go                    | 74 +++++++++++++++++----------------
- src/runtime/runtime2.go                 | 12 +++---
- 4 files changed, 76 insertions(+), 53 deletions(-)
+ src/runtime/race/sched_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

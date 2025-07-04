@@ -1,18 +1,28 @@
-commit b692e7490aca3864ebf82cfe809e52ee35c52c5b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 25 10:47:13 2017 -0700
+commit 663226d8e130470c1a627c64cf489261ebb6da08
+Author: Sokolov Yura <funny.falcon@gmail.com>
+Date:   Sun Feb 12 13:18:22 2017 +0300
 
-    go/internal/gcimporter: add test object files for go1.8 versions 4 and 5
+    runtime: make fastrand to generate 32bit values
     
-    Version 4 generated with toolchain at commit 51012314251a8b1f1dfe9737091a37c0e1f6b9d5.
-    Version 5 generated with toolchain at commit a6b16e00240ca5ca0161f88819ef32f91f6af52c.
+    Extend period of fastrand from (1<<31)-1 to (1<<32)-1 by
+    choosing other polynom and reacting on high bit before shift.
     
-    Change-Id: If11ec8b3357f0f71776c15665e4d5228b3842ff7
-    Reviewed-on: https://go-review.googlesource.com/41710
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Polynomial is taken at https://users.ece.cmu.edu/~koopman/lfsr/index.html
+    from 32.dat.gz . It is referred as F7711115 cause this list of
+    polynomials is for LFSR with shift to right (and fastrand uses shift to
+    left). (old polynomial is referred in 31.dat.gz as 7BB88888).
+    
+    There were couple of places with conversation of fastrand to int, which
+    leads to negative values on 32bit platforms. They are fixed.
+    
+    Change-Id: Ibee518a3f9103e0aea220ada494b3aec77babb72
+    Reviewed-on: https://go-review.googlesource.com/36875
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- .../internal/gcimporter/testdata/versions/test_go1.8_4.a | Bin 0 -> 1658 bytes
- .../internal/gcimporter/testdata/versions/test_go1.8_5.a | Bin 0 -> 1658 bytes
- 2 files changed, 0 insertions(+), 0 deletions(-)
+ src/runtime/malloc.go | 2 +-
+ src/runtime/select.go | 2 +-
+ src/runtime/stubs.go  | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

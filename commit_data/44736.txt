@@ -1,24 +1,37 @@
-commit d3ab6b50496a58ff3deb2502b6c8b9b38947eeca
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 18 11:35:45 2021 -0400
+commit bb54a855a9b5733569f40ac19a2c338b87c23d14
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 13 10:39:11 2020 +1000
 
-    test: switch fieldtrack test to use GOEXPERIMENT
+    net/http: handle Request.URL.RawPath in StripPrefix
     
-    Now that we can set GOEXPERIMENT at build time, we no longer need
-    -d=fieldtrack in the compiler to enabled field tracking at build time.
-    Switch the one test that uses -d=fieldtrack to use GOEXPERIMENT
-    instead so we can eliminate this debug flag and centralize on
-    GOEXPERIMENT.
+    The StripPrefix wrapper strips a prefix string from the request's
+    URL.Path field, but doesn't touch the RawPath field. This leads to the
+    confusing situation when StripPrefix handles a request with URL.RawPath
+    populated (due to some escaped characters in the request path) and the
+    wrapped request's RawPath contains the prefix but Path does not.
     
-    Updates #42681.
+    This change modifies StripPrefix to strip the prefix from both Path and
+    RawPath. If there are escaped characters in the prefix part of the
+    request URL the stripped handler serves a 404 instead of invoking the
+    underlying handler with a mismatched Path/RawPath pair.
     
-    Change-Id: I14c352c9a97187b9c5ec8027ff672d685f22f543
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302969
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This is a backward incompatible change for a very small minority of
+    requests; I would be surprised if anyone is depending on this behavior,
+    but it is possible. If that's the case, we could make a more
+    conservative change where the RawPath is trimmed if possible, but when
+    the prefix contains escaped characters then we don't 404 but rather send
+    through the invalid Path/RawPath pair as before.
+    
+    Fixes #24366
+    
+    Change-Id: I7030b8c183a3dfce307bc0272bba9a18df4cfe08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233637
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- test/fixedbugs/issue42686.go | 2 +-
- test/run.go                  | 6 +++++-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ doc/go1.16.html            | 14 +++++++++++++
+ src/net/http/serve_test.go | 52 +++++++++++++++++++++++++++++++---------------
+ src/net/http/server.go     | 16 ++++++++------
+ 3 files changed, 59 insertions(+), 23 deletions(-)

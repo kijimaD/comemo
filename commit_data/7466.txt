@@ -1,12 +1,14 @@
-commit a0c3b96065e6291cab072eb526ac4c49c6d06aa3
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Feb 15 16:38:45 2011 -0500
+commit f14c29a3117e3ab78359a60e35c08e74f8dd31e6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 15 11:33:12 2011 -0800
 
-    crypto/tls: make protocol negotiation failure fatal
+    go spec: minor clarification on channel types
     
-    R=r, r2
+    No language change.
+    
+    R=r, rsc, iant, ken2, r2
     CC=golang-dev
-    https://golang.org/cl/4178054
+    https://golang.org/cl/4168050
 
- src/pkg/crypto/tls/handshake_client.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

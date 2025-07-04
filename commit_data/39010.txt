@@ -1,14 +1,47 @@
-commit e4c0e9df8b328395570948f1b3fa4dc3235432f0
-Author: Baokun Lee <nototon@gmail.com>
-Date:   Thu May 2 18:34:04 2019 +0800
+commit a27f3d5cfbed01dd56a23647330a42dcf4bf6ea9
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 14 11:55:44 2018 -0500
 
-    cmd/go: make modconv test more robust
+    runtime: fix hangs in TestDebugCall*
     
-    Change-Id: I3e75201c56779eda1bcd725691c72d384da56f73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174840
-    Run-TryBot: Baokun Lee <nototon@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    This fixes a few different issues that led to hangs and general
+    flakiness in the TestDebugCall* tests.
+    
+    1. This fixes missing wake-ups in two error paths of the SIGTRAP
+       signal handler. If the goroutine was in an unknown state, or if
+       there was an unknown debug call status, we currently don't wake the
+       injection coordinator. These are terminal states, so this resulted
+       in a hang.
+    
+    2. This adds a retry if the target goroutine is in a transient state
+       that prevents us from injecting a call. The most common failure
+       mode here is that the target goroutine is in _Grunnable, but this
+       was previously masked because it deadlocked the test.
+    
+    3. Related to 2, this switches the "ready" signal from the target
+       goroutine from a blocking channel send to a non-blocking channel
+       send. This makes it much less likely that we'll catch this
+       goroutine while it's in the runtime performing that send.
+    
+    4. This increases GOMAXPROCS from 2 to 8 during these tests. With the
+       current setting of 2, we can have at most the non-preemptible
+       goroutine we're injecting a call in to and the goroutine that's
+       trying to make it exit. If anything else comes along, it can
+       deadlock. One particular case I observed was in TestDebugCallGC,
+       where runtime.GC() returns before the forEachP that prepares
+       sweeping on all goroutines has finished. When this happens, the
+       forEachP blocks on the non-preemptible loop, which means we now
+       have at least three goroutines that need to run.
+    
+    Fixes #25519.
+    
+    Updates #29124.
+    
+    Change-Id: I7bc41dc0b865b7d0bb379cb654f9a1218bc37428
+    Reviewed-on: https://go-review.googlesource.com/c/154112
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/testdata/script/mod_init_dep.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/debug_test.go        | 20 ++++++++++++-----
+ src/runtime/export_debug_test.go | 46 ++++++++++++++++++++++++++++------------
+ 2 files changed, 48 insertions(+), 18 deletions(-)

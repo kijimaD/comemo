@@ -1,23 +1,38 @@
-commit 12dcbed45190fecf56ca46d82cd7439cf6015b67
-Author: apocelipes <seve3r@outlook.com>
-Date:   Wed Sep 4 12:02:38 2024 +0000
+commit b7c826d2c4576dbe04a79ab7d0dfa03c722c0ab9
+Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
+Date:   Wed Jun 14 14:33:43 2023 -0700
 
-    compress/flate: use built-in clear to simplify the code
+    runtime,runtime/pprof: get memory mappings on darwin.
     
-    The new bootstrap toolchain allows us to use the built-in clear.
+    Displaying assembly language has never worked for Apple Silicon
+    macs (see #50891). This change uses mach_vm_region to obtain the
+    necessary VM mappings to allow for locating assembly instructions
+    for a cpu profile.
     
-    Updates #64751
+    Fixes #50891
     
-    Change-Id: Ic363e1059f34c46eaa4267c0b40a4ed8d5b3961b
-    GitHub-Last-Rev: 46ca735bfcd99a9874d7904a705970ed0cadf61c
-    GitHub-Pull-Request: golang/go#69253
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610516
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib968c55a19b481b82f63337276b552f3b18f69d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503919
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/compress/flate/deflate.go            |  8 ++------
- src/compress/flate/deflatefast.go        |  4 +---
- src/compress/flate/huffman_bit_writer.go | 16 ++++------------
- 3 files changed, 7 insertions(+), 21 deletions(-)
+ src/cmd/internal/objfile/macho.go       |   3 +
+ src/cmd/pprof/pprof_test.go             |   3 +-
+ src/runtime/defs_darwin.go              |  11 +++
+ src/runtime/defs_darwin_amd64.go        |  11 +++
+ src/runtime/defs_darwin_arm64.go        |  11 +++
+ src/runtime/pprof/defs_darwin.go        |  30 ++++++++
+ src/runtime/pprof/defs_darwin_amd64.go  |  26 +++++++
+ src/runtime/pprof/defs_darwin_arm64.go  |  26 +++++++
+ src/runtime/pprof/proto_darwin.go       |  36 ++++++++++
+ src/runtime/pprof/proto_other.go        |   6 +-
+ src/runtime/pprof/proto_test.go         |  13 ++--
+ src/runtime/pprof/proto_windows.go      |  13 ++--
+ src/runtime/pprof/vminfo_darwin.go      |  71 +++++++++++++++++++
+ src/runtime/pprof/vminfo_darwin_test.go | 122 ++++++++++++++++++++++++++++++++
+ src/runtime/sys_darwin.go               |  55 ++++++++++++++
+ src/runtime/sys_darwin_amd64.s          |  22 ++++++
+ src/runtime/sys_darwin_arm64.s          |  23 ++++++
+ 17 files changed, 464 insertions(+), 18 deletions(-)

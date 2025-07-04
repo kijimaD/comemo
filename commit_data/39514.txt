@@ -1,27 +1,18 @@
-commit 20e4540e9084528a1b36978882596daa7d8d8800
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Jul 15 16:45:17 2019 -0400
+commit 68eb3ccdec3712b9da01b812a3baa1f1e7f07ff3
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Wed Jan 23 00:22:53 2019 +0800
 
-    crypto/tls: remove TestVerifyHostnameResumed
+    cmd/api: fix no go files package panic
     
-    Session resumption is not a reliable TLS behavior: the server can decide
-    to reject a session ticket for a number of reasons, or no reason at all.
-    This makes this non-hermetic test extremely brittle.
+    Fixes #29837
     
-    It's currently broken on the builders for both TLS 1.2 and TLS 1.3, and
-    I could reproduce the issue for TLS 1.3 only. As I was debugging it, it
-    started passing entirely on my machine.
-    
-    In practice, it doesn't get us any coverage as resumption is already
-    tested with the recorded exchange tests, and TestVerifyHostname still
-    provides a smoke test checking that we can in fact talk TLS.
-    
-    Fixes #32978
-    
-    Change-Id: I63505e22ff7704f25ad700d46e4ff14850ba5d3c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186239
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7d57c24d2133932c076df6f41dd6589f777b65dd
+    Reviewed-on: https://go-review.googlesource.com/c/158877
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/tls_test.go | 44 --------------------------------------------
- 1 file changed, 44 deletions(-)
+ src/cmd/api/goapi.go                         | 10 ++++++++--
+ src/cmd/api/goapi_test.go                    | 13 +++++++++++++
+ src/cmd/api/testdata/src/issue29837/p/README |  1 +
+ 3 files changed, 22 insertions(+), 2 deletions(-)

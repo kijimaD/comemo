@@ -1,19 +1,32 @@
-commit 563287ae0636a592880dc616b50fde217fa1100f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 13 23:34:53 2020 +0000
+commit e0ee09095c2779fa3b80e2234b4e1e130cd51352
+Merge: ff197f326f ffcb678f47
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Sep 4 15:40:01 2019 -0400
 
-    Revert "os: handle long path in RemoveAll for windows"
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    This reverts CL 214437.
-    
-    Does not fix the issue, and the test was wrong so it did not detect that it did not fix the issue.
-    
-    Updates #36375
-    
-    Change-Id: I6a4112035a1e90f4fdafed6fdf4ec9dfc718b571
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214601
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iae3a3e1ab8819967548e91edc5ba4e8fb07ec856
 
- src/os/removeall_noat.go |  1 -
- src/os/removeall_test.go | 20 --------------------
- 2 files changed, 21 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go       |   2 +
+ src/cmd/compile/internal/ssa/shortcircuit.go  | 169 ++++++++++++++++----------
+ src/cmd/go/internal/get/vcs.go                |  10 +-
+ src/crypto/tls/auth_test.go                   |   8 --
+ src/crypto/tls/boring_test.go                 |   1 -
+ src/crypto/tls/cipher_suites.go               |  48 --------
+ src/crypto/tls/common.go                      |  33 ++---
+ src/crypto/tls/conn.go                        |  26 +---
+ src/crypto/tls/handshake_client.go            |   4 +-
+ src/crypto/tls/handshake_server.go            |   6 +-
+ src/crypto/tls/handshake_server_test.go       |  29 +----
+ src/crypto/tls/handshake_server_tls13.go      |   2 +-
+ src/crypto/tls/handshake_test.go              |   3 +-
+ src/crypto/tls/key_agreement.go               |  13 +-
+ src/crypto/tls/prf.go                         |  94 +-------------
+ src/crypto/tls/prf_test.go                    |  16 ---
+ src/crypto/tls/testdata/Server-SSLv3-RSA-3DES |  76 ------------
+ src/crypto/tls/testdata/Server-SSLv3-RSA-AES  |  77 ------------
+ src/crypto/tls/testdata/Server-SSLv3-RSA-RC4  |  72 -----------
+ src/crypto/tls/tls_test.go                    |   1 -
+ src/net/http/server.go                        |   7 +-
+ src/net/url/url_test.go                       |  22 ++--
+ 22 files changed, 165 insertions(+), 554 deletions(-)

@@ -1,34 +1,24 @@
-commit f32348669c24ee601870e13f12119a149f206a1e
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 8 09:11:00 2018 -0700
+commit a7f73c436dd6fee6a267bdc72b286524a70b685b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 25 11:41:41 2018 -0500
 
-    cmd/compile: rename memory-using operations
+    cmd/compile: eliminate NoFramePointer
     
-    Some *mem ops are loads, some are stores, some are modifications.
-    Replace mem->load for the loads.
-    Replace mem->store for the stores.
-    Replace mem->modify for the load-modify-stores.
+    The NoFramePointer function flag is no longer used, so this CL
+    eliminates it. This cleans up some confusion between the compiler's
+    NoFramePointer flag and obj's NOFRAME flag. NoFramePointer was
+    intended to eliminate the saved base pointer on x86, but it was
+    translated into obj's NOFRAME flag. On x86, NOFRAME does mean to omit
+    the saved base pointer, but on ppc64 and s390x it has a more general
+    meaning of omitting *everything* from the frame, including the saved
+    LR and ppc64's "fixed frame". Hence, on ppc64 and s390x there are far
+    fewer situations where it is safe to set this flag.
     
-    The only semantic change in this CL is to mark
-    ADD(Q|L)constmodify (which used to be ADD(Q|L)constmem) as
-    both a read and a write, instead of just a write. This is arguably
-    a bug fix, but the bug isn't triggerable at the moment, see CL 112157.
-    
-    Change-Id: Iccb45aea817b606adb2d712ff99b10ee28e4616a
-    Reviewed-on: https://go-review.googlesource.com/112159
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If68991310b4d00638128c296bdd57f4ed731b46d
+    Reviewed-on: https://go-review.googlesource.com/92036
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go        |   26 +-
- src/cmd/compile/internal/ssa/flagalloc.go    |   16 +-
- src/cmd/compile/internal/ssa/gen/386.rules   |   32 +-
- src/cmd/compile/internal/ssa/gen/386Ops.go   |   22 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  322 +++----
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   80 +-
- src/cmd/compile/internal/ssa/opGen.go        |  192 ++--
- src/cmd/compile/internal/ssa/rewrite.go      |    4 +-
- src/cmd/compile/internal/ssa/rewrite386.go   |  290 +++---
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 1260 +++++++++++++-------------
- src/cmd/compile/internal/x86/ssa.go          |    4 +-
- 11 files changed, 1124 insertions(+), 1124 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go  | 3 ---
+ src/cmd/compile/internal/gc/syntax.go | 3 ---
+ 2 files changed, 6 deletions(-)

@@ -1,43 +1,31 @@
-commit 4be75faa3ee79a273ff82d4f5b7f838ef3642f9d
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Jul 20 14:46:40 2021 -0700
+commit dea96ada1742b45e383dcbb0c2ab4cd0d3fc92a8
+Merge: 906d6e362b 5e181357c7
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Dec 1 17:16:25 2020 -0500
 
-    cmd/go: make fewer 'go mod' commands update go.mod
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    'go mod graph', 'go mod vendor', 'go mod verify', and 'go mod why'
-    will no longer edit go.mod or go.sum.
-    
-    'go mod graph', 'go mod verify', and 'go mod why' may still fetch
-    files and look up packages as if they were able to update
-    go.mod. They're useful for debugging and should still work when go.mod
-    is a little broken.
-    
-    This is implemented in modload.setDefaultBuildMod based on command
-    name for now. Super gross. Sorry. This should be fixed with a larger
-    refactoring for #40775.
-    
-    Fixes golang/go#45551
-    
-    Change-Id: If5f225937180d32e9a5dd252c78d988042bbdedf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336151
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341933
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I31c69e54c904c66c10920e4c4caacfef08bb834f
 
- src/cmd/go/internal/modload/init.go                | 21 ++++++++++++++++----
- src/cmd/go/testdata/script/mod_all.txt             |  2 +-
- src/cmd/go/testdata/script/mod_e.txt               | 23 ++++++++++++++--------
- src/cmd/go/testdata/script/mod_get_commit.txt      |  2 +-
- src/cmd/go/testdata/script/mod_getmode_vendor.txt  |  1 +
- src/cmd/go/testdata/script/mod_list_retract.txt    |  4 +++-
- src/cmd/go/testdata/script/mod_retention.txt       |  8 +++++---
- src/cmd/go/testdata/script/mod_tidy_error.txt      |  4 ++--
- src/cmd/go/testdata/script/mod_vendor_replace.txt  |  5 ++++-
- src/cmd/go/testdata/script/mod_vendor_trimpath.txt |  6 +++++-
- .../go/testdata/script/mod_vendor_unused_only.txt  |  2 ++
- src/cmd/go/testdata/script/mod_verify.txt          |  5 -----
- src/cmd/go/testdata/script/modfile_flag.txt        |  5 +++++
- 13 files changed, 61 insertions(+), 27 deletions(-)
+ doc/go1.16.html                                   |   8 +
+ src/cmd/dist/test.go                              |   1 -
+ src/cmd/go/internal/work/exec.go                  |  48 +++-
+ src/cmd/go/internal/work/gc.go                    |  45 ++-
+ src/cmd/go/testdata/script/build_overlay.txt      |  83 +++++-
+ src/cmd/go/testdata/script/build_trimpath_cgo.txt |  28 ++
+ src/crypto/tls/common.go                          |   3 -
+ src/crypto/tls/conn.go                            |   6 +-
+ src/crypto/tls/handshake_client.go                |  33 +--
+ src/crypto/tls/handshake_client_tls13.go          |  14 +-
+ src/crypto/tls/handshake_server.go                |   2 +-
+ src/crypto/tls/handshake_server_tls13.go          |   2 +-
+ src/crypto/x509/internal/macos/corefoundation.go  |   4 +
+ src/crypto/x509/internal/macos/security.go        |   4 +
+ src/crypto/x509/root_cgo_darwin.go                | 326 ----------------------
+ src/crypto/x509/root_darwin.go                    |   4 -
+ src/crypto/x509/root_darwin_test.go               |  33 ---
+ src/crypto/x509/root_ios.go                       |   3 -
+ src/crypto/x509/root_ios_gen.go                   |   3 -
+ src/crypto/x509/root_omit.go                      |   3 -
+ src/go/build/deps_test.go                         |   2 +-
+ 21 files changed, 236 insertions(+), 419 deletions(-)

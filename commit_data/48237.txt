@@ -1,22 +1,19 @@
-commit 302af4be8e27b55b7a8572adece64e2271d09b97
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 28 14:09:47 2022 -0800
+commit 169155d61ede128caa8452bdff3ce9995287c138
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sat May 1 18:45:57 2021 +0200
 
-    cmd/compile: remove -G flag
+    cmd/compile: preserve argument order in debug_info
     
-    Post 1.18, we're committed to types2 as cmd/compile's type checker.
+    When regabi is used sorting by stack offset will not preserve the order
+    of function arguments. Trust that variables are already ordered
+    correctly when creating debug_info entries.
     
-    Change-Id: I30d2dd2b2ba62832fcdcaeb996fcbc8a4a05d591
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388535
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #45720
+    
+    Change-Id: I1dbdd185975273f70244a23302d34f082347603d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315280
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/base/flag.go           |   2 -
- src/cmd/compile/internal/noder/irgen.go         |   9 --
- src/cmd/compile/internal/noder/noder.go         | 109 +-----------------------
- src/cmd/compile/internal/reflectdata/reflect.go |   4 +-
- src/cmd/compile/internal/typecheck/iexport.go   |   5 +-
- src/cmd/compile/internal/types/universe.go      |   4 -
- 6 files changed, 5 insertions(+), 128 deletions(-)
+ src/cmd/compile/internal/dwarfgen/scope.go | 28 +++++++++++++++++++++++++---
+ 1 file changed, 25 insertions(+), 3 deletions(-)

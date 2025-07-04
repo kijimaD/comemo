@@ -1,15 +1,20 @@
-commit 86abfbb931312db022ed8437a89219791ced6435
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 27 20:22:48 2017 -0500
+commit c2917af6280ea1bcc5ebf85224055ae1a1882af3
+Author: Quentin Smith <quentin@golang.org>
+Date:   Thu Nov 3 18:45:01 2016 -0400
 
-    doc/devel: update release.html for new support policy
+    cmd/go: handle escapes in pkg-config output
     
-    Fixes #19069.
+    This commit also adds a test for pkg-config usage in cgo.
     
-    Change-Id: I211a304ec57d6b94366af4c0db413c8055b9634d
-    Reviewed-on: https://go-review.googlesource.com/37531
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Steve Francia <spf@golang.org>
+    Fixes #16455.
+    
+    Change-Id: I95fb6a288a4d19093c4613c93878017d95cbe4a2
+    Reviewed-on: https://go-review.googlesource.com/32735
+    Run-TryBot: Quentin Smith <quentin@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/devel/release.html | 19 ++++++-------------
- 1 file changed, 6 insertions(+), 13 deletions(-)
+ src/cmd/go/build.go      | 35 ++++++++++++++++++++++++++++++++++-
+ src/cmd/go/build_test.go | 19 +++++++++++++++++++
+ src/cmd/go/go_test.go    | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 98 insertions(+), 1 deletion(-)

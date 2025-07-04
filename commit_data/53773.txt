@@ -1,28 +1,25 @@
-commit 616193510f45c6c588af9cb022dfdee52400d0ca
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Tue Jul 25 01:19:30 2023 +0000
+commit 157aae6eed1c092fd9e8ead3527185378eb828e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 17:29:28 2022 -0700
 
-    os/exec: avoid calling LookPath in cmd.Start for resolved paths
+    go/types, types2: establish type-checker specific local tests
     
-    Follow up on CL 511458, see https://go-review.googlesource.com/c/go/+/511458/2..4/src/cmd/go/main.go#b270 .
+    Establish testdata/local directory for tests that are not (yet)
+    shared between the go/types and types2. Move issue47996.go into
+    that directory.
     
-    For #36768.
+    For #54511.
     
-    Change-Id: Icc2a4dbb1219b1d69dd10a900478957b0e975847
-    
-    Change-Id: Icc2a4dbb1219b1d69dd10a900478957b0e975847
-    GitHub-Last-Rev: bac7e66496806d505270c5b90d53672d80a1ca29
-    GitHub-Pull-Request: golang/go#61517
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512155
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I274b119990a93cc3657bdddc5246948699226c21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426660
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/os/exec/exec.go       | 36 ++++--------------------------------
- src/os/exec/lp_plan9.go   |  6 ++++++
- src/os/exec/lp_unix.go    |  6 ++++++
- src/os/exec/lp_wasm.go    |  6 ++++++
- src/os/exec/lp_windows.go | 43 +++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 65 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go                    | 3 ++-
+ .../compile/internal/types2/testdata/{ => local}/issue47996.go   | 0
+ src/go/types/check_test.go                                       | 1 +
+ src/go/types/testdata/local/issue47996.go                        | 9 +++++++++
+ 4 files changed, 12 insertions(+), 1 deletion(-)

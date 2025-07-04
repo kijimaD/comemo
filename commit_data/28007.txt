@@ -1,18 +1,20 @@
-commit a7ed9ff754dd66a75070a376382ca0fa520deefd
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Aug 22 05:52:15 2016 +0900
+commit 9dcbc43f4f299b8ea6546a464d9fdeb5839b5ae9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 25 10:55:22 2016 -0700
 
-    net: document unimplemented methods and functions
+    test: add test for issue 15084
     
-    Fixes #16802.
+    The underlying issues have been fixed.
+    All the individual fixes have their own tests,
+    but it's still useful to have a plain source test.
     
-    Change-Id: I41be7bb4e21e3beaa2136ee69771b0f455b2a7c6
-    Reviewed-on: https://go-review.googlesource.com/27417
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #15084
+    
+    Change-Id: I06c485a7d0716201bd57d1f3be53668dddd7ec14
+    Reviewed-on: https://go-review.googlesource.com/22426
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/file.go      | 3 +++
- src/net/interface.go | 6 ++++++
- src/net/iprawsock.go | 6 ++++++
- src/net/tcpsock.go   | 3 +++
- src/net/udpsock.go   | 9 +++++++++
- 5 files changed, 27 insertions(+)
+ test/fixedbugs/issue15084.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

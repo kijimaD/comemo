@@ -1,24 +1,35 @@
-commit 033e066cb3fc06c1c8eeb3033438e1be8770d100
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Tue Oct 22 22:39:30 2019 +0200
+commit ffd7eba20a0b21e2af038ed4bedfe4a052aa22b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 18:46:04 2019 -0400
 
-    internal/syscall/windows/registry: blacklist certain registry keys in TestWalkFullRegistry
+    cmd/internal/bio: rename Reader.Seek to MustSeek
     
-    It turns out that Windows has "legitimate" keys that have bogus type
-    values or bogus lengths that don't correspond with their type. On up to
-    date Windows 10 systems, this test always fails for this reason. These
-    keys exist because of bugs in Microsoft's code. This commit works around
-    the problem by simply blacklisting known instances. It also expands the
-    error message a bit so that we can make adjustments should the problem
-    ever happen again, and reformats the messages so that it makes copy and
-    pasting into the blacklist easier.
+    Renaming the method makes clear, both to readers and to vet,
+    that this method is not the implementation of io.Seeker:
+    it cannot fail.
     
-    Updates #35084
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
     
-    Change-Id: I50322828c0eb0ccecbb62d6bf4f9c726fa0b3c27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202897
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    For #31916.
+    
+    Change-Id: I3e6ad7264cb0121b4b76935450cccb71d533e96b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176108
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../syscall/windows/registry/registry_test.go      | 53 ++++++++++++++--------
- 1 file changed, 34 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/iimport.go     |  2 +-
+ src/cmd/compile/internal/gc/obj.go         |  4 ++--
+ src/cmd/internal/bio/buf.go                |  4 ++--
+ src/cmd/internal/bio/buf_mmap.go           |  2 +-
+ src/cmd/link/internal/ld/ar.go             |  2 +-
+ src/cmd/link/internal/ld/lib.go            | 14 +++++++-------
+ src/cmd/link/internal/loadelf/ldelf.go     |  8 ++------
+ src/cmd/link/internal/loadmacho/ldmacho.go | 22 ++++++----------------
+ src/cmd/link/internal/loadpe/ldpe.go       |  2 +-
+ src/cmd/link/internal/loadxcoff/ldxcoff.go |  2 +-
+ src/cmd/link/internal/objfile/objfile.go   |  4 ++--
+ src/cmd/vet/all/whitelist/all.txt          |  2 --
+ 12 files changed, 26 insertions(+), 42 deletions(-)

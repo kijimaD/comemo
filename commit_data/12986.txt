@@ -1,13 +1,38 @@
-commit fe252584f5bae7d1ce3b729b83d968c0e3b77139
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Apr 27 23:16:54 2012 +1000
+commit f72c828c677f1cc47f62bc6f39096e9806b45c1d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 27 22:17:08 2012 +1000
 
-    misc/dashboard/codereview: simplify parallel operations for front page, and capture timing info.
+    net: consolidate common socket functions
     
-    R=golang-dev, r
+    In resolving 3507, the fix had to be applied individually to
+    the four *Conn types, tcp, udp, rawip and unix, due to the
+    duplicate code in each Conn type.
+    
+    This CL consolidates the common net.Conn methods that all four
+    *Conn types implement into a base conn type.
+    
+    Pros:
+    * The fix for 3507 would have only needed to be applied to one
+    method. Further improvements, such as possibly removing the
+    c.fd != nil check in c.ok(), would benefit from this CL.
+    * Nearly 300 lines removed from the net package.
+    * The public interface and documentation are not changed.
+    * I think this is an excellent example of the power of embedding.
+    
+    Cons:
+    * The net package is already distributed over many files, this
+    CL adds another place to look.
+    * The fix for 3507 was a total of 16 lines changed, this follow
+    up CL could be considered to be an overreaction as new Conn types
+    are unlikely to be added in the near future.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6128044
+    https://golang.org/cl/6098047
 
- misc/dashboard/codereview/dashboard/front.go | 66 ++++++++++++++++------------
- misc/dashboard/codereview/dashboard/gc.go    |  2 +-
- 2 files changed, 38 insertions(+), 30 deletions(-)
+ src/pkg/net/iprawsock_posix.go |  95 +----------------------------------
+ src/pkg/net/net_posix.go       | 110 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/tcpsock_posix.go   |  95 +----------------------------------
+ src/pkg/net/udpsock_posix.go   |  97 +-----------------------------------
+ src/pkg/net/unixsock_posix.go  |  98 +-----------------------------------
+ 5 files changed, 118 insertions(+), 377 deletions(-)

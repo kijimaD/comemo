@@ -1,23 +1,18 @@
-commit 0681c7c31b5922f08f31404023e6b295f35812fe
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Feb 22 12:30:44 2018 -0800
+commit 48754592e02719437c46f6d1900a313141e14fa6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 17 15:38:13 2017 -0700
 
-    crypto/x509: tighten EKU checking for requested EKUs.
+    runtime: align stack in 386 lib startup before calling C function
     
-    There are, sadly, many exceptions to EKU checking to reflect mistakes
-    that CAs have made in practice. However, the requirements for checking
-    requested EKUs against the leaf should be tighter than for checking leaf
-    EKUs against a CA.
+    Fixes Darwin 386 build. It turns out that the Darwin pthread_create
+    function saves the SSE registers, and therefore requires an aligned stack.
+    This worked before https://golang.org/cl/70530 because the stack sizes
+    were chosen to leave the stack aligned.
     
-    Fixes #23884
-    
-    Change-Id: I05ea874c4ada0696d8bb18cac4377c0b398fcb5e
-    Reviewed-on: https://go-review.googlesource.com/96379
-    Reviewed-by: Jonathan Rudenberg <jonathan@titanous.com>
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Run-TryBot: Filippo Valsorda <hi@filippo.io>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I911a9e8dcde4e41e595d5ef9b9a1ca733e154de6
+    Reviewed-on: https://go-review.googlesource.com/71432
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/x509/name_constraints_test.go | 39 ++++++++++++++++++++++++++++++++
- src/crypto/x509/verify.go                | 32 +++++++++++++++++---------
- 2 files changed, 60 insertions(+), 11 deletions(-)
+ src/runtime/asm_386.s | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

@@ -1,23 +1,20 @@
-commit 4e79f06dac712d35d67d72777dae6df6d8c97888
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 22 23:33:16 2022 -0400
+commit e12d43866d3d68441cbbf858bca21ae20b1deeb9
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 10:43:26 2021 -0400
 
-    os/exec: refactor goroutine communication in Wait
+    [dev.typeparams] go/types: move Signature type decl into signature.go (cleanup)
     
-    This provides clearer synchronization invariants: if it occurs at all,
-    the call to c.Process.Kill always occurs before Wait returns. It also
-    allows any unexpected errors from the goroutine to be propagated back
-    to Wait.
+    This is a port of CL 332091 to go/types. Notably types.Signature is
+    missing APIs for RParams. This is left for a later CL, when the API is
+    finalized.
     
-    For #50436.
-    
-    Change-Id: I7ddadc73e6e67399596e35393f5845646f6111ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401896
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I70b664d656e8c1e32958a75e1d13eab5f3281bf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335038
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/exec/exec.go | 105 ++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 78 insertions(+), 27 deletions(-)
+ src/go/types/signature.go | 65 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/type.go      | 58 ------------------------------------------
+ 2 files changed, 65 insertions(+), 58 deletions(-)

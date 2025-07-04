@@ -1,17 +1,14 @@
-commit e42413cecc17bfd963ffe01341aad8dd42b9b816
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jul 13 18:30:10 2015 -0400
+commit 232331f0c7c60dc2cfde46b356e5610331179ad3
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Jun 5 13:27:49 2015 -0400
 
-    runtime: fix saved PC/SP after safe-point function in syscall
+    runtime: add blank assignment to defeat "declared but not used" error from go/types
     
-    Running a safe-point function on syscall entry uses systemstack() and
-    hence clobbers g.sched.pc and g.sched.sp. Fix this by re-saving them
-    after the systemstack, just like in the other uses of systemstack in
-    reentersyscall.
+    gc should ideally consider this an error too; see golang/go#8560.
     
-    Change-Id: I47868a53eba24d81919fda56ef6bbcf72f1f922e
-    Reviewed-on: https://go-review.googlesource.com/12125
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ieee71c4ecaff493d7f83e15ba8c8a04ee90a4cf1
+    Reviewed-on: https://go-review.googlesource.com/10757
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/proc1.go | 1 +
+ src/runtime/stack_test.go | 1 +
  1 file changed, 1 insertion(+)

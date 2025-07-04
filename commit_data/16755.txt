@@ -1,19 +1,18 @@
-commit 64054a40ad0d85e82f77a4982ea4ee08c3cea40a
+commit 8124a02cb23c0ac988f6e6be4e3e4104baf987c9
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 12 17:37:10 2013 -0400
+Date:   Fri Jul 12 14:23:36 2013 -0400
 
-    encoding/json: coerce invalid UTF-8 to valid UTF-8 during Marshal
+    cmd/5a, cmd/6a, cmd/8a: fix flag parsing
     
-    In practice, rejecting an entire structure due to a single invalid byte
-    in a string is just too picky, and too hard to track down.
-    Be consistent with the bulk of the standard library by converting
-    invalid UTF-8 into UTF-8 with replacement runes.
+    go tool 6a -$(unicode fffd) was crashing.
     
-    R=golang-dev, crawshaw
+    Fixes #5878.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/11211045
+    https://golang.org/cl/11208045
 
- doc/go1.2.txt                        |  1 +
- src/pkg/encoding/json/decode_test.go | 11 +++--------
- src/pkg/encoding/json/encode.go      | 16 +++++++++++++---
- 3 files changed, 17 insertions(+), 11 deletions(-)
+ src/cmd/5a/lex.c | 2 +-
+ src/cmd/6a/lex.c | 2 +-
+ src/cmd/8a/lex.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

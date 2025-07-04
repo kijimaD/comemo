@@ -1,14 +1,12 @@
-commit aec89a6db957df460fa288843cf835adde8ceefd
-Author: Joe Poirier <jdpoirier@gmail.com>
-Date:   Tue Oct 4 15:07:28 2011 +1100
+commit 2cef85f8a11cb144ac68e8f946df638d9ad13818
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 3 17:25:55 2011 -0700
 
-    cgo: allow Window's specific path characters in flag directives.
+    Fix build, disabling flaky registerization test.
     
-    Example: #cgo windows LDFLAGS: -LC:\\WINDOWS\\system32
-    
-    R=alex.brainman, go.peter.90, golang-dev, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5154042
+    https://golang.org/cl/5179045
 
- src/cmd/cgo/gcc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/bug369.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

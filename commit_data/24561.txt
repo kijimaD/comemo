@@ -1,23 +1,12 @@
-commit 0bf515c8c4e4ce7ffdbcdb4c0701a3de1892af6c
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Mon Oct 19 14:36:25 2015 -0700
+commit b7fa8b557d48f9c3ce68c933ffd330cc2ac475a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 5 13:13:33 2015 -0400
 
-    net/http/httptest: detect Content-Type in ResponseRecorder
+    go/build: fix internal/testenv dependency
     
-    * detect Content-Type on ReponseRecorder.Write[String] call
-      if header wasn't written yet, Content-Type header is not set and
-      Transfer-Encoding is not set.
-    * fix typos in serve_test.go
-    
-    Updates #12986
-    
-    Change-Id: Id2ed8b1994e64657370fed71eb3882d611f76b31
-    Reviewed-on: https://go-review.googlesource.com/16096
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id1e30d70d6891ef12110f8e7832b94eeac9e2fa9
+    Reviewed-on: https://go-review.googlesource.com/13250
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/httptest/recorder.go      | 37 ++++++++++++++++++++++++++-------
- src/net/http/httptest/recorder_test.go | 38 +++++++++++++++++++++++++++++++++-
- src/net/http/serve_test.go             |  2 +-
- 3 files changed, 68 insertions(+), 9 deletions(-)
+ src/go/build/deps_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

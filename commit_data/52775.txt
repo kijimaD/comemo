@@ -1,14 +1,16 @@
-commit 1d00dc39851cba737d3ada9a9cb4a99e525b3e9f
-Author: Sameer Ajmani <sameer@google.com>
-Date:   Mon Apr 24 09:34:24 2023 -0400
+commit 55c42c289240c15171a8d05943cf7717f1a79cd6
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Wed May 25 22:39:37 2022 +0900
 
-    doc: fix typo in Go 1.21 release notes
+    doc/go1.19: fix strconv.Quote pkg link
     
-    Change-Id: Ib32567fdd12079cd171a4e1bc118ce27d8ce2a5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/488035
-    Run-TryBot: Sameer Ajmani <sameer@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #51400.
+    
+    Change-Id: I122b3a58e5fbaaa8ceb5b013e8e392f4bcbbd2e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408495
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- doc/go1.21.html | 2 +-
+ doc/go1.19.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

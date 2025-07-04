@@ -1,23 +1,19 @@
-commit 7cb1ae3e8e4bc4d80d711b5180705af556c95843
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 28 16:22:22 2022 -0700
+commit e4003463fff6a90d331c0a2da92774941693a4f7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 28 22:32:41 2021 -0400
 
-    go/types, types2: better error message for some invalid receiver errors (cleanup)
+    [dev.typeparams] cmd/compile: match register-ABI version of memmove call on ARM64
     
-    Use the 1.17 compiler error message together with the receiver base type.
-    Also, simplify and flatten the receive testing logic for clarity.
+    Update the rule to match register-ABI version of the call for
+    inlining memmove.
     
-    Change-Id: I71e58f261900dd7a85d2eb89a310c36b68d1b0b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396298
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ic6da810e4d7ac391ffb766fcdc943985f0739624
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323930
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types2/signature.go       | 88 +++++++++-------------
- .../types2/testdata/check/decls2/decls2a.go        |  6 +-
- .../internal/types2/testdata/check/decls4.go       |  6 +-
- .../types2/testdata/fixedbugs/issue47968.go        |  4 +-
- src/go/types/signature.go                          | 88 +++++++++-------------
- src/go/types/testdata/check/decls2/decls2a.go      |  6 +-
- src/go/types/testdata/check/decls4.go              |  6 +-
- src/go/types/testdata/fixedbugs/issue47968.go      |  4 +-
- 8 files changed, 90 insertions(+), 118 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  9 +++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

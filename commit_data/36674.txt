@@ -1,20 +1,12 @@
-commit 2d82465d18520820c52fea6b5e400a692ffdb92a
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Wed Sep 5 18:49:52 2018 +0300
+commit 67894aa7e20cc57bfe0acb289efc1671263f439d
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Thu May 17 13:58:46 2018 +0000
 
-    cmd/compile/internal/gc: treat cap/len as safe in mayAffectMemory
+    cmd/asm/internal/asm/testdata: convert CRLF to LF line ending
     
-    OLEN and OCAP can't affect memory state as long as their
-    arguments don't.
-    
-    Re-organized case bodies to avoid duplicating same branches for
-    recursive invocations.
-    
-    Change-Id: I30407143429f7dd1891badb70df88969ed267535
-    Reviewed-on: https://go-review.googlesource.com/133555
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Icbff14b52e040826bc6de704942ff2f8e0164e3e
+    Reviewed-on: https://go-review.googlesource.com/113596
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ src/cmd/asm/internal/asm/testdata/386enc.s | 74 +++++++++++++++---------------
+ 1 file changed, 37 insertions(+), 37 deletions(-)

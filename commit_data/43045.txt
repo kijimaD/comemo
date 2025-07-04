@@ -1,16 +1,14 @@
-commit 09dd2b004aadb95887c4d6047ecb1a675a569ad2
-Author: surechen <surechen17@gmail.com>
-Date:   Thu Sep 17 09:02:59 2020 +0800
+commit 96acb74655531794d6f563242736d25f4e716b11
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Mar 3 07:08:06 2020 -0600
 
-    cmd/compile: add type check for ssa genericOps
+    encoding/hex: remove unused variable from BenchmarkDump
     
-    Change-Id: I2233a6a157ec8feffaefd6a8ee65b1c38778c1cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255238
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I1fd47e5eab27346cec488098d4f6102a0749bd28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221788
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/check.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/encoding/hex/hex_test.go | 1 -
+ 1 file changed, 1 deletion(-)

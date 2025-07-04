@@ -1,21 +1,19 @@
-commit f9cf8e5ab11c7ea3f1b9fde302c0a325df020b1a
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Aug 10 11:31:11 2017 +0900
+commit 7b5f94e76c2d2adc0bc380aa50dfd7b5227cb958
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 13 08:00:09 2017 -0700
 
-    net/http: various small cleanups
+    cmd/internal/obj: cache dwarfSym
     
-    * Remove an unnecessary type conversion
-    * Make golint happier about consistent receiver names
-    * Make golint happier about a foo_bar var name
+    Follow-up to review feedback from
+    mdempsky on CL 40507.
     
-    Change-Id: I5223808109f6f8b69ed4be76de82faf2478c6a2e
-    Reviewed-on: https://go-review.googlesource.com/54530
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reduces mutex contention by about 1%.
+    
+    Change-Id: I540ea6772925f4a59e58f55a3458eff15880c328
+    Reviewed-on: https://go-review.googlesource.com/40575
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/fs.go        |  2 +-
- src/net/http/request.go   | 30 +++++++++++++++---------------
- src/net/http/transfer.go  |  3 +--
- src/net/http/transport.go | 10 +++++-----
- 4 files changed, 22 insertions(+), 23 deletions(-)
+ src/cmd/internal/obj/link.go    | 11 ++++++-----
+ src/cmd/internal/obj/objfile.go |  5 ++++-
+ 2 files changed, 10 insertions(+), 6 deletions(-)

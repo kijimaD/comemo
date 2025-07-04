@@ -1,21 +1,16 @@
-commit 30cc8a46c47252e15300d3cf9d27cba9e71e649b
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Mar 11 15:05:10 2019 -0400
+commit e850b3752f49db4c93ebf549400b2d79f6801c9a
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Oct 23 15:55:57 2018 +0200
 
-    test: add new test for gccgo compilation problem
+    net: fix TestInterfaceMulticastAddrs for AIX
     
-    New test for issue 30659 (compilation error due to bad
-    export data).
+    This commit disables checkMulticastStats for AIX operating system.
     
-    Updates #30659.
-    
-    Change-Id: I2541ee3c379e5b22033fea66bb4ebaf720cc5e1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166917
+    Change-Id: If8d0fb609a0dcf75b7bb5c3871cfb6fad76a0a92
+    Reviewed-on: https://go-review.googlesource.com/c/144102
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue30659.dir/a.go | 19 +++++++++++++++++++
- test/fixedbugs/issue30659.dir/b.go | 13 +++++++++++++
- test/fixedbugs/issue30659.go       |  7 +++++++
- 3 files changed, 39 insertions(+)
+ src/net/interface_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

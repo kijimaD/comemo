@@ -1,22 +1,18 @@
-commit 7565726875d96e4a2bd927ebabc5ea614e602ac4
+commit 71588bc2bceddb95795bc5a306c835e5d8f58fdc
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 16 13:46:27 2012 -0700
+Date:   Tue Oct 16 10:20:03 2012 -0700
 
-    math/big: fix big.Exp and document better
+    exp/types/staging: index and slice type checks
     
-    - always return 1 for y <= 0
-    - document that the sign of m is ignored
-    - protect against div-0 panics by treating
-      m == 0 the same way as m == nil
-    - added extra tests
+    Also: handle assignments to the blank identifier.
     
-    Fixes #4239.
-    
-    R=agl, remyoudompheng, agl
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6724046
+    https://golang.org/cl/6658050
 
- src/pkg/math/big/int.go      | 11 +++++------
- src/pkg/math/big/int_test.go | 25 +++++++++++++++++++------
- src/pkg/math/big/nat.go      | 16 ++++++++--------
- 3 files changed, 32 insertions(+), 20 deletions(-)
+ src/pkg/exp/types/staging/const.go            |  16 +++
+ src/pkg/exp/types/staging/expr.go             | 150 +++++++++++++++++++-------
+ src/pkg/exp/types/staging/stmt.go             |  12 ++-
+ src/pkg/exp/types/staging/testdata/decls1.src |   4 +-
+ src/pkg/exp/types/staging/testdata/expr3.src  |  74 ++++++++++++-
+ 5 files changed, 213 insertions(+), 43 deletions(-)

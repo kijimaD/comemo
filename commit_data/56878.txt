@@ -1,20 +1,22 @@
-commit 70e453b4361b80a85e6ebb37e4d43ec02db9a50a
-Author: Sean Liao <sean@liao.dev>
-Date:   Tue Jul 9 20:24:34 2024 +0100
+commit c99fee0545ed1f754ab28fdfeb5623f0cb5a5b40
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon May 29 11:45:14 2023 +0200
 
-    context: handle nil values for valueCtx.String()
+    syscall: fix ComputerName on Windows
     
-    Fixes #68356
+    GetComputerName expects n to be the size of the buffer, and
+    on output contains the number of characters copied to the buffer.
     
-    Change-Id: I57dc089a99f545e29a6759a8db5e28fabb6d1a61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597415
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    CL 493036 broke ComputerName by always setting n to 0.
+    
+    Change-Id: I3f4b30d2f9825d321a6d28ec82bdc7b6294e04e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499035
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/context/context.go | 2 ++
- src/context/x_test.go  | 4 ++++
- 2 files changed, 6 insertions(+)
+ src/syscall/syscall_windows.go      |  4 ++--
+ src/syscall/syscall_windows_test.go | 10 ++++++++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

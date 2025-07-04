@@ -1,21 +1,17 @@
-commit 4154727e1b125a7d3398c9cc143eb36343c82bcc
-Author: Kevin Burke <kev@inburke.com>
-Date:   Fri Oct 20 12:56:38 2017 -0700
+commit ba1018b4549f3edc257221cc8e49221255e03290
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 9 21:33:54 2018 +0000
 
-    crypto/tls: add examples for [Load]X509KeyPair
+    net/url: reject invalid userinfo values when parsing URLs
     
-    I was confused about how to start an HTTP server if the server
-    cert/key are in memory, not on disk. I thought it would be good to
-    show an example of how to use these two functions to accomplish that.
+    Fixes #23392
     
-    example-cert.pem and example-key.pem were generated using
-    crypto/tls/generate_cert.go.
-    
-    Change-Id: I850e1282fb1c38aff8bd9aeb51988d21fe307584
-    Reviewed-on: https://go-review.googlesource.com/72252
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5822b082b14d886b9c3b5ad7beebb2c01a77851b
+    Reviewed-on: https://go-review.googlesource.com/87038
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/example_test.go           | 73 ++++++++++++++++++++++++++++++++
- src/crypto/tls/testdata/example-cert.pem | 11 +++++
- src/crypto/tls/testdata/example-key.pem  |  5 +++
- 3 files changed, 89 insertions(+)
+ src/net/url/url.go      | 33 +++++++++++++++++++++++++++++++++
+ src/net/url/url_test.go |  7 +++++++
+ 2 files changed, 40 insertions(+)

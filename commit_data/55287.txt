@@ -1,28 +1,26 @@
-commit d95e25e83c922aa63fcb1f596d6bdf1786789edb
-Author: Tolya Korniltsev <korniltsev.anatoly@gmail.com>
-Date:   Tue Dec 12 22:24:34 2023 +0700
+commit 532e34dd383549cdb415bc3e09b70d23f280524e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 1 16:43:05 2022 -0800
 
-    runtime/pprof: fix inlined generics locations
+    cmd/compile: remove -d=typecheckinl flag
     
-    When generic function[a,b] is inlined to the same generic function[b,a]
-    with different types (not recursion) it is expected to get a pprof with
-    a single Location with two functions. However due to incorrect check
-    for generics names using runtime.Frame.Function, the profileBuilder
-    assumes it is a recursion and emits separate Location.
+    This flag forced the compiler to eagerly type check all available
+    inline function bodies, which presumably was useful in the early days
+    of implementing inlining support. However, it shouldn't have any
+    significance with the unified frontend, since the same code paths are
+    used for constructing normal function bodies as for inlining.
     
-    This change fixes the recursion check for generics functions by using
-    runtime_expandFinalInlineFrame
+    Updates #57410.
     
-    Fixes #64641
-    
-    Change-Id: I3f58818f08ee322b281daa377fa421555ad328c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549135
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I6842cf86bcd0fbf22ac336f2fc0b7b8fe14bccca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458617
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/pprof/proto.go         |  2 +-
- src/runtime/pprof/protomem_test.go | 99 +++++++++++++++++++++++++++++++++-----
- 2 files changed, 89 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/base/debug.go | 1 -
+ src/cmd/compile/internal/gc/main.go    | 6 ------
+ src/cmd/compile/internal/inline/inl.go | 4 ----
+ 3 files changed, 11 deletions(-)

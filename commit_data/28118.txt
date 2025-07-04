@@ -1,16 +1,85 @@
-commit b6e3a98cf3a7acb3d5c1431eb04e9c3edad6c6ed
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 10 13:03:42 2016 -0700
+commit 38f674687a5dbce63af60a0a52892f666d7c626c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 28 15:32:01 2016 -0400
 
-    cmd/go: make C compiler warnings fatal on builders
+    [dev.garbage] runtime: reintroduce no-zeroing optimization
     
-    Fixes #14698
+    Currently we always zero objects when we allocate them. We used to
+    have an optimization that would not zero objects that had not been
+    allocated since the whole span was last zeroed (either by getting it
+    from the system or by getting it from the heap, which does a bulk
+    zero), but this depended on the sweeper clobbering the first two words
+    of each object. Hence, we lost this optimization when the bitmap
+    sweeper went away.
     
-    Change-Id: I82fa781bf136c30e900d8e910ff576ba8b218acb
-    Reviewed-on: https://go-review.googlesource.com/23005
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Re-introduce this optimization using a different mechanism. Each span
+    already keeps a flag indicating that it just came from the OS or was
+    just bulk zeroed by the mheap. We can simply use this flag to know
+    when we don't need to zero an object. This is slightly less efficient
+    than the old optimization: if a span gets allocated and partially
+    used, then GC happens and the span gets returned to the mcentral, then
+    the span gets re-acquired, the old optimization knew that it only had
+    to re-zero the objects that had been reclaimed, whereas this
+    optimization will re-zero everything. However, in this case, you're
+    already paying for the garbage collection, and you've only wasted one
+    zeroing of the span, so in practice there seems to be little
+    difference. (If we did want to revive the full optimization, each span
+    could keep track of a frontier beyond which all free slots are zeroed.
+    I prototyped this and it didn't obvious do any better than the much
+    simpler approach in this commit.)
+    
+    This significantly improves BinaryTree17, which is allocation-heavy
+    (and runs first, so most pages are already zeroed), and slightly
+    improves everything else.
+    
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  2.15ms ± 1%  2.14ms ± 1%  -0.80%  (p=0.000 n=17+17)
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.71s ± 1%     2.56s ± 1%  -5.73%        (p=0.000 n=18+19)
+    DivconstI64-12              1.70ns ± 1%    1.70ns ± 1%    ~           (p=0.562 n=18+18)
+    DivconstU64-12              1.74ns ± 2%    1.74ns ± 1%    ~           (p=0.394 n=20+20)
+    DivconstI32-12              1.74ns ± 0%    1.74ns ± 0%    ~     (all samples are equal)
+    DivconstU32-12              1.66ns ± 1%    1.66ns ± 0%    ~           (p=0.516 n=15+16)
+    DivconstI16-12              1.84ns ± 0%    1.84ns ± 0%    ~     (all samples are equal)
+    DivconstU16-12              1.82ns ± 0%    1.82ns ± 0%    ~     (all samples are equal)
+    DivconstI8-12               1.79ns ± 0%    1.79ns ± 0%    ~     (all samples are equal)
+    DivconstU8-12               1.60ns ± 0%    1.60ns ± 1%    ~           (p=0.603 n=17+19)
+    Fannkuch11-12                2.11s ± 1%     2.11s ± 0%    ~           (p=0.333 n=16+19)
+    FmtFprintfEmpty-12          45.1ns ± 4%    45.4ns ± 5%    ~           (p=0.111 n=20+20)
+    FmtFprintfString-12          134ns ± 0%     129ns ± 0%  -3.45%        (p=0.000 n=18+16)
+    FmtFprintfInt-12             131ns ± 1%     129ns ± 1%  -1.54%        (p=0.000 n=16+18)
+    FmtFprintfIntInt-12          205ns ± 2%     203ns ± 0%  -0.56%        (p=0.014 n=20+18)
+    FmtFprintfPrefixedInt-12     200ns ± 2%     197ns ± 1%  -1.48%        (p=0.000 n=20+18)
+    FmtFprintfFloat-12           256ns ± 1%     256ns ± 0%  -0.21%        (p=0.008 n=18+20)
+    FmtManyArgs-12               805ns ± 0%     804ns ± 0%  -0.19%        (p=0.001 n=18+18)
+    GobDecode-12                7.21ms ± 1%    7.14ms ± 1%  -0.92%        (p=0.000 n=19+20)
+    GobEncode-12                5.88ms ± 1%    5.88ms ± 1%    ~           (p=0.641 n=18+19)
+    Gzip-12                      218ms ± 1%     218ms ± 1%    ~           (p=0.271 n=19+18)
+    Gunzip-12                   37.1ms ± 0%    36.9ms ± 0%  -0.29%        (p=0.000 n=18+17)
+    HTTPClientServer-12         78.1µs ± 2%    77.4µs ± 2%    ~           (p=0.070 n=19+19)
+    JSONEncode-12               15.5ms ± 1%    15.5ms ± 0%    ~           (p=0.063 n=20+18)
+    JSONDecode-12               56.1ms ± 0%    55.4ms ± 1%  -1.18%        (p=0.000 n=19+18)
+    Mandelbrot200-12            4.05ms ± 0%    4.06ms ± 0%  +0.29%        (p=0.001 n=18+18)
+    GoParse-12                  3.28ms ± 1%    3.21ms ± 1%  -2.30%        (p=0.000 n=20+20)
+    RegexpMatchEasy0_32-12      69.4ns ± 2%    69.3ns ± 1%    ~           (p=0.205 n=18+16)
+    RegexpMatchEasy0_1K-12       239ns ± 0%     239ns ± 0%    ~     (all samples are equal)
+    RegexpMatchEasy1_32-12      69.4ns ± 1%    69.4ns ± 1%    ~           (p=0.620 n=15+18)
+    RegexpMatchEasy1_1K-12       370ns ± 1%     369ns ± 2%    ~           (p=0.088 n=20+20)
+    RegexpMatchMedium_32-12      108ns ± 0%     108ns ± 0%    ~     (all samples are equal)
+    RegexpMatchMedium_1K-12     33.6µs ± 3%    33.5µs ± 3%    ~           (p=0.718 n=20+20)
+    RegexpMatchHard_32-12       1.68µs ± 1%    1.67µs ± 2%    ~           (p=0.316 n=20+20)
+    RegexpMatchHard_1K-12       50.5µs ± 3%    50.4µs ± 3%    ~           (p=0.659 n=20+20)
+    Revcomp-12                   381ms ± 1%     381ms ± 1%    ~           (p=0.916 n=19+18)
+    Template-12                 66.5ms ± 1%    65.8ms ± 2%  -1.08%        (p=0.000 n=20+20)
+    TimeParse-12                 317ns ± 0%     319ns ± 0%  +0.48%        (p=0.000 n=19+12)
+    TimeFormat-12                338ns ± 0%     338ns ± 0%    ~           (p=0.124 n=19+18)
+    [Geo mean]                  5.99µs         5.96µs       -0.54%
+    
+    Change-Id: I638ffd9d9f178835bbfa499bac20bd7224f1a907
+    Reviewed-on: https://go-review.googlesource.com/22591
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/go/build.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go   | 23 ++++++++++-------------
+ src/runtime/mcentral.go |  2 +-
+ 2 files changed, 11 insertions(+), 14 deletions(-)

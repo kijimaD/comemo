@@ -1,18 +1,26 @@
-commit 8373bfe88e92a77a498caeab2ca729330b007483
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Nov 15 11:08:03 2022 -0800
+commit b9cae6f78f129bb3f1b3293da5375040f5c4f356
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Dec 22 10:34:55 2021 -0500
 
-    go/internal/gcimporter: backport flattenImports optimization
+    testing: fix deadlock with t.Parallel in testing seed corpus
     
-    Backport of go.dev/cl/450755 from the x/tools importer.
+    The c.startParallel channel on the testContext is stuck
+    in t.Parallel() because c.running starts at 1 for the main
+    fuzz parent test, and is causing a deadlock because it is
+    never released. It would normally be released by tRunner,
+    but needs to instead be released by fRunner instead for fuzz
+    tests.
     
-    Change-Id: Ia9a2cc038d589a4cde1b31f74484a5f88dabeef9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450795
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Florian Zenker <floriank@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #50217
+    
+    Change-Id: I2d010e9adddfd8e8321ff2f9dd2e43daf46c128f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374054
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go/internal/gcimporter/ureader.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_parallel.txt | 7 +++++++
+ src/testing/fuzz.go                               | 9 +++++----
+ 2 files changed, 12 insertions(+), 4 deletions(-)

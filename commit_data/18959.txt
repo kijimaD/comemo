@@ -1,23 +1,15 @@
-commit f8c350873c94baaf53b9c1c2b6ddfb463172c3de
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Mar 26 15:11:36 2014 +0400
+commit 61f2fabd3824e32d4ca23c6f08c200c21de4bd10
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 26 17:18:59 2014 +1100
 
-    runtime: fix yet another race in bgsweep
-    Currently it's possible that bgsweep finishes before all spans
-    have been swept (we only know that sweeping of all spans has *started*).
-    In such case bgsweep may fail wake up runfinq goroutine when it needs to.
-    finq may still be nil at this point, but some finalizers may be queued later.
-    Make bgsweep to wait for sweeping to *complete*, then it can decide
-    whether it needs to wake up runfinq for sure.
-    Update #7533
+    cmd/go: fix typo in help doc
+    Fixes #7519.
     
-    LGTM=rsc
-    R=rsc
+    LGTM=adg, mikioh.mikioh
+    R=golang-codereviews, adg, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/75960043
+    https://golang.org/cl/80370043
 
- src/pkg/runtime/malloc.goc |  1 +
- src/pkg/runtime/malloc.h   |  4 +++
- src/pkg/runtime/mgc0.c     | 75 ++++++++++++++++++++++++----------------------
- src/pkg/runtime/proc.c     |  2 ++
- 4 files changed, 47 insertions(+), 35 deletions(-)
+ src/cmd/go/doc.go  | 2 +-
+ src/cmd/go/help.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

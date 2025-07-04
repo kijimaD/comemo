@@ -1,15 +1,21 @@
-commit d0607221faec743a726cb38e1dd12b337c33a775
+commit f6f5ce87cdaad3ca4805f6a16bba3b6851fddf2d
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 3 10:17:19 2012 -0800
+Date:   Fri Feb 3 09:20:53 2012 -0800
 
-    math/big: more accurate package comment
+    godoc: fix identifier search
     
-    Fix some receiver names for consistency.
+    Thanks to Andrey Mirtchovski for tracking this down.
     
-    R=golang-dev, rsc
+    This was broken by CL 5528077 which removed the InsertSemis
+    flag from go/scanner - as a result, semicolons are now always
+    inserted and the respective indexer code checked for the
+    wrong token.
+    
+    Replaced the code by a direct identifier test.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5624043
+    https://golang.org/cl/5606065
 
- src/pkg/math/big/nat.go | 12 +++++++++---
- src/pkg/math/big/rat.go | 42 +++++++++++++++++++++---------------------
- 2 files changed, 30 insertions(+), 24 deletions(-)
+ src/cmd/godoc/index.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

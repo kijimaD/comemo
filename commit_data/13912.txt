@@ -1,19 +1,18 @@
-commit edce6349639e321c3b1a34036a8fbc08ad363cd3
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 23 23:04:28 2012 -0400
+commit 659d1df1bcd44ec6bb92f9592a8c92670d862d3c
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Mon Sep 24 08:30:28 2012 +1000
 
-    time: prepare for 64-bit ints
+    pkg/go/ast: Avoid doing zero-length writes to the fd.
     
-    The code was trying to interpret a uint32 n as a signed quantity
-    and then store it in an int. For this, int(n) currently works, but when
-    int becomes 64 bits one must write int(int32(n)) instead, to get
-    the 32-bit sign extension.
+    After each line, ast.Print would do a zero-length write,
+    which would hit the boundary condition on Plan 9 when
+    reading over pipes (since message boundaries are
+    preserved). This change makes sure we only do positive-
+    length writes.
     
-    Update #2188.
-    
-    R=golang-dev, nigeltao
+    R=rsc, rminnich, dave, r
     CC=golang-dev
-    https://golang.org/cl/6551068
+    https://golang.org/cl/6558046
 
- src/pkg/time/zoneinfo_read.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/ast/print.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,12 +1,19 @@
-commit 2f2271db7a1cb434845f6bbfbc5d4aa732f2aef5
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Mar 12 11:18:18 2013 +1100
+commit 79d06d7286eb5ec3089f19dbf8542803007cd4c7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Mar 12 11:07:36 2013 +1100
 
-    net/http: add tests for ParseHTTPVersion
+    encoding/base32: don't panic when decoding "AAAA==".
     
-    R=golang-dev, bradfitz
+    Edit encoding/base64's internals and tests to match encoding/base32.
+    
+    Properly handling line breaks in padding is left for another CL.
+    
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/7739043
+    https://golang.org/cl/7693044
 
- src/pkg/net/http/request_test.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/pkg/encoding/base32/base32.go      | 34 ++++++++++++++++---------
+ src/pkg/encoding/base32/base32_test.go | 45 +++++++++++++++++++++++++---------
+ src/pkg/encoding/base64/base64.go      |  8 +++---
+ src/pkg/encoding/base64/base64_test.go | 31 ++++++++++++++---------
+ 4 files changed, 78 insertions(+), 40 deletions(-)

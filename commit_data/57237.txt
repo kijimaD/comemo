@@ -1,22 +1,20 @@
-commit c7faf7f51478b8a91a78bebb3f7740972ac76d6e
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Aug 22 15:02:49 2024 +0200
+commit 5f9412911b7ba96b31f0924d66190b242cff334d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 7 22:28:20 2023 -0400
 
-    runtime: fix nanotime1 on windows/arm
+    cmd/internal/obj: print relocation type by name in -S output
     
-    nanotime1 is broken on windows/arm since CL 526358, which
-    unintentionally removed a necessary instruction. It hasn't been
-    noticed till now because the there is no windows/arm builder.
+    The compiler/assembler's -S output prints relocation type
+    numerically, which is hard to understand. Every time I need to
+    count the relocation type constants to figure out which relocation
+    it actually is. Print the symbolic name instead.
     
-    This CL restores the instruction.
-    
-    Fixes #68996.
-    
-    Change-Id: I52ef6891a3bd8e608b8538f456d181e08f93efaa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607776
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I4866873bbae8b3dc0ee212609cb00280f9164243
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501856
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/runtime/sys_windows_arm.s | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/obj/objfile.go | 4 ++--
+ test/fixedbugs/issue9355.go     | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

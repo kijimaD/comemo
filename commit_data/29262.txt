@@ -1,17 +1,17 @@
-commit 3f6070cc915b8175f4b7d1324a8320b881e891a2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Oct 31 11:43:40 2016 -0700
+commit 644c16c76cc11034b124763a039a7164cb3e1abc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Sep 6 08:48:14 2016 -0400
 
-    vendor/golang_org/text/unicode/norm: re-vendor
+    cmd/compile: fix intrinsifying sync/atomic.Swap* on AMD64
     
-    This picks up just a trivial fix,
-    making vet (and thus me) happy.
+    It should alias to Xchg instead of Swap. Found when testing #16985.
     
-    Change-Id: Ib82ae44c081ff1ec5c078196a6cd5e1a3505d03b
-    Reviewed-on: https://go-review.googlesource.com/32427
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If9fd734a1f89b8b2656f421eb31b9d1b0d95a49f
+    Reviewed-on: https://go-review.googlesource.com/28512
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/vendor/golang_org/x/text/unicode/norm/readwriter.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 12 ++++++------
+ test/intrinsic.dir/atomic.go       | 19 +++++++++++++++++++
+ 2 files changed, 25 insertions(+), 6 deletions(-)

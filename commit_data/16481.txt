@@ -1,22 +1,13 @@
-commit 2c0b00744f067c7d9f44a735f77aa0eb0e2e345e
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jun 4 08:33:00 2013 +0200
+commit 850d1026adfb0546bd0a6491ee95890257454282
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 4 12:59:28 2013 +1000
 
-    cmd/6c, cmd/8c: avoid generating long multiplication when not necessary.
+    doc: add Game of Life to playground toys
     
-    On amd64
-    benchmark                        old ns/op    new ns/op    delta
-    BenchmarkHashStringSpeed                91           74  -18.49%
-    BenchmarkHashInt32Speed                 54           45  -17.88%
-    BenchmarkHashInt64Speed                 76           58  -23.53%
-    BenchmarkHashStringArraySpeed          231          188  -18.61%
-    
-    Fixes #5367.
-    
-    R=golang-dev, iant, dave, daniel.morsing, ality, rsc
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/9040043
+    https://golang.org/cl/9961043
 
- src/cmd/6c/cgen.c | 5 +++--
- src/cmd/8c/cgen.c | 5 +++--
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ doc/play/life.go | 113 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/root.html    |   1 +
+ 2 files changed, 114 insertions(+)

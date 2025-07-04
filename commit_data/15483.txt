@@ -1,15 +1,12 @@
-commit 3b69efb010259b681cfd00b5dec9fe61d5be55a3
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Feb 28 13:46:26 2013 +1100
+commit 64648986e32ce8d3b1bfdab7fe255c3f69baa163
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Feb 27 21:15:36 2013 -0300
 
-    exp/cookiejar: eliminate some "."+str garbage.
+    net/http: don't drop error on request write
     
-    It's not a big deal, but it's easy to fix.
-    
-    R=dsymonds
-    CC=dr.volker.dobler, golang-dev
-    https://golang.org/cl/7425043
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7230059
 
- src/pkg/exp/cookiejar/jar.go      | 11 ++++--
- src/pkg/exp/cookiejar/jar_test.go | 74 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 82 insertions(+), 3 deletions(-)
+ src/pkg/net/http/transfer.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

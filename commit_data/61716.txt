@@ -1,0 +1,21 @@
+commit f96987888f343e708c31e42356ba61715ee1f437
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 20 14:18:58 2024 -0800
+
+    cmd/cgo/internal/testsanitizers: don't create fuzz corpus
+    
+    The TestASANFuzz test would sometimes create a fuzz corpus
+    in testdata/testdata/FuzzReverse. Avoid modifying the source
+    directory by building the test with "go test -c" and running
+    it in a temporary directory.
+    
+    Change-Id: I12e2da4c85165fa35e0dc1aa6b46c6d0fbccaab8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630377
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/internal/testsanitizers/asan_test.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

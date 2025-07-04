@@ -1,12 +1,14 @@
-commit 4b0eb19a05133d4cc117fefe1e37ea1e35a64c73
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon May 20 23:19:41 2013 +0200
+commit bb3a32ef6e6772ca6fefda119d0238aec6f7e585
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 20 13:27:53 2013 -0700
 
-    cmd/gc: eliminate a useless bounds check in inlined append().
+    spec: fix language about "range" clause
     
-    R=golang-dev, daniel.morsing, r
+    Fixes #5434.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/9358043
+    https://golang.org/cl/9595044
 
- src/cmd/gc/walk.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

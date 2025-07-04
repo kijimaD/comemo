@@ -1,15 +1,16 @@
-commit a72b87efa934957245449975a940763f49026a7c
+commit dc159fabff52e9dd3da0948438017373be741b22
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 1 11:48:27 2012 -0500
+Date:   Thu Mar 1 11:48:17 2012 -0500
 
-    reflect: make Value.Interface return immutable data
+    runtime: run init on main thread
     
-    Fixes #3134.
+    Fixes #3125.
     
-    R=golang-dev, r
+    R=golang-dev, r, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5713049
+    https://golang.org/cl/5714049
 
- src/pkg/reflect/all_test.go | 12 ++++++++++++
- src/pkg/reflect/value.go    | 10 ++++++++++
- 2 files changed, 22 insertions(+)
+ src/pkg/runtime/mheap.c               |  2 +-
+ src/pkg/runtime/proc.c                | 12 ++++++------
+ src/pkg/runtime/runtime_linux_test.go | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 36 insertions(+), 7 deletions(-)

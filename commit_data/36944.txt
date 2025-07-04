@@ -1,20 +1,14 @@
-commit 7fb60eb1a2aaed7a801ab15bd7aaeaabdbb5e5db
-Author: Ian Davis <nospam@iandavis.com>
-Date:   Fri Oct 5 10:07:29 2018 +0100
+commit dda7985a7b748e7149dc46c29611c2ec6e861340
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Jun 11 13:36:05 2018 -0400
 
-    cmd/vet: detect non-pointer arguments for unmarshal and decode
+    doc/go1.11: first draft of release notes
     
-    Checks usage of Unmarshal and Decode functions in json, gob and
-    xml packages to detect attempts to decode into non-pointer types.
+    Updates golang/go#23122
     
-    Fixes #27564
-    
-    Change-Id: I07bbd5be82d61834ffde9af9937329d7fb1f05d0
-    Reviewed-on: https://go-review.googlesource.com/c/139997
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I2d6769101cdd580901cb08a3027d787fa438d4bc
+    Reviewed-on: https://go-review.googlesource.com/117975
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/testdata/unmarshal.go | 60 ++++++++++++++++++++++++++++++++
- src/cmd/vet/unmarshal.go          | 72 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 132 insertions(+)
+ doc/go1.11.html | 337 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 337 insertions(+)

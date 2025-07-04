@@ -1,18 +1,22 @@
-commit 3d61f24835e477250c98da846206d573a907099c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Aug 8 09:51:22 2023 +0700
+commit e78871ea07376e09673644633740b6e0fc08b370
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Mar 13 17:02:15 2023 -0500
 
-    reflect: handle String kind in Value.{Pointer,UnsafePointer}
+    runtime,cmd/internal/obj/ppc64: cleanup ppc64le runtime.racecallbackthunk
     
-    Updates #61308
+    Update to use the common macros to ensure all ELFv2 callee-save registers
+    are saved properly when transitioning from ELFv2 to Go calling/stack
+    conventions. Simplify the inlined Go function call, and remove the asm
+    hacks which inhibited implicit stack frame management.
     
-    Change-Id: I92d459383c520d137787ce5c8f135d205af74e5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516596
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iee118a4069962a791436c6fe19370e1929404a8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479795
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/reflect/all_test.go | 36 ++++++++++++++++++++++++++++++++++++
- src/reflect/value.go    | 14 +++++++++++---
- 2 files changed, 47 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/ppc64/obj9.go |   9 +--
+ src/runtime/race_ppc64le.s         | 130 +++++--------------------------------
+ 2 files changed, 20 insertions(+), 119 deletions(-)

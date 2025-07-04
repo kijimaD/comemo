@@ -1,16 +1,26 @@
-commit e12676304540fa9e160bf4cc28b954574f9ff944
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 21 14:40:50 2012 -0800
+commit dd43bf807d2d571a7278e9d0755d6787800a0006
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Nov 22 08:18:45 2012 +1100
 
-    spec: be clearer about the scope of a package name
+    net/http: use runtime.Stack instead of runtime/debug.Stack
     
-    We have the notion of a PackageName, not package identifier.
-    As is, it could construed that imports that rename a package
-    don't have an "imported package identifier" but a local one.
+    Fixes #4060.
     
-    R=r, rsc, iant, ken, dsymonds
+    2012/11/21 19:51:34 http: panic serving 127.0.0.1:47139: Kaaarn!
+    goroutine 7 [running]:
+    net/http.func·004(0x7f330807ffb0, 0x7f330807f100)
+            /home/dfc/go/src/pkg/net/http/server.go:615 +0xa7
+    ----- stack segment boundary -----
+    main.(*httpHandler).ServeHTTP()
+            /home/dfc/src/httppanic.go:16 +0x53
+    net/http.(*conn).serve(0xc200090240, 0x0)
+            /home/dfc/go/src/pkg/net/http/server.go:695 +0x55d
+    created by net/http.(*Server).Serve
+            /home/dfc/go/src/pkg/net/http/server.go:1119 +0x36d
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6858049
+    https://golang.org/cl/6846085
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/server.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

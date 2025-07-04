@@ -1,15 +1,16 @@
-commit b09c274bfabb3edef60b4df3375906852aab7da1
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Apr 12 12:46:54 2016 -0400
+commit 8ad027c0c401a5b2d58679f8dac2b4c4f68c8ba0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 29 21:48:15 2016 -0800
 
-    net/http: fix TestLinuxSendfile on s390x
+    go/types: nicer shift error message
     
-    s390x doesn't have sendfile64 so apply the same fix as MIPS
-    (eebf7d27) and just use sendfile.
+    Updates #13940.
     
-    Change-Id: If8fe2e974ed44a9883282430157c3545d5bd04bd
-    Reviewed-on: https://go-review.googlesource.com/21892
+    Change-Id: I41974c292dd981d82ac03b9b8b406713445362c3
+    Reviewed-on: https://go-review.googlesource.com/20081
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/fs_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/go/types/expr.go             | 6 +++---
+ src/go/types/testdata/shifts.src | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

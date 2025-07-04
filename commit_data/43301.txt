@@ -1,31 +1,18 @@
-commit e4ec30965b9ca629922e83b8d335224ae4bdf062
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Oct 12 13:44:21 2020 -0400
+commit f4fe89108c42bde3978fda8b826acbcd77db6076
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 16 02:58:23 2020 +1100
 
-    cmd/link: support internal linking on darwin/arm64
+    test: re-enable atomic intrinsic related tests on riscv64
     
-    Add support of internal linking on darwin/arm64 (macOS).
+    riscv64 now has atomic intrinsics, so re-enable the atomic intrinsic tests.
     
-    Still incomplete. Pure Go binaries work. Cgo doesn't. TLS is not
-    set up when cgo is not used (as before) (so asynchronous
-    preemption is not enabled).
+    Fixes #36765
     
-    Internal linking is not enabled by default but can be requested
-    via -ldflags=-linkmode=internal.
-    
-    Updates #38485.
-    
-    Change-Id: I1e0c81b6028edcb1ac26dcdafeb9bb3f788cf732
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261643
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I838f27570a94d7fa5774c43f1ca5f4df2ca104cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223560
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/load/pkg.go    |  7 +++---
- src/cmd/internal/sys/supported.go  |  2 +-
- src/cmd/link/internal/arm64/asm.go | 49 ++++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/arm64/obj.go |  2 +-
- src/cmd/link/internal/ld/config.go | 13 ++++++++--
- src/cmd/link/internal/ld/macho.go  |  8 +++----
- src/cmd/link/internal/ld/main.go   |  2 +-
- src/runtime/rt0_darwin_arm64.s     | 20 +++++++---------
- 8 files changed, 79 insertions(+), 24 deletions(-)
+ test/inline_sync.go      | 5 +----
+ test/intrinsic_atomic.go | 2 +-
+ 2 files changed, 2 insertions(+), 5 deletions(-)

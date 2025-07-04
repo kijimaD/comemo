@@ -1,19 +1,23 @@
-commit e1d20ce25acfd8a1c5933453f34db5f589585eaa
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Jan 9 21:01:41 2019 -0500
+commit 98fd66808fafb6496caeb3e848ae277b734f8ed9
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 30 11:02:41 2018 -0600
 
-    misc/sortac: delete sortac command
+    text/template: simplify line tracking in the lexer
     
-    The sortac command is no longer needed as of CL 157238, and
-    can be deleted. Its functionality has been directly integrated
-    into the new x/build/cmd/updatecontrib command. A previous version
-    of updatecontrib was the only user of sortac.
+    First, move the strings.Count logic out of emit, since only itemText
+    requires that. Use it in those call sites. itemLeftDelim and
+    itemRightDelim cannot contain newlines, as they're the "{{" and "}}"
+    tokens.
     
-    Updates #12042
+    Secondly, introduce a startLine lexer field so that we don't have to
+    keep track of it elsewhere. That's also a requirement to move the
+    strings.Count out of emit, as emit modifies the start position field.
     
-    Change-Id: If7442ebee11d05d095ff875a37eed3973c0fd9ca
-    Reviewed-on: https://go-review.googlesource.com/c/157257
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I69175f403487607a8e5b561b3f1916ee9dc3c0c6
+    Reviewed-on: https://go-review.googlesource.com/132275
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/sortac/sortac.go | 79 ---------------------------------------------------
- 1 file changed, 79 deletions(-)
+ src/text/template/parse/lex.go | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)

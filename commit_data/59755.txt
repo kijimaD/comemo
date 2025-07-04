@@ -1,50 +1,36 @@
-commit eebae283b6e91f0bf2bd15b1fda24189841d45b8
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu May 22 22:06:13 2025 -0400
+commit a63907808d14679c723e566cb83acc76fc8cafc2
+Author: Nuno Gonçalves <nunomrgoncalves@tecnico.ulisboa.pt>
+Date:   Thu Apr 18 19:30:26 2024 +0000
 
-    go/token: FileSet: hold Files in a balanced tree
+    net/http: add field Cookie.Quoted bool
     
-    This CL changes the representation of FileSet from a slice
-    to a tree, specifically an AVL tree keyed by the File's
-    base-end range. This makes a sequence of insertions using
-    AddExistingFiles much more efficient: creating a FileSet
-    of size n by a sequence of calls costs O(n log n), whereas
-    before it was O(n^2 log n) because of the repeated sorting.
+    The current implementation of the http package strips double quotes
+    from the cookie-value during parsing, resulting in the serialized
+    cookie not including them. This patch addresses this limitation by
+    introducing a new field to track whether the original value was
+    enclosed in quotes.
     
-    The AVL tree is based on Russ' github.com/rsc/omap,
-    simplified for clarity and to reduce unnecessary dynamism.
-    We use an AVL tree as it is more strongly balanced than an
-    RB tree, optimising lookups at the expense of insertions.
+    Additionally, the internal representation of a cookie in the cookiejar
+    package has been adjusted to align with the new representation.
     
-    The CL includes a basic unit test of the tree using
-    operations on pseudorandom values.
+    The syntax of cookies is outlined in RFC 6265 Section 4.1.1:
+    https://datatracker.ietf.org/doc/html/rfc6265\#section-4.1.1
     
-    Benchmarks of Position lookups actually improve because
-    the tree avoids BinarySearchFunc's dynamic dispatch to cmp,
-    and the benchmark of AddExistingFiles is about 1000x (!) faster:
+    Fixes #46443
     
-    goos: darwin
-    goarch: arm64
-    pkg: go/token
-    cpu: Apple M1 Pro
-                                        │     old.txt     │               new.txt               │
-                                        │     sec/op      │    sec/op     vs base               │
-    FileSet_Position/random-8                51.60n ±  1%   39.99n ±  1%  -22.50% (p=0.000 n=9)
-    FileSet_Position/file-8                  27.10n ±  3%   26.64n ±  1%        ~ (p=0.168 n=9)
-    FileSet_Position/manyfiles-8             209.9n ± 17%   154.1n ±  9%  -26.58% (p=0.000 n=9)
-    FileSet_AddExistingFiles/sequence-8   395930.3µ ±  4%   280.8µ ± 10%  -99.93% (p=0.000 n=9)
-    
-    Updates #73205
-    
-    Change-Id: Iea59c624a6cedadc2673987a5eb0ebece67af9e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675736
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Iac12a56397d77a6060a75757ab0daeacc60457f3
+    GitHub-Last-Rev: a76440e741440cddaa05944b6828a14a32b5a44a
+    GitHub-Pull-Request: golang/go#66752
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577755
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/go/token/position.go            | 100 +++------
- src/go/token/position_bench_test.go |   6 +-
- src/go/token/serialize.go           |  23 +-
- src/go/token/serialize_test.go      |  13 +-
- src/go/token/tree.go                | 405 ++++++++++++++++++++++++++++++++++++
- src/go/token/tree_test.go           |  86 ++++++++
- 6 files changed, 539 insertions(+), 94 deletions(-)
+ api/next/46443.txt                           |  1 +
+ doc/next/6-stdlib/99-minor/net/http/46443.md |  3 +
+ src/net/http/cookie.go                       | 51 ++++++++++------
+ src/net/http/cookie_test.go                  | 90 ++++++++++++++++++----------
+ src/net/http/cookiejar/jar.go                |  4 +-
+ src/net/http/cookiejar/jar_test.go           | 26 +++++++-
+ src/net/http/request.go                      |  2 +-
+ 7 files changed, 124 insertions(+), 53 deletions(-)

@@ -1,29 +1,13 @@
-commit 946167906ed8646c433c257b074a10e01f0a7dab
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 22 11:52:02 2022 -0500
+commit cc7ceea5859beb5569d1a278e389ae7dd7d13f8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 21 09:46:40 2021 -0700
 
-    runtime: make static/dynamic startup detection work with musl on ppc64le
+    [dev.typeparams] cmd/compile/internal/types2: simplify Interface accessors
     
-    The glibc loader explicitly sets the first doubleword on the stack (R1)
-    to $0 to indicate it was dynamically loaded.
-    
-    An ELFv2 ABI compliant loader will set R3/R4 to argc/argv when starting
-    the process, and R13 to TLS. musl is not compliant. Instead it passes
-    argc/argv like the kernel, but R3/R4 are in an undefined state and R13
-    is valid.
-    
-    With the knowledge above, the startup code can be modified to
-    dynamically handle all three cases when linked internally.
-    
-    Fixes #51787
-    
-    Change-Id: I5de33862c161900d9161817388bbc13a65fdc69c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394654
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Paul Murphy <murp@ibm.com>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Ia97cf88d94de044d61ce2bd364a858bd608c050a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321850
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/rt0_linux_ppc64le.s | 32 +++++++++++++++++++++-----------
- 1 file changed, 21 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/types2/type.go | 62 +++++++--------------------------
+ 1 file changed, 12 insertions(+), 50 deletions(-)

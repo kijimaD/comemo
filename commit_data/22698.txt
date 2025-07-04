@@ -1,31 +1,17 @@
-commit b6a0450bece6820b6a6d272ce7468915c4aaf796
-Author: Matt T. Proud <matt.proud@gmail.com>
-Date:   Sun Apr 12 19:50:52 2015 +0200
+commit 167562f65200bc01c9ecdcf393dfa2f16de3d9c2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 1 22:01:24 2015 +0900
 
-    testing/quick: align tests with reflect.Kind.
+    net: deflake TestDialTimeoutFDLeak
     
-    This commit is largely cosmetic in the sense that it is the remnants
-    of a change proposal I had prepared for testing/quick, until I
-    discovered that 3e9ed27 already implemented the feature I was looking
-    for: quick.Value() for reflect.Kind Array.  What you see is a merger
-    and manual cleanup; the cosmetic cleanups are as follows:
+    This change makes TestDialTimeoutFDLeak work on almost all the supported
+    platforms.
     
-    (1.) Keeping the TestCheckEqual and its associated input functions
-    in the same order as type kinds defined in reflect.Kind.  Since
-    3e9ed27 was committed, the test case began to diverge from the
-    constant's ordering.
+    Updates #4384.
     
-    (2.) The `Intptr` derivatives existed to exercise quick.Value with
-    reflect.Kind's `Ptr` constant.  All `Intptr` (unrelated to `uintptr`)
-    in the test have been migrated to ensure the parallelism of the
-    listings and to convey that `Intptr` is not special.
-    
-    (3.) Correct a misspelling (transposition) of "alias", whereby it is
-    named as "Alais".
-    
-    Change-Id: I441450db16b8bb1272c52b0abcda3794dcd0599d
-    Reviewed-on: https://go-review.googlesource.com/8804
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I3608f438003003f9b7cfa17c9e5fe7077700fd60
+    Reviewed-on: https://go-review.googlesource.com/8392
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/testing/quick/quick_test.go | 38 +++++++++++++++++++-------------------
- 1 file changed, 19 insertions(+), 19 deletions(-)
+ src/net/dial_test.go | 105 +++++++++++++++++++--------------------------------
+ 1 file changed, 39 insertions(+), 66 deletions(-)

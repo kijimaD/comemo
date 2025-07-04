@@ -1,27 +1,30 @@
-commit 85c0d26c6a107b532ce0298c494456dac8d3b97c
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Aug 10 09:59:00 2021 -0500
+commit 2c66cab8a7b569b2dc5a7ab112ba4579f39c5dbb
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 18 18:34:24 2021 -0400
 
-    cmd/asm,cmd/internal/obj/ppc64: recognize ppc64 ISA 3.1 MMA registers
+    testing: skip extra -count iterations if there are no tests
     
-    Allow the assembler frontend to match MMA register arguments added by
-    ISA 3.1. The prefix "A" (for accumulator) is chosen to identify them.
+    When running benchmarks with high -count and no tests (either at all or
+    filtered with -run), the time for runTests to check for tests -count
+    times can add a significant delay to starting benchmarks.
     
-    Updates #44549
+    To avoid this delay, make runTests bail out on the second iteration if
+    the first found no tests to run. We expect the same tests to run every
+    time, so there is no reason to duplicate work.
     
-    Change-Id: I363e7d1103aee19d7966829d2079c3d876621efc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419534
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    One caveat: the testing docs do not explicitly require the same subtests
+    to be run on every call, so this could break tests that depend on
+    multiple runs to actually run all tests. I consider such tests invalid,
+    but some may exist.
+    
+    Fixes #49050
+    
+    Change-Id: I7b34f3832b31493cc089ee0555e231f4dc690154
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356669
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/arch/arch.go      |  3 +++
- src/cmd/asm/internal/arch/ppc64.go     |  4 ++++
- src/cmd/internal/obj/ppc64/a.out.go    | 13 +++++++++++++
- src/cmd/internal/obj/ppc64/anames9.go  |  1 +
- src/cmd/internal/obj/ppc64/asm9.go     |  3 +++
- src/cmd/internal/obj/ppc64/asm_test.go |  1 +
- src/cmd/internal/obj/ppc64/list9.go    |  3 +++
- 7 files changed, 28 insertions(+)
+ src/testing/testing.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

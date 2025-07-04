@@ -1,17 +1,22 @@
-commit 9b3cdaf0a3bd179a5459312112ef115866b09985
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 4 22:42:43 2015 -0400
+commit 95aff4db54cd79461c85c7547860be7458e26ec3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 28 14:31:25 2015 -0700
 
-    runtime: consolidate gcDrain and gcDrainUntilPreempt
+    [dev.ssa] cmd/compile: use Copy instead of ConvNop
     
-    These functions were nearly identical. Consolidate them by adding a
-    flags argument. In addition to cleaning up this code, this makes
-    further changes that affect both functions easier.
+    The existing backend simply elides OCONVNOP.
+    There's no reason for us to do any differently.
+    Rather than insert ConvNops and then rewrite them
+    away, stop creating them in the first place.
     
-    Change-Id: I6ec5c947603bbbd3ff4040113b2fbc240e99745f
-    Reviewed-on: https://go-review.googlesource.com/15405
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I4bcbe2229fcebd189ae18df24f2c612feb6e215e
+    Reviewed-on: https://go-review.googlesource.com/12810
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go     |  8 ++---
- src/runtime/mgcmark.go | 88 +++++++++++++++++---------------------------------
- 2 files changed, 33 insertions(+), 63 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 59 +++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  4 --
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  5 ---
+ src/cmd/compile/internal/ssa/regalloc.go       |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 39 -----------------
+ 6 files changed, 59 insertions(+), 54 deletions(-)

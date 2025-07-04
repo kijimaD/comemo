@@ -1,56 +1,21 @@
-commit a440cc0d702e15c19bcc984f7a8f5c10f83726ab
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 16 13:54:39 2018 +1100
+commit 83515df3f31cc70eab2ea4af77e675cabe1eefd5
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue Jun 19 15:39:17 2018 -0400
 
-    fmt: print maps in key-sorted order
+    cmd/link: enable DWARF compression on Windows
     
-    For easier testing, change the way maps are printed so they
-    appear in a consistent order between runs. Do this by printing
-    them in key-sorted order.
+    Simple follow-on to CL 118276. Everything worked except that the
+    compressed sections need to be aligned at PEFILEALIGN.
     
-    To do this, we add a package at the root, internal/fmtsort,
-    that implements a general mechanism for sorting map keys
-    regardless of their type. This is a little messy and probably
-    slow, but formatted printing of maps has never been fast and
-    is already always reflection-driven.
+    Fixes #25927
+    Updates #11799
     
-    The rules are:
-    
-    The ordering rules are more general than with Go's < operator:
-    
-     - when applicable, nil compares low
-     - ints, floats, and strings order by <
-     - NaN compares less than non-NaN floats
-     - bool compares false before true
-     - complex compares real, then imag
-     - pointers compare by machine address
-     - channel values compare by machine address
-     - structs compare each field in turn
-     - arrays compare each element in turn.
-     - interface values compare first by reflect.Type describing the concrete type
-       and then by concrete value as described in the previous rules.
-    
-    The new package is internal because we really do not want
-    everyone using this to sort things. It is slow, not general, and
-    only suitable for the subset of types that can be map keys.
-    
-    Also use the package in text/template, which already had a
-    weaker version of this mechanism.
-    
-    This change requires adding a dependency on sort to the fmt
-    package, but that isn't disruptive to the dependency tree.
-    
-    Fixes #21095
-    
-    Change-Id: Ia602115c7de5d95993dbd609611d8bd96e054157
-    Reviewed-on: https://go-review.googlesource.com/c/142737
+    Change-Id: Iec871defe30e3e66055d64a5ae77d5a7aca355f5
+    Reviewed-on: https://go-review.googlesource.com/119816
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/fmt/print.go                    |   9 +-
- src/go/build/deps_test.go           |   6 +-
- src/internal/fmtsort/export_test.go |  11 ++
- src/internal/fmtsort/sort.go        | 216 ++++++++++++++++++++++++++++++++++++
- src/internal/fmtsort/sort_test.go   | 212 +++++++++++++++++++++++++++++++++++
- src/text/template/exec.go           |   6 +-
- 6 files changed, 452 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

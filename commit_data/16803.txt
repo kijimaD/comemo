@@ -1,15 +1,12 @@
-commit d7b4a09ca8037d91a5a89ea0e9ab36cef37cef74
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 18 10:12:14 2013 -0400
+commit a6f95ad34ea6b8c450a126d5fd783a8fc6e9d953
+Author: Andrew Bonventre <andybons@chromium.org>
+Date:   Thu Jul 18 11:11:23 2013 +1000
 
-    debug/gosym: update for Go 1.2 pcln table
+    image/gif: don't write superfluous global color table
     
-    R=golang-dev, r
+    R=r, nigeltao
     CC=golang-dev
-    https://golang.org/cl/11495043
+    https://golang.org/cl/11446043
 
- src/pkg/debug/gosym/pclinetest.asm  |   4 +-
- src/pkg/debug/gosym/pclntab.go      | 360 +++++++++++++++++++++++++++++++++++-
- src/pkg/debug/gosym/pclntab_test.go |  43 +++--
- src/pkg/debug/gosym/symtab.go       |  91 +++++++--
- 4 files changed, 458 insertions(+), 40 deletions(-)
+ src/pkg/image/gif/writer.go | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)

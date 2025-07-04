@@ -1,25 +1,47 @@
-commit a20cb4ca5c14ff27bdf16989d450c83b22f156d8
-Author: Tim Möhlmann <muhlemmer@gmail.com>
-Date:   Thu Aug 13 11:56:31 2020 +0300
+commit 8e2b5d3e71b695887f3d02ead57744e9674acf8e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jan 28 18:18:58 2020 -0500
 
-    database/sql: make Rows.Scan properly wrap underlying errors
+    [dev.link] cmd/link: make symbol's global index unique
     
-    The prior implementation used the format verb %v which unfortunately
-    improperly wrapped any underlying scanner errors, and we couldn't use
-    errors.Is nor errors.As. This change fixes that by using the %w verb.
+    Currently, when mapping symbol's local index to global index, for
+    duplicated and overwriting/overwritten symbols, each appearance
+    of the symbol gets a global index, with one being the "primary",
+    and others "redirect" to it through the overwrite map. Basically,
+    the local-global index mapping is one to one, with overwrite/
+    dedup happening in global index level.
     
-    Added a unit to ensure that both error sub string matching works, but
-    also that errors.Is works as expected.
+    This has a few drawbacks:
+    - All symbol accesses effectively need to query the overwrite
+      map. This may hurt performance.
+    - For multi-level overwrites, (Y overwrites X, Z overwrites Y),
+      this can get quite complicated, and we have to follow the
+      redirection recursively.
+    - Failed to follow or to update the overwrite map leads to bugs.
     
-    Fixes #38099
+    In this CL, we change the index mapping mechanism so that each
+    symbol get a unique global index. Multiple appearances of the
+    same symbol get the same index. Now the local-global index
+    mapping is N to one. Overwrite/dedup happens directly in the
+    local-global mapping.
     
-    Change-Id: Iea667041dd8081d961246f77f2542330417292dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248337
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    We keep both mapping directions in arrays. Each object carries
+    an array for its local-global mapping. The loader carries an
+    array mapping global index to the "primary" local index, which is
+    the one we should load from. This way, we can get rid of the
+    overwrite map, and index conversions are simply array accesses.
+    
+    TODO: we still make reservation of the index space upfront, and
+    leave holes for dup symbols. Maybe get rid of the reservation and
+    holes.
+    
+    Change-Id: Ia251489d5f2ff16a0b3156a71d141a70cdf03a4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217064
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/database/sql/sql.go      |  5 ++++-
- src/database/sql/sql_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go        | 459 +++++++++++---------------
+ src/cmd/link/internal/loader/loader_test.go   |  12 +-
+ src/cmd/link/internal/loader/symbolbuilder.go |   7 +-
+ 3 files changed, 197 insertions(+), 281 deletions(-)

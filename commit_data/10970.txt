@@ -1,14 +1,23 @@
-commit 86deacc0bc271a7188db6f4413be6491f013f233
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Thu Dec 22 17:31:54 2011 +0100
+commit 7350c771f89e1a068677121341908a8846905c2c
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 22 11:23:57 2011 -0500
 
-    gc: better linenumbers for inlined functions
+    exp/terminal: several cleanups
     
-    Fixes #2580 up to a point.
+    1) Add EscapeCodes to the terminal so that applications don't wire
+       them in.
+    2) Add a callback for auto-complete
+    3) Fix an issue with input lines longer than the width of the
+       terminal.
+    4) Have Write() not stomp the current line. It now erases the current
+       input, writes the output and reprints the prompt and partial input.
+    5) Support prompting without local echo in Terminal.
+    6) Add GetSize to report the size of terminal.
     
-    R=rsc
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5498068
+    https://golang.org/cl/5479043
 
- src/cmd/gc/inl.c | 34 +++++++++++++++++++++++++++++++++-
- 1 file changed, 33 insertions(+), 1 deletion(-)
+ src/pkg/exp/terminal/terminal.go | 204 ++++++++++++++++++++++++++++++++++-----
+ src/pkg/exp/terminal/util.go     |  12 ++-
+ 2 files changed, 189 insertions(+), 27 deletions(-)

@@ -1,19 +1,12 @@
-commit 4545fea4fc845d481d97e7dac7d6fe0b37048ce2
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sat Sep 8 14:23:14 2018 +0000
+commit 25f73db0b66c9bfbf7ea7d46feb6db4de49da003
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu May 10 17:38:23 2018 +0200
 
-    cmd/compile/internal/amd64: simplify assembly generator
+    misc/ios: update documentation for running iOS programs and tests
     
-    Merge two case-statements together, since they have similar logic.
-    
-    1. That makes the assembly generator more clear.
-    2. The total size of cmd/compile decreases about 0.8KB.
-    
-    Change-Id: I0144a07152202ee7b21e323bcd5dea80a351a6e3
-    Reviewed-on: https://go-review.googlesource.com/134215
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I8e3077ab9c7dff66877ac00dc4600b53c07eb1f8
+    Reviewed-on: https://go-review.googlesource.com/112655
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 15 +++++----------
- 1 file changed, 5 insertions(+), 10 deletions(-)
+ misc/ios/README | 88 ++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 47 insertions(+), 41 deletions(-)

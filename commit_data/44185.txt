@@ -1,18 +1,21 @@
-commit 96a276363b130d0f0e5185f2f17c0f6bce43f885
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 20 20:41:16 2021 -0800
+commit de1f07d56d3a0c8a6ca5cf2553abcf536785e1eb
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 21 16:35:24 2020 -0400
 
-    doc/go1.16: mention go/build changes
+    [dev.link] cmd/link: delete sym.Symbols
     
-    For #40070
-    For #41191
-    For #43469
-    For #43632
+    Now the only thing it does is to track versions. Move it to ctxt.
+    And delete sym.Symbols.
     
-    Change-Id: I6dc6b6ea0f35876a4c252e4e287a0280aca9d502
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285213
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ie6b974f9bf79c4f33ace02213dcb89463eadd26a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234884
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.16.html | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ src/cmd/link/internal/ld/lib.go        | 15 +++++-----
+ src/cmd/link/internal/ld/link.go       | 13 ++++++++-
+ src/cmd/link/internal/ld/sym.go        |  2 +-
+ src/cmd/link/internal/loader/loader.go |  3 +-
+ src/cmd/link/internal/sym/symbols.go   | 53 ----------------------------------
+ 5 files changed, 22 insertions(+), 64 deletions(-)

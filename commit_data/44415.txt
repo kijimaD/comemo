@@ -1,27 +1,21 @@
-commit 76c0003cd5645078e342c1d24c98b3ce5ae42eb4
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Feb 23 14:58:32 2021 +0100
+commit 152ffca82fa53008bd2872f7163c7a1885da880e
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Thu Jun 25 19:41:13 2020 -0400
 
-    syscall, os: use pipe2 syscall on DragonflyBSD instead of pipe
+    net: add support for dialing from a custom local address on Plan 9
     
-    Follow the implementation used by the other BSDs and account for the
-    intricacy of having to pass the fds array even though the file
-    descriptors are returned.
+    Make use of the extra parameter on "connect" control message to set the
+    local IP address and port. The ip(3) man page doesn't document that the
+    local IP address is settable, but upon inspection of the source code,
+    it's clearly settable.
     
-    Re-submit of CL 130996 with corrected pipe2 wrapper.
+    Fixes #39747
     
-    Change-Id: Ie36d8214cba60c4fdb579f18bfc1c1ab3ead3ddc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295372
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ied3d60452f20d6e5af23d1c1dcb34774af0dbd5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240064
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/os/pipe2_bsd.go                     |  4 ++--
- src/os/pipe_bsd.go                      |  4 ++--
- src/syscall/forkpipe.go                 |  4 ++--
- src/syscall/forkpipe2.go                |  4 ++--
- src/syscall/syscall_dragonfly.go        | 13 +++++++++++++
- src/syscall/zsyscall_dragonfly_amd64.go | 12 ++++++++++++
- src/syscall/zsysnum_dragonfly_amd64.go  |  1 +
- 7 files changed, 34 insertions(+), 8 deletions(-)
+ src/net/ipsock_plan9.go | 32 +++++++++++++++++++++++++++++++-
+ 1 file changed, 31 insertions(+), 1 deletion(-)

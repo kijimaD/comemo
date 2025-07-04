@@ -1,20 +1,36 @@
-commit c78c79f152dff010820a22e9a79cfffe48322914
-Author: David Chase <drchase@google.com>
-Date:   Thu Oct 1 16:22:19 2020 -0400
+commit 877ef86bec593cd7e40899ac5446791e65b47839
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 6 10:31:39 2020 -0500
 
-    cmd/compile: activate revert switch for late call expansion regression
+    cmd/compile: add spectre mitigation mode enabled by -spectre
     
-    Not a fix, but things will work while I fix it.
-    Credit @andybons "for we revert switches for scary stuff".
+    This commit adds a new cmd/compile flag -spectre,
+    which accepts a comma-separated list of possible
+    Spectre mitigations to apply, or the empty string (none),
+    or "all". The only known mitigation right now is "index",
+    which uses conditional moves to ensure that x86-64 CPUs
+    do not speculate past index bounds checks.
     
-    Updates #41736
+    Speculating past index bounds checks may be problematic
+    on systems running privileged servers that accept requests
+    from untrusted users who can execute their own programs
+    on the same machine. (And some more constraints that
+    make it even more unlikely in practice.)
     
-    Change-Id: I55f90860eae919765aac4f6d9f108a54139027e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258897
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The cases this protects against are analogous to the ones
+    Microsoft explains in the "Array out of bounds load/store feeding ..."
+    sections here:
+    https://docs.microsoft.com/en-us/cpp/security/developer-guidance-speculative-execution?view=vs-2019#array-out-of-bounds-load-feeding-an-indirect-branch
+    
+    Change-Id: Ib7532d7e12466b17e04c4e2075c2a456dc98f610
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222660
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/config.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go            | 30 ++++++++++++++++--
+ src/cmd/compile/internal/gc/ssa.go             | 31 +++++++++++++++++--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  3 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  3 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 12 ++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 42 ++++++++++++++++++++++++++
+ test/codegen/spectre.go                        | 38 +++++++++++++++++++++++
+ 7 files changed, 155 insertions(+), 4 deletions(-)

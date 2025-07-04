@@ -1,28 +1,15 @@
-commit 804850d87b7581daa54c0aa4b1972e2d08b4b8f7
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 12 15:19:23 2023 -0400
+commit 47e792e22eb0dd85c0197e32c2791f252be7244d
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon May 30 18:44:57 2022 +0800
 
-    cmd/cgo/internal/testcarchive: build on all platforms
+    runtime: clean up unused function gosave on loong64
     
-    This test package uses syscall.SIGSEGV and syscall.SIGPIPE, which are
-    defined on most, but not all platforms. Normally this test runs as
-    part of dist test, which only registers this test on platforms that
-    support c-archive build mode, which includes all platforms that define
-    these signals. But this doesn't help if you're just trying to type
-    check everything in cmd.
-    
-    Add build constraints so that this package type checks on all
-    platforms.
-    
-    Fixes #60164.
-    Updates #37486.
-    
-    Change-Id: Id3f9ad4cc9f80146de16aedcf85d108a77215ae6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494659
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: I28960a33d251a36e5e364fa6e27c5b2e13349f6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409354
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/cmd/cgo/internal/testcarchive/carchive_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/asm_loong64.s | 15 ---------------
+ 1 file changed, 15 deletions(-)

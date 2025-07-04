@@ -1,22 +1,21 @@
-commit 96aecdcb36ad5240a9858f7f7d77ace30f2deaaa
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Mar 14 13:46:23 2021 -0700
+commit 78a1064d5dd05fc669342df3a6a5e11d49749d85
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 27 14:05:05 2020 -0700
 
-    cmd/compile: fix case where func-valued field of a generic type is called
+    runtime: remove scase.releasetime field
     
-    Added test example orderedmap.go (binary search tree) that requires this
-    fix (calling function compare in _Map).
+    selectgo will report at most one block event, so there's no need to
+    keep a releasetime for every select case. It suffices to simply track
+    the releasetime of the case responsible for the wakeup.
     
-    Also added new tests slices.go and metrics.go that just work.
+    Updates #40410.
     
-    Change-Id: Ifa5f42ab6eee9aa54c40f0eca19e00a87f8f608a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301829
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I72679cd43dde80d7e6dbab21a78952a4372d1e79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245122
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go |   7 +
- test/typeparam/metrics.go                 | 196 ++++++++++++++++++
- test/typeparam/orderedmap.go              | 286 +++++++++++++++++++++++++++
- test/typeparam/slices.go                  | 318 ++++++++++++++++++++++++++++++
- 4 files changed, 807 insertions(+)
+ src/cmd/compile/internal/gc/select.go |  1 -
+ src/runtime/select.go                 | 23 ++++++++++-------------
+ 2 files changed, 10 insertions(+), 14 deletions(-)

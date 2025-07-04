@@ -1,22 +1,21 @@
-commit 0852a104fde7675724d973637bff3ebbf1ba61c9
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Jul 12 19:19:45 2018 -0400
+commit 360c19157ae5465c9548bd9e050263b9e336c9bf
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Mar 28 12:19:46 2018 +0200
 
-    crypto/x509: add GODEBUG option x509ignoreCN=1
+    cmd/compile: print accurate escape reason for non-const-length slices
     
-    When x509ignoreCN=1 is present in GODEBUG, ignore the deprecated Common
-    Name field. This will let people test a behavior we might make the
-    default in the future, and lets a final class of certificates avoid the
-    NameConstraintsWithoutSANs error.
+    This change makes `-m -m` print a better explanation for the case
+    where a slice is marked as escaping and heap-allocated because it
+    has a non-constant len/cap.
     
-    Updates #24151
+    Fixes #24578
     
-    Change-Id: I1c397aa1fa23777b9251c311d02558f9a5bdefc0
-    Reviewed-on: https://go-review.googlesource.com/123695
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I0ebafb77c758a99857d72b365817bdba7b446cc0
+    Reviewed-on: https://go-review.googlesource.com/102895
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/crypto/x509/name_constraints_test.go | 26 +++++++++++++++++++++++
- src/crypto/x509/verify.go                | 10 ++++++++-
- src/crypto/x509/verify_test.go           | 36 ++++++++++++++++++++++++++++++++
- 3 files changed, 71 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/esc.go | 19 +++++++++++++++----
+ test/escape_array.go               |  7 +++++++
+ test/escape_because.go             |  7 +++++++
+ 3 files changed, 29 insertions(+), 4 deletions(-)

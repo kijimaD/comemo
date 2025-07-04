@@ -1,14 +1,12 @@
-commit 6b795e77dfbaed05f0607ac14a3db3f62d905e70
-Author: Nick Craig-Wood <nick@craig-wood.com>
-Date:   Tue Oct 4 14:04:18 2016 +0100
+commit fca9fc52c831ab6af56e30f8c48062a99ded2580
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 16 15:41:33 2016 -0400
 
-    runtime: correct function name in throw message
+    runtime: fix stale comment in lfstack
     
-    Change-Id: I8fd271066925734c3f7196f64db04f27c4ce27cb
-    Reviewed-on: https://go-review.googlesource.com/30274
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6ef08f6078190dc9df0b2df4f26a76456602f5e8
+    Reviewed-on: https://go-review.googlesource.com/24176
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mbitmap.go | 2 +-
+ src/runtime/lfstack.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

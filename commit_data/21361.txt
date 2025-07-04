@@ -1,17 +1,18 @@
-commit 4aa63d49acfe93e26891fcf91a24358e60f8bf0d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 27 14:53:14 2015 -0500
+commit 108dbd0dc759181ac31513a855d1e77c5df37d9d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 23 10:57:37 2014 -0800
 
-    liblink: do not print pointers in debug output
+    reflect: more function layout tests
     
-    Pointers change from run to run, making it hard to use
-    the debug output to identify the reason for a changed
-    object file.
+    Test more stuff:
+    1) flagNoPointers, an incorrect value was the cause of #9425
+    2) Total function layout size
+    3) gc program
     
-    Change-Id: I0c954da0943092c48686afc99ecf75eba516de6a
-    Reviewed-on: https://go-review.googlesource.com/3352
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I73f65fe740215938fa930d2f096febd9db0a0021
+    Reviewed-on: https://go-review.googlesource.com/2090
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/liblink/objfile.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/all_test.go    | 68 ++++++++++++++++++++++++++++++++++++++++++----
+ src/reflect/export_test.go | 10 ++++++-
+ 2 files changed, 72 insertions(+), 6 deletions(-)

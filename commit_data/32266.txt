@@ -1,20 +1,12 @@
-commit de7e5d45df866015fa5cb7c9997b2d1119366b9a
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Aug 13 13:00:33 2017 +0200
+commit 73f283f4c8ded504ca4839bd73b701e812cbeb3f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 16 15:20:34 2017 +0000
 
-    strconv: cleanup variable declarations in ParseUint
+    doc: dissuade people from using PGP for security reports
     
-    Move variable declarations closer to their first uses.
-    
-    Use an additional string variable s0 for error reporting that references
-    the original input string. This allows the variable s to be modified.
-    
-    Change-Id: I4725152490ca1dc10c1161ad8ad2f4ae8933493f
-    Reviewed-on: https://go-review.googlesource.com/55138
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7e4f22a2b6c80dd0787c011703f3f8586ff55a50
+    Reviewed-on: https://go-review.googlesource.com/40860
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/strconv/atoi.go | 52 ++++++++++++++++++++++++++--------------------------
- 1 file changed, 26 insertions(+), 26 deletions(-)
+ doc/security.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

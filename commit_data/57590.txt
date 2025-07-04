@@ -1,22 +1,33 @@
-commit e86982c515ba4a494fb1f8e1367f4238a2b59c2e
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Oct 1 03:15:08 2024 +0000
+commit 6a1182027c5d715e372417a85e451b19029ac7e7
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Jul 11 05:11:26 2023 +0800
 
-    encoding/json: add omitzero option
+    internal/sysinfo: print cpu type from cpuinfo when internal cpu name is empty on Linux
     
-    Fixes #45669
+    Supports all linux operating systems. currently tested on x86, mips64le and loong64.
     
-    Change-Id: Ic13523c0b3acdfc5b3e29a717bc62fde302ed8fd
-    GitHub-Last-Rev: 57030f26b0062fa8eda21b3a73b7665deab88c76
-    GitHub-Pull-Request: golang/go#69622
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615676
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Example output:
+    $ go test -bench=.*
+    goos: linux
+    goarch: loong64
+    pkg: runtime
+    cpu: Loongson-3A5000-HV @ 2500.00MHz
+    BenchmarkSemTable/OneAddrCollision/n=1000                  19261             62302 ns/op
+        ...
+    
+    Change-Id: I02db12d70c11327e4625bb6e59f30dfaf37c2db0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508735
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- doc/next/6-stdlib/99-minor/encoding/json/45669.md |   7 +
- src/encoding/json/encode.go                       |  57 ++++++-
- src/encoding/json/encode_test.go                  | 188 +++++++++++++++++++++-
- 3 files changed, 248 insertions(+), 4 deletions(-)
+ src/cmd/internal/metadata/main.go     |  2 +-
+ src/go/build/deps_test.go             |  2 +-
+ src/internal/sysinfo/cpuinfo_linux.go | 77 +++++++++++++++++++++++++++++++++++
+ src/internal/sysinfo/cpuinfo_stub.go  | 11 +++++
+ src/internal/sysinfo/sysinfo.go       | 22 ++++++----
+ src/testing/benchmark.go              |  4 +-
+ 6 files changed, 105 insertions(+), 13 deletions(-)

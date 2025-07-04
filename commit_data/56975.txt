@@ -1,20 +1,18 @@
-commit fac95803ebe49b95fe93f9f8034bace69cb60119
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Jul 27 00:09:04 2024 +0700
+commit 1b9c721f8f45ff9dac109afd928128159275fafb
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jun 5 13:57:37 2023 -0400
 
-    runtime: remove darwin-amd64-10_14 builder check
+    runtime: skip another GDB "no such process" case
     
-    By now macOS 11 is the minimum required version.
+    Fixes #58698.
+    For #50838.
     
-    Updates #43926
-    
-    Change-Id: I13716e2e521c26bd9997f0ea1b717cf72ab7e47c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601276
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I043c59a57707e64d444cd687f9745bf5313fb7cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500959
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/crash_cgo_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/runtime/runtime-gdb_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

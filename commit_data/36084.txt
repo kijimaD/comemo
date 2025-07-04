@@ -1,19 +1,45 @@
-commit 9092511cf795dd82713cd328403a106fc3e6870c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 19 18:01:10 2018 +0000
+commit 32e6461dc63b8f2577bbd9a08a5ad06ff91d173b
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue Apr 3 15:49:06 2018 +0100
 
-    net/http: update bundled http2
+    cmd/asm, math: add s390x floating point test instructions
     
-    Updates http2 to x/net/http2 git rev a680a1efc54 for:
+    Floating point test instructions allow special cases (NaN, ±∞ and
+    a few other useful properties) to be checked directly.
     
-       http2: reject large SETTINGS frames or those with duplicates
-       https://golang.org/cl/124735
+    This CL adds the following instructions to the assembler:
+     * LTEBR - load and test (float32)
+     * LTDBR - load and test (float64)
+     * TCEB  - test data class (float32)
+     * TCDB  - test data class (float64)
     
-    Change-Id: I2168d1d1eef9c63b1a9c06b514b77fae16f920ed
-    Reviewed-on: https://go-review.googlesource.com/125036
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Note that I have only added immediate versions of the 'test data
+    class' instructions for now as that's the only case I think the
+    compiler will use.
+    
+    Change-Id: I3398aab2b3a758bf909bd158042234030c8af582
+    Reviewed-on: https://go-review.googlesource.com/104457
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/h2_bundle.go | 69 +++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 55 insertions(+), 14 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s |  4 ++++
+ src/cmd/internal/obj/s390x/a.out.go       |  4 ++++
+ src/cmd/internal/obj/s390x/anames.go      |  4 ++++
+ src/cmd/internal/obj/s390x/asmz.go        | 27 +++++++++++++++++++++++++++
+ src/math/acosh_s390x.s                    |  2 +-
+ src/math/asinh_s390x.s                    |  6 +++---
+ src/math/atan2_s390x.s                    |  8 ++++----
+ src/math/cbrt_s390x.s                     |  2 +-
+ src/math/cosh_s390x.s                     |  2 +-
+ src/math/erfc_s390x.s                     |  4 ++--
+ src/math/exp_s390x.s                      |  2 +-
+ src/math/expm1_s390x.s                    |  2 +-
+ src/math/log10_s390x.s                    |  2 +-
+ src/math/log_s390x.s                      |  6 +++---
+ src/math/pow_s390x.s                      | 18 +++++++++---------
+ src/math/sin_s390x.s                      |  4 ++--
+ src/math/sinh_s390x.s                     |  2 +-
+ src/math/tan_s390x.s                      |  2 +-
+ src/math/tanh_s390x.s                     |  2 +-
+ 19 files changed, 71 insertions(+), 32 deletions(-)

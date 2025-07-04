@@ -1,28 +1,30 @@
-commit 6e9e9dfa46e032657af06aaea669e4d2264cb79e
-Author: Karel Pazdera <pazderak@gmail.com>
-Date:   Thu Aug 24 00:36:28 2017 +0200
+commit 8ae60dc1bb5183a8e8cd1fe86985ca354904447f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 25 03:16:59 2017 +0000
 
-    encoding/xml: improve package based on the suggestions from metalinter
+    cmd/go: fix TestCgoConsistentResults when using clang instead of gcc
     
-    Existing code in encoding/xml packages contains code which breaks
-    various linter rules (comments, constant and variable naming, variable
-    shadowing, etc).
+    As Ian said at:
+    https://github.com/golang/go/issues/19964#issuecomment-296347750
     
-    Fixes #21578
+    > the -fdebug-prefix-map option is being applied to the debug info but
+    > not to the initial .file pseudo-op.
+    >
+    > My only current thought for how to fix this is that instead of
+    > compiling $WORK/a/b/foo.c, we should change the command to (cd
+    > $WORK/a/b && clang -g -c foo.c). We'll still want
+    > -fdebug-prefix-map, I think, but that should fix the .file
+    > pseudo-op.
     
-    Change-Id: Id4bd9a9be6d5728ce88fb6efe33030ef943c078c
-    Reviewed-on: https://go-review.googlesource.com/58210
-    Reviewed-by: Sam Whited <sam@samwhited.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Sam Whited <sam@samwhited.com>
+    This CL does that.
+    
+    Fixes #19964
+    
+    Change-Id: I442b1201cab9e0448fc520ab243ad364d59cd7c3
+    Reviewed-on: https://go-review.googlesource.com/41629
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/xml/atom_test.go    |  6 +--
- src/encoding/xml/marshal.go      |  9 +++--
- src/encoding/xml/marshal_test.go |  4 +-
- src/encoding/xml/read.go         | 72 ++++++++++++++++++------------------
- src/encoding/xml/read_test.go    | 10 ++---
- src/encoding/xml/typeinfo.go     | 10 +++--
- src/encoding/xml/xml.go          | 80 +++++++++++++++++++++-------------------
- src/encoding/xml/xml_test.go     |  6 +--
- 8 files changed, 103 insertions(+), 94 deletions(-)
+ src/cmd/go/internal/work/build.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

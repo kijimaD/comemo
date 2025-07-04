@@ -1,23 +1,29 @@
-commit d1f43ccef7a8285bf3bcd3518d4f38838ce5da1c
-Author: Maya Rashish <maya@netbsd.org>
-Date:   Mon Apr 22 10:01:22 2019 +0000
+commit 624e197c71b673f0b3ebc57f774536131b4f0f26
+Author: David Chase <drchase@google.com>
+Date:   Fri Nov 30 08:36:00 2018 -0500
 
-    runtime: use named macros on NetBSD
+    cmd/compile: decrease inlining call cost from 60 to 57
     
-    It will use the full names that appear in netbsd's /usr/include/sys/syscall.h names.
-    This adds some compat-goo (sys_sigprocmask->SYS_sigprocmask14), which might not be pretty, but the information about whether the compat version is used is probably important, as Go will keep using interfaces even after they are considered compatibility, which has caused problems in the past.
-    also, the same names appear in ktrace (with the numbers).
+    A Go user made a well-documented request for a slightly
+    lower threshold.  I tested against a selection of other
+    people's benchmarks, and saw a tiny benefit (possibly noise)
+    at equally tiny cost, and no unpleasant surprises observed
+    in benchmarking.
     
-    Change-Id: Idc1bb254ee33757a39ba224d91e8fbb0331e2149
-    GitHub-Last-Rev: b915e8f8a323cdc2d03119c3cf18e35d08c63d18
-    GitHub-Pull-Request: golang/go#31594
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173158
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    I.e., might help, doesn't hurt, low risk, request was
+    delivered on a silver platter.
+    
+    It did, however, change the behavior of one test because
+    now bytes.Buffer.Grow is eligible for inlining.
+    
+    Updates #19348.
+    
+    Change-Id: I85e3088a4911290872b8c6bda9601b5354c48695
+    Reviewed-on: https://go-review.googlesource.com/c/151977
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/sys_netbsd_386.s   | 110 ++++++++++++++++++++++++++--------------
- src/runtime/sys_netbsd_amd64.s | 112 +++++++++++++++++++++++++++--------------
- src/runtime/sys_netbsd_arm.s   | 110 +++++++++++++++++++++++++++-------------
- src/runtime/sys_netbsd_arm64.s |  70 +++++++++++++-------------
- 4 files changed, 256 insertions(+), 146 deletions(-)
+ src/cmd/compile/internal/gc/inl.go |  2 +-
+ test/fixedbugs/issue7921.go        | 30 +++++++++++++++---------------
+ 2 files changed, 16 insertions(+), 16 deletions(-)

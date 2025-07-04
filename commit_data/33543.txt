@@ -1,29 +1,24 @@
-commit 7b8a7f8272fd1941a199af1adb334bd9996e8909
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Fri Jul 28 04:14:45 2017 +0000
+commit 4a1be1e1da52cc406ef605107e184cb5610f6071
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri May 26 15:34:56 2017 -0400
 
-    crypto/sha256: optimize arm64 sha256 implemention
+    cmd/compile: emit DW_AT_decl_line
     
-    Optimize with ARMv8 SHA256 instructions.
-    Result (Cortex-A72)
+    Some debuggers use the declaration line to avoid showing variables
+    before they're declared. Emit them for local variables and function
+    parameters.
     
-    name           old time/op    new time/op      delta
-    Hash8Bytes-64    1.54µs ± 1%      0.61µs ± 9%    -60.67%  (p=0.008 n=5+5)
-    Hash1K-64        17.2µs ± 1%       1.4µs ± 2%    -91.91%  (p=0.008 n=5+5)
-    Hash8K-64         127µs ± 0%         7µs ± 1%    -94.42%  (p=0.008 n=5+5)
+    DW_AT_decl_file would be nice too, but since its value is an index
+    into a table built by the linker, that's dramatically harder. In
+    practice, with inlining disabled it's safe to assume that all a
+    function's variables are declared in the same file, so this should still
+    be pretty useful.
     
-    name           old speed      new speed        delta
-    Hash8Bytes-64  5.20MB/s ± 1%   13.23MB/s ±10%   +154.58%  (p=0.008 n=5+5)
-    Hash1K-64      59.4MB/s ± 1%   735.1MB/s ± 2%  +1136.96%  (p=0.008 n=5+5)
-    Hash8K-64      64.5MB/s ± 0%  1156.3MB/s ± 1%  +1692.75%  (p=0.008 n=5+5)
-    
-    Change-Id: I47eca6471b75cd07cb0c77477053a07d0de7494f
-    Reviewed-on: https://go-review.googlesource.com/61570
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8105818c8940cd71bc5473ec98797cce2f3f9872
+    Reviewed-on: https://go-review.googlesource.com/44350
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/crypto/sha256/sha256block_arm64.go   |  22 ++++++
- src/crypto/sha256/sha256block_arm64.s    | 119 +++++++++++++++++++++++++++++++
- src/crypto/sha256/sha256block_generic.go |   2 +-
- 3 files changed, 142 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go    |  2 ++
+ src/cmd/internal/dwarf/dwarf.go        |  4 +++
+ src/cmd/link/internal/ld/dwarf_test.go | 59 +++++++++++++++++++++++++++++++++-
+ 3 files changed, 64 insertions(+), 1 deletion(-)

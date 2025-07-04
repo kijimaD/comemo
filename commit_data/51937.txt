@@ -1,23 +1,24 @@
-commit d939b3717f8eb68adb949132a6f334d6cc31045b
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Feb 7 14:53:48 2023 +0100
+commit 3dac914b772f7c99bb749839946ca68878a65f35
+Author: Adam Pritchard <pritchard.adam@gmail.com>
+Date:   Fri Mar 25 19:08:19 2022 +0000
 
-    runtime: use explicit NOFRAME on darwin/amd64
+    net/netip: fix uses of "IPv4-mapped IPv6" in doc comments
     
-    This CL marks some darwin assembly functions as NOFRAME to avoid relying
-    on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
-    without stack were also marked as NOFRAME.
+    The correct (or at least mostly commonly used) name for addresses of the
+    form ::ffff:192.0.2.128 is "IPv4-mapped IPv6". Some of the comments in
+    the netip package used that name, but others used "IPv6-mapped IPv4" or
+    "v6-mapped". This change makes the usage of the term consistent.
     
-    This is a second attempt after CL 460235 was reverted.
-    
-    Change-Id: I790f2108fc01ec193aa32b0bc82362c2344a9f3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466055
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic01309ddf9252705a2387322d940b777e88800a5
+    GitHub-Last-Rev: 56044dcb97aeae1aa09bde635118ad46c979bbaf
+    GitHub-Pull-Request: golang/go#51950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395914
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/x86/obj6.go |   4 +-
- src/runtime/sys_darwin_amd64.s   | 179 +++------------------------------------
- 2 files changed, 16 insertions(+), 167 deletions(-)
+ src/net/netip/netip.go      | 10 +++++-----
+ src/net/netip/netip_test.go |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

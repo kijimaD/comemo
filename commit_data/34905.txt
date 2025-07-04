@@ -1,17 +1,18 @@
-commit d01322826e38fb42d4cf14188164fc46d90e25ae
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 10 07:08:45 2018 -0700
+commit 5419ed3a66ca6128fa7b19f193a5a3a4e5cecd4a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 27 08:12:50 2017 -0800
 
-    text/template: copy Decl field when copying PipeNode
+    cmd/compile: remove unused code
     
-    Fixes #24791
+    Found a few functions in cmd/compile that aren't used.
     
-    Change-Id: I62ac17313e6e09796586911d88191a36d67f9aa1
-    Reviewed-on: https://go-review.googlesource.com/106115
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I53957dae6f1a645feb8b95383f0f050964b4f7d4
+    Reviewed-on: https://go-review.googlesource.com/79975
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/html/template/clone_test.go | 15 +++++++++++++++
- src/text/template/parse/node.go |  1 +
- 2 files changed, 16 insertions(+)
+ src/cmd/compile/internal/gc/main.go     | 13 -------------
+ src/cmd/compile/internal/gc/walk.go     | 26 --------------------------
+ src/cmd/compile/internal/ssa/rewrite.go |  4 ----
+ 3 files changed, 43 deletions(-)

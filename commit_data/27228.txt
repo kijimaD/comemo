@@ -1,16 +1,18 @@
-commit 77c7f12438aa83d9ba02c7fd48e4a0a288ed9123
-Author: Austin Clements <austin@google.com>
-Date:   Sat Apr 30 21:47:30 2016 -0400
+commit 31a9e505241e22e4b6ee623419db601334158101
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 14 22:28:04 2016 -0700
 
-    runtime: update some comments
+    cmd/internal/obj: remove LSym.Etext
     
-    This updates some comments that became out of date when we moved the
-    mark bit out of the heap bitmap and started using the high bit for the
-    first word as a scan/dead bit.
+    Use a local variable instead.
     
-    Change-Id: I4a572d16db6114cadff006825466c1f18359f2db
-    Reviewed-on: https://go-review.googlesource.com/22662
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I9623a40ff0d568f11afd1279b6aaa1c33eda644c
+    Reviewed-on: https://go-review.googlesource.com/20730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mbitmap.go | 19 ++++++++-----------
- 1 file changed, 8 insertions(+), 11 deletions(-)
+ src/cmd/internal/obj/link.go        |  1 -
+ src/cmd/internal/obj/objfile.go     | 10 +++++-----
+ src/cmd/internal/obj/sizeof_test.go |  2 +-
+ 3 files changed, 6 insertions(+), 7 deletions(-)

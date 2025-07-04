@@ -1,19 +1,15 @@
-commit 01237b1362db59c583d136289a9a4b0ac8ea5170
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 3 09:06:59 2018 +0000
+commit 7cddd39f966c4e3a755a8447c618965479431405
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 16 11:43:39 2017 -0500
 
-    runtime: parse auxv for page size and executable name on Solaris
+    cmd/go: drop flaky part of TestGoTestJSON
     
-    Decode AT_PAGESZ to determine physPageSize and AT_SUN_EXECNAME for
-    os.Executable.
+    Still failing on builders. I give up.
+    (For example https://build.golang.org/log/4fa5ba031c2fab5df397ac894f8b81392a93728e.)
     
-    Change-Id: I6ff774ad9d76c68fc61eb307df58217c17fd578d
-    Reviewed-on: https://go-review.googlesource.com/104375
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifa87813e27e1adfe9920c7e657b0ff129eb5bf2f
+    Reviewed-on: https://go-review.googlesource.com/78315
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/executable_solaris.go | 11 ++++++++---
- src/runtime/auxv_none.go     |  1 +
- src/runtime/os3_solaris.go   | 46 ++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 53 insertions(+), 5 deletions(-)
+ src/cmd/go/go_test.go | 46 ++++++++--------------------------------------
+ 1 file changed, 8 insertions(+), 38 deletions(-)

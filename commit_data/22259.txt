@@ -1,16 +1,22 @@
-commit 9b696be08bd252c29de61740951dc8f0b115bfc4
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Apr 1 14:24:35 2015 -0700
+commit 59cc5a197fd9d6c0c1bc1b9914d31c342baea22f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 1 23:58:28 2015 +0900
 
-    go/scanner: Simplify ErrorList.Sort implementation.
+    syscall: fix parsing ipv6 address prefix on dragonfly
     
-    It functions exactly the same, but this is the more common
-    style for these kinds of multi-key comparison functions,
-    and is more regular.
+    This change fixes a missing case that a routing address contains an
+    invalid address family label but it holds a valid length of address
+    structure.
     
-    Change-Id: I46630948f893bcc96c05eb3d36eb82e1d97a6fa0
-    Reviewed-on: https://go-review.googlesource.com/8358
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Also makes test robust.
+    
+    Fixes #10041.
+    
+    Change-Id: I2480ba273929e859896697382d1a75b01a116b98
+    Reviewed-on: https://go-review.googlesource.com/6391
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/scanner/errors.go | 25 ++++++++-----------------
- 1 file changed, 8 insertions(+), 17 deletions(-)
+ src/net/interface_test.go     |  6 ------
+ src/syscall/route_bsd.go      | 14 ++++++++++++--
+ src/syscall/route_bsd_test.go | 30 +++++++++++++++++++++++++++++-
+ 3 files changed, 41 insertions(+), 9 deletions(-)

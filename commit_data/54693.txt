@@ -1,54 +1,17 @@
-commit b56645a87b28840a180d64077877cb46570b4176
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Apr 10 17:11:39 2023 -0400
+commit 0521a12401887a0e84c1c913d1af50c647efaf8b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 9 11:10:59 2022 -0500
 
-    cmd/compile: synchronize inlinability logic between hairyVisitor and mkinlcall
+    doc/go1.20: add a release note for os/exec API changes
     
-    When computing function cost, hairyVisitor.doNode has two primary cases
-    for determining the cost of a call inside the function:
+    Updates #50436.
     
-    * Normal calls are simply cost 57.
-    * Calls that can be inlined have the cost of the inlined function body,
-      since that body will end up in this function.
-    
-    Determining which "calls can be inlined" is where this breaks down.
-    doNode simply assumes that any function with `fn.Inl != nil` will get
-    inlined. However, this are more complex in mkinlcall, which has a
-    variety of cases where it may not inline.
-    
-    For standard builds, most of these reasons are fairly rare (recursive
-    calls, calls to runtime functions in instrumented builds, etc), so this
-    simplification isn't too build.
-    
-    However, for PGO builds, any function involved in at least one inlinable
-    hot callsite will have `fn.Inl != nil`, even though mkinlcall will only
-    inline at the hot callsites. As a result, cold functions calling hot
-    functions will use the (potentially very large) hot function inline body
-    cost in their call budget. This could make these functions too expensive
-    to inline even though they won't actually inline the hot function.
-    
-    Handle this case plus the other inlinability cases (recursive calls,
-    etc) by consolidating mkinlcall's inlinability logic into
-    canInlineCallExpr, which is shared by doNode.
-    
-    mkinlcall and doNode now have identical logic, except for one case: we
-    check for recursive cycles via inlined functions by looking at the
-    inline tree. Since we haven't actually done any inlining yet when in
-    doNode, we will miss those cases.
-    
-    This CL doesn't change any inlining decisions in a standard build of the
-    compiler.
-    
-    In the new inliner, the inlining decision is also based on the call
-    site, so this synchronization is also helpful.
-    
-    Fixes #59484
-    
-    Change-Id: I6ace66e37d50526535972215497ef75cd71f8b9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483196
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib6771221bda1c81d5593b29d7287ebcf169882ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449076
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 136 +++++++++++++++++++--------------
- 1 file changed, 78 insertions(+), 58 deletions(-)
+ doc/go1.20.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

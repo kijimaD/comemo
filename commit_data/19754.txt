@@ -1,38 +1,15 @@
-commit cf521ce64f50c4f300294d6b649f34eca87bb8a3
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Thu Jul 17 17:02:46 2014 +1000
+commit 5035750f233545a6ee47c2d849f9973cbbf55f59
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 16 17:16:12 2014 -0700
 
-    os: Implement symlink support for Windows
+    runtime: align gomemeq return value correctly
     
-    Fixes #5750.
+    Fixes #8378
     
-    https://code.google.com/p/go/issues/detail?id=5750
-    
-    os: Separate windows from posix. Implement windows support.
-    path/filepath: Use the same implementation as other platforms
-    syscall: Add/rework new APIs for Windows
-    
-    LGTM=alex.brainman
-    R=golang-codereviews, alex.brainman, gobot, rsc, minux
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/86160044
+    https://golang.org/cl/114880043
 
- src/pkg/os/file_posix.go                   | 20 ------
- src/pkg/os/file_unix.go                    | 20 ++++++
- src/pkg/os/file_windows.go                 | 98 ++++++++++++++++++++++++++++++
- src/pkg/os/os_test.go                      | 16 ++++-
- src/pkg/os/os_windows_test.go              | 27 ++++++++
- src/pkg/os/path_test.go                    |  6 +-
- src/pkg/os/stat_windows.go                 | 50 ++++++++-------
- src/pkg/os/types_windows.go                |  3 +
- src/pkg/path/filepath/match_test.go        |  7 ++-
- src/pkg/path/filepath/path_test.go         | 12 ++--
- src/pkg/path/filepath/path_windows_test.go | 20 ++++++
- src/pkg/path/filepath/symlink.go           | 19 +++---
- src/pkg/path/filepath/symlink_unix.go      |  7 +++
- src/pkg/path/filepath/symlink_windows.go   |  5 ++
- src/pkg/syscall/syscall_windows.go         | 43 +++++++++++--
- src/pkg/syscall/zsyscall_windows_386.go    | 39 ++++++++++++
- src/pkg/syscall/zsyscall_windows_amd64.go  | 39 ++++++++++++
- src/pkg/syscall/ztypes_windows.go          | 46 ++++++++++----
- 18 files changed, 404 insertions(+), 73 deletions(-)
+ src/pkg/runtime/asm_amd64p32.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

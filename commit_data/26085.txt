@@ -1,27 +1,16 @@
-commit 9f4a359fc2d914c275bccc187ae5216787a85146
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Mar 7 09:47:02 2016 +1300
+commit e8e786c20d09a5d5e69761f1676e5065bab4a319
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 16 20:29:13 2015 +0000
 
-    cmd/compile, cmd/link, cmd/newlink: remove support for weak symbols
+    net/http: updated bundled copy of x/net/http2
     
-    They were only used for rtype.ptrToThis which David Crawshaw removed a couple
-    of weeks ago. Removes two traversals of Ctxt.Allsym from the linker but it
-    doesn't seem to make much difference to performance.
+    Updates to x/net/http2 git rev c24de9d5
     
-    Change-Id: I5c305e0180186f643221d57822d301de4aa18827
-    Reviewed-on: https://go-review.googlesource.com/20287
+    Change-Id: I3d929ae38dca1a93e9a262d4eaaafee1d36fa839
+    Reviewed-on: https://go-review.googlesource.com/17896
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/go.go      |   2 --
- src/cmd/compile/internal/gc/lex.go     |   5 -----
- src/cmd/compile/internal/gc/reflect.go |   9 ---------
- src/cmd/link/internal/ld/go.go         |  31 -------------------------------
- src/cmd/link/internal/ld/pobj.go       |   1 -
- src/cmd/newlink/auto.go                |  21 +--------------------
- src/cmd/newlink/auto_test.go           |   1 -
- src/cmd/newlink/prog.go                |   1 -
- src/cmd/newlink/testdata/autoweak.6    | Bin 385 -> 0 bytes
- src/cmd/newlink/testdata/autoweak.s    |  30 ------------------------------
- 10 files changed, 1 insertion(+), 100 deletions(-)
+ src/net/http/h2_bundle.go                        | 215 +++++++++++++++++++----
+ src/vendor/golang.org/x/net/http2/hpack/hpack.go |   7 +
+ 2 files changed, 186 insertions(+), 36 deletions(-)

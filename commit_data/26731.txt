@@ -1,27 +1,23 @@
-commit fda831ed3f904c659fe41f253f75fe76528a28ee
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 5 16:44:07 2016 -0700
+commit b96189d1a046f7a70a632bd02106bd15e096dfa1
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Feb 23 17:52:17 2016 -0600
 
-    cmd/compile: encapsulate reads of gc.Type.Funarg
+    [dev.ssa] cmd/compile: speed up cse
     
-    Changes generated with eg and then manually
-    checked and in some cases simplified.
+    Construct better initial partitions by recursively comparing values and
+    their arguments.  This saves one second on compile of arithConst_ssa.go
+    (4.3s to 3.3s) and shows a 3-5% increase with compilebench.
     
-    Passes toolstash -cmp.
+    name       old time/op     new time/op     delta
+    Template       266ms ± 3%      253ms ± 4%  -5.08%          (p=0.032 n=5+5)
+    GoTypes        927ms ± 3%      885ms ± 2%  -4.55%          (p=0.016 n=5+5)
+    Compiler       3.91s ± 3%      3.73s ± 2%  -4.49%          (p=0.008 n=5+5)
+    MakeBash       31.6s ± 1%      30.5s ± 3%  -3.51%          (p=0.016 n=5+5)
     
-    Change-Id: I2119f37f003368ce1884d2863b406d6ffbfe38c7
-    Reviewed-on: https://go-review.googlesource.com/21563
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6ede31ff459131ccfed69531acfbd06b19837700
+    Reviewed-on: https://go-review.googlesource.com/19838
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/align.go     | 4 ++--
- src/cmd/compile/internal/gc/bexport.go   | 2 +-
- src/cmd/compile/internal/gc/esc.go       | 2 +-
- src/cmd/compile/internal/gc/export.go    | 2 +-
- src/cmd/compile/internal/gc/fmt.go       | 2 +-
- src/cmd/compile/internal/gc/gsubr.go     | 2 +-
- src/cmd/compile/internal/gc/order.go     | 2 +-
- src/cmd/compile/internal/gc/type.go      | 7 ++++++-
- src/cmd/compile/internal/gc/typecheck.go | 8 ++++----
- src/cmd/compile/internal/gc/walk.go      | 2 +-
- 10 files changed, 19 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssa/cse.go  | 161 +++++++++++++----------------------
+ src/cmd/compile/internal/ssa/type.go |   3 +
+ 2 files changed, 62 insertions(+), 102 deletions(-)

@@ -1,15 +1,12 @@
-commit 35c880b1e2c00752cd8961780e4c26ea5b287377
+commit 62c24811e73b45481f1abcf693606ea3e598b932
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 7 18:53:47 2011 -0400
+Date:   Thu Apr 7 15:44:10 2011 -0400
 
-    gc: bug327
+    syscall: fix freebsd/386 again
     
-    Fixes #1674.
-    
-    R=ken2
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/4368057
+    https://golang.org/cl/4380042
 
- src/cmd/gc/subr.c        |  5 +++--
- test/fixedbugs/bug327.go | 18 ++++++++++++++++++
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ src/pkg/syscall/syscall_freebsd_386.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,27 +1,15 @@
-commit a387f915538abbb6f5661cb39b8fccb606c5ad25
-Author: Catalin Patulea <catalinp@google.com>
-Date:   Mon Mar 17 15:47:16 2014 -0700
+commit 01d49dc2ddda443f302be8ca0aa1378d550687ef
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Mar 17 12:07:30 2014 -0700
 
-    net/http/fcgi: fix handling of request ID reuse
+    encoding/hex: add error check for write error.
     
-    Request ID reuse is allowed by the FastCGI spec [1]. In particular nginx uses
-    the same request ID, 1, for all requests on a given connection. Because
-    serveRequest does not remove the request from conn.requests, this causes it to
-    treat the second request as a duplicate and drops the connection immediately
-    after beginRequest. This manifests with nginx option 'fastcgi_keep_conn on' as
-    the following message in nginx error log:
-    
-    2014/03/17 01:39:13 [error] 730#0: *109 recv() failed (104: Connection reset by peer) while reading response header from upstream, client: x.x.x.x, server: example.org, request: "GET / HTTP/1.1", upstream: "fastcgi://127.0.0.1:9001", host: "example.org"
-    
-    Because handleRecord and serveRequest run in different goroutines, access to
-    conn.requests must now be synchronized.
-    
-    [1] http://www.fastcgi.com/drupal/node/6?q=node/22#S3.3
+    I believe the original author of this code just forgot to check for error here.
     
     LGTM=bradfitz
-    R=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/76800043
+    https://golang.org/cl/76760043
 
- src/pkg/net/http/fcgi/child.go | 19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
+ src/pkg/encoding/hex/hex.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,36 +1,25 @@
-commit 22689c445089501b2c9adc9b6556e2a5290d1584
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 12 16:54:42 2017 -0500
+commit 5fbf35dc3fadd29785739fcec061d42157ea7861
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 15:47:18 2016 -0400
 
-    reflect: keep makeFuncImpl live across makeFuncStub
+    time: be consistent about representation of UTC location in Time struct
     
-    When traceback sees reflect.makeFuncStub (or reflect.methodValueCall)
-    on the stack, it expects to be able to get the *reflect.makeFuncImpl
-    (or *reflect.methodValue) for that call from the first outgoing
-    argument slot of makeFuncStub/methodValueCall.
+    In the zero Time, the (not user visible) nil *Location indicates UTC.
+    In the result of t.UTC() and other ways to create times in specific
+    zones, UTC is indicated by a non-nil *Location, specifically &utcLoc.
+    This creates a representation ambiguity exposed by comparison with ==
+    or reflect.DeepEqual or the like.
     
-    However, currently this object isn't necessarily kept live across
-    makeFuncStub. This means it may get garbage collected while in a
-    reflect call and reused for something else. If we then try to
-    traceback, the runtime will see a corrupted makeFuncImpl object and
-    panic. This was not a problem in previous releases because we always
-    kept arguments live across the whole function. This became a problem
-    when we stopped doing this.
+    Change time.Time representation to use only nil, never &utcLoc,
+    to represent UTC. This eliminates the ambiguity.
     
-    Fix this by using reflect.KeepAlive to keep the
-    makeFuncImpl/methodValue live across all of callReflect/callMethod,
-    which in turn keeps it live as long as makeFuncStub/methodValueCall
-    are on the stack.
+    Fixes #15716.
     
-    Fixes #18635.
-    
-    Change-Id: I91853efcf17912390fddedfb0230648391c33936
-    Reviewed-on: https://go-review.googlesource.com/35151
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7dcc2c20ce6b073e1daae323d3e49d17d1d52802
+    Reviewed-on: https://go-review.googlesource.com/31144
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/reflect/all_test.go | 68 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/value.go    |  8 ++++++
- 2 files changed, 76 insertions(+)
+ src/time/format.go    |  8 ++++----
+ src/time/time.go      | 29 +++++++++++++++++++----------
+ src/time/time_test.go | 19 ++++++++++++++++++-
+ 3 files changed, 41 insertions(+), 15 deletions(-)

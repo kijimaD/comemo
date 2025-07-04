@@ -1,22 +1,21 @@
-commit 8c666697646bc820beb3725b3ff4a4cd5514bbe7
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Apr 23 12:53:51 2021 +0700
+commit 2754d911641c3a4569f48d61c541fc2ac395d23b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 19 17:55:55 2020 +0000
 
-    cmd/compile: make sure ascompatee walk lhs init statements
+    runtime: add lock rank partial-order edge between fin and mheap
     
-    CL 281152 improved ascompatee by removing the call to safeExpr on lhs.
-    But we forgot that lhs int statements, if any, must be walked prior
-    saving subexpressions, which cause the bug in #45706.
+    finlock may be held across a write barrier, which could then acquire the
+    mheap lock. Notably, this occurs in the mp.unlockf write in gopark where
+    finlock is held by the finalizer goroutines and is going to sleep.
     
-    Fixes #45706
+    Fixes #42062.
     
-    Change-Id: I0064315056ef4ca92ebf3c332c2e3a9bb2b26f68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312632
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Icf76637ae6fc12795436272633dca3d473780875
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263678
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/walk/assign.go |  3 +++
- test/fixedbugs/issue45706.go            | 16 ++++++++++++++++
- 2 files changed, 19 insertions(+)
+ src/runtime/lockrank.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

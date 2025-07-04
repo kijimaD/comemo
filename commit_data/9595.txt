@@ -1,19 +1,14 @@
-commit 8ddd66145ee340ff811f70257f216a9b7b92f1d1
-Author: Mike Rosset <mike.rosset@gmail.com>
-Date:   Mon Sep 5 07:48:42 2011 -0400
+commit 6cf61bb5b90fa64d450bb93a9f79032e520f7340
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Sep 5 07:40:50 2011 -0400
 
-    build: clear execute bit from Go files
+    runtime: add test for multiple concurrent channel consumers
     
-    R=golang-dev, rsc
-    CC=golang-dev, mike.rosset
-    https://golang.org/cl/4950062
+    There was a time (in the past) when this wasn't robust.
+    
+    R=rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/4965058
 
- src/cmd/godoc/snippet.go            | 0
- src/pkg/big/int.go                  | 0
- src/pkg/big/int_test.go             | 0
- src/pkg/big/nat.go                  | 0
- src/pkg/big/nat_test.go             | 0
- src/pkg/crypto/rand/rand_windows.go | 0
- src/pkg/math/atan2_decl.go          | 0
- test/hashmap.go                     | 0
- 8 files changed, 0 insertions(+), 0 deletions(-)
+ src/pkg/runtime/chan_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

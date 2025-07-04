@@ -1,34 +1,41 @@
-commit 6d7db25e5c311219b9c6d77f7d0dbc457aff30f7
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Thu Aug 24 14:29:13 2017 -0400
+commit a6b16e00240ca5ca0161f88819ef32f91f6af52c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 24 06:06:14 2017 -0700
 
-    cmd/link: don't create go.info symbols for non-Go functions
+    cmd/compile: improve efficiency of binary export position encoding
     
-    In writelines the linker uses various auxiliary information about a
-    function to create its line table entries. (It also does some unrelated
-    stuff, but never mind.) There's no reason to do this for non-Go
-    functions, so it bails out if the symbol has no FuncInfo.
+    Use -64 instead of 0 as the magic "new file"
+    line delta, since it is much less common.
     
-    However, it does so *after* it looks up (and implicitly creates!) the
-    go.info symbol for the function, which doesn't make sense and risks
-    creating duplicate symbols for static C functions. Move the check up so
-    that it doesn't do that.
+    Use a new path encoding that breaks up paths
+    into /-separated components, allowing
+    reuse of the component strings, and making
+    many re-used paths a single byte to encode.
     
-    Since non-Go functions can't reference Go types, there shouldn't be any
-    relocations to type info DIEs that need to be built, so there should be
-    no harm not doing that.
+    Bump the export version to 5.
     
-    I wanted to change the Lookup to an ROLookup but that broke the
-    shared-mode tests with an inscrutable error.
+    Fixes #20080
     
-    No test. It seems too specific to worry about, but if someone disagrees
-    I can figure something out.
+    name        old export-bytes  new export-bytes  delta
+    Template          19.1k ± 0%        17.4k ± 0%  -8.74%  (p=0.008 n=5+5)
+    Unicode           4.47k ± 0%        4.42k ± 0%  -0.96%  (p=0.008 n=5+5)
+    GoTypes           29.9k ± 0%        27.6k ± 0%  -7.41%  (p=0.008 n=5+5)
+    Compiler          71.4k ± 0%        65.4k ± 0%  -8.45%  (p=0.008 n=5+5)
+    SSA               67.8k ± 0%        65.6k ± 0%  -3.38%  (p=0.008 n=5+5)
+    Flate             4.99k ± 0%        4.79k ± 0%  -3.91%  (p=0.008 n=5+5)
+    GoParser          8.77k ± 0%        7.97k ± 0%  -9.14%  (p=0.008 n=5+5)
+    Reflect           6.27k ± 0%        6.13k ± 0%  -2.22%  (p=0.008 n=5+5)
+    Tar               9.46k ± 0%        8.82k ± 0%  -6.69%  (p=0.008 n=5+5)
+    XML               16.0k ± 0%        14.9k ± 0%  -6.69%  (p=0.008 n=5+5)
+    [Geo mean]        14.8k             14.0k       -5.80%
     
-    Fixes #21566
-    
-    Change-Id: I61f03b7c504a3bf1c4245a8811795b6303469e91
-    Reviewed-on: https://go-review.googlesource.com/58630
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iea0c8c62e61dbab3cfd14ee121e34845c85f00d2
+    Reviewed-on: https://go-review.googlesource.com/41619
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 67 +++++++++++++------------
+ src/cmd/compile/internal/gc/bimport.go | 68 +++++++++++++++++++------
+ src/go/internal/gcimporter/bimport.go  | 90 ++++++++++++++++++++++++----------
+ 3 files changed, 155 insertions(+), 70 deletions(-)

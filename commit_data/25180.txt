@@ -1,23 +1,24 @@
-commit 05390a07931771b14bcd5c6eb4e5410cf9c2bbfe
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 4 22:51:03 2015 -0500
+commit 9aba7e76f605f7c4fad49886e710152730c34b69
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 5 13:48:40 2015 -0700
 
-    misc/cgo/stdio: reenable tests
+    [dev.ssa] cmd/compile: Eval append args after growslice
     
-    The build tags are necessary to keep "go build" in that directory
-    building only stdio.go, but we have to arrange for test/run.go to
-    treat them as satisfied.
+    For appending large types, we want to evaluate the
+    values being appended after the growslice call, not before.
+    Evaluating them before leads to phi operations on large types
+    which confuses the lowering pass.
     
-    Fixes #12625.
+    The order pass has already removed any side-effects from the
+    values being appended, so it doesn't matter if we do this
+    last eval before or after the growslice call.
     
-    Change-Id: Iec0cb2fdc2c9b24a4e0530be25e940aa0cc9552e
-    Reviewed-on: https://go-review.googlesource.com/17454
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change fixes a bunch (but not all) of our failed lowerings.
+    
+    Change-Id: I7c697d4d5275d71b7ef4677b830fd86c52ba03a4
+    Reviewed-on: https://go-review.googlesource.com/15430
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- misc/cgo/life/main.go   | 2 +-
- misc/cgo/stdio/chain.go | 5 +++--
- misc/cgo/stdio/fib.go   | 5 +++--
- misc/cgo/stdio/hello.go | 2 +-
- test/run.go             | 4 ++++
- 5 files changed, 12 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

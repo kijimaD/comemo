@@ -1,16 +1,15 @@
-commit 1ac3b0618170279474fcdf9c625b2e237bf2881c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 7 18:22:04 2018 -0800
+commit 9087d13ec3e39e50aae6c6a8cf99dc66225ab132
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Fri Jun 15 00:07:32 2018 +0530
 
-    cmd/compile: emit a symbol for a method expression when using -dynlink
+    cmd/objdump: defer closing the file after opening
     
-    Fixes #25065
+    Remove the os.Exit(0) to honor the deferred closing of the file.
     
-    Change-Id: Ia3db518cfd9c006caf951b51342a491ac8372e9c
-    Reviewed-on: https://go-review.googlesource.com/c/153297
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Iaa9304d8203c8fec0ec728af669a94eadd36905c
+    Reviewed-on: https://go-review.googlesource.com/118915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testshared/shared_test.go       |  6 ++++++
- misc/cgo/testshared/src/issue25065/a.go  | 20 ++++++++++++++++++++
- src/cmd/compile/internal/gc/typecheck.go |  6 ++++++
- 3 files changed, 32 insertions(+)
+ src/cmd/objdump/main.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

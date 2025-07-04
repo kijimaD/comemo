@@ -1,30 +1,34 @@
-commit fa08befb25e6f4993021429aa222dad71a27ed07
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 29 18:12:37 2024 +0000
+commit 2ed6a54a39339ca37e9da4530b3f37a9d29b7c84
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 19 22:35:33 2023 -0400
 
-    cmd/cgo/internal/swig,cmd/go: skip swig tests on 386
+    cmd/go: retain extra roots to disambiguate imports in 'go mod tidy'
     
-    We recently added a C++ toolchain to the image, and this is causing
-    problems on 386 and clang builders. The likely culprit is that we're
-    missing 32-bit C++ libraries on the builders.
+    We don't normally keep explicit requirements for test dependencies of
+    packages loaded from other modules when the required version is
+    already the selected version in the module graph. However, in some
+    cases we may need to keep an explicit requirement in order to make use
+    of lazy module loading to disambiguate an otherwise-ambiguous import.
     
-    Even if this theory is wrong, these tests *never* ran (always skipped,
-    or truly never ran) on these platforms, so just skip them for now. We
-    can look into getting the libraries installed later, but skip for now
-    to unblock the builders.
+    Note that there is no Go version guard for this change: in the cases
+    where the behavior of 'go mod tidy' has changed, previous versions of
+    Go would produce go.mod files that break successive calls to
+    'go mod tidy'. Given that, I suspect that any existing user in the
+    wild affected by this bug either already has a workaround in place
+    using redundant import statements (in which case the change does not
+    affect them) or is running 'go mod tidy -e' to force past the error
+    (in which case a change in behavior to a non-error should not be
+    surprising).
     
-    There are also problems with clang, but I believe they'll be resolved by
-    setting CXX to clang++ in golangbuild.
+    Fixes #60313.
     
-    For #67698.
-    
-    Change-Id: I20fc1c5fa1285001ff86a4226771c30cf2e7f92d
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-clang15,gotip-linux-386
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588938
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Idf294f72cbe3904b871290d79e4493595a0c7bfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496635
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/internal/swig/swig_test.go      | 8 ++++++++
- src/cmd/go/testdata/script/list_swigcxx.txt | 3 +++
- 2 files changed, 11 insertions(+)
+ src/cmd/go/internal/modload/buildlist.go           | 66 ++++++++++++++++++++--
+ src/cmd/go/testdata/script/mod_tidy_issue60313.txt |  7 +--
+ 2 files changed, 62 insertions(+), 11 deletions(-)

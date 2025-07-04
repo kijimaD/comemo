@@ -1,21 +1,45 @@
-commit ebb0e5db758791966a1afb193ddb021d4250d5d6
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Sat Oct 6 09:23:31 2012 +0200
+commit ed0c5dd11f983d0e54806cd087ec852e43fa9f9e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Oct 6 11:51:06 2012 +1000
 
-    test: Add rundir, rundircmpout and errorcheckdir commands to testlib and run.go
+    cmd/5g: avoid temporary during constant OINDEX
     
-    rundir will compile each file in the directory in lexicographic order, link the last file as the main package and run the resulting program. rundircmpout is an related command, that will compare the output of the program to an corresponding .out file
+    func addr(s[]int) *int {
+            return &s[2]
+    }
     
-    errorcheckdir will compile each file in a directory in lexicographic order, running errorcheck on each file as it compiles. All compilations are assumed to be successful except for the last file. However, If a -0 flag is present on the command, the last compilation will also be assumed successful
+    --- prog list "addr" ---
+    0000 (/home/dfc/src/addr.go:5) TEXT     addr+0(SB),$0-16
+    0001 (/home/dfc/src/addr.go:6) MOVW     $s+0(FP),R0
+    0002 (/home/dfc/src/addr.go:6) MOVW     4(R0),R1
+    0003 (/home/dfc/src/addr.go:6) MOVW     $2,R2
+    0004 (/home/dfc/src/addr.go:6) CMP      R2,R1,
+    0005 (/home/dfc/src/addr.go:6) BHI      ,7(APC)
+    0006 (/home/dfc/src/addr.go:6) BL       ,runtime.panicindex+0(SB)
+    0007 (/home/dfc/src/addr.go:6) MOVW     0(R0),R0
+    0008 (/home/dfc/src/addr.go:6) MOVW     $8,R1
+    0009 (/home/dfc/src/addr.go:6) ADD      R1,R0
+    0010 (/home/dfc/src/addr.go:6) MOVW     R0,.noname+12(FP)
+    0011 (/home/dfc/src/addr.go:6) RET      ,
     
-    This CL also includes a small refactoring of run.go. It was getting unwieldy and the meaning of the run commands was hidden behind argument line formatting.
+    becomes
     
-    Fixes #4058.
+    --- prog list "addr" ---
+    0000 (/home/dfc/src/addr.go:5) TEXT     addr+0(SB),$0-16
+    0001 (/home/dfc/src/addr.go:6) MOVW     $s+0(FP),R0
+    0002 (/home/dfc/src/addr.go:6) MOVW     4(R0),R1
+    0003 (/home/dfc/src/addr.go:6) MOVW     $2,R2
+    0004 (/home/dfc/src/addr.go:6) CMP      R2,R1,
+    0005 (/home/dfc/src/addr.go:6) BHI      ,7(APC)
+    0006 (/home/dfc/src/addr.go:6) BL       ,runtime.panicindex+0(SB)
+    0007 (/home/dfc/src/addr.go:6) MOVW     0(R0),R0
+    0008 (/home/dfc/src/addr.go:6) ADD      $8,R0
+    0009 (/home/dfc/src/addr.go:6) MOVW     R0,.noname+12(FP)
+    0010 (/home/dfc/src/addr.go:6) RET      ,
     
-    R=rsc, minux.ma, remyoudompheng, iant
+    R=rsc, remyoudompheng, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6554071
+    https://golang.org/cl/6590056
 
- test/run.go  | 143 ++++++++++++++++++++++++++++++++++++++++++++++++-----------
- test/testlib |  40 +++++++++++++++++
- 2 files changed, 156 insertions(+), 27 deletions(-)
+ src/cmd/5g/cgen.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

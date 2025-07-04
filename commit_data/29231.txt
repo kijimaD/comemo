@@ -1,19 +1,22 @@
-commit 21a1fe4ddf77a49fee1d82d1891e66b1dce932bb
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 28 17:02:29 2016 -0400
+commit 3df926d52addd638e23e5b29e692bb670e484966
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 2 12:14:38 2016 -0400
 
-    runtime/pprof/internal/gzip0: new package for pprof
+    runtime: improve message when a bad pointer is found on the stack
     
-    Writes gzip-format uncompressed files.
+    Currently this message says "invalid stack pointer", which could be
+    interpreted as the value of SP being invalid. Change it to "invalid
+    pointer found on stack" to emphasize that it's a pointer on the stack
+    that's invalid.
     
-    Change-Id: Id5dc01852e21732978700fd9efcc2d4a5899ffeb
-    Reviewed-on: https://go-review.googlesource.com/32260
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Updates #16948.
+    
+    Change-Id: I753624f8cc7e08cf13d3ea5d9c790cc4af9fa372
+    Reviewed-on: https://go-review.googlesource.com/28430
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/go/build/deps_test.go                      |   1 +
- src/runtime/pprof/internal/gzip0/gzip0.go      | 156 +++++++++++++++++++++++++
- src/runtime/pprof/internal/gzip0/gzip0_test.go |  43 +++++++
- 3 files changed, 200 insertions(+)
+ src/runtime/stack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

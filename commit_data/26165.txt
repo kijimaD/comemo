@@ -1,14 +1,15 @@
-commit b594b8b0396647cabdda719d20888b1476d5d2c2
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 9 01:15:23 2016 -0800
+commit 4e6750af81996424f26115be1b2d13665764db8a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 22 12:46:23 2015 -0800
 
-    cmd/compile: switch Eqtype and (*Type).Compare to use recvParamsResults
+    crypto/cipher: improve documentation for AEAD
     
-    Change-Id: I5365b94b815bfb4795db643415c2df51fc815ea1
-    Reviewed-on: https://go-review.googlesource.com/20459
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Give a link to the wikipedia page describing the mechanism and
+    explain better how to use the same buffer for input and output.
+    
+    Change-Id: If6dfd6cf9c6dff0517cb715f60a11349dbdd91e0
+    Reviewed-on: https://go-review.googlesource.com/18103
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 2 +-
- src/cmd/compile/internal/gc/type.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/cipher/gcm.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

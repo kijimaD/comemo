@@ -1,15 +1,23 @@
-commit d80da19fc99d3e729c6497bf9bf9bb836ed9d9f6
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Apr 28 19:36:54 2021 -0400
+commit 9db7db54b0e84d6b3ace94cb1f2a42e065575f17
+Author: Colin Arnott <colin@urandom.co.uk>
+Date:   Thu Oct 22 22:16:01 2020 +0000
 
-    cmd/link: update comment for PLT/GOT helper functions
+    log: expose std via new Default function
     
-    PLT and GOT are used more than on PE. Update the comment.
+    To allow passing around the package level *Logger, it is now exposed to
+    callers of the Default function. We considered exposing std, however at
+    this time there is no need to allow callers to replace std only pass and
+    call methods directly.
     
-    Change-Id: Iaddb326680a7709a1442675a38c021331be32472
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314929
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #39057
+    
+    Change-Id: I710b16a3aa5e4e878870561dbf59560f98d8d09a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264460
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/link/internal/loader/loader.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/log/log.go      | 3 +++
+ src/log/log_test.go | 6 ++++++
+ 2 files changed, 9 insertions(+)

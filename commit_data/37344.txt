@@ -1,30 +1,15 @@
-commit 571236543f222e9fcb8ddfaa3151505a7de4d6f0
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 1 14:34:21 2018 -0400
+commit eec9a895600891c4a05c85e0f41f65275eb356de
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 16:20:19 2018 -0400
 
-    debug/gosym: use "go build" instead of hand-running asm and link
+    cmd/go/internal/str: simplify HasPathPrefix by epsilon
     
-    Currently, TestPCLine manually invokes asm and link on its test data.
-    Once we introduce symbol ABIs this is going to become problematic
-    because the test program defines main.main and main.init in assembly
-    so they use ABI0, but the runtime expects to find them with the
-    internal ABI.
+    Pointed out in CL 122396.
+    An empty prefix has already been handled above.
     
-    There are various ways we could solve this. This CL moves main.main
-    and main.init into Go code and switches to using "go build" to compile
-    and link the test binary. This has the added advantage of simplifying
-    this test.
-    
-    For #27539.
-    
-    Change-Id: I4c0cf6467f7a39e6b1500eca6ad2620b5ef2b73c
-    Reviewed-on: https://go-review.googlesource.com/c/146857
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib94df0a9c8c0517f932b90126232111caa9ad289
+    Reviewed-on: https://go-review.googlesource.com/124797
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/debug/gosym/pclntab_test.go                    | 38 ++++------------------
- src/debug/gosym/testdata/main.go                   | 10 ++++++
- src/debug/gosym/{ => testdata}/pclinetest.h        |  0
- .../{pclinetest.asm => testdata/pclinetest.s}      | 14 ++------
- 4 files changed, 19 insertions(+), 43 deletions(-)
+ src/cmd/go/internal/str/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

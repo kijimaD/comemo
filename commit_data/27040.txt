@@ -1,19 +1,33 @@
-commit 285a18436d480ef91b2af236d5ddd2fa7fa49de8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Apr 20 15:58:55 2016 +1000
+commit a24b3ed7538dd2eb013005fb1e153468f486857a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Feb 20 22:54:15 2016 -0500
 
-    debug/pe: pretty section.go code
+    cmd/compile: remove rtype *uncommonType field
     
-    Introduce (*SectionHeader32).fullName and add documentation comments.
+    Instead of a pointer on every rtype, use a bit flag to indicate that
+    the contents of uncommonType directly follows the rtype value when it
+    is needed.
     
-    Updates #15345
+    This requires a bit of juggling in the compiler's rtype encoder. The
+    backing arrays for fields in the rtype are presently encoded directly
+    after the slice header. This packing requires separating the encoding
+    of the uncommonType slice headers from their backing arrays.
     
-    Change-Id: I8f3b8ab9492642d62e7aad010c91c68daea3f14b
-    Reviewed-on: https://go-review.googlesource.com/22301
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reduces binary size of godoc by ~180KB (1.5%).
+    No measurable change in all.bash time.
+    For #6853.
+    
+    Change-Id: I60205948ceb5c0abba76fdf619652da9c465a597
+    Reviewed-on: https://go-review.googlesource.com/19790
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/debug/pe/file.go    | 10 +++-------
- src/debug/pe/section.go | 27 ++++++++++++++++++++++++---
- 2 files changed, 27 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 108 ++++++++++++++++++-----------
+ src/cmd/link/internal/ld/decodesym.go  |  35 ++++++----
+ src/reflect/type.go                    | 120 ++++++++++++++++++++++++++-------
+ src/runtime/heapdump.go                |   4 +-
+ src/runtime/iface.go                   |   5 +-
+ src/runtime/mfinal.go                  |   2 +-
+ src/runtime/type.go                    |  70 ++++++++++++++++++-
+ 7 files changed, 260 insertions(+), 84 deletions(-)

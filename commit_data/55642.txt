@@ -1,23 +1,23 @@
-commit 53708d86b076b7295e93e49b7a19ac7d9082044f
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Feb 20 16:49:43 2024 +0000
+commit dfe4591fc4d2d66da7740de18b32761e7a20691c
+Author: Shengyu Zhang <zhangshengyu.0@bytedance.com>
+Date:   Tue Feb 28 16:58:07 2023 +0000
 
-    cmd/go/testdata/script: add darwin skips for selected buildrepro tests
+    io/ioutil: add doc links for deprecated function
     
-    Skip two build reproducibility tests (build_issue48319 and
-    build_plugin_reproducible) on Darwin if GO_BUILDER_NAME is set until
-    issue 64947 can be resolved; on the LUCI darwin longtest builder the
-    more contemporary version of Xcode is doing things that are unfriendly
-    to Go's build reproducibility.
+    Go 1.19 introduced doc links (https://go.dev/doc/comment#doclinks).
+    It will be convenient when we can directly jump to the suggested
+    function when the original function is deprecated.
     
-    For #64947.
-    
-    Change-Id: Iebd433ad6dfeb84b6504ae9355231d897d8ae174
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565376
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6172a5265f3b47aefec53179bca60f9904606b3f
+    GitHub-Last-Rev: b2aa85bf1bb67a39b5b26a047ba90a4b6a61dba4
+    GitHub-Pull-Request: golang/go#58779
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471915
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/testdata/script/build_issue48319.txt          | 7 +++++++
- src/cmd/go/testdata/script/build_plugin_reproducible.txt | 7 +++++++
- 2 files changed, 14 insertions(+)
+ src/io/ioutil/ioutil.go   | 18 +++++++++---------
+ src/io/ioutil/tempfile.go |  4 ++--
+ 2 files changed, 11 insertions(+), 11 deletions(-)

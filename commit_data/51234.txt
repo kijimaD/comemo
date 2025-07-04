@@ -1,22 +1,17 @@
-commit c3aac6c010f9293319ae5dbe0592bc7706b6a161
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Fri Nov 11 07:34:15 2022 +0000
+commit 529939072eef730c82333344f321972874758be8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 16 17:54:27 2021 -0800
 
-    net: handle correctly the _gateway and _outbound hostnames for nss myhostname
+    doc/go1.18: document union element restriction
     
-    Fixes #56387
+    For #47694
     
-    Change-Id: If412134344600caefec425699398522399986d4d
-    GitHub-Last-Rev: f33540ef8f90e9a8c09f3947aba8c01155516d39
-    GitHub-Pull-Request: golang/go#56388
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445075
+    Change-Id: I9af871a4a45b002e72629904011aac8f076617f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372974
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/conf.go      | 10 ++++++++--
- src/net/conf_test.go |  6 ++++--
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ doc/go1.18.html | 5 +++++
+ 1 file changed, 5 insertions(+)

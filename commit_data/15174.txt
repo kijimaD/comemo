@@ -1,15 +1,17 @@
-commit d2252d9b0769867fa8a25ba8b274603ddf21c9e9
-Author: Péter Surányi <speter.go1@gmail.com>
-Date:   Fri Feb 8 10:45:46 2013 -0800
+commit 5fa6721a311f1a4a71cf88502c44537e519b4787
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Feb 8 11:58:24 2013 -0500
 
-    syscall: check for invalid characters in Setenv on Unix
+    exp/ssa/interp: fix MS Windows breakage.
     
-    On POSIX, '=' in key is explicitly invalid, and '\x00' in key/value is implicitly invalid.
+    syscall.{Kill,Write} are not portable to MS Windows, so we
+    disable them for now.
     
-    R=golang-dev, iant, bradfitz
+    R=iant, rsc
     CC=golang-dev
-    https://golang.org/cl/7311061
+    https://golang.org/cl/7312066
 
- src/pkg/os/env_unix_test.go | 30 ++++++++++++++++++++++++++++++
- src/pkg/syscall/env_unix.go | 10 ++++++++++
- 2 files changed, 40 insertions(+)
+ src/pkg/exp/ssa/interp/external.go         | 24 ++++------------------
+ src/pkg/exp/ssa/interp/external_unix.go    | 32 ++++++++++++++++++++++++++++++
+ src/pkg/exp/ssa/interp/external_windows.go | 19 ++++++++++++++++++
+ 3 files changed, 55 insertions(+), 20 deletions(-)

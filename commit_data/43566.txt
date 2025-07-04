@@ -1,15 +1,19 @@
-commit 5d3666e1a48d0976718c75dddc2ef0232be835d8
-Author: Roland Shoemaker <rolandshoemaker@gmail.com>
-Date:   Wed Oct 21 10:59:22 2020 -0700
+commit 614a713be560ca86dcca570a8b872614d822eb99
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Apr 10 10:06:29 2020 -0400
 
-    crypto/tls: document the ClientAuthType consts
+    crypto/tls: failed tls.Conn.Write returns a permanent error
     
-    Fixes #34023
+    Fixes #29971
     
-    Change-Id: Ib7552a8873a79a91e8d971f906c6d7283da7a80c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264027
-    Trust: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: I2f1653640c88fafe0ec17a75dcf41d5896c4cb8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227840
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/common.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/crypto/tls/conn.go                  | 17 +++++++-
+ src/crypto/tls/handshake_server_test.go |  3 +-
+ src/crypto/tls/tls_test.go              | 71 +++++++++++++++++++++++++++++++++
+ 3 files changed, 88 insertions(+), 3 deletions(-)

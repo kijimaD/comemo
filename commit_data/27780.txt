@@ -1,13 +1,33 @@
-commit a91416e7abf2236909f99aea85accfe98a9ba1fd
-Author: Chris Broadfoot <cbro@google.com>
-Date:   Thu Jul 7 19:32:35 2016 -0700
+commit f0c5b8b9c9c7900033ddb11b584da6198d599454
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Tue Apr 12 21:16:27 2016 +0200
 
-    [release-branch.go1.7] go1.7rc1
+    image/color: optimize YCbCrToRGB
     
-    Change-Id: Ifbf1c13ce740428add68d68133c7f10876bad404
-    Reviewed-on: https://go-review.googlesource.com/24816
+    Use one comparison to detect underflow and overflow simultaneously.
+    Use a shift, bitwise complement and uint8 type conversion to handle
+    clamping to upper and lower bound without additional branching.
+    
+    Overall the new code is faster for a mix of
+    common case, underflow and overflow.
+    
+    name     old time/op  new time/op  delta
+    YCbCr-2  1.12ms ± 0%  0.64ms ± 0%  -43.01%  (p=0.000 n=48+47)
+    
+    name              old time/op  new time/op  delta
+    YCbCrToRGB/0-2    5.52ns ± 0%  5.77ns ± 0%  +4.48%  (p=0.000 n=50+49)
+    YCbCrToRGB/128-2  6.05ns ± 0%  5.52ns ± 0%  -8.69%  (p=0.000 n=39+50)
+    YCbCrToRGB/255-2  5.80ns ± 0%  5.77ns ± 0%  -0.58%  (p=0.000 n=50+49)
+    
+    Found in collaboration with Josh Bleecher Snyder and Ralph Corderoy.
+    
+    Change-Id: Ic5020320f704966f545fdc1ae6bc24ddb5d3d09a
+    Reviewed-on: https://go-review.googlesource.com/21910
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- VERSION | 1 +
- 1 file changed, 1 insertion(+)
+ src/image/color/ycbcr.go             |  49 ++++++---
+ src/image/internal/imageutil/gen.go  |  48 ++++++---
+ src/image/internal/imageutil/impl.go | 192 +++++++++++++++++++++++------------
+ 3 files changed, 193 insertions(+), 96 deletions(-)

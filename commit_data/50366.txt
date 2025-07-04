@@ -1,19 +1,43 @@
-commit db9e549fd2a97b5a812ad088266f09654efa267f
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat Sep 3 14:18:13 2022 +0800
+commit e90492882a7fd580b7dac88675a1c907a7441b40
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 18 23:07:59 2021 +0000
 
-    crypto/x509/internal/macos: simplify code using unsafe.{SliceData,StringData}
+    runtime: retype mheap.pagesSwept as atomic.Uint64
     
-    Updates #54854
+    [git-generate]
+    cd src/runtime
+    mv export_test.go export.go
+    GOROOT=$(dirname $(dirname $PWD)) rf '
+      add mheap.pagesSwept pagesSwept_ atomic.Uint64 // pages swept this cycle
+      ex {
+        import "runtime/internal/atomic"
     
-    Change-Id: I8a64a1176cbe16489e1fd21c66a7abc7d8b8e9b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428154
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+        var t mheap
+        var v, w uint64
+        var d int64
+    
+        t.pagesSwept -> t.pagesSwept_.Load()
+        t.pagesSwept = v -> t.pagesSwept_.Store(v)
+        atomic.Load64(&t.pagesSwept) -> t.pagesSwept_.Load()
+        atomic.LoadAcq64(&t.pagesSwept) -> t.pagesSwept_.LoadAcquire()
+        atomic.Store64(&t.pagesSwept, v) -> t.pagesSwept_.Store(v)
+        atomic.StoreRel64(&t.pagesSwept, v) -> t.pagesSwept_.StoreRelease(v)
+        atomic.Cas64(&t.pagesSwept, v, w) -> t.pagesSwept_.CompareAndSwap(v, w)
+        atomic.Xchg64(&t.pagesSwept, v) -> t.pagesSwept_.Swap(v)
+        atomic.Xadd64(&t.pagesSwept, d) -> t.pagesSwept_.Add(d)
+      }
+      rm mheap.pagesSwept
+      mv mheap.pagesSwept_ mheap.pagesSwept
+    '
+    mv export.go export_test.go
+    
+    Change-Id: Ife99893d90a339655f604bc3a64ee3decec645ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356709
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/x509/internal/macos/corefoundation.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/runtime/mgc.go      | 2 +-
+ src/runtime/mgcpacer.go | 2 +-
+ src/runtime/mgcsweep.go | 6 +++---
+ src/runtime/mheap.go    | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

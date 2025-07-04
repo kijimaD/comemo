@@ -1,15 +1,19 @@
-commit 0aad4d3257d59de460bfe52e59dac4e357082fa1
-Author: cia-rana <kiwamura0314@gmail.com>
-Date:   Thu Dec 8 15:19:39 2022 +0900
+commit 656d3f4401e1fdb628e24027cf91cc803c7a0dac
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Feb 9 17:42:38 2022 -0500
 
-    cmd/link: fix dynamic interpreter path for musl-based linux amd64
+    doc/go1.18: remove some TODOs for changes we aren't mentioning again
     
-    Change-Id: Ia07e237647b419b73d6faa11baa32e6176c8b7ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456215
+    These TODOs were originally removed in CL 368794.
+    
+    Updates #47694
+    
+    Change-Id: I39d5c0ce5f96adbbc466585a5831f721057dbed5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384619
+    Trust: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/link/internal/amd64/obj.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.18.html | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

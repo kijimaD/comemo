@@ -1,31 +1,17 @@
-commit eaae95fa3d9f54665ef954df26c2fd54a32460c3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 25 13:32:56 2011 -0800
+commit 2ae953bfc31a9f87daf38df0b185c701a56b32e6
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Jan 25 12:25:48 2011 -0800
 
-    scanner: fix Position returned by Scan, Pos
+    time: allow cancelling of After events.
+    Also simplify sleeper algorithm and poll
+    occasionally so redundant sleeper goroutines
+    will quit sooner.
     
-    The implementation of the position computation
-    was surprisingly broken. Implemented fixes and
-    added extra test cases.
-    
-    There is a slight interface change: Calling
-    Pos() returns the current position; but if
-    called before Scan() that position may not
-    be the position of the next token returned
-    by Scan() (depending on the scan settings
-    and the source text) - this in contrast to
-    the original comment.
-    
-    However, after calling Scan(), the Scanner's
-    Position field reports the position of the
-    scanned token, as before.
-    
-    Fixes #1327.
-    
-    R=rsc
+    R=r, niemeyer, r2
     CC=golang-dev
-    https://golang.org/cl/3972047
+    https://golang.org/cl/4063043
 
- src/pkg/scanner/scanner.go      |  81 +++++++++++++++++++++--------
- src/pkg/scanner/scanner_test.go | 110 +++++++++++++++++++++++++++++++---------
- 2 files changed, 144 insertions(+), 47 deletions(-)
+ src/pkg/time/sleep.go      | 194 ++++++++++++++++++++++++++++-----------------
+ src/pkg/time/sleep_test.go |  36 +++++++++
+ src/pkg/time/tick_test.go  |  11 +++
+ 3 files changed, 170 insertions(+), 71 deletions(-)

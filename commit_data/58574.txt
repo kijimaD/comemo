@@ -1,20 +1,18 @@
-commit 1118da25148d20f0fc275dd7ce7a08bd4ac4bdf2
-Author: Diego Lara <diegolara93345@gmail.com>
-Date:   Fri Jan 31 20:57:20 2025 +0000
+commit ddb38c3f540c17a0437132532f49f6f0061d82af
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 20 08:19:49 2023 -0800
 
-    text/template improved comparison error addresses issue #71421
+    cmd/compile/internal/devirtualize: use CallExpr.GoDefer for PGO
     
-    Addresses issue #71421, improves the error message given for comparison. Previous error message did not specify the types causing conflict, just said incompatible types, new error message specifies the two types causing the issue.
+    CL 543657 dedup'd the go/defer statement recognition between the
+    inliner and static devirtualizer. This CL extends that for PGO-based
+    devirtualization too.
     
-    Change-Id: I9d940ab7573c2763a9d052445140ecd6d38cde5e
-    GitHub-Last-Rev: 6fe7d8101317ea616fd9a8f3f430874b5f946d3e
-    GitHub-Pull-Request: golang/go#71431
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644175
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I998753132af1ef17329676f4e17515f16e0acb03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543775
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/text/template/funcs.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/devirtualize/pgo.go | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

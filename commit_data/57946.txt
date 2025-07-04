@@ -1,20 +1,19 @@
-commit 2bbc6a45121e6576554d7f5f1f568c17c4bf67dd
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Nov 12 22:22:11 2024 -0800
+commit 0460c61e5fd2242d27451f527dafc4d9a098fef4
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Sep 12 22:43:28 2023 +0000
 
-    cmd/asm: fix format string so vet doesn't complain
+    go/doc/comment: update TODO for isStdPkg
     
-    Fixes #70309
+    Even better is slices.BinarySearch, leave a TODO to update to that when possible.
     
-    Change-Id: I4a3e27e89bdfda66d64f2efbb4c08a5ddde34a52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626040
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: Ie1ec75c34c0329c536725b45e520693790f0520e
+    GitHub-Last-Rev: 6cd811b186c95752794cead3ae747f54c2d0d0c5
+    GitHub-Pull-Request: golang/go#62585
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527341
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/arch/loong64.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/doc/comment/parse.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

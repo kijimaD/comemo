@@ -1,22 +1,27 @@
-commit 6b34eba007052b5985abc0a3ff1e90316ec28d91
+commit 9905cec0dc04fd7cddb7c7504006b7aa618abd94
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 4 14:40:12 2013 -0800
+Date:   Mon Mar 4 13:55:35 2013 -0800
 
-    go/types: "missing return" check
+    spec: terminating statements for functions
     
-    Implementation closely based on Russ' CL 7440047.
+    The only functional change is the new section
+    on terminating statements.
     
-    Future work: The error messages could be better
-    (e.g., instead of "missing return" it might say
-    "missing return (no default in switch)", etc.).
+    There is a minor syntax rewrite (not change)
+    of function declarations to make it easier to
+    refer to the notion of a function from all places
+    where it is used (function decls, method decls,
+    and function literals).
     
-    R=adonovan, rsc
+    Includes some minor fixes/additions of missing links.
+    
+    Based closely on Russ' proposal.
+    
+    Fixes #65.
+    
+    R=rsc, r, iant, ken, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7437049
+    https://golang.org/cl/7415050
 
- src/pkg/go/types/check.go            |   3 +
- src/pkg/go/types/check_test.go       |   1 +
- src/pkg/go/types/return.go           | 186 +++++++++++++++++++++++++++++++++++
- src/pkg/go/types/testdata/decls1.src |   8 +-
- src/pkg/go/types/testdata/stmt1.src  | 164 ++++++++++++++++++++++++++++++
- 5 files changed, 358 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 122 +++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 105 insertions(+), 17 deletions(-)

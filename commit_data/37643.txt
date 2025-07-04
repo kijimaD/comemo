@@ -1,22 +1,12 @@
-commit 21da8e6022d1d148741ba3c08cdc555df500520e
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Mon Dec 10 10:53:39 2018 +0100
+commit 247b034ac04b753d5e3ca7d0d8a172f63db5dcb4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 21 03:46:17 2018 +0000
 
-    internal/xcoff: add big archive support
+    cmd/go: run mkalldocs.sh after earlier revert
     
-    This commit adds support to read AIX big archive inside internal/xcoff
-    package.
-    
-    Change-Id: I4317b40824b24312a69c918dfc6438dc3aff7be7
-    Reviewed-on: https://go-review.googlesource.com/c/153398
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie4ed8b3e7d26ae53b2290a7a6e7d9888eb963edc
+    Reviewed-on: https://go-review.googlesource.com/130318
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/xcoff/ar.go                 | 228 +++++++++++++++++++++++++++++++
- src/internal/xcoff/ar_test.go            |  79 +++++++++++
- src/internal/xcoff/testdata/bigar-empty  |   2 +
- src/internal/xcoff/testdata/bigar-ppc64  | Bin 0 -> 2468 bytes
- src/internal/xcoff/testdata/printbye.c   |   5 +
- src/internal/xcoff/testdata/printhello.c |   5 +
- 6 files changed, 319 insertions(+)
+ src/cmd/go/alldocs.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

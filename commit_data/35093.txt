@@ -1,19 +1,18 @@
-commit c0769741f541d2382c5c9b4506d684a738d7e53e
-Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
-Date:   Sat Apr 21 22:24:25 2018 +0000
+commit de14b2f63891213d99e950809503569f1fa9e45b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 14:57:44 2017 -0500
 
-    doc: correct statement in go1.10 release notes
+    all: fix t.Skipf formats
     
-    The language spec requires the RHS operand of shift expressions to be unsigned integers.
+    Found by upcoming cmd/vet change.
     
-    The changes in CL 60230 and the related CL 81277 refer to a variable s of type uint.
-    The "untyped constant" here refers to 1.0, not s.
-    
-    Change-Id: Id2b884816af7f79f453afcb8c34ade2d34e18bc2
-    GitHub-Last-Rev: b26c853cae2adea7235a51ad726308e337494385
-    GitHub-Pull-Request: golang/go#24989
-    Reviewed-on: https://go-review.googlesource.com/108676
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7a8264a304b2a4f26f3bd418c1b28cc849889c9b
+    Reviewed-on: https://go-review.googlesource.com/83835
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.10.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go                                              | 4 ++--
+ src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/objdumpext_test.go | 2 +-
+ src/runtime/crash_cgo_test.go                                      | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

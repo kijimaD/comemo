@@ -1,14 +1,24 @@
-commit b0bc18d5bcb57b5b1645899e7fc865f31f10d6f4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 18 15:33:29 2020 -0700
+commit a6c8fac78194bf84eb75c845f2a80646211877c5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 6 16:20:50 2019 +0000
 
-    doc/go1.15: mention vet warning for string(x)
+    os: skip a new failing test on Windows
     
-    For #32479
+    This test was recently added in CL 209961.
     
-    Change-Id: I974709d471021d370aa9bdc5f24b02afa8bd9b54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234517
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Apparently Windows can't seek a directory filehandle?
+    
+    And move the test from test/fixedbugs (which is mostly for compiler bugs) to
+    an os package test.
+    
+    Updates #36019
+    
+    Change-Id: I626b69b0294471014901d0ccfeefe5e2c7651788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210283
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.15.html | 41 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 41 insertions(+)
+ src/os/os_test.go            | 42 ++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue35767.go | 51 --------------------------------------------
+ 2 files changed, 42 insertions(+), 51 deletions(-)

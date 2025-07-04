@@ -1,87 +1,24 @@
-commit 878a86a129ceb771f677c8391a9f5c891e5be7c3
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Apr 6 18:17:20 2015 +0300
+commit 9dfbcd8facae22e2be8bc527e1877b1e23812073
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 5 15:07:00 2015 -0500
 
-    cmd/gc: fix escape analysis of closures
+    debug/dwarf: factor parsing of unit lengths
     
-    Fixes #10353
+    Many headers in DWARF sections have a "unit length" that can be either
+    4 bytes or 12 bytes and indicates both the length of the unit and
+    whether the unit is in 32-bit or 64-bit format.
     
-    See test/escape2.go:issue10353. Previously new(int) did not escape to heap,
-    and so heap-allcated closure was referencing a stack var. This breaks
-    the invariant that heap must not contain pointers to stack.
+    Currently, we implement unit length parsing in four different places.
+    Add a "unitLength" method to buf that parses a unit length and use it
+    in these four places.
     
-    Look at the following program:
-    
-    package main
-    
-    func main() {
-            foo(new(int))
-            bar(new(int))
-    }
-    
-    func foo(x *int) func() {
-            return func() {
-                    println(*x)
-            }
-    }
-    
-    // Models what foo effectively does.
-    func bar(x *int) *C {
-            return &C{x}
-    }
-    
-    type C struct {
-            x *int
-    }
-    
-    Without this patch escape analysis works as follows:
-    
-    $ go build -gcflags="-m -m -m -l" esc.go
-    escflood:1: dst ~r1 scope:foo[0]
-    escwalk: level:0 depth:0  func literal( l(9) f(1) esc(no) ld(1)) scope:foo[1]
-    /tmp/live2.go:9: func literal escapes to heap
-    escwalk: level:0 depth:1         x( l(8) class(PPARAM) f(1) esc(no) ld(1)) scope:foo[1]
-    /tmp/live2.go:8: leaking param: x to result ~r1
-    
-    escflood:2: dst ~r1 scope:bar[0]
-    escwalk: level:0 depth:0  &C literal( l(15) esc(no) ld(1)) scope:bar[1]
-    /tmp/live2.go:15: &C literal escapes to heap
-    escwalk: level:-1 depth:1        &C literal( l(15)) scope:bar[0]
-    escwalk: level:-1 depth:2                x( l(14) class(PPARAM) f(1) esc(no) ld(1)) scope:bar[1]
-    /tmp/live2.go:14: leaking param: x
-    
-    /tmp/live2.go:5: new(int) escapes to heap
-    /tmp/live2.go:4: main new(int) does not escape
-    
-    new(int) does not escape while being captured by the closure.
-    With this patch escape analysis of foo and bar works similarly:
-    
-    $ go build -gcflags="-m -m -m -l" esc.go
-    escflood:1: dst ~r1 scope:foo[0]
-    escwalk: level:0 depth:0  &(func literal)( l(9)) scope:foo[0]
-    escwalk: level:-1 depth:1        func literal( l(9) f(1) esc(no) ld(1)) scope:foo[1]
-    /tmp/live2.go:9: func literal escapes to heap
-    escwalk: level:-1 depth:2                x( l(8) class(PPARAM) f(1) esc(no) ld(1)) scope:foo[1]
-    /tmp/live2.go:8: leaking param: x
-    
-    escflood:2: dst ~r1 scope:bar[0]
-    escwalk: level:0 depth:0  &C literal( l(15) esc(no) ld(1)) scope:bar[1]
-    /tmp/live2.go:15: &C literal escapes to heap
-    escwalk: level:-1 depth:1        &C literal( l(15)) scope:bar[0]
-    escwalk: level:-1 depth:2                x( l(14) class(PPARAM) f(1) esc(no) ld(1)) scope:bar[1]
-    /tmp/live2.go:14: leaking param: x
-    
-    /tmp/live2.go:4: new(int) escapes to heap
-    /tmp/live2.go:5: new(int) escapes to heap
-    
-    Change-Id: Ifd14b7ae3fc11820e3b5eb31eb07f35a22ed0932
-    Reviewed-on: https://go-review.googlesource.com/8408
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7950b91caaa92aa5e19aa63debc8ae46178ecc4d
+    Reviewed-on: https://go-review.googlesource.com/7281
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/gc/esc.go   | 15 ++++++++++++--
- test/escape2.go              | 22 ++++++++++++++++++++
- test/escape2n.go             | 22 ++++++++++++++++++++
- test/fixedbugs/issue10353.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 106 insertions(+), 2 deletions(-)
+ src/debug/dwarf/buf.go      | 11 +++++++++++
+ src/debug/dwarf/line.go     |  9 +--------
+ src/debug/dwarf/typeunit.go | 16 +++++-----------
+ src/debug/dwarf/unit.go     | 19 ++++++-------------
+ 4 files changed, 23 insertions(+), 32 deletions(-)

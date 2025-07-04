@@ -1,24 +1,19 @@
-commit c5046bca7b06ab73225040abdc53430511049b56
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Aug 18 00:41:52 2018 -0400
+commit ed68bc5918ad99c79332970938d421f05c2417fc
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Apr 17 11:25:26 2018 +0000
 
-    cmd/go/internal/modconv: fix TestConvertLegacyConfig expectations
+    Revert "cmd/doc: skip directories like other go tools"
     
-    It was a bug to find that commit in the Masterminds/semver repo.
-    It's not part of the main repo but only part of an unmerged pull request.
-    The code was updated to try not to look at unmerged pull requests,
-    but the test was not. Worse, whether the code succeeds at not looking
-    at unmerged pull requests apparently depends on the git version.
-    Sigh.
+    This reverts commit 49e3e436e71a54f16eb15960bd77ecf554ccc905.
     
-    Fixes #26754.
-    Fixes #27043.
+    Reason for revert: breaks iOS builders and Daniel can't fix for a week.
     
-    Change-Id: Ib9e07f565906de4f1169244911a258396688f14d
-    Reviewed-on: https://go-review.googlesource.com/129800
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ib6ff08de9540d46345dc31e1f820c8555e3de3ca
+    Reviewed-on: https://go-review.googlesource.com/107218
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modconv/convert_test.go | 52 +++++++++++++++++------------
- 1 file changed, 30 insertions(+), 22 deletions(-)
+ src/cmd/doc/dirs.go     |  5 ++---
+ src/cmd/doc/doc_test.go | 14 ++------------
+ 2 files changed, 4 insertions(+), 15 deletions(-)

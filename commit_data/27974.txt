@@ -1,15 +1,19 @@
-commit 5abfc97e84eef1fe5c5782eb8047cb911560ddb7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Aug 9 20:05:41 2016 -0700
+commit babd5da61fbaa7a1b3a5413c3c8947d71fa1001d
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Apr 21 08:00:07 2016 -0400
 
-    runtime: use correct MOV for plan9 brk_ ret value
+    crypto/aes: use asm for BenchmarkExpand on amd64
     
-    Updates #11041
+    This reverses the change to this benchmark made in 9b6bf20.
     
-    Change-Id: I78f8d48f00cfbb451e37c868cc472ef06ea0fd95
-    Reviewed-on: https://go-review.googlesource.com/27491
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I79ab88286c3028d3be561957140375bbc413e7ab
+    Reviewed-on: https://go-review.googlesource.com/22340
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/sys_plan9_amd64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/aes/aes_test.go       |  2 +-
+ src/crypto/aes/cipher_amd64.go   | 17 +++++++++++++++++
+ src/crypto/aes/cipher_generic.go |  6 ++++++
+ src/crypto/aes/cipher_s390x.go   |  6 ++++++
+ 4 files changed, 30 insertions(+), 1 deletion(-)

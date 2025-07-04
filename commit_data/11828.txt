@@ -1,14 +1,14 @@
-commit daa7bd8ec6483d777ddda861f1e5eca9687b0b52
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 13 15:24:06 2012 +1100
+commit fb2caa3244184d73d0185dce2c8b594ff6e60c06
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 23:19:50 2012 -0500
 
-    net/http/pprof: link to blog post
+    net/http: fix http_proxy parsing
     
-    Fixes #2943.
+    Fixes #2919.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5649079
+    https://golang.org/cl/5645089
 
- src/pkg/net/http/pprof/pprof.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/net/http/transport.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

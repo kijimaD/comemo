@@ -1,21 +1,21 @@
-commit ca886e0673ab1e199b722d4828b35f6a9c995cbf
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 16 11:49:33 2017 -0500
+commit 9515610afbbfafdde13052265f115a5e65d6756f
+Author: Danny Rosseau <daniel.rosseau@gmail.com>
+Date:   Thu Aug 10 13:08:23 2017 -0600
 
-    cmd/go/internal/cache: fix build failure introduced in CL 78176
+    encoding/gob: fix Debug to properly print uint
     
-    Maybe a bad git merge - not sure.
-    In any event, I do miss the trybots.
+    Fix debugger printing of uint that mistakenly
+    invoked .int64() instead of .uint64()
     
-    Noticed while fixing: change print-to-stderr+panic
-    to pure panic, just so that the test (which catches the panic)
-    does not print any errors before passing.
+    Fixes #21392
     
-    Change-Id: If25153ea64e81066455401110ae7a79c36f2f712
-    Reviewed-on: https://go-review.googlesource.com/78316
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I107a7e87e0efbb06303c1e627dee76c369f75d1e
+    Reviewed-on: https://go-review.googlesource.com/54750
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/cache/cache.go      |  4 ++--
- src/cmd/go/internal/cache/cache_test.go | 24 ++++++++++++------------
- 2 files changed, 14 insertions(+), 14 deletions(-)
+ src/encoding/gob/codec_test.go | 1 +
+ src/encoding/gob/debug.go      | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,13 +1,12 @@
-commit 227fe5f64e22d98e62e4e5165bffc3d6f8ec80b9
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 14 15:16:01 2014 -0800
+commit 8454e2c2878cbef57038c6603265d8baaae64a4e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 14 13:46:22 2014 -0800
 
-    spec: tighten the wording around . imports
-    Make it clear that if you do a . import, you cannot use a qualified identifier.
+    runtime: Change size of map iter offset so 32-bit version compiles cleanly.
     
-    R=gri
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/52390043
+    https://golang.org/cl/52310043
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/runtime/hashmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

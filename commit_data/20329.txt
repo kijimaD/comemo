@@ -1,16 +1,22 @@
-commit 8a7597fd7a28cd408852e227661044b31d525032
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 7 07:23:18 2014 -0400
+commit 553378079522ca9f131c62acf9cc0a583c76164b
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Sep 1 17:47:57 2014 +1000
 
-    runtime: fix nacl/amd64p32 build
+    strings: use Rabin-Karp algorithm for LastIndex.
     
-    Update #8675
-    Fixes nacl/amd64p32 build.
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkSingleMatch       49443         52275         +5.73%
+    BenchmarkIndex             28.8          27.4          -4.86%
+    BenchmarkLastIndex         14.5          14.0          -3.45%
+    BenchmarkLastIndexHard1    3982782       2309200       -42.02%
+    BenchmarkLastIndexHard2    3985562       2287715       -42.60%
+    BenchmarkLastIndexHard3    3555259       2282866       -35.79%
     
-    TBR=khr
+    LGTM=josharian, nigeltao
+    R=golang-codereviews, ality, josharian, bradfitz, dave, nigeltao, gobot, nightlyone
     CC=golang-codereviews
-    https://golang.org/cl/141140045
+    https://golang.org/cl/102560043
 
- src/liblink/obj6.c             | 22 ++++++++++++++++++++++
- src/pkg/runtime/asm_amd64p32.s | 16 +++-------------
- 2 files changed, 25 insertions(+), 13 deletions(-)
+ src/pkg/strings/strings.go      | 60 ++++++++++++++++++++++++++++++++---------
+ src/pkg/strings/strings_test.go | 19 +++++++++++++
+ 2 files changed, 67 insertions(+), 12 deletions(-)

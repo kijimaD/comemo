@@ -1,19 +1,21 @@
-commit b74f7321e594e2c4bcdf1b048e755ddc90c4134d
-Author: Thanabodee Charoenpiriyakij <wingyminus@gmail.com>
-Date:   Sun Jun 10 01:01:27 2018 +0700
+commit 81786649c54c5e45765de12cbdf11c9081614506
+Author: Philip Hofer <phofer@umich.edu>
+Date:   Wed Feb 21 13:35:08 2018 -0800
 
-    syscall: update TOKEN_ALL_ACCESS according to WinNT.h
+    cmd/compile/internal/ssa: clear branch likeliness in clobberBlock
     
-    TOKEN_ALL_ACCESS was changed at some stage by Microsoft.
+    The branchelim pass makes some blocks unreachable, but does not
+    remove them from Func.Values. Consequently, ssacheck complains
+    when it finds a block with a non-zero likeliness value but no
+    successors.
     
-    Updates #25775
+    Fixes #24014
     
-    Change-Id: I3e18914207a0020b2ebfb99f4e57aa55f9de813b
-    Reviewed-on: https://go-review.googlesource.com/117635
+    Change-Id: I2dcf1d8f4e769a2f363508dab3b11198ead336b6
+    Reviewed-on: https://go-review.googlesource.com/96075
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Philip Hofer <phofer@umich.edu>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- api/except.txt                      | 2 ++
- src/syscall/security_windows.go     | 4 +++-
- src/syscall/syscall_windows_test.go | 6 ++++++
- 3 files changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/branchelim.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,18 +1,15 @@
-commit fd8592859b3b4214276ff6ff846db7ead21215c6
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Oct 18 13:32:11 2015 -0400
+commit 7721ac053599ff0f7e5db6ab5f0caa77a7ff4bf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 5 10:11:59 2015 -0400
 
-    cmd/cgo: give __uint128_t type [16]uint8
+    internal/testenv: add Builder, to report builder name
     
-    The __uint128_t type appears in darwin/arm header files processed by
-    cgo -godefs in http://golang.org/cl/16045.
+    This works after golang.org/cl/13120 is running on the
+    coordinator (maybe it already is).
     
-    Change-Id: I666194c65dee8ea0ae933d2f02a3abe4581c4697
-    Reviewed-on: https://go-review.googlesource.com/16046
+    Change-Id: I4053d8e2f32fafd47b927203a6f66d5858e23376
+    Reviewed-on: https://go-review.googlesource.com/13165
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cgo/doc.go |  1 +
- src/cmd/cgo/gcc.go | 10 ++++++++++
- 2 files changed, 11 insertions(+)
+ src/internal/testenv/testenv.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

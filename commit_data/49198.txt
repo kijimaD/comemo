@@ -1,22 +1,80 @@
-commit 1973be519aaab9bd21d9255b0926d960d2ea2666
+commit 53557530093938e19c21f6b02a482939ac6e634b
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu May 12 15:45:13 2022 -0700
+Date:   Wed Jul 28 13:39:30 2021 -0700
 
-    cmd/compile/internal/noder: remove unified IR assumptions on LocalPkg.Path == ""
+    [dev.typeparams] test/typeparam: gofmt -w
     
-    Replace `pkg.Path == ""` check with `pkg == types.LocalPkg`. This is a
-    prep refactoring for CL 393715, which will properly initialize
-    types.LocalPkg.
+    We don't usually reformat the test directory, but all of the files in
+    test/typeparam are syntactically valid. I suspect the misformattings
+    here are because developers aren't re-installing gofmt with
+    -tags=typeparams, not intentionally exercising non-standard
+    formatting.
     
-    Updates #51734.
-    
-    Change-Id: I7a5428ef1f422de396762b6bc6d323992834b27c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406056
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I3767d480434c19225568f3c7d656dc8589197183
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338093
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/linker.go  | 2 +-
- src/cmd/compile/internal/noder/reader.go  | 4 ++--
- src/cmd/compile/internal/noder/unified.go | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ test/typeparam/absdiff.go                    |  6 +-
+ test/typeparam/absdiffimp.dir/a.go           |  2 +-
+ test/typeparam/aliasimp.dir/a.go             |  2 +-
+ test/typeparam/aliasimp.dir/main.go          |  2 +-
+ test/typeparam/boundmethod.go                | 44 +++++++-------
+ test/typeparam/builtins.go                   |  4 +-
+ test/typeparam/chans.go                      |  2 +-
+ test/typeparam/chansimp.dir/a.go             |  2 +-
+ test/typeparam/combine.go                    | 28 ++++-----
+ test/typeparam/cons.go                       |  4 +-
+ test/typeparam/dictionaryCapture-noinline.go | 26 ++++----
+ test/typeparam/dictionaryCapture.go          | 31 +++++-----
+ test/typeparam/dottype.go                    | 12 ++--
+ test/typeparam/double.go                     | 10 ++--
+ test/typeparam/equal.go                      | 20 +++----
+ test/typeparam/fact.go                       |  4 +-
+ test/typeparam/factimp.dir/a.go              |  4 +-
+ test/typeparam/graph.go                      |  1 -
+ test/typeparam/ifaceconv.go                  |  6 +-
+ test/typeparam/index.go                      |  1 -
+ test/typeparam/interfacearg.go               |  2 +
+ test/typeparam/issue39755.go                 |  4 +-
+ test/typeparam/issue44688.go                 |  2 +-
+ test/typeparam/issue45817.go                 |  3 +-
+ test/typeparam/issue46472.go                 |  2 +-
+ test/typeparam/issue47258.go                 |  2 +-
+ test/typeparam/list.go                       | 26 ++++----
+ test/typeparam/list2.go                      |  4 +-
+ test/typeparam/listimp.dir/a.go              | 50 ++++++++--------
+ test/typeparam/listimp.dir/main.go           | 72 +++++++++++-----------
+ test/typeparam/listimp2.dir/a.go             |  2 +-
+ test/typeparam/listimp2.dir/main.go          |  1 -
+ test/typeparam/lockable.go                   |  2 +-
+ test/typeparam/mapimp.dir/a.go               | 10 ++--
+ test/typeparam/mincheck.dir/a.go             | 10 ++--
+ test/typeparam/minimp.dir/a.go               | 10 ++--
+ test/typeparam/mutualimp.dir/a.go            |  3 +-
+ test/typeparam/ordered.go                    | 14 ++---
+ test/typeparam/orderedmap.go                 | 10 ++--
+ test/typeparam/orderedmapsimp.dir/a.go       | 10 ++--
+ test/typeparam/orderedmapsimp.dir/main.go    |  2 +-
+ test/typeparam/pair.go                       |  5 +-
+ test/typeparam/pairimp.dir/a.go              |  4 +-
+ test/typeparam/pairimp.dir/main.go           | 27 +++++----
+ test/typeparam/sets.go                       |  2 +-
+ test/typeparam/settable.go                   |  1 -
+ test/typeparam/sliceimp.dir/a.go             | 26 ++++----
+ test/typeparam/sliceimp.dir/main.go          | 64 ++++++++++----------
+ test/typeparam/slices.go                     | 90 ++++++++++++++--------------
+ test/typeparam/smallest.go                   |  8 +--
+ test/typeparam/smoketest.go                  |  4 +-
+ test/typeparam/stringable.go                 |  4 +-
+ test/typeparam/struct.go                     |  6 +-
+ test/typeparam/subdict.go                    |  3 +-
+ test/typeparam/sum.go                        |  4 +-
+ test/typeparam/tparam1.go                    | 16 ++---
+ test/typeparam/typelist.go                   | 30 ++++++----
+ test/typeparam/valimp.dir/a.go               | 10 ++--
+ test/typeparam/valimp.dir/main.go            | 85 +++++++++++++-------------
+ 59 files changed, 423 insertions(+), 418 deletions(-)

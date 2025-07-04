@@ -1,27 +1,47 @@
-commit 249e51e5d9aac5124628d524499ea9c067bc37d5
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Nov 17 19:21:45 2022 +0700
+commit 17b2fb1b656a275906b5071c562439d50a27f167
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 12 17:22:09 2022 -0500
 
-    cmd/compile: fix static init for inlined calls
+    runtime: fix net poll races
     
-    CL 450136 made the compiler to be able to handle simple inlined calls in
-    staticinit. However, it's missed a condition when checking substituting
-    arg for param. If there's any non-trivial closures, it has captured one
-    of the param, so the substitution could not happen.
+    The netpoll code was written long ago, when the
+    only multiprocessors that Go ran on were x86.
+    It assumed that an atomic store would trigger a
+    full memory barrier and then used that barrier
+    to order otherwise racy access to a handful of fields,
+    including pollDesc.closing.
     
-    Fixes #56778
+    On ARM64, this code has finally failed, because
+    the atomic store is on a value completely unrelated
+    to any of the racily-accessed fields, and the ARMv8
+    hardware, unlike x86, is clever enough not to do a
+    full memory barrier for a simple atomic store.
+    We are seeing a constant background rate of trybot
+    failures where the net/http tests deadlock - a netpollblock
+    has clearly happened after the pollDesc has begun to close.
     
-    Change-Id: I427c9134e333e2f9af136c1a124da4d37d326f10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451555
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    The code that does the racy reads is netpollcheckerr,
+    which needs to be able to run without acquiring a lock.
+    This CL fixes the race, without introducing unnecessary
+    inefficiency or deadlock, by arranging for every updater
+    of the relevant fields to publish a summary as a single
+    atomic uint32, and then having netpollcheckerr use a
+    single atomic load to fetch the relevant bits and then
+    proceed as before.
+    
+    Fixes #45211 (until proven otherwise!).
+    
+    Change-Id: Ib6788c8da4d00b7bda84d55ca3fdffb5a64c1a0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378234
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/staticinit/sched.go | 12 ++++++++++++
- test/fixedbugs/issue56778.dir/a.go           | 18 ++++++++++++++++++
- test/fixedbugs/issue56778.dir/b.go           |  9 +++++++++
- test/fixedbugs/issue56778.go                 |  7 +++++++
- 4 files changed, 46 insertions(+)
+ src/runtime/netpoll.go         | 157 +++++++++++++++++++++++++++++------------
+ src/runtime/netpoll_aix.go     |   5 +-
+ src/runtime/netpoll_epoll.go   |   5 +-
+ src/runtime/netpoll_kqueue.go  |   5 +-
+ src/runtime/netpoll_solaris.go |   2 +-
+ src/runtime/runtime2.go        |   2 +
+ 6 files changed, 119 insertions(+), 57 deletions(-)

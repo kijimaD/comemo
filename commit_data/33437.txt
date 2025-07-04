@@ -1,38 +1,20 @@
-commit 32f994acc621fdc47f215d8f4e1d89561345bcc7
+commit 8127dbf76ad16350b72bbe29728836a90e60e3dc
 Author: David du Colombier <0intro@gmail.com>
-Date:   Mon Nov 6 07:35:42 2017 +0100
+Date:   Wed Aug 16 20:30:26 2017 +0200
 
-    os: fix RemoveAll on large directories on Plan 9 and NaCl
+    cmd/link: skip TestFieldOverlap on Plan 9
     
-    On Plan 9, some file servers, like ramfs, handle the read
-    offset when reading directories. However, the offset isn't
-    valid anymore after directory entries have been removed
-    between successive calls to read.
+    TestSizes has been added in CL 50170. This test is
+    failing on Plan 9 because executables don't have
+    a DWARF symbol table.
     
-    This issue happens when os.RemoveAll is called on a
-    directory that doesn't fit on a single 9P response message.
+    Fixes #21480.
     
-    In this case, the first part of the directory is read,
-    then directory entries are removed and the second read
-    will be incomplete because the read offset won't be valid
-    anymore. Consequently, the content of the directory will
-    only be partially removed.
-    
-    We change RemoveAll to call fd.Seek(0, 0) before calling
-    fd.Readdirnames, so the read offset will always be reset
-    after removing the directory entries.
-    
-    After adding TestRemoveAllLarge, we noticed the same issue
-    appears on NaCl and the same fix applies as well.
-    
-    Fixes #22572.
-    
-    Change-Id: Ifc76ea7ccaf0168c34dc8ec0f400dc04db1baf8f
-    Reviewed-on: https://go-review.googlesource.com/75974
+    Change-Id: I51079abdc18ad944617bdbcfe2dad970a0cea0f2
+    Reviewed-on: https://go-review.googlesource.com/56210
     Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/path.go      |  6 ++++++
- src/os/path_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

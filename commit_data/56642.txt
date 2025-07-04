@@ -1,20 +1,30 @@
-commit 2f07d4455636ece45ff843fe4d9298ea65f933c1
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed May 22 13:38:15 2024 +0200
+commit d0c72c23dcb5afc80918686f18c14c870eacbd1c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 3 14:48:19 2023 +0000
 
-    crypto/rsa: refactor PKCS#1 v1.5 signature and verification
+    cmd/go: add a GODEBUG to limit the number of concurrent network connections
     
-    VerifyPKCS1v15 doesn't need to be constant time and can do the safer and
-    simpler construct-and-compare.
+    I implemented this in order to debug connection failures on a
+    new-to-me VM development environment that uses Cloud NAT. It doesn't
+    directly fix the bug, but perhaps folks will find it useful to
+    diagnose port-exhaustion-related flakiness in other environments.
     
-    Updates #67043
+    For #52545.
     
-    Change-Id: I014cfd4485fad409c5f86be71488da63af25a584
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587278
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Icd3f13dcf62e718560c4f4a965a4df7c1bd785ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473277
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/crypto/rsa/pkcs1v15.go | 88 ++++++++++++++++++----------------------------
- 1 file changed, 35 insertions(+), 53 deletions(-)
+ src/cmd/go/go_test.go                        | 62 +++++++++++++++++---
+ src/cmd/go/internal/base/limit.go            | 84 ++++++++++++++++++++++++++++
+ src/cmd/go/internal/modfetch/codehost/git.go | 23 +++++++-
+ src/cmd/go/internal/modfetch/codehost/svn.go | 12 ++++
+ src/cmd/go/internal/modfetch/codehost/vcs.go | 16 +++++-
+ src/cmd/go/internal/vcs/vcs.go               | 25 +++++++++
+ src/cmd/go/internal/web/http.go              | 29 ++++++++++
+ src/cmd/go/script_test.go                    | 21 ++++++-
+ src/cmd/go/scriptconds_test.go               | 23 ++++++++
+ 9 files changed, 284 insertions(+), 11 deletions(-)

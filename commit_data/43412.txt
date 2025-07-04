@@ -1,22 +1,18 @@
-commit 54c0237346adfc2cac7bbebba80d652227ab6ea5
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Oct 11 10:23:45 2020 +0200
+commit cc3039f818a372274180834385718d2dfccb1a26
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 1 11:17:11 2020 -0400
 
-    misc/wasm: improve error message if javascript polyfills are required
+    [dev.link] cmd/internal/goobj2: remove old-style accessors
     
-    wasm_exec.js expects that either "require" is available or that the
-    globals "crypto", "TextEncoder" and "TextDecoder" are already defined.
-    Report a better error message if this is not the case, suggesting the
-    use of a polyfill.
+    Now that we switched to new style accessors everywhere, remove
+    the old ones.
     
-    Updates #41482
+    Keep goobj2.Sym, Reloc, and Aux for now, as they are still used
+    on the writer side.
     
-    Change-Id: I5473cae15c98ae42e39f5928245b7762e7a5a8bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261357
-    Trust: Richard Musiol <neelance@gmail.com>
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I6f3f0d812ff591ea6f12cd0155232f160d53d453
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226802
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- misc/wasm/wasm_exec.js | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ src/cmd/internal/goobj2/objfile.go | 100 +++----------------------------------
+ 1 file changed, 8 insertions(+), 92 deletions(-)

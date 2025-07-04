@@ -1,26 +1,57 @@
-commit 93fe469de5388b71af2aa2c959dc485fa3d4bee3
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Sun Jan 30 11:21:28 2022 -0800
+commit 19470dc535513dc824fe5c1dbec700329e7692dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 13:30:50 2021 -0400
 
-    internal/fuzz: properly handle duplicates during cache loading
+    misc/cgo/test: do not redeclare exported Go functions
     
-    When loading the corpus, if the cache contained an entry which was a
-    duplicate of an entry added using f.Add, coordinator.addCorpusEntries
-    would return early, ignoring everything after this entry in the cache.
+    An exported Go function like
     
-    Instead, skip duplicates as intended, and continue to load the rest of
-    the cache.
+            //export F
+            func F() {}
     
-    Fixes #50913
+    gets declared in _cgo_export.h as something like
     
-    Change-Id: I3a64b93cbb217c5c364a9f8d0005752e9e9d10ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381960
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+            extern void F(void);
+    
+    The exact declaration varies by operating system.
+    In particular, Windows adds __declspec(dllimport).
+    
+    Clang on Windows/ARM64 rejects code that contains
+    conflicting declarations for F, like:
+    
+            extern void F(void);
+            extern void __declspec(dllimport) F(void);
+    
+    This means that F must not be declared separately from _cgo_export.h:
+    any code that wants to refer to F must use #include "_cgo_export.h".
+    
+    Unfortunately, the cgo prologue itself (the commented code before import "C")
+    cannot include "_cgo_export.h", because that file is itself produced from the
+    cgo Go sources and therefore cannot be a dependency of the cgo Go sources.
+    
+    This CL rewrites misc/cgo/test to avoid redeclaring exported functions.
+    Most of the time, this is not a significant problem: just move the code
+    that needs the header into a .c file, perhaps with a wrapper exposed
+    to the cgo Go sources.
+    
+    The one case that is potentially problematic is f7665, which is part of
+    the test for golang.org/issue/7665. That bug report explicitly identified
+    a bug in referring to the C name for an exported function in the same
+    Go source file as it was exported function. That is now impossible,
+    at least on Windows/ARM64, so the test is modified a bit and possibly
+    does not test what the original bug was. But the original bug should
+    be long gone: that part of the compiler has been rewritten.
+    
+    Change-Id: I0d14d9336632f0e5e3db4273d9d32ef2cca0298d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312029
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_dup_cache.txt | 52 ++++++++++++++++++++++
- src/internal/fuzz/fuzz.go                          | 20 ++++++---
- 2 files changed, 67 insertions(+), 5 deletions(-)
+ misc/cgo/test/issue8148.c  | 11 +++++++++++
+ misc/cgo/test/issue8148.go | 11 ++---------
+ misc/cgo/test/testx.c      | 24 ++++++++++++++++++++++++
+ misc/cgo/test/testx.go     | 24 ++----------------------
+ 4 files changed, 39 insertions(+), 31 deletions(-)

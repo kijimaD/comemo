@@ -1,15 +1,18 @@
-commit 3dd4f74e060b02031497ae839e698f3ddce5d73d
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 18 14:54:18 2016 -0700
+commit 3092a63a649ee95865e8b1da4eb2ee4bfe634a7e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 18 06:38:56 2016 +0000
 
-    cmd/compile: merge shifts into LEAs
+    net/http: clarify docs on Request.Proto field
     
-    Change-Id: I5a43c354f36184ae64a52268023c3222da3026d8
-    Reviewed-on: https://go-review.googlesource.com/20880
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Todd Neal <todd@tneal.org>
+    No need to say "by default" because there is no alternative and no way
+    to override. Always HTTP/2.0 is officially spelled HTTP/2 these days.
+    
+    Fixes #13985 harder
+    
+    Change-Id: Ib1ec03cec171ca865342b8e7452cd4c707d7b770
+    Reviewed-on: https://go-review.googlesource.com/18720
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  14 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 189 +++++++++++++++++++++++++++
- 2 files changed, 202 insertions(+), 1 deletion(-)
+ src/net/http/request.go   | 4 ++--
+ src/net/http/transport.go | 4 ++++
+ 2 files changed, 6 insertions(+), 2 deletions(-)

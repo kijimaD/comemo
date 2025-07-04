@@ -1,27 +1,20 @@
-commit 8f7f46f5a6d9fe821494aca3c689ca2572a42b41
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 5 16:57:25 2017 -0400
+commit 32002079083e533e11209824bd9e3a797169d1c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 28 20:03:41 2017 +0000
 
-    cmd/go: replace a.Package.Internal.Pkgfile with a.built
+    doc: document the state of NetBSD in the Go 1.9 release notes
     
-    Logically the build needs to start treating a.Package as immutable,
-    since we might want to build a.Package multiple ways.
-    Record the built target in a.built instead.
+    Updates #20836
+    Updates #19339
+    Updates #19652
+    Updates #20835
+    Updates #16511
+    Updates #10166
+    Updates #8574
     
-    Right now a.built is predictable ahead of time, but we want to
-    move toward satisfying some builds from a cache directory,
-    in which case a.built will point into the cache directory
-    and not be determined until action execution time.
-    
-    There is probably more to do with shared libraries, but this
-    does not break what's there.
-    
-    Change-Id: I941988b520bee2f664fd8cabccf389e1dc29628b
-    Reviewed-on: https://go-review.googlesource.com/69050
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: If9a7f560489f1a8d628dafab227925bd8989326e
+    Reviewed-on: https://go-review.googlesource.com/47036
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go   | 24 ------------------------
- src/cmd/go/internal/work/build.go | 34 +++++++++++++++++++---------------
- 2 files changed, 19 insertions(+), 39 deletions(-)
+ doc/go1.9.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

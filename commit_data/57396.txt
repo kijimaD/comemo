@@ -1,18 +1,19 @@
-commit 86d74894cc5f5bc6e814fecfa0300cd1c0fd06e4
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Sep 4 17:31:56 2024 -0700
+commit 73667209c1c83bd48fe7338c3b4caaa05c073202
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Jul 30 11:42:14 2023 +0800
 
-    os: use Mkdir in TestCopyFSWithSymlinks
+    log/slog: catch panics during formatting
     
-    This code creates a few directories under a temporary directory that was
-    just created before, so using MkdirTemp is not needed here.
+    Fixes #61648
     
-    Change-Id: Icfc45b70349bc1927efb1647bcc9fd58aa82b792
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611037
+    Change-Id: I6b7f4948ca89142a358d74624607daf42ea8b304
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514135
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
 
- src/os/os_test.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/log/slog/handler.go     | 18 ++++++++++++
+ src/log/slog/logger_test.go | 67 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+)

@@ -1,20 +1,19 @@
-commit a1813ae0a091e1b880c0d3472112d2c725c2fa18
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 6 11:32:18 2016 -0700
+commit f226e886c2b3e0fc0cb8fad8401d1ff8d006df58
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 21 18:27:21 2016 +1100
 
-    misc/cgo/testcarchive: avoid possible pthread_create race
+    internal/syscall/unix: document randomTrap
     
-    The old code assumed that the thread ID set by pthread_create would be
-    available in the newly created thread.  While that is clearly true
-    eventually, it is not necessarily true immediately.  Rather than try to
-    pass down the thread ID, just call pthread_self in the created thread.
+    Updates #10848
     
-    Fixes #15576 (I hope).
-    
-    Change-Id: Ic07086b00e4fd5676c04719a299c583320da64a1
-    Reviewed-on: https://go-review.googlesource.com/22880
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8353100ed01cb0e8fc19225157f5709bae388612
+    Reviewed-on: https://go-review.googlesource.com/20975
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/testcarchive/main4.c | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/internal/syscall/unix/getrandom_linux_386.go     | 2 ++
+ src/internal/syscall/unix/getrandom_linux_amd64.go   | 2 ++
+ src/internal/syscall/unix/getrandom_linux_arm.go     | 2 ++
+ src/internal/syscall/unix/getrandom_linux_generic.go | 7 +++++++
+ src/internal/syscall/unix/getrandom_linux_mips64x.go | 2 ++
+ src/internal/syscall/unix/getrandom_linux_ppc64x.go  | 2 ++
+ 6 files changed, 17 insertions(+)

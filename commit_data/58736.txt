@@ -1,23 +1,24 @@
-commit 20d7c57422143d07f5ef85d674687dbc0a4871ce
-Author: khr@golang.org <khr@golang.org>
-Date:   Sun Nov 17 12:07:34 2024 -0800
+commit e9eb2beeb22d73d348920b8d68e019195c3ead81
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 15:13:13 2023 -0500
 
-    cmd/compile: pair loads and stores on arm64
+    runtime/pprof: document block and mutex profiles
     
-    Look for possible paired load/store operations on arm64.
-    I don't expect this would be a lot faster, but it will save
-    binary space, and indirectly through the icache at least a bit
-    of time.
+    Amazingly, we seem to have nearly no in-tree documentation on the
+    semantics of block and mutex profiles. Add brief summaries, including
+    the new behavior from CL 506415 and CL 544195.
     
-    Change-Id: I4dd73b0e6329c4659b7453998f9b75320fcf380b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629256
+    For #14689.
+    For #44920.
+    For #57071.
+    For #61015.
+    
+    Change-Id: I1a6edce7c434fcb43f17c83eb362b1f9d1a32df1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547057
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssa/compile.go |   1 +
- src/cmd/compile/internal/ssa/pair.go    | 357 ++++++++++++++++++++++++++++++++
- test/codegen/memcombine.go              |  94 +++++++++
- test/tighten.go                         |  16 +-
- 4 files changed, 463 insertions(+), 5 deletions(-)
+ src/runtime/pprof/pprof.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

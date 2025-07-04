@@ -1,17 +1,23 @@
-commit 54e109ea197cbf1edd78c9d48a76083db0b0deea
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 14 09:38:18 2023 -0800
+commit 077573018027c30e5f422d50f0b96e1733ac6001
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 30 13:23:37 2022 -0700
 
-    slices: skip TestGrow allocation test if noopt
+    cmd/compile/internal/syntax: better errors for syntax errors in lists
     
-    Change-Id: Ie444367c6bb16ed78482d1786b546e6daa63444a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468196
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    For syntax errors in various (syntactic) lists, instead of reporting
+    a set of "expected" tokens (which may be incomplete), provide context
+    and mention "possibly missing" tokens. The result is a friendlier and
+    more accurate error message.
+    
+    Fixes #49205.
+    
+    Change-Id: I38ae7bf62febfe790075e62deb33ec8c17d64476
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396914
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/slices/slices_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/parser.go          | 16 ++++++-------
+ .../compile/internal/syntax/testdata/issue49205.go | 27 ++++++++++++++++++++++
+ test/fixedbugs/issue13319.go                       |  4 ++--
+ test/syntax/composite.go                           |  2 +-
+ 4 files changed, 38 insertions(+), 11 deletions(-)

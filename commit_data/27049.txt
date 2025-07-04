@@ -1,20 +1,14 @@
-commit 7c6b48ffba9e0ea8ed846d194fe30189863f17f0
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Apr 18 12:21:51 2016 -0400
+commit 903f096992875e1a64fa43d65081dec551bf1950
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 28 14:56:31 2016 -0800
 
-    cmd/compile/internal/arm: fix comparison & conditional branch for SSA on ARM
+    cmd/compile: superficial cleanup in alg.go
     
-    Progress on SSA for ARM. Still not complete. Now Fibonacci function compiles
-    and runs correctly.
+    Passes toolstash -cmp.
     
-    The old backend swaps the operands for CMP instruction. This CL does the same
-    on SSA backend, and uses conditional branch accordingly.
-    
-    Updates #15365.
-    
-    Change-Id: I117e17feb22f03d936608bd232f76970e4bbe21a
-    Reviewed-on: https://go-review.googlesource.com/22187
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I6ec2143a30c1f2c15f8ec74422c954ed6b9b1a0f
+    Reviewed-on: https://go-review.googlesource.com/20452
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/arm/ssa.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/alg.go | 64 ++++++++++++--------------------------
+ 1 file changed, 20 insertions(+), 44 deletions(-)

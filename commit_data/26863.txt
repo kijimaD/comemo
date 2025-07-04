@@ -1,17 +1,26 @@
-commit 7cbe7b1e867db9001db35ca41ee3e4a3b0de31c7
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Mar 18 19:13:59 2016 -0400
+commit 6a8a9da572883d7aae7e4618ef2713c716e4edd7
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Feb 27 17:49:31 2016 -0800
 
-    runtime/internal/atomic: add s390x atomic operations
+    [dev.ssa] cmd/compile: Make PPARAMOUT variables SSAable
     
-    Load and store instructions are atomic on the s390x.
+    Add writeback code to each return location which copies
+    the final result back to the correct stack location.
     
-    Change-Id: I0031ed2fba43f33863bca114d0fdec2e7d1ce807
-    Reviewed-on: https://go-review.googlesource.com/20938
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Cgo plays tricky games by taking the address of a
+    in f(a int) (b int) and then using that address to
+    modify b.  So for cgo-generated Go code, disable the
+    SSAing of output args.
+    
+    Update #14511
+    
+    Change-Id: I95cba727d53699d31124eef41db0e03935862be9
+    Reviewed-on: https://go-review.googlesource.com/19988
+    Reviewed-by: Todd Neal <todd@tneal.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/internal/atomic/asm_s390x.s     | 174 ++++++++++++++++++++++++++++
- src/runtime/internal/atomic/atomic_s390x.go |  73 ++++++++++++
- 2 files changed, 247 insertions(+)
+ src/cmd/cgo/out.go                 |  1 +
+ src/cmd/compile/internal/gc/lex.go |  5 ++-
+ src/cmd/compile/internal/gc/ssa.go | 91 +++++++++++++++++++++++++++++---------
+ 3 files changed, 75 insertions(+), 22 deletions(-)

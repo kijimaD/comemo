@@ -1,12 +1,14 @@
-commit dbb13eff8eab8b1094d6b63447cf6be7d259570d
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Wed Oct 4 11:09:15 2017 -0700
+commit 827be89a69534cca8245df9c435d13387eea9667
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Thu Jun 15 22:18:24 2017 +0200
 
-    doc: document go1.9.1 and go1.8.4
+    path/filepath: fix TestGlobError
     
-    Change-Id: Ib42fabc6829b6033373c0378713733f88e73e73d
-    Reviewed-on: https://go-review.googlesource.com/68230
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I7776547332066e1d7651e9aa06eec301dfaf38bc
+    Reviewed-on: https://go-review.googlesource.com/45892
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/devel/release.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/path/filepath/match_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

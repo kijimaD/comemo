@@ -1,22 +1,12 @@
-commit eec6fdc90b64a4a2c579ef35b2ce6eaab1f62733
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 9 10:03:26 2015 -0400
+commit 362f7bfa689979fd0c122ee87f54fefb0f88e9fb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 13 13:18:54 2015 -0700
 
-    internal/trace: don't assume GC will start and end on same P
+    test: add test that gccgo failed to compile
     
-    Currently, GC disables preemption between the traceGCStart and
-    traceGCDone, so it never moves Ps. Consequently, the trace verifier
-    attaches information about GC to its per-P state and will fail if GC
-    starts on one P and ends on another.
-    
-    GC will soon be preemptible and may end on a different P than it
-    began. Hence, this change lifts this per-P verifier state to global
-    state.
-    
-    Change-Id: I82256e2baab1ff3c4453fec312079018423b4b51
-    Reviewed-on: https://go-review.googlesource.com/8714
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I9ea6d4d8a9c1c63de36f2f3871dd5ac9201c0aac
+    Reviewed-on: https://go-review.googlesource.com/7523
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/internal/trace/parser.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ test/fixedbugs/bug495.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

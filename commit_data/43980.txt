@@ -1,21 +1,25 @@
-commit b110733327a66870da9c5f482d8fd3275dae55f3
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Dec 9 12:14:00 2020 -0500
+commit 07cb63aae5629213a0f5c484a8d79ae4bc1026e6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 23 21:15:03 2020 -0700
 
-    cmd/link: reject too-large relocation addend on darwin/arm64
+    syscall: document exact meaning of Ctty field
     
-    Mach-O relocation addend is signed 24-bit. If the addend
-    overflows, it is better to fail the build than emitting an
-    incorrect binary. (I'm still working on a fix.)
+    The Ctty field is a child descriptor number when Setctty is set,
+    but a parent descriptor when Foreground is set. This is absurd
+    but changing either behavior breaks existing programs.
     
-    Updates #42738.
+    With this change we at least document how it works.
     
-    Change-Id: I647f0cd4f6b84d9ac75ef3bf36673bea01dfc211
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276694
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    For #29458
+    
+    Change-Id: If9cf0a1a1e6ed0d4a4edae5043016d5b4ee3308b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229768
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/link/internal/arm64/asm.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/syscall/exec_bsd.go    | 23 +++++++++++++++++------
+ src/syscall/exec_darwin.go | 23 +++++++++++++++++------
+ src/syscall/exec_libc.go   | 23 +++++++++++++++++------
+ src/syscall/exec_linux.go  | 25 ++++++++++++++++++-------
+ 4 files changed, 69 insertions(+), 25 deletions(-)

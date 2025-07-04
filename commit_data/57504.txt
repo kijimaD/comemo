@@ -1,20 +1,19 @@
-commit 530fbb283c911d97238cc5cacecc6b409ee7df88
-Author: wanggang <wg971211@gmail.com>
-Date:   Sat Sep 21 03:02:47 2024 +0000
+commit 133cea5cba354cca6540728334ddb1ed253e941e
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Aug 14 10:51:57 2023 -0400
 
-    fmt: fix incorrect doc comment
+    cmd/go: skip gotoolchain_net script test for new-ish go experiments
     
-    I noticed that the comment incorrectly stated 'WriteString implemented WriteString', it should be 'implemented io.StringWriter' instead.
+    Skip the gotoolchain_net script test if any new-ish GOEXPERIMENT is
+    set, since it will fail under these circumstances.
     
-    Change-Id: I844a8c805e5f0c32b5aea68c4bba6982f6fcc8a7
-    GitHub-Last-Rev: a0d93b6e9d3c2a508d1f3c0ce23e98274ec421fb
-    GitHub-Pull-Request: golang/go#69546
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614575
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Updates #62106.
+    
+    Change-Id: Idfef8af7246a3fbe6481347872a94fe64bbaed7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519195
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/fmt/print.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/gotoolchain_net.txt | 5 +++++
+ 1 file changed, 5 insertions(+)

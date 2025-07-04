@@ -1,17 +1,28 @@
-commit cf82feabb634ece598044ffe98ff445daec35c0a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 11 11:03:35 2020 -0400
+commit 7256f50065f1d53f44c1c9562ad04184ee93279d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 12 01:05:03 2019 -0400
 
-    net: use t.Deadline instead of an arbitrary read deadline in TestDialParallelSpuriousConnection
+    [dev.link] cmd/link: let cgo import overwrite contentless data symbol
     
-    Also increase the default deadline to 5s, since it empirically
-    doesn't need to be short and 1s seems to be too slow on some platforms.
+    A contentless data symbol may be a declaration of a cgo-imported
+    variable, e.g.
     
-    Fixes #37795
+            //go:cgo_import_dynamic xxx
+            var xxx uintptr
     
-    Change-Id: Ie6bf3916b107401235a1fa8cb0f22c4a98eb2dae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222959
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    In this case, we want to mark the symbol imported, instead of
+    defined with zero value.
+    
+    We used to load cgo directives before loading the object file, so
+    we'll mark the symbol SDYNIMPORT first. But in newobj mode,
+    currently we load cgo directives later. Letting SDYNIMPORT
+    overwrite contentless data symbol makes it work in both ordering.
+    
+    Change-Id: I878f52086d6cdb5a347669bf8f848a49bce87b52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201020
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/net/dial_test.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/go.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

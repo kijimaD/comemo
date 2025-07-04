@@ -1,30 +1,34 @@
-commit cd1b9c1d5a7bb8ea6ebec223ce11e91897584ef4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Dec 19 17:44:58 2019 +0000
+commit 5d1a95175e693f5be0bc31ae9e6a7873318925eb
+Author: Tianon Gravi <tianon@debian.org>
+Date:   Wed Aug 14 15:19:55 2019 +0000
 
-    runtime: disable pageAlloc tests on OpenBSD in short mode
+    runtime: treat CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT as SIGTERM on Windows
     
-    This change disables pageAlloc tests on OpenBSD in short mode because
-    pageAlloc holds relatively large virtual memory reservations and we make
-    two during the pageAlloc tests. The runtime may also be carrying one
-    such reservation making the virtual memory requirement for testing the
-    Go runtime three times as much as just running a Go binary.
+    This matches the existing behavior of treating CTRL_C_EVENT, CTRL_BREAK_EVENT as a synthesized SIGINT event.
     
-    This causes problems for folks who just want to build and test Go
-    (all.bash) on OpenBSD but either don't have machines with at least 4ish
-    GiB of RAM (per-process virtual memory limits are capped at some
-    constant factor times the amount of physical memory) or their
-    per-process virtual memory limits are low for other reasons.
+    See https://docs.microsoft.com/en-us/windows/console/handlerroutine for a good documentation source upstream to confirm these values.
     
-    Fixes #36210.
+    As for the usage of these events, the "Timeouts" section of that upstream documentation is important to note, especially the limited window in which to do any cleanup before the program will be forcibly killed (defaults typically 5s, but as low as 500ms, and in many cases configurable system-wide).
     
-    Change-Id: I8d89cfde448d4cd2fefff4ad6ffed90de63dd527
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212177
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    These events are especially relevant for Windows containers, where these events (particularly `CTRL_SHUTDOWN_EVENT`) are one of the only ways containers can "gracefully" shut down (https://github.com/moby/moby/issues/25982#issuecomment-466804071).
+    
+    This was verified by making a simple `main()` which implements the same code as in `ExampleNotify_allSignals` but in a `for` loop, building a `main.exe`, running that in a container, then doing `docker kill -sTERM` on said container.  The program prints `Got signal: SIGTERM`, then exits after the aforementioned timeout, as expected.  Behavior before this patch is that the program gets no notification (and thus no output) but still exits after the timeout.
+    
+    Fixes #7479
+    
+    Change-Id: I2af79421cd484a0fbb9467bb7ddb5f0e8bc3610e
+    GitHub-Last-Rev: 9e05d631b542393f5ebb0eb3747157c8bd0de635
+    GitHub-Pull-Request: golang/go#33311
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187739
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/mgcscavenge_test.go |  3 +++
- src/runtime/mpagealloc_test.go  | 15 +++++++++++++++
- src/runtime/mpagecache_test.go  |  6 ++++++
- 3 files changed, 24 insertions(+)
+ src/os/signal/doc.go              |  8 ++++++++
+ src/runtime/defs_windows.go       | 10 +++++++---
+ src/runtime/defs_windows_386.go   | 10 +++++++---
+ src/runtime/defs_windows_amd64.go | 10 +++++++---
+ src/runtime/defs_windows_arm.go   | 10 +++++++---
+ src/runtime/os_windows.go         |  2 ++
+ src/syscall/types_windows.go      |  7 +++++--
+ 7 files changed, 43 insertions(+), 14 deletions(-)

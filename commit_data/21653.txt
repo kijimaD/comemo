@@ -1,24 +1,37 @@
-commit eaf8e8cbe576a8553214ffc8e2ce09e9fbc6e87e
-Author: Alex Sergeyev <abc@alexsergeyev.com>
-Date:   Mon Feb 16 09:29:37 2015 -0500
+commit e82003e750ee2952b1902748b0cc821e27166025
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 21 22:19:15 2015 -0500
 
-    net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT
+    cmd/gc: simplify code for c2go
     
-    Env vars were incorrectly copying whole value of http.RemoteAddr
-    to REMOTE_ADDR and REMOTE_HOST. They contained IP:port pair which
-    instead should only have IP (RFC 3875, other sources).
+    - Change forward reference to struct Node* to void* in liblink.
+    - Use explicit (Node*) casts in cmd/gc to get at that field.
+    - Define struct Array in go.h instead of hiding it in array.c.
+    - Remove some sizeof(uint32), sizeof(uint64) uses.
+    - Remove some ? : expressions.
+    - Rewrite some problematic mid-expression assignments.
     
-    Module also was not setting REMOTE_PORT variable which become de-facto
-    standard for passing TCP client port to CGI scripts (Apache mod_cgi,
-    IIS, and probably others)
-    
-    Fixes #9861
-    
-    Change-Id: Ia73e664c48539e3c7db4997d09d957884e98d8a5
-    Reviewed-on: https://go-review.googlesource.com/4933
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I308c70140238a0cfffd90e133f86f442cd0e17d4
+    Reviewed-on: https://go-review.googlesource.com/3276
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/cgi/host.go            | 10 +++++++--
- src/net/http/cgi/host_test.go       | 43 ++++++++++++++++++++++++++++++++++---
- src/net/http/cgi/matryoshka_test.go |  1 +
- 3 files changed, 49 insertions(+), 5 deletions(-)
+ include/link.h         |  2 +-
+ src/cmd/5g/ggen.c      | 12 ++++++------
+ src/cmd/5g/reg.c       |  2 +-
+ src/cmd/6g/ggen.c      | 12 ++++++------
+ src/cmd/6g/reg.c       |  2 +-
+ src/cmd/8g/ggen.c      | 12 ++++++------
+ src/cmd/8g/reg.c       |  2 +-
+ src/cmd/9g/ggen.c      | 12 ++++++------
+ src/cmd/9g/reg.c       |  2 +-
+ src/cmd/gc/array.c     |  8 --------
+ src/cmd/gc/bv.c        |  2 +-
+ src/cmd/gc/cplx.c      | 20 ++++++++++++++------
+ src/cmd/gc/export.c    |  4 ++--
+ src/cmd/gc/go.h        | 18 ++++++++++++------
+ src/cmd/gc/plive.c     | 32 ++++++++++++++++++--------------
+ src/cmd/gc/popt.c      | 12 ++++++++----
+ src/cmd/gc/subr.c      | 14 +++++++-------
+ src/cmd/gc/typecheck.c |  5 ++++-
+ src/cmd/gc/unsafe.c    |  4 +++-
+ 19 files changed, 98 insertions(+), 79 deletions(-)

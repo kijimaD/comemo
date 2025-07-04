@@ -1,14 +1,21 @@
-commit f3de21767e1ea12e9ec30fc1e9a1b60dfc6cb440
-Author: Emil Hessman <emil@hessman.se>
-Date:   Tue Dec 30 06:45:24 2014 +0100
+commit 1f420c13bd693fc94e112927602b75a4da9dbc0f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Nov 14 22:57:33 2014 +0100
 
-    doc: update links in FAQ
+    [dev.cc] liblink: fix warnings on Plan 9
     
-    Vitess and protobuf has moved to GitHub; update the links.
+    warning: src/liblink/asm9.c:501 set and not used: bflag
+    warning: src/liblink/list9.c:259 format mismatch .5lux INT, arg 4
+    warning: src/liblink/list9.c:261 format mismatch .5lux INT, arg 3
+    warning: src/liblink/list9.c:319 more arguments than format VLONG
+    warning: src/liblink/obj9.c:222 set and not used: autoffset
     
-    Change-Id: I2d90bde1a7f2b590c8b7b08ce73d6faa13b51da0
-    Reviewed-on: https://go-review.googlesource.com/2166
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    LGTM=bradfitz, austin
+    R=rsc, bradfitz
+    CC=austin, golang-codereviews
+    https://golang.org/cl/175070043
 
- doc/go_faq.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/liblink/asm9.c  | 1 -
+ src/liblink/list9.c | 6 +++---
+ src/liblink/obj9.c  | 5 +----
+ 3 files changed, 4 insertions(+), 8 deletions(-)

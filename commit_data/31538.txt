@@ -1,41 +1,23 @@
-commit 8304d10763650eb3f50553fa689500f09d8fdd06
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Apr 24 15:11:39 2017 -0400
+commit d7a659b11b9ab9132fd4302ffe9250b30bbe431e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 10:09:44 2017 -0800
 
-    cmd/compile: ppc64x intrinsics for math/bits
+    math/bits: faster OnesCount using table lookups for sizes 8,16,32
     
-    This adds math/bits intrinsics for OnesCount, Len, TrailingZeros on
-    ppc64x.
+    For uint64, the existing algorithm is faster.
     
-    benchmark                       old ns/op     new ns/op     delta
-    BenchmarkLeadingZeros-16        4.26          1.71          -59.86%
-    BenchmarkLeadingZeros16-16      3.04          1.83          -39.80%
-    BenchmarkLeadingZeros32-16      3.31          1.82          -45.02%
-    BenchmarkLeadingZeros64-16      3.69          1.71          -53.66%
-    BenchmarkTrailingZeros-16       2.55          1.62          -36.47%
-    BenchmarkTrailingZeros32-16     2.55          1.77          -30.59%
-    BenchmarkTrailingZeros64-16     2.78          1.62          -41.73%
-    BenchmarkOnesCount-16           3.19          0.93          -70.85%
-    BenchmarkOnesCount32-16         2.55          1.18          -53.73%
-    BenchmarkOnesCount64-16         3.22          0.93          -71.12%
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkOnesCount8-8      1.95          0.97          -50.26%
+    BenchmarkOnesCount16-8     2.54          1.39          -45.28%
+    BenchmarkOnesCount32-8     2.61          1.96          -24.90%
     
-    Update #18616
+    Measured on 2.3 GHz Intel Core i7 running macOS 10.12.3.
     
-    I also made a change to bits_test.go because when debugging some failures
-    the output was not quite providing the right argument information.
-    
-    Change-Id: Ia58d31d1777cf4582a4505f85b11a1202ca07d3e
-    Reviewed-on: https://go-review.googlesource.com/41630
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I6cc42882fef3d24694720464039161e339a9ae99
+    Reviewed-on: https://go-review.googlesource.com/37580
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go           |  34 ++++--
- src/cmd/compile/internal/ppc64/ssa.go        |   2 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  11 ++
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   7 ++
- src/cmd/compile/internal/ssa/opGen.go        |  72 ++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 162 +++++++++++++++++++++++++++
- src/math/bits/bits_test.go                   |   8 +-
- 7 files changed, 279 insertions(+), 17 deletions(-)
+ src/math/bits/bits.go        | 21 +++------------------
+ src/math/bits/bits_tables.go | 19 +++++++++++++++++++
+ src/math/bits/make_tables.go |  9 +++++++++
+ 3 files changed, 31 insertions(+), 18 deletions(-)

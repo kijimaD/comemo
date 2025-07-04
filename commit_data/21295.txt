@@ -1,25 +1,22 @@
-commit fd4dc91a96518fdbb47781f97ba43ae36df215a5
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 18 12:50:22 2015 -0500
+commit 15c67e21daee0a5055c8fc0144e7efe0345d1929
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 18 16:06:57 2014 -0500
 
-    strings: remove overengineered Compare implementation
+    cmd/ld: set ELF ABI version for ppc64x
     
-    The function is here ONLY for symmetry with package bytes.
-    This function should be used ONLY if it makes code clearer.
-    It is not here for performance. Remove any performance benefit.
+    On ppc64, there are three ELF ABI versions an ELF file can request.
+    Previously, we used 0, which means "unspecified".  On our test
+    machines, this meant to use the default (v1 for big endian and v2 for
+    little endian), but apparently some systems can pick the wrong ABI if
+    neither is requested.  Leaving this as 0 also confuses libbfd, which
+    confuses gdb, objdump, etc.
     
-    If performance becomes an issue, the compiler should be fixed to
-    recognize the three-way compare (for all comparable types)
-    rather than encourage people to micro-optimize by using this function.
+    Fix these problems by specifying ABI v1 for big endian and v2 for
+    little endian.
     
-    Change-Id: I71f4130bce853f7aef724c6044d15def7987b457
-    Reviewed-on: https://go-review.googlesource.com/3012
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I4d3d5478f37f11baab3681a07daff3da55802322
+    Reviewed-on: https://go-review.googlesource.com/1800
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/asm_386.s       |  3 ---
- src/runtime/asm_amd64.s     |  3 ---
- src/runtime/asm_amd64p32.s  |  3 ---
- src/runtime/noasm.go        |  5 -----
- src/strings/compare.go      | 28 ++++++++++++++++++++++++++++
- src/strings/strings_decl.go |  7 -------
- 6 files changed, 28 insertions(+), 21 deletions(-)
+ src/cmd/ld/elf.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

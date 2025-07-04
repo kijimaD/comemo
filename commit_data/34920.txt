@@ -1,28 +1,15 @@
-commit 607953609c7c04f129564a4bd886ae72773aa196
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sun Apr 8 16:07:25 2018 +0530
+commit 21672b36eb0ad3bf1e2220b247900b2c63664464
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 29 16:05:01 2017 +1100
 
-    go/doc: tune association of a function with a type
+    doc/faq: tweak the wording in the new section on goroutine IDs
     
-    Previously, we used to associate a function with its first returned type
-    assuming that it is a factory function for that type.
+    There were too many changes of direction. Tidy up the intro a little
+    for better flow, and delete some unnecessary comments.
     
-    However, a function may return multiple types in which case it is usually
-    doing something else. Check for multiple return types, and treat it as
-    a normal function in that case. Maintain same behavior if the function
-    returns just one type.
-    
-    Fixes #12839
-    
-    Change-Id: Ic4ac11d322996f216f593b71f4e61ad4270d5213
-    Reviewed-on: https://go-review.googlesource.com/105575
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib5d85c0992626bd3152f86a51585884d3e0cab72
+    Reviewed-on: https://go-review.googlesource.com/80495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/doc/reader.go                    | 20 +++++++++++------
- src/go/doc/testdata/issue12839.0.golden | 33 ++++++++++++++++++++++++++++
- src/go/doc/testdata/issue12839.1.golden | 36 +++++++++++++++++++++++++++++++
- src/go/doc/testdata/issue12839.2.golden | 33 ++++++++++++++++++++++++++++
- src/go/doc/testdata/issue12839.go       | 38 +++++++++++++++++++++++++++++++++
- 5 files changed, 153 insertions(+), 7 deletions(-)
+ doc/go_faq.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

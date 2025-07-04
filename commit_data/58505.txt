@@ -1,48 +1,18 @@
-commit 19e923182e590ae6568c2c714f20f32512aeb3e3
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Thu Jan 2 13:27:09 2025 -0500
+commit 2380862c7c05666f9bfe799fb1222cb4e5631541
+Author: David Chase <drchase@google.com>
+Date:   Thu Nov 9 11:43:13 2023 -0500
 
-    crypto/internal/fips140test: add hmac DRBG ACVP tests
+    cmd/compile: small inlining tweak for range-func panics
     
-    Adds ACVP test coverage for the hmacDRBG algorithm based on the NIST
-    spec:
-      https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
+    treat the panic, like a panic.  It helps with inlining,
+    and thus reduced closure allocation and performance, for
+    many examples of function range iterators.
     
-    The HMAC DRBG algorithm in our fips module is a minimal implementation
-    tailored for use for generating ECDSA nonces and so lives in
-    crypto/internal/fips140/ecdsa.
-    
-    In order to be testable by crypto/internal/fips140test this changeset
-    exports a ecdsa.TestingOnlyNewDrbg() constructor to support the ACVP use-case.
-    All FIPS-compatible SHA2 and SHA3 digests are tested.
-    
-    The ACVP capability registration is customized to match the limited
-    capabilities of our ecdsa-focused impl. Most notably:
-    
-      * reseedImplemented is false - we expect this impl to be invoked
-        only once or twice per instantiation and do not support explicit
-        reseeding.
-      * predResistanceEnabled is false - this requires reseeding.
-      * Per mode:
-        * derFuncEnabled is always false - this is only used by ctrDRBG.
-        * additionalInputLen is 0 for all modes - this is only used with
-          preResistanceEnabled.
-    
-    The other capability values are chosen based on Table 4:
-      https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.4
-    
-    Updates #69642
-    
-    Change-Id: Ia58979d691f912e2ed739a05efb719f580fbbf89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/639775
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ib1a656cdfa56eb2dee400089c4c94ac14f1d2104
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541235
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/fips140/ecdsa/hmacdrbg.go      |  9 ++++
- .../internal/fips140test/acvp_capabilities.json    | 13 +++++-
- .../internal/fips140test/acvp_test.config.json     |  4 +-
- src/crypto/internal/fips140test/acvp_test.go       | 49 +++++++++++++++++++++-
- 4 files changed, 72 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 2 ++
+ 1 file changed, 2 insertions(+)

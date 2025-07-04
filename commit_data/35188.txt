@@ -1,19 +1,16 @@
-commit af5143e384535f824a22e71f33e36f0503ae3bb9
-Author: Hana Kim <hakim@google.com>
-Date:   Wed Apr 25 12:50:31 2018 -0400
+commit ee34617d0d49856c61ba21a5528ab23bccad87f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 15:31:45 2018 -0500
 
-    cmd/trace: use different colors for tasks
+    doc/debugging_with_gdb: soften text about disabling optimizations
     
-    and assign the same colors for spans belong to the tasks
-    (sadly, the trace viewer will change the saturation/ligthness
-    for asynchronous slices so exact color mapping is impossible.
-    But I hope they are not too far from each other)
+    Don't suggest that it's always necessary to disable optimizations.
+    (The text can be misread that way, even if it's not what was meant.)
     
-    Change-Id: Idaaf0828a1e0dac8012d336dcefa1c6572ddca2e
-    Reviewed-on: https://go-review.googlesource.com/109338
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I9a2dff6a75ce4a3f9210cdf4f5bad6aaaeae9b29
+    Reviewed-on: https://go-review.googlesource.com/87018
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/trace/trace.go | 101 ++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 66 insertions(+), 35 deletions(-)
+ doc/debugging_with_gdb.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

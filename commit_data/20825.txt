@@ -1,13 +1,67 @@
-commit 97b24a05dff7adef3a0fb463a575b705be985468
-Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 29 13:07:34 2014 -0700
+commit 3c40ee0fe08f95147af9cf7099041f1a4642653d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 15 19:33:15 2014 -0400
 
-    doc/go1.4.html: gccgo status
+    cmd/gc: simplify compiled code for explicit zeroing
     
-    LGTM=iant, cmang
-    R=cmang, iant, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/169760043
+    Among other things, *x = T{} does not need a write barrier.
+    The changes here avoid an unnecessary copy even when
+    no pointers are involved, so it may have larger effects.
+    
+    In 6g and 8g, avoid manually repeated STOSQ in favor of
+    writing explicit MOVs, under the theory that the MOVs
+    should have fewer dependencies and pipeline better.
+    
+    Benchmarks compare best of 5 on a 2012 MacBook Pro Core i5
+    with TurboBoost disabled. Most improvements can be explained
+    by the changes in this CL.
+    
+    The effect in Revcomp is real but harder to explain: none of
+    the instructions in the inner loop changed. I suspect loop
+    alignment but really have no idea.
+    
+    benchmark                       old         new         delta
+    BenchmarkBinaryTree17           3809027371  3819907076  +0.29%
+    BenchmarkFannkuch11             3607547556  3686983012  +2.20%
+    BenchmarkFmtFprintfEmpty        118         103         -12.71%
+    BenchmarkFmtFprintfString       289         277         -4.15%
+    BenchmarkFmtFprintfInt          304         290         -4.61%
+    BenchmarkFmtFprintfIntInt       507         458         -9.66%
+    BenchmarkFmtFprintfPrefixedInt  425         408         -4.00%
+    BenchmarkFmtFprintfFloat        555         555         +0.00%
+    BenchmarkFmtManyArgs            1835        1733        -5.56%
+    BenchmarkGobDecode              14738209    14639331    -0.67%
+    BenchmarkGobEncode              14239039    13703571    -3.76%
+    BenchmarkGzip                   538211054   538701315   +0.09%
+    BenchmarkGunzip                 135430877   134818459   -0.45%
+    BenchmarkHTTPClientServer       116488      116618      +0.11%
+    BenchmarkJSONEncode             28923406    29294334    +1.28%
+    BenchmarkJSONDecode             105779820   104289543   -1.41%
+    BenchmarkMandelbrot200          5791758     5771964     -0.34%
+    BenchmarkGoParse                5376642     5310943     -1.22%
+    BenchmarkRegexpMatchEasy0_32    195         190         -2.56%
+    BenchmarkRegexpMatchEasy0_1K    477         455         -4.61%
+    BenchmarkRegexpMatchEasy1_32    170         165         -2.94%
+    BenchmarkRegexpMatchEasy1_1K    1410        1394        -1.13%
+    BenchmarkRegexpMatchMedium_32   336         329         -2.08%
+    BenchmarkRegexpMatchMedium_1K   108979      106328      -2.43%
+    BenchmarkRegexpMatchHard_32     5854        5821        -0.56%
+    BenchmarkRegexpMatchHard_1K     185089      182838      -1.22%
+    BenchmarkRevcomp                834920364   780202624   -6.55%
+    BenchmarkTemplate               137046937   129728756   -5.34%
+    BenchmarkTimeParse              600         594         -1.00%
+    BenchmarkTimeFormat             559         539         -3.58%
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews, iant, khr, rlh
+    https://golang.org/cl/157910047
 
- doc/go1.4.html | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
+ src/cmd/6g/ggen.c     | 40 ++++++++++++++++++++++++++++++++++------
+ src/cmd/8g/ggen.c     | 28 +++++++++++++++++++++++++++-
+ src/cmd/gc/gen.c      |  2 +-
+ src/cmd/gc/go.h       |  1 +
+ src/cmd/gc/mparith2.c |  4 ++--
+ src/cmd/gc/sinit.c    |  4 +---
+ src/cmd/gc/walk.c     | 11 ++++++++---
+ 7 files changed, 74 insertions(+), 16 deletions(-)

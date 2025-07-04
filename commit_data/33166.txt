@@ -1,27 +1,30 @@
-commit 717d37591d9d446007b830c70ff74d8f8dca13d9
+commit 37b7880d157111a796eda7f59ca73af7621489b8
 Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 18 20:14:29 2017 -0400
+Date:   Thu Jul 20 11:12:37 2017 -0400
 
-    cmd/compile: allow duplicate DWARF producer symbols
+    runtime: use SIGKILL if SIGQUIT is blocked; skip tests that need SIGQUIT
     
-    When building test binaries, we build one archive with all of the test
-    sources and a second archive with the generated test package main and
-    link them together. If the test sources are themselves in package main
-    and the test was compiled with non-default compiler flags, then both
-    archives will contain a go.cuinfo.producer.main symbol, leading to a
-    duplicate symbol failure.
+    The runtime tests may be invoked from a parent that has SIGQUIT
+    blocked. For example, Java invokes subprocesses this way. In this
+    situation, TestCrashDumpsAllThreads and TestPanicSystemstack will fail
+    because they depend on SIGQUIT to get tracebacks, and any subprocess
+    test that times out will fail to kill the subprocess.
     
-    This has been causing test build failures on darwin-arm-a1428ios,
-    darwin-arm64-a1549ios, linux-amd64-noopt, android-arm-wiko-fever, and
-    android-arm64-wiko-fever since CL 71430 added this symbol. This CL
-    should fix the build.
+    Fix this by detecting if SIGQUIT is blocked and, if so, skipping tests
+    that depend on it and using SIGKILL to kill timed-out subprocesses.
     
-    Change-Id: I69051c846e7c0d97395a865a361cae07f411f9ad
-    Reviewed-on: https://go-review.googlesource.com/71771
+    Based on a fix by Carl Henrik Lunde in
+    https://golang.org/issue/19196#issuecomment-316145733
+    
+    Fixes #19196.
+    
+    Change-Id: Ia20bf15b96086487d0ef6b75239dcc260c21714c
+    Reviewed-on: https://go-review.googlesource.com/50330
     Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/crash_unix_test.go  | 17 +++++++++++++++++
+ src/runtime/export_unix_test.go | 19 +++++++++++++++++++
+ 2 files changed, 36 insertions(+)

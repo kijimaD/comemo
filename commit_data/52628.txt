@@ -1,30 +1,23 @@
-commit b7428b7c6de6c7498425fe5374f22b7d3da054f4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 12 14:45:44 2023 +0000
+commit 92998cde5a642c9db42efa51c4077b70609d55d6
+Author: Ville Skyttä <ville.skytta@iki.fi>
+Date:   Sat May 7 06:37:07 2022 +0000
 
-    net/http: only report the first leak of each test run
+    mime: skip globs2 entries that are not simple file extensions
     
-    We don't have a way to terminate the leaked goroutines, and we can't
-    wait forever for them to exit (or else we would risk timing out the
-    test and losing the log line describing what exactly leaked).
-    So we have reason to believe that they will remain leaked while we run
-    the next test, and we don't want the goroutines from the first leak to
-    generate a spurious error when the second test completes.
+    The entries in globs2 can be globs beyond simple *.ext ones. We support only simple extension based matching, so skip entries that do not represent them.
     
-    This also removes a racy Parallel call I added in CL 476036, which was
-    flagged by the race detector in the duplicate-suppression check.
-    (I hadn't considered the potential interaction with the leak checker.)
-    
-    For #59526.
-    Updates #56421.
-    
-    Change-Id: Ib1f759f102fb41ece114401680cd728343e58545
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483896
+    Change-Id: Id5d089cb4067e53beb2471a5e67a59c13880a017
+    GitHub-Last-Rev: f725a910547ec52d12605760563f158dfb72e4b0
+    GitHub-Pull-Request: golang/go#51156
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385256
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/http/main_test.go  | 20 ++++++++++++++++++++
- src/net/http/serve_test.go |  3 ---
- 2 files changed, 20 insertions(+), 3 deletions(-)
+ src/mime/testdata/test.types.globs2 |  3 +++
+ src/mime/type_unix.go               | 14 +++++++++++++-
+ src/mime/type_unix_test.go          | 17 ++++++++++-------
+ 3 files changed, 26 insertions(+), 8 deletions(-)

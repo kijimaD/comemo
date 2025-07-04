@@ -1,19 +1,24 @@
-commit 58e51b1e620167cc22ca7143c395cb63db5640a8
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Tue Oct 13 11:36:11 2020 -0400
+commit fb2a6343defa5259df3032fef771057843e799ce
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 23 20:38:00 2020 +0000
 
-    cmd/go/internal/fsys: skip symlink test on Plan 9
+    Revert "crypto/rsa,crypto/ecdsa,crypto/ed25519: implement PublicKey.Equal"
     
-    Fixes #41950
-    Fixes #41954
+    This reverts CL 223754.
     
-    Change-Id: I95d97f076fa928f3638309b78748d7ccc7277b14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261897
-    Trust: Jay Conrod <jayconrod@google.com>
+    Reason for revert: new tests are failing on all longtest builders.
+    
+    Change-Id: I2257d106c132f3a02c0af6b20061d4f9a8093c4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225077
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/fsys/fsys_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/crypto/ecdsa/ecdsa.go          | 18 ---------
+ src/crypto/ecdsa/equal_test.go     | 77 --------------------------------------
+ src/crypto/ed25519/ed25519.go      |  9 -----
+ src/crypto/ed25519/ed25519_test.go | 16 --------
+ src/crypto/rsa/equal_test.go       | 42 ---------------------
+ src/crypto/rsa/rsa.go              |  9 -----
+ 6 files changed, 171 deletions(-)

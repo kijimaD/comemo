@@ -1,25 +1,30 @@
-commit 4bd77619b743c3c986742527236568e43db37c44
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Sun Dec 4 15:06:45 2022 +0800
+commit d339d085c9d0cff099668d3a85ebae4e25c6afa2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 11 10:42:39 2022 -0400
 
-    cmd/compile, cmd/dist, internal: enable buildmode=pie for linux/loong64
+    cmd/go: add timestamps to script test output
     
-    This is actually not tied to the ELF psABI v2 upgrade, and can be
-    enabled "for free".
+    Go tests don't include timestamps by default, but we would like to
+    have them in order to correlate builder failures with server and
+    network logs.
     
-    Change-Id: I6906d9eb4bd8655c685b059283e200cb7e210369
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455075
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    Since many of the Go tests with external network and service
+    dependencies are script tests for the 'go' command, logging timestamps
+    here adds a lot of logging value with one simple and very low-risk
+    change.
+    
+    For #50541.
+    For #52490.
+    For #52545.
+    For #52851.
+    
+    Change-Id: If3fa86deb4a216ec6a1abc4e6f4ee9b05030a729
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405714
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/base/flag.go | 2 +-
- src/cmd/dist/test.go                  | 2 +-
- src/internal/platform/supported.go    | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/script_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

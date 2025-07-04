@@ -1,17 +1,18 @@
-commit 591d58a3bb9ea3afea0c898564d972b822212674
+commit cc99e6e949a6fd1e72ee1111ba1a8c50711f0ca4
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jun 13 16:03:58 2013 +0400
+Date:   Thu Jun 13 14:32:05 2013 +0400
 
-    cmd/gc: properly race-instrument for loops
-    Instrumentation of ntest expression should go to ntest->init.
-    Same for nincr.
-    Fixes #5340.
+    runtime/race: update runtime to r183644
+    This revision properly handles memory range accesses.
+    Fixes #4453.
+    Fixes #5654.
     
-    R=golang-dev, daniel.morsing
+    R=golang-dev, iant, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/10026046
+    https://golang.org/cl/10082043
 
- src/cmd/gc/racewalk.c                            | 30 ++++----
- src/pkg/runtime/race/testdata/mop_test.go        | 88 ++++++++++++++++++++++++
- src/pkg/runtime/race/testdata/regression_test.go | 17 +++++
- 3 files changed, 121 insertions(+), 14 deletions(-)
+ src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 146952 -> 176596 bytes
+ src/pkg/runtime/race/race_linux_amd64.syso   | Bin 142848 -> 178904 bytes
+ src/pkg/runtime/race/race_windows_amd64.syso | Bin 121376 -> 153779 bytes
+ src/pkg/runtime/race/testdata/mop_test.go    |  42 +++++++++++++++++++++++++--
+ 4 files changed, 39 insertions(+), 3 deletions(-)

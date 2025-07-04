@@ -1,16 +1,14 @@
-commit 5a00adf1ea4320bb7f6c2d0b5ae7cf540275c0a4
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu May 28 12:23:50 2020 -0400
+commit ad12ee3006ed8d0552d14dcb623de9af325c6758
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 13 11:11:11 2019 -0500
 
-    doc/go1.15: document no language changes
+    doc: fix missing closing tag in module documentation
     
-    There are no language changes in Go 1.15, so document that.
+    Updates #33637
     
-    For #37419.
-    
-    Change-Id: I1e96e58b701f1758d64c79881dfa0b1109836b83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235580
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: If262d1501cf73b404361f832a2e3e17aaa0db78b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211299
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/go1.15.html | 2 +-
+ doc/modules.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

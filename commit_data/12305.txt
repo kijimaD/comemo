@@ -1,16 +1,12 @@
-commit dc159fabff52e9dd3da0948438017373be741b22
+commit 03769efe414863be778b80eac7425d5f382d87cf
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 1 11:48:17 2012 -0500
+Date:   Thu Mar 1 11:46:13 2012 -0500
 
-    runtime: run init on main thread
+    cmd/dist: recognize CC="ccache clang" as clang
     
-    Fixes #3125.
-    
-    R=golang-dev, r, minux.ma
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5714049
+    https://golang.org/cl/5711052
 
- src/pkg/runtime/mheap.c               |  2 +-
- src/pkg/runtime/proc.c                | 12 ++++++------
- src/pkg/runtime/runtime_linux_test.go | 29 +++++++++++++++++++++++++++++
- 3 files changed, 36 insertions(+), 7 deletions(-)
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

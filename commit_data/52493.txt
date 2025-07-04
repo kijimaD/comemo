@@ -1,24 +1,27 @@
-commit 3b956dc2d96e02c7d58a3c1fd00ba466b27315e3
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Mar 30 10:08:15 2023 +0200
+commit bb1f4416180511231de6d17a1f2f55c82aafc863
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Apr 25 19:02:35 2022 -0700
 
-    go/internal/gcimport: unskip Windows tests
+    crypto/rand: properly handle large Read on windows
     
-    There are many tests in internal/gcimporter that are skipped on
-    Windows because they build a test program that needs the -D flag
-    when invoking the Go compiler.
+    Use the batched reader to chunk large Read calls on windows to a max of
+    1 << 31 - 1 bytes. This prevents an infinite loop when trying to read
+    more than 1 << 32 -1 bytes, due to how RtlGenRandom works.
     
-    This flag is already passed since CL 442303, so there is no need to
-    skip those tests.
+    This change moves the batched function from rand_unix.go to rand.go,
+    since it is now needed for both windows and unix implementations.
     
-    Change-Id: I877e670194048bda9a52ad2568650cf33eacfb5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480415
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Fixes #52561
+    
+    Change-Id: Id98fc4b1427e5cb2132762a445b2aed646a37473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402257
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .../compile/internal/importer/gcimporter_test.go   | 36 ----------------
- src/go/internal/gcimporter/gcimporter_test.go      | 48 ----------------------
- 2 files changed, 84 deletions(-)
+ src/crypto/rand/rand.go              | 18 ++++++++++++++++++
+ src/crypto/rand/rand_batched_test.go | 12 ++++++------
+ src/crypto/rand/rand_unix.go         | 22 ++--------------------
+ src/crypto/rand/rand_windows.go      | 18 ++++++------------
+ 4 files changed, 32 insertions(+), 38 deletions(-)

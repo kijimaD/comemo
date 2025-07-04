@@ -1,12 +1,16 @@
-commit 7ec5499d36348925cc294faaf96c64d63b2b0628
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Feb 16 15:06:12 2012 +1100
+commit aed20a6951948ef7f6edd1f4160fc8c1d3e8df56
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Feb 16 02:01:46 2012 -0200
 
-    debug/gosym: more carefully build the test binary.
+    encoding/xml: add MarshalIndent and move the example
     
-    TBR=r
+    An unindented XML example is hard to follow. MarshalIndent
+    allows moving the example over to a test file (and fixing it).
+    
+    R=golang-dev, r, gustavo, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5676062
+    https://golang.org/cl/5674050
 
- src/pkg/debug/gosym/pclntab_test.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/encoding/xml/example_test.go | 43 ++++++++++++++++++
+ src/pkg/encoding/xml/marshal.go      | 87 ++++++++++++++++++++++++------------
+ 2 files changed, 101 insertions(+), 29 deletions(-)

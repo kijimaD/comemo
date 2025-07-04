@@ -1,16 +1,30 @@
-commit 6f2c92e1e11b61dfede9ce861f2fe6217b5ce130
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sat Oct 3 11:27:04 2020 +0200
+commit 3e00061f526707dbc0fa1754a7e98a29b2c25939
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Dec 19 02:09:45 2019 +1100
 
-    iostest.bash: remove
+    cmd/internal/obj/riscv: rework instruction generation
     
-    There are no tethered iOS builders left, and should they appear in
-    the future, they should use all.bash.
+    Rework instruction generation so that multiple instructions are generated
+    from a single obj.Prog, rather than the current approach where obj.Progs
+    are rewritten. This allows the original obj.Prog to remain intact, before
+    being converted into an architecture specific instruction form.
     
-    Change-Id: I3217789514ffa725e4d2584e4991d899c5fda995
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259278
-    Trust: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    This simplifies the code and removes a level of indirection that results
+    from trying to manipulate obj.Prog.To/obj.Prog.From into forms that match
+    the instruction encoding. Furthermore, the errors reported make more sense
+    since it matches up with the actual assembly that was parsed.
+    
+    Note that the CALL/JMP/JALR type sequences have not yet been migrated to
+    this framework and will likely be converted at a later time.
+    
+    Updates #27532
+    
+    Change-Id: I9fd12562ed1db0a08cfdc32793897d2a1920ebaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211917
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/iostest.bash | 66 --------------------------------------------------------
- 1 file changed, 66 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  14 +-
+ src/cmd/internal/obj/riscv/obj.go            | 747 ++++++++++++++-------------
+ 2 files changed, 378 insertions(+), 383 deletions(-)

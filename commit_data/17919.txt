@@ -1,32 +1,29 @@
-commit f7aaa553daf41f006bbc2c96d062e661be0c3501
+commit 8642cbd660cd8f62f77a37227c640b234fcf9c30
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Dec 8 22:49:56 2013 -0500
+Date:   Sun Dec 8 22:48:11 2013 -0500
 
-    cmd/5a, cmd/6a, cmd/8a: use liblink
+    cmd/dist: add liblink build information
     
-    Preparation for golang.org/s/go13linker work.
+    In addition to adding the library, change the way the anames array is created.
+    Previously, it was written to src/cmd/6l/enam.c (and similarly for 5l and 8l)
+    and each of the other tools (6g, 6c, 6a) compiled the 6l/enam.c file in addition
+    to their own sources.
     
-    This CL does not build by itself. It depends on 35740044
-    and 35790044 and will be submitted at the same time.
+    Now that there is a library shared by all these programs, move the anames
+    array into that library. To eliminate name conflicts, name the array after
+    the architecture letter: anames5, anames6, anames8.
+    
+    First step to linker cleanup (golang.org/s/go13linker).
+    
+    This CL does not build by itself. It depends on the CLs introducing
+    liblink and changing commands to use it.
     
     R=iant
     CC=golang-dev
-    https://golang.org/cl/35830043
+    https://golang.org/cl/35740044
 
- src/cmd/5a/a.h     |   44 +-
- src/cmd/5a/a.y     |   26 +-
- src/cmd/5a/lex.c   |  294 ++---------
- src/cmd/5a/y.tab.c | 1310 +++++++++++++++++++---------------------------
- src/cmd/5a/y.tab.h |   48 +-
- src/cmd/6a/a.h     |   51 +-
- src/cmd/6a/a.y     |   28 +-
- src/cmd/6a/lex.c   |  302 ++---------
- src/cmd/6a/y.tab.c | 1457 +++++++++++++++++++++-------------------------------
- src/cmd/6a/y.tab.h |   50 +-
- src/cmd/8a/a.h     |   52 +-
- src/cmd/8a/a.y     |   26 +-
- src/cmd/8a/lex.c   |  299 ++---------
- src/cmd/8a/y.tab.c | 1446 +++++++++++++++++++++------------------------------
- src/cmd/8a/y.tab.h |   50 +-
- src/cmd/cc/lexbody |   74 +--
- 16 files changed, 1941 insertions(+), 3616 deletions(-)
+ .hgignore              |  2 +-
+ src/cmd/dist/a.h       |  2 +-
+ src/cmd/dist/build.c   | 33 +++++++++++++++++++++++----------
+ src/cmd/dist/buildgc.c | 10 +++++-----
+ 4 files changed, 30 insertions(+), 17 deletions(-)

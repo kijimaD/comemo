@@ -1,21 +1,15 @@
-commit 2ba9f7c24559c0b024902029489062f239e8fcad
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Jun 18 15:31:18 2019 -0400
+commit b9d19eff7756aeabd35672f244fb60f45d0f86ee
+Author: Mikio Hara <mikioh.public.networking@gmail.com>
+Date:   Fri Feb 22 05:41:20 2019 +0900
 
-    cmd/go: fix sumdb test failure with misbehaving DNS server
+    net: use EUI-48/EUI-64 reserved address blocks for documentation
     
-    Broadened the regular expression used to test error messages for
-    failing to connect to "localhost.localdev/sumdb". Some DNS servers
-    resolve unknown domains like "localhost.localdev" to real IP addresses
-    to serve ads. We may get a variety of error messages.
+    Updates #15228.
     
-    Fixes #31779
-    
-    Change-Id: Ib389c633c9a9f70f8e89bbcba5282a375da4e708
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182799
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1b73defccb4c933d71c408aa31d32af9d1bc4ab8
+    Reviewed-on: https://go-review.googlesource.com/c/163357
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
 
- src/cmd/go/testdata/script/mod_sumdb_proxy.txt | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/net/mac.go      | 18 ++++++-------
+ src/net/mac_test.go | 76 +++++++++++++++++++++++++++++++++--------------------
+ 2 files changed, 57 insertions(+), 37 deletions(-)

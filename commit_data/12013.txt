@@ -1,14 +1,14 @@
-commit ce020ffacd8c43e1682e2c83db6d1e7f0c305eea
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Fri Feb 17 17:13:16 2012 -0200
+commit 6cdf0a1eab8c038b439543f45aff2bcf660b0eac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 17 11:01:16 2012 -0800
 
-    runtime: remove use of ?:
+    godoc: don't print spurious suggestion when running "go doc foo"
     
-    Fixes #3061.
+    Fixes #3041.
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5656089
+    https://golang.org/cl/5671087
 
- src/pkg/runtime/mheap.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/godoc/main.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

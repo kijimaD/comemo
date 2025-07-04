@@ -1,25 +1,13 @@
-commit fc41e621e875838bb62a111ac8ad97fa39f2bb2b
-Author: Fan Hongjian <fan.howard@gmail.com>
-Date:   Thu Jun 9 17:19:08 2011 -0400
+commit 965ff4bb3a01a87b70d061ad0eb2766352e7d598
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 9 17:18:28 2011 -0400
 
-    math: add sqrt_arm.s and sqrtGoC.go as fallback to soft fp emulation
-    5a: add SQRTF and SQRTD
-    5l: add ASQRTF and ASQRTD
+    A+C: Fan Hongjian (individual CLA)
     
-    Use ARMv7 VFP VSQRT instruction to speed up math.Sqrt
-    
-    R=rsc, dave, m
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4551082
+    https://golang.org/cl/4591059
 
- src/cmd/5a/lex.c                |  2 ++
- src/cmd/5l/5.out.h              |  2 ++
- src/cmd/5l/asm.c                |  4 +++-
- src/cmd/5l/obj.c                |  1 +
- src/cmd/5l/softfloat.c          |  2 ++
- src/cmd/5l/span.c               |  2 ++
- src/pkg/math/Makefile           |  3 +++
- src/pkg/math/sqrt_arm.s         | 10 ++++++++++
- src/pkg/math/sqrt_port.go       |  4 ++++
- src/pkg/runtime/arm/softfloat.c |  9 +++++++++
- 10 files changed, 38 insertions(+), 1 deletion(-)
+ AUTHORS      | 3 ++-
+ CONTRIBUTORS | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

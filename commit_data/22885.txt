@@ -1,22 +1,24 @@
-commit c94f1f791b513c232b2293b8acebe9a2fd962003
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Mon Mar 30 13:52:07 2015 +0200
+commit 93644c9118dfcd5c7b46d22fbe6b7f1cb1f1b696
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Fri Apr 3 09:40:10 2015 -0700
 
-    runtime: always load address of libcFunc on Solaris
+    runtime: shared library runtime init for arm
     
-    The linker always uses .plt for externals, so libcFunc is now an actual
-    external symbol instead of a pointer to one.
+    Adds the runtime initialization flow for arm akin to amd64.
+    In particular,we use the library initialization entry point to:
+        - create a new OS thread and run the "regular" runtime init stack on
+          that thread
+        - return immediately from the main (i.e., loader) thread
+        - at the first CGO invocation, we wait for the runtime initialization
+          to complete.
     
-    Fixes most of the breakage introduced in previous CL.
+    Verified to work on a Raspberry Pi and an Android phone.
     
-    Change-Id: I64b8c96f93127f2d13b5289b024677fd3ea7dbea
-    Reviewed-on: https://go-review.googlesource.com/8215
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I32f39228ae30a03ce9569287f234b305790fecf6
+    Reviewed-on: https://go-review.googlesource.com/8455
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Srdjan Petrovic <spetrovic@google.com>
 
- src/runtime/netpoll_solaris.go  | 10 +++----
- src/runtime/os3_solaris.go      | 64 ++++++++++++++++++++---------------------
- src/runtime/os_solaris.go       | 30 +++++++++----------
- src/runtime/sys_solaris_amd64.s |  8 +++---
- src/runtime/syscall_solaris.go  | 48 +++++++++++++++----------------
- 5 files changed, 80 insertions(+), 80 deletions(-)
+ src/runtime/rt0_linux_arm.s | 52 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_linux_arm.s | 37 +++++++++++++++++++++++++++++---
+ 2 files changed, 86 insertions(+), 3 deletions(-)

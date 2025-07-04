@@ -1,24 +1,18 @@
-commit 6dca7076560c8b34b536665296f03b748834c071
-Author: Timo Furrer <tuxtimo@gmail.com>
-Date:   Wed Feb 28 06:07:16 2024 +0000
+commit 99276aeb5e8b40ff9cd3cafd47ce11c58ba0130c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 31 19:02:33 2023 +0000
 
-    net/http: add Request.CookiesNamed
+    Revert "runtime: fix ARM assembly code in cgocallback"
     
-    Implements a new method http.Request.CookiesName, that allows
-    retrieving all cookies that match the given name.
+    This reverts CL 479255.
     
-    Fixes #61472
+    Reason for revert: need to revert CL 392854, and this caused a conflict.
     
-    Change-Id: I405d8771b4195af9ff6b4dfde3cfcd316c23b70c
-    GitHub-Last-Rev: 6ad0094995b45648ebbcd18626f07bb879a3f7cf
-    GitHub-Pull-Request: golang/go#61473
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511516
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I6cb105c62e51b47de3f652df5f5ee92673a93919
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481058
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- api/next/61472.txt           |  1 +
- src/net/http/request.go      |  9 ++++++
- src/net/http/request_test.go | 71 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 81 insertions(+)
+ src/runtime/asm_arm.s | 1 -
+ 1 file changed, 1 deletion(-)

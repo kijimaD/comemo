@@ -1,25 +1,17 @@
-commit 120b9eb1c38f9b074cd3f284647e0735348fa1f4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 12 11:28:05 2021 -0500
+commit 8d91d736e2eb518e0a95eb47ae463c0dd80827c4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 18 12:01:41 2020 -0400
 
-    cmd/go/internal/modload: in readonly mode, do not read go.mod files missing checksums
+    cmd/dist: ignore _test.s files in bootstrap
     
-    This was causing test failures while revising CL 293689: splitting the
-    roots out from the rest of the module graph may allow 'go list -e' to
-    proceed even when the rest of the module graph can't be loaded (e.g.
-    due to missing go.mod checksums). If that occurs, it becomes more
-    important that the moduleInfo helper function itself avoid fetching
-    unchecked files.
+    Ignore all _test.s files in bootstrap, not only the ARM64 one.
+    They are for testing only.
     
-    For #36460
+    Fixes #40855.
     
-    Change-Id: I088509eeb3008cc6e8bfe85a00ec2bf500bf9423
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301371
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I00e6b4ab5349e317c9ad3a503997de85aed49373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249018
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/build.go | 40 +++++++++++++++++++++++-------------
- 1 file changed, 26 insertions(+), 14 deletions(-)
+ src/cmd/dist/buildtool.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,18 +1,15 @@
-commit 4618dd8704b868a095a98ee8beaf465578aaec30
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Apr 28 17:19:31 2016 +1000
+commit 8edb72587f500a1afcd0209a3c18310eafe95e08
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Mar 14 21:59:20 2016 -0500
 
-    image/gif: accept an out-of-bounds transparent color index.
+    cmd/compile: add logging to critical and phielim
     
-    This is an error according to the spec, but Firefox and Google Chrome
-    seem OK with this.
-    
-    Fixes #15059.
-    
-    Change-Id: I841cf44e96655e91a2481555f38fbd7055a32202
-    Reviewed-on: https://go-review.googlesource.com/22546
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ieefeceea40bd29657fd519368b0920dad8443844
+    Reviewed-on: https://go-review.googlesource.com/20712
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/image/gif/reader.go      | 17 ++++++++--
- src/image/gif/reader_test.go | 78 +++++++++++++++++++++++++++-----------------
- 2 files changed, 63 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/ssa/critical.go | 3 +++
+ src/cmd/compile/internal/ssa/phielim.go  | 4 ++++
+ 2 files changed, 7 insertions(+)

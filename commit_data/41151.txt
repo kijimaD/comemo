@@ -1,23 +1,37 @@
-commit 64378c233b69ca577a23a85285aa9adf3849d7f5
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jan 22 15:46:11 2020 -0800
+commit e710a1fb2e36b645b103d9f72d47837171336279
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 6 16:05:36 2019 -0700
 
-    cmd/go: unify trimpath logic for -mod=vendor, -mod=mod
+    cmd/compile: report more precise errors about untyped constants
     
-    If a package has a module with a version, the package's directory is
-    replaced with the module path and version, followed by the package's
-    path within the module.
+    Previously, we used a single "untyped number" type for all untyped
+    numeric constants. This led to vague error messages like "string(1.0)"
+    reporting that "1 (type untyped number)" can't be converted to string,
+    even though "string(1)" is valid.
     
-    This is a follow up to CL 214945. We no longer check whether the
-    module has a directory (with -mod=vendor, it does not).
+    This CL makes cmd/compile more like go/types by utilizing
+    types.Ideal{int,rune,float,complex} instead of types.Types[TIDEAL],
+    and keeping n.Type in sync with n.Val().Ctype() during constant
+    folding.
     
-    Updates #36566
+    Thanks to K Heller for looking into this issue, and for the included
+    test case.
     
-    Change-Id: I5bc952b13bc7b4659f58ee555bd6c6a087eb7792
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215940
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #21979.
+    
+    Change-Id: Ibfea88c05704bc3c0a502a455d018a375589754d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194019
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/work/gc.go                     | 4 ++--
- src/cmd/go/testdata/script/mod_vendor_trimpath.txt | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go     | 10 -------
+ src/cmd/compile/internal/gc/const.go       | 36 ++++++++++++++---------
+ src/cmd/compile/internal/gc/fmt.go         | 20 +++++++++----
+ src/cmd/compile/internal/gc/iimport.go     |  2 --
+ src/cmd/compile/internal/gc/typecheck.go   | 30 +++++++++----------
+ src/cmd/compile/internal/gc/universe.go    |  9 +-----
+ src/cmd/compile/internal/types/identity.go |  7 +++++
+ src/cmd/compile/internal/types/type.go     |  5 +---
+ test/fixedbugs/issue20185.go               |  2 +-
+ test/fixedbugs/issue21979.go               | 46 ++++++++++++++++++++++++++++++
+ test/fixedbugs/issue7310.go                |  2 +-
+ 11 files changed, 109 insertions(+), 60 deletions(-)

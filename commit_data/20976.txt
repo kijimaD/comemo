@@ -1,23 +1,32 @@
-commit 557a61d270f101c0983e6aca9b271cc854526d28
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 9 10:15:18 2014 -0500
+commit 6e86003651be7feb6da46360d6c411ff1c29b7f5
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 31 11:08:27 2014 -0400
 
-    cmd/gc: add //go:nowritebarrier to diagnose unintended write barriers
+    [dev.power64] 9g: fix under-zeroing in clearfat
     
-    //go:nowritebarrier can only be used in package runtime.
-    It does not disable write barriers; it is an assertion, checked
-    by the compiler, that the following function needs no write
-    barriers.
+    All three cases of clearfat were wrong on power64x.
     
-    Change-Id: Id7978b779b66dc1feea39ee6bda9fd4d80280b7c
-    Reviewed-on: https://go-review.googlesource.com/1224
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    The cases that handle 1032 bytes and up and 32 bytes and up
+    both use MOVDU (one directly generated in a loop and the other
+    via duffzero), which leaves the pointer register pointing at
+    the *last written* address.  The generated code was not
+    accounting for this, so the byte fill loop was re-zeroing the
+    last zeroed dword, rather than the bytes following the last
+    zeroed dword.  Fix this by simply adding an additional 8 byte
+    offset to the byte zeroing loop.
+    
+    The case that handled under 32 bytes was also wrong.  It
+    didn't update the pointer register at all, so the byte zeroing
+    loop was simply re-zeroing the beginning of region.  Again,
+    the fix is to add an offset to the byte zeroing loop to
+    account for this.
+    
+    LGTM=dave, bradfitz
+    R=rsc, dave, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/168870043
 
- src/cmd/gc/go.h      |   2 +
- src/cmd/gc/go.y      |   2 +
- src/cmd/gc/lex.c     |   6 ++
- src/cmd/gc/walk.c    |   2 +
- src/cmd/gc/y.tab.c   | 268 ++++++++++++++++++++++++++-------------------------
- src/runtime/mgc.go   |  64 +++++++++++-
- src/runtime/proc1.go |   3 +-
- 7 files changed, 209 insertions(+), 138 deletions(-)
+ src/cmd/9g/ggen.c          | 20 +++++++++-----
+ src/runtime/asm_power64x.s |  2 +-
+ test/clearfat.go           | 68 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 82 insertions(+), 8 deletions(-)

@@ -1,17 +1,20 @@
-commit 8b471db71b95e9250f751f494a6a5359cb50d5cd
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Jul 15 23:53:47 2021 +0900
+commit 4651d6b267818b0e0d128a5443289717c4bb8cbc
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Dec 2 14:37:49 2020 -0500
 
-    path/filepath: change IsAbs to treat \\host\share as an absolute path
+    [dev.fuzz] internal/fuzzing: handle and report crashers
     
-    Fixes #47123
-    
-    Change-Id: I2226b8a9ea24cd88171acfbaffea2566309416de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334809
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Hajime Hoshi <hajimehoshi@gmail.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ie2a84c12f4991984974162e74f06cfd67e9bb4d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274855
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/path/filepath/path_test.go    | 2 ++
- src/path/filepath/path_windows.go | 4 ++++
- 2 files changed, 6 insertions(+)
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  | 68 +++++++++++++++++++
+ src/go/build/deps_test.go                          |  2 +-
+ src/internal/fuzz/fuzz.go                          | 76 ++++++++++++++++++++--
+ src/internal/fuzz/worker.go                        | 47 +++++++++----
+ src/testing/fuzz.go                                | 28 ++++----
+ src/testing/internal/testdeps/deps.go              |  8 +--
+ src/testing/testing.go                             | 26 ++++----
+ 7 files changed, 204 insertions(+), 51 deletions(-)

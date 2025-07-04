@@ -1,48 +1,36 @@
-commit 058bb7ea278d8e073be1e1c73d01fbfd74c170fd
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 11 19:40:12 2017 -0500
+commit 4e8be99590d54cc9ea949d9eadc560a1c2456539
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 9 21:07:32 2017 -0400
 
-    runtime: split object finding out of heapBitsForObject
+    cmd/go: clean up compile vs link vs shared library actions
     
-    heapBitsForObject does two things: it finds the base of the object and
-    it creates the heapBits for the base of the object. There are several
-    places where we just care about the base of the object. Furthermore,
-    greyobject only needs the heapBits in the checkmark path and can
-    easily compute them only when needed. Once we eliminate passing the
-    heap bits to grayobject, almost all uses of heapBitsForObject don't
-    need the heap bits.
+    Everything got a bit tangled together in b.action1.
+    Try to tease things apart again.
     
-    Hence, this splits heapBitsForObject into findObject and
-    heapBitsForAddr (the latter already exists), removes the hbits
-    argument to grayobject, and replaces all heapBitsForObject calls with
-    calls to findObject.
+    In general this is a refactoring of the existing code, with limited
+    changes to the effect of the code.
     
-    In addition to making things cleaner overall, heapBitsForAddr is going
-    to get more expensive shortly, so it's important that we don't do it
-    needlessly.
+    The main additional change is to complete a.Deps for link actions.
+    That list now directly contains all the inputs the linker will attempt
+    to read, eliminating the need for a transitive traversal of the entire
+    action graph to find those. The comepleteness of a.Deps will be
+    important when we eventually use it to decide whether an cached
+    action output can be reused.
     
-    Note that there's an interesting performance pitfall here. I had
-    originally moved findObject to mheap.go, since it made more sense
-    there. However, that leads to a ~2% slow down and a whopping 11%
-    increase in L1 icache misses on both the x/garbage and compilebench
-    benchmarks. This suggests we may want to be more principled about
-    this, but, for now, let's just leave findObject in mbitmap.go.
+    all.bash passes, but it's possible I've broken some subtety of
+    buildmode=shared again. Certainly that code took the longest
+    to get working.
     
-    (I tried to make findObject small enough to inline by splitting out
-    the error case, but, sadly, wasn't quite able to get it under the
-    inlining budget.)
-    
-    Change-Id: I7bcb92f383ade565d22a9f2494e4c66fd513fb10
-    Reviewed-on: https://go-review.googlesource.com/85878
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I34e849eda446dca45a9cfce02b07bec6edb6d0d4
+    Reviewed-on: https://go-review.googlesource.com/69831
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/cgocall.go |  3 ++-
- src/runtime/mbitmap.go | 19 +++++++++----------
- src/runtime/mfinal.go  |  2 +-
- src/runtime/mgcmark.go | 19 ++++++++++---------
- src/runtime/mheap.go   |  2 +-
- src/runtime/mwbbuf.go  |  6 +-----
- src/runtime/race.go    |  2 +-
- 7 files changed, 25 insertions(+), 28 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go |   2 +
+ misc/cgo/testshared/shared_test.go     |  18 +-
+ src/cmd/go/internal/load/pkg.go        |   6 +-
+ src/cmd/go/internal/run/run.go         |   2 +-
+ src/cmd/go/internal/test/test.go       |   6 +-
+ src/cmd/go/internal/work/build.go      | 754 +++++++++++++++++++--------------
+ 6 files changed, 460 insertions(+), 328 deletions(-)

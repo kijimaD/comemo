@@ -1,16 +1,31 @@
-commit f6dcc975f7207340ad11d9296c42e7730ecf1f9f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 24 17:26:22 2020 -0800
+commit 98e3fdab3eca022aa85eda84fb074d75a745b5cc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 27 16:46:23 2020 -0400
 
-    go/constant: make constant.Make produce "smallest" const representation
+    [dev.link] cmd/link: delete old dodata
     
-    Fixes #42640.
-    
-    Change-Id: I22b8142b0a47a0f957d1bda28cdfdbb8388cffc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273086
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I569bbee235630baad3c35ca0c6598b8bd059307a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230311
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/constant/value.go      |  6 +++---
- src/go/constant/value_test.go | 34 ++++++++++++++++++++++++----------
- 2 files changed, 27 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/amd64/asm2.go   | 402 ---------------
+ src/cmd/link/internal/amd64/obj.go    |   1 -
+ src/cmd/link/internal/arm/asm2.go     | 246 ----------
+ src/cmd/link/internal/arm/obj.go      |   1 -
+ src/cmd/link/internal/arm64/asm2.go   | 312 ------------
+ src/cmd/link/internal/arm64/obj.go    |   1 -
+ src/cmd/link/internal/ld/data2.go     | 891 ----------------------------------
+ src/cmd/link/internal/ld/decodesym.go | 242 ---------
+ src/cmd/link/internal/ld/elf.go       |  87 ----
+ src/cmd/link/internal/ld/elf2.go      | 144 ------
+ src/cmd/link/internal/ld/go.go        |  16 -
+ src/cmd/link/internal/ld/main.go      |  11 +-
+ src/cmd/link/internal/ppc64/asm2.go   | 140 ------
+ src/cmd/link/internal/ppc64/obj.go    |   1 -
+ src/cmd/link/internal/s390x/asm2.go   | 231 ---------
+ src/cmd/link/internal/s390x/obj.go    |   1 -
+ src/cmd/link/internal/x86/asm2.go     | 283 -----------
+ src/cmd/link/internal/x86/obj.go      |   1 -
+ 18 files changed, 2 insertions(+), 3009 deletions(-)

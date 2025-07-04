@@ -1,18 +1,20 @@
-commit a5026af57c7934f0856cfd4b539a7859d85a0474
-Author: Marko Kungla <marko.kungla@gmail.com>
-Date:   Sat Sep 7 12:07:08 2019 +0300
+commit 08ba9c02910790c5ec9083dc32a1e2683bc77dc3
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Nov 15 23:35:27 2018 +0530
 
-    reflect: enhance docs for IsZero and IsValid
+    cmd/go/internal/{run,work,generate}: document file path location requirement
     
-    Make it clear that IsValid checks that we have valid
-    reflect.Value and not the value of `v`
+    Mention that .go files must be from a single directory
+    for them to be treated as a single package.
     
-    fixes #34152
+    Fixes #21529
     
-    Change-Id: Ib3d359eeb3a82bf733b9ed17c777fc4c143bc29c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193841
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I79cb08b9f43888814b1249a7b50bc7bc70bc1c72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/149797
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/internal/reflectlite/value.go | 2 +-
- src/reflect/value.go              | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go                    | 10 +++++-----
+ src/cmd/go/internal/generate/generate.go |  4 ++--
+ src/cmd/go/internal/run/run.go           |  2 +-
+ src/cmd/go/internal/work/build.go        |  4 ++--
+ 4 files changed, 10 insertions(+), 10 deletions(-)

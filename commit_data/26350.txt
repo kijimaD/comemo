@@ -1,30 +1,12 @@
-commit d38275c74a3f694e35efdc5e3586487ed5e7659c
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Fri Mar 11 13:29:23 2016 +0100
+commit 4525571f7e911102636ce0af3bedcd467ee8b45c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 06:52:27 2016 -0500
 
-    fmt: separate unicode and integer formatting
+    doc: document Go 1.5.3
     
-    Separate unicode formatting into its own fmt_unicode function.
-    Remove the fmtUnicode wrapper and the f.unicode and f.uniQuote
-    flags that are not needed anymore. Remove mangling and restoring
-    of the precision and sharp flags.
-    
-    Removes the buffer copy needed for %#U by moving
-    the character encoding before the number encoding.
-    
-    Changes the behavior of plus and space flag to have
-    no effect instead of printing a plus or space before "U+".
-    
-    Always print at least four digits after "U+"
-    even if precision is set to less than 4.
-    
-    Change-Id: If9a0ee79e9eca2c76f06a4e0fdd75d98393899ac
-    Reviewed-on: https://go-review.googlesource.com/20574
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9b4b76abfba66ff655aef55b43d9b4721aba604a
+    Reviewed-on: https://go-review.googlesource.com/18587
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/fmt/fmt_test.go | 24 +++++++-------
- src/fmt/format.go   | 92 ++++++++++++++++++++++++++++++++++-------------------
- src/fmt/print.go    | 26 ++-------------
- 3 files changed, 74 insertions(+), 68 deletions(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

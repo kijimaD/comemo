@@ -1,16 +1,16 @@
-commit eb2b3f5dc74181b66848bef194bfd0ec1401345c
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Jul 29 13:47:20 2011 -0400
+commit e0b6f4721fac04fbaaa669e3a52818ef6c2d5df1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 29 10:47:00 2011 -0700
 
-    syscall: move bsd pipe syscall
+    archive/zip: more efficient reader and bug fix
     
-    Not all BSDs have the same pipe() syscall implementation - move the Darwin/FreeBSD specific implementation into their respective OS syscall files. This will be needed to add OpenBSD syscall support.
+    Fixes #2090.
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4823057
+    https://golang.org/cl/4815068
 
- src/pkg/syscall/syscall_bsd.go     | 10 ----------
- src/pkg/syscall/syscall_darwin.go  | 10 ++++++++++
- src/pkg/syscall/syscall_freebsd.go | 10 ++++++++++
- 3 files changed, 20 insertions(+), 10 deletions(-)
+ src/pkg/archive/zip/reader.go      | 228 ++++++++++++++++++-------------------
+ src/pkg/archive/zip/reader_test.go |   6 +
+ src/pkg/archive/zip/struct.go      |   3 +
+ 3 files changed, 121 insertions(+), 116 deletions(-)

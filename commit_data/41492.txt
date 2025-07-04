@@ -1,25 +1,28 @@
-commit 6ef25c2ad3e1051629e78de0a8cd3553d48c832e
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jan 13 15:24:56 2020 -0500
+commit ab00f89c2742792ae23c6861e82c4b0b6cc6376b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 7 13:33:39 2019 -0700
 
-    cmd/go: convert testCDAndGOPATHAreDifferent to the script framework
+    cmd/compile: remove useless block-indirection in type switch
     
-    This is a bit complex. There's a driver program to run go with modifications
-    to the GOPATH used to test Windows.
+    Previously, when emitting type switches without an explicit "case nil"
+    clause, we would emit:
     
-    Also remove the cd method on testgoData, because this was the last function
-    that used it.
+        if x == nil { goto Lnil }
+        ...
+        Lnil: goto Ldefault
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    But we can instead just emit:
     
-    Updates #36320
-    Updates #17751
+        if x == nil { goto Ldefault }
     
-    Change-Id: I3e8e27f37fd3701bd36b6365b128dd73b69181c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214578
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Doesn't pass toolstash-check; seems like it causes some harmless
+    instruction scheduling changes.
+    
+    Change-Id: Ie233dda26756911e93a08b3db40407ba38694c62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199644
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                              | 52 ----------------
- .../testdata/script/build_cd_gopath_different.txt  | 72 ++++++++++++++++++++++
- 2 files changed, 72 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/gc/swt.go | 16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)

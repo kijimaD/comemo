@@ -1,15 +1,22 @@
-commit e7c21703a86458121545b814c49383bc903acfc8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 8 11:28:40 2014 -0800
+commit 7178c05d05f2372c0c2b027c16b5e904d4259f6e
+Author: Michael Hudson-Doyle <michael.hudson@linaro.org>
+Date:   Tue Jan 7 23:53:16 2014 -0500
 
-    archive/zip: new test for earlier zip64 fix
+    cmd/go: test: do not put object files where later steps will find them
     
-    Update #7069
+    When recompiling a package whose basename is the name of a standard
+    package for testing with gccgo, a .o file with the basename of the
+    package being tested was being placed in the _test/ directory where the
+    compilation of the test binary then found it when looking for the
+    standard library package.
     
-    R=golang-codereviews, iant
+    This change puts the object files in a separate directory.
+    
+    Fixes #6793
+    
+    R=golang-codereviews, dave, gobot, rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/49180043
+    https://golang.org/cl/27650045
 
- src/pkg/archive/zip/reader_test.go       |  14 +++++++++++++-
- src/pkg/archive/zip/testdata/zip64-2.zip | Bin 0 -> 266 bytes
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/go/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

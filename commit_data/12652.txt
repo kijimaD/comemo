@@ -1,12 +1,23 @@
-commit 2ed7087c8d2739d8a79779333c245e5b50526d38
+commit 9e5db8c90a319b30a409a266853e8053f7b534d9
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 15 17:15:57 2012 -0400
+Date:   Thu Mar 15 15:22:30 2012 -0400
 
-    reflect: document PkgPath, Method, StructField
+    5l, 6l, 8l: fix stack split logic for stacks near default segment size
     
-    R=golang-dev, bradfitz, r
+    Fixes #3310.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5824053
+    https://golang.org/cl/5823051
 
- src/pkg/reflect/type.go | 42 ++++++++++++++++++++++++++++--------------
- 1 file changed, 28 insertions(+), 14 deletions(-)
+ src/cmd/5l/noop.c              |    3 +-
+ src/cmd/6l/pass.c              |   13 +-
+ src/cmd/8l/pass.c              |   14 +-
+ src/pkg/runtime/asm_386.s      |    9 +
+ src/pkg/runtime/asm_amd64.s    |    9 +
+ src/pkg/runtime/asm_arm.s      |    7 +
+ src/pkg/runtime/export_test.go |    2 +
+ src/pkg/runtime/proc.c         |    5 +
+ src/pkg/runtime/stack.h        |    5 +
+ src/pkg/runtime/stack_test.go  | 1528 ++++++++++++++++++++++++++++++++++++++++
+ 10 files changed, 1587 insertions(+), 8 deletions(-)

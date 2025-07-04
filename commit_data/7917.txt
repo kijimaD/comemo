@@ -1,14 +1,15 @@
-commit d74ff67cc807a1ed1ac9996da0838e0ed5f4cf68
+commit e393efc499b17d6dd13ebf558f57c3cb6a484595
 Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 29 10:41:23 2011 -0700
+Date:   Tue Mar 29 10:11:33 2011 -0700
 
-    debug/gosym: remove need for gotest to run preparatory commands.
-    Put them into the Makefile instead. One dependency mechanism is enough.
+    ngotest: a new gotest command, written in Go.
+    It runs all tests correctly and saves significant time by avoiding the shell script.
+    However, this is just the code for the command, for review.
+    A separate CL will move this into the real gotest, which will take some dancing.
     
-    R=rsc
+    R=rsc, peterGo, bsiegert, albert.strasheim, rog, niemeyer, r2
     CC=golang-dev
-    https://golang.org/cl/4331043
+    https://golang.org/cl/4281073
 
- src/pkg/debug/gosym/Makefile        | 6 ++++++
- src/pkg/debug/gosym/pclntab_test.go | 3 ---
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/gotest/ngotest.go | 435 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 435 insertions(+)

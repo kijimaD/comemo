@@ -1,25 +1,14 @@
-commit 9927f25d711ec7aa0876e33e3bd174e09cc032bd
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 10 16:45:30 2016 -0400
+commit 296b618dc8c8f59d7327b4d322f7ceef4032d94b
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Mon Jul 11 12:31:52 2016 -0600
 
-    math/big: test and optimize Exp(2, y, n) for large y, odd n
+    gofmt: remove unneeded call to os.Exit
     
-    The Montgomery multiply code is applicable to this case
-    but was being bypassed. Don't do that.
+    PrintDefaults already calls os.Exit(2).
     
-    The old test len(x) > 1 was really just a bad approximation to x > 1.
-    
-    name    old time/op  new time/op  delta
-    Exp-8   5.56ms ± 4%  5.73ms ± 3%     ~     (p=0.095 n=5+5)
-    Exp2-8  7.59ms ± 1%  5.66ms ± 1%  -25.40%  (p=0.008 n=5+5)
-    
-    This comes up especially when doing Fermat (Miller-Rabin)
-    primality tests with base 2.
-    
-    Change-Id: I4cc02978db6dfa93f7f3c8f32718e25eedb4f5ed
-    Reviewed-on: https://go-review.googlesource.com/30708
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0d783a6476f42b6157853cdb34ba69618e3f3fcb
+    Reviewed-on: https://go-review.googlesource.com/24844
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/math/big/int_test.go | 33 +++++++++++++++++++++++++++++++++
- src/math/big/nat.go      |  2 +-
- 2 files changed, 34 insertions(+), 1 deletion(-)
+ src/cmd/gofmt/gofmt.go | 1 -
+ 1 file changed, 1 deletion(-)

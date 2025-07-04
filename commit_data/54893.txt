@@ -1,22 +1,19 @@
-commit d33548d178016122726342911f8e15016a691472
-Author: Wang Yaduo <wangyaduo@linux.alibaba.com>
-Date:   Fri Oct 27 14:48:25 2023 +0800
+commit c6cdfd88c762ee746cd9579ae57e528f56f5dd00
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Nov 18 11:33:53 2022 -0800
 
-    cmd/internal/obj/riscv: fix the offset of JALR transformed from JAL
+    net/http: direct server logs to test output in tests
     
-    Currently, the offset of JALR is zero all the time, which is transformed
-    from JAL with over ±1MB offset. This causes the segment fault for the
-    wrong address.
+    Set a logger in newClientServerTest that directs the server
+    log output to the testing.T's log, so log output gets properly
+    associated with the test that caused it.
     
-    Change-Id: I4dcb3eb13bd1ea71e9eb27f07c03ffec376608ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538135
-    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Change-Id: I13686ca35c3e21adae16b2fc37ce36daea3df9d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452075
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/internal/obj/riscv/asm_test.go | 66 ++++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/riscv/obj.go      |  2 +-
- 2 files changed, 67 insertions(+), 1 deletion(-)
+ src/net/http/clientserver_test.go | 13 +++++++++++++
+ src/net/http/serve_test.go        | 40 ++++++++++++++++++---------------------
+ 2 files changed, 31 insertions(+), 22 deletions(-)

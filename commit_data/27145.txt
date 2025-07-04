@@ -1,29 +1,20 @@
-commit 2e30218223a7bf2b560fbaf79bac8d80ea4ece1c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 26 15:43:04 2016 -0700
+commit fdc04223c5ed16ba568f6ce1b4859bc06e43df5e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 13 11:54:14 2016 -0700
 
-    net/http: remove idle transport connections from Transport when server closes
+    cmd/compile: clean up savedata
     
-    Previously the Transport would cache idle connections from the
-    Transport for later reuse, but if a peer server disconnected
-    (e.g. idle timeout), we would not proactively remove the *persistConn
-    from the Transport's idle list, leading to a waste of memory
-    (potentially forever).
+    Simplify function signature.
+    Remove unused Ctxt field Enforce_data_order.
     
-    Instead, when the persistConn's readLoop terminates, remote it from
-    the idle list, if present.
+    Passes toolstash -cmp.
     
-    This also adds the beginning of accounting for the total number of
-    idle connections, which will be needed for Transport.MaxIdleConns
-    later.
-    
-    Updates #15461
-    
-    Change-Id: Iab091f180f8dd1ee0d78f34b9705d68743b5557b
-    Reviewed-on: https://go-review.googlesource.com/22492
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I5caa270ca9ae725708fe415b2c978b5f40780255
+    Reviewed-on: https://go-review.googlesource.com/20644
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/main_test.go      | 14 ++++++++++++
- src/net/http/transport.go      | 52 ++++++++++++++++++++++++++++++++++++++----
- src/net/http/transport_test.go | 48 ++++++++++++++++++++++++++++++++++++++
- 3 files changed, 109 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/data.go    |  8 ++--
+ src/cmd/internal/obj/link.go    | 97 ++++++++++++++++++++---------------------
+ src/cmd/internal/obj/objfile.go |  2 +-
+ 3 files changed, 52 insertions(+), 55 deletions(-)

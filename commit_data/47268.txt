@@ -1,30 +1,19 @@
-commit 0e5f287fde7b2cf11c8cffb7839f970a8f3e2f9b
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Fri Nov 5 00:10:31 2021 +0100
+commit 618b66e16d5adedbeccb7e7ed35b26e439a9f86f
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Mar 2 06:02:55 2021 +0000
 
-    runtime: use correct constant when computing nsec remainder
+    cmd/compile: remove 4-byte alignment requirement of stack slot on arm
     
-    A code comment on amd64 for windows and plan9 contained a snippet for
-    splitting apart the sec and nsec components of a unix timestamp, with
-    produced assembly below, which was then cleaned up by hand. When arm64
-    was ported, that code snippet in the comment went through the compiler
-    to produce some code that was then pasted and cleaned up. Unfortunately,
-    the comment had a typo in it, containing 8 zeros instead of 9.
+    This CL applies CL 267999 to arm.
     
-    This resulted in the constant used in the assembly being wrong, spotted
-    by @bufflig's eagle eyes. So, this commit fixes the comment on all three
-    platforms, and the assembly on windows/arm64.
+    Updates #42385
     
-    Fixes #48072.
-    
-    Change-Id: I786fe89147328b0d25544f52c927ddfdb9f6f1cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361474
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Patrik Nyblom <pnyb@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Iad82aafcb7b0a5a77a4bea32f648320f57a17cdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297773
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
 
- src/runtime/sys_plan9_amd64.s    | 2 +-
- src/runtime/time_windows_amd64.s | 2 +-
- src/runtime/time_windows_arm64.s | 9 +++------
- 3 files changed, 5 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssagen/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

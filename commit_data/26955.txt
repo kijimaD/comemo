@@ -1,19 +1,34 @@
-commit 8955745bfb9a3682e78b71fb8cb343abc4bd72a6
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Fri Apr 15 08:56:01 2016 +0200
+commit 9ab9053344598598913ba6f93c7f2945182be8d1
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 1 15:09:24 2016 -0500
 
-    image/color: order color computation to match rgb
+    runtime: reset mark state before stopping the world
     
-    The order of computation was switched unintentionally
-    in https://go-review.googlesource.com/21910.
+    Currently we reset the mark state during STW sweep termination. This
+    involves looping over all of the goroutines. Each iteration of this
+    loop takes ~25ns, so at around 400k goroutines, we'll exceed our 10ms
+    pause goal.
     
-    Revert the order to first compute g then b.
+    However, it's safe to do this before we stop the world for sweep
+    termination because nothing is consuming this state yet. Hence, move
+    the reset to just before STW.
     
-    Change-Id: I8cedb5e45fbad2679246839f609bcac4f9052403
-    Reviewed-on: https://go-review.googlesource.com/22016
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    This isn't perfect: a long reset can still delay allocating goroutines
+    that block on GC starting. But it's certainly better to block some
+    things eventually than to block everything immediately.
+    
+    For 1.6.x.
+    
+    Fixes #14420.
+    
+    name \ 95%ile-time/sweepTerm           old          new  delta
+    500kIdleGs-12                 11312µs ± 6%  18.9µs ± 6%  -99.83%  (p=0.000 n=16+20)
+    
+    Change-Id: I9815c4d8d9b0d3c3e94dfdab78049cefe0dcc93c
+    Reviewed-on: https://go-review.googlesource.com/20147
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/image/color/ycbcr.go             | 16 ++++-----
- src/image/internal/imageutil/gen.go  | 16 ++++-----
- src/image/internal/imageutil/impl.go | 64 ++++++++++++++++++------------------
- 3 files changed, 48 insertions(+), 48 deletions(-)
+ src/runtime/mgc.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

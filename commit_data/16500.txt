@@ -1,14 +1,21 @@
-commit 26d43a0f22e4d19350bd5243253ce76018651861
+commit f032eefdb0fb63555b4b7c83aaad5ae74550559c
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 5 10:38:52 2013 -0400
+Date:   Wed Jun 5 07:14:05 2013 -0400
 
-    cmd/6l: accept NOP of $x+10(SP) and of X0
+    cmd/cgo, cmd/go, go/build: sort flag lists
     
-    Needed to link code compiled with 6c -N.
+    CFLAGS comes before CPPFLAGS.
+    Also fix one typo CPPCFLAGS.
     
-    R=ken2
+    Cleanup for CL 8248043.
+    
+    R=golang-dev, iant, alberto.garcia.hierro
     CC=golang-dev
-    https://golang.org/cl/10043044
+    https://golang.org/cl/9965045
 
- src/cmd/6l/optab.c | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ src/cmd/cgo/doc.go        | 4 ++--
+ src/cmd/go/doc.go         | 4 ++--
+ src/cmd/go/list.go        | 4 ++--
+ src/cmd/go/pkg.go         | 8 ++++----
+ src/pkg/go/build/build.go | 6 +++---
+ 5 files changed, 13 insertions(+), 13 deletions(-)

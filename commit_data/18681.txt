@@ -1,17 +1,22 @@
-commit dc6bf295b95f3b1141e81fea3e128d22e4282962
+commit b00e4770d962289ef1a542f153408d55e3307167
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 27 13:32:40 2014 -0800
+Date:   Thu Feb 27 10:48:36 2014 -0800
 
-    net/http: make Transport.CancelRequest work for requests blocked in a dial
+    bufio: in Reader.WriteTo, try to use target's ReaderFrom
     
-    Fixes #6951
+    This is the simple half of https://golang.org/cl/53560043/ with
+    a new benchmark. pongad is in the C+A files already.
     
-    LGTM=josharian
-    R=golang-codereviews, josharian
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkReaderWriteToOptimal     2054          825           -59.83%
+    
+    Update #6373
+    
+    LGTM=iant, gri
+    R=golang-codereviews, iant, gri
     CC=golang-codereviews
-    https://golang.org/cl/69280043
+    https://golang.org/cl/69220046
 
- src/pkg/net/http/export_test.go    |  2 +-
- src/pkg/net/http/transport.go      | 66 +++++++++++++++++++++++---------------
- src/pkg/net/http/transport_test.go | 57 ++++++++++++++++++++++++++++++++
- 3 files changed, 98 insertions(+), 27 deletions(-)
+ src/pkg/bufio/bufio.go      |  6 ++++++
+ src/pkg/bufio/bufio_test.go | 33 +++++++++++++++++++++++----------
+ 2 files changed, 29 insertions(+), 10 deletions(-)

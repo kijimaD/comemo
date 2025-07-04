@@ -1,48 +1,39 @@
-commit f5f480e1df6b394ebc71eb3c1ba2b4c91c232425
-Author: Taru Karttunen <taruti@taruti.net>
-Date:   Wed Oct 28 12:58:58 2015 +0200
+commit 5f859ba83d4c47b6a6a75559041207387acab7ba
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Sun May 31 13:17:59 2015 +0200
 
-    os: reduce allocations in Readdir on unix
+    time: Use AppendFormat in Marshal[Text|JSON]
     
-    Include syscall.Stat_t on unix to the
-    unexported fileStat structure rather than
-    accessing it though an interface.
+    The current implementations of MarshalJSON and MarshalText use
+    time.Format which returns a string (converted from a byte slice),
+    only to convert it back to a byte slice.
     
-    Additionally add a benchmark for Readdir
-    (and Readdirnames).
+    Avoid the conversion (and thus an allocation) by directly appending
+    the formatted time to a preallocated byte slice, using the new
+    AppendFormat function, introduced in golang.org/cl/1760.
     
-    Tested on linux, freebsd, netbsd, openbsd
-    darwin, solaris, does not touch windows
-    stuff. Does not change the API, as
-    discussed on golang-dev.
+    This reduces the allocations done in Marshal[Text|JSON] by 50%.
     
-    E.g. on linux/amd64 with a directory of 65 files:
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkMarshalJSON     626           507           -19.01%
+    BenchmarkMarshalText     598           511           -14.55%
     
-    benchmark              old ns/op     new ns/op     delta
-    BenchmarkReaddir-4     67774         66225         -2.29%
+    benchmark                old allocs     new allocs     delta
+    BenchmarkMarshalJSON     2              1              -50.00%
+    BenchmarkMarshalText     2              1              -50.00%
     
-    benchmark              old allocs     new allocs     delta
-    BenchmarkReaddir-4     334            269            -19.46%
+    benchmark                old bytes     new bytes     delta
+    BenchmarkMarshalJSON     96            48            -50.00%
+    BenchmarkMarshalText     96            48            -50.00%
     
-    benchmark              old bytes     new bytes     delta
-    BenchmarkReaddir-4     25208         24168         -4.13%
+    Fixes #11025
     
-    Change-Id: I44ef72a04ad7055523a980f29aa11122040ae8fe
-    Reviewed-on: https://go-review.googlesource.com/16423
+    Change-Id: I468f78d075a6ecc1cdc839df7fb407fbc6ff2e70
+    Reviewed-on: https://go-review.googlesource.com/10555
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/file_unix.go                        | 25 +++++++++++-------
- src/os/os_test.go                          | 42 ++++++++++++++++++++++++++++++
- src/os/stat_darwin.go                      | 28 +++++++-------------
- src/os/stat_dragonfly.go                   | 28 +++++++-------------
- src/os/stat_freebsd.go                     | 28 +++++++-------------
- src/os/stat_linux.go                       | 28 +++++++-------------
- src/os/stat_nacl.go                        | 28 +++++++-------------
- src/os/stat_netbsd.go                      | 28 +++++++-------------
- src/os/stat_openbsd.go                     | 28 +++++++-------------
- src/os/stat_solaris.go                     | 28 +++++++-------------
- src/os/{types_notwin.go => types_plan9.go} |  6 +----
- src/os/types_unix.go                       | 27 +++++++++++++++++++
- 12 files changed, 158 insertions(+), 166 deletions(-)
+ src/time/time.go      | 11 +++++++++--
+ src/time/time_test.go | 14 ++++++++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)

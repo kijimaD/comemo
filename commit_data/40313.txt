@@ -1,24 +1,41 @@
-commit 504fce98ba3052135ec1f9564e06819f42cdbc86
-Author: Umang Parmar <umangjparmar@gmail.com>
-Date:   Sun Oct 20 11:25:56 2019 +0000
+commit 0a338f75d4c64ba72cf586a28ec1a674c8b4bb77
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 30 15:23:14 2019 -0400
 
-    go/build: recognize '.sx' as equivalent of '.S'
+    sort: simplify bootstrap
     
-    On case insensitive filesystems, '.S' is interpreted as '.s' so,
-    providing option to use '.sx' extension for '.S' files as an alternative.
+    We compile package sort as part of the compiler bootstrap,
+    to make sure the compiler uses a consistent sort algorithm
+    no matter what version of Go it is compiled against.
+    (This matters for elements that compare "equal" but are distinguishable.)
     
-    Fixes #32434
+    Package sort was compiled in such a way as to disallow
+    sort.Slice entirely during bootstrap (at least with some compilers),
+    while cmd/internal/obj was compiled in such a way as to
+    make obj.SortSlice available to all compilers, precisely because
+    sort.Slice was not. This is all highly confusing.
+    Simplify by making sort.Slice available all the time.
     
-    Change-Id: Ie2f7e5e2f3f12690ce18659e30ca94252a8f7bfc
-    GitHub-Last-Rev: dcca989ec41ddc1d06ea509b78dce7d70bc996ed
-    GitHub-Pull-Request: golang/go#32557
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181699
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Followup to CL 169137 and #30440
+    (and also CL 40114 and CL 73951).
+    
+    Change-Id: I127f4e02d6c71392805d256c3a90ef7c51f9ba0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174525
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cgo/doc.go                  | 2 +-
- src/cmd/go/alldocs.go               | 6 +++---
- src/cmd/go/internal/help/helpdoc.go | 6 +++---
- src/go/build/build.go               | 8 ++++----
- 4 files changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/iexport.go             |  6 +--
+ src/cmd/compile/internal/gc/main.go                |  5 ++-
+ src/cmd/compile/internal/gc/obj.go                 |  3 +-
+ src/cmd/compile/internal/gc/pgen.go                |  2 +-
+ src/cmd/compile/internal/types/sym_test.go         |  4 +-
+ src/cmd/internal/obj/bootstrap.go                  | 34 ----------------
+ src/cmd/internal/obj/objfile.go                    |  2 +-
+ src/go/build/deps_test.go                          |  5 +--
+ src/sort/slice.go                                  | 16 +++-----
+ src/sort/slice_go113.go                            | 12 ++++++
+ src/sort/slice_go14.go                             | 22 +++++++++++
+ .../internal/obj/sort.go => sort/slice_go18.go}    | 11 +++---
+ src/sort/slice_pre113.go                           | 46 ----------------------
+ 13 files changed, 58 insertions(+), 110 deletions(-)

@@ -1,23 +1,18 @@
-commit 8a2a5013c962e4900eed0a3a4a471df293db3f40
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 11 16:40:44 2012 -0700
+commit 93ea79ee7ed859287e6adc51ab04028e972403e1
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jul 11 12:47:12 2012 -0400
 
-    net/http: fix Transport race(s) with high GOMAXPROCS
+    crypto/rsa: left-pad PKCS#1 v1.5 outputs.
     
-    Also adds a new test for GOMAXPROCS=16 explicitly, which now passes
-    reliably in a stress loop like:
+    OpenSSL requires that RSA signatures be exactly the same byte-length
+    as the modulus. Currently it'll reject ~1/256 of our signatures: those
+    that end up a byte shorter.
     
-    $ go test -c
-    $ (while ./http.test -test.v -test.run=Concurrency; do echo pass; done ) 2>&1 | tee foo; less foo
+    Fixes #3796.
     
-    (It used to fail very quickly and reliably on at least Linux/amd64)
-    
-    Fixes #3793
-    
-    R=golang-dev, adg, r
+    R=golang-dev, edsrzf, r
     CC=golang-dev
-    https://golang.org/cl/6347061
+    https://golang.org/cl/6352093
 
- src/pkg/net/http/transport.go      | 56 ++++++++++++++++++++++++++++++++------
- src/pkg/net/http/transport_test.go | 44 ++++++++++++++++++++++++++++++
- 2 files changed, 91 insertions(+), 9 deletions(-)
+ src/pkg/crypto/rsa/pkcs1v15.go | 29 ++++++++++++++++++++++-------
+ 1 file changed, 22 insertions(+), 7 deletions(-)

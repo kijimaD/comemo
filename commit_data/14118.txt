@@ -1,12 +1,16 @@
-commit 7e196d08227edaa1c3b80dfdedbe5e4f0cbf211e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 11 09:18:23 2012 +1100
+commit c12dab2aa606fda6b8ff54082de775bf7737c866
+Author: Taj Khattra <taj.khattra@gmail.com>
+Date:   Wed Oct 10 11:35:57 2012 -0700
 
-    godoc: fix site for large displays
+    container/heap: optimization in case heap has many duplicates
     
-    R=golang-dev, skybrian
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkDup      3075682       609448  -80.18%
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/6643062
+    https://golang.org/cl/6613064
 
- doc/style.css | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/container/heap/heap.go      |  4 ++--
+ src/pkg/container/heap/heap_test.go | 13 +++++++++++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)

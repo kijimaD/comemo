@@ -1,16 +1,45 @@
-commit ecc4474341504f5893c8333dbb68c520dbe93ca5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 15 17:42:53 2016 -0800
+commit 0e36456bf9aa7b3041987634e478449215cdbd82
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Sep 2 16:17:37 2016 -0700
 
-    runtime/pprof: deflake tests for heavily loaded systems
+    archive/tar: fix and cleanup readOldGNUSparseMap
     
-    In the sampling tests, let the test pass if we get at least 10 samples.
+    * Assert that the format is GNU.
+    Both GNU and STAR have some form of sparse file support with
+    incompatible header structures. Worse yet, both formats use the
+    'S' type flag to indicate the presence of a sparse file.
+    As such, we should check the format (based on magic numbers)
+    and fail early.
     
-    Fixes #18332.
+    * Move realsize parsing logic into readOldGNUSparseMap.
+    This is related to the sparse parsing logic and belongs here.
     
-    Change-Id: I8aad083d1a0ba179ad6663ff43f6b6b3ce1e18cd
-    Reviewed-on: https://go-review.googlesource.com/34507
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    * Fix the termination condition for parsing sparse fields.
+    The termination condition for reading the sparse fields
+    is to simply check if the first byte of the offset field is NULL.
+    This does not seem to be documented in the GNU manual, but this is
+    the check done by the both the GNU and BSD implementations:
+            http://git.savannah.gnu.org/cgit/tar.git/tree/src/sparse.c?id=9a33077a7b7ad7d32815a21dee54eba63b38a81c#n731
+            https://github.com/libarchive/libarchive/blob/1fa9c7bf90f0862036a99896b0501c381584451a/libarchive/archive_read_support_format_tar.c#L2207
+    
+    * Fix the parsing of sparse fields to use parseNumeric.
+    This is what GNU and BSD do. The previous two links show that
+    GNU and BSD both handle base-256 and base-8.
+    
+    * Detect truncated streams.
+    The call to io.ReadFull does not check if the error is io.EOF.
+    Getting io.EOF in this method is never okay and should always be
+    converted to io.ErrUnexpectedEOF.
+    
+    * Simplify the function.
+    The logic is essentially a do-while loop so we can remove
+    some redundant code.
+    
+    Change-Id: Ib2f601b1a283eaec1e41b1d3396d649c80749c4e
+    Reviewed-on: https://go-review.googlesource.com/28471
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/pprof/pprof_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/archive/tar/reader.go      | 78 ++++++++++++++++++++++--------------------
+ src/archive/tar/reader_test.go | 61 +++++++++++++++++++++++++++++++--
+ 2 files changed, 100 insertions(+), 39 deletions(-)

@@ -1,30 +1,30 @@
-commit 8b48290895d362417124bcc18f0e6b6476ddc99e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Jan 31 14:47:40 2024 +0700
+commit f78483eaac3a678ef242cc04e05a330c8a92a992
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat May 27 14:31:14 2023 -0700
 
-    cmd/compile: fix recursive generic interface instantiation
+    go/types, types2: add unifyMode to unifier, pass it through
     
-    When shapifying recursive instantiated types, the compiler ends up
-    leaving the type as-is if it already has been a shape type. However, if
-    both of type arguments are interfaces, and one of them is a recursive
-    one, it ends up being shaped as-is, while the other is shaped to its
-    underlying, causing mismatch in function signature.
+    Pass a mode parameter through all unifier calls but make no use of it.
+    When unifying type elements (components of composite types), use emode,
+    which currently is set to mode.
     
-    Fixing this by shapifying an interface type as-is, if it is fully
-    instantiated and already been a shape type.
+    Preparatory step to fix #60460. Factoring out this mechanical change
+    will make the actual fix smaller and easier to review and understand.
+    Because this change doesn't affect the behavior of the unifier, it is
+    safe.
     
-    Fixes #65362
-    Fixes #66663
+    For #60460.
     
-    Change-Id: I839d266e0443b41238b1b7362aca09adc0177362
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559656
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I5b67499d93025be2128c14cc00bcc3b8cc9f44b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498955
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/reader.go |  5 +++++
- test/fixedbugs/issue65362.go             | 31 +++++++++++++++++++++++++++++
- test/fixedbugs/issue66663.go             | 34 ++++++++++++++++++++++++++++++++
- 3 files changed, 70 insertions(+)
+ src/cmd/compile/internal/types2/infer.go |  8 ++---
+ src/cmd/compile/internal/types2/unify.go | 54 ++++++++++++++++++--------------
+ src/go/types/infer.go                    |  8 ++---
+ src/go/types/unify.go                    | 54 ++++++++++++++++++--------------
+ 4 files changed, 68 insertions(+), 56 deletions(-)

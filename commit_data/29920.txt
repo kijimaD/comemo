@@ -1,22 +1,59 @@
-commit 66063b2da8a93b69e23381260f64c05d1589769c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Jan 6 08:27:37 2017 +0900
+commit 1cfb5c3fd5578a3665231a302ef7f03abec78d1d
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Sep 14 10:42:14 2016 -0400
 
-    vendor: update golang.org/x/crypto/chacha20poly1305
+    cmd/compile: merge loads into operations on s390x
     
-    Updates golang.org/x/crypto/chacha20poly1305 to rev cb497ae for:
-    - chacha20poly1305: fix detection of BMI on amd64 (https://golang.org/cl/34852)
-    - chacha20poly1305: fix typos (https://golang.org/cl/34536)
-    - chacha20poly1305: fix typos (https://golang.org/cl/33855)
-    - chacha20poly1305: fix build constraints (https://golang.org/cl/32391)
+    Adds the new canMergeLoad function which can be used by rules to
+    decide whether a load can be merged into an operation. The function
+    ensures that the merge will not reorder the load relative to memory
+    operations (for example, stores) in such a way that the block can no
+    longer be scheduled.
     
-    Change-Id: I3a608b5e21b3a72b5aaa5d0afe6c6cffbb1d6fc1
-    Reviewed-on: https://go-review.googlesource.com/34871
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This new function enables transformations such as:
+    
+    MOVD 0(R1), R2
+    ADD  R2, R3
+    
+    to:
+    
+    ADD  0(R1), R3
+    
+    The two-operand form of the following instructions can now read a
+    single memory operand:
+    
+     - ADD
+     - ADDC
+     - ADDW
+     - MULLD
+     - MULLW
+     - SUB
+     - SUBC
+     - SUBE
+     - SUBW
+     - AND
+     - ANDW
+     - OR
+     - ORW
+     - XOR
+     - XORW
+    
+    Improves SHA3 performance by 6-8%.
+    
+    Updates #15054.
+    
+    Change-Id: Ibcb9122126cd1a26f2c01c0dfdbb42fe5e7b5b94
+    Reviewed-on: https://go-review.googlesource.com/29272
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- .../chacha20poly1305/chacha20poly1305_amd64.go     |  2 +-
- .../chacha20poly1305/chacha20poly1305_amd64.s      | 26 +++++++++++++++-------
- .../chacha20poly1305/chacha20poly1305_noasm.go     |  2 +-
- 3 files changed, 20 insertions(+), 10 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s    |  29 +
+ src/cmd/compile/internal/s390x/ssa.go        |  16 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  71 +++
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  69 ++-
+ src/cmd/compile/internal/ssa/opGen.go        | 228 +++++++
+ src/cmd/compile/internal/ssa/rewrite.go      | 110 ++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 858 +++++++++++++++++++++++++++
+ src/cmd/internal/obj/s390x/asmz.go           |  69 +++
+ 8 files changed, 1422 insertions(+), 28 deletions(-)

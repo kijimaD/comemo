@@ -1,17 +1,16 @@
-commit ba99433d333a2babbbfa63ead19d43282a3243f4
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Fri Feb 16 10:26:00 2018 +0100
+commit 7dcd33302a8ce1c6ae5697ad85039684723cbdcc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 11 15:14:53 2017 -0400
 
-    runtime: only run TestArenaCollision if the target can exec
+    cmd/internal/buildid: add missing f.Close in ReadFile
     
-    Replace the test for nacl with testenv.MustHaveExec to also skip
-    test on iOS.
+    On Windows, not closing f keeps us from being able to remove it.
     
-    Change-Id: I6822714f6d71533d1b18bbb7894f6ad339d8aea1
-    Reviewed-on: https://go-review.googlesource.com/94755
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Id4cb709b6ce0b30485b87364a9f0e6e71d2782bd
+    Reviewed-on: https://go-review.googlesource.com/70070
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/malloc_test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/internal/buildid/buildid.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,45 +1,22 @@
-commit 8f81dfe8b47e975b90bb4a2f8dd314d32c633176
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 22 16:02:54 2016 -0400
+commit 6fb4b15f98bba7ef3966c5edc6b8fe2cc99c6beb
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 31 20:44:42 2016 +0000
 
-    runtime: perform write barrier before pointer write
+    Revert "runtime: improve memmove for amd64"
     
-    Currently, we perform write barriers after performing pointer writes.
-    At the moment, it simply doesn't matter what order this happens in, as
-    long as they appear atomic to GC. But both the hybrid barrier and ROC
-    are going to require a pre-write write barrier.
+    This reverts commit 3607c5f4f18ad4d423e40996ebf7f46b2f79ce02.
     
-    For the hybrid barrier, this is important because the barrier needs to
-    observe both the current value of the slot and the value that will be
-    written to it. (Alternatively, the caller could do the write and pass
-    in the old value, but it seems easier and more useful to just swap the
-    order of the barrier and the write.)
+    This was causing failures on amd64 machines without AVX.
     
-    For ROC, this is necessary because, if the pointer write is going to
-    make the pointer reachable to some goroutine that it currently is not
-    visible to, the garbage collector must take some special action before
-    that pointer becomes more broadly visible.
+    Fixes #16939
     
-    This commits swaps pointer writes around so the write barrier occurs
-    before the pointer write.
-    
-    The main subtlety here is bulk memory writes. Currently, these copy to
-    the destination first and then use the pointer bitmap of the
-    destination to find the copied pointers and invoke the write barrier.
-    This is necessary because the source may not have a pointer bitmap. To
-    handle these, we pass both the source and the destination to the bulk
-    memory barrier, which uses the pointer bitmap of the destination, but
-    reads the pointer values from the source.
-    
-    Updates #17503.
-    
-    Change-Id: I78ecc0c5c94ee81c29019c305b3d232069294a55
-    Reviewed-on: https://go-review.googlesource.com/31763
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I70080fbb4e7ae791857334f2bffd847d08cb25fa
+    Reviewed-on: https://go-review.googlesource.com/28274
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/atomic_pointer.go | 23 +++++-----
- src/runtime/chan.go           |  4 +-
- src/runtime/mbarrier.go       | 73 ++++++++++++++++++++-----------
- src/runtime/mbitmap.go        | 99 +++++++++++++++++++++++--------------------
- src/runtime/proc.go           |  6 ++-
- 5 files changed, 116 insertions(+), 89 deletions(-)
+ src/runtime/cpuflags_amd64.go |  75 -------------
+ src/runtime/cpuidlow_amd64.s  |  22 ----
+ src/runtime/memmove_amd64.s   | 243 +-----------------------------------------
+ src/runtime/memmove_test.go   | 104 ------------------
+ 4 files changed, 1 insertion(+), 443 deletions(-)

@@ -1,24 +1,35 @@
-commit 14a41387acb6389a8f2f97d337b68c4bc2730eb4
+commit a9eedc0789085f55193bdbf0d777b8eaeccb1890
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 21 19:45:46 2022 -0500
+Date:   Wed Jan 26 09:24:25 2022 -0500
 
-    misc/cgo/testcshared: reapply CL 451816
+    cmd/go: refactor TestScript/build_issue48319 to check a more general property
     
-    I accidentally reverted its edits with a bad cherry-pick in CL 452457.
+    The test previously checked that the DWARF DW_AT_comp_dir attribute
+    matched GOROOT_FINAL. However, on further consideration, we believe
+    that DW_AT_comp_dir should not actually match GOROOT_FINAL: the DWARF
+    spec says that DW_AT_comp_dir records “the current working directory
+    of the compilation command that produced this compilation unit”, but
+    the actual working directory of the compilation command proper is a
+    throwaway directory in the build cache — it is neither stable nor
+    meaningful.
     
-    This should re-fix the windows-.*-newcc builders that regressed at
-    that change.
+    However, the test was getting at a real issue that we do care about:
+    namely, that the binary produced by a 'go build' command with cgo
+    enabled should not reuse a dependency that embeds a stale
+    GOROOT_FINAL.
     
-    Updates #47257.
-    Updates #35006.
-    Updates #53540.
+    This change refactors the test to verify the latter property instead
+    of checking DW_AT_comp_dir specifically.
     
-    Change-Id: I5818416af7c4c8c1593c36aa0198331b42b6c7d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452675
+    For #50183
+    Updates #48319
+    
+    Change-Id: I0b1151d9ba3d0ff903f72e27850306406e5cb518
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380914
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- misc/cgo/testcshared/cshared_test.go | 60 +++++++++++++++++++++++-------------
- 1 file changed, 38 insertions(+), 22 deletions(-)
+ src/cmd/go/testdata/script/build_issue48319.txt | 160 ++++--------------------
+ 1 file changed, 27 insertions(+), 133 deletions(-)

@@ -1,20 +1,42 @@
-commit 3acd2576ab224d905cfd09208a6d6607ce4b0fb6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 1 11:37:14 2018 -0700
+commit 1a677e03c827b7b1ab2008be2a8f340fb072531c
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Jan 23 14:27:47 2018 -0500
 
-    go/build: accept ! in cgo arguments
+    net/http: don't sniff Content-type in Server when X-Content-Type-Options:nosniff
     
-    The ! can show up when using ${SRCDIR} with uppercase letters in module names.
+    The docs for ResponseWriter.Write say
+    // If the Header
+    // does not contain a Content-Type line, Write adds a Content-Type set
+    // to the result of passing the initial 512 bytes of written data to
+    // DetectContentType.
     
-    Fixes #26716
+    The header X-Content-Type-Options:nosniff is an explicit directive that
+    content-type should not be sniffed.
     
-    Change-Id: Ia474ed8ec40a88076e8aac21103f6c7bb3848bdb
-    Reviewed-on: https://go-review.googlesource.com/127297
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This changes the behavior of Response.WriteHeader so that, when
+    there is an X-Content-Type-Options:nosniff header, but there is
+    no Content-type header, the following happens:
+    1.  A Content-type:application/octet-stream is added
+    2.  A warning is logged via the server's logging mechanism.
+    
+    Previously, a content-type would have been silently added based on
+    heuristic analysis of the first 512B which might allow a hosted
+    GIF like http://www.thinkfu.com/blog/gifjavascript-polyglots to be
+    categorized as JavaScript which might allow a CSP bypass, loading
+    as a script despite `Content-Security-Policy: script-src 'self' `.
+    
+    ----
+    
+    https://fetch.spec.whatwg.org/#x-content-type-options-header
+    defines the X-Content-Type-Options header.
+    
+    ["Polyglots: Crossing Origins by Crossing Formats"](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.905.2946&rep=rep1&type=pdf)
+    explains Polyglot attacks in more detail.
+    
+    Change-Id: I2c8800d2e4b4d10d9e08a0e3e5b20334a75f03c0
+    Reviewed-on: https://go-review.googlesource.com/89275
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/testdata/mod/rsc.io_!c!g!o_v1.0.0.txt | 19 +++++++++++++++++++
- src/cmd/go/testdata/script/mod_case_cgo.txt      |  7 +++++++
- src/go/build/build.go                            |  3 ++-
- 3 files changed, 28 insertions(+), 1 deletion(-)
+ src/net/http/serve_test.go | 17 +++++++++++++++++
+ src/net/http/server.go     | 10 +++++++++-
+ 2 files changed, 26 insertions(+), 1 deletion(-)

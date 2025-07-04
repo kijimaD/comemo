@@ -1,27 +1,17 @@
-commit 6077f0fc32a401f9a7b9540b6d1b00e855018c9a
+commit c1c5d479bd9ead47f718156866c8bd188a8e19b8
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 24 19:18:01 2014 -0400
+Date:   Tue Sep 16 13:16:43 2014 -0400
 
-    cmd/go: fix bytes and net the right way
+    cmd/5g, cmd/8g: make 'out of registers' a fatal error
     
-    Not sure why they used empty.s and all these other
-    packages were special cased in cmd/go instead.
-    Add them to the list.
+    There's no point in continuing. We will only get confused.
+    6g already makes this fatal.
     
-    This avoids problems with net .s files being compiled
-    with gcc in cgo mode and gcc not supporting // comments
-    on ARM.
-    
-    Not a problem with bytes, but be consistent.
-    
-    The last change fixed the ARM build but broke the Windows build.
-    Maybe *this* will make everyone happy. Sigh.
-    
-    TBR=iant
+    LGTM=dave, minux, iant
+    R=iant, dave, minux
     CC=golang-codereviews
-    https://golang.org/cl/144530046
+    https://golang.org/cl/140660043
 
- src/bytes/bytes.s   |  5 -----
- src/cmd/go/build.go |  2 +-
- src/net/empty.s     | 10 ----------
- 3 files changed, 1 insertion(+), 16 deletions(-)
+ src/cmd/5g/gsubr.c | 4 ++--
+ src/cmd/8g/gsubr.c | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

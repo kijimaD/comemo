@@ -1,20 +1,33 @@
-commit 863d57cc7df5b1604d501892b7293efe0fa7e690
-Author: ianwoolf <btw515wolf2@gmail.com>
-Date:   Tue Jul 26 21:55:26 2022 +0800
+commit 316057142cc6055952621ccbaccc53d58d88be3f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 28 11:52:45 2021 -0400
 
-    cmd/go/internal/modload: return error when duplicate module paths among modules in go.work
+    cmd/go: do not pass a local prefix to the compiler in module mode
     
-    Fixes #54048
+    In GOPATH mode, source files may import other packages using relative
+    (“local”) paths. In module mode, relative imports are never allowed:
+    import paths must always be fully specified.
     
-    Change-Id: I27350af451ff50532856092f2d99b6cc6dc6743d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419557
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    When local imports are allowed, we pass a local-import prefix to the
+    compiler using the '-D' flag. That could theoretically change the
+    compiler's output, so it must be included in the cache key even when
+    -trimpath is set. (TODO: when -trimpath is set, the local-import
+    prefix ought to be trimmed anyway, so it still shouldn't matter.)
+    
+    However, when local imports are disallowed, we should not pass the
+    local-import prefix and it should not affect cmd/go's cache key or the
+    final build ID of any artifact.
+    
+    For #48557
+    
+    Change-Id: I2d627d67d13e5da2cac6d411cd4e2d87e510876c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352810
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modload/init.go              |  3 +++
- src/cmd/go/testdata/script/work_issue54048.txt   | 19 +++++++++++++++++++
- src/cmd/go/testdata/script/work_sum_mismatch.txt |  2 +-
- 3 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/load/pkg.go                    |  9 ++--
+ src/cmd/go/internal/work/gc.go                     |  5 ++-
+ .../script/mod_build_trimpath_issue48557.txt       | 52 ++++++++++++++++++++++
+ 3 files changed, 61 insertions(+), 5 deletions(-)

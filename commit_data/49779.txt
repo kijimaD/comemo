@@ -1,32 +1,30 @@
-commit 3315066f46d5dce3e4474bdcde0997d688c79436
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 2 10:12:52 2022 -0400
+commit c69f5c0d7632381dfc6dc78f0af4f54e7673176d
+Author: Michael Munday <mike.munday@lowrisc.org>
+Date:   Thu Sep 9 23:47:14 2021 +0100
 
-    cmd/link: detect glibc vs musl ldso at link time
+    cmd/compile: add support for Abs and Copysign intrinsics on riscv64
     
-    Doing the test at link time lets us distribute one Linux toolchain
-    that works on both glibc-based and musl-based Linux systems.
-    The old way built a toolchain that only ran on one or the other.
+    Also, add the FABSS and FABSD pseudo instructions to the assembler.
+    The compiler could use FSGNJX[SD] directly but there doesn't seem
+    to be much advantage to doing so and the pseudo instructions are
+    easier to understand.
     
-    Fixes #54197.
-    
-    Change-Id: Iaae8c274c78e1091eee828a720b49646be9bfffe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420774
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ie8825b8aa8773c69cc4f07a32ef04abf4061d80d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348989
+    Trust: Michael Munday <mike.munday@lowrisc.org>
+    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/cmd/link/internal/amd64/obj.go   |  1 +
- src/cmd/link/internal/arm/obj.go     |  1 +
- src/cmd/link/internal/arm64/obj.go   |  5 +++--
- src/cmd/link/internal/ld/elf.go      | 11 +++++++++++
- src/cmd/link/internal/ld/lib.go      |  1 +
- src/cmd/link/internal/loong64/obj.go |  1 +
- src/cmd/link/internal/mips/obj.go    |  5 ++++-
- src/cmd/link/internal/mips64/obj.go  |  3 +++
- src/cmd/link/internal/ppc64/obj.go   |  4 ++++
- src/cmd/link/internal/s390x/obj.go   |  3 ++-
- src/cmd/link/internal/x86/obj.go     | 11 ++++++-----
- src/make.bash                        |  9 ---------
- 12 files changed, 37 insertions(+), 18 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscv64.s    |  2 ++
+ src/cmd/compile/internal/riscv64/ssa.go        |  5 +++--
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++++
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 29 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |  6 ++++++
+ src/cmd/compile/internal/ssagen/ssa.go         |  4 ++--
+ src/cmd/internal/obj/riscv/anames.go           |  2 ++
+ src/cmd/internal/obj/riscv/cpu.go              |  2 ++
+ src/cmd/internal/obj/riscv/obj.go              | 10 +++++++++
+ test/codegen/math.go                           |  4 ++++
+ 11 files changed, 66 insertions(+), 4 deletions(-)

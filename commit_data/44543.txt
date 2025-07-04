@@ -1,31 +1,20 @@
-commit fb03be9d5577a3d22834a25b3b62916aee30db2a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Mar 2 10:27:18 2021 -0500
+commit ba9e10889976025ee1d027db6b1cad383ec56de8
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Thu Aug 6 14:57:38 2020 -0400
 
-    cmd/compile: use getcallersp for gorecover "fp" arg
+    cmd: update golang.org/x/xerrors
     
-    Currently, the compiler synthesize a special ".fp" node, which
-    points to the FP of the current frame, be to used to call
-    gorecover. Later that node turns to an Arg in SSA that is not
-    really an arg, causing problems for the new ABI work which changes
-    the handling of Args, so we have to special-case that node.
+    This pulls in CL 247217.
     
-    This CL changes the compiler to get the FP by using getcallersp,
-    which is an intrinsic in SSA and works on all platforms. As we
-    need the FP, not the caller SP, one drawback is that we have to
-    add FixedFrameSize for LR machines. But it does allow us to remove
-    that special node.
+    Fixes #40573
     
-    Change-Id: Ie721d51efca8116c9d23cc4f79738fffcf847df8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297930
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I89eeebb5da9a4668adc6b5c5155651e5da421d59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247186
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/name.go                   | 2 --
- src/cmd/compile/internal/ssagen/pgen.go               | 7 +------
- src/cmd/compile/internal/ssagen/ssa.go                | 4 ----
- src/cmd/compile/internal/typecheck/builtin.go         | 1 +
- src/cmd/compile/internal/typecheck/builtin/runtime.go | 1 +
- src/cmd/compile/internal/typecheck/universe.go        | 5 -----
- src/cmd/compile/internal/walk/expr.go                 | 9 ++++++++-
- 7 files changed, 11 insertions(+), 18 deletions(-)
+ src/cmd/go.mod             | 1 +
+ src/cmd/go.sum             | 2 ++
+ src/cmd/vendor/modules.txt | 3 ++-
+ 3 files changed, 5 insertions(+), 1 deletion(-)

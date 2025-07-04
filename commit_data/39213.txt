@@ -1,27 +1,25 @@
-commit 2d357d8da864fc8d14e7e7834d521aa638243772
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Thu May 16 02:28:47 2019 +0700
+commit d585f04fd39f86edaa2aafd776e9ad037d075396
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jan 26 11:55:00 2019 -0800
 
-    cmd/compile: fix typecheck type alias makes wrong export symbol metadata
+    cmd/compile: base PPC64 trunc rules on final type, not op type
     
-    typecheck type alias always replaces the original definition of the symbol.
-    This is wrong behavior because if the symbol's definition is replaced by a
-    local type alias, it ends up being written to compiled file as an alias,
-    instead of the original type.
+    Whether a truncation should become a MOVWreg or a MOVWZreg doesn't
+    depend on the type of the operand, it depends on the type of the final
+    result.  If the final result is unsigned, we can use MOVWZreg.  If the
+    final result is signed, we can use MOVWreg.  Checking the type of the
+    operand does the wrong thing if truncating an unsigned value to a
+    signed value, or vice-versa.
     
-    To fix, only replace the definition of symbol with global type alias.
+    Fixes #29943
     
-    Fixes #31959
-    
-    Change-Id: Id85a15e8a9d6a4b06727e655a95dc81e63df633a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177378
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ia6fc7d006486fa02cffd0bec4d910bdd5b6365f8
+    Reviewed-on: https://go-review.googlesource.com/c/159760
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  6 +++++-
- test/fixedbugs/issue31959.dir/a.go       | 12 ++++++++++++
- test/fixedbugs/issue31959.dir/main.go    | 21 +++++++++++++++++++++
- test/fixedbugs/issue31959.go             |  7 +++++++
- test/fixedbugs/issue31959.out            |  2 ++
- 5 files changed, 47 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  6 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 42 ++++++++++++++++------------
+ test/fixedbugs/issue29943.go                 | 28 +++++++++++++++++++
+ 3 files changed, 55 insertions(+), 21 deletions(-)

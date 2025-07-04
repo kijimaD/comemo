@@ -1,18 +1,29 @@
-commit 9558ba293f9ea1c9241eba99858eee449ba882d2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 31 17:12:29 2018 -0800
+commit 7e31d9b9f7e8e4e72472cfcbd807b5672806635a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 5 17:43:38 2017 +1100
 
-    reflect: add embedded field test
+    misc/cgo/testcshared: skip all but TestExportedSymbols on windows
     
-    Gccgo failed this test.
+    TestUnexportedSymbols requires dup2 that
+    my gcc installation does not have.
     
-    Updates #23620
+    TestSignalHandlersWithNotify fails with:
+    undefined: syscall.SIGIO.
     
-    Change-Id: I3979a6d3b87d2d014850accf9cb7f356349e6195
-    Reviewed-on: https://go-review.googlesource.com/91138
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TestSignalHandlers fails with:
+    sched.h: No such file or directory.
+    
+    TestExportedSymbolsWithDynamicLoad fails with:
+    dlfcn.h: No such file or directory.
+    
+    Also add t.Helper calls to better error messages.
+    
+    Updates #11058
+    
+    Change-Id: I7eb514968464256b8337e45f57fcb7d7fe0e4693
+    Reviewed-on: https://go-review.googlesource.com/68410
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/all_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ misc/cgo/testcshared/cshared_test.go | 29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)

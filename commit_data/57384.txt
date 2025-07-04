@@ -1,23 +1,23 @@
-commit 0fc3b127a09ee5f99f4f9f9a83d3364ff2b69a9b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 4 18:06:50 2024 -0700
+commit f8966594faf95b19d270b9076fbafb71d78ca614
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Aug 1 05:08:08 2023 +0000
 
-    go/types, types2: factor type checking of basic literals and generate go/types code
+    archive: use predeclared function min
     
-    Move the code for type checking of basic literals into literals.go.
+    Change-Id: I23e0005071fcbafeaecaa05f51712dd1de6eed01
     
-    In go/types, the respective code is now generated from the types2 source.
-    
-    Change-Id: Ib21eb7a87e11b77bcb2469985f9844964d35df57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610540
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I23e0005071fcbafeaecaa05f51712dd1de6eed01
+    GitHub-Last-Rev: 364d7c74fef1668930b730b05a7539f7ac43e60a
+    GitHub-Pull-Request: golang/go#61661
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514215
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/expr.go     | 58 +-----------------------
- src/cmd/compile/internal/types2/literals.go | 67 +++++++++++++++++++++++++++-
- src/go/types/expr.go                        | 58 +-----------------------
- src/go/types/generate_test.go               |  5 ++-
- src/go/types/literals.go                    | 68 ++++++++++++++++++++++++++++-
- 5 files changed, 139 insertions(+), 117 deletions(-)
+ src/archive/tar/common.go   |  7 -------
+ src/archive/zip/writer.go   | 15 ++++-----------
+ src/archive/zip/zip_test.go |  7 -------
+ 3 files changed, 4 insertions(+), 25 deletions(-)

@@ -1,32 +1,21 @@
-commit 56284f9d29d17869cd70847693c51319408710b3
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Sep 25 17:10:24 2020 -0400
+commit 8e100a05a5d72c2f2b079d8791edf700c612e45e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 11 17:00:08 2020 -0400
 
-    src/buildall.bash: remove mobile filter
+    [dev.link] cmd/internal/goobj2, cmd/link: avoid some repeated offset calculations
     
-    Mobile targets are not supported by misc-compile trybots, as tracked in
-    golang.org/issue/25963, and need to be filtered out. The buildall.bash
-    script was created in CL 9438, back when it was a single all-compile
-    builder, and it was easier to filter out mobile targets in the script
-    than to come up with a pattern that matches all non-mobile targets.
+    When iterating relocations, do the offset calculation just once.
+    This gives some speedup:
     
-    As of CL 254740, all mobile targets (Android and iOS) have unique GOOS
-    values. That makes it it easy to filter them out in x/build/dashboard.
-    This was done in CL 258057. As a result, it's now viable to simplify
-    this script and perform all misc-compile target selection in x/build,
-    rather than having it spread it across two places.
+    (linking cmd/compile)
+    Deadcode      52.8ms ± 1%    47.6ms ± 1%  -10.01%  (p=0.008 n=5+5)
+    Dostkcheck    44.2ms ± 1%    41.0ms ± 1%   -7.29%  (p=0.008 n=5+5)
     
-    Also, as of CL 10750, the all-compile builder has turned into multiple
-    misc-compile builders, so update the script description accordingly.
-    
-    Updates #41610.
-    
-    Change-Id: I1e33260ac18cf0a70bb68cd8e3db5587100c7e87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257962
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I09e38bc29afc379a81f99e3ee4ff467bc1b5f8a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222302
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/buildall.bash | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/internal/goobj2/objfile.go     |  7 +++++++
+ src/cmd/link/internal/ld/deadcode2.go  |  6 ++++--
+ src/cmd/link/internal/loader/loader.go | 13 ++++++++++---
+ 3 files changed, 21 insertions(+), 5 deletions(-)

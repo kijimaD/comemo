@@ -1,21 +1,18 @@
-commit f388b58540c2cc401dfa79e3d7b6a1846ac9a59f
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Feb 24 09:53:27 2016 -0800
+commit f000523018e80471f51e29cae117831157d8dfb8
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Dec 1 14:47:22 2015 +1300
 
-    cmd/compile: reuseable cache of Prog structs
+    runtime: set r12 to sigpanic before jumping to it in sighandler
     
-    Reuseable cache of Prog entries.
+    The ppc64le shared library ABI demands that r12 is set to a function's global
+    entrypoint before jumping to the global entrypoint. Not doing so means that
+    handling signals that usually panic actually crashes (and so, e.g. can't be
+    recovered). Fixes several failures of "cd test; go run run.go -linkshared".
     
-    Improves compiler speed by ~10%.
-    
-    Update #13646
-    
-    Change-Id: I01bd8606540d989ea8b8ba5131d1275ba380d976
-    Reviewed-on: https://go-review.googlesource.com/19868
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia4d0da4c13efda68340d38c045a52b37c2f90796
+    Reviewed-on: https://go-review.googlesource.com/17280
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/link.go    |  4 ++++
- src/cmd/internal/obj/objfile.go |  1 +
- src/cmd/internal/obj/util.go    | 15 ++++++++++++++-
- 3 files changed, 19 insertions(+), 1 deletion(-)
+ src/runtime/signal_linux_ppc64x.go | 1 +
+ src/runtime/signal_ppc64x.go       | 1 +
+ 2 files changed, 2 insertions(+)

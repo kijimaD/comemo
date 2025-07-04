@@ -1,14 +1,12 @@
-commit 4d7017dcd02a4fb35b2cd3b31b852d858bd5fbb3
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Mar 5 11:12:58 2012 +1100
+commit 30f9c99e3e96c22c57a5ef120d442a1d186a4ade
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Mar 5 10:58:43 2012 +1100
 
-    doc/effective_go: minor fix
-            We have 'gofmt' and 'go fmt', but not 'go tool fmt'.
+    html/template: fix comment typo
     
-    R=golang-dev, kyle, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5739043
+    https://golang.org/cl/5730051
 
- doc/effective_go.html | 2 +-
- doc/effective_go.tmpl | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/html/template/html.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

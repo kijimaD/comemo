@@ -1,14 +1,14 @@
-commit 03f987c8eae3b9ac065b4e69c3fd3024fa73fe92
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Jul 7 16:32:19 2011 +1000
+commit 07c9a925644ad2c6f6742be09371c0556f3beb91
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 7 16:05:38 2011 +1000
 
-    image: tighten Paletted.Opaque to check only those palette entries
-    in the image, not all palette entries.
+    os: fix documentation for FileInfo.Name.
+    It's the base name, not the full name.
+    Fixes #2047.
     
-    R=r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4672049
+    https://golang.org/cl/4680041
 
- src/pkg/image/image.go      | 17 +++++++++++++++--
- src/pkg/image/image_test.go |  5 +++++
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/pkg/os/types.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

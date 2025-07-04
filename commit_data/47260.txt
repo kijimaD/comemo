@@ -1,22 +1,21 @@
-commit 2c32f29f2f88e56f329547467090e7315cd3c1e8
-Author: Matthias Dötsch <matze@mdoetsch.de>
-Date:   Fri Oct 29 03:23:15 2021 +0000
+commit 125eca0f7210da1bbf1a4a1460a87d1c33366b99
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Mar 6 04:46:07 2021 +1100
 
-    cmd/go: clarify errors for pseudo-version commit length
+    cmd/compile: improve IsNonNil rule on riscv64
     
-    These error messages contain the expected shortened revision in braces,
-    but don't explicitly tell the user that this is the expected one.
+    IsNonNil is readily implemented using SNEZ on riscv64, removing over 8,000
+    instructions from the go binary. Other rules will improve on this sequence,
+    however in this case it makes sense to use a direct simplification.
     
-    Just unified it with the "does not match version-control timestamp" error which does the same...
-    
-    Change-Id: I8e07df7bd776fd1b39c4c90c4788cb3d626ea00b
-    GitHub-Last-Rev: d14681ad086790f4e43c312c8a328d588acc6ec4
-    GitHub-Pull-Request: golang/go#42578
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269877
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ib4068599532398afcd05f51d160673ef5fb5e5a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299230
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo.go           | 6 +++---
- src/cmd/go/testdata/script/mod_invalid_version.txt | 8 ++++----
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 18 ++----------------
+ 2 files changed, 3 insertions(+), 17 deletions(-)

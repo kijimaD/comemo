@@ -1,38 +1,37 @@
-commit 9f89edcd9668bb3b011961fbcdd8fc2796acba5d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 30 10:56:30 2019 -0700
+commit a919b760378343a211719991a9e0b1b819ac9f3d
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Feb 19 13:03:55 2019 -0800
 
-    cmd/compile: silence esc diagnostics about directiface OCONVIFACEs
+    os: make errors.Is work with ErrPermission et al.
     
-    In general, a conversion to interface type may require values to be
-    boxed, which in turn necessitates escape analysis to determine whether
-    the boxed representation can be stack allocated.
+    As proposed in Issue #29934, update errors produced by the os package to
+    work with errors.Is sentinel tests. For example,
+    errors.Is(err, os.ErrPermission) is equivalent to os.IsPermission(err)
+    with added unwrapping support.
     
-    However, esc.go used to unconditionally print escape analysis
-    decisions about OCONVIFACE, even for conversions that don't require
-    boxing (e.g., pointers, channels, maps, functions).
+    Move the definition for os.ErrPermission and others into the syscall
+    package. Add an Is method to syscall.Errno and others. Add an Unwrap
+    method to os.PathError and others.
     
-    For test compatibility with esc.go, escape.go similarly printed these
-    useless diagnostics. This CL removes the diagnostics, and updates test
-    expectations accordingly.
+    Updates #30322
+    Updates #29934
     
-    Change-Id: I97c57a4a08e44d265bba516c78426ff4f2bf1e12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192697
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I95727d26c18a5354c720de316dff0bffc04dd926
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163058
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/cmd/compile/internal/gc/escape.go |  7 ---
- test/escape2.go                       | 80 +++++++++++++++++------------------
- test/escape2n.go                      | 80 +++++++++++++++++------------------
- test/escape5.go                       |  4 +-
- test/escape_closure.go                | 12 +++---
- test/escape_field.go                  | 30 ++++++-------
- test/escape_iface.go                  | 54 +++++++++++------------
- test/escape_indir.go                  |  4 +-
- test/escape_level.go                  | 20 ++++-----
- test/escape_map.go                    |  2 +-
- test/escape_param.go                  | 44 +++++++++----------
- test/escape_unsafe.go                 |  4 +-
- test/fixedbugs/issue12006.go          | 10 ++---
- 13 files changed, 172 insertions(+), 179 deletions(-)
+ src/fmt/errors_test.go         |  4 ++--
+ src/go/build/deps_test.go      |  5 +++--
+ src/internal/oserror/errors.go | 20 +++++++++++++++++
+ src/os/error.go                | 49 +++++++++++++++++++++++++++++++++---------
+ src/os/error_plan9.go          | 44 -------------------------------------
+ src/os/error_test.go           | 20 +++++++++++++----
+ src/os/error_unix.go           | 24 ---------------------
+ src/os/error_windows.go        | 28 ------------------------
+ src/os/file.go                 |  4 ++++
+ src/syscall/syscall_js.go      | 17 +++++++++++++++
+ src/syscall/syscall_nacl.go    | 17 +++++++++++++++
+ src/syscall/syscall_plan9.go   | 44 ++++++++++++++++++++++++++++++++++++-
+ src/syscall/syscall_unix.go    | 17 +++++++++++++++
+ src/syscall/syscall_windows.go | 23 ++++++++++++++++++++
+ 14 files changed, 201 insertions(+), 115 deletions(-)

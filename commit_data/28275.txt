@@ -1,36 +1,20 @@
-commit 39382793d3a9e7a0720e6dbf8be4b19e8519af19
-Author: Jack Lindamood <jlindamo@justin.tv>
-Date:   Tue Jul 26 14:20:36 2016 -0700
+commit f77f22b2bf43f565ac0933c8e1068c387e4007c3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 10 09:46:39 2016 -0700
 
-    context: reduce memory usage of context tree
+    net/http: update bundled x/net/http2
     
-    Modifies context package to use map[]struct{} rather than map[]bool,
-    since the map is intended as a set object.  Also adds Benchmarks to
-    the context package switching between different types of root nodes
-    and a tree with different depths.
+    Updates x/net/http2 to git rev 96dbb961 for golang.org/cl/23002
     
-    Included below are bytes deltas between the old and new code, using
-    these benchmarks.
+    Fixes #15366
+    Updates #15134 (server part remains)
     
-    benchmark                                                       old bytes     new bytes     delta
-    BenchmarkContextCancelTree/depth=1/Root=Background-8            176           176           +0.00%
-    BenchmarkContextCancelTree/depth=1/Root=OpenCanceler-8          560           544           -2.86%
-    BenchmarkContextCancelTree/depth=1/Root=ClosedCanceler-8        352           352           +0.00%
-    BenchmarkContextCancelTree/depth=10/Root=Background-8           3632          3488          -3.96%
-    BenchmarkContextCancelTree/depth=10/Root=OpenCanceler-8         4016          3856          -3.98%
-    BenchmarkContextCancelTree/depth=10/Root=ClosedCanceler-8       1936          1936          +0.00%
-    BenchmarkContextCancelTree/depth=100/Root=Background-8          38192         36608         -4.15%
-    BenchmarkContextCancelTree/depth=100/Root=OpenCanceler-8        38576         36976         -4.15%
-    BenchmarkContextCancelTree/depth=100/Root=ClosedCanceler-8      17776         17776         +0.00%
-    BenchmarkContextCancelTree/depth=1000/Root=Background-8         383792        367808        -4.16%
-    BenchmarkContextCancelTree/depth=1000/Root=OpenCanceler-8       384176        368176        -4.16%
-    BenchmarkContextCancelTree/depth=1000/Root=ClosedCanceler-8     176176        176176        +0.00%
-    
-    Change-Id: I699ad704d9f7b461214e1651d24941927315b525
-    Reviewed-on: https://go-review.googlesource.com/25270
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I29336e624706f906b754da66381a620ae3293c6c
+    Reviewed-on: https://go-review.googlesource.com/23003
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/context/context.go      |  8 ++++----
- src/context/context_test.go | 42 ++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 44 insertions(+), 6 deletions(-)
+ src/net/http/clientserver_test.go | 11 -----
+ src/net/http/h2_bundle.go         | 91 ++++++++++++++++++++++++++++++++-------
+ 2 files changed, 75 insertions(+), 27 deletions(-)

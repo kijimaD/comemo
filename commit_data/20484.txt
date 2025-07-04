@@ -1,20 +1,20 @@
-commit 5fdea3430aed2224a88efa764034ef2ee2b4ccb1
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 18 21:43:09 2014 -0400
+commit 00365b13b45a7a0cbfd0752c44ef84dc4961ce76
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 11 13:46:58 2014 -0700
 
-    runtime: revise TestSetPanicOnFault
+    runtime: get rid of copyable check - all G frames are copyable.
     
-    We can't assume all those addresses are unmapped.
-    But at least one should be.
+    Just go ahead and do it, if something is wrong we'll throw.
     
-    What we're really testing is that the program doesn't crash.
+    Also rip out cc-generated arg ptr maps, they are useless now.
     
-    Fixes #8542.
-    
-    LGTM=iant
-    R=golang-codereviews, iant, minux
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/144120043
+    https://golang.org/cl/133690045
 
- src/runtime/runtime_test.go | 23 +++++++++++++++--------
- 1 file changed, 15 insertions(+), 8 deletions(-)
+ src/cmd/cc/bv.c     |  45 -------------
+ src/cmd/cc/cc.h     |   6 --
+ src/cmd/cc/pgen.c   | 163 ---------------------------------------------
+ src/runtime/stack.c | 187 +++++++++-------------------------------------------
+ 4 files changed, 31 insertions(+), 370 deletions(-)

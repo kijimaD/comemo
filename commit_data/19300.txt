@@ -1,16 +1,15 @@
-commit 21e75b3251a0e6dde7a05d77ac390fa342a1e2f8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 9 12:18:50 2014 -0400
+commit 65c63dc4aabba3ecd320427fb20bc1cdbe0d2a3d
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 8 08:35:49 2014 -0700
 
-    testing: write profiles on failure
+    runtime: write memory profile statistics to the heap dump.
     
-    Fixes #7901.
-    
-    LGTM=r
-    R=r
+    LGTM=rsc
+    R=rsc, khr
     CC=golang-codereviews
-    https://golang.org/cl/90930044
+    https://golang.org/cl/97010043
 
- doc/go1.3.html             | 1 +
- src/pkg/testing/testing.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/runtime/heapdump.c | 71 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/malloc.h   |  1 +
+ src/pkg/runtime/mprof.goc  | 12 ++++++++
+ 3 files changed, 84 insertions(+)

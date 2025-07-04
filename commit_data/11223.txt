@@ -1,38 +1,14 @@
-commit a5263c7caa61eb9eedfd6c15e3c1f989d5490ef9
-Author: Luit van Drongelen <luitvd@gmail.com>
-Date:   Wed Jan 18 10:36:28 2012 -0500
+commit 18ee75ec88593d96796089038b93ed66596ae4d9
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Jan 18 09:52:16 2012 +0100
 
-    crypto/hmac: Add HMAC-SHA224 and HMAC-SHA384/512
+    gc: handle printing of string/arrayrune conversions
     
-    First was, apart from adding tests, a single line of code (to add the
-    constructor function). Adding SHA512-based hashing to crypto/hmac
-    required minor rework of the package because of a previously hardcoded
-    block-size in it's implementation. Instead of using a hash.Hash
-    generator function the constructor function now uses a crypto.Hash
-    type, which was extended to expose information about block size.
+    Fixes #2714.
     
-    The only standard library package impacted by the change is
-    crypto/tls, for which the fix is included in this patch. It might be
-    useful to extend gofix to include this API change too.
-    
-    R=agl, r, rsc, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5550043
+    https://golang.org/cl/5540066
 
- src/pkg/crypto/hmac/hmac.go                   |  32 ++-
- src/pkg/crypto/hmac/hmac_test.go              | 312 +++++++++++++++++++++++++-
- src/pkg/crypto/md4/md4.go                     |   5 +
- src/pkg/crypto/md5/md5.go                     |   5 +
- src/pkg/crypto/openpgp/canonical_text.go      |   4 +
- src/pkg/crypto/openpgp/canonical_text_test.go |   4 +
- src/pkg/crypto/ripemd160/ripemd160.go         |   2 +
- src/pkg/crypto/sha1/sha1.go                   |   5 +
- src/pkg/crypto/sha256/sha256.go               |   5 +
- src/pkg/crypto/sha512/sha512.go               |   5 +
- src/pkg/exp/ssh/transport.go                  |   2 +
- src/pkg/hash/adler32/adler32.go               |   2 +
- src/pkg/hash/crc32/crc32.go                   |   2 +
- src/pkg/hash/crc64/crc64.go                   |   2 +
- src/pkg/hash/fnv/fnv.go                       |   5 +
- src/pkg/hash/hash.go                          |   6 +
- 16 files changed, 367 insertions(+), 31 deletions(-)
+ src/cmd/gc/fmt.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

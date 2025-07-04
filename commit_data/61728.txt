@@ -1,0 +1,24 @@
+commit f7b15264c8656cdda5db1364f30f813dabd743f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 20 08:01:57 2024 -0500
+
+    cmd/dist: vet non-test packages in short mode
+    
+    Pass all packages to go test, even if they don't have test files,
+    so that go test can still run vet.
+    
+    I just got burned by a vet error in a package without a test
+    showing up when I added an (unrelated) test.
+    There are not enough packages without tests to be worth
+    the "savings" of not letting the go command vet those packages.
+    
+    For #60463.
+    
+    Change-Id: Ib9258655151144dce6a51deeae73d651aa46cb2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630015
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/test.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

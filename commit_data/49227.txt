@@ -1,43 +1,23 @@
-commit d81dd1290665aea2de8d4d5284be26ea0bfe4cd2
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon May 16 17:53:36 2022 -0400
+commit 7bed50e667cf1b4ba5b2ec7ca699c835c696e454
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 30 16:41:11 2021 -0400
 
-    all: update vendored golang.org/x dependencies for Go 1.19 release
+    [dev.typeparams] Revert "[dev.typeparams] runtime: remove unnecessary split-prevention from defer code"
     
-    The Go 1.19 code freeze has recently started. This is a time to update
-    all golang.org/x/... module versions that contribute packages to the
-    std and cmd modules in the standard library to latest master versions.
+    This reverts CL 337651.
     
-    This CL updates the rest of the modules with x/build/cmd/updatestd.
+    This causes `go test -count 1000 -run TestDeferHeapAndStack runtime`
+    to fail with a SIGSEGV freedefer
+    [https://build.golang.org/log/c113b366cc6d51146db02a07b4d7dd931133efd5]
+    and possibly sometimes a GC bad pointer panic
+    [https://build.golang.org/log/5b1cef7a9ad68704e9ef3ce3ad2fefca3ba86998].
     
-    For #36905.
-    
-    Change-Id: I4751ca477365b036a8e5ad6a9256293b44ddcd2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406356
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ie56c274b78603c81191213b302225ae19de27fb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338710
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go.mod                                     |   6 +-
- src/cmd/go.sum                                     |  12 +--
- .../analysis/passes/httpresponse/httpresponse.go   |  41 ++++-----
- .../x/tools/go/types/objectpath/objectpath.go      | 100 ++++++++++++++++++++-
- .../x/tools/internal/typeparams/termlist.go        |   9 --
- .../x/tools/internal/typeparams/typeterm.go        |   9 +-
- src/cmd/vendor/modules.txt                         |   6 +-
- src/go.mod                                         |   6 +-
- src/go.sum                                         |  12 +--
- src/net/http/h2_bundle.go                          |  35 ++++++--
- .../golang.org/x/crypto/chacha20/chacha_s390x.go   |   1 +
- .../golang.org/x/crypto/cryptobyte/builder.go      |  14 +--
- .../x/crypto/curve25519/internal/field/fe_amd64.go |   3 +
- .../x/crypto/internal/poly1305/sum_generic.go      |   5 +-
- .../x/crypto/internal/poly1305/sum_s390x.go        |   1 +
- src/vendor/golang.org/x/net/nettest/conntest.go    |   4 +-
- src/vendor/golang.org/x/text/unicode/bidi/core.go  |  20 ++---
- .../golang.org/x/text/unicode/norm/forminfo.go     |   9 +-
- .../golang.org/x/text/unicode/norm/normalize.go    |  11 +--
- src/vendor/modules.txt                             |   6 +-
- 20 files changed, 206 insertions(+), 104 deletions(-)
+ src/runtime/panic.go | 84 ++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 55 insertions(+), 29 deletions(-)

@@ -1,21 +1,22 @@
-commit df380693f3eddf0a4ae7d195042b48b40e651d0e
-Author: Alex Buchanan <buchanae@gmail.com>
-Date:   Wed Dec 5 22:31:53 2018 -0800
+commit 2177bfb343c4950be88536044bb38c90f05ad3ed
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 26 11:46:26 2019 -0700
 
-    mime/multipart: add Part.NextRawPart to avoid QP decoding
+    database/sql: add NullInt32
     
-    NextPart has automatic handling of quoted-printable encoding,
-    which is sometimes undesirable. NextRawPart adds a method
-    for reading a part while bypassing such automatic handling.
+    It is common for database integers to be represented as int32
+    internally. Although NullInt64 is already defined,
+    this should remove some type casts and make working with those eaiser.
     
-    Fixes #29090
+    For #31231
     
-    Change-Id: I6a042a4077c64091efa3f5dbecce0d9a34ac7065
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/152877
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia0c37ecef035fee0734c1d1fb6f58aef6905cf5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174178
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/mime/multipart/multipart.go      | 38 ++++++++++++++++-------
- src/mime/multipart/multipart_test.go | 60 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 87 insertions(+), 11 deletions(-)
+ src/database/sql/fakedb_test.go |  4 ++++
+ src/database/sql/sql.go         | 26 ++++++++++++++++++++++++++
+ src/database/sql/sql_test.go    | 13 +++++++++++++
+ 3 files changed, 43 insertions(+)

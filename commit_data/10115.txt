@@ -1,12 +1,12 @@
-commit bff71ed421e51cd89fb2e113ab80e5aef10bd986
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 26 12:20:40 2011 -0700
+commit 9611d12b7e9b945099c18b1144a90aec7b849686
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 26 11:17:48 2011 -0700
 
-    A+C: Jan Newmarch (individual CLA)
+    C+A: add Jongmin Kim (individual CLA)
     
-    R=golang-dev, iant
+    R=golang-dev, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/5305062
+    https://golang.org/cl/5312057
 
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +

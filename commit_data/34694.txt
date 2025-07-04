@@ -1,36 +1,31 @@
-commit 6f08b9faf2f92752b3246cf52a1f3be76c3882a9
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue Jan 30 19:25:37 2018 -0800
+commit a042221cdb9eb8b11240311057ff274e26b53165
+Author: David Chase <drchase@google.com>
+Date:   Sun Oct 29 11:53:18 2017 -0400
 
-    database/sql: add more examples
+    cmd/compile: adjust Pos setting for "empty" blocks
     
-    This aims to expand the coverage of examples showing how the sql
-    package works, as well as to address a number of issues I've observed
-    while explaining how the database package works:
+    Plain blocks that contain only uninteresting instructions
+    (that do not have reliable Pos information themselves)
+    need to have their Pos left unset so that they can
+    inherit it from their successors.  The "uninteresting"
+    test was not properly applied and not properly defined.
+    OpFwdRef does not appear in the ssa.html debugging output,
+    but at the time of the test these instructions did appear,
+    and it needs to be part of the test.
     
-    - The best way to issue UPDATE or INSERT queries, that don't need
-    to scan anything in return. (Previously, we had no examples for any
-    Execute statement).
+    Fixes #22365.
     
-    - How to use prepared statements and transactions.
-    
-    - How to aggregate arguments from a Query/QueryContext query into
-    a slice.
-    
-    Furthermore just having examples in more places should help, as users
-    click on e.g. the "Rows" return parameter and are treated with the
-    lack of any example about how Rows is used.
-    
-    Switch package examples to use QueryContext/QueryRowContext; I think
-    it is a good practice to prepare users to issue queries with a timeout
-    attached, even if they are not using it immediately.
-    
-    Change-Id: I4e63af91c7e4fff88b25f820906104ecefde4cc3
-    Reviewed-on: https://go-review.googlesource.com/91015
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: I99e5b271acd8f6bcfe0f72395f905c7744ea9a02
+    Reviewed-on: https://go-review.googlesource.com/74252
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/database/sql/example_test.go | 187 +++++++++++++++++++++++++++++++++++++--
- src/database/sql/sql.go          |  19 +---
- 2 files changed, 181 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 | 37 ++++++++++++++--------
+ src/cmd/compile/internal/ssa/block.go              | 23 ++++++++++++++
+ .../internal/ssa/testdata/hist.dbg-dlv.nexts       |  3 +-
+ .../internal/ssa/testdata/hist.dbg-gdb.nexts       |  3 +-
+ .../internal/ssa/testdata/hist.opt-gdb.nexts       |  1 -
+ src/cmd/compile/internal/ssa/value.go              | 11 +++++++
+ test/fixedbugs/issue18902.go                       |  2 +-
+ 7 files changed, 61 insertions(+), 19 deletions(-)

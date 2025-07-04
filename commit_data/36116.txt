@@ -1,65 +1,79 @@
-commit 5fc70b6fac0664f3f9d2c2948ba78db420ba70c5
-Author: Keith Randall <khr@google.com>
-Date:   Mon Jul 23 13:09:48 2018 -0700
+commit 20cf5c49623530b9f4511fceae7f2ca8c0a29809
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Mar 22 02:18:50 2018 +0000
 
-    cmd/compile: set stricter inlining threshold in large functions
+    cmd/compile: optimize 386 binary operations with a memory operand
     
-    If we're compiling a large function, be more picky about how big
-    the function we're inlining is.  If the function is >5000 nodes,
-    we lower the inlining threshold from a cost of 80 to 20.
+    Some integer/float binary operations of 386 can take a direct memory
+    operand, which is more efficient than loading to a register.
     
-    Turns out reflect.Value's cost is exactly 80.  That's the function
-    at issue in #26546.
+    These CL does this optimization by copying the similar solution
+    of amd64. And the go1 benchmark shows some inprovements, especially
+    the test case Template. (excluding noise)
     
-    20 was chosen as a proxy for "inlined body is smaller than the call would be".
-    Simple functions still get inlined, like this one at cost 7:
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              3.42s ± 2%     3.40s ± 2%    ~     (p=0.069 n=38+39)
+    Fannkuch11-4                3.48s ± 1%     3.53s ± 1%  +1.59%  (p=0.000 n=40+40)
+    FmtFprintfEmpty-4          46.7ns ± 4%    46.3ns ± 3%  -1.03%  (p=0.001 n=40+40)
+    FmtFprintfString-4         80.1ns ± 3%    80.6ns ± 3%  +0.56%  (p=0.029 n=40+40)
+    FmtFprintfInt-4            92.4ns ± 2%    92.3ns ± 3%    ~     (p=0.847 n=40+40)
+    FmtFprintfIntInt-4          147ns ± 3%     144ns ± 3%  -1.87%  (p=0.000 n=40+40)
+    FmtFprintfPrefixedInt-4     182ns ± 2%     184ns ± 3%  +0.99%  (p=0.002 n=40+40)
+    FmtFprintfFloat-4           387ns ± 3%     384ns ± 3%    ~     (p=0.069 n=40+40)
+    FmtManyArgs-4               619ns ± 3%     616ns ± 3%    ~     (p=0.320 n=40+40)
+    GobDecode-4                7.28ms ± 6%    7.27ms ± 5%    ~     (p=0.897 n=40+40)
+    GobEncode-4                7.33ms ± 6%    7.21ms ± 6%  -1.56%  (p=0.022 n=38+40)
+    Gzip-4                      357ms ± 4%     357ms ± 4%    ~     (p=0.071 n=40+40)
+    Gunzip-4                   45.3ms ± 3%    45.4ms ± 3%    ~     (p=0.452 n=40+40)
+    HTTPClientServer-4         63.0µs ± 2%    62.9µs ± 3%    ~     (p=0.760 n=38+39)
+    JSONEncode-4               22.0ms ± 4%    21.7ms ± 4%  -1.49%  (p=0.000 n=40+40)
+    JSONDecode-4               67.7ms ± 4%    68.3ms ± 3%  +0.86%  (p=0.039 n=40+40)
+    Mandelbrot200-4            5.16ms ± 3%    5.17ms ± 3%    ~     (p=0.418 n=40+40)
+    GoParse-4                  3.30ms ± 2%    3.32ms ± 3%  +0.55%  (p=0.017 n=40+40)
+    RegexpMatchEasy0_32-4       104ns ± 3%     104ns ± 4%    ~     (p=0.992 n=40+40)
+    RegexpMatchEasy0_1K-4       852ns ± 3%     851ns ± 2%    ~     (p=0.344 n=40+40)
+    RegexpMatchEasy1_32-4       113ns ± 4%     113ns ± 5%    ~     (p=0.937 n=40+40)
+    RegexpMatchEasy1_1K-4      1.03µs ± 5%    1.04µs ± 4%    ~     (p=0.430 n=40+40)
+    RegexpMatchMedium_32-4      132ns ± 4%     131ns ± 3%  -1.06%  (p=0.027 n=40+40)
+    RegexpMatchMedium_1K-4     43.0µs ± 3%    43.2µs ± 3%    ~     (p=0.122 n=40+40)
+    RegexpMatchHard_32-4       2.21µs ± 4%    2.20µs ± 4%    ~     (p=0.146 n=40+40)
+    RegexpMatchHard_1K-4       67.1µs ± 4%    67.2µs ± 3%    ~     (p=0.859 n=40+40)
+    Revcomp-4                   1.85s ± 2%     1.85s ± 3%    ~     (p=0.184 n=40+40)
+    Template-4                 70.1ms ± 4%    67.5ms ± 3%  -3.65%  (p=0.000 n=40+40)
+    TimeParse-4                 457ns ±16%     439ns ± 4%    ~     (p=0.683 n=40+34)
+    TimeFormat-4                413ns ± 3%     414ns ± 3%    ~     (p=0.850 n=40+40)
+    [Geo mean]                 67.5µs         67.3µs       -0.38%
     
-    func ifaceIndir(t *rtype) bool {
-            return t.kind&kindDirectIface == 0
-    }
+    name                     old speed      new speed      delta
+    GobDecode-4               105MB/s ± 6%   106MB/s ± 5%    ~     (p=0.893 n=40+40)
+    GobEncode-4               105MB/s ± 6%   107MB/s ± 7%  +1.60%  (p=0.023 n=38+40)
+    Gzip-4                   54.4MB/s ± 4%  54.5MB/s ± 4%    ~     (p=0.073 n=40+40)
+    Gunzip-4                  429MB/s ± 3%   428MB/s ± 3%    ~     (p=0.453 n=40+40)
+    JSONEncode-4             88.3MB/s ± 5%  89.6MB/s ± 4%  +1.51%  (p=0.000 n=40+40)
+    JSONDecode-4             28.7MB/s ± 4%  28.4MB/s ± 3%  -0.87%  (p=0.039 n=40+40)
+    GoParse-4                17.6MB/s ± 3%  17.5MB/s ± 3%  -0.55%  (p=0.020 n=40+40)
+    RegexpMatchEasy0_32-4     308MB/s ± 4%   308MB/s ± 5%    ~     (p=0.988 n=40+40)
+    RegexpMatchEasy0_1K-4    1.20GB/s ± 3%  1.20GB/s ± 2%    ~     (p=0.329 n=40+40)
+    RegexpMatchEasy1_32-4     283MB/s ± 4%   283MB/s ± 4%    ~     (p=0.507 n=40+40)
+    RegexpMatchEasy1_1K-4     991MB/s ± 5%   987MB/s ± 4%    ~     (p=0.446 n=40+40)
+    RegexpMatchMedium_32-4   7.54MB/s ± 4%  7.63MB/s ± 3%  +1.26%  (p=0.004 n=40+40)
+    RegexpMatchMedium_1K-4   23.8MB/s ± 3%  23.7MB/s ± 4%    ~     (p=0.121 n=40+40)
+    RegexpMatchHard_32-4     14.5MB/s ± 4%  14.6MB/s ± 4%    ~     (p=0.145 n=40+40)
+    RegexpMatchHard_1K-4     15.3MB/s ± 4%  15.2MB/s ± 3%    ~     (p=0.874 n=40+40)
+    Revcomp-4                 137MB/s ± 2%   137MB/s ± 3%    ~     (p=0.179 n=40+40)
+    Template-4               27.7MB/s ± 4%  28.7MB/s ± 3%  +3.78%  (p=0.000 n=40+40)
+    [Geo mean]               78.9MB/s       79.2MB/s       +0.38%
     
-    5000 nodes was chosen as the big function size.  Here are all the
-    5000+ node (~~1000+ lines) functions in the stdlib:
-    
-    5187 cmd/internal/obj/arm (*ctxt5).asmout
-    6879 cmd/internal/obj/s390x (*ctxtz).asmout
-    6567 cmd/internal/obj/ppc64 (*ctxt9).asmout
-    9643 cmd/internal/obj/arm64 (*ctxt7).asmout
-    5042 cmd/internal/obj/x86 (*AsmBuf).doasm
-    8768 cmd/compile/internal/ssa rewriteBlockAMD64
-    8878 cmd/compile/internal/ssa rewriteBlockARM
-    8344 cmd/compile/internal/ssa rewriteValueARM64_OpARM64OR_20
-    7916 cmd/compile/internal/ssa rewriteValueARM64_OpARM64OR_30
-    5427 cmd/compile/internal/ssa rewriteBlockARM64
-    5126 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_50
-    6152 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_60
-    6412 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_70
-    6486 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_80
-    6534 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_90
-    6534 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_100
-    6534 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_110
-    6675 cmd/compile/internal/gc typecheck1
-    5433 cmd/compile/internal/gc walkexpr
-    14070 cmd/vendor/golang.org/x/arch/arm64/arm64asm decodeArg
-    
-    There are a lot more smaller (~1000 node) functions in the stdlib.
-    The function in #26546 has 12477 nodes.
-    
-    At some point it might be nice to have a better heuristic for "inlined
-    body is smaller than the call", a non-cliff way to scale down the cost
-    as the function gets bigger, doing cheaper inlined calls first, etc.
-    All that can wait for another release. I'd like to do this CL for
-    1.11.
-    
-    Fixes #26546
-    Update #17566
-    
-    Change-Id: Idda13020e46ec2b28d79a17217f44b189f8139ac
-    Reviewed-on: https://go-review.googlesource.com/125516
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I3ba688c253b665485c1ebdf5a75f4ce82cc3def3
+    Reviewed-on: https://go-review.googlesource.com/102036
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/inl.go |   72 ++-
- test/inline_big.go                 | 1029 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 1082 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules |   24 +-
+ src/cmd/compile/internal/ssa/gen/386Ops.go |   17 +-
+ src/cmd/compile/internal/ssa/opGen.go      |  214 +++++
+ src/cmd/compile/internal/ssa/rewrite386.go | 1397 +++++++++++++++++++++++++---
+ src/cmd/compile/internal/x86/ssa.go        |   11 +
+ 5 files changed, 1552 insertions(+), 111 deletions(-)

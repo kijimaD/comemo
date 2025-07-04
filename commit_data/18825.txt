@@ -1,13 +1,14 @@
-commit 2d9fab905b6380507f92e5dbd9b95107a86130f3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 11 11:50:56 2014 -0700
+commit da291de5a2bb7a4c7b92133a3e1765d279ca6a32
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Mar 11 13:06:01 2014 -0400
 
-    C: add Kay Zhu (Google CLA)
+    crypto/rsa: fix docs for PrecomputedValues.Qinv
+    Fixes #7507.
     
-    LGTM=iant
-    R=iant
+    LGTM=agl
+    R=agl
     CC=golang-codereviews
-    https://golang.org/cl/74110043
+    https://golang.org/cl/74090043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/crypto/rsa/rsa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

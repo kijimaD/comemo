@@ -1,38 +1,32 @@
-commit 28a05f541dd218c40cc221db4e97898cc5a3b902
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Fri Oct 7 00:49:15 2022 +0000
+commit 5d24203c394e6b64c42a9f69b990d94cb6c8aad4
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Nov 10 16:22:08 2021 -0500
 
-    cmd/go/internal/modload: improve error message for failing to read module listed in go.work
+    internal/fuzz: set timeout for each exec of fuzz target
     
-    Run "go build ./x" in this workspace:
+    This change sets a timeout of 10 seconds on each
+    execution of the fuzz target, both during fuzzing
+    and during minimization. This is not currently
+    customizable by the user, but issue #48157 tracks
+    this work.
     
-      -- go.work --
-      use ./y
-      -- x/go.mod --
-      module x
+    Deadlocks will be considered non-recoverable errors,
+    and as such, will not be minimizable.
     
-      go 1.19
-      -- x/m.go --
-      package m
+    Fixes #48591
     
-    It fails with: "go: open /tmp/foo/y/go.mod: no such file or directory".
-    It's unclear where the name "y" comes from.
-    This change will emit error like: "go: cannot load module listed in
-    go.work file: open /tmp/foo/y/go.mod: no such file or directory"
-    
-    Fixes #55952.
-    
-    Change-Id: Ia45dd915e3fbd6e33340f352b3d6235c6c31190b
-    GitHub-Last-Rev: 410de1b4a71d07bbd5abd1482b6d55fa29f31336
-    GitHub-Pull-Request: golang/go#56050
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438147
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ic86e8e9e9a0255e7860f7cbf5654e832785d1cbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363134
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/init.go                |  6 +++++-
- src/cmd/go/testdata/script/work_use_issue55952.txt | 11 +++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt  |  2 +-
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  | 16 +++++++++-
+ .../testdata/script/test_fuzz_mutator_repeat.txt   |  2 +-
+ .../testdata/script/test_fuzz_non_crash_signal.txt |  2 +-
+ src/internal/fuzz/minimize_test.go                 |  9 ++++--
+ src/internal/fuzz/worker.go                        | 36 ++++++++++++++--------
+ src/internal/fuzz/worker_test.go                   |  3 +-
+ 7 files changed, 49 insertions(+), 21 deletions(-)

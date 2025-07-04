@@ -1,0 +1,22 @@
+commit fadfe2fc80f6b37e99b3e7aa068112ff539717c9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Feb 1 04:52:57 2025 +0000
+
+    internal/trace/tracev2: add test to validate spec invariants
+    
+    This change adds a test to help guide people adding experiments to this
+    package by validating that the spec is written correctly.
+    
+    Also, makes some minor tweaks to the package in order to get the tests
+    to pass.
+    
+    Change-Id: I3daa420c5a9ec3ea536415c8e5d06f41666a9566
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646015
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/tracev2/events.go      | 13 +++-
+ src/internal/trace/tracev2/events_test.go | 98 +++++++++++++++++++++++++++++++
+ src/internal/trace/tracev2/spec.go        |  7 ++-
+ 3 files changed, 114 insertions(+), 4 deletions(-)

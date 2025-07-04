@@ -1,41 +1,25 @@
-commit db3f952b1f3c996085cb9bfe846590084f8fae2e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 5 09:30:58 2023 -0700
+commit 9c2b481b57aea1ee69b2131c09af1e0dc0ea84d8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 28 15:29:38 2022 -0400
 
-    cmd/compile/internal/syntax: better error message when using = instead of ==
+    run: set GOENV=off when running 'go tool dist env'
     
-    When = is used instead of == as part of a conditional expression,
-    the parser message emphasizes the LHS and RHS of = by always
-    parenthesizing the two sides. For example, for:
+    'go tool' sets environment variables, including the GOAMD64 value
+    from the user's go.env file.
     
-            if x = y {}
+    'go tool dist test' then rebuilds and reinstalls the toolchain and
+    standard library based on those variables. It should not; instead, it
+    should test exactly the configuration installed by the make scripts.
     
-    the error is:
+    Fixes #54084.
     
-            cannot use assignment (x) = (y) as value
-    
-    This is done to highlight the LHS and RHS in case of more complex
-    cases such as
-    
-            if x || y = z {}
-    
-    which one may incorrectly read as (x) || (y == z) rather than the
-    correct (x || y) = z.
-    
-    This CL fine-tunes the error message a bit by only adding the
-    parentheses if the LHS and RHS are binary expressions.
-    
-    Fixes #60599.
-    For #23385.
-    
-    Change-Id: Ida4c8d12464cc2ac15c934f24858eb6f43cf9950
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500975
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I7cc8a21cc1d8331e06d7b7c55b14d170f8e2faab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420055
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/syntax/parser.go              | 17 +++++++++++++----
- src/cmd/compile/internal/syntax/testdata/issue60599.go | 11 +++++++++++
- 2 files changed, 24 insertions(+), 4 deletions(-)
+ src/run.bash | 1 +
+ src/run.bat  | 1 +
+ src/run.rc   | 1 +
+ 3 files changed, 3 insertions(+)

@@ -1,14 +1,12 @@
-commit e45e3244204a8c944e231a8e168e68b5b5134bea
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Oct 18 11:47:11 2011 +1100
+commit 07a34495cf07b903b3f173ad57582d560b912841
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Oct 18 11:35:58 2011 +1100
 
-    fmt: fix test relying on map iteration order.
+    tag release.r60.3
     
-    This fixes the 386 builds.
-    
-    R=golang-dev, adg, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5293043
+    https://golang.org/cl/5298041
 
- src/pkg/fmt/fmt_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

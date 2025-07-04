@@ -1,21 +1,19 @@
-commit 55e6e825d4c90544248c3a725b4dee9fb45848e7
-Author: Carl Johnson <me@carlmjohnson.net>
-Date:   Tue Aug 31 20:35:35 2021 +0000
+commit b3235b75d109f06eec0d3603c606b2d8373b9d4c
+Author: Aman Karmani <aman@tmm1.net>
+Date:   Tue Mar 2 11:52:34 2021 -0800
 
-    net/http: add MaxBytesHandler
+    encoding/gob: ensure "duplicate type received" decoder errors surface up
     
-    Fixes #39567
+    Previously re-using a decoder with a new stream resulted in a confusing
+    "extra data in buffer" error message.
     
-    Change-Id: I226089b678a6a13d7ce69f360a23fc5bd297d550
-    GitHub-Last-Rev: 6435fd5881fc70a276d04df5a60440e365924b49
-    GitHub-Pull-Request: golang/go#48104
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346569
-    Trust: Damien Neil <dneil@google.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: Ia4c4c3a2d4b63c59e37e53faa61a500d5ff6e5f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297949
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/net/http/serve_test.go | 60 ++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     |  9 +++++++
- 2 files changed, 69 insertions(+)
+ src/encoding/gob/decoder.go      |  3 +++
+ src/encoding/gob/encoder_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

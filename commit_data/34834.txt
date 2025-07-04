@@ -1,16 +1,14 @@
-commit 8f38f28222abccc505b9a1992deecfe3e2cb85de
-Author: James Hartig <fastest963@gmail.com>
-Date:   Fri Feb 2 13:45:19 2018 -0500
+commit ce68e1b81c470ef29ece6a33980ab05e2b8bb30c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 16 09:35:31 2017 -0800
 
-    net/http/httputil: make ReverseProxy panic on error while copying body
+    builtin: improve docs for make slice
     
-    Fixes #23643.
+    Fixes #22764
     
-    Change-Id: I4f8195a36be817d79b9e7c61a5301f153b681493
-    Reviewed-on: https://go-review.googlesource.com/91675
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I339d3bbb08983e0d69d69a1d00c4d15d0661762a
+    Reviewed-on: https://go-review.googlesource.com/78335
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 23 +++++++++----
- src/net/http/httputil/reverseproxy_test.go | 52 +++++++++++++++++++++++++-----
- 2 files changed, 61 insertions(+), 14 deletions(-)
+ src/builtin/builtin.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

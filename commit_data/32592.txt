@@ -1,30 +1,28 @@
-commit cecba84a0da049db4df9c1e8aef32b936ef986ea
-Author: griesemer <gri@golang.org>
-Date:   Thu Aug 31 17:41:51 2017 +0200
+commit 98b3e3a0649e749129380bf9117f20402701ec2d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu May 4 13:58:27 2017 -0400
 
-    go/types: fix Info.Implicits entries
+    cmd/go, cmd/compile: match tool versions
     
-    Packages of dot imports don't appear in the Info.Implicits map
-    since they are already taken care of by the Info.Defs map. Fix
-    documentation.
+    This change passes runtime.Version from the go tool to the compiler.
+    If the versions do not match, the compilation fails.
+    The result is a go tool from one GOROOT will complain loudly if it
+    is invoked with a different GOROOT value.
     
-    Implicitly dot-imported objects of a package shouldn't appear
-    in the Info.Implicits map because the documentation never said
-    so and there's no way to map multiple objects to the same
-    *ast.ImportSpec with the current data structure.
+    Only release versions are checked, so that when developing Go
+    you can still use "go install cmd/go" and "go install cmd/compile"
+    separately.
     
-    Added missing test for Info.Implicits.
+    Fixes #19064
     
-    The fix is a trivial one-line deletion, the rest is documentation
-    and test.
-    
-    Fixes #21591.
-    
-    Change-Id: I12a37dab85c531911c9363ec3d58daa095c7eb24
-    Reviewed-on: https://go-review.googlesource.com/60672
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I17e184d07d3c1092b1d9af53ba55ed3ecf67791d
+    Reviewed-on: https://go-review.googlesource.com/42595
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/api.go      | 28 ++++++++++++------------
- src/go/types/api_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/go/types/resolver.go |  1 -
- 3 files changed, 71 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/main.go |  7 +++++++
+ src/cmd/go/go_test.go               | 11 +++++++++++
+ src/cmd/go/internal/work/build.go   |  5 +++++
+ src/cmd/go/internal/work/testgo.go  | 17 +++++++++++++++++
+ 4 files changed, 40 insertions(+)

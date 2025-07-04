@@ -1,24 +1,14 @@
-commit 2a2cab2911083f1ed2ea5c6bf24a12e2c5f6bcfc
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Aug 30 18:07:39 2016 +0300
+commit b3a130e81a0c3c2508f483af15e57d181c5cdc1e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 30 20:11:34 2016 -0700
 
-    math: speed up bessel functions on AMD64
+    net/http: document some errors more, mark ErrWriteAfterFlush as unused
     
-    J0-4            71.9ns ± 1%  54.6ns ± 0%  -24.08%  (p=0.000 n=20+18)
-    J1-4            71.6ns ± 0%  55.4ns ± 0%  -22.60%  (p=0.000 n=19+20)
-    Jn-4             153ns ± 0%   118ns ± 1%  -22.71%  (p=0.000 n=20+20)
-    Y0-4            70.8ns ± 0%  53.9ns ± 0%  -23.87%  (p=0.000 n=19+19)
-    Y1-4            70.8ns ± 0%  54.1ns ± 0%  -23.54%  (p=0.000 n=20+20)
-    Yn-4             149ns ± 0%   116ns ± 0%  -22.15%  (p=0.000 n=19+20)
+    Fixes #15150
     
-    Fixes #16889
-    
-    Change-Id: Ie88496407b42f6acb918ffae1226b1b4c0500cb9
-    Reviewed-on: https://go-review.googlesource.com/28086
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1a892d5b0516a37dac050d3bb448e0a2571db16e
+    Reviewed-on: https://go-review.googlesource.com/22658
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/math/j0.go | 38 +++++++++++++++++++-------------------
- src/math/j1.go | 38 +++++++++++++++++++-------------------
- 2 files changed, 38 insertions(+), 38 deletions(-)
+ src/net/http/server.go | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

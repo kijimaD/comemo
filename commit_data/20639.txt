@@ -1,21 +1,13 @@
-commit 7e6e502f9b9a253603c43bb783b82a043a67c3d4
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 6 14:49:22 2014 -0400
+commit dff461f935523035d2f64dc80b1626a0644ab344
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 25 14:10:56 2014 -0700
 
-    cmd/go: fix 'go vet' of package with external tests
+    doc/gopher: add biplane.jpg
     
-    For example, fixes 'go vet syscall', which has source
-    files in package syscall_test.
-    
-    Fixes #8511.
-    
-    LGTM=r
-    R=golang-codereviews, r
-    CC=golang-codereviews, iant
-    https://golang.org/cl/152220044
+    LGTM=0intro
+    R=golang-codereviews, 0intro
+    CC=golang-codereviews
+    https://golang.org/cl/150960043
 
- src/cmd/go/test.bash                     | 14 ++++++++++++++
- src/cmd/go/testdata/src/vetpkg/a_test.go |  1 +
- src/cmd/go/testdata/src/vetpkg/b.go      |  7 +++++++
- src/cmd/go/vet.go                        | 23 ++++++++++++++++++-----
- 4 files changed, 40 insertions(+), 5 deletions(-)
+ doc/gopher/biplane.jpg | Bin 0 -> 203420 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

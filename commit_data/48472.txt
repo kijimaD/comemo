@@ -1,16 +1,20 @@
-commit 6be52abfa1aea30b33c1e2db27ea92e954661aa4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 16 15:17:36 2022 -0700
+commit f87194cbd7e79eef07c897a6240fbf2dc115f9ff
+Author: ian woolf <btw515wolf2@gmail.com>
+Date:   Fri May 7 16:31:00 2021 +0800
 
-    go/types, types2: remove mechanism to exclude tests for unified build
+    doc/go1.17: document changes to net/http package
     
-    The unified build will become the norm and the excluded tests run now.
+    Changes include:
+    * ReadRequest function now returns an error when a request has multiple
+      Host headers.
     
-    Change-Id: I0f0873eb73483a4f04736d167d2eb796ee8a857b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393438
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    For #44513.
+    Updates #46015.
+    
+    Change-Id: I48ea7c5cee3f1d1a247035fd37191362a53d1f04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317914
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
 
- src/cmd/compile/internal/types2/check_test.go | 18 ------------------
- src/go/types/check_test.go                    | 18 ------------------
- 2 files changed, 36 deletions(-)
+ doc/go1.17.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

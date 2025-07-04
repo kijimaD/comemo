@@ -1,31 +1,21 @@
-commit 564b350c08a1906e8f6a876fef4cca71f6516d4c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jul 27 12:57:36 2020 -0400
+commit c27dd0c9e581edb71c834e161db6a920ca239997
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 26 03:58:59 2020 +1100
 
-    cmd/go/internal/modload: rename LoadBuildList and BuildList
+    cmd/compile: improve Eq32/Neq32 on riscv64
     
-    With lazy loading, the “build list” can be refined as packages are loaded.
-    Rename functions that return the build list to more precisely describe
-    the set of modules returned by the call.
+    Use SUBW to perform a 32-bit subtraction, rather than zero extending from
+    32 to 64 bits. This reduces Eq32 and Neq32 to two instructions, rather than
+    the four instructions required previously.
     
-    Also eliminate a redundant call to LoadBuildList (right before
-    ListModules, which itself begins with the same call).
-    
-    For #36460
-    
-    Change-Id: I0fc4f9dd7602e0df5e166e329ee5d516d810ca53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249878
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ib2798324881e9db842c864e91a0c1b1e48c4b67b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220921
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/list/list.go         |  2 --
- src/cmd/go/internal/modcmd/graph.go      |  2 +-
- src/cmd/go/internal/modcmd/vendor.go     |  2 +-
- src/cmd/go/internal/modcmd/verify.go     |  2 +-
- src/cmd/go/internal/modget/get.go        | 10 +++----
- src/cmd/go/internal/modload/build.go     |  2 +-
- src/cmd/go/internal/modload/buildlist.go | 47 ++++++++++++++++++--------------
- src/cmd/go/internal/modload/list.go      |  2 +-
- 8 files changed, 36 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/gc/plive.go           |  4 ++--
+ src/cmd/compile/internal/riscv64/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 15 +++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 22 ++++++++--------------
+ 6 files changed, 29 insertions(+), 19 deletions(-)

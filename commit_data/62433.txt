@@ -1,0 +1,31 @@
+commit 47fd73a51c52d58147f164317fc1f5640055bbad
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Thu Dec 19 19:03:43 2024 +0800
+
+    cmd/internal/obj/loong64: add {V,XV}{SLL/SRL/SRA/ROTR}[I].{B/H/W/D} instructions support
+    
+    Go asm syntax:
+             V{SLL/SRL/SRA/ROTR}{B/H/W/V}   $1, V2, V3
+            XV{SLL/SRL/SRA/ROTR}{B/H/W/V}   $1, X2, X3
+             V{SLL/SRL/SRA/ROTR}{B/H/W/V}   VK, VJ, VD
+            XV{SLL/SRL/SRA/ROTR}{B/H/W/V}   XK, XJ, XD
+    
+    Equivalent platform assembler syntax:
+             v{sll/srl/sra/rotr}i.{b/h/w/d} v3, v2, $1
+            xv{sll/srl/sra/rotr}i.{b/h/w/d} x3, x2, $1
+             v{sll/srl/sra/rotr}.{b/h/w/d}  vd, vj, vk
+            xv{sll/srl/sra/rotr}.{b/h/w/d}  xd, xj, xk
+    
+    Change-Id: Ie4f04de1c77491a71688d226f7d91cd1a699ab47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 130 ++++++++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  34 ++++
+ src/cmd/internal/obj/loong64/anames.go          |  32 +++
+ src/cmd/internal/obj/loong64/asm.go             | 252 ++++++++++++++++++++++++
+ 4 files changed, 448 insertions(+)

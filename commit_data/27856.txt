@@ -1,15 +1,16 @@
-commit 8c9a7978942296085628bc33eefcb9bab561f4ee
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Mon Aug 15 23:24:31 2016 -0700
+commit 75c079cb976e2ba2106074ca0b3005b788c18f08
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 15 13:39:47 2016 -0700
 
-    cmd/go: document -v flag for get
+    archive/tar: style nit: s/nano_buf/nanoBuf/
     
-    Fixes #16719.
+    Pointed out during review of golang.org/cl/22104.
     
-    Change-Id: I20550628814e3454f17d6f8ae8b66cce17f09859
-    Reviewed-on: https://go-review.googlesource.com/27118
+    Change-Id: If8842e7f8146441e918ec6a2b6e893b7cf88615c
+    Reviewed-on: https://go-review.googlesource.com/22120
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go | 2 ++
- src/cmd/go/get.go     | 2 ++
- 2 files changed, 4 insertions(+)
+ src/archive/tar/reader.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

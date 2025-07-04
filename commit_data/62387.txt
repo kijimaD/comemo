@@ -1,0 +1,18 @@
+commit 194696f1d1f6e5609f96d0fb0192595e7e0f5b90
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Feb 23 11:06:17 2025 +0800
+
+    reflect: let Value.Seq return the iteration value correct type
+    
+    Fixes #71905
+    
+    Change-Id: I50a418f8552e071c6e5011af5b9accc7d41548d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651855
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/reflect/iter.go      | 41 ++++++++++++++++++++++--------------
+ src/reflect/iter_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 16 deletions(-)

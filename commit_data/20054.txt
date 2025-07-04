@@ -1,13 +1,13 @@
-commit cccd66c6c446fb2d4f2ee74259898d0acb8ec803
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Aug 20 14:36:28 2014 -0700
+commit 00b75a237af6ec8cdf227c18a5e6afe701bd61a0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 13 14:00:10 2014 +1000
 
-    runtime: remove unused variable
+    misc/makerelease: exit with nonzero status code on error
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/128230047
+    https://golang.org/cl/129040043
 
- src/pkg/runtime/atomic_arm.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/makerelease/makerelease.go | 5 +++++
+ 1 file changed, 5 insertions(+)

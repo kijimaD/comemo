@@ -1,15 +1,14 @@
-commit 7d98da8d3174b167b8408ef89836d6ec85ad3dc0
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Jan 7 14:43:00 2020 -0500
+commit d5fe73393c40c7b4070aa73903671c8d1f23f2c2
+Author: peter zhang <i@ddatsh.com>
+Date:   Mon Sep 2 11:41:23 2019 +0000
 
-    cmd/go: fix test broken by incorrect comments
+    math/big: fix a duplicate "the" in a comment
     
-    I accidentally used // instead of #.
-    
-    Change-Id: I2c9b9d40dd83994ce80fc837e8d992d3807f3e24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213659
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ib637381ab8a12aeb798576b781e1b3c458ba812d
+    GitHub-Last-Rev: 12994496b6b636d75564e5ae7e938b65bca526df
+    GitHub-Pull-Request: golang/go#34017
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192877
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/testdata/script/build_import_comment.txt | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/math/big/ratconv.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

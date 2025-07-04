@@ -1,36 +1,43 @@
-commit f451a318bbc8f8cc6afb5a6d2dcb2234924b6271
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Jun 22 11:00:13 2018 +0200
+commit 5b14c7b324dc645dd7c90b22ddd86affac0637c2
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Feb 19 11:10:31 2018 -0500
 
-    sync: fix deficiency in RWMutex race annotations
+    cmd/asm, cmd/internal/obj/ppc64: avoid unnecessary load zeros
     
-    Remove unnecessary race.Release annotation from Unlock.
+    When instructions add, and, or, xor, and movd have
+    constant operands in some cases more instructions are
+    generated than necessary by the assembler.
     
-    For RWMutex we want to establish the following happens-before (HB) edges:
-    1. Between Unlock and the subsequent Lock.
-    2. Between Unlock and the subsequent RLock.
-    3. Between batch of RUnlock's and the subsequent Lock.
+    This adds more opcode/operand combinations to the optab
+    and improves the code generation for the cases where the
+    size and sign of the constant allows the use of 1
+    instructions instead of 2.
     
-    1 is provided by Release(&rw.readerSem) in Unlock and Acquire(&rw.readerSem) in Lock.
-    2 is provided by Release(&rw.readerSem) in Unlock and Acquire(&rw.readerSem) in RLock.
-    3 is provided by ReleaseMerge(&rw.writerSem) in RUnlock in Acquire(&rw.writerSem) in Lock,
-    since we want to establish HB between a batch of RUnlock's this uses ReleaseMerge instead of Release.
+    Example of previous code:
+            oris r3, r0, 0
+            ori  r3, r3, 65533
     
-    Release(&rw.writerSem) in Unlock is simply not needed.
+    now:
+            ori r3, r0, 65533
     
-    FWIW this is also how C++ tsan handles mutexes, not a proof but at least something.
-    Making 2 implementations consistent also simplifies any kind of reasoning against both of them.
+    This does not significantly reduce the overall binary size
+    because the improvement depends on the constant value.
+    Some procedures show a 1-2% reduction in size. This improvement
+    could also be significant in cases where the extra instructions
+    occur in a critical loop.
     
-    Since this only affects performance, a reasonable test is not possible.
-    Everything should just continue to work but slightly faster.
+    Testcase ppc64enc.s was added to cmd/asm/internal/asm/testdata
+    with the variations affected by this change.
     
-    Credit for discovering this goes to Jamie Liu.
+    Updates #23845
     
-    Change-Id: Ice37d29ecb7a5faed3f7781c38dd32c7469b2735
-    Reviewed-on: https://go-review.googlesource.com/120495
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7fdf2320c95815d99f2755ba77d0c6921cd7fad7
+    Reviewed-on: https://go-review.googlesource.com/95135
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/sync/rwmutex.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/asm/internal/asm/endtoend_test.go    |   4 ++
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s |  87 ++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/asm9.go           | 104 ++++++++++++++++++++-------
+ 3 files changed, 170 insertions(+), 25 deletions(-)

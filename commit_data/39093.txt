@@ -1,19 +1,12 @@
-commit a44c3edbe0aafb509a175dfe0918bd17863bc97c
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri May 3 18:06:41 2019 -0400
+commit f4f1b14ab497539bc2fd326965c8a4b40bbae49d
+Author: Hidetatsu Yaginuma <ygnmhdtt@gmail.com>
+Date:   Sun Dec 30 16:03:53 2018 +0900
 
-    all: document vendoring in the standard library
+    strconv: add missing package name into doc.go(godoc overview)
     
-    Added documentation that explains special cases for vendored packages
-    in the standard library and provides instructions for updating vendor
-    directories.
-    
-    Fixes #31806
-    
-    Change-Id: Ib697ed18eae28023ab0bfb9f4d250992c393571d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174999
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I336ad707a85bf0c81b6c2230c90452c0b3b92924
+    Reviewed-on: https://go-review.googlesource.com/c/155998
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/README.vendor     | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/README.vendor |  2 ++
- 2 files changed, 56 insertions(+)
+ src/strconv/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

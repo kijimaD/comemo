@@ -1,32 +1,31 @@
-commit 255e206b2bae9e7632043e08cf8cc0c7ce445c31
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 19 02:13:36 2016 +0000
+commit 1f0bebcc7260480550ad114048a9428cea68e4f1
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Sat Mar 26 19:35:21 2016 +0000
 
-    net/http: update bundled http2
+    syscall: fix accidental close of exec status pipe in StartProcess
     
-    Updates x/net/http2 to git rev 5916dcb1 for:
+    In syscall.forkAndExecInChild, blocks of code labelled Pass 1
+    and Pass 2 permute the file descriptors (if necessary) which are
+    passed to the child process.  If Pass 1 begins with fds = {0,2,1},
+    nextfd = 4 and pipe = 4, then the statement labelled "don't stomp
+    on pipe" is too late -- the pipe (which will be needed to pass
+    exec status back to the parent) will have been closed by the
+    preceding DUP call.
     
-    * http2, lex/httplex: make Transport reject bogus headers before sending
-      https://golang.org/cl/23229
+    Moving the "don't stomp" test earlier ensures that the pipe is
+    protected.
     
-    * http2: reject more trailer values
-      https://golang.org/cl/23230
+    Fixes #14979
     
-    Fixes #14048
-    Fixes #14188
-    
-    Change-Id: Iaa8beca6e005267a3e849a10013eb424a882f2bb
-    Reviewed-on: https://go-review.googlesource.com/23234
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I890c311527f6aa255be48b3277c1e84e2049ee22
+    Reviewed-on: https://go-review.googlesource.com/21184
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/build/deps_test.go                          |   1 +
- src/net/http/h2_bundle.go                          | 216 ++++++++-------------
- src/net/http/http.go                               |   6 +
- src/net/http/server.go                             |   8 +-
- src/net/http/transfer.go                           |   6 +-
- src/net/http/transport.go                          |   6 +-
- .../golang.org/x/net/lex/httplex/httplex.go}       |  63 ++++--
- .../golang.org/x/net/lex/httplex/httplex_test.go}  |   6 +-
- 8 files changed, 152 insertions(+), 160 deletions(-)
+ src/syscall/exec_bsd.go     |  6 +++---
+ src/syscall/exec_linux.go   |  6 +++---
+ src/syscall/exec_plan9.go   |  6 +++---
+ src/syscall/exec_solaris.go |  6 +++---
+ src/syscall/syscall_test.go | 14 ++++++++++++++
+ 5 files changed, 26 insertions(+), 12 deletions(-)

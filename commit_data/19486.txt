@@ -1,13 +1,13 @@
-commit a72a067b37656c0a282b8821ae6f702d77e8b0f2
+commit 865904f6d8c1dd80b1a203c531d0eb03e7f403f7
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jun 2 14:43:51 2014 +1000
+Date:   Mon Jun 2 12:46:03 2014 +1000
 
-    tag go1.3rc1
+    misc/makerelease: report uploads to the new downloads page
     
-    LGTM=minux
-    R=golang-codereviews, minux
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/106750043
+    https://golang.org/cl/102040047
 
- .hgtags | 1 +
- 1 file changed, 1 insertion(+)
+ misc/makerelease/makerelease.go | 57 ++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 50 insertions(+), 7 deletions(-)

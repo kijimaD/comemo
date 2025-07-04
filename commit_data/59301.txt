@@ -1,35 +1,22 @@
-commit 72fa8adbdc773343aca62d45c482074c860918b5
-Author: Huang Qiqi <huangqiqi@loongson.cn>
-Date:   Wed Jun 19 06:31:00 2024 +0000
+commit 9f9008ce6645aa322ed0e8bd27b1868143d8e832
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 28 15:47:28 2024 -0800
 
-    math/big: optimize mulAddVWW function for loong64
+    go/types, types2: disable incorrect optimization in type validity check
     
-    Benchmark results on Loongson 3A5000 (which is an LA464 implementation):
+    Fixes #65711.
     
-    goos: linux
-    goarch: loong64
-    pkg: math/big
-    cpu: Loongson-3A5000-HV @ 2500.00MHz
-                     │ test/old_3a5000_muladdvww.log │    test/new_3a5000_muladdvww.log    │
-                     │            sec/op             │   sec/op     vs base                │
-    MulAddVWW/1                          7.606n ± 0%   6.987n ± 0%   -8.14% (p=0.000 n=20)
-    MulAddVWW/2                          9.207n ± 0%   8.567n ± 0%   -6.95% (p=0.000 n=20)
-    MulAddVWW/3                         10.810n ± 0%   9.223n ± 0%  -14.68% (p=0.000 n=20)
-    MulAddVWW/4                          13.01n ± 0%   12.41n ± 0%   -4.61% (p=0.000 n=20)
-    MulAddVWW/5                          15.79n ± 0%   12.99n ± 0%  -17.73% (p=0.000 n=20)
-    MulAddVWW/10                         25.62n ± 0%   20.02n ± 0%  -21.86% (p=0.000 n=20)
-    MulAddVWW/100                        217.0n ± 0%   170.9n ± 0%  -21.24% (p=0.000 n=20)
-    MulAddVWW/1000                       2.064µ ± 0%   1.612µ ± 0%  -21.90% (p=0.000 n=20)
-    MulAddVWW/10000                      24.50µ ± 0%   16.74µ ± 0%  -31.66% (p=0.000 n=20)
-    MulAddVWW/100000                     239.1µ ± 0%   171.1µ ± 0%  -28.45% (p=0.000 n=20)
-    geomean                              159.2n        130.3n       -18.18%
-    
-    Change-Id: I063434bc382f4f1234f879172ab671a3d6f2eb80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659881
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I3196b7d053c9868b74c53623526f2da0ab878f53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567976
+    Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/math/big/arith_loong64.s | 29 ++++++++++++++++++++++++++++-
- 1 file changed, 28 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/check.go           |  3 +-
+ src/cmd/compile/internal/types2/validtype.go       | 30 +++++++++-----
+ src/go/types/check.go                              |  3 +-
+ src/go/types/validtype.go                          | 30 +++++++++-----
+ .../types/testdata/fixedbugs/issue65711.go         | 25 ++++++++++++
+ src/internal/types/testdata/fixedbugs/issue6977.go | 47 ++++++++++++----------
+ 6 files changed, 96 insertions(+), 42 deletions(-)

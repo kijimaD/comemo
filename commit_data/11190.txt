@@ -1,13 +1,17 @@
-commit e5ed3a53e18df45f9c32a17aaa927337898f959d
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Jan 17 09:04:51 2012 +1100
+commit 650b936b0c4f7ee6d4f74d30a71013de300fbb90
+Author: Jeff Hodges <jeff@somethingsimilar.com>
+Date:   Mon Jan 16 12:57:59 2012 -0800
 
-    doc: fix anchor tag for latest weekly.
+    net/http: send cookies in jar on redirect
     
-    R=golang-dev
-    TBR=adg
-    CC=golang-dev
-    https://golang.org/cl/5545068
+    Until a RFC 6265 jar lands, Request.AddCookie() will work incorrectly.
+    
+    Fixes #2692
+    
+    R=bradfitz, rsc
+    CC=golang-dev, r
+    https://golang.org/cl/5544069
 
- doc/devel/weekly.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/client.go      |  6 +--
+ src/pkg/net/http/client_test.go | 87 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 90 insertions(+), 3 deletions(-)

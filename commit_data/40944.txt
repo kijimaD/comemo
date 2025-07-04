@@ -1,19 +1,21 @@
-commit d2dec04056cfa33c70b7fc4a72fd3d98b78bf385
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 5 13:44:01 2019 -0800
+commit 8d4b685ab5794f0ee8f95a3a75c566653ba4eb5a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 24 17:43:31 2019 -0700
 
-    runtime: add Gosched to TestSelectStackAdjust loop
+    cmd/compile: allow embedding overlapping interfaces
     
-    Give the runtime more of a chance to do other work in a tight loop.
+    Quietly drop duplicate methods inherited from embedded interfaces if
+    they have an identical signature to existing methods.
     
-    Fixes #34693
+    Updates #6977.
     
-    Change-Id: I8df6173d2c93ecaccecf4520a6913b495787df78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210217
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I144151cb7d99695f12b555c0db56207993c56284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187519
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/chan_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/align.go | 42 ++++++++++++++++++++++++++----------
+ test/fixedbugs/bug251.go             |  6 +-----
+ test/fixedbugs/issue6977.go          | 40 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 16 deletions(-)

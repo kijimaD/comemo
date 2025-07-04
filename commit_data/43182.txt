@@ -1,16 +1,22 @@
-commit 39d562ecea74bb41aa8fbb9d016fa64165e84bb3
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Mon Oct 5 17:51:54 2020 +0200
+commit 85a8526a7e8d12a31f2f1d9ebcec2841a27dc493
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Feb 21 02:30:09 2020 +1100
 
-    misc/ios: fixup review comments from CL 255257
+    cmd/asm,cmd/internal/obj/riscv: add LR/SC instructions
     
-    Change-Id: I247fc9e0e26e706e6af07367f953eaa1b7e544c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259577
-    Trust: Elias Naur <mail@eliasnaur.com>
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Add support for Load-Reserved (LR) and Store-Conditional (SC) instructions.
+    
+    Use instructions in place of currently used defines.
+    
+    Updates #36765
+    
+    Change-Id: I77e660639802293ece40cfde4865ac237e3308d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220540
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/ios/detect.go      | 2 +-
- misc/ios/go_ios_exec.go | 8 ++++----
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/asm/internal/arch/riscv64.go         | 25 +++++++++++++++++++++
+ src/cmd/asm/internal/asm/asm.go              | 17 +++++++++++++-
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  8 ++++++-
+ src/cmd/internal/obj/riscv/obj.go            | 33 +++++++++++++++++++++-------
+ src/runtime/internal/atomic/atomic_riscv64.s | 12 +++++-----
+ 5 files changed, 79 insertions(+), 16 deletions(-)

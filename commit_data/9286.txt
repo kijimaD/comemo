@@ -1,13 +1,13 @@
-commit 19e80b0818e6f17e03a96f589abb2571421c63c2
+commit ee9168d5074046f7cce54268ab87796f76acf5c5
 Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 4 15:56:25 2011 +1000
+Date:   Thu Aug 4 14:39:44 2011 +1000
 
-    gob: add UpdateMemStats calls to malloc counter
+    gob: don't invoke GobEncoder on zero values.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4808071
+    https://golang.org/cl/4801076
 
- src/pkg/gob/encode.go      | 2 +-
- src/pkg/gob/timing_test.go | 4 ++++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/gob/encode.go         | 24 ++++++++++++++++++++++++
+ src/pkg/gob/gobencdec_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 46 insertions(+)

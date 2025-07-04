@@ -1,13 +1,30 @@
-commit 34db31d5f5c64f8d232dc0f279ae7e7f621c2ad7
-Author: Tim Cooijmans <timcooijmans@gmail.com>
-Date:   Thu Aug 20 09:50:10 2015 +0200
+commit 91976aa676706d579331cb34090550e44f4505df
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 8 11:17:01 2015 +1000
 
-    src/runtime: Add missing defs for android/386.
+    cmd/doc: suppress symbols for commands when showing package docs
     
-    Change-Id: I63bf6d2fdf41b49ff8783052d5d6c53b20e2f050
-    Reviewed-on: https://go-review.googlesource.com/13760
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change the default behavior when showing the package docs
+    for a command to elide the symbols. This makes
+    
+            go doc somecommand
+    
+    show the top-level package docs only and hide the symbols,
+    which are probably irrelevant to the user. This has no effect
+    on explicit requests for internals, such as
+    
+            go doc somecommand.sometype
+    
+    The new -cmd flag restores the old behavior.
+    
+    Fixes #10733.
+    
+    Change-Id: I4d363081fe7dabf76ec8e5315770ac3609592f80
+    Reviewed-on: https://go-review.googlesource.com/11953
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/defs_linux_386.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/doc/main.go   |  5 +++++
+ src/cmd/doc/pkg.go    | 20 ++++++++++++++++++--
+ src/cmd/go/alldocs.go | 12 +++++++++++-
+ src/cmd/go/doc.go     | 12 +++++++++++-
+ 4 files changed, 45 insertions(+), 4 deletions(-)

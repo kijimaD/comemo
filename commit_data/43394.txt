@@ -1,23 +1,16 @@
-commit b64202bc29b9c1cf0118878d1c0acc9cdb2308f6
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 6 11:27:12 2020 -0400
+commit 82253ddc7a6b85240fd74cc5138f685ca931f355
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 28 12:36:03 2020 -0800
 
-    io/fs: add Glob and GlobFS
+    cmd/compile: constant fold CtzNN
     
-    Add Glob helper function, GlobFS interface, and test.
-    Add Glob method to fstest.MapFS.
-    Add testing of Glob method to fstest.TestFS.
-    
-    For #41190.
-    
-    Change-Id: If89dd7f63e310ba5ca2651340267a9ff39fcc0c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243915
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I3ecd2c7ed3c8ae35c2bb9562aed09f7ade5c8cdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221609
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/build/deps_test.go    |   2 +-
- src/io/fs/glob.go            | 116 +++++++++++++++++++++++++++++++++++++++++++
- src/io/fs/glob_test.go       |  82 ++++++++++++++++++++++++++++++
- src/testing/fstest/mapfs.go  |   4 ++
- src/testing/fstest/testfs.go |  96 +++++++++++++++++++++++++++++++++++
- 5 files changed, 299 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  10 ++
+ src/cmd/compile/internal/ssa/rewrite.go        |   7 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 152 +++++++++++++++++++++++++
+ 3 files changed, 166 insertions(+), 3 deletions(-)

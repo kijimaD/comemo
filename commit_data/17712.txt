@@ -1,17 +1,12 @@
-commit 4da408f676087d6e22356e2564a3e23d49440d16
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Sep 28 15:19:05 2013 -0700
+commit 9bd1f49e377d86c935d13d0bd0a8e8c3d986c18c
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Sat Sep 28 11:06:50 2013 +1000
 
-    test: match gccgo error messages for blank1.go
+    syscall: Fix one issue detected by vet.
     
-    blank1.go:10:9: error: invalid package name _
-    blank1.go:17:2: error: cannot use _ as value
-    blank1.go:18:7: error: cannot use _ as value
-    blank1.go:20:8: error: invalid use of ‘_’
-    
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/14088044
+    https://golang.org/cl/14038044
 
- test/blank1.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/exec_linux.go | 5 -----
+ 1 file changed, 5 deletions(-)

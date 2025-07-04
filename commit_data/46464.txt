@@ -1,18 +1,32 @@
-commit 5402b4376c0c51a31ea9c5ccf16b449a6ab3e79f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 16 15:00:47 2021 -0700
+commit fad9a8b52864da738037163565e8eacc958baaa8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 1 02:39:00 2021 -0800
 
-    spec: fix incorrect type in a shift example
+    [dev.regabi] cmd/compile: simplify inlining of closures
     
-    Thanks to @bodar (Github) for finding this.
+    Closures have their own ONAMEs for captured variables, which their
+    function bodies refer to. So during inlining, we need to account for
+    this and ensure the references still work.
     
-    Fixes #48422.
+    The previous inlining handled this by actually declaring the variables
+    and then either copying the original value or creating a pointer to
+    them, as appropriate for variables captured by value or by reference.
     
-    Change-Id: I031c3d82a02db1d204e2b86b494d89784d37f073
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350409
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    But this is needlessly complicated. When inlining the function body,
+    we need to rewrite all variable references anyway. We can just detect
+    closure variables and change them to directly point to the enclosing
+    function's version of this variable. No need for copying or further
+    indirection.
+    
+    Does not pass toolstash -cmp. Presumably because we're able to
+    generate better code in some circumstances.
+    
+    Change-Id: I8f0ccf7b098f39b8cd33f3bcefb875c8132d2c62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280996
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 55 ++++++++++++----------------------
+ 1 file changed, 19 insertions(+), 36 deletions(-)

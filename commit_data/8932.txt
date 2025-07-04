@@ -1,12 +1,14 @@
-commit 8c7a73bbbba1c6a374d3ab334e378299c6c4236b
+commit 3cd8f27d79604ac119ce732e87ac8a44fb998aaf
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jul 4 10:26:03 2011 +1000
+Date:   Sat Jul 2 14:07:06 2011 +1000
 
-    go/build: evaluate symlinks before comparing path to GOPATH
+    godoc: search GOPATH for documentation
     
-    R=golang-dev, r, dsymonds
+    R=rsc, mattn.jp
     CC=golang-dev
-    https://golang.org/cl/4645078
+    https://golang.org/cl/4627065
 
- src/pkg/go/build/path.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/godoc/godoc.go   | 11 ++++++++++-
+ src/cmd/godoc/main.go    |  6 +++++-
+ src/cmd/godoc/mapping.go | 12 ++++++------
+ 3 files changed, 21 insertions(+), 8 deletions(-)

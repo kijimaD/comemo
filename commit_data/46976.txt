@@ -1,18 +1,33 @@
-commit fca46d0b36c10250713ec0f4c9bf13d626f358d1
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Oct 20 12:31:53 2021 +0700
+commit a1e9148e3dbb20a18e0139583e7d835cc7a820bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 21:26:01 2021 -0500
 
-    go/types: print assignment operation for invalid operation errors
+    runtime: print hex numbers with hex prefixes in traceback debug
     
-    This is port of CL 357229 for types2 to go/types.
+    If traceback fails, it prints a helpful hex dump of the stack.
+    But the hex numbers have no 0x prefix, which might make it
+    a little unclear that they are hex.
+    We only print two per line, so there is plenty of room for the 0x.
+    Print it, which lets us delete a custom hex formatter.
     
-    Change-Id: I35ed6b784969210a00ea5b36238df7d6b7fa18bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357230
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Also, in the translated <name+off> hints, print off in hex
+    (with a 0x prefix). The offsets were previously decimal, which
+    could have been confused for hex since none of the hex had
+    0x prefixes. And decimal is kind of useless anyway since the
+    offsets shown in the main traceback are hex, so you can't
+    easily match them up without mental base conversions.
+    
+    Just print hex everywhere, clearly marked by 0x.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: I72d26a4e41ada38b620bf8fe3576d787a2e59b47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288809
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/expr.go                           | 6 +++++-
- src/go/types/testdata/fixedbugs/issue48472.go2 | 5 +++++
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/runtime/print.go | 26 ++++++++------------------
+ 1 file changed, 8 insertions(+), 18 deletions(-)

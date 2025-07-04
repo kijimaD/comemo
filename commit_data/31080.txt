@@ -1,30 +1,21 @@
-commit f95de5c67939629424441ed8364a6bf89bc9b1ef
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 11 06:40:34 2017 -0700
+commit 165cfbc409d54154263c26fb0cc2b2acd75d8b53
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Jan 25 08:27:45 2017 -0800
 
-    cmd/internal/obj/ppc64: make assembler almost concurrency-safe
+    database/sql: let tests wait for db pool to come to expected state
     
-    CL 39922 made the arm assembler concurrency-safe.
-    This CL does the same, but for ppc64.
-    The approach is similar: introduce ctxt9 to hold
-    function-local state and thread it through
-    the assembler as necessary.
+    Slower builders were failing TestQueryContext because the cancel
+    and return to conn pool happens async. TestQueryContext already
+    uses a wait method for this reason. Use the same method for
+    other context tests.
     
-    One race remains after this CL, similar to CL 40252.
+    Fixes #18759
     
-    That race is conceptually unrelated to this refactoring,
-    and will be addressed in a separate CL.
-    
-    Passes toolstash-check -all.
-    
-    Updates #15756
-    
-    Change-Id: Icc37d9a971bed2184c8e66b1a64f4f2e556dc207
-    Reviewed-on: https://go-review.googlesource.com/40372
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I84cce697392b867e4ebdfadd38027a06ca14655f
+    Reviewed-on: https://go-review.googlesource.com/35750
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/ppc64/asm9.go | 610 +++++++++++++++++++------------------
- src/cmd/internal/obj/ppc64/obj9.go | 200 ++++++------
- 2 files changed, 412 insertions(+), 398 deletions(-)
+ src/database/sql/sql_test.go | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

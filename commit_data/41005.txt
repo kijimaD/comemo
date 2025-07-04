@@ -1,16 +1,20 @@
-commit ba66797392da2b6538ce014a4f7e13c490e74d59
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 18 19:59:41 2019 -0800
+commit 84198445d4d7d264dc3e1b66194d378b590aaee0
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Tue Aug 27 22:26:38 2019 +0000
 
-    reflect: record PkgPath of StructOf arguments
+    crypto/ecdsa: improve documentation readability
     
-    Fixes #36190
-    Fixes #36191
+    Include references in the package-level comment block, expand
+    the obscure IRO acronym, and add a reference for "the standard
+    (cryptographic) assumptions".
     
-    Change-Id: I1213ef37b6595af63dbe202a8ade65741caf1356
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212001
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #33589
+    
+    Change-Id: I76c3b0a2f7258b3ab4bf1c8e7681c5d159720a20
+    GitHub-Last-Rev: 30d5a1e2fbbbb577ccc819f5ef80d5238565c9f3
+    GitHub-Pull-Request: golang/go#33723
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190840
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/reflect/all_test.go | 21 +++++++++++++++++++++
- src/reflect/type.go     | 21 ++++++++++++++++++---
- 2 files changed, 39 insertions(+), 3 deletions(-)
+ src/crypto/ecdsa/ecdsa.go | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

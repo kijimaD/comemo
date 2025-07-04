@@ -1,27 +1,31 @@
-commit 1846dd5a318f1abd293c9cd54c868b7e288f1d26
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Oct 24 09:08:47 2024 -0500
+commit 07faf8fab55d74ef6108e56b9e0ccee3e62b0a2d
+Author: Dominique Lefevre <domingolefevre@gmail.com>
+Date:   Thu Aug 24 10:14:54 2023 +0300
 
-    cmd/compile/internal/ssa: fix PPC64 shift codegen regression
+    cmd/compile: do not flag reflect.StructOf() as a ReflectMethod.
     
-    CL 621357 introduced new generic lowering rules which caused
-    several shift related codegen test failures.
+    StructOf() calls reflect.Type.Method(), but looks up only methods
+    accessible via interfaces. DCE does not remove such methods, so
+    there is no need to disable the DCE if StructOf() is used.
     
-    Add new rules to fix the test regressions, and cleanup tests
-    which are changed but not regressed. Some CLRLSLDI tests are
-    removed as they are no test CLRLSLDI rules.
+    There is a dependency chain between struct rtype and StructOf():
     
-    Fixes #70003
+      (*rtype).Method() -> FuncOf() -> initFuncTypes() -> StructOf().
     
-    Change-Id: I1ecc5a7e63ab709a4a0cebf11fa078d5cf164034
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622236
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Thus, any use of (*rtype).Method() or (*rtype).MethodByName()
+    disables the DCE in the linker. This is not an issue just yet
+    because all users of Method() and MethodByName() are flagged
+    as ReflectMethods. A subsequent patch avoids this flag on callers
+    of MethodByName(string literal). When that patch is applied,
+    it becomes important to have no ReflectMethods down the call
+    chain of MethodByName().
+    
+    Change-Id: I9b3e55c495c122ed70ef31f9d978c0e2e0573799
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522435
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  5 ++
- src/cmd/compile/internal/ssa/rewrite.go       | 30 ++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 84 +++++++++++++++++++++++++++
- test/codegen/shift.go                         |  8 +--
- 4 files changed, 120 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/walk/expr.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

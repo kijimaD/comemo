@@ -1,13 +1,16 @@
-commit e3609ca6723be951b6b106622fdb42569631291e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Mar 15 11:18:11 2014 -0700
+commit 6436df0d81ac195d7b1dbcfc3715bb96423bfecd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 14 22:49:46 2014 +0100
 
-    cmd/gc: fix comment about how GOEXPERIMENT works
+    runtime: fix 386 assembly for syscall.naclWrite
     
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
+    It was using the wrong offset and returned random values
+    making "runoutput" compiler tests crash.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/76270043
+    https://golang.org/cl/76250043
 
- src/cmd/gc/lex.c | 2 +-
+ src/pkg/runtime/sys_nacl_386.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,38 +1,16 @@
-commit 12465661421f3598cb76a787fba75da8cabc220d
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Wed Jul 12 22:02:39 2017 -0700
+commit 475f02cbec3da0a192a20ade170fb7e71542a552
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 19 11:35:13 2017 +1000
 
-    math: eliminate overflow in Pow(x,y) for large y
+    cmd/compile/internal/ppc64: remove unused condOps map
     
-    The current implementation uses a shift and add
-    loop to compute the product of x's exponent xe and
-    the integer part of y (yi) for yi up to 1<<63.
-    Since xe is an 11-bit exponent, this product can be
-    up to 74-bits and overflow both 32 and 64-bit int.
+    The last use of condOps was removed in c644a76.
     
-    This change checks whether the accumulated exponent
-    will fit in the 11-bit float exponent of the output
-    and breaks out of the loop early if overflow is detected.
-    
-    The current handling of yi >= 1<<63 uses Exp(y * Log(x))
-    which incorrectly returns Nan for x<0.  In addition,
-    for y this large, Exp(y * Log(x)) can be enumerated
-    to only overflow except when x == -1 since the
-    boundary cases computed exactly:
-    
-    Pow(NextAfter(1.0, Inf(1)), 1<<63)  == 2.72332... * 10^889
-    Pow(NextAfter(1.0, Inf(-1)), 1<<63) == 1.91624... * 10^-445
-    
-    exceed the range of float64. So, the call can be
-    replaced with a simple case statement analgous to
-    y == Inf that correctly handles x < 0 as well.
-    
-    Fixes #7394
-    
-    Change-Id: I6f50dc951f3693697f9669697599860604323102
-    Reviewed-on: https://go-review.googlesource.com/48290
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I5383d0e7a9078fc17ca12ed032ecf8e7f4aa95d7
+    Reviewed-on: https://go-review.googlesource.com/41030
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/all_test.go | 22 ++++++++++++++++++++++
- src/math/pow.go      | 20 +++++++++++++++++++-
- 2 files changed, 41 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ppc64/ssa.go | 14 --------------
+ 1 file changed, 14 deletions(-)

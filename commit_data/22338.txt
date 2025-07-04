@@ -1,18 +1,26 @@
-commit d3252a2db9b8e1b6cff26dd4d2721cedc91378dc
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Apr 8 02:01:55 2015 +1000
+commit 392434e1d05b14c97c43c43db7b5a0a6168690d9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 27 16:05:30 2015 +0900
 
-    cmd/internal/gc: fix race build (again)
+    cmd/internal/gc: use crypto/md5 instead of md5.go
     
-    Add OGETG to the list of ignored operations.
+    Note: for simplicity, this CL changes the identifiers assigned to
+    gclocals.* objects; e.g., on amd64, gclocals.ABCDEFGHIJKLMNOP is now
+    gclocals.HGFEDCBAPONMLKJI.  However, since Go requires all packages to
+    be built with the same toolchain version anyway, this should be a
+    non-issue.
     
-    We don't instrument the runtime package, but calls to runtime.getg
-    can appear in other packages, for example, after inlining
-    runtime.LockOSThread.
+    Similarly, type hashes change somewhat, but don't seem to be exposed
+    to users in any detectable manner.
     
-    Change-Id: I8d6e91f1f3c8fd1302b596bdead42d588c059911
-    Reviewed-on: https://go-review.googlesource.com/8553
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Iadb3bce472af9b022b88d52b3c4c5e4113cda330
+    Reviewed-on: https://go-review.googlesource.com/6232
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/gc/racewalk.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/internal/gc/md5.go  | 298 --------------------------------------------
+ src/cmd/internal/gc/pgen.go |   8 +-
+ src/cmd/internal/gc/subr.go |  10 +-
+ 3 files changed, 6 insertions(+), 310 deletions(-)

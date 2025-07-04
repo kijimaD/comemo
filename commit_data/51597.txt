@@ -1,20 +1,18 @@
-commit 76ec91923752f69d2fb20d8b5a2e7963a116ebd6
-Author: Ikko Eltociear Ashimine <eltociear@gmail.com>
-Date:   Thu Jan 5 18:05:31 2023 +0000
+commit 0261fa616a16dc37b862691f79c7b4d301dfbe4a
+Author: hopehook <hopehook@qq.com>
+Date:   Sat Feb 19 12:33:16 2022 +0800
 
-    net: fix typo in hosts.go
+    testdata: fix typo in comment
     
-    cannonical -> canonical
-    
-    Change-Id: I656ea210d8ef6eaa85245cb8f463f6b4fd67e1a2
-    GitHub-Last-Rev: 5a93045add2f2a6885b46377c784f665ab465cfd
-    GitHub-Pull-Request: golang/go#57633
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460756
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: If3d5884d9f3f32606c510af5597529b832a8f4a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386934
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/net/hosts.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/testdata/examples/methods.go2 | 2 +-
+ src/go/types/testdata/examples/methods.go2                    | 2 +-
+ src/runtime/testdata/testprogcgo/aprof.go                     | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

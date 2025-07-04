@@ -1,25 +1,15 @@
-commit a696277243fdb8049de8e1b10ce6144a69b12c61
-Author: Tyler Bui-Palsulich <tpalsulich@google.com>
-Date:   Wed Sep 13 08:09:21 2017 -0700
+commit e309dd938fe570142d8eeb568ae5b6a05472573a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 19 15:08:29 2017 +1000
 
-    container/heap: call t.Helper() in verify()
+    internal/poll: remove unused ioSrv.ExecIO parameter
     
-    I modified verify() to fail every time to test the change. Before adding
-    t.Helper() (line 37 is in verify()):
-    /.../go/src/container/heap/heap_test.go:37: forced failure
-    FAIL
-    
-    Afer adding t.Helper() (line 67 is where verify() is called):
-    /.../go/src/container/heap/heap_test.go:67: forced failure
-    FAIL
-    
-    Fixes #21863
-    
-    Change-Id: I46f0c8ec413cc664358c568fc53e48bb4a1d03d0
-    Reviewed-on: https://go-review.googlesource.com/63570
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If5cb80c3c086684ce6c2e8ed9bb23b2a20c8aacd
+    Reviewed-on: https://go-review.googlesource.com/43690
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/container/heap/heap_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/internal/poll/fd_windows.go       | 16 ++++++++--------
+ src/internal/poll/sendfile_windows.go |  2 +-
+ 2 files changed, 9 insertions(+), 9 deletions(-)

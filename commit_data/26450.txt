@@ -1,16 +1,16 @@
-commit c16a61515fa725b81a6c461c80a32f2f0afad8db
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Mar 20 22:00:06 2016 -0400
+commit db5cb1d8cdf957c96fa44c340fb0fc53f2b3231e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 25 21:20:17 2016 +0000
 
-    misc/cgo/test: add RewindAndSetgid implementation for s390x
+    net/http: update bundled http2
     
-    Required to pass the issue9400 test.
+    Updates x/net/http2 to git rev 2e9cee70 for https://golang.org/cl/18801
     
-    Change-Id: I595223c403b12faade54e2e46510f8537150af39
-    Reviewed-on: https://go-review.googlesource.com/20940
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4689c5704bb0b12d569925f81c3e699857ea463e
+    Reviewed-on: https://go-review.googlesource.com/18931
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/issue9400/asm_s390x.s | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/net/http/h2_bundle.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

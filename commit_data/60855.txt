@@ -1,0 +1,40 @@
+commit 4fd73e5d4ca8c87efa127ee7a3290b1d0fdae313
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 4 18:30:35 2024 +0700
+
+    cmd: do not use notsha256
+    
+    CL 402595 used notsha256 to prevent the compiler from depending on
+    cgo-based implementations of sha1 and sha256.
+    
+    However, since CL 454836, cmd is built with CGO_ENABLED=0, which
+    will disable boringcrypto. Thus all usages of notsha256 is not necessary
+    anymore.
+    
+    Updates #51940
+    Updates #64751
+    
+    Change-Id: I503090f7a2efb5723e8a79523b143dc7cdb4edd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610596
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/cgo/main.go                           |  6 +++---
+ src/cmd/compile/internal/liveness/plive.go    |  4 ++--
+ src/cmd/compile/internal/noder/reader.go      |  4 ++--
+ src/cmd/compile/internal/ssa/print.go         |  6 +++---
+ src/cmd/compile/internal/staticdata/data.go   | 22 +++++++++++-----------
+ src/cmd/compile/internal/types/fmt.go         |  6 +++---
+ src/cmd/dist/buildtool.go                     |  1 +
+ src/cmd/internal/codesign/codesign.go         | 19 +++++--------------
+ src/cmd/internal/obj/objfile.go               |  4 ++--
+ src/cmd/internal/obj/sym.go                   |  4 ++--
+ src/cmd/link/elf_test.go                      |  4 ++--
+ src/cmd/link/internal/ld/elf.go               |  8 ++++----
+ src/cmd/link/internal/ld/lib.go               | 10 +++++-----
+ src/cmd/link/internal/ld/macho_update_uuid.go |  4 ++--
+ src/cmd/objdump/objdump_test.go               |  4 ++--
+ 15 files changed, 49 insertions(+), 57 deletions(-)

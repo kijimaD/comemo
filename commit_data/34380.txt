@@ -1,36 +1,16 @@
-commit 230b0bad1f9685e824c9096deb4badbe93377733
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Jan 24 13:26:15 2018 -0500
+commit 744da64947188fa849ab6228f9d5fded5f7a1bef
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Oct 21 12:07:55 2017 -0700
 
-    cmd/link: fix up location lists for dsymutil
+    encoding/csv: fix error documentation
     
-    LLVM tools, particularly lldb and dsymutil, don't support base address
-    selection entries in location lists. When targeting GOOS=darwin,
-    mode, have the linker translate location lists to CU-relative form
-    instead.
+    We should be referring to ParseError.Err, which is the underlying error,
+    not ParseError.Error, which is the error method.
     
-    Technically, this isn't necessary when linking internally, as long as
-    nobody plans to use anything other than Delve to look at the DWARF. But
-    someone might want to use lldb, and it's really confusing when dwarfdump
-    shows gibberish for the location entries. The performance cost isn't
-    noticeable, so enable it even for internal linking.
-    
-    Doing this in the linker is a little weird, but it was more expensive in
-    the compiler, probably because the compiler is much more stressful to
-    the GC. Also, if we decide to only do it for external linking, the
-    compiler can't see the link mode.
-    
-    Benchmark before and after this commit on Mac with -dwarflocationlists=1:
-    
-    name        old time/op       new time/op       delta
-    StdCmd            21.3s ± 1%        21.3s ± 1%    ~     (p=0.310 n=27+27)
-    
-    Only StdCmd is relevant, because only StdCmd runs the linker. Whatever
-    the cost is here, it's not very large.
-    
-    Change-Id: I200246dedaee4f824966f7551ac95f8d7123d3b1
-    Reviewed-on: https://go-review.googlesource.com/89535
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ic3cef5ecbe1ada5fa14b9573222f29da8fc9a8d5
+    Reviewed-on: https://go-review.googlesource.com/72450
+    Reviewed-by: Tim Cooper <tim.cooper@layeh.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 71 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 71 insertions(+)
+ src/encoding/csv/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

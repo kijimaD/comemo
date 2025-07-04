@@ -1,32 +1,14 @@
-commit 46811d27ce6b3753f70bc49423f4f448e613609d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Jan 7 10:03:49 2013 +1100
+commit 396c957a32f094ef0f410235250cf0ed6b8dcf9f
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Mon Jan 7 09:44:35 2013 +1100
 
-    src: Use bytes.Equal instead of bytes.Compare where possible.
+    encoding/json: documented that ,string applies only to string and numeric fields.
     
-    bytes.Equal is simpler to read and should also be faster because
-    of short-circuiting and assembly implementations.
+    Fixes #4437.
     
-    Change generated automatically using:
-      gofmt -r 'bytes.Compare(a, b) == 0 -> bytes.Equal(a, b)'
-      gofmt -r 'bytes.Compare(a, b) != 0 -> !bytes.Equal(a, b)'
-    
-    R=golang-dev, dave, adg, rsc
-    CC=golang-dev
-    https://golang.org/cl/7038051
+    R=golang-dev, adg
+    CC=golang-dev, rsc
+    https://golang.org/cl/7064045
 
- src/cmd/gofmt/gofmt_test.go                | 2 +-
- src/cmd/gofmt/long_test.go                 | 2 +-
- src/pkg/bufio/bufio_test.go                | 2 +-
- src/pkg/crypto/rsa/pkcs1v15_test.go        | 8 ++++----
- src/pkg/crypto/rsa/rsa_test.go             | 6 +++---
- src/pkg/encoding/asn1/asn1_test.go         | 6 +++---
- src/pkg/encoding/asn1/marshal_test.go      | 2 +-
- src/pkg/encoding/hex/hex_test.go           | 2 +-
- src/pkg/encoding/json/decode_test.go       | 4 ++--
- src/pkg/encoding/json/scanner_test.go      | 6 +++---
- src/pkg/exp/locale/collate/collate_test.go | 4 ++--
- src/pkg/exp/locale/collate/maketables.go   | 2 +-
- src/pkg/go/doc/doc_test.go                 | 2 +-
- src/pkg/math/big/int_test.go               | 2 +-
- 14 files changed, 25 insertions(+), 25 deletions(-)
+ src/pkg/encoding/json/encode.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

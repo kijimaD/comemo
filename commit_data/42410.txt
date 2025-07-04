@@ -1,24 +1,18 @@
-commit 107ebb178176f00c988a40943446af6f672b1e63
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed May 20 17:03:31 2020 +0000
+commit a3dc6da6d6d25666d24bab293c0990d1b07bb798
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Thu Nov 21 04:09:17 2019 -0500
 
-    Revert "encoding/json: reuse values when decoding map elements"
+    os/exec: ignore hungup error while copying stdin on Plan 9
     
-    This reverts golang.org/cl/179337.
+    Fixes #35753
     
-    Reason for revert: broke a few too many reasonably valid Go programs.
-    The previous behavior was perhaps less consistent, but the docs were
-    never very clear about when the decoder merges with existing values,
-    versus replacing existing values altogether.
-    
-    Fixes #39149.
-    
-    Change-Id: I1c1d857709b8398969fe421aa962f6b62f91763a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234559
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I38674c59c601785eb25b778dc25efdb92231dd9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208223
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/decode.go      | 103 +++++++++++++++++----------------------
- src/encoding/json/decode_test.go |  54 --------------------
- 2 files changed, 45 insertions(+), 112 deletions(-)
+ src/os/exec/exec.go       |  1 -
+ src/os/exec/exec_plan9.go | 19 +++++++++++++++++++
+ src/os/exec/exec_test.go  |  5 -----
+ 3 files changed, 19 insertions(+), 6 deletions(-)

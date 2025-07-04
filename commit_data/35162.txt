@@ -1,25 +1,17 @@
-commit 6b55407d2f342b9c291740f777b718a229690164
-Author: Kevin Burke <kev@inburke.com>
-Date:   Wed Apr 25 23:04:36 2018 -0700
+commit 3f150934e274f9ce167e1ed565fb3e60b8ea8223
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 11:49:26 2017 -0500
 
-    cmd/vet: remove "only" from error message
+    sync: document when and when not to use Map
     
-    If the vetted function supplies zero arguments, previously you would
-    get an error message like this:
+    Fixes #21587.
     
-        Printf format %v reads arg #1, but call has only 0 args
-    
-    "has only 0 args" is an odd construction, and "has 0 args" sounds
-    better. Getting rid of "only" in all cases simplifies the code and
-    reads just as well.
-    
-    Change-Id: I4706dfe4a75f13bf4db9c0650e459ca676710752
-    Reviewed-on: https://go-review.googlesource.com/109457
-    Run-TryBot: Kevin Burke <kev@inburke.com>
-    Run-TryBot: David Symonds <dsymonds@golang.org>
-    Reviewed-by: David Symonds <dsymonds@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I47eb181d65da67a3b530c7f8acac9c0c619ea474
+    Reviewed-on: https://go-review.googlesource.com/83796
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/print.go          |  2 +-
- src/cmd/vet/testdata/print.go | 10 +++++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/sync/map.go | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

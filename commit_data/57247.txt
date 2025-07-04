@@ -1,15 +1,21 @@
-commit 02a9f51011eb7b6150828aab623eede497eb1e09
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Aug 20 23:41:40 2024 +1000
+commit a04a665a92714c71a039575d27155cd495891799
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 15 16:09:52 2023 -0700
 
-    test/codegen: add initial codegen tests for integer min/max
+    spec: update section on type inference for Go 1.21
     
-    Change-Id: I006370053748edbec930c7279ee88a805009aa0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606976
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The new section describes type inference as the problem
+    of solving a set of type equations for bound type parameters.
+    
+    The next CL will update the section on unification to match
+    the new inference approach.
+    
+    Change-Id: I2cb49bfb588ccc82d645343034096a82b7d602e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503920
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- test/codegen/arithmetic.go | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ doc/go_spec.html | 484 ++++++++++++++++++++++---------------------------------
+ 1 file changed, 189 insertions(+), 295 deletions(-)

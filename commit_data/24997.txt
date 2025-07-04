@@ -1,18 +1,14 @@
-commit 9fa6a2d42d5d6ded4e05f06148305354e66344d6
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Nov 20 10:42:05 2015 -0500
+commit 3d5bed272624fede0e5249f9e7a13ee779e2ba17
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Sep 6 19:59:12 2015 +0200
 
-    os: use different test files on android
+    math/big: Add small complete example of big.Rat usage
     
-    Some Android OS installations have very strange permissions on their
-    /system/etc directory, meaning that Readdir fails. Instead use
-    /system/framework, which is far more regular.
+    Updates #11241
     
-    Change-Id: Iefc140614183cda0f875e0f6ef859f4d4eaad9da
-    Reviewed-on: https://go-review.googlesource.com/17078
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If71f651f3b8aca432c91314358b93f195217d9ec
+    Reviewed-on: https://go-review.googlesource.com/14317
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/os_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/math/big/example_rat_test.go | 65 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)

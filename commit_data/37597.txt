@@ -1,12 +1,26 @@
-commit fb69478ecd7a6bec18b0e77665bbaadce4b7f2e8
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Dec 4 16:23:39 2018 -0500
+commit de990545c3ce65926491c123bb2536168cd21cf3
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 10 00:09:00 2018 -0400
 
-    doc: 1.12 release notes for go/doc, go/token, and reflect packages
+    runtime: use gList in netpoll
     
-    Change-Id: I5f0ceeca2025cf19bcf610e150f7b7067fdd7397
-    Reviewed-on: https://go-review.googlesource.com/c/152637
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    netpoll is perhaps one of the most confusing uses of G lists currently
+    since it passes around many lists as bare *g values right now.
+    Switching to gList makes it much clearer what's an individual g and
+    what's a list.
+    
+    Change-Id: I8d8993c4967c5bae049c7a094aad3a657928ba6c
+    Reviewed-on: https://go-review.googlesource.com/129397
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go1.12.html | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ src/runtime/netpoll.go         | 20 +++++++++-----------
+ src/runtime/netpoll_epoll.go   | 12 ++++++------
+ src/runtime/netpoll_fake.go    |  4 ++--
+ src/runtime/netpoll_kqueue.go  | 12 ++++++------
+ src/runtime/netpoll_solaris.go | 12 ++++++------
+ src/runtime/netpoll_stub.go    |  4 ++--
+ src/runtime/netpoll_windows.go | 22 +++++++++++-----------
+ src/runtime/proc.go            | 29 +++++++++++++++--------------
+ 8 files changed, 57 insertions(+), 58 deletions(-)

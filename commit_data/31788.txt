@@ -1,16 +1,46 @@
-commit 7a8f1e2bc787542fe6b9e87ebec9b682a0ff9973
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jun 13 12:58:11 2017 +1000
+commit bc8b9b23ca3f33e738d85c4734bd35dfe63e9ac4
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Thu Mar 9 12:29:45 2017 +0200
 
-    time: run genzabbrs.go to update zoneinfo_abbrs_windows.go
+    strconv: optimize formatting for small decimal ints
     
-    Last time zoneinfo_abbrs_windows.go was updated in CL 27832.
-    Time for another update.
+    Avoid memory allocations by returning pre-calculated strings
+    for decimal ints in the range 0..99.
     
-    Change-Id: I8dc3a1de6f22e90e634b2176188f257a260b6463
-    Reviewed-on: https://go-review.googlesource.com/45450
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Benchmark results:
+    
+    name              old time/op    new time/op    delta
+    FormatInt-4         2.45µs ± 1%    2.40µs ± 1%    -1.86%  (p=0.000 n=8+9)
+    AppendInt-4         1.67µs ± 1%    1.65µs ± 0%    -0.92%  (p=0.000 n=10+10)
+    FormatUint-4         676ns ± 3%     669ns ± 1%      ~     (p=0.146 n=10+10)
+    AppendUint-4         467ns ± 2%     474ns ± 0%    +1.58%  (p=0.000 n=10+10)
+    FormatIntSmall-4    29.6ns ± 2%     3.3ns ± 0%   -88.98%  (p=0.000 n=10+9)
+    AppendIntSmall-4    16.0ns ± 1%     8.5ns ± 0%   -46.98%  (p=0.000 n=10+9)
+    
+    name              old alloc/op   new alloc/op   delta
+    FormatInt-4           576B ± 0%      576B ± 0%      ~     (all equal)
+    AppendInt-4          0.00B          0.00B           ~     (all equal)
+    FormatUint-4          224B ± 0%      224B ± 0%      ~     (all equal)
+    AppendUint-4         0.00B          0.00B           ~     (all equal)
+    FormatIntSmall-4     2.00B ± 0%     0.00B       -100.00%  (p=0.000 n=10+10)
+    AppendIntSmall-4     0.00B          0.00B           ~     (all equal)
+    
+    name              old allocs/op  new allocs/op  delta
+    FormatInt-4           37.0 ± 0%      35.0 ± 0%    -5.41%  (p=0.000 n=10+10)
+    AppendInt-4           0.00           0.00           ~     (all equal)
+    FormatUint-4          6.00 ± 0%      6.00 ± 0%      ~     (all equal)
+    AppendUint-4          0.00           0.00           ~     (all equal)
+    FormatIntSmall-4      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
+    AppendIntSmall-4      0.00           0.00           ~     (all equal)
+    
+    Fixes #19445
+    
+    Change-Id: Ib1f8922f2e0b13743c847ee9e703d1dab77f705c
+    Reviewed-on: https://go-review.googlesource.com/37963
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/genzabbrs.go              |   4 +-
- src/time/zoneinfo_abbrs_windows.go | 176 +++++++++++++++++++------------------
- 2 files changed, 92 insertions(+), 88 deletions(-)
+ src/strconv/itoa.go      | 25 +++++++++++++++++++++++++
+ src/strconv/itoa_test.go | 31 +++++++++++++++++++++++++++----
+ 2 files changed, 52 insertions(+), 4 deletions(-)

@@ -1,23 +1,15 @@
-commit 646531c52aab82a11216f8c79c0ad0e2382a943f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 16 17:29:00 2020 -0400
+commit 98534812bdcdd22b13469ea587e310187876b7d2
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 6 11:12:26 2020 -0400
 
-    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on S390X
+    cmd/compile: make logopt test skip if cannot create scratch directory
     
-    This is a simplification of LANfloor/LAOfloor since we have a whole
-    word.
+    Fixes #38251.
     
-    Change-Id: I791641fb4068cad3f73660ce51699ed4653ae0e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263151
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic635843fb503484a1c9a230b0cca571393d3da5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227339
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/gc/ssa.go           |  4 +--
- src/cmd/compile/internal/s390x/ssa.go        |  8 ++++++
- src/cmd/compile/internal/ssa/gen/S390X.rules |  3 +++
- src/cmd/compile/internal/ssa/gen/S390XOps.go |  4 ++-
- src/cmd/compile/internal/ssa/opGen.go        | 38 ++++++++++++++++++++++++----
- src/cmd/compile/internal/ssa/rewriteS390X.go |  6 +++++
- 6 files changed, 55 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

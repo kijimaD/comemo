@@ -1,14 +1,15 @@
-commit 0463bd6cd73d72537e819b0fec9867fe915a8e02
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 15 17:14:02 2011 -0700
+commit b04209ca97613174bf6e77e0f6d5401665c44167
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 15 19:39:50 2011 -0400
 
-    gob: move benchmarks to a new timing_test.go file.
-    Add malloc counts for encode and decode.
+    debug/proc: fix build
     
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4290048
+    https://golang.org/cl/4273060
 
- src/pkg/gob/encoder_test.go |  36 --------------
- src/pkg/gob/timing_test.go  | 116 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 116 insertions(+), 36 deletions(-)
+ src/pkg/debug/proc/proc_darwin.go  | 2 +-
+ src/pkg/debug/proc/proc_freebsd.go | 2 +-
+ src/pkg/debug/proc/proc_windows.go | 2 +-
+ src/pkg/exp/ogle/cmd.go            | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,12 +1,15 @@
-commit 241a262fe592911b8be3d44694429103e4ff86e4
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Aug 15 21:19:07 2011 +1000
+commit 175849295ce632c2ddeca7024f7c783327b5e571
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Aug 15 03:51:51 2011 -0300
 
-    build: don't require hg for build
+    runtime: fix pseudo-randomness on some selects
     
-    R=golang-dev, dsymonds, n13m3y3r
+    Fixes #2152.
+    
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/4873048
+    https://golang.org/cl/4888044
 
- src/version.bash | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/runtime/chan.c       |  3 ++-
+ src/pkg/runtime/chan_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

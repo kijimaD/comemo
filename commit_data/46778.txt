@@ -1,21 +1,43 @@
-commit e38ec96c69f826516a99f16952bd73c766f96719
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Sun Oct 3 15:45:38 2021 +0000
+commit a5a5e2c968eb14335f4e46606d8edfbdbdcea728
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Jan 25 17:51:03 2021 -0800
 
-    time: truncate fractional seconds longer than 9 digits
+    runtime: make sure to remove open-coded defer entries in all cases after a recover
     
-    Fixes #48685
+    We add entries to the defer list at panic/goexit time on-the-fly for
+    frames with open-coded defers. We do this so that we can correctly
+    process open-coded defers and non-open-coded defers in the correct order
+    during panics/goexits. But we need to remove entries for open-coded
+    defers from the defer list when there is a recover, since those entries
+    may never get removed otherwise and will get stale, since their
+    corresponding defers may now be processed normally (inline).
     
-    Change-Id: Id246708878c2902b407ab759537f6b545a1f459f
-    GitHub-Last-Rev: 4d985192c5a66ae8891539f166ef88b53cd1cbea
-    GitHub-Pull-Request: golang/go#48750
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353713
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This bug here is that we were only removing higher-up stale entries
+    during a recover if all defers in the current frame were done. But we
+    could have more defers in the current frame (as the new test case
+    shows). In this case, we need to leave the current defer entry around
+    for use by deferreturn, but still remove any stale entries further along
+    the chain.
+    
+    For bug 43921, simple change that we should abort the removal loop for
+    any defer entry that is started (i.e. in process by a still
+    not-recovered outer panic), even if it is not an open-coded defer.
+    
+    This change does not fix bug 43920, which looks to be a more complex fix.
+    
+    Fixes #43882
+    Fixes #43921
+    
+    Change-Id: Ie05b2fa26973aa26b25c8899a2abc916090ee4f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286712
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/time/format.go      |  9 ++++++---
- src/time/format_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+), 3 deletions(-)
+ src/runtime/crash_test.go                 | 12 ++++++
+ src/runtime/defer_test.go                 | 28 ++++++++++++++
+ src/runtime/panic.go                      | 63 +++++++++++++++++--------------
+ src/runtime/testdata/testprog/deadlock.go | 39 +++++++++++++++++++
+ 4 files changed, 113 insertions(+), 29 deletions(-)

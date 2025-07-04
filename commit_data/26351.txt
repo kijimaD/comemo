@@ -1,29 +1,26 @@
-commit f2f2434d47c711dcbe7d3abdee4293ae0f4c0739
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Thu Mar 17 10:20:54 2016 +0000
+commit 70ee525261f7d8adbcf58c2cf54efb7e7efb1c82
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 13 16:30:00 2016 +0000
 
-    syscall: avoid failure in plan9 StartProcess from fd close race
+    net/http: fix Transport crash when abandoning dial which upgrades protos
     
-    Between the enumeration of fdsToClose in the parent and the
-    closing of fds in the child, it's possible for a file to be
-    closed in another thread. If that file descriptor is reused
-    when opening the child-parent status pipe, it will be closed
-    prematurely in the child and the forkExec gets out of sync.
-    This has been observed to cause failures in builder tests
-    when the link step of a build is started before the compile
-    step has run, with "file does not exist" messages as the
-    visible symptom.
+    When the Transport was creating an bound HTTP connection (protocol
+    unknown initially) and then ends up deciding it doesn't need it, a
+    goroutine sits around to clean up whatever the result was. That
+    goroutine made the false assumption that the result was always an
+    HTTP/1 connection or an error. It may also be an alternate protocol
+    in which case the *persistConn.conn net.Conn field is nil, and the
+    alt field is non-nil.
     
-    The simple workaround is to check against closing the pipe.
-    A more comprehensive solution would be to rewrite the fd
-    closing code to avoid races, along the lines of the long
-    ago proposed https://golang.org/cl/57890043 - but meanwhile
-    this correction will prevent some builder failures.
+    Fixes #13839
     
-    Change-Id: I4ef5eaea70c21d00f4df0e0847a1c5b2966de7da
-    Reviewed-on: https://go-review.googlesource.com/20800
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Change-Id: Ia4972e5eb1ad53fa00410b3466d4129c753e0871
+    Reviewed-on: https://go-review.googlesource.com/18573
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/exec_plan9.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/net/http/export_test.go    |  1 +
+ src/net/http/transport.go      | 30 +++++++++++---
+ src/net/http/transport_test.go | 93 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 118 insertions(+), 6 deletions(-)

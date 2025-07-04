@@ -1,65 +1,24 @@
-commit 91433eb5772ab4aa62efb9f5cde07e4a1556e96e
+commit f65abf6ddc8d1f3d403a9195fd74eaffa022b07f
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 6 06:19:56 2017 -0700
+Date:   Wed Jan 11 13:53:34 2017 -0800
 
-    cmd/compile: make typenamesym do less work
+    cmd/compile: hide testdclstack behind debug flag
     
-    typenamesym is called from three places:
-    typename, ngotype, and Type.Symbol.
-    Only in typename do we actually need a Node.
-    ngotype and Type.Symbol require only a Sym.
-    And writing the newly created Node to
-    Sym.Def is unsafe in a concurrent backend.
-    Rather than use a mutex protect to Sym.Def,
-    make typenamesym not touch Sym.Def.
+    This reduces compilation time for the program
+    in #18602 from 7 hours to 30 min.
     
-    The assignment to Sym.Def was serving a second purpose,
-    namely to prevent duplicate entries on signatlist.
-    Preserve that functionality by switching signatlist to a map.
-    This in turn requires that we sort signatlist
-    when exporting it, to preserve reproducibility.
+    Updates #14781
+    Updates #18602
     
-    We'd like to use Type.cmp for sorting,
-    but that causes infinite recursion at the moment;
-    see #19869.
-    
-    For now, use Type.LongString as the sort key,
-    which is a complete description of the type.
-    Type.LongString is relatively expensive,
-    but we calculate it only once per type,
-    and signatlist is generally fairly small,
-    so the performance impact is minimal.
-    
-    Updates #15756
-    
-    name       old alloc/op    new alloc/op    delta
-    Template      39.4MB ± 0%     39.4MB ± 0%    ~     (p=0.222 n=5+5)
-    Unicode       29.8MB ± 0%     29.8MB ± 0%    ~     (p=0.151 n=5+5)
-    GoTypes        113MB ± 0%      113MB ± 0%    ~     (p=0.095 n=5+5)
-    SSA           1.25GB ± 0%     1.25GB ± 0%  +0.04%  (p=0.008 n=5+5)
-    Flate         25.3MB ± 0%     25.4MB ± 0%    ~     (p=0.056 n=5+5)
-    GoParser      31.8MB ± 0%     31.8MB ± 0%    ~     (p=0.310 n=5+5)
-    Reflect       78.3MB ± 0%     78.3MB ± 0%    ~     (p=0.690 n=5+5)
-    Tar           26.7MB ± 0%     26.7MB ± 0%    ~     (p=0.548 n=5+5)
-    XML           42.2MB ± 0%     42.2MB ± 0%    ~     (p=0.222 n=5+5)
-    
-    name       old allocs/op   new allocs/op   delta
-    Template        387k ± 0%       388k ± 0%    ~     (p=0.056 n=5+5)
-    Unicode         320k ± 0%       321k ± 0%  +0.32%  (p=0.032 n=5+5)
-    GoTypes        1.14M ± 0%      1.15M ± 0%    ~     (p=0.095 n=5+5)
-    SSA            9.70M ± 0%      9.72M ± 0%  +0.18%  (p=0.008 n=5+5)
-    Flate           234k ± 0%       235k ± 0%  +0.60%  (p=0.008 n=5+5)
-    GoParser        317k ± 0%       317k ± 0%    ~     (p=1.000 n=5+5)
-    Reflect         982k ± 0%       983k ± 0%    ~     (p=0.841 n=5+5)
-    Tar             252k ± 1%       252k ± 0%    ~     (p=0.310 n=5+5)
-    XML             393k ± 0%       392k ± 0%    ~     (p=0.548 n=5+5)
-    
-    Change-Id: I53a3b95d19cf1a7b7511a94fba896706addf84fb
-    Reviewed-on: https://go-review.googlesource.com/39710
+    Change-Id: I3c4af878a08920e6373d3b3b0c4453ee002e32eb
+    Reviewed-on: https://go-review.googlesource.com/35113
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/reflect.go | 60 ++++++++++++++++++++++++----------
- src/cmd/compile/internal/gc/type.go    |  2 ++
- 2 files changed, 44 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/alg.go     |  8 ++++++--
+ src/cmd/compile/internal/gc/bimport.go |  4 +++-
+ src/cmd/compile/internal/gc/main.go    | 13 +++++++------
+ src/cmd/compile/internal/gc/noder.go   |  1 +
+ src/cmd/compile/internal/gc/subr.go    |  4 +++-
+ 5 files changed, 20 insertions(+), 10 deletions(-)

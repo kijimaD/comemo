@@ -1,44 +1,15 @@
-commit d4a34665192b7cdfac6b51978c15053ff2ec1bd9
-Author: Austin Clements <austin@google.com>
-Date:   Thu Aug 11 11:41:16 2022 -0400
+commit e7dbe3908e17ec77851161e6cb98c7161823aa0d
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Sat Jul 24 22:17:21 2021 +0800
 
-    runtime: write trace stack tab directly to trace buffer
+    cmd/cgo: add missing tab in exports for a result of void
     
-    Currently, the stack frame of (*traceStackTable).dump is 68KiB. We're
-    about to move (*traceStackTable).dump to the system stack, where we
-    often don't have this much room.
-    
-    5140 bytes of this is an on-stack temporary buffer for constructing
-    potentially large trace events before copying these out to the actual
-    trace buffer.
-    
-    Reduce the stack frame size by writing these events directly to the
-    trace buffer rather than temporary space. This introduces a couple
-    complications:
-    
-    - The trace event starts with a varint encoding the event payload's
-      length in bytes. These events are large and somewhat complicated, so
-      it's hard to know the size ahead of time. That's not a problem with
-      the temporary buffer because we can just construct the event and see
-      how long it is. In order to support writing directly to the trace
-      buffer, we reserve enough bytes for a maximum size varint and add
-      support for populating a reserved space after the fact.
-    
-    - Emitting a stack event calls traceFrameForPC, which can itself emit
-      string events. If these were emitted in the middle of the stack
-      event, it would corrupt the stream. We already allocate a []Frame to
-      convert the PC slice to frames, and then convert each Frame into a
-      traceFrame with trace string IDs, so we address this by combining
-      these two steps into one so that all trace string events are emitted
-      before we start constructing the stack event.
-    
-    For #53979.
-    
-    Change-Id: Ie60704be95199559c426b551f8e119b14e06ddac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422954
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I45575afbad364c13b7179ebe3f3dfc4ed9671d2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336891
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
 
- src/runtime/trace.go | 76 ++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 53 insertions(+), 23 deletions(-)
+ src/cmd/cgo/out.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

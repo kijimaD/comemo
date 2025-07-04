@@ -1,13 +1,15 @@
-commit 8253edcb4c2d78e8fdfbc455beaadaa2c932b635
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri May 6 17:15:46 2011 +1000
+commit ffd550455cb02fb61331fe3d6dbe5058731c0a67
+Author: Adam Langley <agl@golang.org>
+Date:   Thu May 5 13:44:36 2011 -0400
 
-    wingui: fix Makefile after rename
+    crypto/tls: export the verified chains.
     
-    R=golang-dev, r
+    The verified chains are the chains that were actually verified.
+    
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4477046
+    https://golang.org/cl/4462046
 
- src/pkg/exp/wingui/Makefile   | 2 +-
- src/pkg/exp/wingui/zwinapi.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/crypto/tls/common.go | 2 ++
+ src/pkg/crypto/tls/conn.go   | 1 +
+ 2 files changed, 3 insertions(+)

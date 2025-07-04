@@ -1,25 +1,20 @@
-commit e074fcc945da2ed2384d562425a7e15b24d15b55
+commit ef82b4c94e10ea29acb90891d4ec8d4e7e892410
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 2 11:23:47 2024 +0200
+Date:   Sun Apr 9 13:39:12 2023 +0200
 
-    internal/poll, net, os: remove poll.Splice syscall name return value
+    os: adjust wait6/waitid comment for netbsd
     
-    The sc return value of internal/poll.Splice is always set to the same
-    value "splice" in the error case and then passed to wrapSyscallError.
-    Move that value to the wrapSyscallError calls to simplify the code a
-    bit.
+    CL 431855 changed (*Process).blockUntilWaitable on netbsd to use wait6
+    again.
     
-    Change-Id: I98104d755da68ff9f301fabc43c2618fda21a175
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/575655
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Update #48789
+    
+    Change-Id: I948f5445a44ab2e82c02560480a2a244d2b5f473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483396
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/internal/poll/splice_linux.go      | 21 ++++++++-------------
- src/internal/poll/splice_linux_test.go |  6 +++---
- src/net/splice_linux.go                |  8 ++++----
- src/net/splice_linux_test.go           |  9 ++++-----
- src/os/readfrom_linux_test.go          |  9 ++++-----
- src/os/zero_copy_linux.go              |  5 ++---
- 6 files changed, 25 insertions(+), 33 deletions(-)
+ src/os/wait_unimp.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

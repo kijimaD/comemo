@@ -1,25 +1,17 @@
-commit c1e60b6e336dba3820cb27442cec33d15b2a5f7d
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Wed Mar 27 12:39:45 2019 +0700
+commit 5d6e8f3142ae9cd118b887e02576943ce5544ed7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 16:38:11 2018 -0700
 
-    os/user: use os.UserHomeDir for user.HomeDir
+    cmd/go: add goversion environment variable to testing script language
     
-    Using os.UserHomeDir for user.HomeDir helps us deduplicate the
-    logic and keep the behavior consistent.
+    Updates #28221
     
-    Also make os.UserHomeDir return "/sdcard" in android.
-    
-    See: https://go-review.googlesource.com/c/go/+/37960/1/src/os/user/lookup_stubs.go#48
-    
-    Fixes #31070
-    
-    Change-Id: I521bad050bc5761ecc5c0085501374d2cf8e6897
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169540
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I8a1e352cd9122bce200d45c6b19955cb50308d71
+    Reviewed-on: https://go-review.googlesource.com/c/147280
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/os/file.go              |  4 +++-
- src/os/user/lookup_stubs.go | 10 +++-------
- 2 files changed, 6 insertions(+), 8 deletions(-)
+ src/cmd/go/script_test.go         | 12 ++++++++++++
+ src/cmd/go/testdata/script/README |  1 +
+ 2 files changed, 13 insertions(+)

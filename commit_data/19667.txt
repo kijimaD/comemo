@@ -1,13 +1,13 @@
-commit 67afeac2ab6a71d4d3b456c90bd99de9e7ae4185
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Jul 5 08:48:04 2014 +0400
+commit 822b2cbb33c5e15c429598840310cfd8c14a4f5f
+Author: Bill Thiede <couchmoney@gmail.com>
+Date:   Thu Jul 3 17:42:23 2014 -0400
 
-    image/gif: fix nil deref in test
+    doc/contribute: reorder documented steps to match normal workflow.
     
-    LGTM=crawshaw, dave
-    R=golang-codereviews, crawshaw, dave
+    LGTM=adg
+    R=golang-codereviews, bradfitz, adg
     CC=golang-codereviews
-    https://golang.org/cl/104520044
+    https://golang.org/cl/109970043
 
- src/pkg/image/gif/writer_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/contribute.html | 168 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 84 insertions(+), 84 deletions(-)

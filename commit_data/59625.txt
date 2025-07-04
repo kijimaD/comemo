@@ -1,22 +1,16 @@
-commit 419367969c88e6e97f8648669969a01b60bdd350
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed May 21 10:58:32 2025 -0400
+commit b6efc3b755b74147a3700ad51773b01fa68f76e8
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Apr 2 01:05:42 2024 +0000
 
-    cmd/link: require cgo internal linking in TestIssue33979
+    cmd/go/internal/modload: close modules.txt
     
-    This was a typo regression in CL 643897, which accidentally dropped the
-    requirement for cgo internal linking. As a result, this test is
-    continuously failing on windows-arm64.
-    
-    For #71395.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64
-    Change-Id: I6a6a636c25fd399cda6649ef94655aa112f10f63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675015
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: Ieb4cf76f4d7050d2f3052c2f90e47901de74d641
+    GitHub-Last-Rev: 1e8dcfd6517201c3a467109ae133846cc66e053a
+    GitHub-Pull-Request: golang/go#66629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575475
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
 
- src/cmd/link/link_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modload/init.go | 1 +
+ 1 file changed, 1 insertion(+)

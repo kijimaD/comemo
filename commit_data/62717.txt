@@ -1,0 +1,34 @@
+commit 75bf2a8c493291481af72a07a818c432085919ca
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 1 10:19:36 2025 +0200
+
+    internal/poll: defer IOCP association until first IO operation
+    
+    Defer the association of the IOCP to the handle until the first
+    I/O operation is performed.
+    
+    A handle can only be associated with one IOCP at a time, so this allows
+    external code to associate the handle with their own IOCP and still be
+    able to use a FD (through os.NewFile) to pass the handle around
+    (e.g. to a child process standard input, output, and error) without
+    having to worry about the IOCP association.
+    
+    This CL doesn't change any user-visible behavior, as os.NewFile still
+    initializes the FD as non-pollable.
+    
+    For #19098.
+    
+    Change-Id: Id22a49846d4fda3a66ffcc0bc1b48eb39b395dc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661955
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/poll/fd_plan9.go                    |   4 +
+ src/internal/poll/fd_poll_runtime.go             |   2 +
+ src/internal/poll/fd_unix.go                     |   4 +
+ src/internal/poll/fd_windows.go                  | 117 ++++++++++++++---------
+ src/internal/poll/fd_windows_test.go             |  46 +++++++--
+ src/internal/syscall/windows/syscall_windows.go  |   1 +
+ src/internal/syscall/windows/zsyscall_windows.go |  10 ++
+ 7 files changed, 134 insertions(+), 50 deletions(-)

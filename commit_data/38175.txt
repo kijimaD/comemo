@@ -1,17 +1,17 @@
-commit ee6bec958dcb701a3cfc46d85ad51d7dc97e5c1f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 1 08:40:40 2019 -0500
+commit 7c3b324d265905eec137d92e3a0a9041cad3679d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Oct 7 11:22:57 2018 +1100
 
-    misc/cgo/test: set PWD when executing 'go test' in an alternate GOPATH
+    net: skip TestUnixConnLocalWindows on windows/arm
     
-    That makes the test more friendly to the Android exec script, since it
-    won't have to evaluate symlinks to find the directory.
+    Similarly to CL 138676, skip TestUnixConnLocalWindows on windows/arm.
     
-    Change-Id: I06aae3224d489eed6d7fac7e462361f3bf1dd3da
-    Reviewed-on: https://go-review.googlesource.com/c/164624
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Fixes #28061
+    
+    Change-Id: I2270d2f9d268e85ea567be0c0c37c48e4d482282
+    Reviewed-on: https://go-review.googlesource.com/c/140397
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/pkg_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/unixsock_windows_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

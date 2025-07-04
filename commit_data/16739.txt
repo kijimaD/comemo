@@ -1,26 +1,17 @@
-commit 59306493067a6ebcc50bc9dfd4a1d1af543bd2d8
-Author: Paul Borman <borman@google.com>
-Date:   Thu Jul 11 22:34:09 2013 -0400
+commit 8529d99e1d447e930a1172e5f30fe6c1f46922e6
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Fri Jul 12 09:41:10 2013 +1000
 
-    json: unmarshal types that are byte slices.
+    misc/goplay: use `go run x.go` instead of `go build x.go`
     
-    The json package cheerfully would marshal
+    when the program is not main package, `go run x.go` can't return the
+    link error message. so use `go run x.go` in instead `go build x.go`.
     
-            type S struct {
-                    IP net.IP
-            }
+    Fixes #5865.
     
-    but would give an error when unmarshalling.  This change allows any
-    type whose concrete type is a byte slice to be unmarshalled from a
-    string.
-    
-    Fixes #5086.
-    
-    R=golang-dev, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/11161044
+    https://golang.org/cl/11165043
 
- src/pkg/encoding/json/decode.go      |  2 +-
- src/pkg/encoding/json/decode_test.go | 29 +++++++++++++++++++++++++++++
- src/pkg/encoding/json/encode.go      |  4 ++--
- 3 files changed, 32 insertions(+), 3 deletions(-)
+ misc/goplay/goplay.go | 14 +++-----------
+ 1 file changed, 3 insertions(+), 11 deletions(-)

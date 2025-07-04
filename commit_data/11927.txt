@@ -1,16 +1,12 @@
-commit aca8071fd53fc4f60771fe816b1e7c20c5c674fb
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 15 16:05:34 2012 +1100
+commit 9a445600334fcd4e856206b0223f8b85c71f7999
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 15 14:56:47 2012 +1100
 
-    text/template: evaluate function fields
-    Just an oversight they didn't work and easy to address.
+    time: run TestTicker for longer during short test, otherwise it fails
     
-    Fixes #3025.
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5656059
+    https://golang.org/cl/5671049
 
- src/pkg/text/template/exec.go      | 10 +++++++---
- src/pkg/text/template/exec_test.go |  8 ++++++++
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ src/pkg/time/tick_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

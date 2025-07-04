@@ -1,26 +1,16 @@
-commit f4d51eb2f567d12c8b908f9fe3f9650e8a175eb7
-Author: Austin Clements <austin@google.com>
-Date:   Sat May 16 21:14:37 2015 -0400
+commit ba8fa0e1a90b01727c9aa6bb23d6c3981cee9b4e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 23 14:14:31 2015 +1000
 
-    runtime: minor clean up to heapminimum
+    image/png: don't silently swallow io.ReadFull's io.EOF error when it
+    lands exactly on an IDAT row boundary.
     
-    Currently setGCPercent sets heapminimum to heapminimum*GOGC/100. The
-    real intent is to set heapminimum to a scaled multiple of a fixed
-    default heap minimum, not to scale heapminimum based on its current
-    value. This turns out to be okay because setGCPercent is only called
-    once and heapminimum is initially set to this default heap minimum.
-    However, the code as written is confusing, especially since
-    setGCPercent is otherwise written so it could be called again to
-    change GOGC. Fix this by introducing a defaultHeapMinimum constant and
-    using this instead of the current value of heapminimum to compute the
-    scaled heap minimum.
+    Fixes #10493
     
-    As part of this, this commit improves the documentation on
-    heapminimum.
-    
-    Change-Id: I4eb82c73dc2eb44a6e5a17c780a747a2e73d7493
-    Reviewed-on: https://go-review.googlesource.com/10181
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I12be7c5bdcde7032e17ed1d4400db5f17c72bc87
+    Reviewed-on: https://go-review.googlesource.com/9270
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgc.go | 25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ src/image/png/reader.go      |  9 +++++++++
+ src/image/png/reader_test.go | 15 +++++++++++++++
+ 2 files changed, 24 insertions(+)

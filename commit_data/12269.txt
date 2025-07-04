@@ -1,15 +1,13 @@
-commit fb2706113f36452f7e1e514be1949c0cdae46835
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Feb 29 16:42:25 2012 +0100
+commit ecdd9f237624be7101e2fb4e22eca9949356a234
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 29 12:34:05 2012 +0900
 
-    pkg/runtime: 2 sanity checks in the runtime-gdb.py prettyprinters.
+    net: minor fixes to test
     
-    Don't try to print obviously corrupt slices or interfaces.
-    Doesn't actually solve 3047 or 2818, but seems a good idea anyway.
-    
-    R=rsc, bsiegert
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5708061
+    https://golang.org/cl/5707058
 
- src/pkg/runtime/runtime-gdb.py | 82 ++++++++++++++++++++++++------------------
- 1 file changed, 48 insertions(+), 34 deletions(-)
+ src/pkg/net/dial_test.go |  2 +-
+ src/pkg/net/udp_test.go  | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

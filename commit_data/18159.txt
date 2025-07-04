@@ -1,14 +1,16 @@
-commit 13141315ad00f25f18ca1a30c71f90e962fada68
-Author: Emil Hessman <c.emil.hessman@gmail.com>
-Date:   Fri Jan 3 22:48:03 2014 -0800
+commit f2e946f9ed28e85f6f6dcd2862c9247240390ecd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 4 08:25:09 2014 +1100
 
-    spec: Fix broken type identity link
+    os: return ErrInvalid if receiver is nil.
     
-    Fixes #7003.
+    Fixes #7043.
     
-    R=golang-codereviews, bradfitz
+    Test coming in https://golang.org/cl/46820043
+    
+    R=r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/47780043
+    https://golang.org/cl/38330045
 
- doc/go_spec.html | 2 +-
+ src/pkg/os/file_posix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

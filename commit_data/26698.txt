@@ -1,17 +1,20 @@
-commit 86e7a5b92a8cda6809d7677689fad557b2d15544
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Apr 4 18:46:13 2016 +0900
+commit c17b6b488cbf448da374d576be0f921e655b00b1
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Feb 19 16:58:21 2016 -0600
 
-    net: factor out fdMutex-related methods on netFD
+    [dev.ssa] cmd/compile: truncate auxint when constructing Prog
     
-    Also updates documentation.
+    The upper bits of 8/16/32 bit constants are undefined.  We need to
+    truncate in order to prevent x86.oclass misidentifying the size of the
+    constant.
     
-    Change-Id: Idb0fc0feed61407f7f07eab81ce82b55ffde5040
-    Reviewed-on: https://go-review.googlesource.com/21446
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #14389
+    
+    Change-Id: I3e5ff79cd904376572a93f489ba7e152a5cb6e60
+    Reviewed-on: https://go-review.googlesource.com/19740
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/fd_mutex.go   | 87 ++++++++++++++++++++++++++++++++++++++++++++-------
- src/net/fd_plan9.go   | 49 -----------------------------
- src/net/fd_unix.go    | 49 -----------------------------
- src/net/fd_windows.go | 49 -----------------------------
- 4 files changed, 76 insertions(+), 158 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                | 39 ++++++++---------------
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 37 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/value.go             | 19 +++++++++++
+ 3 files changed, 70 insertions(+), 25 deletions(-)

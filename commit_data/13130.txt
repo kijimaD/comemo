@@ -1,15 +1,13 @@
-commit 090f9fc3ef532597c33f0702dfd541ca95529efd
+commit fb3a1b6821d35e13ec9631ecbff0d013022f2374
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed May 23 02:02:01 2012 +0800
+Date:   Wed May 23 02:00:40 2012 +0800
 
-    sync/atomic: use cas64 to implement {Load,Store,Add}{Uint,Int}64 on Linux/ARM
-            Now with GOARM=5 our all.bash should pass on ARMv5 systems.
-            Fixes #3331.
+    runtime: support conditional execution in ARM softfloat
+            Fixes #3638.
     
-    R=golang-dev, rsc, dvyukov
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6210071
+    https://golang.org/cl/6213057
 
- src/pkg/sync/atomic/64bit_linux_arm.go | 36 ++++++++++++++++++++++++++++++++++
- src/pkg/sync/atomic/asm_linux_arm.s    | 20 +++++++++----------
- 2 files changed, 46 insertions(+), 10 deletions(-)
+ src/pkg/runtime/softfloat_arm.c | 65 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 59 insertions(+), 6 deletions(-)

@@ -1,18 +1,18 @@
-commit 911534592559239185200f73b214b9b11a62b848
-Author: Dustin Sallings <dsallings@gmail.com>
-Date:   Tue Aug 6 12:03:38 2013 -0700
+commit 8dc7a31d7796d379d36729f5209d93a898471eac
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 6 14:49:55 2013 -0400
 
-    archive/zip: allow user-extensible compression methods
+    runtime/pprof: adjust test
     
-    This change replaces the hard-coded switch on compression method
-    in zipfile reader and writer with a map into which users can
-    register compressors and decompressors in their init()s.
+    NetBSD and OpenBSD are broken like OS X is. Good to know.
     
-    R=golang-dev, bradfitz, rsc
+    Drop required count from avg/2 to avg/3, because the
+    Plan 9 builder just barely missed avg/2 in one of its runs.
+    
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/12421043
+    https://golang.org/cl/12548043
 
- src/pkg/archive/zip/reader.go   | 11 ++-----
- src/pkg/archive/zip/register.go | 71 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/archive/zip/writer.go   | 18 ++++-------
- 3 files changed, 81 insertions(+), 19 deletions(-)
+ src/pkg/runtime/pprof/pprof.go      |  3 ++-
+ src/pkg/runtime/pprof/pprof_test.go | 20 ++++++++++++++------
+ 2 files changed, 16 insertions(+), 7 deletions(-)

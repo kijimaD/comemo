@@ -1,18 +1,17 @@
-commit 696c41488a2e3c0f86b01e420701c9aa05951228
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sat Aug 10 08:00:55 2019 +0200
+commit 4ae3835aa28d21fd9045223640b7617ca1b83dfe
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Jun 13 10:12:06 2019 +0200
 
-    cmd/go: error out of 'go mod download' if the main module is passed as argument
+    cmd/go: silence ar with D flag failures
     
-    Test added.
+    The first call of ar must not show its output in order to avoid useless
+    error messages about D flag.
     
-    Fixes #28338
-    
-    Change-Id: Iab72ba5646360ae91671261161d8fda451f7a717
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189797
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I3a2f5144b3bb271705000b67cd46cd02e98aca77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182077
+    Run-TryBot: Clément Chigot <clement.chigot@atos.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modcmd/download.go      | 16 ++++++++++++++--
- src/cmd/go/testdata/script/mod_download.txt |  6 ++++++
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/gccgo.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

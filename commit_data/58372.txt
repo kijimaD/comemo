@@ -1,22 +1,22 @@
-commit a9922d096f0de877fba68739b35367d4c25f6ecb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 10 16:10:27 2024 -0800
+commit 2ffe600dfafcae748e98c9676283c7e0e1bbc667
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun Oct 1 16:03:01 2023 -0400
 
-    reflect: consistently document when value must be settable
+    cmd/go/internal/modfetch: avoid path.Join in URL errors, part 2
     
-    Fixes #70760
+    CL 406675 added more detail to bare errors from net/http in two places.
+    CL 461682 improved one of the two places to stop folding "//" into "/".
+    This CL applies the same change to the other place.
     
-    Change-Id: Ia00723698b7e502fa2c63f8f1dbe1143af22e0a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/634799
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #52727.
+    
+    Change-Id: I3fc13f30cf0f054949ce78269c52b7fafd477e70
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532015
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/reflect/map_noswiss.go |  2 ++
- src/reflect/map_swiss.go   |  2 ++
- src/reflect/value.go       | 36 +++++++++++++++++++++++-------------
- 3 files changed, 27 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/modfetch/proxy.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,13 @@
-commit 4e32718d3e478278d0f7e3d6910d563c35f40be0
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 22 16:35:45 2015 -0400
+commit bb298754abb55b2a44b52cb694d6f4762864e197
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 1 17:19:09 2015 -0700
 
-    runtime: use timer for GC control revise rather than timeout
+    math/big: implement missing special cases for binary operations
     
-    Currently, we use a note sleep with a timeout in a loop in func gc to
-    periodically revise the GC control variables. Replace this with a
-    fully blocking note sleep and use a periodic timer to trigger the
-    revise instead. This is a step toward replacing the note sleep in func
-    gc.
-    
-    Change-Id: I2d562f6b9b2e5f0c28e9a54227e2c0f8a2603f63
-    Reviewed-on: https://go-review.googlesource.com/9290
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I9fc12b1a9b1554523e08839c1ff46c8668217ba1
+    Reviewed-on: https://go-review.googlesource.com/8381
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgc.go | 27 +++++++++++++++++++--------
- 1 file changed, 19 insertions(+), 8 deletions(-)
+ src/math/big/float.go      | 231 ++++++++++++++++++++++++++-------------------
+ src/math/big/float_test.go |  49 ++++++----
+ 2 files changed, 168 insertions(+), 112 deletions(-)

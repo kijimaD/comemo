@@ -1,14 +1,69 @@
-commit 75d7a02e86353272e40eb31c923f15d5e5ccdb6b
-Author: Tom Bergan <tombergan@google.com>
-Date:   Mon Aug 28 11:09:37 2017 -0700
+commit dae5389d3d2b5303542a6b699eff49307b7ed985
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 28 00:19:49 2017 +0000
 
-    doc/1.9: add mention of net/http.LocalAddrContextKey
+    Revert "cmd/compile: add Type.MustSize and Type.MustAlignment"
     
-    Fixes #21603
+    This reverts commit 94d540a4b6bf68ec472bf4469037955e3133fcf7.
     
-    Change-Id: I42fb7ea2dd7f6d6a201171055beaeda68c26b823
-    Reviewed-on: https://go-review.googlesource.com/59530
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reason for revert: prefer something along the lines of CL 42018.
+    
+    Change-Id: I876fe32e98f37d8d725fe55e0fd0ea429c0198e0
+    Reviewed-on: https://go-review.googlesource.com/42022
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.9.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/amd64/ggen.go            |   2 +-
+ src/cmd/compile/internal/amd64/ssa.go             |  12 +-
+ src/cmd/compile/internal/arm/ggen.go              |   2 +-
+ src/cmd/compile/internal/arm/ssa.go               |  18 +--
+ src/cmd/compile/internal/arm64/ggen.go            |   2 +-
+ src/cmd/compile/internal/arm64/ssa.go             |  22 +--
+ src/cmd/compile/internal/gc/plive.go              |   4 +-
+ src/cmd/compile/internal/gc/ssa.go                |  92 ++++++------
+ src/cmd/compile/internal/mips/ggen.go             |   2 +-
+ src/cmd/compile/internal/mips/ssa.go              |  18 +--
+ src/cmd/compile/internal/mips64/ggen.go           |   2 +-
+ src/cmd/compile/internal/mips64/ssa.go            |  20 +--
+ src/cmd/compile/internal/ppc64/ggen.go            |   2 +-
+ src/cmd/compile/internal/ppc64/ssa.go             |   8 +-
+ src/cmd/compile/internal/s390x/ggen.go            |   2 +-
+ src/cmd/compile/internal/s390x/ssa.go             |   8 +-
+ src/cmd/compile/internal/ssa/deadstore.go         |   4 +-
+ src/cmd/compile/internal/ssa/decompose.go         |  12 +-
+ src/cmd/compile/internal/ssa/export_test.go       |   2 +-
+ src/cmd/compile/internal/ssa/gen/386.rules        |  24 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |  42 +++---
+ src/cmd/compile/internal/ssa/gen/ARM.rules        |  38 ++---
+ src/cmd/compile/internal/ssa/gen/ARM64.rules      |  24 ++--
+ src/cmd/compile/internal/ssa/gen/MIPS.rules       |  52 +++----
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules     |  66 ++++-----
+ src/cmd/compile/internal/ssa/gen/PPC64.rules      |  16 +--
+ src/cmd/compile/internal/ssa/gen/S390X.rules      |  12 +-
+ src/cmd/compile/internal/ssa/gen/dec.rules        |   8 +-
+ src/cmd/compile/internal/ssa/gen/dec64.rules      |   4 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules    |  14 +-
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |   4 +-
+ src/cmd/compile/internal/ssa/op.go                |   2 +-
+ src/cmd/compile/internal/ssa/phiopt.go            |   6 +-
+ src/cmd/compile/internal/ssa/rewrite.go           |  14 +-
+ src/cmd/compile/internal/ssa/rewrite386.go        |  68 ++++-----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 168 +++++++++++-----------
+ src/cmd/compile/internal/ssa/rewriteARM.go        |  72 +++++-----
+ src/cmd/compile/internal/ssa/rewriteARM64.go      |  48 +++----
+ src/cmd/compile/internal/ssa/rewriteMIPS.go       | 100 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go     | 128 ++++++++---------
+ src/cmd/compile/internal/ssa/rewritePPC64.go      |  32 ++---
+ src/cmd/compile/internal/ssa/rewriteS390X.go      |  24 ++--
+ src/cmd/compile/internal/ssa/rewritedec.go        |  16 +--
+ src/cmd/compile/internal/ssa/rewritedec64.go      |   8 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go    |  28 ++--
+ src/cmd/compile/internal/ssa/type.go              |  12 +-
+ src/cmd/compile/internal/ssa/type_test.go         |   4 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      |  14 +-
+ src/cmd/compile/internal/types/type.go            |  16 ---
+ src/cmd/compile/internal/x86/387.go               |   4 +-
+ src/cmd/compile/internal/x86/ggen.go              |   2 +-
+ src/cmd/compile/internal/x86/ssa.go               |  16 +--
+ 52 files changed, 652 insertions(+), 668 deletions(-)

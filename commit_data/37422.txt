@@ -1,20 +1,12 @@
-commit 94f7795d05937fdf6187c7f850f8902c0f7a6d81
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 13 10:09:22 2018 -0500
+commit 86f907fdecbf0bdf5d97070205b7c965e3ab2b9b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jul 30 11:24:09 2018 +0200
 
-    cmd/go: fix experiment isolation in cache key
+    doc/go1.11: add missing word
     
-    In general we don't assume that the go command knows the
-    specific version of the compiler being used, including which
-    experiments the compiler was built with. Let the compiler tell us,
-    instead of importing cmd/internal/objabi from cmd/go.
-    
-    Replacement for CL 128735.
-    
-    Change-Id: Iaa07f46e19764d0fb14a1c89979bea7bb7139b9c
-    Reviewed-on: https://go-review.googlesource.com/c/149338
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iad01c9a4a080cf0c317768c34b3fbfd3c9707969
+    Reviewed-on: https://go-review.googlesource.com/126609
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/internal/work/buildid.go |  6 ------
- src/cmd/internal/objabi/flag.go     | 13 +++++++++++--
- 2 files changed, 11 insertions(+), 8 deletions(-)
+ doc/go1.11.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

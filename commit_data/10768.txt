@@ -1,16 +1,13 @@
-commit 26239417bb0973c658a7d05e7c8b0b058562ccb8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 13 15:12:55 2011 -0800
+commit 64776da456682db445462e6d095de1b2b6652a8e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 13 15:07:17 2011 -0800
 
-    runtime: Make gc_test test extra allocated space, not total space.
+    bufio: make the minimum read buffer size 16 bytes.
     
-    Testing total space fails for gccgo when not using split
-    stacks, because then each goroutine has a large stack, and so
-    the total memory usage is large.
-    
-    R=golang-dev, rsc
+    R=gri, rsc
     CC=golang-dev
-    https://golang.org/cl/5487068
+    https://golang.org/cl/5485067
 
- src/pkg/runtime/gc_test.go | 16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
+ src/pkg/bufio/bufio.go      |  6 ++-
+ src/pkg/bufio/bufio_test.go | 95 ++++++++++++++++++++++-----------------------
+ 2 files changed, 50 insertions(+), 51 deletions(-)

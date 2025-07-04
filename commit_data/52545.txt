@@ -1,26 +1,24 @@
-commit 4526fa790eb45c7f581e2420ce47763575985dfc
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Mar 29 13:13:19 2023 -0400
+commit 1ce7fcf139417d618c2730010ede2afb41664211
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Sun May 8 09:46:10 2022 +0000
 
-    cmd/go: fix tests for new builder environment
+    net/http: close accepted connection
     
-    Fix two long tests that fail in the builders we're trying out:
+    Fixes #48642
     
-    - TestQueryImport was failing with:
-      open /nonexist-gopath/pkg/sumdb/sum.golang.org/latest: no such file or directory
-      which eventually turns out to be because it couldn't create
-      /nonexist-gopath because it wasn't running as root. The test already
-      uses a temporary GOPATH, but missed overriding a configuration
-      variable set at init time.
-    - test_flags fails if the working directory has /x/ in it, which it now
-      happens to.
-    
-    Change-Id: Ideef0f318157b42987539e3a20f9fba6a3d3bdd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480255
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I7bf00517bea43dcf38e15b778818a3a3f6ffe23e
+    GitHub-Last-Rev: a0e8b80f18dc8ae60944e01e5985c30d610efdf5
+    GitHub-Pull-Request: golang/go#48753
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353714
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/query_test.go | 1 +
- src/cmd/go/testdata/script/test_flags.txt | 3 +--
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/serve_test.go | 25 +++++++++++++++++++++++++
+ src/net/http/server.go     | 24 +++++++++++++++---------
+ 2 files changed, 40 insertions(+), 9 deletions(-)

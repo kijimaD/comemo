@@ -1,21 +1,14 @@
-commit 5a18e0b58ca2d08f3988018a8759207cb64e651a
-Author: Gaurav Singh <gaurav1086@gmail.com>
-Date:   Thu Jul 23 23:27:05 2020 +0000
+commit 8278627c1589fa881a25a2aa0c62e8a56e6f268a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 3 19:26:31 2020 -0500
 
-    sync: fix goroutine leak for when TestMutexFairness times out
+    doc/go1.14: document encoding/asn1 support for BMPString
     
-    If the timeout triggers before writing to the done channel, the
-    goroutine will be blocked waiting for a corresponding read that’s
-    no longer existent, thus a goroutine leak. This change fixes that by
-    using a buffered channel instead.
+    Updates #36878
     
-    Change-Id: I9cf4067a58bc5a729ab31e4426edd78bd359e8e0
-    GitHub-Last-Rev: a7d811a7be6d875175a894e53d474aa0034e7d2c
-    GitHub-Pull-Request: golang/go#40236
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/242902
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib3ea1ef21c4b8ada3d354a0022a19914c1311399
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217637
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/sync/mutex_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.14.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

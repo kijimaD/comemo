@@ -1,28 +1,26 @@
-commit 3d61de41a28b310fedc345d76320829bd08146b3
-Author: Carlana Johnson <mail@carlana.net>
-Date:   Thu Nov 14 19:43:57 2024 +0000
+commit 9ee23e97a2079f7953c351bdb678c1b25a804d1c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jul 14 13:24:55 2023 -0400
 
-    log/slog: add DiscardHandler
+    cmd/cgo/internal/testcshared: remove an arbitrary timeout in TestSignalHandlersWithNotify
     
-    This adds a package-level variable, slog.DiscardHandler, which is a
-    slog.Handler which performs no output. This serves a similar purpose
-    to io.Discard.
+    Also log verbose information when -test.v is set.
     
-    Fixes #62005
+    We need an arbitrary delay when checking that a signal is *not*
+    delivered, but when we expect the signal to arrive we don't need to
+    set an arbitrary limit on how long that can take.
     
-    Change-Id: Ia8babc55f860dec9b663a5c400090a7669608fd5
-    GitHub-Last-Rev: 0a611174ee8819a2f4e1b8e196a60d5acc6ef9f7
-    GitHub-Pull-Request: golang/go#70296
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626486
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #61264.
+    
+    Change-Id: If3bbbf78e3c22694bf825d90d7ee9564ce8daedd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509636
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- api/next/62005.txt                           |  1 +
- doc/next/6-stdlib/99-minor/log/slog/62005.md |  1 +
- src/log/slog/example_discard_test.go         | 23 +++++++++++++++++++++++
- src/log/slog/handler.go                      | 11 +++++++++++
- src/log/slog/handler_test.go                 | 21 +++++++++++++++++++++
- src/log/slog/logger_test.go                  | 21 ++++++++++-----------
- 6 files changed, 67 insertions(+), 11 deletions(-)
+ src/cmd/cgo/internal/testcshared/cshared_test.go   | 18 +++++--
+ .../internal/testcshared/testdata/libgo5/libgo5.go | 19 +++++--
+ src/cmd/cgo/internal/testcshared/testdata/main4.c  | 22 ++++----
+ src/cmd/cgo/internal/testcshared/testdata/main5.c  | 62 ++++++++++++----------
+ 4 files changed, 72 insertions(+), 49 deletions(-)

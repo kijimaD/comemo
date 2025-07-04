@@ -1,15 +1,25 @@
-commit be7544be237b279e45be73963e84ab59916b8ac2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 8 10:04:10 2015 -0500
+commit d694f83c2138dbb85b0fd99e1ed96e0d719c41cc
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 19 18:54:40 2015 -0700
 
-    crypto/x509: handle CRLDistributionPoints without FullNames
+    [dev.ssa] cmd/compile: getg needs a memory arg
     
-    Fixes #12910.
+    getg reads from memory, so it should really have a
+    memory arg.  It is critical in functions which call setg
+    to make sure getg gets ordered correctly with setg.
     
-    Change-Id: If446e5dce236483bbb898cc5959baf8371f05142
-    Reviewed-on: https://go-review.googlesource.com/17550
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: Ief4875421f741fc49c07b0e1f065ce2535232341
+    Reviewed-on: https://go-review.googlesource.com/16100
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/crypto/x509/x509.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 +-
+ src/cmd/compile/internal/ssa/regalloc.go       |  5 -----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 10 ++++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 10 +++++-----
+ 8 files changed, 16 insertions(+), 19 deletions(-)

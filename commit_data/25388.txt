@@ -1,12 +1,20 @@
-commit acc150013924d6532ffb47e0e79d6d52af170777
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 18 15:50:43 2015 -0500
+commit adf9b30e55943feb44669ebf773964fd32d4ee94
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Aug 28 09:33:51 2015 +0200
 
-    api/go1.6.txt: add debug.SetTraceback, build.Package.InvalidGoFiles
+    reflect: adjust access to unexported embedded structs
     
-    Change-Id: Ib00e866e29681631f6fa3a14e7d81c25fc3c8500
-    Reviewed-on: https://go-review.googlesource.com/18052
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This CL changes reflect to allow access to exported fields and
+    methods in unexported embedded structs for gccgo and after gc
+    has been adjusted to disallow access to embedded unexported structs.
+    
+    Adresses #12367, #7363, #11007, and #7247.
+    
+    Change-Id: If80536eab35abcd25300d8ddc2d27d5c42d7e78e
+    Reviewed-on: https://go-review.googlesource.com/14010
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- api/go1.6.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ src/reflect/export_test.go |  4 ++--
+ src/reflect/type.go        |  2 +-
+ src/reflect/value.go       | 27 +++++++++++++++++----------
+ 3 files changed, 20 insertions(+), 13 deletions(-)

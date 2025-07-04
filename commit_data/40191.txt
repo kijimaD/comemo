@@ -1,44 +1,46 @@
-commit 1fba10c999613e8c04cef7f1331ff0051bfa7057
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Jul 1 18:30:01 2019 +0200
+commit 44343c777ca8c02262d1d381a2cc24866b3c5414
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue Apr 23 22:04:38 2019 -0600
 
-    cmd/go: fail if a test binary exits with no output
+    cmd/compile: add signed divisibility by power of 2 rules
     
-    For example, if a test calls os.Exit(0), that could trick a 'go test'
-    run into not running some of the other tests, and thinking that they all
-    succeeded. This can easily go unnoticed and cause developers headaches.
+    For powers of two (c=1<<k), the divisibility check x%c == 0 can be made
+    just by checking the trailing zeroes via a mask x&(c-1) == 0 even for signed
+    integers. This avoids division fix-ups when just divisibility check is needed.
     
-    Add a simple sanity check as part of 'go test': if the test binary
-    succeeds and doesn't print anything, we should error, as something
-    clearly went very wrong.
+    To apply this rule, we match on the fixed-up version of the division. This is
+    neccessary because the mod and division rewrite rules are already applied
+    during the initial opt pass.
     
-    This is done by inspecting each of the stdout writes from the spawned
-    process, since we don't want to read the entirety of the output into a
-    buffer. We need to introduce a "buffered" bool var, as there's now an
-    io.Writer layer between cmd.Stdout and &buf.
+    The speed up on amd64 due to elimination of unneccessary fix-up code is ~55%:
     
-    A few TestMain funcs in the standard library needed fixing, as they
-    returned without printing anything as a means to skip testing the entire
-    package. For that purpose add testenv.MainMust, which prints a warning
-    and prints SKIP, similar to when -run matches no tests.
+    name                     old time/op  new time/op  delta
+    DivconstI64-4            2.08ns ± 0%  2.09ns ± 1%     ~     (p=0.730 n=5+5)
+    DivisiblePow2constI64-4  1.78ns ± 1%  0.81ns ± 1%  -54.66%  (p=0.008 n=5+5)
+    DivconstU64-4            2.08ns ± 0%  2.08ns ± 0%     ~     (p=0.683 n=5+5)
+    DivconstI32-4            1.53ns ± 0%  1.53ns ± 1%     ~     (p=0.968 n=4+5)
+    DivisiblePow2constI32-4  1.79ns ± 1%  0.81ns ± 1%  -54.97%  (p=0.008 n=5+5)
+    DivconstU32-4            1.78ns ± 1%  1.80ns ± 2%     ~     (p=0.206 n=5+5)
+    DivconstI16-4            1.54ns ± 2%  1.54ns ± 0%     ~     (p=0.238 n=5+4)
+    DivisiblePow2constI16-4  1.78ns ± 0%  0.81ns ± 1%  -54.72%  (p=0.000 n=4+5)
+    DivconstU16-4            1.00ns ± 5%  1.01ns ± 1%     ~     (p=0.119 n=5+5)
+    DivconstI8-4             1.54ns ± 0%  1.54ns ± 2%     ~     (p=0.571 n=4+5)
+    DivisiblePow2constI8-4   1.78ns ± 0%  0.82ns ± 8%  -53.71%  (p=0.008 n=5+5)
+    DivconstU8-4             0.93ns ± 1%  0.93ns ± 1%     ~     (p=0.643 n=5+5)
     
-    Finally, add tests for both os.Exit(0) and os.Exit(1), both as part of
-    TestMain and as part of a single test, and test that the various stdout
-    modes still do the right thing.
+    A follow-up CL will address the general case of x%c == 0 for signed integers.
     
-    Fixes #29062.
+    Updates #15806
     
-    Change-Id: Ic6f8ef3387dfc64e4cd3e8f903d7ca5f5f38d397
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184457
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Iabadbbe369b6e0998c8ce85d038ebc236142e42a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173557
+    Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/test/test.go         |  37 +++++++-
- src/cmd/go/testdata/script/test_exit.txt | 152 +++++++++++++++++++++++++++++++
- src/cmd/internal/goobj/goobj_test.go     |   4 +-
- src/cmd/nm/nm_test.go                    |   4 +-
- src/cmd/objdump/objdump_test.go          |   4 +-
- src/go/build/deps_test.go                |   2 +-
- src/internal/testenv/testenv.go          |   9 ++
- 7 files changed, 200 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/testdata/arith_test.go |  291 ++++
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   35 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go     | 1546 +++++++++++++++++++-
+ src/cmd/compile/internal/test/divconst_test.go     |   26 +
+ test/codegen/arithmetic.go                         |   21 +-
+ 5 files changed, 1910 insertions(+), 9 deletions(-)

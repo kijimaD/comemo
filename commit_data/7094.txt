@@ -1,18 +1,26 @@
-commit a80cdcbe0a7e5baf69a0f298bb729630b345dcf0
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 11 17:56:45 2011 -0800
+commit 5aeacadc5a17251aa21e8e4e44118b9f1070863d
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 11 20:54:30 2011 -0500
 
-    gob: make (en|dec)code(Ui|I)nt methods rather than functions.
-    No functional (ha!) change.
+    crypto/openpgp: add error and armor
     
-    R=rsc
+    error is needed by all the OpenPGP packages as they return a shared
+    family of error types.
+    
+    armor implements OpenPGP armoring. It's very like PEM except:
+      a) it includes a CRC24 checksum
+      b) PEM values are small (a few KB) and so encoding/pem assumes that
+         they fit in memory. Armored data can be very large and so this
+         package presents a streaming interface.
+    
+    R=r, nsz, rsc
     CC=golang-dev
-    https://golang.org/cl/3959041
+    https://golang.org/cl/3786043
 
- src/pkg/gob/codec_test.go | 12 ++++-----
- src/pkg/gob/debug.go      | 28 +++++++++----------
- src/pkg/gob/decode.go     | 66 ++++++++++++++++++++++-----------------------
- src/pkg/gob/decoder.go    |  4 +--
- src/pkg/gob/encode.go     | 68 +++++++++++++++++++++++------------------------
- src/pkg/gob/encoder.go    |  6 ++---
- 6 files changed, 92 insertions(+), 92 deletions(-)
+ src/pkg/crypto/openpgp/armor/Makefile      |  12 ++
+ src/pkg/crypto/openpgp/armor/armor.go      | 220 +++++++++++++++++++++++++++++
+ src/pkg/crypto/openpgp/armor/armor_test.go |  97 +++++++++++++
+ src/pkg/crypto/openpgp/armor/encode.go     | 162 +++++++++++++++++++++
+ src/pkg/crypto/openpgp/error/Makefile      |  11 ++
+ src/pkg/crypto/openpgp/error/error.go      |  46 ++++++
+ 6 files changed, 548 insertions(+)

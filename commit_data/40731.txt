@@ -1,41 +1,14 @@
-commit b3885dbc93ceae1b12f7e80edd2696baf566edec
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Wed Oct 23 06:43:23 2019 -0700
+commit 122a4fb7b038af1407a8b1c5ffe370bae70a5c69
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 24 10:02:41 2019 -0700
 
-    cmd/compile, runtime: intrinsify atomic And8 and Or8 on s390x
+    doc/go1.13: mention {NetBSD,OpenBSD}/arm64 ports
     
-    Intrinsify these functions to match other platforms. Update the
-    sequence of instructions used in the assembly implementations to
-    match the intrinsics.
+    Also alphabetize port listing.
     
-    Also, add a micro benchmark so we can more easily measure the
-    performance of these two functions:
-    
-    name            old time/op  new time/op  delta
-    And8-8          5.33ns ± 7%  2.55ns ± 8%  -52.12%  (p=0.000 n=20+20)
-    And8Parallel-8  7.39ns ± 5%  3.74ns ± 4%  -49.34%  (p=0.000 n=20+20)
-    Or8-8           4.84ns ±15%  2.64ns ±11%  -45.50%  (p=0.000 n=20+20)
-    Or8Parallel-8   7.27ns ± 3%  3.84ns ± 4%  -47.10%  (p=0.000 n=19+20)
-    
-    By using a 'rotate then xor selected bits' instruction combined with
-    either a 'load and and' or a 'load and or' instruction we can
-    implement And8 and Or8 with far fewer instructions. Replacing
-    'compare and swap' with atomic instructions may also improve
-    performance when there is contention.
-    
-    Change-Id: I28bb8032052b73ae8ccdf6e4c612d2877085fa01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204277
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4cc552a74856c9955571d721deb6223438c7d856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183637
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go           |  4 +-
- src/cmd/compile/internal/s390x/ssa.go        | 34 ++++++++++++++++
- src/cmd/compile/internal/ssa/gen/S390X.rules | 30 ++++++++++++++
- src/cmd/compile/internal/ssa/gen/S390XOps.go | 28 +++++++++++++
- src/cmd/compile/internal/ssa/opGen.go        | 48 ++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go | 59 ++++++++++++++++++++++++++++
- src/cmd/internal/obj/s390x/rotate.go         | 47 ++++++++++++++++++++++
- src/runtime/internal/atomic/asm_s390x.s      | 44 ++++++++-------------
- src/runtime/internal/atomic/bench_test.go    | 40 +++++++++++++++++++
- 9 files changed, 305 insertions(+), 29 deletions(-)
+ doc/go1.13.html | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

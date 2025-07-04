@@ -1,21 +1,17 @@
-commit 5afada035ced1f89267d3177a9fb75fab4df81ff
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed May 14 16:15:40 2025 -0400
+commit b5e377cedcfd7eb629ee5718acabccad98281d51
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri Mar 22 01:26:02 2024 +0000
 
-    go/ast: add PreorderStack, a variant of Inspect that builds a stack
+    database/sql: fix typo in comment
     
-    + doc, test, relnote
-    
-    Fixes #73319
-    
-    Change-Id: Ib7c9d0d7107cd62dc7f09120dfb475c4a469ddc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672696
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ie8ac82b6a1685299a92ec59acbd80b6de38e377c
+    GitHub-Last-Rev: 325df8d1488b02bfa239d66cdf870e3d37169d76
+    GitHub-Pull-Request: golang/go#66457
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573615
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- api/next/73319.txt                         |  1 +
- doc/next/6-stdlib/99-minor/go/ast/73319.md |  4 +++
- src/go/ast/walk.go                         | 39 ++++++++++++++++++++-
- src/go/ast/walk_test.go                    | 56 +++++++++++++++++++++++++++++-
- 4 files changed, 98 insertions(+), 2 deletions(-)
+ src/database/sql/doc.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,16 @@
-commit 9b2d84efc896b50b5d143fed4fe128237a864a72
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 29 11:37:13 2015 -0700
+commit 310fb9e8087471f6ab65d8c464df10572c0d38ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 26 11:44:18 2015 -0700
 
-    net/http/httptest: increase test Server's key size
+    spec: removed TODOs (invisible html comment) in favor of issues
     
-    Fixes #10725
+    - no "visible" change to spec but for updated date
+    - retired several outdated TODO items
+    - filed non-urgent issues 10953, 10954, 10955 for current TODOs
     
-    Change-Id: Ic8685dc238a0ffc95fafb512a8587d2eb5fe9d5f
-    Reviewed-on: https://go-review.googlesource.com/11720
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If87ad0fb546c6955a6d4b5801e06e5c7d5695ea2
+    Reviewed-on: https://go-review.googlesource.com/10382
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/httptest/server.go | 42 +++++++++++++++++++++++++----------------
- 1 file changed, 26 insertions(+), 16 deletions(-)
+ doc/go_spec.html | 17 +----------------
+ 1 file changed, 1 insertion(+), 16 deletions(-)

@@ -1,17 +1,32 @@
-commit eee6f2b921e13d10faff6d45dc099c3a45d389b9
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri May 26 10:36:54 2023 -0400
+commit e99f285d52627aa415f9c1766cbffe375b2f67d9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 9 19:30:47 2022 +0700
 
-    go1.21.html: remove log/slog package "changes"
+    cmd/compile: fix ICE when checking implicit dot for method call
     
-    Since log/slog doesn't appear in earlier Go versions, we don't need
-    to document these proposals as changes.
+    CL 414836 limited the check for implicit dot for method call enabled by
+    a type bound. However, the checking condition for ODOTMETH only is not
+    right. For example, for promoted method, we have a OXDOT node instead,
+    and we still have to check for implicit dot in this case.
     
-    Change-Id: Iae6ed9ca6bd22d8c46c21deece9ddedf7d739032
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498272
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    TryBot-Bypass: Jonathan Amsterdam <jba@google.com>
+    However, if the base type and embedded types have the same method name,
+    e.g in issue #53419, typecheck.AddImplicitDots will be confused and
+    result in an ambigus selector.
+    
+    To fix this, we ensure methods for the base type are computed, then only
+    do the implicit dot check if we can find a matched method.
+    
+    Fixes #54348
+    
+    Change-Id: Iefe84ff330830afe35c5daffd499824db108da23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422274
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.21.html | 56 +++-----------------------------------------------------
- 1 file changed, 3 insertions(+), 53 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  6 ++++--
+ test/fixedbugs/issue54348.go              | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

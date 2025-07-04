@@ -1,15 +1,25 @@
-commit 4d7c63558c2f4b79169eaa6f6b3ce017f5d43b1e
-Author: Frithjof Schulze <schulze@math.uni-hannover.de>
-Date:   Wed Oct 2 12:09:13 2013 -0400
+commit 6b188ef57a644838bd4c673d6d14b49879db6297
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 1 23:44:20 2013 -0400
 
-    crypto/tls: Update reference to the TLS 1.2 RFC.
+    cmd/dist, build: support building statically linked toolchain
     
-    Ticket 13740047 updated the documented TLS version to 1.2.
-    This also updates the RFC refered to.
+    Added a new $GO_DISTFLAGS to make.bash, and while we're here,
+    added mention $CXX in make.bash (CL 13704044).
     
-    R=golang-dev
-    CC=golang-dev, rsc
-    https://golang.org/cl/14029043
+    Fixes #6448.
+    Update #3564
+    We can pass GO_DISTFLAGS=-s from misc/dist to make.bash so that
+    it will build a statically linked toolchain.
+    (Note: OS X doesn't have the concept of static linking, so don't
+    pass GO_DISTFLAGS=-s for OS X builds)
+    
+    R=adg, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/13887043
 
- src/pkg/crypto/tls/tls.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/a.h     | 1 +
+ src/cmd/dist/build.c | 8 ++++++++
+ src/cmd/dist/main.c  | 1 +
+ src/make.bash        | 7 ++++++-
+ 4 files changed, 16 insertions(+), 1 deletion(-)

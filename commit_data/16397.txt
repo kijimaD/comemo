@@ -1,12 +1,17 @@
-commit 2ca589d494ee8dc428bd5ce93603f373b8554e5b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri May 24 07:56:01 2013 -0400
+commit 8f7863d6382d92267bff313564d3e077d5e68ac3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 23 22:51:07 2013 -0700
 
-    misc/cgo/testso: use bash to run test.bash
+    cmd/cgo: use intgo, not int, for string and slice structures
     
-    R=golang-dev, minux.ma, capnm9
+    Fixes #5548.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/9717043
+    https://golang.org/cl/9643044
 
- misc/cgo/testso/test.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue5548.go  | 26 ++++++++++++++++++++++++++
+ misc/cgo/test/issue5548_c.c | 24 ++++++++++++++++++++++++
+ src/cmd/cgo/out.go          | 31 ++++++++++++++++++++-----------
+ 4 files changed, 71 insertions(+), 11 deletions(-)

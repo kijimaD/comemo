@@ -1,16 +1,16 @@
-commit e3dbb1a31059994de2b20fedca0a8061cc90a7dd
-Author: Taru Karttunen <taruti@taruti.net>
-Date:   Fri Aug 9 15:11:03 2013 -0700
+commit 3319db4c94fe1083db96e57b4ee8de780a8c88bf
+Author: Nicolas Owens <mischief@offblast.org>
+Date:   Fri Aug 9 14:16:43 2013 -0700
 
-    net/http: Make ReadResponse work with a nil Request parameter
+    net: fix LookupSRV ordering on plan 9
     
-    Fixes #5583
+    lookup_plan9.go's lookupSRV is using the wrong order for srv results. order should be weight, priority, port, following the response from /net/dns:
     
-    R=golang-dev, dave, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/9821043
+      chi Aug  9 20:31:13 Rread tag 20 count 61 '_xmpp-client._tcp.offblast.org srv 5 0 5222 iota.offblast.org' 72
+    
+    R=golang-dev, bradfitz
+    CC=ality, golang-dev, r, rsc
+    https://golang.org/cl/12708043
 
- src/pkg/net/http/response.go      | 21 ++++++++++-----------
- src/pkg/net/http/response_test.go | 23 +++++++++++++++++++++++
- src/pkg/net/http/transfer.go      |  7 ++++---
- 3 files changed, 37 insertions(+), 14 deletions(-)
+ src/pkg/net/lookup_plan9.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

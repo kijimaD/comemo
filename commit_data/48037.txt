@@ -1,17 +1,35 @@
-commit 122654739dce506364d10c450afcc36d7572922d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 28 13:15:16 2022 -0800
+commit d310b2a6b8a66eeb5953b1e682cf27669c8a08c2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 22 17:14:10 2021 +0700
 
-    doc/go1.18: mention new debug/dwarf DataBitOffset fields
+    cmd/compile: set correct Defn for inlined vars
     
-    For #46784
-    For #47694
-    For #50685
+    Currently, when copying definition node of an inlined var, we do not
+    update var Defn field to point to new copied node. That causes all
+    inlined vars point to the same Defn, and ir.StaticValue can not find
+    inlined var in the lhs of its definition.
     
-    Change-Id: I5351b56722d036a520d1a598ef7af95c5eb44c35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381778
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    clovar creates new ONAME node for local variables or params of closure
+    inside inlined function, by copying most of the old node fields. So the
+    new Node.Defn is not modified, its lhs still refer to old node
+    instead of new one.
+    
+    To fix this, we need to do two things:
+    
+     - In subst.clovar, set a dummy Defn node for inlvar
+     - During subst.node, when seeing OAS/OAS2 nodes, after substituting, we
+       check if any node in lhs has the dummy Defn, then set it to the current
+       OAS/OAS2 node.
+    
+    Fixes #45606
+    
+    Change-Id: Ib517b753a7643756dcd61d36deae60f1a0fc53c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312630
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.18.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/inline/inl.go | 31 ++++++++++++++++++++++++++++++-
+ test/fixedbugs/issue45606.go           | 17 +++++++++++++++++
+ 2 files changed, 47 insertions(+), 1 deletion(-)

@@ -1,16 +1,16 @@
-commit f5f16d1ec17830a1618fcb911626d101b7b85a5f
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Tue Mar 6 16:27:14 2018 +0100
+commit 47c868dc1c92fcd75ca1574cc5a5fae4797e2271
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 28 11:53:38 2017 +0000
 
-    iostest.bash: don't build std library twice
+    Revert "cmd/dist: translate /private/var to /var on darwin builders"
     
-    Instead, mirror androidtest.bash and build once, then run run.bash.
+    This reverts commit 4f2ee4997470c84a55d89d097e6b8fc45680978f.
     
-    Change-Id: I174ae30b2a429a62b20bb290a70cb07ed712b1e4
-    Reviewed-on: https://go-review.googlesource.com/98915
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reason for revert: broke mobile builders.
+    
+    Change-Id: I9fd3ef777ce6401c0c28b03f1dc53ddcdbef5111
+    Reviewed-on: https://go-review.googlesource.com/74170
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/iostest.bash | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.go | 17 -----------------
+ 1 file changed, 17 deletions(-)

@@ -1,44 +1,17 @@
-commit b7f1777a709e575cb6aa03c25a976d06d36cb6a6
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 23 07:30:32 2018 -0700
+commit b26c88db2f338d6529e1021db59f0faa75af5934
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 15:52:01 2018 -0500
 
-    runtime,cmd/ld: on darwin, create theads using libc
+    reflect: fix doc nit
     
-    Replace thread creation with calls to the pthread
-    library in libc.
+    Type values being comparable implies that Type is a valid map key type.
+    As previously written, they sound unrelated.
     
-    Update #17490
-    
-    Change-Id: I1e19965c45255deb849b059231252fc6a7861d6c
-    Reviewed-on: https://go-review.googlesource.com/108679
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8e2235275d62898bfb47de850e8257b51ab5cbd6
+    Reviewed-on: https://go-review.googlesource.com/87021
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/amd64/asm.go         |   9 +-
- src/cmd/link/internal/ld/data.go           |  22 +-
- src/cmd/link/internal/ld/lib.go            |   7 +-
- src/cmd/link/internal/x86/asm.go           |   6 +-
- src/cmd/vet/all/whitelist/darwin_386.txt   |   1 -
- src/cmd/vet/all/whitelist/darwin_amd64.txt |   1 -
- src/runtime/defs_darwin.go                 |   6 +
- src/runtime/defs_darwin_386.go             |   8 +
- src/runtime/defs_darwin_amd64.go           |   8 +
- src/runtime/defs_darwin_arm.go             |   8 +
- src/runtime/defs_darwin_arm64.go           |   8 +
- src/runtime/os3_solaris.go                 |   4 +-
- src/runtime/os_darwin.go                   |  92 +++--
- src/runtime/os_darwin_raw.go               | 592 +++++++++++++++++++++++++++++
- src/runtime/os_dragonfly.go                |   3 +-
- src/runtime/os_freebsd.go                  |   3 +-
- src/runtime/os_linux.go                    |   3 +-
- src/runtime/os_nacl.go                     |   3 +-
- src/runtime/os_netbsd.go                   |   3 +-
- src/runtime/os_openbsd.go                  |   3 +-
- src/runtime/os_plan9.go                    |   2 +-
- src/runtime/os_windows.go                  |   7 +-
- src/runtime/proc.go                        |   4 +-
- src/runtime/sys_darwin.go                  |  66 ++++
- src/runtime/sys_darwin_386.s               | 198 ++++++----
- src/runtime/sys_darwin_amd64.s             | 151 ++++----
- 26 files changed, 1008 insertions(+), 210 deletions(-)
+ doc/go1.10.html     | 3 ++-
+ src/reflect/type.go | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

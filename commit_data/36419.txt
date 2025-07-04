@@ -1,82 +1,27 @@
-commit 3396034155f517a7688f730f5cc9b2d4427093d4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 21 07:58:10 2018 -0700
+commit 353bba37df54adcefde7faf41edc34d2bfa5f978
+Author: Lubomir I. Ivanov (VMware) <neolit123@gmail.com>
+Date:   Wed Apr 25 20:57:19 2018 +0000
 
-    regexp/syntax: don't do both linear and binary sesarch in MatchRunePos
+    os/exec: fix Win32 tests missing 'chcp'
     
-    MatchRunePos is a significant element of regexp performance, so some
-    attention to optimization is appropriate. Before this CL, a
-    non-matching rune would do both a linear search in the first four
-    entries, and a binary search over all the entries. Change the code to
-    optimize for the common case of two runes, to only do a linear search
-    when there are up to four entries, and to only do a binary search when
-    there are more than four entries.
+    '%SystemRoot%/System32/chcp.com' is a tool on Windows that
+    is used to change the active code page in the console.
     
-    Updates #26623
+    'go test os/exec' can fail with:
+    "'chcp' is not recognized as an internal or external command"
     
-    name                             old time/op    new time/op    delta
-    Find-12                             260ns ± 1%     275ns ± 7%   +5.84%  (p=0.000 n=8+10)
-    FindAllNoMatches-12                 144ns ± 9%     143ns ±12%     ~     (p=0.187 n=10+10)
-    FindString-12                       256ns ± 4%     254ns ± 1%     ~     (p=0.357 n=9+8)
-    FindSubmatch-12                     587ns ±12%     593ns ±11%     ~     (p=0.516 n=10+10)
-    FindStringSubmatch-12               534ns ±12%     525ns ±14%     ~     (p=0.565 n=10+10)
-    Literal-12                          104ns ±14%     106ns ±11%     ~     (p=0.145 n=10+10)
-    NotLiteral-12                      1.51µs ± 8%    1.47µs ± 2%     ~     (p=0.508 n=10+9)
-    MatchClass-12                      2.47µs ± 1%    2.26µs ± 6%   -8.55%  (p=0.000 n=8+10)
-    MatchClass_InRange-12              2.18µs ± 5%    2.25µs ±11%   +2.85%  (p=0.009 n=9+10)
-    ReplaceAll-12                      2.35µs ± 6%    2.08µs ±23%  -11.59%  (p=0.010 n=9+10)
-    AnchoredLiteralShortNonMatch-12    93.2ns ± 9%    93.2ns ±11%     ~     (p=0.716 n=10+10)
-    AnchoredLiteralLongNonMatch-12      118ns ±10%     117ns ± 9%     ~     (p=0.802 n=10+10)
-    AnchoredShortMatch-12               142ns ± 1%     141ns ± 1%   -0.53%  (p=0.007 n=8+8)
-    AnchoredLongMatch-12                303ns ± 9%     304ns ± 6%     ~     (p=0.724 n=10+10)
-    OnePassShortA-12                    620ns ± 1%     618ns ± 9%     ~     (p=0.162 n=8+10)
-    NotOnePassShortA-12                 599ns ± 8%     568ns ± 1%   -5.21%  (p=0.000 n=10+8)
-    OnePassShortB-12                    525ns ± 7%     489ns ± 1%   -6.93%  (p=0.000 n=10+8)
-    NotOnePassShortB-12                 449ns ± 9%     431ns ±11%   -4.05%  (p=0.033 n=10+10)
-    OnePassLongPrefix-12                119ns ± 6%     114ns ± 0%   -3.88%  (p=0.006 n=10+9)
-    OnePassLongNotPrefix-12             420ns ± 9%     410ns ± 7%     ~     (p=0.645 n=10+9)
-    MatchParallelShared-12              376ns ± 0%     375ns ± 0%   -0.45%  (p=0.003 n=8+10)
-    MatchParallelCopied-12             39.4ns ± 1%    39.1ns ± 0%   -0.55%  (p=0.004 n=10+9)
-    QuoteMetaAll-12                     139ns ± 7%     142ns ± 7%     ~     (p=0.445 n=10+10)
-    QuoteMetaNone-12                   56.7ns ± 0%    61.3ns ± 7%   +8.03%  (p=0.001 n=8+10)
-    Match/Easy0/32-12                  83.4ns ± 7%    83.1ns ± 8%     ~     (p=0.541 n=10+10)
-    Match/Easy0/1K-12                   417ns ± 8%     394ns ± 6%     ~     (p=0.059 n=10+9)
-    Match/Easy0/32K-12                 7.05µs ± 8%    7.30µs ± 9%     ~     (p=0.190 n=10+10)
-    Match/Easy0/1M-12                   291µs ±17%     284µs ±10%     ~     (p=0.481 n=10+10)
-    Match/Easy0/32M-12                 9.89ms ± 4%   10.27ms ± 8%     ~     (p=0.315 n=10+10)
-    Match/Easy0i/32-12                 1.13µs ± 1%    1.14µs ± 1%   +1.51%  (p=0.000 n=8+8)
-    Match/Easy0i/1K-12                 35.7µs ±11%    36.8µs ±10%     ~     (p=0.143 n=10+10)
-    Match/Easy0i/32K-12                1.70ms ± 7%    1.72ms ± 7%     ~     (p=0.776 n=9+6)
+    The test uses a custom PATH variable but does not include
+    '%SystemRoot%/System32'. Always append that to PATH.
     
-    name                             old alloc/op   new alloc/op   delta
-    Find-12                             0.00B          0.00B          ~     (all equal)
-    FindAllNoMatches-12                 0.00B          0.00B          ~     (all equal)
-    FindString-12                       0.00B          0.00B          ~     (all equal)
-    FindSubmatch-12                     48.0B ± 0%     48.0B ± 0%     ~     (all equal)
-    FindStringSubmatch-12               32.0B ± 0%     32.0B ± 0%     ~     (all equal)
+    Updates #24709
     
-    name                             old allocs/op  new allocs/op  delta
-    Find-12                              0.00           0.00          ~     (all equal)
-    FindAllNoMatches-12                  0.00           0.00          ~     (all equal)
-    FindString-12                        0.00           0.00          ~     (all equal)
-    FindSubmatch-12                      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    FindStringSubmatch-12                1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    
-    name                             old speed      new speed      delta
-    QuoteMetaAll-12                   101MB/s ± 8%    99MB/s ± 7%     ~     (p=0.529 n=10+10)
-    QuoteMetaNone-12                  458MB/s ± 0%   425MB/s ± 8%   -7.22%  (p=0.003 n=8+10)
-    Match/Easy0/32-12                 385MB/s ± 7%   386MB/s ± 7%     ~     (p=0.579 n=10+10)
-    Match/Easy0/1K-12                2.46GB/s ± 8%  2.60GB/s ± 6%     ~     (p=0.065 n=10+9)
-    Match/Easy0/32K-12               4.66GB/s ± 7%  4.50GB/s ±10%     ~     (p=0.190 n=10+10)
-    Match/Easy0/1M-12                3.63GB/s ±15%  3.70GB/s ± 9%     ~     (p=0.481 n=10+10)
-    Match/Easy0/32M-12               3.40GB/s ± 4%  3.28GB/s ± 8%     ~     (p=0.315 n=10+10)
-    Match/Easy0i/32-12               28.4MB/s ± 1%  28.0MB/s ± 1%   -1.50%  (p=0.000 n=8+8)
-    Match/Easy0i/1K-12               28.8MB/s ±10%  27.9MB/s ±11%     ~     (p=0.143 n=10+10)
-    Match/Easy0i/32K-12              19.0MB/s ±14%  19.1MB/s ± 8%     ~     (p=1.000 n=10+6)
-    
-    Change-Id: I238a451b36ad84b0f5534ff0af5c077a0d52d73a
-    Reviewed-on: https://go-review.googlesource.com/130417
+    Change-Id: I1ab83b326072e3f0086b391b836234bcfd8a1fb7
+    GitHub-Last-Rev: fb930529bb0673cdec921df5a2821c4b41de745e
+    GitHub-Pull-Request: golang/go#25088
+    Reviewed-on: https://go-review.googlesource.com/109361
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/regexp/syntax/prog.go | 32 ++++++++++++++++++++++----------
- 1 file changed, 22 insertions(+), 10 deletions(-)
+ src/os/exec/lp_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,22 @@
-commit 9cf88333e8255155be4e136c572883bb5ad546bd
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 9 12:06:18 2020 +0700
+commit c46ffdd2eca339918ed30b6ba9d4715ba769d35d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 25 20:30:37 2020 -0500
 
-    cmd/compile: consistently use Type.IsUnsafePtr()
+    runtime: guard VZEROUPPER on CPU feature
     
-    Passes toolstash-check.
+    In CL 219131 we inserted a VZEROUPPER instruction on darwin/amd64.
+    The instruction is not available on pre-AVX machines. Guard it
+    with CPU feature.
     
-    Change-Id: Iaeae7cc20e26af733642c7c8c7ca0a059e5b07b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253657
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #37459.
+    
+    Change-Id: I9a064df277d091be4ee594eda5c7fd8ee323102b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221057
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/escape.go |  6 +++---
- src/cmd/compile/internal/gc/ssa.go    |  2 +-
- src/cmd/compile/internal/gc/subr.go   |  4 ++--
- src/cmd/compile/internal/gc/walk.go   | 10 +++++-----
- 4 files changed, 11 insertions(+), 11 deletions(-)
+ src/runtime/cpuflags.go     |  1 +
+ src/runtime/mkpreempt.go    | 19 +++++++++++--------
+ src/runtime/preempt_amd64.s |  8 +++++---
+ 3 files changed, 17 insertions(+), 11 deletions(-)

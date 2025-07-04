@@ -1,48 +1,17 @@
-commit bcee121ae4f67281450280c72399890a3c7a7d5b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Feb 7 12:00:44 2022 -0500
+commit 756fd56bbf4f965cfab29cc71e0853f0c48a331f
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 28 18:10:22 2021 -0400
 
-    cmd/compile, runtime: use unwrapped PC for goroutine creation tracing
+    cmd/compile: remove an unused function
     
-    With the switch to the register ABI, we now generate wrapper
-    functions for go statements in many cases. A new goroutine's start
-    PC now points to the wrapper function. This does not affect
-    execution, but the runtime tracer uses the start PC and the
-    function name as the name/label of that goroutine. If the start
-    function is a named function, using the name of the wrapper loses
-    that information. Furthur, the tracer's goroutine view groups
-    goroutines by start PC. For multiple go statements with the same
-    callee, they are grouped together. With the wrappers, which is
-    context-dependent as it is a closure, they are no longer grouped.
+    Remove unused function AddrForParamSlot.
     
-    This CL fixes the problem by providing the underlying unwrapped
-    PC for tracing. The compiler emits metadata to link the unwrapped
-    PC to the wrapper function. And the runtime reads that metadata
-    and record that unwrapped PC for tracing.
-    
-    (This doesn't work for shared buildmode. Unfortunate.)
-    
-    TODO: is there a way to test?
-    
-    Fixes #50622.
-    
-    Change-Id: Iaa20e1b544111c0255eb0fc04427aab7a5e3b877
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384158
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8e3ed8cc6607d30ad6da7bc6ccbaa87b7e001e79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314909
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/escape/call.go    |  9 +++++++++
- src/cmd/compile/internal/gc/obj.go         |  4 ++++
- src/cmd/compile/internal/ir/func.go        |  4 ++++
- src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
- src/cmd/compile/internal/ssagen/ssa.go     | 30 ++++++++++++++++++++++++++++++
- src/cmd/internal/obj/link.go               |  1 +
- src/cmd/internal/obj/objfile.go            |  1 +
- src/cmd/internal/objabi/funcdata.go        |  1 +
- src/cmd/link/internal/ld/symtab.go         |  1 +
- src/runtime/funcdata.h                     |  1 +
- src/runtime/symtab.go                      |  1 +
- src/runtime/trace.go                       | 18 ++++++++++++++++--
- 12 files changed, 70 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 18 +-----------------
+ 1 file changed, 1 insertion(+), 17 deletions(-)

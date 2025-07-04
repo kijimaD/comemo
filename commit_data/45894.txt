@@ -1,23 +1,163 @@
-commit 835d86a17ebf32a3cb081f66119c74363dbd8825
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Jun 23 01:02:33 2021 +0900
+commit 5c2e14872c70a8ad9fd27033a2451531c6c00c0e
+Merge: 2c25cd5ba7 41f3af9d04
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 12:44:11 2020 -0500
 
-    cmd/go: use path.Dir instead of filepath.Dir for package paths in 'go mod vendor'
+    [dev.typeparams] merge dev.regabi 41f3af9d04 into dev.typeparams
     
-    copyMetadata walk-up to parent directory until the pkg become modPath.
-    But pkg should be slash-separated paths. It have to use path.Dir instead of
-    filepath.Dir.
+    This brings in the new ir.Node interface, replacing *gc.Node.
     
-    Fixes #46867
-    
-    Change-Id: I44cf1429fe52379a7415b94cc30ae3275cc430e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330149
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Alexander Rakoczy <alex@golang.org>
-    Trust: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I82c623655eee08d77d623babf22ec4d91f9aa3cd
 
- src/cmd/go/internal/modcmd/vendor.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/diagnostics.html                               |    2 +-
+ doc/go1.16.html                                    |    4 +
+ src/cmd/cgo/out.go                                 |   23 +-
+ src/cmd/compile/fmtmap_test.go                     |   57 +-
+ src/cmd/compile/internal/amd64/ggen.go             |    3 +-
+ src/cmd/compile/internal/amd64/ssa.go              |    9 +-
+ src/cmd/compile/internal/arm/ssa.go                |   10 +-
+ src/cmd/compile/internal/arm64/ssa.go              |   10 +-
+ src/cmd/compile/internal/base/base.go              |   28 +
+ src/cmd/compile/internal/base/debug.go             |  194 ++
+ src/cmd/compile/internal/base/flag.go              |  454 +++
+ src/cmd/compile/internal/base/print.go             |  260 ++
+ src/cmd/compile/internal/gc/alg.go                 |  384 +--
+ src/cmd/compile/internal/gc/align.go               |  123 +-
+ src/cmd/compile/internal/gc/bexport.go             |   73 +-
+ src/cmd/compile/internal/gc/bimport.go             |   15 +-
+ src/cmd/compile/internal/gc/bootstrap.go           |    7 +-
+ src/cmd/compile/internal/gc/builtin.go             |  219 +-
+ src/cmd/compile/internal/gc/bv.go                  |   12 +-
+ src/cmd/compile/internal/gc/closure.go             |  429 +--
+ src/cmd/compile/internal/gc/const.go               | 1349 +++-----
+ src/cmd/compile/internal/gc/dcl.go                 |  662 ++--
+ src/cmd/compile/internal/gc/dep_test.go            |    2 +-
+ src/cmd/compile/internal/gc/dwinl.go               |   67 +-
+ src/cmd/compile/internal/gc/embed.go               |  107 +-
+ src/cmd/compile/internal/gc/esc.go                 |  472 ---
+ src/cmd/compile/internal/gc/escape.go              | 1260 +++++---
+ src/cmd/compile/internal/gc/export.go              |  136 +-
+ src/cmd/compile/internal/gc/gen.go                 |   50 +-
+ src/cmd/compile/internal/gc/go.go                  |  154 +-
+ src/cmd/compile/internal/gc/gsubr.go               |   90 +-
+ src/cmd/compile/internal/gc/iexport.go             |  753 ++---
+ src/cmd/compile/internal/gc/iimport.go             |  543 ++--
+ src/cmd/compile/internal/gc/init.go                |   45 +-
+ src/cmd/compile/internal/gc/initorder.go           |  167 +-
+ src/cmd/compile/internal/gc/inl.go                 |  949 +++---
+ src/cmd/compile/internal/gc/lex.go                 |   95 +-
+ src/cmd/compile/internal/gc/main.go                |  862 ++----
+ src/cmd/compile/internal/gc/mkbuiltin.go           |   13 +-
+ src/cmd/compile/internal/gc/mpfloat.go             |  357 ---
+ src/cmd/compile/internal/gc/mpint.go               |  304 --
+ src/cmd/compile/internal/gc/noder.go               |  790 +++--
+ src/cmd/compile/internal/gc/obj.go                 |  285 +-
+ src/cmd/compile/internal/gc/op_string.go           |  175 --
+ src/cmd/compile/internal/gc/order.go               |  928 +++---
+ src/cmd/compile/internal/gc/pgen.go                |  425 +--
+ src/cmd/compile/internal/gc/pgen_test.go           |  170 +-
+ src/cmd/compile/internal/gc/phi.go                 |   37 +-
+ src/cmd/compile/internal/gc/plive.go               |  154 +-
+ src/cmd/compile/internal/gc/racewalk.go            |   38 +-
+ src/cmd/compile/internal/gc/range.go               |  378 +--
+ src/cmd/compile/internal/gc/reflect.go             |  458 ++-
+ src/cmd/compile/internal/gc/scc.go                 |   60 +-
+ src/cmd/compile/internal/gc/scope.go               |   20 +-
+ src/cmd/compile/internal/gc/select.go              |  326 +-
+ src/cmd/compile/internal/gc/sinit.go               |  738 ++---
+ src/cmd/compile/internal/gc/ssa.go                 | 3267 ++++++++++----------
+ src/cmd/compile/internal/gc/subr.go                | 1028 ++----
+ src/cmd/compile/internal/gc/swt.go                 |  465 +--
+ src/cmd/compile/internal/gc/trace.go               |    8 +-
+ src/cmd/compile/internal/gc/typecheck.go           | 3029 +++++++++---------
+ src/cmd/compile/internal/gc/types.go               |   53 -
+ src/cmd/compile/internal/gc/types_acc.go           |    8 -
+ src/cmd/compile/internal/gc/universe.go            |  425 ++-
+ src/cmd/compile/internal/gc/unsafe.go              |   65 +-
+ src/cmd/compile/internal/gc/util.go                |   68 +-
+ src/cmd/compile/internal/gc/walk.go                | 2745 ++++++++--------
+ src/cmd/compile/internal/{gc => ir}/bitset.go      |    2 +-
+ .../compile/internal/{gc => ir}/class_string.go    |    2 +-
+ src/cmd/compile/internal/{gc => ir}/dump.go        |   23 +-
+ src/cmd/compile/internal/{gc => ir}/fmt.go         |  974 +++---
+ src/cmd/compile/internal/ir/ir.go                  |   12 +
+ .../compile/internal/{gc/syntax.go => ir/node.go}  |  950 ++++--
+ src/cmd/compile/internal/ir/op_string.go           |  177 ++
+ src/cmd/compile/internal/{gc => ir}/sizeof_test.go |   10 +-
+ src/cmd/compile/internal/ir/val.go                 |  120 +
+ src/cmd/compile/internal/mips/ggen.go              |    5 +-
+ src/cmd/compile/internal/mips/ssa.go               |   10 +-
+ src/cmd/compile/internal/mips64/ssa.go             |   10 +-
+ src/cmd/compile/internal/ppc64/ggen.go             |    9 +-
+ src/cmd/compile/internal/ppc64/ssa.go              |   12 +-
+ src/cmd/compile/internal/riscv64/ggen.go           |    3 +-
+ src/cmd/compile/internal/riscv64/ssa.go            |   18 +-
+ src/cmd/compile/internal/s390x/ggen.go             |    3 +-
+ src/cmd/compile/internal/s390x/ssa.go              |    7 +-
+ src/cmd/compile/internal/ssa/config.go             |   21 +-
+ src/cmd/compile/internal/ssa/deadstore.go          |   29 +-
+ src/cmd/compile/internal/ssa/debug.go              |   21 +-
+ src/cmd/compile/internal/ssa/expand_calls.go       |    2 +-
+ src/cmd/compile/internal/ssa/export_test.go        |  108 +-
+ src/cmd/compile/internal/ssa/location.go           |    3 +-
+ src/cmd/compile/internal/ssa/nilcheck.go           |    3 +-
+ src/cmd/compile/internal/ssa/poset.go              |   54 +-
+ src/cmd/compile/internal/ssa/regalloc.go           |    5 +-
+ src/cmd/compile/internal/ssa/stackalloc.go         |    3 +-
+ src/cmd/compile/internal/syntax/dumper_test.go     |    2 +-
+ src/cmd/compile/internal/syntax/nodes.go           |    2 +-
+ src/cmd/compile/internal/syntax/printer_test.go    |    2 +-
+ src/cmd/compile/internal/types/scope.go            |    8 +-
+ src/cmd/compile/internal/types/sizeof_test.go      |    6 +-
+ src/cmd/compile/internal/types/sym.go              |    4 +-
+ src/cmd/compile/internal/types/type.go             |   64 +-
+ src/cmd/compile/internal/wasm/ssa.go               |   10 +-
+ src/cmd/compile/internal/x86/galign.go             |    5 +-
+ src/cmd/compile/internal/x86/ssa.go                |   13 +-
+ src/cmd/compile/main.go                            |    3 +-
+ src/cmd/dist/buildtool.go                          |    4 +
+ src/cmd/go/internal/base/flag.go                   |    2 +
+ src/cmd/go/internal/fsys/fsys.go                   |   16 +-
+ .../go/internal/lockedfile/lockedfile_filelock.go  |    3 +-
+ src/cmd/go/internal/lockedfile/lockedfile_plan9.go |    6 +-
+ src/cmd/go/internal/modcmd/vendor.go               |    3 +-
+ src/cmd/go/internal/modget/get.go                  |  147 +-
+ src/cmd/go/internal/modload/build.go               |    2 +-
+ src/cmd/go/internal/modload/buildlist.go           |   12 -
+ src/cmd/go/internal/modload/import.go              |    4 +-
+ src/cmd/go/internal/modload/init.go                |   14 +-
+ src/cmd/go/internal/modload/load.go                |    4 +-
+ src/cmd/go/internal/modload/modfile.go             |    6 +-
+ src/cmd/go/internal/modload/mvs.go                 |   11 -
+ src/cmd/go/internal/modload/mvs_test.go            |    8 +-
+ src/cmd/go/internal/search/search.go               |    2 +-
+ src/cmd/go/internal/work/build.go                  |   12 +-
+ .../example.com_retract_incompatible_v1.0.0.txt    |   19 +
+ ...om_retract_incompatible_v2.0.0+incompatible.txt |    9 +
+ src/cmd/go/testdata/script/mod_get_changes.txt     |   70 +
+ src/cmd/go/testdata/script/mod_get_retract.txt     |    1 +
+ src/cmd/go/testdata/script/mod_gonoproxy.txt       |    6 +
+ src/cmd/go/testdata/script/mod_overlay.txt         |  254 ++
+ .../testdata/script/mod_retract_incompatible.txt   |   15 +
+ src/cmd/internal/pkgpath/pkgpath.go                |   68 +-
+ src/cmd/internal/pkgpath/pkgpath_test.go           |   22 +-
+ src/go/constant/value.go                           |   40 +-
+ src/go/constant/value_test.go                      |   21 +
+ src/internal/poll/copy_file_range_linux.go         |    1 +
+ src/net/sock_linux.go                              |    1 +
+ src/runtime/metrics/description.go                 |    9 +-
+ src/runtime/metrics/doc.go                         |    7 +-
+ src/strconv/bytealg.go                             |   14 +
+ src/strconv/bytealg_bootstrap.go                   |   17 +
+ src/strconv/eisel_lemire.go                        |   16 +-
+ src/strconv/quote.go                               |    6 -
+ src/sync/atomic/doc.go                             |   11 +-
+ src/sync/once.go                                   |    2 +-
+ src/syscall/dll_windows.go                         |    2 +
+ test/const2.go                                     |   11 +
+ test/fixedbugs/bug340.go                           |    3 +-
+ test/fixedbugs/issue20232.go                       |    5 +-
+ test/fixedbugs/issue42727.go                       |   23 +
+ test/fixedbugs/issue42753.go                       |   13 +
+ test/fixedbugs/issue42790.go                       |    9 +
+ 151 files changed, 15225 insertions(+), 15317 deletions(-)

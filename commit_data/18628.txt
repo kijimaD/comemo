@@ -1,18 +1,14 @@
-commit e6e894500171ee8013713f76660076632f1b355c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 24 16:44:35 2014 -0500
+commit e2fe968d5f814dd947f5bb2ddca1768171d39a3a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 25 06:53:17 2014 +1100
 
-    build: comment possible ulimit failure in run.bash
+    cmd/ld: fix build for ARMv5.
+    Credit goes to Dave Cheney for debugging the issue.
     
-    Record what's going on in case someone is debugging a failure there.
-    It's not Go's fault.
-    
-    Fixes #7381.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=dave, rsc
+    R=dave, rsc
     CC=golang-codereviews
-    https://golang.org/cl/68200043
+    https://golang.org/cl/67820043
 
- src/run.bash | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

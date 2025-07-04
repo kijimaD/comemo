@@ -1,34 +1,28 @@
-commit 122384e4893edeccb34c3faa4c1378b3bcb55531
-Author: Rick Hudson <rlh@golang.org>
-Date:   Tue Mar 3 16:55:14 2015 -0500
+commit b8a3e88ea73fded96fe9f5a72b4b3032bf2873ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 3 15:27:54 2015 -0500
 
-    runtime: Remove boundary bit logic.
+    cmd/gc: remove cgen_asop, no longer used
     
-    This is an experiment to see if removing the boundary bit logic will
-    lead to fewer cache misses and improved performance. Instead of using
-    boundary bits we use the span information to get element size and use
-    some bit whacking to get the boundary without having to touch the
-    random heap bits which cause cache misses.
+    gc/order.c rewrites OASOP nodes into ordinary assignments.
+    The back ends never see them anymore.
     
-    Furthermore once the boundary bit is removed we can either use that
-    bit for a simpler checkmark routine or we can reduce the number of
-    bits in the GC bitmap to 2 bits per pointer sized work. For example
-    the 2 bits at the boundary can be used for marking and pointer/scalar
-    differentiation. Since we don't need the mark bit except at the
-    boundary nibble of the object other nibbles can use this bit
-    as a noscan bit to indicate that there are no more pointers in
-    the object.
-    
-    Currently the changed included in this CL slows down the garbage
-    benchmark. With the boundary bits garbage gives 5.78 and without
-    (this CL) it gives 5.88 which is a 2% slowdown.
-    
-    Change-Id: Id68f831ad668176f7dc9f7b57b339e4ebb6dc4c2
-    Reviewed-on: https://go-review.googlesource.com/6665
+    Change-Id: I268ac8bdc92dccd7123110a21f99ada3ceeb2baa
+    Reviewed-on: https://go-review.googlesource.com/3882
     Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mbitmap.go  | 137 ++++++++----------------------------------------
- src/runtime/mcentral.go |   2 +-
- src/runtime/mgcmark.go  |  23 ++++----
- src/runtime/mgcsweep.go |   2 +-
- 4 files changed, 34 insertions(+), 130 deletions(-)
+ src/cmd/5g/galign.c |   1 -
+ src/cmd/5g/gg.h     |   1 -
+ src/cmd/5g/ggen.c   | 129 ------------------------------------------------
+ src/cmd/6g/galign.c |   1 -
+ src/cmd/6g/gg.h     |   1 -
+ src/cmd/6g/ggen.c   | 139 ----------------------------------------------------
+ src/cmd/8g/galign.c |   1 -
+ src/cmd/8g/gg.h     |   1 -
+ src/cmd/8g/ggen.c   | 136 --------------------------------------------------
+ src/cmd/9g/galign.c |   1 -
+ src/cmd/9g/gg.h     |   1 -
+ src/cmd/9g/ggen.c   |   7 ---
+ src/cmd/gc/gen.c    |   4 --
+ src/cmd/gc/go.h     |   1 -
+ 14 files changed, 424 deletions(-)

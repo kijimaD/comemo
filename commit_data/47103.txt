@@ -1,22 +1,22 @@
-commit 33c392f72d16163eb0795b3d61b2196ac21e1799
-Author: Rob Pike <r@golang.org>
-Date:   Sun Oct 24 14:11:07 2021 +1100
+commit 27684ea195641ead8a8f08cb345925da889a12ed
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 14 14:38:55 2021 -0800
 
-    reflect: add FieldByIndexErr
+    testing: print late arriving log line in panic
     
-    This new function, although different in signature from other
-    reflect functions, allows the caller to avoid the panic caused by
-    nil embedded fields in calls to FieldByIndex.
+    When you log after a test has completed,
+    the testing package panics.
     
-    Fixes #48218
+    Print the logged line as part of that panic,
+    to aid in debugging.
     
-    Change-Id: I447f135bb789148c27ae3f2f23dcf43094f4c1de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357962
-    Trust: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I3d6689d1eed57c03e300afe37db0c15b2f4acda4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283972
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/value.go              | 27 ++++++++++++++++++++++++++-
- src/reflect/visiblefields_test.go | 19 +++++++++++++++++++
- 2 files changed, 45 insertions(+), 1 deletion(-)
+ src/testing/sub_test.go | 2 +-
+ src/testing/testing.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

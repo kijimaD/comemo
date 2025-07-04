@@ -1,16 +1,22 @@
-commit ce09ce4ae0116d2056e8864fe2c2fd3abbc5375a
-Author: EduRam <eduardo.ramalho@gmail.com>
-Date:   Tue Jul 17 22:59:35 2018 +0000
+commit aacf7a1846f56db248bd558f33859291d0b1823e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 29 18:52:12 2018 +0200
 
-    syscall: update check for UserNS support for CentOS 7.5+
+    test: avoid touching GOOS/GOARCH in codegen driver
     
-    Fixes #26385
+    This change modifies the codegen test harness driver so that it no
+    longer modifies the environment GOOS/GOARCH, since that seems to cause
+    flakiness in other concurrently-running tests.
     
-    Change-Id: I5594564f42898a71d30531e5132bddb3a6915247
-    GitHub-Last-Rev: fbd7b38b0419e21ecd22fe802ede5c0ee3f14a9a
-    GitHub-Pull-Request: golang/go#26427
-    Reviewed-on: https://go-review.googlesource.com/124555
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The change also enables the codegen tests in run.go.
+    
+    Fixes #24538
+    
+    Change-Id: I997ac1eb38eb92054efff67fe5c4d3cccc86412b
+    Reviewed-on: https://go-review.googlesource.com/103455
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/exec_linux_test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ test/run.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

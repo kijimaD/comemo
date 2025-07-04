@@ -1,25 +1,19 @@
-commit fd786a550a0ca004725cba2f49fd8ee86ef22b10
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Apr 17 16:42:18 2023 -0400
+commit b93ceefa7b47167f7bc9ec471905c136b234d34f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 18 23:47:03 2022 +0000
 
-    cmd/go: skip over all workspace modules in go mod verify
+    runtime: use osyield in runqgrab on netbsd
     
-    This was a remaining place where we made the assumption that there is
-    only one workspace module. So we'd only skip the first workspace
-    module when running go mod verify. Instead skip over the first
-    MainModules.Len() modules of the buildlist, which are all the main
-    modules.
+    NetBSD appears to have the same issue OpenBSD had in runqgrab. See
+    issue #52475 for more details.
     
-    Fixes #54372
+    For #35166.
     
-    Change-Id: Ife687c907ae4326759c43cc35f78d429d5113b19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485475
+    Change-Id: Ie53192d26919b4717bc0d61cadd88d688ff38bb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407139
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/modcmd/verify.go           |  2 +-
- src/cmd/go/internal/modload/buildlist.go       |  2 +-
- src/cmd/go/testdata/script/work_issue54372.txt | 37 ++++++++++++++++++++++++++
- 3 files changed, 39 insertions(+), 2 deletions(-)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

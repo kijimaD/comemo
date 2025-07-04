@@ -1,31 +1,14 @@
-commit 972cb4b442d6348868051c71304b348992519f4a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 28 11:35:24 2013 -0700
+commit 1a427a697e9fce8bd3a12ae233bc6f751a406b9d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 28 08:46:17 2013 -0700
 
-    net/http: more tests, better comments, remove an allocation
+    cmd/godoc: don't crash if there's no documentation
     
-    Add more tests around the various orders handlers can access
-    and flush response headers.
+    Fixes regression introduced by CL 7860049.
     
-    Also clarify the documentation on fields of response and
-    chunkWriter.
-    
-    While there, remove an allocation (a header clone) for simple
-    handlers.
-    
-    benchmark                                   old ns/op    new ns/op    delta
-    BenchmarkServerFakeConnWithKeepAliveLite        15245        14966   -1.83%
-    
-    benchmark                                  old allocs   new allocs    delta
-    BenchmarkServerFakeConnWithKeepAliveLite           24           23   -4.17%
-    
-    benchmark                                   old bytes    new bytes    delta
-    BenchmarkServerFakeConnWithKeepAliveLite         1717         1668   -2.85%
-    
-    R=golang-dev, gri
+    R=golang-dev, kamil.kisiel, dave
     CC=golang-dev
-    https://golang.org/cl/8101043
+    https://golang.org/cl/8069044
 
- src/pkg/net/http/serve_test.go | 222 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/server.go     |  52 ++++++++--
- 2 files changed, 265 insertions(+), 9 deletions(-)
+ src/cmd/godoc/main.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

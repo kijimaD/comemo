@@ -1,34 +1,27 @@
-commit e1b62efaf33988a5153510898d37309cee78f26e
-Author: ErikPelli <erikpellizzon1@gmail.com>
-Date:   Sun Aug 14 07:46:22 2022 +0000
+commit 48cf96c256ff1ec68fd9f9daa59900352d916730
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Sep 20 15:34:09 2021 -0700
 
-    encoding/base64: optimize decodemap memory set
+    cmd/compile: don't create or instantiate methods on shape types
     
-    The existing implementation has an execution time higher in the benchmark than this one.
-    This is an optimized implementation using the copy() function and a constant 256 bytes string with the values to be copied.
+    We should never use or need methods on non-interface shape types. We do
+    have corresponding functions instantiated with the appropriate
+    shape types that take the dictionary and the shape-based receiver as the
+    first two arguments. Each such function has the same name as what the
+    corresponding method would be, so it's best not to create the methods
+    (which would create confusion for import/export). This fixes issue
+    48414, which happened because of the confusion between these two
+    functions/methods.
     
-    ```
-    name           old time/op    new time/op    delta
-    NewEncoding-4     329ns ± 1%     231ns ± 1%  -29.72%  (p=0.008 n=5+5)
+    Fixes #48414
     
-    name           old speed      new speed      delta
-    NewEncoding-4   778MB/s ± 1%  1108MB/s ± 1%  +42.29%  (p=0.008 n=5+5)
-    ```
-    
-    Fixes #53211
-    
-    Change-Id: I80fe62aa40623125ef81ae9164a8405eed30b71b
-    GitHub-Last-Rev: 55dce6f636ad29a70daa935169710c22f44ab31f
-    GitHub-Pull-Request: golang/go#53212
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410194
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I401fbdad791bdb5792617449cad68aa8df1d9911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351114
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/encoding/base32/base32.go      | 27 +++++++++++++++++++++------
- src/encoding/base64/base64.go      | 25 ++++++++++++++++++++-----
- src/encoding/base64/base64_test.go | 10 ++++++++++
- 3 files changed, 51 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  7 +++++++
+ src/cmd/compile/internal/typecheck/iimport.go   | 10 ++++++++--
+ 2 files changed, 15 insertions(+), 2 deletions(-)

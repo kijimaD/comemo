@@ -1,22 +1,21 @@
-commit 2c52465cb3d327590755cfb9ef1ef0f7a167c4eb
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Jun 8 11:53:22 2022 -0700
+commit f89b4c8d82c028d635eb8e685dd92dceb0027438
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Aug 16 15:09:05 2021 -0700
 
-    net: avoid darwin_arm64 bug in TestDialParallelSpuriousConnection
+    [dev.fuzz] cmd/go: exclude additional packages from fuzzing instrumentation
     
-    On darwin_arm64, reading from a socket at the same time as the other
-    end is closing it will occasionally hang for 60 seconds before
-    returning ECONNRESET. (This is a macOS issue, not a Go issue.)
+    Counters in these packages are incremented by background goroutines
+    for testing and internal/fuzz. They cause some inputs to seem
+    "interesting" when they don't directly provide new coverage.
     
-    Work around this condition by adding a brief sleep before the read.
+    Updates golang/go#46410
     
-    Fixes #37795.
-    
-    Change-Id: I63f92b91fb297cd66f89cdab707583afd50ab9c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411155
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: Ibe6bb3177f3b2ba23382a1693a4c6a576f94a423
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342993
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/net/dial_test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/go/internal/test/test.go               | 11 +++++++++--
+ src/cmd/go/testdata/script/test_fuzz_cache.txt | 18 +++++++++++++-----
+ 2 files changed, 22 insertions(+), 7 deletions(-)

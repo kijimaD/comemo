@@ -1,0 +1,40 @@
+commit d4bf7167935e84e7200e95649563d1368cf05331
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jun 3 19:28:00 2025 +0000
+
+    runtime: reduce per-P memory footprint when greenteagc is disabled
+    
+    There are two additional sources of memory overhead per P that come from
+    greenteagc. One is for ptrBuf, but on platforms other than Windows it
+    doesn't actually cost anything due to demand-paging (Windows also
+    demand-pages, but the memory is 'committed' so it still counts against
+    OS RSS metrics). The other is for per-sizeclass scan stats. However when
+    greenteagc is disabled, most of these scan stats are completely unused.
+    
+    The worst-case memory overhead from these two sources is relatively
+    small (about 10 KiB per P), but for programs with a small memory
+    footprint running on a machine with a lot of cores, this can be
+    significant (single-digit percent).
+    
+    This change does two things. First, it puts ptrBuf initialization behind
+    the greenteagc experiment, so now that memory is never allocated by
+    default. Second, it abstracts the implementation details of scan stat
+    collection and emission, such that we can have two different
+    implementations depending on the build tag. This lets us remove all the
+    unused stats when the greenteagc experiment is disabled, reducing the
+    memory overhead of the stats from ~2.6 KiB per P to 536 bytes per P.
+    This is enough to make the difference no longer noticable in our
+    benchmark suite.
+    
+    Fixes #73931.
+    
+    Change-Id: I4351f1cbb3f6743d8f5922d757d73442c6d6ad3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/678535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go                  | 45 +++----------------------------
+ src/runtime/mgcmark_greenteagc.go   | 54 +++++++++++++++++++++++++++++++++++++
+ src/runtime/mgcmark_nogreenteagc.go | 32 ++++++++++++++++++++++
+ src/runtime/mstats.go               |  8 ------
+ 4 files changed, 90 insertions(+), 49 deletions(-)

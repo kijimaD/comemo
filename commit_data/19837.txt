@@ -1,15 +1,16 @@
-commit d2204e6c0ee18d9a1728e01d233d03062936961c
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jul 29 14:38:08 2014 -0700
+commit dfa5a99ebb3ba3d586830caa7096e10a89b37621
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 29 22:06:47 2014 +0400
 
-    cmd/gc: don't allow escaping arguments in the runtime package.
+    runtime: generate type info for chans
     
-    This is a case that was missed in https://golang.org/cl/105280047/
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/120910043
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, khr
+    https://golang.org/cl/115280043
 
- src/cmd/gc/walk.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/runtime/chan.goc  | 43 ++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/runtime/chan.h    |  6 ++----
+ src/pkg/runtime/proc.c    |  1 +
+ src/pkg/runtime/runtime.h |  1 +
+ 4 files changed, 42 insertions(+), 9 deletions(-)

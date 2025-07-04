@@ -1,19 +1,13 @@
-commit 9523b4d59c9a902abce9c584ded795376d875d1b
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Tue Jan 17 10:00:57 2012 +0100
+commit 8e99016c80ee8c113674654123a02f0bd9e32ebb
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 17 11:48:20 2012 +0400
 
-    gc: fix infinite recursion for embedded interfaces
+    old/netchan: fix data race on client hashmap
+    Fixes #2713.
     
-    Fixes #1909
-    
-    R=rsc, gri
-    CC=golang-dev
-    https://golang.org/cl/5523047
+    R=golang-dev, r
+    CC=golang-dev, mpimenov
+    https://golang.org/cl/5545065
 
- src/cmd/gc/dcl.c                | 13 +++++++++++--
- src/cmd/gc/export.c             | 11 +++++++++--
- src/cmd/gc/fmt.c                | 18 ++++++++++++++++--
- src/cmd/gc/go.y                 |  6 +++++-
- src/pkg/exp/types/gcimporter.go | 31 +++++++++++++++++--------------
- test/fixedbugs/bug395.go        | 15 +++++++++++++++
- 6 files changed, 73 insertions(+), 21 deletions(-)
+ src/pkg/old/netchan/common.go | 2 ++
+ 1 file changed, 2 insertions(+)

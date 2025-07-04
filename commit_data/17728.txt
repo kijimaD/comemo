@@ -1,19 +1,15 @@
-commit a978b1e049268cd2726c521fa3526976c7af7351
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Oct 2 20:14:54 2013 -0400
+commit d38ed2a9f224dbc79adbed4fe49fe2aef137bf5b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 2 11:35:25 2013 -0700
 
-    misc/dist: support building statically linked toolchain.
-    so that we don't need worry about specifying the required
-    libc version (note: as cmd/go will still be dynamically
-    linked to libc, we still need to perform the build on OSes
-    with an old enough libc. But as cmd/go doesn't rely on many
-    libc symbols, the situation should be significantly better).
+    doc/effective_go: fix server example that shares var between goroutines
+    Use it as a teaching example about how to solve this problem.
     
-    Fixes #3564.
+    Fixes #6501
     
-    R=golang-dev, adg
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/14261043
+    https://golang.org/cl/14250043
 
- misc/dist/bindist.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ doc/effective_go.html | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 57 insertions(+), 1 deletion(-)

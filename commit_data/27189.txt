@@ -1,18 +1,12 @@
-commit bec0863b53777f313396a10f0bc1349139d1009e
+commit 95c6c5f36bb04e66d6a9523b3ad590faa6d563dd
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 28 13:44:15 2016 -0700
+Date:   Tue Mar 15 13:34:15 2016 -0700
 
-    net: remove unneeded tags from dnsRR structs
+    math/big: fix comment typos
     
-    DNS packing and unpacking uses hand-coded struct walking functions
-    rather than reflection, so these tags are unneeded and just contribute
-    to their runtime reflect metadata size.
-    
-    Change-Id: I2db09d5159912bcbc3b482cbf23a50fa8fa807fa
-    Reviewed-on: https://go-review.googlesource.com/22594
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I34cdc9cb3d32e86ff3a57db0012326c39cd55670
+    Reviewed-on: https://go-review.googlesource.com/20718
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/dnsmsg.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/math/big/ftoa.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

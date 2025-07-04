@@ -1,24 +1,32 @@
-commit f9410990e60529d74733e557d26f34d6237548dc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 17 23:04:08 2023 -0700
+commit 7c84234142149bd24a4096c6cab691d3593f3431
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Sep 22 13:32:00 2022 -0700
 
-    cmd/compile/internal/ir: remove OFUNCINST and InstExpr
+    net/http/httputil: avoid query parameter smuggling
     
-    These were only ever used by the pre-unified generics frontend. I
-    initially kept them because I thought they'd be useful for the unified
-    frontend eventually too, but that hasn't manifested.
+    Query parameter smuggling occurs when a proxy's interpretation
+    of query parameters differs from that of a downstream server.
+    Change ReverseProxy to avoid forwarding ignored query parameters.
     
-    Change-Id: Iaa31a76ac4d62533ec269d2a7141442b8e344180
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520608
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Remove unparsable query parameters from the outbound request
+    
+       * if req.Form != nil after calling ReverseProxy.Director; and
+       * before calling ReverseProxy.Rewrite.
+    
+    This change preserves the existing behavior of forwarding the
+    raw query untouched if a Director hook does not parse the query
+    by calling Request.ParseForm (possibly indirectly).
+    
+    Fixes #54663
+    Fixes CVE-2022-2880
+    
+    Change-Id: If1621f6b0e73a49d79059dae9e6b256e0ff18ca9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432976
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/ir/expr.go             | 19 -----------
- src/cmd/compile/internal/ir/node.go             |  1 -
- src/cmd/compile/internal/ir/node_gen.go         | 34 -------------------
- src/cmd/compile/internal/ir/op_string.go        | 43 ++++++++++++-------------
- src/cmd/compile/internal/typecheck/typecheck.go |  3 --
- 5 files changed, 21 insertions(+), 79 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 50 ++++++++++++++++
+ src/net/http/httputil/reverseproxy_test.go | 95 ++++++++++++++++++++++++++++++
+ 2 files changed, 145 insertions(+)

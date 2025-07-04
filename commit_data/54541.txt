@@ -1,30 +1,47 @@
-commit c8caad423cafcca7c39dbaf64b428aaf0e8ac80c
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Sep 18 11:29:20 2023 -0500
+commit e09bbaec69a8ff960110e13eabb3bef5331ecb0c
+Author: erifan01 <eric.fang@arm.com>
+Date:   Tue Oct 25 12:08:05 2022 +0800
 
-    cmd/compile/internal/ssa: optimize (AND (MOVDconst [-1] x)) on PPC64
+    cmd/compile: enable address folding for global symbols of shared library
     
-    This sequence can show up in the lowering pass on PPC64. If it
-    makes it to the latelower pass, it will cause an error because
-    it looks like it can be turned into RLDICL, but -1 isn't an
-    accepted mask.
+    Address folding is disabled in CL42172, the commit message of which
+    said that "In shared library, load/store of global is rewritten to
+    using GOT and temp register, which conflicts with the use of temp
+    register for assembling large offset.". Actually this doesn't happen
+    because the sequence of instructions when rewritten to use Got looks
+    like this:
+      MOVD $sym, Rx becomes
+      MOVD sym@GOT, Rx
+    If there is an offset off, there will be one more instruction:
+      ADD $off, Rx, Rx
     
-    Also, print more debug info if panic is called from
-    encodePPC64RotateMask.
+    And MOVD sym, Rx becomes
+      MOVD sym@GOT, REGTMP
+      MOVx (REGTMP), Ry
     
-    Fixes #62698
+    If there is a small offset off, it becomes:
+      MOVD sym@GOT, REGTMP
+      MOVx (REGTMP)off, Ry
     
-    Change-Id: I0f3322e2205357abe7fc28f96e05e3f7ad65567c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529195
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    If off is very large, it becomes:
+      MOVD sym@GOT, REGTMP
+      MOVD $off, Rt
+      ADD  Rt, REGTMP
+      MOVx (REGTMP), Ry
+    
+    We can see that the address can be calculated correctly, and testing
+    on darwin/arm64 confirms this.
+    
+    Removing this restriction is beneficial to further optimize the sequence
+    of "ADRP+ADD+LD/ST" to "ADRP+LD/ST(offset), so this CL removes it.
+    
+    Change-Id: I0e9f7bc1723e0a027f32cf0ae2c41cd6df49defe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445535
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
- src/cmd/compile/internal/ssa/rewrite.go       |  2 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 13 +++++++++++++
- test/codegen/copy.go                          |  6 ++++++
- 4 files changed, 21 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules | 132 ++++++----------
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 209 +++++++++++---------------
+ 2 files changed, 132 insertions(+), 209 deletions(-)

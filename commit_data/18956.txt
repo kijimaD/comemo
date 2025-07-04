@@ -1,16 +1,21 @@
-commit 274fc7600d9397e1ddffbe55a73271e438312a87
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 26 17:18:24 2014 +1100
+commit 3ce1677ad9f95fb0b1ede191f41996c451e054c1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 26 15:30:55 2014 +1100
 
-    fmt: document order of application of %T, %p and the special interfaces
-    Their priority was not documented.
+    cmd/go: ensure external test files are presented to the linker first
     
-    Fixes #7571.
+    Fixes #7627.
     
-    LGTM=adg
-    R=golang-codereviews, adg
-    CC=golang-codereviews
-    https://golang.org/cl/80360043
+    CL 61970044 changed the order in which .a files are passed to gccgo's link phase. However by reversing the order it caused gccgo to complain if both internal (liba.a) and external (liba_test.a) versions of a package were presented as the former would not contain all the necessary symbols, and the latter would duplicate symbols already defined.
+    
+    This change ensures that all 'fake' targets remain at the top of the final link order which should be fine as a package compiled as an external test is a superset of its internal sibling.
+    
+    Looking at how gcToolchain links tests I think this change now accurately mirrors those actions which present $WORK/_test before $WORK in the link order.
+    
+    LGTM=iant
+    R=rsc, iant
+    CC=golang-codereviews, michael.hudson
+    https://golang.org/cl/80300043
 
- src/pkg/fmt/doc.go | 23 ++++++++++++++---------
- 1 file changed, 14 insertions(+), 9 deletions(-)
+ src/cmd/go/build.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

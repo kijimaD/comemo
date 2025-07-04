@@ -1,23 +1,31 @@
-commit a73020f847b3cf8575250569ebefb02573d19224
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 27 18:27:02 2016 +0000
+commit 26849746c9c7ca290d6cbb7ca5f3cf71c971e980
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Jun 2 11:07:55 2016 +1200
 
-    net/http: add more IDNA2008 tests and fix some omissions
+    cmd/internal/obj, runtime: fixes for defer in 386 shared libraries
     
-    It wasn't lowercasing the string, folding widths, and putting strings
-    into NFC form. Do those.
+    Any defer in a shared object crashed when GOARCH=386. This turns out to be two
+    bugs:
     
-    Fixes #13835
+     1) Calls to morestack were not processed to be PIC safe (must have been
+        possible to trigger this another way too)
+     2) jmpdefer needs to rewind the return address of the deferred function past
+        the instructions that load the GOT pointer into BX, not just past the call
     
-    Change-Id: Ia3de6159417cacec203b48e206e51d79f945df58
-    Reviewed-on: https://go-review.googlesource.com/29860
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Bug 2) requires re-introducing the a way for .s files to know when they are
+    being compiled for dynamic linking but I've tried to do that in as minimal
+    a way as possible.
+    
+    Fixes #15916
+    
+    Change-Id: Ia0d09b69ec272a176934176b8eaef5f3bfcacf04
+    Reviewed-on: https://go-review.googlesource.com/23623
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/deps_test.go |  2 ++
- src/net/http/http.go      | 10 ++++++++++
- src/net/http/http_test.go | 10 +++++++++-
- src/net/http/request.go   | 19 +++++++++++++++++--
- src/net/http/transport.go |  3 +--
- 5 files changed, 39 insertions(+), 5 deletions(-)
+ misc/cgo/testshared/src/depBase/dep.go |  1 +
+ src/cmd/go/build.go                    | 10 +++++++++-
+ src/cmd/internal/obj/x86/obj6.go       | 12 +++++++++++-
+ src/runtime/asm_386.s                  |  9 ++++++++-
+ 4 files changed, 29 insertions(+), 3 deletions(-)

@@ -1,30 +1,37 @@
-commit 1eeaff75f9e02c65d29d9910c1884c6c0ecc1430
-Author: Roland Shoemaker <rolandshoemaker@gmail.com>
-Date:   Sat May 23 10:15:46 2020 -0700
+commit 040855e39bb471b09f3803cbca2c8d683b2bc6dc
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 11 20:17:14 2020 -0400
 
-    crypto/x509: enforce SAN IA5String encoding restrictions
+    test: restore no-gogcflags build shortcut, save time
     
-    Extends the IA5String encoding restrictions that are currently applied
-    to name constraints to dNSName, rfc822Name, and
-    uniformResourceIdentifier elements of the SAN. The utility function
-    isIA5String is updated to use unicode.MaxASCII rather than utf8.RuneSelf
-    as it is somewhat more readable.
+    With a clean cache on a laptop
+    before change
+    time go run run.go -- . fixedbugs
+      real  2m10.195s
+      user  3m16.547s
+      sys   1m52.939s
     
-    Certificates that include these badly encoded names do exist, but are
-    exceedingly rare. zlint and other linters enforce this encoding and
-    searching censys.io reveals only three currently trusted certificates
-    with this particular encoding issue.
+    Or, before, directly after make.bash (the actual use case we care about)
+    time go run run.go -- . fixedbugs
+      real  2m8.704s
+      user  3m12.327s
+      sys   1m49.123s
     
-    Fixes #26362
+    after change
+    time go run run.go -- . fixedbugs
+      real  1m38.915s
+      user  2m38.389s
+      sys   1m8.490s
     
-    Change-Id: I7a4f3e165a1754e5b4bfaeabc03e01eb7367f3c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235078
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Tests, fortunately, still seem to pass.
+    
+    Latest version of this takes the slow route for cross-compilation, which includes wasm.
+    
+    Change-Id: Iad19951612defa96c4e9830bce920c5e8733834a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223083
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.16.html              | 10 +++++
- src/crypto/x509/x509.go      | 39 +++++++++++++++----
- src/crypto/x509/x509_test.go | 90 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 131 insertions(+), 8 deletions(-)
+ test/run.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

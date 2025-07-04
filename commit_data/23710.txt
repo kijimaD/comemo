@@ -1,14 +1,14 @@
-commit 64e53337affd08900abfac9039322621d5373493
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jul 15 13:27:30 2015 -0700
+commit c8285bb501eb9581af930a9ccd0ad8f791ea2ab2
+Author: Michael Matloob <matloob@google.com>
+Date:   Fri Jun 5 13:04:29 2015 -0400
 
-    runtime: fix go:nowritebarrier annotation on gcmarkwb_m
+    [dev.ssa] cmd/compile/internal/ssa: add missing copyright notices
     
-    Change-Id: I945d46d3bb63f1992bce0d0b1e89e75cac9bbd54
-    Reviewed-on: https://go-review.googlesource.com/12271
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9d4e0f3e9afc9920ee0d77b0073ac8597c7c048f
+    Reviewed-on: https://go-review.googlesource.com/10756
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mbarrier.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/func_test.go  | 4 ++++
+ src/cmd/compile/internal/ssa/regalloc.go   | 4 ++++
+ src/cmd/compile/internal/ssa/stackalloc.go | 4 ++++
+ 3 files changed, 12 insertions(+)

@@ -1,22 +1,22 @@
-commit 3ea53cb08f1709b2f9bf39cfcfaa1d285256baa2
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Fri May 26 01:14:30 2017 +0300
+commit 3a89065c6c72162ac9c5f7b268c3e46ebee3cc7f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 24 15:57:12 2017 -0700
 
-    sync: deflake TestPool and TestPoolNew
+    cmd/compile: replace nod(ONAME) with newname
     
-    Prevent possible goroutine rescheduling to another P between
-    Put and Get calls by locking the goroutine to OS thread.
+    Passes toolstash-check -all.
     
-    Inspired by the CL 42770.
-    
-    Fixes #20198.
-    
-    Change-Id: I18e24fcad1630658713e6b9d80d90d7941f604be
-    Reviewed-on: https://go-review.googlesource.com/44310
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ib9f969e5ecc1537b7eab186dc4fd504a50f800f2
+    Reviewed-on: https://go-review.googlesource.com/38586
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sync/export_test.go |  2 ++
- src/sync/pool_test.go   | 11 +++++++++++
- 2 files changed, 13 insertions(+)
+ src/cmd/compile/internal/gc/closure.go  |  5 +---
+ src/cmd/compile/internal/gc/dcl.go      | 16 +-----------
+ src/cmd/compile/internal/gc/esc.go      |  4 +--
+ src/cmd/compile/internal/gc/gen.go      |  9 +++----
+ src/cmd/compile/internal/gc/gsubr.go    |  8 ++----
+ src/cmd/compile/internal/gc/subr.go     | 43 ++++++++++++++++++++++++---------
+ src/cmd/compile/internal/gc/universe.go | 16 ++++--------
+ 7 files changed, 45 insertions(+), 56 deletions(-)

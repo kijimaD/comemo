@@ -1,27 +1,17 @@
-commit acb914f2c2a3ec3dd227812ba6b119480d6400cd
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Jun 27 12:45:22 2025 +0200
+commit cf164403d1ae1459bf48cb7aea3cf16f8aca5a98
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Apr 26 21:49:41 2024 +0800
 
-    cmd/doc: fix -http on Windows
+    slices: reduce code nesting depth for Compact and CompactFunc
     
-    On Windows, GOMODCACHE almost never starts with a slash, and
-    "go doc -http" constructs a GOPROXY URL by doing "file://" + GOMODCACHE,
-    resulting in an invalid file URI.
+    To make it easier to read.
     
-    For example, if GOMODCACHE is "C:\foo", then the file URI should be
-    "file:///C:/foo", but it becomes "file://C:/foo" instead, where "C:" is
-    understood as a host name, not a drive letter.
-    
-    Fixes #74137.
-    
-    Change-Id: I23e776e0f649a0062e01d1a4a6ea8268ba467331
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/684575
+    Change-Id: I2fa1eb78d879b9d86b4dc839be7ede37c7c864f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581976
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
 
- src/cmd/go/alldocs.go          | 44 +++++++++++++++++++++++-------------------
- src/cmd/go/internal/doc/doc.go |  4 ++++
- src/cmd/internal/doc/main.go   | 12 ++++++++++--
- 3 files changed, 38 insertions(+), 22 deletions(-)
+ src/slices/slices.go | 50 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 26 insertions(+), 24 deletions(-)

@@ -1,19 +1,16 @@
-commit 4958f9e2fe6744a36188a9d97d7db1da696b848a
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Wed Jun 14 09:10:51 2017 -0700
+commit 3928e847bdb9eb04b1fe6f914fff79c5c167b83a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 17 13:34:56 2017 -0700
 
-    runtime: remove unused arm assembly for div/mod
+    net: fix tests for /etc/hosts with entries named "test"
     
-    Also add runtime· prefixes to the code that is still used.
+    Fixes #19592.
     
-    Fixes #19507
-    
-    Change-Id: Ib6da6b2a9e398061d3f93958ee1258295b6cc33b
-    Reviewed-on: https://go-review.googlesource.com/45699
+    Change-Id: I8946b33fd36ae1f39bdcc4bf0bd4b5b99618efe8
+    Reviewed-on: https://go-review.googlesource.com/38300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go  |   4 +-
- src/cmd/vet/all/whitelist/arm.txt |   1 -
- src/runtime/softfloat_arm.go      |   5 ++
- src/runtime/vlop_arm.s            | 130 +-------------------------------------
- 4 files changed, 8 insertions(+), 132 deletions(-)
+ src/net/dnsclient_unix_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

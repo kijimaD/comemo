@@ -1,17 +1,19 @@
-commit 7edb721fbcd5d5d60887495172748b1f9bec9203
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 15 17:30:53 2017 +0000
+commit 94fb8224b20cdac6e352e1c9b8210248f1350e88
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 23 19:12:54 2017 -0400
 
-    os/user: handle large 32-bit uid/gid values when stringifying User.Uid/Gid
+    [dev.boringcrypto] crypto/internal/boring: disable for android & non-cgo builds
     
-    Fixes #22739
-    
-    Change-Id: I374c29d237c498c9e5ac848b01f6d49d7c41b31f
-    Reviewed-on: https://go-review.googlesource.com/77930
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia4458090118c4391a73cf1ae65bc8d187f03eca0
+    Reviewed-on: https://go-review.googlesource.com/59051
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/user/cgo_lookup_unix.go | 12 ++++++++++--
- src/os/user/cgo_unix_test.go   | 24 ++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 2 deletions(-)
+ src/crypto/internal/boring/aes.go       | 1 +
+ src/crypto/internal/boring/boring.go    | 1 +
+ src/crypto/internal/boring/ecdsa.go     | 1 +
+ src/crypto/internal/boring/hmac.go      | 1 +
+ src/crypto/internal/boring/notboring.go | 2 +-
+ src/crypto/internal/boring/rand.go      | 1 +
+ src/crypto/internal/boring/rsa.go       | 1 +
+ src/crypto/internal/boring/sha.go       | 1 +
+ 8 files changed, 8 insertions(+), 1 deletion(-)

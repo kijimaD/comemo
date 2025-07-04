@@ -1,23 +1,25 @@
-commit c0c4a5981600aae2b7a9de9494a29e2f5d82be54
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Sep 11 12:17:40 2023 -0400
+commit 498ee73a4b9f48c0916bb5a2bdd22ddf6aca79c6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 12 15:11:16 2022 -0400
 
-    Revert "runtime: set stackguard1 on extra M g0"
+    os/exec: reduce arbitrary sleeps in TestWaitid
     
-    This reverts CL 527056.
+    If we use the "pipetest" helper command instead of "sleep",
+    we can use its stdout pipe to determine when the process
+    is ready to handle a SIGSTOP, and we can additionally check
+    that sending a SIGCONT actually causes the process to continue.
     
-    CL 525455 breaks darwin, alpine, and android. This CL must be reverted
-    in order to revert that CL.
+    This also allows us to remove the "sleep" helper command,
+    making the test file somewhat more concise.
     
-    For #62440.
+    Noticed while looking into #50138.
     
-    Change-Id: I4e1b16e384b475a605e0214ca36c918d50faa22c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527316
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If4fdee4b1ddf28c6ed07ec3268c81b73c2600238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442576
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/runtime/cgocall.go  | 2 --
- src/runtime/runtime2.go | 2 +-
- 2 files changed, 1 insertion(+), 3 deletions(-)
+ src/os/exec/exec_posix_test.go | 57 ++++++++++++++++++++++++++++--------------
+ 1 file changed, 38 insertions(+), 19 deletions(-)

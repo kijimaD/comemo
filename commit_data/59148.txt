@@ -1,51 +1,22 @@
-commit 3ada42ffedf61343cc8a7cd7d6293bd646ecf3a6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 20 16:12:15 2025 -0700
+commit c1828fbcbf8b8e18308e87bbac0d71244ec167f5
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Dec 11 14:23:12 2023 -0800
 
-    go/types, types2: align trace output a bit better for easier debugging
+    crypto/x509: remove TestPlatformVerifierLegacy tests
     
-    Compute alignment padding rather than using a tab in trace output.
-    This aligns the ":" after the file position in typical cases (files
-    shorter than 1000 lines, lines shorter than 100 columns), resulting
-    in nicer trace output for easier debugging.
+    They are no longer necessary, woohoo!
     
-    Before this CL (example trace):
+    Updates #52108
+    Fixes #56791
     
-    x.go:8:2:  -- checking type A (white, objPath = )
-    x.go:8:11:  .  -- type B
-    x.go:9:2:  .  .  -- checking type B (white, objPath = A)
-    x.go:9:14:  .  .  .  -- type C[D]
-    x.go:9:13:  .  .  .  .  -- instantiating type C with [D]
-    x.go:9:13:  .  .  .  .  .  -- type C
-    x.go:10:2:  .  .  .  .  .  .  -- checking type C (white, objPath = A->B)
-    x.go:10:6:  .  .  .  .  .  .  .  -- type any
-    x.go:10:6:  .  .  .  .  .  .  .  => any (under = any) // *Alias
-    x.go:10:11:  .  .  .  .  .  .  .  -- type struct{}
-    x.go:10:11:  .  .  .  .  .  .  .  => struct{} // *Struct
-    x.go:10:2:  .  .  .  .  .  .  => type C[_ any] struct{} (black)
-    
-    With this CL:
-    
-    x.go:8:2   :  -- checking type A (white, objPath = )
-    x.go:8:11  :  .  -- type B
-    x.go:9:2   :  .  .  -- checking type B (white, objPath = A)
-    x.go:9:14  :  .  .  .  -- type C[D]
-    x.go:9:13  :  .  .  .  .  -- instantiating type C with [D]
-    x.go:9:13  :  .  .  .  .  .  -- type C
-    x.go:10:2  :  .  .  .  .  .  .  -- checking type C (white, objPath = A->B)
-    x.go:10:6  :  .  .  .  .  .  .  .  -- type any
-    x.go:10:6  :  .  .  .  .  .  .  .  => any (under = any) // *Alias
-    x.go:10:11 :  .  .  .  .  .  .  .  -- type struct{}
-    x.go:10:11 :  .  .  .  .  .  .  .  => struct{} // *Struct
-    x.go:10:2  :  .  .  .  .  .  .  => type C[_ any] struct{} (black)
-    
-    Change-Id: Ibcf346737f57ec5351d1e1e65178e2c3c155d766
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659755
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I11a4c17162da4295309f74f2f8362bab0f506f78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548976
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/types2/format.go | 21 ++++++++++++++++++++-
- src/go/types/format.go                    | 25 +++++++++++++++++++++++--
- 2 files changed, 43 insertions(+), 3 deletions(-)
+ src/crypto/x509/root_darwin_test.go  | 131 -----------------------------------
+ src/crypto/x509/root_windows_test.go | 127 ---------------------------------
+ 2 files changed, 258 deletions(-)

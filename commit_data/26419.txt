@@ -1,18 +1,29 @@
-commit 1a82946ea5a98f5e7a7ec416bc83a7cba701e9b8
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Mar 20 19:25:58 2016 -0400
+commit 123510bf8302ecacc1cc73e4255f6b72e7fcb9a7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 12:43:34 2016 -0800
 
-    test/fixedbugs: add s390x case to issue11656
+    runtime: save context value in NetBSD sigtramp
     
-    An instruction consisting of all 0s causes an illegal instruction
-    signal on s390x. Since 0s are the default in this test this CL just
-    makes it explicit.
+    On NetBSD a signal handler returns to the kernel by calling the
+    setcontext system call with the context passed to the signal handler.
+    The implementation of runtime·sigreturn_tramp for amd64, copied from the
+    NetBSD libc, expects that context address to be in r15.  That works in
+    the NetBSD libc because r15 is preserved across the call to the signal
+    handler.  It fails in the Go library because r15 is not preserved.
+    There are various ways to fix this; this one uses the simple approach,
+    essentially identical to the one in the NetBSD libc, of preserving r15
+    across the signal handler proper.
     
-    Change-Id: Id6e060eed1a588f4b10a4e4861709fcd19b434ac
-    Reviewed-on: https://go-review.googlesource.com/20962
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Looking at the code for 386 and arm suggests that they are OK.  However,
+    I have not actually tested them.
+    
+    Update #14052.
+    
+    Change-Id: I2b516b1d05fe5d3b8911e65ca761d621dc37fa1b
+    Reviewed-on: https://go-review.googlesource.com/18815
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue11656.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/sys_netbsd_amd64.s | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

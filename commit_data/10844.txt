@@ -1,14 +1,24 @@
-commit 4fb5f5449a354b089a1312582dd5e33443a3112a
-Author: Rob Pike <r@golang.org>
-Date:   Fri Dec 16 11:33:57 2011 -0800
+commit bf6dd2db04f08d86f81e39c693922e9869016a56
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Fri Dec 16 11:31:39 2011 -0500
 
-    gob: isZero for struct values
-    Fixes #2577.
+    various: use $GCFLAGS and $GCIMPORTS like Make does
     
-    R=golang-dev, r, gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5492058
+    https://golang.org/cl/5489065
 
- src/pkg/encoding/gob/encode.go         |  7 +++++++
- src/pkg/encoding/gob/gobencdec_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+)
+ doc/codelab/wiki/Makefile     | 2 +-
+ misc/cgo/gmp/Makefile         | 4 ++--
+ misc/cgo/life/Makefile        | 4 ++--
+ misc/cgo/stdio/Makefile       | 2 +-
+ misc/cgo/testso/Makefile      | 2 +-
+ misc/swig/callback/Makefile   | 2 +-
+ misc/swig/stdio/Makefile      | 2 +-
+ src/cmd/goyacc/Makefile       | 2 +-
+ src/pkg/encoding/gob/Makefile | 2 +-
+ src/pkg/exp/norm/Makefile     | 6 +++---
+ src/pkg/go/doc/Makefile       | 2 +-
+ src/pkg/unicode/Makefile      | 2 +-
+ test/bench/garbage/Makefile   | 2 +-
+ 13 files changed, 17 insertions(+), 17 deletions(-)

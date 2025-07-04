@@ -1,26 +1,16 @@
-commit 5cf4e442a5dc1f4a1d6f3fd04b1083bc192e648e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Jan 25 18:56:22 2019 +1100
+commit 0b994a9037b8972fd1cec8a170cea58cb2f93232
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sun Sep 30 09:04:17 2018 -0700
 
-    runtime: fix syscall.NewCallback to return all bits for uintptr values
+    reflect: fix s390x reflect method calls
     
-    syscall.NewCallback mistakenly used MOVL even for windows/amd64,
-    which only returned the lower 32 bits regardless of the architecture.
-    This was due to a copy and paste after porting from windows/386.
-    The code now uses MOVQ, which will return all the available bits.
+    R0 isn't the zero register any more. Oops.
     
-    Also adjust TestReturnAfterStackGrowInCallback to ensure we never
-    regress.
+    Update #27695.
     
-    Fixes #29331
-    
-    Change-Id: I4f5c8021c33f234c2bb7baa9ef7a6b4870172509
-    Reviewed-on: https://go-review.googlesource.com/c/159579
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I46a975ed37d5e570afe2e228d3edf74949e08ad7
+    Reviewed-on: https://go-review.googlesource.com/138580
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/runtime/sys_windows_amd64.s     | 2 +-
- src/runtime/syscall_windows_test.go | 8 ++++++--
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/reflect/asm_s390x.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

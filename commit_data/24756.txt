@@ -1,19 +1,16 @@
-commit dbfaedf0caf31f4be0c18f367a99eadc8ca171d2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Nov 8 10:41:20 2015 +0100
+commit e0e4068c6e6cebb586bbffa36962c7fc6cb595e0
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Aug 26 18:40:52 2015 -0500
 
-    go/build: introduce go1.6 build tag
+    [dev.ssa] cmd/compile: implement len(map)
     
-    This is needed now for subrepos to be able to conditionally use
-    API symbols found only after Go 1.5.
+    Implement len(map) values.
     
-    Change-Id: I91f8a1154e2a74008e8ca79490e3f12847f9c3b2
-    Reviewed-on: https://go-review.googlesource.com/16733
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If92be96ec9a7a86aeb3ce566d6758aab01c2fa7d
+    Reviewed-on: https://go-review.googlesource.com/13961
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/build/build.go | 2 +-
- src/go/build/doc.go   | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go                 | 38 ++++++++++++++++-
+ src/cmd/compile/internal/gc/testdata/map_ssa.go    | 47 ++++++++++++++++++++++
+ src/cmd/compile/internal/gc/testdata/string_ssa.go |  4 ++
+ 3 files changed, 87 insertions(+), 2 deletions(-)

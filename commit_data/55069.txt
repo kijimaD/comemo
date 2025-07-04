@@ -1,25 +1,16 @@
-commit 515f3c0da643a3c2dfcf494ac0a7cf8f65002f38
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Nov 20 13:37:33 2023 +0000
+commit 5c682f94c6b465f75b3e638ecff77adaf87aabb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 13 17:41:19 2022 -0800
 
-    reflect: tweak logic for 'case Array' in IsZero
+    spec: document illegal recursive type parameter lists
     
-    For 'case Array' in IsZero, check 'v.flag&flagIndir == 0' in the
-    first place, rename 'array' to 'typ' for consistency, and remove
-    stale comment.
+    Fixes #40882.
     
-    Add line breaks for long sentence in isZero.
-    
-    Change-Id: Id06d01fd61eefd205bf4626e6b920ae82b459455
-    GitHub-Last-Rev: 7225ca3f7b55cbef58387365ed8f3ff104236a06
-    GitHub-Pull-Request: golang/go#64270
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543656
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I90f99d75e6d66f857b6ab8789c6d436f85d20993
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457515
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/reflect/value.go | 30 ++++++++++++++++++------------
- 1 file changed, 18 insertions(+), 12 deletions(-)
+ doc/go_spec.html | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

@@ -1,25 +1,26 @@
-commit a0e54aaffa3d67b3caf9a30ffa1d0b1f359d34b1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 22 15:12:34 2011 -0800
+commit 57ed39fd3bca9c69c32e55eb0a1873ab7f20bcfc
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Nov 23 09:26:37 2011 +1100
 
-    go/printer, gofmt: 20 to 30% faster gofmt
+    html: on EOF in a comment, ignore final dashes (up to 2)
     
-    Buffer intermediate output via a bytes.Buffer and thus avoid
-    calling through the entire Writer stack for every item printed.
-    There is more opportunity for improvements along the same lines.
+    Pass tests2.dat, test 57:
+    <!DOCTYPE html><!--x--
     
-    Before (best of 3 runs):
-    - printer.BenchmarkPrint              50          47959760 ns/op
-    - time gofmt -l $GOROOT/src           real        0m11.517s
+    | <!DOCTYPE html>
+    | <!-- x -->
+    | <html>
+    |   <head>
+    |   <body>
     
-    After (best of 3 runs):
-    - printer.BenchmarkPrint              50          32056640 ns/op (= -33%)
-    - time gofmt -l $GOROOT/src           real        0m9.070s       (= -21%)
+    Also pass test 58:
+    <!DOCTYPE html><table><tr><td></p></table>
     
-    R=r
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5432054
+    https://golang.org/cl/5436048
 
- src/pkg/go/printer/nodes.go   |   2 +-
- src/pkg/go/printer/printer.go | 136 ++++++++++++++++++------------------------
- 2 files changed, 58 insertions(+), 80 deletions(-)
+ src/pkg/html/parse_test.go |  2 +-
+ src/pkg/html/token.go      |  6 +++++-
+ src/pkg/html/token_test.go | 20 ++++++++++++++++++++
+ 3 files changed, 26 insertions(+), 2 deletions(-)

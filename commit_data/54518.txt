@@ -1,41 +1,32 @@
-commit fd54185a8d4e91eb6b34a73360cef0c51eea797e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Aug 16 19:49:04 2023 -0400
+commit 29674d87e697e10b658d5676a2f547d555c2c534
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Tue Oct 25 23:18:45 2022 +0000
 
-    cmd/link, runtime: initialize packages in shared build mode
+    flag: clarify that the main func at pkg.go.dev is part of a testing suite
     
-    Currently, for the shared build mode, we don't generate the module
-    inittasks. Instead, we rely on the main executable to do the
-    initialization, for both the executable and the shared library.
-    But, with the model as of CL 478916, the main executable only
-    has relocations to packages that are directly imported. It won't
-    see the dependency edges between packages within a shared library.
-    Therefore indirect dependencies are not included, and thus not
-    initialized. E.g. main imports a, which imports b, but main
-    doesn't directly import b. a and b are in a shared object. When
-    linking main, it sees main depends on a, so it generates main's
-    inittasks to run a's init before main's, but it doesn't know b,
-    so b's init doesn't run.
+    flag.Example() has this comment:
     
-    This CL makes it initialize all packages in a shared library when
-    the library is loaded, as any of them could potentially be
-    imported, directly or indirectly.
+        ... one must execute, typically at the start of main (not init!):
+          flag.Parse()
+        We don't run it here because this is not a main function
     
-    Also, in the runtime, when running the init functions, make sure
-    to go through the DSOs in dependency order. Otherwise packages
-    can be initialized in the wrong order.
+    This example function will be renamed to "main" at pkg.go.dev, which
+    makes the comment confusing.
+    See https://pkg.go.dev/flag#example-package.
     
-    Fixes #61973.
+    This change modify the comment to clarify this situation.
     
-    Change-Id: I2a090336fe9fa0d6c7e43912f3ab233c9c47e247
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520375
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I17357fdaaefe54791fff8fbbf6a33003af207f88
+    GitHub-Last-Rev: eeea8ce39cda3321d51c6cfe29fbcb2444fbf9cd
+    GitHub-Pull-Request: golang/go#56411
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445315
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- .../cgo/internal/testshared/testdata/dep2/dep2.go  |  6 ++++
- .../internal/testshared/testdata/depBase/dep.go    | 16 +++++++++
- .../testshared/testdata/depBaseInternal/dep.go     | 13 ++++++++
- src/cmd/link/internal/ld/deadcode.go               |  1 +
- src/cmd/link/internal/ld/inittask.go               | 38 +++++++++++++++-------
- src/runtime/proc.go                                |  6 ++--
- 6 files changed, 66 insertions(+), 14 deletions(-)
+ src/flag/example_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

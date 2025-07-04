@@ -1,60 +1,22 @@
-commit 33bc8ce8de855c78ec537e53e7814fa85bd90944
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Mon Oct 26 15:57:33 2020 +0800
+commit 45bd3b1bc4aa36ef313899fa372c23d850380b12
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 20 09:51:21 2020 -0400
 
-    crypto/cipher: use Neon for xor on arm64
+    [dev.link] cmd/link: create loader-specific version of GCProg
     
-    cpu: HiSilicon(R) Kirin 970 2.4GHz
+    Create a new version of the GCProg type + methods that use loader APIs
+    instead of sym.Symbol.
     
-    name                 old time/op    new time/op    delta
-    XORBytes/8Bytes        39.8ns ± 0%    17.3ns ± 0%    -56.53%  (p=0.000 n=10+10)
-    XORBytes/128Bytes       376ns ± 0%      28ns ± 0%    -92.63%  (p=0.000 n=10+8)
-    XORBytes/2048Bytes     5.67µs ± 0%    0.22µs ± 0%    -96.03%  (p=0.000 n=10+10)
-    XORBytes/32768Bytes    90.3µs ± 0%     3.5µs ± 0%    -96.12%  (p=0.000 n=10+10)
-    AESGCMSeal1K            853ns ± 0%     853ns ± 0%       ~     (all equal)
-    AESGCMOpen1K            876ns ± 0%     874ns ± 0%     -0.23%  (p=0.000 n=10+10)
-    AESGCMSign8K           3.09µs ± 0%    3.08µs ± 0%     -0.34%  (p=0.000 n=10+9)
-    AESGCMSeal8K           5.87µs ± 0%    5.87µs ± 0%     +0.01%  (p=0.008 n=10+8)
-    AESGCMOpen8K           5.82µs ± 0%    5.82µs ± 0%     +0.02%  (p=0.037 n=10+10)
-    AESCFBEncrypt1K        7.05µs ± 0%    4.27µs ± 0%    -39.38%  (p=0.000 n=10+10)
-    AESCFBDecrypt1K        7.12µs ± 0%    4.30µs ± 0%    -39.54%  (p=0.000 n=10+9)
-    AESCFBDecrypt8K        56.7µs ± 0%    34.1µs ± 0%    -39.82%  (p=0.000 n=10+10)
-    AESOFB1K               5.20µs ± 0%    2.54µs ± 0%    -51.07%  (p=0.000 n=10+10)
-    AESCTR1K               4.96µs ± 0%    2.30µs ± 0%    -53.62%  (p=0.000 n=9+10)
-    AESCTR8K               39.5µs ± 0%    18.2µs ± 0%    -53.98%  (p=0.000 n=8+10)
-    AESCBCEncrypt1K        5.81µs ± 0%    3.07µs ± 0%    -47.13%  (p=0.000 n=10+8)
-    AESCBCDecrypt1K        5.83µs ± 0%    3.10µs ± 0%    -46.84%  (p=0.000 n=10+8)
+    This code isn't actually used just yet, but will be needed once the
+    wavefront reaches dodata() and we need to convert that phase.
     
-    name                 old speed      new speed      delta
-    XORBytes/8Bytes       201MB/s ± 0%   461MB/s ± 0%   +129.80%  (p=0.000 n=6+10)
-    XORBytes/128Bytes     340MB/s ± 0%  4625MB/s ± 0%  +1259.91%  (p=0.000 n=8+10)
-    XORBytes/2048Bytes    361MB/s ± 0%  9088MB/s ± 0%  +2414.23%  (p=0.000 n=8+10)
-    XORBytes/32768Bytes   363MB/s ± 0%  9350MB/s ± 0%  +2477.44%  (p=0.000 n=10+10)
-    AESGCMSeal1K         1.20GB/s ± 0%  1.20GB/s ± 0%     -0.02%  (p=0.041 n=10+10)
-    AESGCMOpen1K         1.17GB/s ± 0%  1.17GB/s ± 0%     +0.20%  (p=0.000 n=10+10)
-    AESGCMSign8K         2.65GB/s ± 0%  2.66GB/s ± 0%     +0.35%  (p=0.000 n=10+9)
-    AESGCMSeal8K         1.40GB/s ± 0%  1.40GB/s ± 0%     -0.01%  (p=0.000 n=10+7)
-    AESGCMOpen8K         1.41GB/s ± 0%  1.41GB/s ± 0%     -0.03%  (p=0.022 n=10+10)
-    AESCFBEncrypt1K       145MB/s ± 0%   238MB/s ± 0%    +64.95%  (p=0.000 n=10+10)
-    AESCFBDecrypt1K       143MB/s ± 0%   237MB/s ± 0%    +65.39%  (p=0.000 n=10+9)
-    AESCFBDecrypt8K       144MB/s ± 0%   240MB/s ± 0%    +66.15%  (p=0.000 n=10+10)
-    AESOFB1K              196MB/s ± 0%   401MB/s ± 0%   +104.35%  (p=0.000 n=9+10)
-    AESCTR1K              205MB/s ± 0%   443MB/s ± 0%   +115.57%  (p=0.000 n=7+10)
-    AESCTR8K              207MB/s ± 0%   450MB/s ± 0%   +117.27%  (p=0.000 n=10+10)
-    AESCBCEncrypt1K       176MB/s ± 0%   334MB/s ± 0%    +89.15%  (p=0.000 n=10+8)
-    AESCBCDecrypt1K       176MB/s ± 0%   330MB/s ± 0%    +88.08%  (p=0.000 n=10+9)
-    
-    Updates #42010
-    
-    Change-Id: I75e6d66fd0070e184d93b020c55a7580c713647c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/142537
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Meng Zhuo <mzh@golangcn.org>
+    Change-Id: I087521832015818204fe5c2ac99c7bd3f61b2bf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229037
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/cipher/xor_arm64.go   | 29 +++++++++++++++++
- src/crypto/cipher/xor_arm64.s    | 67 ++++++++++++++++++++++++++++++++++++++++
- src/crypto/cipher/xor_generic.go |  2 +-
- 3 files changed, 97 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go       | 75 ++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/decodesym.go  |  8 ++--
+ src/cmd/link/internal/ld/decodesym2.go | 43 +++++++++++++++++++
+ 3 files changed, 122 insertions(+), 4 deletions(-)

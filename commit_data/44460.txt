@@ -1,23 +1,24 @@
-commit 580636a78a8e2462f4c5cbbac04c6403c81401ff
-Author: John Bampton <jbampton@gmail.com>
-Date:   Mon Mar 1 09:47:09 2021 +0000
+commit 9699086043ae0ea01f14eca827837ad15bea8072
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 6 14:23:26 2020 -0700
 
-    all: fix spelling
+    runtime: mark OpenBSD raise function nosplit
     
-    Change-Id: Iad14571c3e19b01740cd744f0b3025b3e2f1cb72
-    GitHub-Last-Rev: e8064019299f4e593116060ce2bbd14d62830af7
-    GitHub-Pull-Request: golang/go#44685
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297409
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    It is called by the signal handler before switching to gsignal
+    (sigtrampgo -> sigfwdgo -> dieFromSignal -> raise)
+    which means that it must not split the stack.
+    
+    All other instances of raise are already marked nosplit.
+    
+    Fixes #40076
+    
+    Change-Id: I4794491331af48c46d0d8ebc82d34c6483f0e6cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241121
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ir/visit.go       | 8 ++++----
- src/cmd/compile/internal/types2/call.go    | 4 ++--
- src/cmd/compile/internal/types2/typexpr.go | 4 ++--
- src/go/types/call.go                       | 4 ++--
- src/go/types/examples/types.go2            | 2 +-
- src/go/types/typexpr.go                    | 4 ++--
- src/reflect/abi.go                         | 2 +-
- src/syscall/exec_windows_test.go           | 2 +-
- test/run.go                                | 2 +-
- 9 files changed, 16 insertions(+), 16 deletions(-)
+ src/os/pipe_test.go       | 19 +++++++++++++++++++
+ src/runtime/os_openbsd.go |  1 +
+ 2 files changed, 20 insertions(+)

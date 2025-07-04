@@ -1,16 +1,12 @@
-commit b0680b474cd07f35ce8ca6ff210dc25bff453cd9
-Author: griesemer <gri@golang.org>
-Date:   Thu Oct 19 16:12:02 2017 -0700
+commit b3188e99fd1a77403a2f827e0dbccac9f813661c
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Thu Jul 20 18:16:03 2017 -0700
 
-    go/types: add test verifying corner-case behavior of iota
+    doc: minor fixes to the editor guide
     
-    For #22341.
-    
-    Change-Id: I7e586c58075e4c835ef97701db2f38bdf7558521
-    Reviewed-on: https://go-review.googlesource.com/71974
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8f6bcfab27251ef6962306d56e40d306ef85fe60
+    Reviewed-on: https://go-review.googlesource.com/50472
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/types/api_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/editors.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

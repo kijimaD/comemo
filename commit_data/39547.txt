@@ -1,21 +1,25 @@
-commit fbb819ebc443518e9caea3c1b0d0f9e0efec2262
-Author: Andrew Todd <andrew.todd@wework.com>
-Date:   Sat Jul 27 16:20:49 2019 -0700
+commit e90f572cd68adf11337faf30d1db0231d0c9d870
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Feb 20 13:33:30 2019 +0530
 
-    strings: clarify usage of Title and ToTitle
+    go/doc: add // while wrapping a line comment in ToText
     
-    This is intended to help clear up confusion around the usage of the
-    Title and ToTitle functions. It includes a link to define title case
-    to distinguish it from upper case. It also includes an additional
-    example for the ToTitle function to showcase the difference in behavior
-    between it and the Title function.
+    Currently, lineWrapper does not detect if it is printing a line comment or not.
+    Hence, while wrapping a comment, the new line does not get prefixed with a //.
     
-    Fixes #33302
+    We add logic to lineWrapper to detect this case and add // accordingly. Block
+    comments do not need any such handling.
     
-    Change-Id: I44e62962fb04d0d22966a39eda3a2d16de7a2291
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187825
-    Reviewed-by: Rob Pike <r@golang.org>
+    Added tests for both cases.
+    
+    Fixes #20929
+    
+    Change-Id: I656037c2d865f31dd853cf9195f43ab7c6e6fc53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163578
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/strings/example_test.go | 11 ++++++++++-
- src/strings/strings.go      |  7 ++++---
- 2 files changed, 14 insertions(+), 4 deletions(-)
+ src/go/doc/comment.go      |  8 ++++++++
+ src/go/doc/comment_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

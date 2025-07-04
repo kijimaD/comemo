@@ -1,16 +1,13 @@
-commit 4d3db77c6906d09038e55915653dc98cdf4d66bb
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Apr 26 17:50:44 2012 +1000
+commit b28431ec8e73d5d5fc3fd6b2c7f33ecc206124b3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 26 17:39:04 2012 +1000
 
-    doc: update wiki article to use html/template properly.
+    doc: simplify the image_draw article example for converting an image to
+    RGBA.
     
-    Fixes #3569.
-    
-    R=golang-dev, r
+    R=adg, r, bsiegert
     CC=golang-dev
-    https://golang.org/cl/6116055
+    https://golang.org/cl/6119054
 
- doc/articles/wiki/edit.html  |  6 +++---
- doc/articles/wiki/index.html | 11 ++++++-----
- doc/articles/wiki/view.html  |  6 +++---
- 3 files changed, 12 insertions(+), 11 deletions(-)
+ doc/progs/image_draw.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

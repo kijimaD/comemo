@@ -1,14 +1,15 @@
-commit 7128ed0501cc73a4d644ba1c510a152d680367a9
-Author: Javier Segura <javism@gmail.com>
-Date:   Sun Oct 15 23:20:10 2017 +0200
+commit 792f9c9a954c1fab92e5244f18072c4b2df4c301
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 14 15:52:41 2017 +0000
 
-    bytes: add examples of Equal and IndexByte
+    net/http: clarify Handler panic behavior across HTTP versions
     
-    Change-Id: Ibf3179d0903eb443c89b6d886802c36f8d199898
-    Reviewed-on: https://go-review.googlesource.com/70933
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #18997
+    
+    Change-Id: Ib1961a4c26b42f99b98b255beb7e2a74b632e0c1
+    Reviewed-on: https://go-review.googlesource.com/48551
+    Reviewed-by: Joe Shaw <joe@joeshaw.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/bytes/example_test.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/net/http/server.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

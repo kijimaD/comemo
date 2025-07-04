@@ -1,23 +1,28 @@
-commit df9f043d10cd2b84635dd7707550d00a74ddcad5
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 17 11:54:45 2023 -0400
+commit 1ebc983000ed411a1c06f6b8a61770be1392e707
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 7 20:01:21 2022 +0000
 
-    cmd/dist: refactor rtPreFunc to print skips in only one place
+    runtime: overestimate the amount of allocated memory in heapLive
     
-    Currently, all uses of rtPreFunc are to print a message and skip a
-    test. When we move to JSON, the logic to just "print a message" is
-    going to be more complicated, so refactor this so the function returns
-    the skip message and we print it in just one place. We also rename the
-    option to rtSkipFunc to better represent what we use it for.
+    CL 377516 made it so that memory metrics are truly monotonic, but also
+    updated how heapLive tracked allocated memory to also be monotonic.
     
-    For #37486.
+    The result is that cached spans with allocated memory aren't fully
+    accounted for by the GC, causing it to make a worse assumption (the
+    exact mechanism is at this time unknown), resulting in a memory
+    regression, especially for smaller heaps.
     
-    Change-Id: Ibd537064fa646a956a1c0f85a5d8c6febd098dde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495856
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    This change is a partial revert of CL 377516 that makes heapLive a
+    non-monotonic overestimate again, which appears to resolve the
+    regression.
+    
+    For #53738.
+    
+    Change-Id: I5c51067abc0b8e0a6b89dd8dbd4a0be2e8c0c1b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416417
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/dist/test.go | 43 ++++++++++++++++++++++---------------------
- 1 file changed, 22 insertions(+), 21 deletions(-)
+ src/runtime/mcache.go | 36 ++++++++++++++++++++++++++++++------
+ 1 file changed, 30 insertions(+), 6 deletions(-)

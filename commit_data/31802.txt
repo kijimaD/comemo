@@ -1,15 +1,24 @@
-commit 297c1881071eb2da788e2e20467ff2a436ec6f99
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 13 14:17:00 2017 -0700
+commit be04da8f0c5cb57e2736cfac8c76971d7d8cfc6f
+Author: Alexander Menzhinsky <amenzhinsky@gmail.com>
+Date:   Fri Mar 3 15:57:19 2017 +0300
 
-    cmd/go: fix TestIssue7573 for absolute paths in -L options
+    cmd/go: fix race libraries rebuilding by `go test -i`
     
-    Updates #20266.
-    Fixes #20664.
+    `go test -i -race` adds the "sync/atomic" package to every package dependency tree
+    that makes buildIDs different from packages installed with `go install -race`
+    and causes cache rebuilding.
     
-    Change-Id: Ifca30409fc7971497efb6d84f3f98760157c2233
-    Reviewed-on: https://go-review.googlesource.com/45650
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #19133
+    Fixes #19151
+    
+    Change-Id: I0536c6fa41b0d20fe361b5d35b3c0937b146d07d
+    Reviewed-on: https://go-review.googlesource.com/37598
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/cfg/cfg.go       |  3 ---
+ src/cmd/go/internal/load/pkg.go      |  4 ----
+ src/cmd/go/internal/test/test.go     | 34 ++++++++++++++++++++++++++++------
+ src/cmd/go/internal/test/testflag.go |  8 ++++----
+ 4 files changed, 32 insertions(+), 17 deletions(-)

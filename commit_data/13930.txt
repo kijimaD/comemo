@@ -1,19 +1,46 @@
-commit 5501a097a9ec5d082dad447c92d0eac298dede4d
+commit 0b08c9483f5f447083616b7b5e6ddf04edffc379
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 24 14:58:57 2012 -0400
+Date:   Mon Sep 24 14:58:34 2012 -0400
 
-    cmd/cgo: prepare for 64-bit ints
+    runtime: prepare for 64-bit ints
     
-    This CL makes the size of an int controlled by a variable
-    in cgo instead of hard-coding 4 (or 32 bits) in various places.
+    This CL makes the runtime understand that the type of
+    the len or cap of a map, slice, or string is 'int', not 'int32',
+    and it is also careful to distinguish between function arguments
+    and results of type 'int' vs type 'int32'.
+    
+    In the runtime, the new typedefs 'intgo' and 'uintgo' refer
+    to Go int and uint. The C types int and uint continue to be
+    unavailable (cause intentional compile errors).
+    
+    This CL does not change the meaning of int, but it should make
+    the eventual change of the meaning of int on amd64 a bit
+    smoother.
     
     Update #2188.
     
-    R=iant, r, dave
+    R=iant, r, dave, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6548061
+    https://golang.org/cl/6551067
 
- src/cmd/cgo/gcc.go  |  6 ++++--
- src/cmd/cgo/main.go | 14 +++++++++++++-
- src/cmd/cgo/out.go  | 29 +++++++++++++++++++++--------
- 3 files changed, 38 insertions(+), 11 deletions(-)
+ src/cmd/dist/goc2c.c         | 56 +++++++++++++++++++++++++++++++-------------
+ src/pkg/reflect/value.go     | 16 ++++++-------
+ src/pkg/runtime/alg.c        |  2 +-
+ src/pkg/runtime/chan.c       | 38 +++++++++++++++++-------------
+ src/pkg/runtime/cpuprof.c    |  2 +-
+ src/pkg/runtime/hashmap.c    |  7 +++---
+ src/pkg/runtime/iface.c      |  2 +-
+ src/pkg/runtime/malloc.goc   | 10 ++++----
+ src/pkg/runtime/malloc.h     | 11 ++++++++-
+ src/pkg/runtime/mfinal.c     |  8 +++----
+ src/pkg/runtime/mgc0.c       |  4 ++--
+ src/pkg/runtime/mprof.goc    |  8 +++----
+ src/pkg/runtime/print.c      |  2 +-
+ src/pkg/runtime/proc.c       |  2 +-
+ src/pkg/runtime/runtime.c    |  4 ++--
+ src/pkg/runtime/runtime.h    | 23 ++++++++++--------
+ src/pkg/runtime/runtime1.goc |  4 ++--
+ src/pkg/runtime/slice.c      | 38 +++++++++++++++++-------------
+ src/pkg/runtime/string.goc   | 34 +++++++++++++--------------
+ src/pkg/runtime/symtab.c     |  2 +-
+ 20 files changed, 161 insertions(+), 112 deletions(-)

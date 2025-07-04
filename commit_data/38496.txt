@@ -1,30 +1,23 @@
-commit 277609f844ed9254d25e975f7cf202d042beecc6
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Tue Mar 19 13:19:48 2019 +0200
+commit a86f549703c107c8b4d83d8e7527521c9e215d9a
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 17:03:35 2018 +0100
 
-    cmd/link/internal/ld: copy Mach-O platform version commands to go.o
+    runtime: add and use modtimer in netpoll
     
-    To build for watchOS and tvOS the Apple toolchain requires a Mach-O
-    load command that matches the platform for all object files in a build.
-    The go.o object file produced by the Go linker contains no such command.
+    Currently when netpoll deadline is incrementally prolonged,
+    we delete and re-add timer each time.
+    Add modtimer function that does both and use it when we need
+    to modify an existing netpoll timer to avoid unnecessary lock/unlock.
     
-    The loader commands are mutually exclusive so we need to pick the
-    right one. Fortunately, cgo must be enabled for watchOS and tvOS to
-    be useful, so we can copy the first loader command we find in the object
-    files produced by the host compiler.
+    TCP4OneShotTimeout-6  17.2µs ± 0%  17.0µs ± 0%  -0.82%  (p=0.008 n=5+5)
+    SetReadDeadline-6      274ns ± 2%   261ns ± 0%  -4.89%  (p=0.008 n=5+5)
     
-    Add a test that builds a small program for tvOS to test both this CL
-    and the previous CL that added bitcode support.
+    Update #25729
     
-    Updates #22395
-    
-    Change-Id: I7a47d19be9d80f0459dc358c600cddd9f236c444
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168321
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I08b89dbbc1785dd180e967a37b0aa23b0c4613a8
+    Reviewed-on: https://go-review.googlesource.com/c/146339
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/dwarf_test.go        | 51 +++++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/macho.go | 39 ++++++++++++++++++++++++++++--
- src/cmd/link/testdata/lib.go      |  8 ++++++
- src/cmd/link/testdata/main.m      |  5 ++++
- 4 files changed, 101 insertions(+), 2 deletions(-)
+ src/runtime/netpoll.go | 46 ++++++++++++++++++++++++----------------------
+ src/runtime/time.go    | 31 +++++++++++++++++++++++++++----
+ 2 files changed, 51 insertions(+), 26 deletions(-)

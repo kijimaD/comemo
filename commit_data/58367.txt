@@ -1,20 +1,20 @@
-commit 6705ac688528b5a9ef7ec94ba04ab1f65f048a75
-Author: Paul Cacheux <paul.cacheux@datadoghq.com>
-Date:   Sun Dec 8 21:45:48 2024 +0100
+commit 04575ce53f9af22403371b1b67d1e8bda990a4cd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Oct 28 16:30:57 2023 +0000
 
-    runtime: remove datadog-agent from prof labels hall of shame
+    reflect: pass the right element type in verifyGCBitsSlice
     
-    github.com/DataDog/datadog-agent has stopped using runtime_setProfLabel
-    and runtime_getProfLabel, remove them from the hall of shame.
+    Currently verifyGCBitsSlice creates a new array type to represent the
+    slice backing store, but passes the element type as the slice type in
+    this construction. This is incorrect, but the tests currently don't care
+    about it. They will in a follow-up CL, so fix it now.
     
-    Updates #67401
-    
-    Change-Id: I4a66c5e70397d43d7f064aeae5bad064e168316f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/634476
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I6ed8a9808ae78c624be316db1566376fa0e12758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537981
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/proflabel.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/reflect/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

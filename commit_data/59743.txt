@@ -1,20 +1,27 @@
-commit 1947c4233a33953088468a23457f6779c34be2d1
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Thu Jan 2 14:41:59 2025 -0500
+commit 081dc9fd8c9cf824f5caac3a03a1c8dfd86894c0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 29 15:15:44 2024 -0500
 
-    runtime: set HeapGoal to zero when the GC is disabled
+    cmd/go: preprocess PGO profiles
     
-    When the GC is disabled, the tracer should emit a heap goal of 0. Not
-    setting the heap goal to 0 causes an inaccurate NextGC value to be
-    emmited.
+    Following the previous CL, now actually run the preprofile tool to create the
+    preprocessed output.
     
-    Fixes #63864
+    There is still no build cache integration, so the tool will run on every
+    build even if nothing has changed.
     
-    Change-Id: Iecceaca86c0a43c1cc4d9433f1f9bb736f01ccbc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/639417
+    For #58102.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I0414377a956889f457e50898737fcaa8a698658d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569424
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/traceruntime.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.go                               | 2 +-
+ src/cmd/go/internal/work/action.go                  | 7 +------
+ src/cmd/go/testdata/script/build_pgo.txt            | 9 +++++++--
+ src/cmd/go/testdata/script/build_pgo_auto.txt       | 2 +-
+ src/cmd/go/testdata/script/build_pgo_auto_multi.txt | 4 ++--
+ 5 files changed, 12 insertions(+), 12 deletions(-)

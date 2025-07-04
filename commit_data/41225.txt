@@ -1,14 +1,17 @@
-commit 6a027cdb7517c47b884f57d748898dfc1b6cb675
-Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-Date:   Tue Feb 4 12:23:03 2020 +0000
+commit c2facbe93705530a4b4aea70da544a7d645ea288
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Sep 16 16:31:32 2019 +0000
 
-    doc/go1.14: fix broken links
+    Revert "test/codegen: document -all_codegen option in README"
     
-    Fix broken links with missing /pkg and fix os/signal import path.
+    This reverts CL 192101.
     
-    Change-Id: I4bf74c9f6e9b0e5fa96ca4d35c4ce404e07583b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217697
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reason for revert: The same paragraph was added 2 weeks ago
+    (look a few lines above)
+    
+    Change-Id: I05efb2631d7b4966f66493f178f2a649c715a3cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195637
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.14.html | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ test/codegen/README | 6 ------
+ 1 file changed, 6 deletions(-)

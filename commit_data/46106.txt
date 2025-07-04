@@ -1,21 +1,24 @@
-commit bcd146d398da2a873bb3f5a6e026c70b411a4486
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Aug 17 19:01:52 2021 +1000
+commit 61889ba68098fa0e79e0b182f3b8c38b69c9b36c
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 6 14:33:06 2020 -0500
 
-    cmd/compile: convert branch with zero to more optimal branch zero on riscv64
+    [dev.regabi] cmd/compile: simplify fmtmap
     
-    Convert BLT and BGE with a zero valued constant to BGTZ/BLTZ/BLEZ/BGEZ as
-    appropriate.
+    The format map is going to keep growing as we add more use of
+    concrete node types. Stop that by reporting all Node implementations
+    as Node.
     
-    Removes over 4,500 instructions from the go binary on riscv64.
+    Also, there's little point to reporting uses of %v, %p, %T, nor to reporting
+    formatting of basic types like int and []byte. Remove those too.
+    (Vet takes care of mistakes involving basic types now.)
     
-    Change-Id: Icc266e968b126ba04863ec88529630a9dd44498b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342849
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Ia9fb39b401c29bf0c76ffebaa24836c70acd773f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275781
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++-
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 46 ++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 1 deletion(-)
+ src/cmd/compile/fmt_test.go    |  18 ++-
+ src/cmd/compile/fmtmap_test.go | 242 ++++++++++-------------------------------
+ 2 files changed, 72 insertions(+), 188 deletions(-)

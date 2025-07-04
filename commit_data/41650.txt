@@ -1,20 +1,25 @@
-commit 2a08f3c18127f91b22ef4f3f96c52850959b25ac
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Feb 21 02:28:37 2020 +1100
+commit b6b984fcff9b6b3b8789c0b628e3226c1edc8b81
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 17 12:31:07 2019 -0700
 
-    cmd/internal/obj/riscv: add FENCE instruction
+    cmd/compile: escape unsafe.Pointer conversions when -d=checkptr
     
-    Also remove #define's that were previously in use.
+    This CL tweaks escape analysis to treat unsafe.Pointer(ptr) as an
+    escaping operation when -d=checkptr is enabled. This allows better
+    detection of unsafe pointer arithmetic and conversions, because the
+    runtime checkptr instrumentation can currently only detect object
+    boundaries for heap objects, not stack objects.
     
-    Updates #36765
+    Updates #22218.
+    Fixes #34959.
     
-    Change-Id: I90b6a8629c78f549012f3f6c5f3b325336182712
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220539
+    Change-Id: I856812cc23582fe4d0d401592583323e95919f28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201781
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscvenc.s | 5 ++++-
- src/cmd/internal/obj/riscv/obj.go            | 7 +++++++
- src/runtime/atomic_riscv64.s                 | 2 --
- src/runtime/internal/atomic/atomic_riscv64.s | 1 -
- src/runtime/sys_linux_riscv64.s              | 2 --
- 5 files changed, 11 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/escape.go | 10 +++++++++-
+ src/cmd/compile/internal/gc/walk.go   |  8 +++++++-
+ 2 files changed, 16 insertions(+), 2 deletions(-)

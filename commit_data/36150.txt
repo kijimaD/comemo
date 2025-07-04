@@ -1,20 +1,26 @@
-commit db2f680fdfc9118013cb3996e3ea8664c196e6ba
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jul 24 19:10:08 2018 -0400
+commit bbfae469a1d207a415dd813d799df1ed2dd2d80a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 30 12:25:02 2018 -0700
 
-    cmd/go: allow internal imports based on module paths
+    cmd/compile: handle blank struct fields in NumComponents
     
-    Updates #23970.
+    NumComponents is used by racewalk to decide whether reads and writes
+    might occur to subobjects of an address. For that purpose,
+    blank fields matter.
     
-    Change-Id: I2e69ad15b9d1097bfeef9947f03cfa6834a6a049
-    Reviewed-on: https://go-review.googlesource.com/125676
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    It is also used to decide whether to inline == and != for a type.
+    For that purpose, blank fields may be ignored.
+    
+    Add a parameter to NumComponents to support this distinction.
+    While we're here, document NumComponents, as requested in CL 59334.
+    
+    Change-Id: I8c2021b172edadd6184848a32a74774dde1805c8
+    Reviewed-on: https://go-review.googlesource.com/103755
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/load/pkg.go                    | 31 ++++++++++-----
- .../mod/golang.org_notx_useinternal_v0.1.0.txt     | 13 +++++++
- .../testdata/mod/golang.org_x_internal_v0.1.0.txt  | 43 +++++++++++++++++++++
- .../mod/golang.org_x_useinternal_v0.1.0.txt        | 13 +++++++
- src/cmd/go/testdata/script/mod_internal.txt        | 44 ++++++++++++++++++++++
- 5 files changed, 135 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go     |  2 +-
+ src/cmd/compile/internal/types/type.go  | 22 +++++++++++++++++++---
+ 3 files changed, 21 insertions(+), 5 deletions(-)

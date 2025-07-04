@@ -1,23 +1,18 @@
-commit 1d1f2fb4c6e4da4a88a0ab8a0b43822d411a23ea
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Jan 13 16:43:22 2016 +0300
+commit 74e568f43a8dc5a2d52fe4b761ae256dadded8ce
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 9 21:35:40 2015 -0800
 
-    cmd/internal/obj/x86: add new instructions, cleanup.
+    [dev.ssa] cmd/compile: Deduplicate panic{index,slice,divide} calls
     
-    Add several instructions that were used via BYTE and use them.
-    Instructions added: PEXTRB, PEXTRD, PEXTRQ, PINSRB, XGETBV, POPCNT.
+    Panics are only distinguished by their type and line number, so
+    if we can trigger two of those panics in the same line, use the
+    same panic call.  For example, in a[i]+b[j] we need only one
+    panicindex call that both bounds checks can use.
     
-    Change-Id: I5a80cd390dc01f3555dbbe856a475f74b5e6df65
-    Reviewed-on: https://go-review.googlesource.com/18593
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia2b6d3b1a67f2775df05fb72b8a1b149833572b7
+    Reviewed-on: https://go-review.googlesource.com/16772
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/internal/obj/x86/a.out.go  |  6 ++++++
- src/cmd/internal/obj/x86/anames.go |  6 ++++++
- src/cmd/internal/obj/x86/asm6.go   | 29 +++++++++++++++++++++++++++--
- src/crypto/aes/asm_amd64.s         |  8 ++------
- src/crypto/aes/gcm_amd64.s         |  8 ++++----
- src/hash/crc32/crc32_amd64.s       |  4 +---
- src/runtime/asm_amd64.s            |  6 +++---
- 7 files changed, 49 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)

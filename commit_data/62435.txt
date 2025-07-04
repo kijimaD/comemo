@@ -1,0 +1,18 @@
+commit 3b9d10cce787a6ab358a489b604edccb5414baf2
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Jul 27 09:15:31 2024 +0100
+
+    net/textproto: document enforcement of RFC 9112 for headers
+    
+    Fixes #68590
+    
+    Change-Id: Ie7cf1fe8379182f86317d5ebb7f45a404ecd70e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601555
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/textproto/reader.go    | 4 ++--
+ src/net/textproto/textproto.go | 3 +++
+ 2 files changed, 5 insertions(+), 2 deletions(-)

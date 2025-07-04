@@ -1,17 +1,22 @@
-commit e8518731be26f92f4f94c383b5cd7e02b47fcdb1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 19 15:34:32 2020 -0700
+commit 649f341e95626afa56ca67c5595c8f35780b29a8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 5 16:09:50 2019 -0500
 
-    cmd/compile: use dereference boundedness hint during ssa conversion
+    cmd: update x/mod to CL 205497
     
-    This has a minor positive effect on generated code,
-    particularly code using type switches.
+    Also revert an incidental 'gofmt' of a vendored file from CL 205240.
     
-    Change-Id: I7269769ab0d861ef6fc9e6d7809ffc3573c68340
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228885
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #34822
+    
+    Change-Id: I82a015d865db4d865b4776a8013312f25dbb9181
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205539
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  2 ++
+ src/cmd/vendor/golang.org/x/mod/modfile/read.go    | 41 +++++++++++++++++++++-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    |  6 +++-
+ .../x/tools/go/analysis/internal/facts/facts.go    |  1 +
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 6 files changed, 50 insertions(+), 4 deletions(-)

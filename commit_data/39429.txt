@@ -1,25 +1,23 @@
-commit 38fc0afca6139ba2e28061712f68cbe426d238e7
-Author: kawakami <kawakami.ozone@gmail.com>
-Date:   Sun Jun 23 05:30:24 2019 +0900
+commit 6be6f114e0d483a233101a67c9644cd72bd3ae7a
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sat Feb 23 00:29:15 2019 +0100
 
-    cmd/cgo: fix inappropriate array copy
+    fmt: add frame info to Errorf and support %w
     
-    Ensure that during rewriting of expressions that take the address of
-    an array, that we properly recognize *ast.IndexExpr as an operation
-    to create a pointer variable and thus assign the proper addressOf
-    and deference operators as "&" and "*" respectively.
+    Partly implements proposal Issue #29934.
     
-    This fixes a regression from CL 142884.
-    
-    Fixed #32579
-    
-    Change-Id: I3cb78becff4f8035d66fc5536e5b52857eacaa3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183458
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibcf12f383158dcfbc313ab29c417a710571d1acb
+    Reviewed-on: https://go-review.googlesource.com/c/163559
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- misc/cgo/test/cgo_test.go |  1 +
- misc/cgo/test/test.go     | 12 ++++++++++++
- src/cmd/cgo/gcc.go        |  2 ++
- 3 files changed, 15 insertions(+)
+ .../x/tools/go/analysis/passes/printf/printf.go    |   1 +
+ src/fmt/doc.go                                     |  18 +-
+ src/fmt/errors.go                                  | 239 +++++++++
+ src/fmt/errors_test.go                             | 534 +++++++++++++++++++++
+ src/fmt/format.go                                  |   5 +
+ src/fmt/format_example_test.go                     |  46 ++
+ src/fmt/print.go                                   |  35 +-
+ src/go/build/deps_test.go                          |   2 +-
+ 8 files changed, 853 insertions(+), 27 deletions(-)

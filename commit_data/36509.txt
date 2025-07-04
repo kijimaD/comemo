@@ -1,17 +1,17 @@
-commit 975f1afd85bd1de6037e1ba30af0c7ec598f689c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 28 14:22:37 2018 +0200
+commit 73c7378e4d6e6b86505ac0fb2ce63d2a3a5be329
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu Apr 19 06:38:13 2018 +0000
 
-    internal/syscall/unix: remove unnecessary empty.s
+    cmd/asm/internal/asm: update the test cases in arm64enc.s file
     
-    After CL 130736 there are no empty function declarations this package
-    anymore, so empty.s is no longer needed.
+    Uncomment the test cases in arm64enc.s because they can be handled
+    by current assembler. In addition, CL supplements more test cases.
     
-    Change-Id: Ic4306f10ad8a31777a3337870ce19e14c1510f3b
-    Reviewed-on: https://go-review.googlesource.com/131835
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I583d45793b8227c6ec370868652dd8bcbfaa1ecf
+    Reviewed-on: https://go-review.googlesource.com/109275
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/syscall/unix/empty.s | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 418 +++++++++++++++++++++------
+ 1 file changed, 331 insertions(+), 87 deletions(-)

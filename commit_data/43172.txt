@@ -1,17 +1,26 @@
-commit 44a15a7262b14d517fefab5b7c13ca97ab099a30
-Author: Dai Jie <gzdaijie@163.com>
-Date:   Fri Oct 2 09:09:24 2020 +0000
+commit e2a9ea035d73df84c813132417366e8e01777c8d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 13 12:51:09 2020 -0400
 
-    net/http: remove duplicate declaration of error
+    cmd/go/internal/modload: suppress the 'go mod init' hint for GOROOT more aggressively
     
-    there is no need to declare a error variable here.
+    Previously, we suppressed a `to create a module there, run: … go mod
+    init' warning only if the config file itself (such as .git/config) was
+    found in GOROOT. However, our release tarballs don't include the
+    .git/config, so that case was not encountered, and the warning could
+    occur based on a config file found in some parent directory (outside
+    of GOROOT entirely).
     
-    Change-Id: I9ea5bcf568d800efed19c90caf751aaf9abe5555
-    GitHub-Last-Rev: 538d1f9cee0b8564a8bec262529f567da847f1b0
-    GitHub-Pull-Request: golang/go#41751
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259037
-    Reviewed-by: Rob Pike <r@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Instead, skip the directory walk completely if the working directory
+    is anywhere in GOROOT.
+    
+    Fixes #34191
+    
+    Change-Id: I9f774901bfbb53b700407c4882f37d6339d023fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223340
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/rpc/client.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/go/internal/modload/init.go            |  9 +++++----
+ src/cmd/go/testdata/script/mod_convert_git.txt | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+), 4 deletions(-)

@@ -1,13 +1,22 @@
-commit 21a460d3ab53de0ebe6f7ba6dd995caccfe21c57
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 18 10:22:11 2018 -0500
+commit 5e42658fc04c8f4ce15f3e2d75f4f5d045640738
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 21 19:23:51 2017 +0200
 
-    doc/go1.10: address final TODOs
+    all: prefer bytes.IndexByte over bytes.Index
     
-    Change-Id: Id71c1ccb584fb308f1615c0ed1255cc8b44bf675
-    Reviewed-on: https://go-review.googlesource.com/88256
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    bytes.IndexByte can be used wherever the second argument to
+    strings.Index is exactly one byte long, so we do that with this change.
+    
+    This avoids generating unnecessary string symbols/converison and saves
+    a few calls to bytes.Index.
+    
+    Change-Id: If31c775790e01edfece1169e398ad6a754fb4428
+    Reviewed-on: https://go-review.googlesource.com/66373
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.10.html | 24 +++++++++++++++++++-----
- 1 file changed, 19 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/lib.go         | 2 +-
+ src/crypto/tls/handshake_client_test.go | 2 +-
+ src/encoding/json/decode_test.go        | 2 +-
+ src/encoding/pem/pem.go                 | 4 ++--
+ 4 files changed, 5 insertions(+), 5 deletions(-)

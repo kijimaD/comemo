@@ -1,19 +1,18 @@
-commit e0b110b926c47227aa0669b630f5292152945bba
-Author: linmaolin <linlin152@foxmail.com>
-Date:   Thu Mar 6 00:41:02 2025 +0000
+commit cc38c68ae09fa591697a4239a7dedd2efe386995
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 11 15:00:17 2024 -0500
 
-    text/template: add an if func example
+    cmd/go/internal/toolchain: apply the -modcacherw flag when downloading a module to determine what toolchain it needs
     
-    Updates #13880
+    Fixes #64282.
     
-    Change-Id: I0fd3b1a32e485bc8f15238c86a8bbdc161f20fa5
-    GitHub-Last-Rev: d1e92b31243c86435add422ee46aaff768453cad
-    GitHub-Pull-Request: golang/go#71922
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651916
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Change-Id: I3f211c599ee70cb58254d0bc07eeb3c135124e58
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555436
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/text/template/examplefunc_test.go | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ src/cmd/go/internal/toolchain/select.go            | 148 +++++++++++++++------
+ .../script/install_modcacherw_issue64282.txt       |  45 +++++++
+ 2 files changed, 149 insertions(+), 44 deletions(-)

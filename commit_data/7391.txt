@@ -1,16 +1,29 @@
-commit 69334ee62ba8bdfd754e8c38eb6b90768e2d3807
-Author: Graham Miller <graham.miller@gmail.com>
-Date:   Tue Feb 8 12:42:31 2011 -0800
+commit b9183b986ad29266e686622ea7e93516fcfacf70
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 8 15:40:11 2011 -0500
 
-    netchan: graceful handling of closed connection
-    Currently, when an importer closes the connection, the exporter gives an
-    error message 'netchan export: error decoding client header:EOF'.  This
-    change causes the exporter to look for an EOF during the parse of the
-    header, and silences the log message in that case.
+    cgo: don't run cgo when not compiling
     
-    R=r
-    CC=golang-dev, rog
-    https://golang.org/cl/4132044
+    The logic introduced to avoid running cgo when
+    introducing _cgo_flags is faulty.  My goal was
+    to handle it with the following statement:
+    
+        -include _cgo_flags
+    
+    The dash tells make to ignore errors if it can't
+    include the file.
+    
+    What I missed, though, was the fact that it
+    *will* attempt to build the file if it knows
+    how.
+    
+    This change will introduce the originally
+    intended semantics of not attempting to build
+    the file before necessary.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4023069
 
- src/pkg/netchan/export.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/Make.pkg | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

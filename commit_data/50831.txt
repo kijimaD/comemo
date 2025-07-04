@@ -1,24 +1,21 @@
-commit 40c7e94cc5740496a0a47d6ef9863b2bbca44b0e
-Author: Jeremy Brewer <jeremybrewer@google.com>
-Date:   Mon Sep 19 20:09:56 2022 -0400
+commit 2dbf37045c24c8ab6f93083adc8be9ccdb3e3603
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 22:20:18 2021 -0500
 
-    modload: provide a clearer error for standard library packages from newer releases
+    go/types: refactor the Context type map to accept arbitrary types
     
-    An older version of go compiling a main module that references a
-    standard library package from a newer release (e.g. net/netip added in
-    go 1.18) currently produces a confusing error message. This changes adds
-    a new error message including go version diagnostics.
+    In preparation for storing *Signature types in Context, refactor the
+    type map to not depend on the *Named type API.
     
-    Fixes #48966
-    
-    Change-Id: I1e8319dafcf1f67d1b1ca869fe84190c3b3f3c3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432075
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0439d43aa4cc3a60a78f409a773a343a4fffd0fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362799
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modload/import.go              | 10 ++++++++-
- src/cmd/go/internal/modload/load.go                | 26 +++++++++++++++++-----
- .../go/testdata/script/mod_load_missing_std.txt    | 17 ++++++++++++++
- 3 files changed, 46 insertions(+), 7 deletions(-)
+ src/go/types/context.go     | 41 ++++++++++++++++++++++++++---------------
+ src/go/types/instantiate.go | 24 ++++++++++++------------
+ src/go/types/named.go       |  2 +-
+ src/go/types/typexpr.go     |  4 ++--
+ 4 files changed, 41 insertions(+), 30 deletions(-)

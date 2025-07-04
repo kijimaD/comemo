@@ -1,32 +1,12 @@
-commit f0b36269041eff3b8bbdd18e2ff41b06557235d1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jul 26 11:03:45 2017 -0700
+commit 3959e0798d2be3de99b33bc7d19949ec88adc4c9
+Author: Nick Kubala <nkubala@google.com>
+Date:   Fri Apr 7 14:23:49 2017 -0700
 
-    cmd/compile: discard duplicate inline method bodies
+    os/exec: Update Cmd.Run() docs to reflect correct error return types
     
-    If we've already imported a named type, then there's no need to
-    process its associated methods except to validate that the signature
-    matches the existing known method.
-    
-    However, the current import code still creates a new function node for
-    each method, saves its inline body (if any), and adds the node to the
-    global importlist. Because of this, the duplicate methods are never
-    garbage collected.
-    
-    This CL changes the compiler to avoid amassing uncollectable garbage
-    or performing any unnecessary processing.
-    
-    This is particularly noticeable for protobuf-heavy code. For the
-    motivating Go package, this CL reduced compile max-RSS from ~12GB to
-    ~3GB and compile time from ~65s to ~50s.
-    
-    Passes toolstash -cmp for std, cmd, and k8s.io/kubernetes/cmd/....
-    
-    Change-Id: Ib53ba9f2ad3212995671cf6ba220ee8a56d8d009
-    Reviewed-on: https://go-review.googlesource.com/51331
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I3fe92d74ff259abdf5d1fd28cdc822db88aae191
+    Reviewed-on: https://go-review.googlesource.com/39993
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/os/exec/exec.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

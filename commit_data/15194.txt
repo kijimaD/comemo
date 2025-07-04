@@ -1,85 +1,22 @@
-commit 37d92d251b167dce560937d56d44f3db71e290ed
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Feb 11 11:56:49 2013 +1100
+commit eda9590aae3ef617a765bb5d925b8e25ca205f7f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Feb 10 19:40:33 2013 -0500
 
-    exp/html, exp/html/atom: delete, as they're moving to the go.net
-    sub-repo.
+    doc: update contribute.html
     
-    The matching change is at https://golang.org/cl/7310063
+    Fixes #4582.
     
-    The rationale was discussed at
-    https://groups.google.com/d/topic/golang-nuts/Qq5hTQyPuLg/discussion
+    * mentioned hg upload.
+    * added section on hg file.
+    * added small mention about being inside $GOROOT.
+    * added hg revert @NNNN
+    * reorganise the hg submit section for the common case of a non committer.
+    * made the Copyright section h2
+    * added note about leaving copyright years unchanged.
     
-    R=adg, dave
-    CC=golang-dev
-    https://golang.org/cl/7317043
+    R=golang-dev, metanata4, shivakumar.gn, minux.ma, adg, shanemhansen
+    CC=golang-dev, metanata4
+    https://golang.org/cl/7278047
 
- src/pkg/exp/html/atom/atom.go                      |   81 -
- src/pkg/exp/html/atom/atom_test.go                 |  109 -
- src/pkg/exp/html/atom/gen.go                       |  636 ------
- src/pkg/exp/html/atom/table.go                     |  694 ------
- src/pkg/exp/html/atom/table_test.go                |  341 ---
- src/pkg/exp/html/const.go                          |  100 -
- src/pkg/exp/html/doc.go                            |  106 -
- src/pkg/exp/html/doctype.go                        |  156 --
- src/pkg/exp/html/entity.go                         | 2253 -------------------
- src/pkg/exp/html/entity_test.go                    |   29 -
- src/pkg/exp/html/escape.go                         |  258 ---
- src/pkg/exp/html/example_test.go                   |   39 -
- src/pkg/exp/html/foreign.go                        |  226 --
- src/pkg/exp/html/node.go                           |  193 --
- src/pkg/exp/html/node_test.go                      |  146 --
- src/pkg/exp/html/parse.go                          | 2091 ------------------
- src/pkg/exp/html/parse_test.go                     |  387 ----
- src/pkg/exp/html/render.go                         |  271 ---
- src/pkg/exp/html/render_test.go                    |  156 --
- src/pkg/exp/html/testdata/go1.html                 | 2237 -------------------
- src/pkg/exp/html/testdata/webkit/README            |   28 -
- src/pkg/exp/html/testdata/webkit/adoption01.dat    |  194 --
- src/pkg/exp/html/testdata/webkit/adoption02.dat    |   31 -
- src/pkg/exp/html/testdata/webkit/comments01.dat    |  135 --
- src/pkg/exp/html/testdata/webkit/doctype01.dat     |  370 ----
- src/pkg/exp/html/testdata/webkit/entities01.dat    |  603 -----
- src/pkg/exp/html/testdata/webkit/entities02.dat    |  249 ---
- src/pkg/exp/html/testdata/webkit/html5test-com.dat |  246 ---
- src/pkg/exp/html/testdata/webkit/inbody01.dat      |   43 -
- src/pkg/exp/html/testdata/webkit/isindex.dat       |   40 -
- .../pending-spec-changes-plain-text-unsafe.dat     |  Bin 115 -> 0 bytes
- .../html/testdata/webkit/pending-spec-changes.dat  |   52 -
- .../exp/html/testdata/webkit/plain-text-unsafe.dat |  Bin 4166 -> 0 bytes
- src/pkg/exp/html/testdata/webkit/scriptdata01.dat  |  308 ---
- .../html/testdata/webkit/scripted/adoption01.dat   |   15 -
- .../exp/html/testdata/webkit/scripted/webkit01.dat |   28 -
- src/pkg/exp/html/testdata/webkit/tables01.dat      |  212 --
- src/pkg/exp/html/testdata/webkit/tests1.dat        | 1952 -----------------
- src/pkg/exp/html/testdata/webkit/tests10.dat       |  799 -------
- src/pkg/exp/html/testdata/webkit/tests11.dat       |  482 ----
- src/pkg/exp/html/testdata/webkit/tests12.dat       |   62 -
- src/pkg/exp/html/testdata/webkit/tests14.dat       |   74 -
- src/pkg/exp/html/testdata/webkit/tests15.dat       |  208 --
- src/pkg/exp/html/testdata/webkit/tests16.dat       | 2299 --------------------
- src/pkg/exp/html/testdata/webkit/tests17.dat       |  153 --
- src/pkg/exp/html/testdata/webkit/tests18.dat       |  269 ---
- src/pkg/exp/html/testdata/webkit/tests19.dat       | 1237 -----------
- src/pkg/exp/html/testdata/webkit/tests2.dat        |  763 -------
- src/pkg/exp/html/testdata/webkit/tests20.dat       |  455 ----
- src/pkg/exp/html/testdata/webkit/tests21.dat       |  221 --
- src/pkg/exp/html/testdata/webkit/tests22.dat       |  157 --
- src/pkg/exp/html/testdata/webkit/tests23.dat       |  155 --
- src/pkg/exp/html/testdata/webkit/tests24.dat       |   79 -
- src/pkg/exp/html/testdata/webkit/tests25.dat       |  219 --
- src/pkg/exp/html/testdata/webkit/tests26.dat       |  313 ---
- src/pkg/exp/html/testdata/webkit/tests3.dat        |  305 ---
- src/pkg/exp/html/testdata/webkit/tests4.dat        |   59 -
- src/pkg/exp/html/testdata/webkit/tests5.dat        |  191 --
- src/pkg/exp/html/testdata/webkit/tests6.dat        |  663 ------
- src/pkg/exp/html/testdata/webkit/tests7.dat        |  390 ----
- src/pkg/exp/html/testdata/webkit/tests8.dat        |  148 --
- src/pkg/exp/html/testdata/webkit/tests9.dat        |  457 ----
- .../exp/html/testdata/webkit/tests_innerHTML_1.dat |  741 -------
- src/pkg/exp/html/testdata/webkit/tricky01.dat      |  261 ---
- src/pkg/exp/html/testdata/webkit/webkit01.dat      |  610 ------
- src/pkg/exp/html/testdata/webkit/webkit02.dat      |  159 --
- src/pkg/exp/html/token.go                          | 1173 ----------
- src/pkg/exp/html/token_test.go                     |  679 ------
- 68 files changed, 28796 deletions(-)
+ doc/contribute.html | 140 +++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 111 insertions(+), 29 deletions(-)

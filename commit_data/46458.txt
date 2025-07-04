@@ -1,15 +1,25 @@
-commit e7dbe3908e17ec77851161e6cb98c7161823aa0d
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Sat Jul 24 22:17:21 2021 +0800
+commit 3a4474cdfda0096b5d88c769f81ad81d6f0168c7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 31 23:39:15 2020 -0800
 
-    cmd/cgo: add missing tab in exports for a result of void
+    [dev.regabi] cmd/compile: some more manual shuffling
     
-    Change-Id: I45575afbad364c13b7179ebe3f3dfc4ed9671d2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336891
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    More minor reshuffling of passes.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I22633b3741f668fc5ee8579d7d610035ed57df1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280975
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/cgo/out.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/abiutils_test.go    |  2 +-
+ src/cmd/compile/internal/gc/main.go             | 26 ++++++++++---------------
+ src/cmd/compile/internal/noder/noder.go         | 14 +++++++++++++
+ src/cmd/compile/internal/typecheck/dcl.go       |  2 +-
+ src/cmd/compile/internal/typecheck/syms.go      |  7 +------
+ src/cmd/compile/internal/typecheck/typecheck.go |  7 -------
+ src/cmd/compile/internal/typecheck/universe.go  |  4 ++--
+ 7 files changed, 29 insertions(+), 33 deletions(-)

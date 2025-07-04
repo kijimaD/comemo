@@ -1,22 +1,37 @@
-commit 8fedb2d3383c29a00c8b43dc456a0ac03f836b45
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sun Jun 16 16:07:55 2019 +0530
+commit cfa93ba51fb62252633c62ddc9351d56c18ce018
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 7 17:44:50 2019 -0800
 
-    cmd/compile: optimize bounded shifts on wasm
+    math/big: add support for underscores '_' in numbers
     
-    Use the shiftIsBounded function to generate more efficient
-    Shift instructions.
+    The primary change is in nat.scan which now accepts underscores for base 0.
+    While at it, streamlined error handling in that function as well.
+    Also, improved the corresponding test significantly by checking the
+    expected result values also in case of scan errors.
     
-    Updates #25167
+    The second major change is in scanExponent which now accepts underscores when
+    the new sepOk argument is set. While at it, essentially rewrote that
+    function to match error and underscore handling of nat.scan more closely.
+    Added a new test for scanExponent which until now was only tested
+    indirectly.
     
-    Change-Id: Id350f8462dc3a7ed3bfed0bcbea2860b8f40048a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182558
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Finally, updated the documentation for several functions and added many
+    new test cases to clients of nat.scan.
+    
+    A major portion of this CL is due to much better test coverage.
+    
+    Updates #28493.
+    
+    Change-Id: I7f17b361b633fbe6c798619d891bd5e0a045b5c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166157
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/Wasm.rules |  3 +++
- src/cmd/compile/internal/ssa/rewriteWasm.go | 42 +++++++++++++++++++++++++++++
- test/codegen/shift.go                       | 10 +++----
- 3 files changed, 50 insertions(+), 5 deletions(-)
+ src/math/big/floatconv.go      |  37 +++++---
+ src/math/big/floatconv_test.go |  25 ++++++
+ src/math/big/int.go            |  16 +++-
+ src/math/big/intconv_test.go   |  17 ++++
+ src/math/big/natconv.go        | 195 ++++++++++++++++++++++-------------------
+ src/math/big/natconv_test.go   | 178 ++++++++++++++++++++++---------------
+ src/math/big/ratconv.go        | 109 +++++++++++++----------
+ src/math/big/ratconv_test.go   | 121 +++++++++++++++++++++----
+ 8 files changed, 458 insertions(+), 240 deletions(-)

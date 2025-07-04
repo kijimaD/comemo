@@ -1,14 +1,22 @@
-commit d78823168fb90c33b6a208e56bffa1e17e32de59
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Sep 12 15:05:41 2014 -0700
+commit dbed4e9b4f60b25dd472da0dd46b398114acf2fe
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 6 10:07:23 2014 -0700
 
-    cmd/gc: fix racewalk after writebarrier change
-    Instrument dst argument of writebarrier calls.
+    runtime: get rid of other Go->C calls in test exports.
     
-    LGTM=rsc
-    R=rsc
+    testSchedLocal* tests need to malloc now because their
+    stack frames are too big to fit on the G0 stack.
+    
+    LGTM=iant
+    R=golang-codereviews, iant, khr
     CC=golang-codereviews
-    https://golang.org/cl/139560045
+    https://golang.org/cl/133660043
 
- src/cmd/gc/racewalk.c | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ misc/cgo/test/backdoor/runtime.c | 14 --------------
+ misc/cgo/test/backdoor/thunk.s   | 16 +++++++++++++++
+ src/pkg/runtime/export_test.go   | 11 +++++++----
+ src/pkg/runtime/proc.c           | 42 ++++++++++++++++++----------------------
+ src/pkg/runtime/proc.go          |  5 +++++
+ src/pkg/runtime/proc_test.go     |  4 ++--
+ src/pkg/runtime/runtime.h        |  1 -
+ 7 files changed, 49 insertions(+), 44 deletions(-)

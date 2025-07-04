@@ -1,24 +1,17 @@
-commit 6e70fddec0e1d4a43ffb450f555dde82ff313397
+commit b581ca5956e4cf60de2e32f91b51524054efb29c
 Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Feb 17 14:25:49 2015 +0300
+Date:   Mon Jan 26 11:26:55 2015 +0300
 
-    runtime: fix cputicks on x86
+    cmd/gc: allow map index expressions in for range statements
     
-    See the following issue for context:
-    https://github.com/golang/go/issues/9729#issuecomment-74648287
-    In short, RDTSC can produce skewed results without preceding LFENCE/MFENCE.
-    Information on this matter is very scrappy in the internet.
-    But this is what linux kernel does (see rdtsc_barrier).
-    It also fixes the test program on my machine.
+    Fixes #9691.
     
-    Update #9729
-    
-    Change-Id: I3c1ffbf129fdfdd388bd5b7911b392b319248e68
-    Reviewed-on: https://go-review.googlesource.com/5033
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I22bfc82e05497e91a7b18a668913aed6c723365d
+    Reviewed-on: https://go-review.googlesource.com/3282
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/asm_386.s   | 25 +++++++++++++++++++++++--
- src/runtime/asm_amd64.s | 22 +++++++++++++++++++++-
- src/runtime/runtime1.go |  7 -------
- src/runtime/runtime2.go |  8 ++++++--
- 4 files changed, 50 insertions(+), 12 deletions(-)
+ src/cmd/gc/go.h             |  1 +
+ src/cmd/gc/range.c          |  2 ++
+ src/cmd/gc/typecheck.c      |  3 +--
+ test/fixedbugs/issue9691.go | 21 +++++++++++++++++++++
+ 4 files changed, 25 insertions(+), 2 deletions(-)

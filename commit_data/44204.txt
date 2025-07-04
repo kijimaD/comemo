@@ -1,20 +1,19 @@
-commit 00f2ff5c942e8f3e68cd10b5909278cda15c6bb5
-Author: Alexander Rakoczy <alex@golang.org>
-Date:   Wed Jan 27 15:26:02 2021 -0500
+commit e1c0b751b521dd1962a1b8123b389ddda086f32d
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu May 21 21:19:07 2020 -0400
 
-    api/go1.16: add go/build/constraint APIs
+    [dev.link] cmd/link: change asmb2 api and rescope some functions
     
-    These APIs were added in CL 240604 as part of an approved proposal. It
-    was submitted after the initial api/go1.16.txt creation.
-    
-    For #41184
-    For #43407
-    
-    Change-Id: Ifb54df2b61c554c32bd9d17afbb74f4e42e0b228
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/287412
-    Trust: Alexander Rakoczy <alex@golang.org>
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I49916b4740316a7042566e389759b70d7b1fa037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234895
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- api/go1.16.txt | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/cmd/link/internal/ld/asmb.go   | 33 ++++++++++++++++-----------------
+ src/cmd/link/internal/ld/elf.go    |  4 ++--
+ src/cmd/link/internal/ld/macho.go  |  6 +++---
+ src/cmd/link/internal/ld/main.go   |  4 +---
+ src/cmd/link/internal/ld/pe.go     |  2 +-
+ src/cmd/link/internal/ld/symtab.go |  4 ++--
+ src/cmd/link/internal/ld/xcoff.go  |  2 +-
+ 7 files changed, 26 insertions(+), 29 deletions(-)

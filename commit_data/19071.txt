@@ -1,13 +1,23 @@
-commit b69238bfbec9c94b804c17fdfaf2e93ae9175cfc
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 9 12:47:35 2014 +1000
+commit 5556bfa9c736f63ae18ec0ab8ef9b6a986e32ef3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 8 22:35:41 2014 -0400
 
-    doc/go1.3.html: gc precision, nacl, solaris
+    runtime: cache gotraceback setting
     
-    LGTM=rsc
-    R=rsc, bradfitz
+    On Plan 9 gotraceback calls getenv calls malloc, and we gotraceback
+    on every call to gentraceback, which happens during garbage collection.
+    Honestly I don't even know how this works on Plan 9.
+    I suspect it does not, and that we are getting by because
+    no one has tried to run with $GOTRACEBACK set at all.
+    
+    This will speed up all the other systems by epsilon, since they
+    won't call getenv and atoi repeatedly.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, 0intro
     CC=golang-codereviews
-    https://golang.org/cl/85740043
+    https://golang.org/cl/85430046
 
- doc/go1.3.html | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/pkg/runtime/proc.c    |  4 ++++
+ src/pkg/runtime/runtime.c | 35 ++++++++++++++++++++++++-----------
+ 2 files changed, 28 insertions(+), 11 deletions(-)

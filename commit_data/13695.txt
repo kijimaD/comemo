@@ -1,12 +1,12 @@
-commit f653dfeb498b96c72fbad92ef3dab2887435230f
+commit e2a83b47e7f604cd55adc747c2534270040e5624
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Aug 28 04:03:27 2012 +0800
+Date:   Tue Aug 28 03:57:27 2012 +0800
 
-    cmd/api: recognize version "devel" as dev. branch and apply -next
+    C: add Tobias Columbus's email used in Rietveld
     
-    R=golang-dev, bradfitz
+    R=golang-dev, tobias.columbus, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6476066
+    https://golang.org/cl/6483058
 
- src/cmd/api/goapi.go | 2 +-
+ CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

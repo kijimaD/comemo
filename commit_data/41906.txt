@@ -1,23 +1,22 @@
-commit 37470c06644ec916821ec82ed84abc2f0d0b876c
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Mar 31 10:08:29 2020 -0400
+commit 4a43a5079184f9a4cff355fbf8c6d3145e253bb2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 31 19:35:55 2019 -0400
 
-    cmd/internal/obj/ppc64: add support for pcalign 32 on ppc64x
+    [dev.link] cmd/link: process cgo_import_static before host object loading
     
-    Previous PCALIGN support on ppc64x only accepted 8 and 16 byte
-    alignment since the default function alignment was 16. Now that
-    the function's alignment can be set to a larger value when needed,
-    PCALIGN can accept 32. When this happens then the function's
-    alignment will be changed to 32.
+    In internal linking mode, we need to process cgo_import_static
+    directives before loading host objects, because the directive is
+    to tell the host object loader how to deal with imported symbols.
     
-    Test has been updated to recognized this new value.
+    This should fix linking with old object files. I think there
+    needs some similar logic for new object files, but I'll leave
+    that for later.
     
-    Change-Id: If82c3cd50d7c686fcf8a9e819708b15660cdfa63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227775
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Icaa286de626ea1876086dbdd015047084c92caf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204697
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/internal/obj/ppc64/asm9.go     | 27 +++++++++++++++-------
- src/cmd/internal/obj/ppc64/asm_test.go | 42 ++++++++++++++++++++++++++++------
- 2 files changed, 54 insertions(+), 15 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 30 ++++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 14 deletions(-)

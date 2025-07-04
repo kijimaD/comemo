@@ -1,0 +1,24 @@
+commit 78eadc87df453c2a325fd9762d57e3232179b631
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sun May 26 18:27:53 2024 +0000
+
+    make.bash: preserve GOROOT_BOOTSTRAP
+    
+    CL 582076 made the GOROOT_BOOTSTRAP set to "", which in turn
+    causes the next iteration to return true. "$GOROOT_BOOTSTRAP/bin/go"
+    becomes "/bin/go", which always exists.
+    
+    Fixes #67654
+    
+    Change-Id: I290bd4a7defc58e4b34d5bf955ef4f34569ff0ed
+    GitHub-Last-Rev: 9c7134fa44874b0a9d03807aa583b1088cc13922
+    GitHub-Pull-Request: golang/go#67655
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588436
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/make.bash | 2 ++
+ src/make.rc   | 4 +++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

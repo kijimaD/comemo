@@ -1,12 +1,137 @@
-commit 508a22d5bcec2508779fbc4e3e4c745ffe8ea961
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 10 13:05:37 2014 +1100
+commit 8e171e196615bc40a3a804811acf768eee6b2aa8
+Merge: 5550249ad3 3bbc8638d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 11:54:48 2014 -0400
 
-    misc/makerelease: use new storage api, handle git sub-repos
+    [dev.garbage] all: merge default (dd5014ed9b01) into dev.garbage
     
-    Change-Id: I8c5b77d861aafdc594714982503da7bee053c9fe
-    Reviewed-on: https://go-review.googlesource.com/1291
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=rlh
+    R=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/170730043
 
- misc/makerelease/makerelease.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ CONTRIBUTORS                                       |   4 +-
+ doc/asm.html                                       | 131 ++++-
+ doc/gccgo_install.html                             |   4 +
+ doc/go1.4.html                                     | 598 +++++++++++++++++++++
+ doc/go1.4.txt                                      |  49 --
+ doc/go1compat.html                                 |   8 +
+ doc/go_faq.html                                    |   4 +-
+ doc/go_mem.html                                    |  23 +
+ doc/go_spec.html                                   | 125 +++--
+ misc/makerelease/makerelease.go                    |  19 +-
+ misc/makerelease/windows/installer.wxs             |  11 +-
+ src/cmd/6g/ggen.c                                  |  40 +-
+ src/cmd/8g/ggen.c                                  |  28 +-
+ src/cmd/gc/builtin.c                               |   1 -
+ src/cmd/gc/gen.c                                   |  12 +-
+ src/cmd/gc/go.h                                    |   2 +
+ src/cmd/gc/mparith2.c                              |   4 +-
+ src/cmd/gc/runtime.go                              |   1 -
+ src/cmd/gc/sinit.c                                 |  12 +-
+ src/cmd/gc/typecheck.c                             |  57 +-
+ src/cmd/gc/walk.c                                  | 278 +++++-----
+ src/cmd/go/build.go                                |   1 +
+ src/cmd/go/generate.go                             |   4 +-
+ src/cmd/go/get.go                                  |  25 +-
+ src/cmd/go/test.bash                               |  10 +
+ src/cmd/go/vcs.go                                  |  50 +-
+ src/cmd/ld/data.c                                  |   4 +-
+ src/cmd/ld/ldelf.c                                 |   2 +-
+ src/cmd/objdump/main.go                            |   2 +-
+ src/cmd/objdump/objdump_test.go                    |  19 +-
+ src/compress/flate/inflate.go                      |  27 +
+ src/compress/flate/inflate_test.go                 |  39 ++
+ src/compress/gzip/gunzip.go                        |  33 +-
+ src/compress/gzip/gunzip_test.go                   |  41 ++
+ src/compress/zlib/reader.go                        |  80 ++-
+ src/crypto/tls/alert.go                            |   2 +
+ src/crypto/tls/cipher_suites.go                    |   5 +
+ src/crypto/tls/handshake_server.go                 |  12 +
+ src/crypto/tls/handshake_server_test.go            |  27 +-
+ src/crypto/tls/testdata/Server-TLSv11-FallbackSCSV |  17 +
+ src/debug/pe/file.go                               |  12 +-
+ src/encoding/csv/writer.go                         |  16 +-
+ src/encoding/csv/writer_test.go                    |  11 +
+ src/encoding/gob/codec_test.go                     |  22 +-
+ src/encoding/gob/dec_helpers.go                    | 468 ++++++++++++++++
+ src/encoding/gob/decgen.go                         | 240 +++++++++
+ src/encoding/gob/decode.go                         |  96 +++-
+ src/encoding/gob/decoder.go                        |  42 +-
+ src/encoding/gob/enc_helpers.go                    | 414 ++++++++++++++
+ src/encoding/gob/encgen.go                         | 218 ++++++++
+ src/encoding/gob/encode.go                         |  86 ++-
+ src/encoding/gob/encoder.go                        |   7 +-
+ src/encoding/gob/timing_test.go                    | 192 +++++++
+ src/encoding/json/encode.go                        |   8 +-
+ src/encoding/json/encode_test.go                   |  52 ++
+ src/flag/flag.go                                   |   1 +
+ src/fmt/doc.go                                     |   4 +-
+ src/html/template/js_test.go                       |   2 +-
+ src/net/http/pprof/pprof.go                        |   4 +
+ src/net/lookup.go                                  |  51 +-
+ src/net/singleflight.go                            |  66 ++-
+ src/net/z_last_test.go                             |  62 +++
+ src/os/dir_unix.go                                 |   2 +-
+ src/os/exec/exec_test.go                           |  10 +-
+ src/os/file.go                                     |   9 +
+ src/os/file_plan9.go                               |   8 +-
+ src/os/file_posix.go                               |   2 +-
+ src/os/file_unix.go                                |   8 +-
+ src/os/file_windows.go                             |   4 +-
+ src/reflect/all_test.go                            |  37 +-
+ src/reflect/makefunc.go                            |   6 +-
+ src/reflect/type.go                                |   3 +-
+ src/reflect/value.go                               | 225 ++++----
+ src/regexp/all_test.go                             |  16 +-
+ src/regexp/regexp.go                               |   2 +-
+ src/regexp/syntax/parse.go                         |   7 +-
+ src/runtime/asm_386.s                              |  20 +-
+ src/runtime/asm_amd64.s                            |  21 +-
+ src/runtime/asm_amd64p32.s                         |   7 -
+ src/runtime/asm_arm.s                              |  18 +-
+ src/runtime/cgo/gcc_arm.S                          |  15 +-
+ src/runtime/chan_test.go                           |  29 +
+ src/runtime/crash_cgo_test.go                      |  52 ++
+ src/runtime/crash_test.go                          |  17 +-
+ src/runtime/debug/garbage.go                       |  30 +-
+ src/runtime/debug/garbage_test.go                  |  13 +
+ src/runtime/env_plan9.go                           |   6 +-
+ src/runtime/extern.go                              |   6 +
+ src/runtime/funcdata.h                             |   3 +
+ src/runtime/malloc.h                               |   3 +-
+ src/runtime/mem.go                                 |   3 +-
+ src/runtime/mgc0.c                                 |  35 +-
+ src/runtime/mprof.go                               |   6 +-
+ src/runtime/pprof/mprof_test.go                    |  99 ++++
+ src/runtime/pprof/pprof_test.go                    |   2 +-
+ src/runtime/print1.go                              |  27 +-
+ src/runtime/proc.c                                 |  20 +
+ src/runtime/rt0_nacl_amd64p32.s                    |   2 +-
+ src/runtime/runtime.c                              |   4 +
+ src/runtime/runtime.h                              |   2 +
+ src/runtime/select.go                              |   8 +-
+ src/runtime/stack.c                                |   4 +-
+ src/runtime/stubs.go                               |   4 +
+ src/runtime/symtab.go                              |  11 +-
+ src/runtime/sys_nacl_amd64p32.s                    |   6 +-
+ src/runtime/time.go                                |  29 +-
+ src/sync/pool.go                                   |   2 +
+ src/sync/pool_test.go                              |  54 +-
+ src/syscall/env_plan9.go                           |  97 +---
+ src/syscall/fs_nacl.go                             |   6 +
+ src/syscall/route_bsd.go                           |   2 +-
+ src/testing/testing.go                             |   1 +
+ src/text/template/exec.go                          |   2 +-
+ src/text/template/exec_test.go                     |  12 +
+ src/time/sleep.go                                  |   6 +
+ src/time/sleep_test.go                             |  21 +
+ src/unicode/utf8/utf8.go                           |  26 +-
+ src/unsafe/unsafe.go                               |   3 +
+ test/fixedbugs/bug371.go                           |   6 +-
+ test/fixedbugs/issue8947.go                        |  53 ++
+ test/fixedbugs/issue8961.go                        |  20 +
+ test/fixedbugs/issue9006.go                        |  37 ++
+ test/maplinear.go                                  |  17 +-
+ test/recover.go                                    |  44 +-
+ 124 files changed, 4306 insertions(+), 829 deletions(-)

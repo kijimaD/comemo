@@ -1,12 +1,23 @@
-commit 12c5ca90a00768c6ad5f6d83f7c37964a30256fb
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Sun Sep 9 11:50:56 2018 +0200
+commit 4826d20a0953b3682cf6eedd1e9becb68bbb25e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 18 21:12:19 2018 -0400
 
-    go/types: fix swapped use of "uses" and "defines" in ObjectOf documentation
+    cmd/go/internal/work: cache cgo invocations for vet, build modes
     
-    Change-Id: I855a9c88c379978099ea53c7d28b87cefd7f5d73
-    Reviewed-on: https://go-review.googlesource.com/134295
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Even if we had an up-to-date package binary, we reran cgo anyway if
+    (1) we needed a header file for buildmode c-archive or c-shared, or
+    (2) we needed cgo-translated files source files for input to go vet.
+    
+    Cache those outputs too, so that we can avoid cgo if possible.
+    
+    Working toward exposing the cgo-generated files in go list.
+    
+    Change-Id: I339ecace925d2b0adc235a17977ecadb3d636c73
+    Reviewed-on: https://go-review.googlesource.com/108015
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/types/api.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go            |  25 ++++
+ src/cmd/go/internal/work/exec.go | 245 +++++++++++++++++++++++++++------------
+ 2 files changed, 197 insertions(+), 73 deletions(-)

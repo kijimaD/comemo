@@ -1,22 +1,20 @@
-commit 56bdf7f7d91cc5fa40e9e6ec0e3da3733f0e2e4e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Aug 24 20:52:51 2022 +0000
+commit 123393a535dc9f4b7fe80b564139de2ff7030ac4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 5 07:42:48 2021 +0700
 
-    runtime: update gctrace docs and print lastStackScan instead of max
+    cmd/go: enable test build concurrent backend on darwin/arm64
     
-    This change updates the gctrace docs to include stacks and globals in
-    the format line, and prints lastStackScan for "# MB stacks" instead of
-    maxStackScan, which is more accurate.
+    After CL 353871, darwin/arm64 now do concurrent build, so enable the
+    test for it.
     
-    Fixes #54649.
+    Updates #48490
     
-    Change-Id: Ibff2c390c9c9bf2b24b5b4e98ca346cc98d7cb2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425366
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I29336f6fc7d7d2f463d8ad2a620534bd7f048d2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353949
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/extern.go | 2 +-
- src/runtime/mgc.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/build_concurrent_backend.txt | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,13 +1,18 @@
-commit 9f46efce528eccde8f1d15756bfb8d7088da1dc6
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 8 21:55:04 2013 +0400
+commit bdbd5418f4c2dc87fa18e6b39e4ead21c6d87bbe
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Thu Aug 8 10:44:01 2013 -0700
 
-    runtime: print scavenger details when forced with debug.FreeOSMemory
-    Fixes #5900.
+    os: make Readdir work as documented
     
-    R=golang-dev, bradfitz
+    Readdir's result should never contain a nil.
+    
+    Fixes #5960.
+    
+    R=golang-dev, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12669043
+    https://golang.org/cl/12261043
 
- src/pkg/runtime/mheap.c | 28 +++++++++++++---------------
- 1 file changed, 13 insertions(+), 15 deletions(-)
+ src/pkg/os/export_test.go  |  1 +
+ src/pkg/os/file_unix.go    | 11 ++++++++---
+ src/pkg/os/os_unix_test.go | 40 +++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 48 insertions(+), 4 deletions(-)

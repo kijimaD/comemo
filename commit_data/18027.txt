@@ -1,12 +1,13 @@
-commit ab05a855c6d5122dfe996b6b36bd39ee85a30b10
-Author: Marko Tiikkaja <marko@joh.to>
-Date:   Tue Dec 17 14:53:31 2013 -0800
+commit 8d2757cba4333f945ac29fdf443b5657ed399158
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 17 14:49:07 2013 -0800
 
-    database/sql: Fix inaccurate comment
+    C+A: add Michael Hudson (Linaro CLA)
     
-    R=golang-dev, bradfitz
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/40370051
+    https://golang.org/cl/43670043
 
- src/pkg/database/sql/sql.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

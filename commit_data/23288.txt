@@ -1,12 +1,27 @@
-commit 0599913a854d997edf497297f3d01d27f800e6ab
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Sun Jun 7 04:33:44 2015 +0200
+commit 62fb472b71e1600f073203a3b723a6a4c6e8ba3b
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Tue May 5 06:45:49 2015 +0000
 
-    doc/go1.5.txt: correct CL for LookupEnv addition
+    text/template: check for malformed pipelines
     
-    Change-Id: Ib43b21daef5d8291e03c0f0fbf56999e37e21e21
-    Reviewed-on: https://go-review.googlesource.com/10820
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Catch some malformed pipelines at parsing time.
+    The current code accepts pipelines such as:
+    
+    {{12|.}}
+    {{"hello"|print|false}}
+    {{.|"blah blah"}}
+    
+    Such pipelines generate panic in html/template at execution time.
+    
+    Add an extra check to verify all the commands of the pipeline are executable
+    (except for the first one).
+    
+    Fixes #10610
+    
+    Change-Id: Id72236ba8f76a59fa284fe3d4c2cb073e50b51f1
+    Reviewed-on: https://go-review.googlesource.com/9626
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.5.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/text/template/parse/parse.go      | 20 +++++++++++++++++---
+ src/text/template/parse/parse_test.go | 14 ++++++++++++++
+ 2 files changed, 31 insertions(+), 3 deletions(-)

@@ -1,12 +1,16 @@
-commit 09294ab75461c088e3676e1575acb44c38371b08
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 28 15:24:18 2017 -0800
+commit 2c6949ec89817caecbb441422fe1d6729ee16462
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 4 17:11:51 2016 -0400
 
-    cmd/vet/all: disable cgo when running 'go install'
+    go/types: avoid redundant call to recordUse for anonymous fields
     
-    Change-Id: Iab1e84624c0288ebdd33fbe83bd60948b5d91fc4
-    Reviewed-on: https://go-review.googlesource.com/37612
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Anonymous fields are type expressions, and Checker.typexpr already
+    correctly records uses within them.  There's no need for a second
+    call, and the second call caused a bug when we implemented aliases.
+    
+    Change-Id: I1bf2429cd4948d68b085e75dfb1bdc03ad8caffd
+    Reviewed-on: https://go-review.googlesource.com/32837
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/vet/all/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/typexpr.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

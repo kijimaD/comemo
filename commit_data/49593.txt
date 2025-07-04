@@ -1,29 +1,24 @@
-commit 2acd3646fc448b760e82fcace189adda94a1904a
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Jul 2 11:07:55 2022 -0700
+commit ded10d75a908b584331d01c9c0eaf1cfcb951cac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 30 17:18:07 2021 -0700
 
-    cmd/compile: rework induction variable detector
+    cmd/compile/internal/types2: remove superfluous ordinaryType calls
     
-    Induction variable detection is still not quite right. I've added
-    another failing test.
+    The value types in type assertions and type switches cannot be
+    constraint types (if there are, an error was reported earlier),
+    so there is no need to check again that they are not constraint
+    types.
     
-    Redo the overflow/underflow detector so it is more obviously correct.
+    This permits merging the ordinaryType call with varType, which
+    is the only place where it's needed.
     
-    Update #53600
-    Fixes #53653
-    Fixes #53663
-    
-    Change-Id: Id95228e282fdbf6bd80b26e1c41d62e935ba08ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415874
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I44a852377b3dddf53692f764e588801fb3d3c0a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346291
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/loopbce.go | 340 ++++++++++++++++++--------------
- test/fixedbugs/issue53600.go            |  11 ++
- test/fixedbugs/issue53600.out           |   1 +
- test/fixedbugs/issue53653.go            |  42 ++++
- test/fixedbugs/issue53653.out           |   8 +
- test/loopbce.go                         |  65 +++++-
- 6 files changed, 319 insertions(+), 148 deletions(-)
+ src/cmd/compile/internal/types2/expr.go                     |  1 -
+ src/cmd/compile/internal/types2/stmt.go                     |  1 -
+ .../internal/types2/testdata/fixedbugs/issue42758.go2       |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go                  | 13 +++++--------
+ 4 files changed, 6 insertions(+), 11 deletions(-)

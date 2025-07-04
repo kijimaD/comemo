@@ -1,33 +1,21 @@
-commit f901ea701ddac5a4d600d49007e54caa32b4c9b5
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Nov 8 11:27:53 2020 -0500
+commit 18ee3498805f81ef7f3435800bc5581599c61872
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jul 8 10:43:42 2020 -0400
 
-    cmd/internal/goobj: store relocation type as uint16
+    [dev.link] cmd/link: fix ppc64-specific bug in genelfsym
     
-    Currently, relocation type is stored as uint8 in object files, as
-    Go relocations do not exceed 255. In the linker, however, it is
-    used as a 16-bit type, because external relocations can exceed
-    255. The linker has to store the extra byte in a side table. This
-    complicates many things.
+    The code in the the linker's genelfsym() routine was not properly
+    including runtime.text.%d marker symbols that are emitted on PPC64
+    when a very large text section is split into chunks. This bug was
+    introduced in CL 233338 when portions of asmb2() were converted
+    from sym.Symbol to loader.Sym usage.
     
-    Just store it as uint16 in object files. This simplifies things,
-    with a small cost of increasing the object file sizes.
-    
-                   before      after
-    hello.o         1672        1678
-    runtime.a    7927784     8056194
-    
-    Change-Id: I313cf44ad0b8b3b76e35055ae55d911ff35e3158
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268477
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Idfed944c41e1805f78f35be67bcdd18bdefd7819
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241498
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/internal/goobj/objfile.go             | 34 ++++++++---------
- src/cmd/internal/goobj/objfile_test.go        |  4 +-
- src/cmd/internal/obj/objfile.go               |  2 +-
- src/cmd/link/internal/loader/loader.go        | 53 ++++++++-------------------
- src/cmd/link/internal/loader/loader_test.go   |  3 +-
- src/cmd/link/internal/loader/symbolbuilder.go |  8 +---
- 6 files changed, 40 insertions(+), 64 deletions(-)
+ src/cmd/link/internal/ld/symtab.go | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)

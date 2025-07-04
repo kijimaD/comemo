@@ -1,209 +1,23 @@
-commit f17e3d2288f8f076ff2b08d1ec31b04e1b65f237
+commit 582bb304662f2da08f99bf7d05d3fbb634bb531b
 Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Wed Sep 28 14:07:48 2011 -0700
+Date:   Wed Sep 28 13:32:56 2011 -0700
 
-    exp/template/html: handle custom attrs and HTML5 embedded elements.
+    exp/template/html: don't normalize '<' in doctypes.
     
-    HTML5 allows embedded SVG and MathML.
-    Code searches show SVG is used for graphing.
+    The normalization that prevents element name and comment injection in
+      <{{.}}
+    by converting it to
+      &lt;{{.}}
+    breaks
+      <!DOCTYPE html>
     
-    This changes transition to deal with constructs like
-       <svg xmlns:xlink="http://www.w3.org/1999/xlink">
-    It changes attr and clients to call a single function that combines
-    the name lookup and "on" prefix check to determine an attribute
-    value type given an attribute name.
-    
-    That function uses heuristics to recognize that
-         xlink:href and svg:href
-    have URL content, and that data-url is likely contains URL content,
-    since "javascript:" injection is such a problem.
-    
-    I did a code search over a closure templates codebase to determine
-    patterns of custom attribute usage.  I did something like
-    
-    $ find . -name \*.soy | \
-        xargs egrep perl -ne 'while (s/\b((data-|\w+:)\w+)\s*=//) { print "$1\n"; }' | \
-        sort | uniq
-    
-    to produce the list at the bottom.
-    
-    Filtering that by egrep -i 'src|url|uri' produces
-    
-    data-docConsumptionUri
-    data-docIconUrl
-    data-launchUrl
-    data-lazySrc
-    data-pageUrl
-    data-shareurl
-    data-suggestServerUrl
-    data-tweetUrl
-    g:secondaryurls
-    g:url
-    
-    which seem to match all the ones that are likely URL content.
-    There are some short words that match that heuristic, but I still think it decent since
-    any custom attribute that has a numeric or enumerated keyword value will be unaffected by
-    the URL assumption.
-    Counterexamples from /usr/share/dict:
-    during, hourly, maturity, nourish, purloin, security, surly
-    
-    Custom attributes present in existing closure templates codebase:
-    buzz:aid
-    data-a
-    data-action
-    data-actor
-    data-allowEqualityOps
-    data-analyticsId
-    data-bid
-    data-c
-    data-cartId
-    data-categoryId
-    data-cid
-    data-command
-    data-count
-    data-country
-    data-creativeId
-    data-cssToken
-    data-dest
-    data-docAttribution
-    data-docConsumptionUri
-    data-docCurrencyCode
-    data-docIconUrl
-    data-docId
-    data-docPrice
-    data-docPriceMicros
-    data-docTitle
-    data-docType
-    data-docid
-    data-email
-    data-entityid
-    data-errorindex
-    data-f
-    data-feature
-    data-fgid
-    data-filter
-    data-fireEvent
-    data-followable
-    data-followed
-    data-hashChange
-    data-height
-    data-hover
-    data-href
-    data-id
-    data-index
-    data-invitable
-    data-isFree
-    data-isPurchased
-    data-jid
-    data-jumpid
-    data-launchUrl
-    data-lazySrc
-    data-listType
-    data-maxVisiblePages
-    data-name
-    data-nid
-    data-nodeid
-    data-numItems
-    data-numPerPage
-    data-offerType
-    data-oid
-    data-opUsesEquality
-    data-overflowclass
-    data-packageName
-    data-pageId
-    data-pageUrl
-    data-pos
-    data-priceBrief
-    data-profileIds
-    data-query
-    data-rating
-    data-ref
-    data-rentalGrantPeriodDays
-    data-rentalactivePeriodHours
-    data-reviewId
-    data-role
-    data-score
-    data-shareurl
-    data-showGeLe
-    data-showLineInclude
-    data-size
-    data-sortval
-    data-suggestServerType
-    data-suggestServerUrl
-    data-suggestionIndex
-    data-tabBarId
-    data-tabBarIndex
-    data-tags
-    data-target
-    data-textColor
-    data-theme
-    data-title
-    data-toggletarget
-    data-tooltip
-    data-trailerId
-    data-transactionId
-    data-transition
-    data-ts
-    data-tweetContent
-    data-tweetUrl
-    data-type
-    data-useAjax
-    data-value
-    data-width
-    data-x
-    dm:index
-    dm:type
-    g:aspects
-    g:decorateusingsecondary
-    g:em
-    g:entity
-    g:groups
-    g:id
-    g:istoplevel
-    g:li
-    g:numresults
-    g:oid
-    g:parentId
-    g:pl
-    g:pt
-    g:rating_override
-    g:secondaryurls
-    g:sortby
-    g:startindex
-    g:target
-    g:type
-    g:url
-    g:value
-    ga:barsize
-    ga:css
-    ga:expandAfterCharsExceed
-    ga:initialNumRows
-    ga:nocancelicon
-    ga:numRowsToExpandTo
-    ga:type
-    ga:unlockwhenrated
-    gw:address
-    gw:businessname
-    gw:comment
-    gw:phone
-    gw:source
-    ng:controller
-    xlink:href
-    xml:lang
-    xmlns:atom
-    xmlns:dc
-    xmlns:jstd
-    xmlns:ng
-    xmlns:og
-    xmlns:webstore
-    xmlns:xlink
+    Instead of splitting states to have a start of document state and a text
+    state, I whitelist <!DOCTYPE.
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5119041
+    https://golang.org/cl/5131051
 
- src/pkg/exp/template/html/attr.go        | 331 +++++++++++++++----------------
- src/pkg/exp/template/html/escape_test.go |  60 ++++++
- src/pkg/exp/template/html/html.go        |   2 +-
- src/pkg/exp/template/html/transition.go  |  37 ++--
- 4 files changed, 247 insertions(+), 183 deletions(-)
+ src/pkg/exp/template/html/escape.go      |  4 +++-
+ src/pkg/exp/template/html/escape_test.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

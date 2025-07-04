@@ -1,24 +1,40 @@
-commit 4a310877f23140b45bd86a45b8c1fc7d69ba2d29
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Wed Sep 27 01:53:38 2023 +0000
+commit 61ae0a37a8c96e2b1745594e477244100f1a7046
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Oct 17 17:38:29 2022 -0700
 
-    internal/zstd: configure window size for single segment frames
+    syscall, os/exec: reject environment variables containing NULs
     
-    Set window size to frame content size when single segment flag is set.
+    Check for and reject environment variables containing NULs.
     
-    For #62513
+    The conventions for passing environment variables to subprocesses
+    cause most or all systems to interpret a NUL as a separator. The
+    syscall package rejects environment variables containing a NUL
+    on most systems, but erroniously did not do so on Windows. This
+    causes an environment variable such as "FOO=a\x00BAR=b" to be
+    interpreted as "FOO=a", "BAR=b".
     
-    Change-Id: I2a60c33123aca4f6a631e6d625f4582ff31a63cb
-    GitHub-Last-Rev: 9bafe01e45aad6a9f22abca08b25b2b8d9107040
-    GitHub-Pull-Request: golang/go#63224
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531075
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Check for and reject NULs in environment variables passed to
+    syscall.StartProcess on Windows.
+    
+    Add a redundant check to os/exec as extra insurance.
+    
+    Fixes #56284
+    Fixes CVE-2022-41716
+    
+    Change-Id: I2950e2b0cb14ebd26e5629be1521858f66a7d4ae
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1609434
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    TryBot-Result: Security TryBots <security-trybots@go-security-trybots.iam.gserviceaccount.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446916
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- .../zstd/testdata/1890a371.gettysburg.txt-100x.zst | Bin 0 -> 826 bytes
- src/internal/zstd/testdata/README                  |  10 ++++++
- src/internal/zstd/zstd.go                          |  22 +++++++------
- src/internal/zstd/zstd_test.go                     |  35 +++++++++++++++++++++
- 4 files changed, 58 insertions(+), 9 deletions(-)
+ src/os/exec/env_test.go     | 19 +++++++++++++------
+ src/os/exec/exec.go         | 19 +++++++++++++++----
+ src/os/exec/exec_test.go    |  9 +++++++++
+ src/syscall/exec_windows.go | 20 +++++++++++++++-----
+ 4 files changed, 52 insertions(+), 15 deletions(-)

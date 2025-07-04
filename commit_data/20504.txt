@@ -1,11 +1,23 @@
-commit 1392276bfb7b6100b2def909ef9d19e477970f6b
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 22 12:00:37 2014 -0700
+commit 40dd6bf38e06bf26aa1c15438cdf0965cf778050
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 14 13:57:28 2014 -0400
 
-    doc/go1.4.txt: text/template comparison functions allow int==uint
+    runtime: mark asmcgocall<>(SB) as having no arguments
     
+    It doesn't.
+    Fixes 386 build.
+    
+    While we're here, mark runtime.asmcgocall as GO_ARGS,
+    so that it will work with stack copying. I don't think anything
+    that uses it can lead to a stack copy, but better safe than sorry.
+    Certainly the runtime.asmcgocall_errno variant needs
+    (and already has) GO_ARGS.
+    
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/142450043
+    https://golang.org/cl/138400043
 
- doc/go1.4.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/asm_386.s   | 3 ++-
+ src/runtime/asm_amd64.s | 1 +
+ src/runtime/asm_arm.s   | 1 +
+ 3 files changed, 4 insertions(+), 1 deletion(-)

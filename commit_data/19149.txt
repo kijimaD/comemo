@@ -1,15 +1,14 @@
-commit edebe10864982e912e70c7fa1bc5676ed7933f33
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 15 16:27:48 2014 -0700
+commit 0a96d64c9c20afb1d47cb464fdcd978e181d5a48
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 15 14:50:19 2014 -0700
 
-    doc/asm.html: remove mention of 6l -a
-    Also make it clear this is not a complete description of all features.
-    Fixes #7790.
+    math/big: fix doc typos.
+    Fixes #7768.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant, gri
+    R=golang-codereviews, iant, gri
     CC=golang-codereviews
-    https://golang.org/cl/88300044
+    https://golang.org/cl/87260043
 
- doc/asm.html | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/math/big/rat.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,12 +1,13 @@
-commit 27e93fbd00de218ba53a5b22333246abde88028c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Oct 10 18:06:29 2012 +0400
+commit c91538f9c92ec53b1291ff2f893a52a249be2bdc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 10 13:11:06 2012 +1100
 
-    runtime: fix race detector handling of stackalloc()
+    A+C: change Sergio Correia's email address
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6632051
+    https://golang.org/cl/6631059
 
- src/pkg/runtime/race.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

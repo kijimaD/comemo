@@ -1,12 +1,12 @@
-commit 5f49456465f53f96bee03ac8cbe0d564e31576c2
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 2 14:12:53 2011 -0500
+commit 951ba56adb90214796e39582e9134c52d3dee663
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 2 10:30:35 2011 -0800
 
-    spec: additional composite literal shortenings per Go 1 plan
+    goinstall: fix typo in comment
     
-    R=golang-dev, gri, r, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5449067
+    https://golang.org/cl/5449068
 
- doc/go_spec.html | 19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+ src/cmd/goinstall/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

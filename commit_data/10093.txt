@@ -1,33 +1,26 @@
-commit db33959797ad8ef1e86725db62aafb40297ea725
+commit 6ed3fa6553d84391157eae963eeee5f20b6dca74
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 22:20:02 2011 -0700
+Date:   Tue Oct 25 22:19:39 2011 -0700
 
-    cgo, goyacc, go/build, html, http, path, path/filepath, testing/quick, test: use rune
+    gc: introduce rune
     
-    Nothing terribly interesting here.
-    
-    R=golang-dev, bradfitz, gri, r
+    R=ken, r
     CC=golang-dev
-    https://golang.org/cl/5300043
+    https://golang.org/cl/5293046
 
- src/cmd/cgo/gcc.go                 | 20 +++++++++---------
- src/cmd/cgo/util.go                |  2 +-
- src/cmd/goyacc/goyacc.go           | 43 +++++++++++++++++++-------------------
- src/pkg/go/build/dir.go            |  4 ++--
- src/pkg/html/entity.go             |  4 ++--
- src/pkg/html/escape.go             | 12 +++++------
- src/pkg/http/cgi/host.go           | 12 +++++------
- src/pkg/path/filepath/match.go     |  4 ++--
- src/pkg/path/match.go              |  4 ++--
- src/pkg/syscall/exec_windows.go    |  4 ++--
- src/pkg/syscall/syscall_windows.go |  2 +-
- src/pkg/testing/quick/quick.go     |  4 ++--
- test/convlit.go                    | 12 +++++------
- test/fixedbugs/bug204.go           | 16 +++++++-------
- test/ken/string.go                 |  2 +-
- test/range.go                      |  4 ++--
- test/solitaire.go                  |  7 +------
- test/string_lit.go                 | 22 +++++++++----------
- test/stringrange.go                | 13 ++++++------
- test/utf.go                        | 30 +++++++++++++++++---------
- 20 files changed, 114 insertions(+), 107 deletions(-)
+ src/cmd/gc/Makefile        |  2 ++
+ src/cmd/gc/builtin.c.boot  |  6 ++--
+ src/cmd/gc/export.c        |  2 +-
+ src/cmd/gc/go.h            |  5 +++
+ src/cmd/gc/lex.c           | 81 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/gc/obj.c           |  2 +-
+ src/cmd/gc/range.c         |  4 +--
+ src/cmd/gc/reflect.c       |  2 +-
+ src/cmd/gc/runtime.go      |  6 ++--
+ src/cmd/gc/subr.c          | 17 +++++++---
+ src/cmd/gc/typecheck.c     |  2 +-
+ src/cmd/gc/walk.c          |  8 ++---
+ src/cmd/gopack/ar.c        | 54 +++++++++++++++++++++++++++----
+ src/cmd/ld/lib.c           | 24 ++++++++++++--
+ src/pkg/runtime/string.goc |  6 ++--
+ 15 files changed, 186 insertions(+), 35 deletions(-)

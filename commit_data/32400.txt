@@ -1,18 +1,22 @@
-commit 1a2ac46edd162366e685a5fb782cd20adc1e36fa
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sun Aug 20 18:57:18 2017 +0200
+commit 8a07469663f7a876ec54d64f723395dd17e6d73d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Apr 22 13:41:50 2017 +0200
 
-    misc/ios: add support for device ids to the exec wrapper
+    syscall: define ESPIPE on Plan 9
     
-    If set, GOIOS_DEVICE_ID specifies the device id for the iOS exec
-    wrapper. With that, a single builder can host multiple iOS devices.
+    TestSeekError has been added in CL 41311. This
+    test doesn't build on Plan 9 because syscall.ESPIPE
+    is not defined on Plan 9.
     
-    Change-Id: If3cc049552f5edbd7344befda7b8d7f73b4236e2
-    Reviewed-on: https://go-review.googlesource.com/57296
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    This change defines syscall.ESPIPE on Plan 9.
+    
+    Fixes #20078.
+    
+    Change-Id: I3d9e95b00e0c4e43312eada6441d80961ae6bd67
+    Reviewed-on: https://go-review.googlesource.com/41471
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: JBD <jbd@google.com>
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- misc/ios/go_darwin_arm_exec.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/syscall/errors_plan9.go | 1 +
+ 1 file changed, 1 insertion(+)

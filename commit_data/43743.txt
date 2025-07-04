@@ -1,22 +1,20 @@
-commit 22312437ee1e72451c70b79c90e36ad0b849e3f6
-Author: cch123 <buaa.cch@gmail.com>
-Date:   Mon Oct 19 12:55:46 2020 +0000
+commit ed7888aea6021e25b0ea58bcad3f26da2b139432
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Apr 22 12:45:44 2020 -0700
 
-    crypto/tls: pool Conn's outBuf to reduce memory cost of idle connections
+    database/sql: de-flake TestTxCannotCommitAfterRollback
     
-    Derived from CL 263277, which includes benchmarks.
+    Do not cancel rows during test. Only cancel the Tx.
+    Correct the referenced issue number on the test.
     
-    Fixes #42035
+    Fixes #38597
     
-    Co-authored-by: Filippo Valsorda <filippo@golang.org>
-    Change-Id: I5f28673f95d4568b7d13dbc20e9d4b48d481a93d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267957
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Roberto Clapis <roberto@golang.org>
+    Change-Id: I0e8ba1bf2a8ba638d121c9c6938501fec1d5e961
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229478
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/conn.go | 36 +++++++++++++++++++++++++++---------
- 1 file changed, 27 insertions(+), 9 deletions(-)
+ src/database/sql/sql.go      | 7 +++++++
+ src/database/sql/sql_test.go | 6 +++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

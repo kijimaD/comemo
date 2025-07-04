@@ -1,19 +1,18 @@
-commit fa6375ea47ce054d5f1d93a4a1fe7efe2e293991
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 26 07:37:10 2014 -0800
+commit 66562b9698ead1b8aec7af289689427d587a01bd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 26 13:04:39 2014 +1100
 
-    cmd/6g, cmd/8g: simplify calls to gvardef
+    cmd/go: remove 'go tool benchcmp' and corresponding special case
     
-    The gvardef function does nothing if n->class == PEXTERN, so
-    we don't need to test for that before calling it.  This makes
-    the 6g/8g code more like the 5g code and clarifies that the
-    cases that do not test for n->class != PEXTERN are not buggy.
+    See the discussion on the original CL for context:
+            https://golang.org/cl/60100043/
     
-    LGTM=rsc
-    R=rsc
+    LGTM=josharian
+    R=r, josharian
     CC=golang-codereviews
-    https://golang.org/cl/68900044
+    https://golang.org/cl/68890043
 
- src/cmd/6g/cgen.c | 12 ++++++------
- src/cmd/8g/cgen.c |  6 +++---
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ doc/go1.3.txt      |  2 +-
+ src/cmd/go/pkg.go  | 23 +++++++++++------------
+ src/cmd/go/tool.go |  2 +-
+ 3 files changed, 13 insertions(+), 14 deletions(-)

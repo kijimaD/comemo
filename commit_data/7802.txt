@@ -1,15 +1,14 @@
-commit c0f3b6c8a8f3902683abca4637dc1af83182936f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Mar 17 11:49:56 2011 -0700
+commit b3166bcb8e0a3cda0b3f81e88c66f73deb734641
+Author: Caine Tighe <arctanofyourface@gmail.com>
+Date:   Thu Mar 17 13:57:36 2011 -0400
 
-    go/scanner: to interpret line comments with Windows filenames
+    os: remove fstat TODO
     
-    Fixes #1614.
-    
-    R=gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4290054
+    https://golang.org/cl/3559041
 
- src/pkg/go/scanner/scanner.go      |  2 +-
- src/pkg/go/scanner/scanner_test.go | 15 +++++++++++++--
- 2 files changed, 14 insertions(+), 3 deletions(-)
+ src/pkg/os/dir_darwin.go  | 3 +--
+ src/pkg/os/dir_freebsd.go | 3 +--
+ src/pkg/os/dir_linux.go   | 3 +--
+ 3 files changed, 3 insertions(+), 6 deletions(-)

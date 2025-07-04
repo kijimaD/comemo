@@ -1,54 +1,22 @@
-commit 1cf6e31f0d03bb3571cfe034f2d909591a0ae453
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Sat Aug 3 14:20:58 2024 -0400
+commit 9f6e87ff749ea66b8ed28724f63bf04d1d4971f7
+Author: Kota <mdryzk64smsh@gmail.com>
+Date:   Mon Jun 26 13:33:42 2023 +0000
 
-    cmd/compile: add basic wasmexport support
+    doc/go1.21: document changes in crypto/x509
     
-    This CL adds a compiler directive go:wasmexport, which applies to
-    a Go function and makes it an exported function of the Wasm module
-    being built, so it can be called directly from the host. As
-    proposed in #65199, parameter and result types are limited to
-    32-bit and 64-bit integers and floats, and there can be at most
-    one result.
+    RevocationList.RevokedCertificates has been deprecated and
+    replaced with the new RevocationList.RevokedCertificateEntries field,
+    not RevocationList.Entries.
     
-    As the Go and Wasm calling conventions are different, for a
-    wasmexport function we generate a wrapper function does the ABI
-    conversion at compile time.
-    
-    Currently this CL only adds basic support. In particular,
-    - it only supports executable mode, i.e. the Go wasm module calls
-      into the host via wasmimport, which then calls back to Go via
-      wasmexport. Library (c-shared) mode is not implemented yet.
-    - only supports wasip1, not js.
-    - if the exported function unwinds stacks (goroutine switch, stack
-    growth, etc.), it probably doesn't work.
-    
-    TODO: support stack unwinding, c-shared mode, js.
-    
-    For #65199.
-    
-    Change-Id: Id1777c2d44f7d51942c1caed3173c0a82f120cc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603055
-    Reviewed-by: Than McIntosh <thanm@golang.org>
-    Reviewed-by: Randy Reddig <randy.reddig@fastly.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I36053e0d67a9997264483d1e04e31774fbab8702
+    GitHub-Last-Rev: a9f6949b05d73e3ed7a7ca8c83e4df1310954db6
+    GitHub-Pull-Request: golang/go#60984
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505935
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/gc/compile.go     |  5 ++
- src/cmd/compile/internal/ir/func.go        |  8 +++
- src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
- src/cmd/compile/internal/noder/linker.go   |  5 ++
- src/cmd/compile/internal/noder/noder.go    | 27 +++++++++
- src/cmd/compile/internal/noder/reader.go   | 17 ++++--
- src/cmd/compile/internal/noder/writer.go   | 13 ++++
- src/cmd/compile/internal/ssagen/abi.go     | 76 ++++++++++++++++++++---
- src/cmd/internal/goobj/objfile.go          |  3 +
- src/cmd/internal/obj/link.go               | 26 +++++++-
- src/cmd/internal/obj/objfile.go            | 12 ++++
- src/cmd/internal/obj/sym.go                |  3 +
- src/cmd/internal/obj/wasm/wasmobj.go       | 97 ++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/deadcode.go       |  7 +++
- src/cmd/link/internal/loader/loader.go     |  9 +++
- src/cmd/link/internal/wasm/asm.go          | 23 +++++--
- test/wasmexport.go                         | 19 ++++++
- 17 files changed, 331 insertions(+), 21 deletions(-)
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

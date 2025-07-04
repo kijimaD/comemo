@@ -1,15 +1,31 @@
-commit f9d406ebeaa0af42d2a88bab498a44a91c6c03ee
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Nov 5 00:25:38 2016 +0000
+commit ae4aac00bba5d1d616408a1c07bd4ef5691e3a00
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Aug 2 14:41:53 2016 +0900
 
-    net/http: deflake TestLinuxSendfile
+    encoding/asn1: reduce allocations in Marshal
     
-    Fixes #17805
+    Current code uses trees of bytes.Buffer as data representation.
+    Each bytes.Buffer takes 4k bytes at least, so it's waste of memory.
+    The change introduces trees of lazy-encoder as
+    alternative one which reduce allocations.
     
-    Change-Id: I30d3e63a82b3690a76f2bb33d59ae34c62a7fa59
-    Reviewed-on: https://go-review.googlesource.com/32759
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    name       old time/op    new time/op    delta
+    Marshal-4    64.7µs ± 2%    42.0µs ± 1%  -35.07%   (p=0.000 n=9+10)
+    
+    name       old alloc/op   new alloc/op   delta
+    Marshal-4    35.1kB ± 0%     7.6kB ± 0%  -78.27%  (p=0.000 n=10+10)
+    
+    name       old allocs/op  new allocs/op  delta
+    Marshal-4       503 ± 0%       293 ± 0%  -41.75%  (p=0.000 n=10+10)
+    
+    Change-Id: I32b96c20b8df00414b282d69743d71a598a11336
+    Reviewed-on: https://go-review.googlesource.com/27030
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/fs_test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/encoding/asn1/asn1_test.go    |   6 +-
+ src/encoding/asn1/marshal.go      | 615 +++++++++++++++++++-------------------
+ src/encoding/asn1/marshal_test.go |  10 +
+ 3 files changed, 317 insertions(+), 314 deletions(-)

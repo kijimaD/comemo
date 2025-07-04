@@ -1,17 +1,26 @@
-commit 9b571a31200ffccad327cefb48944a3b88494bcd
+commit 773a921ccbb26324db1161edceb38507ab0c96b6
 Author: Joel Sing <jsing@google.com>
-Date:   Fri Nov 18 01:52:39 2011 +1100
+Date:   Thu Nov 17 23:13:49 2011 +1100
 
-    syscall: hostname/domainname fix for openbsd
+    syscall: implement nametomib for openbsd.
     
-    Work around a bug that was fixed after OpenBSD 5.0 - a request for
-    kern.hostname or kern.domainname with a nil value for oldp will result
-    in a length of zero being returned. If we hit this case use a length
-    of MAXHOSTNAMELEN (256).
+    Move the existing darwin/freebsd specific nametomib implementation
+    into the respective operating system dependent files.
     
-    R=golang-dev, mikioh.mikioh
+    Provide a nametomib implementation for openbsd, which operates on a
+    sysctl MIB that has been pre-generated from the various system headers
+    by mksysctl_openbsd.pl.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5408041
+    https://golang.org/cl/4935044
 
- src/pkg/syscall/syscall_bsd.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/pkg/syscall/Makefile            |   1 +
+ src/pkg/syscall/mkall.sh            |   7 +
+ src/pkg/syscall/mksysctl_openbsd.pl | 257 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_bsd.go      |  25 ---
+ src/pkg/syscall/syscall_darwin.go   |  25 +++
+ src/pkg/syscall/syscall_freebsd.go  |  25 +++
+ src/pkg/syscall/syscall_openbsd.go  |  22 +++
+ src/pkg/syscall/zsysctl_openbsd.go  | 292 ++++++++++++++++++++++++++++++++++++
+ 8 files changed, 629 insertions(+), 25 deletions(-)

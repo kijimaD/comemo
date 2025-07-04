@@ -1,29 +1,28 @@
-commit f118d145a56be294e578fb20e0e2fdde2a92846d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 30 01:01:20 2021 -0700
+commit 8981092d71aee273d27b0e11cf932a34d4d365c1
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Nov 8 03:20:36 2020 +0100
 
-    cmd/compile: make unified IR more selective about method wrappers
+    cmd/link: ignore SEH marking on PE objects
     
-    This CL makes two changes to how unified IR emits method wrappers:
+    Microsoft's linker looks at whether all input objects have an empty
+    section called @feat.00. If all of them do, then it enables SEH;
+    otherwise it doesn't enable that feature. So, since around the Windows
+    XP SP2 era, most tools that make PE objects just tack on that section,
+    so that it won't gimp Microsoft's linker logic. Go doesn't support SEH,
+    so in theory, none of this really matters to us. But actually, if the
+    linker tries to ingest an object with @feat.00 -- which are produced by
+    LLVM's resource compiler, for example -- it chokes because of the
+    IMAGE_SYM_ABSOLUTE section that it doesn't know how to deal with. Since
+    @feat.00 is just a marking anyway, skip IMAGE_SYM_ABSOLUTE sections that
+    are called @feat.00.
     
-    1. It no longer emits wrappers for defined types' underlying
-    types. Previously, a declaration like `type T struct { U }` would emit
-    wrappers for both `T` and `struct { U }`. Now they're only emitted for
-    `T`.
-    
-    2. It emits method value wrappers only when OMETHVALUE nodes are
-    actually created, like how -G=0 works. Method values are relatively
-    rare, aren't needed for runtime type descriptors (unlike method
-    expression wrappers), and large projects end up spending a non-trivial
-    amount of time compiling these unneeded wrappers.
-    
-    Change-Id: I21da97df3132ec12cc67debf62b5b2d282f481cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346230
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I1d7bfcf6001186c53e2c487c5ac251ca65efefee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268239
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/compile/internal/noder/reader.go | 149 +++++++++++++++++++------------
- src/cmd/compile/internal/walk/closure.go |   4 +
- 2 files changed, 98 insertions(+), 55 deletions(-)
+ src/cmd/link/internal/loadpe/ldpe.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

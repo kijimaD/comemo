@@ -1,17 +1,15 @@
-commit 277d5870a0776c53d93edfa6f4378b0a0b9980fc
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 12 09:58:25 2015 -0500
+commit 3b5be4522a21df8ce52a06a0c4ba005c89a8590f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 18 16:28:15 2015 +0900
 
-    runtime: move wbuf-related functions to new gcwork.go
+    net: more accurate parsing of IPv4 header on IPConn
     
-    No code modifications.
+    As shown in #9395, inaccurate implementation would be a cause of parsing
+    IPv4 header twice and corrupted upper-layer message issues.
     
-    This is in preparation for improving the wbuf abstraction.
-    
-    Change-Id: I719543a345c34d079b7e39b251eccd5dd8a07826
-    Reviewed-on: https://go-review.googlesource.com/4710
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ia1a042e7ca58ee4fcb38fe9ec753c2ab100592ca
+    Reviewed-on: https://go-review.googlesource.com/3001
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/gcwork.go | 338 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/mgc.go    | 328 ------------------------------------------------
- 2 files changed, 338 insertions(+), 328 deletions(-)
+ src/net/iprawsock_posix.go | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

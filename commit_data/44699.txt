@@ -1,15 +1,29 @@
-commit 63b0a0a5b83e28f55ce68cf1099d9c5ff3998b60
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 16 17:09:23 2021 -0700
+commit 454300a617b35a417e7595ff93c6e2e059fe1374
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Aug 21 11:11:32 2020 +0800
 
-    spec: fix rendering of >=
+    hash/maphash: adding benchmarks for maphash
     
-    Follow-up on https://golang.org/cl/297249.
+    goos: linux
+    goarch: arm64
+    pkg: hash/maphash
+    BenchmarkHash8Bytes
+    BenchmarkHash8Bytes     22568919                46.0 ns/op       173.80 MB/s
+    BenchmarkHash320Bytes
+    BenchmarkHash320Bytes    5243858               230 ns/op        1393.30 MB/s
+    BenchmarkHash1K
+    BenchmarkHash1K          1755870               660 ns/op        1550.60 MB/s
+    BenchmarkHash8K
+    BenchmarkHash8K           225688              5313 ns/op        1541.90 MB/s
+    PASS
+    ok      hash/maphash    6.465s
     
-    Change-Id: Ib4df91df530e4e7d7dd8c54d89c834cee55031f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302370
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I5a909042a542135ebc47d639fea02dc46c900c1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249079
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/hash/maphash/maphash_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

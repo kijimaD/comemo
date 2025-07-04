@@ -1,12 +1,17 @@
-commit 8ac129e5304c6d16b4562c3f13437765d7c8a184
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Apr 8 04:48:49 2015 -0400
+commit 42c8be4414e98f44c4bdb6d6cab126c8b7ed29a3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 9 10:58:35 2015 +1100
 
-    doc/go1.5: mention cgo is supported on linux/arm64 (ext. link only)
+    go/build: disable cgo by default for freebsd/arm
     
-    Change-Id: I1dcca264d9cc900aad2d7737073cc01fe574bf55
-    Reviewed-on: https://go-review.googlesource.com/8623
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Updates #10119
+    
+    Temporarily disable cgo by default to get the freebsd/arm
+    builder running again.
+    
+    Change-Id: I4de1f896fcac650184df77c692b102ea6fb73bba
+    Reviewed-on: https://go-review.googlesource.com/7125
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/go1.5.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/build.go | 1 -
+ 1 file changed, 1 deletion(-)

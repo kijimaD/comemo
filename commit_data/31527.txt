@@ -1,24 +1,67 @@
-commit 9fda4df9a0d3ef2dd0dc649e174992bc2d2f8db2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue May 9 08:22:43 2017 -0700
+commit bd8a39b67a12ec3d271305105dea3b8521aa70bf
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Feb 12 22:12:12 2017 -0500
 
-    cmd/compile: make "imported and not used" errors deterministic
+    cmd/compile: emit fused multiply-{add,subtract} instructions on s390x
     
-    If there were more unused imports than
-    the maximum default number of errors to report,
-    the set of reported imports was non-deterministic.
+    Explcitly block fused multiply-add pattern matching when a cast is used
+    after the multiplication, for example:
     
-    Fix by accumulating and sorting them prior to output.
+        - (a * b) + c        // can emit fused multiply-add
+        - float64(a * b) + c // cannot emit fused multiply-add
     
-    Fixes #20298
+    float{32,64} and complex{64,128} casts of matching types are now kept
+    as OCONV operations rather than being replaced with OCONVNOP operations
+    because they now imply a rounding operation (and therefore aren't a
+    no-op anymore).
     
-    Change-Id: Ib3d5a15fd7dc40009523fcdc1b93ddc62a1b05f2
-    Reviewed-on: https://go-review.googlesource.com/42954
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Operations (for example, multiplication) on complex types may utilize
+    fused multiply-add and -subtract instructions internally. There is no
+    way to disable this behavior at the moment.
+    
+    Improves the performance of the floating point implementation of
+    poly1305:
+    
+    name         old speed     new speed     delta
+    64           246MB/s ± 0%  275MB/s ± 0%  +11.48%   (p=0.000 n=10+8)
+    1K           312MB/s ± 0%  357MB/s ± 0%  +14.41%  (p=0.000 n=10+10)
+    64Unaligned  246MB/s ± 0%  274MB/s ± 0%  +11.43%  (p=0.000 n=10+10)
+    1KUnaligned  312MB/s ± 0%  357MB/s ± 0%  +14.39%   (p=0.000 n=10+8)
+    
+    Updates #17895.
+    
+    Change-Id: Ia771d275bb9150d1a598f8cc773444663de5ce16
+    Reviewed-on: https://go-review.googlesource.com/36963
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 31 +++++++++++++++++++++----------
- src/go/types/stdlib_test.go         | 15 +++++++++++++--
- test/fixedbugs/issue20298.go        | 32 ++++++++++++++++++++++++++++++++
- 3 files changed, 66 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go        |  33 ++++
+ src/cmd/compile/internal/gc/const.go           |   1 +
+ src/cmd/compile/internal/gc/ssa.go             |  13 +-
+ src/cmd/compile/internal/gc/testdata/fp.go     | 137 +++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go       |   7 +
+ src/cmd/compile/internal/s390x/prog.go         |  34 +++--
+ src/cmd/compile/internal/s390x/ssa.go          |  16 ++
+ src/cmd/compile/internal/ssa/gen/386.rules     |   3 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   3 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |   3 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   3 +
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |   3 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |   3 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |   3 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  13 ++
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |  28 ++--
+ src/cmd/compile/internal/ssa/gen/generic.rules |   2 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   4 +
+ src/cmd/compile/internal/ssa/opGen.go          | 108 +++++++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go     |  32 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  32 ++++
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  32 ++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  32 ++++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  32 ++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  32 ++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  32 ++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 200 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  40 +++++
+ 28 files changed, 853 insertions(+), 28 deletions(-)

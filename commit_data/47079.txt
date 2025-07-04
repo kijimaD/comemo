@@ -1,32 +1,22 @@
-commit 5a3a9d87ed97f197aabcb868f6c0031c888d6122
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 27 18:53:02 2021 -0400
+commit a4dac8bd220ff893d7df9cb6fbaf56ecfdd66ad4
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 3 12:25:46 2021 -0800
 
-    cmd/dist: implement //go:build parsing
+    runtime: use BX instead of R15 in race detector
     
-    The bootstrap directories are built with the Go 1.4 go command,
-    and they will retain the // +build lines until we bump the bootstrap
-    toolchain to Go 1.17 or later.
+    If the race detector were runnable in dynamic linking mode,
+    then R15 would get clobbered. I don't think it is, so maybe
+    not a problem, but can't hurt to clean it up.
     
-    cmd/dist builds cmd/go and all its dependencies, using the
-    assembler, compiler, and linker that were built using Go 1.4.
-    We don't want to have to keep // +build lines in cmd/go and
-    all its dependencies, so this CL changes cmd/dist to understand
-    the //go:build lines.
+    It also lets CL 283474 pass cleanly when checking the whole stdlib
+    (together with CL 288452).
     
-    cmd/dist is a standalone Go program that must itself build with
-    very old Go releases, so we cannot assume go/build/constraint
-    is available. Instead, implement a trivial parser/evaluator.
-    
-    For #41184.
-    
-    Change-Id: I84e259dec3bd3daec3f82024eb3500120f53096d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359314
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I5a5021ecc7e7b8bed1cd3a7067c39b24c09e0783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289270
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/dist/build.go    |  47 +++++------------
- src/cmd/dist/buildtag.go | 133 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 146 insertions(+), 34 deletions(-)
+ src/runtime/race_amd64.s | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

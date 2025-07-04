@@ -1,19 +1,16 @@
-commit 7be6229f9fa404eaac0d98951c2b6c970a3ee8d9
-Author: Maxim Pimenov <mpimenov@google.com>
-Date:   Tue Dec 20 09:28:45 2011 -0800
+commit 16bf7d9e82fd043ed44b3cb0ebd106c397f326d2
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Dec 20 09:25:47 2011 -0800
 
-    cgo: support export for built-in types
-    This change doesn't pay attention to structs
-    so they still cannot be exported, see Issue 2552.
+    encoding/binary: add more benchmarks
+    Also add a byte count to the varint benchmarks - this
+    isn't accurate, of course, but it allows a rough comparison to
+    the other benchmarks.
     
-    Fixes #2462.
-    
-    R=dvyukov, rsc, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5487058
+    https://golang.org/cl/5496070
 
- misc/cgo/test/Makefile     |   1 +
- misc/cgo/test/basic.go     |   6 +--
- misc/cgo/test/issue2462.go | 102 +++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/cgo/out.go         |   8 +++-
- 4 files changed, 113 insertions(+), 4 deletions(-)
+ src/pkg/encoding/binary/binary_test.go | 56 +++++++++++++++++++++++-----------
+ src/pkg/encoding/binary/varint_test.go |  2 ++
+ 2 files changed, 41 insertions(+), 17 deletions(-)

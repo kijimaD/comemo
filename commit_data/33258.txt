@@ -1,15 +1,14 @@
-commit 150a46c0cb23ffea34089e69949731f2aaebdbe8
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Oct 26 10:10:25 2017 +0200
+commit 1b53f1245bf518114bd8793805586be1c78987f7
+Author: Christian Alexander <christian@linux.com>
+Date:   Wed Aug 9 08:11:34 2017 -0700
 
-    syscall: document Time{spec,val} methods
+    doc/contribute: improve wording of Gerrit description
     
-    Add godoc comments for Time{spec,val} methods Unix and Nano.
+    The word "of" was removed in https://go-review.googlesource.com/c/36626
     
-    Change-Id: I285bbd236af588b30140db7182b05f8b202b5b0b
-    Reviewed-on: https://go-review.googlesource.com/73271
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iece69f425d06ab1cf02743b1033cfed2e96667ab
+    Reviewed-on: https://go-review.googlesource.com/54290
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/syscall.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

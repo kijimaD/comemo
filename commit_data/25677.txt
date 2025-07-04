@@ -1,16 +1,16 @@
-commit d9fdbf48207e24c1d0d771250f2cc811ef97adff
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 26 23:00:41 2016 -0500
+commit ac658a83c28ab3e68e9f21f21c9b0f63d13ca19c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 13 21:21:39 2015 -0800
 
-    runtime: guard against array out of bounds in GoroutineProfile
+    cmd/compile/internal/gc: consume at least one token in case of syntax error
     
-    The previous CL is the real fix. This one is just insurance.
+    Fixes #13248.
     
-    Fixes #14046 again.
+    TBR: iant
     
-    Change-Id: I553349504bb1789e4b66c888dbe4034568918ad6
-    Reviewed-on: https://go-review.googlesource.com/18977
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ic8b10704f945e6daef04bb38a00e249854b4ef19
+    Reviewed-on: https://go-review.googlesource.com/16930
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mprof.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/parser.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

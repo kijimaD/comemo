@@ -1,17 +1,17 @@
-commit 5fbcdb26613a819ba693ee3933f6e283e139630b
+commit 245ed93c20dcc5ed6d26d146f4e1c96649ac68d4
+Merge: bd69b4479a c1fcdb0e00
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 6 16:47:54 2014 -0400
+Date:   Wed Aug 6 15:36:24 2014 -0400
 
-    runtime: use better hash for floating point inputs
+    all: merge default, for codereview fixes
     
-    Hashing on the bytes instead of the words does
-    a (much) better job of using all the bits, so that
-    maps of floats have linear performance.
-    
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=adonovan, golang-codereviews
-    https://golang.org/cl/126720044
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/124810043
 
- src/pkg/runtime/alg.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ AUTHORS                      |  1 +
+ CONTRIBUTORS                 |  1 +
+ lib/codereview/codereview.py | 36 +++++++++++++++++++++++++-----------
+ src/pkg/debug/dwarf/type.go  | 14 ++++++++++++++
+ 4 files changed, 41 insertions(+), 11 deletions(-)

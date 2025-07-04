@@ -1,18 +1,21 @@
-commit 69041c79dc2767c220519cbcb9538c39fadec59c
-Author: Amelia Downs <adowns@vmware.com>
-Date:   Mon Aug 30 17:05:36 2021 -0400
+commit 1b5cf71ccf0dc95f121830cfdad8280c4f6c1f28
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Feb 9 10:36:27 2021 -0500
 
-    net: add examples for remaining IP functions
+    [dev.fuzz] internal/fuzz: make RunFuzzWorker accept CorpusEntry
     
-    Fixes #48848
+    RunFuzzWorker now accepts a fuzz.CorpusEntry instead of []byte. This
+    may help us pass structured data in the future.
     
-    Change-Id: If85fc16ed10a26eca840ed128ab47c5f00776ddd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346289
-    Reviewed-by: Amelia Downs <adowns@vmware.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idf7754cb890b6a835d887032fd23ade4d0713bcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290692
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/example_test.go | 206 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 206 insertions(+)
+ src/internal/fuzz/worker.go           | 6 +++---
+ src/testing/fuzz.go                   | 6 +++---
+ src/testing/internal/testdeps/deps.go | 6 +++---
+ src/testing/testing.go                | 6 +++---
+ 4 files changed, 12 insertions(+), 12 deletions(-)

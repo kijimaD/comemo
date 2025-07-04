@@ -1,15 +1,13 @@
-commit b7582852f63fd8bedba53ab415c1b3cc5ac2ae9c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat May 28 21:26:03 2011 +1000
+commit f369fc09f41bcb9b7bfdfbc21332abe98f89059e
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri May 27 16:47:26 2011 -0700
 
-    gotest, pkg/exec: use bash instead of sh to execute shell scripts on windows
+    go/scanner: don't allow "0x" and "0X" as integers
     
-    As suggested by dho, iant2.
-    
-    R=golang-dev, rsc
-    CC=devon.odell, golang-dev, iant
-    https://golang.org/cl/4515147
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4560047
 
- src/cmd/gotest/gotest.go  | 4 ++--
- src/pkg/exec/exec_test.go | 8 ++++----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/go/scanner/scanner.go      | 4 ++++
+ src/pkg/go/scanner/scanner_test.go | 2 ++
+ 2 files changed, 6 insertions(+)

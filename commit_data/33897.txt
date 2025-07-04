@@ -1,18 +1,15 @@
-commit 9d5f8eaa8a4207bd89926eae40c6b0edf7bd4d11
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 15 01:49:04 2017 +0000
+commit e773ea9aa33a574796c256930870af9e84dbfd5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 7 12:16:04 2017 -0400
 
-    cmd/dist: increase default cmd/go test timeout
+    [dev.boringcrypto] crypto/hmac: add test for Write/Sum after Sum
     
-    cmd/go has grown slow, even in short mode, and it's now regularly
-    failing on a number of builders where it's taking over the previous 3
-    minute timeout. for now, give it more time.
+    This is documented to work (in hash.Hash's definition)
+    and existing code assumes it works. Add a test.
     
-    Change-Id: If565baf71c2770880b2e2139b47e03433951331f
-    Reviewed-on: https://go-review.googlesource.com/84235
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I63546f3b2d66222683a4f268a4eaff835fd836fe
+    Reviewed-on: https://go-review.googlesource.com/63911
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/dist/test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/crypto/hmac/hmac_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

@@ -1,15 +1,14 @@
-commit 5f2e24efb3c7e021308d15a26d93e5a7aa3c05f0
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 18 13:01:10 2021 -0500
+commit 2603d9a89ae1eb06386b9dd68fdb9f185aca4804
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jun 8 13:07:39 2020 -0400
 
-    cmd/internal/diff: skip over Cygwin warning in diff output
+    doc/go1.15: add release notes for crypto and math/big
     
-    This happens on Windows. Don't let it stop us.
+    Updates #37419
     
-    Change-Id: Ie2115d5825e1c2217f237ed373adb35594a5aaff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293850
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I12f073697dc319e439f4ffe4e0aac7f6afb19a74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236918
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/internal/diff/diff.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ doc/go1.15.html | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 57 insertions(+), 2 deletions(-)

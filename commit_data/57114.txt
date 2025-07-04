@@ -1,27 +1,20 @@
-commit 80746f7f2d4b3d1d2ea62878e7c89f5c6c3c2a2a
-Author: Andy Pan <i@andypan.me>
-Date:   Tue Aug 6 16:36:45 2024 +0800
+commit b1f1fb2950814ae2b69e64537ecd96f13ae32627
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 21 11:14:34 2023 -0700
 
-    os: employ sendfile(2) for file-to-file copying on Linux when needed
+    go/types, types2: avoid spurious "declared and not used" error
     
-    Go utilizes copy_file_range(2) for file-to-file copying only on kernel 5.3+,
-    but even on 5.3+ this system call can still go wrong for some reason (check
-    out the comment inside poll.CopyFileRange).
+    Fixes #60906.
     
-    Before Linux 2.6.33, out_fd must refer to a socket, but since Linux 2.6.33
-    it can be any file. Thus, we can employ sendfile(2) for copy between files
-    when copy_file_range(2) fails to handle the copy, that way we can still
-    benefit from the zero-copy technique on kernel <5.3 and wherever
-    copy_file_range(2) is available but broken.
-    
-    Change-Id: I3922218c95ad34ee649ccdf3ccfbd1ce692bebcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603295
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iba117b36041f72a54ce82cc914f8fa3b07a6fb2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504877
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/os/readfrom_linux_test.go | 465 ++++++++++++++++++++++++------------------
- src/os/writeto_linux_test.go  |   6 +-
- src/os/zero_copy_linux.go     |  46 ++++-
- 3 files changed, 312 insertions(+), 205 deletions(-)
+ src/cmd/compile/internal/types2/index.go            |  1 +
+ src/go/types/index.go                               |  1 +
+ src/internal/types/testdata/fixedbugs/issue60906.go | 11 +++++++++++
+ 3 files changed, 13 insertions(+)

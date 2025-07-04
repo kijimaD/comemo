@@ -1,21 +1,21 @@
-commit 50c7783f599d3af0e65f1c301c7ff05f6876def7
-Author: Seth Vargo <sethvargo@gmail.com>
-Date:   Thu Jan 19 13:19:22 2017 -0500
+commit adda7ad29551d0880df1805ae22401551b1fbfa8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 16 16:33:05 2016 -0700
 
-    text/template: remove duplicate logic in conditional
+    cmd/compile/internal/gc: enable new parser by default
     
-    It looks like this conditional may have been refactored at some point,
-    but the logic was still very confusing. The outer conditional checks if
-    the function is variadic, so there's no need to verify that in the
-    result. Additionally, since the function isn't variadic, there is no
-    reason to permit the function call if the number of input arguments is
-    less than the function signature requires.
-    
-    Change-Id: Ia957cf83d1c900c08dd66384efcb74f0c368422e
-    Reviewed-on: https://go-review.googlesource.com/35491
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I3c784986755cfbbe1b8eb8da4d64227bd109a3b0
+    Reviewed-on: https://go-review.googlesource.com/27203
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/text/template/exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go  |  2 +-
+ src/cmd/compile/internal/gc/noder.go |  1 +
+ src/go/types/stdlib_test.go          |  4 +---
+ test/alias2.go                       |  2 +-
+ test/fixedbugs/issue11610.go         |  8 ++------
+ test/nul1.go                         | 12 ++++--------
+ test/syntax/chan1.go                 | 10 +++-------
+ test/syntax/semi4.go                 |  4 ++--
+ 8 files changed, 15 insertions(+), 28 deletions(-)

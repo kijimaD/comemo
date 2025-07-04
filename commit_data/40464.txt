@@ -1,16 +1,23 @@
-commit 7131eb08ec72cc241f7db02bc647cf10098648a5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Oct 28 08:53:53 2019 -0700
+commit 14491a2ec499668388d7fe7e95b84dbf0e1cf04d
+Author: Damien Neil <dneil@google.com>
+Date:   Mon May 13 16:46:31 2019 -0700
 
-    cmd: gofmt
+    fmt: support %w
     
-    Change-Id: I243b6521cb91ba5312c0857ca81cf422a7c7b21a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203881
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    When fmt.Errorf is provided with a %w verb with an error operand,
+    return an error implementing an Unwrap method returning that operand.
+    
+    It is invalid to use %w with other formatting functions, to use %w
+    multiple times in a format string, or to use %w with a non-error
+    operand. When the Errorf format string contains an invalid use of %w,
+    the returned error does not implement Unwrap.
+    
+    Change-Id: I534e20d3b163ab22c2b137b1c9095906dc243221
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176998
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/cmd/compile/fmtmap_test.go             | 66 +++++++++++++++---------------
- src/cmd/compile/internal/ssa/branchelim.go |  2 +-
- src/cmd/internal/src/pos.go                |  2 +-
- 3 files changed, 35 insertions(+), 35 deletions(-)
+ src/fmt/errors.go                   | 43 ++++++++++++++++++++++
+ src/fmt/errors_test.go              | 73 +++++++++++++++++++++++++++++++++++++
+ src/fmt/print.go                    | 27 ++++++++++----
+ src/internal/oserror/errors_test.go |  6 +--
+ 4 files changed, 138 insertions(+), 11 deletions(-)

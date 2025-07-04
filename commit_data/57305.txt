@@ -1,16 +1,20 @@
-commit 57df33814afc02bda314abea28ee8a3dc997505c
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Fri Aug 9 16:35:46 2024 +0200
+commit 1c10d743eaff174f08e48dff85f64ade0b92425c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 14 18:31:44 2023 -0400
 
-    cmd/compile: compute OR's maximum limits from argument's limits
+    cmd/link: sort HOSTOBJ and UNDEFEXT symbols with undefined symbols in Mach-O symbol table
     
-    Change-Id: I6902c405cab7bd573f6a721a6ca7c783713ea39a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604456
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    HOSTOBJ and UNDEFEXT symbols are actually not defined in the
+    current translation unit. So put them as undefined symbols, along
+    with DYNIMPORT.
+    
+    For #61229.
+    
+    Change-Id: I1112ca928cdc401bac45adaa3f88b19422813960
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503539
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/prove.go |  6 ++++--
- test/prove.go                         | 18 ++++++++++++++++++
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/macho.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

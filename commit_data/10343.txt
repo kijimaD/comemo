@@ -1,12 +1,17 @@
-commit 791aef1821638824cd135a0d6828bd873c06be6b
-Author: Joel Sing <jsing@google.com>
-Date:   Sat Nov 12 05:19:09 2011 +1100
+commit d08f57e68c2343822ebd449b4bc234a657ee56f3
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 11 11:18:45 2011 -0500
 
-    syscall: fix zerrors for openbsd 386
+    exp/terminal: rename terminal.go to util.go
     
-    R=golang-dev, bradfitz, rsc
+    (This is part of removing the duplicate code between exp/terminal and
+    exp/ssh, but hg is having a very hard time keeping up so I'm doing it
+    in small steps.)
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5369076
+    https://golang.org/cl/5373061
 
- src/pkg/syscall/zerrors_openbsd_386.go | 303 +++++++++++++++++----------------
- 1 file changed, 153 insertions(+), 150 deletions(-)
+ src/pkg/exp/terminal/Makefile                 | 2 +-
+ src/pkg/exp/terminal/{terminal.go => util.go} | 0
+ 2 files changed, 1 insertion(+), 1 deletion(-)

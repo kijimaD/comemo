@@ -1,24 +1,23 @@
-commit d2315fdc11ebdf5c0ae94f33cb01ffaab82c00b6
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 19 13:14:16 2016 -0400
+commit 289df4e6e65466716aaf1cf65fcfdedada2a5599
+Author: Tom Wilkie <tom@weave.works>
+Date:   Wed Aug 17 10:13:03 2016 +0100
 
-    html/template: adjust ambiguous URL context text
+    net: don't avoid resolving .local addresses
     
-    Before: ... appears in an ambiguous URL context.
-    After:  ... appears in an ambiguous context within a URL.
+    .local addresses are used by things like Kubernetes and Weave DNS; Go
+    should not avoid resolving them.
     
-    It's a minor point, but it's confused multiple people.
-    Try to make clearer that the ambiguity is "where exactly inside the URL?"
+    This is a partial revert of https://golang.org/cl/21328 which was too
+    strict of an interpretation of RFC 6762.
     
-    Fixes #17319.
+    Fixes #16739
     
-    Change-Id: Id834868d1275578036c1b00c2bdfcd733d9d2b7b
-    Reviewed-on: https://go-review.googlesource.com/31465
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I349415b4eab5d61240dd18217bd95dc7d2105cd5
+    Reviewed-on: https://go-review.googlesource.com/27250
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/html/template/error.go       | 2 +-
- src/html/template/escape.go      | 2 +-
- src/html/template/escape_test.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/net/dnsclient_unix.go      | 7 ++++---
+ src/net/dnsclient_unix_test.go | 9 +++++----
+ 2 files changed, 9 insertions(+), 7 deletions(-)

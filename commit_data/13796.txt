@@ -1,12 +1,26 @@
-commit b64a99da88a92a0cfb85fbc6851437e399e5d4e6
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Sep 11 17:15:20 2012 +1000
+commit ff642e290f8e8ced8be26324838febda2ae3c534
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Sep 11 08:08:40 2012 +0200
 
-    C: add Francesc Campoy (Google CLA)
+    cmd/6g, cmd/8g: eliminate extra agen for nil comparisons.
     
-    R=golang-dev, dsymonds, campoy
-    CC=golang-dev
-    https://golang.org/cl/6490102
+    Removes an extra LEAL/LEAQ instructions there and usually saves
+    a useless temporary in the idiom
+        if err := foo(); err != nil {...}
+    
+    Generated code is also less involved:
+        MOVQ err+n(SP), AX
+        CMPQ AX, $0
+    (potentially CMPQ n(SP), $0) instead of
+        LEAQ err+n(SP), AX
+        CMPQ (AX), $0
+    
+    Update #1914.
+    
+    R=daniel.morsing, nigeltao, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6493099
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/6g/cgen.c | 28 +++++++++++-----------------
+ src/cmd/8g/cgen.c | 22 ++++++++--------------
+ 2 files changed, 19 insertions(+), 31 deletions(-)

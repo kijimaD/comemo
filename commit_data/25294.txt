@@ -1,20 +1,20 @@
-commit 0abf443513a1399141a2fdac109c63630abf4d4b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 11 02:49:16 2015 -0500
+commit 1da6b2ea197c9fcaa50e9465f3bf40c78b14703c
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Fri Oct 16 01:33:28 2015 -0700
 
-    runtime: remove incorrect TODO added in CL 16035
+    fmt: clarify reflect.Value printing
     
-    I've already turned away one attempt to remove this field.
-    As the comment above the struct says, many tools know the layout.
-    The field cannot simply be removed.
+    fmt docs say:
     
-    It was one thing to remove the fields name, but the TODO should
-    not have been added.
+      If the operand is a reflect.Value, the concrete value it
+      holds is printed as if it was the operand.
     
-    Change-Id: If40eacf0eb35835082055e129e2b88333a0731b9
-    Reviewed-on: https://go-review.googlesource.com/17741
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    It implies recursive application of this rule, which is not the case.
+    Clarify the docs.
+    
+    Change-Id: I019277c7c6439095bab83e5536aa06403638aa51
+    Reviewed-on: https://go-review.googlesource.com/15952
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/runtime2.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/fmt/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

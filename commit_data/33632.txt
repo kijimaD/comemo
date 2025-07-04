@@ -1,44 +1,17 @@
-commit 207c53e038fb8e371d4778196fde9ecea6f6e20c
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Nov 19 17:28:46 2017 +0000
+commit a4140b745ce22c56821750001f30fca4020b4650
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 28 14:35:33 2017 +1000
 
-    cmd/doc: print a symbol error on "bytes Foo"
+    fmt: document verbs %b %d %o %x %X for printing pointers
     
-    In golang.org/cl/59413, the two-argument behavior of cmd/doc was changed
-    to use findPackage instead of build.Import, meaning that the tool was
-    more consistent and useful.
+    This has been supported since Go 1 and there's even a test for it.
+    The documentation was missing.
     
-    However, it introduced a regression:
+    Fixes #21409.
     
-            $ go doc bytes Foo
-            doc: no such package: bytes
-    
-    This is because the directory list search would not find Foo in bytes,
-    and reach the end of the directory list - thus resulting in a "no such
-    package" error, since no directory matched our first argument.
-    
-    Move the "no such package" error out of parseArgs, so that the "loop
-    until something is printed" loop can have control over it. In
-    particular, it is useful to know when we have reached the end of the
-    list without any exact match, yet we did find one package matching
-    "bytes":
-    
-            $ go doc bytes Foo
-            doc: no symbol Foo in package bytes
-    
-    While at it, make the "no such package" error not be fatal so that we
-    may test for it. It is important to have the test, as parseArgs may now
-    return a nil package instead of exiting the entire program, potentially
-    meaning a nil pointer dereference panic.
-    
-    Fixes #22810.
-    
-    Change-Id: I90cc6fd755e2d1675bea6d49a1c13cc18ac9bfb9
-    Reviewed-on: https://go-review.googlesource.com/78677
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I5813488f6a98c1b4506c239e968d43344b91be12
+    Reviewed-on: https://go-review.googlesource.com/59412
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/doc/doc_test.go | 18 ++++++++++++++++++
- src/cmd/doc/main.go     |  5 ++++-
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/fmt/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,14 +1,19 @@
-commit 94c656ff7a2dcdb615688f015197dc85c90c8070
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 25 22:42:54 2019 -0700
+commit 0b071e40195c7f202933d3b3ec3da3b4f40cd472
+Author: diplozoon <huyuumi.dev@gmail.com>
+Date:   Fri Oct 26 05:03:15 2018 +0000
 
-    runtime: fix minor doc typo
+    cmd/go: add /v2 to go.mod require example
     
-    Change-Id: I0a1ebaf41a1bc95508fd9aa782953ddca5ef49c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169724
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    I added /v2 to go.mod require example
+    
+    Fixes #28374
+    
+    Change-Id: I74cca374838d106eb79acb9189a02fe9443962c0
+    Reviewed-on: https://go-review.googlesource.com/c/144917
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/map.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/modload/help.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

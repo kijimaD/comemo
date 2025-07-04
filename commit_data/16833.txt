@@ -1,14 +1,12 @@
-commit 01cc462bfcfe805ea86723b0c7553dfbe63a3464
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jul 22 12:22:14 2013 +1000
+commit 87976e72a8e821666288a88e2946f2fcf42e1760
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat Jul 20 00:38:26 2013 -0700
 
-    doc: fix wiki content error
+    libmach: support more 386/amd64 instructions
     
-    Fixes #5898.
-    
-    R=golang-dev, r
+    R=golang-dev, dave, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/11556043
+    https://golang.org/cl/10030043
 
- doc/articles/wiki/index.html | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/libmach/8db.c | 192 +++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 116 insertions(+), 76 deletions(-)

@@ -1,28 +1,20 @@
-commit b05f18e3f7c3bb01b2faa7a52054883b0cc3a98a
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jan 15 13:28:41 2016 -0500
+commit 424738e43ec3c775f7d0c36a90791eaca5dd85d1
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:25:58 2015 -0400
 
-    runtime: fix sleep/wakeup race for GC assists
+    runtime: added assembly part of linux/mips64{,le} support
     
-    GC assists check gcBlackenEnabled under the assist queue lock to avoid
-    going to sleep after gcWakeAllAssists has already woken all assists.
-    However, currently we clear gcBlackenEnabled shortly *after* waking
-    all assists, which opens a window where this exact race can happen.
-    
-    Fix this by clearing gcBlackenEnabled before waking blocked assists.
-    However, it's unlikely this actually matters because the world is
-    stopped between waking assists and clearing gcBlackenEnabled and there
-    aren't any obvious allocations during this window, so I don't think an
-    assist could actually slip in to this race window.
-    
-    Updates #13645.
-    
-    Change-Id: I7571f059530481dc781d8fd96a1a40aadebecb0d
-    Reviewed-on: https://go-review.googlesource.com/18682
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I9e94027ef66c88007107de2b2b75c3d7cf1352af
+    Reviewed-on: https://go-review.googlesource.com/14467
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/mgc.go     | 4 ++++
- src/runtime/mgcmark.go | 3 ++-
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/runtime/asm_mips64x.s       | 820 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/atomic_mips64x.s    |  13 +
+ src/runtime/duff_mips64x.s      | 268 +++++++++++++
+ src/runtime/memclr_mips64x.s    |  42 ++
+ src/runtime/memmove_mips64x.s   | 105 +++++
+ src/runtime/mkduff.go           |  23 ++
+ src/runtime/rt0_linux_mips64x.s |  31 ++
+ src/runtime/sys_linux_mips64x.s | 427 +++++++++++++++++++++
+ src/runtime/tls_mips64x.s       |  23 ++
+ 9 files changed, 1752 insertions(+)

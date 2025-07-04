@@ -1,18 +1,36 @@
-commit ee4d32249b0ccd1475a20ee9e4c5caf4a39e36c4
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Thu Jan 7 16:28:35 2021 +0800
+commit 85298173f6edec77eddf9568357f591842b12575
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 8 13:17:51 2020 -0400
 
-    io/fs: minor corrections to Glob release date
+    [dev.link] cmd/link: delete old reloc pass
     
-    io/fs is introduced in 2020, not 2009 nor 2010
+    We use the new one everywhere now.
     
-    Change-Id: I7d63aae17b1f8c3af1ded2f639e3fb76ff2aea81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282232
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic9b1314e71e4666500cbf1689bb93839e040682a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232982
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/io/fs/glob.go      | 2 +-
- src/io/fs/glob_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/amd64/asm.go   |   8 +-
+ src/cmd/link/internal/arm/asm.go     |   6 +-
+ src/cmd/link/internal/arm/obj.go     |   2 +-
+ src/cmd/link/internal/arm64/asm.go   |   4 +-
+ src/cmd/link/internal/arm64/obj.go   |   2 +-
+ src/cmd/link/internal/ld/data.go     |   8 +-
+ src/cmd/link/internal/ld/data2.go    | 468 -----------------------------------
+ src/cmd/link/internal/ld/lib.go      |   8 +-
+ src/cmd/link/internal/ld/main.go     |  28 +--
+ src/cmd/link/internal/mips/asm.go    |   4 +-
+ src/cmd/link/internal/mips/obj.go    |   2 +-
+ src/cmd/link/internal/mips64/asm.go  |   4 +-
+ src/cmd/link/internal/mips64/obj.go  |   2 +-
+ src/cmd/link/internal/ppc64/obj.go   |  24 +-
+ src/cmd/link/internal/riscv64/asm.go |   4 +-
+ src/cmd/link/internal/riscv64/obj.go |   2 +-
+ src/cmd/link/internal/s390x/asm.go   |   4 +-
+ src/cmd/link/internal/s390x/obj.go   |  20 +-
+ src/cmd/link/internal/x86/asm.go     |   8 +-
+ src/cmd/link/internal/x86/obj.go     |   2 +-
+ 20 files changed, 65 insertions(+), 545 deletions(-)

@@ -1,17 +1,18 @@
-commit 623319a8473fe947b0a95fbed33cf0824a429734
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Aug 25 01:27:23 2020 +1000
+commit 3fa98a0436dcc7927cfb4868133a102cb53d2179
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Mar 19 11:04:37 2020 -0400
 
-    cmd/link/internal/arm64: handle calls to SDYNIMPORT with internal linking
+    [dev.link] cmd/link: minor tweaks to PropagateLoaderChangesToSymbols
     
-    Handle calls to symbols that are SDYNIMPORT when linking internally on arm64.
+    Update PropagateLoaderChangesToSymbols so that it no longer requires
+    a sym.Symbols pointer. The intent is to generalize it a little to
+    allow it to be used in more than just linker Dwarf generation.
     
-    Update #36435
-    
-    Change-Id: I8b5421171bf471cf31c91d90b8ba99511d2c9e2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250181
-    Trust: Joel Sing <joel@sing.id.au>
+    Change-Id: I9bddc5d39839eacd9113c945bb59d2873c0b088c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224381
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/link/internal/arm64/asm.go | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go      |  3 ++-
+ src/cmd/link/internal/loader/loader.go | 27 ++++++++++++++++++---------
+ 2 files changed, 20 insertions(+), 10 deletions(-)

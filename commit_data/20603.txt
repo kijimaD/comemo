@@ -1,15 +1,13 @@
-commit e7488b2189c6a0628f7df45bc84c565f185af04d
-Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
-Date:   Tue Sep 30 13:38:48 2014 -0700
+commit db492b8df41cd90ebecaf69a73bf4cc5e0db5f20
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 23 14:55:19 2014 -0700
 
-    x509: Fixed ASN.1 encoding in CRL Distribution Points extension
+    os: add a comment inside RemoveAll
     
-    The ASN.1 encoding of the CRL Distribution Points extension showed an invalid false 'IsCompound' which caused a display problem in the Windows certificate viewer.
-    
-    LGTM=agl
-    R=agl
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/143320043
+    https://golang.org/cl/149950043
 
- src/crypto/x509/x509.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/path.go | 2 ++
+ 1 file changed, 2 insertions(+)

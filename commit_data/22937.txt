@@ -1,18 +1,15 @@
-commit 3a3773c8cb439034094025cf2f85ed52535c3e1f
-Author: Brett Cannon <bcannon@gmail.com>
-Date:   Fri May 8 10:41:15 2015 -0400
+commit 72f8102244e148535f879699cca7d66622e455aa
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 10 22:16:32 2015 -0400
 
-    doc/effective_go: make function signature match function body
+    cmd/internal/obj/arm64: add SVC to unary destination list
     
-    In the Slices section of Effective Go, the os package's File.Read
-    function is used as an example. Unfortunately the function signature
-    does not match the function's code in the example, nor the os package's
-    documentation. This change updates the function signature to match
-    the os package and the pre-existing function code.
+    To support "SVC $0x80", which is needed for darwin/arm64.
     
-    Change-Id: Iae9f30c898d3a1ff8d47558ca104dfb3ff07112c
-    Reviewed-on: https://go-review.googlesource.com/9845
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f00
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8769
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/arm64/obj7.go | 1 +
+ 1 file changed, 1 insertion(+)

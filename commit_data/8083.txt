@@ -1,16 +1,15 @@
-commit 4c006182dcb2c7fef7d05c121a5e9b3c0291cf82
+commit 017e73c1b259450e6fc1b8437844c66b9ce08db3
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 13 23:36:00 2011 -0400
+Date:   Wed Apr 13 22:48:21 2011 -0400
 
-    pkg: manual cleanup of some gofixed code
+    gc: fix func syntax error
     
-    R=golang-dev, niemeyer, r
+    Fixes #1685.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4372052
+    https://golang.org/cl/4414042
 
- src/pkg/asn1/asn1.go              | 24 ++++------
- src/pkg/encoding/binary/binary.go | 96 +++++++++++++++++----------------------
- src/pkg/exp/eval/bridge.go        | 65 ++++++++++++--------------
- src/pkg/net/dnsmsg.go             | 67 ++++++++++++---------------
- src/pkg/testing/quick/quick.go    | 63 ++++++++++++-------------
- 5 files changed, 138 insertions(+), 177 deletions(-)
+ src/cmd/gc/go.y |  3 ++-
+ test/func6.go   | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

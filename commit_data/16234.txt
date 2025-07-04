@@ -1,12 +1,28 @@
-commit 13721cf68860ef98358720ed10aef0e8be39e300
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Apr 29 17:34:47 2013 +0200
+commit d09f34cc555e60dbd57ab7c9f268daf895922225
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Apr 28 00:18:11 2013 +1000
 
-    net/http/httptest: fix incorrectly-named ResponseRecorder example
+    runtime: tune appendCrossover for arm
     
-    R=golang-dev, minux.ma, r
+    Turns out the optimal value is 8 on cortex-A9 systems (pandaboard)
+    
+    benchmark                     old ns/op    new ns/op    delta
+    BenchmarkAppend                     907          908   +0.11%
+    BenchmarkAppend1Byte                101          101   +0.00%
+    BenchmarkAppend4Bytes               116          116   +0.00%
+    BenchmarkAppend8Bytes               139          138   -0.72%
+    BenchmarkAppend16Bytes              185          158  -14.59%
+    BenchmarkAppend32Bytes              131          131   +0.00%
+    BenchmarkAppendStr1Byte              72           72   +0.00%
+    BenchmarkAppendStr4Bytes             93           93   -0.21%
+    BenchmarkAppendStr8Bytes            116          116   +0.00%
+    BenchmarkAppendStr16Bytes           161          125  -22.36%
+    BenchmarkAppendStr32Bytes           102          102   +0.00%
+    BenchmarkAppendSpecialCase          613          613   +0.00%
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8545047
+    https://golang.org/cl/8863045
 
- src/pkg/net/http/httptest/example_test.go | 2 +-
+ src/pkg/runtime/arch_arm.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

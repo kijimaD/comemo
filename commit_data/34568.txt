@@ -1,15 +1,35 @@
-commit f7ac70a56604033e2b1abc921d3f0f6afc85a7b3
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat Mar 10 23:51:05 2018 +0100
+commit 7bd0b6100070d6a24458eded77228d37bfa1eb76
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 6 15:00:02 2017 -0400
 
-    test: move rotate tests to top-level testsuite.
+    cmd/internal/goobj: accept int64 in readInt
     
-    Remove old tests from asm_test.
+    The counter part, writeInt in cmd/internal/obj, writes int64s.
+    So the reader side should also read int64s. This may cause a
+    larger range of values being accepted, some of which should
+    not be that large. This is probably ok: for example, for
+    size/index/length, the very large value (due to corruption)
+    may be well past the end and causes other errors. And we did
+    not do much bound check anyway.
     
-    Change-Id: Ib408ec7faa60068bddecf709b93ce308e0ef665a
-    Reviewed-on: https://go-review.googlesource.com/100075
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    One exmaple where this matters is ARM32's object file. For one
+    type of relocation it encodes the instruction into Reloc.Add
+    field (which itself may be problematic and worth fix) and the
+    instruction encoding overflows int32, causing ARM32 object
+    file being rejected by goobj (and so objdump and nm) before.
+    
+    Unskip ARM32 object file tests in goobj, nm, and objdump.
+    
+    Updates #19811.
+    
+    Change-Id: Ia46c2b68df5f1c5204d6509ceab6416ad6372315
+    Reviewed-on: https://go-review.googlesource.com/69010
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 334 --------------------------------
- test/codegen/rotate.go                  | 149 +++++++++++++-
- 2 files changed, 142 insertions(+), 341 deletions(-)
+ src/cmd/internal/goobj/goobj_test.go |  8 -------
+ src/cmd/internal/goobj/read.go       | 41 ++++++++++++++++--------------------
+ src/cmd/nm/nm_cgo_test.go            |  7 ------
+ src/cmd/objdump/objdump_test.go      |  2 --
+ 4 files changed, 18 insertions(+), 40 deletions(-)

@@ -1,22 +1,28 @@
-commit a45777fe9975583cac3ef7ee5d61937f5a003c5a
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Sun Oct 7 06:53:57 2012 +0200
+commit 0b9fe6d24e50aaa0e3910566d938bd6ad0bf86d7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Oct 7 11:32:02 2012 +1100
 
-    cmd/gc: Don't export embedded builtins
+    image/jpeg: move the level-shift and clip out of the idct function,
+    to be consistent with the fdct function, and to ease any future
+    idct rewrites in assembly.
     
-    Fixes #4124.
+    The BenchmarkIDCT delta is obviously just an accounting change and not
+    a real saving, but it does give an indication of what proportion of
+    time was spent in the actual IDCT and what proportion was in shift and
+    clip. The idct time taken is now comparable to fdct.
     
-    R=golang-dev, dave, minux.ma, remyoudompheng, rsc
+    The BenchmarkFDCT delta is an estimate of benchmark noise.
+    
+    benchmark                   old ns/op    new ns/op    delta
+    BenchmarkFDCT                    3842         3837   -0.13%
+    BenchmarkIDCT                    5611         3478  -38.01%
+    BenchmarkDecodeRGBOpaque      2932785      2929751   -0.10%
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6543057
+    https://golang.org/cl/6625057
 
- src/cmd/gc/align.c             |  2 +-
- src/cmd/gc/dcl.c               |  2 +-
- src/cmd/gc/fmt.c               |  2 +-
- src/cmd/gc/lex.c               |  4 ++--
- src/cmd/gc/reflect.c           |  5 ++++-
- test/fixedbugs/bug460.dir/a.go |  9 +++++++++
- test/fixedbugs/bug460.dir/b.go | 14 ++++++++++++++
- test/fixedbugs/bug460.go       | 10 ++++++++++
- test/fixedbugs/bug461.go       | 23 +++++++++++++++++++++++
- 9 files changed, 65 insertions(+), 6 deletions(-)
+ src/pkg/image/jpeg/dct_test.go | 22 ++++++++--------------
+ src/pkg/image/jpeg/idct.go     | 23 ++---------------------
+ src/pkg/image/jpeg/reader.go   | 26 ++++++++++++++++++++++----
+ 3 files changed, 32 insertions(+), 39 deletions(-)

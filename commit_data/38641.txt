@@ -1,14 +1,17 @@
-commit f33b67b870208071a737768a6165198ccf340ec0
-Author: Romain Baugue <romain.baugue@gmail.com>
-Date:   Wed Mar 27 10:13:38 2019 +0100
+commit 7f1dd3ae4df08a8619311c95f3e4c91b96132efd
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 1 22:04:02 2018 -0400
 
-    reflect: document that method sets are lexicographically sorted
+    test: minor simplification to run.go
     
-    Fixes #30688
+    This is a little clearer, and we're about to need the .s file list in
+    one more place, so this will cut down on duplication.
     
-    Change-Id: I8b63feba4b18bc07a09f6fbfaa33c1b3326b40e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169597
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I4da8bf03a0469fb97565b0841c40d505657b574e
+    Reviewed-on: https://go-review.googlesource.com/c/146998
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/reflect/type.go | 3 +++
- 1 file changed, 3 insertions(+)
+ test/run.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

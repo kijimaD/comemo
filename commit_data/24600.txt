@@ -1,33 +1,14 @@
-commit 58e3ae2fae7dcb22a67ba802c250ba0abf894b1d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 21 12:48:53 2015 -0700
+commit 8389e7cfa927b1560bf036caf00ec66a6b373d57
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Aug 10 23:30:20 2015 +0000
 
-    runtime: split plan9 and solaris's m fields into new embedded mOS type
+    doc: link to Go 1.5 release notes from "project" page
     
-    Reduces the size of m by ~8% on linux/amd64 (1040 bytes -> 960 bytes).
+    Update issue #12102.
     
-    There are also windows-specific fields, but they're currently
-    referenced in OS-independent source files (but only when
-    GOOS=="windows").
-    
-    Change-Id: I13e1471ff585ccced1271f74209f8ed6df14c202
-    Reviewed-on: https://go-review.googlesource.com/16173
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9cafb284a848cc053bc7e5479c53ebf889b6d4d9
+    Reviewed-on: https://go-review.googlesource.com/13480
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/os_darwin.go        |  2 ++
- src/runtime/os_dragonfly.go     |  2 ++
- src/runtime/os_freebsd.go       |  2 ++
- src/runtime/os_linux.go         |  2 ++
- src/runtime/os_nacl.go          |  2 ++
- src/runtime/os_netbsd.go        |  2 ++
- src/runtime/os_openbsd.go       |  2 ++
- src/runtime/os_plan9.go         |  5 +++++
- src/runtime/os_solaris.go       | 18 ++++++++++++++++++
- src/runtime/os_windows.go       |  2 ++
- src/runtime/runtime2.go         | 22 +---------------------
- src/runtime/sys_plan9_386.s     |  2 +-
- src/runtime/sys_plan9_amd64.s   |  2 +-
- src/runtime/sys_solaris_amd64.s | 14 +++++++-------
- 14 files changed, 49 insertions(+), 30 deletions(-)
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

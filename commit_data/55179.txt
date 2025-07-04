@@ -1,38 +1,18 @@
-commit 70c7fb75e9768630ca23ff5cbf79c9b597bc068e
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Nov 26 02:48:05 2023 +1100
+commit 3bb8864e9f5d4505c792528c9460fced4c0e7346
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Jan 13 15:03:43 2023 +0100
 
-    cmd/compile: correct code generation for right shifts on riscv64
+    net/netip: fix type name in TestNoAllocs sub-test names and comments
     
-    The code generation on riscv64 will currently result in incorrect
-    assembly when a 32 bit integer is right shifted by an amount that
-    exceeds the size of the type. In particular, this occurs when an
-    int32 or uint32 is cast to a 64 bit type and right shifted by a
-    value larger than 31.
+    netaddr.IP became netip.Addr
     
-    Fix this by moving the SRAW/SRLW conversion into the right shift
-    rules and removing the SignExt32to64/ZeroExt32to64. Add additional
-    rules that rewrite to SRAIW/SRLIW when the shift is less than the
-    size of the type, or replace/eliminate the shift when it exceeds
-    the size of the type.
-    
-    Add SSA tests that would have caught this issue. Also add additional
-    codegen tests to ensure that the resulting assembly is what we
-    expect in these overflow cases.
-    
-    Fixes #64285
-    
-    Change-Id: Ie97b05668597cfcb91413afefaab18ee1aa145ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545035
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: Ifa762d0f804c603e6289d63672e4808e75dc36a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461748
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules    | 100 ++---
- src/cmd/compile/internal/ssa/rewriteRISCV64.go     | 409 ++++++++++++---------
- .../compile/internal/test/testdata/arith_test.go   |  66 ++++
- test/codegen/shift.go                              |  30 ++
- 4 files changed, 383 insertions(+), 222 deletions(-)
+ src/net/netip/netip_test.go | 58 ++++++++++++++++++++++-----------------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

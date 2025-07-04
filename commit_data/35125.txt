@@ -1,22 +1,27 @@
-commit 73becbf9e242fdde41393c39094f7ec132c09e45
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 24 14:38:18 2018 -0700
+commit 044721631659c2f0bcf3219462fdc20498b9954c
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Dec 19 12:08:32 2017 -0500
 
-    go/types: use correct (file) scopes when computing interface method sets
+    cmd/compile: fix corner case in DWARF inline info generation
     
-    This was already partially fixed by commit 99843e22e81
-    (https://go-review.googlesource.com/c/go/+/96376); but
-    we missed a couple of places where we also need to
-    propagate the scope.
+    The helper routine for returning pre-inlining parameter declarations
+    wasn't properly handling the case where you have more than one
+    parameter named "_" in a function signature; this triggered a map
+    collision later on when the function was inlined and DWARF was
+    generated for the inlined routine instance.
     
-    Fixes #25008.
+    Fixes #23179.
     
-    Change-Id: I041fa74d1f6d3b5a8edb922efa126ff1dacd7900
-    Reviewed-on: https://go-review.googlesource.com/109139
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I12e5d6556ec5ce08e982a6b53666a4dcc1d22201
+    Reviewed-on: https://go-review.googlesource.com/84755
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/check_test.go            |  1 +
- src/go/types/interfaces.go            | 14 +++++++-------
- src/go/types/testdata/issue25008a.src | 15 +++++++++++++++
- src/go/types/testdata/issue25008b.src |  9 +++++++++
- 4 files changed, 32 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go |  4 +++-
+ test/fixedbugs/issue23179.dir/a.go  |  9 +++++++++
+ test/fixedbugs/issue23179.dir/b.go  | 11 +++++++++++
+ test/fixedbugs/issue23179.go        |  7 +++++++
+ 4 files changed, 30 insertions(+), 1 deletion(-)

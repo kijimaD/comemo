@@ -1,17 +1,22 @@
-commit 130e3f9a324a51b62c63a772fd0a73e79693c8ab
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Apr 8 20:13:36 2015 +0900
+commit cadd4f81a8a637bda2ea22176e11604ceea14a0d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 12 13:09:30 2015 -0400
 
-    net/internal/socktest: add hook for Listen, failed system call counters
+    runtime: combine gcWorkProducer into gcWork
     
-    Change-Id: Icaac9a48a3b9a3c5542235162e21ab8303592965
-    Reviewed-on: https://go-review.googlesource.com/8641
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The distinction between gcWorkProducer and gcWork (producer and
+    consumer) is not serving us as originally intended, so merge these
+    into just gcWork.
+    
+    The original intent was to replace the currentwbuf cache with a
+    gcWorkProducer. However, with gchelpwork (aka mutator assists),
+    mutators can both produce and consume work, so it will make more sense
+    to cache a whole gcWork.
+    
+    Change-Id: I6e633e96db7cb23a64fbadbfc4607e3ad32bcfb3
+    Reviewed-on: https://go-review.googlesource.com/7733
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/internal/socktest/switch.go       | 27 +++++++++++---
- src/net/internal/socktest/switch_posix.go | 58 +++++++++++++++++++++++++++++++
- src/net/internal/socktest/switch_stub.go  |  6 ++++
- src/net/internal/socktest/sys_cloexec.go  |  5 +--
- src/net/internal/socktest/sys_unix.go     | 56 +++++++++++++++++++++++------
- src/net/internal/socktest/sys_windows.go  | 49 +++++++++++++++++++++-----
- 6 files changed, 176 insertions(+), 25 deletions(-)
+ src/runtime/mgcmark.go | 18 ++++++------
+ src/runtime/mgcwork.go | 74 +++++++++++++++++---------------------------------
+ 2 files changed, 34 insertions(+), 58 deletions(-)

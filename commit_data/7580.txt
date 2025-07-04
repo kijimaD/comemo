@@ -1,15 +1,15 @@
-commit d1cd8294051a09dcb8f78f72178d1085d04ddc65
+commit c833d2fd941c12a2f48fe10837584fe751353b1e
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 25 15:17:34 2011 -0500
+Date:   Fri Feb 25 14:40:36 2011 -0500
 
-    runtime: omit breakpoint during terminal panic
+    sync/atomic: make BUG comment godoc-compatible
     
-    again.
-    CL 4222043 missed this case.
+    go/doc wants to see text after BUG(uid): on the same line
+    in order to treat it as an official bug comment.
     
-    R=brainman, r, r2
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4235043
+    https://golang.org/cl/4250043
 
- src/pkg/runtime/runtime.c | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/sync/atomic/doc.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

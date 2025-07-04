@@ -1,0 +1,24 @@
+commit f43d9c40f382def04442898d7581402759bff36a
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat May 11 05:31:15 2024 +0000
+
+    net/netip: use internal/byteorder
+    
+    This also as a side effect fixes #56136 because internal/byteorder
+    package has a special treatment in the inliner.
+    
+    Fixes #56136
+    
+    Change-Id: Ib90eb716f7a67659fb4cea7e99c14cf7e819ef7b
+    GitHub-Last-Rev: a78d8f6feef78f3f2fc28b2a52cf6374728ce537
+    GitHub-Pull-Request: golang/go#67317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584995
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/netip/leaf_alts.go | 45 ---------------------------------------------
+ src/net/netip/netip.go     | 27 ++++++++++++++-------------
+ 2 files changed, 14 insertions(+), 58 deletions(-)

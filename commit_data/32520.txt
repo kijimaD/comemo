@@ -1,12 +1,22 @@
-commit 3558c16d48452d2f7e725dbefe5938f1575dd980
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 28 13:14:43 2017 +1000
+commit c82efb1fa370ea83a7e9ff89d85598bb0fdc3fb5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 28 12:45:46 2017 -0400
 
-    cmd/link: introduce and use peFile.emitRelocations
+    runtime: fix profile handling of labels for race detector
     
-    Change-Id: I2458d1391af063d99ba1e446bcf12f7c41ae5f6b
-    Reviewed-on: https://go-review.googlesource.com/59419
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    If g1 sets its labels and then they are copied into a profile buffer
+    and then g2 reads the profile buffer and inspects the labels,
+    the race detector must understand that g1's recording of the labels
+    happens before g2's use of the labels. Make that so.
+    
+    Fixes race test failure in CL 39613.
+    
+    Change-Id: Id7cda1c2aac6f8eef49213b5ca414f7154b4acfa
+    Reviewed-on: https://go-review.googlesource.com/42111
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 104 ++++++++++++++++++++---------------------
- 1 file changed, 52 insertions(+), 52 deletions(-)
+ src/runtime/profbuf.go   | 13 +++++++++++++
+ src/runtime/proflabel.go |  8 ++++++++
+ 2 files changed, 21 insertions(+)

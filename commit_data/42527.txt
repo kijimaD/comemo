@@ -1,23 +1,30 @@
-commit 1c95530b0d7f494df30e75ae3e3da315945457e4
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Jun 16 10:03:48 2020 -0400
+commit 8ac98e7b3fcadc497c4ca7d8637ba9578e8159be
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Dec 27 16:48:23 2019 +0000
 
-    cmd: update golang.org/x/tools
+    runtime: add scavtrace debug flag and remove scavenge info from gctrace
     
-    This pulls in CL 235797.
+    Currently, scavenging information is printed if the gctrace debug
+    variable is >0. Scavenging information is also printed naively, for
+    every page scavenged, resulting in a lot of noise when the typical
+    expectation for GC trace is one line per GC.
     
-    Fixes #39151
+    This change adds a new GODEBUG flag called scavtrace which prints
+    scavenge information roughly once per GC cycle and removes any scavenge
+    information from gctrace. The exception is debug.FreeOSMemory, which may
+    force an additional line to be printed.
     
-    Change-Id: I367cff2e9b432a778213501c42fb510c1514643f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238157
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Fixes #32952.
+    
+    Change-Id: I4177dcb85fe3f9653fd74297ea93c97c389c1811
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212640
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Akhil Indurti <aindurti@gmail.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go.mod                                                   | 2 +-
- src/cmd/go.sum                                                   | 4 ++--
- src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go             | 9 +++++++++
- .../x/tools/go/analysis/passes/stringintconv/string.go           | 2 +-
- src/cmd/vendor/modules.txt                                       | 2 +-
- 5 files changed, 14 insertions(+), 5 deletions(-)
+ src/runtime/extern.go      | 28 +++++++++++++---------------
+ src/runtime/mgcscavenge.go | 35 ++++++++++++++++++++++++++++-------
+ src/runtime/mheap.go       |  9 +++------
+ src/runtime/mpagealloc.go  |  5 +++++
+ src/runtime/runtime1.go    |  2 ++
+ 5 files changed, 51 insertions(+), 28 deletions(-)

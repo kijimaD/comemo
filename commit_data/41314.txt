@@ -1,19 +1,78 @@
-commit e5f5607b635139154584c599b2ebf71fe573ca97
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jan 13 10:51:28 2020 -0500
+commit f41451e7eb10f901af492522056ebc7f015770b5
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Sep 9 17:50:35 2019 +0200
 
-    cmd/go: convert TestIssue11709 to the script framework
+    compile: prefer an AND instead of SHR+SHL instructions
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    On modern 64bit CPUs a SHR, SHL or AND instruction take 1 cycle to execute.
+    A pair of shifts that operate on the same register will take 2 cycles
+    and needs to wait for the input register value to be available.
     
-    Updates #36320
-    Updates #17751
+    Large constants used to mask the high bits of a register with an AND
+    instruction can not be encoded as an immediate in the AND instruction
+    on amd64 and therefore need to be loaded into a register with a MOV
+    instruction.
     
-    Change-Id: I16fb0910196c96caef6ed380f96010a548407f9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214424
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    However that MOV instruction is not dependent on the output register and
+    on many CPUs does not compete with the AND or shift instructions for
+    execution ports.
+    
+    Using a pair of shifts to mask high bits instead of an AND to mask high
+    bits of a register has a shorter encoding and uses one less general
+    purpose register but is slower due to taking one clock cycle longer
+    if there is no register pressure that would make the AND variant need to
+    generate a spill.
+    
+    For example the instructions emitted for (x & 1 << 63) before this CL are:
+    48c1ea3f                SHRQ $0x3f, DX
+    48c1e23f                SHLQ $0x3f, DX
+    
+    after this CL the instructions are the same as GCC and LLVM use:
+    48b80000000000000080    MOVQ $0x8000000000000000, AX
+    4821d0                  ANDQ DX, AX
+    
+    Some platforms such as arm64 already have SSA optimization rules to fuse
+    two shift instructions back into an AND.
+    
+    Removing the general rule to rewrite AND to SHR+SHL speeds up this benchmark:
+    
+        var GlobalU uint
+    
+        func BenchmarkAndHighBits(b *testing.B) {
+            x := uint(0)
+            for i := 0; i < b.N; i++ {
+                    x &= 1 << 63
+            }
+            GlobalU = x
+        }
+    
+    amd64/darwin on Intel(R) Core(TM) i7-3520M CPU @ 2.90GHz:
+    name           old time/op  new time/op  delta
+    AndHighBits-4  0.61ns ± 6%  0.42ns ± 6%  -31.42%  (p=0.000 n=25+25):
+    
+    'go run run.go -all_codegen -v codegen' passes  with following adjustments:
+    
+    ARM64: The BFXIL pattern ((x << lc) >> rc | y & ac) needed adjustment
+           since ORshiftRL generation fusing '>> rc' and '|' interferes
+           with matching ((x << lc) >> rc) to generate UBFX. Previously
+           ORshiftLL was created first using the shifts generated for (y & ac).
+    
+    S390X: Add rules for abs and copysign to match use of AND instead of SHIFTs.
+    
+    Updates #33826
+    Updates #32781
+    
+    Change-Id: I5a59f6239660d53c029cd22dfb44ddf39f93a56c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196810
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                         | 15 ---------------
- src/cmd/go/testdata/script/run_issue11709.txt | 15 +++++++++++++++
- 2 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   7 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |   4 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |   8 -
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  27 ++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 511 +++++++++++++++++++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 114 +-----
+ test/codegen/math.go                           |   4 +-
+ 7 files changed, 480 insertions(+), 195 deletions(-)

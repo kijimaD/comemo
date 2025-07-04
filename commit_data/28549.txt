@@ -1,20 +1,26 @@
-commit 7de7d20e9f14c3a8fb9a3bcf6a36a299c74e9ddd
-Author: Oliver Tonnhofer <olt@bogosoft.com>
-Date:   Tue Sep 27 15:24:00 2016 +0200
+commit 90883091ff5f7170c83f847d6748cf36713e8c9b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 19 12:33:30 2016 -0400
 
-    image/png: improve compression by skipping filter for paletted images
+    [dev.ssa] cmd/compile: clean up hardcoded regmasks in ssa/regalloc.go
     
-    Compression of paletted images is more efficient if they are not filtered.
-    This patch skips filtering for cbP8 images.
-    The improvements are demonstrated at https://github.com/olt/compressbench
+    Auto-generate register masks and load them through Config.
     
-    Fixes #16196
+    Passed toolstash -cmp on AMD64.
     
-    Change-Id: Ie973aad287cacf9057e394bb01cf0e4448a77618
-    Reviewed-on: https://go-review.googlesource.com/29872
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Tests phi_ssa.go and regalloc_ssa.go in cmd/compile/internal/gc/testdata
+    passed on ARM.
+    
+    Updates #15365.
+    
+    Change-Id: I393924d68067f2dbb13dab82e569fb452c986593
+    Reviewed-on: https://go-review.googlesource.com/23292
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/image/png/writer.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/config.go       |  9 +++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 17 ++++++++++-------
+ src/cmd/compile/internal/ssa/gen/ARMOps.go   | 17 ++++++++++-------
+ src/cmd/compile/internal/ssa/gen/main.go     | 22 ++++++++++++++--------
+ src/cmd/compile/internal/ssa/opGen.go        |  6 ++++++
+ src/cmd/compile/internal/ssa/regalloc.go     | 12 ++++++------
+ 6 files changed, 55 insertions(+), 28 deletions(-)

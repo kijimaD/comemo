@@ -1,29 +1,44 @@
-commit 88f89d87c4e818679b65cfc50a7b0cb554e154d3
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 18 11:19:54 2023 -0400
+commit 913d05133c7fb3adfd2b1a34a47d635d8e072fa2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 6 13:21:34 2022 -0400
 
-    cmd/cgo/internal/test: fix TestThreadLock
+    cmd/go: avoid spurious readdir during fsys.Walk
     
-    This test was introduced in CL 18882, but only recently enabled as of
-    CL 493603. It's intended to check that we don't move executing C code
-    between threads when it re-enters Go, but it has always contained a
-    flake. Go *can* preempt between the Go call to gettid and the C call
-    to gettid and move the goroutine to another thread because there's no
-    C code on the stack during the Go call to gettid. This will cause the
-    test to fail.
+    fsys.Walk is cloned from filepath.Walk, which has always handled
+    a walk of a directory by reading the full directory before calling the
+    callback on the directory itself. So if the callback returns fs.SkipDir,
+    those entries are thrown away, but the expense of reading them was
+    still incurred. (Worse, this is the expensive directory read that also
+    calls Stat on every entry.) On machines with slow file system I/O,
+    these reads are particularly annoying. For example, if I do
     
-    Fix this by making both gettid calls in C, with a re-entry to Go
-    between them.
+            go list m...
     
-    Fixes #60265
+    there is a call to filepath.Walk that is told about $GOROOT/src/archive
+    and responds by returning filepath.SkipDir because archive does not
+    start with m, but it only gets the chance to do that after the archive
+    directory has been read. (Same for all the other top-level directories.)
+    Even something like go list github.com/foo/bar/... reads every top-level
+    $GOPATH/src directory.
     
-    Change-Id: I546621a541ce52b996d68b17d3bed709d2b5b1f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496182
-    Auto-Submit: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    When we designed filepath.WalkDir, one of the changes we made was
+    to allow calling the callback twice for a directory: once before reading it,
+    and then possibly again if the read produces an error (uncommon).
+    This CL changes fsys.Walk to use that same model. None of the callbacks
+    need changing, but now the $GOROOT/src/archive and other top-level
+    directories won't be read when evaluating a pattern like 'm...'.
+    
+    For #53577.
+    Fixes #53765.
+    
+    Change-Id: Idfa3b9e2cc335417bfd9d66dd584cb16f92bd12e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416179
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/internal/test/cgo_thread_lock.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/fsys/fsys.go                   | 24 ++++++++--------------
+ src/cmd/go/testdata/script/fsys_walk.txt           |  6 ++++++
+ .../script/{list_permissions.txt => list_perm.txt} |  3 +--
+ src/cmd/go/testdata/script/mod_perm.txt            | 23 +++++++++++++++++++++
+ 4 files changed, 38 insertions(+), 18 deletions(-)

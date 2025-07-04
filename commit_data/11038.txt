@@ -1,12 +1,16 @@
-commit 2c459f14e9b338fabbae3941ce8a84cee059fc4c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 6 09:48:03 2012 +1100
+commit fd1322828c656813c320ab556bffe8eafeb57976
+Author: Eric Eisner <eric.d.eisner@gmail.com>
+Date:   Fri Jan 6 09:23:00 2012 +1100
 
-    goinstall: fix test data
+    cmd/go: Pass arguments to command for run
     
-    R=gri
+    Command arguments are separated from input .go file arguments
+    by a -- separator.
+    
+    R=rsc, golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5519048
+    https://golang.org/cl/5514046
 
- src/cmd/goinstall/download_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/build.go |  1 +
+ src/cmd/go/run.go   | 26 ++++++++++++++++++++++----
+ 2 files changed, 23 insertions(+), 4 deletions(-)

@@ -1,16 +1,16 @@
-commit 49bc5690a39b09c60601c21349ee730aea9e5ca6
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Mon Feb 4 12:42:55 2019 +0000
+commit d30d5a6b1e86e1bb62e159ffe8b8c698c04e945b
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Sat Oct 6 19:16:28 2018 +0530
 
-    cmd/link: add missing error check in test
+    go/doc: skip examples with no body
     
-    Change-Id: I54998f1b7daa8f8db7a2007b4eb86e9789c03656
-    GitHub-Last-Rev: 97667ead6f62dad2af0d6b1f78deccef16417044
-    GitHub-Pull-Request: golang/go#30006
-    Reviewed-on: https://go-review.googlesource.com/c/160430
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Fixes #28044
+    
+    Change-Id: I0052e078dd34dc3546204416bcc5a99e3146c535
+    Reviewed-on: https://go-review.googlesource.com/c/140317
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/linkbig_test.go | 3 +++
+ src/go/doc/example.go | 3 +++
  1 file changed, 3 insertions(+)

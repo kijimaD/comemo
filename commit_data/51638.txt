@@ -1,39 +1,20 @@
-commit f9cba430b228c81e5b5f1ec30e0f6183141f3c0c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 5 16:56:42 2023 -0800
+commit d81464e1eb69faab8bcf04015575d8a491e882b5
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 9 11:42:54 2022 -0800
 
-    go/types: generate various source files from types2 files
+    cmd/compile: don't panic when printing package-less symbols
     
-    Starting point for more code sharing.
+    Some of the SSA pseudo-variables like the memory variable don't
+    have a package. Print those gracefully instead of printing a panic.
     
-    Change-Id: Ia6bc3ba54476a5202bfd5f89cef09bacb3f4f3b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460761
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Fixes #51108
+    
+    Change-Id: I5c29029356e045c5cf70909d6e63666ebc58ffaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384614
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/go/types/chan.go          |   6 +-
- src/go/types/context.go       |   2 +
- src/go/types/gccgosizes.go    |   2 +
- src/go/types/generate.go      |   8 +++
- src/go/types/generator.go     | 134 ++++++++++++++++++++++++++++++++++++++++++
- src/go/types/lookup.go        |   2 +
- src/go/types/main_test.go     |   2 +
- src/go/types/map.go           |   2 +
- src/go/types/named.go         |   2 +
- src/go/types/objset.go        |   2 +
- src/go/types/pointer.go       |   6 +-
- src/go/types/selection.go     |   2 +
- src/go/types/sizes.go         |   2 +
- src/go/types/slice.go         |   6 +-
- src/go/types/subst.go         |  14 +++--
- src/go/types/termlist.go      |   2 +
- src/go/types/termlist_test.go |   2 +
- src/go/types/tuple.go         |   2 +
- src/go/types/typelists.go     |   2 +
- src/go/types/typeparam.go     |  12 ++--
- src/go/types/typeterm.go      |   2 +
- src/go/types/validtype.go     |   2 +
- 22 files changed, 198 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/types/fmt.go | 3 +++
+ 1 file changed, 3 insertions(+)

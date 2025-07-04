@@ -1,16 +1,24 @@
-commit 7abeefd2b1a03932891e581f1f90656ffebebce4
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Fri Jan 12 20:46:14 2024 +0100
+commit bb4ea80befa5f91aa50ccb170e0abdcbc0d01627
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 8 14:10:59 2022 -0500
 
-    internal/trace/v2: reject events for goroutines with unknown states
+    os: allow $HOME to not exist in TestUserHomeDir
     
-    Change-Id: Ifc472ed4cf0433d06f43559930ac80df23656a6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/555496
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This seems like a cleaner fix for the situation Debian has patched
+    around with
+    https://sources.debian.org/patches/golang-1.19/1.19.3-1/0001-Disable-test-for-UserHomeDir.patch/
+    
+    Tested with 'GOCACHE=$(go env GOCACHE) HOME=/home/nobody go test os'.
+    
+    Change-Id: I9fd00da38b86df2edfcd8cb87629e2875573903e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456126
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/trace/v2/order.go                     | 24 ++++++++++++++++++----
- .../v2/testdata/fuzz/FuzzReader/4d9ddc909984e871   |  2 ++
- .../v2/testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566   |  2 ++
- 3 files changed, 24 insertions(+), 4 deletions(-)
+ src/os/file.go    |  3 +++
+ src/os/os_test.go | 12 +++++++++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

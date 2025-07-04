@@ -1,20 +1,40 @@
-commit 041dc0a1c2ee8e34fb5e34f4b5fd3e2734889bf2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 8 15:35:56 2011 -0700
+commit 4670d9e6349119914c9a5a1b40ce32045f3c0061
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Fri Sep 9 07:18:20 2011 +1000
 
-    godoc: show packages matching a query at the top
+    exp/template/html: autoescape actions in HTML style attributes.
     
-    Also: fix layout of textual search results and
-    fix a field reference in the respective template.
+    This does not wire up <style> elements as that is pending support
+    for raw text content in CL https://golang.org/cl/4964045/
     
-    Fixes #1987.
+    This CL allows actions to appear in contexts like
     
-    R=rsc, r
+    selectors:        {{.Tag}}{{.Class}}{{.Id}}
+    property names:   border-{{.BidiLeadingEdge}}
+    property values:  color: {{.Color}}
+    strings:          font-family: "{{font-name}}"
+    URL strings:      background: "/foo?image={{.ImgQuery}}"
+    URL literals:     background: url("{{.Image}}")
+    
+    but disallows actions inside CSS comments and disallows
+    embedding of JS in CSS entirely.
+    
+    It is based on the CSS3 lexical grammar with affordances for
+    common browser extensions including line comments.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/4962061
+    https://golang.org/cl/4968058
 
- lib/godoc/search.html  | 11 +++++++++++
- lib/godoc/search.txt   | 28 +++++++++++++++++-----------
- src/cmd/godoc/godoc.go |  3 ++-
- src/cmd/godoc/index.go | 25 ++++++++++++++++++-------
- 4 files changed, 48 insertions(+), 19 deletions(-)
+ src/pkg/exp/template/html/Makefile       |   3 +
+ src/pkg/exp/template/html/context.go     |  50 ++++--
+ src/pkg/exp/template/html/css.go         | 255 ++++++++++++++++++++++++++++
+ src/pkg/exp/template/html/css_test.go    | 277 +++++++++++++++++++++++++++++++
+ src/pkg/exp/template/html/escape.go      | 271 +++++++++++++++++++++++-------
+ src/pkg/exp/template/html/escape_test.go | 254 ++++++++++++++++++++++++++--
+ src/pkg/exp/template/html/html.go        | 101 +++++++++++
+ src/pkg/exp/template/html/html_test.go   |  57 +++++++
+ src/pkg/exp/template/html/js.go          |   2 +-
+ src/pkg/exp/template/html/url.go         | 104 ++++++++++++
+ src/pkg/exp/template/html/url_test.go    | 112 +++++++++++++
+ 11 files changed, 1400 insertions(+), 86 deletions(-)

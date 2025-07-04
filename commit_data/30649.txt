@@ -1,23 +1,15 @@
-commit 84b9329bd9085a47325818005b6162af265ddfa4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Nov 6 11:08:08 2016 -0800
+commit f39050c8ebf894ccedc0b99de96f7412be97af89
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 6 16:58:27 2016 -0700
 
-    cmd/compile: add Type.LongString and Type.ShortString
+    cmd/cover: handle multiple samples from the same location
     
-    Reduces duplication and centralizes documentation.
-    Moves all uses of FmtUnsigned and tconv inside fmt.go.
+    So we can merge cover profiles from multiple runs.
     
-    Passes toolstash -cmp.
-    
-    Change-Id: If6d906e7e839de05f36423523a3a1d596e29807d
-    Reviewed-on: https://go-review.googlesource.com/38141
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I1bf921e2b02063a2a62b35d21a6823062d10e5d0
+    Reviewed-on: https://go-review.googlesource.com/23831
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go     | 20 ++++++++++++++++++++
- src/cmd/compile/internal/gc/reflect.go | 12 ++++++------
- src/cmd/compile/internal/gc/subr.go    |  9 ++-------
- src/cmd/compile/internal/gc/swt.go     |  4 +---
- 4 files changed, 29 insertions(+), 16 deletions(-)
+ src/cmd/cover/profile.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

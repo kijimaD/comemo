@@ -1,15 +1,15 @@
-commit c7cc894ef5978746dce145227808287fee627dc0
+commit 156d85c3e901d7bd7d03183fd4c986386db12446
 Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Oct 9 08:10:32 2012 +1100
+Date:   Mon Oct 8 22:24:41 2012 +1100
 
-    net/url: report first error from ParseQuery.
+    doc: update text about hgrc and environment variables.
     
-    Fixes #4175.
+    Mercurial has supported environment variables in hgrc files since
+    version 1.4 (released November 2009).
     
-    R=golang-dev, rsc
+    R=golang-dev, dave, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6610068
+    https://golang.org/cl/6619067
 
- src/pkg/net/url/url.go      |  8 ++++++--
- src/pkg/net/url/url_test.go | 11 +++++++++++
- 2 files changed, 17 insertions(+), 2 deletions(-)
+ doc/contribute.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

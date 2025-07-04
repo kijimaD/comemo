@@ -1,22 +1,21 @@
-commit 63f5596788af3f126994a155319956c90f978f8d
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Apr 5 09:28:00 2023 -0700
+commit 8fdd277fe6ee1770b12650a4bc2bc257e49c8065
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 10 15:09:12 2022 +0000
 
-    go/scanner: align line and column limit with the compiler's limit
+    runtime: profile finalizer G more carefully in goroutine profile
     
-    The compiler disallows line and column numbers > (1<<30)
-    (cmd/compiler/internal/syntax.PosMax).
+    If SetFinalizer is never called, we might readgstatus on a nil fing
+    variable, resulting in a crash. This change guards code that accesses
+    fing by a nil check.
     
-    Set the go/scanner limit to the same rather than off by one.
+    Fixes #52821.
     
-    For #59180
-    
-    Change-Id: Ibf9e0e6826d6f6230b0d492543b7e906298a0524
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482595
+    Change-Id: I3e8e7004f97f073dc622e801a1d37003ea153a29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405475
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
 
- src/cmd/compile/internal/syntax/pos.go | 2 ++
- src/go/scanner/scanner.go              | 3 ++-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/mprof.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

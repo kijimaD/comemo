@@ -1,17 +1,22 @@
-commit a174638a5cc88eb4fccaaa699990f5626fbb0e30
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 30 16:33:51 2021 -0500
+commit 5cd8a344954cc29be9bce6d67b3f4293ed72aa9f
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Apr 5 20:03:02 2021 -0700
 
-    os: test that LookupEnv reports all keys found in Environ
+    cmd/compile: fix gcSizes.Sizeof for a zero-sized struct
     
-    For #49886
+    (*gcSizes).Sizeof was requiring the last field of a zero-sized struct to
+    be at least one byte. But that rule (fix for #9401, see logic in
+    calcStructOffset) only applies to a struct that has some non-zero sized
+    fields. Fix (*gcSizes).Sizeof to have the logic like calcStructOffset.
     
-    Change-Id: Ie3a7f12a0d30ec719caf375e7be30cc4a5796c3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367850
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes running the gotests with -G=3 enabled.
+    
+    Fixes #45390
+    
+    Change-Id: I011f40e3de3a327392bbbb791b9422be75336313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307549
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/os/env_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ src/cmd/compile/internal/noder/sizes.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

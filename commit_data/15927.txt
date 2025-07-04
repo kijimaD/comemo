@@ -1,17 +1,24 @@
-commit bf1f46180ee348d2d59bebfeda0314450fbcd893
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Mon Mar 25 21:35:46 2013 +0100
+commit ea151041102692e52fbce353f12ca73bdc48cad7
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Mar 25 20:57:36 2013 +0400
 
-    runtime: optionally check all allocations in hashmap.c
+    net: band-aid for windows network poller
+    Fixes performance of the current windows network poller
+    with the new scheduler.
+    Gives runtime a hint when GetQueuedCompletionStatus() will block.
+    Fixes #5068.
     
-    Adds the new debugging constant 'checkgc'. If its value is non-zero
-    all calls to mallocgc() from hashmap.c will start a garbage collection.
+    benchmark                    old ns/op    new ns/op    delta
+    BenchmarkTCP4Persistent        4004000        33906  -99.15%
+    BenchmarkTCP4Persistent-2        21790        17513  -19.63%
+    BenchmarkTCP4Persistent-4        44760        34270  -23.44%
+    BenchmarkTCP4Persistent-6        45280        43000   -5.04%
     
-    Fixes #5074.
-    
-    R=golang-dev, khr
-    CC=golang-dev, rsc
-    https://golang.org/cl/7663051
+    R=golang-dev, alex.brainman, coocood, rsc
+    CC=golang-dev
+    https://golang.org/cl/7612045
 
- src/pkg/runtime/hashmap.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/net/fd_windows.go |  8 +++++++-
+ src/pkg/runtime/cgocall.c | 15 ++++++++++++++-
+ src/pkg/runtime/runtime.h |  1 +
+ 3 files changed, 22 insertions(+), 2 deletions(-)

@@ -1,18 +1,18 @@
-commit 48e2b1ea91171f4fcb56cc521368969e586f033f
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Sep 13 16:23:28 2021 -0400
+commit ece345aa691c4097fdb8d1f2736a8fd6214515a9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 1 01:46:55 2021 -0800
 
-    cmd/compile: fix LocResults formatting
+    [dev.regabi] cmd/compile: expand documentation for Func.Closure{Vars,Enter}
     
-    When a LocResults is an empty list, it currently prints as ">".
-    Make it print "<>".
+    I keep getting these confused and having to look at how the code
+    actually uses them.
     
-    Change-Id: I0f596791b471d74cd4bbc0059e269708c80592dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350144
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I86baf22b76e7dddada6830df0fac241092f716bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280993
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/location.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/func.go | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)

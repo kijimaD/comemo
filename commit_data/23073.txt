@@ -1,21 +1,13 @@
-commit 79986e24e0152ba448fd41d65eeb24ebdb6c7ec7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 18 19:38:56 2015 +0000
+commit 91318dc76c726fac2100d33281af73fb572ec66a
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Apr 14 12:03:21 2015 +0200
 
-    runtime/pprof: write heap statistics to heap profile always
+    cmd/go: refactor creation of top-level actions for -buildmode=shared
     
-    This is a duplicate of CL 9491.
-    That CL broke the build due to pprof shortcomings
-    and was reverted in CL 9565.
-    
-    CL 9623 fixed pprof, so this can go in again.
-    
-    Fixes #10659.
-    
-    Change-Id: If470fc90b3db2ade1d161b4417abd2f5c6c330b8
-    Reviewed-on: https://go-review.googlesource.com/10212
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I429402dd91243cd9415b054ee17bfebccc68ed57
+    Reviewed-on: https://go-review.googlesource.com/9197
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.5.txt              |  1 +
- src/runtime/pprof/pprof.go | 56 ++++++++++++++++++++++------------------------
- 2 files changed, 28 insertions(+), 29 deletions(-)
+ src/cmd/go/build.go | 110 ++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 63 insertions(+), 47 deletions(-)

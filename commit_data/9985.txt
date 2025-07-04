@@ -1,17 +1,15 @@
-commit 236aff31c5aac324849886f08b03922d8fd2ea5b
+commit 12ece77c14107aebe0840c93a36ced58dca4aebc
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 14 15:54:45 2011 -0400
+Date:   Fri Oct 14 15:54:36 2011 -0400
 
-    gofmt: fix //line handling
+    build: stop on failed deps.bash
     
-    Fixes #2369.
+    Apparently some versions of bash do the ||exit implicitly
+    when in set -e mode, but others do not.  ???
     
     R=gri
     CC=golang-dev
-    https://golang.org/cl/5275048
+    https://golang.org/cl/5285043
 
- src/cmd/gofmt/gofmt_test.go            | 1 +
- src/cmd/gofmt/testdata/comments.golden | 9 +++++++++
- src/cmd/gofmt/testdata/comments.input  | 9 +++++++++
- src/pkg/go/scanner/scanner.go          | 2 +-
- 4 files changed, 20 insertions(+), 1 deletion(-)
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

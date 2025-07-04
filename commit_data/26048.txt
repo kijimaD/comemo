@@ -1,17 +1,20 @@
-commit 060a2bacb7a8f5d75cfba16719eabb25b1b91fd7
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Mar 4 15:21:49 2016 +1300
+commit d4df6f487481fb7a0987faa3cf8c03a684e8f17d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 15 00:52:58 2015 +0000
 
-    cmd/internal/obj/ppc64: eliminate ~700 conversions by tweaking signatures
+    net/http: updated bundled http2 copy, enable some tests
     
-    This is mostly changing the opXXX helpers to take an int16 (matching Prog.As)
-    argument and return a uint32. The only bit that's not completely trivial is
-    passing -p.As to opirr to signal operating on a shifted constant, because AADD
-    + ALAST overflows int16.
+    Updates bundled copy of x/net/http2 to include
+    https://golang.org/cl/17823 (catching panics in Handlers)
     
-    Change-Id: I69133800bbe41c38fa4a89bbbf49823043b3419c
-    Reviewed-on: https://go-review.googlesource.com/20182
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #13555
+    
+    Change-Id: I08e4e38e736a8d93f5ec200e8041c143fc6eafce
+    Reviewed-on: https://go-review.googlesource.com/17824
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/ppc64/asm9.go | 842 ++++++++++++++++++-------------------
- 1 file changed, 421 insertions(+), 421 deletions(-)
+ src/net/http/h2_bundle.go  | 51 +++++++++++++++++++++++++++++++++++++++-------
+ src/net/http/serve_test.go |  6 +-----
+ 2 files changed, 45 insertions(+), 12 deletions(-)

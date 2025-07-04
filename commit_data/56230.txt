@@ -1,55 +1,33 @@
-commit 4084bc1aa2af3ad479632c597458c6d9d1b2dec8
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Feb 28 15:25:40 2024 -0500
+commit 9d53d7aa02a8e5fca52fb638116592b7f0b04823
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Wed Apr 19 11:43:51 2023 +0300
 
-    cmd/go: inital plumbing for PGO profiles preprocessing
+    slices: optimize Index and Compact for large types
     
-    The new go tool preprofile preprocesses a PGO pprof profile into an
-    intermediate representation that is more efficient for the compiler to
-    consume. Performing preprocessing avoids having every single compile
-    process from duplicating the same processing.
+    Using `for i, v := range` loops causes extra copies.
+    Try to get rid of as much copies as possible.
     
-    This CL prepares the initial plumbing to support automatic preprocessing
-    by cmd/go.
+      goos: windows
+      goarch: amd64
+      pkg: slices
+      cpu: AMD Ryzen Threadripper 2950X 16-Core Processor
+                           │   old.txt~    │               new.txt~               │
+                           │    sec/op     │    sec/op     vs base                │
+      EqualFunc_Large-32       1.077m ± 1%   1.072m ±  1%        ~ (p=0.631 n=10)
+      Index_Large-32         346.329µ ± 1%   6.510µ ± 24%  -98.12% (p=0.000 n=10)
+      IndexFunc_Large-32       502.9µ ± 0%   381.2µ ±  1%  -24.21% (p=0.000 n=10)
+      Compact_Large-32         409.5µ ± 1%   145.2µ ±  9%  -64.54% (p=0.000 n=10)
+      CompactFunc_Large-32     693.5µ ± 1%   663.1µ ±  3%   -4.39% (p=0.000 n=10)
+      geomean                  556.3µ        191.3µ        -65.61%
     
-    Each compile action takes a new dependency on a new "preprocess PGO
-    profile" action. The same action instance is shared by all compile
-    actions (assuming they have the same input profile), so the action only
-    executes once.
-    
-    Builder.build retrieves the file to pass to -pgofile from the output of
-    the preprocessing action, rather than directly from
-    p.Internal.PGOProfile.
-    
-    Builder.buildActionID also uses the preprocess output as the PGO
-    component of the cache key, rather than the original source. This
-    doesn't matter for normal toolchain releases, as the two files are
-    semantically equivalent, but it is useful for correct cache invalidation
-    in development. For example, if _only_ go tool preprofile changes
-    (potentially changing the output), then we must regenerate the output
-    and then rebuild all packages.
-    
-    This CL does not actually invoke go tool preprocess. That will come in
-    the next CL. For now, it just copies the input pprof profile.
-    
-    This CL shouldn't be submitted on its own, only with the children. Since
-    the new action doesn't yet use the build cache, every build (even fully
-    cached builds) unconditionally run the PGO action.
-    
-    For #58102.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Change-Id: I594417cfb0164cd39439a03977c904e4c0c83b8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569423
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I36a2f2172cf30d97a5aa6f8d7cf6981d67daec62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486235
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/work/action.go                 | 42 ++++++++++++++++++++++
- src/cmd/go/internal/work/exec.go                   | 26 ++++++++++----
- src/cmd/go/internal/work/gc.go                     |  6 ++--
- src/cmd/go/internal/work/gccgo.go                  |  2 +-
- src/cmd/go/testdata/script/build_pgo.txt           |  9 +++--
- src/cmd/go/testdata/script/build_pgo_auto.txt      | 19 +++++-----
- .../go/testdata/script/build_pgo_auto_multi.txt    | 36 ++++++++-----------
- 7 files changed, 96 insertions(+), 44 deletions(-)
+ src/slices/slices.go      | 28 ++++++++++++++--------------
+ src/slices/slices_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 14 deletions(-)

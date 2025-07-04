@@ -1,13 +1,12 @@
-commit f53cc8e6ffd20e8bc433a3b449f667d4d44585a9
-Author: Christopher Wedgwood <cw@f00f.org>
-Date:   Mon Jan 16 10:09:36 2012 -0500
+commit 0aaf2c2d103101c66f60d3c02abd972a29b70b33
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Mon Jan 16 18:42:18 2012 +0400
 
-    exp/ssh: rename (some) fields
+    runtime: fix typo in comment
     
-    R=dave, agl, agl
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/5494057
+    https://golang.org/cl/5540059
 
- src/pkg/exp/ssh/client.go  | 5 ++---
- src/pkg/exp/ssh/session.go | 8 ++++----
- 2 files changed, 6 insertions(+), 7 deletions(-)
+ src/pkg/runtime/extern.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

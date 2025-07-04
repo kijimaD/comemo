@@ -1,17 +1,18 @@
-commit 4e16422da0b444794b45396519d45eec800a540e
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Mar 24 15:50:54 2021 -0500
+commit 83ed734df03fd11d71f06bc02906a723afaf3936
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 11 19:57:50 2020 -0400
 
-    cmd/internal/obj/ppc64: remove bogus MOVBU optab entry
+    cmd/link: pre-resolve package reference
     
-    This was missed in https://golang.org/cl/303329 . It is another
-    impossible usage of MOVBU as a load like "MOVBU 0(rX), rY, rZ" or
-    "MOVBU rX(rB), rY, rZ".
+    Pre-resolve package index references, so it doesn't need to do a
+    map lookup in every cross-package symbol reference resolution. It
+    increases the memory usage very slightly (O(# imported packages)).
     
-    Change-Id: Ib3dd984b6424907498ed65b798649f0b990d50a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304471
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia76c97ac51f1c2c2d5ea7ae34853850ec69ef0a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253604
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/ppc64/asm9.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go | 36 +++++++++++++++++++++-------------
+ 1 file changed, 22 insertions(+), 14 deletions(-)

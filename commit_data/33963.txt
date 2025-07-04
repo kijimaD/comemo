@@ -1,27 +1,14 @@
-commit a62071a2092058a5f3d1c47a9841c9f88870e500
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Jan 6 03:03:58 2018 +0000
+commit 28aaa0bd1b5c5eb6a798d0496c7edb11e9729e49
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Sep 18 11:50:29 2017 +0100
 
-    A+C: update late Go 1.10 contributors
+    crypto/elliptic: gofmt
     
-    Add Brad Burch (individual CLA)
-    Add Charles Fenwick Elliott (individual CLA)
-    Add Geoff Berry (corporate CLA for Qualcomm Data Center, Inc.)
-    Add Igor Vashyst (individual CLA)
-    Add Jiulong Wang (individual CLA)
-    Add Junya Hayashi (individual CLA)
-    Add Matthijs Kooijman (individual CLA)
-    Add Paul PISCUC (individual CLA)
-    Add Steve Gilbert (individual CLA)
-    Add Tad Fisher (individual CLA)
-    Add Yukihiro Nishinaka (individual CLA)
-    
-    Updates #12042
-    
-    Change-Id: Ib7a3c7a4d38d15530c2ea42fe8d359ae10c9a19e
-    Reviewed-on: https://go-review.googlesource.com/86478
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia4b49736d3b33cddf58905c6b19febbca45b2ad2
+    Reviewed-on: https://go-review.googlesource.com/64270
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- AUTHORS      | 11 +++++++++++
- CONTRIBUTORS | 11 +++++++++++
- 2 files changed, 22 insertions(+)
+ src/crypto/elliptic/p256_amd64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

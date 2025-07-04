@@ -1,12 +1,14 @@
-commit 0dc7a1daf69ccfef2fe82c66da580c48d83d197d
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Dec 21 16:57:42 2018 -0500
+commit 58e970ed79807fd9d2a29e1dcd4e44fa867b5540
+Author: Drew Flower <drewvanstone@gmail.com>
+Date:   Thu Aug 30 14:16:45 2018 -0600
 
-    doc/go1.12: document RSA-PSS support in crypto/tls
+    fmt: add an example for Sprintln
     
-    Change-Id: I9350e5a72e3c375f6b76897708f09f1f50c7be14
-    Reviewed-on: https://go-review.googlesource.com/c/155482
+    Change-Id: I0fcb5e626bf3d6891592c21b912c824743d7eaa0
+    Reviewed-on: https://go-review.googlesource.com/132280
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.12.html | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/fmt/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,18 +1,21 @@
-commit c3b217a0e5f032cadf4595884dad839e169c902c
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Sep 13 09:16:39 2021 -0700
+commit e563715b3085f44a76564485214e33e3c3b2b7b0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 28 15:29:03 2020 -0800
 
-    cmd/go: document 'go install cmd@version' ignores vendor directories
+    [dev.regabi] cmd/compile: remove Sym.Importdef
     
-    For #48332
+    Evidently it hasn't been needed since circa 2018, when we removed the
+    binary export data format.
     
-    Change-Id: I708eb3e8f3f386f03210b7117d9ab8b0be2125bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349591
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I4e4c788d6b6233340fb0de0a56d035c31d96f761
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280634
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/go/alldocs.go             | 7 +++++--
- src/cmd/go/internal/work/build.go | 7 +++++--
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/typecheck/export.go  | 1 -
+ src/cmd/compile/internal/types/sizeof_test.go | 2 +-
+ src/cmd/compile/internal/types/sym.go         | 3 +--
+ 3 files changed, 2 insertions(+), 4 deletions(-)

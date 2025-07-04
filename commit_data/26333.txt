@@ -1,20 +1,17 @@
-commit dd2ba0c7a78d333da340bcf00995162252febad7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 14 21:51:09 2016 -0700
+commit 352e287bf72229f274233a34e3382ad28d791d89
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 24 13:52:28 2015 -0500
 
-    cmd/internal/obj: remove LSym.Next
+    runtime: fix incorrect comment
     
-    Instead, use a slice.
+    This comment is probably a hold-over from when the heap bitmap was
+    interleaved and the shift was 0, 2, 4, or 6. Now the shift is 0, 1, 2,
+    or 3.
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I889fdb4ae997416f907522f549b96506be13bec7
-    Reviewed-on: https://go-review.googlesource.com/20699
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I096ec729e1ca31b708455c98b573dd961d16aaee
+    Reviewed-on: https://go-review.googlesource.com/18531
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/obj/link.go        |  7 ++-----
- src/cmd/internal/obj/objfile.go     | 40 ++++++++++---------------------------
- src/cmd/internal/obj/sizeof_test.go |  2 +-
- 3 files changed, 14 insertions(+), 35 deletions(-)
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,20 @@
-commit 29673a4be6770422774968a287e87bf7c8330497
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 19 16:55:19 2018 -0700
+commit b75e8a2a3baf71ab39bd584c4c0c24edbaf91e3e
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sun Mar 4 06:14:42 2018 +0900
 
-    misc/cgo/test: avoid duplicate definition with gccgo
+    cmd/compile: prevent detection of wrong duplicates
     
-    Current versions of gccgo issue a duplicate definition error when both
-    a definition and an empty declaration occur. Use build tags to avoid
-    that case for the issue9400 subdirectory.
+    by including *types.Type in typeVal.
     
-    Change-Id: I18517af87bab05e9ca43f2f295459cf34347c317
-    Reviewed-on: https://go-review.googlesource.com/119896
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #21866
+    Fixes #24159
+    
+    Change-Id: I2f8cac252d88d43e723124f2867b1410b7abab7b
+    Reviewed-on: https://go-review.googlesource.com/98476
+    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/test/issue9400/gccgo.go | 2 ++
- misc/cgo/test/issue9400/stubs.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/swt.go | 27 +++++++++++++++++++++++----
+ test/fixedbugs/issue24159.go       | 20 ++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 4 deletions(-)

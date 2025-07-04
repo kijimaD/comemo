@@ -1,22 +1,28 @@
-commit 7622e41c84fd9bb003a2d905b9f0545344842c3a
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 30 17:40:45 2021 -0400
+commit 731bb540381e1b79c85b0bdcb95af90f6bde7b89
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 15 13:15:07 2020 -0800
 
-    go/types, types2: add a test for invalid import of "init"
+    test: update for gofrontend error message changes
     
-    This error reporting code path did not have test coverage, and panics in
-    1.17 (filed as #48082).
+    fixedbugs/bug195.go:9:20: error: interface contains embedded non-interface
+    fixedbugs/bug195.go:12:20: error: interface contains embedded non-interface
+    fixedbugs/bug195.go:15:22: error: interface contains embedded non-interface
+    fixedbugs/bug195.go:18:9: error: invalid recursive interface
+    fixedbugs/bug195.go:26:9: error: invalid recursive interface
     
-    Add a test that would have reproduced the panic, for both go/types and
-    cmd/compile/internal/types2.
+    fixedbugs/bug251.go:15:9: error: invalid recursive interface
     
-    Change-Id: Icd5f54f8407e4ab57d432f44a129ecf6b2755feb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346309
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    fixedbugs/issue23823.go:15:9: error: invalid recursive interface
+    
+    Change-Id: If4c22430557459d5b361beda7168f8cb42b58811
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278512
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/testdata/fixedbugs/issue48082.src | 7 +++++++
- src/go/types/testdata/fixedbugs/issue48082.src                    | 7 +++++++
- 2 files changed, 14 insertions(+)
+ test/fixedbugs/bug195.go     | 2 +-
+ test/fixedbugs/bug251.go     | 2 +-
+ test/fixedbugs/issue23823.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

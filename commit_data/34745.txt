@@ -1,26 +1,24 @@
-commit ad638fbfb5acf1e9ced976067961e5e62360484a
-Author: Hana Kim <hakim@google.com>
-Date:   Wed Mar 28 14:19:09 2018 -0400
+commit f7df55d174b886f8aea0243aa40e8debffbdffc0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Nov 13 14:25:19 2017 -0800
 
-    internal/trace: fix double counting in span analysis
+    database/sql: do not leak the connectionResetter goroutine
     
-    When snapshotting the execution time stats of a goroutine
-    we take into account the intermediate values kepts in the GDesc's
-    gdesc field. At the end of goroutine analysis, we go through all
-    goroutines and replace the GExecutionStat with the new snapshot.
-    Here the mistake was that we replaced the GExecutionStat with
-    the value that reflects the intermediate values, but did clear
-    the intermediate values. So, when the following finalizeActiveSpans
-    runs, it trieds to add the intermediate values again (double-counting)
-    when taking a snapshot.
+    Before terminating the connectionResetter goroutine the connection
+    pool processes all of the connections on the channel to unlock the
+    driverConn instances so everthing can shutdown cleanly. However
+    the channel was never closed so the goroutine hangs on the range.
+    Close the channel prior to ranging over it. Also prevent additional
+    connections from being sent to the resetter after the connection
+    pool has been closed.
     
-    Fix the issue by using the finalized GExecutionStat instead of
-    recomputing the snapshot. While we are here, refactor the finalization
-    logic so it can be used when processing GoEnd, GoStop events.
+    Fixes #22699
     
-    Change-Id: Ibdb342214c29b65d4ea37e52b1f8b83f1fb20143
-    Reviewed-on: https://go-review.googlesource.com/103157
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Change-Id: I440d2b13cbedec2e04621557f5bd0b1526933dd7
+    Reviewed-on: https://go-review.googlesource.com/77390
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/trace/goroutines.go | 47 ++++++++++++++++++++--------------------
- 1 file changed, 24 insertions(+), 23 deletions(-)
+ src/database/sql/sql.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

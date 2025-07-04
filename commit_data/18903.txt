@@ -1,16 +1,20 @@
-commit 14664050b9dc5284f120faa3ca054eb3d04b77bb
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 19 15:41:34 2014 -0700
+commit cc4bdf0226f192432a0d7c95b02cf3ecced81c15
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Wed Mar 19 12:13:47 2014 -0700
 
-    cmd/6g: do small zeroings with straightline code.
+    strings, bytes: ReadAt should not mutate receiver
     
-    Removes most uses of the REP prefix, which has a high startup cost.
+    CL 77580046 caused a data race issue with tests that assumes ReadAt
+    does not mutate receiver. This patch partially revert CL 77580046
+    to fix it.
     
-    LGTM=iant
-    R=golang-codereviews, iant, khr
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/77920043
+    https://golang.org/cl/77900043
 
- src/cmd/6g/ggen.c | 26 ++++++++++++++++++++------
- src/cmd/8g/ggen.c | 16 +++++++++++++++-
- 2 files changed, 35 insertions(+), 7 deletions(-)
+ src/pkg/bytes/reader.go         | 1 -
+ src/pkg/bytes/reader_test.go    | 1 -
+ src/pkg/strings/reader.go       | 1 -
+ src/pkg/strings/strings_test.go | 1 -
+ 4 files changed, 4 deletions(-)

@@ -1,25 +1,22 @@
-commit 13eabea0f744e1d7c23459d3478158d7c4aa8b07
-Author: Adam Langley <agl@golang.org>
-Date:   Sat Jan 9 18:31:35 2016 -0800
+commit 11cf5da0e3166bc21dfbf37169b69fdc9e9f0652
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Nov 8 11:45:04 2015 +0100
 
-    crypto/cipher: always zero dst buffer on GCM authentication failure.
+    net/http: update bundled http2 revision
     
-    The AESNI GCM code decrypts and authenticates concurrently and so
-    overwrites the destination buffer even in the case of an authentication
-    failure.
+    Updates to git rev 042ba42f (https://golang.org/cl/16734)
     
-    This change updates the documentation to make that clear and also
-    mimics that behaviour in the generic code so that different platforms
-    act identically.
+    This moves all the code for glueing the HTTP1 and HTTP2 transports
+    together out of net/http and into x/net/http2 where others can use it,
+    and where it has tests.
     
-    Fixes #13886
-    
-    Change-Id: Idc54e51f01e27b0fc60c1745d50bb4c099d37e94
-    Reviewed-on: https://go-review.googlesource.com/18480
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I143ac8bb61eed36c87fd838b682ebb37b81b8c2c
+    Reviewed-on: https://go-review.googlesource.com/16735
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/cipher/gcm.go      | 13 ++++++++++++-
- src/crypto/cipher/gcm_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 1 deletion(-)
+ src/net/http/h2_bundle.go | 87 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/transport.go | 62 +++------------------------------
+ 2 files changed, 92 insertions(+), 57 deletions(-)

@@ -1,24 +1,24 @@
-commit 176481990f39d8bf5330386c9468d1dd60d869ba
-Author: Roland Shoemaker <rolandshoemaker@gmail.com>
-Date:   Wed Apr 29 19:48:06 2020 +0000
+commit 6ba1bf393af0d4fb71e29a0e7f0f52502cff29eb
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Nov 16 23:19:33 2019 +0000
 
-    encoding/asn1: only accept minimally encoded base 128 integers
+    net/http: rename tests for Redirect and StripPrefix
     
-    Reject base 128 encoded integers that aren't using minimal encoding,
-    specifically if the leading octet of an encoded integer is 0x80. This
-    only affects parsing of tags and OIDs, both of which expect this
-    encoding (see X.690 8.1.2.4.2 and 8.19.2).
+    Before May 2018, I mistakenly thought the _suffix naming convention¹
+    used by examples also applied to tests. Thanks to a code review comment²
+    from Ian Lance Taylor, I have since learned that is not true.
+    This trivial change fixes some collateral damage from my earlier
+    misunderstanding, resulting in improved test naming consistency.
     
-    Fixes #36881
+    ¹ https://golang.org/pkg/testing/#hdr-Examples
+    ² https://go-review.googlesource.com/c/go/+/112935/1/src/path/filepath/path_test.go#1075
     
-    Change-Id: I969cf48ac1fba7e56bac334672806a0784d3e123
-    GitHub-Last-Rev: fefc03d2022e10b318e532ef5a461bb46016cf12
-    GitHub-Pull-Request: golang/go#38281
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227320
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I555f60719629eb64bf2f096aa3dd5e00851827cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207446
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/asn1/asn1.go      |  6 ++++++
- src/encoding/asn1/asn1_test.go | 12 ++++++++++++
- 2 files changed, 18 insertions(+)
+ src/net/http/serve_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

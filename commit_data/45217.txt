@@ -1,43 +1,20 @@
-commit 6b8e3e2d060b009fe92b39f7022445d96e225325
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Apr 17 22:50:13 2021 -0400
+commit ad53103aef09c002c41ea34292cfea359857ae5b
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Tue Oct 13 05:56:48 2020 +0000
 
-    cmd/compile: reduce redundant register moves for regabi calls
+    io: add ErrBadWriteCount
     
-    Currently, if we have AX=a and BX=b, and we want to make a call
-    F(1, a, b), to move arguments into the desired registers it emits
+    Fixes #39978
     
-            MOVQ AX, CX
-            MOVL $1, AX // AX=1
-            MOVQ BX, DX
-            MOVQ CX, BX // BX=a
-            MOVQ DX, CX // CX=b
-    
-    This has a few redundant moves.
-    
-    This is because we process inputs in order. First, allocate 1 to
-    AX, which kicks out a (in AX) to CX (a free register at the
-    moment). Then, allocate a to BX, which kicks out b (in BX) to DX.
-    Finally, put b to CX.
-    
-    Notice that if we start with allocating CX=b, then BX=a, AX=1,
-    we will not have redundant moves. This CL reduces redundant moves
-    by allocating them in different order: First, for inpouts that are
-    already in place, keep them there. Then allocate free registers.
-    Then everything else.
-    
-                                 before       after
-    cmd/compile binary size     23703888    23609680
-                text size        8565899     8533291
-    
-    (with regabiargs enabled.)
-    
-    Change-Id: I69e1bdf745f2c90bb791f6d7c45b37384af1e874
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311371
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ib41459861ba9f7cf0bf1fc95b1479c358c4bdbd8
+    GitHub-Last-Rev: 19cbb1461ca04a8eb64f0c4f354d8fb81a70d4f3
+    GitHub-Pull-Request: golang/go#39989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240740
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 54 +++++++++++++++++++++++++++++---
- test/codegen/regabi_regalloc.go          | 23 ++++++++++++++
- 2 files changed, 73 insertions(+), 4 deletions(-)
+ src/io/io.go      | 11 +++++++++--
+ src/io/io_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 2 deletions(-)

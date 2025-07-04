@@ -1,15 +1,27 @@
-commit 9ceba95008f97a913e9176c6ced2b76b50db6ca5
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jun 7 12:04:44 2023 -0400
+commit 69aed4712d73c9c1b70be3e2e222eb55391e2fb0
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jun 25 11:11:07 2022 -0700
 
-    runtime: print debuglog before sighandler crash
+    cmd/compile: use better splitting condition for string binary search
     
-    Change-Id: I48e8c314258a033fa0dc5e533e2c5bd06c529a7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501977
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Currently we use a full cmpstring to do the comparison for each
+    split in the binary search for a string switch.
+    
+    Instead, split by comparing a single byte of the input string with a
+    constant. That will give us a much faster split (although it might be
+    not quite as good a split).
+    
+    Fixes #53333
+    
+    R=go1.20
+    
+    Change-Id: I28c7209342314f367071e4aa1f2beb6ec9ff7123
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414894
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/runtime/signal_unix.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/walk/switch.go | 92 +++++++++++++++++++++++++++++++--
+ test/codegen/switch.go                  | 27 ++++++++++
+ 2 files changed, 114 insertions(+), 5 deletions(-)

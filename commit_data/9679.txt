@@ -1,20 +1,16 @@
-commit 5f172fadbebf16818bedc32b0c4c73f59a7155fd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 14 10:31:51 2011 -0700
+commit 1007a11924ffd78f26b7339a5fb81e0ac82272c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 14 08:49:21 2011 -0700
 
-    test: Add test for inheriting private method from anonymous field.
+    go/printer: use panic/defer instead of goroutine
+    for handling errors
     
-    The spec says that all methods are inherited from an anonymous
-    field.  There is no exception for non-exported methods.
-    
-    This is related to issue 1536.
+    Fixes #2249.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5012043
+    https://golang.org/cl/4952071
 
- test/bugs/bug367.dir/main.go | 12 ++++++++++++
- test/bugs/bug367.dir/p.go    | 16 ++++++++++++++++
- test/bugs/bug367.go          |  7 +++++++
- test/golden.out              |  4 ++++
- 4 files changed, 39 insertions(+)
+ src/pkg/go/printer/printer.go      | 81 ++++++++++++++++++++------------------
+ src/pkg/go/printer/printer_test.go | 14 ++++++-
+ 2 files changed, 56 insertions(+), 39 deletions(-)

@@ -1,23 +1,30 @@
-commit 05819bc104c3021d20ad21aa685fb6b4db35ceb0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 14 23:14:22 2021 -0400
+commit 370682ae98d7edc3ce9772d6d1d746df93ba9e6d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Nov 2 16:34:51 2020 -0500
 
-    cmd/go/internal/modcmd: factor out a type for flags whose arguments are Go versions
+    runtime: disable preemption in startm
     
-    For #46141
-    Updates #45094
+    startm contains a critical section from when it takes ownership of a P
+    (either on function entry or call to pidleput) until it wakes the M
+    receiving the P. If preempted in this critical section, the owned P is
+    left in limbo. If preempted for a GC stop, there will be nothing to stop
+    the owned P and STW will wait forever.
     
-    Change-Id: I6553600c69273762a81795ef021c66f4e0872b6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321069
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    golang.org/cl/232298 introduced the first call to startm that is not on
+    the system stack (via a wakep call), introducing the possibility of
+    preemption. Disable preemption in startm to ensure this remains
+    non-preemptible.
+    
+    Since we're not always on the system stack anymore, we also need to be
+    careful in allocm.
+    
+    Updates #42237
+    
+    Change-Id: Icb95eef9eb262121856485316098331beea045da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267257
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/modcmd/edit.go              |  2 +-
- src/cmd/go/internal/modcmd/tidy.go              | 42 +++++++++++++++++++------
- src/cmd/go/internal/modload/init.go             | 10 +++---
- src/cmd/go/internal/modload/load.go             |  4 +--
- src/cmd/go/internal/modload/modfile.go          |  2 +-
- src/cmd/go/testdata/script/mod_tidy_version.txt | 12 ++++++-
- 6 files changed, 52 insertions(+), 20 deletions(-)
+ src/runtime/proc.go | 50 ++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 42 insertions(+), 8 deletions(-)

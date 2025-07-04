@@ -1,21 +1,27 @@
-commit 958f405371d942d988aef325b2103fa64028af45
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 10 15:54:00 2021 -0500
+commit 90b1ed1602ad8db08a5b1bde4aae5f8569b21915
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Mar 18 11:56:46 2021 -0700
 
-    go/types: when type hashing, canonicalize interfaces
+    cmd/compile: get untyped constants working in generic functions
     
-    The interface type string preserves certain non-semantic attributes of
-    the type, such as embedded interfaces. We want the hash to represent the
-    interface identity, so hash the type set representation of the interface
-    instead.
+    types2 will give us a constant with a type T, if an untyped constant is
+    used with another operand of type T (in a provably correct way). When we
+    substitute in the type args during stenciling, we now know the real type
+    of the constant. We may then need to change the BasicLit.val to be the
+    correct type (e.g. convert an int64Val constant to a floatVal constant).
+    Otherwise, later parts of the compiler will be confused.
     
-    Change-Id: I14081ac20b738c5fe11785e0846a9b4358594768
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363115
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Updated tests list.go and double.go with uses of untyped constants.
+    
+    Change-Id: I9966bbb0dea3a7de1c5a6420f8ad8af9ca84a33e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303089
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/instantiate_test.go | 33 ++++++++++++++++++++
- src/go/types/typestring.go       | 66 ++++++++++++++++++++++++++++++++--------
- 2 files changed, 87 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 26 +++++++++--
+ test/typeparam/double.go                  | 22 +++++++++
+ test/typeparam/list.go                    | 78 +++++++++++++++++++++++--------
+ 3 files changed, 101 insertions(+), 25 deletions(-)

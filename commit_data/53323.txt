@@ -1,19 +1,24 @@
-commit d5a05a0510eba98565b04e383e825bb53a5bc637
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 24 09:19:15 2023 -0400
+commit cb13022a244e6c311a3494696ddffe07cfe5edf1
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 9 12:52:18 2022 -0700
 
-    cmd/go: clear HGRCPATH in script test
+    runtime: ensure that we don't scan noscan objects
     
-    Invoking 'hg' in a nonexistant HOME can break extensions the user
-    may have installed; clear HGRCPATH in the script test to keep tests
-    working in that environment.
+    We claim to not maintain pointer bits for noscan objects. But in fact
+    we do, since whenever we switch a page from scannable to noscan, we
+    call heapBits.initSpan which zeroes the heap bits.
     
-    Change-Id: I4d21d024c6229ead38e5f24186883863511fd483
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497878
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Switch to ensure that we never scan noscan objects. This ensures that
+    we don't depend on the ptrbits for noscan objects. That fixes a bug
+    in the 1-bit bitmap CL which depended on that fact.
+    
+    Change-Id: I4e66f582605b53732f8fca310c1f6bd2892963cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422435
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/go/script_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/mgcmark.go | 18 ++++++------------
+ src/runtime/mheap.go   |  6 ++++--
+ 2 files changed, 10 insertions(+), 14 deletions(-)

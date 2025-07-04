@@ -1,37 +1,23 @@
-commit e5522c882dc63d3c2ae3b32090c96aa57b9cf805
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Dec 10 12:50:55 2020 -0500
+commit fffe6229637d1cf37c1400623bdeba57b4a787cb
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 30 14:52:15 2020 -0700
 
-    std: update golang.org/x/net to 20201209123823-ac852fbbde11
+    runtime/race: rebuild race detector .syso files
     
-    Done with:
+    Update #37355
     
-            go get -d golang.org/x/net@latest
-            go mod tidy
-            go mod vendor
-            go generate -run bundle std
-    
-    The cmd module was updated as well, but go mod tidy undoes the change
-    because the x/net module doesn't contribute any packages to cmd module.
-    cmd/internal/moddeps.TestDependencyVersionsConsistent is happy with it:
-    
-            // It's ok if there are undetected differences in modules that do not
-            // provide imported packages: we will not have to pull in any backports of
-            // fixes to those modules anyway.
-    
-    Fixes #31192.
-    Updates #42498.
-    
-    Change-Id: If303c9a7aa2ce8c2553fcb1ced7fccc9e6652ad6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277012
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I90cc121c158a9d44df01772083a7a9301598532e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231297
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/go.mod                |  2 +-
- src/go.sum                |  8 ++++----
- src/net/http/h2_bundle.go | 12 ++++++++++--
- src/vendor/modules.txt    |  2 +-
- 4 files changed, 16 insertions(+), 8 deletions(-)
+ src/runtime/race/README                  |  14 +++++++-------
+ src/runtime/race/race_darwin_amd64.syso  | Bin 448992 -> 449292 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 577864 -> 579744 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 516064 -> 518680 bytes
+ src/runtime/race/race_linux_arm64.syso   | Bin 493992 -> 497656 bytes
+ src/runtime/race/race_linux_ppc64le.syso | Bin 618664 -> 619560 bytes
+ src/runtime/race/race_netbsd_amd64.syso  | Bin 602384 -> 602664 bytes
+ src/runtime/race/race_windows_amd64.syso | Bin 457408 -> 458427 bytes
+ 8 files changed, 7 insertions(+), 7 deletions(-)

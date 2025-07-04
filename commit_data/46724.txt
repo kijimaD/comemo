@@ -1,34 +1,29 @@
-commit c2483a5c034152fcdfbb2e6dbcf48b0103d8db6a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Oct 1 16:25:32 2021 -0700
+commit 48badc5fa863ce5e7e8ac9f268f13955483070e3
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Jan 22 16:07:00 2021 -0800
 
-    cmd, runtime: eliminate runtime.no_pointers_stackmap
+    [dev.regabi] cmd/compile: fix escape analysis problem with closures
     
-    runtime.no_pointers_stackmap is an odd beast.
-    It is defined in a Go file, populated by assembly,
-    used by the GC, and its address is magic used
-    by async pre-emption to ascertain whether a
-    routine was implemented in assembly.
+    In reflect.methodWrapper, we call escape analysis without including the
+    full batch of dependent functions, including the closure functions.
+    Because of this, we haven't created locations for the params/local
+    variables of a closure when we are processing a function that
+    inlines that closure. (Whereas in the normal compilation of the
+    function, we do call with the full batch.) To deal with this, I am
+    creating locations for the params/local variables of a closure when
+    needed.
     
-    A subsequent change will force all GC data into the go.func.* linker symbol.
-    runtime.no_pointers_stackmap is GC data, so it must go there.
-    Yet it also needs to go into rodata, for the runtime address trick.
+    Without this fix, the new test closure6.go would fail.
     
-    This change eliminates it entirely.
+    Updates #43818
     
-    Replace the runtime address check with the newly introduced asm funcflag.
-    
-    Handle the assembly macro as magic, similarly to our handling of go_args_stackmap.
-    This allows the no_pointers_stackmap to be identical in all ways
-    to other gclocals stackmaps, including content-addressability.
-    
-    Change-Id: Id2f20a262cfab0719beb88e6342984ec4b196268
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353672
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I5f91cfb6f35efe2937ef88cbcc468e403e0da9ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285677
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/plist.go | 19 ++++++++++++++++++-
- src/runtime/asm.s             |  8 --------
- src/runtime/funcdata.h        |  2 +-
- src/runtime/preempt.go        | 12 +++---------
- 4 files changed, 22 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/escape/escape.go | 10 ++++++++++
+ test/closure6.go                          | 18 ++++++++++++++++++
+ 2 files changed, 28 insertions(+)

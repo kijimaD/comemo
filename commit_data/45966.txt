@@ -1,17 +1,29 @@
-commit d4c0ed26ace91cb21fc0a67f088648674052aa3d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 11 09:10:55 2021 -0700
+commit 50b16f9de590822a04ec8d6cbac476366c1bde32
+Author: Anmol Sethi <hi@nhooyr.io>
+Date:   Sat Oct 24 00:40:41 2020 +0000
 
-    doc/go1.17: linker passes -I to extld as -Wl,--dynamic-linker
+    net/http: allow upgrading non keepalive connections
     
-    For #22446
+    If one was using http.Transport with DisableKeepAlives and trying
+    to upgrade a connection against net/http's Server, the Server
+    would not allow a "Connection: Upgrade" header to be written
+    and instead override it to "Connection: Close" which would
+    break the handshake.
     
-    Change-Id: I71a30761a28e81c50b7089d5a28be99c736c2dc8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341332
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This change ensures net/http's Server does not override the
+    connection header for successful protocol switch responses.
+    
+    Fixes #36381.
+    
+    Change-Id: I882aad8539e6c87ff5f37c20e20b3a7fa1a30357
+    GitHub-Last-Rev: dc0de83201dc26236527b68bd49dffc53dd0389b
+    GitHub-Pull-Request: golang/go#36382
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213277
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.17.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/net/http/response.go   | 16 +++++++++-----
+ src/net/http/serve_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  8 ++++++-
+ 3 files changed, 71 insertions(+), 6 deletions(-)

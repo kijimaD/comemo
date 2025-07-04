@@ -1,12 +1,12 @@
-commit 026f8dfb94b1d4c85ddde081fd10956909918589
+commit a33b76081b1c66eb1c3c171853782de5dcff8456
 Author: Adam Langley <agl@golang.org>
-Date:   Sun Jan 15 10:22:15 2012 -0500
+Date:   Sun Jan 15 10:08:48 2012 -0500
 
-    exp/terminal: add to level Makefile for the (non-Linux?) systems that need it.
+    exp/ssh: patching in the last change lost that a file was deleted.
     
     R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5528102
+    https://golang.org/cl/5541060
 
- src/pkg/Makefile | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/exp/ssh/server_shell_test.go | 134 -----------------------------------
+ 1 file changed, 134 deletions(-)

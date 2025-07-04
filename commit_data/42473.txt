@@ -1,23 +1,24 @@
-commit 325540922a228dd8ab80abb200b834d043d5b925
-Author: Rebecca Stambler <rstambler@golang.org>
-Date:   Thu May 21 23:58:39 2020 -0400
+commit c57665f4e62d713e3f4c20c3e8ea075f712b1c65
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 17:10:23 2019 -0500
 
-    doc: update contribution guide to make it friendlier for x/ repos
+    cmd/go: convert TestCoveragePattern to the script framework
     
-    The current contributor documentation is tailored towards contributors
-    to golang/go, but we have a number of increasingly popular x/ repos.
-    In this CL, I tried to generalize the language to make it apply to any
-    repository.
+    This test already runs in parallel, but still convert it to the
+    script framework so we can delete the testdata/src directory and
+    remove any ambiguity about which tests can run in parallel.
     
-    Also, I fixed an old link I noticed in editors.html.
+    Updates #36320
     
-    Change-Id: Id9d8e448262ed8c3a67f49be5d554ca29df9d3c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234899
-    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
+    Change-Id: I6470979bd8bad0631dc6ead0d4eb9c83878356e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212815
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/contribute.html | 140 +++++++++++++++++++++++++++++++++++++++-------------
- doc/editors.html    |   2 +-
- 2 files changed, 108 insertions(+), 34 deletions(-)
+ src/cmd/go/go_test.go                        | 16 ------------
+ src/cmd/go/testdata/script/cover_pattern.txt | 37 ++++++++++++++++++++++++++++
+ src/cmd/go/testdata/src/sleepy1/p_test.go    | 10 --------
+ src/cmd/go/testdata/src/sleepy2/p_test.go    | 10 --------
+ src/cmd/go/testdata/src/sleepybad/p.go       |  5 ----
+ 5 files changed, 37 insertions(+), 41 deletions(-)

@@ -1,25 +1,32 @@
-commit 9f5127bfebfc8c3acec4dbb374ff5c0d4c586565
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Sep 3 09:28:17 2019 -0400
+commit 5714c91b532f3ac9b354cd8302c63aa6f9ab53e7
+Author: erifan01 <eric.fang@arm.com>
+Date:   Mon Jan 14 09:36:18 2019 +0000
 
-    doc/go1.13: remove announcements of arm64 support on NetBSD and OpenBSD
+    cmd/compile: intrinsify math/bits.Add64 for arm64
     
-    Those configurations currently lack builders, and it is not clear to
-    me what state their tests are in.
+    This CL instrinsifies Add64 with arm64 instruction sequence ADDS, ADCS
+    and ADC, and optimzes the case of carry chains.The CL also changes the
+    test code so that the intrinsic implementation can be tested.
     
-    The Go porting policy¹ requires builders for all active ports, so
-    let's not claim support until that requirement is met.
+    Benchmarks:
+    name               old time/op       new time/op       delta
+    Add-224            2.500000ns +- 0%  2.090000ns +- 4%  -16.40%  (p=0.000 n=9+10)
+    Add32-224          2.500000ns +- 0%  2.500000ns +- 0%     ~     (all equal)
+    Add64-224          2.500000ns +- 0%  1.577778ns +- 2%  -36.89%  (p=0.000 n=10+9)
+    Add64multiple-224  6.000000ns +- 0%  2.000000ns +- 0%  -66.67%  (p=0.000 n=10+10)
     
-    ¹https://golang.org/wiki/PortingPolicy#requirements-for-a-new-port
-    
-    Updates #30824
-    Updates #31656
-    Updates #34035
-    Updates #34036
-    
-    Change-Id: I6496de9d92fb8546048abf139cf10546a47e314b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192997
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I6ee91c9a85c16cc72ade5fd94868c579f16c7615
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/159017
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.13.html | 12 ------------
- 1 file changed, 12 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        |  24 ++++++
+ src/cmd/compile/internal/gc/ssa.go           |   4 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   6 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 109 ++++++++++++++-------------
+ src/cmd/compile/internal/ssa/opGen.go        |  44 +++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 108 ++++++++++++++++++++++++++
+ src/math/bits/bits_test.go                   |  25 ++++++
+ test/codegen/mathbits.go                     |  10 +++
+ 8 files changed, 277 insertions(+), 53 deletions(-)

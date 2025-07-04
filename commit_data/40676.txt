@@ -1,17 +1,21 @@
-commit 52aebe8d2150f2709c32f1dceb5d58bab90bc86f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 8 08:38:52 2019 -0500
+commit dc63b59630cbc7fe1b039757bac0d6f713dfc26d
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 26 14:09:07 2019 -0700
 
-    runtime: skip TestPingPongHog on builders
+    database/sql: add Conn.Raw to expose the driver Conn safely
     
-    This test is failing consistently in the longtest builders,
-    potentially masking regressions in other packages.
+    Exposing the underlying driver conn will allow the use of the
+    standard connection pool while still able to run special function
+    directly on the driver.
     
-    Updates #35271
+    Fixes #29835
     
-    Change-Id: Idc03171c0109b5c8d4913e0af2078c1115666897
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206098
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ib6d3b9535e730f008916805ae3bf76e4494c88f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174182
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/database/sql/sql.go      | 35 ++++++++++++++++++++++++++++++++
+ src/database/sql/sql_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+)

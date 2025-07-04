@@ -1,21 +1,33 @@
-commit e81cc9119f7906ebded91f4cdc149866ac2acc0d
-Author: erifan01 <eric.fang@arm.com>
-Date:   Tue Mar 7 08:49:11 2023 +0800
+commit 3b01a80319860c3d24a07859e4e9b1173800b786
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 2 14:54:22 2022 -0400
 
-    cmd/compile: combine similar optimization rules on arm64
+    cmd/compile: fix loopreschedchecks for regabi
     
-    This CL combines some rules with the same structure.
-    In order to avoid extremely long rules, this CL does not merge some
-    rules. In addition, this CL aligned the components of some rules for
-    better reading.
+    The loopreschedchecks pass (GOEXPERIMENT=preemptibleloops) had
+    bit-rotted in two ways because of the regabi experiment:
     
-    Change-Id: I4ba1493251ace00b10591e3c8eef4b6277a4b226
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476115
+    1. The call to goschedguarded was generating a pre-regabi StaticCall.
+       This CL updates it to construct a new-style StaticCall.
+    
+    2. The mem finder did not account for tuples or results containing a
+       mem. This caused it to construct phis that were supposed to thread
+       the mem into the added blocks, but they could instead thread a
+       tuple or results containing a mem, causing things to go wrong
+       later. This CL updates the mem finder to add an op to select out
+       the mem if it finds the last live mem in a block is a tuple or
+       results. This isn't ideal since we'll deadcode out most of these,
+       but it's the easiest thing to do and this is just an experiment.
+    
+    Tested by running the runtime tests. Ideally we'd have a real test for
+    this, but I don't think it's worth the effort for code that clearly
+    hasn't been enabled by anyone for at least a year.
+    
+    Change-Id: I8ed01207637c454b68a551d38986c947e17d520b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403475
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules | 967 +++++++++++---------------
- src/cmd/compile/internal/ssa/rewriteARM64.go  |  16 +-
- 2 files changed, 418 insertions(+), 565 deletions(-)
+ src/cmd/compile/internal/ssa/loopreschedchecks.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

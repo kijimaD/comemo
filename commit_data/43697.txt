@@ -1,29 +1,48 @@
-commit 5f0fca1475e042a6e85f81ff6db676ec18805041
-Author: Jonathan Swinney <jswinney@amazon.com>
-Date:   Mon Nov 2 16:36:10 2020 +0000
+commit 0eb694e9c217c051cd8cc18258bf593d0be7fb8d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Apr 19 13:59:16 2020 -0700
 
-    cmd/asm: rename arm64 instructions LDANDx to LDCLRx
+    reflect: disallow invoking methods on unexported embedded fields
     
-    The LDANDx instructions were misleading because they correspond to the
-    mnemonic LDCLRx as defined in the Arm Architecture Reference Manual for
-    Armv8. This changes the assembler to use the same mnemonic as the GNU
-    assembler and the manual.
+    Given:
     
-    The instruction has the form:
+        type u struct{}
+        func (u) M() {}
     
-    LDCLRx Rs, (Rb), Rt: *Rb -> Rt, Rs AND NOT(*Rb) -> *Rb
+        type t struct { u; u2 u }
     
-    Change-Id: I94ae003e99e817209bba1afe960e612bf3a0b410
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267138
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: fannie zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
+        var v = reflect.ValueOf(t{})
+    
+    Package reflect allows:
+    
+        v.Method(0)          // v.M
+        v.Field(0).Method(0) // v.u.M
+    
+    but panics from:
+    
+        v.Field(1).Method(0) // v.u2.M
+    
+    because u2 is not an exported field. However, u is not an exported
+    field either, so this is inconsistent.
+    
+    It seems like this behavior originates from #12367, where it was
+    decided to allow traversing unexported embedded fields to be able to
+    access their exported fields, since package reflect doesn't provide an
+    alternative way to access promoted fields directly.
+    
+    But extending that logic to promoted *methods* was inappropriate,
+    because package reflect's normal method handling logic already handles
+    promoted methods correctly. This CL corrects that mistake.
+    
+    Fixes #38521.
+    
+    Change-Id: If65008965f35927b4e7927cddf8614695288eb19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228902
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s      | 64 +++++++++++++-------------
- src/cmd/asm/internal/asm/testdata/arm64error.s | 48 +++++++++----------
- src/cmd/internal/obj/arm64/a.out.go            | 32 ++++++-------
- src/cmd/internal/obj/arm64/anames.go           | 32 ++++++-------
- src/cmd/internal/obj/arm64/asm7.go             | 34 +++++++-------
- 5 files changed, 105 insertions(+), 105 deletions(-)
+ doc/go1.15.html         | 12 ++++++++++++
+ src/reflect/all_test.go |  4 ++--
+ src/reflect/value.go    |  2 +-
+ 3 files changed, 15 insertions(+), 3 deletions(-)

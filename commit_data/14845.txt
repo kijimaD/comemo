@@ -1,42 +1,12 @@
-commit f82db7d9e4ccf04b19a087561ab0f521fc36e5b1
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jan 10 09:57:06 2013 +0400
+commit eee3dd1292ba1b4282b39e3288239d5259a765b4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 9 15:25:46 2013 -0800
 
-    runtime: less aggressive per-thread stack segment caching
-    Introduce global stack segment cache and limit per-thread cache size.
-    This greatly reduces StackSys memory on workloads that create lots of threads.
+    cmd/cgo: for gccgo: use intgo, don't use slice as void return type
     
-    benchmark                      old ns/op    new ns/op    delta
-    BenchmarkStackGrowth                 665          656   -1.35%
-    BenchmarkStackGrowth-2               333          328   -1.50%
-    BenchmarkStackGrowth-4               224          172  -23.21%
-    BenchmarkStackGrowth-8               124           91  -26.13%
-    BenchmarkStackGrowth-16               82           47  -41.94%
-    BenchmarkStackGrowth-32               73           40  -44.79%
-    
-    BenchmarkStackGrowthDeep           97231        94391   -2.92%
-    BenchmarkStackGrowthDeep-2         47230        58562  +23.99%
-    BenchmarkStackGrowthDeep-4         24993        49356  +97.48%
-    BenchmarkStackGrowthDeep-8         15105        30072  +99.09%
-    BenchmarkStackGrowthDeep-16        10005        15623  +56.15%
-    BenchmarkStackGrowthDeep-32        12517        13069   +4.41%
-    
-    TestStackMem#1,MB                  310          12       -96.13%
-    TestStackMem#2,MB                  296          14       -95.27%
-    TestStackMem#3,MB                  479          14       -97.08%
-    
-    TestStackMem#1,sec                 3.22         2.26     -29.81%
-    TestStackMem#2,sec                 2.43         2.15     -11.52%
-    TestStackMem#3,sec                 2.50         2.38      -4.80%
-    
-    R=sougou, no.smile.face, rsc
-    CC=golang-dev, msolomon
-    https://golang.org/cl/7029044
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7057064
 
- src/pkg/runtime/malloc.goc    | 85 ++++++++++++++++++++++++++++++++++++++++++-
- src/pkg/runtime/mgc0.c        |  6 +--
- src/pkg/runtime/proc.c        |  2 -
- src/pkg/runtime/proc_test.go  | 12 +++++-
- src/pkg/runtime/runtime.h     | 12 +++++-
- src/pkg/runtime/stack_test.go | 49 +++++++++++++++++++++++++
- 6 files changed, 154 insertions(+), 12 deletions(-)
+ src/cmd/cgo/out.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

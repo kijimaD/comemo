@@ -1,31 +1,19 @@
-commit 7f04b8416297a3810cd2eddbcce84ac569e9b96d
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Sep 24 23:40:02 2022 -0700
+commit 8f559bcb4666b2358c227aa1bd3a82f3b806d45a
+Author: Bharath Kumar Uppala <uppala.bharath@gmail.com>
+Date:   Sun Nov 21 02:15:39 2021 +0530
 
-    time: optimize appendInt and appendNanos
+    testing: mention that TB also covers the new type F
     
-    The appendInt function previously performed a double pass
-    over the formatted integer. We can avoid the second pass
-    if we knew the exact length of formatted integer,
-    allowing us to directly serialize into the output buffer.
+    Fixes #48146
     
-    Rename formatNano to appendNano to be consistent with
-    other append-like functionality.
-    
-    Performance:
-    
-            name               old time/op  new time/op  delta
-            FormatRFC3339Nano  109ns ± 1%   72ns ± 1%    -34.06%  (p=0.000 n=10+10)
-    
-    Change-Id: Id48f77eb4976fb1dcd6e27fb6a02d29cbf0c026a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444278
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I7c667a7915db81558514bc9fada6898c565eb0fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365894
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/time/export_test.go    |  1 +
- src/time/format.go         | 90 +++++++++++++++++++++++++++-------------------
- src/time/format_rfc3339.go |  2 +-
- src/time/format_test.go    | 45 +++++++++++++++++++++++
- 4 files changed, 100 insertions(+), 38 deletions(-)
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

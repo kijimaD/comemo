@@ -1,15 +1,14 @@
-commit e4a50195c389e67d6d3277b46d4179602bec8c41
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Aug 9 09:43:10 2012 +1000
+commit 0bc952c8ccc7ad58f8a44d3c3c5fe9a3b3e5e69f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 9 08:50:13 2012 +1000
 
-    exp/html: when ignoring <textarea> tag, switch tokenizer out of raw text mode
+          doc: add 'Get Started with Go' video, remove some older videos
     
-    Pass 1 additional test.
+    (I also updated the wiki's GoTalks page with all the latest videos.)
     
-    R=nigeltao
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6459060
+    https://golang.org/cl/6441113
 
- src/pkg/exp/html/parse.go                           | 2 ++
- src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ doc/docs.html | 30 +++++++-----------------------
+ 1 file changed, 7 insertions(+), 23 deletions(-)

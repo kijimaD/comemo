@@ -1,23 +1,17 @@
-commit 986582126a371ff927182ba6e61e364c1341171a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 25 11:13:23 2017 -0400
+commit c4ee0e2a8b0fa493a59fc97e162dede7849cfd44
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Aug 6 16:15:05 2017 +0200
 
-    runtime: avoid monotonic time zero on systems with low-res timers
+    internal/cpu: fix style nit in variable name
     
-    Otherwise low-res timers cause problems at call sites that expect to
-    be able to use 0 as meaning "no time set" and therefore expect that
-    nanotime never returns 0 itself. For example, sched.lastpoll == 0
-    means no last poll.
+    Consistent with similar change of style in the crypto repository:
+    http://golang.org/cl/43511
     
-    Fixes #22394.
-    
-    Change-Id: Iea28acfddfff6f46bc90f041ec173e0fea591285
-    Reviewed-on: https://go-review.googlesource.com/73410
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ib158c52a2649dcbbe9eb92f2bdb9d289e0dcc7bf
+    Reviewed-on: https://go-review.googlesource.com/53474
+    Reviewed-by: Han-Wen Nienhuys <hanwen@google.com>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go | 3 +++
- src/runtime/time.go | 8 +++++++-
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/internal/cpu/cpu_x86.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

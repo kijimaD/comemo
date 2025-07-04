@@ -1,19 +1,28 @@
-commit ece6ac4d4d4aea14d51907979e76dfb32c4b174b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 4 20:06:18 2022 +0000
+commit cb14e673ec62f09f1216c3d40b03a460785a931e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 26 10:54:57 2021 -0400
 
-    runtime/metrics: add gomaxprocs metric
+    [dev.typeparams] runtime: don't keep stack uintptr across potential stack move
     
-    For #47216.
+    Currently, deferproc stores the caller SP as a uintptr in a local
+    variable across a call to newdefer, but newdefer could grow the stack
+    and invalidate this saved SP, causing deferproc to store a stale SP in
+    the defer record. This would lead to us later failing to match that
+    defer to its calling frame, and we wouldn't run the defer at the right
+    time (or possibly at all).
     
-    Change-Id: Ib2d48c4583570a2dae9510a52d4c6ffc20161b31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404305
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    It turns out this isn't crashing horribly right now only because the
+    compiler happens to only materialize the result of getcallersp when
+    this variable is used, *after* the call to newdefer. But this is
+    clearly on thin ice, so this CL moves the getcallersp() to the place
+    where we actually need the result.
+    
+    Change-Id: Iae8ab226e03e4482f16acfb965885f0bd83a13b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337649
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/metrics.go             | 6 ++++++
- src/runtime/metrics/description.go | 5 +++++
- src/runtime/metrics/doc.go         | 5 +++++
- src/runtime/metrics_test.go        | 4 ++++
- 4 files changed, 20 insertions(+)
+ src/runtime/panic.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

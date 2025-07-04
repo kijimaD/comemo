@@ -1,15 +1,12 @@
-commit 51266761fdbe1b22fc354d7536123492a51769cf
+commit 92dfbd3611bde7432ea7a58f17e248b8fa7224e0
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 16 14:22:37 2013 -0400
+Date:   Mon Sep 16 14:21:54 2013 -0400
 
-    cmd/gc: fix divide by zero error in compiler
+    cmd/cgo: fix build (missing file from earlier CL)
     
-    Fixes #6399.
-    
-    R=ken2
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/13253055
+    https://golang.org/cl/13700045
 
- src/cmd/gc/walk.c           |  2 +-
- test/fixedbugs/issue6399.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ misc/cgo/test/issue6390.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

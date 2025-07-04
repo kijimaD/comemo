@@ -1,34 +1,19 @@
-commit 650160e36a2f8d205c1a9ecfcf8f5611c1af3de3
+commit 5501a097a9ec5d082dad447c92d0eac298dede4d
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 24 14:59:44 2012 -0400
+Date:   Mon Sep 24 14:58:57 2012 -0400
 
-    cmd/gc: prepare for 64-bit ints
+    cmd/cgo: prepare for 64-bit ints
     
-    This CL makes the compiler understand that the type of
-    the len or cap of a map, slice, or string is 'int', not 'int32'.
-    It does not change the meaning of int, but it should make
-    the eventual change of the meaning of int in 6g a bit smoother.
+    This CL makes the size of an int controlled by a variable
+    in cgo instead of hard-coding 4 (or 32 bits) in various places.
     
     Update #2188.
     
-    R=ken, dave, remyoudompheng
+    R=iant, r, dave
     CC=golang-dev
-    https://golang.org/cl/6542059
+    https://golang.org/cl/6548061
 
- src/cmd/5g/galign.c   |  1 +
- src/cmd/6g/cgen.c     | 32 ++++++++++++++++----------------
- src/cmd/6g/galign.c   |  1 +
- src/cmd/6g/gg.h       |  2 +-
- src/cmd/6g/gobj.c     | 16 ++++++++--------
- src/cmd/6g/gsubr.c    | 22 +++++++++++-----------
- src/cmd/6g/reg.c      |  5 +++--
- src/cmd/8g/galign.c   |  1 +
- src/cmd/gc/align.c    |  8 ++++----
- src/cmd/gc/gen.c      |  6 +++---
- src/cmd/gc/go.h       |  1 +
- src/cmd/gc/obj.c      |  4 ++--
- src/cmd/gc/reflect.c  | 30 +++++++++++++++---------------
- src/cmd/gc/runtime.go |  6 ++----
- src/cmd/gc/sinit.c    | 14 +++++++-------
- src/cmd/gc/walk.c     | 10 +++++-----
- 16 files changed, 81 insertions(+), 78 deletions(-)
+ src/cmd/cgo/gcc.go  |  6 ++++--
+ src/cmd/cgo/main.go | 14 +++++++++++++-
+ src/cmd/cgo/out.go  | 29 +++++++++++++++++++++--------
+ 3 files changed, 38 insertions(+), 11 deletions(-)

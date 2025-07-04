@@ -1,19 +1,27 @@
-commit b065c95551fdd89075c81b3f407a9c2d5cf326e3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 14:12:34 2017 -0700
+commit 695f12c21a217e0116a80c2c1a518d382cfea22e
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Feb 3 08:40:18 2017 -0500
 
-    cmd/compile: convert more dxxx functions to work with LSyms
+    cmd/compile: rules change to use ANDN more effectively on ppc64x
     
-    This batch from reflect.go.
-    Changes made manually, since they are simple,
-    few, and typechecked by the compiler.
+    Currently there are cases where an XOR with -1 followed by an AND
+    is generanted when it could be done with just an ANDN instruction.
     
-    Passes toolstash-check.
+    Changes to PPC64.rules and required files allows this change
+    in generated code.  Examples of this occur in sha3 among others.
     
-    Change-Id: I0030daab2dac8e7c95158678c0f7141fd90441f9
-    Reviewed-on: https://go-review.googlesource.com/41399
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes: #18918
+    
+    Change-Id: I647cb9b4a4aaeebb27db85f8bf75487d78f720c9
+    Reviewed-on: https://go-review.googlesource.com/36218
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/gc/reflect.go | 26 +++++++++++---------------
- 1 file changed, 11 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/ppc64/prog.go       |  1 +
+ src/cmd/compile/internal/ppc64/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 10 ++++-----
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go        | 15 +++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 32 ++++++++++++++--------------
+ 6 files changed, 39 insertions(+), 22 deletions(-)

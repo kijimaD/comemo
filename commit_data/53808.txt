@@ -1,46 +1,17 @@
-commit 5f8a2fdf096037dbb34a1b14a2f0e77e40f5042b
-Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
-Date:   Fri May 26 13:26:51 2023 +0800
+commit e4061120115d1bcdbe17f863e6559ed7b412a73d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 2 10:10:54 2022 -0400
 
-    cmd/compile: intrinsify Add64 on mips64
+    runtime: document implicit fields at the end of _func
     
-    This CL intrinsify Add64 on mips64.
+    Currently these are only implicitly documented by the code that
+    generates and consumes them. Add explicit documentation.
     
-    pkg: math/bits
-                      _   sec/op    _   sec/op     vs base               _
-    Add64-4             2.783n _ 0%   1.950n _ 0%  -29.93% (p=0.000 n=8)
-    Add64multiple-4     5.713n _ 0%   3.063n _ 0%  -46.38% (p=0.000 n=8)
-    
-    pkg: crypto/elliptic
-                                         _    sec/op    _   sec/op     vs base               _
-    ScalarBaseMult/P256-4                   353.7_ _ 0%   282.7_ _ 0%  -20.09% (p=0.000 n=8)
-    ScalarBaseMult/P224-4                   330.5_ _ 0%   250.0_ _ 0%  -24.37% (p=0.000 n=8)
-    ScalarBaseMult/P384-4                  1228.8_ _ 0%   791.5_ _ 0%  -35.59% (p=0.000 n=8)
-    ScalarBaseMult/P521-4                  15.412m _ 0%   2.438m _ 0%  -84.18% (p=0.000 n=8)
-    ScalarMult/P256-4                      1189.4_ _ 0%   904.2_ _ 0%  -23.98% (p=0.000 n=8)
-    ScalarMult/P224-4                      1138.8_ _ 0%   813.8_ _ 0%  -28.54% (p=0.000 n=8)
-    ScalarMult/P384-4                       4.419m _ 0%   2.692m _ 0%  -39.08% (p=0.000 n=8)
-    ScalarMult/P521-4                      59.768m _ 0%   8.773m _ 0%  -85.32% (p=0.000 n=8)
-    MarshalUnmarshal/P256/Uncompressed-4    8.697_ _ 1%   7.923_ _ 1%   -8.91% (p=0.000 n=8)
-    MarshalUnmarshal/P256/Compressed-4     104.75_ _ 0%   66.29_ _ 0%  -36.72% (p=0.000 n=8)
-    MarshalUnmarshal/P224/Uncompressed-4    8.728_ _ 1%   7.823_ _ 1%  -10.37% (p=0.000 n=8)
-    MarshalUnmarshal/P224/Compressed-4     1035.7_ _ 0%   676.5_ _ 2%  -34.69% (p=0.000 n=8)
-    MarshalUnmarshal/P384/Uncompressed-4    15.32_ _ 1%   11.81_ _ 1%  -22.90% (p=0.000 n=8)
-    MarshalUnmarshal/P384/Compressed-4      399.8_ _ 0%   217.4_ _ 0%  -45.62% (p=0.000 n=8)
-    MarshalUnmarshal/P521/Uncompressed-4    96.79_ _ 0%   20.32_ _ 0%  -79.01% (p=0.000 n=8)
-    MarshalUnmarshal/P521/Compressed-4     6640.4_ _ 0%   790.8_ _ 0%  -88.09% (p=0.000 n=8)
-    
-    Change-Id: I8a0960b9665720c1d3e57dce36386e74db37fefa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498496
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I25a1294f04dc11785242643bec83370c66ff7a20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427954
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/ssa/_gen/MIPS64.rules |  8 ++++
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 60 ++++++++++++++++++++++++++
- src/cmd/compile/internal/ssagen/ssa.go         |  2 +-
- test/codegen/mathbits.go                       |  7 +++
- 4 files changed, 76 insertions(+), 1 deletion(-)
+ src/runtime/runtime2.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

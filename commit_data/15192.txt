@@ -1,22 +1,12 @@
-commit eda9590aae3ef617a765bb5d925b8e25ca205f7f
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Feb 10 19:40:33 2013 -0500
+commit fece09e58a094fb917703c147ebc9cd4f87924d0
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Feb 11 10:15:56 2013 +1100
 
-    doc: update contribute.html
+    cmd/8l/asm.c: Unused function arguments, suppress warnings.
     
-    Fixes #4582.
-    
-    * mentioned hg upload.
-    * added section on hg file.
-    * added small mention about being inside $GOROOT.
-    * added hg revert @NNNN
-    * reorganise the hg submit section for the common case of a non committer.
-    * made the Copyright section h2
-    * added note about leaving copyright years unchanged.
-    
-    R=golang-dev, metanata4, shivakumar.gn, minux.ma, adg, shanemhansen
-    CC=golang-dev, metanata4
-    https://golang.org/cl/7278047
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/7304069
 
- doc/contribute.html | 140 +++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 111 insertions(+), 29 deletions(-)
+ src/cmd/8l/asm.c | 3 +++
+ 1 file changed, 3 insertions(+)

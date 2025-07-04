@@ -1,21 +1,17 @@
-commit 4aaa550ff5916ed9fbdf7a90d85237169402cad5
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Fri Feb 2 19:20:06 2024 +0000
+commit 34e701ece2138ebb8276c2d413a6ea1ee1ed84a4
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Feb 21 11:46:39 2023 -0800
 
-    cmd: vendor version error message changes from x/mod
+    path/filepath: document that Clean does not change Windows volume names
     
-    For golang/go#61888
+    Fixes #58348
     
-    Change-Id: I254fe559f25ac643e842a935954d18744ae87b0b
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560855
+    Change-Id: I4aac0285f11618a45aca6b13c2da2a10a803a9b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469955
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/go.mod                                  |  2 +-
- src/cmd/go.sum                                  |  4 +--
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go |  7 ++--
- src/cmd/vendor/golang.org/x/mod/sumdb/client.go | 47 +------------------------
- src/cmd/vendor/modules.txt                      |  2 +-
- 5 files changed, 9 insertions(+), 53 deletions(-)
+ src/path/filepath/path.go | 4 ++++
+ 1 file changed, 4 insertions(+)

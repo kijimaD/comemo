@@ -1,24 +1,18 @@
-commit 15b2f69aa9fe309afd86e8ae7bc4b4e3bf8d4bbc
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Mar 25 08:41:34 2024 -0700
+commit 3202dafd4a4e9fb994fc2259f396cfeeb25c28ba
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Apr 5 09:28:49 2023 +0200
 
-    net/http: also log TLS errors which look like HTTP sent to an HTTPS port
+    runtime: remove unused dynamically imported Sleep
     
-    We log TLS handshake errors in general, but currently do not log errors
-    when the first TLS record looks like an attempt to send HTTP to an HTTPS
-    port. There doesn't seem to be any principled reason to log the one and
-    not the other, so just log all TLS handshake errors.
+    Sleep is not used, it can be removed.
     
-    Fixes #66501
-    
-    Change-Id: I5d78a754d054c220be935513448515721fa387a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573979
+    Change-Id: I237c966eb9b4e91127091d78f0b86725139c77a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482435
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/net/http/server.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/runtime/os_windows.go | 2 --
+ 1 file changed, 2 deletions(-)

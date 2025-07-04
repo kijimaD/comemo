@@ -1,16 +1,17 @@
-commit 928fe05a4fc0f0e92d81f7b0f320014dad69105d
+commit 6ab582a80d329e69fb5c2e61eb72512131e17b4a
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 31 23:41:27 2015 -0400
+Date:   Tue Jul 14 01:14:08 2015 -0400
 
-    reflect: record unsafe.Pointer, not uintptr, during DeepEqual
+    cmd/go: go test -race -i runtime/race must not install race-enabled cmd/cgo
     
-    This is more correct with respect to garbage collection.
-    I don't know of any specific failures it could cause today.
+    Fix now uses same test as 'go build'.
     
-    Change-Id: I7eed6a06d2f281051199e79e4a9913aa8360ded7
-    Reviewed-on: https://go-review.googlesource.com/14137
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #10500.
+    
+    Change-Id: I2fcf2d95430643370aa29165d89a188988dee446
+    Reviewed-on: https://go-review.googlesource.com/12174
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/reflect/deepequal.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/go/go_test.go | 17 +++++++++++++++++
+ src/cmd/go/test.go    |  2 +-
+ 2 files changed, 18 insertions(+), 1 deletion(-)

@@ -1,30 +1,25 @@
-commit 3848488f0f9ea597e9fc69cfd8e942ea7cf35311
-Author: Colin Arnott <colin@urandom.co.uk>
-Date:   Sun Jul 18 08:12:23 2021 +0000
+commit 9f3aa113a9adfceb5ab13dc9abd0921f8d118e15
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Oct 6 17:54:50 2020 -0400
 
-    cmd/go/internal/test: add an all sentinel to -vet
+    [dev.fuzz] testing: read corpus from testdata/corpus for each target
     
-    The vet flag either accepts a list of vets to run, or a distinguished
-    value, off, to disable vet during test. By default only 100% reliable
-    checks are run, thus there is no way to run all vets. This change adds
-    another distinguished value, all, that runs every vet, by passing no
-    flags.
+    This change also includes a small cleanup of the run()
+    function and additional tests for error conditions
+    in fuzz targets.
     
-    During development it was discovered that parsing of the -vet flag value
-    is problematic, in that it accepts deprecated flags like -all. The root
-    cause is detailed in #47309, but for now passing distinguished values
-    (all, off) and anything else returns an error.
-    
-    Fixes #45963
-    
-    Change-Id: I39fafb7d717dad51b507d560b3f6e604510a2881
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334873
-    Trust: Than McIntosh <thanm@google.com>
+    Change-Id: I2b7722b25a0d071182a84f1dc4b92e82a7ea34d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256978
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/alldocs.go                   |  3 +-
- src/cmd/go/internal/test/test.go        |  3 +-
- src/cmd/go/internal/test/testflag.go    | 60 ++++++++++++++++++++-------------
- src/cmd/go/testdata/script/test_vet.txt | 23 ++++++++++++-
- 4 files changed, 63 insertions(+), 26 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt        | 77 +++++++++++++++++++++++--
+ src/cmd/go/testdata/script/test_fuzz_chatty.txt | 21 +++++--
+ src/internal/fuzz/fuzz.go                       | 35 +++++++++--
+ src/testing/fuzz.go                             | 47 +++++++++++----
+ src/testing/internal/testdeps/deps.go           |  4 ++
+ src/testing/testing.go                          |  4 +-
+ 6 files changed, 161 insertions(+), 27 deletions(-)

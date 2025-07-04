@@ -1,12 +1,26 @@
-commit 48b42d29dc1fb8b4f71b1352c7237ca304a5473a
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Dec 13 19:29:34 2016 +0100
+commit 809a1de1ac1ccc76f7a4faf630017626f2f68231
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 10 16:26:51 2016 -0700
 
-    test/bench/go1: reduce fasta data size for mips{,64}
+    crypto/x509: parse all names in an RDN.
     
-    Change-Id: I15887ee454acfdb36334dd9f0b59cc520b2b0286
-    Reviewed-on: https://go-review.googlesource.com/34311
+    The Subject and Issuer names in a certificate look like they should be a
+    list of key-value pairs. However, they're actually a list of lists of
+    key-value pairs. Previously we only looked at the first element of each
+    sublist and the vast majority of certificates only have one element per
+    sublist.
+    
+    However, it's possible to have multiple elements and some 360
+    certificates from the “Pilot” log are so constructed.
+    
+    This change causes all elements of the sublists to be processed.
+    
+    Fixes #16836.
+    
+    Change-Id: Ie0a5159135b08226ec517fcf251aa17aada37857
+    Reviewed-on: https://go-review.googlesource.com/30810
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/bench/go1/fasta_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/x509/pkix/pkix.go | 56 +++++++++++++++++++++++---------------------
+ src/crypto/x509/x509_test.go | 52 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+), 27 deletions(-)

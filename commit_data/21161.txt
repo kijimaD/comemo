@@ -1,22 +1,32 @@
-commit bcadab9349f8e4a6fb38b26c6afea6ab150c5ee8
+commit ad8179281d314663f94358589a8c39ecf644007b
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 29 10:05:57 2014 -0500
+Date:   Fri Nov 21 10:22:18 2014 -0500
 
-    cmd/gc, runtime: rename writebarrierfat to typedmemmove
+    [dev.cc] runtime: convert nacl support to Go
     
-    Preparation for replacing many memmove calls in runtime
-    with typedmemmove, which is a clearer description of what
-    the routine is doing.
-    
-    For the same reason, rename writebarriercopy to typedslicecopy.
-    
-    Change-Id: I6f23bef2c2215509fefba175b16908f76dc7538c
-    Reviewed-on: https://go-review.googlesource.com/2276
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    LGTM=dave
+    R=minux, dave
+    CC=golang-codereviews
+    https://golang.org/cl/181030043
 
- src/cmd/gc/builtin.c  |  4 ++--
- src/cmd/gc/runtime.go |  4 ++--
- src/cmd/gc/walk.c     |  6 +++---
- src/runtime/mgc0.go   | 10 +++++-----
- src/runtime/slice.go  |  2 +-
- 5 files changed, 13 insertions(+), 13 deletions(-)
+ src/runtime/arch1_amd64p32.go                 |  15 ++
+ src/runtime/arch_amd64p32.h                   |  17 --
+ src/runtime/lfstack_32bit.go                  |   2 +-
+ src/runtime/mem_bsd.go                        |   4 +-
+ src/runtime/mem_nacl.c                        | 120 ----------
+ src/runtime/os1_nacl.go                       | 197 ++++++++++++++++
+ src/runtime/os2_nacl.go                       | 154 +++++++++++++
+ src/runtime/os_nacl.c                         | 312 --------------------------
+ src/runtime/os_nacl.go                        |  21 +-
+ src/runtime/os_nacl.h                         | 162 -------------
+ src/runtime/{os_nacl_arm.c => os_nacl_arm.go} |  19 +-
+ src/runtime/signal_nacl.go                    |  45 ++++
+ src/runtime/signal_nacl_386.go                |  34 +++
+ src/runtime/signal_nacl_386.h                 |  23 --
+ src/runtime/signal_nacl_amd64p32.go           |  44 ++++
+ src/runtime/signal_nacl_amd64p32.h            |  31 ---
+ src/runtime/signal_nacl_arm.go                |  47 ++++
+ src/runtime/signal_nacl_arm.h                 |  28 ---
+ src/runtime/signals_nacl.h                    |  53 -----
+ src/runtime/stubs2.go                         |   1 +
+ 20 files changed, 562 insertions(+), 767 deletions(-)

@@ -1,20 +1,15 @@
-commit bb418a59f83f8dd19914522c58c1ba442dee522f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 3 17:50:37 2015 -0700
+commit 4b6337813dca10f9f1822083f3a03e2a7b8ed9e1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 5 17:33:19 2015 +1100
 
-    cmd/internal/gc: use approx. float formatting in error messages
+    cmd/internal/gc: remove Node.Builtin
     
-    For very out-of-range floating-point constants (1e100000000),
-    precise formatting of the offending value for error messages
-    is not needed and potentially extremely slow.
+    Node.Builtin was occasionally set to 1, but never read.
     
-    This change resurrects an adjusted variant of the original code
-    which uses float64 formatting in the common case (in-range values),
-    and a fast manual approximation for out-of-range values.
-    
-    Change-Id: I2f6e53040929b8bf924dac4bb27c4d811ede48e2
-    Reviewed-on: https://go-review.googlesource.com/8470
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ia8a76bccc79b0f211296d50bd419860b13077ba5
+    Reviewed-on: https://go-review.googlesource.com/6808
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/gc/mparith3.go | 46 ++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 43 insertions(+), 3 deletions(-)
+ src/cmd/internal/gc/lex.go    | 2 --
+ src/cmd/internal/gc/syntax.go | 1 -
+ 2 files changed, 3 deletions(-)

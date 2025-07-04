@@ -1,69 +1,14 @@
-commit d0799a5fe27b779978fc2031fce82904d1242443
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Nov 22 16:01:48 2024 -0500
+commit 3839447ac39b1c49cb14833f0832e5f934e5bf6b
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Oct 20 09:41:39 2023 -0400
 
-    all: update vendored dependencies [generated]
+    doc: add missing space in godebug.md
     
-    The Go 1.24 code freeze has recently started. This is a time to update
-    all golang.org/x/... module versions that contribute packages to the
-    std and cmd modules in the standard library to latest master versions.
-    
-    For #36905.
-    
-    [git-generate]
-    go install golang.org/x/build/cmd/updatestd@latest
-    go install golang.org/x/tools/cmd/bundle@latest
-    updatestd -goroot=$(pwd) -branch=master
-    
-    Change-Id: I1b2e3b63ccc1137256d80c882b99ed26a66cbf6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631336
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I941b6397e2f09a4abb30c0caf91cc2ff2212a445
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/cmd/go.mod                                     |  12 +-
- src/cmd/go.sum                                     |  24 +-
- .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |   9 +
- .../golang.org/x/sys/unix/zerrors_linux_386.go     |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_arm.go     |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |   7 +
- .../golang.org/x/sys/unix/zerrors_linux_loong64.go |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_mips.go    |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |   6 +
- .../x/sys/unix/zerrors_linux_mips64le.go           |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |   6 +
- .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |   6 +
- .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |  20 +-
- .../golang.org/x/sys/windows/syscall_windows.go    |   2 +
- .../golang.org/x/sys/windows/types_windows.go      |   1 +
- .../golang.org/x/sys/windows/zsyscall_windows.go   |  28 +-
- src/cmd/vendor/golang.org/x/telemetry/README.md    |   8 +-
- .../x/telemetry/internal/config/config.go          |   2 +-
- .../x/telemetry/internal/counter/counter.go        |   2 +-
- .../x/telemetry/internal/counter/file.go           |   2 +-
- .../x/telemetry/internal/telemetry/dateonly.go     |   9 +
- .../x/telemetry/internal/telemetry/dir.go          |   6 +-
- .../x/telemetry/internal/telemetry/types.go        |   2 +-
- .../golang.org/x/telemetry/internal/upload/date.go |   3 +-
- .../x/telemetry/internal/upload/reports.go         |   2 +-
- .../x/telemetry/internal/upload/upload.go          |   8 +-
- src/cmd/vendor/golang.org/x/telemetry/start.go     |   3 +
- .../golang.org/x/tools/go/analysis/analysis.go     |   2 +-
- .../go/analysis/internal/analysisflags/flags.go    |  28 +-
- .../x/tools/go/analysis/unitchecker/unitchecker.go |   4 +-
- .../x/tools/internal/analysisinternal/analysis.go  | 183 -------------
- .../golang.org/x/tools/internal/facts/imports.go   |  36 ++-
- .../x/tools/internal/typesinternal/zerovalue.go    | 282 +++++++++++++++++++++
- src/cmd/vendor/modules.txt                         |  16 +-
- src/go.mod                                         |   4 +-
- src/go.sum                                         |   8 +-
- src/net/http/h2_bundle.go                          | 172 +++++++++----
- src/vendor/modules.txt                             |   4 +-
- 44 files changed, 653 insertions(+), 320 deletions(-)
+ doc/godebug.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

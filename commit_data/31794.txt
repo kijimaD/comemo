@@ -1,32 +1,15 @@
-commit 200d0cc1929daa6331b552989b43d186d410d983
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 13 10:33:24 2017 -0400
+commit 604e4841d6bd0a2c207444481928053d1ad3b822
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 16 00:24:51 2017 -0700
 
-    runtime: clean up some silly allp loops
+    cmd/internal/obj/ppc64: remove stackbarrier function check
     
-    Back in the day, allp was just a pointer to an array. As a result, the
-    runtime has a few loops of the form:
+    Stack barriers were removed in CL 36620.
     
-        for i := 0; ; i++ {
-            p := allp[i]
-            if p == nil {
-                break
-            }
-            ...
-        }
-    
-    This is silly now because it requires that allp be one longer than the
-    maximum possible number of Ps, but now that allp is in Go it has a
-    length.
-    
-    Replace these with range loops.
-    
-    Change-Id: I91ef4bc7bd3c9d4fda2264f4aa1b1d0271d7f578
-    Reviewed-on: https://go-review.googlesource.com/45571
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If124d65a73a7b344a42be2a4b386a14d7a0a428b
+    Reviewed-on: https://go-review.googlesource.com/38169
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/mstats.go | 3 +--
- src/runtime/proc.go   | 3 +--
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/ppc64/obj9.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

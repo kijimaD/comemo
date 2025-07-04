@@ -1,16 +1,17 @@
-commit a66aa77c2d54c1c543ea3107ed8aeca1c1beef57
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Jan 22 22:54:18 2015 +0300
+commit fbdf59a7c4c987cab294cf889dbcc20208c28045
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Dec 23 09:05:28 2014 +0100
 
-    net/http: add client benchmark
+    test: disable bug248 and bug345 tests on Plan 9
     
-    BenchmarkClient is intended for profiling
-    the client without the HTTP server code.
-    The server code runs in a subprocess.
+    These tests were enabled as part of change 1774.
+    They depend on the errchk tool, which is a Perl
+    script. However, Perl is not available on Plan 9.
     
-    Change-Id: I9aa128604d0d4e94dc5c0372dc86f962282ed6e8
-    Reviewed-on: https://go-review.googlesource.com/3164
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I82707aae16013acc9a3800d39b0084588b852b53
+    Reviewed-on: https://go-review.googlesource.com/2031
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/http/serve_test.go | 79 +++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 78 insertions(+), 1 deletion(-)
+ test/fixedbugs/bug248.go | 2 +-
+ test/fixedbugs/bug345.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

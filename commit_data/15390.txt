@@ -1,16 +1,15 @@
-commit 4434212f1558c124e1823d3d7279ed63a71a31b8
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 22 17:16:31 2013 -0800
+commit e82286075674df84b9435445d48c5b8a4eeeeaa2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Feb 23 08:42:04 2013 +0900
 
-    cmd/vet: use types to test Error methods correctly.
-    We need go/types to discriminate the Error method from
-    the error interface and the Error method of the testing package.
-    Fixes #4753.
+    syscall: add netlink constants for linux
     
-    R=golang-dev, bradfitz, gri
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7396054
+    https://golang.org/cl/7403049
 
- src/cmd/vet/main.go  |  16 +++++--
- src/cmd/vet/print.go | 124 +++++++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 133 insertions(+), 7 deletions(-)
+ src/pkg/syscall/types_linux.go        | 166 +++++++++++++++++++---------------
+ src/pkg/syscall/ztypes_linux_386.go   | 166 +++++++++++++++++++---------------
+ src/pkg/syscall/ztypes_linux_amd64.go | 166 +++++++++++++++++++---------------
+ src/pkg/syscall/ztypes_linux_arm.go   | 166 +++++++++++++++++++---------------
+ 4 files changed, 364 insertions(+), 300 deletions(-)

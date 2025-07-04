@@ -1,17 +1,20 @@
-commit 6d63d4f3be32bfd3dbc57fe6872d315369c59c6d
-Author: Guillaume J. Charmes <guillaume@charmes.net>
-Date:   Thu May 15 15:18:05 2014 -0700
+commit 40e7f6493b95399c9e71482dba06b10ee2ead14a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 16 06:49:15 2014 +0900
 
-    archive/tar: Do not panic on Read if uninitialized
+    syscall: regenerate z-files for openbsd
     
-    Calling tar.Reader.Read() used to work fine, but without this patch it panics.
-    Simply return EOF to indicate the tar.Reader.Next() needs to be called.
+    This CL restores dropped constants not supported in OpenBSD 5.5
+    and tris to keep the promise of API compatibility.
     
-    LGTM=iant, bradfitz
-    R=golang-codereviews, bradfitz, iant, mikioh.mikioh, dominik.honnef
+    Update #7049
+    
+    LGTM=jsing, bradfitz, rsc
+    R=rsc, jsing, robert.hencke, minux.ma, bradfitz, iant
     CC=golang-codereviews
-    https://golang.org/cl/94530043
+    https://golang.org/cl/96970043
 
- src/pkg/archive/tar/reader.go      |  3 +++
- src/pkg/archive/tar/reader_test.go | 16 ++++++++++++++++
- 2 files changed, 19 insertions(+)
+ src/pkg/syscall/mkerrors.sh              | 13 +++++++++++++
+ src/pkg/syscall/zerrors_openbsd_386.go   |  9 +++++++++
+ src/pkg/syscall/zerrors_openbsd_amd64.go |  9 +++++++++
+ 3 files changed, 31 insertions(+)

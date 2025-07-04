@@ -1,20 +1,21 @@
-commit 48e75337839d21079c9763d3447ade409ee2c32a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Aug 6 09:58:47 2014 +0900
+commit f6f2f77142fcf0a4ec317bff6850ffb6ee6f0bb2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 6 01:50:37 2014 +0400
 
-    net: separate DNS transport from DNS query-response interaction
+    runtime: cache one GC workbuf in thread-local storage
+    We call scanblock for lots of small root pieces
+    e.g. for every stack frame args and locals area.
+    Every scanblock invocation calls getempty/putempty,
+    which accesses lock-free stack shared among all worker threads.
+    One-element local cache allows most scanblock calls
+    to proceed without accessing the shared stack.
     
-    Before fixing issue 6579 this CL separates DNS transport from
-    DNS message interaction to make it easier to add builtin DNS
-    resolver control logic.
-    
-    Update #6579
-    
-    LGTM=alex, kevlar
-    R=golang-codereviews, alex, gobot, iant, minux, kevlar
-    CC=golang-codereviews
-    https://golang.org/cl/101220044
+    LGTM=rsc
+    R=golang-codereviews, rlh
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/121250043
 
- src/pkg/net/dnsclient_unix.go      | 236 ++++++++++++++++++++++++-------------
- src/pkg/net/dnsclient_unix_test.go |  78 ++++++++++--
- 2 files changed, 222 insertions(+), 92 deletions(-)
+ src/pkg/runtime/malloc.h |  3 +++
+ src/pkg/runtime/mcache.c |  1 +
+ src/pkg/runtime/mgc0.c   | 25 ++++++++++++++++++++++++-
+ 3 files changed, 28 insertions(+), 1 deletion(-)

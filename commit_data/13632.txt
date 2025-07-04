@@ -1,13 +1,15 @@
-commit ace14d01bda6f8384dea8ab7307e657d80471054
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 15 11:09:34 2012 -0700
+commit b60d45f5b8c7a6c844c8f7878784b8560628cef4
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Aug 16 02:02:00 2012 +1000
 
-    text/scanner: report illegal hexadecimal numbers (bug fix)
+    runtime: disable crash handler test on netbsd
     
-    R=r
+    Disable the crash handler test on NetBSD until I can figure out why
+    it triggers failures in later tests.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6450136
+    https://golang.org/cl/6460090
 
- src/pkg/text/scanner/scanner.go      | 11 ++++++++---
- src/pkg/text/scanner/scanner_test.go |  3 +++
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ src/pkg/runtime/crash_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

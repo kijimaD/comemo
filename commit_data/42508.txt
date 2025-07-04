@@ -1,15 +1,23 @@
-commit 5adaa1290ec4a7507c0be56743c237d9bf311055
-Author: Vee Zhang <veezhang@126.com>
-Date:   Thu Jun 11 04:39:49 2020 +0000
+commit bc9194752749640c61c339140cf11d13e6262a6a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jan 7 04:25:57 2020 +1100
 
-    A+C: add Vee Zhang (individual CLA)
+    runtime: correct assembly for openbsd/arm64
     
-    Change-Id: Id52c5fef2e5b65056d3c87e70e176b67998cea90
-    GitHub-Last-Rev: b88e3afa38d96a5a51334100bb29108c5f2618f4
-    GitHub-Pull-Request: golang/go#39520
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237223
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Correct the pipe and pipe2 implementations by using the correct RSP offsets,
+    used to store and return the file descriptor array.
+    
+    Fix setNonblock by using the correct immediate value for O_NONBLOCK and
+    replace EOR (exclusive OR) with ORR.
+    
+    Also correct the write1 implementation, which has a uintptr value for the fd
+    argument.
+    
+    Change-Id: Ibca77af44b649e8bb330ca54f9c36a7a8b0f9cea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212765
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/runtime/sys_openbsd_arm64.s | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

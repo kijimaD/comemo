@@ -1,22 +1,17 @@
-commit a63ed10d448d96d2f580e229ed46c02b5cd7a1a4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jan 6 13:15:49 2020 -0800
+commit 7fc2625ef16c9e271ca3016f761157ec082cc45a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 7 16:25:05 2019 -0700
 
-    cmd/compile: don't generate commutative rules for (Op x x)
+    net/http: propagate Client.Timeout down into Request's context deadline
     
-    If the two commutative arguments are perfectly identical,
-    then swapping them will never have an effect.
+    Fixes #31657
     
-    Passes toolstash-check for the relevant architectures,
-    that is, linux-386, linux-386-387, linux-amd64, linux-s390x.
-    
-    Change-Id: I19f91644867d8d174bd01f872abe4809013872ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213698
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I85e9595d3ea30d410f1f4b787925a6879a72bdf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175857
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go  |   3 +-
- src/cmd/compile/internal/ssa/rewrite386.go   | 270 --------------------
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 270 --------------------
- src/cmd/compile/internal/ssa/rewriteS390X.go | 355 +++------------------------
- 4 files changed, 32 insertions(+), 866 deletions(-)
+ src/net/http/client.go      | 90 +++++++++++++++++++++++++++++++++++----------
+ src/net/http/client_test.go | 21 ++++++++++-
+ 2 files changed, 90 insertions(+), 21 deletions(-)

@@ -1,19 +1,21 @@
-commit 49a00631b118834010e4d0124ccc04eeaf2cd7ac
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 2 18:42:51 2021 -0400
+commit 354c77a108863a1ccae810c94453870f0678a828
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Mar 3 16:00:49 2021 -0500
 
-    go/types: report cause for failing const conversions
+    [dev.fuzz] internal/fuzz: crash if there is no error output
     
-    This is a port of CL 360795 to go/types. Error messages were adjusted
-    accordingly, with a TODO to fix the discrepancy.
+    Previously, the coordintor used the error string encoded by the worker
+    to determine whether or not a crash occurred. However, failures caused
+    by things like t.Fail() which have no output will have an empty error
+    string, so we can't rely on the error string alone to determine if
+    something is a crasher or not.
     
-    Change-Id: Ifd7d8248fa11a31fde391021f3c5f1840877892f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360937
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Idcf7f6b1210aa1dc4e8dab222642c87919595693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298351
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/types/conversions.go                | 11 +++++++++--
- src/go/types/testdata/spec/conversions.go2 | 14 ++++++++++++++
- 2 files changed, 23 insertions(+), 2 deletions(-)
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  | 43 ++++++++++++++++++++++
+ src/internal/fuzz/worker.go                        | 11 ++++--
+ 2 files changed, 51 insertions(+), 3 deletions(-)

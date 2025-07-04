@@ -1,0 +1,19 @@
+commit 3387be0eb1794307565cfabf440c5e82332d38c4
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Oct 28 14:24:10 2024 +0100
+
+    cmd: use internal/syscall/windows to get Windows version
+    
+    internal/syscall/windows already provides a function to get the Windows
+    version. There is no need to use golang.org/x/sys/windows for this.
+    
+    Change-Id: If31e9c662b10716ed6c3e9054604366e494345cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622815
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/telemetrystats/version_windows.go | 11 +++++------
+ src/cmd/internal/osinfo/os_windows.go                 |  7 +++----
+ src/internal/syscall/windows/version_windows.go       |  8 ++++----
+ 3 files changed, 12 insertions(+), 14 deletions(-)

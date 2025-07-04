@@ -1,17 +1,18 @@
-commit 43123903caa2db79057711e5c672512bce2d2b2a
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Dec 11 16:21:07 2017 -0500
+commit de2231888821add783305e7674bbb43d4d8453dc
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 11 21:46:11 2017 +0200
 
-    cmd/api: don’t rely on hardcoded go versions
+    text/template: check ignored error in a test
     
-    Instead of requiring that cmd/api/run.go be edited upon each
-    release to include the next Go version number, look in $GOROOT/api
-    for files with the prefix go1* and use those instead to perform
-    API checks.
+    Found with staticcheck. Not terribly important since the test would
+    likely fail anyway, but at least it will fail with a better explanation
+    now.
     
-    Change-Id: I5d9407f2bd368ff5e62f487cccdd245641ca9c9b
-    Reviewed-on: https://go-review.googlesource.com/83355
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic3f9a94a2152404b7873cc8cd47b6db79d78c2e6
+    Reviewed-on: https://go-review.googlesource.com/62990
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/api/run.go | 32 +++++++++++++++++++++++---------
- 1 file changed, 23 insertions(+), 9 deletions(-)
+ src/text/template/multi_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

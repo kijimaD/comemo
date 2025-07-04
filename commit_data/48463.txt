@@ -1,27 +1,21 @@
-commit b9d6cea5016835ca5521469631e55f5c489aa0e7
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Fri Mar 18 17:36:52 2022 +0800
+commit 21db1d193cc3d830e1a7d53a04271631ce1198cd
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 21 17:00:08 2021 -0400
 
-    cmd/link: set alignment of compressed section based on arch
+    [dev.typeparams] runtime: fix newproc arg size on ARM
     
-    The ELF compression header(Chdr) has Addralign field that is set to the
-    alignment of the uncompressed section which makes section able to have
-    a different alignment than the decompressed section. However `file` and
-    other tools require both Chdr.Addralign and Addralign to be equal.
+    At runtime startup it calls newproc from assembly code to start
+    the main goroutine. runtime.main has no arguments, so the arg
+    size should be 0, instead of 8.
     
-    Ref https://sourceware.org/bugzilla/show_bug.cgi?id=23919
-    Related #42136
+    While here, use clearer code sequence to open the frame.
     
-    Fixes #51769
-    
-    Change-Id: I3cf99dbd2359932576420a3c0d342c7e91b99227
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393916
-    Trust: mzh <mzh@golangcn.org>
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2bbb26a83521ea867897530b86a85b22a3c8be9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321957
+    Trust: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Fangrui Song <maskray@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_arm.s | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

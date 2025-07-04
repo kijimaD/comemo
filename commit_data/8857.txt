@@ -1,14 +1,12 @@
-commit 6c6c23207248400e88f5b98106b28ddcaf95ed8e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 27 11:03:43 2011 -0700
+commit f79bcb4b86f9a9638e7574d37732ac95db890b67
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 13:45:17 2011 -0400
 
-    http: add StripPrefix handler wrapper
+    codereview: make --ignore_hgpatch_failure work again
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4626067
+    https://golang.org/cl/4627067
 
- src/pkg/http/fs.go         | 12 ++++--------
- src/pkg/http/serve_test.go | 24 ++++++++++++++++++++++++
- src/pkg/http/server.go     | 16 ++++++++++++++++
- 3 files changed, 44 insertions(+), 8 deletions(-)
+ lib/codereview/codereview.py | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

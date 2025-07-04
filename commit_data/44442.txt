@@ -1,31 +1,27 @@
-commit 19f96e73bf655764b57424cc9e00657f364ffb89
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Jan 31 18:14:56 2021 +0100
+commit 1e9381207ef6c8b12f84d8b33414d04847d6d893
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jul 1 08:45:16 2020 -0400
 
-    syscall: introduce SysProcAttr.ParentProcess on Windows
+    [dev.link] cmd/link: better naming for Loader container/subsym methods, part 2 of 2
     
-    This allows users to specify which process should be used as the parent
-    process when creating a new process.
+    Introduce a new loader method "SetCarrierSym", to be used when
+    establishing container/containee symbol relationships for symbol
+    bucketing in the symtab phase.
     
-    Note that this doesn't just trivially pass the handle onward to
-    PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, because inherited handles must be
-    valid in the parent process, so if we're changing the destination
-    process, then we must also change the origin of the parent handles. And,
-    the StartProcess function must clean up these handles successfully when
-    exiting, regardless of where the duplication happened. So, we take care
-    in this commit to use DuplicateHandle for both duplicating and for
-    closing the inherited handles.
+    This new method is intended to be employed in situations where you
+    have a series of related symbols will be represented by a single
+    carrier symbol as a combined entity. The pattern here is that the
+    sub-symbols contain content but will be anonymous from a symbol table
+    perspective; the carrier symbol has no content itself but will appear
+    in the symbol table. Examples of carrier symbols that follow this
+    model are "runtime.itablink" and "runtime.typelink".
     
-    The test was taken originally from CL 288272 and adjusted for use here.
-    
-    Fixes #44011.
-    
-    Change-Id: Ib3b132028dcab1aded3dc0e65126c8abebfa35eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288300
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I1a3391a71062c7c740cb108b3fa210b7f69b81ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240509
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/syscall/exec_windows.go      | 17 ++++++++--
- src/syscall/exec_windows_test.go | 73 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 87 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/symtab.go     | 22 +++++++++++-------
+ src/cmd/link/internal/loader/loader.go | 41 ++++++++++++++++++++++++----------
+ 2 files changed, 43 insertions(+), 20 deletions(-)

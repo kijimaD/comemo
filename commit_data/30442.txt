@@ -1,25 +1,16 @@
-commit 3c023f75a62f903273c688432f95e77fc945b6fb
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue Feb 28 21:21:45 2017 +0100
+commit 7f033933ce8488ff3c7510ec35680510f9ccc83b
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:40 2016 +0200
 
-    strings: fix handling of invalid UTF-8 sequences in Map
+    cmd/compile/internal/gc: add support for GOARCH=mips{,le}
     
-    The new Map implementation introduced in golang.org/cl/33201
-    did not differentiate if an invalid UTF-8 sequence was decoded
-    or the RuneError rune. It would therefore always advance by
-    3 bytes (which is the length of the RuneError rune) instead
-    of 1 for an invalid sequences. This cl adds a check to correctly
-    determine the length of bytes needed to advance to the next rune.
-    
-    Fixes #19330.
-    
-    Change-Id: I1e7f9333f3ef6068ffc64015bb0a9f32b0b7111d
-    Reviewed-on: https://go-review.googlesource.com/37597
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: Ida4cd647525abce3441bfcb9fdee059344fe717f
+    Reviewed-on: https://go-review.googlesource.com/31477
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/strings/strings.go      | 12 +++++++++++-
- src/strings/strings_test.go | 13 +++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go |   2 +-
+ src/cmd/compile/internal/gc/ssa.go  | 199 +++++++++++++++++++++++++++++-------
+ src/cmd/compile/internal/gc/walk.go |   6 +-
+ 3 files changed, 164 insertions(+), 43 deletions(-)

@@ -1,16 +1,22 @@
-commit 15d9fe43d648764d41a88c75889c84df5e580930
-Author: Deleplace <deleplace@google.com>
-Date:   Mon Jun 30 16:26:43 2025 +0200
+commit 6defff500536c1210f526fcaaf3ae7f1005f0337
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Apr 30 16:21:20 2024 -0400
 
-    testing/synctest: explicitly state Run will be removed in Go 1.26
+    cmd/vet: add stdversion analyzer
     
-    Updates #74012
+    + release note, test
     
-    Change-Id: I0407d9e87e9de6e02d3de0a462bc6a32c0faba4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/684875
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Fixes #46136
+    
+    Change-Id: Ib157c5343dde379f8d6f67bdfa64b3f6a6432bab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582556
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/testing/synctest/run.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/next/3-tools.md                           | 14 ++++++++++++
+ src/cmd/go/internal/test/flagdefs.go          |  1 +
+ src/cmd/vet/main.go                           |  2 ++
+ src/cmd/vet/testdata/stdversion/go.mod        |  3 +++
+ src/cmd/vet/testdata/stdversion/stdversion.go |  5 +++++
+ src/cmd/vet/vet_test.go                       | 31 +++++++++++++++++++++++++++
+ 6 files changed, 56 insertions(+)

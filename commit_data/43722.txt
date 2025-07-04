@@ -1,22 +1,20 @@
-commit d508d86cf12a3c4ee139d31f5f5c9e5e53566ecc
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Nov 3 13:12:19 2020 -0500
+commit 79395c55e27618c1d48218274498d8390705979c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Apr 22 00:52:19 2020 +0700
 
-    cmd/go: account for flags when parsing regexps in TestScript
+    cmd/compile: remove ntz function
     
-    Test script expects the regexp argument for stdout, stderr, and cmp
-    to be the first argument after the command, but that might not be the
-    case if the -q or -count flags are provided. Treat the first argument
-    after a flag as a regexp instead.
+    Use ntzX variants instead.
     
-    For #39958
+    Passes toolstash-check -a.
     
-    Change-Id: I369926109ec10cca8b2c3baca27e7a3f7baf364b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267877
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7a627f46f75c3d339034bd3e81c190cea5409c88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229140
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/script_test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 16 +++++++-------
+ src/cmd/compile/internal/ssa/rewrite.go      |  3 +--
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 32 ++++++++++++++--------------
+ 3 files changed, 25 insertions(+), 26 deletions(-)

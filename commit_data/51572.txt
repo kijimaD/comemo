@@ -1,21 +1,26 @@
-commit 2321abc5e9e3fab42384347a95209082fa53013a
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Dec 21 09:50:48 2022 -0800
+commit 1ed30ca537a05b887f8479027b6363a03f957610
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Feb 14 12:43:27 2022 -0500
 
-    archive/tar, archive/zip: revert documentation of ErrInsecurePath
+    cmd/compile: correct type of pointer difference on RISCV64
     
-    CL 452616 disables path security checks by default, enabling them
-    only when GODEBUG=tarinsecurepath=0 or GODEBUG=zipinsecurepath=0
-    is set. Remove now-obsolete documenation of the path checks.
+    Pointer comparison is lowered to the following on RISCV64
     
-    For #55356
+    (EqPtr x y) => (SEQZ (SUB <x.Type> x y))
     
-    Change-Id: I4ae57534efe9e27368d5e67773a502dd0e56eff4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458875
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The difference of two pointers (the SUB) should not be pointer
+    type. Otherwise it can cause the GC to find a bad pointer.
+    
+    Should fix #51101.
+    
+    Change-Id: I7e73c2155c36ff403c032981a9aa9cccbfdf0f64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385655
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/archive/tar/reader.go |  9 ---------
- src/archive/zip/reader.go | 11 -----------
- 2 files changed, 20 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 +--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 10 ++++---
+ test/fixedbugs/issue51101.go                   | 36 ++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 6 deletions(-)

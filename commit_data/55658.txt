@@ -1,19 +1,22 @@
-commit 4cd743e27eef7495a71cee08a9e8ca971ffcc0a5
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Nov 23 11:43:56 2023 -0800
+commit bb8f9a6ae66d742cb67b4ad444179905a537de00
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Feb 28 13:23:43 2023 -0800
 
-    os: use atomic.Uintptr for Process.handle
+    crypto/x509: fix system root tests + darwin intermediate handling
     
-    Suggested-by: Michael Knyszek <mknyszek@google.com>
-    Change-Id: I116731b6c3738aae8ff1d3be227f8f51fa3320c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544795
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    On Windows, replace tests which rely on a root that expired last year.
+    On Darwin fix an test which wasn't testing the expected behavior, and
+    fix the behavior which was broken.
+    
+    Fixes #58791
+    
+    Change-Id: I771175b9e123b8bb0e4efdf58cc2bb93aa94fbae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472295
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
 
- src/os/exec.go         | 5 +++--
- src/os/exec_windows.go | 7 +++----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/crypto/x509/root_darwin.go    |   5 +-
+ src/crypto/x509/root_unix_test.go |   2 +-
+ src/crypto/x509/verify_test.go    | 490 ++++++++++++++++++--------------------
+ 3 files changed, 238 insertions(+), 259 deletions(-)

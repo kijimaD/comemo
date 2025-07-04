@@ -1,17 +1,13 @@
-commit 4c8baa0ad0f709b857710d34e662f168c16c533f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Sat Sep 3 18:32:51 2016 -0700
+commit 43d2a10e2647b2d6ee10a2a7629ee4055dcce740
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Apr 27 13:47:41 2016 -0400
 
-    cmd/compile: use CheckLoweredPhi on PPC64
+    runtime/internal/atomic: fix vet warnings
     
-    This custom version is identical to CheckLoweredPhi. The addition of
-    CheckLoweredPhi likely raced with adding PPC64.
-    
-    Change-Id: I294dcb758d312e93fb8842f4d1e12bf0f63a1e06
-    Reviewed-on: https://go-review.googlesource.com/28479
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib29cf7abbbdaed81e918e5e41bca4e9b8da24621
+    Reviewed-on: https://go-review.googlesource.com/22503
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go | 12 +-----------
- 1 file changed, 1 insertion(+), 11 deletions(-)
+ src/runtime/internal/atomic/asm_mips64x.s    |  2 +-
+ src/runtime/internal/atomic/atomic_mips64x.s | 12 ++++++------
+ 2 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,13 +1,13 @@
-commit 865d5767022326e097482ec211ab24b9418afda7
-Author: Jose Luis Vázquez González <josvazg@gmail.com>
-Date:   Tue Feb 1 13:58:59 2011 -0500
+commit 9557103ea6fc41d5dae125a917295288f98f257b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 1 13:31:28 2011 -0500
 
-    http: add host patterns
+    A+C: Jose Luis Vázquez González (individual CLA)
     
-    R=bradfitzgo, rsc
+    R=gri, josvazg, gri1
     CC=golang-dev
-    https://golang.org/cl/4070043
+    https://golang.org/cl/4044047
 
- src/pkg/http/serve_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/http/server.go     | 50 ++++++++++++++++++++---------------
- 2 files changed, 94 insertions(+), 21 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

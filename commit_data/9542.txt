@@ -1,13 +1,17 @@
-commit d8333d41f20218389081aca5bcae75f8d0995c6d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 29 14:25:29 2011 -0400
+commit af8b1271ebd63c1ed9bae0e7e803c0d8a2c3e38d
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Mon Aug 29 11:01:03 2011 -0700
 
-    A+C: Mateusz Czapliński (individual CLA)
+    archive/tar: when writing tar Headers write hdr.Linkname
     
-    R=golang-dev, gri
-    CC=golang-dev
-    https://golang.org/cl/4967043
+    This should allow symlinks in tar files. Where previously
+    as far as I can see they were skipped completely.
+    
+    R=golang-dev, dsymonds, rsc, bradfitz, bradfitz
+    CC=golang-dev, mike.rosset
+    https://golang.org/cl/4973044
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/archive/tar/testdata/writer.tar | Bin 3072 -> 3584 bytes
+ src/pkg/archive/tar/writer.go           |   2 +-
+ src/pkg/archive/tar/writer_test.go      |  19 +++++++++++++++++++
+ 3 files changed, 20 insertions(+), 1 deletion(-)

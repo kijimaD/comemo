@@ -1,19 +1,22 @@
-commit 7f574998534548220ae31597a5a942db2ed548c6
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Aug 28 00:13:34 2023 +1000
+commit 4a459cbbad7b9528e5f569157b157800866a4fb8
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 10 13:39:30 2022 -0400
 
-    cmd/internal/obj/riscv: clean up error checking for encoding
+    cmd/compile: tweak inliners handling of coverage counter updates
     
-    Replace a "fixme" with a more appropriate error. Also invert the condition
-    so that the error returns early, which is more Go idiomatic.
+    This patch fixes up a bug in the inliner's special case code for
+    coverage counter updates, which was not properly working for
+    -covermode=atomic compilations.
     
-    Change-Id: I03006572c4010fb47037bed3ee1fd7f92bfc20d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523457
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #56044.
+    
+    Change-Id: I9e309312b123121c3df02862623bdbab1f6c6a4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441858
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
 
- src/cmd/internal/obj/riscv/obj.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/inline/inl.go    | 61 ++++++++++++++++++++++++++-----
+ src/cmd/compile/internal/test/inl_test.go | 55 ++++++++++++++++++++++++++++
+ src/runtime/coverage/emitdata_test.go     |  7 ++++
+ 3 files changed, 114 insertions(+), 9 deletions(-)

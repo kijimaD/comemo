@@ -1,25 +1,26 @@
-commit 9ef65dbe0683634a2e8a557d12267d0309ae1570
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Feb 9 15:18:47 2017 +1100
+commit 5594074dcd09d0bb8c35998e20cddf728893ff00
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 09:22:43 2016 -0400
 
-    image/gif: fix frame-inside-image bounds checking.
+    runtime: use clock_gettime(CLOCK_REALTIME) for nanosecond-precision time.now on arm64, mips64x
     
-    The semantics of the Go image.Rectangle type is that the In and
-    Intersects methods treat empty rectangles specially. There are multiple
-    valid representations of an empty image.Rectangle. One of them is the
-    zero image.Rectangle but there are others. They're obviously not all
-    equal in the == sense, so we shouldn't use != to check GIF's semantics.
+    Assembly copied from the clock_gettime(CLOCK_MONOTONIC)
+    call in runtime.nanotime in these files and then modified to use
+    CLOCK_REALTIME.
     
-    This change will allow us to re-roll
-    a855da29dbd7a80c4d87a421c1f88a8603c020fa "image: fix the overlap check
-    in Rectangle.Intersect" which was rolled back in
-    14347ee480968c712ea885a4ea62779fd8a0dc44.
+    Also comment system call numbers in a few other files.
     
-    Change-Id: Ie1a0d092510a7bb6170e61adbf334b21361ff9e6
-    Reviewed-on: https://go-review.googlesource.com/36639
-    Run-TryBot: Nigel Tao <nigeltao@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #11222.
+    
+    Change-Id: Ie132086de7386f865908183aac2713f90fc73e0d
+    Reviewed-on: https://go-review.googlesource.com/32177
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/image/gif/reader.go | 27 +++++++++++++++++++++------
- 1 file changed, 21 insertions(+), 6 deletions(-)
+ src/runtime/sys_darwin_386.s      |  2 +-
+ src/runtime/sys_darwin_amd64.s    |  2 +-
+ src/runtime/sys_dragonfly_amd64.s |  2 +-
+ src/runtime/sys_freebsd_386.s     |  2 +-
+ src/runtime/sys_freebsd_amd64.s   |  2 +-
+ src/runtime/sys_linux_arm64.s     | 10 ++++------
+ src/runtime/sys_linux_mips64x.s   | 11 ++++-------
+ 7 files changed, 13 insertions(+), 18 deletions(-)

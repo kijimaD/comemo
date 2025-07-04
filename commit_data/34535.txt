@@ -1,16 +1,19 @@
-commit da022da900e3c52750894458067136ec799d5c12
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 11 16:50:09 2018 -0500
+commit 51daa25c6c3441dc9e5a10f65896f553e3f7a862
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 31 09:59:29 2017 -0400
 
-    cmd/compile: simplify OpSlicemask optimization
+    cmd/dist: avoid darwin_amd64 assumption in debug prints
     
-    The previous CL introduced isConstDelta. Use it to simplify the
-    OpSlicemask optimization in the prove pass. This passes toolstash
-    -cmp.
+    Noted in CL 73212 review by crawshaw.
+    Neglected to update CL 73212 before submitting.
     
-    Change-Id: If2aa762db4cdc0cd1c581a536340530a9831081b
-    Reviewed-on: https://go-review.googlesource.com/87481
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Also fix printing of target goos/goarch for cross-compile build.
+    
+    Change-Id: If702f23071a4456810f1de6abb9115b38933c5c1
+    Reviewed-on: https://go-review.googlesource.com/74631
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 17 +++--------------
- 1 file changed, 3 insertions(+), 14 deletions(-)
+ src/cmd/dist/build.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,13 +1,13 @@
-commit d0591d5ebdd5137154cf797bcad22918f6ccd356
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Feb 7 17:05:16 2014 +0100
+commit a747adf798d7f919772aeeac9378480387f0d336
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 7 16:58:45 2014 +1100
 
-    cmd/gc: revert CL 60740044
+    net: remove superfluous type conversion
     
-    LGTM=iant
-    R=iant
+    LGTM=minux.ma, dvyukov
+    R=golang-codereviews, minux.ma, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/60590047
+    https://golang.org/cl/60900043
 
- src/cmd/gc/typecheck.c | 2 +-
+ src/pkg/net/fd_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

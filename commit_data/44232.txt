@@ -1,33 +1,14 @@
-commit e5b08e6d5cecb646066c0cadddf6300e2a10ffb2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 9 13:46:53 2021 -0500
+commit f1f8f9af9a55d73dfc6603a93bee0559fdc9024d
+Author: Yasser Abdolmaleki <yasser@yasser.ca>
+Date:   Sat May 30 17:42:34 2020 -0700
 
-    io/fs: allow backslash in ValidPath, reject in os.DirFS.Open
+    container/list: fix typo in function comments
     
-    Rejecting backslash introduces problems with presenting
-    underlying OS file systems that contain names with backslash.
-    Rejecting backslash also does not Windows-proof the syntax,
-    because colon can also be a path separator. And we are not
-    going to reject colon from all names. So don't reject backslash
-    either.
+    The correct word to use here is 'another' not 'an other'
     
-    There is a similar problem on Windows with names containing
-    slashes, but those are more difficult (though not impossible)
-    to create.
-    
-    Also document and enforce that paths must be UTF-8.
-    
-    Fixes #44166.
-    
-    Change-Id: Iac7a9a268025c1fd31010dbaf3f51e1660c7ae2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/290709
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ie4f748ae94a5945dceb52779222ffd8cf36b8845
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235838
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/io/fs/fs.go      | 23 ++++++++++++++---------
- src/io/fs/fs_test.go |  7 ++++---
- src/os/file.go       | 13 ++++++++++++-
- src/os/os_test.go    | 34 ++++++++++++++++++++++++++++++++++
- 4 files changed, 64 insertions(+), 13 deletions(-)
+ src/container/list/list.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

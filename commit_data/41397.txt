@@ -1,23 +1,18 @@
-commit 3093959ee10f5c28211094e784c954f6a304b9c9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 4 14:25:22 2019 -0800
+commit 8e032b917ac6b54c86dbf6f8fc110d82d3ecbea9
+Author: An Xiao <hac@zju.edu.cn>
+Date:   Mon Sep 30 21:46:32 2019 +0000
 
-    runtime: remove mcache field from m
+    net: update quotation marks in comment
     
-    Having an mcache field in both m and p is confusing, so remove it from m.
-    Always use mcache field from p. Use new variable mcache0 during bootstrap.
+    This change updates the use of quotation marks by replacing `ones' with 'ones'.
+    Quotation like `this' should not be used any more according to
+    https://www.cl.cam.ac.uk/~mgk25/ucs/quotes.html
     
-    Change-Id: If2cba9f8bb131d911d512b61fd883a86cf62cc98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205239
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I58470cdcc207864fbc8ca68ec0e77329bd81dc19
+    GitHub-Last-Rev: d03c81ebfba19a98a8dcc99451db60d129b43784
+    GitHub-Pull-Request: golang/go#33719
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190817
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/malloc.go   | 19 +++++++++++++++----
- src/runtime/mgcsweep.go |  2 +-
- src/runtime/mheap.go    | 29 ++++++++++++++++++++---------
- src/runtime/proc.go     | 29 ++++++++++++-----------------
- src/runtime/runtime1.go |  5 -----
- src/runtime/runtime2.go |  1 -
- src/runtime/stack.go    | 12 ++++++------
- 7 files changed, 54 insertions(+), 43 deletions(-)
+ src/net/ip.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

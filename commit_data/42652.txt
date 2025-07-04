@@ -1,16 +1,15 @@
-commit 20254c02b38055c1bb6d5ac8aba70bb7b8d638ef
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Apr 14 17:29:27 2020 -0400
+commit 0eb49f67d467c93383a4d4917c9bd4d9e9f51671
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 16:32:14 2020 -0800
 
-    cmd/go: add rudimentary tracing support.
+    doc/go1.14: mime: .js files now text/javascript
     
-    Updates #38714
+    Updates #32351
+    Updates #36878
     
-    Change-Id: I14da982d405074d65ccf5521d431df1bf1734f9a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230378
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I19f87430f4344dcc6664d8dd1b8adfc67660f099
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217122
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/trace/trace.go | 139 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 139 insertions(+)
+ doc/go1.14.html | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

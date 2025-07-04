@@ -1,14 +1,22 @@
-commit 10d14b63c2c2693cd2132859c34342c5f4b398f6
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Dec 9 19:27:23 2012 +0100
+commit 00cd6a3be31cd685c15fff1d7b8b62b286cc95f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 9 03:59:33 2012 -0500
 
-    cmd/gc: prevent ngotype from allocating.
+    time: add Round and Truncate
     
-    R=golang-dev, dave, rsc
+    New in Go 1 will be nanosecond precision in the result of time.Now on Linux.
+    This will break code that stores time in external formats at microsecond
+    precision, reads it back, and expects to get exactly the same time.
+    
+    Code like that can be fixed by using time.Now().Round(time.Microsecond)
+    instead of time.Now() in those contexts.
+    
+    R=golang-dev, bradfitz, iant, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6904061
+    https://golang.org/cl/6903050
 
- src/cmd/gc/go.h      |  1 +
- src/cmd/gc/reflect.c | 13 +++++++++++--
- src/cmd/gc/subr.c    |  2 +-
- 3 files changed, 13 insertions(+), 3 deletions(-)
+ doc/go1.1.html               |  14 ++++
+ src/pkg/time/example_test.go |  55 +++++++++++++
+ src/pkg/time/time.go         | 113 +++++++++++++++++++++++++++
+ src/pkg/time/time_test.go    | 179 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 361 insertions(+)

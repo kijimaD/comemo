@@ -1,19 +1,33 @@
-commit ebcdda4732c629508fd91a4db04cfb0de516aa2f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 15 15:05:03 2017 -0700
+commit df68afd07ce67727bcc2ad8e4afaa42dbcbf58e7
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Wed Nov 16 16:35:42 2016 +0100
 
-    cmd/compile: fix crash in importer when running in debug mode
+    encoding/json: reduce unmarshal mallocs for unmapped fields
     
-    Verified by manually enabling debug mode and running make.bash.
+    JSON decoding performs poorly for unmapped and ignored fields. We noticed better
+    performance when unmarshalling unused fields. The loss comes mostly from calls
+    to scanner.error as described at #17914.
     
-    Fixes #20684.
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkIssue10335-8     431           408           -5.34%
+    BenchmarkUnmapped-8       1744          1314          -24.66%
     
-    Change-Id: I041f2ca6ef1d4198815724d98f61511072d63581
-    Reviewed-on: https://go-review.googlesource.com/45971
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    benchmark                 old allocs     new allocs     delta
+    BenchmarkIssue10335-8     4              3              -25.00%
+    BenchmarkUnmapped-8       18             4              -77.78%
+    
+    benchmark                 old bytes     new bytes     delta
+    BenchmarkIssue10335-8     320           312           -2.50%
+    BenchmarkUnmapped-8       568           344           -39.44%
+    
+    Fixes #17914, improves #10335
+    
+    Change-Id: I7d4258a94eb287c0fe49e7334795209b90434cd0
+    Reviewed-on: https://go-review.googlesource.com/33276
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 7 ++++++-
- src/cmd/compile/internal/gc/bimport.go | 5 +----
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ src/encoding/json/bench_test.go | 11 ++++++++
+ src/encoding/json/decode.go     | 62 +++++++++++++++++++----------------------
+ 2 files changed, 39 insertions(+), 34 deletions(-)

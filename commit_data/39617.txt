@@ -1,15 +1,19 @@
-commit 9e1c864afe00b3cfba3e09d7c67fc17526db464a
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Fri Aug 23 10:05:56 2019 -0600
+commit d3dd2588ebebd7c3a166069a8f572ce7e4b364ef
+Author: karthik nayak <karthik.188@gmail.com>
+Date:   Sat Jan 5 08:44:30 2019 -0500
 
-    doc/go1.13: document fmt's number syntax updates
+    gosym/pclntab: mark LineTable.LineToPC and LineTable.PCToLine as deprecated
     
-    Fixes #32815
+    Currently they aren't marked as deprecated as Godoc, but the comments
+    mention that they are deprecated. Mark them as officially deprecated.
     
-    Change-Id: Ia8ac9943a920a056ba7dbc69c1c70fa188f7aca8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191578
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #29576
+    
+    Change-Id: I795c698ac715476023d80579d60932fba4c5edde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/156331
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.13.html | 18 ++++++++++++++++++
- src/fmt/scan.go |  2 +-
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/debug/gosym/pclntab.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

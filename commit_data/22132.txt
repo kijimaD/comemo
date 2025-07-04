@@ -1,15 +1,17 @@
-commit 98485f5ad4fff7d63b63cb4d93b162e892fa0285
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Mar 21 13:19:33 2015 +1100
+commit 4241b758af286be67cb510a68164b8f95c99ff06
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 23 15:45:40 2015 -0800
 
-    runtime: fix linux/amd64p32 build
+    cmd/asm: add a couple of operand parses discovered by end-to-end test
     
-    Implement runtime.atomicand8 for amd64p32 which was overlooked
-    in CL 7861.
+    Missing cases for JMP $4 and foo+4(SB):AX. Both are odd but 8a accepts them
+    and they seem valid.
     
-    Change-Id: Ic7eccddc6fd6c4682cac1761294893928f5428a2
-    Reviewed-on: https://go-review.googlesource.com/7920
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ic739f626fcc79ace1eaf646c5dfdd96da59df165
+    Reviewed-on: https://go-review.googlesource.com/5693
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/asm_amd64p32.s | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/asm/internal/asm/asm.go          |  3 +++
+ src/cmd/asm/internal/asm/operand_test.go | 16 ++++++++++++++++
+ src/cmd/asm/internal/asm/parse.go        | 18 ++++++++++++++----
+ 3 files changed, 33 insertions(+), 4 deletions(-)

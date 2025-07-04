@@ -1,0 +1,21 @@
+commit 58b6891108fa75f5856750e13dff3fa980987f07
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Apr 8 06:43:33 2025 +0000
+
+    go/ast: don't MergeLine in SortImports when last import on the same line as RParen
+    
+    Fixes #69183
+    
+    Change-Id: I8b78dadaa8ba91e74ea2bfc21abd6abe72b7e38b
+    GitHub-Last-Rev: 1a41f9e8e3bef9926993813568902d1a77c991c1
+    GitHub-Pull-Request: golang/go#69187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610035
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/go/ast/import.go      | 12 ++++++++----
+ src/go/ast/import_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 4 deletions(-)

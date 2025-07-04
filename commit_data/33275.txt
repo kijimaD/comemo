@@ -1,31 +1,34 @@
-commit 3526d8031a26a959734664955a44704af980c4a3
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 22 18:10:08 2017 -0400
+commit 5500c9ce27128ab26aa23bafddce7dd512ce72ea
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Jul 18 14:17:57 2017 +0200
 
-    runtime: allow write barriers in gchelper
+    runtime: when dying from a signal use the previous signal handler
     
-    We're about to start tracking nowritebarrierrec through systemstack
-    calls, which detects that we're calling markroot (which has write
-    barriers) from gchelper, which is called from the scheduler during STW
-    apparently without a P.
+    Before this CL, whenever the Go runtime wanted to kill its own
+    process with a signal dieFromSignal would reset the signal handler
+    to _SIG_DFL.
     
-    But it turns out that func helpgc, which wakes up blocked Ms to run
-    gchelper, installs a P for gchelper to use. This means there *is* a P
-    when gchelper runs, so it is allowed to have write barriers. Tell the
-    compiler this by marking gchelper go:yeswritebarrierrec. Also,
-    document the call to gchelper so I don't have to spend another half a
-    day puzzling over how on earth this could possibly work before
-    discovering the spooky action-at-a-distance in helpgc.
+    Unfortunately, if any signal handler were installed before the Go
+    runtime initialized, it wouldn't be invoked either.
     
-    Updates #22384.
-    For #22460.
+    Instead, use whatever signal handler was installed before
+    initialization.
     
-    Change-Id: I7394c9b4871745575f87a2d4fbbc5b8e54d669f7
-    Reviewed-on: https://go-review.googlesource.com/72772
-    Run-TryBot: Austin Clements <austin@google.com>
+    The motivating use case is Crashlytics on Android. Before this CL,
+    Crashlytics would not consider a crash from a panic() since the
+    corresponding SIGABRT never reached its signal handler.
+    
+    Updates #11382
+    Updates #20392 (perhaps even fixes it)
+    Fixes #19389
+    
+    Change-Id: I0c8633329433b45cbb3b16571bea227e38e8be2e
+    Reviewed-on: https://go-review.googlesource.com/49590
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go  | 13 ++++++++++---
- src/runtime/proc.go |  2 ++
- 2 files changed, 12 insertions(+), 3 deletions(-)
+ src/runtime/crash_cgo_test.go                  | 28 ++++++++++++++++++
+ src/runtime/signal_unix.go                     | 13 ++++++++-
+ src/runtime/testdata/testprogcgo/catchpanic.go | 39 ++++++++++++++++++++++++++
+ 3 files changed, 79 insertions(+), 1 deletion(-)

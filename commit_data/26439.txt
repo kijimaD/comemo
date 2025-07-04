@@ -1,17 +1,27 @@
-commit 478b594d5117729694deecbcb205bb15b6085f7a
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Mon Mar 21 15:05:54 2016 +0100
+commit 8d881b811d8212ffd1d43e296f2a1c1bf78198ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 22:25:15 2016 -0500
 
-    encoding/binary: fix bound check
+    cmd/asm: correct, complete newly added AVX instructions
     
-    The inserted early bound checks cause the slice
-    to expand beyond the original length of the slice.
+    Use the standard names, for discoverability.
+    Use the standard register arguments, for correctness.
+    Implement all possible arguments, for completeness.
+    Enable the corresponding tests now that everything is standard.
+    Update the uses in package runtime.
     
-    Change-Id: Ib38891605f4a9a12d3b9e2071a5f77640b083d2d
-    Reviewed-on: https://go-review.googlesource.com/20981
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #14068.
+    
+    Change-Id: I8e1af9a41e7d02d98c2a82af3d4cdb3e9204824f
+    Reviewed-on: https://go-review.googlesource.com/18852
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/encoding/binary/binary.go      | 24 ++++++++++++------------
- src/encoding/binary/binary_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 12 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 288 ++++++++++-----------
+ src/cmd/internal/obj/x86/a.out.go            |   7 +-
+ src/cmd/internal/obj/x86/anames.go           |   7 +-
+ src/cmd/internal/obj/x86/asm6.go             | 362 ++++++++++++++++-----------
+ src/runtime/asm_amd64.s                      |  48 ++--
+ src/runtime/memclr_amd64.s                   |  36 +--
+ 6 files changed, 415 insertions(+), 333 deletions(-)

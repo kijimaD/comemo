@@ -1,23 +1,23 @@
-commit d85072ff86e61752fb89363d7c929c850e0a8a8d
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Tue Aug 27 06:46:16 2019 -0600
+commit bedb6a18d855d1968a685ccd90c81a43b3def9fa
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Mar 17 16:01:27 2019 +0100
 
-    runtime: monitor for suspend/resume to kick timeouts
+    os: only fallback to root directory if $HOME fails for UserHomeDir
     
-    Starting in Windows 8, the wait functions don't take into account
-    suspend time, even though the monotonic counters do. This results in
-    timer buckets stalling on resume. Therefore, this commit makes it so
-    that on resume, we return from the wait functions and recalculate the
-    amount of time left to wait.
+    UserHomeDir always returns "/" for platforms where the home directory
+    is not always well defined. However, the user might set HOME before
+    running a Go program on those platforms and on at least iOS, HOME
+    is actually set to something useful (the root of the app specific
+    writable directory).
     
-    Fixes: #31528
+    This CL changes UserHomeDir to use the root directory "/" only if
+    $HOME is empty.
     
-    Change-Id: I0db02cc72188cb620954e87a0180e0a3c83f4a56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191957
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: Icaa01de53cd585d527d9a23b1629375d6b7f67e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167802
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/runtime/os_windows.go      | 83 +++++++++++++++++++++++++++++++++++++-----
- src/runtime/syscall_windows.go | 12 ++++--
- 2 files changed, 82 insertions(+), 13 deletions(-)
+ src/os/file.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

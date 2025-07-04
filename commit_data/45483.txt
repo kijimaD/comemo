@@ -1,17 +1,17 @@
-commit a9db5a73867f676f2f6a1b8fd2bb61d06b0a10f7
-Author: Rob Findley <rfindley@google.com>
-Date:   Fri Apr 30 14:55:11 2021 -0400
+commit fb7134e4e3a45fee4ab662ef0d467ef864c23e2e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 26 11:28:02 2020 +0700
 
-    go/types: simplify use of TestManual
+    test: add index bounds check elided with "&^"
     
-    This is a 1:1 port of CL 315689 to go/types.
+    For follow up CL, which will defer lowering OANDNOT until SSA.
     
-    Change-Id: If71186b3719be8433c9d21b22c51ffde2cadd55b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315849
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I5a988d0b8f0ae664580f08b123811b2a31ef55c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265040
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/check_test.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ test/bounds.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

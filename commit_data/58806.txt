@@ -1,25 +1,21 @@
-commit 04de448c6d9d0ceab7f04b1f3d44f91e8b129d58
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jun 15 01:29:32 2024 +1000
+commit d2867b29c2812772b69d6d52b168def57064de9b
+Author: Davis Goodin <dagood@microsoft.com>
+Date:   Wed Dec 13 11:38:01 2023 -0800
 
-    cmd/internal/obj/x86: add support for the endbr64 instruction on amd64
+    doc: improve release note for Windows hosts file being respected
     
-    Add support for endbr64, which terminates an indirect branch in 64-bit
-    mode. This is effectively used to mark locations where an indirect branch
-    is permitted to land, when Indirect Branch Tracking (IBT) is enforced on
-    Intel CPUs.
+    Make a grammar fix (searches -> searches for) and simplify "when
+    building with" phrase.
     
-    Updates #66054
+    For #61422.
     
-    Change-Id: Ib898031711cfaaa6e05c197bfe727ded0bce6f52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649215
+    Change-Id: I179b3816c0e223a16e4969290b2c1ed19d44c556
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549457
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 2 ++
- src/cmd/internal/obj/x86/aenum.go                  | 1 +
- src/cmd/internal/obj/x86/anames.go                 | 1 +
- src/cmd/internal/obj/x86/asm6.go                   | 1 +
- 4 files changed, 5 insertions(+)
+ doc/go1.22.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,15 +1,12 @@
-commit fc1bea321de31243c2f68316941e0f99eeb86557
+commit 932428a1ed5832fdb25a170e2d9b8c994cc5e72a
 Author: Joel Sing <jsing@google.com>
-Date:   Mon Oct 7 09:21:33 2013 -0700
+Date:   Mon Oct 7 09:04:20 2013 -0700
 
-    os/user: fix user lookups on dragonfly
-    
-    Like FreeBSD, DragonFly does not provide a sysconf value for
-    _SC_GETPW_R_SIZE_MAX.
+    os/signal: make test logs reflect reality
     
     R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/14469043
+    https://golang.org/cl/14470043
 
- src/pkg/os/user/lookup_unix.go | 8 ++++----
+ src/pkg/os/signal/signal_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,27 +1,30 @@
-commit 51cb717d272545c2d4160f76a9f13741aa1e7abd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 2 15:47:08 2023 -0700
+commit d031e9e07a07afef8d16576fd7079a739a7e4394
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Oct 28 15:59:43 2022 -0500
 
-    go/types, types2: don't implicitly modify an argument function's type
+    cmd/compile/internal/ssa: re-adjust CarryChainTail scheduling priority
     
-    See the comment in the (very small) fix for a detailed description.
-    Use the opportunity to introduce a generic clone function which may
-    be useful elsewhere.
+    This needs to be as low as possible while not breaking priority
+    assumptions of other scores to correctly schedule carry chains.
     
-    Fixes #63260.
+    Prior to the arm64 changes, it was set below ReadTuple. At the time,
+    this prevented the MulHiLo implementation on PPC64 from occluding
+    the scheduling of a full carry chain.
     
-    Change-Id: Ic63c6b8bc443011b1a201908254f7d062e1aec71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532157
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Memory scores can also prevent better scheduling, as can be observed
+    with crypto/internal/edwards25519/field.feMulGeneric.
+    
+    Fixes #56497
+    
+    Change-Id: Ia4b54e6dffcce584faf46b1b8d7cea18a3913887
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447435
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/types2/call.go        |  7 ++++
- src/cmd/compile/internal/types2/issues_test.go | 44 ++++++++++++++++++++++++++
- src/cmd/compile/internal/types2/predicates.go  |  6 ++++
- src/go/types/call.go                           |  7 ++++
- src/go/types/issues_test.go                    | 44 ++++++++++++++++++++++++++
- src/go/types/predicates.go                     |  6 ++++
- 6 files changed, 114 insertions(+)
+ src/cmd/compile/internal/ssa/schedule.go |  2 +-
+ test/codegen/mathbits.go                 | 33 ++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

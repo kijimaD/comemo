@@ -1,20 +1,17 @@
-commit d785af1adb314316ac1c4b63cc671363671fae2e
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Wed Sep 27 13:53:43 2023 +0000
+commit 767df51b4dc4d952fd3f3ff14dffdf5fd8cffb4e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 17 11:29:34 2022 -0400
 
-    internal/zstd: allow stream consisting of skippable frames
+    runtime: fix missing error print in TestCgoSigfwd
     
-    For #62513
+    The result of the call to fmt.Errorf was unused. It was clearly
+    intending to print the message, not simply construct an error.
     
-    Change-Id: I2557aed5ae106ea4684bb599cce740e9da9df780
-    GitHub-Last-Rev: 2b7ddc6c09a7e77874ed9aefc47fbc445d2579ec
-    GitHub-Pull-Request: golang/go#63251
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531295
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I14856214c521a51fe4b45690e6c35fbb17e66577
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443375
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/zstd/zstd.go      |  3 ++-
- src/internal/zstd/zstd_test.go | 11 +++++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/runtime/testdata/testprogcgo/sigfwd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

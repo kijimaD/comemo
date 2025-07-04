@@ -1,12 +1,18 @@
-commit 7905faaee2ee5ebd628856b05f22b9e1264b7b92
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Mar 20 10:57:54 2012 +0900
+commit e1f22bdcc56b52a163ecccfe6e95aaf75addcdce
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Mar 19 15:57:28 2012 -0700
 
-    net: drop unnecessary type assertions and fix leak in test
+    gc: fix struct and array comparisons for new bool rules
     
-    R=golang-dev, r
+    The two optimizations for small structs and arrays
+    were missing the implicit cast from ideal bool.
+    
+    Fixes #3351.
+    
+    R=rsc, lvd
     CC=golang-dev
-    https://golang.org/cl/5847064
+    https://golang.org/cl/5848062
 
- src/pkg/net/unicast_test.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/gc/walk.c        |  2 ++
+ test/fixedbugs/bug427.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

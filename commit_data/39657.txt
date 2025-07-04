@@ -1,39 +1,19 @@
-commit c302785df941f10a4350f895e0c48886b582e609
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 5 13:12:01 2019 -0700
+commit ef891e1c8336243023abb1638a3225405d0e5d44
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Jan 31 22:24:00 2019 -0700
 
-    cmd/compile: fix "previous" position info for duplicate switch cases
+    math/big: implement Int.TrailingZeroBits
     
-    Because the Node AST represents references to declared objects (e.g.,
-    variables, packages, types, constants) by directly pointing to the
-    referred object, we don't have use-position info for these objects.
+    Implemented via the underlying nat.trailingZeroBits.
     
-    For switch statements with duplicate cases, we report back where the
-    first duplicate value appeared. However, due to the AST
-    representation, if the value was a declared constant, we mistakenly
-    reported the constant declaration position as the previous case
-    position.
+    Fixes #29578
     
-    This CL reports back against the 'case' keyword's position instead, if
-    there's no more precise information available to us.
-    
-    It also refactors code to emit the same "previous at" error message
-    for duplicate values in map literals.
-    
-    Thanks to Emmanuel Odeke for the test case.
-    
-    Fixes #33460.
-    
-    Change-Id: Iec69542ccd4aad594dde8df02d1b880a422c5622
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188901
+    Change-Id: If9876c5a74b107cbabceb7547bef4e44501f6745
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160681
     Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/const.go     | 48 ++++++++++++++++++++++++--------
- src/cmd/compile/internal/gc/subr.go      | 47 ++++++++++++++++++-------------
- src/cmd/compile/internal/gc/swt.go       | 15 +---------
- src/cmd/compile/internal/gc/typecheck.go |  4 +--
- test/fixedbugs/issue33460.go             | 37 ++++++++++++++++++++++++
- 5 files changed, 102 insertions(+), 49 deletions(-)
+ src/math/big/int.go      |  6 ++++++
+ src/math/big/int_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

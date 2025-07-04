@@ -1,23 +1,23 @@
-commit 2a41dbf13c65267bb21dcdd3b9d92a49bc969a94
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Apr 6 06:11:10 2023 +1000
+commit de9805c702bcc19bcf3c783d1c2e43fdf4e1d30e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 11 05:45:42 2022 +0000
 
-    cmd/compile/internal/amd64: simplify code generation for signed division
+    Revert "testing: document -race goroutine limits"
     
-    The same switch statement handles code generation for signed division of
-    words, double words and quad words. Rather than using multiple switch
-    statements to select the appropriate instructions, determine all of the
-    correctly sized operands up front, then use them as needed.
+    This reverts commit 4907c62f99fbfc8608a79a17c20d89f50956d9fc.
     
-    Updates #59089
+    Reason for revert: Race detector v3, which we just upgraded to, no longer has a goroutine limit.
     
-    Change-Id: I2b7567c8e0ecb9904c37607332538c95b0521dca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482657
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    (small caveat: openbsd/amd64 can't be updated, windows/amd64 isn't updated yet but should be by release time.)
+    
+    Change-Id: I90017834501e81d3990d888f1b2baf3432452846
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405595
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 43 ++++++++++++-----------------------
- 1 file changed, 14 insertions(+), 29 deletions(-)
+ src/testing/testing.go | 3 ---
+ 1 file changed, 3 deletions(-)

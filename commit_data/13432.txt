@@ -1,14 +1,12 @@
-commit 917f764382e63a9a61d0456b1d54a79bc679371b
-Author: David G. Andersen <dave.andersen@gmail.com>
-Date:   Mon Jul 2 15:30:00 2012 -0700
+commit 804e562a62bed963fe96571d442d468a608e7207
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 2 20:10:31 2012 +0400
 
-    math/big: Remove unnecessary test from nat.go multiplication
-    The switch at the beginning of the function already ensures n > 1,
-    so testing for n < 2 is redundant.
+    net/http: fix comment
     
-    R=golang-dev, gri
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6350051
+    https://golang.org/cl/6348062
 
- src/pkg/math/big/nat.go | 2 +-
+ src/pkg/net/http/serve_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

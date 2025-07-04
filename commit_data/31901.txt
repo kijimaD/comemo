@@ -1,14 +1,45 @@
-commit 143bdc27932451200f3c8f4b304fe92ee8bba9be
-Author: Qiuxuan Zhu <ilsh1022@gmail.com>
-Date:   Fri Jun 23 12:31:48 2017 +0800
+commit 9e6b79a5dfb2f6fe4301ced956419a0da83bd025
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Feb 25 18:37:17 2017 +0100
 
-    net/http: Update server idleTimeout documentation
+    syscall: use CLONE_VFORK and CLONE_VM
     
-    Fixes #20383
+    This greatly improves the latency of starting a child process when
+    the Go process is using a lot of memory. Even though the kernel uses
+    copy-on-write, preparation for that can take up to several 100ms under
+    certain conditions. All other goroutines are suspended while starting
+    a subprocess so this latency directly affects total throughput.
     
-    Change-Id: I11234393c3beb669f87976a4f0b424bec7372b82
-    Reviewed-on: https://go-review.googlesource.com/46434
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    With CLONE_VM the child process shares the same memory with the parent
+    process. On its own this would lead to conflicting use of the same
+    memory, so CLONE_VFORK is used to suspend the parent process until the
+    child releases the memory when switching to to the new program binary
+    via the exec syscall. When the parent process continues to run, one
+    has to consider the changes to memory that the child process did,
+    namely the return address of the syscall function needs to be restored
+    from a register.
+    
+    A simple benchmark has shown a difference in latency of 16ms vs. 0.5ms
+    at 10GB memory usage. However, much higher latencies of several 100ms
+    have been observed in real world scenarios. For more information see
+    comments on #5838.
+    
+    Fixes #5838
+    
+    Change-Id: I6377d7bd8dcd00c85ca0c52b6683e70ce2174ba6
+    Reviewed-on: https://go-review.googlesource.com/37439
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/asm_linux_amd64.s        | 23 +++++++++++++++++++++++
+ src/syscall/exec_linux.go            |  7 +++++--
+ src/syscall/syscall_linux_386.go     |  4 ++++
+ src/syscall/syscall_linux_amd64.go   |  2 ++
+ src/syscall/syscall_linux_arm.go     |  4 ++++
+ src/syscall/syscall_linux_arm64.go   |  4 ++++
+ src/syscall/syscall_linux_mips64x.go |  4 ++++
+ src/syscall/syscall_linux_mipsx.go   |  4 ++++
+ src/syscall/syscall_linux_ppc64x.go  |  4 ++++
+ src/syscall/syscall_linux_s390x.go   |  4 ++++
+ 10 files changed, 58 insertions(+), 2 deletions(-)

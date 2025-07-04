@@ -1,14 +1,36 @@
-commit 7b38dd8e255710721b7d843cddbbb46f50267aa5
-Author: Koichi Shiraishi <zchee.io@gmail.com>
-Date:   Thu Jul 29 04:22:47 2021 +0900
+commit 97df3ba792bda80b99a8508cf36dfba3d1c37576
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 4 18:07:20 2020 -0500
 
-    runtime: remove unnecesarry newline on freeStackSpans
+    [dev.fuzz] internal/fuzz: refactor in preparation for GOFUZZCACHE
     
-    Change-Id: I16a3241d8818c67922ddbf7830b8c2c5f317e1a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338209
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Trust: Keith Randall <khr@golang.org>
+    Several small changes, most related to GOFUZZCACHE.
+    
+    * Use separate channels to send crashers and interesting values to the
+      coordinator.
+    * Add a new type, crasherEntry, which is a corpusEntry with an
+      error message.
+    * Workers now send fatal errors to the coordinator via errC instead of
+      returning or closing doneC.
+    * In CoordinateFuzzing, defer code that closes doneC and waits for
+      workers to stop. This is the only place where doneC is closed.
+    * In workerServer and workerClient, always pass input values through
+      shared memory instead of RPC messages or arguments to avoid
+      confusion.
+    * Rename sharedMem.value to valueRef and add valueCopy to make it
+      clearer whether a reference or copy is needed.
+    * mutate now operates on shared memory directly.
+    * mutate will not panic on empty input.
+    
+    Change-Id: I6e57354875508f0ac4483ed2728f3ba18dc938c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275533
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/stack.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/internal/fuzz/fuzz.go    | 98 +++++++++++++++++++++++++-------------------
+ src/internal/fuzz/mem.go     | 24 +++++++----
+ src/internal/fuzz/mutator.go | 13 +++---
+ src/internal/fuzz/worker.go  | 91 ++++++++++++++++++++++------------------
+ 4 files changed, 129 insertions(+), 97 deletions(-)

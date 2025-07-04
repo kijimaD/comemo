@@ -1,20 +1,28 @@
-commit 023593d0a858e31d9cf67c6c08ad3f6a7a9e842a
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Thu Jun 15 16:59:16 2017 +0200
+commit f8b0231639859de7b8f1bfe7df1be0132aec9ad6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 20 09:56:50 2017 -0700
 
-    runtime: enable GDB tests on mips64 (except TestGdbPythonCgo)
+    cmd/go, cmd/compile: always optimize when building runtime
     
-    They were failing when run on 32bit RFS, with 32bit gdb.
-    (mips64 builder now has 64bit RFS, with gdb 7.9.)
-    Leaving TestGdbPythonCgo disabled, it behaves as described in #18784.
+    When optimizations are disabled, the compiler
+    cannot eliminate enough write barriers to satisfy
+    the runtime's nowritebarrier and nowritebarrierrec
+    annotations.
     
-    Fixes #18173
+    Enforce that requirement, and for convenience,
+    have cmd/go elide -N when compiling the runtime.
     
-    Change-Id: I3c438cd5850b7bfd118ac6396f40c1208bac8c2d
-    Reviewed-on: https://go-review.googlesource.com/45874
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    This came up in practice for me when running
+    toolstash -cmp. When toolstash -cmp detected
+    mismatches, it recompiled with -N, which caused
+    runtime compilation failures.
+    
+    Change-Id: Ifcdef22c725baf2c59a09470f00124361508a8f3
+    Reviewed-on: https://go-review.googlesource.com/38380
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime-gdb_test.go | 12 +-----------
- 1 file changed, 1 insertion(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/main.go |  3 +++
+ src/cmd/go/internal/work/build.go   | 20 ++++++++++++++++++--
+ 2 files changed, 21 insertions(+), 2 deletions(-)

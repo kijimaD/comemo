@@ -1,14 +1,26 @@
-commit ab2a0803383f0f019db0b2252095f2fdb7735cea
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 11 04:57:14 2019 +0000
+commit 925568861085c29f834ff7949481f8208264f5ee
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 15 15:23:48 2018 -0500
 
-    doc: document Go 1.12.4 and Go 1.11.9
+    cmd/asm: rename -symabis to -gensymabis
     
-    Updates #31293
+    Currently, both asm and compile have a -symabis flag, but in asm it's
+    a boolean flag that means to generate a symbol ABIs file and in the
+    compiler its a string flag giving the path of the symbol ABIs file to
+    consume. I'm worried about this false symmetry biting us in the
+    future, so rename asm's flag to -gensymabis.
     
-    Change-Id: I3d72f732be7b28059310ea6fc134c3bfac81492d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171578
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Updates #27539.
+    
+    Change-Id: I8b9c18a852d2838099718f8989813f19d82e7434
+    Reviewed-on: https://go-review.googlesource.com/c/149818
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/devel/release.html | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/cmd/asm/doc.go                  | 2 ++
+ src/cmd/asm/internal/flags/flags.go | 2 +-
+ src/cmd/dist/build.go               | 2 +-
+ src/cmd/go/internal/work/gc.go      | 4 ++--
+ test/run.go                         | 2 +-
+ 5 files changed, 7 insertions(+), 5 deletions(-)

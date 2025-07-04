@@ -1,15 +1,28 @@
-commit 3b5be4522a21df8ce52a06a0c4ba005c89a8590f
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Jan 18 16:28:15 2015 +0900
+commit 9b1b0a46dd3c9704a49a5ba1950212c6fff7917d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 18 11:40:48 2014 -0500
 
-    net: more accurate parsing of IPv4 header on IPConn
+    liblink: fail for too-large register offset constants
     
-    As shown in #9395, inaccurate implementation would be a cause of parsing
-    IPv4 header twice and corrupted upper-layer message issues.
+    Previously, liblink would silently truncate register offset constants
+    to 32 bits.  For example,
     
-    Change-Id: Ia1a042e7ca58ee4fcb38fe9ec753c2ab100592ca
-    Reviewed-on: https://go-review.googlesource.com/3001
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+        MOVD $0x200000004(R2),R3
+    
+    would assemble to
+    
+        addis   r31,r2,0
+        addi    r3,r31,4
+    
+    To fix this, limit C_LACON to 32 bit (signed) offsets and introduce a
+    new C_DACON operand type for larger register offsets.  We don't
+    implement this currently, but at least liblink will now give an error
+    if it encounters an address like this.
+    
+    Change-Id: I8e87def8cc4cc5b75498b0fb543ac7666cf2964e
+    Reviewed-on: https://go-review.googlesource.com/1758
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/iprawsock_posix.go | 21 ++++++++++++++++-----
- 1 file changed, 16 insertions(+), 5 deletions(-)
+ src/cmd/9l/9.out.h |  7 ++++---
+ src/liblink/asm9.c | 20 +++++++-------------
+ 2 files changed, 11 insertions(+), 16 deletions(-)

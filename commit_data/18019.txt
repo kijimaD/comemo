@@ -1,12 +1,17 @@
-commit ff8e45828c044665b60c37287e4f2d9e91754333
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 17 12:25:32 2013 -0800
+commit 762a9d934eab267418595df7a220eec50919b77d
+Author: Julien Schmidt <google@julienschmidt.com>
+Date:   Tue Dec 17 11:57:30 2013 -0800
 
-    os: avoid a string concat in readdir
+    database/sql: fix auto-reconnect in prepared statements
     
-    R=golang-dev, crawshaw
-    CC=golang-dev
-    https://golang.org/cl/37690045
+    This also fixes several connection leaks.
+    Fixes #5718
+    
+    R=bradfitz, adg
+    CC=alberto.garcia.hierro, golang-dev
+    https://golang.org/cl/14920046
 
- src/pkg/os/file_unix.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/database/sql/fakedb_test.go |  24 ++++++++
+ src/pkg/database/sql/sql.go         | 120 +++++++++++++++++++++---------------
+ src/pkg/database/sql/sql_test.go    | 106 ++++++++++++++++++++++++++++++-
+ 3 files changed, 198 insertions(+), 52 deletions(-)

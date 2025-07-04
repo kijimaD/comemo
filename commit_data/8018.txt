@@ -1,13 +1,14 @@
-commit 4ffee801ceaa37cd1750e66c3ba836dbcd9635a6
-Author: John DeNero <denero@google.com>
-Date:   Thu Apr 7 18:05:15 2011 -0700
+commit 776fd72579a85e1e6e7d62942a46ddf3940893a9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 8 10:43:25 2011 +1000
 
-    A codewalk through a simple program that illustrates several aspects of Go functions: function objects, higher-order functions, variadic functions, tail recursion, etc.  The example program simulates the game of Pig, a dice game with simple rules but a nontrivial solution.
+    test/bench: enable build and test on Windows
     
-    R=adg, rsc, iant2, r
+    R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4306045
+    https://golang.org/cl/4366043
 
- doc/codewalk/functions.xml | 115 +++++++++++++++++++++++++++++++++++++++++
- doc/codewalk/pig.go        | 124 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 239 insertions(+)
+ src/run.bash                     | 1 -
+ test/bench/regex-dna-parallel.go | 2 +-
+ test/bench/regex-dna.go          | 2 +-
+ 3 files changed, 2 insertions(+), 3 deletions(-)

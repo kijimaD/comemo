@@ -1,18 +1,19 @@
-commit 852f383c9b19dc07d05dfea26723c2a2e75165a5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 17 08:38:52 2015 -0700
+commit d57c889ae8bdfdddbfb242f90b90f649988a720e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 7 22:59:29 2015 -0400
 
-    api: add go1.5.txt API file, reset next.txt
+    runtime: wait to update arena_used until after mapping bitmap
     
-    Fixes #11752
+    This avoids a race with gcmarkwb_m that was leading to faults.
     
-    Change-Id: If4196b4bbba4f1485608bfafa98fa54781177273
-    Reviewed-on: https://go-review.googlesource.com/12325
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #10212.
+    
+    Change-Id: I6fcf8d09f2692227063ce29152cb57366ea22487
+    Reviewed-on: https://go-review.googlesource.com/10816
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- api/go1.5.txt      | 971 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next.txt       | 957 ----------------------------------------------------
- src/cmd/api/run.go |   2 +-
- 3 files changed, 972 insertions(+), 958 deletions(-)
+ src/runtime/malloc.go  | 12 ++++++------
+ src/runtime/mbitmap.go |  9 +++++++--
+ src/runtime/mheap.go   | 14 +++++++++++---
+ 3 files changed, 24 insertions(+), 11 deletions(-)

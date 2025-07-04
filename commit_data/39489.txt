@@ -1,17 +1,16 @@
-commit 9a00e64633ce3636d9ea94660168d96be3416df8
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Jul 4 10:23:58 2019 -0400
+commit 3fe97ba0ff1262f86f75cbd141e4c1f50f0a919e
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Wed Jan 30 17:34:52 2019 +0000
 
-    test: add another test for issue 32680
+    cmd/go/internal/work: properly ignore error
     
-    Update #32680
-    
-    Change-Id: I0318c22c22c5cd6ab6441d1aa2d1a40d20d71242
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185137
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Id0e8d170730d946b60c661d90bc98d0ca7545391
+    GitHub-Last-Rev: 19fed775b7e87c8c721b4487458354a2d5532a6c
+    GitHub-Pull-Request: golang/go#30001
+    Reviewed-on: https://go-review.googlesource.com/c/160425
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- test/fixedbugs/issue32680b.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

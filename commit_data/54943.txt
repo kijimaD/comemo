@@ -1,14 +1,25 @@
-commit e3585c67576bc1b0b161448b617eb2725e9c9d69
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sun Oct 29 04:08:46 2023 +0000
+commit 1fbfc2f6eba6cc88a8fb0ae8e83afe80553f65df
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 22 15:31:06 2022 -0500
 
-    runtime: enable allocheaders by default
+    cmd/go: fix the DefaultCC check if CC is an absolute file missing an extension on Windows
     
-    Change-Id: I3a6cded573aa35afe8abc624c78599f03ec8bf94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538217
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This undoes the code (but not test) change from CL 451219, which turns
+    out to be slightly harmful on Windows (because it doesn't resolve the
+    file extension for an absolute CC path) and unnecessary elsewhere
+    (because calling LookPath on a fully-resolved executable path already
+    stats¹ that path before returning it).
+    
+    ¹https://cs.opensource.google/go/go/+/refs/tags/go1.19.3:src/os/exec/lp_unix.go;l=46;drc=027855e8d86f461b50946b006ea032d4b4a7d817
+    
+    Change-Id: If8c5ba59cbcc9fc289e9325afb9ccdadf374b102
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452777
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/internal/buildcfg/exp.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/cfg/cfg.go | 9 +--------
+ src/cmd/go/scriptconds_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 9 deletions(-)

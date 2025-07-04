@@ -1,21 +1,43 @@
-commit 757f3c802aaf3e01647e644ff7ee160af1751c63
-Author: Damien Neil <dneil@google.com>
-Date:   Tue May 24 16:13:42 2022 -0700
+commit 4be75faa3ee79a273ff82d4f5b7f838ef3642f9d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jul 20 14:46:40 2021 -0700
 
-    net: add even more timing slop for TestDialParallel
+    cmd/go: make fewer 'go mod' commands update go.mod
     
-    This test expects dials of a closed port to complete in about the same
-    amount of time: an initial probe value +/- 20%. Reduce test flakes on
-    Windows by increasing the slop to +/- 50% of the original value.
+    'go mod graph', 'go mod vendor', 'go mod verify', and 'go mod why'
+    will no longer edit go.mod or go.sum.
     
-    Fixes #52173
+    'go mod graph', 'go mod verify', and 'go mod why' may still fetch
+    files and look up packages as if they were able to update
+    go.mod. They're useful for debugging and should still work when go.mod
+    is a little broken.
     
-    Change-Id: I813492c36aca2b0264b3b5b8c96e8bf97193af76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408354
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This is implemented in modload.setDefaultBuildMod based on command
+    name for now. Super gross. Sorry. This should be fixed with a larger
+    refactoring for #40775.
+    
+    Fixes golang/go#45551
+    
+    Change-Id: If5f225937180d32e9a5dd252c78d988042bbdedf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336151
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341933
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/dial_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modload/init.go                | 21 ++++++++++++++++----
+ src/cmd/go/testdata/script/mod_all.txt             |  2 +-
+ src/cmd/go/testdata/script/mod_e.txt               | 23 ++++++++++++++--------
+ src/cmd/go/testdata/script/mod_get_commit.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt  |  1 +
+ src/cmd/go/testdata/script/mod_list_retract.txt    |  4 +++-
+ src/cmd/go/testdata/script/mod_retention.txt       |  8 +++++---
+ src/cmd/go/testdata/script/mod_tidy_error.txt      |  4 ++--
+ src/cmd/go/testdata/script/mod_vendor_replace.txt  |  5 ++++-
+ src/cmd/go/testdata/script/mod_vendor_trimpath.txt |  6 +++++-
+ .../go/testdata/script/mod_vendor_unused_only.txt  |  2 ++
+ src/cmd/go/testdata/script/mod_verify.txt          |  5 -----
+ src/cmd/go/testdata/script/modfile_flag.txt        |  5 +++++
+ 13 files changed, 61 insertions(+), 27 deletions(-)

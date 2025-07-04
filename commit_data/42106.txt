@@ -1,39 +1,14 @@
-commit 943a0d02d18bba5243f235fbbebd7f29d49d991e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 15:30:19 2020 -0700
+commit cb47edc0c404aa6944976b27406bd927f8836f07
+Author: Visweswara R <r.visweswara@gmail.com>
+Date:   Wed Nov 28 07:32:08 2018 +0530
 
-    cmd/compile: add Value.Uses comparison during scheduling
+    net: improve IPMask docs
     
-    Falling back to comparing Value.ID during scheduling
-    is undesirable: Not only are we simply hoping for a good
-    outcome, but the decision we make will be easily perturbed
-    by other compiler changes, leading to random fluctuations.
+    Fixes #28957
     
-    This change adds another decision point to the scheduler
-    by scheduling Values with many uses earlier.
-    Values with fewer uses are less likely to be spilled for
-    other reasons, so we should issue them as late as possible
-    in the hope of avoiding a spill.
-    
-    This reduces the number of Value ID comparisons
-    in schedule while running make.bash
-    from 1,000,844 to 542,442.
-    
-    As you would expect, this changes a lot of functions,
-    but the overall trend is positive:
-    
-    file    before    after     Δ       %
-    api     5237184   5233088   -4096   -0.078%
-    compile 19926480  19918288  -8192   -0.041%
-    cover   5281816   5277720   -4096   -0.078%
-    dist    3711608   3707512   -4096   -0.110%
-    total   113588440 113567960 -20480  -0.018%
-    
-    Change-Id: Ic99ebc4c614d4ae3807ce44473ec6b04684388ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229798
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie8ba841bd4ee71766bcfbbfbdc9173b9be867ed1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/151479
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/schedule.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/ip.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

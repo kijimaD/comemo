@@ -1,20 +1,18 @@
-commit 97bea970651f0df86e245b2b2596003a174fb5d7
-Author: Austin Clements <austin@google.com>
-Date:   Tue May 22 11:07:43 2018 -0400
+commit 9c4fd4626caefa0566e2d853c02912d559c01f62
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Jan 29 19:21:25 2018 -0500
 
-    cmd/compile: fix unsafe-point analysis with -N
+    cmd/compile/internal: pass LocalSlot values, not pointers
     
-    Compiling without optimizations (-N) can result in write barrier
-    blocks that have been optimized away but not actually pruned from the
-    block set. Fix unsafe-point analysis to recognize and ignore these.
+    Because getStackOffset is a function pointer, the compiler assumes that
+    its arguments escape. Pass a value instead to avoid heap allocations.
     
-    For #24543.
-    
-    Change-Id: I2ca86fb1a0346214ec71d7d6c17b6a121857b01d
-    Reviewed-on: https://go-review.googlesource.com/114076
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ib94e5941847f134cd00e873040a4d7fcf15ced26
+    Reviewed-on: https://go-review.googlesource.com/92397
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/plive.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/pgen.go   |  4 ++--
+ src/cmd/compile/internal/ssa/debug.go | 12 ++++++------
+ 2 files changed, 8 insertions(+), 8 deletions(-)

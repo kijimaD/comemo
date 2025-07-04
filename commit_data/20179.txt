@@ -1,27 +1,16 @@
-commit e66ff2b9080669373704914191abf2ee5f65eb75
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 28 12:16:06 2014 -0700
+commit 32b3a48ea8f29f0f5ee93714567eb24a660f3b07
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Aug 23 23:38:31 2014 +0000
 
-    go/token: implement PositionFor accessors
+    runtime: convert float64toint64, float64touint64 to Go
     
-    Package addition.
+    This is a very dumb translation to keep the code as close to the original C as possible.
     
-    PositionFor permits access to both, positions
-    adjusted by //line comments (like the Position
-    accessors), and unadjusted "raw" positions
-    unaffected by //line comments.
-    
-    Raw positions are required for correct formatting
-    of source code via go/printer which until now had
-    to manually fix adjusted positions.
-    
-    Fixes #7702.
-    
-    LGTM=adonovan
-    R=adonovan
+    LGTM=rsc
+    R=khr, minux, rsc, josharian
     CC=golang-codereviews
-    https://golang.org/cl/135110044
+    https://golang.org/cl/126490043
 
- src/pkg/go/token/position.go      |  51 +++++++++++++------
- src/pkg/go/token/position_test.go | 101 ++++++++++++++++++++++++++++++--------
- 2 files changed, 116 insertions(+), 36 deletions(-)
+ src/pkg/runtime/vlrt.go    | 91 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/vlrt_arm.c | 12 ------
+ 2 files changed, 91 insertions(+), 12 deletions(-)

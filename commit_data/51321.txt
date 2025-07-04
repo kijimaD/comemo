@@ -1,33 +1,18 @@
-commit 36ce2ece09f74cc8d71cc1d097b62be6264ddb86
+commit 1cc3c735802f93eaf74b21795b8027163318ace1
 Author: Austin Clements <austin@google.com>
-Date:   Fri Nov 4 14:49:37 2022 -0400
+Date:   Thu Jan 6 15:25:01 2022 -0500
 
-    cmd/dist: restructure cgo_test
+    runtime: improve asanread/asanwrite nosplit comment
     
-    Currently, dist test has a single test called "cgo_test" that runs a
-    large number of different "go test"s.
+    Explain the conditions under which they are called on stacks that
+    cannot grow.
     
-    This commit restructures cgo_test into several individual tests, each
-    of which runs a single "go test" that can be described by a goTest
-    object and registered with registerTest. Since this lets us raise the
-    abstraction level of constructing these tests and these tests are
-    mostly covering the Cartesian product of a small number of orthogonal
-    dimensions, we pull the common logic for constructing these tests into
-    a helper function.
-    
-    For consistency, we now pass -tags=static to the static testtls and
-    nocgo tests, but this tag doesn't affect the build of these tests at
-    all. I traced all exec calls from cmd/dist on linux/amd64 and this is
-    the only non-trivial change.
-    
-    For #37486.
-    
-    Change-Id: I53c1efa1c38d785dc71968f05e8d7d636b553e96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450017
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I08ee5480face7fbedeccc09e55b8149c5a793c2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376036
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Fannie Zhang <Fannie.Zhang@arm.com>
 
- src/cmd/dist/test.go | 143 ++++++++++++++++++++++++++++++---------------------
- 1 file changed, 83 insertions(+), 60 deletions(-)
+ src/runtime/asan.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

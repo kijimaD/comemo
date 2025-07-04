@@ -1,13 +1,18 @@
-commit bfaa175e0913df1e35a897f410fe375f81ddebc0
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 5 13:44:02 2011 +1000
+commit 5da14d1697d16efea832ce5756e20c76ed160f0a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 5 10:27:51 2011 +1000
 
-    time: add nanoseconds to the Time structure.
+    net: implement windows LookupMX and LookupAddr
     
-    R=golang-dev, dsymonds, bradfitz, kevlar, rsc, r
+    Also sort SRV records before returning from LookupSRV.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4851041
+    https://golang.org/cl/4817049
 
- src/pkg/time/time.go      |  30 +++++++++++++-
- src/pkg/time/time_test.go | 102 ++++++++++++++++++++++++++++++++++++----------
- 2 files changed, 109 insertions(+), 23 deletions(-)
+ src/pkg/net/dnsclient.go                    | 27 +++++++++++++++++--
+ src/pkg/net/{srv_test.go => lookup_test.go} | 28 ++++++++++++++++++++
+ src/pkg/net/lookup_unix.go                  | 19 ++-----------
+ src/pkg/net/lookup_windows.go               | 41 ++++++++++++++++++++++-------
+ src/pkg/syscall/ztypes_windows.go           |  6 +++++
+ 5 files changed, 93 insertions(+), 28 deletions(-)

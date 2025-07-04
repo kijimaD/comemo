@@ -1,12 +1,12 @@
-commit b9917045dadeb8a2158cf291d71f4e0124cf6ced
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Sun Feb 5 16:59:32 2012 -0800
+commit 1d2b19e2a326ea6c078752bb73fb2211718a811f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 6 11:25:28 2012 +1100
 
-    net: fix Plan 9 build
+    .hgignore: delete more dregs
     
-    R=golang-dev, alex.brainman
+    R=golang-dev, ality
     CC=golang-dev
-    https://golang.org/cl/5631051
+    https://golang.org/cl/5636044
 
- src/pkg/net/ipsock_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgignore | 4 ----
+ 1 file changed, 4 deletions(-)

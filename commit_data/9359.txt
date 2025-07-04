@@ -1,19 +1,30 @@
-commit d7440ce21a8a4937e1dd3e7d153eef298fe8dadc
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 15 15:16:57 2011 +1000
+commit e3df71f50bfd7e2d0706a6fa8d3ff56b3d7c4b0a
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Aug 15 00:56:01 2011 -0300
 
-    old/template: copy code from template
-    First step of moving exp/template into template: save the old code.
-    Code is unedited except for target name in Makefile.
+    exp/template: support field syntax on maps
     
-    R=golang-dev, dsymonds
+    While using exp/template in practice, the syntax for
+    indexing values using the "index" action was found to be
+    very inconvenient for frequent use when handling dynamic
+    data from maps such as the ones used with json and yaml,
+    that use a type like map[string]interface{}.
+    
+    For these kinds of maps, the default handling of fields as
+    {{.Field}} makes the task of handling the several references
+    significantly more pleasant and elegant, and is equivalent
+    to what's currently done in the "template" package and in
+    other external packages (e.g. mustache).
+    
+    Even with this change, the index action is still relevant
+    as it allows indexing maps in other scenarios where keys
+    wouldn't be valid field names.
+    
+    R=golang-dev, r, gustavo
     CC=golang-dev
-    https://golang.org/cl/4893042
+    https://golang.org/cl/4898043
 
- src/pkg/old/template/Makefile         |  14 +
- src/pkg/old/template/doc.go           |  91 ++++
- src/pkg/old/template/execute.go       | 346 +++++++++++++++
- src/pkg/old/template/format.go        |  77 ++++
- src/pkg/old/template/parse.go         | 743 +++++++++++++++++++++++++++++++
- src/pkg/old/template/template_test.go | 804 ++++++++++++++++++++++++++++++++++
- 6 files changed, 2075 insertions(+)
+ src/pkg/exp/template/doc.go       | 15 +++++++++++++--
+ src/pkg/exp/template/exec.go      | 13 ++++++++++++-
+ src/pkg/exp/template/exec_test.go | 12 ++++++++++++
+ 3 files changed, 37 insertions(+), 3 deletions(-)

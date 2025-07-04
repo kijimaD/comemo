@@ -1,0 +1,34 @@
+commit 742fda95246958076e439bbcf71fedda43a894bb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 27 00:59:49 2025 +0000
+
+    runtime: account for missing frame pointer in preamble
+    
+    If a goroutine is synchronously preempted, then taking a
+    frame-pointer-based stack trace at that preemption will skip PC of the
+    caller of the function which called into morestack. This happens because
+    the frame pointer is pushed to the stack after the preamble, leaving the
+    stack in an odd state for frame pointer unwinding.
+    
+    Deal with this by marking a goroutine as synchronously preempted and
+    using that signal to load the missing PC from the stack. On LR platforms
+    this is available in gp.sched.lr. On non-LR platforms like x86, it's at
+    gp.sched.sp, because there are no args, no locals, and no frame pointer
+    pushed to the SP yet.
+    
+    For #68090.
+    
+    Change-Id: I73a1206d8b84eecb8a96dbe727195da30088f288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684435
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
+
+ src/internal/trace/testdata/testprog/stacks.go | 14 ++++++++++++++
+ src/internal/trace/trace_test.go               | 15 ++++++++++-----
+ src/runtime/proc.go                            |  4 ++--
+ src/runtime/runtime2.go                        |  1 +
+ src/runtime/stack.go                           |  3 +++
+ src/runtime/traceruntime.go                    |  2 +-
+ src/runtime/tracestack.go                      | 17 ++++++++++++++++-
+ 7 files changed, 47 insertions(+), 9 deletions(-)

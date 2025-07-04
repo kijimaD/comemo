@@ -1,16 +1,22 @@
-commit 9f74f0afa6270e6735c1b6f59519cc88ff2ed1e4
+commit a04aa1f6d17cd723baad25118b31ab8ca5dc8e20
 Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Mar 10 03:27:44 2020 +1100
+Date:   Fri Oct 4 04:02:38 2019 +1000
 
-    cmd/compile: remove special handling for OpRISCV64SUBW in markUnsafePoints
+    cmd/internal/obj/riscv: implement MOV pseudo-instructions
     
-    Due to improved optimisation, we no longer emit SUBW for the write barrier
-    checks on riscv64, hence remove special handling in markUnsafePoints.
+    Add support for rewriting MOV pseudo-instructions into appropriate
+    RISC-V instructions.
     
-    Change-Id: Ia1150c3e11f25e183735e58f8716a511d9e90fb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222638
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I22da6f5f12c841d56fb676ab2a37f6d0a686b033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198677
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  30 +++
+ src/cmd/internal/obj/riscv/obj.go            | 338 +++++++++++++++++++++++++++
+ 2 files changed, 368 insertions(+)

@@ -1,19 +1,26 @@
-commit eb29ac7a7cf97cd364c9d343377b104bc3e90927
-Author: Gabriel Russell <gabriel.russell@gmail.com>
-Date:   Tue Aug 23 08:31:26 2016 -0400
+commit e48a2958d1cfa4ae75dead9d8e65489b53c70f14
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 25 13:24:48 2016 -0700
 
-    time: fix optional fractional seconds range err
+    cmd/compile: treat empty and absent struct field tags as identical
     
-    The optional fractional seconds overrides any range error
-    from the second parsing. Instead don't look for optional fractional
-    seconds if a range error has occured.
+    Fixes #15439.
     
-    Change-Id: I27e0a2432740f6753668bd8833e48b9495bc4036
-    Reviewed-on: https://go-review.googlesource.com/27590
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5a32384c46e20f8db6968e5a9e854c45ab262fe4
+    Reviewed-on: https://go-review.googlesource.com/22429
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/format.go      | 1 +
- src/time/format_test.go | 2 ++
- 2 files changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/bexport.go | 15 ++-------------
+ src/cmd/compile/internal/gc/bimport.go | 13 +++----------
+ src/cmd/compile/internal/gc/dcl.go     |  2 +-
+ src/cmd/compile/internal/gc/esc.go     | 16 ++++++++--------
+ src/cmd/compile/internal/gc/fmt.go     |  4 ++--
+ src/cmd/compile/internal/gc/order.go   |  2 +-
+ src/cmd/compile/internal/gc/reflect.go |  7 ++-----
+ src/cmd/compile/internal/gc/subr.go    |  6 +-----
+ src/cmd/compile/internal/gc/type.go    | 12 ++----------
+ src/cmd/compile/internal/gc/walk.go    |  2 +-
+ test/fixedbugs/issue15439.go           | 25 +++++++++++++++++++++++++
+ 11 files changed, 48 insertions(+), 56 deletions(-)

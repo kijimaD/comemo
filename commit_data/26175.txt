@@ -1,15 +1,29 @@
-commit 2339b131d63b397eb4b1bcd2cc09d532df138213
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 9 18:54:26 2016 -0800
+commit 04d732b4c2ec346dd0977ec2933d4863271fd4c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 13:50:06 2015 -0500
 
-    cmd/compile: cleanup paramstoheap and returnsfromheap
+    build: shorten a few packages with long tests
     
-    Better documentation. Change parameter types from **Type and int to
-    just *Type and bool. Make use of short var declarations.
+    Takes 3% off my all.bash run time.
     
-    Change-Id: I909846ba0df65cd2bc05ee145b72d60e881588bd
-    Reviewed-on: https://go-review.googlesource.com/20495
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    For #10571.
+    
+    Change-Id: I8f00f523d6919e87182d35722a669b0b96b8218b
+    Reviewed-on: https://go-review.googlesource.com/18087
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 47 +++++++++++++++++--------------------
- 1 file changed, 22 insertions(+), 25 deletions(-)
+ src/archive/zip/zip_test.go                   |  4 ++++
+ src/compress/flate/deflate_test.go            | 10 ++++++++-
+ src/compress/lzw/writer_test.go               | 10 ++++++++-
+ src/compress/testdata/gettysburg.txt          | 29 +++++++++++++++++++++++++++
+ src/compress/zlib/writer_test.go              | 27 +++++++++++++++++++------
+ src/go/internal/gcimporter/gcimporter_test.go |  6 +++++-
+ src/go/types/stdlib_test.go                   | 10 ++++++++-
+ src/math/big/int_test.go                      |  8 ++++++++
+ src/math/rand/rand_test.go                    |  4 +++-
+ src/net/http/serve_test.go                    |  9 +++++++++
+ src/net/http/transport_test.go                |  8 ++++++++
+ 11 files changed, 114 insertions(+), 11 deletions(-)

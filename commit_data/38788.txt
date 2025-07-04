@@ -1,18 +1,18 @@
-commit 13b7c04d3f15e5b3bc767057de148d8bf116dcf4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 16 11:59:05 2019 -0700
+commit 7d7e839a76227db321761ca7ca882429f30f39f9
+Author: David Tolpin <david.tolpin@gmail.com>
+Date:   Tue Nov 27 00:17:32 2018 +0000
 
-    runtime/internal/atomic: fix s390x's StorepNoWB implementation
+    go/printer: print parenthesized declarations if len(d.Specs) > 1
     
-    Same as CL 170323, but for s390x instead of wasm.
+    Parenthesized declaration must be printed if len(d.Specs) > 1 even if d.Lparen==token.NoPos. This happens if the node tree is created programmatically. Otherwise, all but the first specifications just silently disappear from the output.
     
-    Fixes #31495.
-    
-    Change-Id: Ie39f649f5e33690375a8bcb1bc3b92d912ca4398
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172417
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I17ab24bb1cd56fe1e611199698535ca60a97f5ea
+    GitHub-Last-Rev: 2f168dc7ad4a29149685efc70f180987523271e4
+    GitHub-Pull-Request: golang/go#28533
+    Reviewed-on: https://go-review.googlesource.com/c/146657
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/internal/atomic/atomic_s390x.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/go/printer/nodes.go        |  2 +-
+ src/go/printer/printer_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

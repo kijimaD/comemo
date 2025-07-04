@@ -1,22 +1,12 @@
-commit c265c893de73727b3a54511acf0e3f60593c1fa6
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 10 20:22:21 2018 -0400
+commit 080c25c15e67907a8cf1e3527c1958aae5eb329e
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Sun Apr 15 10:08:45 2018 +0300
 
-    cmd/go: ignore /tmp/go.mod
+    C: add Iskander Sharipov's individual CLA mail
     
-    Two different people have created /tmp/go.mod for experimentation
-    and then had other tests that create fresh work directories
-    below /tmp fail unexpectedly because the go command finds
-    /tmp/go.mod. Refuse to use /tmp/go.mod. /tmp/anything/go.mod is fine.
-    
-    Fixes #26708.
-    
-    Change-Id: I2a4f61ea63099cff59fbf9e8798e5dcefefd5557
-    Reviewed-on: https://go-review.googlesource.com/129063
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2e58e20e26674175b3e35b6c8a05998a93db4646
+    Reviewed-on: https://go-review.googlesource.com/107215
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/init.go        | 16 ++++++++++++++--
- src/cmd/go/testdata/script/mod_enabled.txt |  9 +++++++++
- 2 files changed, 23 insertions(+), 2 deletions(-)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

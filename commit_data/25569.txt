@@ -1,16 +1,33 @@
-commit 00c0a3a677d8720123b646bb8efa3bfa1e36a8a1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 13 10:41:37 2016 -0800
+commit 7807bda91d4038241b857a8bd341e6b9baf3a264
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 10 15:35:36 2015 -0800
 
-    go/importer: revert incorrect change that slipped in prior CL
+    [dev.ssa] cmd/compile: be safer about uintptr/unsafe.Pointer conversions
     
-    The package of anonymous fields is the package in which they were
-    declared, not the package of the anonymous field's type. Was correct
-    before and incorrectly changed with https://golang.org/cl/18549.
+    Make sure that when a pointer value is live across a function
+    call, we save it as a pointer.  (And similarly a uintptr
+    live across a function call should not be saved as a pointer.)
     
-    Change-Id: I9fd5bfbe9d0498c8733b6ca7b134a85defe16113
-    Reviewed-on: https://go-review.googlesource.com/18596
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Add a nasty test case.
+    
+    This is probably what is preventing the merge from master
+    to dev.ssa.  Signs point to something like this bug happening
+    in mallocgc.
+    
+    Change-Id: Ib23fa1251b8d1c50d82c6a448cb4a4fc28219029
+    Reviewed-on: https://go-review.googlesource.com/16830
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/internal/gcimporter/gcimporter.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 |   4 +-
+ src/cmd/compile/internal/gc/ssa_test.go            |   2 +
+ src/cmd/compile/internal/gc/testdata/unsafe_ssa.go | 129 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |   7 ++
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   3 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |  11 +-
+ src/cmd/compile/internal/ssa/opGen.go              |  13 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |  12 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  37 +++++-
+ 10 files changed, 203 insertions(+), 17 deletions(-)

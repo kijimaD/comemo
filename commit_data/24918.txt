@@ -1,15 +1,18 @@
-commit 247959d9b85be560d71b81e0e44fcf4c9cc900e4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 4 15:28:47 2015 -0500
+commit a20fbe8e18034ea519add1716c681d56ddddd27e
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Tue Sep 8 20:29:10 2015 +0200
 
-    cmd/compile: reject identifiers beginning with non-ASCII digit
+    cmd/compile/internal/gc: convert fields of Symlink to bool
     
-    Fixes #11359.
+    Convert two fields of struct Symlink in subr.go from uint8 to bool.
     
-    Change-Id: I0fdfa410939f7e42020cbb19d74a67e1cc3cd610
-    Reviewed-on: https://go-review.googlesource.com/16919
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I913006f41605b17b0d82fe358ee773f6ecaa681c
+    Reviewed-on: https://go-review.googlesource.com/14378
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/lex.go |  3 +++
- test/fixedbugs/issue11359.go       | 11 +++++++++++
- 2 files changed, 14 insertions(+)
+ src/cmd/compile/internal/gc/subr.go | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)

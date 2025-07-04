@@ -1,0 +1,22 @@
+commit f726c8d0fdd33331d599548b90a7d488ca5324c1
+Author: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+Date:   Tue May 14 02:00:09 2024 -0500
+
+     ppc64x: code cleanup in assembly files
+    
+    Replacing Branch Conditional (BC) with its extended mnemonic form of  BDNZ and BDZ.
+    - BC 16, 0, target can be replaced by BDNZ target
+    - BC 18, 0, target can be replaced by BDZ target
+    
+    Change-Id: I1259e207f2a40d0b72780d5421f7449ddc006dc5
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9,gotip-linux-ppc64le_power10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585077
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/aes/asm_ppc64x.s      |  6 +++---
+ src/crypto/md5/md5block_ppc64x.s |  2 +-
+ src/math/big/arith_ppc64x.s      | 10 +++++-----
+ 3 files changed, 9 insertions(+), 9 deletions(-)

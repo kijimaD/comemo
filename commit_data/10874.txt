@@ -1,54 +1,18 @@
-commit 55889409f8d44fab8f7715ec2d66286b857e25e7
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 19 15:51:13 2011 -0500
+commit 4a4c39e7d4f95ffcaa6971c35c4adeb740dcc515
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Dec 19 15:32:06 2011 -0500
 
-    runtime: separate out auto-generated files, take 2
+    encoding/json: cleanup leftover variables in array decoding.
     
-    This is like the ill-fated CL 5493063 except that
-    I have written a shell script (autogen.sh) instead of
-    thinking I could possibly write a correct Makefile.
+    An old update for API changes in reflect package left several
+    helper variables that do not have a meaning anymore, and
+    the type checking of arrays vs slices was broken.
+    Fixes #2513.
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/5496075
+    R=ultrotter, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5488094
 
- src/Make.pkg                          |   2 +-
- src/cmd/Makefile                      |   7 ++-
- src/make.bash                         |   8 ++-
- src/pkg/runtime/Makefile              |  81 +++++++-----------------
- src/pkg/runtime/asm_386.s             |   2 +-
- src/pkg/runtime/asm_amd64.s           |   2 +-
- src/pkg/runtime/asm_arm.s             |   2 +-
- src/pkg/runtime/autogen.sh            | 113 ++++++++++++++++++++++++++++++++++
- src/pkg/runtime/defs1_linux.go        |   2 +
- src/pkg/runtime/defs2_linux.go        |   2 +
- src/pkg/runtime/defs_arm_linux.go     |   2 +
- src/pkg/runtime/defs_darwin.go        |   2 +
- src/pkg/runtime/defs_freebsd.go       |   2 +
- src/pkg/runtime/defs_linux.go         |   2 +
- src/pkg/runtime/defs_netbsd.go        |   2 +
- src/pkg/runtime/defs_openbsd.go       |   2 +
- src/pkg/runtime/defs_windows.go       |   2 +
- src/pkg/runtime/goc2c.c               |   3 +
- src/pkg/runtime/lock_futex.c          |   2 +
- src/pkg/runtime/lock_sema.c           |   2 +
- src/pkg/runtime/mkasmh.sh             |  25 +++++++-
- src/pkg/runtime/mkgodefs.sh           |  24 +++++++-
- src/pkg/runtime/mkversion.c           |   8 ++-
- src/pkg/runtime/rt0_windows_amd64.s   |   2 +-
- src/pkg/runtime/signal_darwin_amd64.c |   2 +-
- src/pkg/runtime/sys_darwin_386.s      |   2 +-
- src/pkg/runtime/sys_darwin_amd64.s    |   2 +-
- src/pkg/runtime/sys_freebsd_386.s     |   2 +-
- src/pkg/runtime/sys_freebsd_amd64.s   |   2 +-
- src/pkg/runtime/sys_linux_386.s       |   2 +-
- src/pkg/runtime/sys_linux_amd64.s     |   2 +-
- src/pkg/runtime/sys_linux_arm.s       |   2 +-
- src/pkg/runtime/sys_netbsd_386.s      |   2 +-
- src/pkg/runtime/sys_netbsd_amd64.s    |   2 +-
- src/pkg/runtime/sys_openbsd_386.s     |   2 +-
- src/pkg/runtime/sys_openbsd_amd64.s   |   2 +-
- src/pkg/runtime/sys_plan9_386.s       |   2 +-
- src/pkg/runtime/sys_windows_386.s     |   2 +-
- src/pkg/runtime/sys_windows_amd64.s   |   2 +-
- 39 files changed, 245 insertions(+), 86 deletions(-)
+ src/pkg/encoding/json/decode.go      | 71 ++++++++++++++++++------------------
+ src/pkg/encoding/json/decode_test.go |  6 +++
+ 2 files changed, 42 insertions(+), 35 deletions(-)

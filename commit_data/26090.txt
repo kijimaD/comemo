@@ -1,15 +1,14 @@
-commit 6ed10382f7c81369e69f6c9e406f1df325a85984
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 4 18:55:09 2016 -0800
+commit e5ba367c10c8d819841da5ec3661d3d20fc1e765
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 16 16:20:03 2015 -0500
 
-    cmd/compile: soup up isSamePtr
+    go/build: disable test on nacl (and a few others, unnecessarily)
     
-    This increases the number of matches in make.bash
-    from 853 to 984.
+    Fixes build.
     
-    Change-Id: I12697697a50ecd86d49698200144a4c80dd3e5a4
-    Reviewed-on: https://go-review.googlesource.com/20274
-    Reviewed-by: Todd Neal <todd@tneal.org>
+    Change-Id: Ia71fc031cc8eb575e5ab5323ff4084147d143744
+    Reviewed-on: https://go-review.googlesource.com/17867
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go | 19 ++++++++++++++-----
- 1 file changed, 14 insertions(+), 5 deletions(-)
+ src/go/build/build_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

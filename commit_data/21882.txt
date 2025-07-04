@@ -1,16 +1,21 @@
-commit 671472c1c9e9d7bd61e0e7d94a4e7a72a3d3383e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 3 15:50:32 2015 -0800
+commit e59ed477c37d2c4ecb9488fd7acd17d0efaf8dc8
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 10 17:11:36 2015 -0800
 
-    build: don't run a cgo test when cgo is disabled
+    [dev.cc] cmd/asm: final fixups for correct assembly of runtime, the last package to verify
     
-    Fixes the linux-amd64-nocgo builder.
+    - obj: add a missing setting of the context for a generated JMP instruction
+    - asm:  correct the encoding of mode (R)(R*scale)
+    - asm: fix a silly bug in the test for macro recursion.
+    - asm: accept address mode sym(R)(R*8); was an oversight
     
-    Regression from https://golang.org/cl/6531
-    
-    Change-Id: Ibffd1ecfee4a888605ed54196f53956ae42e591c
-    Reviewed-on: https://go-review.googlesource.com/6700
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I27112eaaa1faa0d2ba97e414f0571b70733ea087
+    Reviewed-on: https://go-review.googlesource.com/4502
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/test.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/asm/parse.go | 82 +++++++++++++++++++++++----------------
+ src/cmd/asm/internal/lex/input.go |  5 ++-
+ src/cmd/dist/build.go             |  2 +-
+ src/cmd/dist/buildtool.go         |  7 +++-
+ src/cmd/internal/obj/x86/obj6.go  |  1 +
+ 5 files changed, 60 insertions(+), 37 deletions(-)

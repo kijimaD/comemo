@@ -1,22 +1,20 @@
-commit c63dc6d45956ba471cc88658df4674df3f679a70
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 26 11:56:19 2019 -0800
+commit a0e7f12771c2e84e626dcf5e30da5d62a3b1adf6
+Author: Jake B <doogie1012@gmail.com>
+Date:   Sat Sep 29 04:06:00 2018 +0000
 
-    cmd/compile: remove badgerbadgerbadger optimization
+    misc/wasm: add polyfill for TextEncoder/TextDecoder for Edge support
     
-    As discussed in #29242, this optimization is for a bash-ism.
-    No one writes Go code like this.
+    Edge supports WASM but not TextEncoder or TextDecoder.
+    This PR adds a polyfill to `misc/wasm/wasm_exec.js` to fix this.
     
-    In this repo, it triggers only in test/fixedbugs/bug425.go
-    and that appears to be accidental.
+    Fixes #27295
     
-    Fixes #29242
-    
-    Change-Id: I257e6ecc73f24680f7282c6ab28729de4e8b27af
-    Reviewed-on: https://go-review.googlesource.com/c/163728
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie35ee5604529b170a5dc380eb286f71bdd691d3e
+    GitHub-Last-Rev: a587edae2806e1ca9b6be1c5dfd8824568373bdb
+    GitHub-Pull-Request: golang/go#27296
+    Reviewed-on: https://go-review.googlesource.com/131718
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/cmd/compile/internal/gc/walk.go | 6 ------
- 1 file changed, 6 deletions(-)
+ misc/wasm/wasm_exec.html | 5 +++++
+ 1 file changed, 5 insertions(+)

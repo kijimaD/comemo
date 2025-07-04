@@ -1,14 +1,18 @@
-commit ddc25081d24d62ebf37e737b73b8bad8fd4b50ec
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 4 09:12:31 2016 -0800
+commit 74180dd7dad42b800f2408340ad17cb62c6c11fb
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Oct 27 21:35:48 2015 -0500
 
-    log/syslog: document that syslog is frozen
+    [dev.ssa] cmd/compile/internal/ssa: reuse Aux values for PEXTERN
     
-    Try to reduce feature request bug reports.
+    This improves cse and works correctly now that divide by zero is checked
+    explicitly.
     
-    Change-Id: I713bb715d25d23e084b054aea8e1c3197dde90d4
-    Reviewed-on: https://go-review.googlesource.com/18222
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If54fbe403ed5230b897afc5def644ba9f0056dfd
+    Reviewed-on: https://go-review.googlesource.com/16454
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/log/syslog/doc.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 |  2 +-
+ .../compile/internal/gc/testdata/loadstore_ssa.go  | 28 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

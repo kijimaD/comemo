@@ -1,21 +1,13 @@
-commit ce77a4640561567ab59c481dd917b4f98b723b97
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 31 09:37:22 2022 +0700
+commit 2840ccbc051bcfd19a08f8a6bb848fe28e3cffb9
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Oct 8 12:23:44 2021 -0400
 
-    cmd/dist: disable cgo when testing internal linking of PIE
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    Since when internal linking cgo on some platforms, like android, is not
-    fully supported.
-    
-    Updates #46731
-    
-    Change-Id: I344a763f8dfb0cce04371d9305eee634bfd9ee77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426199
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I5aa88700c61e44ae31c1e2bb35716ed99b6df017
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354792
+    Trust: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/dist/test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

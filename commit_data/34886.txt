@@ -1,17 +1,17 @@
-commit 54c3f56ee0f0b89426ae2052ffead689707fec81
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Apr 9 09:52:40 2018 +0200
+commit 4a41da5bac1da4a71b237581ab30dd7a84c5bc55
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Nov 16 16:38:19 2017 +1100
 
-    test/codegen: port various mem-combining tests
+    cmd/go: add TestACL
     
-    And delete them from asm_test.
+    Add test that verifies that go command produces executable
+    that have security attributes of the target directory.
     
-    Change-Id: I0e33d58274951ab5acb67b0117b60ef617ea887a
-    Reviewed-on: https://go-review.googlesource.com/105735
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Update #22343
+    
+    Change-Id: Ieab02381927a2b09bee21c49c043b3298bd088e6
+    Reviewed-on: https://go-review.googlesource.com/78215
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 55 ---------------------------------
- test/codegen/memcombine.go              | 34 ++++++++++++++++++++
- 2 files changed, 34 insertions(+), 55 deletions(-)
+ src/cmd/go/go_windows_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 81 insertions(+)

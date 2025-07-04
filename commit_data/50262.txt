@@ -1,24 +1,26 @@
-commit e2d2d3a4a6edf1e571a5aca1eaaf55ffcc4d6eba
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 17:40:21 2022 -0700
+commit e8f99da8ed6180732ace00f8fc6b17f636515bc4
+Author: nicksherron <nsherron90@gmail.com>
+Date:   Wed Oct 13 01:39:13 2021 +0000
 
-    go/types: test shifts that are disabled in shared test file
+    all: fix spelling mistakes
     
-    CL 425735 consolidated the testdata/check/shifts.go files between
-    go/types and types2. Because some shifts don't work correctly with
-    types2, the corresponding tests were disabled in the shared file.
-    Make sure we keep testing those shifts for go/types by adding a
-    local test file.
+    Corrections were only made to comments and can be reproduced with the
+    following sed.
     
-    For #52080.
-    For #54511.
+    sed -i 's/communciation/communication/g'  src/internal/fuzz/sys_windows.go
+    sed -i 's/communciation/communication/g'  src/internal/fuzz/sys_posix.go
+    sed -i 's/substitued/substituted/g'     src/cmd/compile/internal/noder/irgen.go
     
-    Change-Id: I53507e535bf83b204eaf18fc6c2efefcebf5ebf7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426661
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I435aee2fdb41e73b694e6233d52742559d32cf7e
+    GitHub-Last-Rev: a471e3d123aa6c8bb9b091e65de5d16609fb8db1
+    GitHub-Pull-Request: golang/go#48932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355494
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/types/testdata/local/shifts.go | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ src/cmd/compile/internal/noder/irgen.go | 2 +-
+ src/internal/fuzz/sys_posix.go          | 2 +-
+ src/internal/fuzz/sys_windows.go        | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

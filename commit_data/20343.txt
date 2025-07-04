@@ -1,18 +1,24 @@
-commit de4964a78c5cd4258081f9305abc3147b1dbc793
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 8 00:22:40 2014 -0400
+commit 90e2e2b89633770d42f2ff558588dfc53c3288c8
+Author: Marko Tiikkaja <marko@joh.to>
+Date:   Tue Sep 2 09:08:41 2014 -0700
 
-    build: more adjustments for move from src/pkg to src
+    database/sql: Avoid re-preparing statements when all connections are busy
     
-    These were missed in CL 134570043.
+    Previously, if all connections were busy, we would always
+    re-prepare the statement on the connection we were assigned from
+    the pool.  That meant that if all connections were busy most of the
+    time, the number of prepared statements for each connection would
+    keep increasing over time.
     
-    Fixes nacl, solaris builds.
+    Instead, after getting a free connection, check to see if the
+    statement has already been prepared on it, and reuse the statement
+    handle if so.
     
-    TBR=r
+    LGTM=bradfitz
+    R=golang-codereviews, gobot, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/136320043
+    https://golang.org/cl/116930043
 
- misc/nacl/testzip.proto           | 159 +++++++++++++++++++-------------------
- src/nacltest.bash                 |   4 +-
- src/runtime/thunk_solaris_amd64.s |   2 +-
- 3 files changed, 82 insertions(+), 83 deletions(-)
+ src/pkg/database/sql/sql.go      | 58 +++++++++++++++++++++++-----------------
+ src/pkg/database/sql/sql_test.go | 13 ++++-----
+ 2 files changed, 41 insertions(+), 30 deletions(-)

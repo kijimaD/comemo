@@ -1,19 +1,23 @@
-commit cfcd71790f0ca8c2ec1ae5989cd60ad1e83ee40c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 12 15:08:00 2021 -0800
+commit bd8b3fe5be9e9a5a2579c013451c07d53b827c56
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Dec 31 12:41:53 2020 +0000
 
-    cmd/compile/internal/types2: allow slicing for operands with []byte|string type sets
+    cmd/compile: make no-op rewrite funcs smaller
     
-    Fixes #49566.
+    This doesn't change any behavior, but should help the compiler realise
+    that these funcs really do nothing at all.
     
-    Change-Id: I80ff4ca661f82b0981d51e0997d5988a9b82f508
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363662
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ib26c02ef264691acac983538ec300f91d6ff98db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280314
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go        | 23 +++-----------
- src/cmd/compile/internal/types2/index.go           |  4 +--
- .../internal/types2/testdata/check/typeparams.go2  |  4 +++
- src/cmd/compile/internal/types2/type.go            | 37 ++++++++++++++++++++++
- 4 files changed, 47 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go           | 9 +++++++--
+ src/cmd/compile/internal/ssa/rewrite386splitload.go   | 2 --
+ src/cmd/compile/internal/ssa/rewriteAMD64splitload.go | 2 --
+ src/cmd/compile/internal/ssa/rewriteWasm.go           | 2 --
+ src/cmd/compile/internal/ssa/rewritedec.go            | 2 --
+ src/cmd/compile/internal/ssa/rewritedec64.go          | 2 --
+ 6 files changed, 7 insertions(+), 12 deletions(-)

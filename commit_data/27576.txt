@@ -1,22 +1,14 @@
-commit 8e6e9e83818596048cfca1e121ad39b9b007ba28
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Sat May 28 10:06:37 2016 +0100
+commit 1934a77f5a1680397481d5bc6ed85b017d1e8b38
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Apr 3 19:32:31 2016 +1200
 
-    syscall: plan9 - mark gbit16 as go:nosplit
+    cmd/link: define a variable for the target platform's elf relocation type
     
-    This is a correction to CL 22610.  The gbit16 function is called in
-    StartProcess between fork and exec, and therefore must not split the
-    stack.  Normally it's inlined so this is not an issue, but on one
-    occasion I've observed it to be compiled without inlining, and the
-    result was a panic.  Mark it go:nosplit to be safe.
+    Rather than having half a dozen switch statements. Also remove some c2go dregs.
     
-    Change-Id: I0381754397b766431bf406d9767c73598d23b901
-    Reviewed-on: https://go-review.googlesource.com/23560
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I19af5b64f73369126020e15421c34cad5bbcfbf8
+    Reviewed-on: https://go-review.googlesource.com/21442
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/dir_plan9.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/link/internal/ld/elf.go | 136 ++++++++++++++--------------------------
+ 1 file changed, 47 insertions(+), 89 deletions(-)

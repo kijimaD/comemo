@@ -1,26 +1,65 @@
-commit 6ac8ccf4b3b7ffe946b99e5031b88edc611e32ec
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Feb 8 15:31:54 2017 -0600
+commit deb4177cf0b8352f4908c0eba9e81dfb0213545c
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 25 15:49:52 2016 -0700
 
-    crypto/sha512: Add AVX2 version for AMD64
+    cmd/compile: use masks instead of branches for slicing
     
-    name          old time/op    new time/op     delta
-    Hash8Bytes-6     913ns ± 0%      667ns ± 0%  -26.91%  (p=0.000 n=10+10)
-    Hash1K-6        6.58µs ± 0%     4.23µs ± 0%  -35.69%  (p=0.000 n=10+9)
-    Hash8K-6        45.9µs ± 0%     28.1µs ± 0%  -38.93%  (p=0.000 n=10+10)
+    When we do
     
-    name          old speed      new speed       delta
-    Hash8Bytes-6  8.76MB/s ± 0%  11.99MB/s ± 0%  +36.87%  (p=0.000 n=10+8)
-    Hash1K-6       156MB/s ± 0%    242MB/s ± 0%  +55.49%  (p=0.000 n=10+9)
-    Hash8K-6       178MB/s ± 0%    292MB/s ± 0%  +63.74%  (p=0.000 n=10+10)
+      var x []byte = ...
+      y := x[i:]
     
-    Change-Id: Ic9211d68b02935b2195995f264ec57d6bc36f713
-    Reviewed-on: https://go-review.googlesource.com/36630
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    We can't just use y.ptr = x.ptr + i, as the new pointer may point to the
+    next object in memory after the backing array.
+    We used to fix this by doing:
+    
+      y.cap = x.cap - i
+      delta := i
+      if y.cap == 0 {
+        delta = 0
+      }
+      y.ptr = x.ptr + delta
+    
+    That generates a branch in what is otherwise straight-line code.
+    
+    Better to do:
+    
+      y.cap = x.cap - i
+      mask := (y.cap - 1) >> 63 // -1 if y.cap==0, 0 otherwise
+      y.ptr = x.ptr + i &^ mask
+    
+    It's about the same number of instructions (~4, depending on what
+    parts are constant, and the target architecture), but it is all
+    inline. It plays nicely with CSE, and the mask can be computed
+    in parallel with the index (in cases where a multiply is required).
+    
+    It is a minor win in both speed and space.
+    
+    Change-Id: Ied60465a0b8abb683c02208402e5bb7ac0e8370f
+    Reviewed-on: https://go-review.googlesource.com/32022
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/sha512/sha512block_amd64.go |   26 +
- src/crypto/sha512/sha512block_amd64.s  | 1215 +++++++++++++++++++++++++++++++-
- src/crypto/sha512/sha512block_decl.go  |    2 +-
- 3 files changed, 1241 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 60 ++++++++--------------
+ src/cmd/compile/internal/ssa/gen/386.rules     |  3 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |  1 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  2 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  4 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  2 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  2 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |  5 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          |  6 +++
+ src/cmd/compile/internal/ssa/prove.go          | 38 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go     | 31 ++++++++++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 23 +++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 22 ++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 22 ++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 31 ++++++++++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 23 +++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 25 ++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 69 ++++++++++++++++++++++++++
+ test/sliceopt.go                               |  9 ++--
+ 21 files changed, 325 insertions(+), 56 deletions(-)

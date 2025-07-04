@@ -1,25 +1,49 @@
-commit bb59a1360a9e6c2d32a59461da56e9bc3a5703ef
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Mon May 18 09:34:17 2020 +0100
+commit 6ef7794b24f7c8890c673436d8509b83def2ce27
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 9 19:06:24 2019 +1100
 
-    runtime: don't enable notes (=signals) too early in Plan 9
+    all: fix most of the remaining windows -d=checkptr violations
     
-    The Plan 9 runtime startup was enabling notes (like Unix signals)
-    before the gsignal stack was allocated. This left a small window
-    of time where an interrupt (eg by the parent killing a subprocess
-    quickly after exec) would cause a null pointer dereference in
-    sigtramp. This would leave the interrupted process suspended in
-    'broken' state instead of exiting. We've observed this on the
-    builders, where it can make a test time out waiting for the broken
-    process to terminate.
+    This change replaces
     
-    Updates #38772
+    buf := [HUGE_CONST]*T)(unsafe.Pointer(p))[:]
     
-    Change-Id: I54584069fd3109595f06c78724c1f6419e028aab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234397
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    with
+    
+    buf := [HUGE_CONST]*T)(unsafe.Pointer(p))[:n:n]
+    
+    Pointer p points to n of T elements. New unsafe pointer conversion
+    logic verifies that both first and last elements point into the same
+    Go variable.
+    
+    This change replaces [:] with [:n:n] to please pointer checker.
+    According to @mdempsky, compiler specially recognizes when you
+    combine a pointer conversion with a full slice operation in a single
+    expression and makes an exception.
+    
+    After this, only one failure in net remains when running:
+    
+    go test -a -short -gcflags=all=-d=checkptr std cmd
+    
+    Updates #34972
+    
+    Change-Id: I2c8731650c856264bc788e4e07fa0530f7c250fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208617
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/os_plan9.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/go/build/deps_test.go                       |  2 +-
+ src/internal/syscall/windows/reparse_windows.go | 10 ++++++----
+ src/internal/syscall/windows/syscall_windows.go | 20 ++++++++++++++++++++
+ src/net/interface_windows.go                    |  2 +-
+ src/net/lookup_windows.go                       | 11 ++++++-----
+ src/os/env_windows.go                           | 18 +++++++++++-------
+ src/os/exec_windows.go                          |  5 ++---
+ src/os/os_windows_test.go                       |  8 +++++---
+ src/os/user/lookup_windows.go                   | 11 +++--------
+ src/syscall/security_windows.go                 |  2 +-
+ src/syscall/syscall_windows.go                  | 21 ++++++++++++++++++++-
+ 11 files changed, 76 insertions(+), 34 deletions(-)

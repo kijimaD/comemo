@@ -1,30 +1,21 @@
-commit 79e03a9281ba03f9f79904f074e2e343f2140bdd
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Nov 10 10:44:00 2021 -0500
+commit d206ca5cac60ddff222a25e1dc96d6b0e96c21b5
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 16 12:03:08 2021 -0400
 
-    cmd/compile: include register-resident output params in DWARF-gen
+    cmd/compile: fix open defer of method call
     
-    During the register ABI work, a change was made in CL 302071 to
-    "stackframe" to treat register-resident output parameter (PARAMOUT)
-    variables that same as locals, which meant that if they were unused,
-    we'd delete them from the "Dcl" slice. This has the effect of making
-    them invisible to DWARF generation later on in the pipeline, meaning
-    that we don't get DIEs for them in the debug info. This patch fixes
-    the problem by capturing these params prior to optimization and then
-    adding them back in for consideration when we're processing the
-    params/locals of a function during DWARF generation.
+    Code generation for open defers failed to account for
+    presence of method receiver and thus was OFF BY ONE.
     
-    Fixes #48573.
+    Fixes #45062.
+    Updates #44816.
+    Updates #40724.
     
-    Change-Id: I2b32882911c18f91c3e3d009486517522d262685
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362618
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ia90ea8fd0f7d823e1f757c406f9127136c2ffdd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302249
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/dwarfgen/dwarf.go |  13 ++
- src/cmd/compile/internal/ssa/debug.go      |  40 ++---
- src/cmd/compile/internal/ssagen/ssa.go     |  19 ++-
- src/cmd/link/internal/ld/dwarf_test.go     | 266 ++++++++++++++++++++++++-----
- 4 files changed, 268 insertions(+), 70 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go |  6 ++++--
+ test/abi/open_defer_1.go               | 36 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 2 deletions(-)

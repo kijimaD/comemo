@@ -1,12 +1,15 @@
-commit fece09e58a094fb917703c147ebc9cd4f87924d0
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Mon Feb 11 10:15:56 2013 +1100
+commit 74e157764595054c13caf6b5bfdc324596ea2873
+Author: Greg Ward <greg@gerg.ca>
+Date:   Mon Feb 11 09:18:31 2013 +1100
 
-    cmd/8l/asm.c: Unused function arguments, suppress warnings.
+    doc: link to wiki Projects page instead of old Project Dashboard.
     
-    R=golang-dev, nigeltao
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7304069
+    https://golang.org/cl/7308079
 
- src/cmd/8l/asm.c | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/articles/c_go_cgo.html | 5 ++---
+ doc/code.html              | 4 ++--
+ doc/contrib.html           | 2 +-
+ doc/docs.html              | 2 +-
+ 4 files changed, 6 insertions(+), 7 deletions(-)

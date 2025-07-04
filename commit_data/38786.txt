@@ -1,32 +1,19 @@
-commit 2bdbc942f5ae3da8cad8d0f2bd3f4ce75a821e6c
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Apr 15 15:34:49 2019 -0400
+commit 5680874e0c633e368b40ccc9534e5125375d89cb
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Nov 26 16:11:18 2018 +0100
 
-    cmd/go: print package import chains for some build list errors
+    test: fix nilptr5 for AIX
     
-    When we construct the build list by loading packages (e.g., in
-    "go build", "go list", or "go test"), we may load additional modules
-    not mentioned in the original build list. If we encounter an error
-    loading one of these modules, mvs.BuildList currently returns a
-    BuildListError with a chain of requirments. Unfortunately, this is not
-    helpful, since the graph is structured such that these missing modules
-    are direct requirements of the main module.
+    This commit fixes a mistake made in CL 144538.
+    This nilcheck can be removed because OpPPC64LoweredMove will fault if
+    arg0 is nil, as it's used to store. Further information can be found in
+    cmd/compile/internal/ssa/nilcheck.go.
     
-    With this change, loader.load keeps track of the package that caused
-    each "missing" module to be added. If an error occurs in a missing
-    module, the chain of package imports is printed instead of the module
-    requirements.
-    
-    Fixes #31475
-    
-    Change-Id: Ie484814af42ceea3e85fedc38e705ba3a38cd495
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171859
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ifec0080c00eb1f94a8c02f8bf60b93308e71b119
+    Reviewed-on: https://go-review.googlesource.com/c/151298
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/load.go                | 34 ++++++++++++++++------
- src/cmd/go/internal/mvs/mvs.go                     | 15 ++++++++--
- src/cmd/go/testdata/script/mod_load_badchain.txt   | 33 ++++++++++++++++++++-
- .../testdata/script/mod_missingpkg_prerelease.txt  |  2 +-
- 4 files changed, 70 insertions(+), 14 deletions(-)
+ test/nilptr5_aix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

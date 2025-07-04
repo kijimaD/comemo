@@ -1,39 +1,17 @@
-commit 40bff82885b8de850f909f38357c53670562f815
-Author: Austin Clements <austin@google.com>
-Date:   Sat Oct 3 20:40:49 2020 -0400
+commit dc3255391a59474eda08e71eaf8090753b0a84db
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 3 03:40:37 2020 +1100
 
-    runtime: define and use call16 everywhere
+    cmd/internal/obj/riscv: add NOT pseudo-instruction
     
-    Currently, runtime.call16 is defined and used only on 32-bit
-    architectures, while 64-bit architectures all start at call32 and go
-    up from there. This led to unnecessary complexity because call16's
-    prototype needed to be in a different file, separate from all of the
-    other call* prototypes, which in turn led to it getting out of sync
-    with the other call* prototypes. This CL adds call16 on 64-bit
-    architectures, bringing them all into sync, and moves the call16
-    prototype to live with the others.
+    Add a NOT pseudo-instruction that translates to XORI $-1.
     
-    Prior to CL 31655 (in 2016), call16 couldn't be implemented on 64-bit
-    architectures because it needed at least four words of argument space
-    to invoke "callwritebarrier" after copying back the results. CL 31655
-    changed the way call* invoked the write barrier in preparation for the
-    hybrid barrier; since the hybrid barrier had to be invoked prior to
-    copying back results, it needed a different solution that didn't reuse
-    call*'s stack space. At this point, call16 was no longer a problem on
-    64-bit, but we never added it. Until now.
-    
-    Change-Id: Id10ade0e4f75c6ea76afa6229ddaee2b994c27dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259339
-    Trust: Austin Clements <austin@google.com>
+    Change-Id: I2be4cfe2939e988cd7f8d30260b704701d78475f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221688
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/asm_amd64.s   |  2 ++
- src/runtime/asm_arm64.s   |  2 ++
- src/runtime/asm_mips64x.s |  1 +
- src/runtime/asm_ppc64x.s  |  2 ++
- src/runtime/asm_riscv64.s |  1 +
- src/runtime/asm_s390x.s   |  2 ++
- src/runtime/asm_wasm.s    |  2 ++
- src/runtime/stubs.go      |  1 +
- src/runtime/stubs32.go    | 14 --------------
- 9 files changed, 13 insertions(+), 14 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 6 +++++-
+ src/cmd/internal/obj/riscv/anames.go         | 1 +
+ src/cmd/internal/obj/riscv/cpu.go            | 1 +
+ src/cmd/internal/obj/riscv/obj.go            | 9 +++++++++
+ 4 files changed, 16 insertions(+), 1 deletion(-)

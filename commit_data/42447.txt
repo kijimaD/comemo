@@ -1,19 +1,16 @@
-commit 7a2632e11d0214579a0c8041796687709f70e556
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jun 2 17:15:35 2020 -0400
+commit 2e320a240d0b99b6810f452cf8554f6e79f0222e
+Author: Isfan Azhabil <isfan.azhabil@tokopedia.com>
+Date:   Tue Dec 24 10:03:33 2019 +0000
 
-    doc/go1.15: add release notes for plugin
+    net: fix typo in dns client unix test
     
-    Add a blurb to the release notes mentioning that the
-    linker now supports DWARF generation for -buildmode=plugin,
-    and that plugin builds work now for freebsd/amd64.
+    Fix a typo DNS name, it should be [onion.vegetables.com](http://onion.vegetables.com/)
     
-    Updates #37419.
-    
-    Change-Id: I84da7a52af84a9d765f73ca7ea525e7af8d64f05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236162
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I4122a2305b8f5e774a834651e70c75b54e9386bd
+    GitHub-Last-Rev: 9907897944275c5f8c54c79667cbb1ef474539de
+    GitHub-Pull-Request: golang/go#36270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212410
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.15.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/net/dnsclient_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

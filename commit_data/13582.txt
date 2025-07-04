@@ -1,12 +1,12 @@
-commit e1cf7d6fb69223bc6e1fd0f312dfe2b4df52f896
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 6 16:32:00 2012 -0400
+commit 1df9ee0322e33a19a10ed531020c199eb3b49e61
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 6 14:56:39 2012 +1000
 
-    net: fix spurious EADDRNOTAVAIL errors
+    test/run: ignore all but .go file during compiledir action
     
-    R=golang-dev, fullung
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6443085
+    https://golang.org/cl/6454091
 
- src/pkg/net/tcpsock_posix.go | 25 ++++++++++++++++++++++---
- 1 file changed, 22 insertions(+), 3 deletions(-)
+ test/run.go | 3 +++
+ 1 file changed, 3 insertions(+)

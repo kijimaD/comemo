@@ -1,0 +1,22 @@
+commit 672a53def7e94b4d26049c5cd44dda5d7f1a46ff
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Oct 9 01:00:36 2024 +0200
+
+    strconv: cleanup old compiler bits.TrailingZeros workaround
+    
+    Since CL 599096 the compiler knows bits.TrailingZeros's maximum value
+    based on the input type size.
+    
+    Since CL 603996 it knows it based on input's maximum value.
+    
+    Change-Id: Ib0d6b15a3ba6894d3e7e12b79b387ddbffabe370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618715
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Commit-Queue: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/strconv/itoa.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

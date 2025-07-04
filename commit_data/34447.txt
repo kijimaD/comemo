@@ -1,35 +1,42 @@
-commit f0756ca2ea3a0dbd6c6479eacffd0023416280cb
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Nov 9 17:33:12 2017 -0800
+commit 78952c06c53c8455d03430b17b5a7fe2693b5d35
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 21 12:52:38 2017 -0700
 
-    encoding/json: use sync.Map for field cache
+    [release-branch.go1.9] cmd/compile: fix sign-extension merging rules
     
-    The previous type cache is quadratic in time in the situation where
-    new types are continually encountered. Now that it is possible to dynamically
-    create new types with the reflect package, this can cause json to
-    perform very poorly.
+    If we have
     
-    Switch to sync.Map which does well when the cache has hit steady state,
-    but also handles occasional updates in better than quadratic time.
+      y = <int16> (MOVBQSX x)
+      z = <int32> (MOVWQSX y)
     
-    benchmark                                     old ns/op      new ns/op     delta
-    BenchmarkTypeFieldsCache/MissTypes1-8         14817          16202         +9.35%
-    BenchmarkTypeFieldsCache/MissTypes10-8        70926          69144         -2.51%
-    BenchmarkTypeFieldsCache/MissTypes100-8       976467         208973        -78.60%
-    BenchmarkTypeFieldsCache/MissTypes1000-8      79520162       1750371       -97.80%
-    BenchmarkTypeFieldsCache/MissTypes10000-8     6873625837     16847806      -99.75%
-    BenchmarkTypeFieldsCache/HitTypes1000-8       7.51           8.80          +17.18%
-    BenchmarkTypeFieldsCache/HitTypes10000-8      7.58           8.68          +14.51%
+    We used to use this rewrite rule:
     
-    The old implementation takes 12 minutes just to build a cache of size 1e5
-    due to the quadratic behavior. I did not bother benchmark sizes above that.
+    (MOVWQSX x:(MOVBQSX _)) -> x
     
-    Change-Id: I5e6facc1eb8e1b80e5ca285e4dd2cc8815618dad
-    Reviewed-on: https://go-review.googlesource.com/76850
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    But that resulted in replacing z with a value whose type
+    is only int16.  Then if z is spilled and restored, it gets
+    zero extended instead of sign extended.
+    
+    Instead use the rule
+    
+    (MOVWQSX (MOVBQSX x)) -> (MOVBQSX x)
+    
+    The result is has the correct type, so it can be spilled
+    and restored correctly.  It might mean that a few more extension
+    ops might not be eliminated, but that's the price for correctness.
+    
+    Fixes #21963
+    
+    Change-Id: I6ec82c3d2dbe43cc1fee6fb2bd6b3a72fca3af00
+    Reviewed-on: https://go-review.googlesource.com/65290
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/70986
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/json/bench_test.go | 68 +++++++++++++++++++++++++++++++++++++++++
- src/encoding/json/encode.go     | 32 +++----------------
- 2 files changed, 73 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  26 ++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 144 +++++++++++++--------------
+ test/fixedbugs/issue21963.go                 |  27 +++++
+ 3 files changed, 113 insertions(+), 84 deletions(-)

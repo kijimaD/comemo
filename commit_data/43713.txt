@@ -1,18 +1,43 @@
-commit db8142fb8631df3ee56983cbc13db997c16f2f6f
-Author: Vee Zhang <veezhang@126.com>
-Date:   Thu Nov 5 08:27:55 2020 +0000
+commit e464d7d7970be972a17a98c7ad996c2db4a04997
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Apr 17 05:05:07 2020 -0700
 
-    runtime: fix file references in hiter's comments
+    cmd/compile: optimize comparisons with immediates on s390x
     
-    The file "cmd/internal/gc/range.go" does not exist, but should be
-    "cmd/compile/internal/gc/range.go".
+    When generating code for unsigned equals (==) and not equals (!=)
+    comparisons we currently, on s390x, always use signed comparisons.
     
-    Change-Id: I26e5560b9d0b7eea8502c6b375e45fc87aed1276
-    GitHub-Last-Rev: 5f19dca7e9dab942a54257c5da05bce780744b19
-    GitHub-Pull-Request: golang/go#42391
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267837
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    This mostly works well, however signed comparisons on s390x sign
+    extend their immediates and unsigned comparisons zero extend them.
+    For compare-and-branch instructions which can only have 8-bit
+    immediates this significantly changes the range of immediate values
+    we can represent: [-128, 127] for signed comparisons and [0, 255]
+    for unsigned comparisons.
+    
+    When generating equals and not equals checks we don't neet to worry
+    about whether the comparison is signed or unsigned. This CL
+    therefore adds rules to allow us to switch signedness for such
+    comparisons if it means that it brings a constant into range for an
+    8-bit immediate.
+    
+    For example, a signed equals with an integer in the range [128, 255]
+    will now be implemented using an unsigned compare-and-branch
+    instruction rather than separate compare and branch instructions.
+    
+    As part of this change I've also added support for adding a name
+    to block control values using the same `x:(...)` syntax we use for
+    value rules.
+    
+    Triggers 792 times when compiling cmd and std.
+    
+    Change-Id: I77fa80a128f0a8ce51a2888d1e384bd5e9b61a77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228642
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/map.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  11 ++
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |  12 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 168 +++++++++++++++++++++++++++
+ test/codegen/compare_and_branch.go           |  52 +++++++++
+ 4 files changed, 238 insertions(+), 5 deletions(-)

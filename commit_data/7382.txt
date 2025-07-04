@@ -1,18 +1,15 @@
-commit 61c93cac3e25de0b57b83143e71a342d12a7d8ee
-Author: Andrey Mirtchovski <mirtchovski@gmail.com>
-Date:   Mon Feb 7 09:23:18 2011 +0100
+commit ab2aca5e522b6b9e2833ecab9e53f63ee23a233d
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Feb 5 13:56:36 2011 -0500
 
-    Codelab: correct function definitions for handlers before closures are introduced.
+    crypto/tls: select best ciphersuite, not worst.
     
-    A couple of post-closure function definitions were introduced too early, making the resulting
-    code fail compilation.
+    Previously, the outer loop would continue until we selected the
+    client's least preferable ciphersuite.
     
-    Also, the TitleValidator regexp was missing.
-    
-    R=adg
+    R=golang-dev, r2
     CC=golang-dev
-    https://golang.org/cl/4105054
+    https://golang.org/cl/4029056
 
- doc/codelab/wiki/index.html | 15 ++++++++++++---
- doc/codelab/wiki/wiki.html  |  6 +++---
- 2 files changed, 15 insertions(+), 6 deletions(-)
+ src/pkg/crypto/tls/handshake_server.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

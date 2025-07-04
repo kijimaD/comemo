@@ -1,15 +1,17 @@
-commit ed8116989d84ba50f16cf7a88b5c0a44aa650087
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sat Mar 5 11:14:51 2016 +1100
+commit 5c596b51fd4745d4e1aa9701bee8d04f897097ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 11:22:04 2015 -0500
 
-    compress/flate: remove unused woffset field.
+    Revert "cmd/dist: fix build after "go test" argument order change"
     
-    Change-Id: Id0a12c76b0a6925f2926d38a1931157f9ef5f650
-    Reviewed-on: https://go-review.googlesource.com/20280
-    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    No longer needed - the change to 'go test' was rolled back.
+    
+    This reverts commit 2c96e5d2fc0a0765397a86d1e0d7c9329479d4bb.
+    
+    Change-Id: Ibe9c5f48e3e4cbbbde2f5c8c516b2987ebba55ae
+    Reviewed-on: https://go-review.googlesource.com/17776
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/compress/flate/inflate.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

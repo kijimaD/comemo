@@ -1,56 +1,24 @@
-commit 874a605af0764a8f340c3de65406963f514e21bc
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 19 17:04:56 2015 -0400
+commit ba57781181b18187958756b7ad7ccb126728de2d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 7 18:43:03 2015 -0700
 
-    net/url: add RawPath field, a hint at the desired encoding of Path
+    cmd/5g, etc: prepare Node.Val to be unexported
     
-    Historically we have declined to try to provide real support for URLs
-    that contain %2F in the path, but they seem to be popping up more
-    often, especially in (arguably ill-considered) REST APIs that shoehorn
-    entire paths into individual path elements.
+    Remove all uses of Node.Val outside of the gc package.
     
-    The obvious thing to do is to introduce a URL.RawPath field that
-    records the original encoding of Path and then consult it during
-    URL.String and URL.RequestURI. The problem with the obvious thing
-    is that it breaks backward compatibility: if someone parses a URL
-    into u, modifies u.Path, and calls u.String, they expect the result
-    to use the modified u.Path and not the original raw encoding.
+    A subsequent, automated commit in the Go 1.6 cycle
+    will unexport Node.Val.
     
-    Split the difference by treating u.RawPath as a hint: the observation
-    is that there are many valid encodings of u.Path. If u.RawPath is one
-    of them, use it. Otherwise compute the encoding of u.Path as before.
+    No functional changes. Passes toolstash -cmp.
     
-    If a client does not use RawPath, the only change will be that String
-    selects a different valid encoding sometimes (the original passed
-    to Parse).
-    
-    This ensures that, for example, HTTP requests use the exact
-    encoding passed to http.Get (or http.NewRequest, etc).
-    
-    Also add new URL.EscapedPath method for access to the actual
-    escaped path. Clients should use EscapedPath instead of
-    reading RawPath directly.
-    
-    All the old workarounds remain valid.
-    
-    Fixes #5777.
-    Might help #9859.
-    Fixes #7356.
-    Fixes #8767.
-    Fixes #8292.
-    Fixes #8450.
-    Fixes #4860.
-    Fixes #10887.
-    Fixes #3659.
-    Fixes #8248.
-    Fixes #6658.
-    Reduces need for #2782.
-    
-    Change-Id: I77b88f14631883a7d74b72d1cf19b0073d4f5473
-    Reviewed-on: https://go-review.googlesource.com/11302
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia92ae6a7766c83ab3e45c69edab24a9581c824f9
+    Reviewed-on: https://go-review.googlesource.com/9267
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/url/example_test.go | 15 +++++++++++
- src/net/url/url.go          | 55 ++++++++++++++++++++++++++++++++-----
- src/net/url/url_test.go     | 66 +++++++++++++++++++++++++++++++++++++++++----
- 3 files changed, 124 insertions(+), 12 deletions(-)
+ src/cmd/5g/gsubr.go          |  8 ++++----
+ src/cmd/6g/gsubr.go          |  4 ++--
+ src/cmd/7g/gsubr.go          | 17 ++++++++---------
+ src/cmd/8g/gsubr.go          | 12 ++++++------
+ src/cmd/9g/gsubr.go          | 19 +++++++++----------
+ src/cmd/internal/gc/const.go | 28 +++++++++++++++++-----------
+ 6 files changed, 46 insertions(+), 42 deletions(-)

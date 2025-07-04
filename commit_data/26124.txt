@@ -1,16 +1,17 @@
-commit 199cc194acf58008c9d4ea9a106f6302a5503f9c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 8 03:40:50 2016 -0800
+commit 761ac75a948e14fcd8472684effedf75f3fc316e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 14:33:06 2015 -0500
 
-    cmd/compile: simplify eq and hash function generation
+    cmd/go: fix git submodule fetch
     
-    Passes toolstash -cmp.
+    Thanks to @toxeus on GitHub for the test case.
     
-    Change-Id: Ie4675e6f713c3bbb90556f5347cbd7268a9c1a5d
-    Reviewed-on: https://go-review.googlesource.com/20357
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #12612.
+    
+    Change-Id: I0c32fbe5044f3552053460a5347c062568093dff
+    Reviewed-on: https://go-review.googlesource.com/17974
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/alg.go | 186 ++++++++++++++++---------------------
- 1 file changed, 80 insertions(+), 106 deletions(-)
+ src/cmd/go/vcs.go         |  2 +-
+ src/cmd/go/vendor_test.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

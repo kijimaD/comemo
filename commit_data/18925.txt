@@ -1,16 +1,15 @@
-commit a43673cf8a237fa237c179aeb0862215b797b9df
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Mon Mar 24 10:10:29 2014 -0700
+commit 9cb4963d187e044353e83e7919d2a5302bdd72ac
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 24 12:34:09 2014 +1100
 
-    cmd/gc: round floats with a large negative exponent towards zero
+    misc/nacl: add Native Client support scripts and documentation
     
-    Fixes #6902
-    
-    LGTM=iant
-    R=iant, rsc
+    LGTM=josharian, dan.kortschak
+    R=golang-codereviews, josharian, dan.kortschak
     CC=golang-codereviews
-    https://golang.org/cl/78730049
+    https://golang.org/cl/75080043
 
- src/cmd/gc/mparith1.c       |  3 ++-
- test/fixedbugs/issue6902.go | 21 +++++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ misc/nacl/README                | 65 +++++++++++++++++++++++++++++++++++++++++
+ misc/nacl/go_nacl_386_exec      | 10 +++++++
+ misc/nacl/go_nacl_amd64p32_exec | 10 +++++++
+ 3 files changed, 85 insertions(+)

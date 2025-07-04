@@ -1,22 +1,24 @@
-commit 20a03fc7130d8d99b513071c7e413b436ea649a2
-Author: Tolya Korniltsev <korniltsev.anatoly@gmail.com>
-Date:   Mon Dec 4 17:53:29 2023 +0700
+commit dc9d219cad115cf04d07a0cd10a46d127cf6e5e1
+Author: Jeremy Quirke <qjeremy@uber.com>
+Date:   Mon Dec 26 04:07:03 2022 +0000
 
-    runtime/pprof: fix generics function names
+    cmd/link: remove importcycles function
     
-    profileBuilder is using Frame->Function as key for checking if we already
-    emitted a function. However for generics functions it has dots there [...],
-    so sometimes for different functions with different generics types,
-    the profileBuilder emits wrong functions.
+    The importcycles method has not been useful since April 2016 when a large code deletion was performed.
     
-    Fixes #64528
+    The compiler itself provides some protection against import cycles, and the linker does import cycle detection in linksetup -> postorder.
     
-    Change-Id: I8b39245e0b18f4288ce758c912c6748f87cba39a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546815
+    For #57400
+    
+    Change-Id: I3095bdb3f16a82ba25681bf4a20ceaa3c9613921
+    GitHub-Last-Rev: 87a46153b136db67675874ffe46e5881b9c756ce
+    GitHub-Pull-Request: golang/go#57462
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459475
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/runtime/pprof/proto.go         |  7 +++--
- src/runtime/pprof/protomem_test.go | 62 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 66 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/go.go  | 45 -----------------------------------------
+ src/cmd/link/internal/ld/lib.go |  2 --
+ 2 files changed, 47 deletions(-)

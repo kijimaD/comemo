@@ -1,36 +1,38 @@
-commit 5c9bd499e103709a181f7a1a895d221ae6e7ffc8
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Mar 17 20:34:51 2020 -0400
+commit 16f0f9c8e1e767d10d483939981e3b2242554c33
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Oct 21 16:12:22 2019 +0200
 
-    crypto/rsa,crypto/ecdsa,crypto/ed25519: implement PublicKey.Equal
+    syscall: respect permission bits on file opening on Windows
     
-    This makes all modern public keys in the standard library implement a
-    common interface (below) that can be used by applications for better
-    type safety and allows for checking that public (and private keys via
-    Public()) are equivalent.
+    On Windows, os.Chmod and syscall.Chmod toggle the FILE_ATTRIBUTES_
+    READONLY flag depending on the permission bits. That's a bit odd but I
+    guess some compromises were made at some point and this is what was
+    chosen to map to a Unix concept that Windows doesn't really have in the
+    same way. That's fine. However, the logic used in Chmod was forgotten
+    from os.Open and syscall.Open, which then manifested itself in various
+    places, most recently, go modules' read-only behavior.
     
-    interface {
-        Equal(crypto.PublicKey) bool
-    }
+    This makes syscall.Open consistent with syscall.Chmod and adds a test
+    for the permission _behavior_ using ioutil. By testing the behavior
+    instead of explicitly testing for the attribute bits we care about, we
+    make sure this doesn't regress in unforeseen ways in the future, as well
+    as ensuring the test works on platforms other than Windows.
     
-    Equality for ECDSA keys is complicated, we take a strict interpretation
-    that works for all secure applications (the ones not using the
-    unfortunate non-constant time CurveParams implementation) and fails
-    closed otherwise.
+    In the process, we fix some tests that never worked and relied on broken
+    behavior, as well as tests that were disabled on Windows due to the
+    broken behavior and had TODO notes.
     
-    Tests in separate files to make them x_tests and avoid an import loop
-    with crypto/x509.
+    Fixes #35033
     
-    Fixes #21704
-    
-    Change-Id: Id5379c96384a11c5afde0614955360e7470bb1c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223754
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: I6f7cf54517cbe5f6b1678d1c24f2ab337edcc7f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202439
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/ecdsa/ecdsa.go          | 18 +++++++++
- src/crypto/ecdsa/equal_test.go     | 77 ++++++++++++++++++++++++++++++++++++++
- src/crypto/ed25519/ed25519.go      |  9 +++++
- src/crypto/ed25519/ed25519_test.go | 16 ++++++++
- src/crypto/rsa/equal_test.go       | 42 +++++++++++++++++++++
- src/crypto/rsa/rsa.go              |  9 +++++
- 6 files changed, 171 insertions(+)
+ src/cmd/cover/cover_test.go                 |  4 ++--
+ src/cmd/go/testdata/script/mod_cache_rw.txt |  9 +++++----
+ src/io/ioutil/ioutil_test.go                | 31 +++++++++++++++++++++++++++++
+ src/syscall/syscall_windows.go              |  6 +++++-
+ 4 files changed, 43 insertions(+), 7 deletions(-)

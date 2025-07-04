@@ -1,22 +1,14 @@
-commit ee2836048c5a5e48e35b7cb67303c3fe22728eca
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 25 12:32:41 2019 -0700
+commit 7da1f7addf54e55c7b40c1a7bffe5a64989154d8
+Author: Mikio Hara <mikioh.public.networking@gmail.com>
+Date:   Thu Nov 8 09:48:55 2018 +0900
 
-    cmd/compile: change sinit.go functions into methods
+    net: simplify nested if-blocks
     
-    This will make it easier for subsequent CLs to track additional state
-    during package initialization scheduling.
-    
-    Passes toolstash-check.
-    
-    Updates #22326.
-    
-    Change-Id: I528792ad34f41a4be52951531eb7525a94c9f350
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169898
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I32e1829c955a48d8c4566430c13679e237bb0611
+    Reviewed-on: https://go-review.googlesource.com/c/148337
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/order.go |   6 +--
- src/cmd/compile/internal/gc/sinit.go | 100 +++++++++++++++++++----------------
- 2 files changed, 57 insertions(+), 49 deletions(-)
+ src/net/interface.go | 28 ++++++++++++----------------
+ 1 file changed, 12 insertions(+), 16 deletions(-)

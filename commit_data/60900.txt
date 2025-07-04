@@ -1,0 +1,29 @@
+commit 123594d3863b0a4b9094a569957d1bd94ebe7512
+Author: Kyle Xiao <xiaost7@gmail.com>
+Date:   Wed Sep 4 11:55:52 2024 +0800
+
+    runtime: remove cloudwego/frugal unused linkname from comment
+    
+    frugal no longer uses these methods from next Go version
+    
+    Fixes #69222
+    
+    Change-Id: Ie71de0752cabef7d5584d3392d6e5920ba742350
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609918
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/alg.go                 |  1 -
+ src/runtime/map_fast32_noswiss.go  |  1 -
+ src/runtime/map_fast64_noswiss.go  |  2 --
+ src/runtime/map_faststr_noswiss.go |  1 -
+ src/runtime/map_noswiss.go         | 14 -----------
+ src/runtime/mgc.go                 |  1 -
+ src/runtime/runtime1.go            |  1 -
+ src/runtime/string.go              | 10 --------
+ src/runtime/stubs.go               | 12 ---------
+ src/runtime/symtab.go              | 51 +-------------------------------------
+ src/runtime/type.go                | 18 --------------
+ 11 files changed, 1 insertion(+), 111 deletions(-)

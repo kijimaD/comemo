@@ -1,29 +1,30 @@
-commit db24f63b108eb26546aa0b675d3cb649a6b597bb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 24 10:45:11 2023 -0400
+commit ffdfa9ff41a83fe1265c48b93381a8fa302cf480
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 28 14:59:16 2022 -0700
 
-    syscall: skip TestUnshareMountNameSpaceChroot on platforms that require external linking
+    go/types, types2: consistently use "cause" instead of "reason" for error details (cleanup)
     
-    TestUnshareMountNameSpaceChroot attempts to build a statically-linked
-    binary to run in a chroot, and sets CGO_ENABLED=0 in order to do so.
-    Rather than trying to figure out some other way to coax the linker
-    into building a static binary, let's just skip the test on Linux
-    platforms that require external linking (namely android/arm).
+    There were many more uses of the variable name "cause" than "reason"
+    to hold error message details. Consistently use "cause" throughout.
     
-    This should fix the build failure reported in
-    https://build.golang.org/log/1ea245a9c2e916c81043db177be76778bab00058.
+    Accordingly, s/MissingMethodReason/MissingMethodCause/.
     
-    While we're here, let's also fix the failure logging to make the text
-    readable!
-    
-    Updates #46330.
-    
-    Change-Id: I4fa07640ce012ac141bf4698bc3215a7f146062c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522182
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I171d784faabc66a4c58ba8944784204687595203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435418
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/syscall/exec_linux_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/expr.go        |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go | 42 +++++++++++++-------------
+ src/cmd/compile/internal/types2/lookup.go      |  6 ++--
+ src/cmd/compile/internal/types2/operand.go     | 22 +++++++-------
+ src/cmd/compile/internal/types2/typexpr.go     | 18 +++++------
+ src/go/types/expr.go                           |  2 +-
+ src/go/types/instantiate.go                    | 42 +++++++++++++-------------
+ src/go/types/lookup.go                         |  6 ++--
+ src/go/types/operand.go                        | 22 +++++++-------
+ src/go/types/typexpr.go                        | 18 +++++------
+ 10 files changed, 90 insertions(+), 90 deletions(-)

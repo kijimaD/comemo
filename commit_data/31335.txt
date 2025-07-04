@@ -1,77 +1,103 @@
-commit a04180633503139827096068d6194d2acd2de636
-Author: Ben Shi <powerman1st@163.com>
-Date:   Thu Apr 20 09:08:52 2017 +0000
+commit 3792db518327c685da17ca6c6faa4e1d2da4c33c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 10 14:59:38 2017 -0800
 
-    cmd/internal/obj/arm: use new form of MOVW introduced in ARMv7
+    net: refactor poller into new internal/poll package
     
-    As discussion in issue #18293, "MOVW $Imm-16, Reg" was introduced in
-    ARMv7. It directly encoded the 16-bit immediate into the instruction
-    instead of put it in the constant pool.
+    This will make it possible to use the poller with the os package.
     
-    This patch makes the arm assembler choose this form of MOVW if available.
+    This is a lot of code movement but the behavior is intended to be
+    unchanged.
     
-    Besides 4 bytes are saved in the constant pool, the go1 benchmark test
-    also shows a slight improvement.
+    Update #6817.
+    Update #7903.
+    Update #15021.
+    Update #18507.
     
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              42.7s ± 1%     42.7s ± 1%    ~     (p=0.304 n=50+50)
-    Fannkuch11-4                24.8s ± 1%     24.8s ± 0%    ~     (p=0.757 n=50+49)
-    FmtFprintfEmpty-4           875ns ± 1%     873ns ± 2%    ~     (p=0.066 n=44+46)
-    FmtFprintfString-4         1.43µs ± 1%    1.45µs ± 1%  +1.68%  (p=0.000 n=44+44)
-    FmtFprintfInt-4            1.52µs ± 1%    1.52µs ± 1%  +0.26%  (p=0.009 n=41+45)
-    FmtFprintfIntInt-4         2.19µs ± 1%    2.20µs ± 1%  +0.76%  (p=0.000 n=43+46)
-    FmtFprintfPrefixedInt-4    2.56µs ± 2%    2.53µs ± 1%  -1.03%  (p=0.000 n=45+44)
-    FmtFprintfFloat-4          4.41µs ± 1%    4.39µs ± 1%  -0.52%  (p=0.000 n=44+44)
-    FmtManyArgs-4              9.02µs ± 2%    9.04µs ± 1%  +0.27%  (p=0.000 n=46+44)
-    GobDecode-4                 106ms ± 1%     106ms ± 1%    ~     (p=0.310 n=45+43)
-    GobEncode-4                88.1ms ± 2%    88.0ms ± 2%    ~     (p=0.648 n=49+50)
-    Gzip-4                      4.31s ± 1%     4.27s ± 1%  -1.01%  (p=0.000 n=50+50)
-    Gunzip-4                    618ms ± 1%     608ms ± 1%  -1.65%  (p=0.000 n=45+47)
-    HTTPClientServer-4          689µs ± 6%     692µs ± 4%  +0.52%  (p=0.038 n=50+47)
-    JSONEncode-4                282ms ± 2%     280ms ± 1%  -0.75%  (p=0.000 n=46+43)
-    JSONDecode-4                945ms ± 2%     940ms ± 1%  -0.47%  (p=0.000 n=47+47)
-    Mandelbrot200-4            49.4ms ± 1%    49.3ms ± 1%    ~     (p=0.163 n=45+45)
-    GoParse-4                  46.0ms ± 3%    45.5ms ± 2%  -0.95%  (p=0.000 n=49+40)
-    RegexpMatchEasy0_32-4      1.29µs ± 1%    1.28µs ± 1%  -0.14%  (p=0.005 n=38+45)
-    RegexpMatchEasy0_1K-4      7.92µs ± 8%    7.75µs ± 6%  -2.12%  (p=0.000 n=47+50)
-    RegexpMatchEasy1_32-4      1.31µs ± 1%    1.31µs ± 0%    ~     (p=0.282 n=45+48)
-    RegexpMatchEasy1_1K-4      10.4µs ± 5%    10.4µs ± 3%    ~     (p=0.771 n=50+49)
-    RegexpMatchMedium_32-4     2.06µs ± 1%    2.07µs ± 1%  +0.35%  (p=0.001 n=44+49)
-    RegexpMatchMedium_1K-4      533µs ± 1%     532µs ± 1%    ~     (p=0.710 n=43+47)
-    RegexpMatchHard_32-4       29.7µs ± 1%    29.6µs ± 1%  -0.34%  (p=0.002 n=43+46)
-    RegexpMatchHard_1K-4        893µs ± 2%     885µs ± 1%  -0.85%  (p=0.000 n=50+45)
-    Revcomp-4                  85.6ms ± 4%    85.5ms ± 2%    ~     (p=0.683 n=50+50)
-    Template-4                  1.05s ± 3%     1.04s ± 1%  -1.06%  (p=0.000 n=50+44)
-    TimeParse-4                7.19µs ± 2%    7.11µs ± 2%  -1.10%  (p=0.000 n=48+46)
-    TimeFormat-4               13.4µs ± 1%    13.5µs ± 1%    ~     (p=0.056 n=46+49)
-    [Geo mean]                  747µs          745µs       -0.28%
-    
-    name                     old speed      new speed      delta
-    GobDecode-4              7.23MB/s ± 1%  7.22MB/s ± 1%    ~     (p=0.062 n=45+39)
-    GobEncode-4              8.71MB/s ± 2%  8.72MB/s ± 2%    ~     (p=0.656 n=49+50)
-    Gzip-4                   4.50MB/s ± 1%  4.55MB/s ± 1%  +1.03%  (p=0.000 n=50+50)
-    Gunzip-4                 31.4MB/s ± 1%  31.9MB/s ± 1%  +1.67%  (p=0.000 n=45+47)
-    JSONEncode-4             6.89MB/s ± 2%  6.94MB/s ± 1%  +0.76%  (p=0.000 n=46+43)
-    JSONDecode-4             2.05MB/s ± 2%  2.06MB/s ± 2%  +0.32%  (p=0.017 n=47+50)
-    GoParse-4                1.26MB/s ± 3%  1.27MB/s ± 1%  +0.68%  (p=0.000 n=50+48)
-    RegexpMatchEasy0_32-4    24.9MB/s ± 1%  24.9MB/s ± 1%  +0.13%  (p=0.004 n=38+45)
-    RegexpMatchEasy0_1K-4     129MB/s ± 7%   132MB/s ± 6%  +2.34%  (p=0.000 n=46+50)
-    RegexpMatchEasy1_32-4    24.5MB/s ± 1%  24.4MB/s ± 1%    ~     (p=0.252 n=45+48)
-    RegexpMatchEasy1_1K-4    98.8MB/s ± 4%  98.7MB/s ± 3%    ~     (p=0.771 n=50+49)
-    RegexpMatchMedium_32-4    485kB/s ± 3%   480kB/s ± 0%  -0.95%  (p=0.000 n=50+38)
-    RegexpMatchMedium_1K-4   1.92MB/s ± 1%  1.92MB/s ± 1%    ~     (p=0.129 n=43+47)
-    RegexpMatchHard_32-4     1.08MB/s ± 2%  1.08MB/s ± 1%  +0.38%  (p=0.017 n=46+46)
-    RegexpMatchHard_1K-4     1.15MB/s ± 2%  1.16MB/s ± 1%  +0.67%  (p=0.001 n=50+49)
-    Revcomp-4                29.7MB/s ± 4%  29.7MB/s ± 2%    ~     (p=0.682 n=50+50)
-    Template-4               1.85MB/s ± 3%  1.87MB/s ± 1%  +1.04%  (p=0.000 n=50+44)
-    [Geo mean]               6.56MB/s       6.60MB/s       +0.47%
-    
-    
-    Change-Id: Ic2cca90133c27a08d9f1a23c65b0eed5fbd02684
-    Reviewed-on: https://go-review.googlesource.com/41190
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1413685928017c32df5654ded73a2643820977ae
+    Reviewed-on: https://go-review.googlesource.com/36799
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/arm/asm5.go | 33 ++++++++++++++++++++++++++++++---
- 1 file changed, 30 insertions(+), 3 deletions(-)
+ src/cmd/dist/deps.go                          |  95 +--
+ src/cmd/go/internal/work/build.go             |   2 +-
+ src/go/build/deps_test.go                     |   5 +-
+ src/internal/poll/export_test.go              |  39 ++
+ src/internal/poll/fd.go                       |  44 ++
+ src/{net => internal/poll}/fd_io_plan9.go     |  14 +-
+ src/{net => internal/poll}/fd_mutex.go        |  27 +-
+ src/{net => internal/poll}/fd_mutex_test.go   |  85 +--
+ src/internal/poll/fd_plan9.go                 | 180 ++++++
+ src/{net => internal/poll}/fd_poll_nacl.go    |  32 +-
+ src/{net => internal/poll}/fd_poll_runtime.go |  37 +-
+ src/internal/poll/fd_posix.go                 |  57 ++
+ src/internal/poll/fd_posix_test.go            |  43 ++
+ src/internal/poll/fd_unix.go                  | 398 +++++++++++++
+ src/internal/poll/fd_windows.go               | 816 ++++++++++++++++++++++++++
+ src/{net => internal/poll}/hook_cloexec.go    |   8 +-
+ src/internal/poll/hook_unix.go                |  17 +
+ src/internal/poll/hook_windows.go             |  18 +
+ src/internal/poll/sendfile_bsd.go             |  51 ++
+ src/internal/poll/sendfile_linux.go           |  48 ++
+ src/internal/poll/sendfile_solaris.go         |  64 ++
+ src/internal/poll/sendfile_windows.go         |  23 +
+ src/internal/poll/sock_cloexec.go             |  52 ++
+ src/internal/poll/sockopt.go                  |  38 ++
+ src/internal/poll/sockopt_linux.go            |  18 +
+ src/internal/poll/sockopt_unix.go             |  18 +
+ src/internal/poll/sockopt_windows.go          |  27 +
+ src/internal/poll/sockoptip.go                |  27 +
+ src/internal/poll/str.go                      |  39 ++
+ src/internal/poll/sys_cloexec.go              |  36 ++
+ src/internal/poll/writev.go                   |  81 +++
+ src/internal/poll/writev_test.go              |  62 ++
+ src/net/dial.go                               |   3 +-
+ src/net/dial_test.go                          |   7 +-
+ src/net/dnsclient_unix_test.go                |   3 +-
+ src/net/error_posix.go                        |  21 +
+ src/net/error_test.go                         |  17 +-
+ src/net/fd_plan9.go                           | 144 +----
+ src/net/fd_posix.go                           |  21 -
+ src/net/fd_posix_test.go                      |  57 --
+ src/net/fd_unix.go                            | 310 ++--------
+ src/net/fd_windows.go                         | 550 ++---------------
+ src/net/file_unix.go                          |   9 +-
+ src/net/hook_unix.go                          |  10 +-
+ src/net/hook_windows.go                       |   9 +-
+ src/net/ipsock_plan9.go                       |   4 +-
+ src/net/ipsock_posix.go                       |   5 +-
+ src/net/main_cloexec_test.go                  |   8 +-
+ src/net/main_unix_test.go                     |  16 +-
+ src/net/main_windows_test.go                  |  22 +-
+ src/net/net.go                                |  23 +-
+ src/net/sendfile_bsd.go                       |  51 +-
+ src/net/sendfile_linux.go                     |  46 +-
+ src/net/sendfile_solaris.go                   |  62 +-
+ src/net/sendfile_windows.go                   |  14 +-
+ src/net/sock_cloexec.go                       |  41 +-
+ src/net/sock_posix.go                         |  25 +-
+ src/net/sockopt_posix.go                      |  34 +-
+ src/net/sockoptip_bsd.go                      |  20 +-
+ src/net/sockoptip_linux.go                    |  18 +-
+ src/net/sockoptip_posix.go                    |  34 +-
+ src/net/sockoptip_windows.go                  |  17 +-
+ src/net/sys_cloexec.go                        |  25 +-
+ src/net/tcpsock.go                            |   2 +-
+ src/net/tcpsockopt_darwin.go                  |  14 +-
+ src/net/tcpsockopt_posix.go                   |  10 +-
+ src/net/tcpsockopt_solaris.go                 |  10 +-
+ src/net/tcpsockopt_unix.go                    |  14 +-
+ src/net/tcpsockopt_windows.go                 |   8 +-
+ src/net/timeout_test.go                       |  21 +-
+ src/net/unixsock.go                           |   2 +-
+ src/net/writev_test.go                        |   7 +-
+ src/net/writev_unix.go                        |  74 +--
+ src/runtime/net_plan9.go                      |   4 +-
+ src/runtime/netpoll.go                        |  32 +-
+ src/runtime/netpoll_windows.go                |   3 +-
+ src/runtime/sema.go                           |   8 +-
+ src/runtime/time.go                           |   4 +-
+ src/runtime/trace/trace_stack_test.go         |   1 +
+ 79 files changed, 2722 insertions(+), 1619 deletions(-)

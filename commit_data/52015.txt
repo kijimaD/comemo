@@ -1,19 +1,23 @@
-commit 135c470b2277e1c9514ba8a5478408fea0dee8a2
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Feb 14 00:15:43 2023 +0700
+commit cdee8004ab5fa71d705979eaaee0948200256ed0
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Feb 7 15:30:34 2022 -0500
 
-    doc: add missing builtin functions not permitted in statement context
+    cmd/link: resolve __CTOR_LIST__/__DTOR_LIST__ refs for PE
     
-    The typechecker already enforces this semantic, but the spec is not
-    updated when unsafe.{SliceData,String,StringData} were added.
+    When doing an internal link on Windows, it's possible to see
+    unresolved references to the symbols "__CTOR_LIST__" and/or
+    "__DTOR_LIST__" (which are needed in some circumstances). If these are
+    still unresolved at the point where we're done reading host objects,
+    then synthesize dummy versions of them.
     
-    Change-Id: I4ee8c564d5681b2a5fd31ff424a31bdf065d9f3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467756
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Updates #35006.
+    
+    Change-Id: I408bf18499bba05752710cf5a41621123bd84a3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383836
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

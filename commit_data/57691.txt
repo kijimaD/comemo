@@ -1,48 +1,22 @@
-commit 31437f25f2a65171b25ba1418509fd019c68a6b9
+commit 081d27a2e5786b2e02cbe4bc9067c6d52ccad44c
 Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 25 16:51:52 2024 +0000
+Date:   Mon Aug 21 22:29:11 2023 +0000
 
-    runtime: simplify mem profile checking in mallocgc
+    runtime: create wrappers for gcDrain to identify time in profiles
     
-    Checking whether the current allocation needs to be profiled is
-    currently branch-y and weirdly a lot of code. The branches are
-    generally predictable, but it's a surprising number of instructions.
-    Part of the problem is that MemProfileRate is just a global that can be
-    set at any time, so we need to load it and check certain settings
-    explicitly. In an ideal world, we would just always subtract from
-    nextSample and have a single branch to take the slow path if we
-    subtract below zero.
+    Currently it's impossible to identify in profiles where gcDrain-related
+    time is coming from. More specifically, what kind of worker. Create
+    trivial wrappers for each worker so that the difference shows up in
+    stack traces.
     
-    If MemProfileRate were a function, we could trash all the nextSample
-    values intentionally in each mcache. This would be slow, but
-    MemProfileRate changes rarely while the malloc hot path is well, hot.
-    Unfortunate...
+    Also, clarify why gcDrain disables write barriers.
     
-    Although this ideal world is, AFAICT, impossible, we can still get
-    close. If we cache the value of MemProfileRate in each mcache, then we
-    can force malloc to take the slow path whenever MemProfileRate changes.
-    This does require two additional loads, but crucially, these loads are
-    independent of everything else in mallocgc. Furthermore, the branch
-    dependent on those loads is incredibly predictable in practice.
-    
-    This CL on its own has little-to-no impact on mallocgc. But this
-    codepath is going to be duplicated in several places in the next CL, so
-    it'll pay to simplify it. Also, we're very much trying to remedy a
-    death-by-a-thousand-cuts situation, and malloc is currently still kind
-    of a monster -- it will not help if mallocgc isn't really streamlined
-    itself.
-    
-    Lastly, there's a nice property now that all nextSample values get
-    immediately re-sampled when MemProfileRate changes.
-    
-    Change-Id: I6443d0cf9bd7861595584442b675ac1be8ea3455
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615815
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I966e3c0b1c583994e691f486bf0ed8cabb91dbbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521815
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/arena.go  |  4 ++--
- src/runtime/malloc.go | 40 ++++++++++++++++++++++------------------
- src/runtime/mcache.go |  5 +++--
- 3 files changed, 27 insertions(+), 22 deletions(-)
+ src/runtime/mgc.go     |  8 ++++----
+ src/runtime/mgcmark.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 4 deletions(-)

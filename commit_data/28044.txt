@@ -1,22 +1,27 @@
-commit 5f94ff4c8702e05bdee32b4a5dc6f8c736adab38
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Aug 24 20:27:38 2016 +1000
+commit 102cf2ae0321775eef2d36d7c4258b740fe92458
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Apr 15 09:38:36 2016 +0200
 
-    cmd/link/internal/ld: move ld.Cpos to coutbuf.Offset
+    image/color: optimize RGBToYCbCr
     
-    This change moves the ld.Cpos function to a method on coutbuf. This is
-    part of a larger change that makes ld.outbuf look more like a bio.Buf in
-    an effort to eventually replace the former with the latter.
+    Apply optimizations used to speed up YCbCrToRGB from
+    https://go-review.googlesource.com/#/c/21910/
+    to RGBToYCbCr.
     
-    Change-Id: I506f7131935a2aa903fa302a0fab0c5be50220fd
-    Reviewed-on: https://go-review.googlesource.com/27578
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    name             old time/op  new time/op  delta
+    RGBToYCbCr/0-2   6.81ns ± 0%  5.96ns ± 0%  -12.48%  (p=0.000 n=38+50)
+    RGBToYCbCr/Cb-2  7.68ns ± 0%  6.13ns ± 0%  -20.21%  (p=0.000 n=50+33)
+    RGBToYCbCr/Cr-2  6.84ns ± 0%  6.04ns ± 0%  -11.70%  (p=0.000 n=39+42)
+    
+    Updates #15260
+    
+    Change-Id: If3ea5393ae371a955ddf18ab226aae20b48f9692
+    Reviewed-on: https://go-review.googlesource.com/22411
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
 
- src/cmd/link/internal/ld/data.go  |  6 +++---
- src/cmd/link/internal/ld/elf.go   |  6 +++---
- src/cmd/link/internal/ld/lib.go   |  8 ++++----
- src/cmd/link/internal/ld/macho.go | 10 +++++-----
- src/cmd/link/internal/ld/pe.go    | 39 +++++++++++++++++++--------------------
- 5 files changed, 34 insertions(+), 35 deletions(-)
+ src/image/color/ycbcr.go      | 43 ++++++++++++++++++++++++++++---------------
+ src/image/color/ycbcr_test.go | 29 +++++++++++++++++++++++++----
+ 2 files changed, 53 insertions(+), 19 deletions(-)

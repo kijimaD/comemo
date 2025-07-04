@@ -1,13 +1,21 @@
-commit 391002a82bf3033b51818df5aaa4a82cc81bc81f
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Feb 25 11:49:37 2014 -0800
+commit ab26623182bb94e1b29668d86b5ee387991926fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 25 09:13:37 2014 -0800
 
-    runtime: add prototype for panicdivide
+    spec: clarify default "true" condition/tag in for/switch statements
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz, khr
+    An absent condition/tag in for and switch statements is equivalent
+    to the predeclared constant true; not simply the expression true
+    (which might lead to a locally defined true).
+    
+    Not a language change.
+    
+    Fixes #7404.
+    
+    LGTM=iant, r
+    R=r, iant, rsc, ken
     CC=golang-codereviews
-    https://golang.org/cl/68680043
+    https://golang.org/cl/68150046
 
- src/pkg/runtime/vlrt_arm.c | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go_spec.html | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

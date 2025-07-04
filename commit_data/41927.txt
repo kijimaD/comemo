@@ -1,23 +1,27 @@
-commit 1e820a3432029355402aeeaf769b9a4e46eb46aa
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Apr 12 20:05:14 2020 -0700
+commit dc39be8b858ab0ef49ff7d87f3d4c5cb93403f1a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 31 22:46:27 2019 -0700
 
-    cmd/compile: ensure ... rules have compatible aux and auxint types
+    runtime: use atomic.Cas to change timerRemoved to timerWaiting
     
-    Otherwise, just copying the aux and auxint fields doesn't make much sense.
-    (Although there's no bug - it just means it isn't typechecked correctly.)
+    If multiple goroutines call time.(*Timer).Reset then the timer will go
+    from timerWaiting to timerDeleted to timerModifying to timerModifiedLater.
+    The timer can be on a different P, meaning that simultaneously cleantimers
+    could change it from timerDeleted to timerRemoving to timerRemoved.
+    If Reset sees timerRemoved, it was doing an atomic.Store of timerWaiting,
+    meaning that it did not necessarily see the other values set in the timer,
+    so the timer could appear to be in an inconsistent state. Use atomic.Cas
+    to avoid that possibility.
     
-    Change-Id: I4e21ac67f0c7bfd04ed5af1713cd24bca08af092
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227962
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Updates #6239
+    Updates #27707
+    Fixes #35272
+    
+    Change-Id: I1d59a13dc4f2ff4af110fc6e032c8c9d59cfc270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204717
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules   | 16 ++++----
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  2 +-
- src/cmd/compile/internal/ssa/gen/Wasm.rules    |  2 +-
- src/cmd/compile/internal/ssa/gen/rulegen.go    |  9 ++++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 51 ++++++++++++++++++++++----
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 17 ++++++++-
- src/cmd/compile/internal/ssa/rewriteWasm.go    | 17 ++++++++-
- 7 files changed, 91 insertions(+), 23 deletions(-)
+ src/runtime/time.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

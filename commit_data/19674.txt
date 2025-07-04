@@ -1,16 +1,15 @@
-commit 8b6dafa80eadf44a4854c5b0deca1f879e38eb73
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Tue Jul 8 13:41:18 2014 -0400
+commit ccb99122b137a529a8306ee81014534b28127be6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 7 16:57:07 2014 -0700
 
-    net: treat android like linux in tests
+    net/rpc: use html/template to render html
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Found using the vet check in CL 106370045.
+    
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/112810043
+    https://golang.org/cl/101670044
 
- src/pkg/net/conn_test.go      |  2 +-
- src/pkg/net/multicast_test.go |  2 +-
- src/pkg/net/parse_test.go     |  4 ++--
- src/pkg/net/unix_test.go      | 15 +++++++++++----
- 4 files changed, 15 insertions(+), 8 deletions(-)
+ src/pkg/net/rpc/debug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

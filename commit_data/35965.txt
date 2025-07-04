@@ -1,12 +1,63 @@
-commit c19f86fbfba484695b7785bd7bdcc1a43adbf505
-Author: Xia Bin <snyh@snyh.org>
-Date:   Thu Jul 12 18:34:34 2018 +0800
+commit 2ba98f1ae9381d78aea68cce63878df484b42812
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Mar 24 19:03:54 2018 +0100
 
-    runtime: fix reference to funcdata.go in comment
+    cmd/compile: avoid some allocations in regalloc
     
-    Change-Id: I6c8699cd71b41cf8d178a0af3a745a19dcf60905
-    Reviewed-on: https://go-review.googlesource.com/123536
+    Compilebench:
+    name      old time/op       new time/op       delta
+    Template        283ms ± 3%        281ms ± 4%    ~     (p=0.242 n=20+20)
+    Unicode         137ms ± 6%        135ms ± 6%    ~     (p=0.194 n=20+19)
+    GoTypes         890ms ± 2%        883ms ± 1%  -0.74%  (p=0.001 n=19+19)
+    Compiler        4.21s ± 2%        4.20s ± 2%  -0.40%  (p=0.033 n=20+19)
+    SSA             9.86s ± 2%        9.68s ± 1%  -1.80%  (p=0.000 n=20+19)
+    Flate           185ms ± 5%        185ms ± 7%    ~     (p=0.429 n=20+20)
+    GoParser        222ms ± 3%        222ms ± 4%    ~     (p=0.588 n=19+20)
+    Reflect         572ms ± 2%        570ms ± 3%    ~     (p=0.113 n=19+20)
+    Tar             263ms ± 4%        259ms ± 2%  -1.41%  (p=0.013 n=20+20)
+    XML             321ms ± 2%        321ms ± 4%    ~     (p=0.835 n=20+19)
+    
+    name      old user-time/op  new user-time/op  delta
+    Template        400ms ± 5%        405ms ± 5%    ~     (p=0.096 n=20+20)
+    Unicode         217ms ± 8%        213ms ± 8%    ~     (p=0.242 n=20+20)
+    GoTypes         1.23s ± 3%        1.22s ± 3%    ~     (p=0.923 n=19+20)
+    Compiler        5.76s ± 6%        5.81s ± 2%    ~     (p=0.687 n=20+19)
+    SSA             14.2s ± 4%        14.0s ± 4%    ~     (p=0.121 n=20+20)
+    Flate           248ms ± 7%        251ms ±10%    ~     (p=0.369 n=20+20)
+    GoParser        308ms ± 5%        305ms ± 6%    ~     (p=0.336 n=19+20)
+    Reflect         771ms ± 2%        766ms ± 2%    ~     (p=0.113 n=20+19)
+    Tar             370ms ± 5%        362ms ± 7%  -2.06%  (p=0.036 n=19+20)
+    XML             435ms ± 4%        432ms ± 5%    ~     (p=0.369 n=20+20)
+    
+    name      old alloc/op      new alloc/op      delta
+    Template       39.5MB ± 0%       39.4MB ± 0%  -0.20%  (p=0.000 n=20+20)
+    Unicode        29.1MB ± 0%       29.1MB ± 0%    ~     (p=0.064 n=20+20)
+    GoTypes         117MB ± 0%        117MB ± 0%  -0.17%  (p=0.000 n=20+20)
+    Compiler        503MB ± 0%        502MB ± 0%  -0.15%  (p=0.000 n=19+19)
+    SSA            1.42GB ± 0%       1.42GB ± 0%  -0.16%  (p=0.000 n=20+20)
+    Flate          25.3MB ± 0%       25.3MB ± 0%  -0.19%  (p=0.000 n=20+20)
+    GoParser       31.4MB ± 0%       31.3MB ± 0%  -0.14%  (p=0.000 n=20+18)
+    Reflect        78.1MB ± 0%       77.9MB ± 0%  -0.34%  (p=0.000 n=20+19)
+    Tar            40.1MB ± 0%       40.0MB ± 0%  -0.17%  (p=0.000 n=20+20)
+    XML            45.3MB ± 0%       45.2MB ± 0%  -0.13%  (p=0.000 n=20+20)
+    
+    name      old allocs/op     new allocs/op     delta
+    Template         393k ± 0%         392k ± 0%  -0.21%  (p=0.000 n=20+19)
+    Unicode          337k ± 0%         337k ± 0%  -0.02%  (p=0.000 n=20+20)
+    GoTypes         1.22M ± 0%        1.22M ± 0%  -0.21%  (p=0.000 n=20+20)
+    Compiler        4.77M ± 0%        4.76M ± 0%  -0.16%  (p=0.000 n=20+20)
+    SSA             11.8M ± 0%        11.8M ± 0%  -0.12%  (p=0.000 n=20+20)
+    Flate            242k ± 0%         241k ± 0%  -0.20%  (p=0.000 n=20+20)
+    GoParser         324k ± 0%         324k ± 0%  -0.14%  (p=0.000 n=20+20)
+    Reflect          985k ± 0%         981k ± 0%  -0.38%  (p=0.000 n=20+20)
+    Tar              403k ± 0%         402k ± 0%  -0.19%  (p=0.000 n=20+20)
+    XML              424k ± 0%         424k ± 0%  -0.16%  (p=0.000 n=19+20)
+    
+    Change-Id: I131e382b64cd6db11a9263a477d45d80c180c499
+    Reviewed-on: https://go-review.googlesource.com/102421
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/funcdata.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

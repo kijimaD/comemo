@@ -1,30 +1,24 @@
-commit a7526bbf72dfe0fde00d88f85fd6cddccdb3a345
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Thu Jan 21 22:53:30 2021 +0800
+commit b3e3c339ff02ccd1cf76eb07513e4f9051a55333
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 20 19:03:33 2020 -0400
 
-    encoding/json: marshal maps using reflect.Value.MapRange
+    [dev.link] cmd/internal/obj: trim trailing zeros for content hashing
     
-    Map serialization using reflect.Value.MapIndex cannot retrieve
-    map keys that contain a NaN, resulting in a panic.
-    Switch the implementation to use the reflect.Value.MapRange method
-    instead, which iterates over all map entries regardless of whether
-    they are directly retrievable.
+    The symbol's data in the object file (sym.P) may already not
+    contain trailing zeros (e,g, for [10]int{1}), but sometimes it
+    does (e.g. for [10]int{1,0}). The linker can already handle this
+    case. We just always trim the trailing zeros for content hashing,
+    so it can deduplicate [10]int{1} and [10]int{1,0}.
     
-    Note that according to RFC 8259, section 4, a JSON object should
-    have unique names, but does not forbid the occurrence of duplicate names.
+    Note: in theory we could just trim the zeros in the symbol data
+    as well. But currently the linker depends on reading symbol data
+    for certain symbols (e.g. type symbol decoding), and trimming
+    will complicates things in the linker.
     
-    Fixes #43207
-    
-    Change-Id: If4bc55229b1f64b8ca4b0fed37549725efdace39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278632
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Trust: Joe Tsai <thebrokentoaster@gmail.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I9e90e41e6ac808b36855b0713a85e61c33bf093a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245717
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/encoding/json/encode.go      | 36 +++++++++++++++++++-----------------
- src/encoding/json/encode_test.go | 21 +++++++++++++++++++++
- 2 files changed, 40 insertions(+), 17 deletions(-)
+ src/cmd/internal/obj/objfile2.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

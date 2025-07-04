@@ -1,20 +1,16 @@
-commit c736280e2250a9a873423f6c4923b6f4c1caf528
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Jan 14 00:38:48 2016 -0800
+commit b4c9ec8be9f15d50e3b7f83b18f1ceaaaae6c9ba
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Oct 26 16:09:48 2015 +0100
 
-    archive/zip: clarify expectations of RegisterCompressor and RegisterDecompressor
+    net/rpc: verify that embedding works with changed semantics
     
-    Clarify that Compressor and Decompressor callbacks must support being invoked
-    concurrently, but that the writer or reader returned need not be.
+    Exported methods of unexported embedded structs get added
+    correctly to the pool. Behavior is unchanged before and after
+    https://golang.org/cl/14085.
     
-    Updates #8359
-    
-    Change-Id: Ia407b581dd124185f165c25f5701018a8ce4357a
-    Reviewed-on: https://go-review.googlesource.com/18627
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2b4053bab02ff045f0a4577b8114808a60aae27e
+    Reviewed-on: https://go-review.googlesource.com/16305
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/archive/zip/example_test.go | 17 +++--------------
- src/archive/zip/reader.go       |  2 --
- src/archive/zip/register.go     | 27 ++++++++++++++++-----------
- 3 files changed, 19 insertions(+), 27 deletions(-)
+ src/net/rpc/server_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

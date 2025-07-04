@@ -1,26 +1,32 @@
-commit 98a902323f6406d39c068d60253a0872364041ac
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Mar 25 21:26:18 2021 +0100
+commit 93810ac1f4574e1e2a79ea156781bafaf8b8ebe0
+Author: Benjamin Barenblat <bbaren@google.com>
+Date:   Thu Sep 3 16:36:38 2020 -0400
 
-    cmd/vendor, cmd/pprof: use golang.org/x/term directly
+    runtime: opportunistically rotate map key seed
     
-    The cmd/pprof package currently uses golang.org/x/crypto/ssh/terminal
-    which - as of CL 258003 - is merely a wrapper around golang.org/x/term.
+    When clearing a map, reinitialize the hash seed with random data. This
+    makes it more difficult for attackers to trigger pathological
+    performance via repeated hash collisions.
     
-    Thus, drop the dependency on golang.org/x/crypto/ssh/terminal and use
-    golang.org/x/term directly.
+    The extra reinitialization causes no statistically significant slowdown:
     
-    Change-Id: Ib15f1f110c338b9dba4a91a873171948ae6298a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304691
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    name                              old time/op  new time/op  delta
+    GoMapClear/Reflexive/1-12         18.3ns ± 0%  20.0ns ± 0%   ~             (p=1.000 n=1+1)
+    GoMapClear/Reflexive/10-12        18.2ns ± 0%  19.8ns ± 0%   ~             (p=1.000 n=1+1)
+    GoMapClear/Reflexive/100-12       44.6ns ± 0%  46.1ns ± 0%   ~             (p=1.000 n=1+1)
+    GoMapClear/Reflexive/1000-12       592ns ± 0%   592ns ± 0%   ~     (all samples are equal)
+    GoMapClear/Reflexive/10000-12     3.88µs ± 0%  3.88µs ± 0%   ~             (p=1.000 n=1+1)
+    GoMapClear/NonReflexive/1-12      62.7ns ± 0%  63.9ns ± 0%   ~             (p=1.000 n=1+1)
+    GoMapClear/NonReflexive/10-12     75.0ns ± 0%  76.1ns ± 0%   ~             (p=1.000 n=1+1)
+    GoMapClear/NonReflexive/100-12     203ns ± 0%   206ns ± 0%   ~             (p=1.000 n=1+1)
+    GoMapClear/NonReflexive/1000-12   2.33µs ± 0%  2.33µs ± 0%   ~     (all samples are equal)
+    GoMapClear/NonReflexive/10000-12  18.1µs ± 0%  18.1µs ± 0%   ~             (p=1.000 n=1+1)
+    
+    Fixes #25237
+    
+    Change-Id: I629a79dd7c562ba18bd94159673c3b9b653da643
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253020
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go.mod                                     |  4 +-
- src/cmd/pprof/readlineui.go                        | 20 +++---
- .../golang.org/x/crypto/ssh/terminal/terminal.go   | 76 ----------------------
- src/cmd/vendor/modules.txt                         |  1 -
- 4 files changed, 12 insertions(+), 89 deletions(-)
+ src/runtime/map.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,18 +1,24 @@
-commit 02adfa0b3d6dd46dc69709df7f39a1c947bec867
-Author: Rob Pike <r@golang.org>
-Date:   Sun Apr 3 20:45:52 2016 -0700
+commit c3db6c95b6f933e1489565aa65a94edc880a3f3d
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 11 15:09:43 2016 -0500
 
-    html/template: prefix the internally-used FuncMap values with an underscore
+    [dev.ssa] cmd/compile: double speed of CSE phase
     
-    This makes these names even less likely to collide with a real user-defined function.
+    Replaced comparison based on (*Type).String() with an
+    allocation-free structural comparison.  Roughly doubles
+    speed of CSE, also reduces allocations.
     
-    Fixes #13852.
+    Checked that roughly the same number of CSEs were detected
+    during make.bash (about a million) and that "new" CSEs
+    were caused by the effect described above.
     
-    Change-Id: If5a8562c6797ced19c355c7ab2c86fc4401a8674
-    Reviewed-on: https://go-review.googlesource.com/21490
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Id205a9f6986efd518043e12d651f0b01206aeb1b
+    Reviewed-on: https://go-review.googlesource.com/19471
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/html/template/escape.go | 92 ++++++++++++++++++++++-----------------------
- 1 file changed, 46 insertions(+), 46 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go    |   3 +-
+ src/cmd/compile/internal/gc/type.go       | 243 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/cse.go       |  43 +++---
+ src/cmd/compile/internal/ssa/type.go      |  35 +++++
+ src/cmd/compile/internal/ssa/type_test.go |  23 +++
+ 5 files changed, 321 insertions(+), 26 deletions(-)

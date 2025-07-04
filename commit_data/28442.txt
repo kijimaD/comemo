@@ -1,25 +1,24 @@
-commit 246074d043f686c532cac88dccd68e01048a23bc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 16 19:19:42 2016 -0700
+commit d2aa5f95cce5055d71a77166a60b574cd3f8ecd5
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 25 11:19:17 2016 +0200
 
-    cmd/internal/obj: remove ACHECKNIL
+    compress/flate: simplify using subtests and sub-benchmarks
     
-    Updates #16357.
+    This causes the large files to be loaded only once per benchmark.
     
-    Change-Id: I35f938d675ca5c31f65c4419ee0732bbc593b5cb
-    Reviewed-on: https://go-review.googlesource.com/29368
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    This CL also serves as an example use case of sub(tests|-benchmarks).
+    
+    This CL ensures that names are identical to the original
+    except for an added slashes. Things could be
+    simplified further if this restriction were dropped.
+    
+    Change-Id: I45e303e158e3152e33d0d751adfef784713bf997
+    Reviewed-on: https://go-review.googlesource.com/23420
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/prog.go  | 1 -
- src/cmd/compile/internal/arm/prog.go    | 1 -
- src/cmd/compile/internal/arm64/prog.go  | 1 -
- src/cmd/compile/internal/mips64/prog.go | 1 -
- src/cmd/compile/internal/ppc64/prog.go  | 1 -
- src/cmd/compile/internal/s390x/prog.go  | 1 -
- src/cmd/compile/internal/x86/prog.go    | 1 -
- src/cmd/internal/obj/link.go            | 1 -
- src/cmd/internal/obj/util.go            | 1 -
- src/cmd/internal/obj/x86/asm6.go        | 1 -
- 10 files changed, 10 deletions(-)
+ src/compress/flate/reader_test.go | 133 ++++++++++++++++++--------------------
+ src/compress/flate/writer_test.go |  94 +++++++++------------------
+ 2 files changed, 94 insertions(+), 133 deletions(-)

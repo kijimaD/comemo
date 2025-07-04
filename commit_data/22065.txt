@@ -1,23 +1,15 @@
-commit 506615d83ebbbaba33aaf98d79a285b0b367a094
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 12 14:26:04 2015 -0400
+commit 1996f276d260327f414c432a7d1db631c067ae87
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 20 19:31:37 2015 -0800
 
-    runtime: factor object dumping code out of greyobject
+    [dev.cc] cmd/asm: fix build: broken end to end test
     
-    When checkmark fails, greyobject dumps both the object that pointed to
-    the unmarked object and the unmarked object. This code cluttered up
-    greyobject, was copy-pasted for the two objects, and the copy for
-    dumping the unmarked object was not entirely correct.
+    This time for sure.
     
-    Extract object dumping out to a new function. This declutters
-    greyobject and fixes the bugs in dumping the unmarked object. The new
-    function is slightly cleaned up from the original code to have more
-    natural control flow and shows a marker on the field in the base
-    object that points to the unmarked object to make it easy to find.
-    
-    Change-Id: Ib51318a943f50b0b99995f0941d03ee8876b9fcf
-    Reviewed-on: https://go-review.googlesource.com/7506
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I77ed6b70d82a6f4ba371afba2f53c8b146ac110f
+    Reviewed-on: https://go-review.googlesource.com/5530
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgcmark.go | 57 ++++++++++++++++++++++----------------------------
- 1 file changed, 25 insertions(+), 32 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm.out | 13 ++++++-------
+ src/cmd/asm/internal/asm/testdata/arm.s   |  3 +--
+ 2 files changed, 7 insertions(+), 9 deletions(-)

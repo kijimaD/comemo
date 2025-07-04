@@ -1,22 +1,42 @@
-commit 909a7a32138367abec92434872695fb65aa9b7d1
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Mar 21 20:07:06 2022 -0400
+commit 6c9e1c58bc7661638ee084e40a3b6fc907825496
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 25 14:06:56 2021 -0700
 
-    cmd/compile: don't mark non-generic defined type symbol dupok
+    [dev.typeparams] test: fix and update run.go's generics testing
     
-    For a non-generic defined type, we generate its type descriptor
-    symbol only in the defining package. So there is no duplicate and
-    it doesn't need to be dupok.
+    In a late change to golang.org/cl/320609, while going back and forth
+    on the meaning of the boolean result value for "checkFlags", I got one
+    of the cases wrong. As a result, rather than testing both default
+    flags and -G=3, we were (redundanly) testing default flags and -G=0.
     
-    For unnamed types and instantiated types, the type descriptor can
-    be generated in multiple packages and so still need to be dupok.
+    I ran into this because in my local dev tree, I'm using types2 even
+    for -G=0, and evidently one of the recent types2 CLs changed the error
+    message in fixedbugs/issue10975.go. Fortunately, there haven't been
+    any other regressions despite lacking test coverage.
     
-    Change-Id: I92ed68c998ad68c5917b77b1dfd62eac4ced6bcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394636
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    So this CL cleans things up a bit:
+    
+    1. Fixes that test to use -lang=go1.17, so types2 reports the old
+    error message again.
+    
+    2. Renames "checkFlags" to "validForGLevel" so the boolean result is
+    harder to get wrong.
+    
+    3. Removes the blanket deny list of all -m tests, and instead adds the
+    specific tests that are still failing. This effectively extends -G=3
+    coverage to another 27 tests that were using -m but already passing,
+    so we can make sure they don't regress again.
+    
+    4. Adds a -f flag to force running tests even if they're in the deny
+    list, to make it easier to test whether they're still failing without
+    having to edit run.go.
+    
+    Change-Id: I058d9d90d81a92189e54c6f591d95fb617fede53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322612
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ test/fixedbugs/issue10975.go |   2 +-
+ test/run.go                  | 109 +++++++++++++++++++++++++++----------------
+ 2 files changed, 71 insertions(+), 40 deletions(-)

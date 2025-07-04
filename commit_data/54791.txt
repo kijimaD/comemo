@@ -1,43 +1,23 @@
-commit 55b8e16b2eb79db2acf28e0e8c914370e216b788
+commit c9f7370a096a8b5c2db5996b8b6adbad4e2747d5
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jun 26 18:08:44 2023 -0400
+Date:   Tue Nov 15 10:08:11 2022 -0500
 
-    testing: use monotonic counts to attribute races in subtests
+    cmd/go: use testenv.Command instead of exec.Command in tests
     
-    This implements the approach I described in
-    https://go-review.git.corp.google.com/c/go/+/494057/1#message-5c9773bded2f89b4058848cb036b860aa6716de3.
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
     
-    Specifically:
-    
-    - Each level of test atomically records the cumulative number of races
-      seen as of the last race-induced test failure.
-    
-    - When a subtest fails, it logs the race error, and then updates its
-      parents' counters so that they will not log the same error.
-    
-    - We check each test or benchmark for races before it starts running
-      each of its subtests or sub-benchmark, before unblocking parallel
-      subtests, and after running any cleanup functions.
-    
-    With this implementation, it should be the case that every test that
-    is running when a race is detected reports that race, and any race
-    reported for a subtest is not redundantly reported for its parent.
-    
-    The regression tests are based on those added in CL 494057 and
-    CL 501895, with a few additions based on my own review of the code.
-    
-    Fixes #60083.
-    
-    Change-Id: I578ae929f192a7a951b31b17ecb560cbbf1ef7a1
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/506300
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ic19172b6cd05526cf6776b904e2dfebdd8b055a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450697
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/race/output_test.go |   2 +-
- src/testing/benchmark.go        |  12 +-
- src/testing/fuzz.go             |   2 +
- src/testing/testing.go          | 120 ++++++++++++--
- src/testing/testing_test.go     | 345 +++++++++++++++++++++++++++++++++++++++-
- 5 files changed, 459 insertions(+), 22 deletions(-)
+ src/cmd/go/go_test.go                                      | 14 +++++++-------
+ src/cmd/go/go_windows_test.go                              |  4 ++--
+ src/cmd/go/init_test.go                                    |  3 +--
+ .../internal/lockedfile/internal/filelock/filelock_test.go |  3 +--
+ src/cmd/go/internal/lockedfile/lockedfile_test.go          |  3 +--
+ src/cmd/go/scriptreadme_test.go                            |  3 +--
+ 6 files changed, 13 insertions(+), 17 deletions(-)

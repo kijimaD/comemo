@@ -1,18 +1,27 @@
-commit 3d34c77829e8ea79136e6f1c3b86abdd196ba8c5
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 28 19:28:43 2020 -0700
+commit bf5f64107a5d750e53d0bfb046a3fd4dad3eb3e2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Sep 20 03:09:07 2019 +1000
 
-    cmd/compile: convert constant divide strength reduction rules to typed aux
+    cmd/internal/objabi,cmd/link: initial linker support for riscv64
     
-    Passes toolstash-check.
+    Provide initial linker support for riscv64.
     
-    Change-Id: Ia5d11c099b8c6c0ed670960b2af808200e3b1ca1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230739
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Based on riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I8a881ce41cd49efef0358bad9171d4d18aaf7ab2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204624
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 408 +++++++-------
- src/cmd/compile/internal/ssa/magic.go          |  42 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 730 ++++++++++++-------------
- 3 files changed, 608 insertions(+), 572 deletions(-)
+ src/cmd/dist/buildtool.go                   |   1 +
+ src/cmd/internal/objabi/reloctype.go        |  15 +++-
+ src/cmd/internal/objabi/reloctype_string.go |   4 +-
+ src/cmd/link/internal/ld/config.go          |   5 +-
+ src/cmd/link/internal/ld/elf.go             |   7 +-
+ src/cmd/link/internal/riscv64/asm.go        | 122 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/riscv64/l.go          |  14 ++++
+ src/cmd/link/internal/riscv64/obj.go        |  60 ++++++++++++++
+ src/cmd/link/main.go                        |   3 +
+ 9 files changed, 225 insertions(+), 6 deletions(-)

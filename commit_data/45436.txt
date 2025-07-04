@@ -1,30 +1,23 @@
-commit 2c05ba4ae08317c6d0ad7418d5ecb0f971275d69
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Apr 28 23:07:38 2021 -0700
+commit fe5f95eeccb1b913f608c547b2b9f8919dc9b225
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Oct 24 20:14:33 2020 +0200
 
-    runtime: top align tinyallocs in race mode
+    lib/time, time/tzdata: update tz data to 2020d
     
-    Top align allocations in tinyalloc buckets when in race mode.
-    This will make checkptr checks more reliable, because any code
-    that modifies a pointer past the end of the object will trigger
-    a checkptr error.
+    See http://mm.icann.org/pipermail/tz-announce/2020-October/000060.html
+    and http://mm.icann.org/pipermail/tz-announce/2020-October/000062.html
+    for a description of the changes.
     
-    No test, because we need -race for this to actually kick in.  We could
-    add it to the race detector tests, but the race detector tests are all
-    geared towards race detector reports, not checkptr reports. Mucking
-    with parsing reports is more than a test is worth.
+    Updates #22487
     
-    Fixes #38872
-    
-    Change-Id: Ie56f0fbd1a9385539f6631fd1ac40c3de5600154
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315029
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4b2717d2d642284889345a0125eb6c614575c0ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264681
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/export_test.go |  2 ++
- src/runtime/malloc.go      | 19 ++++++++++++++++++-
- src/runtime/malloc_test.go |  6 ++++++
- 3 files changed, 26 insertions(+), 1 deletion(-)
+ lib/time/update.bash       |     4 +-
+ lib/time/zoneinfo.zip      |   Bin 422355 -> 422449 bytes
+ src/time/tzdata/zipdata.go | 13659 ++++++++++++++++++++++---------------------
+ 3 files changed, 6832 insertions(+), 6831 deletions(-)

@@ -1,18 +1,27 @@
-commit b768a1fbb5cbe8423465b79ad8f82055f79eb5fa
-Author: David Chase <drchase@google.com>
-Date:   Wed Apr 19 13:49:04 2023 -0400
+commit f5715181392c68d928c3152f8cf90fa9d4ee9e4e
+Author: kkHAIKE <kkhaike@gmail.com>
+Date:   Wed May 11 02:27:21 2022 +0000
 
-    reflect: move funcType to abi/type.go
+    cmd/cgo: dont override declared struct type
     
-    Change-Id: I381229ba67a39487cdcc60da1c73d33b0a7d494a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487556
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Fixes #52611
+    
+    Change-Id: I835df8d6a98a37482446ec00af768c96fd8ee4fe
+    GitHub-Last-Rev: ea54dd69eef90eaf1641889039344fff70158ece
+    GitHub-Pull-Request: golang/go#52733
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404497
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dexter Ouyang <kkhaike@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
 
- src/reflect/abi.go      |  12 ++---
- src/reflect/makefunc.go |   2 +-
- src/reflect/type.go     | 120 +++++++++++++++++++-----------------------------
- src/reflect/value.go    |  37 +++++++--------
- 4 files changed, 74 insertions(+), 97 deletions(-)
+ misc/cgo/test/testdata/issue52611.go    | 13 +++++++++++++
+ misc/cgo/test/testdata/issue52611a/a.go | 16 ++++++++++++++++
+ misc/cgo/test/testdata/issue52611a/b.go | 11 +++++++++++
+ misc/cgo/test/testdata/issue52611b/a.go | 11 +++++++++++
+ misc/cgo/test/testdata/issue52611b/b.go | 16 ++++++++++++++++
+ src/cmd/cgo/gcc.go                      |  5 +++++
+ 6 files changed, 72 insertions(+)

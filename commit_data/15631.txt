@@ -1,12 +1,26 @@
-commit 6ee75663c987dca914a34cf298e65484088250a8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 7 11:17:30 2013 -0800
+commit b000f2286c3c9d462cf390084e1ea4ae16649fe9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 7 21:44:24 2013 +0400
 
-    go/types: more internal cleanups
+    net: more refactoring in preparation for runtime integrated pollster
+    Move pollServer from fd_unix.go to fd_poll_unix.go.
+    Add pollServerInit(*NetFD) to allow custom initialization.
+    Add pollServer.Close(*NetFD) to allow custom finalization.
+    Move setDeadline() to fd_poll_unix.go to allow custom handling of deadlines.
+    Move newPollServer() to fd_poll_unix.go to allow custom initialization.
+    No logical code changes.
+    The next step will be to turn off fd_poll_unix.go for some platform
+    (I have changes for darwin/linux) and redirect it into runtime. See:
+    https://golang.org/cl/7569043/diff/2001/src/pkg/net/fd_poll_runtime.go
     
-    R=adonovan, bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7492045
+    https://golang.org/cl/7513045
 
- src/pkg/go/types/stmt.go | 66 +++++++++++++++++++++++++-----------------------
- 1 file changed, 34 insertions(+), 32 deletions(-)
+ src/pkg/net/fd_poll_unix.go       | 327 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/fd_unix.go            | 263 +-----------------------------
+ src/pkg/net/newpollserver_unix.go |  46 ------
+ src/pkg/net/sock_posix.go         |   8 +-
+ src/pkg/net/sockopt_posix.go      |  19 ---
+ src/pkg/net/sockopt_windows.go    |  19 +++
+ 6 files changed, 356 insertions(+), 326 deletions(-)

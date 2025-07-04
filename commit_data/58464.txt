@@ -1,26 +1,26 @@
-commit e7a8bd5d8bd950764cbc48656fcc5456df7b1e9a
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Dec 17 20:03:22 2024 +0100
+commit 9d914015f83bbc414313d3ad48e4a594a99c7d6b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 6 04:37:19 2023 +0000
 
-    crypto/internal/fips140/check: remove Enabled
+    internal/trace: implement MutatorUtilizationV2
     
-    check.Enabled, internal/fips140.Enabled, and crypto/fips140.Enabled were
-    redundant. Package check can just use internal/fips140.Enabled.
+    This change adds a new MutatorUtilization for traces for Go 1.22+.
     
-    check.Verified is still there for the tests and belt-and-suspenders
-    assurance in crypto/fips140.Enabled, although it's implied by Enabled.
+    To facilitate testing, it also generates a short trace with the
+    gc-stress.go test program (shortening its duration to 10ms) and adds it
+    to the tests for the internal/trace/v2 package. Notably, we make sure
+    this trace has a GCMarkAssistActive event to test that codepath.
     
-    For #69536
+    For #63960.
+    For #60773.
     
-    Change-Id: I83921cc925da841aba4da79a9a5e9ac526a3f2bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638855
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I2e61f545988677be716818e2a08641c54c4c201f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540256
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/crypto/fips140/fips140.go              |  2 +-
- src/crypto/internal/fips140/check/check.go | 28 +++++++---------------------
- src/crypto/internal/fips140/fips140.go     |  6 +++++-
- 3 files changed, 13 insertions(+), 23 deletions(-)
+ src/go/build/deps_test.go                          |    6 +-
+ src/internal/trace/gc.go                           |  276 +++
+ src/internal/trace/gc_test.go                      |   87 +-
+ .../trace/v2/testdata/tests/go122-gc-stress.test   | 2444 ++++++++++++++++++++
+ 4 files changed, 2775 insertions(+), 38 deletions(-)

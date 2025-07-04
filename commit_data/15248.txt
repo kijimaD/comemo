@@ -1,14 +1,21 @@
-commit 31072e41f4e2ed0a135c46816cb2a65daba12540
+commit d340a89d9c872438841e9f3ff90e6baa6fa3d8ce
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 14 14:54:00 2013 -0500
+Date:   Thu Feb 14 14:46:15 2013 -0500
 
-    cmd/gc: replace x*8 by x<<3 etc
+    encoding/json: roll back Unmarshal optimization + test
     
-    Fixes #4199.
+    The second attempt at the Unmarshal optimization allowed
+    panics to get out of the json package. Add test for that bug
+    and remove the optimization.
     
-    R=ken2
+    Let's stop trying to optimize Unmarshal.
+    
+    Fixes #4784.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7322081
+    https://golang.org/cl/7300108
 
- src/cmd/gc/walk.c | 72 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 71 insertions(+), 1 deletion(-)
+ src/pkg/encoding/json/decode.go      | 20 +-------------------
+ src/pkg/encoding/json/decode_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 19 deletions(-)

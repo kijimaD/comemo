@@ -1,0 +1,20 @@
+commit 3c8f9256067bb3917d7cae05cffdb56dc29e4b3c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 25 16:10:22 2024 -0700
+
+    go/types, types2: factor out type parameter access into genericType
+    
+    Also, remove types2.Signature.SetTypeParams as it is not used
+    and does not exist in go/types.
+    
+    Change-Id: I16c3ae988988d3735907e9c6c56e8626497ea405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581817
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/instantiate.go | 22 +++++++++++++---------
+ src/cmd/compile/internal/types2/signature.go   |  3 ---
+ src/go/types/instantiate.go                    | 22 +++++++++++++---------
+ 3 files changed, 26 insertions(+), 21 deletions(-)

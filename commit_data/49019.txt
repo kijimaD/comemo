@@ -1,17 +1,37 @@
-commit fbb47e81c1f24a8b9cb84430e9561ace60580af1
+commit 03ec8de24b6fc8a2abeb4013ef603f5cdef9f874
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 4 11:56:10 2022 -0700
+Date:   Fri Jul 2 15:41:28 2021 -0700
 
-    cmd/compile/internal/syntax: minor cleanups in extractName
+    [dev.typeparams] cmd/compile/internal/types2: clean up index expr implementation for type parameters
     
-    Backport the recommended changes suggested in CL 403937.
+    This makes the implementation match the intended spec behavior:
     
-    Change-Id: I3ac29c90977e33899881838825da033627344ed2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403853
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Given an index expression a[x] where a is a type parameter, the
+    index expression is valid if the constraint for a satisfies the
+    following criteria:
+    
+    - Either all types in the constraint type set are maps, or none
+      of them are.
+    
+    - If the (type set) types are maps, they must all have the same
+      key type. (This may be too strict, perhaps it's sufficient to
+      ensure assignability, but we can always relax that later.)
+    
+    - All (type set) types must have the same element types.
+    
+    - If there are any arrays, a constant index must be in range for
+      the shortest array.
+    
+    Change-Id: I8c094c11e6fc9496c293871ccf93e3814c881e6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332553
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/syntax/parser.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/index.go           | 119 ++++++++++-----------
+ .../internal/types2/testdata/check/typeparams.go2  |  17 +--
+ .../types2/testdata/fixedbugs/issue45635.go2       |   5 +-
+ src/cmd/compile/internal/types2/typeparam.go       |   7 ++
+ src/cmd/compile/internal/types2/typeset.go         |  15 +++
+ src/cmd/compile/internal/types2/typestring.go      |   2 +-
+ src/cmd/compile/internal/types2/union.go           |   2 +-
+ 7 files changed, 93 insertions(+), 74 deletions(-)

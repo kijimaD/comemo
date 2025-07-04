@@ -1,37 +1,12 @@
-commit f83e4212688c8dfc9a34f7735fa74d14e7995388
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 13 15:02:07 2018 -0400
+commit 8114a855da66750ebebfe4bcaf3516b688c375c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 23:36:53 2017 -0500
 
-    cmd/internal/obj/arm, runtime: delete old ARM softfloat code
+    doc/go1.10: process comments from CL 78131 PS 5
     
-    CL 106735 changed to the new softfloat support on GOARM=5.
-    
-    ARM assembly code that uses FP instructions not guarded on GOARM,
-    if any, will break. The easiest way to fix is probably to use Go
-    implementation on GOARM=5, like
-    
-            MOVB    runtime·goarm(SB), R11
-            CMP     $5, R11
-            BEQ     arm5
-            ... FP instructions ...
-            RET
-    arm5:
-            CALL or JMP to Go implementation
-    
-    Change-Id: I52fc76fac9c854ebe7c6c856c365fba35d3f560a
-    Reviewed-on: https://go-review.googlesource.com/107475
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie246756452cd872961aeb659b35297c229504a3c
+    Reviewed-on: https://go-review.googlesource.com/81936
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/operand_test.go |   2 +-
- src/cmd/internal/obj/arm/obj5.go         |  83 ----
- src/runtime/export_test.go               |   1 -
- src/runtime/panic.go                     |  11 +-
- src/runtime/runtime2.go                  |   4 -
- src/runtime/softfloat_arm.go             | 664 -------------------------------
- src/runtime/sqrt.go                      | 153 -------
- src/runtime/sqrt_test.go                 |  87 ----
- src/runtime/stubs_arm.go                 |  13 +
- src/runtime/vlop_arm.s                   |  62 ---
- 10 files changed, 15 insertions(+), 1065 deletions(-)
+ doc/go1.10.html | 113 +++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 70 insertions(+), 43 deletions(-)

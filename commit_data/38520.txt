@@ -1,46 +1,32 @@
-commit 94563de87fad642677ffc62a4a82766597e39123
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Mar 21 13:31:32 2019 -0400
+commit 0663fe9862951a52cc67e3af8213ee99b76297e0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Oct 28 18:04:54 2018 -0400
 
-    cmd/go: fix the default build output name for versioned binaries
+    crypto/tls: implement TLS 1.3 version-specific messages
     
-    This change is a re-apply of the reverted CL 140863 with changes to
-    address issue #30821. Specifically, path.Split continues to be used
-    to split the '/'-separated import path, rather than filepath.Split.
+    Note that there is significant code duplication due to extensions with
+    the same format appearing in different messages in TLS 1.3. This will be
+    cleaned up in a future refactor once CL 145317 is merged.
     
-    Document the algorithm for how the default executable name is determined
-    in DefaultExecName.
+    Enforcing the presence/absence of each extension in each message is left
+    to the upper layer, based on both protocol version and extensions
+    advertised in CH and CR. Duplicated extensions and unknown extensions in
+    SH, EE, HRR, and CT will be tightened up in a future CL.
     
-    Rename a variable returned from os.Stat from bs to fi for consistency.
+    The TLS 1.2 CertificateStatus message was restricted to accepting only
+    type OCSP as any other type (none of which are specified so far) would
+    have to be negotiated.
     
-    CL 140863 factored out the logic to determine the default executable
-    name from the Package.load method into a DefaultExecName function,
-    and started using it in more places to avoid having to re-implement
-    the logic everywhere it's needed. Most previous callers already computed
-    the default executable name based on the import path. The load.Package
-    method, before CL 140863, was the exception, in that it used the p.Dir
-    value in GOPATH mode instead. There was a NOTE(rsc) comment that it
-    should be equivalent to use import path, but it was too late in Go 1.11
-    cycle to risk implementing that change.
+    Updates #9671
     
-    This is part 1, a more conservative change for backporting to Go 1.12.2,
-    and it keeps the original behavior of splitting on p.Dir in GOPATH mode.
-    Part 2 will address the NOTE(rsc) comment and modify behavior in
-    Package.load to always use DefaultExecName which splits the import path
-    rather than directory. It is intended to be included in Go 1.13.
-    
-    Fixes #27283 (again)
-    Updates #26869
-    Fixes #30821
-    
-    Change-Id: Ib1ebb95acba7c85c24e3a55c40cdf48405af34f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167503
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I7c42394c5cc0af01faa84b9b9f25fdc6e7cfbb9e
+    Reviewed-on: https://go-review.googlesource.com/c/145477
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/go/internal/load/pkg.go                    | 53 ++++++++++++++--------
- src/cmd/go/internal/test/test.go                   |  2 +-
- src/cmd/go/internal/work/build.go                  | 10 ++--
- .../go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt   |  6 +++
- src/cmd/go/testdata/script/mod_build_versioned.txt | 16 +++++++
- 5 files changed, 60 insertions(+), 27 deletions(-)
+ src/crypto/tls/common.go                  |  31 +-
+ src/crypto/tls/conn.go                    |  26 +-
+ src/crypto/tls/handshake_client.go        |   4 +-
+ src/crypto/tls/handshake_messages.go      | 526 +++++++++++++++++++++++++++---
+ src/crypto/tls/handshake_messages_test.go |  90 ++++-
+ src/crypto/tls/handshake_server.go        |   1 -
+ 6 files changed, 613 insertions(+), 65 deletions(-)

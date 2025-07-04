@@ -1,12 +1,12 @@
-commit 19cc9f91fa233e6846cbb582e26c31fa9748730d
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Apr 4 16:13:29 2013 +1100
+commit edca83e23a1abfe703e6a0d89fe3325c13773d52
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 4 14:46:54 2013 +1100
 
-    doc/go1.1.html: mention cgo and cross compilation
+    misc/dist: only build race toolchain where available, fix file upload
     
-    R=r, minux.ma, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/8304043
+    https://golang.org/cl/8343046
 
- doc/go1.1.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ misc/dist/bindist.go | 23 +++++++++++++++++++----
+ 1 file changed, 19 insertions(+), 4 deletions(-)

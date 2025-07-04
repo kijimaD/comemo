@@ -1,24 +1,14 @@
-commit e3033fc535eb29ab7533ecc4a86c607c2046b9c7
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Feb 12 10:07:36 2016 -0800
+commit 431c23284243477cd587ee47d7e2c4a9ee8ec5e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 18 13:09:14 2015 -0800
 
-    cmd/compile: add write barrier to type switch
+    cmd/compile/internal/gc: address TODO (better comment)
     
-    Type switches need write barriers if the written-to
-    variable is heap allocated.
+    For #13243.
     
-    For the added needwritebarrier call, the right arg doesn't
-    really matter, I just pass something that will never disqualify
-    the write barrier.  The left arg is the one that matters.
-    
-    Fixes #14306
-    
-    Change-Id: Ic2754167cce062064ea2eeac2944ea4f77cc9c3b
-    Reviewed-on: https://go-review.googlesource.com/19481
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I544a8c44971fad126103157575e983ab528309bf
+    Reviewed-on: https://go-review.googlesource.com/17044
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/compile/internal/gc/gen.go |  2 +-
- test/writebarrier.go               | 14 ++++++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/parser.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

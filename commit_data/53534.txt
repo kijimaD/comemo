@@ -1,21 +1,29 @@
-commit c643b2938143ff59d5e854489880e12b39cbfb86
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 12 11:26:28 2023 -0700
+commit 8892a51745accb2f8d18be1628d9b5bb9ecd78a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 20:45:08 2022 -0700
 
-    cmd/compile: use callsite as line number for argument marshaling
+    cmd/compile/internal/types2: use go/types/testdata/examples tests
     
-    Don't use the line number of the argument itself, as that may be from
-    arbitrarily earlier in the function.
+    Since the examples tests are now identical between the two type checkers,
+    remove the local copy of the examples tests and (for now) use the tests
+    in go/types/testdata/examples instead. Eventually we may decide to move
+    all tests out of the type checker directories and place them in a
+    shared space (e.g. internal/types/testdata).
     
-    Fixes #60673
+    For #54511.
     
-    Change-Id: Ifc0a2aaae221a256be3a4b0b2e04849bae4b79d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502656
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ibd8599d09e781b2219a23114b4b2049757971181
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424695
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go |  4 ++--
- test/codegen/issue60673.go                   | 18 ++++++++++++++++++
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go      |   2 +-
+ .../types2/testdata/examples/constraints.go        |  80 ------
+ .../internal/types2/testdata/examples/functions.go | 219 --------------
+ .../internal/types2/testdata/examples/inference.go | 116 --------
+ .../internal/types2/testdata/examples/methods.go   | 112 --------
+ .../types2/testdata/examples/operations.go         |  29 --
+ .../internal/types2/testdata/examples/types.go     | 315 ---------------------
+ .../internal/types2/testdata/examples/typesets.go  |  59 ----
+ 8 files changed, 1 insertion(+), 931 deletions(-)

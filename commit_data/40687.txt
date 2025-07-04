@@ -1,30 +1,32 @@
-commit a762221bea7c02a17cffc6937d8af33a027a32e5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 18 15:44:11 2019 +0000
+commit 06e34e58150a5cb77afdd3807a93f270a3068456
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu Jun 13 23:40:00 2019 +0200
 
-    runtime: rearrange mheap_.alloc* into allocSpan
+    syscall: disable ptrace on iOS
     
-    This change combines the functionality of allocSpanLocked, allocManual,
-    and alloc_m into a new method called allocSpan. While these methods'
-    abstraction boundaries are OK when the heap lock is held throughout,
-    they start to break down when we want finer-grained locking in the page
-    allocator.
+    It is forbidden by App Store.
     
-    allocSpan does just that, and only locks the heap when it absolutely has
-    to. Piggy-backing off of work in previous CLs to make more of span
-    initialization lockless, this change makes span initialization entirely
-    lockless as part of the reorganization.
+    Fixes #31628
     
-    Ultimately this change will enable us to add a lockless fast path to
-    allocSpan.
-    
-    Updates #35112.
-    
-    Change-Id: I99875939d75fb4e958a67ac99e4a7cda44f06864
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196641
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ie6d14a524ee55b57af8db685f3a79f474733add5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182297
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mheap.go | 325 ++++++++++++++++++++++++++-------------------------
- 1 file changed, 165 insertions(+), 160 deletions(-)
+ src/syscall/exec_darwin.go           |  4 ++--
+ src/syscall/mksyscall.pl             |  6 ++++++
+ src/syscall/syscall_darwin.go        |  1 -
+ src/syscall/syscall_darwin_386.go    |  1 +
+ src/syscall/syscall_darwin_amd64.go  |  1 +
+ src/syscall/syscall_darwin_arm.go    |  7 +++++++
+ src/syscall/syscall_darwin_arm64.go  |  7 +++++++
+ src/syscall/syscall_ptrace_test.go   | 35 +++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_darwin_386.go   | 31 ++++++++++++++++---------------
+ src/syscall/zsyscall_darwin_386.s    |  4 ++--
+ src/syscall/zsyscall_darwin_amd64.go | 31 ++++++++++++++++---------------
+ src/syscall/zsyscall_darwin_amd64.s  |  4 ++--
+ src/syscall/zsyscall_darwin_arm.go   | 15 ---------------
+ src/syscall/zsyscall_darwin_arm.s    |  2 --
+ src/syscall/zsyscall_darwin_arm64.go | 15 ---------------
+ src/syscall/zsyscall_darwin_arm64.s  |  2 --
+ 16 files changed, 95 insertions(+), 71 deletions(-)

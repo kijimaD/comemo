@@ -1,25 +1,16 @@
-commit 11c642c2d33ebc5a76c2579d81b24c2d0e10e38f
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Tue Jan 14 14:56:20 2025 -0500
+commit 58bfef82fcafdb13c6f456313d2972c4530a8193
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 1 16:27:43 2023 -0500
 
-    crypto/internal/fips140test: add OneStepNoCounter ACVP tests
+    net/http: avoid leaking io.Copy goroutines (and hijacked connections) in TestTransportNoReuseAfterEarlyResponse
     
-    Adds ACVP test coverage for the SP 800-56Crev2 IG D.P KDA
-    OneStepNoCounter mode algorithm based on the NIST spec:
+    Fixes #64252 (maybe).
     
-      https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-onestepnocounter.html
-    
-    Coverage is added for all SHA2 and SHA3 HMACs.
-    
-    Updates #69642
-    
-    Change-Id: I337bf824a71fce6c796a1440b7f08c4f5413d92f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648435
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Iba2a403a9347be4206f14acb11591dc2eb7f9fb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546616
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- .../internal/fips140test/acvp_capabilities.json    |  1 +
- src/crypto/internal/fips140test/acvp_test.go       | 45 +++++++++++++++++++++-
- 2 files changed, 44 insertions(+), 2 deletions(-)
+ src/net/http/transport_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

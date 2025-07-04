@@ -1,19 +1,24 @@
-commit 5984ea71977d8436436a096902a32974b958c0bb
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Dec 1 22:23:42 2020 +0700
+commit 0bbc19760b978ba461ab98872620abc48c1e9ac4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 28 01:08:12 2020 -0400
 
-    doc: update signal.Notify example to use buffered channel
+    [dev.link] cmd/link: free compressed symbols after dwarfcompress
     
-    This if follow up of CL 274332.
+    Once the symbol is compressed, we will not need the uncompressed
+    symbol content. Free its memory.
     
-    Updates #9399.
+    Linking cmd/compile,
     
-    Change-Id: Ic6dd534dc18227a799cbb9577979f2285596b825
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274393
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    name               old live-B     new live-B     delta
+    Dwarfcompress_GC      42.7M ± 0%     37.9M ± 0%   -11.31%  (p=0.008 n=5+5)
+    
+    Change-Id: Ib6cc73832946d158ff4f5b4f31be9c35ba7cf103
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230859
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/dwarf2.go     |  1 +
+ src/cmd/link/internal/loader/loader.go | 10 ++++++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)

@@ -1,21 +1,44 @@
-commit 3486735bf2ca08dcd84bb820fdcb0dea8102cf82
-Author: Sean Liao <sean@liao.dev>
-Date:   Sat Aug 6 13:54:28 2022 +0100
+commit 6b4cf2be9385ea25fed011f7c862d9e023b71df6
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Sep 30 15:45:29 2021 -0700
 
-    net/http/pprof: link docs to runtime/pprof
+    cmd/compile: improving printing of type names in func/meth instantiations
     
-    And add some documentation for the debug query param.
+    Change to using types.(*Type).LinkString() for printing names of types
+    in function/method instantiations. (e.g. f[int] or Value[p.Myint].Set())
     
-    Fixes #27737
-    Fixes #53971
+    LinkString already generates a unique string description for t, using
+    package paths, except that it uses "" for the local package path. The ""
+    will be expanded in the linker, so the names in the executable will have
+    full package paths everywhere and de-duplication of function/method
+    instantiations will work properly. We do need to add an explicit
+    substitution of "" in ReadImports() for function/method names. We
+    previously were using NameString(), which doesn't use full package
+    paths, so is not fully unique.
     
-    Change-Id: I629aaa2d4a43175381eb04872f1caad238519a41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421635
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    We had also discussed that we would prefer to minimize spaces in
+    function/method instantiation names. So, I changed LinkString() to
+    eliminate all unneeded spaces. In the one case where we need a
+    separator, which is between field names and types, we use a "#" instead
+    of a space.
+    
+    This change has the advantage of eliminating spaces in some existing
+    non-generic function name - mainly .type.eq functions for anonymous
+    types (e.g. "type..eq.struct { runtime.gList; runtime.n int32 }") shows
+    up in a hello-world executable (as Cherry pointed out).
+    
+    We do not need an analogous function for types2 right now, since we
+    create all instantiations using types1 types. In the one case where we
+    need to create an instantiation during types2-to-types1 translation, we
+    convert the types to types1 first (see (*irgen).instTypeName2).
+    
+    Change-Id: Iac4748fa0d0d6f89af59bd51076266986daee945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353609
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/pprof/pprof.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go | 11 ++++++-
+ src/cmd/compile/internal/typecheck/subr.go    | 14 ++++----
+ src/cmd/compile/internal/types/fmt.go         | 47 +++++++++++++++++++++------
+ 3 files changed, 53 insertions(+), 19 deletions(-)

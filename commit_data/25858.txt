@@ -1,28 +1,23 @@
-commit 1439158120742e5f41825de90a76b680da64bf76
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Feb 23 01:26:50 2016 -0500
+commit e18cd34c76892cd62f4857e56ffbbe503acd508a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 27 15:27:14 2015 -0800
 
-    runtime, syscall: switch linux/386 to use int 0x80
+    cmd/compile: use correct line number for := (LCOLAS)
     
-    Like bionic, musl also doesn't provide vsyscall helper in %gs:0x10,
-    and as int $0x80 is as fast as calling %gs:0x10, just use int $0x80
-    always.
+    - use same local variable name (lno) for line number for LCOLAS everywhere
+    - remove now unneeded assignment of line number to yylval.i in lexer
     
-    Because we're no longer using vsyscall in VDSO, get rid of VDSO code
-    for linux/386 too.
+    Fix per suggestion of mdempsky.
     
-    Fixes #14476.
+    Fixes #13415.
     
-    Change-Id: I00ec8652060700e0a3c9b524bfe3c16a810263f6
-    Reviewed-on: https://go-review.googlesource.com/19833
-    Run-TryBot: Minux Ma <minux@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie3c7f5681615042a12b81b26724b3a5d8a979c25
+    Reviewed-on: https://go-review.googlesource.com/17248
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os_linux_386.go |  5 -----
- src/runtime/rt0_linux_386.s |  8 --------
- src/runtime/runtime1.go     |  2 +-
- src/runtime/signal_386.go   | 25 +------------------------
- src/runtime/sys_linux_386.s | 25 ++++++++++---------------
- src/syscall/asm_linux_386.s | 13 ++-----------
- 6 files changed, 14 insertions(+), 64 deletions(-)
+ src/cmd/compile/internal/gc/lex.go    |  1 -
+ src/cmd/compile/internal/gc/parser.go |  7 ++++---
+ test/fixedbugs/issue13415.go          | 19 +++++++++++++++++++
+ 3 files changed, 23 insertions(+), 4 deletions(-)

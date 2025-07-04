@@ -1,17 +1,24 @@
-commit d69a0883d4c99958d13b14fc02a805e1bc634631
-Author: Chen Su <ghosind@gmail.com>
-Date:   Thu Jul 25 07:30:24 2024 +0000
+commit 96d16803c2aae5407e99c2a1db79bb51d9e1c8da
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jun 3 08:33:51 2023 +0700
 
-    encoding/gob: fix package doc typo for wireType
+    cmd/compile: allow ir.OMIN/ir.OMAX in mayCall
     
-    Change-Id: Ib93f2b565e5271dfa3c3ca5d040ef24269c47cf8
-    GitHub-Last-Rev: 3f1da518a404f5459e38f34427ae9177fe68f51e
-    GitHub-Pull-Request: golang/go#68584
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601036
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    CL 496257 adds min/max builtins, which may appear as argument to a
+    function call, so it will be tested by mayCall. But those ops are not
+    handled by mayCall, causes the compiler crashes.
+    
+    Fixes #60582
+    
+    Change-Id: I729f10bf62b4aad39ffcb1433f576e74d09fdd9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500575
+    Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/encoding/gob/doc.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/walk/walk.go |  2 +-
+ test/fixedbugs/issue60582.go          | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

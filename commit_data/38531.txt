@@ -1,18 +1,16 @@
-commit 9eef9648005c17681800fdb55ed2404ab769761e
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 24 18:17:43 2019 +0100
+commit 6151a6d7396691a205fc9086561643f1bcb1f62c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 2 21:51:01 2018 -0700
 
-    misc/wasm: exit with code 1 if WebAssembly.instantiate fails
+    cmd/compile: fix fmt_test (fix long test build)
     
-    go_js_wasm_exec was returning with code 0 if WebAssembly.instantiate
-    failed. This made failing tests show as passed.
+    Follow-up on https://golang.org/cl/146782.
     
-    Change-Id: Icfb2f42e9f1c3c70ca4a130a61a63cb305edff32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168885
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    TBR=bradfitz
+    
+    Change-Id: Idaf5488fedfc05d6ff71706fa0bcd70bf98ab25a
+    Reviewed-on: https://go-review.googlesource.com/c/147283
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/wasm/wasm_exec.js | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/fmt_test.go | 1 +
+ 1 file changed, 1 insertion(+)

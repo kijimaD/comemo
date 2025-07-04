@@ -1,17 +1,13 @@
-commit 7ce2402baeac8a344af6868b9cee79bc33e3e3fb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 19 13:14:03 2016 -0800
+commit 559fb85af6e2ba723da0377d2c72cfadeb32768a
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Wed Sep 9 21:47:09 2015 -0400
 
-    cmd/compile: don't crash on invalid labeled statement
+    reflect: added support for mips64{,le}
     
-    Fixes #14006.
-    
-    Change-Id: Ia819073677ad6993c02255e23760ee21598427b4
-    Reviewed-on: https://go-review.googlesource.com/18736
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I84ced3734410d3d05f195901f44d33f4ae6036b1
+    Reviewed-on: https://go-review.googlesource.com/14452
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/parser.go |  7 +++-
- test/fixedbugs/issue14006.go          | 64 +++++++++++++++++++++++++++++++++++
- 2 files changed, 70 insertions(+), 1 deletion(-)
+ src/reflect/asm_mips64x.s | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

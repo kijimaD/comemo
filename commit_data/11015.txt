@@ -1,14 +1,15 @@
-commit 38ff98b4c671dfe237a1737308af0a9de871c8c3
-Author: Michael Shields <mshields@google.com>
-Date:   Tue Jan 3 12:22:02 2012 +1100
+commit c2b87ce0079a1981f01243886ff01cbc4b3e784d
+Author: John DeNero <denero@google.com>
+Date:   Tue Jan 3 12:15:08 2012 +1100
 
-    encoding/xml: use strings.Reader in tests.
+    doc/codewalk/functions.xml: Fix broken function examples
+    
+    I removed the broken function comparison example and fixed a code highlighting regexp.
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5502083
+    https://golang.org/cl/5501078
 
- src/pkg/encoding/xml/embed_test.go | 13 +++++----
- src/pkg/encoding/xml/read_test.go  | 11 ++++----
- src/pkg/encoding/xml/xml_test.go   | 54 +++++++++-----------------------------
- 3 files changed, 27 insertions(+), 51 deletions(-)
+ doc/codewalk/functions.xml | 12 +-----------
+ doc/codewalk/pig.go        |  3 ---
+ 2 files changed, 1 insertion(+), 14 deletions(-)

@@ -1,12 +1,13 @@
-commit 3a112a8112289b6cfd3879cd8be0096ad5f85e4e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Jul 22 01:49:58 2012 +0900
+commit b575a98121a60f2c74782130d639fa636d41e98a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 20 16:58:08 2012 -0700
 
-    net: remove unnecessary newline in testing.Logf from tests
+    cgo: add -gccgopkgpath option to match gccgo -fgo-pkgpath
     
-    R=golang-dev, r
+    R=golang-dev, r, iant
     CC=golang-dev
-    https://golang.org/cl/6434043
+    https://golang.org/cl/6416056
 
- src/pkg/net/interface_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/cgo/main.go |  3 ++-
+ src/cmd/cgo/out.go  | 18 ++++++++++++++++--
+ 2 files changed, 18 insertions(+), 3 deletions(-)

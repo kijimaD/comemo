@@ -1,17 +1,16 @@
-commit c315862c99fcca83389b99715a712a6c8e1ad65e
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Nov 18 18:09:17 2024 -0800
+commit ade730a96cdb07c60fe932373c0b05f9d15a4ec5
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Oct 12 14:54:31 2023 +0800
 
-    os: add OpenInRoot
+    container/heap: add available godoc link
     
-    For #67002
-    
-    Change-Id: If919ee8a5e3d90e91c7848330762e3254245fba1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629555
+    Change-Id: I886a8869ba885286ac8219bc7e245c9237ad4c99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534777
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- api/next/67002.txt  |  1 +
- src/os/root.go      | 16 ++++++++++++++++
- src/os/root_test.go | 23 +++++++++++++++++++++++
- 3 files changed, 40 insertions(+)
+ src/container/heap/heap.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

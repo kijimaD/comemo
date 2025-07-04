@@ -1,12 +1,24 @@
-commit f6d1009431c4d4677a292be5a78f57c239929d4b
+commit 310db63c5bc121e7bfccb494c01a6b91a257e7fc
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 13 10:06:20 2015 +0900
+Date:   Fri Apr 17 12:24:42 2015 +0900
 
-    doc: mention net.SocketConn, net.SocketPacketConn in go1.5.txt
+    net: fix inconsistent error values on Close
     
-    Change-Id: I6bda19877ae5148ad349cfb8929f1103740422bb
-    Reviewed-on: https://go-review.googlesource.com/10005
+    This change fixes inconsistent error values on Close, CloseRead and
+    CloseWrite.
+    
+    Updates #4856.
+    
+    Change-Id: I3c4d46ccd7d6e1a2f52d8e75b512f62c533a368d
+    Reviewed-on: https://go-review.googlesource.com/8994
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/error_test.go     | 92 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/fd_unix.go        |  6 +---
+ src/net/fd_windows.go     |  6 +---
+ src/net/net.go            | 11 +++++-
+ src/net/tcpsock_plan9.go  | 20 ++++++++---
+ src/net/tcpsock_posix.go  | 18 ++++++++--
+ src/net/unixsock_plan9.go |  6 ++--
+ src/net/unixsock_posix.go | 18 ++++++++--
+ 8 files changed, 153 insertions(+), 24 deletions(-)

@@ -1,14 +1,16 @@
-commit c9b66bb355ebbc6a26ee511e996cba4da3e1d644
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Mon Apr 11 21:47:37 2016 -0300
+commit f4717a902e54d1e532fd21f1676a225523c67649
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 29 09:31:12 2016 -0800
 
-    io: document WriteString calls Write exactly once
+    misc/cgo/testsanitizers: test that tsan links
     
-    Fixes #13849
+    Update #14559.
     
-    Change-Id: Idd7f06b547a0179fe15571807a8c48b7c3b78d7c
-    Reviewed-on: https://go-review.googlesource.com/21852
+    Change-Id: I92603602e5d0a5fcae43f3084f234ff606447190
+    Reviewed-on: https://go-review.googlesource.com/20056
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/io.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/testsanitizers/test.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,22 +1,20 @@
-commit 9a184b22eef79ac0570330a17cf81a15a58bbf76
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Feb 18 16:44:06 2016 -0800
+commit 52f111fb34a4f57404db53af4d89d4a25fcb114e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 18 17:50:21 2015 -0800
 
-    cmd/compile: refresh builtin.go
+    cmd/compile: print regular error message in BOM corner-case
     
-    The export data format was augmented with a new "unsafe-uintptr" tag
-    in https://golang.org/cl/18584, but builtin.go was not regenerated.
+    This never happens but for pathological input where a BOM sequence
+    is unfinished and ends in EOF (src: "package p\n\nfunc \xef\xef").
+    No test case added because the /test framework doesn't lend itself
+    easily to it in this case (file must end in EOF rather than comment).
+    Instead, tested manually.
     
-    While here, add a test to make sure builtin.go stays up to date in the
-    future.
+    Fixes #13268.
     
-    Change-Id: I4ae17da29f0855bef6ec0fcc10e7082c8427d39c
-    Reviewed-on: https://go-review.googlesource.com/19681
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I049034e6dde7ad884b0a8c329921adac1866ff18
+    Reviewed-on: https://go-review.googlesource.com/17047
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go      | 72 ++++++++++++++---------------
- src/cmd/compile/internal/gc/builtin_test.go | 31 +++++++++++++
- src/cmd/compile/internal/gc/mkbuiltin.go    | 13 +++++-
- 3 files changed, 79 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

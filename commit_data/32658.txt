@@ -1,25 +1,25 @@
-commit 06f4d93699ebbf05a500313c6b6ae6f80105d838
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Sep 3 12:33:56 2017 -0400
+commit 482da5180375404439d58cf4f865ed8bc37c6a63
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri May 12 09:04:55 2017 +0900
 
-    cmd/go: put computed GOROOT in built binaries
+    cmd/go: fix TestCgoContainsSpace
     
-    As of CL 42533, cmd/go will recompute its GOROOT based on the
-    location of its own executable. This CL plumbs that computed GOROOT
-    into every binary it builds using the linker -X flag. This
-    means binaries built with a moved cmd/go will report the GOROOT
-    they were built in from runtime.GOROOT().
+    TestCgoContainsSpace builds a small program which mimics $CC.
+    Usually, $CC attempts to compile a trivial code to detect its own
+    supported flags (i.e. "-no-pie", which must be passed on some systems),
+    however the mimic didn't consider these cases.
     
-    Fixes #21313
+    This CL solve the issue.
     
-    Change-Id: I6c2c559f40f2a0c867ab60cf47c6dbc73ae5e28a
-    Reviewed-on: https://go-review.googlesource.com/61310
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Also, use the same name as $CC, it may solve other potential problems.
+    
+    Fixes #20324
+    
+    Change-Id: I7a00ac016a5fd0667540f2a715371f8152edc395
+    Reviewed-on: https://go-review.googlesource.com/43330
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/buildruntime.go        |  5 +++--
- src/cmd/go/go_test.go               | 39 ++++++++++++++++++++++++++++++++++++-
- src/cmd/go/internal/work/build.go   |  3 +++
- src/cmd/go/testdata/print_goroot.go | 11 +++++++++++
- 4 files changed, 55 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go | 33 ++++++++++++++++++++-------------
+ 1 file changed, 20 insertions(+), 13 deletions(-)

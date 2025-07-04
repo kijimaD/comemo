@@ -1,15 +1,15 @@
-commit d97157d3825f12e7b9702474136085276f7ef0a0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 4 13:40:15 2013 -0700
+commit a8545355568ba49363cdc9c4d233075c2be8261d
+Author: Andriy Lytvynov <lytvynov.a.v@gmail.com>
+Date:   Thu Apr 4 11:11:54 2013 -0700
 
-    net/http: better stand-alone FileServer doc example
+    doc/code.html: fix typos
     
-    Motivated by a deletion in the wiki, which had a better
-    example.
+    Fixed example program's output to match program's code.
+    Fixes #5204.
     
-    R=golang-dev, r
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/8288045
+    https://golang.org/cl/8365043
 
- src/pkg/net/http/example_test.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ doc/code.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

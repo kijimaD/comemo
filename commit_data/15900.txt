@@ -1,12 +1,15 @@
-commit f29b091110e56fc5cf34eb02fa39824006fa17bc
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 22 14:22:55 2013 -0700
+commit 81d26e3817524c98e24c5a2a01bc87fbceb9c61b
+Author: Julien Schmidt <google@julienschmidt.com>
+Date:   Fri Mar 22 12:19:21 2013 -0700
 
-    encoding/gob: delete dead code.
+    database/sql: add missing []byte and RawBytes conversions
     
-    R=golang-dev, rsc
+    E.g conversions from numeric types to RawBytes are missing, what makes RawBytes unusable in some cases.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7834047
+    https://golang.org/cl/7783046
 
- src/pkg/encoding/gob/codec_test.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/pkg/database/sql/convert.go      | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/database/sql/convert_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+)

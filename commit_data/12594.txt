@@ -1,12 +1,12 @@
-commit 4809ad655b53910908680c4895b11a5f1f828670
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Mon Mar 12 19:41:15 2012 -0700
+commit 170301d44bf6fbe0613ca755517d8cb899949f7f
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Tue Mar 13 12:57:48 2012 +1100
 
-    cmd/go: fix typo
+    godoc: added alt and title attributes to the "pop out" button
     
-    R=golang-dev, gri
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5777072
+    https://golang.org/cl/5777071
 
- src/cmd/go/build.go | 2 +-
+ doc/root.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

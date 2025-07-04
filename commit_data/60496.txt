@@ -1,0 +1,25 @@
+commit 05099368239650c0931d6521eeb0c707296c90bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 25 15:31:06 2024 -0700
+
+    go/types, types2: report type name in comp. literal error, if possible
+    
+    When reporting an error for the element type of a struct literal, use
+    the element type's type name rather than it's underlying/core type.
+    
+    Also, combine error reporting for invalid composite literal types in
+    one place, at the end.
+    
+    Fixes #68184.
+    
+    Change-Id: I1f407d5403777948da9a0eca95aacc1389f4bd44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595075
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+
+ src/cmd/compile/internal/types2/expr.go            | 20 +++++++++---
+ src/go/types/expr.go                               | 20 +++++++++---
+ .../types/testdata/fixedbugs/issue68184.go         | 38 ++++++++++++++++++++++
+ 3 files changed, 68 insertions(+), 10 deletions(-)

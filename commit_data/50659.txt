@@ -1,45 +1,31 @@
-commit 7a74829858bbc2fdf8b2d8902f7df46935cf6be9
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Oct 21 10:57:23 2021 -0400
+commit 37634eeff9b7510d2eb224397c2bc8c806da83e1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Nov 3 14:42:52 2021 -0700
 
-    cmd/covdata: add tools to read/manipulate coverage data files
+    net: remove the alloc from ReadMsgUDPAddrPort
     
-    Add a set of helper packages for reading collections of related
-    meta-data and counter-data files ("pods") produced by runs of
-    coverage-instrumented binaries, and a new tool program (cmd/covdata)
-    for dumping and/or manipulating coverage data files.
+    name                          old time/op    new time/op    delta
+    ReadWriteMsgUDPAddrPort-8       4.95µs ± 5%    4.55µs ± 1%    -7.96%  (p=0.016 n=5+4)
     
-    Currently "go tool covdata" subcommands include 'merge', 'intersect',
-    'percent', 'pkglist', 'subtract', 'debugdump', and 'textfmt'
-    (conversion to the legacy "go tool cover" format).
+    name                          old alloc/op   new alloc/op   delta
+    ReadWriteMsgUDPAddrPort-8        32.0B ± 0%      0.0B       -100.00%  (p=0.008 n=5+5)
     
-    Updates #51430.
+    name                          old allocs/op  new allocs/op  delta
+    ReadWriteMsgUDPAddrPort-8         1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
     
-    Change-Id: I44167c578f574b4636ab8726e726388531fd3258
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357609
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ib968c6f2968926ec9a364dd52063cd0d7c29b10c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360862
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/covdata/argsmerge.go                      |  64 ++
- src/cmd/covdata/covdata.go                        | 224 ++++++
- src/cmd/covdata/doc.go                            |  84 ++
- src/cmd/covdata/dump.go                           | 348 +++++++++
- src/cmd/covdata/merge.go                          | 109 +++
- src/cmd/covdata/metamerge.go                      | 433 +++++++++++
- src/cmd/covdata/subtractintersect.go              | 197 +++++
- src/cmd/covdata/testdata/dep.go                   |  17 +
- src/cmd/covdata/testdata/prog1.go                 |  48 ++
- src/cmd/covdata/testdata/prog2.go                 |  29 +
- src/cmd/covdata/tool_test.go                      | 885 ++++++++++++++++++++++
- src/cmd/internal/cov/mreader.go                   |  85 +++
- src/cmd/internal/cov/readcovdata.go               | 272 +++++++
- src/go/build/deps_test.go                         |  15 +-
- src/internal/coverage/calloc/batchcounteralloc.go |  29 +
- src/internal/coverage/cformat/fmt_test.go         |  92 +++
- src/internal/coverage/cformat/format.go           | 340 +++++++++
- src/internal/coverage/cmerge/merge.go             | 104 +++
- src/internal/coverage/cmerge/merge_test.go        | 105 +++
- src/internal/coverage/pods/pods.go                | 194 +++++
- src/internal/coverage/pods/pods_test.go           | 143 ++++
- 21 files changed, 3815 insertions(+), 2 deletions(-)
+ src/internal/poll/fd_unix.go        | 54 +++++++++++++++++++++++++
+ src/internal/poll/fd_windows.go     | 79 +++++++++++++++++++++++++++++++++----
+ src/internal/syscall/unix/net.go    |  8 ++++
+ src/internal/syscall/unix/net_js.go |  8 ++++
+ src/net/fd_posix.go                 | 12 ++++++
+ src/net/net_fake.go                 |  8 ++++
+ src/net/udpsock_posix.go            | 12 +++---
+ src/syscall/syscall_unix.go         | 27 +++++++++++++
+ 8 files changed, 195 insertions(+), 13 deletions(-)

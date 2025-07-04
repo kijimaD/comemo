@@ -1,13 +1,18 @@
-commit d48cd5d1d53c3e8098b551c7b7c4390820789555
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Feb 3 11:42:51 2013 -0800
+commit 46d6f3c62f9f51ac349b90b2181627d5c1ed424b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 13:08:23 2013 -0500
 
-    A+C: add Yusuke Kagiwada (Individual CLA)
+    cmd/go: update 'go get' help message
     
-    R=golang-dev, rsc
+    It accepts all the build flags.
+    Say that instead of making a copy that will go stale.
+    
+    Fixes #4742.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7292043
+    https://golang.org/cl/7229081
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/go/doc.go | 8 ++++----
+ src/cmd/go/get.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

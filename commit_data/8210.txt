@@ -1,16 +1,15 @@
-commit 883d68f885750806ca9a244ed1c19db58a971ab7
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Mon Apr 25 12:02:54 2011 -0400
+commit a9a6c90104a9fd4e9627a300bb301adf8a039592
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Apr 25 10:27:36 2011 -0400
 
-    gc: allow complex types to be receiver types
+    crypto/tls: use time(), not Time().
     
-    Fixes #1716.
+    The unexported version returns a sensible default when the user hasn't
+    set a value. The exported version crashes in that case.
     
-    R=golang-dev, rsc1, rsc
+    R=bradfitzgo, rsc1
     CC=golang-dev
-    https://golang.org/cl/4439068
+    https://golang.org/cl/4435070
 
- src/cmd/gc/align.c       |  2 +-
- src/cmd/gc/subr.c        |  2 +-
- test/fixedbugs/bug334.go | 31 +++++++++++++++++++++++++++++++
- 3 files changed, 33 insertions(+), 2 deletions(-)
+ src/pkg/crypto/tls/handshake_client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

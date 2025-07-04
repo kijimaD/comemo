@@ -1,59 +1,29 @@
-commit 50649a967c1e3ce08106976fdf3dad345de50776
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Mon Aug 28 22:38:39 2017 -0700
+commit cf12fef5c6fabaa2c5089ba31b4354514c67d8e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 13 21:37:13 2017 -0800
 
-    math/big: implement Lehmer's extended GCD algorithm
+    go/types: don't associate methods with alias type names
     
-    Updates #15833
+    R=go1.11
     
-    The extended GCD algorithm can be implemented using
-    Lehmer's algorithm with additional updates for the
-    cosequences following Algorithm 10.45 from Cohen et al.
-    "Handbook of Elliptic and Hyperelliptic Curve Cryptography" pp 192.
-    This brings the speed of the extended GCD calculation within
-    ~2x of the base GCD calculation.  There is a slight degradation in
-    the non-extended GCD speed for small inputs (1-2 words) due to the
-    additional code to handle the extended updates.
+    The existing code associated methods with receiver base type
+    names before knowing if a type name denoted a locally defined
+    type. Sometimes, methods would be incorrectly associated with
+    alias type names and consequently were lost down the road.
     
-    name                          old time/op    new time/op    delta
-    GCD10x10/WithoutXY-4             262ns ± 1%     266ns ± 2%     ~     (p=0.333 n=5+5)
-    GCD10x10/WithXY-4               1.42µs ± 2%    0.74µs ± 3%  -47.90%  (p=0.008 n=5+5)
-    GCD10x100/WithoutXY-4            520ns ± 2%     539ns ± 1%   +3.81%  (p=0.008 n=5+5)
-    GCD10x100/WithXY-4              2.32µs ± 1%    1.67µs ± 0%  -27.80%  (p=0.008 n=5+5)
-    GCD10x1000/WithoutXY-4          1.40µs ± 1%    1.45µs ± 2%   +3.26%  (p=0.016 n=4+5)
-    GCD10x1000/WithXY-4             4.78µs ± 1%    3.43µs ± 1%  -28.37%  (p=0.008 n=5+5)
-    GCD10x10000/WithoutXY-4         10.0µs ± 0%    10.2µs ± 3%   +1.80%  (p=0.008 n=5+5)
-    GCD10x10000/WithXY-4            20.9µs ± 3%    17.9µs ± 1%  -14.20%  (p=0.008 n=5+5)
-    GCD10x100000/WithoutXY-4        96.8µs ± 0%    96.3µs ± 1%     ~     (p=0.310 n=5+5)
-    GCD10x100000/WithXY-4            196µs ± 3%     159µs ± 2%  -18.61%  (p=0.008 n=5+5)
-    GCD100x100/WithoutXY-4          2.53µs ±15%    2.34µs ± 0%   -7.35%  (p=0.008 n=5+5)
-    GCD100x100/WithXY-4             19.3µs ± 0%     3.9µs ± 1%  -79.58%  (p=0.008 n=5+5)
-    GCD100x1000/WithoutXY-4         4.23µs ± 0%    4.17µs ± 3%     ~     (p=0.127 n=5+5)
-    GCD100x1000/WithXY-4            22.8µs ± 1%     7.5µs ±10%  -67.00%  (p=0.008 n=5+5)
-    GCD100x10000/WithoutXY-4        19.1µs ± 0%    19.0µs ± 0%     ~     (p=0.095 n=5+5)
-    GCD100x10000/WithXY-4           75.1µs ± 2%    30.5µs ± 2%  -59.38%  (p=0.008 n=5+5)
-    GCD100x100000/WithoutXY-4        170µs ± 5%     167µs ± 1%     ~     (p=1.000 n=5+5)
-    GCD100x100000/WithXY-4           542µs ± 2%     267µs ± 2%  -50.79%  (p=0.008 n=5+5)
-    GCD1000x1000/WithoutXY-4        28.0µs ± 0%    27.1µs ± 0%   -3.29%  (p=0.008 n=5+5)
-    GCD1000x1000/WithXY-4            329µs ± 0%      42µs ± 1%  -87.12%  (p=0.008 n=5+5)
-    GCD1000x10000/WithoutXY-4       47.2µs ± 0%    46.4µs ± 0%   -1.65%  (p=0.016 n=5+4)
-    GCD1000x10000/WithXY-4           607µs ± 9%     123µs ± 1%  -79.70%  (p=0.008 n=5+5)
-    GCD1000x100000/WithoutXY-4       260µs ±17%     245µs ± 0%     ~     (p=0.056 n=5+5)
-    GCD1000x100000/WithXY-4         3.64ms ± 1%    0.93ms ± 1%  -74.41%  (p=0.016 n=4+5)
-    GCD10000x10000/WithoutXY-4       513µs ± 0%     507µs ± 0%   -1.22%  (p=0.008 n=5+5)
-    GCD10000x10000/WithXY-4         7.44ms ± 1%    1.00ms ± 0%  -86.58%  (p=0.008 n=5+5)
-    GCD10000x100000/WithoutXY-4     1.23ms ± 0%    1.23ms ± 1%     ~     (p=0.056 n=5+5)
-    GCD10000x100000/WithXY-4        37.3ms ± 0%     7.3ms ± 1%  -80.45%  (p=0.008 n=5+5)
-    GCD100000x100000/WithoutXY-4    24.2ms ± 0%    24.2ms ± 0%     ~     (p=0.841 n=5+5)
-    GCD100000x100000/WithXY-4        505ms ± 1%      56ms ± 1%  -88.92%  (p=0.008 n=5+5)
+    This change first collects all methods with non-blank names
+    and in a follow-up pass resolves receiver base type names to
+    valid non-alias type names with which the methods are then
+    associated.
     
-    Change-Id: I25f42ab8c55033acb83cc32bb03c12c1963925e8
-    Reviewed-on: https://go-review.googlesource.com/78755
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #23042.
+    
+    Change-Id: I7699e577b70aadef6a2997e882beb0644da89fa3
+    Reviewed-on: https://go-review.googlesource.com/83996
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/math/big/int.go      | 287 ++++++++++++++++++++++++++++-------------------
- src/math/big/int_test.go |  64 +++++++++--
- src/math/big/rat.go      |   2 +-
- 3 files changed, 228 insertions(+), 125 deletions(-)
+ src/go/types/check.go            | 11 +----
+ src/go/types/decl.go             | 44 +++++++++---------
+ src/go/types/resolver.go         | 97 ++++++++++++++++++++++++++++++++++------
+ src/go/types/testdata/decls4.src | 49 ++++++++++++++++++++
+ 4 files changed, 157 insertions(+), 44 deletions(-)

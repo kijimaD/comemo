@@ -1,15 +1,14 @@
-commit 2f45f2801da90350c2a2dbf7e36cd97f5fb7ce0f
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Tue Dec 11 11:06:07 2012 -0500
+commit 014137c839a3b9c5b9a2f44df8c8598e2569a311
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 10 18:08:07 2012 -0500
 
-    net/url: fix handling of relative paths in ResolveReference.
+    doc/go1.1.html: add warning about net.ResolveTCPAddr error checking
     
-    Fixes #3560.
+    Suggested by Paul Borman.
     
-    R=golang-dev, rsc
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6886047
+    https://golang.org/cl/6930043
 
- src/pkg/net/url/url.go      | 14 ++++++++++++--
- src/pkg/net/url/url_test.go |  9 +++++++++
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ doc/go1.1.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,20 +1,19 @@
-commit 0b922bfa9c43b0b1b957f3f6d62bb366bb2c9870
-Author: Ikko Eltociear Ashimine <eltociear@gmail.com>
-Date:   Sat Feb 11 12:45:01 2023 +0000
+commit d1405d7410accbb9ee51e116297e9ce671ab1b56
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 25 13:22:44 2022 -0400
 
-    cmd/internal/cov: fix typo in readcovdata.go
+    [dev.boringcrypto] crypto/internal/boring: update build instructions to use podman
     
-    hte -> the
+    The 'docker' command line tool is no longer available on my Linux laptop
+    due to Docker's new licensing rules. 'sudo podman' seems to work fine,
+    so suggest that instead.
     
-    Change-Id: Ie81062997289d622756881acdd11af66611cd778
-    GitHub-Last-Rev: 5ef07542b47f243d5a66ef166c74db0348fd2c80
-    GitHub-Pull-Request: golang/go#58473
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467518
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib80211404dadb567c8741720ece2a73a6ad4040a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395874
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/cov/readcovdata.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/internal/boring/Dockerfile | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

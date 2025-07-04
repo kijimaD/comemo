@@ -1,22 +1,18 @@
-commit 7148abc1b900555199998aac25af11783a9eb41c
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jun 5 16:44:29 2020 -0400
+commit ab7c174183b05e36dabe0aa1943a0a4302b940d0
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Feb 6 08:47:20 2020 +0000
 
-    runtime: simplify heapBitsSetType doubleCheck
+    testing: make Cleanup work for benchmarks too.
     
-    The heapBitsSetType function has a slow doubleCheck debugging mode
-    that checks the bitmap written out by the rest of the function using
-    far more obvious logic. But even this has some surprisingly complex
-    logic in it. Simplify it a bit. This also happens to fix the logic on
-    32-bit.
+    Fixes #37073.
     
-    Fixes #40335.
-    
-    Change-Id: I5cee482ad8adbd01cf5b98e35a270fe941ba4940
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244538
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I6fb24a3f9d7b7adf3213ac6a8bcbf5fb43975b7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218117
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/mbitmap.go | 28 ++++++++++++++++------------
- 1 file changed, 16 insertions(+), 12 deletions(-)
+ src/testing/benchmark.go |  1 +
+ src/testing/sub_test.go  | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

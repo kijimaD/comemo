@@ -1,12 +1,17 @@
-commit 667303f158a80eb1297bad90cc65576e83260305
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 17 11:57:00 2013 -0700
+commit e39eda1366384cdef21f04c5c964ae93e2ea9ce3
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Thu Oct 17 09:02:32 2013 -0700
 
-    runtime: correct parameter name in MCentral_AllocList comment
+    database/sql: make tests repeatable with -cpu=n,n
+    
+    New test added in CL 14611045 causes a deadlock when
+    running the tests with -cpu=n,n because the fakedb
+    driver always waits when opening a new connection after
+    running TestConnectionLeak.  Reset its state after.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/14792043
+    https://golang.org/cl/14780043
 
- src/pkg/runtime/mcentral.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/database/sql/fakedb_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

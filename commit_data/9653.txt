@@ -1,30 +1,15 @@
-commit 7d43b8428247d101217dbaca8ecd864392640287
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 12 11:47:55 2011 -0700
+commit 9c6265d339424b504b515cdaf078342a4dc11778
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 12 14:03:53 2011 -0400
 
-    time: make Weekday a method.
-    Weekday is redundant information for a Time structure.
-    When parsing a time with a weekday specified, it can create an
-    incorrect Time value.
-    When parsing a time without a weekday specified, people
-    expect the weekday to be set.
-    Fix all three problems by computing the weekday on demand.
+    exp/regexp/syntax: fix invalid input parser crash
     
-    This is hard to gofix, since we must change the type of the node.
-    Since uses are rare and existing code will be caught by the compiler,
-    there is no gofix module here.
+    Reported by Kyle Lemons.
     
-    Fixes #2245.
-    
-    R=golang-dev, bradfitz, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4974077
+    https://golang.org/cl/4992045
 
- src/pkg/asn1/asn1_test.go        | 16 +++++++-------
- src/pkg/crypto/ocsp/ocsp_test.go |  2 +-
- src/pkg/http/cookie_test.go      |  2 +-
- src/pkg/mail/message_test.go     |  1 -
- src/pkg/time/format.go           | 12 +++++-----
- src/pkg/time/time.go             | 23 +++++++++++++------
- src/pkg/time/time_test.go        | 48 ++++++++++++++++++++--------------------
- 7 files changed, 57 insertions(+), 47 deletions(-)
+ src/pkg/exp/regexp/syntax/parse.go      | 37 ++++++++++++++++++++-------------
+ src/pkg/exp/regexp/syntax/parse_test.go |  1 +
+ 2 files changed, 23 insertions(+), 15 deletions(-)

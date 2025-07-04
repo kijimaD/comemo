@@ -1,17 +1,40 @@
-commit 09e0f50d034ca1e2bb6508b419314cc66e313e54
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat May 20 00:39:50 2023 +0800
+commit a4c5198a3c8befa2f126fd365de4dc09c32b7886
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 18 12:28:11 2022 -0700
 
-    maps: delete unused var
+    [dev.unified] cmd/compile/internal/noder: better switch statements
     
-    Change-Id: I3d0c196e2ec139d224d057a954c631251b80e921
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496077
-    Run-TryBot: xie cui <523516579@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Walk desugars switch statements into a bunch of OEQ comparisons, and
+    sometimes (although rarely in practice) this currently requires
+    converting the tag value to the case value's type. And because this
+    conversion is inserted during walk, unified IR can't wire up
+    appropriate RTTI operands for the conversion.
+    
+    As a simple solution, if any of the case values are *not* assignable
+    to the tag value's type, we instead convert them all to `any`. This
+    works because `any(x) == any(y)` yields the same value as `x == y`, as
+    long as neither `x` nor `y` are `nil`.
+    
+    We never have to worry about `x` or `y` being `nil` either, because:
+    
+    1. `switch nil` is invalid, so `x` can never be `nil`.
+    
+    2. If the tag type is a channel, map, or function type, they
+    can *only* be compared against `nil`; so the case values will always
+    be assignable to the tag value's type, and so we won't convert to
+    `any`.
+    
+    3. For other nullable types, the previous commit (adding explicit
+    `nil` handling to unified IR) ensures that `case nil:` is actually
+    treated as `case tagType(nil):`.
+    
+    Change-Id: I3adcb9cf0d42a91a12b1a163c58d4133a24fca5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418101
     Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/maps/maps_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 42 ++++++++++++++++++++++++++++----
+ 1 file changed, 37 insertions(+), 5 deletions(-)

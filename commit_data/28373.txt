@@ -1,19 +1,17 @@
-commit 983e2fd4e6fecd78789384069c476eead4806d1b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 14 18:14:34 2016 +0000
+commit 538537a28dc956f069b83e3f1966683901205331
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 18 13:19:24 2016 -0700
 
-    sort: cut 140 seconds off race build tests
+    runtime: check only up to ptrdata bytes for pointers
     
-    No coverage is gained by running the 1e6 versions of the test over the
-    1e4 versions. It just adds 140 seconds of race overhead time.
+    Fixes #14508.
     
-    Updates #17104
-    
-    Change-Id: I41408aedae34a8b1a148eebdda20269cdefffba3
-    Reviewed-on: https://go-review.googlesource.com/29159
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I237d0c5a79a73e6c97bdb2077d8ede613128b978
+    Reviewed-on: https://go-review.googlesource.com/23224
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/sort/sort_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ misc/cgo/errors/ptr.go  | 24 ++++++++++++++++++++++++
+ src/runtime/cgocheck.go | 19 ++++++++++++++++++-
+ 2 files changed, 42 insertions(+), 1 deletion(-)

@@ -1,19 +1,16 @@
-commit cd0f799e65619c30e984c03b905507ff0216e825
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 22 18:17:03 2011 -0800
+commit bdbea6e41029bd4d4efd2265710c70ccfe36239a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 22 21:10:02 2011 -0500
 
-    exp/eval, go/printer: fix build
+    arm: fix build
     
-    There are some minor irregularities in the printer
-    output (some paren's are present that should be
-    removed), but these are unrelated issues.
-    Will review in a 2nd step.
+    Changes on laptop were not sync'ed to machine
+    where I ran hg submit.
     
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4188068
+    https://golang.org/cl/4195048
 
- src/pkg/exp/eval/stmt_test.go                 | 12 ++++++------
- src/pkg/go/printer/testdata/statements.golden | 20 ++++----------------
- src/pkg/go/printer/testdata/statements.input  | 22 ++++++++--------------
- 3 files changed, 18 insertions(+), 36 deletions(-)
+ src/cmd/5l/noop.c      |  2 +-
+ src/pkg/runtime/chan.c | 23 ++++++++++++-----------
+ 2 files changed, 13 insertions(+), 12 deletions(-)

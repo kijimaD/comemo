@@ -1,31 +1,30 @@
-commit 0c4db1e347dc51589e5289388305b02108ca0aa1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 5 16:09:22 2022 -0700
+commit c8d4fe2adc556317f75c2ebad195568ad5ff9644
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 8 09:58:44 2021 -0400
 
-    cmd/compile: fix import/export of ODYNAMICDOTTYPE
+    go/types: temporarily pin the Checker to Interface during checking
     
-    The RType field isn't needed when performing type assertions from
-    non-empty interface types, because we use the ITab field instead. But
-    the inline body exporter didn't know to expect this.
+    While type checking expressions involving interface types, it is
+    possible that their type set is used before delayed actions are
+    processed. As a result, computeInterfaceTypeSet is called with a nil
+    checker, and errors in the interface type definition result in panics
+    (see #48234).
     
-    It's possible we could use a single bool to distinguish whether
-    we're serializing the RType or ITab field, but using two is simpler
-    and seems safer.
+    To avoid the panics, store a *Checker on Interface for use in between
+    checking of the interface type expression and processing of delayed
+    actions.
     
-    Fixes #54302.
+    Fixes #48234
     
-    Change-Id: I9ddac72784fb2241fee0a0dee30493d868a2c259
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421755
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I5509bc1c01b55edac52446b9e075fbe8fcc01874
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348371
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/typecheck/iexport.go |  4 +++-
- src/cmd/compile/internal/typecheck/iimport.go |  5 ++++-
- test/typeparam/issue54302.dir/a.go            | 20 ++++++++++++++++++++
- test/typeparam/issue54302.dir/main.go         | 11 +++++++++++
- test/typeparam/issue54302.go                  |  7 +++++++
- 5 files changed, 45 insertions(+), 2 deletions(-)
+ src/go/types/interface.go                      | 15 ++++++++++++---
+ src/go/types/sizeof_test.go                    |  2 +-
+ src/go/types/testdata/fixedbugs/issue48234.go2 | 10 ++++++++++
+ src/go/types/universe.go                       |  4 ++--
+ 4 files changed, 25 insertions(+), 6 deletions(-)

@@ -1,15 +1,18 @@
-commit 09f6a491947373107e1425eae1187d573e398492
-Author: James Whitehead <jnwhiteh@gmail.com>
-Date:   Fri Feb 10 13:35:03 2012 -0800
+commit a0acdd210b7052c332926bae9a72e8a4bae642b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 10 13:28:29 2012 -0800
 
-    exp/types: Use build.FindTree in GcImporter
+    go/printer: test that formatted code is parseable
     
-    Fixes #2932
+    - Added test case for issue 1542.
     
-    R=gri
+    Fixes #1542.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5654046
+    https://golang.org/cl/5645080
 
- src/pkg/exp/types/gcimporter.go      | 11 +++++++----
- src/pkg/exp/types/gcimporter_test.go |  2 +-
- 2 files changed, 8 insertions(+), 5 deletions(-)
+ src/pkg/go/printer/printer_test.go          |  7 +++++++
+ src/pkg/go/printer/testdata/comments.golden | 22 +++++++++++++++++++++-
+ src/pkg/go/printer/testdata/comments.input  | 22 +++++++++++++++++++++-
+ 3 files changed, 49 insertions(+), 2 deletions(-)

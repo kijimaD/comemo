@@ -1,23 +1,20 @@
-commit 1664ff96f76e4f2cfdbaabfe286cdeff0426a013
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Fri Mar 25 15:40:44 2016 +0100
+commit 88b230eaa69647405e7c278044550640fc098111
+Author: David Chase <drchase@google.com>
+Date:   Fri Jan 29 14:44:15 2016 -0500
 
-    misc/ios: fix exec wrapper locking
+    [dev.ssa] cmd/compile: exposed do-log boolean to reduce allocations
     
-    The exec wrapper lock file was opened, locked and then never used
-    again, assuming it would close and unlock at process exit.
-    However, the garbage collector could collect and run the *os.File
-    finalizer that closes the file prematurely, rendering the lock
-    ineffective.
+    From memory profiling, about 3% reduction in allocation count.
     
-    Make the lock global so that the lock is live during the entire
-    execution.
-    
-    (Hopefully) fix the iOS builders.
-    
-    Change-Id: I62429e92042a0a49c4f1ea553fdb32b6ea53a43e
-    Reviewed-on: https://go-review.googlesource.com/21137
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I4b662d55b8a94fe724759a2b22f05a08d0bf40f8
+    Reviewed-on: https://go-review.googlesource.com/19103
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go          |  5 +++++
+ src/cmd/compile/internal/ssa/block.go       |  1 +
+ src/cmd/compile/internal/ssa/compile.go     | 16 ++++++++++++----
+ src/cmd/compile/internal/ssa/config.go      |  7 ++++++-
+ src/cmd/compile/internal/ssa/export_test.go |  1 +
+ src/cmd/compile/internal/ssa/func.go        |  1 +
+ src/cmd/compile/internal/ssa/value.go       |  1 +
+ 7 files changed, 27 insertions(+), 5 deletions(-)

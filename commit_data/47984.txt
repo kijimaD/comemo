@@ -1,20 +1,24 @@
-commit 9eba5ff5219a76c3c4e020fa27e966a226174d7e
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jan 21 11:07:52 2022 -0500
+commit 190cb937f7acdc1568a09c0cbbe1c14031c94ca9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 19 18:48:16 2021 -0700
 
-    runtime/pprof: TestLabelSystemstack parallelLabelHog.func1 must be labeled
+    cmd/compile/internal/types2: fix type inference
     
-    The closure in parallelLabelHog should be labeled in a addition to
-    parallelLabelHog itself. Generally samples on that goroutine land on
-    labelHog, but there is a small portion of the closure outside of
-    labelHog.
+    Don't let type parameters that are not filled in with concrete
+    type arguments escape from constraint type inference - such
+    inferred types are not "real".
     
-    Fixes #50740.
+    While at it, implement a tparamsList.String method for debugging.
     
-    Change-Id: I363b6d8eec2e6920c215686e2039fce6d5b29a98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380055
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
+    Fixes #45548.
+    
+    Change-Id: I40f13ff7af08d0357a5c66234bfcdd0b7ed5fdd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311651
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/pprof/pprof_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../compile/internal/types2/fixedbugs/issue45548.go2  | 13 +++++++++++++
+ src/cmd/compile/internal/types2/infer.go              | 19 +++++++++++++++++++
+ src/cmd/compile/internal/types2/unify.go              | 18 ++++++++++++++++++
+ 3 files changed, 50 insertions(+)

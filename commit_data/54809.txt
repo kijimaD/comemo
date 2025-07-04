@@ -1,130 +1,18 @@
-commit 8fc043ccfacd358931e1f675777d0de584955e6f
-Author: Ubuntu <markdryan@rivosinc.com>
-Date:   Fri Sep 22 13:14:25 2023 +0000
+commit d03e442e2dace16ce125aa073a3c6ac8484d4457
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Nov 15 11:57:10 2022 -0800
 
-    cmd/compile: optimize right shifts of int32 on riscv64
+    crypto/rsa: return err when key too small to compute salt for RSA PSS
     
-    The compiler is currently sign extending 32 bit signed integers to
-    64 bits before right shifting them using a 64 bit shift instruction.
-    There's no need to do this as RISC-V has instructions for right
-    shifting 32 bit signed values (sraw and sraiw) which sign extend
-    the result of the shift to 64 bits.  Change the compiler so that
-    it uses sraw and sraiw for shifts of signed 32 bit integers reducing
-    in most cases the number of instructions needed to perform the shift.
+    When PSSSaltLengthAuto is passed to SignPSS, and the key size is too
+    small to create a valid salt, return ErrMessageTooLong
     
-    Here are some examples of code sequences that are changed by this
-    patch:
-    
-    int32(a) >> 2
-    
-      before:
-    
-        sll     x5,x10,0x20
-        sra     x10,x5,0x22
-    
-      after:
-    
-        sraw    x10,x10,0x2
-    
-    int32(v) >> int(s)
-    
-      before:
-    
-        sext.w  x5,x10
-        sltiu   x6,x11,64
-        add     x6,x6,-1
-        or      x6,x11,x6
-        sra     x10,x5,x6
-    
-      after:
-    
-        sltiu   x5,x11,32
-        add     x5,x5,-1
-        or      x5,x11,x5
-        sraw    x10,x10,x5
-    
-    int32(v) >> (int(s) & 31)
-    
-      before:
-    
-        sext.w  x5,x10
-        and     x6,x11,63
-        sra     x10,x5,x6
-    
-    after:
-    
-        and     x5,x11,31
-        sraw    x10,x10,x5
-    
-    int32(100) >> int(a)
-    
-      before:
-    
-        bltz    x10,<target address calls runtime.panicshift>
-        sltiu   x5,x10,64
-        add     x5,x5,-1
-        or      x5,x10,x5
-        li      x6,100
-        sra     x10,x6,x5
-    
-      after:
-    
-        bltz    x10,<target address calls runtime.panicshift>
-        sltiu   x5,x10,32
-        add     x5,x5,-1
-        or      x5,x10,x5
-        li      x6,100
-        sraw    x10,x6,x5
-    
-    int32(v) >> (int(s) & 63)
-    
-      before:
-    
-        sext.w  x5,x10
-        and     x6,x11,63
-        sra     x10,x5,x6
-    
-      after:
-    
-        and     x5,x11,63
-        sltiu   x6,x5,32
-        add     x6,x6,-1
-        or      x5,x5,x6
-        sraw    x10,x10,x5
-    
-    In most cases we eliminate one instruction.  In the case where
-    we shift a int32 constant by a variable the number of instructions
-    generated is identical.  A sra is simply replaced by a sraw.  In the
-    unusual case where we shift right by a variable anded with a constant
-    > 31 but < 64, we generate two additional instructions.  As this is
-    an unusual case we do not try to optimize for it.
-    
-    Some improvements can be seen in some of the existing benchmarks,
-    notably in the utf8 package which performs right shifts of runes
-    which are signed 32 bit integers.
-    
-                          |  utf8-old   |              utf8-new            |
-                          |   sec/op    |   sec/op     vs base             |
-    EncodeASCIIRune-4       17.68n ± 0%   17.67n ± 0%       ~ (p=0.312 n=10)
-    EncodeJapaneseRune-4    35.34n ± 0%   34.53n ± 1%  -2.31% (p=0.000 n=10)
-    AppendASCIIRune-4       3.213n ± 0%   3.213n ± 0%       ~ (p=0.318 n=10)
-    AppendJapaneseRune-4    36.14n ± 0%   35.35n ± 0%  -2.19% (p=0.000 n=10)
-    DecodeASCIIRune-4       28.11n ± 0%   27.36n ± 0%  -2.69% (p=0.000 n=10)
-    DecodeJapaneseRune-4    38.55n ± 0%   38.58n ± 0%       ~ (p=0.612 n=10)
-    
-    Change-Id: I60a91cbede9ce65597571c7b7dd9943eeb8d3cc2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535115
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: I4e0d70bdd54fcd667eae10e0a70b4f540a4ebe93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450796
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
 
- src/cmd/compile/internal/riscv64/ssa.go         |  4 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 26 ++++++----
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  2 +
- src/cmd/compile/internal/ssa/opGen.go           | 30 ++++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 65 ++++++++++++++++++++++---
- test/codegen/shift.go                           | 21 +++++---
- 6 files changed, 120 insertions(+), 28 deletions(-)
+ src/crypto/rsa/pss.go | 3 +++
+ 1 file changed, 3 insertions(+)

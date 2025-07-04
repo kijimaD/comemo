@@ -1,21 +1,15 @@
-commit a574822f8044204357236405dca60d1ca5123ab5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Aug 4 14:08:13 2013 +0400
+commit 53d9b6fcf3d459c2e550238502b499c462983329
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 4 08:41:19 2013 +1000
 
-    runtime: disable dynamic priority boosting on windows
-    Windows dynamic priority boosting assumes that a process has different types
-    of dedicated threads -- GUI, IO, computational, etc. Go processes use
-    equivalent threads that all do a mix of GUI, IO, computations, etc.
-    In such context dynamic priority boosting does nothing but harm, so turn it off.
-    In particular, if 2 goroutines do heavy IO on a server uniprocessor machine,
-    windows rejects to schedule timer thread for 2+ seconds when priority boosting is enabled.
-    Fixes #5971.
+    html/template: handle nils during indirection
     
-    R=alex.brainman
+    Fixes #5982.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12406043
+    https://golang.org/cl/12387043
 
- src/pkg/net/timeout_test.go       |  2 --
- src/pkg/runtime/netpoll_windows.c |  3 +--
- src/pkg/runtime/os_windows.c      | 16 ++++++++++++++++
- 3 files changed, 17 insertions(+), 4 deletions(-)
+ src/pkg/html/template/content.go      |  6 ++++++
+ src/pkg/html/template/content_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

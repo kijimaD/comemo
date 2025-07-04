@@ -1,18 +1,26 @@
-commit 4a46e6e44c33b49a5953476669ce5943717f7e9a
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Mar 16 16:52:30 2022 -0400
+commit a22e3172200d4bdd0afcbbe6564dbb67fea4b03a
+Author: Keith Randall <khr@golang.org>
+Date:   Sat May 22 21:59:00 2021 -0700
 
-    go/types, types2: add an assertion that named type origin is idempotent
+    cmd/compile: always include underlying type for map types
     
-    For #46794
+    This is a different fix for #37716.
     
-    Change-Id: I19edc19640a2dfa6bc7504dd8e1742a261ba29f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393368
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Should help make the fix for #46283 easier, since we will no longer
+    need to keep compiler-generated hash functions and the runtime
+    hash function in sync.
+    
+    Change-Id: I84cb93144e425dcd03afc552b5fbd0f2d2cc6d39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322150
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/named.go | 1 +
- src/go/types/named.go                    | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/compile/internal/reflectdata/reflect.go |  9 ++++
+ src/cmd/internal/objabi/reloctype.go            |  3 ++
+ src/cmd/internal/objabi/reloctype_string.go     | 71 +++++++++++++------------
+ src/runtime/alg.go                              | 19 +------
+ src/runtime/export_test.go                      | 25 ---------
+ src/runtime/hash_test.go                        | 49 -----------------
+ 6 files changed, 49 insertions(+), 127 deletions(-)

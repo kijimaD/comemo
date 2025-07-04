@@ -1,38 +1,21 @@
-commit e1e056fa6a2f788a15e17d55b7953712053fd760
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Wed May 4 17:03:13 2022 +0000
+commit d2bf94fb86b45609564919caa21c6b098b5197d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 2 16:54:14 2021 -0700
 
-    cmd/compile: fold constants found by prove
+    [dev.typeparams] cmd/compile/internal/types2: replace optype() with under() in various cases (cleanup)
     
-    It is hit ~70k times building go.
-    This make the go binary, 0.04% smaller.
-    I didn't included benchmarks because this is just constant foldings
-    and is hard to mesure objectively.
+    This makes the behavior for type parameter operands explicit
+    in those cases.
     
-    For example, this enable rewriting things like:
-      if x == 20 {
-        return x + 30 + z
-      }
-    
-    Into:
-      if x == 20 {
-        return 50 + z
-      }
-    
-    It's not just fixing programer's code,
-    the ssa generator generate code like this sometimes.
-    
-    Change-Id: I0861f342b27f7227b5f1c34d8267fa0057b1bbbc
-    GitHub-Last-Rev: 4c2f9b521692bc61acff137a269917895f4da08a
-    GitHub-Pull-Request: golang/go#52669
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403735
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I38438af67de4432f1a691dc4947e4576445f031b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332555
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 64 ++++++++++++++++++++++++++++++++---
- test/codegen/comparisons.go           | 14 +++++---
- test/prove_constant_folding.go        | 32 ++++++++++++++++++
- 3 files changed, 100 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go           |  8 +++++---
+ src/cmd/compile/internal/types2/expr.go               |  6 +++---
+ src/cmd/compile/internal/types2/index.go              |  4 ++--
+ src/cmd/compile/internal/types2/predicates.go         | 19 +++++++++----------
+ .../internal/types2/testdata/check/typeparams.go2     |  2 +-
+ src/cmd/compile/internal/types2/typeset.go            |  1 +
+ 6 files changed, 21 insertions(+), 19 deletions(-)

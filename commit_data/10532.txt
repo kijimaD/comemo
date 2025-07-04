@@ -1,22 +1,17 @@
-commit c32b60768785684342ebf6efdf50a7476326f473
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Tue Nov 29 11:18:49 2011 +1100
+commit 6d4c18a4af447dab97c10e4bd6c8ce5fbb3bcb13
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 29 10:24:19 2011 +1100
 
-    html: detect quirks mode
+    syscall: implement Syscall15
     
-    Pass tests3.dat, test 23:
-    <p><table></table>
+    Fixes #2251.
     
-    | <html>
-    |   <head>
-    |   <body>
-    |     <p>
-    |       <table>
-    
-    R=nigeltao
-    CC=golang-dev
-    https://golang.org/cl/5446043
+    R=golang-dev, rsc
+    CC=golang-dev, jp
+    https://golang.org/cl/5440050
 
- src/pkg/html/parse.go      | 117 +++++++++++++++++++++++++++++++++++++++++----
- src/pkg/html/parse_test.go |   2 +-
- 2 files changed, 109 insertions(+), 10 deletions(-)
+ src/pkg/runtime/windows/amd64/sys.s  |  2 +-
+ src/pkg/runtime/windows/syscall.goc  | 26 ++++++++++++++++++++++++++
+ src/pkg/syscall/dll_windows.go       |  7 +++++++
+ src/pkg/syscall/mksyscall_windows.pl |  5 +++++
+ 4 files changed, 39 insertions(+), 1 deletion(-)

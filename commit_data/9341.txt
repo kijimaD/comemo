@@ -1,13 +1,14 @@
-commit 3cca9e0b0040c87564768a5caf0466f7fb6cb9af
+commit b1d1da405af4ef7c928ef90712ba064248dd2794
 Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 12 11:50:46 2011 +1000
+Date:   Fri Aug 12 11:47:44 2011 +1000
 
-    utf8: rename some internal constants to remove leading underscores.
-    How quaint.
+    exp/template: add builtin len function
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4874045
+    https://golang.org/cl/4868045
 
- src/pkg/utf8/utf8.go | 120 +++++++++++++++++++++++++--------------------------
- 1 file changed, 60 insertions(+), 60 deletions(-)
+ src/pkg/exp/template/doc.go       |  2 ++
+ src/pkg/exp/template/exec_test.go |  6 ++++++
+ src/pkg/exp/template/funcs.go     | 16 ++++++++++++++++
+ 3 files changed, 24 insertions(+)

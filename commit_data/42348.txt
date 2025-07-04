@@ -1,17 +1,19 @@
-commit a0698a6b60952f80e2136df0699325b657ea0def
-Author: Hajime Hoshi <hajimehoshi@gmail.com>
-Date:   Wed May 6 23:00:58 2020 +0900
+commit 9a8b497240b7e77a81b1914adfbccb15a76d2c33
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 25 22:17:29 2019 -0800
 
-    syscall/js: prepare IDs for the preset objects
+    cmd/link: when changing to Segrelrodata, reset datsize
     
-    Fixes #38899
+    Otherwise we leave a gap at the start of Segrelrodata equal to the
+    size of the read-only non-relro data, which causes -buildmode=pie
+    executables to be noticeably larger than -buildmode=exe executables.
     
-    Change-Id: Ib8131c3078c60dc3fe2cf0eaac45b25a4f6e4649
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232518
-    Run-TryBot: Hajime Hoshi <hajimehoshi@gmail.com>
+    Change-Id: I98956ef29d5b7a57ad8e633c823ac09d9ca36a45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208897
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/wasm/wasm_exec.js    | 48 +++++++++++++++++++++--------------------------
- src/syscall/js/js_test.go | 11 +++++++++++
- 2 files changed, 32 insertions(+), 27 deletions(-)
+ src/cmd/link/elf_test.go         | 196 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/data.go |  46 +++++----
+ 2 files changed, 223 insertions(+), 19 deletions(-)

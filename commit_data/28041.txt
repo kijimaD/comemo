@@ -1,19 +1,29 @@
-commit 1472221a774c2a763dbe545b1686f4e8dc23613f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 17 10:16:55 2016 -0700
+commit 2e30218223a7bf2b560fbaf79bac8d80ea4ece1c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 26 15:43:04 2016 -0700
 
-    cmd/go: refactor cgo logic
+    net/http: remove idle transport connections from Transport when server closes
     
-    Extract "cgo -dynimport" and "ld -r" logic into separate helper
-    methods to make (*builder).cgo somewhat more manageable.
+    Previously the Transport would cache idle connections from the
+    Transport for later reuse, but if a peer server disconnected
+    (e.g. idle timeout), we would not proactively remove the *persistConn
+    from the Transport's idle list, leading to a waste of memory
+    (potentially forever).
     
-    Fixes #16650.
+    Instead, when the persistConn's readLoop terminates, remote it from
+    the idle list, if present.
     
-    Change-Id: I3e4d77ff3791528b1233467060d3ea83cb854acb
-    Reviewed-on: https://go-review.googlesource.com/27270
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This also adds the beginning of accounting for the total number of
+    idle connections, which will be needed for Transport.MaxIdleConns
+    later.
+    
+    Updates #15461
+    
+    Change-Id: Iab091f180f8dd1ee0d78f34b9705d68743b5557b
+    Reviewed-on: https://go-review.googlesource.com/22492
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/build.go | 213 +++++++++++++++++++++++++---------------------------
- 1 file changed, 104 insertions(+), 109 deletions(-)
+ src/net/http/main_test.go      | 14 ++++++++++++
+ src/net/http/transport.go      | 52 ++++++++++++++++++++++++++++++++++++++----
+ src/net/http/transport_test.go | 48 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 109 insertions(+), 5 deletions(-)

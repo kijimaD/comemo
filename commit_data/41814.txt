@@ -1,26 +1,25 @@
-commit 7ffbea9fd838be851c287b2a21ee6ce1e2776b54
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 3 18:07:32 2020 +0000
+commit 334291d1f629fb027bfcd7bff6d30e01dd9bf4c5
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 3 10:19:38 2019 -0400
 
-    reflect: when Converting between float32s, don't lose signal NaNs
+    runtime: M-targeted signals for Linux
     
-    Trying this CL again, with a test that skips 387.
+    We'll add a test once all of the POSIX platforms are done.
     
-    When converting from float32->float64->float32, any signal NaNs
-    get converted to quiet NaNs. Avoid that so using reflect.Value.Convert
-    between two float32 types keeps the signal bit of NaNs.
+    For #10958, #24543.
     
-    Skip the test on 387. I don't see any sane way of ensuring that a
-    float load + float store is faithful on that platform.
-    
-    Fixes #36400
-    
-    Change-Id: Ic316c74ddc155632e40424e207375b5d50dcd853
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221792
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If7e3f14e8391791364877629bf415d9f8e788b0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201401
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/reflect/all_test.go | 31 +++++++++++++++++++++++++++++++
- src/reflect/value.go    | 14 ++++++++++++++
- 2 files changed, 45 insertions(+)
+ src/runtime/os_linux.go         | 12 +++++++++++-
+ src/runtime/sys_linux_386.s     | 14 ++++++++++++++
+ src/runtime/sys_linux_amd64.s   | 14 ++++++++++++++
+ src/runtime/sys_linux_arm.s     | 14 ++++++++++++++
+ src/runtime/sys_linux_arm64.s   | 14 ++++++++++++++
+ src/runtime/sys_linux_mips64x.s | 14 ++++++++++++++
+ src/runtime/sys_linux_mipsx.s   | 14 ++++++++++++++
+ src/runtime/sys_linux_ppc64x.s  | 12 ++++++++++++
+ src/runtime/sys_linux_s390x.s   | 14 ++++++++++++++
+ 9 files changed, 121 insertions(+), 1 deletion(-)

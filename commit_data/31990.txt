@@ -1,13 +1,38 @@
-commit d58125ecd22649eb0a4b33715f39d6696b13c5fb
+commit 627798db4e42e4fd3f80a4149cbfafff80b304f3
 Author: Austin Clements <austin@google.com>
-Date:   Thu Jul 6 12:36:25 2017 -0400
+Date:   Tue Mar 28 16:03:24 2017 -0400
 
-    runtime: document FuncForPC behavior with inlining
+    reflect: fix out-of-bounds pointers calling no-result method
     
-    Change-Id: I1c02aa4f7131ae984fda66b32e8a993c0a40b8f4
-    Reviewed-on: https://go-review.googlesource.com/47690
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    reflect.callReflect heap-allocates a stack frame and then constructs
+    pointers to the arguments and result areas of that frame. However, if
+    there are no results, the results pointer will point past the end of
+    the frame allocation. If there are also no arguments, the arguments
+    pointer will also point past the end of the frame allocation. If the
+    GC observes either these pointers, it may panic.
+    
+    Fix this by not constructing these pointers if these areas of the
+    frame are empty.
+    
+    This adds a test of calling no-argument/no-result methods via reflect,
+    since nothing in std did this before. However, it's quite difficult to
+    demonstrate the actual failure because it depends on both exact
+    allocation patterns and on GC scanning the goroutine's stack while
+    inside one of the typedmemmovepartial calls.
+    
+    I also audited other uses of typedmemmovepartial and
+    memclrNoHeapPointers in reflect, since these are the most susceptible
+    to this. These appear to be the only two cases that can construct
+    out-of-bounds arguments to these functions.
+    
+    Fixes #19724.
+    
+    Change-Id: I4b83c596b5625dc4ad0567b1e281bad4faef972b
+    Reviewed-on: https://go-review.googlesource.com/38736
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/symtab.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/reflect/all_test.go | 35 ++++++++++++++++++++++++++++++++++-
+ src/reflect/value.go    | 26 ++++++++++++++++----------
+ 2 files changed, 50 insertions(+), 11 deletions(-)

@@ -1,17 +1,34 @@
-commit 964ea8c6482f48b242072697d150bb2192710892
-Author: Zvonimir Pavlinovic <zpavlinovic@google.com>
-Date:   Thu Sep 23 15:50:22 2021 -0700
+commit ec9470162f26819abd7b7bb86dd36cfe87f7f5bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 14:27:00 2021 -0500
 
-    cmd/go/testdata/script: fix incorrect comments
+    cmd/compile: allow embed into any string or byte slice type
     
-    Change-Id: I675d66c229a4293146366bc9b927e0fd2d7a3eeb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351929
-    Run-TryBot: Zvonimir Pavlinovic <zpavlinovic@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Trust: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    The current implementation requires saying "string" or "[]byte"
+    and disallows aliases, defined types, and even "[]uint8".
+    This was not 100% intended and mostly just fell out of when
+    the checks were being done in the implementation (too early,
+    before typechecking).
+    
+    After discussion on #43217 (forked into #43602),
+    the consensus was to allow all string and byte slice types,
+    same as we do for string conversions in the language itself.
+    This CL does that.
+    
+    It's more code than you'd expect because the decision has
+    to be delayed until after typechecking.
+    
+    But it also more closely aligns with the version that's
+    already on dev.regabi.
+    
+    Fixes #43602.
+    
+    Change-Id: Iba919cfadfbd5d7116f2bf47e2512fb1d5c36731
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282715
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/testdata/script/test_vet.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/embed.go  | 84 +++++++++++++----------------------
+ src/cmd/compile/internal/gc/noder.go  |  2 +-
+ src/cmd/compile/internal/gc/syntax.go | 21 +++++----
+ 3 files changed, 46 insertions(+), 61 deletions(-)

@@ -1,45 +1,31 @@
-commit 9a8995b8b6a08d5fe01122771f962b36336f8aec
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 22 17:09:02 2024 -0400
+commit a1f3dc33dced2d337261b693b1ef1bf6a5bbce8d
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 22 10:32:31 2023 -0400
 
-    all: document legacy //go:linkname for modules with ≥100 dependents
+    cmd/cgo: merge overlayDir into one package
     
-    For #67401.
+    There are many copies of overlaydir_test.go between the cgo tests
+    from when these couldn't share code. Now that they can, merge these
+    copies into a cmd/cgo/internal/cgotest package.
     
-    Change-Id: I015408a3f437c1733d97160ef2fb5da6d4efcc5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587598
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I203217f5d08e6306cb049a13718652cf7c447b80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497078
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go/build/build.go                   |  9 +++++
- src/go/build/read.go                    | 11 ++++++
- src/go/types/badlinkname.go             | 18 ++++-----
- src/internal/bytealg/compare_generic.go |  1 +
- src/internal/cpu/cpu_arm64_darwin.go    |  1 +
- src/reflect/badlinkname.go              |  1 +
- src/reflect/type.go                     |  3 ++
- src/runtime/alg.go                      | 22 +++++++++++
- src/runtime/atomic_pointer.go           |  1 +
- src/runtime/badlinkname.go              |  2 -
- src/runtime/cpuprof.go                  | 10 ++++-
- src/runtime/linkname.go                 |  1 -
- src/runtime/malloc.go                   |  1 +
- src/runtime/map.go                      |  4 ++
- src/runtime/mbarrier.go                 |  2 +
- src/runtime/mgc.go                      |  1 +
- src/runtime/panic.go                    |  1 +
- src/runtime/pprof/pprof.go              |  2 +-
- src/runtime/proc.go                     | 12 ++++++
- src/runtime/proflabel.go                |  2 +
- src/runtime/rand.go                     |  9 +++++
- src/runtime/slice.go                    |  9 +++++
- src/runtime/stubs.go                    | 14 +++++++
- src/runtime/symtab.go                   | 65 ++++++++++++++++++++++++++++-----
- src/runtime/symtabinl.go                | 28 +++++++++++++-
- src/runtime/timestub.go                 |  1 +
- src/runtime/traceback.go                | 10 +++++
- src/sync/pool.go                        |  1 +
- src/time/badlinkname.go                 | 15 --------
- src/time/time.go                        | 11 ++++++
- 30 files changed, 228 insertions(+), 40 deletions(-)
+ .../overlaydir_test.go => cgotest/overlaydir.go}   |  9 +--
+ src/cmd/cgo/internal/testcarchive/carchive_test.go |  3 +-
+ .../cgo/internal/testcarchive/overlaydir_test.go   | 78 ----------------------
+ src/cmd/cgo/internal/testcshared/cshared_test.go   |  3 +-
+ .../cgo/internal/testcshared/overlaydir_test.go    | 78 ----------------------
+ src/cmd/cgo/internal/testlife/life_test.go         |  3 +-
+ src/cmd/cgo/internal/testlife/overlaydir_test.go   | 78 ----------------------
+ src/cmd/cgo/internal/testplugin/overlaydir_test.go | 78 ----------------------
+ src/cmd/cgo/internal/testplugin/plugin_test.go     |  3 +-
+ src/cmd/cgo/internal/testshared/overlaydir_test.go | 78 ----------------------
+ src/cmd/cgo/internal/testshared/shared_test.go     |  5 +-
+ src/cmd/cgo/internal/testso/so_test.go             |  3 +-
+ src/cmd/cgo/internal/teststdio/overlaydir_test.go  | 78 ----------------------
+ src/cmd/cgo/internal/teststdio/stdio_test.go       |  3 +-
+ 14 files changed, 18 insertions(+), 482 deletions(-)

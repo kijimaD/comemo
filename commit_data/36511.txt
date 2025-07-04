@@ -1,17 +1,18 @@
-commit 422151ad50d03e142dc298a83523d7d8e2d515c5
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Aug 27 11:49:38 2018 -0400
+commit eff1e68528fc9052a7ff1ac7afe222696f85db8c
+Author: Anmol Sethi <me+git@anmol.io>
+Date:   Sun Mar 18 02:36:40 2018 -0400
 
-    cmd/link: fix a few typos in comments
+    testing: fix racey access to t.failed
     
-    Comment changes to fix typos, no code changes.
+    We need to grab the mutex before we can access it.
     
-    Change-Id: I6c915f183025587fc479d14f5d2c885767348b1b
-    Reviewed-on: https://go-review.googlesource.com/131615
+    Fixes #24438
+    
+    Change-Id: Idd6130036691acec5bc5f8b40d6884f8db1d9d3c
+    Reviewed-on: https://go-review.googlesource.com/101283
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/ar.go    | 2 +-
- src/cmd/link/internal/ld/data.go  | 2 +-
- src/cmd/link/internal/ld/dwarf.go | 6 +++---
- src/cmd/link/internal/ld/lib.go   | 2 +-
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

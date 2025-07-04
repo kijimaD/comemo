@@ -1,18 +1,24 @@
-commit 8bec956360d63d2f39d45a889b200c0dedfe96a0
-Author: Sameer Ajmani <sameer@google.com>
-Date:   Thu Nov 10 09:38:50 2022 -0500
+commit 43b09c096a33b8a3cd3477546c445e2c41efcfdf
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Mar 4 18:52:49 2022 -0500
 
-    context: add APIs for setting a cancelation cause when deadline or timer expires
+    go/types, types2: record all type instances, even duplicates
     
-    Fixes #56661
+    Due to instance de-duplication, we were failing to record some type
+    instances in types.Info.Instances. Fix this by moving the instance
+    recording out of the resolver.
     
-    Change-Id: I1c23ebc52e6b7ae6ee956614e1a0a45d6ecbd5b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449318
-    Run-TryBot: Sameer Ajmani <sameer@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Fixes #51494
+    
+    Change-Id: Iddd8989307d95886eedb321efa4ab98cd2b3573a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390041
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/56661.txt          |  2 ++
- src/context/context.go      | 18 ++++++++++++--
- src/context/context_test.go | 59 +++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 75 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 275 +++++++++++++++-------------
+ src/cmd/compile/internal/types2/typexpr.go  |   5 +-
+ src/go/types/api_test.go                    | 243 +++++++++++++-----------
+ src/go/types/typexpr.go                     |   5 +-
+ 4 files changed, 286 insertions(+), 242 deletions(-)

@@ -1,26 +1,34 @@
-commit 07f0f0956355266dafc36aadb66928e7450210ea
-Author: Chad Rosier <mrosier.qdt@qualcommdatacenter.com>
-Date:   Fri Feb 16 09:22:32 2018 -0500
+commit e2dd8ca946be884bb877e074a21727f1a685a706
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Feb 23 17:13:09 2017 -0800
 
-    cmd/compile: make math.Ceil/Floor/Round/Trunc intrinsics on arm64
+    net: implement deadline functionality on Pipe
     
-    name       old time/op  new time/op  delta
-    Ceil        550ns ± 0%   486ns ± 7%  -11.64%  (p=0.000 n=13+18)
-    Floor       495ns ±19%   512ns ±12%     ~     (p=0.164 n=20+20)
-    Round       550ns ± 0%   487ns ± 8%  -11.49%  (p=0.000 n=12+19)
-    Trunc       563ns ± 7%   488ns ±13%  -13.44%  (p=0.000 n=15+2)
+    Implement deadline functionality on Pipe so that it properly implements
+    the semantics of the Conn interface. This aids usages of Pipe (often in
+    unit tests) with a more realistic and complete implementation.
     
-    Change-Id: I53f234b160b3c026a277506e2cf977d150379464
-    Reviewed-on: https://go-review.googlesource.com/88295
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    The new implementation avoids a dependency on a io.Pipe since it is
+    impossible to keep the prior semantics of synchronous reads and writes
+    while also trying to implement cancelation over an io.{Reader,Writer}
+    that fundamentally has no cancelation support.
+    
+    The fact that net.Pipe is synchronous (and documented as such)
+    is unfortunate because no realistic network connection is synchronous.
+    Instead real networks introduces a read and write buffer of some sort.
+    However, we do not change the semantics for backwards compatibility.
+    
+    The approach taken does not leave any long-running goroutines,
+    meaning that tests that never call Close will not cause a resource leak.
+    
+    Fixes #18170
+    
+    Change-Id: I5140b1f289a0a49fb2d485f031b5aa0ee99ecc30
+    Reviewed-on: https://go-review.googlesource.com/37402
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/arm64/ssa.go        |  6 ++-
- src/cmd/compile/internal/gc/asm_test.go      | 43 ++++++++++++++++++++-
- src/cmd/compile/internal/gc/ssa.go           |  8 ++--
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  6 +++
- src/cmd/compile/internal/ssa/opGen.go        | 56 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 52 ++++++++++++++++++++++++++
- 7 files changed, 170 insertions(+), 6 deletions(-)
+ src/net/pipe.go      | 240 +++++++++++++++++++++++++++++++++++++++++++++------
+ src/net/pipe_test.go |  56 +++---------
+ 2 files changed, 224 insertions(+), 72 deletions(-)

@@ -1,14 +1,15 @@
-commit 4dad4ab57bc0cedcc8d164147262f7f6898282dd
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Tue Feb 13 10:23:37 2018 +0000
+commit e04ff3d133913ae5665d0da1baeffdcd4dc93bdf
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Oct 3 02:53:01 2017 -0700
 
-    runtime: fix typo in comment
+    archive/tar: fix typo in documentation
     
-    GitHub-Last-Rev: d6a6fa39095cac8a9acfeacbbafd636e1aa9b55b
-    GitHub-Pull-Request: golang/go#23809
-    Change-Id: Ife18ba2f982b5e1c30bda32d13dcd441778b986a
-    Reviewed-on: https://go-review.googlesource.com/93575
+    s/TypeSymLink/TypeSymlink/g
+    
+    Change-Id: I2550843248eb27d90684d0036fe2add0b247ae5a
+    Reviewed-on: https://go-review.googlesource.com/67810
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/internal/atomic/atomic_mipsx.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/archive/tar/reader.go | 2 +-
+ src/archive/tar/writer.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

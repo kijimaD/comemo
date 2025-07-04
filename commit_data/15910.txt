@@ -1,12 +1,12 @@
-commit c90850277b5144d967b9300a5f56f22a4e86fdf8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 22 17:52:55 2013 -0700
+commit 259e8cec7ad3d7c0031c53d70442fafdbdabe528
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 22 16:41:27 2013 -0700
 
-    runtime: remove declaration of non-existent function
+    doc/go1.1.html: fix broken links
     
-    R=golang-dev, gri
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7577049
+    https://golang.org/cl/7834049
 
- src/pkg/runtime/mcentral.c | 1 -
- 1 file changed, 1 deletion(-)
+ doc/go1.1.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

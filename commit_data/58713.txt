@@ -1,27 +1,36 @@
-commit 679cd8e7798db593d0973519f6d3ee7ea7659142
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Wed Feb 12 07:16:32 2025 +0000
+commit d92434935f1b6af5ece81cf13171dbe216df6254
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 30 12:25:43 2023 -0500
 
-    reflect, internal/abi: speed up TypeFor[T]
+    math/rand/v2: add ChaCha8
     
-    goos: linux
-    goarch: amd64
-    pkg: reflect
-    cpu: AMD Ryzen 5 4600G with Radeon Graphics
-                     │ /tmp/before  │              /tmp/after              │
-                     │    sec/op    │    sec/op     vs base                │
-    TypeForString-12    2.091n ± 1%    1.174n ± 1%  -43.84% (p=0.000 n=20)
-    TypeForError-12    7.5810n ± 3%   0.9372n ± 1%  -87.64% (p=0.000 n=20)
+    This is a replay of CL 516859, after its rollback in CL 543895,
+    with big-endian systems fixed and the tests disabled on RISC-V
+    since the compiler is broken there (#64285).
     
-    Change-Id: I22022f99b2dd2029f02d9ed8477b209adf7e9496
-    GitHub-Last-Rev: 64d2ac5bb2f3b2a659663832a4641ff4fc83bddd
-    GitHub-Pull-Request: golang/go#71654
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648395
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    ChaCha8 provides a cryptographically strong generator
+    alongside PCG, so that people who want stronger randomness
+    have access to that. On systems with 128-bit vector math
+    assembly (amd64 and arm64), ChaCha8 runs at about the same
+    speed as PCG (25% slower on amd64, 2% faster on arm64).
+    
+    Fixes #64284.
+    
+    Change-Id: I6290bb8ace28e1aff9a61f805dbe380ccdf25b94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546020
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/abi/type.go |  6 +-----
- src/reflect/type.go      | 14 +++++---------
- 2 files changed, 6 insertions(+), 14 deletions(-)
+ api/go1.22.txt                              |  36 +-
+ src/go/build/deps_test.go                   |  13 +-
+ src/internal/chacha8rand/chacha8.go         | 178 ++++++++++
+ src/internal/chacha8rand/chacha8_amd64.s    | 177 ++++++++++
+ src/internal/chacha8rand/chacha8_arm64.s    | 106 ++++++
+ src/internal/chacha8rand/chacha8_generic.go | 235 ++++++++++++
+ src/internal/chacha8rand/chacha8_stub.s     |  12 +
+ src/internal/chacha8rand/export_test.go     |   8 +
+ src/internal/chacha8rand/rand_test.go       | 192 ++++++++++
+ src/math/rand/v2/chacha8.go                 |  46 +++
+ src/math/rand/v2/chacha8_test.go            | 531 ++++++++++++++++++++++++++++
+ 11 files changed, 1515 insertions(+), 19 deletions(-)

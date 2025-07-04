@@ -1,0 +1,26 @@
+commit 2a22aefa1f7befb0ac7a95c918b75b05919c1907
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Jun 26 12:19:23 2025 -0700
+
+    encoding/json: add security section to doc
+    
+    Add a section to the package doc which details the security
+    considerations of using encoding/json, in particular with respect to
+    parser misalignment issues.
+    
+    Additionally, clarify previously ambiguous statement in the Unmarshal
+    doc about how case is used when matching keys in objects, and add a note
+    about how duplicate keys are handled.
+    
+    Fixes #14750
+    
+    Change-Id: I66f9b845efd98c86a684d7333b3aa8a456564922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/encoding/json/decode.go | 13 ++++++++-----
+ src/encoding/json/encode.go | 38 +++++++++++++++++++++++++++++++++++---
+ 2 files changed, 43 insertions(+), 8 deletions(-)

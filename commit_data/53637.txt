@@ -1,37 +1,23 @@
-commit 411c99671a6c6b6f59abe81d872db6daf2e1738a
-Author: Ben Hoyt <benhoyt@gmail.com>
-Date:   Fri Jun 23 00:35:45 2023 +1200
+commit 73a55c17049a2c12e5368790e178c32363743dd8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 13:48:42 2022 -0700
 
-    slices, maps: add examples; doc comment fixes
+    go/types: remove support for "ERROR HERE" error markers in tests
     
-    There are currently no examples in the new slices and maps package, so
-    add some. This adds examples for most functions in the slices package
-    except the very obvious ones, and adds examples for the DeleteFunc and
-    EqualFunc functions in the maps package.
+    There are only two tests that rely on the "ERROR HERE" markers;
+    yet those tests are trivialy adjustable (by adding an explicit
+    semicolon) such that they can just use the "ERROR" markers.
     
-    Also clarify/correct a few doc comments:
+    For #54511.
     
-    * EqualFunc takes an "equality" function, not a "comparison" function
-    * It's confusing for Delete and DeleteFunc to say they "do not create a
-      new slice", as they do return a new slice. They already say they
-      "return the modified slice" which is enough.
-    * Similar for Compact, and mention that it returns the modified slice
-      (and say why)
-    * Note that CompactFunc keeps the first element in equal runs
-    * Say what cmp is in SortStableFunc and IsSortedFunc
-    * Say that MinFunc and MaxFunc return the first value
-    
-    Change-Id: I59c7bb1c7cabc4986d81018a5aaf5b712d3310f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505095
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Idbb96ca8d35ae2584d195a4ac7c92640b8b492c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425674
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/maps/example_test.go   |  45 +++++++
- src/slices/example_test.go | 322 +++++++++++++++++++++++++++++++++++++++++++++
- src/slices/slices.go       |  11 +-
- src/slices/sort.go         |   4 +-
- 4 files changed, 374 insertions(+), 8 deletions(-)
+ src/go/types/check_test.go           | 24 +++++-------------------
+ src/go/types/testdata/check/stmt0.go |  4 ++--
+ 2 files changed, 7 insertions(+), 21 deletions(-)

@@ -1,24 +1,14 @@
-commit bc942823069fd004166360164e13821ded38f11c
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Mon Apr 4 22:36:43 2016 +0300
+commit 0784e6918e931e8bc6e28252ae11a65664ecbaaa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 22 19:41:17 2016 -0800
 
-    cmd/link: grow rdBuf lazily
+    net/http: fix typo in doc string
     
-    Counting the final buffer size usually doesn't result in the buffer growing,
-    so assume that it doesn't need to grow and only grow if necessary.
+    Fixes #14475.
     
-    name       old secs    new secs    delta
-    LinkCmdGo   0.49 ± 4%   0.48 ± 3%  -1.31%   (p=0.000 n=95+95)
-    
-    name       old MaxRSS  new MaxRSS  delta
-    LinkCmdGo   122k ± 4%   121k ± 5%    ~     (p=0.065 n=96+100)
-    
-    Change-Id: I85e7f5688a61ef5ef2b1b7afe56507e71c5bd5b1
-    Reviewed-on: https://go-review.googlesource.com/21509
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Shahar Kohanim <skohanim@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I1b5b0a9793a417572ec55f313185d03ad5ae9d01
+    Reviewed-on: https://go-review.googlesource.com/19846
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/objfile.go | 19 +++++--------------
- 1 file changed, 5 insertions(+), 14 deletions(-)
+ src/net/http/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,14 @@
-commit 72efdea20e96cba1b28352c1b0343b510caa8402
+commit db0e3580225ef11a3a8be0de608cb56ddd4aee55
 Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 4 11:50:35 2011 +1000
+Date:   Mon Jul 4 11:45:31 2011 +1000
 
-    exp/template: allow complex numbers, add 'with', 'define', and 'template' keywords.
-    Also simplify the handling of keywords.
+    reflect: allow Len on String values.
+    It's probably just an oversight that it doesn't work,
+    perhaps caused by analogy with Cap.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4639096
+    https://golang.org/cl/4634125
 
- src/pkg/exp/template/lex.go      | 88 ++++++++++++++++++++++++++--------------
- src/pkg/exp/template/lex_test.go |  7 +++-
- 2 files changed, 63 insertions(+), 32 deletions(-)
+ src/pkg/reflect/value.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

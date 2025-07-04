@@ -1,21 +1,30 @@
-commit 7db566f9c26236f852fa0f980e6c4e8cf86890f3
-Author: Michał Łowicki <mlowicki@gmail.com>
-Date:   Mon May 4 22:23:28 2020 +0100
+commit 37715cce695e96d3d5a8e01f5009517121241330
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Nov 19 16:04:32 2019 -0500
 
-    testing: fix reported caller name for funcs passed to Cleanup
+    runtime: relax TestAsyncPreempt
     
-    Record the caller when Cleanup is called to report it with t.Log
-    instead of unhelpful line in testing.go.
+    In TestAsyncPreempt, the function being tested for preemption,
+    although still asynchronously preemptible, may have only samll
+    ranges of PCs that are preemtible. In an unlucky run, it may
+    take quite a while to have a signal that lands on a preemptible
+    instruction. The test case is kind of an extreme. Relax it to
+    make it more preemptible.
     
-    Fixes #38800
+    In the original version, the first closure has more work to do,
+    and it is not a leaf function, and the second test case is a
+    frameless leaf function. In the current version, the first one
+    is also a frameless leaf function (the atomic is intrinsified).
+    Add some calls to it. It is still not preemptible without async
+    preemption.
     
-    Change-Id: I3136f5d92a0e5a48f8b32a2e13b2521bc91d72d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232237
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #35608.
+    
+    Change-Id: Ia4f857f2afc55501c6568d7507b517e3b4db191c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208221
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/testing/helper_test.go      |  2 ++
- src/testing/helperfuncs_test.go | 11 +++++++++++
- src/testing/testing.go          | 35 +++++++++++++++++++++++++----------
- 3 files changed, 38 insertions(+), 10 deletions(-)
+ src/runtime/testdata/testprog/preempt.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

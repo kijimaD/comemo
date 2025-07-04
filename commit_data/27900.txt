@@ -1,29 +1,122 @@
-commit dea6dab40c589b486ee6643db3e1204c3379aaee
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 18 15:50:30 2016 +0000
+commit 03e216f30d8bad7f4f9dadb50f7f6ca71e632682
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 18 09:40:30 2016 -0700
 
-    cmd/yacc: remove go tool yacc
+    cmd/compile: re-enable in-place append optimization
     
-    It is no longer used by Go.
+    CL 21891 was too clever in its attempts to avoid spills.
+    Storing newlen too early caused uses of append in the runtime
+    itself to receive an inconsistent view of a slice,
+    leading to corruption.
     
-    It's now moved to golang.org/x/tools/cmd/goyacc for anybody who needs it.
+    This CL makes the generate code much more similar to
+    the old backend. It spills more than before,
+    but those spills have been contained to the grow path.
+    It recalculates newlen unnecessarily on the fast path,
+    but that's measurably cheaper than spilling it.
     
-    Fixes #11229
+    CL 21891 caused runtime failures in 6 of 2000 runs
+    of net/http and crypto/x509 in my test setup.
+    This CL has gone 6000 runs without a failure.
     
-    Change-Id: Ia431d5a380c7ff784a2050dee2f5bc8acee015da
-    Reviewed-on: https://go-review.googlesource.com/27325
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    
+    Benchmarks going from master to this CL:
+    
+    name                         old time/op  new time/op  delta
+    AppendInPlace/NoGrow/Byte-8   439ns ± 2%   436ns ± 2%  -0.72%  (p=0.001 n=28+27)
+    AppendInPlace/NoGrow/1Ptr-8   901ns ± 0%   856ns ± 0%  -4.95%  (p=0.000 n=26+29)
+    AppendInPlace/NoGrow/2Ptr-8  2.15µs ± 1%  1.95µs ± 0%  -9.07%  (p=0.000 n=28+30)
+    AppendInPlace/NoGrow/3Ptr-8  2.66µs ± 0%  2.45µs ± 0%  -7.93%  (p=0.000 n=29+26)
+    AppendInPlace/NoGrow/4Ptr-8  3.24µs ± 1%  3.02µs ± 1%  -6.75%  (p=0.000 n=28+30)
+    AppendInPlace/Grow/Byte-8     269ns ± 1%   271ns ± 1%  +0.84%  (p=0.000 n=30+29)
+    AppendInPlace/Grow/1Ptr-8     275ns ± 1%   280ns ± 1%  +1.75%  (p=0.000 n=30+30)
+    AppendInPlace/Grow/2Ptr-8     384ns ± 0%   391ns ± 0%  +1.94%  (p=0.000 n=27+30)
+    AppendInPlace/Grow/3Ptr-8     455ns ± 0%   462ns ± 0%  +1.43%  (p=0.000 n=29+29)
+    AppendInPlace/Grow/4Ptr-8     478ns ± 0%   479ns ± 0%  +0.23%  (p=0.000 n=30+27)
+    
+    
+    However, for the large no-grow cases, there is still more work to be done.
+    Going from this CL to the non-SSA backend:
+    
+    name                         old time/op  new time/op  delta
+    AppendInPlace/NoGrow/Byte-8   436ns ± 2%   436ns ± 2%     ~     (p=0.967 n=27+29)
+    AppendInPlace/NoGrow/1Ptr-8   856ns ± 0%   884ns ± 0%   +3.28%  (p=0.000 n=29+26)
+    AppendInPlace/NoGrow/2Ptr-8  1.95µs ± 0%  1.56µs ± 0%  -20.28%  (p=0.000 n=30+29)
+    AppendInPlace/NoGrow/3Ptr-8  2.45µs ± 0%  1.89µs ± 0%  -22.88%  (p=0.000 n=26+28)
+    AppendInPlace/NoGrow/4Ptr-8  3.02µs ± 1%  2.56µs ± 1%  -15.35%  (p=0.000 n=30+28)
+    AppendInPlace/Grow/Byte-8     271ns ± 1%   283ns ± 1%   +4.56%  (p=0.000 n=29+29)
+    AppendInPlace/Grow/1Ptr-8     280ns ± 1%   288ns ± 1%   +2.99%  (p=0.000 n=30+30)
+    AppendInPlace/Grow/2Ptr-8     391ns ± 0%   409ns ± 0%   +4.66%  (p=0.000 n=30+29)
+    AppendInPlace/Grow/3Ptr-8     462ns ± 0%   481ns ± 0%   +4.13%  (p=0.000 n=29+30)
+    AppendInPlace/Grow/4Ptr-8     479ns ± 0%   502ns ± 0%   +4.81%  (p=0.000 n=27+26)
+    
+    
+    New generated code:
+    
+    var x []byte
+    
+    func a() {
+            x = append(x, 1)
+    }
+    
+    
+    "".a t=1 size=208 args=0x0 locals=0x48
+            0x0000 00000 (a.go:5)   TEXT    "".a(SB), $72-0
+            0x0000 00000 (a.go:5)   MOVQ    (TLS), CX
+            0x0009 00009 (a.go:5)   CMPQ    SP, 16(CX)
+            0x000d 00013 (a.go:5)   JLS     190
+            0x0013 00019 (a.go:5)   SUBQ    $72, SP
+            0x0017 00023 (a.go:5)   FUNCDATA        $0, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0017 00023 (a.go:5)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0017 00023 (a.go:6)   MOVQ    "".x+16(SB), CX
+            0x001e 00030 (a.go:6)   MOVQ    "".x+8(SB), DX
+            0x0025 00037 (a.go:6)   MOVQ    "".x(SB), BX
+            0x002c 00044 (a.go:6)   LEAQ    1(DX), BP
+            0x0030 00048 (a.go:6)   CMPQ    BP, CX
+            0x0033 00051 (a.go:6)   JGT     $0, 73
+            0x0035 00053 (a.go:6)   LEAQ    1(DX), AX
+            0x0039 00057 (a.go:6)   MOVQ    AX, "".x+8(SB)
+            0x0040 00064 (a.go:6)   MOVB    $1, (BX)(DX*1)
+            0x0044 00068 (a.go:7)   ADDQ    $72, SP
+            0x0048 00072 (a.go:7)   RET
+            0x0049 00073 (a.go:6)   LEAQ    type.[]uint8(SB), AX
+            0x0050 00080 (a.go:6)   MOVQ    AX, (SP)
+            0x0054 00084 (a.go:6)   MOVQ    BX, 8(SP)
+            0x0059 00089 (a.go:6)   MOVQ    DX, 16(SP)
+            0x005e 00094 (a.go:6)   MOVQ    CX, 24(SP)
+            0x0063 00099 (a.go:6)   MOVQ    BP, 32(SP)
+            0x0068 00104 (a.go:6)   PCDATA  $0, $0
+            0x0068 00104 (a.go:6)   CALL    runtime.growslice(SB)
+            0x006d 00109 (a.go:6)   MOVQ    40(SP), CX
+            0x0072 00114 (a.go:6)   MOVQ    48(SP), DX
+            0x0077 00119 (a.go:6)   MOVQ    DX, "".autotmp_0+64(SP)
+            0x007c 00124 (a.go:6)   MOVQ    56(SP), BX
+            0x0081 00129 (a.go:6)   MOVQ    BX, "".x+16(SB)
+            0x0088 00136 (a.go:6)   MOVL    runtime.writeBarrier(SB), AX
+            0x008e 00142 (a.go:6)   TESTB   AL, AL
+            0x0090 00144 (a.go:6)   JNE     $0, 162
+            0x0092 00146 (a.go:6)   MOVQ    CX, "".x(SB)
+            0x0099 00153 (a.go:6)   MOVQ    "".x(SB), BX
+            0x00a0 00160 (a.go:6)   JMP     53
+            0x00a2 00162 (a.go:6)   LEAQ    "".x(SB), BX
+            0x00a9 00169 (a.go:6)   MOVQ    BX, (SP)
+            0x00ad 00173 (a.go:6)   MOVQ    CX, 8(SP)
+            0x00b2 00178 (a.go:6)   PCDATA  $0, $0
+            0x00b2 00178 (a.go:6)   CALL    runtime.writebarrierptr(SB)
+            0x00b7 00183 (a.go:6)   MOVQ    "".autotmp_0+64(SP), DX
+            0x00bc 00188 (a.go:6)   JMP     153
+            0x00be 00190 (a.go:6)   NOP
+            0x00be 00190 (a.go:5)   CALL    runtime.morestack_noctxt(SB)
+            0x00c3 00195 (a.go:5)   JMP     0
+    
+    
+    Fixes #14969 again
+    
+    Change-Id: Ia50463b1f506011aad0718a4fef1d4738e43c32d
+    Reviewed-on: https://go-review.googlesource.com/22197
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/articles/go_command.html       |    3 +-
- doc/go_faq.html                    |    3 +-
- src/cmd/go/alldocs.go              |    8 +-
- src/cmd/go/generate.go             |    8 +-
- src/cmd/go/pkg.go                  |   35 +-
- src/cmd/yacc/doc.go                |   69 -
- src/cmd/yacc/testdata/expr/README  |   20 -
- src/cmd/yacc/testdata/expr/expr.y  |  202 --
- src/cmd/yacc/testdata/expr/main.go |   15 -
- src/cmd/yacc/yacc.go               | 3641 ------------------------------------
- 10 files changed, 27 insertions(+), 3977 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 30 +++++++++++++++++++++---------
+ 1 file changed, 21 insertions(+), 9 deletions(-)

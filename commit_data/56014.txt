@@ -1,24 +1,28 @@
-commit 802473cfda17a116f705e4060d7b70828e763689
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 21 09:15:30 2024 -0700
+commit ac571a388dce20068f6639067789b4fbac9c0e7d
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Mar 13 15:58:15 2023 -0500
 
-    cmd/compile: include constant bools in memcombine
+    runtime: cleanup PPC64/linux runtime.sigtramp
     
-    Constant bools are like constant 1-byte values, they memcombine just fine.
+    Add new helper macros to further simplify the transition from
+    the host's ABI to Go. Fortunately the same one should work for
+    all PPC64 targets.
     
-    (There are still trickier cases that this pass doesn't catch
-    yet, see TODO at memcombine.go:503.)
+    Update the other site which uses these wrappers to further
+    consolidate. Also, update the call to runtime.sigtrampgo to
+    call the ABIInternal version directly.
     
-    Fixes #66413
+    Also, update the SAVE/RESTORE_VR macros to accept R0.
     
-    Change-Id: Ia67cf72ed1c416e27ac22da443bd88a3f09a6cc8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573416
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I0046176029e1e1b25838688e4b7bf57805b01bd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476297
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/memcombine.go |  2 +-
- test/codegen/memcombine.go                 | 20 ++++++++++++++++++++
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ src/runtime/cgo/abi_ppc64x.h   | 130 +++++++++++++++++----------
+ src/runtime/sys_linux_ppc64x.s | 198 +++++------------------------------------
+ 2 files changed, 102 insertions(+), 226 deletions(-)

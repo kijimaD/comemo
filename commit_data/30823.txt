@@ -1,19 +1,51 @@
-commit cc48b01883271920f7c111b0815790492b2a95c7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 23 13:38:15 2017 -0700
+commit 82d0caea2c5041a0d0260ff5ec7f7b61ee2bb0af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 7 16:02:42 2016 -0800
 
-    cmd/compile/internal/gc: cleanup FuncDecl noding
+    [dev.inline] cmd/internal/src: make Pos implementation abstract
     
-    Collapse funcHeader into funcDecl.
-    Initialize pragmas earlier.
-    Move empty / non-empty body errors closer to fun.Body handling.
-    Switch some yyerror to yyerrorl.
+    Adjust cmd/compile accordingly.
     
-    Change-Id: I71fb7a3c0b77d656af560e4d88da894ba6183826
-    Reviewed-on: https://go-review.googlesource.com/38475
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This will make it easier to replace the underlying implementation.
+    
+    Change-Id: I33645850bb18c839b24785b6222a9e028617addb
+    Reviewed-on: https://go-review.googlesource.com/34133
+    Reviewed-by: David Lazar <lazard@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 77 +++++++++++++++---------------------
- 1 file changed, 32 insertions(+), 45 deletions(-)
+ src/cmd/compile/fmt_test.go                    |  1 -
+ src/cmd/compile/internal/amd64/ssa.go          |  2 +-
+ src/cmd/compile/internal/arm/ssa.go            |  2 +-
+ src/cmd/compile/internal/arm64/ssa.go          |  2 +-
+ src/cmd/compile/internal/gc/alg.go             |  9 ++++++---
+ src/cmd/compile/internal/gc/bexport.go         |  2 +-
+ src/cmd/compile/internal/gc/dcl.go             | 10 +++++-----
+ src/cmd/compile/internal/gc/fmt.go             |  4 ++--
+ src/cmd/compile/internal/gc/gsubr.go           |  6 +++---
+ src/cmd/compile/internal/gc/inl.go             |  2 +-
+ src/cmd/compile/internal/gc/main.go            |  6 +++---
+ src/cmd/compile/internal/gc/noder.go           | 26 +++++++++++++-------------
+ src/cmd/compile/internal/gc/order.go           |  3 ++-
+ src/cmd/compile/internal/gc/plive.go           |  4 ++--
+ src/cmd/compile/internal/gc/racewalk.go        |  3 ++-
+ src/cmd/compile/internal/gc/ssa.go             | 12 ++++++------
+ src/cmd/compile/internal/gc/subr.go            | 20 ++++++++++----------
+ src/cmd/compile/internal/gc/typecheck.go       |  4 ++--
+ src/cmd/compile/internal/gc/util.go            |  2 +-
+ src/cmd/compile/internal/mips/ssa.go           |  2 +-
+ src/cmd/compile/internal/mips64/ssa.go         |  2 +-
+ src/cmd/compile/internal/ppc64/ssa.go          |  2 +-
+ src/cmd/compile/internal/s390x/ssa.go          |  2 +-
+ src/cmd/compile/internal/ssa/compile.go        |  3 ++-
+ src/cmd/compile/internal/ssa/config.go         |  8 ++++----
+ src/cmd/compile/internal/ssa/deadstore.go      |  4 +++-
+ src/cmd/compile/internal/ssa/func_test.go      | 11 ++++++-----
+ src/cmd/compile/internal/ssa/html.go           |  7 ++++---
+ src/cmd/compile/internal/ssa/nilcheck.go       |  4 ++--
+ src/cmd/compile/internal/ssa/regalloc.go       |  6 +++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  8 ++++----
+ src/cmd/compile/internal/ssa/schedule.go       |  2 +-
+ src/cmd/compile/internal/ssa/sparsemap.go      |  2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go     |  7 +++++--
+ src/cmd/compile/internal/x86/ssa.go            |  2 +-
+ src/cmd/internal/src/src.go                    | 24 +++++++++++++++++++++---
+ 36 files changed, 123 insertions(+), 93 deletions(-)

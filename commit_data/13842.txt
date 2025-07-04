@@ -1,14 +1,15 @@
-commit 54193689ccdf51833c157d55bbbab739bf44dc3b
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Mon Sep 17 17:18:21 2012 -0400
+commit 916ccbf165d3322139381ccd4e0df923354785cd
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Mon Sep 17 13:44:55 2012 -0700
 
-    cmd/ld: fix compilation when GOARCH != GOHOSTARCH
+    cmd/go: reject relative values for GOPATH
     
-    R=rsc, dave, minux.ma
-    CC=golang-dev
-    https://golang.org/cl/6493123
+    Fixes #4062.
+    
+    R=rsc, dave, r
+    CC=golang-dev, nicksaika
+    https://golang.org/cl/6488129
 
- src/pkg/runtime/mgc0.c     | 1 -
- src/pkg/runtime/runtime.h  | 4 ++++
- src/pkg/runtime/typekind.h | 5 ++++-
- 3 files changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/go/main.go   |  7 +++++++
+ src/cmd/go/test.bash | 11 +++++++++++
+ 2 files changed, 18 insertions(+)

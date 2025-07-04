@@ -1,17 +1,22 @@
-commit 943f5afe22c1a07da8954756a3701ac765bbf3c1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 11 10:23:14 2016 -0700
+commit 2fcb25e07b2549f607aa174ceab974f8732ea0f4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 12 18:56:07 2016 -0400
 
-    cmd/compile: refactor stackmap dumping code
+    doc/effective_go: clarify advice on returning interfaces
     
-    Also, fix a byte-ordering problem with stack maps for assembly
-    function signatures on big-endian targets.
+    New Gophers sometimes misconstrue the advice in the "Generality" section
+    as "export interfaces instead of implementations" and add needless
+    interfaces to their code as a result.  Down the road, they end up
+    needing to add methods and either break existing callers or have to
+    resort to unpleasant hacks (e.g. using "magic method" type-switches).
     
-    Change-Id: I6e8698f5fbb04b31771a65f4a8f3f9c045ff3c98
-    Reviewed-on: https://go-review.googlesource.com/30816
-    Reviewed-by: Austin Clements <austin@google.com>
+    Weaken the first paragraph of this section to only advise leaving types
+    unexported when they will never need additional methods.
+    
+    Change-Id: I32a1ae44012b5896faf167c02e192398a4dfc0b8
+    Reviewed-on: https://go-review.googlesource.com/24892
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/obj.go   | 13 +++++++++++++
- src/cmd/compile/internal/gc/pgen.go  |  8 ++------
- src/cmd/compile/internal/gc/plive.go | 13 ++-----------
- 3 files changed, 17 insertions(+), 17 deletions(-)
+ doc/effective_go.html | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

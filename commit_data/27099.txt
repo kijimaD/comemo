@@ -1,17 +1,19 @@
-commit c4c182140adedf300800778127840e3b8b9f7423
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sat Apr 23 21:18:34 2016 +0200
+commit 6b3d4a53538c091d3d0bf207d12db3ec641b85ea
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Mar 10 17:52:57 2016 -0600
 
-    internal/trace: fix event ordering for coarse timestamps
+    cmd/compile: modify regalloc/stackalloc to use the cmd line debug args
     
-    Arm arch uses coarse-grained kernel timer as cputicks.
-    As the result sort.Sort smashes trace entirely. Use sort.Stable instead.
+    Change the existing flags from compile time consts to be configurable
+    from the command line.
     
-    Change-Id: Idfa017a86a489be58cf239f7fe56d7f4b66b52a9
-    Reviewed-on: https://go-review.googlesource.com/22317
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I4aab4bf3dfcbdd8e2b5a2ff51af95c2543967769
+    Reviewed-on: https://go-review.googlesource.com/20560
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/internal/trace/order.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/TODO          |  1 +
+ src/cmd/compile/internal/ssa/regalloc.go   | 47 ++++++++++++++++--------------
+ src/cmd/compile/internal/ssa/stackalloc.go | 16 +++++-----
+ 3 files changed, 33 insertions(+), 31 deletions(-)

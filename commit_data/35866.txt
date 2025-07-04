@@ -1,22 +1,23 @@
-commit 23ce272bb1154fb8085c8fc1e3c1f1e0e760f005
-Author: Peter Gonda <pgonda@google.com>
-Date:   Wed Jan 24 14:45:28 2018 -0800
+commit f0939ba5b18aea6649bf405dd6571030915afd56
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 14 15:35:22 2018 +0000
 
-    cmd/cgo: permit missing dynamic symbol section
+    runtime, syscall: add RawSyscall6 on Solaris and make it panic
     
-    Allow static complication of cgo enabled libraries.
+    The syscall package currently declares RawSyscall6 for every GOOS, but
+    does not define it on Solaris. This leads to code using said function
+    to compile but it will not link. Fix it by adding RawSyscall6 and make
+    it panic.
     
-    Fixes #16651
+    Also remove the obsolete comment above runtime.syscall_syscall as
+    pointed out by Aram.
     
-    Change-Id: I0729ee4e6e5f9bd1cbdb1bc2dcbfe34463df547c
-    Reviewed-on: https://go-review.googlesource.com/89655
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #24357
+    
+    Change-Id: I1b1423121d1c99de2ecc61cd9a935dba9b39e3a4
+    Reviewed-on: https://go-review.googlesource.com/100655
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- misc/cgo/test/issue4029.c   |  2 +-
- misc/cgo/test/issue4029.go  |  2 +-
- misc/cgo/test/issue4029w.go |  2 +-
- src/cmd/cgo/out.go          | 25 +++++--------------------
- src/cmd/dist/test.go        |  6 ++++++
- 5 files changed, 14 insertions(+), 23 deletions(-)
+ src/runtime/syscall_solaris.go  | 12 ++++++------
+ src/syscall/asm_solaris_amd64.s |  3 +++
+ 2 files changed, 9 insertions(+), 6 deletions(-)

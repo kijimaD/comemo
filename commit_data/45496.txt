@@ -1,32 +1,73 @@
-commit 9ed736ac2a99aa2e7ef7d8bed3b01ca8b20a6f80
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Apr 29 16:07:25 2021 -0500
+commit d73d5d9fb0c2b963bd58ed0ab679dd71498f118e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 27 03:09:26 2020 -0400
 
-    cmd/link/internal: fix use of DynlinkingGo with ppc64le trampolines
+    cmd/go/internal/imports: make Tags and AnyTags safe for concurrent use
     
-    When creating programs with large text sections on ppc64le,
-    trampolines are needed for calls that are too far; however
-    they are not created if the code is generated such that the TOC
-    register r2 is initialized and maintained in the code because
-    then the external linker can create the trampolines. Previously
-    the function DynlinkingGo was used to determine this but in the
-    case where plugins are used, this could return true even though
-    r2 is not valid.
+    AnyTags turned up as a data race while running 'go test -race cmd/go'.
+    I'm not sure how long the race has been present.
     
-    To fix this problem I've added a new function r2Valid which returns
-    true when the build options indicate that the r2 is
-    initialized and maintained. Because of the ways that
-    DynlinkingGo is used I wanted to maintain its previous
-    behavior.
+    ==================
+    WARNING: DATA RACE
+    Read at 0x000001141ec0 by goroutine 8:
+      cmd/go/internal/imports.AnyTags()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/imports/tags.go:45 +0x10e
+      cmd/go/internal/modload.QueryPattern.func2()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:539 +0x11d
+      cmd/go/internal/modload.QueryPattern.func4.1()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:607 +0x3db
+      cmd/go/internal/modload.queryPrefixModules.func1()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:677 +0xa7
     
-    Fixes #45850
+    Previous write at 0x000001141ec0 by goroutine 7:
+      cmd/go/internal/imports.AnyTags()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/imports/tags.go:46 +0x26b
+      cmd/go/internal/modload.QueryPattern.func2()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:539 +0x11d
+      cmd/go/internal/modload.QueryPattern.func4.1()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:607 +0x3db
+      cmd/go/internal/modload.queryPrefixModules.func1()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:677 +0xa7
     
-    Change-Id: I6d902eba6ad41757aa6474948b79acdbd479cb38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315289
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Goroutine 8 (running) created at:
+      cmd/go/internal/modload.queryPrefixModules()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:676 +0x284
+      cmd/go/internal/modload.QueryPattern.func4()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:624 +0x2e4
+      cmd/go/internal/modfetch.TryProxies()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modfetch/proxy.go:220 +0x107
+      cmd/go/internal/modload.QueryPattern()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:590 +0x69e
+      cmd/go/internal/work.installOutsideModule()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/work/build.go:744 +0x4b0
+      cmd/go/internal/work.runInstall()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/work/build.go:556 +0x217
+      main.main()
+          /usr/local/google/home/bcmills/go/src/cmd/go/main.go:194 +0xb94
+    
+    Goroutine 7 (finished) created at:
+      cmd/go/internal/modload.queryPrefixModules()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:676 +0x284
+      cmd/go/internal/modload.QueryPattern.func4()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:624 +0x2e4
+      cmd/go/internal/modfetch.TryProxies()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modfetch/proxy.go:220 +0x107
+      cmd/go/internal/modload.QueryPattern()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/modload/query.go:590 +0x69e
+      cmd/go/internal/work.installOutsideModule()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/work/build.go:744 +0x4b0
+      cmd/go/internal/work.runInstall()
+          /usr/local/google/home/bcmills/go/src/cmd/go/internal/work/build.go:556 +0x217
+      main.main()
+          /usr/local/google/home/bcmills/go/src/cmd/go/main.go:194 +0xb94
+    ==================
+    
+    Change-Id: Id394978fd6ea0c30614caf8f90ee4f8e2d272843
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265278
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/link/internal/ppc64/asm.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/imports/tags.go | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

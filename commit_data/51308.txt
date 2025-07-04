@@ -1,18 +1,62 @@
-commit 38218f398758f336c4848783b27a02847c317afc
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Wed Nov 16 11:18:32 2022 +0000
+commit 931e84af4055dbcf91e986601d99e00c57136330
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Dec 29 07:08:55 2021 -0800
 
-    net: remove unused goLookupHost method
+    cmd/compile: fix interaction between generics and inlining
     
-    Change-Id: I62b9d0dcbec647fdd3279d78b9999dd933ff0bbd
-    GitHub-Last-Rev: f83db66c935dd7a14128d1e87c9323539e9d2d16
-    GitHub-Pull-Request: golang/go#56758
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451135
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Finally figured out how to deal with the interaction between generics
+    and inlining. The problem has been: what to do if you inline a function
+    that uses a new instantiated type that hasn't been seen in the current
+    package? This might mean that you need to do another round of
+    function/method instantiatiations after inlining, which might lead to
+    more inlining, etc. (which is what we currently do, but it's not clear
+    when you can stop the inlining/instantiation loop).
+    
+    We had thought that one solution was to export instantiated types (even
+    if not marked as exportable) if they are referenced in exported
+    inlineable functions. But that was quite complex and required changing
+    the export format. But I realized that we really only need to make sure
+    the relevant dictionaries and shape instantiations for the instantiated
+    types are exported, not the instantiated type itself and its wrappers.
+    The instantiated type is naturally created as needed, and the wrappers
+    are generated automatically while writing out run-time type (making use
+    of the exported dictionaries and shape instantiations).
+    
+    So, we just have to make sure that those dictionaries and shape
+    instantiations are exported, and then they will be available without any
+    extra round of instantiations after inlining. We now do this in
+    crawler.go. This is especially needed when the instantiated type is only
+    put in an interface, so relevant dictionaries/shape instantiations are
+    not directly referenced and therefore exported, but are still needed for
+    the itab.
+    
+    This fix avoids the phase ordering problem where we might have to keep
+    creating new type instantiations and instantiated methods after each
+    round of inlining we do.
+    
+    Removed the extra round of instantiation/inlining that were added in the
+    previous fix. The existing tests
+    test/typeparam{geninline.go,structinit.go} already test this situation
+    of inlining a function referencing a new instantiated type.
+    
+    Added the original example from issue 50121 as test (has 5 packages),
+    since it found a problem with this code that the current simpler test
+    for 50121 did not find.
+    
+    Change-Id: Iac5d0dddf4be19376f6de36ee20a83f0d8f213b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375494
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/net/dnsclient_unix.go | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/cmd/compile/internal/gc/main.go             | 10 -----
+ src/cmd/compile/internal/noder/irgen.go         |  2 +-
+ src/cmd/compile/internal/noder/stencil.go       | 49 ++++++-------------------
+ src/cmd/compile/internal/reflectdata/reflect.go | 24 +++++++++---
+ src/cmd/compile/internal/typecheck/crawler.go   | 33 ++++++++++++++++-
+ test/typeparam/issue50121b.dir/a.go             | 15 ++++++++
+ test/typeparam/issue50121b.dir/b.go             | 11 ++++++
+ test/typeparam/issue50121b.dir/c.go             | 13 +++++++
+ test/typeparam/issue50121b.dir/d.go             | 13 +++++++
+ test/typeparam/issue50121b.dir/main.go          | 12 ++++++
+ test/typeparam/issue50121b.go                   |  7 ++++
+ 11 files changed, 134 insertions(+), 55 deletions(-)

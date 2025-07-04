@@ -1,17 +1,35 @@
-commit 88b2f25005f65343d9b73186e8f5c1e25554e233
-Author: guoguangwu <guoguangwu@magic-shield.com>
-Date:   Tue Feb 27 01:15:10 2024 +0000
+commit c67a27bf7520ae9440a665e80c7c3891bafb33d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 8 14:48:41 2023 -0500
 
-    database/sql: add error check
+    cmd/dist: omit DWARF in build release toolchain binaries
     
-    Change-Id: Ib9f7a1a4bf23f76457dabf85610f4799502631dc
-    GitHub-Last-Rev: afbb86fde12d2eeaa8121c25787b0e9c290edbc7
-    GitHub-Pull-Request: golang/go#65947
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566857
+    The vast majority of users of Go toolchains have no need for
+    binaries like the go command and compiler to include DWARF
+    information, and the DWARF information is 34% of the size of
+    the overall Go toolchain zip files (14% when the toolchain is
+    unzipped on disk, because other parts get bigger).
+    
+    To save network and disk, disable DWARF in build release binaries.
+    DWARF remains enabled when developing in the main branch
+    (signaled by no VERSION file existing), for better debuggability
+    when actually working on the compiler and go command.
+    
+    Note that removing DWARF does not break the backtraces shown
+    when a binary panics, nor does it break other uses of stack traces
+    from within a Go program, such as runtime.Callers.
+    
+    To build a release toolchain with DWARF included, people can use
+    
+            GO_LDFLAGS=-w=0 ./make.bash
+    
+    Change-Id: Ib0bbe1446adca4599066b2fb2f2734e6825c1106
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475378
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/database/sql/example_service_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/ssa/stmtlines_test.go | 9 ++++++++-
+ src/cmd/dist/build.go                          | 2 +-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

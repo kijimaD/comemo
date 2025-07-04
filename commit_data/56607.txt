@@ -1,16 +1,21 @@
-commit 6f08665079e977a2ac0232445eb6772874e0e478
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed May 22 00:07:01 2024 +0800
+commit 6ed847431709c673adbb783d3bbc3d75e4df590c
+Author: erifan01 <eric.fang@arm.com>
+Date:   Wed May 17 12:01:07 2023 +0800
 
-    encoding/binary: adjust docs for Append, Encode and Decode
+    cmd/asm: remove unsupported opcodes MOVNP and STLP for arm64
     
-    Updates #60023
+    ARM64 doesn't have MOVNP/MOVNPW and STLP/STLPW instructions, which are
+    currently useless instructions as well. This CL deletes them. At the
+    same time this CL sorts the opcodes by name, which looks cleaner.
     
-    Change-Id: Ida1cc6c4f5537402e11db6b8c411828f2bcc0a5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587096
-    Reviewed-by: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I25cfb636b23356ba0a50cba527a8c85b3f7e2ee4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495695
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/binary/binary.go | 20 +++++++++-----------
- 1 file changed, 9 insertions(+), 11 deletions(-)
+ src/cmd/internal/obj/arm64/a.out.go  | 446 +++++++++++++++++------------------
+ src/cmd/internal/obj/arm64/anames.go | 446 +++++++++++++++++------------------
+ src/cmd/internal/obj/arm64/asm7.go   |  18 --
+ 3 files changed, 442 insertions(+), 468 deletions(-)

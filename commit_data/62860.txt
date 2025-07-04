@@ -1,0 +1,18 @@
+commit 83b53527fa738ac3364a5f7e4921f2e81f69584e
+Author: 1911860538 <alxps1911@gmail.com>
+Date:   Thu Apr 17 14:51:18 2025 +0000
+
+    net/http: replace map lookup with switch for scheme port
+    
+    Improve scheme port lookup by replacing map with switch, reducing overhead and improving performance.
+    
+    Change-Id: I45c790da15e237d5f32c50d342b3713b98fd2ffa
+    GitHub-Last-Rev: 4c02e4cabf181b365fbf2b722e3051625a289527
+    GitHub-Pull-Request: golang/go#73422
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666356
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/net/http/transport.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

@@ -1,12 +1,19 @@
-commit 47424d90ec11d9e72088b661a52e769b8074be70
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 14 07:11:39 2012 +1100
+commit 28ffb38f4a55759664b240843af00e6d88b72128
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 13 11:50:53 2012 -0800
 
-    text/template: drop reference to os.EPERM in the test
+    go/printer, gofmt: don't indent line directives
     
-    R=golang-dev, gri
+    This was broken by https://golang.org/cl/5643066
+    which introduced lazy indentation printing.
+    
+    Fixes #2990.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5654077
+    https://golang.org/cl/5655067
 
- src/pkg/text/template/exec_test.go | 19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+ src/pkg/go/printer/printer.go               | 48 +++++++++++++----------------
+ src/pkg/go/printer/testdata/comments.golden | 19 ++++++++++++
+ src/pkg/go/printer/testdata/comments.input  | 19 ++++++++++++
+ 3 files changed, 59 insertions(+), 27 deletions(-)

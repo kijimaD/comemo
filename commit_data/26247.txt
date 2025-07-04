@@ -1,24 +1,14 @@
-commit a2a48069fee931af943161c9f8a9aace32811b7b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 10 16:15:44 2016 -0800
+commit 19e27c731b0e2fa97d049f5e6400698bc36ae3e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:23:47 2016 -0500
 
-    cmd/compile: rework how fieldtrack is implemented
+    doc: discuss copyright changes in contribute.html
     
-    Shrinks gc.Type and gc.Func slightly.
+    Fixes #12542.
     
-    Passes "GOEXPERIMENT=fieldtrack ./all.bash" and "go test -a
-    -toolexec='toolstash -cmp' -ldflags=-k=rsc.io/tmp/fieldtrack.tracked
-    rsc.io/tmp/fieldtrack".
-    
-    Change-Id: I785fe8a18eb830d9867d34247e4cd41a6a7921d4
-    Reviewed-on: https://go-review.googlesource.com/20557
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Icd0fa84d891d6b1feab9b4d4dd319cdf1e6d6c48
+    Reviewed-on: https://go-review.googlesource.com/18336
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go        | 11 +++++++++--
- src/cmd/compile/internal/gc/reflect.go     |  6 ++++--
- src/cmd/compile/internal/gc/sizeof_test.go |  4 ++--
- src/cmd/compile/internal/gc/syntax.go      |  2 +-
- src/cmd/compile/internal/gc/type.go        |  7 ++-----
- src/cmd/compile/internal/gc/walk.go        | 19 +++++++++----------
- 6 files changed, 27 insertions(+), 22 deletions(-)
+ doc/contribute.html | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)

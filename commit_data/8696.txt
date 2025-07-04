@@ -1,12 +1,17 @@
-commit 27cbf06d502f9eb7be61d820fcf044a231527282
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Jun 11 16:23:44 2011 +1000
+commit 13740973814ebfe11c76caa576a75b0c6f9be352
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Sat Jun 11 13:24:48 2011 +1000
 
-    mime/multipart: allow for temp files to be removed after tests are finished on Windows
+    net: Sendfile for win32.
+    implement using TransmitFile().
     
-    R=golang-dev, bradfitz
+    R=bsiegert, bradfitz, alex.brainman, rsc, go.peter.90
     CC=golang-dev
-    https://golang.org/cl/4605044
+    https://golang.org/cl/4536076
 
- src/pkg/mime/multipart/formdata_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/net/Makefile                    |  2 +-
+ src/pkg/net/sendfile_windows.go         | 68 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go      |  1 +
+ src/pkg/syscall/zsyscall_windows_386.go | 15 ++++++++
+ src/pkg/syscall/ztypes_windows_386.go   | 16 ++++++++
+ 5 files changed, 101 insertions(+), 1 deletion(-)

@@ -1,25 +1,12 @@
-commit e4b942245a5234dcc2ba88c8f974630e26b9f97a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 20 19:40:23 2011 -0700
+commit 3230fd1469faa93fc3414ec7ee7cbc809daccd8f
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sat May 21 07:38:01 2011 +1000
 
-    http: include Host header in requests, even with proxies
+    fmt: scanning doc fix
     
-    A user pointed out that Go didn't work with their
-    corp proxy, always throwing 400 Bad Request errors.
-    
-    Looking at the RFC 2616, Host is always required,
-    even with proxies.
-    
-    The old code assumed that writing an absolute URL
-    in the first line of an HTTP request implied
-    that the Host header was no longer necessary.
-    
-    Double-checked behavior with curl.
-    
-    R=golang-dev, dsymonds
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4539075
+    https://golang.org/cl/4539073
 
- src/pkg/http/request.go           | 4 +---
- src/pkg/http/requestwrite_test.go | 5 +++++
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/fmt/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,21 +1,30 @@
-commit ad8c17b70328b8771ed5bbfe9161cb98f1995b84
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 24 09:52:39 2017 -0700
+commit 3d5df64b3fe16757c9f271c2421715ba6d79b02d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 2 10:44:34 2016 -0800
 
-    cmd/compile: don't export dead code in inlineable fuctions
+    [dev.inline] cmd/compile/internal/syntax: use syntax.Pos for all external positions
     
-    CL 37499 allows inlining more functions by ignoring dead code.
-    However, that dead code can contain non-exportable constructs.
-    Teach the exporter not to export dead code.
+    - use syntax.Pos in syntax.Error (rather than line, col)
+    - use syntax.Pos in syntax.PragmaHandler (rather than just line)
+    - update uses
+    - better documentation in various places
     
-    Fixes #19679
+    Also:
+    - make Pos methods use Pos receiver (rather than *Pos)
     
-    Change-Id: Idb1d3794053514544b6f1035d29262aa6683e1e7
-    Reviewed-on: https://go-review.googlesource.com/38601
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed in and cherry-picked from https://go-review.googlesource.com/#/c/33891/.
+    With minor adjustments to noder.go to make merge compile.
+    
+    Change-Id: I5507cea6c2be46a7677087c1aeb69382d31033eb
+    Reviewed-on: https://go-review.googlesource.com/34236
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/bexport.go | 18 ++++++++++++++--
- test/fixedbugs/issue19679.go           | 38 ++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+), 2 deletions(-)
+ src/cmd/compile/fmt_test.go                |  1 +
+ src/cmd/compile/internal/gc/noder.go       | 18 +++----
+ src/cmd/compile/internal/syntax/nodes.go   |  9 ++--
+ src/cmd/compile/internal/syntax/parser.go  | 78 +++++++++++++++++-------------
+ src/cmd/compile/internal/syntax/pos.go     | 10 ++--
+ src/cmd/compile/internal/syntax/scanner.go | 12 +++++
+ src/cmd/compile/internal/syntax/source.go  | 10 ++--
+ src/cmd/compile/internal/syntax/syntax.go  | 19 ++++----
+ 8 files changed, 93 insertions(+), 64 deletions(-)

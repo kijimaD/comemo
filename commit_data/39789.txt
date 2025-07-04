@@ -1,23 +1,30 @@
-commit 7c90e2cbda677a1a9993403df192f31fb011a112
-Author: Keith Randall <khr@google.com>
-Date:   Tue Sep 3 10:27:48 2019 -0700
+commit 3023d7da49cad1a6fae4684d1b9313c51a4085d4
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Fri Feb 8 16:18:12 2019 -0200
 
-    bytes/hash: disable seed test on 32-bit platforms
+    cmd/compile/internal, cmd/internal/obj/ppc64: generate new count trailing zeros instructions on POWER9
     
-    The distribution of hash outputs when varying the seed is
-    not good enough on 32-bit platforms.
+    This change adds new POWER9 instructions for counting trailing zeros (CNTTZW/CNTTZD)
+    to the assembler and generates them in SSA when GOPPC64=power9.
     
-    This isn't a likely attack vector (the adversary controlling the seed),
-    so it isn't a huge deal. Would be nice to fix, though. For now, just
-    skip this test.
+    name                 old time/op  new time/op  delta
+    TrailingZeros-160    1.59ns ±20%  1.45ns ±10%  -8.81%  (p=0.000 n=14+13)
+    TrailingZeros8-160   1.55ns ±23%  1.62ns ±44%    ~     (p=0.593 n=13+15)
+    TrailingZeros16-160  1.78ns ±23%  1.62ns ±38%  -9.31%  (p=0.003 n=14+14)
+    TrailingZeros32-160  1.64ns ±10%  1.49ns ± 9%  -9.15%  (p=0.000 n=13+14)
+    TrailingZeros64-160  1.53ns ± 6%  1.45ns ± 5%  -5.38%  (p=0.000 n=15+13)
     
-    Fixes #33988
-    
-    Change-Id: Icf51ab687fc215422a5492ae78e6f414b33e04cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193078
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I365e6ff79f3ce4d8ebe089a6a86b1771853eb596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167517
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/bytes/hash/smhasher_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/ppc64/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 10 ++++++----
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  3 +++
+ src/cmd/compile/internal/ssa/opGen.go        | 28 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 30 ++++++++++++++++++++++++++--
+ src/cmd/internal/obj/ppc64/a.out.go          |  4 ++++
+ src/cmd/internal/obj/ppc64/anames.go         |  4 ++++
+ src/cmd/internal/obj/ppc64/asm9.go           | 23 +++++++++++++++++----
+ test/codegen/mathbits.go                     | 24 ++++++++++++++--------
+ 9 files changed, 109 insertions(+), 19 deletions(-)

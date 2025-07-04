@@ -1,44 +1,26 @@
-commit a973b4256e4ad3a5bde270e3358c8cc574c21954
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Mar 27 12:09:26 2024 -0400
+commit 9d35ebba062cae9cc7bd716ad279ac7d44060a93
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Apr 19 18:48:00 2023 -0400
 
-    cmd/dist: allow arbitrary package renames for bootstrap imports
+    std: fix various nilness findings
     
-    Import declaration matching currently has a list of specific cases. It
-    allows bare imports, dot imports, and renamed imports named "exec" and
-    "rtabi".
+    Found by running
+    $ go run golang.org/x/tools/go/analysis/passes/nilness/cmd/nilness@latest std
     
-    Keeping a specific allowlist of renamed imports is unnecessary and
-    causes annoyance for developers adding such imports, as the bootstrap
-    build errors do not make it clear that this is where the issue lies.
+    No actual bugs--other than one panic(nil)--but a
+    few places where error nilness was unclear.
     
-    We can simplify this to be much more general. The body of the condition
-    will still only rewrite imports in cmd/ or in bootstrapDirs.
-    
-    I believe the only downside of this change is that it makes it a bit
-    more likely to match and replace within comments. That said, there
-    should be no harm in replacements within comments.
-    
-    This change results in no change to the resulting bootstrap source tree:
-    
-    $ diff -u -r /tmp/bootstrap.before/src /tmp/bootstrap.after/src
-    diff -u -r /tmp/bootstrap.before/src/bootstrap/internal/buildcfg/zbootstrap.go /tmp/bootstrap.after/src/bootstrap/internal/buildcfg/zbootstrap.go
-    --- /tmp/bootstrap.before/src/bootstrap/internal/buildcfg/zbootstrap.go 2024-03-27 12:29:27.439540946 -0400
-    +++ /tmp/bootstrap.after/src/bootstrap/internal/buildcfg/zbootstrap.go  2024-03-27 12:28:08.516211238 -0400
-    @@ -20,6 +20,6 @@
-     const defaultGOEXPERIMENT = ``
-     const defaultGO_EXTLINK_ENABLED = ``
-     const defaultGO_LDSO = ``
-    -const version = `devel go1.23-38087c80ae Wed Mar 27 12:09:16 2024 -0400`
-    +const version = `devel go1.23-fa64f04409 Wed Mar 27 12:22:52 2024 -0400`
-     const defaultGOOS = runtime.GOOS
-     const defaultGOARCH = runtime.GOARCH
-    
-    Change-Id: Ia933c6373f366f2e607b28d900227c24cb214674
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574735
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: Ia916ba30f46f29c1bcf928cc62280169b922463a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486675
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
 
- src/cmd/dist/buildtool.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/bytes/buffer_test.go               | 2 +-
+ src/crypto/internal/bigmod/nat_test.go | 2 +-
+ src/encoding/xml/xml_test.go           | 5 +++--
+ src/net/timeout_test.go                | 7 ++++---
+ src/os/timeout_test.go                 | 7 ++++---
+ src/testing/example.go                 | 3 +--
+ 6 files changed, 14 insertions(+), 12 deletions(-)

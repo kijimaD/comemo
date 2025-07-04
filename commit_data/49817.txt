@@ -1,24 +1,18 @@
-commit 7ba458d7d8461835255b6353c773731f47c16215
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Thu Jun 16 03:02:38 2022 +0800
+commit 181e8cde301cd8205489e746334174fee7290c9b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Sep 14 10:36:29 2021 +0700
 
-    net/http/cgi: remove port from the CGI environment of variable SERVER_NAME
+    go/internal/gcimporter: remove outdated comment
     
-    The SERVER_NAME variable in the CGI environment should not
-    contain the port, according to the section 4.1.14 of the
-    RFC 3875.
+    CL 349010 ported the fix from CL 349009, but forgot to remove the
+    outdated comment from old solution. This CL removes that one.
     
-    Fixes #53368.
-    
-    Change-Id: Ifeea70206878cf83bc0bda35cb514d0226bbcd8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412434
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: xie cui <523516579@qq.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ia401295e9d0984f4a088ddce5db09d306bfd89b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349729
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/http/cgi/host.go      | 7 ++++++-
- src/net/http/cgi/host_test.go | 4 ++--
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/go/internal/gcimporter/iimport.go | 2 --
+ 1 file changed, 2 deletions(-)

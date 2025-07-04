@@ -1,17 +1,32 @@
-commit 02ed0e5e67530e6b041989d55048ce373dc60327
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Dec 29 13:08:48 2022 +0100
+commit 286e3e61aa9310bb8fd333adac6d06cfb2fcc95b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 25 11:10:44 2022 -0800
 
-    crypto/ed25519: improve Ed25519ctx docs and add example
+    go/types, types2: report an error for x.sel where x is a built-in
     
-    Change-Id: Ic215a90d1e1daa5805dbab1dc56480281e53b341
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/459975
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    In case of a selector expression x.sel where x is a built-in
+    we didn't report an error because the type of built-ins is
+    invalid and we surpress errors on operands of invalid types,
+    assuming that an error has been reported before.
+    
+    Add a corresponding check for this case.
+    
+    Review all places where we call Checker.exprOrType to ensure
+    (invalid) built-ins are reported.
+    
+    Adjusted position for index error in types2.
+    
+    Fixes #51360.
+    
+    Change-Id: I24693819c729994ab79d31de8fa7bd370b3e8469
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388054
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/ed25519/ed25519.go      | 37 ++++++++++++++++++++++---------------
- src/crypto/ed25519/ed25519_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/types2/call.go                     |  6 +++++-
+ src/cmd/compile/internal/types2/index.go                    |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue51360.go        | 13 +++++++++++++
+ src/go/types/call.go                                        |  7 ++++++-
+ src/go/types/index.go                                       |  1 +
+ src/go/types/testdata/fixedbugs/issue51360.go               | 13 +++++++++++++
+ 6 files changed, 39 insertions(+), 3 deletions(-)

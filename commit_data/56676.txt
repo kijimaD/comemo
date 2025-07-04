@@ -1,22 +1,47 @@
-commit 3ea2be1e4786abd39bc1fbd429c936d9fb89ec00
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 23 16:30:20 2024 -0700
+commit 10532fdb141ae80140cd0f14637b9fe82f379688
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 18 21:13:03 2023 -0700
 
-    go/types, types2: pull up Unalias call to cover all of cycleFinder.typ
+    runtime: change fcntl to return two values
     
-    Without a test because it's unclear the situation can actually occur,
-    but the code is correct because it now mimics the behavior without
-    explicit Alias nodes.
+    Separate the result and the errno value, rather than assuming
+    that the result can never be negative.
     
-    For #67547.
-    
-    Change-Id: I21a31af28880ca6d599fe465563d9574c26ed1f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588117
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ib01a70a3d46285aa77e95371cdde74e1504e7c12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496416
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/infer.go | 5 +++--
- src/go/types/infer.go                    | 5 +++--
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/internal/syscall/unix/fcntl_unix.go |  8 ++++----
+ src/runtime/nbpipe_test.go              | 20 ++++++++++----------
+ src/runtime/os3_solaris.go              |  7 ++-----
+ src/runtime/os_aix.go                   | 13 ++++++-------
+ src/runtime/os_dragonfly.go             |  2 +-
+ src/runtime/os_freebsd.go               |  2 +-
+ src/runtime/os_linux.go                 | 10 +++-------
+ src/runtime/os_netbsd.go                |  2 +-
+ src/runtime/os_openbsd_syscall2.go      |  2 +-
+ src/runtime/sys_darwin.go               | 15 +++++++++++----
+ src/runtime/sys_darwin_amd64.s          | 18 +++++++++++-------
+ src/runtime/sys_darwin_arm64.s          | 18 +++++++++++-------
+ src/runtime/sys_dragonfly_amd64.s       | 10 +++++++---
+ src/runtime/sys_freebsd_386.s           | 10 +++++++---
+ src/runtime/sys_freebsd_amd64.s         | 10 +++++++---
+ src/runtime/sys_freebsd_arm.s           |  7 +++++--
+ src/runtime/sys_freebsd_arm64.s         | 12 ++++++++----
+ src/runtime/sys_freebsd_riscv64.s       | 12 ++++++++----
+ src/runtime/sys_netbsd_386.s            | 10 +++++++---
+ src/runtime/sys_netbsd_amd64.s          | 10 +++++++---
+ src/runtime/sys_netbsd_arm.s            |  5 ++++-
+ src/runtime/sys_netbsd_arm64.s          | 12 ++++++++----
+ src/runtime/sys_openbsd2.go             |  9 +++++++--
+ src/runtime/sys_openbsd_386.s           |  8 ++++++--
+ src/runtime/sys_openbsd_amd64.s         | 18 +++++++++++-------
+ src/runtime/sys_openbsd_arm.s           | 14 +++++++++-----
+ src/runtime/sys_openbsd_arm64.s         | 14 +++++++++-----
+ src/runtime/sys_openbsd_mips64.s        | 10 +++++++---
+ 28 files changed, 179 insertions(+), 109 deletions(-)

@@ -1,20 +1,25 @@
-commit 160d7972607d5c630c7cfd1b4b54f7c27c3387b1
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat May 29 04:06:56 2021 +1000
+commit 48838c35dc7c8e938a83db66faabf3a51f4adc3d
+Author: Carlos Alexandro Becker <caarlos0@gmail.com>
+Date:   Wed Dec 2 21:04:13 2020 +0000
 
-    runtime: correct mips64 asmcgocall signal stack behaviour
+    go/parser: ignore subdirectories in ParseDir
     
-    Do not switch to the g0 stack if we're already running on the signal
-    stack, otherwise all kind of fun ensues.
+    Issue and PR on GoReleaser:
+    - https://github.com/goreleaser/goreleaser/issues/1897
+    - https://github.com/goreleaser/goreleaser/pull/1899
     
-    Updates #36435
+    Fixes #42951.
     
-    Change-Id: I57f35d75b9ee4f92b997713b4cdd38ce881705e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334880
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia0d6018e0bad59cd60cd600188c368c431032a4b
+    GitHub-Last-Rev: be59d85fe2d473f4dfd828a244023c4064d6e31f
+    GitHub-Pull-Request: golang/go#42581
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269897
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/asm_mips64x.s | 2 ++
- 1 file changed, 2 insertions(+)
+ src/go/parser/interface.go                                 | 2 +-
+ src/go/parser/parser_test.go                               | 8 ++++++++
+ src/go/parser/testdata/issue42951/not_a_file.go/invalid.go | 1 +
+ 3 files changed, 10 insertions(+), 1 deletion(-)

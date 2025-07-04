@@ -1,23 +1,17 @@
-commit dd7cbf3a846c2cb125ac65173abaf6a8b9f903ff
-Author: Keith Randall <khr@google.com>
-Date:   Mon Dec 4 14:47:32 2017 -0800
+commit b65cffdcd82212f6072555637fe7529aa88bb225
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 8 16:25:25 2017 -0700
 
-    cmd/compile: fix map assignment with panicking right-hand side
+    cmd/compile: slightly more idiomatic println code
     
-    Make sure that when we're assigning to a map, we evaluate the
-    right-hand side before we attempt to insert into the map.
+    Updates #21808.
     
-    We used to evaluate the left-hand side to a pointer-to-slot-in-bucket
-    (which as a side effect does len(m)++), then evaluate the right-hand side,
-    then do the assignment. That clearly isn't correct when the right-hand side
-    might panic.
-    
-    Fixes #22881
-    
-    Change-Id: I42a62870ff4bf480568c9bdbf0bb18958962bdf0
-    Reviewed-on: https://go-review.googlesource.com/81817
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0314426afcfeed17b1111040110d7f2b0e209526
+    Reviewed-on: https://go-review.googlesource.com/62430
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/order.go |  9 ++++-
- test/fixedbugs/issue22881.go         | 72 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 79 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

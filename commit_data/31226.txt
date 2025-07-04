@@ -1,16 +1,16 @@
-commit 1db0aae37029339515678ef4682238c2707866ae
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Apr 20 09:19:21 2017 +1000
+commit 99df7c9caa19d99747c4766be171c9487c9645cf
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Feb 6 11:03:58 2017 +0000
 
-    cmd/internal/obj: remove unused obj.Linksymfmt
+    cmd/link, crypto/tls: don't use append loops
     
-    obj.Linksymfmt is no longer referenced by any packages in cmd/...
-    
-    Change-Id: Id4d9213d1577e13580b60755dbf7da313b17cb0e
-    Reviewed-on: https://go-review.googlesource.com/41171
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Change-Id: Ib47e295e8646b769c30fd81e5c7f20f964df163e
+    Reviewed-on: https://go-review.googlesource.com/36335
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/sym.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 4 +---
+ src/crypto/tls/common.go             | 4 +---
+ 2 files changed, 2 insertions(+), 6 deletions(-)

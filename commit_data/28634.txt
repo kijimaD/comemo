@@ -1,19 +1,16 @@
-commit 2f184c65a5bdd422f88d841bb3a37fa60b3e1d52
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Sep 27 19:54:05 2016 +0900
+commit 8086ce44c4ddaba03fe0edb62aed8ca723cf0cfe
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 15 15:56:52 2016 -0700
 
-    net: implement network interface API for Solaris
+    [dev.ssa] cmd/compile: unify OpARMMOVWaddr cases
     
-    Fixes #7177.
+    Minor code cleanup. Done as part of understanding
+    OpARMMOVWaddr, since other architectures will
+    need to do something similar.
     
-    Change-Id: Iba6063905f4f9c6acef8aba76b55d996f186d835
-    Reviewed-on: https://go-review.googlesource.com/29892
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: Iea2ecf3defb4f884e63902c369cd55e4647bce7a
+    Reviewed-on: https://go-review.googlesource.com/24157
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/build/deps_test.go    |   2 +-
- src/net/interface.go         |  10 ++--
- src/net/interface_solaris.go | 107 +++++++++++++++++++++++++++++++++++++++++++
- src/net/interface_stub.go    |   2 +-
- src/net/interface_test.go    |  11 ++++-
- 5 files changed, 125 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go | 43 ++++++++++++++++---------------------
+ 1 file changed, 19 insertions(+), 24 deletions(-)

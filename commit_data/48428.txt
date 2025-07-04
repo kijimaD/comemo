@@ -1,19 +1,42 @@
-commit 44320594855185b00af3abe038e52f7a00751d51
-Author: Changkun Ou <hi@changkun.de>
-Date:   Fri Nov 26 10:12:39 2021 +0100
+commit eff66248ea242c2611a9a0e2be47a762073e81b2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 18 19:03:00 2021 -0700
 
-    A+C: update Changkun Ou's email
+    [dev.typeparams] cmd/compile/internal/types2: implement package height
     
-    Add my current public email in both A+C, but keep old one too.
-    Add my @changkun.de email to CONTRIBUTORS.
+    This CL extends types2 with package height information, styled after
+    the way it works already in cmd/compile:
     
-    Change-Id: Ic5a585582a5f5142fbdd0a132235c19f05d9e680
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367116
-    Run-TryBot: Changkun Ou <mail@changkun.de>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ben Shi <powerman1st@163.com>
+    - A new NewPackageHeight entry point for constructing packages with
+      explicit height information, and a corresponding Height accessor
+      method.
+    
+    - The types2 importer is updated to provide package height for
+      imported packages.
+    
+    - The types2 type checker sets height based on imported packages.
+    
+    - Adds an assertion to irgen to verify that types1 and types2
+      calculated the same height for the source package.
+    
+    - Func.less's ordering incorporates package height to match
+      types.Sym.less and is generalized to object.less.
+    
+    - sortTypes (used for sorting embedded types) now sorts defined types
+      using object.less as well.
+    
+    Change-Id: Id4dbbb627aef405cc7438d611cbdd5a5bd97fc96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321231
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/importer/iimport.go | 13 ++++--
+ src/cmd/compile/internal/noder/irgen.go      |  1 +
+ src/cmd/compile/internal/types2/object.go    | 69 ++++++++++++++++------------
+ src/cmd/compile/internal/types2/package.go   | 14 +++++-
+ src/cmd/compile/internal/types2/resolver.go  | 10 ++++
+ src/cmd/compile/internal/types2/typexpr.go   | 10 ++--
+ 6 files changed, 76 insertions(+), 41 deletions(-)

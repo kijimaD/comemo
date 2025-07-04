@@ -1,16 +1,21 @@
-commit ee34617d0d49856c61ba21a5528ab23bccad87f6
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 9 15:31:45 2018 -0500
+commit 83f0af1742db6830a5b3124bbef7f6d2bf2a1ddf
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Sep 12 22:51:17 2017 +0200
 
-    doc/debugging_with_gdb: soften text about disabling optimizations
+    cmd/compile: remove a few unnecessary gotos
     
-    Don't suggest that it's always necessary to disable optimizations.
-    (The text can be misread that way, even if it's not what was meant.)
+    Rework the logic to remove them. These were the low hanging fruit,
+    with labels that were used only once and logic that was fairly
+    straightforward.
     
-    Change-Id: I9a2dff6a75ce4a3f9210cdf4f5bad6aaaeae9b29
-    Reviewed-on: https://go-review.googlesource.com/87018
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I02a01c59c247b8b2972d8d73ff23f96f271de038
+    Reviewed-on: https://go-review.googlesource.com/63410
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/debugging_with_gdb.html | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go   | 20 +++++++++-----------
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ src/cmd/compile/internal/gc/walk.go      | 13 +++++--------
+ 4 files changed, 19 insertions(+), 24 deletions(-)

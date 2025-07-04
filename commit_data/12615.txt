@@ -1,13 +1,25 @@
-commit 62bb39e2baad708c3910abc6b5b51c49f91418d4
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Mar 14 04:59:17 2012 +0800
+commit 8170d81f4f12db0c5d40bb550639026ee850fe25
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 14 07:03:11 2012 +1100
 
-    fmt: remove dead code
-         Also fix a typo in comment.
+    text/template: fix a couple of parse bugs around identifiers.
+    1) Poor error checking in variable declarations admitted
+    $x=2 or even $x%2.
+    2) Need white space or suitable termination character
+    after identifiers, so $x+2 doesn't parse, in case we want it
+    to mean something one day.
+    Number 2 in particular prevents mistakes that we will have
+    to honor later and so is necessary for Go 1.
     
-    R=golang-dev, r, r
+    Fixes #3270.
+    Fixes #3271.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5808043
+    https://golang.org/cl/5795073
 
- src/pkg/fmt/scan_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/text/template/multi_test.go       |  2 +-
+ src/pkg/text/template/parse/lex.go        | 25 +++++++++++++++++++++++++
+ src/pkg/text/template/parse/parse.go      |  2 +-
+ src/pkg/text/template/parse/parse_test.go | 15 +++++++++++++++
+ 4 files changed, 42 insertions(+), 2 deletions(-)

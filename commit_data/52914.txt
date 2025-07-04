@@ -1,27 +1,12 @@
-commit 9fa81a88279f2e4be11992a0bc313210b62ae08f
-Author: Emily Shaffer <nasamuffin@google.com>
-Date:   Wed Apr 26 14:51:31 2023 -0700
+commit c29be2d41c6c3ed78a76b4d8d8c1c22d7e0ad5b7
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 18 13:20:54 2022 -0400
 
-    cmd/go/internal/modfetch/codehost: explicitly specify GIT_DIR
+    runtime: add HACKING section on nosplit functions
     
-    When Git has safe.bareRepository=explicit set, operations on bare Git
-    repositories will fail unless --git-dir or GIT_DIR is set. The rest of
-    the time, specifying the gitdir makes repository discovery at the
-    beginning of a Git command ever-so-slightly faster. So, there is no
-    downside to ensuring that users with this stricter security config set
-    can still use 'go mod' commands easily.
-    
-    See
-    https://lore.kernel.org/git/pull.1261.v8.git.git.1657834081.gitgitgadget@gmail.com/
-    for a more detailed description of security concerns around embedded
-    bare repositories without an explicitly specified GIT_DIR.
-    
-    Change-Id: I01c1d97a79fdab12c2b5532caf84eb7760f96b18
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489915
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I247874d5c49d2c0d8db2a3d227aa848093551d9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401759
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/modfetch/codehost/codehost.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/HACKING.md | 48 ++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 38 insertions(+), 10 deletions(-)

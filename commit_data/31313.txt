@@ -1,35 +1,18 @@
-commit bc6459ac6ce1133cd0c59864d220d60f8fca40ef
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu Apr 20 14:07:57 2017 -0500
+commit e7ec06e000627ad699a274a5a672bc3f63d6a709
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 7 07:28:49 2017 -0800
 
-    math: remove asm version of sincos everywhere, except 386
+    cmd/go: copy FFLAGS from build.Package
     
-    We have dedicated asm implementation of sincos only on 386 and amd64,
-    on everything else we are just jumping to generic version.
-    However amd64 version is actually slower than generic one:
+    Fixes #18975.
     
-    Sincos-6               34.4ns ± 0%   24.8ns ± 0%  -27.79%  (p=0.000 n=8+10)
-    
-    So remove all sincos*.s and keep only generic and 386.
-    
-    Updates #19819
-    
-    Change-Id: I7eefab35743729578264f52f6d23ee2c227c92a5
-    Reviewed-on: https://go-review.googlesource.com/41200
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I60dfb299233ecfed4b2da93750ea84e7921f1fbb
+    Reviewed-on: https://go-review.googlesource.com/36482
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/sincos.go         |   6 +-
- src/math/sincos_386.go     |  13 +++++
- src/math/sincos_amd64.s    | 142 ---------------------------------------------
- src/math/sincos_amd64p32.s |   5 --
- src/math/sincos_arm.s      |   8 ---
- src/math/stubs_arm64.s     |   3 -
- src/math/stubs_mips64x.s   |   3 -
- src/math/stubs_mipsx.s     |   3 -
- src/math/stubs_ppc64x.s    |   3 -
- src/math/stubs_s390x.s     |   3 -
- 10 files changed, 16 insertions(+), 173 deletions(-)
+ src/cmd/go/go_test.go           | 21 +++++++++++++++++++++
+ src/cmd/go/internal/load/pkg.go |  1 +
+ 2 files changed, 22 insertions(+)

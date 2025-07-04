@@ -1,0 +1,22 @@
+commit cce90c1eebb315da7611bb79a7bf807df5a1abd9
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Jul 3 13:58:29 2024 +0000
+
+    cmd/go: print not-defaults arch-env
+    
+    Fixes #67492
+    For #34208
+    
+    Change-Id: Idcddf88aad8e18b0274ce8e2ff8a83d57db603a6
+    GitHub-Last-Rev: 8ef7cf59d0fd6d2d99177277c8a4237e7a86f895
+    GitHub-Pull-Request: golang/go#67493
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586241
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/dist/buildruntime.go               | 16 ++++++++--------
+ src/cmd/go/internal/cfg/cfg.go             | 16 ++++++++--------
+ src/cmd/go/testdata/script/env_changed.txt |  6 ++++++
+ src/internal/buildcfg/cfg.go               | 28 ++++++++++++++--------------
+ 4 files changed, 36 insertions(+), 30 deletions(-)

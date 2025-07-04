@@ -1,14 +1,20 @@
-commit 1edd2a34c1bcf2133b659878e8b59e401eb8cc24
-Author: berkant ipek <41230766+0xbkt@users.noreply.github.com>
-Date:   Tue Feb 12 14:45:12 2019 +0000
+commit d45f24c084ee7f70797ad645f922ea820db28776
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Sep 13 14:45:23 2018 -0400
 
-    net/http/httptrace: fix typo
+    cmd/compile: use bounded shift information on ppc64x
     
-    Change-Id: I15279e4aa9306bde925929907a7b5e7ef5d8b642
-    GitHub-Last-Rev: 6bc2d66aecd424b322ec0c23b280e74cb22e08c3
-    GitHub-Pull-Request: golang/go#30193
-    Reviewed-on: https://go-review.googlesource.com/c/162018
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Makes use of bounded shift information to generate
+    more efficient shift instructions.
+    
+    Updates #25167 for ppc64x
+    
+    Change-Id: I7fc8d49a3fb3e0f273cc51bc767470b239cbdca7
+    Reviewed-on: https://go-review.googlesource.com/135380
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/net/http/httptrace/trace.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  14 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 798 ++++++++++++++++++++++++++-
+ 2 files changed, 803 insertions(+), 9 deletions(-)

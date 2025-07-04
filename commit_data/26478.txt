@@ -1,22 +1,24 @@
-commit bd83cc6dae36399f3c8fd99bd4ceea6570c70f5a
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Wed Mar 23 16:35:50 2016 +0100
+commit 313fd1cb1343e46b563b6b8acfef7e58604b5b8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 22:58:59 2016 -0500
 
-    cmd/compile: prettify loop iterations
+    runtime: fix crash in GoroutineProfile
     
-    This commit replaces some of
+    It was just completely broken if you gave it the number
+    of records it asked for. Make it impossible for that particular
+    inconsistency to happen again.
     
-    for i := len(x) - 1; i >= 0; i-- {...}
+    Also make it exclude system goroutines, to match both
+    NumGoroutine and Stack.
     
-    style loops, which do not rely on reverse iteration order.
+    Fixes #14046.
     
-    Change-Id: I5542834286562da058200c06e7a173b13760e54d
-    Reviewed-on: https://go-review.googlesource.com/21044
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic238c6b89934ba7b47cccd3440dd347ed11e4c3d
+    Reviewed-on: https://go-review.googlesource.com/18976
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/esc.go         | 12 ++++++------
- src/cmd/compile/internal/gc/main.go        |  4 +---
- src/cmd/compile/internal/gc/typecheck.go   |  5 ++---
- src/cmd/compile/internal/ssa/dom.go        |  7 +++----
- src/cmd/compile/internal/ssa/stackalloc.go |  2 +-
- 5 files changed, 13 insertions(+), 17 deletions(-)
+ src/runtime/mprof.go        | 52 ++++++++++++++++++++++++++++-----------------
+ src/runtime/runtime_test.go | 12 +++++++++++
+ 2 files changed, 44 insertions(+), 20 deletions(-)

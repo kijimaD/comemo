@@ -1,22 +1,101 @@
-commit 8214257347b16a03464ace16bbcf6346fc784a3e
-Author: Michael Munday <mike.munday@lowrisc.org>
-Date:   Wed Sep 8 14:14:53 2021 +0000
+commit 6c34d2f42077bd7757c942c8d1b466366190b45a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:57:10 2020 -0500
 
-    test/codegen: fix package name for test case
+    [dev.regabi] cmd/compile: split out package ssagen [generated]
     
-    The codegen tests are currently skipped (see #48247). The test
-    added in CL 346050 did not compile because it was in the main
-    package but did not contain a main function. Changing the package
-    to 'codegen' fixes the issue.
+    [git-generate]
     
-    Updates #48247.
+    cd src/cmd/compile/internal/gc
+    rf '
+            # maxOpenDefers is declared in ssa.go but used only by walk.
+            mv maxOpenDefers walk.go
     
-    Change-Id: I0a0eaca8e6a7d7b335606d2c76a204ac0c12e6d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348392
-    Trust: Michael Munday <mike.munday@lowrisc.org>
-    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+            # gc.Arch -> ssagen.Arch
+            # It is not as nice but will do for now.
+            mv Arch ArchInfo
+            mv thearch Arch
+            mv Arch ArchInfo arch.go
+    
+            # Pull dwarf out of pgen.go.
+            mv debuginfo declPos createDwarfVars preInliningDcls \
+                    createSimpleVars createSimpleVar \
+                    createComplexVars createComplexVar \
+                    dwarf.go
+    
+            # Pull high-level compilation out of pgen.go,
+            # leaving only the SSA code.
+            mv compilequeue funccompile compile compilenow \
+                    compileFunctions isInlinableButNotInlined \
+                    initLSym \
+                    compile.go
+    
+            mv BoundsCheckFunc GCWriteBarrierReg ssa.go
+            mv largeStack largeStackFrames CheckLargeStacks pgen.go
+    
+            # All that is left in dcl.go is the nowritebarrierrecCheck
+            mv dcl.go nowb.go
+    
+            # Export API and unexport non-API.
+            mv initssaconfig InitConfig
+            mv isIntrinsicCall IsIntrinsicCall
+            mv ssaDumpInline DumpInline
+            mv initSSATables InitTables
+            mv initSSAEnv InitEnv
+            mv compileSSA Compile
+            mv stackOffset StackOffset
+            mv canSSAType TypeOK
+            mv SSAGenState State
+            mv FwdRefAux fwdRefAux
+    
+            mv cgoSymABIs CgoSymABIs
+            mv readSymABIs ReadSymABIs
+            mv initLSym InitLSym
+            mv useABIWrapGen symabiDefs CgoSymABIs ReadSymABIs InitLSym selectLSym makeABIWrapper setupTextLSym abi.go
+    
+            mv arch.go abi.go nowb.go phi.go pgen.go pgen_test.go ssa.go cmd/compile/internal/ssagen
+    '
+    rm go.go gsubr.go
+    
+    Change-Id: I47fad6cbf1d1e583fd9139003a08401d7cd048a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279476
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/codegen/issue48054.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/galign.go           |   4 +-
+ src/cmd/compile/internal/amd64/ssa.go              |  80 +--
+ src/cmd/compile/internal/arm/galign.go             |   6 +-
+ src/cmd/compile/internal/arm/ssa.go                |  40 +-
+ src/cmd/compile/internal/arm64/galign.go           |   6 +-
+ src/cmd/compile/internal/arm64/ssa.go              |  44 +-
+ src/cmd/compile/internal/gc/abiutils_test.go       |  15 +-
+ src/cmd/compile/internal/gc/compile.go             | 177 +++++++
+ src/cmd/compile/internal/gc/{pgen.go => dwarf.go}  | 568 ++++-----------------
+ src/cmd/compile/internal/gc/main.go                | 164 +-----
+ src/cmd/compile/internal/gc/racewalk.go            |   3 +-
+ src/cmd/compile/internal/gc/range.go               |   3 +-
+ src/cmd/compile/internal/gc/subr.go                |  23 +-
+ src/cmd/compile/internal/gc/walk.go                |  23 +-
+ src/cmd/compile/internal/mips/galign.go            |   6 +-
+ src/cmd/compile/internal/mips/ssa.go               |  34 +-
+ src/cmd/compile/internal/mips64/galign.go          |   6 +-
+ src/cmd/compile/internal/mips64/ssa.go             |  32 +-
+ src/cmd/compile/internal/ppc64/galign.go           |   4 +-
+ src/cmd/compile/internal/ppc64/ssa.go              |  34 +-
+ src/cmd/compile/internal/riscv64/galign.go         |   4 +-
+ src/cmd/compile/internal/riscv64/ssa.go            |  36 +-
+ src/cmd/compile/internal/s390x/galign.go           |   4 +-
+ src/cmd/compile/internal/s390x/ssa.go              |  56 +-
+ .../internal/{gc/gsubr.go => ssagen/abi.go}        | 342 ++++++++-----
+ .../compile/internal/{gc/go.go => ssagen/arch.go}  |  22 +-
+ .../compile/internal/{gc/dcl.go => ssagen/nowb.go} |   5 +-
+ src/cmd/compile/internal/ssagen/pgen.go            | 279 ++++++++++
+ .../compile/internal/{gc => ssagen}/pgen_test.go   |   9 +-
+ src/cmd/compile/internal/{gc => ssagen}/phi.go     |  23 +-
+ src/cmd/compile/internal/{gc => ssagen}/ssa.go     | 154 +++---
+ src/cmd/compile/internal/wasm/ssa.go               |  36 +-
+ src/cmd/compile/internal/x86/galign.go             |   4 +-
+ src/cmd/compile/internal/x86/ssa.go                |  64 +--
+ src/cmd/compile/main.go                            |   3 +-
+ 35 files changed, 1167 insertions(+), 1146 deletions(-)

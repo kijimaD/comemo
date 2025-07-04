@@ -1,22 +1,12 @@
-commit 87ec06f96165fcbacf06904cc70a5f19c2a6c00a
+commit 271a65024545d8d24bb12d4e36e349b073198b4a
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 17 15:07:05 2015 -0400
+Date:   Sun Feb 22 12:48:16 2015 -0500
 
-    runtime: fix writebarrier throw in lock_sema
+    [dev.cc] doc/go1.5: mention cmd/go meaning of std change
     
-    The value in question is really a bit pattern
-    (a pointer with extra bits thrown in),
-    so treat it as a uintptr instead, avoiding the
-    generation of a write barrier when there
-    might not be a p.
-    
-    Also add the obligatory //go:nowritebarrier.
-    
-    Change-Id: I4ea097945dd7093a140f4740bcadca3ce7191971
-    Reviewed-on: https://go-review.googlesource.com/7667
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I259e88f019b6818c57caaa1ec236b7c2e2ae1382
+    Reviewed-on: https://go-review.googlesource.com/5551
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/lock_sema.go | 6 ++++--
- src/runtime/runtime2.go  | 2 +-
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,13 +1,12 @@
-commit 0e027fca428a893ceeb49e4f833f9a923c5f201d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jan 21 12:49:55 2014 +0400
+commit abd588aa835fa3f462640cc8eba6d192a8462667
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 21 11:17:44 2014 +0400
 
-    runtime: delete proc.p
-    It's entirely outdated today.
+    runtime: fix race detector by recording read by chansend.
     
-    R=golang-codereviews, bradfitz, gobot, r
+    R=golang-codereviews, dvyukov, khr
     CC=golang-codereviews
-    https://golang.org/cl/43500045
+    https://golang.org/cl/54060043
 
- src/pkg/runtime/proc.p | 526 -------------------------------------------------
- 1 file changed, 526 deletions(-)
+ src/pkg/runtime/chan.c | 5 +++++
+ 1 file changed, 5 insertions(+)

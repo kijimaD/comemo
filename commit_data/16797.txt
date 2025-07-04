@@ -1,18 +1,19 @@
-commit 1da96a30395b20cb4e2059c49bee05540e36aac6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 17 16:15:46 2013 -0700
+commit b913cf84dc5bc78197b0ea42d9375ec1a7a01909
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 17 14:03:27 2013 -0400
 
-    runtime: disable preemption again to fix linux build
+    runtime: re-enable preemption
     
-    Otherwise the tests in pkg/runtime fail:
+    Update #543
     
-    runtime: unknown argument frame size for runtime.deferreturn called from 0x48657b [runtime_test.func·022]
-    fatal error: invalid stack
-    ...
+    I believe the runtime is strong enough now to reenable
+    preemption during the function prologue.
+    Assuming this is or can be made stable, it will be in Go 1.2.
+    More aggressive preemption is not planned for Go 1.2.
     
-    R=golang-dev, dave
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/11483043
+    https://golang.org/cl/11433045
 
- src/pkg/runtime/proc.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/runtime/proc.c | 6 ------
+ 1 file changed, 6 deletions(-)

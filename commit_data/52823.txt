@@ -1,78 +1,25 @@
-commit 2380d17aea2f1b5d6f379b76152b20f7a820ed9f
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Sat Apr 22 09:54:46 2023 +0300
+commit 9ce28b518d9a792d2e3e741bcb38fa046891906e
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Sat Jun 4 09:43:40 2022 -0700
 
-    runtime: fix systemstack frame pointer adjustment
+    text/template/parse: fix data race on lexer initialization
     
-    Change adjustframe to adjust the frame pointer of systemstack (aka
-    FuncID_systemstack_switch) before returning early.
+    Before this change, `startParse` would write `lex.breakOK` and `lex.continueOK` when the lexer goroutine is already running, which is a potential race condition.
     
-    Without this fix it is possible for traceEvent() to crash when using
-    frame pointer unwinding. The issue occurs when a goroutine calls
-    systemstack in order to call shrinkstack. While returning, systemstack
-    will restore the unadjusted frame pointer from its frame as part of its
-    epilogue. If the callee of systemstack then triggers a traceEvent, it
-    will try to unwind into the old stack. This can lead to a crash if the
-    memory of the old stack has been reused or freed in the meantime.
+    Makes `breakOK` and `continueOK` configuration flags passed when `lexer` is created, similarly to how `emitComment` works.
     
-    The most common situation in which this will manifest is when when
-    gcAssistAlloc() invokes gcAssistAlloc1() on systemstack() and performs a
-    shrinkstack() followed by a traceGCMarkAssistDone() or Gosched()
-    triggering traceEvent().
+    Fixes #53234
     
-    See CL 489115 for a deterministic test case that triggers the issue.
-    Meanwhile the problem can frequently be observed using the command
-    below:
-    
-    $ GODEBUG=tracefpunwindoff=0 ../bin/go test -trace /dev/null -run TestDeferHeapAndStack ./runtime
-    SIGSEGV: segmentation violation
-    PC=0x45f977 m=14 sigcode=128
-    
-    goroutine 0 [idle]:
-    runtime.fpTracebackPCs(...)
-            .../go/src/runtime/trace.go:945
-    runtime.traceStackID(0xcdab904677a?, {0x7f1584346018, 0x0?, 0x80}, 0x0?)
-            .../go/src/runtime/trace.go:917 +0x217 fp=0x7f1565ffab00 sp=0x7f1565ffaab8 pc=0x45f977
-    runtime.traceEventLocked(0x0?, 0x0?, 0x0?, 0xc00003dbd0, 0x12, 0x0, 0x1, {0x0, 0x0, 0x0})
-            .../go/src/runtime/trace.go:760 +0x285 fp=0x7f1565ffab78 sp=0x7f1565ffab00 pc=0x45ef45
-    runtime.traceEvent(0xf5?, 0x1, {0x0, 0x0, 0x0})
-            .../go/src/runtime/trace.go:692 +0xa9 fp=0x7f1565ffabe0 sp=0x7f1565ffab78 pc=0x45ec49
-    runtime.traceGoPreempt(...)
-            .../go/src/runtime/trace.go:1535
-    runtime.gopreempt_m(0xc000328340?)
-            .../go/src/runtime/proc.go:3551 +0x45 fp=0x7f1565ffac20 sp=0x7f1565ffabe0 pc=0x4449a5
-    runtime.newstack()
-            .../go/src/runtime/stack.go:1077 +0x3cb fp=0x7f1565ffadd0 sp=0x7f1565ffac20 pc=0x455feb
-    runtime.morestack()
-            .../go/src/runtime/asm_amd64.s:593 +0x8f fp=0x7f1565ffadd8 sp=0x7f1565ffadd0 pc=0x47644f
-    
-    goroutine 19 [running]:
-    runtime.traceEvent(0x2c?, 0xffffffffffffffff, {0x0, 0x0, 0x0})
-            .../go/src/runtime/trace.go:669 +0xe8 fp=0xc0006e6c28 sp=0xc0006e6c20 pc=0x45ec88
-    runtime.traceGCMarkAssistDone(...)
-            .../go/src/runtime/trace.go:1497
-    runtime.gcAssistAlloc(0xc0003281a0)
-            .../go/src/runtime/mgcmark.go:517 +0x27d fp=0xc0006e6c88 sp=0xc0006e6c28 pc=0x421a1d
-    runtime.deductAssistCredit(0x0?)
-            .../go/src/runtime/malloc.go:1287 +0x54 fp=0xc0006e6cb0 sp=0xc0006e6c88 pc=0x40fed4
-    runtime.mallocgc(0x400, 0x7a9420, 0x1)
-            .../go/src/runtime/malloc.go:1002 +0xc9 fp=0xc0006e6d18 sp=0xc0006e6cb0 pc=0x40f709
-    runtime.newobject(0xb3?)
-            .../go/src/runtime/malloc.go:1324 +0x25 fp=0xc0006e6d40 sp=0xc0006e6d18 pc=0x40ffc5
-    runtime_test.deferHeapAndStack(0xb4)
-            .../go/src/runtime/stack_test.go:924 +0x165 fp=0xc0006e6e20 sp=0xc0006e6d40 pc=0x75c2a5
-    
-    Fixes #59692
-    
-    Co-Authored-By: Cherry Mui <cherryyz@google.com>
-    Co-Authored-By: Michael Knyszek <mknyszek@google.com>
-    Co-Authored-By: Nick Ripley <nick.ripley@datadoghq.com>
-    Change-Id: I1c0c28327fc2fac0b8cfdbaa72e25584331be31e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489015
+    Change-Id: Ia65f6135509a758cd4c5a453b249a174f4fb3e21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410414
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/stack.go | 29 +++++++++++++++--------------
- 1 file changed, 15 insertions(+), 14 deletions(-)
+ src/text/template/parse/lex.go      | 4 +++-
+ src/text/template/parse/lex_test.go | 4 ++--
+ src/text/template/parse/parse.go    | 7 ++++---
+ 3 files changed, 9 insertions(+), 6 deletions(-)

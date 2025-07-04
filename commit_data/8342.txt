@@ -1,38 +1,25 @@
-commit 4c1e1b815b6a1b295914cea0936118b77e7776b1
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon May 9 17:25:32 2011 -0700
+commit 499ad9448b0cb275ebf0703b087c2d162c2c5c89
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 9 15:16:34 2011 -0700
 
-    image/jpeg: speed up decoding by inlining the clip function and
-    writing the idct result directly to the image buffer instead of
-    storing it in an intermediate d.blocks field.
+    go/printer, gofmt: fix alignment of "=" in const/var declarations
     
-    Writing to d.blocks was necessary when decoding to an image.RGBA image,
-    but now that we decode to a ycbcr.YCbCr we can write each component
-    directly to the image buffer.
+    gofmt -w src misc
     
-    Crude "time ./6.out" scores to decode a specific 2592x1944 JPEG 20
-    times show a 16% speed-up:
+    Fixes #1414.
     
-    BEFORE
-    
-    user    0m10.410s
-    user    0m10.400s
-    user    0m10.480s
-    user    0m10.480s
-    user    0m10.460s
-    
-    AFTER
-    
-    user    0m9.050s
-    user    0m9.050s
-    user    0m9.050s
-    user    0m9.070s
-    user    0m9.020s
-    
-    R=r
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4523052
+    https://golang.org/cl/4456054
 
- src/pkg/image/jpeg/idct.go   | 124 ++++++++++++++++++++++++-------------------
- src/pkg/image/jpeg/reader.go |  67 +++++++----------------
- 2 files changed, 89 insertions(+), 102 deletions(-)
+ misc/cgo/test/env.go                            |   8 +-
+ src/pkg/crypto/openpgp/packet/packet.go         |  12 +-
+ src/pkg/go/printer/nodes.go                     | 159 ++++++++++++++++++------
+ src/pkg/go/printer/testdata/comments.golden     |   8 +-
+ src/pkg/go/printer/testdata/declarations.golden |  41 ++++--
+ src/pkg/go/printer/testdata/declarations.input  |  29 ++++-
+ src/pkg/go/types/testdata/exports.go            |  14 +--
+ src/pkg/http/spdy/protocol.go                   |  18 +--
+ src/pkg/rand/rand_test.go                       |   4 +-
+ src/pkg/runtime/softfloat64.go                  |   4 +-
+ 10 files changed, 216 insertions(+), 81 deletions(-)

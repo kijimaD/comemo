@@ -1,21 +1,49 @@
-commit 4234d1decd853b2373c17340eb4c0033c0fe9566
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 23 11:20:17 2017 -0400
+commit 1657d76d5bcb7beda816c2b7597262e1ee4fd9af
+Author: Tilman Dilo <tilman.dilo@gmail.com>
+Date:   Mon Dec 5 23:32:08 2016 +0100
 
-    runtime: improve systemstack-on-Go stack message
+    cmd/vet: fix panic and handling of XML in struct field tag check
     
-    We reused the old C stack check mechanism for the implementation of
-    //go:systemstack, so when we execute a //go:systemstack function on a
-    user stack, the system fails by calling morestackc. However,
-    morestackc's message still talks about "executing C code".
+    The check for duplicate struct field tags introduced in CL 16704
+    triggers a panic when an anonymous struct field with a duplicate name
+    is encountered. For such a field, the names slice of the ast.Field is
+    nil but accessed regardless to generate the warning message.
     
-    Fix morestackc's message to reflect its modern usage.
+    Additionally, the check produces false positives for XML tags in some
+    cases:
     
-    Change-Id: I7e70e7980eab761c0520f675d3ce89486496030f
-    Reviewed-on: https://go-review.googlesource.com/38572
-    Run-TryBot: Austin Clements <austin@google.com>
+    - When fields are encoded as XML attributes, a warning is produced when
+      an attribute reuses a name previously used for an element.
+    
+      Example:
+        type Foo struct {
+            First int `xml:"a"`
+            NoDup int `xml:"a,attr"` // warning about reuse of "a"
+        }
+    
+    - When XMLName is used to set the name of the enclosing struct element,
+      it is treated as a regular struct field.
+    
+      Example:
+        type Bar struct {
+            XMLName xml.Name `xml:"a"`
+            NoDup   int      `xml:"a"` // warning about reuse of "a"
+        }
+    
+    This commit addresses all three issues. The panic is avoided by using
+    the type name instead of the field name for anonymous struct fields when
+    generating the warning message. An additional namespace for checking XML
+    attribute names separately from element names is introduced. Lastly,
+    fields named XMLName are excluded from the check for duplicate tags.
+    
+    Updates #18256
+    
+    Change-Id: Ida48ea8584b56bd4d12ae3ebd588a66ced2594cc
+    Reviewed-on: https://go-review.googlesource.com/34070
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/stack.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/vet/structtag.go          | 25 ++++++++++++++++++++++++-
+ src/cmd/vet/testdata/structtag.go | 24 ++++++++++++++++++++----
+ 2 files changed, 44 insertions(+), 5 deletions(-)

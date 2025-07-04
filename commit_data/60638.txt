@@ -1,0 +1,20 @@
+commit 1d925fcc7e0b4c2fb9e671f5c868e52c6a48db1f
+Author: limeidan <limeidan@loongson.cn>
+Date:   Wed Nov 1 17:25:20 2023 +0800
+
+    cmd/link: add support for trampoline insertation on loong64
+    
+    Change-Id: I58c861d8403a77c1f3b55207d46076ba76eb1d45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540755
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+
+ src/cmd/link/internal/ld/data.go     |   8 ++-
+ src/cmd/link/internal/loong64/asm.go | 125 +++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/loong64/obj.go |   2 +
+ src/cmd/link/link_test.go            |   4 +-
+ 4 files changed, 136 insertions(+), 3 deletions(-)

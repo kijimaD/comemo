@@ -1,29 +1,37 @@
-commit 724fa12f91959d083e6165079463f5502e5df835
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 11 12:57:51 2014 -0700
+commit f545b05aaec2d13e664ce48ce2c258bcfce307c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 15:53:45 2014 -0400
 
-    go/printer, gofmt: don't align map entries for irregular inputs
+    runtime: make more functions safe for Go
     
-    Details: Until now, when we saw a key:value pair that fit onto
-    a single line, we assumed that it should be formatted with a
-    vtab after the ':' for alignment of its value. This leads to
-    odd behavior if there are more than one such pair on a line.
-    This CL changes the behavior such that alignment is only used
-    for the first pair on a line. This preserves existing behavior
-    (in the std lib we have composite literals where the last line
-    contains multiple entries and the first entry's value is aligned
-    with the values on previous lines), and resolves this issue.
+    Convert no-op race functions.
+    Everything else is tiny and gets NOSPLITs.
     
-    No impact on formatting of std lib, go.tools, go.exp, go.net.
+    After this, all that is left on darwin is sysAlloc, panic, and gothrow (all pending).
+    There may be system-specific calls in other builds.
     
-    Fixes #8685.
-    
-    LGTM=adonovan
-    R=adonovan
-    CC=golang-codereviews
-    https://golang.org/cl/139430043
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=dvyukov, golang-codereviews, khr, r
+    https://golang.org/cl/140240044
 
- src/go/printer/nodes.go                     | 16 ++++++++++------
- src/go/printer/testdata/declarations.golden | 25 ++++++++++++++++++++++++-
- src/go/printer/testdata/declarations.input  | 25 +++++++++++++++++++++++++
- 3 files changed, 59 insertions(+), 7 deletions(-)
+ src/pkg/runtime/cgocall.go     |   4 +-
+ src/pkg/runtime/os_darwin.c    |   1 +
+ src/pkg/runtime/os_dragonfly.c |  24 +++++++-
+ src/pkg/runtime/os_freebsd.c   |  24 +++++++-
+ src/pkg/runtime/os_linux.c     |  25 ++++++++-
+ src/pkg/runtime/os_nacl.c      |  72 ++++++++++++++++++++----
+ src/pkg/runtime/os_netbsd.c    |   1 +
+ src/pkg/runtime/os_openbsd.c   |   1 +
+ src/pkg/runtime/os_plan9.c     |   1 +
+ src/pkg/runtime/os_solaris.c   |   1 +
+ src/pkg/runtime/os_windows.c   |   1 +
+ src/pkg/runtime/proc.c         |  20 ++++++-
+ src/pkg/runtime/race.c         |  56 ++++++++-----------
+ src/pkg/runtime/race.go        |  69 ++++++++++++++++++++++-
+ src/pkg/runtime/race0.c        | 124 -----------------------------------------
+ src/pkg/runtime/race0.go       |  25 +++++++--
+ src/pkg/runtime/slice.go       |   8 +--
+ src/pkg/runtime/string.go      |   6 +-
+ src/pkg/runtime/stubs.go       |  31 -----------
+ 19 files changed, 274 insertions(+), 220 deletions(-)

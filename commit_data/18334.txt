@@ -1,16 +1,26 @@
-commit f7245c062668199fcb505de47d694ceaed512394
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 22 16:39:39 2014 -0500
+commit 52125738f3ca6f30364eebf0f4d673f73a71c248
+Author: Jeff Sickel <jas@corpus-callosum.com>
+Date:   Wed Jan 22 22:21:53 2014 +0100
 
-    runtime: fix typo in ARM code
+    net: plan9 changes for default net directory
     
-    The typo was introduced by one of Dmitriy's CLs this morning.
-    The fix makes the ARM build compile again; it still won't pass
-    its tests, but one thing at a time.
+    This change include updates to the probeIPv4Stack
+    and probeIPv6Stack to ensure that one or both
+    protocols are supported by ip(3).
+    The addition of fdMutex to netFD fixes the
+    TestTCPConcurrentAccept failures.
+    Additional changes add support for keepalive.
     
-    TBR=dvyukov
-    CC=golang-codereviews
-    https://golang.org/cl/55770044
+    R=golang-codereviews, 0intro
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/49920048
 
- src/pkg/runtime/atomic_arm.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/fd_plan9.go         | 111 ++++++++++++++++++++++++++++++++++++++--
+ src/pkg/net/file_plan9.go       |  10 ++--
+ src/pkg/net/ipsock_plan9.go     |  62 ++++++++++++++++------
+ src/pkg/net/lookup_plan9.go     |   8 +--
+ src/pkg/net/sockopt_plan9.go    |  13 +++++
+ src/pkg/net/tcpsock_plan9.go    |  10 +++-
+ src/pkg/net/tcpsockopt_plan9.go |  18 +++++++
+ src/pkg/net/udpsock_plan9.go    |   3 +-
+ 8 files changed, 202 insertions(+), 33 deletions(-)

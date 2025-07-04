@@ -1,31 +1,40 @@
-commit bf9ad7080d0a22acf502a60d8bc6ebbc4f5340ef
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 15 14:43:05 2017 -0800
+commit 9c99512d188b01557f5271b2c65d814487817920
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Aug 18 14:03:33 2017 -0500
 
-    runtime: remove another TODO
+    cmd/compile/internal/ssa: combine consecutive loads and stores on amd64
     
-    I experimented with having the compiler spill the two registers that
-    are clobbered by the write barrier fast path, but it slightly slows
-    down compilebench, which is a good write barrier benchmark:
+    Sometimes (often for calls) we generate code like this:
     
-    name       old time/op     new time/op     delta
-    Template       175ms ± 0%      176ms ± 1%    ~           (p=0.393 n=10+10)
-    Unicode       83.6ms ± 1%     85.1ms ± 2%  +1.79%         (p=0.000 n=9+10)
-    GoTypes        585ms ± 0%      588ms ± 1%    ~            (p=0.173 n=8+10)
-    Compiler       2.78s ± 1%      2.81s ± 2%  +0.81%        (p=0.023 n=10+10)
-    SSA            7.11s ± 1%      7.15s ± 1%  +0.59%        (p=0.029 n=10+10)
-    Flate          115ms ± 1%      116ms ± 2%    ~           (p=0.853 n=10+10)
-    GoParser       144ms ± 2%      145ms ± 2%    ~           (p=1.000 n=10+10)
-    Reflect        389ms ± 1%      390ms ± 1%    ~           (p=0.481 n=10+10)
-    Tar            185ms ± 2%      185ms ± 2%    ~           (p=0.529 n=10+10)
-    XML            205ms ± 0%      207ms ± 2%    ~            (p=0.065 n=9+10)
+    MOVQ  (addr),AX
+    MOVQ  8(addr),BX
+    MOVQ  AX,(otheraddr)
+    MOVQ  BX,8(otheraddr)
     
-    Since this didn't pan out, remove the TODO.
+    Replace it with
     
-    Change-Id: I2186942c6d1ba10585a5da03cd7c1d26ce906273
-    Reviewed-on: https://go-review.googlesource.com/78034
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    MOVUPS (addr),X0
+    MOVUPS X0,(otheraddr)
+    
+    For completeness do the same for 8,16,32-bit loads/stores too.
+    Shaves 1% from code sections of go tool.
+    
+    /localdisk/itocar/golang/bin/go 10293917
+    go_old 10334877 [40960 bytes]
+    
+    read-only data = 682 bytes (0.040769%)
+    global text (code) = 38961 bytes (1.036503%)
+    Total difference 39643 bytes (0.674628%)
+    
+    Updates #6853
+    
+    Change-Id: I1f0d2f60273a63a079b58927cd1c4e3429d2e7ae
+    Reviewed-on: https://go-review.googlesource.com/57130
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/asm_amd64.s | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go      | 268 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  52 +++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 289 ++++++++++++++++++++++++++-
+ 3 files changed, 600 insertions(+), 9 deletions(-)

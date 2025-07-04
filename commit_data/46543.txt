@@ -1,34 +1,43 @@
-commit 98989f2a74aa53e9ea64c41c94e66f02beceecc9
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Sep 21 14:35:37 2021 -0400
+commit 6192b9875128c5f53a69b959d5a1abf0f10ae93f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jan 7 11:14:06 2021 -0500
 
-    cmd/compile, cmd/link: avoid ABI aliases
+    cmd/go: make hints in error messages more consistent
     
-    In the past we introduced ABI aliases, in preparation for ABI
-    wrappers. Now that we have ABI wrappers implemented, we don't
-    need ABI aliases. If ABI wrappers are not enabled, ABI0 and
-    ABIInternal are actually identical, so we can resolve symbol
-    references without distinguish them. This CL does so by
-    normalizing ABIInternal to ABI0 at link time. This way, we no
-    longer need to generate ABI aliases.
+    * All commands the user can run to fix the problem now appear alone on
+      a separate line after a tab.
+    * Removed -d from 'go get' commands.
+    * Replaced 'go mod tidy' with 'go mod download $modpath' when a
+      package might be provided by a module missing a sum.
+    * Errors about 'path@version' syntax are more explicit.
     
-    This CL doesn't clean up everything related to ABI aliases, which
-    will be done in followup CLs.
+    Fixes #29415
+    Fixes #42087
+    Fixes #43430
+    Fixes #43523
     
-    Change-Id: I5b5db43370d29b8ad153078c70a853e3263ae6f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351271
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I4427c2c4506a727a2c727d652fd2d506bb134d3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282121
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssagen/abi.go | 20 --------------------
- src/cmd/internal/goobj/builtin.go      |  4 +++-
- src/cmd/link/internal/ld/deadcode.go   | 10 ++++++----
- src/cmd/link/internal/ld/lib.go        | 27 +++++++--------------------
- src/cmd/link/internal/ld/macho.go      |  3 +--
- src/cmd/link/internal/ld/main.go       |  4 ++++
- src/cmd/link/internal/ld/pcln.go       |  2 +-
- src/cmd/link/internal/loader/loader.go |  2 +-
- src/cmd/link/internal/sym/symbol.go    |  6 ++++++
- 9 files changed, 29 insertions(+), 49 deletions(-)
+ src/cmd/go/go_test.go                                   |  4 ++--
+ src/cmd/go/internal/get/get.go                          |  2 +-
+ src/cmd/go/internal/load/pkg.go                         |  6 +-----
+ src/cmd/go/internal/modget/get.go                       |  2 +-
+ src/cmd/go/internal/modload/import.go                   | 14 ++++++++------
+ src/cmd/go/internal/modload/init.go                     |  2 +-
+ src/cmd/go/internal/modload/load.go                     |  2 +-
+ src/cmd/go/internal/modload/vendor.go                   |  2 +-
+ src/cmd/go/internal/test/testflag.go                    |  2 +-
+ src/cmd/go/testdata/script/mod_get_promote_implicit.txt | 10 +++++++---
+ src/cmd/go/testdata/script/mod_get_retract.txt          |  2 +-
+ src/cmd/go/testdata/script/mod_invalid_path.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_sum_ambiguous.txt        |  8 ++++++--
+ src/cmd/go/testdata/script/mod_sum_readonly.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt          |  6 +++---
+ src/cmd/go/testdata/script/mod_versions.txt             |  6 +++---
+ src/cmd/go/testdata/script/test_flag.txt                |  6 +++---
+ 17 files changed, 42 insertions(+), 36 deletions(-)

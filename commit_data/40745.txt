@@ -1,21 +1,12 @@
-commit d43180429552dd09ba98f1af7bd25c245cf8531e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Nov 11 14:24:00 2019 -0500
+commit 816ce1a23aa42ecc44edc0f19e656556fc2d09d2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 24 18:03:57 2019 -0400
 
-    cmd/go/internal/modcmd: skip modules with empty version strings
+    doc/go1.13: describe 'go env -w'
     
-    This CL restores behavior before CL 189797 and fixes a misleading
-    comment. modload.ListModules may return info without a version for the
-    main module and for modules replaced with local directories.
-    
-    Fixes #35505
-    
-    Change-Id: I5b4e68053a680ff897b072fdf6e7aa17b6e1ac34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206538
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I0c8c30b40a33763dc34f15d144346eb1a0997df2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183631
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modcmd/download.go                   |  8 ++++----
- src/cmd/go/testdata/script/mod_download_replace_file.txt | 16 ++++++++++++++++
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ doc/go1.13.html | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

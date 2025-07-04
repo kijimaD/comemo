@@ -1,22 +1,14 @@
-commit 6f135bfd922cafd000497467c73cc03cfa788fa6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 14 18:44:59 2016 +0000
+commit c08436d1c897996055892882d23ce6778f3492f7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 18 15:20:56 2016 -0700
 
-    math/big: cut 2 minutes off race tests
+    runtime: print PC, not the counter, for a cgo traceback
     
-    No need to test so many sizes in race mode, especially for a package
-    which doesn't use goroutines.
-    
-    Reduces test time from 2.5 minutes to 25 seconds.
-    
-    Updates #17104
-    
-    Change-Id: I7065b39273f82edece385c0d67b3f2d83d4934b8
-    Reviewed-on: https://go-review.googlesource.com/29163
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I54ed7a26a753afb2d6a72080e1f50ce9fba7c183
+    Reviewed-on: https://go-review.googlesource.com/23228
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/arith_test.go   | 13 +++++++++++++
- src/math/big/gcd_test.go     |  3 +++
- src/math/big/int_test.go     |  6 ++++++
- src/math/big/natconv_test.go |  6 ++++++
- 4 files changed, 28 insertions(+)
+ src/runtime/traceback.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

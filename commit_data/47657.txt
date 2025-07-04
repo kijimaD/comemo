@@ -1,19 +1,19 @@
-commit 6c4bf8fb8a2216a09d22ae0c87a04b7865f794c8
-Author: Baokun Lee <bk@golangcn.org>
-Date:   Wed Dec 1 17:48:55 2021 +0800
+commit 042f4cbb6fbd7f9e6a6587fb3bee2d1716184f9a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 2 17:20:15 2021 -0400
 
-    cmd/go/internal/modfetch: remove legacy code
+    cmd/internal/obj/riscv: simplify huge frame prologue
     
-    ReadFileRevs function is no longer used.
+    CL 307010 for riscv64.
     
-    Change-Id: Ibac6319dca4cf8010195e7c2fb502655494fb728
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367756
-    Run-TryBot: Baokun Lee <bk@golangcn.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Baokun Lee <bk@golangcn.org>
+    Some of the comments on the other prologue paths were wrong, so this
+    CL also fixes them up.
+    
+    Change-Id: Icdca1ade3a47ae6e2467af832690d40689dbe1b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307150
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modfetch/codehost/codehost.go |  15 ---
- src/cmd/go/internal/modfetch/codehost/git.go      | 134 ----------------------
- src/cmd/go/internal/modfetch/codehost/vcs.go      |  13 ---
- 3 files changed, 162 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 99 ++++++++++++++-------------------------
+ 1 file changed, 34 insertions(+), 65 deletions(-)

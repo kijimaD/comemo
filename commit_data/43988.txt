@@ -1,22 +1,46 @@
-commit 6a64f6dc31b3038187ce9246bdf438be9cc94bae
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Tue Nov 24 12:58:21 2020 -0500
+commit bed93255ba3f00765d4ff5992a7fffac4c773dc8
+Merge: c12d7020f4 1667b35740
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 1 10:14:00 2020 -0400
 
-    cmd/go: encode backslash and newline in response files
+    cmd: merge branch 'dev.link' into master
     
-    Fixes #42295
+    In the dev.link branch we continued developing the new object
+    file format support and the linker improvements described in
+    https://golang.org/s/better-linker . Since the last merge, more
+    progress has been made to improve the new linker, with
+    improvements on both linker speed and memory usage.
     
-    Change-Id: Ie324bc99a74c1d864c6c2da2e7b929b338c2e033
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272870
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    This is a clean merge.
+    
+    Change-Id: I38516d6c4b41021bc61c1b9886e701de5fa2b0f1
 
- src/cmd/go/go_test.go                 | 25 ++++++++++
- src/cmd/go/internal/work/exec.go      | 36 ++++++++++++---
- src/cmd/go/internal/work/exec_test.go | 86 +++++++++++++++++++++++++++++++++++
- src/cmd/internal/objabi/flag.go       | 39 ++++++++++++++++
- src/cmd/internal/objabi/flag_test.go  | 26 +++++++++++
- 5 files changed, 206 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/amd64/asm.go       |  32 +-
+ src/cmd/link/internal/amd64/obj.go       |   2 +-
+ src/cmd/link/internal/arm/asm.go         |   6 +-
+ src/cmd/link/internal/arm64/asm.go       |   6 +-
+ src/cmd/link/internal/ld/data.go         | 576 ++++++++++++++++++-------------
+ src/cmd/link/internal/ld/deadcode.go     |  38 +-
+ src/cmd/link/internal/ld/decodesym.go    | 201 +++++++++--
+ src/cmd/link/internal/ld/decodesym2.go   | 174 ----------
+ src/cmd/link/internal/ld/dwarf.go        |  30 +-
+ src/cmd/link/internal/ld/dwarf2.go       |   1 +
+ src/cmd/link/internal/ld/elf.go          |  33 +-
+ src/cmd/link/internal/ld/elf2.go         |  54 +++
+ src/cmd/link/internal/ld/lib.go          |  35 +-
+ src/cmd/link/internal/ld/main.go         |  14 +-
+ src/cmd/link/internal/ld/pe.go           |   2 +-
+ src/cmd/link/internal/ld/typelink.go     |   2 +-
+ src/cmd/link/internal/ld/xcoff.go        |   2 +-
+ src/cmd/link/internal/loader/loader.go   | 255 +++++++++++---
+ src/cmd/link/internal/mips/asm.go        |   2 +-
+ src/cmd/link/internal/mips64/asm.go      |   2 +-
+ src/cmd/link/internal/ppc64/asm.go       |   6 +-
+ src/cmd/link/internal/s390x/asm.go       |   4 +-
+ src/cmd/link/internal/sym/reloc.go       |   8 +-
+ src/cmd/link/internal/sym/sizeof_test.go |   2 +-
+ src/cmd/link/internal/sym/symbol.go      |   1 -
+ src/cmd/link/internal/sym/symbols.go     |   5 -
+ src/cmd/link/internal/x86/asm.go         |  20 +-
+ src/cmd/link/internal/x86/obj.go         |   2 +-
+ 28 files changed, 910 insertions(+), 605 deletions(-)

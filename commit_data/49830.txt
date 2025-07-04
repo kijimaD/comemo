@@ -1,13 +1,18 @@
-commit cc9584b54bcbe8f537805e8df36fada349602c59
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat May 21 00:20:47 2022 +0800
+commit 738cebb1747335c182af64614041ceb2b2303f74
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 14 13:23:37 2021 -0700
 
-    runtime: eliminate a few usages of named return values in functions to make it consistent
+    cmd/compile/internal/types2: implement Identical for *Union types
     
-    Change-Id: Ia7d72b134a52627fd3c19a3c238fba8deb5e01c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407534
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    This is a clean port of CL 349413 from go/types to types2.
+    
+    Change-Id: I18bad5e29b1e719b30a73fb2aa32fe252538496e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349992
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/proc.go | 18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go   | 42 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/predicates.go |  7 +++++
+ 2 files changed, 49 insertions(+)

@@ -1,28 +1,19 @@
-commit 5881ae742fc7eaa9b7d61b4ba37598c42aaa4753
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri May 10 18:52:41 2024 -0400
+commit d8ab19b2f2d754e374af7fc643dac5224667310b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 9 09:00:02 2023 -0400
 
-    cmd: vendor golang.org/x/telemetry@51e8b5d
+    net/http: regenerate h2_bundle.go
     
-    Commands run
-        go get golang.org/x/telemetry@51e8b5d
-        go mod tidy
-        go mod vendor
+    The x/net version was updated in CL 493596; cmd/internal/moddeps
+    catches the skew, but only runs on the -longtest builders (because it
+    requires network access for the bundle tool and x/net dependency).
     
-    Change-Id: Ie11f207d25902c3ef932237eec66bdd586564fc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584237
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I48891d51aab23b2ca6f4484215438c60bd8c8c21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +-
- src/cmd/vendor/golang.org/x/telemetry/dir.go       | 12 +++++
- .../x/telemetry/internal/counter/file.go           |  6 +--
- .../x/telemetry/internal/counter/parse.go          | 17 +------
- .../golang.org/x/telemetry/internal/upload/date.go | 47 +++++++++----------
- .../x/telemetry/internal/upload/findwork.go        | 18 +++++---
- .../x/telemetry/internal/upload/reports.go         | 52 +++++++++++++---------
- .../golang.org/x/telemetry/internal/upload/run.go  |  4 +-
- .../x/telemetry/internal/upload/upload.go          | 20 ++++-----
- src/cmd/vendor/modules.txt                         |  2 +-
- 11 files changed, 96 insertions(+), 88 deletions(-)
+ src/net/http/h2_bundle.go | 30 ++++++++++++++++++++++++------
+ 1 file changed, 24 insertions(+), 6 deletions(-)

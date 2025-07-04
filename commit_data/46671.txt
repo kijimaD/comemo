@@ -1,19 +1,85 @@
-commit 5930cff093c44b86a299c1841ab4e6a2c7a239d2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Sep 29 10:16:47 2021 -0700
+commit ecf4ebf10054f70e51a0ce759b2ae91aa4febd1a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Dec 5 15:03:27 2020 -0500
 
-    debug/gosym: add benchmark
+    cmd/internal/moddeps: check content of all modules in GOROOT
     
-    Use a Go 1.15 executable for the benchmark, because it is handy.
-    Most of the code paths are shared for Go 1.2+.
+    Expand the scope of the TestAllDependenciesVendored test to check
+    that all modules in GOROOT are tidy, that packages are vendored,
+    the vendor content matches the upstream copy exactly, and that
+    bundled packages are re-generated (using x/tools/cmd/bundle at
+    the version selected in cmd module; this is deterministic and
+    guaranteed to be updated over time).
     
-    Change-Id: Id7ddc76a05d76335108c58ff9f1ab2ff837b7227
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353131
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This is done in a conceptually simple way:
+    
+    1.      Make a temporary copy of the entire GOROOT tree (except .git),
+            one that is safe to modify.
+    2.      Run a list of high-level commands, the same commands we expect
+            Go developers should be able to run in a normal complete GOROOT
+            tree to make it clean and tidy.
+    3.      Diff the end result with the original GOROOT tree being tested
+            to catch any unexpected differences.
+    
+    The current set of commands that are run require the cmd/go command,
+    and a functional compiler itself (because re-generating the syscall
+    package involves a directive like //go:generate go run [...]). As a
+    result, copying a large majority of the GOROOT tree is a requirement.
+    
+    Instead of looking for the few files or directories that can we can
+    get away not copying (e.g., the testdata directories aren't strictly
+    needed at this time), we opt not to optimize and just do the simple
+    copy. This is motivated by these reasons:
+    
+    •       We end up having a complete, normal GOROOT tree, one that happens
+            to be located at another path. There's a very high likelihood that
+            module management/code generation commands, both the ones we run
+            today and any additional ones that we might want to add in the
+            future, will result in correct results even as the Go project
+            evolves over time.
+    
+    •       Having a completely stand-alone copy of the GOROOT tree without
+            symlinks minimizes the risk of some of the module management/code
+            generation commands, either now or in the future, from modifying
+            the user's original GOROOT tree, something that should not happen
+            during test execution. Overlays achieved with symlinks work well
+            when we can guarantee only new files are added, but that isn't
+            the case here.
+    
+    •       Copying the entire GOROOT (without .git), takes around 5 seconds
+            on a fairly modern computer with an SSD. The most we can save is
+            a couple of seconds.
+    
+    (We make some minor exceptions: the GOROOT/.git directory isn't copied,
+    and GOROOT/{bin,pkg} are deemed safe to share and thus symlink instead
+    of copying. If these optimizations cease to be viable to make, we'll
+    need to remove them.)
+    
+    Since this functionality is fairly expensive to execute and requires
+    network access, it runs only when the test is executed without -short
+    flag. The previous behavior of the TestAllDependenciesVendored test is
+    kept in -short test mode. all.bash runs package tests with -short flag,
+    so its behavior is unchanged. The expectation is that the new test will
+    run on some of the longtest builders to catch problems. Users can invoke
+    the test manually 'go test cmd/internal/moddeps' (and it's run as part
+    of 'go test cmd', again, only when -short flag isn't provided).
+    
+    On a 2017 MacBook Pro, a successful long test takes under 15 seconds,
+    which should be within scope of all long tests that are selected by
+    'go test std cmd'. We may further adjust when and where the test runs
+    by default based on our experience.
+    
+    Fixes #36852.
+    Fixes #41409.
+    Fixes #43687.
+    Updates #43440.
+    
+    Change-Id: I9eb85205fec7ec62e3f867831a0a82e3c767f618
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283643
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/debug/gosym/pclntab_test.go | 91 +++++++++++++++++++++++++++++++++++++----
- 1 file changed, 84 insertions(+), 7 deletions(-)
+ src/cmd/internal/moddeps/moddeps_test.go | 400 ++++++++++++++++++++++++-------
+ 1 file changed, 316 insertions(+), 84 deletions(-)

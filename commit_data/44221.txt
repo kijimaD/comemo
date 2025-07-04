@@ -1,20 +1,24 @@
-commit 4516afebedd18692c6dc70cbdee16a049c26024b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 5 10:55:12 2021 -0500
+commit c5a9b3d63a78e356047e396ee39f588231d7d31e
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue May 26 14:59:40 2020 -0400
 
-    testing/fstest: avoid symlink-induced failures in tester
+    [dev.link] cmd/link: simplify asmb2
     
-    Do not require directory entry and Stat result to match for symlinks,
-    because they won't (Stat dereferences the symlink).
+    Move lots of the binary-file format specific pieces into their
+    appropriate places. Similarly rescope some variables to just ld.
     
-    Fixes #44113.
-    
-    Change-Id: Ifc6dbce5719906e2f42254a7172f1ef787464a9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/290009
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I74bc6d8aba58f5ac86e6579be1fcb356c4636825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235278
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/testing/fstest/testfs.go      | 25 ++++++++++++++++++-------
- src/testing/fstest/testfs_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/ld/asmb.go   | 94 ++++++++++++++++++--------------------
+ src/cmd/link/internal/ld/elf.go    | 18 ++++++--
+ src/cmd/link/internal/ld/lib.go    |  6 +--
+ src/cmd/link/internal/ld/macho.go  |  8 ++++
+ src/cmd/link/internal/ld/symtab.go |  6 +--
+ src/cmd/link/internal/ld/xcoff.go  |  8 +++-
+ 6 files changed, 79 insertions(+), 61 deletions(-)

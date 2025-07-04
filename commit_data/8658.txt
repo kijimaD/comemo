@@ -1,19 +1,17 @@
-commit a609a6bb6386494e1025d4195b29abe7d97f1121
+commit 21032ebebd164aaf2c128304ff116859096449d4
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 8 09:10:30 2011 -0700
+Date:   Wed Jun 8 09:10:01 2011 -0700
 
-    ebnf: follow EBNF for EBNF faithfully
+    big: gobs for big rats
     
-    Apply analogous changes in godoc/spec.go.
+    Fixes #1926.
     
-    Fixes #1829.
-    
-    R=nmessenger, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4528127
+    https://golang.org/cl/4550122
 
- src/cmd/godoc/spec.go     |  7 ++++++-
- src/pkg/ebnf/ebnf.go      |  7 +++++++
- src/pkg/ebnf/ebnf_test.go | 33 ++++++++++++++++++++++++++++-----
- src/pkg/ebnf/parser.go    | 19 ++++++++++---------
- 4 files changed, 51 insertions(+), 15 deletions(-)
+ src/pkg/big/int.go      |  8 ++++----
+ src/pkg/big/int_test.go |  6 ++++--
+ src/pkg/big/rat.go      | 43 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/big/rat_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 85 insertions(+), 6 deletions(-)

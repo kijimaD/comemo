@@ -1,20 +1,13 @@
-commit b91aea55366d3f72c6f16a2cb5651b4e3aa5fb0c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 6 18:00:06 2014 -0400
+commit 9512e470e10df9304ca54989015e76b46db4f540
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 6 16:16:28 2014 -0400
 
-    encoding/xml: add InputOffset method to Decoder
+    [dev.power64] cmd/dist: recognize power64 and power64le as GOHOSTARCH
     
-    Among other things, this allows users to match the decoded
-    pieces with the original XML, which can be necessary for
-    implementing standards like XML signatures.
-    
-    Fixes #8484.
-    
-    LGTM=bradfitz
-    R=bradfitz
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/122960043
+    https://golang.org/cl/125760043
 
- src/pkg/encoding/xml/xml.go      | 11 +++++++++++
- src/pkg/encoding/xml/xml_test.go | 31 +++++++++++++++++++++++++++----
- 2 files changed, 38 insertions(+), 4 deletions(-)
+ src/cmd/dist/unix.c | 4 ++++
+ 1 file changed, 4 insertions(+)

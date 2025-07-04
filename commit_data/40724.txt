@@ -1,22 +1,16 @@
-commit 40ebcfaa174a0e789cd214236d9edaaa8a8262d3
-Author: David Chase <drchase@google.com>
-Date:   Tue Oct 29 14:24:43 2019 -0400
+commit 851616d291160325dc820378671733e46411bd56
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 21 15:03:57 2019 -0400
 
-    cmd/compile: enable nil check logging for other architectures.
+    cmd/go/testdata: update addmod.go to work with the mainline go command
     
-    Change-Id: If82ebd9cd6470863eb5de9e031e7905a66218857
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204159
-    Run-TryBot: David Chase <drchase@google.com>
+    Updates #32715
+    
+    Change-Id: I4ea41d7bd1a2daeba8cebb283aaa096b6c3d4533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183401
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go  | 2 +-
- src/cmd/compile/internal/arm/ssa.go    | 4 ++++
- src/cmd/compile/internal/arm64/ssa.go  | 4 ++++
- src/cmd/compile/internal/mips/ssa.go   | 4 ++++
- src/cmd/compile/internal/mips64/ssa.go | 4 ++++
- src/cmd/compile/internal/ppc64/ssa.go  | 4 ++++
- src/cmd/compile/internal/s390x/ssa.go  | 4 ++++
- src/cmd/compile/internal/wasm/ssa.go   | 4 ++++
- src/cmd/compile/internal/x86/ssa.go    | 4 ++++
- 9 files changed, 33 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/addmod.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

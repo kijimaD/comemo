@@ -1,13 +1,15 @@
-commit 4a4d48328bb3f24aad5b25ac55c42a561d4a6341
+commit 2a983aa3117a1647be2759edad8643cfdd5c7398
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Jul 12 05:06:43 2013 +0800
+Date:   Fri Jul 12 04:35:53 2013 +0800
 
-    runtime: fix build for windows.
+    cmd/cgo: silence two gcc warnings for *.cgo2.c
+    1. "int e;" is unused, generating "unused variable" error.
+    2. a->e was typed void *[2], but was accessed with *(int *)(a->e), this
+    generated "dereferencing type-punned pointer will break strict-aliasing rules" error.
     
-    R=golang-dev
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/11188043
+    https://golang.org/cl/11009043
 
- src/pkg/runtime/sys_windows_386.s   | 4 ++--
- src/pkg/runtime/sys_windows_amd64.s | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/cgo/out.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

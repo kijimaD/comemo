@@ -1,14 +1,13 @@
-commit 3c0a5b8636409ca69f6afa8309e6cbe299a5af1d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 3 10:41:28 2013 -0700
+commit 995eb2cf5166908d2eddde6829c79aa5908ef11b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 3 10:40:04 2013 -0700
 
-    api: update next.txt.
+    bufio: make it a little clearer how the default Scanner splits lines.
+    Just commentary, no semantic change.
     
-    Update #4871
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8287044
+    https://golang.org/cl/8329043
 
- api/next.txt | 28 ++++++++++++++++++----------
- 1 file changed, 18 insertions(+), 10 deletions(-)
+ src/pkg/bufio/scan.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,38 +1,22 @@
-commit 1a6c0c6baf658fd64ecbd87a6d94aa75f4ae23b6
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Mar 4 09:07:29 2019 -0500
+commit 965fa3b191270bbc23a040a520ce43406ba29343
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 16 12:49:17 2018 -0700
 
-    cmd/go: document GoVersion field in Module struct
+    cmd/compile: remove -dolinkobj flag
     
-    The 'go version' statement was added during Go 1.11 development in
-    CL 125940. That CL added the GoVersion field to modinfo.ModulePublic
-    struct, but did not document it in cmd/go documentation. This was
-    consistent with the CL description, which stated "We aren't planning
-    to use this or advertise it much yet".
+    This used to be used by cmd/vet and some assembly generation tests, but
+    those were removed in CL 37691 and CL 107336. No point in keeping an
+    unneeded flag around.
     
-    CL 147281, applied during Go 1.12 development, was a change to start
-    adding the 'go version' statement when initializing go.mod. The 'go
-    version' statement is now being used, and it has been documented in
-    the Go 1.12 release notes at https://golang.org/doc/go1.12#modules.
-    It's now due time to documement the GoVersion field in cmd/go as well.
+    Fixes #28220.
     
-    Keep the Error field bottom-most, both because it makes sense not to
-    place it in the middle of other fields, and for consistency with the
-    field order in struct Package, where the Error information is located
-    at the very bottom.
-    
-    Regenerate alldocs.go by running mkalldocs.sh.
-    
-    Updates #28221
-    Updates #23969
-    
-    Change-Id: Iaf43a0da4f6a2489d861092a1d4e002a532952cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164878
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I59f8546954ab36ea61ceba81c10d6e16d74b966a
+    Reviewed-on: https://go-review.googlesource.com/c/142677
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go               | 23 ++++++++++++-----------
- src/cmd/go/internal/list/list.go    | 23 ++++++++++++-----------
- src/cmd/go/internal/modinfo/info.go |  2 +-
- 3 files changed, 25 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/go.go   |   1 -
+ src/cmd/compile/internal/gc/main.go | 113 ++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/obj.go  |   4 --
+ 3 files changed, 55 insertions(+), 63 deletions(-)

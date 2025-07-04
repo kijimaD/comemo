@@ -1,15 +1,18 @@
-commit 68557de116fe7007541d54f08bffbdd06354f1f9
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jul 27 12:19:00 2015 +0900
+commit b1be1217914a3f3698eb1361e750fbb36fb96b2e
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Jun 16 23:42:23 2015 +0200
 
-    net: deflake TestDialTimeout{,FDLeak} in the case of TCP simultaneous open
+    os: skip TestHostname on Plan 9
     
-    Fixes #11872.
+    TestHostname was re-enabled in CL 10753.
+    However, on Plan 9 the hostname is not obtained
+    by executing a "hostname" command, but by reading
+    the #c/sysname file.
     
-    Change-Id: Ibc7d8438374c9d90fd4cbefb61426c7f4f96af0d
-    Reviewed-on: https://go-review.googlesource.com/12691
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I80c0e303f4983fe39ceb300ad64e2c4a8392b695
+    Reviewed-on: https://go-review.googlesource.com/11033
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dial_test.go    | 24 ++++++++++++++++++++----
- src/net/timeout_test.go | 13 +++++++++++++
- 2 files changed, 33 insertions(+), 4 deletions(-)
+ src/os/os_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit b1fd047508aad9f5038dc04d78146cc582328bf5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jun 15 01:28:46 2024 +1000
+
+    cmd/internal/obj/arm64: fix return with register
+    
+    ARM64 allows for a register to be specified with a return
+    instruction. While the assembler parsing and encoding currently
+    supports this, the preprocess function uses LR unconditionally.
+    Correct this such that if a register is specified, the register
+    is used.
+    
+    Change-Id: I708f6c7e910d141559b60d2d5ee76ae2e1dc3a0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592796
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s |  6 +++++-
+ src/cmd/internal/obj/arm64/obj7.go        | 12 +++++++-----
+ 2 files changed, 12 insertions(+), 6 deletions(-)

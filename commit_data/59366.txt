@@ -1,18 +1,19 @@
-commit 42d3cdc9090a307a24b2233dd0232e7eb1ebc6d8
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Wed Sep 27 12:57:06 2023 +0000
+commit 8d3703ed77af699db9d28ace26081b84dc3706e7
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Mar 7 11:16:17 2024 +0800
 
-    sync/atomic: document that atomic types should not be copied
+    all: remove redundant string conversions when formatting []byte with %s
     
-    Change-Id: I3c557d02cd676a389b5c5ea70ed92c8959041e3b
-    GitHub-Last-Rev: 8732da19a64853834ca155cafc1d7b2967290c31
-    GitHub-Pull-Request: golang/go#63256
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531375
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I1285ee047fd465f48028186ae04d4de60cc9969e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569715
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Sean Liao <sean@liao.dev>
 
- src/sync/atomic/type.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/covdata/tool_test.go | 2 +-
+ src/cmd/dist/testjson.go     | 2 +-
+ src/net/http/cgi/host.go     | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

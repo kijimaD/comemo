@@ -1,13 +1,12 @@
-commit 4b7fab83b571813ad56a15b653ed0ade0cf5b52e
+commit 5eb8c9baa7ad4b7897c4360809a16481d90ef51f
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 20 14:01:32 2011 +1100
+Date:   Thu Jan 20 12:56:32 2011 +1100
 
-    release.2011-01-19
+    net: remove duplicate import of runtime
     
-    R=r, rsc, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4087041
+    https://golang.org/cl/3999046
 
- .hgtags                |  1 -
- doc/devel/release.html | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_windows.go | 1 -
+ 1 file changed, 1 deletion(-)

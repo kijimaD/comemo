@@ -1,14 +1,49 @@
-commit b00105d87867f7205dd13d9ec251981ed840992b
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Jan 7 12:50:13 2016 +1300
+commit 02f4d0a130ba95d7a03418c3ef308d7d21b34af3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 2 08:10:26 2015 -0800
 
-    doc: update 1.6 release notes with buildmode progress
+    [dev.ssa] cmd/compile: start arguments as spilled
     
-    Fixes #13358
+    Declare a function's arguments as having already been
+    spilled so their use just requires a restore.
     
-    Change-Id: I57ed50c2610cab11fb3d9749f9e7d4a37daa7977
-    Reviewed-on: https://go-review.googlesource.com/18276
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Allow spill locations to be portions of larger objects the stack.
+    Required to load portions of compound input arguments.
+    
+    Rename the memory input to InputMem.  Use Arg for the
+    pre-spilled argument values.
+    
+    Change-Id: I8fe2a03ffbba1022d98bfae2052b376b96d32dda
+    Reviewed-on: https://go-review.googlesource.com/16536
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.6.html | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go            |   3 +
+ src/cmd/compile/internal/gc/ssa.go             |  54 +++++--
+ src/cmd/compile/internal/ssa/compile.go        |   2 +-
+ src/cmd/compile/internal/ssa/config.go         |   2 +-
+ src/cmd/compile/internal/ssa/deadcode.go       |  34 ++--
+ src/cmd/compile/internal/ssa/deadcode_test.go  |   8 +-
+ src/cmd/compile/internal/ssa/deadstore_test.go |   6 +-
+ src/cmd/compile/internal/ssa/decompose.go      |  69 ++++++++-
+ src/cmd/compile/internal/ssa/dom_test.go       |  26 ++--
+ src/cmd/compile/internal/ssa/func.go           |   7 +-
+ src/cmd/compile/internal/ssa/func_test.go      |  32 ++--
+ src/cmd/compile/internal/ssa/gen/generic.rules |  45 ++++--
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   3 +-
+ src/cmd/compile/internal/ssa/html.go           |   4 +
+ src/cmd/compile/internal/ssa/location.go       |  14 +-
+ src/cmd/compile/internal/ssa/lower.go          |   2 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go  |  20 +--
+ src/cmd/compile/internal/ssa/opGen.go          |   5 +
+ src/cmd/compile/internal/ssa/print.go          |   8 +
+ src/cmd/compile/internal/ssa/regalloc.go       |  10 ++
+ src/cmd/compile/internal/ssa/regalloc_test.go  |   2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 206 +++++++++++++++++++++----
+ src/cmd/compile/internal/ssa/schedule_test.go  |   2 +-
+ src/cmd/compile/internal/ssa/shift_test.go     |   2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go     |  34 ++--
+ src/cmd/compile/internal/ssa/tighten.go        |   4 +-
+ src/runtime/runtime-gdb_test.go                |   7 -
+ 27 files changed, 470 insertions(+), 141 deletions(-)

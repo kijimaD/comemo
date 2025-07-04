@@ -1,26 +1,47 @@
-commit e838c76a6ea99007b872669b06590a41278f6188
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 19 15:55:30 2021 -0400
+commit db821b54d1a8dffa85a9a3cf599f83a19184f020
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Apr 15 12:08:24 2020 -0400
 
-    cmd/go/internal/modload: remove go116EnableNarrowAll constant
+    cmd/go/internal/modload: refactor version filtering for exclude
     
-    This constant existed in case there was a serious problem with the
-    change to the "all" pattern in Go 1.16 (CL 240623), so that we could
-    roll back the change in behavior by just flipping the constant without
-    introducing merge conflicts elsewhere.
+    Query and other functions now accept an "allowed" function that
+    returns an error (previously, the function returned a bool). If the
+    error is equivalent to ErrDisallowed, it indicates the version is
+    excluded (or, in a future CL, retracted). This provides predicates a
+    chance to explain why a version is not allowed.
     
-    Go 1.16 has been out for a while and the new "all" behavior seems fine,
-    so we can jettison this feature flag.
+    When a query refers to a specific revision (by version, branch, tag,
+    or commit name), most callers will not use the Allowed predicate. This
+    allows commands like 'go list -m' and 'go mod download' to handle
+    disallowed versions when explicitly requested. 'go get' will reject
+    excluded versions though.
     
-    For #36460
+    When a query does not refer to a specific revision (for example,
+    "latest"), disallowed versions will not be considered.
     
-    Change-Id: Ic2730edcee81514d56c7086e11542468eb63c84a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303431
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    When an "allowed" predicate returns an error not equivalent to
+    ErrDisallowed, it may be ignored or returned, depending on the
+    case. This never happens for excluded versions, but it may happen for
+    retractions (in a future CL). This indicates a list of retractions
+    could not be loaded. This frequently happens when offline, and it
+    shouldn't cause a fatal or warning in most cases.
+    
+    For #24031
+    
+    Change-Id: I4df6fb6bd60e3e0259e5b3b4bf71a307b4b32298
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228379
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/modfile.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/go/internal/modget/get.go                |   6 +-
+ src/cmd/go/internal/modload/build.go             |   6 +-
+ src/cmd/go/internal/modload/import.go            |   2 +-
+ src/cmd/go/internal/modload/list.go              |   9 +-
+ src/cmd/go/internal/modload/modfile.go           |  38 ++++++--
+ src/cmd/go/internal/modload/mvs.go               |  28 ++++--
+ src/cmd/go/internal/modload/query.go             | 111 +++++++++++++++--------
+ src/cmd/go/internal/modload/query_test.go        |   8 +-
+ src/cmd/go/testdata/script/mod_query_exclude.txt |  40 ++++++--
+ 9 files changed, 177 insertions(+), 71 deletions(-)

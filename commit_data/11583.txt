@@ -1,13 +1,18 @@
-commit 9de9c95787096d4150315bd974f7815e0b667a98
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Feb 3 14:33:41 2012 +1100
+commit 212ba8076eb7f1c2efb00b83046da63f8ac75aba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 2 19:25:29 2012 -0800
 
-    vet: add a check for untagged struct literals.
+    go/doc: don't lose factory functions of non-exported types
     
-    R=rsc, dsymonds
-    CC=golang-dev, gri
-    https://golang.org/cl/5622045
+    Fixes #2824.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5615043
 
- src/cmd/vet/main.go   |   7 +++
- src/cmd/vet/taglit.go | 120 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 127 insertions(+)
+ src/pkg/go/doc/reader.go           | 15 +++++++++------
+ src/pkg/go/doc/testdata/f.0.golden | 13 +++++++++++++
+ src/pkg/go/doc/testdata/f.1.golden | 16 ++++++++++++++++
+ src/pkg/go/doc/testdata/f.2.golden | 13 +++++++++++++
+ src/pkg/go/doc/testdata/f.go       | 14 ++++++++++++++
+ 5 files changed, 65 insertions(+), 6 deletions(-)

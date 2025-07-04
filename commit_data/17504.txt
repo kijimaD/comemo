@@ -1,14 +1,12 @@
-commit 5f75314e18f726bd4c19bafd95c6c5b1d0db2dc5
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Sep 9 15:50:11 2013 +1000
+commit a789ae9e8eb676928bfb0f0cd19ecd19923bfbf7
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Mon Sep 9 09:37:05 2013 +1000
 
-    time: allow more time for TestOverflowRuntimeTimer to succeed
+    compress/flate: small documentation fix
     
-    Attempting to fix windows gobuilders
-    
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/13507044
+    R=golang-dev, adg
+    CC=bradfitz, golang-dev, remyoudompheng
+    https://golang.org/cl/13568045
 
- src/pkg/time/internal_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/compress/flate/deflate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

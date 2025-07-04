@@ -1,48 +1,18 @@
-commit c7085329367e14f0aa828a3793cf66d9f82f05c2
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Tue Aug 16 17:52:13 2022 +0800
+commit 114aa699324a92ba8162138a11707684af7b8993
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Oct 8 11:30:33 2021 -0400
 
-    cmd/compile: add support for unsafe.{String,StringData,SliceData}
+    [dev.boringcrypto] misc/boring: fix Docker Hub references
     
-    For #53003
+    Missed some references and it worked because I had old Docker images on
+    my local daemon.
     
-    Change-Id: I13a761daca8b433b271a1feb711c103d9820772d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423774
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: hopehook <hopehook@golangcn.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia863bd10c44caf85905a721efce5b8926faf776e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354789
+    Trust: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/escape/call.go            |   4 +-
- src/cmd/compile/internal/escape/expr.go            |   4 +-
- src/cmd/compile/internal/ir/expr.go                |  20 +-
- src/cmd/compile/internal/ir/fmt.go                 | 311 +++++++++++----------
- src/cmd/compile/internal/ir/node.go                |  82 +++---
- src/cmd/compile/internal/ir/node_gen.go            |  28 ++
- src/cmd/compile/internal/ir/op_string.go           | 110 ++++----
- src/cmd/compile/internal/noder/transform.go        |   6 +-
- src/cmd/compile/internal/ssagen/ssa.go             |   8 +-
- src/cmd/compile/internal/typecheck/builtin.go      | 200 ++++++-------
- .../compile/internal/typecheck/builtin/runtime.go  |   3 +
- src/cmd/compile/internal/typecheck/const.go        |   5 +-
- src/cmd/compile/internal/typecheck/expr.go         |  59 ++++
- src/cmd/compile/internal/typecheck/func.go         |  27 +-
- src/cmd/compile/internal/typecheck/iexport.go      |   4 +-
- src/cmd/compile/internal/typecheck/iimport.go      |   8 +-
- src/cmd/compile/internal/typecheck/typecheck.go    |  26 +-
- src/cmd/compile/internal/typecheck/universe.go     |   3 +
- src/cmd/compile/internal/walk/builtin.go           |  66 +++++
- src/cmd/compile/internal/walk/expr.go              |  19 ++
- src/cmd/compile/internal/walk/walk.go              |   2 +-
- src/runtime/checkptr_test.go                       |   2 +
- src/runtime/slice.go                               |  48 ----
- src/runtime/testdata/testprog/checkptr.go          |  13 +
- src/runtime/unsafe.go                              |  98 +++++++
- test/unsafe_slice_data.go                          |  22 ++
- test/unsafe_string.go                              |  18 ++
- test/unsafe_string_data.go                         |  22 ++
- test/unsafebuiltins.go                             |  38 +++
- 29 files changed, 842 insertions(+), 414 deletions(-)
+ misc/boring/README.md    |  8 ++++----
+ misc/boring/build.docker | 12 +++++++-----
+ 2 files changed, 11 insertions(+), 9 deletions(-)

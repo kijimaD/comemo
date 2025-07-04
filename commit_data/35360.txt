@@ -1,17 +1,14 @@
-commit 670cb7603a02f4955d2b53176f9114a13b778062
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 25 09:38:56 2018 -0400
+commit 4dad4ab57bc0cedcc8d164147262f7f6898282dd
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Feb 13 10:23:37 2018 +0000
 
-    cmd/go: remove import path debugging hooks
+    runtime: fix typo in comment
     
-    These are no longer needed.
-    
-    Change-Id: Ie42a84f2bd24d2f59324bb66551c46e6af60c302
-    Reviewed-on: https://go-review.googlesource.com/109339
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    GitHub-Last-Rev: d6a6fa39095cac8a9acfeacbbafd636e1aa9b55b
+    GitHub-Pull-Request: golang/go#23809
+    Change-Id: Ife18ba2f982b5e1c30bda32d13dcd441778b986a
+    Reviewed-on: https://go-review.googlesource.com/93575
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/icfg.go  | 78 ---------------------------------------
- src/cmd/go/internal/load/pkg.go   | 36 ++++--------------
- src/cmd/go/internal/work/build.go |  1 -
- 3 files changed, 7 insertions(+), 108 deletions(-)
+ src/runtime/internal/atomic/atomic_mipsx.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

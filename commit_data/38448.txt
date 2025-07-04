@@ -1,21 +1,20 @@
-commit b48bda9c6f57ca9a940eac95700485b9640a62e9
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Thu Mar 14 23:42:57 2019 -0700
+commit 239341f3b6b5c921c2352ce8267d74948476d8fa
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 25 18:18:53 2018 +0000
 
-    cmd/go: allow -o to point to a folder that writes multiple execs
+    runtime: add successor method to treap
     
-    If -o points to a directory that exists then allow multiple
-    executables to be written to that directory.
+    This change adds a method for computing a treap node's successor
+    to the treap, which will simplify the implementation of algorithms
+    used for heap growth scavenging.
     
-    Fixes #14295
+    For #14045.
     
-    Change-Id: Ic951e637c70a2ada5e7534bae9a43901a39fe2c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167679
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: If2af3f2707dbcbef5fb6e42cb2712061f9da5129
+    Reviewed-on: https://go-review.googlesource.com/c/144718
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/alldocs.go                           |  8 +++---
- src/cmd/go/internal/work/build.go               | 33 ++++++++++++++++++++-----
- src/cmd/go/testdata/script/build_multi_main.txt | 27 ++++++++++++++++++++
- 3 files changed, 58 insertions(+), 10 deletions(-)
+ src/runtime/mgclarge.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

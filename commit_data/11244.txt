@@ -1,15 +1,12 @@
-commit b39c883e292a39a0ac05507b5d79d89cc7328836
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 18 19:05:15 2012 -0800
+commit 0d8c6b4fcdcbaa56ce1ccaf6dcd99b58af830c5b
+Author: Sanjay Menakuru <balasanjay@gmail.com>
+Date:   Thu Jan 19 13:28:25 2012 +1100
 
-    encoding/json: allow / and % in tag names
+    path: added examples
     
-    Fixes #2718
-    
-    R=golang-dev, adg
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/5532095
+    https://golang.org/cl/5503089
 
- src/pkg/encoding/json/encode.go      | 9 +++++++--
- src/pkg/encoding/json/tagkey_test.go | 7 ++++++-
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ src/pkg/path/example_test.go | 61 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

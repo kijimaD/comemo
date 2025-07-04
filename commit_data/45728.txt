@@ -1,31 +1,17 @@
-commit 0b80cf11366f28ef5d0d8bae9c46813e96ffd071
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed May 26 15:29:39 2021 -0400
+commit 81322b919198ce17d990762a8823e8db46435792
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Fri Nov 6 18:37:01 2020 +1100
 
-    cmd/go: make 'go get' save sums for incidentally updated modules
+    runtime/race: remove race from TestNoRaceAfterFunc2
     
-    When 'go get' updates a module, it may update another module in the
-    build list that provides a package in 'all' that wasn't loaded as part
-    of the 'go get' command. If 'go get' doesn't add a sum for that
-    module, builds may fail later.
+    For #14119
     
-    With this change, 'go get' will fetch a sum for the content of an
-    updated module if we had a sum for the version before the update.
-    
-    'go get' won't load the complete package graph, so there are still
-    cases where the build may be broken, like when an updated (but not
-    loaded) package imports a package from a new module.
-    
-    Fixes #44129
-    
-    Change-Id: I62eba3df4137a3e84e2ca8d549c36eec3670f08c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322832
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2a9ae43da228cf5c3e38d1f0d1b0768145b6548f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267998
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modget/get.go                  |  54 +++++++++-
- .../script/mod_get_update_unrelated_sum.txt        | 120 +++++++++++++++++++++
- 2 files changed, 173 insertions(+), 1 deletion(-)
+ src/runtime/race/testdata/sync_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

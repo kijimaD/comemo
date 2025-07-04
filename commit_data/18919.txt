@@ -1,17 +1,19 @@
-commit ed97788af9d3c38e48a7f34dd18f05ae80a48c9e
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Sat Mar 22 11:05:40 2014 -0700
+commit dc008af94df00e90be9a22bb7e321f9677f12639
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Mar 21 19:26:47 2014 +0100
 
-    regexp: remove unused variables
+    cmd/ld: fix warnings on Plan 9
     
-    "min" and "max" in "case '{'" clause are fresh variables.
-    The variables defined in the outer scope never get value
-    other than 0.
+    warning: src/cmd/ld/macho.c:595 sign-extended character constant
+    warning: src/cmd/ld/macho.c:595 sign-extended character constant
+    warning: src/cmd/ld/symtab.c:63 sign-extended character constant
+    warning: src/cmd/ld/symtab.c:63 sign-extended character constant
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/78750044
+    https://golang.org/cl/76580046
 
- src/pkg/regexp/syntax/parse.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/ld/macho.c  | 2 +-
+ src/cmd/ld/symtab.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

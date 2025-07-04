@@ -1,18 +1,13 @@
-commit df2a9e4a337a4feda8981433639cbddeb8216d37
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Jan 19 16:27:14 2016 +1300
+commit 84df38181baeae5b12d2831ecfa5c7aefeffd7b1
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:33:26 2015 -0400
 
-    runtime/race: fix test so it compiles
+    hash/crc32: added mips64{,le} build tags
     
-    I'm not sure what the convert function was intended to be.
-    
-    Fixes #14011
-    
-    Change-Id: I29d905bc1827936b9433b20b13b7a0b0ac5f502e
-    Reviewed-on: https://go-review.googlesource.com/18712
+    Change-Id: I77c6768fff6f0163b36800307c4d573bb6521fe5
+    Reviewed-on: https://go-review.googlesource.com/14454
+    Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/race/testdata/issue12225_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/hash/crc32/crc32_generic.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

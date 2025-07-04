@@ -1,19 +1,16 @@
-commit 709da95513a64499c6974aadc563b9638fe9f49d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 7 07:03:46 2018 -0800
+commit be08ddbfcd855fd13cf80497921ae53d2b64a7b1
+Author: Sam Whited <sam@samwhited.com>
+Date:   Fri Oct 13 22:28:57 2017 -0500
 
-    cmd/go: run vet on packages with only cgo files
+    encoding/xml: don't panic when custom Unmarshaler sees StartElement
     
-    CgoFiles is not included in GoFiles, so we need to check both.
-    
-    Fixes #24193
-    
-    Change-Id: I6a67bd912e3d9a4be0eae8fa8db6fa8a07fb5df3
-    Reviewed-on: https://go-review.googlesource.com/99175
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I90aa0a983abd0080f3de75d3340fdb15c1f9ca35
+    Reviewed-on: https://go-review.googlesource.com/70891
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Sam Whited <sam@samwhited.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go          | 10 ++++++++++
- src/cmd/go/internal/vet/vet.go |  4 ++--
- 2 files changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/vet/all/whitelist/all.txt |  1 +
+ src/encoding/xml/xml.go           |  6 +++---
+ src/encoding/xml/xml_test.go      | 23 +++++++++++++++++++++++
+ 3 files changed, 27 insertions(+), 3 deletions(-)

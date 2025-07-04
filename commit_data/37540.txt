@@ -1,36 +1,14 @@
-commit 2140975ebde164ea1eaa70fc72775c03567f2bc9
-Author: Keith Randall <khr@google.com>
-Date:   Tue Nov 27 12:40:16 2018 -0800
+commit 469ada6ed9cbf921a268f867d3fde0f311532ff5
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jul 28 16:46:22 2018 +0200
 
-    cmd/compile: eliminate write barriers when writing non-heap ptrs
+    runtime: go fmt runtime2.go
     
-    We don't need a write barrier if:
-    1) The location we're writing to doesn't hold a heap pointer, and
-    2) The value we're writing isn't a heap pointer.
-    
-    The freshly returned value from runtime.newobject satisfies (1).
-    Pointers to globals, and the contents of the read-only data section satisfy (2).
-    
-    This is particularly helpful for code like:
-    p := []string{"abc", "def", "ghi"}
-    
-    Where the compiler generates:
-       a := new([3]string)
-       move(a, statictmp_)  // eliminates write barriers here
-       p := a[:]
-    
-    For big slice literals, this makes the code a smaller and faster to
-    compile.
-    
-    Update #13554. Reduces the compile time by ~10% and RSS by ~30%.
-    
-    Change-Id: Icab81db7591c8777f68e5d528abd48c7e44c87eb
-    Reviewed-on: https://go-review.googlesource.com/c/151498
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I29a6125c9ef285fc365c4e11ab158b79224ae333
+    Reviewed-on: https://go-review.googlesource.com/126602
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/writebarrier.go | 57 +++++++++++++++++++++++++++-
- test/writebarrier.go                         | 11 ++++++
- 2 files changed, 66 insertions(+), 2 deletions(-)
+ src/runtime/runtime2.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

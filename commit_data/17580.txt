@@ -1,15 +1,12 @@
-commit 1e71e7426210fd5544bee462240c666c7277327e
-Author: Han-Wen Nienhuys <hanwen@google.com>
-Date:   Thu Sep 12 22:03:53 2013 +1000
+commit ea78a4a7a27e96a5de269a29d08530228cb8a1bf
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 12 16:46:08 2013 +1000
 
-    net/rpc: document thread safety requirements of codec types.
+    doc/go1.2.html: cover, template, vet
     
-    Fixes #6306.
-    
-    R=golang-dev, bradfitz, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/13474043
+    https://golang.org/cl/13373053
 
- src/pkg/net/rpc/client.go | 1 +
- src/pkg/net/rpc/server.go | 1 +
- 2 files changed, 2 insertions(+)
+ doc/go1.2.html | 147 ++++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 120 insertions(+), 27 deletions(-)

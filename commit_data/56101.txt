@@ -1,24 +1,28 @@
-commit e565720e4920fe14eaeac55c8a271444d5499e44
-Author: Mohammad Abbasi <mohammad.v184@gmail.com>
-Date:   Sun Mar 12 00:23:14 2023 +0000
+commit a5c79283f79b5f03296fc2037f32d935aaec806f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Apr 3 16:07:41 2023 -0400
 
-    database/sql: refactor unused variables to use blank identifiers
+    cmd/go: return and handle errors from loadImport for bad imports
     
-    Hi
-    I've replaced unused variables in database/sql with blank identifiers to improve code readability.
+    And assign the error to the importing package. Before this change, for
+    some errors for bad imports, such as importing a vendored package with
+    the wrong path, we would make a dummy package for the imported package
+    with the error on it. Instead report the error on the importing
+    package where it belongs. Do so by returning an error from loadImport
+    and handling it on the importing package.
     
-    This change has no impact on the functionality of the code, but makes it easier to read and understand.
+    For #59157
     
-    Change-Id: I701e93fd9bf86725f411085bf2e8f8e6b235af14
-    GitHub-Last-Rev: eb40bd5e2ef9e28871fae2e97b4433e8d6e2c652
-    GitHub-Pull-Request: golang/go#58986
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475675
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I952e1a82af3857efc5da4fd3f8bc6be473a60cf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482877
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/database/sql/convert.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/get/get.go                 |   8 +-
+ src/cmd/go/internal/load/pkg.go                | 144 +++++++++++++++----------
+ src/cmd/go/internal/load/test.go               |  15 ++-
+ src/cmd/go/internal/work/action.go             |  11 +-
+ src/cmd/go/testdata/script/list_import_err.txt |  22 ++++
+ 5 files changed, 133 insertions(+), 67 deletions(-)

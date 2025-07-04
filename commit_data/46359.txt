@@ -1,20 +1,19 @@
-commit 38c2e08cbd2c863869f31754ee62b0c6dcaccd54
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Sep 3 11:22:18 2021 -0400
+commit 63c96c2ee7444b83224b9c5aadd8ad5b757c1e03
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 23 00:36:34 2020 -0800
 
-    go/types: move NewTypeParam off of Checker
+    [dev.regabi] cmd/compile: update mkbuiltin.go and re-enable TestBuiltin
     
-    This aligns with the API proposal.
+    Update's mkbuiltin.go to match builtin.go after the recent rf
+    rewrites.
     
-    Change-Id: I9967a317196392ffa5ddbe5391d7aba5f6e7bad2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347561
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I80cf5d7c27b36fe28553406819cb4263de84e5ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279952
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/internal/gcimporter/iimport.go |  2 +-
- src/go/types/builtins.go              |  2 +-
- src/go/types/decl.go                  |  2 +-
- src/go/types/typeparam.go             | 10 +++++++---
- 4 files changed, 10 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/typecheck/builtin_test.go |  1 -
+ src/cmd/compile/internal/typecheck/mkbuiltin.go    | 11 ++++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

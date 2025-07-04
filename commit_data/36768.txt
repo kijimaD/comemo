@@ -1,18 +1,18 @@
-commit 06afc8b152bc01e1b4f5dce074bae531dd29a9b9
-Author: Austin Clements <austin@google.com>
-Date:   Wed Sep 19 16:42:13 2018 -0400
+commit e52c1c0289b41513e5da01c83eef7e2f7bcf89ee
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Fri May 25 07:38:54 2018 +0000
 
-    runtime: simplify the control flow in sweepone
+    logs.txt: remove accidentally added file
     
-    Ending a loop with a break is confusing. Rewrite the loop so the
-    default behavior is to loop and then do the "post-loop" work outside
-    of the loop.
+    This file was checked in CL 103535.
     
-    Change-Id: Ie49b4132541dfb5124c31a8163f2c883aa4abc75
-    Reviewed-on: https://go-review.googlesource.com/138155
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I03e36ba36e30444c4f8e394caef9224ecd6dd728
+    GitHub-Last-Rev: 6b7fb62f824c5c68be800aa98cf10241b48b1cc4
+    GitHub-Pull-Request: golang/go#25559
+    Reviewed-on: https://go-review.googlesource.com/114521
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgcsweep.go | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ logs.txt | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

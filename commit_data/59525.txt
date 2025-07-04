@@ -1,17 +1,26 @@
-commit 2b3794e3e8a0ecf9d0ff7d8689ca9cdaea974e08
-Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
-Date:   Mon Apr 21 09:42:45 2025 +0200
+commit 5e1e3a002528714f7c5954dd13068a89f41f747a
+Author: Audi P. R. Putra <doelaudi@gmail.com>
+Date:   Fri Sep 15 23:37:53 2023 +0700
 
-    cmd/go/internal/work: update minimum supported s390x version on go
+    cmd/go: show deprecation message on go run/install
     
-    This updates cgo support for s390x changing from z196 to z13, as
-    z13 is the minimum machine level running on go for s390x.
+    Add check for deprecations in PackagesAndErrorsOutsideModule. This affects go run/install outside module when run in module-aware mode.
     
-    Change-Id: I1a102294b2108c35ddb1428bf287ce83debaeac8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/666995
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #59230
+    
+    Change-Id: I106df36a856894fb1b634decfa812e31cf88fe74
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528775
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/work/exec.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/load/pkg.go                            |  7 +++++++
+ .../go/testdata/mod/example.com_deprecated_a_v1.0.0.txt    |  7 +++++++
+ .../go/testdata/mod/example.com_deprecated_a_v1.9.0.txt    |  7 +++++++
+ .../go/testdata/mod/example.com_undeprecated_v1.0.0.txt    |  7 +++++++
+ .../go/testdata/mod/example.com_undeprecated_v1.0.1.txt    |  7 +++++++
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt     | 13 +++++++++++++
+ src/cmd/go/testdata/script/mod_list_deprecated.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_run_pkg_version.txt         | 14 ++++++++++++++
+ 8 files changed, 63 insertions(+), 1 deletion(-)

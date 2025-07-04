@@ -1,29 +1,21 @@
-commit 81ee93679dad4138d1c3431aa66237a31a99f1b2
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Sep 5 23:49:53 2016 -0400
+commit 7ae273923cdd5d00b72c293b57ade8a1e290a4a3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue May 3 16:44:25 2016 +0200
 
-    cmd/link: generate dynamic relocs for internal PIE
+    cmd/trace: split large traces into parts
     
-    This reuses the machinery built for dynamic loading of shared
-    libraries. The significant difference with PIE is we generate
-    dynamic relocations for known internal symbols, not just
-    dynamic external symbols.
+    Trace viewer cannot handle traces larger than 256MB (limit on js string size):
+    https://github.com/catapult-project/catapult/issues/627
+    And even that is problematic (chrome hangs and crashes).
+    Split large traces into 100MB parts. Somewhat clumsy, but I don't see any other
+    solution (other than rewriting trace viewer). At least it works reliably now.
     
-    Part of adding PIE internal linking on linux/amd64.
+    Fixes #15482
     
-    Change-Id: I4afa24070bfb61f94f8d3648f2433d5343bac3fe
-    Reviewed-on: https://go-review.googlesource.com/28539
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I993b5f43d22072c6f5bd041ab5888ce176f272b2
+    Reviewed-on: https://go-review.googlesource.com/22731
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/link/internal/amd64/asm.go  | 54 ++++++++++++++++++-------------------
- src/cmd/link/internal/arm/asm.go    | 35 ++++++++++++------------
- src/cmd/link/internal/arm64/asm.go  |  3 ++-
- src/cmd/link/internal/ld/data.go    | 12 ++++++++-
- src/cmd/link/internal/ld/lib.go     |  2 +-
- src/cmd/link/internal/mips64/asm.go |  3 ++-
- src/cmd/link/internal/ppc64/asm.go  | 32 +++++++++++-----------
- src/cmd/link/internal/s390x/asm.go  | 34 ++++++++++++-----------
- src/cmd/link/internal/x86/asm.go    | 48 ++++++++++++++++-----------------
- 9 files changed, 117 insertions(+), 106 deletions(-)
+ src/cmd/trace/main.go  | 44 +++++++++++++++++++-----
+ src/cmd/trace/trace.go | 92 +++++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 116 insertions(+), 20 deletions(-)

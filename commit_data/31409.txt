@@ -1,23 +1,16 @@
-commit c51559813f615aa33ca42c0ad963d7712f561433
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 27 16:37:25 2017 -0700
+commit c4b8dadb4060a8456801ad64c9c5642a737dba19
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Feb 5 23:41:41 2017 -0500
 
-    cmd/compile: add sizeCalculationDisabled flag
+    cmd/compile: fix some types in SSA
     
-    Use it to ensure that dowidth is not called
-    from the backend on a type whose size
-    has not yet been calculated.
+    These seem not to really matter, but good to be correct.
     
-    This is an alternative to CL 42016.
-    
-    Change-Id: I8c7b4410ee4c2a68573102f6b9b635f4fdcf392e
-    Reviewed-on: https://go-review.googlesource.com/42018
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I02edb9797c3d6739725cfbe4723c75f151acd05e
+    Reviewed-on: https://go-review.googlesource.com/36837
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/align.go   | 12 ++++++++++++
- src/cmd/compile/internal/gc/pgen.go    |  2 ++
- src/cmd/compile/internal/gc/ssa.go     | 12 ++++++------
- src/cmd/compile/internal/types/type.go | 11 ++---------
- 4 files changed, 22 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

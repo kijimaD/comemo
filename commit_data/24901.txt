@@ -1,17 +1,25 @@
-commit 0624fd3f144fdbc2d5dd88a7c407bcc85a75e195
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Wed Nov 11 11:00:56 2015 +0000
+commit 69a143e3888982a64427375b3f4bdbd2fee07198
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Sep 7 15:00:52 2015 +1200
 
-    cmd/compile: regenerate builtin.go
+    cmd/internal/obj: remove dead code and small cleanups
     
-    Following a recent change, file builtin.go is not up-to-date.
-    Generate it again by running go generate.
-    
-    Fixes #13203
-    
-    Change-Id: Ib91c5ccc93665c043da95c7d3783ce5d94e48466
-    Reviewed-on: https://go-review.googlesource.com/16821
+    Change-Id: I88fa0cc245a2141af04acced8716e08b1133abd1
+    Reviewed-on: https://go-review.googlesource.com/14350
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 15 ++++++++-------
+ src/cmd/internal/obj/arm64/asm7.go |  1 -
+ src/cmd/internal/obj/data.go       | 15 ---------------
+ src/cmd/internal/obj/fmt.go        |  7 -------
+ src/cmd/internal/obj/funcdata.go   |  1 -
+ src/cmd/internal/obj/libc.go       | 12 ------------
+ src/cmd/internal/obj/mgc0.go       | 30 ------------------------------
+ src/cmd/internal/obj/objfile.go    |  2 --
+ src/cmd/internal/obj/sym.go        |  7 +------
+ src/cmd/internal/obj/util.go       | 27 +++++++--------------------
+ src/cmd/internal/obj/x86/asm6.go   | 12 ------------
+ src/cmd/link/internal/ld/ldpe.go   |  5 +++--
+ src/cmd/link/internal/ld/lib.go    |  4 ++--
+ src/cmd/link/internal/ld/sym.go    |  7 +------
+ 14 files changed, 22 insertions(+), 123 deletions(-)

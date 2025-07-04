@@ -1,16 +1,20 @@
-commit 91afca94e07aa1366afba9ece04c2def9f99d4c4
-Author: closs <the.cody.oss@gmail.com>
-Date:   Sat Jul 15 16:07:30 2017 -0600
+commit 786eb5b754780d649f5d85481096d268728d383f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 23 21:55:37 2017 -0500
 
-    ast: make ExampleCommentMap a runnable example
+    runtime: make debug.FreeOSMemory call runtime.GC()
     
-    Fixes #20450
+    Currently freeOSMemory calls gcStart directly, but we really just want
+    it to behave like runtime.GC() and then perform a scavenge, so make it
+    call runtime.GC() rather than gcStart.
     
-    Change-Id: I2256282a8880e99508e98fefedfb94a7cccacbcf
-    Reviewed-on: https://go-review.googlesource.com/48969
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    For #18216.
+    
+    Change-Id: I548ec007afc788e87d383532a443a10d92105937
+    Reviewed-on: https://go-review.googlesource.com/37518
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/go/ast/example_test.go | 23 +++++++++--------------
- 1 file changed, 9 insertions(+), 14 deletions(-)
+ src/runtime/mheap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,15 @@
-commit 10b88888f67ecda0b3dd86b91417cf9bfb20f2ed
+commit 8140cd9149493cffc797edafc60a230f1c9b5462
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 13 13:54:36 2012 -0700
+Date:   Wed Jun 13 13:32:59 2012 -0700
 
-    math/big: correctly test for positive inputs in Int.GCD
+    godoc: show comments in various filtered views
     
-    Also: better GCD tests.
+    Fixes #3454.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/6295076
+    https://golang.org/cl/6305069
 
- src/pkg/math/big/int.go      |  8 ++--
- src/pkg/math/big/int_test.go | 95 +++++++++++++++++++++++++++++---------------
- 2 files changed, 66 insertions(+), 37 deletions(-)
+ src/cmd/godoc/godoc.go | 17 +++++++++++++++--
+ src/cmd/godoc/main.go  |  9 +++++++--
+ 2 files changed, 22 insertions(+), 4 deletions(-)

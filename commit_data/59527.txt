@@ -1,148 +1,33 @@
-commit 07a279794dff7ef3371710f1de4b3f9fc4ef4987
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Apr 30 22:17:21 2025 -0400
+commit aa1b50e1793dcbd5a23470bffd983d7c127b6cd3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Feb 28 23:25:52 2024 +0000
 
-    cmd/go/internal/modget: check in workspace mode if go.work present
+    runtime: make tidExists more robust
     
-    The purpose of this change is to enable go get to be used when working
-    on a module that is usually built from a workspace and has unreleased
-    dependencies in that workspacae that have no requirements satisfying
-    them. These modules can't build in single module mode, and the
-    expectation is that a workspace will provide the unreleased
-    requirements.
+    The LockThreadExit tests in the runtime have been observed to fail after
+    reading /proc/self/task/<tid>/stat and blindly assuming its contents
+    followed a specific format. The parsing code is also wrong, because
+    splitting by spaces doesn't work when the comm name contains a space.
+    It also ignores errors without reporting them, which isn't great.
     
-    Before this change, if go get was run in a module, and any of the
-    module's imports, that were not already satisfied using requirements,
-    could not be resolved from that module in single module mode, go get
-    would report an error. This could happen if, for example, the dependency
-    was unreleased, even privately, and couldn't be fetched using version
-    control or a proxy.  go get would also do a check using
-    cmd/go/internal/modget.(*resolver).checkPackageProblems that, among
-    other things, any package patterns provided to go get (the pkgPattern
-    argument to checkPackageProblems) could properly load. When checking in
-    single-module mode, this would cause an error because imports in the
-    non-required workspace dependencies could not be resolved.
+    This change rewrites tidExists to be more robust by using
+    /proc/self/task/<tid>/status instead. It also modifies tidExists'
+    signature to report an error to its caller. Its caller then prints that
+    error.
     
-    This change makes a couple of changes to address each of those problems.
-    First, while "go get" still uses the single module's module graph to
-    load packages and determine which imports are not satisfied by a module
-    in the build list (the set of modules the build is done with), it will
-    "cheat" and look up the set of modules that would be loaded in workspace
-    mode. It will not try to fetch modules to satisfy imports of packages in
-    those modules.  (Alternatively, it could have tried to fetch modules to
-    satisfy the requirements, and allowed an error if it could not be found,
-    but we took the route of not doing the fetch to preserve the invariant
-    that the behavior wouldn't change if the network was down). The second,
-    and by far more complex, change is that the load that's done in
-    checkPackageProblems will be done in workspace mode rather than module
-    mode. While it is important that the requirements added by "go get" are
-    not determined using the workspace (with the necessary exception of the
-    skipped fetches) it is okay to use the workspace to load the modules,
-    as, if a go.work file is present, the go command would by default run
-    builds in workspace mode rather than single module mode. This more
-    relaxed check will allow get to succeed if a go list would succeed in
-    the workspace, even if it wouldn't from the single module.--
+    Ignoring a non-not-exist error with opening this file is the likely but
+    unconfirmed cause of #65736 (ESRCH). This change also checks for that
+    error explicitly as an optimistic fix.
     
-    To avoid trying to satisfy imports that are in the other workspace
-    modules, we add a workspace field to the resolver that can be used to
-    check if an import is in the workspace. It reads the go.work file and
-    determines each of the modules' modroots. The hasPackage function will
-    call into modload logic using the new PkgIsInLocalModule function that
-    in turn calls into dirInModule to determine if the directory that would
-    contain the package sources exists in the module. We do that check in
-    cmd/go/internal/modget.(*resolver).loadPackages, which is used to
-    resolve modules to satisfy imports in the package graph supplied on the
-    command line. (Note that we do not skip resolving modules in the
-    functions that query for a package at a specific module version (such as
-    in "go get golang.org/x/tools/go/packages@latest), which are done in
-    (*resolver).queryPath. In that case, the user is explicitly requesting
-    to add a requirement on that package's module.)
+    Fixes #65736.
     
-    The next step, checking for issues in the workspace mode, is more
-    complex because of two reasons. First, can't do all of
-    checkPackageProblems's work in a workspace, and second, that the module
-    loading state in the go command is global, so we have to manage the
-    global state in switching to workspace mode and back.
-    
-    On the work that checkPackageProblems does: it broadly does three things:
-    first, a load of the packages specified to "go get", to make sure that
-    imports are satisfied and not ambiguous. Second, using that loaded
-    information, reporting any retracted or deprecated modules that are
-    relevant to the user and that they may want to take action on. And
-    third, checking that all the modules in the build list (the set of
-    module versions used in a load or build) have sums, and adding those
-    sums to the in-memory representation of the go.sum file that will be
-    written out at the end.  When there's a workspace, the first two checks
-    need to be done in workspace mode so that we properly point out issues
-    in the build, but the sums need to be updated in module mode so that the
-    module's go.sum file is updated to reflect changes in go.mod.
-    
-    To do the first two steps in workspace mode, we add a new
-    modload.EnterWorkspace function that will reset the global modload state
-    and load from the workspace, using the updated requirements that have
-    been calculated for the module. It returns a cleanup function that will
-    exit the workspace and reset to the previous global state. (We need the
-    previous global state because it holds the updated in memory
-    representations of go.mod and go.sum that will be written out by go get
-    if there are no errors.) We switch to workspace mode if there's a
-    relevant go.work file that would trigger a workspace load _and_ the
-    module go get is being run from belongs to that workspace (it wouldn't
-    make sense to use a workspace that the module itself didn't belong to).
-    We then switch back to module mode after the first two steps are
-    complete using the cleanup function. We have to be careful to finish
-    all the tasks checking for deprecations and retractions before to start
-    looking at the sums because they retraction and deprecation checking
-    tasks will depend on the global workspace state.
-    
-    It's a bit unfortunate that much of the modload and modfetch state is
-    global. It's pretty gross doing the switch. It would be a lot of
-    work, but if we need to do a switch in a third instance other than for
-    go work sync and go get it might be worth doing the work to refactor
-    modload so that the state isn't global.
-    
-    The EnterWorkspace function that does the switch to workspace mode (in
-    cmd/go/internal/modload/init.go) first saves the in memory
-    representation of the go.mod file (calculated using UpdateGoModFromReqs)
-    so that it can be applied in the workspace. It then uses the new
-    setState function to save the old state and reset to a clean state,
-    loads in workspace mode (using InitWorkfile to so that the go.work file
-    is used by LoadModFile), and then replaces the go.mod file
-    representation for the previous main module with the contents saved
-    earlier and reloads the requirements (holding the roots of the module
-    graph) to represent the updates. In workspace mode, the roots field of the
-    requirements is the same, but the reload is used to update the set of
-    direct requirements. rawGoModSummary is also update to use the in-
-    memory representation of the previous main module's go.mod file rather
-    than always reading it from disk so that it can take those updated
-    contents into account. (It previously didn't need to do this because
-    rawGoModSummary is primarily used to get module information for
-    dependency modules. The exception is in workspace mode but the same
-    logic worked because we didn't update workspace module's go.mod files in
-    a go command running in workspace mode).  Finally, EnterWorkspace returns
-    a function that calls setState with the old state, to revert to the
-    previous state.
-    
-    When we save the state of the modload package, we also need to save the
-    state of the modfetch package because it holds the state of the go.sum
-    file and the operation of looking up a value in the lookupCache or
-    downloadCache affects whether it appears in the go.sum file. lookupCache
-    and downloadCache are turned into pointers so that they can be saved in
-    the modfetchState.
-    
-    Fixes #73654
-    
-    Change-Id: I65cf835ec2293d4e3f66b91d3e77d3bb8d2f26d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/669635
-    Reviewed-by: Michael Matloob <matloob@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Iea560b457d514426da2781b7eb7b8616a91ec23b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567938
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/modfetch/fetch.go              |  72 +++-
- src/cmd/go/internal/modfetch/repo.go               |   7 +-
- src/cmd/go/internal/modget/get.go                  | 105 +++++-
- src/cmd/go/internal/modload/import.go              |  11 +
- src/cmd/go/internal/modload/init.go                |  88 ++++-
- src/cmd/go/internal/modload/modfile.go             |  96 +++---
- .../go/testdata/script/mod_get_work_incomplete.txt | 378 +++++++++++++++++++++
- 7 files changed, 681 insertions(+), 76 deletions(-)
+ src/runtime/testdata/testprog/lockosthread.go   |  6 +++-
+ src/runtime/testdata/testprog/syscalls_linux.go | 42 +++++++++++++++++++++----
+ src/runtime/testdata/testprog/syscalls_none.go  |  4 +--
+ 3 files changed, 43 insertions(+), 9 deletions(-)

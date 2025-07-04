@@ -1,53 +1,17 @@
-commit 872b168fe344914550c29b4f1b0cac9f2e70e7fc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 21 22:34:48 2015 -0700
+commit 2efdaefdb034d463185b674eb3aa8dad5d1a907d
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Jun 13 19:27:26 2015 +0100
 
-    runtime: if we don't handle a signal on a non-Go thread, raise it
+    [dev.ssa] Protect control value from being moved away from end of block
     
-    In the past badsignal would crash the program.  In
-    https://golang.org/cl/10757044 badsignal was changed to call sigsend,
-    to fix issue #3250.  The effect of this was that when a non-Go thread
-    received a signal, and os/signal.Notify was not being used to check
-    for occurrences of the signal, the signal was ignored.
+    If there isn't a value dependency between the control value of a
+    block and some other value, the schedule pass might move the control
+    value to a spot that is not EOB. Fix by handling the control value
+    specially like phis.
     
-    This changes the code so that if os/signal.Notify is not being used,
-    then the signal handler is reset to what it was, and the signal is
-    raised again.  This lets non-Go threads handle the signal as they
-    wish.  In particular, it means that a segmentation violation in a
-    non-Go thread will ordinarily crash the process, as it should.
-    
-    Fixes #10139.
-    Update #11794.
-    
-    Change-Id: I2109444aaada9d963ad03b1d071ec667760515e5
-    Reviewed-on: https://go-review.googlesource.com/12503
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iddaf0924d98c5b3d9515c3ced927b0c85722818c
+    Reviewed-on: https://go-review.googlesource.com/11071
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/crash_cgo_test.go     | 67 +++++++++++++++++++++++++++++++++++++++
- src/runtime/os1_darwin.go         |  5 +++
- src/runtime/os1_dragonfly.go      | 18 +++++++----
- src/runtime/os1_freebsd.go        | 18 +++++++----
- src/runtime/os1_linux.go          |  6 ++++
- src/runtime/os1_nacl.go           |  4 +++
- src/runtime/os1_netbsd.go         |  6 ++++
- src/runtime/os1_openbsd.go        |  5 +++
- src/runtime/os1_plan9.go          |  4 +++
- src/runtime/os2_dragonfly.go      | 11 ++++---
- src/runtime/os2_freebsd.go        | 11 ++++---
- src/runtime/os2_linux.go          |  2 ++
- src/runtime/os2_solaris.go        |  1 +
- src/runtime/os3_solaris.go        |  6 ++++
- src/runtime/os_darwin.go          |  2 +-
- src/runtime/os_dragonfly.go       |  2 +-
- src/runtime/os_freebsd.go         |  2 +-
- src/runtime/os_linux.go           |  4 +--
- src/runtime/signal1_unix.go       | 37 +++++++++++++++++++++
- src/runtime/signal_windows.go     |  6 ++++
- src/runtime/sigqueue.go           | 10 +++++-
- src/runtime/sys_dragonfly_amd64.s |  6 ++--
- src/runtime/sys_freebsd_386.s     |  7 ++--
- src/runtime/sys_freebsd_amd64.s   |  6 ++--
- src/runtime/sys_freebsd_arm.s     |  6 ++--
- src/runtime/sys_linux_amd64.s     |  2 +-
- 26 files changed, 215 insertions(+), 39 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

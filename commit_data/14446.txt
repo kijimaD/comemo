@@ -1,14 +1,15 @@
-commit d28133dc9f452150c116793f3dd086bbe20db3d0
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Nov 21 15:04:22 2012 +1100
+commit 4bf261f9e31cd8394df0c24ad4fffbdda3414ba2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 19 21:56:24 2012 -0800
 
-    net: remove another unguarded sysfile == nil check
+    exp/types: don't test importing types if using gccgo
     
-    Putting aside the unguarded access to fd.sysfile, the condition will never be true as fd.incref above handles the closed condition.
+    The exp/types packages does not support the gccgo export data
+    format.  At some point it should, but not yet.
     
-    R=mikioh.mikioh, dvyukov
+    R=gri, bradfitz, r, iant, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6845062
+    https://golang.org/cl/6854068
 
- src/pkg/net/fd_unix.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/pkg/exp/types/gcimporter_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

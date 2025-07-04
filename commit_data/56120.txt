@@ -1,70 +1,20 @@
-commit 6ffbcd82497afd00c3b345e45cc3969b5f07c225
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Mar 27 09:38:59 2024 -0400
+commit 0d82f584c223fb045496f3e063bf93416a24e0b0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 11 16:26:53 2023 +0000
 
-    go/types: include link to source in generated files
+    net: allow TestDialListenerAddr without an external network
     
-    This makes navigation a little easier.
-    Also, make the "inconsistent generated files" test's
-    error message more explicit about which file is which.
+    As of CL 482163, this test now works when only a loopback network is
+    available.
     
-    Change-Id: Iae1fb9e496fb68325448d807469a5b0c55ceda99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574715
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Updates #59497.
+    
+    Change-Id: I32be4b74bbc663eb109763ea19d79f22c63f50ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483696
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/go/types/alias.go            |  1 +
- src/go/types/api_predicates.go   |  1 +
- src/go/types/array.go            |  1 +
- src/go/types/assignments.go      |  1 +
- src/go/types/basic.go            |  1 +
- src/go/types/builtins.go         |  1 +
- src/go/types/builtins_test.go    |  1 +
- src/go/types/chan.go             |  1 +
- src/go/types/const.go            |  1 +
- src/go/types/context.go          |  1 +
- src/go/types/context_test.go     |  1 +
- src/go/types/conversions.go      |  1 +
- src/go/types/errors_test.go      |  1 +
- src/go/types/errsupport.go       |  1 +
- src/go/types/gccgosizes.go       |  1 +
- src/go/types/gcsizes.go          |  1 +
- src/go/types/generate_test.go    | 13 +++++++++----
- src/go/types/hilbert_test.go     |  1 +
- src/go/types/infer.go            |  1 +
- src/go/types/initorder.go        |  1 +
- src/go/types/instantiate.go      |  1 +
- src/go/types/instantiate_test.go |  1 +
- src/go/types/lookup.go           |  1 +
- src/go/types/main_test.go        |  1 +
- src/go/types/map.go              |  1 +
- src/go/types/mono.go             |  1 +
- src/go/types/named.go            |  1 +
- src/go/types/object.go           |  1 +
- src/go/types/object_test.go      |  1 +
- src/go/types/objset.go           |  1 +
- src/go/types/operand.go          |  1 +
- src/go/types/package.go          |  1 +
- src/go/types/pointer.go          |  1 +
- src/go/types/predicates.go       |  1 +
- src/go/types/scope.go            |  1 +
- src/go/types/selection.go        |  1 +
- src/go/types/sizes.go            |  1 +
- src/go/types/slice.go            |  1 +
- src/go/types/subst.go            |  1 +
- src/go/types/termlist.go         |  1 +
- src/go/types/termlist_test.go    |  1 +
- src/go/types/tuple.go            |  1 +
- src/go/types/typelists.go        |  1 +
- src/go/types/typeparam.go        |  1 +
- src/go/types/typeset.go          |  1 +
- src/go/types/typestring.go       |  1 +
- src/go/types/typeterm.go         |  1 +
- src/go/types/typeterm_test.go    |  1 +
- src/go/types/under.go            |  1 +
- src/go/types/unify.go            |  1 +
- src/go/types/universe.go         |  1 +
- src/go/types/util_test.go        |  1 +
- src/go/types/validtype.go        |  1 +
- 53 files changed, 61 insertions(+), 4 deletions(-)
+ src/net/dial_test.go | 2 --
+ 1 file changed, 2 deletions(-)

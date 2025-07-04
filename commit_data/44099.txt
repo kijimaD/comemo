@@ -1,25 +1,36 @@
-commit a9ccd2d79574eead8c20d2bca4562cf2fd412787
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sat Dec 26 10:13:57 2020 +0800
+commit 26de581a709428d55ffc38cc0dbc7ddfc96b9443
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Apr 29 20:55:22 2020 -0700
 
-    go/build: skip string literal while findEmbed
+    cmd/compile: omit file:pos for non-existent errors
     
-    The findEmbed function looking for comment by readbyte,
-    however it might have constant or variables that contains
-    comment.
-    Maybe we should use ast parser in the future.
+    Omits printing the file:line:column when trying to
+    open non-existent files
     
-    Fixes #43373
+    Given:
+        go tool compile x.go
     
-    Change-Id: I92544384fc4c11363d8b2f6b9898c8dea1602767
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/280332
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    * Before:
+        x.go:0: open x.go: no such file or directory
+    
+    * After:
+        open x.go: no such file or directory
+    
+    Reverts the revert in CL 231043 by only fixing the case
+    of non-existent errors which is what the original bug
+    was about. The fix for "permission errors" will come later
+    on when I have bandwidth to investigate the differences
+    between running with root and why os.Open works for some
+    builders and not others.
+    
+    Fixes #36437
+    
+    Change-Id: I9c8a0981ad708b504bb43990a4105b42266fa41f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230941
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/build/read.go      | 35 +++++++++++++++++++++++++++++++++++
- src/go/build/read_test.go | 20 ++++++++++++++++++++
- 2 files changed, 55 insertions(+)
+ src/cmd/compile/internal/gc/noder.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go  |  8 +++++-
+ test/fixedbugs/issue36437.go         | 49 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+), 2 deletions(-)

@@ -1,15 +1,13 @@
-commit fdb46fb470a1e77d585d3d5445c014ea9069095e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 2 16:39:31 2011 -0500
+commit 029bbe18e0a6d173ea158b989b43cce4cfe9157b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 2 12:38:48 2011 -0800
 
-    codereview: record repository, base revision
+    fmt.Scan: scan binary-exponent floating format, 2.4p-3
     
-    Include repository URL in initial mail.
-    Record repository and base revision in patch description.
-    
-    R=r
+    R=rsc, rog, r2
     CC=golang-dev
-    https://golang.org/cl/4126052
+    https://golang.org/cl/4128049
 
- lib/codereview/codereview.py | 38 ++++++++++++++++++++++++++++----------
- 1 file changed, 28 insertions(+), 10 deletions(-)
+ src/pkg/fmt/scan.go      | 26 ++++++++++++++++++++++++--
+ src/pkg/fmt/scan_test.go |  4 ++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)

@@ -1,16 +1,17 @@
-commit 669d3da000cb9ed40bb6108f24f4ecf8d31d3189
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Apr 24 15:37:53 2015 +0200
+commit 84efd6fc746d2348fa4fe5693479f02b9ec855fb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:17:47 2015 -0400
 
-    archive/tar: fix error message
+    os: adjust working dir for darwin/arm64 tests
     
-    Write should return ErrWriteAfterClose instead
-    of ErrWriteTooLong when called after Close.
+    Just like darwin/arm.
     
-    Change-Id: If5ec4ef924e4c56489e0d426976f7e5fad79be9b
-    Reviewed-on: https://go-review.googlesource.com/9259
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib64a3e8ff11249a20b0208bd3b900db318c682b7
+    Reviewed-on: https://go-review.googlesource.com/8817
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/writer.go      |  2 +-
- src/archive/tar/writer_test.go | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/os/os_test.go   | 68 +++++++++++++++++++++++------------------------------
+ src/os/path_test.go |  3 ++-
+ 2 files changed, 32 insertions(+), 39 deletions(-)

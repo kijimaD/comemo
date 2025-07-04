@@ -1,20 +1,19 @@
-commit 03fecda02bf7e2907c608a3a096184a203b967f3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 24 10:57:49 2024 -0700
+commit 6d5ea923a2e3006c032d6b959e63f76d43ac2c74
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Jul 31 21:40:45 2023 +0800
 
-    go/types, types2: follow-up on comment in CL 615195
+    cmd: fix mismatched symbols
     
-    Restate deferred call for readability.
-    
-    Change-Id: I3725535b18fa4f1887e6c1976f8784e092b8f965
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615535
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I8852c0a29dffec9635d61b7670cfed78ebed07f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514315
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/types2/check_test.go  | 7 +++----
- src/cmd/compile/internal/types2/object_test.go | 3 ++-
- src/go/types/check_test.go                     | 7 +++----
- src/go/types/object_test.go                    | 3 ++-
- 4 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/cgo/gcc.go                            | 2 +-
+ src/cmd/compile/internal/base/base.go         | 2 +-
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go | 2 +-
+ src/cmd/compile/internal/ssa/numberlines.go   | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

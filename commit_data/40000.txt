@@ -1,28 +1,41 @@
-commit 1804bbab6285754f69a0683e60fc5590429dc1d1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Sep 16 09:39:10 2019 -0400
+commit 08e1823a632783e3f71b358f2f546ab0f13a6d98
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Apr 8 15:53:35 2019 +0200
 
-    cmd/go/internal/modfetch/codehost: work around an apparent bug in 'git fetch --unshallow'
+    bytes: optimize ToLower and ToUpper for ASCII-only case
     
-    When 'git fetch' is passed the '--unshallow' flag, it assumes that the
-    local and remote refs are equal.¹ However, we were fetching an
-    expanded set of refs explicitly in the same command, violating that
-    assumption.
+    Follow what CL 68370 and CL 76470 did for the respective functions in
+    package strings.
     
-    Now we first expand the set of refs, then unshallow the repo in a
-    separate fetch. Empirically, this seems to work, whereas the opposite
-    order does not.
+    Also adjust godoc strings to match the respective strings functions and
+    mention the special case for ASCII-only byte slices which don't need
+    conversion.
     
-    ¹https://github.com/git/git/blob/4c86140027f4a0d2caaa3ab4bd8bfc5ce3c11c8a/transport.c#L1303-L1309
+    name                                       old time/op  new time/op  delta
+    ToUpper/#00-8                              9.35ns ± 3%  6.08ns ± 2%  -35.04%  (p=0.000 n=9+9)
+    ToUpper/ONLYUPPER-8                        77.7ns ± 1%  16.9ns ± 2%  -78.22%  (p=0.000 n=10+10)
+    ToUpper/abc-8                              36.5ns ± 1%  22.1ns ± 1%  -39.43%  (p=0.000 n=10+8)
+    ToUpper/AbC123-8                           56.9ns ± 2%  28.2ns ± 2%  -50.54%  (p=0.000 n=8+10)
+    ToUpper/azAZ09_-8                          62.3ns ± 1%  26.9ns ± 1%  -56.82%  (p=0.000 n=9+10)
+    ToUpper/longStrinGwitHmixofsmaLLandcAps-8   219ns ± 2%    63ns ± 2%  -71.17%  (p=0.000 n=10+10)
+    ToUpper/longɐstringɐwithɐnonasciiⱯchars-8   367ns ± 2%   374ns ± 3%   +2.05%  (p=0.000 n=9+10)
+    ToUpper/ɐɐɐɐɐ-8                             200ns ± 1%   206ns ± 1%   +2.49%  (p=0.000 n=10+10)
+    ToUpper/a\u0080\U0010ffff-8                90.4ns ± 1%  93.8ns ± 0%   +3.82%  (p=0.000 n=10+7)
+    ToLower/#00-8                              9.59ns ± 1%  6.13ns ± 2%  -36.08%  (p=0.000 n=10+10)
+    ToLower/abc-8                              36.4ns ± 1%  10.4ns ± 1%  -71.50%  (p=0.000 n=10+10)
+    ToLower/AbC123-8                           55.8ns ± 1%  27.5ns ± 1%  -50.61%  (p=0.000 n=10+10)
+    ToLower/azAZ09_-8                          61.7ns ± 1%  30.2ns ± 1%  -50.98%  (p=0.000 n=8+10)
+    ToLower/longStrinGwitHmixofsmaLLandcAps-8   226ns ± 1%    64ns ± 1%  -71.53%  (p=0.000 n=10+9)
+    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS-8   354ns ± 0%   361ns ± 0%   +2.18%  (p=0.000 n=10+10)
+    ToLower/ⱭⱭⱭⱭⱭ-8                             180ns ± 1%   186ns ± 0%   +3.45%  (p=0.000 n=10+9)
+    ToLower/A\u0080\U0010ffff-8                91.7ns ± 0%  94.5ns ± 0%   +2.99%  (p=0.000 n=10+10)
     
-    Fixes #34266
-    
-    Change-Id: Ie97eb7c1223f944003a1e31d0ec9e69aad0efc0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196961
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ifdb8ae328ff9feacd1c170db8eebbf98c399e204
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170954
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/git.go  | 68 ++++++---------------------
- src/cmd/go/testdata/script/mod_get_direct.txt | 20 ++++++++
- 2 files changed, 35 insertions(+), 53 deletions(-)
+ src/bytes/bytes.go      | 63 +++++++++++++++++++++++++++++++++++++++++++++----
+ src/bytes/bytes_test.go | 35 +++++++++++++++++++++++++++
+ 2 files changed, 94 insertions(+), 4 deletions(-)

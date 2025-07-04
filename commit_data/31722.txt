@@ -1,28 +1,16 @@
-commit 4d6b08de709f0914f640e0bc738e094443687bbf
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 31 11:19:54 2017 -0400
+commit da0d23e5cdb305681a55c5475ff2db3e9a254cd4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 10 17:07:42 2017 +0000
 
-    cmd/compile: add -importcfg to specify import resolution
+    runtime: remove unused ratep parameter
     
-    Allows reading -importmap options from a file instead of putting
-    them all on the command line, and adds the ability to specify the
-    file location of specific packages. In effect, -importcfg is a generalization
-    of and supersedes -importmap, -importsuffix, and -I.
-    Of course, those flags will continue to be supported,
-    for compatibility with other tools.
+    Found by github.com/mvdan/unparam.
     
-    Having this flag in Go 1.9 will let us try some experiments involving
-    package management without needing guinea pigs to build a
-    custom Go toolchain.
-    
-    This flag also helps with #14271 at some later point.
-    
-    For #20579.
-    
-    Change-Id: If005dbc2b01d8fd16cbfd3687dfbe82499f4bc56
-    Reviewed-on: https://go-review.googlesource.com/44850
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iabcdfec2ae42c735aa23210b7183080d750682ca
+    Reviewed-on: https://go-review.googlesource.com/38030
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Run-TryBot: Peter Weinberger <pjw@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 67 +++++++++++++++++++++++++++++++++++--
- 1 file changed, 64 insertions(+), 3 deletions(-)
+ src/runtime/mprof.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

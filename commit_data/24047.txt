@@ -1,14 +1,26 @@
-commit e288271773d128c2eff80317ffa532f22ee990a5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 21 11:30:19 2015 -0700
+commit 117ddcb83d7f42d6aa72241240af99ded81118e9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 30 09:22:41 2015 -0700
 
-    math/big: fix TestBytes test
+    net/textproto: don't treat spaces as hyphens in header keys
     
-    Fixes #12231.
+    This was originally done in https://codereview.appspot.com/5690059
+    (Feb 2012) to deal with bad response headers coming back from webcams,
+    but it presents a potential security problem with HTTP request
+    smuggling for request headers containing "Content Length" instead of
+    "Content-Length".
     
-    Change-Id: I1f07c444623cd864667e21b2fee534eacdc193bb
-    Reviewed-on: https://go-review.googlesource.com/13814
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Part of overall HTTP hardening for request smuggling. See RFC 7230.
+    
+    Thanks to Régis Leroy for the report.
+    
+    Change-Id: I92b17fb637c9171c5774ea1437979ae2c17ca88a
+    Reviewed-on: https://go-review.googlesource.com/11772
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/int_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/net/http/header.go           |  2 ++
+ src/net/textproto/reader.go      | 36 +++++++++++++++++++++++++++++++++---
+ src/net/textproto/reader_test.go | 11 +++++++----
+ 3 files changed, 42 insertions(+), 7 deletions(-)

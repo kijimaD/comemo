@@ -1,34 +1,14 @@
-commit 63e2bed0ab93e6116b552453e45c0322777508f9
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sat Sep 5 11:28:33 2015 +0000
+commit 2bd1e5e50b677790a2f48127bf443b32ca8193db
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 15:38:46 2015 -0400
 
-    cmd/asm: fix another infinite loop in register list parser
+    cmd/pprof: run $BROWSER and system browser before Chrome
     
-    The code parsing register lists involves an inner loop on
-    each range defined by the lo,hi bounds. The condition on
-    this loop (for lo<=hi) is fragile, because the bounds
-    are unsigned 16 bits numbers.
+    Fixes #10259.
     
-    In some corner cases, the calculated upper bound is 2^16-1
-    leading to an infinite loop.
-    
-    Parsing operand `[):[o-FP` results in:
-    - an infinite loop for non ARM architectures
-    - the generation of almost 2^16 errors for the ARM architecture
-      (which are then ignored)
-    
-    This CL improves the code in 3 ways:
-    - bail out early when parsing non R prefixed registers
-    - make sure the register index is never negative
-    - make sure the number of iterations is limited by the
-      maximum size of the range (as a defensive measure).
-    
-    Fixes #12469
-    
-    Change-Id: Ib1e7e36fb8ad5a3a52c50fc6219d3cfe2b39cc34
-    Reviewed-on: https://go-review.googlesource.com/14314
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ica6b8301cc8291785a3c496fb513050813b2d8df
+    Reviewed-on: https://go-review.googlesource.com/12201
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/asm/internal/asm/operand_test.go |  8 +++++++-
- src/cmd/asm/internal/asm/parse.go        | 14 ++++++++++++--
- 2 files changed, 19 insertions(+), 3 deletions(-)
+ src/cmd/pprof/internal/commands/commands.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

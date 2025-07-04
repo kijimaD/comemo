@@ -1,20 +1,18 @@
-commit af725f42864c8fb56afcf3ba76d2df7d372534e4
-Author: AndreasHGK <andreaselbergs@outlook.com>
-Date:   Thu Jun 30 15:59:30 2022 +0000
+commit 56c3856d529d72e280ad6b185f7927657de86c37
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 27 22:59:26 2021 -0700
 
-    os: fix a typo in path_windows.go
+    cmd/compile/internal/types: unexport Type.widthCalculated
     
-    I believe the path_windows.go file has a typo, which is fixed in this PR
+    It's not needed outside of package types anymore.
     
-    Change-Id: Ibf1a7189a6312dbb3b1e6b512beeb6d99da5b5bc
-    GitHub-Last-Rev: cedac7eaa07d26667e6800c5ac96239d5ccf6ba8
-    GitHub-Pull-Request: golang/go#53629
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415434
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: Idadf915fc254920ca778b5f5f8de8a1300da1953
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345794
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/os/path_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types/size.go | 6 +++++-
+ src/cmd/compile/internal/types/type.go | 6 +-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,27 +1,23 @@
-commit 38cd79889ece342643b56ad6d496ef8931ca9272
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Sep 19 07:45:08 2016 -0400
+commit e9228dd9490c3d4827170abeb8c82e68c175ecf0
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Wed May 25 23:22:11 2016 -0700
 
-    cmd/compile: simplify div/mod on ARM
+    cmd/go: fixup for parsing SCP-like addresses
     
-    On ARM, DIV, DIVU, MOD, MODU are pseudo instructions that makes
-    runtime calls _div/_udiv/_mod/_umod, which themselves are wrappers
-    of udiv. The udiv function does the real thing.
+    This is a fixup change for commit 5cd294480364eb166751838a3df8f58649c214e1
+    that added parsing of SCP-like addresses. To get the expected output
+    from (*url.URL).String(), Path needs to be set, not RawPath.
     
-    Instead of generating these pseudo instructions, call to udiv
-    directly. This removes one layer of wrappers (which has an awkward
-    way of passing argument), and also allows combining DIV and MOD
-    if both results are needed.
+    Add a test for this, since it has already regressed multiple times.
     
-    Change-Id: I118afc3986db3a1daabb5c1e6e57430888c91817
-    Reviewed-on: https://go-review.googlesource.com/29390
-    Reviewed-by: David Chase <drchase@google.com>
+    Updates #11457.
+    
+    Change-Id: I806f5abbd3cf65e5bdcef01aab872caa8a5b8891
+    Reviewed-on: https://go-review.googlesource.com/23447
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/arm/ssa.go        |  20 +-
- src/cmd/compile/internal/ssa/config.go     |   8 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules |  44 ++--
- src/cmd/compile/internal/ssa/gen/ARMOps.go |  19 +-
- src/cmd/compile/internal/ssa/opGen.go      |  61 +----
- src/cmd/compile/internal/ssa/rewriteARM.go | 367 ++++++++++++++++++++---------
- src/runtime/vlop_arm.s                     |  17 +-
- 7 files changed, 316 insertions(+), 220 deletions(-)
+ src/cmd/go/go_test.go | 32 ++++++++++++++++++++++++++++++--
+ src/cmd/go/vcs.go     |  8 ++++----
+ 2 files changed, 34 insertions(+), 6 deletions(-)

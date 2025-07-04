@@ -1,43 +1,61 @@
-commit d8626ef128bb5e9e13a8f8659481067f12dd23cc
-Author: Sébastien Paolacci <sebastien.paolacci@gmail.com>
-Date:   Fri Jan 18 16:39:22 2013 -0500
+commit 41ec481a53b2592111e1278670b3361ef98c352d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 18 16:33:25 2013 -0500
 
-    runtime: faster mcentral alloc.
+    cmd/6c: Improve peep hole optimization of rotate and shift instructions.
     
-    Reduce individual object handling by anticipating how much of them are servable.
+    Update #4629.
     
-    Not a chunked transfer cache, but decent enough to make sure the bottleneck is not here.
+    $ cat shift2.c
+    unsigned int
+    shift(unsigned int x, unsigned int y)
+    {
+            x = (x << 3);
+            y = (y << 5);
+            x = (x << 7);
+            y = (y << 9);
+            return x ^ y;
+    }
     
-    Mac OSX, median of 10 runs:
+    ## BEFORE
+    $ go tool 6c -S shift2.c
+    (shift2.c:2)    TEXT    shift+0(SB),$0-8
+    (shift2.c:4)    MOVL    x+0(FP),!!AX
+    (shift2.c:4)    SALL    $3,!!AX
+    (shift2.c:4)    MOVL    AX,!!DX
+    (shift2.c:5)    MOVL    y+4(FP),!!AX
+    (shift2.c:5)    SALL    $5,!!AX
+    (shift2.c:5)    MOVL    AX,!!CX
+    (shift2.c:6)    MOVL    DX,!!AX
+    (shift2.c:6)    SALL    $7,!!AX
+    (shift2.c:6)    MOVL    AX,!!DX
+    (shift2.c:7)    MOVL    CX,!!AX
+    (shift2.c:7)    SALL    $9,!!AX
+    (shift2.c:7)    MOVL    AX,!!CX
+    (shift2.c:8)    MOVL    DX,!!AX
+    (shift2.c:8)    XORL    CX,!!AX
+    (shift2.c:8)    RET     ,!!
+    (shift2.c:8)    RET     ,!!
+    (shift2.c:8)    END     ,!!
     
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkBinaryTree17    5358937333   4892813012   -8.70%
-    BenchmarkFannkuch11      3257752475   3315436116   +1.77%
-    BenchmarkGobDecode         23277349     23001114   -1.19%
-    BenchmarkGobEncode         14367327     14262925   -0.73%
-    BenchmarkGzip             441045541    440451719   -0.13%
-    BenchmarkGunzip           139117663    139622494   +0.36%
-    BenchmarkJSONEncode        45715854     45687802   -0.06%
-    BenchmarkJSONDecode       103949570    106530032   +2.48%
-    BenchmarkMandelbrot200      4542462      4548290   +0.13%
-    BenchmarkParse              7790558      7557540   -2.99%
-    BenchmarkRevcomp          831436684    832510381   +0.13%
-    BenchmarkTemplate         133789824    133007337   -0.58%
+    ## AFTER
+    $ go tool 6c -S shift2.c
+    (shift2.c:2)    TEXT    shift+0(SB),$0-8
+    (shift2.c:4)    MOVL    x+0(FP),!!AX
+    (shift2.c:4)    SALL    $3,!!AX
+    (shift2.c:5)    MOVL    y+4(FP),!!CX
+    (shift2.c:5)    SALL    $5,!!CX
+    (shift2.c:6)    SALL    $7,!!AX
+    (shift2.c:7)    SALL    $9,!!CX
+    (shift2.c:8)    XORL    CX,!!AX
+    (shift2.c:8)    RET     ,!!
+    (shift2.c:8)    RET     ,!!
+    (shift2.c:8)    END     ,!!
     
-    benchmark                  old MB/s     new MB/s  speedup
-    BenchmarkGobDecode            32.82        33.33    1.02x
-    BenchmarkGobEncode            53.42        53.86    1.01x
-    BenchmarkGzip                 43.70        44.01    1.01x
-    BenchmarkGunzip              139.09       139.14    1.00x
-    BenchmarkJSONEncode           42.69        42.56    1.00x
-    BenchmarkJSONDecode           18.78        17.91    0.95x
-    BenchmarkParse                 7.37         7.67    1.04x
-    BenchmarkRevcomp             306.83       305.70    1.00x
-    BenchmarkTemplate             14.57        14.56    1.00x
-    
-    R=rsc, dvyukov
+    R=rsc, minux.ma, dave, nigeltao
     CC=golang-dev
-    https://golang.org/cl/7005055
+    https://golang.org/cl/7066055
 
- src/pkg/runtime/mcentral.c | 52 ++++++++++++++++++++--------------------------
- 1 file changed, 23 insertions(+), 29 deletions(-)
+ src/cmd/6c/peep.c | 33 +++++++++++++++++++--------------
+ src/cmd/6g/peep.c |  3 +++
+ 2 files changed, 22 insertions(+), 14 deletions(-)

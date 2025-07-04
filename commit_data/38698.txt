@@ -1,21 +1,22 @@
-commit 7756a72b35e10a4cd03772ed852f2b3214971469
-Author: Neven Sajko <nsajko@gmail.com>
-Date:   Sat Mar 30 19:45:46 2019 +0000
+commit e500ffd88cb906014320607c6a03a5fd05ee84cf
+Author: Austin Clements <austin@google.com>
+Date:   Wed Sep 26 14:20:58 2018 -0400
 
-    all: change the old assembly style AX:CX to CX, AX
+    runtime: track all heap arenas in a slice
     
-    Assembly files with "/vendor/" or "testdata" in their paths were ignored.
+    Currently, there's no efficient way to iterate over the Go heap. We're
+    going to need this for fast free page sweeping, so this CL adds a
+    slice of all allocated heap arenas. This will also be useful for
+    generational GC.
     
-    Change-Id: I3882ff07eb4426abb9f8ee96f82dff73c81cd61f
-    GitHub-Last-Rev: 51ae8c324d72a12a059272fcf8568e670bfaf21b
-    GitHub-Pull-Request: golang/go#31166
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170197
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    For #18155.
+    
+    Change-Id: I58d126cfb9c3f61b3125d80b74ccb1b2169efbcc
+    Reviewed-on: https://go-review.googlesource.com/c/138076
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/crypto/elliptic/p256_asm_amd64.s | 8 ++++----
- src/math/big/arith_386.s             | 8 ++++----
- src/math/big/arith_amd64.s           | 8 ++++----
- 3 files changed, 12 insertions(+), 12 deletions(-)
+ src/runtime/malloc.go | 21 +++++++++++++++++++++
+ src/runtime/mheap.go  | 11 ++++++++++-
+ 2 files changed, 31 insertions(+), 1 deletion(-)

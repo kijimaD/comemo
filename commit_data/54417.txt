@@ -1,32 +1,18 @@
-commit 94200bf85c91b3396fdab74430b746577811335f
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Sep 12 14:48:12 2023 +0200
+commit 9ddb8ea73724d717a9bbf44be7d585ba5587504f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 14 14:24:30 2022 -0400
 
-    all: fix Microsoft links
+    os/signal: add missing newlines to TestTerminalSignal
     
-    This CL fixes the links to Microsoft documentation in the Go source
-    code. Some links were broken and some others were outdated.
+    For #37329.
+    For #56233.
     
-    Change-Id: I4c3bcd3aa3c07a31be1b7f94c25339dcc2e771e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527556
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iafcddaddafd2d27fa5d535b57aaefec387f0b3f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443066
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
 
- src/archive/zip/struct.go                       | 4 ++--
- src/cmd/dist/sys_windows.go                     | 4 ++--
- src/cmd/go/internal/fsys/fsys.go                | 2 +-
- src/internal/syscall/windows/registry/key.go    | 4 ++--
- src/internal/syscall/windows/reparse_windows.go | 4 ++--
- src/os/os_windows_test.go                       | 4 ++--
- src/os/path_windows.go                          | 2 +-
- src/os/user/lookup_windows.go                   | 6 +++---
- src/runtime/race_amd64.s                        | 2 +-
- src/runtime/sys_windows_amd64.s                 | 2 +-
- src/syscall/security_windows.go                 | 2 +-
- src/syscall/syscall_windows.go                  | 2 +-
- src/syscall/types_windows.go                    | 2 +-
- 13 files changed, 20 insertions(+), 20 deletions(-)
+ src/os/signal/signal_cgo_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

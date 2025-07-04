@@ -1,20 +1,17 @@
-commit b0fa2f5b09acfa5604e78cafc2183f3e1eac061b
-Author: Amelia Downs <adowns@vmware.com>
-Date:   Mon Sep 20 13:04:49 2021 -0400
+commit 4c668b25c6517ff12b61c11cad1f22ddc89a9791
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jan 6 18:22:17 2021 +0000
 
-    cmd/compile: fix ExampleInfo output
+    runtime/metrics: fix panic message for Float64Histogram
     
-    Move the "TODO" to outside of the function so that the "Output" comment
-    block is the last comment block. Output is only checked when it is the
-    last comment block. See golang/go#48362 for this issue.
+    The panic message erroneously refers to float64 values.
     
-    Fixes: golang/go#48494
-    
-    Change-Id: I7a31d7c13710e58fa876c96240a927a9bb8273ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350995
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: David Chase <drchase@google.com>
+    Change-Id: I83380f41d6c28a72bc69a94b9bcdf9d42b1503c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281236
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types2/example_test.go | 56 ++++++++++++-------------
- 1 file changed, 28 insertions(+), 28 deletions(-)
+ src/runtime/metrics/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

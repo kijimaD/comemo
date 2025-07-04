@@ -1,34 +1,24 @@
-commit 11e93aa24a61e0c4b25600bf2a681b8779371fe8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jul 7 16:09:08 2016 -0700
+commit a39950ba66998b7166a37ddf878d0a414a267ea5
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Apr 15 15:20:24 2016 -0400
 
-    cmd/vet: allow any printf verb with any interface
+    crypto/aes: delete TestEncryptBlock and TestDecryptBlock
     
-    fmt treats interfaces as being transparent.
-    As a result, we cannot say with confidence
-    that any particular verb is wrong.
+    The encryptBlock and decryptBlock functions are already tested
+    (via the public API) by TestCipherEncrypt and TestCipherDecrypt
+    respectively. Both sets of tests check the output of the two
+    functions against the same set of FIPS 197 examples. I therefore
+    think it is safe to delete these two tests without losing any
+    coverage.
     
-    This fixes the following vet false positives
-    in the standard library:
+    Deleting these two tests will make it easier to modify the
+    internal API, which I am hoping to do in future CLs.
     
-    database/sql/sql_test.go:210: arg dep for printf verb %p of wrong type: sql.finalCloser
-    fmt/fmt_test.go:1663: arg nil for printf verb %s of wrong type: untyped nil
-    go/ast/commentmap.go:328: arg node for printf verb %p of wrong type: ast.Node
-    net/http/transport_test.go:120: arg c for printf verb %p of wrong type: net.Conn
-    net/http/httptest/server.go:198: arg c for printf verb %p of wrong type: net.Conn
-    net/http/httputil/dump_test.go:258: arg body for printf verb %p of wrong type: io.Reader
-    reflect/set_test.go:81: arg x for printf verb %p of wrong type: io.Writer
-    reflect/set_test.go:141: arg bb for printf verb %p of wrong type: io.Reader
-    
-    Updates #11041
-    Updates #16314
-    
-    Change-Id: I76df01abb3c34a97b6960f551bed9c1c91377cfc
-    Reviewed-on: https://go-review.googlesource.com/27127
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I0dd568bc19f47b70ab09699b507833e527d39ba7
+    Reviewed-on: https://go-review.googlesource.com/22115
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/testdata/print.go |  5 +++++
- src/cmd/vet/types.go          | 11 ++++-------
- 2 files changed, 9 insertions(+), 7 deletions(-)
+ src/crypto/aes/aes_test.go | 36 ------------------------------------
+ 1 file changed, 36 deletions(-)

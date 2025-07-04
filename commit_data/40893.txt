@@ -1,37 +1,21 @@
-commit 476395cb3e97cf7d9c50d8fe57c2c7926f1cff48
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 22 16:06:11 2019 -0500
+commit c5178ef69eedce1374e684212ea9cdae6220e0f6
+Author: Joe Tsai <thebrokentoaster@gmail.com>
+Date:   Thu Aug 8 06:01:24 2019 +0000
 
-    misc: remove use of relative directories in overlayDir functions
+    Revert "go/ast: fix SortImports to handle block comments"
     
-    It turns out that the relative-path support never worked in the first
-    place.
+    This reverts CL 162337.
     
-    It had been masked by the fact that we ~never invoke overlayDir with
-    an absolute path, which caused filepath.Rel to always return an error,
-    and overlayDir to always fall back to absolute paths.
+    Reason for revert: this introduces a regression
     
-    Since the absolute paths seem to be working fine (and are simpler),
-    let's stick with those. As far as I can recall, the relative paths
-    were only a space optimization anyway.
+    Fixes #33538
+    Updates #18929
     
-    Updates #28387
-    Updates #30316
-    
-    Change-Id: Ie8cd28f3c41ca6497ace2799f4193d7f5dde7a37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208481
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ib2320a840c6d3ec7912e8f414e933d04fbf11ab4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189379
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/cgo/life/overlaydir_test.go         | 11 ++++-------
- misc/cgo/stdio/overlaydir_test.go        | 11 ++++-------
- misc/cgo/test/overlaydir_test.go         | 11 ++++-------
- misc/cgo/testcarchive/overlaydir_test.go | 11 ++++-------
- misc/cgo/testcshared/overlaydir_test.go  | 11 ++++-------
- misc/cgo/testplugin/overlaydir_test.go   | 11 ++++-------
- misc/cgo/testshared/overlaydir_test.go   | 11 ++++-------
- misc/cgo/testso/overlaydir_test.go       | 11 ++++-------
- misc/cgo/testsovar/overlaydir_test.go    | 11 ++++-------
- misc/reboot/overlaydir_test.go           |  8 +++-----
- 10 files changed, 39 insertions(+), 68 deletions(-)
+ src/cmd/gofmt/testdata/import.golden | 60 --------------------------
+ src/cmd/gofmt/testdata/import.input  | 62 ---------------------------
+ src/go/ast/import.go                 | 81 ++++++++++--------------------------
+ 3 files changed, 23 insertions(+), 180 deletions(-)

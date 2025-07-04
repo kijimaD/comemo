@@ -1,12 +1,31 @@
-commit 973c0312e36fd56b6b2111a07a19de63e0dcbf03
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Apr 8 16:09:15 2019 -0400
+commit 8dba66dfeb8eb19b075d45a84dae9bcdddb347d6
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 14 15:45:27 2018 -0500
 
-    doc: correct link in 1.12.3 notes
+    cmd/link: fix isStmt DWARF info
     
-    Change-Id: I6dd60ea7b8a8756be97503e163c2386af16e4e12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171144
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    When CL 147160 introduced function ABIs encoded as symbol versions in
+    the linker, it became slightly more complicated to look up derived
+    DWARF symbols. It fixed this by introducing a dwarfFuncSym function to
+    hide this logic, but missed one derived lookup that was done in the
+    object reader itself. As a result, we lost the isStmt tables from the
+    compiler, so every PC was marked as a statement in the DWARF info.
+    
+    Fix this by moving this derived lookup out of the object reader and
+    into the DWARF code and calling dwarfFuncSym to get the correctly
+    versioned symbol.
+    
+    Should fix the linux-amd64-longtest builder.
+    
+    Updates #27539.
+    
+    Change-Id: If40d5ba28bab1918ac4ad18fbb5103666b6d978b
+    Reviewed-on: https://go-review.googlesource.com/c/149605
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/devel/release.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf.go        | 7 +++++--
+ src/cmd/link/internal/objfile/objfile.go | 2 --
+ src/cmd/link/internal/sym/symbol.go      | 1 -
+ 3 files changed, 5 insertions(+), 5 deletions(-)

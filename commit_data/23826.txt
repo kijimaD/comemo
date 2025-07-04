@@ -1,18 +1,25 @@
-commit eb2d946d354b96303916e57d9de6492b0df5b88e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 23 12:05:34 2015 -0400
+commit 703ef06039c031d99b7420d984fded0bef11b14d
+Author: Michael Matloob <matloob@google.com>
+Date:   Tue Jun 16 11:11:16 2015 -0700
 
-    go/internal/gcimporter: reenable TestImport
+    [dev.ssa] cmd/compile/internal/gc: reduce genValue redundancy
     
-    It was not running because of invalid use of ArchChar.
-    I didn't catch this when I scrubbed ArchChar from the tree
-    because this code wasn't in the tree yet.
+    Add an asm field to opcodeTable containing the Prog's as field.
+    Then instructions that fill the Prog the same way can be collapsed
+    into a single switch case.
     
-    The test seems to pass, which is nice.
+    I'm still thinking of a better way to reduce redundancy, but
+    I think this might be a good temporary solution to prevent duplication
+    from getting out of control. What do you think?
     
-    Change-Id: I59761a7a04a73681e147e25c1e7f010068276aa8
-    Reviewed-on: https://go-review.googlesource.com/12573
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I0c4a0992741f908bd357ee2707edb82e76e4ce61
+    Reviewed-on: https://go-review.googlesource.com/11130
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/internal/gcimporter/gcimporter_test.go | 21 ++-------------------
- 1 file changed, 2 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           | 106 ++-------------------------
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  61 +++++++--------
+ src/cmd/compile/internal/ssa/gen/main.go     |  11 +++
+ src/cmd/compile/internal/ssa/op.go           |   1 +
+ src/cmd/compile/internal/ssa/opGen.go        |  23 ++++++
+ 5 files changed, 75 insertions(+), 127 deletions(-)

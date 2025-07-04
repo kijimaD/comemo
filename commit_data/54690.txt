@@ -1,16 +1,23 @@
-commit ade730a96cdb07c60fe932373c0b05f9d15a4ec5
-Author: cui fliter <imcusg@gmail.com>
-Date:   Thu Oct 12 14:54:31 2023 +0800
+commit 342751a695835fb99ad8b8f9b9f3f818e9086b86
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 8 17:07:40 2022 -0800
 
-    container/heap: add available godoc link
+    cmd/go/testdata: don't set GOPATH=NUL in test
     
-    Change-Id: I886a8869ba885286ac8219bc7e245c9237ad4c99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534777
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    An upcoming change to the filepath package to make IsAbs("NUL")==false
+    on Windows will cause this test to fail, since it sets GOPATH=NUL and
+    GOPATH must be an absolute path.
+    
+    Set GOPATH to the name of a text file instead. (The intent is that GOPATH
+    be set to a path that is not writable.)
+    
+    For #56217.
+    
+    Change-Id: I18e645fe11547d02d1a2e0e580085e6348c4009a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448896
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/container/heap/heap.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/go/testdata/script/mod_init_empty.txt | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

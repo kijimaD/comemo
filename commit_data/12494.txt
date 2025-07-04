@@ -1,19 +1,17 @@
-commit 0029b0d20744392260997441c1158dcb1b23a734
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Mar 8 10:00:25 2012 +1100
+commit 90010f8f6351256113368130a4040da78e1fe401
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 8 06:23:56 2012 +0800
 
-    path/filepath: retrieve real file name in windows EvalSymlinks
+    build: re-enable some broken tests in run.bash
+            Updates #2982.
     
-    R=golang-dev, rsc
+    R=rsc, rsc
     CC=golang-dev
-    https://golang.org/cl/5756049
+    https://golang.org/cl/5759064
 
- src/pkg/go/build/deps_test.go             |  2 +-
- src/pkg/path/filepath/path.go             | 61 +---------------------------
- src/pkg/path/filepath/path_test.go        |  6 +++
- src/pkg/path/filepath/symlink.go          | 67 +++++++++++++++++++++++++++++++
- src/pkg/path/filepath/symlink_windows.go  | 27 +++++++++++++
- src/pkg/syscall/syscall_windows.go        |  1 +
- src/pkg/syscall/zsyscall_windows_386.go   | 14 +++++++
- src/pkg/syscall/zsyscall_windows_amd64.go | 14 +++++++
- 8 files changed, 131 insertions(+), 61 deletions(-)
+ .hgignore                   |  4 ++--
+ src/run.bash                | 29 +++++++++--------------------
+ test/bench/go1/Makefile     |  5 -----
+ test/bench/go1/dummy.go     |  3 ---
+ test/bench/go1/gzip_test.go | 10 ++--------
+ 5 files changed, 13 insertions(+), 38 deletions(-)

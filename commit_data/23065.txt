@@ -1,22 +1,22 @@
-commit 9c44a41dd56660b7685da61bf1efb00cc7c1e198
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 15 16:10:00 2015 -0400
+commit 723f86537c362f2f86c82ae827f689c23b866f00
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Mon Apr 20 23:02:07 2015 +0100
 
-    runtime: disallow preemption during startTheWorld
+    net/http: fix race between dialing and canceling
     
-    Currently, startTheWorld clears preemptoff for the current M before
-    starting the world. A few callers increment m.locks around
-    startTheWorld, presumably to prevent preemption any time during
-    starting the world. This is almost certainly pointless (none of the
-    other callers do this), but there's no harm in making startTheWorld
-    keep preemption disabled until it's all done, which definitely lets us
-    drop these m.locks manipulations.
+    In the brief window between getConn and persistConn.roundTrip,
+    a cancel could end up going missing.
     
-    Change-Id: I8a93658abd0c72276c9bafa3d2c7848a65b4691a
-    Reviewed-on: https://go-review.googlesource.com/10155
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fix by making it possible to inspect if a cancel function was cleared
+    and checking if we were canceled before entering roundTrip.
+    
+    Fixes #10511
+    
+    Change-Id: If6513e63fbc2edb703e36d6356ccc95a1dc33144
+    Reviewed-on: https://go-review.googlesource.com/9181
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/heapdump.go | 2 --
- src/runtime/mstats.go   | 2 --
- src/runtime/proc1.go    | 2 +-
- 3 files changed, 1 insertion(+), 5 deletions(-)
+ src/net/http/export_test.go    |  4 ++++
+ src/net/http/transport.go      | 37 +++++++++++++++++++++++++++++++++++--
+ src/net/http/transport_test.go | 26 ++++++++++++++++++++++++++
+ 3 files changed, 65 insertions(+), 2 deletions(-)

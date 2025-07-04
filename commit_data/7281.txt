@@ -1,15 +1,13 @@
-commit 1f55105f66eec3072be24cd1c428d90b90feef31
-Author: Ken Thompson <ken@golang.org>
-Date:   Sun Jan 30 15:55:08 2011 -0800
+commit 0f0f34ee05e911afa09862bf088982d91a53582f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 30 16:09:16 2011 -0500
 
-    enable arm peep.
-    one bug fixed,
-    probably more will be revealed
+    unicode: add maketables to build, fix build
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4126044
+    https://golang.org/cl/4073046
 
- src/cmd/5g/peep.c | 30 ++++++++++++++++++++++++++++--
- src/cmd/5g/reg.c  |  4 ++--
- 2 files changed, 30 insertions(+), 4 deletions(-)
+ src/pkg/unicode/Makefile      |  9 ++++---
+ src/pkg/unicode/maketables.go | 56 +++++++++++++++++++++----------------------
+ 2 files changed, 32 insertions(+), 33 deletions(-)

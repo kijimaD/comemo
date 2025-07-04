@@ -1,14 +1,18 @@
-commit 2dfa4f4eb0522b2e4c59a2f8677613fe50f2b078
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 20 16:41:31 2015 -0800
+commit f3c85c507bf9d42c5bd7e3c22919f3e0b7946bb7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 15 09:52:06 2014 +0900
 
-    math/big: use new nat.scan for Rat.SetString
+    fmt: fix bug in scanning of hex strings
+    Couldn't handle a hex string terminated by anything
+    other than spaces. Easy to fix.
     
-    Change-Id: Ida20bf95e8f0fdadb459c2daa6d22edae9c3ad16
-    Reviewed-on: https://go-review.googlesource.com/3091
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #9124.
+    
+    Change-Id: I18f89a0bd99a105c9110e1ede641873bf9daf3af
+    Reviewed-on: https://go-review.googlesource.com/1538
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/nat.go      |  3 ++
- src/math/big/rat.go      | 76 +++++++++++++++++++++++++++++++++---------------
- src/math/big/rat_test.go | 20 ++++++-------
- 3 files changed, 65 insertions(+), 34 deletions(-)
+ src/fmt/fmt_test.go  |  2 +-
+ src/fmt/scan.go      | 28 +++++++++++++++-----------
+ src/fmt/scan_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 73 insertions(+), 13 deletions(-)

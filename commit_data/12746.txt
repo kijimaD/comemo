@@ -1,12 +1,13 @@
-commit ce06e15e2a74de89d13e648760f75da7262d0149
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 26 13:59:30 2012 +1100
+commit 304404895d2204f0557da4753684689198e20ccd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 26 10:01:17 2012 +0800
 
-    doc: make installation instructions more skim-friendly
+    cmd/go: allow underscores in tool name
+            Otherwise we can't invoke go_bootstrap directly.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5908052
+    https://golang.org/cl/5900061
 
- doc/install.html | 24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+ src/cmd/go/tool.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

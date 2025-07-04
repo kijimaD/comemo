@@ -1,28 +1,15 @@
-commit 0cbf8d13a791ab5212c53dbcd58d0fdd622023b1
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 14 14:30:25 2015 -0500
+commit 9f60a0a2b01c9d1079ea8991125b471cdaa7eb56
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Thu Oct 15 10:25:56 2015 +1100
 
-    runtime: recycle large stack spans
+    net/http/httputil: clarify where DumpRequest(Out)? can be used.
     
-    To prevent races with the garbage collector, stack spans cannot be
-    reused as heap spans during a GC. We deal with this by caching stack
-    spans during GC and releasing them at the end of mark termination.
-    However, while our cache lets us reuse small stack spans, currently
-    large stack spans are *not* reused. This can cause significant memory
-    growth in programs that allocate large stacks rapidly, but grow the
-    heap slowly (such as in issue #13552).
+    The clues to this were already there, but as a user I was still unsure.
+    Make this more explicit.
     
-    Fix this by adding logic to reuse large stack spans for other stacks.
-    
-    Fixes #11466.
-    
-    Fixes #13552. Without this change, the program in this issue creeps to
-    over 1GB of memory over the course of a few hours. With this change,
-    it stays rock solid at around 30MB.
-    
-    Change-Id: If8b2d85464aa80c96230a1990715e39aa803904f
-    Reviewed-on: https://go-review.googlesource.com/17814
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I68564f3498dcd4897772a303588f03a6b65f111d
+    Reviewed-on: https://go-review.googlesource.com/15172
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/stack.go | 78 +++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 56 insertions(+), 22 deletions(-)
+ src/net/http/httputil/dump.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

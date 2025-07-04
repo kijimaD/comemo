@@ -1,19 +1,16 @@
-commit 4a801cdd319dc25a2bcdced0b70377c2dfa1464f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 5 17:24:41 2018 -0800
+commit a1addf15df95418d86fc0d495bc9aa85590d5724
+Author: nogoegst <nogoegst@users.noreply.github.com>
+Date:   Tue Jul 3 19:49:52 2018 +0000
 
-    cmd/cover: run tests in parallel, don't change source directory
+    bufio: make Reader naming consistent
     
-    This speeds up the cmd/cover testsuite by about 40% on my laptop.
+    All the readers are denoted as `b` while for `Reader.Size()` it is `r`.
     
-    Updates #26473
-    Updates #28386
-    
-    Change-Id: I853b1b3b8c98dc89440f7b7bf5c0ade1d3d66802
-    Reviewed-on: https://go-review.googlesource.com/c/152817
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib6f97306c11b3abb2ff30edbc9f9362cad36d080
+    GitHub-Last-Rev: 992f88b374b5a309303b7fa1622ee629d0fb741b
+    GitHub-Pull-Request: golang/go#26205
+    Reviewed-on: https://go-review.googlesource.com/122156
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cover/cover_test.go | 147 ++++++++++++++++++++++++++++++--------------
- 1 file changed, 102 insertions(+), 45 deletions(-)
+ src/bufio/bufio.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

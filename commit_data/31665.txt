@@ -1,23 +1,36 @@
-commit e0e4891827a3db12daa74859d9d487aeaa536c23
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed May 24 13:52:56 2017 -0700
+commit a6bd42f2630aa8907009a1ec0c35048c20a7afae
+Author: philhofer <phofer@umich.edu>
+Date:   Sat Mar 4 16:17:12 2017 -0800
 
-    compress/bzip2: remove dead code in huffman.go
+    cmd/compile: emit OffPtr for first field in SSA'd structs
     
-    The logic performs a series of shifts, which are useless given
-    that they are followed by an assignment that overrides the
-    value of the previous computation.
+    Given
     
-    I suspect (but cannot prove) that this is leftover logic from an
-    original approach that attempted to store both the Huffman code
-    and the length within the same variable instead of using two
-    different variables as it currently does now.
+      (Store [c] (OffPtr <T1> [0] (Addr <T> _)) _
+        (Store [c] (Addr <T> _) _ _))
     
-    Fixes #17949
+    dead store elimination doesn't eliminate the inner
+    Store, because it addresses a type of a different width
+    than the first store.
     
-    Change-Id: Ibf6c807c6cef3b28bfdaf2b68d9bc13503ac21b2
-    Reviewed-on: https://go-review.googlesource.com/44091
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    When decomposing StructMake operations, always generate
+    an OffPtr to address struct fields so that dead stores to
+    the first field of the struct can be optimized away.
+    
+    benchmarks affected on darwin/amd64:
+    HTTPClientServer-8        73.2µs ± 1%    72.7µs ± 1%  -0.69%  (p=0.022 n=9+10)
+    TimeParse-8                304ns ± 1%     300ns ± 0%  -1.61%  (p=0.000 n=9+9)
+    RegexpMatchEasy1_32-8     80.1ns ± 0%    79.5ns ± 1%  -0.84%  (p=0.000 n=8+9)
+    GobDecode-8               6.78ms ± 0%    6.81ms ± 1%  +0.46%  (p=0.000 n=9+10)
+    Gunzip-8                  36.1ms ± 1%    36.2ms ± 0%  +0.37%  (p=0.019 n=10+10)
+    JSONEncode-8              15.6ms ± 0%    15.7ms ± 0%  +0.69%  (p=0.000 n=9+10)
+    
+    Change-Id: Ia80d73fd047f9400c616ca64fdee4f438a0e7f21
+    Reviewed-on: https://go-review.googlesource.com/37769
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/compress/bzip2/huffman.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  22 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 140 +++++++++++++++----------
+ 2 files changed, 96 insertions(+), 66 deletions(-)

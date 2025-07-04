@@ -1,13 +1,20 @@
-commit 685a8157e6b2c523ea008d067373fb54a143bdb6
+commit 0e865ab8e79e2a067419df3d2f1df05dc35d2536
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 27 12:58:59 2011 -0700
+Date:   Fri May 27 12:14:48 2011 -0700
 
-    os: yet more Readdir tests and fix earlier regression
+    os: improve Readdir test coverage, fix Readdir(0) on EOF
     
-    R=golang-dev, fshahriar
+    Adds tests for Readdir and Readdirnames with different n
+    values.  No good way to inject faults during full reads,
+    though.
+    
+    Also fixes bug report from fshahriar:
+    Readdir(0) wasn't behaving like Readdir(-1).
+    
+    R=rsc, fshahriar
     CC=golang-dev
-    https://golang.org/cl/4548068
+    https://golang.org/cl/4529092
 
- src/pkg/os/dir_unix.go |  6 +++---
- src/pkg/os/os_test.go  | 19 +++++++++++++------
- 2 files changed, 16 insertions(+), 9 deletions(-)
+ src/pkg/os/dir_unix.go |  2 +-
+ src/pkg/os/os_test.go  | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 1 deletion(-)

@@ -1,12 +1,19 @@
-commit 02cae293cc950edae42a0dff99ce64e7eb296e26
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 14 11:50:00 2011 -0700
+commit 6f921f22ae620fad8b29a8b9873069010266dae1
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Apr 14 14:47:28 2011 -0400
 
-    gotest: generate gofmt-compliant code
+    crypto/tls: add server-side OCSP stapling support.
     
-    R=r
+    We already had support on the client side. I also changed the name of
+    the flag in the ServerHello structure to match the name of the same
+    flag in the ClientHello (ocspStapling).
+    
+    R=bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4400047
+    https://golang.org/cl/4408044
 
- src/cmd/gotest/gotest.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/crypto/tls/common.go             |  3 +++
+ src/pkg/crypto/tls/handshake_client.go   |  2 +-
+ src/pkg/crypto/tls/handshake_messages.go | 10 +++++-----
+ src/pkg/crypto/tls/handshake_server.go   | 11 +++++++++++
+ 4 files changed, 20 insertions(+), 6 deletions(-)

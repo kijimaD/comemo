@@ -1,23 +1,20 @@
-commit 351e0f4083779d8ac91c05afebded42a302a6893
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 24 13:22:02 2022 -0700
+commit 3836983779a8f1f1a1b6dc629832e695dcacaf36
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 11:46:24 2021 -0700
 
-    runtime: avoid fma in mkfastlog2table
+    cmd/compile/internal/types: unexport Type.Extra
     
-    This lets us generate identical copies of fastlog2table.go on all hosts.
+    Not used outside of package types anymore. Let's keep it that.
     
-    Tested by regenerating fastlog2table.go on linux-amd64 and darwin-arm64.
-    
-    Fixes #49891
-    
-    Change-Id: I279d6b5abb5a5290c049d9658050fd9c8d0c0190
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413976
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I69b464ac94edaacd219da4210f7b8618e2beaf70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345413
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/mkfastlog2table.go | 59 +++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 58 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types/fmt.go       |   4 +-
+ src/cmd/compile/internal/types/size.go      |   2 +-
+ src/cmd/compile/internal/types/type.go      | 182 ++++++++++++++--------------
+ src/cmd/compile/internal/types/type_test.go |  19 ++-
+ 4 files changed, 103 insertions(+), 104 deletions(-)

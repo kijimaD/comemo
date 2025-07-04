@@ -1,16 +1,13 @@
-commit f9c6ad9b6bad25bff480b95d3ebf6a780e86964d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 21 13:59:14 2014 -0400
+commit e22705bf8b6d4e9f670ff63ceefb81392c832bee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 21 09:15:07 2014 -0700
 
-    cmd/go: fix coverage for 'package foo_test' tests
+    test/float_lit2.go: fix constants for 386 platforms (fix build)
     
-    Fixes #8062.
-    
-    LGTM=r
-    R=r
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/91610046
+    https://golang.org/cl/95480045
 
- src/cmd/go/test.bash | 36 ++++++++++++++++++++-------------
- src/cmd/go/test.go   | 56 ++++++++++++++++++++++++++++++----------------------
- 2 files changed, 54 insertions(+), 38 deletions(-)
+ test/float_lit2.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

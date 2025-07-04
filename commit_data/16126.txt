@@ -1,12 +1,14 @@
-commit f4de042e2c22dcd64c667e3196d27a8b551410a4
-Author: Alexei Sholik <alcosholik@gmail.com>
-Date:   Sun Apr 7 16:50:23 2013 -0700
+commit 487721fd0dda2a2c6b7dad4d6a4865a6b808df7c
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Sun Apr 7 23:33:40 2013 +0200
 
-    go/ast: fix typo in Fprint documentation
+    reflect: use unsafe.Pointer in StringHeader and SliceHeader
     
-    R=golang-dev, bradfitz
+    Relates to issue 5193.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/8499043
+    https://golang.org/cl/8363045
 
- src/pkg/go/ast/print.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/reflect/value.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

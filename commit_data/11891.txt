@@ -1,17 +1,12 @@
-commit e11632ee0044474d3e767192d6f61e6ab010c48d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 14 17:19:59 2012 +1100
+commit 1c987a321f5013517a0c1987826f9595dde7cb72
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 01:13:14 2012 -0500
 
-    go/doc, godoc: regard lone examples as "whole file" examples
+    5g: fix memory corruption
     
-    Fixes #2930.
-    
-    R=r, gri, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5657048
+    https://golang.org/cl/5666043
 
- src/cmd/go/test.go         |  4 ++++
- src/cmd/godoc/godoc.go     |  9 ++++++---
- src/pkg/go/doc/example.go  | 32 ++++++++++++++++++++++++++------
- src/pkg/testing/testing.go |  3 +++
- 4 files changed, 39 insertions(+), 9 deletions(-)
+ src/cmd/5g/gsubr.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

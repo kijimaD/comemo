@@ -1,13 +1,12 @@
-commit d12b08d228aff8b62d6a90297689856bf67890f7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 12 17:13:27 2013 -0800
+commit 9394629b897b81284d1a02ecf840c1a991bd3b96
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Dec 12 14:32:31 2013 -0500
 
-    test: disable a couple of precise GC tests for gccgo
+    crypto/rc4: fix type errors in pure Go implementation
     
-    R=golang-dev, rsc
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/41610043
+    https://golang.org/cl/40540049
 
- test/deferfin.go            | 4 ++++
- test/fixedbugs/issue5493.go | 5 +++--
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/pkg/crypto/rc4/rc4_ref.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

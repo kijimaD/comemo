@@ -1,15 +1,22 @@
-commit 92b02e313193de9de9aaa3525f1908d8a26e9a68
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 25 12:06:06 2015 -0500
+commit 0722a5e71848f62363f71eac4696469cea754b83
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 28 13:45:57 2015 -0700
 
-    encoding/xml: document new chardata tag
+    cmd/doc: fix pretty printing of paths
     
-    Followup to CL 16047.
-    For #12963.
+    The code to strip GOROOT and GOPATH had a bug: it assumed there
+    were bytes after the GOROOT prefix but there might not be.
+    Fix this and other issues by taking care the prefix is really a
+    file name prefix for the path, not just a string prefix, and
+    handle the case where GOROOT==path.
     
-    Change-Id: I596cd5109b25a4079b966427411860fde8b9b54a
-    Reviewed-on: https://go-review.googlesource.com/17232
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I8066865fd05f938bb6dbf3bb8ab1fc58e5cf6bb5
+    Reviewed-on: https://go-review.googlesource.com/15112
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/encoding/xml/marshal.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/doc/doc_test.go | 30 ++++++++++++++++++++++++++++++
+ src/cmd/doc/main.go     |  1 -
+ src/cmd/doc/pkg.go      | 30 ++++++++++++++++++++++++------
+ 3 files changed, 54 insertions(+), 7 deletions(-)

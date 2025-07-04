@@ -1,58 +1,21 @@
-commit 260e3d08189a42e849b9e30bfbf6722e20026c15
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue May 7 11:07:10 2019 -0700
+commit 10aede26d0603c16f6f66c87a84bccfeb2e0c8e0
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Mar 12 16:21:43 2019 +0100
 
-    cmd/compile: run deadcode before lowered CSE
+    misc/android: fix detection of GOROOT tests
     
-    CSE can make dead values live again.
-    Running deadcode first avoids that;
-    it also makes CSE more efficient.
+    strings.HasPrefix is not good enough to determine whether a path
+    is a subdirectory of another because it does not respect path
+    boundaries. filepath.Rel is good eonugh as long as we filter out results
+    that use parent directories, "..".
     
-    file    before    after     Δ       %
-    api     5970616   5966520   -4096   -0.069%
-    asm     4867088   4846608   -20480  -0.421%
-    compile 23988320  23935072  -53248  -0.222%
-    link    6084376   6080280   -4096   -0.067%
-    nm      4165736   4161640   -4096   -0.098%
-    objdump 4572216   4568120   -4096   -0.090%
-    pprof   14452996  14457092  +4096   +0.028%
-    trace   11467292  11471388  +4096   +0.036%
-    total   132181100 132099180 -81920  -0.062%
+    Hopefully fix the android emulator builders on the subrepositories.
     
-    Compiler performance impact is negligible:
-    
-    name        old alloc/op      new alloc/op      delta
-    Template         38.8MB ± 0%       38.8MB ± 0%  -0.04%  (p=0.008 n=5+5)
-    Unicode          28.2MB ± 0%       28.2MB ± 0%    ~     (p=1.000 n=5+5)
-    GoTypes           131MB ± 0%        131MB ± 0%  -0.14%  (p=0.008 n=5+5)
-    Compiler          606MB ± 0%        606MB ± 0%  -0.05%  (p=0.008 n=5+5)
-    SSA              2.14GB ± 0%       2.13GB ± 0%  -0.26%  (p=0.008 n=5+5)
-    Flate            24.0MB ± 0%       24.0MB ± 0%  -0.18%  (p=0.008 n=5+5)
-    GoParser         28.8MB ± 0%       28.8MB ± 0%  -0.15%  (p=0.008 n=5+5)
-    Reflect          83.8MB ± 0%       83.7MB ± 0%  -0.11%  (p=0.008 n=5+5)
-    Tar              36.4MB ± 0%       36.4MB ± 0%  -0.09%  (p=0.008 n=5+5)
-    XML              47.9MB ± 0%       47.8MB ± 0%  -0.15%  (p=0.008 n=5+5)
-    [Geo mean]       84.6MB            84.5MB       -0.12%
-    
-    name        old allocs/op     new allocs/op     delta
-    Template           379k ± 0%         380k ± 0%  +0.15%  (p=0.008 n=5+5)
-    Unicode            340k ± 0%         340k ± 0%    ~     (p=0.738 n=5+5)
-    GoTypes           1.36M ± 0%        1.36M ± 0%  +0.05%  (p=0.008 n=5+5)
-    Compiler          5.49M ± 0%        5.49M ± 0%  +0.12%  (p=0.008 n=5+5)
-    SSA               17.5M ± 0%        17.5M ± 0%  -0.18%  (p=0.008 n=5+5)
-    Flate              235k ± 0%         235k ± 0%    ~     (p=0.079 n=5+5)
-    GoParser           302k ± 0%         302k ± 0%    ~     (p=0.310 n=5+5)
-    Reflect            976k ± 0%         977k ± 0%  +0.08%  (p=0.008 n=5+5)
-    Tar                352k ± 0%         352k ± 0%  +0.12%  (p=0.008 n=5+5)
-    XML                436k ± 0%         436k ± 0%  -0.05%  (p=0.008 n=5+5)
-    [Geo mean]         842k              842k       +0.03%
-    
-    
-    Change-Id: I53e8faed1859885ca5c4a5d45067a50984f3eff1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175879
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I17ee7e0028c0b0b26a6c5f67629f53c9a660c6e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167117
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/android/go_android_exec.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

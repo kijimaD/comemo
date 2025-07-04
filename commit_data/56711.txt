@@ -1,27 +1,41 @@
-commit 1be701a344d1f1819dc08d78259684de1da6f923
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Wed May 29 16:36:36 2024 +0000
+commit a371fa5e7042ee5d07b18045aefa8e9c4bfd4efa
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Dec 27 14:34:11 2022 -0500
 
-    Revert "runtime: split mutex profile clocks"
+    cmd/covdata: relax mode clash policy for selected operations
     
-    This reverts commit 8ab131fb1256a4a795c610e145c022e22e2d1567 (CL 586796)
+    Relax the policy on counter mode clashes in certain cases for "go tool
+    covdata" operations. Specifically, when generating 'percent',
+    'pkglist' or 'func' reports, we only care about whether a given
+    statement is executed, thus counter mode clashes are irrelevant; there
+    is no need to report clashes for these ops.
     
-    Reason for revert: This is part of a patch series that changed the
-    handling of contended lock2/unlock2 calls, reducing the maximum
-    throughput of contended runtime.mutex values, and causing a performance
-    regression on applications where that is (or became) the bottleneck.
+    Example:
     
-    Updates #66999
-    Updates #67585
+      $ go build -covermode=count -o myprog.count.exe myprog
+      $ go build -covermode=set -o myprog.set.exe myprog
+      $ GOCOVERDIR=dir1 ./myprog.count.exe
+      ...
+      $ GOCOVERDIR=dir2 ./myprog.set.exe
+      ...
+      $ go tool covdata percent i=dir1,dir2
+      error: counter mode clash while reading meta-data file dir2/covmeta.1a0cd0c8ccab07d3179f0ac3dd98159a: previous file had count, new file has set
+      $
     
-    Change-Id: I54711691e86e072081482102019d168292b5150a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589095
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    With this patch the command above will "do the right thing" and work
+    properly, and in addition merges using the "-pcombine" flag will also
+    operate with relaxed rules. Note that textfmt operations still require
+    inputs with consistent coverage modes.
+    
+    Change-Id: I01e97530d9780943c99b399d03d4cfff05aafd8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495440
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/runtime/lock_futex.go | 28 ++++++-----------------
- src/runtime/lock_sema.go  | 29 ++++++------------------
- src/runtime/mprof.go      | 58 ++++++++++++++++++++++++++++-------------------
- 3 files changed, 49 insertions(+), 66 deletions(-)
+ src/cmd/covdata/dump.go                    |  8 ++++++
+ src/cmd/covdata/merge.go                   |  2 ++
+ src/cmd/covdata/tool_test.go               | 20 ++++++++++++---
+ src/internal/coverage/cmerge/merge.go      | 41 +++++++++++++++++++++++-------
+ src/internal/coverage/cmerge/merge_test.go | 19 +++++++++++---
+ 5 files changed, 75 insertions(+), 15 deletions(-)

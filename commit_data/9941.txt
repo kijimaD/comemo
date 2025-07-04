@@ -1,25 +1,19 @@
-commit 36036781d55c03e1120911e299ea6a48ed718524
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 12 11:48:25 2011 -0700
+commit fefadcf51cc8b00fad84f6c0a8ed79bf6aeff46f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 12 11:46:50 2011 -0700
 
-    http: remove Request.RawURL
+    netchan: move to old/netchan
+    Part of Go version 1 rearrangement.
+    No gofix, since the new name is not in Go 1.
     
-    Its purpose is not only undocumented, it's also unknown (to me
-    and Russ, at least) and leads to complexity, bugs and
-    confusion.
-    
-    R=golang-dev, adg, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5213043
+    https://golang.org/cl/5245055
 
- src/pkg/http/cgi/child.go         | 12 ++++++------
- src/pkg/http/cgi/child_test.go    |  6 ------
- src/pkg/http/cgi/host.go          |  1 -
- src/pkg/http/readrequest_test.go  |  3 ---
- src/pkg/http/request.go           | 37 ++++++++++++++++++------------------
- src/pkg/http/requestwrite_test.go | 40 +++++++++++++++++++++------------------
- src/pkg/http/transport.go         |  6 ++----
- src/pkg/http/transport_test.go    | 32 +++----------------------------
- src/pkg/websocket/hixie_test.go   |  6 +++---
- src/pkg/websocket/hybi_test.go    | 12 ++++++------
- 10 files changed, 61 insertions(+), 94 deletions(-)
+ src/pkg/Makefile                          | 2 +-
+ src/pkg/{ => old}/netchan/Makefile        | 6 +++---
+ src/pkg/{ => old}/netchan/common.go       | 0
+ src/pkg/{ => old}/netchan/export.go       | 0
+ src/pkg/{ => old}/netchan/import.go       | 0
+ src/pkg/{ => old}/netchan/netchan_test.go | 0
+ 6 files changed, 4 insertions(+), 4 deletions(-)

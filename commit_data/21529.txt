@@ -1,14 +1,12 @@
-commit 0ca49135a0976b6dc2fb1c25a526045c5366971c
-Author: Florin Patan <florinpatan@gmail.com>
-Date:   Mon Feb 9 00:27:38 2015 +0100
+commit a88d709268b7aa0bb859964981dc1fab5ab019de
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 13 16:43:34 2015 +1100
 
-    sort: fixed small typo in comments
+    runtime: make windows goenvs look more like Go
     
-    There was a small typo in the comment before the Stable function.
-    
-    Change-Id: Ia6fa5272aa7869124a637d2eeda81c4f35ef46c8
-    Reviewed-on: https://go-review.googlesource.com/4201
+    Change-Id: I4f84a89553f77382a8064f49db0f5eb575b64313
+    Reviewed-on: https://go-review.googlesource.com/2714
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/sort/sort.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/os1_windows.go | 34 ++++++++++++++++++++++------------
+ 1 file changed, 22 insertions(+), 12 deletions(-)

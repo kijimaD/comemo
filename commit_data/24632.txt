@@ -1,23 +1,27 @@
-commit afe9837b23f889c59144d90ce3ae87d32aee59fe
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Aug 31 22:24:07 2015 +0200
+commit 467a2cb73ca867ccdb1dd22be220fa51b6d52491
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Aug 15 15:25:46 2015 +1000
 
-    cmd/compile/internal/gc: make embedded unexported structs RO
+    cmd/compile/internal/arm64: remove Reginuse check in clearfat
     
-    gc will need to be rebuild.
+    Fixes golang/go#12133
     
-    Package that assume f.PkgPath != nil means a field is unexported and
-    must be ignored must be revised to check for
-            f.PkgPath != nil && !f.Anonymous,
-    so that they do try to walk into the embedded fields to look for
-    exported fields contained within.
+    CL 13630 fixed the use of a stale reg[] array in the various arch
+    backends which was causing the check in clearfat to pass
+    unconditionally on arm64.
     
-    Closes #12367, fixes #7363, fixes #11007, and fixes #7247.
+    With this check fixed, arm64 now considers REGRT1 to always be in use
+    as it is part of the reserved register set, see arm64/gsubr.go.
     
-    Change-Id: I16402ee21ccfede80f277f84b3995cf26e97433d
-    Reviewed-on: https://go-review.googlesource.com/14085
+    However, ppc64 does not consider REGRT1 and REGRT2 to be part of its
+    reserved set, so its identical clearfat check passes.
+    
+    This CL removes the Reginuse check inside clearfat as REGRT1 is
+    guarenteed always be free on arm64.
+    
+    Change-Id: I4719150d3c3378fae155b863c474529df18d4c17
+    Reviewed-on: https://go-review.googlesource.com/13650
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |   3 +-
- src/reflect/all_test.go                | 190 +++++++++++++++++++++++++++++++++
- 2 files changed, 192 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/arm64/ggen.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

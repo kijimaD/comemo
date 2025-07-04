@@ -1,20 +1,21 @@
-commit 623c772814cdae562afb4c63c62d51a228bc672e
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Sep 15 15:30:13 2018 -0700
+commit f2239d39571a176ebeb726e2d6cccbc3aa1ba4a9
+Author: HAMANO Tsukasa <hamano@osstech.co.jp>
+Date:   Wed May 2 05:54:12 2018 +0000
 
-    cmd/compile: fix CMPconstload rule
+    encoding/asn1: allow Marshaling and Unmarshaling private tag class
     
-    The CMPconstload opcodes take a ValAndOff as their AuxInt, not just
-    an offset.
+    ASN.1 has an private class, but current implementation does not support it.
     
-    Originally introduced in CL 135379.
-    
-    Change-Id: I244b2d56ef2e99d2975faa2e97f4291ec97c64b7
-    Reviewed-on: https://go-review.googlesource.com/135418
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I3ebf07a048831869572f75223cb17d4c115caef7
+    GitHub-Last-Rev: b3c69ad091218acfa0bb0e34111cceae69586eb9
+    GitHub-Pull-Request: golang/go#25195
+    Reviewed-on: https://go-review.googlesource.com/110561
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules | 10 +--
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 96 ++++++++++++++--------------
- 2 files changed, 53 insertions(+), 53 deletions(-)
+ src/encoding/asn1/asn1.go         | 7 +++++++
+ src/encoding/asn1/asn1_test.go    | 4 +++-
+ src/encoding/asn1/common.go       | 6 ++++++
+ src/encoding/asn1/marshal.go      | 2 ++
+ src/encoding/asn1/marshal_test.go | 9 +++++++++
+ 5 files changed, 27 insertions(+), 1 deletion(-)

@@ -1,17 +1,29 @@
-commit 7dad1d24b2e596b2178c1f94fe877c9effa330cd
-Author: Julie Qiu <julie@golang.org>
-Date:   Fri Aug 19 12:08:15 2022 -0400
+commit 6c163e5ac9cdb258566f1287de7915a2fd30a0de
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 21 13:48:23 2021 -0700
 
-    .github/ISSUE_TEMPLATE: add issue template for Go vulnerability management
+    runtime: change funcinl sentinel value from 0 to ^0
     
-    Change-Id: Ia8bdd7909e94f3ab7248e88f0947db85ac744d79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424928
-    Run-TryBot: Julie Qiu <julieqiu@google.com>
-    Auto-Submit: Julie Qiu <julieqiu@google.com>
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    _func and funcinl are type-punned.
+    We distinguish them at runtime by inspecting the first word.
+    
+    Prior to this change, we used 0 as the sentinel value
+    that means that a Func is a funcinl.
+    That worked because _func's first word is the functions' entry PC,
+    and 0 is not a valid PC. I plan to make *_func's entry PC relative
+    to the containing module. As a result, 0 will be a valid value,
+    for the first function in the module.
+    
+    Switch to ^0 as the new sentinel value, which is neither a valid
+    entry PC nor a valid PC offset.
+    
+    Change-Id: I4c718523a083ed6edd57767c3548640681993522
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351459
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- .github/ISSUE_TEMPLATE/04-vuln.md | 51 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 51 insertions(+)
+ src/runtime/runtime2.go |  4 ++--
+ src/runtime/symtab.go   | 12 +++++++++---
+ 2 files changed, 11 insertions(+), 5 deletions(-)

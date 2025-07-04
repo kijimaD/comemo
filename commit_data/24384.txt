@@ -1,18 +1,14 @@
-commit 3d4cd144cc1e6fb554b12695d0d190a2db0c6a2c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 25 22:26:52 2015 -0700
+commit 4c9464525ed393793ca74126135f2ca22863d718
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 21 11:45:55 2015 -0400
 
-    math/big: improved documentation
+    runtime: document gctrace format
     
-    - moved existing package documentation from nat.go to doc.go
-    - expanded on it
+    Fixes #10348.
     
-    For #11241.
-    
-    Change-Id: Ie75a2b0178a8904a4154307a1f5080d7efc5489a
-    Reviewed-on: https://go-review.googlesource.com/15042
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I3eea9738e3f6fdc1998d04a601dc9b556dd2db72
+    Reviewed-on: https://go-review.googlesource.com/12453
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/doc.go | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/math/big/nat.go | 28 +++------------------
- 2 files changed, 76 insertions(+), 24 deletions(-)
+ src/runtime/extern.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

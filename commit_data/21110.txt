@@ -1,15 +1,18 @@
-commit c85a2bf9c2912bc09fb0d4cea93ffa91b3100136
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 29 10:54:42 2014 -0800
+commit 5fce15a2a3cd94427bb9979d73acf14013ec7f31
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 14 12:55:23 2014 -0500
 
-    testing/iotest: fix copy/paste error in comment
+    [dev.cc] runtime: fix lfstack for amd64 addresses in top half of addr space
     
-    Reported via unsupported GitHub pull request:
-    https://github.com/golang/go/pull/9436/
+    While we are here, add the linux/power64 version.
     
-    Change-Id: I12b00e8ccac700bb36b200196e2867fcc863fdf1
-    Reviewed-on: https://go-review.googlesource.com/2139
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LGTM=austin
+    R=austin
+    CC=aram, dvyukov, golang-codereviews
+    https://golang.org/cl/177750043
 
- src/testing/iotest/logger.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/lfstack.go                | 19 ++++---------------
+ src/runtime/lfstack_32bit.go          | 16 ++++++++++++----
+ src/runtime/lfstack_amd64.go          | 24 ++++++++++++++++++------
+ src/runtime/lfstack_linux_power64x.go | 26 ++++++++++++++++++++++++++
+ 4 files changed, 60 insertions(+), 25 deletions(-)

@@ -1,15 +1,17 @@
-commit 3bf645a6338d0699116f58f5ae5b0f2a0f0dca65
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 12 17:30:36 2021 -0700
+commit 44a15a7262b14d517fefab5b7c13ca97ab099a30
+Author: Dai Jie <gzdaijie@163.com>
+Date:   Fri Oct 2 09:09:24 2020 +0000
 
-    cmd/link: force external linking for DragonFly cgo programs
+    net/http: remove duplicate declaration of error
     
-    Change-Id: Idce4eec2a4698a94aa7b40590dffb6bf9bd45342
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309571
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    there is no need to declare a error variable here.
+    
+    Change-Id: I9ea5bcf568d800efed19c90caf751aaf9abe5555
+    GitHub-Last-Rev: 538d1f9cee0b8564a8bec262529f567da847f1b0
+    GitHub-Pull-Request: golang/go#41751
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259037
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/link/internal/ld/config.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/net/rpc/client.go | 1 -
+ 1 file changed, 1 deletion(-)

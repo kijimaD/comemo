@@ -1,17 +1,42 @@
-commit 90a3ce02dc25adcf1598faf11a66b151ada3f637
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Wed Mar 27 14:25:24 2019 +0100
+commit aa9bcea3907a74f45303b3bdb603b9952cc72b7b
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Oct 5 14:21:39 2018 -0400
 
-    cmd/link/internal/ld: skip TLS section on Android
+    runtime: improve performance of memclr, memmove on ppc64x
     
-    We don't use the TLS section on android, and dropping it avoids
-    complaints about underalignment from the Android Q linker.
+    This improves the asm implementations for memmove and memclr on
+    ppc64x through use of vsx loads and stores when size is >= 32 bytes.
+    For memclr, dcbz is used when the size is >= 512 and aligned to 128.
     
-    Updates #29674
+    Memclr/64       13.3ns ± 0%     10.7ns ± 0%   -19.55%  (p=0.000 n=8+7)
+    Memclr/96       14.9ns ± 0%     11.4ns ± 0%   -23.49%  (p=0.000 n=8+8)
+    Memclr/128      16.3ns ± 0%     12.3ns ± 0%   -24.54%  (p=0.000 n=8+8)
+    Memclr/160      17.3ns ± 0%     13.0ns ± 0%   -24.86%  (p=0.000 n=8+8)
+    Memclr/256      20.0ns ± 0%     15.3ns ± 0%   -23.62%  (p=0.000 n=8+8)
+    Memclr/512      34.2ns ± 0%     10.2ns ± 0%   -70.20%  (p=0.000 n=8+8)
+    Memclr/4096      178ns ± 0%       23ns ± 0%   -87.13%  (p=0.000 n=8+8)
+    Memclr/65536    2.67µs ± 0%     0.30µs ± 0%   -88.89%  (p=0.000 n=7+8)
+    Memclr/1M       43.2µs ± 0%     10.0µs ± 0%   -76.85%  (p=0.000 n=8+8)
+    Memclr/4M        173µs ± 0%       40µs ± 0%   -76.88%  (p=0.000 n=8+8)
+    Memclr/8M        349µs ± 0%       82µs ± 0%   -76.58%  (p=0.000 n=8+8)
+    Memclr/16M       701µs ± 7%      672µs ± 0%    -4.05%  (p=0.040 n=8+7)
+    Memclr/64M      2.70ms ± 0%     2.67ms ± 0%    -0.96%  (p=0.000 n=8+7)
     
-    Change-Id: I91dabf2a58e6eb1783872639a6a144858db09cef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169618
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Memmove/32      6.59ns ± 0%    5.84ns ± 0%  -11.34%  (p=0.029 n=4+4)
+    Memmove/64      7.91ns ± 0%    6.97ns ± 0%  -11.92%  (p=0.029 n=4+4)
+    Memmove/128     10.5ns ± 0%     8.8ns ± 0%  -16.24%  (p=0.029 n=4+4)
+    Memmove/256     21.0ns ± 0%    12.9ns ± 0%  -38.57%  (p=0.029 n=4+4)
+    Memmove/512     28.4ns ± 0%    26.2ns ± 0%   -7.75%  (p=0.029 n=4+4)
+    Memmove/1024    48.2ns ± 1%    39.4ns ± 0%  -18.26%  (p=0.029 n=4+4)
+    Memmove/2048    85.4ns ± 0%    69.0ns ± 0%  -19.20%  (p=0.029 n=4+4)
+    Memmove/4096     159ns ± 0%     128ns ± 0%  -19.50%  (p=0.029 n=4+4)
+    
+    Change-Id: I8c1adf88790845bf31444a15249456006eb5bf8b
+    Reviewed-on: https://go-review.googlesource.com/c/141217
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/cmd/link/internal/ld/lib.go | 29 +++++++++++++++++------------
- 1 file changed, 17 insertions(+), 12 deletions(-)
+ src/runtime/memclr_ppc64x.s  | 129 ++++++++++++++++++++++++++++++++++++++-----
+ src/runtime/memmove_ppc64x.s |  51 +++++++++++------
+ 2 files changed, 149 insertions(+), 31 deletions(-)

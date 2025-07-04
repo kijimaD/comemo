@@ -1,25 +1,54 @@
-commit 99e4ddd053fada36038f7fd4e7220d789e30e48a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 17 14:42:29 2018 -0800
+commit ae6361e4bd78b85c284881a16b9b3f81133db1bb
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Aug 17 16:32:08 2018 -0400
 
-    cmd/compile: increase nesting depth limit for type descriptors
+    runtime: handle morestack system stack transition in gentraceback
     
-    The formatting routines for types use a depth limit as primitive
-    mechanism to detect cycles. For now, increase the limit from 100
-    to 250 and file #29312 so we don't drop this on the floor.
+    gentraceback handles system stack transitions, but only when they're
+    done by systemstack(). Handle morestack() too.
     
-    Also, adjust some fatal error messages elsewhere to use
-    better formatting.
+    I tried to do this generically but systemstack and morestack are
+    actually *very* different functions. Most notably, systemstack returns
+    "normally", just messes with $sp along the way. morestack never
+    returns at all -- it calls newstack, and newstack then jumps both
+    stacks and functions back to whoever called morestack. I couldn't
+    think of a way to handle both of them generically. So don't.
     
-    Fixes #29264.
-    Updates #29312.
+    The current implementation does not include systemstack on the generated
+    traceback. That's partly because I don't know how to find its stack frame
+    reliably, and partly because the current structure of the code wants to
+    do the transition before the call, not after. If we're willing to
+    assume that morestack's stack frame is 0 size, this could probably be
+    fixed.
     
-    Change-Id: Idd529f6682d478e0dcd2d469cb802192190602f6
-    Reviewed-on: https://go-review.googlesource.com/c/154583
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For posterity's sake, alternatives tried:
+    
+    - Have morestack put a dummy function into schedbuf, like systemstack
+    does. This actually worked (see patchset 1) but more by a series of
+    coincidences than by deliberate design. The biggest coincidence was that
+    because morestack_switch was a RET and its stack was 0 size, it actually
+    worked to jump back to it at the end of newstack -- it would just return
+    to the caller of morestack. Way too subtle for me, and also a little
+    slower than just jumping directly.
+    
+    - Put morestack's PC and SP into schedbuf, so that gentraceback could
+    treat it like a normal function except for the changing SP. This was a
+    terrible idea and caused newstack to reenter morestack in a completely
+    unreasonable state.
+    
+    To make testing possible I did a small redesign of testCPUProfile to
+    take a callback that defines how to check if the conditions pass to it
+    are satisfied. This seemed better than making the syntax of the "need"
+    strings even more complicated.
+    
+    Updates #25943
+    
+    Change-Id: I9271a30a976f80a093a3d4d1c7e9ec226faf74b4
+    Reviewed-on: https://go-review.googlesource.com/126795
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/fmt.go     |  6 +++++-
- src/cmd/compile/internal/gc/iexport.go |  2 +-
- src/cmd/compile/internal/gc/iimport.go |  2 +-
- test/fixedbugs/issue29264.go           | 22 ++++++++++++++++++++++
- 4 files changed, 29 insertions(+), 3 deletions(-)
+ src/runtime/pprof/pprof_test.go | 110 +++++++++++++++++++++++++++++++---------
+ src/runtime/traceback.go        |  31 +++++++----
+ 2 files changed, 109 insertions(+), 32 deletions(-)

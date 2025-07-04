@@ -1,25 +1,27 @@
-commit eda42f7c60adab26ed1a340414c726c4bf46b1f7
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Nov 9 09:53:44 2023 -0800
+commit a8510f92e6c2b845c66f1fa428466ed3beafc083
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 13:27:16 2022 -0500
 
-    path/filepath: consider \\?\c: as a volume on Windows
+    cmd/compile: fix error message wording
     
-    While fixing several bugs in path handling on Windows,
-    beginning with \\?\.
+    CL 450136 fixed a different copy of this error but missed this one.
     
-    Prior to #540277, VolumeName considered the first path component
-    after the \\?\ prefix to be part of the volume name.
-    After, it considered only the \\? prefix to be the volume name.
+    With the compiler fix from CL 451555 rolled back to produce the error,
+    this is the text before this CL:
     
-    Restore the previous behavior.
+            b.go:9:15: internal compiler error: 'init': Value live at entry. It shouldn't be. func init, node a.i, value nil
     
-    Fixes #64028
+    And this CL changes it to:
     
-    Change-Id: I6523789e61776342800bd607fb3f29d496257e68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541175
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+            b.go:9:15: internal compiler error: 'init': value a.i (nil) incorrectly live at entry
+    
+    matching the same change in the earlier CL.
+    
+    Change-Id: I33e6b91477e1a213a6918c3ebdea81273be7d235
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452816
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/path/filepath/path_test.go    | 15 ++++++++++-----
- src/path/filepath/path_windows.go | 20 +++++++-------------
- 2 files changed, 17 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

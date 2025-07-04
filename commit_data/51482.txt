@@ -1,18 +1,45 @@
-commit cc1771e2fd0fbf02079f76a21b3548d6988296b0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 1 12:36:51 2022 -0800
+commit 4afcc9f35e97b4e96f2f350f2a00ea65f43f4175
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Feb 2 18:40:27 2022 -0500
 
-    doc/go1.20: document new semantics for comparable constraint
+    go/parser, go/types: don't parse type parameters on methods
     
-    For #54202.
-    For #56548.
+    The go/parser package is updated to report an error on method type
+    parameters, and to not store them in the AST. Tests are updated
+    accordingly, and error messages are normalized accross go/parser and the
+    compiler syntax package.
     
-    Change-Id: If2b9e41813c3e1c8d373469a40e1bd0bd5ea2b16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454595
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Before this CL, go/parser would parse type parameters on method
+    declarations and interface methods, leaving it to go/types to complain.
+    There are several problems with this:
+    
+    - Interface Methods and Method declarations do not have type parameters
+      in the spec. We try to align the parser with the productions in the
+      spec.
+    - Parsing method type parameters means that downstream libraries
+      (go/doc, go/format, etc.) theoretically need to handle them, even
+      though they are not part of the language.
+    - Relatedly, go/types has inconsistent handling of method type
+      parameters due to support being removed, leading to the crasher in
+      #50427.
+    
+    It is more consistent and safer to disallow type parameters on methods
+    in the parser.
+    
+    Fixes #50427
+    
+    Change-Id: I555766da0c76c4cf1cfe0baa9416863088088b4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382538
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.20.html | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/go/parser/parser.go                        | 25 +++++++++++------
+ src/go/parser/short_test.go                    | 26 +++++++++++-------
+ src/go/parser/testdata/issue50427.go2          | 19 +++++++++++++
+ src/go/types/errorcodes.go                     |  5 +---
+ src/go/types/testdata/check/typeparams.go2     | 37 ++++++++++++++------------
+ src/go/types/testdata/fixedbugs/issue39634.go2 |  2 +-
+ src/go/types/testdata/fixedbugs/issue50427.go2 | 23 ++++++++++++++++
+ 7 files changed, 97 insertions(+), 40 deletions(-)

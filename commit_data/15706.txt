@@ -1,19 +1,12 @@
-commit 864278ad90383182456feb79df3cd62fe4f9cf4d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 11 18:51:01 2013 -0700
+commit 2f2271db7a1cb434845f6bbfbc5d4aa732f2aef5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 12 11:18:18 2013 +1100
 
-    net/http: bit more docs on Client vs Transport
+    net/http: add tests for ParseHTTPVersion
     
-    This isn't as bad as it used to be, but add a bit
-    more detail to close the issue.
-    
-    Fixes #3359
-    
-    R=golang-dev, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7606044
+    https://golang.org/cl/7739043
 
- src/pkg/net/http/client.go    | 12 ++++++++----
- src/pkg/net/http/response.go  |  3 +++
- src/pkg/net/http/transport.go | 23 ++++++++++++++++++-----
- 3 files changed, 29 insertions(+), 9 deletions(-)
+ src/pkg/net/http/request_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

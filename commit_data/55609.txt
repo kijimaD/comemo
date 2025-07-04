@@ -1,25 +1,25 @@
-commit e4ebd13f7a6f216f7ddbaa1f2a3c97fd10bc3d23
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Feb 9 14:17:18 2024 -0500
+commit cb3e170ae764856a99160ee1a6cf8f04c8f51e5d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Feb 23 13:28:48 2023 -0800
 
-    cmd/dist,cmd/go: define assembly macros, handle GOARM value with soft/hardfloat
+    encoding/json: rely on reflect.Value.SetZero
     
-    CL 525637 added GOARM_x assembly macros based on GOARM value. But
-    it did not define the macro in cmd/dist, so the macro is not set
-    during bootstrapping. This CL defines them.
+    v.SetZero() is faster than v.Set(reflect.Zero(v.Type()))
+    and was recently added in Go 1.20.
     
-    With CL 514907, cfg.GOARM can also take a soft/hardfloat suffix,
-    like "7,hardfloat". Handle that case.
+    Benchmark numbers are largely unchanged since this mainly
+    affects the unmarshaling of large numbers of JSON nulls,
+    which our benchmarks do not heavily exercise.
     
-    For #65601.
-    
-    Change-Id: I60ffe7e8b623ae693d91d6e8595067a6f76565b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562995
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I464f60f63c9027e63a99fd5da92e7ab782018329
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471195
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/dist/build.go          | 18 ++++++++++++++++--
- src/cmd/go/internal/work/gc.go |  9 +++++----
- 2 files changed, 21 insertions(+), 6 deletions(-)
+ src/encoding/json/decode.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

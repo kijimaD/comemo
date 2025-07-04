@@ -1,15 +1,36 @@
-commit a0248a99a8567fcd8188e08977ec5eafd553bc18
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 14 12:55:43 2021 -0400
+commit de932da453f68b8fc04e9c2ab25136748173c806
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 13 22:30:23 2020 +0200
 
-    cmd/link: fix PE emitRelocations for >4GB base address
+    internal/cpu: consolidate arm64 feature detection
     
-    Change-Id: I1dda31bb1efa177159e4e7b4c9c9cc615e2fdc0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312037
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Move code to detect and mask arm64 CPU features from
+    runtime to internal/cpu.
+    
+    Change-Id: Ib784e2ff056e8def125d68827b852f07a3eff0db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261878
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- src/cmd/link/internal/ld/pe.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/internal/cpu/cpu_android.go  |   7 ++
+ src/internal/cpu/cpu_arm64.go    |  73 ++++++++++++++++----
+ src/internal/cpu/cpu_arm64.s     |  12 ++++
+ src/internal/cpu/cpu_freebsd.go  |   7 ++
+ src/internal/cpu/cpu_linux.go    |   9 +++
+ src/internal/cpu/cpu_other.go    |  11 +++
+ src/runtime/auxv_none.go         |   1 -
+ src/runtime/os_freebsd_arm64.go  | 143 ---------------------------------------
+ src/runtime/os_freebsd_noauxv.go |   2 +-
+ src/runtime/os_linux_arm64.go    |  14 +---
+ src/runtime/os_netbsd.go         |   1 -
+ src/runtime/os_netbsd_386.go     |   3 -
+ src/runtime/os_netbsd_amd64.go   |   3 -
+ src/runtime/os_netbsd_arm.go     |   3 -
+ src/runtime/os_netbsd_arm64.go   |  12 +---
+ src/runtime/os_openbsd_arm64.go  |  11 ---
+ src/runtime/sys_freebsd_arm64.s  |  21 ------
+ 17 files changed, 110 insertions(+), 223 deletions(-)

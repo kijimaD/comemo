@@ -1,12 +1,15 @@
-commit 2b0e9e8e9ec26f9261b901cf67503ad2d16d3145
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 5 15:15:36 2017 +1000
+commit 2f4ce69ddd98788cc281626bac4accc66880f356
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:28:12 2017 -0700
 
-    cmd/link: introduce and use peSection.checkOffset
+    cmd/compile: remove excessive whitespace in needkeyupdate
     
-    Change-Id: I093b79a8dd298bce8e8774c51a86a4873718978a
-    Reviewed-on: https://go-review.googlesource.com/56314
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I5309125e0da65a5f240e53472b1c911252f0a472
+    Reviewed-on: https://go-review.googlesource.com/41403
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 25 +++++++++++++------------
- 1 file changed, 13 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 23 +++--------------------
+ 1 file changed, 3 insertions(+), 20 deletions(-)

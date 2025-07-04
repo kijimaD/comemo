@@ -1,22 +1,19 @@
-commit 79a8997ac5592f11388d9f26ab3fff65ec876dbd
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed May 24 19:49:24 2023 +0200
+commit 9e8020b2d4a4730a7b2c75a0091473dc7583959b
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Fri Jun 17 16:33:14 2022 -0400
 
-    os: add dirFs.ReadDir to implement fs.ReadDirFS for DirFS
+    cmd/asm: add VTBX instruction on arm64
     
-    Follow CL 416775 which added dirFs.ReadFile.
-    
-    Fixes #53761
-    
-    Change-Id: Iec19a815ab7c37a3206be141518cc587a588de20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498015
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Icd9eeb78bfc0c0bbe19dcb9841c9fdc0abc29cc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413314
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/file.go    | 13 ++++++++++++-
- src/os/os_test.go | 14 +++++++++++---
- 2 files changed, 23 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/arch/arm64.go        |  2 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s | 16 ++++++++++++++++
+ src/cmd/internal/obj/arm64/a.out.go       |  1 +
+ src/cmd/internal/obj/arm64/anames.go      |  1 +
+ src/cmd/internal/obj/arm64/asm7.go        | 15 ++++++++++++---
+ 5 files changed, 31 insertions(+), 4 deletions(-)

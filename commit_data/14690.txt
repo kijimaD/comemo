@@ -1,17 +1,16 @@
-commit 91934ff5d83807228d021925ed9d9d78d2b777e6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 19 15:39:19 2012 -0800
+commit 4e406a2372b65ce58b2c4d26ada1c8b27c791af8
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 18 16:38:00 2012 -0800
 
-    net/http: fix server connection leak on Handler's panic(nil)
+    go/token: add test for concurrent use of FileSet.Pos
     
-    If a handler did a panic(nil), the connection was never closed.
+    Update #4354.
     
-    Fixes #4050
+    Add a test to expose the race in the FileSet position cache.
     
-    R=golang-dev, adg
-    CC=golang-dev
-    https://golang.org/cl/6971049
+    R=dvyukov, gri
+    CC=fullung, golang-dev
+    https://golang.org/cl/6940078
 
- src/pkg/net/http/serve_test.go | 18 +++++++++++++-----
- src/pkg/net/http/server.go     |  2 +-
- 2 files changed, 14 insertions(+), 6 deletions(-)
+ src/pkg/go/token/position_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

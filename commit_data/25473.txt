@@ -1,20 +1,38 @@
-commit fb142ee9b99b208d59079e8830fb45131b961991
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 13:52:48 2016 -0500
+commit 15aa6bbd5aa2cc8d7f2de91255f6a331ec5c16d4
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 14 21:31:33 2015 -0400
 
-    cmd/go: for go get -insecure, skip TLS certificate checking
+    runtime: replace assist sleep loop with park/ready
     
-    The flag is already named -insecure. Make it more so.
+    GC assists must block until the assist can be satisfied (either
+    through stealing credit or doing work) or the GC cycle ends.
+    Currently, this is implemented as a retry loop with a 100 µs delay.
+    This obviously isn't ideal, as it wastes CPU and delays mutator
+    execution. It also has the somewhat peculiar downside that sleeping a
+    G requires allocation, and this requires working around recursive
+    allocation.
     
-    If we're willing to accept HTTP, it's not much worse to accept
-    HTTPS man-in-the-middle attacks too. This allows servers
-    with self-signed certificates to work.
+    Replace this timed delay with a proper scheduling queue. When an
+    assist can't be satisfied immediately, it adds the allocating G to a
+    queue and parks it. Any time background scan credit is flushed, it
+    consults this queue, directly satisfies the debt of queued assists,
+    and wakes up satisfied assists before flushing any remaining credit to
+    the background credit pool.
     
-    Fixes #13197.
+    No effect on the go1 benchmarks. Slightly speeds up the garbage
+    benchmark.
     
-    Change-Id: Ia5491410bc886da0a26ef3bce4bf7d732f5e19e4
-    Reviewed-on: https://go-review.googlesource.com/18324
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  5.81ms ± 1%  5.72ms ± 4%  -1.65%  (p=0.011 n=20+20)
+    
+    Updates #12041.
+    
+    Change-Id: I8ee3b6274dd097b12b10a8030796a958a4b0e7b7
+    Reviewed-on: https://go-review.googlesource.com/15890
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/http.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go     |  12 ++++
+ src/runtime/mgcmark.go | 148 +++++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 137 insertions(+), 23 deletions(-)

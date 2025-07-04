@@ -1,19 +1,20 @@
-commit 7349d21f8ea7b121b2b691a01538f8a16bc09aed
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 30 21:47:41 2011 -0700
+commit 40f0a0d759d5930bc8bd046fa61c7cc3fe48be5f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 30 18:47:15 2011 -0700
 
-    http: add file protocol transport
+    godoc index: first step towards reducing index size
     
-    Off by default (security risk), but users can
-    wire it up if desired.
+    - canonicalize package descriptors
+    - remove duplicate storage of file paths
+    - reduces (current) written index file by approx 3.5MB
+    (from 28434237B to 24686643B, or 13%)
     
-    Fixes #2113
+    - next step: untangle DAG (when serializing, using
+    gob, the index dag explodes into an index tree)
     
-    R=rsc, bradfitz
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/4959049
+    https://golang.org/cl/4983042
 
- src/pkg/http/Makefile              |   1 +
- src/pkg/http/filetransport.go      | 124 +++++++++++++++++++++++++++++++++++++
- src/pkg/http/filetransport_test.go |  63 +++++++++++++++++++
- 3 files changed, 188 insertions(+)
+ src/cmd/godoc/index.go | 52 ++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 40 insertions(+), 12 deletions(-)

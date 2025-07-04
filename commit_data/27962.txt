@@ -1,24 +1,14 @@
-commit 0952a15cd17755c655910e4b2601d0f255d71c42
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jul 11 12:30:45 2016 -0700
+commit 8082828ed0b07225c50a991dbe2a176346fba3b8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 21 12:43:22 2016 -0700
 
-    cmd/vet: clean up printing errors with no position
+    encoding/gob: document compatibility
     
-    Before:
+    Fixes #13808.
     
-    : runtime/asm_amd64.s:345: [amd64] morestack: use of 8(SP) points beyond argument frame
-    
-    After:
-    
-    runtime/asm_amd64.s:345: [amd64] morestack: use of 8(SP) points beyond argument frame
-    
-    Updates #11041
-    
-    Change-Id: Ic87a6d1a2a7b2a8bf737407bc981b159825c84f2
-    Reviewed-on: https://go-review.googlesource.com/27152
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ifbd5644da995a812438a405485c9e08b4503a313
+    Reviewed-on: https://go-review.googlesource.com/22352
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/main.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/encoding/gob/doc.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

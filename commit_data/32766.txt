@@ -1,32 +1,23 @@
-commit 3844e707f699198ba44eaf911cbaf673aed8f286
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Aug 31 12:50:57 2017 +0200
+commit e0e4891827a3db12daa74859d9d487aeaa536c23
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed May 24 13:52:56 2017 -0700
 
-    cmd/dist: simplify code segments
+    compress/bzip2: remove dead code in huffman.go
     
-    This belongs to a series of clean-up changes (see below) for cmd/dist.
-    This is change (7).
+    The logic performs a series of shifts, which are useless given
+    that they are followed by an assignment that overrides the
+    value of the previous computation.
     
-    These changes include:
-    (1)  apply minor fixes
-    (2)  restore behavior of branchtag
-    (3)  unleash bootstrap optimization for windows
-    (4)  use standard generated code header
-    (5)  remove trivial variables + functions
-    (6)  move functions for the better
-    (7)  simplify code segments
-    (8)  use bytes.Buffer for code generation
-    (9)  rename variables + functions
-    (10) remove doc.go
+    I suspect (but cannot prove) that this is leftover logic from an
+    original approach that attempted to store both the Huffman code
+    and the length within the same variable instead of using two
+    different variables as it currently does now.
     
-    Change-Id: Ia3c33ef060b4baaef354b729ba82ed0b28e52857
-    Reviewed-on: https://go-review.googlesource.com/61013
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #17949
+    
+    Change-Id: Ibf6c807c6cef3b28bfdaf2b68d9bc13503ac21b2
+    Reviewed-on: https://go-review.googlesource.com/44091
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go     | 34 +++++++++++-----------
- src/cmd/dist/buildgo.go   | 10 ++++---
- src/cmd/dist/buildtool.go | 11 ++++---
- src/cmd/dist/main.go      | 73 ++++++++++++++++++++++-------------------------
- 4 files changed, 61 insertions(+), 67 deletions(-)
+ src/compress/bzip2/huffman.go | 4 ----
+ 1 file changed, 4 deletions(-)

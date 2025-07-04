@@ -1,47 +1,22 @@
-commit 1444c0b01e4f83a90f0d97b3bf0b346290ec02e3
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Apr 7 10:04:42 2023 -0700
+commit 2ecf747e088fa6568621d719fbdf41c0d9221cc5
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Sat May 7 06:43:03 2022 -0500
 
-    net/http: wait forever for write results in tests
+    crypto/aes: add BE support to gcm
     
-    After performing a round trip on a connection, the connection is
-    usually returned to the idle connection pool. If the write of the
-    request did not complete successfully, the connection is not
-    returned.
+    This adds the code to allow the gcm assembler code to work on
+    big endian ppc64.
     
-    It is possible for the response to be read before the write
-    goroutine has finished signalling that its write has completed.
-    To allow for this, the check to see if the write completed successfully
-    waits for 50ms for the write goroutine to report the result of the
-    write.
+    Updates #18499
     
-    See comments in persistConn.wroteRequest for more details.
-    
-    On a slow builder, it is possible for the write goroutine to take
-    longer than 50ms to report the status of its write, leading to test
-    flakiness when successive requests unexpectedly use different connections.
-    
-    Set the timeout for waiting for the writer to an effectively
-    infinite duration in tests.
-    
-    Fixes #51147
-    Fixes #56275
-    Fixes #56419
-    Fixes #56577
-    Fixes #57375
-    Fixes #57417
-    Fixes #57476
-    Fixes #57604
-    Fixes #57605
-    
-    Change-Id: I5e92ffd66b676f3f976d8832c0910f27456a6991
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483116
+    Change-Id: Iab1ffc9b8af38a0605a91f2621dd9f4a9397b945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404795
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/net/http/export_test.go    |  2 +-
- src/net/http/main_test.go      |  1 +
- src/net/http/transport.go      |  5 ++++-
- src/net/http/transport_test.go | 10 +++++++---
- 4 files changed, 13 insertions(+), 5 deletions(-)
+ src/crypto/aes/{gcm_ppc64le.go => gcm_ppc64x.go} | 14 +++++++--
+ src/crypto/aes/{gcm_ppc64le.s => gcm_ppc64x.s}   | 39 ++++++++++++++++++++----
+ 2 files changed, 44 insertions(+), 9 deletions(-)

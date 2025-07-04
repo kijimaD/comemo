@@ -1,12 +1,20 @@
-commit 9905446dc3280319efa0d233583885879e7ee6b2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Mar 30 10:52:22 2013 -0700
+commit c2e06e0188a19d66d3a773354ec284e308a03d47
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Mar 30 09:44:52 2013 -0700
 
-    net/textproto: report allocs in benchmarks
+    cmd/gc, cmd/ld: fix warnings on Plan 9
     
-    R=golang-dev, minux.ma
+    src/cmd/gc/closure.c:133 param declared and not used: nowrap
+    src/cmd/gc/const.c:1139 set and not used: t1
+    src/cmd/ld/data.c:652 format mismatch #llx INT, arg 7
+    src/cmd/ld/data.c:652 format mismatch #llx INT, arg 8
+    src/cmd/ld/data.c:1230 set and not used: datsize
+    
+    R=dave, golang-dev, lucio.dere, remyoudompheng, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8187045
+    https://golang.org/cl/8182043
 
- src/pkg/net/textproto/reader_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/gc/closure.c | 6 +++---
+ src/cmd/gc/const.c   | 1 -
+ src/cmd/ld/data.c    | 3 +--
+ 3 files changed, 4 insertions(+), 6 deletions(-)

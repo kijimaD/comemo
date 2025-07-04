@@ -1,18 +1,19 @@
-commit 96af8174975dcc18b6d13dad46c35bd1d7264d37
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 2 18:37:04 2017 -0700
+commit 7d977e42797aa51a3867dee5a60031becb9a9d40
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 5 18:10:19 2017 +0000
 
-    cmd/compile: add block profiling support
+    cmd/go: use ProxyFromEnvironment in -insecure mode also
     
-    Updates #15756
+    Be consistent on whether the http proxy environment variables are
+    respected regardless of whether -insecure is used.
     
-    Change-Id: Ic635812b324af926333122c02908cebfb24d7bce
-    Reviewed-on: https://go-review.googlesource.com/39208
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #18519
+    
+    Change-Id: Ib157eaacfd342dd3bfcd03e64da18c98c609cae3
+    Reviewed-on: https://go-review.googlesource.com/34818
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/doc.go              |  2 ++
- src/cmd/compile/internal/gc/main.go |  1 +
- src/cmd/compile/internal/gc/util.go | 12 ++++++++++++
- 3 files changed, 15 insertions(+)
+ src/cmd/go/http.go | 1 +
+ 1 file changed, 1 insertion(+)

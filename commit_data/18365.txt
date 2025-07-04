@@ -1,15 +1,13 @@
-commit 5be96aad0094b51757a40414fb7a5f3418de8067
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jan 28 19:49:29 2014 +1100
+commit 610dc92eac5ac3cb4d626982e954f37843573042
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Jan 28 06:17:38 2014 +0100
 
-    io: clarify MultiReader documentation
+    build: fix typos in run.rc
     
-    Fixes #7216.
-    
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
+    LGTM=bradfitz
+    R=jas, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/54740044
+    https://golang.org/cl/52940044
 
- src/pkg/io/multi.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/run.rc | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,12 +1,21 @@
-commit 2f0acc1e8010f03e86ce72f3c2aac13958d5ff41
-Author: Pieter Droogendijk <pieter@binky.org.uk>
-Date:   Thu Aug 8 09:57:31 2013 -0700
+commit ed8c5501c743d702016044e10c92e4a211765502
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 8 17:36:43 2013 +0400
 
-    doc/go1.2.txt: document previously committed features
+    net: use SetFileCompletionNotificationModes on windows if available
+    This allows to skip GetQueuedCompletionStatus if an IO operation completes synchronously.
+    benchmark                    old ns/op    new ns/op    delta
+    BenchmarkTCP4Persistent          27669        25863   -6.53%
+    BenchmarkTCP4Persistent-2        18173        15908  -12.46%
+    BenchmarkTCP4Persistent-4        10390         9766   -6.01%
     
-    R=golang-dev, bradfitz
+    R=golang-dev, mikioh.mikioh, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/12585044
+    https://golang.org/cl/12409044
 
- doc/go1.2.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/net/fd_windows.go                 |  62 ++++++-
+ src/pkg/syscall/syscall_windows.go        |   6 +
+ src/pkg/syscall/zsyscall_windows_386.go   | 293 ++++++++++++++++--------------
+ src/pkg/syscall/zsyscall_windows_amd64.go | 293 ++++++++++++++++--------------
+ src/pkg/syscall/ztypes_windows.go         |  66 +++++++
+ 5 files changed, 445 insertions(+), 275 deletions(-)

@@ -1,15 +1,16 @@
-commit 9cd759aecc97c2044df015d624d323277444740f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue May 20 15:52:08 2014 +1000
+commit 88d07b2cbcf0ad5e2e9936bcaec4fd25e38bec10
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue May 20 01:32:31 2014 -0400
 
-    misc/makerelease: handle update tour file layout
+    cmd/cgo: document CC_FOR_TARGET and CXX_FOR_TARGET
     
-    Fixes #7835.
+    Update #4714
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant, minux.ma, rsc
+    R=rsc, iant, r, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/94670044
+    https://golang.org/cl/100390043
 
- misc/makerelease/makerelease.go | 1 -
- 1 file changed, 1 deletion(-)
+ doc/go1.3.html     |  7 +++++++
+ src/cmd/cgo/doc.go | 12 ++++++++++++
+ 2 files changed, 19 insertions(+)

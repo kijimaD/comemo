@@ -1,0 +1,21 @@
+commit b5bfb5a3ce7c6d993dab40d9b92c06b873ecd404
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Sun Nov 19 20:01:57 2023 -0500
+
+    runtime: refactor fpunwindExpand to use provided buffer
+    
+    fpunwindExpand currently allocates a new slice to hold the expanded call
+    stack. In each place it's used, the resulting slice won't be needed
+    immediately afterward, so the allocation is wasteful. Refactor
+    fpunwindExpand to instead expand the call stack into a provided buffer.
+    
+    Change-Id: I05b26c191a8f76404c21ccbe3bd422325540425b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543715
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/tracestack.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

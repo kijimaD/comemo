@@ -1,25 +1,19 @@
-commit 33f1768381f0070d5ea8062a36f366d8a3142d96
-Author: 212472270 <ggp493@gmail.com>
-Date:   Tue Jun 5 16:15:40 2018 -0700
+commit dd3b4714be643321babc859b807399aa288a4475
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Feb 25 12:00:58 2018 +0100
 
-    crypto/cipher: replace NewGCMWithNonceAndTagSize with NewGCMWithTagSize
+    build: small cleanup in error message in make.bat
     
-    This function was added during the Go 1.11 dev cycle and isn't part of
-    the API compatibility promise yet.
+    Contrary to bash, double quotes cannot be used to group
+    arguments in Windows shell, so they were being printed as
+    literals by the echo command.
     
-    In the previous implementation, NewGCMWithNonceAndTagSize was being used
-    as a helper function for NewGCM, NewGCMWithTagSize, and NewGCMWithNonceSize.
-    With the removal of Nonce size from the name and parameters, we needed to
-    add an unexported helper function newGCMWithNonceAndTagSize.
+    Since a literal '>' is present in the string, it is sufficient
+    to escape it correctly through '^'.
     
-    Fixes #24977
-    
-    Change-Id: Ie70f2a192d0556c4f890deb62e68cff6bbbccd33
-    Reviewed-on: https://go-review.googlesource.com/116435
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Icc8c92b3dc8d813825adadbe3d921a38d44a1a94
+    Reviewed-on: https://go-review.googlesource.com/97056
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/crypto/cipher/gcm.go      | 14 +++++++++-----
- src/crypto/cipher/gcm_test.go | 28 +++++++++++++++++++++++-----
- 2 files changed, 32 insertions(+), 10 deletions(-)
+ src/make.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

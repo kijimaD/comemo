@@ -1,14 +1,18 @@
-commit c8b1f85493f9d1d141dd33cb88dfd435e17222b5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 8 08:53:08 2012 +1100
+commit b0beeb1501a65ff5494c41307058e98d1394be4e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 15:30:54 2012 -0500
 
-    encoding/gob: fix memory corruption
-    Fixes #3175.
+    runtime: fix freebsd crash
     
-    R=golang-dev, iant, rsc, r
+    FreeBSD, alone among our supported operating systems,
+    required that usleep not be interrupted.  Don't require that.
+    
+    Fixes #3217.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5758069
+    https://golang.org/cl/5781045
 
- src/pkg/encoding/gob/decode.go         |  3 +++
- src/pkg/encoding/gob/gobencdec_test.go | 19 +++++++++++++++++++
- 2 files changed, 22 insertions(+)
+ src/pkg/runtime/sys_freebsd_386.s   | 2 --
+ src/pkg/runtime/sys_freebsd_amd64.s | 2 --
+ 2 files changed, 4 deletions(-)

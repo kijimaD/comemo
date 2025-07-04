@@ -1,19 +1,22 @@
-commit fcd5fd2ad4c9283307c0e0b9f15c00b32c57483a
-Author: Shane Hansen <shanemhansen@gmail.com>
-Date:   Wed Oct 17 14:29:00 2012 -0400
+commit ea7c57a03135118dde12cb27b735c48c24c88b37
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 17 11:08:42 2012 -0700
 
-    crypto/cipher: panic on invalid IV length
+    go spec: restrictions for index and slice expressions
     
-    Give better user feedback when invalid IV is used
-    to construct a cipher.
+    At the moment, gc and gccgo report compile-
+    time errors for certain constant indexes that
+    are out of bounds. The spec however requests
+    a run-time panic for out-of-bounds indexes
+    (http://tip.golang.org/ref/spec#Indexes).
     
-    Fixes #3411
+    Document the status quo.
     
-    R=golang-dev, agl
+    Fixes #4231.
+    
+    R=r, rsc, iant, ken
     CC=golang-dev
-    https://golang.org/cl/6652053
+    https://golang.org/cl/6699048
 
- src/pkg/crypto/cipher/cbc.go | 6 ++++++
- src/pkg/crypto/cipher/cfb.go | 6 ++++++
- src/pkg/crypto/cipher/ctr.go | 2 +-
- 3 files changed, 13 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 53 +++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 37 insertions(+), 16 deletions(-)

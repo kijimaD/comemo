@@ -1,13 +1,22 @@
-commit ca68b2810d599b56e9e9a640f715de7485caf593
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Thu Jul 28 09:59:20 2011 -0700
+commit db9229def8bb23cf254e5027eaf9b5914220e621
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 12:39:50 2011 -0400
 
-    exp/template: make Set.ParseFile etc resolve functions in the Set
-    Fixes #2114
+    cgo: add GoBytes, fix gmp example
     
-    R=r
+    Fixes #1640.
+    Fixes #2007.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4823056
+    https://golang.org/cl/4815063
 
- src/pkg/exp/template/helper.go | 30 ++++++++++++++++++++++--------
- 1 file changed, 22 insertions(+), 8 deletions(-)
+ misc/cgo/gmp/gmp.go        |  4 ++--
+ misc/cgo/stdio/file.go     |  1 +
+ src/cmd/cgo/ast.go         |  4 ++++
+ src/cmd/cgo/doc.go         | 16 ++++++++++++++++
+ src/cmd/cgo/gcc.go         |  8 ++++++++
+ src/cmd/cgo/out.go         | 15 +++++++++++++--
+ src/pkg/runtime/runtime.h  |  1 +
+ src/pkg/runtime/string.goc | 10 ++++++++++
+ 8 files changed, 55 insertions(+), 4 deletions(-)

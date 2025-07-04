@@ -1,14 +1,12 @@
-commit 4f25e4be028ea975fa93fcfe97759dae3b85f256
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Mar 6 12:49:29 2012 -0500
+commit db80edde7ddd144388e367c9a8328121c98330ce
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 7 01:10:55 2012 +0800
 
-    crypto/tls: make the package description more accurate and less aspirational.
-    
-    Fixes #3216.
+    time: during short test, do not bother tickers take longer than expected
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5755056
+    https://golang.org/cl/5752058
 
- src/pkg/crypto/tls/tls.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/time/tick_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

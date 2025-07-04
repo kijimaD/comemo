@@ -1,12 +1,31 @@
-commit 67c79da857671faa65e110f58667c2282403046c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 15 14:24:28 2013 +0400
+commit 5d5defc77ffbf88b8f9a4facf66798e3016340cf
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 15 16:40:33 2013 +0900
 
-    runtime: fix plan9 build
+    net: rearrange the call order of runtime-integrated network pollster and syscall functions
     
-    R=golang-dev, r
+    This CL rearranges the call order for raw networking primitives like
+    the following;
+    
+    - For dialers that open active connections, pollDesc.Init will be
+      called before syscall.Connect.
+    
+    - For stream listeners that open passive stream connections,
+      pollDesc.Init will be called just after syscall.Listen.
+    
+    - For datagram listeners that open datagram connections,
+      pollDesc.Init will be called just after syscall.Bind.
+    
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/12986043
+    https://golang.org/cl/12730043
 
- src/pkg/runtime/mem_plan9.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/sock_posix.go     | 20 ++++++++++++++------
+ src/pkg/net/tcpsock_posix.go  |  5 -----
+ src/pkg/net/unixsock_posix.go |  5 -----
+ 3 files changed, 14 insertions(+), 16 deletions(-)

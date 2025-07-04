@@ -1,21 +1,19 @@
-commit c33d49002069e798b33d0de42d3eb5073aef7c0b
+commit d8bbbd2537551c0f6145c27747c7675b21a58f9f
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 1 19:28:38 2013 +0400
+Date:   Thu Aug 1 18:25:36 2013 +0400
 
-    runtime: print "created by" for running goroutines in traceback
-    This allows to at least determine goroutine "identity".
-    Now it looks like:
-    goroutine 12 [running]:
-            goroutine running on other thread; stack unavailable
-    created by testing.RunTests
-            src/pkg/testing/testing.go:440 +0x88e
+    runtime: make new tests shorter in short mode
+    We see timeouts in these tests on some platforms,
+    but not on the others.  The hypothesis is that
+    the problematic platforms are slow uniprocessors.
+    Stack traces do not suggest that the process
+    is completely hang, and it is able to schedule
+    the alarm goroutine. And if it actually hangs,
+    we still will be able to detect that.
     
-    R=golang-dev, r, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12248043
+    https://golang.org/cl/12253043
 
- src/pkg/runtime/proc.c          |  5 +++--
- src/pkg/runtime/runtime.h       |  1 +
- src/pkg/runtime/traceback_arm.c | 13 +++++++------
- src/pkg/runtime/traceback_x86.c | 15 ++++++++-------
- 4 files changed, 19 insertions(+), 15 deletions(-)
+ src/pkg/runtime/proc_test.go | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)

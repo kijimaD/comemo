@@ -1,17 +1,19 @@
-commit dc4427f3727804ded270bc6a7a8066ccb3c151d0
+commit 45d334ecf1b2bcbf0f8667d4c772ef3db0e03587
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 19 18:08:43 2016 +0000
+Date:   Tue Mar 29 16:35:33 2016 +1100
 
-    context: make DeadlineExceeded have a Timeout method
+    net/http/cgi: allow CGI host to configure where child's stderr goes
     
-    Fixes #14238
+    Patch originally from Steven Hartland. Tweaked a bit & added a test.
     
-    Change-Id: I1538bfb5cfa63e36a89df1f6eb9f5a0dcafb6ce5
-    Reviewed-on: https://go-review.googlesource.com/23256
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fixes #7197
+    
+    Change-Id: I09012b4674e7c641dba31a24e9758cedb898d3ee
+    Reviewed-on: https://go-review.googlesource.com/21196
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/context/context.go      |  8 +++++++-
- src/context/context_test.go | 12 ++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/net/http/cgi/host.go           | 10 +++++++++-
+ src/net/http/cgi/host_test.go      | 18 ++++++++++++++++++
+ src/net/http/cgi/testdata/test.cgi |  4 ++++
+ 3 files changed, 31 insertions(+), 1 deletion(-)

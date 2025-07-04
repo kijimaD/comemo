@@ -1,23 +1,20 @@
-commit 2c95fa4f31aec5c903947920e9e555f435869359
-Author: Carl Johnson <me@carlmjohnson.net>
-Date:   Tue Aug 8 01:14:22 2023 +0000
+commit e28cc362a825b297fa8a10dc95d7c0d2e2b21dfc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 7 20:11:00 2022 +0000
 
-    slices: add Concat
+    runtime: remove alignment padding in mheap and pageAlloc
     
-    Fixes #56353
+    All subfields use atomic types to ensure alignment, so there's no more
+    need for these fields.
     
-    Change-Id: I985e1553e7b02237403b833e96fb5ceec890f5b8
-    GitHub-Last-Rev: 96a35e524c168e5004c5cd28e693437462218eeb
-    GitHub-Pull-Request: golang/go#60929
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504882
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Iada4253f352a074073ce603f1f6b07cbd5b7c58a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429220
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- api/next/56353.txt        |  1 +
- src/slices/slices.go      | 16 ++++++++
- src/slices/slices_test.go | 98 +++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 115 insertions(+)
+ src/runtime/mheap.go      | 6 ------
+ src/runtime/mpagealloc.go | 2 --
+ 2 files changed, 8 deletions(-)

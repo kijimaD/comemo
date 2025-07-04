@@ -1,13 +1,12 @@
-commit 8d2757cba4333f945ac29fdf443b5657ed399158
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 17 14:49:07 2013 -0800
+commit e87b1710138e512019cc2bb22420a15cc5336bf3
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Dec 17 14:19:11 2013 -0800
 
-    C+A: add Michael Hudson (Linaro CLA)
+    net: reimplement toLower to not depend on strings
     
-    R=golang-dev, iant
-    CC=golang-dev
-    https://golang.org/cl/43670043
+    R=golang-dev, r, bradfitz
+    CC=golang-dev, jas
+    https://golang.org/cl/43610043
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/net/lookup_plan9.go | 26 ++++++++++++++++++++++++--
+ 1 file changed, 24 insertions(+), 2 deletions(-)

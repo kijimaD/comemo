@@ -1,15 +1,32 @@
-commit 2d3bdab0d61b9636e487ce4bc16429b8f0de8760
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Dec 18 07:52:23 2012 +1100
+commit 50d8787822e1919815ecca4f30600a118841cc7c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 17 11:35:59 2012 -0800
 
-    time: fix panic with time.Parse(time.StampNano, ... )
+    exp/types: completed typechecking of parameter passing
     
-    Fixes #4502.
+    Details:
+    - fixed variadic parameter passing and calls of the form f(g())
+    - fixed implementation of ^x for unsigned constants x
+    - fixed assignability of untyped booleans
+    - resolved a few TODOs, various minor fixes
+    - enabled many more tests (only 6 std packages don't typecheck)
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/6949058
+    https://golang.org/cl/6930053
 
- src/pkg/time/format.go    | 15 ++++++++++-----
- src/pkg/time/time_test.go | 14 ++++++++++++--
- 2 files changed, 22 insertions(+), 7 deletions(-)
+ src/pkg/exp/gotype/gotype_test.go     |  44 +++++-----
+ src/pkg/exp/types/builtins.go         |   5 +-
+ src/pkg/exp/types/const.go            | 110 ++++++++++++++++++-------
+ src/pkg/exp/types/errors.go           |  11 +--
+ src/pkg/exp/types/expr.go             | 148 +++++++++++++++++++++++++---------
+ src/pkg/exp/types/operand.go          |   9 ++-
+ src/pkg/exp/types/predicates.go       |  15 ++--
+ src/pkg/exp/types/stmt.go             |  29 ++++---
+ src/pkg/exp/types/testdata/decls1.src |   5 +-
+ src/pkg/exp/types/testdata/expr0.src  |   4 +-
+ src/pkg/exp/types/testdata/expr2.src  |  11 +++
+ src/pkg/exp/types/testdata/expr3.src  |  61 ++++++++++++++
+ src/pkg/exp/types/types.go            |  10 +--
+ src/pkg/exp/types/types_test.go       |   2 +-
+ 14 files changed, 335 insertions(+), 129 deletions(-)

@@ -1,0 +1,19 @@
+commit d2f229db7a3da4157fd7602f77513ce85c01ff04
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 21 11:10:24 2025 -0400
+
+    runtime: avoid register clobber in s390x racecall
+    
+    This is a regression in CL 643875. Loading gsignal clobbers R8, which
+    contains the m pointer needed for loading g0.
+    
+    For #71395.
+    
+    Change-Id: I6a6a636ca95442767efe0eb1b358f2139d18c5b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675035
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/race_s390x.s | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

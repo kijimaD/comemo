@@ -1,26 +1,26 @@
-commit d2eab5ff19f36cc8550a2871a60d307e598eca91
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 6 16:05:11 2023 -0700
+commit 01604129aee8bfc9dd3e2fffd2ad8f772a3089ec
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Sep 30 16:49:42 2022 -0400
 
-    cmd/compile/internal/ir: remove OrigNode
+    cmd/go: do not exit with non-zero code from go list -e -export
     
-    The OrigNode functionality used to be relevant to the typecheck
-    frontend, because we wanted to report errors using the same syntax as
-    the user originally wrote. However, now that types2 handles all
-    spec-required error diagnostics, there's no need to preserve original
-    nodes anymore.
+    go list -e -export puts errors running build actions on the load.Package
+    corresponding to the failed action rather than exiting with a non zero
+    exit code.
     
-    Change-Id: I64a0540b8952513913021e7b84d165beb1f9f801
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526397
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #25842
+    
+    Change-Id: I1fea85cc5a0557f514fe9d4ed3b6a858376fdcde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437298
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/ir/copy.go             | 59 +++----------------------
- src/cmd/compile/internal/ir/expr.go             |  4 --
- src/cmd/compile/internal/ir/stmt.go             |  4 +-
- src/cmd/compile/internal/typecheck/expr.go      |  3 --
- src/cmd/compile/internal/typecheck/typecheck.go |  5 ---
- 5 files changed, 8 insertions(+), 67 deletions(-)
+ src/cmd/go/internal/list/list.go             |  3 +
+ src/cmd/go/internal/work/action.go           |  1 +
+ src/cmd/go/internal/work/exec.go             | 95 +++++++++++++++++-----------
+ src/cmd/go/internal/work/gc.go               |  4 +-
+ src/cmd/go/testdata/script/list_export_e.txt | 19 ++++++
+ 5 files changed, 84 insertions(+), 38 deletions(-)

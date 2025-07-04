@@ -1,24 +1,24 @@
-commit 5ff7ec98b7727b3641df25200345b1aa50b6ff35
-Author: David Chase <drchase@google.com>
-Date:   Tue Feb 9 18:09:47 2021 -0500
+commit 18d042e08e46f9d9b55d7347f2dac28277060ef9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 23:46:17 2020 -0400
 
-    cmd/compile: check frame offsets against abi
+    all: go get golang.org/x/net@ab3426394381
     
-    this is in preparation for turning off calculation of frame offsets
-    in types.CalcSize
+    Pull in dns/dnsmessage fix to drop fmt dependency.
+    Also pulled in minor bug fix in x/crypto (dep of net).
     
-    For #40724.
-    
-    Change-Id: I2c29fd289c014674076e5ec5170055dbca5ea64b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293392
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Change-Id: I0f618e81a24ac24a5adae00af34b728b243dfdbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241257
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go          | 43 ++++++++++++++++--
- src/cmd/compile/internal/gc/compile.go            |  3 ++
- src/cmd/compile/internal/ssa/op.go                | 18 ++++----
- src/cmd/compile/internal/ssagen/ssa.go            | 55 ++++++++++++++---------
- src/cmd/compile/internal/test/abiutilsaux_test.go | 32 -------------
- 5 files changed, 85 insertions(+), 66 deletions(-)
+ src/cmd/go.mod                                        | 2 +-
+ src/cmd/go.sum                                        | 4 ++--
+ src/cmd/vendor/modules.txt                            | 2 +-
+ src/go.mod                                            | 4 ++--
+ src/go.sum                                            | 8 ++++----
+ src/vendor/golang.org/x/crypto/cryptobyte/asn1.go     | 4 ++--
+ src/vendor/golang.org/x/net/dns/dnsmessage/message.go | 3 +--
+ src/vendor/modules.txt                                | 4 ++--
+ 8 files changed, 15 insertions(+), 16 deletions(-)

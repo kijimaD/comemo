@@ -1,16 +1,30 @@
-commit aa4e0f528e1e018e2847decb549cfc5ac07ecf20
-Author: shota3506 <s.shota.710.3506@gmail.com>
-Date:   Tue Jul 13 21:27:05 2021 +0000
+commit e5c6463e205e0dfe5df8af59c76fd1ee94feddd4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 26 01:05:39 2020 -0500
 
-    net/http:  correct capitalization in cancelTimeBody comment
+    [dev.regabi] cmd/compile: add ir.CallPartExpr
     
-    Change-Id: I7acda22c01c5350ebf5ddabb1c12af96d368de5d
-    GitHub-Last-Rev: 3e5c022f8764d4abf91c964ceb4fc0e01ebd1352
-    GitHub-Pull-Request: golang/go#47160
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334229
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Now there are no longer any generic nodes with a non-nil
+    associated Func, so node.fn can be deleted. Also all manipulation
+    of func fields is done with concrete types, so Node.SetFunc can be
+    deleted, along with generic implementations.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I4fee99870951ec9dc224f146d87b22e2bfe16889
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274099
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/client.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/closure.go     | 10 +++-------
+ src/cmd/compile/internal/gc/dcl.go         |  2 +-
+ src/cmd/compile/internal/gc/ssa.go         |  8 ++++++--
+ src/cmd/compile/internal/gc/typecheck.go   |  2 +-
+ src/cmd/compile/internal/gc/walk.go        |  2 +-
+ src/cmd/compile/internal/ir/expr.go        | 26 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ir/mini.go        |  1 -
+ src/cmd/compile/internal/ir/node.go        |  8 +-------
+ src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
+ 9 files changed, 40 insertions(+), 21 deletions(-)

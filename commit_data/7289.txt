@@ -1,12 +1,22 @@
-commit 161f109cad49f0fb8aa0cc8e7c53477247bb1144
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Mon Jan 31 14:54:58 2011 -0500
+commit 76130bdeeacc5d6d78102b4cbb6e0f110a812eb4
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Jan 31 14:31:34 2011 -0500
 
-    os: add ETIMEDOUT
+    cgo: improve error reporting slightly.
+    If there were warnings or errors in the user code,
+    cgo would print the first error from gcc and then stop,
+    which is not helpful.
+    This CL makes cgo ignore errors from user code
+    in the first pass - they will be shown later.
+    It also prints errors from user preamble code
+    with the correct line numbers.
+    (Also fixed misleading usage message).
     
-    R=rsc
+    R=iant, rsc
     CC=golang-dev
-    https://golang.org/cl/4017045
+    https://golang.org/cl/4082047
 
- src/pkg/os/error.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/cgo/ast.go  | 15 +++++++++++----
+ src/cmd/cgo/gcc.go  |  8 +-------
+ src/cmd/cgo/main.go |  3 ++-
+ 3 files changed, 14 insertions(+), 12 deletions(-)

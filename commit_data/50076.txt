@@ -1,22 +1,18 @@
-commit 503de697cbb77581bb13dd6e596ac20a9a0d03e5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 23 18:55:12 2022 +0000
+commit 205640ed7b6b93d88351c85f0ecfb37d075f8dcf
+Author: Changkun Ou <hi@changkun.de>
+Date:   Fri Aug 27 17:08:23 2021 +0200
 
-    Revert "cmd/compile: restore test/nested.go test cases"
+    runtime: avoid run TestSyscallN in parallel
     
-    This reverts CL 424854.
+    Fixes #48012
     
-    Reason for revert: broke misc/cgo/stdio.TestTestRun on several builders.
-    
-    Will re-land after CL 421879 is submitted.
-    
-    Change-Id: I2548c70d33d7c178cc71c1d491cd81c22660348f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425214
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie27eb864ac387ecf5155a3aefa81661f1448ace5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345670
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/noder/writer.go | 40 ++++++++++++++------------------
- test/typeparam/nested.go                 | 26 +++++++++++++++++----
- 2 files changed, 38 insertions(+), 28 deletions(-)
+ src/runtime/syscall_windows_test.go | 1 -
+ 1 file changed, 1 deletion(-)

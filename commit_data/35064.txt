@@ -1,24 +1,22 @@
-commit be88d117bdf3e463397b45a022ca47fac6959d1c
-Author: Ben Shi <powerman1st@163.com>
-Date:   Tue Apr 17 07:52:19 2018 +0000
+commit 840fad13ecd974efebe4fa25d4e444df5ec8041d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 7 23:04:50 2017 -0800
 
-    cmd/internal/obj/arm64: optimize constant pool for 32-bit constants
+    cmd/compile: fix unsafe.Pointer liveness for Syscall-like functions
     
-    Current assembler encodes "ADD $0xaaaaaaaa, Rx" to "MOVD off(PC), Rtmp"
-     + "ADD Rtmp, Rx", and a 64-bit item is stored in the constant pool.
+    The package unsafe docs say it's safe to convert an unsafe.Pointer to
+    uintptr in the argument list to an assembly function, but it was
+    erroneously only detecting normal pointers converted to unsafe.Pointer
+    and then to intptr.
     
-    This patch optimizes it to "MOVWU off(PC), Rtmp" + "ADD Rtmp, Rx",
-    and a 32-bit item is stored.
+    Fixes #23051.
     
-    The total size of the executable binary go and the library files in
-    pkg/linux_arm64 decreased about 3KB by this patch.
-    
-    Change-Id: Ieb1592f78ef9ed52f5d3ad232d6cdf87d0923de1
-    Reviewed-on: https://go-review.googlesource.com/107516
-    Reviewed-by: Wei Xiao <Wei.Xiao@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Id1be19f6d8f26f2d17ba815191717d2f4f899732
+    Reviewed-on: https://go-review.googlesource.com/82817
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 35 ++++++++++++++++++++---------------
- 1 file changed, 20 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/order.go |  4 ++--
+ test/live_syscall.go                 | 12 ++++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

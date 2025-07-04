@@ -1,12 +1,20 @@
-commit 6bfec725cfaa8c57f5a35c3f2a27880d808fe102
-Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 28 16:57:55 2013 -0800
+commit f29b0cf9555047693b991bf9d5c158de1f0a548a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Mar 1 11:15:00 2013 +1100
 
-    doc/effective_go.html: minor updates, part 1
+    net/http/cookiejar: move cookiejar from exp/cookiejar to
+    net/http/cookiejar.
     
-    R=golang-dev, adg
-    CC=golang-dev
-    https://golang.org/cl/7454044
+    This is a straight rename. There are no code changes.
+    
+    Fixes #1960.
+    
+    R=rsc, adg
+    CC=dr.volker.dobler, golang-dev
+    https://golang.org/cl/7436043
 
- doc/effective_go.html | 114 ++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 82 insertions(+), 32 deletions(-)
+ src/pkg/{exp => net/http}/cookiejar/jar.go           | 0
+ src/pkg/{exp => net/http}/cookiejar/jar_test.go      | 0
+ src/pkg/{exp => net/http}/cookiejar/punycode.go      | 0
+ src/pkg/{exp => net/http}/cookiejar/punycode_test.go | 0
+ 4 files changed, 0 insertions(+), 0 deletions(-)

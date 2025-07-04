@@ -1,23 +1,19 @@
-commit b750841906c84e894dfa3ee43e0f65d94f989b01
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Wed Mar 13 10:15:19 2024 +0800
+commit c5ccff405ee9ef6ae30ba2ac900feae4f5abbfd6
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Thu Mar 30 12:11:14 2023 -0700
 
-    os: kick FIFOs with O_NONBLOCK out of the kqueue on Darwin/iOS
+    cmd/dist: mark wasip1/wasm port as broken
     
-    Fixes #66239
+    Mark the wasip1/wasm port as broken until it has been fully merged.
     
-    Change-Id: I8210682c0cf4285b950e9fabe687b7ad2369835c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570397
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I58592b43c82513b079c561673de99b41c94b11c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480655
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
 
- src/os/fifo_test.go    | 55 ++++++++++++++++++++++++++++++++++++++++++++
- src/os/file_unix.go    | 62 ++++++++++++++++++++++++--------------------------
- src/os/pipe2_unix.go   |  2 +-
- src/os/pipe_unix.go    |  2 +-
- src/os/removeall_at.go |  2 +-
- 5 files changed, 88 insertions(+), 35 deletions(-)
+ src/cmd/dist/build.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,33 +1,16 @@
-commit a4b8241d97fb180e1b9cb41c4828345c931d1aaf
-Author: Dan Scales <danscales@google.com>
-Date:   Fri Apr 2 16:52:58 2021 -0700
+commit 39da81da5e35e50da74ebb8c4fe12fd363bf41b9
+Author: David Chase <drchase@google.com>
+Date:   Wed Jun 24 17:00:48 2020 -0400
 
-    cmd/compile: get rid of Fields in types.Interface, use allMethods in types.Type instead
+    cmd/compile: populate AuxCall fields for OpClosureCall
     
-    Confusingly, the set of all methods of an interface is currently set in
-    Fields field of types.Interface. This is true, even though there is
-    already an allMethods field (and AllMethods method) of types.Type.
-    Change so the set of all methods of an interface are stored in
-    Type.allMethods, and Interface.Fields is removed. Update the comments
-    for Methods and AllMethods.
-    
-    Change-Id: Ibc32bafae86831cba62606b079a855690612c759
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307209
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: Ib5f62826d5249c1727b57d9f8ff2f3a1d6dc5032
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240185
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/export.go           |  2 +-
- src/cmd/compile/internal/noder/helpers.go       |  2 +-
- src/cmd/compile/internal/noder/stencil.go       |  4 +-
- src/cmd/compile/internal/noder/transform.go     |  2 +-
- src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
- src/cmd/compile/internal/typecheck/subr.go      | 34 +++++++++++++----
- src/cmd/compile/internal/typecheck/typecheck.go |  6 ++-
- src/cmd/compile/internal/types/fmt.go           |  4 +-
- src/cmd/compile/internal/types/identity.go      |  6 +--
- src/cmd/compile/internal/types/size.go          |  6 +--
- src/cmd/compile/internal/types/sizeof_test.go   |  2 +-
- src/cmd/compile/internal/types/type.go          | 49 +++++++++++++++----------
- 12 files changed, 73 insertions(+), 46 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 4 ++--
+ src/cmd/compile/internal/ssa/op.go | 8 ++++++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)

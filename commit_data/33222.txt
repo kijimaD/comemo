@@ -1,20 +1,14 @@
-commit aedb79f092be44f13faa7a40ed195b1bf0d27855
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 23 21:57:54 2017 -0400
+commit a279b53a18dbe317180e9e411ca7892294a62901
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 2 17:52:06 2017 -0700
 
-    build: move final steps of make.bash, make.bat, make.rc into cmd/dist
+    reflect: document how DeepEqual handles cycles
     
-    This CL expands the job of "dist bootstrap" to be "finish make.bash".
-    I need to change that logic in upcoming CLs related to cmd/go
-    changes, and I'd rather not change it in three places in three different
-    shell script languages.
+    Fixes #20428
     
-    Change-Id: I545dc215e408289e4d0b28f7c2ffcd849d89ad3b
-    Reviewed-on: https://go-review.googlesource.com/72870
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ia450e615728efd4ccb6e42117b547cac162f13a3
+    Reviewed-on: https://go-review.googlesource.com/52931
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/dist/build.go | 83 ++++++++++++++++++++++++++++++++++++++++++++++-----
- src/make.bash         | 48 ++++++++---------------------
- src/make.bat          | 48 +++++++++--------------------
- src/make.rc           | 37 ++++++++---------------
- 4 files changed, 113 insertions(+), 103 deletions(-)
+ src/reflect/deepequal.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

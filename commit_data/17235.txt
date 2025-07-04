@@ -1,12 +1,16 @@
-commit dd50dac56cdbbec2086b851e4b86f3ba2247b75d
+commit f8ca13c3e5a85d6f9dbce499aca8006c104376ee
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 14 22:18:49 2013 +0400
+Date:   Wed Aug 14 21:53:27 2013 +0400
 
-    runtime: fix windows build
+    net: make TCPStress test shorter
+    It timeouts on freebsd builders:
+    http://build.golang.org/log/3d8169e13bff912bebf6fd3c54b34ad2d29a7221
+    but there are always runnable goroutines,
+    which suggests that it's slowly progressing.
     
-    R=golang-dev
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12941043
+    https://golang.org/cl/12939043
 
- src/pkg/runtime/mem_windows.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/tcp_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

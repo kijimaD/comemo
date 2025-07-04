@@ -1,35 +1,20 @@
-commit c2b1463153e0095cf66ca362409d70ff0b6aad26
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Feb 23 23:26:49 2024 +0000
+commit d0099eff5e2e8dedd94eb1821408212c10231a47
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue Apr 4 13:02:02 2023 -0400
 
-    internal/trace/v2: break up ordering.Advance into dispatched methods
+    cmd/dist: mark openbsd-mips64 and openbsd-ppc64 broken
     
-    Currently ordering.Advance is one massive switch statement. This isn't
-    amazing for readability because it's hard to see at a glance what
-    happens before and after. Some of the state sharing is nice, but
-    otherwise, it can get confusing quickly (especially where break is used,
-    and where there are nested switches).
+    The former was broken deliberately; see #58110. The latter is just an
+    in-progress port.
     
-    This CL breaks up the switch statement into individual methods on
-    ordering.Advance which are loaded and dispatched from a table. This CL
-    uses a table instead of a switch statement because the arguments passed
-    are all the same each time, and the table can provide a very precise
-    mapping for each event; with a switch, we'd be tempted to group cases
-    that call the same handler method together. It also prevents us from
-    using defer in many cases, which may help clean up the code. (Each case
-    in the switch is completely self-contained, yet we can't use a defer
-    because it's function-scoped.)
+    Updates #58110, #56001.
     
-    As an aside, this should also improve performance a bit. The Go compiler
-    doesn't handle massive irregular functions very well, especially one
-    with a lot of return points and (previously) a conditionally deferred
-    call.
-    
-    Change-Id: I3ef2cf75301c795b6f23da1e058b0ac303fea8bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566576
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I7f1c5e2ac016fb7c65c081174d19239fc9b1ea32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482115
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    TryBot-Bypass: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/trace/v2/order.go | 1709 ++++++++++++++++++++++------------------
- 1 file changed, 925 insertions(+), 784 deletions(-)
+ src/cmd/dist/build.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

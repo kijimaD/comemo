@@ -1,22 +1,18 @@
-commit 067c0915644e5936b9b56eba3b69a0757ad28489
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Oct 10 13:52:26 2024 -0400
+commit 21481a3c52acd269366cd242c56e84a44c19b685
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 24 12:03:08 2023 +0200
 
-    cmd/link,runtime: DWARF/gdb support for swiss maps
+    net: remove unused ipv4AddrToInterface
     
-    For #54766.
+    It's unused since CL 6497044.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-amd64-longtest-swissmap
-    Change-Id: I6695c0b143560d974b710e1d78e7a7d09278f7cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620215
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iee07e7af7b80fc3f00146b64cebead844daee087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522196
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/reflectdata/map_swiss.go |   2 +-
- src/cmd/link/internal/ld/decodesym.go             |   5 +
- src/cmd/link/internal/ld/dwarf.go                 | 138 +++++++++-------------
- src/runtime/runtime-gdb.py                        |  60 +++++++++-
- src/runtime/runtime-gdb_test.go                   |  24 ++--
- 5 files changed, 131 insertions(+), 98 deletions(-)
+ src/net/sockopt_posix.go | 29 -----------------------------
+ 1 file changed, 29 deletions(-)

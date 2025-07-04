@@ -1,17 +1,20 @@
-commit 9426d8c63311c17483d93a20efc26e6dbb759772
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 27 11:41:48 2019 +1100
+commit 3aa3c052e302add1d30b0481b0347c47f190bef9
+Author: Aleksandr Razumov <ar@cydev.ru>
+Date:   Tue Aug 28 03:29:01 2018 +0300
 
-    time: rewrite ExampleDuration_Nanoseconds to be more idiomatic.
+    net/http: rewind request body unconditionally
     
-    Fix the punctuation and use the proper units for microseconds,
-    while explaining the incorrect but common variant 'us'.
+    When http2 fails with ErrNoCachedConn the request is retried with body
+    that has already been read.
     
-    Change-Id: I9e96694ef27ab4761efccd8616ac7b6700f60d39
-    Reviewed-on: https://go-review.googlesource.com/c/163917
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #25009
+    
+    Change-Id: I51ed5c8cf469dd8b17c73fff6140ab80162bf267
+    Reviewed-on: https://go-review.googlesource.com/c/131755
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/example_test.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/net/http/transport.go               |  5 +-
+ src/net/http/transport_internal_test.go | 83 +++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+), 3 deletions(-)

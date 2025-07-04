@@ -1,20 +1,30 @@
-commit fb5279cc45703d24a37279e6c0d9e0e7fd7228c5
-Author: Johan Brandhorst <johan.brandhorst@gmail.com>
-Date:   Mon Jun 4 15:03:05 2018 +0000
+commit c18ff1846592194a6a894f26f782e25b816ae73e
+Author: David Chase <drchase@google.com>
+Date:   Fri Jun 30 16:20:10 2017 -0400
 
-    net/http: fix build errors on js/wasm target
+    cmd/compile: decouple emitted block order from regalloc block order
     
-    The in-progress WASM port does not yet have sufficient automatic
-    testing performed against it, so these errors slipped through when
-    adding the new Fetch API backed http.Roundtripper.
+    While tinkering with different block orders for the preemptible
+    loop experiment, crashed the register allocator with a "bad"
+    one (these exist).  Realized that one knob was controlling
+    two things (register allocation and branch patterns) and
+    decided that life would be simpler if the two orders were
+    independent.
     
-    Updates #25506
+    Ran some experiments and determined that we have probably,
+    mostly, been optimizing for register allocation effects, not
+    branch effects.  Bad block orders for register allocation are
+    somewhat costly.
     
-    Change-Id: I84c5832452e3e6067a02d926f67d01aaca66b837
-    GitHub-Last-Rev: 064062b5fd256e7fce961a13a8ac00a135f60221
-    GitHub-Pull-Request: golang/go#25714
-    Reviewed-on: https://go-review.googlesource.com/116076
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This will also allow separate experimentation with perhaps-
+    better block orders for register allocation.
+    
+    Change-Id: I6ecf2f24cca178b6f8acc0d3c4caaef043c11ed9
+    Reviewed-on: https://go-review.googlesource.com/47314
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/roundtrip_js.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/layout.go   | 29 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/regalloc.go | 36 +++++++++++++++++++-------------
+ 2 files changed, 50 insertions(+), 15 deletions(-)

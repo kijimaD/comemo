@@ -1,36 +1,60 @@
-commit 7bc8aacec185ca80839ef0a4f58b85e482ab769e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 28 17:07:36 2023 +0000
+commit d7941030c94ea14e9f32a4777424387b7f505cef
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jun 2 19:06:27 2022 +0000
 
-    misc/android: rework GOROOT installation
+    runtime: only use CPU time from the current window in the GC CPU limiter
     
-    - Fall back to 'go env GOROOT' to locate GOROOT if runtime.GOROOT() is
-      empty (as may be the case if the tool is built with -trimpath).
+    Currently the GC CPU limiter consumes CPU time from a few pools, but
+    because the events that flush to those pools may overlap, rather than be
+    strictly contained within, the update window for the GC CPU limiter, the
+    limiter's accounting is ultimately sloppy.
     
-    - Copy all of $GOROOT/android_$GOARCH/bin, not just cmd/go, to
-      $GOROOT/bin.
+    This sloppiness complicates accounting for idle time more completely,
+    and makes reasoning about the transient behavior of the GC CPU limiter
+    much more difficult.
     
-    - For consistency with CL 404134, place $GOROOT/bin at the beginning
-      of $PATH, not the end.
+    To remedy this, this CL adds a field to the P struct that tracks the
+    start time of any in-flight event the limiter might care about, along
+    with information about the nature of that event. This timestamp is
+    managed atomically so that the GC CPU limiter can come in and perform a
+    read of the partial CPU time consumed by a given event. The limiter also
+    updates the timestamp so that only what's left over is flushed by the
+    event itself when it completes.
     
-    - Don't use the install target for the "runtime" package to locate pkg/tool.
-      As of Go 1.20 "runtime" doesn't have an install directory anyway.
-      Since the real reason we need pkg/tool is for commands in "cmd",
-      use an arbitrary command (namely "cmd/compile") to locate it.
+    The end result of this change is that, since the GC CPU limiter is aware
+    of all past completed events, and all in-flight events, it can much more
+    accurately collect the CPU time of events since the last update. There's
+    still the possibility for skew, but any leftover time will be captured
+    in the following update, and the magnitude of this leftover time is
+    effectively bounded by the update period of the GC CPU limiter, which is
+    much easier to consider.
     
-    - Use 'go list' to determine the package import path for the current
-      directory, instead of assuming that it is within GOROOT or GOPATH.
-      (That assumption does not hold in module mode.)
+    One caveat of managing this timestamp-type combo atomically is that they
+    need to be packed in 64 bits. So, this CL gives up the top 3 bits of the
+    timestamp and places the type information there. What this means is we
+    effectively have only a 61-bit resolution timestamp. This is fine when
+    the top 3 bits are the same between calls to nanotime, but becomes a
+    problem on boundaries when those 3 bits change. These cases may cause
+    hiccups in the GC CPU limiter by not accounting for some source of CPU
+    time correctly, but with 61 bits of resolution this should be extremely
+    rare. The rate of update is on the order of milliseconds, so at worst
+    the runtime will be off of any given measurement by only a few
+    CPU-milliseconds (and this is directly bounded by the rate of update).
+    We're probably more inaccurate from the fact that we don't measure real
+    CPU time but only approximate it.
     
-    Updates #58775.
+    For #52890.
     
-    Change-Id: If76ff22bce76d05175c40678230f046a4aff0940
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472096
+    Change-Id: I347f30ac9e2ba6061806c21dfe0193ef2ab3bbe9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410120
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Changkun Ou <mail@changkun.de>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- misc/android/go_android_exec.go | 228 ++++++++++++++++++++++++++++------------
- 1 file changed, 159 insertions(+), 69 deletions(-)
+ src/runtime/export_test.go |   1 +
+ src/runtime/mgc.go         |   9 ++-
+ src/runtime/mgclimit.go    | 171 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mgcmark.go     |   8 ++-
+ src/runtime/mheap.go       |  18 ++++-
+ src/runtime/runtime2.go    |   3 +
+ 6 files changed, 203 insertions(+), 7 deletions(-)

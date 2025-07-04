@@ -1,13 +1,13 @@
-commit 65675a3e24931dda1812cf5090ef7334dca8891e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Feb 9 17:20:59 2014 +0900
+commit d0591d5ebdd5137154cf797bcad22918f6ccd356
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Feb 7 17:05:16 2014 +0100
 
-    syscall: add missing include statement to bootstrap error code and signal generator
+    cmd/gc: revert CL 60740044
     
     LGTM=iant
-    R=golang-codereviews, iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/54300054
+    https://golang.org/cl/60590047
 
- src/pkg/syscall/mkerrors.sh | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

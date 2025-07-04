@@ -1,18 +1,24 @@
-commit 4792ca7b93d5745647a95ac73a93f9c9b97db499
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Tue Apr 23 05:27:54 2024 +0000
+commit c80cedec9378b0a1cd5cb400e179bb25e2e7f810
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sun Apr 23 11:23:53 2023 -0400
 
-    doc: fix typos in docs
+    testing/slogtest: tests for slog handlers
     
-    Change-Id: Ib51283b35d6d35acd7a90cd531ff6897a23d9894
-    GitHub-Last-Rev: dd485f332e58c9467d68ed571317dfd56eea9d16
-    GitHub-Pull-Request: golang/go#66985
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580797
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Joedian Reid <joedian@google.com>
+    Add a package for testing that a slog.Handler implementation
+    satisfies that interface's documented requirements.
+    
+    Code copied from x/exp/slog/slogtest.
+    
+    Updates #56345.
+    
+    Change-Id: I89e94d93bfbe58e3c524758f7ac3c3fba2a2ea96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/next/6-stdlib/2-unique.md           | 2 +-
- doc/next/6-stdlib/99-minor/net/63116.md | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ api/next/56345.txt                   |   2 +-
+ src/go/build/deps_test.go            |   3 +
+ src/testing/slogtest/example_test.go |  44 +++++
+ src/testing/slogtest/slogtest.go     | 308 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 356 insertions(+), 1 deletion(-)

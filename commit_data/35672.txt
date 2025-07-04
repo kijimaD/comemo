@@ -1,14 +1,68 @@
-commit dda7985a7b748e7149dc46c29611c2ec6e861340
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Jun 11 13:36:05 2018 -0400
+commit 094258408dbaa1e5c4e0a9df208712f39221567b
+Author: Balaram Makam <bmakam.qdt@qualcommdatacenter.com>
+Date:   Fri Feb 23 13:28:48 2018 -0500
 
-    doc/go1.11: first draft of release notes
+    cmd/compile: improve fractional word zeroing
     
-    Updates golang/go#23122
+    This change improves fractional word zeroing by
+    using overlapping MOVDs for the fractions.
     
-    Change-Id: I2d6769101cdd580901cb08a3027d787fa438d4bc
-    Reviewed-on: https://go-review.googlesource.com/117975
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Performance of go1 benchmarks on Amberwing was all noise:
+    name                   old time/op    new time/op    delta
+    RegexpMatchEasy0_32       247ns ± 0%     246ns ± 0%  -0.40%  (p=0.008 n=5+5)
+    RegexpMatchEasy0_1K       581ns ± 0%     579ns ± 0%  -0.34%  (p=0.000 n=5+4)
+    RegexpMatchEasy1_32       244ns ± 0%     242ns ± 0%    ~     (p=0.079 n=4+5)
+    RegexpMatchEasy1_1K       804ns ± 0%     805ns ± 0%    ~     (p=0.238 n=5+4)
+    RegexpMatchMedium_32      313ns ± 0%     311ns ± 0%  -0.64%  (p=0.008 n=5+5)
+    RegexpMatchMedium_1K     52.2µs ± 0%    51.9µs ± 0%  -0.52%  (p=0.016 n=5+4)
+    RegexpMatchHard_32       2.75µs ± 0%    2.74µs ± 0%    ~     (p=0.603 n=5+5)
+    RegexpMatchHard_1K       78.8µs ± 0%    78.9µs ± 0%  +0.05%  (p=0.008 n=5+5)
+    FmtFprintfEmpty          58.6ns ± 0%    58.6ns ± 0%    ~     (p=0.159 n=5+5)
+    FmtFprintfString          118ns ± 0%     119ns ± 0%  +0.85%  (p=0.008 n=5+5)
+    FmtFprintfInt             119ns ± 0%     123ns ± 0%  +3.36%  (p=0.016 n=5+4)
+    FmtFprintfIntInt          192ns ± 0%     200ns ± 0%  +4.17%  (p=0.008 n=5+5)
+    FmtFprintfPrefixedInt     224ns ± 0%     209ns ± 0%  -6.70%  (p=0.008 n=5+5)
+    FmtFprintfFloat           335ns ± 0%     335ns ± 0%    ~     (all equal)
+    FmtManyArgs               775ns ± 0%     811ns ± 1%  +4.67%  (p=0.016 n=4+5)
+    Gzip                      437ms ± 0%     438ms ± 0%  +0.19%  (p=0.008 n=5+5)
+    HTTPClientServer         88.7µs ± 1%    90.3µs ± 1%  +1.75%  (p=0.016 n=5+5)
+    JSONEncode               20.1ms ± 1%    20.1ms ± 0%    ~     (p=1.000 n=5+5)
+    JSONDecode               94.7ms ± 1%    94.8ms ± 1%    ~     (p=0.548 n=5+5)
+    GobDecode                12.8ms ± 1%    12.8ms ± 1%    ~     (p=0.548 n=5+5)
+    GobEncode                12.1ms ± 0%    12.1ms ± 0%    ~     (p=0.151 n=5+5)
+    Mandelbrot200            5.37ms ± 0%    5.37ms ± 0%  -0.03%  (p=0.008 n=5+5)
+    TimeParse                 450ns ± 0%     451ns ± 1%    ~     (p=0.635 n=4+5)
+    TimeFormat                485ns ± 0%     484ns ± 0%    ~     (p=0.508 n=5+5)
+    Template                 90.4ms ± 0%    90.2ms ± 0%  -0.24%  (p=0.016 n=5+5)
+    GoParse                  5.98ms ± 0%    5.98ms ± 0%    ~     (p=1.000 n=5+5)
+    BinaryTree17              11.8s ± 0%     11.8s ± 0%    ~     (p=0.841 n=5+5)
+    Revcomp                   669ms ± 0%     669ms ± 0%    ~     (p=0.310 n=5+5)
+    Fannkuch11                3.28s ± 0%     3.34s ± 0%  +1.64%  (p=0.008 n=5+5)
+    
+    name                   old speed      new speed      delta
+    RegexpMatchEasy0_32     129MB/s ± 0%   130MB/s ± 0%  +0.30%  (p=0.016 n=4+5)
+    RegexpMatchEasy0_1K    1.76GB/s ± 0%  1.77GB/s ± 0%  +0.27%  (p=0.016 n=5+4)
+    RegexpMatchEasy1_32     131MB/s ± 0%   132MB/s ± 0%  +0.71%  (p=0.016 n=4+5)
+    RegexpMatchEasy1_1K    1.27GB/s ± 0%  1.27GB/s ± 0%  -0.17%  (p=0.016 n=5+4)
+    RegexpMatchMedium_32   3.19MB/s ± 0%  3.21MB/s ± 0%  +0.63%  (p=0.008 n=5+5)
+    RegexpMatchMedium_1K   19.6MB/s ± 0%  19.7MB/s ± 0%  +0.52%  (p=0.016 n=5+4)
+    RegexpMatchHard_32     11.7MB/s ± 0%  11.7MB/s ± 0%    ~     (p=0.643 n=5+5)
+    RegexpMatchHard_1K     13.0MB/s ± 0%  13.0MB/s ± 0%    ~     (p=0.079 n=4+5)
+    Gzip                   44.4MB/s ± 0%  44.3MB/s ± 0%  -0.19%  (p=0.008 n=5+5)
+    JSONEncode             96.3MB/s ± 1%  96.4MB/s ± 0%    ~     (p=1.000 n=5+5)
+    JSONDecode             20.5MB/s ± 1%  20.5MB/s ± 1%    ~     (p=0.460 n=5+5)
+    GobDecode              60.1MB/s ± 1%  59.9MB/s ± 1%    ~     (p=0.548 n=5+5)
+    GobEncode              63.5MB/s ± 0%  63.7MB/s ± 0%    ~     (p=0.135 n=5+5)
+    Template               21.5MB/s ± 0%  21.5MB/s ± 0%  +0.24%  (p=0.016 n=5+5)
+    GoParse                9.68MB/s ± 0%  9.69MB/s ± 0%    ~     (p=0.786 n=5+5)
+    Revcomp                 380MB/s ± 0%   380MB/s ± 0%    ~     (p=0.310 n=5+5)
+    Change-Id: I596eee6421cdbad1a0189cdb9fe0628bba534eaf
+    Reviewed-on: https://go-review.googlesource.com/96775
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.11.html | 337 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 337 insertions(+)
+ src/cmd/compile/internal/gc/asm_test.go      | 18 ++++++++++++++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 12 ++++++----
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 36 +++++++++++++++++++++++-----
+ 3 files changed, 56 insertions(+), 10 deletions(-)

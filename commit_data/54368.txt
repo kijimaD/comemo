@@ -1,29 +1,20 @@
-commit 729e21b24c12fe3e4be724672ab63429be8247a6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 6 16:11:34 2023 -0700
+commit b6e7e16208be683dbf8039acc7d7dfd97888aba1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 11 11:21:13 2022 -0700
 
-    cmd/compile: cleanup uses of ir.Orig and ir.SepCopy
+    math/big: error on buffer length overflow in Rat.GobDecode
     
-    Mostly automated refactoring with gofmt:
+    Fixes #56156
     
-    gofmt -r 'ir.Orig(n) -> n'
-    gofmt -r 'ir.SepCopy(n) -> ir.Copy(n)'
-    
-    Followed by some manual cleanups.
-    
-    Change-Id: Ib35abeba9e60b70ba463e161fb39358fb058a83e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526398
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ib85ff45f0b0d0eac83c39606ee20b3a312e6e919
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442335
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/copy.go        | 14 --------------
- src/cmd/compile/internal/ir/fmt.go         |  6 ------
- src/cmd/compile/internal/ir/node.go        |  4 +---
- src/cmd/compile/internal/noder/reader.go   |  2 +-
- src/cmd/compile/internal/ssagen/ssa.go     | 10 ++--------
- src/cmd/compile/internal/typecheck/func.go |  2 +-
- src/cmd/compile/internal/walk/order.go     | 12 ++++++------
- 7 files changed, 11 insertions(+), 39 deletions(-)
+ src/math/big/ratmarsh.go      | 9 +++++++--
+ src/math/big/ratmarsh_test.go | 1 +
+ 2 files changed, 8 insertions(+), 2 deletions(-)

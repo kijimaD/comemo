@@ -1,12 +1,22 @@
-commit 870c9d1c096c44eaad5fd8e9aeeae8b6255fc4d2
+commit 0f78ee574b230d72fd8112bce9a94b6cf107ccdd
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 3 10:54:05 2012 -0500
+Date:   Fri Feb 3 10:53:51 2012 -0500
 
-    codereview: allow spaces in y.tab.[ch]
+    5a, 6a, 8a, cc: check in y.tab.[ch]
+    
+    This enables builds on systems without Bison/yacc.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5620053
+    https://golang.org/cl/5622050
 
- lib/codereview/codereview.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/Make.ctool     |    2 -
+ src/cmd/5a/y.tab.c | 2949 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5a/y.tab.h |  166 +++
+ src/cmd/6a/y.tab.c | 2730 +++++++++++++++++++++++++++++++++++++
+ src/cmd/6a/y.tab.h |  135 ++
+ src/cmd/8a/y.tab.c | 2852 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/8a/y.tab.h |  135 ++
+ src/cmd/cc/y.tab.c | 3811 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cc/y.tab.h |  228 ++++
+ 9 files changed, 13006 insertions(+), 2 deletions(-)

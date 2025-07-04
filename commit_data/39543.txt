@@ -1,19 +1,19 @@
-commit c4ca60313ef7fd0b9d2c223889caeb20147309ac
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Sun Jul 28 16:30:35 2019 +0200
+commit 7ac0a8bc3919e3d22c7492792873a341c9687b5c
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 25 15:01:29 2017 -0400
 
-    all: change some function documentation to be more idiomatic
+    runtime: remove unused gcTriggerAlways
     
-    Change-Id: I932de9bb061a8ba3332ef03207983e8b98d6f1e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187918
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This was used during the implementation of concurrent runtime.GC() but
+    now there's nothing that triggers GC unconditionally. Remove this
+    trigger type and simplify (gcTrigger).test() accordingly.
+    
+    Change-Id: I17a893c2ed1f661b8146d7783d529f71735c9105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/66090
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/crypto/rsa/rsa.go      | 2 +-
- src/encoding/csv/writer.go | 2 +-
- src/expvar/expvar.go       | 2 +-
- src/go/types/scope.go      | 4 ++--
- src/go/types/typestring.go | 2 +-
- src/net/mail/message.go    | 2 +-
- 6 files changed, 7 insertions(+), 7 deletions(-)
+ src/runtime/mgc.go | 17 +++--------------
+ 1 file changed, 3 insertions(+), 14 deletions(-)

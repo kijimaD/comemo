@@ -1,28 +1,21 @@
-commit 953bc8f391a63adf00bac2515dba62abe8a1e2c2
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Jan 21 14:45:15 2020 -0500
+commit b6ec56bc26a89e9733390dd41fade5baace5a641
+Author: Romain Baugue <romain.baugue@gmail.com>
+Date:   Wed May 1 14:52:57 2019 +0200
 
-    crypto/x509: mitigate CVE-2020-0601 verification bypass on Windows
+    encoding/json: don't indirect pointers when decoding null
     
-    An attacker can trick the Windows system verifier to use a poisoned set
-    of elliptic curve parameters for a trusted root, allowing it to generate
-    spoofed signatures. When this happens, the returned chain will present
-    the unmodified original root, so the actual signatures won't verify (as
-    they are invalid for the correct parameters). Simply double check them
-    as a safety measure and mitigation.
+    The indirect method checked the type of the child when indirecting a
+    pointer. If the current value is a pointer and we are decoding null, we
+    can skip this entirely and return early, avoiding the whole descent.
     
-    Windows users should still install the system security patch ASAP.
+    Fixes #31776
     
-    This is the same mitigation adopted by Chromium:
-    
-    https://chromium-review.googlesource.com/c/chromium/src/+/1994434
-    
-    Change-Id: I2c734f6fb2cb51d906c7fd77034318ffeeb3e146
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215905
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ib8b2a2357572c41f56fceac59b5a858980f3f65e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174699
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ryan Sleevi <sleevi@google.com>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/crypto/x509/root_windows.go | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ src/encoding/json/decode.go      |  7 ++++---
+ src/encoding/json/decode_test.go | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 3 deletions(-)

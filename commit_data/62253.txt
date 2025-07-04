@@ -1,0 +1,31 @@
+commit 371ee1469cf30ecdbc8d1b55cf307a310ff3d630
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Sep 12 20:03:59 2024 +0800
+
+    cmd/link,cmd/internal: add R_GOT_PCREL_ITYPE_RELOC for riscv64
+    
+    This CL adds new relocation type for riscv64: R_GOT_PCREL_ITYPE_RELOC
+    which generate an AUIPC + I-type pair with relocation type of GOT_HI20
+    and PCREL_LO12_I.
+    According to RISCV elf psabi doc, medium position independent code
+    model, the GNU as example is:
+    
+    ```
+                    # Calculate address of non-local symbol
+    .Ltmp3: aupipc  a0, %got_pcrel_hi(symbol)
+            ld      a0, %pcrel_lo(.Ltmp3)(a0)
+    ```
+    
+    Change-Id: I719dd05e009ca2d9291f0689b346c059f9c56918
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612635
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/obj/riscv/cpu.go           |  5 +++
+ src/cmd/internal/obj/riscv/obj.go           |  9 ++++-
+ src/cmd/internal/objabi/reloctype.go        |  4 ++
+ src/cmd/internal/objabi/reloctype_string.go | 61 +++++++++++++++--------------
+ src/cmd/link/internal/riscv64/asm.go        | 19 ++++++---
+ 5 files changed, 62 insertions(+), 36 deletions(-)

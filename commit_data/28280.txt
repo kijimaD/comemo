@@ -1,51 +1,35 @@
-commit 791f71d1921a5d4d775167486eab20c1e8f97248
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Sep 9 08:13:16 2016 -0400
+commit b6712946c1b46eb629fb010e65e5b3735f94d171
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 7 15:12:32 2016 +1000
 
-    cmd: use obj.GOOS, obj.GOARCH, etc
+    runtime: make mksyscall_windows.go flags do what they say they do
     
-    As cmd/internal/obj is coordinating the definition of GOOS, GOARCH,
-    etc across the compiler and linker, turn its functions into globals
-    and use them everywhere.
+    The -systemdll and -xsys flags generate broken code in some situations
+    (see issue for details). Fix all that.
     
-    Change-Id: I5db5addda3c6b6435c37fd5581c7c3d9a561f492
-    Reviewed-on: https://go-review.googlesource.com/28854
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This CL only fixes bugs in existing code, but I have more changes comming:
+    
+    golang.org/x/sys/windows is not the only package that uses mksyscall_windows.go.
+    golang.org/x/exp/shiny and github.com/derekparker/delve do too. I also have
+    few personal packages that use mksyscall_windows.go. None of those packages
+    are aware of new -xsys flag. I would like to change mksyscall_windows.go, so
+    external packages do not need to use -xsys flag. I would love to get rid of
+    -xsys flag altogether, but I don't see how it is possible. So I will, probably,
+    replace -xsys with a flag that means opposite to -xsys, and use new flag
+    everywhere in standard libraries. Flag name suggestions are welcome.
+    
+    -systemdll flag makes users code more "secure". I would like to make -systemdll
+    behaviour a default for all mksyscall_windows.go users. We use that already in
+    standard library. If we think "secure" is important, we should encourage it in
+    all users code. If mksyscall_windows.go user insist on using old code, provide
+    -use_old_loaddll (need good name here) flag for that. So -systemdll flag will
+    be replaced with -use_old_loaddll.
+    
+    Fixes #15167
+    
+    Change-Id: I516369507867358ba1b66aabe00a17a7b477016e
+    Reviewed-on: https://go-review.googlesource.com/21645
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/operand_test.go  |  5 ++---
- src/cmd/asm/main.go                       |  4 ++--
- src/cmd/compile/internal/amd64/cgen.go    |  2 +-
- src/cmd/compile/internal/amd64/galign.go  |  8 ++++----
- src/cmd/compile/internal/amd64/ggen.go    |  2 +-
- src/cmd/compile/internal/arm64/ggen.go    |  2 +-
- src/cmd/compile/internal/gc/main.go       | 22 +++++++-------------
- src/cmd/compile/internal/gc/obj.go        |  2 +-
- src/cmd/compile/internal/gc/subr.go       |  2 +-
- src/cmd/compile/internal/mips64/galign.go |  2 +-
- src/cmd/compile/internal/ppc64/galign.go  |  2 +-
- src/cmd/compile/internal/ssa/config.go    |  6 +++---
- src/cmd/compile/internal/x86/galign.go    |  2 +-
- src/cmd/compile/main.go                   |  4 ++--
- src/cmd/internal/obj/arm/asm5.go          |  4 ++--
- src/cmd/internal/obj/arm/obj5.go          |  4 ++--
- src/cmd/internal/obj/link.go              |  1 -
- src/cmd/internal/obj/objfile.go           |  2 +-
- src/cmd/internal/obj/sym.go               | 16 +++++----------
- src/cmd/internal/obj/util.go              | 34 ++++++++++---------------------
- src/cmd/internal/obj/x86/asm6.go          |  2 +-
- src/cmd/link/internal/amd64/obj.go        |  2 +-
- src/cmd/link/internal/ld/ar.go            |  2 +-
- src/cmd/link/internal/ld/data.go          |  4 ++--
- src/cmd/link/internal/ld/deadcode.go      |  2 +-
- src/cmd/link/internal/ld/lib.go           | 34 ++++++++++---------------------
- src/cmd/link/internal/ld/link.go          |  2 --
- src/cmd/link/internal/ld/main.go          |  4 ++--
- src/cmd/link/internal/ld/pcln.go          |  2 +-
- src/cmd/link/internal/ld/pe.go            | 10 ++++-----
- src/cmd/link/internal/ld/sym.go           | 29 +++++++++-----------------
- src/cmd/link/internal/mips64/obj.go       |  2 +-
- src/cmd/link/internal/ppc64/obj.go        |  2 +-
- src/cmd/link/main.go                      |  4 ++--
- 34 files changed, 88 insertions(+), 139 deletions(-)
+ src/syscall/mksyscall_windows.go | 47 +++++++++++++++++++++++++++-------------
+ 1 file changed, 32 insertions(+), 15 deletions(-)

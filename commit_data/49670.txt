@@ -1,21 +1,27 @@
-commit 24dc27a3c084b901ee456637541ea818495888b0
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Jul 24 09:48:56 2022 -0700
+commit e5247f7886aad90d6fa402b5308d4c30afdfebdf
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Aug 25 13:31:19 2021 -0700
 
-    cmd/compile: fix blank label code
+    [dev.fuzz] internal/fuzz: don't store corpus in memory
     
-    When checkEnabled is forced true, the 52278 test fails. Be a bit
-    more careful about processing blank labels.
+    Instead of holding all corpus data/values in memory, only store seed
+    inputs added via F.Add in memory, and only load corpus entries which
+    are written to disk when we need them. This should significantly reduce
+    the memory required by the coordinator process.
     
-    Update #52278
+    Additionally only load the corpus in the coordinator process, since the
+    worker has no need for it.
     
-    Change-Id: I48aa89e2c9e3715d8efe599bc4363b5b5879d8a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419318
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #46669.
+    
+    Change-Id: Ic3b0c5e929fdb3e2877b963e6b0fa14e140c1e1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345096
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 4 ++++
- test/fixedbugs/issue52278.go           | 2 +-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/internal/fuzz/fuzz.go   | 59 +++++++++++++++++++++++++++------------------
+ src/internal/fuzz/worker.go | 21 +++++++++-------
+ src/testing/fuzz.go         | 34 +++++++++++++++++---------
+ 3 files changed, 71 insertions(+), 43 deletions(-)

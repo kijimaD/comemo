@@ -1,20 +1,19 @@
-commit f4cd001b57d91d24843325578a7bbd24dfc628fc
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Jun 23 20:01:33 2021 -0700
+commit 305d93ef84aed971145b3aa1bce1f9f389bc90c0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Dec 13 23:01:34 2020 -0800
 
-    os/user: simplify skipping listGroups test
+    [dev.regabi] cmd/compile: type check externdcl earlier
     
-    This is not implemented on AIX and Illumos, and we already have a
-    mechanism to skip the test case -- let's use it.
+    The next CL requires externdcl to be type checked earlier, but this
+    causes toolstash -cmp to complain because it causes src.PosBases to
+    get added in a different order. So split out into a separate CL.
     
-    Change-Id: Idb1cc2d716cf6d0731e93dfc3aa7853b9edec41f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330752
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Icab4eadd3fa8acffbd3e980bd8100924378351b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277732
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/user/listgroups_aix.go     | 6 ++++++
- src/os/user/listgroups_illumos.go | 6 ++++++
- src/os/user/user_test.go          | 7 -------
- 3 files changed, 12 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 27 ++++++++++++---------------
+ 1 file changed, 12 insertions(+), 15 deletions(-)

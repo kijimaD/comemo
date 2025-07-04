@@ -1,12 +1,13 @@
-commit 393ea2dfa8128a1f6910a19de2ddb9cb6778f34f
+commit 75d4cb6a02c30f8b1be934f06f0ba5c49bfc34a0
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 17 16:37:34 2011 +1100
+Date:   Thu Mar 17 16:36:37 2011 +1100
 
-    doc: mention godoc in "implements" FAQ
+    path/filepath: add EvalSymlinks function
     
-    R=r
+    R=rsc, niemeyer, r2, rog, iant2, r
     CC=golang-dev
-    https://golang.org/cl/4248066
+    https://golang.org/cl/4235060
 
- doc/go_faq.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/path/filepath/path.go      | 72 +++++++++++++++++++++++++++++++++++---
+ src/pkg/path/filepath/path_test.go | 60 +++++++++++++++++++++++++++++++
+ 2 files changed, 127 insertions(+), 5 deletions(-)

@@ -1,21 +1,14 @@
-commit 9a243303b86a0c5aaf25875a7d07dabd629b0662
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Sep 4 16:59:46 2016 -0700
+commit ef92857e27556804d66e72e2360dc2c6b6554bd7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 5 09:10:49 2016 -0700
 
-    cmd/compile: omit some temp panicdivide calls
+    cmd/go, cmd/cgo: pass "-mabi=64" to gcc on mips64
     
-    When the divisor is known to be a constant
-    non-zero, don't insert panicdivide calls
-    that will just be eliminated later.
-    
-    The main benefit here is readability of the SSA
-    form for compiler developers.
-    
-    Change-Id: Icb7d07fc996941fbaff84524ac3e4b53d8e75fda
-    Reviewed-on: https://go-review.googlesource.com/28530
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9ac2ae57a00cee23d6255db02419b0a0f087d4f3
+    Reviewed-on: https://go-review.googlesource.com/22801
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 27 ++++++++++++++++++---------
- 1 file changed, 18 insertions(+), 9 deletions(-)
+ src/cmd/cgo/gcc.go  | 2 ++
+ src/cmd/go/build.go | 2 ++
+ 2 files changed, 4 insertions(+)

@@ -1,23 +1,19 @@
-commit 97e5ca6d4eed7b14a4dbdd52aa4e934028284993
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Apr 17 14:12:25 2023 -0400
+commit 6382c39e15ce68996a3848ad6f0ca15570e35ff5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 17 15:26:18 2022 -0700
 
-    Revert "runtime: correct GoCheckBindM's C declaration in EnsureBindM test"
+    cmd/compile/internal/noder: remove TODO about position handling
     
-    This reverts CL 482975.
+    types2 uses nopos as the position for predeclared objects, so it's
+    expected that we'll see !pos.IsKnown() when translating types2
+    representations into IR.
     
-    Reason for revert: CL 481061 causes C TSAN failures and must be
-    reverted. See CL 485275. This CL depends on CL 481061.
-    
-    For #59678.
-    
-    Change-Id: I4599e93d536149bcec94a5a1542533107699514f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485317
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I8708c2e9815e3dd27da8066c67c73f5586ac4617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406896
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/runtime/testdata/testprogcgo/bindm.c  | 34 -------------------------------
- src/runtime/testdata/testprogcgo/bindm.go | 30 ++++++++++++++++++++++++++-
- 2 files changed, 29 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/noder/posmap.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,47 +1,39 @@
-commit 36760ca9fd3eaf2c79efef48e533b66da6c542bd
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 16 17:35:05 2022 +1000
+commit af05d8be3d9dd566b2ce3ff5344258314f128ff6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 28 13:51:39 2021 -0400
 
-    text/template/parse: simplify I/O in lexing
+    all: manual fixups for //go:build vs // +build
     
-    The concurrent model for delivering tokens was fine for pedagogy,
-    but has caused a few problems as the package has evolved (that is,
-    got more complicated). It's easy to eliminate it, simplifying or
-    removing some of the hacks used to work around these prolems.
+    Update many generators, also handle files that were not part of the
+    standard build during 'go fix' in CL 344955.
     
-    The old lexer would deliver tokens over a channel to the parsing
-    goroutine, and continue running until EOF. In this rewrite, we
-    instead run the machine until a token is ready, and shut it down
-    until the next token is needed. The mechanism is just to return nil
-    as the state function, which requires a bit more threading of return
-    values through the state functions but is not difficult. The change
-    is modest.
+    Fixes #41184.
     
-    A couple of error messages change, but otherwise the change has no
-    external effect. This is just an internal cleanup, long overdue.
-    
-    benchmark                      old ns/op     new ns/op     delta
-    BenchmarkParseLarge-20         12222729      6769966       -44.61%
-    BenchmarkVariableString-20     73.5          73.4          -0.16%
-    BenchmarkListString-20         1827          1841          +0.77%
-    
-    benchmark                      old allocs     new allocs     delta
-    BenchmarkVariableString-20     3              3              +0.00%
-    BenchmarkListString-20         31             31             +0.00%
-    
-    benchmark                      old bytes     new bytes     delta
-    BenchmarkVariableString-20     72            72            +0.00%
-    BenchmarkListString-20         1473          1473          +0.00%
-    
-    Fixes #53261
-    
-    Change-Id: I4133bed2f8df16d398b707fb9509230325765c57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421883
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1edc684e8101882dcd11f75c6745c266fccfe9e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359476
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/text/template/parse/lex.go        | 223 ++++++++++++++++++----------------
- src/text/template/parse/lex_test.go   |  28 ++---
- src/text/template/parse/parse.go      |  11 +-
- src/text/template/parse/parse_test.go |   9 +-
- 4 files changed, 135 insertions(+), 136 deletions(-)
+ src/crypto/elliptic/gen_p256_table.go                  | 1 -
+ src/internal/goarch/gengoarch.go                       | 3 +--
+ src/internal/goos/gengoos.go                           | 1 -
+ src/internal/syscall/windows/exec_windows_test.go      | 1 -
+ src/internal/syscall/windows/mksyscall.go              | 1 -
+ src/internal/syscall/windows/registry/export_test.go   | 1 -
+ src/internal/syscall/windows/registry/key.go           | 1 -
+ src/internal/syscall/windows/registry/mksyscall.go     | 1 -
+ src/internal/syscall/windows/registry/registry_test.go | 1 -
+ src/internal/syscall/windows/registry/syscall.go       | 1 -
+ src/internal/syscall/windows/registry/value.go         | 1 -
+ src/internal/syscall/windows/sysdll/sysdll.go          | 1 -
+ src/runtime/asan/asan.go                               | 3 ---
+ src/runtime/mkduff.go                                  | 2 --
+ src/runtime/mkpreempt.go                               | 1 -
+ src/runtime/msan/msan.go                               | 3 ---
+ src/runtime/wincallback.go                             | 1 -
+ src/syscall/js/export_test.go                          | 1 -
+ src/syscall/js/func.go                                 | 1 -
+ src/syscall/js/js.go                                   | 1 -
+ src/syscall/js/js_test.go                              | 1 -
+ 21 files changed, 1 insertion(+), 27 deletions(-)

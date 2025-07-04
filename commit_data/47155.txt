@@ -1,25 +1,24 @@
-commit a45457df82263c292e2c66c152a12b5df0f27f15
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Nov 1 02:04:13 2021 +0700
+commit 5ff7ec98b7727b3641df25200345b1aa50b6ff35
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 9 18:09:47 2021 -0500
 
-    cmd/compile: fix panic when refer to method of imported instantiated type
+    cmd/compile: check frame offsets against abi
     
-    In case of reference to method call of an imported fully-instantiated
-    type, nameNode.Func will be nil causes checkFetchBody panic. To fix
-    this, make sure checkFetchBody is only called when Func is not nil.
+    this is in preparation for turning off calculation of frame offsets
+    in types.CalcSize
     
-    Fixes #49246
+    For #40724.
     
-    Change-Id: I32e9208385a86d4600d8ebf6f5efd8fca571ea16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360056
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I2c29fd289c014674076e5ec5170055dbca5ea64b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293392
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go | 15 +++++++++++++--
- test/typeparam/issue49246.dir/a.go        | 20 ++++++++++++++++++++
- test/typeparam/issue49246.dir/b.go        |  9 +++++++++
- test/typeparam/issue49246.go              |  7 +++++++
- 4 files changed, 49 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go          | 43 ++++++++++++++++--
+ src/cmd/compile/internal/gc/compile.go            |  3 ++
+ src/cmd/compile/internal/ssa/op.go                | 18 ++++----
+ src/cmd/compile/internal/ssagen/ssa.go            | 55 ++++++++++++++---------
+ src/cmd/compile/internal/test/abiutilsaux_test.go | 32 -------------
+ 5 files changed, 85 insertions(+), 66 deletions(-)

@@ -1,33 +1,20 @@
-commit 7aefdfded022f9775eb463156eda3a25a658a0ae
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jan 6 09:44:41 2017 -0500
+commit 7c46f0349844f950cc811727ded2393cff7e0369
+Author: Quentin Smith <quentin@golang.org>
+Date:   Fri Oct 14 15:13:30 2016 -0400
 
-    runtime: use 4K as the boundary of legal pointers
+    strconv: strip \r in raw strings passed to Unquote
     
-    Currently, the check for legal pointers in stack copying uses
-    _PageSize (8K) as the minimum legal pointer. By default, Linux won't
-    let you map under 64K, but
+    To match the language spec, strconv.Unquote needs to strip carriage
+    returns from the raw string.
     
-    1) it's less clear what other OSes allow or will allow in the future;
+    Also fixes TestUnquote to not be a noop.
     
-    2) while mapping the first page is a terrible idea, mapping anywhere
-    above that is arguably more justifiable;
+    Fixes #15997
     
-    3) the compiler only assumes the first physical page (4K) is never
-    mapped.
-    
-    Make the runtime consistent with the compiler and more robust by
-    changing the bad pointer check to use 4K as the minimum legal pointer.
-    
-    This came out of discussions on CLs 34663 and 34719.
-    
-    Change-Id: Idf721a788bd9699fb348f47bdd083cf8fa8bd3e5
-    Reviewed-on: https://go-review.googlesource.com/34890
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2456f50f2ad3830f37e545f4f6774ced9fe609d7
+    Reviewed-on: https://go-review.googlesource.com/31210
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/nilcheck.go | 2 ++
- src/runtime/malloc.go                    | 7 +++++++
- src/runtime/stack.go                     | 2 +-
- 3 files changed, 10 insertions(+), 1 deletion(-)
+ src/strconv/quote.go      | 10 ++++++++++
+ src/strconv/quote_test.go |  3 ++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

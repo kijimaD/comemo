@@ -1,14 +1,17 @@
-commit cd566958e938c695d09730dfcb7c2b8e76658f89
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 13 18:33:15 2013 -0800
+commit 2968e239b00e3cfa4b9f146b00f06b01134ae5a1
+Author: Julien Schmidt <google@julienschmidt.com>
+Date:   Wed Feb 13 15:25:39 2013 -0800
 
-    net/http: test that we preserve Go 1.0 Request.Write Host behavior
+    database/sql: Add an optional Queryer-Interface (like Execer)
     
-    Fixes #4792
+    Completly the same like the Execer-Interface, just for Queries.
+    This allows Drivers to execute Queries without preparing them first
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7314093
+    https://golang.org/cl/7085056
 
- src/pkg/net/http/requestwrite_test.go | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ src/pkg/database/sql/driver/driver.go |  11 ++++
+ src/pkg/database/sql/fakedb_test.go   |  12 ++++
+ src/pkg/database/sql/sql.go           | 117 ++++++++++++++++++++++++++--------
+ 3 files changed, 114 insertions(+), 26 deletions(-)

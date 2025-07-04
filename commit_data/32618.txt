@@ -1,55 +1,45 @@
-commit 50f1f639a42e0713c224b1937ebcda81f9f76e7b
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Mon Aug 21 12:12:41 2017 +0300
+commit 6dcaa095c571988f2c1cfc9b914fb5128ab7c5ca
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 8 12:49:04 2017 +1000
 
-    cmd/asm: add most SSE4 missing instructions
+    os: avoid calulating fileStat.path until it is needed
     
-    Instructions added:
-      INSERTPS immb, r/m, xmm
-      MPSADBW immb, r/m, xmm
-      BLENDPD immb, r/m, xmm
-      BLENDPS immb, r/m, xmm
-      DPPD immb, r/m, xmm
-      DPPS immb, r/m, xmm
-      MOVNTDQA r/m, xmm
-      PACKUSDW r/m, xmm
-      PBLENDW immb, r/m, xmm
-      PCMPEQQ r/m, xmm
-      PCMPGTQ r/m, xmm
-      PCMPISTRI immb, r/m, xmm
-      PCMPISTRM immb, r/m, xmm
-      PMAXSB r/m, xmm
-      PMAXSD r/m, xmm
-      PMAXUD r/m, xmm
-      PMAXUW r/m, xmm
-      PMINSB r/m, xmm
-      PMINSD r/m, xmm
-      PMINUD r/m, xmm
-      PMINUW r/m, xmm
-      PTEST r/m, xmm
-      PCMPESTRM immb, r/m, xmm
+    This CL improves
     
-    Note: only 'optab' table is extended.
+    on my Windows 7
     
-    `EXTRACTPS immb, xmm, r/m` is not included in this
-    change due to new ytab set 'yextractps'. This should simplify
-    code review.
+    name         old time/op    new time/op    delta
+    Readdirname    58.1µs ± 1%    58.1µs ± 0%     ~     (p=0.817 n=8+8)
+    Readdir        58.0µs ± 3%    57.8µs ± 0%     ~     (p=0.944 n=9+8)
     
-    4-operand instructions are a subject of upcoming changes that
-    make 4-th (and so on) operands explicit.
-    Related TODO note in asm6.go:
-    "dont't hide 4op, some version have xmm version".
+    name         old alloc/op   new alloc/op   delta
+    Readdirname    3.03kB ± 0%    2.84kB ± 0%   -6.33%  (p=0.000 n=10+10)
+    Readdir        3.00kB ± 0%    2.81kB ± 0%   -6.40%  (p=0.000 n=10+10)
     
-    Part of the mission to add missing amd64 SSE4 instructions to Go asm.
+    name         old allocs/op  new allocs/op  delta
+    Readdirname      34.0 ± 0%      30.0 ± 0%  -11.76%  (p=0.000 n=10+10)
+    Readdir          33.0 ± 0%      29.0 ± 0%  -12.12%  (p=0.000 n=10+10)
     
-    Change-Id: I71716df14a8a5332e866dd0f0d52d43d7714872f
-    Reviewed-on: https://go-review.googlesource.com/57470
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    on my Windows XP
+    
+    name           old time/op    new time/op    delta
+    Readdirname-2    85.5µs ± 0%    84.0µs ± 0%   -1.83%  (p=0.000 n=10+10)
+    Readdir-2        84.6µs ± 0%    83.5µs ± 0%   -1.31%  (p=0.000 n=10+9)
+    
+    name           old alloc/op   new alloc/op   delta
+    Readdirname-2    6.52kB ± 0%    5.66kB ± 0%  -13.25%  (p=0.000 n=10+10)
+    Readdir-2        6.39kB ± 0%    5.53kB ± 0%  -13.52%  (p=0.000 n=10+10)
+    
+    name           old allocs/op  new allocs/op  delta
+    Readdirname-2      78.0 ± 0%      66.0 ± 0%  -15.38%  (p=0.000 n=10+10)
+    Readdir-2          77.0 ± 0%      65.0 ± 0%  -15.58%  (p=0.000 n=10+10)
+    
+    Change-Id: I5d698eca86b8e94a46b6cfbd5947898b7b3fbdbd
+    Reviewed-on: https://go-review.googlesource.com/42894
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 360 +++++++++++++--------------
- src/cmd/internal/obj/x86/a.out.go            |  23 ++
- src/cmd/internal/obj/x86/anames.go           |  23 ++
- src/cmd/internal/obj/x86/asm6.go             |  28 +++
- 4 files changed, 254 insertions(+), 180 deletions(-)
+ src/os/dir_windows.go   |  3 ++-
+ src/os/types_windows.go | 17 ++++++++++++-----
+ 2 files changed, 14 insertions(+), 6 deletions(-)

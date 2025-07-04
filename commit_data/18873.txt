@@ -1,18 +1,17 @@
-commit f0433e422b3b71df54957fcd5ab1db31b02e58d4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Mar 15 13:43:02 2014 +0900
+commit 88f84b3e415ad226f9724dc486be0f1b363b9f05
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 14 21:33:55 2014 +0100
 
-    net: make use of testing.Errorf instead of testing.Fatalf in non-test function goroutines
+    liblink, runtime: make nacl/386 binaries valid.
     
-    See testing.FailNow for further information.
+    They were rejected by NaCl due to AES instructions and
+    accesses to %gs:0x8, caused by wrong tlsoffset value.
     
     LGTM=iant
-    R=golang-codereviews, iant
+    R=rsc, dave, iant
     CC=golang-codereviews
-    https://golang.org/cl/75900043
+    https://golang.org/cl/76050044
 
- src/pkg/net/fd_mutex_test.go | 27 ++++++++++++++++++---------
- src/pkg/net/net_test.go      | 15 ++++++++++-----
- src/pkg/net/tcp_test.go      | 15 ++++++++++-----
- src/pkg/net/timeout_test.go  | 15 ++++++++++-----
- 4 files changed, 48 insertions(+), 24 deletions(-)
+ src/liblink/sym.c       | 13 +++++++++++--
+ src/pkg/runtime/alg.goc |  5 ++++-
+ 2 files changed, 15 insertions(+), 3 deletions(-)

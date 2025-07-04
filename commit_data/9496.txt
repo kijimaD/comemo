@@ -1,19 +1,14 @@
-commit 77db5ff50122b560c889024d41f54c3b722325c1
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu Aug 25 21:00:20 2011 -0300
+commit 825f8c147ad0ff0ea44192d6f9e8db5f5f4e0603
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 25 19:22:46 2011 -0400
 
-    go/build: separate test imports out when scanning
+    net: move internal string manipulation routines to parse.go
     
-    This fixes goinstall so it doesn't try to install unneeded
-    packages or get confused with non-existent loops.
-    
-    R=golang-dev, adg, gustavo
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4958046
+    https://golang.org/cl/4968044
 
- src/pkg/go/build/build_test.go         |  2 ++
- src/pkg/go/build/dir.go                | 17 +++++++++++++++--
- src/pkg/go/build/pkgtest/pkgtest.go    |  6 +++++-
- src/pkg/go/build/pkgtest/sqrt_test.go  |  4 ++++
- src/pkg/go/build/pkgtest/xsqrt_test.go |  4 ++++
- 5 files changed, 30 insertions(+), 3 deletions(-)
+ src/pkg/net/interface.go | 12 ------------
+ src/pkg/net/ip.go        | 36 +-----------------------------------
+ src/pkg/net/parse.go     | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 47 deletions(-)

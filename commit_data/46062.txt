@@ -1,22 +1,28 @@
-commit 9d9e3291faee4b01165247956e8555eb1bb291f1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 17 11:45:05 2021 -0700
+commit 0a6f004cb1ed99bc225f4fe3cba5c2c5b901b442
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Oct 7 14:08:53 2020 -0400
 
-    cmd/compile/internal/types2: fix method lookup for type-parameter based types
+    [dev.fuzz] testing: exit after f.Fuzz function
     
-    Pointers to type parameters don't have methods, but pointers to
-    defined types whose underlying types are type parameters may have
-    methods. Fix the respective test.
+    This change causes f.Fuzz to call runtime.GoExit
+    when it has finished running. This would mean that
+    any code after an f.Fuzz function within a fuzz
+    target would not be executed.
     
-    For #47747.
+    In the future, vet should fail if someone tries to
+    do this.
     
-    Change-Id: I1de47be094ed9297f0e7782538011657c37c5adc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342990
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    This change also adds the missing code that would
+    execute any cleanup functions added by f.Cleanup.
+    
+    Change-Id: Ib4d1e6bcafbe189986d0667a1e87dabae67ee621
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260338
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/types2/lookup.go          |  9 ++-
- .../types2/testdata/fixedbugs/issue47747.go2       | 68 ++++++++++++++++++++++
- 2 files changed, 74 insertions(+), 3 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt | 37 +++++++++++++++++++++++---------
+ src/testing/fuzz.go                      | 33 ++++++++++++++--------------
+ 2 files changed, 44 insertions(+), 26 deletions(-)

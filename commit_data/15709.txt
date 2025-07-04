@@ -1,23 +1,18 @@
-commit e64f3f211ac03f270a2db476e01b34fd1d1c5301
+commit aa81eb5901abc545bc8ff14833f52c3e798f0b90
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 12 01:48:48 2013 -0400
+Date:   Mon Mar 11 23:58:20 2013 -0400
 
-    net: never use backlog > 65535
+    encoding/xml: allow embedded non-structs
     
-    The system call takes an int, but the kernel stores it in a uint16.
-    At least one Linux system sets /proc/sys/net/core/somaxconn
-    to 262144, which ends up being 0 in the uint16. Avoid being tricked.
+    The old code just assumed that the only thing
+    you can embed is a struct. Not true.
     
-    FreeBSD sources also store the backlog in a uint16.
-    Assume the problem is systemic and fix it everywhere.
+    Fixes #3803.
     
-    Fixes #5030.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7480046
+    https://golang.org/cl/7743043
 
- src/pkg/net/sock_bsd.go     | 6 ++++++
- src/pkg/net/sock_linux.go   | 6 ++++++
- src/pkg/net/sock_windows.go | 1 +
- 3 files changed, 13 insertions(+)
+ src/pkg/encoding/xml/marshal_test.go | 12 ++++++++++++
+ src/pkg/encoding/xml/typeinfo.go     | 21 ++++++++++-----------
+ 2 files changed, 22 insertions(+), 11 deletions(-)

@@ -1,26 +1,89 @@
-commit 301fd8ac8b6cd93708ad536eb054e1b081982a9b
+commit 371ea545c015627ffac2139338ea63acda4c1523
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 15 13:46:56 2022 -0800
+Date:   Fri Jan 8 12:21:08 2021 -0800
 
-    net: send EDNS(0) packet length in DNS query
+    net/url: avoid string concatenation in resolvePath
     
-    Advertise to DNS resolvers that we are willing and able to accept up
-    to 1232 bytes in a DNS packet. The value 1232 was chosen based on
-    https://dnsflagday.net/2020/.
+    ame                  old time/op    new time/op    delta
+    String-12               8.09µs ± 7%    8.20µs ± 5%     ~     (p=0.347 n=20+19)
+    ResolvePath-12           223ns ± 8%     170ns ± 7%  -23.84%  (p=0.000 n=20+19)
+    QueryEscape/#00-12      72.9ns ± 5%    73.6ns ± 6%     ~     (p=0.337 n=20+20)
+    QueryEscape/#01-12       467ns ± 5%     467ns ± 7%     ~     (p=0.612 n=19+20)
+    QueryEscape/#02-12       257ns ± 8%     262ns ± 8%     ~     (p=0.080 n=20+20)
+    QueryEscape/#03-12       553ns ±12%     568ns ± 8%   +2.73%  (p=0.048 n=20+19)
+    QueryEscape/#04-12      4.45µs ± 7%    4.52µs ± 5%     ~     (p=0.163 n=20+20)
+    PathEscape/#00-12        119ns ± 9%     121ns ± 6%     ~     (p=0.140 n=20+20)
+    PathEscape/#01-12        458ns ± 7%     483ns ± 4%   +5.49%  (p=0.000 n=20+20)
+    PathEscape/#02-12        255ns ± 7%     257ns ± 7%     ~     (p=0.560 n=20+20)
+    PathEscape/#03-12        556ns ± 8%     559ns ± 8%     ~     (p=0.799 n=20+20)
+    PathEscape/#04-12       4.14µs ± 6%    4.28µs ± 8%   +3.30%  (p=0.003 n=20+20)
+    QueryUnescape/#00-12    72.2ns ± 8%    74.9ns ± 5%   +3.66%  (p=0.006 n=20+19)
+    QueryUnescape/#01-12     223ns ± 7%     230ns ± 8%   +2.84%  (p=0.016 n=20+20)
+    QueryUnescape/#02-12     200ns ± 7%     203ns ±10%     ~     (p=0.533 n=20+20)
+    QueryUnescape/#03-12     480ns ± 7%     500ns ± 8%   +4.15%  (p=0.006 n=20+20)
+    QueryUnescape/#04-12    2.61µs ± 8%    2.70µs ± 7%   +3.39%  (p=0.009 n=20+20)
+    PathUnescape/#00-12     74.6ns ± 6%    75.4ns ± 6%     ~     (p=0.425 n=20+20)
+    PathUnescape/#01-12      226ns ± 3%     227ns ± 8%     ~     (p=0.453 n=15+20)
+    PathUnescape/#02-12      202ns ±11%     202ns ± 6%     ~     (p=0.963 n=20+20)
+    PathUnescape/#03-12      484ns ± 9%     494ns ± 9%     ~     (p=0.078 n=20+19)
+    PathUnescape/#04-12     2.60µs ± 6%    2.61µs ± 8%     ~     (p=0.776 n=20+19)
+    Split-12                6.47ns ± 0%    6.47ns ± 0%     ~     (p=0.760 n=18+18)
     
-    For #6464
-    For #21160
-    For #44135
-    For #51127
-    Fixes #51153
+    name                  old alloc/op   new alloc/op   delta
+    String-12               1.50kB ± 0%    1.50kB ± 0%     ~     (all equal)
+    ResolvePath-12           24.0B ± 0%     16.0B ± 0%  -33.33%  (p=0.000 n=20+20)
+    QueryEscape/#00-12       8.00B ± 0%     8.00B ± 0%     ~     (all equal)
+    QueryEscape/#01-12       64.0B ± 0%     64.0B ± 0%     ~     (all equal)
+    QueryEscape/#02-12       32.0B ± 0%     32.0B ± 0%     ~     (all equal)
+    QueryEscape/#03-12       64.0B ± 0%     64.0B ± 0%     ~     (all equal)
+    QueryEscape/#04-12        832B ± 0%      832B ± 0%     ~     (all equal)
+    PathEscape/#00-12        16.0B ± 0%     16.0B ± 0%     ~     (all equal)
+    PathEscape/#01-12        64.0B ± 0%     64.0B ± 0%     ~     (all equal)
+    PathEscape/#02-12        32.0B ± 0%     32.0B ± 0%     ~     (all equal)
+    PathEscape/#03-12        64.0B ± 0%     64.0B ± 0%     ~     (all equal)
+    PathEscape/#04-12         704B ± 0%      704B ± 0%     ~     (all equal)
+    QueryUnescape/#00-12     8.00B ± 0%     8.00B ± 0%     ~     (all equal)
+    QueryUnescape/#01-12     24.0B ± 0%     24.0B ± 0%     ~     (all equal)
+    QueryUnescape/#02-12     24.0B ± 0%     24.0B ± 0%     ~     (all equal)
+    QueryUnescape/#03-12     64.0B ± 0%     64.0B ± 0%     ~     (all equal)
+    QueryUnescape/#04-12      320B ± 0%      320B ± 0%     ~     (all equal)
+    PathUnescape/#00-12      8.00B ± 0%     8.00B ± 0%     ~     (all equal)
+    PathUnescape/#01-12      24.0B ± 0%     24.0B ± 0%     ~     (all equal)
+    PathUnescape/#02-12      24.0B ± 0%     24.0B ± 0%     ~     (all equal)
+    PathUnescape/#03-12      64.0B ± 0%     64.0B ± 0%     ~     (all equal)
+    PathUnescape/#04-12       320B ± 0%      320B ± 0%     ~     (all equal)
     
-    Change-Id: If9182d5210bfe047cf0a4d46163effc6812ab677
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386016
+    name                  old allocs/op  new allocs/op  delta
+    String-12                 63.0 ± 0%      63.0 ± 0%     ~     (all equal)
+    ResolvePath-12            3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=20+20)
+    QueryEscape/#00-12        1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    QueryEscape/#01-12        1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    QueryEscape/#02-12        1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    QueryEscape/#03-12        1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    QueryEscape/#04-12        2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    PathEscape/#00-12         1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    PathEscape/#01-12         1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    PathEscape/#02-12         1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    PathEscape/#03-12         1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    PathEscape/#04-12         2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    QueryUnescape/#00-12      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    QueryUnescape/#01-12      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    QueryUnescape/#02-12      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    QueryUnescape/#03-12      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    QueryUnescape/#04-12      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    PathUnescape/#00-12       1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    PathUnescape/#01-12       1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    PathUnescape/#02-12       1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    PathUnescape/#03-12       1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    PathUnescape/#04-12       1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    
+    Fixes #43587
+    
+    Change-Id: I66c47e78e92555180ce3554a2d4a21038362c41e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282673
     Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/net/dnsclient_unix.go      | 13 ++++++++++
- src/net/dnsclient_unix_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 68 insertions(+)
+ src/net/url/url.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

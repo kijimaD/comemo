@@ -1,23 +1,24 @@
-commit d723df76da3ee4c8f3c03fd03be29fba9bfeb02a
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Aug 2 13:33:02 2022 -0400
+commit 7619a4528d506277f44e8d4b70366b5b5633b40f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 21 09:35:46 2021 -0700
 
-    internal/goversion: update Version to 1.20
+    reflect: improve panic when MapIter has no associated map Value
     
-    This is the start of the Go 1.20 development cycle, so update the
-    Version value accordingly. It represents the Go 1.x version that
-    will soon open up for development (and eventually become released).
+    it := new(reflect.MapIter)
+    it.Next()
     
-    For #40705.
-    For #53812.
+    This generates a nil pointer dereference panic from reflect.Value.pointer.
+    Generate a clearer panic.
     
-    Change-Id: Ic8919a61c9b2f3139717434b9c776d1597175448
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420816
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For #46293
+    
+    Change-Id: I32a22c797e1ba3a7b4e70b38ceb4dedb44d264fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321890
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/goversion/goversion.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/value.go | 3 +++
+ 1 file changed, 3 insertions(+)

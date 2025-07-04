@@ -1,20 +1,20 @@
-commit b559392e1b84f521a8b9c2d3c1164960c62799c8
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 17 14:56:54 2014 -0700
+commit 2005bea7fd09e62fa1790dd86b04cfd712a0d21a
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Jun 17 14:43:35 2014 -0400
 
-    fmt: fix signs when zero padding.
-    Bug was introduced recently. Add more tests, fix the bugs.
-    Suppress + sign when not required in zero padding.
-    Do not zero pad infinities.
-    All old tests still pass.
-    This time for sure!
-    Fixes #8217.
+    misc/emacs: replace hacky go--delete-whole-line with own implementation
     
-    LGTM=rsc
-    R=golang-codereviews, dan.kortschak, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/103480043
+    Using flet to replace kill-region with delete-region was a hack,
+    flet is now (GNU Emacs 24.3) deprecated and at least two people
+    have reported an issue where using go--delete-whole-line would
+    permanently break their kill ring. While that issue is probably
+    caused by faulty third party code (possibly prelude), it's easier
+    to write a clean implementation than to tweak the hack.
+    
+    LGTM=ruiu, adonovan
+    R=adonovan, ruiu
+    CC=adg, golang-codereviews
+    https://golang.org/cl/106010043
 
- src/pkg/fmt/fmt_test.go | 115 +++++++++++++++++++++++++++++++++++++++++++++++-
- src/pkg/fmt/format.go   |  71 ++++++++++++++----------------
- 2 files changed, 147 insertions(+), 39 deletions(-)
+ misc/emacs/go-mode.el | 40 +++++++++++++++++++++++-----------------
+ 1 file changed, 23 insertions(+), 17 deletions(-)

@@ -1,17 +1,22 @@
-commit 3e033b7553e8d4893c931832ce25dd11fa22f254
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Sun Mar 9 10:21:06 2025 +0100
+commit 18840865d22d58ac97b79c6a972dacada3d9215b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 1 12:14:41 2024 -0500
 
-    cmd/compile: add constant folding for PopCount
+    Revert "runtime: preempt more aggressively when panicking"
     
-    Change-Id: I6ea3f75ddd5c7af114ef77bc48f28c7f8570997b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656156
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    This reverts CL 546135.
+    
+    Reason for revert: Causes occasional throw during panic
+    
+    For #65416.
+    
+    Change-Id: I78c15637da18f85ede785363b777aa7d1dead3c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560455
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules |   8 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 152 ++++++++++++++++++++++++
- 2 files changed, 160 insertions(+)
+ src/runtime/os_windows.go  |  2 +-
+ src/runtime/preempt.go     | 15 ++-------------
+ src/runtime/signal_unix.go |  2 +-
+ 3 files changed, 4 insertions(+), 15 deletions(-)

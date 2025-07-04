@@ -1,17 +1,19 @@
-commit e9d5fca9f30dc92dd659ce88030f9a5f4676b142
-Author: Nicolas Owens <mischief@offblast.org>
-Date:   Thu Oct 2 10:25:56 2014 +0200
+commit 117a6973cb17d45c0c14cd8fb576f5a06b0d7234
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 14:45:11 2014 -0700
 
-    syscall: fix Setenv for plan 9
+    build: fix elf builds
     
-    envi needs to be updated during Setenv so the key can be correctly deleted later with Unsetenv.
+    Corrections due to new strict type rules for data+bss.
+    Also disable misc/cgo/cdefstest since you can't compile C code anymore.
     
-    Update #8849.
-    
-    LGTM=0intro
-    R=bradfitz, 0intro
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/149300046
+    https://golang.org/cl/148050044
 
- src/syscall/env_plan9.go | 1 +
- 1 file changed, 1 insertion(+)
+ include/link.h                 |  2 +-
+ src/cmd/ld/data.c              | 13 ++++++++++---
+ src/cmd/ld/lib.c               |  4 +++-
+ src/run.bash                   | 11 +++++++----
+ src/runtime/vdso_linux_amd64.c |  9 +++++++--
+ 5 files changed, 28 insertions(+), 11 deletions(-)

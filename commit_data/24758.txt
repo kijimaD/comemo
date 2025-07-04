@@ -1,16 +1,33 @@
-commit 53d42fbead530b4b34c217a9d49de5b50bf433fa
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Wed Oct 28 07:44:35 2015 +0100
+commit f8093b8f2491171c996c4820fe7b9a2796ac1084
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 28 12:53:41 2015 -0700
 
-    cmd/asm/internal/lex: format error correctly
+    [dev.ssa] cmd/compile/internal/ssa: add arg-dominating check, fix phielim
     
-    Error doesn't take a format string and appends its own newline. Phrase
-    the error like the other ones.
+    Add a check to make sure value arguments dominate the value.
     
-    Change-Id: Ic3af857e5d4890207c74a6eb59a0d1067b503e1b
-    Reviewed-on: https://go-review.googlesource.com/16420
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Phi elim output used to fail this test.  When eliminating
+    redundant phis, phi elim was using one of the args and not
+    the ultimate source.  For example:
+    
+              b1: x = ...
+              -> b2 b3
+    
+    b2: y = Copy x        b3: z = Copy x
+    -> b4                 -> b4
+    
+              b4: w = phi y z
+    
+    Phi elim eliminates w, but it used to replace w with (Copy y).
+    That's bad as b2 does not dominate b4.  Instead we should
+    replace w with (Copy x).
+    
+    Fixes #12347
+    
+    Change-Id: I9f340cdabcda8e2e90359fb4f9250877b1fffe98
+    Reviewed-on: https://go-review.googlesource.com/13986
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/asm/internal/lex/input.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/check.go   | 41 +++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/phielim.go | 26 ++++++++-------------
+ 2 files changed, 51 insertions(+), 16 deletions(-)

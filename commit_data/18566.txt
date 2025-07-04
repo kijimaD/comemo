@@ -1,21 +1,23 @@
-commit 80692a3f81f6367e9c61b652bf3dff30f4cc6624
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Feb 19 11:17:09 2014 -0500
+commit 2541cc81978dc5e41e2e2db6345d8ca7a365ca8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 19 10:00:44 2014 -0500
 
-    crypto/tls: improve documentation for ServerName.
+    cmd/ld: drop gcargs, gclocals symbols from symbol table
     
-    Users of the low-level, Client function are frequenctly missing the
-    fact that, unless they pass a ServerName to the TLS connection then it
-    cannot verify the certificates against any name.
+    Update #6853
     
-    This change makes it clear that at least one of InsecureSkipVerify and
-    ServerName should always be set.
+    Every function now has a gcargs and gclocals symbol
+    holding associated garbage collection information.
+    Put them all in the same meta-symbol as the go.func data
+    and then drop individual entries from symbol table.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Removing gcargs and gclocals reduces the size of a
+    typical binary by 10%.
+    
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/65440043
+    https://golang.org/cl/65870044
 
- src/pkg/crypto/tls/common.go | 5 +++--
- src/pkg/crypto/tls/tls.go    | 5 ++---
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/ld/symtab.c | 5 +++++
+ 1 file changed, 5 insertions(+)

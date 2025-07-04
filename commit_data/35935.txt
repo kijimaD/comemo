@@ -1,16 +1,82 @@
-commit f9800a94730eb6ead87017e6f829f58c4459870b
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sun Jul 8 10:02:47 2018 +0000
+commit 6633bb2aa7c8ab53dc6cc8a4ef8c4fef7a439cee
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Thu Jan 4 18:23:27 2018 -0200
 
-    test/codegen: add more test cases for arm64
+    cmd/compile/internal/ppc64, runtime internal/atomic, sync/atomic: implement faster atomics for ppc64x
     
-    More test cases of combined load for arm64.
+    This change implements faster atomics for ppc64x based on the ISA 2.07B,
+    Appendix B.2 recommendations, replacing SYNC/ISYNC by LWSYNC in some
+    cases.
     
-    Change-Id: I7a9f4dcec6930f161cbded1f47dbf7fcef1db4f1
-    Reviewed-on: https://go-review.googlesource.com/122582
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Updates #21348
+    
+    name                                           old time/op new time/op    delta
+    Cond1-16                                           955ns     856ns      -10.33%
+    Cond2-16                                          2.38µs    2.03µs      -14.59%
+    Cond4-16                                          5.90µs    5.44µs       -7.88%
+    Cond8-16                                          12.1µs    11.1µs       -8.42%
+    Cond16-16                                         27.0µs    25.1µs       -7.04%
+    Cond32-16                                         59.1µs    55.5µs       -6.14%
+    LoadMostlyHits/*sync_test.DeepCopyMap-16          22.1ns    24.1ns       +9.02%
+    LoadMostlyHits/*sync_test.RWMutexMap-16            252ns     249ns       -1.20%
+    LoadMostlyHits/*sync.Map-16                       16.2ns    16.3ns         ~
+    LoadMostlyMisses/*sync_test.DeepCopyMap-16        22.3ns    22.6ns         ~
+    LoadMostlyMisses/*sync_test.RWMutexMap-16          249ns     247ns       -0.51%
+    LoadMostlyMisses/*sync.Map-16                     12.7ns    12.7ns         ~
+    LoadOrStoreBalanced/*sync_test.RWMutexMap-16      1.27µs    1.17µs       -7.54%
+    LoadOrStoreBalanced/*sync.Map-16                  1.12µs    1.10µs       -2.35%
+    LoadOrStoreUnique/*sync_test.RWMutexMap-16        1.75µs    1.68µs       -3.84%
+    LoadOrStoreUnique/*sync.Map-16                    2.07µs    1.97µs       -5.13%
+    LoadOrStoreCollision/*sync_test.DeepCopyMap-16    15.8ns    15.9ns         ~
+    LoadOrStoreCollision/*sync_test.RWMutexMap-16      496ns     424ns      -14.48%
+    LoadOrStoreCollision/*sync.Map-16                 6.07ns    6.07ns         ~
+    Range/*sync_test.DeepCopyMap-16                   1.65µs    1.64µs         ~
+    Range/*sync_test.RWMutexMap-16                     278µs     288µs       +3.75%
+    Range/*sync.Map-16                                2.00µs    2.01µs         ~
+    AdversarialAlloc/*sync_test.DeepCopyMap-16        3.45µs    3.44µs         ~
+    AdversarialAlloc/*sync_test.RWMutexMap-16          226ns     227ns         ~
+    AdversarialAlloc/*sync.Map-16                     1.09µs    1.07µs       -2.36%
+    AdversarialDelete/*sync_test.DeepCopyMap-16        553ns     550ns       -0.57%
+    AdversarialDelete/*sync_test.RWMutexMap-16         273ns     274ns         ~
+    AdversarialDelete/*sync.Map-16                     247ns     249ns         ~
+    UncontendedSemaphore-16                           79.0ns    65.5ns      -17.11%
+    ContendedSemaphore-16                              112ns      97ns      -13.77%
+    MutexUncontended-16                               3.34ns    2.51ns      -24.69%
+    Mutex-16                                           266ns     191ns      -28.26%
+    MutexSlack-16                                      226ns     159ns      -29.55%
+    MutexWork-16                                       377ns     338ns      -10.14%
+    MutexWorkSlack-16                                  335ns     308ns       -8.20%
+    MutexNoSpin-16                                     196ns     184ns       -5.91%
+    MutexSpin-16                                       710ns     666ns       -6.21%
+    Once-16                                           1.29ns    1.29ns         ~
+    Pool-16                                           8.64ns    8.71ns         ~
+    PoolOverflow-16                                   1.60µs    1.44µs      -10.25%
+    SemaUncontended-16                                5.39ns    4.42ns      -17.96%
+    SemaSyntNonblock-16                                539ns     483ns      -10.42%
+    SemaSyntBlock-16                                   413ns     354ns      -14.20%
+    SemaWorkNonblock-16                                305ns     258ns      -15.36%
+    SemaWorkBlock-16                                   266ns     229ns      -14.06%
+    RWMutexUncontended-16                             12.9ns     9.7ns      -24.80%
+    RWMutexWrite100-16                                 203ns     147ns      -27.47%
+    RWMutexWrite10-16                                  177ns     119ns      -32.74%
+    RWMutexWorkWrite100-16                             435ns     403ns       -7.39%
+    RWMutexWorkWrite10-16                              642ns     611ns       -4.79%
+    WaitGroupUncontended-16                           4.67ns    3.70ns      -20.92%
+    WaitGroupAddDone-16                                402ns     355ns      -11.54%
+    WaitGroupAddDoneWork-16                            208ns     250ns      +20.09%
+    WaitGroupWait-16                                  1.21ns    1.21ns         ~
+    WaitGroupWaitWork-16                              5.91ns    5.87ns       -0.81%
+    WaitGroupActuallyWait-16                          92.2ns    85.8ns       -6.91%
+    
+    Updates #21348
+    
+    Change-Id: Ibb9b271d11b308264103829e176c6d9fe8f867d3
+    Reviewed-on: https://go-review.googlesource.com/95175
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- test/codegen/memcombine.go | 70 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 70 insertions(+)
+ src/cmd/compile/internal/ppc64/ssa.go    | 51 ++++++++++++++++----------------
+ src/runtime/internal/atomic/asm_ppc64x.s | 24 +++++++--------
+ src/sync/atomic/asm_ppc64x.s             | 18 +++++------
+ 3 files changed, 43 insertions(+), 50 deletions(-)

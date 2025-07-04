@@ -1,17 +1,16 @@
-commit 3be166dc70bf3539539bc6762aff9660c3dbf229
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Nov 1 15:33:40 2016 -0700
+commit b6948ce7c2ee7ab7bbb2377a8b76d1473075753c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 14:12:28 2016 -0700
 
-    cmd/compile: get rid of unused Name.Method field
+    cmd/compile: temporarily disable Formats test
     
-    It's never set anywhere, and even if it was, it would just Fatalf.
+    So we can submit a sequence of older changes that don't yet
+    update the formats in this file. We will then re-enable the
+    test with the updated formats.
     
-    Change-Id: I84ade6d2068c623a8c85f84d8cdce38984996ddd
-    Reviewed-on: https://go-review.googlesource.com/32489
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6ed559b83adc891bbf4b3d855a7dc1e428366f7f
+    Reviewed-on: https://go-review.googlesource.com/28776
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/gsubr.go  | 3 ---
- src/cmd/compile/internal/gc/syntax.go | 1 -
- 2 files changed, 4 deletions(-)
+ src/cmd/compile/internal/gc/fmt_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,17 +1,19 @@
-commit b30235a22aef9bf5e44de6b3a34e41b621811a67
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 18 16:09:37 2019 -0500
+commit 34778e58b30a3d615502a9f75bb603d6a13e0504
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jul 18 08:18:58 2019 -0400
 
-    cmd/go: convert TestBuildDashIInstallsDependencies to a script test
+    test: new testcase for gccgo bug
     
-    Updates #28387
-    Updates #30316
+    Updates #33158.
     
-    Change-Id: I06e50c8d148cb4d7e08cdc2ba90de5e91d35781d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207699
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id87eb00ddcb104ba8e7a0d2f6cf324a77a84f4a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186717
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                  | 34 ----------------------------
- src/cmd/go/testdata/script/build_i.txt | 41 ++++++++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+), 34 deletions(-)
+ test/fixedbugs/issue33158.dir/a.go | 25 +++++++++++++++++++++++++
+ test/fixedbugs/issue33158.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue33158.go       |  9 +++++++++
+ 3 files changed, 45 insertions(+)

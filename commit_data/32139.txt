@@ -1,29 +1,39 @@
-commit 6b6b9f69fd38ca285b33917d6201dbcb11ca0324
-Author: Tom Bergan <tombergan@google.com>
-Date:   Tue Aug 8 18:01:08 2017 -0700
+commit 3cf1ce40bde952c0ca0ac2af7737bfae5841f0c4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 7 19:50:31 2017 +0000
 
-    net/http: update bundled http2
+    Revert "cmd/compile: output DWARF lexical blocks for local variables"
     
-    Updates http2 to x/net/http2 git rev 1c05540f687 for:
+    This reverts commit c8b889cc4824f4dbd64a51a3f7b5b6dce4b87ed2.
     
-      http2: fix format argument warnings in tests
-      https://golang.org/cl/48090
+    Reason for revert: broke noopt build, compiler performance regression, new Curfn uses
     
-      http2: retry requests after receiving REFUSED STREAM
-      https://golang.org/cl/50471
+    Let's fix those and then try this again.
     
-      http2: block RoundTrip when the Transport hits MaxConcurrentStreams
-      https://golang.org/cl/53250
-    
-    Fixes #13774
-    Fixes #20985
-    Fixes #21229
-    
-    Change-Id: Ie19b4a7cc395a0b7a25fac55f5051faaf94920bb
-    Reviewed-on: https://go-review.googlesource.com/54052
-    Run-TryBot: Tom Bergan <tombergan@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icc3cad1365d04cac8fd09da9dbb0bbf55c13ef44
+    Reviewed-on: https://go-review.googlesource.com/39991
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/h2_bundle.go | 213 ++++++++++++++++++++++++++++++++--------------
- 1 file changed, 150 insertions(+), 63 deletions(-)
+ src/cmd/compile/internal/gc/alg.go         |  17 +-
+ src/cmd/compile/internal/gc/bimport.go     |  24 +-
+ src/cmd/compile/internal/gc/closure.go     |   8 +-
+ src/cmd/compile/internal/gc/dcl.go         |  32 +--
+ src/cmd/compile/internal/gc/init.go        |   9 +-
+ src/cmd/compile/internal/gc/noder.go       |  48 ++--
+ src/cmd/compile/internal/gc/pgen.go        |  25 +-
+ src/cmd/compile/internal/gc/scope.go       |  91 -------
+ src/cmd/compile/internal/gc/scope_test.go  | 410 -----------------------------
+ src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/gc/subr.go        |   8 +-
+ src/cmd/compile/internal/gc/syntax.go      |   7 +-
+ src/cmd/compile/internal/gc/walk.go        |   5 +-
+ src/cmd/internal/dwarf/dwarf.go            | 179 ++-----------
+ src/cmd/internal/obj/data.go               |   2 +-
+ src/cmd/internal/obj/link.go               |   3 +-
+ src/cmd/internal/obj/objfile.go            |  31 +--
+ src/cmd/internal/src/scope.go              |  36 ---
+ src/cmd/link/internal/ld/data.go           |  19 +-
+ src/cmd/link/internal/ld/dwarf.go          |  38 +--
+ src/cmd/link/internal/ld/link.go           |   4 -
+ 21 files changed, 109 insertions(+), 889 deletions(-)

@@ -1,15 +1,12 @@
-commit d8dd9c714b9700bfb3e79a06172d37738179d511
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 4 12:41:04 2015 -0500
+commit c82c212649ecab171e5e8246cbbc7e9c969fdf14
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 8 10:39:03 2015 -0700
 
-    cmd/dist: default to clang, not gcc, on freebsd
+    doc: strconv.QuoteToGraphic in go1.6.txt
     
-    Fixes #11380.
-    
-    Change-Id: I0a284ad2a46826ce82486479ea4e79f0f470292f
-    Reviewed-on: https://go-review.googlesource.com/16635
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2f05d0b62deb5d7d0886f6fc5af5e7b79792efba
+    Reviewed-on: https://go-review.googlesource.com/14381
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.6.txt        | 1 +
- src/cmd/dist/util.go | 3 +++
- 2 files changed, 4 insertions(+)
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,23 @@
+commit 4bc6c71ee013addb613c39dae364cf7a06694b47
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Mar 19 16:37:16 2025 -0700
+
+    os: skip Root.Chtimes atime check on netbsd, truncate a/mtime on plan9
+    
+    The NetBSD builder has noatime set on its filesystem.
+    Skip testing the atime on this builder.
+    
+    Plan9 has second precision on its atime and mtimes.
+    Truncate the values passed to Chtimes.
+    
+    For #72957
+    
+    Change-Id: I963e2dd34075a9ba025e80641f0b675d5d912188
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659356
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/os_test.go   | 3 +++
+ src/os/root_test.go | 9 ++++++---
+ 2 files changed, 9 insertions(+), 3 deletions(-)

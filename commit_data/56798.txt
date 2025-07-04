@@ -1,20 +1,20 @@
-commit adc5b559dbc7e86e4d8c4265d7da31f97fb0cb59
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 13 10:57:12 2024 -0700
+commit 9a49b26bdf771ecdfa2d3bc3ee5175eed5321f20
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Mon Apr 17 12:32:12 2023 +0300
 
-    spec: adjust for-range prose to include iterator functions where missing
+    internal/coverage: fix comment dupword, error typo
     
-    Also add a missing table entry to the language versions section in the
-    appendix.
+    - Correct duplicated word in comments.
+    - Fix typo in error message.
     
-    Fixes #67977.
-    
-    Change-Id: I1f98abbbcc34a4ff31f390752635435eaf6120b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592595
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I688d723ea3ac4d0b1981afd747e4b2df00c81448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485016
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go_spec.html | 21 ++++++++++++++++-----
- 1 file changed, 16 insertions(+), 5 deletions(-)
+ src/internal/coverage/defs.go           | 4 ++--
+ src/internal/coverage/pods/pods_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

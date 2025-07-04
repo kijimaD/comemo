@@ -1,18 +1,21 @@
-commit afccfb829f17f85a8d4aa74f1a11a27422437405
-Author: Monty Taylor <mordred@inaugust.com>
-Date:   Fri Jul 1 08:47:41 2016 -0500
+commit e07a4459a155789fb57bbf4e2c8eaca5b369fd17
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 12 12:16:20 2016 -0700
 
-    cmd/go: remove noVCSSuffix check for OpenStack
+    cmd: replace x[i:][0] expressions with x[i]
     
-    The original intent of the code was to allow both with and without .git
-    suffix for now to allow a transition period. The noVCSSuffix check was a
-    copy pasta error.
+    Passes toolstash -cmp.
     
-    Fixes #15979.
-    
-    Change-Id: I3d39aba8d026b40fc445244d6d01d8bc1979d1e4
-    Reviewed-on: https://go-review.googlesource.com/24645
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id504e71ed1f23900e24a9aed25143c94f4d7d50c
+    Reviewed-on: https://go-review.googlesource.com/21899
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/vcs.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/internal/obj/arm64/asm7.go    | 2 +-
+ src/cmd/internal/obj/mips/asm0.go     | 2 +-
+ src/cmd/internal/obj/s390x/asmz.go    | 2 +-
+ src/cmd/internal/obj/x86/asm6.go      | 3 +--
+ src/cmd/link/internal/ld/decodesym.go | 4 ++--
+ src/cmd/link/internal/ld/ldelf.go     | 2 +-
+ 6 files changed, 7 insertions(+), 8 deletions(-)

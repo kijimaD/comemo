@@ -1,12 +1,17 @@
-commit a52855535a78ce3519c3d5a4dac99208f75a53d3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 26 09:37:17 2013 -0700
+commit 9d97b55d387ebbd24691bd16af41d74330b920aa
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 27 01:06:48 2013 +0900
 
-    doc: fix typo in go 1.1 doc
+    net: fix test data corruption in repetitive test runs by -cpu
     
-    R=golang-dev, iant
+    This CL avoids test data sharing in repetitive test runs;
+    e.g., go test net -cpu=1,1,1
+    
+    R=golang-dev, fullung, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7725049
+    https://golang.org/cl/8011043
 
- doc/go1.1.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/ipraw_test.go | 33 ++++++++++++++-------------------
+ src/pkg/net/tcp_test.go   | 36 ++++++++++++++----------------------
+ src/pkg/net/udp_test.go   | 36 ++++++++++++++----------------------
+ 3 files changed, 42 insertions(+), 63 deletions(-)

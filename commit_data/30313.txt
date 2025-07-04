@@ -1,22 +1,16 @@
-commit c61cf5e6b7920be423ba02bc13f716969265756d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 15 21:16:49 2017 -0800
+commit 35d342eb7d2e0c661b3bc5abd5f82d1d0717fb56
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 31 11:41:34 2016 -0700
 
-    cmd/compile/internal/gc: remove Node.IsStatic field
+    cmd/vet/all: update whitelists
     
-    We can immediately emit static assignment data rather than queueing
-    them up to be processed during SSA building.
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: I8bcea4b72eafb0cc0b849cd93e9cde9d84f30d5e
-    Reviewed-on: https://go-review.googlesource.com/37024
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ic66eb2939d83559610e62cbb181a8faa6193ecc4
+    Reviewed-on: https://go-review.googlesource.com/32426
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go    |   4 --
- src/cmd/compile/internal/gc/sinit.go  | 104 +++++++++-------------------------
- src/cmd/compile/internal/gc/ssa.go    |   9 ---
- src/cmd/compile/internal/gc/syntax.go |   1 -
- src/cmd/compile/internal/gc/walk.go   |   5 --
- 5 files changed, 26 insertions(+), 97 deletions(-)
+ src/cmd/vet/all/whitelist/all.txt         | 2 +-
+ src/cmd/vet/all/whitelist/plan9_386.txt   | 8 --------
+ src/cmd/vet/all/whitelist/plan9_amd64.txt | 8 --------
+ 3 files changed, 1 insertion(+), 17 deletions(-)

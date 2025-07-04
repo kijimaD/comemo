@@ -1,21 +1,30 @@
-commit 0174858c71789365dc3550916916d43490a900fc
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 9 14:37:11 2017 -0400
+commit 489620d8787a988aea4a083803608b55703f78a6
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 23 17:54:39 2017 -0400
 
-    cmd/go: add undocumented -debug-actiongraph flag to dump action graph
+    runtime: drain local runq when dedicated mark worker runs
     
-    This will be useful for debugging but is intentionally
-    undocumented and not guaranteed to persist in any
-    particular form.
+    When the dedicated mark worker runs, the scheduler won't run on that P
+    again until GC runs out of mark work. As a result, any goroutines in
+    that P's local run queue are stranded until another P steals them. In
+    a normally operating system this may take a long time, and in a 100%
+    busy system, the scheduler never attempts to steal from another P.
     
-    Change-Id: I60710a1e94cfc2ce31fe91fc268c51985060f8df
-    Reviewed-on: https://go-review.googlesource.com/69330
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fix this by draining the local run queue into the global run queue if
+    the dedicated mark worker has run for long enough. We don't do this
+    immediately upon scheduling the dedicated mark worker in order to
+    avoid destroying locality if the mark worker runs for a short time.
+    Instead, the scheduler delays draining the run queue until the mark
+    worker gets its first preemption request (and otherwise ignores the
+    preemption request).
+    
+    Fixes #20011.
+    
+    Change-Id: I13067194b2f062b8bdef25cb75e4143b7fb6bb73
+    Reviewed-on: https://go-review.googlesource.com/46610
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go    |  2 +
- src/cmd/go/internal/run/run.go    |  2 +-
- src/cmd/go/internal/test/test.go  | 14 ++++--
- src/cmd/go/internal/work/build.go | 97 ++++++++++++++++++++++++++++++++++++---
- 4 files changed, 102 insertions(+), 13 deletions(-)
+ src/runtime/mgc.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

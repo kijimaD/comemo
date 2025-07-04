@@ -1,17 +1,18 @@
-commit d09d7627f38211eaa02fed660fd1b3001a7812b3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 6 12:35:09 2018 -0700
+commit 39852bf4cce6927e01d0136c7843f65a801738cb
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Feb 24 10:52:04 2018 +0530
 
-    go/types: add missing test case for https://golang.org/cl/116735
+    archive/tar: remove loop label from reader
     
-    Missed this in the prior submit.
+    CL 14624 introduced this label. At that time,
+    the switch-case had a break to label statement which made this necessary.
+    But now, the code no longer has a break statement and it directly returns.
     
-    For #24182.
+    Hence, it is no longer necessary to have a label.
     
-    Change-Id: If8349d39c80b7ff57bc0c857985f9e52241321b8
-    Reviewed-on: https://go-review.googlesource.com/116775
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idde0fcc4d2db2d76424679f5acfe33ab8573bce4
+    Reviewed-on: https://go-review.googlesource.com/96935
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/go/types/testdata/errors.src | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/archive/tar/reader.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

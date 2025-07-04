@@ -1,16 +1,25 @@
-commit f4717a902e54d1e532fd21f1676a225523c67649
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 29 09:31:12 2016 -0800
+commit 50c5042047be3af36e7bb478435093ea45e8f1f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 14:22:08 2015 -0500
 
-    misc/cgo/testsanitizers: test that tsan links
+    runtime: best-effort detection of concurrent misuse of maps
     
-    Update #14559.
+    If reports like #13062 are really concurrent misuse of maps,
+    we can detect that, at least some of the time, with a cheap check.
     
-    Change-Id: I92603602e5d0a5fcae43f3084f234ff606447190
-    Reviewed-on: https://go-review.googlesource.com/20056
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    There is an extra pair of memory writes for writing to a map,
+    but to the same cache line as h.count, which is often being modified anyway,
+    and there is an extra memory read for reading from a map,
+    but to the same cache line as h.count, which is always being read anyway.
+    So the check should be basically invisible and may help reduce the
+    number of "mysterious runtime crash due to map misuse" reports.
+    
+    Change-Id: I0e71b0d92eaa3b7bef48bf41b0f5ab790092487e
+    Reviewed-on: https://go-review.googlesource.com/17501
+    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/cgo/testsanitizers/test.bash | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/hashmap.go      | 37 ++++++++++++++++++++++++++++++++++---
+ src/runtime/hashmap_fast.go | 18 ++++++++++++++++++
+ 2 files changed, 52 insertions(+), 3 deletions(-)

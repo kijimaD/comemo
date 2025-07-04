@@ -1,13 +1,20 @@
-commit 3e26862c1a0c83503d08696b2ceef131755626b3
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Oct 5 10:49:23 2011 -0700
+commit 5844fc1b21cbab3201b081055f3b106ffc6b69d3
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Oct 5 10:44:11 2011 -0700
 
-    documentation: Debugging Go code with GDB tutorial.
+    exp/norm: introduced input interface to implement string versions
+    of methods.
     
-    R=adg, cw, lvd
+    R=r, mpvl
     CC=golang-dev
-    https://golang.org/cl/5168046
+    https://golang.org/cl/5166045
 
- doc/debugging_with_gdb.html | 479 ++++++++++++++++++++++++++++++++++++++++++++
- doc/docs.html               |   5 +
- 2 files changed, 484 insertions(+)
+ src/pkg/exp/norm/Makefile            |   1 +
+ src/pkg/exp/norm/composition.go      |  64 ++++++-------
+ src/pkg/exp/norm/composition_test.go |  39 +++-----
+ src/pkg/exp/norm/forminfo.go         |  60 +++---------
+ src/pkg/exp/norm/input.go            | 107 +++++++++++++++++++++
+ src/pkg/exp/norm/normalize.go        | 177 +++++++++++++++++++++--------------
+ src/pkg/exp/norm/normalize_test.go   |  42 +++++++--
+ src/pkg/exp/norm/readwriter.go       |  18 +++-
+ 8 files changed, 318 insertions(+), 190 deletions(-)

@@ -1,14 +1,29 @@
-commit 0f897f916aa6734bb8d089400ea996ee461ae41f
-Author: Maxim Eryomenko <moeryomenko@gmail.com>
-Date:   Tue May 28 02:45:21 2019 +0000
+commit 69de40c9af9253cc738f4c4ac2a7be37bff5be94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 29 22:12:13 2019 -0800
 
-    bytes: remove obsolete comment
+    cmd/gofmt: normalize number prefixes and exponents
     
-    Change-Id: Iec4348eb674c8c64497c82e5d7cd656736cfcebd
-    GitHub-Last-Rev: 462c323960be0ca1c126c051ab97f72949bdc2b6
-    GitHub-Pull-Request: golang/go#32225
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178797
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Rewrite non-decimal number prefixes to always use a lower-case base
+    ("0X" -> "0x", etc.), and rewrite exponents to use a lower-case 'e'
+    or 'p'. Leave hexadecimal digits and 0-octals alone.
+    
+    Comparing the best time of 3 runs of `time go test -run All` with
+    the time for a gofmt that doesn't do the rewrite shows no increase
+    in runtime for this bulk gofmt application (in fact on my machine
+    I see a small decline, probably due to cache effects).
+    
+    R=Go1.13
+    
+    Updates #12711.
+    Updates #19308.
+    Updates #29008.
+    
+    Change-Id: I9c6ebed2ffa0a6a001c59412a73382090955f5a9
+    Reviewed-on: https://go-review.googlesource.com/c/160184
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bytes/buffer.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/gofmt/gofmt.go                   | 47 +++++++++++++++++++
+ src/cmd/gofmt/testdata/go2numbers.golden | 80 ++++++++++++++++----------------
+ src/cmd/gofmt/testdata/go2numbers.input  |  2 +
+ 3 files changed, 90 insertions(+), 39 deletions(-)

@@ -1,26 +1,17 @@
-commit 95b433eed428afbb4ab32f0f2541774e939989c7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 17 11:31:17 2024 -0800
+commit 995ec5c85b2690ff65f7f1143f1283f19cd03100
+Author: wulianglongrd <wulianglongrd@gmail.com>
+Date:   Sun Oct 29 22:57:22 2023 +0800
 
-    debug/elf: adjust version API per issue discussion
+    net/http/cookiejar: remove unused variable
     
-    This updates the new version API for the discussion on #63952.
+    The errNoHostname variable is not used, delete it.
     
-    Note that the current tests do not have symbols with hidden versions.
-    Leaving that for later.
-    
-    For #63952
-    
-    Change-Id: I1ad4b1e485429a216ba8e5b68f7f4299d120628f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637235
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I62ca6390fd026e6a8cb1e8147f3fbfc3078c2249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538455
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- api/go1.24.txt                |  18 +-
- src/debug/elf/file.go         |  94 +++++----
- src/debug/elf/file_test.go    | 384 ++++++++++++++++++------------------
- src/debug/elf/symbols_test.go | 439 ++++++++++++++++++++++--------------------
- 4 files changed, 468 insertions(+), 467 deletions(-)
+ src/net/http/cookiejar/jar.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,13 +1,15 @@
-commit 792e664ee401e41f8e34dc758c88ba6bbd8122e2
+commit 3513d8406815c090b80e1bba543617af60c60e3e
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Nov 18 02:28:54 2012 +0800
+Date:   Sun Nov 18 02:06:08 2012 +0800
 
-    lib/godoc/codewalk.html: remove duplicate jquery inclusion
-    now we load jquery in its parent--godoc.html.
+    runtime/cgo: fix compilation on Windows with CFLAGS -Wall -Werror
+    also fix one out-of-date comment in cmd/ld/pe.c as well.
     
-    R=golang-dev, adg
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/6814112
+    https://golang.org/cl/6843061
 
- lib/godoc/codewalk.html | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/ld/pe.c                         | 2 +-
+ src/pkg/runtime/cgo/gcc_windows_386.c   | 6 +++---
+ src/pkg/runtime/cgo/gcc_windows_amd64.c | 6 +++---
+ 3 files changed, 7 insertions(+), 7 deletions(-)

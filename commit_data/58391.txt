@@ -1,21 +1,24 @@
-commit 8391579ecea7dede2f2c1dc79954131e1eae1ade
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Dec 13 10:26:50 2024 -0500
+commit 7e5ed466bb63af4fcf0cae95f168ed1b4d4aa90c
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Oct 26 09:23:12 2023 -0500
 
-    runtime: migrate missing map linkname allowlists
+    cmd/internal/asm/ppc64: avoid generating exser nops
     
-    The swissmap implementation forgot to copy some of the linkname
-    allowlists from the old implementation. Copy them from map_noswiss.go.
-    Some were missing linkname entirely; others were linknamed but missing
-    the hall of shame comment.
+    "OR $0, R31, R31" is the execution serializing nop called "exser"
+    on ISA 3.1 processors such as Power10.
     
-    For #54766.
+    In general, the "OR $0, Rx, Rx" where Rx != 0 form should be avoided
+    unless used explicitly for the uarch side-effects.
     
-    Change-Id: Icc715384123e73d868b4cb729ab639abcd6bbfd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635995
+    Change-Id: Id76e3a703c902676ba4a3ffb64dd90dad9a320bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537855
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/runtime/map_swiss.go | 158 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 158 insertions(+)
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 11 +++++++--
+ src/cmd/internal/obj/ppc64/asm9.go        | 40 +++++++++++++++++++++----------
+ 2 files changed, 37 insertions(+), 14 deletions(-)

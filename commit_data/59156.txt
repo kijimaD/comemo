@@ -1,38 +1,25 @@
-commit 5918101d673d601c26f5de880b1fa2c6564fb745
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 20 12:16:17 2025 -0400
+commit 290835298067014e906c540d64dcaa706d66b2ce
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Feb 20 15:05:29 2024 -0500
 
-    testing: detect a stopped timer in B.Loop
+    cmd/compile: make jump table symbol static
     
-    Currently, if the user stops the timer in a B.Loop benchmark loop, the
-    benchmark will run until it hits the timeout and fails.
+    The jump table symbol is accessed only from the function symbol
+    (in the same package), so it can be static. Also, if the function
+    is DUPOK and it is, somehow, compiled differently in two different
+    packages, the linker must choose the jump table symbol associated
+    to the function symbol it chose. Currently the jump table symbol
+    is DUPOK, so that is not guaranteed. Making it static will
+    guarantee that, as each copy of the function symbol refers to its
+    own jump table symbol.
     
-    Fix this by detecting that the timer is stopped and failing the
-    benchmark right away. We avoid making the fast path more expensive for
-    this check by "poisoning" the B.Loop iteration counter when the timer
-    is stopped so that it falls back to the slow path, which can check the
-    timer.
+    For #65783.
     
-    This causes b to escape from B.Loop, which is totally harmless because
-    it was already definitely heap-allocated. But it causes the
-    test/inline_testingbloop.go errorcheck test to fail. I don't think the
-    escape messages actually mattered to that test, they just had to be
-    matched. To fix this, we drop the debug level to -m=1, since -m=2
-    prints a lot of extra information for escaping parameters that we
-    don't want to deal with, and change one error check to allow b to
-    escape.
-    
-    Fixes #72971.
-    
-    Change-Id: I7d4abbb1ec1e096685514536f91ba0d581cca6b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659657
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Change-Id: I27e051d01ef585d07700b75d4dfac5768f16441e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565535
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- .../internal/inline/interleaved/interleaved.go     |  2 +-
- src/cmd/compile/internal/test/inl_test.go          |  3 ++
- src/testing/benchmark.go                           | 60 ++++++++++++++++++----
- src/testing/loop_test.go                           | 23 +++++++++
- test/inline_testingbloop.go                        |  4 +-
- 5 files changed, 80 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

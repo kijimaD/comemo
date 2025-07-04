@@ -1,24 +1,21 @@
-commit 01efc9a3c54f1b8fc772084e3311b6e1ccdfabec
-Author: Norman B. Lancaster <qbradq@gmail.com>
-Date:   Thu Oct 1 19:14:04 2020 +0000
+commit 415da71c5d2b02beab9067af4c2ff435de15bb9b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 16 13:40:24 2020 -0700
 
-    strings: complete documentation of strings.Reader
+    cmd/compile: remove totype0 type-constructor helpers
     
-    There is no documentation on a number of methods of the strings.Reader
-    struct, so this change adds documentation referring to the relevant
-    io.* interfaces implemented. This is consistent with pre-existing
-    documentation in this struct.
+    These were originally introduced for the binary export format, which
+    required forward references to arbitrary types and later filling them
+    in. They're no longer needed since we switched to the indexed export
+    format, which only requires forward references to declared types.
     
-    Fixes #40381
+    Passes toolstash-check.
     
-    Change-Id: I3dec65ecafca5b79d85d30a676d297e5ee9ab47e
-    GitHub-Last-Rev: f42429946a2b90b9fbfbd1ea5943f0c50e0439b5
-    GitHub-Pull-Request: golang/go#40654
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247523
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I696dc9029ec7652d01ff49fb98e658a9ed510979
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228579
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strings/reader.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/dcl.go | 36 +++++++-----------------------------
+ 1 file changed, 7 insertions(+), 29 deletions(-)

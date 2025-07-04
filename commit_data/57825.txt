@@ -1,43 +1,16 @@
-commit f782e161623e68e25cc3a81e55dac887afd301d5
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Sep 19 16:06:40 2024 -0400
+commit a8191789153dcc76abb6a4d3cd4e56e2d68c2430
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 4 10:35:13 2023 -0700
 
-    runtime,internal/runtime/maps: specialized swissmaps
+    os: don't invoke shell in TestStatStdin
     
-    Add all the specialized variants that exist for the existing maps.
-    
-    Like the existing maps, the fast variants do not support indirect
-    key/elem.
-    
-    Note that as of this CL, the Get and Put methods on Map/table are
-    effectively dead. They are only reachable from the internal/runtime/maps
-    unit tests.
-    
-    For #54766.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
-    Change-Id: I95297750be6200f34ec483e4cfc897f048c26db7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616463
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4048caffd4f79e3ffb6a0a3770bdfa830d1a2f35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525515
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/walk/walk.go              |  26 +-
- src/internal/runtime/maps/map.go                   |   1 +
- src/internal/runtime/maps/runtime_fast32_swiss.go  | 487 +++++++++++++++++++
- src/internal/runtime/maps/runtime_fast64_swiss.go  | 525 +++++++++++++++++++++
- src/internal/runtime/maps/runtime_faststr_swiss.go | 353 ++++++++++++++
- src/internal/runtime/maps/runtime_swiss.go         |  73 +++
- src/reflect/map_swiss.go                           |   8 +-
- src/runtime/map_fast32_swiss.go                    |  64 ++-
- src/runtime/map_fast64_swiss.go                    |  65 ++-
- src/runtime/map_faststr_swiss.go                   |  48 +-
- src/runtime/map_swiss.go                           |  28 +-
- test/live.go                                       |  20 +
- test/live_noswiss.go                               |  29 --
- test/live_regabi.go                                |  22 +
- test/live_regabi_noswiss.go                        |  26 -
- test/live_regabi_swiss.go                          |  28 --
- test/live_swiss.go                                 |  31 --
- 17 files changed, 1621 insertions(+), 213 deletions(-)
+ src/os/os_test.go | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)

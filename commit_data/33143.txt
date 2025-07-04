@@ -1,24 +1,14 @@
-commit d155b32f8de6a2a30c0567ec44f90ffab80ed6dc
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Oct 12 22:59:16 2017 +0200
+commit ced46c628877d9277a70c986467c1aff5f0b412c
+Author: Tony Walker <walkert.uk@gmail.com>
+Date:   Sat Jul 15 22:27:29 2017 +0000
 
-    runtime: disable use of template thread on Plan 9
+    sort: add example for Strings
     
-    CL 46033 added a "template thread" mechanism to
-    allow creation of thread with a known-good state
-    from a thread of unknown state.
-    
-    However, we are experiencing issues on Plan 9
-    with programs using the os/exec and net package.
-    These package are relying on runtime.LockOSThread.
-    
-    Updates #22227.
-    
-    Change-Id: I85b71580a41df9fe8b24bd8623c064b6773288b0
-    Reviewed-on: https://go-review.googlesource.com/70231
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: I33f0e2362e85287b493d9279d43b760733e2abcb
+    Reviewed-on: https://go-review.googlesource.com/48831
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/proc.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/sort/example_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

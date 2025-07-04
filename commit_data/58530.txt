@@ -1,32 +1,16 @@
-commit f6d17c540024418ca8a92371931b1b4fb076d2b6
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Jan 21 14:41:15 2025 -0500
+commit e41fb0fd1a20c77eea85adf9f052ff33fcf099f5
+Author: lotusirous <ngtrongkha92@gmail.com>
+Date:   Wed Oct 18 22:13:40 2023 +0700
 
-    net/http: update bundled golang.org/x/net/http2 [generated]
+    slog: factoring out code to make the examples playable
     
-    Pull in x/net CL 642606 and CL 643256 and regenerate h2_bundle.go:
+    For #61885
     
-            http2: disable extended CONNECT by default
-            http2: encode :protocol pseudo-header before regular headers
-    
-    For #36905.
-    Fixes #70728.
-    Fixes #71128.
-    
-    [git-generate]
-    go install golang.org/x/build/cmd/updatestd@latest
-    go install golang.org/x/tools/cmd/bundle@latest
-    updatestd -goroot=$(pwd) -branch=internal-branch.go1.24-vendor
-    
-    Change-Id: Id853cb96f8fc410956666f5c3ab4c5889c703503
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642398
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I5a0006fec2899dcbc989207174f438ecbfcc63ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536215
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go.mod                |  2 +-
- src/go.sum                |  4 ++--
- src/net/http/h2_bundle.go | 45 ++++++++++++++++++++++++++++++++-------------
- src/vendor/modules.txt    |  2 +-
- 4 files changed, 36 insertions(+), 17 deletions(-)
+ src/log/slog/example_test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

@@ -1,38 +1,38 @@
-commit 7f067c87d831f329d068fced1b136cd06039303c
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Wed Mar 23 00:44:07 2016 +0200
+commit cc0a04d351c69a99f65342ad5822f2bba8b247d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 10 21:46:51 2016 -0800
 
-    cmd/compile, cmd/link: record lengths in object file
+    runtime: fix errno sign for some mmap and mincore cases
     
-    Record total number of relocations, pcdata, automatics, funcdata and files in
-    object file and use these numbers in the linker to allocate contiguous
-    slices to later be filled by the defined symbols.
+    The caller of mmap expects it to return a positive errno value, but the
+    linux-arm64 and nacl-386 system calls returned a negative errno value.
+    Correct them to negate the errno value.
     
-    name       old secs    new secs    delta
-    LinkCmdGo   0.52 ± 3%   0.49 ± 3%  -4.21%   (p=0.000 n=91+92)
-    LinkJuju    4.48 ± 4%   4.21 ± 7%  -6.08%  (p=0.000 n=96+100)
+    The caller of mincore expects it to return a negative errno value (yes,
+    this is inconsistent), but the linux-mips64x and linux-ppc64x system
+    call returned a positive errno value.  Correct them to negate the errno
+    value.
     
-    name       old MaxRSS  new MaxRSS  delta
-    LinkCmdGo   122k ± 2%   120k ± 4%  -1.66%   (p=0.000 n=98+93)
-    LinkJuju    799k ± 5%   865k ± 8%  +8.29%   (p=0.000 n=89+99)
+    Add a test that mmap returns errno with the correct sign.  Brad added a
+    test for mincore's errno value in https://golang.org/cl/19457.
     
-    GOGC=off
+    Fixes #14297.
     
-    name       old secs    new secs    delta
-    LinkCmdGo   0.42 ± 2%   0.41 ± 0%  -2.98%    (p=0.000 n=89+70)
-    LinkJuju    3.61 ± 0%   3.52 ± 1%  -2.46%    (p=0.000 n=80+89)
-    
-    name       old MaxRSS  new MaxRSS  delta
-    LinkCmdGo   130k ± 1%   128k ± 1%  -1.33%  (p=0.000 n=100+100)
-    LinkJuju   1.00M ± 0%  0.99M ± 0%  -1.70%  (p=0.000 n=100+100)
-    
-    Change-Id: Ie08f6ccd4311bb78d8950548c678230a58635c73
-    Reviewed-on: https://go-review.googlesource.com/21026
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I2b93f32e679bd1eae1c9aef9ae7bcf0ba39521b5
+    Reviewed-on: https://go-review.googlesource.com/19455
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/goobj/read.go      |  6 +++
- src/cmd/internal/obj/objfile.go     | 74 +++++++++++++++++++++++-----
- src/cmd/link/internal/ld/objfile.go | 97 +++++++++++++++++++++++++++++--------
- 3 files changed, 143 insertions(+), 34 deletions(-)
+ src/runtime/export_linux_test.go |  1 +
+ src/runtime/export_mmap_test.go  | 15 +++++++++++++++
+ src/runtime/export_test.go       |  2 --
+ src/runtime/mem_bsd.go           |  4 ++--
+ src/runtime/os2_nacl.go          | 25 +++++++++++++------------
+ src/runtime/runtime_mmap_test.go | 30 ++++++++++++++++++++++++++++++
+ src/runtime/sys_linux_arm64.s    |  3 +++
+ src/runtime/sys_linux_mips64x.s  |  1 +
+ src/runtime/sys_linux_ppc64x.s   |  1 +
+ src/runtime/sys_nacl_386.s       |  3 +++
+ 10 files changed, 69 insertions(+), 16 deletions(-)

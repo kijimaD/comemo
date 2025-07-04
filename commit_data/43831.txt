@@ -1,24 +1,19 @@
-commit 0bb6115dd6246c047335a75ce4b01a07c291befd
-Author: Hanlin Shi <shihanlin9@gmail.com>
-Date:   Mon Nov 16 17:29:33 2020 +0000
+commit e77639f3a4ab27e2b6520ca54ee192953be00186
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 26 13:19:32 2020 -0400
 
-    internal/fmtsort: sort the unsafe pointers in map
+    [dev.link] cmd/link: sort DynidSyms
     
-    Currently storing keys that contain unsafe.
-    Pointer in a map could result inruntime panic when printing the map.
-    The root cause is that unsafe.Pointer is not comparable.
+    Sort DynidSyms to ensure a deterministic build.
     
-    Fixes #42622.
+    Fix Solaris build.
     
-    Change-Id: Ie3bae7ee4945041843b66514de6227212a3da73e
-    GitHub-Last-Rev: d12d41302e6118cb457aafb05f7aaed9df259b56
-    GitHub-Pull-Request: golang/go#42623
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270277
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6c01cb3dec5e46b3d881e720e3c2079643b5c7c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230277
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/internal/fmtsort/sort.go      |  2 +-
- src/internal/fmtsort/sort_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go | 1 +
+ 1 file changed, 1 insertion(+)

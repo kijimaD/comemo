@@ -1,0 +1,20 @@
+commit c3e7d5f5cee29669d5d824f697e3b16a08815df0
+Author: Than McIntosh <thanm@golang.org>
+Date:   Fri Mar 7 13:34:55 2025 -0500
+
+    debug/dwarf: refactor entry DIE reading helper
+    
+    Simplify the signature of the "entry()" buf method to accept a unit as
+    opposed to a collection of unit components (version, atable, etc). No
+    change in functionality, this is a pure refactoring that will be
+    needed in subsequent patch.
+    
+    Change-Id: I688def34e39d36b6a62733bc73dc42b49f78ca41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655975
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/debug/dwarf/entry.go    | 7 ++++---
+ src/debug/dwarf/typeunit.go | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

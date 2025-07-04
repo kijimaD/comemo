@@ -1,28 +1,46 @@
-commit a1cedf08428bdb91916bb5317c8413212308048c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Mar 31 07:14:16 2017 -0400
+commit f5608c20f7b88c20fa2cd70090d9917df63f5c8e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 4 14:12:56 2017 -0500
 
-    cmd/link: canonicalize the "package" of dupok text symbols
+    .gitignore: fix attempt at rooted paths
     
-    Dupok symbols may be defined in multiple packages. Its associated
-    package is chosen sort of arbitrarily (the first containing package
-    that the linker loads). Canonicalize its package to the package
-    with which it will be laid down in text, which is the first package
-    in dependency order that defines the symbol. So later passes (for
-    example, trampoline insertion pass) know that the dupok symbol
-    is laid down along with the package.
+    When I wrote the lines
     
-    Fixes #19764.
+            bin/
+            pkg/
     
-    Change-Id: I7cbc7474ff3016d5069c8b7be04af934abab8bc3
-    Reviewed-on: https://go-review.googlesource.com/39150
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    I was trying to match just the top-level bin and pkg directories, and I put the
+    final slash in because 'git help gitignore' says:
+    
+           o   If the pattern does not contain a slash /, Git treats it as a shell
+               glob pattern and checks for a match against the pathname relative
+               to the location of the .gitignore file (relative to the toplevel of
+               the work tree if not from a .gitignore file).
+    
+           o   Otherwise, Git treats the pattern as a shell glob suitable for
+               consumption by fnmatch(3) with the FNM_PATHNAME flag: wildcards in
+               the pattern will not match a / in the pathname. For example,
+               "Documentation/*.html" matches "Documentation/git.html" but not
+               "Documentation/ppc/ppc.html" or
+               "tools/perf/Documentation/perf.html".
+    
+    Putting a trailing slash was my way of opting in to the "rooted path" semantics
+    without looking different from the surrounding rooted paths like "src/go/build/zcgo.go".
+    
+    But HA HA GIT FOOLED YOU! above those two bullets the docs say:
+    
+           o   If the pattern ends with a slash, it is removed for the purpose of
+               the following description, ...
+    
+    Change all the patterns to use a leading slash for "rooted" behavior.
+    
+    This bit me earlier today because I had a perfectly reasonable source
+    code directory go/src/cmd/go/testdata/src/empty/pkg that was
+    not added by 'git add empty'.
+    
+    Change-Id: I6f8685b3c5be22029c33de9ccd735487089a1c03
+    Reviewed-on: https://go-review.googlesource.com/34832
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go    |  6 ++++++
- test/fixedbugs/issue19764.dir/a.go | 15 +++++++++++++++
- test/fixedbugs/issue19764.dir/b.go | 13 +++++++++++++
- test/fixedbugs/issue19764.go       | 10 ++++++++++
- 4 files changed, 44 insertions(+)
+ .gitignore | 48 ++++++++++++++++++++++++------------------------
+ 1 file changed, 24 insertions(+), 24 deletions(-)

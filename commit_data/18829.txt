@@ -1,23 +1,17 @@
-commit ef6c21d0e9158e8dcb95543f684c01219f56b193
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Mar 12 10:32:46 2014 +0900
+commit 07dc50b8f19d1a1750baf46685e375545591be85
+Author: Kay Zhu <kayzhu@google.com>
+Date:   Tue Mar 11 14:34:07 2014 -0700
 
-    syscall, net: clean up socket stub for solaris
+    path/filepath: fixed misaligned comment.
     
-    Solaris doesn't have struct ip_mreqn, instead it uses struct ip_mreq
-    and struct group_req with struct sockaddr_storage.
+    The comment for 'Clean' function is prepended with spaces instead of
+    a single tab, resulting in visually misaligned comment in the generated
+    documentation.
     
-    Also fixes incorrect SockaddrDatalink.
-    
-    Update #7399
-    
-    LGTM=aram, iant
-    R=golang-codereviews, aram, gobot, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/73920043
+    https://golang.org/cl/73840043
 
- src/pkg/net/sockoptip_bsd.go       |  2 +-
- src/pkg/net/sockoptip_posix.go     |  2 +-
- src/pkg/net/sockoptip_stub.go      | 39 ++++++++++++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_solaris.go | 26 ++-----------------------
- 4 files changed, 43 insertions(+), 26 deletions(-)
+ src/pkg/path/filepath/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

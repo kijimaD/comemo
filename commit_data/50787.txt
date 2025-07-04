@@ -1,56 +1,24 @@
-commit 164406ad931cd74c1541a71f2817312ec82882ed
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 30 10:59:23 2022 -0400
+commit 0aa194f7589fb5f75fc3a9c34bb69943daf6fc5c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 9 21:12:03 2021 -0800
 
-    cmd/compile: rename gen and builtin to _gen and _builtin
+    cmd/compile/internal/types2: use type variables consistently in Checker.conversion
     
-    These two directories are full of //go:build ignore files.
-    We can ignore them more easily by putting an underscore
-    at the start of the name. That also works around a bug
-    in Go 1.17 that was not fixed until Go 1.17.3.
+    We have V and T and Vu and Tu. When calling the various isX predicates
+    consistently use Vu and Tu.
     
-    Change-Id: Ia5389b65c79b1e6d08e4fef374d335d776d44ead
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435472
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    (We could also use V an T because the predicates call under anyway,
+    but using Vu and Tu removes an unnecessary call to Named.under if
+    V or T are *Named.)
+    
+    Also, removed some outdated comments.
+    
+    Change-Id: I6fcd9ce5f6292e89ac2afd597b72fd0790e84ff1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362895
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/{gen => _gen}/386.rules                 | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/386Ops.go                 | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/386splitload.rules        | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/AMD64.rules               | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/AMD64Ops.go               | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/AMD64splitload.rules      | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/ARM.rules                 | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/ARM64.rules               | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/ARM64Ops.go               | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/ARMOps.go                 | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/LOONG64.rules             | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/LOONG64Ops.go             | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/MIPS.rules                | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/MIPS64.rules              | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/MIPS64Ops.go              | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/MIPSOps.go                | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/PPC64.rules               | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/PPC64Ops.go               | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/README                    | 2 +-
- src/cmd/compile/internal/ssa/{gen => _gen}/RISCV64.rules             | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/RISCV64Ops.go             | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/S390X.rules               | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/S390XOps.go               | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/Wasm.rules                | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/WasmOps.go                | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/cover.bash                | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/dec.rules                 | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/dec64.rules               | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/dec64Ops.go               | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/decOps.go                 | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/generic.rules             | 0
- src/cmd/compile/internal/ssa/{gen => _gen}/genericOps.go             | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/main.go                   | 3 ---
- src/cmd/compile/internal/ssa/{gen => _gen}/rulegen.go                | 3 ---
- src/cmd/compile/internal/typecheck/{builtin => _builtin}/coverage.go | 0
- src/cmd/compile/internal/typecheck/{builtin => _builtin}/runtime.go  | 0
- src/cmd/compile/internal/typecheck/mkbuiltin.go                      | 2 +-
- 37 files changed, 2 insertions(+), 50 deletions(-)
+ src/cmd/compile/internal/types2/conversions.go | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)

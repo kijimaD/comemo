@@ -1,23 +1,25 @@
-commit 454198ab943a55a0609cfb10d14502a358e88101
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Feb 27 22:24:15 2023 +0000
+commit b6fb3af6af9835962ce1de1e1afcaa46726a654e
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Nov 24 16:33:14 2021 +0800
 
-    cmd/go: set GOWORK=off explicitly in script tests that cd to GOROOT
+    archive/zip: fail fast if UncompressedSize64 < nread
     
-    Some folks working on the Go project may have a go.work file in
-    GOROOT/src in order to test changes in x repos. 'go test cmd/go'
-    should not fail if that is the case.
+    The zip reader checks that the uncompressed file size is valid
+    after all compressed files read until EOF.
+    However in between reading each file, there could have already
+    been an overflow where nread > UncompressedSize64 hence this
+    change will now return ErrFormat in such situations.
     
-    For #58767.
+    Fixes #49791
     
-    Change-Id: I0e57b15fb1d3e4abc4903c177434626c9f125cae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471601
+    Change-Id: If3584a57d173de6a97bf35c07d2a99ff6972f820
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366854
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/go/testdata/script/list_std_vendor.txt | 1 +
- src/cmd/go/testdata/script/mod_doc.txt         | 1 +
- src/cmd/go/testdata/script/mod_list_std.txt    | 1 +
- 3 files changed, 3 insertions(+)
+ src/archive/zip/reader.go      |  3 +++
+ src/archive/zip/reader_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

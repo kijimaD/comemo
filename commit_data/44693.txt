@@ -1,19 +1,20 @@
-commit 18246672593fd59c2671bc6407c06fd020716708
-Author: cui <cuiweixie@gmail.com>
-Date:   Sun Mar 14 18:55:59 2021 +0000
+commit c57c0212ebf44b7896477177c8e35be79ff3a586
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 19 23:01:58 2020 -0700
 
-    cmd/compile/internal/ssa: delete unused files
+    cmd/compile: define starting block before opening html writer
     
-    Change-Id: I5d640091375feb873517368ce05f0ba46c35714f
-    GitHub-Last-Rev: cdaf6ba33664f3602e563aa93009e0f4f4865b32
-    GitHub-Pull-Request: golang/go#44997
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301630
-    Reviewed-by: David Chase <drchase@google.com>
-    Trust: Keith Randall <khr@golang.org>
+    Opening the html writer can fail, and the failure printer wants
+    to use the entry block's line number. So make sure we set up
+    the entry block first.
+    
+    Fixes #40919
+    
+    Change-Id: I4ffa2839b45a721bbaf04ff84418e8108fa1cc37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249497
     Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/redblack32.go      | 429 ------------------------
- src/cmd/compile/internal/ssa/redblack32_test.go | 274 ---------------
- src/cmd/compile/internal/ssa/sparsetreemap.go   | 189 -----------
- 3 files changed, 892 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

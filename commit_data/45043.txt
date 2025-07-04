@@ -1,25 +1,24 @@
-commit 0ad46889a140c3b2e72b8aa4a47ac242571c521f
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 8 17:38:25 2021 -0400
+commit e572218d1273bf54bf8cafd39f93f22de196dd55
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Sep 26 09:42:59 2020 +0200
 
-    cmd/compile/abi-internal: declare X15 scratch in function bodies
+    cmd/compile: fix escape reason for MAKESLICE with no cap
     
-    X15 must be zero at function calls and returns, but can be used as
-    scratch in the middle of a function. This allows things like memmove
-    and the hashing functions to use X15 temporarily, as long as they set
-    it back to 0 before returning.
+    When explaining why the slice from a make() call escapes for the -m -m
+    message, we print "non-const size" if any one of Isconst(n.Left) and
+    Isconst(n.Right) return false; but for OMAKESLICE nodes with no cap,
+    n.Right is nil, so Isconst(n.Right, CTINT) will be always false.
     
-    This CL also clarifies the distinction between register meanings on
-    function call versus function return, since some of them have fixed
-    meanings at both call and return, while others only have a fixed
-    meaning at calls.
+    Only call Isconst on n.Right if it's not nil.
     
-    Updates #40724.
+    Fixes #41635
     
-    Change-Id: I9dad3abde42cd4d2788e8435cde6d55073dd75a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308929
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I8729801a9b234b68ae40adad64d66fa7653adf09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257641
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/compile/abi-internal.md | 22 +++++++++++++---------
- 1 file changed, 13 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/escape.go |  2 +-
+ test/fixedbugs/issue41635.go          | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

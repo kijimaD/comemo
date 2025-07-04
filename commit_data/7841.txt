@@ -1,29 +1,14 @@
-commit 8dee872963ca0260c3b941b54cf5ac2cd583fd02
+commit ccdbb8a6c2bf8a058d5cd8dd94374d02e584e39a
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 23 11:31:42 2011 -0400
+Date:   Wed Mar 23 11:28:24 2011 -0400
 
-    runtime: os-specific types and code for setitimer
+    runtime: more stack split fixes
     
-    R=r
+    Found by stkcheck after 6l, 8l bug fixes Luuk is about to submit.
+    
+    R=lvd
     CC=golang-dev
-    https://golang.org/cl/4273097
+    https://golang.org/cl/4306047
 
- src/pkg/runtime/darwin/386/defs.h   | 29 ++++++++++++++++++++++-------
- src/pkg/runtime/darwin/386/sys.s    |  5 +++++
- src/pkg/runtime/darwin/amd64/defs.h | 34 +++++++++++++++++++++++++---------
- src/pkg/runtime/darwin/amd64/sys.s  | 10 +++++++++-
- src/pkg/runtime/darwin/defs.c       |  6 ++++++
- src/pkg/runtime/darwin/os.h         |  4 ++++
- src/pkg/runtime/freebsd/386/sys.s   |  5 +++++
- src/pkg/runtime/freebsd/amd64/sys.s |  8 ++++++++
- src/pkg/runtime/freebsd/defs.c      |  5 +++++
- src/pkg/runtime/freebsd/os.h        |  4 ++++
- src/pkg/runtime/linux/386/defs.h    | 12 +++++++++++-
- src/pkg/runtime/linux/386/sys.s     |  9 +++++++++
- src/pkg/runtime/linux/amd64/defs.h  | 13 +++++++++++--
- src/pkg/runtime/linux/amd64/sys.s   |  8 ++++++++
- src/pkg/runtime/linux/arm/sys.s     |  9 +++++++++
- src/pkg/runtime/linux/defs.c        |  7 +++++++
- src/pkg/runtime/linux/defs2.c       |  8 ++++++--
- src/pkg/runtime/linux/os.h          |  4 ++++
- 18 files changed, 158 insertions(+), 22 deletions(-)
+ src/pkg/runtime/chan.c | 70 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 36 insertions(+), 34 deletions(-)

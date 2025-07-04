@@ -1,37 +1,19 @@
-commit 1a09d57de58a90987789ef637083aac21533eeb7
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Tue Feb 7 09:09:24 2023 +0000
+commit 79e051ad33992cb50e689b0dff2c6fc6f8b4c94f
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Mon Dec 20 14:12:02 2021 +0800
 
-    runtime: correct typos
+    cmd/go/internal/modfetch: remove unused FileRev struct
     
-    - Fix typo in throw error message for arena.
-    - Correct typos in assembly and Go comments.
-    - Fix log message in TestTraceCPUProfile.
+    In CL 367756 we remove ReadFileRevs function, We simplified
+    the implementation of the interface Repo. and the type FileRev
+    is no longer used.
     
-    Change-Id: I874c9e8cd46394448b6717bc6021aa3ecf319d16
-    GitHub-Last-Rev: d27fad4d3cea81cc7a4ca6917985bcf5fa49b0e0
-    GitHub-Pull-Request: golang/go#58375
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465975
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iec9e2f0d6bb227f4d0d0f565e897137dcf392a3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373375
+    Trust: Lee Baokun <bk@golangcn.org>
+    Run-TryBot: Lee Baokun <bk@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/align_test.go       | 2 +-
- src/runtime/arena.go            | 6 +++---
- src/runtime/asan_amd64.s        | 2 +-
- src/runtime/asm_amd64.s         | 2 +-
- src/runtime/libfuzzer_amd64.s   | 4 ++--
- src/runtime/mheap.go            | 2 +-
- src/runtime/mpagealloc.go       | 2 +-
- src/runtime/mpagealloc_64bit.go | 2 +-
- src/runtime/mpallocbits.go      | 2 +-
- src/runtime/pprof/proto.go      | 2 +-
- src/runtime/pprof/proto_test.go | 2 +-
- src/runtime/proc.go             | 4 ++--
- src/runtime/rt0_aix_ppc64.s     | 2 +-
- src/runtime/rt0_linux_ppc64le.s | 2 +-
- src/runtime/tls_mipsx.s         | 2 +-
- src/runtime/trace/trace_test.go | 2 +-
- 16 files changed, 20 insertions(+), 20 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 7 -------
+ 1 file changed, 7 deletions(-)

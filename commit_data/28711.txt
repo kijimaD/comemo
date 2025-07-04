@@ -1,22 +1,23 @@
-commit 15937ccb8915ef941e08feb2500f5acf61bd5427
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 6 15:14:58 2016 -0700
+commit 95427d2549a613fd1fb925ed118194488d6ec6bb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 30 11:13:24 2016 -0700
 
-    runtime: fix sigset type for ppc64 big-endian GNU/Linux
+    [dev.ssa] cmd/compile: improve stability of generated code
     
-    On 64-bit big-endian GNU/Linux machines we need to treat sigset as a
-    single uint64, not as a pair of uint32 values. This fix was already made
-    for s390x, but not for ppc64 (which is big-endian--the little endian
-    version is known as ppc64le). So copy os_linux_390.x to
-    os_linux_be64.go, and use build constraints as needed.
+    If the files in cmd/compile/internal/ssa/gen
+    are passed to go run in a different order,
+    e.g. due to shell differences or manual entry,
+    then the order of constants in opGen churns.
     
-    Fixes #17361
+    Sort archs by name to enforce stability.
+    The movement of the PPC constants is a one time cost.
     
-    Change-Id: Ia0eb18221a8f5056bf17675fcfeb010407a13fb0
-    Reviewed-on: https://go-review.googlesource.com/30602
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iebcfdb9e612d7dd8cde575f920f1292891f2f24a
+    Reviewed-on: https://go-review.googlesource.com/24680
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/{os_linux_s390x.go => os_linux_be64.go} | 4 ++++
- src/runtime/os_linux_generic.go                     | 1 +
- 2 files changed, 5 insertions(+)
+ src/cmd/compile/internal/ssa/gen/main.go |    7 +
+ src/cmd/compile/internal/ssa/opGen.go    | 2834 +++++++++++++++---------------
+ 2 files changed, 1424 insertions(+), 1417 deletions(-)

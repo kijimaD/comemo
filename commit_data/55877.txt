@@ -1,19 +1,20 @@
-commit c220fbabd517ed66cb77e148aa015a80964ddcc4
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Mar 8 09:37:29 2024 +0100
+commit acce3abb7e1c39bc867d6e6dd2277451bd41d53a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 20 14:29:05 2023 -0700
 
-    internal/syscall/windows: unexport Version
+    cmd/compile/internal/types2: avoid unpacking single-value LHS
     
-    windows.Version is just a thin wrapper around RtlGetNtVersionNumbers,
-    which is an undocumented Windows API.
+    For ++/-- statements, we know that syntax.AssignStmt.Lhs is a
+    single expression. Avoid unpacking (and allocating a slice) in
+    that case. Minor optimization.
     
-    This CL unexports windows.Version so it is harder to use by accident.
-    
-    Change-Id: Ib782da04e4e8be66970111a75f5c2df27ef51643
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570055
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I6615fd12277b1cd7d4f8b86e0b9d39f27708c13e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477915
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/internal/syscall/windows/version_windows.go | 21 +++++++++++----------
- 1 file changed, 11 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/stmt.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

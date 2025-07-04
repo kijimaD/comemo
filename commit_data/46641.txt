@@ -1,29 +1,21 @@
-commit 73418bca347c94560a6cb605d8eb393b56941446
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 22 09:55:10 2021 -0700
+commit 5a8fbb0d2d339fa87a02c0794f5a92c1ce121631
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Jan 18 13:31:28 2021 +0100
 
-    cmd/compile/internal/types2: record all instances, not just inferred instances
+    os: do not close syscall.Stdin in TestReadStdin
     
-    This is a port of CL 349629 from go/types to types2, adjusted to
-    make it work for types2. It also includes the necessary compiler
-    changes, provided by mdempsky.
+    By calling NewConsoleFile on syscall.Stdin, we wind up closing it when
+    the function returns, which causes errors when all the tests are run in
+    a loop. To fix this, we instead create a duplicate handle of stdin.
     
-    Change-Id: If8de174cee9c69df0d0642fcec1ee7622b7c3852
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351455
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Fixes #43720.
+    
+    Change-Id: Ie6426e6306c7e1e39601794f4ff48bbf2fe67502
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284140
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/compile/internal/noder/expr.go      |  79 ++-------------
- src/cmd/compile/internal/noder/irgen.go     |   2 +-
- src/cmd/compile/internal/noder/object.go    |  21 +++-
- src/cmd/compile/internal/noder/writer.go    |  57 ++++-------
- src/cmd/compile/internal/types2/api.go      |  30 ++++--
- src/cmd/compile/internal/types2/api_test.go | 148 ++++++++++++++++++++--------
- src/cmd/compile/internal/types2/call.go     |   9 +-
- src/cmd/compile/internal/types2/check.go    |  34 ++++++-
- src/cmd/compile/internal/types2/typexpr.go  |   1 +
- 9 files changed, 207 insertions(+), 174 deletions(-)
+ src/os/os_windows_test.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

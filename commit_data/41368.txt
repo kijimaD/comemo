@@ -1,23 +1,28 @@
-commit d67d044310bc5cc1c26b60caf23a58602e9a1946
-Author: Johan Jansson <johan.jansson@iki.fi>
-Date:   Wed Jan 1 18:48:22 2020 +0200
+commit 616c39f6a636166447bdaac4f0871a5ca52bae8c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 26 12:37:36 2019 -0700
 
-    crypto/tls: update ExampleDial with a valid root
+    cmd/compile: remove DDD array types
     
-    When run as a separate program, the code in ExampleDial panicked due to
-    an expired certificate. Fixed this problem by replacing the expired
-    certificate with a valid one.
+    Currently we handle [...]T array literals by treating [...]T as
+    special "DDD array" types. However, these array literals are just
+    composite literal syntax, not a distinct Go type. Moreover,
+    representing them as Go types contributes to complexity in a number of
+    unrelated bits of code.
     
-    Also added a comment in the certificate to give a hint about why it
-    might fail in the future.
+    This CL changes OCOMPLIT typechecking to look for the [...]T syntax
+    and handle it specially, so we can remove DDD arrays.
     
-    Fixes #35706
+    Passes toolstash-check.
     
-    Change-Id: I3d300f7bccae050e4b73ded28b8029aa04b480bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212601
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ibbf701eac4caa7a321e2d10e256658fdfaa8a160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197604
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/tls/example_test.go | 43 +++++++++++++++++++++---------------------
- 1 file changed, 21 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/align.go     |  7 ----
+ src/cmd/compile/internal/gc/fmt.go       |  3 --
+ src/cmd/compile/internal/gc/typecheck.go | 68 +++++++++++++++-----------------
+ src/cmd/compile/internal/types/type.go   | 33 +---------------
+ 4 files changed, 33 insertions(+), 78 deletions(-)

@@ -1,19 +1,26 @@
-commit f613a7bf33e823fc36fdd2222d955dcab6bed8f9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 16 17:41:24 2018 +0000
+commit 49fec9b488177f2f212c5f6746203c519ae02264
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 29 14:16:25 2017 -0500
 
-    cmd/dist, os/user: test os/user in osusergo mode as well, fix plan9 & windows
+    cmd/dist: disable test caching during run.bash
     
-    Would've caught two regressions so far, and found two more.
+    Sometimes people use run.bash repeatedly
+    or run go tool dist test by hand for cgo tests.
+    Avoid test caching in that case, by request.
     
-    Updates #24841
-    Updates #24845 (package net remains)
+    Refactor code so that all go test commands
+    share a common prefix.
     
-    Change-Id: I57ad06eb54e04b8c99b5d2e7f24c77ad865224e8
-    Reviewed-on: https://go-review.googlesource.com/107300
+    If not caching is problematic it will be a one-line
+    change to turn caching back on.
+    
+    Fixes #22758.
+    
+    Change-Id: I17d721b832d97bffe26629d21f85b05dbbf2b3ec
+    Reviewed-on: https://go-review.googlesource.com/80735
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go        | 12 ++++++++++++
- src/os/user/lookup_stubs.go |  2 +-
- src/os/user/user_test.go    | 16 ++++++++++++++++
- 3 files changed, 29 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 137 ++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 97 insertions(+), 40 deletions(-)

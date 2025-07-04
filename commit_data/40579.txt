@@ -1,15 +1,54 @@
-commit 6cbd737c8e4a5aa5a8e85895c5ee6ff53a358622
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 18 23:16:16 2019 -0700
+commit 103b5b66921b351f8db4fc6e83bf147b1a0d7580
+Author: Greg Thelen <gthelen@google.com>
+Date:   Sat May 25 11:44:44 2019 -0700
 
-    runtime/pprof: update example comment to check error on Close
+    syscall: use Ctty before fd shuffle
     
-    Programs should always check the error return of Close for a file opened
-    for writing. Update the example code in the comment to mention this.
+    On unix if exec.Command() is given both ExtraFiles and Ctty, and the
+    Ctty file descriptor overlaps the range of FDs intended for the child,
+    then cmd.Start() the ioctl(fd,TIOCSCTTY) call fails with an
+    "inappropriate ioctl for device" error.
     
-    Change-Id: I2ff6866ff1fe23b47c54268ac8e182210cc876c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202137
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    When child file descriptors overlap the new child's ctty the ctty will
+    be closed in the fd shuffle before the TIOCSCTTY.  Thus TIOCSCTTY is
+    used on one of the ExtraFiles rather than the intended Ctty file.  Thus
+    the error.
+    
+    exec.Command() callers can workaround this by ensuring the Ctty fd is
+    larger than any ExtraFiles destined for the child.
+    
+    Fix this by doing the ctty ioctl before the fd shuffle.
+    
+    Test for this issue by modifying TestTerminalSignal to use more
+    ExtraFiles.  The test fails on linux and freebsd without this change's
+    syscall/*.go changes.  Other platforms (e.g. darwin, aix, solaris) have
+    the same fd shuffle logic, so the same fix is applied to them.  However,
+    I was only able to test on linux (32 and 64 bit) and freebsd (64 bit).
+    
+    Manual runs of the test in https://golang.org/issue/29458 start passing
+    with this patch:
+      Before:
+        % /tmp/src/go/bin/go run t
+        successfully ran child process with ParentExtraFileFdNum=5, ChildExtraFileFd=6, ParentPtyFd=7
+    
+        panic: failed to run child process with ParentExtraFileFdNum=10, ChildExtraFileFd=11, ParentPtyFd=11: fork/exec /bin/true: inappropriate ioctl for device
+    
+      After:
+        % /tmp/src/go/bin/go run t
+        successfully ran child process with ParentExtraFileFdNum=5, ChildExtraFileFd=6, ParentPtyFd=7
+    
+        successfully ran child process with ParentExtraFileFdNum=10, ChildExtraFileFd=11, ParentPtyFd=11
+    
+    Fixes #29458
+    Change-Id: I99513de7b6073c7eb855f1eeb4d1f9dc0454ef8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178919
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/pprof/pprof.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/os/signal/signal_cgo_test.go | 11 +++++++++++
+ src/syscall/exec_bsd.go          | 32 +++++++++++++++---------------
+ src/syscall/exec_darwin.go       | 32 +++++++++++++++---------------
+ src/syscall/exec_libc.go         | 42 ++++++++++++++++++++--------------------
+ src/syscall/exec_linux.go        | 32 +++++++++++++++---------------
+ 5 files changed, 80 insertions(+), 69 deletions(-)

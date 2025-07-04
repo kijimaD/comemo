@@ -1,0 +1,23 @@
+commit d5976429812c5e3df0027cc44268cb624146904c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jul 26 12:49:29 2024 -0400
+
+    net: unskip TestUDPZeroBytePayload on Darwin
+    
+    From information we have available in the issue, this test was flaky
+    on OS X 10.10 but not newer. By now macOS 11 is the minimum required
+    version, and 1000 local runs of the test passed, so try to unskip as
+    the next step.
+    
+    For #29225.
+    
+    Change-Id: I18a24459f01e53ef9de05b50d1dd8786d0683107
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_11,gotip-darwin-amd64_14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601395
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/net/udpsock_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

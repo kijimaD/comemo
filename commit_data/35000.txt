@@ -1,74 +1,32 @@
-commit cd65bbc01b36a39424ecb0112c1b2660d44444b4
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sun Apr 15 09:31:39 2018 +0000
+commit 88c2fb9d04c1766574581ba5ed6220e30cf6378e
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Dec 1 15:23:30 2017 -0500
 
-    cmd/compile/internal/ssa: optimize 386's subtraction
+    cmd/compile: fix bug in DWARF inl handling of unused autos
     
-    The SUBL instruction can take a memory operand, and this CL
-    implements this optimization.
+    The DWARF inline info generation hooks weren't properly
+    handling unused auto vars in certain cases, triggering an assert (now
+    fixed). Also with this change, introduce a new autom "flavor" to
+    use for autom entries that are added to insure that a specific
+    auto type makes it into the linker (this is a follow-on to the fix
+    for 22941).
     
-    The go1 benchmark shows a little improvement.
+    Fixes #22962.
     
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              3.27s ± 2%     3.29s ± 3%    ~     (p=0.322 n=37+40)
-    Fannkuch11-4                3.49s ± 0%     3.53s ± 1%  +1.21%  (p=0.000 n=31+40)
-    FmtFprintfEmpty-4          46.2ns ± 3%    46.3ns ± 2%    ~     (p=0.351 n=40+28)
-    FmtFprintfString-4         82.0ns ± 3%    81.5ns ± 2%  -0.69%  (p=0.002 n=40+30)
-    FmtFprintfInt-4            94.6ns ± 3%    94.6ns ± 6%    ~     (p=0.913 n=39+37)
-    FmtFprintfIntInt-4          147ns ± 3%     150ns ± 2%  +1.72%  (p=0.000 n=40+25)
-    FmtFprintfPrefixedInt-4     186ns ± 3%     186ns ± 0%  -0.33%  (p=0.006 n=40+25)
-    FmtFprintfFloat-4           388ns ± 4%     388ns ± 4%    ~     (p=0.162 n=40+40)
-    FmtManyArgs-4               612ns ± 3%     616ns ± 4%    ~     (p=0.223 n=40+40)
-    GobDecode-4                7.35ms ± 5%    7.42ms ± 5%    ~     (p=0.095 n=40+40)
-    GobEncode-4                7.21ms ± 8%    7.23ms ± 4%    ~     (p=0.294 n=40+40)
-    Gzip-4                      360ms ± 4%     359ms ± 4%    ~     (p=0.097 n=40+40)
-    Gunzip-4                   46.1ms ± 3%    45.6ms ± 3%  -1.20%  (p=0.000 n=40+40)
-    HTTPClientServer-4         64.0µs ± 2%    64.1µs ± 2%    ~     (p=0.648 n=39+40)
-    JSONEncode-4               21.9ms ± 4%    22.1ms ± 5%    ~     (p=0.086 n=40+40)
-    JSONDecode-4               67.9ms ± 4%    66.7ms ± 4%  -1.63%  (p=0.000 n=40+40)
-    Mandelbrot200-4            5.19ms ± 3%    5.17ms ± 3%    ~     (p=0.881 n=40+40)
-    GoParse-4                  3.34ms ± 3%    3.28ms ± 2%  -1.78%  (p=0.000 n=40+40)
-    RegexpMatchEasy0_32-4       101ns ± 5%      99ns ± 3%  -2.40%  (p=0.000 n=40+40)
-    RegexpMatchEasy0_1K-4       851ns ± 1%     848ns ± 3%  -0.36%  (p=0.004 n=33+40)
-    RegexpMatchEasy1_32-4       109ns ± 5%     105ns ± 3%  -3.53%  (p=0.000 n=39+40)
-    RegexpMatchEasy1_1K-4      1.03µs ± 4%    1.03µs ± 3%    ~     (p=0.638 n=40+38)
-    RegexpMatchMedium_32-4      131ns ± 5%     127ns ± 4%  -3.36%  (p=0.000 n=38+40)
-    RegexpMatchMedium_1K-4     43.4µs ± 4%    43.2µs ± 3%  -0.46%  (p=0.008 n=40+40)
-    RegexpMatchHard_32-4       2.21µs ± 4%    2.23µs ± 1%  +0.77%  (p=0.014 n=40+28)
-    RegexpMatchHard_1K-4       67.6µs ± 4%    67.7µs ± 3%  +0.11%  (p=0.016 n=40+40)
-    Revcomp-4                   1.86s ± 3%     1.77s ± 2%  -4.81%  (p=0.000 n=40+40)
-    Template-4                 71.7ms ± 3%    71.6ms ± 4%    ~     (p=0.200 n=40+40)
-    TimeParse-4                 436ns ± 4%     433ns ± 3%    ~     (p=0.358 n=40+40)
-    TimeFormat-4                413ns ± 4%     412ns ± 3%    ~     (p=0.415 n=40+40)
-    [Geo mean]                 63.9µs         63.6µs       -0.49%
-    
-    name                     old speed      new speed      delta
-    GobDecode-4               105MB/s ± 5%   104MB/s ± 5%    ~     (p=0.096 n=40+40)
-    GobEncode-4               106MB/s ± 7%   106MB/s ± 3%    ~     (p=0.385 n=39+40)
-    Gzip-4                   54.0MB/s ± 4%  54.0MB/s ± 4%    ~     (p=0.100 n=40+40)
-    Gunzip-4                  421MB/s ± 3%   426MB/s ± 3%  +1.21%  (p=0.000 n=40+40)
-    JSONEncode-4             88.5MB/s ± 5%  88.0MB/s ± 5%    ~     (p=0.083 n=40+40)
-    JSONDecode-4             28.6MB/s ± 4%  29.1MB/s ± 4%  +1.65%  (p=0.000 n=40+40)
-    GoParse-4                17.3MB/s ± 3%  17.7MB/s ± 2%  +1.82%  (p=0.000 n=40+40)
-    RegexpMatchEasy0_32-4     316MB/s ± 5%   323MB/s ± 4%  +2.44%  (p=0.000 n=40+40)
-    RegexpMatchEasy0_1K-4    1.20GB/s ± 1%  1.21GB/s ± 3%  +0.40%  (p=0.004 n=33+40)
-    RegexpMatchEasy1_32-4     291MB/s ± 7%   302MB/s ± 4%  +3.82%  (p=0.000 n=40+40)
-    RegexpMatchEasy1_1K-4     993MB/s ± 4%   990MB/s ± 3%    ~     (p=0.623 n=40+38)
-    RegexpMatchMedium_32-4   7.61MB/s ± 5%  7.87MB/s ± 4%  +3.36%  (p=0.000 n=38+40)
-    RegexpMatchMedium_1K-4   23.6MB/s ± 4%  23.7MB/s ± 4%  +0.46%  (p=0.007 n=40+40)
-    RegexpMatchHard_32-4     14.5MB/s ± 4%  14.3MB/s ± 1%  -0.79%  (p=0.017 n=40+28)
-    RegexpMatchHard_1K-4     15.1MB/s ± 4%  15.1MB/s ± 3%  -0.11%  (p=0.015 n=40+40)
-    Revcomp-4                 137MB/s ± 3%   144MB/s ± 3%  +5.06%  (p=0.000 n=40+40)
-    Template-4               27.1MB/s ± 3%  27.1MB/s ± 4%    ~     (p=0.211 n=40+40)
-    [Geo mean]               78.9MB/s       79.7MB/s       +1.01%
-    
-    Change-Id: I638fa4fef85833e8605919d693f9570cc3cf7334
-    Reviewed-on: https://go-review.googlesource.com/107275
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I7a2d8caf47f6ca897b12acb6a6de0eb25f5cac8f
+    Reviewed-on: https://go-review.googlesource.com/81557
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/386.rules |  2 +-
- src/cmd/compile/internal/ssa/rewrite386.go | 26 ++++++++++++++++++++++++++
- test/codegen/arithmetic.go                 | 10 ++++++++++
- 3 files changed, 37 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go | 15 +++++++++------
+ src/cmd/internal/obj/link.go        |  3 +++
+ src/cmd/internal/obj/objfile.go     |  2 ++
+ src/cmd/internal/objabi/autotype.go |  1 +
+ src/cmd/link/internal/ld/dwarf.go   |  2 +-
+ src/cmd/link/internal/ld/lib.go     |  9 +++++++++
+ test/fixedbugs/issue22962.dir/a.go  | 11 +++++++++++
+ test/fixedbugs/issue22962.dir/b.go  |  9 +++++++++
+ test/fixedbugs/issue22962.go        |  7 +++++++
+ 9 files changed, 52 insertions(+), 7 deletions(-)

@@ -1,30 +1,17 @@
-commit 0531768b30273ec8c4fe8e234ca96c471bcf5dc3
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed Nov 13 15:25:41 2024 -0500
+commit 11b08a75cd6b93473d0ab6e4b6a94247ee341a01
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 15 12:02:01 2023 -0400
 
-    runtime: implement AddCleanup
+    cmd/link: reject invalid -R flag
     
-    This change introduces AddCleanup to the runtime package. AddCleanup attaches
-    a cleanup function to an pointer to an object.
+    Reject -R value that is not a power of 2, or less than 4K.
     
-    The Stop method on Cleanups will be implemented in a followup CL.
+    Fixes #62660.
     
-    AddCleanup is intended to be an incremental improvement over
-    SetFinalizer and will result in SetFinalizer being deprecated.
-    
-    For #67535
-    
-    Change-Id: I99645152e3fdcee85fcf42a4f312c6917e8aecb1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627695
+    Change-Id: I3fa33c23c25311a93c0accc9acbd1e465789b8c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528715
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- api/next/67535.txt                          |   3 +
- doc/next/6-stdlib/99-minor/runtime/67535.md |   6 ++
- src/runtime/mcleanup.go                     | 103 ++++++++++++++++++
- src/runtime/mcleanup_test.go                | 159 ++++++++++++++++++++++++++++
- src/runtime/mfinal.go                       |  34 ++++--
- src/runtime/mgc.go                          |   2 +-
- src/runtime/mgcmark.go                      |   6 ++
- src/runtime/mheap.go                        |  63 +++++++++--
- 8 files changed, 360 insertions(+), 16 deletions(-)
+ src/cmd/link/internal/ld/main.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

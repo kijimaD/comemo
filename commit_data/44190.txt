@@ -1,16 +1,14 @@
-commit bf0f7c9d78fa28320a2c60d5a6d1956acfae4a89
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 21 17:58:17 2021 -0800
+commit 828bb0c123af11d21c82eb87b64dfa9af24858c7
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun May 24 19:16:03 2020 +0200
 
-    doc/go1.16: mention os.DirFS in os section
+    syscall/js: improve documentation of Func.Release
     
-    For #40700
-    For #41190
+    Fixes #38152
     
-    Change-Id: I8ade6efd5be09003fc3e5db5a9b91ba6e0f023f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285593
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I807f49e23cc33e1c9b64029c7504b5a1f81a6bab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235138
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/go1.16.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/syscall/js/func.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

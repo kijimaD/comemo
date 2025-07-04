@@ -1,0 +1,16 @@
+commit f234c9423bd87e7bf81ad7d1bab2b452c722b3b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 25 17:33:15 2024 -0700
+
+    go/types, types2: fix test name (for debugging)
+    
+    Change-Id: I982cf4da98af73ac41936a9d0b51588e3dbfd706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594739
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go | 2 +-
+ src/go/types/api_test.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

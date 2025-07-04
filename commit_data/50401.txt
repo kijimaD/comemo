@@ -1,33 +1,28 @@
-commit dfdf55158dcfc3ef1bd436b3b9ed6daa20801fdb
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 6 19:30:30 2022 -0700
+commit fcd2d9cd75e6307b5b72fed2201044e231bef40a
+Author: Olivier Wulveryck <olivier.wulveryck@gmail.com>
+Date:   Mon May 31 08:03:57 2021 +0200
 
-    cmd/compile/internal/noder: fix type switch case vars package
+    image/draw: improve performances if mask is *image.Alpha
     
-    When naming case variables, the unified frontend was using
-    typecheck.Lookup, which uses the current package, rather than
-    localIdent, which uses the package the variable was originally
-    declared in. When inlining across package boundaries, this could cause
-    the case variables to be associated with the wrong package.
+    The existing DrawMask method is generic and is therefore calling the At().RGBA() method for every pixel of the mask and the source.
+    Do a specific implementation when the mask is *image.Alpha (which is
+    common) and use use the PixOffset method to increase performances.
     
-    In practice, I don't believe this has any negative consequences, but
-    it's inconsistent and triggered an ICE in typecheck.ClosureType, which
-    expected all captured variables to be declared in the same package.
+    name                old time/op  new time/op  delta
+    RGBA2-12            1.60ms ± 0%  1.13ms ± 1%  -29.16%  (p=0.008 n=5+5)
+    GenericMaskOver-12   915µs ± 4%   926µs ± 1%     ~     (p=0.190 n=5+4)
+    RGBA64Over-12       1.53ms ± 3%  1.21ms ± 2%  -20.74%  (p=0.008 n=5+5)
+    GrayOver-12         1.36ms ± 2%  1.01ms ± 7%  -26.27%  (p=0.008 n=5+5)
     
-    Easy fix is to ensure case variables are declared in the correct
-    package by using localIdent.
-    
-    Fixes #54912.
-    
-    Change-Id: I7a429c708ad95723f46a67872cb0cf0c53a6a0d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428918
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Fixes: #46395
+    Change-Id: Iaeaa8cfcc6a3fe93eb19b361f3bf076e41cac5b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323749
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Trust: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/compile/internal/noder/reader.go   | 2 +-
- src/cmd/compile/internal/noder/writer.go   | 4 ++++
- src/cmd/compile/internal/typecheck/func.go | 2 +-
- test/run.go                                | 2 --
- 4 files changed, 6 insertions(+), 4 deletions(-)
+ src/image/draw/bench_test.go |   8 +++
+ src/image/draw/draw.go       | 159 +++++++++++++++++++++++++++++++++++++++++++
+ src/image/draw/draw_test.go  |   4 ++
+ 3 files changed, 171 insertions(+)

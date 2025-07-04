@@ -1,16 +1,12 @@
-commit 6dad1b4c9bb63cad432bcddb7aec0d36f03f8341
-Author: alex-semenyuk <alexsemenyuk88@gmail.com>
-Date:   Sun May 17 16:05:05 2020 +0000
+commit a0c9fb6bd359f111f19176ff176244b91a3e7eaa
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 13 10:24:41 2020 -0800
 
-    cmd/cgo: close file
+    hash/maphash: mention the results are 64-bit integers
     
-    Change-Id: Ia70edc8ba22e31e498fe07946db41882804bd39f
-    GitHub-Last-Rev: 280232e879965b34fae3aa02e6215eff5bd7be46
-    GitHub-Pull-Request: golang/go#39120
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234317
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0d2ba52d79c34d77d475ec8d673286d0e56b826b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219340
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/cgo/out.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/hash/maphash/maphash.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

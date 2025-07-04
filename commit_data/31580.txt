@@ -1,29 +1,18 @@
-commit 5548f7d5cfadf1319a99b2a17e72ff91fcdd09fc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 15 09:40:19 2017 -0700
+commit f072283bcecb66f8c22046cad4d8ddcc458d32e7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 2 02:45:39 2017 +0000
 
-    cmd/compile: eliminate some bounds checks from generated rewrite rules
+    net/http: add more debugging to TestServerAllowsBlockingRemoteAddr
     
-    Noticed while looking at #20356.
+    It fails on Solaris often, but nowhere else.
     
-    Cuts 160k (1%) off of the cmd/compile binary.
+    Not sure why. Add some debugging.
     
-    Change-Id: If2397bc6971d6be9be6975048adecb0b5efa6d66
-    Reviewed-on: https://go-review.googlesource.com/43501
+    Change-Id: I79fc710bd339ae972d624c73a46bd8d215729c10
+    Reviewed-on: https://go-review.googlesource.com/37659
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go    |    3 +
- src/cmd/compile/internal/ssa/rewrite386.go     |  782 ++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 1960 ++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM.go     |  833 ++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go   |  656 ++++++++
- src/cmd/compile/internal/ssa/rewriteMIPS.go    |  344 +++++
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  345 +++++
- src/cmd/compile/internal/ssa/rewritePPC64.go   |  406 +++++
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 1692 ++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewritedec.go     |   24 +
- src/cmd/compile/internal/ssa/rewritedec64.go   |  119 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 1415 +++++++++++++++++
- 12 files changed, 8579 insertions(+)
+ src/net/http/serve_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

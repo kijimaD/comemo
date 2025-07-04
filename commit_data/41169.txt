@@ -1,21 +1,18 @@
-commit bcd50e4cd0e308c05fb52b35431c454d9cb07fff
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jan 25 02:39:59 2020 +1100
+commit a5026af57c7934f0856cfd4b539a7859d85a0474
+Author: Marko Kungla <marko.kungla@gmail.com>
+Date:   Sat Sep 7 12:07:08 2019 +0300
 
-    vendor: provide golang.org/x/sys/cpu/cpu_riscv64.go
+    reflect: enhance docs for IsZero and IsValid
     
-    Manually provide golang.org/x/sys/cpu/cpu_riscv64.go until such time
-    as this code can be updated, post release.
+    Make it clear that IsValid checks that we have valid
+    reflect.Value and not the value of `v`
     
-    This already exists in x/sys/cpu via:
+    fixes #34152
     
-      https://go-review.googlesource.com/c/sys/+/206860
-    
-    Update #27532
-    
-    Change-Id: I57d598ef737642f9c3aa7b280c6c680477ae7633
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216261
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib3d359eeb3a82bf733b9ed17c777fc4c143bc29c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193841
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/internal/reflectlite/value.go | 2 +-
+ src/reflect/value.go              | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

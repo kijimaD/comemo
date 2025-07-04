@@ -1,27 +1,17 @@
-commit 2057ad02bd8387378a2d1fd637e955e126f698bf
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Jan 12 16:28:56 2024 -0800
+commit 4304529a16774719687ff09f18a04e27aa8894c2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Feb 22 12:09:56 2023 -0500
 
-    context: improve valueCtx.String
+    cmd/link: make Exitf panic under -h
     
-    Check for stringer on the key itself.
-    This is useful for locally defined context key types,
-    where there may be multiple instances of that type.
-    For example, see http.contextKey,
-    which can now be called after this change.
+    If the -h flag is specified, currently it makes Errorf panic, but
+    not Exitf. Do so for Exitf as well.
     
-    For the value itself, print the type at least
-    instead of just resorting to "<not stringer>".
-    
-    Change-Id: I588ef1df34e90fb9ebd83cb180fea495e1fedaa8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/555697
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Change-Id: I3e8d8899fd439f7299be3f9e9a63993b04852a93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470297
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/context/context.go | 8 ++++----
- src/context/x_test.go  | 8 +++++++-
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/util.go | 3 +++
+ 1 file changed, 3 insertions(+)

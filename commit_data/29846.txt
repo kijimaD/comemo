@@ -1,20 +1,28 @@
-commit 8d2169104467a14dea5705beb8ea351c68c5595d
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 19 09:15:04 2016 -0800
+commit 6da8bdd2cc7a10f037a2025ffed57627d97a990c
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Oct 12 07:50:30 2016 -0500
 
-    cmd/compile: test for correct zeroing
+    cmd/asm: recognize CR1-CR7 on ppc64x branch instructions
     
-    Make sure we generate the right code for zeroing a structure.
+    Some of the branch instructions (BEQ, BNE, BLT, etc.) accept
+    all the valid CR values as operands, but the CR register value is
+    not parsed and not put into the instruction, so that CR0 is always
+    used regardless of what was specified on the instruction.  For example
+    BEQ CR2,label becomes beq cr0,label.
     
-    Check in after Matthew's CL (34564).
+    This adds the change to the PPC64 assembler to recognize the CR value
+    and set the approppriate field in the instruction so the correct
+    CR is used.  This also adds some general comments on the branch
+    instruction BC and its operand values.
     
-    Update #18370
+    Fixes #17408
     
-    Change-Id: I987087f979d99227a880b34c44d9d4de6c25ba0c
-    Reviewed-on: https://go-review.googlesource.com/34565
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I8e956372a42846a4c09a7259e9172eaa29118e71
+    Reviewed-on: https://go-review.googlesource.com/30930
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/internal/obj/ppc64/a.out.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/asm9.go  | 31 +++++++++++++++++++++++++++----
+ 2 files changed, 64 insertions(+), 4 deletions(-)

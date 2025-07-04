@@ -1,18 +1,27 @@
-commit 888d44d3c16147019bb5a667b40bc68ecf4e7ba3
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Apr 9 21:25:48 2015 +1000
+commit 25e793d7ea7519f407cb84c4cb3955f5b96d0fb5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 17 15:14:31 2015 -0700
 
-    cmd/internal/gc, cmd/7g: use zero register in Componentgen
+    cmd/internal/gc, runtime: speed up some cases of _, ok := i.(T)
     
-    Fixes #9855
+    Some type assertions of the form _, ok := i.(T) allow efficient inlining.
+    Such type assertions commonly show up in type switches.
+    For example, with this optimization, using 6g, the length of
+    encoding/binary's intDataSize function shrinks from 2224 to 1728 bytes (-22%).
     
-    Use an architectural zero register as the source for zeroing, if available.
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkAssertI2E2Blank     4.67          0.82          -82.44%
+    BenchmarkAssertE2T2Blank     4.38          0.83          -81.05%
+    BenchmarkAssertE2E2Blank     3.88          0.83          -78.61%
+    BenchmarkAssertE2E2          14.2          14.4          +1.41%
+    BenchmarkAssertE2T2          10.3          10.4          +0.97%
+    BenchmarkAssertI2E2          13.4          13.3          -0.75%
     
-    Change-Id: Ie5b4ba4e3d356c6f892bfd1cebd14d5152bdeeb0
-    Reviewed-on: https://go-review.googlesource.com/8722
+    Change-Id: Ie9798c3e85432bb8e0f2c723afc376e233639df7
+    Reviewed-on: https://go-review.googlesource.com/7697
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/7g/galign.go       |  1 +
- src/cmd/internal/gc/gen.go | 16 +++++++++++-----
- src/cmd/internal/gc/go.go  |  1 +
- 3 files changed, 13 insertions(+), 5 deletions(-)
+ src/cmd/internal/gc/walk.go | 28 +++++++++++++++++++++++++++-
+ src/runtime/iface.go        | 33 +++++++++++++--------------------
+ src/runtime/iface_test.go   | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 83 insertions(+), 21 deletions(-)

@@ -1,17 +1,12 @@
-commit 9adfe0f4755aad4e81e8f1d624cec99e8c212e77
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 22 11:27:16 2017 -0800
+commit 72967551e5a5f16f1afa1b8e5dda3bfa6edebe01
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:25:45 2017 +1000
 
-    os/signal: don't run TestTerminalSignal on Solaris
+    cmd/link: move perelocsect into peFile.emitRelocations (no code changed)
     
-    Fixes #22849
-    
-    Change-Id: Icf7f07d0d1d0669f5db4943030588646c819c62a
-    Reviewed-on: https://go-review.googlesource.com/79495
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I807412bd743d544195aaf9d720f81b128b4636b3
+    Reviewed-on: https://go-review.googlesource.com/59421
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/signal/internal/pty/pty.go | 2 +-
- src/os/signal/signal_cgo_test.go  | 4 +++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 111 +++++++++++++++++++----------------------
+ 1 file changed, 52 insertions(+), 59 deletions(-)

@@ -1,13 +1,15 @@
-commit f18ced3fc9bdb36029d81eb73a1848959e5a84ec
+commit ee5f59ab4feafd987972a096d5a5c315e753f358
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 7 02:15:23 2012 -0400
+Date:   Thu Jun 7 01:54:07 2012 -0400
 
-    cmd/gc: delete dead code
+    cmd/gc: preserve side effects during inlining of function with _ argument
+    
+    Fixes #3593.
     
     R=ken2
-    CC=golang-dev
-    https://golang.org/cl/6307050
+    CC=golang-dev, lvd
+    https://golang.org/cl/6305061
 
- src/cmd/gc/dcl.c | 17 +----------------
- src/cmd/gc/go.h  |  1 -
- 2 files changed, 1 insertion(+), 17 deletions(-)
+ src/cmd/gc/inl.c         | 43 +++++++++++++++++++++----------------------
+ test/fixedbugs/bug441.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 22 deletions(-)

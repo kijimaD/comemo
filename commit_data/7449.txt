@@ -1,12 +1,12 @@
-commit 888ab022287badba7a57a08a21e5524a42c5f6b2
-Author: Ken Thompson <ken@golang.org>
-Date:   Fri Feb 11 20:13:57 2011 -0800
+commit 7e3d98bc9c0de4fba953ab65ba09097bad994bba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 11 16:24:35 2011 -0800
 
-    5ld: part of 64bit eor - forgot to check in.
+    gofmt: exclude testcase with incorrect syntax
     
-    R=r, rsc
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4176046
+    https://golang.org/cl/4160047
 
- src/cmd/5l/optab.c | 2 +-
+ src/cmd/gofmt/test.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

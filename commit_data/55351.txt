@@ -1,18 +1,30 @@
-commit 10a66d681672a8600705a7540e3b0477d4c43c4a
-Author: sivchari <shibuuuu5@gmail.com>
-Date:   Thu Sep 28 07:08:51 2023 +0900
+commit 2ab0e04681332c88e1bfb5fe5a72d35c1c5aae8a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 27 12:01:38 2023 -0800
 
-    sync: use map[any]any instead of map[interface{}]interface{} in the godoc
+    cmd/link: refactor ELF hooks into ELFArch struct
     
-    It's shorter and clearer.
+    This is a pure cleanup to bring the ELF hooks together.
     
-    Change-Id: Ibfbe5a7f8d70fa884691ba9858a2c9b2122d9c50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531475
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I01d5227c70f30e4a659dcd7904e7c247266e95b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463981
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/sync/map.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/obj.go   | 23 +++++++++++---------
+ src/cmd/link/internal/arm/obj.go     | 23 +++++++++++---------
+ src/cmd/link/internal/arm64/obj.go   | 25 +++++++++++----------
+ src/cmd/link/internal/ld/elf.go      | 42 ++++++++++++++++++++++++++----------
+ src/cmd/link/internal/ld/lib.go      | 15 +++----------
+ src/cmd/link/internal/loong64/obj.go | 23 +++++++++++---------
+ src/cmd/link/internal/mips/obj.go    | 23 +++++++++++---------
+ src/cmd/link/internal/mips64/obj.go  | 23 +++++++++++---------
+ src/cmd/link/internal/ppc64/obj.go   | 23 +++++++++++---------
+ src/cmd/link/internal/riscv64/obj.go | 21 ++++++++++--------
+ src/cmd/link/internal/s390x/obj.go   | 25 +++++++++++----------
+ src/cmd/link/internal/x86/obj.go     | 21 ++++++++++--------
+ 12 files changed, 164 insertions(+), 123 deletions(-)

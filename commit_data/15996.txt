@@ -1,16 +1,21 @@
-commit 0f9b3059bc969053b68cf135c4c8266da53a6405
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Mar 29 11:46:47 2013 +0900
+commit f38811979cefe7cd61b34c5580e2d10f65f243db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 28 15:47:39 2013 -0700
 
-    net: enable IPv6 tests on Windows
+    go/printer: use strings.Split instead of specialized code
     
-    Also removes redundant tests that run Go 1.0 non-IPv6 support
-    Windows code on IPv6 enabled Windows kernels.
+    With the faster strings package, the difference between
+    the specialized code and strings.Split is in the noise:
     
-    R=alex.brainman, golang-dev, bradfitz, dave
+    benchmark         old ns/op    new ns/op    delta
+    BenchmarkPrint     16724291     16686729   -0.22%
+    
+    (Measured on a Mac Pro, 2.8GHz Quad-core Intel Xeon,
+    4GB 800 MHz DDR2, Mac OS X 10.8.3)
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7812052
+    https://golang.org/cl/8100044
 
- src/pkg/net/multicast_test.go     |  2 +-
- src/pkg/net/unicast_posix_test.go | 65 +++------------------------------------
- 2 files changed, 5 insertions(+), 62 deletions(-)
+ src/pkg/go/printer/printer.go | 31 +------------------------------
+ 1 file changed, 1 insertion(+), 30 deletions(-)

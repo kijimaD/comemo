@@ -1,18 +1,24 @@
-commit bf9216055b98e94cb2c96f4534777dd6d0ee0532
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 20 14:06:51 2021 -0400
+commit f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 19 20:45:01 2020 -0400
 
-    runtime/testdata: fix testprogcgo for windows/arm64
+    cmd/go/internal/renameio: include ios in the darwin test-flake mitigation
     
-    Our toolchain does not like -mnop-fun-dllimport.
+    Because the "ios" build constraint implies "darwin", it is already
+    included in the general "darwin" flakiness workaround in
+    cmd/go/internal/robustio. We just need to relax the renameio test
+    to avoid false-positives there.
     
-    Change-Id: Iaaee01fe0f4b0959406a35eb13aefa390116b483
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312043
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    I do not expect this change to drive the rate of false-positives down
+    to zero, but it should at least reduce noise on the build dashboard.
+    
+    For #42066
+    
+    Change-Id: Ia33dbd33295fce5b3261b4831f2807ce29b82e65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263777
+    Trust: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/testdata/testprogcgo/windows/win.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/renameio/renameio_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

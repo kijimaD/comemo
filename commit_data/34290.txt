@@ -1,23 +1,24 @@
-commit c823155828e5e6f4f7aa5683edb6f9e5dfd31d28
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 20 18:16:56 2018 -0500
+commit f3d4ff7ddc86d2e5f3318fbf8a897edae6da1379
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 13 14:47:45 2017 -0700
 
-    runtime: ensure sysStat for mheap_.arenas is aligned
+    cmd/compile: omit ICE diagnostics after normal error messages
     
-    We don't want to account the memory for mheap_.arenas because most of
-    it is never touched, so currently we pass the address of a uint64 on
-    the heap. However, at least on mips, it's possible for this uint64 to
-    be unaligned, which causes the atomic add in mSysStatInc to crash.
+    After we detect errors, the AST is in a precarious state and more
+    likely to trip useless ICE failures. Instead let the user fix any
+    existing errors and see if the ICE persists.  This makes Fatalf more
+    consistent with how panics are handled by hidePanic.
     
-    Fix this by instead passing a nil stat pointer.
+    While here, also fix detection for release versions: release version
+    strings begin with "go" ("go1.8", "go1.9.1", etc), not "release".
     
-    Fixes #23946.
+    Fixes #22252.
     
-    Change-Id: I091587df1b3066c330b6bb4d834e4596c407910f
-    Reviewed-on: https://go-review.googlesource.com/95695
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I1c400af62fb49dd979b96e1bf0fb295a81c8b336
+    Reviewed-on: https://go-review.googlesource.com/70850
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/malloc.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

@@ -1,20 +1,16 @@
-commit 1ef114d12c39e8467d3e905d0a050bd7ce03123a
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 22 15:00:22 2021 -0400
+commit 9ef3ee339634d1a349e7b9bb4cae32aacc326f61
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 9 23:47:41 2020 +0700
 
-    runtime: abstract specials list iteration
+    cmd/link: remove unnecessary type conversion for nitablinks
     
-    The specials processing loop in mspan.sweep is about to get more
-    complicated and I'm too allergic to list manipulation to open code
-    more of it there.
+    It's already an uint64.
     
-    Change-Id: I767a0889739da85fb2878fc06a5c55b73bf2ba7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305551
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ic4cdb957aa4f9245c1ea3f946bcb740f116dd04b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253679
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgcsweep.go | 25 ++++++++++---------------
- src/runtime/mheap.go    | 34 +++++++++++++++++++++++++++++++---
- 2 files changed, 41 insertions(+), 18 deletions(-)
+ src/cmd/link/internal/ld/symtab.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,24 +1,18 @@
-commit ddc4c146a46cd8ae3a4f1f9b7f0cd14f4bb2aca4
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue May 12 16:07:05 2015 +1200
+commit a608377545e95200a94040eff7b62b95c9ab41ed
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Apr 21 19:43:18 2015 +0000
 
-    cmd/internal/ld: prevent creation of .dynamic and .dynsym symbols when externally linking
+    Revert "go/internal/gcimporter: populate (*types.Package).Imports"
     
-    This allows the removal of a fudge in data.go.
+    This reverts commit 8d7d02f14525874eafb6b0a00916bdb0bc24bc03.
     
-    We have to defer the calls to adddynlib on non-Darwin until after we have
-    decided whether we are externally or internally linking.  The Macho/ELF
-    separation could do with some cleaning up, but: code freeze.
+    Reverted because it breaks go/build's "deps" test.
     
-    Fixing this once rather than per-arch is what inspired the previous CLs.
-    
-    Change-Id: I0166f7078a045dc09827745479211247466c0c54
-    Reviewed-on: https://go-review.googlesource.com/10002
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I61db6b2431b3ba0d2b3ece5bab7a04194239c34b
+    Reviewed-on: https://go-review.googlesource.com/9174
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/internal/ld/data.go |  8 +-------
- src/cmd/internal/ld/go.go   | 19 ++++++++++++-------
- src/cmd/internal/ld/lib.go  |  1 +
- 3 files changed, 14 insertions(+), 14 deletions(-)
+ src/go/internal/gcimporter/gcimporter.go      | 90 +++++++++------------------
+ src/go/internal/gcimporter/gcimporter_test.go | 22 ++-----
+ src/go/types/package.go                       |  6 +-
+ 3 files changed, 35 insertions(+), 83 deletions(-)

@@ -1,21 +1,25 @@
-commit 54a9c16533b5607f1eb035815b97fb13fd36ee34
-Author: Irbe Krumina <irbekrm@gmail.com>
-Date:   Thu Aug 22 20:55:30 2019 +0100
+commit d227a0811b76791fad04eeba35cf2794a719d610
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Mon Mar 4 10:07:07 2019 +0000
 
-    path: change the output format of ExampleSplit function
+    internal/poll, os: cancel pending I/O when closing pipes on Windows
     
-    At the moment the last output line of ExampleSplit- two empty strings- are being
-    trimmed from the output.  I have formatted the output of the function to avoid
-    whitespace trimming and show empty strings more clearly.
+    When closing a pipe, use CancelIoEx to cancel pending I/O.
+    This makes concurrent Read and Write calls return os.ErrClosed.
     
-    Fixes #23542
+    This change also enables some pipe tests on Windows.
     
-    Change-Id: Ic2a4d98cfa06db1466c6c6d98099542df9e7c88b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191397
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Fixes #28477
+    Fixes #25835
+    
+    Change-Id: If52bb7d80895763488a61632e4682a78336e8420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164721
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/path/example_test.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ src/internal/poll/fd_windows.go       | 18 ++++++++++++++++++
+ src/internal/poll/sendfile_windows.go |  8 ++------
+ src/os/file_windows.go                |  5 ++++-
+ src/os/pipe_test.go                   | 30 +++++++++++++++++++++++-------
+ 4 files changed, 47 insertions(+), 14 deletions(-)

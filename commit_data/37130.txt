@@ -1,26 +1,25 @@
-commit 9f291d1fc38c25726c683becf8844fb8f81fb81b
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Fri Oct 26 10:52:59 2018 -0700
+commit 28f9b880f6e9f95c61b31b6e0a7ac458cb6a0e0c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 29 23:09:34 2018 -0400
 
-    cmd/compile: fix rule for combining loads with compares
+    misc/wasm: make sure value ref id is unique
     
-    Unlike normal load+op opcodes, the load+compare opcode does
-    not clobber its non-load argument. Allow the load+compare merge
-    to happen even if the non-load argument is used elsewhere.
+    For each Javascript object that returns to Go as a js.Value, we
+    associate the ref id to it. But if this ref id is copied or
+    inherited to other object, it would mess up the ref-object
+    mapping.
     
-    Noticed when investigating issue #28417.
+    In storeValue, make sure the object is indeed the one we are
+    storing. Otherwise allocate a new ref id.
     
-    Change-Id: Ibc48d1f2e06ae76034c59f453815d263e8ec7288
-    Reviewed-on: https://go-review.googlesource.com/c/145097
-    Reviewed-by: Ainar Garipov <gugl.zadolbal@gmail.com>
-    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Fixes #26143.
+    
+    Change-Id: Ie60bb2f8d1533da1bbe6f46045866515ec2af5a9
+    Reviewed-on: https://go-review.googlesource.com/121835
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/386.rules   |  12 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  12 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules |  66 +++----
- src/cmd/compile/internal/ssa/rewrite.go      |  34 ++--
- src/cmd/compile/internal/ssa/rewrite386.go   | 160 ++++++++---------
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 152 ++++++++--------
- src/cmd/compile/internal/ssa/rewriteS390X.go | 252 +++++++++++++--------------
- test/codegen/memops.go                       |   9 +
- 8 files changed, 355 insertions(+), 342 deletions(-)
+ misc/wasm/wasm_exec.js    | 2 +-
+ src/syscall/js/js_test.go | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

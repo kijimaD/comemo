@@ -1,12 +1,22 @@
-commit 2c2934eeb539a1b137c48b521d15ff3a77bd53a1
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 26 17:17:44 2013 -0800
+commit 60066754fd6d080e6f0b08d88369beea4b54b801
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 26 14:33:24 2013 -0800
 
-    sort: add an example showing sorting struct by different keys
+    go/types: be more robust in presence of multiple errors
     
-    R=golang-dev, dsymonds
+    - better documentation of Check
+    - better handling of (explicit) internal panics
+    - gotype: don't stop after 1st error
+    
+    R=adonovan, r
     CC=golang-dev
-    https://golang.org/cl/7376058
+    https://golang.org/cl/7406052
 
- src/pkg/sort/example_keys_test.go | 96 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 96 insertions(+)
+ src/pkg/exp/gotype/gotype.go      | 33 +++++++++++++++++++++++++++------
+ src/pkg/exp/gotype/gotype_test.go |  6 +++---
+ src/pkg/go/types/api.go           |  9 ++++++---
+ src/pkg/go/types/check.go         | 24 ++++++++++++++++++++----
+ src/pkg/go/types/errors.go        |  2 +-
+ src/pkg/go/types/objects.go       |  6 ++++--
+ src/pkg/go/types/stmt.go          |  3 +++
+ 7 files changed, 64 insertions(+), 19 deletions(-)

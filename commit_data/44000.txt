@@ -1,32 +1,42 @@
-commit a58be734eacd832be27a021b8ffac323061212f2
-Author: Ruixin Bao <ruixin.bao@ibm.com>
-Date:   Wed Dec 9 13:55:37 2020 -0800
+commit 30f8074e3510da8c39f879cfdbde600eb876a79e
+Author: Mark Ryan <mark.d.ryan@intel.com>
+Date:   Mon Oct 28 19:12:56 2019 +0100
 
-    cmd/compile: fix incorrect shift count type with s390x rules
+    cmd/internal/obj/x86: prevent jumps crossing 32 byte boundaries
     
-    The type of the shift count must be an unsigned integer. Some s390x
-    rules for shift have their auxint type being int8. This results in a
-    compilation failure on s390x with an invalid operation when running
-    make.bash using older versions of go (e.g: go1.10.4).
+    This commit adds a new option to the x86 assembler.  If the
+    GOAMD64 environment variable is set to alignedjumps (the
+    default) and we're doing a 64 bit build, the assembler will
+    make sure that neither stand alone nor macro-fused jumps will
+    end on or cross 32 byte boundaries.  To achieve this, functions
+    are aligned on 32 byte boundaries, rather than 16 bytes, and
+    jump instructions are padded to ensure that they do not
+    cross or end on 32 byte boundaries.  Jumps are padded
+    by adding a NOP instruction of the appropriate length before
+    the jump.
     
-    This CL adds an auxint type of uint8 and changes the ops for shift and
-    rotate to use auxint with type uint8. The related rules are also
-    modified to address this change.
+    The commit is likely to result in larger binary sizes when
+    GOAMD64=alignedjumps.  On the binaries tested so far, an
+    increase of between 1.4% and 1.5% has been observed.
     
-    Fixes #43090
+    Updates #35881
     
-    Change-Id: I594274b6e3d9b23092fc9e9f4b354870164f2f19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277078
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Co-authored-by: David Chase <drchase@google.com>
+    
+    Change-Id: Ief0722300bc3f987098e4fd92b22b14ad6281d91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219357
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/check.go        |   5 +
- src/cmd/compile/internal/ssa/gen/S390X.rules |  24 +--
- src/cmd/compile/internal/ssa/gen/S390XOps.go |  30 +--
- src/cmd/compile/internal/ssa/gen/rulegen.go  |   4 +-
- src/cmd/compile/internal/ssa/op.go           |   1 +
- src/cmd/compile/internal/ssa/opGen.go        |  14 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go | 290 +++++++++++++--------------
- src/cmd/internal/obj/s390x/rotate.go         |  14 +-
- src/cmd/internal/obj/s390x/rotate_test.go    |   2 +-
- 9 files changed, 196 insertions(+), 188 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go |   7 +-
+ src/cmd/dist/build.go                     |  11 ++
+ src/cmd/dist/buildruntime.go              |   2 +
+ src/cmd/go/alldocs.go                     |   3 +
+ src/cmd/go/internal/cfg/cfg.go            |   3 +
+ src/cmd/go/internal/help/helpdoc.go       |   3 +
+ src/cmd/internal/obj/x86/asm6.go          | 219 +++++++++++++++++++++++++++++-
+ src/cmd/internal/objabi/util.go           |  10 ++
+ src/cmd/link/internal/amd64/obj.go        |   7 +-
+ src/internal/cfg/cfg.go                   |   1 +
+ 10 files changed, 263 insertions(+), 3 deletions(-)

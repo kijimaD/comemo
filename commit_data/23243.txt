@@ -1,37 +1,23 @@
-commit 227fb116bede3b09ba7399303ebac36eec43ff8a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 20 00:37:37 2015 -0400
+commit 80cedf3e8f912d7d7defd8e0495c6fd67d229555
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Fri May 1 18:20:31 2015 +0000
 
-    cmd/go: clean up after 'go build' during 'go install'
+    text/template: detect unmatched else at parsing time
     
-    If 'go install' (with no arguments, meaning the current directory)
-    succeeds, remove the executable written by 'go build', if present.
-    This avoids leaving a stale binary behind during a sequence like:
+    An unmatched {{else}} should trigger a parsing error.
     
-            go build
-            <test, mostly works, make small change>
-            go install
+    The top level parser is able to issue an error in case
+    of unmatched {{end}}. It does it a posteriori (i.e. after having
+    parsed the action).
     
-    Before this CL, the current directory still has the stale binary
-    from 'go build'. If $PATH contains dot, running the name of
-    the program will find this stale binary instead of the new,
-    installed one.
+    Extend this behavior to also check for unmatched {{else}}
     
-    Remove the 'go build' target during 'go install', both to clean
-    up the directory and to avoid accidentally running the stale binary.
+    Fixes #10611
     
-    Another way to view this CL is that it makes the go command
-    behave as if 'go install' is implemented by 'go build' followed by
-    moving the resulting binary to the install location.
-    
-    See #9645 for discussion and objections.
-    
-    Fixes #9645.
-    
-    Change-Id: Ide109572f96bbb5a35be45dda17738317462a7d4
-    Reviewed-on: https://go-review.googlesource.com/10682
+    Change-Id: I1d4f433cc64e11bea5f4d61419ccc707ac01bb1d
+    Reviewed-on: https://go-review.googlesource.com/9620
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/build.go  | 24 ++++++++++++++++++++++++
- src/cmd/go/test.bash | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 73 insertions(+)
+ src/text/template/parse/parse.go      | 7 ++++---
+ src/text/template/parse/parse_test.go | 3 +++
+ 2 files changed, 7 insertions(+), 3 deletions(-)

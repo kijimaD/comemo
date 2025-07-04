@@ -1,22 +1,25 @@
-commit 7004be998ba708f027c95615d7885efeb9f73e75
-Author: David Finkel <david.finkel@gmail.com>
-Date:   Sat Apr 18 18:52:05 2020 -0400
+commit f891b7c3425621d0ec3771144182507c90a80cff
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 30 23:52:04 2019 -0400
 
-    cmd/compile: adjust RISCV64 rewrite rules to use typed aux fields
+    cmd/doc: avoid calling token.IsExported on non-tokens
     
-    Also add a typed version of mergeSym to rewrite.go to assist with a few
-    rules that used mergeSym in the untyped-form.
+    token.IsExported expects to be passed a token, and does not check for
+    non-token arguments such as "C:\workdir\go\src\text".
     
-    Remove a few extra int32 overflow checks that no longer make sense, as
-    adding two int8s or int16s should never overflow an int32.
+    While we're at it, clean up a few other parts of the code that
+    are assuming a package path where a directory may be passed instead.
+    There are probably others lurking around here, but I believe this
+    change is sufficient to get past the test failures on the
+    windows-amd64-longtest builder.
     
-    Passes toolstash-check -all.
+    Fixes #35236
     
-    Change-Id: I72ddd2b0d9001faa87ad0ab54f500057164661b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228882
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic79fa035531ca0777f64b1446c2f9237397b1bdf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204442
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  794 +++++++--------
- src/cmd/compile/internal/ssa/rewrite.go        |    9 +
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 1293 ++++++++++++------------
- 3 files changed, 1065 insertions(+), 1031 deletions(-)
+ src/cmd/doc/main.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

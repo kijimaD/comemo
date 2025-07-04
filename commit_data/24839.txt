@@ -1,21 +1,16 @@
-commit f5722a81faec8c4e0dafb93a5f8e2479b033eaed
-Author: Ralph Corderoy <ralph@inputplus.co.uk>
-Date:   Thu Nov 12 13:00:57 2015 +0000
+commit dac87e9ed3544c803f7573227240b7f23b315019
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Sep 3 17:39:20 2015 -0400
 
-    A+C: alter email-address description to cover more than two
+    cmd/compile/internal/gc: allow //go:systemstack only in runtime
     
-    Explictly list the alternative formats in each file.  In AUTHORS, refer
-    to CONTRIBUTORS' definition of multiple email addresses.  Indent with
-    four spaces;  AUTHORS used a tab, but CONTRIBUTORS used four spaces.
-    s/Rietveld/Gerrit/
+    Fixes #12454.
     
-    Change the tab separating Sebastien Binet from his email address,
-    added in 2010's 18b02f6c.
-    
-    Change-Id: Id52228ae6b62dd88ad8098110c22373bf14e068f
-    Reviewed-on: https://go-review.googlesource.com/16826
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6406b0119bc4d6c3d1e6f1896b588b7d101448a3
+    Reviewed-on: https://go-review.googlesource.com/14274
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- AUTHORS      | 10 ++++++----
- CONTRIBUTORS |  9 +++++----
- 2 files changed, 11 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 3 +++
+ 1 file changed, 3 insertions(+)

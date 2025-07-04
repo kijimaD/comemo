@@ -1,19 +1,16 @@
-commit 2d6ee6e89a4b30c7528d2977df4e1aa86651e4e4
-Author: Baokun Lee <nototon@gmail.com>
-Date:   Fri Aug 2 00:31:57 2019 +0800
+commit 40d8c3d3e81769550bcaf96ec0a3e3308abb8862
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Wed Mar 6 03:23:46 2019 +0000
 
-    os: enable the close-on-exec flag for openFdAt
+    internal/poll: fix deadlock in Write if len(buf) > maxRW
     
-    There's a race here with fork/exec, enable the close-on-exec flag
-    for the new file descriptor.
+    fd.l.Lock shouldn't be called in a loop.
     
-    Fixes #33405
-    
-    Change-Id: If95bae97a52b7026a930bb3427e47bae3b0032ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188537
-    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    Change-Id: I3afbc184aa06a60175c9a39319985b5810ecb144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165598
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/removeall_at.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/poll/fd_windows.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

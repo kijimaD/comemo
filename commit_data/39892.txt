@@ -1,21 +1,31 @@
-commit 1dd71645558157f2d4477f21c6e9f18a99b0bc94
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jul 30 14:53:03 2019 -0400
+commit d2cb5b78e0783e142f16dd399339b35be14f8fd9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 28 12:50:47 2019 -0700
 
-    cmd/go/internal/work: include detail in errors from cache operations
+    runtime: fix TestLldbPython in module mode (again)
     
-    Since the cache has been required since Go 1.12, also remove redundant
-    checks for a nil cache.
+    When run with GOPATH=/dev/null, go build fails:
     
-    Updates #29127
-    Updates #29667
+    $ GOPATH=/dev/null go test -run=TestLldbPython -v -count=1 runtime
+    === RUN   TestLldbPython
+    --- FAIL: TestLldbPython (0.21s)
+        runtime-lldb_test.go:169: building source exit status 1
+            go: failed to create cache directory /dev/null/pkg/mod/cache: mkdir /dev/null: not a directory
+    FAIL
+    FAIL    runtime 0.220s
     
-    Change-Id: Ibc59b659306a4eef2d4f0e3d0b651986d6cf84ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188021
+    But run.bash sets GOPATH=/dev/null.
+    
+    Fix this by setting GOPATH to the empty string before passing to 'go build'.
+    
+    Fixes #31100
+    
+    Change-Id: I573c4755d209e0c3eb26c20d4f7870c2961f2782
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169918
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/cache/cache.go | 69 ++++++++++++++++++++++--------
- src/cmd/go/internal/work/exec.go   | 86 +++++++++++++++++---------------------
- 2 files changed, 89 insertions(+), 66 deletions(-)
+ src/runtime/runtime-lldb_test.go | 1 +
+ 1 file changed, 1 insertion(+)

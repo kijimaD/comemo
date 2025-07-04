@@ -1,17 +1,13 @@
-commit 85f62b09413ea043623f7f6905a4d1426908e6a2
-Author: eric fang <eric.fang@arm.com>
-Date:   Tue Mar 2 05:53:49 2021 +0000
+commit 17344d55d61b10f2145a95958ca2796846159dd0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Jul 12 17:15:35 2020 -0400
 
-    cmd/compile: remove 8-byte alignment requirement of stack slot on mips
+    [dev.link] cmd/compile: make GC map symbols content-addressable
     
-    This CL applies CL 267999 to mips.
-    
-    Updates #42385
-    
-    Change-Id: I8096e16c1b4def767b0c20c16add36fa2406bcab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297772
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: eric fang <eric.fang@arm.com>
+    Change-Id: I20e5b580b3e0505473816fe7f277a74e13d33e64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242080
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssagen/pgen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/plive.go   | 1 +
+ src/cmd/compile/internal/gc/reflect.go | 1 +
+ 2 files changed, 2 insertions(+)

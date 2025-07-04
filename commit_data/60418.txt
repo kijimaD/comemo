@@ -1,0 +1,23 @@
+commit 90c6558b6acef5a9b9fb8f3c35cff58423c8b00e
+Author: Zxilly <zxilly@outlook.com>
+Date:   Wed Jul 17 05:34:55 2024 +0000
+
+    internal/bytealg: extend memchr result correctly on wasm
+    
+    The mem address should be regarded as uint32.
+    
+    Fixes #65571
+    
+    Change-Id: Icee38d11f2d93eeca7d50b2e133159e321daeb90
+    GitHub-Last-Rev: c2568b104369bcf5c4d42c6281d235a52bb9675f
+    GitHub-Pull-Request: golang/go#68400
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597955
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/bytes/bytes_js_wasm_test.go       | 21 +++++++++++++++++++++
+ src/internal/bytealg/indexbyte_wasm.s |  4 ++--
+ 2 files changed, 23 insertions(+), 2 deletions(-)

@@ -1,27 +1,27 @@
-commit d57f03730265c4677ab2ec1ad74cf8cbf592f798
-Author: Austin Clements <austin@google.com>
-Date:   Wed Aug 5 11:07:47 2015 -0400
+commit fe15da62f778d0db62104ed8c8a7b31a150f7753
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sun Jun 21 20:21:04 2015 +0200
 
-    runtime: don't recheck heap trigger for periodic GC
+    unicode: upgrade to 8.0.0
     
-    88e945f introduced a non-speculative double check of the heap trigger
-    before actually starting a concurrent GC. This was necessary to fix a
-    race for heap-triggered GC, but broke sysmon-triggered periodic GC,
-    since the heap check will of course fail for periodically triggered
-    GC.
+    Not sure if I'm on time for 1.5; Unicode 8 just got released.
     
-    Fix this by telling startGC whether or not this GC was triggered by
-    heap size or a timer and only doing the heap size double check for GCs
-    triggered by heap size.
+    Straighforward upgrade. Only changed maketables.go to prevent it from adding
+    the Cherokee upper and lower case mappings. This change causes the caseOrbit
+    table to NOT change. Added tests to verify that the relevant functions still
+    produce the correct result, even for Cherokee.
     
-    Fixes #12026.
+    Fixes #11309
     
-    Change-Id: I7c3f6ec364545c36d619f2b4b3bf3b758e3bcbd6
-    Reviewed-on: https://go-review.googlesource.com/13168
+    Change-Id: I42850f5b3399bde125b002efc78eff96dbd86a08
+    Reviewed-on: https://go-review.googlesource.com/11286
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/malloc.go |  2 +-
- src/runtime/mgc.go    | 11 ++++++++---
- src/runtime/mheap.go  |  2 +-
- src/runtime/proc.go   |  2 +-
- 4 files changed, 11 insertions(+), 6 deletions(-)
+ api/except.txt             |   1 +
+ api/next.txt               |   7 +
+ src/strconv/isprint.go     |  89 ++++----
+ src/unicode/letter_test.go |  14 ++
+ src/unicode/maketables.go  |   7 +-
+ src/unicode/script_test.go |  10 +-
+ src/unicode/tables.go      | 524 ++++++++++++++++++++++++++++++---------------
+ 7 files changed, 437 insertions(+), 215 deletions(-)

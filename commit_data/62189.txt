@@ -1,0 +1,26 @@
+commit 072eea9b3b8e3c871707b5661948edd4090fc56a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 9 12:55:33 2024 -0800
+
+    cmd/compile: avoid ifaceeq call if we know the interface is direct
+    
+    We can just use == if the interface is direct.
+    
+    Fixes #70738
+    
+    Change-Id: Ia9a644791a370fec969c04c42d28a9b58f16911f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635435
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 20 +++---
+ src/cmd/compile/internal/ssa/_gen/generic.rules | 21 +++++++
+ src/cmd/compile/internal/ssa/rewrite.go         | 83 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 53 ++++++++++++++++
+ src/cmd/compile/internal/walk/compare.go        |  9 +++
+ src/cmd/internal/obj/link.go                    | 16 +++++
+ test/codegen/ifaces.go                          | 36 +++++++++++
+ 7 files changed, 230 insertions(+), 8 deletions(-)

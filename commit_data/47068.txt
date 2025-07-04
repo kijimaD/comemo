@@ -1,21 +1,17 @@
-commit 51be206114b559f7ea26fe2290f8ed274a2080c3
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Oct 28 01:55:10 2021 +0700
+commit c7f596f919d779dc01a60f876cbd9d8cc2cd70b2
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Nov 21 15:27:00 2020 +0800
 
-    runtime/testdata/testprogcgo: fix TestCgoPanicCallback
+    cmd/go: resolve TODO by replacing InDir() function
     
-    A cgo file with "//export" declarations is not permitted to have function
-    definitions in the cgo comments.
-    
-    Fixes #49188
-    
-    Change-Id: I5c24b62b259871473ee984cea96a0edd7d42d23a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359195
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Idf886bbc4e66c9ee2a41c90034075301e0a21a58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271909
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/runtime/testdata/testprogcgo/panic.c  | 9 +++++++++
- src/runtime/testdata/testprogcgo/panic.go | 8 +-------
- 2 files changed, 10 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/search/search.go |  1 -
+ src/cmd/go/internal/test/test.go     | 17 +++--------------
+ 2 files changed, 3 insertions(+), 15 deletions(-)

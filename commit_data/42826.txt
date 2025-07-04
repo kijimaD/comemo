@@ -1,24 +1,16 @@
-commit 8381408048018aa2b6eec874f3161b4641191522
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Thu Jul 16 21:30:12 2020 -0600
+commit 2edeb23bf5c547078392f1aaedc1a3840c72e3d8
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Wed Nov 13 00:47:41 2019 -0600
 
-    net/http: fix detection of Roundtrippers that always error
+    container/list: remove temporary variable `n`
     
-    CL 220905 added code to identify alternate transports that always error
-    by using http2erringRoundTripper. This does not work when the transport
-    is from another package, e.g., http2.erringRoundTripper.
-    Expose a new method that allow detection of such a RoundTripper.
-    Switch to an interface that is both a RoundTripper and can return the
-    underlying error.
+    The variable `n` for saving the pointer of the next
+    element when insert new element into the list turns
+    out to be unnecessary.
     
-    Fixes #40213
-    
-    Change-Id: I170739857ab9e99dffb5fa55c99b24b23c2f9c54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243258
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I17b85fd8350738815c320a83945525b60c2f04c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207037
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/omithttp2.go | 4 ----
- src/net/http/transport.go | 8 ++++++--
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/container/list/list.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

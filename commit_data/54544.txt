@@ -1,69 +1,19 @@
-commit 6d5c9f2f266aa32e3efb98c8e48350d8306f7d43
-Author: Dominique Lefevre <domingolefevre@gmail.com>
-Date:   Wed Sep 6 15:58:13 2023 +0300
+commit 3aebf682e4928ab490b64b3ba6729c78c9d066ba
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 31 14:58:40 2022 -0400
 
-    reflect: remove broken support for embedding of interfaces from StructOf.
+    cmd/api: skip tests when 'os/exec' is supported but 'go build' is not
     
-    When reviewing https://go-review.googlesource.com/c/go/+/522435,
-    Cherry Mui cherryyz@google.com noticed that the implementation of
-    StructOf was broken, and produced junk if an interface was embedded
-    into a struct. For example, StructOf messed up the calling convention
-    for methods of the embedded interface:
+    This may fix the android-.*-emu builders, which are currently broken.
     
-    > The main problem is that the method wrappers created by reflect.MakeFunc
-    > expects to be called with a closure calling convention, with a closure
-    > context passed in the context register. But methods are called with
-    > a different calling convention, without setting the closure register,
-    > because (besides this case) all methods are top level functions.
-    > So there is no way to pass that makefunc closure context.
+    For #47257.
     
-    It is curious that StructOf did not break in go 1.17 which introduced
-    the regabi. I've tried to run the following example program, and it
-    fails even in 1.7 which introduced StructOf.
-    
-    As the embedding of interfaces has been broken since forever,
-    let us not perpetuate the complexity that this feature brings,
-    and just remove the support for embedding altogether.
-    
-    The test program:
-    
-    package main
-    
-    import (
-            "fmt"
-            "reflect"
-    )
-    
-    type I interface {
-            F()
-    }
-    
-    type T int
-    
-    func (t T) F() { println(t) }
-    
-    func main() {
-            var i I
-            t := reflect.StructOf([]reflect.StructField{
-                    {
-                            Anonymous: true,
-                            Name:      "I",
-                            Type:      reflect.TypeOf(&i).Elem(),
-                    },
-            })
-            v := reflect.New(t).Elem()
-            v.Field(0).Set(reflect.ValueOf(T(42)))
-            fmt.Println(v)
-            v.Interface().(interface{ F() }).F() // fatal error
-    }
-    
-    Change-Id: I7b2115c22d66ea4ed746f0f9d22b2c94f604e185
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526075
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I370dad2cb8031f8f5fdfbeb9c284c4f79f58d929
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446638
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/walk/expr.go | 10 ------
- src/reflect/type.go                   | 62 +++++++----------------------------
- src/reflect/type_test.go              | 24 ++++++++++++++
- 3 files changed, 35 insertions(+), 61 deletions(-)
+ src/cmd/api/goapi_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

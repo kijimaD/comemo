@@ -1,17 +1,34 @@
-commit bb8c2e19a7fe2ca2283eca44dba2047c9f4307fe
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 20:50:11 2016 -0500
+commit f54bcedce19a2c5aed897a8697e65ba037a8f53d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 23 14:15:18 2015 -0400
 
-    net: ensure that malformed domain names report a consistent error
+    runtime: beginning of decentralized off->mark transition
     
-    Previously it depended on whether we were using the Go resolver or the Cgo resolver.
+    This begins the conversion of the centralized GC coordinator to a
+    decentralized state machine by introducing the internal API that
+    triggers the first state transition from _GCoff to _GCmark (or
+    _GCmarktermination).
     
-    Fixes #12421.
+    This change introduces the transition lock, the off->mark transition
+    condition (which is very similar to shouldtriggergc()), and the
+    general structure of a state transition. Since we're doing this
+    conversion in stages, it then falls back to the GC coordinator to
+    actually execute the cycle. We'll start moving logic out of the GC
+    coordinator and in to transition functions next.
     
-    Change-Id: Ib162e336f30f736d7244e29d96651c3be11fc3cd
-    Reviewed-on: https://go-review.googlesource.com/18383
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This fixes a minor bug in gcstoptheworld debug mode where passing the
+    heap trigger once could trigger multiple STW GCs.
+    
+    Updates #11970.
+    
+    Change-Id: I964087dd190a639eb5766398f8e1bbf8b352902f
+    Reviewed-on: https://go-review.googlesource.com/16355
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/net/ip_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
- src/net/lookup.go  | 21 +++++++++++++++++++++
- 2 files changed, 66 insertions(+)
+ src/runtime/malloc.go |   4 +-
+ src/runtime/mgc.go    | 142 +++++++++++++++++++++++++++++++++-----------------
+ src/runtime/mheap.go  |   2 +-
+ src/runtime/proc.go   |   2 +-
+ src/runtime/trace.go  |   2 +-
+ 5 files changed, 98 insertions(+), 54 deletions(-)

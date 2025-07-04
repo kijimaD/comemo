@@ -1,12 +1,25 @@
-commit d36452eb560b4cf42c67be4b59d3f09c9df8d014
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Jun 11 15:12:54 2019 -0400
+commit 675503c507194a48c01a39a0f25a6d0c9d772477
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 30 00:49:33 2019 -0500
 
-    doc: add release notes describing the default mirror and sumdb
+    math/big: add %x float format
     
-    Change-Id: I4923f0726ae0261a7c7b0f85e7433ae0f605c123
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181738
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    big.Float already had %p for printing hex format,
+    but that format normalizes differently from fmt's %x
+    and ignores precision entirely.
+    
+    This CL adds %x to big.Float, matching fmt's behavior:
+    the verb is spelled 'x' not 'p', the mantissa is normalized
+    to [1, 2), and precision is respected.
+    
+    See golang.org/design/19308-number-literals for background.
+    
+    For #29008.
+    
+    Change-Id: I9c1b9612107094856797e5b0b584c556c1914895
+    Reviewed-on: https://go-review.googlesource.com/c/160249
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.13.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/math/big/floatconv_test.go | 229 +++++++++++++++++++++++++----------------
+ src/math/big/ftoa.go           | 102 +++++++++++++++---
+ 2 files changed, 229 insertions(+), 102 deletions(-)

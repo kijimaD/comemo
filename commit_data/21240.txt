@@ -1,12 +1,12 @@
-commit 1a27c07c6fbc8af742ee186f35e1f40c37cb017d
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 13 10:16:30 2015 +1100
+commit 1757b5cc7449a9883687e78f9be010fc1d876e32
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 10 23:29:47 2014 -0800
 
-    go1.5.txt: better checking of struct tags
+    runtime: fix nacl build
     
-    Change-Id: I0e726a2c0fa1231011b183c3e917414d876555d8
-    Reviewed-on: https://go-review.googlesource.com/2700
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ifa8b2d1d1cebe72f795db34974584a888d55cbd8
+    Reviewed-on: https://go-review.googlesource.com/1362
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.5.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/os1_nacl.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

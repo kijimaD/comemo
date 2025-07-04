@@ -1,30 +1,15 @@
-commit d2b5a6f332b011c75c17bfb99216cc51ac7a0b5f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Oct 26 18:12:21 2022 -0400
+commit dc50d69119ca8070dd16fb968b46f21f854d89fb
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 7 14:37:37 2021 -0500
 
-    cmd/trace: only include required frames in splits
+    doc/go1.18: drop TODO for "Changes to the language"
     
-    Though we split traces into 100MB chunks, currently each chunk always
-    includes the entire stack frame map, including frames for all events in
-    the trace file, even if they aren't needed by events in this chunk.
+    For #47694
     
-    This means that if the stack frame JSON alone is >100MB then there is no
-    space at all for events. In that case, we'll generate splits each
-    containing 1 event, which is effectively useless.
-    
-    Handle this more efficiently by only including stack frames referenced
-    by events in the chunk. Each marginal events only adds at most a few
-    dozen stack frames, so it should now longer be possible to only include
-    a tiny number of events.
-    
-    Fixes #56444.
-    
-    Change-Id: I58aa8f271c32678028b72d82df16e6ea762ebb39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445895
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I142776001eecb451e8722163cfd3f2ecb0ecf35c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369980
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/trace/trace.go | 177 ++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 147 insertions(+), 30 deletions(-)
+ doc/go1.18.html | 4 ----
+ 1 file changed, 4 deletions(-)

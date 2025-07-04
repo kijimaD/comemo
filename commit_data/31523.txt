@@ -1,19 +1,19 @@
-commit 86f5f7fdfae8ce24e1a47b326d9a1eee88a55248
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 28 10:32:31 2017 -0700
+commit 417f49a363e7dbd01e91c79fc4f13c03681c2cc8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 18 13:58:59 2017 -0800
 
-    spec: clarify unsafe.Pointer conversions
+    cmd/compile: fold (NegNN (ConstNN ...))
     
-    A pointer type of underlying type unsafe.Pointer can be used in
-    unsafe conversions. Document unfortunate status quo.
+    Fix up and enable a few rules.
+    They trigger a handful of times in std,
+    despite the frontend handling.
     
-    Fixes #19306.
-    
-    Change-Id: I28172508a200561f8df366bbf2c2807ef3b48c97
-    Reviewed-on: https://go-review.googlesource.com/42132
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I83378c057cbbc95a4f2b58cd8c36aec0e9dc547f
+    Reviewed-on: https://go-review.googlesource.com/37227
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 13 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 98 ++++++++++++++++++++++++++
+ 2 files changed, 104 insertions(+), 7 deletions(-)

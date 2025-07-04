@@ -1,14 +1,29 @@
-commit 7b166cd73c0c3d5dfa69d996a5c7d5a2f6fd2436
-Author: Adam Langley <agl@golang.org>
-Date:   Sat Feb 19 10:41:57 2011 -0500
+commit 8a8ecda54a14bc67e6f0df223b55c8037fc5951b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Feb 19 10:49:46 2011 +1100
 
-    crypto/openpgp/packet: comment typo fix.
+    build: reduce the use of subshells in recursive make
     
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/4178065
+    Using make -C $* rather than (cd $* ; make) results in a small,
+    but measurable improvement in build times where compilation is
+    not the major component. eg.
+    
+    before - ~/go/src/pkg$ time make
+            real    0m1.176s
+            user    0m0.639s
+            sys     0m0.399s
+    after - ~/go/src/pkg$ time make
+            real    0m0.916s
+            user    0m0.571s
+            sys     0m0.243s
+    
+    There are other places in the distribution src/make.common for example
+    that could also benefit from this change.
+    
+    R=adg
+    CC=golang-dev, rsc
+    https://golang.org/cl/4174055
 
- src/pkg/crypto/openpgp/packet/encrypted_key.go | 4 ++--
- src/pkg/crypto/openpgp/packet/literal.go       | 4 ++--
- src/pkg/crypto/openpgp/packet/packet.go        | 2 +-
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/Make.common  |  2 +-
+ src/pkg/Makefile | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

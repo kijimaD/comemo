@@ -1,12 +1,12 @@
-commit 3975b9910ce64d1bb00031c7d137dcdae069cbc1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sun May 22 11:55:02 2011 +1000
+commit 6dced6d992b30e50f562a8efec1b99986834b140
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sun May 22 09:23:22 2011 +1000
 
-    flag: fix build
+    crypto/x509: fix incorrect prints found by govet
     
-    R=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4543064
+    https://golang.org/cl/4526073
 
- src/pkg/flag/flag.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/x509/x509_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

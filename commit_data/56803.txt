@@ -1,26 +1,20 @@
-commit a85b8810c49515c469d265c399febfa48442a983
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Jun 12 14:41:32 2024 +0000
+commit 85e84a49e45df6523d10da485ac5dd0ef7b74926
+Author: Sebastiaan van Stijn <github@gone.nl>
+Date:   Mon Nov 14 20:29:26 2022 +0000
 
-    cmd/go: fix problems with coverage percentage reporting w/ -coverpkg
+    crypto/tls: remove unused nonAESGCMAEADCiphers variable
     
-    This patch resolves a set of problems with "percent covered" metrics
-    reported when the "-coverpkg" is in effect; these bugs were introduced
-    in Go 1.22 with the rollout of CL 495452 and related changes.
-    Specifically, for runs with multiple packages selected but without
-    -coverpkg, "percent covered" metrics were generated for package P not
-    based just on P's statements but on the entire corpus of statements.
+    It was no longer used since CL 314609
     
-    Fixes #65570.
-    
-    Change-Id: I38d61886cb46ebd38d8c4313c326d671197c3568
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592205
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Id103b7490a6088a589d76442d3740f8a1453c25d
+    GitHub-Last-Rev: 20a7fe0778fbfcfd789a194456e87dd4a60b655e
+    GitHub-Pull-Request: golang/go#56608
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448277
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/load/test.go                   | 17 ++++++
- .../testdata/script/cover_single_vs_multiple.txt   | 63 ++++++++++++++++++++++
- src/internal/coverage/cfile/testsupport.go         |  4 +-
- src/internal/coverage/cfile/ts_test.go             |  4 +-
- src/testing/internal/testdeps/deps.go              |  5 +-
- 5 files changed, 87 insertions(+), 6 deletions(-)
+ src/crypto/tls/cipher_suites.go | 8 --------
+ 1 file changed, 8 deletions(-)

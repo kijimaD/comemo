@@ -1,21 +1,21 @@
-commit c3931ab1b7bceddc56479d7ddbd7517d244bfe17
-Author: ian woolf <btw515wolf2@gmail.com>
-Date:   Sat Apr 10 15:41:13 2021 +0800
+commit 492258549717d4e73a22170c507fb26a731c4aba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 6 16:31:00 2020 -0700
 
-    net/http/httptest: panic on non-3 digit (XXX) status code in Recorder.WriteHeader
+    syscall: rewrite Windows makeCmdLine to use []byte
     
-    This change conforms Recorder with net/http servers, to panic
-    when a handler writes a non-3 digit XXX status code.
+    It's faster to append to a []byte and only convert to string at the
+    end then it is to build up a string by concatenating characters.
     
-    Fixes #45353
+    Fixes #41825
     
-    Change-Id: Id5ed4af652e8c150ae86bf50402b800d935e2203
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308950
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I45ddf77dcc62726c919f0533c95d483cee8ba366
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259978
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/net/http/httptest/recorder.go      | 19 +++++++++++++++++++
- src/net/http/httptest/recorder_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 44 insertions(+)
+ src/syscall/exec_windows.go | 73 ++++++++++++++++++++++++++-------------------
+ 1 file changed, 43 insertions(+), 30 deletions(-)

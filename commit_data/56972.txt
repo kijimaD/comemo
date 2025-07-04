@@ -1,17 +1,16 @@
-commit deed521ea3daf42cb9c8388ae48fe57f17e252f5
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Jul 24 15:22:09 2024 +0700
+commit 587c1c191adb8a069beed925b9c402a7e8e4d871
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 5 10:33:50 2023 +0200
 
-    go/internal/gcimporter: cleanup test code pre Unified IR
+    doc/go1.21: fix link in debug/elf section
     
-    Same as CL 543315 did for cmd/compile.
-    
-    Change-Id: I56a200664c92fe34d4b78c2dbf6ed56288e89e0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600675
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ief3e263e6c11069abbbf4dd8ce10c317e3a1cab2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500815
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/go/internal/gcimporter/gcimporter_test.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

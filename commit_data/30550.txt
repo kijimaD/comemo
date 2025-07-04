@@ -1,18 +1,16 @@
-commit 7c84dc79fdd1e26fc117e170ada81444694e6bed
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 6 10:51:37 2017 -0800
+commit fabb4115ed311ec4af19f87c2334e38497dbb8d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 10:11:19 2016 -0500
 
-    cmd/internal/obj, cmd/link: bump magic string to go19ld
+    time: update Timer.Stop doc to account for AfterFunc
     
-    golang.org/cl/37231 changed the object file format, but forgot to bump
-    the version string.
+    Fixes #17600.
     
-    Change-Id: I8351ec8ed55e65479006e7c0df20254d0e31015f
-    Reviewed-on: https://go-review.googlesource.com/37798
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7aa0eb0dd959da031b6039b51f07db668d4fb468
+    Reviewed-on: https://go-review.googlesource.com/33131
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Gudger <igudger@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/objfile.go     | 8 ++++----
- src/cmd/link/internal/ld/objfile.go | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/time/sleep.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

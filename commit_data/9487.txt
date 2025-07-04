@@ -1,12 +1,15 @@
-commit 948418f16a59a27238c066dc3ca4b86124fc9346
-Author: Bill Neubauer <wcn@golang.org>
-Date:   Thu Aug 25 12:25:19 2011 -0400
+commit 0227c45edec55aa05c8546f06edf24530241aee5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 25 09:26:13 2011 -0400
 
-    template: Grammar fix for template documentation.
+    gc: fix some spurious leaks
     
-    R=golang-dev, rsc
+    Probably will spark some discussion.  ☺
+    
+    R=lvd
     CC=golang-dev
-    https://golang.org/cl/4944043
+    https://golang.org/cl/4948041
 
- src/pkg/template/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/esc.c | 143 ++++++++++++++++++++++---------------------------------
+ test/escape2.go  |  86 +++++++++++++++++++++++++++++++++
+ 2 files changed, 144 insertions(+), 85 deletions(-)

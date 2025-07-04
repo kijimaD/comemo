@@ -1,17 +1,24 @@
-commit acce8268b611613bef4c422a861bd4863e85b0f1
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Dec 27 08:33:45 2017 -0500
+commit f2a5ed852bbde6c1bd21e3a716d6b8c834332015
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 14 11:36:21 2017 -0400
 
-    cmd/vendor/golang.org/x/arch: revendor at commit 98fd8d9
+    cmd/cgo: use a named type to indicate syntactic context
     
-    Pick up CL 85476 to fix #23237.
+    We previously used bare strings, which made it difficult to see (and
+    to cross-reference) the set of allowed context values.
     
-    Updates #23237.
+    This change is purely cosmetic, but makes it easier for me to
+    understand how to address #21878.
     
-    Change-Id: I31a48ef39ce90bc1424334762452281ae706d273
-    Reviewed-on: https://go-review.googlesource.com/85495
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    updates #21878
+    
+    Change-Id: I9027d94fd5997a0fe857c0055dea8719e1511f03
+    Reviewed-on: https://go-review.googlesource.com/63830
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../x/arch/arm64/arm64asm/objdumpext_test.go           |  8 ++++++++
- src/cmd/vendor/vendor.json                             | 18 ++++++++++++------
- 2 files changed, 20 insertions(+), 6 deletions(-)
+ src/cmd/cgo/ast.go  | 210 +++++++++++++++++++++++++++++-----------------------
+ src/cmd/cgo/gcc.go  |  18 ++---
+ src/cmd/cgo/main.go |   4 +-
+ 3 files changed, 127 insertions(+), 105 deletions(-)

@@ -1,16 +1,12 @@
-commit a93e5b4ff9449abff05a4882bf8ea86ad506b2bf
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 16 01:49:47 2015 +0000
+commit 5dbe071cb5e696597ee87bb9db56a5028f1d2112
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 5 17:02:09 2015 +1000
 
-    Revert "runtime: diagnose invalid pointers during GC"
+    database/sql: refer correct issue in TestErrBadConnReconnect comment
     
-    Broke arm64. Update #9880.
-    
-    This reverts commit 38d9b2a3a942892193195a6912ab23cdaff23e20.
-    
-    Change-Id: I35fa21005af2183828a9d8b195ebcfbe45ec5138
-    Reviewed-on: https://go-review.googlesource.com/12247
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I283ab238b60d3a47e86296e1fbfc73ba121bef19
+    Reviewed-on: https://go-review.googlesource.com/10745
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mbitmap.go | 2 +-
+ src/database/sql/sql_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,25 @@
-commit b138b19d2f7d99c462bf53b0dcc1ee98884630ab
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Dec 13 13:20:01 2023 -0800
+commit 2de406bb9e26df19a31b5f6111bb221b60964d48
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Feb 20 00:42:27 2023 -0800
 
-    cmd/compile: use symbolic offsets of fields in internal/abi.ITab
+    encoding/json: use append for HTMLEscape
     
-    After this CL, we can reorder or pad internal/abi.ITab fields at will
-    (keeping Fun last, and updating ITabTypeOff correctly) without
-    breaking anything.
+    Use append for HTMLEscape similar to Indent and Compact.
+    Move it to indent.go alongside Compact, as it shares similar logic.
+    In a future CL, we will modify appendCompact to be written in terms
+    of appendHTMLEscape, but we need to first move the JSON decoder logic
+    out of the main loop of appendCompact.
     
-    Change-Id: Ib7bb5828519813e0d1aa36be5092f96fcd62b3be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549516
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I131c64cd53d5d2b4ca798b37349aeefe17b418c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471198
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
 
- src/cmd/compile/internal/ssagen/ssa.go  | 15 ++++++++-------
- src/cmd/compile/internal/walk/switch.go |  2 +-
- src/cmd/compile/internal/walk/walk.go   |  5 +++--
- src/internal/abi/iface.go               |  3 ---
- 4 files changed, 12 insertions(+), 13 deletions(-)
+ src/encoding/json/encode.go | 46 ++++-----------------------------------------
+ src/encoding/json/indent.go | 30 +++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 42 deletions(-)

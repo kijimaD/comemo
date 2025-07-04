@@ -1,18 +1,15 @@
-commit 4bba6729f85a3f99fcb05d8e5cc2e180bc9d4a90
-Author: Andrew Bonventre <andybons@gmail.com>
-Date:   Fri Jun 19 13:29:58 2015 -0400
+commit 40fad6c286ca57317e94aeca50b75fa3444ca1fa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 14 16:47:53 2015 -0700
 
-    image/gif: set default loop count to 0 when app ext. is not present
+    go/parser: better error message for missing ',' in lists
     
-    It was otherwise not being preserved across
-    specific Decode->Encode->Decode calls.
+    Fixes #8940.
     
-    Fixes #11287
-    
-    Change-Id: I40602da7fa39ec67403bed52ff403f361c6171bb
-    Reviewed-on: https://go-review.googlesource.com/11256
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: Ie9e5149983518ba8d56ddd82ac8f4cde6b644167
+    Reviewed-on: https://go-review.googlesource.com/10089
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/image/gif/reader.go      |  1 -
- src/image/gif/reader_test.go | 21 +++++++++++++++++++++
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ src/go/parser/parser.go     | 21 ++++++++++++---------
+ src/go/parser/short_test.go |  5 +++--
+ 2 files changed, 15 insertions(+), 11 deletions(-)

@@ -1,12 +1,20 @@
-commit d6bbcea22a3d4cbcf8350b4b861f0d73ab142ac2
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue May 19 18:25:22 2015 -0400
+commit b075d1fc2eaacde75261969372fb3275ef694668
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Mon Apr 13 13:21:00 2015 +0300
 
-    cmd/go: fix build
+    encoding/base64: Optimize EncodeToString and DecodeString.
     
-    Change-Id: Ib6c121414c74f8a40eb87a52af8737502ce7216d
-    Reviewed-on: https://go-review.googlesource.com/10265
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkEncodeToString     31281         23821         -23.85%
+    BenchmarkDecodeString       156508        82254         -47.44%
+    
+    benchmark                   old MB/s     new MB/s     speedup
+    BenchmarkEncodeToString     261.88       343.89       1.31x
+    BenchmarkDecodeString       69.80        132.81       1.90x
+    
+    Change-Id: I115e0b18c3a6d5ef6bfdcb3f637644f02f290907
+    Reviewed-on: https://go-review.googlesource.com/8808
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/go/fmt.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/encoding/base64/base64.go | 155 ++++++++++++++++++++++--------------------
+ 1 file changed, 83 insertions(+), 72 deletions(-)

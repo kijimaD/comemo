@@ -1,21 +1,29 @@
-commit 82bc0d4e80870f25805029ef0e1e844ace7bf068
-Author: David Glasser <glasser@meteor.com>
-Date:   Thu Aug 4 16:49:05 2016 -0700
+commit 9dee7771f561cf6aee081c0af6658cc81fac3918
+Author: Vishvananda Ishaya <vishvananda@gmail.com>
+Date:   Tue Feb 16 17:58:11 2016 -0800
 
-    math/rand: document that NewSource sources race
+    net: allow netgo to use lookup from nsswitch.conf
     
-    While it was previously explicitly documented that "the default Source"
-    is safe for concurrent use, a careless reader can interpret that as
-    meaning "the implementation of the Source interface created by functions
-    in this package" rather than "the default shared Source used by
-    top-level functions". Be explicit that the Source returned by NewSource
-    is not safe for use by multiple goroutines.
+    Change https://golang.org/cl/8945 allowed Go to use its own DNS resolver
+    instead of libc in a number of cases. The code parses nsswitch.conf and
+    attempts to resolve things in the same order. Unfortunately, builds with
+    netgo completely ignore this parsing and always search via
+    hostLookupFilesDNS.
     
-    Fixes #3611.
+    This commit modifies the logic to allow binaries built with netgo to
+    parse nsswitch.conf and attempt to resolve using the order specified
+    there. If the parsing results in hostLookupCGo, it falls back to the
+    original hostLookupFilesDNS. Tests are also added to ensure that both
+    the parsing and the fallback work properly.
     
-    Change-Id: Iae4bc04c3887ad6e2491e36e38feda40324022c5
-    Reviewed-on: https://go-review.googlesource.com/25501
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #14354
+    
+    Change-Id: Ib079ad03d7036a4ec57f18352a15ba55d933f261
+    Reviewed-on: https://go-review.googlesource.com/19523
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/math/rand/rand.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/conf.go      | 31 ++++++++++++++++---------------
+ src/net/conf_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 15 deletions(-)

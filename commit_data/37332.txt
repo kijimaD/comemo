@@ -1,37 +1,14 @@
-commit 6dd70fc5e391eb7a47be5eb6353107f38b73f161
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Oct 11 12:46:14 2018 +0200
+commit 407eb30f9f237fb8d8d352bec37f89409e6e5e1a
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Wed Jul 18 16:26:13 2018 -0400
 
-    all: add support for synchronous callbacks to js/wasm
+    doc/go1.11: update runtime/trace to use region instead of span
     
-    With this change, callbacks returned by syscall/js.NewCallback
-    get executed synchronously. This is necessary for the APIs of
-    many JavaScript libraries.
+    The final API uses 'region' instead of 'span' from the proposal.
     
-    A callback triggered during a call from Go to JavaScript gets executed
-    on the same goroutine. A callback triggered by JavaScript's event loop
-    gets executed on an extra goroutine.
-    
-    Fixes #26045
-    Fixes #27441
-    
-    Change-Id: I591b9e85ab851cef0c746c18eba95fb02ea9e85b
-    Reviewed-on: https://go-review.googlesource.com/c/142004
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I305da891a360596fff89b10bc6de3090289b5396
+    Reviewed-on: https://go-review.googlesource.com/124815
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/wasm/wasm_exec.js               |  82 ++++++++++++-----------
- src/cmd/internal/obj/wasm/a.out.go   |   2 +-
- src/cmd/internal/obj/wasm/wasmobj.go |  24 +++----
- src/cmd/link/internal/wasm/asm.go    |  28 ++++----
- src/net/http/roundtrip_js.go         |  21 ++++--
- src/runtime/lock_futex.go            |   2 +-
- src/runtime/lock_js.go               |  67 ++++++++++++-------
- src/runtime/lock_sema.go             |   2 +-
- src/runtime/proc.go                  |   8 +--
- src/runtime/rt0_js_wasm.s            | 122 ++++++++++++++++++++---------------
- src/syscall/fs_js.go                 |   5 +-
- src/syscall/js/callback.go           | 116 ++++++++++++---------------------
- src/syscall/js/js_test.go            |  44 ++++++-------
- 13 files changed, 270 insertions(+), 253 deletions(-)
+ doc/go1.11.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

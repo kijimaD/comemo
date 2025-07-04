@@ -1,18 +1,18 @@
-commit 2f170520aa460561997636dec66f303ee69ab684
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 31 15:42:17 2017 -0400
+commit 629b5e7561ab10cb11b47e3818dd861f8a030a26
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Mar 10 20:55:51 2017 +0100
 
-    cmd/link: do not store compilation directory in DWARF info
+    fmt: add ascii fast path for decoding verbs
     
-    This makes 'go install cmd/compile' in one directory produce
-    a different binary from running it in another directory,
-    which is problematic for reproducible builds.
+    name                    old time/op  new time/op  delta
+    SprintfSlowParsingPath   108ns ± 4%   103ns ± 4%  -4.53%  (p=0.000 n=18+18)
     
-    Change-Id: If26685d2e45d2695413b472142b49694716575fa
-    Reviewed-on: https://go-review.googlesource.com/74790
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I174463f303d1857e8d5b8a6283c025b3546e7b39
+    Reviewed-on: https://go-review.googlesource.com/44450
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/fmt/fmt_test.go | 8 ++++++++
+ src/fmt/print.go    | 7 +++++--
+ 2 files changed, 13 insertions(+), 2 deletions(-)

@@ -1,13 +1,12 @@
-commit 2b3d6cb5e6c8ecf6b9f7917ed84b22c94f7c906d
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Wed Mar 21 16:42:04 2012 -0700
+commit f5f80368c4be5f477a46fb40d455b97890efda7c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 21 14:55:05 2012 -0700
 
-    doc: fix typo in The Laws of Reflection article
+    exp/norm/normalize.go: fix typo
     
-    R=golang-dev, gri, r
+    R=golang-dev, r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5876047
+    https://golang.org/cl/5874045
 
- doc/articles/laws_of_reflection.html | 2 +-
- doc/progs/interface2.go              | 7 +++++++
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/exp/norm/normalize.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

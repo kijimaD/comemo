@@ -1,22 +1,24 @@
-commit 507a44dc228a3817e7007f292a404fe6c9f66315
-Author: Jason7602 <jansonzhe@gmail.com>
-Date:   Mon Nov 1 23:27:45 2021 +0800
+commit 9b85985d36a7cc7117e9c14bc1d2632844a5a818
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Jul 9 16:27:22 2021 -0700
 
-    sync: remove the redundant logic on sync.(*Pool).Put
+    [dev.typeparams] Separate out gcshape types that are instantiated types
     
-    When the procUnpin is placed after shared.pushHead, there is
-    no need for x as a flag to indicate the previous process.
+    Distinguish the gcshape of all top-level instantiated type from normal
+    concrete types, even if they have the exact same underlying "shape",
+    because in a function instantiation, any method call on this type arg
+    will be a generic method call (requiring a dictionary), rather than a
+    direct method call on the underlying type (no dictionary).
     
-    This CL can make the logic clear, and at the same time reduce
-    a redundant judgment.
+    So, we add the instshape prefix to the gcshape name for instantiated
+    types, and we make it a defined type with that name.
     
-    Change-Id: I34ec9ba4cb5b5dbdf13a8f158b90481fed248cf5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360059
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I33056269d24f3451a2632a5ce6a481108f533c9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335169
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/sync/pool.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 28 +++++++++++++++++++++++++++-
+ 1 file changed, 27 insertions(+), 1 deletion(-)

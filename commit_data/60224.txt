@@ -1,0 +1,31 @@
+commit e6b8b2f3e236e8646962c68e172c304e11e9a8f0
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Wed May 29 16:39:34 2024 +0000
+
+    Revert "runtime: improve runtime-internal mutex profile tests"
+    
+    This reverts commit f9ba2cff2286d378eca28c841bea8488c69fc30e (CL 586237)
+    
+    Reason for revert: This is part of a patch series that changed the
+    handling of contended lock2/unlock2 calls, reducing the maximum
+    throughput of contended runtime.mutex values, and causing a performance
+    regression on applications where that is (or became) the bottleneck.
+    
+    This test verifies that the semantics of the mutex profile for
+    runtime.mutex values matches that of sync.Mutex values. Without the rest
+    of the patch series, this test would correctly identify that Go 1.22's
+    semantics are incorrect (issue #66999).
+    
+    Updates #66999
+    Updates #67585
+    
+    Change-Id: Id06ae01d7bc91c94054c80d273e6530cb2d59d10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589096
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/export_test.go  |   2 -
+ src/runtime/metrics_test.go | 175 ++++++++------------------------------------
+ 2 files changed, 29 insertions(+), 148 deletions(-)

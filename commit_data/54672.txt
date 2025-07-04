@@ -1,21 +1,29 @@
-commit 7c446bab6331b0d9b0bcb0264d001ff01044a234
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Oct 10 19:56:41 2023 +0000
+commit a7538d78214920b798a1914a2a789ae833d6f1e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 8 14:21:27 2022 -0500
 
-    Revert "cmd/link/internal/ld: assign temporary addresses to per-package text"
+    net: fix res_search uses on alpine, android, dragonfly
     
-    This reverts commit http://go.dev/cl/349650
+    On Android and Dragonfly, don't use -lresolv. It doesn't exist there.
     
-    Reason for revert: CL breaks multiple builders with failure in TestLargeTextSectionSplitting
+    On Linux, use res_search instead of res_nsearch.
+    glibc makes res_search thread-safe by having a per-thread __res.
+    It still also provides res_nsearch.
+    musl makes res_search thread-safe by ignoring __res completely.
+    It does not provide res_nsearch at all.
+    Changing to res_search on Linux will fix builds on musl-based systems
+    while keeping glibc-based systems working.
     
-    Change-Id: I4894ffd101b2757a6e6359212d5b8a64da1fcdf0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534299
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Fixes #56657.
+    Fixes #56660.
+    
+    Change-Id: Id87dde6c8bbf6c0d34543c09782f3871489c8712
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448797
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/data.go    | 87 +++++++++++--------------------------
- src/cmd/link/internal/ld/ld_test.go | 68 -----------------------------
- 2 files changed, 25 insertions(+), 130 deletions(-)
+ src/net/cgo_unix_cgo_res.go  | 4 ++--
+ src/net/cgo_unix_cgo_resn.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

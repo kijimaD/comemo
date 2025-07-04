@@ -1,20 +1,27 @@
-commit f3ae7ac9d90a26e9bba1589ae934e62bf0ac17e0
-Author: cui fliter <imcusg@gmail.com>
-Date:   Wed Nov 16 22:45:54 2022 +0800
+commit 1a8b4e05b1ff7a52c6d40fad73bcad612168d094
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 16 12:55:15 2021 -0800
 
-    os: use testenv.Command instead of exec.Command in tests
+    cmd/compile: unique LinkString for renamed, embedded fields
     
-    testenv.Command sets a default timeout based on the test's deadline
-    and sends SIGQUIT (where supported) in case of a hang.
+    Using type aliases, it's possible to create structs with embedded
+    fields that have no corresponding type literal notation. However, we
+    still need to generate a unique name for these types to use for linker
+    symbols. This CL introduces a new "struct{ Name = Type }" syntax for
+    use in LinkString formatting to represent these types.
     
-    Change-Id: I32ea9ca11c30d8af3d5490f2db1674314962cc80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451195
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reattempt at CL 372914, which was rolled back due to race-y
+    LocalPkg.Lookup call that isn't safe for concurrency.
+    
+    Fixes #50190.
+    
+    Change-Id: I0b7fd81e1b0b3199a6afcffde96ade42495ad8d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378434
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/executable_test.go |  4 ++--
- src/os/os_test.go         | 10 +++++-----
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types/fmt.go | 45 +++++++++++++++++++++++++++++++++--
+ test/fixedbugs/issue50190.go          | 31 ++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 2 deletions(-)

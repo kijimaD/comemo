@@ -1,23 +1,22 @@
-commit 0cc8ee980886a00387c9b5514c0e3fa44c5c1113
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Sun Apr 22 16:19:21 2012 +1000
+commit cad480440d4d826de6384d136e3c2e0072cb34b8
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Apr 21 13:56:51 2012 +0200
 
-    exp/html: add more cases to inBodyIM
+    strconv: 2x-4x speed improvement for atof64.
     
-    Don't set framesetOK to false for hidden input elements.
+    benchmark                      old ns/op    new ns/op    delta
+    BenchmarkAtof64Decimal               344           71  -79.22%
+    BenchmarkAtof64Float                 397           90  -77.15%
+    BenchmarkAtof64FloatExp              445          241  -45.84%
+    BenchmarkAtof64Big                   731          324  -55.68%
+    BenchmarkAtof64RandomBits            761          453  -40.47%
+    BenchmarkAtof64RandomFloats          690          314  -54.49%
     
-    Handle <param>, <source>, <track>, <textarea>, <iframe>, <noembed>,
-    and <noscript>
-    
-    Pass 7 additional tests.
-    
-    R=nigeltao
-    CC=golang-dev
-    https://golang.org/cl/6094045
+    R=dave, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5988053
 
- src/pkg/exp/html/parse.go                          | 59 +++++++++++++++++++---
- .../exp/html/testlogs/pending-spec-changes.dat.log |  2 +-
- src/pkg/exp/html/testlogs/tests19.dat.log          |  4 +-
- src/pkg/exp/html/testlogs/tests25.dat.log          |  6 +--
- src/pkg/exp/html/testlogs/webkit01.dat.log         |  2 +-
- 5 files changed, 58 insertions(+), 15 deletions(-)
+ src/pkg/strconv/atof.go         | 236 ++++++++++++++++++++++++++++------------
+ src/pkg/strconv/extfloat.go     |  19 ++--
+ src/pkg/strconv/strconv_test.go |  10 ++
+ 3 files changed, 183 insertions(+), 82 deletions(-)

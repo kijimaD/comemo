@@ -1,21 +1,18 @@
-commit 55589e7531c7e576a26f5610241a278caf6e4a4e
-Author: Mark Pulford <mark@kyne.com.au>
-Date:   Sat Jan 22 16:03:28 2022 +1030
+commit 617a83ec68b7657b0185a6b190f04460de30f31e
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Apr 20 23:25:12 2021 -0400
 
-    cmd/go: fix retrieving Mercurial commit timestamp under Windows
+    go/types: re-enable a commented out test
     
-    Use "hgdate" since the strftime filter is unsupported by Mercurial under
-    Windows.
+    This test was unnecessarily commented out in CL 312190: re-enable it and
+    update its assertions.
     
-    Fixes #49841
-    
-    Change-Id: I300898e51e324147aaf1bfe12ed17dea4bdd183d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380077
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic08563e25c9b05a8e35d67690f5d27a761133266
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312097
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/vcs/vcs.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/go/types/fixedbugs/issue39634.go2 | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

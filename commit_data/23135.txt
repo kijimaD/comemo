@@ -1,16 +1,13 @@
-commit 714291f2d80bab1599a866f266a4fc6546e61632
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun May 24 11:29:38 2015 -0700
+commit 33e0f3d853f871d849cd8e3b30a31b91d00bb209
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 27 15:42:45 2015 -0400
 
-    cmd/link/internal/ld: if -v, display external linker output
+    runtime: fix some out of date comments and typos
     
-    It can be useful when debugging to be able to see what the external
-    linker is doing even when it succeeds.  In particular this permits
-    passing -v to the external linker to see precisely what it is doing.
-    
-    Change-Id: Ifed441912d97bbebea20303fdb899e140b380215
-    Reviewed-on: https://go-review.googlesource.com/10363
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I061057414c722c5a0f03c709528afc8554114db6
+    Reviewed-on: https://go-review.googlesource.com/9367
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/mgcmark.go | 3 +--
+ src/runtime/proc1.go   | 2 +-
+ 2 files changed, 2 insertions(+), 3 deletions(-)

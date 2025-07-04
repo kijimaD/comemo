@@ -1,20 +1,20 @@
-commit 94e22fa03eb5eb678689e05b8e309cd23f874698
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Dec 1 13:48:22 2021 -0500
+commit e985245cd520cabe4bd3d99058d1089aac50cf45
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 2 14:36:36 2021 -0700
 
-    doc/go1.18: add Conn.NetConn documentation to crypto/tls section
+    net: make ErrClosed and ParseError implement net.Error
     
-    Updates #47694
+    Fixes #45357
     
-    Change-Id: Iead44baa8b2a06ecf7b92d343ed9117f0fc0793e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368315
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Change-Id: Iafd41fff232a89be4c88d4b1d66bc3c04d888bcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307030
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/go1.18.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/internal/poll/fd.go | 19 +++++++++++++++----
+ src/net/net.go          |  5 ++++-
+ src/net/net_test.go     | 20 ++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 5 deletions(-)

@@ -1,28 +1,20 @@
-commit 7ed50cfd09ba3d51c673fc782c6ad2b715a46bc2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 7 09:18:11 2022 -0500
+commit a3aed62512dd5b5239762e8c93a79122a2849a7d
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Feb 9 11:48:31 2022 -0500
 
-    os/user: fix buffer retry loop on macOS
+    doc/go1.18: update Go 1.18 release note TODOs using relnote
     
-    getpwnam_r and friends return the errno as the result,
-    not in the global errno. The code changes in CL 449316
-    inadvertently started using the global errno.
-    So if a lookup didn't fit in the first buffer size,
-    it was treated as not found instead of growing the buffer.
+    For #47694.
     
-    Fixes #56942.
-    
-    Change-Id: Ic5904fbeb31161bccd858e5adb987e919fb3e9d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455815
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I5f6850e171f574a5342671778df854dc68a5148f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384554
+    Trust: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    Trust: Alex Rakoczy <alex@golang.org>
+    Run-TryBot: Alex Rakoczy <alex@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/internal/syscall/unix/user_darwin.go | 20 ++++++++++++--------
- src/os/user/cgo_lookup_unix.go           |  2 +-
- src/os/user/lookup_plan9.go              |  7 +++++++
- src/os/user/lookup_stubs.go              |  7 +++++++
- src/os/user/lookup_windows.go            |  7 +++++++
- src/os/user/user_test.go                 | 10 ++++++++++
- 6 files changed, 44 insertions(+), 9 deletions(-)
+ doc/go1.18.html | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)

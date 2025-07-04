@@ -1,17 +1,43 @@
-commit 1f9f7db2bf7087e82102d5984a8eca9208d1caf3
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Tue Apr 20 00:24:51 2021 +0800
+commit b730a26729ec8c00c3e31e564f9b5cf8b1deb580
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 3 19:33:01 2021 -0700
 
-    runtime: remove useless constant definition in malloc.go
+    [dev.typeparams] cmd/compile: put shape types in their own package
     
-    Change-Id: I060c867d89a06b5a44fbe77804c19299385802d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311250
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Put shape types in the top level package called ".shape".
+    Name them using the serialization of the shape name, instead of
+    the .shapeN names.
+    
+    This allows the linker to deduplicate instantiations across packages.
+    
+    Not sure that this is entirely correct, as shapes in this package
+    may reference other packages (e.g. a field of a struct). But it seems
+    to work for now.
+    
+    For the added test, when you look at the resulting binary (use the -k
+    option with run.go) it has only one instantiation of F, and 4 call sites:
+    
+    $ objdump -d a.exe | grep _a\.F
+     1053cb0:       e8 8b 00 00 00  callq   139 <_a.F[.shape.*uint8]>
+     1053ce9:       e8 52 00 00 00  callq   82 <_a.F[.shape.*uint8]>
+    _a.F[.shape.*uint8]:
+     1053d90:       e8 ab ff ff ff  callq   -85 <_a.F[.shape.*uint8]>
+     1053dc9:       e8 72 ff ff ff  callq   -142 <_a.F[.shape.*uint8]>
+    
+    Change-Id: I627f7e50210aabe4a10d0e2717d87b75ac82e99b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339595
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/runtime/malloc.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  7 ++++++-
+ src/cmd/compile/internal/typecheck/subr.go      |  7 +++----
+ test/typeparam/dedup.dir/a.go                   | 10 ++++++++++
+ test/typeparam/dedup.dir/b.go                   | 14 ++++++++++++++
+ test/typeparam/dedup.dir/c.go                   | 14 ++++++++++++++
+ test/typeparam/dedup.dir/main.go                | 15 +++++++++++++++
+ test/typeparam/dedup.go                         | 12 ++++++++++++
+ test/typeparam/dedup.out                        |  4 ++++
+ 8 files changed, 78 insertions(+), 5 deletions(-)

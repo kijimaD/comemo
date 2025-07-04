@@ -1,0 +1,18 @@
+commit 80964338a522ece87a52e723242f9dd79caf8e63
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon May 20 10:44:43 2024 -0400
+
+    cmd/dist: set GOPROXY=off when GOPATH is set to be in GOROOT
+    
+    Avoid downloading modules into a modcache in the GOROOT directory. That
+    creates read only files in GOROOT, which is undesirable.
+    
+    Fixes #67463
+    
+    Change-Id: I6d10c605be5eba967648d823ee8fc915716b4b5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586078
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/dist/build.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,15 +1,16 @@
-commit 464257eeffedcf2c9e04fd8c47edc1f1fc491b62
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 15 17:08:07 2013 -0700
+commit 861aa4698ada865ab402b47e6c201da8f4e567b3
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Mar 16 00:37:28 2013 +0100
 
-    bytes,string: move the BUG to the comment of the function it's about
-    Avoids printing it every time we ask a question about the package from
-    the command line.
+    cmd/gc: missing type inference for untyped complex() calls.
     
-    R=golang-dev, bradfitz
+    Fixes #5014.
+    
+    R=golang-dev, r, rsc, daniel.morsing
     CC=golang-dev
-    https://golang.org/cl/7789048
+    https://golang.org/cl/7664043
 
- src/pkg/bytes/bytes.go     | 4 ++--
- src/pkg/strings/strings.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/gc/const.c     | 26 ++++++++++++++++++++++++++
+ src/cmd/gc/typecheck.c |  6 ++++--
+ test/shift1.go         | 12 ++++++++++++
+ 3 files changed, 42 insertions(+), 2 deletions(-)

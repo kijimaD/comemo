@@ -1,21 +1,16 @@
-commit c5f3a8b10797258cf527601a44bfdfa63d5ef1a7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 11 15:09:38 2018 -0800
+commit 93f1aac246ac93dbd929b0e5e49bcc65f1dd3b57
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Dec 21 10:58:12 2016 -0500
 
-    go/parser: more robust error handling for 'if' headers
+    cmd/vet: in rangeloop check, inspect for loop variables too
     
-    R=go1.11
+    + Test.
     
-    To fix this, this CL borrows code from the new syntax
-    package which has a better tuned parser at this point.
-    
-    Fixes #11377.
-    
-    Change-Id: Ib9212c945903d6f62abcc59ef5a5767d4ef36981
-    Reviewed-on: https://go-review.googlesource.com/87495
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I42eaea1c716217f7945c008ff4bde6de14df5687
+    Reviewed-on: https://go-review.googlesource.com/34619
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/parser/parser.go               | 90 +++++++++++++++++++++++++----------
- src/go/parser/short_test.go           | 10 ++--
- src/go/parser/testdata/issue11377.src | 27 +++++++++++
- 3 files changed, 98 insertions(+), 29 deletions(-)
+ src/cmd/vet/main.go               |  3 ++
+ src/cmd/vet/rangeloop.go          | 61 +++++++++++++++++++++++++++++----------
+ src/cmd/vet/testdata/rangeloop.go | 38 +++++++++++++++++++-----
+ 3 files changed, 79 insertions(+), 23 deletions(-)

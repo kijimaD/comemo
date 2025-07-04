@@ -1,20 +1,19 @@
-commit d60a684c87104ed7836403eab74eb2be1e4a97cb
-Author: Zxilly <zxilly@outlook.com>
-Date:   Wed Apr 9 12:17:21 2025 +0000
+commit 58911599e8dc25898c3017dd6655540fb9b976b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:01 2024 -0500
 
-    cmd/internal/obj/wasm: use i64 for large return addr
+    runtime: use timer.lock in cleantimers
     
-    Use i64 to avoid overflow when getting PC_F from the return addr.
+    Continue using timer.lock to simplify timer operations.
     
-    Fixes #73246
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
     
-    Change-Id: I5683dccf7eada4b8536edf53e2e83116a2f6d943
-    GitHub-Last-Rev: 267d9a1a031868430d0af530de14229ee1ae8609
-    GitHub-Pull-Request: golang/go#73277
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663995
+    Change-Id: Ic12fd2630e8ac23cddd00fa7e3240a1ac19da596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564126
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/obj/wasm/wasmobj.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/runtime/time.go | 44 ++++++++++++++++++++++----------------------
+ 1 file changed, 22 insertions(+), 22 deletions(-)

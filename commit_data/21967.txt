@@ -1,24 +1,12 @@
-commit 339300926774c9e4868a04d1362c98b19706c7d1
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 3 20:57:10 2015 -0500
+commit 61c9c3ddc4f972cef41aad8e78bdc1746d5c5a4a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Feb 14 21:29:37 2015 -0800
 
-    debug/dwarf: add support for line tables
+    math/big: implement fast path in Float.SetRat if argument is integer
     
-    This implements a LineReader for line tables that parallels the
-    existing Reader for debug entries.
-    
-    This code is partly based on the debug subrepo's fork of dwarf, but it
-    is a more complete (and, I believe, correct) implementation of the
-    spec and exposes a more general API.  While the debug subrepo's
-    implementation exposed only a PC-to-line function, this version
-    exposes the line table rows to the caller.  This way the caller can
-    make its own trade-offs when implementing PC-to-line (or line-to-PC),
-    such as whether or not to build an index for fast lookup.
-    
-    Change-Id: Ie157bc817f55e940b6f2e1ae010c5a4e1f29c5c8
-    Reviewed-on: https://go-review.googlesource.com/6734
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: Ib82500e198b86e9fade278c7eea7a4b0c6b0b2e1
+    Reviewed-on: https://go-review.googlesource.com/4921
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/debug/dwarf/const.go |  28 +++
- src/debug/dwarf/line.go  | 597 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 625 insertions(+)
+ src/math/big/float.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

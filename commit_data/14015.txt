@@ -1,14 +1,13 @@
-commit dfa139aaa0ec9bfb2b23a66a315a88f757fdbea7
-Author: Rob Pike <r@golang.org>
-Date:   Thu Oct 4 11:49:33 2012 +1000
+commit e7f453148c22789660ad064107ffa7e2541ae740
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 4 11:21:37 2012 +1000
 
-    src/run.bat: add new flag for api tool
-    Fixes build.
-    Makes me annoyed.
+    godoc: show contents in correct order, expand sections on click
     
-    R=golang-dev, dsymonds
-    CC=golang-dev
-    https://golang.org/cl/6591074
+    R=dsymonds
+    CC=gobot, golang-dev
+    https://golang.org/cl/6588079
 
- src/run.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/godocs.js          | 2 ++
+ lib/godoc/package.html | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

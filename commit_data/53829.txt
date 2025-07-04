@@ -1,28 +1,23 @@
-commit 845fff35c6c37186936eb34c5a08b1a99483d9b8
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Thu Jul 27 23:11:59 2023 +0000
+commit 40ced0c00b04a5b9832bb5b47c995c82854f26ae
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Aug 27 10:44:25 2022 +0800
 
-    archive/zip: add AddFS method to zip Writer
+    internal/poll: drop redundant ENOSYS and EXDEV error checks in CopyFileRange()
     
-    The method AddFS can be used to add the contents of a fs.FS filesystem
-    to a zip archive.
-    This method walks the directory tree starting at the root of the filesystem
-    and adds each file to the archive.
+    The initial CL 229101 didn't limit the kernel version, but relies on error checking to
+    ensure the kernel version >= 4.5 or >= 5.3 when it's calling copy_file_range(2) to copy data across file systems.
     
-    Fixes #54898
+    Since we have now put the kernel version checking at the beginning of the function, introduced by CL 268338,
+    which returns early instead of going forward to the code behind when the kernel verion is older than 5.3,
+    therefore, those subsequent related error checks are no longer needed.
     
-    Change-Id: I80511cbd91a1d7e09ee52d2d1b09fb5eed25f45f
-    GitHub-Last-Rev: 1e17f2e6bae60cf5168d687dd1357ab58a883675
-    GitHub-Pull-Request: golang/go#61602
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513438
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ifc4a530723e21f0bde91d6420cde9cb676081922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425881
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- api/next/54898.txt             |  1 +
- src/archive/zip/writer.go      | 36 +++++++++++++++++++++++++++++++++
- src/archive/zip/writer_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 83 insertions(+)
+ src/internal/poll/copy_file_range_linux.go | 31 ++++++++----------------------
+ 1 file changed, 8 insertions(+), 23 deletions(-)

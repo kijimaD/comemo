@@ -1,38 +1,20 @@
-commit 6c6a8fb702fcf3c2d23dc68976a831b2bdcad03e
+commit 830e63a7a330577bfb51404f38beb1b47ceae6b6
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Feb 18 16:10:27 2022 +0100
+Date:   Sat May 1 15:36:34 2021 +0200
 
-    syscall: remove accept on Linux
+    syscall: add //go:build lines to assembly files
     
-    accept is no longer used on Linux since CL 346849 changed Accept to use
-    accept4 only.
-    
-    For #45964
-    
-    Change-Id: I72c13df1457016c4785ec13d356ab89cbca644b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386415
+    Change-Id: Ie296af523d70def269f9fb2ae35dfd2893abb2d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315275
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/syscall_linux_386.go       |  8 --------
- src/syscall/syscall_linux_amd64.go     |  1 -
- src/syscall/syscall_linux_arm.go       |  1 -
- src/syscall/syscall_linux_arm64.go     |  1 -
- src/syscall/syscall_linux_mips64x.go   |  1 -
- src/syscall/syscall_linux_mipsx.go     |  1 -
- src/syscall/syscall_linux_ppc64x.go    |  1 -
- src/syscall/syscall_linux_riscv64.go   |  1 -
- src/syscall/syscall_linux_s390x.go     |  8 --------
- src/syscall/zsyscall_linux_amd64.go    | 11 -----------
- src/syscall/zsyscall_linux_arm.go      | 11 -----------
- src/syscall/zsyscall_linux_arm64.go    | 11 -----------
- src/syscall/zsyscall_linux_mips.go     | 11 -----------
- src/syscall/zsyscall_linux_mips64.go   | 11 -----------
- src/syscall/zsyscall_linux_mips64le.go | 11 -----------
- src/syscall/zsyscall_linux_mipsle.go   | 11 -----------
- src/syscall/zsyscall_linux_ppc64.go    | 11 -----------
- src/syscall/zsyscall_linux_ppc64le.go  | 11 -----------
- src/syscall/zsyscall_linux_riscv64.go  | 11 -----------
- 19 files changed, 133 deletions(-)
+ src/syscall/asm9_unix1_amd64.s  | 5 +++--
+ src/syscall/asm9_unix2_amd64.s  | 5 +++--
+ src/syscall/asm_linux_mips64x.s | 1 +
+ src/syscall/asm_linux_mipsx.s   | 1 +
+ src/syscall/asm_linux_ppc64x.s  | 1 +
+ src/syscall/asm_unix_386.s      | 5 +++--
+ src/syscall/asm_unix_amd64.s    | 5 +++--
+ 7 files changed, 15 insertions(+), 8 deletions(-)

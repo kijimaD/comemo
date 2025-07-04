@@ -1,18 +1,18 @@
-commit 3ebd9523bb0dcb975a34ec402f23eee07e81562f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 15 10:36:17 2019 -0700
+commit 4a8ce14af9941e3efbeb88b564bde76cc0b2e121
+Author: haormj <haormj@gmail.com>
+Date:   Wed Nov 21 12:18:56 2018 +0000
 
-    os: don't treat RemoveAll("/x") as RemoveAll("x")
+    net/http: fix spelling mistake in a comment
     
-    Fixes #31468
+    Fixes #28904
     
-    Change-Id: I5c4e61631b8af35bfc14b0cb9bc77feec100e340
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172058
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8d416c47479a266735a39c926fd2f0f2bb25d57b
+    GitHub-Last-Rev: 3a7865a5be27937833cf4f65c242c639e51665c4
+    GitHub-Pull-Request: golang/go#28907
+    Reviewed-on: https://go-review.googlesource.com/c/150737
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/export_unix_test.go |  9 +++++++++
- src/os/os_unix_test.go     | 25 +++++++++++++++++++++++++
- src/os/path_unix.go        | 18 ++++++++++++++----
- 3 files changed, 48 insertions(+), 4 deletions(-)
+ src/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

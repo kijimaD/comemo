@@ -1,25 +1,24 @@
-commit 42023d6f529239680773eab5343eedf641e78bb3
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Mar 29 05:10:45 2023 +0800
+commit 09a838ad86880150f4e297f7b2dec7c7d116623b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 23 13:07:32 2022 -0700
 
-    runtime: save/fetch g register during VDSO on linux/loong64
+    [dev.unified] cmd/compile: rename haveRType and implicitExpr
     
-    Like arm64, ppc64 and risv64, on loong64, the G register may be temporarily
-    broken during a VDSO call. If a signal is received during a VDSO call, an
-    invalid G may be obtained.
+    This CL renames:
     
-    See #34391.
+    1. "haveRType" to "hasRType", suggested by drchase@ during review of
+    CL 413358; and
     
-    Change-Id: Iaffa8cce4f0ef8ef74225c355ec3c20ed238025f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426355
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    2. "implicitExpr" to "implicitConvExpr", suggested by khr@ during
+    review of CL 413396.
+    
+    Change-Id: Ibb4deae20908d960706640991ea44d1b9c0b9e3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413854
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: WANG Xuerui <git@xen0n.name>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/signal_unix.go      |  2 +-
- src/runtime/sys_linux_loong64.s | 44 +++++++++++++++++++++++++++++++++++++----
- 2 files changed, 41 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/noder/writer.go        | 20 +++++++++----------
+ src/cmd/compile/internal/reflectdata/helpers.go | 26 ++++++++++++-------------
+ 2 files changed, 23 insertions(+), 23 deletions(-)

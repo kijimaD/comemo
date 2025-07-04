@@ -1,19 +1,17 @@
-commit e509bbc943e817317e4db04b48f2895bec712c2f
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Mar 7 16:02:25 2014 +1100
+commit 22c668a810ac31b83d70e9f430000a94627215b2
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 7 13:24:14 2014 +1100
 
-    cmd/6a: add support for nacl/amd64p32
+    encoding/gob: document that Decode returns EOF at EOF
     
-    Replaces CL 70000043.
+    Just commentary describing existing behavior, no code changes.
     
-    Switch to the amd64p32 linker model if we are building under nacl/amd64p32.
+    Fixes #7033.
     
-    No need to introduce linkarchinit() as 6a contains its own main() function.
-    
-    LGTM=rsc
-    R=rsc, minux.ma
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/72020043
+    https://golang.org/cl/71860043
 
- src/cmd/6a/lex.c | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ src/pkg/encoding/gob/decoder.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

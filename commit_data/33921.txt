@@ -1,13 +1,22 @@
-commit 92b142a653afb8bd43bc172b08f667591c89ff3e
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Sat Dec 16 09:35:52 2017 -0400
+commit 0a48185b4383fac8d260112efa261112f3d41ee2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Aug 31 22:02:37 2017 -0400
 
-    crypto/tls: document VerifyPeerCertificate behavior in relation to ClientAuth
+    reflect: fix pointer past-the-end in Call with zero-sized return value
     
-    Change-Id: I3ff478912a5a178492d544d2f4ee9cc7570d9acc
-    Reviewed-on: https://go-review.googlesource.com/84475
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    If a function with nonzero frame but zero-sized return value is
+    Call'd, we may write a past-the-end pointer in preparing the
+    return Values. Fix by return the zero value for zero-sized
+    return value.
+    
+    Fixes #21717.
+    
+    Change-Id: I5351cd86d898467170a888b4c3fc9392f0e7aa3b
+    Reviewed-on: https://go-review.googlesource.com/60811
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/tls/common.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/reflect/all_test.go | 25 +++++++++++++++++++++++++
+ src/reflect/value.go    | 10 ++++++++--
+ 2 files changed, 33 insertions(+), 2 deletions(-)

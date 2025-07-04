@@ -1,12 +1,31 @@
-commit 334761a666ec22855091904f0f9c5a80fffb8e38
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Aug 1 12:05:05 2013 -0700
+commit b99fa8155514d4a5dad366dde9be8ae76333e6a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 1 12:58:27 2013 -0400
 
-    net/http: document that Error is to be used with plain text
+    cmd/ld: report pclntab, funcdata sizes in 6l -v output
+    Also move chatty recent additions to -v -v.
     
-    R=golang-dev, bradfitz
+    For what it's worth:
+    
+    $ go build -o /dev/null -ldflags -v cmd/go
+    ...
+     0.87 pclntab=1110836 bytes, funcdata total 69700 bytes
+    ...
+    $
+    
+    This broke the ELF builds last time because I tried to dedup
+    the funcdata in case the same funcdata was pointed at by
+    multiple functions. That doesn't currently happen, so I've
+    removed that test.
+    
+    If we start doing bitmap coalescing we'll need to figure out
+    how to measure the size more carefully, but I think at that
+    point the bitmaps will be an extra indirection away from the
+    funcdata anyway, so the dedup I used before wouldn't help.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/12276043
+    https://golang.org/cl/12269043
 
- src/pkg/net/http/server.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/ld/lib.c | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

@@ -1,19 +1,48 @@
-commit d40e7bb1744507be421b80c19372b9411c9856b4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 1 12:58:20 2022 -0800
+commit 791854700db17ad11f75a61176967e35196714ed
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 3 02:19:20 2021 -0400
 
-    internal/pkgbits: add version number
+    all: update x/net to pull in CL 316129
     
-    Especially once this code gets copied into x/tools, we need a way to
-    evolve the file format, so add an explicit version number.
+    As a side effect, this also upgrades x/sys to the version currently
+    required by the latest x/net.
     
-    Change-Id: I9cc2e357c3ca3f07fd8d0c0ba4e4a95f89edeac6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388914
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Because x/net is now lazy, it no longer requires checksums for
+    older-than-selected versions of x/sys, x/term, and x/text.
+    
+    For #36460
+    Updates #36905
+    
+    Change-Id: I242815e202aa7d482fc3983a6717bece10ea8111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316251
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/internal/pkgbits/decoder.go | 4 ++++
- src/internal/pkgbits/encoder.go | 2 ++
- 2 files changed, 6 insertions(+)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   3 +-
+ .../golang.org/x/sys/unix/fcntl_linux_32bit.go     |   4 +-
+ .../vendor/golang.org/x/sys/unix/ioctl_linux.go    | 196 +++++
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |  11 +
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  | 176 +----
+ .../golang.org/x/sys/unix/syscall_linux_ppc.go     | 272 +++++++
+ .../golang.org/x/sys/unix/zerrors_linux_ppc.go     | 860 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/zerrors_zos_s390x.go     |   6 +
+ .../golang.org/x/sys/unix/zsyscall_linux_ppc.go    | 762 ++++++++++++++++++
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc.go     | 433 +++++++++++
+ .../golang.org/x/sys/unix/ztypes_darwin_386.go     |   7 +
+ .../golang.org/x/sys/unix/ztypes_darwin_amd64.go   |   7 +
+ .../golang.org/x/sys/unix/ztypes_darwin_arm.go     |   7 +
+ .../golang.org/x/sys/unix/ztypes_darwin_arm64.go   |   7 +
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |  15 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc.go      | 627 +++++++++++++++
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/go.mod                                         |   6 +-
+ src/go.sum                                         |  16 +-
+ .../golang.org/x/net/http/httpguts/httplex.go      |  10 +-
+ src/vendor/golang.org/x/net/idna/idna10.0.0.go     | 113 ++-
+ src/vendor/golang.org/x/net/idna/idna9.0.0.go      |  93 ++-
+ src/vendor/golang.org/x/net/route/route.go         |  35 +-
+ src/vendor/modules.txt                             |   8 +-
+ 25 files changed, 3406 insertions(+), 272 deletions(-)

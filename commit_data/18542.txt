@@ -1,13 +1,16 @@
-commit a1aee55bd17b79edc66a865c02d170ed6296288d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 17 06:04:31 2014 +0400
+commit 9ed095bc593bd8f05b22c901975c14dca20ea7d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 15 20:03:41 2014 -0500
 
-    net/http: close body in benchmarks
-    Is it required? Why don't we do it?
+    build: disable race detector test in run.bat on windows
     
-    R=bradfitz
+    CL 64170043 disabled it in run.bash for Unix systems.
+    I did not realize Windows systems also ran the race detector test.
+    
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/61150043
+    https://golang.org/cl/64480043
 
- src/pkg/net/http/serve_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/run.bash | 3 ++-
+ src/run.bat  | 6 +++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

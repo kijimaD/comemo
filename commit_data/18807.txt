@@ -1,15 +1,13 @@
-commit a594f7ddd719eaf5b610bd8ed34662ed43585761
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Mar 8 07:34:40 2014 +0900
+commit 849ee73f67da1cfff446bd0585326d3fe2925249
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 7 23:17:44 2014 +0100
 
-    runtime: fix futexsleep test on freebsd/386
+    runtime: add missing nacl build tag for lock_sema.c
     
-    Fixes #7194.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=dave
+    R=rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/72310043
+    https://golang.org/cl/72240045
 
- src/pkg/runtime/futex_test.go | 69 +++++++++++++++++++++++++++++++++----------
- 1 file changed, 53 insertions(+), 16 deletions(-)
+ src/pkg/runtime/lock_sema.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

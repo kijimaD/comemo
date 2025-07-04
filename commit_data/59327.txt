@@ -1,34 +1,22 @@
-commit 930cf59ba8091bfd56c71357085bc7de74daf421
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 8 11:27:07 2025 -0500
+commit 566e08fc649cb8c65d2a9f0f362ce76d79e0fc4d
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Mar 4 12:07:50 2024 +0000
 
-    regexp/syntax: recognize category aliases like \p{Letter}
+    cmd/compile/internal: use reflectdata.TypeLinksym
     
-    The Unicode specification defines aliases for some of the general
-    category names. For example the category "L" has alias "Letter".
+    As the document of Sym.Linksym said, we replace
+    reflectdata.TypeSym(t).Linksym() with reflectdata.TypeLinksym(t).
     
-    The regexp package supports \p{L} but not \p{Letter}, because there
-    was nothing in the Unicode tables that lets regexp know about Letter.
-    Now that package unicode provides CategoryAliases (see #70780),
-    we can use it to provide \p{Letter} as well.
-    
-    This is the only feature missing from making package regexp suitable
-    for use in a JSON-API Schema implementation. (The official test suite
-    includes usage of aliases like \p{Letter} instead of \p{L}.)
-    
-    For better conformity with Unicode TR18, also accept case-insensitive
-    matches for names and ignore underscores, hyphens, and spaces;
-    and add Any, ASCII, and Assigned.
-    
-    Fixes #70781.
-    
-    Change-Id: I50ff024d99255338fa8d92663881acb47f1e92a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641377
+    Change-Id: I578eb159e552e60cd05d2aa1560f91797a6629ef
+    GitHub-Last-Rev: d096cba8f08506d7c5248dbf0179e5aef77e8f65
+    GitHub-Pull-Request: golang/go#66088
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568715
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/next/6-stdlib/99-minor/regexp/syntax/70781.md |   4 +
- src/regexp/syntax/doc.go                          |   3 +-
- src/regexp/syntax/parse.go                        | 109 ++++++++++++++++++++--
- src/regexp/syntax/parse_test.go                   |   6 ++
- 4 files changed, 113 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/walk/expr.go   | 2 +-
+ src/cmd/compile/internal/walk/switch.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

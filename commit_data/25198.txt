@@ -1,14 +1,16 @@
-commit 1be2ddda9a372de052ba3428128085152b2e9044
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 8 14:09:59 2015 -0500
+commit 7c43975aceebcac6813696787d3b0fa19c83e74d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Oct 3 21:54:15 2015 -0400
 
-    encoding/json: document Indent's preservation of trailing spaces
+    cmd/compile/internal/big: fix unused result from testing/quick.Check
     
-    Fixes #13520.
+    Update #12834.
     
-    Change-Id: Ia70cc44be3912167b369d7f74d3436331975c300
-    Reviewed-on: https://go-review.googlesource.com/17561
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If7bbcc249517f2f2d8a7dcbba6411ede92331abe
+    Reviewed-on: https://go-review.googlesource.com/15381
+    Reviewed-by: Damian Gryski <dgryski@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/indent.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/big/int_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,12 +1,15 @@
-commit dc331e656501cdb3f244582ec347549b22c9288e
-Author: Ken Thompson <ken@golang.org>
-Date:   Tue Feb 8 16:55:59 2011 -0800
+commit 0122a667b65eec420e17ef58509ef57864157b61
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Feb 8 14:51:15 2011 -0800
 
-    peep: more optimization
+    go spec: fix a few typos
     
-    R=r
+    The spec can now be parsed with an
+    xml.Parser using the HTML settings.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4149044
+    https://golang.org/cl/4155042
 
- src/cmd/5g/peep.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

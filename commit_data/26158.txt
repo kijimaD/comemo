@@ -1,27 +1,16 @@
-commit 9323de3da79d240b8223f74bd8ddd0d55dab8070
-Author: Brady Catherman <brady@gmail.com>
-Date:   Fri Feb 5 14:16:31 2016 -0700
+commit d6a203ecabe5965c55f036c8c0479bdcd2a51683
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 18 14:21:41 2015 -0800
 
-    testing: implement 'Unordered Output' in Examples.
+    cmd/compile: const name and label name may match
     
-    Adds a type of output to Examples that allows tests to have unordered
-    output. This is intended to help clarify when the output of a command
-    will produce a fixed return, but that return might not be in an constant
-    order.
+    Fixes #13684.
     
-    Examples where this is useful would be documenting the rand.Perm()
-    call, or perhaps the (os.File).Readdir(), both of which can not guarantee
-    order, but can guarantee the elements of the output.
-    
-    Fixes #10149
-    
-    Change-Id: Iaf0cf1580b686afebd79718ed67ea744f5ed9fc5
-    Reviewed-on: https://go-review.googlesource.com/19280
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I3977119b6eb1d6b7dc2ea1e7d6656a8f0d421bc1
+    Reviewed-on: https://go-review.googlesource.com/18060
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/alldocs.go         | 22 ++++++++++++++++++----
- src/cmd/go/test.go            | 40 ++++++++++++++++++++++++++++------------
- src/go/doc/example.go         | 30 ++++++++++++++++++------------
- src/math/rand/example_test.go | 10 ++++++++++
- src/testing/example.go        | 26 +++++++++++++++++++++-----
- 5 files changed, 95 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/gc/parser.go |  4 ++--
+ test/fixedbugs/issue13684.go          | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 2 deletions(-)

@@ -1,17 +1,38 @@
-commit 93b8995594457a6984382b81fd9d4033c039bd78
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Mar 8 11:30:16 2023 +0100
+commit ab9d31da9e088a271e656120a3d99cd3b1103ab6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 19 15:11:37 2022 +1000
 
-    os: correct func name in WriteFile godoc comment
+    cmd/go/internal/test: wrap os.Stdout always
     
-    Change-Id: Ideb70ce04f49ff676c20c2e1f0b43f1d7a6665dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474355
-    Reviewed-by: Rob Pike <r@golang.org>
+    There is an issue where 'go test' will hang after the tests complete if
+    a test starts a sub-process that does not exit (see #24050).
+    
+    However, go test only exhibits that behavior when a package name is
+    explicitly passed as an argument. If 'go test' is invoked without any
+    package arguments then the package in the working directory is assumed,
+    however in that case (and only that case) os.Stdout is used as the test
+    process's cmd.Stdout, which does *not* cause 'go test' wait for the
+    sub-process to exit (see #23019).
+    
+    This change wraps os.Stdout in an io.Writer struct in this case, hiding
+    the *os.File from the os/exec package, causing cmd.Wait to always wait
+    for the full output from the test process and any of its sub-processes.
+    
+    In other words, this makes 'go test' exhibit the same behavior as
+    'go test .' (or 'go test ./...' and so on).
+    
+    Update #23019
+    Update #24050
+    
+    Change-Id: Ica09bf156f3b017f9a31aad91ed0f16a7837195b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400877
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    Auto-Submit: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/os/file.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/test/test.go                |  6 ++++-
+ src/cmd/go/testdata/script/test_output_wait.txt | 35 +++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)

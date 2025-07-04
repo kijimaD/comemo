@@ -1,19 +1,20 @@
-commit 97300640ca510f1db2c38bdf48e9e82ee4bae983
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Jun 8 02:56:23 2012 +0800
+commit f51390b23cb94614ed8ba6b7a89b396c27c80511
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 7 12:37:50 2012 -0400
 
-    test/bench/shoutout: fix compliation
-    -lm must come after the source file, versions of gcc insist this strict order.
-    On standard compliant systems, we no longer need malloc.h for malloc.
-    Use pkg-config(1) to get correct glib cflags and libs.
-    Fix compiler warning in threadring.c and k-nucleotide.c.
+    cmd/cgo: make Go code order deterministic
     
-    R=golang-dev, rsc
+    The type declarations were being generated using
+    a range over a map, which meant that successive
+    runs produced different orders. This will make sure
+    successive runs produce the same files.
+    
+    Fixes #3707.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6198076
+    https://golang.org/cl/6300062
 
- test/bench/shootout/binary-tree.c  | 1 -
- test/bench/shootout/k-nucleotide.c | 2 +-
- test/bench/shootout/threadring.c   | 5 +++--
- test/bench/shootout/timing.sh      | 4 ++--
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/cgo/main.go | 16 ++++++++++++----
+ src/cmd/cgo/out.go  | 12 ++++++++----
+ 2 files changed, 20 insertions(+), 8 deletions(-)

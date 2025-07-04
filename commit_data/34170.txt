@@ -1,24 +1,19 @@
-commit 7d7af6106f7ce7fb112f754cd1d991c74552247c
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Tue Jan 23 14:10:08 2018 -0500
+commit cb3b34520985a2d1a6797f00b9e4529271212bdd
+Author: Peter Wu <pwu@cloudflare.com>
+Date:   Wed Oct 4 13:44:34 2017 +0100
 
-    cmd/compile/internal: decouple scope tracking from location lists
+    crypto/tls: fix first byte test for 255 CBC padding bytes
     
-    We're trying to enable location lists by default, and it's easier to do
-    that if we don't have to worry about scope tracking at the same time.
-    We can evaluate their performance impact separately.
+    The BadCBCPadding255 test from bogo failed because at most 255 trailing
+    bytes were checked, but for a padding of 255 there are 255 padding bytes
+    plus 1 length byte with value 255.
     
-    However, that does mean that "err" is ambiguous in the test case, so
-    rename it to err2 for now.
-    
-    Change-Id: I24f119016185c52b7d9affc74207f6a5b450fb6f
-    Reviewed-on: https://go-review.googlesource.com/89355
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: I7dd237c013d2c7c8599067246e31b7ba93106cf7
+    Reviewed-on: https://go-review.googlesource.com/68070
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/main.go                |  2 +-
- .../internal/ssa/testdata/hist.gdb-dbg.nexts       | 36 +++++++--------
- .../internal/ssa/testdata/hist.gdb-opt.nexts       | 54 +++++++++++-----------
- src/cmd/compile/internal/ssa/testdata/hist.go      |  6 +--
- 4 files changed, 49 insertions(+), 49 deletions(-)
+ src/crypto/tls/conn.go      |  7 ++++---
+ src/crypto/tls/conn_test.go | 12 ++++++++++++
+ 2 files changed, 16 insertions(+), 3 deletions(-)

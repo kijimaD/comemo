@@ -1,13 +1,14 @@
-commit 83445fdcc3639fc102c11aa1820d592a8615cc86
+commit b36f2db12a3b12ef1a9134ac070bb7571dcf84f9
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jun 10 09:17:46 2013 +0400
+Date:   Sun Jun 9 21:58:35 2013 +0400
 
-    runtime: use persistentalloc instead of mallocgc in symtab
+    runtime: use persistentalloc instead of mallocgc for itab
     Reduces heap size.
     
-    R=golang-dev, khr
+    R=golang-dev, remyoudompheng, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10140043
+    https://golang.org/cl/10139043
 
- src/pkg/runtime/symtab.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/runtime/iface.c   | 2 +-
+ src/pkg/runtime/runtime.h | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

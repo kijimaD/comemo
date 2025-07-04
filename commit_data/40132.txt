@@ -1,33 +1,18 @@
-commit c8e7c53b40023c92c9d7fa6beb1ca4223bd461ae
-Author: David Chase <drchase@google.com>
-Date:   Mon Sep 30 15:16:54 2019 -0400
+commit 059f2d4a467465183820710df43a234f02d9c255
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Apr 19 15:41:38 2019 +0300
 
-    cmd/compile: preserve statement mark in rematerialized values
+    os: disable the use of netpoll on directories as well on *BSDs
     
-    Statement markers on rematerializable values were getting lost in
-    register allocation.  This checks for that case (rematerializable
-    input and using value share line number, but mark is on the input)
-    and preserves the mark.
+    Follow up CL 156379.
     
-    When combined with other CLs in this series, this CL reduces the
-    "nostmt" count (a line appears in the assembly, but no statement
-    marker) for cmd/go from 413 to 277.  The rematerialized input is
-    usually a LEAQ (on AMD64).
+    Updates #19093
     
-    The cause is "complicated"; for example, a NilCheck originally has the
-    statement mark (a good thing, if the NilCheck  remains) but the
-    NilCheck is removed and the mark floats to a Block end, then to a
-    SliceMake.  The SliceMake decomposes and goes dead without preserving
-    its marker (its component values are elided in other rewrites and may
-    target inputs with different line numbers), but before deadcode
-    removes it from the graph it moves the mark to an input, which at that
-    time happens to be a LocalAddr. This eventually transforms to a LEAQ.
-    
-    Change-Id: Iff91fc2a934357fb59ec46ac87b4a9b1057d9160
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198480
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I5ea3177fc5911d3af71cbb32584249e419e9d4a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172937
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/value.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/os/file_unix.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

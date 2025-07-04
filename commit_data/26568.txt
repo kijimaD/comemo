@@ -1,15 +1,14 @@
-commit bf5f24b98e64fe6e6a580c4309a13e0596f3021b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 28 21:28:54 2016 -0700
+commit 77b4c8d9af0bfad762db7bb9bbc1793c5a233acd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 8 21:10:18 2016 +0000
 
-    cmd/compile: use t.Key() instead of t.Down
+    runtime: fix comment
     
-    This was the only unconverted instance.
+    Fixes #14259
     
-    Change-Id: Ic0ba75824614fcd1e055316e62e26acd06801dd1
-    Reviewed-on: https://go-review.googlesource.com/21247
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I23fedec0eb85ae28e56bc24539bc864674856130
+    Reviewed-on: https://go-review.googlesource.com/19318
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 2 +-
+ src/runtime/time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

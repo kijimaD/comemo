@@ -1,24 +1,12 @@
-commit d9d3debee5fef63e2cec74937c452001c9e1bbcc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 25 09:53:57 2013 -0400
+commit c0a4ce52c604829f9b2b320a54bf0c41057c78ca
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jul 25 19:29:20 2013 +0900
 
-    cmd/cgo: gccgo fixes
+    net: simplify probeIPv6Stack
     
-    Don't require a full-scale callback for calls to the special
-    prologue functions.
-    
-    Always use a simple wrapper function for C functions, so that
-    we can handle static functions defined in the import "C"
-    comment.
-    
-    Disable a test that relies on gc-specific function names.
-    
-    Fixes #5905.
-    
-    R=golang-dev, rsc
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/11406047
+    https://golang.org/cl/11807043
 
- misc/cgo/test/callback.go |  4 +++
- src/cmd/cgo/out.go        | 68 ++++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 66 insertions(+), 6 deletions(-)
+ src/pkg/net/ipsock_posix.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

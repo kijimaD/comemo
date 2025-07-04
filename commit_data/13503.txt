@@ -1,22 +1,18 @@
-commit a7c74d52dc49a6b6e448e301165a76bf3fb0a3c7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 26 17:09:11 2012 -0700
+commit d399b681a4d307fa5a09dd15c8cf96adeccb6db4
+Author: Andrew Wilkins <axwalk@gmail.com>
+Date:   Thu Jul 26 11:47:46 2012 -0700
 
-    go/printer: don't crash if ast.FuncType.Params is nil
+    exp/types: process ast.Fun in checkObj; fix variadic function building
     
-    The go/ast comment for FuncType.Params says that the field may be nil.
-    Make sure the printer accepts such a value. The go/parser always sets
-    the field (to provide parenthesis position information), but a program
-    creating a Go AST from scatch may not.
+    Fixed creation of Func's, taking IsVariadic from parameter list rather
+    than results.
     
-    Added corresponding test case.
+    Updated checkObj to process ast.Fun objects.
     
-    Fixes #3870.
-    
-    R=golang-dev, r
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/6448060
+    https://golang.org/cl/6402046
 
- src/pkg/go/printer/nodes.go        |  7 ++++++-
- src/pkg/go/printer/printer_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 1 deletion(-)
+ src/pkg/exp/types/check.go      | 20 ++++++++++--
+ src/pkg/exp/types/types_test.go | 67 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+), 3 deletions(-)

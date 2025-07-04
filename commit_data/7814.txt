@@ -1,12 +1,13 @@
-commit eedfc445a3a3f4a5fb26e167a1eba717a883ea7c
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 18 18:23:00 2011 -0400
+commit 000d60ac6fc21ff19aa78c7c809b211c653ccc5f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 18 12:48:12 2011 -0700
 
-    build: diagnose Ubuntu's buggy copy of gold
+    net: Use preallocated buffer for kqueue/kevent.
     
-    R=iant, dsymonds
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4300041
+    https://golang.org/cl/4293056
 
- src/make.bash | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/pkg/net/fd_darwin.go  | 18 ++++++++++++------
+ src/pkg/net/fd_freebsd.go | 18 ++++++++++++------
+ 2 files changed, 24 insertions(+), 12 deletions(-)

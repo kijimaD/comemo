@@ -1,14 +1,14 @@
-commit a9de5bb3eb36fcae6d0744603a5bd7a5be606796
+commit a84056dabe8ce3178879db7416365a2d841bff0a
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Apr 2 22:33:38 2012 +0800
+Date:   Mon Apr 2 18:46:24 2012 +0800
 
-    cmd/dist, sudo.bash: don't mention sudo.bash if cov or prof is not present
-            Fixes #3422.
+    gobuilder: work with codereview plugin enabled in .hgrc
+            Fixes #3312.
     
-    R=golang-dev, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5967057
+    https://golang.org/cl/5907065
 
- src/cmd/dist/build.c | 13 ++++++++-----
- src/sudo.bash        |  7 ++++++-
- 2 files changed, 14 insertions(+), 6 deletions(-)
+ misc/dashboard/builder/Makefile |  4 ++--
+ misc/dashboard/builder/main.go  | 30 +++++++++++++++++-------------
+ 2 files changed, 19 insertions(+), 15 deletions(-)

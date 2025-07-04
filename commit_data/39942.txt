@@ -1,21 +1,19 @@
-commit 1aa64b55f1edc68b2e8f4b301e33f4a9588f7c1f
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Sep 18 13:59:52 2019 -0400
+commit a8b4bee683cbb54601bccefbfc28f95aa4340526
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 3 13:27:31 2019 -0400
 
-    cmd/link: prefix Go syms with _ on darwin
+    cmd/go/internal/modfetch: replace nanomsg.org with vcs-test in TestCodeRepo
     
-    RELNOTE=This change adds an underscore to all Go symbols in darwin, and
-    the behavior might be confusing to users of tools like "nm", etc.
+    nanomsg.org currently performs an HTTPS-to-HTTP redirect, so this case
+    fails after the fix for #29591.
     
-    Fixes #33808
+    Updates #29591
     
-    Change-Id: I1849e6618c81215cb9bfa62b678f6f389cd009d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196217
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Change-Id: I6306d378ef213e98c0271258bbc6669bb33f9021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170637
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/link/internal/ld/issue33808_test.go | 54 +++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/macho.go           |  5 +--
- src/debug/macho/file.go                     |  7 +++-
- 3 files changed, 63 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

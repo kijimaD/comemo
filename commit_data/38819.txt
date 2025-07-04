@@ -1,65 +1,37 @@
-commit c1544ff906c3696774152aaa6594d6cefce15552
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 17 10:46:01 2019 -0700
+commit 04e12a5bfa51777c4ba46ed2e026f53578206754
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 15 15:52:01 2018 -0400
 
-    cmd/compile: move phi tighten after critical
+    cmd/go/internal/modfetch: lock files and directories
     
-    The phi tighten pass moves rematerializable phi args
-    to the immediate predecessor of the phis.
-    This reduces value lifetimes for regalloc.
+    We employ the following new locking mechanisms:
     
-    However, the critical edge removal pass can introduce
-    new blocks, which can change what a block's
-    immediate precedessor is. This can result in tightened
-    phi args being spilled unnecessarily.
+    • Zip files and list files within the module cache are written using
+      atomic renames of temporary files, so that GOPROXY servers reading
+      from the cache will never serve incomplete content.
     
-    This change moves the phi tighten pass after the
-    critical edge pass, when the block structure is stable.
+    • A lock file for each module version guards downloading and extraction of
+      (immutable) module contents.
     
-    This improves the code generated for
+    • A lock file alongside each version list (named 'list.lock')
+      guards updates to the list.
     
-    func f(s string) bool { return s == "abcde" }
+    • A single lock file in the module cache guards updates to all go.sum
+      files. The go.sum files themselves are written using an atomic
+      rename to ensure that we never accidentally discard existing sums.
     
-    Before this change:
+    Updates #26794
     
-    "".f STEXT nosplit size=44 args=0x18 locals=0x0
-            0x0000 00000 (x.go:3)   MOVQ    "".s+16(SP), AX
-            0x0005 00005 (x.go:3)   CMPQ    AX, $5
-            0x0009 00009 (x.go:3)   JNE     40
-            0x000b 00011 (x.go:3)   MOVQ    "".s+8(SP), AX
-            0x0010 00016 (x.go:3)   CMPL    (AX), $1684234849
-            0x0016 00022 (x.go:3)   JNE     36
-            0x0018 00024 (x.go:3)   CMPB    4(AX), $101
-            0x001c 00028 (x.go:3)   SETEQ   AL
-            0x001f 00031 (x.go:3)   MOVB    AL, "".~r1+24(SP)
-            0x0023 00035 (x.go:3)   RET
-            0x0024 00036 (x.go:3)   XORL    AX, AX
-            0x0026 00038 (x.go:3)   JMP     31
-            0x0028 00040 (x.go:3)   XORL    AX, AX
-            0x002a 00042 (x.go:3)   JMP     31
+    RELNOTE=yes
     
-    Observe the duplicated blocks at the end.
-    After this change:
-    
-    "".f STEXT nosplit size=40 args=0x18 locals=0x0
-            0x0000 00000 (x.go:3)   MOVQ    "".s+16(SP), AX
-            0x0005 00005 (x.go:3)   CMPQ    AX, $5
-            0x0009 00009 (x.go:3)   JNE     36
-            0x000b 00011 (x.go:3)   MOVQ    "".s+8(SP), AX
-            0x0010 00016 (x.go:3)   CMPL    (AX), $1684234849
-            0x0016 00022 (x.go:3)   JNE     36
-            0x0018 00024 (x.go:3)   CMPB    4(AX), $101
-            0x001c 00028 (x.go:3)   SETEQ   AL
-            0x001f 00031 (x.go:3)   MOVB    AL, "".~r1+24(SP)
-            0x0023 00035 (x.go:3)   RET
-            0x0024 00036 (x.go:3)   XORL    AX, AX
-            0x0026 00038 (x.go:3)   JMP     31
-    
-    Change-Id: I12c81aa53b89456cb5809aa5396378245f3beda9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172597
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I16ef8b06ee4bd7b94d0c0a6f5d17e1cecc379076
+    Reviewed-on: https://go-review.googlesource.com/c/146382
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/clean/clean.go            |  16 +-
+ src/cmd/go/internal/modfetch/cache.go         |  75 +++++--
+ src/cmd/go/internal/modfetch/fetch.go         | 305 ++++++++++++++++++++------
+ src/cmd/go/internal/modfetch/unzip.go         |  22 +-
+ src/cmd/go/testdata/script/mod_concurrent.txt |  31 +++
+ 5 files changed, 337 insertions(+), 112 deletions(-)

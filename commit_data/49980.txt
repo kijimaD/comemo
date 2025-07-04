@@ -1,25 +1,19 @@
-commit 03e1870b635dbfa54b6ee3624c435daf2a6b3b1f
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Aug 17 10:04:57 2022 -0500
+commit 584afc29289c2f1a204daa39f44a4a4afbacb741
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Sep 22 16:16:16 2021 -0700
 
-    cmd/dist: enable testsanitizer test on ppc64le
+    cmd/go: test that graph, verify, and why don't write go.mod or go.sum
     
-    Even though the -race option works for ppc64le, some of the
-    testsanitizer test have failed in the past on our builders. These
-    same failures can't be reproduced on other systems.
+    They should also not report an error if these files need to be
+    updated. These commands are used for debugging, so it's important that
+    they still work when go.mod and go.sum are incomplete.
     
-    This is an experiment to re-enable this test on ppc64le to see if
-    it still fails on the builders.
+    For #40775
     
-    Updates #45040
-    
-    Change-Id: I0729bec5864e6c4cc752968485e89179df027063
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424534
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1b731599e5a4510f47827b9812525636a7402bf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351468
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/dist/test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/go/testdata/script/mod_skip_write.txt | 96 +++++++++++++++++++++++++++
+ 1 file changed, 96 insertions(+)

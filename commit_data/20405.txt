@@ -1,32 +1,32 @@
-commit 68c1c6afa002074219792689fef714d095f40fd6
+commit f8f630f5ecb5e30c9feadab5277f393c58da71f6
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 12 07:51:00 2014 -0400
+Date:   Fri Sep 5 16:51:45 2014 -0400
 
-    cmd/cc, cmd/gc: stop generating 'argsize' PCDATA
+    runtime: use reflect.call during panic instead of newstackcall
     
-    The argsize PCDATA was specifying the number of
-    bytes passed to a function call, so that if the function
-    did not specify its argument count, the garbage collector
-    could use the call site information to scan those bytes
-    conservatively. We don't do that anymore, so stop
-    generating the information.
+    newstackcall creates a new stack segment, and we want to
+    be able to throw away all that code.
     
     LGTM=khr
-    R=khr
-    CC=golang-codereviews
-    https://golang.org/cl/139530043
+    R=khr, iant
+    CC=dvyukov, golang-codereviews, r
+    https://golang.org/cl/139270043
 
- src/cmd/5c/cgen.c      |  2 --
- src/cmd/5g/gg.h        |  1 -
- src/cmd/5g/ggen.c      | 19 -------------------
- src/cmd/5g/gsubr.c     | 10 ----------
- src/cmd/6c/cgen.c      |  4 ----
- src/cmd/6g/gg.h        |  1 -
- src/cmd/6g/ggen.c      | 19 -------------------
- src/cmd/6g/gsubr.c     | 10 ----------
- src/cmd/8c/cgen.c      |  2 --
- src/cmd/8g/gg.h        |  1 -
- src/cmd/8g/ggen.c      | 18 ------------------
- src/cmd/8g/gsubr.c     | 10 ----------
- src/runtime/funcdata.h |  8 +-------
- 13 files changed, 1 insertion(+), 104 deletions(-)
+ misc/cgo/test/callback.go       |  1 +
+ misc/cgo/test/issue7695_test.go |  3 ++
+ src/cmd/dist/buildruntime.c     |  2 +
+ src/pkg/reflect/value.go        |  8 ++--
+ src/pkg/runtime/asm_386.s       | 81 +++++++++++-------------------------
+ src/pkg/runtime/asm_amd64.s     | 87 ++++++++++++++------------------------
+ src/pkg/runtime/asm_amd64p32.s  | 84 +++++++++++++++----------------------
+ src/pkg/runtime/asm_arm.s       | 74 +++++++++++----------------------
+ src/pkg/runtime/cgocall.go      |  2 +-
+ src/pkg/runtime/malloc.go       |  2 +-
+ src/pkg/runtime/panic.go        |  2 +-
+ src/pkg/runtime/panic1.go       | 17 ++++++--
+ src/pkg/runtime/runtime.h       |  5 +--
+ src/pkg/runtime/stack.c         | 92 +++++++++++++++++------------------------
+ src/pkg/runtime/stubs.go        |  3 +-
+ test/fixedbugs/issue4388.go     |  6 +--
+ test/fixedbugs/issue5856.go     |  2 +-
+ 17 files changed, 187 insertions(+), 284 deletions(-)

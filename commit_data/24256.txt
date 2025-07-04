@@ -1,23 +1,26 @@
-commit 0b5bcf53ee4af0e244ba1991069741774bf4f164
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Sep 10 02:32:12 2015 -0400
+commit 1125cd4997597e4ca3acf3fa71ce1e3c3cd0605f
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Jul 15 11:31:30 2015 +1200
 
-    runtime/cgo: explicitly link msvcrt on windows
+    cmd/compile: define func value symbols at declaration
     
-    It's because runtime links to ntdll, and ntdll exports a couple
-    incompatible libc functions. We must link to msvcrt first and
-    then try ntdll.
+    This is mostly Russ's https://golang.org/cl/12145 but with some extra fixes to
+    account for the fact that function declarations without implementations now
+    break shared libraries, and including my test case.
     
-    Fixes #12030.
+    Fixes #11480.
     
-    Change-Id: I0105417bada108da55f5ae4482c2423ac7a92957
-    Reviewed-on: https://go-review.googlesource.com/14472
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iabdc2934a0378e5025e4e7affadb535eaef2c8f1
+    Reviewed-on: https://go-review.googlesource.com/12340
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue12030.go | 35 +++++++++++++++++++++++++++++++++++
- src/runtime/cgo/cgo.go      |  4 +++-
- 3 files changed, 39 insertions(+), 1 deletion(-)
+ misc/cgo/testshared/src/dep/asm.s      | 10 ++++++++++
+ misc/cgo/testshared/src/dep/gccgo.go   |  5 +++++
+ misc/cgo/testshared/src/dep/stubs.go   |  5 +++++
+ misc/cgo/testshared/src/exe/exe.go     |  7 ++++++-
+ src/cmd/compile/internal/gc/closure.go |  1 +
+ src/cmd/compile/internal/gc/dcl.go     | 25 +++++++++++++++++++------
+ src/runtime/debug/stubs.go             |  1 -
+ src/runtime/stubs.go                   |  1 -
+ src/runtime/stubs32.go                 | 14 ++++++++++++++
+ 9 files changed, 60 insertions(+), 9 deletions(-)

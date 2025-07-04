@@ -1,21 +1,17 @@
-commit ab2926291ba7003dcec7f46824d5f58c344ca849
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Wed Apr 2 17:23:24 2025 -0400
+commit f326b3e2b3761ae4562204a5faee41b4d5211502
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Tue Feb 27 05:18:10 2024 +0000
 
-    testing: clarify how B.Loop avoids optimizing away all the useful work
+    go/types, types2: fix typo in comment
     
-    As discussed in #73137, we want to clarify the description of how
-    B.Loop avoids surprising optimizations, while also hinting that
-    the exact approach might change in the future.
-    
-    Updates #73137
-    
-    Change-Id: I8536540cd5d79804a47fba8cd6eec3821864309d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662356
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I410c5fdd9fa3aa7ce5eb1d688621c7684f03a6f9
+    GitHub-Last-Rev: c3f53de27fb8602b500180242e0be274dc242f8d
+    GitHub-Pull-Request: golang/go#65950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566858
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/testing/benchmark.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/decl.go | 2 +-
+ src/go/types/decl.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

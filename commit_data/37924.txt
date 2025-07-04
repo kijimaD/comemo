@@ -1,16 +1,19 @@
-commit df719d9809daa2abcbce6a24ee8183a84cccf094
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 28 18:42:37 2019 -0800
+commit b07f60b97ff5ea9ae4cf21b549e9d25ccd695f36
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 12 14:18:45 2018 +0200
 
-    doc: go1.12: mention change in text/template user function panic
+    runtime: use functions from mem_bsd.go on Darwin
     
-    Updates #28242
+    The implementations of the functions in mem_darwin.go is identical to
+    the ones defined in mem_bsd.go for all other BSD-like GOOSes. Also use
+    them on Darwin.
     
-    Change-Id: Ib717b64f1f368cc889895a2437ff2943ed4eab0d
-    Reviewed-on: https://go-review.googlesource.com/c/159998
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie7c170c1a50666475e79599471081cd85f0837ad
+    Reviewed-on: https://go-review.googlesource.com/134875
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.12.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/mem_bsd.go    |  2 +-
+ src/runtime/mem_darwin.go | 62 -----------------------------------------------
+ 2 files changed, 1 insertion(+), 63 deletions(-)

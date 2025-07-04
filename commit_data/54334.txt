@@ -1,24 +1,43 @@
-commit ae09ca6c0fd212a19096a1c9c504fe59fc7471bf
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 6 14:43:22 2023 -0700
+commit 747e1961e95c2eb3df62e045b90b111c2ceea337
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Oct 3 16:07:48 2022 -0700
 
-    cmd/compile/internal/ir: simplify printing of OLITERALs
+    net/http: refactor tests to run most in HTTP/1 and HTTP/2 modes
     
-    This formatting used to be relevant to user error diagnostics and
-    (much earlier) even to the old textual export data format, but now
-    it's only relevant to backend debugging. So we can simplify a lot,
-    adjusting a few test expectations accordingly.
+    Replace the ad-hoc approach to running tests in HTTP/1 and HTTP/2
+    modes with a 'run' function that executes a test in various modes.
+    By default, these modes are HTTP/1 and HTTP/2, but tests can
+    opt-in to HTTPS/1 as well.
     
-    Change-Id: Ibe8e029284ce6150bfa24ef794d8d9eff66dbdea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526375
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    The 'run' function also takes care of post-test cleanup (running the
+    afterTest function).
+    
+    The 'run' function runs tests in parallel by default. Tests which
+    can't run in parallel (generally because they use global test hooks)
+    pass a testNotParallel option to disable parallelism.
+    
+    Update clientServerTest to use t.Cleanup to clean up after itself,
+    rather than leaving this up to tests to handle.
+    
+    Drop an unnecessary mutex in SetReadLoopBeforeNextReadHook.
+    Test hooks can't be set in parallel, and we want the race detector
+    to notify us if two simultaneous tests try to set a hook.
+    
+    Fixes #56032
+    
+    Change-Id: I16be64913c426fc93d84abc6ad85dbd3bc191224
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438137
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ir/expr.go    |  6 ++++-
- src/cmd/compile/internal/ir/fmt.go     | 45 +++++++++++-----------------------
- src/cmd/compile/internal/ir/val.go     | 17 -------------
- src/cmd/compile/internal/types/fmt.go  | 36 ---------------------------
- src/cmd/compile/internal/types/type.go | 20 +++++++++++++++
- 5 files changed, 39 insertions(+), 85 deletions(-)
+ src/net/http/client_test.go       |  337 +++++------
+ src/net/http/clientserver_test.go |  441 +++++++-------
+ src/net/http/export_test.go       |    4 +-
+ src/net/http/fs_test.go           |  201 +++----
+ src/net/http/request_test.go      |   60 +-
+ src/net/http/serve_test.go        | 1180 ++++++++++++++++---------------------
+ src/net/http/sniff_test.go        |   39 +-
+ src/net/http/transport_test.go    | 1048 ++++++++++++++++----------------
+ 8 files changed, 1497 insertions(+), 1813 deletions(-)

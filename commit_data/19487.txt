@@ -1,15 +1,13 @@
-commit bb824b6a0f345c41a83f3a50a3708f785c9166d0
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jun 2 16:26:08 2014 +1000
+commit 8c9923d5e2e84cdba04355d6f48deb927cbd1c7e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Jun 1 22:48:57 2014 -0400
 
-    misc/makerelease: fix secret
+    doc/contrib.html: update links, mailing lists and link to 1.3 release note.
     
-    Not sure how this snuck in undetected.
-    
-    TBR=bradfitz
-    R=golang-codereviews
+    LGTM=adg
+    R=golang-codereviews, r, adg
     CC=golang-codereviews
-    https://golang.org/cl/106760043
+    https://golang.org/cl/102020045
 
- misc/makerelease/makerelease.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/contrib.html | 42 +++++++++++++++++++++++-------------------
+ 1 file changed, 23 insertions(+), 19 deletions(-)

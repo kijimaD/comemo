@@ -1,20 +1,20 @@
-commit bd5de19b368536574682c45cca9f7864a4eca6d2
-Author: David Barshow <david@datalamb.com>
-Date:   Tue Feb 7 17:30:05 2023 +0000
+commit 63169c8bdf3e7ac5006c8976b0631b281eb49394
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat Mar 26 14:44:09 2022 +0800
 
-    cmd/go: mod vendor: fixed checking for vendor directory
+    cmd/link: zero elf addr for debug sections
     
-    In our case I was using a "vendor-replace" directory which was incorrectly flagged as being in the vendor directory.
+    The Addr should be zero if SHF_ALLOC is not set.
     
-    Change-Id: I8208243ea8416ee7cb4de30e907bcfc25c2d3f27
-    GitHub-Last-Rev: d183a94d03225ee529c4906a64a289f02eaf7684
-    GitHub-Pull-Request: golang/go#58287
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465036
+    Update #51939
+    
+    Change-Id: I030f6243d05efabe6b9ebf558e9c0201f7922d23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395919
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/modcmd/vendor.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/elf_test.go        | 28 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/elf.go |  8 +++++---
+ 2 files changed, 33 insertions(+), 3 deletions(-)

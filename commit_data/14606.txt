@@ -1,28 +1,14 @@
-commit a6701f2699d328ab2bbff0130a6a553451d68f0d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 11 12:07:27 2012 -0500
+commit 1b46e4cd9ac75db790e75ee801a6e805b6f4ec20
+Author: Brian Ketelsen <bketelsen@gmail.com>
+Date:   Tue Dec 11 12:02:14 2012 -0500
 
-    net/http, net/url: permit Request-URI "*"
+    regexp/syntax: export ErrUnexpectedParen
     
-    Also, implement a global OPTIONS * handler, like Apache.
+    Fixes #3712
     
-    Permit sending "*" requests to handlers, but not path-based
-    (ServeMux) handlers.  That means people can go out of their
-    way to support SSDP or SIP or whatever, but most users will be
-    unaffected.
-    
-    See RFC 2616 Section 5.1.2 (Request-URI)
-    See RFC 2616 Section 9.2 (OPTIONS)
-    
-    Fixes #3692
-    
-    R=rsc
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6868095
+    https://golang.org/cl/6902069
 
- src/pkg/net/http/readrequest_test.go | 48 +++++++++++++++++++++++++++++++++
- src/pkg/net/http/serve_test.go       | 52 ++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/server.go           | 24 +++++++++++++++++
- src/pkg/net/url/url.go               |  5 ++++
- src/pkg/net/url/url_test.go          |  5 ++--
- 5 files changed, 132 insertions(+), 2 deletions(-)
+ src/pkg/regexp/syntax/parse.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

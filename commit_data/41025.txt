@@ -1,14 +1,16 @@
-commit 2d6f8cc2cdd5993eb8dc80655735a38ef067af6e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 26 15:57:13 2019 -0800
+commit 8e4399ff77e7967543fb9f383511b3f3f8470cda
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Tue Jul 23 23:27:28 2019 +0530
 
-    doc/go1.14: mention increased number of EINTR errors
+    cmd/compile: refactor zero value size to be a constant
     
-    Updates #36281
-    
-    Change-Id: I3c4487caaf47566212dc62322b2e884e695ea7f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212657
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I31dd4fb55d5974cd45de00148039d04f8a7d5cb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187257
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- doc/go1.14.html | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/compile/internal/gc/walk.go | 5 +++--
+ src/runtime/map.go                  | 2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

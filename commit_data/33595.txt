@@ -1,26 +1,19 @@
-commit 1d47a145913f76f64414bbbc14bff3c95450535e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 16 10:29:50 2017 -0500
+commit 84ac90ebf1b2e6a747eec1469230087fe71c0ce9
+Author: griesemer <gri@golang.org>
+Date:   Thu Aug 24 15:05:53 2017 +0200
 
-    encoding/csv: restore Go 1.9 quoted \r\n handling in Reader
+    spec: clarify nil case in type switches
     
-    CL 52810 changed Reader to interpret a quoted \r\n as a raw \r\n
-    when reading fields. This seems likely to break existing users, and
-    discussion on both #21201 (the original issue that triggered the change)
-    and #22746 (discussing whether to revert the change) failed to identify
-    a single motivating example for this change. To avoid breaking existing
-    users for no clear reason, revert the change.
+    The old wording seemed to imply that nil is a kind of type.
+    Slightly reworded for clarity.
     
-    The Reader has been rewritten in the interim so this is not a git revert
-    but instead and adjustment (and slight simplification) of the new Reader.
+    Fixes #21580.
     
-    Fixes #22746.
-    
-    Change-Id: Ie857b2f4b1359a207d085b6d3c3a6d440a997d12
-    Reviewed-on: https://go-review.googlesource.com/78295
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I29898bf0125a10cb8dbb5c7e63ec5399ebc590ca
+    Reviewed-on: https://go-review.googlesource.com/58490
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/encoding/csv/reader.go      | 29 ++++++++++++++++++++---------
- src/encoding/csv/reader_test.go |  4 ++--
- src/encoding/csv/writer.go      |  2 +-
- 3 files changed, 23 insertions(+), 12 deletions(-)
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

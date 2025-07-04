@@ -1,18 +1,18 @@
-commit 428df5e39c0a696b71724237879a22a718a854a7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 10 22:06:08 2016 -0800
+commit fb4e49059c28fc2de64f0c1b83b178f4bede4a75
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 16 17:10:44 2016 -0400
 
-    cmd/go: don't set default GOPATH to GOROOT
+    cmd/dist: disable plugin test on ppc64le and s390x
     
-    It will just cause confusion later as the go tool will say
-    "warning: GOPATH set to GOROOT (%s) has no effect".
-    Better to just leave GOPATH unset and get that warning instead.
+    These are close to working, but untested and failing on
+    build.golang.org. So disable for now.
     
-    Change-Id: I78ff9e87fdf4bb0460f4f6d6ee76e1becaa3e7b0
-    Reviewed-on: https://go-review.googlesource.com/33105
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I330b8d1a91f0bf5139c894913868f01ec87e986d
+    Reviewed-on: https://go-review.googlesource.com/29359
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/build/build.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

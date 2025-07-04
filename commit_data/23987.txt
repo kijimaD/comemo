@@ -1,15 +1,12 @@
-commit 98aa82287f7a06b2c12884b062c87bc3c18b66ca
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jul 29 15:42:04 2015 -0700
+commit 0ea3f58db285e47810f42f98e35c802a44ce205f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 26 11:52:21 2015 +1000
 
-    spec: clarify semantics of built-in functions 'complex', 'real', and 'imag'
+    doc/go1.5.html: first pass over the small API changes
     
-    For #11669, #11540, #11945, #11946, #11947.
-    
-    Change-Id: Ifb0053c498cee9f3473c396f9338d82bd856c110
-    Reviewed-on: https://go-review.googlesource.com/12860
+    Change-Id: Ib80829e7cbfb319549a224dc18931ca884c8296a
+    Reviewed-on: https://go-review.googlesource.com/11532
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go_spec.html | 37 +++++++++++++++++++++++++++++--------
- 1 file changed, 29 insertions(+), 8 deletions(-)
+ doc/go1.5.html | 118 ++++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 84 insertions(+), 34 deletions(-)

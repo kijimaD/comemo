@@ -1,81 +1,42 @@
-commit e5f6e2d1c8ae540504e1728a5449af3715bf27eb
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Mar 17 22:45:30 2019 +0000
+commit 85143d355493c6bba994d49ed154b4df8b78874b
+Author: Oliver Stenbom <ostenbom@pivotal.io>
+Date:   Tue Oct 30 00:40:24 2018 +0000
 
-    encoding/json: fix performance regression in the decoder
+    os: add support for long path names on unix RemoveAll
     
-    In golang.org/cl/145218, a feature was added where the JSON decoder
-    would keep track of the entire path to a field when reporting an
-    UnmarshalTypeError.
+    On unix systems, long enough path names will fail when performing syscalls
+    like `Lstat`. The current RemoveAll uses several of these syscalls, and so
+    will fail for long paths. This can be risky, as it can let users "hide"
+    files from the system or otherwise make long enough paths for programs
+    to fail. By using `Unlinkat` and `Openat` syscalls instead, RemoveAll is
+    safer on unix systems. Initially implemented for linux, darwin, and several bsds.
     
-    However, we all failed to check if this affected the benchmarks - myself
-    included, as a reviewer. Below are the numbers comparing the CL's parent
-    with itself, once it was merged:
+    Fixes #27029
     
-    name           old time/op    new time/op    delta
-    CodeDecoder-8    12.9ms ± 1%    28.2ms ± 2%   +119.33%  (p=0.002 n=6+6)
+    Co-authored-by: Giuseppe Capizzi <gcapizzi@pivotal.io>
+    Co-authored-by: Julia Nedialkova <yulia.nedyalkova@sap.com>
     
-    name           old speed      new speed      delta
-    CodeDecoder-8   151MB/s ± 1%    69MB/s ± 3%    -54.40%  (p=0.002 n=6+6)
-    
-    name           old alloc/op   new alloc/op   delta
-    CodeDecoder-8    2.74MB ± 0%  109.39MB ± 0%  +3891.83%  (p=0.002 n=6+6)
-    
-    name           old allocs/op  new allocs/op  delta
-    CodeDecoder-8     77.5k ± 0%    168.5k ± 0%   +117.30%  (p=0.004 n=6+5)
-    
-    The reason why the decoder got twice as slow is because it now allocated
-    ~40x as many objects, which puts a lot of pressure on the garbage
-    collector.
-    
-    The reason is that the CL concatenated strings every time a nested field
-    was decoded. In other words, practically every field generated garbage
-    when decoded. This is hugely wasteful, especially considering that the
-    vast majority of JSON decoding inputs won't return UnmarshalTypeError.
-    
-    Instead, use a stack of fields, and make sure to always use the same
-    backing array, to ensure we only need to grow the slice to the maximum
-    depth once.
-    
-    The original CL also introduced a bug. The field stack string wasn't
-    reset to its original state when reaching "d.opcode == scanEndObject",
-    so the last field in a decoded struct could leak. For example, an added
-    test decodes a list of structs, and encoding/json before this CL would
-    fail:
-    
-            got:  cannot unmarshal string into Go struct field T.Ts.Y.Y.Y of type int
-            want: cannot unmarshal string into Go struct field T.Ts.Y of type int
-    
-    To fix that, simply reset the stack after decoding every field, even if
-    it's the last.
-    
-    Below is the original performance versus this CL. There's a tiny
-    performance hit, probably due to the append for every decoded field, but
-    at least we're back to the usual ~150MB/s.
-    
-    name           old time/op    new time/op    delta
-    CodeDecoder-8    12.9ms ± 1%    13.0ms ± 1%  +1.25%  (p=0.009 n=6+6)
-    
-    name           old speed      new speed      delta
-    CodeDecoder-8   151MB/s ± 1%   149MB/s ± 1%  -1.24%  (p=0.009 n=6+6)
-    
-    name           old alloc/op   new alloc/op   delta
-    CodeDecoder-8    2.74MB ± 0%    2.74MB ± 0%  +0.00%  (p=0.002 n=6+6)
-    
-    name           old allocs/op  new allocs/op  delta
-    CodeDecoder-8     77.5k ± 0%     77.5k ± 0%  +0.00%  (p=0.002 n=6+6)
-    
-    Finally, make all of these benchmarks report allocs by default. The
-    decoder ones are pretty sensitive to generated garbage, so ReportAllocs
-    would have made the performance regression more obvious.
-    
-    Change-Id: I67b50f86b2e72f55539429450c67bfb1a9464b67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167978
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id9fcdf4775962b021b7ff438dc51ee6d16bb5f56
+    GitHub-Last-Rev: b30a621fe359fa2acbb055445b54202b0c508167
+    GitHub-Pull-Request: golang/go#27871
+    Reviewed-on: https://go-review.googlesource.com/c/137442
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/bench_test.go  | 12 ++++++++++++
- src/encoding/json/decode.go      | 28 +++++++++++++++-------------
- src/encoding/json/decode_test.go | 14 +++++++++++++-
- 3 files changed, 40 insertions(+), 14 deletions(-)
+ src/internal/syscall/unix/at.go                    |  58 +++++
+ src/internal/syscall/unix/at_sysnum_darwin.go      |  12 ++
+ src/internal/syscall/unix/at_sysnum_dragonfly.go   |  14 ++
+ src/internal/syscall/unix/at_sysnum_freebsd.go     |  14 ++
+ .../syscall/unix/at_sysnum_fstatat64_linux.go      |  11 +
+ .../syscall/unix/at_sysnum_fstatat_linux.go        |  11 +
+ src/internal/syscall/unix/at_sysnum_linux.go       |  13 ++
+ src/internal/syscall/unix/at_sysnum_netbsd.go      |  14 ++
+ .../syscall/unix/at_sysnum_newfstatat_linux.go     |  11 +
+ src/internal/syscall/unix/at_sysnum_openbsd.go     |  14 ++
+ src/os/path.go                                     |  99 ---------
+ src/os/path_test.go                                | 125 -----------
+ src/os/path_unix.go                                |  28 ++-
+ src/os/removeall_at.go                             | 139 ++++++++++++
+ src/os/removeall_noat.go                           | 110 ++++++++++
+ src/os/removeall_test.go                           | 237 +++++++++++++++++++++
+ 16 files changed, 685 insertions(+), 225 deletions(-)

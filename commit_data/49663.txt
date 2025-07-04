@@ -1,21 +1,31 @@
-commit 64f2829c9cdf12b893068305b2451c81b0a5b3a6
-Author: Abirdcfly <fp544037857@gmail.com>
-Date:   Sun Jul 24 13:41:16 2022 +0000
+commit acc2957bc9873ab7e65942045830a3dc0592eda2
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Aug 5 19:26:21 2021 -0700
 
-    runtime: fix typo in function comments
+    net/http: fix hang in probing for a zero-length request body
     
-    The correct word to use here is 'receive' not 'recieve'
+    Fix a hang that occurs when making a request and all of the following apply:
+    * The request method is one of GET, HEAD, DELETE, OPTIONS, PROPFIND, or SEARCH.
+    * The Request.Body is non-nil.
+    * The content length is not set, or is set to -1.
+    * Transfer-Encoding: chunked is not set.
+    * The request body does not respond to a read within 200ms.
     
-    Change-Id: Ia33e2a91c1c2da6dbe479a05518dbb9b8733d20d
-    GitHub-Last-Rev: e3c3e211dd7055d1dab8699a88d0b35c459da149
-    GitHub-Pull-Request: golang/go#54025
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419316
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    In this case, we give up on probing for a zero-length body and send the
+    request while the probe completes in the background. Fix a bug in the
+    io.Reader wrapping the in-flight probe: It should return io.EOF after
+    the probe completes, but does not.
+    
+    Fixes #47568.
+    
+    Change-Id: I7f9188c96e1210055df68424081af927006e4816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340256
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/string.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/client_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/transfer.go    |  4 ++++
+ 2 files changed, 48 insertions(+)

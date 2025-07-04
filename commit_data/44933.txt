@@ -1,46 +1,21 @@
-commit af1789a61c02fa769fcd4ab8addcbb9a160b987b
-Author: Ruslan Andreev <ruslan.andreev@huawei.com>
-Date:   Wed Jan 13 22:36:19 2021 +0800
+commit 396688af7ee121d478e9b8d2cc9d06999ba7fc6e
+Author: David Chase <drchase@google.com>
+Date:   Fri Jun 26 18:19:01 2020 -0400
 
-    runtime: extend internal atomics to comply with sync/atomic
+    cmd/compile: make translation to calls for SSA look more "value-oriented"
     
-    The CV add changes according to TODO in Go source-code.
-    Internal atomic set does not comply with sync/atomic library and has shortage
-    operations for signed integers.
-    This patch extend internal atomic set by Int32 and Int64 operations. It's
-    implemented new aliases and asm versions of operations. As a result Cas64 was
-    replaced by Casint64 in findRunnableGCWorker without type casting.
-    Another purpose is unified structure of internal atomics' source code. Before,
-    assembly impementations for different archs were in different files. For
-    example, filename for AMD64 was asm_amd64.s, but filename for RISC-V was
-    atomic_riscv64.s. Some arches have both files without any meaning. So, assembly
-    files were merged and renamed to atomic_{$ARCH}.s filenames.
+    The existing translation assumes an in-memory return values, thus it returns
+    the address of the result(s).  Most consumers immediately load from the
+    address to get the value, and in late call expansion that is the favored idiom,
+    and it is also the favored idiom when arguments and results use registers
+    instead of memory.
     
-    Change-Id: I29a05a7cbf5f4a9cc146e8315536c038af545677
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/289152
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ie0ccc70f399682a42509d847b330ef3956462d56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240186
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go             |  23 +-
- src/runtime/internal/atomic/asm_amd64.s            | 187 ------------
- src/runtime/internal/atomic/asm_arm64.s            |  61 ----
- src/runtime/internal/atomic/asm_mips64x.s          | 271 ------------------
- src/runtime/internal/atomic/asm_mipsx.s            | 200 -------------
- src/runtime/internal/atomic/asm_ppc64x.s           | 253 -----------------
- .../internal/atomic/{asm_386.s => atomic_386.s}    |  28 +-
- src/runtime/internal/atomic/atomic_amd64.s         | 225 +++++++++++++++
- .../internal/atomic/{asm_arm.s => atomic_arm.s}    |  33 ++-
- src/runtime/internal/atomic/atomic_arm64.s         | 139 +++++++--
- src/runtime/internal/atomic/atomic_mips64x.s       | 316 ++++++++++++++++++++-
- src/runtime/internal/atomic/atomic_mipsx.s         | 233 +++++++++++++++
- src/runtime/internal/atomic/atomic_ppc64x.s        | 295 ++++++++++++++++++-
- src/runtime/internal/atomic/atomic_riscv64.s       |  29 +-
- .../atomic/{asm_s390x.s => atomic_s390x.s}         |  32 +++
- src/runtime/internal/atomic/atomic_wasm.go         |  72 +++++
- .../internal/atomic/{asm_wasm.s => atomic_wasm.s}  |   2 +-
- src/runtime/internal/atomic/stubs.go               |  24 ++
- src/runtime/internal/atomic/sys_linux_arm.s        |   2 +-
- src/runtime/mgc.go                                 |   3 +-
- 20 files changed, 1401 insertions(+), 1027 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 44 +++++++++++++++++++++-----------------
+ 1 file changed, 24 insertions(+), 20 deletions(-)

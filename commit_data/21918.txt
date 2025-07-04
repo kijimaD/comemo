@@ -1,22 +1,32 @@
-commit 8afb3967a3c241d6824403190b1888415e8a091e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 4 22:58:27 2015 -0500
+commit 747c8498339b799eb613db1701a927a3549d389a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jan 9 12:41:47 2015 -0800
 
-    cmd/8g, cmd/old8a: stop renaming x86 import to i386
+    cmd/6g, cmd/8g: make 2/3 word sgen more efficient
     
-    Change-Id: If2872e73da4daa4ff1912883d30c8fc9754ef552
-    Reviewed-on: https://go-review.googlesource.com/6894
-    Reviewed-by: Rob Pike <r@golang.org>
+    When compiling the stdlib most of the calls
+    to sgen are for exactly 2 or 3 words:
+    85% for 6g and 70% for 8g.
+    Special case them for performance.
+    This optimization is not relevant to 5g and 9g.
+    
+    6g
+    
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkCopyFat16       3.25          0.82          -74.77%
+    BenchmarkCopyFat24       5.47          0.95          -82.63%
+    
+    8g
+    
+    benchmark               old ns/op     new ns/op     delta
+    BenchmarkCopyFat8       3.84          2.42          -36.98%
+    BenchmarkCopyFat12      4.94          2.15          -56.48%
+    
+    Change-Id: I8bc60b453f12597dfd916df2d072a7d5fc33ab85
+    Reviewed-on: https://go-review.googlesource.com/2607
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/8g/cgen.go        |   76 +--
- src/cmd/8g/cgen64.go      |  236 ++++-----
- src/cmd/8g/galign.go      |    8 +-
- src/cmd/8g/gg.go          |    4 +-
- src/cmd/8g/ggen.go        |  128 ++---
- src/cmd/8g/gsubr.go       |  552 ++++++++++-----------
- src/cmd/8g/peep.go        |  174 +++----
- src/cmd/8g/prog.go        |  416 ++++++++--------
- src/cmd/8g/reg.go         |   28 +-
- src/cmd/dist/buildtool.go |    3 +-
- src/cmd/old8a/lex.go      | 1200 ++++++++++++++++++++++-----------------------
- 11 files changed, 1412 insertions(+), 1413 deletions(-)
+ src/cmd/6g/cgen.c | 12 ++++++++++++
+ src/cmd/8g/cgen.c | 15 ++++++++++++++-
+ 2 files changed, 26 insertions(+), 1 deletion(-)

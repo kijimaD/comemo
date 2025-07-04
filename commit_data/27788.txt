@@ -1,15 +1,28 @@
-commit ae68090d000c0a4a6cda0ef44a59809f914e2358
-Merge: c628d83ec5 2da5633eb9
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Tue Aug 2 14:05:48 2016 -0700
+commit 381e5eee39edfb3a43e294023957aff05e9ff349
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 13 04:35:37 2016 +0000
 
-    all: merge master into release-branch.go1.7
+    all: use new io.SeekFoo constants instead of os.SEEK_FOO
     
-    Change-Id: I177856ea2bc9943cbde28ca9afa145b6ea5b0942
+    Automated change.
+    
+    Fixes #15269
+    
+    Change-Id: I8deb2ac0101d3f7c390467ceb0a1561b72edbb2f
+    Reviewed-on: https://go-review.googlesource.com/21962
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/doc/doc_test.go        | 16 +++++++++++++---
- src/cmd/doc/pkg.go             | 28 +++++++++++++++++++++++-----
- src/cmd/doc/testdata/pkg.go    |  7 +++++++
- src/runtime/sys_darwin_386.s   |  7 ++++---
- src/runtime/sys_darwin_amd64.s |  1 +
- 5 files changed, 48 insertions(+), 11 deletions(-)
+ src/archive/tar/reader.go     |  5 ++---
+ src/archive/zip/reader.go     |  2 +-
+ src/bytes/reader_test.go      | 21 ++++++++++-----------
+ src/debug/elf/file.go         |  8 ++++----
+ src/debug/pe/file.go          |  8 ++++----
+ src/net/http/fs.go            | 10 +++++-----
+ src/net/sendfile_dragonfly.go |  2 +-
+ src/net/sendfile_freebsd.go   |  2 +-
+ src/net/sendfile_solaris.go   |  2 +-
+ src/os/exec/exec_test.go      |  2 +-
+ src/strings/reader_test.go    | 21 ++++++++++-----------
+ 11 files changed, 40 insertions(+), 43 deletions(-)

@@ -1,17 +1,34 @@
-commit 767df51b4dc4d952fd3f3ff14dffdf5fd8cffb4e
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 17 11:29:34 2022 -0400
+commit 0103fd2b8b3e57ead47a65501eb5ce5f444e0077
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 30 17:48:51 2021 -0500
 
-    runtime: fix missing error print in TestCgoSigfwd
+    gcimporters: allow reusing empty interfaces on the RHS of type decls
     
-    The result of the call to fmt.Errorf was unused. It was clearly
-    intending to print the message, not simply construct an error.
+    We guard against caching or reusing interfaces on the RHS of a type
+    declaration, because for such interfaces the base type is used as the
+    interface method receiver type. However, we don't need to do this for
+    empty interfaces. By refining our guard, we can allow importing the
+    predeclared 'any' type on the RHS of a type declaration.
     
-    Change-Id: I14856214c521a51fe4b45690e6c35fbb17e66577
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443375
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Update tests to add more coverage for importing generic export data.
+    Some accomodation had to be made for the unified builder, which does not
+    yet fully support generics in export data.
+    
+    Fixes #49888
+    
+    Change-Id: I51f329de464fc7309f95991b839ab55868c2924f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367851
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/testdata/testprogcgo/sigfwd.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../compile/internal/importer/gcimporter_test.go   | 41 ++++++++++++----------
+ src/cmd/compile/internal/importer/iimport.go       | 22 ++++++++++--
+ .../compile/internal/importer/testdata/exports.go  | 19 +++++-----
+ .../compile/internal/importer/testdata/generics.go | 29 +++++++++++++++
+ src/go/internal/gcimporter/gcimporter_test.go      | 40 +++++++++++----------
+ src/go/internal/gcimporter/iimport.go              | 22 ++++++++++--
+ src/go/internal/gcimporter/testdata/exports.go     | 19 +++++-----
+ src/go/internal/gcimporter/testdata/generics.go    | 29 +++++++++++++++
+ 8 files changed, 165 insertions(+), 56 deletions(-)

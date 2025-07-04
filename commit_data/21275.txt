@@ -1,15 +1,18 @@
-commit ee3a1ff6fd11cd8fab3d3f416c85816af7bef4d1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 15 08:26:01 2015 -0800
+commit 60ea2c594bdfb8d0ae4e13c8a028e59ed07bf9a9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 16 15:53:41 2014 -0800
 
-    all: update old comments referencing *.goc files
+    test: add test that gccgo failed to compile
     
-    Change-Id: Ibf05e55ffe3bb454809cd3450b790e44061511c7
-    Reviewed-on: https://go-review.googlesource.com/2890
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Gccgo failed to create the type descriptor for the type used to
+    allocate the nil value passed to append as the second argument when
+    append is called with only one argument.  Calling append with only one
+    argument is unusual but obviously should not cause a compiler crash.
+    
+    Change-Id: I530821847dfd68f0302de6ca6a84dfbc79653935
+    Reviewed-on: https://go-review.googlesource.com/1692
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bytes/bytes_decl.go     | 2 +-
- src/runtime/malloc2.go      | 4 ++--
- src/runtime/noasm.go        | 1 -
- src/syscall/exec_solaris.go | 2 +-
- 4 files changed, 4 insertions(+), 5 deletions(-)
+ test/fixedbugs/bug493.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

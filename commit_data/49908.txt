@@ -1,22 +1,23 @@
-commit 7ec0ec3645a481155728020c07685992444a9e4f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 15 15:37:22 2022 -0700
+commit cceadf8527bc941f641c212e446ff73072bcd500
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Sep 20 13:53:19 2021 -0500
 
-    go/types, types2: skip comparison for operands with invalid types
+    cmd/compile/internal: add ABI register information for ppc64
     
-    Fixes #54405.
+    This adds the defines for ABI registers on PPC64. Other changes
+    will need to be in place before they are enabled.
     
-    Change-Id: Ia7b2709b83966fa080e41e3d4818527d1e8b49f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424054
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Updates #40724
+    
+    Change-Id: Ia6ead140719eda9aa99b99c48afafff684c33039
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351110
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/types2/expr.go                  |  6 ++++++
- .../internal/types2/testdata/fixedbugs/issue54405.go     | 16 ++++++++++++++++
- src/go/types/expr.go                                     |  6 ++++++
- src/go/types/testdata/fixedbugs/issue54405.go            | 16 ++++++++++++++++
- 4 files changed, 44 insertions(+)
+ src/cmd/compile/internal/ppc64/ssa.go        |  3 +++
+ src/cmd/compile/internal/ssa/config.go       |  2 ++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 22 ++++++++++++----------
+ src/cmd/compile/internal/ssa/opGen.go        |  6 +++---
+ 4 files changed, 20 insertions(+), 13 deletions(-)

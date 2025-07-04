@@ -1,12 +1,13 @@
-commit 2937d88af591920d72d1ddd480df4c2c31532d2d
-Author: Rick Hudson <rlh@golang.org>
-Date:   Tue Dec 9 13:25:45 2014 -0500
+commit 799da9cee79e7ee89156ddc3c8bea44fdf1ac252
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 29 08:15:58 2014 -0700
 
-    runtime: fix some comment formatting
+    doc/go1.4.html: half of the small library changes
     
-    Change-Id: Ife7d6ce1131ff26444f09e8fda4f61344e669e21
-    Reviewed-on: https://go-review.googlesource.com/1260
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/165090043
 
- src/runtime/mgc.go | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ doc/go1.4.html | 166 ++++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 135 insertions(+), 31 deletions(-)

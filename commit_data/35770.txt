@@ -1,48 +1,45 @@
-commit 85e38cccb4d113862f4fd2c3c4d97927cd84420c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Jun 20 15:41:37 2018 +0200
+commit c028958393682fa559cf1555178c0caf7931a52a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Mar 7 15:06:50 2018 +0100
 
-    syscall: check faccessat flags parameter on Linux
+    test/codegen: fix issue with arm64 memmove codegen test
     
-    Port CL 119495 from golang.org/x/sys/unix to the syscall package.
+    This recently added arm64 memmove codegen check:
     
-    Currently Linux faccessat(2) syscall implementation doesn't support the
-    flags parameter. As per the discussion in #25845, permit the same flags
-    as glibc [1].
+      func movesmall() {
+        // arm64:-"memmove"
+        x := [...]byte{1, 2, 3, 4, 5, 6, 7}
+        copy(x[1:], x[:])
+      }
     
-    [1] https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/faccessat.c;h=ea42b2303ff4b2d2d6548ea04376fb265f773436;hb=HEAD
+    is not correct, for two reasons:
     
-    Updates #25845
+    1. regexps are matched from the start of the disasm line (excluding
+       line information). This mean that a negative -"memmove" check will
+       pass against a 'CALL runtime.memmove' line because the line does
+       not start with 'memmove' (its starts with CALL...).
+       The way to specify no 'memmove' match whatsoever on the line is
+       -".*memmove"
     
-    Change-Id: I132b33275a9cc72b3a97acea5482806c7f47d7f7
-    Reviewed-on: https://go-review.googlesource.com/120015
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    2. AFAIK comments on their own line are matched against the first
+       subsequent non-comment line. So the code above only verifies that
+       the x := ... line does not generate a memmove. The comment should
+       be moved near the copy() line, if it's that one we want to not
+       generate a memmove call.
+    
+    The fact that the test above is not effective can be checked by
+    running `go run run.go -v codegen` in the toplevel test directory with
+    a go1.10 toolchain (that does not have the memmove-elision
+    optimization). The test will still pass (it shouldn't).
+    
+    This change changes the regexp to -".*memmove" and moves it near the
+    line it needs to (not)match.
+    
+    Change-Id: Ie01ef4d775e77d92dc8d8b7856b89b200f5e5ef2
+    Reviewed-on: https://go-review.googlesource.com/98977
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/syscall_linux.go           | 12 +++++++++++-
- src/syscall/syscall_linux_test.go      | 31 +++++++++++++++++++++++++++++++
- src/syscall/types_linux.go             |  1 +
- src/syscall/zsyscall_linux_386.go      | 30 +++++++++++++++---------------
- src/syscall/zsyscall_linux_amd64.go    | 30 +++++++++++++++---------------
- src/syscall/zsyscall_linux_arm.go      | 30 +++++++++++++++---------------
- src/syscall/zsyscall_linux_arm64.go    | 30 +++++++++++++++---------------
- src/syscall/zsyscall_linux_mips.go     | 30 +++++++++++++++---------------
- src/syscall/zsyscall_linux_mips64.go   | 30 +++++++++++++++---------------
- src/syscall/zsyscall_linux_mips64le.go | 30 +++++++++++++++---------------
- src/syscall/zsyscall_linux_mipsle.go   | 30 +++++++++++++++---------------
- src/syscall/zsyscall_linux_ppc64.go    | 30 +++++++++++++++---------------
- src/syscall/zsyscall_linux_ppc64le.go  | 30 +++++++++++++++---------------
- src/syscall/zsyscall_linux_s390x.go    | 30 +++++++++++++++---------------
- src/syscall/ztypes_linux_386.go        |  1 +
- src/syscall/ztypes_linux_amd64.go      |  1 +
- src/syscall/ztypes_linux_arm.go        |  1 +
- src/syscall/ztypes_linux_arm64.go      |  1 +
- src/syscall/ztypes_linux_mips.go       |  1 +
- src/syscall/ztypes_linux_mips64.go     |  1 +
- src/syscall/ztypes_linux_mips64le.go   |  1 +
- src/syscall/ztypes_linux_mipsle.go     |  1 +
- src/syscall/ztypes_linux_ppc64.go      |  1 +
- src/syscall/ztypes_linux_ppc64le.go    |  1 +
- src/syscall/ztypes_linux_s390x.go      |  1 +
- 25 files changed, 219 insertions(+), 166 deletions(-)
+ test/codegen/movesmall.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

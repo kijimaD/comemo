@@ -1,14 +1,12 @@
-commit 56ade2d8d5ca27a91ab829499cc0b0576f3297aa
+commit 7c5d6409f50b731992e33af0c3cee23e8cc4a7c5
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 8 16:14:24 2012 -0500
+Date:   Wed Feb 8 15:37:58 2012 -0500
 
-    cmd/go: let go tool invocation use stdin
+    spec: address CL 5647054 comments
     
-    Fixes #2921.
-    
-    R=golang-dev, n13m3y3r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5647057
+    https://golang.org/cl/5641057
 
- src/cmd/go/tool.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go_spec.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

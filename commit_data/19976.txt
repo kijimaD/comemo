@@ -1,19 +1,15 @@
-commit f46f3432a60edafdcd6ec9925550859167812cd6
+commit f3fa0bbd1f011c7436f21a18ee08f719a15b02b8
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Aug 12 09:27:39 2014 +1000
+Date:   Fri Aug 8 08:57:18 2014 +1000
 
-    compress/{gzip,zlib}: mention that Close flushes
+    flag: mention -h in docs
     
-    Our other CloseFlushers (archive/tar, compress/flate) do mention this.
+    Fixes #8314.
     
-    The original change was accidentally submitted to the release branch:
-            https://golang.org/cl/117430043/
-    
-    TBR=rsc
-    R=r, rsc
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/124130043
+    https://golang.org/cl/125820043
 
- src/pkg/compress/gzip/gzip.go   | 3 ++-
- src/pkg/compress/zlib/writer.go | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/flag/flag.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

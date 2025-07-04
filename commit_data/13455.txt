@@ -1,18 +1,26 @@
-commit 93ea79ee7ed859287e6adc51ab04028e972403e1
+commit eeffa738a912a8c4d283c37d84628b64ecc1b98f
 Author: Adam Langley <agl@golang.org>
-Date:   Wed Jul 11 12:47:12 2012 -0400
+Date:   Tue Jul 10 18:23:30 2012 -0400
 
-    crypto/rsa: left-pad PKCS#1 v1.5 outputs.
+    encoding/asn1: promote untyped strings to UTF8 as needed.
     
-    OpenSSL requires that RSA signatures be exactly the same byte-length
-    as the modulus. Currently it'll reject ~1/256 of our signatures: those
-    that end up a byte shorter.
+    Previously, strings that didn't have an explicit ASN.1 string type
+    were taken to be ASN.1 PrintableStrings. This resulted in an error if
+    a unrepresentable charactor was included.
     
-    Fixes #3796.
+    For compatibility reasons, I'm too afraid to switch the default string
+    type to UTF8String, but this patch causes untyped strings to become
+    UTF8Strings if they contain a charactor that's not valid in a
+    PrintableString.
     
-    R=golang-dev, edsrzf, r
+    Fixes #3791.
+    
+    R=golang-dev, bradfitz, r, r
     CC=golang-dev
-    https://golang.org/cl/6352093
+    https://golang.org/cl/6348074
 
- src/pkg/crypto/rsa/pkcs1v15.go | 29 ++++++++++++++++++++++-------
- 1 file changed, 22 insertions(+), 7 deletions(-)
+ src/pkg/crypto/x509/x509_test.go      |  2 +-
+ src/pkg/encoding/asn1/common.go       |  2 ++
+ src/pkg/encoding/asn1/marshal.go      | 38 +++++++++++++++++++++++++++++------
+ src/pkg/encoding/asn1/marshal_test.go |  8 ++++++++
+ 4 files changed, 43 insertions(+), 7 deletions(-)

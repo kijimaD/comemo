@@ -1,17 +1,18 @@
-commit 3f483e6520ff2d4be6a4a3eeb7a5b485ba0c2d96
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 5 10:20:05 2018 -0700
+commit 78615844f536c6664909e3269652f4938fd2b027
+Author: Reilly Watson <reillywatson@gmail.com>
+Date:   Tue Nov 21 11:00:58 2017 -0500
 
-    cmd/compile: rewrite a & 1 != 1 into a & 1 == 0 on amd64
+    doc: fix some typos in diagnostics.html
     
-    These rules trigger 190 times during make.bash.
+    The section about custom pprof paths referenced the wrong path.
     
-    Change-Id: I20d1688db5d8c904a7237c08635c6c9d8bd58b1c
-    Reviewed-on: https://go-review.googlesource.com/105037
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    This also fixes a couple minor grammatical issues elsewhere in the doc.
+    
+    Fixes #22832
+    
+    Change-Id: I890cceb53a13c1958d9cf958c658ccfcbb6863d5
+    Reviewed-on: https://go-review.googlesource.com/79035
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |   7 +
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 336 +++++++++++++++++++++++----
- 2 files changed, 299 insertions(+), 44 deletions(-)
+ doc/diagnostics.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

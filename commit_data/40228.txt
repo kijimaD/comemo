@@ -1,22 +1,21 @@
-commit c1ccae4d149ac23b376d17fdef486e631a92f775
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 11 11:39:30 2019 -0700
+commit a74e01204e08c51792a4f6a238762352e971efea
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat Apr 27 11:28:49 2019 +0200
 
-    os: deflake TestFdReadRace by increasing timeout
+    cmd/link/internal/ld: consolidate macho platform setup
     
-    This timeout will never be reached if the test passes, so it doesn't
-    much matter how long it is. The test is t.Parallel so on a slow system
-    1 second may occasionally not be enough, although on my laptop the
-    test takes about 0.02 seconds.
+    Determine the macho platform once and use that the two places that
+    need it. This makes it easier to add a third platform check for a
+    follow-up change.
     
-    Fixes #34431
+    Updates #31447
     
-    Change-Id: Ia2184e6be3747933bfe83aa6c8e1f77e6b1e0bba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200764
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I522a5fface647ab8e608f816c5832d531534df7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174198
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/pipe_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go   |  6 +---
+ src/cmd/link/internal/ld/macho.go | 58 +++++++++++++++++++++------------------
+ 2 files changed, 33 insertions(+), 31 deletions(-)

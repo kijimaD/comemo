@@ -1,13 +1,16 @@
-commit 1a9a63961b03e386af000ed83fde5fca325c6bd1
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Sat Jan 12 03:13:55 2013 -0800
+commit dc75670ae244a3f26771288d82eefc819b1e6716
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 12 17:52:52 2013 +1100
 
-    cmd/5l: fix invalid executable header on Plan 9
+    test: limit runoutput tests on arm platforms
     
-    R=minux.ma, lucio.dere
+    runoutput styles tests generally consume a lot of memory. On arm platforms rotate?.go consume around 200mb each to compile, and as tests are sorted alphabetically, they all tend to run at once.
+    
+    This change limits the number of runoutput jobs to 2 on arm platforms.
+    
+    R=minux.ma, remyoudompheng, bradfitz, lucio.dere
     CC=golang-dev
-    https://golang.org/cl/7094048
+    https://golang.org/cl/7099047
 
- src/cmd/5l/asm.c | 44 +++++++++++++++++++++++++++++++-------------
- src/cmd/5l/l.h   |  1 -
- 2 files changed, 31 insertions(+), 14 deletions(-)
+ test/run.go | 33 +++++++++++++++++++++++++++------
+ 1 file changed, 27 insertions(+), 6 deletions(-)

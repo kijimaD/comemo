@@ -1,17 +1,12 @@
-commit 55740f763f0c9d8e9ddfa565e403e8155d29a10e
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Jan 17 12:06:04 2013 +1100
+commit 1a03580ef112d7e7103790e102a5582b8dcbaf0d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 16 14:05:41 2013 -0800
 
-    exp/html: remove "INCOMPLETE" comment
+    net/http: Serve creates service goroutines, not service threads
     
-    I think that the parser is complete enough to take that warning out.
-    It passes the test suite.
-    There may be incompatible API changes, but being in the exp directory
-    is warning enough for that.
-    
-    R=nigeltao
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/7131050
+    https://golang.org/cl/7132045
 
- src/pkg/exp/html/doc.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

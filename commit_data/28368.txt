@@ -1,20 +1,18 @@
-commit 9a7ce41d6c74ef30af361677d2077ad8dd0e92b7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 14 18:03:26 2016 +0000
+commit 075880a8e8f6363a554c100ad09a85d108953eea
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 18 13:28:48 2016 -0700
 
-    bytes: cut 10 seconds off the race builder's benchmark test
+    cmd/compile: fix build
     
-    Don't benchmark so many sizes during the race builder's benchmark run.
+    Run live vars test only on ssa builds.
+    We can't just drop KeepAlive ops during regalloc.  We need
+    to replace them with copies.
     
-    This package doesn't even use goroutines.
-    
-    Cuts off 10 seconds.
-    
-    Updates #17104
-    
-    Change-Id: Ibb2c7272c18b9014a775949c656a5b930f197cd4
-    Reviewed-on: https://go-review.googlesource.com/29158
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ib4b3b1381415db88fdc2165fc0a9541b73ad9759
+    Reviewed-on: https://go-review.googlesource.com/23225
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/bytes/bytes_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/ssa/regalloc.go | 5 +++--
+ test/fixedbugs/issue15277.go             | 1 +
+ 2 files changed, 4 insertions(+), 2 deletions(-)

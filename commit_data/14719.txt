@@ -1,16 +1,17 @@
-commit b9da27bed238b5bc55f0f92ed60dc691bd4691f5
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 22 11:20:17 2012 -0500
+commit 54b7ccd514f6a689347c8d1f876bec90613f28f8
+Author: Erik St. Martin <alakriti@gmail.com>
+Date:   Sat Dec 22 11:14:56 2012 -0500
 
-    cmd/6l, cmd/8l: add -Z flag to zero stack frame on entry
+          regexp: fix index panic in Replace
     
-    Replacement for GOEXPERIMENT=zerostack, easier to use.
-    Does not require a separate toolchain.
+    When using subexpressions ($1) as replacements, when they either don't exist or values weren't found causes a panic.
+    This patch ensures that the match location isn't -1, to prevent out of bounds errors.
+    Fixes #3816.
     
-    R=ken2
+    R=franciscossouza, rsc
     CC=golang-dev
-    https://golang.org/cl/6996051
+    https://golang.org/cl/6931049
 
- src/cmd/6l/pass.c | 28 ++++++++++++++++++++++++++++
- src/cmd/8l/pass.c | 28 ++++++++++++++++++++++++++++
- 2 files changed, 56 insertions(+)
+ src/pkg/regexp/all_test.go | 4 ++++
+ src/pkg/regexp/regexp.go   | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

@@ -1,34 +1,15 @@
-commit 38531c6290bfb321d74fa4e48a6e889e29b60dab
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Wed Apr 12 10:07:35 2023 -0400
+commit 9e9e2a82d8ee82330577d5241aa2ddefd90c76c7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Mar 24 09:03:37 2022 +0000
 
-    log/slog: catch panics in LogValue
+    cmd/compile: tidy up noder's unified IR docs
     
-    If a LogValue call panics, recover and return an error instead.
+    Hopefully made the wording clearer as I was reading it.
     
-    The error contains some stack information to make it easier to
-    find the problem. A number of people complained that panics
-    in fmt.Formatter.Format functions are hard to debug because
-    there is no context.
-    
-    This is an example of the error text:
-    
-        LogValue panicked
-        called from log/slog.panickingLogValue.LogValue (/usr/local/google/home/jba/repos/go/src/log/slog/value_test.go:221)
-        called from log/slog.Value.resolve (/usr/local/google/home/jba/repos/go/src/log/slog/value.go:465)
-        called from log/slog.Value.Resolve (/usr/local/google/home/jba/repos/go/src/log/slog/value.go:446)
-        called from log/slog.TestLogValue (/usr/local/google/home/jba/repos/go/src/log/slog/value_test.go:192)
-        called from testing.tRunner (/usr/local/google/home/jba/repos/go/src/testing/testing.go:1595)
-        (rest of stack elided)
-    
-    Fixes #59141.
-    
-    Change-Id: I62e6ff6968d1aa34873e955c2d606d25418a673b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484097
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I241ce3f2ac7ae77de00dbc969540c09ef0b77496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395394
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/log/slog/value.go      | 34 +++++++++++++++++++++++++++++++++-
- src/log/slog/value_test.go | 19 +++++++++++++++++++
- 2 files changed, 52 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/unified.go | 44 +++++++++++++++----------------
+ 1 file changed, 22 insertions(+), 22 deletions(-)

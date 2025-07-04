@@ -1,26 +1,14 @@
-commit f985638b94bb72c80e5e27c284d37eabe7d09aea
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 2 13:55:51 2011 -0400
+commit 3599e3fc12e0b2056b15ce4286af9c332b0157dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 2 10:05:43 2011 -0700
 
-    misc/cgo/test: run tests
+    go/printer: make tests follow syntactic restrictions
     
-    The new gotest ignores Test functions outside *_test.go files
-    (the old shell script allowed them), so replace one clumsy hack
-    with another.
-    
-    The root problem is that the package makefiles only know
-    how to run cgo for source files in the package proper, not
-    for test files.  Making it work for test files is probably more
-    trouble than it's worth.
-    
-    R=bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4452060
+    https://golang.org/cl/4439087
 
- misc/cgo/test/align.go     |  2 +-
- misc/cgo/test/basic.go     | 10 +++++-----
- misc/cgo/test/callback.go  | 14 +++++++-------
- misc/cgo/test/cgo_test.go  | 28 +++++++++++++++++++++++++---
- misc/cgo/test/issue1328.go |  2 +-
- misc/cgo/test/issue1560.go |  2 +-
- 6 files changed, 40 insertions(+), 18 deletions(-)
+ src/pkg/go/printer/testdata/expressions.golden | 97 +++++++++++++++-----------
+ src/pkg/go/printer/testdata/expressions.input  | 97 +++++++++++++++-----------
+ src/pkg/go/printer/testdata/expressions.raw    | 97 +++++++++++++++-----------
+ 3 files changed, 174 insertions(+), 117 deletions(-)

@@ -1,19 +1,14 @@
-commit 2eeaaaae7530337c23b0d4d76ac519e677c125dd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 19 04:29:13 2016 +0530
+commit f2a0fc10c957959f1a495da0595b7987766467a0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 19 14:41:08 2015 -0800
 
-    net/http: fix bug where http2 wasn't enabled on DefaultTransport
+    cmd/cgo: final docs for pointer passing
     
-    I had accidentally disabled a headline feature at the last second. :(
+    Update #12416.
     
-    Fixes #14391
-    
-    Change-Id: I1992c9b801072b7538b95c55242be174075ff932
-    Reviewed-on: https://go-review.googlesource.com/19672
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I39eb0d1090c08ef9be9dc38d27abab62672cf664
+    Reviewed-on: https://go-review.googlesource.com/17064
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/http/transport.go      | 10 +++++++---
- src/net/http/transport_test.go |  5 +++++
- 2 files changed, 12 insertions(+), 3 deletions(-)
+ src/cmd/cgo/doc.go | 30 +++++++++++++++++-------------
+ 1 file changed, 17 insertions(+), 13 deletions(-)

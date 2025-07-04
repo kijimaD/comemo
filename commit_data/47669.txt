@@ -1,19 +1,38 @@
-commit d514411625bdd437c7d1997b92685bb03bfbf2a8
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Dec 1 12:44:04 2021 -0500
+commit a11244e95e1298ae6cd66a64d944dbcbbce3ca49
+Author: Martin Sucha <anty.sk+git@gmail.com>
+Date:   Sun Apr 4 19:20:47 2021 +0200
 
-    doc/go1.18: add information on new pacer.
+    time: use offset and isDST when caching zone from extend string
     
-    This is based off Michael's notes.
+    If the current time is computed from extend string
+    and the zone file contains multiple zones with the
+    same name, the lookup by name might find incorrect
+    zone.
     
-    Updates #47694
+    This happens for example with the slim Europe/Dublin
+    time zone file in the embedded zip. This zone file
+    has last transition in 1996 and rest is covered by
+    extend string.
+    tzset returns IST as the zone name to use, but there
+    are two records with IST name. Lookup by name finds
+    the wrong one. We need to check offset and isDST too.
     
-    Change-Id: I6e7944f85b776e8481829a2fafd177a49557c6ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368156
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    In case we can't find an existing zone, we allocate
+    a new zone so that we use correct offset and isDST.
+    
+    I have renamed zone variable to zones as it shadowed
+    the zone type that we need to allocate the cached zone.
+    
+    Fixes #45370
+    
+    Change-Id: I79102e4873b6de20d8a65f8a3057519ff5fae608
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307190
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.18.html | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/time/zoneinfo_read.go | 44 +++++++++++++++++++++++++++-----------------
+ src/time/zoneinfo_test.go | 14 +++++++++++++-
+ 2 files changed, 40 insertions(+), 18 deletions(-)

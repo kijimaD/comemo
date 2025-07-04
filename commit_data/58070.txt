@@ -1,34 +1,25 @@
-commit 7d7618971eeb244ca062f848941d9d890d21f9f9
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Nov 3 13:10:33 2024 +0100
+commit 5e9afab7df87045bd919b120c1b05476e14d8a35
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Sep 25 09:22:48 2023 -0400
 
-    crypto/aes,crypto/cipher: test all available implementations
+    log/slog: ensure ReplaceAttr does not see a group
     
-    TestEmptyPlaintext and TestCryptBlocks were folded into cryptotest.
+    The ReplaceAttr function should not see groups, only leaf attributes.
     
-    Change-Id: I6131ab8582eb0e6d3a1b24bab1147a145d9766ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624738
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Previously, we checked an Value for being a group, then resolved it,
+    then called ReplaceAttr. We neglected to see if it was a group
+    after resolving it.
+    
+    Now we resolve first, then check.
+    
+    Fixes #62731.
+    
+    Change-Id: I2fc40758e77c445f82deb2c9de8cae7a3b0e22cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530478
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/aes/aes_test.go                     | 12 ++++
- src/crypto/cipher/cbc_aes_test.go              |  9 +++
- src/crypto/cipher/cbc_test.go                  | 27 ++++----
- src/crypto/cipher/cipher_test.go               | 90 ------------------------
- src/crypto/cipher/ctr_aes_test.go              | 46 +++----------
- src/crypto/cipher/ctr_test.go                  | 30 ++++----
- src/crypto/cipher/export_test.go               |  9 ---
- src/crypto/cipher/fuzz_test.go                 |  4 +-
- src/crypto/cipher/gcm_test.go                  | 94 +++++++++++++++++---------
- src/crypto/cipher/modes_test.go                |  7 +-
- src/crypto/internal/cryptotest/blockmode.go    | 13 ++++
- src/crypto/internal/cryptotest/stream.go       | 13 ++++
- src/crypto/internal/fips/aes/aes_asm.go        | 21 ++++++
- src/crypto/internal/fips/aes/aes_s390x.go      | 11 ++-
- src/crypto/internal/fips/aes/gcm/gcm_asm.go    | 11 +++
- src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go |  5 ++
- src/crypto/internal/fips/aes/gcm/gcm_s390x.go  |  6 ++
- 17 files changed, 207 insertions(+), 201 deletions(-)
+ src/log/slog/handler.go      |  7 ++++---
+ src/log/slog/handler_test.go | 12 ++++++++++++
+ 2 files changed, 16 insertions(+), 3 deletions(-)

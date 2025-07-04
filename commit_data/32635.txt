@@ -1,14 +1,44 @@
-commit e16dc7d5a9e4136d56fc84172d2fbe747b096d45
-Author: Davor Kapsa <davor.kapsa@gmail.com>
-Date:   Fri Sep 8 12:59:59 2017 +0200
+commit 94a017f3f53509ea84d3f51236a49de0b716ee7f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 11:56:46 2017 -0700
 
-    database/sql: fix Conn's doc typo
+    cmd/compile: allow OpVarXXX calls to be duplicated in writebarrier blocks
     
-    Fixes #21798
+    OpVarXXX Values don't generate instructions,
+    so there's no reason not to duplicate them,
+    and duplicating them generates better code
+    (fewer branches).
     
-    Change-Id: Ided31a8b22c220acdeb3938cac41ce8db9a110c3
-    Reviewed-on: https://go-review.googlesource.com/62290
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    This requires changing the start/end accounting
+    to correctly handle the case in which we have run
+    of Values beginning with an OpVarXXX, e.g.
+    OpVarDef, OpZeroWB, OpMoveWB.
+    In that case, the sequence of values should begin
+    at the OpZeroWB, not the OpVarDef.
+    
+    This also lays the groundwork for experimenting
+    with allowing duplication of some scalar stores.
+    
+    Shrinks function text sizes a tiny amount:
+    
+    name        old object-bytes  new object-bytes  delta
+    Template           381k ± 0%         381k ± 0%  -0.01%  (p=0.008 n=5+5)
+    Unicode            203k ± 0%         203k ± 0%  -0.04%  (p=0.008 n=5+5)
+    GoTypes           1.17M ± 0%        1.17M ± 0%  -0.01%  (p=0.008 n=5+5)
+    SSA               8.24M ± 0%        8.24M ± 0%  -0.00%  (p=0.008 n=5+5)
+    Flate              230k ± 0%         230k ± 0%    ~     (all equal)
+    GoParser           286k ± 0%         286k ± 0%    ~     (all equal)
+    Reflect           1.00M ± 0%        1.00M ± 0%    ~     (all equal)
+    Tar                189k ± 0%         189k ± 0%    ~     (all equal)
+    XML                415k ± 0%         415k ± 0%  -0.01%  (p=0.008 n=5+5)
+    
+    Updates #19838
+    
+    Change-Id: Ic5ef30855919f1468066eba08ae5c4bd9a01db27
+    Reviewed-on: https://go-review.googlesource.com/42011
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/database/sql/sql.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/writebarrier.go | 40 +++++++++++++++++++---------
+ 1 file changed, 28 insertions(+), 12 deletions(-)

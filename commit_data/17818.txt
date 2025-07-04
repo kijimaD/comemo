@@ -1,15 +1,14 @@
-commit 66f49f78a5a8f8e6832e8b66eea56387b0c72a52
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 18 15:35:45 2013 -0400
+commit f5d25fd695471065a474b7940ef11e006d683aac
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 18 15:03:41 2013 +0900
 
-    net: make sure failed Dial returns nil Conn
+    misc/dist: build race packages when os suffix present
     
-    Fixes #6614.
+    The "darwin-amd64-osx10.8" target was not matching "darwin-amd64".
     
-    R=golang-dev, bradfitz, mikioh.mikioh
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/14950045
+    https://golang.org/cl/14930043
 
- src/pkg/net/dial.go     | 34 ++++++++++++++++++++++++----------
- src/pkg/net/net_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 62 insertions(+), 10 deletions(-)
+ misc/dist/bindist.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

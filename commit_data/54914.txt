@@ -1,17 +1,26 @@
-commit 3f700ce4d2f9674e9091f5a33fa8860f9106d5c8
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Nov 8 09:55:54 2023 -0500
+commit 998949c09b8925e1f6bab78cb046c6921c5327a1
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Mon Aug 23 15:29:16 2021 +0200
 
-    cmd/link/internal/loader: remove some dead code
+    cmd/dist: update to assume Go 1.17.13 as minimal Go bootstrap version
     
-    Get rid of a couple of unused methods in the loader and symbol
-    builder.
+    Replace explicit Go version names where possible with generic reference
+    to Go bootstrap version.
     
-    Change-Id: I3822891757dc56356295a9bc99545b725d485eac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540260
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Updates #44505
+    
+    Change-Id: I4a6439576efd40e72acd26fcc1472a1a8b0b06e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344330
+    Auto-Submit: Martin Möhrmann <martin@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/internal/loader/loader.go        | 8 --------
- src/cmd/link/internal/loader/symbolbuilder.go | 4 ----
- 2 files changed, 12 deletions(-)
+ src/cmd/dist/README       | 10 +++++-----
+ src/cmd/dist/build.go     | 20 ++++++--------------
+ src/cmd/dist/buildtool.go | 32 +++++++++-----------------------
+ src/cmd/dist/test.go      | 23 +++++++++++++++--------
+ src/cmd/dist/util.go      |  2 +-
+ 5 files changed, 36 insertions(+), 51 deletions(-)

@@ -1,27 +1,27 @@
-commit a9e57f743d658ba27d3165dc6841915b12a98879
-Author: Joe Poirier <jdpoirier@gmail.com>
-Date:   Sun Feb 19 22:21:41 2012 -0600
+commit 943f6cc837f4513a8cae7df199d14c5a38cf7677
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 20 14:25:28 2012 +1100
 
-    misc/dist/windows: ongoing dev
+    database/sql/driver: API cleanups
     
-    Added the (properly formatted) license file back,
-    the installer adds go\bin to the system PATH now,
-    the output package names are in line with the linux
-    and darwin versions, dist.bat extracts GOARCH in a
-    sane way, readme cleanup.
+    -- add driver.Value type and documentation,
+       convert from interface{} to Value where
+       appropriate.
+    -- don't say "subset" anywhere,
+    -- SubsetValuer -> Valuer
+    -- SubsetValue -> Value
+    -- IsParameterSubsetType -> IsValue
+    -- IsScanSubsetType -> IsScanValue
     
-    Tested on Windows 7 only. It would be helpful if
-    someone else could give it a try. See the readme
-    for details.
+    Fixes #2842
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5673099
+    https://golang.org/cl/5674084
 
- misc/dist/windows/LICENSE         | Bin 0 -> 1687 bytes
- misc/dist/windows/README          |  49 ++++++++++++++++------------
- misc/dist/windows/dist.bat        |  21 ++++++------
- misc/dist/windows/godocserver.bat |  14 --------
- misc/dist/windows/goenv.bat       |  29 -----------------
- misc/dist/windows/installer.wxs   |  66 +++++++++++++++++---------------------
- 6 files changed, 71 insertions(+), 108 deletions(-)
+ src/pkg/database/sql/convert.go       |  4 +-
+ src/pkg/database/sql/driver/driver.go | 51 +++++++++++-----------
+ src/pkg/database/sql/driver/types.go  | 80 +++++++++++++----------------------
+ src/pkg/database/sql/fakedb_test.go   | 16 +++----
+ src/pkg/database/sql/sql.go           | 54 +++++++++++------------
+ 5 files changed, 92 insertions(+), 113 deletions(-)

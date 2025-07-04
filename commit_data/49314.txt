@@ -1,27 +1,23 @@
-commit a2bca290e7bc8ab0cdd6c26038f15ac1bb9f8628
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat May 21 19:00:18 2022 +0700
+commit 8ab59d812a222773c0a848aaa532630423eecc98
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Aug 10 12:49:21 2021 -0700
 
-    cmd/compile: fix loong64 constant folding in division rules
+    [dev.typeparams] cmd/compile: change export version to 1.17 for testing
     
-    The divisor must be non-zero for the rule to be triggered.
+    This is a temporary change. We will revert this back before the 1.18
+    release. We make this change now to simplify testing, since a lot of
+    tools will break on the new export version.
     
-    Fixes #53018
+    Updates #47654.
     
-    Change-Id: Id56b8d986945bbb66e13131d11264ee438de5cb2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407655
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Change-Id: I0650fa753bb11229c71254d779dd61b5c1af9cdf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341211
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/LOONG64.rules |  8 +++----
- src/cmd/compile/internal/ssa/rewriteLOONG64.go | 16 ++++++++++++++
- test/fixedbugs/issue53018.go                   | 30 ++++++++++++++++++++++++++
- 3 files changed, 50 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go  | 12 ++++++------
+ src/cmd/compile/internal/typecheck/iexport.go | 11 ++++++-----
+ src/cmd/compile/internal/typecheck/iimport.go |  2 +-
+ src/go/internal/gcimporter/iimport.go         | 12 ++++++------
+ 4 files changed, 19 insertions(+), 18 deletions(-)

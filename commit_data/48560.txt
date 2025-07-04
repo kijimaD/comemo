@@ -1,27 +1,31 @@
-commit 94727bed02d59b6a40757ba583f61d1b03493e5d
-Author: Ben Shi <ben.shi@streamcomputing.com>
-Date:   Mon Mar 28 11:40:02 2022 +0000
+commit 0b80cf11366f28ef5d0d8bae9c46813e96ffd071
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed May 26 15:29:39 2021 -0400
 
-    cmd/internal/obj/riscv: add two-operand form to more instructions
+    cmd/go: make 'go get' save sums for incidentally updated modules
     
-    Add two-operand form "op rs, rd" to
-    ADDW/SUBW/SLLW/SRLW/SRAW/SLLIW/SRLIW/SRAIW.
+    When 'go get' updates a module, it may update another module in the
+    build list that provides a package in 'all' that wasn't loaded as part
+    of the 'go get' command. If 'go get' doesn't add a sum for that
+    module, builds may fail later.
     
-    Do the following map:
-    "ADDW $imm, rd" -> "ADDIW $imm, rd"
-    "SLLW $imm, rd" -> "SLLIW $imm, rd"
-    "SRLW $imm, rd" -> "SRLIW $imm, rd"
-    "SRAW $imm, rd" -> "SRAIW $imm, rd"
+    With this change, 'go get' will fetch a sum for the content of an
+    updated module if we had a sum for the version before the update.
     
-    Change-Id: Ie9632ba198ba8c05faac91504e4b97fc45ca1196
-    GitHub-Last-Rev: c6ccc9d5d0612ede1a1ffebb6bbc0309da87f4e1
-    GitHub-Pull-Request: golang/go#51984
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396134
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    'go get' won't load the complete package graph, so there are still
+    cases where the build may be broken, like when an updated (but not
+    loaded) package imports a package from a new module.
+    
+    Fixes #44129
+    
+    Change-Id: I62eba3df4137a3e84e2ca8d549c36eec3670f08c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322832
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s | 13 +++++++++++++
- src/cmd/internal/obj/riscv/obj.go           |  9 +++++++++
- 2 files changed, 22 insertions(+)
+ src/cmd/go/internal/modget/get.go                  |  54 +++++++++-
+ .../script/mod_get_update_unrelated_sum.txt        | 120 +++++++++++++++++++++
+ 2 files changed, 173 insertions(+), 1 deletion(-)

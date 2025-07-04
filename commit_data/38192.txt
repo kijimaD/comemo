@@ -1,16 +1,18 @@
-commit 3fe97ba0ff1262f86f75cbd141e4c1f50f0a919e
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Wed Jan 30 17:34:52 2019 +0000
+commit 48dc42b6afe7ad13102c55b8200c9f4577a88c84
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 4 16:49:53 2018 -0700
 
-    cmd/go/internal/work: properly ignore error
+    cmd/compile/internal/gc: major evconst cleanup
     
-    Change-Id: Id0e8d170730d946b60c661d90bc98d0ca7545391
-    GitHub-Last-Rev: 19fed775b7e87c8c721b4487458354a2d5532a6c
-    GitHub-Pull-Request: golang/go#30001
-    Reviewed-on: https://go-review.googlesource.com/c/160425
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Major cleanup to structure the code more similarly to go/constant.
+    
+    Passes "toolstash -cmp" on std cmd.
+    
+    Change-Id: I3ec7a7a24e313f119b0da4095001aad02e317894
+    Reviewed-on: https://go-review.googlesource.com/c/139901
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/work/exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/const.go | 851 +++++++++++++----------------------
+ 1 file changed, 302 insertions(+), 549 deletions(-)

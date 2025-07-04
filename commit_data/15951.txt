@@ -1,24 +1,14 @@
-commit 7cfebf7b1d0e02663a18225c04ca02f28e4fd6df
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 26 11:14:30 2013 -0700
+commit 237b8b8b66113c081c1407251c0c605d1acdc730
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 26 10:54:55 2013 -0700
 
-    godoc: link identifiers to declarations
+    doc/go1.1.html: describe Zone and other net changes
+    Mild adaptation of rsc's 8021043, which I was unable to clpatch.
+    (rsc is offline)
     
-    The changes are almost completely self-contained
-    in the new file linkify.go. The other changes are
-    minimal and should not disturb the currently
-    working godoc, in anticipation of Go 1.1.
-    
-    To disable the feature in case of problems, set
-    -links=false.
-    
-    Fixes #2063.
-    
-    R=adg, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7883044
+    https://golang.org/cl/7741049
 
- src/cmd/godoc/format.go  |  10 +--
- src/cmd/godoc/godoc.go   |  39 ++++++++-
- src/cmd/godoc/linkify.go | 210 +++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 251 insertions(+), 8 deletions(-)
+ doc/go1.1.html | 72 ++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 65 insertions(+), 7 deletions(-)

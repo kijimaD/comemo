@@ -1,24 +1,23 @@
-commit d1d798dd15e7abbeab335804bd6dfaec6c016018
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Sat Dec 5 21:06:05 2015 +0600
+commit e75c899a10c9321d1b4935c34401f66b2abad83a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Jun 23 13:32:50 2016 -0400
 
-    image/gif: check handling of truncated GIF files
+    reflect: optimize (reflect.Type).Name
     
-    All the prefixes of the testGIF produce errors today,
-    but they differ wildly in which errors: some are io.EOF,
-    others are io.ErrUnexpectedEOF, and others are gif-specific.
-    Make them all gif-specific to explain context, and make
-    any complaining about EOF be sure to mention the EOF
-    is unexpected.
+    Improves JSON decoding on linux/amd64.
     
-    Fixes #11390.
+    name                   old time/op    new time/op    delta
+    CodeUnmarshal-40         89.3ms ± 2%    86.3ms ± 2%  -3.31%  (p=0.000 n=22+22)
     
-    Change-Id: I742c39c88591649276268327ea314e68d1de1845
-    Reviewed-on: https://go-review.googlesource.com/17493
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    name                   old speed      new speed      delta
+    CodeUnmarshal-40       21.7MB/s ± 2%  22.5MB/s ± 2%  +3.44%  (p=0.000 n=22+22)
+    
+    Updates #16117
+    
+    Change-Id: I52acf31d7729400cfe6693e46292d41e1addba3d
+    Reviewed-on: https://go-review.googlesource.com/24410
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/image/gif/reader.go      | 83 ++++++++++++++++++++++++++++----------------
- src/image/gif/reader_test.go | 17 +++++++++
- 2 files changed, 71 insertions(+), 29 deletions(-)
+ src/reflect/type.go | 41 +++++++++++++++++++++++------------------
+ 1 file changed, 23 insertions(+), 18 deletions(-)

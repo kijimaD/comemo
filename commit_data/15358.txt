@@ -1,16 +1,17 @@
-commit fb21bca01253dfba1a7254f816576724fc2443a9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 21 12:01:47 2013 -0800
+commit 6f96a76cd115cf8e3f48d5a4a10ef1fc41dbf689
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 21 10:47:31 2013 -0800
 
-    net/http, net/url: deal with URL.Opaque beginning with //
+    unicode: use new Scanner interface in table creation
+    Update norm and local/collate as well.
     
-    Update #4860
-    
-    R=adg, rsc, campoy
+    R=mpvl
     CC=golang-dev
-    https://golang.org/cl/7369045
+    https://golang.org/cl/7395045
 
- src/pkg/net/http/requestwrite_test.go | 38 +++++++++++++++++++++++++++++++++++
- src/pkg/net/url/url.go                |  4 ++++
- src/pkg/net/url/url_test.go           | 18 +++++++++++++++++
- 3 files changed, 60 insertions(+)
+ src/pkg/exp/locale/collate/maketables.go | 17 ++++-------
+ src/pkg/exp/locale/collate/regtest.go    | 15 ++++------
+ src/pkg/exp/norm/maketables.go           | 47 +++++++++++------------------
+ src/pkg/exp/norm/normregtest.go          | 20 +++++--------
+ src/pkg/unicode/maketables.go            | 51 +++++++++++++-------------------
+ 5 files changed, 59 insertions(+), 91 deletions(-)

@@ -1,12 +1,22 @@
-commit f0fc16abd7bf346515d45ba2885bde45bafb8321
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Apr 11 04:04:02 2013 +0800
+commit 357e37dc945885a141b48182c4606f1aac8320db
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 9 15:00:21 2013 -0700
 
-    cmd/ld: fix argument passing in doc.go
+    encoding/json: fix handling of anonymous fields
+    The old code was incorrect and also broken. It passed the tests by accident.
+    The new algorithm is:
+            1) Sort the fields in order of names.
+            2) For all fields with the same name, sort in increasing depth.
+            3) Choose the single field with shortest depth.
+    If any of the fields of a given name has a tag, do the above using
+    tagged fields of that name only.
+    Fixes #5245.
     
-    R=golang-dev, r
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/8622043
+    https://golang.org/cl/8583044
 
- src/cmd/ld/doc.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/encoding/json/decode_test.go |  2 +-
+ src/pkg/encoding/json/encode.go      | 63 ++++++++++++++++++++++++++++++------
+ src/pkg/encoding/json/encode_test.go | 50 ++++++++++++++++++++++++++++
+ 3 files changed, 104 insertions(+), 11 deletions(-)

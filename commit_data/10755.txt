@@ -1,16 +1,14 @@
-commit 516168057e0b2a30bcda024892ed36badb731c00
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Tue Dec 13 16:34:22 2011 -0500
+commit 19d064f68a275064c4a288f0c89885524b87fe9e
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Dec 13 16:23:06 2011 -0500
 
-    http: close connection after printing panic stack trace
-    In a testing situation, it's possible for a local http
-    server to panic and the test exit without the stack trace
-    ever being printed.
-    Fixes #2480.
+    gofix: add fix httputil
     
-    R=rsc, bradfitz
+    R=r, rsc, adg
     CC=golang-dev
-    https://golang.org/cl/5414048
+    https://golang.org/cl/5364056
 
- src/pkg/net/http/server.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/gofix/Makefile         |   1 +
+ src/cmd/gofix/httputil.go      |  63 +++++++++++++++++++++
+ src/cmd/gofix/httputil_test.go | 122 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 186 insertions(+)

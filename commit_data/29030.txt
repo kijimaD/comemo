@@ -1,15 +1,18 @@
-commit 6e78f7697405e8c24af796322e4c3c325ed97d95
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Oct 24 23:24:11 2016 +0000
+commit 726190daf3cd66d020369c6ac7df586d53a58a1a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 31 13:11:15 2016 -0700
 
-    testing/quick, text/tabwriter: freeze packages
+    cmd/compile: explicitly manage default and nil switch cases
     
-    Fixes #15557
+    Rather than juggle default and nil cases as part
+    of a slice, handle them explicitly.
     
-    Change-Id: I02ad98068894e75d4e08e271fdd16cb420519460
-    Reviewed-on: https://go-review.googlesource.com/31910
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I97b200c9d3f23fe1a438acdbf3d13b0cf7e0851e
+    Reviewed-on: https://go-review.googlesource.com/26761
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/testing/quick/quick.go      | 2 ++
- src/text/tabwriter/tabwriter.go | 1 +
- 2 files changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/swt.go      | 145 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/swt_test.go |   2 +-
+ 2 files changed, 64 insertions(+), 83 deletions(-)

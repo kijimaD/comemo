@@ -1,17 +1,12 @@
-commit fcb23249b2ac65a882fdbbeeb907fdbb5dffdb79
-Author: Burcu Dogan <jbd@google.com>
-Date:   Wed Mar 2 18:12:30 2016 -0800
+commit 62226fa9e4f6e60384e72c4c51491096bd9ecba7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 11:52:57 2015 -0500
 
-    net: skip TestLookupPort on android with netgo
+    doc: many updates to go1.6.txt
     
-    /etc/services is not available on Android. The pure Go implementation
-    of LookupPort will never succeed on Android. Skipping the test.
-    
-    Updates #14576.
-    
-    Change-Id: I707ac24aea3f988656b95b1816ee5c9690106985
-    Reviewed-on: https://go-review.googlesource.com/20154
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I97d2315a1f978fbc4fd9e7f5f860f8e29ae43470
+    Reviewed-on: https://go-review.googlesource.com/17743
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/lookup_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/go1.6.txt | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 57 insertions(+), 4 deletions(-)

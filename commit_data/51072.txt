@@ -1,38 +1,17 @@
-commit 03f6d81fc7d52ec53deb94cff69b63d04e689c24
-Author: David Chase <drchase@google.com>
-Date:   Fri Oct 14 12:04:52 2022 -0400
+commit 25f06cb71f06406bd38de0a37967edc6ec8ca120
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 13:56:53 2021 -0500
 
-    cmd/compile: renovate GOSSAHASH
+    doc/go1.18: add deprecation note for net.Error.Temporary
     
-    Randomized feature enable/disable might be something we use to
-    help users debug any problems with changed loop variable capture,
-    and there's another CL that would like to use it to help in
-    locating places where "fused" multiply add instructions change
-    program behavior.
+    Updates #47694
     
-    This CL:
-    - adds the ability to include an integer parameter (e.g. line number)
-    - replumbed the environment variable into a flag to simplify go build cache management
-    - but added an environment variable to allow flag setting through the environment
-    - which adds the possibility of switching on a different variable
-      (if there's one built-in for variable capture, it shouldn't be GOSSAHASH)
-    - cleaned up the checking code
-    - adds tests for all the intended behavior
-    - removes the case for GSHS_LOGFILE; TBD whether we'll need to put that back
-      or if there is another way.
-    
-    Change-Id: I8503e1bb3dbc4a743aea696e04411ea7ab884787
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443063
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia25ad49f688efa3d60d83290095648711704b478
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368316
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/base/debug.go          |   1 +
- src/cmd/compile/internal/base/flag.go           |  10 ++
- src/cmd/compile/internal/base/hashdebug.go      | 201 ++++++++++++++++++------
- src/cmd/compile/internal/base/hashdebug_test.go | 164 +++++++++++++++++++
- src/cmd/compile/internal/ssa/func.go            |   4 +-
- src/cmd/go/internal/work/exec.go                |  19 +--
- 6 files changed, 326 insertions(+), 73 deletions(-)
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

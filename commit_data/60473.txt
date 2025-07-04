@@ -1,0 +1,36 @@
+commit 1d717951f518a9e818e8b98d4daed17756c394ca
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Jul 24 10:39:48 2024 +0000
+
+    net: use slices and maps to clean up tests
+    
+    Replace reflect.DeepEqual with slices.Equal/maps.Equal, which is
+    much faster.
+    
+    Change-Id: I54600fb63a56460c11d3d5af9072da585e31b1a2
+    GitHub-Last-Rev: 08c1445ad5be94d071e8ceb4b060b8f4ab0d77ba
+    GitHub-Pull-Request: golang/go#67606
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587816
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/dnsclient_unix_test.go             | 13 +++++++------
+ src/net/dnsconfig_unix_test.go             |  3 ++-
+ src/net/hosts_test.go                      |  6 +++---
+ src/net/http/cgi/host_test.go              |  4 ++--
+ src/net/http/clientserver_test.go          |  2 +-
+ src/net/http/fs_test.go                    |  6 +++---
+ src/net/http/http_test.go                  |  4 ++--
+ src/net/http/httputil/reverseproxy_test.go |  4 ++--
+ src/net/http/request_test.go               | 17 +++++++++--------
+ src/net/http/serve_test.go                 |  7 ++++---
+ src/net/http/sniff_test.go                 |  4 ++--
+ src/net/http/transport_test.go             |  7 ++++---
+ src/net/lookup_test.go                     |  2 +-
+ src/net/lookup_windows_test.go             |  6 +++---
+ src/net/mail/message_test.go               |  3 ++-
+ src/net/resolverdialfunc_test.go           |  2 +-
+ src/net/textproto/reader_test.go           |  9 +++++----
+ 17 files changed, 53 insertions(+), 46 deletions(-)

@@ -1,34 +1,13 @@
-commit b23691148f4860721a659347a3d6e693f93538da
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 12 15:55:18 2012 -0400
+commit 72801291d6cb2109cc6578b4d1fb508cd4ae4f43
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Mar 13 03:34:22 2012 +0800
 
-    runtime: print error on receipt of signal on non-Go thread
+    build: build correct cmd/dist matching GOHOSTARCH
+            Fix for issue 3210 comment #1.
     
-    It's the best we can do before Go 1.
-    
-    For issue 3250; not a fix but at least less mysterious.
-    
-    R=golang-dev, bradfitz
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/5797068
+    https://golang.org/cl/5794057
 
- src/pkg/runtime/sys_darwin_386.s    |  7 ++++++-
- src/pkg/runtime/sys_darwin_amd64.s  |  7 ++++++-
- src/pkg/runtime/sys_freebsd_386.s   |  7 ++++++-
- src/pkg/runtime/sys_freebsd_amd64.s |  7 ++++++-
- src/pkg/runtime/sys_linux_386.s     |  6 ++++++
- src/pkg/runtime/sys_linux_amd64.s   |  7 ++++++-
- src/pkg/runtime/sys_netbsd_386.s    |  7 ++++++-
- src/pkg/runtime/sys_netbsd_amd64.s  |  7 ++++++-
- src/pkg/runtime/sys_openbsd_386.s   |  7 ++++++-
- src/pkg/runtime/sys_openbsd_amd64.s |  7 ++++++-
- src/pkg/runtime/sys_windows_386.s   | 28 ++++++++++++++++++++++++++++
- src/pkg/runtime/sys_windows_amd64.s | 30 ++++++++++++++++++++++++++++++
- src/pkg/runtime/thread_darwin.c     | 10 ++++++++++
- src/pkg/runtime/thread_freebsd.c    | 10 ++++++++++
- src/pkg/runtime/thread_linux.c      | 10 ++++++++++
- src/pkg/runtime/thread_netbsd.c     | 10 ++++++++++
- src/pkg/runtime/thread_openbsd.c    | 10 ++++++++++
- src/pkg/runtime/thread_plan9.c      | 10 ++++++++++
- src/pkg/runtime/thread_windows.c    |  3 +++
- 19 files changed, 181 insertions(+), 9 deletions(-)
+ src/make.bash | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

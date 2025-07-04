@@ -1,29 +1,28 @@
-commit 7e31d9b9f7e8e4e72472cfcbd807b5672806635a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Oct 5 17:43:38 2017 +1100
+commit 91139b87f776a553524b022753981e7909386777
+Author: John R. Lenton <jlenton@gmail.com>
+Date:   Sat May 20 17:22:36 2017 +0100
 
-    misc/cgo/testcshared: skip all but TestExportedSymbols on windows
+    runtime, syscall: workaround for bug in Linux's execve
     
-    TestUnexportedSymbols requires dup2 that
-    my gcc installation does not have.
+    Linux's execve has (at the time of writing, and since v2.6.30) a bug when it ran
+    concurrently with clone, in that it would fail to set up some datastructures if
+    the thread count before and after some steps differed. This is described better
+    and in more detail by Colin King in Launchpad¹ and kernel² bugs. When a program
+    written in Go runtime.Exec's a setuid binary, this issue may cause the resulting
+    process to not have the expected uid. This patch works around the issue by using
+    a mutex to serialize exec and clone.
     
-    TestSignalHandlersWithNotify fails with:
-    undefined: syscall.SIGIO.
+    1. https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1672819
+    2. https://bugzilla.kernel.org/show_bug.cgi?id=195453
     
-    TestSignalHandlers fails with:
-    sched.h: No such file or directory.
+    Fixes #19546
     
-    TestExportedSymbolsWithDynamicLoad fails with:
-    dlfcn.h: No such file or directory.
-    
-    Also add t.Helper calls to better error messages.
-    
-    Updates #11058
-    
-    Change-Id: I7eb514968464256b8337e45f57fcb7d7fe0e4693
-    Reviewed-on: https://go-review.googlesource.com/68410
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I126e87d1d9ce3be5ea4ec9c7ffe13f92e087903d
+    Reviewed-on: https://go-review.googlesource.com/43713
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testcshared/cshared_test.go | 29 +++++++++++++++++++++++++++--
- 1 file changed, 27 insertions(+), 2 deletions(-)
+ src/runtime/proc.go      | 22 ++++++++++++++++++++++
+ src/syscall/exec_unix.go |  6 ++++++
+ 2 files changed, 28 insertions(+)

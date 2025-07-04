@@ -1,25 +1,15 @@
-commit 8f4d9646417ae1904f53d7ba111b2290d80d0097
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 27 10:40:47 2015 -0400
+commit 7556948ebf1c1d739c2fa3b06a0b9bc10e4f150d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Apr 29 22:58:52 2015 +1200
 
-    cmd/compile, cmd/internal: replace %P with %v in a few final prints
+    cmd/internal/ld: put the list of packages built into a shared library into an ELF note
     
-    $ sizeof -p cmd/compile/internal/gc Node
-    Node 168
-    $
-    
-    Change-Id: I1e2f17bfee0e6ca7213706c4cef8d990f4461915
-    Reviewed-on: https://go-review.googlesource.com/10533
+    Change-Id: I611f7dec2109dc7e2f090ced0a1dca3d4b577134
+    Reviewed-on: https://go-review.googlesource.com/9520
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/arm/cgen64.go | 6 +++---
- src/cmd/compile/internal/arm/ggen.go   | 4 ++--
- src/cmd/compile/internal/arm/gsubr.go  | 2 +-
- src/cmd/compile/internal/gc/popt.go    | 6 +++---
- src/cmd/internal/obj/arm/asm5.go       | 2 +-
- src/cmd/internal/obj/data.go           | 4 ++--
- src/cmd/internal/obj/pcln.go           | 2 +-
- src/cmd/internal/obj/ppc64/asm9.go     | 6 +++---
- src/cmd/internal/obj/x86/asm6.go       | 6 +++---
- 9 files changed, 19 insertions(+), 19 deletions(-)
+ src/cmd/internal/ld/elf.go  | 49 ++++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/internal/ld/lib.go  |  9 +++++++++
+ src/cmd/internal/ld/pobj.go |  4 ++++
+ 3 files changed, 57 insertions(+), 5 deletions(-)

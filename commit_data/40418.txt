@@ -1,21 +1,25 @@
-commit fc8eb264bba88b9e4eb85fa7560817abb25767f4
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 15 21:46:43 2019 -0400
+commit ce5ae2f4bc606ef1d8fddadf771e9889f481a4a4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 10 15:08:17 2019 -0400
 
-    runtime: ensure _Grunning Gs have a valid g.m and g.m.p
+    test: use a real use function in nilptr2.go
     
-    We already claim on the documentation for _Grunning that this is case,
-    but execute transitions to _Grunning before assigning g.m. Fix this
-    and make the documentation even more explicit.
+    Adjust the dummy use function to a real use. As suggested by the
+    println calls in the test, nilptr2.go supposes to check that a
+    used nil pointer dereference panics. This use function is not
+    real enough so an optimized compiler such as gccgo could
+    eliminate the call.
     
-    For #10958, #24543, but also a good cleanup.
+    The spec requires that even a dummy use would cause a panic.
+    Unfortunately, due to #31151 this is not true for gccgo at -O1 or
+    above.
     
-    Change-Id: I1eb0108e7762f55cfb0282aca624af1c0a15fe56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201440
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ie07c8a5969ab94dad82d4f7cfec30597c25b7c46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176579
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go     | 6 ++++--
- src/runtime/runtime2.go | 2 +-
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ test/nilptr2.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

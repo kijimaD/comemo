@@ -1,12 +1,12 @@
-commit bcdb7926dd5f020e0cc67ca8cbec872dd666f172
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Oct 20 17:23:48 2012 +0800
+commit 0ba5ec53b047376e77418a248233b0645a79a838
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Oct 20 13:02:29 2012 +1100
 
-    codereview: protect against read-only upstream repository
+    bufio: remove a little unnecessary indirection in tests.
     
-    R=golang-dev, bradfitz
+    R=mchaten, r
     CC=golang-dev
-    https://golang.org/cl/6742053
+    https://golang.org/cl/6739045
 
- lib/codereview/codereview.py | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/bufio/bufio_test.go | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

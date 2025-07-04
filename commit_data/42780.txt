@@ -1,18 +1,19 @@
-commit 9679b307334bce77cc6e50751956a4c717e9458c
+commit 2f2e97c00cf7da51ed692ff9b3f214eea4df4090
 Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Apr 23 18:06:21 2020 -0400
+Date:   Fri Jan 10 18:04:08 2020 -0500
 
-    cmd/go/testdata/script: make list_case_collision's behavior more clear
+    cmd/go: convert TestIssue12096 to the script framework
     
-    Implementing the suggestion made by bcmills on a comment on golang.org/cl/228783.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Change-Id: I314a24a002c65b582ea51610dcc1a54a69afbb8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229705
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I27e52c4eabfcd1782965f17c098719dd0ea7e3ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214390
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/script_test.go                          | 38 ++++++++++++++++++++++
- src/cmd/go/testdata/script/README                  |  1 +
- src/cmd/go/testdata/script/list_case_collision.txt | 25 +++++---------
- 3 files changed, 48 insertions(+), 16 deletions(-)
+ src/cmd/go/go_test.go                        | 15 ---------------
+ src/cmd/go/testdata/script/test_env_term.txt | 15 +++++++++++++++
+ 2 files changed, 15 insertions(+), 15 deletions(-)

@@ -1,18 +1,17 @@
-commit 76e72691a0c91623f7764a1d34ec1d65b767bce3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 30 10:52:13 2016 -0700
+commit bc1fb32e9d4e5dd239907839f5ffcbe524ac7e25
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Feb 17 14:08:36 2016 +0100
 
-    cmd/compile: add typMap
+    [dev.ssa] cmd/compile/internal/ssa: fix the type of constant shift folding.
     
-    Also, add two uses of Key and Val that I missed earlier.
-    As before, direct writes to Down and Type remain in bimport.
+    Also throw in a few more shift constant folding.
     
-    Change-Id: I487aa975926b30092db1ad74ace17994697117c1
-    Reviewed-on: https://go-review.googlesource.com/21330
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iabe00596987f594e0686fbac3d76376d94612340
+    Reviewed-on: https://go-review.googlesource.com/19543
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/export.go |  4 ++--
- src/cmd/compile/internal/gc/subr.go   | 19 ++++++++-----------
- src/cmd/compile/internal/gc/type.go   |  8 ++++++++
- 3 files changed, 18 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  25 +++-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 192 +++++++++++++++++++++++--
+ 2 files changed, 199 insertions(+), 18 deletions(-)

@@ -1,18 +1,16 @@
-commit caba0bd18912109f4d9fa2f4807d6ee4ddd5ffab
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Oct 28 10:26:44 2016 +1100
+commit d3134b6450d08bba13e904f572a34d411614533e
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Aug 18 09:14:22 2016 -0700
 
-    image/png: implement grayscale transparency.
+    cmd/compile: document more Node fields
     
-    Change-Id: Ib9309ee499fc51be2662d778430ee30089822e57
-    Reviewed-on: https://go-review.googlesource.com/32143
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ic8d37e5612b68bc73c4b50b59db54d8966b69838
+    Reviewed-on: https://go-review.googlesource.com/27326
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/image/png/reader.go                       | 136 +++++++++++++++++++++-----
- src/image/png/reader_test.go                  |  70 ++++++++++---
- src/image/png/testdata/pngsuite/README        |   8 +-
- src/image/png/testdata/pngsuite/ftbbn0g01.sng |  44 +++++++++
- src/image/png/testdata/pngsuite/ftbbn0g02.sng |  45 +++++++++
- src/image/png/testdata/pngsuite/ftbbn0g04.sng |  45 +++++++++
- src/image/png/testdata/pngsuite/ftbwn0g16.sng |  45 +++++++++
- 7 files changed, 350 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/gc/go.go     | 2 +-
+ src/cmd/compile/internal/gc/syntax.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

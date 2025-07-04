@@ -1,19 +1,17 @@
-commit 320e4adc4bd153cb0cb7e31e186fb3b4564fd0a7
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Jun 23 18:14:25 2020 -0400
+commit 5c44cc47c6e868c3b6c800b24e64182bcc213fe6
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Jan 11 19:53:20 2020 +0100
 
-    crypto/elliptic: document and test that IsOnCurve(∞) == false
+    os: handle long path in RemoveAll for windows
     
-    This also implies it can't be passed to Marshal.
+    Fixes #36375
     
-    Fixes #37294
-    
-    Change-Id: I1e6b6abd87ff31f323486958d5cb34a5c8f76b5f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239562
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I407a1db23868880b83e73bc136d274659483fb69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214437
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/elliptic/elliptic.go      | 11 ++++--
- src/crypto/elliptic/elliptic_test.go | 75 +++++++++++++++++++++++-------------
- 2 files changed, 56 insertions(+), 30 deletions(-)
+ src/os/removeall_noat.go |  1 +
+ src/os/removeall_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+)

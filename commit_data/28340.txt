@@ -1,16 +1,17 @@
-commit 09686a58734382ace059f1dbd882dadbb39b2268
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 12 17:08:21 2016 -0700
+commit ca831135b34d13fe5b774a6b23867dd1a277786a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 17 07:07:58 2016 +0900
 
-    cmd/compile: remove another bytes.Buffer use in fmt.go
+    net: simplify interfaceTable for BSD variants
     
-    Missed in prior commit.
+    This change drops parseInterfaceTable which becomes unnecessary by the
+    golang.org/x/net/route plumbing.
     
-    Change-Id: Ib3a41fb4e4d41feeb28c316fe70a329c73e72379
-    Reviewed-on: https://go-review.googlesource.com/29088
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I05f96e347de950bb1e9292bb3eeff01bb40e292f
+    Reviewed-on: https://go-review.googlesource.com/23125
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+ src/net/interface_bsd.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,15 +1,18 @@
-commit f2b8f6b451667a2c8d1b3553ac7fb06de28e8181
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Aug 1 12:55:04 2012 +1000
+commit dcb6f598116563de1f46babd40c62952621784ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 31 17:09:12 2012 -0700
 
-    os: Rename error to fit IsExist
+    exp/types: implement Type.String methods for testing/debugging
     
-    Fixes #3828.
+    Also:
+    - replaced existing test with a more comprehensive test
+    - fixed bug in map type creation
     
-    R=golang-dev, iant, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6420056
+    https://golang.org/cl/6450072
 
- src/pkg/os/error_windows.go      |  3 +++
- src/pkg/os/error_windows_test.go | 47 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+)
+ src/pkg/exp/types/check.go      |   2 +-
+ src/pkg/exp/types/types.go      | 147 ++++++++++++++++++++++++++++++++++++----
+ src/pkg/exp/types/types_test.go | 135 ++++++++++++++++++++++++++----------
+ 3 files changed, 232 insertions(+), 52 deletions(-)

@@ -1,15 +1,28 @@
-commit b850f3629fa9c2dfb6a94a3d0e472a0cc87b949c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 24 10:30:36 2022 -0800
+commit 4d56576ec02e3e3b4459bc23eb1601e6e96f3cfc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 8 16:57:57 2021 -0400
 
-    cmd/compile: always print stack trace for -dpanic
+    runtime: move timer recheck after GC recheck
     
-    Change-Id: I40cfc87731d3a29670a3e183948898ea0cb2402d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380534
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    When rechecking for work after transitioning from a spinning to
+    non-spinning M, checking timers before GC isn't useful. That is, if
+    there is GC work available, it will run immediately and the updated
+    pollUntil is unused.
+    
+    Move this check to just before netpoll, where pollUntil is used. While
+    this technically improves efficiency in the (rare) case that we find
+    GC work in this block, the primary motivation is simply to improve
+    clarity by moving the update closer to use.
+    
+    For #43997
+    
+    Change-Id: Ibc7fb308ac4a582875c200659c9e272121a89f3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308654
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/base/print.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/proc.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

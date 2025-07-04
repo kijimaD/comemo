@@ -1,24 +1,51 @@
-commit 7c4ee1b1659cec7eb9218fe2fd54e0587ab1dbd9
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Jan 23 17:36:06 2024 +0100
+commit e6faa375b4804588cdeb67eff9d01add8093f6e1
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Mon Feb 13 06:18:59 2023 -0600
 
-    sort: use math/rand/v2 in tests and benchmarks
+    runtime: improve memclr on ppc64x/power10
     
-    This allows to drop the use of deprecated rand.Seed in benchmarks.
+    Rewrite memclr asm function to use the new power10 instruction stxvl
+    or the store vector with length which can specify the number of bytes
+    to be stored in a register, thereby avoiding loops to store the tail
+    end bytes.
+    On power9 and power8 the code remains unchanged.
+    The performance for all sizes<16 improve on power10 with this change.
     
-    Fixes #61142
+    name          old time/op    new time/op     delta
+    Memclr/1        2.59ns ± 1%     2.80ns ± 9%      ~
+    Memclr/2        2.77ns ± 0%     2.90ns ± 8%      ~
+    Memclr/3        3.70ns ± 1%     3.00ns ± 1%   -19.02%
+    Memclr/4        4.56ns ± 5%     2.98ns ± 1%   -34.56%
+    Memclr/5        10.1ns ± 8%      2.9ns ± 4%   -70.82%
+    Memclr/6        6.99ns ± 4%     2.84ns ± 9%   -59.40%
+    Memclr/7        8.66ns ± 5%     2.92ns ± 4%   -66.27%
+    Memclr/8        2.75ns ± 1%     2.75ns ± 0%      ~
+    Memclr/9        3.43ns ± 1%     2.75ns ± 0%   -19.78%
+    Memclr/10       3.30ns ± 0%     2.77ns ± 0%   -15.81%
+    Memclr/12       5.09ns ± 0%     2.78ns ± 0%   -45.49%
+    Memclr/15       9.79ns ± 0%     2.78ns ± 0%   -71.64%
+    Memclr/16       2.65ns ± 1%     2.77ns ± 0%    +4.77%
+    GoMemclr/1      2.46ns ± 3%     2.46ns ± 3%      ~
+    GoMemclr/2      2.91ns ± 0%     2.46ns ± 1%   -15.38%
+    GoMemclr/3      4.85ns ± 6%     2.45ns ± 1%   -49.50%
+    GoMemclr/4      5.44ns ± 5%     2.47ns ± 1%   -54.63%
+    GoMemclr/5      6.48ns ± 0%     2.45ns ± 1%   -62.20%
+    GoMemclr/6      9.33ns ±20%     2.45ns ± 1%   -73.76%
+    GoMemclr/7      8.79ns ± 2%     2.46ns ± 1%   -72.03%
+    GoMemclr/8      2.91ns ± 0%     2.84ns ± 0%    -2.35%
+    GoMemclr/9      5.04ns ± 0%     2.84ns ± 0%   -43.67%
+    GoMemclr/10     5.17ns ± 1%     2.84ns ± 0%   -44.99%
+    GoMemclr/12     6.22ns ± 0%     2.84ns ± 0%   -54.41%
+    GoMemclr/15     10.1ns ± 0%      2.8ns ± 0%   -72.04%
+    GoMemclr/16     2.90ns ± 0%     2.92ns ± 0%    +0.83%
     
-    Change-Id: I628848c0d4a500dc9a361930c393e47c3361a95c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/551155
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I2b7e1a9ceafba11c57c04a2e8cbd12b5ac87ec9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467635
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
 
- src/sort/sort_slices_benchmark_test.go | 16 ++++++++--------
- src/sort/sort_test.go                  | 14 +++++++-------
- 2 files changed, 15 insertions(+), 15 deletions(-)
+ src/runtime/memclr_ppc64x.s | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

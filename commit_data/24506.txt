@@ -1,17 +1,16 @@
-commit 61860508add795c86059faa67d90bd556a3d49bf
-Author: Steven Hartland <steven.hartland@multiplay.co.uk>
-Date:   Fri Sep 25 08:51:50 2015 +0000
+commit ec4d06e47010ef5a7a69080046530997169e7666
+Author: Carl Jackson <carl@stripe.com>
+Date:   Fri Jul 31 23:25:48 2015 -0700
 
-    net/http/cgi: make provided Env override even system env vars
+    net/http: fix SetKeepAlivesEnabled receiver name
     
-    Allow all CGI environment settings from the inherited set and default
-    inherited set to be overridden including PATH by Env.
+    This makes the receiver name consistent with the rest of the methods on
+    type Server.
     
-    Change-Id: Ief8d33247b879fa87a8bfd6416d4813116db98de
-    Reviewed-on: https://go-review.googlesource.com/14959
+    Change-Id: Ic2a007d3b5eb50bd87030e15405e9856109cf590
+    Reviewed-on: https://go-review.googlesource.com/13035
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/cgi/host.go      | 8 ++++----
- src/net/http/cgi/host_test.go | 4 +++-
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ src/net/http/server.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

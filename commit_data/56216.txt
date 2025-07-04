@@ -1,22 +1,36 @@
-commit 07496729c58dd58316b01c8bb81aa21a925ae006
-Author: David Chase <drchase@google.com>
-Date:   Mon Apr 15 17:53:14 2024 -0400
+commit 73ee0fcf375c12e52997870125dbbac7aad96284
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 3 11:42:07 2023 -0800
 
-    runtime/pprof: test for Darwin flake in TestVMInfo
+    internal/zstd: new internal package for zstd decompression
     
-    If it contains
-    "No process corpse slots currently available, waiting to get one"
-    skip the test in short mode, so that run.bash works reliably
-    on developer laptops, but the flake is still recorded on builders.
+    This package only does zstd decompression, which is starting to
+    be used for ELF debug sections. If we need zstd compression we
+    should use github.com/klauspost/compress/zstd. But for now that
+    is a very large package to vendor into the standard library.
     
-    The problem also seems to get better after a laptop reboot?
+    For #55107
     
-    Updates #62352.
-    
-    Change-Id: I12e8f594f0b830bacda5d8bfa594782345764c4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/579295
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I60ede735357d491be653477ed419cf5f2f0d3f71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473356
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/pprof/vminfo_darwin_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/go/build/deps_test.go        |   2 +-
+ src/internal/zstd/bits.go        | 130 ++++++++++
+ src/internal/zstd/block.go       | 436 +++++++++++++++++++++++++++++++++
+ src/internal/zstd/fse.go         | 437 +++++++++++++++++++++++++++++++++
+ src/internal/zstd/fse_test.go    |  89 +++++++
+ src/internal/zstd/fuzz_test.go   | 140 +++++++++++
+ src/internal/zstd/huff.go        | 204 ++++++++++++++++
+ src/internal/zstd/literals.go    | 330 +++++++++++++++++++++++++
+ src/internal/zstd/xxhash.go      | 148 ++++++++++++
+ src/internal/zstd/xxhash_test.go | 105 ++++++++
+ src/internal/zstd/zstd.go        | 508 +++++++++++++++++++++++++++++++++++++++
+ src/internal/zstd/zstd_test.go   | 249 +++++++++++++++++++
+ 12 files changed, 2777 insertions(+), 1 deletion(-)

@@ -1,25 +1,20 @@
-commit cc8809238b69b8614a1db1ecd1602318a05a259d
-Author: Wèi Cōngruì <crvv.mail@gmail.com>
-Date:   Tue Jan 23 15:56:24 2018 +0800
+commit d45298671fb9a7d1fb6fd551476f138ed51dba8d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 20:04:43 2017 -0500
 
-    runtime: fix errno sign for epollctl on mips, mips64 and ppc64
+    testing: define Run result a little more clearly
     
-    The caller of epollctl expects it to return a negative errno value,
-    but it returns a positive errno value on mips, mips64 and ppc64.
-    The change fixes this.
+    t.Run(f) does not wait for f after f calls t.Parallel.
+    Otherwise it would be impossible to create new
+    parallel sibling subtests for f.
     
-    Updates #23446
+    Fixes #22993.
     
-    Change-Id: Ie6372eca6c23de21964caaaa433c9a45ef93531e
-    Reviewed-on: https://go-review.googlesource.com/89235
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I27e1555ab1ff608eb8155db261d5e7ee8f486aef
+    Reviewed-on: https://go-review.googlesource.com/83880
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/export_linux_test.go  | 6 ++++++
- src/runtime/runtime_linux_test.go | 9 +++++++++
- src/runtime/sys_linux_mips64x.s   | 1 +
- src/runtime/sys_linux_mipsx.s     | 1 +
- src/runtime/sys_linux_ppc64x.s    | 1 +
- 5 files changed, 18 insertions(+)
+ src/testing/testing.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

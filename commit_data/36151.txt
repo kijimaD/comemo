@@ -1,18 +1,16 @@
-commit 682faae2e32b8b39ff812e8d1d31591125d31f3f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jul 25 14:55:42 2018 -0400
+commit c00c1efbd8f763eb087912c54c036c21f310b98f
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Sun Apr 8 10:30:15 2018 +0800
 
-    cmd/go/internal/modload: inline doImport into doPkg
+    internal/cpu: skip arm64 feature test on unsupported GOOS
     
-    doImport is itself a thin wrapper around Import, and doPkg is its only call
-    site. I'm having trouble following what doPkg is doing due to the indirection,
-    so I'm removing it.
+    Fixes #24753
     
-    Change-Id: I6167be68e869a36010a56a5869df50b1145ac813
-    Reviewed-on: https://go-review.googlesource.com/125837
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic6049da98b8eee41223df71ffafa71a894915bd7
+    Reviewed-on: https://go-review.googlesource.com/105455
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/modload/load.go | 32 +++++++++++---------------------
- 1 file changed, 11 insertions(+), 21 deletions(-)
+ src/internal/cpu/cpu_test.go | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

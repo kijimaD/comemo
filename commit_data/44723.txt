@@ -1,16 +1,17 @@
-commit 6b6ea3271fd4f0ed99d5390461db9fa45ce4c164
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu Mar 18 10:45:04 2021 +0800
+commit 94953d3e5928c8a577bad7911aabbf627269ef77
+Author: Changkun Ou <hi@changkun.us>
+Date:   Mon Aug 24 13:45:27 2020 +0200
 
-    cmd/go: use the global rooted path name
+    sync: delete dirty keys inside Map.LoadAndDelete
     
-    Change-Id: I4a450af5f35f0ad4e4652789f1eda4d3171610e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302852
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #40999
+    
+    Change-Id: Ie32427e5cb5ed512b976b554850f50be156ce9f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250197
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/base/path.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/sync/map.go      |  1 +
+ src/sync/map_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+)

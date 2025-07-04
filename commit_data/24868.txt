@@ -1,12 +1,34 @@
-commit 64fbca41c8777b2b03f7e545be3bea34862ecf8f
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Oct 16 20:50:59 2015 +1300
+commit d2107fc98724662c7aa343d8004ed9d391fdeb59
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 24 02:16:19 2015 -0700
 
-    cmd/internal/obj/ppc64: avoid calling morestack via a PLT when dynamically linking
+    [dev.ssa] cmd/runtime: generate gc bitmaps for SSA-compiled code
     
-    Change-Id: Ie79f72786b1d7154f1910e717a0faf354b913b89
-    Reviewed-on: https://go-review.googlesource.com/15970
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This change is all about leveraging the gc bitmap generation
+    that is already done by the current compiler.  We rearrange how
+    stack allocation is done so that we generate a variable declaration
+    for each spill.  We also reorganize how args/locals are recorded
+    during SSA.  Then we can use the existing allocauto/defframe to
+    allocate the stack frame and liveness to make the gc bitmaps.
+    
+    With this change, stack copying works correctly and we no longer
+    need hacks in runtime/stack*.go to make tests work.  GC is close
+    to working, it just needs write barriers.
+    
+    Change-Id: I990fb4e3fbe98850c6be35c3185a1c85d9e1a6ba
+    Reviewed-on: https://go-review.googlesource.com/13894
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/ppc64/obj9.go | 59 ++++++++++++++++++++++++++++++++------
- 1 file changed, 51 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 140 +++++++++++++++----------
+ src/cmd/compile/internal/ssa/config.go         |   6 ++
+ src/cmd/compile/internal/ssa/export_test.go    |   8 +-
+ src/cmd/compile/internal/ssa/func.go           |   2 -
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   7 +-
+ src/cmd/compile/internal/ssa/location.go       |   4 +-
+ src/cmd/compile/internal/ssa/lower.go          |   2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  10 ++
+ src/cmd/compile/internal/ssa/schedule.go       |   3 +-
+ src/cmd/compile/internal/ssa/stackalloc.go     |  46 +-------
+ src/cmd/compile/internal/ssa/value.go          |  14 ++-
+ 11 files changed, 128 insertions(+), 114 deletions(-)

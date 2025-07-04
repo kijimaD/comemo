@@ -1,29 +1,24 @@
-commit ebb67d993a55f8084f8175a326b481ff1725ea4a
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Fri Mar 2 16:47:54 2018 -0300
+commit 2ba3fd484bb048be86c2bd804900151a1ec5affd
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Mon Jan 1 17:17:14 2018 -0800
 
-    cmd/compile, cmd/internal/obj/ppc64: make math.Round an intrinsic on ppc64x
+    net/http: relax the matching of strace output in test
     
-    This change implements math.Round as an intrinsic on ppc64x so it can be
-    done using a single instruction.
+    Modify the regex in TestLinuxSendfile to not match the parameters of
+    the syscall, just its name and the opening parenthesis. This is enough
+    to recognize that the syscall was invoked.
     
-    benchmark                   old ns/op     new ns/op     delta
-    BenchmarkRound-16           2.60          0.69          -73.46%
+    This fixes the TestLinuxSendfile test when running in Clear Linux,
+    where strace always execute with -yy implied, having output with extra
+    information in the parameters:
     
-    Change-Id: I9408363e96201abdfc73ced7bcd5f0c29db006a8
-    Reviewed-on: https://go-review.googlesource.com/109395
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+        [pid  5336] sendfile(6<TCP:[127.0.0.1:35007->127.0.0.1:55170]>, 8</home/c/src/go/src/net/http/testdata/index.html>, NULL, 22) = 22
+    
+    Change-Id: If7639b785d5fdf65fae8e6149a97a57b06ea981c
+    Reviewed-on: https://go-review.googlesource.com/85657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/gc/ssa.go           |  2 +-
- src/cmd/compile/internal/ppc64/ssa.go        |  2 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 +
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  1 +
- src/cmd/compile/internal/ssa/opGen.go        | 14 ++++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 11 +++++++++++
- src/cmd/internal/obj/ppc64/a.out.go          |  2 ++
- src/cmd/internal/obj/ppc64/anames.go         |  2 ++
- src/cmd/internal/obj/ppc64/asm9.go           |  6 ++++++
- test/codegen/math.go                         |  4 ++++
- 10 files changed, 43 insertions(+), 2 deletions(-)
+ src/net/http/fs_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

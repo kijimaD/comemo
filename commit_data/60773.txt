@@ -1,0 +1,19 @@
+commit f490a8d8fa7a4cd4bbb5de22efe6b629ad65bb9e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 16 01:17:05 2024 +1000
+
+    cmd/compile/internal/ssagen: improve intrinsic test
+    
+    Now that we can pass configuration to initIntrinsics, clean up the
+    intrinsic test and always enable power10. Additionally, provide an
+    -update flag that prints out updated golden values.
+    
+    Change-Id: Ibfef339d513a4d67d53a5a310a82165592ca338f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607055
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssagen/intrinsics_test.go | 72 +++++++++++++---------
+ 1 file changed, 44 insertions(+), 28 deletions(-)

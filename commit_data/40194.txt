@@ -1,35 +1,25 @@
-commit 1736f3a126ce0980e2584aebb35c94e8b33b1bfb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 1 15:48:17 2019 -0400
+commit 5fa14a31b0b4bd95cf10a1394d2322db110b25b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 23 16:51:28 2019 -0400
 
-    cmd/go: automatically check and use vendored packages
+    cmd/go/internal/web: minor api cleanup
     
-    This implements the proposal described in
-    https://golang.org/issue/33848#issuecomment-537222782.
+    - rename PasswordRedacted to Redacted
+    - move URL into Response in redacted form, remove from Get result list
+    - add Response.Err to construct non-200 errors
+      (otherwise GetBytes is not just a wrapper)
+    - make 404/410 errors satisfy Is(err, os.ErrNotExist)
     
-    Fixes #33848
-    
-    Change-Id: Ia34d6500ca396b6aa644b920233716c6b83ef729
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198319
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id15899c1e3dfd30cffb1a75ba79a9a1999913258
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173717
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.14.html                                    |  30 ++-
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go/internal/modcmd/vendor.go               |  63 +++++-
- src/cmd/go/internal/modload/import.go              |   2 +-
- src/cmd/go/internal/modload/init.go                | 148 ++++++++++--
- src/cmd/go/internal/modload/load.go                | 115 +++++++---
- src/cmd/go/internal/work/init.go                   |   4 +-
- .../go/testdata/script/mod_ambiguous_import.txt    |   2 +-
- src/cmd/go/testdata/script/mod_internal.txt        |  12 +-
- src/cmd/go/testdata/script/mod_test_files.txt      |   1 +
- src/cmd/go/testdata/script/mod_vendor.txt          |  10 +-
- src/cmd/go/testdata/script/mod_vendor_auto.txt     | 248 +++++++++++++++++++++
- src/cmd/go/testdata/script/mod_vendor_build.txt    |   2 +-
- src/cmd/go/testdata/script/mod_vendor_unused.txt   |  67 ++++++
- src/cmd/vendor/modules.txt                         |   6 +
- src/go.mod                                         |   2 +-
- src/vendor/modules.txt                             |   4 +
- 17 files changed, 632 insertions(+), 86 deletions(-)
+ src/cmd/go/internal/get/vcs.go        | 17 +++++-----
+ src/cmd/go/internal/modfetch/proxy.go |  8 ++---
+ src/cmd/go/internal/web/api.go        | 64 ++++++++++++++++++++++-------------
+ src/cmd/go/internal/web/bootstrap.go  |  4 +--
+ src/cmd/go/internal/web/http.go       | 20 ++++++-----
+ 5 files changed, 66 insertions(+), 47 deletions(-)

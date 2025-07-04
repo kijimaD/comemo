@@ -1,17 +1,14 @@
-commit dd5a86f18c8d00e47a03ed11523307cafe1f2f1c
-Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-Date:   Thu Sep 21 12:25:02 2017 +0200
+commit cba4b416719f7019ecc01a02d8efbf0c9c0e5df9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Jun 1 17:31:24 2017 -0700
 
-    bytes: add documentation to reader methods
+    compress/gzip: clarify behavior of Writer.Close
     
-    Some methods that were used to implement various `io` interfaces in the
-    Reader were documented, whereas others were not. This change adds
-    documentation to all the missing methods used to implement these
-    interfaces.
+    Fixes #20551
     
-    Change-Id: I2dac6e328542de3cd87e89510651cd6ba74a7b7d
-    Reviewed-on: https://go-review.googlesource.com/65231
+    Change-Id: Ia47cae14a26fe5f278ad7209218d083cc50a3ff8
+    Reviewed-on: https://go-review.googlesource.com/44572
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bytes/reader.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/compress/gzip/gzip.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

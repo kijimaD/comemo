@@ -1,34 +1,24 @@
-commit 5ecd9e34dfe0491f1d76372e272d782578ad5bdb
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 28 17:17:38 2021 -0500
+commit 7bc3b6e5e4b6061ebfa267fcb27731ac94ae7f4d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jun 1 19:36:16 2020 -0400
 
-    runtime: do not treat mcall as a topofstack
+    [dev.link] cmd/link: use fingerprint as package hash
     
-    I added mcall to this list in 2013 without explaining why.
-    (https://codereview.appspot.com/11085043/diff/61001/src/pkg/runtime/traceback_x86.c)
-    I suspect I was stopping crashes during profiling where the unwind
-    tried to walk up past mcall and got confused.
+    Now the compiler-generated fingerprint is a hash of the export
+    data. We don't need to hash it ourselves in the linker. And the
+    linker doesn't need to read export data at all.
     
-    mcall is not something you can unwind past, because it switches
-    stacks, but it's also not something you should expect as a
-    standard top-of-stack frame. So if you do see it during say
-    a garbage collection stack walk, it would be important to crash
-    instead of silently stopping the walk prematurely.
+    Fixes #33820.
     
-    This CL removes it from the topofstack list to avoid the silent stop.
-    Now that mcall is detected as SPWRITE, that will stop the
-    unwind (with a crash if encountered during GC, which we want).
-    
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
-    
-    Change-Id: I666487ce24efd72292f2bc3eac7fe0477e16bddd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288803
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I54bf3ebfd0f0c72aa43a352d7b2e0575dd62970d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236119
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/symtab.go    | 14 ++++++++++++++
- src/runtime/traceback.go |  1 -
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/elf.go      |  3 +-
+ src/cmd/link/internal/ld/lib.go      | 72 ------------------------------------
+ src/cmd/link/internal/ld/symtab.go   |  8 ++--
+ src/cmd/link/internal/sym/library.go |  1 -
+ 4 files changed, 5 insertions(+), 79 deletions(-)

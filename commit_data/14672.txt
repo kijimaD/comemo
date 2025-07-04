@@ -1,17 +1,17 @@
-commit 5a2c275be125d935440ddad3042bfc7bb2ce5027
+commit 1b18a6072e3af427b92e26e7f472fd6d0c6efc09
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Dec 18 01:26:48 2012 +0800
+Date:   Tue Dec 18 00:26:08 2012 +0800
 
-    fmt, encoding/gob: fix misuse of Read
-    reader.Read() can return both 0,nil and len(buf),err.
-    To be safe, we use io.ReadFull instead of doing reader.Read directly.
+    cmd/cgo: access errno from void C function
+    Fixes #3729.
     
-    Fixes #3472.
-    
-    R=bradfitz, rsc, ality
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6285050
+    https://golang.org/cl/6938052
 
- src/pkg/encoding/gob/decode.go | 6 +++---
- src/pkg/fmt/scan.go            | 5 ++++-
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue3729.go  | 47 +++++++++++++++++++++++++++++++++++++++++++++
+ misc/cgo/test/issue3729w.go | 16 +++++++++++++++
+ misc/cgo/test/issue4417.go  |  2 --
+ src/cmd/cgo/gcc.go          | 12 +++++++-----
+ 5 files changed, 71 insertions(+), 7 deletions(-)

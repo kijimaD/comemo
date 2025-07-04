@@ -1,13 +1,15 @@
-commit e22705bf8b6d4e9f670ff63ceefb81392c832bee
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 21 09:15:07 2014 -0700
+commit 7d4cb4d63f8a0039d5c4ecdfcc03c5de231ecfd4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 21 06:48:41 2014 -0700
 
-    test/float_lit2.go: fix constants for 386 platforms (fix build)
+    database/sql/driver: correct method name in comment
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    Fixes #8061.
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
     CC=golang-codereviews
-    https://golang.org/cl/95480045
+    https://golang.org/cl/93520046
 
- test/float_lit2.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/pkg/database/sql/driver/driver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

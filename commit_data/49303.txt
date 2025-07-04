@@ -1,35 +1,13 @@
-commit b58067013eaa2f2bf0dc24f4d848e10bb758b6bd
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 20 16:30:11 2022 +0000
+commit 1fb58d6cadacf82d20259daf9e7c8bdfc90a8b3c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 10 05:00:23 2021 -0400
 
-    runtime: allocate physical-page-aligned memory differently
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    Currently, physical-page-aligned allocations for stacks (where the
-    physical page size is greater than the runtime page size) first
-    overallocates some memory, then frees the unaligned portions back to the
-    heap.
-    
-    However, because allocating via h.pages.alloc causes scavenged bits to
-    get cleared, we need to account for that memory correctly in heapFree
-    and heapReleased. Currently that is not the case, leading to throws at
-    runtime.
-    
-    Trying to get that accounting right is complicated, because information
-    about exactly which pages were scavenged needs to get plumbed up.
-    Instead, find the oversized region first, and then only allocate the
-    aligned part. This avoids any accounting issues.
-    
-    However, this does come with some performance cost, because we don't
-    update searchAddr (which is safe, it just means the next allocation
-    potentially must look harder) and we skip the fast path that
-    h.pages.alloc has for simplicity.
-    
-    Fixes #52682.
-    
-    Change-Id: Iefa68317584d73b187634979d730eb30db770bb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407502
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2948f8045f59cd55f82c68ae2a521e8c76f2b433
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341089
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/runtime/mheap.go | 44 +++++++++++++++++++++++++-------------------
- 1 file changed, 25 insertions(+), 19 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

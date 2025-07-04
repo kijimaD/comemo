@@ -1,14 +1,17 @@
-commit 97ef43721274dab8a88b60e362d37eea077b66be
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 7 11:00:13 2012 +1100
+commit d887a31b7c7234c560072191e4fc2146be416c29
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 7 10:38:10 2012 +1100
 
-    path/filepath: repair and simplify the symlink test
-    I hate symlinks.
-    Fixes #2787.
+    misc/osx: don't set GOROOT or modify profile files
     
-    R=golang-dev, dsymonds, rsc
+    There's no reason to set GOROOT as the tools will have the path baked
+    into it with GOROOT_FINAL.
+    
+    R=bradfitz, bytbox, gustavo, rsc
     CC=golang-dev
-    https://golang.org/cl/5638043
+    https://golang.org/cl/5576064
 
- src/pkg/path/filepath/path_test.go | 61 ++++++++++++++++++++------------------
- 1 file changed, 32 insertions(+), 29 deletions(-)
+ misc/osx/etc/profile_go      | 15 ---------------
+ misc/osx/package.bash        | 24 +++++++++++-------------
+ misc/osx/scripts/postinstall |  5 -----
+ 3 files changed, 11 insertions(+), 33 deletions(-)

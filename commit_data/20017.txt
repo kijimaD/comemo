@@ -1,17 +1,20 @@
-commit 78cc89ce6740057bfbf9da211102c75659f83c89
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Aug 16 14:10:35 2014 +1000
+commit 67e1d40031d66bc2b67f422a17af0fea7e60effd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 12 14:35:27 2014 -0700
 
-    cmd/ld: fix operator precedence
+    crypto/rand: use getrandom system call on Linux
     
-    Fixes #8480.
+    Adds internal/syscall package.
     
-    This CL reapplies CL 114420043. This attempt doesn't blow up when encountering hidden symbols.
+    Fixes #8520
     
-    LGTM=minux
-    R=minux
-    CC=golang-codereviews
-    https://golang.org/cl/128310043
+    LGTM=r, agl
+    R=agl, rsc, r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/123260044
 
- src/cmd/ld/data.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/rand/rand_linux.go           | 39 ++++++++++++++++++++
+ src/pkg/crypto/rand/rand_unix.go            | 11 +++++-
+ src/pkg/go/build/deps_test.go               |  2 +-
+ src/pkg/internal/syscall/getrandom_linux.go | 55 +++++++++++++++++++++++++++++
+ 4 files changed, 105 insertions(+), 2 deletions(-)

@@ -1,16 +1,15 @@
-commit 1f31598e863addd9fe0ddb09f11d2420996cc292
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Oct 15 13:28:30 2012 +1100
+commit f2045aadd9bd09b1d1371ee9bc2817f50d7587fd
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Oct 15 07:50:13 2012 +1100
 
-    image/jpeg: re-organize the processSOS code.
+    time: accept numbers larger than 2^32 in ParseDuration.
     
-    This is a straight copy/paste, and the deletion of a TODO. There are
-    no other changes.
+    Fixes #3374.
     
-    R=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6687049
+    https://golang.org/cl/6683047
 
- src/pkg/image/jpeg/reader.go | 318 ------------------------------------------
- src/pkg/image/jpeg/scan.go   | 321 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 321 insertions(+), 318 deletions(-)
+ src/pkg/time/format.go    | 11 ++++++-----
+ src/pkg/time/time_test.go |  2 ++
+ 2 files changed, 8 insertions(+), 5 deletions(-)

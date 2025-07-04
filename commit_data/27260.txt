@@ -1,40 +1,17 @@
-commit 2f41edf120923000c92ed65ab501590fb1c8c548
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed May 4 11:23:24 2016 +1200
+commit 3a17fdaba037aa0fac9ee06f2cd8636ba61182d0
+Author: David Chase <drchase@google.com>
+Date:   Thu Mar 17 16:14:41 2016 -0400
 
-    cmd/link: always read type data for dynimport symbols
+    cmd/compile: correct maintain use count when phi args merge
     
-    Consider three shared libraries:
+    The critical phase did not correctly maintain the use count
+    when two predecessors of a new critical block transmit the
+    same value.
     
-     libBase.so -- defines a type T
-     lib2.so    -- references type T
-     lib3.so    -- also references type T, and something from lib2
-    
-    lib2.so will contain a type symbol for T in its symbol table, but no
-    definition. If, when linking lib3.so the linker reads the symbols from lib2.so
-    before libBase.so, the linker didn't read the type data and later crashed.
-    
-    The fix is trivial but the test change is a bit messy because the order the
-    linker reads the shared libraries in ends up depending on the order of the
-    import statements in the file so I had to rename one of the test packages so
-    that gofmt doesn't fix the test by accident...
-    
-    Fixes #15516
-    
-    Change-Id: I124b058f782c900a3a54c15ed66a0d91d0cde5ce
-    Reviewed-on: https://go-review.googlesource.com/22744
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iba802c98ebb84e36a410721ec32c867140efb6d4
+    Reviewed-on: https://go-review.googlesource.com/20822
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- misc/cgo/testshared/shared_test.go                | 76 +++++++++++++----------
- misc/cgo/testshared/src/dep2/dep2.go              | 10 ++-
- misc/cgo/testshared/src/dep3/dep3.go              | 22 +++++++
- misc/cgo/testshared/src/{dep => depBase}/asm.s    |  0
- misc/cgo/testshared/src/{dep => depBase}/dep.go   |  6 +-
- misc/cgo/testshared/src/{dep => depBase}/gccgo.go |  2 +-
- misc/cgo/testshared/src/{dep => depBase}/stubs.go |  2 +-
- misc/cgo/testshared/src/exe/exe.go                |  6 +-
- misc/cgo/testshared/src/exe3/exe3.go              |  7 +++
- src/cmd/link/internal/ld/lib.go                   |  7 ++-
- 10 files changed, 92 insertions(+), 46 deletions(-)
+ src/cmd/compile/internal/ssa/critical.go | 1 +
+ 1 file changed, 1 insertion(+)

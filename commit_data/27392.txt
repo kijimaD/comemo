@@ -1,17 +1,25 @@
-commit 6181db53dbfec513300a236debbdc01735f00c07
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 12 18:10:03 2016 -0400
+commit 0104a31b8fbcbe52728a08867b26415d282c35d2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 24 16:49:47 2016 +1100
 
-    runtime: improve heapBitsSetType documentation
+    vendor: move golang.org/x/net/http2/hpack back to vendor
     
-    Currently the heapBitsSetType documentation says that there are no
-    races on the heap bitmap, but that isn't exactly true. There are no
-    *write-write* races, but there are read-write races. Expand the
-    documentation to explain this and why it's okay.
+    Updates #14047
     
-    Change-Id: Ibd92b69bcd6524a40a9dd4ec82422b50831071ed
-    Reviewed-on: https://go-review.googlesource.com/23092
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I7e314e2c7e3e8da18ab023729740fbc9ea3f661e
+    Reviewed-on: https://go-review.googlesource.com/21063
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mbitmap.go | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/go/build/build_test.go                                        | 1 -
+ src/go/build/deps_test.go                                         | 2 +-
+ src/net/http/h2_bundle.go                                         | 5 +++--
+ src/vendor/README                                                 | 8 --------
+ src/{internal => vendor}/golang.org/x/net/http2/hpack/encode.go   | 0
+ .../golang.org/x/net/http2/hpack/encode_test.go                   | 0
+ src/{internal => vendor}/golang.org/x/net/http2/hpack/hpack.go    | 0
+ .../golang.org/x/net/http2/hpack/hpack_test.go                    | 0
+ src/{internal => vendor}/golang.org/x/net/http2/hpack/huffman.go  | 0
+ src/{internal => vendor}/golang.org/x/net/http2/hpack/tables.go   | 0
+ 10 files changed, 4 insertions(+), 12 deletions(-)

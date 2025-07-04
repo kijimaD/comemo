@@ -1,19 +1,42 @@
-commit 5d5e50c3db2ad15bef4ddc4e2f946d0628deda2d
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Tue Jun 22 20:19:57 2021 -0700
+commit 1a98ab0e2dad7029d9db18fc1fae0b7e4fa4970c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 7 17:15:44 2020 -0800
 
-    os/user: simplify test skip for plan9
+    [dev.regabi] cmd/compile: add ssa.Aux tag interface for Value.Aux
     
-    There's no need to specifically check for runtime.GOOS as there's
-    already a generic mechanism for that.
+    It's currently hard to automate refactorings around the Value.Aux
+    field, because we don't have any static typing information for it.
+    Adding a tag interface will make subsequent CLs easier and safer.
     
-    Change-Id: I7125443ead456548bd503c5e71cd56e9eb30b446
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330750
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Updates #42982.
+    
+    Change-Id: I41ae8e411a66bda3195a0957b60c2fe8a8002893
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275756
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/os/user/lookup_plan9.go | 1 +
- src/os/user/user_test.go    | 8 --------
- 2 files changed, 1 insertion(+), 8 deletions(-)
+ src/cmd/compile/fmtmap_test.go                |  3 ++
+ src/cmd/compile/internal/gc/ssa.go            | 22 +++++++-------
+ src/cmd/compile/internal/ir/mini.go           |  3 +-
+ src/cmd/compile/internal/ir/node.go           |  1 +
+ src/cmd/compile/internal/ssa/block.go         |  2 +-
+ src/cmd/compile/internal/ssa/check.go         |  2 +-
+ src/cmd/compile/internal/ssa/cse.go           |  2 +-
+ src/cmd/compile/internal/ssa/cse_test.go      |  2 ++
+ src/cmd/compile/internal/ssa/debug.go         |  4 +--
+ src/cmd/compile/internal/ssa/func.go          | 22 +++++---------
+ src/cmd/compile/internal/ssa/func_test.go     |  8 ++---
+ src/cmd/compile/internal/ssa/nilcheck_test.go |  2 +-
+ src/cmd/compile/internal/ssa/op.go            |  3 ++
+ src/cmd/compile/internal/ssa/rewrite.go       | 42 +++++++++++++++++----------
+ src/cmd/compile/internal/ssa/value.go         |  5 +++-
+ src/cmd/compile/internal/ssa/zcse.go          |  2 +-
+ src/cmd/compile/internal/types/type.go        |  2 ++
+ src/cmd/internal/obj/link.go                  |  4 +--
+ src/cmd/internal/obj/s390x/condition_code.go  |  2 ++
+ src/cmd/internal/obj/s390x/rotate.go          |  2 ++
+ 20 files changed, 79 insertions(+), 56 deletions(-)

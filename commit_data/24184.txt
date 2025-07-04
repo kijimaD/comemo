@@ -1,25 +1,15 @@
-commit 22452ac5924faaf95ecb49fb345fea3fdd783bb6
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Sep 5 12:30:13 2015 +1000
+commit 9adf684686bad7c6319080d0b1da8308a77b08c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 15:15:37 2015 -0400
 
-    cmd/compile: use []*Node instead of NodeList in bottomUpVisitor
+    cmd/go: fix TestVendorRun when $GOROOT is inside a symlinked path
     
-    This one of a set of changes to make the transition away from NodeList
-    easier by removing cases in which NodeList doesn't act semi-trivially like a
-    []*Node.
+    Fixes #11305.
     
-    This CL was originally prepared by Josh Bleecher Snyder <josharian@gmail.com>.
-    
-    This change passes go build -toolexec 'toolstash -cmp' -a std.
-    
-    Change-Id: I582ff8b077eb384b84721a1edb0c1efbc0c40059
-    Reviewed-on: https://go-review.googlesource.com/14304
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Icaa3a009aa4ab214c9aaf74f52c3e622fa266a9d
+    Reviewed-on: https://go-review.googlesource.com/12194
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/esc.go  | 47 ++++++++++++++++++-------------------
- src/cmd/compile/internal/gc/lex.go  | 12 ++++++----
- src/cmd/compile/internal/gc/subr.go |  2 +-
- 3 files changed, 31 insertions(+), 30 deletions(-)
+ src/cmd/go/go_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

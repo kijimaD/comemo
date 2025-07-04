@@ -1,17 +1,26 @@
-commit 894ead51c5fe1c2a0c6b0bca473177c2b5f0f137
-Author: Paschalis T <paschalis.tsilias@gmail.com>
-Date:   Fri Aug 30 23:24:40 2024 +0300
+commit 4918490962ebda2b055bd1d160af9e9daa529522
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Tue Jul 25 15:54:16 2023 -0700
 
-    doc: fix wording of GODEBUG history item from CL 606055
+    misc/wasm: switch default WASI runtime
     
-    Change-Id: Ia53d4a58810948d83a3e87e08239602da1bad815
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609935
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    The default WASI runtime was originally set to Wazero, because it was
+    the first runtime used to test the Go implementation and because we
+    could easily find and fix issues in our implementation and theirs.
+    
+    In CL 498675 we switched the default wasip1 runner to Wasmtime as it
+    runs faster and is a more established and mature runtime. We should
+    switch the default runtime to Wasmtime to consistently promote
+    Wasmtime as the primary tested and approved runtime.
+    
+    Change-Id: Ic6c064142321af90f015e02b7fe0e71444d8842c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513235
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/godebug.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/wasm/go_wasip1_wasm_exec | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

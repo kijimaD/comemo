@@ -1,18 +1,62 @@
-commit 07af21308c88c754fa2cd69a6d34d2b40b40c191
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 20 02:21:50 2017 -0700
+commit f6bff1d587c3523d2d1b98f0737a922ac9b5becc
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 30 10:50:40 2016 -0500
 
-    cmd/compile/internal/gc: eliminate two uses of Type.Pos
+    runtime: fix undead arguments in cgocall
     
-    Instead we can use t.nod.Pos.
+    From the garbage collector's perspective, time can move backwards in
+    cgocall. However, in the midst of this time warp, the pointer
+    arguments to cgocall can go from dead back to live. If a stack growth
+    happens while they're dead and then a GC happens when they become live
+    again, GC can crash with a bad heap pointer.
     
-    Change-Id: I643ee3226e402e38d4c77e8f328cbe83e55eac5c
-    Reviewed-on: https://go-review.googlesource.com/38309
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Specifically, the sequence that leads to a panic is:
+    
+    1. cgocall calls entersyscall, which saves the PC and SP of its call
+    site in cgocall. Call this PC/SP "X". At "X" both pointer arguments
+    are live.
+    
+    2. cgocall calls asmcgocall. Call the PC/SP of this call "Y". At "Y"
+    neither pointer argument is live.
+    
+    3. asmcgocall calls the C code, which eventually calls back into the
+    Go code.
+    
+    4. cgocallbackg remembers the saved PC/SP "X" in some local variables,
+    calls exitsyscall, and then calls cgocallbackg1.
+    
+    5. The Go code causes a stack growth. This stack unwind sees PC/SP "Y"
+    in the cgocall frame. Since the arguments are dead at "Y", they are
+    not adjusted.
+    
+    6. The Go code returns to cgocallbackg1, which calls reentersyscall
+    with the recorded saved PC/SP "X", so "X" gets stashed back into
+    gp.syscallpc/sp.
+    
+    7. GC scans the stack. It sees there's a saved syscall PC/SP, so it
+    starts the traceback at PC/SP "X". At "X" the arguments are considered
+    live, so it scans them, but since they weren't adjusted, the pointers
+    are bad, so it panics.
+    
+    This issue started as of commit ca4089ad, when the compiler stopped
+    marking arguments as live for the whole function.
+    
+    Since this is a variable liveness issue, fix it by adding KeepAlive
+    calls that keep the arguments live across this whole time warp.
+    
+    The existing issue7978 test has all of the infrastructure for testing
+    this except that it's currently up to chance whether a stack growth
+    happens in the callback (it currently only happens on the
+    linux-amd64-noopt builder, for example). Update this test to force a
+    stack growth, which causes it to fail reliably without this fix.
+    
+    Fixes #17785.
+    
+    Change-Id: If706963819ee7814e6705693247bcb97a6f7adb8
+    Reviewed-on: https://go-review.googlesource.com/33710
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/align.go     | 7 +++++--
- src/cmd/compile/internal/gc/typecheck.go | 1 +
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ misc/cgo/test/issue7978.go | 11 +++++++++++
+ src/runtime/cgocall.go     | 20 +++++++++++++++++++-
+ 2 files changed, 30 insertions(+), 1 deletion(-)

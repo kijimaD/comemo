@@ -1,23 +1,35 @@
-commit 409a667f35f66b2b5fa219ee93f1a3ddc6e07b03
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 22 02:07:52 2016 +0000
+commit db82cf4e506938a36a57a64dbe1f79eb0365ea89
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 26 16:44:35 2016 +1000
 
-    net/http: fix parallel tests using global DefaultTransport
+    runtime: use RtlGenRandom instead of CryptGenRandom
     
-    When I added t.Parallel to some tests earlier, I overlooked some using
-    the global "Get" func, which uses DefaultTransport.
+    This change replaces the use of CryptGenRandom with RtlGenRandom in
+    Windows to generate cryptographically random numbers during process
+    startup. RtlGenRandom uses the same RNG as CryptGenRandom, but it has many
+    fewer DLL dependencies and so does not affect process startup time as
+    much.
     
-    The DefaultTransport can have its CloseIdleConnections called by other
-    parallel tests. Use a private Transport instead.
+    This makes running simple Go program on my computers faster.
     
-    Fixes #18006
+    Windows XP:
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkRunningGoProgram-2     47408573      10784148      -77.25%
     
-    Change-Id: Ia4faca5bac235cfa95dcf2703c25f3627112a5e9
-    Reviewed-on: https://go-review.googlesource.com/33432
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Windows 7 (VM):
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkRunningGoProgram     16260390      12792150      -21.33%
+    
+    Windows 7:
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkRunningGoProgram-2     13600778      10050574      -26.10%
+    
+    Fixes #15589
+    
+    Change-Id: I2816239a2056e3d4a6dcd86a6fa2bb619c6008fe
+    Reviewed-on: https://go-review.googlesource.com/29700
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/main_test.go  |  4 ++++
- src/net/http/serve_test.go | 37 +++++++++++++++++++++++++++++--------
- 2 files changed, 33 insertions(+), 8 deletions(-)
+ src/runtime/os_windows.go           | 35 ++++++++++++++++++----------------
+ src/runtime/syscall_windows_test.go | 38 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 16 deletions(-)

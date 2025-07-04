@@ -1,19 +1,26 @@
-commit b992c2649e6c30d25baeb3c26aba0e90b800a1f4
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 7 15:20:40 2017 -0500
+commit 24a088d20ad52c527f61b34217da72589e366833
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 8 15:43:20 2016 -0800
 
-    runtime: print SP/FP on bad pointer crashes
+    text/template: efficient reporting of line numbers
     
-    If the bad pointer is on a stack, this makes it possible to find the
-    frame containing the bad pointer.
+    Instead of scanning the text to count newlines, which is n², keep track as we go
+    and store the line number in the token.
     
-    Change-Id: Ieda44e054aa9ebf22d15d184457c7610b056dded
-    Reviewed-on: https://go-review.googlesource.com/37858
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    benchmark                 old ns/op      new ns/op     delta
+    BenchmarkParseLarge-4     1589721293     38783310      -97.56%
+    
+    Fixes #17851
+    
+    Change-Id: I231225c61e667535e2ce55cd2facea6d279cc59d
+    Reviewed-on: https://go-review.googlesource.com/33234
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mbitmap.go | 1 +
- src/runtime/mgcmark.go | 2 ++
- 2 files changed, 3 insertions(+)
+ src/text/template/exec_test.go        |   2 +-
+ src/text/template/parse/lex.go        |  36 +++--
+ src/text/template/parse/lex_test.go   | 259 +++++++++++++++++-----------------
+ src/text/template/parse/parse.go      |  22 +--
+ src/text/template/parse/parse_test.go |  34 +++++
+ 5 files changed, 204 insertions(+), 149 deletions(-)

@@ -1,143 +1,16 @@
-commit 89f185fe8a036b0fabce30b20c480cf1c832bdd7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 26 11:54:39 2014 -0400
+commit b0c586a8211d8d8804a6052a3646b0f2cc724f19
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jun 24 20:37:28 2014 -0700
 
-    all: remove 'extern register M *m' from runtime
+    index/suffixarray: reduce size of a benchmark
+    A single iteration of BenchmarkSaveRestore runs for 5 seconds
+    on my freebsd machine. 5 seconds looks like too long for a single
+    iteration.
+    This is the only benchmark that times out on freebsd-amd64-race builder.
     
-    The runtime has historically held two dedicated values g (current goroutine)
-    and m (current thread) in 'extern register' slots (TLS on x86, real registers
-    backed by TLS on ARM).
-    
-    This CL removes the extern register m; code now uses g->m.
-    
-    On ARM, this frees up the register that formerly held m (R9).
-    This is important for NaCl, because NaCl ARM code cannot use R9 at all.
-    
-    The Go 1 macrobenchmarks (those with per-op times >= 10 µs) are unaffected:
-    
-    BenchmarkBinaryTree17              5491374955     5471024381     -0.37%
-    BenchmarkFannkuch11                4357101311     4275174828     -1.88%
-    BenchmarkGobDecode                 11029957       11364184       +3.03%
-    BenchmarkGobEncode                 6852205        6784822        -0.98%
-    BenchmarkGzip                      650795967      650152275      -0.10%
-    BenchmarkGunzip                    140962363      141041670      +0.06%
-    BenchmarkHTTPClientServer          71581          73081          +2.10%
-    BenchmarkJSONEncode                31928079       31913356       -0.05%
-    BenchmarkJSONDecode                117470065      113689916      -3.22%
-    BenchmarkMandelbrot200             6008923        5998712        -0.17%
-    BenchmarkGoParse                   6310917        6327487        +0.26%
-    BenchmarkRegexpMatchMedium_1K      114568         114763         +0.17%
-    BenchmarkRegexpMatchHard_1K        168977         169244         +0.16%
-    BenchmarkRevcomp                   935294971      914060918      -2.27%
-    BenchmarkTemplate                  145917123      148186096      +1.55%
-    
-    Minux previous reported larger variations, but these were caused by
-    run-to-run noise, not repeatable slowdowns.
-    
-    Actual code changes by Minux.
-    I only did the docs and the benchmarking.
-    
-    LGTM=dvyukov, iant, minux
-    R=minux, josharian, iant, dave, bradfitz, dvyukov
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/109050043
+    https://golang.org/cl/107340044
 
- doc/asm.html                              |  24 +--
- include/link.h                            |   2 +-
- src/cmd/5a/lex.c                          |   4 +-
- src/cmd/dist/buildruntime.c               |   3 -
- src/cmd/ld/data.c                         |  12 +-
- src/cmd/ld/lib.c                          |  14 +-
- src/cmd/ld/symtab.c                       |   4 +-
- src/liblink/asm5.c                        |   8 +-
- src/liblink/obj5.c                        |  12 +-
- src/liblink/obj6.c                        |   4 +-
- src/pkg/runtime/asm_386.s                 |  63 +++---
- src/pkg/runtime/asm_amd64.s               |  71 ++++---
- src/pkg/runtime/asm_amd64p32.s            |  31 ++-
- src/pkg/runtime/asm_arm.s                 | 127 ++++++------
- src/pkg/runtime/cgo/asm_arm.s             |   8 +-
- src/pkg/runtime/cgo/callbacks.c           |   4 +-
- src/pkg/runtime/cgo/gcc_arm.S             |   9 +-
- src/pkg/runtime/cgo/gcc_darwin_386.c      |  60 +++---
- src/pkg/runtime/cgo/gcc_darwin_amd64.c    |  49 ++---
- src/pkg/runtime/cgo/gcc_dragonfly_386.c   |   8 +-
- src/pkg/runtime/cgo/gcc_dragonfly_amd64.c |   8 +-
- src/pkg/runtime/cgo/gcc_freebsd_386.c     |   8 +-
- src/pkg/runtime/cgo/gcc_freebsd_amd64.c   |   8 +-
- src/pkg/runtime/cgo/gcc_freebsd_arm.c     |  10 +-
- src/pkg/runtime/cgo/gcc_linux_386.c       |   8 +-
- src/pkg/runtime/cgo/gcc_linux_amd64.c     |   8 +-
- src/pkg/runtime/cgo/gcc_linux_arm.c       |  10 +-
- src/pkg/runtime/cgo/gcc_netbsd_386.c      |   8 +-
- src/pkg/runtime/cgo/gcc_netbsd_amd64.c    |   8 +-
- src/pkg/runtime/cgo/gcc_netbsd_arm.c      |  10 +-
- src/pkg/runtime/cgo/gcc_openbsd_386.c     |   8 +-
- src/pkg/runtime/cgo/gcc_openbsd_amd64.c   |   8 +-
- src/pkg/runtime/cgo/gcc_windows_386.c     |   3 +-
- src/pkg/runtime/cgo/gcc_windows_amd64.c   |   3 +-
- src/pkg/runtime/cgo/libcgo.h              |   1 -
- src/pkg/runtime/cgocall.c                 |  26 +--
- src/pkg/runtime/heapdump.c                |   8 +-
- src/pkg/runtime/lock_futex.c              |  24 +--
- src/pkg/runtime/lock_sema.c               |  56 ++---
- src/pkg/runtime/malloc.goc                |  38 ++--
- src/pkg/runtime/mcache.c                  |   4 +-
- src/pkg/runtime/mgc0.c                    |  68 +++---
- src/pkg/runtime/mheap.c                   |  20 +-
- src/pkg/runtime/mprof.goc                 |  26 +--
- src/pkg/runtime/netpoll_solaris.c         |   2 +-
- src/pkg/runtime/netpoll_windows.c         |  12 +-
- src/pkg/runtime/os_darwin.c               |  11 +-
- src/pkg/runtime/os_dragonfly.c            |   3 +-
- src/pkg/runtime/os_freebsd.c              |   3 +-
- src/pkg/runtime/os_linux.c                |   3 +-
- src/pkg/runtime/os_nacl.c                 |  29 +--
- src/pkg/runtime/os_netbsd.c               |  27 +--
- src/pkg/runtime/os_openbsd.c              |  21 +-
- src/pkg/runtime/os_plan9.c                |  12 +-
- src/pkg/runtime/os_plan9_386.c            |   8 +-
- src/pkg/runtime/os_plan9_amd64.c          |   8 +-
- src/pkg/runtime/os_solaris.c              |  34 +--
- src/pkg/runtime/os_windows.c              |  26 +--
- src/pkg/runtime/os_windows_386.c          |   4 +-
- src/pkg/runtime/os_windows_amd64.c        |   4 +-
- src/pkg/runtime/panic.c                   |  51 ++---
- src/pkg/runtime/proc.c                    | 334 +++++++++++++++---------------
- src/pkg/runtime/race_amd64.s              |   8 +-
- src/pkg/runtime/runtime.c                 |   8 +-
- src/pkg/runtime/runtime.h                 |   5 +-
- src/pkg/runtime/runtime1.goc              |   4 +-
- src/pkg/runtime/signal_386.c              |  12 +-
- src/pkg/runtime/signal_amd64x.c           |  10 +-
- src/pkg/runtime/signal_arm.c              |  12 +-
- src/pkg/runtime/signal_unix.c             |   2 +-
- src/pkg/runtime/softfloat_arm.c           |  14 +-
- src/pkg/runtime/stack.c                   |  94 ++++-----
- src/pkg/runtime/symtab.goc                |   2 +-
- src/pkg/runtime/sys_darwin_386.s          |  10 +-
- src/pkg/runtime/sys_darwin_amd64.s        |  10 +-
- src/pkg/runtime/sys_dragonfly_386.s       |  10 +-
- src/pkg/runtime/sys_dragonfly_amd64.s     |  10 +-
- src/pkg/runtime/sys_freebsd_386.s         |  10 +-
- src/pkg/runtime/sys_freebsd_amd64.s       |  10 +-
- src/pkg/runtime/sys_freebsd_arm.s         |  16 +-
- src/pkg/runtime/sys_linux_386.s           |  11 +-
- src/pkg/runtime/sys_linux_amd64.s         |  10 +-
- src/pkg/runtime/sys_linux_arm.s           |  19 +-
- src/pkg/runtime/sys_nacl_386.s            |  10 +-
- src/pkg/runtime/sys_nacl_amd64p32.s       |  12 +-
- src/pkg/runtime/sys_netbsd_386.s          |  10 +-
- src/pkg/runtime/sys_netbsd_amd64.s        |  10 +-
- src/pkg/runtime/sys_netbsd_arm.s          |  13 +-
- src/pkg/runtime/sys_openbsd_386.s         |  10 +-
- src/pkg/runtime/sys_openbsd_amd64.s       |  10 +-
- src/pkg/runtime/sys_plan9_386.s           |  10 +-
- src/pkg/runtime/sys_plan9_amd64.s         |  10 +-
- src/pkg/runtime/sys_solaris_amd64.s       |  22 +-
- src/pkg/runtime/sys_windows_386.s         |  16 +-
- src/pkg/runtime/sys_windows_amd64.s       |  14 +-
- src/pkg/runtime/traceback_arm.c           |   2 +-
- src/pkg/runtime/traceback_x86.c           |   2 +-
- src/pkg/runtime/vlop_arm.s                |  25 +--
- 98 files changed, 994 insertions(+), 957 deletions(-)
+ src/pkg/index/suffixarray/suffixarray_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

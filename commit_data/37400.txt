@@ -1,29 +1,23 @@
-commit 89a791749389f196d15ca873ae50b81a30780287
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Nov 14 14:58:27 2018 -0500
+commit bd98a81dc27a740f4c4192cc8799884da62c4bad
+Author: David Wimmer <davidlwimmer@gmail.com>
+Date:   Wed Jul 25 19:16:07 2018 +0000
 
-    cmd/vendor/golang.org/x/tools: update to 7d6b83ca
+    syscall: implement pipe() on linux/mips
     
-    Also, add a script for future updates.
+    Change the Pipe() function to use the pipe() syscall (which has a unique
+    calling convention on linux/mips) instead of using pipe2(). This allows
+    it work on kernels <2.6.27 when pipe2() was introduced.
     
-    Change-Id: I2565d1f26532b9dd7cf9d8ce198ba08fb3d53407
-    Reviewed-on: https://go-review.googlesource.com/c/149604
-    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Change-Id: I65dfbd2a02b64e777a8eb13013d718e356521be6
+    GitHub-Last-Rev: c483a06168387c2cf151b6419e4e16576fab640a
+    GitHub-Pull-Request: golang/go#26608
+    Reviewed-on: https://go-review.googlesource.com/125915
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Vladimir Stefanovic <vladimir.stefanovic@mips.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../x/tools/go/analysis/cmd/vet-lite/main.go       |  47 +++-
- .../go/analysis/internal/analysisflags/flags.go    |  42 ++-
- .../go/analysis/internal/analysisflags/help.go     | 100 +++++++
- .../analysis/internal/unitchecker/unitchecker.go   |   2 +-
- .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |  13 +-
- .../x/tools/go/analysis/passes/cgocall/cgocall.go  | 296 ++++++++++++++++-----
- .../go/analysis/passes/lostcancel/lostcancel.go    |  10 +-
- .../x/tools/go/analysis/passes/printf/printf.go    |  44 ++-
- .../x/tools/go/analysis/passes/printf/types.go     |  23 +-
- .../go/analysis/passes/stdmethods/stdmethods.go    |  55 +---
- .../go/analysis/passes/unmarshal/unmarshal.go      |  92 +++++++
- .../golang.org/x/tools/go/ast/astutil/imports.go   |  54 ++--
- src/cmd/vendor/update-xtools.sh                    |  27 ++
- 13 files changed, 647 insertions(+), 158 deletions(-)
+ src/syscall/syscall_linux_mipsx.go   |  7 +++----
+ src/syscall/zsyscall_linux_mips.go   | 12 ++++++++++++
+ src/syscall/zsyscall_linux_mipsle.go | 12 ++++++++++++
+ 3 files changed, 27 insertions(+), 4 deletions(-)

@@ -1,18 +1,14 @@
-commit c85b77c22b78c801d18a456a8f242c007a520217
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 26 13:06:59 2016 -0700
+commit 06d639e07588ef290ed28ab384d5371e052240b1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 27 16:56:13 2016 -0500
 
-    cmd/compile: reintroduce support for version 0 export format
+    runtime: fix SetCgoTraceback doc indentation
     
-    The Go1.7 export format didn't encode the field package for
-    blank struct fields (#15514). Re-introduce support for that
-    format so we can read it w/o error.
+    It wasn't rendering as HTML nicely.
     
-    For #16881.
-    
-    Change-Id: Ib131d41aac56dbf970aab15ae7e75ef3944b412d
-    Reviewed-on: https://go-review.googlesource.com/27912
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5408ec22932a05e85c210c0faa434bd19dce5650
+    Reviewed-on: https://go-review.googlesource.com/22532
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/traceback.go | 68 ++++++++++++++++++++++++------------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

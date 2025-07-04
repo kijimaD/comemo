@@ -1,15 +1,31 @@
-commit f3fa0bbd1f011c7436f21a18ee08f719a15b02b8
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Aug 8 08:57:18 2014 +1000
+commit 08033f9816e1e33092c93c050dc34514d8e3e926
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 7 12:33:06 2014 -0400
 
-    flag: mention -h in docs
+    cmd/addr2line, cmd/nm: factor object reading into cmd/internal/objfile
     
-    Fixes #8314.
+    To do in another CL: make cmd/objdump use cmd/internal/objfile too.
+    
+    There is a package placement decision in this CL:
+    cmd/internal/objfile instead of internal/objfile.
+    I chose to put internal under cmd to make clear (and enforce)
+    that no standard library packages should use this
+    (it's a bit dependency-heavy).
     
     LGTM=r
     R=r
     CC=golang-codereviews
-    https://golang.org/cl/125820043
+    https://golang.org/cl/123910043
 
- src/pkg/flag/flag.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/addr2line/main.go                 | 159 +----------------------------
+ src/cmd/{nm => internal/objfile}/elf.go   |  44 ++++++--
+ src/cmd/{nm => internal/objfile}/goobj.go |  35 +++++--
+ src/cmd/{nm => internal/objfile}/macho.go |  49 ++++++---
+ src/cmd/internal/objfile/objfile.go       |  72 +++++++++++++
+ src/cmd/internal/objfile/pe.go            | 161 ++++++++++++++++++++++++++++++
+ src/cmd/internal/objfile/plan9obj.go      | 100 +++++++++++++++++++
+ src/cmd/nm/nm.go                          |  57 +++--------
+ src/cmd/nm/nm_test.go                     |   4 +-
+ src/cmd/nm/pe.go                          |  98 ------------------
+ src/cmd/nm/plan9obj.go                    |  48 ---------
+ 11 files changed, 444 insertions(+), 383 deletions(-)

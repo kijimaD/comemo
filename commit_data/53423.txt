@@ -1,15 +1,20 @@
-commit a469983943fcbaa63faa63230daad917447b34a0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 1 08:49:47 2023 -0700
+commit b565476e2c812f65385595717fff191ac174cab7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 15 10:52:48 2022 +0200
 
-    doc/go1.21: fix type in closing tag
+    cmd/go/internal/mmap: use syscall.Mmap on solaris
     
-    Change-Id: Ibcdedb8222a80c0478f783f4a1800e472dbe062c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499935
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Now that syscall.Mmap is defined on solaris (see CL 413374), use it in
+    mmapFile like on other Unix ports.
+    
+    For #52875
+    
+    Change-Id: Ic5c5a84da8613f0c6dc947a52b7fcca50af43d79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413375
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/go1.21.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/mmap/{mmap_other.go => mmap_plan9.go} | 2 --
+ src/cmd/go/internal/mmap/mmap_unix.go                     | 2 +-
+ 2 files changed, 1 insertion(+), 3 deletions(-)

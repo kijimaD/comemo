@@ -1,26 +1,26 @@
-commit 7aa9855704a766a1a16fbed79f9f6e34fc83bdf0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 7 15:52:04 2018 -0400
+commit 9137edc986629c18760c4633166b29b556e64567
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 13 15:37:37 2018 -0700
 
-    cmd/go: add go mod why
+    cmd/internal/objfile: reuse tabwriter across symbols when disassembling
     
-    A very common question is
-    "why is this package or module being kept
-    by go mod vendor or go mod tidy?"
+    Since the tabwriter is flushed at every symbol,
+    it can be re-used with no impact on the output.
     
-    go mod why answers that question.
+    This cuts allocated space when objdump-ing
+    the compiler by almost 40%,
+    and enables further upcoming improvements.
     
-    Fixes #26620.
+    It also speeds up objdump.
     
-    Change-Id: Iac3b6bbdf703b4784f5eed8e0f69d41325bc6d7f
-    Reviewed-on: https://go-review.googlesource.com/128359
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    name            old time/op       new time/op       delta
+    ObjdumpCompile        9.22s ± 3%        8.77s ± 3%   -4.79%  (p=0.000 n=10+9)
+    
+    Change-Id: Ief114d6c2680a4e762b5f439d3ca8dc7a89b9b27
+    Reviewed-on: https://go-review.googlesource.com/106978
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go                              |  58 ++++++++++
- src/cmd/go/internal/modcmd/mod.go                  |   1 +
- src/cmd/go/internal/modcmd/why.go                  | 119 +++++++++++++++++++++
- src/cmd/go/internal/modload/load.go                |  45 ++++++++
- ...g_x_text_v0.0.0-20170915032832-14c0d48ead0c.txt |   2 +
- .../go/testdata/mod/golang.org_x_text_v0.3.0.txt   |   2 +
- src/cmd/go/testdata/script/mod_why.txt             | 114 ++++++++++++++++++++
- 7 files changed, 341 insertions(+)
+ src/cmd/internal/objfile/disasm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

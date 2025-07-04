@@ -1,16 +1,18 @@
-commit 31389254def190938c0cc802f645f958734bc865
-Author: Alex Kohler <alexjohnkohler@gmail.com>
-Date:   Thu Aug 30 10:01:54 2018 -0400
+commit 6f7fa68b913e06f0d14ab1c95e3614957fb01fd4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 3 14:28:33 2018 -0700
 
-    all: fix typos
+    cmd: re-generate SymKind.String for SDWARFMISC
     
-    Change-Id: Icded6c786b7b185d5aff055f34e0cfe9e521826a
-    Reviewed-on: https://go-review.googlesource.com/132176
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    SDWARFMISC was added in golang.org/cl/93664.
+    
+    Change-Id: Ifab0a5effd8e64a2b7916004aa35d51030f23d15
+    Reviewed-on: https://go-review.googlesource.com/111261
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go | 2 +-
- src/cmd/trace/annotations.go            | 5 ++---
- src/cmd/trace/trace.go                  | 4 ++--
- 3 files changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/internal/objabi/symkind_string.go   | 4 ++--
+ src/cmd/link/internal/sym/symkind_string.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

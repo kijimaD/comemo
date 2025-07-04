@@ -1,19 +1,13 @@
-commit 578ada410de8065dbca46bca08a5993d1307f423
-Author: Illirgway <illirgway@gmail.com>
-Date:   Mon Jul 5 11:22:03 2021 +0000
+commit 128cecc70bf34f41e772eac47f52e6a01449ce10
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Mar 10 23:21:10 2021 +0100
 
-    mime: keep parsing after trailing semicolon
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    Fixes #46323
-    
-    Change-Id: Ibd624b1aaa15f907b7eb965b4eaec61018a45486
-    GitHub-Last-Rev: 7ad670b088144a2a09860dd990c53dea75c0d40f
-    GitHub-Pull-Request: golang/go#47029
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/332509
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Damien Neil <dneil@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ibaf5108b9bac7a6eff2d43f6d222607e987d13a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300691
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/mime/mediatype.go      |  2 +-
- src/mime/mediatype_test.go | 17 ++++++++++++++---
- 2 files changed, 15 insertions(+), 4 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

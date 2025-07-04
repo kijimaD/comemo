@@ -1,19 +1,18 @@
-commit f78d50c6e5714ddea000be621216c76fb8f77a33
+commit 7e8ed8f616457de1eaff09462ab0d20e794e1211
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 5 14:31:27 2012 +1100
+Date:   Mon Mar 5 14:23:00 2012 +1100
 
-    doc: clean up docs page, refer to wiki, change install doc paths
+    cmd: update formatting of usage messages
     
-    R=golang-dev, minux.ma, r
+    R=golang-dev, r, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5728051
+    https://golang.org/cl/5738045
 
- doc/articles/wiki/index.html |   6 +-
- doc/articles/wiki/wiki.html  |   6 +-
- doc/contribute.html          |   2 +-
- doc/docs.html                | 168 +++++++++++++++----------------------------
- doc/gccgo_contribute.html    |   6 +-
- doc/gccgo_install.html       |   6 +-
- doc/install-source.html      |   6 +-
- doc/install.html             |  10 +--
- 8 files changed, 77 insertions(+), 133 deletions(-)
+ src/cmd/cgo/doc.go  |  3 ++-
+ src/cmd/cov/doc.go  |  4 +++-
+ src/cmd/go/doc.go   | 15 +++++++++++----
+ src/cmd/go/main.go  |  4 +++-
+ src/cmd/pack/doc.go |  3 ++-
+ src/cmd/prof/doc.go |  4 ++--
+ src/cmd/yacc/doc.go |  7 +++++--
+ 7 files changed, 28 insertions(+), 12 deletions(-)

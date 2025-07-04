@@ -1,30 +1,45 @@
-commit 1c7650aa93bd53b7df0bbb34693fc5a16d9f67af
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Nov 9 11:25:38 2020 +0100
+commit a44d06d3b4d665cee14342df1c81a385f9d2055f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 21 19:48:02 2020 -0700
 
-    internal/poll: use copy_file_range only on Linux kernel >= 5.3
+    cmd/compile: use fixVariadicCall in escape analysis
     
-    https://man7.org/linux/man-pages/man2/copy_file_range.2.html#VERSIONS states:
+    This CL uses fixVariadicCall before escape analyzing function calls.
+    This has a number of benefits, though also some minor obstacles:
     
-      A major rework of the kernel implementation occurred in 5.3.  Areas
-      of the API that weren't clearly defined were clarified and the API
-      bounds are much more strictly checked than on earlier kernels.
-      Applications should target the behaviour and requirements of 5.3
-      kernels.
+    Most notably, it allows us to remove ODDDARG along with the logic
+    involved in setting it up, manipulating EscHoles, and later copying
+    its escape analysis flags to the actual slice argument. Instead, we
+    uniformly handle all variadic calls the same way. (E.g., issue31573.go
+    is updated because now f() and f(nil...) are handled identically.)
     
-    Rather than attempting to detect the file system for source and
-    destination files (which means two additional statfs syscalls) and skip
-    copy_file_range in case of known defects (e.g. CIFS -> CIFS), just
-    assume copy_file_range to be broken on kernels < 5.3.
+    It also allows us to simplify handling of builtins and generic
+    function calls. Previously handling of calls was hairy enough to
+    require multiple dispatches on n.Op, whereas now the logic is uniform
+    enough that we can easily handle it with a single dispatch.
     
-    Fixes #42400
+    The downside is handling //go:uintptrescapes is now somewhat clumsy.
+    (It used to be clumsy, but it still is, too.) The proper fix here is
+    probably to stop using escape analysis tags for //go:uintptrescapes
+    and unsafe-uintptr, and have an earlier pass responsible for them.
     
-    Change-Id: I3a531296182c1d6e341772cc9d2be5bf83e52575
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268338
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Finally, note that while we now call fixVariadicCall in Escape, we
+    still have to call it in Order, because we don't (yet) run Escape on
+    all compiler-generated functions. In particular, the generated "init"
+    function for initializing package-level variables can contain calls to
+    variadic functions and isn't escape analyzed.
+    
+    Passes toolstash-check -race.
+    
+    Change-Id: I4cdb92a393ac487910aeee58a5cb8c1500eef881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229759
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/internal/poll/copy_file_range_linux.go | 49 ++++++++++++++++++++++++++++--
- 1 file changed, 47 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/escape.go | 240 +++++++++++++++-------------------
+ src/cmd/compile/internal/gc/fmt.go    |   4 +
+ src/cmd/compile/internal/gc/syntax.go |   4 +-
+ src/cmd/compile/internal/gc/walk.go   |   6 +-
+ test/fixedbugs/issue31573.go          |   8 +-
+ 5 files changed, 112 insertions(+), 150 deletions(-)

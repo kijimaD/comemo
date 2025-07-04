@@ -1,17 +1,59 @@
-commit 38ea0ae05f1f2839949ca491a3541ada0e4c1211
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 12 14:27:27 2014 -0800
+commit 5225854b74b11cb374b7398132ec9f1d7abf9820
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 24 10:27:39 2014 -0400
 
-    net/url: add example of using URL.Opaque with http.Request
+    cmd/gc: synthesize zeroed value for non-assignment context
     
-    Per private thread soliciting help. I realized part of this is
-    documented in several places, but we lacked a unifying
-    example.
+    CL 157910047 introduced code to turn a node representing
+    a zeroed composite literal into N, the nil Node* pointer
+    (which represents any zero, not the Go literal nil).
     
-    LGTM=rsc
-    R=golang-codereviews
-    CC=adg, golang-codereviews, iant, rsc
-    https://golang.org/cl/171620043
+    That's great for assignments like x = T{}, but it doesn't work
+    when T{} is used in a value context like T{}.v or x == T{}.
+    Fix those.
+    
+    Should have no effect on performance; confirmed.
+    The deltas below are noise (compare ns/op):
+    
+    benchmark                          old ns/op      new ns/op      delta
+    BenchmarkBinaryTree17              2902919192     2915228424     +0.42%
+    BenchmarkFannkuch11                2597417605     2630363685     +1.27%
+    BenchmarkFmtFprintfEmpty           73.7           74.8           +1.49%
+    BenchmarkFmtFprintfString          196            199            +1.53%
+    BenchmarkFmtFprintfInt             213            217            +1.88%
+    BenchmarkFmtFprintfIntInt          336            356            +5.95%
+    BenchmarkFmtFprintfPrefixedInt     289            294            +1.73%
+    BenchmarkFmtFprintfFloat           415            416            +0.24%
+    BenchmarkFmtManyArgs               1281           1271           -0.78%
+    BenchmarkGobDecode                 10271734       10307978       +0.35%
+    BenchmarkGobEncode                 8985021        9079442        +1.05%
+    BenchmarkGzip                      410233227      412266944      +0.50%
+    BenchmarkGunzip                    102114554      103272443      +1.13%
+    BenchmarkHTTPClientServer          45297          44993          -0.67%
+    BenchmarkJSONEncode                19499741       19498489       -0.01%
+    BenchmarkJSONDecode                76436733       74247497       -2.86%
+    BenchmarkMandelbrot200             4273814        4307292        +0.78%
+    BenchmarkGoParse                   4024594        4028937        +0.11%
+    BenchmarkRegexpMatchEasy0_32       131            135            +3.05%
+    BenchmarkRegexpMatchEasy0_1K       328            333            +1.52%
+    BenchmarkRegexpMatchEasy1_32       115            117            +1.74%
+    BenchmarkRegexpMatchEasy1_1K       931            948            +1.83%
+    BenchmarkRegexpMatchMedium_32      216            217            +0.46%
+    BenchmarkRegexpMatchMedium_1K      72669          72857          +0.26%
+    BenchmarkRegexpMatchHard_32        3818           3809           -0.24%
+    BenchmarkRegexpMatchHard_1K        121398         121945         +0.45%
+    BenchmarkRevcomp                   613996550      615145436      +0.19%
+    BenchmarkTemplate                  93678525       93267391       -0.44%
+    BenchmarkTimeParse                 414            411            -0.72%
+    BenchmarkTimeFormat                396            399            +0.76%
+    
+    Fixes #8947.
+    
+    LGTM=r
+    R=r, dave
+    CC=golang-codereviews
+    https://golang.org/cl/162130043
 
- src/net/url/example_test.go | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ src/cmd/gc/walk.c           |  8 +------
+ test/fixedbugs/issue8947.go | 53 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 7 deletions(-)

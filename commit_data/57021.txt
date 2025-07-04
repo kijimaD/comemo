@@ -1,17 +1,16 @@
-commit 13b3af03913e4c875cb153d708b16adb023600f9
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 23 17:54:34 2024 -0400
+commit bff4b0edcbb6dee476f6f80b3c2e8b634a6aca4d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jun 8 09:35:19 2023 -0400
 
-    runtime: delete TestDebugLogBuild
+    doc/go1.21: more crypto release notes
     
-    Now that we're actually testing debuglog in the regular build
-    configuration, it's far less important that we take the time to
-    rebuild with the debuglog tag.
-    
-    Change-Id: I62bfd494ccb99087f35851c4476238b39ef40dec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600698
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I06981e13b89b3bde8f0d2fc9993240a372fb0457
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501815
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/runtime/debuglog_test.go | 12 ------------
- 1 file changed, 12 deletions(-)
+ doc/go1.21.html | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

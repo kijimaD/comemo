@@ -1,34 +1,18 @@
-commit 48e9c771a1da67e3a20984f322a67fd4e34932a5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 12 15:41:49 2011 -0400
+commit 7944bbf2d23377b450fddc133a28086544eafcb8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 12 12:20:48 2011 -0700
 
-    gofmt: accept program fragments on standard input
+    godoc, suffixarray: switch to exp/regexp
     
-    This makes it possible to grab a block of code
-    in an editor and pipe it through gofmt, instead of
-    having to pipe in the entire file.
-    
-    R=gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4973074
+    https://golang.org/cl/4983058
 
- src/cmd/gofmt/doc.go                       |   6 ++
- src/cmd/gofmt/gofmt.go                     | 118 +++++++++++++++++++++++++++--
- src/cmd/gofmt/gofmt_test.go                |  45 ++++++++---
- src/cmd/gofmt/testdata/stdin1.golden       |   3 +
- src/cmd/gofmt/testdata/stdin1.golden.gofmt |   3 +
- src/cmd/gofmt/testdata/stdin1.input        |   3 +
- src/cmd/gofmt/testdata/stdin1.input.gofmt  |   3 +
- src/cmd/gofmt/testdata/stdin2.golden       |  11 +++
- src/cmd/gofmt/testdata/stdin2.golden.gofmt |  10 +++
- src/cmd/gofmt/testdata/stdin2.input        |  11 +++
- src/cmd/gofmt/testdata/stdin2.input.gofmt  |  11 +++
- src/cmd/gofmt/testdata/stdin3.golden       |   6 ++
- src/cmd/gofmt/testdata/stdin3.golden.gofmt |   7 ++
- src/cmd/gofmt/testdata/stdin3.input        |   4 +
- src/cmd/gofmt/testdata/stdin3.input.gofmt  |   7 ++
- src/cmd/gofmt/testdata/stdin4.golden       |   3 +
- src/cmd/gofmt/testdata/stdin4.golden.gofmt |   3 +
- src/cmd/gofmt/testdata/stdin4.input        |   3 +
- src/cmd/gofmt/testdata/stdin4.input.gofmt  |   3 +
- 19 files changed, 242 insertions(+), 18 deletions(-)
+ src/cmd/godoc/codewalk.go                     | 2 +-
+ src/cmd/godoc/format.go                       | 2 +-
+ src/cmd/godoc/godoc.go                        | 2 +-
+ src/cmd/godoc/index.go                        | 2 +-
+ src/cmd/godoc/main.go                         | 2 +-
+ src/pkg/index/suffixarray/suffixarray.go      | 2 +-
+ src/pkg/index/suffixarray/suffixarray_test.go | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

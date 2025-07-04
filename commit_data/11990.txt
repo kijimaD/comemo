@@ -1,13 +1,18 @@
-commit efb28b2ac1808bcbb7df28d12addc6df630353d5
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 17 14:30:25 2012 +1100
+commit a4d124d75b1d0610a591ede8b24110b08764feac
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 16 22:04:13 2012 -0500
 
-    os: add a simple example to the package doc.
-    Shows error handling and slices for Read and Write.
+    log/syslog: disable on Windows
     
-    R=golang-dev, rsc
+    We want to be able to implement good Windows support
+    after Go 1.  Right now Windows tries to use Unix domain
+    sockets, and I'd rather just have it not be available.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5676075
+    https://golang.org/cl/5671076
 
- src/pkg/os/file.go | 26 ++++++++++++++++++++++++--
- 1 file changed, 24 insertions(+), 2 deletions(-)
+ src/pkg/log/syslog/syslog.go      | 2 ++
+ src/pkg/log/syslog/syslog_test.go | 3 +++
+ src/pkg/log/syslog/syslog_unix.go | 2 ++
+ 3 files changed, 7 insertions(+)

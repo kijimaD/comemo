@@ -1,19 +1,17 @@
-commit ca986a2c81f85af0ae009e6b90098c703766c28a
-Author: John Shahid <jvshahid@gmail.com>
-Date:   Wed May 29 11:21:32 2013 -0400
+commit e932c2035f01f76f614750af022d2f3975146191
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 29 11:49:45 2013 +0400
 
-          crypto/tls: Check all certificates in the path.
+    runtime: make notetsleep() return false if timeout happens
+    This is needed for preemptive scheduler, because during
+    stoptheworld we want to wait with timeout and re-preempt
+    M's on timeout.
     
-    Currently we only check the leaf node's issuer against the list of
-    distinguished names in the server's CertificateRequest message. This
-    will fail if the client certiciate has more than one certificate in
-    the path and the leaf node issuer isn't in the list of distinguished
-    names, but the issuer's issuer was in the distinguished names.
-    
-    R=agl, agl
-    CC=gobot, golang-dev
-    https://golang.org/cl/9795043
+    R=golang-dev, remyoudompheng, iant
+    CC=golang-dev
+    https://golang.org/cl/9375043
 
- src/pkg/crypto/tls/handshake_client.go      |  52 +-
- src/pkg/crypto/tls/handshake_client_test.go | 912 ++++++++++++++++++++++++++++
- 2 files changed, 940 insertions(+), 24 deletions(-)
+ src/pkg/runtime/lock_futex.c |  7 ++++---
+ src/pkg/runtime/lock_sema.c  | 12 ++++++------
+ src/pkg/runtime/runtime.h    |  2 +-
+ 3 files changed, 11 insertions(+), 10 deletions(-)

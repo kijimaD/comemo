@@ -1,15 +1,12 @@
-commit 5b72b8c7a38d982ba9ddf49e32852e8f6a189f14
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Apr 16 15:23:17 2015 -0400
+commit 754bb7158458a0a663a54f3cd015543bce2b822e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 20 16:17:13 2015 -0700
 
-    runtime: aeshash stubs for arm64
+    doc/go1.5.txt: updated (composite literal lang. change, math/big.Float support)
     
-    For some reason the absense of an implementation does not stop arm64
-    binaries being built. However it comes up with -buildmode=c-archive.
-    
-    Change-Id: Ic0db5fd8fb4fe8252b5aa320818df0c7aec3db8f
-    Reviewed-on: https://go-review.googlesource.com/8989
+    Change-Id: Ib8df771957f9a5bf00bee7eb8cb361d4acd5813f
+    Reviewed-on: https://go-review.googlesource.com/7911
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_arm64.s | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ doc/go1.5.txt | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

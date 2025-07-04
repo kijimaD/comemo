@@ -1,17 +1,15 @@
-commit 82ddcc05f44a510118a1fc8bb8e3552a92d8f441
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 23 14:26:20 2014 -0700
+commit e8a74dcad96b134ba29a7edbc3bc84ba597e7c64
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 14 22:24:29 2014 -0400
 
-    os: fix another case where RemoveAll should return nil
+    runtime: fix solaris build, part 2
     
-    This hopefully fixes issue 8793.
+    This file was already assigned to another CL
+    so it didn't make it into the build fix CL. Sigh.
     
-    Fixes #8793
-    
-    LGTM=iant
-    R=rsc, iant
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/150860046
+    https://golang.org/cl/144850043
 
- src/os/path.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/os_solaris.go | 29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)

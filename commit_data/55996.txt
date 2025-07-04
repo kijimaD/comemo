@@ -1,20 +1,31 @@
-commit 9c94baa7a49464e5fb780ea2e291249ad2c83c75
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Wed Mar 20 03:32:14 2024 +0000
+commit 092d43c329babb41f9bbad265bfe82bb48522b64
+Author: Philippe Antoine <contact@catenacyber.fr>
+Date:   Thu Mar 23 08:14:39 2023 +0000
 
-    encoding/gob: close output file
+    all: replace fmt.Sprintf("%d") with strconv.Itoa
     
-    Change-Id: Ia9ecb82e87fca319e89aa1779aeed0f573fa808f
-    GitHub-Last-Rev: 33361bcb8ae5817dcc618d67d69009001b271ffc
-    GitHub-Pull-Request: golang/go#66417
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572955
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    This was found by running `git grep 'fmt.Sprintf("%d",' | grep -v test | grep -v vendor`
+    
+    And this was automatically fixed with gotiti https://github.com/catenacyber/gotiti
+    and using unconvert https://github.com/mdempsky/unconvert
+    to check if there was (tool which fixed another useless cast)
+    
+    Change-Id: I023926bc4aa8d51de45f712ac739a0a80145c28c
+    GitHub-Last-Rev: 1063e32e5b69b6f9bb17673887b8c4ebe5be8fe4
+    GitHub-Pull-Request: golang/go#59144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477675
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/encoding/gob/decgen.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/covdata/argsmerge.go                 | 7 +++++--
+ src/cmd/go/internal/modfetch/codehost/svn.go | 3 ++-
+ src/cmd/go/internal/modfetch/codehost/vcs.go | 4 ++--
+ src/go/token/position.go                     | 3 ++-
+ src/internal/buildcfg/cfg.go                 | 3 ++-
+ src/net/http/triv.go                         | 2 +-
+ src/runtime/coverage/emit.go                 | 5 +++--
+ 7 files changed, 17 insertions(+), 10 deletions(-)

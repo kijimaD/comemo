@@ -1,15 +1,15 @@
-commit 7e9369a517d9ebf867748719948d8cbccec3bc57
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Sep 21 12:10:16 2020 -0400
+commit 4df1db99c4e50483215e207c9895d48fa6e4ad12
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 25 15:15:41 2020 -0500
 
-    cmd/link: add go.mod to TestFuncAlign
+    [dev.link] cmd/link: convert stack bound check pass to new symbol representation
     
-    Fixes #41531
+    This CL converts the stack bound check pass to use the loader and
+    new symbol representation.
     
-    Change-Id: I8b4f0d5b7094e56787998d244d8a4c03becb8452
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256302
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I0e4c102909db20dc2d5a367379146728862e53cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220059
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/link_test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 139 ++++++++++++++++++++++------------------
+ 1 file changed, 75 insertions(+), 64 deletions(-)

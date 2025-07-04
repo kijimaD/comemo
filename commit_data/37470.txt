@@ -1,17 +1,29 @@
-commit 1ac84999b93876bb06887e483ae45b27e03d7423
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Thu Oct 25 13:33:09 2018 +0300
+commit d6597ade89b03a5bd5b6732506c23de741cccd53
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 2 12:35:32 2018 -0700
 
-    cmd/compile: make ssa blocks collapsable in ssa.html
+    go/scanner: continue adding directory to file name
     
-    This CL adds a button that collapses values list of a block.
-    Button is displayed for every block with non-empty values.
+    Before CL 97795, when go/scanner saw a //line comment, it would clean
+    the path and, if the path was relative, prepend the directory from the
+    file name. This was not the best API because it meant that the
+    behavior changed based on whether the code was running on Windows or
+    not, and it meant that information from the //line directive was lost.
+    So in CL 97795, among other changes, go/scanner was changed to simply
+    return the filename given in the //line comment.
     
-    Change-Id: I4b65af81e25349f38341df487d42698c9d006a00
-    Reviewed-on: https://go-review.googlesource.com/c/144557
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    Unfortunately existing tools such as unparam and unconvert expected
+    the old behavior. In order to avoid breaking those tools, revert that
+    part of the change.
+    
+    Fixes #26671
+    
+    Change-Id: Ifa06542bd19cda9d682ac33766ab9080444ba050
+    Reviewed-on: https://go-review.googlesource.com/127658
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/html.go | 32 +++++++++++++++++++++++++++++++-
- 1 file changed, 31 insertions(+), 1 deletion(-)
+ src/go/scanner/scanner.go      |  8 ++++++++
+ src/go/scanner/scanner_test.go | 34 ++++++++++++++++++++++++++++++----
+ 2 files changed, 38 insertions(+), 4 deletions(-)

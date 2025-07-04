@@ -1,15 +1,20 @@
-commit 260db6ea5a3dbf12a95fd438704e01cae42e3f56
+commit eb53d472ef7203ea9df95b23c0c1c7b3ef2844a1
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 30 12:08:35 2012 -0800
+Date:   Mon Jan 30 11:58:49 2012 -0800
 
-    build: fix buildscript breakage after all.bash
+    doc: use consistent receiver names, when it makes sense.
     
-    Fix from Russ. Tested that multiple builds in a row
-    work again.
+    Makes for prettier docs.
     
-    R=rsc, rsc
+    R=golang-dev, dsymonds, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5599047
+    https://golang.org/cl/5576056
 
- src/buildscript.sh | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/archive/zip/struct.go       |  4 ++--
+ src/pkg/encoding/xml/read.go        |  6 +++---
+ src/pkg/mime/multipart/multipart.go | 42 ++++++++++++++++++-------------------
+ src/pkg/net/http/request.go         | 16 +++++++-------
+ src/pkg/net/http/response.go        | 24 ++++++++++-----------
+ src/pkg/net/http/server.go          |  6 +++---
+ src/pkg/net/url/url.go              | 32 ++++++++++++++--------------
+ 7 files changed, 65 insertions(+), 65 deletions(-)

@@ -1,21 +1,20 @@
-commit 5856162487a3f380a271afac84ab19d5020679d2
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Feb 5 13:12:51 2024 -0800
+commit 75136fc14c0d3ec64a2f6728e96fc86066d853c9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 4 17:11:46 2023 -0400
 
-    crypto/x509: properly reject invalid DNS names when checking constraints
+    cmd/link: remove zdebug from ELF section header table
     
-    A DNS name prefixed with an empty label should be considered invalid
-    when checking constraints (i.e. ".example.com" does not satisfy a
-    constraint of "example.com").
+    We now use SHF_COMPRESSED sections for DWARF compression, and no
+    longer generate zdebug sections on ELF platforms. No need to
+    generate them in the section header string table.
     
-    Updates #65085
+    Updates #50796.
     
-    Change-Id: I42919dc06abedc0e242ff36b2a42b583b14857b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561615
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I5c79ccd43f803c75dbd86e28195d0db1c0beb087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492719
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/x509/name_constraints_test.go | 8 ++++++++
- src/crypto/x509/verify.go                | 5 +++++
- 2 files changed, 13 insertions(+)
+ src/cmd/link/internal/ld/dwarf.go | 2 --
+ 1 file changed, 2 deletions(-)

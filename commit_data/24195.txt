@@ -1,20 +1,15 @@
-commit 259466452dfb5ab84cfb3d0425b5137406e564ed
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Mon Sep 7 22:19:30 2015 +0200
+commit d000e8742a173aa0659584aa01b7ba2834ba28ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 23:48:34 2015 -0400
 
-    cmd/compile/internal/gc: unexport and make Hasdefer a bool
+    os/exec: document that Cmd.Wait waits for stdin I/O
     
-    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
+    Fixes #10338.
     
-    Change-Id: I804ee4252fa9be78cb277faf7f467e6c9cfdd4a6
-    Reviewed-on: https://go-review.googlesource.com/14319
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib86cb9a6c694b1e442a9957153c7ca38a7d11c3e
+    Reviewed-on: https://go-review.googlesource.com/12232
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/cgen.go | 4 ++--
- src/cmd/compile/internal/gc/go.go   | 2 +-
- src/cmd/compile/internal/gc/pgen.go | 4 ++--
- src/cmd/compile/internal/gc/reg.go  | 2 +-
- src/cmd/compile/internal/gc/walk.go | 2 +-
- 5 files changed, 7 insertions(+), 7 deletions(-)
+ src/os/exec/exec.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,24 +1,35 @@
-commit dba0d38298f0af466274795ce35ad5f310b391db
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sat Jul 30 01:45:27 2016 -0700
+commit 3d4ea227c6b8062c436fc9417034f2d01cf8c82c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Oct 18 17:22:25 2016 -0700
 
-    cmd/compile: fix conversion error message for printed slices
+    archive/tar: validate sparse headers in parsePAX
     
-    Fixes #15055.
+    According to the GNU manual, the format is:
+    <<<
+    GNU.sparse.size=size
+    GNU.sparse.numblocks=numblocks
+    repeat numblocks times
+      GNU.sparse.offset=offset
+      GNU.sparse.numbytes=numbytes
+    end repeat
+    >>>
     
-    Updates exprfmt printing using fmt verb "%v" to check that n.Left
-    is non-nil before attempting to print it, otherwise we'll print
-    the nodes in the list using verb "%.v".
+    The logic in parsePAX converts the repeating sequence of
+    (offset, numbytes) pairs (which is not PAX compliant) into a single
+    comma-delimited list of numbers (which is now PAX compliant).
     
-    Credit to @mdempsky for this approach and for finding
-    the root cause of the issue.
+    Thus, we validate the following:
+    * The (offset, numbytes) headers must come in the correct order.
+    * The ',' delimiter cannot appear in the value.
+    We do not validate that the value is a parsible decimal since that
+    will be determined later.
     
-    Change-Id: I20a6464e916dc70d5565e145164bb9553e5d3865
-    Reviewed-on: https://go-review.googlesource.com/25361
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I8d6681021734eb997898227ae8603efb1e17c0c8
+    Reviewed-on: https://go-review.googlesource.com/31439
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 11 ++++++-----
- test/fixedbugs/issue15055.go       | 17 +++++++++++++++++
- 2 files changed, 23 insertions(+), 5 deletions(-)
+ src/archive/tar/reader.go      | 37 +++++++++++++++++++------------------
+ src/archive/tar/reader_test.go | 13 ++++++++++---
+ 2 files changed, 29 insertions(+), 21 deletions(-)

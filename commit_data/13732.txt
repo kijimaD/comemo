@@ -1,17 +1,17 @@
-commit 1c2021ca142677fbfbbea950dd5a35986d86e678
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Sat Sep 1 13:52:55 2012 -0400
+commit 508bfda6d3dd40e2906fb6538b5e4db0ba129645
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 1 10:34:58 2012 -0400
 
-    cmd/gc: Suggest *T in error for x.(T) if it would work.
+    cmd/go: be clear that import loops are bad
     
-    Accomplished by synchronizing the formatting of conversion errors between typecheck.c and subr.c
+    There was mail on golang-nuts a few weeks ago
+    from someone who understood the message perfectly
+    and knew he had a cyclic dependency but assumed
+    that Go, like Python or Java, was supposed to handle it.
     
-    Fixes #3984.
-    
-    R=golang-dev, remyoudompheng, rsc
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/6500064
+    https://golang.org/cl/6488069
 
- src/cmd/gc/typecheck.c     | 20 +++++++++++++-------
- test/interface/explicit.go |  6 ++++++
- 2 files changed, 19 insertions(+), 7 deletions(-)
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

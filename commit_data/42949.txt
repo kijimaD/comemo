@@ -1,16 +1,36 @@
-commit d277a361231485999cc2b7433e3244e559c7d7da
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 10 17:18:57 2020 -0400
+commit f5b5d77ee2ea0c2edfa600c5245df869e2177615
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 22 22:05:05 2020 -0800
 
-    runtime: remove darwin/arm specifc code
+    cmd/compile: use immediates for MOVO of readonly sym
     
-    That port is gone.
+    file      before    after     Δ       %
+    addr2line 4307760   4303616   -4144   -0.096%
+    api       5968600   5968568   -32     -0.001%
+    asm       5109928   5122120   +12192  +0.239%
+    buildid   2843752   2839608   -4144   -0.146%
+    cgo       4823768   4819624   -4144   -0.086%
+    compile   20687848  20691800  +3952   +0.019%
+    cover     5259896   5255752   -4144   -0.079%
+    dist      3665176   3661032   -4144   -0.113%
+    doc       4668648   4668600   -48     -0.001%
+    fix       3368792   3368744   -48     -0.001%
+    link      6613328   6609200   -4128   -0.062%
+    nm        4253312   4253280   -32     -0.001%
+    objdump   4655360   4655312   -48     -0.001%
+    pack      2294312   2294280   -32     -0.001%
+    pprof     14747332  14747284  -48     -0.000%
+    test2json 2819416   2815272   -4144   -0.147%
+    trace     11669436  11665292  -4144   -0.036%
+    vet       8274184   8270040   -4144   -0.050%
+    total     116030848 116009424 -21424  -0.018%
     
-    Change-Id: I212d435e290d1890d6cd5531be98bb692650595e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254077
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ice37222c4d76540b3591459f605321cbf142872d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220690
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/stack.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 42 ++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

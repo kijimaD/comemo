@@ -1,24 +1,18 @@
-commit 66bedf82210220e45ca2eb4919fe764e6a022630
+commit 74fc7d8f1252ce30ef2f6cf600afab1621997237
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 23 22:45:30 2011 -0400
+Date:   Tue Aug 23 22:39:39 2011 -0400
 
-    go/build: add test support & use in gotest
+    gobuilder: increase log limit
     
-    A side-effect is that, just like foo_386.go
-    is only built on 386, foo_386_test.go is only
-    built for testing on 386.
+    It's a balance between fetching too much
+    and falling far enough behind that you can't
+    catch up.  We missed 20 commits in a row
+    when the builders were down for a few days.
+    This gives us a little more leeway.
     
-    R=adg, r, mattn.jp
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4942050
+    https://golang.org/cl/4936047
 
- src/cmd/gotest/gotest.go                    |  15 ++--
- src/pkg/go/build/build_test.go              |  64 ++++++++++---
- src/pkg/go/build/dir.go                     | 134 ++++++++++++++++++----------
- src/pkg/go/build/pkgtest/sqrt_386_test.go   |   1 +
- src/pkg/go/build/pkgtest/sqrt_amd64_test.go |   1 +
- src/pkg/go/build/pkgtest/sqrt_arm_test.go   |   1 +
- src/pkg/go/build/pkgtest/sqrt_test.go       |   1 +
- src/pkg/go/build/pkgtest/xsqrt_test.go      |   1 +
- src/pkg/go/build/syslist_test.go            |   2 +-
- 9 files changed, 153 insertions(+), 67 deletions(-)
+ misc/dashboard/builder/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

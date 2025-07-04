@@ -1,18 +1,16 @@
-commit bf776a988bf6fe82cbef5cfc954f33d127c5172c
-Author: Austin Clements <austin@google.com>
-Date:   Mon Sep 26 13:10:41 2016 -0400
+commit d78d0de4d15019f87b04b49ba640a455f7c42512
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 15 12:33:47 2016 -0700
 
-    runtime: document bmap.tophash
+    go/ast: fix comments misinterpreted as documentation
     
-    In particular, it wasn't obvious that some values are special (unless
-    you also found those special values), so document that it isn't
-    necessarily a hash value.
+    The comments describing blocks of Pos/End implementations for various
+    nodes types are being misinterpreted as documentation for BadDecl,
+    BadExpr, BadStmt, and ImportSpec's Pos methods.
     
-    Change-Id: Iff292822b44408239e26cd882dc07be6df2c1d38
-    Reviewed-on: https://go-review.googlesource.com/30143
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I935b0bc38dbc13e9305f3efeb437dd3a6575d9a1
+    Reviewed-on: https://go-review.googlesource.com/24152
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/hashmap.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/go/ast/ast.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

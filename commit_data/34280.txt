@@ -1,18 +1,21 @@
-commit ec62ee7f6d3839fe69aeae538dadc1c9dc3bf020
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Feb 20 21:04:56 2018 +0100
+commit f5cd3868d52babd106e0509a67295690246a5252
+Author: Ben Schwartz <bemasc@google.com>
+Date:   Thu Oct 5 14:07:55 2017 -0400
 
-    cmd/compile: use | in the most repetitive 386 rules
+    net/http: HTTPS proxies support
     
-    For now, limited to the most repetitive rules that are also short and
-    simple, so that we can have a substantial conciseness win without
-    compromising rules readability.
+    net/http already supports http proxies. This CL allows it to establish
+    a connection to the http proxy over https. See more at:
+    https://www.chromium.org/developers/design-documents/secure-web-proxy
     
-    Ran rulegen, no change in the actual compiler code (as expected).
+    Fixes golang/go#11332
     
-    Change-Id: Ibf157382fb4544c063fbc80406fb9302430728fe
-    Reviewed-on: https://go-review.googlesource.com/95595
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If0e017df0e8f8c2c499a2ddcbbeb625c8fa2bb6b
+    Reviewed-on: https://go-review.googlesource.com/68550
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/cmd/compile/internal/ssa/gen/386.rules | 63 +++++++-----------------------
- 1 file changed, 15 insertions(+), 48 deletions(-)
+ src/net/http/transport.go      | 160 +++++++++++++++++----------
+ src/net/http/transport_test.go | 243 +++++++++++++++++++++++++++++++----------
+ 2 files changed, 283 insertions(+), 120 deletions(-)

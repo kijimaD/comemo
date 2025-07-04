@@ -1,37 +1,20 @@
-commit 8e0be05ec7c369387c0ed3c9cf37968c6d3afbbd
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 4 04:58:37 2019 +1100
+commit e6ba19f9138dfaa981b281105fafabbf55250a18
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 6 20:54:36 2019 +0000
 
-    runtime: add support for linux/riscv64
+    Revert "cmd/compile: improve errors for invalid conversions of consts"
     
-    Based on riscv-go port.
+    This reverts commit 2da9c3e0f99b72cf8f3bdca01b57e7a68a546c5b.
     
-    Updates #27532
+    Reason for revert: while the new error messages are more informative,
+    they're not strictly correct. This CL also conflicts with CL 187657.
     
-    Change-Id: If522807a382130be3c8d40f4b4c1131d1de7c9e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204632
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: I1c36cf7e86c2f35ee83a4f98918ee38aa1f59965
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193977
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/asm_riscv64.s                     | 670 ++++++++++++++++++++++++++
- src/runtime/atomic_riscv64.s                  |  12 +
- src/runtime/defs_linux_riscv64.go             | 209 ++++++++
- src/runtime/gcinfo_test.go                    |   2 +-
- src/runtime/hash64.go                         |   2 +-
- src/runtime/internal/atomic/atomic_riscv64.go |  67 +++
- src/runtime/internal/atomic/atomic_riscv64.s  | 242 ++++++++++
- src/runtime/internal/sys/arch.go              |   1 +
- src/runtime/internal/sys/arch_riscv64.go      |  18 +
- src/runtime/lfstack_64bit.go                  |   2 +-
- src/runtime/malloc.go                         |   1 +
- src/runtime/memclr_riscv64.s                  |  44 ++
- src/runtime/memmove_riscv64.s                 |  96 ++++
- src/runtime/os_linux.go                       |   7 +
- src/runtime/rt0_linux_riscv64.s               |  14 +
- src/runtime/signal_linux_riscv64.go           |  68 +++
- src/runtime/signal_riscv64.go                 |  85 ++++
- src/runtime/sys_linux_riscv64.s               | 517 ++++++++++++++++++++
- src/runtime/sys_riscv64.go                    |  18 +
- src/runtime/tls_riscv64.s                     |  18 +
- 20 files changed, 2090 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 10 ++---
+ test/fixedbugs/issue21979.go         | 75 ------------------------------------
+ 2 files changed, 3 insertions(+), 82 deletions(-)

@@ -1,12 +1,32 @@
-commit 9c4aade584ecc34e714d172a1bb87a8430de2f41
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 25 15:45:25 2015 -0800
+commit 68475da68d8884ee6b8d7b1d846ed9e3c6477a20
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 2 10:56:41 2015 -0800
 
-    math/big: fix build for 32bit platforms
+    [dev.cc] cmd/asm: fix a few minor issues
     
-    Change-Id: I9c217e5140294a17e4feb65da5b121ee8d8cadc2
-    Reviewed-on: https://go-review.googlesource.com/6050
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fix one place where semicolons were not recognized and fix the
+    pattern match for the syntax of some pseudo ops.
+    Also clean up a couple of unreachable code pieces.
+    
+    There is still an undiagnosed bit difference betwen old and new .6
+    files. TBD.
+    
+    With these fixes, asm can successfully compile and test the entire tree.
+    (Verified by
+            turn off verifyAsm in cmd/go
+            make.bash
+            cp $GOROOT/bin/asm $GOROOT/pkg/tool/darwin_amd64/6a
+            go test -short std
+    )
+    
+    Change-Id: I91ea892098f76ef4f129fd2530e0c63ffd8745a9
+    Reviewed-on: https://go-review.googlesource.com/3688
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/float_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/asm/internal/addr/addr.go   |  2 +-
+ src/cmd/asm/internal/asm/asm.go     | 20 ++++++++++++--------
+ src/cmd/asm/internal/asm/parse.go   |  4 +---
+ src/cmd/asm/internal/flags/flags.go |  6 +-----
+ src/cmd/asm/internal/lex/input.go   |  4 +++-
+ src/cmd/asm/main.go                 |  5 ++---
+ 6 files changed, 20 insertions(+), 21 deletions(-)

@@ -1,26 +1,16 @@
-commit b16501c08b37235a67e2fc5b506f169152db57ae
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 26 12:47:41 2022 -0700
+commit b2149ac336987940b3f14c50c064a43bf9a761de
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Thu Nov 4 10:13:11 2021 +0800
 
-    go/types, types2: use "unknown field f in struct literal of type S" in error messages
+    net/netip: fix various typos in comment
     
-    This is a compromise of the error reported by the compiler (quotes
-    around field name removed) and the error reported by the type checkers
-    (added mention of struct type).
-    
-    For #55326.
-    
-    Change-Id: Iac4fb5c717f17c6713e90d327d39e68d3be40074
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/434815
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I02724dadacd9b3f23ca7e6bda581cba62ceff828
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361274
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/expr.go | 6 +-----
- src/go/types/expr.go                    | 2 +-
- test/fixedbugs/issue17631.go            | 2 +-
- test/fixedbugs/issue19482.go            | 8 ++++----
- test/fixedbugs/issue24339.go            | 2 +-
- test/fixedbugs/issue25727.go            | 6 +++---
- 6 files changed, 11 insertions(+), 15 deletions(-)
+ src/net/netip/netip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

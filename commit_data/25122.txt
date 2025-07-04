@@ -1,14 +1,18 @@
-commit 69c09afb0dee368ef2fbcf9fec27bd04c2e63798
-Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
-Date:   Wed Dec 2 23:28:49 2015 +0100
+commit 3d4cd144cc1e6fb554b12695d0d190a2db0c6a2c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 25 22:26:52 2015 -0700
 
-    net/mail: add test index to error messages in a recent test
+    math/big: improved documentation
     
-    Add the test index so it is easier to find which test case failed.
+    - moved existing package documentation from nat.go to doc.go
+    - expanded on it
     
-    Change-Id: Ic04682651b26b137355950ff0c51bdbdb1d85a9c
-    Reviewed-on: https://go-review.googlesource.com/17351
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For #11241.
+    
+    Change-Id: Ie75a2b0178a8904a4154307a1f5080d7efc5489a
+    Reviewed-on: https://go-review.googlesource.com/15042
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/mail/message_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/math/big/doc.go | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/nat.go | 28 +++------------------
+ 2 files changed, 76 insertions(+), 24 deletions(-)

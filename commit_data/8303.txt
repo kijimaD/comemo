@@ -1,14 +1,21 @@
-commit 2c92fe0b4f4d4525b845f688070d2ebc6be04c57
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue May 3 09:53:04 2011 -0300
+commit 296d6871a8283cf6dcbaa916526da4608a37397b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 3 01:56:23 2011 -0400
 
-    Make.cmd: create TARGDIR if necessary
+    ld: make ELF binaries with no shared library dependencies static binaries
     
-    Fixes #1771.
+    $ file $GOROOT/bin/{godoc,goyacc}
+    /home/rsc/g/go/bin/godoc:  ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked (uses shared libs), not strpped
+    /home/rsc/g/go/bin/goyacc: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, not stripped
+    $
     
-    R=adg, rsc1
+    Fixes #1758.
+    
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/4437089
+    https://golang.org/cl/4428079
 
- src/Make.cmd | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/ld/go.c  |  2 ++
+ src/cmd/ld/lib.c | 12 ++++++++++++
+ src/cmd/ld/lib.h |  1 +
+ 3 files changed, 15 insertions(+)

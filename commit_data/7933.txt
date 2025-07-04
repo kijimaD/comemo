@@ -1,12 +1,32 @@
-commit 6b567d26b74e7b98c540a9779a798cd95334dc87
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 30 16:41:41 2011 +1100
+commit 1afc37fa7eb5bcc48a72646357a497973b5a2c1e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 29 18:30:59 2011 -0700
 
-    godoc: remove errant space in HTML tag
+    go/printer/gofmt: remove special case for multi-line raw strings
     
-    R=gri
+    As a special case, multi-line raw strings (i.e., strings in `` quotes)
+    were not indented if they were the only token on a line. This heuristic
+    was meant to improve formatting for multi-line raw strings where sub-
+    sequent lines are not indented at the level of the surrounding code.
+    Multiple people have complained about this. Removing the heuristic
+    again because it makes the formatting more regular, easier to under-
+    stand, and simplifies the implementation.
+    
+    - manual changes to ebnf/ebnf_test.go for readability
+    - gofmt -w src misc
+    
+    Fixes #1643.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4277087
+    https://golang.org/cl/4307045
 
- src/cmd/godoc/format.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gofix/httpserver.go                    |  2 +-
+ src/cmd/gofix/netdial.go                       |  6 +--
+ src/cmd/gofix/procattr.go                      |  2 +-
+ src/pkg/ebnf/ebnf_test.go                      | 45 ++++++++----------
+ src/pkg/go/printer/printer.go                  | 66 +++++---------------------
+ src/pkg/go/printer/testdata/expressions.golden | 18 +++----
+ src/pkg/go/printer/testdata/expressions.input  |  8 ++--
+ src/pkg/go/printer/testdata/expressions.raw    | 21 ++++----
+ 8 files changed, 61 insertions(+), 107 deletions(-)

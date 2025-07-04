@@ -1,23 +1,16 @@
-commit be59731d9fffb53a499d1ae64863e2a380f2dede
-Author: Ryan Brown <ribrdb@google.com>
-Date:   Wed Apr 8 12:55:34 2015 -0700
+commit e9a89b80b69eb977697455c0a45044b12fc9a197
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Fri Apr 24 14:11:29 2015 -0400
 
-    cmd/internal/ld: output dwarf in external link mode on darwin
+    misc/cgo/testcshared: make test.bash resilient against noise.
     
-    Fixes #8973
+    Instead of comparing against the entire output that may include
+    verbose warning messages, use the last line of the output and check
+    it includes the expected success message (PASS).
     
-    Change-Id: I746fae430db6d8f9ebd33586b8cffcb31d688cc8
-    Reviewed-on: https://go-review.googlesource.com/10284
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iafd583ee5529a8aef5439b9f1f6ce0185e4b1331
+    Reviewed-on: https://go-review.googlesource.com/9304
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/5l/asm.go                          |  14 +-
- src/cmd/6l/asm.go                          |   2 +-
- src/cmd/7l/asm.go                          |  14 +-
- src/cmd/8l/asm.go                          |   2 +-
- src/cmd/internal/ld/dwarf.go               | 144 +++++++++--
- src/cmd/internal/ld/lib.go                 |  21 +-
- src/cmd/internal/ld/macho.go               |   8 +-
- src/cmd/internal/ld/macho_combine_dwarf.go | 369 +++++++++++++++++++++++++++++
- 8 files changed, 528 insertions(+), 46 deletions(-)
+ misc/cgo/testcshared/test.bash | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

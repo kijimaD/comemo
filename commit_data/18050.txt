@@ -1,12 +1,17 @@
-commit c22e79b37b95c1313ec9bee70147cade6461fb29
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Wed Dec 18 10:19:07 2013 -0800
+commit 33580e8305da21fced5d86c16cb64c71e33d09ef
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Wed Dec 18 10:17:38 2013 -0800
 
-    encoding/asn1: add more test cases for BitString.At and TestUTCTime, add test for ObjectIdentifier.Equal
+    misc/notepadplus: Fix Function List in Notepad++ 6.5
+    
+    Since version 6.5, npp change the Function List syntax for User Defined Languages.
+    We need use userDefinedLangName syntax in association tag in Notepad++ 6.5.
+    
+    Fix issue 6735.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/42740043
+    https://golang.org/cl/22770043
 
- src/pkg/encoding/asn1/asn1_test.go | 39 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ misc/notepadplus/functionList.xml | 7 +++++++
+ 1 file changed, 7 insertions(+)

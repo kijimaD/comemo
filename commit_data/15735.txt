@@ -1,15 +1,12 @@
-commit a1b2d1404be98284416e2a7ea6f55bc129222cc0
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Tue Mar 12 23:05:39 2013 +0100
+commit 5dc1e0f245193eed6e2967ac4eaeb794172ad69b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 12 14:42:37 2013 -0700
 
-    net: Plan 9: add lookupProtocol
+    api/next.txt: remove references to go/types, now in separate repo
     
-    Needed by TestResolveIPAddr. This makes us pass tests
-    again.
-    
-    R=rsc, rminnich, ality, bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7737043
+    https://golang.org/cl/7663045
 
- src/pkg/net/lookup_plan9.go | 22 +++++++++++++++++++---
- 1 file changed, 19 insertions(+), 3 deletions(-)
+ api/next.txt | 188 -----------------------------------------------------------
+ 1 file changed, 188 deletions(-)

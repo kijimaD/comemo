@@ -1,20 +1,19 @@
-commit d47da9497f7e17aab1d4b3169604f62b491a9dd1
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Apr 5 10:23:15 2019 -0700
+commit 43edf21eff83e95b32cc43453c3a8df816d85e88
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 6 15:07:46 2018 -0500
 
-    database/sql: add NullTime
+    cmd/cgo: fix typo in gccgo name mangling recipe
     
-    This matches NullBool, NullFloat64, and NullInt64.
+    The code to implement new-style gccgo name mangling had a recipe that
+    didn't quite match that of the compiler (incorrect handling for '.').
+    This showed up as a failure in the gotools cgo test if the directory
+    containing the test run included a "." character.
     
-    Fixes #30305
+    [This is a copy of https://golang.org/cl/147917].
     
-    Change-Id: I79bfcf04a3d43b965d2a3159b0ac22f3e8084a53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170699
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia94728ecead879c8d223eb6cee6c102a8af1c86e
+    Reviewed-on: https://go-review.googlesource.com/c/147937
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/database/sql/fakedb_test.go |  4 +++-
- src/database/sql/sql.go         | 26 ++++++++++++++++++++++++++
- src/database/sql/sql_test.go    | 15 +++++++++++++++
- 3 files changed, 44 insertions(+), 1 deletion(-)
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

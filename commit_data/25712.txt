@@ -1,21 +1,20 @@
-commit 2639498f9b5e43dfceb6aa7aafb31bc313216e24
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 1 15:58:34 2016 +0000
+commit babdb3832072b6ca55e2dfe071bac25d865f8911
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Oct 20 00:35:42 2015 -0700
 
-    net/http/httputil: fix spelling of Trailer hop-by-hop header per errata
+    net/http: detect when an HTTPS client contacts an HTTP server
     
-    RFC Errata 4522 (http://www.rfc-editor.org/errata_search.php?eid=4522)
-    notes that RFC 2616 had a typo in a list of headers that the
-    httputil.ReverseProxy code copied. Fix the typo in our code.
+    Inspect the crypto/tls error to recognize this case and give a more
+    helpful error.
     
-    Fixes #14174
+    Fixes #11111.
     
-    Change-Id: Ifc8f18fd58a6508a02a23e54ff3c473f03e521d3
-    Reviewed-on: https://go-review.googlesource.com/19133
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I63f6af8c375aa892326ccccbd29655d54d68df0b
+    Reviewed-on: https://go-review.googlesource.com/16079
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 4 ++--
- src/net/http/httputil/reverseproxy_test.go | 4 ++++
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/net/http/client.go      |  9 +++++++++
+ src/net/http/client_test.go | 14 ++++++++++++++
+ 2 files changed, 23 insertions(+)

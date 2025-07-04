@@ -1,22 +1,21 @@
-commit 0bbd67e52f98ce45e39e9a43e3c87a8c32aabbd2
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 5 09:08:25 2023 -0500
+commit 35170365c83085024e4855c14032599f5513d563
+Author: Martin Sucha <anty.sk+git@gmail.com>
+Date:   Tue Feb 22 21:51:04 2022 +0100
 
-    runtime/pprof: document possibility of empty stacks
+    net: document methods of Buffers
     
-    I spent quite a while determining the cause of empty stacks in
-    profiles and reasoning out why this is okay. There isn't a great place
-    to record this knowledge, but a documentation comment on
-    appendLocsForStack is better than nothing.
+    There is code in the wild that copies the Buffers slice,
+    but not the contents.
+    Let's document explicitly that it is not safe to do so.
     
-    Updates #51550.
+    Updates #45163
     
-    Change-Id: I2eefc6ea31f1af885885c3d96199319f45edb4ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460695
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Id45e27b93037d4e9f2bfde2558e7869983b60bcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387434
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/pprof/proto.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/net/net.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

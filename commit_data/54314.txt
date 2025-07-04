@@ -1,21 +1,21 @@
-commit cffdfe8d2cabbe874bceaeed1eba92cc567be6db
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 1 12:52:48 2023 -0700
+commit 97d38f300273a3eb7af100d3943decaa433fd28f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 4 18:18:01 2022 -0700
 
-    runtime: don't let the tests leave core files behind
+    go/types, types2: use consistent error messages for invalid struct literals
     
-    Also add a check that we didn't leave any core files behind.
+    Fixes #51879.
     
-    Change-Id: I30444ef43ad1a8cc1cacd3b75280f2128e104939
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525175
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic7ac892b82a0fe4ad6f95ff8ae84e6d30c52c111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438855
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/crash_test.go                      | 11 +++++++++++
- src/runtime/crash_unix_test.go                 |  2 ++
- src/runtime/testdata/testprogcgo/threadprof.go |  4 +++-
- 3 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/expr.go             | 9 ++++++---
+ src/go/types/expr.go                                | 9 ++++++---
+ src/internal/types/testdata/check/expr3.go          | 2 +-
+ src/internal/types/testdata/fixedbugs/issue51877.go | 8 ++++----
+ 4 files changed, 17 insertions(+), 11 deletions(-)

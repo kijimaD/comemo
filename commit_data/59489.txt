@@ -1,25 +1,18 @@
-commit afd6b0bc663cf49e74200729da91785219d28b53
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Tue May 13 11:50:58 2025 -0700
+commit 3bd95485ad64fa4d1c3732ad3b8bcb142841dbb7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 18 13:43:04 2024 -0700
 
-    Revert "testing: add Output"
+    cmd/go: fix long test
     
-    This reverts commit 8d189f188e225e4919b34c0c097e75dfda255949.
+    CL 571396 introduced quotes around user-provided names in error
+    messages. Update a test case to match the changed error message.
     
-    Reason for revert: failing test
-    
-    Change-Id: I951087eaef7818697acf87e3206003bcc8a81ee2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672335
+    Change-Id: I3de0ea32f363ac83dcecae164ceab74e28dea086
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572555
+    Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- api/next/59928.txt                          |   3 -
- doc/next/6-stdlib/99-minor/testing/59928.md |   4 -
- src/testing/benchmark.go                    |   3 -
- src/testing/fuzz.go                         |   2 -
- src/testing/panic_test.go                   |  19 --
- src/testing/sub_test.go                     | 263 +---------------------------
- src/testing/testing.go                      | 214 +++++++---------------
- 7 files changed, 65 insertions(+), 443 deletions(-)
+ src/cmd/go/testdata/script/mod_vendor_goversion.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,23 +1,24 @@
-commit 597f87c997dcaa86227725e227f5eb59721a0129
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 12 16:34:54 2014 -0400
+commit 83c814066237bf6e8490d83643ba76513082a158
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 11:44:55 2014 -0700
 
-    runtime: do not trace past jmpdefer during pprof traceback on arm
+    time: avoid broken fix for buggy TestOverflowRuntimeTimer
+    The test requires that timerproc runs, but busy loops and starves
+    the scheduler so that, with high probability, timerproc doesn't run.
+    Avoid the issue by expecting the test to succeed; if not, a major
+    outside timeout will kill it and let us know.
     
-    jmpdefer modifies PC, SP, and LR, and not atomically,
-    so walking past jmpdefer will often end up in a state
-    where the three are not a consistent execution snapshot.
-    This was causing warning messages a few frames later
-    when the traceback realized it was confused, but given
-    the right memory it could easily crash instead.
+    As you can see from the diffs, there have been several attempts to
+    fix this with chicanery, but none has worked. Don't bother trying
+    any more.
     
-    Update #8153
+    Fixes #8136.
     
-    LGTM=minux, iant
-    R=golang-codereviews, minux, iant
-    CC=golang-codereviews, r
-    https://golang.org/cl/107970043
+    LGTM=rsc
+    R=rsc, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/105140043
 
- src/pkg/runtime/asm_arm.s       |  4 ++++
- src/pkg/runtime/traceback_arm.c | 13 +++++++++++++
- 2 files changed, 17 insertions(+)
+ src/pkg/time/internal_test.go | 51 ++++++++-----------------------------------
+ src/pkg/time/sleep_test.go    |  6 ++---
+ 2 files changed, 12 insertions(+), 45 deletions(-)

@@ -1,14 +1,15 @@
-commit bd329d47d9f4ebf6f627372ed28315030d05f7b7
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Oct 16 20:48:56 2015 +1300
+commit a3f72956f1f8fde81930c0f8261cfa19bc114345
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Sep 4 17:33:56 2015 -0700
 
-    cmd/internal/obj, cmd/link: generate position independent loads of static data
+    [dev.ssa] cmd/compile: add allocs to pass stats
     
-    Change-Id: I0a8448c2b69f5cfa6f099d772f5eb3412f853045
-    Reviewed-on: https://go-review.googlesource.com/15969
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Also, improve HTML formatting.
+    
+    Change-Id: I07e2482a30862e2091707f260a2c43d6e9a85d97
+    Reviewed-on: https://go-review.googlesource.com/14333
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/cmd/internal/obj/link.go       | 10 ++++++++++
- src/cmd/internal/obj/ppc64/asm9.go | 28 ++++++++++++++++++++++------
- src/cmd/link/internal/ppc64/asm.go | 14 ++++++++++++++
- 3 files changed, 46 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go | 7 ++++---
+ src/cmd/compile/internal/ssa/html.go    | 4 ++++
+ 2 files changed, 8 insertions(+), 3 deletions(-)

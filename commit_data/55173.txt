@@ -1,23 +1,20 @@
-commit 76d90a34dd39b3e218e4c201d4497dca09c1cd6f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 29 16:13:07 2023 -0500
+commit 7026a8a1a9aba58285b3cae215df04140245b6db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 17 17:25:14 2023 -0800
 
-    testing: remove tests from the running log while they are waiting on parallel subtests
+    go/types: factor out type parameter renaming (cleanup)
     
-    The parallel subtests are themselves removed from the running map
-    while they are blocked on calls to t.Parallel, so it is misleading to
-    log their parents as if they are running when we know they cannot be
-    making any kind of meaningful progress.
+    Follow-up on CL 461687 which missed the go/types change.
     
-    Fixes #64404.
+    (As an aside, we cannot yet generate this change because
+    go/types uses a positioner and types2 just uses a syntax.Pos.)
     
-    Change-Id: Iaad11d5d4f4c86d775d36e5285c49629dccddd74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546018
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I28113a2efdc3ddd30cb9a80d2cb2c802ff035ec2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461688
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/testing/testing.go      |  17 +++++-
- src/testing/testing_test.go | 144 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 160 insertions(+), 1 deletion(-)
+ src/go/types/infer.go | 95 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 50 insertions(+), 45 deletions(-)

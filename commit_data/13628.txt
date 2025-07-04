@@ -1,15 +1,12 @@
-commit 34976b985a9e2d29c594daa2dfa4dd21ee4c4bf1
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Wed Aug 15 07:32:49 2012 -0700
+commit 16a82828a2a552d01285d2cd3f01ed36b000b680
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Wed Aug 15 10:32:44 2012 +1000
 
-    cmd/go: skipping relative paths on go test -i ./...
+    5l: trivial whitespace cleanup
     
-    Fixes #3896.
-    
-    R=rsc, rogpeppe, r
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/6457075
+    https://golang.org/cl/6446131
 
- src/cmd/go/test.bash | 6 ++++++
- src/cmd/go/test.go   | 4 +++-
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/5l/asm.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

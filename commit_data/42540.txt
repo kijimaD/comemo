@@ -1,18 +1,21 @@
-commit 4379fa1740b24c610849f597f9ca13711e1bf455
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Jun 16 13:40:03 2020 -0400
+commit 5279166402e6d336c4d10642a2b1e479af6763bd
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Dec 30 14:12:54 2019 -0500
 
-    cmd/internal/obj/ppc64: update doc
+    [dev.link] cmd/link: convert Link.linksetup method to work with loader
     
-    This updates the ppc64 asm doc file, including information on
-    updates to the objdump, correcting information on operand order,
-    and adding some information on shifts.
+    Switch the linker's Link.linksetup method to work with loader.Sym
+    instead of sym.Symbols. Currently enabled when the new ELF host object
+    loader is turned on.
     
-    Change-Id: Ib8ed53eac86c2121ea5b657c361ad92aae31cb32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238237
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I336cc9f36166767baac574455531e195b6f1ac57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213423
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/obj/ppc64/doc.go | 52 ++++++++++++++++++++++++++++++++++-----
- 1 file changed, 46 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/lib.go  | 143 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/link.go |   2 +
+ src/cmd/link/internal/ld/main.go |  12 +++-
+ 3 files changed, 155 insertions(+), 2 deletions(-)

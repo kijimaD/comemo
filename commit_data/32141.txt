@@ -1,12 +1,13 @@
-commit 4e0738a3ad872cf03e64e44371508dc92d205cf4
-Author: RaviTeja <ravi.tezu@gmail.com>
-Date:   Wed Aug 9 17:23:47 2017 +0530
+commit dc243f257bc5b9aff59782abae35a2868d593947
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 7 10:53:40 2017 -0700
 
-    doc/contribute.html: fix name of .gitcookies file
+    cmd/compile/internal/types: don't return *Sym from Pushdcl (it's never used)
     
-    Change-Id: I41c22b9c6933b3f3469c0e815048a49e1d37927a
-    Reviewed-on: https://go-review.googlesource.com/54190
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib55f7ea3f7dcd9d02f6027121663870a65cb886c
+    Reviewed-on: https://go-review.googlesource.com/39924
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/noder.go    | 2 +-
+ src/cmd/compile/internal/types/scope.go | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

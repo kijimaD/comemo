@@ -1,25 +1,24 @@
-commit 9f63534858552faa3928ea3ff4c4f12302cb22f9
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Aug 14 10:44:29 2023 -0700
+commit 793f1a13f74bbc767525f138ae78faacda59b44c
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 22 12:06:53 2022 -0500
 
-    crypto/x509: implement AddCertWithConstraint
+    cmd/dist: revise skip sequence added in CL 452763
     
-    Adds the CertPool method AddCertWithConstraint, which allows adding a
-    certificate to a pool with an arbitrary constraint which cannot be
-    otherwise expressed in the certificate.
+    Revise the code added in CL 452763 that skips some of the -race tests
+    on older windows builders. The old-style skip was doing a log.Printf,
+    which wound up being interpreted in "-list" mode. Fix is to pass in a
+    special rtPreFunc when registering the test (thanks Austin for the
+    fix suggestion).
     
-    Fixes #57178
+    Updates #56904.
     
-    Change-Id: Ic5b0a22a66aefa5ba5d8ed5ef11389996b59862b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519315
+    Change-Id: Ia6ea31fb7f011b539173f47357ab3bf7389f256d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452769
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Than McIntosh <thanm@google.com>
 
- api/next/57178.txt              |  1 +
- src/crypto/x509/cert_pool.go    | 54 +++++++++++++++++------
- src/crypto/x509/root_windows.go |  2 +-
- src/crypto/x509/verify.go       | 28 ++++++++----
- src/crypto/x509/verify_test.go  | 98 ++++++++++++++++++++++++++++++++++++-----
- 5 files changed, 147 insertions(+), 36 deletions(-)
+ src/cmd/dist/test.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

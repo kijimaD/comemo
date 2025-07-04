@@ -1,29 +1,17 @@
-commit 8494a6243ee5c80da51da8f4e1ad4d719eddf409
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 29 16:06:19 2020 -0400
+commit 98c6b9844b3c3a14eaa46515a7f63fed2deb57ce
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 16 18:19:59 2020 -0700
 
-    cmd/go: make TestScript/mod_get_patchmod self-contained
+    os/exec: build TestExtraFiles subprocess without cgo
     
-    I find it pretty difficult to reason about test-dependency modules
-    when they aren't in the same file as the rest of the test.
+    Fixes #25628
     
-    Now that 'go get' supports replacements (CL 258220 and CL 266018),
-    we can localize tests that need 'go get' but don't specifically depend
-    on module proxy semantics.
-    
-    For #36460
-    For #37438
-    
-    Change-Id: Ib37a6c170f251435399dfc23e60d96681a81eadc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266369
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I8b69e59f9c0123c4f65b5931d7c6d7ecc1c720e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228639
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- .../go/testdata/mod/example.net_pkgremoved_v0.1.0.txt    | 16 ----------------
- .../go/testdata/mod/example.net_pkgremoved_v0.2.0.txt    | 15 ---------------
- .../go/testdata/mod/example.net_pkgremoved_v0.2.1.txt    | 15 ---------------
- src/cmd/go/testdata/script/mod_get_patchmod.txt          | 16 +++++++++++++++-
- 4 files changed, 15 insertions(+), 47 deletions(-)
+ src/os/exec/exec_test.go | 109 +++++++----------------------------------------
+ src/os/exec/read3.go     |  99 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 114 insertions(+), 94 deletions(-)

@@ -1,18 +1,17 @@
-commit be91040ea72dac0f48ec1e6f8c4f19ba85af6697
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Thu Apr 20 12:22:27 2023 +0800
+commit 8f6884393d3d9026f3398d1e96c480a0368cc139
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 4 10:16:44 2022 -0400
 
-    cmd/internal/goobj: update builtin list
+    sync/atomic: remove test64err in test
     
-    Change-Id: I8a903b76d80f451b498b145b14c97f96191e05f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486775
+    This check was for very old QEMU, added in 2011 in
+    https://codereview.appspot.com/4313051/.
+    It may be safe to delete now. Let's find out.
+    In a separate CL for easy rollback.
+    
+    Change-Id: Ic99f8cf27ee348b8ffb1ef0ee36cc1c537dde722
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403978
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/goobj/builtinlist.go | 20 ++++++++++++++------
- src/cmd/internal/goobj/mkbuiltin.go   |  2 +-
- 2 files changed, 15 insertions(+), 7 deletions(-)
+ src/sync/atomic/atomic_test.go | 87 ++----------------------------------------
+ 1 file changed, 4 insertions(+), 83 deletions(-)

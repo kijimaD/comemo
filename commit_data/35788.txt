@@ -1,17 +1,18 @@
-commit 3dced519cbabc213df369d9112206986e62687fa
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 22 17:45:30 2018 +0000
+commit 7d654af5867ed8f89a7a7c88406c4213b2701324
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Fri Mar 9 01:31:50 2018 +0900
 
-    syscall, internal/poll: fix build on js/wasm
+    net/http: panic when a nil handler is passed to (*ServeMux)HandleFunc
     
-    Fixes #26014
+    Fixes #24297
     
-    Change-Id: I9d92414a9181c5d189e3e266666950656bf00406
-    Reviewed-on: https://go-review.googlesource.com/120576
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I759e88655632fda97dced240b3f13392b2785d0a
+    Reviewed-on: https://go-review.googlesource.com/99575
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/poll/fd_unix.go | 7 ++++---
- src/syscall/net_js.go        | 7 +++++++
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ src/net/http/serve_test.go | 12 ++++++++++++
+ src/net/http/server.go     |  3 +++
+ 2 files changed, 15 insertions(+)

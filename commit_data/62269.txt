@@ -1,0 +1,18 @@
+commit 7b7307f632052c0ab3752f24f6d787b281bb5b99
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Dec 17 20:40:49 2024 +0100
+
+    crypto/rsa: add benchmarks for not and partially optimized keys
+    
+    Updates #59695
+    
+    Change-Id: I7944195c805cd9da819cdf2bd49ecb2423ccd73b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637178
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ src/crypto/rsa/rsa_test.go | 51 ++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 40 insertions(+), 11 deletions(-)

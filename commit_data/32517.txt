@@ -1,17 +1,14 @@
-commit 5a6c332451079a11cbd8457ccd30c4309564db82
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Mon Aug 28 15:28:12 2017 +0900
+commit 85d6a29ae60fa914a5fb12d061422a63694aa9be
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 28 07:23:26 2017 -0700
 
-    debug/macho: add missing file flags
+    cmd/compile: prevent infinite recursion printing types in Fatalf
     
-    Fixes #21414
+    Updates #20162
     
-    Change-Id: I8b25d416e6ead087b4a9965e8fa1a7f59ff07291
-    Reviewed-on: https://go-review.googlesource.com/59290
-    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie289bae0d0be8430e492ac73fd6e6bf36991d4a1
+    Reviewed-on: https://go-review.googlesource.com/42130
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/macho/macho.go | 30 ++++++++++++++++++++++++++----
- 1 file changed, 26 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/align.go | 5 +++++
+ 1 file changed, 5 insertions(+)

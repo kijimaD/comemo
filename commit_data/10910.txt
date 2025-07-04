@@ -1,29 +1,14 @@
-commit c037d3f25471245e7822d2b003d99b7a6ac1d1ac
+commit ac3028f0a9950890f850306fdde03b272dc6baee
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 20 17:11:16 2011 -0500
+Date:   Tue Dec 20 17:00:52 2011 -0500
 
-    build: fix on Linux
+    build: fix build
     
-    On other systems the temporary directory name
-    will have a .XXXXXX in the middle of it.  Oh well.
+    Missing file during last CL.
     
-    R=bradfitz
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/5504049
+    https://golang.org/cl/5505047
 
- src/buildscript.sh               | 2 +-
- src/buildscript_darwin_386.sh    | 2 +-
- src/buildscript_darwin_amd64.sh  | 2 +-
- src/buildscript_freebsd_386.sh   | 2 +-
- src/buildscript_freebsd_amd64.sh | 2 +-
- src/buildscript_linux_386.sh     | 2 +-
- src/buildscript_linux_amd64.sh   | 2 +-
- src/buildscript_linux_arm.sh     | 2 +-
- src/buildscript_netbsd_386.sh    | 2 +-
- src/buildscript_netbsd_amd64.sh  | 2 +-
- src/buildscript_openbsd_386.sh   | 2 +-
- src/buildscript_openbsd_amd64.sh | 2 +-
- src/buildscript_plan9_386.sh     | 2 +-
- src/buildscript_windows_386.sh   | 2 +-
- src/buildscript_windows_amd64.sh | 2 +-
- 15 files changed, 15 insertions(+), 15 deletions(-)
+ src/buildinfo.sh | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

@@ -1,16 +1,17 @@
-commit b44c78b8c318f6b871f26d14d877245bc860ae62
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri May 7 10:34:28 2021 -0700
+commit fe70a3a0fd31441bcbb9932ecab11a6083cf2119
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 29 13:47:12 2020 -0700
 
-    doc/go1.17: fill in TODO for strconv package
+    crypto/x509: add comment to blank imports done for init side effects
     
-    Updates #46021
+    To educate future readers.
     
-    Change-Id: Iaed26b5a1defa6c5d00fb7a3998db56d2f1b96b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318010
-    Trust: Joe Tsai <joetsai@digital-static.net>
-    Trust: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I1ef79178b6997cc96ca066c91b9fec822478674b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266301
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- doc/go1.17.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/crypto/x509/x509.go | 2 ++
+ 1 file changed, 2 insertions(+)

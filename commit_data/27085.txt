@@ -1,22 +1,30 @@
-commit ab52ad894f453a02153fb2bc106d08c47ba643b6
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Sat Apr 9 21:18:22 2016 -0700
+commit c63dbd87c1defe147f858d599ef49eea2f34a212
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 10 10:13:42 2016 -0800
 
-    encoding/json: add Encoder.DisableHTMLEscaping
+    cmd/compile: add Nodes.Set1 method and use it where possible
     
-    This provides a way to disable the escaping of <, >, and & in JSON
-    strings.
+    Passes toolstash -cmp.
     
-    Fixes #14749.
-    
-    Change-Id: I1afeb0244455fc8b06c6cce920444532f229555b
-    Reviewed-on: https://go-review.googlesource.com/21796
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I05322fb5afd213f13fb247ec1a5f655c17a58774
+    Reviewed-on: https://go-review.googlesource.com/20522
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/json/encode.go      | 139 +++++++++++++++++++++------------------
- src/encoding/json/encode_test.go |  56 ++++++++--------
- src/encoding/json/stream.go      |  15 +++--
- src/encoding/json/stream_test.go |  33 ++++++++++
- 4 files changed, 150 insertions(+), 93 deletions(-)
+ src/cmd/compile/internal/gc/alg.go       |  4 ++--
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/closure.go   |  8 ++++----
+ src/cmd/compile/internal/gc/dcl.go       |  2 +-
+ src/cmd/compile/internal/gc/init.go      |  4 ++--
+ src/cmd/compile/internal/gc/order.go     |  4 ++--
+ src/cmd/compile/internal/gc/parser.go    | 18 +++++++++---------
+ src/cmd/compile/internal/gc/range.go     | 10 +++++-----
+ src/cmd/compile/internal/gc/select.go    | 10 +++++-----
+ src/cmd/compile/internal/gc/sinit.go     |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/swt.go       | 20 ++++++++++----------
+ src/cmd/compile/internal/gc/syntax.go    |  5 +++++
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go      | 16 ++++++++++------
+ 15 files changed, 63 insertions(+), 54 deletions(-)

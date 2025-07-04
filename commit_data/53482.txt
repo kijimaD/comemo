@@ -1,35 +1,28 @@
-commit 6d8af00a630aa51134e54f0f321658621c6410f0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 4 14:06:39 2023 -0700
+commit d8f90ce0f8119bf593efb6fb91825de5b61fcda7
+Author: Abirdcfly <fp544037857@gmail.com>
+Date:   Thu Aug 18 13:18:11 2022 +0800
 
-    cmd/go,cmd/cgo: in _cgo_flags use one line per flag
+    all: remove duplicate "the" words in comments
     
-    The flags that we recorded in _cgo_flags did not use any quoting,
-    so a flag containing embedded spaces was mishandled.
-    Change the _cgo_flags format to put each flag on a separate line.
-    That is a simple format that does not require any quoting.
+    Following CL 424454, using command
     
-    As far as I can tell only cmd/go uses _cgo_flags, and it is only
-    used for gccgo. If this patch doesn't cause any trouble, then
-    in the next release we can change to only using _cgo_flags for gccgo.
+       rg --multiline " the\s{1,}the " *
+       rg --multiline " the\s{1,}//\s{1,}the " *
     
-    Thanks to Juho Nurminen of Mattermost for reporting this issue.
+    all the words "the" that are repeated in comments are found.
     
-    Fixes #60306
-    Fixes CVE-2023-29405
-    
-    Change-Id: I81fb5337db8a22e1f4daca22ceff4b79b96d0b4f
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1875094
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501224
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I60b769b98f04c927b4c228e10f37faf190964069
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423836
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/cgo/out.go                                |  4 +++-
- src/cmd/go/internal/work/gccgo.go                 | 14 ++++++--------
- src/cmd/go/testdata/script/gccgo_link_ldflags.txt | 20 ++++++++++++++++++++
- 3 files changed, 29 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go  | 2 +-
+ src/cmd/internal/obj/ppc64/doc.go         | 2 +-
+ src/cmd/link/internal/ld/outbuf_darwin.go | 2 +-
+ src/crypto/tls/common.go                  | 2 +-
+ src/net/http/httputil/reverseproxy.go     | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

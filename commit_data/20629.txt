@@ -1,15 +1,19 @@
-commit 19104dc532bb15896090c2f8a72080a342fcad20
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Oct 4 08:09:39 2014 +1000
+commit 1aa65fe8d4c0ebdd754480d281f378fcd1c42cea
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 25 08:37:04 2014 -0700
 
-    crypto/x509: add OpenELEC system root location.
+    runtime: add load_g call in arm callback.
     
-    Fixes #8349.
+    Need to restore the g register.  Somehow this line vaporized from
+    CL 144130043.  Also cgo_topofstack -> _cgo_topofstack, that vaporized also.
     
-    LGTM=rsc
-    R=rsc
+    TBR=rsc
     CC=golang-codereviews
-    https://golang.org/cl/147320043
+    https://golang.org/cl/150940044
 
- src/crypto/x509/root_unix.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/cgo/out.go          | 8 ++++----
+ src/runtime/asm_386.s       | 2 +-
+ src/runtime/asm_amd64.s     | 2 +-
+ src/runtime/asm_arm.s       | 3 ++-
+ src/runtime/cgo/callbacks.c | 4 ++--
+ 5 files changed, 10 insertions(+), 9 deletions(-)

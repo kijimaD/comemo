@@ -1,32 +1,22 @@
-commit b6c600fc9a75fd6f4b6f4478058b95902ae6be94
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Feb 28 15:51:29 2017 -0800
+commit 2808f1f41583ef9943b1d7426d7affa6cfc998ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 4 16:04:11 2016 -0700
 
-    cmd/compile/internal/gc: separate builtin and real runtime packages
+    Revert "go/ast, go/parser: parse alias declarations"
     
-    The builtin runtime package definitions intentionally diverge from the
-    actual runtime package's, but this only works as long as they never
-    overlap.
+    This reverts commit 57ae83307fc4cb90338b39dcc6fe3c61ee8ce0b7.
     
-    To make it easier to expand the builtin runtime package, this CL now
-    loads their definitions into a logically separate "go.runtime"
-    package.  By resetting the package's Prefix field to "runtime", any
-    references to builtin definitions will still resolve against the real
-    package runtime.
+    Reason: Decision to back out current alias implementation.
     
-    Fixes #14482.
+    For #16339.
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I539c0994deaed4506a331f38c5b4d6bc8c95433f
-    Reviewed-on: https://go-review.googlesource.com/37538
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7bcc04ac87ea3590999e58ff65a7f2e1e6c6bc77
+    Reviewed-on: https://go-review.googlesource.com/32823
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/go.go        | 10 +++++++++-
- src/cmd/compile/internal/gc/main.go      |  9 +++++++--
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- src/cmd/compile/internal/gc/walk.go      |  2 +-
- test/runtime.go                          |  2 +-
- 5 files changed, 19 insertions(+), 6 deletions(-)
+ src/go/ast/ast.go           | 28 +++++----------
+ src/go/ast/filter.go        |  4 ---
+ src/go/ast/walk.go          | 10 ------
+ src/go/parser/parser.go     | 84 +++++++++++++--------------------------------
+ src/go/parser/short_test.go |  2 --
+ 5 files changed, 32 insertions(+), 96 deletions(-)

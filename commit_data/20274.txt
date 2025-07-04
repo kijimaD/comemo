@@ -1,38 +1,15 @@
-commit 5ea69978fd07abdd4bb5ed63dfb38700389493c6
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 3 17:42:35 2014 -0400
+commit 882933f09b35bf4f1791203a6666af99ff9bea54
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Aug 28 14:49:32 2014 -0700
 
-    runtime: make entersyscall/exitsyscall safe for stack splits
+    image/color/palette: use go generate to create palette.go
     
-    It is fundamentally unsafe to grow the stack once someone
-    has made a call to syscall.Syscall. That function takes 6 uintptr
-    arguments, but depending on the call some are pointers.
-    In fact, some might be pointers to stack values, and we don't know which.
-    That makes it impossible to copy the stack somewhere else.
-    Since we want to delete all the stack splitting code, relying only
-    on stack copying, make sure that Syscall never needs to split the stack.
-    
-    The only thing Syscall does is:
-            call entersyscall
-            make the system call
-            call exitsyscall
-    
-    As long as we make sure that entersyscall and exitsyscall
-    can live in the nosplit region, they won't ask for more stack.
-    
-    Do this by making entersyscall and exitsyscall set up the
-    stack guard so that any call to a function with a split check
-    will cause a crash. Then move non-essential slow-path
-    work onto the m stack using onM and mark the rest of the
-    work nosplit. The linker will verify that the chain of nosplits
-    fits in the total nosplit budget.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=dvyukov, golang-codereviews, khr, r
-    https://golang.org/cl/140950043
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/134940043
 
- src/pkg/runtime/proc.c    | 196 ++++++++++++++++++++++++++++++++--------------
- src/pkg/runtime/runtime.h |   2 +-
- src/pkg/runtime/stack.c   |   2 +
- 3 files changed, 141 insertions(+), 59 deletions(-)
+ src/pkg/image/color/palette/gen.go      | 96 ++++++++++++++++++++-------------
+ src/pkg/image/color/palette/generate.go |  8 +++
+ src/pkg/image/color/palette/palette.go  |  3 +-
+ 3 files changed, 67 insertions(+), 40 deletions(-)

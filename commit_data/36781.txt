@@ -1,16 +1,19 @@
-commit 7dda5123d8753cfd1f041e1d1537bb5493cd5e5d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 28 10:41:31 2018 -0700
+commit 4fe688c6a49e59e852f0bfebbb4cf71366987ce7
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon May 28 13:03:08 2018 +1000
 
-    cmd/go: permit some more x86 compiler options
+    cmd/cover: fix sorting of profile segment boundaries
     
-    Permit -mssse3, -maes, -mvaes, and various -mavxNNN options.
+    If a span of coverable code is empty (e.g. an empty select clause)
+    then there will be two Boundary values with the same offset. In that
+    case, the starting Boundary needs to come first so that the generated
+    HTML output will open the <span> tag before it tries to close it.
     
-    Change-Id: If496df6b84eca37897fd603a6480c9f63e7f7382
-    Reviewed-on: https://go-review.googlesource.com/138476
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib44a8b7c36ae57757c18b6cceb7a88ffa4e95394
+    Reviewed-on: https://go-review.googlesource.com/114855
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/security.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/cover/profile.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

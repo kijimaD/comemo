@@ -1,23 +1,27 @@
-commit 83907206de003555c73a16b1b6d97662b5511cf7
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Thu Sep 1 12:26:43 2022 +0800
+commit 9e16cc1541d42cb081d359339e3f45b4b9b2a372
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 14 12:31:33 2022 -0400
 
-    cmd/compile: improve logical shift with MASKEQZ on loong64
+    hash/maphash: add Bytes and String
     
-    Using MASKEQZ instruction can save one instruction in calculation of
-    shift operations.
+    For very small inputs, h.Reset+h.Write+h.Sum64 is fundamentally
+    slower than a single operation, by about a factor of two, because
+    Write must copy the data into h's buffer, just in case there is another
+    Write before the Sum64.
     
-    Reference: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    A single function doing the whole sequence knows there is no extra
+    write that will happen, so it doesn't need the buffer, so it avoids the copy.
     
-    Change-Id: Ic5349c6f5ebd7af608c7d75a9b3a862305758275
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427396
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Fixes #42710.
+    
+    Change-Id: Icc79c68ccb10827f6640071d026df86b4940fcc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392494
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  80 +--
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 775 ++++++++++++------------
- 2 files changed, 412 insertions(+), 443 deletions(-)
+ api/next/42710.txt               |  2 ++
+ src/hash/maphash/maphash.go      | 48 ++++++++++++++++++++++++++++++++
+ src/hash/maphash/maphash_test.go | 60 ++++++++++++++++++++++++++--------------
+ 3 files changed, 90 insertions(+), 20 deletions(-)

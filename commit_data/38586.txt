@@ -1,17 +1,14 @@
-commit 57bd57745431da4aeb85d6caae145e5f4dfbca38
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Tue Mar 26 14:55:48 2019 +0100
+commit d0a91f230591a3c5225d9258e62371c13092bd92
+Author: 沈涛 <shentaoskyking@gmail.com>
+Date:   Thu Nov 8 11:25:20 2018 +0000
 
-    cmd/vet/all: enable AIX checks
+    strings: remove empty line
     
-    Fixes #27985
-    
-    Change-Id: I2f3d06ced9da9fc56f30f1285a8d393e689c29ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169019
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibdca4f7002585b00d7f69d710285a8e0f69c598a
+    GitHub-Last-Rev: eb8f800c986c8ac4a81705158ecc730c35e1c5c2
+    GitHub-Pull-Request: golang/go#28659
+    Reviewed-on: https://go-review.googlesource.com/c/148477
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/all/main.go                 | 6 ------
- src/cmd/vet/all/whitelist/aix_ppc64.txt | 8 ++++++++
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/strings/strings.go | 1 -
+ 1 file changed, 1 deletion(-)

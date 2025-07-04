@@ -1,17 +1,24 @@
-commit feccfb8adaf5a0ce93a0dafa31336ccb6f41c618
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Nov 9 14:00:09 2020 +0100
+commit f049d911e93b84577577e73108605627ed522409
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 22 14:37:02 2020 -0700
 
-    crypto/x509: use fingerprint map for (*CertPool).contains
+    cmd/compile: be stricter about recognizing safety rule #4
     
-    This fell through the cracks from the CL 229917 comments.
+    unsafe.Pointer safety rule #4 says "The compiler handles a Pointer
+    converted to a uintptr in the argument list of a call". Within escape
+    analysis, we've always required this be a single conversion
+    unsafe.Pointer->uintptr conversion, but the corresponding logic in
+    order is somewhat laxer, allowing arbitrary chains of OCONVNOPs from
+    unsafe.Pointer to uintptr.
     
-    Change-Id: I22584107f1e8111f9c523f45307dd50e1e5f4b8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268339
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This CL changes order to be stricter to match escape analysis.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Iadd210d2123accb2020f5728ea2a47814f703352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229578
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/cert_pool.go | 13 +------------
- 1 file changed, 1 insertion(+), 12 deletions(-)
+ doc/go1.15.html                      | 12 ++++++++++++
+ src/cmd/compile/internal/gc/order.go | 31 ++++++++++++-------------------
+ 2 files changed, 24 insertions(+), 19 deletions(-)

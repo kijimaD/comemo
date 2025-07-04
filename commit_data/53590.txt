@@ -1,17 +1,19 @@
-commit 98617fd23fa799173c33741987d41ee64cbb2a4f
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Mon Jun 19 19:17:46 2023 +0200
+commit e1114fdf883de7484c49343d966fd9759ce48c40
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 19 18:46:18 2022 +0700
 
-    runtime/trace: add godoc links
+    runtime: convert ticksType.val to atomic type
     
-    Change-Id: I6db8ce8d7e0a1cb3d955493fa49eb7dff372eb38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504375
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Updates #53821
+    
+    Change-Id: Ia0c58d7e7e11a1b52bbb7c19ebbb131e3eea5314
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424926
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/trace/annotation.go |  8 ++++----
- src/runtime/trace/trace.go      | 14 +++++++-------
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ src/runtime/align_runtime_test.go | 1 -
+ src/runtime/runtime.go            | 9 ++++-----
+ 2 files changed, 4 insertions(+), 6 deletions(-)

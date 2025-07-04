@@ -1,18 +1,33 @@
-commit 717894cf8024cfaad629f0e66a4b9bc123676be5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Aug 15 12:34:59 2021 -0700
+commit ec5f349b2291fa3c0a30d8859c84f7476a1d14a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 21:56:24 2020 -0500
 
-    cmd/compile/internal/types2: better error message for index syntax error (follow-up)
+    [dev.regabi] cmd/compile: merge OBLOCK and OEMPTY
     
-    For #47704.
+    OEMPTY is an empty *statement*, but it confusingly
+    gets handled as an expression in a few places.
+    More confusingly, OEMPTY often has an init list,
+    making it not empty at all. Replace uses and analysis
+    of OEMPTY with OBLOCK instead.
     
-    Change-Id: I09e6f638df0cd456a20a3b68ab55c47bb5b1f555
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342370
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I8d4fcef151e4f441fa19b1b96da5272d778131d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274594
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/syntax/parser.go              | 11 ++++++++---
- .../compile/internal/syntax/testdata/issue47704.go2    | 18 ++++++++++++++++++
- 2 files changed, 26 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/escape.go    |  2 +-
+ src/cmd/compile/internal/gc/iexport.go   | 14 +++++++++++---
+ src/cmd/compile/internal/gc/iimport.go   |  4 +++-
+ src/cmd/compile/internal/gc/init.go      |  6 ++++--
+ src/cmd/compile/internal/gc/inl.go       |  7 ++++++-
+ src/cmd/compile/internal/gc/noder.go     | 12 +++++++-----
+ src/cmd/compile/internal/gc/order.go     |  2 +-
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  9 ++++++---
+ src/cmd/compile/internal/gc/walk.go      | 13 ++++++-------
+ src/cmd/compile/internal/ir/fmt.go       | 10 ++++++----
+ src/cmd/compile/internal/ir/node.go      |  4 +---
+ src/cmd/compile/internal/ir/stmt.go      | 16 ----------------
+ 13 files changed, 53 insertions(+), 48 deletions(-)

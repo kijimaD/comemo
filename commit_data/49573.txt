@@ -1,24 +1,17 @@
-commit 4914e4e334b33cd823a770bd5860f525aad44c61
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 30 14:18:02 2022 -0400
+commit a29d9aad7a4543498ff505b0a36d10c0f0153d3f
+Author: citizen233 <mengrenxiong@gmail.com>
+Date:   Sun Aug 29 21:45:35 2021 +0800
 
-    cmd/go/internal/modindex: remove spurious field from index_format documentation
+    test/typeparam/sliceimp.dir: fix typo in a.go
     
-    The 'path' field was removed in an earlier revision to the format.
+    Fixing a typo, comparision -> comparison
     
-    While auditing the format, I also cleaned up a couple of minor
-    typographical issues.
-    
-    For #53586.
-    
-    Change-Id: I4cd1ce9e970023441c11244428ed2971be1d8138
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415514
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I369f95c251f155bc6a9a6b86077bcf1ab245fc3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345950
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modindex/index_format.txt | 7 +++----
- src/cmd/go/internal/modindex/read.go          | 6 +++---
- src/cmd/go/internal/modindex/scan.go          | 2 +-
- 3 files changed, 7 insertions(+), 8 deletions(-)
+ test/typeparam/sliceimp.dir/a.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

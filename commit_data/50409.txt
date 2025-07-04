@@ -1,21 +1,19 @@
-commit 2b6ff90851b08d4595a55602e25265f596ac3b5b
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Aug 8 15:58:04 2022 -0500
+commit 95372efc4d300c54738406fb81d84a72bd8149cc
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Mon Oct 25 18:15:43 2021 +0800
 
-    debug/elf: define additional PPC64 ELFv2 relocations
+    cmd/compile: use SetInit instead of *PtrInit
     
-    The PPC64 ELFv2 supplement version 1.5 defines a handful of
-    new relocation types, similarly some were not added.
-    
-    Fixes #54345
-    
-    Change-Id: Id39b29d404298fca4a10ccf1e96b5964dc452c9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425555
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie802ff27b611ed248d7b14f6e972e6300c181f43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358316
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- api/next/54345.txt   | 108 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/debug/elf/elf.go | 108 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 216 insertions(+)
+ src/cmd/compile/internal/inline/inl.go   | 4 ++--
+ src/cmd/compile/internal/noder/noder.go  | 4 ++--
+ src/cmd/compile/internal/walk/complit.go | 2 +-
+ src/cmd/compile/internal/walk/select.go  | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

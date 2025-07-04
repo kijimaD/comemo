@@ -1,14 +1,24 @@
-commit 5ffc0f8fbbde7306cdac750b4ce74841ba650e97
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Sep 16 13:19:32 2013 -0700
+commit 70138a2108d81a771a180af93edbc007d2a5c8b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 16 15:11:32 2013 -0400
 
-    cmd/cgo: remove inaccurate comment
+    runtime: fix uint64 division on 386
     
-    All these features have in fact been implemented.
+    The uint64 divide function calls _mul64x32 to do a 64x32-bit multiply
+    and then compares the result against the 64-bit numerator.
+    If the result is bigger than the numerator, must use the slow path.
     
-    R=rsc
+    Unfortunately, the 64x32 produces a 96-bit product, and only the
+    low 64 bits were being used in the comparison. Return all 96 bits,
+    the bottom 64 via the original uint64* pointer, and the top 32
+    as the function's return value.
+    
+    Fixes 386 build (broken by ARM division tests).
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13419049
+    https://golang.org/cl/13722044
 
- src/cmd/cgo/doc.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/runtime/vlop_386.s | 4 ++++
+ src/pkg/runtime/vlrt_386.c | 5 ++---
+ 2 files changed, 6 insertions(+), 3 deletions(-)

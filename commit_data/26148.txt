@@ -1,14 +1,21 @@
-commit 5011431295b647c2d1e4ae294c4e2cab626fc1f8
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 9 11:08:19 2016 +1100
+commit ea5b9d5bd32d1027338762372652dc6f9819a788
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 18 09:53:25 2015 -0800
 
-    doc: remove link to empty Go 1.5.3 milestone
+    debug/elf: rename Chdr64.Reserved to _
     
-    Fixes #14687
+    This future-proofs the Chdr64 structure against later versions of ELF
+    defining this field and declutters the documentation without changing
+    the layout of the struct.
     
-    Change-Id: I51fd8842d35c82db71cc5b28c4c0550871461eb6
-    Reviewed-on: https://go-review.googlesource.com/20421
+    This structure does not exist in the current release, so this change
+    is safe.
+    
+    Change-Id: I239aad7243ddaf063a1f8cd521d8a50b30413281
+    Reviewed-on: https://go-review.googlesource.com/18028
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/devel/release.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ api/go1.6.txt        | 1 -
+ src/debug/elf/elf.go | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

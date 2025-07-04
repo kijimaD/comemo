@@ -1,15 +1,28 @@
-commit 418b39d436ceda146bbbced0bd716bff2f8371e2
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jul 10 14:23:50 2014 +1000
+commit 76ce843afeb7af56fe32d6e4351799b2046f7cbb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 9 19:33:45 2014 -0700
 
-    runtime: align stack before calling windows in usleep2
+    net/rpc: use html/template to render html
     
-    Fixes #8174.
+    Found using the vet check in CL 106370045.
     
-    LGTM=minux
-    R=golang-codereviews, minux
+    This is a second attempt at CL 101670044, which omitted the deps_test change.
+    
+    This adds dependencies to net/rpc:
+    
+            encoding
+            encoding/base64
+            encoding/json
+            html
+            unicode/utf16
+    
+    The obvious correctness and security warrants the additional dependencies.
+    
+    LGTM=rsc
+    R=r, minux, rsc, adg
     CC=golang-codereviews
-    https://golang.org/cl/102360043
+    https://golang.org/cl/110890043
 
- src/pkg/runtime/sys_windows_amd64.s | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/go/build/deps_test.go | 2 +-
+ src/pkg/net/rpc/debug.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

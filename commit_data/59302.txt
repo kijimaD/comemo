@@ -1,35 +1,28 @@
-commit 396a48bea6f2dc07ef103da298eec05cb6167892
-Author: Huang Qiqi <huangqiqi@loongson.cn>
-Date:   Tue Jun 11 19:06:29 2024 +0800
+commit 13e5fd95f50127b2d2c42b20f9070d42a2717eb9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 28 16:13:24 2024 -0800
 
-    math/big: optimize subVV function for loong64
+    go/types, types2: better error position for invalid (infinite) types
     
-    Benchmark results on Loongson 3C5000 (which is an LA464 implementation):
+    Provide an explicit start position to Checker.cycleError for better
+    control over the reported error.
     
-    goos: linux
-    goarch: loong64
-    pkg: math/big
-    cpu: Loongson-3C5000 @ 2200.00MHz
-                 │ test/old_3c5000_subvv.log │      test/new_3c5000_subvv.log      │
-                 │          sec/op           │   sec/op     vs base                │
-    SubVV/1                     10.920n ± 0%   7.657n ± 0%  -29.88% (p=0.000 n=20)
-    SubVV/2                     14.100n ± 0%   8.841n ± 0%  -37.30% (p=0.000 n=20)
-    SubVV/3                      16.38n ± 0%   11.06n ± 0%  -32.48% (p=0.000 n=20)
-    SubVV/4                      18.65n ± 0%   12.85n ± 0%  -31.10% (p=0.000 n=20)
-    SubVV/5                      20.93n ± 0%   14.79n ± 0%  -29.34% (p=0.000 n=20)
-    SubVV/10                     32.30n ± 0%   22.29n ± 0%  -30.99% (p=0.000 n=20)
-    SubVV/100                    244.3n ± 0%   149.2n ± 0%  -38.93% (p=0.000 n=20)
-    SubVV/1000                   2.292µ ± 0%   1.378µ ± 0%  -39.88% (p=0.000 n=20)
-    SubVV/10000                  26.26µ ± 0%   25.64µ ± 0%   -2.33% (p=0.000 n=20)
-    SubVV/100000                 341.3µ ± 0%   238.0µ ± 0%  -30.26% (p=0.000 n=20)
-    geomean                      209.1n        144.5n       -30.86%
+    For #65711.
     
-    Change-Id: I3863c2c6728f1b0f8fecbf77de13254299c5b1cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659877
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ie3016523442d75f348a033c1b944db493943f433
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567916
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/math/big/arith_loong64.s | 29 ++++++++++++++++++++++++++++-
- 1 file changed, 28 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/call.go             |  2 +-
+ src/cmd/compile/internal/types2/decl.go             | 14 +++++---------
+ src/cmd/compile/internal/types2/named.go            |  2 +-
+ src/cmd/compile/internal/types2/validtype.go        |  2 +-
+ src/go/types/call.go                                |  2 +-
+ src/go/types/decl.go                                | 14 +++++---------
+ src/go/types/named.go                               |  2 +-
+ src/go/types/validtype.go                           |  2 +-
+ src/internal/types/testdata/fixedbugs/issue65711.go |  8 ++++----
+ 9 files changed, 20 insertions(+), 28 deletions(-)

@@ -1,35 +1,21 @@
-commit 7f3313133ee3e40515aa99d3618b8e5eafed42d6
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Oct 7 12:45:56 2018 +0100
+commit 46076c37578fba9b49059584ef896099c9240fb2
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu Jun 14 11:51:57 2018 +0200
 
-    cmd/compile: don't panic on invalid map key declarations
+    mime/multipart: return error from NextPart if boundary is empty
     
-    In golang.org/cl/75310, the compiler's typechecker was changed so that
-    map key types were validated at a later stage, to make sure that all the
-    necessary type information was present.
+    NewReader cannot return an error. This behaviour is kept.
+    NextPart returns EOF when boundary is empty.
+    RFC 2046 does not allow it. The fix is to return an error
+    on the call of NextPart.
     
-    This still worked for map type declarations, but caused a regression for
-    top-level map variable declarations. These now caused a fatal panic
-    instead of a typechecking error.
+    Fixes #23170
     
-    The cause was that checkMapKeys was run too early, before all
-    typechecking was done. In particular, top-level map variable
-    declarations are typechecked as external declarations, much later than
-    where checkMapKeys was run.
-    
-    Add a test case for both exported and unexported top-level map
-    declarations, and add a second call to checkMapKeys at the actual end of
-    typechecking. Simply moving the one call isn't a good solution either;
-    the comments expand on that.
-    
-    Fixes #28058.
-    
-    Change-Id: Ia5febb01a1d877447cf66ba44fb49a7e0f4f18a5
-    Reviewed-on: https://go-review.googlesource.com/c/140417
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I775afd3f93e8b56e6cb274bc5c9de362a18bcc3c
+    Reviewed-on: https://go-review.googlesource.com/118822
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/main.go |  7 ++++++-
- test/fixedbugs/issue28058.go        | 13 +++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/mime/multipart/multipart.go      | 4 +++-
+ src/mime/multipart/multipart_test.go | 8 ++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

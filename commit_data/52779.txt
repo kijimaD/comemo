@@ -1,21 +1,17 @@
-commit 22d94dfdc8ab866ff6097b6b92a2860233873c95
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sun Apr 23 18:44:05 2023 +0800
+commit 42f1b37b7b46714455a3a54e506bff982aa50fa2
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 26 09:58:18 2022 -0700
 
-    html/template: fix unavailable url
+    doc: fix up race detector release note
     
-    The previous link is no longer accessible. use latest link.
+    It's already mentioned under runtime/race, we don't need it
+    also mentioned under runtime.
     
-    Change-Id: I76411ee00785f3d92014c5012e4efb446924adaf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487835
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Andrew Polukhin <andrewmathematics2003@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I538322b32d75b9642f3ead03539fccb95988ef8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408875
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
 
- src/html/template/escape.go     | 2 +-
- src/html/template/transition.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.19.html | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

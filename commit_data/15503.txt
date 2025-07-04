@@ -1,12 +1,32 @@
-commit 349cc74867c39aa650577bba0645d6a966b08511
+commit 40ed753ebd6b74747816fde7b130116ff7ef9580
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 28 13:30:59 2013 -0800
+Date:   Thu Feb 28 16:21:58 2013 -0500
 
-    encoding/gob: fix copyright
+    cmd/ld: fix symbol table sorting
+    runtime: double-check that symbol table is sorted
     
-    R=golang-dev, bradfitz
+    If the symbol table is unsorted, the binary search in findfunc
+    will not find its func, which will make stack traces stop early.
+    When the garbage collector starts using the stack tracer,
+    that would be a serious problem.
+    
+    The unsorted symbol addresses came from from two things:
+    
+    1. The symbols in an ELF object are not necessarily sorted,
+       so sort them before adding them to the symbol list.
+    
+    2. The __i686.get_pc_thunk.bx symbol is present in multiple
+       object files and was having its address adjusted multiple
+       times, producing an incorrect address in the symbol table.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7423046
+    https://golang.org/cl/7440044
 
- src/pkg/encoding/gob/gobencdec_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/ld/data.c        | 51 +++++++++++++++++++++++++-----------------------
+ src/cmd/ld/ldelf.c       | 49 +++++++++++++++++++++++++++++++++++-----------
+ src/cmd/ld/ldmacho.c     | 35 ++++++++++++++++++++++++---------
+ src/cmd/ld/ldpe.c        | 35 ++++++++++++++++++++++++---------
+ src/cmd/ld/lib.h         |  3 ++-
+ src/pkg/runtime/symtab.c | 10 +++++++++-
+ 6 files changed, 128 insertions(+), 55 deletions(-)

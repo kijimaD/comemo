@@ -1,29 +1,27 @@
-commit 54cdef1f101a7a15fa6412fbedf8b009a1f725a1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 17 12:31:11 2021 -0700
+commit 56b783ad94f9a55163d494d5b34c783a9603d478
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Dec 10 08:44:44 2020 -0500
 
-    reflect: add MapIter.SetKey and MapIter.SetValue
+    cmd/go, cmd/asm: pass -linkshared to assembler for shared linkage builds
     
-    These augment the existing MapIter.Key and MapIter.Value methods.
-    The existing methods return new Values.
-    Constructing these new Values often requires allocating.
-    These methods allow the caller to bring their own storage.
+    When the -linkshared build mode is in effect, the Go command passes
+    the "-linkshared" command line option to the compiler so as to insure
+    special handling for things like builtin functions (which may appear
+    in a shared library and not the main executable). This patch extends
+    this behavior to the assembler, since the assembler may also wind up
+    referencing builtins when emitting a stack-split prolog.
     
-    The naming is somewhat unfortunate, in that the spec
-    uses the word "element" instead of "value",
-    as do the reflect.Type methods.
-    In a vacuum, MapIter.SetElem would be preferable.
-    However, matching the existing methods is more important.
+    Fixes #43107.
     
-    Fixes #32424
-    Fixes #46131
-    
-    Change-Id: I19c4d95c432f63dfe52cde96d2125abd021f24fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320929
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I56eaded79789b083f3c3d800fb140353dee33ba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276932
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/reflect/all_test.go | 41 ++++++++++++++++++++++++++++++++
- src/reflect/value.go    | 62 +++++++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 99 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/flags/flags.go | 1 +
+ src/cmd/asm/main.go                 | 1 +
+ src/cmd/go/internal/work/init.go    | 3 ++-
+ 3 files changed, 4 insertions(+), 1 deletion(-)

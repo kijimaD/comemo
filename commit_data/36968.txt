@@ -1,26 +1,17 @@
-commit df459d5e6cc14532961875058f5d4ba3d04b5ed4
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Oct 13 15:48:17 2018 -0700
+commit c824f540d9bb937d4e78bba63b38f4c8ad427c8f
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Jun 13 18:21:23 2018 +0200
 
-    cmd/compile: emit symbol for constant string before parallel compiler phase
+    runtime: move iOS kevent calls to libc
     
-    This CL makes sure we walk the newly generated assignment. Part of
-    that walk makes sure that all symbols for strings are emitted before
-    we start referencing them during the parallel compilation
-    phase. Without this change, those references during the parallel phase
-    do a create-if-not-exist, which leads to a data race.
-    
-    I'm not 100% sure this is the fix for the issues below, but optimistically
-    assuming it is...
-    
-    Fixes #28170
-    Fixes #28159
-    
-    Change-Id: Ic63d5160ad9be5cb23fa6bbb2183e4848776c0ff
-    Reviewed-on: https://go-review.googlesource.com/c/141648
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ie97c9c9163f5af7b4768c34faac726e21627aa79
+    Reviewed-on: https://go-review.googlesource.com/118660
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/defs_darwin_arm.go   |   3 ++
+ src/runtime/defs_darwin_arm64.go |   3 ++
+ src/runtime/sys_darwin_arm.s     | 102 +++++++++++++++++----------------------
+ src/runtime/sys_darwin_arm64.s   |  97 ++++++++++++++-----------------------
+ 4 files changed, 84 insertions(+), 121 deletions(-)

@@ -1,17 +1,14 @@
-commit 47435b1da1e2a5698d1cfddc0eff889e4fdb6111
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Apr 18 11:52:39 2018 +0200
+commit 617fc0ffd3dabd24a43a713af0a05a7f93516d36
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 6 18:44:13 2017 +0000
 
-    reflect: define MyBuffer more locally in TestImplicitMapConversion
+    doc/go1.10: add NetBSD and OpenBSD to Go 1.10 release notes
     
-    There are no strange messages anymore, so define type MyBuffer in the
-    block where it is used.
+    Fixes #22911
     
-    Change-Id: Ic65b15dc76a40f6f734d9ac2116338502fbb66fd
-    Reviewed-on: https://go-review.googlesource.com/107735
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I61de85323e290b64917a09bc512935e835ff7cf0
+    Reviewed-on: https://go-review.googlesource.com/82276
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/set_test.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ doc/go1.10.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

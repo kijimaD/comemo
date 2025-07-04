@@ -1,15 +1,24 @@
-commit 839e9eada0300387f678013f9dc50c47a277639b
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Tue Apr 26 06:41:19 2011 -0700
+commit e2f9c733918f08e07ce9557ed5124a8e6453fddb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 26 08:25:40 2011 -0400
 
-    syscall: Mlock, Munlock, Mlockall, Munlockall on Linux.
+    runtime: more graceful out-of-memory crash
     
-    R=rsc, bradfitzgo
+    Used to fault trying to access l->list->next
+    when l->list == nil after MCentral_AllocList.
+    Now prints
+    
+    runtime: out of memory: no room in arena for 65536-byte allocation (536870912 in use)
+    throw: out of memory
+    
+    followed by stack trace.
+    
+    Fixes #1650.
+    
+    R=r, dfc
     CC=golang-dev
-    https://golang.org/cl/4433070
+    https://golang.org/cl/4446062
 
- src/pkg/syscall/syscall_linux.go        | 13 +++++-----
- src/pkg/syscall/zsyscall_linux_386.go   | 44 +++++++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_linux_amd64.go | 44 +++++++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_linux_arm.go   | 44 +++++++++++++++++++++++++++++++++
- 4 files changed, 138 insertions(+), 7 deletions(-)
+ src/pkg/runtime/mcache.c | 2 ++
+ src/pkg/runtime/mheap.c  | 8 ++++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

@@ -1,20 +1,16 @@
-commit 7a6ddbb425218b2f4866478d0c673ba82c8438e6
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Nov 13 13:33:50 2023 -0500
+commit fd22b0bf89e83aabce915ae86a677c10513de20f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Nov 28 14:22:10 2022 +0100
 
-    runtime: remove work.pauseStart
+    net: gofmt after CL 382996
     
-    Most of the uses of work.pauseStart are completely useless, it could
-    simply be a local variable. One use passes a parameter from gcMarkDone
-    to gcMarkTermination, but that could simply be an argument.
-    
-    Keeping this field in workType makes it seems more important than it
-    really is, so just drop it.
-    
-    Change-Id: I2fdc0b21f8844e5e7be47148c3e10f13e49815c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542075
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ic1302eb02f4369bf6758be9fb91379fd9a992e48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453575
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/mgc.go | 21 ++++++++++-----------
- 1 file changed, 10 insertions(+), 11 deletions(-)
+ src/net/hosts.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

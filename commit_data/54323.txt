@@ -1,30 +1,23 @@
-commit a0c3a1b6769c9849577eb6426fdac39d40372307
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 17 17:12:44 2023 -0400
+commit b314eea4cdba0755caedc9a3e683d3f7e1e2be6f
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Oct 5 03:15:24 2022 +0000
 
-    cmd/go: reject toolchain directives containing path separators
+    all: remove redundant type conversion
     
-    If GOTOOLCHAIN="path" or "auto", the go command uses exec.LookPath to
-    search for it in order to allow toolchains to refer to local-only
-    toolchain variants (such as toolchains built from enterprise- or
-    distro-patched source). However, those toolchains should only be
-    resolved from $PATH, not relative to the working directory of the
-    command.
-    
-    Thanks to Juho Nurminen of Mattermost for reporting this issue.
-    
-    Fixes #62198.
-    Fixes CVE-2023-39320.
-    
-    Change-Id: I247c7acea95d737362dd0475e9fc8515430d0fcc
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1996318
-    Run-TryBot: Roland Shoemaker <bracewell@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526158
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I375233dc700adbc58a6d4af995d07b352bf85b11
+    GitHub-Last-Rev: ef129205231b892f61b0135c87bb791a5e1a126c
+    GitHub-Pull-Request: golang/go#55994
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437715
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/go/internal/gover/toolchain.go             |  7 +++++
- src/cmd/go/testdata/script/mod_toolchain_slash.txt | 32 ++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/cmd/internal/obj/wasm/wasmobj.go | 10 +++++-----
+ src/crypto/sha1/sha1.go              |  2 +-
+ src/crypto/sha256/sha256.go          |  2 +-
+ src/crypto/sha512/sha512.go          |  2 +-
+ src/encoding/asn1/asn1_test.go       |  2 +-
+ src/encoding/base32/base32_test.go   |  2 +-
+ 6 files changed, 10 insertions(+), 10 deletions(-)

@@ -1,14 +1,81 @@
-commit 987649e09b2ec5085a55c3bb6097107b8723f4d2
+commit 61f84a2cdcb64ea8c818ed88e7e5072f9f289936
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 25 16:29:56 2011 -0400
+Date:   Thu Aug 25 16:25:10 2011 -0400
 
-    build: fix more unused parameters
+    gc: shuffle #includes
+    
+    #include "go.h" (or "gg.h")
+    
+    becomes
+    
+    #include <u.h>
+    #include <libc.h>
+    #include "go.h"
+    
+    so that go.y can #include <stdio.h>
+    after <u.h> but before "go.h".
+    This is necessary on Plan 9.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4971042
+    https://golang.org/cl/4971041
 
- src/cmd/5g/gsubr.c | 2 ++
- src/cmd/8g/gobj.c  | 2 ++
- src/cmd/8g/gsubr.c | 5 +++++
- 3 files changed, 9 insertions(+)
+ src/cmd/5g/cgen.c      | 2 ++
+ src/cmd/5g/cgen64.c    | 2 ++
+ src/cmd/5g/galign.c    | 2 ++
+ src/cmd/5g/gg.h        | 3 ---
+ src/cmd/5g/ggen.c      | 2 ++
+ src/cmd/5g/gobj.c      | 2 ++
+ src/cmd/5g/gsubr.c     | 2 ++
+ src/cmd/5g/list.c      | 2 ++
+ src/cmd/5g/peep.c      | 2 ++
+ src/cmd/5g/reg.c       | 2 ++
+ src/cmd/6g/cgen.c      | 2 ++
+ src/cmd/6g/galign.c    | 2 ++
+ src/cmd/6g/gg.h        | 3 ---
+ src/cmd/6g/ggen.c      | 2 ++
+ src/cmd/6g/gobj.c      | 2 ++
+ src/cmd/6g/gsubr.c     | 2 ++
+ src/cmd/6g/list.c      | 2 ++
+ src/cmd/6g/peep.c      | 2 ++
+ src/cmd/6g/reg.c       | 2 ++
+ src/cmd/8g/cgen.c      | 2 ++
+ src/cmd/8g/cgen64.c    | 2 ++
+ src/cmd/8g/galign.c    | 2 ++
+ src/cmd/8g/gg.h        | 3 ---
+ src/cmd/8g/ggen.c      | 2 ++
+ src/cmd/8g/gobj.c      | 2 ++
+ src/cmd/8g/gsubr.c     | 2 ++
+ src/cmd/8g/list.c      | 2 ++
+ src/cmd/8g/peep.c      | 2 ++
+ src/cmd/8g/reg.c       | 2 ++
+ src/cmd/gc/align.c     | 2 ++
+ src/cmd/gc/bits.c      | 2 ++
+ src/cmd/gc/closure.c   | 2 ++
+ src/cmd/gc/const.c     | 2 ++
+ src/cmd/gc/cplx.c      | 2 ++
+ src/cmd/gc/dcl.c       | 2 ++
+ src/cmd/gc/esc.c       | 2 ++
+ src/cmd/gc/export.c    | 2 ++
+ src/cmd/gc/gen.c       | 2 ++
+ src/cmd/gc/go.h        | 2 --
+ src/cmd/gc/go.y        | 2 ++
+ src/cmd/gc/init.c      | 2 ++
+ src/cmd/gc/lex.c       | 2 ++
+ src/cmd/gc/md5.c       | 2 ++
+ src/cmd/gc/mparith1.c  | 2 ++
+ src/cmd/gc/mparith2.c  | 2 ++
+ src/cmd/gc/mparith3.c  | 2 ++
+ src/cmd/gc/obj.c       | 2 ++
+ src/cmd/gc/pgen.c      | 2 ++
+ src/cmd/gc/print.c     | 2 ++
+ src/cmd/gc/range.c     | 2 ++
+ src/cmd/gc/reflect.c   | 2 ++
+ src/cmd/gc/select.c    | 2 ++
+ src/cmd/gc/sinit.c     | 2 ++
+ src/cmd/gc/subr.c      | 2 ++
+ src/cmd/gc/swt.c       | 2 ++
+ src/cmd/gc/typecheck.c | 2 ++
+ src/cmd/gc/unsafe.c    | 2 ++
+ src/cmd/gc/walk.c      | 2 ++
+ 58 files changed, 108 insertions(+), 11 deletions(-)

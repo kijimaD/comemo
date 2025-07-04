@@ -1,13 +1,15 @@
-commit b575a98121a60f2c74782130d639fa636d41e98a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jul 20 16:58:08 2012 -0700
+commit 7bf8355dc7d1a185cb96f66011a3217b99e85f69
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jul 20 08:32:25 2012 +0900
 
-    cgo: add -gccgopkgpath option to match gccgo -fgo-pkgpath
+    net: fix typo
     
-    R=golang-dev, r, iant
+    R=golang-dev, bsiegert, r
     CC=golang-dev
-    https://golang.org/cl/6416056
+    https://golang.org/cl/6428050
 
- src/cmd/cgo/main.go |  3 ++-
- src/cmd/cgo/out.go  | 18 ++++++++++++++++--
- 2 files changed, 18 insertions(+), 3 deletions(-)
+ src/pkg/net/dial.go            | 2 +-
+ src/pkg/net/iprawsock.go       | 4 ++--
+ src/pkg/net/iprawsock_plan9.go | 4 ++--
+ src/pkg/net/iprawsock_posix.go | 4 ++--
+ 4 files changed, 7 insertions(+), 7 deletions(-)

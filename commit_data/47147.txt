@@ -1,19 +1,20 @@
-commit 0ae4c7ff4a6d24ab33a0deebba74609159291b8c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Oct 31 17:27:12 2021 -0700
+commit 3146166baa8c420dfe20619e4aa9978b87927268
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Jan 31 18:07:43 2021 +0100
 
-    cmd/compile/internal/types2: fix TypeName.IsAlias for type parameter names
+    syscall: introduce SysProcAttr.AdditionalInheritedHandles on Windows
     
-    This is a port of CL 359656 from go/types to types2.
+    This allows users to specify handles that they explicitly want to be
+    inherited by the new process. These handles must already be marked as
+    inheritable.
     
-    For #49213.
+    Updates #44011.
+    Updates #21085.
     
-    Change-Id: Ib98f9a344c1397af92e061cafd519ea374fd60bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360294
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ib18322e7dc2909e68c4209e80385492804fa15d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288298
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/types2/object.go                         | 2 ++
- src/cmd/compile/internal/types2/object_test.go                    | 3 +++
- src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go2 | 2 +-
- 3 files changed, 6 insertions(+), 1 deletion(-)
+ src/syscall/exec_windows.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

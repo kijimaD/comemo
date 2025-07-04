@@ -1,23 +1,19 @@
-commit 7bcbb65d7879f17b185cee9ab4ab392da0bd865f
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Wed Jun 11 19:03:59 2014 -0700
+commit aa04caa7594506d805f82b7d7abed35a3a8fbec4
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 11 20:34:46 2014 -0400
 
-    bytes, strings: optimize Repeat
+    runtime: add test for issue 8047.
     
-    Call copy with as large buffer as possible to reduce the
-    number of function calls.
+    Make sure stack copier doesn't barf on a nil defer.
+    Bug was fixed in https://golang.org/cl/101800043
+    This change just adds a test.
     
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkBytesRepeat            540          162  -70.00%
-    BenchmarkStringsRepeat          563          177  -68.56%
+    Fixes #8047
     
-    LGTM=josharian
-    R=golang-codereviews, josharian, dave, dvyukov
+    LGTM=dvyukov, rsc
+    R=dvyukov, rsc
     CC=golang-codereviews
-    https://golang.org/cl/90550043
+    https://golang.org/cl/108840043
 
- src/pkg/bytes/bytes.go          | 7 ++++---
- src/pkg/bytes/bytes_test.go     | 6 ++++++
- src/pkg/strings/strings.go      | 7 ++++---
- src/pkg/strings/strings_test.go | 6 ++++++
- 4 files changed, 20 insertions(+), 6 deletions(-)
+ test/fixedbugs/issue8047.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

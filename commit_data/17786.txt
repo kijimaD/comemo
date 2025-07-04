@@ -1,15 +1,14 @@
-commit 7f168f9ccf716183ea849f6d86250aecd5d4d0b4
-Author: Rob Pike <r@golang.org>
-Date:   Fri Oct 11 16:39:40 2013 -0700
+commit 96648e019567d9e50c147638f104f0bf4a381350
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 11 15:55:50 2013 -0700
 
-    doc/effective_go.html: fix unescaped less-than character
-    Why doesn't tidy complain about these?
-    Found by manlio.perillo.
-    Fixes #6571
+    go/build: fix test if built with CGO_ENABLED=0
     
-    R=golang-dev, adg
+    Fixes #6567.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/14608044
+    https://golang.org/cl/14502060
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/build/deps_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

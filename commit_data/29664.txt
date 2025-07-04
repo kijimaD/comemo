@@ -1,19 +1,24 @@
-commit 00047248223a68882a120e210014b66577172218
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 29 20:39:47 2016 +0000
+commit 2878cf14f3bb4c097771e50a481fec43962d7401
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Sep 30 12:55:25 2016 -0700
 
-    doc: more additions to go1.8.html
+    crypto/tls: simplify keylog tests.
     
-    Adds crypto/tls, crypto/x509, math/big, mime.
+    Since there's no aspect of key logging that OpenSSL can check for us,
+    the tests for it might as well just connect to another goroutine as this
+    is lower-maintainance.
     
-    TBR=See https://golang.org/cl/33244
-    
-    Updates #17929
-    
-    Change-Id: I3fa3739e56f8c005e2a43c19f525cc5e2d981935
-    Reviewed-on: https://go-review.googlesource.com/33666
+    Change-Id: I746d1dbad1b4bbfc8ef6ccf136ee4824dbda021e
+    Reviewed-on: https://go-review.googlesource.com/30089
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joonas Kuorilehto <joneskoo@derbian.fi>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.8.html | 156 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/go1.8.txt  |  74 +++++++++++++--------------
- 2 files changed, 190 insertions(+), 40 deletions(-)
+ src/crypto/tls/common.go                           | 10 ++-
+ src/crypto/tls/handshake_client.go                 |  2 +-
+ src/crypto/tls/handshake_client_test.go            | 76 +++++++++++--------
+ src/crypto/tls/handshake_server_test.go            | 37 ---------
+ src/crypto/tls/testdata/Client-TLSv10-KeyLogWriter | 82 --------------------
+ src/crypto/tls/testdata/Server-TLSv10-KeyLogWriter | 88 ----------------------
+ 6 files changed, 51 insertions(+), 244 deletions(-)

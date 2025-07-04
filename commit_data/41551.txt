@@ -1,16 +1,19 @@
-commit bd6f4cd886458bb4ab1f492202fa2b499dcfc6f7
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Mar 2 04:23:12 2020 +1100
+commit 1627714cd518c56c0a39bd9d040670563410ad77
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri Oct 11 02:40:39 2019 -0400
 
-    cmd/compile: improve subtraction of constants on riscv64
+    test/fixedbugs: bump issue21576.go's timeout to 1min
     
-    Convert subtraction of a constant into an ADDI with a negative immediate,
-    where possible.
+    Increases the exec timeout from 5sec to 1min, but
+    also print out the error value on any test failure.
     
-    Change-Id: Ie8d54b7538f0012e5f898abea233b2957fe31899
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221679
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #34836
+    
+    Change-Id: Ida2b8bd460243491ef0f90dfe0f978dfe02a0703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200519
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules | 14 +++--
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 75 ++++++++++++++++++++++++++
- 2 files changed, 86 insertions(+), 3 deletions(-)
+ test/fixedbugs/issue21576.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

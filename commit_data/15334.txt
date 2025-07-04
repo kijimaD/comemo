@@ -1,13 +1,13 @@
-commit 35367cc64129f1dfcf764ed6ba3461db9bb54343
+commit d8682f99221c796046c15fb5a68a6fd5341bae83
 Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 20 14:34:03 2013 -0800
+Date:   Wed Feb 20 14:30:09 2013 -0800
 
-    mime: use Scanner to read mime files during init
-    Also close the file when we're done.
+    A+C: add Robert Dinu (Individual CLA)
     
-    R=bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7363045
+    https://golang.org/cl/7386045
 
- src/pkg/mime/type_unix.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

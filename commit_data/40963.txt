@@ -1,16 +1,31 @@
-commit f6774bc91b3037d8bcdec96c855320eb4932b4c2
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Dec 6 15:02:41 2019 -0500
+commit ae68a912725e5a3a0482bc5945687663f2ddafe3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Jul 3 00:37:05 2019 +0200
 
-    cmd/go: clarify -dropreplace help text in 'go help mod edit'
+    encoding/json: remove unnecessary isValidNumber call
     
-    Fixes #34930
+    The decoder called this function to check numbers being decoded into a
+    json.Number. However, these can't be quoted as strings, so the tokenizer
+    has already verified they are valid JSON numbers.
     
-    Change-Id: Ie0ddd8de6e40f5a192c4d2267399126e449fe5f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210340
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Verified this by adding a test with such an input. As expected, it
+    produces a syntax error, not the fmt.Errorf - that line could never
+    execute.
+    
+    Since the only remaining non-test caller of isvalidnumber is in
+    encode.go, move the function there.
+    
+    This change should slightly reduce the amount of work when decoding into
+    json.Number, though that isn't very common nor part of any current
+    benchmarks.
+    
+    Change-Id: I67a1723deb3d18d5b542d6dd35f3ae56a43f23eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184817
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go              | 17 +++++++++++------
- src/cmd/go/internal/modcmd/edit.go | 17 +++++++++++------
- 2 files changed, 22 insertions(+), 12 deletions(-)
+ src/encoding/json/decode.go      | 65 ++--------------------------------------
+ src/encoding/json/decode_test.go |  1 +
+ src/encoding/json/encode.go      | 60 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 63 insertions(+), 63 deletions(-)

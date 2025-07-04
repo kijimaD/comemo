@@ -1,17 +1,27 @@
-commit 4b2db7f60d808dc9e135af86bcd4a39ae63b1fc7
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Apr 3 12:18:14 2024 +0800
+commit 3974029671ead7fa0bf093e4372d354c7e620800
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 13 17:12:40 2023 -0400
 
-    slices: update doc for Repeat
+    go/ast: add File.GoVersion
     
-    To use (len(x) * count) consistently.
+    For #57001, compilers and others tools will need to understand that
+    a different Go version can be used in different files in a program,
+    according to the //go:build lines in those files.
     
-    Change-Id: I45fa4383de7e05846152a8090ea5c04bc72a1727
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/575955
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This CL adds a GoVersion string field to ast.File, to allow exposing this
+    per-file Go version information.
+    
+    For #59033.
+    
+    Change-Id: I3931ea86c237983d152964f48dce498bcb1f06aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476276
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/slices/slices.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next/59033.txt         | 1 +
+ src/go/ast/ast.go          | 1 +
+ src/go/ast/example_test.go | 3 ++-
+ src/go/ast/filter.go       | 2 +-
+ 4 files changed, 5 insertions(+), 2 deletions(-)

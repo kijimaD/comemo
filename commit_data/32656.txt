@@ -1,25 +1,80 @@
-commit d8ae2156fe08f31f9b20a79b6971638c5bf203b5
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Sep 2 12:05:35 2017 -0400
+commit e5bb5e397d04b137c0fd4da8e137fb4ac431a68c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 11 11:41:02 2017 -0700
 
-    runtime, plugin: error not throw on duplicate open
+    cmd/compile: restore panic deduplication
     
-    Along the way, track bad modules. Make sure they don't end up on
-    the active modules list, and aren't accidentally reprocessed as
-    new plugins.
+    The switch to detailed position information broke
+    the removal of duplicate panics on the same line.
+    Restore it.
     
-    Fixes #19004
+    Neutral compiler performance impact:
     
-    Change-Id: I8a5e7bb11f572f7b657a97d521a7f84822a35c07
-    Reviewed-on: https://go-review.googlesource.com/61171
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    name        old alloc/op      new alloc/op      delta
+    Template         38.8MB ± 0%       38.8MB ± 0%    ~     (p=0.690 n=5+5)
+    Unicode          28.7MB ± 0%       28.7MB ± 0%  +0.13%  (p=0.032 n=5+5)
+    GoTypes           109MB ± 0%        109MB ± 0%    ~     (p=1.000 n=5+5)
+    Compiler          457MB ± 0%        457MB ± 0%    ~     (p=0.151 n=5+5)
+    SSA              1.09GB ± 0%       1.10GB ± 0%  +0.17%  (p=0.008 n=5+5)
+    Flate            24.6MB ± 0%       24.5MB ± 0%  -0.35%  (p=0.008 n=5+5)
+    GoParser         30.9MB ± 0%       31.0MB ± 0%    ~     (p=0.421 n=5+5)
+    Reflect          73.4MB ± 0%       73.4MB ± 0%    ~     (p=0.056 n=5+5)
+    Tar              25.6MB ± 0%       25.5MB ± 0%  -0.61%  (p=0.008 n=5+5)
+    XML              40.9MB ± 0%       40.9MB ± 0%    ~     (p=0.841 n=5+5)
+    [Geo mean]       71.6MB            71.6MB       -0.07%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           394k ± 0%         395k ± 1%    ~     (p=0.151 n=5+5)
+    Unicode            343k ± 0%         344k ± 0%  +0.38%  (p=0.032 n=5+5)
+    GoTypes           1.16M ± 0%        1.16M ± 0%    ~     (p=1.000 n=5+5)
+    Compiler          4.41M ± 0%        4.42M ± 0%    ~     (p=0.151 n=5+5)
+    SSA               9.79M ± 0%        9.79M ± 0%    ~     (p=0.690 n=5+5)
+    Flate              238k ± 1%         238k ± 0%    ~     (p=0.151 n=5+5)
+    GoParser           321k ± 0%         321k ± 1%    ~     (p=0.548 n=5+5)
+    Reflect            958k ± 0%         957k ± 0%    ~     (p=0.841 n=5+5)
+    Tar                252k ± 0%         252k ± 1%    ~     (p=0.151 n=5+5)
+    XML                401k ± 0%         400k ± 0%    ~     (p=1.000 n=5+5)
+    [Geo mean]         741k              742k       +0.08%
+    
+    
+    Reduces object files a little bit:
+    
+    name        old object-bytes  new object-bytes  delta
+    Template           386k ± 0%         386k ± 0%  -0.04%  (p=0.008 n=5+5)
+    Unicode            202k ± 0%         202k ± 0%    ~     (all equal)
+    GoTypes           1.16M ± 0%        1.16M ± 0%  -0.04%  (p=0.008 n=5+5)
+    Compiler          3.91M ± 0%        3.91M ± 0%  -0.08%  (p=0.008 n=5+5)
+    SSA               7.91M ± 0%        7.91M ± 0%  -0.04%  (p=0.008 n=5+5)
+    Flate              228k ± 0%         227k ± 0%  -0.28%  (p=0.008 n=5+5)
+    GoParser           283k ± 0%         283k ± 0%  -0.01%  (p=0.008 n=5+5)
+    Reflect            952k ± 0%         951k ± 0%  -0.03%  (p=0.008 n=5+5)
+    Tar                188k ± 0%         187k ± 0%  -0.09%  (p=0.008 n=5+5)
+    XML                406k ± 0%         406k ± 0%  -0.04%  (p=0.008 n=5+5)
+    [Geo mean]         648k              648k       -0.06%
+    
+    
+    This was discovered in the context for the Fannkuch benchmark.
+    It shrinks the number of panicindex calls in that function
+    from 13 back to 9, their 1.8.1 level.
+    
+    It shrinks the function text a bit, from 829 to 801 bytes.
+    It slows down execution a little, presumably due to alignment (?).
+    
+    name          old time/op  new time/op  delta
+    Fannkuch11-8   2.68s ± 2%   2.74s ± 1%  +2.09%  (p=0.000 n=19+20)
+    
+    After this CL, 1.8.1 and tip are identical:
+    
+    name          old time/op  new time/op  delta
+    Fannkuch11-8   2.74s ± 2%   2.74s ± 1%   ~     (p=0.301 n=20+20)
+    
+    Fixes #20332
+    
+    Change-Id: I2aeacc3e8cf2ac1ff10f36c572a27856f4f8f7c9
+    Reviewed-on: https://go-review.googlesource.com/43291
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/testplugin/src/host/host.go | 17 +++++++++++++++++
- misc/cgo/testplugin/test.bash        |  1 +
- src/plugin/plugin.go                 |  1 +
- src/plugin/plugin_dlopen.go          | 26 ++++++++++++++++----------
- src/runtime/plugin.go                | 24 ++++++++++++++++--------
- src/runtime/symtab.go                |  9 +++++++--
- 6 files changed, 58 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

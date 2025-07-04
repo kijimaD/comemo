@@ -1,24 +1,19 @@
-commit 1f8fa4941f632575468498bfac48fc1cbbf1a54f
-Author: Youlin Feng <fengyoulin@live.com>
-Date:   Tue Nov 5 17:21:57 2024 +0800
+commit d8b349ea6063a1c977e88cc25785b91d7f4b6237
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Sep 11 12:09:40 2023 -0400
 
-    runtime: fix iterator returns map entries after clear (pre-swissmap)
+    net/http: routing tree
     
-    Fixes #70189
-    Fixes #59411
+    This CL implements a decision tree for efficient routing.
+    The tree holds all the registered patterns. To match
+    a request, we walk the tree looking for a match.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-noswissmap
-    Change-Id: I4ef7ecd7e996330189309cb2a658cf34bf9e1119
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625275
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I7ed1cdf585fc95b73ef5ca2f942f278100a90583
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527315
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
 
- .../compile/internal/reflectdata/map_noswiss.go    | 14 +++++---
- src/reflect/map_noswiss.go                         |  1 +
- src/runtime/map_noswiss.go                         | 28 +++++-----------
- src/runtime/map_noswiss_test.go                    |  4 +--
- test/fixedbugs/issue70189.go                       | 38 ++++++++++++++++++++++
- 5 files changed, 58 insertions(+), 27 deletions(-)
+ src/net/http/routing_tree.go      | 222 ++++++++++++++++++++++++++++++++++++
+ src/net/http/routing_tree_test.go | 234 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 456 insertions(+)

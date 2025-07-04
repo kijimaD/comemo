@@ -1,45 +1,19 @@
-commit 312e7e9f8a85bbab449daae6ebe969ad1d4f0840
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Oct 2 11:37:38 2024 +0200
+commit dffc47e75aaa61eb460cf474a7fe8de46c83c445
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Aug 30 05:51:23 2023 +0000
 
-    crypto/internal/fips/sha3: restructure as an internal package
+    encoding/asn1: use reflect.TypeFor for known types
     
-    Main changes are
+    For #60088
     
-        - return concrete *Digest and *SHAKE instead of interfaces
-    
-        - make tests external (sha3_test) so they will be easy to move to
-          the public package
-    
-        - drop most of the developer guidance docs (to be updated and
-          reintroduced in the public package)
-    
-        - consolidate the _noasm.go files (matching the single _s390x.go)
-    
-        - move TestAllocations from build tags to testenv
-    
-        - temporarily disable s390x code, to refactor in a following CL
-    
-    For #69536
-    
-    Change-Id: Ie5fd3e2b589b9eb835b9e3174b7a79c2ac728ab1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617357
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I4b2a5c6c59ef26361f343052a4ddaabde5d3bc94
+    GitHub-Last-Rev: d519835ad592efab031917c83483e5dcbeff1c3a
+    GitHub-Pull-Request: golang/go#62370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524259
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/crypto/internal/fips/hmac/hmac.go             |   4 +-
- src/crypto/internal/fips/sha3/allocations_test.go |  60 --------
- src/crypto/internal/fips/sha3/doc.go              |  66 ---------
- src/crypto/internal/fips/sha3/hashes.go           |  98 ++++---------
- src/crypto/internal/fips/sha3/hashes_noasm.go     |  23 ----
- src/crypto/internal/fips/sha3/sha3.go             |  52 +++----
- src/crypto/internal/fips/sha3/sha3_noasm.go       |  31 +++++
- src/crypto/internal/fips/sha3/sha3_s390x.go       |  15 +-
- src/crypto/internal/fips/sha3/sha3_s390x.s        |   2 +-
- src/crypto/internal/fips/sha3/sha3_test.go        | 130 +++++++++++++++---
- src/crypto/internal/fips/sha3/shake.go            | 160 +++++++++-------------
- src/crypto/internal/fips/sha3/shake_noasm.go      |  15 --
- 12 files changed, 264 insertions(+), 392 deletions(-)
+ src/encoding/asn1/asn1.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

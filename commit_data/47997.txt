@@ -1,30 +1,20 @@
-commit 9dfd458e64a2d3fa92fb7b5da393163151f99cf2
+commit b8a359d984b9b16a405fa66011078a477c6e2da4
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 14 17:34:59 2022 -0800
+Date:   Wed Apr 21 09:04:00 2021 -0700
 
-    go/types, types2: remove special case for external types in validType
+    cmd/compile/internal/types2: fix incorrect result type of Checker.index
     
-    Because validType doesn't modify global state anymore, there's
-    no need to ignore imported types. When we start tracking type
-    parameters, we need to include imported types because they may
-    contribute to cycles that invalidate a type.
+    While at it, add missing "invalid argument: " prefix
+    to a couple of local error messages, for consistency.
     
-    This CL effectively reverts CL 202483 (issue #35049, which
-    doesn't apply anymore because we don't change the state of
-    imported objects).
+    For #45667.
     
-    Preparation for fixing issue #48962.
-    
-    For #35049.
-    For #48962.
-    
-    Change-Id: I06f15575ad197375c74ffd09c222250610186b15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378675
+    Change-Id: I814800b2f3f3750583e335c98a3f8e27030a9daa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312309
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/validtype.go | 18 ++++++++++--------
- src/go/types/validtype.go                    | 18 ++++++++++--------
- 2 files changed, 20 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/types2/index.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

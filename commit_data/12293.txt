@@ -1,12 +1,18 @@
-commit f0886ab7e21c1e7c7de59085dbcbaf1cb7a48737
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 29 17:39:02 2012 -0800
+commit fd5718ce82c9dec47ad6243acf3b3cc237df4efa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 29 17:25:15 2012 -0800
 
-    test: add a couple of cases to const1.go that crashed gccgo
+    go/printer, gofmt: improved comment placement
     
-    R=golang-dev, r
+    Applied gofmt -w src misc (no changes).
+    
+    Fixes #3147.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/5713045
+    https://golang.org/cl/5710046
 
- test/const1.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/go/printer/printer.go               | 64 +++++++++++-----------
+ src/pkg/go/printer/testdata/comments.golden | 85 +++++++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/comments.input  | 85 +++++++++++++++++++++++++++++
+ 3 files changed, 203 insertions(+), 31 deletions(-)

@@ -1,15 +1,13 @@
-commit 370ae055451e0550e6aa8930a12351ea26e96a70
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 18 14:22:41 2012 -0400
+commit e7e159ef4d05b9578e41ef71d109035ba9df006b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 18 11:00:55 2012 -0700
 
-    reflect: add Select
+    A+C: Add Anthony Eufemio (Individual CLA)
     
-    R=r, iant, rogpeppe, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6498078
+    https://golang.org/cl/6524045
 
- src/pkg/reflect/all_test.go | 424 ++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/reflect/type.go     |  11 +-
- src/pkg/reflect/value.go    | 134 ++++++++++++++
- src/pkg/runtime/chan.c      |  93 +++++++++-
- 4 files changed, 654 insertions(+), 8 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

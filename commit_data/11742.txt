@@ -1,14 +1,13 @@
-commit 00651a2e6317230f85209a49a74cf466c29ec00c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 10 09:12:32 2012 +1100
+commit bb40196ebf50d461b4c9bef7b5124b04dc4cb73f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 9 16:18:21 2012 -0500
 
-    database/sql: rename ErrTransactionFinished to ErrTxDone
+    runtime: Linux/ARM: exit early on OABI systems, and give an error message
+    Fixes #2533.
     
-    Part of issue 2843
-    
-    R=golang-dev, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5646063
+    https://golang.org/cl/5654045
 
- src/pkg/database/sql/sql.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/runtime/rt0_linux_arm.s | 56 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 55 insertions(+), 1 deletion(-)

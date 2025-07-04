@@ -1,55 +1,30 @@
-commit 04a9b16f3d69aa66f3aaab44dcd322e4a02a82aa
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Wed Mar 12 14:45:17 2025 -0400
+commit afb105056dc62b3f2f569341a9fff080023ee812
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Thu Jan 18 12:51:13 2024 -0800
 
-    cmd/compile/internal/escape: avoid reading ir.Node during inner loop of walkOne
+    crypto/x509: make sure pub key is non-nil before interface conversion
     
-    Broadly speaking, escape analysis has two main phases. First, it
-    traverses the AST while building a data-flow graph of locations and
-    edges. Second, during "solve", it repeatedly walks the data-flow graph
-    while carefully propagating information about each location, including
-    whether a location's address reaches the heap.
+    alreadyInChain assumes all keys fit a interface which contains the
+    Equal method (which they do), but this ignores that certificates may
+    have a nil key when PublicKeyAlgorithm is UnknownPublicKeyAlgorithm. In
+    this case alreadyInChain panics.
     
-    Once escape analysis is in the solve phase and repeatedly walking the
-    data-flow graph, almost all the information it needs is within the
-    location graph, with a notable exception being the ir.Class of an
-    ir.Name, which currently must be checked by following a pointer from
-    the location to its ir.Node.
+    Check that the key is non-nil as part of considerCandidate (we are never
+    going to build a chain containing UnknownPublicKeyAlgorithm anyway).
     
-    For typical graphs, that does not matter much, but if the graph becomes
-    large enough, cache misses in the inner solve loop start to matter more,
-    and the class is checked many times in the inner loop.
+    Fixes #65390
+    Fixes CVE-2024-24783
     
-    We therefore store the class information on the location in the graph
-    to reduce how much memory we need to load in the inner loop.
-    
-    The package github.com/microsoft/typescript-go/internal/checker
-    has many locations, and compilation currently spends most of its time
-    in escape analysis.
-    
-    This CL gives roughly a 30% speedup for wall clock compilation time
-    for the checker package:
-    
-      go1.24.0:      91.79s
-      this CL:       64.98s
-    
-    Linux perf shows a healthy reduction for example in l2_request.miss and
-    dTLB-load-misses on an amd64 test VM.
-    
-    We could tweak things a bit more, though initial review feedback
-    has suggested it would be good to get this in as it stands.
-    
-    Subsequent CLs in this stack give larger improvements.
-    
-    Updates #72815
-    
-    Change-Id: I3117430dff684c99e6da1e0d7763869873379238
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657295
+    Change-Id: Ibdccc0a487e3368b6812be35daad2512220243f3
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/2137282
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569339
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Jake Bailey <jacob.b.bailey@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/escape/graph.go | 7 +++++++
- src/cmd/compile/internal/escape/solve.go | 4 ++--
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ src/crypto/x509/verify.go      |  2 +-
+ src/crypto/x509/verify_test.go | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

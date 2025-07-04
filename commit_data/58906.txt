@@ -1,20 +1,16 @@
-commit f24d2e175e3eca114b316694af1fc59d5dd63c5d
-Author: limeidan <limeidan@loongson.cn>
-Date:   Mon Dec 16 16:31:37 2024 +0800
+commit 4ca1caf407f6bbadbc9235bbcc08036f1eef907b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 18 00:29:48 2024 +0100
 
-    cmd/internal/obj, cmd/asm: reclassify 32-bit immediate value of loong64
+    doc/go1.22: fix method name in net/netip changes
     
-    Change-Id: If9fd257ca0837a8c8597889c4f5ed3d4edc602c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636995
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Icbeb911aad8bd23399b5afb66b3babed018368e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556595
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |   4 +-
- src/cmd/asm/internal/asm/testdata/loong64enc2.s |   2 +-
- src/cmd/internal/obj/loong64/a.out.go           |  36 ++-
- src/cmd/internal/obj/loong64/asm.go             | 279 ++++++++++++------------
- src/cmd/internal/obj/loong64/cnames.go          |  30 ++-
- 5 files changed, 185 insertions(+), 166 deletions(-)
+ doc/go1.22.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

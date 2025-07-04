@@ -1,14 +1,18 @@
-commit 0784e6918e931e8bc6e28252ae11a65664ecbaaa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 22 19:41:17 2016 -0800
+commit 0b55be1ba2cf1cbb84ef4292942e6532df0b22ad
+Author: Giulio Iotti <dullgiulio@gmail.com>
+Date:   Mon Aug 31 19:08:49 2015 +0300
 
-    net/http: fix typo in doc string
+    encoding/xml: case-insensitive encoding recognition
     
-    Fixes #14475.
+    From the XML spec: "XML processors should match character encoding
+    names in a case-insensitive way"
     
-    Change-Id: I1b5b0a9793a417572ec55f313185d03ad5ae9d01
-    Reviewed-on: https://go-review.googlesource.com/19846
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #12417.
+    
+    Change-Id: I678c50152a49c14364be62b3f21ab9b9b009b24b
+    Reviewed-on: https://go-review.googlesource.com/14084
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/fs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/xml/xml.go      |  2 +-
+ src/encoding/xml/xml_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

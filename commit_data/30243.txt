@@ -1,28 +1,18 @@
-commit 663226d8e130470c1a627c64cf489261ebb6da08
-Author: Sokolov Yura <funny.falcon@gmail.com>
-Date:   Sun Feb 12 13:18:22 2017 +0300
+commit 58e2edafb718718225056530a7a09ee3e08a96d1
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 18 10:01:56 2016 -0400
 
-    runtime: make fastrand to generate 32bit values
+    cmd/compile: lower slice clears to memclrHasPointers
     
-    Extend period of fastrand from (1<<31)-1 to (1<<32)-1 by
-    choosing other polynom and reacting on high bit before shift.
+    If a slice's backing store has pointers, we need to lower clears of
+    that slice to memclrHasPointers instead of memclrNoHeapPointers.
     
-    Polynomial is taken at https://users.ece.cmu.edu/~koopman/lfsr/index.html
-    from 32.dat.gz . It is referred as F7711115 cause this list of
-    polynomials is for LFSR with shift to right (and fastrand uses shift to
-    left). (old polynomial is referred in 31.dat.gz as 7BB88888).
+    Updates #17503.
     
-    There were couple of places with conversation of fastrand to int, which
-    leads to negative values on 32bit platforms. They are fixed.
-    
-    Change-Id: Ibee518a3f9103e0aea220ada494b3aec77babb72
-    Reviewed-on: https://go-review.googlesource.com/36875
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I20750e4bf57f7b8862f3d898bfb32d964b91d07b
+    Reviewed-on: https://go-review.googlesource.com/31450
     Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/malloc.go | 2 +-
- src/runtime/select.go | 2 +-
- src/runtime/stubs.go  | 4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/range.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

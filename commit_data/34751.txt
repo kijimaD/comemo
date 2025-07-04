@@ -1,17 +1,24 @@
-commit f961272e59ad8fc4ca9912325d2a9fa42b3779de
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 28 14:12:36 2018 -0700
+commit 5ea2360b6643ec53018b1c080f4824b8238bff3a
+Author: Akhil Indurti <aindurti@gmail.com>
+Date:   Tue Nov 14 11:40:09 2017 -0500
 
-    cmd/go: reject relative tmpdir
+    net/http/httputil: allow ReverseProxy to call ModifyResponse on failed requests
     
-    Fixes #23264
+    Previously when RoundTrip returned a non-nil error, the proxy returned a
+    StatusBadGateway error, instead of first calling ModifyResponse. This
+    commit first calls ModifyResponse, whether or not the error returned
+    from RoundTrip is nil.
     
-    Change-Id: Ib6c343dc8e32949c6de72cb628cace2e8fabc302
-    Reviewed-on: https://go-review.googlesource.com/103236
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Also closes response body when ModifyResponse returns an error. See #22658.
+    
+    Fixes #21255
+    
+    Change-Id: I5b5bf23a69ae5608f87d4ece756a1b4985ccaa9c
+    Reviewed-on: https://go-review.googlesource.com/54030
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go              | 23 +++++++++++++++++++++++
- src/cmd/go/internal/work/action.go |  4 ++++
- 2 files changed, 27 insertions(+)
+ src/net/http/httputil/reverseproxy.go      | 21 +++++++++++++--------
+ src/net/http/httputil/reverseproxy_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 8 deletions(-)

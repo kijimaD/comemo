@@ -1,20 +1,20 @@
-commit 3bde00033b8d1ff7c494d10b1343178c32abb7ad
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 19 10:11:06 2012 -0700
+commit e55fdff21030e4925086af90fa669b3e378f2dfc
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Oct 19 16:32:00 2012 +1100
 
-    go spec: define make() restrictions as for index expressions
+    bufio: make Writer.ReadFrom not flush prematurely. For example,
+    many small writes to a network may be less efficient that a few
+    large writes.
     
-    This is a language change: Until now, the spec required run-
-    time panics for some of these errors. Note that gc and gccgo
-    implemented this inconsistently, and that both compilers already
-    reported compile-time errors in some cases. This change makes
-    make() behave along the same vein as index expressions.
+    This fixes net/http's TestClientWrites, broken by 6565056 that
+    introduced Writer.ReadFrom. That test implicitly assumed that
+    calling io.Copy on a *bufio.Writer wouldn't write to the
+    underlying network until the buffer was full.
     
-    This addresses the spec aspect of issue 4085.
-    
-    R=r, rsc, iant, ken
-    CC=golang-dev
-    https://golang.org/cl/6725053
+    R=dsymonds
+    CC=bradfitz, golang-dev, mchaten, mikioh.mikioh
+    https://golang.org/cl/6743044
 
- doc/go_spec.html | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ src/pkg/bufio/bufio.go      | 15 ++++++------
+ src/pkg/bufio/bufio_test.go | 58 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 7 deletions(-)

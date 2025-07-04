@@ -1,12 +1,14 @@
-commit 62049366e70718d3f9e804039da7e299f66aaa08
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 7 15:35:04 2011 -0400
+commit c54ed66c756d0e4814350a6ddd75cff2b457c10d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 7 12:03:45 2011 -0700
 
-    syscall: freebsd/386 Syscall9 (fix build)
+    syscall: fix build
     
-    R=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4386042
+    https://golang.org/cl/4368050
 
- src/pkg/syscall/asm_freebsd_386.s | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ src/pkg/syscall/syscall_bsd.go     | 29 -----------------------------
+ src/pkg/syscall/syscall_darwin.go  | 30 ++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_freebsd.go | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 60 insertions(+), 29 deletions(-)

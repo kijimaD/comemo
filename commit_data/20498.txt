@@ -1,39 +1,13 @@
-commit 3b2577ced39194fdd2f1359136c7e176d8de5576
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Sep 20 23:31:11 2014 -0700
+commit fbd1b5f98f1bbe0c992b7a99719f0ec38a7033bc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 12 07:52:56 2014 -0700
 
-    runtime: be very careful with bad pointer tests
+    runtime: fix typo in comment
     
-    Saw this on a test:
-    
-    runtime: bad pointer in frame runtime_test.testSetPanicOnFault at 0xc20801c6b0: 0xfff
-    fatal error: bad pointer!
-    
-    runtime stack:
-    ...
-    copystack(0xc2081bf7a0, 0x1000)
-            /root/work/solaris-amd64-smartos-2dde8b453d26/go/src/runtime/stack.c:621 +0x173 fp=0xfffffd7ffd5ffee0 sp=0xfffffd7ffd5ffe20
-    runtime.newstack()
-            /root/work/solaris-amd64-smartos-2dde8b453d26/go/src/runtime/stack.c:774 +0x552 fp=0xfffffd7ffd5fff90 sp=0xfffffd7ffd5ffee0
-    runtime.morestack()
-            /root/work/solaris-amd64-smartos-2dde8b453d26/go/src/runtime/asm_amd64.s:324 +0x90 fp=0xfffffd7ffd5fff98 sp=0xfffffd7ffd5fff90
-    
-    goroutine 163354 [stack growth]:
-    ...
-    runtime.convT2E(0x587000, 0xc20807bea8, 0x0, 0x0)
-            /root/work/solaris-amd64-smartos-2dde8b453d26/go/src/runtime/iface.go:141 +0xd2 fp=0xc20801c678 sp=0xc20801c640
-    runtime_test.testSetPanicOnFault(0xc20822c510, 0xfff, 0xc20801c748)
-            /root/work/solaris-amd64-smartos-2dde8b453d26/go/src/runtime/runtime_test.go:211 +0xc6 fp=0xc20801c718 sp=0xc20801c678
-    ...
-    
-    This test is testing bad pointers.  It loads the bad pointer into a pointer variable,
-    but before it gets a chance to dereference it, calls convT2E.  That call causes a stack copy,
-    which exposes that live but bad pointer variable.
-    
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/146880043
+    https://golang.org/cl/140590043
 
- src/runtime/runtime_test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/runtime/mgc0.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,33 @@
-commit 139a79dc37cd9c6d2b397ebf12da6b7df4e65bb8
-Author: David Howden <dhowden@gmail.com>
-Date:   Sat Feb 8 08:59:45 2020 +1100
+commit 5caac2f73efe7fc6919f7850d99c35cde02012b5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 9 10:22:20 2019 -0400
 
-    cmd/go/internal/auth: fix .netrc lookup for URLs with specified port
+    [dev.link] cmd: default to new object files
     
-    The .netrc spec [1] defines credentials based on "machine name", so remove specified ports
-    from URL before looking for a match.
+    Switch the default to new object files.
     
-    [1] https://www.gnu.org/software/inetutils/manual/html_node/The-_002enetrc-file.html
+    Internal linking cgo is disabled for now, as it does not work yet
+    in newobj mode.
     
-    Fixes #37130
+    Shared libraries are also broken.
     
-    Change-Id: Iab993afba26c927454d6166111ad1e1a53dbce43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218418
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Disable some tests that are known broken for now.
+    
+    Change-Id: I8ca74793423861d607a2aa7b0d89a4f4d4ca7671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200161
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/auth/auth.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ misc/cgo/testplugin/testdata/host/host.go | 13 +++++++------
+ src/cmd/asm/internal/flags/flags.go       |  2 +-
+ src/cmd/compile/internal/gc/main.go       |  2 +-
+ src/cmd/dist/test.go                      |  7 +++++--
+ src/cmd/link/internal/ld/config.go        |  4 ++++
+ src/cmd/link/internal/ld/lib.go           |  2 +-
+ src/cmd/link/internal/ld/main.go          |  2 +-
+ src/cmd/nm/nm_cgo_test.go                 |  2 +-
+ src/debug/pe/file_cgo_test.go             |  1 +
+ src/runtime/runtime-gdb_test.go           |  2 ++
+ test/linkx.go                             |  8 ++++++++
+ 11 files changed, 32 insertions(+), 13 deletions(-)

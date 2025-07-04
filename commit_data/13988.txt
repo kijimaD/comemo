@@ -1,12 +1,14 @@
-commit 0b448bdef76ba5565f96ce33698a76683e3f4553
-Author: David Symonds <dsymonds@golang.org>
-Date:   Sun Sep 30 15:46:37 2012 +1000
+commit 2fee6e3788c84b236484ca416a5f2a3a8792e3f3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Sep 29 12:43:05 2012 +0900
 
-    exp/types: better diagnosis for compile failures.
+    syscall: add ipv4 ancillary data for darwin
     
-    R=gri, dave
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/6587046
+    https://golang.org/cl/6586044
 
- src/pkg/exp/types/gcimporter_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/syscall/types_darwin.go        | 3 +++
+ src/pkg/syscall/ztypes_darwin_386.go   | 7 +++++++
+ src/pkg/syscall/ztypes_darwin_amd64.go | 7 +++++++
+ 3 files changed, 17 insertions(+)

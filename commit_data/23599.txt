@@ -1,12 +1,19 @@
-commit 71832ff489fdca6f41fe5f5bc8ca56976c7fc5aa
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jul 3 11:11:42 2015 -0700
+commit 7bdecbf840978e618665c284d273f81ce639a293
+Author: Michael Matloob <matloob@google.com>
+Date:   Fri May 29 13:47:38 2015 -0400
 
-    math/rand: improve NewZipf documentation
+    [dev.ssa] cmd/compile/internal/ssa: remove cgen pass
     
-    Change-Id: I78f0f9ac33db153c4a0d7f9866da20ebcd3d3639
-    Reviewed-on: https://go-review.googlesource.com/11872
-    Reviewed-by: Rob Pike <r@golang.org>
+    Code generation is now done in genssa.
+    Also remove the asm field in opInfo. It's no longer used.
+    
+    Change-Id: I65fffac267e138fd424b2ef8aa7ed79f0ebb63d5
+    Reviewed-on: https://go-review.googlesource.com/10539
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/rand/zipf.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/TODO       |   1 -
+ src/cmd/compile/internal/ssa/cgen.go    | 135 --------------------------------
+ src/cmd/compile/internal/ssa/compile.go |   3 -
+ src/cmd/compile/internal/ssa/op.go      |   6 --
+ src/cmd/compile/internal/ssa/opamd64.go |  62 +++++++--------
+ 5 files changed, 31 insertions(+), 176 deletions(-)

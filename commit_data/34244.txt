@@ -1,24 +1,29 @@
-commit f4bb25c937cffb277e5ba87708d286ea7fd1b6ed
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Jan 27 12:48:15 2018 +0100
+commit 30cb30e596759279b487b835440269989bd08b04
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 10 15:11:05 2017 -0700
 
-    runtime: rename map implementation and test files to use a common prefix
+    runtime: unify amd64 -buildmode=c-archive/c-shared entry point code
     
-    Rename all map implementation and test files to use "map"
-    as a file name prefix instead of "hashmap" for the implementation
-    and "map" for the test file names.
+    This adds the _lib entry point to various GOOS_amd64.s files.
+    A future CL will enable c-archive/c-shared mode for those targets.
     
-    Change-Id: I7b317c1f7a660b95c6d1f1a185866f2839e69446
-    Reviewed-on: https://go-review.googlesource.com/90336
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    As far as I can tell, the newosproc0 function in os_darwin.go was
+    passing the wrong arguments to bsdthread_create. The newosproc0
+    function is never called in the current testsuite.
+    
+    Change-Id: Ie7c1c2e326cec87013e0fea84f751091b0ea7f51
+    Reviewed-on: https://go-review.googlesource.com/69711
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/reflect.go                  | 12 ++++++------
- src/cmd/compile/internal/gc/walk.go                     |  6 +++---
- src/reflect/type.go                                     |  4 ++--
- src/runtime/{hashmap.go => map.go}                      |  0
- src/runtime/{mapspeed_test.go => map_benchmark_test.go} |  0
- src/runtime/{hashmap_fast.go => map_fast.go}            |  0
- src/runtime/map_test.go                                 |  2 +-
- 7 files changed, 12 insertions(+), 12 deletions(-)
+ src/runtime/asm_amd64.s           | 62 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/os_darwin.go          |  4 +--
+ src/runtime/rt0_android_amd64.s   |  3 +-
+ src/runtime/rt0_darwin_amd64.s    | 63 ++-------------------------------------
+ src/runtime/rt0_dragonfly_amd64.s |  3 ++
+ src/runtime/rt0_freebsd_amd64.s   |  3 ++
+ src/runtime/rt0_linux_amd64.s     | 60 ++-----------------------------------
+ src/runtime/rt0_netbsd_amd64.s    |  3 ++
+ src/runtime/rt0_openbsd_amd64.s   |  3 ++
+ src/runtime/rt0_solaris_amd64.s   |  3 ++
+ 10 files changed, 84 insertions(+), 123 deletions(-)

@@ -1,25 +1,36 @@
-commit c10fb508946bccbd015634c0bdb1cbd18e206c8f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Mar 22 20:55:38 2022 +0700
+commit fd54ae8b0c7ed3ef9869112586069f7cac82cf1e
+Author: Dan Scales <danscales@google.com>
+Date:   Mon May 24 20:36:42 2021 -0700
 
-    cmd/compile: remove ir.Node.SetDiag
+    [dev.typeparams] cmd/compile: adding union support in types1
     
-    And use base.Fatalf in code that use n.SetDiag(true) instead.
+    Add union support in types1, and allow exporting of unions, and
+    importing unions back into types1 and types2.
     
-    Updates #51691
+    Added new test mincheck.go/mincheck.dir that tests that type lists (type
+    sets) are correctly exported/imported, so that types2 gives correct
+    errors that an instantiation doesn't fit the type list in the type param
+    constraint.
     
-    Change-Id: Ib3c0b9c89b8d95717391cbe7d424240e288ada1c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394575
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8041c6c79289c870a95ed5a1b10e4c1c16985b12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322609
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ir/mini.go             |  3 ---
- src/cmd/compile/internal/ir/node.go             |  1 -
- src/cmd/compile/internal/typecheck/const.go     | 12 ++++--------
- src/cmd/compile/internal/typecheck/expr.go      |  6 +-----
- src/cmd/compile/internal/typecheck/func.go      |  3 +--
- src/cmd/compile/internal/typecheck/stmt.go      |  3 +--
- src/cmd/compile/internal/typecheck/typecheck.go | 19 +++++--------------
- 7 files changed, 12 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go  | 14 ++++++++++
+ src/cmd/compile/internal/noder/types.go       | 19 ++++++++++---
+ src/cmd/compile/internal/typecheck/iexport.go | 13 +++++++++
+ src/cmd/compile/internal/typecheck/iimport.go | 13 +++++++++
+ src/cmd/compile/internal/types/kind_string.go | 23 ++++++++--------
+ src/cmd/compile/internal/types/size.go        | 14 +++++++++-
+ src/cmd/compile/internal/types/type.go        | 39 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/type.go       | 13 ---------
+ test/fixedbugs/bug195.go                      |  2 +-
+ test/fixedbugs/issue11614.go                  |  2 +-
+ test/typeparam/mincheck.dir/a.go              | 16 +++++++++++
+ test/typeparam/mincheck.dir/main.go           | 38 ++++++++++++++++++++++++++
+ test/typeparam/mincheck.go                    |  7 +++++
+ 13 files changed, 182 insertions(+), 31 deletions(-)

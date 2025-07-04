@@ -1,22 +1,19 @@
-commit 88e86936be8eb4d2c2ed8a0ad4c74d743dff1cc9
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 5 23:13:00 2012 -0500
+commit 98c1baff6f51a2900f38b35e52f6519730c604c4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 6 14:58:08 2012 +1100
 
-    go/build: add dependency test
+    unicode/utf16: delete dependence on package unicode
+    In the test, verify the copied constants are correct.
+    Also put the test into package utf16 rather than utf16_test;
+    the old location was probably due creating the test from
+    utf8, but the separation is not needed here.
     
-    This exercises the Import function but more importantly
-    gives us a place to write down the policy for dependencies
-    within the Go tree.  It also forces us to look at the dependencies,
-    which may lead to adjustments.
-    
-    Surprises:
-     - go/doc imports text/template, for HTMLEscape (could fix)
-     - it is impossible to use math/big without fmt (unfixable)
-     - it is impossible to use crypto/rand without math/big (unfixable)
-    
-    R=golang-dev, bradfitz, gri, r
+    R=golang-dev, bradfitz, rsc, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5732062
+    https://golang.org/cl/5752047
 
- src/pkg/go/build/deps_test.go | 403 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 403 insertions(+)
+ src/pkg/unicode/utf16/export_test.go | 11 +++++++++++
+ src/pkg/unicode/utf16/utf16.go       | 21 ++++++++++++++-------
+ src/pkg/unicode/utf16/utf16_test.go  | 10 ++++++++++
+ src/pkg/unicode/utf8/utf8_test.go    | 10 ++++++++++
+ 4 files changed, 45 insertions(+), 7 deletions(-)

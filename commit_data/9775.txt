@@ -1,13 +1,12 @@
-commit 76d82dbc4cde51cde2cfcb002af2ec874a8a5c88
+commit 5c1f2bcf08e9faf2dfa49cb888678bcbff7b49aa
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Sep 23 07:22:28 2011 +1000
+Date:   Thu Sep 22 15:08:23 2011 +1000
 
-    doc: link to image blog post
+    tag weekly.2011-09-21
     
-    R=golang-dev, r
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5086048
+    https://golang.org/cl/5086049
 
- doc/docs.html          | 1 +
- src/pkg/image/image.go | 3 +++
- 2 files changed, 4 insertions(+)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

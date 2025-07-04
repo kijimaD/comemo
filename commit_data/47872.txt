@@ -1,19 +1,16 @@
-commit 002283eaca8335c4c1fb209f267bacf5afe6cf2c
-Author: Clément Chigot <chigot.c@gmail.com>
-Date:   Fri Dec 17 11:03:21 2021 +0100
+commit b161b57c3fbb08cdfe28b91ed40b347b83569b48
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Tue Apr 13 12:25:19 2021 +0200
 
-    runtime: ensure that asmsyscall6 follow AIX stack convention
+    go/build: replace os.MkdirTemp with T.TempDir
     
-    The function asmsyscall6 must follow AIX stack layout. It means
-    that its first local variable must be stored after its arguments
-    area, ie after offset 112.
+    Updates #45402
     
-    Fixes #50185
-    
-    Change-Id: I897731ddd2a9faad8218443a4c2f4b204ad7e173
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373074
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ic2f696837034de17333a6a53127a4bfd301e96a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309354
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/runtime/sys_aix_ppc64.s | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/go/build/build_test.go | 20 ++++----------------
+ 1 file changed, 4 insertions(+), 16 deletions(-)

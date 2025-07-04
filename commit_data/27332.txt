@@ -1,19 +1,26 @@
-commit 3696e469e5f8a5531c69ffcf091deaa692e81104
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun May 8 14:32:48 2016 -0700
+commit 6a33f7765f79cf2f00f5ca55832d2cfab8beb289
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Mar 6 16:58:30 2016 -0800
 
-    test: add test for issue 15602
+    runtime: use MOVSB instead of MOVSQ for unaligned moves
     
-    The problem was fixed by the rollback in CL 22930.
-    This CL just adds a test to prevent regressions.
+    MOVSB is quite a bit faster for unaligned moves.
+    Possibly we should use MOVSB all of the time, but Intel folks
+    say it might be a bit faster to use MOVSQ on some processors
+    (but not any I have access to at the moment).
     
-    Fixes #15602
+    benchmark                              old ns/op     new ns/op     delta
+    BenchmarkMemmove4096-8                 93.9          93.2          -0.75%
+    BenchmarkMemmoveUnalignedDst4096-8     256           151           -41.02%
+    BenchmarkMemmoveUnalignedSrc4096-8     175           90.5          -48.29%
     
-    Change-Id: I37453f6e18ca43081266fe7f154c6d63fbaffd9b
-    Reviewed-on: https://go-review.googlesource.com/22931
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #14630
+    
+    Change-Id: I568e6d6590eb3615e6a699fb474020596be665ff
+    Reviewed-on: https://go-review.googlesource.com/20293
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue15602.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/runtime/memmove_386.s   | 14 +++++++-
+ src/runtime/memmove_amd64.s | 13 +++++++
+ src/runtime/memmove_test.go | 87 +++++++++++++++++++++++++++++++--------------
+ 3 files changed, 87 insertions(+), 27 deletions(-)

@@ -1,13 +1,31 @@
-commit 83feedf7bf7147021761fd8b5a2a157095fcabc9
+commit 03f2289f7e3b419df36cdf97f4c49911c56b7b66
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 19 00:12:31 2012 -0500
+Date:   Sun Feb 19 00:11:44 2012 -0500
 
-    gc: fix error for floating-point constant %
+    runtime: API
     
-    R=ken2
+    Delete Alloc, Free, Lookup, Semacquire, Semrelease
+    
+    Fixes #2955.
+    
+    R=golang-dev, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5674108
+    https://golang.org/cl/5675093
 
- src/cmd/gc/const.c |  8 ++++++++
- test/const1.go     | 55 +++++++++++++++++++++++++++---------------------------
- 2 files changed, 36 insertions(+), 27 deletions(-)
+ src/pkg/runtime/debug.go                               | 12 ------------
+ src/pkg/runtime/extern.go                              | 11 -----------
+ src/pkg/runtime/malloc.goc                             | 12 ------------
+ {test => src/pkg/runtime}/malloc1.go                   |  4 ++--
+ {test => src/pkg/runtime}/mallocrand.go                |  4 ++--
+ {test => src/pkg/runtime}/mallocrep.go                 |  4 ++--
+ {test => src/pkg/runtime}/mallocrep1.go                |  4 ++--
+ src/pkg/runtime/sema.goc                               |  6 +++---
+ src/pkg/sync/cond.go                                   | 10 ++++------
+ src/pkg/sync/export_test.go                            |  9 +++++++++
+ src/pkg/sync/mutex.go                                  |  9 +++------
+ src/pkg/sync/mutex_test.go                             |  4 ++--
+ src/pkg/sync/runtime.go                                | 18 ++++++++++++++++++
+ .../sema_test.go => sync/runtime_sema_test.go}         | 15 ++++++++-------
+ src/pkg/sync/rwmutex.go                                | 13 +++++--------
+ src/pkg/sync/waitgroup.go                              |  9 +++------
+ 16 files changed, 63 insertions(+), 81 deletions(-)

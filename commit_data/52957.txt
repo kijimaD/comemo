@@ -1,19 +1,20 @@
-commit 623ebad6850578a8a51d4d73f6ceab2d7de75fd1
-Author: David Chase <drchase@google.com>
-Date:   Tue May 9 17:23:39 2023 -0400
+commit 66685fb7dd72531aed6f1b3f4de43799bb26c052
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jun 19 22:57:10 2022 -0700
 
-    internal/godebug: make test godebug calls not vary
+    doc/go1.19: use correct link to sync/atomic docs
     
-    I think there may be an issue in bisect search with
-    change set elements not actually being independent,
-    to be explored later.  For now, modify the test to
-    remove that property.
+    For #51400
+    Fixes #53453
     
-    Change-Id: I4b171bc024795d950cf4663374ad1dfc4e2952fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494036
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ie11182a16299cf26d03970d6aa9bfe03caa56ea4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413235
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/godebug/godebug_test.go | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ doc/go1.19.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

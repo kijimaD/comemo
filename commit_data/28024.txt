@@ -1,26 +1,14 @@
-commit 6394eb378eb6b2c0e691c519b2a6664f930b427e
+commit 17db07f9b5034f22851f32f7700649ac61c44e8f
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 23 16:02:19 2016 -0700
+Date:   Tue Apr 26 14:11:38 2016 -0700
 
-    cmd/compile: export package for _ (blank) struct fields
+    cmd/compile: don't discard inlineable but empty functions with binary export format
     
-    Blank struct fields are regular unexported fields. Two
-    blank fields are different if they are from different
-    packages. In order to correctly differentiate them, the
-    compiler needs the package information. Add it to the
-    export data.
-    
-    Fixes #15514.
-    
-    Change-Id: I421aaca22b542fcd0d66b2d2db777249cad78df6
-    Reviewed-on: https://go-review.googlesource.com/27639
+    Change-Id: I0f016fa000f949d27847d645b4cdebe68a8abf20
+    Reviewed-on: https://go-review.googlesource.com/22474
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |  7 ++-----
- src/cmd/compile/internal/gc/bimport.go |  7 +------
- src/go/internal/gcimporter/bimport.go  | 10 +++-------
- test/fixedbugs/issue15514.dir/a.go     |  7 +++++++
- test/fixedbugs/issue15514.dir/b.go     |  7 +++++++
- test/fixedbugs/issue15514.dir/c.go     | 10 ++++++++++
- test/fixedbugs/issue15514.go           |  7 +++++++
- 7 files changed, 37 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

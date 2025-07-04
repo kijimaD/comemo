@@ -1,17 +1,20 @@
-commit 8afa086ce67b44abb9c9639efca214db7acf7b3f
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri May 2 17:39:25 2014 +0100
+commit 3879f0abcd94598723d6c3024e5006b52b736b7b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 2 12:12:40 2014 -0400
 
-    runtime: do not set m->locks around memory allocation
-    If slice append is the only place where a program allocates,
-    then it will consume all available memory w/o triggering GC.
-    This was demonstrated in the issue.
-    Fixes #7922.
+    os: cut limited read to 1 GB
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/91010048
+    If systems actually read that much, using 2GB-1 will
+    result in misaligned subsequent reads. Use 1GB instead,
+    which will certainly keep reads aligned and which is
+    plenty large enough.
+    
+    Update #7812.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/94070044
 
- src/pkg/runtime/slice.goc | 14 +++++---------
- 1 file changed, 5 insertions(+), 9 deletions(-)
+ src/pkg/os/file_unix.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

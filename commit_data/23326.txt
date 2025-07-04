@@ -1,14 +1,14 @@
-commit 637d59859d3f13a55eaab7d683b5061fcbfd616c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 11 13:21:46 2015 -0700
+commit e9827f62018b87482e647dd88aecdedb24c94680
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 6 13:19:30 2015 -0700
 
-    spec: clarify meaning of x op= y
+    testing: document that Log and Logf always print in benchmarks
     
-    Suggested by mdempsky (see also issue #11161).
+    Fixes #10713.
     
-    Change-Id: I1ab28febe19b7a092029499015073ce8749b4d99
-    Reviewed-on: https://go-review.googlesource.com/10960
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifdafc340ae3bba751236f0482246c568346a569c
+    Reviewed-on: https://go-review.googlesource.com/9763
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/testing/testing.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

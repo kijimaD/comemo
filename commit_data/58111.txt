@@ -1,18 +1,51 @@
-commit 81fc3d223946d8d09463e40df597086275c01701
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Oct 21 12:08:53 2024 +0200
+commit 98289021f3444a2f80c8f7630f5e519d9c338963
+Author: Brendan Jackman <jackmanb@google.com>
+Date:   Fri Sep 8 07:46:19 2023 +0000
 
-    crypto/internal/mlkem768: remove crypto/rand.Read error checking
+    time: clarify docs to avoid date calculation pitfalls
     
-    After #66821 crypto/rand.Read can't return an error.
+    I recently reviewed some code that did time calculations using
+    `time.UnixMicro(0).UTC()`. I commented that because time calculations
+    are independent of the location, they should drop the `.UTC()`, and they
+    replied that it made their tests fail.
     
-    Change-Id: I185063a25ef70986448f2a300e5578de17f6e61e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621979
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    I looked into it and eventually discovered it was because they were
+    using AddDate. Dramatically simplified, their code did something like:
+    
+        orig := time.Date(2013, time.March, 23, 12, 00, 0, 0, time.UTC)
+        want := time.Date(2013, time.March, 23, 0, 0, 0, 0, time.UTC)
+    
+        epoch := time.UnixMicro(0)
+    
+        days := int(orig.Sub(epoch).Hours() / 24)
+    
+        got := epoch.AddDate(0, 0, days)
+        if !got.Equal(want) {
+            t.Errorf("ay caramba: %v vs %v", got.UTC(), want.UTC())
+        }
+    
+    The issue is that their tests run in Pacific time, which is currently
+    PST (UTC-8) but was PDT (UTC-7) in January 1970.
+    
+    It turns out they were implementing some business policy that really
+    cares abut calendar days so AddDate is correct, but it's certainly a bit
+    confusing!
+    
+    The idea with this change is to remove the risk that readers make a
+    false shortcut in their mind: "Locations do not affect time
+    calculations". To do this we remove some text from the core time.Time
+    doc and shift it to the areas of the library that deal with these
+    intrinsically confusing operations.
+    
+    Change-Id: I8200e9edef7d1cdd8516719e34814eb4b78d30a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526676
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/crypto/internal/mlkem768/mlkem768.go | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+ src/time/example_test.go | 22 ++++++++++++++++++----
+ src/time/time.go         | 20 ++++++++++++++------
+ src/time/zoneinfo.go     |  4 ++++
+ 3 files changed, 36 insertions(+), 10 deletions(-)

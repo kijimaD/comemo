@@ -1,12 +1,14 @@
-commit 18f5ce856191062224d4bb08c7c2623296aeeaa2
+commit 187b9c695f2c8fae14ed289f9f6364628f633490
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 16 21:54:04 2013 +0400
+Date:   Fri Aug 16 21:04:05 2013 +0400
 
-    runtime/race: add output tests for different GORACE params
+    runtime: fix goroutine stack accounting
+    Fixes #6166.
+    Fixes #6168.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, bradfitz, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/13065043
+    https://golang.org/cl/12927045
 
- src/pkg/runtime/race/output_test.go | 66 ++++++++++++++++++++++++++++++++-----
- 1 file changed, 58 insertions(+), 8 deletions(-)
+ src/pkg/runtime/proc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

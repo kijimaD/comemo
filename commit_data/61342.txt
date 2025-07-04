@@ -1,0 +1,22 @@
+commit aefb173b0a1c1edfdd631b8b4ac752b947ab80a8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 18 16:31:28 2024 -0400
+
+    internal/runtime/maps: store group across Iter.Next calls
+    
+    A previous CL kept it across loop iterations, but those are more rare
+    than call iterations.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: Ieea0f1677e357f5e451650b1c697da7f63f3bca1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621116
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  7 ++---
+ src/internal/runtime/maps/table.go                | 32 +++++++++++------------
+ 2 files changed, 20 insertions(+), 19 deletions(-)

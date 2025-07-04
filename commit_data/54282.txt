@@ -1,20 +1,23 @@
-commit ffc4ccea07cf497c99849f92b196d5c24e1612b7
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Aug 30 05:09:56 2023 +0000
+commit 82e357d6d5944fc5b0293085a0305fe328c505ea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 26 19:22:50 2022 -0700
 
-    cmd/compile/internal/types2: use strings.ReplaceAll for goTypeName
+    os: use backslashes for DirFS on Windows
     
-    strings.ReplaceAll is currently available.
+    Otherwise DirFS of a UNC path does not work.
     
-    Change-Id: I111b97f12723c97791b59d81fd035a0d5e97cd4b
-    GitHub-Last-Rev: 561dbab6d22df42636f34a53a97c2f52b9138f3e
-    GitHub-Pull-Request: golang/go#62369
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524157
+    Fixes #54694
+    
+    Change-Id: I82c1c436f7c26b3935c2cc4fd238daf094fc4d86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426094
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/typexpr.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/file.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

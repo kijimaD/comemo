@@ -1,22 +1,19 @@
-commit 1402e522c6e372d055748d8437bd2a127acacdca
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Dec 1 12:02:42 2015 -0800
+commit 64cd86798b32e1259eee39fdf5535f48cb1a7c13
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 16:11:09 2015 -0800
 
-    cmd/compile: load builtin export data only once
+    cmd/compile: better syntax error recovery
     
-    Previously, the builtin runtime export data was reparsed before every
-    Go source file, and the unsafe export data was reparsed for every
-    import of package unsafe.  Now, we parse both of them just once ahead
-    of time.
+    Use a combination of follow- and stop-token lists and nesting levels
+    to better synchronize parser after a syntax error.
     
-    This does mean package unsafe's export data will be loaded even when
-    compiling packages that don't import it, but it's tiny anyway.
+    Fixes #13319.
     
-    Change-Id: Ic6931bc58f6d62f664348bfa932f92d4ccacc3ef
-    Reviewed-on: https://go-review.googlesource.com/19626
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I9592e0b5b3ba782fb9f9315fea16163328e204f7
+    Reviewed-on: https://go-review.googlesource.com/17080
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/compile/internal/gc/lex.go    | 30 ++++++++++++++++++++++++++++--
- src/cmd/compile/internal/gc/parser.go | 23 -----------------------
- 2 files changed, 28 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/parser.go | 183 +++++++++++++++++++++-------------
+ test/fixedbugs/issue13319.go          |  18 ++++
+ test/syntax/composite.go              |   2 +-
+ 3 files changed, 135 insertions(+), 68 deletions(-)

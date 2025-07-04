@@ -1,16 +1,23 @@
-commit da13da1fceff5439af70571826e2dd35925d86a5
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Sep 12 14:43:38 2023 -0400
+commit 6b22572e700235fb7303c7fd6aefcc33c743a130
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 19 11:57:15 2022 -0400
 
-    cmd/compile/internal/pgo: remove stale comment
+    go/internal/gcimporter,cmd/compile/internal/importer: skip tests that need 'go list' on js/wasm
     
-    targetDeclFuncs was removed before CL 492436 was ever merged.
+    js/wasm doesn't support os.Exec, so it can't run 'go list' to locate
+    export data for packages in the standard library.
     
-    Change-Id: I1aafc28446ad23f63bcafc144b91f924dacd676e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528176
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    This fixes js/wasm test failures introduced in CL 442303.
+    
+    For #47257.
+    
+    Change-Id: I39289f376691493aa6fb447b3329f6508ab48d58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444015
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/pgo/irgraph.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/compile/internal/importer/gcimporter_test.go | 6 ++++++
+ src/go/internal/gcimporter/gcimporter_test.go        | 7 +++++++
+ 2 files changed, 13 insertions(+)

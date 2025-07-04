@@ -1,45 +1,42 @@
-commit 0f099a4bc569e32fbddefb8e3de6b59cf6d1959d
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 19 14:01:05 2023 -0400
+commit d5ae7a64876630ab40f7bd04fdb5ad6a3733dae7
+Author: Robert Findley <rfindley@google.com>
+Date:   Sat May 7 15:50:05 2022 -0400
 
-    runtime, cmd: rationalize StackLimit and StackGuard
+    go/types, types2: remove redundant calls to Named.resolve
     
-    The current definitions of StackLimit and StackGuard only indirectly
-    specify the NOSPLIT stack limit and duplicate a literal constant
-    (928). Currently, they define the stack guard delta, and from there
-    compute the NOSPLIT limit.
+    The resolved status of a Named type should be owned by its API, and
+    callers should access resolved data via methods. Remove several
+    instances where Named.resolve is explicitly invoked, only to be followed
+    by a method that also resolves.
     
-    Rationalize these by defining a new constant, abi.StackNosplitBase,
-    which consolidates and directly specifies the NOSPLIT stack limit (in
-    the default case). From this we then compute the stack guard delta,
-    inverting the relationship between these two constants. While we're
-    here, we rename StackLimit to StackNosplit to make it clearer what's
-    being limited.
+    Also make two minor cleanups:
+    - Remove the tparams parameter to Checker.newNamed, as it was unused.
+    - Include position information when assertions fail, so that one doesn't
+      need to go digging in the panicking stack to find the assertion
+      location.
     
-    This change does not affect the values of these constants in the
-    default configuration. It does slightly change how
-    StackGuardMultiplier values other than 1 affect the constants, but
-    this multiplier is a pretty rough heuristic anyway.
+    Updates #52728
     
-                        before after
-    stackNosplit           800   800
-    _StackGuard            928   928
-    stackNosplit -race    1728  1600
-    _StackGuard -race     1856  1728
-    
-    For #59670.
-    
-    Change-Id: Ia94094c5e47897e7c088d24b4a5e33f5c2768db5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486976
-    Auto-Submit: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Icbe8c89e9cfe02d60af7d9ba907eaebe1f00193e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404874
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/objabi/stack.go       | 15 +++------------
- src/cmd/link/internal/ld/stackcheck.go |  2 +-
- src/internal/abi/stack.go              |  8 ++++++++
- src/runtime/preempt.go                 |  2 +-
- src/runtime/stack.go                   | 19 +++++++++----------
- test/nosplit.go                        | 13 +++----------
- 6 files changed, 25 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/types2/decl.go        | 3 +--
+ src/cmd/compile/internal/types2/errors.go      | 9 ++++++++-
+ src/cmd/compile/internal/types2/instantiate.go | 2 +-
+ src/cmd/compile/internal/types2/lookup.go      | 1 -
+ src/cmd/compile/internal/types2/named.go       | 6 +++---
+ src/cmd/compile/internal/types2/signature.go   | 1 -
+ src/cmd/compile/internal/types2/subst.go       | 1 -
+ src/cmd/compile/internal/types2/typexpr.go     | 2 +-
+ src/go/types/decl.go                           | 3 +--
+ src/go/types/errors.go                         | 9 ++++++++-
+ src/go/types/instantiate.go                    | 2 +-
+ src/go/types/lookup.go                         | 1 -
+ src/go/types/named.go                          | 6 +++---
+ src/go/types/signature.go                      | 1 -
+ src/go/types/subst.go                          | 1 -
+ src/go/types/typexpr.go                        | 2 +-
+ 16 files changed, 28 insertions(+), 22 deletions(-)

@@ -1,19 +1,21 @@
-commit 1dfb33e8612d20f41cf4e034d9d0838abf75e04b
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Sep 11 15:48:56 2024 +0000
+commit 9869699c44bb9d1d5f94c1ee32092451a418b95c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 3 20:29:47 2023 -0700
 
-    html/template: use maps.Copy in escaper.escapeListConditionally
+    runtime: avoid relying on the unwinder in deferreturn
     
-    To make it a little simpler.
+    This CL changes deferreturn so that it never needs to invoke the
+    unwinder. Instead, in the unusual case that we recover into a frame
+    with pending open-coded defers, we now save the extra state needed to
+    find them in g.param.
     
-    Change-Id: I0d7f015e8f245fbdd8c5cf5c10e8d2bd44b91021
-    GitHub-Last-Rev: 2eae47fe8bc5704de86a91ac87c76e49f51d2fe7
-    GitHub-Pull-Request: golang/go#69396
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612397
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ied35f6c1063fee5b6044cc37b2bccd3f90682fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515856
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/html/template/escape.go | 17 +++++------------
- 1 file changed, 5 insertions(+), 12 deletions(-)
+ src/runtime/panic.go    | 74 ++++++++++++++++++++++++++++++++++---------------
+ src/runtime/runtime2.go | 13 ++++++++-
+ 2 files changed, 64 insertions(+), 23 deletions(-)

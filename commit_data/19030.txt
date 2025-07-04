@@ -1,42 +1,32 @@
-commit 17f9423e75db40a08369c7ea23449db1c26a4890
+commit f5f5a8b6209f84961687d993b93ea0d397f5d5bf
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 3 19:07:33 2014 -0400
+Date:   Thu Apr 3 19:05:17 2014 -0400
 
-    runtime: test malformed address fault and fix on OS X
+    cmd/gc, runtime: optimize map[string] lookup from []byte key
     
-    The garbage collector poison pointers
-    (0x6969696969696969 and 0x6868686868686868)
-    are malformed addresses on amd64.
-    That is, they are not 48-bit addresses sign extended
-    to 64 bits. This causes a different kind of hardware fault
-    than the usual 'unmapped page' when accessing such
-    an address, and OS X 10.9.2 sends the resulting SIGSEGV
-    incorrectly, making it look like it was user-generated
-    rather than kernel-generated and does not include the
-    faulting address. This means that in GODEBUG=gcdead=1
-    mode, if there is a bug and something tries to dereference
-    a poisoned pointer, the runtime delivers the SIGSEGV to
-    os/signal and returns to the faulting code, which faults
-    again, causing the process to hang instead of crashing.
+    Brad has been asking for this for a while.
+    I have resisted because I wanted to find a more general way to
+    do this, one that would keep the performance of code introducing
+    variables the same as the performance of code that did not.
+    (See golang.org/issue/3512#c20).
     
-    Fix by rewriting "user-generated" SIGSEGV on OS X to
-    look like a kernel-generated SIGSEGV with fault address
-    0xb01dfacedebac1e.
+    I have not found the more general way, and recent changes to
+    remove ambiguously live temporaries have blown away the
+    property I was trying to preserve, so that's no longer a reason
+    not to make the change.
     
-    I chose that address because (1) when printed in hex
-    during a crash, it is obviously spelling out English text,
-    (2) there are no current Google hits for that pointer,
-    which will make its origin easy to find once this CL
-    is indexed, and (3) it is not an altogether inaccurate
-    description of the situation.
+    Fixes #3512.
     
-    Add a test. Maybe other systems will break too.
-    
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, iant, ken
-    https://golang.org/cl/83270049
+    LGTM=iant
+    R=iant
+    CC=bradfitz, golang-codereviews, khr, r
+    https://golang.org/cl/83740044
 
- src/pkg/runtime/runtime_test.go | 47 +++++++++++++++++++++++++++++++++++++++--
- src/pkg/runtime/signal_amd64x.c | 21 ++++++++++++++++++
- 2 files changed, 66 insertions(+), 2 deletions(-)
+ src/cmd/gc/builtin.c        |  1 +
+ src/cmd/gc/go.h             |  1 +
+ src/cmd/gc/order.c          | 24 +++++++++++++++++++++---
+ src/cmd/gc/runtime.go       |  1 +
+ src/cmd/gc/walk.c           |  5 +++++
+ src/pkg/runtime/map_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/string.goc  | 19 +++++++++++++++++++
+ 7 files changed, 85 insertions(+), 3 deletions(-)

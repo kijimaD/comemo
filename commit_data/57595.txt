@@ -1,21 +1,25 @@
-commit 841bb62f19b782277b9ce3ce80dab010fcc583c6
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Mon Aug 19 13:51:59 2024 -0700
+commit 243c8c0eec20d981d8e76a3aac82f97cca991571
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Jun 22 11:44:55 2023 -0700
 
-    internal/runtime/atomic: add Xchg8 for amd64
+    encoding: require unique alphabet for base32 and base64
     
-    For #68578
+    In order for decoding to faithfully reproduce the encoded input,
+    the symbols must be unique (i.e., provide a bijective mapping).
+    Thus, reject duplicate symbols in NewEncoding.
     
-    Change-Id: Idecfdbb793f46560dd69287af9170c07cf4ee973
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606900
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    As a minor optimization, modify WithPadding to use the decodeMap
+    to quickly check whether the padding character is used in O(1)
+    instead of O(32) or O(64).
+    
+    Change-Id: I5631f6ff9335c35d59d020dc0e307e3520786fbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520335
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
 
- src/internal/runtime/atomic/atomic_amd64.go |  3 +++
- src/internal/runtime/atomic/atomic_amd64.s  | 12 +++++++++
- src/internal/runtime/atomic/xchg8_test.go   | 39 +++++++++++++++++++++++++++++
- 3 files changed, 54 insertions(+)
+ src/encoding/base32/base32.go | 38 ++++++++++++++++++++++++--------------
+ src/encoding/base64/base64.go | 38 ++++++++++++++++++++------------------
+ 2 files changed, 44 insertions(+), 32 deletions(-)

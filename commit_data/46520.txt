@@ -1,16 +1,25 @@
-commit 9ab6af9837f924869cd2213ce028b3f4d49c487c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Sep 17 13:45:12 2021 -0700
+commit 9ec21a8f347e760945ca0f58ad72062588f08577
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 6 14:32:03 2021 -0800
 
-    runtime, cmd/link: fix comment typos
+    Revert "reflect: support multiple keys in struct tags"
     
-    Change-Id: I33a10417939bfcfec117d6ad49c42312731ac30f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350733
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Proposal #40281 was initially accepted, but has now been declined.
+    This CL removes most of the work done to implement it.
+    
+    Specifically this reverts CLs 248341, 274448, 274474, and 278392.
+    
+    For #40281
+    For #43226
+    
+    Change-Id: I5a9ebb4d9cb5fb0962434b64c59beb8343030be5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281515
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/link/internal/ld/pcln.go | 4 ++--
- src/runtime/symtab.go            | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ doc/go1.16.html         |  11 ----
+ src/reflect/all_test.go | 170 ------------------------------------------------
+ src/reflect/type.go     |  43 +++---------
+ 3 files changed, 9 insertions(+), 215 deletions(-)

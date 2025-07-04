@@ -1,13 +1,15 @@
-commit 8e2a57e643b632751cde8a10a85665e103b5188f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 12 14:26:05 2015 -0400
+commit adff896e4c8c89a692b93c4db44be7f019925134
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 19 21:10:00 2015 -0800
 
-    cmd/pprof/internal/profile: insert blank line after non-doc comment
+    [dev.cc] cmd/asm: implement FMADD for ppc64
     
-    Change-Id: I91fe72c60d6c41644780474620e05380e9af2a3d
-    Reviewed-on: https://go-review.googlesource.com/7620
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Missed this one instruction in the previous pass.
+    
+    Change-Id: Ic8cdae4d3bfd626c6bbe0ce49fce28b53db2ad1c
+    Reviewed-on: https://go-review.googlesource.com/5420
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/pprof/internal/profile/filter.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/asm/internal/arch/ppc64.go | 6 ++++++
+ src/cmd/asm/internal/asm/asm.go    | 4 +++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

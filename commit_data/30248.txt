@@ -1,15 +1,19 @@
-commit efb3cab960e7cec3262f41705ec5b69431815411
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 13 15:08:04 2017 -0800
+commit 88518e7dd6a118167aa71851a3a9f24d0230bc82
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 26 14:34:20 2016 -0400
 
-    cmd/compile/internal/syntax: generalize error about var decls in init clauses
+    runtime: zero-initialize LR on new stacks
     
-    Change-Id: I62f9748b97bec245338ebf9686fbf6ad6dc6a9c2
-    Reviewed-on: https://go-review.googlesource.com/36931
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Currently we initialize LR on a new stack by writing nil to it. But
+    this is an initializing write since the newly allocated stack is not
+    zeroed, so this is unsafe with the hybrid barrier. Change this is a
+    uintptr write to avoid a bad write barrier.
+    
+    Updates #17503.
+    
+    Change-Id: I062ac352e35df7da4644c1f2a5aaab87049d1f60
+    Reviewed-on: https://go-review.googlesource.com/32093
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go |  4 ++--
- test/syntax/forvar.go                     | 11 -----------
- test/syntax/initvar.go                    | 15 +++++++++++++++
- 3 files changed, 17 insertions(+), 13 deletions(-)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

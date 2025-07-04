@@ -1,29 +1,16 @@
-commit 0c02280fe0b4a178f78633721201f899e5213414
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Oct 25 00:12:57 2016 +0200
+commit e80376ca6b1f3c4cbc11639d998c0c83787f9247
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 8 16:46:48 2016 -0700
 
-    net: fix TestCloseError on Plan 9
+    runtime: ignore closeonexec ret val on openbsd/arm
     
-    Since CL 30614, TestCloseError is failing on Plan 9,
-    because File.Write now checks f.fd == badFd before
-    calling syscall.Write.
+    Fixes #16641
+    Updates #11041
     
-    The f.fd == badFd check returns os.ErrClosed, while
-    syscall.Write returned a syscall.ErrorString error.
-    
-    TestCloseError was failing because it expected a
-    syscall.ErrorString error.
-    
-    We add a case in parseCloseError to handle the
-    os.ErrClosed case.
-    
-    Fixes #17569.
-    
-    Change-Id: I6b4d956d18ed6d3c2ac5211ffd50a4888f7521e1
-    Reviewed-on: https://go-review.googlesource.com/31872
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I087208a486f535d74135591b2c9a73168cf80e1a
+    Reviewed-on: https://go-review.googlesource.com/27490
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/error_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/sys_openbsd_arm.s | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

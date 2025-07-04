@@ -1,23 +1,31 @@
-commit e5a6a94aeb98fbfd2a046bd75042cbcbc2a529d4
-Author: Paul D. Weber <x0bdev@gmail.com>
-Date:   Tue May 26 07:00:30 2020 +0000
+commit ef3ef8fcdfcd5e8a70b4a8feb2f91a82fee1f603
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 11 09:35:31 2019 -0500
 
-    cmd/link/internal/ld/lib.go: use lld on Android
+    net/http: use cancellation instead of a timeout in TestTransportProxyHTTPSConnectTimeout
     
-    Set linker explicitly to lld because the default does not work on NDK
-    versions r19c, r20, r20b and r21. NDK 18b (or earlier) based builds
-    will need to specify -fuse-ld=gold.
+    The use of a timeout in this test caused it to be flaky: if the
+    timeout occurred before the connection was attempted, then the Accept
+    call on the Listener could hang indefinitely, and its goroutine would
+    not exit until that Listener was closed. That caused the test to fail.
     
-    Fixes #38838
+    A longer timeout would make the test less flaky, but it would become
+    even slower and would still be sensitive to timing.
     
-    Change-Id: Ib75f71fb9896b843910f41bd12aa1e36868fa9b3
-    GitHub-Last-Rev: eeaa171604b59d8ad3d86944ebf21ee758e92f95
-    GitHub-Pull-Request: golang/go#39217
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235017
-    Reviewed-by: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Instead, replace the timeout with an explicit Context cancellation
+    after the CONNECT request has been read. That not only ensures that
+    the cancellation occurs at the appropriate point, but also makes the
+    test much faster: a test run with -count=1000 now executes in less
+    than 2s on my machine, whereas before it took upwards of 50s.
+    
+    Fixes #36082
+    Updates #28012
+    
+    Change-Id: I00c20d87365fd3d257774422f39d2acc8791febd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210857
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/net/http/transport_test.go | 41 ++++++++++++++++++++++++++---------------
+ 1 file changed, 26 insertions(+), 15 deletions(-)

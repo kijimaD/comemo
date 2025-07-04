@@ -1,127 +1,15 @@
-commit 57e038615d945b610f4b62c40ddeb1fd40130649
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 4 07:09:33 2017 -0800
+commit ebc0b625a07ccce6ade7a0082f4ab49c2817e965
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 10 16:38:22 2016 -0800
 
-    cmd/internal/src: cache prefixed filenames
+    doc/go1.8.txt: mention that struct conversions ignore tags
     
-    CL 37234 introduced string concatenation into some hot code.
-    This CL does that work earlier and caches the result.
+    Also:
+    - update performance improvements for CL 31275.
     
-    Updates #19386
-    
-    Performance impact vs master:
-    
-    name       old time/op      new time/op      delta
-    Template        223ms ± 5%       216ms ± 5%   -2.98%  (p=0.001 n=20+20)
-    Unicode        98.7ms ± 4%      99.0ms ± 4%     ~     (p=0.749 n=20+19)
-    GoTypes         631ms ± 4%       626ms ± 4%     ~     (p=0.253 n=20+20)
-    Compiler        2.91s ± 1%       2.87s ± 3%   -1.11%  (p=0.005 n=18+20)
-    SSA             4.48s ± 2%       4.36s ± 2%   -2.77%  (p=0.000 n=20+20)
-    Flate           130ms ± 2%       129ms ± 6%     ~     (p=0.428 n=19+20)
-    GoParser        160ms ± 4%       157ms ± 3%   -1.62%  (p=0.005 n=20+18)
-    Reflect         395ms ± 2%       394ms ± 4%     ~     (p=0.445 n=20+20)
-    Tar             120ms ± 5%       118ms ± 6%     ~     (p=0.101 n=19+20)
-    XML             224ms ± 3%       223ms ± 3%     ~     (p=0.544 n=19+19)
-    
-    name       old user-ns/op   new user-ns/op   delta
-    Template   291user-ms ± 5%  265user-ms ± 5%   -9.02%  (p=0.000 n=20+19)
-    Unicode    140user-ms ± 3%  139user-ms ± 8%     ~     (p=0.904 n=20+20)
-    GoTypes    844user-ms ± 3%  849user-ms ± 3%     ~     (p=0.251 n=20+18)
-    Compiler   4.06user-s ± 5%  3.98user-s ± 2%     ~     (p=0.056 n=20+20)
-    SSA        6.89user-s ± 5%  6.50user-s ± 3%   -5.61%  (p=0.000 n=20+20)
-    Flate      164user-ms ± 5%  163user-ms ± 4%     ~     (p=0.365 n=20+19)
-    GoParser   206user-ms ± 6%  204user-ms ± 4%     ~     (p=0.534 n=20+18)
-    Reflect    501user-ms ± 4%  505user-ms ± 5%     ~     (p=0.383 n=20+20)
-    Tar        151user-ms ± 3%  152user-ms ± 7%     ~     (p=0.798 n=17+20)
-    XML        283user-ms ± 7%  280user-ms ± 5%     ~     (p=0.301 n=20+20)
-    
-    name       old alloc/op     new alloc/op     delta
-    Template       42.5MB ± 0%      40.2MB ± 0%   -5.59%  (p=0.000 n=20+20)
-    Unicode        31.7MB ± 0%      31.0MB ± 0%   -2.19%  (p=0.000 n=20+18)
-    GoTypes         124MB ± 0%       117MB ± 0%   -5.90%  (p=0.000 n=20+20)
-    Compiler        533MB ± 0%       490MB ± 0%   -8.07%  (p=0.000 n=20+20)
-    SSA             989MB ± 0%       893MB ± 0%   -9.74%  (p=0.000 n=20+20)
-    Flate          27.8MB ± 0%      26.1MB ± 0%   -5.92%  (p=0.000 n=20+20)
-    GoParser       34.3MB ± 0%      32.1MB ± 0%   -6.43%  (p=0.000 n=19+20)
-    Reflect        84.6MB ± 0%      81.4MB ± 0%   -3.84%  (p=0.000 n=20+20)
-    Tar            28.8MB ± 0%      27.7MB ± 0%   -3.89%  (p=0.000 n=20+20)
-    XML            47.2MB ± 0%      44.2MB ± 0%   -6.45%  (p=0.000 n=20+19)
-    
-    name       old allocs/op    new allocs/op    delta
-    Template         420k ± 1%        381k ± 1%   -9.35%  (p=0.000 n=20+20)
-    Unicode          338k ± 1%        324k ± 1%   -4.29%  (p=0.000 n=20+19)
-    GoTypes         1.28M ± 0%       1.15M ± 0%  -10.30%  (p=0.000 n=20+20)
-    Compiler        5.06M ± 0%       4.41M ± 0%  -12.92%  (p=0.000 n=20+20)
-    SSA             9.14M ± 0%       7.91M ± 0%  -13.46%  (p=0.000 n=19+20)
-    Flate            267k ± 0%        241k ± 1%   -9.53%  (p=0.000 n=20+20)
-    GoParser         347k ± 1%        312k ± 0%  -10.15%  (p=0.000 n=19+20)
-    Reflect         1.07M ± 0%       1.00M ± 0%   -6.86%  (p=0.000 n=20+20)
-    Tar              274k ± 1%        256k ± 1%   -6.73%  (p=0.000 n=20+20)
-    XML              448k ± 0%        398k ± 0%  -11.17%  (p=0.000 n=20+18)
-    
-    
-    Performance impact when applied together with CL 37234
-    atop CL 37234's parent commit (i.e. as if it were
-    a part of CL 37234), to show that this commit
-    makes CL 37234 completely performance-neutral:
-    
-    name       old time/op      new time/op      delta
-    Template        222ms ±14%       222ms ±14%    ~     (p=1.000 n=14+15)
-    Unicode         104ms ±18%       106ms ±18%    ~     (p=0.650 n=13+14)
-    GoTypes         653ms ± 7%       638ms ± 5%    ~     (p=0.145 n=14+12)
-    Compiler        3.10s ± 1%       3.13s ±10%    ~     (p=1.000 n=2+2)
-    SSA             4.73s ±11%       4.68s ±11%    ~     (p=0.567 n=15+15)
-    Flate           136ms ± 4%       133ms ± 7%    ~     (p=0.231 n=12+14)
-    GoParser        163ms ±11%       169ms ±10%    ~     (p=0.352 n=14+14)
-    Reflect         415ms ±15%       423ms ±20%    ~     (p=0.715 n=15+14)
-    Tar             133ms ±17%       130ms ±23%    ~     (p=0.252 n=14+15)
-    XML             236ms ±16%       235ms ±14%    ~     (p=0.874 n=14+14)
-    
-    name       old user-ns/op   new user-ns/op   delta
-    Template   271user-ms ±10%  271user-ms ±10%    ~     (p=0.780 n=14+15)
-    Unicode    143user-ms ± 5%  146user-ms ±11%    ~     (p=0.432 n=12+14)
-    GoTypes    864user-ms ± 5%  866user-ms ± 9%    ~     (p=0.905 n=14+13)
-    Compiler   4.17user-s ± 1%  4.26user-s ± 7%    ~     (p=1.000 n=2+2)
-    SSA        6.79user-s ± 8%  6.79user-s ± 6%    ~     (p=0.902 n=15+15)
-    Flate      169user-ms ± 8%  164user-ms ± 5%  -3.13%  (p=0.014 n=14+14)
-    GoParser   212user-ms ± 7%  217user-ms ±22%    ~     (p=1.000 n=13+15)
-    Reflect    521user-ms ± 7%  533user-ms ±15%    ~     (p=0.511 n=14+14)
-    Tar        165user-ms ±17%  161user-ms ±15%    ~     (p=0.345 n=15+15)
-    XML        294user-ms ±11%  292user-ms ±10%    ~     (p=0.839 n=14+14)
-    
-    name       old alloc/op     new alloc/op     delta
-    Template       39.9MB ± 0%      39.9MB ± 0%    ~     (p=0.621 n=15+14)
-    Unicode        31.0MB ± 0%      31.0MB ± 0%    ~     (p=0.098 n=13+15)
-    GoTypes         117MB ± 0%       117MB ± 0%    ~     (p=0.775 n=15+15)
-    Compiler        488MB ± 0%       488MB ± 0%    ~     (p=0.333 n=2+2)
-    SSA             892MB ± 0%       892MB ± 0%  +0.03%  (p=0.000 n=15+15)
-    Flate          26.1MB ± 0%      26.1MB ± 0%    ~     (p=0.098 n=15+15)
-    GoParser       31.8MB ± 0%      31.8MB ± 0%    ~     (p=0.525 n=15+13)
-    Reflect        81.2MB ± 0%      81.2MB ± 0%  +0.06%  (p=0.001 n=12+14)
-    Tar            27.5MB ± 0%      27.5MB ± 0%    ~     (p=0.595 n=15+15)
-    XML            44.1MB ± 0%      44.1MB ± 0%    ~     (p=0.486 n=15+15)
-    
-    name       old allocs/op    new allocs/op    delta
-    Template         378k ± 1%        378k ± 0%    ~     (p=0.949 n=15+14)
-    Unicode          324k ± 0%        324k ± 1%    ~     (p=0.057 n=14+15)
-    GoTypes         1.15M ± 0%       1.15M ± 0%    ~     (p=0.461 n=15+15)
-    Compiler        4.39M ± 0%       4.39M ± 0%    ~     (p=0.333 n=2+2)
-    SSA             7.90M ± 0%       7.90M ± 0%  +0.06%  (p=0.008 n=15+15)
-    Flate            240k ± 1%        241k ± 0%    ~     (p=0.233 n=15+15)
-    GoParser         309k ± 1%        309k ± 0%    ~     (p=0.867 n=15+12)
-    Reflect         1.00M ± 0%       1.00M ± 0%    ~     (p=0.139 n=12+15)
-    Tar              254k ± 1%        253k ± 1%    ~     (p=0.345 n=15+15)
-    XML              398k ± 0%        397k ± 1%    ~     (p=0.267 n=15+15)
-    
-    
-    Change-Id: Ic999a0f456a371c99eebba0f9747263a13836e33
-    Reviewed-on: https://go-review.googlesource.com/37766
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2f2ec0a42b248643e76df8654e11bf0b01a5d030
+    Reviewed-on: https://go-review.googlesource.com/33114
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/obj/line.go      |  9 +++------
- src/cmd/internal/obj/line_test.go |  2 +-
- src/cmd/internal/src/pos.go       | 26 ++++++++++++++++++++++++--
- src/cmd/link/internal/ld/pcln.go  |  3 ++-
- 4 files changed, 30 insertions(+), 10 deletions(-)
+ doc/go1.8.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

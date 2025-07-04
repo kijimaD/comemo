@@ -1,18 +1,25 @@
-commit 0fb6f5f21b20759a0cdbc25df0c152600fd93b4d
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Jan 21 11:22:08 2013 -0500
+commit 9b568ef2b86ad383e5db9bc57723d4ce554a319e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Jan 20 20:14:24 2013 +1100
 
-    crypto/cipher: don't persist errors in StreamWriter.
+    cmd/5l: reduce the size of Prog and Sym
     
-    I messed this up from the beginning. The receiver isn't a pointer so
-    setting Err is useless. In order to maintain the API, just remove the
-    superfluous code.
+    Prog
+    * Remove the unused Prog* dlink
+    * note that align is also unused, but removing it does not help due to alignment issues.
     
-    Fixes #4657.
+    Saves 4 bytes, sizeof(Prog): 84 => 80.
     
-    R=golang-dev, rsc
+    Sym
+    * Align {u,}char fields on word boundaries
+    
+    Saves 4 bytes, sizeof(Sym): 136 => 132.
+    
+    Tested on linux/arm and freebsd/arm.
+    
+    R=minux.ma, remyoudompheng, rsc
     CC=golang-dev
-    https://golang.org/cl/7161043
+    https://golang.org/cl/7106050
 
- src/pkg/crypto/cipher/io.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/5l/l.h | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

@@ -1,18 +1,19 @@
-commit 7ae83c8f38bc79e999a8657da443d815036c7d72
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 5 11:45:22 2021 -0700
+commit 6f5e79f470e8956e1c01cb93802d52aee5c307b5
+Author: Austin Clements <austin@google.com>
+Date:   Sat Jan 23 16:58:34 2021 -0500
 
-    go/types: implement generic slice expressions
+    [dev.regabi] cmd/compile/internal: specify memory layout
     
-    This is a clean port of CL 354070 from types2 to go/types.
+    This CL expands internal-abi.md to cover Go's memory layout rules and
+    then uses this to specify the calling convention more precisely.
     
-    Change-Id: I44de1b8e6c0177e2a33e7f36a82465dc520c35aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354092
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ifeef9e49d9ccc8c7333dec81bdd47b511b028469
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286073
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/index.go                      | 7 +------
- src/go/types/testdata/check/typeparams.go2 | 8 ++++++--
- 2 files changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal-abi.md | 223 ++++++++++++++++++++++++++++------------
+ 1 file changed, 156 insertions(+), 67 deletions(-)

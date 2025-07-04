@@ -1,15 +1,19 @@
-commit 678f35b676de075375066ade2935296dfb8050ec
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 8 12:48:04 2017 -0800
+commit 8dc47e3b3a939a39e5cc3ea59f4848f50fd0cb7b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 16 20:35:02 2016 +0000
 
-    cmd/compile: fix SSA type for first runtime call arg/result
+    net: disable TestAcceptTimeout for now
     
-    CLs 37254 and 37869 contained similar fixes.
+    It's too flaky and doing more harm than good.
     
-    Change-Id: I0cbf01c691b54d82acef398489df6e9c89ebb83f
-    Reviewed-on: https://go-review.googlesource.com/38000
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Disable it until it can be made reliable.
+    
+    Updates #17948
+    Updates #17927
+    
+    Change-Id: Iaab7f09a4060da377fcd3ca2262527fef50c558d
+    Reviewed-on: https://go-review.googlesource.com/33330
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ src/net/timeout_test.go | 1 +
+ 1 file changed, 1 insertion(+)

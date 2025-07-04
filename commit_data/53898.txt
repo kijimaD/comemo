@@ -1,20 +1,17 @@
-commit 7889ae3b1201c924103ac2941948e9f0c6decb37
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Aug 5 15:52:52 2023 +0000
+commit c75d19732d59514a97d869b9cb9d006d1d403c05
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:48:51 2022 +0800
 
-    cmd/compile/internal/base: optimize the readImportCfg function to make it clearer
+    reflect: use strings.Builder
     
-    Change-Id: If8fc77d5b04b2979707032d91112d4f33ef5e3da
-    GitHub-Last-Rev: d82d769c04569af8a0c99a0ba9a78db641b97368
-    GitHub-Pull-Request: golang/go#55913
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435536
+    Change-Id: Ie100a2a6f272b84fa2da6ac7b64452985242d788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428275
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/base/flag.go | 18 +++++++-----------
- 1 file changed, 7 insertions(+), 11 deletions(-)
+ src/reflect/all_test.go | 4 ++--
+ src/reflect/set_test.go | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

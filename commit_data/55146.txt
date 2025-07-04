@@ -1,28 +1,20 @@
-commit 37aed23f51edc81c1c5166c65b7652eca609fad8
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Nov 22 16:36:23 2023 +0000
+commit d4639ecdfc9051a7adcfb8945d93a45da56576ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 5 14:51:31 2023 -0800
 
-    runtime: throw from the systemstack in wirep
+    go/types, types2: test that error format strings have matching parentheses/brackets
     
-    The exitsyscall path, since the introduction of the new execution
-    tracer, stores a just little bit more data in the exitsyscall stack
-    frame, causing a build failure from exceeding the nosplit limit with
-    '-N -l' set on all packages (like Delve does).
+    Also, for go/types, switch to using syntax.Inspect instead of
+    (deprecated) syntax.Crawl.
     
-    One of the paths through which this fails is "throw" from wirep, called
-    by a callee of exitsyscall. By switching to the systemstack on this
-    path, we can avoid hitting the nosplit limit, fixing the build. It's
-    also not totally unreasonable to switch to the systemstack for the
-    throws in this function, since the function has to be nosplit anyway. It
-    gives the throw path a bit more wiggle room to dump information than it
-    otherwise would have.
-    
-    Fixes #64113.
-    
-    Change-Id: I56e94e40614a202b8ac2fdc8b8b731493b74e5d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544535
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I8333079040e9676e0a61c23d09d41ca790526eeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460759
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/runtime/proc.go | 22 +++++++++++++++-------
- 1 file changed, 15 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/errorcalls_test.go | 56 +++++++++++++++++++---
+ src/go/types/errorcalls_test.go                    | 50 +++++++++++++++++--
+ 2 files changed, 97 insertions(+), 9 deletions(-)

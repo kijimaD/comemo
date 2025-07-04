@@ -1,13 +1,16 @@
-commit ce7c8fe0fd171bb09296c3dd4d8ca419e28ac5d0
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 28 20:12:17 2014 -0700
+commit 9d51cd0fee3cf8bf779ba23a34b7fb2ec311cfe1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 15 17:51:12 2014 +0200
 
-    doc/go1.4.html: GODEBUG and assembler changes
+    net/http: don't reuse a server connection after any Write errors
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    Fixes #8534
+    
+    LGTM=adg
+    R=adg
     CC=golang-codereviews
-    https://golang.org/cl/160660046
+    https://golang.org/cl/149340044
 
- doc/go1.4.html | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 56 insertions(+), 9 deletions(-)
+ src/net/http/serve_test.go | 97 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 32 +++++++++++++--
+ 2 files changed, 126 insertions(+), 3 deletions(-)

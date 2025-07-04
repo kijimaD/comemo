@@ -1,15 +1,28 @@
-commit ace7ce1025402a9a47f70e72ac60a5932b22199f
-Author: Michael Stapelberg <stapelberg@google.com>
-Date:   Thu Jul 20 08:16:36 2017 -0700
+commit a1cedf08428bdb91916bb5317c8413212308048c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 31 07:14:16 2017 -0400
 
-    sync: update Map documentation with usage rule of thumb
+    cmd/link: canonicalize the "package" of dupok text symbols
     
-    As per bcmills’s lightning talk at GopherCon 2017:
-    https://github.com/gophercon/2017-talks/tree/master/lightningtalks/BryanCMills-AnOverviewOfSyncMap
+    Dupok symbols may be defined in multiple packages. Its associated
+    package is chosen sort of arbitrarily (the first containing package
+    that the linker loads). Canonicalize its package to the package
+    with which it will be laid down in text, which is the first package
+    in dependency order that defines the symbol. So later passes (for
+    example, trampoline insertion pass) know that the dupok symbol
+    is laid down along with the package.
     
-    Change-Id: I12dd0daa608af175d110298780f32c6dc5e1e0a0
-    Reviewed-on: https://go-review.googlesource.com/50310
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #19764.
+    
+    Change-Id: I7cbc7474ff3016d5069c8b7be04af934abab8bc3
+    Reviewed-on: https://go-review.googlesource.com/39150
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/sync/map.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/link/internal/ld/lib.go    |  6 ++++++
+ test/fixedbugs/issue19764.dir/a.go | 15 +++++++++++++++
+ test/fixedbugs/issue19764.dir/b.go | 13 +++++++++++++
+ test/fixedbugs/issue19764.go       | 10 ++++++++++
+ 4 files changed, 44 insertions(+)

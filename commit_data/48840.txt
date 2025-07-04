@@ -1,24 +1,17 @@
-commit 115852077f45141b293727558e61c0804661d328
-Author: Bryan Mills <bcmills@google.com>
-Date:   Thu Apr 21 13:22:59 2022 +0000
+commit b73cc4b02b3801603b3ce0bcc57cf01d6aa9a4dd
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Jun 16 11:46:00 2021 -0500
 
-    Revert "cmd/go/internal/test: wrap os.Stdout always"
+    database/sql: do not rely on timeout for deadlock test
     
-    This reverts CL 400877.
+    Fixes #46783
     
-    Reason for revert: broke TestScript/test_output_wait and the
-    regression test for #18153 on certain builders.
-    
-    Fixes #52461.
-    
-    Change-Id: I98627ce5e22088b0784be502c459480c41ba353a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401494
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I8a8d1716279a041a7411c0c47a440a7997b39c80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328649
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Carlos Amedee <carlos@golang.org>
 
- src/cmd/go/internal/test/test.go                |  6 +----
- src/cmd/go/testdata/script/test_output_wait.txt | 35 -------------------------
- 2 files changed, 1 insertion(+), 40 deletions(-)
+ src/database/sql/sql_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,12 +1,18 @@
-commit d4ab73d1dfd60bfe1cf24c3682ba8110994b49dd
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Tue Jun 13 12:35:20 2017 -0700
+commit 88e47187c165e477a189049094e5e988b7651a6a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 15 22:43:40 2017 -0700
 
-    doc: add go1.9 release notes for database/sql changes
+    cmd/compile: relocate code from config.go to func.go
     
-    Change-Id: I9b0f17e123805ad9f526f5ea44b23cf4dbadcdcc
-    Reviewed-on: https://go-review.googlesource.com/45611
+    This is a follow-up to CL 38167.
+    Pure code movement.
+    
+    Change-Id: I13e58f7eac6718c77076d89e13fc721a5205ec57
+    Reviewed-on: https://go-review.googlesource.com/38322
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.9.html | 24 +++++++++++++++++++++---
- 1 file changed, 21 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/config.go | 84 ----------------------------------
+ src/cmd/compile/internal/ssa/func.go   | 82 +++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 84 deletions(-)

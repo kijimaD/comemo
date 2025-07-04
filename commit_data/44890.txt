@@ -1,39 +1,25 @@
-commit 4acefa07b1499b063e1ff63c9d4cab7b7f8d49a2
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Mar 24 09:36:04 2021 -0400
+commit 1f4521669416a2e14fb0b84481447f4a93f19878
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 12 01:57:27 2020 +0700
 
-    go/parser: switch to resolving objects as a post-processing pass
+    cmd/compile: attach OVARLIVE nodes to OCALLxxx
     
-    Coupling object resolution to parsing complicates the parsing code, and
-    is a barrier to improvement. It requires passing around context such as
-    'lhs' or 'keyOk', and even then sometimes requires guess-work, such as
-    whether to resolve the key in a composite literal.
+    So we can insert theses OVARLIVE nodes right after OpStaticCall in SSA.
     
-    In this CL we delay object resolution to a separate pass after the file
-    parse completes. This makes it easier to see logic of scoping, and
-    removes state from the parsing code. This can enable subsequent
-    improvements such as optionally skipping object resolution, aligning the
-    parser with cmd/compile/internal/syntax, and allowing alternative
-    parsers to reuse object resolution.
+    This helps fixing issue that unsafe-uintptr arguments are not kept alive
+    during return statement, or can be kept alive longer than expected.
     
-    The additional AST traversal appears to slow down parsing by around 4%.
-    That seems small enough not to worry about, especially since performance
-    sensitive users may eventually be able to disable object resolution
-    entirely, saving around 18% off the previous baseline. I'll also mail a
-    speculative CL showing how we can significantly mitigate the cost of
-    object resolution by transposing scopes.
+    Fixes #24491
     
-    For #45104
-    
-    Change-Id: I98d9143fd77ae29e84ec7c3ae2fdb1139510da37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304455
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic04a5d1bbb5c90dcfae65bd95cdd1da393a66800
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254397
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/parser/interface.go |   8 -
- src/go/parser/parser.go    | 477 ++++++++----------------------------------
- src/go/parser/resolver.go  | 505 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 595 insertions(+), 395 deletions(-)
+ src/cmd/compile/internal/gc/order.go             | 14 +++-----
+ src/cmd/compile/internal/gc/ssa.go               |  2 ++
+ src/cmd/compile/internal/gc/syntax.go            |  4 +--
+ test/fixedbugs/{issue24491.go => issue24491a.go} | 11 +++++-
+ test/fixedbugs/issue24491b.go                    | 46 ++++++++++++++++++++++++
+ 5 files changed, 63 insertions(+), 14 deletions(-)

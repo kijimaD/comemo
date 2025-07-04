@@ -1,21 +1,18 @@
-commit 8eef74b493e48f3dfac6619b01ac7efe26c134b5
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Fri Mar 1 08:25:35 2019 +0100
+commit 2bb91e093cb57c5ba5ca71f0d0a63913a07f21f4
+Author: Lehner Florian <dev@der-flo.net>
+Date:   Tue Oct 2 16:43:56 2018 +0000
 
-    misc/android,misc/ios: evaluate current working directory symlinks
+    fmt: add example Sscanf
     
-    Previous CLs added symlink evaulation to GOROOT and GOPATH.
-    Unfortunately that only fixed tests that ran outside GOROOT.
+    Updates golang/go#27554.
     
-    To fix the standard library tests, evaluate symlinks in the current
-    working directory as well.
-    
-    Change-Id: Ia406a968235ae4321a1002567520105998582d15
-    Reviewed-on: https://go-review.googlesource.com/c/164699
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Change-Id: I2bf3d57ebeeb5dd50beffbc643a4ad10287b2c1e
+    GitHub-Last-Rev: 4ffae55b4b2ca9d9b2a5b2b6dcef14ce43d83544
+    GitHub-Pull-Request: golang/go#27954
+    Reviewed-on: https://go-review.googlesource.com/c/138837
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/android/go_android_exec.go | 4 ++++
- misc/ios/go_darwin_arm_exec.go  | 4 ++++
- 2 files changed, 8 insertions(+)
+ src/fmt/example_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,25 +1,23 @@
-commit efe0a86551c30ceaf71361645023cbea913249d3
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Mon Nov 18 16:15:36 2024 +0800
+commit a30967f4ce319754e9c52967d0d72392e672c2c2
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 5 12:28:42 2023 +0200
 
-    cmd/compile/internal/ssa: make _gen an actual submodule and skip it in TestStdlib
+    runtime: unconditionally load AddVectoredContinueHandler on Windows
     
-    After tools CL 612038, the package astutil stops being vendored, but
-    _gen/rulegen.go needs to import this package.
-    In particular, after update golang.org/x/tools, the package astutil
-    is deleted from the vendor directory, and got error when run TestStdlib
-    in longtest. So in this CL, we make _gen an actual submodule and
-    skip it in TestStdlib.
+    AddVectoredContinueHandler is available since Windows XP [1], there is
+    no need to check if it is available.
     
-    Change-Id: I76f77b66427f6490b4746698711a6e307ad2ba79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629015
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    [1]: https://learn.microsoft.com/en-us/windows/win32/api/errhandlingapi/nf-errhandlingapi-addvectoredcontinuehandler
+    
+    Change-Id: I1ddc3d58b3294d9876620cd46159d9692694b475
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532817
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/_gen/go.mod       | 5 +++++
- src/cmd/compile/internal/ssa/_gen/go.sum       | 2 ++
- src/cmd/compile/internal/types2/stdlib_test.go | 3 ++-
- src/go/types/stdlib_test.go                    | 3 ++-
- 4 files changed, 11 insertions(+), 2 deletions(-)
+ src/runtime/os_windows.go     | 8 ++------
+ src/runtime/signal_windows.go | 5 ++---
+ 2 files changed, 4 insertions(+), 9 deletions(-)

@@ -1,24 +1,14 @@
-commit 29aaf679daa52e877c6596422a06916c343dae41
-Author: Burcu Dogan <jbd@google.com>
-Date:   Mon Oct 12 01:02:51 2015 -0700
+commit 93c354b6cca23ba8ac5866c874493575e3e57510
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 30 17:15:16 2015 -0700
 
-    cmd/go: always log dynamic import errors
+    [dev.ssa] cmd/compile: handle non-in-place NEG and NOT
     
-    There is no easy way to understand what user intent was and whether
-    they wanted to use a dynamic import or not.
+    This fixes the crypto/subtle tests.
     
-    If we skip logging such errors, it breaks common use cases such as
-    https://golang.org/issue/12810.
-    
-    It's a better approach to expose the underlying mechanism and
-    be more verbose with the error messages.
-    
-    Fixes #12810.
-    
-    Change-Id: I7e922c9e848382690d9d9b006d7046e6cf93223b
-    Reviewed-on: https://go-review.googlesource.com/15756
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ie6e721eec3481f67f13de1bfbd7988e227793148
+    Reviewed-on: https://go-review.googlesource.com/13000
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/vcs.go | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

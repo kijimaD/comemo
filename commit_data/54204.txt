@@ -1,33 +1,17 @@
-commit 4c5dac72029bb3dd4559a2fafe566bed71f22c42
-Author: korzhao <korzhao95@gmail.com>
-Date:   Wed Aug 2 17:39:09 2023 +0800
+commit 9d6dc32edd03f24a3ecacfcf4cdf54f561834c33
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Sep 19 14:55:09 2022 -0400
 
-    encoding/json: optimize Marshal for maps
+    runtime/coverage: improve unit tests
     
-    Optimize marshaling of maps by using slices.SortFunc.
+    Add a testpoint to cover support routines used to help
+    implement "go test -cover".
     
-    This drops an unnecessary field from reflectWithString,
-    which also reduces the cost of each swap operation.
-    
-    benchmark                  old ns/op     new ns/op     delta
-    BenchmarkMarshalMap-10     228           139           -39.24%
-    
-    benchmark                  old allocs     new allocs     delta
-    BenchmarkMarshalMap-10     11             8              -27.27%
-    
-    benchmark                  old bytes     new bytes     delta
-    BenchmarkMarshalMap-10     432           232           -46.30%
-    
-    Change-Id: Ic2ba7a1590863c7536305c6f6536372b26ec9b0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515176
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ic28bf884a4e0d2c0a6d8fd04fc29c0c949227f21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432315
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/encoding/json/bench_test.go | 16 ++++++++++++++++
- src/encoding/json/encode.go     | 42 ++++++++++++++++++++---------------------
- 2 files changed, 37 insertions(+), 21 deletions(-)
+ src/runtime/coverage/testsupport.go |  9 +++++-
+ src/runtime/coverage/ts_test.go     | 58 +++++++++++++++++++++++++++++++++++++
+ src/testing/newcover.go             |  7 +++++
+ 3 files changed, 73 insertions(+), 1 deletion(-)

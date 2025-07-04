@@ -1,21 +1,45 @@
-commit c925e1546ee72e40ca5351f3773379e99a6b8cdf
-Author: eric fang <eric.fang@arm.com>
-Date:   Fri May 7 05:48:18 2021 +0000
+commit 05e6d28849293266028c0bc9e9b0f8d0da38a2e2
+Author: Austin Clements <austin@google.com>
+Date:   Sun Nov 1 17:48:42 2020 -0500
 
-    cmd/internal/obj/arm64: disable AL and NV for some condition operation instructions
+    runtime: default to MADV_DONTNEED on Linux
     
-    According to the armv8-a reference manual, conditions AL and NV are not allowed
-    for instructions CINC, CINV, CNEG, CSET and CSETM. This CL adds this check and
-    the corresponding test cases.
+    In Go 1.12, we changed the runtime to use MADV_FREE when available on
+    Linux (falling back to MADV_DONTNEED) in CL 135395 to address issue
+     #23687. While MADV_FREE is somewhat faster than MADV_DONTNEED, it
+    doesn't affect many of the statistics that MADV_DONTNEED does until
+    the memory is actually reclaimed under OS memory pressure. This
+    generally leads to poor user experience, like confusing stats in top
+    and other monitoring tools; and bad integration with management
+    systems that respond to memory usage.
     
-    Change-Id: Icb496b7b13a353f41491f2de4d939a5cd88abb04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317912
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: eric fang <eric.fang@arm.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    We've seen numerous issues about this user experience, including
+     #41818, #39295, #37585, #33376, and #30904, many questions on Go
+    mailing lists, and requests for mechanisms to change this behavior at
+    run-time, such as #40870. There are also issues that may be a result
+    of this, but root-causing it can be difficult, such as #41444 and
+     #39174. And there's some evidence it may even be incompatible with
+    Android's process management in #37569.
+    
+    This CL changes the default to prefer MADV_DONTNEED over MADV_FREE, to
+    favor user-friendliness and minimal surprise over performance. I think
+    it's become clear that Linux's implementation of MADV_FREE ultimately
+    doesn't meet our needs. We've also made many improvements to the
+    scavenger since Go 1.12. In particular, it is now far more prompt and
+    it is self-paced, so it will simply trickle memory back to the system
+    a little more slowly with this change. This can still be overridden by
+    setting GODEBUG=madvdontneed=0.
+    
+    Fixes #42330 (meta-issue).
+    
+    Fixes #41818, #39295, #37585, #33376, #30904 (many of which were
+    already closed as "working as intended").
+    
+    Change-Id: Ib6aa7f2dc8419b32516cc5a5fc402faf576c92e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267100
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64error.s | 10 ++++++++++
- src/cmd/internal/obj/arm64/asm7.go             | 24 +++++++++++-------------
- 2 files changed, 21 insertions(+), 13 deletions(-)
+ src/runtime/extern.go   |  8 ++++----
+ src/runtime/runtime1.go | 11 +++++++++++
+ 2 files changed, 15 insertions(+), 4 deletions(-)

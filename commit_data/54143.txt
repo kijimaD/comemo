@@ -1,30 +1,18 @@
-commit c140105e1ce389764444a56d3824edf9d53c8188
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Mar 12 02:09:06 2023 +1100
+commit 17078f5860699e0d1e1f6f3ca328f92621ac49d0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 27 16:13:40 2022 +0200
 
-    runtime: add support for openbsd/ppc64
+    cmd/api: skip tests on platforms that cannot exec
     
-    Add runtime support for the openbsd/ppc64 port.
+    These tests execute commands using exec.Command.
     
-    Updates #56001
-    
-    Change-Id: I3cf010b34f96ce269858b02f16481fdad2cd5b77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475618
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I2708d6d24762fe2b2a902b1b221cc67392bf5c41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435235
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Eric Grosse <grosse@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/runtime/asm_ppc64x.s            |  39 +++
- src/runtime/crash_unix_test.go      |   2 +-
- src/runtime/defs_openbsd_ppc64.go   | 183 ++++++++++
- src/runtime/rt0_openbsd_ppc64.s     |  16 +
- src/runtime/signal_openbsd_ppc64.go |  83 +++++
- src/runtime/signal_ppc64x.go        |   2 +-
- src/runtime/stubs_ppc64x.go         |   5 +
- src/runtime/sys_openbsd_ppc64.s     | 655 ++++++++++++++++++++++++++++++++++++
- src/runtime/tls_ppc64x.s            |   2 +
- 9 files changed, 985 insertions(+), 2 deletions(-)
+ src/cmd/api/goapi_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,30 +1,30 @@
-commit 9296d4efe72de89b40425e7426545d6608f2e2d0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 8 01:07:10 2016 +0000
+commit fa9b57bb1d84bf81b49346341ad14297d0195187
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 29 11:46:53 2016 -0400
 
-    net/http: don't retry Transport requests if they have a body
+    runtime: make next_gc ^0 when GC is disabled
     
-    This rolls back https://golang.org/cl/27117 partly, softening it so it
-    only retries POST/PUT/DELETE etc requests where there's no Body (nil
-    or NoBody). This is a little useless, since most idempotent requests
-    have a body (except maybe DELETE), but it's late in the Go 1.8 release
-    cycle and I want to do the proper fix.
+    When GC is disabled, we set gcpercent to -1. However, we still use
+    gcpercent to compute several values, such as next_gc and gc_trigger.
+    These calculations are meaningless when gcpercent is -1 and result in
+    meaningless values. This is okay in a sense because we also never use
+    these values if gcpercent is -1, but they're confusing when exposed to
+    the user, for example via MemStats or the execution trace. It's
+    particularly unfortunate in the execution trace because it attempts to
+    plot the underflowed value of next_gc, which scales all useful
+    information in the heap row into oblivion.
     
-    The proper fix will look like what we did for http2 and only retrying
-    the request if Request.GetBody is defined, and then creating a new request
-    for the next attempt. See https://golang.org/cl/33971 for the http2 fix.
+    Fix this by making next_gc ^0 when gcpercent < 0. This has the
+    advantage of being true in a way: next_gc is effectively infinite when
+    gcpercent < 0. We can also detect this special value when updating the
+    execution trace and report next_gc as 0 so it doesn't blow up the
+    display of the heap line.
     
-    Updates #15723
-    Fixes #18239
-    Updates #18241
-    
-    Change-Id: I6ebaa1fd9b19b5ccb23c8d9e7b3b236e71cf57f3
-    Reviewed-on: https://go-review.googlesource.com/34134
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Change-Id: I4f366e4451f8892a4908da7b2b6086bdc67ca9a9
+    Reviewed-on: https://go-review.googlesource.com/30016
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go1.8.html              |  3 +-
- src/net/http/client_test.go | 74 +++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/transport.go   | 14 ++++-----
- 3 files changed, 83 insertions(+), 8 deletions(-)
+ src/runtime/mgc.go    | 9 +++++++++
+ src/runtime/mstats.go | 2 +-
+ src/runtime/trace.go  | 7 ++++++-
+ 3 files changed, 16 insertions(+), 2 deletions(-)

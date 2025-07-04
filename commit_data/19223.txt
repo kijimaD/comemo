@@ -1,17 +1,18 @@
-commit 56005722493b044109103d0ebb867561f1c71e3c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 22 17:13:38 2014 -0700
+commit 2653386ce8dfd497fb9b8f65bc75ef9adf8e7b58
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 21 15:54:51 2014 -0700
 
-    os/exec: deflake a test on Linux
+    math/big: fix Int.Exp
     
-    Work around buggy(?) Linux /proc filesystem.
+    Fixes #7814.
     
-    Fixes #7808
-    
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=adg, golang-codereviews
-    https://golang.org/cl/90400044
+    LGTM=agl, adonovan
+    R=agl, adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/90080043
 
- src/pkg/os/exec/exec_test.go | 19 +++++++++++++++----
- 1 file changed, 15 insertions(+), 4 deletions(-)
+ src/pkg/math/big/int.go      | 13 +++++++------
+ src/pkg/math/big/int_test.go | 13 +++++++++++++
+ src/pkg/math/big/nat.go      | 11 ++++++++---
+ src/pkg/math/big/nat_test.go |  8 +++++++-
+ 4 files changed, 35 insertions(+), 10 deletions(-)

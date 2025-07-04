@@ -1,20 +1,32 @@
-commit 076166ab4e13506c90448b5d6e0f34c3939ee76f
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Apr 12 01:52:37 2024 +0800
+commit 969ab34e4629bdda410c8468d4f45a08e4fec9f8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 18 15:10:46 2023 -0700
 
-    net/http: add ParseCookie, ParseSetCookie
+    go/types, types2: don't panic for invalid assignments of comma-ok expressions
     
-    Fixes #66008
+    The relevant code was broken with CL 478218. Before that CL,
+    Checker.assignVar used to return the assigned type, or nil,
+    in case of failure. Checker.recordCommaOkTypes used to take
+    two types (not two operands), and if one of those types was
+    nil, it would simply not record. CL 478218, lost that (nil)
+    signal.
     
-    Change-Id: I64acb7da47a03bdef955f394682004906245a18b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578275
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This change consistently reports an assignment check failure
+    by setting x.mode to invalid for initVar and assignVar and
+    then tests if x.mode != invalid before recording a comma-ok
+    expression.
+    
+    Fixes #59371.
+    
+    Change-Id: I193815ff3e4b43e3e510fe25bd0e72e0a6a816c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486135
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/66008.txt                           |   2 +
- doc/next/6-stdlib/99-minor/net/http/66008.md |   7 +
- src/net/http/cookie.go                       | 218 ++++++++++++++++-----------
- src/net/http/cookie_test.go                  | 203 +++++++++++++++++++++++++
- 4 files changed, 342 insertions(+), 88 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go     | 21 +++++++++++++++------
+ src/go/types/assignments.go                        | 22 ++++++++++++++++------
+ .../types/testdata/fixedbugs/issue59371.go         | 20 ++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 12 deletions(-)

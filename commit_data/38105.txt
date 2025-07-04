@@ -1,17 +1,19 @@
-commit 9cb2471334e75c5e8f459e820feb75da315563a7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Feb 15 14:59:36 2019 +0100
+commit 119fafcaa5ace647961b59d304b275d93a3e6e97
+Author: Weerasak Chongnguluam <singpor@gmail.com>
+Date:   Fri Jul 21 01:53:55 2017 +0700
 
-    debug/pe: prevent slice out of bounds access in (*File).ImportedSymbols
+    context: avoid duplicate removeChild
     
-    Fixes #30253
+    When deadline has already passed,
+    current context is canceled before return cancel function.
+    So is unnecessary to call cancel with remove from parent again
+    in return cancel function.
     
-    Change-Id: I0c3d67649ea379b67f3575c1219fe05a04f056ae
-    Reviewed-on: https://go-review.googlesource.com/c/162859
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I37c687c57a29d9f139c7fb648ce7de69093ed623
+    Reviewed-on: https://go-review.googlesource.com/c/50410
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/pe/file.go      |  2 +-
- src/debug/pe/file_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 1 deletion(-)
+ src/context/context.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

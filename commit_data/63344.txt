@@ -1,0 +1,22 @@
+commit e81c624656e415626c7ac3a97768f5c2717979a4
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jun 27 11:16:54 2025 +0200
+
+    os: use minimal file permissions when opening parent directory in RemoveAll
+    
+    On Windows, the process might not have read permission on the parent
+    directory, but still can delete files in it. This change allows
+    RemoveAll to open the parent directory with minimal permissions, which
+    is sufficient for deleting child files.
+    
+    Fixes #74134.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-arm64
+    Change-Id: I5d5c5977caaebf6e0f93fb2313b0ceb346f70e05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684515
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/os/removeall_at.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

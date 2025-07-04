@@ -1,14 +1,25 @@
-commit 04a30025dbc8ff7757a763562d7d4a2b5ff68583
-Author: Cherry Zhang <lunaria21@gmail.com>
-Date:   Wed Apr 27 22:18:58 2016 -0400
+commit 89cda2db007c8389ba39d292c6372ff0c6a7622f
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Jan 29 16:55:35 2016 +0100
 
-    test: enable fixedbugs/issue10607.go test on linux/mips64x
+    testing: hoisted chunks of code to prepare for Run method
     
-    external linking is now supported.
+    testing.go:
+    - run method will evolve into the Run method.
+    - added level field in common
     
-    Change-Id: I13e90c39dad86e60781adecdbe8e6bc9e522f740
-    Reviewed-on: https://go-review.googlesource.com/19811
-    Reviewed-by: Minux Ma <minux@golang.org>
+    benchmark.go:
+    - benchContext will be central to distinguish handling of benchmarks
+      between normal Run methods and ones called from within Benchmark
+      function.
+    - expandCPU will evolve into the processing hook for Run methods
+      called within normal processing.
+    - runBench will evolve into the Run method.
+    
+    Change-Id: I1816f9985d5ba94deb0ad062302ea9aee0bb5338
+    Reviewed-on: https://go-review.googlesource.com/18894
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- test/fixedbugs/issue10607.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/testing/benchmark.go | 99 +++++++++++++++++++++++++++++++-----------------
+ src/testing/testing.go   | 59 +++++++++++++++++------------
+ 2 files changed, 100 insertions(+), 58 deletions(-)

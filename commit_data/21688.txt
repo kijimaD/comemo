@@ -1,24 +1,17 @@
-commit 828129fdbc2d95ab8d8dfa637e0f7251924c8b8b
-Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
-Date:   Tue Dec 23 20:29:13 2014 +0100
+commit 690db9c89fef427f44a921250421dd2d5fa1a03f
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Dec 12 18:58:09 2014 +0100
 
-    net/mail: move RFC 2047 code to internal/mime
+    net/http/pprof: add tracing support
     
-    The code concerning quoted-printable encoding (RFC 2045) and its
-    variant for MIME headers (RFC 2047) is currently spread in
-    mime/multipart and net/mail. It is also not exported.
+    net/http/pprof part of tracing functionality:
+    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
+    Full change:
+    https://codereview.appspot.com/146920043
     
-    This commit is the second step to fix that issue. It moves the
-    RFC 2047 encoding and decoding functions from net/mail to
-    internal/mime. The exported API is unchanged.
-    
-    Updates #4943
-    
-    Change-Id: I5f58aa58e74bbe4ec91b2e9b8c81921338053b00
-    Reviewed-on: https://go-review.googlesource.com/2101
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9092028fcbd5e8f97a56f2c155889ccdfb494afb
+    Reviewed-on: https://go-review.googlesource.com/1453
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/build/deps_test.go   |   2 +-
- src/internal/mime/header.go | 122 ++++++++++++++++++++++++++++++++++++++++++++
- src/net/mail/message.go     | 103 ++-----------------------------------
- 3 files changed, 126 insertions(+), 101 deletions(-)
+ src/net/http/pprof/pprof.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

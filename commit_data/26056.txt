@@ -1,20 +1,29 @@
-commit c0740fed377109526e61955af612efba8ec3f3dc
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 3 22:06:57 2016 -0800
+commit 1e1ea66991ce840d6f52cb8385e23624f16e9f01
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 14 15:19:07 2015 -0500
 
-    cmd/compile: more ssa config flags
+    runtime: print gctrace before releasing worldsema
     
-    To turn ssa compilation on or off altogether, use
-    -ssa=1 or -ssa=0.  Default is on.
+    Currently we drop worldsema and then print the gctrace. We did this so
+    that if stderr is a pipe or a blocked terminal, blocking on printing
+    the gctrace would not block another GC from starting. However, this is
+    a bit of a fool's errand because a blocked runtime print will block
+    the whole M/P, so after GOMAXPROCS GC cycles, the whole system will
+    freeze. Furthermore, now this is much less of an issue because
+    allocation will block indefinitely if it can't start a GC (whereas it
+    used to be that allocation could run away). Finally, this allows
+    another GC cycle to start while the previous cycle is printing the
+    gctrace, which leads to races on reading various statistics to print
+    them and the next GC cycle overwriting those statistics.
     
-    To turn on or off consistency checks, do
-    -d=ssa/check/on or -d=ssa/check/off.  Default is on for now.
+    Fix this by moving the release of worldsema after the gctrace print.
     
-    Change-Id: I277e0311f538981c8b9c62e7b7382a0c8755ce4c
-    Reviewed-on: https://go-review.googlesource.com/20217
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I3d044ea0f77d80f3b4050af6b771e7912258662a
+    Reviewed-on: https://go-review.googlesource.com/17812
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/lex.go      |  1 +
- src/cmd/compile/internal/gc/ssa.go      |  5 +++++
- src/cmd/compile/internal/ssa/compile.go | 19 +++++++++++++++++--
- 3 files changed, 23 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

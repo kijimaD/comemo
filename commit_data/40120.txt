@@ -1,18 +1,16 @@
-commit 3ad350820df8217b4d05c56923e533a196bace27
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 3 11:48:34 2019 -0700
+commit 5ccaf2c6ade286ca30c345ae1cfa0560dc02fedd
+Author: Kai Dong <dokia2357@gmail.com>
+Date:   Fri Apr 19 03:23:23 2019 +0000
 
-    cmd/compile: change size diagnostic to use benchmark format
+    sync: update comment
     
-    Makes it easier to run
+    Comment update.
     
-        go build -a -gcflags=-d=export std |& grep ^BenchmarkExportSize
-    
-    and get useful output for feeding into benchstat.
-    
-    Change-Id: I2b52e8f5ff33b7ccb6c25b18e464513344bd9ad9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198698
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: If0d054216f9953f42df04647b85c38008b85b026
+    GitHub-Last-Rev: 133b4670be6dd1c94d16361c3a7a4bbdf8a355ab
+    GitHub-Pull-Request: golang/go#31539
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172700
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/export.go | 2 +-
+ src/sync/pool.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

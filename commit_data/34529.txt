@@ -1,17 +1,16 @@
-commit 491f409a32b19e7c2a70b25d7a7cfb1e187f28d0
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jan 9 14:40:54 2018 -0500
+commit 5536180ae72e8745c8a831e03f56a86360d76c52
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Tue Oct 31 09:47:27 2017 +0000
 
-    cmd/compile: minor comment improvements/corrections
+    net/http: display connect methods table properly in `go doc`
     
-    Change-Id: Ie0934f1528d58d4971cdef726d3e2d23cf3935d3
-    Reviewed-on: https://go-review.googlesource.com/87475
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+    When run `go doc -u http.connectMethod`, the whole table is treated as
+    a single long line. This commit inserts `\t` at the begining of each line,
+    so the table can be displayed properly in `go doc`.
+    
+    Change-Id: I6408efd31f84c113e81167d62e1791643000d629
+    Reviewed-on: https://go-review.googlesource.com/74651
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/func.go  |  2 +-
- src/cmd/compile/internal/ssa/prove.go | 11 +++++++++--
- 2 files changed, 10 insertions(+), 3 deletions(-)
+ src/net/http/transport.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

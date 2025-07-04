@@ -1,18 +1,21 @@
-commit 64017d10e1386c037aab2b7599e3256cab2a9188
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Wed Mar 13 01:52:03 2024 +0000
+commit fc99c4b3f33226a429743a263934a237be3f71c8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 25 11:30:26 2023 +0000
 
-    time: replace time.Now().Sub call with time.Since in test
+    cmd/compile: start using reflect.Value.IsZero
     
-    Change-Id: I56ca2d11637d60c6b0656fdc1d900a2384aba141
-    GitHub-Last-Rev: 686e02db77797fd81aafcde8ae40c85cee8dd817
-    GitHub-Pull-Request: golang/go#66264
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570916
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    We now require Go 1.17.13 to bootstrap via make.bash,
+    and since reflect.Value.IsZero was added in Go 1.13,
+    we can now use it directly to save a bit of copy pasting.
+    
+    Change-Id: I77eef782cbbf86c72a4505c8b4866c9658914a24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479395
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
 
- src/time/sleep_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/dump.go | 18 +----------------
+ src/cmd/compile/internal/ir/fmt.go  | 40 +------------------------------------
+ 2 files changed, 2 insertions(+), 56 deletions(-)

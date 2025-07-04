@@ -1,56 +1,17 @@
-commit 6cadfe2fee9b063651f163aaa4734979944e7a9f
-Author: Ignacio Hagopian <jsign.uy@gmail.com>
-Date:   Tue Mar 30 17:18:06 2021 +0000
+commit 07d19b2597af253ed78ef43ba6e7a49db9a8f4ba
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 10 13:21:41 2020 +0700
 
-    reflect: cache IsVariadic calls in Call
+    all: check GOROOT_BOOTSTRAP executable before bootsrappping
     
-    These calls are cacheable, so do that to avoid doing extra work.
+    Otherwise we’d still be writing that we're building cmd/dist
+    even if GOROOT_BOOTSTRAP we’re wrongly set.
     
-    This opportunity was discovered while taking a look at a CPU profile
-    while investigating #7818.
-    
-    I added a BenchmarkCallMethod, which is similar to BechmarkCall but
-    for a method receiver.
-    
-    Benchmark results, including the new BenchmarkCallMethod:
-    
-            name                       old time/op    new time/op    delta
-            Call-16                      22.0ns ±19%    20.2ns ±17%  -8.08%  (p=0.000 n=40+40)
-            CallMethod-16                 100ns ± 3%      91ns ± 2%  -9.13%  (p=0.000 n=40+39)
-            CallArgCopy/size=128-16      15.7ns ± 1%    14.3ns ± 4%  -8.98%  (p=0.000 n=38+37)
-            CallArgCopy/size=256-16      15.9ns ± 3%    15.0ns ± 5%  -6.12%  (p=0.000 n=39+39)
-            CallArgCopy/size=1024-16     18.8ns ± 6%    17.1ns ± 6%  -9.03%  (p=0.000 n=38+38)
-            CallArgCopy/size=4096-16     26.6ns ± 3%    25.2ns ± 4%  -5.19%  (p=0.000 n=39+40)
-            CallArgCopy/size=65536-16     379ns ± 3%     371ns ± 5%  -2.11%  (p=0.000 n=39+40)
-    
-            name                       old alloc/op   new alloc/op   delta
-            Call-16                       0.00B          0.00B         ~     (all equal)
-            CallMethod-16                 0.00B          0.00B         ~     (all equal)
-    
-            name                       old allocs/op  new allocs/op  delta
-            Call-16                        0.00           0.00         ~     (all equal)
-            CallMethod-16                  0.00           0.00         ~     (all equal)
-    
-            name                       old speed      new speed      delta
-            CallArgCopy/size=128-16    8.13GB/s ± 1%  8.92GB/s ± 4%  +9.77%  (p=0.000 n=38+38)
-            CallArgCopy/size=256-16    16.1GB/s ± 3%  17.1GB/s ± 5%  +6.56%  (p=0.000 n=39+39)
-            CallArgCopy/size=1024-16   54.6GB/s ± 6%  60.1GB/s ± 5%  +9.93%  (p=0.000 n=38+38)
-            CallArgCopy/size=4096-16    154GB/s ± 5%   163GB/s ± 4%  +5.63%  (p=0.000 n=40+40)
-            CallArgCopy/size=65536-16   173GB/s ± 3%   177GB/s ± 5%  +2.18%  (p=0.000 n=39+40)
-    
-    Updates #7818.
-    
-    Change-Id: I94f88811ea9faf3dc2543984a13b360b5db66a4b
-    GitHub-Last-Rev: 9bbaa1854aa32cade905eddb05737e6224c372a1
-    GitHub-Pull-Request: golang/go#43475
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/281252
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I940e18c3cebae5664f85babc9919e9eb215d5093
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253877
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/reflect/all_test.go | 16 ++++++++++++++++
- src/reflect/value.go    |  9 +++++----
- 2 files changed, 21 insertions(+), 4 deletions(-)
+ src/make.bash | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

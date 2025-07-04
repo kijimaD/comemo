@@ -1,20 +1,28 @@
-commit 17bf224a4df306ac38f7ba62639f74771234f051
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Nov 17 13:03:16 2024 +0100
+commit dcd018b5c54cd23b36ef732473f0d99fbb57f6fc
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Sep 19 17:01:28 2023 -0500
 
-    crypto/internal/nistec: don't use go:embed
+    cmd/internal/obj/ppc64: generate MOVD mask constants in register
     
-    For #69536
+    Add a new form of RLDC which maps directly to the ISA definition
+    of rldc: RLDC Rs, $sh, $mb, Ra. This is used to generate mask
+    constants described below.
     
-    Change-Id: I8ff3fdd70f540559d83abe006985bcee11ffde91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628775
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Using MOVD $-1, Rx; RLDC Rx, $sh, $mb, Rx, any mask constant
+    can be generated. A mask is a contiguous series of 1 bits, which
+    may wrap.
+    
+    Change-Id: Ifcaae1114080ad58b5fdaa3e5fc9019e2051f282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531120
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/nistec/p256.go        |  15 +++++----------
- src/crypto/internal/nistec/p256_asm.go    |  15 +++++----------
- src/crypto/internal/nistec/p256_table.bin | Bin 88064 -> 0 bytes
- src/crypto/internal/nistec/p256_table.go  |  10 ++++++++++
- 4 files changed, 20 insertions(+), 20 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  8 ++++++
+ src/cmd/internal/obj/ppc64/asm9.go        |  9 ++++++
+ src/cmd/internal/obj/ppc64/obj9.go        | 47 +++++++++++++++++++++++++++++--
+ test/codegen/constants.go                 | 20 +++++++++----
+ 4 files changed, 76 insertions(+), 8 deletions(-)

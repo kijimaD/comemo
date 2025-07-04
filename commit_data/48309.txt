@@ -1,37 +1,24 @@
-commit 28fab5ef21d8aef72634f9c251fbeb4039dababa
-Author: Robert Findley <rfindley@google.com>
-Date:   Thu Feb 24 14:18:24 2022 -0500
+commit f39997b2bebd54416bfb437fa1484fd8a5f43abb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 6 12:24:32 2021 -0400
 
-    go/types, types2: disable inference for type instances
+    cmd/link: split large text sections on Darwin/ARM64 when external linking
     
-    Inference for type instances has dependencies on type-checking order
-    that can lead to subtle bugs. As explained in #51527, disable it for
-    1.18.
+    The Darwin linker does not like text sections that are larger
+    than the jump limit (even if we already inserted trampolines).
+    Split the text section to multiple smaller sections.
     
-    Fixes #51527
+    Now external linking very large binaries works on Darwin/ARM64.
     
-    Change-Id: I42795bad30ce53abecfc5a4914599ae5a2041a9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387934
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #40492.
+    
+    Change-Id: I584f1ec673170c5e4d2dc1e00c701964d6f14333
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316050
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- .../types2/testdata/check/typeinference.go2        | 24 ++++++++++++----------
- .../types2/testdata/fixedbugs/issue49541.go2       |  7 ++++---
- .../types2/testdata/fixedbugs/issue50929.go2       |  6 +++---
- .../types2/testdata/fixedbugs/issue51232.go2       | 11 +++++-----
- .../types2/testdata/fixedbugs/issue51233.go2       | 10 +++++----
- .../types2/testdata/fixedbugs/issue51339.go2       |  4 +++-
- src/cmd/compile/internal/types2/typexpr.go         | 15 +++++++++-----
- src/go/types/errorcodes.go                         |  5 -----
- src/go/types/testdata/check/typeinference.go2      | 24 ++++++++++++----------
- src/go/types/testdata/fixedbugs/issue49541.go2     |  7 ++++---
- src/go/types/testdata/fixedbugs/issue50929.go2     |  6 +++---
- src/go/types/testdata/fixedbugs/issue51232.go2     | 11 +++++-----
- src/go/types/testdata/fixedbugs/issue51233.go2     | 10 +++++----
- src/go/types/testdata/fixedbugs/issue51339.go2     |  4 +++-
- src/go/types/typexpr.go                            | 13 ++++++++----
- test/typeparam/issue51232.go                       | 12 +++++------
- test/typeparam/issue51233.go                       | 16 ++++++++++-----
- 17 files changed, 106 insertions(+), 79 deletions(-)
+ src/cmd/link/internal/ld/data.go    | 63 ++++++++++++++++++++++++-------------
+ src/cmd/link/internal/ld/ld_test.go | 22 ++++++++-----
+ src/cmd/link/internal/ld/macho.go   |  6 +++-
+ src/cmd/link/internal/ld/main.go    |  2 +-
+ 4 files changed, 61 insertions(+), 32 deletions(-)

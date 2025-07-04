@@ -1,51 +1,18 @@
-commit 292558be025fb0a959f7d594771c2833149521db
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 30 22:09:35 2017 -0500
+commit 16edf0b1f7401df07e0d2f96c8b97516e50cffd9
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Wed Sep 6 10:31:03 2017 +0100
 
-    runtime: restore the Go-allocated signal stack in unminit
+    crypto/cipher: panic when IV length does not equal block size in NewOFB
     
-    Currently, when we minit on a thread that already has an alternate
-    signal stack (e.g., because the M was an extram being used for a cgo
-    callback, or to handle a signal on a C thread, or because the
-    platform's libc always allocates a signal stack like on Android), we
-    simply drop the Go-allocated gsignal stack on the floor.
+    Functions like NewCBCDecrypter, NewCBCEncrypter, NewCFBDecrypter,
+    NewCFBEncrypter and NewCTR all panic when IV length does not equal block size.
+    This commit changes NewOFB to panic too, instead of returning nil silently.
     
-    This is a problem for Ms on the extram list because those Ms may later
-    be reused for a different thread that may not have its own alternate
-    signal stack. On tip, this manifests as a crash in sigaltstack because
-    we clear the gsignal stack bounds in unminit and later try to use
-    those cleared bounds when we re-minit that M. On 1.9 and earlier, we
-    didn't clear the bounds, so this manifests as running more than one
-    signal handler on the same signal stack, which could lead to arbitrary
-    memory corruption.
-    
-    This CL fixes this problem by saving the Go-allocated gsignal stack in
-    a new field in the m struct when overwriting it with a system-provided
-    signal stack, and then restoring the original gsignal stack in
-    unminit.
-    
-    This CL is designed to be easy to back-port to 1.9. It won't quite
-    cherry-pick cleanly, but it should be sufficient to simply ignore the
-    change in mexit (which didn't exist in 1.9).
-    
-    Now that we always have a place to stash the original signal stack in
-    the m struct, there are some simplifications we can make to the signal
-    stack handling. We'll do those in a later CL.
-    
-    Fixes #22930.
-    
-    Change-Id: I55c5a6dd9d97532f131146afdef0b216e1433054
-    Reviewed-on: https://go-review.googlesource.com/81476
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ic4d3ebfad79bb0cf4759fa1c1a400c1a8d043490
+    Reviewed-on: https://go-review.googlesource.com/61850
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/crash_cgo_test.go                | 13 ++++
- src/runtime/os3_plan9.go                     |  3 +
- src/runtime/os_nacl.go                       |  3 +
- src/runtime/proc.go                          |  8 +--
- src/runtime/runtime2.go                      |  9 +--
- src/runtime/signal_unix.go                   | 12 ++--
- src/runtime/signal_windows.go                |  3 +
- src/runtime/testdata/testprogcgo/sigstack.go | 95 ++++++++++++++++++++++++++++
- 8 files changed, 131 insertions(+), 15 deletions(-)
+ src/crypto/cipher/ofb.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

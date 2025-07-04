@@ -1,33 +1,20 @@
-commit dcb5de5cac5baee703b1fe215f28f22aebc93437
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 18 17:38:30 2024 +0000
+commit 19d5c40618568458d758562375c08f8fd610bda1
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Apr 20 18:08:55 2023 +0000
 
-    cmd/trace/v2: tolerate traces with broken tails
+    crypto/x509: use the RFC 6125 terminology in the VerifyHostname docs
     
-    This change modifies cmd/trace/v2 to tolerate traces with
-    incomplete/broken generations at the tail. These broken tails can be
-    created if a program crashes while a trace is being produced. Although
-    the runtime tries to flush the trace on some panics, it may still
-    produce some extra trace data that is incomplete.
+    RFC6125 uses the "complete left-most label" to describe star and full stop wildcards.
     
-    This change modifies cmd/trace/v2 to still work on any complete
-    generations, even if there are incomplete/broken generations at the tail
-    end of the trace. Basically, the tool now just tracks when the last good
-    generation ended (via Sync events) and truncates the trace to that point
-    when it encounters an error.
-    
-    This change also revamps the text output of the tool to emit regular
-    progress notifications as well as warnings as to how much of the trace
-    data was lost.
-    
-    Fixes #65316.
-    
-    Change-Id: I877d39993bc02a81eebe647db9c2be17635bcec8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580135
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ib7bcf77288ae7d72fb8664b663de2e52b378aaf6
+    GitHub-Last-Rev: b48c284c42205483fcc5e02b9d68d7bbd6a1c370
+    GitHub-Pull-Request: golang/go#59743
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487035
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/cmd/trace/v2/jsontrace_test.go |   2 +-
- src/cmd/trace/v2/main.go           | 120 ++++++++++++++++++++++++++++++++++---
- 2 files changed, 113 insertions(+), 9 deletions(-)
+ src/crypto/x509/verify.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

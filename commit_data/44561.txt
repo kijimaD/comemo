@@ -1,55 +1,20 @@
-commit b70a2bc9c612de35b765712bd689865f6a1716b6
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Mar 5 11:22:13 2021 +0100
+commit 3a185d746886db02468c62c7b80154115fba3b9f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 5 21:16:52 2020 -0400
 
-    cmd/compile: make ValAndOff.{Val,Off} return an int32
+    [dev.link] cmd/pack: use cmd/internal/archive package
     
-    The ValAndOff type is a 64bit integer holding a 32bit value and a
-    32bit offset in each half, but for historical reasons its Val and Off
-    methods returned an int64. This was convenient when AuxInt was always
-    an int64, but now that AuxInts are typed we can return int32 from Val
-    and Off and get rid of a several casts and now unnecessary range
-    checks.
+    Rewrite part of cmd/pack to use the cmd/internal/archive package.
     
-    This change:
-    
-    - changes the Val and Off methods to return an int32 (from int64);
-    - adds Val64 and Off64 methods for convenience in the few remaining
-      places (in the ssa.go files) where Val and Off are stored in int64
-      fields;
-    - deletes makeValAndOff64, renames makeValAndOff32 to makeValAndOff
-    - deletes a few ValAndOff methods that are now unused;
-    - removes several validOff/validValAndOff check that will always
-      return true.
-    
-    Passes:
-    
-      GOARCH=amd64 gotip build -toolexec 'toolstash -cmp' -a std
-      GOARCH=386 gotip build -toolexec 'toolstash -cmp' -a std
-      GOARCH=s390x gotip build -toolexec 'toolstash -cmp' -a std
-    
-    (the three GOARCHs with SSA rules files impacted by the change).
-    
-    Change-Id: I2abbbf42188c798631b94d3a55ca44256f140be7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299149
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia7688810d3ea4d0277056870091f59cf09cffcad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247917
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go              |  22 +-
- src/cmd/compile/internal/s390x/ssa.go              |  14 +-
- src/cmd/compile/internal/ssa/gen/386.rules         |  75 +++--
- .../compile/internal/ssa/gen/386splitload.rules    |   6 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules       |  95 +++---
- .../compile/internal/ssa/gen/AMD64splitload.rules  |  32 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules       |  40 +--
- src/cmd/compile/internal/ssa/op.go                 |  42 +--
- src/cmd/compile/internal/ssa/rewrite386.go         | 184 +++++-------
- .../compile/internal/ssa/rewrite386splitload.go    |  14 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go       | 330 ++++++++++-----------
- .../compile/internal/ssa/rewriteAMD64splitload.go  | 100 +++----
- src/cmd/compile/internal/ssa/rewriteS390X.go       |  96 +++---
- src/cmd/compile/internal/x86/ssa.go                |  20 +-
- 14 files changed, 504 insertions(+), 566 deletions(-)
+ src/cmd/internal/archive/{read.go => archive.go} | 154 ++++++++-
+ src/cmd/internal/archive/archive_test.go         |  34 +-
+ src/cmd/internal/objfile/goobj.go                |   2 +-
+ src/cmd/pack/pack.go                             | 418 ++++++-----------------
+ src/cmd/pack/pack_test.go                        |  77 ++---
+ 5 files changed, 296 insertions(+), 389 deletions(-)

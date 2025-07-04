@@ -1,40 +1,16 @@
-commit 3c667ef421becd1acdbd8ac57503a1cbed47fc5c
+commit 28269796c8ef6c59cca746b090080d99043cdeef
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 18 00:06:08 2017 -0500
+Date:   Fri Oct 21 00:02:33 2016 -0400
 
-    cmd/go: split out cmd/go/internal/work
+    cmd/internal/objfile: remove debugging print
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
+    Crept into CL 9682, committed last week.
     
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
-    
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
-    
-    For #18653.
-    
-    Change-Id: Icdd181098f9f0e81f68bf201e6867cdd8f820300
-    Reviewed-on: https://go-review.googlesource.com/36197
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I5b8e9119dbfeb0bc3005623ab74dbd29311d17ae
+    Reviewed-on: https://go-review.googlesource.com/31814
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/build_test.go                |  44 --
- src/cmd/go/clean.go                     |  20 +-
- src/cmd/go/env.go                       |  30 +-
- src/cmd/go/generate.go                  |   3 +-
- src/cmd/go/get.go                       |   5 +-
- src/cmd/go/internal/base/env.go         |  37 ++
- src/cmd/go/internal/base/flag.go        |  33 ++
- src/cmd/go/internal/base/path.go        |   8 +
- src/cmd/go/internal/str/str.go          |  44 ++
- src/cmd/go/{ => internal/work}/build.go | 918 +++++++++++++++-----------------
- src/cmd/go/internal/work/build_test.go  | 167 ++++++
- src/cmd/go/list.go                      |   5 +-
- src/cmd/go/main.go                      |   5 +-
- src/cmd/go/pkg_test.go                  | 114 ----
- src/cmd/go/run.go                       |  38 +-
- src/cmd/go/test.go                      | 177 +++---
- src/cmd/go/testflag.go                  |  11 +-
- src/cmd/go/vet.go                       |   3 +-
- 18 files changed, 878 insertions(+), 784 deletions(-)
+ src/cmd/internal/objfile/disasm.go | 1 -
+ 1 file changed, 1 deletion(-)

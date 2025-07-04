@@ -1,15 +1,21 @@
-commit 95abb5a36aa1a727db512772f632ecaf05df34aa
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 17 23:05:27 2016 -0400
+commit f50ced6d734038b7231bef3c674d541f95b2f23b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 16 16:43:34 2016 -0700
 
-    cmd/go: make go test -i -o x.test actually write x.test
+    cmd/compile: remove encoding of safemode bit from export data
     
-    Fixes #17078.
+    Removes the encoding of this bit which was ignored but left behind
+    for 1.7 to minimize pre-1.7 export format changes. See the issue
+    for more details.
     
-    Change-Id: I1dfb71f64361b575ec461ed44b0779f2d5cf45fc
-    Reviewed-on: https://go-review.googlesource.com/31352
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Fixes #15772.
+    
+    Change-Id: I46cd7a66ad4c6003b78c64295cf3bda503ebf2dd
+    Reviewed-on: https://go-review.googlesource.com/27201
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go | 10 ++++++++++
- src/cmd/go/test.go    |  5 +++++
- 2 files changed, 15 insertions(+)
+ src/cmd/compile/internal/gc/bexport.go | 1 -
+ src/cmd/compile/internal/gc/bimport.go | 3 ---
+ src/cmd/compile/internal/gc/builtin.go | 6 +++---
+ 3 files changed, 3 insertions(+), 7 deletions(-)

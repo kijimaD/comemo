@@ -1,0 +1,28 @@
+commit 97c13cfb254763dc4c06d21a32883acae3ece537
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 3 22:17:31 2024 +0000
+
+    runtime: delete pagetrace GOEXPERIMENT
+    
+    The page tracer's functionality is now captured by the regular execution
+    tracer as an experimental GODEBUG variable. This is a lot more usable
+    and maintainable than the page tracer, which is likely to have bitrotted
+    by this point. There's also no tooling available for the page tracer.
+    
+    Change-Id: I2408394555e01dde75a522e9a489b7e55cf12c8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583379
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/goexperiment/exp_pagetrace_off.go |   8 -
+ src/internal/goexperiment/exp_pagetrace_on.go  |   8 -
+ src/internal/goexperiment/flags.go             |   6 -
+ src/runtime/exithook.go                        |   1 -
+ src/runtime/mgcscavenge.go                     |   2 -
+ src/runtime/mheap.go                           |   6 -
+ src/runtime/pagetrace_off.go                   |  28 --
+ src/runtime/pagetrace_on.go                    | 358 -------------------------
+ src/runtime/proc.go                            |   7 +-
+ src/runtime/runtime2.go                        |   5 -
+ 10 files changed, 3 insertions(+), 426 deletions(-)

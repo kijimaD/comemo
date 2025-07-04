@@ -1,32 +1,44 @@
-commit 448089854a971274db839a1cacea008b48134a19
-Author: erifan01 <eric.fang@arm.com>
-Date:   Wed Dec 12 08:29:51 2018 +0000
+commit a1ca4893ff755d6b0b3bf4b026196d55251ea846
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jan 27 11:55:34 2018 +0100
 
-    cmd/asm: add arm64 v8.1 atomic instructions
+    cmd/compile: add intrinsics for runtime/internal/math on 386 and amd64
     
-    This change adds several arm64 v8.1 atomic instructions and test cases.
-    They are LDADDAx, LDADDLx, LDANDAx, LDANDALx, LDANDLx, LDEORAx, LDEORALx,
-    LDEORLx, LDORAx, LDORALx, LDORLx, SWPAx and SWPLx. Their form is consistent
-    with the form of the existing atomic instructions.
+    Add generic, 386 and amd64 specific ops and SSA rules for multiplication
+    with overflow and branching based on overflow flags. Use these to intrinsify
+    runtime/internal/math.MulUinptr.
     
-    For instructions STXRx, STLXRx, STXPx and STLXPx, the second destination
-    register can't be RSP. This CL also adds a check for this.
+    On amd64
+      mul, overflow := math.MulUintptr(a, b)
+      if overflow {
+    is lowered to two instructions:
+      MULQ SI
+      JO 0x10ee35c
     
-    LDADDx Rs, (Rb), Rt: *Rb -> Rt, Rs + *Rb -> *Rb
-    LDANDx Rs, (Rb), Rt: *Rb -> Rt, Rs AND NOT(*Rb) -> *Rb
-    LDEORx Rs, (Rb), Rt: *Rb -> Rt, Rs EOR *Rb -> *Rb
-    LDORx  Rs, (Rb), Rt: *Rb -> Rt, Rs OR *Rb -> *Rb
+    No codegen tests as codegen can not currently test unexported internal runtime
+    functions.
     
-    Change-Id: I9f9b0245958cb57ab7d88c66fb9159b23b9017fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/157001
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    amd64:
+    name              old time/op  new time/op  delta
+    MulUintptr/small  1.16ns ± 5%  0.88ns ± 6%  -24.36%  (p=0.000 n=19+20)
+    MulUintptr/large  10.7ns ± 1%   1.1ns ± 1%  -89.28%  (p=0.000 n=17+19)
+    
+    Change-Id: If60739a86f820e5044d677276c21df90d3c7a86a
+    Reviewed-on: https://go-review.googlesource.com/c/141820
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/arch/arm64.go             |  13 +-
- src/cmd/asm/internal/asm/testdata/arm64.s      | 133 +++++++++++++++++++--
- src/cmd/asm/internal/asm/testdata/arm64error.s | 120 +++++++++++++++++++
- src/cmd/internal/obj/arm64/a.out.go            |  70 +++++++++--
- src/cmd/internal/obj/arm64/anames.go           |  70 +++++++++--
- src/cmd/internal/obj/arm64/asm7.go             | 158 ++++++++++++++++---------
- 6 files changed, 469 insertions(+), 95 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  13 ++-
+ src/cmd/compile/internal/gc/ssa.go             |   8 ++
+ src/cmd/compile/internal/ssa/gen/386.rules     |   5 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |   5 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   6 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   6 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   3 +
+ src/cmd/compile/internal/ssa/opGen.go          | 101 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go     | 123 ++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 150 +++++++++++++++++++++++++
+ src/cmd/compile/internal/x86/ssa.go            |  13 ++-
+ src/runtime/internal/math/math_test.go         |  28 +++++
+ 12 files changed, 459 insertions(+), 2 deletions(-)

@@ -1,24 +1,17 @@
-commit 2ee6bfbd7ef0d8183035f8d8a47af7fcb7554a05
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Jul 3 09:36:35 2018 +0200
+commit 29517daff955b0188f0129b8da1578ae6201e851
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 14 16:53:30 2018 -0700
 
-    cmd/internal/obj: follow convention for generated code comment
+    cmd/compile: extract common noding code from func{Decl,Lit}
     
-    Follow the convertion (https://golang.org/s/generatedcode) for generated
-    code in stringer.go.
+    Passes toolstash-check.
     
-    Change-Id: I7b5fbb04ba03e8ac77a9a0a402088669469de858
-    Reviewed-on: https://go-review.googlesource.com/122015
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I8290221d6169e077dfa4ea737d685c7fcecf6841
+    Reviewed-on: https://go-review.googlesource.com/100835
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/obj/arm/anames.go   | 3 +--
- src/cmd/internal/obj/arm64/anames.go | 3 +--
- src/cmd/internal/obj/mips/anames.go  | 3 +--
- src/cmd/internal/obj/ppc64/anames.go | 3 +--
- src/cmd/internal/obj/s390x/anames.go | 3 +--
- src/cmd/internal/obj/stringer.go     | 3 +--
- src/cmd/internal/obj/wasm/anames.go  | 3 +--
- src/cmd/internal/obj/x86/anames.go   | 3 +--
- 8 files changed, 8 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/closure.go | 13 +------------
+ src/cmd/compile/internal/gc/noder.go   | 34 ++++++++++++++++------------------
+ 2 files changed, 17 insertions(+), 30 deletions(-)

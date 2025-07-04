@@ -1,27 +1,21 @@
-commit 0941dc446e6b3028c77158728432086b5c06acf6
-Author: Eugene Kalinin <e.v.kalinin@gmail.com>
-Date:   Tue Aug 25 01:49:39 2020 +0300
+commit 61ce82a3601955a39ef26f51654fa2abc2049c11
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 18 14:17:43 2020 -0400
 
-    cmd/go: env -w validates GOTMPDIR value
+    cmd/go: skip the cmd/cgo staleness check on darwin builders
     
-    This change makes go env -w check if GOTMPDIR is an absolute path.
+    Some of the darwin-amd64 builders are providing a stale environment.
+    Let's un-break them while we investigate.
     
-    If GOTMPDIR is not an absolute and not existing path there will be an
-    error at every `work.Builder.Init()`. If `go env` has `-u/-w` as
-    argument `work.Builder.Init()` is not called.
+    Updates #37573
+    Updates #33598
     
-    `go env -w GOTMPDIR=` work in the same way as `go env -u GOTMPDIR`.
-    
-    Fixes #40932
-    
-    Change-Id: I6b0662302eeace7f20460b6d26c6e59af1111da2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250198
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I8b79778fe4d5aa916557c1ba89fa9c776d130b01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223925
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/envcmd/env.go        | 24 ++++++++++++++++++++----
- src/cmd/go/testdata/script/env_write.txt | 26 ++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 4 deletions(-)
+ src/cmd/go/testdata/script/test_race_install_cgo.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

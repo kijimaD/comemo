@@ -1,26 +1,22 @@
-commit d3f5dd57811ca6c55654e67c58cf594fc2e5091e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Nov 3 13:43:12 2021 -0700
+commit a99ff24a26939f30440dd0f06dce426ed5e638ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 3 18:33:45 2021 -0800
 
-    syscall: migrate new UDP send/recv API to internal/syscall/unix
+    cmd/compile/internal/syntax: print type parameters and type lists
     
-    CL 331490 and friends added new API to package syscall.
-    This was a mistake that we need to fix before Go 1.18 is released.
+    types2 uses the syntax printer to print expressions (for tracing
+    or error messages), so we need to (at least) print type lists in
+    interfaces.
     
-    Change-Id: I697c9a4fa649d564822f585dc163df5ab9e5ae08
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361216
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    While at it, also implement the printing of type parameter lists.
+    
+    Fixes #44766.
+    
+    Change-Id: I36a4a7152d9bef7251af264b5c7890aca88d8dc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298549
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- api/next.txt                                | 108 ----------------------------
- src/internal/poll/fd_unix.go                |   9 +--
- src/internal/poll/fd_windows.go             |   4 +-
- src/internal/syscall/unix/net.go            |  28 ++++++++
- src/internal/syscall/unix/net_js.go         |  28 ++++++++
- src/internal/syscall/windows/net_windows.go |  18 +++++
- src/syscall/net_js.go                       |  16 -----
- src/syscall/syscall_unix.go                 |   8 +--
- src/syscall/syscall_windows.go              |   4 +-
- 9 files changed, 87 insertions(+), 136 deletions(-)
+ src/cmd/compile/internal/syntax/printer.go      | 57 +++++++++++++++++++------
+ src/cmd/compile/internal/syntax/printer_test.go | 37 +++++++++++++++-
+ 2 files changed, 79 insertions(+), 15 deletions(-)

@@ -1,19 +1,18 @@
-commit 9d7b2b7b10fb30716c852b4dfe7e2c7350e7d0d7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 11 15:22:21 2016 -0800
+commit ab096d587f9bb5dcdf895511ee6d213aade7e30f
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Wed Dec 30 11:15:38 2015 -0500
 
-    cmd/compile: move universe block code into new universe.go
+    cmd/dist: improve isGitRepo to handle git "worktree"s
     
-    Move lexinit, typeinit, lexinit1, and lexfini into new universe.go
-    file, and give them a more idiomatic and descriptive API. No code
-    changes.
+    Simply checking the exit code of `git rev-parse --git-dir` should
+    suffice here, but that requires deviating from the infrastructure
+    provided by `run`, so I've left that for a future change.
     
-    Change-Id: I0e9b25dcc86ad10f4b990dc02bd33477b488cc85
-    Reviewed-on: https://go-review.googlesource.com/20604
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #11211.
+    
+    Change-Id: I7cbad86a8a06578f52f66f734f5447b597ddc962
+    Reviewed-on: https://go-review.googlesource.com/18213
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/align.go    | 224 ---------------
- src/cmd/compile/internal/gc/go.go       |   2 -
- src/cmd/compile/internal/gc/main.go     | 226 +---------------
- src/cmd/compile/internal/gc/universe.go | 464 ++++++++++++++++++++++++++++++++
- 4 files changed, 466 insertions(+), 450 deletions(-)
+ src/cmd/dist/build.go | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)

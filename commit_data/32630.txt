@@ -1,27 +1,20 @@
-commit ab40107708042ded6bdc1fb841c7cf2c2ab002ab
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Sun Sep 3 02:08:02 2017 +0900
+commit 9aeced650fec9114433e4c8f990046f7811c9d30
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Wed May 3 13:33:14 2017 +0200
 
-    net/http: make ServeMux preserve query string during redirects
+    cmd/compile/internal/ssa: mark boolean instructions commutative
     
-    Ensure that the implicitly created redirect
-    for
-      "/route"
-    after
-      "/route/"
-    has been registered doesn't lose the query string information.
-    A previous attempt (https://golang.org/cl/43779) changed http.Redirect, however, that change broke direct calls to http.Redirect.
-    To avoid that problem, this change touches ServeMux.Handler only.
+    Mark AndB, OrB, EqB, and NeqB as commutative.
     
-    Fixes #17841
-    
-    Change-Id: I303c1b1824615304ae68147e254bb41b0ea339be
-    Reviewed-on: https://go-review.googlesource.com/61210
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ife7cfcb9780cc5dd669617cb52339ab336667da4
+    Reviewed-on: https://go-review.googlesource.com/42515
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/net/http/serve_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     | 65 ++++++++++++++++++++++++++++++----------------
- 2 files changed, 105 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  10 +--
+ src/cmd/compile/internal/ssa/opGen.go          |  28 ++++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 102 +++++++++++++++++++++++++
+ 3 files changed, 123 insertions(+), 17 deletions(-)

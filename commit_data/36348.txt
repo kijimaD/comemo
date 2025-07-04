@@ -1,33 +1,22 @@
-commit 352583ff774d33539aeef4a3ce471406880b586d
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Tue Jun 5 21:05:11 2018 -0300
+commit 0a129dbca6b76e919041d759e8d9a23fc075e6d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 20 14:43:17 2018 -0700
 
-    encoding/hex: pre-allocate Dump buffer
+    misc/cgo/testcshared: use file descriptor 30 for TestUnexportedSymbols
     
-    name          old time/op    new time/op    delta
-    Dump/256-4      7.76µs ± 2%    5.82µs ± 2%  -24.91%  (p=0.008 n=5+5)
-    Dump/1024-4     28.4µs ± 2%    22.6µs ± 3%  -20.58%  (p=0.008 n=5+5)
-    Dump/4096-4      112µs ± 2%      88µs ± 0%  -20.80%  (p=0.016 n=5+4)
-    Dump/16384-4     444µs ± 3%     361µs ± 7%  -18.73%  (p=0.008 n=5+5)
+    We were using file descriptor 100, which requires the Linux kernel to
+    grow the fdtable size. That step may sometimes require a long time,
+    causing the test to fail. Switch to file descriptor 30, which should
+    not require growing the fdtable.
     
-    name          old alloc/op   new alloc/op   delta
-    Dump/256-4      4.00kB ± 0%    1.39kB ± 0%  -65.20%  (p=0.008 n=5+5)
-    Dump/1024-4     16.2kB ± 0%     5.5kB ± 0%  -66.04%  (p=0.008 n=5+5)
-    Dump/4096-4     63.9kB ± 0%    20.6kB ± 0%  -67.78%  (p=0.008 n=5+5)
-    Dump/16384-4     265kB ± 0%      82kB ± 0%  -69.00%  (p=0.008 n=5+5)
+    Fixes #23784
     
-    name          old allocs/op  new allocs/op  delta
-    Dump/256-4        7.00 ± 0%      3.00 ± 0%  -57.14%  (p=0.008 n=5+5)
-    Dump/1024-4       9.00 ± 0%      3.00 ± 0%  -66.67%  (p=0.008 n=5+5)
-    Dump/4096-4       11.0 ± 0%       3.0 ± 0%  -72.73%  (p=0.008 n=5+5)
-    Dump/16384-4      13.0 ± 0%       3.0 ± 0%  -76.92%  (p=0.008 n=5+5)
-    
-    Change-Id: I0a0d6de315b979142b05e333880da8a5e52b12ef
-    Reviewed-on: https://go-review.googlesource.com/116495
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3ac40d6f8569c70d34b470cfca34eff149bf8229
+    Reviewed-on: https://go-review.googlesource.com/108537
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/encoding/hex/hex.go      | 13 +++++++++++--
- src/encoding/hex/hex_test.go | 13 +++++++++++++
- 2 files changed, 24 insertions(+), 2 deletions(-)
+ misc/cgo/testcshared/main2.c              | 2 +-
+ misc/cgo/testcshared/src/libgo2/libgo2.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

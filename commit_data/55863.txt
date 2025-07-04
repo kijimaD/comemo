@@ -1,25 +1,299 @@
-commit c8c46e746b778c39727c588adf79aff34ab6f151
-Author: apocelipes <seve3r@outlook.com>
-Date:   Fri Mar 8 10:12:41 2024 +0000
+commit 5f1a0320b92a60ee1283522135e00bff540ea115
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Feb 27 16:04:50 2023 -0600
 
-    runtime: use built-in clear to simplify code
+    internal/bytealg: rewrite PPC64 Compare
     
-    Change-Id: Icb6d9ca996b4119d8636d9f7f6a56e510d74d059
-    GitHub-Last-Rev: 08178e8ff798f4a51860573788c9347a0fb6bc40
-    GitHub-Pull-Request: golang/go#66188
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569979
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Merge the P8 and P9 paths into one. This removes the need for
+    a runtime CPU check and maintaining two separate code paths.
+    
+    This takes advantage of overlapping checks, and the P9 SETB
+    (emulated with little overhead on P8) to speed up comparisons
+    of small strings.
+    
+    Similarly, the SETB instruction can be used on GOPPC64=power9
+    which provides a small speedup over using a couple ISELs. This
+    only accounts for a few percent on very small strings, thus
+    results of running P8 codegen on P9 are left out.
+    
+    For the baseline on a power8 machine:
+    
+    BytesCompare/1     7.76ns ± 0%  6.38ns ± 0%  -17.71%
+    BytesCompare/2     7.77ns ± 0%  6.36ns ± 0%  -18.12%
+    BytesCompare/3     7.56ns ± 0%  6.36ns ± 0%  -15.79%
+    BytesCompare/4     7.76ns ± 0%  5.74ns ± 0%  -25.99%
+    BytesCompare/5     7.48ns ± 0%  5.74ns ± 0%  -23.29%
+    BytesCompare/6     7.56ns ± 0%  5.74ns ± 0%  -24.06%
+    BytesCompare/7     7.14ns ± 0%  5.74ns ± 0%  -19.63%
+    BytesCompare/8     5.58ns ± 0%  5.19ns ± 0%   -7.03%
+    BytesCompare/9     7.85ns ± 0%  5.19ns ± 0%  -33.86%
+    BytesCompare/10    7.87ns ± 0%  5.19ns ± 0%  -34.06%
+    BytesCompare/11    7.59ns ± 0%  5.19ns ± 0%  -31.59%
+    BytesCompare/12    7.87ns ± 0%  5.19ns ± 0%  -34.02%
+    BytesCompare/13    7.55ns ± 0%  5.19ns ± 0%  -31.24%
+    BytesCompare/14    7.47ns ± 0%  5.19ns ± 0%  -30.53%
+    BytesCompare/15    7.88ns ± 0%  5.19ns ± 0%  -34.09%
+    BytesCompare/16    6.07ns ± 0%  5.58ns ± 0%   -8.08%
+    BytesCompare/17    9.05ns ± 0%  5.62ns ± 0%  -37.94%
+    BytesCompare/18    8.95ns ± 0%  5.62ns ± 0%  -37.24%
+    BytesCompare/19    8.49ns ± 0%  5.62ns ± 0%  -33.81%
+    BytesCompare/20    9.07ns ± 0%  5.62ns ± 0%  -38.05%
+    BytesCompare/21    8.69ns ± 0%  5.62ns ± 0%  -35.37%
+    BytesCompare/22    8.57ns ± 0%  5.62ns ± 0%  -34.43%
+    BytesCompare/23    8.31ns ± 0%  5.62ns ± 0%  -32.38%
+    BytesCompare/24    8.42ns ± 0%  5.62ns ± 0%  -33.23%
+    BytesCompare/25    9.70ns ± 0%  5.56ns ± 0%  -42.69%
+    BytesCompare/26    9.53ns ± 0%  5.56ns ± 0%  -41.66%
+    BytesCompare/27    9.29ns ± 0%  5.56ns ± 0%  -40.15%
+    BytesCompare/28    9.53ns ± 0%  5.56ns ± 0%  -41.65%
+    BytesCompare/29    9.37ns ± 0%  5.56ns ± 0%  -40.63%
+    BytesCompare/30    9.17ns ± 0%  5.56ns ± 0%  -39.36%
+    BytesCompare/31    9.07ns ± 0%  5.56ns ± 0%  -38.71%
+    BytesCompare/32    5.81ns ± 0%  5.49ns ± 0%   -5.49%
+    BytesCompare/33    9.36ns ± 0%  5.32ns ± 0%  -43.17%
+    BytesCompare/34    9.44ns ± 0%  5.32ns ± 0%  -43.68%
+    BytesCompare/35    8.91ns ± 0%  5.32ns ± 0%  -40.29%
+    BytesCompare/36    9.45ns ± 0%  5.32ns ± 0%  -43.71%
+    BytesCompare/37    8.94ns ± 0%  5.32ns ± 0%  -40.53%
+    BytesCompare/38    9.08ns ± 0%  5.32ns ± 0%  -41.44%
+    BytesCompare/39    8.62ns ± 0%  5.32ns ± 0%  -38.33%
+    BytesCompare/40    7.93ns ± 0%  5.32ns ± 0%  -32.93%
+    BytesCompare/41    10.1ns ± 0%   5.3ns ± 0%  -47.08%
+    BytesCompare/42    10.1ns ± 0%   5.3ns ± 0%  -47.43%
+    BytesCompare/43    9.80ns ± 0%  5.32ns ± 0%  -45.66%
+    BytesCompare/44    10.3ns ± 0%   5.3ns ± 0%  -48.26%
+    BytesCompare/45    9.88ns ± 0%  5.33ns ± 0%  -46.08%
+    BytesCompare/46    9.82ns ± 0%  5.32ns ± 0%  -45.81%
+    BytesCompare/47    9.73ns ± 0%  5.33ns ± 0%  -45.25%
+    BytesCompare/48    8.31ns ± 0%  5.22ns ± 0%  -37.19%
+    BytesCompare/49    11.2ns ± 0%   5.2ns ± 0%  -53.28%
+    BytesCompare/50    11.1ns ± 0%   5.2ns ± 0%  -52.86%
+    BytesCompare/51    10.8ns ± 0%   5.2ns ± 0%  -51.37%
+    BytesCompare/52    11.1ns ± 0%   5.2ns ± 0%  -52.94%
+    BytesCompare/53    10.8ns ± 0%   5.2ns ± 0%  -51.50%
+    BytesCompare/54    10.7ns ± 0%   5.2ns ± 0%  -51.09%
+    BytesCompare/55    10.3ns ± 0%   5.2ns ± 0%  -49.49%
+    BytesCompare/56    10.9ns ± 0%   5.2ns ± 0%  -51.73%
+    BytesCompare/57    12.2ns ± 0%   5.3ns ± 0%  -56.92%
+    BytesCompare/58    12.2ns ± 0%   5.3ns ± 0%  -56.81%
+    BytesCompare/59    11.5ns ± 0%   5.3ns ± 0%  -54.45%
+    BytesCompare/60    12.1ns ± 0%   5.3ns ± 0%  -56.67%
+    BytesCompare/61    11.7ns ± 0%   5.3ns ± 0%  -54.96%
+    BytesCompare/62    11.9ns ± 0%   5.3ns ± 0%  -55.76%
+    BytesCompare/63    11.4ns ± 0%   5.3ns ± 0%  -53.73%
+    BytesCompare/64    6.08ns ± 0%  5.47ns ± 0%   -9.96%
+    BytesCompare/65    9.87ns ± 0%  5.96ns ± 0%  -39.57%
+    BytesCompare/66    9.81ns ± 0%  5.96ns ± 0%  -39.25%
+    BytesCompare/67    9.49ns ± 0%  5.96ns ± 0%  -37.18%
+    BytesCompare/68    9.81ns ± 0%  5.96ns ± 0%  -39.26%
+    BytesCompare/69    9.44ns ± 0%  5.96ns ± 0%  -36.84%
+    BytesCompare/70    9.58ns ± 0%  5.96ns ± 0%  -37.75%
+    BytesCompare/71    9.24ns ± 0%  5.96ns ± 0%  -35.50%
+    BytesCompare/72    8.26ns ± 0%  5.94ns ± 0%  -28.09%
+    BytesCompare/73    10.6ns ± 0%   5.9ns ± 0%  -43.70%
+    BytesCompare/74    10.6ns ± 0%   5.9ns ± 0%  -43.87%
+    BytesCompare/75    10.2ns ± 0%   5.9ns ± 0%  -41.83%
+    BytesCompare/76    10.7ns ± 0%   5.9ns ± 0%  -44.55%
+    BytesCompare/77    10.3ns ± 0%   5.9ns ± 0%  -42.51%
+    BytesCompare/78    10.3ns ± 0%   5.9ns ± 0%  -42.29%
+    BytesCompare/79    10.2ns ± 0%   5.9ns ± 0%  -41.95%
+    BytesCompare/80    8.74ns ± 0%  5.93ns ± 0%  -32.23%
+    BytesCompare/81    11.7ns ± 0%   6.8ns ± 0%  -41.87%
+    BytesCompare/82    11.7ns ± 0%   6.8ns ± 0%  -41.54%
+    BytesCompare/83    11.1ns ± 0%   6.8ns ± 0%  -38.32%
+    BytesCompare/84    11.7ns ± 0%   6.8ns ± 0%  -41.59%
+    BytesCompare/85    11.2ns ± 0%   6.8ns ± 0%  -38.93%
+    BytesCompare/86    11.2ns ± 0%   6.8ns ± 0%  -38.87%
+    BytesCompare/87    10.8ns ± 0%   6.8ns ± 0%  -37.07%
+    BytesCompare/88    11.3ns ± 0%   6.7ns ± 0%  -40.57%
+    BytesCompare/89    12.6ns ± 0%   6.7ns ± 0%  -46.57%
+    BytesCompare/90    12.6ns ± 0%   6.7ns ± 0%  -46.44%
+    BytesCompare/91    11.9ns ± 0%   6.7ns ± 0%  -43.66%
+    BytesCompare/92    12.5ns ± 0%   6.7ns ± 0%  -46.09%
+    BytesCompare/93    12.2ns ± 0%   6.7ns ± 0%  -44.90%
+    BytesCompare/94    12.4ns ± 0%   6.7ns ± 0%  -45.62%
+    BytesCompare/95    11.8ns ± 0%   6.7ns ± 0%  -43.00%
+    BytesCompare/96    7.25ns ± 0%  6.62ns ± 0%   -8.70%
+    BytesCompare/97    11.1ns ± 0%   7.2ns ± 0%  -34.98%
+    BytesCompare/98    10.9ns ± 0%   7.2ns ± 0%  -34.03%
+    BytesCompare/99    10.4ns ± 0%   7.2ns ± 0%  -31.19%
+    BytesCompare/100   10.9ns ± 0%   7.2ns ± 0%  -33.97%
+    BytesCompare/101   10.4ns ± 0%   7.2ns ± 0%  -31.19%
+    BytesCompare/102   10.7ns ± 0%   7.2ns ± 0%  -32.72%
+    BytesCompare/103   10.2ns ± 0%   7.2ns ± 0%  -29.28%
+    BytesCompare/104   9.38ns ± 0%  7.19ns ± 0%  -23.33%
+    BytesCompare/105   11.7ns ± 0%   7.2ns ± 0%  -38.60%
+    BytesCompare/106   11.7ns ± 0%   7.2ns ± 0%  -38.28%
+    BytesCompare/107   11.3ns ± 0%   7.2ns ± 0%  -36.48%
+    BytesCompare/108   11.7ns ± 0%   7.2ns ± 0%  -38.49%
+    BytesCompare/109   11.4ns ± 0%   7.2ns ± 0%  -36.76%
+    BytesCompare/110   11.3ns ± 0%   7.2ns ± 0%  -36.37%
+    BytesCompare/111   11.1ns ± 0%   7.2ns ± 0%  -35.05%
+    BytesCompare/112   9.95ns ± 0%  7.19ns ± 0%  -27.71%
+    BytesCompare/113   12.7ns ± 0%   7.0ns ± 0%  -44.71%
+    BytesCompare/114   12.6ns ± 0%   7.0ns ± 0%  -44.23%
+    BytesCompare/115   12.3ns ± 0%   7.0ns ± 0%  -42.83%
+    BytesCompare/116   12.7ns ± 0%   7.0ns ± 0%  -44.67%
+    BytesCompare/117   12.2ns ± 0%   7.0ns ± 0%  -42.41%
+    BytesCompare/118   12.2ns ± 0%   7.0ns ± 0%  -42.50%
+    BytesCompare/119   11.9ns ± 0%   7.0ns ± 0%  -40.76%
+    BytesCompare/120   12.3ns ± 0%   7.0ns ± 0%  -43.01%
+    BytesCompare/121   13.7ns ± 0%   7.0ns ± 0%  -48.55%
+    BytesCompare/122   13.6ns ± 0%   7.0ns ± 0%  -48.06%
+    BytesCompare/123   12.9ns ± 0%   7.0ns ± 0%  -45.44%
+    BytesCompare/124   13.5ns ± 0%   7.0ns ± 0%  -47.91%
+    BytesCompare/125   13.0ns ± 0%   7.0ns ± 0%  -46.03%
+    BytesCompare/126   13.2ns ± 0%   7.0ns ± 0%  -46.72%
+    BytesCompare/127   12.9ns ± 0%   7.0ns ± 0%  -45.36%
+    BytesCompare/128   7.53ns ± 0%  6.78ns ± 0%   -9.95%
+    BytesCompare/256   10.1ns ± 0%   9.6ns ± 0%   -4.35%
+    BytesCompare/512   23.0ns ± 0%  15.3ns ± 0%  -33.30%
+    BytesCompare/1024  36.4ns ± 0%  32.8ns ± 0%   -9.83%
+    BytesCompare/2048  62.0ns ± 0%  56.0ns ± 0%   -9.77%
+    
+    For GOPPC64=power9 on power9:
+    
+    BytesCompare/1     5.95ns ± 0%  4.83ns ± 0%  -18.89%
+    BytesCompare/2     6.37ns ± 0%  4.69ns ± 0%  -26.39%
+    BytesCompare/3     6.87ns ± 0%  4.68ns ± 0%  -31.79%
+    BytesCompare/4     5.86ns ± 0%  4.63ns ± 0%  -20.98%
+    BytesCompare/5     5.84ns ± 0%  4.63ns ± 0%  -20.67%
+    BytesCompare/6     5.84ns ± 0%  4.63ns ± 0%  -20.70%
+    BytesCompare/7     5.82ns ± 0%  4.63ns ± 0%  -20.40%
+    BytesCompare/8     5.81ns ± 0%  4.64ns ± 0%  -20.23%
+    BytesCompare/9     5.83ns ± 0%  4.71ns ± 0%  -19.19%
+    BytesCompare/10    6.22ns ± 0%  4.71ns ± 0%  -24.32%
+    BytesCompare/11    6.94ns ± 0%  4.71ns ± 0%  -32.16%
+    BytesCompare/12    5.77ns ± 0%  4.71ns ± 0%  -18.34%
+    BytesCompare/13    5.77ns ± 0%  4.71ns ± 0%  -18.44%
+    BytesCompare/14    5.77ns ± 0%  4.71ns ± 0%  -18.31%
+    BytesCompare/15    6.31ns ± 0%  4.71ns ± 0%  -25.32%
+    BytesCompare/16    4.99ns ± 0%  5.03ns ± 0%   +0.72%
+    BytesCompare/17    5.07ns ± 0%  5.03ns ± 0%   -0.87%
+    BytesCompare/18    5.07ns ± 0%  5.03ns ± 0%   -0.81%
+    BytesCompare/19    5.07ns ± 0%  5.03ns ± 0%   -0.85%
+    BytesCompare/20    5.07ns ± 0%  5.03ns ± 0%   -0.73%
+    BytesCompare/21    5.07ns ± 0%  5.03ns ± 0%   -0.81%
+    BytesCompare/22    5.07ns ± 0%  5.03ns ± 0%   -0.77%
+    BytesCompare/23    5.07ns ± 0%  5.03ns ± 0%   -0.75%
+    BytesCompare/24    5.08ns ± 0%  5.07ns ± 0%   -0.12%
+    BytesCompare/25    5.03ns ± 0%  5.00ns ± 0%   -0.60%
+    BytesCompare/26    5.02ns ± 0%  5.00ns ± 0%   -0.56%
+    BytesCompare/27    5.03ns ± 0%  5.00ns ± 0%   -0.60%
+    BytesCompare/28    5.03ns ± 0%  5.00ns ± 0%   -0.72%
+    BytesCompare/29    5.03ns ± 0%  5.00ns ± 0%   -0.68%
+    BytesCompare/30    5.03ns ± 0%  5.00ns ± 0%   -0.76%
+    BytesCompare/31    5.03ns ± 0%  5.00ns ± 0%   -0.60%
+    BytesCompare/32    5.02ns ± 0%  5.05ns ± 0%   +0.56%
+    BytesCompare/33    6.78ns ± 0%  5.16ns ± 0%  -23.84%
+    BytesCompare/34    7.26ns ± 0%  5.16ns ± 0%  -28.93%
+    BytesCompare/35    7.78ns ± 0%  5.16ns ± 0%  -33.65%
+    BytesCompare/36    6.72ns ± 0%  5.16ns ± 0%  -23.24%
+    BytesCompare/37    7.32ns ± 0%  5.16ns ± 0%  -29.55%
+    BytesCompare/38    7.26ns ± 0%  5.16ns ± 0%  -28.95%
+    BytesCompare/39    7.99ns ± 0%  5.16ns ± 0%  -35.40%
+    BytesCompare/40    6.67ns ± 0%  5.11ns ± 0%  -23.41%
+    BytesCompare/41    7.25ns ± 0%  5.14ns ± 0%  -29.05%
+    BytesCompare/42    7.47ns ± 0%  5.14ns ± 0%  -31.11%
+    BytesCompare/43    7.97ns ± 0%  5.14ns ± 0%  -35.42%
+    BytesCompare/44    7.29ns ± 0%  5.14ns ± 0%  -29.38%
+    BytesCompare/45    8.06ns ± 0%  5.14ns ± 0%  -36.20%
+    BytesCompare/46    7.89ns ± 0%  5.14ns ± 0%  -34.77%
+    BytesCompare/47    8.59ns ± 0%  5.14ns ± 0%  -40.13%
+    BytesCompare/48    5.57ns ± 0%  5.12ns ± 0%   -8.18%
+    BytesCompare/49    6.05ns ± 0%  5.17ns ± 0%  -14.48%
+    BytesCompare/50    6.05ns ± 0%  5.17ns ± 0%  -14.51%
+    BytesCompare/51    6.06ns ± 0%  5.17ns ± 0%  -14.61%
+    BytesCompare/52    6.05ns ± 0%  5.17ns ± 0%  -14.54%
+    BytesCompare/53    6.06ns ± 0%  5.17ns ± 0%  -14.56%
+    BytesCompare/54    6.05ns ± 0%  5.17ns ± 0%  -14.54%
+    BytesCompare/55    6.05ns ± 0%  5.17ns ± 0%  -14.54%
+    BytesCompare/56    6.02ns ± 0%  5.11ns ± 0%  -15.13%
+    BytesCompare/57    6.01ns ± 0%  5.14ns ± 0%  -14.56%
+    BytesCompare/58    6.02ns ± 0%  5.14ns ± 0%  -14.59%
+    BytesCompare/59    6.02ns ± 0%  5.14ns ± 0%  -14.65%
+    BytesCompare/60    6.03ns ± 0%  5.14ns ± 0%  -14.71%
+    BytesCompare/61    6.02ns ± 0%  5.14ns ± 0%  -14.69%
+    BytesCompare/62    6.01ns ± 0%  5.14ns ± 0%  -14.55%
+    BytesCompare/63    6.02ns ± 0%  5.14ns ± 0%  -14.65%
+    BytesCompare/64    6.09ns ± 0%  5.15ns ± 0%  -15.34%
+    BytesCompare/65    7.83ns ± 0%  5.93ns ± 0%  -24.17%
+    BytesCompare/66    7.86ns ± 0%  5.93ns ± 0%  -24.52%
+    BytesCompare/67    8.56ns ± 0%  5.93ns ± 0%  -30.68%
+    BytesCompare/68    7.90ns ± 0%  5.93ns ± 0%  -24.88%
+    BytesCompare/69    8.58ns ± 0%  5.93ns ± 0%  -30.84%
+    BytesCompare/70    8.54ns ± 0%  5.93ns ± 0%  -30.48%
+    BytesCompare/71    9.18ns ± 0%  5.94ns ± 0%  -35.34%
+    BytesCompare/72    7.89ns ± 0%  5.86ns ± 0%  -25.76%
+    BytesCompare/73    8.59ns ± 0%  5.82ns ± 0%  -32.25%
+    BytesCompare/74    8.52ns ± 0%  5.82ns ± 0%  -31.61%
+    BytesCompare/75    9.17ns ± 0%  5.82ns ± 0%  -36.50%
+    BytesCompare/76    8.54ns ± 0%  5.82ns ± 0%  -31.85%
+    BytesCompare/77    9.25ns ± 0%  5.82ns ± 0%  -37.07%
+    BytesCompare/78    9.17ns ± 0%  5.82ns ± 0%  -36.48%
+    BytesCompare/79    10.0ns ± 0%   5.8ns ± 0%  -41.66%
+    BytesCompare/80    6.76ns ± 0%  5.69ns ± 0%  -15.90%
+    BytesCompare/81    7.63ns ± 0%  6.70ns ± 0%  -12.23%
+    BytesCompare/82    7.63ns ± 0%  6.70ns ± 0%  -12.23%
+    BytesCompare/83    7.63ns ± 0%  6.70ns ± 0%  -12.24%
+    BytesCompare/84    7.63ns ± 0%  6.70ns ± 0%  -12.24%
+    BytesCompare/85    7.63ns ± 0%  6.70ns ± 0%  -12.23%
+    BytesCompare/86    7.63ns ± 0%  6.70ns ± 0%  -12.24%
+    BytesCompare/87    7.63ns ± 0%  6.70ns ± 0%  -12.24%
+    BytesCompare/88    7.53ns ± 0%  6.56ns ± 0%  -12.90%
+    BytesCompare/89    7.53ns ± 0%  6.55ns ± 0%  -12.93%
+    BytesCompare/90    7.53ns ± 0%  6.55ns ± 0%  -12.93%
+    BytesCompare/91    7.53ns ± 0%  6.55ns ± 0%  -12.93%
+    BytesCompare/92    7.53ns ± 0%  6.55ns ± 0%  -12.93%
+    BytesCompare/93    7.53ns ± 0%  6.55ns ± 0%  -12.93%
+    BytesCompare/94    7.53ns ± 0%  6.55ns ± 0%  -12.93%
+    BytesCompare/95    7.53ns ± 0%  6.55ns ± 0%  -12.94%
+    BytesCompare/96    7.02ns ± 0%  6.45ns ± 0%   -8.09%
+    BytesCompare/97    8.73ns ± 0%  7.39ns ± 0%  -15.35%
+    BytesCompare/98    8.71ns ± 0%  7.39ns ± 0%  -15.15%
+    BytesCompare/99    9.42ns ± 0%  7.39ns ± 0%  -21.57%
+    BytesCompare/100   8.73ns ± 0%  7.39ns ± 0%  -15.36%
+    BytesCompare/101   9.43ns ± 0%  7.39ns ± 0%  -21.70%
+    BytesCompare/102   9.42ns ± 0%  7.39ns ± 0%  -21.59%
+    BytesCompare/103   10.2ns ± 0%   7.4ns ± 0%  -27.58%
+    BytesCompare/104   8.74ns ± 0%  7.35ns ± 0%  -15.95%
+    BytesCompare/105   9.44ns ± 0%  7.30ns ± 0%  -22.67%
+    BytesCompare/106   9.44ns ± 0%  7.30ns ± 0%  -22.69%
+    BytesCompare/107   10.2ns ± 0%   7.3ns ± 0%  -28.53%
+    BytesCompare/108   9.48ns ± 0%  7.30ns ± 0%  -23.04%
+    BytesCompare/109   10.2ns ± 0%   7.3ns ± 0%  -28.81%
+    BytesCompare/110   10.2ns ± 0%   7.3ns ± 0%  -28.39%
+    BytesCompare/111   10.9ns ± 0%   7.3ns ± 0%  -33.18%
+    BytesCompare/112   7.75ns ± 0%  7.16ns ± 0%   -7.60%
+    BytesCompare/113   8.57ns ± 0%  7.83ns ± 0%   -8.60%
+    BytesCompare/114   8.57ns ± 0%  7.83ns ± 0%   -8.63%
+    BytesCompare/115   8.57ns ± 0%  7.83ns ± 0%   -8.56%
+    BytesCompare/116   8.57ns ± 0%  7.83ns ± 0%   -8.57%
+    BytesCompare/117   8.57ns ± 0%  7.83ns ± 0%   -8.56%
+    BytesCompare/118   8.57ns ± 0%  7.83ns ± 0%   -8.56%
+    BytesCompare/119   8.57ns ± 0%  7.83ns ± 0%   -8.61%
+    BytesCompare/120   8.46ns ± 0%  7.71ns ± 0%   -8.80%
+    BytesCompare/121   8.46ns ± 0%  7.72ns ± 0%   -8.77%
+    BytesCompare/122   8.46ns ± 0%  7.72ns ± 0%   -8.78%
+    BytesCompare/123   8.46ns ± 0%  7.72ns ± 0%   -8.76%
+    BytesCompare/124   8.46ns ± 0%  7.72ns ± 0%   -8.70%
+    BytesCompare/125   8.46ns ± 0%  7.72ns ± 0%   -8.70%
+    BytesCompare/126   8.46ns ± 0%  7.72ns ± 0%   -8.70%
+    BytesCompare/127   8.46ns ± 0%  7.72ns ± 0%   -8.71%
+    BytesCompare/128   8.19ns ± 0%  7.35ns ± 0%  -10.29%
+    BytesCompare/256   12.8ns ± 0%  11.4ns ± 0%  -11.23%
+    BytesCompare/512   22.2ns ± 0%  20.7ns ± 0%   -6.80%
+    BytesCompare/1024  41.1ns ± 0%  39.8ns ± 0%   -3.12%
+    BytesCompare/2048  86.5ns ± 0%  81.1ns ± 0%   -6.31%
+    
+    Change-Id: I7c7fb1f7b891c23c6cade580e7b9928ca1a6efc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474496
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/runtime/heapdump.go    |  4 +---
- src/runtime/mcheckmark.go  |  4 +---
- src/runtime/mgc.go         |  4 +---
- src/runtime/mpagealloc.go  |  5 +----
- src/runtime/mpallocbits.go |  8 ++------
- src/runtime/mprof.go       | 12 +++---------
- src/runtime/profbuf.go     | 10 +++-------
- 7 files changed, 12 insertions(+), 35 deletions(-)
+ src/internal/bytealg/compare_ppc64x.s | 642 +++++++++++++---------------------
+ 1 file changed, 236 insertions(+), 406 deletions(-)

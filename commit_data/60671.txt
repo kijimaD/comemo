@@ -1,0 +1,15 @@
+commit 3c170ac018422fce5811f23455c89fe7630a4156
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Wed Aug 7 14:43:14 2024 +0800
+
+    slices: add examples for iterator-related functions
+    
+    Change-Id: I13e878579b51638c2c07ad3ea99be7276177875c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603735
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/slices/example_test.go | 127 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 127 insertions(+)

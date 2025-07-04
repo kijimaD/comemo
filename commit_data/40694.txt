@@ -1,19 +1,14 @@
-commit cfb13126f3798bcb46b4f947aaa16929ab5c147f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 4 20:06:19 2019 -0800
+commit bc27b64dba0ac74cd084d5331862d8fbf587c262
+Author: Steve Mynott <steve.mynott@gmail.com>
+Date:   Mon Jun 17 21:05:23 2019 +0000
 
-    runtime: sleep a bit when waiting for running debug call goroutine
+    doc: remove a Google+ link since it doesn't exist anymore
     
-    Without this CL, one of the TestDebugCall tests would fail 1% to 2% of
-    the time on the android-amd64-emu gomote. With this CL, I ran the
-    tests for 1000 iterations with no failures.
-    
-    Fixes #32985
-    
-    Change-Id: I541268a2a0c10d0cd7604f0b2dbd15c1d18e5730
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205248
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I692229a5597a6114a7f4261f7b59c58bf20f3e2b
+    GitHub-Last-Rev: ab173354caa63345d38a625705aea0c660cfdb9b
+    GitHub-Pull-Request: golang/go#32660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182677
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/export_debug_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/help.html | 3 ---
+ 1 file changed, 3 deletions(-)

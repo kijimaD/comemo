@@ -1,19 +1,17 @@
-commit 8b9ecbf374d2c8be1423c24a235d6e3ff8bafe15
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed May 2 19:48:04 2018 +0200
+commit 4a2f28f51ecabfb4a839d7f483a32ae9b9206c83
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 22 12:56:01 2018 -0500
 
-    misc/ios: ensure deferred cleanup functions are run even on error
+    doc, cmd/go: final release notes edits
     
-    log.Fatal exits the process and doesn't allow deferred functions
-    to run. Extract log.Fatal calls to main where all deferred functions
-    have completed.
+    Except for removing the DRAFT marker, I think these are now ready to go.
     
-    For the iOS builder.
-    
-    Change-Id: Id1ef9955bed19944a819d6137a611d6ecbe624a6
-    Reviewed-on: https://go-review.googlesource.com/110955
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I20604f5b135616189a24990db463c7bb5e7d48f1
+    Reviewed-on: https://go-review.googlesource.com/88975
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 31 +++++++++++++++++--------------
- 1 file changed, 17 insertions(+), 14 deletions(-)
+ doc/go1.10.html                  | 29 +++++++++++++++--------------
+ src/cmd/go/alldocs.go            |  9 ++++++---
+ src/cmd/go/internal/test/test.go |  9 ++++++---
+ 3 files changed, 27 insertions(+), 20 deletions(-)

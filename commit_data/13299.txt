@@ -1,21 +1,12 @@
-commit 42a76efc924cdae869efa1c936d263134ff225d6
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Wed Jun 6 18:38:56 2012 -0400
+commit c8cbbd31f0ddfccb26a62d1c13696fce3b53e52c
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Jun 6 16:54:02 2012 -0400
 
-    net: pass tests on Plan 9 again
+    fmt: fix doc typo
     
-    R=golang-dev
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6280045
+    https://golang.org/cl/6308046
 
- src/pkg/net/dial_test.go      |  2 +-
- src/pkg/net/ipraw_test.go     |  2 ++
- src/pkg/net/ipsock_plan9.go   | 19 +++++++++++++++++++
- src/pkg/net/multicast_test.go |  2 ++
- src/pkg/net/net_test.go       |  5 +++++
- src/pkg/net/tcpsock_plan9.go  | 31 ++++++++++++-------------------
- src/pkg/net/udpsock.go        |  4 ++++
- src/pkg/net/udpsock_plan9.go  | 16 ----------------
- src/pkg/net/udpsock_posix.go  |  7 +------
- src/pkg/net/unicast_test.go   |  2 ++
- 10 files changed, 48 insertions(+), 42 deletions(-)
+ src/pkg/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

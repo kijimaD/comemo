@@ -1,22 +1,20 @@
-commit 93dde6b0e6c0de50a47f9dc5f3ac7205c36742aa
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jun 28 09:43:01 2011 -0400
+commit 81592c298b3b55bda7eaeedc000f02eecc7a2165
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 28 23:04:08 2011 +1000
 
-    sync: add fast path to Once
-    The implementation does not grab the lock,
-    if Once is already initalized.
-    Benchmark results on HP Z600 (2 x Xeon E5620, 8 HT cores, 2.40GHz)
-    are as follows:
-    benchmark                                        old ns/op    new ns/op    delta
-    sync_test.BenchmarkOnce                             187.00        14.00  -92.51%
-    sync_test.BenchmarkOnce-2                           909.00        21.40  -97.65%
-    sync_test.BenchmarkOnce-4                          3684.00        20.90  -99.43%
-    sync_test.BenchmarkOnce-8                          5987.00        23.00  -99.62%
-    sync_test.BenchmarkOnce-16                         5051.00        21.60  -99.57%
+    Add the beginnings of the template execution code.  Lots still to do,
+    including evaluation up the data tree (in this code all fields must be
+    in dot itself), plus more control structure, but the basics are in place.
     
-    R=bradfitz, rsc
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4641066
+    https://golang.org/cl/4665041
 
- src/pkg/sync/once.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/pkg/exp/template/Makefile      |   1 +
+ src/pkg/exp/template/exec.go       | 316 +++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/template/exec_test.go  | 160 +++++++++++++++++++
+ src/pkg/exp/template/lex.go        |   6 +-
+ src/pkg/exp/template/lex_test.go   |  11 +-
+ src/pkg/exp/template/parse.go      | 127 ++++++++++-----
+ src/pkg/exp/template/parse_test.go |  21 ++-
+ 7 files changed, 587 insertions(+), 55 deletions(-)

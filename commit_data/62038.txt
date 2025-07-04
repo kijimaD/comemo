@@ -1,0 +1,21 @@
+commit 87023bb27f2cbe86c5baa9cef5ad91a6fc9a1c14
+Author: Wingrez <31106425+wingrez@users.noreply.github.com>
+Date:   Fri Jan 17 00:38:59 2025 +0000
+
+    go/types, types2: ensure deterministic output when reporting an init cycle
+    
+    Fixes #71254
+    
+    Change-Id: Ie3bad281403c8ff6215e03d92760b9a378714cee
+    GitHub-Last-Rev: 9b804a7842421dca6a97c57ce18523b593b0817d
+    GitHub-Pull-Request: golang/go#71264
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642396
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/initorder.go               | 10 ++++++++++
+ .../compile/internal/types2/testdata/local/issue71254.go   | 14 ++++++++++++++
+ src/go/types/initorder.go                                  | 10 ++++++++++
+ 3 files changed, 34 insertions(+)

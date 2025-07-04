@@ -1,12 +1,12 @@
-commit c1dd7f4322dc2ed6869da606b9bf9f3db6be9b5a
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Aug 21 17:45:35 2013 +1000
+commit efdbf0811c86f32eb029ff3f2affdf63337ed2fa
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Aug 21 14:02:58 2013 +1000
 
-    doc/go1.2.txt: cmd/5l: support for external linking for linux/arm
+    C: add Todd Wang (Google CLA).
     
-    R=r
-    CC=golang-dev
-    https://golang.org/cl/13019044
+    R=r, adg
+    CC=golang-dev, toddwang
+    https://golang.org/cl/13149043
 
- doc/go1.2.txt | 1 +
+ CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)

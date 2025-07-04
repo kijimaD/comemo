@@ -1,15 +1,38 @@
-commit 4015277b615d8f3e40ef6993b4b98e39fe9a64c4
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon May 13 17:59:12 2024 +0200
+commit 57e3189821c6525fc8eecac42c3faad3b5416223
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat May 6 00:11:33 2023 +0800
 
-    net/netip: combine import groups
+    all: fix a lot of comments
     
-    Change-Id: If79f4452a34281796c4b8e7b0246c978e09a64af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585056
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Fix comments, including duplicate is, wrong phrases and articles, misspellings, etc.
+    
+    Change-Id: I8bfea53b9b275e649757cc4bee6a8a026ed9c7a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493035
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/netip/netip.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/loopvar/loopvar.go      | 2 +-
+ src/cmd/compile/internal/ssa/value.go            | 2 +-
+ src/cmd/compile/internal/ssagen/ssa.go           | 2 +-
+ src/cmd/compile/internal/types2/infer.go         | 2 +-
+ src/cmd/compile/internal/types2/resolver_test.go | 2 +-
+ src/cmd/compile/internal/types2/unify.go         | 2 +-
+ src/cmd/compile/internal/walk/expr.go            | 2 +-
+ src/go/scanner/scanner_test.go                   | 2 +-
+ src/go/types/eval.go                             | 2 +-
+ src/go/types/infer.go                            | 2 +-
+ src/go/types/unify.go                            | 2 +-
+ src/internal/types/testdata/check/errors.go      | 2 +-
+ src/math/big/floatconv.go                        | 2 +-
+ src/net/http/cookiejar/jar_test.go               | 4 ++--
+ src/net/http/request_test.go                     | 4 ++--
+ src/net/http/transport_test.go                   | 6 +++---
+ src/runtime/runtime-gdb.py                       | 2 +-
+ src/runtime/runtime2.go                          | 2 +-
+ src/sync/atomic/type.go                          | 6 +++---
+ src/syscall/fs_wasip1.go                         | 2 +-
+ 20 files changed, 26 insertions(+), 26 deletions(-)

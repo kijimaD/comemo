@@ -1,17 +1,23 @@
-commit a9ca2137aa3ebcf9cf094b20cf30cf50ba577892
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 12 12:24:36 2015 -0500
+commit 991036aef38cea57c2a7ef02220754d93799c489
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Sep 3 18:24:22 2015 -0500
 
-    test: really force heap profile update in heapsampling.go
+    [dev.ssa] cmd/compile: store bools in AuxInt
     
-    The heap profile is only guaranteed to be up-to-date after two GC
-    cycles, so force two GCs instead of just one.
+    Store bools in AuxInt to reduce allocations.
     
-    Updates #13098.
-    
-    Change-Id: I4fb9287b698f4a3b90b8af9fc6a2efb3b082bfe5
-    Reviewed-on: https://go-review.googlesource.com/16848
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ibd26db67fca5e1e2803f53d7ef094897968b704b
+    Reviewed-on: https://go-review.googlesource.com/14276
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- test/heapsampling.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             |  24 +++-
+ src/cmd/compile/internal/ssa/check.go          |   5 +
+ src/cmd/compile/internal/ssa/deadcode_test.go  |   6 +-
+ src/cmd/compile/internal/ssa/deadstore_test.go |   6 +-
+ src/cmd/compile/internal/ssa/dom_test.go       |  28 ++---
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   3 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  28 ++---
+ src/cmd/compile/internal/ssa/rewrite.go        |   8 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  35 ++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 164 ++++++++++++-------------
+ 10 files changed, 156 insertions(+), 151 deletions(-)

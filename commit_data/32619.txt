@@ -1,17 +1,14 @@
-commit 84188296e93dd4d26cb0a75a03a9096794e01e2f
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Tue Jul 4 09:11:04 2017 +0200
+commit 096e2bffdf065dbaa4e5023d6b83ce694a37b949
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 8 16:40:49 2017 +1000
 
-    cmd/compile: more compact representation of DW_AT_high_pc
+    cmd/go: run tests that require symlinks
     
-    DWARF version 4 allows DW_AT_high_pc to be represented as a constant
-    offset from DW_AT_low_pc, this can help save up to 7 bytes per
-    function/lexical scope.
-    
-    Change-Id: I93638d83638ecad4d0d1bfe27348eae6139820c9
-    Reviewed-on: https://go-review.googlesource.com/60530
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I19a724ea4eb1ba0ff558721650c89a949e53b7c7
+    Reviewed-on: https://go-review.googlesource.com/42895
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/go_test.go | 25 +++++--------------------
+ 1 file changed, 5 insertions(+), 20 deletions(-)

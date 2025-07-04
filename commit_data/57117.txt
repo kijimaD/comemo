@@ -1,25 +1,17 @@
-commit d0e7642a3648b85051e9ea6ca3ef527451a3b86a
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Aug 7 15:04:05 2024 -0400
+commit 633b742ae084df018c802c97bdbe91cf5f598605
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 21 13:52:42 2023 -0700
 
-    cmd: update golang.org/x/mod to v0.20.0
+    test: add test that caused a gofrontend crash
     
-    Commands run:
-        go get golang.org/x/mod@v0.20.0
-        go mod tidy
-        go mod vendor
-    
-    This is being done in preparation for vendoring in the latest commit of
-    golang.org/x/telemetry.
-    
-    Change-Id: I67de7c23c4949cde63826c9d791f7b67698491d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603897
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Idd872c5b90dbca564ed8a37bb3683e642142ae63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505015
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go.mod                                  | 2 +-
- src/cmd/go.sum                                  | 4 ++--
- src/cmd/vendor/golang.org/x/mod/modfile/read.go | 7 ++++---
- src/cmd/vendor/modules.txt                      | 2 +-
- 4 files changed, 8 insertions(+), 7 deletions(-)
+ test/fixedbugs/bug516.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

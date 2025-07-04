@@ -1,19 +1,12 @@
-commit 12376c93ef4dfb163599efdc8848e478158e671a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu May 26 20:02:03 2011 -0400
+commit 86327cdcf546d33afffaabbea01626a78a705868
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 27 09:52:15 2011 +1000
 
-    syscall: add routing messages support for BSD variants
+    os: TestMkdirAll should not fail to delete _test/_TestMkdirAll_ on Windows
     
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4539084
+    https://golang.org/cl/4515142
 
- src/pkg/syscall/Makefile                 |    2 +
- src/pkg/syscall/mkerrors.sh              |    4 +-
- src/pkg/syscall/route_bsd.go             |  180 +++
- src/pkg/syscall/syscall_bsd.go           |   21 -
- src/pkg/syscall/zerrors_darwin_386.go    |   66 +
- src/pkg/syscall/zerrors_darwin_amd64.go  |   66 +
- src/pkg/syscall/zerrors_freebsd_386.go   | 2229 ++++++++++++++++--------------
- src/pkg/syscall/zerrors_freebsd_amd64.go | 2229 ++++++++++++++++--------------
- 8 files changed, 2761 insertions(+), 2036 deletions(-)
+ src/pkg/os/path_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

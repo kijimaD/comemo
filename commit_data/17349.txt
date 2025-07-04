@@ -1,27 +1,26 @@
-commit 0e73497a4ba97048222ae262f7b5a40c281af0b6
-Author: Todd Wang <toddwang@gmail.com>
-Date:   Wed Aug 21 14:41:55 2013 +1000
+commit f578726de1d75b5816904972b0a29c1a5fdbda24
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 21 14:00:45 2013 +1000
 
-    reflect: Fix Convert to add indir bit when the value is actually a
-    pointer.  An example that triggers the bad behavior on a 64bit
-    machine http://play.golang.org/p/GrNFakAYLN
-            rv1 := reflect.ValueOf(complex128(0))
-            rt := rv1.Type()
-            rv2 := rv1.Convert(rt)
-            rv3 := reflect.New(rt).Elem()
-            rv3.Set(rv2)
+    all: protect alloc count tests by -testing.short
     
-    Running the code fails with the following:
-            panic: reflect: internal error: storeIword of 16-byte value
+    Update #5000
+    Should reduce the flakiness a little. Malloc counting is important
+    to general testing but not to the build dashboard, which uses -short.
     
-    I've tested on a 64bit machine and verified this fixes the panic.  I
-    haven't tested on a 32bit machine so I haven't verified the other
-    cases, but they follow logically.
-    
-    R=golang-dev, r, iant
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/12805045
+    https://golang.org/cl/12866047
 
- src/pkg/reflect/all_test.go | 32 +++++++++++++++++++++++++-------
- src/pkg/reflect/value.go    |  6 +++---
- 2 files changed, 28 insertions(+), 10 deletions(-)
+ src/pkg/encoding/gob/timing_test.go | 15 ++++++++++++---
+ src/pkg/fmt/fmt_test.go             |  3 +++
+ src/pkg/net/http/header_test.go     |  3 +++
+ src/pkg/net/rpc/server_test.go      |  6 ++++++
+ src/pkg/net/tcp_test.go             |  3 +++
+ src/pkg/path/filepath/path_test.go  |  3 +++
+ src/pkg/path/path_test.go           |  5 +++++
+ src/pkg/reflect/all_test.go         |  9 +++++++++
+ src/pkg/sort/search_test.go         |  3 +++
+ src/pkg/strconv/strconv_test.go     |  3 +++
+ src/pkg/time/time_test.go           |  3 +++
+ 11 files changed, 53 insertions(+), 3 deletions(-)

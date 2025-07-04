@@ -1,16 +1,29 @@
-commit 3928915ec74029269f8dacb46c627cbdbd295c2b
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Sat Aug 10 13:11:26 2019 +0000
+commit 129c6e449694f14fd27dfed03f7a0c95847ec366
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 6 17:14:27 2019 -0800
 
-    doc/go1.13: mention faster sync.Mutex/RWMutex/Once
+    math/big: support new octal prefixes 0o and 0O
     
-    Mention faster sync.Mutex/RWMutex/Once in the 1.13 release notes.
+    This CL extends the various SetString and Parse methods for
+    Ints, Rats, and Floats to accept the new octal prefixes.
     
-    Change-Id: I29d8a5004a0af42542e8db82a8c9e2e06a15dbb0
-    GitHub-Last-Rev: 2995401dab563ea5af98c0f5351f51a6116f105e
-    GitHub-Pull-Request: golang/go#33404
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188479
+    The main change is in natconv.go, all other changes are
+    documentation and test updates.
+    
+    Finally, this CL also fixes TestRatSetString which silently
+    dropped certain failures.
+    
+    Updates #12711.
+    
+    Change-Id: I5ee5879e25013ba1e6eda93ff280915f25ab5d55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165898
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- doc/go1.13.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/math/big/floatconv.go      | 14 ++++----
+ src/math/big/floatconv_test.go | 21 ++++++++++++
+ src/math/big/intconv.go        |  5 +--
+ src/math/big/intconv_test.go   |  7 ++++
+ src/math/big/natconv.go        | 76 ++++++++++++++++++++----------------------
+ src/math/big/natconv_test.go   | 33 ++++++++++++++----
+ src/math/big/ratconv_test.go   | 14 +++++---
+ 7 files changed, 112 insertions(+), 58 deletions(-)

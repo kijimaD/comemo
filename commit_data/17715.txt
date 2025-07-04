@@ -1,20 +1,17 @@
-commit 7a480a8c9b3c43550f232a79af43fd99716e4595
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Mon Sep 30 16:02:12 2013 -0700
+commit cdb33231b2d988b71f03f622fc9c3d2edccc20e0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Sep 29 10:34:41 2013 +1000
 
-    undo CL 14154043 / 3e485428767e
+    race.bash, race.bat: build a race enabled cmd/cgo before trying to use it
     
-    ««« original CL description
-    encoding/gob: do not hide pointer argument for the garbage collector
+    Fixes #5537.
     
-    R=golang-dev, r
+    To avoid `go install -v race std` replacing cmd/cgo with a race enabled version and another package trying to build a cgo enabled package, always build cmd/cgo race enabled before doing the rest of the build.
+    
+    R=remyoudompheng, rsc, dvyukov, minux.ma
     CC=golang-dev
-    https://golang.org/cl/14154043
-    »»»
-    
-    R=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/14165043
+    https://golang.org/cl/14071044
 
- src/pkg/encoding/gob/decode.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/race.bash | 2 ++
+ src/race.bat  | 3 +++
+ 2 files changed, 5 insertions(+)

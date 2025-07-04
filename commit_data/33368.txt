@@ -1,27 +1,23 @@
-commit a0dfd82f41145bd41b765d9fb13bc2c10c659571
-Author: griesemer <gri@golang.org>
-Date:   Wed Nov 1 14:24:06 2017 -0700
+commit 1ee701e857e16869d40d60a09451058e8913528f
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Aug 12 22:52:17 2017 +0900
 
-    go/types: avoid repeated "declared but not used" errors for closure variables
+    cmd/link: improve error message
     
-    At the end of type-checking a function or closure, unused local variables
-    are reported by looking at all variables in the function scope and its
-    nested children scopes. If a nested scope belonged to a nested function
-    (closure), that scope would be searched twice, leading to multiple error
-    messages for unused variables.
+    ld.SymKind and objabi.RelocType have string representations,
+    which is human friendly. Prefer to use it.
     
-    This CL introduces an internal-only marker to identify function scopes
-    so that they can be ignored where needed.
-    
-    Fixes #22524.
-    
-    Change-Id: If58cc17b2f0615a16f33ea262f50dffd0e86d0f0
-    Reviewed-on: https://go-review.googlesource.com/75251
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I458ee0ca5866be0db8462c36cd053561a8206c95
+    Reviewed-on: https://go-review.googlesource.com/55253
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/expr.go              | 9 +++++++++
- src/go/types/scope.go             | 3 ++-
- src/go/types/stmt.go              | 6 +++++-
- src/go/types/testdata/vardecl.src | 7 +++++++
- src/go/types/typexpr.go           | 1 +
- 5 files changed, 24 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/amd64/asm.go | 6 +++---
+ src/cmd/link/internal/arm/asm.go   | 4 ++--
+ src/cmd/link/internal/arm64/asm.go | 4 ++--
+ src/cmd/link/internal/ld/data.go   | 4 ++--
+ src/cmd/link/internal/ld/elf.go    | 4 ++--
+ src/cmd/link/internal/ld/pe.go     | 4 ++--
+ src/cmd/link/internal/x86/asm.go   | 6 +++---
+ 7 files changed, 16 insertions(+), 16 deletions(-)

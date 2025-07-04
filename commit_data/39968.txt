@@ -1,29 +1,64 @@
-commit 66e562cc522ecbb269d2a2d9cffb1bdba2e37aee
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Sep 16 12:35:15 2019 -0700
+commit 2dcbf8b3691e72d1b04e9376488cef3b6f93b286
+Author: Austin Clements <austin@google.com>
+Date:   Sat Mar 2 15:16:29 2019 -0500
 
-    runtime: avoid overflow in markrootBlock
+    sync: smooth out Pool behavior over GC with a victim cache
     
-    In a position independent executable the data or BSS may be located
-    close to the end of memory. If it is placed closer than
-    rootBlockBytes, then the calculations in markrootBlock would overflow,
-    and the test that ensures that n is not larger than n0 would fail.
-    This would then cause scanblock to scan data that it shouldn't,
-    using an effectively random ptrmask, leading to program crashes.
+    Currently, every Pool is cleared completely at the start of each GC.
+    This is a problem for heavy users of Pool because it causes an
+    allocation spike immediately after Pools are clear, which impacts both
+    throughput and latency.
     
-    No test because the only way to test it is to build a PIE and convince
-    the kernel to put the data section near the end of memory, and I don't
-    know how to do that. Or perhaps we could use a linker script, but that
-    is painful.
+    This CL fixes this by introducing a victim cache mechanism. Instead of
+    clearing Pools, the victim cache is dropped and the primary cache is
+    moved to the victim cache. As a result, in steady-state, there are
+    (roughly) no new allocations, but if Pool usage drops, objects will
+    still be collected within two GCs (as opposed to one).
     
-    The new code is algebraically identical to the original code, but
-    avoids the potential overflow of b+rootBlockBytes.
+    This victim cache approach also improves Pool's impact on GC dynamics.
+    The current approach causes all objects in Pools to be short lived.
+    However, if an application is in steady state and is just going to
+    repopulate its Pools, then these objects impact the live heap size *as
+    if* they were long lived. Since Pooled objects count as short lived
+    when computing the GC trigger and goal, but act as long lived objects
+    in the live heap, this causes GC to trigger too frequently. If Pooled
+    objects are a non-trivial portion of an application's heap, this
+    increases the CPU overhead of GC. The victim cache lets Pooled objects
+    affect the GC trigger and goal as long-lived objects.
     
-    Change-Id: Ieb4e5465174bb762b063d2491caeaa745017345e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195717
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This has no impact on Get/Put performance, but substantially reduces
+    the impact to the Pool user when a GC happens. PoolExpensiveNew
+    demonstrates this in the substantially reduction in the rate at which
+    the "New" function is called.
+    
+    name                 old time/op     new time/op     delta
+    Pool-12                 2.21ns ±36%     2.00ns ± 0%     ~     (p=0.070 n=19+16)
+    PoolOverflow-12          587ns ± 1%      583ns ± 1%   -0.77%  (p=0.000 n=18+18)
+    PoolSTW-12              5.57µs ± 3%     4.52µs ± 4%  -18.82%  (p=0.000 n=20+19)
+    PoolExpensiveNew-12     3.69ms ± 7%     1.25ms ± 5%  -66.25%  (p=0.000 n=20+19)
+    
+    name                 old p50-ns/STW  new p50-ns/STW  delta
+    PoolSTW-12               5.48k ± 2%      4.53k ± 2%  -17.32%  (p=0.000 n=20+20)
+    
+    name                 old p95-ns/STW  new p95-ns/STW  delta
+    PoolSTW-12               6.69k ± 4%      5.13k ± 3%  -23.31%  (p=0.000 n=19+18)
+    
+    name                 old GCs/op      new GCs/op      delta
+    PoolExpensiveNew-12       0.39 ± 1%       0.32 ± 2%  -17.95%  (p=0.000 n=18+20)
+    
+    name                 old New/op      new New/op      delta
+    PoolExpensiveNew-12       40.0 ± 6%       12.4 ± 6%  -68.91%  (p=0.000 n=20+19)
+    
+    (https://perf.golang.org/search?q=upload:20190311.2)
+    
+    Fixes #22950.
+    
+    Change-Id: If2e183d948c650417283076aacc20739682cdd70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166961
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/mgcmark.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/sync/pool.go      | 60 +++++++++++++++++++++++++++++++++++++++++++++------
+ src/sync/pool_test.go | 15 ++++++++++---
+ 2 files changed, 66 insertions(+), 9 deletions(-)

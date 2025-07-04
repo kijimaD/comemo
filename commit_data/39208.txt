@@ -1,25 +1,18 @@
-commit 2d7cb295fdda94f3d62588b7bb01a4d8b445417a
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Sat May 4 00:24:53 2019 +0700
+commit 9d23975d89e6cc3df4f2156b2ae0df5d2cef16fb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 17 14:39:31 2019 -0500
 
-    cmd/compile: clarify the difference between types.Sym and obj.LSym
+    cmd/go/internal/modload: ensure that __debug_modinfo__ is not discarded during linking
     
-    Both types.Sym and obj.LSym have the field Name, and that field is
-    widely used in compiler source. It can lead to confusion that when to
-    use which one.
+    Fixes #28753
+    Updates #29628
     
-    So, adding documentation for clarifying the difference between them,
-    eliminate the confusion, or at least, make the code which use them
-    clearer for the reader.
-    
-    See https://github.com/golang/go/issues/31252#issuecomment-481929174
-    
-    Change-Id: I31f7fc6e4de4cf68f67ab2e3a385a7f451c796f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175019
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4a561be7d491a0d088e656b00151ae1bdbd16a84
+    Reviewed-on: https://go-review.googlesource.com/c/158357
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/syntax.go |  2 +-
- src/cmd/compile/internal/types/sym.go | 12 +++++++++---
- src/cmd/internal/obj/link.go          |  1 +
- 3 files changed, 11 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/modload/build.go       | 11 +++-
+ src/cmd/go/testdata/script/mod_modinfo.txt | 85 +++++++++++++++++++++++-------
+ 2 files changed, 77 insertions(+), 19 deletions(-)

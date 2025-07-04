@@ -1,18 +1,40 @@
-commit 0382a30dd6cd78efd9fb27bfed50dd1d6d7f722b
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Mar 20 21:44:31 2016 -0400
+commit 378a86368279ffdfecc50e91c4bcb61e72957d21
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 25 13:10:51 2016 -0500
 
-    math: add functions and stubs for s390x
+    [dev.ssa] cmd/compile: enhance command line option processing for SSA
     
-    Includes assembly implementations of Sqrt and Dim.
+    The -d compiler flag can also specify ssa phase and flag,
+    for example -d=ssa/generic_cse/time,ssa/generic_cse/stats
     
-    Change-Id: I57472e8d31e2ee74bcebf9f8e818f765eb9b8abf
-    Reviewed-on: https://go-review.googlesource.com/20936
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Spaces in the phase names can be specified with an
+    underscore.  Flags currently parsed (not necessarily
+    recognized by the phases yet) are:
+    
+       on, off, mem, time, debug, stats, and test
+    
+    On, off and time are handled in the harness,
+    debug, stats, and test are interpreted by the phase itself.
+    
+    The pass is now attached to the Func being compiled, and a
+    new method logStats(key, ...value) on *Func to encourage a
+    semi-standardized format for that output.  Output fields
+    are separated by tabs to ease digestion by awk and
+    spreadsheets.  For example,
+            if f.pass.stats > 0 {
+                    f.logStat("CSE REWRITES", rewrites)
+            }
+    
+    Change-Id: I16db2b5af64c50ca9a47efeb51d961147a903abc
+    Reviewed-on: https://go-review.googlesource.com/19885
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/math/dim_s390x.s   | 132 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/math/sqrt_s390x.s  |  12 +++++
- src/math/stubs_s390x.s |  77 +++++++++++++++++++++++++++++
- 3 files changed, 221 insertions(+)
+ src/cmd/compile/internal/gc/lex.go        |  18 ++++-
+ src/cmd/compile/internal/gc/ssa.go        |  55 +++----------
+ src/cmd/compile/internal/ssa/compile.go   | 125 ++++++++++++++++++++++--------
+ src/cmd/compile/internal/ssa/config.go    |  90 ++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/cse.go       |  10 +--
+ src/cmd/compile/internal/ssa/func.go      |  20 ++++-
+ src/cmd/compile/internal/ssa/func_test.go |   6 ++
+ 7 files changed, 240 insertions(+), 84 deletions(-)

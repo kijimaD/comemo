@@ -1,20 +1,23 @@
-commit f1b1557cf3c9ca5e3def849656f79f39041d0055
-Author: ted <ted.painter@intel.com>
-Date:   Wed May 25 20:03:48 2022 -0400
+commit b6dddaccd7e8c9c6768943918d03f455385294b9
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Sep 19 17:17:31 2021 -0700
 
-    internal/cpu: detect sha-ni instruction support for AMD64
+    cmd/compile: fix transform.AssignOp to deal with tricky case
     
-        addresses proposal #53084
-        required by sha-256 change list developed for #50543
+    When going to dictionary formats derived from the function
+    instantiations, I had broken out noder.Assignop() to deal specially with
+    shape types, but didn't quite get the tricky case right. We still need
+    to allow conversion between shape types, but if the destination is an
+    interface, we need to use CONVIFACE rather than CONVNOP.
     
-    Change-Id: I5454d746fce069a7a4993d70dc5b0a5544f8eeaf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408794
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Fixes #48453.
+    
+    Change-Id: I8c4b39c2e628172ac34f493f1dd682cbac1e55ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350949
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@google.com>
 
- src/internal/cpu/cpu.go     | 1 +
- src/internal/cpu/cpu_x86.go | 3 +++
- 2 files changed, 4 insertions(+)
+ src/cmd/compile/internal/noder/transform.go | 15 ++++++++++++---
+ test/typeparam/issue48453.go                | 21 +++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 3 deletions(-)

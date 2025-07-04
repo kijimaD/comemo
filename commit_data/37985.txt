@@ -1,15 +1,28 @@
-commit ef454fd586ee30d8b35b5895320619ebde2beb98
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 15 23:42:32 2019 +0000
+commit e82d152e66e81812a5c6ebf075cc99efd2602b19
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 18 12:52:39 2018 -0700
 
-    doc/go1.12: document net/url.Parse now rejecting ASCII CTLs
+    fmt: fix usage of sync.Pool
     
-    Updates #27302
-    Updates #22907
+    The current usage of sync.Pool is leaky because it stores an arbitrary
+    sized buffer into the pool. However, sync.Pool assumes that all items in the
+    pool are interchangeable from a memory cost perspective. Due to the unbounded
+    size of a buffer that may be added, it is possible for the pool to eventually
+    pin arbitrarily large amounts of memory in a live-lock situation.
     
-    Change-Id: Iac6957f3517265dfb9c662efb7af31192e3bfd6c
-    Reviewed-on: https://go-review.googlesource.com/c/162960
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    As a simple fix, we just set a maximum size that we permit back into the pool.
+    
+    We do not need to fix the use of a sync.Pool in scan.go since the free method
+    has always enforced a maximum capacity since the first commit of the scan logic.
+    
+    Fixes #27740
+    Updates #23199
+    
+    Change-Id: I875278f7dba42625405df36df3e9b028252ce5e3
+    Reviewed-on: https://go-review.googlesource.com/136116
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.12.html | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/fmt/print.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

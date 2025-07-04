@@ -1,24 +1,21 @@
-commit 4d7d7a4c50ea0d16879458a032f1a05db2c7ae4f
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Wed Apr 7 21:27:27 2021 +0200
+commit dbb1c5bf743dd556c8a83cba1d064bf3acaf07bb
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 25 18:44:58 2020 +0200
 
-    os: replace os.MkdirTemp with T.TempDir
+    syscall: remove mksysnum_darwin.pl script
     
-    Updates #45402
+    Direct syscalls using syscall numbers are no longer supported on darwin
+    since Go 1.12, see https://golang.org/doc/go1.12#darwin. Also,
+    /usr/include/sys/syscall.h is no longer available on recent macOS
+    versions, so remove the generating script.
     
-    Change-Id: Ib8e62a13ddff884e4d34b3a0fdc9a10db2b68da6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308109
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8e2579c3d0e94a61fc041d06280149ec6ccf13e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257638
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/os/error_test.go        |  8 +------
- src/os/fifo_test.go         |  7 +-----
- src/os/os_test.go           | 38 ++++++--------------------------
- src/os/os_windows_test.go   | 28 +++++-------------------
- src/os/path_test.go         | 17 ++++-----------
- src/os/path_windows_test.go | 24 +++++---------------
- src/os/removeall_test.go    | 53 ++++++++-------------------------------------
- src/os/stat_test.go         | 45 ++++++++++----------------------------
- 8 files changed, 45 insertions(+), 175 deletions(-)
+ src/syscall/mkall.sh           |  2 --
+ src/syscall/mksysnum_darwin.pl | 32 --------------------------------
+ 2 files changed, 34 deletions(-)

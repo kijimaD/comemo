@@ -1,24 +1,21 @@
-commit 4312a18b8a1d7d35dcc45cdf4280260c3933a2ed
-Author: erifan01 <eric.fang@arm.com>
-Date:   Wed Apr 17 01:44:24 2019 +0000
+commit 048580d341a530bb8d9ca891f95ce79aace4151f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Nov 13 16:05:15 2018 -0500
 
-    runtime/cgo: declare variable setg_gcc as static
+    cmd/asm,cmd/internal/obj/ppc64: add VPERMXOR to ppc64 assembler
     
-    variable setg_gcc in runtime/cgo/*.c should be static, otherwise it
-    will be mixed with the function of the same name in runtime/asm_*.s or
-    tls_*.s, which causes an error when building PIE with internal linking
-    mode.
+    VPERMXOR is missing from the Go assembler for ppc64. It has the
+    same format as VPERM. It was requested by an external user so
+    they could write an optimized algorithm in asm.
     
-    Fixes #31485
-    
-    Change-Id: I79b311ffcaf450984328db65397840ae7d85e65d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172498
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icf4c682f7f46716ccae64e6ae3d62e8cec67f6c1
+    Reviewed-on: https://go-review.googlesource.com/c/151578
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
 
- src/runtime/cgo/gcc_darwin_arm.c    | 2 +-
- src/runtime/cgo/gcc_darwin_arm64.c  | 2 +-
- src/runtime/cgo/gcc_linux_arm.c     | 2 +-
- src/runtime/cgo/gcc_linux_arm64.c   | 2 +-
- src/runtime/cgo/gcc_linux_mips64x.c | 2 +-
- src/runtime/cgo/gcc_linux_mipsx.c   | 2 +-
- 6 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 1 +
+ src/cmd/internal/obj/ppc64/a.out.go       | 1 +
+ src/cmd/internal/obj/ppc64/anames.go      | 1 +
+ src/cmd/internal/obj/ppc64/asm9.go        | 4 +++-
+ 4 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,29 +1,12 @@
-commit 295a4d8e6433e8a8b6df25375fb780b0f75ff4e6
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 22 15:06:28 2012 -0500
+commit e09f1e7a46c0bd0f2160fa0d71d4b89104c6fe3b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Dec 22 14:51:16 2012 -0500
 
-    runtime: ignore failure from madvise
+    misc/benchcmp: show byte allocation statistics
     
-    When we release memory to the OS, if the OS doesn't want us
-    to release it (for example, because the program executed
-    mlockall(MCL_FUTURE)), madvise will fail. Ignore the failure
-    instead of crashing.
-    
-    Fixes #3435.
-    
-    R=ken2
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6998052
+    https://golang.org/cl/6971048
 
- src/pkg/runtime/sys_darwin_386.s    | 3 +--
- src/pkg/runtime/sys_darwin_amd64.s  | 3 +--
- src/pkg/runtime/sys_freebsd_386.s   | 3 +--
- src/pkg/runtime/sys_freebsd_amd64.s | 3 +--
- src/pkg/runtime/sys_freebsd_arm.s   | 3 +--
- src/pkg/runtime/sys_linux_386.s     | 4 +---
- src/pkg/runtime/sys_linux_amd64.s   | 4 +---
- src/pkg/runtime/sys_linux_arm.s     | 5 +----
- src/pkg/runtime/sys_netbsd_386.s    | 3 +--
- src/pkg/runtime/sys_netbsd_amd64.s  | 3 +--
- src/pkg/runtime/sys_openbsd_amd64.s | 3 +--
- 11 files changed, 11 insertions(+), 26 deletions(-)
+ misc/benchcmp | 34 ++++++++++++++++++++++++++++++----
+ 1 file changed, 30 insertions(+), 4 deletions(-)

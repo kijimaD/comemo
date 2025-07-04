@@ -1,13 +1,16 @@
-commit 9611d12b7e9b945099c18b1144a90aec7b849686
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 26 11:17:48 2011 -0700
+commit 4403e6b6d871fdae0e0bf108fd659bd6fa4b84e2
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 26 10:41:24 2011 -0400
 
-    C+A: add Jongmin Kim (individual CLA)
+    crypto/rsa: change public exponent from 3 to 65537
     
-    R=golang-dev, rsc, iant
+    Although there's still no concrete security reason not to use 3, I
+    think Bleichenbacher has convinced me that it's a useful defense and
+    it's what everyone else does.
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5312057
+    https://golang.org/cl/5307060
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/crypto/rsa/rsa.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

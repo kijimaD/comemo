@@ -1,16 +1,14 @@
-commit 5c3032598344555e117f863f9c4227f5659ce3ab
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Wed Sep 14 20:23:21 2011 -0400
+commit e076c502dda7da7308599c20c5f482e67edf6855
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 14 15:33:37 2011 -0700
 
-    runtime: eliminate handle churn when churning channels on Windows
+    debug/elf: permit another case of SHT_NOBITS section overlap in test
     
-    The Windows implementation of the net package churns through a couple of channels for every read/write operation.  This translates into a lot of time spent in the kernel creating and deleting event objects.
+    Lets test pass when using gccgo.
     
-    R=rsc, dvyukov, alex.brainman, jp
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4997044
+    https://golang.org/cl/5018046
 
- src/pkg/runtime/mgc0.c           |  2 --
- src/pkg/runtime/runtime.h        |  9 +++++--
- src/pkg/runtime/windows/thread.c | 51 +++++++++++++++++++++++++++-------------
- 3 files changed, 42 insertions(+), 20 deletions(-)
+ src/pkg/debug/elf/file_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

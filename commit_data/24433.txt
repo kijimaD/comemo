@@ -1,18 +1,29 @@
-commit 89a68e9f1adb939e5a58ed38cf6c03119c324480
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Oct 3 09:35:40 2015 -0700
+commit 9cb332efd445a7e0672b96f9bc703c93f02879a5
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 28 14:19:20 2015 -0700
 
-    cmd/compile/internal/gc: fix the build
+    [dev.ssa] cmd/compile/internal/ssa: Split OpConst into an OpConst8, OpConst16, ...
     
-    Commit acc90c5 passed the trybots, lingered for weeks, and in the
-    meantime the type of this variable changed to a bool. I didn't rebase
-    and re-run the trybots before submitting.
+    Convert the polymorphic OpConst into monomorphic variants.
     
-    Fixes #12832
-    
-    Change-Id: If24fda227edd8207f8069c67f1c45f08e6ac215a
-    Reviewed-on: https://go-review.googlesource.com/15286
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I90bb8894fbac04ca5e5484ea260c131ef8b506fb
+    Reviewed-on: https://go-review.googlesource.com/12798
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/subr.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             | 124 +++++++++++---
+ src/cmd/compile/internal/ssa/deadcode_test.go  |   8 +-
+ src/cmd/compile/internal/ssa/deadstore_test.go |   6 +-
+ src/cmd/compile/internal/ssa/dom_test.go       |  28 +--
+ src/cmd/compile/internal/ssa/func.go           |  20 ++-
+ src/cmd/compile/internal/ssa/func_test.go      |  46 ++---
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  30 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  16 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  30 ++--
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  10 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   3 +
+ src/cmd/compile/internal/ssa/opGen.go          |  70 +++++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 226 ++++++++++++++++---------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 218 ++++++++++++------------
+ src/cmd/compile/internal/ssa/schedule_test.go  |   4 +-
+ src/cmd/compile/internal/ssa/shift_test.go     |   2 +-
+ 16 files changed, 537 insertions(+), 304 deletions(-)

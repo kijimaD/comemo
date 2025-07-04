@@ -1,76 +1,29 @@
-commit 4b78fe57a81fe4fd9a1c370c65e3a694066ac1ab
-Author: Ben Shi <powerman1st@163.com>
-Date:   Mon Oct 15 01:19:48 2018 +0000
+commit d31cad7ca52580cfc7048766599e6cddeab3c61c
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Fri Jun 8 11:48:18 2018 -0600
 
-    cmd/compile: optimize 386's load/store combination
+    math/big: round x + (-x) to -0 for mode ToNegativeInf
     
-    This CL adds more combinations of two consequtive MOVBload/MOVBstore
-    to a unique MOVWload/MOVWstore.
+    Handling of sign bit as defined by IEEE 754-2008, section 6.3:
     
-    1. The size of the go executable decreases about 4KB, and the total
-    size of pkg/linux_386 (excluding cmd/compile) decreases about 1.5KB.
+    When the sum of two operands with opposite signs (or the difference of
+    two operands with like signs) is exactly zero, the sign of that sum (or
+    difference) shall be +0 in all rounding-direction attributes except
+    roundTowardNegative; under that attribute, the sign of an exact zero
+    sum (or difference) shall be −0. However, x+x = x−(−x) retains the same
+    sign as x even when x is zero.
     
-    2. There is no regression in the go1 benchmark result, excluding noise.
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              3.28s ± 2%     3.29s ± 2%    ~     (p=0.151 n=40+40)
-    Fannkuch11-4                3.52s ± 1%     3.51s ± 1%  -0.28%  (p=0.002 n=40+40)
-    FmtFprintfEmpty-4          45.4ns ± 4%    45.0ns ± 4%  -0.89%  (p=0.019 n=40+40)
-    FmtFprintfString-4         81.9ns ± 7%    81.3ns ± 1%    ~     (p=0.660 n=40+25)
-    FmtFprintfInt-4            91.9ns ± 9%    91.4ns ± 9%    ~     (p=0.249 n=40+40)
-    FmtFprintfIntInt-4          143ns ± 4%     143ns ± 4%    ~     (p=0.760 n=40+40)
-    FmtFprintfPrefixedInt-4     184ns ± 3%     183ns ± 4%    ~     (p=0.485 n=40+40)
-    FmtFprintfFloat-4           408ns ± 3%     409ns ± 3%    ~     (p=0.961 n=40+40)
-    FmtManyArgs-4               597ns ± 4%     602ns ± 3%    ~     (p=0.413 n=40+40)
-    GobDecode-4                7.13ms ± 6%    7.14ms ± 6%    ~     (p=0.859 n=40+40)
-    GobEncode-4                6.86ms ± 9%    6.94ms ± 7%    ~     (p=0.162 n=40+40)
-    Gzip-4                      395ms ± 4%     396ms ± 3%    ~     (p=0.099 n=40+40)
-    Gunzip-4                   40.9ms ± 4%    41.1ms ± 3%    ~     (p=0.064 n=40+40)
-    HTTPClientServer-4         63.6µs ± 2%    63.6µs ± 3%    ~     (p=0.832 n=36+39)
-    JSONEncode-4               16.1ms ± 3%    15.8ms ± 3%  -1.60%  (p=0.001 n=40+40)
-    JSONDecode-4               61.0ms ± 3%    61.5ms ± 4%    ~     (p=0.065 n=40+40)
-    Mandelbrot200-4            5.16ms ± 3%    5.18ms ± 3%    ~     (p=0.056 n=40+40)
-    GoParse-4                  3.25ms ± 2%    3.23ms ± 3%    ~     (p=0.727 n=40+40)
-    RegexpMatchEasy0_32-4      90.2ns ± 3%    89.3ns ± 6%  -0.98%  (p=0.002 n=40+40)
-    RegexpMatchEasy0_1K-4       812ns ± 3%     815ns ± 3%    ~     (p=0.309 n=40+40)
-    RegexpMatchEasy1_32-4       103ns ± 6%     103ns ± 5%    ~     (p=0.680 n=40+40)
-    RegexpMatchEasy1_1K-4      1.01µs ± 4%    1.02µs ± 3%    ~     (p=0.326 n=40+33)
-    RegexpMatchMedium_32-4      120ns ± 4%     120ns ± 5%    ~     (p=0.834 n=40+40)
-    RegexpMatchMedium_1K-4     40.1µs ± 3%    39.5µs ± 4%  -1.35%  (p=0.000 n=40+40)
-    RegexpMatchHard_32-4       2.27µs ± 6%    2.23µs ± 4%  -1.67%  (p=0.011 n=40+40)
-    RegexpMatchHard_1K-4       67.2µs ± 3%    67.2µs ± 3%    ~     (p=0.149 n=40+40)
-    Revcomp-4                   1.84s ± 2%     1.86s ± 3%  +0.70%  (p=0.020 n=40+40)
-    Template-4                 69.0ms ± 4%    69.8ms ± 3%  +1.20%  (p=0.003 n=40+40)
-    TimeParse-4                 438ns ± 3%     439ns ± 4%    ~     (p=0.650 n=40+40)
-    TimeFormat-4                412ns ± 3%     412ns ± 3%    ~     (p=0.888 n=40+40)
-    [Geo mean]                 65.2µs         65.2µs       -0.04%
+    This change handles the special case of Add/Sub resulting in exactly zero
+    when the rounding mode is ToNegativeInf setting the sign bit accordingly.
     
-    name                     old speed      new speed      delta
-    GobDecode-4               108MB/s ± 6%   108MB/s ± 6%    ~     (p=0.855 n=40+40)
-    GobEncode-4               112MB/s ± 9%   111MB/s ± 8%    ~     (p=0.159 n=40+40)
-    Gzip-4                   49.2MB/s ± 4%  49.1MB/s ± 3%    ~     (p=0.102 n=40+40)
-    Gunzip-4                  474MB/s ± 3%   472MB/s ± 3%    ~     (p=0.063 n=40+40)
-    JSONEncode-4              121MB/s ± 3%   123MB/s ± 3%  +1.62%  (p=0.001 n=40+40)
-    JSONDecode-4             31.9MB/s ± 3%  31.6MB/s ± 4%    ~     (p=0.070 n=40+40)
-    GoParse-4                17.9MB/s ± 2%  17.9MB/s ± 3%    ~     (p=0.696 n=40+40)
-    RegexpMatchEasy0_32-4     355MB/s ± 3%   358MB/s ± 5%  +0.99%  (p=0.002 n=40+40)
-    RegexpMatchEasy0_1K-4    1.26GB/s ± 3%  1.26GB/s ± 3%    ~     (p=0.381 n=40+40)
-    RegexpMatchEasy1_32-4     310MB/s ± 5%   310MB/s ± 4%    ~     (p=0.655 n=40+40)
-    RegexpMatchEasy1_1K-4    1.01GB/s ± 4%  1.01GB/s ± 3%    ~     (p=0.351 n=40+33)
-    RegexpMatchMedium_32-4   8.32MB/s ± 4%  8.34MB/s ± 5%    ~     (p=0.696 n=40+40)
-    RegexpMatchMedium_1K-4   25.6MB/s ± 3%  25.9MB/s ± 4%  +1.36%  (p=0.000 n=40+40)
-    RegexpMatchHard_32-4     14.1MB/s ± 6%  14.3MB/s ± 4%  +1.64%  (p=0.011 n=40+40)
-    RegexpMatchHard_1K-4     15.2MB/s ± 3%  15.2MB/s ± 3%    ~     (p=0.147 n=40+40)
-    Revcomp-4                 138MB/s ± 2%   137MB/s ± 3%  -0.70%  (p=0.021 n=40+40)
-    Template-4               28.1MB/s ± 4%  27.8MB/s ± 3%  -1.19%  (p=0.003 n=40+40)
-    [Geo mean]               83.7MB/s       83.7MB/s       +0.03%
+    Fixes #25798
     
-    Change-Id: I2a2b3a942b5c45467491515d201179fd192e65c9
-    Reviewed-on: https://go-review.googlesource.com/c/141650
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Change-Id: I4d0715fa3c3e4a3d8a4d7861dc1d6423c8b1c68c
+    Reviewed-on: https://go-review.googlesource.com/117495
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules |  12 +-
- src/cmd/compile/internal/ssa/rewrite386.go | 795 ++++++++++++++++++++++++++++-
- test/codegen/memcombine.go                 |  18 +
- 3 files changed, 796 insertions(+), 29 deletions(-)
+ src/math/big/float.go      |  8 ++++++--
+ src/math/big/float_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

@@ -1,31 +1,71 @@
-commit 5b043abe1260d3ab0e5e27b6d312682149d321ba
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Thu Sep 7 13:30:43 2017 +0300
+commit 6f2ee0f3dfe941e2b0cfe3f5b775727e29b1fdf0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat May 6 23:19:41 2017 -0700
 
-    cmd/asm: restrict x86 shift ops to 8bit args
+    cmd/compile: make builds reproducible in presence of **byte and **int8
     
-    Change "yshl" and "yshb" immediate oclass from Yi32 to Yu8.
-    This forbids:
-    - negative shift counts
-    - shift counts that not fit into 8bit
+    CL 39915 introduced sorting of signats by ShortString
+    for reproducible builds. But ShortString treats types
+    byte and uint8 identically; same for rune and uint32.
+    CL 39915 attempted to compensate for this by only
+    adding the underlying type (uint8) to signats in addsignat.
     
-    Affects:
-      RCL{B,L,Q,W}
-      RCR{B,L,Q,W}
-      ROL{B,L,Q,W}
-      ROR{B,L,Q,W}
-      SAL{B,L,Q,W}
-      SAR{B,L,Q,W}
-      SHL{B,L,Q,W}
-      SHR{B,L,Q,W}
+    This only works for byte and uint8. For e.g. *byte and *uint,
+    both get added, and their sort order is random,
+    leading to non-reproducible builds.
     
-    Issue #21528 has some additional context about this change.
+    One fix would be to add yet another type printing mode
+    that doesn't eliminate byte and rune, and use it
+    for sorting signats. But the formatting routines
+    are complicated enough as it is.
     
-    Change-Id: I60884cb2b41a860820889fcd878ca6f564006b4a
-    Reviewed-on: https://go-review.googlesource.com/62190
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Instead, just sort first by ShortString and then by String.
+    We can't just use String, because ShortString makes distinctions
+    that String doesn't. ShortString is really preferred here;
+    String is serving only as a backstop for handling of bytes and runes.
+    
+    The long series of types in the test helps increase the odds of
+    failure, allowing a smaller number of iterations in the test.
+    On my machine, a full test takes 700ms.
+    
+    Passes toolstash-check.
+    
+    Updates #19961
+    Fixes #20272
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         37.9MB ± 0%       37.9MB ± 0%  +0.12%  (p=0.032 n=5+5)
+    Unicode          28.9MB ± 0%       28.9MB ± 0%    ~     (p=0.841 n=5+5)
+    GoTypes           110MB ± 0%        110MB ± 0%    ~     (p=0.841 n=5+5)
+    Compiler          463MB ± 0%        463MB ± 0%    ~     (p=0.056 n=5+5)
+    SSA              1.11GB ± 0%       1.11GB ± 0%  +0.02%  (p=0.016 n=5+5)
+    Flate            24.7MB ± 0%       24.8MB ± 0%  +0.14%  (p=0.032 n=5+5)
+    GoParser         31.1MB ± 0%       31.1MB ± 0%    ~     (p=0.421 n=5+5)
+    Reflect          73.9MB ± 0%       73.9MB ± 0%    ~     (p=1.000 n=5+5)
+    Tar              25.8MB ± 0%       25.8MB ± 0%  +0.15%  (p=0.016 n=5+5)
+    XML              41.2MB ± 0%       41.2MB ± 0%    ~     (p=0.310 n=5+5)
+    [Geo mean]       72.0MB            72.0MB       +0.07%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           384k ± 0%         385k ± 1%    ~     (p=0.056 n=5+5)
+    Unicode            343k ± 0%         344k ± 0%    ~     (p=0.548 n=5+5)
+    GoTypes           1.16M ± 0%        1.16M ± 0%    ~     (p=0.421 n=5+5)
+    Compiler          4.43M ± 0%        4.44M ± 0%  +0.26%  (p=0.032 n=5+5)
+    SSA               9.86M ± 0%        9.87M ± 0%  +0.10%  (p=0.032 n=5+5)
+    Flate              237k ± 1%         238k ± 0%  +0.49%  (p=0.032 n=5+5)
+    GoParser           319k ± 1%         320k ± 1%    ~     (p=0.151 n=5+5)
+    Reflect            957k ± 0%         957k ± 0%    ~     (p=1.000 n=5+5)
+    Tar                251k ± 0%         252k ± 1%  +0.49%  (p=0.016 n=5+5)
+    XML                399k ± 0%         401k ± 1%    ~     (p=0.310 n=5+5)
+    [Geo mean]         739k              741k       +0.26%
+    
+    Change-Id: Ic27995a8d374d012b8aca14546b1df9d28d30df7
+    Reviewed-on: https://go-review.googlesource.com/42955
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go             | 24 +++++++----
+ .../compile/internal/gc/reproduciblebuilds_test.go | 48 ++++++++++++++++++++++
+ .../gc/testdata/reproducible/issue20272.go         | 34 +++++++++++++++
+ 3 files changed, 99 insertions(+), 7 deletions(-)

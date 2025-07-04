@@ -1,22 +1,34 @@
-commit 2e78f2afdb6714f2eb902d16039f4c475c2282f3
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Feb 20 10:02:10 2018 +0000
+commit c14dcfda6b5dbe8f4dfa21ccc02c569567e9da54
+Author: Frank Somers <fsomers@arista.com>
+Date:   Tue Oct 10 22:27:01 2017 +0100
 
-    html/template: make more use of stringer
+    runtime: factor amd64 specifics from vdso_linux.go
     
-    The code was maintaining manual versions of it in multiple places -
-    replace all of them.
+    This is a preparation step for adding vDSO support on linux/386.
     
-    Change-Id: I04c3063877b05ba914de9f5dddb33ffe09f308fe
-    Reviewed-on: https://go-review.googlesource.com/95356
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    This change relocates the elf64 and amd64 specifics from
+    vdso_linux.go to a new vdso_linux_amd64.go.
+    
+    This should enable vdso_linux.go to be used for vDSO
+    support on linux architectures other than amd64.
+    
+    - Relocate the elf64X structure definitions appropriate to amd64,
+      and change their names to elfX so that the code in vdso_linux.go
+      is ELFnn-agnostic.
+    
+    - Relocate the sym_keys and corresponding __vdso_* variables
+      appropriate to amd64.
+    
+    - Provide an amd64-specific constant for the maximum byte size of
+      an array, and use this in vdso_linux.go to compute constants for
+      sizing the elf structure arrays traversed in the loaded vDSO.
+    
+    Change-Id: I1edb4e4ec9f2d79b7533aa95fbd09f771fa4edef
+    Reviewed-on: https://go-review.googlesource.com/69391
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/html/template/context.go        | 100 ++++--------------------------------
- src/html/template/delim_string.go   |  16 ++++++
- src/html/template/element_string.go |  16 ++++++
- src/html/template/jsctx_string.go   |  16 ++++++
- src/html/template/state_string.go   |  16 ++++++
- src/html/template/urlpart_string.go |  16 ++++++
- 6 files changed, 90 insertions(+), 90 deletions(-)
+ src/runtime/vdso_linux.go       | 148 ++++++++++------------------------------
+ src/runtime/vdso_linux_amd64.go |  96 ++++++++++++++++++++++++++
+ 2 files changed, 133 insertions(+), 111 deletions(-)

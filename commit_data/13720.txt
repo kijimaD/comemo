@@ -1,16 +1,12 @@
-commit ba97d52b85a26e41dc1751bfbb5d268717d45f94
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Aug 31 22:23:37 2012 +0200
+commit 6d0e3242eb296922995c6335de4d5c8bcd88728a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 31 15:43:27 2012 -0400
 
-    cmd/gc: fix escape analysis bug with variable capture in loops.
+    test: restore nigel's bug451 as bug452.
     
-    Fixes #3975.
-    
-    R=rsc, lvd
-    CC=golang-dev, remy
-    https://golang.org/cl/6475061
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6497066
 
- src/cmd/gc/esc.c |  1 +
- test/escape.go   | 27 +++++++++++++++++++++------
- test/escape2.go  | 13 +++++++++++++
- 3 files changed, 35 insertions(+), 6 deletions(-)
+ test/fixedbugs/bug452.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

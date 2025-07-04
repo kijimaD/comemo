@@ -1,20 +1,35 @@
-commit e4852aaa7e95e49d8a54584370644714fbcf2c8c
-Author: Mostyn Bramley-Moore <mostyn@antipode.se>
-Date:   Fri Apr 21 02:21:41 2017 +0200
+commit c026845bd2984002168e7496cb9d0150f79164d0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Feb 7 10:19:02 2017 -0800
 
-    cmd/go/internal/work: fix TestRespectGroupSticky on FreeBSD
+    database/sql: record the context error in Rows if canceled
     
-    FreeBSD doesn't allow non-root users to enable the SetGID bit on
-    files or directories in /tmp, however it does allow this in
-    subdirectories, so create the test directory one level deeper.
+    Previously it was intended that Rows.Scan would return
+    an error and Rows.Err would return nil. This was problematic
+    because drivers could not differentiate between a normal
+    Rows.Close or a context cancel close.
     
-    Followup to golang/go#19596.
+    The alternative is to require drivers to return a Scan to return
+    an error if the driver is closed while there are still rows to be read.
+    This is currently not how several drivers currently work and may be
+    difficult to detect when there are additional rows.
     
-    Change-Id: I30e71c6d6a156badc863e8068df10ef6ed817e26
-    Reviewed-on: https://go-review.googlesource.com/41216
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    At the same time guard the the Rows.lasterr and prevent a close
+    while a Rows operation is active.
+    
+    For the drivers that do not have Context methods, do not check for
+    context cancelation after the operation, but before for any operation
+    that may modify the database state.
+    
+    Fixes #18961
+    
+    Change-Id: I49a25318ecd9f97a35d5b50540ecd850c01cfa5e
+    Reviewed-on: https://go-review.googlesource.com/36485
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/work/build_test.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/database/sql/ctxutil.go  |  54 +++++++++--------------
+ src/database/sql/sql.go      | 102 +++++++++++++++++++++++++++++++------------
+ src/database/sql/sql_test.go |  10 +++--
+ 3 files changed, 100 insertions(+), 66 deletions(-)

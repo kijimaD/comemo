@@ -1,24 +1,27 @@
-commit 70ed0ac5889000fb712dac16e9dea8ef2fa4030f
-Author: Florian Weimer <fw@deneb.enyo.de>
-Date:   Mon Jan 9 12:58:29 2012 -0500
+commit 8a4bd094a033ceb00f7f5a504e4bc652ea5a164d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 9 09:45:08 2012 -0800
 
-    go-mode.el: fix syntax highlighting of backticks
+    undo CL 5504108 / 0edee03791f4
     
-    Instead of syntax-tables, an extended go-mode-cs is used for
-    from a font-lock callback.
+    breaks 386 build
     
-    Cache invalidation must happen in a before-change-function
-    because font-lock runs in an after-change-function, potentially
-    before the cache invalidation takes place.
+    ««« original CL description
+    gc: put limit on size of exported recursive interface
     
-    Performance is reasonable, even with src/pkg/html/entity.go
-    and test/fixedbugs/bug257.go.
+    Prevents edge-case recursive types from consuming excessive memory.
     
-    Fixes #2330.
+    Fixes #1909.
     
-    R=golang-dev, rsc
+    R=golang-dev, lvd, rsc
     CC=golang-dev
-    https://golang.org/cl/5529045
+    https://golang.org/cl/5504108
+    
+    »»»
+    
+    R=lvd, lvd
+    CC=golang-dev
+    https://golang.org/cl/5534049
 
- misc/emacs/go-mode.el | 179 +++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 119 insertions(+), 60 deletions(-)
+ src/cmd/gc/fmt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

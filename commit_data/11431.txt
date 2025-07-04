@@ -1,13 +1,12 @@
-commit 6786185fd6245c522dce647163d2b33708c0b46d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 27 17:51:53 2012 +1100
+commit 1b19134c4f8f6d303f640948164dc6e7c691f756
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 27 13:59:32 2012 +1100
 
-    weekly.2012-01-27
+    gc: remove extra paranoia from inlining unsafe.Pointer fix.
     
-    R=golang-dev, dsymonds
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5577060
+    https://golang.org/cl/5569075
 
- .hgtags               |   1 -
- doc/devel/weekly.html | 107 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 107 insertions(+), 1 deletion(-)
+ src/cmd/gc/subr.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

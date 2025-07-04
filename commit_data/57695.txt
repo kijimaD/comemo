@@ -1,25 +1,48 @@
-commit 6686edc0e71c31de2e959058693e95e335a14000
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 3 18:30:15 2024 +0000
+commit f92741b1d82316db15516b82e3812e262202de40
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 22 17:44:19 2023 -0700
 
-    runtime: move debug checks behind constant flag in mallocgc
+    cmd/compile/internal/noder: elide statically known "if" statements
     
-    These debug checks are very occasionally helpful, but they do cost real
-    time. The biggest issue seems to be the bloat of mallocgc due to the
-    "throw" paths. Overall, after some follow-ups, this change cuts about
-    1ns off of the mallocgc fast path.
+    In go.dev/cl/517775, I moved the frontend's deadcode elimination pass
+    into unified IR. But I also made a small enhancement: a branch like
+    "if x || true" is now detected as always taken, so the else branch can
+    be eliminated.
     
-    This is a microoptimization that on its own changes very little, but
-    together with other optimizations and a breaking up of the various
-    malloc paths will matter all together ("death by a thousand cuts").
+    However, the inliner also has an optimization for delaying the
+    introduction of the result temporary variables when there's a single
+    return statement (added in go.dev/cl/266199). Consequently, the
+    inliner turns "if x || true { return true }; return true" into:
     
-    Change-Id: I07c4547ad724b9f94281320846677fb558957721
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617878
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+            if x || true {
+                    ~R0 := true
+                    goto .i0
+            }
+            .i0:
+            // code that uses ~R0
+    
+    In turn, this confuses phi insertion, because it doesn't recognize
+    that the "if" statement is always taken, and so ~R0 will always be
+    initialized.
+    
+    With this CL, after inlining we instead produce:
+    
+            _ = x || true
+            ~R0 := true
+            goto .i0
+            .i0:
+    
+    Fixes #62211.
+    
+    Change-Id: Ic8a12c9eb85833ee4e5d114f60e6c47817fce538
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522096
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/malloc.go  | 26 +++++++++++++++++++-------
- src/runtime/mgcmark.go |  3 +++
- 2 files changed, 22 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 33 ++++++++++++++++++++++++++------
+ src/cmd/compile/internal/noder/writer.go | 18 +++++++++--------
+ test/inline.go                           | 30 +++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 14 deletions(-)

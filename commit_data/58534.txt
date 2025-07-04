@@ -1,19 +1,20 @@
-commit 9d21ef3bd43acedfe5317184e63cc6b3dd19cbdf
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Tue Jan 21 11:52:41 2025 -0500
+commit 66c22cdb849d609b56e59927917ddb62ce13a65a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 16 15:14:04 2023 +0100
 
-    runtime: fix the equality check in AddCleanup
+    runtime: remove unused _CTL_KERN on openbsd
     
-    This fixes the check that ensures that arg is not equal to ptr in
-    AddCleanup. This also changes any use of throw to panic in AddCleanup.
+    This was supposed to be removed in CL 539155 already.
     
-    Fixes #71316
-    
-    Change-Id: Ie5a3e0163b254dff44b7fefedf75207ba587b771
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643655
+    Change-Id: I22be1a72d5d8eb02514045609429e706c344d5fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/mcleanup.go      | 14 +++++++-------
- src/runtime/mcleanup_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 7 deletions(-)
+ src/runtime/os_openbsd.go | 2 --
+ 1 file changed, 2 deletions(-)

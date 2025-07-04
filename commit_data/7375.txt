@@ -1,12 +1,16 @@
-commit eeafc06538bd137bab71c745e94c1219d99134ab
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 4 15:36:32 2011 -0800
+commit 5008c63e6e1b9c1f384c529c3bbe09e9c64ca444
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 4 15:21:08 2011 -0800
 
-    gofmt: no need for lexical compare of src and res (optimization)
+    template: allow a leading '*' to indicate that evaulation should
+    indirect through a pointer.
     
-    R=r
+    Fixes #1478.
+    
+    R=rsc, r2
     CC=golang-dev
-    https://golang.org/cl/4130046
+    https://golang.org/cl/4131045
 
- src/cmd/gofmt/gofmt.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/pkg/template/template.go      | 36 +++++++++++++++++++++++++++++----
+ src/pkg/template/template_test.go | 42 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 4 deletions(-)

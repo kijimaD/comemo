@@ -1,15 +1,27 @@
-commit eadf8b20bc13d663ca7c57ab6e01eee31febdaa5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 30 16:42:21 2020 -0800
+commit 8cc57c0ccc882a06352e6ad73cb7c281d34be3ef
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Mon Jul 15 17:54:23 2019 -0500
 
-    doc/go1.14: mention new method encoding/json.Decoder.InputOffset
+    log: add Lmsgprefix flag
     
-    Updates #29688
-    Updates #36878
+    The Lmsgprefix flag moves the logger's prefix from the
+    beginning of the line to after the log header. For example,
+    a logger with the prefix "LOG " and LstdFlags would output:
     
-    Change-Id: I230889ec3f1c183dc5adbc662a39a791c0488497
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217123
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+        LOG 2009/11/10 23:00:00 entry text
+    
+    Adding the Lmsgprefix flag would output:
+    
+        2009/11/10 23:00:00 LOG entry text
+    
+    Fixes #32062
+    
+    Change-Id: I9f7c9739abeb53c424112aaeed33444eeefdfbbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186182
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.14.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/log/log.go      | 23 ++++++++++++++++-------
+ src/log/log_test.go |  5 ++++-
+ 2 files changed, 20 insertions(+), 8 deletions(-)

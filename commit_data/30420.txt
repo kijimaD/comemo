@@ -1,27 +1,14 @@
-commit 1b31c9ff679c98deccd06477ec48fc190bd5ca53
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Feb 2 00:14:25 2017 -0800
+commit d1e9104fb25a71aa459ee329452545a0ceebdcf9
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:55 2016 +0200
 
-    net/url: document the package better
+    math, math/big: add support for GOARCH=mips{,le}
     
-    Changes made:
-    * Adjust the documented form for a URL to make it more obvious what
-    happens when the scheme is missing.
-    * Remove references to Go1.5. We are sufficiently far along enough
-    that this distinction no longer matters.
-    * Remove the "Opaque" example which provides a hacky and misleading
-    use of the Opaque field. This workaround is no longer necessary
-    since RawPath was added in Go1.5 and the obvious approach just works:
-            // The raw string "/%2f/" will be sent as expected.
-            req, _ := http.NewRequest("GET", "https://example.com/%2f/")
-    
-    Fixes #18824
-    
-    Change-Id: Ie33d27222e06025ce8025f8a0f04b601aaee1513
-    Reviewed-on: https://go-review.googlesource.com/36127
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I54e100cced5b49674937fb87d1e0f585f962aeb7
+    Reviewed-on: https://go-review.googlesource.com/31484
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/url/example_test.go | 29 -----------------------------
- src/net/url/url.go          | 21 ++++++++-------------
- 2 files changed, 8 insertions(+), 42 deletions(-)
+ src/math/big/arith_mipsx.s | 46 ++++++++++++++++++++++++
+ src/math/sqrt_mipsx.s      | 14 ++++++++
+ src/math/stubs_mipsx.s     | 88 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 148 insertions(+)

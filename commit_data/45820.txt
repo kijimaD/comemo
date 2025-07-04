@@ -1,28 +1,20 @@
-commit 219fe9d547d09d3de1b024c6c8b8314dd0bf12e4
-Author: unbyte <i@shangyes.net>
-Date:   Tue Jun 15 17:11:05 2021 +0000
+commit a19c925eda6987d91f316639db2ce774725f7a1a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Nov 20 11:18:15 2020 -0500
 
-    cmd/go: ignore UTF8 BOM when reading source code
+    cmd/go: recommend 'go get' command to switch from retracted versions
     
-    Fix the problem that UTF8 BOM can cause the parsing of import path and directives to fail.
+    This CL restores a message unintentionally removed in CL 270858.
     
-    Fixes #46198
-    Fixes #46290
-    Fixes #35726
+    For #24031
     
-    Change-Id: I2d9995ee82b094bcfa5583f0cb4e8547cb973077
-    GitHub-Last-Rev: 98abf91377f155266fa60505c0c12beccad38eeb
-    GitHub-Pull-Request: golang/go#46643
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325990
+    Change-Id: I957c5c59e624df98e72dfff351298bfc5bf9a9e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272066
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/imports/read.go                | 18 +++++++++--
- src/cmd/go/internal/imports/read_test.go           | 26 ++++++++++++++++
- .../testdata/script/build_ignore_leading_bom.txt   | 27 ++++++++++++++++
- src/go/build/read.go                               | 13 +++++++-
- src/go/build/read_test.go                          | 36 ++++++++++++++++++++++
- 5 files changed, 117 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modget/get.go              | 9 +++++++++
+ src/cmd/go/testdata/script/mod_get_retract.txt | 1 +
+ 2 files changed, 10 insertions(+)

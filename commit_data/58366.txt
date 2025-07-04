@@ -1,28 +1,33 @@
-commit 07398d2e57ac5df6f95b0344252f1560376328f3
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sat Dec 7 02:58:00 2024 +0000
+commit 607e020150f1bba84beec11aceadbc42abf33986
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 2 08:15:44 2023 -0400
 
-    weak: align weak.Pointer documentation with runtime.AddCleanup
+    cmd/cgo: disable #cgo noescape/nocallback until Go 1.23
     
-    In hindsight, I think the "advice" I wrote is a bit heavy-handed and
-    better suited for something like the GC guide. Listing the use-cases
-    seems good, and all the possible things that go wrong seems to do the
-    trick in terms of deterrence, like it does with finalizers.
+    Go 1.21 and earlier do not understand this line, causing
+    "go mod vendor" of //go:build go1.22-tagged code that
+    uses this feature to fail.
     
-    Also, include some points I missed, like the tiny allocator warning and
-    the fact that weak pointers are not guaranteed to ever return nil.
+    The solution is to include the go/build change to skip over
+    the line in Go 1.22 (making "go mod vendor" from Go 1.22 onward
+    work with this change) and then wait to deploy the cgo change
+    until Go 1.23, at which point Go 1.21 and earlier will be unsupported.
     
-    Also, a lot of this actually shouldn't have been in the package docs.
-    Many of the warnings only apply to weak pointers, but not other data
-    structures that may live in this package in the future, like weak-keyed
-    maps.
+    For #56378.
+    Fixes #63293.
     
-    Change-Id: Id245661540ffd93de4b727cd272284491d085c1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/634376
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ifa08b134eac5a6aa15d67dad0851f00e15e1e58b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539235
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/weak/doc.go     | 27 ++-------------------------
- src/weak/pointer.go | 42 +++++++++++++++++++++++++++++++++++-------
- 2 files changed, 37 insertions(+), 32 deletions(-)
+ doc/go1.22.html                                    | 19 +----------------
+ src/cmd/cgo/doc.go                                 | 24 ----------------------
+ src/cmd/cgo/gcc.go                                 |  2 ++
+ src/cmd/cgo/internal/test/test.go                  |  3 ++-
+ .../testerrors/testdata/notmatchedcfunction.go     |  3 ++-
+ src/runtime/crash_cgo_test.go                      |  2 ++
+ src/runtime/testdata/testprogcgo/cgonocallback.go  |  3 +--
+ src/runtime/testdata/testprogcgo/cgonoescape.go    |  2 +-
+ 8 files changed, 11 insertions(+), 47 deletions(-)

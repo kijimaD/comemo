@@ -1,17 +1,47 @@
-commit 8e7d156237cc1409aa6b955cf4307d2c4992ab29
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Thu Feb 14 19:41:58 2013 +1100
+commit 2803744b86a58054e052a9520d7c17ab41acd96c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Feb 14 19:35:38 2013 +1100
 
-    exp/cookiejar: implement Cookies and provided tests
+    net/textproto: more efficient header parsing
     
-    This CL provides the implementation of Cookies and
-    the complete test suite. Several tests have been ported
-    from the Chromium project as a cross check.
+    A co creation with bradfitz
     
-    R=nigeltao, rsc, bradfitz
+    * add fast path for header lines which are not continuations
+    * pass hint to better size initial mime header map
+    
+    lucky(~/go/src/pkg/net/http) % ~/go/misc/benchcmp {golden,new}.txt
+    benchmark                          old ns/op    new ns/op    delta
+    BenchmarkReadRequestChrome             10073         8348  -17.12%
+    BenchmarkReadRequestCurl                4368         4350   -0.41%
+    BenchmarkReadRequestApachebench         4412         4397   -0.34%
+    BenchmarkReadRequestSiege               6431         5924   -7.88%
+    BenchmarkReadRequestWrk                 2820         3146  +11.56%
+    
+    benchmark                           old MB/s     new MB/s  speedup
+    BenchmarkReadRequestChrome             60.66        73.18    1.21x
+    BenchmarkReadRequestCurl               17.85        17.93    1.00x
+    BenchmarkReadRequestApachebench        18.58        18.65    1.00x
+    BenchmarkReadRequestSiege              23.48        25.49    1.09x
+    BenchmarkReadRequestWrk                14.18        12.71    0.90x
+    
+    benchmark                         old allocs   new allocs    delta
+    BenchmarkReadRequestChrome                32           26  -18.75%
+    BenchmarkReadRequestCurl                  15           15    0.00%
+    BenchmarkReadRequestApachebench           16           15   -6.25%
+    BenchmarkReadRequestSiege                 22           19  -13.64%
+    BenchmarkReadRequestWrk                   11           11    0.00%
+    
+    benchmark                          old bytes    new bytes    delta
+    BenchmarkReadRequestChrome              3148         2216  -29.61%
+    BenchmarkReadRequestCurl                 905         1413   56.13%
+    BenchmarkReadRequestApachebench          956         1413   47.80%
+    BenchmarkReadRequestSiege               1397         1522    8.95%
+    BenchmarkReadRequestWrk                  757         1369   80.85%
+    
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/7311073
+    https://golang.org/cl/7300098
 
- src/pkg/exp/cookiejar/jar.go      |  76 ++++-
- src/pkg/exp/cookiejar/jar_test.go | 566 ++++++++++++++++++++++++++++++++++++--
- 2 files changed, 613 insertions(+), 29 deletions(-)
+ src/pkg/net/textproto/reader.go    | 13 ++++++++++++-
+ src/pkg/net/textproto/textproto.go |  5 +++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

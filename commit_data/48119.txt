@@ -1,34 +1,29 @@
-commit 9cec77ac11b012283e654b423cf85cf9976bedd9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 8 12:23:50 2022 -0500
+commit 9726c78539f4945087c837201c1ec3545a318389
+Author: eric fang <eric.fang@arm.com>
+Date:   Wed Apr 21 03:12:20 2021 +0000
 
-    runtime/debug: replace (*BuildInfo).Marshal methods with Parse and String
+    cmd/asm: add check for register and shift/extension combination on arm64
     
-    Since a String method cannot return an error, escape fields that may
-    contain unsanitized values, and unescape them during parsing.
+    The current code lacks a check on whether the register and shift/extension
+    combination is valid, for example the follow instructions also compiles.
+            ADD     F1<<1, R1, R3
+            ADD     V1<<1, R1, R3
+            MOVW    (R9)(F8.SXTW<<2), R19
+            VST1    R4.D[1], (R0)
     
-    Add a fuzz test to verify that calling the String method on any
-    BuildInfo returned by Parse produces a string that parses to the same
-    BuildInfo. (Note that this doesn't ensure that String always produces
-    a parseable input: we assume that a user constructing a BuildInfo
-    provides valid paths and versions, so we don't bother to escape those.
-    It also doesn't ensure that ParseBuildInfo accepts all inputs that
-    ought to be valid.)
+    Actually only general registers can perform shift operations, and element
+    and arrangement extensions are only applicable to vector registers. This
+    CL adds a check for the register and shift/extension combination on arm64.
     
-    Fixes #51026
-    
-    Change-Id: Ida18010ce47622cfedb1494060f32bd7705df014
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384154
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I93dd9343e92a66899cba8eaf4e0ac5430e94692b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312571
+    Trust: eric fang <eric.fang@arm.com>
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- api/go1.18.txt                         |   4 +-
- src/cmd/go/internal/load/pkg.go        |  15 ++--
- src/cmd/go/internal/version/version.go |   9 +-
- src/debug/buildinfo/buildinfo.go       |   4 +-
- src/debug/buildinfo/buildinfo_test.go  |  10 +--
- src/runtime/debug/mod.go               | 157 ++++++++++++++++++++++-----------
- src/runtime/debug/mod_test.go          |  75 ++++++++++++++++
- 7 files changed, 198 insertions(+), 76 deletions(-)
+ src/cmd/asm/internal/arch/arm64.go             | 306 +++++++++++++------------
+ src/cmd/asm/internal/asm/parse.go              |   6 +-
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  14 +-
+ 3 files changed, 174 insertions(+), 152 deletions(-)

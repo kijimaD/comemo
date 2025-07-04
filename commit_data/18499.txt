@@ -1,28 +1,28 @@
-commit 705d7c164fa61181f2f943fb2541b39b39ced637
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Feb 13 20:05:55 2014 +0100
+commit 7861cd6082993becfedeaab75567eaba0c9a03f8
+Author: Carlos Castillo <cookieo9@gmail.com>
+Date:   Thu Feb 13 10:11:44 2014 -0800
 
-    lib9: fix inconsistencies and warnings on Plan 9
+    cmd/go, go/build: support .m files
     
-    warning: src/lib9/fmt/dorfmt.c:64 unreachable code RETURN
-    warning: src/lib9/fmt/fltfmt.c:184 set and not used: p
-    warning: src/lib9/utf/utflen.c:35 unreachable code RETURN
-    warning: src/lib9/utf/utfrrune.c:45 unreachable code RETURN
-    warning: src/lib9/utf/utfrune.c:44 unreachable code RETURN
+    go/build is changed to list the .m files in a package, and match them for build constraints, adding them to a new field: Package.MFiles.
     
-    LGTM=rsc
-    R=rsc, iant, gobot
+    The go tool is changed to support building .m files and linking in the results during CGO and SWIG builds. This means packages that create a C interface to calls Objective-C code from go are now go-gettable without producing and distributing .syso files. This change is analogous to the one in Go 1.2 made to support C++ built code.
+    
+    This change doesn't support .mm files (Objective C++).
+    
+    Also added support for these MFiles to go list's -json mode.
+    
+    Fixes #6536.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/57170052
+    https://golang.org/cl/60590044
 
- src/lib9/errstr.c       |  3 ++-
- src/lib9/fmt/dorfmt.c   |  1 -
- src/lib9/fmt/errfmt.c   | 32 ++++++++++++++++++++++++++++++++
- src/lib9/fmt/fltfmt.c   |  6 ++++--
- src/lib9/fmt/fmtfd.c    |  2 +-
- src/lib9/utf/utfecpy.c  |  4 ++--
- src/lib9/utf/utflen.c   |  1 -
- src/lib9/utf/utfrrune.c |  4 ++--
- src/lib9/utf/utfrune.c  |  4 ++--
- src/lib9/utf/utfutf.c   |  3 ++-
- 10 files changed, 47 insertions(+), 13 deletions(-)
+ doc/go1.3.txt             |  1 +
+ src/cmd/go/build.go       | 46 +++++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/go/doc.go         |  4 ++--
+ src/cmd/go/list.go        |  1 +
+ src/cmd/go/pkg.go         |  5 ++++-
+ src/pkg/go/build/build.go |  6 +++++-
+ 6 files changed, 54 insertions(+), 9 deletions(-)

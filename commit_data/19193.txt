@@ -1,15 +1,28 @@
-commit 827aab07b80cd8ad26548a6fa234b7d038537d33
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 16 20:28:53 2014 -0700
+commit dc370995a87a37b43546a9ac3413d533d24e0665
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 16 23:06:37 2014 -0400
 
-    cmd/ld: don't pass -rdynamic to external linker if -static is used
+    test: demo for issue 7695
     
-    Fixes #7800.
+    Cgo writes C function declarations pretending every arg is a pointer.
+    If the C function is deferred, it does not inhibit stack copying on split.
+    The stack copying code believes the C declaration, possibly misinterpreting
+    integers as pointers.
     
-    LGTM=rsc
-    R=rsc
+    Probably the right fix for Go 1.3 is to make deferred C functions inhibit
+    stack copying.
+    
+    For Go 1.4 and beyond we probably need to make cgo generate Go code
+    for 6g here, not C code for 6c.
+    
+    Update #7695
+    
+    LGTM=khr
+    R=khr
     CC=golang-codereviews
-    https://golang.org/cl/87790051
+    https://golang.org/cl/83820043
 
- src/cmd/ld/lib.c | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ misc/cgo/test/backdoor/backdoor.go |  1 +
+ misc/cgo/test/backdoor/runtime.c   |  7 +++++++
+ misc/cgo/test/issue7695_test.go    | 27 +++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+)

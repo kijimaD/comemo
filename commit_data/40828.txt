@@ -1,18 +1,15 @@
-commit 93d7034b1586679b6215e4ebb6fe850de6673a90
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 18 15:40:42 2019 -0500
+commit 5bc46cb71215f445797fb55e2b4eee795ee1ca17
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Jul 14 19:08:57 2019 +0200
 
-    cmd/go: convert TestImportMain to a script test
+    doc/go1.13: remove 1.12 reference from 1.13 release notes
     
-    Updates #28387
-    Updates #30316
+    While it's true that CL 168479 was also backported to 1.12, this is
+    irrelevant for the Go1.13 release notes.
     
-    Change-Id: I6192cc02b9e4fce3015cc47da9ec63fbea79a935
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207698
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I044be69f8f2bc005f58a0d63db05129add15f674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186138
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                      |  89 ----------------------
- src/cmd/go/testdata/script/import_main.txt | 114 +++++++++++++++++++++++++++++
- 2 files changed, 114 insertions(+), 89 deletions(-)
+ doc/go1.13.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

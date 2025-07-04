@@ -1,26 +1,17 @@
-commit a655208c9ecd2fee4de6deff35a863b1c28a091c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Feb 25 20:01:53 2021 -0500
+commit fcf1cb2cf51bae37a8d5d0425a39e21ce5073bff
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 5 23:39:45 2020 -0400
 
-    cmd/link: handle types as converted to interface when dynlink
+    go/build: remove use of package log
     
-    When using plugins, a type (whose value) may be pass to a plugin
-    and get converted to interface there, or vice versa. We need to
-    treat the type as potentially converted to interface, and retain
-    its methods.
+    package log does not belong here,
+    even for an impossible condition.
     
-    Should fix #44586.
-    
-    Change-Id: I80dd35e68baedaa852a317543ccd78d94628d13b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296709
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I6180a4f7766a8e5759db4f33d03703d0b678d0b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241077
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testplugin/plugin_test.go             | 13 +++++------
- misc/cgo/testplugin/testdata/method2/main.go   | 32 ++++++++++++++++++++++++++
- misc/cgo/testplugin/testdata/method2/p/p.go    |  9 ++++++++
- misc/cgo/testplugin/testdata/method2/plugin.go | 11 +++++++++
- src/cmd/link/internal/ld/deadcode.go           |  7 ++++++
- 5 files changed, 65 insertions(+), 7 deletions(-)
+ src/go/build/build.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

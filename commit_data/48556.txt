@@ -1,20 +1,15 @@
-commit 460fd63cccd2f1d16fc4b1b761545b1649e14e28
+commit 79bda650410c8617f0ae20dc552c6d5b8f8dcfc8
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Mar 12 16:18:23 2022 -0800
+Date:   Fri May 28 17:32:15 2021 -0700
 
-    io/fs, path/filepath: honor SkipDir on second WalkDirFunc error call
+    doc/go1.17: mention time.Layout
     
-    Fixes #51617
+    For #44513
     
-    Change-Id: I03e9e575d9bad1481e7e4f051b50a077ba5f2fe0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392154
+    Change-Id: Id4624e977654f7e8c489508a9dce98c9fab621a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323490
     Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/io/fs/walk.go              |  3 +++
- src/io/fs/walk_test.go         | 33 +++++++++++++++++++++++++++++++++
- src/path/filepath/path.go      |  3 +++
- src/path/filepath/path_test.go | 35 +++++++++++++++++++++++++++++++++++
- 4 files changed, 74 insertions(+)
+ doc/go1.17.html | 5 +++++
+ 1 file changed, 5 insertions(+)

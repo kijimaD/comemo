@@ -1,21 +1,88 @@
-commit ab714a70dcad78e2bd7004638843052343c6f2c4
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 30 11:08:15 2015 -0400
+commit 8c6abfeacb27f1bcce8fb01f7da95950590943e3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 12 11:01:13 2015 -0700
 
-    crypto/x509: mark root_darwin_armx.go as cgo-only
+    [dev.ssa] cmd/compile/ssa: separate logging, work in progress, and fatal errors
     
-    This allows running a cross-compile like
-            GOOS=darwin GOARCH=arm go build std
-    to check that everything builds.
+    The SSA implementation logs for three purposes:
     
-    Otherwise there is a redefinition error because both
-    root_nocgo_darwin.go and root_darwin_armx.go
-    supply initSystemRoots.
+            * debug logging
+            * fatal errors
+            * unimplemented features
     
-    Change-Id: Ic95976b2b698d28c629bfc93d8dac0048b023578
-    Reviewed-on: https://go-review.googlesource.com/12897
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Separating these three uses lets us attempt an SSA
+    implementation for all functions, not just
+    _ssa functions. This turns the entire standard
+    library into a compilation test, and makes it
+    easy to figure out things like
+    "how much coverage does SSA have now" and
+    "what should we do next to get more coverage?".
+    
+    Functions called _ssa are still special.
+    They log profusely by default and
+    the output of the SSA implementation
+    is used. For all other functions,
+    logging is off, and the implementation
+    is built and discarded, due to lack of
+    support for the runtime.
+    
+    While we're here, fix a few minor bugs and
+    add some extra Unimplementeds to allow
+    all.bash to pass.
+    
+    As of now, SSA handles 20.79% of the functions
+    in the standard library (689 of 3314).
+    
+    The top missing features are:
+    
+     10.03%  2597 SSA unimplemented: zero for type error not implemented
+      7.79%  2016 SSA unimplemented: addr: bad op DOTPTR
+      7.33%  1898 SSA unimplemented: unhandled expr EQ
+      6.10%  1579 SSA unimplemented: unhandled expr OROR
+      4.91%  1271 SSA unimplemented: unhandled expr NE
+      4.49%  1163 SSA unimplemented: unhandled expr LROT
+      4.00%  1036 SSA unimplemented: unhandled expr LEN
+      3.56%   923 SSA unimplemented: unhandled stmt CALLFUNC
+      2.37%   615 SSA unimplemented: zero for type []byte not implemented
+      1.90%   492 SSA unimplemented: unhandled stmt CALLMETH
+      1.74%   450 SSA unimplemented: unhandled expr CALLINTER
+      1.74%   450 SSA unimplemented: unhandled expr DOT
+      1.71%   444 SSA unimplemented: unhandled expr ANDAND
+      1.65%   426 SSA unimplemented: unhandled expr CLOSUREVAR
+      1.54%   400 SSA unimplemented: unhandled expr CALLMETH
+      1.51%   390 SSA unimplemented: unhandled stmt SWITCH
+      1.47%   380 SSA unimplemented: unhandled expr CONV
+      1.33%   345 SSA unimplemented: addr: bad op *
+      1.30%   336 SSA unimplemented: unhandled OLITERAL 6
+    
+    Change-Id: I4ca07951e276714dc13c31de28640aead17a1be7
+    Reviewed-on: https://go-review.googlesource.com/11160
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/x509/root_darwin_arm_gen.go | 1 +
- src/crypto/x509/root_darwin_armx.go    | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/pgen.go            |  13 +--
+ src/cmd/compile/internal/gc/ssa.go             | 126 ++++++++++++++++++++-----
+ src/cmd/compile/internal/ssa/TODO              |   1 -
+ src/cmd/compile/internal/ssa/block.go          |   4 +
+ src/cmd/compile/internal/ssa/check.go          |  44 +++++----
+ src/cmd/compile/internal/ssa/compile.go        |  13 +--
+ src/cmd/compile/internal/ssa/config.go         |  18 +++-
+ src/cmd/compile/internal/ssa/deadcode.go       |   6 +-
+ src/cmd/compile/internal/ssa/deadcode_test.go  |   6 +-
+ src/cmd/compile/internal/ssa/deadstore.go      |   6 +-
+ src/cmd/compile/internal/ssa/deadstore_test.go |   6 +-
+ src/cmd/compile/internal/ssa/dom.go            |   6 +-
+ src/cmd/compile/internal/ssa/export_test.go    |  12 ++-
+ src/cmd/compile/internal/ssa/func.go           |   8 +-
+ src/cmd/compile/internal/ssa/func_test.go      |  14 +--
+ src/cmd/compile/internal/ssa/gen/generic.rules |   2 +-
+ src/cmd/compile/internal/ssa/layout.go         |   4 +-
+ src/cmd/compile/internal/ssa/lower.go          |   4 +-
+ src/cmd/compile/internal/ssa/print.go          |   3 +-
+ src/cmd/compile/internal/ssa/regalloc.go       |  10 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  11 +--
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  10 +-
+ src/cmd/compile/internal/ssa/schedule_test.go  |   2 +-
+ src/cmd/compile/internal/ssa/shift_test.go     |   2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go     |   8 +-
+ src/cmd/compile/internal/ssa/value.go          |   4 +
+ 26 files changed, 211 insertions(+), 132 deletions(-)

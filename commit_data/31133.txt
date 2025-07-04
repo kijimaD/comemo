@@ -1,20 +1,19 @@
-commit 9d1b2f888ef4b8c19630df6af18cabfc42d911a9
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 24 11:36:40 2017 -0400
+commit edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 1 16:40:46 2017 -0800
 
-    runtime: rename gcBits -> gcBitsArena
+    cmd/compile: skip reexporting types in reexportdep
     
-    This clarifies that the gcBits type is actually an arena of gcBits and
-    will let us introduce a new gcBits type representing a single
-    mark/alloc bitmap allocated from the arena.
+    The binary export format embeds type definitions inline as necessary,
+    so there's no need to add them to exportlist. Also, constants are
+    embedded directly by value, so they can be omitted too.
     
-    For #19325.
-    
-    Change-Id: Idedf76d202d9174a17c61bcca9d5539e042e2445
-    Reviewed-on: https://go-review.googlesource.com/38579
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Id1879eb97c298a5a52f615cf9883c346c7f7bd69
+    Reviewed-on: https://go-review.googlesource.com/36170
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mheap.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go |  9 +----
+ src/cmd/compile/internal/gc/export.go  | 73 ----------------------------------
+ 2 files changed, 1 insertion(+), 81 deletions(-)

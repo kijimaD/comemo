@@ -1,23 +1,13 @@
-commit 5c055e74d0b04ca863380c5785ca0aadda9ebc5e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Aug 5 06:10:46 2014 +0900
+commit aa69a3c386917d961af2952074166754c65cb609
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 1 21:35:03 2014 -0700
 
-    net: consolidate sockaddrToAddr functions
+    net: fix Dial comment about IPv6 addresses
     
-    This CL removes sockaddrToAddr functions from socket creation
-    operations to avoid the bug like issue 7183.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/105100046
+    LGTM=r
+    R=golang-codereviews, r
+    CC=adg, golang-codereviews
+    https://golang.org/cl/118550043
 
- src/pkg/net/fd_unix.go         |  4 ++--
- src/pkg/net/fd_windows.go      |  8 ++++----
- src/pkg/net/iprawsock_posix.go |  4 ++--
- src/pkg/net/ipsock_posix.go    |  4 ++--
- src/pkg/net/sock_posix.go      | 46 ++++++++++++++++++++++++++++++++----------
- src/pkg/net/tcpsock_posix.go   |  8 ++++----
- src/pkg/net/udpsock_posix.go   |  6 +++---
- src/pkg/net/unixsock_posix.go  | 15 ++------------
- 8 files changed, 54 insertions(+), 41 deletions(-)
+ src/pkg/net/dial.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

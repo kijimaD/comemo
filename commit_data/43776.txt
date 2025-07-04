@@ -1,36 +1,52 @@
-commit b2ef159db237ba09278704ec2970f6ae41f130b1
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Oct 27 18:12:03 2020 +0000
+commit ee8972cd126f0d575be90c0ffbb08fc09d6ede19
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Tue Dec 3 16:06:18 2019 -0500
 
-    cmd/go: introduce the GOVERSION env variable
+    math/big: rewrite addVW to use fast path on s390x
     
-    This is an extra variable available via 'go env', but not read from the
-    user's environment. It corresponds to the same string that
-    runtime.Version returns, assuming a program is built by the same version
-    of Go.
+    Rewrite addVW to use a fast path and remove the original
+    vector and non vector implementation of addVW in assembly. This CL uses
+    a similar idea as CL 164968, where we copy the rest of words when we
+    know carry bit is zero.
     
-    It's similar to the output of 'go version', but without the "go version"
-    prefix nor the "$GOOS/$GOARCH" suffix.
+    In addition, since we are copying vector of words, a faster
+    implementation of copy is written in this CL to copy a word or multiple
+    words at a time.
     
-    The main use case here is tools, which often use 'go env' to query basic
-    information about the installed Go tree. Its version was one missing
-    piece of information, which required an extra call to 'go version'
-    before this change.
+    Benchmarks:
+    name             old time/op    new time/op     delta
+    AddVW/1-18         4.56ns ± 0%     4.01ns ± 6%   -12.14%  (p=0.000 n=18+20)
+    AddVW/2-18         5.54ns ± 0%     4.42ns ± 5%   -20.20%  (p=0.000 n=18+20)
+    AddVW/3-18         6.55ns ± 0%     4.61ns ± 0%   -29.62%  (p=0.000 n=16+18)
+    AddVW/4-18         6.11ns ± 2%     5.12ns ± 6%   -16.19%  (p=0.000 n=20+20)
+    AddVW/5-18         7.32ns ± 4%     5.14ns ± 0%   -29.77%  (p=0.000 n=20+19)
+    AddVW/10-18        10.6ns ± 2%      7.2ns ± 1%   -31.47%  (p=0.000 n=20+20)
+    AddVW/100-18       49.6ns ± 2%     18.0ns ± 0%   -63.63%  (p=0.000 n=20+20)
+    AddVW/1000-18       465ns ± 3%      244ns ± 0%   -47.54%  (p=0.000 n=20+20)
+    AddVW/10000-18     4.99µs ± 4%     2.97µs ± 0%   -40.54%  (p=0.000 n=20+20)
+    AddVW/100000-18    48.3µs ± 3%     30.8µs ± 1%   -36.29%  (p=0.000 n=20+20)
+    [Geo mean]         58.1ns          38.0ns        -34.57%
     
-    Fixes #41116.
+    name             old speed      new speed       delta
+    AddVW/1-18       1.76GB/s ± 0%   2.00GB/s ± 6%   +14.04%  (p=0.000 n=20+20)
+    AddVW/2-18       2.89GB/s ± 0%   3.63GB/s ± 5%   +25.55%  (p=0.000 n=18+20)
+    AddVW/3-18       3.66GB/s ± 0%   5.21GB/s ± 0%   +42.25%  (p=0.000 n=18+19)
+    AddVW/4-18       5.24GB/s ± 2%   6.27GB/s ± 6%   +19.61%  (p=0.000 n=20+20)
+    AddVW/5-18       5.47GB/s ± 4%   7.78GB/s ± 0%   +42.28%  (p=0.000 n=20+18)
+    AddVW/10-18      7.55GB/s ± 2%  11.04GB/s ± 1%   +46.09%  (p=0.000 n=20+20)
+    AddVW/100-18     16.1GB/s ± 2%   44.3GB/s ± 0%  +174.77%  (p=0.000 n=20+20)
+    AddVW/1000-18    17.2GB/s ± 3%   32.8GB/s ± 1%   +90.58%  (p=0.000 n=20+20)
+    AddVW/10000-18   16.0GB/s ± 4%   26.9GB/s ± 0%   +68.11%  (p=0.000 n=20+20)
+    AddVW/100000-18  16.6GB/s ± 3%   26.0GB/s ± 1%   +56.94%  (p=0.000 n=20+20)
+    [Geo mean]       7.03GB/s       10.75GB/s        +52.93%
     
-    Change-Id: I5c9d8c2ba856c816c9f4c462ba73c907b3441445
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265637
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Idbb73f3178311bd2b18a93bdc1e48f26869d2f6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209679
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go                    |  2 ++
- src/cmd/go/go_test.go                    | 12 ++++++++++++
- src/cmd/go/internal/envcmd/env.go        |  3 ++-
- src/cmd/go/internal/help/helpdoc.go      |  2 ++
- src/cmd/go/testdata/script/env_write.txt |  2 ++
- 5 files changed, 20 insertions(+), 1 deletion(-)
+ src/math/big/arith_decl_s390x.go |   3 -
+ src/math/big/arith_s390x.s       | 289 +++++++++++----------------------------
+ src/math/big/arith_s390x_test.go |   5 +-
+ 3 files changed, 84 insertions(+), 213 deletions(-)

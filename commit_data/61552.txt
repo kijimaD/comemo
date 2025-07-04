@@ -1,0 +1,16 @@
+commit e51a33a0efa5883a9be5c46e95554a52070cb696
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 21 19:59:11 2024 +0000
+
+    internal/sync: factor out lookup for CompareAndDelete in HashTrieMap
+    
+    This lookup will be reused for other operations, like CompareAndSwap.
+    
+    Change-Id: I6698e3c99f7ef6d2b82b9ef489ba8a0be2a71d61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594059
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/sync/hashtriemap.go | 107 +++++++++++++++++++++------------------
+ 1 file changed, 59 insertions(+), 48 deletions(-)

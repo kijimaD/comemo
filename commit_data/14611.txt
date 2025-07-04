@@ -1,20 +1,15 @@
-commit 1a6f8dcbaf123bcf25f5ebebebc481326a5f806a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 11 10:17:33 2012 -0800
+commit 3c6c88319eeb4b6fe0b599d894bbb0d8f50a116f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 11 12:19:39 2012 -0500
 
-    exp/types: filling in more blanks
+    regexp: re-enable TestBadCompile
     
-    - implemented built-in complex()
-    - implemented missing expression switch checks
+    The code that was commented out was for the old regexp package.
+    In the new one the errors and the space of valid regexps are different.
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6920046
+    https://golang.org/cl/6873063
 
- src/pkg/exp/gotype/gotype_test.go       |  6 ++--
- src/pkg/exp/types/builtins.go           | 50 ++++++++++++++++++++++++++++--
- src/pkg/exp/types/const.go              | 16 ++++++++++
- src/pkg/exp/types/stmt.go               | 55 ++++++++++++++++++++++++++-------
- src/pkg/exp/types/testdata/builtins.src | 31 ++++++++++++++++---
- src/pkg/exp/types/testdata/stmt0.src    | 26 +++++++++++++++-
- 6 files changed, 163 insertions(+), 21 deletions(-)
+ src/pkg/regexp/all_test.go | 47 +++++++++++++++++++++++-----------------------
+ 1 file changed, 23 insertions(+), 24 deletions(-)

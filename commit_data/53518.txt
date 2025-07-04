@@ -1,23 +1,17 @@
-commit 5e9b76fe2a1c6709e710c985ae82dff90c847c54
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Jun 1 17:35:28 2023 -0400
+commit 6001c043dc067b7f6b9a2e934439b6a7948f92ef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 15 18:41:41 2022 -0700
 
-    cmd/link: mangle certain instantiated function name in plugin mode
+    test: add test that caused gccgo crash
     
-    In plugin mode, we mangle the type symbol name so it doesn't
-    contain characters that may confuse the external linker. With
-    generics, instantiated function name includes type names, so it
-    may also contain such characters and so also needs to be mangled.
+    For #23870
     
-    Fixes #58800.
-    
-    Change-Id: Ibb08c95b89b8a815ccef98193d3a025e9d4756cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500095
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I3bbe0f751254d1354a59a88b45e6f944c7a2fb4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417874
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/cgo/internal/testplugin/plugin_test.go     |  7 +++++++
- .../internal/testplugin/testdata/generic/plugin.go | 22 ++++++++++++++++++++
- src/cmd/link/internal/ld/lib.go                    | 24 ++++++++++++++++------
- 3 files changed, 47 insertions(+), 6 deletions(-)
+ test/fixedbugs/issue23870.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

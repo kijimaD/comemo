@@ -1,20 +1,17 @@
-commit 10dfb1dd3d1d26122cf18f29468ec17eb7222c3f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 16 17:08:55 2020 +0000
+commit ba0e651130cfe0a8fc8ab2845b2f7c6ae44db1e1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 27 18:56:28 2020 -0800
 
-    runtime: actually fix locking in BenchmarkMSpanCountAlloc
+    cmd/compile: add more amd64 constant simplifications
     
-    I just submitted CL 255297 which mostly fixed this problem, but totally
-    forgot to actually acquire/release the heap lock. Oops.
+    More minor optimization opportunities from CL 220499.
     
-    Updates #41391.
-    
-    Change-Id: I45b42f20a9fc765c4de52476db3654d4bfe9feb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255298
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic4f34c41ed8ab0fce227ac194731c1be12c602db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221608
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/export_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  17 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 136 +++++++++++++++++++++++++++
+ 2 files changed, 153 insertions(+)

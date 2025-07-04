@@ -1,18 +1,12 @@
-commit 4766a35e7c4c00dd060313080f6d85e32c9aa970
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Dec 12 07:25:07 2012 +1100
+commit 111fcf15799c8bda58e3b9eb73fd5c8fa7ac5801
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 11 13:36:43 2012 -0500
 
-    net: TestDialTimeoutFDLeak failure
+    doc/contribute: mention 'hg help codereview'
     
-    Fixes #4384.
-    
-    Implments the suggestion by rsc in comment 15, http://code.google.com/p/go/issues/detail?id=4384#c15
-    
-    An alternate suggestion would be to temporarily set GOMAXPROCS to 1 during this test.
-    
-    R=fullung, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6923046
+    https://golang.org/cl/6932053
 
- src/pkg/net/dial_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/contribute.html | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,16 +1,45 @@
-commit 7f033933ce8488ff3c7510ec35680510f9ccc83b
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:50:40 2016 +0200
+commit c345a3913f54ab88720654b3dc9b2c34779fca0c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 9 13:11:07 2016 -0700
 
-    cmd/compile/internal/gc: add support for GOARCH=mips{,le}
+    cmd/compile: get rid of BlockCall
     
-    Change-Id: Ida4cd647525abce3441bfcb9fdee059344fe717f
-    Reviewed-on: https://go-review.googlesource.com/31477
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    No need for it, we can treat calls as (mostly) normal values
+    that take a memory and return a memory.
+    
+    Lowers the number of basic blocks needed to represent a function.
+    "go test -c net/http" uses 27% fewer basic blocks.
+    Probably doesn't affect generated code much, but should help
+    various passes whose running time and/or space depends on
+    the number of basic blocks.
+    
+    Fixes #15631
+    
+    Change-Id: I0bf21e123f835e2cfa382753955a4f8bce03dfa6
+    Reviewed-on: https://go-review.googlesource.com/28950
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/pgen.go |   2 +-
- src/cmd/compile/internal/gc/ssa.go  | 199 +++++++++++++++++++++++++++++-------
- src/cmd/compile/internal/gc/walk.go |   6 +-
- 3 files changed, 164 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  2 +-
+ src/cmd/compile/internal/arm/ssa.go            |  2 +-
+ src/cmd/compile/internal/arm64/ssa.go          |  2 +-
+ src/cmd/compile/internal/gc/ssa.go             | 30 +++++++++------------
+ src/cmd/compile/internal/mips64/ssa.go         |  2 +-
+ src/cmd/compile/internal/ppc64/ssa.go          |  2 +-
+ src/cmd/compile/internal/ssa/check.go          | 10 -------
+ src/cmd/compile/internal/ssa/deadcode.go       |  7 +++++
+ src/cmd/compile/internal/ssa/gen/386Ops.go     | 10 +++----
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   | 10 +++----
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   | 10 +++----
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     | 10 +++----
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  | 10 +++----
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   | 10 +++----
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 11 ++++----
+ src/cmd/compile/internal/ssa/gen/main.go       |  4 +++
+ src/cmd/compile/internal/ssa/likelyadjust.go   | 20 +++++++++++---
+ src/cmd/compile/internal/ssa/op.go             |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 37 ++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/regalloc.go       | 20 ++++++--------
+ src/cmd/compile/internal/x86/ssa.go            |  2 +-
+ 21 files changed, 125 insertions(+), 87 deletions(-)

@@ -1,21 +1,29 @@
-commit afa98806389ed935264b67eb7e90507a334180f2
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Sat Aug 10 18:19:09 2024 -0700
+commit fa4f951026f697bc042422d95a0806dcbab7ddd0
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Sep 29 06:06:40 2023 +0000
 
-    crypto/internal/hpke: add Recipient role
+    syscall: make origRlimitNofile atomic.Pointer[Rlimit]
     
-    Adds the Recipient role, alongside the existing Sender role. Also factor
-    out all of the shared underlying bits and pieces into a shared type that
-    is embedded in the Sender/Recipient roles.
+    Currently we are bootstrapping with Go 1.20, origRlimitNofile can
+    be changed to atomic.Pointer[Rlimit].
     
-    Change-Id: I7640d8732aa0dd5cc9e38b8c26f0cfa7856170f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623575
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: I00ce9d1a9030bd5dbd34e3dc6c4e38683a87be86
+    GitHub-Last-Rev: f2ccdb38412019d10661ed6be42086b445e411bf
+    GitHub-Pull-Request: golang/go#63274
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531516
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/crypto/internal/hpke/hpke.go      | 171 +++++++++++++++++++++++++---------
- src/crypto/internal/hpke/hpke_test.go |  70 +++++++++-----
- 2 files changed, 173 insertions(+), 68 deletions(-)
+ src/syscall/exec_bsd.go           |  6 +++---
+ src/syscall/exec_freebsd.go       |  6 +++---
+ src/syscall/exec_libc.go          |  6 +++---
+ src/syscall/exec_libc2.go         |  6 +++---
+ src/syscall/exec_linux.go         |  6 +++---
+ src/syscall/exec_unix.go          |  6 +++---
+ src/syscall/export_rlimit_test.go |  4 ++--
+ src/syscall/rlimit.go             | 12 +++++-------
+ src/syscall/syscall_linux.go      |  2 +-
+ 9 files changed, 26 insertions(+), 28 deletions(-)

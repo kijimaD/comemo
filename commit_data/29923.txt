@@ -1,31 +1,21 @@
-commit 067bab00a80e028f1d7ce553b27aba2aa3e9675f
-Author: shawnps <shawnpsmith@gmail.com>
-Date:   Sat Jan 7 08:23:11 2017 -0800
+commit 7dd9c385f6896c7dcb5d76353e52e36c81af2838
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 17 20:23:51 2016 +0000
 
-    all: fix misspellings
+    Revert "cmd/compile: inline convI2E"
     
-    Change-Id: I429637ca91f7db4144f17621de851a548dc1ce76
-    Reviewed-on: https://go-review.googlesource.com/34923
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This reverts commit 395d36a67df8d25b35617ec8709f0164ae2f655e.
+    
+    Appears to be responsible for builder failures.
+    
+    Change-Id: Ic6c6307f662767e529060b88704a9f074785d99e
+    Reviewed-on: https://go-review.googlesource.com/31310
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/bytes/buffer.go                           | 2 +-
- src/cmd/compile/internal/gc/bexport.go        | 2 +-
- src/cmd/compile/internal/gc/sinit.go          | 2 +-
- src/cmd/compile/internal/gc/type.go           | 2 +-
- src/cmd/compile/internal/ssa/checkbce.go      | 2 +-
- src/cmd/compile/internal/ssa/config.go        | 2 +-
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go  | 2 +-
- src/cmd/compile/internal/ssa/gen/ARMOps.go    | 2 +-
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go | 2 +-
- src/cmd/compile/internal/ssa/gen/MIPSOps.go   | 2 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go  | 2 +-
- src/cmd/compile/internal/ssa/op.go            | 2 +-
- src/cmd/compile/internal/ssa/regalloc.go      | 2 +-
- src/database/sql/sql.go                       | 2 +-
- src/path/filepath/symlink_windows.go          | 2 +-
- src/runtime/fastlog2.go                       | 4 ++--
- src/testing/sub_test.go                       | 4 ++--
- 17 files changed, 19 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 153 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   1 +
+ src/cmd/compile/internal/gc/walk.go            |  34 +-----
+ src/runtime/iface.go                           |  10 ++
+ 4 files changed, 92 insertions(+), 106 deletions(-)

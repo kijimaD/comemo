@@ -1,24 +1,30 @@
-commit d94498470bb09bb0606b0eff3248cb5b35e1a145
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Sep 17 19:38:33 2021 -0400
+commit e7493a9c74442859e75b1253ccead095ece3fe0f
+Merge: 2ff1e05a4c eb982727e3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 18 14:35:08 2021 -0800
 
-    cmd/go: add GOWORK to go env command
+    [dev.typeparams] all: merge master (eb98272) into dev.typeparams
     
-    GOWORK will be set to the go.work file's path, if in workspace mode
-    or will be empty otherwise.
+    Merge List:
     
-    For #45713
-    Fixes #48589
+    + 2021-02-18 eb982727e3 cmd/go/internal/mvs: fix Downgrade to match Algorithm 4
+    + 2021-02-18 3b7277d365 cmd/go: add a script test for artifacts resulting from 'go get -u'
+    + 2021-02-18 f3c2208e2c cmd/go: add script tests for potential upgrades due to downgrades
+    + 2021-02-18 a5c8a15f64 cmd/go/internal/mvs: clarify and annotate test cases
+    + 2021-02-18 a76efea1fe cmd/go/internal/mvs: don't emit duplicates from Req
+    + 2021-02-18 609d82b289 cmd/dist: set GOARM=7 for windows/arm
+    + 2021-02-18 f0be3cc547 runtime: unbreak linux/riscv64 following regabi merge
+    + 2021-02-18 07ef313525 runtime/cgo: add cast in C code to avoid C compiler warning
     
-    Change-Id: I163ffaf274e0a41469c1f3b8514d6f90e20423b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355689
-    Trust: Michael Matloob <matloob@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I8e58ad1e82a9ea313a99c1b11df5b341f80680d4
 
- src/cmd/go/internal/envcmd/env.go       |  5 ++++-
- src/cmd/go/testdata/script/work.txt     |  4 ++++
- src/cmd/go/testdata/script/work_env.txt | 24 ++++++++++++++++++++++++
- 3 files changed, 32 insertions(+), 1 deletion(-)
+ src/cmd/dist/util.go                               |   4 +
+ src/cmd/go/internal/mvs/mvs.go                     |  32 +++-
+ src/cmd/go/internal/mvs/mvs_test.go                | 106 +++++++++----
+ .../testdata/script/mod_get_downadd_indirect.txt   |  81 ++++++++++
+ .../go/testdata/script/mod_get_downup_artifact.txt | 165 +++++++++++++++++++++
+ .../go/testdata/script/mod_get_downup_indirect.txt | 101 +++++++++++++
+ src/cmd/go/testdata/script/mod_load_badchain.txt   |   3 +-
+ src/runtime/asm_riscv64.s                          |   2 +-
+ src/runtime/cgo/linux_syscall.c                    |   2 +-
+ 9 files changed, 462 insertions(+), 34 deletions(-)

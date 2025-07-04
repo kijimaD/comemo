@@ -1,16 +1,20 @@
-commit c483fdbfcfba9c86dbe93a096f120cc15f783d38
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Nov 20 16:11:49 2024 +0100
+commit 8f61fab61862e0c8f8bb8db968d14c262ff54d4c
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Oct 8 16:42:26 2023 +0800
 
-    crypto/ed25519: fix TestAllocations in FIPS mode
+    bytes,strings: add example for ContainsFunc
     
-    Change-Id: Ic36e95dba29d43e73ddf105d538c4795bc4ce557
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630097
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I340e892aa4ecc780905be984016efc86699a45a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533556
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/crypto/internal/fips/ed25519/cast.go | 26 ++++++++++++++++----------
- 1 file changed, 16 insertions(+), 10 deletions(-)
+ src/bytes/example_test.go   | 11 +++++++++++
+ src/strings/example_test.go | 11 +++++++++++
+ 2 files changed, 22 insertions(+)

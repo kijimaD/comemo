@@ -1,17 +1,12 @@
-commit ce274339a1ed46356f5322288f4ef878a06f0aab
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 23 16:19:12 2012 -0700
+commit a8ce9ab46ca4302d7e33c3734610f4b680b52e72
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 23 12:41:23 2012 +1000
 
-    text/template: fix bug in map indexing
-    If the key is not present, return value of the type of the element
-    not the type of the key. Also fix a test that should have caught this case.
+    misc/dashboard/codereview: add admin-only link to force-update a CL.
     
-    Fixes #3850.
-    
-    R=golang-dev, dsymonds
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6405078
+    https://golang.org/cl/6431055
 
- src/pkg/text/template/exec_test.go | 2 +-
- src/pkg/text/template/funcs.go     | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ misc/dashboard/codereview/dashboard/front.go | 3 +++
+ 1 file changed, 3 insertions(+)

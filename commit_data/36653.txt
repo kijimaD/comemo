@@ -1,13 +1,26 @@
-commit 8c610aa633167aef27964e314dda35a87d3da58b
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Sep 13 11:15:30 2018 -0400
+commit 67656ba71b54779d9f98995a12ed87e7c7618cad
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat May 12 22:13:44 2018 +0200
 
-    regexp: fix incorrect name in Match doc comment
+    cmd/compile: improve undo of poset
     
-    Change-Id: I628aad9a3abe9cc0c3233f476960e53bd291eca9
-    Reviewed-on: https://go-review.googlesource.com/135235
-    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    prove uses the poset datastructure in a DFS walk, and always undoes
+    it back to its pristine status. Before this CL, poset's undo of
+    a new node creation didn't fully deallocate the node, which means
+    that at the end of prove there was still some allocated memory pending.
+    
+    This was not a problem until now because the posets used by prove
+    were discarded after each function, but it would prevent recycling
+    them between functions (as a followup CL does).
+    
+    Change-Id: I1c1c99c03fe19ad765395a43958cb256f686765a
+    Reviewed-on: https://go-review.googlesource.com/112976
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/regexp/regexp.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/fmt_test.go                |  3 +++
+ src/cmd/compile/internal/ssa/poset.go      | 26 +++++++++++++++++---------
+ src/cmd/compile/internal/ssa/poset_test.go |  1 -
+ 3 files changed, 20 insertions(+), 10 deletions(-)

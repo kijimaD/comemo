@@ -1,19 +1,42 @@
-commit 4e3d805a015153ca4e3382415c2474e4f954ddee
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Oct 14 13:21:35 2022 -0400
+commit f6591839727e09cc5cb11d08b333fd2386e8aa1b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Nov 15 13:50:39 2021 -0500
 
-    runtime/internal/startlinetest: add NO_LOCAL_POINTERS macro to asm function
+    os/exec: avoid NewFile on unknown FDs
     
-    Should fix the mayMoreStack test.
+    exec_test.go's init function uses os.NewFile(fd) + f.Stat as a portable
+    mechanism to determine if an FD is in use.
     
-    Change-Id: Iab99192629ab62ced81e95d756f2dd15f9b7e869
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443064
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Unfortunately, the current use is racy: if an unused FD becomes used
+    between NewFile and f.Close, then we will unintentionally close an FD we
+    do not use.
+    
+    We cannot simply drop Close, as the finalizer will close the FD. We
+    could hold all of the os.Files in a global for the lifetime of the
+    process, but the need for such a hack is indicative of the larger
+    problem: we should not create an os.File for an FD that we do not own.
+    
+    Instead, the new fdtest.Exists provides a helper that performs the
+    equivalent of fstat(2) on each OS to determine if the FD is valid,
+    without using os.File.
+    
+    We also reuse this helper on a variety of other tests that look at open
+    FDs.
+    
+    Fixes #49533
+    
+    Change-Id: I36e2bdb15f271ab01e55c18db6564271995a15af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364035
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/internal/startlinetest/func_amd64.s | 2 ++
- src/runtime/start_line_amd64_test.go            | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/go/build/deps_test.go                     |   3 +
+ src/os/exec/exec_test.go                      | 132 ++++----------------------
+ src/os/exec/internal/fdtest/exists_js.go      |  18 ++++
+ src/os/exec/internal/fdtest/exists_plan9.go   |  20 ++++
+ src/os/exec/internal/fdtest/exists_test.go    |  21 ++++
+ src/os/exec/internal/fdtest/exists_unix.go    |  19 ++++
+ src/os/exec/internal/fdtest/exists_windows.go |  12 +++
+ src/os/exec/read3.go                          |  92 ++++++++----------
+ 8 files changed, 154 insertions(+), 163 deletions(-)

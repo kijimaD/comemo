@@ -1,21 +1,19 @@
-commit 8fc64a3060bbfcd50d2e0233eac7a184dc1654d4
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Nov 9 13:48:35 2017 +0100
+commit a93753401db052f3192103e2c4d4c547d740b41f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 9 11:36:10 2017 -0400
 
-    cmd/vendor/github.com/google/pprof: fix iOS builders
+    cmd/go: remove Package.Internal.Deps
     
-    The recent vendored pprof update broke the iOS builders. The issue was
-    reported and patched upstream. Re-vendor the internal pprof copy.
+    Package.Internal.Imports is enough in nearly all cases,
+    and not maintaining a separate Package.Internal.Deps
+    avoids the two lists ending up out of sync.
+    (In some synthesized packages created during go test,
+    only Internal.Imports is initialized.)
     
-    Updates vendored pprof to commit 9e20b5b106e946f4cd1df94c1f6fe3f88456628d
-    from github.com/google/pprof (2017-11-08).
-    
-    Fixes #22612
-    
-    Change-Id: I74c46c75e92ce401e605c55e27d8545c0d66082c
-    Reviewed-on: https://go-review.googlesource.com/76651
-    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Change-Id: I83f6a3ec6e6cbd75382f1fa0e439d31feec32d5a
+    Reviewed-on: https://go-review.googlesource.com/56278
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../github.com/google/pprof/internal/driver/fetch_test.go | 15 +++++++++++++--
- src/cmd/vendor/vendor.json                                |  4 ++--
- 2 files changed, 15 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/load/pkg.go  | 39 ++++++++++++++++++++++++++++++---------
+ src/cmd/go/internal/test/test.go | 10 ++--------
+ 2 files changed, 32 insertions(+), 17 deletions(-)

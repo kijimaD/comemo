@@ -1,23 +1,13 @@
-commit 6599450016244b9e3e074e87d7064219ee2e5cf8
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Sat Sep 5 23:16:49 2015 -0700
+commit 6094b88c4868727c855efbc66c423e228bf8b3d6
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Thu Jul 9 15:08:39 2015 +0200
 
-    text/template: perform value validity checks
+    net/url: add example to URL.ResolveReference
     
-    Check reflect.Value.IsValid() before calling other reflect.Value methods
-    that panic on zero values.
-    
-    Added tests for cases with untyped nils. They panicked without these fixes.
-    
-    Removed a TODO.
-    
-    Fixes #12356
-    
-    Change-Id: I9b5cbed26db09a0a7c36d99a93f8b9729899d51e
-    Reviewed-on: https://go-review.googlesource.com/14340
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9db1997b8dc7e06e9d124753ead6221470a1edf9
+    Reviewed-on: https://go-review.googlesource.com/12254
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/text/template/exec.go      |  2 --
- src/text/template/exec_test.go |  6 ++++-
- src/text/template/funcs.go     | 50 ++++++++++++++++++++++++++++++++----------
- 3 files changed, 43 insertions(+), 15 deletions(-)
+ src/net/url/example_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

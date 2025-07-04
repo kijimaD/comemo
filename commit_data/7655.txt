@@ -1,34 +1,52 @@
-commit 99686ec789f7eacaad6d30e39243759c00035685
+commit 04ca4f824281bf0a17a5aaa5b1586978779b6200
 Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Sun Mar 6 18:05:57 2011 -0500
+Date:   Sun Mar 6 17:33:23 2011 -0500
 
-    cgo: fix dwarf type parsing
+    path/filepath: new OS-specific path support
     
-    The recursive algorithm used to parse types in cgo
-    has a bug related to building the C type representation.
+    The path package now contains only functions which
+    deal with slashed paths, sensible for any OS when dealing
+    with network paths or URLs.  OS-specific functionality
+    has been moved into the new path/filepath package.
     
-    As an example, when the recursion starts at a type *T,
-    the C type representation won't be known until type T
-    itself is parsed.  But then, it is possible that type T
-    references the type **T internally.  The latter
-    representation is built based on the one of *T, which
-    started the recursion, so it won't attempt to parse it
-    again, and will instead use the current representation
-    value for *T, which is still empty at this point.
+    This also includes fixes for godoc, goinstall and other
+    packages which were mixing slashed and OS-specific paths.
     
-    This problem was fixed by introducing a simple TypeRepr
-    type which builds the string representation lazily,
-    analogous to how the Go type information is built within
-    the same algorithm.  This way, even if a type
-    representation is still unknown at some level in the
-    recursion, representations dependant on it can still
-    be created correctly.
-    
-    R=rsc
+    R=rsc, gri, mattn, brainman
     CC=golang-dev
-    https://golang.org/cl/4244052
+    https://golang.org/cl/4252044
 
- src/cmd/cgo/gcc.go  | 63 ++++++++++++++++++++++++++++++++++++++---------------
- src/cmd/cgo/main.go |  8 ++++++-
- src/cmd/cgo/out.go  | 62 ++++++++++++++++++++++++++++------------------------
- 3 files changed, 85 insertions(+), 48 deletions(-)
+ src/cmd/ebnflint/ebnflint.go        |   4 +-
+ src/cmd/godoc/dirtrees.go           |   8 +-
+ src/cmd/godoc/godoc.go              |  63 +++---
+ src/cmd/godoc/index.go              |   8 +-
+ src/cmd/godoc/main.go               |  10 +-
+ src/cmd/godoc/mapping.go            |  47 +++--
+ src/cmd/godoc/utils.go              |  12 +-
+ src/cmd/gofmt/gofmt.go              |   4 +-
+ src/cmd/goinstall/download.go       |  19 +-
+ src/cmd/goinstall/main.go           |  11 +-
+ src/cmd/goinstall/parse.go          |  12 +-
+ src/cmd/govet/govet.go              |   6 +-
+ src/cmd/hgpatch/main.go             |   4 +-
+ src/pkg/Makefile                    |   1 +
+ src/pkg/go/parser/interface.go      |   4 +-
+ src/pkg/go/printer/printer.go       |   4 +-
+ src/pkg/go/printer/printer_test.go  |   6 +-
+ src/pkg/go/scanner/scanner.go       |   8 +-
+ src/pkg/http/fs.go                  |   8 +-
+ src/pkg/io/ioutil/tempfile.go       |   7 +-
+ src/pkg/path/Makefile               |  12 --
+ src/pkg/path/filepath/Makefile      |  26 +++
+ src/pkg/path/filepath/match.go      | 282 ++++++++++++++++++++++++++
+ src/pkg/path/filepath/match_test.go | 106 ++++++++++
+ src/pkg/path/filepath/path.go       | 270 +++++++++++++++++++++++++
+ src/pkg/path/filepath/path_test.go  | 387 ++++++++++++++++++++++++++++++++++++
+ src/pkg/path/filepath/path_unix.go  |  10 +
+ src/pkg/path/match.go               |  83 +-------
+ src/pkg/path/match_test.go          |  28 ---
+ src/pkg/path/path.go                |  78 ++------
+ src/pkg/path/path_test.go           | 159 ---------------
+ src/pkg/path/path_unix.go           |  11 -
+ src/pkg/path/path_windows.go        |  11 -
+ 33 files changed, 1228 insertions(+), 481 deletions(-)

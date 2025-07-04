@@ -1,41 +1,23 @@
-commit fae6eb5f2fc422447e3ca324c895503e9166d247
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 27 10:08:25 2024 -0400
+commit 97df9c0b051b6c06bff7ec7e61522e7bbef40c91
+Author: Akihiro Suda <akihiro.suda.cz@hco.ntt.co.jp>
+Date:   Fri Apr 7 01:19:21 2023 +0000
 
-    runtime: fix timer race introduced in CL 573455
+    net/http: expose "http: server gave HTTP response to HTTPS client" error
     
-    There is a short window when timers.adjust could miss a
-    timer update. Close that window. Does not change benchmark.
+    Expose "http: server gave HTTP response to HTTPS client" error as `ErrSchemeMismatch`, so that it can be compared with `errors.Is` .
     
-    goos: linux
-    goarch: amd64
-    pkg: time
-    cpu: AMD Ryzen 9 7950X 16-Core Processor
-                                       │ s7base.txt  │               s7.txt                │
-                                       │   sec/op    │    sec/op     vs base               │
-    AdjustTimers10000-32                 239.9µ ± 5%   237.6µ ±  8%       ~ (p=0.631 n=10)
-    AdjustTimers10000SingleThread-32     1.686m ± 8%   1.710m ±  5%       ~ (p=0.481 n=10)
-    AdjustTimers10000NoReset-32          194.1µ ± 1%   190.8µ ±  2%  -1.69% (p=0.023 n=10)
-    AdjustTimers10000NoSleep-32          226.2µ ± 3%   222.9µ ±  3%       ~ (p=0.143 n=10)
-    AdjustTimers10000NoResetNoSleep-32   182.9µ ± 1%   180.9µ ±  2%       ~ (p=0.165 n=10)
+    Fixes #44855
     
-    goos: darwin
-    goarch: arm64
-    pkg: time
-    cpu: Apple M3 Pro
-                                       │ m3base.txt  │               m3.txt               │
-                                       │   sec/op    │   sec/op     vs base               │
-    AdjustTimers10000-12                 269.3µ ± 2%   267.0µ ± 2%       ~ (p=0.529 n=10)
-    AdjustTimers10000SingleThread-12     1.176m ± 1%   1.213m ± 1%  +3.15% (p=0.000 n=10)
-    AdjustTimers10000NoReset-12          262.6µ ± 2%   261.4µ ± 3%       ~ (p=0.123 n=10)
-    AdjustTimers10000NoSleep-12          247.8µ ± 1%   246.5µ ± 1%       ~ (p=0.393 n=10)
-    AdjustTimers10000NoResetNoSleep-12   231.0µ ± 1%   232.3µ ± 1%       ~ (p=0.684 n=10)
-    
-    Change-Id: Ifdfcdd5a25046027912a8b306644bde7ec2d3214
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574741
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: If96e0d000fdef641fea407310faf9e1c4f7ad0f0
+    GitHub-Last-Rev: 22879fc88367d77817d7d96c9164f22e55f3a192
+    GitHub-Pull-Request: golang/go#50939
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382117
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/time.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ api/next/44855.txt     | 1 +
+ src/net/http/client.go | 5 ++++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

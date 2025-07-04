@@ -1,15 +1,12 @@
-commit 7b53e32e0bfda3bf63c608a83a46a75c7d2e969f
-Author: Robin Eklind <r.eklind.87@gmail.com>
-Date:   Mon Dec 16 10:40:28 2013 -0800
+commit a8c54a8e9a781282c5ffc0e1ad2078b15fa32a44
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 16 09:57:41 2013 -0800
 
-    strings: Update Trim example.
+    api: update next.txt
     
-    Use an input which better shows that behaviour of the function. Only leading
-    and trailing runes are trimed, not intermediate ones.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/42390043
+    https://golang.org/cl/42860043
 
- src/pkg/strings/example_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ api/next.txt | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

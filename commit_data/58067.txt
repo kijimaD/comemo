@@ -1,21 +1,15 @@
-commit cf531372b24c926db21e7eeac6e8066f0c604368
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Nov 5 14:07:21 2024 +0100
+commit 70e04706d8ccd4c93de54e1f5c7b15c942018dee
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Sep 22 16:11:36 2023 -0400
 
-    crypto/internal/fips/drbg: add CAST and service indicator
+    net/http: remove unused function
     
-    For #69536
-    
-    Change-Id: If216a7537013bd9bbe90026ffe983a6bf50029c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625435
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4364d94663282249e632d12026a810147844ad2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530615
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/crypto/internal/fips/cast.go               |  2 +-
- src/crypto/internal/fips/cast_external_test.go |  1 +
- src/crypto/internal/fips/drbg/cast.go          | 57 ++++++++++++++++++++++++++
- src/crypto/internal/fips/drbg/ctrdrbg.go       |  5 +++
- 4 files changed, 64 insertions(+), 1 deletion(-)
+ src/net/http/pattern.go      | 14 --------------
+ src/net/http/pattern_test.go | 20 --------------------
+ 2 files changed, 34 deletions(-)

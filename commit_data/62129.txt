@@ -1,0 +1,23 @@
+commit 4cc7705e56be24d5719b59cb369ce4d40643983c
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Feb 5 12:19:12 2025 +0000
+
+    testing: use strings.SplitSeq and bytes.SplitSeq
+    
+    To simplify the code. This is a follow-up for the CL 646216.
+    
+    Change-Id: Ib09d1074a783482fb293527e9f1abeb3c02137c3
+    GitHub-Last-Rev: 2e7a6ad40cc22ea855e4d703ff39db9cc2c8a58e
+    GitHub-Pull-Request: golang/go#71568
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646755
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Salah (Globlost) <globlost@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/testing/slogtest/example_test.go | 2 +-
+ src/testing/testing.go               | 2 +-
+ src/testing/testing_test.go          | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

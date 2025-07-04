@@ -1,20 +1,21 @@
-commit 5ddb20912043ff7ad722a27cc93a7e68d1c5ec78
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Wed Jul 25 19:06:01 2018 +0300
+commit 5881d3048dd851d1e259ecab4e247f50cc10c6a8
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Mon Jun 25 12:30:31 2018 +0200
 
-    cmd/compile/internal/gc: remove dead code from stringtoarraylit
+    syscall/js: turn constant package vars into functions
     
-    The code path for []byte is unused.
-    Rename function to stringtoruneslit to reflect change in the behavior.
+    This is so the values can not be changed and the type is easy to see.
     
-    Note that removed code had a bug in it,
-    it used [0] index instead of [i] inside a loop body.
+    Requested on https://go-review.googlesource.com/c/go/+/120561.
     
-    Change-Id: I58ece5d9d3835887b014446f8a7d3e7fc2fdcaa3
-    Reviewed-on: https://go-review.googlesource.com/c/125796
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If2ed48ca3ba8874074687bfb2375d2f5592e8e0d
+    Reviewed-on: https://go-review.googlesource.com/120564
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 28 ++++++++++------------------
- 1 file changed, 10 insertions(+), 18 deletions(-)
+ src/crypto/rand/rand_js.go   |  2 +-
+ src/net/http/roundtrip_js.go | 18 +++++++++---------
+ src/syscall/fs_js.go         |  4 ++--
+ src/syscall/js/callback.go   | 10 +++++-----
+ src/syscall/js/js.go         | 34 ++++++++++++++++++++--------------
+ src/syscall/js/js_test.go    | 26 +++++++++++++-------------
+ 6 files changed, 50 insertions(+), 44 deletions(-)

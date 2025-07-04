@@ -1,48 +1,15 @@
-commit ca4b868e9ae9ef11515a3224a9e311c7437e2c9c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Dec 17 12:55:41 2012 +0400
+commit 8c86f1f3310047f7c7b3212cca38e5ef96ec9bfa
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Dec 17 02:34:49 2012 +0100
 
-    cmd/gc: racewalk: fix compiler crash
-    The code:
-    func main() {
-            v := make([]int64, 10)
-            i := 1
-            _ = v[(i*4)/3]
-    }
-    crashes compiler with:
+    encoding/json: cleanup leftover redundant variables.
     
-    Program received signal SIGSEGV, Segmentation fault.
-    0x000000000043c274 in walkexpr (np=0x7fffffffc9b8, init=0x0) at src/cmd/gc/walk.c:587
-    587                     *init = concat(*init, n->ninit);
-    (gdb) bt
-    #0  0x000000000043c274 in walkexpr (np=0x7fffffffc9b8, init=0x0) at src/cmd/gc/walk.c:587
-    #1  0x0000000000432d15 in copyexpr (n=0x7ffff7f69a48, t=<optimized out>, init=0x0) at src/cmd/gc/subr.c:2020
-    #2  0x000000000043f281 in walkdiv (init=0x0, np=0x7fffffffca70) at src/cmd/gc/walk.c:2901
-    #3  walkexpr (np=0x7ffff7f69760, init=0x0) at src/cmd/gc/walk.c:956
-    #4  0x000000000043d801 in walkexpr (np=0x7ffff7f69bc0, init=0x0) at src/cmd/gc/walk.c:988
-    #5  0x000000000043cc9b in walkexpr (np=0x7ffff7f69d38, init=0x0) at src/cmd/gc/walk.c:1068
-    #6  0x000000000043c50b in walkexpr (np=0x7ffff7f69f50, init=0x0) at src/cmd/gc/walk.c:879
-    #7  0x000000000043c50b in walkexpr (np=0x7ffff7f6a0c8, init=0x0) at src/cmd/gc/walk.c:879
-    #8  0x0000000000440a53 in walkexprlist (l=0x7ffff7f6a0c8, init=0x0) at src/cmd/gc/walk.c:357
-    #9  0x000000000043d0bf in walkexpr (np=0x7fffffffd318, init=0x0) at src/cmd/gc/walk.c:566
-    #10 0x00000000004402bf in vmkcall (fn=<optimized out>, t=0x0, init=0x0, va=0x7fffffffd368) at src/cmd/gc/walk.c:2275
-    #11 0x000000000044059a in mkcall (name=<optimized out>, t=0x0, init=0x0) at src/cmd/gc/walk.c:2287
-    #12 0x000000000042862b in callinstr (np=0x7fffffffd4c8, init=0x7fffffffd568, wr=0, skip=<optimized out>) at src/cmd/gc/racewalk.c:478
-    #13 0x00000000004288b7 in racewalknode (np=0x7ffff7f68108, init=0x7fffffffd568, wr=0, skip=0) at src/cmd/gc/racewalk.c:287
-    #14 0x0000000000428781 in racewalknode (np=0x7ffff7f65840, init=0x7fffffffd568, wr=0, skip=0) at src/cmd/gc/racewalk.c:302
-    #15 0x0000000000428abd in racewalklist (l=0x7ffff7f65840, init=0x0) at src/cmd/gc/racewalk.c:97
-    #16 0x0000000000428d0b in racewalk (fn=0x7ffff7f5f010) at src/cmd/gc/racewalk.c:63
-    #17 0x0000000000402b9c in compile (fn=0x7ffff7f5f010) at src/cmd/6g/../gc/pgen.c:67
-    #18 0x0000000000419f86 in funccompile (n=0x7ffff7f5f010, isclosure=0) at src/cmd/gc/dcl.c:1414
-    #19 0x0000000000424161 in p9main (argc=<optimized out>, argv=<optimized out>) at src/cmd/gc/lex.c:431
-    #20 0x0000000000401739 in main (argc=<optimized out>, argv=<optimized out>) at src/lib9/main.c:35
+    Those variables come from ancient times when reflect.Value was
+    an interface.
     
-    The problem is nil init passed to mkcall().
-    
-    R=golang-dev, rsc
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6940045
+    https://golang.org/cl/6946059
 
- src/cmd/gc/racewalk.c                            | 3 +--
- src/pkg/runtime/race/testdata/regression_test.go | 6 ++++++
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/pkg/encoding/json/decode.go | 36 ++++++++++++++----------------------
+ 1 file changed, 14 insertions(+), 22 deletions(-)

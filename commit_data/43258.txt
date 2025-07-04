@@ -1,17 +1,14 @@
-commit 09833da6b4cfb494ba61a398ab2063ab016d3890
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 29 10:44:56 2020 -0400
+commit 1250a324b405c0a8f6eb4751b8471dd0ae7cb7bc
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Mon Mar 23 02:51:26 2020 +0000
 
-    cmd/fix: always format source file before fixing
+    bytes: narrow the search of IndexByte in Index
     
-    This makes the changes to the file easier to explain.
-    Not all the changes may come from the fixers directly,
-    if the file is not gofmt-ed already.
-    
-    Change-Id: I81776da446a34a1239a3130317d2aae1437d61a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240555
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I5a47b18b64e7f781dcc77440b06de36966e3d01d
+    GitHub-Last-Rev: 8576f1931d6e87a0823632ee35fcbc0d4eaaeaaf
+    GitHub-Pull-Request: golang/go#37993
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224589
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/fix/main.go | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/bytes/bytes.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

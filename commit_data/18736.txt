@@ -1,16 +1,16 @@
-commit 542415c9df03e40a99ef9eb1005e43ba2cadc46a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 4 09:59:07 2014 -0800
+commit 96c373f9e1eea8e13e1a8bcbfd1da8aada26fe90
+Author: Kelsey Hightower <kelsey.hightower@gmail.com>
+Date:   Tue Mar 4 09:00:45 2014 -0800
 
-    net/http: deflake another alloc test
+    path/filepath: ensure Glob does not ignore broken symlinks
     
-    I have one machine where this 25 test run is flaky
-    and fails ("21 >= 21"), but 50 works everywhere.
+    Fixes #6463.
     
-    LGTM=josharian
-    R=josharian
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/67870053
+    https://golang.org/cl/69870050
 
- src/pkg/net/http/serve_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/path/filepath/match.go      |  2 +-
+ src/pkg/path/filepath/match_test.go | 54 ++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 54 insertions(+), 2 deletions(-)

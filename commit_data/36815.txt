@@ -1,28 +1,26 @@
-commit 550dfc8ae1651eb954274045e31f8ef2e95f6c6c
-Author: Austin Clements <austin@google.com>
-Date:   Thu Aug 16 12:32:46 2018 -0400
+commit 85f4051731f9f2d0514301470d528db94ed5781c
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Wed Dec 6 09:53:14 2017 -0700
 
-    runtime: eliminate work.markrootdone and second root marking pass
+    math/big: implement Atkin's ModSqrt for 5 mod 8 primes
     
-    Before STW and concurrent GC were unified, there could be either one
-    or two root marking passes per GC cycle. There were several tasks we
-    had to make sure happened once and only once (whether that was at the
-    beginning of concurrent mark for concurrent GC or during mark
-    termination for STW GC). We kept track of this in work.markrootdone.
+    For primes congruent to 5 mod 8 there is a simple deterministic
+    method for calculating the modular square root due to Atkin,
+    using one exponentiation and 4 multiplications.
     
-    Now that STW and concurrent GC both use the concurrent marking code
-    and we've eliminated all work done by the second root marking pass, we
-    only ever need a single root marking pass. Hence, we can eliminate
-    work.markrootdone and all of the code that's conditional on it.
+    A. Atkin.  Probabilistic primality testing, summary by F. Morain.
+    Research Report 1779, INRIA, pages 159–163, 1992.
     
-    Updates #26903.
+    This increases the speed of modular square roots for these primes
+    considerably.
     
-    Change-Id: I654a0f5e21b9322279525560a31e64b8d33b790f
-    Reviewed-on: https://go-review.googlesource.com/c/134784
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    name                old time/op  new time/op  delta
+    ModSqrt231_5Mod8-4  1.03ms ± 2%  0.36ms ± 5%  -65.06%  (p=0.008 n=5+5)
+    
+    Change-Id: I024f6e514bbca8d634218983117db2afffe615fe
+    Reviewed-on: https://go-review.googlesource.com/99615
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mgc.go     |  26 +++----------
- src/runtime/mgcmark.go | 102 +++++++++++++++++--------------------------------
- 2 files changed, 41 insertions(+), 87 deletions(-)
+ src/math/big/int.go      | 37 +++++++++++++++++++++++++++++++++----
+ src/math/big/int_test.go | 30 ++++++++++++++----------------
+ 2 files changed, 47 insertions(+), 20 deletions(-)

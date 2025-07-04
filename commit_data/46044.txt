@@ -1,24 +1,28 @@
-commit 6406227d71d2de0bec944bfc1a6aaed90dbf9d0d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Jun 3 16:57:54 2021 +0200
+commit 989a3f5041d2055e165e363d3fb2d27e75e2fa38
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 22:42:24 2020 -0500
 
-    runtime: skip sysmon workaround on NetBSD >= 9.2
+    [dev.regabi] cmd/compile: adjustments to Copy and DeepCopy
     
-    Detect the NetBSD version in osinit and only enable the workaround for
-    the kernel bug identified in #42515 for NetBSD versions older than 9.2.
+    DeepCopy is not called DeepSepCopy, so it should use Copy, not SepCopy.
     
-    For #42515
-    For #46495
+    Also, the old gc.treecopy, which became ir.DeepCopy, only copied
+    the Left, Right, and List fields - not Init, Rlist, Body - and I didn't
+    notice when I moved it over. A general utility function should of
+    course copy the whole node, so do that.
     
-    Change-Id: I808846c7f8e47e5f7cc0a2f869246f4bd90d8e22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324472
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Finally, the semantics of Copy should not depend on whether a
+    particular child node is held directly in a field or in a slice,
+    so make Copy duplicate the slice backing arrays as well.
+    (Logically, those backing arrays are part of the node storage.)
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I18fbe3f2b40078f566ed6370684d5585052b36a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275309
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/os_netbsd.go | 11 +++++++++++
- src/runtime/proc.go      |  6 +++++-
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/copy.go | 43 ++++++++++++++++++++++++++++++++++---
+ 1 file changed, 40 insertions(+), 3 deletions(-)

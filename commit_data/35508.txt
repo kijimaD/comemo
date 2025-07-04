@@ -1,20 +1,14 @@
-commit 51e19d60329b0c62d5a4eaf4c2c0afaa0cc43744
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Sat May 26 19:25:31 2018 +0300
+commit b26a4a140111260f8de73e798bff42101f54bba3
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Wed Nov 15 08:48:49 2017 +0000
 
-    runtime: use the correct AT_HWCAP auxv constant on freebsd
+    compress/bzip2: use sort.Slice in huffman.go
     
-    In golang.org/cl/102355 I mistakenly used 26 instead of 25 as the AT_HWCAP value.
-    26 is AT_HWCAP2. While experimenting with FreeBSD-11.2-BETA3 (where both values are
-    being supplied in the auxv), the AT_HWCAP2 value read is 0 which triggers the error again:
-    
-      runtime: this CPU has no floating point hardware, so it cannot run this GOARM=7 binary. Recompile using GOARM=5.
-    
-    Updates #24507.
-    
-    Change-Id: Ide04b7365d8f10e4650edf4e188dd58bdf42cc26
-    Reviewed-on: https://go-review.googlesource.com/114822
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie4d23cdb81473a4c989a977a127479cf825084dc
+    Reviewed-on: https://go-review.googlesource.com/77850
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/os_freebsd.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/bzip2/huffman.go | 60 ++++++++++++-------------------------------
+ 1 file changed, 17 insertions(+), 43 deletions(-)

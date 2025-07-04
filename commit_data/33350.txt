@@ -1,35 +1,21 @@
-commit 5617864900c397b9c0160a278ae35007e1d785ad
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 31 12:59:47 2017 -0400
+commit 566f390cfaf5cf4c0cc86df73c536b3ddefb6621
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Aug 12 22:05:11 2017 +0200
 
-    cmd/go: pass package config to vet during "go vet"
+    strconv: adjust test output and names for parseUint and parseInt
     
-    After this CL, "go vet" can be guaranteed to have complete type information
-    about the packages being checked, even if cgo or swig is in use,
-    which will in turn make it reasonable for vet checks to insist on type
-    information. It also fixes vet's understanding of unusual import paths
-    like relative paths and vendored packages.
+    Instead of printing Atoi as function name for test failures
+    print the actual function name and arguments tested.
     
-    For now "go tool vet" will continue to cope without type information,
-    but the eventual plan is for "go tool vet" to query the go command for
-    what it needs, and also to be able to query alternate build systems
-    like bazel. But that's future work.
+    Add a base field to the parseUint64BaseTests for consistency with
+    the parseInt64BaseTests tests.
     
-    Fixes #4889.
-    Fixes #12556 (if not already fixed).
-    Fixes #15182.
-    Fixes #16086.
-    Fixes #17571.
-    
-    Change-Id: I932626ee7da649b302cd269b82eb6fe5d7b9f0f2
-    Reviewed-on: https://go-review.googlesource.com/74750
+    Change-Id: Ib9891bdb87b62672b4216625212acfe6474c70fc
+    Reviewed-on: https://go-review.googlesource.com/55136
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/dist/deps.go               |   3 --
- src/cmd/go/go_test.go              |   4 +-
- src/cmd/go/internal/load/pkg.go    |   2 +
- src/cmd/go/internal/vet/vet.go     |  36 ++++++-------
- src/cmd/go/internal/work/action.go |  48 +++++++++++++++++
- src/cmd/go/internal/work/exec.go   | 108 ++++++++++++++++++++++++++++++++++++-
- src/cmd/vet/all/whitelist/all.txt  |   4 --
- 7 files changed, 177 insertions(+), 28 deletions(-)
+ src/strconv/atoi_test.go | 165 ++++++++++++++++++++++++-----------------------
+ 1 file changed, 86 insertions(+), 79 deletions(-)

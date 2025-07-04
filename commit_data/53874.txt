@@ -1,23 +1,26 @@
-commit 3687f77069a8f40a596be7bd848985990908f0d9
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Tue Aug 1 16:01:13 2023 -0700
+commit 403e5f1cb174185a763745276e12156e8d70ba6a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:30:29 2022 +0800
 
-    runtime/internal: switch GOWASIRUNTIME default
+    net/http: use strings.Builder
     
-    CL 513235 switched the default wasip1 runtime in the misc/wasm
-    executable script, but it missed this use of the GOWASIRUNTIME
-    environment variable. Update this instance to make the default runtime
-    choice consistent.
-    
-    Change-Id: Iff7f96231422747a38d65d13a940f6e9d04d835d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515115
+    Change-Id: I754edcf21e003a3f4037fb2c5d8d06f2cd5f2fa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428267
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/internal/wasitest/tcpecho_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/cookie_test.go        |  7 +++----
+ src/net/http/fs_test.go            |  2 +-
+ src/net/http/header_test.go        |  3 ++-
+ src/net/http/readrequest_test.go   |  2 +-
+ src/net/http/request_test.go       | 10 +++++-----
+ src/net/http/requestwrite_test.go  |  6 +++---
+ src/net/http/response_test.go      |  8 ++++----
+ src/net/http/responsewrite_test.go |  3 +--
+ src/net/http/serve_test.go         | 12 ++++++------
+ src/net/http/transport_test.go     | 18 +++++++++---------
+ 10 files changed, 35 insertions(+), 36 deletions(-)

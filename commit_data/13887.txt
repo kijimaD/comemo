@@ -1,15 +1,14 @@
-commit 9773ac1d08312e376d0741791545ca21cd0332d6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Sep 21 07:13:36 2012 +0900
+commit 091388d8e92f46480ead687391ee7d582f6585b2
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Thu Sep 20 14:58:33 2012 -0400
 
-    net: fix comment
+    cmd/ld: remove unused assignment
     
-    R=golang-dev, bradfitz
+    The calculation of datsize is redundant.
+    
+    R=golang-dev, seed, rsc
     CC=golang-dev
-    https://golang.org/cl/6546044
+    https://golang.org/cl/6503122
 
- src/pkg/net/dial.go       | 2 +-
- src/pkg/net/fd_unix.go    | 2 +-
- src/pkg/net/fd_windows.go | 2 +-
- src/pkg/net/sock_posix.go | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/ld/data.c | 1 -
+ 1 file changed, 1 deletion(-)

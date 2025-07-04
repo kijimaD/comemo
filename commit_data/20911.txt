@@ -1,16 +1,15 @@
-commit 04923042bd402def7f48663a165d759d1fdbf15d
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Nov 22 13:55:33 2014 -0500
+commit 1b130a08d8cb1c40f6edd5a1785272d5db8d6c16
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Oct 28 09:56:33 2014 +1100
 
-    image/jpeg: handle Read returning n > 0, err != nil in d.fill
+    [dev.power64] runtime: fix power64le build
     
-    Fixes #9127.
+    Brings defs_linux_power64le.h up to date with the big endian version.
     
-    LGTM=r
-    R=bradfitz, r
-    CC=golang-codereviews, nigeltao
-    https://golang.org/cl/178120043
+    LGTM=rsc
+    R=rsc, austin
+    CC=golang-codereviews
+    https://golang.org/cl/161470043
 
- src/image/jpeg/reader.go      |  3 +++
- src/image/jpeg/reader_test.go | 46 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+)
+ src/runtime/defs_linux_power64le.h | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)

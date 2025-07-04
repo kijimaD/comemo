@@ -1,14 +1,48 @@
-commit 1e7f57954baf8fa991e4551504856897f438f490
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu May 14 00:58:06 2015 -0400
+commit 899a4ad47e452ede041fdb99204575a407dd94f2
+Author: Rick Hudson <rlh@golang.org>
+Date:   Wed Apr 15 17:08:58 2015 -0400
 
-    go/build: introduce go1.5 build tag
+    runtime: Speed up heapBitsForObject
     
-    Change-Id: Iab2f8e1c4443f39b79c1c63a7a30062074b48764
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/10042
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Optimized heapBitsForObject by special casing
+    objects whose size is a power of two. When a
+    span holding such objects is initialized I
+    added a mask that when &ed with an interior pointer
+    results in the base of the pointer. For the garbage
+    benchmark this resulted in CPU_CLK_UNHALTED in
+    heapBitsForObject going from 7.7% down to 5.9%
+    of the total, INST_RETIRED went from 12.2 -> 8.7.
+    
+    Here are the benchmarks that were at lease plus or minus 1%.
+    
+    benchmark                          old ns/op      new ns/op      delta
+    BenchmarkFmtFprintfString          249            221            -11.24%
+    BenchmarkFmtFprintfInt             247            223            -9.72%
+    BenchmarkFmtFprintfEmpty           76.5           69.6           -9.02%
+    BenchmarkBinaryTree17              4106631412     3744550160     -8.82%
+    BenchmarkFmtFprintfFloat           424            399            -5.90%
+    BenchmarkGoParse                   4484421        4242115        -5.40%
+    BenchmarkGobEncode                 8803668        8449107        -4.03%
+    BenchmarkFmtManyArgs               1494           1436           -3.88%
+    BenchmarkGobDecode                 10431051       10032606       -3.82%
+    BenchmarkFannkuch11                2591306713     2517400464     -2.85%
+    BenchmarkTimeParse                 361            371            +2.77%
+    BenchmarkJSONDecode                70620492       68830357       -2.53%
+    BenchmarkRegexpMatchMedium_1K      54693          53343          -2.47%
+    BenchmarkTemplate                  90008879       91929940       +2.13%
+    BenchmarkTimeFormat                380            387            +1.84%
+    BenchmarkRegexpMatchEasy1_32       111            113            +1.80%
+    BenchmarkJSONEncode                21359159       21007583       -1.65%
+    BenchmarkRegexpMatchEasy1_1K       603            613            +1.66%
+    BenchmarkRegexpMatchEasy0_32       127            129            +1.57%
+    BenchmarkFmtFprintfIntInt          399            393            -1.50%
+    BenchmarkRegexpMatchEasy0_1K       373            378            +1.34%
+    
+    Change-Id: I78e297161026f8b5cc7507c965fd3e486f81ed29
+    Reviewed-on: https://go-review.googlesource.com/8980
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/build/build.go | 6 +-----
- src/go/build/doc.go   | 1 +
- 2 files changed, 2 insertions(+), 5 deletions(-)
+ src/runtime/mbitmap.go | 41 ++++++++++++++++++++---------------------
+ src/runtime/mheap.go   |  5 ++++-
+ src/runtime/msize.go   | 17 ++++++++++++++---
+ 3 files changed, 38 insertions(+), 25 deletions(-)

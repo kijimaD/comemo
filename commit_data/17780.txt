@@ -1,16 +1,16 @@
-commit 5f3a7aa2172c4b78de6bae19f740024c4088b5e3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Oct 11 10:37:32 2013 +0900
+commit beca0e124d113fa004b8f559c725c704bab2a89a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 10 17:26:03 2013 -0700
 
-    go.tools/misc/dist: copy doc.go from go.tools to go root
+    doc/effective_go.html: fix a couple of cosmetic issues
+    At the moment, godoc expands the example in the link, but in
+    the past it has not. Add a waffle word to allow either possibility.
+    Also change the order of cases in the switch in Compare to
+    be consistent with the other switch in the function.
     
-    This will allow "godoc godoc", "godoc vet", "godoc cover" to work.
-    
-    Fixes #6527.
-    
-    R=r, dsymonds
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/14566049
+    https://golang.org/cl/14439055
 
- misc/dist/bindist.go | 29 +++++++++++++++++++++++++++--
- 1 file changed, 27 insertions(+), 2 deletions(-)
+ doc/effective_go.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,15 +1,34 @@
-commit b0a53d22026a22864e1ca411cc0d9a2630eb5f75
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 3 14:58:38 2018 -0800
+commit b2e66f1aec4d53df3f21245f68d264744688bb31
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jun 1 11:23:21 2018 +0100
 
-    doc: release notes: "go tool vet" is no longer supported
+    cmd/vet: rewrite structtag using go/types
     
-    Updates #28869
+    This lets us simplify the code considerably. For example, unquoting the
+    tag is no longer necessary, and we can get the field name with a single
+    method call.
     
-    Change-Id: Ie152bf959af2e9cd32b1ccc031e8208e64fbe3ce
-    Reviewed-on: https://go-review.googlesource.com/c/152161
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    While at it, fix a typechecking error in testdata/structtag.go, which
+    hadn't been caught since vet still skips past go/types errors in most
+    cases.
+    
+    Using go/types will also let us expand the structtag check more easily
+    if we want to, for example to allow it to check for duplicates in
+    embedded fields.
+    
+    Finally, update one of the test cases to check for regressions when we
+    output invalid tag strings. We also checked that these two changes to
+    testdata/structtag.go didn't fail with the old structtag check.
+    
+    For #25593.
+    
+    Change-Id: Iea4906d0f30a67f36b28c21d8aa96251aae653f5
+    Reviewed-on: https://go-review.googlesource.com/115676
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.12.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/vet/structtag.go          | 37 ++++++++++++++-----------------------
+ src/cmd/vet/testdata/structtag.go |  4 ++--
+ 2 files changed, 16 insertions(+), 25 deletions(-)

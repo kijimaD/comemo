@@ -1,32 +1,33 @@
-commit 3d4c12d9d091fcbe3941534af5057d453758650e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 26 13:39:49 2014 -0800
+commit 7954b2b90be1b424e1dc8d9d50b3edd1d7a60d4c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Feb 27 06:57:06 2014 +1100
 
-    go/printer: refine handling of one-line functions
+    cmd/5a, cmd/5c, cmd/6a, cmd/6c, cmd/8a, cmd/8c, cmd/cc: support for Native Client
     
-    Functions that "fit" on one line and were on one
-    line in the original source are not broken up into
-    two lines anymore simply because they contain a comment.
+    From the original description in CL 15770043
     
-    - Fine-tuned use of separating blanks after /*-style comments, so:
+    The main change here is to consult $GOARCH.
     
-    ( /* extra blank after this comment */ )
-    (a int /* no extra blank after this comment*/)
+    In 6c, when GOOS=nacl, some of the more complex addressing modes must be disabled, and the BP and R15 registers must not be used.
     
-    - Factored out comment state (from printer state) into commentInfo.
-    - No impact on $GOROOT/src, misc formatting.
+    See golang.org/s/go13nacl for design overview.
     
-    Fixes #5543.
-    
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=rsc
+    R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
-    https://golang.org/cl/68630043
+    https://golang.org/cl/69020044
 
- src/pkg/go/printer/nodes.go                     | 25 +++++---
- src/pkg/go/printer/printer.go                   | 84 ++++++++++++++++++-------
- src/pkg/go/printer/testdata/comments.golden     | 13 ++--
- src/pkg/go/printer/testdata/comments.input      | 12 +++-
- src/pkg/go/printer/testdata/declarations.golden |  3 +-
- src/pkg/go/printer/testdata/declarations.input  |  3 +-
- 6 files changed, 99 insertions(+), 41 deletions(-)
+ src/cmd/5a/lex.c  |  8 +++++++-
+ src/cmd/5c/swt.c  |  2 +-
+ src/cmd/5c/txt.c  |  5 +++--
+ src/cmd/6a/lex.c  |  8 +++++++-
+ src/cmd/6c/reg.c  |  4 +++-
+ src/cmd/6c/sgen.c |  2 +-
+ src/cmd/6c/swt.c  | 22 +++++++++++++++++++++-
+ src/cmd/6c/txt.c  | 31 ++++++++++++++++++++++++++-----
+ src/cmd/8a/lex.c  |  8 +++++++-
+ src/cmd/8c/swt.c  |  2 +-
+ src/cmd/8c/txt.c  |  5 +++--
+ src/cmd/cc/cc.h   |  5 +++--
+ src/cmd/cc/lex.c  | 13 +++++++++++++
+ 13 files changed, 96 insertions(+), 19 deletions(-)

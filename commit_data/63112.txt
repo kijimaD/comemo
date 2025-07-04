@@ -1,0 +1,20 @@
+commit d37a1bdd48458e48de13cdc320c8ddf9b021e356
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon May 19 17:02:48 2025 +0800
+
+    cmd/compile: fix the implementation of NORconst on loong64
+    
+    In the loong64 instruction set, there is no NORI instruction,
+    so the immediate value in NORconst need to be stored in register
+    and then use the three-register NOR instruction.
+    
+    Change-Id: I5ef697450619317218cb3ef47fc07e238bdc2139
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673836
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/loong64/ssa.go | 18 +++++++++++++++++-
+ test/codegen/bits.go                    |  9 +++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

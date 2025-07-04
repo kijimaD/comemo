@@ -1,13 +1,16 @@
-commit 5ea131f442cf1bb1fa9ce1029054838af974f0e8
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Thu Aug 28 12:07:52 2014 -0400
+commit 6ed58c296280575cc817d614bee0b19744e1ee55
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Aug 23 15:42:30 2014 +0100
 
-    runtime: compare only until min(len(s1), len(s2))
+    runtime: run newproc1 on M stack.
     
-    LGTM=bradfitz
-    R=rsc, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/139770043
+    This makes newproc invisible to the GC. This is a pretty simple change since parts of newproc already depends on being run on the M stack.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews, khr
+    https://golang.org/cl/129520043
 
- src/pkg/runtime/noasm_arm.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/proc.c | 31 ++++++++++++++++++++++++++++---
+ src/pkg/runtime/race.c |  8 +++++++-
+ 2 files changed, 35 insertions(+), 4 deletions(-)

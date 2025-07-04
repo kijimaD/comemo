@@ -1,24 +1,30 @@
-commit 1395432f2330498c8e5661c14652996894f0cc7d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 5 14:30:03 2021 -0700
+commit 53c9b9588a3a811bdf8d7ac2ff371bc2f95ed261
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Aug 21 11:49:56 2020 -0400
 
-    cmd/compile/internal/types2: remove Config.AcceptMethodTypeParams flag
+    runtime: check held locks with staticlockranking
     
-    Type parameters for methods are not part of the accepted language,
-    but maintaining the code for type-checking them ensures regularity
-    of the type checker implementation. For now, keep the flag internally,
-    disabled by default. The flag is set when running tests.
+    When lock ranking is enabled, we can now assert that lock preconditions
+    are met by checking that the caller holds required locks on function
+    entry.
     
-    Change-Id: Ic99934bd00bd2608dc1178e4131f46dd1507f0f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307214
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    This change adds the infrastructure to add assertions. Actual assertions
+    will be added for various locks in subsequent changes.
+    
+    Some functions are protected by locks that are not directly accessible
+    in the function. In that case, we can use assertRankHeld to check that
+    any lock with the rank is held. This is less precise, but it avoids
+    requiring passing the lock into the functions.
+    
+    Updates #40677
+    
+    Change-Id: I843c6874867f975e90a063f087b6e2ffc147877b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245484
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/api.go        | 3 ---
- src/cmd/compile/internal/types2/api_test.go   | 5 ++---
- src/cmd/compile/internal/types2/check.go      | 5 -----
- src/cmd/compile/internal/types2/check_test.go | 1 -
- src/cmd/compile/internal/types2/resolver.go   | 2 +-
- src/cmd/compile/internal/types2/types_test.go | 9 +++++++++
- src/cmd/compile/internal/types2/typexpr.go    | 7 +++++--
- 7 files changed, 17 insertions(+), 15 deletions(-)
+ src/runtime/lockrank_off.go |  8 ++++++
+ src/runtime/lockrank_on.go  | 70 +++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 75 insertions(+), 3 deletions(-)

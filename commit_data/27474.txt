@@ -1,16 +1,18 @@
-commit 4cad610401edc11fe921205438a7b3ab4faa3982
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 20 20:42:21 2016 +0000
+commit 72a1b53b674626551f03c5083dab3882e705afd1
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Mar 28 21:08:15 2016 +0300
 
-    os/exec: remove Cmd.RunContext and Cmd.WaitContext, add CommandContext
+    cmd/vet: allow lock types inside built-in new()
     
-    Fixes #15775
+    Updates #14839
+    Fixes #14994
     
-    Change-Id: I0a6c2ca09d3850c3538494711f7a9801b9500411
-    Reviewed-on: https://go-review.googlesource.com/23300
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9bb51bad19105a17c80d690c5486e5dd007ac84a
+    Reviewed-on: https://go-review.googlesource.com/21222
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/exec/exec.go      | 38 +++++++++++++++++++-------------------
- src/os/exec/exec_test.go | 18 +++++++++++++-----
- 2 files changed, 32 insertions(+), 24 deletions(-)
+ src/cmd/vet/copylock.go          |  6 +++++-
+ src/cmd/vet/testdata/copylock.go | 14 ++++++++++++--
+ 2 files changed, 17 insertions(+), 3 deletions(-)

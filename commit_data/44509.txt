@@ -1,20 +1,38 @@
-commit c015f76acb73990d4cb7fb056165b64d79b1b037
-Author: David Chase <drchase@google.com>
-Date:   Tue Feb 23 20:00:31 2021 -0500
+commit 85afa2eb190d5d1a06584803bde4b4ee9b0e79b0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jul 27 15:04:17 2020 -0400
 
-    cmd/compile: implement too-big-to-SSA struct passing in registers
+    runtime: ensure startm new M is consistently visible to checkdead
     
-    Added a test that exercises named results
+    If no M is available, startm first grabs an idle P, then drops
+    sched.lock and calls newm to start a new M to run than P.
     
-    Change-Id: Ie228b68f4f846266595a95e0f65a6e4b8bf79635
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297029
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Unfortunately, that leaves a window in which a G (e.g., returning from a
+    syscall) may find no idle P, add to the global runq, and then in stopm
+    discover that there are no running M's, a condition that should be
+    impossible with runnable G's.
+    
+    To avoid this condition, we pre-allocate the new M ID in startm before
+    dropping sched.lock. This ensures that checkdead will see the M as
+    running, and since that new M must eventually run the scheduler, it will
+    handle any pending work as necessary.
+    
+    Outside of startm, most other calls to newm/allocm don't have a P at
+    all. The only exception is startTheWorldWithSema, which always has an M
+    if there is 1 P (i.e., the currently running M), and if there is >1 P
+    the findrunnable spinning dance ensures the problem never occurs.
+    
+    This has been tested with strategically placed sleeps in the runtime to
+    help induce the correct race ordering, but the timing on this is too
+    narrow for a test that can be checked in.
+    
+    Fixes #40368
+    
+    Change-Id: If5e0293a430cc85154b7ed55bc6dadf9b340abe2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245018
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/abi/abiutils.go     | 59 +++++++++++++++---
- src/cmd/compile/internal/ssa/expand_calls.go | 26 +++++---
- src/cmd/compile/internal/ssagen/ssa.go       | 27 ++++++---
- test/abi/named_results.go                    | 91 ++++++++++++++++++++++++++++
- test/abi/named_results.out                   | 13 ++++
- 5 files changed, 190 insertions(+), 26 deletions(-)
+ src/runtime/proc.go | 67 +++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 50 insertions(+), 17 deletions(-)

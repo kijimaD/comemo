@@ -1,26 +1,20 @@
-commit c52aca1c761f724c3192ee0ac4f4a19754fc5948
-Author: Jed Denlea <jed@fastly.com>
-Date:   Thu Jun 15 15:53:09 2017 -0700
+commit ee272bbf36afa97b51669e1e8d1aed4fcb7013ab
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 20 12:14:16 2017 -0700
 
-    image/gif: fix writeImageBlock with SubImages
+    cmd/compile/internal/gc: export interface embedding information
     
-    If an image has been cropped horizontally, writeImageBlock detects that
-    its width and Stride differ and acts accordingly.
+    Fixes #16369.
     
-    However, if an image has been cropped vertically, trimming from the
-    bottom, the whole original image will be written in place.  This results
-    in more data in the LZW stream than necessary, and many decoders
-    including image/gif's itself will fail to load.
-    
-    Fixes #20692
-    
-    Change-Id: Id332877e31bcf3729c89d8a50c1be0464028d82e
-    Reviewed-on: https://go-review.googlesource.com/45972
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    Change-Id: I23f8c36370d0da37ac5b5126d012d22f78782782
+    Reviewed-on: https://go-review.googlesource.com/38392
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/image/gif/writer.go      |  2 +-
- src/image/gif/writer_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go        | 68 ++++++++++++---------------
+ src/cmd/compile/internal/gc/bimport.go        | 19 ++++----
+ src/go/internal/gcimporter/bimport.go         |  9 ++--
+ src/go/internal/gcimporter/gcimporter_test.go |  2 +-
+ test/fixedbugs/issue16369.go                  |  4 +-
+ 5 files changed, 50 insertions(+), 52 deletions(-)

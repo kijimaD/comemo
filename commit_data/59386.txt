@@ -1,26 +1,38 @@
-commit b48e52b4282631ecda45ac985d398e19eca1e745
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Apr 24 20:48:10 2025 -0400
+commit 85bbb121413b5fe49238b2e089975f8b50b30de0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 16 17:56:43 2024 -0500
 
-    cmd/dist: move "devel" substring in git-inferred development version
+    runtime: fix timers.wakeTime inaccuracy race
     
-    Keep the property that the "devel" substring is always present in these
-    development versions of Go, but also gain the property that it's viable
-    to use functions in the go/version package such as Lang, Compare, and
-    get the expected results without needing to trim the "devel " prefix.
+    timers.wakeTime, which is called concurrently by P's trying to decide
+    how long they should sleep, can return inaccurate values while
+    timers.adjust is running. (Before the refactoring, this was still true
+    but the code did not have good names and was spread across more
+    files, making the race harder to see.)
     
-    For #73369.
-    For #41116.
-    Fixes #73372.
+    The runtime thread sleeping code is complex enough that I am not
+    confident that the inaccuracy can cause delayed timer wakeups,
+    but I am also not confident that it can't, nor that it won't in the future.
     
-    Change-Id: Ieea4692e8c6cf0135e010f49f85300f6b038d6b1
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668015
-    Reviewed-by: Funda Secgin <fundasecgin30@gmail.com>
+    There are two parts to the fix:
+    
+    1. A simple logic change in timers.adjust.
+    
+    2. The introduction of t.maybeAdd to avoid having a t that is
+    marked as belonging to a specific timers ts but not present
+    in ts.heap. That was okay before when everything was racy
+    but needs to be eliminated to make timers.adjust fully consistent.
+    The cost of the change is an extra CAS-lock operation on a timer add
+    (close to free since the CAS-lock was just unlocked) and a change
+    in the static lock ranking to allow malloc while holding a timer lock.
+    
+    Change-Id: I1249e6e24ae9ef74a69837f453e15b513f0d75c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564977
+    Reviewed-by: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/build.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/lockrank.go   |  42 ++++++------
+ src/runtime/mklockrank.go |   5 +-
+ src/runtime/time.go       | 166 +++++++++++++++++++++++++++++++---------------
+ 3 files changed, 137 insertions(+), 76 deletions(-)

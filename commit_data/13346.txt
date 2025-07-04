@@ -1,20 +1,12 @@
-commit 5468d164679fc5b0a1d988ca06ce41c9d6db61b2
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Jun 13 23:52:00 2012 +0200
+commit 1c4e20744a48ee0d7cdb74ed1cab5196345cf6a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 13 16:44:19 2012 -0400
 
-    strconv: extend fast parsing algorithm to ParseFloat(s, 32)
+    syscall: fix windows copyFindData
     
-    benchmark                  old ns/op    new ns/op    delta
-    BenchmarkAtof32Decimal           215           73  -65.72%
-    BenchmarkAtof32Float             233           83  -64.21%
-    BenchmarkAtof32FloatExp         3351          209  -93.76%
-    BenchmarkAtof32Random           1939          260  -86.59%
-    
-    R=rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/6294071
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6301076
 
- src/pkg/strconv/atof.go      |  71 +++++++++++++++----------
- src/pkg/strconv/atof_test.go | 120 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/strconv/extfloat.go  |  14 ++---
- 3 files changed, 172 insertions(+), 33 deletions(-)
+ src/pkg/syscall/ztypes_windows.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

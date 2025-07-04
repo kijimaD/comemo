@@ -1,0 +1,18 @@
+commit 065c1359e1bc3d6744a925339484592b13d713dd
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Sep 13 18:50:03 2024 +0800
+
+    internal/cpu: add CPU feature LAMCAS and LAM_BH detection on loong64
+    
+    Change-Id: Ic5580c4ee006d87b3152ae5de7b25fb532c6a33f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612976
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+
+ src/internal/cpu/cpu.go               |  9 ++++++---
+ src/internal/cpu/cpu_loong64.go       | 34 ++++++++++++++++++++++++++++++++++
+ src/internal/cpu/cpu_loong64.s        | 12 ++++++++++++
+ src/internal/cpu/cpu_loong64_hwcap.go | 18 ++----------------
+ 4 files changed, 54 insertions(+), 19 deletions(-)

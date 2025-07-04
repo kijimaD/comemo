@@ -1,23 +1,23 @@
-commit 28ed2b0cd9ad6e2015f073931c05c08e8bf7b247
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Sep 9 12:04:22 2016 -0400
+commit 2f9eeea212681927385a4713004438cd864966e0
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Tue May 24 23:46:11 2016 +0600
 
-    cmd/link: skip arch-specific main function
+    cmd/go: document testdata directory in "go help test"
     
-    Add some notes to main.go on what happens where.
+    Document the correct use of the testdata directory
+    where test writers might be expecting to find it.
     
-    Change-Id: I4fb0b6c280e5f990ddc5d749267372b86870af6d
-    Reviewed-on: https://go-review.googlesource.com/28970
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    It seems that alldocs.go was out of date, so it
+    has picked up some other changes with this commit.
+    
+    Fixes #14715.
+    
+    Change-Id: I0a22676bb7a64b2a61b56495f7ea38db889d8b37
+    Reviewed-on: https://go-review.googlesource.com/23353
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/amd64/obj.go  |  9 +--------
- src/cmd/link/internal/arm/obj.go    |  9 +--------
- src/cmd/link/internal/arm64/obj.go  |  9 +--------
- src/cmd/link/internal/mips64/obj.go |  9 +--------
- src/cmd/link/internal/ppc64/obj.go  |  9 +--------
- src/cmd/link/internal/s390x/obj.go  |  9 +--------
- src/cmd/link/internal/x86/obj.go    |  9 +--------
- src/cmd/link/main.go                | 30 +++++++++++++++++++++++-------
- 8 files changed, 30 insertions(+), 63 deletions(-)
+ src/cmd/go/alldocs.go | 16 ++++++++++++++--
+ src/cmd/go/test.go    |  3 +++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

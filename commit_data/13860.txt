@@ -1,12 +1,12 @@
-commit 35724c1aa5f9370093851c92fb61b482260bb834
+commit 384af66984c55cf82eaf3f15ca47fb84a31d764d
 Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Tue Sep 18 14:30:01 2012 -0400
+Date:   Tue Sep 18 14:23:11 2012 -0400
 
-    runtime: hide the semaphore table from garbage collector
+    reflect: use []unsafe.Pointer instead of []*int
     
-    R=rsc, dvyukov, dave
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6528043
+    https://golang.org/cl/6527043
 
- src/pkg/runtime/sema.goc | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/reflect/value.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

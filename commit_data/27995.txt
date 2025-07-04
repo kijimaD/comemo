@@ -1,19 +1,17 @@
-commit 0df5ab7e6569a8bf6bc87975e539706163bf664a
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Wed Aug 10 15:02:02 2016 -0300
+commit c4c182140adedf300800778127840e3b8b9f7423
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Apr 23 21:18:34 2016 +0200
 
-    runtime: Use clock_gettime to get current time on ppc64x
+    internal/trace: fix event ordering for coarse timestamps
     
-    Fetch the current time in nanoseconds, not microseconds, by using
-    clock_gettime rather than gettimeofday.
+    Arm arch uses coarse-grained kernel timer as cputicks.
+    As the result sort.Sort smashes trace entirely. Use sort.Stable instead.
     
-    Updates #11222
-    
-    Change-Id: I1c2c1b88f80ae82002518359436e19099061c6fb
-    Reviewed-on: https://go-review.googlesource.com/26790
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Idfa017a86a489be58cf239f7fe56d7f4b66b52a9
+    Reviewed-on: https://go-review.googlesource.com/22317
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/sys_linux_ppc64x.s | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/internal/trace/order.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

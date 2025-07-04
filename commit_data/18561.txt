@@ -1,30 +1,22 @@
-commit 8b0b994c08c540702fbfe84a50ed72b93892d7c5
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 18 22:33:59 2014 -0800
+commit cce25c88ce96a8c6cc0af212bcd9f75bf9d3fb86
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Feb 18 22:23:55 2014 -0500
 
-    reflect: improve documentation of IsNil
-    IsNil isn't quite the same as == nil, as this snippet shows:
+    misc/emacs: add support for ff-find-other-file
     
-    // http://play.golang.org/p/huomslDZgw
-    package main
+    c-mode classically uses ff-find-other-file to toggle between headers
+    and implementation. For Go it seemingly makes sense to jump between
+    implementation and test.
     
-    import "fmt"
-    import "reflect"
+    While there's no enforced mapping of file names for tests, the mapping
+    in this CL seems to be very common at least throughout the standard
+    library, and ff-find-other-file fails gracefully when the mapping
+    doesn't apply.
     
-    func main() {
-            var i interface{}
-            v := reflect.ValueOf(i)
-            fmt.Println(v.IsValid(), i == nil)
-            fmt.Println(v.IsNil())
-    }
-    
-    The fact that IsNil panics if you call it with an untyped nil
-    was not apparent. Verbiage added for clarity.
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=adonovan
+    R=adonovan
     CC=golang-codereviews
-    https://golang.org/cl/65480043
+    https://golang.org/cl/65750044
 
- src/pkg/reflect/value.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ misc/emacs/go-mode.el | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

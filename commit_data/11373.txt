@@ -1,13 +1,15 @@
-commit dd442a556e5d9457caf318cd9b77e0a58041ab72
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 24 17:02:06 2012 -0800
+commit 8eaf38cbdd0ae88c7e89ac2f62d13f2091ba1603
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 25 11:56:31 2012 +1100
 
-    doc/go1: mime, filepath.Walk
+    godoc: update metadata upon launch
     
-    R=golang-dev, gri, bradfitz, adg
+    Without this change it's possible to launch godoc,
+    immediately GET /, and see a directory listing instead of root.html
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5571060
+    https://golang.org/cl/5575054
 
- doc/go1.html | 50 +++++++++++++++++++++++++++++++++++++++++++++++++-
- doc/go1.tmpl | 50 +++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 98 insertions(+), 2 deletions(-)
+ src/cmd/godoc/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

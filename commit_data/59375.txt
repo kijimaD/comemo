@@ -1,19 +1,25 @@
-commit c8b589e26643f83cf5469e5bcb06af40c10932e2
-Author: goto1134 <1134togo@gmail.com>
-Date:   Mon May 29 09:23:27 2023 +0000
+commit c8c46e746b778c39727c588adf79aff34ab6f151
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri Mar 8 10:12:41 2024 +0000
 
-    cmd/list: fix -retracted flag description
+    runtime: use built-in clear to simplify code
     
-    Change-Id: Ia1ab220485af2f38c3ddcd4c5d5bca1b195a33ed
-    GitHub-Last-Rev: fb9933427d852518c93efbc4f2c2e4d4ee9b9197
-    GitHub-Pull-Request: golang/go#59847
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489175
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: Icb6d9ca996b4119d8636d9f7f6a56e510d74d059
+    GitHub-Last-Rev: 08178e8ff798f4a51860573788c9347a0fb6bc40
+    GitHub-Pull-Request: golang/go#66188
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569979
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/go/alldocs.go            | 4 ++--
- src/cmd/go/internal/list/list.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/heapdump.go    |  4 +---
+ src/runtime/mcheckmark.go  |  4 +---
+ src/runtime/mgc.go         |  4 +---
+ src/runtime/mpagealloc.go  |  5 +----
+ src/runtime/mpallocbits.go |  8 ++------
+ src/runtime/mprof.go       | 12 +++---------
+ src/runtime/profbuf.go     | 10 +++-------
+ 7 files changed, 12 insertions(+), 35 deletions(-)

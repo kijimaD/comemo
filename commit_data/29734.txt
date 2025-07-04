@@ -1,21 +1,23 @@
-commit d54b60a2b2470ea42559b58995e86ff20dd70471
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sat Dec 3 18:45:50 2016 -0800
+commit cb986def671cd244e4682a476cff51c4cff2d8f8
+Author: Quentin Smith <quentin@golang.org>
+Date:   Wed Oct 5 14:37:25 2016 -0400
 
-    html/template: lock in application/json as valid JS test
+    syscall: relax TestUnshare
     
-    CL https://go-review.googlesource.com/33899 added
-    application/json as a mimeType for valid JS. Let's
-    lock that fix in with a test.
+    Fixes #17224.
     
-    Updates #18159
+    Some systems have more than just "lo" in a fresh network namespace, due
+    to IPv6. Instead of testing for exactly 3 lines of output (implying 1
+    interface), just test to make sure that the unshare call resulted in
+    fewer interfaces than before. This should still verify that unshare did
+    something.
     
-    Change-Id: Ic4dfd8929aebfc5410f796688f081ca06630f672
-    Reviewed-on: https://go-review.googlesource.com/33901
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iaf84c2b0e673fc207059d62e2f4dd7583a753419
+    Reviewed-on: https://go-review.googlesource.com/30372
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Nodir Turakulov <nodir@google.com>
+    Reviewed-by: Jessica Frazelle <me@jessfraz.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/html/template/js_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/syscall/exec_linux_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

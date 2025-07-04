@@ -1,19 +1,44 @@
-commit 01103d533a086afd6c06f3eec5057d46f117d2ff
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Tue Nov 9 10:01:05 2021 +0100
+commit 289d34a465d46e5c5c07034f5d54afbfda06f5b9
+Author: John Bampton <jbampton@gmail.com>
+Date:   Sat Mar 13 11:25:15 2021 +0000
 
-    cmd/link: fix GCC startfiles names on AIX
+    all: remove duplicate words
     
-    Since GCC version 11, the 64-bit version of GCC starting files are
-    now suffixed by "_64" instead of being stored without suffix under
-    "ppc64" multilib directory.
-    
-    Change-Id: Ibe53521ed24d36e5f6282e3574849b9ae11a1e9a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362594
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib0469232a2b69a869e58d5d24990ad74ac96ea56
+    GitHub-Last-Rev: eb38e049ee1e773392ff3747e1eb2af20dd50dcd
+    GitHub-Pull-Request: golang/go#44805
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299109
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/lib.go | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/bytes/buffer.go                                         | 2 +-
+ src/cmd/compile/internal/ssa/func.go                        | 2 +-
+ src/cmd/compile/internal/ssa/rewrite.go                     | 2 +-
+ src/cmd/compile/internal/ssagen/abi.go                      | 2 +-
+ src/cmd/compile/internal/syntax/scanner_test.go             | 2 +-
+ src/cmd/compile/internal/types2/examples/methods.go2        | 2 +-
+ src/cmd/compile/internal/types2/type.go                     | 2 +-
+ src/cmd/go/internal/fsys/fsys.go                            | 2 +-
+ src/cmd/go/internal/modfetch/cache.go                       | 2 +-
+ src/cmd/go/internal/modfetch/sumdb.go                       | 2 +-
+ src/cmd/go/internal/modload/query_test.go                   | 2 +-
+ src/cmd/go/testdata/script/mod_lazy_new_import.txt          | 2 +-
+ src/cmd/go/testdata/script/test_chatty_parallel_fail.txt    | 2 +-
+ src/cmd/go/testdata/script/test_chatty_parallel_success.txt | 2 +-
+ src/cmd/internal/obj/sym.go                                 | 2 +-
+ src/cmd/link/internal/ld/macho_combine_dwarf.go             | 2 +-
+ src/crypto/tls/handshake_client_test.go                     | 2 +-
+ src/debug/dwarf/const.go                                    | 2 +-
+ src/go/types/errorcodes.go                                  | 2 +-
+ src/go/types/examples/methods.go2                           | 2 +-
+ src/go/types/type.go                                        | 2 +-
+ src/go/types/typexpr.go                                     | 2 +-
+ src/net/http/h2_bundle.go                                   | 2 +-
+ src/net/http/server.go                                      | 2 +-
+ src/runtime/defer_test.go                                   | 2 +-
+ src/runtime/memmove_ppc64x.s                                | 2 +-
+ src/runtime/panic.go                                        | 2 +-
+ src/runtime/proc.go                                         | 2 +-
+ 28 files changed, 28 insertions(+), 28 deletions(-)

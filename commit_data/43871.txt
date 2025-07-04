@@ -1,16 +1,20 @@
-commit 750b3729dcb1e0aac239bc69959355ec2242111d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 24 20:28:20 2020 -0800
+commit 9a3f22be7a3a28bd8f33a86925e2b05f2314ead2
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Mon Apr 27 15:23:37 2020 -0400
 
-    go/constant: MakeFloat64(0) must return a value of Float kind
+    hash/crc32: simplify hasVX checking on s390x
     
-    Fixes #42641.
+    Originally, we use an assembly function that returns a boolean result to
+    tell whether the machine has vector facility or not. It is now no longer
+    needed when we can directly use cpu.S390X.HasVX variable. This CL
+    also removes the last occurence of hasVectorFacility function on s390x.
     
-    Change-Id: I10fdc7c90054b37ab5b303999015262691c12927
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273126
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Id20cb746c21eacac5e13344b362e2d87adfe4317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230337
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/constant/value.go      |  7 ++-----
- src/go/constant/value_test.go | 37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 5 deletions(-)
+ src/hash/crc32/crc32_s390x.go |  8 ++++----
+ src/hash/crc32/crc32_s390x.s  | 22 ----------------------
+ 2 files changed, 4 insertions(+), 26 deletions(-)

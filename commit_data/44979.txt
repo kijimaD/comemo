@@ -1,15 +1,31 @@
-commit 7da8490cbb8659e3a9727b15e42def6e961e8fdf
-Author: ianwoolf <btw515wolf2@gmail.com>
-Date:   Tue Apr 6 22:05:45 2021 +0800
+commit eda1d405444262ab36160b87179e086872804709
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 21 09:18:32 2020 -0400
 
-    path/filepath: replace os.MkdirTemp with T.TempDir
+    make.bash: avoid warning when bootstrap doesn't support GOOS/GOARCH
     
-    Change-Id: I6d78e0e742cb0e7f5ea3f430e9cec0f5d1ee03e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307652
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Currently, if make.bash is run with a GOOS or GOARCH that the
+    bootstrap toolchain doesn't support, it will print an ominous but
+    harmless warning like:
+    
+      2020/09/21 09:05:27 unsupported GOARCH arm64
+    
+    This comes from the invocation of "go version" to get the exact
+    bootstrap toolchain version.
+    
+    Since the GOOS and GOARCH don't matter for this purpose, this CL
+    simply clears them on the invocation of the bootstrap toolchain's "go
+    version".
+    
+    Fixes #41525.
+    
+    Change-Id: I17d44eaafed9999b9fa7dcb9fb100b5fd5e554d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256297
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/path/filepath/path_test.go | 70 +++++++++---------------------------------
- 1 file changed, 15 insertions(+), 55 deletions(-)
+ src/make.bash | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

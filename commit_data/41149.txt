@@ -1,21 +1,18 @@
-commit 9f07cdd99ee70b90e2a5fe998acb48c5fc6e39f2
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Jan 23 03:31:49 2020 +1100
+commit 28f8f55bd29f997fc814782f161ae09520955a8d
+Author: Eli Bendersky <eliben@google.com>
+Date:   Fri Aug 2 14:13:23 2019 -0700
 
-    cmd/internal/obj/riscv: restore the ADDI instruction in jalrToSym
+    encoding/json: clarify Unmarshal behavior for map keys
     
-    While this instruction is not needed for the relocation (the lower immediate
-    can be patched directly into the JALR instruction), other code currently
-    depends on the jump sequence being 12 bytes (or three instructions) long.
-    Put the ADDI instruction back until these can be found and fixed.
+    This is a documentation-only change
     
-    Updates #27532
+    Fixes #33298
     
-    Change-Id: Idb73d716be8eb2eb796591b30f1ec4dc104f2bf8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215840
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I816058a872b57dc868dff11887214d9de92d9342
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188821
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/riscv/obj.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/encoding/json/decode.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

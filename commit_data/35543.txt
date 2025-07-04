@@ -1,31 +1,18 @@
-commit fd4392ba6f8c593fdfdf19366f3896b668db2824
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 29 15:13:32 2018 -0700
+commit fdcf4f712b7c160fe76a15b4b405be9916be558b
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Jan 25 15:13:12 2018 -0500
 
-    go/types: don't over-eagerly verify embedded interfaces
+    cmd/trace: task-oriented view includes child tasks
     
-    In https://go-review.googlesource.com/c/go/+/114317 (fix for #25301)
-    the constructor types.NewInterface was replaced with NewInterface2.
-    The new constructor aggressively verified that embedded interfaces
-    had an underlying type of interface type; the old code didn't do
-    any verification. During importing, defined types may be not yet
-    fully set up, and testing their underlying types will fail in those
-    cases.
+    R=go1.11
     
-    This change only verifies embedded types that are not defined types
-    and thus restores behavior for defined types to how it was before
-    the fix for #25301.
-    
-    Fixes #25596.
-    Fixes #25615.
-    
-    Change-Id: Ifd694413656ec0b780fe4f37acaa9e6ba6077271
-    Reviewed-on: https://go-review.googlesource.com/115155
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ibb09e309c745eba811a0b53000c063bc10a055e1
+    Reviewed-on: https://go-review.googlesource.com/90218
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
 
- src/go/internal/gcimporter/gcimporter_test.go     | 21 +++++++++++++++++++++
- src/go/internal/gcimporter/testdata/issue25596.go | 13 +++++++++++++
- src/go/types/type.go                              | 10 ++++++++--
- 3 files changed, 42 insertions(+), 2 deletions(-)
+ src/cmd/trace/annotations.go      | 73 ++++++++++++++++++++++++++++---
+ src/cmd/trace/annotations_test.go | 90 ++++++++++++++++++++++++++++++++++++++-
+ src/cmd/trace/trace.go            | 43 ++++++++++++-------
+ 3 files changed, 182 insertions(+), 24 deletions(-)

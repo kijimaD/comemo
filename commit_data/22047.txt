@@ -1,16 +1,14 @@
-commit 10a98dd6d912783fbd9226615d16b526f2c9dd6c
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Mar 15 18:21:08 2015 -0400
+commit 5868ce3519313dfa60dbc9192bf6b701b25bd4ca
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 20 16:46:48 2015 +1100
 
-    doc/go_mem.html: correct the channel example
+    path/filepath: add example for filepath.Split
     
-    While we're here, also fix two HTML issues.
+    Fixes #9928
     
-    Fixes #9235.
-    
-    Change-Id: I6e2f50931c0f387881271484a726ac2308518cf4
-    Reviewed-on: https://go-review.googlesource.com/7602
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iab37051078755a132f211ad48e756422f7c55a39
+    Reviewed-on: https://go-review.googlesource.com/5416
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- doc/go_mem.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/path/filepath/example_unix_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

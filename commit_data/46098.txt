@@ -1,14 +1,25 @@
-commit 5045477be8961af1a5855d89e60483f4ccb624ac
-Author: HuanCheng <xiqingongzi@gmail.com>
-Date:   Sat Aug 21 00:26:26 2021 +0800
+commit 158c9dd131db86a381535a902b54bc7f610a8c97
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 5 00:02:46 2020 -0500
 
-    net/http: fix typo in header.go
+    [dev.regabi] cmd/compile: reorganize ir/fmt.go
     
-    Change-Id: Ia6df881badf9a704c7f56967404d37e230b88a09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343969
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Damien Neil <dneil@google.com>
+    This code is a few layer of abstraction stacked up on top
+    of each other, and they're hard to see all at the same time
+    because the file is pretty mixed up. As much as I try to avoid
+    code rearrangement to keep history, this one is long overdue.
+    
+    A followup CL will cut out some of the layers, and the diff will be
+    much clearer what's going on with the code ordered with
+    callers near callees, as it is now.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Iffc49d43cf4be9fab47e2dd59a5f98930573350f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275773
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/header.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/fmt.go  | 1416 +++++++++++++++++------------------
+ src/cmd/compile/internal/ir/node.go |    6 +
+ 2 files changed, 712 insertions(+), 710 deletions(-)

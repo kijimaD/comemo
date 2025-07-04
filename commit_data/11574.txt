@@ -1,15 +1,12 @@
-commit cce3de79f69c4bccc606776f84f0b9a022ac1057
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Feb 3 11:52:04 2012 +1100
+commit 77f11f3ef12ecd55a0d6386c83fe727f7abb3879
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 2 16:42:29 2012 -0800
 
-    encoding/base32: add DecodeString and EncodeToString helper methods.
+    go/scanner: idiomatic receiver names
     
-    This makes encoding/base32 be consistent with encoding/base64.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5615053
+    https://golang.org/cl/5606057
 
- src/pkg/encoding/base32/base32.go      | 14 ++++++++++++++
- src/pkg/encoding/base32/base32_test.go |  9 ++++++---
- 2 files changed, 20 insertions(+), 3 deletions(-)
+ src/pkg/go/scanner/scanner.go | 450 +++++++++++++++++++++---------------------
+ 1 file changed, 225 insertions(+), 225 deletions(-)

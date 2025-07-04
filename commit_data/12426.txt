@@ -1,12 +1,12 @@
-commit 39b186da6c17c96a0370273e2a8b65c389331ae8
+commit 67cbe9431f9440f9d801b8dd2c7eec32d6ed2ab5
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 6 11:23:27 2012 -0800
+Date:   Tue Mar 6 11:05:16 2012 -0800
 
-    go/parser: fix build (temporarily disable recent change)
+    go/parser: better error sync. if commas are missing
     
-    R=golang-dev
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5752059
+    https://golang.org/cl/5756045
 
- src/pkg/go/parser/parser.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/pkg/go/parser/parser.go | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)

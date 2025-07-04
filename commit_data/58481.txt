@@ -1,29 +1,40 @@
-commit 1d20bce981005777424b9c8da199015ab2148810
+commit dd88f23a2006307f835f42063b5168ec56c2c428
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 6 13:25:08 2025 -0800
+Date:   Thu Nov 2 21:48:03 2023 -0700
 
-    go/types, types2: expand documentation for Info.Types map
+    math/big: implement Rat.FloatPrec
     
-    Function types for function (and method) declarations do not
-    appear in Info.Types maps, only Info.Defs maps, because the
-    function type is implicit in the declaration and not a proper
-    (function) type expression. This is true even though the AST
-    represents these types via an (artificial) FuncType node.
+    goos: darwin
+    goarch: amd64
+    pkg: math/big
+    cpu: Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz
+    BenchmarkFloatPrecExact/1-12             9380685          125.0 ns/op
+    BenchmarkFloatPrecExact/10-12            3780493          321.2 ns/op
+    BenchmarkFloatPrecExact/100-12            698272         1679 ns/op
+    BenchmarkFloatPrecExact/1000-12           117975         9113 ns/op
+    BenchmarkFloatPrecExact/10000-12            5913       192768 ns/op
+    BenchmarkFloatPrecExact/100000-12            164      7401817 ns/op
+    BenchmarkFloatPrecExact/1000000-12             4    293568523 ns/op
     
-    Document this explicitly in the API.
+    BenchmarkFloatPrecInexact/1-12          12836612           91.26 ns/op
+    BenchmarkFloatPrecInexact/10-12         10144908          114.9 ns/op
+    BenchmarkFloatPrecInexact/100-12         4121931          297.3 ns/op
+    BenchmarkFloatPrecInexact/1000-12        1275886          927.7 ns/op
+    BenchmarkFloatPrecInexact/10000-12        170392         6546 ns/op
+    BenchmarkFloatPrecInexact/100000-12        18307        65232 ns/op
+    BenchmarkFloatPrecInexact/1000000-12        1701       621412 ns/op
     
-    No functional code changes.
+    Fixes #50489.
     
-    Fixes #70908.
-    
-    Change-Id: I2aa897daed04e7ad0fa8b625d9adc7b423c57387
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640776
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ic952f00e35d42f2470ecab53df712721997eac94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539299
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/types2/api.go | 18 +++++++++++++-----
- src/go/types/api.go                    | 18 +++++++++++++-----
- 2 files changed, 26 insertions(+), 10 deletions(-)
+ api/next/50489.txt           |   1 +
+ src/math/big/ratconv.go      |  96 +++++++++++++++++++++++++++++++++++
+ src/math/big/ratconv_test.go | 117 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 214 insertions(+)

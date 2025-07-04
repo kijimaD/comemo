@@ -1,34 +1,24 @@
-commit 9cec50f50c29f5ef7264bf06ee7ac0991b4b36d6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 16 19:35:09 2020 +0200
+commit 827a7a92248b9e1b67659bb2257e83e3a7e40d2d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 27 03:07:34 2020 +0000
 
-    internal/poll, net, syscall: use accept4 on illumos
+    Revert "cmd/go: add support for GOPROXY fallback on unexpected errors"
     
-    Illumos supports the accept4 syscall, use it in internal/poll.accept
-    like on other platforms.
+    This reverts CL 223257.
     
-    Add Accept4 to package syscall despite the package being frozen. The
-    other option would have been to add this to internal/syscall/unix, but
-    adding it to syscall avoids duplicating a lot of code in internal/poll
-    and net/internal/socktest. Also, all other platforms supporting the
-    accept4 syscall already export Accept4.
+    Reason for revert: broke TestScript/mod_gonoproxy on the longtest builders.
     
-    Follow CL 97196, CL 40895 and CL 94295
-    
-    Change-Id: I13b32f0163a683840c02b16722730d9dfdb98f56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256101
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8637c52c5a7d5333a37ed1e9998c49786525ecb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225757
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/poll/hook_cloexec.go        |  2 +-
- src/internal/poll/sock_cloexec.go        |  2 +-
- src/internal/poll/sys_cloexec.go         |  2 +-
- src/net/internal/socktest/sys_cloexec.go |  2 +-
- src/net/main_cloexec_test.go             |  2 +-
- src/net/sock_cloexec.go                  |  2 +-
- src/net/sys_cloexec.go                   |  2 +-
- src/runtime/cgo/cgo.go                   |  1 +
- src/syscall/syscall_illumos.go           | 25 ++++++++++++++++++++++++-
- 9 files changed, 32 insertions(+), 8 deletions(-)
+ doc/go1.15.html                                |  12 ---
+ src/cmd/go/alldocs.go                          |  18 ++--
+ src/cmd/go/internal/modfetch/proxy.go          | 109 ++++++++-----------------
+ src/cmd/go/internal/modfetch/sumdb.go          |  82 +++++++++----------
+ src/cmd/go/internal/modload/help.go            |  18 ++--
+ src/cmd/go/testdata/script/mod_proxy_list.txt  |  14 +---
+ src/cmd/go/testdata/script/mod_sumdb_proxy.txt |  17 ----
+ 7 files changed, 96 insertions(+), 174 deletions(-)

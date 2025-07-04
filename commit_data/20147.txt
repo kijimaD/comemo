@@ -1,12 +1,15 @@
-commit 56f8b297c724e43971b2b35e72bd8be9d5c0ea44
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 27 11:10:01 2014 -0400
+commit 04487d5612cd3adc7dde217e736b73fb37af1ee5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 21 08:07:42 2014 +0200
 
-    CONTRIBUTORS: add Rick Hudson (Google CLA)
+    runtime: convert MemProfile, BlockProfile, ThreadCreateProfile to Go.
     
-    TBR=rlh
+    LGTM=khr
+    R=golang-codereviews, bradfitz, khr
     CC=golang-codereviews
-    https://golang.org/cl/131410043
+    https://golang.org/cl/123680043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/debug.go  |  31 ---------
+ src/pkg/runtime/mprof.go  | 166 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/mprof.goc | 156 ++++++-------------------------------------
+ 3 files changed, 188 insertions(+), 165 deletions(-)

@@ -1,16 +1,114 @@
-commit 67b0bd7caff55555fad3d79f2f6dfc71ac33edf1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 24 19:02:39 2018 +0000
+commit 2b415549b813ba36caafa34fc34d72e47ee8335c
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 19 22:05:23 2017 -0800
 
-    net: skip test in full test mode when running in a container
+    runtime: use sparse mappings for the heap
     
-    Fixes #25546
+    This replaces the contiguous heap arena mapping with a potentially
+    sparse mapping that can support heap mappings anywhere in the address
+    space.
     
-    Change-Id: I00457b370ed6dcd7ee9efcae3fd914e4c384b12c
-    Reviewed-on: https://go-review.googlesource.com/114475
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This has several advantages over the current approach:
+    
+    * There is no longer any limit on the size of the Go heap. (Currently
+      it's limited to 512GB.) Hence, this fixes #10460.
+    
+    * It eliminates many failures modes of heap initialization and
+      growing. In particular it eliminates any possibility of panicking
+      with an address space conflict. This can happen for many reasons and
+      even causes a low but steady rate of TSAN test failures because of
+      conflicts with the TSAN runtime. See #16936 and #11993.
+    
+    * It eliminates the notion of "non-reserved" heap, which was added
+      because creating huge address space reservations (particularly on
+      64-bit) led to huge process VSIZE. This was at best confusing and at
+      worst conflicted badly with ulimit -v. However, the non-reserved
+      heap logic is complicated, can race with other mappings in non-pure
+      Go binaries (e.g., #18976), and requires that the entire heap be
+      either reserved or non-reserved. We currently maintain the latter
+      property, but it's quite difficult to convince yourself of that, and
+      hence difficult to keep correct. This logic is still present, but
+      will be removed in the next CL.
+    
+    * It fixes problems on 32-bit where skipping over parts of the address
+      space leads to mapping huge (and never-to-be-used) metadata
+      structures. See #19831.
+    
+    This also completely rewrites and significantly simplifies
+    mheap.sysAlloc, which has been a source of many bugs. E.g., #21044,
+     #20259, #18651, and #13143 (and maybe #23222).
+    
+    This change also makes it possible to allocate individual objects
+    larger than 512GB. As a result, a few tests that expected huge
+    allocations to fail needed to be changed to make even larger
+    allocations. However, at the moment attempting to allocate a humongous
+    object may cause the program to freeze for several minutes on Linux as
+    we fall back to probing every page with addrspace_free. That logic
+    (and this failure mode) will be removed in the next CL.
+    
+    Fixes #10460.
+    Fixes #22204 (since it rewrites the code involved).
+    
+    This slightly slows down compilebench and the x/benchmarks garbage
+    benchmark.
+    
+    name       old time/op     new time/op     delta
+    Template       184ms ± 1%      185ms ± 1%    ~     (p=0.065 n=10+9)
+    Unicode       86.9ms ± 3%     86.3ms ± 1%    ~     (p=0.631 n=10+10)
+    GoTypes        599ms ± 0%      602ms ± 0%  +0.56%  (p=0.000 n=10+9)
+    Compiler       2.87s ± 1%      2.89s ± 1%  +0.51%  (p=0.002 n=9+10)
+    SSA            7.29s ± 1%      7.25s ± 1%    ~     (p=0.182 n=10+9)
+    Flate          118ms ± 2%      118ms ± 1%    ~     (p=0.113 n=9+9)
+    GoParser       147ms ± 1%      148ms ± 1%  +1.07%  (p=0.003 n=9+10)
+    Reflect        401ms ± 1%      404ms ± 1%  +0.71%  (p=0.003 n=10+9)
+    Tar            175ms ± 1%      175ms ± 1%    ~     (p=0.604 n=9+10)
+    XML            209ms ± 1%      210ms ± 1%    ~     (p=0.052 n=10+10)
+    
+    (https://perf.golang.org/search?q=upload:20171231.4)
+    
+    name                       old time/op  new time/op  delta
+    Garbage/benchmem-MB=64-12  2.23ms ± 1%  2.25ms ± 1%  +0.84%  (p=0.000 n=19+19)
+    
+    (https://perf.golang.org/search?q=upload:20171231.3)
+    
+    Relative to the start of the sparse heap changes (starting at and
+    including "runtime: fix various contiguous bitmap assumptions"),
+    overall slowdown is roughly 1% on GC-intensive benchmarks:
+    
+    name        old time/op     new time/op     delta
+    Template        183ms ± 1%      185ms ± 1%  +1.32%  (p=0.000 n=9+9)
+    Unicode        84.9ms ± 2%     86.3ms ± 1%  +1.65%  (p=0.000 n=9+10)
+    GoTypes         595ms ± 1%      602ms ± 0%  +1.19%  (p=0.000 n=9+9)
+    Compiler        2.86s ± 0%      2.89s ± 1%  +0.91%  (p=0.000 n=9+10)
+    SSA             7.19s ± 0%      7.25s ± 1%  +0.75%  (p=0.000 n=8+9)
+    Flate           117ms ± 1%      118ms ± 1%  +1.10%  (p=0.000 n=10+9)
+    GoParser        146ms ± 2%      148ms ± 1%  +1.48%  (p=0.002 n=10+10)
+    Reflect         398ms ± 1%      404ms ± 1%  +1.51%  (p=0.000 n=10+9)
+    Tar             173ms ± 1%      175ms ± 1%  +1.17%  (p=0.000 n=10+10)
+    XML             208ms ± 1%      210ms ± 1%  +0.62%  (p=0.011 n=10+10)
+    [Geo mean]      369ms           373ms       +1.17%
+    
+    (https://perf.golang.org/search?q=upload:20180101.2)
+    
+    name                       old time/op  new time/op  delta
+    Garbage/benchmem-MB=64-12  2.22ms ± 1%  2.25ms ± 1%  +1.51%  (p=0.000 n=20+19)
+    
+    (https://perf.golang.org/search?q=upload:20180101.3)
+    
+    Change-Id: I5daf4cfec24b252e5a57001f0a6c03f22479d0f0
+    Reviewed-on: https://go-review.googlesource.com/85887
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/interface_unix_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/export_test.go   |  32 +++
+ src/runtime/malloc.go        | 511 ++++++++++++++++++++++++-------------------
+ src/runtime/malloc_test.go   |  53 +++++
+ src/runtime/mem_windows.go   |   1 +
+ src/runtime/mheap.go         | 117 +++-------
+ src/runtime/mstats.go        |   6 +
+ src/runtime/stack.go         |   2 +-
+ test/chancap.go              |   9 +-
+ test/fixedbugs/bug273.go     |  12 +-
+ test/fixedbugs/issue4085b.go |  13 +-
+ 10 files changed, 429 insertions(+), 327 deletions(-)

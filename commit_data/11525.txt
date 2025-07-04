@@ -1,20 +1,20 @@
-commit d7c04517a031547ec0e66d3b4e619cbd26d77fcf
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 31 18:38:33 2012 -0500
+commit d3285f2a796f4fc856da9a15ca8a7dbff418aea1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 31 15:04:42 2012 -0800
 
-    fmt: fix caching bug in Scan
+    net: remove types InvalidConnError and UnknownSocketError
     
-    Black box test is too time-consuming, as the bug
-    does not appear until Scan has processed 2 GB of
-    input in total across multiple calls, so no test.
+    Both are unused and undocumented.
     
-    Thanks to Frederick Mayle for the diagnosis and fix.
+    InvalidConnError is also non-idiomatic: a FooError type can
+    typically describe something, else it would be an ErrFoo
+    variable.
     
-    Fixes #2809.
-    
-    R=golang-dev, r
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5611043
+    https://golang.org/cl/5609045
 
- src/pkg/fmt/scan.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/fd.go         | 6 ------
+ src/pkg/net/fd_windows.go | 6 ------
+ src/pkg/net/sock.go       | 9 ---------
+ 3 files changed, 21 deletions(-)

@@ -1,19 +1,22 @@
-commit 295c237b4d2bf57ff2fc52381c6439bc55b84e5e
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Apr 18 10:24:32 2023 -0700
+commit 4884599a541a8134ce1f83135523b74e3a19900e
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Aug 5 10:20:12 2022 +0800
 
-    crypto/tls: enforce 1.3 record version semantics
+    debug/pe: add IMAGE_FILE_MACHINE_RISCV{32,64,128}
     
-    1.3 expects the record version is always 1.2 (0x0303), this previously
-    wasn't enforced.
+    https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
     
-    Change-Id: I8bc88f588e76f9b862b57601336bb5c5ff08b30e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485876
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Fixes #54251
+    
+    Change-Id: I024130fd9f55b2f1c0439baacdc56cdbc3315215
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421357
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
 
- src/crypto/tls/conn.go      | 10 ++++++++--
- src/crypto/tls/conn_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 2 deletions(-)
+ api/next/54251.txt   | 6 ++++++
+ src/debug/pe/file.go | 3 +++
+ src/debug/pe/pe.go   | 3 +++
+ 3 files changed, 12 insertions(+)

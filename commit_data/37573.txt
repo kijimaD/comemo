@@ -1,23 +1,26 @@
-commit ffac3d5a88352d4f6e8e47b9a2990352960eb5ca
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Dec 3 17:02:20 2018 -0500
+commit 9e4d87d1158a5847dbb94c0fd3f6ab451460d148
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jun 29 21:51:10 2018 +0100
 
-    cmd/go: add missing gccgo checks for buildmodeInit
+    all: update stale test skips
     
-    Some recent failures in gccgo on linux/ppc64 identified
-    an error in buildmodeInit when buildmode=c-archive.
-    A fix went into gofrontend, and this is the
-    corresponding change for master. This change also includes
-    two other updates related to gccgo in this function that
-    were in the file from gofrontend but missing from master.
+    Issues #10043, #15405, and #22660 appear to have been fixed, and
+    whatever tests I could run locally do succeed, so remove the skips.
     
-    Updates #29046
+    Issue #7237 was closed in favor of #17906, so update its skip line.
     
-    Change-Id: I9a894e7d728e31fb9e9344cd61d50408df7faf4a
-    Reviewed-on: https://go-review.googlesource.com/c/152160
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Issue #7634 was closed as it had not appeared for over three years.
+    Re-enable it for now. An issue should be open if the test starts being
+    skipped again.
+    
+    Change-Id: I67daade906744ed49223291035baddaad9f56dca
+    Reviewed-on: https://go-review.googlesource.com/121735
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/init.go | 33 ++++++++++++++++++++-------------
- 1 file changed, 20 insertions(+), 13 deletions(-)
+ src/cmd/go/go_test.go          | 2 --
+ src/net/http/serve_test.go     | 2 +-
+ src/net/http/transport_test.go | 2 --
+ src/time/sleep_test.go         | 4 ----
+ 4 files changed, 1 insertion(+), 9 deletions(-)

@@ -1,30 +1,17 @@
-commit 888047c31007c0ad96764254fa8afb1417ddfd40
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Dec 9 19:49:53 2022 -0800
+commit ca3fae1e0e2a4d7d1a6ba9eeb137d1d0f001e0a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 21:49:10 2022 -0800
 
-    cmd/compile: fix conditional move rule on PPC64
+    spec: use the term "generic" rather than "(type-)parameterized"
     
-    Similar to CL 456556 but for ppc64 instead of arm64.
+    This makes the prose easier to read while being just as precise.
     
-    Change docs about how booleans are stored in registers for ppc64.
-    We now don't promise to keep the upper bits zeroed; they might be junk.
-    
-    To test, I changed the boolean generation instructions (MOVBZload* and ISEL*
-    with boolean type) to OR in 0x100 to the result. all.bash still passed,
-    so I think nothing else is depending on the upper bits of booleans.
-    
-    Update #57184
-    
-    Change-Id: Ie66f8934a0dafa34d0a8c2a37324868d959a852c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456437
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ie46c6c5042f419de9fdeb1c75bb72b5a40c37073
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384774
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: KAMPANAT THUMWONG (KONG PC) <1992kongpc.kth@gmail.com>
-    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
 
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  4 ++--
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  4 ++--
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 25 ++++++++++++++++---------
- 3 files changed, 20 insertions(+), 13 deletions(-)
+ doc/go_spec.html | 50 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)

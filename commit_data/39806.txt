@@ -1,12 +1,17 @@
-commit c99598cbd3aa5eab2971ee449b5685f299b89755
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Sep 5 13:24:26 2019 -0700
+commit 9a49b17f25f88fd9824e2c20bdf4468269d0da43
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 21 13:30:25 2019 +0100
 
-    errors: clarify docs for when As returns false
+    misc/cgo: gofmt testdata files
     
-    Change-Id: Ic8d8399f726c1f9376499fdae92bea41632586ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193602
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I64e05a1f768cb57194506021bb7fdca0ad19bf1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168461
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/errors/wrap.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testplugin/testdata/iface/main.go      | 3 ++-
+ misc/cgo/testplugin/testdata/plugin1/plugin1.go | 3 ++-
+ misc/cgo/testplugin/testdata/plugin2/plugin2.go | 3 ++-
+ misc/cgo/testshared/testdata/exe/exe.go         | 3 ++-
+ 4 files changed, 8 insertions(+), 4 deletions(-)

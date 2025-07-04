@@ -1,36 +1,21 @@
-commit c10ba768feab868bdd0a984a34931093541dce33
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 28 20:35:23 2023 -0800
+commit a362d5461483190cbaf995e6cb7aaa47c32ebe36
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Apr 9 21:00:59 2022 -0700
 
-    go/types, types2: add cause parameter to missingMethod, (new)assertableTo
+    os: mark Solaris nam/door/port files as irregular
     
-    This CL allows missingMethod (and with it the assertableTo methods)
-    to provide an error cause without an extra external (and messy) call
-    of missingMethodCause. This latter function is now only called by
-    missingMethod and can be eliminated eventually in favor of more
-    precise error causes generated directly by missingMethod.
+    No test because I'm too lazy to figure out how to create such files.
     
-    The change requires that missingMethod (and the assertableTo methods)
-    accept general types for both relevant argument types (rather than a
-    Type and a *Interface) so that error causes can report the appropriate
-    (possibly defined) type rather than the underlying interface type.
+    Fixes #52259
     
-    Change-Id: Ic31508073fa138dd5fa27285b06cf232ee638685
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472395
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I7a07f49993cf046888729e9206ed53dddcf9cb13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399435
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/api.go         |  2 +-
- src/cmd/compile/internal/types2/expr.go        |  5 ++--
- src/cmd/compile/internal/types2/infer.go       |  5 ++--
- src/cmd/compile/internal/types2/instantiate.go |  4 +--
- src/cmd/compile/internal/types2/lookup.go      | 40 +++++++++++++++++++-------
- src/go/types/api.go                            |  2 +-
- src/go/types/expr.go                           |  5 ++--
- src/go/types/infer.go                          |  5 ++--
- src/go/types/instantiate.go                    |  4 +--
- src/go/types/lookup.go                         | 40 +++++++++++++++++++-------
- 10 files changed, 74 insertions(+), 38 deletions(-)
+ src/os/stat_solaris.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

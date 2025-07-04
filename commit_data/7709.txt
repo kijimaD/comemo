@@ -1,13 +1,18 @@
-commit 78879b3b8b26dd7cda74b1ee76901e47ee63cc70
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Mar 9 16:32:02 2011 +1100
+commit 4896b17584daf64961d5af2c00f30c6f0cedadfd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 9 12:59:13 2011 +1100
 
-    compress/lzw: benchmark a range of input sizes.
+    doc: update codelab wiki to fix template.Execute argument order
     
-    R=rsc, nigeltao_gnome
+    Fixes #1595.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4240096
+    https://golang.org/cl/4243067
 
- src/pkg/compress/lzw/reader_test.go | 23 +++++++++++++++++++++--
- src/pkg/compress/lzw/writer_test.go | 27 ++++++++++++++++++++++++---
- 2 files changed, 45 insertions(+), 5 deletions(-)
+ doc/codelab/wiki/final-noclosure.go     | 2 +-
+ doc/codelab/wiki/final-noerror.go       | 4 ++--
+ doc/codelab/wiki/final-parsetemplate.go | 2 +-
+ doc/codelab/wiki/final-template.go      | 2 +-
+ doc/codelab/wiki/index.html             | 8 ++++----
+ 5 files changed, 9 insertions(+), 9 deletions(-)

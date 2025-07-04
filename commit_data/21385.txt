@@ -1,16 +1,30 @@
-commit b49c3ac2d50c1aed28bc55b09415ad8d861237e9
-Author: Dominik Vogt <vogt@linux.vnet.ibm.com>
-Date:   Tue Jan 13 12:36:44 2015 +0100
+commit 0bb8fc66142bae953c0374a292eeab12440af3cb
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Dec 28 23:16:32 2014 -0800
 
-    cmd/cgo: add support for s390 and s390x
+    runtime: remove go prefix from a few routines
     
-    This patch was previously sent for review using hg:
-    golang.org/cl/173930043
+    They are no longer needed now that C is gone.
     
-    Change-Id: I559a2f2ee07990d0c23d2580381e32f8e23077a5
-    Reviewed-on: https://go-review.googlesource.com/3033
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    goatoi -> atoi
+    gofuncname/funcname -> funcname/cfuncname
+    goroundupsize -> already existing roundupsize
+    
+    Change-Id: I278bc33d279e1fdc5e8a2a04e961c4c1573b28c7
+    Reviewed-on: https://go-review.googlesource.com/2154
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/cgo/gcc.go  | 4 ++++
- src/cmd/cgo/main.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ src/runtime/heapdump.go  |  4 ++--
+ src/runtime/malloc.go    | 14 --------------
+ src/runtime/mgc.go       | 10 +++++-----
+ src/runtime/panic.go     |  4 ++--
+ src/runtime/proc1.go     |  2 +-
+ src/runtime/race.go      |  2 +-
+ src/runtime/runtime1.go  |  6 +++---
+ src/runtime/slice.go     |  2 +-
+ src/runtime/stack1.go    |  4 ++--
+ src/runtime/string.go    |  6 +++---
+ src/runtime/symtab.go    | 18 +++++++++---------
+ src/runtime/traceback.go | 12 ++++++------
+ 12 files changed, 35 insertions(+), 49 deletions(-)

@@ -1,17 +1,12 @@
-commit 72359cf840801adc81058cc0430effa1a34da0e2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 2 11:13:06 2017 -0800
+commit ef462153de8f756a6f214ec24ccc541fe99f58ad
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Nov 9 09:24:50 2016 +0100
 
-    go/types: don't exclude package unsafe from a Package's Imports list
+    C: add Martin Möhrmann's google.com email (Google CLA)
     
-    There's no good reason to exclude it and it only makes the code more
-    complicated and less consistent. Having it in the list provides an
-    easy way to detect if a package uses operations from package unsafe.
-    
-    Change-Id: I2f9b0485db0a680bd82f3b93a350b048db3f7701
-    Reviewed-on: https://go-review.googlesource.com/37694
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ia439c4a3c873ef24f60f8ee54a74f767fdaafd29
+    Reviewed-on: https://go-review.googlesource.com/32799
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/package.go  | 2 +-
- src/go/types/resolver.go | 4 +---
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

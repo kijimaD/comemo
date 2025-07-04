@@ -1,16 +1,15 @@
-commit aefd99de0bfee24f0921210bb93e38ecea487037
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 17 14:59:04 2018 -0700
+commit 9b8d604db245e4910ac88a96c529e9798ab58c99
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 6 13:38:10 2017 -0500
 
-    cmd/compile: remove duplicate build ID from export data
+    doc/go1.10: preannounce removal of OS X 10.8 support in Go 1.11
     
-    This is already written out by printObjHeader in obj.go.
+    For #23011.
     
-    Change-Id: I23e7a3826a6233307bd591021718c4cf143b381c
-    Reviewed-on: https://go-review.googlesource.com/107618
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibd934f32e41cb8dddbd3d68a324536cf29a97916
+    Reviewed-on: https://go-review.googlesource.com/82275
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/export.go | 4 ----
- 1 file changed, 4 deletions(-)
+ doc/go1.10.html | 5 +++++
+ 1 file changed, 5 insertions(+)

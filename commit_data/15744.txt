@@ -1,15 +1,12 @@
-commit 1fdb3e2ed66dda36f98937f9570d007dbc7300bc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 13 07:42:55 2013 -0700
+commit b4afe88973a0e6bcd7b1fec508ec6cebc1e863d8
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Tue Mar 12 17:12:56 2013 -0700
 
-    net: fix windows and plan9 build
+    doc: clarify that gccgo is a GCC front-end
     
-    Don't call unix-only function in test init.
-    
-    R=golang-dev, alex.brainman
+    R=golang-dev, r, iant, iant
     CC=golang-dev
-    https://golang.org/cl/7778043
+    https://golang.org/cl/6454072
 
- src/pkg/net/conn_test.go       | 13 +++++++------
- src/pkg/net/packetconn_test.go | 30 +++++++++++++++++++-----------
- 2 files changed, 26 insertions(+), 17 deletions(-)
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

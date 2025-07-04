@@ -1,19 +1,13 @@
-commit 07acc02a29ac74e7c0b08b4cd382bf71acd262dd
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 2 09:32:38 2011 -0400
+commit 422abf3b8e9fd94c31bb064af4aab8d27d4dbf10
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 2 18:51:41 2011 +1000
 
-    compress/flate: do not use background goroutines
+    image: add a SubImage method.
     
-    Programs expect that Read and Write are synchronous.
-    The background goroutines make the implementation
-    a little easier, but they introduce asynchrony that
-    trips up calling code.  Remove them.
-    
-    R=golang-dev, krasin
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4548079
+    https://golang.org/cl/4515179
 
- src/pkg/compress/flate/deflate.go      | 478 ++++++++++++++-------------------
- src/pkg/compress/flate/deflate_test.go |  15 +-
- src/pkg/compress/flate/inflate.go      | 247 ++++++++++-------
- 3 files changed, 364 insertions(+), 376 deletions(-)
+ src/pkg/image/image.go       | 91 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/ycbcr/ycbcr.go |  9 +++++
+ 2 files changed, 100 insertions(+)

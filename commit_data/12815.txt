@@ -1,12 +1,13 @@
-commit f1a39ff003db83dad301a045f4796384a1037e62
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Apr 3 08:10:21 2012 +1000
+commit a978ead6e18fbcbdd5c4d1bb6d649bee98c22896
+Author: Peter Weinberger <pjw@golang.org>
+Date:   Mon Apr 2 13:05:09 2012 -0400
 
-    doc: sync playground.js
+    doc/code.html: change 'affect' to 'effect'.
+    Fixes #3429.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5956043
+    https://golang.org/cl/5966047
 
- doc/play/playground.js | 87 ++++++++++++++++++++++++++++++++------------------
- 1 file changed, 56 insertions(+), 31 deletions(-)
+ doc/code.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

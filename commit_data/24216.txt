@@ -1,18 +1,18 @@
-commit a20fbe8e18034ea519add1716c681d56ddddd27e
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Tue Sep 8 20:29:10 2015 +0200
+commit 08dbd8ae6d16ed9eaaca241024a4f92fd2184e2c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 15 23:28:31 2015 +0000
 
-    cmd/compile/internal/gc: convert fields of Symlink to bool
+    Revert "cmd/internal/obj: fix pc/sp information for prologue"
     
-    Convert two fields of struct Symlink in subr.go from uint8 to bool.
+    This seems to have broken arm64 in a mysterious way. Will try again later.
     
-    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    This reverts commit 0a3c991fd330276f6876c401541dcbacbb860985.
     
-    Change-Id: I913006f41605b17b0d82fe358ee773f6ecaa681c
-    Reviewed-on: https://go-review.googlesource.com/14378
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic1b53413c4168977a27381d9cc6fb8d9d7cbb780
+    Reviewed-on: https://go-review.googlesource.com/12245
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 34 +++++++++++++++++-----------------
- 1 file changed, 17 insertions(+), 17 deletions(-)
+ src/cmd/internal/obj/arm/obj5.go   | 10 +---------
+ src/cmd/internal/obj/arm64/obj7.go | 10 +---------
+ src/cmd/internal/obj/x86/obj6.go   | 11 +----------
+ 3 files changed, 3 insertions(+), 28 deletions(-)

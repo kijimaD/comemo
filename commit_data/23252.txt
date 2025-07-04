@@ -1,30 +1,22 @@
-commit a7d2d4835b8dab9b1be6a3f772bb74d22fe9f312
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 4 13:07:22 2015 -0700
+commit 409420c08893dad4c112fc1a7fa2568cc0f8a98c
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 1 15:33:08 2015 -0700
 
-    cmd/vet: adjust vet to use go/types and friends from std repo
+    text/template/parse: huge integers are not floats
     
-    - s|"golang.org/x/tools/go/exact"|"go/constant"|
-    - s|"golang.org/x/tools/go/types"|"go/types"|
-    - removed import of gcimporter
-    - import "go/importer" instead
-    - trivial adjustments to make use of go/importer
-    - adjusted import paths for whitelist.go
+    Ideal constants in the template package are a little different from Go.
+    This is a case that slipped through the cracks: A huge integer number
+    was accepted as a floating-point number, but this loses precision
+    and is confusing. Also, the code in the template package (as opposed
+    to the parse package) wasn't expecting it.
     
-    Change-Id: I43488ff44c329cd869c92dcc31193fb31bebfd29
-    Reviewed-on: https://go-review.googlesource.com/10695
-    Reviewed-by: Rob Pike <r@golang.org>
+    Root this out at the source: If an integer doesn't fit an int64 or uint64,
+    complain right away.
+    
+    Change-Id: I375621e6f5333c4d53f053a3c84a9af051711b7a
+    Reviewed-on: https://go-review.googlesource.com/9651
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/composite.go           |  3 +--
- src/cmd/vet/copylock.go            |  3 +--
- src/cmd/vet/main.go                |  4 +---
- src/cmd/vet/nilfunc.go             |  3 +--
- src/cmd/vet/print.go               |  9 ++++-----
- src/cmd/vet/shadow.go              |  3 +--
- src/cmd/vet/shift.go               |  7 +++----
- src/cmd/vet/types.go               | 19 ++++++++++---------
- src/cmd/vet/unsafeptr.go           |  3 +--
- src/cmd/vet/unused.go              |  3 +--
- src/cmd/vet/vet_test.go            |  2 +-
- src/cmd/vet/whitelist/whitelist.go |  2 +-
- 12 files changed, 26 insertions(+), 35 deletions(-)
+ src/text/template/parse/node.go       | 5 +++++
+ src/text/template/parse/parse_test.go | 1 +
+ 2 files changed, 6 insertions(+)

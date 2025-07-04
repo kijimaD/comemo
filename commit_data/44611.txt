@@ -1,23 +1,17 @@
-commit bbf79793bdeda04d520377406024d7bb66aa62dc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Feb 25 09:32:38 2021 -0800
+commit 6f99b33c18266a8858af96163de97173bdf6f081
+Author: Polina Osadcha <polliosa@google.com>
+Date:   Thu Jun 18 16:17:13 2020 +0300
 
-    io/fs: clarify additional File interface docs
+    all: replace Replace(..., -1) with ReplaceAll(...)
     
-    Emphasize ReadDirFile. It isn't really optional,
-    and all filesystems have at least one directory (".").
-    
-    The remaining two additional interfaces are optimizations.
-    Call them that.
-    
-    Fully qualify package package io identifiers.
-    
-    Change-Id: Ibc425a5dfd27e08c2c10c353f780e4a6304cfd87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296390
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8f7cff7a83a9c50bfa3331e8b40e4a6c2e1c0eee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245198
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/io/fs/fs.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/progs/run.go                       | 2 +-
+ src/cmd/cover/cover_test.go            | 2 +-
+ src/cmd/go/internal/version/version.go | 2 +-
+ src/runtime/mkpreempt.go               | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

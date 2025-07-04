@@ -1,29 +1,24 @@
-commit 9feddd0bae188825e01771d182b84e47b159aa30
-Author: Pascal S. de Kloe <pascal@quies.net>
-Date:   Tue Apr 10 15:15:39 2012 -0400
+commit 7056ec6bfd99e204ebf12dc20fe4c78ad623b581
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Tue Apr 10 15:14:10 2012 -0400
 
-    hash: more efficient memory allocation
+    runtime: fix floating point exception on Plan 9
     
-    Feed append the complete content at once.
+    Change 5660047 moved an FLDCW instruction
+    that disables invalid operand traps into
+    runtime·asminit, which is called from
+    runtime·mstart. Thus, runtime·check is being
+    called prior to setting the appropriate control bits,
+    which on any QNaN comparison will cause Plan 9
+    to take an invalid operand trap. This change loads
+    the control bits (for Plan 9) prior to runtime·check.
+    Ideally, this should be done before the QNaN checks
+    on any system, but possibly other kernels simply
+    don't ever trap on invalid operands.
     
-    BenchmarkAdler32KB       1000000              2534 ns/op         404.05 MB/s
-    BenchmarkCrc32KB          500000              4757 ns/op         215.26 MB/s
-    BenchmarkCrc64KB          500000              4769 ns/op         214.70 MB/s
-    BenchmarkFnv32KB         1000000              2417 ns/op         423.64 MB/s
-    BenchmarkFnv32aKB        1000000              2408 ns/op         425.23 MB/s
-    BenchmarkFnv64KB          500000              4262 ns/op         240.21 MB/s
-    BenchmarkFnv64aKB         500000              4234 ns/op         241.83 MB/s
-    
-    R=iant, rsc, r, minux.ma
-    CC=golang-dev
-    https://golang.org/cl/5937053
+    R=golang-dev, rminnich
+    CC=golang-dev, john, rsc
+    https://golang.org/cl/5939045
 
- src/pkg/hash/adler32/adler32.go      |  6 +-----
- src/pkg/hash/adler32/adler32_test.go | 21 ++++++++++++---------
- src/pkg/hash/crc32/crc32.go          |  6 +-----
- src/pkg/hash/crc32/crc32_test.go     | 18 ++++++++++--------
- src/pkg/hash/crc64/crc64.go          | 10 +---------
- src/pkg/hash/crc64/crc64_test.go     | 17 ++++++++++-------
- src/pkg/hash/fnv/fnv.go              | 32 ++++----------------------------
- src/pkg/hash/fnv/fnv_test.go         | 34 ++++++++++++++++------------------
- 8 files changed, 55 insertions(+), 89 deletions(-)
+ src/pkg/runtime/rt0_plan9_386.s | 1 +
+ 1 file changed, 1 insertion(+)

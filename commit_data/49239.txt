@@ -1,16 +1,24 @@
-commit d23c80b8e4cf1ff69176c78794a2cae10a1f5501
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 17 09:54:11 2022 -0700
+commit e56234a30544c043b45601ce01601e3a03e00d63
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Aug 2 11:07:45 2021 -0700
 
-    doc: update jump table performance release note
+    [dev.typeparams] cmd/compile: simple shape cleanups
     
-    Just make it clearer that the performance gains are for the switch
-    statement itself, not the whole program.
+     - Changed some early returns to asserts (instantiateMethods and Shapify
+       should never take a shape arg)
     
-    Change-Id: I2d1bf2888f61112af3dc37113e740b00b092e2cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406874
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+     - Added suggested change (by Ingo) to use copy() in getInstantiation()
+    
+     - Clarified that shape types never have methods in Shapify(), removed
+       some TODO comments.
+    
+    Change-Id: Ia2164ffe670a777f7797bbb45c7ef5e6e9e15357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338971
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- doc/go1.19.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/stencil.go  |  9 ++-------
+ src/cmd/compile/internal/typecheck/subr.go | 10 +++++-----
+ 2 files changed, 7 insertions(+), 12 deletions(-)

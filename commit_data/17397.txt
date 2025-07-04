@@ -1,17 +1,12 @@
-commit 264b73b3f24b56ac1db5c65e9cfaa267d0a41f48
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Aug 27 09:47:58 2013 -0400
+commit d5c806d581f4d110dfc2696c8b18b4ecde82e453
+Author: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+Date:   Tue Aug 27 06:32:24 2013 -0700
 
-    misc/emacs: allow users to customize path of 'go' tool.
+    encoding/binary: use bytes.Reader in read example
     
-    Some users have multiple Go development trees and invoke the
-    'go' tool via a wrapper that sets GOROOT and GOPATH based on
-    the current directory.  Such users should customize go-command
-    to point to the wrapper script.
-    
-    R=dominik.honnef
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/13233043
+    https://golang.org/cl/13274043
 
- misc/emacs/go-mode.el | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/pkg/encoding/binary/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

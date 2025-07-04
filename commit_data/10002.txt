@@ -1,12 +1,27 @@
-commit 9a7dd719448071e8e812deeb4757ebf2abff9cff
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 17 14:51:45 2011 -0400
+commit eea86de656d74bafe7c76a5242eaa51d80e2b454
+Author: Paul Borman <borman@google.com>
+Date:   Mon Oct 17 11:10:39 2011 -0700
 
-    template: do not depend on map iteration order
+    csv: fix issue 2366 - overly aggressive TrimLeadingSpace
     
-    R=golang-dev, r
+    Address the issue coalescing two records together when TrimLeadingSpace
+    is set to true.
+    
+    The input
+    
+            a,b,
+            c,d,e
+    
+    Would result with a singled a,b,c,d,e record.
+    With TrailingComma set to true it should give two records.
+    With TrailingComma set to false it should be an error.
+    
+    Fixes #2366.
+    
+    R=golang-dev, go.peter.90, r
     CC=golang-dev
-    https://golang.org/cl/5268048
+    https://golang.org/cl/5284046
 
- src/pkg/template/exec_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/csv/reader.go      |  4 ++--
+ src/pkg/csv/reader_test.go | 24 ++++++++++++++++++++----
+ 2 files changed, 22 insertions(+), 6 deletions(-)

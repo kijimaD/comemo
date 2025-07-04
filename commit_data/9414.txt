@@ -1,22 +1,25 @@
-commit fca50820cc5e3da234add7b8f3ce76c311797df5
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Aug 18 12:22:02 2011 -0400
+commit 72e83483a7d2594c9f5072e420a1c8cb9f88c409
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 18 12:17:09 2011 -0400
 
-    net: join and leave a IPv6 group address, on a specific interface
+    runtime: speed up cgo calls
     
-    This CL changes both JoinGroup and LeaveGroup methods
-    to take an interface as an argument for enabling IPv6
-    group address join/leave, join a group address on a
-    specific interface.
+    Allocate Defer on stack during cgo calls, as suggested
+    by dvyukov. Also includes some comment corrections.
     
-    R=rsc, dave
+    benchmark                   old,ns/op   new,ns/op
+    BenchmarkCgoCall                  669         330
+    (Intel Xeon CPU 1.80GHz * 4, Linux 386)
+    
+    R=dvyukov, rsc
     CC=golang-dev
-    https://golang.org/cl/4815074
+    https://golang.org/cl/4910041
 
- src/cmd/gofix/Makefile            |   1 +
- src/cmd/gofix/netudpgroup.go      |  57 +++++++++++++++++++
- src/cmd/gofix/netudpgroup_test.go |  33 +++++++++++
- src/pkg/net/multicast_test.go     | 116 ++++++++++++++++++++++----------------
- src/pkg/net/udpsock_plan9.go      |  11 ++--
- src/pkg/net/udpsock_posix.go      |  96 +++++++++++++++++++++++--------
- 6 files changed, 238 insertions(+), 76 deletions(-)
+ misc/cgo/test/basic.go      | 12 ++++++++++++
+ misc/cgo/test/cgo_test.go   |  2 ++
+ src/pkg/runtime/386/asm.s   |  8 ++++----
+ src/pkg/runtime/amd64/asm.s |  8 ++++----
+ src/pkg/runtime/cgocall.c   | 44 +++++++++++++++++++++-----------------------
+ src/pkg/runtime/proc.c      | 12 ++++++++----
+ src/pkg/runtime/runtime.h   |  1 +
+ 7 files changed, 52 insertions(+), 35 deletions(-)

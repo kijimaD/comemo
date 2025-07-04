@@ -1,33 +1,14 @@
-commit 23f6479be645761c5ba7ba92cf062bbc6470065d
+commit e7c4a6dfcaf88644f08fbc6ddc5904f4857aafb8
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 8 13:53:59 2011 -0400
+Date:   Fri Apr 8 13:53:32 2011 -0400
 
-    8g: optimize byte mov
+    gc: fix weird error message
     
-    Rewrite MOVB with less expensive
-    instruction when possible.
-    
-    Suggested by atomic symbol.
-    
-    benchmark                                        old ns/op    new ns/op    delta
-    crc32.BenchmarkCrc32KB                               13066         3942  -69.83%
-    crc64.BenchmarkCrc64KB                                8780         5949  -32.24%
-    lzw.BenchmarkDecoder1e4                             771224       636538  -17.46%
-    lzw.BenchmarkDecoder1e5                            7101218      6096634  -14.15%
-    lzw.BenchmarkDecoder1e6                           69762020     60789400  -12.86%
-    lzw.BenchmarkEncoder1e4                             707968       638812   -9.77%
-    lzw.BenchmarkEncoder1e5                            6567122      5965552   -9.16%
-    lzw.BenchmarkEncoder1e6                           65006000     58911680   -9.38%
-    utf8_test.BenchmarkRuneCountTenASCIIChars              166          165   -0.60%
-    utf8_test.BenchmarkRuneCountTenJapaneseChars           246          258   +4.88%
-    utf8_test.BenchmarkEncodeASCIIRune                      13           10  -23.08%
-    utf8_test.BenchmarkEncodeJapaneseRune                   37           16  -56.76%
-    utf8_test.BenchmarkDecodeASCIIRune                      23           21   -8.70%
-    utf8_test.BenchmarkDecodeJapaneseRune                   58           32  -44.83%
+    Fixes #1670.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4381045
+    https://golang.org/cl/4386045
 
- src/cmd/8g/peep.c | 29 +++++++++++++++++++++++++++--
- 1 file changed, 27 insertions(+), 2 deletions(-)
+ src/cmd/gc/subr.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

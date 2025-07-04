@@ -1,15 +1,22 @@
-commit 199575a119d909b98afb044a94f43249883c1062
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 14 19:53:43 2021 -0400
+commit 310984bf54a52b15085e195a402873ab558d34d4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 19 12:01:23 2020 +0200
 
-    cmd/link: count relocations better
+    syscall, cmd/go/internal/modload: add and use Access on aix
     
-    Change-Id: Ie188abeb0194bf266d38c9bd0dda4b8f48934697
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312035
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Implement Access using Faccessat on aix following golang.org/x/sys/unix
+    CL 262897 and switch cmd/go/internal/modload to use it to implement
+    hasWritePerm.
+    
+    Change-Id: I682e44737ac2bac5a203ac1c9ddd277810454426
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263540
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/pe.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modload/stat_openfile.go | 2 +-
+ src/cmd/go/internal/modload/stat_unix.go     | 2 +-
+ src/syscall/syscall_aix.go                   | 4 ++++
+ 3 files changed, 6 insertions(+), 2 deletions(-)

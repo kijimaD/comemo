@@ -1,26 +1,26 @@
-commit 4eaf855155acb2da69adbab7728c1a59b9315d41
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Apr 16 15:33:53 2020 +1000
+commit 2566e21f243387156e8e7f2acad0ce14d9712bbc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 4 04:00:29 2019 +0000
 
-    runtime: clean up now unused pushCallSupported
+    net/http: support disabling built-in HTTP/2 with a new build tag
     
-    All platforms now support pushCall, hence remove the now unnecessary
-    pushCallSupported flag/guard.
+    Fixes #35082
+    Updates #6853
     
-    Change-Id: I99e4be73839da68a742f3c239bae9ce2f8764624
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228497
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4eeb0e15f534cff57fefb6039cd33fadf15b946e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205139
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/signal_386.go         | 2 --
- src/runtime/signal_amd64.go       | 3 ---
- src/runtime/signal_arm.go         | 2 --
- src/runtime/signal_arm64.go       | 2 --
- src/runtime/signal_linux_s390x.go | 2 --
- src/runtime/signal_mips64x.go     | 2 --
- src/runtime/signal_mipsx.go       | 2 --
- src/runtime/signal_ppc64x.go      | 2 --
- src/runtime/signal_riscv64.go     | 2 --
- src/runtime/signal_unix.go        | 7 +------
- 10 files changed, 1 insertion(+), 25 deletions(-)
+ src/net/http/clientserver_test.go |  3 ++
+ src/net/http/export_test.go       |  6 ++++
+ src/net/http/h2_bundle.go         |  4 ++-
+ src/net/http/http.go              |  7 ++++
+ src/net/http/http_test.go         | 26 ++++++++++++++
+ src/net/http/main_test.go         |  3 ++
+ src/net/http/omithttp2.go         | 71 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/serve_test.go        |  2 ++
+ src/net/http/server.go            |  2 +-
+ src/net/http/transport.go         |  7 +++-
+ src/net/http/transport_test.go    |  3 ++
+ 11 files changed, 131 insertions(+), 3 deletions(-)

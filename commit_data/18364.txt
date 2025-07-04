@@ -1,24 +1,15 @@
-commit 9f8f0a1bfa49b6b617c623f51b9d10ba9a5e4641
-Author: Michael Hudson-Doyle <michael.hudson@linaro.org>
-Date:   Tue Jan 28 16:47:09 2014 +1100
+commit 28479f2c32479dffbdebd1e357bdebe4c718f908
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 27 18:04:34 2014 -0800
 
-    cmd/go: When linking with gccgo pass .a files in the order they are discovered
+    cmd/gc: liveness: don't add fallthough edge after panic
     
-    Under some circumstances linking a test binary with gccgo can fail, because
-    the installed version of the library ends up before the version built for the
-    test on the linker command line.
+    update #7205
     
-    This admittedly slightly hackish fix fixes this by putting the library archives
-    on the linker command line in the order that a pre-order depth first traversal
-    of the dependencies gives them, which has the side effect of always putting the
-    version of the library built for the test first.
-    
-    Fixes #6768
-    
-    LGTM=rsc
-    R=golang-codereviews, minux.ma, gobot, rsc, dave
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/28050043
+    https://golang.org/cl/50730044
 
- src/cmd/go/build.go | 20 +++++++++-----------
- 1 file changed, 9 insertions(+), 11 deletions(-)
+ src/cmd/gc/plive.c | 1 +
+ 1 file changed, 1 insertion(+)

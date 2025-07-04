@@ -1,21 +1,18 @@
-commit 5d8324e6822e34c900e36d67adf640cee6693d25
-Author: Paul Marks <pmarks@google.com>
-Date:   Mon Oct 24 17:49:22 2016 -0700
+commit 4739dcf7fbe5f5bbe885c4349d36c3e23658c0c6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 25 14:08:13 2016 -0700
 
-    net: add hostname warnings to all first(isIPv4) functions.
+    cmd/compile: fix printing of OCASE nodes
     
-    In general, these functions cannot behave correctly when given a
-    hostname, because a hostname may represent multiple IP addresses, and
-    first(isIPv4) chooses at most one.
+    Switch lowering splits each case expression out
+    into its own OCASE node.
     
-    Updates #9334
-    
-    Change-Id: Icfb629f84af4d976476385a3071270253c0000b1
-    Reviewed-on: https://go-review.googlesource.com/31931
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifcb72b99975ed36da8540f6e43343e9aa2058572
+    Reviewed-on: https://go-review.googlesource.com/26769
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/dial.go      | 6 ++++++
- src/net/iprawsock.go | 3 +++
- src/net/tcpsock.go   | 3 +++
- src/net/udpsock.go   | 3 +++
- 4 files changed, 15 insertions(+)
+ src/cmd/compile/internal/gc/fmt.go    | 9 ++++++++-
+ src/cmd/compile/internal/gc/syntax.go | 2 +-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

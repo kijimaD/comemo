@@ -1,20 +1,24 @@
-commit e0915dea09744c1704086048ed51bb8e9ddbcb6f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 12:00:14 2020 -0700
+commit 374c2847f9c03da7365bfb78e5ef96a0cb837656
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 28 00:53:14 2019 -0400
 
-    cmd/compile: splitload (CMPconst [0] x) into (TEST x x) on amd64
+    runtime: add async preemption support on PPC64
     
-    Provides minor widespread benefit to generated code.
+    This CL adds support of call injection and async preemption on
+    PPC64.
     
-    Removes one source of random fluctuation when changing
-    other aspects of the compiler.
+    For the injected call to return to the preempted PC, we have to
+    clobber either LR or CTR. For reasons mentioned in previous CLs,
+    we choose CTR. Previous CLs have marked code sequences that use
+    CTR async-nonpreemtible.
     
-    Change-Id: I16db6f5e240a97d27f05dc1ba5b8b729af3adb12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229702
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ia642b5f06a890dd52476f45023b2a830c522eee0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203824
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .../compile/internal/ssa/gen/AMD64splitload.rules  |  29 ++-
- .../compile/internal/ssa/rewriteAMD64splitload.go  | 271 +++++++++++++++++++++
- 2 files changed, 289 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   2 +
+ src/runtime/mkpreempt.go                     |  57 ++++++++++-
+ src/runtime/preempt_ppc64x.s                 | 141 ++++++++++++++++++++++++++-
+ src/runtime/signal_ppc64x.go                 |  24 ++++-
+ 4 files changed, 219 insertions(+), 5 deletions(-)

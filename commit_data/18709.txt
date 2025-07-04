@@ -1,15 +1,13 @@
-commit f6088060924fa5b6ee26aa8fd134ccf189f1143f
-Author: David du Colombier <0intro@gmail.com>
-Date:   Mon Mar 3 08:14:27 2014 +0100
+commit 92d5483391c0ac381d2c997deddcef250e596fd7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 3 13:22:13 2014 +1100
 
-    cmd/ld: fix warning on Plan 9
+    tag go1.2.1
     
-    warning: src/cmd/ld/pcln.c:184 more arguments than format INT
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=r
+    R=minux.ma, r
     CC=golang-codereviews
-    https://golang.org/cl/69870047
+    https://golang.org/cl/70660043
 
- src/cmd/ld/pcln.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

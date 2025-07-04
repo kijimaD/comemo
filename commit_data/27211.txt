@@ -1,12 +1,16 @@
-commit 36b6c03827f51a8464a135d27212100d893f582c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 29 15:56:57 2016 -0700
+commit 9f301643bd3111f6a4e64b6fa400fa329ccb5a83
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 15 16:55:48 2016 -0700
 
-    root: remove dev.garbage file
+    cmd/compile: factor parameter parsing
     
-    Change-Id: I99b2ca52824341d986090f5c78ab4f396594bcdf
-    Reviewed-on: https://go-review.googlesource.com/22660
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Step 1 of streamlining parameter parsing.
+    
+    Change-Id: If9fd38295ccc08aafc7f1d26188d0926dd73058b
+    Reviewed-on: https://go-review.googlesource.com/20747
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- dev.garbage | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/gc/parser.go | 141 ++++++++++++++--------------------
+ 1 file changed, 59 insertions(+), 82 deletions(-)

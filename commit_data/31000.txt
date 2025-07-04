@@ -1,17 +1,82 @@
-commit a7b51cfb47b551f3352d5158b6c3a9e68a931d5b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 3 14:14:09 2017 -0400
+commit 472c792e0a09bd3d6483ff31863bb0492f27fe33
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 15 17:17:01 2016 -0800
 
-    testing/quick: use Uint64 instead of Int63
+    [dev.inline] cmd/internal/src: introduce compact source position representation
     
-    Followup to CL 39152.
+    XPos is a compact (8 instead of 16 bytes on a 64bit machine) source
+    position representation. There is a 1:1 correspondence between each
+    XPos and each regular Pos, translated via a global table.
     
-    Change-Id: I9bfed0c6071ea3d3a43294a6c4a50edc131368cf
-    Reviewed-on: https://go-review.googlesource.com/39313
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    In some sense this brings back the LineHist, though positions can
+    track line and column information; there is a O(1) translation
+    between the representations (no binary search), and the translation
+    is factored out.
+    
+    The size increase with the prior change is brought down again and
+    the compiler speed is in line with the master repo (measured on
+    the same "quiet" machine as for prior change):
+    
+    name       old time/op     new time/op     delta
+    Template       256ms ± 1%      262ms ± 2%    ~             (p=0.063 n=5+4)
+    Unicode        132ms ± 1%      135ms ± 2%    ~             (p=0.063 n=5+4)
+    GoTypes        891ms ± 1%      871ms ± 1%  -2.28%          (p=0.016 n=5+4)
+    Compiler       3.84s ± 2%      3.89s ± 2%    ~             (p=0.413 n=5+4)
+    MakeBash       47.1s ± 1%      46.2s ± 2%    ~             (p=0.095 n=5+5)
+    
+    name       old user-ns/op  new user-ns/op  delta
+    Template        309M ± 1%       314M ± 2%    ~             (p=0.111 n=5+4)
+    Unicode         165M ± 1%       172M ± 9%    ~             (p=0.151 n=5+5)
+    GoTypes        1.14G ± 2%      1.12G ± 1%    ~             (p=0.063 n=5+4)
+    Compiler       5.00G ± 1%      4.96G ± 1%    ~             (p=0.286 n=5+4)
+    
+    Change-Id: Icc570cc60ab014d8d9af6976f1f961ab8828cc47
+    Reviewed-on: https://go-review.googlesource.com/34506
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/testing/quick/quick.go      |  6 +-----
- src/testing/quick/quick_test.go | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 5 deletions(-)
+ src/cmd/asm/internal/asm/parse.go            |  4 +-
+ src/cmd/compile/internal/gc/alg.go           |  9 ++--
+ src/cmd/compile/internal/gc/bexport.go       |  5 +-
+ src/cmd/compile/internal/gc/const.go         |  2 +-
+ src/cmd/compile/internal/gc/dcl.go           |  4 +-
+ src/cmd/compile/internal/gc/go.go            |  8 +--
+ src/cmd/compile/internal/gc/inl.go           |  4 +-
+ src/cmd/compile/internal/gc/lex.go           |  6 ++-
+ src/cmd/compile/internal/gc/main.go          |  2 +-
+ src/cmd/compile/internal/gc/noder.go         | 14 +++---
+ src/cmd/compile/internal/gc/order.go         |  2 +-
+ src/cmd/compile/internal/gc/pgen.go          |  2 +-
+ src/cmd/compile/internal/gc/phi.go           |  2 +-
+ src/cmd/compile/internal/gc/racewalk.go      |  2 +-
+ src/cmd/compile/internal/gc/sizeof_test.go   | 10 ++--
+ src/cmd/compile/internal/gc/ssa.go           | 28 +++++------
+ src/cmd/compile/internal/gc/subr.go          | 32 ++++++------
+ src/cmd/compile/internal/gc/syntax.go        |  6 +--
+ src/cmd/compile/internal/gc/type.go          | 10 ++--
+ src/cmd/compile/internal/gc/typecheck.go     |  2 +-
+ src/cmd/compile/internal/ssa/block.go        |  2 +-
+ src/cmd/compile/internal/ssa/compile.go      |  2 +-
+ src/cmd/compile/internal/ssa/config.go       | 26 +++++-----
+ src/cmd/compile/internal/ssa/deadstore.go    |  2 +-
+ src/cmd/compile/internal/ssa/export_test.go  | 10 ++--
+ src/cmd/compile/internal/ssa/func.go         | 52 +++++++++----------
+ src/cmd/compile/internal/ssa/func_test.go    | 10 ++--
+ src/cmd/compile/internal/ssa/html.go         |  6 +--
+ src/cmd/compile/internal/ssa/regalloc.go     | 40 +++++++--------
+ src/cmd/compile/internal/ssa/sizeof_test.go  |  4 +-
+ src/cmd/compile/internal/ssa/sparsemap.go    |  6 +--
+ src/cmd/compile/internal/ssa/stackalloc.go   |  2 +-
+ src/cmd/compile/internal/ssa/value.go        |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go |  2 +-
+ src/cmd/internal/obj/line.go                 |  3 +-
+ src/cmd/internal/obj/line_test.go            |  2 +-
+ src/cmd/internal/obj/link.go                 |  3 +-
+ src/cmd/internal/obj/sizeof_test.go          |  2 +-
+ src/cmd/internal/obj/util.go                 |  2 +-
+ src/cmd/internal/src/pos.go                  |  2 +
+ src/cmd/internal/src/xpos.go                 | 75 ++++++++++++++++++++++++++++
+ src/cmd/internal/src/xpos_test.go            | 67 +++++++++++++++++++++++++
+ 42 files changed, 313 insertions(+), 163 deletions(-)

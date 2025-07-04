@@ -1,17 +1,18 @@
-commit 2d32594396b231b39d09ec21d34b22b0270268b5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 15 21:05:11 2022 -0700
+commit 2212a1a339c7ac72ff2133855c97ae097444cb5c
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri May 7 13:23:11 2021 -0400
 
-    runtime: call testenv.MustHaveCGO in a couple of tests
+    [dev.fuzz] cmd/go/internal/test,testing: add documentation about fuzzing
     
-    Fixes #51695
-    
-    Change-Id: Icfe9d26ecc28a7db9040d50d4661cf9e8245471e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392916
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Id43f7f75d6033a2c35bacd1cc0b8e3fbcaf69316
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317973
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/signal_windows_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/alldocs.go            | 76 +++++++++++++++++++++++++++++++--------
+ src/cmd/go/internal/test/test.go | 78 ++++++++++++++++++++++++++++++++--------
+ src/cmd/go/main.go               |  1 +
+ src/testing/testing.go           | 56 +++++++++++++++++++++++++----
+ 4 files changed, 175 insertions(+), 36 deletions(-)

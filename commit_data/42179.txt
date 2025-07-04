@@ -1,51 +1,22 @@
-commit 39380e8e01fec15f5dc78ea430e5641e067d64d0
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Apr 28 15:14:56 2020 +0000
+commit 1fe33e3cb20295b5120f82b02b0a9ab4ad303cc0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 12 09:48:38 2019 -0800
 
-    runtime: fix block leak due to race in span set
+    math/big: ensure correct test input
     
-    The span set data structure may leak blocks due to a race in the logic
-    to check whether it's safe to free a block. The simplest example of this
-    race is between two poppers:
+    There is a (theoretical, but possible) chance that the
+    random number values a, b used for TestDiv are 0 or 1,
+    in which case the test would fail.
     
-    1. Popper A claims slot spanSetEntries-2.
-    2. Popper B claims slot spanSetEntries-1.
-    3. Popper A gets descheduled before it subtracts from block.used.
-    4. Popper B subtracts from block.used, sees that claimed
-       spanSetEntries-1, but also that block.used != 0, so it returns.
-    5. Popper A comes back and subtracts from block.used, but it didn't
-       claim spanSetEntries-1 so it also returns.
+    This CL makes sure that a >= 1 and b >= 2 at all times.
     
-    The spine is left with a stale block pointer and the block later gets
-    overwritten by pushes, never to be re-used again.
+    Fixes #35523.
     
-    The problem here is that we designate the claimer of slot
-    spanSetEntries-1 to be the one who frees the block, but that may not be
-    the thread that actually does the last subtraction from block.used.
-    
-    Fixing this problem is tricky, and the fundamental problem there is that
-    block.used is not stable: it may be observed to be zero, but that
-    doesn't necessarily mean you're the last popper!
-    
-    Do something simpler: keep a counter of how many pops have happened to a
-    given block instead of block.used. This counter monotonically increases
-    when a pop is _completely done_.  Because this counter is monotonically
-    increasing, and only increases when a popper is done, then we know for
-    sure whichever popper is the last to increase it (i.e. its value is
-    spanSetBlockEntries) is also the last popper in the block. Because the
-    race described above still exists, the last popper may not be the one
-    which claimed the last slot in the block, but we know for certain nobody
-    else is popping from that block anymore so we can safely free it.
-    Finally, because pops serialize with pushes to the same slot, we need
-    not worry about concurrent pushers at all.
-    
-    Updates #37487.
-    
-    Change-Id: I6697219372774c8ca7d8ee6895eaa230a64ce9e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230497
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I6451feb94241249516a821cd0066e95a0c65b0ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206818
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mspanset.go | 43 +++++++++++++++++++++++++++++++------------
- 1 file changed, 31 insertions(+), 12 deletions(-)
+ src/math/big/nat_test.go | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)

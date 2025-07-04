@@ -1,34 +1,21 @@
-commit 62e415655238a3c0103c1b70e6805edf8193c543
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Sep 5 16:34:00 2019 +0000
+commit ee64b35531a841ab4dbe41c17390214f9dea654f
+Author: OkamotoYuki <okamoto.yuki.0130@gmail.com>
+Date:   Sun Mar 10 02:38:12 2019 +0000
 
-    runtime: fix lock acquire cycles related to scavenge.lock
+    cmd/go/internal/test: pass default timeout to test programs if not given from command line
     
-    There are currently two edges in the lock cycle graph caused by
-    scavenge.lock: with sched.lock and mheap_.lock. These edges appear
-    because of the call to ready() and stack growths respectively.
-    Furthermore, there's already an invariant in the code wherein
-    mheap_.lock must be acquired before scavenge.lock, hence the cycle.
+    Make 'go test' command to pass the default timeout (10m) to test programs if the value is not given from command line.
     
-    The fix to this is to bring scavenge.lock higher in the lock cycle
-    graph, such that sched.lock and mheap_.lock are only acquired once
-    scavenge.lock is already held.
+    Fixes #28147
     
-    To faciliate this change, we move scavenger waking outside of
-    gcSetTriggerRatio such that it doesn't have to happen with the heap
-    locked. Furthermore, we check scavenge generation numbers with the heap
-    locked by using gopark instead of goparkunlock, and specify a function
-    which aborts the park should there be any skew in generation count.
-    
-    Fixes #34047.
-    
-    Change-Id: I3519119214bac66375e2b1262b36ce376c820d12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191977
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I7856e452224a51a92da03bab8e3a0f9d7c41d32a
+    GitHub-Last-Rev: 66f9a6f90e9ffe7c58d5c1fe32af84e16ea74ab8
+    GitHub-Pull-Request: golang/go#30545
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164963
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/mgc.go         |  5 ++++
- src/runtime/mgcscavenge.go | 68 ++++++++++++++++++++++++++--------------------
- src/runtime/mheap.go       |  1 +
- 3 files changed, 45 insertions(+), 29 deletions(-)
+ src/cmd/go/internal/test/test.go            | 15 ++++++++++++---
+ src/cmd/go/testdata/script/test_timeout.txt | 21 +++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 3 deletions(-)

@@ -1,0 +1,26 @@
+commit d65c209b4b5bc99e7e5587817b79e0850cff32cb
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue May 6 10:47:07 2025 +0800
+
+    cmd/internal/obj/loong64: add [X]VF{ADD/SUB/MUL/DIV}.{S/D} instructions
+    
+    Go asm syntax:
+             V{ADD/SUB/MUL/DIV}{F/D}        VK, VJ, VD
+            XV{ADD/SUB/MUL/DIV}{F/D}        XK, XJ, XD
+    
+    Equivalent platform assembler syntax:
+             vf{add/sub/mul/div}.{s/d}      vd, vj, vk
+            xvf{add/sub/mul/div}.{s/d}      xd, xj, xk
+    
+    Change-Id: I4607884212167ac97d7b6448ea3c849fc0fdd506
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670255
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 18 ++++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 17 +++++++++
+ src/cmd/internal/obj/loong64/anames.go          | 16 +++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 48 +++++++++++++++++++++++++
+ 4 files changed, 99 insertions(+)

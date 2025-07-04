@@ -1,12 +1,35 @@
-commit 868bb5d2f28909fa88c7d467aac655d014e50893
-Author: James Neve <jamesoneve@gmail.com>
-Date:   Thu Apr 20 18:26:05 2017 +0900
+commit 1cc24690b80b5f78e07b6e14b8614317462da1ea
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 13 14:19:52 2017 -0500
 
-    doc: escape some HTML in Effective Go code examples
+    runtime: simplify and cleanup mallocinit
     
-    Change-Id: I4204e268c7220a50ceb270432067850ec2b5af80
-    Reviewed-on: https://go-review.googlesource.com/41230
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    mallocinit has evolved organically. Make a pass to clean it up in
+    various ways:
+    
+    1. Merge the computation of spansSize and bitmapSize. These were
+       computed on every loop iteration of two different loops, but always
+       have the same value, which can be derived directly from _MaxMem.
+       This also avoids over-reserving these on MIPS, were _MaxArena32 is
+       larger than _MaxMem.
+    
+    2. Remove the ulimit -v logic. It's been disabled for many releases
+       and the dead code paths to support it are even more wrong now than
+       they were when it was first disabled, since now we *must* reserve
+       spans and bitmaps for the full address space.
+    
+    3. Make it clear that we're using a simple linear allocation to lay
+       out the spans, bitmap, and arena spaces. Previously there were a
+       lot of redundant pointer computations. Now we just bump p1 up as we
+       reserve the spaces.
+    
+    In preparation for #18651.
+    
+    Updates #5049 (respect ulimit).
+    
+    Change-Id: Icbe66570d3a7a17bea227dc54fb3c4978b52a3af
+    Reviewed-on: https://go-review.googlesource.com/35252
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/malloc.go | 42 ++++++++++++++++++------------------------
+ 1 file changed, 18 insertions(+), 24 deletions(-)

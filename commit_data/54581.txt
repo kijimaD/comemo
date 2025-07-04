@@ -1,29 +1,20 @@
-commit fa4f951026f697bc042422d95a0806dcbab7ddd0
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Sep 29 06:06:40 2023 +0000
+commit 0aeda5afe5972c1b5f76d5ee78cbc5c96474ca89
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 22:16:52 2022 -0400
 
-    syscall: make origRlimitNofile atomic.Pointer[Rlimit]
+    cmd/link: remove unnecessary use of sync.Once alongside sync.Mutex
     
-    Currently we are bootstrapping with Go 1.20, origRlimitNofile can
-    be changed to atomic.Pointer[Rlimit].
+    There does not seem to be any point to this sync.Once.
+    I noticed because I was surveying uses of sync.Once to
+    understand usage patterns. This seems to be a dreg left over
+    from some earlier instance of the code.
     
-    Change-Id: I00ce9d1a9030bd5dbd34e3dc6c4e38683a87be86
-    GitHub-Last-Rev: f2ccdb38412019d10661ed6be42086b445e411bf
-    GitHub-Pull-Request: golang/go#63274
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531516
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I99dd258d865a41d0e8f6cfa55887855e477fb9c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445755
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/syscall/exec_bsd.go           |  6 +++---
- src/syscall/exec_freebsd.go       |  6 +++---
- src/syscall/exec_libc.go          |  6 +++---
- src/syscall/exec_libc2.go         |  6 +++---
- src/syscall/exec_linux.go         |  6 +++---
- src/syscall/exec_unix.go          |  6 +++---
- src/syscall/export_rlimit_test.go |  4 ++--
- src/syscall/rlimit.go             | 12 +++++-------
- src/syscall/syscall_linux.go      |  2 +-
- 9 files changed, 26 insertions(+), 28 deletions(-)
+ src/cmd/link/internal/ld/errors.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

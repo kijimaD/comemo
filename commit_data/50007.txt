@@ -1,18 +1,23 @@
-commit f324355d1f482362b87ec4f95ceac00d4b4de797
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Aug 19 18:35:42 2022 +0700
+commit 5b909580849c611c633c111a15adb40c9c42ec8e
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Sep 23 16:46:58 2021 -0700
 
-    runtime: remove pageAlloc.scav padding for atomic field alignment
+    runtime: move sigprofNonGo
     
-    CL 404096 makes atomic.Int64 8 bytes aligned everywhere.
+    The sigprofNonGo and sigprofNonGoPC functions are only used on unix-like
+    platforms. In preparation for unix-specific changes to sigprofNonGo,
+    move it (plus its close relative) to a unix-specific file.
     
-    Change-Id: I5a676f646260d6391bb071f9376cbdb1553e6e6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424925
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Updates #35057
+    
+    Change-Id: I9c814127c58612ea9a9fbd28a992b04ace5c604d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351790
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: David Chase <drchase@google.com>
 
- src/runtime/mpagealloc.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/runtime/proc.go        | 39 ---------------------------------------
+ src/runtime/signal_unix.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 39 deletions(-)

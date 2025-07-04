@@ -1,15 +1,17 @@
-commit 082f464823cdb47042a142802776fa7874e6c05b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 19 14:18:59 2016 -0700
+commit 6df80387689a69a5b9e3ac073ba8ce4d8498ba66
+Author: Burcu Dogan <jbd@google.com>
+Date:   Mon Mar 7 13:41:27 2016 -0800
 
-    go/types: trailing semis are ok after valid fallthrough
+    runtime: listen 127.0.0.1 instead of localhost on android
     
-    Fixes #15376.
+    Fixes #14486.
+    Related to #14485.
     
-    Change-Id: I9ece80f26b83be129671c961120c157da2ac0079
-    Reviewed-on: https://go-review.googlesource.com/22270
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I2dd77b0337aebfe885ae828483deeaacb500b12a
+    Reviewed-on: https://go-review.googlesource.com/20340
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/stmt.go            | 10 ++++++++++
- src/go/types/testdata/stmt0.src | 17 +++++++++++++----
- 2 files changed, 23 insertions(+), 4 deletions(-)
+ src/runtime/proc_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

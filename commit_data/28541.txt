@@ -1,24 +1,15 @@
-commit 2098e5d39afc3e6f687fcabd7704e8013f9c0dbd
-Author: Austin Clements <austin@google.com>
-Date:   Thu Sep 15 14:30:31 2016 -0400
+commit 068c745e1e44875c411de5d5aea3f96574fbee12
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jun 2 08:53:11 2016 +0900
 
-    runtime: eliminate memstats.heap_reachable
+    vendor: update vendored route
     
-    We used to compute an estimate of the reachable heap size that was
-    different from the marked heap size. This ultimately caused more
-    problems than it solved, so we pulled it out, but memstats still has
-    both heap_reachable and heap_marked, and there are some leftover TODOs
-    about the problems with this estimate.
+    Updates golang.org/x/net/route to rev fac978c for:
+    - route: fix typos in test
     
-    Clean this up by eliminating heap_reachable in favor of heap_marked
-    and deleting the stale TODOs.
-    
-    Change-Id: I713bc20a7c90683d2b43ff63c0b21a440269cc4d
-    Reviewed-on: https://go-review.googlesource.com/29271
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I35de1d3f8e887c6bb5fe50e7299f2fc12e4426de
+    Reviewed-on: https://go-review.googlesource.com/23660
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go    | 23 ++++++++---------------
- src/runtime/mstats.go |  4 ----
- 2 files changed, 8 insertions(+), 19 deletions(-)
+ src/vendor/golang.org/x/net/route/message_freebsd_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

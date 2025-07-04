@@ -1,12 +1,39 @@
-commit b6e6870cdb04a838dfb08f2792fbd8d41b849d2a
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Dec 12 17:03:34 2018 -0500
+commit 8148726676d63c2aebc561717a949135389868b8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Jul 22 12:26:38 2018 +0100
 
-    doc/go1.12: add release notes for bufio and syscall packages
+    encoding/json: simplify the structEncoder type
     
-    Change-Id: I5112be3b0f80ef1d9dad234b1f233e598465a409
-    Reviewed-on: https://go-review.googlesource.com/c/153824
+    structEncoder had two slices - the list of fields, and a list containing
+    the encoder for each field. structEncoder.encode then looped over the
+    fields, and indexed into the second slice to grab the field encoder.
+    
+    However, this makes it very hard for the compiler to be able to prove
+    that the two slices always have the same length, and that the index
+    expression doesn't need a bounds check.
+    
+    Merge the two slices into one to completely remove the need for bounds
+    checks in the hot loop.
+    
+    While at it, don't copy the field elements when ranging, which greatly
+    speeds up the hot loop in structEncoder.
+    
+    name           old time/op    new time/op    delta
+    CodeEncoder-4    6.18ms ± 0%    5.56ms ± 0%  -10.08%  (p=0.002 n=6+6)
+    
+    name           old speed      new speed      delta
+    CodeEncoder-4   314MB/s ± 0%   349MB/s ± 0%  +11.21%  (p=0.002 n=6+6)
+    
+    name           old alloc/op   new alloc/op   delta
+    CodeEncoder-4    93.2kB ± 0%    62.1kB ± 0%  -33.33%  (p=0.002 n=6+6)
+    
+    Updates #5683.
+    
+    Change-Id: I0dd47783530f439b125e084aede09dda172eb1e8
+    Reviewed-on: https://go-review.googlesource.com/125416
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.12.html | 24 +++++++++++++++---------
- 1 file changed, 15 insertions(+), 9 deletions(-)
+ src/encoding/json/encode.go | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)

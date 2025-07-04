@@ -1,34 +1,28 @@
-commit 2629703a5c36210435369e0dc24db6497ea059a8
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Dec 13 15:25:50 2017 -0600
+commit d1bbdbe76092a1390383bf6168e95815b059e138
+Author: Peter Wu <pwu@cloudflare.com>
+Date:   Thu Sep 7 17:50:10 2017 +0100
 
-    archive/zip: make benchmarks more representative
+    crypto/tls: replace signatureAndHash by SignatureScheme.
     
-    Currently zip benchmarks spend 60% in the rleBuffer code,
-    which is used only to test zip archive/zip itself:
-        17.48s 37.02% 37.02%     18.12s 38.37%  archive/zip.(*rleBuffer).ReadAt
-         9.51s 20.14% 57.16%     10.43s 22.09%  archive/zip.(*rleBuffer).Write
-         9.15s 19.38% 76.54%     10.85s 22.98%  compress/flate.(*compressor).deflate
+    Consolidate the signature and hash fields (SignatureAndHashAlgorithm in
+    TLS 1.2) into a single uint16 (SignatureScheme in TLS 1.3 draft 21).
+    This makes it easier to add RSASSA-PSS for TLS 1.2 in the future.
     
-    This means that benchmarks currently test performance of test helper.
-    Updating ReadAt/Write methods to be more performant makes benchmarks closer to real world.
+    Fields were named like "signatureAlgorithm" rather than
+    "signatureScheme" since that name is also used throughout the 1.3 draft.
     
-    name                       old time/op    new time/op    delta
-    CompressedZipGarbage-8       2.34ms ± 0%    2.34ms ± 1%     ~     (p=0.684 n=10+10)
-    Zip64Test-8                  58.1ms ± 2%    10.7ms ± 1%  -81.54%  (p=0.000 n=10+10)
-    Zip64TestSizes/4096-8        4.05µs ± 2%    3.65µs ± 5%   -9.96%  (p=0.000 n=9+10)
-    Zip64TestSizes/1048576-8      238µs ± 0%      43µs ± 0%  -82.06%  (p=0.000 n=10+10)
-    Zip64TestSizes/67108864-8    15.3ms ± 1%     2.6ms ± 0%  -83.12%  (p=0.000 n=10+9)
+    The only new public symbol is ECDSAWithSHA1, other than that this is an
+    internal change with no new functionality.
     
-    name                       old alloc/op   new alloc/op   delta
-    CompressedZipGarbage-8       17.9kB ±14%    16.0kB ±24%  -10.48%  (p=0.026 n=9+10)
-    
-    name                       old allocs/op  new allocs/op  delta
-    CompressedZipGarbage-8         44.0 ± 0%      44.0 ± 0%     ~     (all equal)
-    
-    Change-Id: Idfd920d0e4bed4aec2f5be84dc7e3919d9f1dd2d
-    Reviewed-on: https://go-review.googlesource.com/83857
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iba63d262ab1af895420583ac9e302d9705a7e0f0
+    Reviewed-on: https://go-review.googlesource.com/62210
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/archive/zip/zip_test.go | 43 ++++++++++++++++++++++++++-----------------
- 1 file changed, 26 insertions(+), 17 deletions(-)
+ src/crypto/tls/common.go                  | 52 +++++++++++-----------
+ src/crypto/tls/handshake_client.go        | 20 ++++-----
+ src/crypto/tls/handshake_messages.go      | 71 ++++++++++++++-----------------
+ src/crypto/tls/handshake_messages_test.go |  2 +-
+ src/crypto/tls/handshake_server.go        | 32 +++++++-------
+ src/crypto/tls/key_agreement.go           | 50 +++++++++++++---------
+ src/crypto/tls/prf.go                     | 36 +++++++---------
+ 7 files changed, 132 insertions(+), 131 deletions(-)

@@ -1,20 +1,29 @@
-commit b057b8872d8297ec9ccbfd9d29dad51dff795846
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Tue Dec 17 19:05:23 2024 +0200
+commit 8b4e1259d0e82c8fe38a1456f997a4e9d63573a2
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sun Nov 5 22:40:01 2023 +0100
 
-    bytes, strings: add cross-references in docstrings
+    cmd/compile: fix findIndVar so it does not match disjointed loop headers
     
-    For newly funcs SplitSeq, SplitAfterSeq, FieldsSeq, FieldsFuncSeq.
+    Fix #63955
     
-    Updates #61901.
+    parseIndVar, prove and maybe more are on the assumption that the loop header
+    is a single block. This can be wrong, ensure we don't match theses cases we
+    don't know how to handle.
     
-    Change-Id: I3c97bfd9c2250de68aaea348c82a05635ee797af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637176
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    In the future we could update them so that they know how to handle such cases
+    but theses cases seems rare so I don't think the value would be really high.
+    We could also run a loop canonicalization pass first which could handle this.
+    
+    The repro case looks weird because I massaged it so it would crash with the
+    previous compiler.
+    
+    Change-Id: I4aa8afae9e90a17fa1085832250fc1139c97faa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539977
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/bytes/iter.go   | 10 +++++-----
- src/strings/iter.go | 10 +++++-----
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/loopbce.go |  7 +++++++
+ test/fixedbugs/issue63955.go            | 22 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

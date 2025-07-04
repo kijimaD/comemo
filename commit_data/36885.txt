@@ -1,17 +1,29 @@
-commit 2294e3ebd374e18b191d0e8d8d32c46b0a1ef961
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sat Oct 6 03:35:17 2018 +0000
+commit c08b01ecb4488fb3a95fd5cc7baa8b31812e7b76
+Author: David Chase <drchase@google.com>
+Date:   Wed Jun 6 12:38:35 2018 -0400
 
-    cmd/compile: combine similar code in amd64's assembly generator
+    cmd/compile: fix panic-okay-to-inline change; adjust tests
     
-    This CL combines similar code in amd64's assembly generator. The
-    total size of pkg/linux_amd64/cmd/compile/ decreases about 4.5KB,
-    while the generated amd64 code is not affected.
+    This line of the inlining tuning experiment
+    https://go-review.googlesource.com/c/go/+/109918/1/src/cmd/compile/internal/gc/inl.go#347
+    was incorrectly rewritten in a later patch to use the call
+    cost, not the panic cost, and thus the inlining of panic
+    didn't occur when it should.  I discovered this when I
+    realized that tests should have failed, but didn't.
     
-    Change-Id: I4cdbdd22bde8857aafdc29b47fa100a906fa1598
-    Reviewed-on: https://go-review.googlesource.com/c/140298
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Fix is to make the correct change, and also to modify the
+    tests that this causes to fail.  One test now asserts the
+    new normal, the other calls "ppanic" instead which is
+    designed to behave like panic but not be inlined.
+    
+    Change-Id: I423bb7f08bd66a70d999826dd9b87027abf34cdf
+    Reviewed-on: https://go-review.googlesource.com/116656
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 94 +++++++++++------------------------
- 1 file changed, 30 insertions(+), 64 deletions(-)
+ src/cmd/compile/internal/gc/inl.go |  2 +-
+ src/runtime/runtime-gdb_test.go    |  2 +-
+ test/closure3.dir/main.go          | 69 ++++++++++++++++++++------------------
+ test/escape4.go                    |  4 +--
+ 4 files changed, 41 insertions(+), 36 deletions(-)

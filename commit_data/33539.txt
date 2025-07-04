@@ -1,17 +1,15 @@
-commit 0d9dc044d2008867e457a2023875501e1e986e6d
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Nov 10 20:35:45 2017 +0100
+commit 4c0bba158e28384e7f58938b5b2930e3230220dc
+Author: Lakshay Garg <lakshay.garg.1996@gmail.com>
+Date:   Fri Aug 18 23:04:02 2017 +0530
 
-    net/url: clarify QueryUnescape and PathUnescape doc
+    math: implement the erfcinv function
     
-    In the doc for QueryUnescape and PathUnescape, clarify that by 0xAB we
-    means a substring with any two valid hexadecimal digits.
+    Fixes: #6359
     
-    Fixes #18642
-    
-    Change-Id: Ib65b130995ae5fcf07e25ee0fcc41fad520c5662
-    Reviewed-on: https://go-review.googlesource.com/77050
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6c697befd681a253e73a7091faa9f20ff3791201
+    Reviewed-on: https://go-review.googlesource.com/57090
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/url/url.go | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ src/math/all_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/erfinv.go   | 11 +++++++++++
+ 2 files changed, 60 insertions(+)

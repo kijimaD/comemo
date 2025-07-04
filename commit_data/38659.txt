@@ -1,13 +1,16 @@
-commit cea44714fb4e79b939e5b781ee61e97b3d7e1c14
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 5 10:05:57 2019 -0400
+commit 9d025bdafe8390011428b27fe944ee6acc8fa011
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 12 12:42:47 2018 -0500
 
-    runtime: fix typo in debuglog comment
+    container/heap: adjust wording in comments
     
-    Change-Id: I8a40461b93eab034ed930e0c5e32391f84cdbc5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170799
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Sebastien Binet <seb.binet@gmail.com>
+    Followup to CL 129779 but also some other minor tweaks.
+    
+    Change-Id: Id71455d8a14f5e33f82c942c9e892da56c49d17c
+    Reviewed-on: https://go-review.googlesource.com/c/149257
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/debuglog.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/container/heap/heap.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

@@ -1,30 +1,24 @@
-commit 836dbdb15b766696eadd141ea2430f3549c58ec5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Mar 15 21:48:58 2021 +0000
+commit 8381408048018aa2b6eec874f3161b4641191522
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu Jul 16 21:30:12 2020 -0600
 
-    runtime: mark Windows' address-taken asm routines as ABIInternal
+    net/http: fix detection of Roundtrippers that always error
     
-    In the runtime there are Windows-specific assembly routines that are
-    address-taken via funcPC and are not intended to be called through a
-    wrapper. Mark them as ABIInternal so that we don't grab the wrapper,
-    because that will break in all sorts of contexts.
+    CL 220905 added code to identify alternate transports that always error
+    by using http2erringRoundTripper. This does not work when the transport
+    is from another package, e.g., http2.erringRoundTripper.
+    Expose a new method that allow detection of such a RoundTripper.
+    Switch to an interface that is both a RoundTripper and can return the
+    underlying error.
     
-    For #40724.
-    For #44065.
+    Fixes #40213
     
-    Change-Id: I12a728786786f423e5b229f8622e4a80ec27a31c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302109
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I170739857ab9e99dffb5fa55c99b24b23c2f9c54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243258
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/sys_windows_386.s         | 22 +++++++++++-----------
- src/runtime/sys_windows_amd64.s       | 22 +++++++++++-----------
- src/runtime/sys_windows_arm.s         | 22 +++++++++++-----------
- src/runtime/sys_windows_arm64.s       | 26 +++++++++++++-------------
- src/runtime/wincallback.go            |  6 +++---
- src/runtime/zcallback_windows.s       |  2 +-
- src/runtime/zcallback_windows_arm.s   |  2 +-
- src/runtime/zcallback_windows_arm64.s |  2 +-
- 8 files changed, 52 insertions(+), 52 deletions(-)
+ src/net/http/omithttp2.go | 4 ----
+ src/net/http/transport.go | 8 ++++++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)

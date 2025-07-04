@@ -1,15 +1,15 @@
-commit 2770c507a54770b38c8654357cf0f47e3f0f3052
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 14 17:13:13 2017 -0800
+commit a1b6e1692b063488cfcc51c258b159ccce4f7d23
+Author: Peter Weinberger <pjw@google.com>
+Date:   Fri Oct 28 15:12:18 2016 -0400
 
-    cmd/compile: fix position for "missing type in composite literal" error
+    runtime: ensure elapsed cycles are not negative
     
-    Fixes #18231.
+    On solaris/amd64 sometimes the reported cycle count is negative. Replace
+    with 0.
     
-    Change-Id: If1615da4db0e6f0516369a1dc37340d80c78f237
-    Reviewed-on: https://go-review.googlesource.com/37018
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I364eea5ca072281245c7ab3afb0bf69adc3a8eae
+    Reviewed-on: https://go-review.googlesource.com/32258
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  5 +----
- test/fixedbugs/issue18231.go             | 20 ++++++++++++++++++++
- 2 files changed, 21 insertions(+), 4 deletions(-)
+ src/runtime/mprof.go | 3 +++
+ 1 file changed, 3 insertions(+)

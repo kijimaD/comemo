@@ -1,0 +1,23 @@
+commit 9cc737d482582cca5ba44b2320fb4e48edee9cd6
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 10 11:09:13 2024 +0200
+
+    syscall: fix Open param names
+    
+    syscall.Open param names are confusing, mainly because what should be
+    named flag is named mode and what should be named mode is named perm.
+    
+    The name perm is used as synonym for mode in other places, so keep
+    it as is. Rename mode to flag to match the real meaning of the
+    parameter. Also, rename path to name for consistency with other
+    usage of the same parameter.
+    
+    Change-Id: Ideed09839d80c0383584c2268afbb6cc09ffda8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619276
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/syscall_windows.go      | 28 ++++++++++++++--------------
+ src/syscall/syscall_windows_test.go |  4 ++--
+ 2 files changed, 16 insertions(+), 16 deletions(-)

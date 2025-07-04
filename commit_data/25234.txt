@@ -1,23 +1,12 @@
-commit a77182f47f0e55789f06c13accd694df60d85f07
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 25 10:45:59 2015 -0500
+commit 26074a642f44b1faedcd7c50672fbfb311c6f58d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Oct 10 22:35:13 2015 +1100
 
-    reflect: document DeepEqual, fix case of maps with NaN keys
+    doc: go1.6.txt: *url.Error implements net.Error
     
-    The meaning of DeepEqual has never been specified.
-    Do that.
-    
-    Also fix bug involving maps with NaN keys.
-    
-    Except for the map bug fix, there should be no semantic changes here.
-    
-    Fixes #12025.
-    
-    Change-Id: Ied562cf543a22ec645d42bdb9b41d451c16b1f21
-    Reviewed-on: https://go-review.googlesource.com/17450
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I34c8ada1f3c5d401944483df424011fa2ae9fc3d
+    Reviewed-on: https://go-review.googlesource.com/15673
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/reflect/all_test.go  | 13 +++++++++
- src/reflect/deepequal.go | 75 ++++++++++++++++++++++++++++++++++++------------
- 2 files changed, 70 insertions(+), 18 deletions(-)
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

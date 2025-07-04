@@ -1,19 +1,23 @@
-commit ea0292c61bfe85d85ef6f81fe1874227c5fc674a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Feb 15 10:44:29 2013 +1100
+commit 5b1885c241172fc1f89221b1a83789032c13cf5a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 14 13:36:40 2013 -0800
 
-    misc/dashboard/builder: record build result on dashboard
+    go/parser: cleanups following CL 7307085
     
-    This is part one of two changes intended to make it easier to debug builder failures.
+    - use the new AllErrors flag where appropriate
+    - unless AllErrors is set, eliminate spurious
+      errors before they are added to the errors list
+      (it turns out that reporting spurious errors always
+      leads to too many uninformative errors after all)
     
-    runOutput allows us to control the io.Writer passed to a subcommand. The intention is to add additional debugging information before and after the build which will then be capture and sent to the dashboard.
-    
-    In this proposal, the only additional information is the build status. See http://build.golang.org/log/e7b5bf435b4de1913fc61781b3295fb3f03aeb6e
-    
-    R=adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7303090
+    https://golang.org/cl/7323065
 
- misc/dashboard/builder/exec.go | 44 +++++++++++++++++++-----------------------
- misc/dashboard/builder/main.go | 42 +++++++++++++++++++++++++++-------------
- 2 files changed, 49 insertions(+), 37 deletions(-)
+ src/cmd/gofmt/gofmt.go          |  4 ++--
+ src/pkg/exp/gotype/gotype.go    |  4 ++--
+ src/pkg/go/parser/error_test.go |  2 +-
+ src/pkg/go/parser/interface.go  |  6 +++---
+ src/pkg/go/parser/parser.go     | 18 +++++++++++++++---
+ src/pkg/go/types/check_test.go  |  2 +-
+ 6 files changed, 24 insertions(+), 12 deletions(-)

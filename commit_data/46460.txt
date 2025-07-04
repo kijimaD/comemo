@@ -1,31 +1,23 @@
-commit b1bedc0774d8a3a7ff8778e933ee92e8638e9493
-Author: nimelehin <nimelehin@gmail.com>
-Date:   Wed Sep 15 04:30:49 2021 +0000
+commit 6ddbc75efd4bc2757e7684e7760ee411ec721e15
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 1 01:32:46 2021 -0800
 
-    cmd/go: add GOAMD64 environment variable
+    [dev.regabi] cmd/compile: earlier deadcode removal
     
-    The variable represents the microarchitecture level for which to compile.
-    Valid values are v1 (default), v2, v3, v4.
+    This CL moves the general deadcode-removal pass to before computing
+    Addrtaken, which allows variables to still be converted to SSA if
+    their address is only taken in unreachable code paths (e.g., the "&mp"
+    expression in the "if false" block in runtime/os_linux.go:newosproc).
     
-    Updates #45453
+    This doesn't pass toolstash -cmp, because it allows SSA to better
+    optimize some code.
     
-    Change-Id: I095197fc9239d79f98896d7e745e2341354daca4
-    GitHub-Last-Rev: f83ed17204606264073be5b9831f9d24f2f9dbc4
-    GitHub-Pull-Request: golang/go#48359
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349595
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I43e54acc02fdcbad8eb6493283f355aa1ee0de84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280992
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/dist/build.go               | 11 +++++++++++
- src/cmd/dist/buildruntime.go        |  1 +
- src/cmd/go/alldocs.go               |  4 ++++
- src/cmd/go/internal/cfg/cfg.go      |  3 +++
- src/cmd/go/internal/help/helpdoc.go |  4 ++++
- src/cmd/go/internal/work/gc.go      |  5 +++++
- src/internal/buildcfg/cfg.go        | 16 ++++++++++++++++
- src/internal/buildcfg/cfg_test.go   | 25 +++++++++++++++++++++++++
- src/internal/cfg/cfg.go             |  1 +
- test/run.go                         |  2 +-
- 10 files changed, 71 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

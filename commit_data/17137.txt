@@ -1,19 +1,12 @@
-commit d9f93b0e0b351de6cfe05c03d8e8f78328178407
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 9 18:34:08 2013 -0400
+commit 36f223dace5dcdb7afc381c51e0484ff473e2e88
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 9 15:27:45 2013 -0700
 
-    go/build: add AllTags to Package
+    runtime: Better test tracebackability of jmpdefer when running a nil defer.
     
-    AllTags lists all the tags that can affect the decision
-    about which files to include. Tools scanning packages
-    can use this to decide how many variants there are
-    and what they are.
-    
-    R=bradfitz
+    R=bradfitz, dvyukov
     CC=golang-dev
-    https://golang.org/cl/12703044
+    https://golang.org/cl/12536046
 
- src/pkg/go/build/build.go        | 66 ++++++++++++++++++++++++++--------------
- src/pkg/go/build/build_test.go   | 63 ++++++++++++++++++++++++++------------
- src/pkg/go/build/syslist_test.go |  2 +-
- 3 files changed, 89 insertions(+), 42 deletions(-)
+ test/fixedbugs/issue6055.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

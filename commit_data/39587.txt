@@ -1,33 +1,71 @@
-commit 1dc0110bf725640a9b912e3d31e6654ed1c4da9d
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Aug 7 16:27:39 2019 -0400
+commit 4e2b0dda8cbab104635d59ef5a68e4342250094b
+Author: erifan01 <eric.fang@arm.com>
+Date:   Thu Jan 3 09:25:06 2019 +0000
 
-    cmd/go: improve 'go mod download' and 'go list -m' error messages
+    cmd/compile: eliminate unnecessary type conversions in TrailingZeros(16|8) for arm64
     
-    modload.ListModules now wraps errors as module.ModuleError as
-    appropriate. The resulting errors always include the module path and
-    will include the version, if known.
+    This CL eliminates unnecessary type conversion operations: OpZeroExt16to64 and OpZeroExt8to64.
+    If the input argrument is a nonzero value, then ORconst operation can also be eliminated.
     
-    'go mod download' no longer ignores errors reported by ListModules.
-    Previously, it started requesting module info, go.mod, and zip. Those
-    requests would fail, overwriting the original failure. They were
-    usually less descriptive.
+    Benchmarks:
     
-    'go mod download' with a module not in the build list (and no version
-    query) is now an error. Previously, this was silently ignored.
+    name               old time/op  new time/op  delta
+    TrailingZeros-8    2.75ns ± 0%  2.75ns ± 0%     ~     (all equal)
+    TrailingZeros8-8   3.49ns ± 1%  2.93ns ± 0%  -16.00%  (p=0.000 n=10+10)
+    TrailingZeros16-8  3.49ns ± 1%  2.93ns ± 0%  -16.05%  (p=0.000 n=9+10)
+    TrailingZeros32-8  2.67ns ± 1%  2.68ns ± 1%     ~     (p=0.468 n=10+10)
+    TrailingZeros64-8  2.67ns ± 1%  2.65ns ± 0%   -0.62%  (p=0.022 n=10+9)
     
-    Fixes #30743
+    code:
     
-    Change-Id: Icee8c1c6c5240de135a8b6ba42d6bbcdb757cdac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189323
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    func f16(x uint) { z = bits.TrailingZeros16(uint16(x)) }
+    
+    Before:
+    
+    "".f16 STEXT size=48 args=0x8 locals=0x0 leaf
+            0x0000 00000 (test.go:7)        TEXT    "".f16(SB), LEAF|NOFRAME|ABIInternal, $0-8
+            0x0000 00000 (test.go:7)        FUNCDATA        ZR, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (test.go:7)        FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (test.go:7)        FUNCDATA        $3, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (test.go:7)        PCDATA  $2, ZR
+            0x0000 00000 (test.go:7)        PCDATA  ZR, ZR
+            0x0000 00000 (test.go:7)        MOVD    "".x(FP), R0
+            0x0004 00004 (test.go:7)        MOVHU   R0, R0
+            0x0008 00008 (test.go:7)        ORR     $65536, R0, R0
+            0x000c 00012 (test.go:7)        RBIT    R0, R0
+            0x0010 00016 (test.go:7)        CLZ     R0, R0
+            0x0014 00020 (test.go:7)        MOVD    R0, "".z(SB)
+            0x0020 00032 (test.go:7)        RET     (R30)
+    
+    This line of code is unnecessary:
+            0x0004 00004 (test.go:7)        MOVHU   R0, R0
+    
+    After:
+    
+    "".f16 STEXT size=32 args=0x8 locals=0x0 leaf
+            0x0000 00000 (test.go:7)        TEXT    "".f16(SB), LEAF|NOFRAME|ABIInternal, $0-8
+            0x0000 00000 (test.go:7)        FUNCDATA        ZR, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (test.go:7)        FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (test.go:7)        FUNCDATA        $3, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (test.go:7)        PCDATA  $2, ZR
+            0x0000 00000 (test.go:7)        PCDATA  ZR, ZR
+            0x0000 00000 (test.go:7)        MOVD    "".x(FP), R0
+            0x0004 00004 (test.go:7)        ORR     $65536, R0, R0
+            0x0008 00008 (test.go:7)        RBITW   R0, R0
+            0x000c 00012 (test.go:7)        CLZW    R0, R0
+            0x0010 00016 (test.go:7)        MOVD    R0, "".z(SB)
+            0x001c 00028 (test.go:7)        RET     (R30)
+    
+    The situation of TrailingZeros8 is similar to TrailingZeros16.
+    
+    Change-Id: I473bdca06be8460a0be87abbae6fe640017e4c9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/156999
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/list/list.go            |  2 +-
- src/cmd/go/internal/modcmd/download.go      | 20 ++++++++++++-----
- src/cmd/go/internal/modload/list.go         | 35 ++++++++++++++++++++---------
- src/cmd/go/testdata/script/mod_download.txt | 10 +++++++++
- src/cmd/go/testdata/script/mod_list.txt     |  8 +++----
- src/cmd/go/testdata/script/mod_query.txt    |  2 +-
- 6 files changed, 55 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |  8 +--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 74 ++++++++++++++++++++++++++++
+ test/codegen/mathbits.go                     |  7 +++
+ 4 files changed, 89 insertions(+), 4 deletions(-)

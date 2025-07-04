@@ -1,21 +1,14 @@
-commit b1d51c63d6626e0e78f5ea0e1f4b6eda4af045e0
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Feb 24 12:04:48 2013 +0900
+commit 39c476cbf874c1936e82731abd4511bb8364c00c
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Sat Feb 23 11:39:01 2013 -0800
 
-    syscall: add if_announce support for freebsd
+    archive/tar: simplify use of constants in test case.
     
-    Update #4866.
+    Replace setsid with c_ISGID since the constant is already defined.
     
-    R=golang-dev, dave
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7398047
+    https://golang.org/cl/7403048
 
- src/pkg/syscall/mkerrors.sh              |  2 +-
- src/pkg/syscall/types_freebsd.go         | 15 +++++++++------
- src/pkg/syscall/zerrors_freebsd_386.go   |  2 ++
- src/pkg/syscall/zerrors_freebsd_amd64.go |  2 ++
- src/pkg/syscall/zerrors_freebsd_arm.go   |  2 ++
- src/pkg/syscall/ztypes_freebsd_386.go    | 22 ++++++++++++++++------
- src/pkg/syscall/ztypes_freebsd_amd64.go  | 22 ++++++++++++++++------
- src/pkg/syscall/ztypes_freebsd_arm.go    | 22 ++++++++++++++++------
- 8 files changed, 64 insertions(+), 25 deletions(-)
+ src/pkg/archive/tar/tar_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

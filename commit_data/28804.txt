@@ -1,21 +1,20 @@
-commit 0a0f4bc181835882717d2f4be75fced4061d4572
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Wed Oct 12 11:34:47 2016 +0900
+commit 4a15508c663429652d32f5363c0964152b28dd74
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 26 23:58:44 2016 +0200
 
-    cmd/compile/internal/gc: cleanup esc.go
+    crypto/x509: detect OS X version for FetchPEMRoots at run time
     
-    * convert important functions to methods
-    * rename EscXXX to XXX in NodeEscState
-    * rename local variables more friendly
-    * simplify redundant code
-    * update comments
+    https://golang.org/cl/25233 was detecting the OS X release at compile
+    time, not run time. Detect it at run time instead.
     
-    Change-Id: I8442bf4f8dde84523d9a2ad3d04b1cd326bd4719
-    Reviewed-on: https://go-review.googlesource.com/30893
-    Run-TryBot: David Chase <drchase@google.com>
+    Fixes #16473 (again)
+    
+    Change-Id: I6bec4996e57aa50c52599c165aa6f1fae7423fa7
+    Reviewed-on: https://go-review.googlesource.com/25281
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 622 ++++++++++++++++++-------------------
- src/cmd/compile/internal/gc/fmt.go |   4 +-
- 2 files changed, 311 insertions(+), 315 deletions(-)
+ src/crypto/x509/root_cgo_darwin.go | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)

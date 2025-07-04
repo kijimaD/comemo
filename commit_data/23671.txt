@@ -1,20 +1,37 @@
-commit e6a0c21e7d1970431c4b0e82acc9b0ec34dee29f
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Jul 2 08:36:45 2015 +0200
+commit 227fb116bede3b09ba7399303ebac36eec43ff8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 20 00:37:37 2015 -0400
 
-    net: fix setKeepAlivePeriod on Plan 9
+    cmd/go: clean up after 'go build' during 'go install'
     
-    The interface to set TCP keepalive on Plan 9 is
-    writing the "keepalive n" string to the TCP ctl file,
-    where n is the milliseconds between keepalives.
+    If 'go install' (with no arguments, meaning the current directory)
+    succeeds, remove the executable written by 'go build', if present.
+    This avoids leaving a stale binary behind during a sequence like:
     
-    Fixes #11266.
+            go build
+            <test, mostly works, make small change>
+            go install
     
-    Change-Id: Ic96f6c584063665a1ddf921a9a4ddfa13cc7501b
-    Reviewed-on: https://go-review.googlesource.com/11860
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Before this CL, the current directory still has the stale binary
+    from 'go build'. If $PATH contains dot, running the name of
+    the program will find this stale binary instead of the new,
+    installed one.
+    
+    Remove the 'go build' target during 'go install', both to clean
+    up the directory and to avoid accidentally running the stale binary.
+    
+    Another way to view this CL is that it makes the go command
+    behave as if 'go install' is implemented by 'go build' followed by
+    moving the resulting binary to the install location.
+    
+    See #9645 for discussion and objections.
+    
+    Fixes #9645.
+    
+    Change-Id: Ide109572f96bbb5a35be45dda17738317462a7d4
+    Reviewed-on: https://go-review.googlesource.com/10682
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/tcpsockopt_plan9.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/build.go  | 24 ++++++++++++++++++++++++
+ src/cmd/go/test.bash | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+)

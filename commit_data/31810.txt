@@ -1,42 +1,78 @@
-commit 738739f56543a768be1eeb9a9e33f3252f4c6da1
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Jun 8 08:26:19 2017 -0400
+commit 2cdb7f118ab86adb6fef5485d96831df3446b747
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 16 22:42:10 2017 -0700
 
-    cmd/link: implement trampolines for ppc64le with ext linking
+    cmd/compile: move Frontend field from ssa.Config to ssa.Func
     
-    When using golang on ppc64le there have been issues
-    when building executables that generate extremely large text
-    sections.  This is due to the call instruction and the limitation
-    on the offset field, which is smaller than most platforms.  If the
-    size of the call target offset is too big for the offset field in
-    the call instruction, then link errors can occur.
+    Suggested by mdempsky in CL 38232.
+    This allows us to use the Frontend field
+    to associate frontend state and information
+    with a function.
+    See the following CL in the series for examples.
     
-    The original solution to this problem in golang was to split the
-    text section when it became too large, allowing the external (GNU)
-    linker to insert the necessary stub to handle the long call.  That
-    worked fine until the another size limit for the program size was hit,
-    where a plt_branch was created instead of a long branch.  In that case
-    the plt_branch code sequence expects r2 to contain the address of the
-    TOC, but when golang creates dynamic executables by default
-    (-buildmode=exe) r2 does not always contain the address of the TOC
-    and as a result when building programs that reach this extremely
-    large size, a runtime SEGV or SIGILL can occur due to branching to a bad
-    address.
+    This is a giant CL, but it is almost entirely routine refactoring.
     
-    When using internal linking, trampolines are generated to handle the
-    long calls but the text sections are not split.  With this change,
-    text sections will still be split approrpriately with external linking
-    but if the buildmode being used does not maintain r2 as the TOC
-    addresses, then trampolines will be created for those calls.
+    The ssa test API is starting to feel a bit unwieldy.
+    I will clean it up separately, once the dust has settled.
     
-    Fixes #20497
+    Passes toolstash -cmp.
     
-    Change-Id: If5400b0f86c2c08e106b332be6db0b259b07d93d
-    Reviewed-on: https://go-review.googlesource.com/45130
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #15756
+    
+    Change-Id: I71c573bd96ff7251935fce1391b06b1f133c3caf
+    Reviewed-on: https://go-review.googlesource.com/38327
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/data.go   | 38 ++++++++++++++------
- src/cmd/link/internal/ppc64/asm.go | 73 +++++++++++++++++++++++++++++---------
- 2 files changed, 84 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                |  24 +-
+ src/cmd/compile/internal/ssa/checkbce.go          |   2 +-
+ src/cmd/compile/internal/ssa/compile.go           |   2 +-
+ src/cmd/compile/internal/ssa/config.go            |  18 +-
+ src/cmd/compile/internal/ssa/copyelim_test.go     |   2 +-
+ src/cmd/compile/internal/ssa/critical.go          |   4 +-
+ src/cmd/compile/internal/ssa/cse_test.go          |   4 +-
+ src/cmd/compile/internal/ssa/deadcode_test.go     |  10 +-
+ src/cmd/compile/internal/ssa/deadstore_test.go    |   8 +-
+ src/cmd/compile/internal/ssa/decompose.go         |  44 +-
+ src/cmd/compile/internal/ssa/dom_test.go          |  22 +-
+ src/cmd/compile/internal/ssa/export_test.go       |   4 +-
+ src/cmd/compile/internal/ssa/func.go              |  15 +-
+ src/cmd/compile/internal/ssa/func_test.go         |  36 +-
+ src/cmd/compile/internal/ssa/fuse_test.go         |  18 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go       |   8 +-
+ src/cmd/compile/internal/ssa/lca_test.go          |   4 +-
+ src/cmd/compile/internal/ssa/likelyadjust.go      |   6 +-
+ src/cmd/compile/internal/ssa/loop_test.go         |   5 +-
+ src/cmd/compile/internal/ssa/loopbce.go           |  10 +-
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |   6 +-
+ src/cmd/compile/internal/ssa/nilcheck.go          |   8 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go     |  40 +-
+ src/cmd/compile/internal/ssa/passbm_test.go       |   8 +-
+ src/cmd/compile/internal/ssa/phielim.go           |   2 +-
+ src/cmd/compile/internal/ssa/phiopt.go            |   8 +-
+ src/cmd/compile/internal/ssa/print.go             |   2 +-
+ src/cmd/compile/internal/ssa/prove.go             |  24 +-
+ src/cmd/compile/internal/ssa/regalloc.go          |  12 +-
+ src/cmd/compile/internal/ssa/regalloc_test.go     |   2 +-
+ src/cmd/compile/internal/ssa/rewrite.go           |   8 +-
+ src/cmd/compile/internal/ssa/rewrite386.go        |  34 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 134 ++----
+ src/cmd/compile/internal/ssa/rewriteARM.go        | 238 +++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go      | 314 ++++----------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go       | 334 ++++-----------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go     | 474 ++++++----------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go      | 368 +++++------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go      | 474 ++++++----------------
+ src/cmd/compile/internal/ssa/rewritedec.go        |   6 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go      | 198 +++------
+ src/cmd/compile/internal/ssa/rewritegeneric.go    | 130 ++----
+ src/cmd/compile/internal/ssa/schedule_test.go     |   4 +-
+ src/cmd/compile/internal/ssa/shift_test.go        |  24 +-
+ src/cmd/compile/internal/ssa/shortcircuit.go      |   4 +-
+ src/cmd/compile/internal/ssa/shortcircuit_test.go |   2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go        |   4 +-
+ src/cmd/compile/internal/ssa/stackframe.go        |   2 +-
+ src/cmd/compile/internal/ssa/value.go             |   2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      |  34 +-
+ src/cmd/compile/internal/ssa/writebarrier_test.go |   4 +-
+ 51 files changed, 922 insertions(+), 2228 deletions(-)

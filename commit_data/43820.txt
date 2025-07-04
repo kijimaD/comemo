@@ -1,28 +1,18 @@
-commit 399b5d14d4114b326096127df9a89342eb1fc2ad
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Nov 17 10:13:29 2020 +0100
+commit a9f8f02f3cfba18501669cdf58ae75ca36a4cff0
+Author: Mukesh Sharma <sharma.mukesh439@gmail.com>
+Date:   Sat Apr 25 05:42:10 2020 +0000
 
-    cmd/compile: stop MOVW-ing -1 as SRA shift amount in mips
+    cmd/go/internal/cache: fix typing error in errVerifyMode
     
-    The shift amount in SRAconst needs to be in the [0,31] range, so stop
-    MOVWing -1 to SRA in the Rsh lowering rules.
+    This change fixes the typing mistake in errVerifyMode error message in cache.
     
-    Also see CL 270117.
-    
-    Passes
-    
-      $ GOARCH=mips go build -toolexec 'toolstash -cmp' -a std
-      $ GOARCH=mipsle go build -toolexec 'toolstash -cmp' -a std
-    
-    Updates #42587
-    
-    Change-Id: Ib5eb99b82310e404cc2d6f0c619b21b8a15406ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270558
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I10c405a06e3396f9932db72d9de418d7f8aa013c
+    GitHub-Last-Rev: 14ea7c693cdff599f0c6f64906fe46c2db62a87b
+    GitHub-Pull-Request: golang/go#38655
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230097
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/MIPS.rules | 18 +++++++--------
- src/cmd/compile/internal/ssa/rewriteMIPS.go | 36 ++++++++++++++---------------
- 2 files changed, 27 insertions(+), 27 deletions(-)
+ src/cmd/go/internal/cache/cache.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

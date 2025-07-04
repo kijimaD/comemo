@@ -1,12 +1,13 @@
-commit 3e2fc94f04b2e3ff070931e7e130c1df511043ce
-Author: Alexis Imperial-Legrand <ail@google.com>
-Date:   Tue Jun 2 17:27:43 2015 +0200
+commit 2708f19600a7a0527274784e9792f9efd29ff856
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat May 2 17:58:06 2015 +0900
 
-    debug/gosym: avoid calling the shell in test
+    net: add missing ReadFrom, WriteTo deadline tests
     
-    Change-Id: I95bf62c0f2d77dd67515921e6aefa511cce8d95d
-    Reviewed-on: https://go-review.googlesource.com/10633
+    Change-Id: If84edfaec361ca2fbb75707c4ad30e4ce64f7013
+    Reviewed-on: https://go-review.googlesource.com/9664
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/gosym/pclntab_test.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/net/timeout_test.go | 135 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/udp_test.go     |  41 ---------------
+ 2 files changed, 135 insertions(+), 41 deletions(-)

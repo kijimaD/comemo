@@ -1,13 +1,19 @@
-commit 92c54e4a73cab47b53472d49479364f1378bbff7
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 22 01:56:01 2014 +0400
+commit 34655223ef9b26e40cc22a0ab355a991ed177cf4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 21 17:38:30 2014 -0400
 
-    runtime: simplify code
+    runtime: round gohash stack frame to multiple of 8 on amd64p32
     
-    LGTM=khr
-    R=golang-codereviews, dave, khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/116950043
+    Even though pointers are 4 bytes the stack frame should be kept
+    a multiple of 8 bytes so that return addresses pushed on the stack
+    are properly aligned.
+    
+    Fixes #8379.
+    
+    LGTM=dvyukov, minux
+    R=minux, bradfitz, dvyukov, dave
+    CC=golang-codereviews
+    https://golang.org/cl/115840048
 
- src/pkg/runtime/mgc0.c | 20 ++------------------
- 1 file changed, 2 insertions(+), 18 deletions(-)
+ src/pkg/runtime/asm_amd64p32.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

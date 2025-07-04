@@ -1,29 +1,13 @@
-commit 8a7def2b3b8fc801eb4f02e58328e84ee311910e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Aug 3 13:32:22 2013 +0900
+commit 74d2e096db77a055c8bec035ae7c024ff635adea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 2 19:14:13 2013 -0700
 
-    net: reduce unnecessary syscall.Sockaddr conversions
+    build: ignore new zfiles, delete temp goplay binary in run.bash
     
-    This CL makes IPAddr, UDPAddr and TCPAddr implement sockaddr
-    interface, UnixAddr is already sockaddr interface compliant, and
-    reduces unnecessary conversions between net.Addr, net.sockaddr and
-    syscall.Sockaddr.
-    
-    This is in preparation for runtime-integrated network pollster for BSD
-    variants.
-    
-    Update #5199
-    
-    R=golang-dev, dave, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12010043
+    https://golang.org/cl/12320045
 
- src/pkg/net/iprawsock_posix.go | 11 +++++---
- src/pkg/net/ipsock_posix.go    | 13 +---------
- src/pkg/net/sock_posix.go      | 58 +++++++++++++++++++++++++++++-------------
- src/pkg/net/sock_unix.go       | 22 ++++++++--------
- src/pkg/net/sock_windows.go    | 22 ++++++++--------
- src/pkg/net/tcpsock_posix.go   | 13 ++++++----
- src/pkg/net/udpsock_posix.go   | 13 ++++++----
- src/pkg/net/unixsock_posix.go  | 17 ++++++-------
- 8 files changed, 95 insertions(+), 74 deletions(-)
+ .hgignore    | 2 ++
+ src/run.bash | 1 +
+ 2 files changed, 3 insertions(+)

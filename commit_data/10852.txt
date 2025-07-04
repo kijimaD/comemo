@@ -1,42 +1,16 @@
-commit 541b67d051fbd26f3727d4d13c6d2b025af8a775
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 16 15:43:06 2011 -0800
+commit 72bdd8683506807a16b20f5e1be8740e2c258a73
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 16 18:31:09 2011 -0500
 
-    go/printer, gofmt: fine tuning of line spacing
+    runtime: fix build on gri's machine
     
-    - no empty lines inside empty structs and interfaces
-    - top-level declarations are separated by a blank line if
-      a) they are of different kind (e.g. const vs type); or
-      b) there are documentation comments associated with a
-         declaration (this is new)
-    - applied gofmt -w misc src
+    Why it was not failing anywhere else I don't know,
+    but the Makefile was definitely wrong.  The rules
+    must not run in parallel.
     
-    The actual changes are in go/printer/nodes.go:397-400 (empty structs/interfaces),
-    and go/printer/printer.go:307-309 (extra line break). The remaining
-    changes are cleanups w/o changing the existing functionality.
-    
-    Fixes issue  2570.
-    
-    R=rsc
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/5493057
+    https://golang.org/cl/5489069
 
- src/cmd/gofix/testdata/reflect.type.go.in       |  1 +
- src/cmd/gofix/testdata/reflect.type.go.out      |  1 +
- src/pkg/crypto/openpgp/keys.go                  |  1 +
- src/pkg/crypto/x509/x509.go                     |  1 +
- src/pkg/encoding/gob/codec_test.go              |  3 ++
- src/pkg/encoding/gob/type.go                    |  1 +
- src/pkg/exp/ssh/tcpip.go                        |  1 +
- src/pkg/go/printer/nodes.go                     | 18 +++++++---
- src/pkg/go/printer/printer.go                   | 45 ++++++++++++++++++-------
- src/pkg/go/printer/testdata/comments.golden     |  5 +--
- src/pkg/go/printer/testdata/comments.input      |  6 ++--
- src/pkg/go/printer/testdata/declarations.golden | 21 ++++++++++++
- src/pkg/go/printer/testdata/declarations.input  | 26 ++++++++++++++
- src/pkg/log/syslog/syslog.go                    |  4 +++
- src/pkg/math/all_test.go                        |  4 +++
- src/pkg/math/sin.go                             |  1 +
- src/pkg/net/ipraw_test.go                       |  1 +
- src/pkg/sort/sort.go                            |  4 +++
- 18 files changed, 122 insertions(+), 22 deletions(-)
+ src/pkg/runtime/Makefile.auto | 29 ++++++-----------------------
+ 1 file changed, 6 insertions(+), 23 deletions(-)

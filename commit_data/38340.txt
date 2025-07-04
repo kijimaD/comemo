@@ -1,29 +1,23 @@
-commit fd080ea3bcc2b170b787b38ab7920d170ca65682
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 15 17:06:57 2019 -0500
+commit ce4ef9addd0934997c4d1272ccfe8eab4eaaa8d6
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 17:15:49 2018 +0200
 
-    cmd/go: resolve non-standard imports from within GOROOT/src using vendor directories
+    cmd/cgo: add AIX operating system
     
-    Updates #30228
-    Fixes #26924
+    This commit adds AIX operating system to cmd/cgo package for ppc64
+    architecture.
     
-    Change-Id: Ie625c64721559c7633396342320536396cd1fcf5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164621
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    It doesn't fully adapt cgo tool to AIX. But it allows to use
+    go tool cgo -godefs which is really usefull for others packages.
+    
+    Update: #25893
+    
+    Change-Id: I38e289cf0122d143ba100986d08229b51b03ddfc
+    Reviewed-on: https://go-review.googlesource.com/c/138731
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go                   |  2 +-
- src/cmd/go/internal/load/pkg.go                  | 38 +++++-----
- src/cmd/go/internal/modload/build.go             |  3 -
- src/cmd/go/internal/modload/import.go            | 13 ++++
- src/cmd/go/internal/modload/init.go              |  6 ++
- src/cmd/go/internal/modload/load.go              | 93 +++++++++++++++++++++---
- src/cmd/go/internal/modload/query.go             |  5 ++
- src/cmd/go/internal/modload/search.go            | 30 ++++----
- src/cmd/go/testdata/script/gopath_std_vendor.txt |  3 +
- src/cmd/go/testdata/script/mod_list_std.txt      | 57 +++++++++++++++
- src/cmd/go/testdata/script/mod_patterns.txt      |  3 +-
- src/cmd/go/testdata/script/mod_std_vendor.txt    | 60 ++++++++++++++-
- src/cmd/go/testdata/script/std_vendor.txt        | 19 +++++
- 13 files changed, 276 insertions(+), 56 deletions(-)
+ src/cmd/cgo/gcc.go | 76 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/cgo/out.go | 21 ++++++++++++++-
+ 2 files changed, 95 insertions(+), 2 deletions(-)

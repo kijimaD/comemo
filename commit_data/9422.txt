@@ -1,26 +1,12 @@
-commit 72ddc87681630bac29060a6effd8289c873f31bb
+commit fd897ffc68022f436e328acfe47807e0b5ec18dc
 Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Aug 20 12:30:26 2011 -0700
+Date:   Fri Aug 19 09:31:50 2011 -0700
 
-    godoc: remove uses of container/vector
+    type switches: test for pathological case
     
-    In the process, rewrite index.go to use slices instead
-    of vectors, rewrite for-loops into range loops, and
-    generally simplify code (this code was written before
-    the launch of go and showed its age).
-    
-    Also, fix a wrong import in appinit.go.
-    
-    No significant performance changes (improvements);
-    most of time is spent elsewhere (measured on an stand-
-    alone MacBook Pro with SSD disk, running standard
-    godoc settings: godoc -v -http=:7777 -index).
-    
-    R=golang-dev, dsymonds
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4875056
+    https://golang.org/cl/4894057
 
- src/cmd/godoc/appinit.go  |   2 +-
- src/cmd/godoc/codewalk.go |   7 +-
- src/cmd/godoc/index.go    | 183 +++++++++++++++++++++-------------------------
- 3 files changed, 87 insertions(+), 105 deletions(-)
+ test/typeswitch2.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

@@ -1,12 +1,12 @@
-commit 89cc4d78146b6969e94ee15c929a7db0a635f20d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Jan 29 22:57:19 2011 +1100
+commit 6606995c9135c36c7c49af030673baee506790b6
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Fri Jan 28 23:44:37 2011 -0500
 
-    runtime/cgo: fix cross-compiling windows packages
+    fix windows build
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4073043
+    https://golang.org/cl/4124041
 
- src/pkg/runtime/cgo/Makefile | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/windows/mem.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

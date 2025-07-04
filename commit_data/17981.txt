@@ -1,12 +1,12 @@
-commit 74a43546b03e521eb70a3bfd6a84123ffc4e12c2
+commit c0946afb9c6281987692da33679d021ca2487339
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 12 19:01:50 2013 -0800
+Date:   Thu Dec 12 18:54:48 2013 -0800
 
-    .hgignore: remove duplicate entry
+    reflect: correct function name in panic string
     
-    R=golang-dev, adg
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/40690048
+    https://golang.org/cl/36840045
 
- .hgignore | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/reflect/makefunc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

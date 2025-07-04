@@ -1,18 +1,15 @@
-commit e88e7ed6ba2efd7cffacdd1c3bb1e94d64795af0
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Apr 2 19:43:39 2014 +0900
+commit f4ef6977ffab6c741b059d03147562e7c5901c0c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Apr 2 10:19:28 2014 +0400
 
-    net: enable unixpacket test on available platforms
+    runtime: ignore pointers to global objects in SetFinalizer
+    Update #7656
     
-    DragonFlyBSD, FreeBSD 9 and beyond, NetBSD 6 and beyond, and
-    Solaris (illumos) support AF_UNIX+SOCK_SEQPACKET socket.
-    
-    LGTM=dave
-    R=golang-codereviews, dave
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/83390043
+    https://golang.org/cl/82560043
 
- src/pkg/net/conn_test.go      | 23 ++++++------
- src/pkg/net/protoconn_test.go |  2 +-
- src/pkg/net/server_test.go    | 84 +++++++++++++++++++++----------------------
- 3 files changed, 56 insertions(+), 53 deletions(-)
+ src/pkg/runtime/malloc.goc     | 11 ++++++++++-
+ src/pkg/runtime/mfinal_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

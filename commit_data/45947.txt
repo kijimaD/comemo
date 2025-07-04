@@ -1,23 +1,16 @@
-commit 7ba8e796c91eaf4befcacc4d24127ae54475d6a5
-Author: Changkun Ou <hi@changkun.de>
-Date:   Mon Jul 26 15:04:48 2021 +0200
+commit 45f3b646d42d73a8a54c81ada0ef1ffc11dce592
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 29 23:06:02 2020 -0500
 
-    testing: clarify T.Name returns a distinct name of the running test
+    [dev.regabi] cmd/compile: add OSTMTEXPR Op
     
-    According to the discussion, it is clear that T.Name returns a
-    distinct name among all tests. However, there is no specification
-    of how sub-tests with the same specified test name are constructed.
-    This change only clarifies the uniqueness and the components of the
-    name without suggesting any explicit format of the returned name.
+    This CL only adds the new constant, which is not safe for toolstash -cmp.
     
-    Fixes #46488
-    
-    Change-Id: I6cebd419b69fb08d8646cb744a129548452042ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337392
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I774463a0ab5f57113d67a8888b6ac787be68510c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274110
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/testing/testing.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/node.go      |  1 +
+ src/cmd/compile/internal/ir/op_string.go | 87 ++++++++++++++++----------------
+ 2 files changed, 45 insertions(+), 43 deletions(-)

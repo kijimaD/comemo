@@ -1,12 +1,18 @@
-commit 4a4fa38d0e86064c6fec9e0fa9f60cb1782bcaff
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Aug 24 11:05:45 2011 +0200
+commit 00d64c723947593f3957d43b18d65cd58d4aff44
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 23 22:50:08 2011 -0400
 
-    exp/norm: Reduced the size of the byte buffer used by reorderBuffer by half by reusing space when combining.
+    reflect: add Value.Bytes, Value.SetBytes methods
+    
+    This allows code that wants to handle
+    []byte separately to get at the actual slice
+    instead of just at individual bytes.
+    It seems to come up often enough.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4939042
+    https://golang.org/cl/4942051
 
- src/pkg/exp/norm/composition.go | 34 ++++++++++++++++++----------------
- 1 file changed, 18 insertions(+), 16 deletions(-)
+ src/pkg/reflect/all_test.go | 25 +++++++++++++++++++++++++
+ src/pkg/reflect/value.go    | 25 +++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)

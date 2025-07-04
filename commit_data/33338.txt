@@ -1,22 +1,23 @@
-commit f1ce59d988f02deb47c3fd33cbc40542726ea76c
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Sat Oct 28 20:50:57 2017 -0400
+commit 6661cf6dfd91dc3dd5d233e8bdb9f2d60829c68e
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Mon Jul 10 15:28:27 2017 -0300
 
-    encoding/json: Include the offset of a SyntaxError
+    runtime, internal/cpu: CPU capabilities detection for ppc64x
     
-    When a SyntaxError occurs, report the current offset within the stream.
-    The code already accounted for the offset within the current buffer
-    being scanned. By including how much data was already scanned, the
-    current offset can be computed.
+    This change replaces the current runtime capabilities check for ppc64x with the
+    new internal/cpu package. It also adds support for the new POWER9 ISA and
+    capabilities.
     
-    Fixes #22478
+    Updates #15403
     
-    Change-Id: I91ecd4cad0b85a5c1556bc597f3ee914e769af01
-    Reviewed-on: https://go-review.googlesource.com/74251
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5b64a79e782f8da3603e5529600434f602986292
+    Reviewed-on: https://go-review.googlesource.com/53830
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/encoding/json/stream.go      | 34 ++++++++++++++++------------------
- src/encoding/json/stream_test.go | 21 ++++++++++++++-------
- 2 files changed, 30 insertions(+), 25 deletions(-)
+ src/internal/cpu/cpu.go         | 25 +++++++++++++++++++
+ src/internal/cpu/cpu_ppc64.go   |  7 ------
+ src/internal/cpu/cpu_ppc64le.go |  7 ------
+ src/internal/cpu/cpu_ppc64x.go  | 54 +++++++++++++++++++++++++++++++++++++++++
+ src/internal/cpu/cpu_test.go    | 23 ++++++++++++++++++
+ src/runtime/os_linux_ppc64x.go  | 53 ++++++++--------------------------------
+ 6 files changed, 112 insertions(+), 57 deletions(-)

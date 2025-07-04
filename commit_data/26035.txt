@@ -1,18 +1,18 @@
-commit 686fbdb3b0c228f4c990dbb6b2f2dbe1df4c7cfd
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 3 09:53:03 2016 -0800
+commit 0954c80114ab3e80ea5ea391ef87be96ed7fd9cf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 14 18:30:24 2015 +0000
 
-    cmd/compile: make compilation deterministic, fixes toolstash
+    net/http: update bundled http2 copy from x/net/http2
     
-    Make sure we don't depend on map iterator order.
+    Updates to x/net git rev 6c105c0a
     
-    Fixes #14600
+    Fixes #13598
     
-    Change-Id: Iac0e0c8689f3ace7a4dc8e2127e2fd3c8545bd29
-    Reviewed-on: https://go-review.googlesource.com/20158
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I207d4c78d744f0fd83cb5acd8bd6e5987e59a4f7
+    Reviewed-on: https://go-review.googlesource.com/17756
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/print.go    |  4 ++--
- src/cmd/compile/internal/ssa/regalloc.go | 20 ++++++++++++++------
- 2 files changed, 16 insertions(+), 8 deletions(-)
+ src/net/http/h2_bundle.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

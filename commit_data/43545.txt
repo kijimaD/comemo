@@ -1,18 +1,22 @@
-commit de477138d1b11982e86d8d0898e2a471771899b6
-Author: Ayzat Sadykov <ayzat.ziko.93@gmail.com>
-Date:   Sat Oct 24 22:11:51 2020 +0000
+commit 83bfe3b1bf25021d0a33352bed12696f5abe420a
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Apr 11 15:38:51 2020 -0700
 
-    database/sql: fix comment on DB.stop()
+    doc/go1.15, net/url: document new method URL.Redacted
     
-    Previously, 2 goroutines were created in OpenDB and a comment in the DB.close() field indicated that they were canceled. Later, session Resetter () was removed, but the comment remained the same. This commit just fixes this message
+    Adds an entry in the Go1.15 release notes, but also
+    adds an example test for URL.Redacted.
     
-    Change-Id: Ie81026f51d7770e9cf8004818154021f626fb2e8
-    GitHub-Last-Rev: 38b338a0d1cd713d71fa547aa842d395e6d75484
-    GitHub-Pull-Request: golang/go#42191
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264838
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Follow-up of CL 207082.
+    
+    Updates #37419
+    
+    Change-Id: Ibf81989778907511a3a3a3e4a03d1802b5dd9762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227997
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/sql.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.15.html             | 10 ++++++++++
+ src/net/url/example_test.go | 15 +++++++++++++++
+ 2 files changed, 25 insertions(+)

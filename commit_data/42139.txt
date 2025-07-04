@@ -1,14 +1,22 @@
-commit 9b9556f6604c1426bc28a77ca9be6ce316ca1e6e
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Sun Apr 26 15:47:18 2020 +0800
+commit f511467532f7b0009b6eff7752f2250e7f63ab12
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Nov 9 00:21:02 2019 +0000
 
-    cmd/link: use definition from debug/elf for ldelf
+    runtime: fix min/max logic in findScavengeCandidate
     
-    Change-Id: I92d0fb3a244d0151fcc4b25a20913ad69a89f198
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224977
-    Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Before this CL, if max > min and max was unaligned to min, then the
+    function could return an unaligned (unaligned to min) region to
+    scavenge. On most platforms, this leads to some kind of crash.
+    
+    Fix this by explicitly aligning max to the next multiple of min.
+    
+    Fixes #35445.
+    Updates #35112.
+    
+    Change-Id: I0af42d4a307b48a97e47ed152c619d77b0298291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206277
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/loadelf/ldelf.go | 454 +++++++++------------------------
- 1 file changed, 120 insertions(+), 334 deletions(-)
+ src/runtime/mgcscavenge.go      | 18 ++++++++++++------
+ src/runtime/mgcscavenge_test.go | 12 ++++++++++++
+ 2 files changed, 24 insertions(+), 6 deletions(-)

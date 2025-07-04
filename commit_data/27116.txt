@@ -1,20 +1,16 @@
-commit 0b8c0767d0b95066734647edeb5a252c270a4a1a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 25 14:39:51 2016 -0700
+commit 2ac8555d57f7317590e0b0ff709c2be2674e70cc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 11 11:58:06 2016 -0800
 
-    cmd/compile: for now, keep parameter numbering in binary export format
+    cmd/link: tidy up rdsym
     
-    The numbering is only required for parameters of functions/methods
-    with exported inlineable bodies. For now, always export parameter names
-    with internal numbering to minimize the diffs between assembly code
-    dumps of code compiled with the textual vs the binary format.
+    Use an early return. Check errors. Deduplicate.
     
-    To be disabled again once the new export format is default.
-    
-    Change-Id: I6d14c564e734cc5596c7e995d8851e06d5a35013
-    Reviewed-on: https://go-review.googlesource.com/22441
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iabefd563b5ef82a16fab4791277630804fd09003
+    Reviewed-on: https://go-review.googlesource.com/20597
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 9 ++++++++-
- src/go/internal/gcimporter/bimport.go  | 4 ++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/objfile.go | 38 +++++++++++++++++++++----------------
+ 1 file changed, 22 insertions(+), 16 deletions(-)

@@ -1,31 +1,33 @@
-commit 7cd6cae6a63f09caa88bbcc394053b40cdeeccd1
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sun May 29 00:47:45 2016 -0700
+commit ed8f0e5c33269de2f950d33ab7d50554b13f336e
+Author: Christopher Nelson <nadiasvertex@gmail.com>
+Date:   Sun Dec 13 08:02:29 2015 -0500
 
-    compress/flate: use seperate const block for exported constants
+    cmd/go: fix -buildmode=c-archive should work on windows
     
-    As rendered on https://tip.golang.org/pkg/compress/flate/, there is an
-    extra new-line because of the unexported constants in the same block.
+    Add supporting code for runtime initialization, including both
+    32- and 64-bit x86 architectures.
     
-    <<<
-    const (
-        NoCompression      = 0
-        BestSpeed          = 1
-        BestCompression    = 9
-        DefaultCompression = -1
-        HuffmanOnly        = -2 // Disables match search and only does Huffman entropy reduction.
+    Add .ctors section on Windows to PE .o files, and INITENTRY to .ctors
+    section to plug in to the GCC C/C++ startup initialization mechanism.
+    This allows the Go runtime to initialize itself. Add .text section
+    symbol for .ctor relocations. Note: This is unlikely to be useful for
+    MSVC-based toolchains.
     
-    )
-    >>>
+    Fixes #13494
     
-    Instead, seperate the exported compression level constants into its own
-    const block. This is both more readable and also fixes the issue.
-    
-    Change-Id: I60b7966c83fb53356c02e4640d05f55a3bee35b7
-    Reviewed-on: https://go-review.googlesource.com/23557
+    Change-Id: I4286a96f70e5f5228acae88eef46e2bed95813f3
+    Reviewed-on: https://go-review.googlesource.com/18057
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/compress/flate/deflate.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go             |  7 +-
+ src/cmd/dist/test.go                               |  2 +-
+ src/cmd/link/internal/ld/data.go                   |  6 ++
+ src/cmd/link/internal/ld/lib.go                    | 16 ++++-
+ src/cmd/link/internal/ld/pe.go                     | 71 ++++++++++++++++++-
+ src/runtime/cgo/gcc_libinit_windows.c              | 80 ++++++++++++++++++++--
+ src/runtime/os1_windows.go                         | 16 ++++-
+ src/runtime/rt0_windows_386.s                      | 34 +++++++++
+ src/runtime/rt0_windows_amd64.s                    | 31 +++++++++
+ .../testdata/testprogcgo/threadpanic_windows.c     |  3 +-
+ 10 files changed, 248 insertions(+), 18 deletions(-)

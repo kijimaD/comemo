@@ -1,25 +1,102 @@
-commit 0d4ea0c70d2c8fbdf1f9263f919c79c33b4ce8e0
-Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
-Date:   Thu Dec 18 21:33:34 2014 +0100
+commit 656be317d06cd5f2fefc728e9b33475688bdda40
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 12 14:54:31 2014 -0500
 
-    mime/multipart: moved some code to mime/internal/quotedprintable
+    [dev.cc] runtime: delete scalararg, ptrarg; rename onM to systemstack
     
-    The code concerning quoted-printable encoding (RFC 2045) and its
-    variant for MIME headers (RFC 2047) is currently spread in
-    mime/multipart and net/mail. It is also not exported.
+    Scalararg and ptrarg are not "signal safe".
+    Go code filling them out can be interrupted by a signal,
+    and then the signal handler runs, and if it also ends up
+    in Go code that uses scalararg or ptrarg, now the old
+    values have been smashed.
+    For the pieces of code that do need to run in a signal handler,
+    we introduced onM_signalok, which is really just onM
+    except that the _signalok is meant to convey that the caller
+    asserts that scalarg and ptrarg will be restored to their old
+    values after the call (instead of the usual behavior, zeroing them).
     
-    This commit is the first step to fix that issue. It moves the
-    quoted-printable decoding code from mime/multipart to
-    mime/internal/quotedprintable. The exposed API is unchanged.
+    Scalararg and ptrarg are also untyped and therefore error-prone.
     
-    Concerns #4943.
+    Go code can always pass a closure instead of using scalararg
+    and ptrarg; they were only really necessary for C code.
+    And there's no more C code.
     
-    Change-Id: I11352afbb2edb4d6ef62870b9bc5c87c639eff12
-    Reviewed-on: https://go-review.googlesource.com/1810
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For all these reasons, delete scalararg and ptrarg, converting
+    the few remaining references to use closures.
+    
+    Once those are gone, there is no need for a distinction between
+    onM and onM_signalok, so replace both with a single function
+    equivalent to the current onM_signalok (that is, it can be called
+    on any of the curg, g0, and gsignal stacks).
+    
+    The name onM and the phrase 'm stack' are misnomers,
+    because on most system an M has two system stacks:
+    the main thread stack and the signal handling stack.
+    
+    Correct the misnomer by naming the replacement function systemstack.
+    
+    Fix a few references to "M stack" in code.
+    
+    The main motivation for this change is to eliminate scalararg/ptrarg.
+    Rick and I have already seen them cause problems because
+    the calling sequence m.ptrarg[0] = p is a heap pointer assignment,
+    so it gets a write barrier. The write barrier also uses onM, so it has
+    all the same problems as if it were being invoked by a signal handler.
+    We worked around this by saving and restoring the old values
+    and by calling onM_signalok, but there's no point in keeping this nice
+    home for bugs around any longer.
+    
+    This CL also changes funcline to return the file name as a result
+    instead of filling in a passed-in *string. (The *string signature is
+    left over from when the code was written in and called from C.)
+    That's arguably an unrelated change, except that once I had done
+    the ptrarg/scalararg/onM cleanup I started getting false positives
+    about the *string argument escaping (not allowed in package runtime).
+    The compiler is wrong, but the easiest fix is to write the code like
+    Go code instead of like C code. I am a bit worried that the compiler
+    is wrong because of some use of uninitialized memory in the escape
+    analysis. If that's the reason, it will go away when we convert the
+    compiler to Go. (And if not, we'll debug it the next time.)
+    
+    LGTM=khr
+    R=r, khr
+    CC=austin, golang-codereviews, iant, rlh
+    https://golang.org/cl/174950043
 
- src/go/build/deps_test.go                                           | 2 +-
- src/mime/{multipart => internal/quotedprintable}/quotedprintable.go | 4 ++--
- .../{multipart => internal/quotedprintable}/quotedprintable_test.go | 6 +++---
- src/mime/multipart/multipart.go                                     | 3 ++-
- 4 files changed, 8 insertions(+), 7 deletions(-)
+ src/runtime/asm_386.s        | 53 ++++++++++++++---------------------
+ src/runtime/asm_amd64.s      | 52 +++++++++++++---------------------
+ src/runtime/asm_amd64p32.s   | 43 ++++++++++-------------------
+ src/runtime/asm_arm.s        | 53 ++++++++++++++---------------------
+ src/runtime/atomic_arm.go    | 10 +++----
+ src/runtime/cgocall.go       |  4 +--
+ src/runtime/cpuprof.go       |  6 ++--
+ src/runtime/debug.go         |  4 +--
+ src/runtime/export_test.go   | 14 +++++-----
+ src/runtime/extern.go        |  3 +-
+ src/runtime/heapdump.go      |  8 ++----
+ src/runtime/malloc.go        | 47 +++++++++++++------------------
+ src/runtime/mcache.go        |  2 +-
+ src/runtime/mem.go           | 18 ++++++------
+ src/runtime/mgc.go           | 60 +++++++++++-----------------------------
+ src/runtime/mgc0.go          |  2 +-
+ src/runtime/mheap.go         | 10 +++----
+ src/runtime/mprof.go         | 18 ++++++------
+ src/runtime/netpoll.go       |  8 +++---
+ src/runtime/os1_darwin.go    |  8 +++---
+ src/runtime/os1_freebsd.go   |  4 +--
+ src/runtime/os1_linux.go     |  2 +-
+ src/runtime/panic.go         | 20 +++++++-------
+ src/runtime/panic1.go        | 11 ++------
+ src/runtime/proc.go          |  4 +--
+ src/runtime/proc1.go         | 55 +++++++++++++++++-------------------
+ src/runtime/race.go          |  4 +--
+ src/runtime/runtime2.go      |  2 --
+ src/runtime/signal.go        | 15 ----------
+ src/runtime/signal_unix.go   |  2 +-
+ src/runtime/sigqueue.go      | 16 ++---------
+ src/runtime/softfloat_arm.go |  2 +-
+ src/runtime/stack1.go        |  6 ++--
+ src/runtime/stubs.go         | 66 +++++++++++++-------------------------------
+ src/runtime/symtab.go        | 19 ++++++-------
+ src/runtime/traceback.go     | 30 ++++++++++----------
+ 36 files changed, 259 insertions(+), 422 deletions(-)

@@ -1,15 +1,19 @@
-commit 93368be61ebaf8069d0d70034097de580441c412
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Apr 8 20:37:54 2016 +1000
+commit 071e43a95809030d3a74b3d526da1497d02d17e4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 26 01:37:28 2016 -0800
 
-    cmd/internal/bio: embed bufio.{Reader,Writer} in bio.{Reader,Writer}
+    cmd/compile: stop representing keywords as Syms
     
-    Change-Id: Ie95b0b0d4f724f4769cf2d4f8063cb5019fa9bc9
-    Reviewed-on: https://go-review.googlesource.com/21781
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Instead add a dedicated keywords map for use in lexer.ident and drop
+    Sym's Lexical field.
+    
+    Change-Id: Ia668e65499035ff7167fabbbd0cd027102b21231
+    Reviewed-on: https://go-review.googlesource.com/19935
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/export.go |  2 +-
- src/cmd/internal/bio/buf.go           | 56 ++++++++---------------------------
- src/cmd/internal/obj/objfile.go       |  2 +-
- src/cmd/link/internal/ld/objfile.go   |  2 +-
- 4 files changed, 16 insertions(+), 46 deletions(-)
+ src/cmd/compile/internal/gc/go.go   |   3 +-
+ src/cmd/compile/internal/gc/lex.go  | 206 ++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/subr.go |   5 +-
+ 3 files changed, 104 insertions(+), 110 deletions(-)

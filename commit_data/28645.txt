@@ -1,17 +1,17 @@
-commit 39055700b1c69e791405518a914017b8c5551436
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 3 11:40:43 2016 -0700
+commit 109823ec93e690f2a401c316210ee86bde53d6bf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 20 13:30:04 2016 +1000
 
-    cmd/compile: ignore struct tags when converting structs
+    cmd/go: for generate, use build context values for GOOS/GOARCH
     
-    Implementation of spec change https://golang.org/cl/24190/.
+    Fixes #16120
     
-    For #16085.
-    
-    Change-Id: Id71ef29af5031b073e8be163f578d1bb768ff97a
-    Reviewed-on: https://go-review.googlesource.com/30169
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia352558231e00baab5c698e93d7267564c07ec0c
+    Reviewed-on: https://go-review.googlesource.com/24242
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/subr.go |  29 ++--
- test/convert2.go                    | 315 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 332 insertions(+), 12 deletions(-)
+ src/cmd/go/generate.go |  5 ++---
+ src/cmd/go/go_test.go  | 24 ++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)

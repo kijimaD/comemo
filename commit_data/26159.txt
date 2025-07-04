@@ -1,36 +1,34 @@
-commit c52cb1fe9ef1cab19ce8de6c4da93a9d2287cc1e
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Mar 9 14:33:28 2016 +1100
+commit 7d9f1067d1c8a2d0252fa2a115f1d016f94f7087
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Dec 17 10:01:24 2015 -0800
 
-    compress/flate: take NewWriter out of the benchmark loop.
+    [dev.ssa] cmd/compile: better register allocator
     
-    This helps follow-up CLs ensure that the encoding's core computation does not
-    allocate. It is a separate CL because it has a non-trivial effect on the
-    benchmark numbers, even if it's purely an accounting change and not a change to
-    the underlying performance:
+    Reorder how register & stack allocation is done.  We used to allocate
+    registers, then fix up merge edges, then allocate stack slots.  This
+    lead to lots of unnecessary copies on merge edges:
     
-    BenchmarkEncodeDigitsSpeed1e4-4        5.65         19.31        3.42x
-    BenchmarkEncodeDigitsSpeed1e5-4        17.23        26.79        1.55x
-    BenchmarkEncodeDigitsSpeed1e6-4        26.85        27.51        1.02x
-    BenchmarkEncodeDigitsDefault1e4-4      4.41         13.21        3.00x
-    BenchmarkEncodeDigitsDefault1e5-4      5.64         6.28         1.11x
-    BenchmarkEncodeDigitsDefault1e6-4      5.54         5.65         1.02x
-    BenchmarkEncodeDigitsCompress1e4-4     4.31         13.15        3.05x
-    BenchmarkEncodeDigitsCompress1e5-4     5.52         5.91         1.07x
-    BenchmarkEncodeDigitsCompress1e6-4     5.38         5.63         1.05x
-    BenchmarkEncodeTwainSpeed1e4-4         5.45         19.06        3.50x
-    BenchmarkEncodeTwainSpeed1e5-4         17.30        29.25        1.69x
-    BenchmarkEncodeTwainSpeed1e6-4         28.06        30.86        1.10x
-    BenchmarkEncodeTwainDefault1e4-4       4.06         12.36        3.04x
-    BenchmarkEncodeTwainDefault1e5-4       6.15         7.62         1.24x
-    BenchmarkEncodeTwainDefault1e6-4       6.84         6.99         1.02x
-    BenchmarkEncodeTwainCompress1e4-4      4.06         12.27        3.02x
-    BenchmarkEncodeTwainCompress1e5-4      5.29         5.92         1.12x
-    BenchmarkEncodeTwainCompress1e6-4      5.24         5.29         1.01x
+    v2 = LoadReg v1
+    v3 = StoreReg v2
     
-    Change-Id: I7d32866b7e2d478b0154332c1edeefe339af9a28
-    Reviewed-on: https://go-review.googlesource.com/20467
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    If v1 and v3 are allocated to the same stack slot, then this code is
+    unnecessary.  But at regalloc time we didn't know the homes of v1 and
+    v3.
+    
+    To fix this problem, allocate all the stack slots before fixing up the
+    merge edges.  That way, we know what stack slots values use so we know
+    what copies are required.
+    
+    Use a good technique for shuffling values around on merge edges.
+    
+    Improves performance of the go1 TimeParse benchmark by ~12%
+    
+    Change-Id: I731f43e4ff1a7e0dc4cd4aa428fcdb97812b86fa
+    Reviewed-on: https://go-review.googlesource.com/17915
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/compress/flate/writer_test.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go    |   3 -
+ src/cmd/compile/internal/ssa/flagalloc.go  |   9 -
+ src/cmd/compile/internal/ssa/regalloc.go   | 898 ++++++++++++++++++++---------
+ src/cmd/compile/internal/ssa/stackalloc.go | 297 +++++-----
+ 4 files changed, 793 insertions(+), 414 deletions(-)

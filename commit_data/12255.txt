@@ -1,15 +1,16 @@
-commit 26daf6a03f7c44b04b3654f6bda1f4a11fbf9df1
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Feb 29 02:22:28 2012 +0800
+commit fb1a5fcacf837f1004cebc392dfbc2594c2ead65
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Tue Feb 28 11:34:48 2012 -0500
 
-    cmd/dist: force line-buffering stdout/stderr on Unix
-            If stdout and stderr are indeed the same file (not a tty), which is
-            often the case, fully-buffered stdout will make it harder to see
-            progresses, for example, ./make.bash 2>&1 | tee log
+    crypto/tls: force OS X target version to 10.6 for API compatibility
     
-    R=r, rsc
+    This is a band-aid until we can use weak imports with cgo.
+    
+    Fixes #3131.
+    
+    R=minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/5700070
+    https://golang.org/cl/5700083
 
- src/cmd/dist/unix.c | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/crypto/tls/root_darwin.go | 32 ++++++++------------------------
+ 1 file changed, 8 insertions(+), 24 deletions(-)

@@ -1,20 +1,28 @@
-commit 3148694f607b77731420a20ef2117ac7d0d55ba3
-Author: Tim Heckman <t@heckman.io>
-Date:   Thu May 20 16:51:28 2021 -0700
+commit 34c09695db93218217703362135c6fede35535e0
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Nov 5 10:08:11 2020 -0500
 
-    cmd/go: remove warning from module deprecation notice printing
+    cmd/go: revert "add GOVCS setting to control version control usage"
     
-    Fixes #46294
+    This reverts CL 266420.
     
-    Change-Id: I50023006dab83dee455f98a702ca1c72e61764ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321649
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reason for revert: tests aren't passing on linux-{386,amd64}-longtest.
+    
+    Change-Id: Icec47cded795a51ef7569dfb2d93d9211b4fb578
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267799
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modget/get.go                    | 2 +-
- src/cmd/go/testdata/script/mod_deprecate_message.txt | 8 ++++----
- src/cmd/go/testdata/script/mod_get_deprecated.txt    | 8 ++++----
- 3 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/go/alldocs.go                 | 177 ++++++++++------------------------
+ src/cmd/go/internal/cfg/cfg.go        |   1 -
+ src/cmd/go/internal/envcmd/env.go     |   1 -
+ src/cmd/go/internal/help/helpdoc.go   |   2 +-
+ src/cmd/go/internal/modfetch/fetch.go |  13 +--
+ src/cmd/go/internal/modget/get.go     |  76 ---------------
+ src/cmd/go/internal/modload/help.go   |   2 +-
+ src/cmd/go/internal/vcs/vcs.go        | 144 ---------------------------
+ src/cmd/go/internal/vcs/vcs_test.go   | 104 --------------------
+ src/cmd/go/main.go                    |   3 +-
+ src/cmd/go/testdata/script/govcs.txt  | 174 ---------------------------------
+ src/internal/cfg/cfg.go               |   1 -
+ 12 files changed, 56 insertions(+), 642 deletions(-)

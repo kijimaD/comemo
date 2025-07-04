@@ -1,20 +1,25 @@
-commit cdc6aeb6730d9bf5ec8bdf1fa155834e6db11e95
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sun Sep 4 14:55:00 2022 +0000
+commit 52b10ab79451df78797b87e40eb9371127bad260
+Author: Charlotte Brandhorst-Satzkorn <charlotte@catzkorn.dev>
+Date:   Fri Oct 22 22:46:46 2021 -0400
 
-    internal: convert calls to atomic type
+    net/http: correct Content-Length parsing for js/wasm
     
-    For #53821
+    The Content-Length was incorrectly set to 0 for ill-formed and invalid
+    values. In these cases, return an error.
     
-    Change-Id: Iee8ccea714726bbb6a4b384887bb107c29b823a9
-    GitHub-Last-Rev: 119aad36245800115ea85b9748e61d7c75f20344
-    GitHub-Pull-Request: golang/go#54862
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428335
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    If the Content-Length header was omitted, it was incorrectly set to 0.
+    In this case, set the Content-Length value to -1.
+    
+    Fixes #49108
+    
+    Change-Id: I24fe9a31ed5b6ddb53f2b2bd10f2c84e428823e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358134
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: David Crawshaw <crawshaw@golang.org>
 
- src/internal/singleflight/singleflight_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/roundtrip_js.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

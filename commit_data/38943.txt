@@ -1,23 +1,25 @@
-commit cbf90b0028265a6195257e31a03aae42d402dd64
-Author: BigMikes <giulio.micheloni@gmail.com>
-Date:   Sun Dec 30 15:18:58 2018 +0100
+commit 6764d7aeacd24f48875ce88a8e3c789cedfb2e28
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Dec 11 14:24:07 2018 -0800
 
-    net: correct docs of KeepAlive field in Dialer type
+    runtime: fix profiling on windows/ARM
     
-    KeepAlive field used to report the wording "keep-alive period"
-    which may be misleading. This field does not represent the whole
-    TCP keepalive time, that is the inactivity period upon which one
-    endpoint starts probing the other end. But it acctually specifies
-    the keepalive interval, that is the time between two keepalive
-    probes.
+    Fix profiling handler to get the correct g for the m being profiled.
+    Store a pointer to the TLS slot holding g in the thread's m. This
+    enables the profiling handler to get the current g for the thread,
+    even if the thread is executing external code or system code.
     
-    Fixes #29089
+    Updates #26148
     
-    Change-Id: If99b38ba108830d0e5fe527171a2f5c96a3bcde7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/155960
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Signed-off-by: Jordan Rhee <jordanrh@microsoft.com>
+    
+    Change-Id: Ie061284c12341c76c7d96cc0c2d5bac969230829
+    Reviewed-on: https://go-review.googlesource.com/c/153718
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/dial.go                  | 13 +++++++------
- src/net/http/httputil/persist.go |  4 ++--
- src/net/tcpsock.go               |  4 ++--
- 3 files changed, 11 insertions(+), 10 deletions(-)
+ src/runtime/os_windows.go     | 16 ++------
+ src/runtime/sys_windows_arm.s | 95 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/tls_arm.s         | 45 ++------------------
+ 3 files changed, 101 insertions(+), 55 deletions(-)

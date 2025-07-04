@@ -1,39 +1,24 @@
-commit 276a52de55fb48c4e56a778f1f7cac9292d8fad7
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jul 18 21:40:02 2016 -0400
+commit a633d766d1763f4f4648e423c4e8a8635b183d03
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 6 08:51:16 2016 +0900
 
-    runtime: fetch physical page size from the OS
+    Revert "net: add support for Zone of IPNet"
     
-    Currently the physical page size assumed by the runtime is hard-coded.
-    On Linux the runtime at least fetches the OS page size during init and
-    sanity checks against the hard-coded value, but they may still differ.
-    On other OSes we wouldn't even notice.
+    Updates #14518.
     
-    Add support on all OSes to fetch the actual OS physical page size
-    during runtime init and lift the sanity check of PhysPageSize from the
-    Linux init code to general malloc init. Currently this is the only use
-    of the retrieved page size, but we'll add more shortly.
+    This reverts commit 3e9264c9ae781a2cd28127deaed6ae26f84b4b15.
     
-    Updates #12480 and #10180.
-    
-    Change-Id: I065f2834bc97c71d3208edc17fd990ec9058b6da
-    Reviewed-on: https://go-review.googlesource.com/25050
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I2531b04efc735b5b51ef675541172f2f5ae747d9
+    Reviewed-on: https://go-review.googlesource.com/22836
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/defs1_solaris_amd64.go |  1 +
- src/runtime/export_mmap_test.go    |  6 +++++
- src/runtime/malloc.go              | 22 +++++++++++++++++
- src/runtime/os3_solaris.go         |  9 +++++++
- src/runtime/os_darwin.go           | 22 ++++++++++++++++-
- src/runtime/os_dragonfly.go        | 17 +++++++++++--
- src/runtime/os_freebsd.go          | 17 +++++++++++--
- src/runtime/os_linux.go            | 12 +--------
- src/runtime/os_nacl.go             |  1 +
- src/runtime/os_netbsd.go           | 17 +++++++++++--
- src/runtime/os_openbsd.go          | 17 +++++++++++--
- src/runtime/os_plan9.go            | 50 ++++++++++++++++++++++++++++++++++++++
- src/runtime/os_windows.go          |  8 ++++++
- src/runtime/runtime_mmap_test.go   | 28 +++++++++++++++++++--
- 14 files changed, 205 insertions(+), 22 deletions(-)
+ src/net/interface_bsd.go     |  1 -
+ src/net/interface_linux.go   |  3 ---
+ src/net/interface_test.go    |  6 +-----
+ src/net/interface_windows.go |  3 ---
+ src/net/ip.go                | 14 ++++----------
+ src/net/ip_test.go           |  8 --------
+ 6 files changed, 5 insertions(+), 30 deletions(-)

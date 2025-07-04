@@ -1,15 +1,22 @@
-commit a1c3e24b5466ede5dd2d817cadc6d91d1ae56f18
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Sep 4 18:19:44 2024 -0700
+commit c0eea2d16dc944305927de06e2a9f6bdc92b4697
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Aug 4 15:47:36 2023 +0200
 
-    cmd/internal/objabi: use sync.OnceValue
+    doc/go1.21: update crypto release notes
     
-    Change-Id: I09c134fff728d32c5bc475889b8c673cc18120a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611041
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Left out the following commits that felt more bug-fixy.
+    
+    * f0de4b4f03 - crypto/x509: fix certificate validation with FQDN on Windows <Patryk Chelmecki>
+    * 20e08fe68c - crypto/tls: advertise correct ciphers in TLS 1.3 only mode <Monis Khan>
+    * 295c237b4d - crypto/tls: enforce 1.3 record version semantics <Roland Shoemaker>
+    
+    Change-Id: Idd38b5c6897130424a0e8b857f371d7d384fc143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515955
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/internal/objabi/pkgspecial.go | 63 +++++++++++++++++------------------
- 1 file changed, 30 insertions(+), 33 deletions(-)
+ doc/go1.21.html | 63 +++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 50 insertions(+), 13 deletions(-)

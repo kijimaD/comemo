@@ -1,0 +1,25 @@
+commit 0b57881571a78e3ee9fe9001d1d7d4cc48fdc32d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 22 12:51:03 2024 +0200
+
+    crypto/tls: move defaults into defaults.go
+    
+    Fixes #65265
+    Updates #60790
+    
+    Change-Id: Iaa5f475d614d3ed87f091c93a3f888b7eb3433f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587296
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Derek Parker <parkerderek86@gmail.com>
+
+ src/crypto/tls/auth.go          |   2 +-
+ src/crypto/tls/boring.go        |  89 ++-------------------------------
+ src/crypto/tls/boring_test.go   |   6 +--
+ src/crypto/tls/cipher_suites.go |  30 -----------
+ src/crypto/tls/common.go        |  77 ++++++++++++++---------------
+ src/crypto/tls/defaults.go      | 107 ++++++++++++++++++++++++++++++++++++++++
+ src/crypto/tls/notboring.go     |  11 -----
+ 7 files changed, 152 insertions(+), 170 deletions(-)

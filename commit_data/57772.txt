@@ -1,20 +1,33 @@
-commit 0addb2a4ea77b3e8b08a02966e381a812082f58b
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Aug 6 11:02:35 2024 +0200
+commit 08bf6d14053fe861811e244156d451098c34c13f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 26 16:37:24 2023 -0700
 
-    runtime: document that Caller and Frame.File always use forward slashes
+    cmd/compile/internal/ir: drop Inl.Body
     
-    Document that Caller and Frame.File always use forward slashes
-    as path separators, even on Windows.
+    We don't actually depend on Inl.Body anywhere, except it implicitly
+    serves to indicate whether Inl.Dcl has been populated. So replace it
+    with a boolean so we don't need to keep a useless copy of every
+    inlinable function body in memory.
     
-    Fixes #3335
+    While here, also add some Fatalfs to make sure there are no unused
+    local variables. The unified frontend now omits unreachable code
+    during export data writing, so there shouldn't be unused local
+    variables.
     
-    Change-Id: Ic5bbf8a1f14af64277dca4783176cd8f70726b91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603275
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Also, since unified IR uses the same code/data to construct the
+    original function as inlined and/or imported functions, the Dcl list
+    should always be the same, which addresses the real root issue (i.e.,
+    that export/import could skew the Dcl lists).
+    
+    Change-Id: I6e3435f3a0352f6efbae787344006efac1891e84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523315
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/extern.go | 9 +++++----
- src/runtime/symtab.go | 3 ++-
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/inline/inl.go   | 53 +++++---------------------------
+ src/cmd/compile/internal/ir/func.go      | 12 ++++----
+ src/cmd/compile/internal/noder/linker.go |  2 +-
+ src/cmd/compile/internal/noder/reader.go | 10 ++++--
+ 4 files changed, 22 insertions(+), 55 deletions(-)

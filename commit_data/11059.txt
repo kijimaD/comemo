@@ -1,15 +1,15 @@
-commit 793768e9d550d15f6b07eac7e587a090ffad0d41
-Author: Alexey Borzenkov <snaury@gmail.com>
-Date:   Mon Jan 9 12:52:03 2012 -0800
+commit 41806ec26db3316c7ed4857bb3420cb34e61b28c
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Jan 9 21:42:24 2012 +0100
 
-    encoding/gob: fix panic when decoding []byte to incompatible slice types
+    gc: remove now redundant typecheck of ->ninit on switches.
     
-    Fixes #2662.
+    Fixes #2576.
     
-    R=golang-dev, rogpeppe, r, r
-    CC=golang-dev, r, rogpeppe
-    https://golang.org/cl/5515050
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5498105
 
- src/pkg/encoding/gob/decode.go       | 6 +++---
- src/pkg/encoding/gob/encoder_test.go | 8 ++++++++
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/gc/swt.c         |  1 -
+ test/fixedbugs/bug391.go | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

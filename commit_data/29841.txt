@@ -1,26 +1,26 @@
-commit 1106512db54fc2736c7a9a67dd553fc9e1fca742
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Dec 16 13:35:51 2016 -0800
+commit 8a11cb318f5c4c15b67ffe9ff9b2fa772bf1dd85
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 10 18:23:37 2016 -0700
 
-    path/filepath: deprecate HasPrefix
+    crypto/tls: support X25519.
     
-    Use the new "Deprecated:" syntax for all instances of HasPrefix.
-    This is a follow-up to http://golang.org/cl/28413 which only modified path_unix.go.
+    X25519 (RFC 7748) is now commonly used for key agreement in TLS
+    connections, as specified in
+    https://tools.ietf.org/html/draft-ietf-tls-curve25519-01.
     
-    In this CL, we avoid mentioning that strings.HasPrefix should be used since
-    that function is still subtly wrong in security applications.
+    This change adds support for that in crypto/tls, but does not enabled it
+    by default so that there's less test noise. A future change will enable
+    it by default and will update all the test data at the same time.
     
-    See http://golang.org/cl/5712045 for more information.
-    
-    Fixes #18355
-    
-    Change-Id: I0d0306152cd0b0ea5110774c2c78117515b9f5cd
-    Reviewed-on: https://go-review.googlesource.com/34554
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I91802ecd776d73aae5c65bcb653d12e23c413ed4
+    Reviewed-on: https://go-review.googlesource.com/30824
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/path/filepath/path_plan9.go   | 3 +++
- src/path/filepath/path_unix.go    | 3 ++-
- src/path/filepath/path_windows.go | 3 +++
- 3 files changed, 8 insertions(+), 1 deletion(-)
+ src/crypto/tls/common.go                           |   1 +
+ src/crypto/tls/handshake_client_test.go            |  13 ++
+ src/crypto/tls/handshake_server_test.go            |  12 ++
+ src/crypto/tls/key_agreement.go                    | 156 +++++++++++++++------
+ .../Client-TLSv12-X25519-ECDHE-RSA-AES-GCM         |  85 +++++++++++
+ .../Server-TLSv12-X25519-ECDHE-RSA-AES-GCM         |  79 +++++++++++
+ src/go/build/deps_test.go                          |   1 +
+ 7 files changed, 303 insertions(+), 44 deletions(-)

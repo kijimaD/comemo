@@ -1,14 +1,12 @@
-commit 5afa271ce35f6f4bdd55569dd7c7ade63523887a
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Feb 27 11:08:18 2013 +0100
+commit d21b1922c61b875bb9c1ee8be39f05ffe65c8571
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 26 22:51:47 2013 -0500
 
-    exp/locale/collate: several changes based on comments on CL 7060051
-    which was submitted earlier.
+    libmach: fix build (set and not used)
     
-    R=r
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7402048
+    https://golang.org/cl/7401053
 
- src/pkg/exp/locale/collate/sort.go      | 13 ++-----------
- src/pkg/exp/locale/collate/sort_test.go |  5 +++--
- 2 files changed, 5 insertions(+), 13 deletions(-)
+ src/libmach/sym.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

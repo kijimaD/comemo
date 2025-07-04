@@ -1,26 +1,23 @@
-commit 07669d2737aa51107a4e54b61d6704f6ad8035b5
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Thu Apr 7 08:01:47 2016 +0200
+commit 6d0b55193104357255dacc9b3270c944374eed97
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Feb 29 08:00:46 2016 -0900
 
-    cmd/compile: cleanup pragcgo
+    cmd/link: track offset instead of using seek
     
-    Removes dynimport, dynexport, dynlinker cases since they can not
-    be reached due to prefix check for "go:cgo_" in getlinepragma.
+    The Cpos function is used frequently (at least once per symbol) and
+    it is implemented with the seek syscall. Instead, track current
+    output offset and use it.
     
-    Replaces the if chains for verb distinction by a switch statement.
-    Replaces fmt.Sprintf by fmt.Sprintln for string concatenation.
+    Building the godoc binary with DWARF, best of ten:
     
-    Removes the more, getimpsym and getquoted functions by introducing a
-    pragmaFields function that partitions a pragma into its components.
+    tip:  real 0m1.287s user 0m1.573s
+    this: real 0m1.208s user 0m1.555s
     
-    Adds tests for cgo pragmas.
-    
-    Change-Id: I43c7b9550feb3ddccaff7fb02198a3f994444123
-    Reviewed-on: https://go-review.googlesource.com/21607
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I068148695cd6b4d32cd145db25e59e6f6bae6945
+    Reviewed-on: https://go-review.googlesource.com/20055
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/lex.go      | 218 ++++++++++++++------------------
- src/cmd/compile/internal/gc/lex_test.go |  79 ++++++++++++
- 2 files changed, 173 insertions(+), 124 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 44 +++++++++++++++++++++++++++--------------
+ 1 file changed, 29 insertions(+), 15 deletions(-)

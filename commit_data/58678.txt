@@ -1,32 +1,20 @@
-commit 86aca8778871c02eae6a7c4164ef1f004cd72814
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Sun Dec 15 17:33:48 2024 -0500
+commit c418da34cd82e041066259af123e6e36e7c2915f
+Author: Peter Feichtinger <shippo@gmx.at>
+Date:   Fri Nov 24 12:15:54 2023 +0000
 
-    crypto/internal/fips140test: add SSH KDF ACVP tests
+    runtime: docfix countAlloc
     
-    Adds ACVP test coverage for the SP 800-135rev1 SSH KDF based on the NIST
-    spec:
+    fix typo in `countAlloc` doc
     
-      https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-ssh.html
-    
-    Only SHA1, SHA2-224, SHA2-256, SHA2-384, and SHA2-512 are valid hash
-    algorithms for the SSH KDF algorithm. We do not include SHA-1 since it
-    is out of scope for our FIPS module.
-    
-    Similarly only TDES, AES-128, AES-192 and AES-256 are valid ciphers, and
-    we do not include TDES.
-    
-    Updates #69642
-    
-    Change-Id: I70e45b77a91bd8aa631da30fab54c97e974f433c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636355
+    Change-Id: I9f0752412b7a7dfae4915870edeab4ac52e38b2d
+    GitHub-Last-Rev: 6080d3c03ba6cacb1874af9724cfeb7cae27b78f
+    GitHub-Pull-Request: golang/go#64357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544755
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Hiro Hamada <laciferin@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- .../internal/fips140test/acvp_capabilities.json    |  3 +-
- .../internal/fips140test/acvp_test.config.json     |  3 +-
- src/crypto/internal/fips140test/acvp_test.go       | 43 +++++++++++++++++++++-
- 3 files changed, 46 insertions(+), 3 deletions(-)
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

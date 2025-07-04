@@ -1,19 +1,30 @@
-commit ffea835b8f18681f2736a6b88b83aa27baf0a575
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 27 06:21:38 2012 +1000
+commit 6feb61325a501b3e122c081624c837eeae5bd0a9
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Sep 26 21:17:11 2012 +0200
 
-    fmt: allow # and x together for strings
-    Silly and small but easy to be consistent.
-    To make it worthwhile, I eliminated an allocation when using
-    %x on a byte slice.
+    cmd/6g, cmd/8g: fix two "out of fixed registers" cases.
     
-    Fixes #4149.
+    In two cases, registers were allocated too early resulting
+    in exhausting of available registers when nesting these
+    operations.
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/6574046
+    The case of method calls was due to missing cases in igen,
+    which only makes calls but doesn't allocate a register for
+    the result.
+    
+    The case of 8-bit multiplication was due to a wrong order
+    in register allocation when Ullman numbers were bigger on the
+    RHS.
+    
+    Fixes #3907.
+    Fixes #4156.
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6560054
 
- src/pkg/fmt/fmt_test.go |  8 +++++++-
- src/pkg/fmt/format.go   | 39 +++++++++++++++++++++++++++++++--------
- src/pkg/fmt/print.go    |  9 ++++-----
- 3 files changed, 42 insertions(+), 14 deletions(-)
+ src/cmd/6g/cgen.c | 23 ++++++++++++++++++-----
+ src/cmd/6g/ggen.c | 51 ++++++++++++++++++++-------------------------------
+ src/cmd/8g/cgen.c | 14 +++++++++++++-
+ src/cmd/8g/ggen.c | 52 +++++++++++++++++++++-------------------------------
+ 4 files changed, 72 insertions(+), 68 deletions(-)

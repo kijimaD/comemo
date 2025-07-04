@@ -1,27 +1,26 @@
-commit b51a4dd6c43194d8680a05ea735a02d70af976af
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Fri Aug 4 17:31:43 2023 -0400
+commit e0e1ce9888f5483f834e435d53f5c6c42b9b12a1
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Jun 18 22:02:14 2022 +0300
 
-    runtime: restore caller's frame pointer when recovering from panic
+    runtime: switch FreeBSD to use the non-COMPAT_FREEBSD11 version of the kevent syscall
     
-    When recovering from a panic, restore the caller's frame pointer before
-    returning control to the caller. Otherwise, if the function proceeds to
-    run more deferred calls before returning, the deferred functions will
-    get invalid frame pointers pointing to an address lower in the stack.
-    This can cause frame pointer unwinding to crash, such as if an execution
-    trace event is recorded during the deferred call on architectures which
-    support frame pointer unwinding.
+    Update #53280
     
-    Fixes #61766
-    
-    Change-Id: I45f41aedcc397133560164ab520ca638bbd93c4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516157
+    Change-Id: I1c8d4510fbe8bdfe9a41575bde54ea2fbf6b67e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413174
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Yuval Pavel Zholkover <paulzhol@gmail.com>
 
- src/runtime/callers_test.go | 36 ++++++++++++++++++++++++++++++++++++
- src/runtime/export_test.go  |  2 ++
- src/runtime/panic.go        | 12 +++++++++++-
- 3 files changed, 49 insertions(+), 1 deletion(-)
+ src/runtime/defs_freebsd.go       | 12 +++++++-----
+ src/runtime/defs_freebsd_386.go   |  8 +++++---
+ src/runtime/defs_freebsd_amd64.go |  6 ++++--
+ src/runtime/defs_freebsd_arm.go   | 20 ++++++++++++--------
+ src/runtime/defs_freebsd_arm64.go |  6 ++++--
+ src/runtime/sys_freebsd_386.s     |  2 +-
+ src/runtime/sys_freebsd_amd64.s   |  2 +-
+ src/runtime/sys_freebsd_arm.s     |  2 +-
+ src/runtime/sys_freebsd_arm64.s   |  2 +-
+ 9 files changed, 36 insertions(+), 24 deletions(-)

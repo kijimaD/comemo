@@ -1,16 +1,12 @@
-commit eb7c51c1483b2d51e5fc0b22ef692bdc96212477
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Mar 26 08:27:18 2013 +0100
+commit d7434816c1a2407030f59837496a8dc86e6d1968
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Mar 26 17:39:46 2013 +1100
 
-    cmd/gc: more race instrumentation.
+    misc/vim: make Godoc command work with "log.Print".
     
-    Handle interface comparison correctly,
-    add a few more tests, mark more nodes as impossible.
-    
-    R=dvyukov, golang-dev
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/7942045
+    https://golang.org/cl/7757043
 
- src/cmd/gc/racewalk.c                     | 24 ++++----
- src/pkg/runtime/race/testdata/mop_test.go | 92 +++++++++++++++++++++++++++++++
- 2 files changed, 106 insertions(+), 10 deletions(-)
+ misc/vim/plugin/godoc.vim | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

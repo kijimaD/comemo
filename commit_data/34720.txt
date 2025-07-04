@@ -1,36 +1,19 @@
-commit ea59ebd3387ab93b826606ea90a4149dad7b4e50
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Mon Mar 12 07:32:28 2018 +0000
+commit 36ef06cc10005050d7b6f444d0ef3675f2e87fbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 10 12:58:31 2017 -0500
 
-    runtime: use vDSO for clock_gettime on linux/arm64
+    cmd/test2json: document time.Time JSON format
     
-    Use the __vdso_clock_gettime fast path via the vDSO on linux/arm64 to
-    speed up nanotime and walltime. This results in the following
-    performance improvement for time.Now on Cavium ThunderX:
+    This is already documented in the time.Time package
+    but people might not look there.
     
-    name     old time/op  new time/op  delta
-    TimeNow   442ns ± 0%   163ns ± 0%  -63.16%  (p=0.000 n=10+10)
+    Followup to CL 76872, which I submitted accidentally
+    (Gerrit has placed the Submit button next to Reply again.)
     
-    And benchmarks on VDSO
-    
-    BenchmarkClockVDSOAndFallbackPaths/vDSO         10000000 166 ns/op
-    BenchmarkClockVDSOAndFallbackPaths/Fallback     3000000 456 ns/op
-    
-    Change-Id: I326118c6dff865eaa0569fc45d1fc1ff95cb74f6
-    Reviewed-on: https://go-review.googlesource.com/99855
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibfd6a4da241982d591a8698282a0c15fe9f2e775
+    Reviewed-on: https://go-review.googlesource.com/77010
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os_linux_novdso.go  |  2 +-
- src/runtime/sys_linux_arm64.s   | 71 +++++++++++++++++++++++++++++++++++++++--
- src/runtime/vdso_elf64.go       |  2 +-
- src/runtime/vdso_in_none.go     |  2 +-
- src/runtime/vdso_linux.go       |  7 ++--
- src/runtime/vdso_linux_386.go   |  6 ++--
- src/runtime/vdso_linux_amd64.go |  2 ++
- src/runtime/vdso_linux_arm.go   |  2 ++
- src/runtime/vdso_linux_arm64.go | 21 ++++++++++++
- src/runtime/vdso_linux_test.go  |  2 +-
- 10 files changed, 103 insertions(+), 14 deletions(-)
+ src/cmd/test2json/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

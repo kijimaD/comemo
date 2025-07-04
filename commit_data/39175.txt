@@ -1,17 +1,18 @@
-commit f2694534cf3591191a125815bae24cd12ea07022
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 15 15:15:33 2019 -0400
+commit 3e9c3cfd1e163e65eaf60c35739f668b9fda5888
+Author: Viacheslav Poturaev <vearutop@gmail.com>
+Date:   Wed Jan 9 12:54:50 2019 +0000
 
-    testing: shorten go test -short testing
+    cmd/go: remove init() to fix precedence issue when setting debug mod info
     
-    This cuts the time for 'go test -short testing' from 0.9s to < 0.1s.
+    Fixes #29628
     
-    Change-Id: Ib8402f80239e1e96ea5221dfd5cd0db08170d85b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177420
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I95dabed797ef7a1a770b6f4219840f653306af7e
+    GitHub-Last-Rev: 9275dd8f1c6a0cfa16ae882fcfc100991f8338f7
+    GitHub-Pull-Request: golang/go#29630
+    Reviewed-on: https://go-review.googlesource.com/c/157097
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/testing/benchmark_test.go | 3 +++
- src/testing/sub_test.go       | 3 +++
- 2 files changed, 6 insertions(+)
+ src/cmd/go/internal/modload/build.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

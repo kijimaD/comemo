@@ -1,16 +1,12 @@
-commit 880cda557a8cc638667916eac28e185e686e5878
-Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 23 07:51:49 2012 +1100
+commit bb4a490928aeb1b6d6cc50954da141b3cf0cacde
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 22 15:39:53 2012 -0500
 
-    os: make the system info a value not a pointer on unix
-    fix a couple of other minor related details.
+    builder: reuse existing workspace if possible
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5690071
+    https://golang.org/cl/5690069
 
- src/pkg/os/exec_plan9.go   | 14 +++++++-------
- src/pkg/os/exec_posix.go   |  8 ++++----
- src/pkg/os/exec_unix.go    |  2 +-
- src/pkg/os/exec_windows.go |  2 +-
- 4 files changed, 13 insertions(+), 13 deletions(-)
+ misc/dashboard/builder/main.go | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

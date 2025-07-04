@@ -1,17 +1,18 @@
-commit 4cdca1342b1d3d9591d72a7e7cf67068aa54c524
-Author: khr@golang.org <khr@golang.org>
-Date:   Tue May 20 15:56:29 2025 -0700
+commit 27c7a3dcc3327e265cf9ecd870eecb07a4408c36
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Mar 28 08:19:22 2024 +0900
 
-    runtime: disable stack allocation test when instrumentation is on
+    regexp/syntax: use the Regexp.Equal static method directly
     
-    Should fix some asan build failures.
+    A follow-up for the recent https://go.dev/cl/573978.
     
-    Change-Id: Ic0a816b56a1a278aa0ad541aea962f9fea7b10fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674696
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I0e75ca0b37d9ef063bbdfb88d4d2e34647e0ee50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574677
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/runtime_test.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/regexp/syntax/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

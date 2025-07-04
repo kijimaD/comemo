@@ -1,26 +1,24 @@
-commit 9b8964bf2df0626530a0ca493e3e95d8dc3844dd
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Sep 6 11:57:16 2017 +0200
+commit 9fda4df9a0d3ef2dd0dc649e174992bc2d2f8db2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 9 08:22:43 2017 -0700
 
-    text/template: fix pos info when trimming newlines
+    cmd/compile: make "imported and not used" errors deterministic
     
-    The lexer keeps the byte offset and the line for the rune it's currently
-    on. This was simple enough up until whitespace trimming was introduced.
+    If there were more unused imports than
+    the maximum default number of errors to report,
+    the set of reported imports was non-deterministic.
     
-    With whitespace trimming, we might skip over newlines. In that case, the
-    lexer wasn't properly updating the line counter. Fix it.
+    Fix by accumulating and sorting them prior to output.
     
-    Also, TestPos now checks that the line is correct too, which it was
-    ignoring before. This was necessary to test this scenario in the lexer.
+    Fixes #20298
     
-    Fixes #21778.
-    
-    Change-Id: I3880f3adf02662eac8f818d5caa6935cca9cb33b
-    Reviewed-on: https://go-review.googlesource.com/61870
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib3d5a15fd7dc40009523fcdc1b93ddc62a1b05f2
+    Reviewed-on: https://go-review.googlesource.com/42954
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/text/template/parse/lex.go      |  1 +
- src/text/template/parse/lex_test.go | 26 ++++++++++++++++++++++++--
- 2 files changed, 25 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 31 +++++++++++++++++++++----------
+ src/go/types/stdlib_test.go         | 15 +++++++++++++--
+ test/fixedbugs/issue20298.go        | 32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 12 deletions(-)

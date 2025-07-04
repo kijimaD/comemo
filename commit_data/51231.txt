@@ -1,21 +1,27 @@
-commit 97765249082b6835c77517a4e63bb38cfd6db97b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Nov 11 17:26:45 2022 +0000
+commit 55a25aa6ca03143bef38be7f6d618df51c569a66
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 16 12:32:39 2021 -0500
 
-    net: disable TestLookupDotsWithRemoteSource and TestLookupGoogleSRV
+    net: lengthen arbitrary SetDeadline timeout by a few orders of magnitude
     
-    These tests fail consistently due to a DNS change causing widespread
-    trybot outages.
+    The "someTimeout" constant in the net test is “just to test that
+    net.Conn implementations don't explode when their SetFooDeadline
+    methods are called”. It was set to 10 seconds, which is short enough
+    that it could actually matter on some platforms.
     
-    Fixes #56707.
+    Since the point of the constant is just to make sure methods don't
+    explode, we should set it to be at least a couple of orders of
+    magnitude longer than the test: then it is guaranteed not to have any
+    unintended side-effects.
     
-    Change-Id: Iebdf91254a922a48880021198f0f12f6bc16b6e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449640
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Fixes #50227
+    
+    Change-Id: If97ae7bef5e7f16b336d09ccc37f5ea2ea7e70b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372796
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/lookup_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/net/conn_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

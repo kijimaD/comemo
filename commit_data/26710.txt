@@ -1,24 +1,19 @@
-commit 3bbede0c512ca645fa19522480c0200ee4711bf3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 29 18:26:06 2016 +0000
+commit 7786f9790561ceda98e9883256ed50d26fa136d6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 23 18:45:38 2016 +0100
 
-    net/http: zero pad Response status codes to three digits
+    unicode/utf16: speed up and clean up Decode
     
-    Go 1.6's HTTP/1.x Transport started enforcing that responses have 3
-    status digits, per the spec, but we could still write out invalid
-    status codes ourselves if the called
-    ResponseWriter.WriteHeader(0). That is bogus anyway, since the minimum
-    status code is 1xx, but be a little bit less bogus (and consistent)
-    and zero pad our responses.
+    name                        old time/op  new time/op  delta
+    DecodeValidASCII-4          94.7ns ± 1%  87.4ns ± 1%  -7.71%  (p=0.000 n=10+9)
+    DecodeValidJapaneseChars-4  91.0ns ± 2%  84.8ns ± 0%  -6.77%  (p=0.000 n=9+10)
+    DecodeRune-4                16.5ns ± 0%  16.6ns ± 2%    ~     (p=0.108 n=9+10)
     
-    Change-Id: I6883901fd95073cb72f6b74035cabf1a79c35e1c
-    Reviewed-on: https://go-review.googlesource.com/19130
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    For #6957
+    
+    Change-Id: I618c15c2a42ef7ec6a5cd163b7c3f1a65ca4ad01
+    Reviewed-on: https://go-review.googlesource.com/19826
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/clientserver_test.go  | 21 +++++++++++++++++++++
- src/net/http/response.go           | 11 +++++++----
- src/net/http/responsewrite_test.go | 33 +++++++++++++++++++++++++++++++++
- src/net/http/server.go             |  2 +-
- 4 files changed, 62 insertions(+), 5 deletions(-)
+ src/unicode/utf16/utf16.go | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

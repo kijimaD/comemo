@@ -1,43 +1,55 @@
-commit b116404444addc69b5ec987a2a64b92d4956eab0
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Dec 22 17:47:43 2020 +0000
+commit 6ed4661807b219781d1aa452b7f210e21ad1974b
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 23 13:50:07 2018 +0200
 
-    runtime: shift timeHistogram buckets and allow negative durations
+    cmd/compile: optimize make+copy pattern to avoid memclr
     
-    Today, timeHistogram, when copied, has the wrong set of counts for the
-    bucket that should represent (-inf, 0), when in fact it contains [0, 1).
-    In essence, the buckets are all shifted over by one from where they're
-    supposed to be.
+    match:
+     m = make([]T, x); copy(m, s)
+    for pointer free T and x==len(s) rewrite to:
+     m = mallocgc(x*elemsize(T), nil, false); memmove(&m, &s, x*elemsize(T))
+    otherwise rewrite to:
+     m = makeslicecopy([]T, x, s)
     
-    But this also means that the existence of the overflow bucket is wrong:
-    the top bucket is supposed to extend to infinity, and what we're really
-    missing is an underflow bucket to represent the range (-inf, 0).
+    This avoids memclear and shading of pointers in the newly created slice
+    before the copy.
     
-    We could just always zero this bucket and continue ignoring negative
-    durations, but that likely isn't prudent.
+    With this CL "s" is only be allowed to bev a variable and not a more
+    complex expression. This restriction could be lifted in future versions
+    of this optimization when it can be proven that "s" is not referencing "m".
     
-    timeHistogram is intended to be used with differences in nanotime, but
-    depending on how a platform is implemented (or due to a bug in that
-    platform) it's possible to get a negative duration without having done
-    anything wrong. We should just be resilient to that and be able to
-    detect it.
+    Triggers 450 times during make.bash..
+    Reduces go binary size by ~8 kbyte.
     
-    So this change removes the overflow bucket and replaces it with an
-    underflow bucket, and timeHistogram no longer panics when faced with a
-    negative duration.
+    name                           old time/op  new time/op  delta
+    MakeSliceCopy/mallocmove/Byte  71.1ns ± 1%  65.8ns ± 0%  -7.49%  (p=0.000 n=10+9)
+    MakeSliceCopy/mallocmove/Int   71.2ns ± 1%  66.0ns ± 0%  -7.27%  (p=0.000 n=10+8)
+    MakeSliceCopy/mallocmove/Ptr    104ns ± 4%    99ns ± 1%  -5.13%  (p=0.000 n=10+10)
+    MakeSliceCopy/makecopy/Byte    70.3ns ± 0%  68.0ns ± 0%  -3.22%  (p=0.000 n=10+9)
+    MakeSliceCopy/makecopy/Int     70.3ns ± 0%  68.5ns ± 1%  -2.59%  (p=0.000 n=9+10)
+    MakeSliceCopy/makecopy/Ptr      102ns ± 0%    99ns ± 1%  -2.97%  (p=0.000 n=9+9)
+    MakeSliceCopy/nilappend/Byte   75.4ns ± 0%  74.9ns ± 2%  -0.63%  (p=0.015 n=9+9)
+    MakeSliceCopy/nilappend/Int    75.6ns ± 0%  76.4ns ± 3%    ~     (p=0.245 n=9+10)
+    MakeSliceCopy/nilappend/Ptr     107ns ± 0%   108ns ± 1%  +0.93%  (p=0.005 n=9+10)
     
-    Fixes #43328.
-    Fixes #43329.
+    Fixes #26252
     
-    Change-Id: If336425d7d080fd37bf071e18746800e22d38108
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279468
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Iec553dd1fef6ded16197216a472351c8799a8e71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/146719
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/export_test.go    |  4 ++--
- src/runtime/histogram.go      | 30 +++++++++++++++---------------
- src/runtime/histogram_test.go | 22 +++++++++++++++++-----
- src/runtime/metrics.go        |  4 ++--
- 4 files changed, 36 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 626 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   2 +
+ src/cmd/compile/internal/gc/fmt.go             | 176 +++----
+ src/cmd/compile/internal/gc/op_string.go       | 161 +++----
+ src/cmd/compile/internal/gc/order.go           |  76 ++-
+ src/cmd/compile/internal/gc/syntax.go          |  60 ++-
+ src/cmd/compile/internal/gc/typecheck.go       |  43 ++
+ src/cmd/compile/internal/gc/walk.go            |  60 +++
+ src/runtime/slice.go                           |  49 ++
+ src/runtime/slice_test.go                      |  78 +++
+ test/codegen/slices.go                         | 183 ++++++++
+ test/makeslice.go                              | 149 ++++++
+ 12 files changed, 1160 insertions(+), 503 deletions(-)

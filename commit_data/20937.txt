@@ -1,16 +1,64 @@
-commit 006ceb2f1dd64e75134347ae9a73be397ff8a2ed
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 8 11:12:33 2014 -0500
+commit b55791e2008703b33883e48e72a347ba07a65486
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 28 21:50:16 2014 -0400
 
-    runtime: fix missing newline when dumping bad symbol table
+    [dev.power64] cmd/5a, cmd/6a, cmd/8a, cmd/9a: make labels function-scoped
     
-    If the symbol table isn't sorted, we print it and abort.  However, we
-    were missing the line break after each symbol, resulting in one
-    gigantic line instead of a nicely formatted table.
+    I removed support for jumping between functions years ago,
+    as part of doing the instruction layout for each function separately.
     
-    Change-Id: Ie5c6f3c256d0e648277cb3db4496512a79d266dd
-    Reviewed-on: https://go-review.googlesource.com/1182
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Given that, it makes sense to treat labels as function-scoped.
+    This lets each function have its own 'loop' label, for example.
+    
+    Makes the assembly much cleaner and removes the last
+    reason anyone would reach for the 123(PC) form instead.
+    
+    Note that this is on the dev.power64 branch, but it changes all
+    the assemblers. The change will ship in Go 1.5 (perhaps after
+    being ported into the new assembler).
+    
+    Came up as part of CL 167730043.
+    
+    LGTM=r
+    R=r
+    CC=austin, dave, golang-codereviews, minux
+    https://golang.org/cl/159670043
 
- src/runtime/symtab.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5a/a.h                  |    3 +
+ src/cmd/5a/a.y                  |   26 +-
+ src/cmd/5a/y.tab.c              | 2049 ++++++++++++++----------------
+ src/cmd/5a/y.tab.h              |   68 +-
+ src/cmd/6a/a.h                  |    3 +
+ src/cmd/6a/a.y                  |   25 +-
+ src/cmd/6a/y.tab.c              | 1054 ++++++++--------
+ src/cmd/8a/a.h                  |    3 +
+ src/cmd/8a/a.y                  |   25 +-
+ src/cmd/8a/y.tab.c              | 1050 ++++++++--------
+ src/cmd/9a/a.h                  |    3 +
+ src/cmd/9a/a.y                  |   26 +-
+ src/cmd/9a/y.tab.c              | 2602 +++++++++++++++++----------------------
+ src/cmd/9a/y.tab.h              |   46 +-
+ src/cmd/cc/lexbody              |   25 +
+ src/runtime/asm_386.s           |   58 +-
+ src/runtime/asm_amd64.s         |   78 +-
+ src/runtime/asm_amd64p32.s      |   58 +-
+ src/runtime/asm_arm.s           |   24 +-
+ src/runtime/asm_power64x.s      |   40 +-
+ src/runtime/memclr_386.s        |   46 +-
+ src/runtime/memclr_amd64.s      |   44 +-
+ src/runtime/memclr_plan9_386.s  |   24 +-
+ src/runtime/race_amd64.s        |   18 +-
+ src/runtime/sys_darwin_386.s    |    4 +-
+ src/runtime/sys_darwin_amd64.s  |    4 +-
+ src/runtime/sys_dragonfly_386.s |    4 +-
+ src/runtime/sys_freebsd_386.s   |    4 +-
+ src/runtime/sys_linux_amd64.s   |    8 +-
+ src/runtime/sys_linux_arm.s     |    8 +-
+ src/runtime/sys_nacl_386.s      |    4 +-
+ src/runtime/sys_nacl_amd64p32.s |    1 -
+ src/runtime/sys_nacl_arm.s      |    1 -
+ src/runtime/sys_openbsd_386.s   |    4 +-
+ src/runtime/sys_solaris_amd64.s |   12 +-
+ src/runtime/sys_windows_386.s   |   12 +-
+ src/runtime/sys_windows_amd64.s |   12 +-
+ 37 files changed, 3442 insertions(+), 4034 deletions(-)

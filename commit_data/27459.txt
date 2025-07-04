@@ -1,29 +1,20 @@
-commit 0dcd330bc8ab19db15b4517b80e940cf154071bc
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed May 18 23:39:23 2016 +1000
+commit 7427f2c4bdf45fcf2288395d0e70c0c2fbe7ebcf
+Author: Michel Lespinasse <walken@google.com>
+Date:   Fri Mar 18 16:20:20 2016 -0700
 
-    runtime/cgo: make cgo work with openbsd ABI changes
+    cmd/compile: optimize convT2I as a two-word copy when T is pointer-shaped
     
-    OpenBSD 6.0 (due out November 2016) will support PT_TLS, which will
-    allow for the OpenBSD cgo pthread_create() workaround to be removed.
+    See #14874
     
-    However, in order for Go to continue working on supported OpenBSD
-    releases (the current release and the previous release - 5.9 and 6.0,
-    once 6.0 is released), we cannot enable PT_TLS immediately. Instead,
-    adjust the existing code so that it works with the previous TCB
-    allocation and the new TIB allocation. This allows the same Go
-    runtime to work on 5.8, 5.9 and later 6.0.
+    This change adds a compiler optimization for pointer shaped convT2I.
+    Since itab symbols are now emitted by the compiler, the itab address can
+    be directly moved into the iface structure.
     
-    Once OpenBSD 5.9 is no longer supported (May 2017, when 6.1 is
-    released), PT_TLS can be enabled and the additional cgo runtime
-    code removed.
-    
-    Change-Id: I3eed5ec593d80eea78c6656cb12557004b2c0c9a
-    Reviewed-on: https://go-review.googlesource.com/23197
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I311483af544519ca682c5f872960717ead772f26
+    Reviewed-on: https://go-review.googlesource.com/20901
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/cgo/gcc_openbsd_386.c   | 42 +++++++++++++++++++++++++++++--------
- src/runtime/cgo/gcc_openbsd_amd64.c | 41 ++++++++++++++++++++++++++++--------
- 2 files changed, 65 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 10 ++++++++--
+ src/cmd/compile/internal/gc/walk.go    | 16 +++++++++-------
+ 2 files changed, 17 insertions(+), 9 deletions(-)

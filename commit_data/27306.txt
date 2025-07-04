@@ -1,18 +1,17 @@
-commit 2e32efc44ac86cce3bd0808e6049d8c9b0225ba8
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri May 6 00:53:42 2016 -0400
+commit e28a3929efa9797530c7f74284796825a25d2011
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 20 14:54:13 2016 -0700
 
-    runtime: get randomness from AT_RANDOM AUXV on linux/mips64x
+    math/big: cleanup documentation for Format methods
     
-    Fixes #15148.
+    'b' is a standard verb for floating point values. The runes like '+'
+    and '#' are called "flags" by package fmt's documentation. The flag
+    '-' controls left/right justification, not anything related to signs.
     
-    Change-Id: If3b628f30521adeec1625689dbc98aaf4a9ec858
-    Reviewed-on: https://go-review.googlesource.com/22811
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia9cf81b002df373f274ce635fe09b5bd0066aa1c
+    Reviewed-on: https://go-review.googlesource.com/20930
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os_linux_mips64x.go | 11 +++++++++++
- src/runtime/os_linux_noauxv.go  |  2 +-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/math/big/ftoa.go    |  9 ++++-----
+ src/math/big/intconv.go | 18 +++++++++---------
+ 2 files changed, 13 insertions(+), 14 deletions(-)

@@ -1,22 +1,21 @@
-commit 15c67e21daee0a5055c8fc0144e7efe0345d1929
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 18 16:06:57 2014 -0500
+commit 6bc812e9ecbe66a1fbb096e0f87d7f1b8f9fff04
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 6 15:18:47 2014 -0500
 
-    cmd/ld: set ELF ABI version for ppc64x
+    doc: change "/s/..." links to be on golang.org
     
-    On ppc64, there are three ELF ABI versions an ELF file can request.
-    Previously, we used 0, which means "unspecified".  On our test
-    machines, this meant to use the default (v1 for big endian and v2 for
-    little endian), but apparently some systems can pick the wrong ABI if
-    neither is requested.  Leaving this as 0 also confuses libbfd, which
-    confuses gdb, objdump, etc.
+    People viewing this locally will not have a /s/ on their local godoc.
+    tip.golang.org doesn't have one either.
     
-    Fix these problems by specifying ABI v1 for big endian and v2 for
-    little endian.
+    Also change all golang.org links to https, to avoid mixed content
+    warnings when viewing https://golang.org/.
     
-    Change-Id: I4d3d5478f37f11baab3681a07daff3da55802322
-    Reviewed-on: https://go-review.googlesource.com/1800
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #9028.
+    
+    LGTM=bradfitz, r
+    R=r, bradfitz
+    CC=adg, golang-codereviews
+    https://golang.org/cl/168250043
 
- src/cmd/ld/elf.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ doc/go1.4.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

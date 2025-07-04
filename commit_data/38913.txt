@@ -1,18 +1,20 @@
-commit 80704ec3fa79e6efb50124e8063b31a4c032a1ff
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 26 06:56:58 2019 -0700
+commit 179909f20556262422a8b99c059eacdfcebc48ee
+Author: Kyle Wood <kyle@kylewood.cc>
+Date:   Fri Nov 16 10:46:14 2018 -0600
 
-    runtime: test for cgo build tag in TestGdbPythonCgo
+    cmd/go: disallow version string in go mod init module path
     
-    Testing whether cgo is enabled in go/build is not the same as testing
-    whether the go tool supports cgo. They differ, for example, when using
-    GOARCH=386 on an amd64 system, as for a cross-build cgo is disabled by default.
+    To prevent confusion, go mod init should not allow version strings in
+    the module path when provided as an argument. Instead, fail with a
+    useful error message.
     
-    Change-Id: Ib59106c92a3131b73ac6a91c0f7658a1769acf73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174098
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #28803
+    
+    Change-Id: I59272a91b042e32cef33c2e2116f760ca1def218
+    Reviewed-on: https://go-review.googlesource.com/c/150018
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/runtime-gdb_test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modcmd/init.go | 4 ++++
+ 1 file changed, 4 insertions(+)

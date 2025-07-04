@@ -1,63 +1,14 @@
-commit 15040c11b9b8f2e33b2833feb99a48ea9a2dba6c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 13 15:13:41 2016 -0400
+commit c6f19fe1ea5292f75618e3dcb2e2c4a9d1684aa6
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Aug 8 17:44:33 2016 -0700
 
-    cmd/dist: copy needed packages from standard library during bootstrap
+    doc/go1.7.html: remove DRAFT
     
-    This allows use of newer math/big (and later debug/pe)
-    without maintaining a vendored copy somewhere in cmd.
+    Fixes #15820.
     
-    Use for math/big, deleting cmd/compile/internal/big.
-    
-    Change-Id: I2bffa7a9ef115015be29fafdb02acc3e7a665d11
-    Reviewed-on: https://go-review.googlesource.com/31010
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia5d5237754e77774a3a6049765eea163911f41c9
+    Reviewed-on: https://go-review.googlesource.com/25592
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/fmt_test.go                        |    6 +-
- src/cmd/compile/internal/big/accuracy_string.go    |   17 -
- src/cmd/compile/internal/big/arith.go              |  305 ----
- src/cmd/compile/internal/big/arith_decl.go         |   53 -
- src/cmd/compile/internal/big/arith_test.go         |  413 -----
- src/cmd/compile/internal/big/bits_test.go          |  224 ---
- src/cmd/compile/internal/big/calibrate_test.go     |   88 -
- src/cmd/compile/internal/big/decimal.go            |  266 ---
- src/cmd/compile/internal/big/decimal_test.go       |  118 --
- src/cmd/compile/internal/big/doc.go                |   99 --
- src/cmd/compile/internal/big/example_rat_test.go   |   65 -
- src/cmd/compile/internal/big/example_test.go       |  128 --
- src/cmd/compile/internal/big/float.go              | 1683 -------------------
- src/cmd/compile/internal/big/float_test.go         | 1764 --------------------
- src/cmd/compile/internal/big/floatconv.go          |  275 ---
- src/cmd/compile/internal/big/floatconv_test.go     |  667 --------
- src/cmd/compile/internal/big/floatexample_test.go  |  141 --
- src/cmd/compile/internal/big/floatmarsh.go         |  120 --
- src/cmd/compile/internal/big/floatmarsh_test.go    |  136 --
- src/cmd/compile/internal/big/ftoa.go               |  459 -----
- src/cmd/compile/internal/big/gcd_test.go           |   61 -
- src/cmd/compile/internal/big/hilbert_test.go       |  160 --
- src/cmd/compile/internal/big/int.go                |  934 -----------
- src/cmd/compile/internal/big/int_test.go           | 1482 ----------------
- src/cmd/compile/internal/big/intconv.go            |  248 ---
- src/cmd/compile/internal/big/intconv_test.go       |  391 -----
- src/cmd/compile/internal/big/intmarsh.go           |   78 -
- src/cmd/compile/internal/big/intmarsh_test.go      |  121 --
- src/cmd/compile/internal/big/nat.go                | 1305 ---------------
- src/cmd/compile/internal/big/nat_test.go           |  651 --------
- src/cmd/compile/internal/big/natconv.go            |  492 ------
- src/cmd/compile/internal/big/natconv_test.go       |  379 -----
- src/cmd/compile/internal/big/rat.go                |  510 ------
- src/cmd/compile/internal/big/rat_test.go           |  622 -------
- src/cmd/compile/internal/big/ratconv.go            |  270 ---
- src/cmd/compile/internal/big/ratconv_test.go       |  454 -----
- src/cmd/compile/internal/big/ratmarsh.go           |   73 -
- src/cmd/compile/internal/big/ratmarsh_test.go      |  125 --
- .../compile/internal/big/roundingmode_string.go    |   16 -
- src/cmd/compile/internal/big/vendor.bash           |   31 -
- src/cmd/compile/internal/gc/bexport.go             |    2 +-
- src/cmd/compile/internal/gc/bimport.go             |    2 +-
- src/cmd/compile/internal/gc/mpfloat.go             |    2 +-
- src/cmd/compile/internal/gc/mpint.go               |    2 +-
- src/cmd/compile/internal/gc/swt_test.go            |    2 +-
- src/cmd/dist/buildtool.go                          |  118 +-
- 46 files changed, 80 insertions(+), 15478 deletions(-)
+ doc/go1.7.html | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

@@ -1,21 +1,19 @@
-commit 2b82d70f856b91bf278a28fd697b69811e1335eb
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Jun 20 11:35:10 2023 +0000
+commit 2f103873c5081c7013cadfecb9b1c051d7c5520a
+Author: shaoliming <shaojacobi@gmail.com>
+Date:   Sun Aug 28 12:36:50 2022 +0000
 
-    net/http: declare publicErr as a constant
+    cmd/compile/internal/noder: reuse package scope's names
     
-    Do the same as the code above: "case err == errTooLarge", declare
-    publicErr as a constant to avoid runtime calls.
-    
-    Change-Id: I50a9951232c70eff027b0da86c0bbb8bea51acbe
-    GitHub-Last-Rev: 71d4458ded3a1e99a0d027ccca6c9d6269a1ab06
-    GitHub-Pull-Request: golang/go#60884
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504456
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I2cc62efb7bb3b47f1ee3ed0bb77e35c47e2df9a1
+    GitHub-Last-Rev: 106cb494de6fb08302018bff55944ee120ef4545
+    GitHub-Pull-Request: golang/go#54718
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426297
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Olif Oftimis <oftimisolif@gmail.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/server.go | 2 +-
+ src/cmd/compile/internal/noder/unified.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

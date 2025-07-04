@@ -1,16 +1,18 @@
-commit 84e0061460d7c9a624a74e13f0212f443b079531
-Author: Sean Liao <sean@liao.dev>
-Date:   Mon Mar 17 18:39:31 2025 +0000
+commit cdd0ddaf45f0de162d4e52e8418bd0638a3dc800
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 13 13:45:05 2023 -0800
 
-    net/http/httputil: document ReverseProxy removal of response headers
+    internal/abi: get rid of itab blank field
     
-    Fixes #30359
+    We don't need it anymore, as we're accessing all the field offsets
+    symbolically.
+    This won't affect 64-bit, but it makes itabs on 32-bit 4 bytes smaller.
     
-    Change-Id: I5dfb2cd63c737959fd2f6a0dbf50ff8de18bb15d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658535
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I7fb937813111476fd5ab03005b248ea7bb962cf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549517
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/http/httputil/reverseproxy.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/internal/abi/iface.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,14 +1,44 @@
-commit 14e545b60a8c78aa6609d807b4f50e54e9bfe1eb
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Oct 12 11:36:18 2016 -0700
+commit 806cacc7c664ad46f3bec10a3a4e0274678eaeef
+Author: David Chase <drchase@google.com>
+Date:   Fri Jul 22 10:47:16 2016 -0700
 
-    archive/tar: reduce allocations in formatOctal
+    [dev.ssa] cmd/compile: replace storeconst w/ storezero, fold addressing
     
-    Change-Id: I9ddb7d2a97d28aba7a107b65f278993daf7807fa
-    Reviewed-on: https://go-review.googlesource.com/30960
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Because PPC lacks store-immediate, remove the instruction
+    that implies that it exists.  Replace it with storezero for
+    the special case of storing zero, because R0 is reserved zero
+    for Go (though the assembler knows this, do it in SSA).
+    
+    Also added address folding for storezero.
+    (Now corrected to use right-sized stores in bulk-zero code.)
+    
+    Hello.go now compiles to
+    genssa main
+        00000 (...hello.go:7) TEXT "".main(SB), $0
+        00001 (...hello.go:7) FUNCDATA $0, "".gcargs·0(SB)
+        00002 (...hello.go:7) FUNCDATA $1, "".gclocals·1(SB)
+    v23 00003 (...hello.go:8) MOVD $go.string."Hello, World!\n"(SB), R3
+    v11 00004 (...hello.go:8) MOVD R3, 32(R1)
+    v22 00005 (...hello.go:8) MOVD $14, R3
+    v6  00006 (...hello.go:8) MOVD R3, 40(R1)
+    v20 00007 (...hello.go:8) MOVD R0, 48(R1)
+    v18 00008 (...hello.go:8) MOVD R0, 56(R1)
+    v9  00009 (...hello.go:8) MOVD R0, 64(R1)
+    v10 00010 (...hello.go:8) CALL fmt.Printf(SB)
+    b2  00011 (...hello.go:9) RET
+        00012 (<unknown line number>) END
+    
+    Updates #16010
+    
+    Change-Id: I33cfd98c21a1617502260ac753fa8cad68c8d85a
+    Reviewed-on: https://go-review.googlesource.com/25151
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/strconv.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        |  11 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  88 ++++---
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  28 +--
+ src/cmd/compile/internal/ssa/opGen.go        |  24 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 335 ++++++++++++++++++++++-----
+ 5 files changed, 354 insertions(+), 132 deletions(-)

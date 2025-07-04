@@ -1,15 +1,20 @@
-commit 400a5af19bb5af842342757864f3fb303867adc3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 30 18:55:11 2020 -0800
+commit a9fdd6bba281c98cbfd61803bbf92bcd6bd8ed49
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 12 11:00:31 2019 -0400
 
-    doc/go1.14: mention new method mime/multipart.(*Reader).NextRawPart
+    doc/go1.14: start doc; note end of NaCl platform support
     
-    Updates #29090
-    Updates #36878
+    This skeleton follows the model of CL 174521,
+    with additions from 'relnote -html'.
     
-    Change-Id: I63f0eb583285d5c12f591cb704097cdf6a67b64f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217128
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #33738
+    Updates #30439
+    
+    Change-Id: I0f88ff7f231b7728dca0695143f2f2eda74d60c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195058
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.14.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ doc/go1.14.html | 140 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 140 insertions(+)

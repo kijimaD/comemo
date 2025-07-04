@@ -1,14 +1,30 @@
-commit 1e721cfc43c4f3c4e24a386c7e283d9fec59e2f4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 13 12:44:50 2018 -0700
+commit caa1b4afbd145358450587053f290e6870c04b1c
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Feb 28 16:30:07 2018 -0500
 
-    bufio: clarify SplitFunc docs for nil token
+    cmd/compile/internal/ssa: note zero-width Ops
     
-    Fixes #25472
+    Add a bool to opInfo to indicate if an Op never results in any
+    instructions. This is a conservative approximation: some operations,
+    like Copy, may or may not generate code depending on their arguments.
     
-    Change-Id: Idb72ed06a3dc43c49ab984a80f8885352b036465
-    Reviewed-on: https://go-review.googlesource.com/118695
-    Reviewed-by: Rob Pike <r@golang.org>
+    I built the list by reading each arch's ssaGenValue function. Hopefully
+    I got them all.
+    
+    Change-Id: I130b251b65f18208294e129bb7ddc3f91d57d31d
+    Reviewed-on: https://go-review.googlesource.com/97957
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/bufio/scan.go | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |   4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   6 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |   6 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |   2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |   2 +-
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go    |   2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |   6 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |   6 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  34 ++++----
+ src/cmd/compile/internal/ssa/gen/main.go       |   4 +
+ src/cmd/compile/internal/ssa/op.go             |   1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 108 ++++++++++++++++---------
+ 12 files changed, 107 insertions(+), 74 deletions(-)

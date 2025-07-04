@@ -1,19 +1,19 @@
-commit 6382c39e15ce68996a3848ad6f0ca15570e35ff5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue May 17 15:26:18 2022 -0700
+commit 5b51cf47dcf08d86eb1de22850ebd7d75e7a02af
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Aug 3 16:50:35 2021 -0400
 
-    cmd/compile/internal/noder: remove TODO about position handling
+    [dev.typeparams] go/types: implement type terms
     
-    types2 uses nopos as the position for predeclared objects, so it's
-    expected that we'll see !pos.IsKnown() when translating types2
-    representations into IR.
+    This is a port of CL 338049 to go/types. It identical to that CL, except
+    for eliding unnecessary typenames from the testTerms declaration.
     
-    Change-Id: I8708c2e9815e3dd27da8066c67c73f5586ac4617
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406896
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ieb04d7bbc20063044eb63ea985f75d529f030cd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339653
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/posmap.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/go/types/typeterm.go      | 166 ++++++++++++++++++++++++++++++++++
+ src/go/types/typeterm_test.go | 205 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 371 insertions(+)

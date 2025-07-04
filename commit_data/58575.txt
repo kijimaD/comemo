@@ -1,20 +1,35 @@
-commit 52e32ad79e50742f0d793d60eb52caab53a67061
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Jan 22 12:26:10 2025 +0100
+commit 369ce90d2c734f7a8d08547219d2f39fa521ff71
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sun Nov 19 20:21:22 2023 +0000
 
-    crypto/x509/internal/macos: remove unused types and functions
+    runtime: add crash stack support for wasm
     
-    Some of the types and functions in the macos package are unused since
-    CL 353132. They can be removed.
+    Currently if morestack on g0 happens the wasm runtime prints
+    "RuntimeError: memory access out of bounds", which is quite misleading.
+    By switching to a crash stack we can get better stacktraces
+    for the error.
     
-    Change-Id: Ifb7c9619d3c77b83852e785b82877dfa3ca8fe6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643277
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    There is no way to automate tests for this feature on wasm, since
+    TestG0StackOverflow relies on spawning a subprocess which is not
+    supported by the wasm port.
+    
+    The way I got this tested manually is to comment everything in
+    TestG0StackOverflow, leaving just runtime.G0StackOverflow().
+    
+    Then it is a matter of invoking the test:
+    
+        GOOS=js GOARCH=wasm go test runtime -v -run=TestG0StackOverflow
+    
+    Change-Id: If450f3ee5209bb32efc1abd0a34b1cc4a29d0c46
+    GitHub-Last-Rev: 0d7c396e4cfeadc1188cae2b55661af10c8189e7
+    GitHub-Pull-Request: golang/go#63956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539995
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/x509/internal/macos/security.go | 92 ------------------------------
- src/crypto/x509/internal/macos/security.s  |  6 --
- 2 files changed, 98 deletions(-)
+ src/runtime/asm.s      |  2 ++
+ src/runtime/asm_wasm.s | 45 +++++++++++++++++++++++++++++++++++++++------
+ src/runtime/proc.go    |  2 +-
+ 3 files changed, 42 insertions(+), 7 deletions(-)

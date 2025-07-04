@@ -1,20 +1,20 @@
-commit 960d036f8f7387de9b06fde6601af43ecaa650e6
-Author: Hossein Zolfi <hossein.zolfi@gmail.com>
-Date:   Mon Sep 13 19:16:28 2021 +0000
+commit 82ad3083f86947eece2e4ce2ae82f1230aa466d9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Dec 29 12:31:17 2020 +0700
 
-    cmd/go: add missing parenthesis in a call to "PrintVersion"
+    [dev.regabi] cmd/compile: remove typ from AssignOpStmt
     
-    For #45713
+    Previous detached logic of typechecking AssignOpStmt from tcArith, the
+    typ field of it is not used anymore.
     
-    Change-Id: I16e548e6c10e58da815d08897f4ba5d71eeb17e4
-    GitHub-Last-Rev: 4a0c5d0cdaba94e5950effdcb0ef6b736c9556d1
-    GitHub-Pull-Request: golang/go#48360
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349599
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Pass toolstash -cmp.
+    
+    Change-Id: I407507a1c4c4f2958fca4d6899875564e54bf1f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279443
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/testdata/script/work_prune.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/stmt.go | 4 ----
+ 1 file changed, 4 deletions(-)

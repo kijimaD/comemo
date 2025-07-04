@@ -1,12 +1,12 @@
-commit 8155ff545201f478626a89011f2f8eb2e32923a2
+commit eaa082f69121cb8dcb33a2edfe9ca2eed6a69943
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Jun 17 16:41:59 2011 +1000
+Date:   Fri Jun 17 15:55:54 2011 +1000
 
-    go/build: use back quotes for regular expression
+    8l: minor fix discovered by lucio
     
-    R=adg
+    R=lucio.dere, vcc.163, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4643045
+    https://golang.org/cl/4645044
 
- src/pkg/go/build/build.go | 2 +-
+ src/cmd/ld/ldpe.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

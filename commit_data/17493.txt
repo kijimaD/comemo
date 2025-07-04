@@ -1,15 +1,24 @@
-commit 52f15df9e2e9fada55c7f132242eb78a8ba4f3ab
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Sep 6 16:55:35 2013 -0400
+commit 4e998d71c9abf1a2d302307301688108ccfffc56
+Author: Marco Hennings <marco.hennings@freiheit.com>
+Date:   Fri Sep 6 16:49:38 2013 -0400
 
-    cmd/go: rename go.exe if cannot delete it during clean
+    archive/tar: fix a case where USTAR-split is not working correctly.
     
-    Fixes #6179
+    For some long filenames the USTAR-split code does not work
+    correctly. It is wrongly assumed that the path would not be too long,
+    but it is.
     
-    R=golang-dev, rsc
+    The user visible result was that a filename was split, but it still
+    caused an error.
+    
+    The cause was a wrongly calculated nlen. In addition I noticed that
+    at this place it is also seems necessary to check if the prefix will
+    fit in the 155 chars available for the prefix.
+    
+    R=dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/12916047
+    https://golang.org/cl/13300046
 
- src/cmd/go/build.go |  2 +-
- src/cmd/go/clean.go | 20 ++++++++++++++++++--
- 2 files changed, 19 insertions(+), 3 deletions(-)
+ src/pkg/archive/tar/writer.go      |  7 +++++--
+ src/pkg/archive/tar/writer_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 2 deletions(-)

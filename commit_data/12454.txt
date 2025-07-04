@@ -1,18 +1,15 @@
-commit 152a1aa610117baf9a712b17d2673ad73bd490e6
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Wed Mar 7 00:40:16 2012 -0500
+commit c10650979f3d66f231b8e69e1cd8293cde4ca778
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 00:02:07 2012 -0500
 
-    misc/cgo: re-enable testso
+    net: disable another external network test
     
-    Also enabled it for darwin.
+    I don't know enough about multicast.
+    Should this be disabled on all systems, not just Windows?
     
-    R=rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5754063
+    https://golang.org/cl/5754060
 
- misc/cgo/testso/Makefile      | 22 ----------------------
- misc/cgo/testso/cgoso_test.go |  7 +++++++
- misc/cgo/testso/main.go       | 11 -----------
- misc/cgo/testso/test.bash     |  9 ---------
- src/run.bash                  |  5 +----
- 5 files changed, 8 insertions(+), 46 deletions(-)
+ src/pkg/net/multicast_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

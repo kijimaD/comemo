@@ -1,14 +1,14 @@
-commit 41453d2ed2a0ddb6c4acf5f1c41323749c0bafce
+commit 2ab9bb6aafe2720c4ea2b30fffc827e9f8883f53
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 8 23:20:21 2011 -0500
+Date:   Thu Dec 8 22:43:31 2011 -0500
 
-    exp/types: fix linux build
+    gc: fix export of '\'' and '\\' constants
     
-    I don't understand why it was only broken on Linux
+    Fixes Windows build.
     
-    TBR=gri
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5479045
+    https://golang.org/cl/5472046
 
- src/pkg/exp/types/gcimporter.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/gc/fmt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

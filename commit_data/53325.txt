@@ -1,25 +1,29 @@
-commit 6f7824f7a4d62998b03f3ddc5c12938a9a247e85
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed May 24 10:53:47 2023 -0700
+commit 8dc7710faeda33b03fe32d4e7c800f0dcf27c698
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Aug 9 17:10:22 2022 -0400
 
-    crypto/internal/bigmod: don't panic on NewModulusFromBig(0)
+    cmd/compile: do not use content addressable symbol for generic iface method names
     
-    Return an error instead. Makes usages of NewModulusFromBig a bit more
-    verbose, but better than returning nil or something and just moving the
-    panic down the road.
+    When a generic interface method is used, we use a special
+    relocation R_USEGENERICIFACEMETHOD to tell the linker the name of
+    the generic interface method, so it can keep methods with that
+    name live. The relocation references a symbol whose content is the
+    name. Currently this is a string symbol, which is content
+    addessable and may have trailing zero bytes (for better
+    deduplication). The trailing bytes can cause confusion for the
+    linker. This symbol doesn't need to be in the final binary and
+    doesn't need to be deduplicated with other symbol. So we don't use
+    content addressable symbol but make an (unnamed) symbol
+    specifically for this.
     
-    Fixes #60411
+    May fix #54346.
     
-    Change-Id: I10732c6ce56ccd9e4769281cea049dd4beb60a6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498035
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: If0c34f7844c3553a7be3846b66cf1c103bc231c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422300
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/crypto/ecdsa/ecdsa.go              |  6 +++-
- src/crypto/internal/bigmod/nat.go      |  9 ++++--
- src/crypto/internal/bigmod/nat_test.go | 32 +++++++++++++++------
- src/crypto/rsa/rsa.go                  | 52 ++++++++++++++++++++++++++++------
- 4 files changed, 80 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

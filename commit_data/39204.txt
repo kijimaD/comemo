@@ -1,54 +1,28 @@
-commit 5a90306344dab7a29979f066131bb62a75b69cbb
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 14 19:59:57 2019 +0000
+commit 4edea0f0a77b341ec565d848e453c4a854418e8c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Jan 10 23:42:53 2019 +0000
 
-    runtime: overhaul TestPhysicalMemoryUtilization
+    doc: mention 'go get golang.org/dl/...' in install
     
-    Currently, this test allocates many objects and relies on heap-growth
-    scavenging to happen unconditionally on heap-growth. However with the
-    new pacing system for the scavenging, this is no longer true and the
-    test is flaky.
+    I needed Go 1.10 to debug and fix a test failure on that Go version in
+    x/tools, but I forgot what the magic 'go get' command for this was.
     
-    So, this change overhauls TestPhysicalMemoryUtilization to check the
-    same aspect of the runtime, but in a much more robust way.
+    Googling "download specific golang version" and similar keywords showed
+    no results, presumably because the golang.org/dl subrepo isn't
+    prominently recommended nor documented anywhere.
     
-    Firstly, it sets up a much more constrained scenario: only 5 objects are
-    allocated total with a maximum worst-case (i.e. the test fails) memory
-    footprint of about 16 MiB. The test is now aware that scavenging will
-    only happen if the heap growth causes us to push way past our scavenge
-    goal, which is based on the heap goal. So, it makes the holes in the
-    test much bigger and the actual retained allocations much smaller to
-    keep the heap goal at the heap's minimum size. It does this twice to
-    create exactly two unscavenged holes. Because the ratio between the size
-    of the "saved" objects and the "condemned" object is so small, two holes
-    are sufficient to create a consistent test.
+    The most appropriate documentation page to add this to is doc/install,
+    since it goes into some detail and is well indexed. We only need a short
+    section to introduce the trick.
     
-    Then, the test allocates one enormous object (the size of the 4 other
-    objects allocated, combined) with the intent that heap-growth scavenging
-    should kick in and scavenge the holes. The heap goal will rise after
-    this object is allocated, so it's very important we do all the
-    scavenging in a single allocation that exceeds the heap goal because
-    otherwise the rising heap goal could foil our test.
+    The example does mention a specific version, Go 1.10.7, but I couldn't
+    imagine a way to make it version-agnostic while still being clear on
+    what the commands effectively do.
     
-    Finally, we check memory use relative to HeapAlloc as before. Since the
-    runtime should scavenge the entirety of the remaining holes,
-    theoretically there should be no more free and unscavenged memory.
-    However due to other allocations that may happen during the test we may
-    still see unscavenged memory, so we need to have some threshold. We keep
-    the current 10% threshold which, while arbitrary, is very conservative
-    and should easily account for any other allocations the test makes.
-    
-    Before, we also had to ensure the allocations we were making looked
-    large relative to the size of a heap arena since newly-mapped memory was
-    considered unscavenged, and so that could significantly skew the test.
-    However, thanks to the fix for #32012 we were able to reduce memory use
-    to 16 MiB in the worst case.
-    
-    Fixes #32010.
-    
-    Change-Id: Ia38130481e292f581da7fa3289c98c99dc5394ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177237
+    Change-Id: I13158564d76d95caec412cdb35a50a4356df5863
+    Reviewed-on: https://go-review.googlesource.com/c/157457
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/testdata/testprog/gc.go | 99 ++++++++++++++++++++-----------------
- 1 file changed, 53 insertions(+), 46 deletions(-)
+ doc/install.html | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

@@ -1,22 +1,21 @@
-commit b485e5bceb8cf417c28debe82f9c42b91f66132e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Dec 22 20:26:23 2024 -0800
+commit f6f141ab80853b0b45f7e33aa148e497ceeb7d38
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 21:09:16 2023 +0800
 
-    os: remove Process.mode field
+    runtime: support regABI and add spill functions in runtime for loong64
     
-    It's now redundant with checking whether the handle field is nil.
+    Update #40724
     
-    For #70907
-    
-    Change-Id: I877f2a7c63d15ab5f8e3d2c9aa24776c2e3e2056
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638576
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I709b818ef15c33f95251186d749ac13260ad36be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521783
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Run-TryBot: David Chase <drchase@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/exec.go         | 49 ++++++++++++-------------------------------------
- src/os/exec_unix.go    | 19 ++++++-------------
- src/os/exec_windows.go |  2 +-
- 3 files changed, 19 insertions(+), 51 deletions(-)
+ src/runtime/asm_loong64.s    | 295 ++++++++++++++++++++++++++++++++++---------
+ src/runtime/stubs_loong64.go |   7 +
+ 2 files changed, 243 insertions(+), 59 deletions(-)

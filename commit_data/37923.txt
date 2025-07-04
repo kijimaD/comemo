@@ -1,38 +1,18 @@
-commit 66065c3115861c73b8804037a6d9d5986ffa9913
-Author: Austin Clements <austin@google.com>
-Date:   Sun Jan 27 21:03:32 2019 -0500
+commit c56dcd5fc7cd926b9d4a9c96a699a12f832317f1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 11 14:27:41 2018 +0200
 
-    cmd/link: fix confusing error on unresolved symbol
+    cmd/dist: make raceDetectorSupported an exact copy of cmd/internal/sys.RaceDetectorSupported
     
-    Currently, if an assembly file includes a static reference to an
-    undefined symbol, and another package also has an undefined reference
-    to that symbol, the linker can report an error like:
+    The comment states that cmd/internal/sys.RaceDetectorSupported is a copy,
+    so make the two identical. No functional difference, since ppce64le is
+    only supported on linux anyway.
     
-      x: relocation target zero not defined for ABI0 (but is defined for ABI0)
-    
-    Since the symbol is referenced in another package, the code in
-    ErrorUnresolved that looks for alternative ABI symbols finds that
-    symbol in the symbol table, but doesn't check that it's actually
-    defined, which is where the "but is defined for ABI0" comes from. The
-    "not defined for ABI0" is because ErrorUnresolved failed to turn the
-    static symbol's version back into an ABI, and it happened to print the
-    zero value for an ABI.
-    
-    This CL fixes both of these problems. It explicitly maps the
-    relocation version back to an ABI and detects if it can't be mapped
-    back (e.g., because it's a static reference). Then, if it finds a
-    symbol with a different ABI in the symbol table, it checks to make
-    sure it's a definition, and not simply an unresolved reference.
-    
-    Fixes #29852.
-    
-    Change-Id: Ice45cc41c1907919ce5750f74588e8047eaa888c
-    Reviewed-on: https://go-review.googlesource.com/c/159518
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Id3e4d445fb700b9b3bb53bf15ea05b8911b4f95e
+    Reviewed-on: https://go-review.googlesource.com/134595
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/link.go    | 19 +++++++------
- src/cmd/link/internal/sym/symbol.go | 10 +++++++
- src/cmd/link/link_test.go           | 55 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 75 insertions(+), 9 deletions(-)
+ src/cmd/dist/test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

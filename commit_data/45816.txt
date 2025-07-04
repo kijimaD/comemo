@@ -1,21 +1,24 @@
-commit ea8612ef42bfbf837e22aef669e9f715100e532a
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Tue Jun 15 17:04:01 2021 +0200
+commit 9264067a41d98d0500036c2279dea252d1f9adac
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Nov 19 10:56:35 2020 -0500
 
-    syscall: disable c-shared test when no cgo, for windows/arm
+    cmd/go: remove ListModules call in runGet
     
-    The windows/arm port does not yet support cgo, so disable a test that
-    requires it. This fixes a regression from CL 327969, which added support
-    for arm64, but errantly dropped the t.Skip for both arm and arm64,
-    rather than just for arm64. With this commit, we make the test specific
-    to cgo, rather than the architecture.
+    ListModules was used to download .info files so that 'go list -m all'
+    would succeed later when offline. However, 'go list -m all' may
+    already fail when offline after 'go mod tidy', so it doesn't make
+    sense to add complexity to 'go get'.
     
-    Change-Id: Ibe1166c1965e007c7af899b07ded65f2a2633ddd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/327970
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Instead, remove the ListModules call and fix the test that
+    accidentally depended on it.
+    
+    For #42723
+    
+    Change-Id: I692597cf5ca15c23fa6fc9d2bac4b6e044299482
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271577
+    Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/syscall/syscall_windows_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/modget/get.go            | 15 ---------------
+ src/cmd/go/testdata/script/mod_gonoproxy.txt |  6 ++++++
+ 2 files changed, 6 insertions(+), 15 deletions(-)

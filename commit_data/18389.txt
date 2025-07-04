@@ -1,16 +1,14 @@
-commit 7e494f8500416b9940c239be7970fa7aacc0868f
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 31 15:10:18 2014 -0800
+commit 1b2e435b15bd6907425f4b3f32d46f4e003a8c57
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jan 31 18:09:53 2014 +0400
 
-    unicode: delete appearance of unused LowerUpper term from comment
-    If a LowerUpper ever happens, maketables will complain.
-    
-    Fixes #7002.
+    runtime: fix typos in test
+    I don't know what is n, but it exists somewhere there.
     
     LGTM=dave
     R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/59210044
+    https://golang.org/cl/58710043
 
- src/pkg/unicode/letter.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/chan_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

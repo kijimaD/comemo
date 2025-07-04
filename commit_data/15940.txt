@@ -1,17 +1,14 @@
-commit 5e74f5029b15decee67095532a5c60cb98bbea52
-Author: Julien Schmidt <google@julienschmidt.com>
-Date:   Mon Mar 25 17:43:30 2013 -0700
+commit eee3e636072eadcde0bb9088f4fcb31192bf16d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 25 17:38:51 2013 -0700
 
-    database/sql: optimized []byte copy + []byte(nil) -> *interface fix
+    database/sql: link to driver wiki page
     
-    Make the copy directly in the convert switch instead of an extra loop.
-    Also stops converting nil-[]byte to zero-[]byte when assigning to *interface
+    Fixes #5127
     
-    R=golang-dev, bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7962044
+    https://golang.org/cl/8011044
 
- src/pkg/database/sql/convert.go      | 22 ++++++++++++++++++----
- src/pkg/database/sql/convert_test.go |  3 ++-
- src/pkg/database/sql/sql.go          | 18 ------------------
- 3 files changed, 20 insertions(+), 23 deletions(-)
+ src/pkg/database/sql/sql.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

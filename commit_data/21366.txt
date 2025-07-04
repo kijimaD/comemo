@@ -1,16 +1,15 @@
-commit fd85a6c64057402d809a15eb5ec0af8dba8b1256
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Jan 28 17:28:50 2015 +0300
+commit 9371babdd842a50067ee4ab22eec1d002ef94eab
+Author: Marko Tiikkaja <marko@joh.to>
+Date:   Sun Dec 14 03:57:14 2014 +0100
 
-    cmd/gc: fix condition for fast pathed interface conversions
+    database/sql: Remove unnecessary call to maybeOpenNewConnections
     
-    For some reason the current conditions require the type to be "uintptr-shaped".
-    This cuts off structs and arrays with a pointer.
-    isdirectiface and width==widthptr is sufficient condition to enable the fast paths.
+    numCanOpen will never be larger than 0 in maybeOpenNewConnections() when this
+    code path is taken, so no new connections can ever be opened.
     
-    Change-Id: I11842531e7941365413606cfd6c34c202aa14786
-    Reviewed-on: https://go-review.googlesource.com/3414
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id1302e8d9afb3a67be61b5e738fe07ef81d20fe0
+    Reviewed-on: https://go-review.googlesource.com/1550
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gc/walk.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/database/sql/sql.go | 1 -
+ 1 file changed, 1 deletion(-)

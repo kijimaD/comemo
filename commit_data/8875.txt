@@ -1,15 +1,14 @@
-commit 52cd055f9156c5d09468e427521eaceb63f9b50a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 27 23:23:51 2011 -0400
+commit 6b648cafde80c141819f5224f2e69dd0bb8b9ece
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 28 12:46:16 2011 +1000
 
-    exp/regexp/syntax: case-folding in character classes
+    runtime: another attempt to allow stdcall to be used from both 386 and amd64 arch
     
-    Also fix \x{123} parsing.
-    
-    R=r
-    CC=golang-dev
-    https://golang.org/cl/4632052
+    R=rsc
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/4627071
 
- src/pkg/exp/regexp/syntax/parse.go      | 157 +++++++++++++++++++++++++-------
- src/pkg/exp/regexp/syntax/parse_test.go |  85 +++++++++++++++--
- 2 files changed, 205 insertions(+), 37 deletions(-)
+ src/pkg/runtime/windows/mem.c    | 10 +++++-----
+ src/pkg/runtime/windows/os.h     |  3 +++
+ src/pkg/runtime/windows/thread.c | 16 ++++++++--------
+ 3 files changed, 16 insertions(+), 13 deletions(-)

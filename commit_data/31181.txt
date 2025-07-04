@@ -1,16 +1,26 @@
-commit c239fbb893b202e2fce141449215f802eefb6b9f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 18 06:09:15 2017 -0700
+commit 6dad55aa25debdeb43e6b7c8348cf923fb8e5cff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 13:39:12 2017 -0500
 
-    cmd/compile: remove stray blank assignment
+    cmd/go: split out cmd/go/internal/get
     
-    Left over from CL 39855.
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
     
-    Change-Id: I9df8b5c631d5afbdbf2fb306876648d8541931d3
-    Reviewed-on: https://go-review.googlesource.com/40941
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: Iec17bf2243de129942ae5fba126ec5f217be7303
+    Reviewed-on: https://go-review.googlesource.com/36202
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/gen.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/go/{ => internal/get}/discovery.go |  9 +--------
+ src/cmd/go/{ => internal/get}/get.go       | 21 +++++++++++----------
+ src/cmd/go/{ => internal/get}/vcs.go       |  2 +-
+ src/cmd/go/main.go                         |  3 ++-
+ 4 files changed, 15 insertions(+), 20 deletions(-)

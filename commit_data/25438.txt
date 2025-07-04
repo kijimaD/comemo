@@ -1,25 +1,15 @@
-commit a4f27c42254a3a79d71e7d6a1b8f45970621a644
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 5 16:06:09 2016 -0800
+commit d821ae2a9e4e5dafef904d38f75be44656128742
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Aug 31 13:51:37 2015 +1200
 
-    net/http: update bundled copied of x/net/http2 to git rev 961116aee
+    cmd/internal/obj, cmd/link: simplify ppc64 archreloc now that the original value is passed to it
     
-    Update net/http's copy of http2 (sync as of x/net git rev 961116aee,
-    aka https://golang.org/cl/18266)
+    And get rid of the stupid game of encoding the instruction in the addend.
     
-    Also adds some CONNECT tests for #13717 (mostly a copy of http2's
-    version of test, but in the main repo it also tests that http1 behaves
-    the same)
-    
-    Fixes #13668
-    Fixes #13717
-    
-    Change-Id: I7db93fe0b7c42bd17a43ef32953f2d20620dd3ea
-    Reviewed-on: https://go-review.googlesource.com/18269
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib4de7515196cbc1e63b4261b01931cf02a44c1e6
+    Reviewed-on: https://go-review.googlesource.com/14055
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/clientserver_test.go |  59 +++++++++++
- src/net/http/h2_bundle.go         | 199 ++++++++++++++++++++++++++------------
- 2 files changed, 196 insertions(+), 62 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go | 38 +++++++++++++-------------
+ src/cmd/link/internal/ppc64/asm.go | 55 +++++++++++++++++++++-----------------
+ 2 files changed, 49 insertions(+), 44 deletions(-)

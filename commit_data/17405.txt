@@ -1,12 +1,14 @@
-commit aff7ea9458d9010aec816e451fa557a3fd3a7d68
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Aug 28 09:40:08 2013 +1000
+commit c7c1a1bbaab68a08160ed5eaea65c5947b17cf11
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 27 16:12:11 2013 -0700
 
-    C: add Asim Shankar (Google CLA)
+    net/smtp: clarify that SendMail's auth param is optional
     
-    R=golang-dev, bradfitz
+    It wasn't obvious that the Auth could be nil.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13313043
+    https://golang.org/cl/13060048
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/smtp/smtp.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,21 +1,21 @@
-commit b71ca76065823af0908ff469f603c0b38a7c4177
-Author: Sasha Melentyev <sasha@melentyev.io>
-Date:   Sat Sep 3 20:08:12 2022 +0000
+commit a73c6cf762560b458eb938e4461cd8debc479fd9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 18 17:31:23 2021 -0700
 
-    debug/buildinfo: remove redundant type conversion
+    cmd/compile/internal/types2: ensure named types are expanded after type-checking
     
-    Change-Id: Ia8ffc9a17646ad2c74f633610aaf34fef006c023
-    GitHub-Last-Rev: 6ab0d107393c9bdfeaed5c539efb452942c00394
-    GitHub-Pull-Request: golang/go#54856
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428235
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    This is a clean port of CL 356490 from go/types to types2.
+    
+    Fixes #48703.
+    Fixes #48974.
+    
+    Change-Id: I08c0db0b92250cbb043325541b21a577726b40ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356515
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/debug/buildinfo/buildinfo.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/check.go           | 28 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/named.go           | 23 +++++++-----------
+ .../types2/testdata/fixedbugs/issue48703.go2       | 27 +++++++++++++++++++++
+ .../types2/testdata/fixedbugs/issue48974.go2       | 22 +++++++++++++++++
+ 4 files changed, 85 insertions(+), 15 deletions(-)

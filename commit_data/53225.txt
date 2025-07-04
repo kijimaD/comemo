@@ -1,20 +1,27 @@
-commit 8366497625d308aa9b0bc022ad1efd2a5d45bb32
+commit ab0a94c6d32f758d9e61e3893e09f0a742347b4a
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 23 10:29:47 2023 -0400
+Date:   Wed Aug 3 22:50:37 2022 -0400
 
-    cmd/go: convert semver.IsValid to gover.ModIsValid
+    cmd/dist: require Go 1.17 for building Go
     
-    Change-Id: Id584c4bd6d1c12fd085414188bc7e7ca08164c04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497416
+    This makes builds using earlier Go bootstrap versions fail pretty clearly:
+    
+    % GOROOT_BOOTSTRAP=$HOME/sdk/go1.16 ./make.bash
+    Building Go cmd/dist using /Users/rsc/sdk/go1.16. (go1.16 darwin/amd64)
+    found packages main (build.go) and building_Go_requires_Go_1_17_or_later (notgo117.go) in /Users/rsc/go/src/cmd/dist
+    %
+    
+    All the builders have Go 1.17 or later for bootstrap now except
+    for the android corellium builders, which still need updating (#54246).
+    We are accepting breakage on those for now.
+    
+    Fixes #44505.
+    
+    Change-Id: I12a67f42f61dba43a331cee0a150194d3e42c044
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420902
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/gover/mod.go       | 22 ++++++++++++++++++++
- src/cmd/go/internal/load/pkg.go        |  5 +++--
- src/cmd/go/internal/modfetch/cache.go  | 12 +++++------
- src/cmd/go/internal/modload/list.go    |  2 +-
- src/cmd/go/internal/modload/modfile.go |  3 +--
- src/cmd/go/internal/modload/mvs.go     |  2 +-
- src/cmd/go/internal/modload/query.go   | 38 +++++++++-------------------------
- 7 files changed, 44 insertions(+), 40 deletions(-)
+ src/cmd/dist/notgo117.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

@@ -1,13 +1,12 @@
-commit e303eeb75bc983f9e909668ee2068b439f73322a
-Author: Rob Pike <r@golang.org>
-Date:   Sat Feb 25 08:47:04 2012 +1100
+commit 34e60a81d5b9a3c18d634d89acea9384605f4916
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 24 13:44:36 2012 -0800
 
-    go/test/chan1.go: fix typo
-    Found by Lucio De Re
+    go/ast: examples for ast.Print, ast.Inspect
     
-    R=golang-dev, gri
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5694071
+    https://golang.org/cl/5700057
 
- test/ken/chan1.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/ast/example_test.go | 136 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 136 insertions(+)

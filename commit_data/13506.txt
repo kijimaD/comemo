@@ -1,13 +1,24 @@
-commit c49af2ccafa42971a63aee0a953b82fa58285e74
+commit b9e051e82d25b5fae040d7f6235774b48e3f3a2b
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 26 23:21:41 2012 -0700
+Date:   Thu Jul 26 22:46:20 2012 -0700
 
-    misc/cgo/test: add test for issue 3871: cgo setgid hang on GNU/Linux
+    runtime: ignore signal 33 == SIGSETXID on GNU/Linux
     
-    R=golang-dev, bradfitz
+    When a cgo program calls setuid, setgid, etc., the GNU/Linux
+    pthread library sends signal SIGSETXID to each thread to tell
+    it to update its UID info.  If Go is permitted to intercept
+    the default SIGSETXID signal handler, the program will hang.
+    
+    This patch tells the runtime package to not try to intercept
+    SIGSETXID on GNU/Linux.  This will be odd if a Go program
+    wants to try to use that signal, but it means that cgo
+    programs that call setuid, etc., won't hang.
+    
+    Fixes #3871.
+    
+    R=rsc, r, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6445049
+    https://golang.org/cl/6455050
 
- misc/cgo/test/basic.go    | 16 ++++++++++++++++
- misc/cgo/test/cgo_test.go |  1 +
- 2 files changed, 17 insertions(+)
+ src/pkg/runtime/signals_linux.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

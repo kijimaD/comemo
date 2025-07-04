@@ -1,16 +1,13 @@
-commit ae562107089a8d989f0526b90a7bce50a9da4348
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 22 16:04:50 2014 -0500
+commit bdd78a088dd07f1182dac2a17f9ff0d2353cc429
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Wed Jan 22 10:58:38 2014 -0800
 
-    testing: diagnose buggy tests that panic(nil)
+    archive/tar: add dragonfly build tag
     
-    Fixes #6546.
-    
-    LGTM=dave, bradfitz, r
-    R=r, dave, bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/55780043
+    https://golang.org/cl/55720044
 
- doc/go1.3.txt              | 1 +
- src/pkg/testing/testing.go | 8 +++++++-
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/archive/tar/stat_atim.go | 2 +-
+ src/pkg/archive/tar/stat_unix.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

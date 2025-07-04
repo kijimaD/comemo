@@ -1,20 +1,30 @@
-commit 68b10c2bb8ab95397c70b32ce7c3373eaa6ae9ce
-Author: Ikko Ashimine <eltociear@gmail.com>
-Date:   Mon Aug 29 15:48:47 2022 +0000
+commit 9062a5298bdee895dd9f4e9c07ffd3e261c0ac13
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 6 09:03:34 2021 -0700
 
-    internal/trace: fix typo in goroutines.go
+    cmd/compile/internal/types2: break cycles in invalid types
     
-    assosciated -> associated
+    This CL reverses the change in CL 284254 (which was ported
+    to types2) which originated in CL 240901 to address a crash
+    in a test created by a fuzzer (that crash appears to be
+    avoided in other ways, now).
     
-    Change-Id: Id1cbbdea12f0239a9e173ece934c18cc9ffcf0f4
-    GitHub-Last-Rev: 7fea9de6c27b95f91591db4b5bd9023eb80dc522
-    GitHub-Pull-Request: golang/go#54739
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425596
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    This exposed another bug in typeset.go where we don't look
+    for the underlying type when testing if a type is an interface
+    or not. Fixed that as well.
+    
+    Adjusted a test case that now doesn't report an error anymore
+    (which is good).
+    
+    Fixes #48819.
+    
+    Change-Id: I611d68e053d6b8a2f7176d0cd5a44da2df28ad21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354329
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/trace/goroutines.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/decl.go                   |  1 +
+ .../internal/types2/testdata/fixedbugs/issue41124.go2     |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue48819.src     | 15 +++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go                |  2 +-
+ 4 files changed, 18 insertions(+), 2 deletions(-)

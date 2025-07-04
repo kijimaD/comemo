@@ -1,23 +1,20 @@
-commit 13a0f7b50299f9ab40dad7c855539af65e34d132
-Author: nobishino <nobishii11@gmail.com>
-Date:   Tue Mar 16 19:49:13 2021 +0000
+commit 8ec5a052ec8d4e628353fb5099b29341fae9b3a4
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Aug 17 19:10:12 2020 +0200
 
-    spec: clarify that signed integers>=0 are permitted as shift counts
+    unicode: upgrade to Unicode 13.0.0
     
-    In Go1.13 and above, signed integers are permitted as shift counts as long as they are >=0.
-    However, the comments in the "Arithmetic operators" section says shift operators accept "unsigned integer" as of right operands. Replacing this with "integer>=0" resolves the misunderstanding that shift
-    operators permit only unsigned integers.
+    Fixes #40755
     
-    Reference: Go1.13 Release Notes: https://golang.org/doc/go1.13
-    
-    Change-Id: Icd3c7734d539ab702590e992a618c9251c653c37
-    GitHub-Last-Rev: 4f263a48d3b19ca06a277c5fef78df55e9a92b10
-    GitHub-Pull-Request: golang/go#44664
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297249
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: I14b3977317994095db8ae1bd873c174641209356
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248765
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ api/except.txt         |   1 +
+ api/next.txt           |   5 +
+ doc/go1.16.html        |  11 +
+ src/strconv/isprint.go |  98 +++++----
+ src/unicode/tables.go  | 544 +++++++++++++++++++++++++++++++------------------
+ 5 files changed, 416 insertions(+), 243 deletions(-)

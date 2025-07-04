@@ -1,12 +1,23 @@
-commit fe1ccc5b88e60d897137c41bdcc2824556793105
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 28 13:42:06 2017 +1000
+commit d2a954517834104dfa55341202efba911b17e03d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Apr 19 15:30:08 2017 +1200
 
-    cmd/link: introduce and use peFile.writeSymbolTableAndStringTable
+    cmd/internal: remove SymKind values that are only checked for, never set
     
-    Change-Id: I506f5e146f3b5bf359d6932a85ac5572d3a3f103
-    Reviewed-on: https://go-review.googlesource.com/59426
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id152767c033c12966e9e12ae303b99f38776f919
+    Reviewed-on: https://go-review.googlesource.com/40987
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 59 +++++++++++++++++++++---------------------
- 1 file changed, 30 insertions(+), 29 deletions(-)
+ src/cmd/internal/obj/mips/asm0.go         | 4 ----
+ src/cmd/internal/obj/plist.go             | 2 +-
+ src/cmd/internal/obj/ppc64/asm9.go        | 4 ----
+ src/cmd/internal/obj/s390x/asmz.go        | 3 ---
+ src/cmd/internal/objabi/symkind.go        | 4 ----
+ src/cmd/internal/objabi/symkind_string.go | 4 ++--
+ src/cmd/internal/objfile/goobj.go         | 2 --
+ src/cmd/link/internal/ld/symkind.go       | 2 --
+ 8 files changed, 3 insertions(+), 22 deletions(-)

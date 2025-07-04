@@ -1,20 +1,31 @@
-commit a63aee4955d8236f657a94101d6a703be97e98ec
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 27 13:09:25 2024 -0500
+commit 25895d1c995d71ca505e1e7a3c79daa49620db74
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 23 19:30:35 2023 +0000
 
-    cmd/go: improve GOCACHEPROG types documentation
+    runtime: make all GC mark workers yield for forEachP
     
-    This is in preparation for adding a "go help" topic for GOCACHEPROG.
+    Currently dedicated GC mark workers really try to avoid getting
+    preempted. The one exception is for a pending STW, indicated by
+    sched.gcwaiting. This is currently fine because other kinds of
+    preemptions don't matter to the mark workers: they're intentionally
+    bound to their P.
     
-    Updates #71032
-    Updates #59719
+    With the new execution tracer we're going to want to use forEachP to get
+    the attention of all Ps. We may want to do this during a GC cycle.
+    forEachP doesn't set sched.gcwaiting, so it may end up waiting the full
+    GC mark phase, burning a thread and a P in the meantime. This can mean
+    basically seconds of waiting and trying to preempt GC mark workers.
     
-    Change-Id: I9dbbe56fa328dffe89207b5b41a0f37afd51e2b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638566
+    This change makes all mark workers yield if (*p).runSafePointFn != 0 so
+    that the workers actually yield somewhat promptly in response to a
+    forEachP attempt.
+    
+    Change-Id: I7430baf326886b9f7a868704482a224dae7c9bba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537235
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/cache/cache.go | 12 ++---
- src/cmd/go/internal/cache/prog.go  | 89 ++++++++++++++++++++++++++++----------
- 2 files changed, 72 insertions(+), 29 deletions(-)
+ src/runtime/mgcmark.go | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

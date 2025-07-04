@@ -1,24 +1,27 @@
-commit bd00528d0415a8b8f4ca08e61856e843b7d8672b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 6 17:41:06 2023 +0000
+commit e51b3ae0eebfacd15cad9216b8dd2d2597b860c5
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Mar 11 19:54:08 2022 +0200
 
-    Revert "net: remove fallback path in sysSocket"
+    runtime: fast clock_gettime on FreeBSD, split getHPETTimecounter
     
-    This reverts CL 40364.
+    Call only initHPETTimecounter on the system stack.
+    Use O_CLOEXEC flag when opening the HPET device.
     
-    Reason for revert: Fallback path is still required on Solaris.
+    FreeBSD 12.3-RELEASE-p2, AMD FX-8300
+    paulzhol@relic:~/go/src/time % ~/gocode/bin/benchcmp old_hpet.txt new_hpet.txt
+    benchcmp is deprecated in favor of benchstat: https://pkg.go.dev/golang.org/x/perf/cmd/benchstat
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkNow-8              1420          1397          -1.62%
+    BenchmarkNowUnixNano-8      1421          1404          -1.20%
+    BenchmarkNowUnixMilli-8     1423          1405          -1.26%
+    BenchmarkNowUnixMicro-8     1423          1404          -1.34%
     
-    For #45964
-    For #59359
+    Update #50947
     
-    Change-Id: I4b8c8af77ee987cad6617221793b90c9a8829c3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501276
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I553b5427fb0b86d7e070af4516b36326bc0aaf00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391856
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/net/sock_cloexec.go | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ src/runtime/vdso_freebsd_x86.go | 58 ++++++++++++++++++++---------------------
+ 1 file changed, 28 insertions(+), 30 deletions(-)

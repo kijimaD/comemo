@@ -1,28 +1,12 @@
-commit b536adbfba6d13e141ba65cda77d69e4ce7e5177
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Sat Oct 8 19:37:06 2011 +0200
+commit bffadd6bd78465e4a9b2e736963fea0630bd9308
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Oct 8 10:11:38 2011 -0400
 
-    gc: changes to export format in preparation for inlining.
+    crypto/tls: forgot this file in the last change.
     
-    string literals used as package qualifiers are now prefixed with '@'
-    which obviates the need for the extra ':' before tags.
-    
-    R=rsc, gri, lvd
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5129057
+    https://golang.org/cl/5244042
 
- src/cmd/gc/builtin.c.boot      | 208 ++++++++++++++++++++---------------------
- src/cmd/gc/esc.c               |   8 +-
- src/cmd/gc/export.c            |   2 +-
- src/cmd/gc/gen.c               |   2 +-
- src/cmd/gc/go.h                |   9 +-
- src/cmd/gc/go.y                |  45 +++------
- src/cmd/gc/lex.c               |   1 +
- src/cmd/gc/print.c             | 161 ++++++++++++++++++++++++++++---
- src/cmd/gc/subr.c              | 200 +++++++++++++++++----------------------
- src/lib9/fmt/fmtprint.c        |  26 ++----
- src/lib9/fmt/fmtvprint.c       |  28 +++---
- src/pkg/go/types/gcimporter.go | 120 ++++++++++++++----------
- test/ddd1.go                   |   4 +-
- test/escape2.go                | 204 ++++++++++++++++++++--------------------
- 14 files changed, 563 insertions(+), 455 deletions(-)
+ src/pkg/crypto/tls/conn.go | 3 +++
+ 1 file changed, 3 insertions(+)

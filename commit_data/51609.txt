@@ -1,26 +1,20 @@
-commit 6ad27161f8d1b9c5e03fb3415977e1d3c3b11323
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 3 17:05:53 2023 -0800
+commit 8c5904f149a4863183925c71ce4118413e7e0167
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Wed Feb 23 10:55:18 2022 +0100
 
-    cmd/compile: better error message for when a type is in a constraint but not the type set
+    doc/go1.18: mention runtime/pprof improvements
     
-    While at it, also remove the word "constraint" in the detail explanation
-    of an unsatisfied constraint.
+    For #47694.
     
-    Fixes #57500.
-    
-    Change-Id: I55dae1694de2cfdb434aeba9d4a3530af7aca8f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460455
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: Ib49145a58b8388d35267cf4b0caa730d7e436d06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387574
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/instantiate.go     | 37 +++++++++++++++++++---
- src/go/types/instantiate.go                        | 37 +++++++++++++++++++---
- .../types/testdata/fixedbugs/issue40350.go         |  2 +-
- .../types/testdata/fixedbugs/issue49179.go         |  8 ++---
- .../types/testdata/fixedbugs/issue57486.go         |  2 +-
- .../types/testdata/fixedbugs/issue57500.go         | 16 ++++++++++
- 6 files changed, 88 insertions(+), 14 deletions(-)
+ doc/go1.18.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

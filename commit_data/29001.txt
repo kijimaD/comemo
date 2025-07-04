@@ -1,21 +1,25 @@
-commit 699fb0fc5b654b714d7e8be5628646c0b063d523
-Author: Quentin Smith <quentin@golang.org>
-Date:   Fri Oct 21 16:48:50 2016 -0400
+commit 65c5d62420a539f2f0d06b3ea2ba837f0fbdd6cf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 8 07:52:02 2016 -0700
 
-    cmd/doc: continue searching after error reading directory
+    cmd/vet: re-quote struct tags when printing errors
     
-    If a directory in GOPATH is unreadable, we should keep looking for other
-    packages. Otherwise we can give the misleading error "no buildable Go
-    source files".
+    cmd/link/link_test.go contains several multi-line
+    struct tags. Going through an unquote/quote cycle
+    converts `a
+    b
+    c` to "a\nb\nc\n".
     
-    Fixes #16240
+    This keeps all vet error messages for the standard
+    library on a single line.
     
-    Change-Id: I38e1037f56ec463d3c141f0508fb74211cb90f13
-    Reviewed-on: https://go-review.googlesource.com/31713
-    Run-TryBot: Quentin Smith <quentin@golang.org>
+    Updates #11041
+    
+    Change-Id: Ifba1e87297a5174294d1fbf73463fd3db357464f
+    Reviewed-on: https://go-review.googlesource.com/27129
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/doc/dirs.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/vet/structtag.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

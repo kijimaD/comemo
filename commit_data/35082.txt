@@ -1,15 +1,30 @@
-commit 20c98dc396d1cb8c3a9776f1d330feed2f2a132a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 20 17:44:55 2018 -0700
+commit ddae7fb1e8ae0bd7c5a011b122482352185b5951
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 11 16:41:37 2017 -0800
 
-    cmd/link: skip TestRuntimeTypeAttr to fix build
+    os: don't use test logger for Getwd
     
-    Updates #24983
+    Otherwise, on systems for which syscall does not implement Getwd,
+    a lot of unnecessary files and directories get added to the testlog,
+    right up the root directory. This was causing tests on such systems
+    to fail to cache in practice.
     
-    Change-Id: I417453364346106d4ff4c99549175cef7df724e3
-    Reviewed-on: https://go-review.googlesource.com/108575
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Updates #22593
+    
+    Change-Id: Ic8cb3450ea62aa0ca8eeb15754349f151cd76f85
+    Reviewed-on: https://go-review.googlesource.com/83455
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/os/file.go         | 10 ++++++++++
+ src/os/file_plan9.go   | 11 ++---------
+ src/os/file_unix.go    | 11 ++---------
+ src/os/file_windows.go | 11 ++---------
+ src/os/getwd.go        | 12 ++++++------
+ src/os/stat.go         | 23 +++++++++++++++++++++++
+ src/os/stat_plan9.go   | 16 +++++-----------
+ src/os/stat_unix.go    | 15 ++++-----------
+ src/os/stat_windows.go | 15 ++++-----------
+ 9 files changed, 58 insertions(+), 66 deletions(-)

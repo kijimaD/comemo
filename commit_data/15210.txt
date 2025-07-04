@@ -1,13 +1,17 @@
-commit 2fdd60b9b66f26720ea571345785285d4037dce5
+commit 8311697792122ba853ff1d52b1731f7fdd1e577b
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Feb 13 01:06:52 2013 +0800
+Date:   Wed Feb 13 01:03:25 2013 +0800
 
-    go/build, runtime/cgo: cgo support for NetBSD/ARM
+    syscall: NetBSD/ARM support
     
     R=golang-dev, rsc, dave
     CC=golang-dev
-    https://golang.org/cl/7229082
+    https://golang.org/cl/7288050
 
- src/pkg/go/build/build.go            |   1 +
- src/pkg/runtime/cgo/gcc_netbsd_arm.c | 117 +++++++++++++++++++++++++++++++++++
- 2 files changed, 118 insertions(+)
+ src/pkg/syscall/asm_netbsd_arm.s       |  124 +++
+ src/pkg/syscall/syscall_netbsd_arm.go  |   42 +
+ src/pkg/syscall/zerrors_netbsd_arm.go  | 1642 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_netbsd_arm.go | 1228 ++++++++++++++++++++++++
+ src/pkg/syscall/zsysnum_netbsd_arm.go  |  271 ++++++
+ src/pkg/syscall/ztypes_netbsd_arm.go   |  363 +++++++
+ 6 files changed, 3670 insertions(+)

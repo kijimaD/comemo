@@ -1,16 +1,21 @@
-commit 32284526c8040f59da6d487cf2c976be3ca8798c
-Author: Ethan Lowman <ethan.l.527@gmail.com>
-Date:   Fri Feb 3 13:35:28 2023 -0500
+commit f9747b7f7315fa702a39b420b63977ca90e06e94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 22 21:28:32 2022 -0700
 
-    net/http/httputil: fix syntax in ReverseProxy example comment
+    go/types, types2: report struct type for literals with too few/many elements
     
-    Change-Id: I7e71626246af94047fbd1abb9bb77f2cd9b281fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465195
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    This change essentially matches the 1.17 compiler error message for
+    this error.
+    
+    Fixes #51877.
+    
+    Change-Id: I24ec2f9cc93d8cd2283d097332a39bc1a0eed3a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394914
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/http/httputil/reverseproxy.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/expr.go                |  4 ++--
+ .../internal/types2/testdata/fixedbugs/issue51877.go   | 18 ++++++++++++++++++
+ src/go/types/expr.go                                   |  4 ++--
+ src/go/types/testdata/fixedbugs/issue51877.go          | 18 ++++++++++++++++++
+ 4 files changed, 40 insertions(+), 4 deletions(-)

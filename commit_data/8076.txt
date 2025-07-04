@@ -1,13 +1,14 @@
-commit 179f0b8a0717567a7d57e65ec83e69371e12ea97
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 13 14:57:47 2011 -0700
+commit 5666ec87353178e0124b6263ed3c87d799557fcb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 13 14:24:38 2011 -0700
 
-    libmach: fix the windows build.
-    Newly enabled compiler errors need workaround.
+    fix build: disable gofmt test script, enable gotest testing instead
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4397047
+    https://golang.org/cl/4403045
 
- src/libmach/windows.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/gofmt/Makefile | 4 ++--
+ src/pkg/Makefile       | 1 -
+ src/run.bash           | 9 ---------
+ 3 files changed, 2 insertions(+), 12 deletions(-)

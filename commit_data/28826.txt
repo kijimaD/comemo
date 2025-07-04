@@ -1,56 +1,14 @@
-commit 77527a316b33d6f4c072c0774a1478bb53f42d35
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 11 22:53:27 2016 -0400
+commit 01dbfb81a0d444cdaa867c30c6306b756c91dea6
+Merge: d2286ea284 f135c32640
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 4 10:51:10 2016 -0700
 
-    cmd/compile: add go:notinheap type pragma
+    [dev.ssa] Merge commit 'f135c326402aaa757aa96aad283a91873d4ae124' into mergebranch
     
-    This adds a //go:notinheap pragma for declarations of types that must
-    not be heap allocated. We ensure these rules by disallowing new(T),
-    make([]T), append([]T), or implicit allocation of T, by disallowing
-    conversions to notinheap types, and by propagating notinheap to any
-    struct or array that contains notinheap elements.
+    Pick up shared library fix in dev.ssa.
     
-    The utility of this pragma is that we can eliminate write barriers for
-    writes to pointers to go:notinheap types, since the write barrier is
-    guaranteed to be a no-op. This will let us mark several scheduler and
-    memory allocator structures as go:notinheap, which will let us
-    disallow write barriers in the scheduler and memory allocator much
-    more thoroughly and also eliminate some problematic hybrid write
-    barriers.
-    
-    This also makes go:nowritebarrierrec and go:yeswritebarrierrec much
-    more powerful. Currently we use go:nowritebarrier all over the place,
-    but it's almost never what you actually want: when write barriers are
-    illegal, they're typically illegal for a whole dynamic scope. Partly
-    this is because go:nowritebarrier has been around longer, but it's
-    also because go:nowritebarrierrec couldn't be used in situations that
-    had no-op write barriers or where some nested scope did allow write
-    barriers. go:notinheap eliminates many no-op write barriers and
-    go:yeswritebarrierrec makes it possible to opt back in to write
-    barriers, so these two changes will let us use go:nowritebarrierrec
-    far more liberally.
-    
-    This updates #13386, which is about controlling pointers from non-GC'd
-    memory to GC'd memory. That would require some additional pragma (or
-    pragmas), but could build on this pragma.
-    
-    Change-Id: I6314f8f4181535dd166887c9ec239977b54940bd
-    Reviewed-on: https://go-review.googlesource.com/30939
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5bdd0e9e0f1d6f7c14b518343ee323ed9a894b9c
 
- src/cmd/compile/internal/gc/lex.go        |  9 +++--
- src/cmd/compile/internal/gc/noder.go      |  1 +
- src/cmd/compile/internal/gc/parser.go     |  1 +
- src/cmd/compile/internal/gc/subr.go       | 10 ++++++
- src/cmd/compile/internal/gc/syntax.go     |  5 +++
- src/cmd/compile/internal/gc/type.go       | 14 ++++++++
- src/cmd/compile/internal/gc/typecheck.go  | 20 +++++++++++
- src/cmd/compile/internal/gc/walk.go       | 16 +++++++++
- src/cmd/compile/internal/syntax/nodes.go  |  9 ++---
- src/cmd/compile/internal/syntax/parser.go |  1 +
- src/cmd/compile/internal/syntax/syntax.go |  4 +--
- src/runtime/HACKING.md                    | 33 +++++++++++++++++++
- test/notinheap.go                         | 55 +++++++++++++++++++++++++++++++
- test/notinheap2.go                        | 43 ++++++++++++++++++++++++
- 14 files changed, 213 insertions(+), 8 deletions(-)
+ src/runtime/alg.go  | 2 +-
+ src/runtime/proc.go | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

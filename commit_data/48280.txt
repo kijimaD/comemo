@@ -1,19 +1,41 @@
-commit 81767e23c2f0e3edf0a329d9f00f5683c9851692
-Author: eric fang <eric.fang@arm.com>
-Date:   Fri Dec 17 06:13:46 2021 +0000
+commit 4df662fb373480b5055e645120558bb536fae42c
+Author: Philipp Sauter <sauterp@protonmail.com>
+Date:   Sun Nov 8 22:12:38 2020 +0100
 
-    runtime: support cgo traceback on linux arm64
+    cmd/go: don't crash when running "go version" in deleted directory
     
-    Code essentially mirrors AMD64 implementation.
+    If the go command is executed on Linux in a deleted directory,
+    it fails. This behavior is reasonable for commands which depend on
+    the CWD, but it's unexpected for commands like `go version`.
+    This change delays initialization of a global CWD variable.
     
-    Change-Id: Ie97627a3041d1858fb1a30d2fc500302ab4011b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373363
-    Trust: Eric Fang <eric.fang@arm.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixed #34499
+    
+    Change-Id: I7302fb84a3b7f5f149a123d277abd5b9b5bc95b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268261
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/crash_cgo_test.go |   4 +-
- src/runtime/sys_linux_arm64.s | 144 +++++++++++++++++++++++++++++++++++++++++-
- src/runtime/traceback.go      |   6 +-
- 3 files changed, 147 insertions(+), 7 deletions(-)
+ src/cmd/go/go_test.go                  | 22 ++++++++++++++++++++++
+ src/cmd/go/internal/base/path.go       | 26 ++++++++++++++++----------
+ src/cmd/go/internal/envcmd/env.go      |  2 +-
+ src/cmd/go/internal/fsys/fsys.go       |  2 +-
+ src/cmd/go/internal/get/get.go         |  2 +-
+ src/cmd/go/internal/load/flag.go       |  2 +-
+ src/cmd/go/internal/load/pkg.go        |  8 ++++----
+ src/cmd/go/internal/modload/init.go    | 14 +++++++-------
+ src/cmd/go/internal/modload/load.go    |  6 +++---
+ src/cmd/go/internal/search/search.go   |  2 +-
+ src/cmd/go/internal/test/cover.go      |  4 ++--
+ src/cmd/go/internal/test/test.go       |  8 ++++----
+ src/cmd/go/internal/test/testflag.go   | 25 ++++++++++++++++---------
+ src/cmd/go/internal/work/action.go     |  6 +++---
+ src/cmd/go/internal/work/build_test.go |  3 ++-
+ src/cmd/go/internal/work/exec.go       |  4 ++--
+ src/cmd/go/internal/work/gc.go         |  2 +-
+ src/cmd/go/internal/work/gccgo.go      | 10 +++++-----
+ src/cmd/go/internal/work/init.go       |  2 +-
+ 19 files changed, 93 insertions(+), 57 deletions(-)

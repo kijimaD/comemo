@@ -1,28 +1,14 @@
-commit 5dbc67a99a99011fce1c1b7c983d2aa35247b950
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Jan 21 12:53:53 2018 +0100
+commit 5fad09016b172cd70a8e47b0f1ed0db07d1ebd17
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 26 06:40:26 2018 -0700
 
-    cmd/compile: avoid appends and allocate full slice length in copyRet
+    cmd/cgo: mention character restrictions on #cgo lines
     
-    passes toolstash -cmp
+    Fixes #26025
     
-    compilebench allocs:
-    name      old allocs/op   new allocs/op   delta
-    Template       385k ± 0%       385k ± 0%  -0.00%  (p=0.017 n=19+20)
-    Unicode        342k ± 0%       342k ± 0%    ~     (p=0.867 n=20+20)
-    GoTypes       1.15M ± 0%      1.15M ± 0%  -0.00%  (p=0.008 n=20+20)
-    SSA           12.1M ± 0%      12.1M ± 0%    ~     (p=0.141 n=20+19)
-    Flate          234k ± 0%       234k ± 0%    ~     (p=0.125 n=20+19)
-    GoParser       315k ± 0%       315k ± 0%    ~     (p=0.104 n=20+20)
-    Reflect        972k ± 0%       972k ± 0%  -0.00%  (p=0.000 n=17+20)
-    Tar            391k ± 0%       391k ± 0%  -0.01%  (p=0.000 n=19+20)
-    XML            404k ± 0%       403k ± 0%  -0.01%  (p=0.000 n=20+19)
-    
-    Change-Id: Ie24f7fae7b6b85422ec1ff0240f08f0a34064d72
-    Reviewed-on: https://go-review.googlesource.com/c/144038
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I43b3c9019ca8d2844e4d664c2090e506b2171077
+    Reviewed-on: https://go-review.googlesource.com/120975
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/cgo/doc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

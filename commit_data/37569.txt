@@ -1,27 +1,23 @@
-commit c2412a7681d5beaeb5a4ceef3b2b7886361282ce
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Nov 28 16:33:23 2018 -0500
+commit dc79206aec20b92388e7050d0359dccccd31ef0b
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Sat Jun 9 20:43:54 2018 +0300
 
-    cmd/go: emit go list error for local non-existant packages
+    net: combine append calls in reverseaddr
     
-    In CL 129061, a check was added for patterns that reference
-    nonexistent local directories. While this prevented unnecessary
-    network lookups (fixing #26874), it caused "go list -e" to exit with
-    an error instead of listing packages with error messages.
+    Combined appends lead to fewer machine code and faster performance.
+    Some may even say that it makes code more readable.
     
-    This change avoids the network lookup and does not exit for these
-    kinds of packages. Errors are still reported by
-    internal/load.LoadImport for packages that don't exist.
+    Running revAddrTests over reverseaddr gives measurable improvements:
     
-    Fixes #28023
+            name              old time/op  new time/op  delta
+            ReverseAddress-8  4.10µs ± 3%  3.94µs ± 1%  -3.81%  (p=0.000 n=10+9)
     
-    Change-Id: I0a648269e437aed3a95bfb05461a397264f3793f
-    Reviewed-on: https://go-review.googlesource.com/c/151800
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I9bda7a20f802bcdffc6e948789765d04c6da04e7
+    Reviewed-on: https://go-review.googlesource.com/117615
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/load.go            | 20 ++++++++------------
- src/cmd/go/testdata/script/mod_fs_patterns.txt |  4 ++--
- src/cmd/go/testdata/script/mod_list_dir.txt    |  4 +++-
- 3 files changed, 13 insertions(+), 15 deletions(-)
+ src/net/dnsclient.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

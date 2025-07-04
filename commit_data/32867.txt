@@ -1,29 +1,23 @@
-commit 7340d1397701a0dc4d2570dac6414f0cdec3fff8
-Author: Florian Uekermann <florian@uekermann.me>
-Date:   Mon Sep 18 19:22:29 2017 +0200
+commit a48998beb571ce03650da75326a052991134e5ca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 8 21:43:54 2017 +0000
 
-    time: reduce OS dependent timezone related code
+    net/http: remove invalid checks of Request.Proto* for outgoing requests
     
-    Loading and testing timezones is currently implemented using several,
-    partly redundant, OS specific data structures and functions. This
-    change merges most of that code into OS independent implementations.
+    The net/http package has long documented that Request.ProtoMajor and
+    Request.ProtoMinor are ignored for outgoing requests (HTTP/1.1 or
+    HTTP/2 is always used, never HTTP/1.0). There was one part in the code
+    that was actually checking 1.0 vs 1.1, but it appears to have been
+    harmless. Remove it.
     
-    Change-Id: Iae2877c5f48d1e4a9de9ce55d0530d52e24cf96e
-    Reviewed-on: https://go-review.googlesource.com/64391
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #18407
+    
+    Change-Id: I362ed6c47ca2de7a2fbca917ed3e866273cfe41f
+    Reviewed-on: https://go-review.googlesource.com/45155
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/export_android_test.go   |  4 +--
- src/time/export_windows_test.go   |  9 +++--
- src/time/internal_test.go         | 19 +++++++++++
- src/time/sys_unix.go              |  2 --
- src/time/zoneinfo.go              | 11 +++---
- src/time/zoneinfo_android.go      | 50 +++-------------------------
- src/time/zoneinfo_ios.go          | 32 ++++--------------
- src/time/zoneinfo_plan9.go        | 26 +++------------
- src/time/zoneinfo_read.go         | 70 +++++++++++++++++++++++++++++++--------
- src/time/zoneinfo_unix.go         | 44 ++----------------------
- src/time/zoneinfo_windows.go      | 25 +++-----------
- src/time/zoneinfo_windows_test.go |  6 ++--
- 12 files changed, 116 insertions(+), 182 deletions(-)
+ src/net/http/request.go  | 12 ------------
+ src/net/http/transfer.go |  4 ++--
+ 2 files changed, 2 insertions(+), 14 deletions(-)

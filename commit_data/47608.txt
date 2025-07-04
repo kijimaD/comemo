@@ -1,40 +1,39 @@
-commit c25bf0d959c299e5fa5392ae6f835570ed6d111f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 17 15:23:12 2021 -0800
+commit 4acefa07b1499b063e1ff63c9d4cab7b7f8d49a2
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Mar 24 09:36:04 2021 -0400
 
-    cmd/compile/internal/types2: report types for mismatched call and return statements
+    go/parser: switch to resolving objects as a post-processing pass
     
-    Thanks to emmanuel@orijtech.com who wrote the initial version of
-    this change (CL 354490).
+    Coupling object resolution to parsing complicates the parsing code, and
+    is a barrier to improvement. It requires passing around context such as
+    'lhs' or 'keyOk', and even then sometimes requires guess-work, such as
+    whether to resolve the key in a composite literal.
     
-    This change is following CL 354490 in idea but also contains various
-    simplifications, slightly improved printing of signature/type patterns,
-    adjustments for types2, and some fine-tuning of error positions.
+    In this CL we delay object resolution to a separate pass after the file
+    parse completes. This makes it easier to see logic of scoping, and
+    removes state from the parsing code. This can enable subsequent
+    improvements such as optionally skipping object resolution, aligning the
+    parser with cmd/compile/internal/syntax, and allowing alternative
+    parsers to reuse object resolution.
     
-    Also adjusted several ERROR regexp patterns.
+    The additional AST traversal appears to slow down parsing by around 4%.
+    That seems small enough not to worry about, especially since performance
+    sensitive users may eventually be able to disable object resolution
+    entirely, saving around 18% off the previous baseline. I'll also mail a
+    speculative CL showing how we can significantly mitigate the cost of
+    object resolution by transposing scopes.
     
-    Fixes #48834.
-    Fixes #48835.
+    For #45104
     
-    Change-Id: I31cf20c81753b1dc84836dbe83a39030ceb9db23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364874
+    Change-Id: I98d9143fd77ae29e84ec7c3ae2fdb1139510da37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304455
+    Trust: Robert Findley <rfindley@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/assignments.go     | 81 +++++++++++++++++++---
- src/cmd/compile/internal/types2/call.go            | 25 +++++--
- src/cmd/compile/internal/types2/decl.go            |  2 +-
- src/cmd/compile/internal/types2/stmt.go            |  2 +-
- .../internal/types2/testdata/check/builtins.src    |  2 +-
- .../internal/types2/testdata/check/errors.src      | 28 +++++---
- .../internal/types2/testdata/check/expr3.src       | 14 ++--
- .../internal/types2/testdata/check/stmt0.src       | 16 ++---
- .../internal/types2/testdata/check/typeparams.go2  |  2 +-
- .../internal/types2/testdata/check/vardecl.src     |  2 +-
- test/fixedbugs/bug326.go                           |  2 +-
- test/fixedbugs/issue4215.go                        | 20 +++---
- test/fixedbugs/issue46957.go                       |  2 +-
- test/fixedbugs/issue48834.go                       | 24 +++++++
- test/fixedbugs/issue48835.go                       | 25 +++++++
- 15 files changed, 190 insertions(+), 57 deletions(-)
+ src/go/parser/interface.go |   8 -
+ src/go/parser/parser.go    | 477 ++++++++----------------------------------
+ src/go/parser/resolver.go  | 505 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 595 insertions(+), 395 deletions(-)

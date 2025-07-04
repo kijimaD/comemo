@@ -1,0 +1,19 @@
+commit cf5ec0720f5b0996d4e2b429cdf82e7872593e1b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Oct 9 16:44:17 2024 -0400
+
+    cmd/compile: remove types.Compare map bucket special cases
+    
+    runtime.hmap never directly refers to the bucket type (it uses an
+    unsafe.Pointer), thus it shouldn't be possible to have infinite
+    recursion here.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race,gotip-linux-amd64-longtest-aliastypeparams
+    Change-Id: I457885e48bbc352acedae1c0c389078f39ed9d65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619037
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/types/type.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

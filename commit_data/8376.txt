@@ -1,18 +1,15 @@
-commit 4336116d3b9bc89b48d78260ff2dc9dad0961458
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 13 07:00:06 2011 -0700
+commit 34ac4ec30ca8bca47fb3552bae0116ef140b11cb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 13 16:05:47 2011 +1000
 
-    net: remove unused functions
+    6l, 8l: emit windows dwarf sections similar to other platforms
     
-    Remove unused functions, getip() and sockaddrToString().
-    Remove unnecessary linebreaks.
-    
-    R=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/4523062
+    R=golang-dev, rsc
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/4517056
 
- src/pkg/net/dnsconfig.go |  1 -
- src/pkg/net/dnsmsg.go    |  1 -
- src/pkg/net/ipsock.go    | 19 -------------------
- src/pkg/net/sock.go      | 13 -------------
- 4 files changed, 34 deletions(-)
+ src/cmd/6l/asm.c   | 70 +++++++++++++++++++++++++++++++-----------------------
+ src/cmd/8l/asm.c   | 36 ++++++++++++++++++----------
+ src/cmd/ld/dwarf.c |  1 -
+ src/cmd/ld/pe.c    |  6 ++---
+ 4 files changed, 66 insertions(+), 47 deletions(-)

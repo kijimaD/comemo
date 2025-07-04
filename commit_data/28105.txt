@@ -1,13 +1,18 @@
-commit 0a7c73b5db9c78c4ecf8a5e8274ddf352b41562c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 29 13:53:43 2016 -0700
+commit 4618dd8704b868a095a98ee8beaf465578aaec30
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 28 17:19:31 2016 +1000
 
-    cmd/compile: use printer in typefmt, Tconv
+    image/gif: accept an out-of-bounds transparent color index.
     
-    Change-Id: Ib3ac0177761af1edea6b7951ffbbea042fb836d2
-    Reviewed-on: https://go-review.googlesource.com/28055
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This is an error according to the spec, but Firefox and Google Chrome
+    seem OK with this.
+    
+    Fixes #15059.
+    
+    Change-Id: I841cf44e96655e91a2481555f38fbd7055a32202
+    Reviewed-on: https://go-review.googlesource.com/22546
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 135 ++++++++++++++++++-------------------
- 1 file changed, 66 insertions(+), 69 deletions(-)
+ src/image/gif/reader.go      | 17 ++++++++--
+ src/image/gif/reader_test.go | 78 +++++++++++++++++++++++++++-----------------
+ 2 files changed, 63 insertions(+), 32 deletions(-)

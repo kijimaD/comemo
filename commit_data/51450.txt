@@ -1,17 +1,16 @@
-commit cc7530daa112f0b1501c220fd665b8d4bea8f201
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Nov 26 16:27:40 2022 -0800
+commit 9152e211328f735e7dadaf69780920d64af09a2a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 28 15:34:40 2022 -0800
 
-    doc/go1.20: fix HTML closing tag
+    spec: add section on comparable constraint
     
-    Change-Id: I7e2519601bfe1a59a48e240ff67868b1d74d55d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453516
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For #50646.
+    Fixes #50791.
+    
+    Change-Id: I8fec25ae3f0280c5b5a778011d23842b886ba79e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381896
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.20.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 49 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 48 insertions(+), 1 deletion(-)

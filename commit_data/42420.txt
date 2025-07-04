@@ -1,18 +1,35 @@
-commit fc40beb987fa503f3452e2e311f765241f5a3cf0
-Author: Austin Clements <austin@google.com>
-Date:   Sat May 30 20:40:58 2020 +0000
+commit 07914eda407a6197dc628fb20cf7d9b57b943518
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 11 13:39:39 2019 -0500
 
-    Revert "cmd/go: group 'go get' update messages together near the end of output"
+    [dev.link] cmd/link: initial support for linker-materialized external symbols
     
-    This reverts https://golang.org/cl/232578.
+    Create loader infrastructure for constructing the payloads of external
+    symbols from scratch, as opposed to passing in a sym.Symbol object
+    containing the payload.
     
-    Reason for revert: This commit broke TestScript/mod_load_badchain,
-    which is causing all longtest builders to fail.
+    The general idea is that clients can use the loader to create new
+    external Sym's using loader.AddExtSym, and then can add
+    relocations/data to the new sym with symbol builder interfaces (to be
+    provided in an subsequent patch), as opposed to having to use
+    sym.Symbol.
     
-    Change-Id: I4a17392ce74ac3a7ad340980556025f669d94b65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235857
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    This change preserves compatibility with the old way of doing things
+    (passing in sym.Symbol) via a new loader.InstallSym method. If a
+    client invokes this method for a specific Sym, then the loader keeps
+    track of this fact and uses the sym.Symbol as the backing store instead.
+    
+    Also included is a small unit test for the new interfaces -- not clear
+    whether this really needs to be kept around long term... it was mainly
+    useful during initial bringup.
+    
+    Change-Id: If8ab15df7b64636e56b317155dfe6d7cdfe23b71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207606
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modget/get.go                 | 31 +++--------------------
- src/cmd/go/testdata/script/mod_get_update_log.txt | 15 -----------
- 2 files changed, 3 insertions(+), 43 deletions(-)
+ src/cmd/link/internal/loader/loader.go      | 229 ++++++++++++++++++++++++----
+ src/cmd/link/internal/loader/loader_test.go |  55 +++++++
+ 2 files changed, 253 insertions(+), 31 deletions(-)

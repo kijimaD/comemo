@@ -1,23 +1,14 @@
-commit 5e5c0a9fbb3adf832fe5eb7d47883318a73c8400
+commit 6c3736a527f6c71de0c6503ce3aa948fef592393
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 14 15:19:32 2013 -0800
+Date:   Mon Jan 14 11:01:27 2013 -0800
 
-    go/types: various minor fixes
-    
-    - always set the Pkg field in QualifiedIdents
-    - call Context.Ident for all identifiers in the AST that denote
-      a types.Object (bug fix)
-    - added test that Context.Ident is called for all such identifiers
+    go/types: mark completely imported packages as such
     
     R=adonovan
     CC=golang-dev
-    https://golang.org/cl/7101054
+    https://golang.org/cl/7103055
 
- src/pkg/go/types/api.go           | 13 +++++--
- src/pkg/go/types/check.go         |  4 +-
- src/pkg/go/types/expr.go          | 10 ++---
- src/pkg/go/types/resolve.go       | 51 +++++++++++++------------
- src/pkg/go/types/resolver_test.go | 78 +++++++++++++++++++++++++++++++++++++--
- src/pkg/go/types/types.go         | 16 +-------
- src/pkg/go/types/universe.go      |  3 +-
- 7 files changed, 121 insertions(+), 54 deletions(-)
+ src/pkg/go/types/check.go      | 14 +-------------
+ src/pkg/go/types/gcimporter.go | 24 ++++++++++++++----------
+ src/pkg/go/types/objects.go    |  9 +++++----
+ 3 files changed, 20 insertions(+), 27 deletions(-)

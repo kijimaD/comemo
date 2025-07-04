@@ -1,14 +1,19 @@
-commit 2217e89ba326875470a856cd0da79f3ec9a896b8
-Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
-Date:   Mon Jan 18 19:56:26 2021 +0100
+commit 128f4e51f2d60c984f9bcb68ac141eff6e47875e
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Jul 28 13:49:13 2020 -0400
 
-    net/http/httptrace: fix doc typo
+    [dev.link] ensure package path is set when TEXT symbols are created
     
-    Change-Id: I919d9c3968c0fcd33774e714f22182504790bd01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284143
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    We're reworking pclntab generation in the linker, and with that we're
+    moving FuncID generation in to the compiler. Determining the FuncID is
+    done by a lookup on the package.function name; therefore, we need the
+    package whenever we make the TEXT symbols.
+    
+    Change-Id: I805445ffbf2f895f06ce3a91fb09126d012bf86e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245318
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/httptrace/trace.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go | 3 ++-
+ src/cmd/dist/build.go               | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

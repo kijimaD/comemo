@@ -1,12 +1,28 @@
-commit 9622f5032e67561c822374714aceb779389c3c00
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Dec 22 14:56:02 2012 +0900
+commit 3dcc63f750c425fcb9ce2ec66812489881dafeee
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Dec 22 09:09:31 2012 +1100
 
-    net: fix timeout tests
+    cmd/5g: avoid temporaries in agen OINDEX
     
-    R=golang-dev, minux.ma
+    Most benchmarks are within the 3% margin of error. This code path is quite common in the fmt package.
+    
+    linux/arm, Freescale iMX.53 (cortex-a8)
+    
+    fmt:
+    benchmark                      old ns/op    new ns/op    delta
+    BenchmarkSprintfEmpty                925          785  -15.14%
+    BenchmarkSprintfString              5050         5039   -0.22%
+    BenchmarkSprintfInt                 4425         4406   -0.43%
+    BenchmarkSprintfIntInt              5802         5762   -0.69%
+    BenchmarkSprintfPrefixedInt         7029         6541   -6.94%
+    BenchmarkSprintfFloat              10278        10083   -1.90%
+    BenchmarkManyArgs                  18558        17606   -5.13%
+    BenchmarkScanInts               15592690     15415360   -1.14%
+    BenchmarkScanRecursiveInt       25155020     25050900   -0.41%
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7003049
+    https://golang.org/cl/6921056
 
- src/pkg/net/timeout_test.go | 33 +++++++++++++++++++++++++++------
- 1 file changed, 27 insertions(+), 6 deletions(-)
+ src/cmd/5g/cgen.c | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

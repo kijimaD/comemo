@@ -1,18 +1,14 @@
-commit b5d81e5ed57287a97b0f81b1928f8356e8660afc
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 12 23:14:37 2012 -0500
+commit b1d9ae9406e0217731665da622b7a29fadc3efbd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Feb 12 20:03:30 2012 -0800
 
-    build: reject make.bash on Windows
+    go spec: method names must be unique
     
-    Also, echo cmd/dist during bootstrap build
-    Makes that phase look like all the others.
+    Fixes #2916.
     
-    Fixes #2908.
-    
-    R=golang-dev, alex.brainman, bradfitz
+    R=golang-dev, remyoudompheng, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5655065
+    https://golang.org/cl/5652064
 
- src/make.bash | 11 +++++++++++
- src/make.bat  |  3 ++-
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 31 ++++++++++++++++++++-----------
+ 1 file changed, 20 insertions(+), 11 deletions(-)

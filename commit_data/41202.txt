@@ -1,14 +1,20 @@
-commit 862a57df5aa6948f7cc209e6c117f2dd08b066cc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 30 19:25:25 2020 -0800
+commit 77aea691762f46daeb56c2e1fe764fd3898fff6b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Sep 7 16:31:36 2019 +0200
 
-    doc/go1.14: mention update to Unicode 12
+    doc/gccgo: update gcc status, remove double spaces
     
-    Updates #36878
+    This change updates the status of gccgo 8 and gccgo 9, which are now
+    released.
     
-    Change-Id: Ia8441de8a04fead1f76c72f662bcb877e2265c3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217133
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    It also replaces every instance of two-spaces with one space in text
+    paragraphs, which is the preferred style in Go documentation.
+    
+    Fixes #34167
+    
+    Change-Id: I94a4d85c06281f2623d39a68db7b6c95b5867999
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193842
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.14.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ doc/gccgo_install.html | 98 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 51 insertions(+), 47 deletions(-)

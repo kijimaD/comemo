@@ -1,23 +1,24 @@
-commit 6a675b9a7c73e01469b31bb1b1606b08463efeb9
-Author: Thuy Linh Luu <thuy-linh.luu@edg.ag>
-Date:   Tue May 16 12:30:43 2023 +0000
+commit eaf21256545ae04a35fa070763faa6eb2098591d
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jul 6 07:45:19 2022 -0400
 
-    encoding/xml: wrap charsetReader errors
+    cmd/go: default to "exe" build mode for windows -race
     
-    This change wraps the errors from the CharsetReader function so the caller can distinguish different error conditions.
+    This patch changes the default build mode from "pie" to "exe" when
+    building programs on windows with "-race" in effect. The Go command
+    already issues an error if users explicitly ask for -buildmode=pie in
+    combination with -race on windows, but wasn't revising the default
+    "pie" build mode if a specific buildmode was not requested.
     
-    Context: I have an XML file with an unknown encoding which I like to handle separately. I like to use the CharsetReader for this but the error type has not been forwarded.
+    Updates #53539.
+    Updates #35006.
     
-    Change-Id: I6739a0dee04ec376cd20536be2806ce7f50c5213
-    GitHub-Last-Rev: ada9dd510f9a5b7f8c9473f6864077e0ed6898bd
-    GitHub-Pull-Request: golang/go#60199
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494897
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I2f81a41a1d15a0b4f5ae943146175c5a1202cbe0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416174
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/encoding/xml/xml.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/init.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,13 +1,16 @@
-commit 56c4d0a5c63a81de4a0d935337b226d229a44c07
-Author: Rob Pike <r@golang.org>
-Date:   Sat Sep 27 11:56:54 2014 -0700
+commit e9ec8e7a2693b322287a96100750c6f00cf574ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 19:40:31 2014 -0400
 
-    doc/faq: update for 1.4
+    bytes, strings: document that FieldsFunc f must not be stateful
     
-    LGTM=iant
-    R=golang-codereviews, bradfitz, iant
+    Fixes #8738.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
     CC=golang-codereviews
-    https://golang.org/cl/150190043
+    https://golang.org/cl/143260045
 
- doc/go_faq.html | 53 ++++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 38 insertions(+), 15 deletions(-)
+ src/bytes/bytes.go     | 2 ++
+ src/strings/strings.go | 2 ++
+ 2 files changed, 4 insertions(+)

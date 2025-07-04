@@ -1,41 +1,46 @@
-commit d7de8b6d231289b7a6b205508c6f02a5a475cc84
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jul 18 12:32:29 2016 -0400
+commit acc757f678a42ba1ffbf8bb9886de4fe080302de
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Apr 5 11:22:53 2016 -0700
 
-    runtime: assume 64kB physical pages on ARM
+    all: use SeekStart, SeekCurrent, SeekEnd
     
-    Currently we assume the physical page size on ARM is 4kB. While this
-    is usually true, the architecture also supports 16kB and 64kB physical
-    pages, and Linux (and possibly other OSes) can be configured to use
-    these larger page sizes.
+    CL/19862 (f79b50b8d5bc159561c1dcf7c17e2a0db96a9a11) recently introduced the constants
+    SeekStart, SeekCurrent, and SeekEnd to the io package. We should use these constants
+    consistently throughout the code base.
     
-    With Go 1.6, such a configuration could potentially run, but generally
-    resulted in memory corruption or random panics. With current master,
-    this configuration will cause the runtime to panic during init on
-    Linux when it checks the true physical page size (and will still cause
-    corruption or panics on other OSes).
+    Updates #15269
     
-    However, the assumed physical page size only has to be a multiple of
-    the true physical page size, the scavenger can now deal with large
-    physical page sizes, and the rest of the runtime can deal with a
-    larger assumed physical page size than the true size. Hence, there's
-    little disadvantage to conservatively setting the assumed physical
-    page size to 64kB on ARM.
-    
-    This may result in some extra memory use, since we can only return
-    memory at multiples of the assumed physical page size. However, it is
-    a simple change that should make Go run on systems configured for
-    larger page sizes. The following commits will make the runtime query
-    the actual physical page size from the OS, but this is a simple step
-    there.
-    
-    Updates #12480.
-    
-    Change-Id: I851829595bc9e0c76235c847a7b5f62ad82b5302
-    Reviewed-on: https://go-review.googlesource.com/25021
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: If7fcaca7676e4a51f588528f5ced28220d9639a2
+    Reviewed-on: https://go-review.googlesource.com/22097
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/internal/sys/arch_arm.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/bufio/bufio_test.go                   |  2 +-
+ src/bytes/reader.go                       |  6 +++---
+ src/bytes/reader_test.go                  |  2 +-
+ src/cmd/go/note.go                        |  2 +-
+ src/cmd/internal/goobj/read.go            |  8 ++++----
+ src/cmd/pack/pack.go                      |  4 ++--
+ src/debug/elf/file_test.go                |  8 ++++----
+ src/debug/elf/reader.go                   |  6 +++---
+ src/go/internal/gccgoimporter/importer.go |  4 ++--
+ src/io/example_test.go                    |  2 +-
+ src/io/io.go                              |  6 +++---
+ src/io/io_test.go                         |  4 ++--
+ src/net/file_plan9.go                     |  2 +-
+ src/net/http/internal/chunked_test.go     |  2 +-
+ src/net/lookup_plan9.go                   |  5 +++--
+ src/os/file_plan9.go                      |  3 ++-
+ src/os/file_windows.go                    |  8 ++++----
+ src/os/os_test.go                         | 18 +++++++++---------
+ src/runtime/runtime-lldb_test.go          |  4 ++--
+ src/strings/reader.go                     |  6 +++---
+ src/strings/strings_test.go               |  2 +-
+ src/syscall/fd_nacl.go                    |  7 ++++---
+ src/syscall/fs_nacl.go                    |  5 +++--
+ src/syscall/syscall_unix_test.go          |  5 +++--
+ src/time/sys_plan9.go                     |  5 +++--
+ src/time/sys_unix.go                      |  5 +++--
+ src/time/sys_windows.go                   |  5 +++--
+ 27 files changed, 72 insertions(+), 64 deletions(-)

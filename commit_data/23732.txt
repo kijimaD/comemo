@@ -1,17 +1,12 @@
-commit fb90f4c1c2a966efb3ec2af48738ad9075dee229
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Fri Jul 17 16:33:51 2015 +0200
+commit e597e63d6a737977b96254ab13bc8a0804b8e5c0
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jun 8 14:21:27 2015 -0700
 
-    os: improve documentation on Rename
+    doc/go1.5.txt: mention that testing/quick now generates nil pointers.
     
-    Rename should document that it returns *LinkError,
-    like Create and Stat do.
-    
-    Fixes #10061
-    
-    Change-Id: I7bfe8b0267f6c4a57dd6b26cba44928714711724
-    Reviewed-on: https://go-review.googlesource.com/12353
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I358b17304f95fdd8e6c0a64fa29f185c701fe338
+    Reviewed-on: https://go-review.googlesource.com/10805
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/os/file.go | 1 +
+ doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)

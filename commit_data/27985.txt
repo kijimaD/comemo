@@ -1,12 +1,14 @@
-commit 1a3006b03564936326e591f191a5af0630afca85
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jun 16 13:39:16 2016 -0700
+commit f7d19672f273ecb600d0b0db32990d1a6462a898
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 22 22:15:17 2016 +0000
 
-    test: expand switch dead code test to include a range
+    api: update next.txt
     
-    Change-Id: If443ffb50b140c466dcf4cc5340f44948bfa46a9
-    Reviewed-on: https://go-review.googlesource.com/26765
+    Change-Id: I12d5e5d0e74b354f26898bab4ea30eb27ac45cd7
+    Reviewed-on: https://go-review.googlesource.com/22387
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/issue9608.dir/issue9608.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ api/next.txt | 184 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 184 insertions(+)

@@ -1,13 +1,15 @@
-commit 84df38181baeae5b12d2831ecfa5c7aefeffd7b1
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 11:33:26 2015 -0400
+commit bf99d8f843ae3dfa7a3a4cd5c17aec79e2b9997f
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Sep 3 09:05:25 2015 +1200
 
-    hash/crc32: added mips64{,le} build tags
+    cmd/link: only embed runtime.goarm in the module that contains the runtime package
     
-    Change-Id: I77c6768fff6f0163b36800307c4d573bb6521fe5
-    Reviewed-on: https://go-review.googlesource.com/14454
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia18984343ca4ced3671d967ff9a5b0e32874430c
+    Reviewed-on: https://go-review.googlesource.com/14220
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/hash/crc32/crc32_generic.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/arm/obj.go |  6 ------
+ src/cmd/link/internal/ld/lib.go  | 31 +++++++++++++++++++++----------
+ 2 files changed, 21 insertions(+), 16 deletions(-)

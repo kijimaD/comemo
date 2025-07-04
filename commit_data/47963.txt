@@ -1,17 +1,22 @@
-commit 4042194f2d9fd605bd8b6553043e8b195767c446
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 18 18:04:30 2022 -0800
+commit 3ff6ff7f8476b912ac6746c8e5afca852d62af7a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 19 17:37:25 2021 -0400
 
-    spec: add another example for an invalid shift case
+    cmd/compile: preserve pointerness when creating map key temp
     
-    Fixes #45114.
+    When creating the temporary for map functions, if the key
+    contains pointer, we need to create pointer-typed temporary. So
+    if the temporary is live across a function call, the pointer is
+    live.
     
-    Change-Id: I969e5f1037254fc0ffbba2fc07a81a3987e6b05f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379275
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id6e14ec9def8bc7987f0f8ce8423caf1e3754fcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311379
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go_spec.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/walk/assign.go  | 10 +--------
+ src/cmd/compile/internal/walk/builtin.go |  5 +----
+ src/cmd/compile/internal/walk/expr.go    | 36 ++++++++++++++++++++++----------
+ src/cmd/compile/internal/walk/order.go   | 10 +++++----
+ test/abi/map.go                          | 34 ++++++++++++++++++++++++++++++
+ 5 files changed, 67 insertions(+), 28 deletions(-)

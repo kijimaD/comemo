@@ -1,14 +1,20 @@
-commit 0ead18c59e357d79f10e3132d4b1b2fede577cbb
+commit 6ae448e8dfc675c0fbda18e2b555af54ae656f69
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Nov 6 20:54:22 2012 +0400
+Date:   Tue Nov 6 20:11:16 2012 +0400
 
-    runtime: mark race instrumentation callbacks as nosplitstack
-    It speedups the race detector somewhat, but also prevents
-    getcallerpc() from obtaining lessstack().
+    runtime: fix deadlock in parallel for test
+    The deadlock occurs when another goroutine requests GC
+    during the test. When wait=true the test expects physical parallelism,
+    that is, that P goroutines are all active at the same time.
+    If GC is requested, then part of the goroutines are not scheduled,
+    so other goroutines deadlock.
+    With wait=false, goroutines finish parallel for w/o waiting for all
+    other goroutines.
+    Fixes #3954.
     
-    R=golang-dev, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6812091
+    https://golang.org/cl/6820098
 
- src/pkg/runtime/race.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/runtime/parfor_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

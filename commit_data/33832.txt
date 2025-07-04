@@ -1,18 +1,28 @@
-commit 613f8cad90a4359e423f5accbbafeb7dacbd53a5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 7 21:14:34 2017 +0000
+commit f727fa793968623c0dc803a7542c266892c015a4
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sat Sep 9 14:17:05 2017 +0000
 
-    runtime: make RawSyscall panic on Solaris
+    cmd/internal/obj/arm: support more ARM VFP instructions
     
-    It's unused and doesn't work.
+    Add support of more ARM VFP instructions in the assembler.
+    They were introduced in ARM VFPv4.
     
-    Fixes #20833
+    "FMULAF/FMULAD   Fm, Fn, Fd": Fd = Fd + Fn*Fm
+    "FNMULAF/FNMULAD Fm, Fn, Fd": Fd = -(Fd + Fn*Fm)
+    "FMULSF/FMULSD   Fm, Fn, Fd": Fd = Fd - Fn*Fm
+    "FNMULSF/FNMULSD Fm, Fn, Fd": Fd = -(Fd - Fn*Fm)
     
-    Change-Id: I09335e84c60f88dd1771f7353b0097f36a5e7660
-    Reviewed-on: https://go-review.googlesource.com/82636
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    The multiplication results are not rounded.
+    
+    Change-Id: Id9cc52fd8e1b9a708103cd1e514c85a9e1cb3f47
+    Reviewed-on: https://go-review.googlesource.com/62550
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/syscall_solaris.go | 14 ++------------
- 1 file changed, 2 insertions(+), 12 deletions(-)
+ src/cmd/asm/internal/asm/testdata/armerror.s |  8 ++++++++
+ src/cmd/asm/internal/asm/testdata/armv6.s    |  8 ++++++++
+ src/cmd/internal/obj/arm/a.out.go            |  8 ++++++++
+ src/cmd/internal/obj/arm/anames.go           |  8 ++++++++
+ src/cmd/internal/obj/arm/asm5.go             | 27 ++++++++++++++++++++++++++-
+ 5 files changed, 58 insertions(+), 1 deletion(-)

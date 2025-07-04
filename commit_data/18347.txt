@@ -1,80 +1,29 @@
-commit f8e0057bb71cded5bb2d0b09c6292b13c59b5748
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Jan 24 22:29:53 2014 +0400
+commit a81692e2650fce39bebd77224f4153a326460286
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 23 23:11:04 2014 -0500
 
-    sync: scalable Pool
-    Introduce fixed-size P-local caches.
-    When local caches overflow/underflow a batch of items
-    is transferred to/from global mutex-protected cache.
+    cmd/gc: add zeroing to enable precise stack accounting
     
-    benchmark                    old ns/op    new ns/op    delta
-    BenchmarkPool                    50554        22423  -55.65%
-    BenchmarkPool-4                 400359         5904  -98.53%
-    BenchmarkPool-16                403311         1598  -99.60%
-    BenchmarkPool-32                367310         1526  -99.58%
+    There is more zeroing than I would like right now -
+    temporaries used for the new map and channel runtime
+    calls need to be eliminated - but it will do for now.
     
-    BenchmarkPoolOverlflow            5214         3633  -30.32%
-    BenchmarkPoolOverlflow-4         42663         9539  -77.64%
-    BenchmarkPoolOverlflow-8         46919        11385  -75.73%
-    BenchmarkPoolOverlflow-16        39454        13048  -66.93%
+    This CL only has an effect if you are building with
     
-    BenchmarkSprintfEmpty                    84           63  -25.68%
-    BenchmarkSprintfEmpty-2                 371           32  -91.13%
-    BenchmarkSprintfEmpty-4                 465           22  -95.25%
-    BenchmarkSprintfEmpty-8                 565           12  -97.77%
-    BenchmarkSprintfEmpty-16                498            5  -98.87%
-    BenchmarkSprintfEmpty-32                492            4  -99.04%
+            GOEXPERIMENT=precisestack ./all.bash
     
-    BenchmarkSprintfString                  259          229  -11.58%
-    BenchmarkSprintfString-2                574          144  -74.91%
-    BenchmarkSprintfString-4                651           77  -88.05%
-    BenchmarkSprintfString-8                868           47  -94.48%
-    BenchmarkSprintfString-16               825           33  -95.96%
-    BenchmarkSprintfString-32               825           30  -96.28%
+    (or make.bash). It costs about 5% in the overall time
+    spent in all.bash. That number will come down before
+    we make it on by default, but this should be enough for
+    Keith to try using the precise maps for copying stacks.
     
-    BenchmarkSprintfInt                     213          188  -11.74%
-    BenchmarkSprintfInt-2                   448          138  -69.20%
-    BenchmarkSprintfInt-4                   624           52  -91.63%
-    BenchmarkSprintfInt-8                   691           31  -95.43%
-    BenchmarkSprintfInt-16                  724           18  -97.46%
-    BenchmarkSprintfInt-32                  718           16  -97.70%
+    amd64 only (and it's not really great generated code).
     
-    BenchmarkSprintfIntInt                  311          282   -9.32%
-    BenchmarkSprintfIntInt-2                333          145  -56.46%
-    BenchmarkSprintfIntInt-4                642          110  -82.87%
-    BenchmarkSprintfIntInt-8                832           42  -94.90%
-    BenchmarkSprintfIntInt-16               817           24  -97.00%
-    BenchmarkSprintfIntInt-32               805           22  -97.17%
-    
-    BenchmarkSprintfPrefixedInt             309          269  -12.94%
-    BenchmarkSprintfPrefixedInt-2           245          168  -31.43%
-    BenchmarkSprintfPrefixedInt-4           598           99  -83.36%
-    BenchmarkSprintfPrefixedInt-8           770           67  -91.23%
-    BenchmarkSprintfPrefixedInt-16          829           54  -93.49%
-    BenchmarkSprintfPrefixedInt-32          824           50  -93.83%
-    
-    BenchmarkSprintfFloat                   418          398   -4.78%
-    BenchmarkSprintfFloat-2                 295          203  -31.19%
-    BenchmarkSprintfFloat-4                 585          128  -78.12%
-    BenchmarkSprintfFloat-8                 873           60  -93.13%
-    BenchmarkSprintfFloat-16                884           33  -96.24%
-    BenchmarkSprintfFloat-32                881           29  -96.62%
-    
-    BenchmarkManyArgs                      1097         1069   -2.55%
-    BenchmarkManyArgs-2                     705          567  -19.57%
-    BenchmarkManyArgs-4                     792          319  -59.72%
-    BenchmarkManyArgs-8                     963          172  -82.14%
-    BenchmarkManyArgs-16                   1115          103  -90.76%
-    BenchmarkManyArgs-32                   1133           90  -92.03%
-    
-    LGTM=rsc
-    R=golang-codereviews, bradfitz, minux.ma, gobot, rsc
+    TBR=khr, iant
     CC=golang-codereviews
-    https://golang.org/cl/46010043
+    https://golang.org/cl/56430043
 
- src/pkg/go/build/deps_test.go |   2 +-
- src/pkg/runtime/mgc0.c        |  10 ++-
- src/pkg/runtime/proc.c        |  20 +++++
- src/pkg/sync/pool.go          | 165 ++++++++++++++++++++++++++++++++++++++----
- src/pkg/sync/pool_test.go     |  46 +++++++-----
- 5 files changed, 207 insertions(+), 36 deletions(-)
+ src/cmd/6g/ggen.c      | 35 +++++++++++++++++++++++++++++++++--
+ src/cmd/gc/plive.c     | 26 +++++++++++++++-----------
+ src/pkg/runtime/mgc0.c |  2 +-
+ 3 files changed, 49 insertions(+), 14 deletions(-)

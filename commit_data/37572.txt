@@ -1,18 +1,24 @@
-commit ea509c95e9c91bdab8f76f81545d472094eadbe8
-Author: Bobby DeSimone <bobbydesimone@gmail.com>
-Date:   Tue Dec 4 00:56:04 2018 +0000
+commit 0566ab33834f0bd851ff11ad509d33849c7f2b7c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jul 9 22:40:51 2018 +0100
 
-    net/http/httputil: add tests for singleJoiningSlash.
+    strings: add Builder.Cap
     
-    These changes add tests for the unexported function singleJoiningSlash.
+    To report the capacity of the underlying buffer. The method mirrors
+    bytes.Buffer.Cap.
     
-    Change-Id: I107905aac4a3c2544be309098b67e970ea5b542c
-    GitHub-Last-Rev: ed6f86f619549f46ef53316b7febaac781b64e4b
-    GitHub-Pull-Request: golang/go#29088
-    Reviewed-on: https://go-review.googlesource.com/c/152337
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    The method can be useful to know whether or not calling write or grow
+    methods will result in an allocation, or to know how much memory has
+    been allocated so far.
+    
+    Fixes #26269.
+    
+    Change-Id: I391db45ae825011566b594836991e28135369a78
+    Reviewed-on: https://go-review.googlesource.com/122835
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httputil/reverseproxy_test.go | 41 +++++++++++++++++++++++-------
- 1 file changed, 32 insertions(+), 9 deletions(-)
+ src/strings/builder.go      |  5 +++++
+ src/strings/builder_test.go | 16 ++++++++++++++++
+ 2 files changed, 21 insertions(+)

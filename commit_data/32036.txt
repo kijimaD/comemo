@@ -1,16 +1,19 @@
-commit bcc349aecf7bb26d4430e8f8ab60d9362181d1a0
-Author: Johnny Luo <johnnyluo1980@gmail.com>
-Date:   Sun Jul 16 03:58:00 2017 +1000
+commit 673a8fdfe60929f61657dbfbdf5534eabe8cd6f5
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 27 11:36:37 2017 -0500
 
-    archive/zip: remove an out of date TODO
+    runtime: diagram flow of stats through heap profile
     
-    It had been implemented. Refer to https://golang.org/pkg/archive/zip/#FileHeader.Comment
+    Every time I modify heap profiling, I find myself redrawing this
+    diagram, so add it to the comments. This shows how allocations and
+    frees are accounted, how we arrive at consistent profile snapshots,
+    and when those snapshots are published to the user.
     
-    Change-Id: I81572562c3111b58189baa3510b9ba688fe269c9
-    Reviewed-on: https://go-review.googlesource.com/48857
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I106aba1200af3c773b46e24e5f50205e808e2c69
+    Reviewed-on: https://go-review.googlesource.com/37514
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/archive/zip/writer.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/runtime/mprof.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

@@ -1,14 +1,14 @@
-commit 243c8eb8c290ebbf2e2811da2dd7538200dde6b3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 4 16:48:28 2019 -0800
+commit b917bdd3ba255cd71ec0aa837215fa296b89eb77
+Author: Genevieve Luyt <genevieve.luyt@gmail.com>
+Date:   Mon Oct 22 13:39:13 2018 -0400
 
-    cmd/compile: add pure Go math/big functions to TestIntendedInlining
+    doc: use the new log functions
     
-    Change-Id: Id29a9e48a09965e457f923a0ff023722b38b27ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165157
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The log interface was changed in https://golang.org/cl/2419042.
+    
+    Change-Id: I3eaddd8a5cfcae961db16555fb1b0ce6770b6334
+    Reviewed-on: https://go-review.googlesource.com/c/143777
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ doc/effective_go.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,22 +1,28 @@
-commit 0e3d0c9581d1d31a94f5c70a528ff0bdba5c523d
-Author: Vojtěch Boček <vojtech.bocek@avast.com>
-Date:   Wed Jun 15 09:36:27 2022 +0000
+commit 2438660602677b1edf5e83a1ba4fdc5dfe9e9dcc
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Aug 19 13:31:36 2021 -0400
 
-    syscall: clarify Pdeathsig documentation on Linux
+    go/types: use []*TypeParam rather than []*TypeName type param lists
     
-    This is a rather large footgun, so let's mention that it sends the signal on thread termination and not process termination in the documentation.
+    Making this change improves type safety slightly, and avoids many
+    internal type assertions.
     
-    Updates #27505
-    
-    Change-Id: I489cf7136e34a1a7896067ae24187b0d523d987e
-    GitHub-Last-Rev: c8722b25d1fb8b0b3696257ec7e955eb421f15a6
-    GitHub-Pull-Request: golang/go#53365
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412114
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I26519b0e57068e944e8243983ae90553d79e59c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343932
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/syscall/exec_linux.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/go/types/decl.go        | 12 ++++++------
+ src/go/types/infer.go       | 32 ++++++++++++++++----------------
+ src/go/types/instantiate.go | 10 +++++-----
+ src/go/types/named.go       |  4 ++--
+ src/go/types/object.go      |  2 +-
+ src/go/types/predicates.go  |  4 ++--
+ src/go/types/signature.go   | 16 ++++++++--------
+ src/go/types/subst.go       |  4 ++--
+ src/go/types/typeparam.go   | 11 +++++------
+ src/go/types/typestring.go  |  7 +++----
+ src/go/types/unify.go       | 14 +++++++-------
+ 11 files changed, 57 insertions(+), 59 deletions(-)

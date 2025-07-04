@@ -1,14 +1,16 @@
-commit 4734464a140b997fd85b636a66bfa6cd1079e0a1
+commit 25c140aaa0cebdd77886475dfd82b06e8f684e29
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 28 19:17:27 2015 -0500
+Date:   Wed Feb 4 16:03:57 2015 -0500
 
-    net: disable failing interface tests on dragonfly
+    [dev.cc] cmd/go, liblink: turn off verification against Go code
     
-    (Issue #10041.)
+    The upcoming merge is going to break the synchrony.
+    Will restore separately.
     
-    Change-Id: Ia894ab60ac6b09926c684f99aacca79275cbced4
-    Reviewed-on: https://go-review.googlesource.com/6365
+    Change-Id: I90946119a0901e24063b190d1a074594af7654c7
+    Reviewed-on: https://go-review.googlesource.com/3888
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/interface_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/go/build.go   | 2 +-
+ src/liblink/objfile.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

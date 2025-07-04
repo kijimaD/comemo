@@ -1,24 +1,30 @@
-commit 1193958d6b33888bcb50e22ae9c1cfdcde274c9b
+commit b234fdb5cd13ae43bda389e4eb3ce7cee3cfc420
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 2 13:00:01 2020 -0700
+Date:   Thu Dec 12 17:00:08 2019 -0800
 
-    cmd: update golang.org/x/tools to v0.0.0-20200601175630-2caf76543d99
+    misc/cgo/test: tweak to pass with GCC 10
     
-    This teaches vet to recognize %O in a fmt.Printf format string.
-    O has been supported since the 1.13 release, but vet would warn about it.
+    The test for issue 8945 was marked to only run on gccgo, but there was
+    no reason for that. It broke for gccgo using GCC 10, because GCC 10
+    defaults to -fno-common. Make the test run on gc, and split it into
+    test.go and testx.go to make it work with GCC 10.
     
-    Fixes #29986
+    The test for issue 9026 used two identical structs which GCC 10 turns
+    into the same type. The point of the test is not that the structs are
+    identical, but that they are handled in a particular order. So make
+    them different.
     
-    Change-Id: I3a7a1fc8141f32888c081c5d92620461624371f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236138
+    Updates #8945
+    Updates #9026
+    
+    Change-Id: I000fb02f88f346cfbbe5dbefedd944a2c64e8d8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211217
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go.mod                                                       | 2 +-
- src/cmd/go.sum                                                       | 4 ++--
- .../vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go    | 1 +
- src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go  | 5 +++--
- src/cmd/vendor/modules.txt                                           | 2 +-
- 5 files changed, 8 insertions(+), 6 deletions(-)
+ misc/cgo/test/issue8945.go                    | 16 ----------------
+ misc/cgo/test/test.go                         |  5 +++++
+ misc/cgo/test/testdata/issue9026/issue9026.go |  4 ++--
+ misc/cgo/test/testx.go                        | 12 ++++++++++++
+ 4 files changed, 19 insertions(+), 18 deletions(-)

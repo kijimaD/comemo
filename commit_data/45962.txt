@@ -1,17 +1,87 @@
-commit 507cc341ec2cb96b0199800245f222146f799266
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Aug 9 00:52:21 2021 +0700
+commit 5ffa275f3cab631483a1ce76a63fc4ede3d204e8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 03:25:29 2020 -0800
 
-    doc: add example for conversion from slice expressions to array ptr
+    [dev.regabi] cmd/compile: first pass at abstracting Type
     
-    Fixes #47599
+    Passes toolstash/buildall.
     
-    Change-Id: I8f4ccd3b0c2bcdb057ee853163b4421229141333
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/340351
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    [git-generate]
+    cd src/cmd/compile/internal/ssa
+    rf '
+    ex . ../ir ../gc {
+      import "cmd/compile/internal/types"
+      var t *types.Type
+      t.Etype -> t.Kind()
+      t.Sym -> t.GetSym()
+      t.Orig -> t.Underlying()
+    }
+    '
+    
+    cd ../types
+    rf '
+    mv EType Kind
+    mv IRNode Object
+    
+    mv Type.Etype Type.kind
+    mv Type.Sym Type.sym
+    mv Type.Orig Type.underlying
+    mv Type.Cache Type.cache
+    
+    mv Type.GetSym Type.Sym
+    
+    mv Bytetype ByteType
+    mv Runetype RuneType
+    mv Errortype ErrorType
+    '
+    
+    cd ../gc
+    sed -i 's/Bytetype/ByteType/; s/Runetype/RuneType/' mkbuiltin.go
+    
+    git codereview gofmt
+    go install cmd/compile/internal/...
+    go test cmd/compile -u || go test cmd/compile
+    
+    Change-Id: Ibecb2d7100d3318a49238eb4a78d70acb49eedca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274437
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- doc/go_spec.html | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/fmtmap_test.go                 |   8 +-
+ src/cmd/compile/internal/gc/alg.go             |  12 +-
+ src/cmd/compile/internal/gc/align.go           |  12 +-
+ src/cmd/compile/internal/gc/bexport.go         |  10 +-
+ src/cmd/compile/internal/gc/builtin.go         |   4 +-
+ src/cmd/compile/internal/gc/const.go           |  22 +--
+ src/cmd/compile/internal/gc/dcl.go             |  18 +--
+ src/cmd/compile/internal/gc/embed.go           |   4 +-
+ src/cmd/compile/internal/gc/escape.go          |   2 +-
+ src/cmd/compile/internal/gc/go.go              |   2 +-
+ src/cmd/compile/internal/gc/iexport.go         |  18 +--
+ src/cmd/compile/internal/gc/inl.go             |   4 +-
+ src/cmd/compile/internal/gc/mkbuiltin.go       |   4 +-
+ src/cmd/compile/internal/gc/obj.go             |   6 +-
+ src/cmd/compile/internal/gc/order.go           |   2 +-
+ src/cmd/compile/internal/gc/plive.go           |   4 +-
+ src/cmd/compile/internal/gc/range.go           |  12 +-
+ src/cmd/compile/internal/gc/reflect.go         |  76 +++++------
+ src/cmd/compile/internal/gc/ssa.go             |  56 ++++----
+ src/cmd/compile/internal/gc/subr.go            |  72 +++++-----
+ src/cmd/compile/internal/gc/swt.go             |   4 +-
+ src/cmd/compile/internal/gc/typecheck.go       |  80 +++++------
+ src/cmd/compile/internal/gc/universe.go        |  26 ++--
+ src/cmd/compile/internal/gc/walk.go            |  48 +++----
+ src/cmd/compile/internal/ir/fmt.go             |  50 +++----
+ src/cmd/compile/internal/ir/node.go            |   2 +-
+ src/cmd/compile/internal/ir/type.go            |   2 +-
+ src/cmd/compile/internal/ir/val.go             |   2 +-
+ src/cmd/compile/internal/ssa/expand_calls.go   |  16 +--
+ src/cmd/compile/internal/ssa/export_test.go    |   6 +-
+ src/cmd/compile/internal/ssa/regalloc.go       |   4 +-
+ src/cmd/compile/internal/types/etype_string.go |   4 +-
+ src/cmd/compile/internal/types/identity.go     |  12 +-
+ src/cmd/compile/internal/types/scope.go        |   8 +-
+ src/cmd/compile/internal/types/sym.go          |   2 +-
+ src/cmd/compile/internal/types/type.go         | 182 ++++++++++++-------------
+ 36 files changed, 398 insertions(+), 398 deletions(-)

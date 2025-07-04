@@ -1,134 +1,18 @@
-commit e8f5a33191b6b2690fdfda770272a650f4df631d
-Author: Xiangdong Ji <xiangdong.ji@arm.com>
-Date:   Wed May 6 09:54:40 2020 +0000
+commit f7f9866f34111b1e5d6c67e7af4de64ecb685f9e
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Dec 13 11:23:09 2019 -0500
 
-    cmd/compile: fix incorrect rewriting to if condition
+    doc: remove Go Security Policy page (moved to x/website)
     
-    Some ARM64 rewriting rules convert 'comparing to zero' conditions of if
-    statements to a simplified version utilizing CMN and CMP instructions to
-    branch over condition flags, in order to save one Add or Sub caculation.
+    This page has moved to the x/website repo in CL 211300 (commit
+    golang/website@3c8b7f99cadaa000e642595d0fabcd9ac496f335).
+    Remove the old copy in this repo since it's no longer used.
     
-    Such optimizations lead to wrong branching in case an overflow/underflow
-    occurs when executing CMN or CMP.
+    Updates #29206
     
-    Fix the issue by introducing new block opcodes that don't honor the
-    overflow/underflow flag, in the following categories:
-    
-      Block-Op        Meaning                   ARM condition codes
-      1. LTnoov        less than                 MI
-      2. GEnoov        greater than or equal     PL
-      3. LEnoov        less than or equal        MI || EQ
-      4. GTnoov        greater than              NEQ & PL
-    
-    The backend generates two consecutive branch instructions for 'LEnoov'
-    and 'GTnoov' to model their expected behavior. A slight change to 'gc'
-    and amd64/386 backends is made to unify the code generation.
-    
-    Add a test 'TestCondRewrite' as justification, it covers 32 incorrect rules
-    identified on arm64, more might be needed on other arches, like 32-bit arm.
-    
-    Add two benchmarks profiling the aforementioned category 1&2 and category
-    3&4 separetely, we expect the first two categories will show performance
-    improvement and the second will not result in visible regression compared with
-    the non-optimized version.
-    
-    This change also updates TestFormats to support using %#x.
-    
-    Examples exhibiting where does the issue come from:
-      1: 'if x + 3 < 0' might be converted to:
-      before:
-        CMN $3, R0
-        BGE <else branch> // wrong branch is taken if 'x+3' overflows
-      after:
-        CMN $3, R0
-        BPL <else branch>
-    
-      2: 'if y - 3 > 0' might be converted to:
-      before:
-        CMP $3, R0
-        BLE <else branch> // wrong branch is taken if 'y-3' underflows
-      after:
-        CMP $3, R0
-        BMI <else branch>
-        BEQ <else branch>
-    
-    Benchmark data from different kinds of arm64 servers, 'old' is the non-optimized
-    version (not the parent commit), generally the optimization version outperforms.
-    
-    S1:
-    name                    old time/op  new time/op  delta
-    CondRewrite/SoloJump  13.6ns ± 0%  12.9ns ± 0%  -5.15%  (p=0.000 n=10+10)
-    CondRewrite/CombJump  13.8ns ± 1%  12.9ns ± 0%  -6.32%  (p=0.000 n=10+10)
-    
-    S2:
-    name                     old time/op  new time/op  delta
-    CondRewrite/SoloJump  11.6ns ± 0%  10.9ns ± 0%  -6.03%  (p=0.000 n=10+10)
-    CondRewrite/CombJump  11.4ns ± 0%  10.8ns ± 1%  -5.53%  (p=0.000 n=10+10)
-    
-    S3:
-    name                     old time/op  new time/op  delta
-    CondRewrite/SoloJump  7.36ns ± 0%  7.50ns ± 0%  +1.79%  (p=0.000 n=9+10)
-    CondRewrite/CombJump  7.35ns ± 0%  7.75ns ± 0%  +5.51%  (p=0.000 n=8+9)
-    
-    S4:
-    name                      old time/op  new time/op  delta
-    CondRewrite/SoloJump-224  11.5ns ± 1%  10.9ns ± 0%  -4.97%  (p=0.000 n=10+10)
-    CondRewrite/CombJump-224  11.9ns ± 0%  11.5ns ± 0%  -2.95%  (p=0.000 n=10+10)
-    
-    S5:
-    name                     old time/op  new time/op  delta
-    CondRewrite/SoloJump  10.0ns ± 0%  10.0ns ± 0%  -0.45%  (p=0.000 n=9+10)
-    CondRewrite/CombJump  9.93ns ± 0%  9.77ns ± 0%  -1.53%  (p=0.000 n=10+9)
-    
-    Go1 perf. data:
-    
-    name                     old time/op    new time/op    delta
-    BinaryTree17              6.29s ± 1%     6.30s ± 1%    ~     (p=1.000 n=5+5)
-    Fannkuch11                5.40s ± 0%     5.40s ± 0%    ~     (p=0.841 n=5+5)
-    FmtFprintfEmpty          97.9ns ± 0%    98.9ns ± 3%    ~     (p=0.937 n=4+5)
-    FmtFprintfString          171ns ± 3%     171ns ± 2%    ~     (p=0.754 n=5+5)
-    FmtFprintfInt             212ns ± 0%     217ns ± 6%  +2.55%  (p=0.008 n=5+5)
-    FmtFprintfIntInt          296ns ± 1%     297ns ± 2%    ~     (p=0.516 n=5+5)
-    FmtFprintfPrefixedInt     371ns ± 2%     374ns ± 7%    ~     (p=1.000 n=5+5)
-    FmtFprintfFloat           435ns ± 1%     439ns ± 2%    ~     (p=0.056 n=5+5)
-    FmtManyArgs              1.37µs ± 1%    1.36µs ± 1%    ~     (p=0.730 n=5+5)
-    GobDecode                14.6ms ± 4%    14.4ms ± 4%    ~     (p=0.690 n=5+5)
-    GobEncode                11.8ms ±20%    11.6ms ±15%    ~     (p=1.000 n=5+5)
-    Gzip                      507ms ± 0%     491ms ± 0%  -3.22%  (p=0.008 n=5+5)
-    Gunzip                   73.8ms ± 0%    73.9ms ± 0%    ~     (p=0.690 n=5+5)
-    HTTPClientServer          116µs ± 0%     116µs ± 0%    ~     (p=0.686 n=4+4)
-    JSONEncode               21.8ms ± 1%    21.6ms ± 2%    ~     (p=0.151 n=5+5)
-    JSONDecode                104ms ± 1%     103ms ± 1%  -1.08%  (p=0.016 n=5+5)
-    Mandelbrot200            9.53ms ± 0%    9.53ms ± 0%    ~     (p=0.421 n=5+5)
-    GoParse                  7.55ms ± 1%    7.51ms ± 1%    ~     (p=0.151 n=5+5)
-    RegexpMatchEasy0_32       158ns ± 0%     158ns ± 0%    ~     (all equal)
-    RegexpMatchEasy0_1K       606ns ± 1%     608ns ± 3%    ~     (p=0.937 n=5+5)
-    RegexpMatchEasy1_32       143ns ± 0%     144ns ± 1%    ~     (p=0.095 n=5+4)
-    RegexpMatchEasy1_1K       927ns ± 2%     944ns ± 2%    ~     (p=0.056 n=5+5)
-    RegexpMatchMedium_32     16.0ns ± 0%    16.0ns ± 0%    ~     (all equal)
-    RegexpMatchMedium_1K     69.3µs ± 2%    69.7µs ± 0%    ~     (p=0.690 n=5+5)
-    RegexpMatchHard_32       3.73µs ± 0%    3.73µs ± 1%    ~     (p=0.984 n=5+5)
-    RegexpMatchHard_1K        111µs ± 1%     110µs ± 0%    ~     (p=0.151 n=5+5)
-    Revcomp                   1.91s ±47%     1.77s ±68%    ~     (p=1.000 n=5+5)
-    Template                  138ms ± 1%     138ms ± 1%    ~     (p=1.000 n=5+5)
-    TimeParse                 787ns ± 2%     785ns ± 1%    ~     (p=0.540 n=5+5)
-    TimeFormat                729ns ± 1%     726ns ± 1%    ~     (p=0.151 n=5+5)
-    
-    Updates #38740
-    Change-Id: I06c604874acdc1e63e66452dadee5df053045222
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233097
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I8b3396d9e42d1e7262a8cde9577962d33b215836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211301
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/fmtmap_test.go                   |   2 +
- src/cmd/compile/internal/amd64/ssa.go            |   8 +-
- src/cmd/compile/internal/arm64/ssa.go            |  21 +-
- src/cmd/compile/internal/gc/ssa.go               |  37 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules     |  68 +--
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go     |   4 +
- src/cmd/compile/internal/ssa/opGen.go            |  48 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go     | 164 ++++---
- src/cmd/compile/internal/ssa/rewriteCond_test.go | 536 +++++++++++++++++++++++
- src/cmd/compile/internal/x86/ssa.go              |   8 +-
- test/codegen/comparisons.go                      | 136 ++++++
- 11 files changed, 891 insertions(+), 141 deletions(-)
+ doc/security.html | 183 ------------------------------------------------------
+ 1 file changed, 183 deletions(-)

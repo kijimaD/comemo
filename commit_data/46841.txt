@@ -1,42 +1,26 @@
-commit 52078fa477a0a8a8440ca40d64850730e2cf27f8
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Oct 11 09:15:02 2021 -0700
+commit a21de9ec73b8a433cafd336448dc8111a4e4571e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 3 15:07:33 2021 -0500
 
-    cmd/compile: deal with TODO related to generic wrappers with embedded fields
+    [dev.regabi] cmd/link: resolve symbol ABI in shared linkage
     
-    It turns out there is no real TODO here - things are working fine. If we
-    are generating a wrapper for a method on a generic type that is actually
-    the method on embedded type, then we should just just generate the
-    normal embedded wrapper, which calls the wrapper for the real receiver
-    type on that method. There is no need to do the generic path where we
-    add in the dictionary argument. So, just updated that TODO comment with
-    this explanation.
+    In shared build mode and linkage, currently we assume all
+    function symbols are ABI0 (except for generated type algorithm
+    functions), and alias them to ABIInternal. When the two ABIs
+    actually differ (as it is now), this is not actually correct.
+    This CL resolves symbol ABI based on their mangled names.
+    If the symbol's name has a ".abi0" or ".abiinternal" suffix, it
+    is of the corresponding ABI. The symbol without the suffix is
+    the other ABI. For functions without ABI wrapper generated,
+    only one ABI exists but we don't know what it is, so we still
+    use alias (for now).
     
-    Added a new test case embedded.go, which specifically tests various
-    situations involving converting to empty and non-empty interfaces.
-    issue44688.go already tests a bunch of these situations as well.
-    
-    Also made some other cleanups in reflect.go:
-    
-     - The shape test (that I had added) at the top of imethods is useless
-       (never true), since it is always an interface type, so removed it.
-    
-     - Added usual helper function deref() to make code clearer in several
-       places.
-    
-     - The shape test in methodWrapper() doesn't have to check HasShape() on
-       each targ - it can just check HasShape() on the whole receiver.
-    
-     - The comment about disabling the tail call optimization for RegABI is
-       no longer true.
-    
-     - Simplified code in several places by using the value of existing
-       variable 'methodrcvr'.
-    
-    Change-Id: I8b1a5dc518dad37585824a1f73ceebb7627a9f82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355129
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I2165f149bc83d513e81eb1eb4ee95464335b0e75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289289
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 58 ++++++++++---------------
- 1 file changed, 22 insertions(+), 36 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 44 +++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 42 insertions(+), 2 deletions(-)

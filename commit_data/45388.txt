@@ -1,60 +1,23 @@
-commit 4fe324dd0f3497f6bf4f46ba39921d7855dbc29b
+commit c92bfac01e9e8319822f472fd11a51bf28762125
 Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Apr 26 23:06:53 2021 +0100
+Date:   Thu Oct 22 19:32:47 2020 +0100
 
-    cmd/go: make TOOLEXEC_IMPORTPATH consistent with 'go list -f {{.ImportPath}}'
+    cmd/go: support non-amd64 on script/toolexec.txt
     
-    TOOLEXEC_IMPORTPATH is useful for the toolexec program to know what
-    package is currently being built. This is otherwise tricky to figure out.
+    In https://golang.org/cl/263357, I wasn't thinking that the assembly
+    file without a GOARCH suffix would be built for all architectures. Only
+    build assembly for amd64, and update the stderr matching line.
     
-    Unfortunately, for test packages it was lacking. In the added test case,
-    we have a total of four packages in 'go list -test':
+    I manually verified that this works on 386; since the only Go file in
+    that package is a stub, and no assembly files match GOARCH=386, no
+    assembly is built at all.
     
-            test/main
-            test/main.test
-            test/main [test/main.test]
-            test/main_test [test/main.test]
-    
-    And, when running with -toolexec, one would get the following values:
-    
-            # test/main_test [test/main.test]
-            compile TOOLEXEC_IMPORTPATH="test/main_test"
-            # test/main [test/main.test]
-            compile TOOLEXEC_IMPORTPATH="test/main"
-            # test/main.test
-            compile TOOLEXEC_IMPORTPATH="test/main.test"
-    
-    Note how the " [test/main.test]" suffixes are missing. Because of that,
-    when one sees TOOLEXEC_IMPORTPATH="test/main", it is ambiguous whether
-    the regular "test/main" package is meant, or its test variant, otherwise
-    known as "test/main [test/main.test]" and including foo_test.go
-    
-    To fix this, we need unambiguous strings to identify the packages
-    involved, just like one can do with "go list -test". "go list" already
-    has such a field, ImportPath, which is also used when printing output
-    from each build "action" as seen above.
-    
-    That string is not really an import path - internally, it's
-    load.Package.Desc, and called a "description". However, it makes sense
-    to be consistent with "go list -json", because it's the source of truth
-    for practically all tools interacting with the Go toolchain.
-    
-    To keep cmd/go more consistent, "go list -f {{.ImportPath}}" now calls
-    Package.Desc as well, instead of having its own copy of the string
-    concatenation for ForTest.
-    
-    Fixes #44963.
-    
-    Change-Id: Ibce7fbb5549209dac50526043c0c7daa0beebc08
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313770
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ief3c6c9bdc223f342821b0ec27f00098fc25246a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264457
     Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/alldocs.go                   |  2 ++
- src/cmd/go/internal/list/list.go        |  2 +-
- src/cmd/go/internal/work/build.go       |  2 ++
- src/cmd/go/internal/work/exec.go        |  5 +++-
- src/cmd/go/testdata/script/toolexec.txt | 51 ++++++++++++++++++++++++++++-----
- 5 files changed, 53 insertions(+), 9 deletions(-)
+ src/cmd/go/testdata/script/toolexec.txt | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

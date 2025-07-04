@@ -1,108 +1,23 @@
-commit be9379f8a8e2bfd924966020d177552d01833fdb
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Nov 29 13:33:37 2020 +0100
+commit c76befe0f40dfbb38a54c16d1845b97e4580797c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Apr 26 10:40:38 2020 +1000
 
-    syscall: correct CertOpenStore to expect a 0 return value on failure
+    cmd/go: use -buildmode=pie as default on window
     
-    According to [1], this function returns NULL when it errors, rather than
-    INVALID_HANDLE_VALUE, which other Win32 functions return. This was
-    pointed out in CL 273446 for the x/sys package, and this patch here
-    cleans it up for the syscall package and updates the vendored x/sys
-    package using the usual `go get/go mod vendor` dance. The function is
-    currently in use by crypto/x509/root_windows.go, which calls
-    CertOpenStore(CERT_STORE_PROV_MEMORY), which I assume can fail under OOM
-    or other weird conditions. Quick reversing indicates that [1] is
-    correct, as there's a `xor eax, eax` in the error paths of the function
-    just before jumping to the epilogue.
+    This change adjusts go command to pass -buildmode=pie to cmd/link,
+    if -buildmode is not explicitly provided.
     
-    [1] https://docs.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-certopenstore#return-value
+    Fixes #35192
     
-    Change-Id: I77c0b0319c13313212f8710785252c494da56ed5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273827
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Iec020131e676eb3e9a2df9eea1929b2af2b6df04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230217
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../vendor/golang.org/x/sys/unix/asm_aix_ppc64.s   |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_darwin_386.s  |   2 +-
- .../golang.org/x/sys/unix/asm_darwin_amd64.s       |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_darwin_arm.s  |   2 +-
- .../golang.org/x/sys/unix/asm_darwin_arm64.s       |   2 +-
- .../golang.org/x/sys/unix/asm_dragonfly_amd64.s    |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_freebsd_386.s |   2 +-
- .../golang.org/x/sys/unix/asm_freebsd_amd64.s      |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_freebsd_arm.s |   2 +-
- .../golang.org/x/sys/unix/asm_freebsd_arm64.s      |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_linux_386.s   |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_linux_amd64.s |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_linux_arm.s   |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_linux_arm64.s |   2 +-
- .../golang.org/x/sys/unix/asm_linux_mips64x.s      |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_linux_mipsx.s |   2 +-
- .../golang.org/x/sys/unix/asm_linux_ppc64x.s       |   2 +-
- .../golang.org/x/sys/unix/asm_linux_riscv64.s      |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_linux_s390x.s |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_netbsd_386.s  |   2 +-
- .../golang.org/x/sys/unix/asm_netbsd_amd64.s       |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_netbsd_arm.s  |   2 +-
- .../golang.org/x/sys/unix/asm_netbsd_arm64.s       |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_openbsd_386.s |   2 +-
- .../golang.org/x/sys/unix/asm_openbsd_amd64.s      |   2 +-
- .../vendor/golang.org/x/sys/unix/asm_openbsd_arm.s |   2 +-
- .../golang.org/x/sys/unix/asm_openbsd_arm64.s      |   2 +-
- .../golang.org/x/sys/unix/asm_openbsd_mips64.s     |   2 +-
- .../golang.org/x/sys/unix/asm_solaris_amd64.s      |   2 +-
- src/cmd/vendor/golang.org/x/sys/unix/endian_big.go |   2 +-
- .../vendor/golang.org/x/sys/unix/endian_little.go  |   2 +-
- src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   2 +
- .../golang.org/x/sys/unix/syscall_darwin.1_13.go   |   1 -
- .../golang.org/x/sys/unix/syscall_dragonfly.go     |  13 ++
- .../vendor/golang.org/x/sys/unix/syscall_linux.go  |  87 ++++++++++---
- .../x/sys/unix/syscall_linux_amd64_gc.go           |   2 +-
- .../golang.org/x/sys/unix/syscall_linux_gc.go      |   2 +-
- .../golang.org/x/sys/unix/syscall_linux_gc_386.go  |   2 +-
- .../golang.org/x/sys/unix/syscall_linux_gc_arm.go  |   2 +-
- .../golang.org/x/sys/unix/syscall_unix_gc.go       |   2 +-
- .../x/sys/unix/syscall_unix_gc_ppc64x.go           |   2 +-
- .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |   6 +
- .../golang.org/x/sys/unix/zsyscall_aix_ppc64_gc.go |   2 +-
- .../x/sys/unix/zsyscall_darwin_386.1_13.go         |   2 -
- .../golang.org/x/sys/unix/zsyscall_darwin_386.go   | 142 ---------------------
- .../x/sys/unix/zsyscall_darwin_amd64.1_13.go       |   2 -
- .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go | 142 ---------------------
- .../x/sys/unix/zsyscall_darwin_arm.1_13.go         |   2 -
- .../golang.org/x/sys/unix/zsyscall_darwin_arm.go   | 141 --------------------
- .../x/sys/unix/zsyscall_darwin_arm64.1_13.go       |   2 -
- .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go | 142 ---------------------
- .../x/sys/unix/zsyscall_dragonfly_amd64.go         |  10 ++
- .../golang.org/x/sys/unix/ztypes_darwin_386.go     |   1 +
- .../golang.org/x/sys/unix/ztypes_darwin_amd64.go   |   1 +
- .../golang.org/x/sys/unix/ztypes_darwin_arm.go     |   1 +
- .../golang.org/x/sys/unix/ztypes_darwin_arm64.go   |   1 +
- .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |  18 +++
- .../vendor/golang.org/x/sys/windows/dll_windows.go |   3 +-
- .../golang.org/x/sys/windows/security_windows.go   |  14 +-
- src/cmd/vendor/golang.org/x/sys/windows/service.go |   6 +
- .../x/sys/windows/setupapierrors_windows.go        | 100 +++++++++++++++
- .../golang.org/x/sys/windows/syscall_windows.go    |   8 +-
- .../golang.org/x/sys/windows/types_windows.go      |  48 +++++++
- .../golang.org/x/sys/windows/zsyscall_windows.go   | 103 ++++++++++++++-
- src/cmd/vendor/modules.txt                         |   2 +-
- src/go.mod                                         |   2 +-
- src/go.sum                                         |   4 +-
- src/syscall/syscall_windows.go                     |   2 +-
- src/syscall/zsyscall_windows.go                    |   2 +-
- src/vendor/golang.org/x/sys/cpu/asm_aix_ppc64.s    |   2 +-
- src/vendor/golang.org/x/sys/cpu/cpu_arm64.s        |   2 +-
- src/vendor/golang.org/x/sys/cpu/cpu_gc_arm64.go    |   2 +-
- src/vendor/golang.org/x/sys/cpu/cpu_gc_s390x.go    |   2 +-
- src/vendor/golang.org/x/sys/cpu/cpu_gc_x86.go      |   2 +-
- src/vendor/golang.org/x/sys/cpu/cpu_s390x.s        |   2 +-
- src/vendor/golang.org/x/sys/cpu/cpu_x86.s          |   2 +-
- .../golang.org/x/sys/cpu/syscall_aix_ppc64_gc.go   |   2 +-
- src/vendor/modules.txt                             |   2 +-
- 80 files changed, 455 insertions(+), 655 deletions(-)
+ doc/go1.15.html                        |  6 ++++++
+ src/cmd/go/go_test.go                  | 32 ++++++++++++++++++++++++++++----
+ src/cmd/go/internal/work/init.go       |  2 ++
+ src/cmd/link/internal/ld/dwarf_test.go |  9 +++++++--
+ src/cmd/nm/nm_test.go                  |  2 +-
+ 5 files changed, 44 insertions(+), 7 deletions(-)

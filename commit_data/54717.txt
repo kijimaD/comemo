@@ -1,26 +1,27 @@
-commit ab2e3ce77c3935b38a954c7fb720875e9173dddd
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Oct 5 12:35:35 2023 +0200
+commit d931b3b771ebd9cc0f77d3a002ff6cfb9f4d9c8b
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Nov 10 18:07:57 2022 +0000
 
-    runtime: use cgo_import_dynamic for QueryPerformanceCounter
+    net: add support for /etc/hosts aliases using go resolver
     
-    QueryPerformanceCounter is available since Windows 2000 [1], so there
-    is no need to conditionally load it.
+    It adds support for /etc/hosts aliases and fixes the difference between the glibc cgo and the go DNS resolver.
+    Examples: https://pastebin.com/Fv6UcAVr
     
-    Even if the Go runtime doesn't eventually use it, it is still simpler
-    and faster to just tell the Windows loader to load it, instead of doing
-    it ourselves.
+    Fixes #44741
     
-    [1]: https://learn.microsoft.com/en-us/windows/win32/api/profileapi/nf-profileapi-queryperformancecounter
-    
-    Change-Id: Ied3b54a6a8fe3b8d51aefab0fe483b3a193b5522
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532915
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I98c484fced900731fbad800278b296028a45f044
+    GitHub-Last-Rev: 3d47e44f11c350df906d0c986e41891dd6e8d929
+    GitHub-Pull-Request: golang/go#51004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382996
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/os_windows.go | 16 +---------------
- 1 file changed, 1 insertion(+), 15 deletions(-)
+ src/net/dnsclient_unix.go      | 40 +++++++++++++++++++++++++--------
+ src/net/dnsclient_unix_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/hosts.go               | 45 ++++++++++++++++++++++++++++---------
+ src/net/hosts_test.go          | 43 ++++++++++++++++++++++++++++++++++--
+ src/net/testdata/aliases       |  8 +++++++
+ 5 files changed, 165 insertions(+), 21 deletions(-)

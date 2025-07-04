@@ -1,22 +1,19 @@
-commit fc6753c7cd788cbd50cb80e18764541934141e63
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 7 17:40:00 2014 -0700
+commit a2a351478bb223891ebe8c1ae09c6ad09648f138
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 8 06:14:49 2014 +0900
 
-    runtime: make sure associated defers are copyable before trying to copy a stack.
+    net: move error messages related to OpError into net.go
     
-    Defers generated from cgo lie to us about their argument layout.
-    Mark those defers as not copyable.
+    Also makes ErrWriteToConnected more appropriate; it's used
+    not only UDPConn operations but UnixConn operations.
     
-    CL 83820043 contains an additional test for this code and should be
-    checked in (and enabled) after this change is in.
+    Update #4856
     
-    Fixes bug 7695.
-    
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/84740043
+    https://golang.org/cl/84800044
 
- src/pkg/runtime/stack.c       | 69 +++++++++++++++++++++++++++++++++++--------
- src/pkg/runtime/stack_test.go | 17 +++++++++++
- 2 files changed, 74 insertions(+), 12 deletions(-)
+ src/pkg/net/net.go     | 15 ++++++++++-----
+ src/pkg/net/udpsock.go |  4 ----
+ 2 files changed, 10 insertions(+), 9 deletions(-)

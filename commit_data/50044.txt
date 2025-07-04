@@ -1,18 +1,15 @@
-commit 761db3e7f07ec358323589eab72b153339036086
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Oct 21 16:57:53 2021 +0200
+commit e7a25731697111ea939e4cb05d638c76cdb6f0c2
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Mon Sep 27 22:54:16 2021 +0800
 
-    debug/buildinfo: add regression tests for different buildmodes
+    compress/gzip: add missing license
     
-    Updates #48187
-    
-    Change-Id: I2364f248520e77c2e3a4832b9769b52e7aa62f73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357569
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I80c2c6054f6a5be3555c72056159a47f927f9a44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352409
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
 
- src/debug/buildinfo/buildinfo_test.go | 82 ++++++++++++++++++++++-------------
- 1 file changed, 52 insertions(+), 30 deletions(-)
+ src/compress/gzip/issue14937_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

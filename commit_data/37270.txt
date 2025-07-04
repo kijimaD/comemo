@@ -1,15 +1,18 @@
-commit a540aa338a3145ab32ca4409919c82722f8724f3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 5 10:33:28 2018 -0800
+commit 12f217459da0f20b19ae382e4b1cc231bc188bdd
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 14 14:06:28 2018 +1000
 
-    test: add test that gccgo failed to compile
+    doc: update Implementation and Performance sections of the FAQ
     
-    Updates #28601
+    Changes are mostly about making more about now than about the past,
+    changing some verb tenses, and mentioning gollvm (which should
+    be pronounced "gollum" if you ask me).
     
-    Change-Id: I734fc5ded153126d384f0df912ecd4d208005e49
-    Reviewed-on: https://go-review.googlesource.com/c/147537
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Update #26107
+    
+    Change-Id: I6c14f42b9fc2684259d4ba8bc149d7ec9bb83d15
+    Reviewed-on: https://go-review.googlesource.com/123917
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue28601.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ doc/go_faq.html | 110 ++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 79 insertions(+), 31 deletions(-)

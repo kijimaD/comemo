@@ -1,21 +1,34 @@
-commit da87cf5dcf342a31c82ff7980bdc076558ff6674
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 24 16:27:07 2015 -0700
+commit 7bc3e5880675ce4aae245f46d193924cff5efdfb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 11:01:53 2015 -0400
 
-    net/http: fix a data race when Request.Cancel is used
+    all: extract "can I exec?" check from tests into internal/testenv
     
-    The "add a Request.Cancel channel" change (https://golang.org/cl/11601)
-    added support for "race free" cancellation, but introduced a data race. :)
-    
-    Noticed while running "go test -race net/http". The test is skipped in
-    short mode, so we never saw it on the dashboard.
-    
-    Change-Id: Ica14579d8723f8f9d1691e8d56c30b585b332c64
-    Reviewed-on: https://go-review.googlesource.com/12663
-    Reviewed-by: Aaron Jacobs <jacobsa@google.com>
+    Change-Id: I7b54be9d8b50b39e01c6be21f310ae9a10404e9d
+    Reviewed-on: https://go-review.googlesource.com/10753
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/transport.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/addr2line/addr2line_test.go   | 17 ++-----
+ src/cmd/cover/cover_test.go           | 13 ++---
+ src/cmd/go/go_test.go                 | 48 +++++--------------
+ src/cmd/go/note_test.go               |  9 +---
+ src/cmd/go/vcs_test.go                | 11 ++---
+ src/cmd/internal/obj/x86/obj6_test.go |  8 ++--
+ src/cmd/nm/nm_test.go                 | 11 +----
+ src/cmd/objdump/objdump_test.go       | 11 +----
+ src/cmd/pack/pack_test.go             | 22 ++-------
+ src/cmd/vet/vet_test.go               | 23 ++-------
+ src/crypto/x509/x509_test.go          | 12 +----
+ src/go/build/deps_test.go             |  1 +
+ src/internal/testenv/testenv.go       | 90 +++++++++++++++++++++++++++++++++++
+ src/net/http/cgi/matryoshka_test.go   | 17 ++-----
+ src/os/exec/exec_test.go              | 21 +++-----
+ src/os/os_test.go                     | 45 ++++--------------
+ src/runtime/crash_test.go             | 11 +----
+ src/runtime/pprof/pprof_test.go       |  8 +---
+ src/runtime/pprof/trace_test.go       |  2 +
+ src/syscall/exec_unix_test.go         |  7 ++-
+ src/syscall/syscall_unix_test.go      |  9 ++--
+ 21 files changed, 163 insertions(+), 233 deletions(-)

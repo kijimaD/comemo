@@ -1,12 +1,19 @@
-commit 3fd19fdc5172cffd77f095c04f5d522f9a4eb314
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 31 12:09:49 2015 -0800
+commit 4ff231bca1f9602e810b95cb75d7997329009e31
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 26 17:53:22 2015 -0700
 
-    runtime: treat SIGTSTP/SIGCANCEL on Solaris as we do on GNU/Linux
+    runtime: eliminate some unnecessary uintptr conversions
     
-    Change-Id: I617abd53f5fc883b972a1ef090886b85607e00bb
-    Reviewed-on: https://go-review.googlesource.com/18155
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    arena_{start,used,end} are already uintptr, so no need to convert them
+    to uintptr, much less to convert them to unsafe.Pointer and then to
+    uintptr.  No binary change to pkg/linux_amd64/runtime.a.
+    
+    Change-Id: Ia4232ed2a724c44fde7eba403c5fe8e6dccaa879
+    Reviewed-on: https://go-review.googlesource.com/16339
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/signal_solaris.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go | 10 +++++-----
+ src/runtime/mfinal.go |  4 ++--
+ src/runtime/mheap.go  | 14 +++++++-------
+ 3 files changed, 14 insertions(+), 14 deletions(-)

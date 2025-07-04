@@ -1,18 +1,29 @@
-commit f6fab93a4615ece698745493b368b884a65685f5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 15 11:06:03 2016 -0700
+commit c5bafc828126c8fa057e1accaa448583c7ec145f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 21:16:01 2016 -0500
 
-    cmd/compile: make Type.Field stricter about bounds checking
+    runtime: make NumGoroutine and Stack agree not to include system goroutines
     
-    Turns out there were only two call sites that expected
-    t.Field(t.NumFields()) to return nil.
+    Before, NumGoroutine counted system goroutines and Stack (usually) didn't show them,
+    which was inconsistent and confusing.
     
-    Change-Id: I4679988d38ee9d7c9d89883537a17046717b2a77
-    Reviewed-on: https://go-review.googlesource.com/20731
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    To resolve which way they should be consistent, it seems like
+    
+            package main
+            import "runtime"
+            func main() { println(runtime.NumGoroutine()) }
+    
+    should print 1 regardless of internal runtime details. Make it so.
+    
+    Fixes #11706.
+    
+    Change-Id: I6bfe26a901de517728192cfb26a5568c4ef4fe47
+    Reviewed-on: https://go-review.googlesource.com/18343
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/ssa.go  |  5 +++--
- src/cmd/compile/internal/gc/type.go | 16 ++++++++--------
- 2 files changed, 11 insertions(+), 10 deletions(-)
+ src/runtime/mprof.go                  |  5 +++++
+ src/runtime/proc.go                   |  8 +++++++-
+ src/runtime/proc_test.go              | 18 ++++++++++++++++++
+ src/runtime/runtime2.go               |  2 ++
+ src/runtime/testdata/testprog/misc.go | 15 +++++++++++++++
+ 5 files changed, 47 insertions(+), 1 deletion(-)

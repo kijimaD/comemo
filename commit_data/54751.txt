@@ -1,29 +1,19 @@
-commit 9299547e4dec01a7fed8226f8d3080eccf965aa4
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Oct 14 01:24:33 2023 +0800
+commit c55d184151d2a1d313b96d8e835341cd1f0ec0c5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 10 15:28:03 2022 -0800
 
-    image: add available godoc link
+    spec: document the new unsafe functions SliceData, String, and StringData
     
-    Change-Id: I2839ecb091c4f0b30d0dcee708bf9e9a55e3672a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535196
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    For #53003.
+    
+    Change-Id: If5d76c7b8dfcbcab919cad9c333c0225fc155859
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449537
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/image/color/color.go           |  4 +--
- src/image/color/palette/palette.go |  2 +-
- src/image/color/ycbcr.go           |  8 ++---
- src/image/draw/draw.go             | 14 ++++-----
- src/image/format.go                |  6 ++--
- src/image/geom.go                  | 22 +++++++-------
- src/image/gif/reader.go            |  4 +--
- src/image/image.go                 | 60 +++++++++++++++++++-------------------
- src/image/jpeg/reader.go           |  4 +--
- src/image/jpeg/writer.go           |  2 +-
- src/image/names.go                 |  6 ++--
- src/image/png/reader.go            |  2 +-
- src/image/png/writer.go            |  6 ++--
- src/image/ycbcr.go                 |  2 +-
- 14 files changed, 71 insertions(+), 71 deletions(-)
+ doc/go_spec.html | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

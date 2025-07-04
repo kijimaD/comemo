@@ -1,99 +1,34 @@
-commit 5923a97f43bd7b8910fa69e3c02cdef2c531cdcf
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Tue Sep 3 20:11:06 2024 +0800
+commit a9bedc36a53f9d4ff6ab1c1a43c900c2fc8eba84
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 18 12:38:32 2023 -0700
 
-    cmd/internal/obj: optimize the function stacksplit on loong64
+    cmd/compile: ensure we keep top 32 bits zeroed for 32-bit arm64 ops
     
-    In the process of stack split checking, loong64 uses the following
-    logic: if SP > stackguard then goto done, else morestack
+    When rewriting, for example, MSUBW, we need to ensure that the result
+    has its 32 top bits zeroed. That's what the instruction is spec'd to do.
+    Normally, we'd only use MSUBW for computations on 32-bit values, and
+    as such the top 32 bits aren't normally used. But some situations, like
+    if we cast the result to a uint64, the top 32 bits do matter.
     
-    The possible problem here is that the probability of morestack
-    execution is much lower than done, while static branch prediction
-    is more inclined to obtain morestack, which will cause a certain
-    probability of branch prediction error.
+    This comes up in 62131 because we have a rule saying, MOVWUreg applied
+    to a MSUBW is unnecessary, as the arg to MOVWUreg already has zeroed
+    top 32 bits. But if MSUBW is later rewritten to another op that doesn't
+    zero the top 32 bits (SUB, probably), getting rid of the MOVWUreg earlier
+    causes a problem.
     
-    Change the logic here to:
-    if SP <= stackguard then goto morestack, else done
+    So change rewrite rules to always maintain the top 32 bits as zero if the
+    instruction is spec'd to provide that. We need to introduce a few *W operations
+    to make that happen.
     
-    benchmarks on 3A6000:
+    Fixes #62131
     
-    goos: linux
-    goarch: loong64
-    pkg: fmt
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                                  │  bench.old  │              bench.new              │
-                                  │   sec/op    │   sec/op     vs base                │
-    SprintfPadding                  418.3n ± 1%   387.0n ± 0%   -7.49% (p=0.000 n=20)
-    SprintfEmpty                    35.95n ± 0%   35.86n ± 0%   -0.25% (p=0.000 n=20)
-    SprintfString                   75.02n ± 1%   72.24n ± 0%   -3.71% (p=0.000 n=20)
-    SprintfTruncateString           165.7n ± 3%   139.9n ± 1%  -15.58% (p=0.000 n=20)
-    SprintfTruncateBytes            171.0n ± 0%   147.3n ± 0%  -13.83% (p=0.000 n=20)
-    SprintfSlowParsingPath          90.56n ± 0%   80.85n ± 0%  -10.72% (p=0.000 n=20)
-    SprintfQuoteString              560.2n ± 0%   509.7n ± 0%   -9.01% (p=0.000 n=20)
-    SprintfInt                      58.62n ± 0%   56.45n ± 0%   -3.70% (p=0.000 n=20)
-    SprintfIntInt                   141.7n ± 0%   122.2n ± 0%  -13.73% (p=0.000 n=20)
-    SprintfPrefixedInt              210.6n ± 0%   208.8n ± 0%   -0.88% (p=0.000 n=20)
-    SprintfFloat                    282.3n ± 0%   251.8n ± 1%  -10.80% (p=0.000 n=20)
-    SprintfComplex                  854.1n ± 0%   813.8n ± 0%   -4.71% (p=0.000 n=20)
-    SprintfBoolean                  76.32n ± 0%   71.14n ± 1%   -6.79% (p=0.000 n=20)
-    SprintfHexString                218.5n ± 0%   193.4n ± 0%  -11.51% (p=0.000 n=20)
-    SprintfHexBytes                 321.3n ± 0%   275.0n ± 0%  -14.42% (p=0.000 n=20)
-    SprintfBytes                    573.5n ± 0%   553.2n ± 1%   -3.54% (p=0.000 n=20)
-    SprintfStringer                 501.1n ± 1%   446.6n ± 0%  -10.86% (p=0.000 n=20)
-    SprintfStructure                1.793µ ± 0%   1.683µ ± 0%   -6.16% (p=0.000 n=20)
-    ManyArgs                        500.0n ± 0%   470.4n ± 0%   -5.92% (p=0.000 n=20)
-    FprintInt                       67.51n ± 0%   65.71n ± 0%   -2.66% (p=0.000 n=20)
-    FprintfBytes                    130.9n ± 0%   129.5n ± 1%   -1.11% (p=0.000 n=20)
-    FprintIntNoAlloc                67.55n ± 0%   65.80n ± 0%   -2.58% (p=0.000 n=20)
-    ScanInts                        386.3µ ± 0%   346.5µ ± 0%  -10.29% (p=0.000 n=20)
-    ScanRecursiveInt                25.97m ± 0%   25.93m ± 0%   -0.15% (p=0.038 n=20)
-    ScanRecursiveIntReaderWrapper   26.07m ± 0%   25.93m ± 0%   -0.53% (p=0.001 n=20)
-    geomean                         702.6n        653.7n        -6.96%
-    
-    goos: linux
-    goarch: loong64
-    pkg: test/bench/go1
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                          │  bench.old   │              bench.new              │
-                          │    sec/op    │   sec/op     vs base                │
-    BinaryTree17              7.688 ± 1%    7.724 ± 0%   +0.47% (p=0.040 n=20)
-    Fannkuch11                2.670 ± 0%    2.645 ± 0%   -0.94% (p=0.000 n=20)
-    FmtFprintfEmpty          35.93n ± 0%   37.50n ± 0%   +4.37% (p=0.000 n=20)
-    FmtFprintfString         56.32n ± 0%   59.74n ± 0%   +6.08% (p=0.000 n=20)
-    FmtFprintfInt            64.47n ± 0%   61.26n ± 0%   -4.98% (p=0.000 n=20)
-    FmtFprintfIntInt        100.30n ± 0%   99.67n ± 0%   -0.63% (p=0.000 n=20)
-    FmtFprintfPrefixedInt    116.7n ± 0%   119.3n ± 0%   +2.23% (p=0.000 n=20)
-    FmtFprintfFloat          234.1n ± 0%   203.4n ± 0%  -13.11% (p=0.000 n=20)
-    FmtManyArgs              503.0n ± 0%   467.9n ± 0%   -6.96% (p=0.000 n=20)
-    GobDecode                8.125m ± 0%   7.299m ± 0%  -10.17% (p=0.000 n=20)
-    GobEncode                8.930m ± 1%   8.581m ± 1%   -3.91% (p=0.000 n=20)
-    Gzip                     280.0m ± 0%   279.8m ± 0%   -0.10% (p=0.000 n=20)
-    Gunzip                   33.30m ± 0%   32.48m ± 0%   -2.49% (p=0.000 n=20)
-    HTTPClientServer         55.43µ ± 0%   54.10µ ± 1%   -2.41% (p=0.000 n=20)
-    JSONEncode              10.086m ± 0%   9.055m ± 0%  -10.22% (p=0.000 n=20)
-    JSONDecode               49.37m ± 1%   46.22m ± 1%   -6.40% (p=0.000 n=20)
-    Mandelbrot200            4.606m ± 0%   4.606m ± 0%        ~ (p=0.280 n=20)
-    GoParse                  5.010m ± 0%   4.855m ± 0%   -3.09% (p=0.000 n=20)
-    RegexpMatchEasy0_32      59.09n ± 0%   59.32n ± 0%   +0.39% (p=0.000 n=20)
-    RegexpMatchEasy0_1K      455.2n ± 0%   453.8n ± 0%   -0.31% (p=0.000 n=20)
-    RegexpMatchEasy1_32      59.24n ± 0%   60.11n ± 0%   +1.47% (p=0.000 n=20)
-    RegexpMatchEasy1_1K      555.2n ± 0%   553.9n ± 0%   -0.23% (p=0.000 n=20)
-    RegexpMatchMedium_32     845.7n ± 0%   775.6n ± 0%   -8.28% (p=0.000 n=20)
-    RegexpMatchMedium_1K     26.68µ ± 0%   26.48µ ± 0%   -0.78% (p=0.000 n=20)
-    RegexpMatchHard_32       1.317µ ± 0%   1.326µ ± 0%   +0.68% (p=0.000 n=20)
-    RegexpMatchHard_1K       41.35µ ± 0%   40.95µ ± 0%   -0.97% (p=0.000 n=20)
-    Revcomp                  463.0m ± 0%   473.0m ± 0%   +2.15% (p=0.000 n=20)
-    Template                 83.80m ± 0%   76.26m ± 1%   -9.00% (p=0.000 n=20)
-    TimeParse                283.3n ± 0%   260.8n ± 0%   -7.96% (p=0.000 n=20)
-    TimeFormat               307.2n ± 0%   290.5n ± 0%   -5.45% (p=0.000 n=20)
-    geomean                  53.16µ        51.67µ        -2.79%
-    
-    Change-Id: Iaec2f50db18e9a2b405605f8b92af3683114ea34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616035
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If3d160821e285fd7454746b735a243671bff8894
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520916
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/internal/obj/loong64/obj.go | 81 ++++++++++++++++++++-----------------
- 1 file changed, 45 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules | 152 ++---
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 794 +++++++++++++++-----------
+ 2 files changed, 534 insertions(+), 412 deletions(-)

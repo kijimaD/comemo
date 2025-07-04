@@ -1,18 +1,27 @@
-commit a8f2e63f2f5b661418f1e386e443e48356e72c40
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Feb 24 23:24:42 2025 +1100
+commit 2057ad02bd8387378a2d1fd637e955e126f698bf
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Jan 12 16:28:56 2024 -0800
 
-    test/codegen: add a test for negation and conversion to int32
+    context: improve valueCtx.String
     
-    Codify the current code generation used on riscv64 in this case.
+    Check for stringer on the key itself.
+    This is useful for locally defined context key types,
+    where there may be multiple instances of that type.
+    For example, see http.contextKey,
+    which can now be called after this change.
     
-    Change-Id: If4152e3652fc19d0aa28b79dba08abee2486d5ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652317
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    For the value itself, print the type at least
+    instead of just resorting to "<not stringer>".
+    
+    Change-Id: I588ef1df34e90fb9ebd83cb180fea495e1fedaa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555697
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- test/codegen/arithmetic.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/context/context.go | 8 ++++----
+ src/context/x_test.go  | 8 +++++++-
+ 2 files changed, 11 insertions(+), 5 deletions(-)

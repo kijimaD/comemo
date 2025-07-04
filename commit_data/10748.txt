@@ -1,15 +1,16 @@
-commit 969b71d906f4ee6b438bc051dc7fff98f4fa503c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 13 14:20:38 2011 -0500
+commit 38df0459ae1631e223edbe2c9f1a970bbb994fe9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 13 11:13:23 2011 -0800
 
-    build: disable cgo on Windows/amd64
+    strconv: make QuoteRune etc. take a rune argument
+    Just an oversight it didn't already.
+    Fixes #2515.
     
-    Apparently it is broken.  Disable so that dashboard
-    will let us see other breakages on Windows.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5477081
+    https://golang.org/cl/5483064
 
- src/Make.inc | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/fmt/format.go         |  4 ++--
+ src/pkg/strconv/quote.go      | 16 ++++++++--------
+ src/pkg/strconv/quote_test.go |  2 +-
+ 3 files changed, 11 insertions(+), 11 deletions(-)

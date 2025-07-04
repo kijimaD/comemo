@@ -1,0 +1,21 @@
+commit 98529a8e7cf1cc0b561f26a4bd3ddf8f6dbd2f8a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 24 18:04:11 2024 -0400
+
+    cmd/link: don't include deadcoded function symbols in shared build mode
+    
+    In shared build mode, we include all symbols. This includes
+    function symbols that are deadcoded by the compiler. They don't
+    really get compiled, and their metadata may be missing, causing
+    linker failures. Skip them.
+    
+    Fixes #67635.
+    
+    Change-Id: Ic0e64bd032be499cca26da5e9e3ffbe9998bac05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588316
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/internal/testshared/testdata/depBase/dep.go | 5 +++++
+ src/cmd/link/internal/ld/deadcode.go                    | 6 ++++++
+ 2 files changed, 11 insertions(+)

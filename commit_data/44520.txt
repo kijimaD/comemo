@@ -1,24 +1,34 @@
-commit 2b0e29f51669063002cbcceca4f4a43e00144876
-Author: John Bampton <jbampton@gmail.com>
-Date:   Sun Feb 14 17:27:56 2021 +0000
+commit ba9c639470cb962a799116fea55c91638752fe87
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Jun 24 14:30:16 2020 -0400
 
-    docs: fix case of GitHub
+    [dev.link] cmd/link: add runtime.pcheader
     
-    Change `Github` to `GitHub`
+    As of July 2020, a fair amount of the new linker's live memory, and
+    runtime is spent generating pclntab. In an effort to streamline that
+    code, this change starts breaking up the generation of runtime.pclntab
+    into smaller chunks that can run later in a link. These changes are
+    described in an (as yet not widely distributed) document that lays out
+    an improved format. Largely the work consists of breaking up
+    runtime.pclntab into smaller pieces, stopping much of the data
+    rewriting, and getting runtime.pclntab into a form where we can reason
+    about its size and look to shrink it. This change is the first part of
+    that work -- just pulling out the header, and demonstrating where a
+    majority of that work will be.
     
-    Change-Id: I514e8dc9a19182fcf9fcf5bc1b5fbff253c1a947
-    GitHub-Last-Rev: 7124c7058e0c7ff19dc8440fa79271eb6cfdaea9
-    GitHub-Pull-Request: golang/go#44260
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291950
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I65618d0d0c780f7e5977c9df4abdbd1696fedfcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241598
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/chrome/gophertool/popup.html | 2 +-
- src/cmd/go/internal/vcs/vcs.go    | 2 +-
- src/crypto/md5/md5_test.go        | 2 +-
- src/crypto/sha1/sha1_test.go      | 2 +-
- src/crypto/sha256/sha256_test.go  | 2 +-
- src/crypto/sha512/sha512_test.go  | 2 +-
- 6 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/data.go              |   4 +
+ src/cmd/link/internal/ld/pcln.go              |  95 ++++++++++++++++------
+ src/cmd/link/internal/ld/symtab.go            |   6 +-
+ src/cmd/link/internal/loader/symbolbuilder.go |   4 +
+ src/debug/gosym/pclntab.go                    | 112 ++++++++++++++++++--------
+ src/debug/gosym/pclntab_test.go               |  50 ++++++++++++
+ src/debug/gosym/testdata/pcln115.gz           | Bin 0 -> 124875 bytes
+ src/runtime/symtab.go                         |  22 +++--
+ 8 files changed, 227 insertions(+), 66 deletions(-)

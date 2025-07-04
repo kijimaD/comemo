@@ -1,27 +1,29 @@
-commit 011f6c5fa03bdcd433315c60b94f2327beec22fc
-Author: Hana Kim <hakim@google.com>
-Date:   Tue Apr 24 15:37:42 2018 -0400
+commit 558eeb2d850d064b0b02b65a7bf3af6c108c248d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 14:45:50 2017 -0500
 
-    cmd/trace: distinguish task endTimestamp and lastTimestamp
+    cmd/vet: limit printf check to known Printf-like functions
     
-    A task may have other user annotation events after the task ends.
-    So far, task.lastTimestamp returned the task end event if the
-    event available. This change introduces task.endTimestamp for that
-    and makes task.lastTimestamp returns the "last" seen event's timestamp
-    if the task is ended.
+    The name-based heuristics fail too often to be on during "go test",
+    but we really want the printf vet check in "go test", so change to
+    a list of exactly which standard library functions are print-like.
     
-    If the task is not ended, both returns the last timestamp of the entire
-    trace assuming the task is still active.
+    For a later release we'd like to bring back checking for user-defined
+    wrappers, but in a completely precise way. Not for Go 1.10, though.
     
-    This fixes the task-oriented trace view mode not to drop user
-    annotation instances when they appear outside a task's lifespan.
-    Adds a test.
+    The new, more precise list includes t.Skipf, which caught some
+    mistakes in standard library tests.
     
-    Change-Id: Iba1062914f224edd521b9ee55c6cd5e180e55359
-    Reviewed-on: https://go-review.googlesource.com/109175
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Fixes #22936.
+    
+    Change-Id: I110448e3f6b75afd4327cf87b6abb4cc2021fd0d
+    Reviewed-on: https://go-review.googlesource.com/83838
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/trace/annotations.go | 31 +++++++++++++++--------
- src/cmd/trace/trace.go       | 16 ++++++------
- src/cmd/trace/trace_test.go  | 59 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 89 insertions(+), 17 deletions(-)
+ src/cmd/vet/main.go           |   8 +--
+ src/cmd/vet/print.go          | 164 +++++++++++++++++++++++++++++++-----------
+ src/cmd/vet/testdata/print.go |  99 ++++++++++++-------------
+ src/cmd/vet/vet_test.go       |  24 +++++++
+ 4 files changed, 195 insertions(+), 100 deletions(-)

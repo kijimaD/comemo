@@ -1,18 +1,41 @@
-commit aefa6cd1f9c808e778b8851d37f088db23925b50
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 21 14:42:14 2015 -0400
+commit 71274e48571581fa39aae105ebdf8e5f54e6c236
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat May 2 12:44:49 2015 +1000
 
-    cmd/link: delete dead flags
+    cmd/internal/ld: delete Biobuf
     
-    Also fix the interaction between -buildmode and -shared.
-    It's okay for -shared to change the default build mode,
-    but it's not okay for it to silently override an explicit -buildmode=exe.
+    Update #10652
     
-    Change-Id: Id40f93d140cddf75b19e262b3ba4856ee09a07ba
-    Reviewed-on: https://go-review.googlesource.com/10315
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    This proposal deletes cmd/internal/ld.Biobuf and replaces all uses with
+    cmd/internal/obj.Biobuf. As cmd/internal/ld already imported cmd/internal/obj
+    there are no additional dependencies created.
+    
+    Notes:
+    
+    - ld.Boffset included more checks, so it was merged into obj.Boffset
+    - obj.Bflush was removed in 8d16253c90ae, so replaced all calls to
+      ld.Bflush, with obj.Biobuf.Flush.
+    - Almost all of this change was prepared with sed.
+    
+    Change-Id: I814854d52f5729a5a40c523c8188e465246b88da
+    Reviewed-on: https://go-review.googlesource.com/9660
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
 
- src/cmd/link/internal/ld/lib.go  |  5 ++++-
- src/cmd/link/internal/ld/pobj.go | 30 +++++++-----------------------
- 2 files changed, 11 insertions(+), 24 deletions(-)
+ src/cmd/5l/asm.go              |  10 +--
+ src/cmd/6l/asm.go              |  12 ++--
+ src/cmd/7l/asm.go              |  10 +--
+ src/cmd/8l/asm.go              |  10 +--
+ src/cmd/9l/asm.go              |  10 +--
+ src/cmd/internal/ld/data.go    |   8 +--
+ src/cmd/internal/ld/go.go      |   4 +-
+ src/cmd/internal/ld/ldelf.go   |  12 ++--
+ src/cmd/internal/ld/ldmacho.go |  22 +++---
+ src/cmd/internal/ld/ldpe.go    |  26 +++----
+ src/cmd/internal/ld/lib.go     |  86 +++++++++++-----------
+ src/cmd/internal/ld/link.go    |   7 +-
+ src/cmd/internal/ld/objfile.go |  36 +++++-----
+ src/cmd/internal/ld/pobj.go    |   6 +-
+ src/cmd/internal/ld/util.go    | 157 -----------------------------------------
+ src/cmd/internal/obj/util.go   |  11 ++-
+ 16 files changed, 139 insertions(+), 288 deletions(-)

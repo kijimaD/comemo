@@ -1,25 +1,15 @@
-commit 59ca8789fb7de9e7e20bbf895b388c7e9b29d2f7
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jan 5 11:33:25 2016 -0500
+commit 26d0b00536c3d2808f195a095858a3f25354177d
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Fri Oct 16 14:19:13 2015 -0400
 
-    runtime/pprof: skip TestStackBarrierProfiling
+    cmd/go: enable android/amd64 build.
     
-    This test triggers a large number of usleep(100)s. linux/arm, openbsd,
-    and solaris have very poor timer resolution on the builders, so
-    usleep(100) actually gives up the whole scheduling quantum. On Linux
-    and OpenBSD (and probably Solaris), profiling signals are only
-    generated when a process completes a whole scheduling quantum, so this
-    test often gets zero profiling signals and fails.
+    For golang/go#10743
     
-    Until we figure out what to do about this, skip this test on these
-    platforms.
-    
-    Updates #13405.
-    
-    Change-Id: Ica94e4a8ae7a8df3e5a840504f83ee2ec08727df
-    Reviewed-on: https://go-review.googlesource.com/18252
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Iec047821147a0e28edebf875fefe25993785702b
+    Reviewed-on: https://go-review.googlesource.com/15994
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/pprof/pprof_test.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ misc/cgo/testcshared/test.bash | 2 +-
+ src/cmd/go/build.go            | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

@@ -1,25 +1,22 @@
-commit 49621cc311a41b71f60f03202f3872c0633cac59
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Fri Aug 9 15:45:39 2024 +0200
+commit 333c80694c797b5540c959f33c710bc6eba0d141
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jul 10 19:04:57 2023 -0400
 
-    cmd/compile: compute XOR's limits from argument's limits
+    cmd/cgo/internal/test: don't pass -lm on darwin
     
-    This help to optimize code like this:
+    On darwin, -lm is not necessary as the math functions are included
+    in libSystem. Passing -lm multiple times results in linker
+    warnings. Don't pass it on darwin.
     
-      func f(buckets *[512]bucket, v value) {
-        a, b := v.computeSomething()
-        // assume a and b are proved < 512
-        b := &buckets[a ^ b] // pick a random bucket
-        b.store(v)
-      }
+    For #61229.
     
-    Change-Id: I1acf702f5a8137f9ded49081b4703922879b0288
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604455
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I72d8dab1f0eead68cbeb176ac97b8ed1a0cfddab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508697
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 10 ++++++++--
- test/prove.go                         | 18 ++++++++++++++++++
- 2 files changed, 26 insertions(+), 2 deletions(-)
+ src/cmd/cgo/internal/test/issue8756.go           | 2 +-
+ src/cmd/cgo/internal/test/issue8756/issue8756.go | 2 +-
+ src/cmd/cgo/internal/test/test.go                | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

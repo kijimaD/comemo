@@ -1,19 +1,27 @@
-commit 349a2876467cdae58a772424f044f882fd4e2f6b
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Oct 12 14:35:24 2020 +0200
+commit d467f3bbc9c76805ae16ab1924c28ec3be487875
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Feb 16 12:01:02 2020 +1100
 
-    cmd/compile: use Bool accessor in place of Val.U.(bool)
+    runtime: ignore error returned by PowerRegisterSuspendResumeNotification
     
-    We have a Bool() accessor for the value in boolean nodes, that we use
-    elsewhere for n.Val().U.(bool), use it here too. Noticed while reading
-    the code.
+    It appears that PowerRegisterSuspendResumeNotification is not supported
+    when running inside Docker - see issues #35447, #36557 and #37149.
     
-    Change-Id: Ie42e014970099a05fe9f02f378af77b63e7e6b13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261360
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Our current code relies on error number to determine Docker environment.
+    But we already saw PowerRegisterSuspendResumeNotification return
+    ERROR_FILE_NOT_FOUND, ERROR_INVALID_PARAMETERS and ERROR_ACCESS_DENIED
+    (see issues above). So this approach is not sustainable.
+    
+    Just ignore PowerRegisterSuspendResumeNotification returned error.
+    
+    Fixes #37149
+    
+    Change-Id: I2beba9d45cdb8c1efac5e974e747827a6261915a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219657
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/compile/internal/gc/swt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/os_windows.go | 23 ++---------------------
+ 1 file changed, 2 insertions(+), 21 deletions(-)

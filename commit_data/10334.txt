@@ -1,21 +1,15 @@
-commit 2c39ca08cd6bb94b31ac6e15b0da33b345b62170
-Author: Rob Pike <r@golang.org>
-Date:   Thu Nov 10 11:59:50 2011 -0800
+commit 85b7419211d9d46cc7a73c3f8595f2a3e9ca15ff
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Nov 10 11:42:01 2011 -0800
 
-    testing: add file:line stamps to messages.
+    runtime: fix semasleep() duration for openbsd
     
-    A single-line error looks like this:
-    --- FAIL: foo_test.TestFoo (0.00 seconds)
-            foo_test.go:123: Foo(8) = "10" want "100"
+    The timespec passed to thrsleep() needs to be an absolute/realtime
+    value, so add the current nanotime to ns.
     
-    A multi-line error looks like this:
-    --- FAIL: foo_test.TestFoo (0.00 seconds)
-            foo_test.go:456: Foo(88) = "100"
-                    want "1000"
-    
-    R=rsc, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5376057
+    https://golang.org/cl/5374048
 
- src/pkg/testing/testing.go | 41 ++++++++++++++++++++++++++++++-----------
- 1 file changed, 30 insertions(+), 11 deletions(-)
+ src/pkg/runtime/openbsd/thread.c | 1 +
+ 1 file changed, 1 insertion(+)

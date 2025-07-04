@@ -1,20 +1,27 @@
-commit 03d36d8198428a6970ba01f5de41c264acbff8fc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Feb 20 11:25:15 2021 -0800
+commit 6aadfcdfad663738519535abc76e819d2843375d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 10 12:47:23 2020 -0700
 
-    syscall: add explicit ios build tag
+    go/types: rename UsesCgo to go115UsesCgo
     
-    This permits analysis of the syscall package by tools built with
-    older versions of Go that do not recognize ios as a GOOS.
+    This API and functionality was added late in the Go 1.15 release
+    cycle, and use within gopls has revealed some shortcomings. It's
+    possible (but not decided) that we'll want a different API long-term,
+    so for now this CL renames UsesCgo to a non-exported name to avoid
+    long-term commitment under the Go 1 compat guarantee.
     
-    Fixes #44459
+    Updates #16623.
+    Updates #39072.
     
-    Change-Id: I79cec2ffe0dbcbc2dc45a385e556dc9e62033125
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294634
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I04bc0c161a84adebe43e926df5df406bc794c3db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237417
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/syscall/ptrace_ios.go | 3 +++
- 1 file changed, 3 insertions(+)
+ api/go1.15.txt                             |  1 -
+ src/go/internal/srcimporter/srcimporter.go |  6 +++++-
+ src/go/types/api.go                        | 10 +++++++---
+ src/go/types/check.go                      |  4 ++--
+ src/go/types/resolver.go                   |  4 ++--
+ 5 files changed, 16 insertions(+), 9 deletions(-)

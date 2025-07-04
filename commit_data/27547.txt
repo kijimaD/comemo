@@ -1,33 +1,36 @@
-commit dec1bae916fc75a6718fb7fa667e419cc902097a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 25 10:01:58 2016 -0400
+commit ea306ae625d001a43ef20163739593a21be51f97
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 11 17:16:48 2015 -0800
 
-    cmd/compile: additional paranoia and checking in plive.go
+    runtime: support symbolic backtrace of C code in a cgo crash
     
-    The main check here is that liveness now crashes if it finds an instruction
-    using a variable that should be tracked but is not.
+    The new function runtime.SetCgoTraceback may be used to register stack
+    traceback and symbolizer functions, written in C, to do a stack
+    traceback from cgo code.
     
-    Comments and adjustments in nodarg to explain what's going on and
-    to remove the "-1" argument added a few months ago, plus a sketch
-    of a future simplification.
+    There is a sample implementation of runtime.SetCgoSymbolizer at
+    github.com/ianlancetaylor/cgosymbolizer.  Just importing that package is
+    sufficient to get symbolic C backtraces.
     
-    The need for n.Orig in the earlier CL seems to have been an intermediate
-    problem rather than fundamental: the new explanations in nodarg make
-    clear that nodarg is not causing the problem I thought, and in fact now
-    using n instead of n.Orig works fine in plive.go.
+    Currently only supported on linux/amd64.
     
-    Change-Id: I3f5cf9f6e4438a6d27abac7d490e7521545cd552
-    Reviewed-on: https://go-review.googlesource.com/23450
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If96ee2eb41c6c7379d407b9561b87557bfe47341
+    Reviewed-on: https://go-review.googlesource.com/17761
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/closure.go  |   2 +-
- src/cmd/compile/internal/gc/dcl.go      |  12 ++--
- src/cmd/compile/internal/gc/fmt.go      |   4 +-
- src/cmd/compile/internal/gc/gsubr.go    |  81 ++++++++++++++++------
- src/cmd/compile/internal/gc/plive.go    | 115 +++++++++++++-------------------
- src/cmd/compile/internal/gc/type.go     |  18 +++--
- src/cmd/compile/internal/gc/universe.go |   6 +-
- src/cmd/compile/internal/gc/walk.go     |  12 ++--
- 8 files changed, 139 insertions(+), 111 deletions(-)
+ src/runtime/cgo.go                            |   2 +
+ src/runtime/cgo/callbacks.go                  |   8 +
+ src/runtime/cgo/gcc_traceback.c               |  29 +++
+ src/runtime/cgocall.go                        |  12 ++
+ src/runtime/crash_cgo_test.go                 |  12 ++
+ src/runtime/os1_linux.go                      |   9 +-
+ src/runtime/runtime2.go                       |   6 +-
+ src/runtime/sys_linux_386.s                   |   3 +
+ src/runtime/sys_linux_amd64.s                 |  59 +++++-
+ src/runtime/sys_linux_arm.s                   |   4 +
+ src/runtime/sys_linux_arm64.s                 |   4 +
+ src/runtime/sys_linux_mips64x.s               |   4 +
+ src/runtime/sys_linux_ppc64x.s                |  15 ++
+ src/runtime/testdata/testprogcgo/traceback.go |  80 +++++++++
+ src/runtime/traceback.go                      | 247 ++++++++++++++++++++++++++
+ 15 files changed, 489 insertions(+), 5 deletions(-)

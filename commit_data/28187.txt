@@ -1,19 +1,14 @@
-commit 38abd43b6a4d215375901d137a3eac9d0d3393a5
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Aug 31 14:39:41 2016 +1000
+commit 3b4180c67425ead0631a8c86eb164f9eaa6c922d
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:18:48 2016 -0400
 
-    cmd/compile/internal/gc: clean up sinit.go
+    cmd/go: enable TestNodeReading on linux/mips64x
     
-    The ctxt parameter is always set to 0 on entry into anylit so make this
-    parameter a literal constant, and where possibly remove ctxt as a parameter
-    where it is known to be a constant zero.
+    external linking is now supported.
     
-    Change-Id: I3e76e06456d7b1a1ea875ffeb2efefa4a1ff5a7e
-    Reviewed-on: https://go-review.googlesource.com/28221
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3f552f5f09391205fced509fe8a5a38297ea8153
+    Reviewed-on: https://go-review.googlesource.com/19810
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 83 +++++++++++++-----------------------
- src/cmd/compile/internal/gc/walk.go  |  2 +-
- 2 files changed, 31 insertions(+), 54 deletions(-)
+ src/cmd/go/note_test.go | 2 --
+ 1 file changed, 2 deletions(-)

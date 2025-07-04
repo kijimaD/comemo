@@ -1,18 +1,26 @@
-commit 998ce1c4262aab0153b5e89f84ef2ddd57507ec7
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Thu Sep 12 17:15:58 2024 +0000
+commit fe1daf2e439ec1d650ea1193f10f52525f83f8a7
+Author: David Chase <drchase@google.com>
+Date:   Wed Jul 5 16:21:19 2023 -0400
 
-    net/http: make use of maps.Copy
+    cmd/compile: use new for loop semantics for Go 1.22+ compilations
     
-    Change-Id: If8e02760fe1fb095ecebc306fd98662a51a1f66f
-    GitHub-Last-Rev: 7b8099f1fed04271c121cdde1c3abd8822955368
-    GitHub-Pull-Request: golang/go#69426
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612736
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    This includes version-dependent support for GOEXPERIMENT and
+    -d=loopvar, -d=loopvarhash, to allow testing/porting of old code.
+    
+    Includes tests of downgrade (1.22 -> 1.21) and upgrade (1.21 -> 1.22)
+    based on //go:build lines (while running a 1.22 build/compiler).
+    
+    Change-Id: Idd3be61a2b46acec33c7e7edac0924158cc726b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508819
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/server.go   | 4 +---
- src/net/http/transfer.go | 5 ++---
- 2 files changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/loopvar/loopvar.go        |   2 +-
+ src/cmd/compile/internal/loopvar/loopvar_test.go   | 133 +++++++++++++++++++--
+ .../compile/internal/loopvar/testdata/opt-121.go   |  44 +++++++
+ .../compile/internal/loopvar/testdata/opt-122.go   |  44 +++++++
+ src/cmd/compile/internal/noder/irgen.go            |   1 +
+ src/cmd/compile/internal/noder/reader.go           |   4 +-
+ src/cmd/compile/internal/noder/writer.go           |  21 +++-
+ 7 files changed, 238 insertions(+), 11 deletions(-)

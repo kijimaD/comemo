@@ -1,23 +1,58 @@
-commit 5d28bc58b6524b2043e2864b8de99fb05e7160d5
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:50:37 2016 +0200
+commit 3134ab3c2d58d2c9f93471c85405cb26ccdf0f4d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 13 17:01:01 2016 -0700
 
-    cmd/internal/obj/mips: add support for GOARCH=mips{,le}
+    cmd/compile: redo nil checks
     
-    Implements subset of MIPS32(r1) instruction set.
+    Get rid of BlockCheck. Josh goaded me into it, and I went
+    down a rabbithole making it happen.
     
-    Change-Id: Iba017350f6c2763de05d4d1bc2f123e8eb76d0ff
-    Reviewed-on: https://go-review.googlesource.com/31475
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    NilCheck now panics if the pointer is nil and returns void, as before.
+    BlockCheck is gone, and NilCheck is no longer a Control value for
+    any block. It just exists (and deadcode knows not to throw it away).
+    
+    I rewrote the nilcheckelim pass to handle this case.  In particular,
+    there can now be multiple NilCheck ops per block.
+    
+    I moved all of the arch-dependent nil check elimination done as
+    part of ssaGenValue into its own proper pass, so we don't have to
+    duplicate that code for every architecture.
+    
+    Making the arch-dependent nil check its own pass means I needed
+    to add a bunch of flags to the opcode table so I could write
+    the code without arch-dependent ops everywhere.
+    
+    Change-Id: I419f891ac9b0de313033ff09115c374163416a9f
+    Reviewed-on: https://go-review.googlesource.com/29120
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/asm/internal/arch/arch.go   |   2 +-
- src/cmd/internal/obj/link.go        |   6 +-
- src/cmd/internal/obj/mips/a.out.go  |  22 +-
- src/cmd/internal/obj/mips/anames.go |  13 +
- src/cmd/internal/obj/mips/asm0.go   | 740 +++++++++++++++++++++---------------
- src/cmd/internal/obj/mips/list0.go  |   6 +-
- src/cmd/internal/obj/mips/obj0.go   | 137 +++++--
- src/cmd/internal/obj/util.go        |  14 +-
- 8 files changed, 586 insertions(+), 354 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |   60 +-
+ src/cmd/compile/internal/arm/ssa.go            |   59 +-
+ src/cmd/compile/internal/arm64/ssa.go          |   67 +-
+ src/cmd/compile/internal/gc/ssa.go             |    9 +-
+ src/cmd/compile/internal/mips64/ssa.go         |   61 +-
+ src/cmd/compile/internal/ppc64/ssa.go          |   60 +-
+ src/cmd/compile/internal/s390x/ssa.go          |   63 +-
+ src/cmd/compile/internal/ssa/check.go          |   10 -
+ src/cmd/compile/internal/ssa/compile.go        |    7 +-
+ src/cmd/compile/internal/ssa/deadcode.go       |    5 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |   54 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   86 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |   76 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |   38 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |   52 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |   67 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |  130 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |   28 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |    4 +-
+ src/cmd/compile/internal/ssa/gen/main.go       |   26 +-
+ src/cmd/compile/internal/ssa/nilcheck.go       |  195 ++-
+ src/cmd/compile/internal/ssa/op.go             |    3 +
+ src/cmd/compile/internal/ssa/opGen.go          | 1536 +++++++++++++-----------
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  127 +-
+ src/cmd/compile/internal/ssa/schedule.go       |    4 +
+ src/cmd/compile/internal/x86/ssa.go            |   50 +-
+ test/nilptr3_ssa.go                            |    2 +-
+ 27 files changed, 1347 insertions(+), 1532 deletions(-)

@@ -1,17 +1,14 @@
-commit 0bf36ce8fbc4c9468e7a253f6341a3bf7b425029
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Wed Jul 13 16:29:37 2011 -0700
+commit dde435587d216b0e010f495cdebf92d27e680ce4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jul 14 09:13:39 2011 +1000
 
-    os: Plan 9: add Process.Signal as a way to send notes.
-    Move the Signal interface from exec_posix.go to exec.go.
-    Remove some unsused code from file_plan9.go.
+    runtime: correct FixedStack value (fixes windows build)
     
-    R=fshahriar, rsc
+    Fixes #2068.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4683044
+    https://golang.org/cl/4705046
 
- src/pkg/os/exec.go       |  5 +++++
- src/pkg/os/exec_plan9.go | 22 ++++++++++++++++++++++
- src/pkg/os/exec_posix.go |  5 -----
- src/pkg/os/file_plan9.go | 15 ---------------
- 4 files changed, 27 insertions(+), 20 deletions(-)
+ src/pkg/runtime/stack.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

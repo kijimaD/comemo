@@ -1,22 +1,21 @@
-commit 2bf686dfe902c900bb0c9a140b49e5697d451944
-Author: islishude <islishude@gmail.com>
-Date:   Wed May 22 00:44:40 2024 +0000
+commit 6ffd135256fddc4963a91ee0f6cd7f08ed43e43e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu May 18 17:12:26 2023 +0000
 
-    net/http: add partitioned attribute to cookie type
+    Revert "cmd/compile: build compiler with PGO"
     
-    Fixes #62490
+    This reverts CL 495596.
     
-    Change-Id: Ibe7df96f50275c9321462e994a962031cb1f3018
-    GitHub-Last-Rev: 7df8738b804c3d82460eec1fc4acd7c6ad733fe1
-    GitHub-Pull-Request: golang/go#62499
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526435
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Théo Dury <tdury2@gmail.com>
+    Reason for revert: duplicate symbol failures in x/tools and random PPC crashes.
+    
+    Change-Id: I57305f8e72ee1567dc5a6a829c2d70fb5719028a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496185
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/62490.txt                           |  1 +
- doc/next/6-stdlib/99-minor/net/http/62490.md |  1 +
- src/net/http/cookie.go                       | 24 ++++++++++++++++++------
- src/net/http/cookie_test.go                  |  6 ++++++
- 4 files changed, 26 insertions(+), 6 deletions(-)
+ src/cmd/compile/default.pgo | Bin 355761 -> 0 bytes
+ src/cmd/compile/profile.sh  |  21 ---------------------
+ src/cmd/dist/buildtool.go   |   4 ----
+ 3 files changed, 25 deletions(-)

@@ -1,17 +1,18 @@
-commit 49f63047245a50f4ec38044fc6fa2bc75719726a
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 2 16:24:07 2025 -0700
+commit f31fcc75385bc8037b46aea7f05022520d8c8148
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Apr 19 20:40:30 2024 +0800
 
-    runtime: additional memmove benchmarks
+    doc: make symbol links simpler for relnotes
     
-    For testing out duffcopy changes.
+    This is a follow-up to CL 578195.
     
-    Change-Id: I93b4a52d75418a6e31aae5ad99f95d1870812b69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/678215
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
+    Change-Id: I6466ff8753f05a9424a8098cd88490aab6b236c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580277
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/runtime/memmove_test.go | 99 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 99 insertions(+)
+ doc/next/6-stdlib/99-minor/go/types/65772.md | 7 +++----
+ doc/next/6-stdlib/99-minor/net/http/46443.md | 6 +++---
+ 2 files changed, 6 insertions(+), 7 deletions(-)

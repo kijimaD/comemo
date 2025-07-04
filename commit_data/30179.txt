@@ -1,12 +1,12 @@
-commit 6a29806e018acc3bf0c17c9d6b946b9ba8edeb4d
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Feb 8 09:41:39 2017 -0800
+commit 4c182045ff6af5657d5ef0f43ba1fd11a4d06be5
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:51:19 2016 +0200
 
-    crypto/x509: sort the list of fields used by CreateCertificateRequest.
+    cmd/objdump: skip tests for GOARCH=mips{,le}
     
-    Change-Id: I67589cb9e728e6c7df5ef6e981189193154338d3
-    Reviewed-on: https://go-review.googlesource.com/36559
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8111ceb6960364166aa8a445f4d6d8b0581d371e
+    Reviewed-on: https://go-review.googlesource.com/31513
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/x509/x509.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/objdump/objdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

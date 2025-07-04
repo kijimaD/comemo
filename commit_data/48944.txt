@@ -1,36 +1,25 @@
-commit f2b674756b3b684118e4245627d4ed8c07e518e7
-Author: Bryan Mills <bcmills@google.com>
-Date:   Fri Apr 29 21:38:40 2022 +0000
+commit fd4b587da3f9a2bde193a5b9fd2ba96667e08f2d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 29 10:11:31 2021 +0700
 
-    Revert "os/exec: return error when PATH lookup would use current directory"
+    cmd/compile: suppress details error for invalid variadic argument type
     
-    This reverts CL 381374.
+    CL 255241 made error message involving variadic calls clearer. To do it,
+    we added a check that the type of variadic argument must be a slice.
+    That's why the compiler crashes for invalid variadic argument type.
     
-    Reason for revert: broke tests for x/sys/execabs.
+    Instead, we can just omit the details error message, and report not
+    enough arguments error, which matches the behavior of go/types and types2.
     
-    Updates #43724.
-    Updates #43947.
+    Fixes #46957
     
-    Change-Id: I9eb3adb5728dead66dbd20f6afe1e7a77e2a26f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403058
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I638d7e8f031f0ee344d5d802104fd93a60aae00a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331569
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- api/next/43724.txt                      |   2 -
- src/cmd/dist/build.go                   |   7 ---
- src/cmd/dist/test.go                    |  27 +++++----
- src/cmd/dist/util.go                    |   6 +-
- src/cmd/go/testdata/script/cgo_path.txt |   2 +-
- src/internal/execabs/execabs.go         |  40 ++++++++++++-
- src/internal/execabs/execabs_test.go    | 103 ++++++++++++++++++++++++++++++++
- src/os/exec/dot_test.go                 |  88 ---------------------------
- src/os/exec/exec.go                     |  86 ++------------------------
- src/os/exec/lp_plan9.go                 |   9 +--
- src/os/exec/lp_unix.go                  |   9 +--
- src/os/exec/lp_windows.go               |  35 +++--------
- src/os/exec/lp_windows_test.go          |   6 +-
- 13 files changed, 172 insertions(+), 248 deletions(-)
+ src/cmd/compile/internal/typecheck/typecheck.go | 17 ++++++++++++-----
+ test/fixedbugs/issue46957.go                    | 13 +++++++++++++
+ 2 files changed, 25 insertions(+), 5 deletions(-)

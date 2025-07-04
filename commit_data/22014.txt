@@ -1,15 +1,20 @@
-commit b10021644145d7148ced74194b0d668a4428cc15
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Mar 3 12:15:53 2015 +0900
+commit d0c21af7d30214e19ad1cfd018ce76fcda3a86ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 18 13:32:28 2015 -0500
 
-    syscall: add missing Syscall9 for darwin/amd64
+    [dev.cc] cmd/9a, cmd/new9a: fix line numbers
     
-    Fixes #10068.
+    Fixed for the other assemblers in CL 2297042 in 2010.
     
-    Change-Id: I1f12225ee16b0090b87403931c0bc0157f068309
-    Reviewed-on: https://go-review.googlesource.com/6555
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I6cf41c569e884d98d295369e60e550ff8c0884e6
+    Reviewed-on: https://go-review.googlesource.com/5173
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/asm_darwin_amd64.s      | 40 +++++++++++++++++++++++++++++++++++--
- src/syscall/syscall_darwin_amd64.go |  2 +-
- 2 files changed, 39 insertions(+), 3 deletions(-)
+ src/cmd/9a/a.h       |    1 +
+ src/cmd/9a/a.y       |    6 +-
+ src/cmd/9a/lex.c     |    4 +-
+ src/cmd/9a/y.tab.c   | 1407 ++++++++++++++++++++++++------------------------
+ src/cmd/new9a/a.y    |    6 +-
+ src/cmd/new9a/lex.go |    9 +-
+ src/cmd/new9a/y.go   | 1446 ++++++++++++++++++++++++++++----------------------
+ 7 files changed, 1545 insertions(+), 1334 deletions(-)

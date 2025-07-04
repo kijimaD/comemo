@@ -1,18 +1,21 @@
-commit 5da5e8e02f6ac18d36934a57ec02c069eda9f63f
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Nov 26 22:03:31 2012 +1100
+commit f97bb12bb02b1a5dd0e36032c8079e019fef9d54
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Nov 25 15:23:20 2012 -0800
 
-    cmd/gc: check malloc return value
+    net/http/httptest: protect against port reuse
     
-    Check the return value from malloc - do not assume that we were
-    allocated memory just because we asked for it.
+    Should make BSDs more reliable. (they seem to reuse ports
+    quicker than Linux)
     
-    Update #4415.
+    Tested by hand with local modifications to force reuse on
+    Linux. (net/http tests failed before, pass now) Details in the
+    issue.
     
-    R=minux.ma, daniel.morsing, remyoudompheng, rsc
+    Fixes #4436
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6782100
+    https://golang.org/cl/6847101
 
- src/cmd/gc/lex.c   | 5 +++++
- src/cmd/gc/sinit.c | 5 +++++
- 2 files changed, 10 insertions(+)
+ src/pkg/net/http/httptest/server.go | 4 ++++
+ 1 file changed, 4 insertions(+)

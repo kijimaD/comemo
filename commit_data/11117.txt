@@ -1,22 +1,14 @@
-commit b1d6fa517cd99cbbad1523dddc6182da5a701122
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Wed Jan 11 18:47:03 2012 -0500
+commit 81728cf06da55bfc66981e0df2414accc876bccc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 11 17:25:09 2012 -0500
 
-    html/template: reenable testcases and fix mis-escaped sequences.
+    gc: fix inlining bug
     
-    Tighter octal parsing broke some tests and were disabled in
-    https://golang.org/cl/5530051
-    
-    Those tests were broken.  The CSS decoder was supposed to see CSS
-    hex escape sequences of the form '\' <hex>+, but those escape
-    sequences were instead being consumed by the template parser.
-    
-    This change properly escapes those escape sequences, and uses
-    proper escaping for NULs.
-    
-    R=golang-dev, rsc, nigeltao
+    R=lvd
     CC=golang-dev
-    https://golang.org/cl/5529073
+    https://golang.org/cl/5532077
 
- src/pkg/html/template/escape_test.go | 22 ++++++++++------------
- 1 file changed, 10 insertions(+), 12 deletions(-)
+ src/cmd/gc/inl.c                 | 14 +++++++++-----
+ test/fixedbugs/bug392.dir/one.go |  4 ++++
+ test/fixedbugs/bug392.dir/two.go |  4 ++++
+ 3 files changed, 17 insertions(+), 5 deletions(-)

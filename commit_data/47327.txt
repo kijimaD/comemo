@@ -1,21 +1,22 @@
-commit cfb3dc7710ba35d9932ba9f5242730a97f9ae603
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 4 12:50:25 2021 -0700
+commit 86d66784297f83f67088cea768611621048160da
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 25 11:10:57 2021 -0800
 
-    cmd/compile/internal/types2: clearer object string for type parameters
+    testing/fstest: clarify TestFS docs
     
-    - print "type parameter" rather than just "type"
-    - print the type bound rather than the underlying type
-    - added an object string test
+    The sentence starts "fsys must only contain",
+    which leads the reader to believe that fsys must not contain others.
+    The rapid reversal leads to confusion.
+    I had to read it several times to be sure I'd parsed it correctly.
     
-    Change-Id: Ibb572ff35b74f2c6ccb27641154f096770541130
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361401
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Remove "only"; rely on the rest of the sentence to clarify.
+    
+    Change-Id: I9fb7935aed4f9839344d3a00b761d20981fba864
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296529
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/object.go          | 21 ++++--
- src/cmd/compile/internal/types2/object_test.go     | 78 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/typestring_test.go |  7 +-
- 3 files changed, 98 insertions(+), 8 deletions(-)
+ src/testing/fstest/testfs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

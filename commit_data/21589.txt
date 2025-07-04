@@ -1,15 +1,14 @@
-commit 612d78d681dbaf1b561559d81a0922579664e370
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Feb 12 22:31:27 2015 +0300
+commit 9ccbd027dd070921ac1799bde5df044e50e33a99
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jan 19 17:19:46 2015 +0900
 
-    cmd/gc: restore amd64p32 hack for bucket size
+    cmd/go: make use of Runnable method
     
-    This was accidentially removed in:
-    https://go-review.googlesource.com/#/c/3508/8/src/cmd/gc/reflect.c
+    Reported via unsupported Github pull request: #9299
     
-    Change-Id: I06dd5bb0cb3e2811bd4ef605d7a5225cfa033fe0
-    Reviewed-on: https://go-review.googlesource.com/4731
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0e98dd68cbc68fcc6bcec15c5b33f20b6a861ec6
+    Reviewed-on: https://go-review.googlesource.com/3025
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gc/reflect.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,13 @@
-commit 0c2f0cca7cc29a38e710f23fa752eecfa2368392
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 8 13:44:13 2012 -0400
+commit 6c204982e03fe69de59991aaa5b16a4fb21297d0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 8 13:55:15 2012 +1000
 
-    cmd/api: handle empty API file, ignore -next in release
+    exp/html: check the context node for consistency when parsing fragments.
     
-    R=golang-dev, bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6298063
+    https://golang.org/cl/6303053
 
- src/cmd/api/goapi.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/pkg/exp/html/parse.go      | 11 +++++++++++
+ src/pkg/exp/html/parse_test.go | 13 +++++++++++++
+ 2 files changed, 24 insertions(+)

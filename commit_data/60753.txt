@@ -1,0 +1,30 @@
+commit ea08952aa2db17ce4c14d9f9cb0fab03380073a0
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon Aug 12 15:18:45 2024 +0800
+
+    cmd/internal/obj/loong64: add support for instructions BSTRPICK.{W/D} and BSTRINS.{W/D}
+    
+    Go asm syntax:
+            BSTRPICK{W/V}   $msb, RJ, $lsb, RD
+            BSTRINS{W/V}    $msb, RJ, $lsb, RD
+    
+    Equivalent platform assembler syntax:
+            bstrpick.{w/d}  rd, rj, $msb, $lsb
+            bstrins.{w/d}   rd, rj, $msb, $lsb
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: I8b89b766ed22a96da7d8d5b2b2873382a49208de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604735
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/asm/internal/asm/asm.go                 |  7 ++++
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 14 +++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  8 ++++
+ src/cmd/internal/obj/loong64/anames.go          |  4 ++
+ src/cmd/internal/obj/loong64/asm.go             | 52 +++++++++++++++++++++++++
+ src/cmd/internal/obj/loong64/doc.go             |  8 +++-
+ 6 files changed, 92 insertions(+), 1 deletion(-)

@@ -1,17 +1,12 @@
-commit 920df48fb1e1b30f5ea86f1a49b599098fa81793
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Nov 16 16:58:02 2011 -0500
+commit d0b9a84ab3da756fdd5cc89f0342ded96a2855c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 16 13:41:26 2011 -0800
 
-    gc: support for building with Plan 9 yacc
+    go/ast: remove unused receiver names (cleanup)
     
-    I've modified Plan 9's yacc to work with
-    the grammar in go.y.  These are the only
-    changes necessary on the Go side.
-    
-    R=rsc
+    R=iant, iant
     CC=golang-dev
-    https://golang.org/cl/5375104
+    https://golang.org/cl/5393047
 
- src/cmd/gc/bisonerrors | 29 +++++++++++++++++++++--------
- src/cmd/gc/go.h        |  7 ++++++-
- 2 files changed, 27 insertions(+), 9 deletions(-)
+ src/pkg/go/ast/ast.go | 100 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 50 insertions(+), 50 deletions(-)

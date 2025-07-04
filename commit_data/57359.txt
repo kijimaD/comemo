@@ -1,42 +1,20 @@
-commit de0aafa3c7f669df0a93dd62cc336ebda52815f2
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Sep 4 12:24:55 2024 -0400
+commit 68a32ced0f7b1b9abf9fd948db53c668ef6b1c66
+Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
+Date:   Wed Jul 12 19:07:55 2023 +0800
 
-    vendor/golang.org/x/tools: update to v0.24.1-0.20240904143311-70f56264139c
+    cmd/compile/internal/mips: use hardware NOP instruction as NOOP on mips platform
     
-    Among other things, this should fix a regression in printf
-    whereby materialized aliases caused "any" and "interface{}"
-    in printf signatures not to be recognized as identical.
+    This CL uses mips hardware NOP instruction as NOOP on mips platform, instead of pseudo NOP "nor $zero,$zero,$zero".
     
-    It also updates ureader.go used by vendored x/tools during
-    some tests, including cmd/internal/moddeps.TestAllDependencies.
-    This test uses golang.org/x/tools/cmd/bundle which uses x/reader.
-    
-    Fixes #68796
-    
-    Change-Id: I9f0711e66a5c4daaffe695c515aea3b8fb3d01e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610736
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I336e1ba4228b71e6bfc6be66b367a4327fb3b36e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509015
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../golang.org/x/tools/go/analysis/analysis.go     |   9 ++
- .../tools/go/analysis/passes/buildtag/buildtag.go  |  53 ++++++++++
- .../tools/go/analysis/passes/copylock/copylock.go  |  46 ++++++++-
- .../x/tools/go/analysis/passes/printf/doc.go       |  12 +++
- .../x/tools/go/analysis/passes/printf/printf.go    | 110 ++++++++++-----------
- .../x/tools/go/analysis/passes/tests/tests.go      |   7 +-
- .../x/tools/go/analysis/unitchecker/unitchecker.go |   9 ++
- .../x/tools/go/types/objectpath/objectpath.go      |  40 +++++---
- .../golang.org/x/tools/internal/aliases/aliases.go |  10 +-
- .../x/tools/internal/aliases/aliases_go121.go      |  16 ++-
- .../x/tools/internal/aliases/aliases_go122.go      |  41 +++++++-
- .../golang.org/x/tools/internal/stdlib/manifest.go |   2 +-
- .../x/tools/internal/typesinternal/errorcode.go    |   8 +-
- .../x/tools/internal/versions/constraint.go        |  13 +++
- .../x/tools/internal/versions/constraint_go121.go  |  14 +++
- src/cmd/vendor/modules.txt                         |   4 +-
- 18 files changed, 299 insertions(+), 101 deletions(-)
+ src/cmd/compile/internal/mips/ggen.go   | 6 +-----
+ src/cmd/compile/internal/mips64/ggen.go | 6 +-----
+ 2 files changed, 2 insertions(+), 10 deletions(-)

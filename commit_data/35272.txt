@@ -1,20 +1,12 @@
-commit 42219419ba07b8669c9ddc4fcd60194188171e12
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Fri May 4 11:25:24 2018 +0200
+commit d529aa93ea64f234641d638c1bc7df5c568c474a
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Tue Jan 30 00:14:54 2018 +0530
 
-    net: skip unsupported tests on iOS
+    doc: fix the closing tag in contribute.html
     
-    The new iOS test harness forwards environment variables, such that
-    tests that skipped on non-builders now run because GO_BUILDER_NAME
-    is set.
-    
-    Skip the net tests that rely on resolv.conf being present.
-    
-    Change-Id: I7875dc4252b2ab696c9aae13a9106ddf296ee8ec
-    Reviewed-on: https://go-review.googlesource.com/111476
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I802bc11d90d414e7313dd11842a04fd6b591ea06
+    Reviewed-on: https://go-review.googlesource.com/90595
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/lookup_test.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

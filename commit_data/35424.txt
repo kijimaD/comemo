@@ -1,14 +1,19 @@
-commit d583ca764afc3bf5caae52f2b1361114e550a120
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 21 17:23:05 2018 +0000
+commit 88ba64582703cea0d66a098730215554537572de
+Author: Lorenz Bauer <lmb@cloudflare.com>
+Date:   Wed Jan 10 10:50:19 2018 +0000
 
-    net/http: clarify that ReadRequest is only for HTTP/1.x
+    sync: enable profiling of RWMutex
     
-    Fixes #25476
+    Include reader / writer interactions of RWMutex in the mutex profile.
+    Writer contention is already included in the profile, since a plain Mutex
+    is used to control exclusion.
     
-    Change-Id: I5a81cdf7d0ef9a22b0267732f27bcc2ef76eaa29
-    Reviewed-on: https://go-review.googlesource.com/113817
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #18496
+    
+    Change-Id: Ib0dc1ffa0fd5e6d964a6f7764d7f09556eb63f00
+    Reviewed-on: https://go-review.googlesource.com/87095
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
 
- src/net/http/request.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/sync/rwmutex.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,35 +1,15 @@
-commit 9136d958ab258bc4f128c8582ab713c482ec33ed
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Fri Dec 4 14:02:55 2020 +0800
+commit 91a52de5274a13fcaab68c0a78115eff632f68fc
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Aug 25 11:30:32 2020 -0400
 
-    cmd/asm: complete the support for VDUP on arm64
+    crypto/x509: fix duplicate import
     
-    "VMOV Vn.<T>[index], Vn" is equivalent to "VDUP Vn.<T>[index], Vn", and
-    the latter has a higher priority in the disassembler than the former.
-    But the assembler doesn't support to encode this combination of VDUP,
-    this leads to an inconsistency between assembler and disassembler.
+    Updates dave/dst#45.
     
-    For example, if we assemble "VMOV V20.S[0], V20" to hex then decode it,
-    we'll get "VDUP V20.S[0], V20".
-    
-      VMOV V20.S[0], V20 -> 9406045e -> VDUP V20.S[0], V20 -> error
-    
-    But we cannot assemble this VDUP again.
-    
-    Similar reason for "VDUP Rn, Vd.<T>". This CL completes the support for
-    VDUP.
-    
-    This patch is a copy of CL 276092. Co-authored-by: JunchenLi
-    <junchen.li@arm.com>
-    
-    Change-Id: I8f8d86cf1911d5b16bb40d189f1dc34b24416aaf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302929
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I165e6b3d002407a33908bf90a66ad01f8003b260
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250497
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s    |  3 +++
- src/cmd/asm/internal/asm/testdata/arm64enc.s |  2 ++
- src/cmd/internal/obj/arm64/asm7.go           | 10 ++++++----
- 3 files changed, 11 insertions(+), 4 deletions(-)
+ src/crypto/x509/x509.go | 1 -
+ 1 file changed, 1 deletion(-)

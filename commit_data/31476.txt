@@ -1,24 +1,14 @@
-commit f9531448b8abf7bb3c2702761bd8792a3bef33a0
-Author: Filip Gruszczynski <gruszczy@gmail.com>
-Date:   Sat Apr 15 15:17:29 2017 -0700
+commit 8ca68c3fec18bec7739ceac0f55681f915baa7f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 12:52:33 2017 -0800
 
-    runtime: don't panic for bad size hint in hashmap
+    go/types: fix doc string for Named.Obj
     
-    Because the hint parameter is supposed to be treated
-    purely as a hint, if it doesn't meet the requirements
-    we disregard it and continue as if there was no hint
-    at all.
+    Fixes #19249.
     
-    Fixes #19926
-    
-    Change-Id: I86e7f99472fad6b99ba4e2fd33e4a9e55d55115e
-    Reviewed-on: https://go-review.googlesource.com/40854
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6327192eca11fa24f1078c016c9669e4ba4bdb4e
+    Reviewed-on: https://go-review.googlesource.com/37399
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/hashmap.go   |  5 ++---
- src/runtime/map_test.go  |  8 ++++++++
- test/fixedbugs/bug273.go | 11 -----------
- 3 files changed, 10 insertions(+), 14 deletions(-)
+ src/go/types/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

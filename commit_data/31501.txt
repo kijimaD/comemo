@@ -1,16 +1,19 @@
-commit 0e7518296d04977db0c71e2f326d473782973739
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 5 12:47:53 2017 -0700
+commit a6b480bc07e400cee109eda90caddb20c2cc7e82
+Author: Bill O'Farrell <billo@ca.ibm.com>
+Date:   Fri Feb 24 17:03:06 2017 -0500
 
-    go/importer: report import path if package is not found
+    cmd/go: implement -buildmode=plugin for s390x
     
-    Fixes #20230.
+    Simple change to allow plugins for linux on s390x
     
-    Change-Id: I2e9b9e9d2540eb66c8411ac7910962933bc2c0e9
-    Reviewed-on: https://go-review.googlesource.com/42870
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I5c262ab81aac10d1dcb03381a48e5b9694b7a87a
+    Reviewed-on: https://go-review.googlesource.com/37451
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gcimporter/gcimporter.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go               | 2 +-
+ src/cmd/go/internal/work/build.go  | 2 +-
+ src/cmd/link/internal/ld/config.go | 2 +-
+ src/cmd/link/internal/s390x/asm.go | 6 ++++--
+ 4 files changed, 7 insertions(+), 5 deletions(-)

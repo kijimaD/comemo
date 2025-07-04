@@ -1,12 +1,31 @@
-commit 581ed192e5c9f9015e8a50f34cb9d5880066a9db
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Fri May 25 14:34:45 2018 +0000
+commit b1accced20f0b2fc011b32e1f1d9bb83385efa1d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 25 16:41:22 2018 +0000
 
-    internal/cpu: convert CRLF to LF line ending, and some superfulous space
+    strings: add Builder benchmarks comparing bytes.Buffer and strings.Builder
     
-    Change-Id: Ie355f06e9be93d7f7501f697a94ff83d6d0826a2
-    Reviewed-on: https://go-review.googlesource.com/114556
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Despite the existing test that locks in the allocation behavior, people
+    really want a benchmark. So:
+    
+    BenchmarkBuildString_Builder/1Write_NoGrow-4    20000000  60.4 ns/op   48 B/op  1 allocs/op
+    BenchmarkBuildString_Builder/3Write_NoGrow-4    10000000   230 ns/op  336 B/op  3 allocs/op
+    BenchmarkBuildString_Builder/3Write_Grow-4      20000000   102 ns/op  112 B/op  1 allocs/op
+    BenchmarkBuildString_ByteBuffer/1Write_NoGrow-4 10000000   125 ns/op  160 B/op  2 allocs/op
+    BenchmarkBuildString_ByteBuffer/3Write_NoGrow-4  5000000   339 ns/op  400 B/op  3 allocs/op
+    BenchmarkBuildString_ByteBuffer/3Write_Grow-4    5000000   316 ns/op  336 B/op  3 allocs/op
+    
+    I don't think these allocate-as-fast-as-you-can benchmarks are very
+    interesting because they're effectively just GC benchmarks, but sure.
+    If one wants to see that there's 1 fewer allocation, there it is. The
+    ns/op and B/op numbers will change as the built string size changes.
+    
+    Updates #18990
+    
+    Change-Id: Ifccf535bd396217434a0e6989e195105f90132ae
+    Reviewed-on: https://go-review.googlesource.com/96980
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/internal/cpu/cpu_s390x.s | 202 +++++++++++++++++++++----------------------
- 1 file changed, 101 insertions(+), 101 deletions(-)
+ src/strings/builder_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)

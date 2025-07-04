@@ -1,22 +1,40 @@
-commit a4cd36500b8c2f25827afb8baae4fb539bc88256
-Author: Damien Neil <dneil@google.com>
-Date:   Fri May 26 07:57:45 2023 -0700
+commit dfbecc06e73b79aaeee4220b3e760cbd76050ae5
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Wed Aug 10 09:57:51 2022 -0500
 
-    crypto/tls: avoid referencing potentially unused symbols in init
+    misc/cgo/testsanitizers: fix code to detect gcc version correctly
     
-    A reference to a function in a "var _ = ..." init-time
-    initialization keeps the symbol live. Move references to
-    Config.EncryptTicket and Config.DecryptTicket into tests.
-    These references increase the size of an unused import of
-    crypto/tls by about 1MiB.
+    The current implementation of compilerVersion incorrectly gives an
+    error message that the compiler version is too old even though the
+    system has a recent compiler. This happens for specifically for the
+    gcc compiler and causes ASAN tests to be skipped.
+    Replacing -v with gcc dump version options seems to fix it. Running
+    ./testsanitizers.test -test.v now shows the ASAN tests being run.
+    --- PASS: TestASAN (16.81s)
+        --- PASS: TestASAN/asan_useAfterReturn (0.60s)
+        --- PASS: TestASAN/asan_global5 (0.61s)
+        --- PASS: TestASAN/asan_unsafe_fail1 (0.73s)
+        --- PASS: TestASAN/asan_unsafe_fail3 (0.73s)
+        --- PASS: TestASAN/asan_unsafe_fail2 (0.74s)
+        --- PASS: TestASAN/asan_global4_fail (0.74s)
+        --- PASS: TestASAN/asan5_fail (0.74s)
+        --- PASS: TestASAN/asan3_fail (0.88s)
+        --- PASS: TestASAN/asan4_fail (0.89s)
+        --- PASS: TestASAN/asan2_fail (0.99s)
+        --- PASS: TestASAN/asan_global3_fail (1.00s)
+        --- PASS: TestASAN/asan_global1_fail (1.01s)
+        --- PASS: TestASAN/asan1_fail (1.01s)
+        --- PASS: TestASAN/asan_global2_fail (1.02s)
+    PASS
     
-    Change-Id: I6d62a6dcbd73e22972a217afcda7395e909b52cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498595
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Fixes #54370
+    
+    Change-Id: Iac13a1cf37de54432a6e49555f61e9ec1d781ab8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422574
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/crypto/tls/ticket.go      | 4 ----
- src/crypto/tls/ticket_test.go | 8 ++++++++
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ misc/cgo/testsanitizers/cc_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

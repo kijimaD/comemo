@@ -1,15 +1,17 @@
-commit 7162c4c7caf72a3f29d3ceee48ff352dab659472
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Sep 29 13:09:34 2021 +0200
+commit 9f036844db39acad54ab2b45bab39fa376c78003
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Thu Jan 7 11:17:57 2021 +0800
 
-    crypto: document the extended key interfaces
+    [dev.regabi] cmd/compile: use ir.DoChildren directly in inlining
     
-    Change-Id: Iaff3f77b0a168e8bde981c791035a6451b3a49ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353049
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: Ie35e8163fa0e61ed9e1b259929c8cbe82ee5301e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282212
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Julie Qiu <julie@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Baokun Lee <bk@golangcn.org>
 
- src/crypto/crypto.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/compile/internal/inline/inl.go | 66 +++++++++++++---------------------
+ 1 file changed, 25 insertions(+), 41 deletions(-)

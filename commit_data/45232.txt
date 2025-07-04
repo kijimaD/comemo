@@ -1,22 +1,16 @@
-commit 3ff6ff7f8476b912ac6746c8e5afca852d62af7a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Apr 19 17:37:25 2021 -0400
+commit 52669c4a689a15c4f307e11609d6237ac506a3df
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 12 23:35:25 2020 -0400
 
-    cmd/compile: preserve pointerness when creating map key temp
+    cmd/go: update go list docs for IgnoredOtherFiles
     
-    When creating the temporary for map functions, if the key
-    contains pointer, we need to create pointer-typed temporary. So
-    if the temporary is live across a function call, the pointer is
-    live.
-    
-    Change-Id: Id6e14ec9def8bc7987f0f8ce8423caf1e3754fcb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311379
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I8eb7f34754c7be899d389fe807af65aa5fd5bbc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261957
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/walk/assign.go  | 10 +--------
- src/cmd/compile/internal/walk/builtin.go |  5 +----
- src/cmd/compile/internal/walk/expr.go    | 36 ++++++++++++++++++++++----------
- src/cmd/compile/internal/walk/order.go   | 10 +++++----
- test/abi/map.go                          | 34 ++++++++++++++++++++++++++++++
- 5 files changed, 67 insertions(+), 28 deletions(-)
+ src/cmd/go/alldocs.go            | 31 ++++++++++++++++---------------
+ src/cmd/go/internal/list/list.go | 31 ++++++++++++++++---------------
+ 2 files changed, 32 insertions(+), 30 deletions(-)

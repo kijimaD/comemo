@@ -1,28 +1,14 @@
-commit bf2d403de838ab259e7cef16b6b67ec5f9fe5c5c
+commit be00d38a35ff252d42b69aea70c520bf515130c8
 Author: Joel Sing <jsing@google.com>
-Date:   Mon Aug 22 23:24:32 2011 -0400
+Date:   Mon Aug 22 23:24:25 2011 -0400
 
-    syscall: openbsd amd64 syscall support
+    build: add openbsd
     
-    Add support for syscalls on openbsd amd64. This is based on the
-    existing freebsd amd64 implementation.
-    
-    R=mikioh.mikioh, rsc, yourcomputerpal
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4798060
+    https://golang.org/cl/4832047
 
- src/pkg/syscall/Makefile                  |    9 +
- src/pkg/syscall/asm_openbsd_amd64.s       |  130 +++
- src/pkg/syscall/mkall.sh                  |    8 +-
- src/pkg/syscall/mkerrors.sh               |   24 +-
- src/pkg/syscall/mksyscall.pl              |    7 +
- src/pkg/syscall/mksysnum_openbsd.pl       |   43 +
- src/pkg/syscall/route_openbsd.go          |   35 +
- src/pkg/syscall/syscall_openbsd.go        |  261 ++++++
- src/pkg/syscall/syscall_openbsd_amd64.go  |   42 +
- src/pkg/syscall/types_openbsd.c           |  182 ++++
- src/pkg/syscall/zerrors_openbsd_amd64.go  | 1367 +++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_openbsd_amd64.go |  941 ++++++++++++++++++++
- src/pkg/syscall/zsysnum_openbsd_amd64.go  |  204 +++++
- src/pkg/syscall/ztypes_openbsd_amd64.go   |  390 ++++++++
- 14 files changed, 3641 insertions(+), 2 deletions(-)
+ src/Make.inc          | 1 +
+ src/cmd/cov/Makefile  | 1 +
+ src/cmd/prof/Makefile | 1 +
+ 3 files changed, 3 insertions(+)

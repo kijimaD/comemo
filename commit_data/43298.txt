@@ -1,22 +1,23 @@
-commit 9c56300e62d126875dcd6508c0ca7dce3985ad50
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Oct 13 13:02:45 2020 -0700
+commit 60a964ea45db28eb7a4ca291008473da7d3d2c70
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Mar 17 09:24:47 2020 -0400
 
-    net/http: return 505 status for rejected protocol version
+    cmd/internal/obj/ppc64: fix PCALIGN on ppc64le
     
-    When rejecting a request with an unsupported HTTP protocol version,
-    return a 505 error ("HTTP Version Not Supported") instead of 400.
+    This fixes a potential issue with the previous implementation
+    of PCALIGN on ppc64. Previously PCALIGN was processed inside of
+    asmout and indicated the padding size by setting the value in
+    the optab, changing it back after the alignment instructions
+    were added. Now PCALIGN is processed outside of asmout, and optab
+    is not changed.
     
-    Fixes #40454.
-    
-    Change-Id: I0269f0f5755d90d1b772ba0094a6bb24b5eb4701
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261977
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Urban Ishimwe <urbainishimwe@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8b0093a0e2b7e06176af27e05150d04ae2c55d60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225198
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/serve_test.go |  8 ++++----
- src/net/http/server.go     | 21 ++++++++++++++-------
- 2 files changed, 18 insertions(+), 11 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go     | 34 +++++---------
+ src/cmd/internal/obj/ppc64/asm_test.go | 81 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+), 22 deletions(-)

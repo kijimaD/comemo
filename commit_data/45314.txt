@@ -1,27 +1,35 @@
-commit 691e1b84c11d038060807f9c79107996ca2f19ae
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 23 12:18:59 2021 -0700
+commit 2291cae2af659876e93a3e1f95c708abb1475d02
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 3 12:25:49 2020 -0400
 
-    cmd/compile: generalize fix for lvalue-init evaluation
+    os: use keyed literals for PathError
     
-    The previous fix to ensure early evaluation of lvalue-init statements
-    (CL 312632) added it after we'd already peeled away any array-OINDEX
-    expressions. But those might have init statements too, so we need to
-    do this earlier actually and perhaps more than once.
+    Necessary to move PathError to io/fs.
     
-    Longer term, lvalue expressions shouldn't have init statements anyway.
-    But rsc and I both spent a while looking into this earlier in the dev
-    cycle and couldn't come up with anything reasonable.
+    For #41190.
     
-    Fixes #45706.
-    
-    Change-Id: I2d19c5ba421b3f019c62eec45774c84cf04b30ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313011
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I05e87675f38a22f0570d4366b751b6169f7a1b13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243900
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/walk/assign.go | 10 +++++++---
- test/fixedbugs/issue45706.go            |  9 +++++++++
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ src/os/dir_plan9.go      |  8 ++++----
+ src/os/dir_unix.go       |  2 +-
+ src/os/dir_windows.go    |  4 ++--
+ src/os/exec_plan9.go     |  2 +-
+ src/os/exec_posix.go     |  2 +-
+ src/os/file.go           | 12 ++++++------
+ src/os/file_plan9.go     | 50 ++++++++++++++++++++++++------------------------
+ src/os/file_posix.go     |  8 ++++----
+ src/os/file_unix.go      | 10 +++++-----
+ src/os/file_windows.go   | 14 +++++++-------
+ src/os/path.go           |  2 +-
+ src/os/removeall_at.go   | 14 +++++++-------
+ src/os/removeall_noat.go |  2 +-
+ src/os/stat_plan9.go     |  6 +++---
+ src/os/stat_unix.go      |  6 +++---
+ src/os/stat_windows.go   | 10 +++++-----
+ src/os/types_windows.go  |  6 +++---
+ 17 files changed, 79 insertions(+), 79 deletions(-)

@@ -1,15 +1,17 @@
-commit d0a4c9bb626df78230613162b0dc07c72855b3c1
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 13 16:03:19 2012 +1100
+commit c405b58f3fa7988d42b5e5e46910344f342c5b45
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 12 21:49:43 2012 -0700
 
-    gc: allow ~ in import paths
-    Windows has paths like C:/Users/ADMIN~1. Also, it so happens
-    that go/parser allows ~ in import paths. So does the spec.
-    Fixes the build too.
+    misc/dist: better archive/tar Headers
     
-    R=golang-dev, dsymonds
+    This should live in archive/tar later (CL 5796073) but we
+    can always do that after Go 1 and stick it here for now.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5777073
+    https://golang.org/cl/5754096
 
- src/cmd/gc/subr.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dist/bindist.go     | 86 +++++++++++++++++++++++++++++++++++++++---------
+ misc/dist/stat_darwin.go | 32 ++++++++++++++++++
+ misc/dist/stat_linux.go  | 32 ++++++++++++++++++
+ 3 files changed, 134 insertions(+), 16 deletions(-)

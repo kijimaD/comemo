@@ -1,13 +1,13 @@
-commit b6e52ecffa5e6c0673ecfc93837d23fbcf256752
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 6 18:10:42 2013 -0700
+commit 8bf57c3dcba00951a96de3d8ee58d844253da621
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 6 23:06:12 2013 +0400
 
-    runtime: remove unused mid function
+    runtime: remove unused field from Hchan
+    Remove alignment logic as well, it's not respected by chanbuf() anyway.
     
-    R=golang-dev, r
+    R=golang-dev, dave, minux.ma, r, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/10036047
+    https://golang.org/cl/9678046
 
- src/pkg/runtime/extern.go | 3 ---
- src/pkg/runtime/proc.c    | 8 --------
- 2 files changed, 11 deletions(-)
+ src/pkg/runtime/chan.c | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)

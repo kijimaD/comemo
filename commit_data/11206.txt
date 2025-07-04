@@ -1,15 +1,12 @@
-commit ebc8013edfc009b1190c656e738b15fe9729cc89
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 17 10:44:35 2012 -0800
+commit ddef49dfce26e13e7df6e28669bc43eb82510933
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Tue Jan 17 10:29:08 2012 -0800
 
-    exp/sql: copy when scanning into []byte by default
+    doc/docs: fix broken links
     
-    Fixes #2698
-    
-    R=rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5539060
+    https://golang.org/cl/5539076
 
- src/pkg/exp/sql/sql.go      | 30 +++++++++++++++++++++++++++---
- src/pkg/exp/sql/sql_test.go | 41 +++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 66 insertions(+), 5 deletions(-)
+ doc/docs.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

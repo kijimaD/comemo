@@ -1,12 +1,15 @@
-commit 2a36f9df1c2d11b681adb267fe7944eab94cf6e7
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Tue Mar 8 15:41:36 2011 +1100
+commit 4c052844dd74f6be5401d343405ba5560dc95fdd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 19:36:17 2011 -0500
 
-    flag: replace fail with failf
+    gc: fix handling of return values named _
     
-    R=golang-dev, adg
+    Fixes #1586.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4254061
+    https://golang.org/cl/4244057
 
- src/pkg/flag/flag.go | 19 ++++++++-----------
- 1 file changed, 8 insertions(+), 11 deletions(-)
+ src/cmd/gc/dcl.c         | 29 +++++++++++++++--------------
+ test/fixedbugs/bug326.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 14 deletions(-)

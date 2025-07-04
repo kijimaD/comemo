@@ -1,26 +1,43 @@
-commit 4f0c32de078b57958fa9c37c05bae4ee1f8193e5
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Dec 13 17:34:16 2021 -0500
+commit 6b8e3e2d060b009fe92b39f7022445d96e225325
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 17 22:50:13 2021 -0400
 
-    cmd/dist: log OS version when testing
+    cmd/compile: reduce redundant register moves for regabi calls
     
-    As a follow-up to https://golang.org/cl/371474, add the OS version to
-    the metadata printed for each test.
+    Currently, if we have AX=a and BX=b, and we want to make a call
+    F(1, a, b), to move arguments into the desired registers it emits
     
-    Fixes #50146.
+            MOVQ AX, CX
+            MOVL $1, AX // AX=1
+            MOVQ BX, DX
+            MOVQ CX, BX // BX=a
+            MOVQ DX, CX // CX=b
     
-    Change-Id: I3b7e47983d0e85feebce8e424881b931882d53bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371475
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    This has a few redundant moves.
+    
+    This is because we process inputs in order. First, allocate 1 to
+    AX, which kicks out a (in AX) to CX (a free register at the
+    moment). Then, allocate a to BX, which kicks out b (in BX) to DX.
+    Finally, put b to CX.
+    
+    Notice that if we start with allocating CX=b, then BX=a, AX=1,
+    we will not have redundant moves. This CL reduces redundant moves
+    by allocating them in different order: First, for inpouts that are
+    already in place, keep them there. Then allocate free registers.
+    Then everything else.
+    
+                                 before       after
+    cmd/compile binary size     23703888    23609680
+                text size        8565899     8533291
+    
+    (with regabiargs enabled.)
+    
+    Change-Id: I69e1bdf745f2c90bb791f6d7c45b37384af1e874
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311371
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/dist/metadata.go              |  9 +++++++++
- src/cmd/internal/osinfo/doc.go        |  6 ++++++
- src/cmd/internal/osinfo/os_js.go      | 18 ++++++++++++++++++
- src/cmd/internal/osinfo/os_plan9.go   | 21 ++++++++++++++++++++
- src/cmd/internal/osinfo/os_unix.go    | 36 +++++++++++++++++++++++++++++++++++
- src/cmd/internal/osinfo/os_windows.go | 19 ++++++++++++++++++
- 6 files changed, 109 insertions(+)
+ src/cmd/compile/internal/ssa/regalloc.go | 54 +++++++++++++++++++++++++++++---
+ test/codegen/regabi_regalloc.go          | 23 ++++++++++++++
+ 2 files changed, 73 insertions(+), 4 deletions(-)

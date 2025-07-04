@@ -1,14 +1,29 @@
-commit 3c2a3ce6d924c4d936c6a9ece63aaaa42c80107c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Aug 9 17:10:08 2022 -0400
+commit b8c802b1161528fcf8ba78b1dff5720dd5b4eb9f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 10 07:44:02 2021 +0700
 
-    runtime: gofmt
+    cmd/compile: prevent importReader reading type parameter twice
     
-    Add new line at the end of crash_test.go.
+    The importReader always reads type parameter before declaring type stub
+    declaration. Thus, for recursive type, the type parameter is going to be
+    read twice, cause the bound more than once error.
     
-    Change-Id: I73c77666066b105e563215f34e7ede6c1d92226b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422299
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    To fix this, only read the type parameter after declaring stub obj, thus
+    r.doDecl can see the type was already inserted and terminate the
+    recursive call earlier.
+    
+    Fixes #48280
+    
+    Change-Id: I272e2f214f739fb8ec71a8628ba297477e1b7755
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349009
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/runtime/crash_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/importer/iimport.go | 12 ++++++------
+ test/typeparam/issue48280.dir/a.go           | 11 +++++++++++
+ test/typeparam/issue48280.dir/main.go        | 11 +++++++++++
+ test/typeparam/issue48280.go                 |  7 +++++++
+ 4 files changed, 35 insertions(+), 6 deletions(-)

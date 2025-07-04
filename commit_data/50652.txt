@@ -1,18 +1,21 @@
-commit a59e614aa147da1bba2616b972f26e4a0db61e4d
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Sep 28 00:29:48 2022 +0800
+commit 978e39e9e647d7359a41ac32992ef6ff5380be08
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 4 16:08:08 2021 -0400
 
-    internal: use bytes.Clone
+    crypto/elliptic: tolerate large inputs to IsOnCurve methods
     
-    Change-Id: Ia96ddd520a7bd2fd53bff55315c6fac04ae96a2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435282
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    The behavior of all Curve methods and package functions when provided an
+    off-curve point is undefined, except for IsOnCurve which should really
+    always return false, not panic.
+    
+    Change-Id: I52f65df25c5af0314fef2c63d0778db72c0f1313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361402
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/internal/coverage/encodemeta/encode.go | 4 ++--
- src/internal/fuzz/fuzz.go                  | 4 ++--
- src/internal/fuzz/mem.go                   | 5 ++---
- 3 files changed, 6 insertions(+), 7 deletions(-)
+ src/crypto/elliptic/elliptic_test.go | 10 ++++++++++
+ src/crypto/elliptic/p224.go          |  4 ++++
+ src/crypto/elliptic/p521.go          | 16 +++++++++++-----
+ 3 files changed, 25 insertions(+), 5 deletions(-)

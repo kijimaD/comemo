@@ -1,13 +1,22 @@
-commit 38cb9d28a9a3970f5bfeacdbeaa2f95aab3ebe73
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Tue Feb 7 13:12:25 2017 -0500
+commit e3324a4b6640da2dc8d3f086a8ed490aedae7091
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 15:44:14 2016 -0400
 
-    runtime/pprof: document that profile names should not contain spaces.
+    cmd/vet: diagnose non-space-separated struct tag like `json:"x",xml:"y"`
     
-    Change-Id: I967d897e812bee63b32bc2a7dcf453861b89b7e3
-    Reviewed-on: https://go-review.googlesource.com/36533
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This is not strictly illegal but it probably should be (too late)
+    and doesn't mean what it looks like it means:
+    the second key-value pair has the key ",xml".
+    
+    Fixes #14466.
+    
+    Change-Id: I174bccc23fd28affeb87f57f77c6591634ade641
+    Reviewed-on: https://go-review.googlesource.com/32031
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/runtime/pprof/pprof.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/vet/structtag.go          | 11 +++++++++--
+ src/cmd/vet/testdata/structtag.go | 10 ++++++----
+ 2 files changed, 15 insertions(+), 6 deletions(-)

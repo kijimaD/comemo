@@ -1,29 +1,54 @@
-commit df63673d6a85d4243cc68c2225264afab6cfbf3b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Sep 27 15:35:46 2021 -0400
+commit 6113db0bb47706b8b5f65b67b87f8277432ca4d2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 17 16:14:48 2021 -0800
 
-    cmd/internal/obj: index pcdata symbols in NumberSyms
+    [dev.regabi] cmd/compile: convert OPANIC argument to interface{} during typecheck
     
-    When writing an object file, most symbols are indexed in
-    NumberSyms. Currently, pcdata symbols are indexed late and
-    separately. This is not really necessary, as pcdata symbols
-    already exist at the time of NumberSyms. Just do it there.
+    Currently, typecheck leaves arguments to OPANIC as their original
+    type. This CL changes it to insert implicit OCONVIFACE operations to
+    convert arguments to `interface{}` like how any other function call
+    would be handled.
     
-    As pcdata symbols are laid out in the pclntab in a special way at
-    link time, distinguish them from other symbols in the content
-    hash. (In the old code this was partly achieved by indexing them
-    late.)
+    No immediate benefits, other than getting to remove a tiny bit of
+    special-case logic in order.go's handling of OPANICs. Instead, the
+    generic code path for handling OCONVIFACE is used, if necessary.
+    Longer term, this should be marginally helpful for #43753, as it
+    reduces the number of cases where we need values to be addressable for
+    runtime calls.
     
-    Change-Id: Ie9e721382b0af2cfb39350d031e2e66d79095a3c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352611
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    However, this does require adding some hacks to appease existing
+    tests:
+    
+    1. We need yet another kludge in inline budgeting, to ensure that
+    reflect.flag.mustBe stays inlinable for cmd/compile/internal/test's
+    TestIntendedInlining.
+    
+    2. Since the OCONVIFACE expressions are now being introduced during
+    typecheck, they're now visible to escape analysis. So expressions like
+    "panic(1)" are now seen as "panic(interface{}(1))", and escape
+    analysis warns that the "interface{}(1)" escapes to the heap. These
+    have always escaped to heap, just now we're accurately reporting about
+    it.
+    
+    (Also, unfortunately fmt.go hides implicit conversions by default in
+    diagnostics messages, so instead of reporting "interface{}(1) escapes
+    to heap", it actually reports "1 escapes to heap", which is
+    confusing. However, this confusing messaging also isn't new.)
+    
+    Change-Id: Icedf60e1d2e464e219441b8d1233a313770272af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284412
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/link.go    |  4 ++++
- src/cmd/internal/obj/objfile.go | 24 ++++++++----------------
- src/cmd/internal/obj/pcln.go    |  4 ++--
- src/cmd/internal/obj/sym.go     | 28 ++++++++++++++++++++--------
- 4 files changed, 34 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/inline/inl.go     |  7 +++++++
+ src/cmd/compile/internal/typecheck/func.go |  2 +-
+ src/cmd/compile/internal/walk/order.go     |  6 ++----
+ test/closure3.dir/main.go                  |  2 +-
+ test/escape2.go                            |  2 +-
+ test/escape2n.go                           |  2 +-
+ test/escape4.go                            |  6 +++---
+ test/fixedbugs/issue13799.go               | 12 ++++++------
+ test/fixedbugs/issue7921.go                |  2 +-
+ 9 files changed, 23 insertions(+), 18 deletions(-)

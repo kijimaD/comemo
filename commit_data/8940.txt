@@ -1,13 +1,12 @@
-commit cc9fed7c1a9214b511544b53942fd4de07c76bb3
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 5 15:58:54 2011 +1000
+commit 104f57ad39afb40449d1835af3fefc2e9fa4f102
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jul 5 14:42:31 2011 +1000
 
-    exp/template: add an html escaping function.
+    image: add a test for filling sub-images.
     
-    R=golang-dev, dsymonds, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4626092
+    https://golang.org/cl/4626091
 
- src/pkg/exp/template/exec_test.go |  4 +++
- src/pkg/exp/template/funcs.go     | 65 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+)
+ src/pkg/image/draw/draw_test.go | 60 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 60 insertions(+)

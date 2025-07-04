@@ -1,121 +1,16 @@
-commit 395323c4d013f94c7e7c776959f460e83774114c
-Author: Changkun Ou <hi@changkun.de>
-Date:   Tue Sep 20 08:30:58 2022 +0200
+commit 1c8f9d2c97db7390a7ed2cd4663571b544147f4d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 23 15:57:54 2021 -0800
 
-    sync: add new Map method Swap, CompareAndSwap, CompareAndDelete
+    doc/go1.18: mention new cmd/go fuzzing flags
     
-    name                                                   time/op
-    SwapCollision/*sync_test.DeepCopyMap-8                  235ns ± 0%
-    SwapCollision/*sync_test.RWMutexMap-8                   145ns ± 0%
-    SwapCollision/*sync.Map-8                               153ns ± 0%
-    SwapMostlyHits/*sync_test.DeepCopyMap-8                48.2µs ± 0%
-    SwapMostlyHits/*sync_test.RWMutexMap-8                  190ns ± 0%
-    SwapMostlyHits/*sync.Map-8                             28.3ns ± 0%
-    SwapMostlyMisses/*sync_test.DeepCopyMap-8               681ns ± 0%
-    SwapMostlyMisses/*sync_test.RWMutexMap-8                336ns ± 0%
-    SwapMostlyMisses/*sync.Map-8                            523ns ± 0%
-    CompareAndSwapCollision/*sync_test.DeepCopyMap-8       3.99ns ± 0%
-    CompareAndSwapCollision/*sync_test.RWMutexMap-8         151ns ± 0%
-    CompareAndSwapCollision/*sync.Map-8                    21.6ns ± 0%
-    CompareAndSwapNoExistingKey/*sync_test.DeepCopyMap-8   3.95ns ± 0%
-    CompareAndSwapNoExistingKey/*sync_test.RWMutexMap-8     126ns ± 0%
-    CompareAndSwapNoExistingKey/*sync.Map-8                6.11ns ± 0%
-    CompareAndSwapValueNotEqual/*sync_test.DeepCopyMap-8   2.15ns ± 0%
-    CompareAndSwapValueNotEqual/*sync_test.RWMutexMap-8     132ns ± 0%
-    CompareAndSwapValueNotEqual/*sync.Map-8                5.32ns ± 0%
-    CompareAndSwapMostlyHits/*sync_test.RWMutexMap-8        219ns ± 0%
-    CompareAndSwapMostlyHits/*sync.Map-8                   27.1ns ± 0%
-    CompareAndSwapMostlyMisses/*sync_test.DeepCopyMap-8    13.0ns ± 0%
-    CompareAndSwapMostlyMisses/*sync_test.RWMutexMap-8      147ns ± 0%
-    CompareAndSwapMostlyMisses/*sync.Map-8                 19.6ns ± 0%
-    CompareAndDeleteCollision/*sync_test.DeepCopyMap-8     2.23ns ± 0%
-    CompareAndDeleteCollision/*sync_test.RWMutexMap-8       131ns ± 0%
-    CompareAndDeleteCollision/*sync.Map-8                  16.2ns ± 0%
-    CompareAndDeleteMostlyHits/*sync_test.RWMutexMap-8      367ns ± 0%
-    CompareAndDeleteMostlyHits/*sync.Map-8                 33.1ns ± 0%
-    CompareAndDeleteMostlyMisses/*sync_test.DeepCopyMap-8  8.75ns ± 0%
-    CompareAndDeleteMostlyMisses/*sync_test.RWMutexMap-8    134ns ± 0%
-    CompareAndDeleteMostlyMisses/*sync.Map-8               10.9ns ± 0%
+    For #47694
     
-    name                                                   alloc/op
-    SwapCollision/*sync_test.DeepCopyMap-8                   336B ± 0%
-    SwapCollision/*sync_test.RWMutexMap-8                   0.00B
-    SwapCollision/*sync.Map-8                               16.0B ± 0%
-    SwapMostlyHits/*sync_test.DeepCopyMap-8                82.1kB ± 0%
-    SwapMostlyHits/*sync_test.RWMutexMap-8                  12.0B ± 0%
-    SwapMostlyHits/*sync.Map-8                              28.0B ± 0%
-    SwapMostlyMisses/*sync_test.DeepCopyMap-8                713B ± 0%
-    SwapMostlyMisses/*sync_test.RWMutexMap-8                23.0B ± 0%
-    SwapMostlyMisses/*sync.Map-8                             129B ± 0%
-    CompareAndSwapCollision/*sync_test.DeepCopyMap-8        0.00B
-    CompareAndSwapCollision/*sync_test.RWMutexMap-8         0.00B
-    CompareAndSwapCollision/*sync.Map-8                     3.00B ± 0%
-    CompareAndSwapNoExistingKey/*sync_test.DeepCopyMap-8    8.00B ± 0%
-    CompareAndSwapNoExistingKey/*sync_test.RWMutexMap-8     8.00B ± 0%
-    CompareAndSwapNoExistingKey/*sync.Map-8                 8.00B ± 0%
-    CompareAndSwapValueNotEqual/*sync_test.DeepCopyMap-8    0.00B
-    CompareAndSwapValueNotEqual/*sync_test.RWMutexMap-8     0.00B
-    CompareAndSwapValueNotEqual/*sync.Map-8                 0.00B
-    CompareAndSwapMostlyHits/*sync_test.RWMutexMap-8        18.0B ± 0%
-    CompareAndSwapMostlyHits/*sync.Map-8                    33.0B ± 0%
-    CompareAndSwapMostlyMisses/*sync_test.DeepCopyMap-8     24.0B ± 0%
-    CompareAndSwapMostlyMisses/*sync_test.RWMutexMap-8      23.0B ± 0%
-    CompareAndSwapMostlyMisses/*sync.Map-8                  23.0B ± 0%
-    CompareAndDeleteCollision/*sync_test.DeepCopyMap-8      0.00B
-    CompareAndDeleteCollision/*sync_test.RWMutexMap-8       0.00B
-    CompareAndDeleteCollision/*sync.Map-8                   0.00B
-    CompareAndDeleteMostlyHits/*sync_test.RWMutexMap-8      23.0B ± 0%
-    CompareAndDeleteMostlyHits/*sync.Map-8                  39.0B ± 0%
-    CompareAndDeleteMostlyMisses/*sync_test.DeepCopyMap-8   16.0B ± 0%
-    CompareAndDeleteMostlyMisses/*sync_test.RWMutexMap-8    15.0B ± 0%
-    CompareAndDeleteMostlyMisses/*sync.Map-8                15.0B ± 0%
-    
-    name                                                   allocs/op
-    SwapCollision/*sync_test.DeepCopyMap-8                   2.00 ± 0%
-    SwapCollision/*sync_test.RWMutexMap-8                    0.00
-    SwapCollision/*sync.Map-8                                1.00 ± 0%
-    SwapMostlyHits/*sync_test.DeepCopyMap-8                  4.00 ± 0%
-    SwapMostlyHits/*sync_test.RWMutexMap-8                   1.00 ± 0%
-    SwapMostlyHits/*sync.Map-8                               2.00 ± 0%
-    SwapMostlyMisses/*sync_test.DeepCopyMap-8                6.00 ± 0%
-    SwapMostlyMisses/*sync_test.RWMutexMap-8                 2.00 ± 0%
-    SwapMostlyMisses/*sync.Map-8                             6.00 ± 0%
-    CompareAndSwapCollision/*sync_test.DeepCopyMap-8         0.00
-    CompareAndSwapCollision/*sync_test.RWMutexMap-8          0.00
-    CompareAndSwapCollision/*sync.Map-8                      0.00
-    CompareAndSwapNoExistingKey/*sync_test.DeepCopyMap-8     1.00 ± 0%
-    CompareAndSwapNoExistingKey/*sync_test.RWMutexMap-8      0.00
-    CompareAndSwapNoExistingKey/*sync.Map-8                  1.00 ± 0%
-    CompareAndSwapValueNotEqual/*sync_test.DeepCopyMap-8     0.00
-    CompareAndSwapValueNotEqual/*sync_test.RWMutexMap-8      0.00
-    CompareAndSwapValueNotEqual/*sync.Map-8                  0.00
-    CompareAndSwapMostlyHits/*sync_test.RWMutexMap-8         2.00 ± 0%
-    CompareAndSwapMostlyHits/*sync.Map-8                     3.00 ± 0%
-    CompareAndSwapMostlyMisses/*sync_test.DeepCopyMap-8      2.00 ± 0%
-    CompareAndSwapMostlyMisses/*sync_test.RWMutexMap-8       2.00 ± 0%
-    CompareAndSwapMostlyMisses/*sync.Map-8                   2.00 ± 0%
-    CompareAndDeleteCollision/*sync_test.DeepCopyMap-8       0.00
-    CompareAndDeleteCollision/*sync_test.RWMutexMap-8        0.00
-    CompareAndDeleteCollision/*sync.Map-8                    0.00
-    CompareAndDeleteMostlyHits/*sync_test.RWMutexMap-8       2.00 ± 0%
-    CompareAndDeleteMostlyHits/*sync.Map-8                   3.00 ± 0%
-    CompareAndDeleteMostlyMisses/*sync_test.DeepCopyMap-8    2.00 ± 0%
-    CompareAndDeleteMostlyMisses/*sync_test.RWMutexMap-8     1.00 ± 0%
-    CompareAndDeleteMostlyMisses/*sync.Map-8                 1.00 ± 0%
-    
-    Fixes #51972
-    
-    Change-Id: I469e71033592997832c3e8ebdad1b8950a70c99c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399094
-    Run-TryBot: Changkun Ou <mail@changkun.de>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I00da9bd39700e938ec492daa71aba2035d911a06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374354
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- api/next/51972.txt             |   3 +
- src/sync/map.go                | 188 ++++++++++++++++++++++++-------
- src/sync/map_bench_test.go     | 249 ++++++++++++++++++++++++++++++++++++++++-
- src/sync/map_reference_test.go |  97 ++++++++++++++++
- src/sync/map_test.go           |  47 +++++++-
- 5 files changed, 539 insertions(+), 45 deletions(-)
+ doc/go1.18.html | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)

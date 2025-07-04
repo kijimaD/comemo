@@ -1,18 +1,21 @@
-commit ff8a7e513bda9e89dfbde8ecefaa4514c11ec596
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Mon Sep 20 00:23:40 2021 +0800
+commit 67bf62d93955fa72c5307f5a2ad0394cb37abd82
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 13 17:00:11 2021 -0800
 
-    cmd/compile: print expression for invalid operation errors
+    [dev.typeparams] cmd/compile/internal/types2: better error message for invalid ... use
     
-    For #48472
+    This partially addresses the issue below: In many (all) cases we want to
+    handle invalid ... use in the parser as a syntax error; but this ensures
+    that we get a decent error if we get here anyway.
     
-    Change-Id: I5072ebcf53e03fb5515c51a2ad01f02d72b30719
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350929
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: David Chase <drchase@google.com>
+    Updates #43680.
+    
+    Change-Id: I93af43a5f5741d8bc76e7a13c0db75e6edf43111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283475
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/expr.go                       |  2 +-
- .../compile/internal/types2/testdata/fixedbugs/issue48472.go2 | 11 +++++++++++
- src/go/types/expr.go                                          |  2 +-
- src/go/types/testdata/fixedbugs/issue48472.go2                | 11 +++++++++++
- 4 files changed, 24 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/examples/types.go2 | 3 +++
+ src/cmd/compile/internal/types2/expr.go            | 2 +-
+ src/cmd/compile/internal/types2/typexpr.go         | 6 ++++++
+ 3 files changed, 10 insertions(+), 1 deletion(-)

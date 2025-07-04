@@ -1,28 +1,34 @@
-commit deb9a7e4ad8552a5f366877e626c223dea0e9d9b
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Fri May 16 13:44:53 2025 -0400
+commit b24ec88bb93438bfabca34a2acb739a629c23806
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Mar 27 09:44:01 2024 -0400
 
-    crypto/tls: match compression method alert across versions
+    cmd/compile: export/import materialized aliases
     
-    When a pre-TLS 1.3 server processes a client hello message that
-    indicates compression methods that don't include the null compression
-    method, send an illegal parameter alert.
+    This CL changes the compiler's type import/export logic
+    to create and preserve materialized Alias types
+    when GODEBUG=gotypesaliases=1.
     
-    Previously we did this for TLS 1.3 server handshakes only, and the
-    legacy TLS versions used alertHandshakeFailure for this circumstance. By
-    switching this to alertIllegalParameter we use a consistent alert across
-    all TLS versions, and can also enable the NoNullCompression-TLS12 BoGo
-    test we were skipping.
+    In conjunction with CL 574717, it allows the x/tools
+    tests to pass with GODEBUG=gotypesaliases=1.
     
-    Updates #72006
+    Updates #65294
+    Updates #64581
+    Fixes #66550
     
-    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673736
-    TryBot-Bypass: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I70b9279f4e0ae7a1f95ad153c4e6909a878915a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574737
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/tls/bogo_config.json    | 1 -
- src/crypto/tls/handshake_server.go | 2 +-
- 2 files changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/importer/ureader.go | 18 +++++++++++++++++-
+ src/cmd/compile/internal/noder/writer.go     |  6 +++++-
+ src/cmd/compile/internal/types2/alias.go     |  6 ++++++
+ src/cmd/compile/internal/types2/api.go       |  7 +++++++
+ src/go/internal/gcimporter/ureader.go        | 15 ++++++++++++++-
+ src/go/types/alias.go                        |  6 ++++++
+ src/go/types/eval_test.go                    | 12 ++++++++++++
+ src/go/types/named_test.go                   |  2 +-
+ test/typeparam/struct.go                     |  1 +
+ 9 files changed, 69 insertions(+), 4 deletions(-)

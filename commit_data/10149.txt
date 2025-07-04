@@ -1,15 +1,13 @@
-commit 350a5ce64fc17d229137f66e855a9d733dc76e2e
-Author: Jan Newmarch <jan.newmarch@gmail.com>
-Date:   Mon Oct 31 11:33:14 2011 -0400
+commit eef78091932aafec2b8030bc1927699b551d119b
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Oct 31 10:58:04 2011 +0100
 
-    misc/emacs/go-lang.el: Fix restoration of multiple windows in a frame after gofmt
-    If a frame has multiple windows then the windows must all be restored
-    after gofmt has finished and the old windows must be restored.
-    Before this fix, only the Go code edit window would be left.
+    exp/norm: fixed bug that creeped in with moving to the new
+    regexp, which caused the last line of a test block to be ignored.
     
-    R=golang-dev, rsc
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/5280050
+    https://golang.org/cl/5177052
 
- misc/emacs/go-mode.el | 78 ++++++++++++++++++++++++++-------------------------
- 1 file changed, 40 insertions(+), 38 deletions(-)
+ src/pkg/exp/norm/maketables.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

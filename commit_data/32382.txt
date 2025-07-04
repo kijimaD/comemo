@@ -1,15 +1,25 @@
-commit a6ffab6b6743a490151aadfd2f2a79244a84e03a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Aug 19 13:02:36 2017 +1000
+commit bea8ffdbb1ea4147c3f815243554afac90b6bb52
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:06:42 2017 -0700
 
-    misc/cgo/testcshared: temporarily skip testing on android
+    cmd/compile: remove most uses of duintxx
     
-    For #21513
+    The only remaining uses of duintxx
+    are in the implementation of duintNN.
+    I hope to inline those once I figure out why
+    CL 40864 is broken.
     
-    Change-Id: Ibe9479f8afc6f425779a737a807ff2f839a4f311
-    Reviewed-on: https://go-review.googlesource.com/57250
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Note that some uses of duintxx with width Widthint
+    were converted into duintptr.
+    I did that, since #19954 is officially going to move forward.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Id25253b711ea589d0199b51be9a3c18ca1af59ce
+    Reviewed-on: https://go-review.googlesource.com/41398
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/testcshared/cshared_test.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/cmd/compile/internal/gc/obj.go     |  4 ++--
+ src/cmd/compile/internal/gc/reflect.go | 18 +++++++++---------
+ 2 files changed, 11 insertions(+), 11 deletions(-)

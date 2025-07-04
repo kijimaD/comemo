@@ -1,17 +1,27 @@
-commit 87d29939c8f93799ce889d98e0e5579d1eb2ffe5
+commit d9c19a7d3ea355cdf709fe6ec57ab158164a44d5
+Merge: 64fdc8b47a ba9e108899
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Mar 2 13:22:21 2021 -0500
+Date:   Fri Aug 7 12:42:10 2020 -0400
 
-    runtime: remove racefuncenterfp
+    [dev.link] all: merge branch 'master' into dev.link
     
-    No longer needed with previous CL.
+    Clean merge.
     
-    Change-Id: I7c01f9e0e34ecb9553ef1b3d662f33419fd3a244
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297932
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If642f7901a797c6df5a0fa64aecebba22e5ee951
 
- src/runtime/race_amd64.s   | 10 +---------
- src/runtime/race_arm64.s   | 10 +---------
- src/runtime/race_ppc64le.s | 12 +-----------
- 3 files changed, 3 insertions(+), 29 deletions(-)
+ doc/go1.15.html                               |  11 ++--
+ src/cmd/go.mod                                |   1 +
+ src/cmd/go.sum                                |   2 +
+ src/cmd/go/internal/load/pkg.go               |  29 +++++-----
+ src/cmd/go/testdata/script/list_err_stack.txt |  27 ++++++++++
+ src/cmd/vendor/modules.txt                    |   3 +-
+ src/encoding/binary/varint.go                 |   5 +-
+ src/encoding/binary/varint_test.go            |  18 ++++---
+ src/net/http/transport.go                     |  73 +++++++++++++++-----------
+ src/net/http/transport_test.go                |  44 ++++++++++++++++
+ src/runtime/race/README                       |   6 +--
+ src/runtime/race/race_linux_amd64.syso        | Bin 518680 -> 521752 bytes
+ src/runtime/race/race_linux_arm64.syso        | Bin 497656 -> 500584 bytes
+ src/runtime/race/race_linux_ppc64le.syso      | Bin 619560 -> 623824 bytes
+ src/runtime/race/syso_test.go                 |  39 ++++++++++++++
+ 15 files changed, 197 insertions(+), 61 deletions(-)

@@ -1,14 +1,16 @@
-commit 7e9a8546e4b6a703b102c074e5620390550d9706
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Mon Feb 26 20:00:51 2018 +0900
+commit b0680b474cd07f35ce8ca6ff210dc25bff453cd9
+Author: griesemer <gri@golang.org>
+Date:   Thu Oct 19 16:12:02 2017 -0700
 
-    time: avoid unnecessary type conversions
+    go/types: add test verifying corner-case behavior of iota
     
-    Change-Id: Ic318c25b21298ec123eb27c814c79f637887713c
-    Reviewed-on: https://go-review.googlesource.com/97135
-    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
+    For #22341.
+    
+    Change-Id: I7e586c58075e4c835ef97701db2f38bdf7558521
+    Reviewed-on: https://go-review.googlesource.com/71974
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/time.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/go/types/api_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

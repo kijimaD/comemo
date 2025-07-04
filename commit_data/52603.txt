@@ -1,22 +1,28 @@
-commit e78871ea07376e09673644633740b6e0fc08b370
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Mar 13 17:02:15 2023 -0500
+commit 1e5fcefcd188f3fba85156523bf57deb454b9cd4
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue May 3 17:51:14 2022 -0400
 
-    runtime,cmd/internal/obj/ppc64: cleanup ppc64le runtime.racecallbackthunk
+    cmd/go: copy files from go/build into new modindex package
     
-    Update to use the common macros to ensure all ELFv2 callee-save registers
-    are saved properly when transitioning from ELFv2 to Go calling/stack
-    conventions. Simplify the inlined Go function call, and remove the asm
-    hacks which inhibited implicit stack frame management.
+    These files are all copied as is from the go/build package, to files
+    with the same name in modindex (with the exception of build_read, which
+    was copied from go/build/read.go).
     
-    Change-Id: Iee118a4069962a791436c6fe19370e1929404a8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479795
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    This is being done so that the next CL can show exactly the changes that
+    were made against the go/build versions.
+    
+    Unfortunately, git doesn't recognize these as copies, which is annoying.
+    
+    Change-Id: I27b05b23dc5ccefe5252956bf75025bd57b36c66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403777
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/internal/obj/ppc64/obj9.go |   9 +--
- src/runtime/race_ppc64le.s         | 130 +++++--------------------------------
- 2 files changed, 20 insertions(+), 119 deletions(-)
+ src/cmd/go/internal/modindex/build.go        | 2007 ++++++++++++++++++++++++++
+ src/cmd/go/internal/modindex/build_read.go   |  578 ++++++++
+ src/cmd/go/internal/modindex/stubs.go        |   10 +
+ src/cmd/go/internal/modindex/syslist.go      |   75 +
+ src/cmd/go/internal/modindex/syslist_test.go |   62 +
+ 5 files changed, 2732 insertions(+)

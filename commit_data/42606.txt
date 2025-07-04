@@ -1,22 +1,19 @@
-commit 0844ff8eef81e124c1fecba82dd5843745427fa4
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Jul 7 22:18:17 2020 -0700
+commit ad3cef184e55ab53306a466bda100dc72c40fc3b
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Fri Jan 24 16:50:53 2020 +0000
 
-    os: fix regression with handling of nil *File
+    Revert "runtime: release worldsema before Gosched in STW GC mode"
     
-    Use of a nil *File as an argument should not result in a panic,
-    but result in the ErrInvalid error being returned.
-    Fix the copy_file_range implementation to preserve this semantic.
+    This reverts commit 05511a5c0ae238325c10b0e4e44c3f66f928e4cf, CL 208379.
     
-    Fixes #40115
+    Reason for revert: So that we can cleanly revert
+    https://golang.org/cl/182657.
     
-    Change-Id: Iad5ac39664a3efb7964cf55685be636940a8db13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241417
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4fdf4f864a093db7866b3306f0f8f856b9f4d684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216357
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/readfrom_linux.go      |  5 +++++
- src/os/readfrom_linux_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+)
+ src/runtime/mgc.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

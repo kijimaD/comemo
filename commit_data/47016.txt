@@ -1,19 +1,18 @@
-commit f47335e653ac37f68ada2b265ce4a2c869a27cae
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sat Jun 5 11:04:37 2021 +0530
+commit 9322eec8a267196d38cba657495624c3c91565f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 13:39:43 2021 -0500
 
-    crypto/tls: add Conn.NetConn method
+    codereview.cfg: add codereview.cfg for master branch
     
-    NetConn method gives us access to the underlying net.Conn
-    value.
+    The codereview sync-branch command wants all involved
+    branches to have codereview.cfg, and this will help us when
+    we transition from master to main later this year.
     
-    Fixes #29257
-    
-    Change-Id: I68b2a92ed9dab4be9900807c94184f8c0aeb4f72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325250
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Trust: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    Trust: Katie Hockman <katie@golang.org>
+    Change-Id: Ia8e4c8b8c86864ed9d730e5d96be1ff386e2e1cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294291
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/tls/conn.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ codereview.cfg | 1 +
+ 1 file changed, 1 insertion(+)

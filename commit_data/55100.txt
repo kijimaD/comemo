@@ -1,28 +1,21 @@
-commit 00715d089d68c1dd43ed1f508e8937c5208fb6f0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Nov 10 18:03:00 2023 -0800
+commit d03231d9ce361a154e0f9775f9bc036241d3b381
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Sat Dec 17 12:47:53 2022 +0000
 
-    cmd/compile/internal/walk: copy SSA-able variables
+    doc/go1.20: fix http.ResponseController example
     
-    order.go ensures expressions that are passed to the runtime by address
-    are in fact addressable. However, in the case of local variables, if the
-    variable hasn't already been marked as addrtaken, then taking its
-    address here will effectively prevent the variable from being converted
-    to SSA form.
+    Fixes #57162
     
-    Instead, it's better to just copy the variable into a new temporary,
-    which we can pass by address instead. This ensures the original variable
-    can still be converted to SSA form.
-    
-    Fixes #63332.
-    
-    Change-Id: I182376d98d419df8bf07c400d84c344c9b82c0fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541715
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I190810d702e503822265b12c56db69ec1093233c
+    GitHub-Last-Rev: e8b259d4b37523f1992fb92d99cbe068ab070eb2
+    GitHub-Pull-Request: golang/go#57385
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458275
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/compile/internal/walk/order.go | 52 ++++++++++++++++++++++++++++++++--
- test/codegen/issue63332.go             | 14 +++++++++
- 2 files changed, 63 insertions(+), 3 deletions(-)
+ doc/go1.20.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,19 @@
-commit 5cc86c6f5510799b941f9d1ab405025ee6b8069a
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Sep 5 20:27:00 2015 -0400
+commit bed6326a3c04811f394490b537c07c863b3df6de
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 22:42:16 2015 -0400
 
-    cmd/internal/obj/mips: copy cmd/internal/obj/ppc64
+    math: fix Log2 test failures on ppc64 (and s390)
     
-    Just a mechanical copy with filename renames, no code changes.
-    This is to reduce code difference when adding the mips64 port.
+    - Make Log2 exact for powers of two.
+    - Fix error tolerance function to make tolerance
+      a function of the correct (expected) value.
     
-    Change-Id: Id06e975f414a7b09f4827167b30813b228a3bfae
-    Reviewed-on: https://go-review.googlesource.com/14323
+    Fixes #9066.
+    
+    Change-Id: I0320a93ce4130deed1c7b7685627d51acb7bc56d
+    Reviewed-on: https://go-review.googlesource.com/12230
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/mips/a.out.go   |  538 ++++++
- src/cmd/internal/obj/mips/anames.go  |  300 ++++
- src/cmd/internal/obj/mips/anames0.go |   40 +
- src/cmd/internal/obj/mips/asm0.go    | 3247 ++++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/mips/list0.go   |   98 +
- src/cmd/internal/obj/mips/obj0.go    |  968 ++++++++++
- 6 files changed, 5191 insertions(+)
+ src/math/all_test.go | 6 ++++--
+ src/math/log10.go    | 5 +++++
+ 2 files changed, 9 insertions(+), 2 deletions(-)

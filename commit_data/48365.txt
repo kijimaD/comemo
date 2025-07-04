@@ -1,63 +1,16 @@
-commit 842d37ee5f86f12aa096b750adbd2debd9129fcb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 11 18:29:37 2022 -0800
+commit 6db7480f5973ced97dfb08f949889e2ff108a492
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 11 10:15:57 2021 -0400
 
-    syscall: add race annotations to Pread and Pwrite
+    cmd/go/internal/modload: in updateLazyRoots, do not require the main module explicitly
     
-    Fixes #51618
+    Fixes #46078
     
-    Change-Id: Ife894d8c313dce8c4929f40fa0ac90a069f77a89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391954
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I8044dac717459f1eeae1d8381a6503f22f9f51ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319009
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/race/testdata/mop_test.go  | 14 ++++++++++++-
- src/syscall/syscall_aix.go             |  4 ++--
- src/syscall/syscall_darwin.go          |  4 ++--
- src/syscall/syscall_dragonfly.go       |  4 ++--
- src/syscall/syscall_freebsd.go         |  4 ++--
- src/syscall/syscall_linux_386.go       |  4 ++--
- src/syscall/syscall_linux_amd64.go     |  4 ++--
- src/syscall/syscall_linux_arm.go       |  4 ++--
- src/syscall/syscall_linux_arm64.go     |  4 ++--
- src/syscall/syscall_linux_mips64x.go   |  4 ++--
- src/syscall/syscall_linux_mipsx.go     |  4 ++--
- src/syscall/syscall_linux_ppc64x.go    |  4 ++--
- src/syscall/syscall_linux_riscv64.go   |  4 ++--
- src/syscall/syscall_linux_s390x.go     |  4 ++--
- src/syscall/syscall_netbsd.go          |  4 ++--
- src/syscall/syscall_openbsd.go         |  4 ++--
- src/syscall/syscall_solaris.go         |  4 ++--
- src/syscall/syscall_unix.go            | 36 ++++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_aix_ppc64.go      | 20 +++++++++----------
- src/syscall/zsyscall_darwin_amd64.go   |  4 ++--
- src/syscall/zsyscall_darwin_arm64.go   |  4 ++--
- src/syscall/zsyscall_freebsd_386.go    |  4 ++--
- src/syscall/zsyscall_freebsd_amd64.go  |  4 ++--
- src/syscall/zsyscall_freebsd_arm.go    |  4 ++--
- src/syscall/zsyscall_freebsd_arm64.go  |  4 ++--
- src/syscall/zsyscall_linux_386.go      |  4 ++--
- src/syscall/zsyscall_linux_amd64.go    |  4 ++--
- src/syscall/zsyscall_linux_arm.go      |  4 ++--
- src/syscall/zsyscall_linux_arm64.go    |  4 ++--
- src/syscall/zsyscall_linux_mips.go     |  4 ++--
- src/syscall/zsyscall_linux_mips64.go   |  4 ++--
- src/syscall/zsyscall_linux_mips64le.go |  4 ++--
- src/syscall/zsyscall_linux_mipsle.go   |  4 ++--
- src/syscall/zsyscall_linux_ppc64.go    |  4 ++--
- src/syscall/zsyscall_linux_ppc64le.go  |  4 ++--
- src/syscall/zsyscall_linux_riscv64.go  |  4 ++--
- src/syscall/zsyscall_linux_s390x.go    |  4 ++--
- src/syscall/zsyscall_netbsd_386.go     |  4 ++--
- src/syscall/zsyscall_netbsd_amd64.go   |  4 ++--
- src/syscall/zsyscall_netbsd_arm.go     |  4 ++--
- src/syscall/zsyscall_netbsd_arm64.go   |  4 ++--
- src/syscall/zsyscall_openbsd_386.go    |  4 ++--
- src/syscall/zsyscall_openbsd_amd64.go  |  4 ++--
- src/syscall/zsyscall_openbsd_arm.go    |  4 ++--
- src/syscall/zsyscall_openbsd_arm64.go  |  4 ++--
- src/syscall/zsyscall_openbsd_mips64.go |  4 ++--
- src/syscall/zsyscall_solaris_amd64.go  | 20 +++++++++----------
- 47 files changed, 155 insertions(+), 107 deletions(-)
+ src/cmd/go/internal/modload/buildlist.go          |  3 +-
+ src/cmd/go/testdata/script/mod_tidy_lazy_self.txt | 71 +++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 1 deletion(-)

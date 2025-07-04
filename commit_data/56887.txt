@@ -1,24 +1,30 @@
-commit 4e77872d16340595d76b905fe24369b76cfd1b5f
-Author: Tim King <taking@google.com>
-Date:   Tue Jul 9 14:01:56 2024 -0700
+commit 89a3bb69cec781177d3967b557e0ce14b2b854f9
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 30 10:44:45 2023 -0400
 
-    go/types: fix assertion failure when range over int is not permitted
+    cmd/{cover,go}: revise fix for pkg init order change with -cover
     
-    Fixes an assertion failure in Checker.rangeStmt that range over int
-    only has a key type and no value type. When allowVersion failed,
-    rangeKeyVal returns Typ[Invalid] for the value instead of nil. When
-    Config.Error != nil, rangeStmt proceeded. The check for rhs[1]==nil
-    was not enough to catch this case. It must also check rhs[1]==
+    This patch contains a revised fix for issue #56293, switching to a
+    scheme in which coverage counter variables and meta-data variables are
+    written to a separate output file as opposed to being tacked onto the
+    end of an existing rewritten source file.
     
-    Updates #68334
+    The advantage of writing counter vars to a separate file is that the
+    Go command can then present that file as the first source file to the
+    compiler when the package is built; this will ensure that counter
+    variable are treated as lexically "before" any other variable that
+    might call an instrumented function as part of its initializer.
     
-    Change-Id: Iffa1b2f7b6a94570ec50b8c6603e727a45ba3357
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597356
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Updates #56293.
+    
+    Change-Id: Iccb8a6532b976d36ccbd5a2a339882d1f5d19477
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499215
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/issues_test.go | 29 ++++++++++++++++++++++++++
- src/cmd/compile/internal/types2/stmt.go        |  9 ++++----
- src/go/types/issues_test.go                    | 29 ++++++++++++++++++++++++++
- src/go/types/stmt.go                           |  9 ++++----
- 4 files changed, 68 insertions(+), 8 deletions(-)
+ src/cmd/cover/cfg_test.go        |  4 +++-
+ src/cmd/cover/cover.go           | 39 ++++++++++++++++++++++++++-------------
+ src/cmd/go/internal/work/exec.go | 28 +++++++++++++++++++++-------
+ 3 files changed, 50 insertions(+), 21 deletions(-)

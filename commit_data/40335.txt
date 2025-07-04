@@ -1,19 +1,17 @@
-commit b282efa0221f6298f1e407ba947c5a7bc8f58871
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 21 12:44:42 2019 -0700
+commit b41eee4c8a2fe692c1d9fb46972b9047b5dc02b7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun May 5 15:49:47 2019 +0200
 
-    cmd/compile: recognize reflect.{Slice,String}Header for -d=checkptr
+    syscall: remove unused {dragonfly,illumos,solaris}64Bit constants
     
-    Avoids false positive pointer arithmetic panic.
+    These are unused since CL 153837. illumos64Bit was added by CL 174457
+    but was never used.
     
-    Fixes #35027.
-    
-    Change-Id: Idd008caaab25fcf739327ac50a021b835ef13def
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202560
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I34a1bd41cf70f8a07e57f93a71de3c6034fcaf7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175358
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/walk.go |  4 ++++
- test/fixedbugs/issue35027.go        | 23 +++++++++++++++++++++++
- 2 files changed, 27 insertions(+)
+ src/syscall/syscall_unix.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

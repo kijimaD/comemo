@@ -1,18 +1,24 @@
-commit 143fd8ef2ab4450d7298b59a45d15232518f982d
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sat Mar 4 04:55:56 2017 +0100
+commit 794fb71d9c1018c4beae1657baca5229e6a02ad0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 8 15:43:20 2016 -0800
 
-    os/user: use the stubs fallback for Android
+    text/template: efficient reporting of line numbers
     
-    Using the stubs, user.Current will no longer fail on Android, fixing
-    the os/exec.TestCredentialNoSetGroups test.
+    Instead of scanning the text to count newlines, which is n², keep track as we go
+    and store the line number in the token.
     
-    Change-Id: I8b9842aa6704c0cde383c549a614bab0a0ed7695
-    Reviewed-on: https://go-review.googlesource.com/37765
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    benchmark                 old ns/op      new ns/op     delta
+    BenchmarkParseLarge-4     1589721293     38783310      -97.56%
+    
+    Fixes #17851
+    
+    Change-Id: Ieaf89a35e371b405ad92e38baa1e3fa98d18cfb4
+    Reviewed-on: https://go-review.googlesource.com/32923
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/user/lookup_android.go | 13 -------------
- src/os/user/lookup_stubs.go   |  5 ++++-
- 2 files changed, 4 insertions(+), 14 deletions(-)
+ src/text/template/exec_test.go        |   2 +-
+ src/text/template/parse/lex.go        |  36 +++--
+ src/text/template/parse/lex_test.go   | 259 +++++++++++++++++-----------------
+ src/text/template/parse/parse.go      |  22 +--
+ src/text/template/parse/parse_test.go |  34 +++++
+ 5 files changed, 204 insertions(+), 149 deletions(-)

@@ -1,19 +1,30 @@
-commit 3358a5068a87bc25bd551698f4f0be7c5677168d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 19 18:59:06 2012 +1100
+commit b4829c1de6ffd8581c40932da7a57dcfdd0610fb
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jan 19 17:41:10 2012 +1100
 
-    godoc: add anchors to cmd documentation headings
+    html: in foreign content, check for HTML integration points in breakout
+    elements.
     
-    Also, disable server-side generation of TOC for commands as they would
-    only ever show Overview. The JS does a better job (for now).
+    Pass tests10.dat, test 33:
+    <!DOCTYPE html><svg><desc><svg><ul>a
     
-    Fixes #2732.
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <svg svg>
+    |       <svg desc>
+    |         <svg svg>
+    |         <ul>
+    |           "a"
     
-    R=gri, dsymonds
+    Also pass test 34:
+    <!DOCTYPE html><p><svg><desc><p>
+    
+    R=andybalholm, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5558046
+    https://golang.org/cl/5536048
 
- doc/godocs.js             | 54 ++++++++++++++++++-----------------------------
- lib/godoc/package.html    |  2 ++
- src/pkg/go/doc/comment.go | 18 +++++++++++++++-
- 3 files changed, 40 insertions(+), 34 deletions(-)
+ src/pkg/html/parse.go      | 4 ++--
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

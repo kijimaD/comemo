@@ -1,19 +1,24 @@
-commit 199fbd4b5911d90a99b13db44e5f2a9ca85f0d9e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 16 15:45:13 2023 -0400
+commit 7f632f76db65f28038b8797fbfe5e15a9f63e387
+Author: Axel Wagner <axel.wagner.hh@googlemail.com>
+Date:   Thu Aug 18 16:18:34 2022 +0200
 
-    cmd/internal/testdir: skip Test if GOROOT/test does not exist
+    encoding/xml: add (*Encoder).Close
     
-    cmd/distpack removes GOROOT/test from its distribution.
+    Flush can not check for unclosed elements, as more data might be encoded
+    after Flush is called. Close implicitly calls Flush and also checks that
+    all opened elements are closed as well.
     
-    For #24904.
+    Fixes #53346
     
-    Change-Id: I6d1a8c608a1a1fe3fddfe0cd5279202ea9c2b3ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504058
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I889b9f5ae54e5dfabb9e6948d96c5ed7bc1110f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424777
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/internal/testdir/testdir_test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ api/next/53346.txt               |  1 +
+ src/encoding/xml/marshal.go      | 81 ++++++++++++++++++++++++++++++++++++----
+ src/encoding/xml/marshal_test.go | 58 ++++++++++++++++++++++++++++
+ 3 files changed, 133 insertions(+), 7 deletions(-)

@@ -1,12 +1,75 @@
-commit 5cc64141e738b008b62d0698cdbadf2b9aead72d
-Author: Javier <javism@gmail.com>
-Date:   Sun Sep 15 12:20:58 2019 +0800
+commit 64f22e4bd6a1c7fe8a2dcf52cc8ac4c39d5abbb4
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Mon Jan 7 22:15:47 2019 +0530
 
-    math: Add examples for Copysign, Dim, Exp* and Trunc
+    image/jpeg: reduce bound checks from idct and fdct
     
-    Change-Id: I95921a8a55b243600aaec24ddca74b7040107dca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195203
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Before -
+    $gotip build -gcflags="-d=ssa/check_bce/debug=1" fdct.go idct.go
+    ./fdct.go:89:10: Found IsInBounds
+    ./fdct.go:90:10: Found IsInBounds
+    ./fdct.go:91:10: Found IsInBounds
+    ./fdct.go:92:10: Found IsInBounds
+    ./fdct.go:93:10: Found IsInBounds
+    ./fdct.go:94:10: Found IsInBounds
+    ./fdct.go:95:10: Found IsInBounds
+    ./fdct.go:96:10: Found IsInBounds
+    ./idct.go:77:9: Found IsInBounds
+    ./idct.go:77:27: Found IsInBounds
+    ./idct.go:77:45: Found IsInBounds
+    ./idct.go:78:7: Found IsInBounds
+    ./idct.go:78:25: Found IsInBounds
+    ./idct.go:78:43: Found IsInBounds
+    ./idct.go:78:61: Found IsInBounds
+    ./idct.go:79:13: Found IsInBounds
+    ./idct.go:92:13: Found IsInBounds
+    ./idct.go:93:12: Found IsInBounds
+    ./idct.go:94:12: Found IsInBounds
+    ./idct.go:95:12: Found IsInBounds
+    ./idct.go:97:12: Found IsInBounds
+    ./idct.go:98:12: Found IsInBounds
+    ./idct.go:99:12: Found IsInBounds
+    
+    After -
+    $gotip build -gcflags="-d=ssa/check_bce/debug=1" fdct.go idct.go
+    ./fdct.go:90:9: Found IsSliceInBounds
+    ./idct.go:76:11: Found IsSliceInBounds
+    ./idct.go:145:11: Found IsSliceInBounds
+    
+    name                 old time/op    new time/op    delta
+    FDCT-4                 1.85µs ± 2%    1.74µs ± 1%  -5.95%  (p=0.000 n=10+10)
+    IDCT-4                 1.94µs ± 2%    1.89µs ± 1%  -2.67%  (p=0.000 n=10+9)
+    DecodeBaseline-4       1.45ms ± 2%    1.46ms ± 1%    ~     (p=0.156 n=9+10)
+    DecodeProgressive-4    2.21ms ± 1%    2.21ms ± 1%    ~     (p=0.796 n=10+10)
+    EncodeRGBA-4           24.9ms ± 1%    25.0ms ± 1%    ~     (p=0.075 n=10+10)
+    EncodeYCbCr-4          26.1ms ± 1%    26.2ms ± 1%    ~     (p=0.573 n=8+10)
+    
+    name                 old speed      new speed      delta
+    DecodeBaseline-4     42.5MB/s ± 2%  42.4MB/s ± 1%    ~     (p=0.162 n=9+10)
+    DecodeProgressive-4  27.9MB/s ± 1%  27.9MB/s ± 1%    ~     (p=0.796 n=10+10)
+    EncodeRGBA-4         49.4MB/s ± 1%  49.1MB/s ± 1%    ~     (p=0.066 n=10+10)
+    EncodeYCbCr-4        35.3MB/s ± 1%  35.2MB/s ± 1%    ~     (p=0.586 n=8+10)
+    
+    name                 old alloc/op   new alloc/op   delta
+    DecodeBaseline-4       63.0kB ± 0%    63.0kB ± 0%    ~     (all equal)
+    DecodeProgressive-4     260kB ± 0%     260kB ± 0%    ~     (all equal)
+    EncodeRGBA-4           4.40kB ± 0%    4.40kB ± 0%    ~     (all equal)
+    EncodeYCbCr-4          4.40kB ± 0%    4.40kB ± 0%    ~     (all equal)
+    
+    name                 old allocs/op  new allocs/op  delta
+    DecodeBaseline-4         5.00 ± 0%      5.00 ± 0%    ~     (all equal)
+    DecodeProgressive-4      13.0 ± 0%      13.0 ± 0%    ~     (all equal)
+    EncodeRGBA-4             4.00 ± 0%      4.00 ± 0%    ~     (all equal)
+    EncodeYCbCr-4            4.00 ± 0%      4.00 ± 0%    ~     (all equal)
+    
+    Updates #24499
+    
+    Change-Id: I6828d077b851817503a7c1a08235763f81bdadf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167417
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/math/example_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 46 insertions(+)
+ src/image/jpeg/fdct.go | 34 ++++++++++---------
+ src/image/jpeg/idct.go | 88 ++++++++++++++++++++++++++------------------------
+ 2 files changed, 63 insertions(+), 59 deletions(-)

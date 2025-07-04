@@ -1,18 +1,20 @@
-commit 0ec1b62ee28c633265036664c21a5cb22086f231
-Author: gosoon <tianfeiyu0@gmail.com>
-Date:   Wed Oct 20 11:13:29 2021 +0000
+commit 03d36d8198428a6970ba01f5de41c264acbff8fc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 20 11:25:15 2021 -0800
 
-    doc/go1.18.html: fix a typo
+    syscall: add explicit ios build tag
     
-    gofmt -> <code>gofmt</code>
+    This permits analysis of the syscall package by tools built with
+    older versions of Go that do not recognize ios as a GOOS.
     
-    Change-Id: Idc01b01d8eb185f5e378000d11d622935b14db6e
-    GitHub-Last-Rev: 8d55dc7b86ce0f7dfbdbd57c349b4c472eccf907
-    GitHub-Pull-Request: golang/go#49084
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357251
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Fixes #44459
+    
+    Change-Id: I79cec2ffe0dbcbc2dc45a385e556dc9e62033125
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294634
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.18.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/ptrace_ios.go | 3 +++
+ 1 file changed, 3 insertions(+)

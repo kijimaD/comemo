@@ -1,30 +1,37 @@
-commit cc14fcac2bc1d452841336b9aeee3b1d47880f37
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 8 16:09:11 2021 -0800
+commit bd6aeca9686d5e672ffda1ea0cfeac7a3e7a20a4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 16 21:57:32 2020 +0000
 
-    cmd/compile/internal/types2: disallow type cycles through type parameter lists
+    runtime: prepare arenas for use incrementally
     
-    If we reach a generic type that is part of a cycle
-    and we are in a type parameter list, we have a cycle
-    through a type parameter list, which is invalid.
+    This change moves the call of sysMap from (*mheap).sysAlloc into
+    (*mheap).grow, so we only sysMap what we're going to use in the near
+    future (thanks to the curArena mechanism). The purpose of this change is
+    to better support systems with strict overcommit rules which generally
+    accept reserved memory but not prepared memory (see malloc.go for exact
+    descriptions of these states).
     
-    Fixes #49439.
+    This move requires changing linearAlloc to only optionally map memory.
+    In one case, with mheap.heapArenaAlloc, we do want it to map memory. But
+    now in the other case, with mheap.arena, we don't, because we want grow
+    to take care of it.
     
-    Change-Id: Ia6cf97e1748ca0c0e61c02841202050091365b0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361922
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    The risk with this change is we may make more syscalls than before on
+    systems with 64 MiB arenas, but because heap growth is relatively rare
+    this is unlikely to be a noticable issue. We also bound the amount of
+    syscalls made by only extending curArena (and thus mapping) by
+    pallocChunkPages*pageSize which is 4 MiB.
+    
+    Fixes #42612.
+    
+    Change-Id: I736df696afe78ddb1a747a896caa0db8726027e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270537
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types2/check.go           |  1 +
- src/cmd/compile/internal/types2/decl.go            | 57 ++++++++++++++++------
- .../types2/testdata/fixedbugs/issue45550.go2       |  4 +-
- .../types2/testdata/fixedbugs/issue46461.go2       |  6 +--
- .../types2/testdata/fixedbugs/issue47796.go2       | 14 +++---
- .../types2/testdata/fixedbugs/issue48529.go2       |  2 +-
- .../types2/testdata/fixedbugs/issue49439.go2       | 26 ++++++++++
- test/typeparam/issue46461.go                       |  4 +-
- test/typeparam/issue46461b.dir/a.go                |  2 +-
- test/typeparam/issue46461b.dir/b.go                |  4 +-
- test/typeparam/issue48280.dir/a.go                 |  2 +-
- test/typeparam/issue48306.dir/a.go                 |  2 +-
- 12 files changed, 91 insertions(+), 33 deletions(-)
+ src/runtime/export_test.go |  3 ---
+ src/runtime/malloc.go      | 30 +++++++++++++++++-------------
+ src/runtime/mheap.go       | 43 ++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 49 insertions(+), 27 deletions(-)

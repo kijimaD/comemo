@@ -1,21 +1,15 @@
-commit a877e81caa23035ec09b4a1b3ad5553617b41dae
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Dec 31 10:08:51 2014 +0900
+commit b30d2a856ad7805a35b1642a553effef545c8879
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 17 14:41:18 2014 +1100
 
-    net: don't return io.EOF on reading data from datagram, raw sockets on windows
+    bump go1.4rc1 tag
     
-    Preventing returning io.EOF on non-connection oriented sockets is
-    already applied to Unix variants. This CL applies it to Windows.
+    Now that the build and builders are fixed, we're good to go.
     
-    Update #4856.
-    
-    Change-Id: I82071d40f617e2962d0540b9d1d6a10ea4cdb2ec
-    Reviewed-on: https://go-review.googlesource.com/2203
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LGTM=dsymonds
+    R=rsc, dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/177900043
 
- src/net/fd_posix.go                           | 21 +++++++++++++++++++++
- src/net/{fd_unix_test.go => fd_posix_test.go} | 13 ++++++-------
- src/net/fd_unix.go                            | 13 +++----------
- src/net/fd_windows.go                         |  6 ++----
- 4 files changed, 32 insertions(+), 21 deletions(-)
+ .hgtags | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,27 +1,21 @@
-commit 0c5612092deb0a50c5a3d67babc1249049595558
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Mar 5 11:04:26 2024 -0500
+commit a3df6c0e81cd14aef0b4967721821d34b962b7be
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jan 10 15:14:46 2023 -0600
 
-    cmd/compile: rename cmd/compile/internal/pgo to cmd/compile/internal/pgoir
+    cmd/link/internal/ppc64: generate PCrel trampolines on P10
     
-    This helps reduce confusion with cmd/internal/pgo, which performs
-    compilation-independent analysis. pgoir associates that data with the
-    IR from the current package compilation.
+    PCrelative trampolines have no dependence on the TOC pointer or build
+    mode, thus they are preferable to use when supported.
     
-    For #58102.
+    This is a step towards eliminating the need to use and maintain the
+    TOC pointer in R2 when PCrel is supported.
     
-    Change-Id: I9ef1c8bc41db466d3340f41f6d071b95c09566de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569338
+    Change-Id: I1b1a7e16831cfd6732b31f7fad8df2a7c88c8f84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461599
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
 
- src/cmd/compile/internal/devirtualize/pgo.go       | 36 +++++++++++-----------
- src/cmd/compile/internal/devirtualize/pgo_test.go  |  2 +-
- src/cmd/compile/internal/gc/main.go                |  6 ++--
- src/cmd/compile/internal/inline/inl.go             |  2 +-
- .../inline/inlheur/analyze_func_callsites.go       |  4 +--
- src/cmd/compile/internal/inline/inlheur/scoring.go |  4 +--
- .../internal/inline/interleaved/interleaved.go     |  8 ++---
- src/cmd/compile/internal/noder/unified.go          |  4 +--
- src/cmd/compile/internal/{pgo => pgoir}/irgraph.go |  4 ++-
- 9 files changed, 36 insertions(+), 34 deletions(-)
+ src/cmd/link/internal/ppc64/asm.go | 29 ++++++++++++++++++++++-------
+ 1 file changed, 22 insertions(+), 7 deletions(-)

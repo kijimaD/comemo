@@ -1,22 +1,21 @@
-commit 682a1d2176b02337460aeede0ff9e49429525195
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Fri Jan 15 16:29:00 2021 +0100
+commit 364a05e2feab48611bb5e4f26f47a02b9b49a988
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 14 07:51:10 2020 -0700
 
-    runtime: detect errors in DuplicateHandle
+    cmd/compile: add test for issue 37246
     
-    These functions rely on DuplicateHandle succeeding, but they don't check
-    the return value, which might be masking subtle bugs that cause other
-    problems down the line.
+    CL 233857 fixed the underlying issue for #37246,
+    which had arisen again as #38916.
     
-    Updates #43720.
+    Add the test case from #37246 to ensure it stays fixed.
     
-    Change-Id: I77f0e6645affa534777ffc173144a52e4afa5f81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284135
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Fixes #37246
+    
+    Change-Id: If7fd75a096d2ce4364dc15509253c3882838161d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233941
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/runtime/os_windows.go | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ test/fixedbugs/issue37246.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

@@ -1,12 +1,13 @@
-commit fc3936380b4790cb19a17d40d5372bb65c1f70f0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 11 12:03:18 2012 -0500
+commit b979b192b25beab5d4f9666b0e4aa198fbb02bcc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 11 12:02:07 2012 -0500
 
-    syscall: let mkall.sh work on multiarch systems (like Precise)
+    A+C: Brian Ketelsen and Miquel Sabaté Solà (individual CLA × 2)
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6912063
+    https://golang.org/cl/6923051
 
- src/pkg/syscall/mkall.sh | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ AUTHORS      | 2 ++
+ CONTRIBUTORS | 3 ++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

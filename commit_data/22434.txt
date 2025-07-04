@@ -1,12 +1,12 @@
-commit 985461fd9ee121642fd30ae774d2b4d2b54606c2
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sat Apr 11 21:25:35 2015 +0300
+commit 6900a421a4fd1957dc63c5a7337a92e7ead4d62d
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Mar 15 17:32:20 2015 +1100
 
-    cmd/go: fix error message
+    sync/atomic: add support for openbsd/arm
     
-    Change-Id: I440435927fc9f417d81ed4e8656a73787bf0968a
-    Reviewed-on: https://go-review.googlesource.com/8801
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I45383de6d627be35f40e07a9008b6773f5c2b0d0
+    Reviewed-on: https://go-review.googlesource.com/7613
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/go/testflag.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/sync/atomic/asm_openbsd_arm.s | 100 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 100 insertions(+)

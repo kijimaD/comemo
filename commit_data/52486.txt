@@ -1,23 +1,79 @@
-commit e72cd86b360aa523ca7af552b7ad9d3e57b28e35
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Mar 31 19:03:42 2023 +0000
+commit 10d1189464dfd232265efc48a6b5bce56f72fe3c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Mar 25 16:50:31 2022 +0100
 
-    Revert "runtime: consolidate function descriptor definitions on PPC64"
+    crypto/elliptic: move P-256 amd64/arm64 assembly to nistec
     
-    This reverts CL 478917.
+    The goal of this CL is to move the implementation to the new interface
+    with the least amount of changes possible. A follow-up CL will add
+    documentation and cleanup the assembly API.
     
-    Reason for revert: need to revert CL 392854, and this caused a conflict.
+      * SetBytes does the element and point validity checks now, which were
+        previously implemented with big.Int.
     
-    Change-Id: I02c3285de5635b431a99adc8790c8310d1c4e6a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481059
+      * p256BaseMult would return (0:0:1) if the scalar was zero, which is
+        not a valid encoding of the point at infinity, but would get
+        flattened into (0,0) by p256PointToAffine. The rest of the code can
+        cope with any encoding with Z = 0, not just (t²:t³:0) with t != 0.
+    
+      * CombinedMult was only avoiding the big.Int and affine conversion
+        overhead, which is now gone when operating entirely on nistec types,
+        so it can be implemented entirely in the crypto/elliptic wrapper,
+        and will automatically benefit all NIST curves.
+    
+      * Scalar multiplication can't operate on arbitrarily sized scalars (it
+        was using big.Int to reduce them), which is fair enough. Changed the
+        nistec point interface to let ScalarMult and ScalarBaseMult reject
+        scalars. The crypto/elliptic wrapper still does the big.Int
+        reduction as needed.
+    
+    The ppc64le/s390x assembly is disabled but retained to make review of
+    the change that will re-enable it easier.
+    
+    Very small performance changes, which we will more then recoup when
+    crypto/ecdsa moves to invoking nistec directly.
+    
+    name                                  old time/op    new time/op    delta
+    pkg:crypto/elliptic goos:darwin goarch:arm64
+    ScalarBaseMult/P256-8                   11.3µs ± 0%    11.4µs ± 0%    +0.87%  (p=0.000 n=8+10)
+    ScalarMult/P256-8                       42.2µs ± 0%    42.2µs ± 0%      ~     (p=0.825 n=10+9)
+    MarshalUnmarshal/P256/Uncompressed-8     801ns ± 1%     334ns ± 0%   -58.29%  (p=0.000 n=9+10)
+    MarshalUnmarshal/P256/Compressed-8       798ns ± 0%     334ns ± 0%   -58.13%  (p=0.000 n=10+10)
+    pkg:crypto/ecdsa goos:darwin goarch:arm64
+    Sign/P256-8                             19.3µs ± 1%    19.4µs ± 0%    +0.81%  (p=0.003 n=8+9)
+    Verify/P256-8                           56.6µs ± 0%    56.3µs ± 1%    -0.48%  (p=0.003 n=7+10)
+    GenerateKey/P256-8                      11.9µs ± 0%    12.0µs ± 0%    +1.22%  (p=0.000 n=7+9)
+    
+    For #52182
+    
+    Change-Id: I0690a387e20018f38da55141c0d2659280b1a630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395775
+    Reviewed-by: Fernando Lobato Meeser <felobato@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/runtime/asm_ppc64x.h       | 20 ++------------------
- src/runtime/asm_ppc64x.s       | 21 ++++++++++++++++++---
- src/runtime/cgo/asm_ppc64x.s   | 25 +++++++++++++------------
- src/runtime/rt0_aix_ppc64.s    | 17 +++++++++++++----
- src/runtime/rt0_linux_ppc64.s  | 13 ++++++++++---
- src/runtime/sys_linux_ppc64x.s | 23 +++++++++++++++++------
- 6 files changed, 73 insertions(+), 46 deletions(-)
+ src/crypto/elliptic/elliptic.go                    |   2 +-
+ src/crypto/elliptic/elliptic_test.go               |  64 ++--
+ src/crypto/elliptic/export_generate.go             |  16 -
+ src/crypto/elliptic/gen_p256_table.go              |  73 -----
+ src/crypto/elliptic/internal/nistec/generate.go    |  17 +-
+ src/crypto/elliptic/internal/nistec/nistec_test.go |  58 +++-
+ src/crypto/elliptic/internal/nistec/p224.go        |  10 +-
+ src/crypto/elliptic/internal/nistec/p256.go        |  12 +-
+ .../elliptic/{ => internal/nistec}/p256_asm.go     | 337 +++++++++++++--------
+ .../{ => internal/nistec}/p256_asm_amd64.s         |   0
+ .../{ => internal/nistec}/p256_asm_arm64.s         |   0
+ .../{ => internal/nistec}/p256_asm_ppc64le.s       |   2 +
+ .../{ => internal/nistec}/p256_asm_s390x.s         |   2 +
+ .../{ => internal/nistec}/p256_asm_table.bin       | Bin
+ .../{ => internal/nistec}/p256_asm_table_test.go   |   2 +-
+ .../elliptic/{ => internal/nistec}/p256_ppc64le.go |   2 +-
+ .../elliptic/{ => internal/nistec}/p256_s390x.go   |   2 +-
+ src/crypto/elliptic/internal/nistec/p384.go        |  10 +-
+ src/crypto/elliptic/internal/nistec/p521.go        |  10 +-
+ src/crypto/elliptic/nistec.go                      |  88 ++++--
+ src/crypto/elliptic/nistec_p256.go                 |  29 ++
+ src/crypto/elliptic/params.go                      |  14 +-
+ src/go/build/deps_test.go                          |   2 +-
+ 23 files changed, 459 insertions(+), 293 deletions(-)

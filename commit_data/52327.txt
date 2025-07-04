@@ -1,28 +1,14 @@
-commit 2449bbb5e614954ce9e99c8a481ea2ee73d72d61
-Author: Shang Ding <shangjian.ding@gmail.com>
-Date:   Wed Feb 15 21:04:33 2023 -0600
+commit e35763469a5a800b7140a632f020bf2659b53e94
+Author: Hana <hyangah@gmail.com>
+Date:   Tue Apr 26 09:26:50 2022 -0400
 
-    net/http/httputil: use response controller in reverse proxy
+    README.md: update wiki link
     
-    Previously, the reverse proxy is unable to detect
-    the support for hijack or flush if those things
-    are residing in the response writer in a wrapped
-    manner.
-    
-    The reverse proxy now makes use of the new http
-    response controller as the means to discover
-    the underlying flusher and hijacker associated
-    with the response writer, allowing wrapped flusher
-    and hijacker become discoverable.
-    
-    Change-Id: I53acbb12315c3897be068e8c00598ef42fc74649
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468755
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I307c3524f2031e2a3e7ada6e86c73e278481de6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402179
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 61 ++++++++++++++----------------
- src/net/http/httputil/reverseproxy_test.go | 56 +++++++++++++++++++++++++++
- 2 files changed, 84 insertions(+), 33 deletions(-)
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

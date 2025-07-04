@@ -1,12 +1,16 @@
-commit 6c8447d429811b5b6659836739272f4e7366cf60
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 4 13:14:09 2012 -0700
+commit 4d724f4c5b31d13f55017266db6e6cc8bd08f541
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat May 5 02:02:36 2012 +0800
 
-    test: add bug438, a valid test case that gccgo used to fail to compile
+    sync/atomic: fix 64-bit atomic cas for Linux/ARM
+        This is a follow-up to CL 5978051.
+        Use kernel cas64 helper if we can, fallback to LDREXD/STREXD if
+        we are on ARMv6 or higher, and to lock-emulated cas64 if on ARMv5.
+        A future CL will fix {Add,Load,Store}{Int,Uint}64 and issue 3331.
     
-    R=golang-dev, rsc
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6196047
+    https://golang.org/cl/6034048
 
- test/fixedbugs/bug438.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/pkg/sync/atomic/asm_linux_arm.s | 61 +++++++++++++++++++++++++++++++++----
+ 1 file changed, 55 insertions(+), 6 deletions(-)

@@ -1,21 +1,29 @@
-commit d350a6653252fe1f698ac00be99964fa31d06e89
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 26 16:57:06 2021 -0700
+commit 2f5b1a397454b76ad71e7eda5d574c304a416372
+Author: Daniel S Fava <danielsfava@gmail.com>
+Date:   Wed Dec 9 23:56:50 2020 +0100
 
-    cmd/compile: eagerly CalcStructSize for synthetic ABI types
+    test: make a race detector test robust to timing variations
     
-    The next CL is going to replace Type.Width with Type.Size(), but
-    Type.Size() isn't safe to call concurrently. So this CL calls
-    CalcStructSize, which *is* allowed to be used concurrently, but then
-    it's the caller's responsibility to ensure it's called right after
-    NewStruct.
+    The `external_cgo_thread` test in `runtime/race/output_test.go` was
+    producing intermittent failures.  The test was performing a sleep,
+    which may not be enough depending on how long it takes to setup the
+    callBack goroutine.
     
-    Change-Id: If9cd81650ccb3a867b4449af757375fa56227901
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345483
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Added a synchronization to make sure callBack finishes before main ends.
+    
+    Whether the increment to racy++ happens first in the callBack
+    or in main doesn't matter: the race detector should flag the race
+    regardless.  The output check was changed so that the test passes
+    regardless of which increment occurs first.
+    
+    Fixes #43008
+    
+    Change-Id: I325ec3dea52b3725e739fbf2bd7ae92875d2de10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276752
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/race/output_test.go | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)

@@ -1,15 +1,16 @@
-commit 3b38626f7d5c9b85e3acb2601e34324879438fae
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue May 12 23:11:28 2015 +0900
+commit c5befcf0a76b930d525eaf1b09405bd058711012
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Apr 17 16:42:16 2015 -0400
 
-    net: don't run IP stack required tests on IP stack unimplemented kernels
+    misc/cgo/testcarchive: check that os.Args is set
     
-    Fixes #10787.
-    
-    Change-Id: I35c96808a713dafb1f0fea301fa3f3528fe6a5bf
-    Reviewed-on: https://go-review.googlesource.com/9948
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I4278abca9d2a8f25149fa8935a93d32e7d04a43a
+    Reviewed-on: https://go-review.googlesource.com/9050
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/main_test.go     |  4 ++--
- src/net/platform_test.go | 13 ++++++++++++-
- 2 files changed, 14 insertions(+), 3 deletions(-)
+ misc/cgo/testcarchive/main.c             |  3 +++
+ misc/cgo/testcarchive/src/libgo/libgo.go | 15 ++++++++++++++-
+ misc/cgo/testcarchive/test.bash          |  4 ++--
+ 3 files changed, 19 insertions(+), 3 deletions(-)

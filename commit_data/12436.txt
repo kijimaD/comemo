@@ -1,14 +1,17 @@
-commit 502e29f485c2a3ed5691601a689911199fd5aef0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 6 17:44:47 2012 -0800
+commit 26dc17ce78f331852fb52c9a1f15aebe4e1155ad
+Author: Johan Euphrosine <proppy@google.com>
+Date:   Wed Mar 7 11:24:00 2012 +1100
 
-    database/sql: add docs about connection state, pooling
+    doc: fix typos in laws_of_reflection article, add copyright notice.
     
-    Fixes #3223
+    Update #2547.
     
-    R=golang-dev, r
+    R=golang-dev, minux.ma, r, r, adg
     CC=golang-dev
-    https://golang.org/cl/5755063
+    https://golang.org/cl/5755051
 
- src/pkg/database/sql/sql.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ doc/articles/laws_of_reflection.html | 19 ++++++++-----------
+ doc/articles/laws_of_reflection.tmpl | 14 +++++++-------
+ doc/progs/interface.go               |  6 ++++++
+ doc/progs/interface2.go              | 13 +++++++++++++
+ 4 files changed, 34 insertions(+), 18 deletions(-)

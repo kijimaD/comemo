@@ -1,14 +1,30 @@
-commit 7989119d1765955319141003ae21c8ff36f80bfb
-Author: Aurélien Rainone <aurelien.rainone@gmail.com>
-Date:   Tue Oct 23 16:56:41 2018 +0200
+commit 11f1fab4dfe59f09f322b6493a2b9c5d0ae99bfa
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Dec 13 09:56:04 2017 +0900
 
-    path/filepath: add example for Match
+    go/doc: make examples that depend on top-level decls playable
     
-    Change-Id: Id2df4895a95904a607e54dd9810bfe97f5e12a73
-    Reviewed-on: https://go-review.googlesource.com/c/144105
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Currently, the following example cannot run in playground:
+    
+        func a() {
+            fmt.Println("A")
+        }
+    
+        func ExampleA() {
+            a()
+        }
+    
+    This CL solves it.
+    
+    Fixes #23095
+    
+    Change-Id: I5a492ff886a743f20cb4ae646e8453bde9c5f0da
+    Reviewed-on: https://go-review.googlesource.com/83615
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/path/filepath/example_unix_test.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/go/doc/example.go      | 122 ++++++++++++++++++++++++++++++++++-----------
+ src/go/doc/example_test.go | 114 +++++++++++++++++++++++++++++++++++++++++-
+ src/go/doc/reader.go       |   2 +
+ 3 files changed, 206 insertions(+), 32 deletions(-)

@@ -1,22 +1,14 @@
-commit 0bfece06d7e19b3caba6f1ee0a202e0c90fda23b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Nov 18 15:31:26 2012 +1100
+commit 2ae61d557aec846b9b7970022aaa0c28f17546de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 17 11:16:07 2012 -0800
 
-    net: remove unused nil check
+    spec: fix constant expression example
     
-    This is part 1 of a series of proposals to fix issue 4369.
+    Fixes #4400.
     
-    In resolving issue 3507 it was decided not to nil out the inner conn.fd field to avoid a race. This implies the checks for fd == nil inside incref/decref are never true.
-    
-    Removing this logic removes one source of errClosing error values, which affects issue 4373 and moves towards bradfitz's request that fd.accept() return io.EOF when closed concurrently.
-    
-    Update #4369.
-    Update #4373.
-    
-    R=mikioh.mikioh, bradfitz, dvyukov, rsc
+    R=r, mirtchovski
     CC=golang-dev
-    https://golang.org/cl/6852057
+    https://golang.org/cl/6782084
 
- src/pkg/net/fd_unix.go        | 6 ------
- src/pkg/net/unixsock_posix.go | 4 +---
- 2 files changed, 1 insertion(+), 9 deletions(-)
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

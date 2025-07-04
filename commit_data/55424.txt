@@ -1,50 +1,19 @@
-commit b4e7d630bc6fbf654a20a4bebda94a8150811bea
-Author: Mark Ryan <markdryan@rivosinc.com>
-Date:   Tue Nov 7 10:09:49 2023 +0100
+commit ea3054aecc3d66409fcf1b404b58bc4767599dfa
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 28 10:20:25 2022 +0700
 
-    cmd/go: add GORISCV64 environment variable
+    cmd/compile: factor out code to generate equal func
     
-    The variable represents the RISC-V user-mode application profile for
-    which to compile.  Valid values are rva20u64 (the default) and
-    rva22u64.
+    So next CL can use it for generating equal func during walk compare.
     
-    Setting GORISCV64=rva20u64 defines the riscv64.rva20u64 build tag,
-    sets the internal variable buildcfg.GORISCV64 to 20 and defines the
-    macro GORISCV64_rva20u64 for use in assembly language code.
+    Passes toolstash-check.
     
-    Setting GORISCV64=rva22u64 defines the riscv64.rva20u64 and
-    riscv64.rva22u64 build tags, sets the internal variable
-    buildcfg.GORISCV64 to 22 and defines the macro GORISCV64_rva22u64
-    for use in assembly language code.
-    
-    This patch only provides a mechanism for the compiler and hand-coded
-    assembly language functions to take advantage of the RISC-V
-    extensions mandated by the application profiles.  Further patches
-    will be required to get the compiler/assembler and assembly language
-    functions to actually generate and use these extensions.
-    
-    Fixes #61476
-    
-    Change-Id: I9195ae6ee71703cd2112160e89157ab63b8391af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541135
-    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Wang Yaduo <wangyaduo@linux.alibaba.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: M Zhuo <mengzhuo1203@gmail.com>
+    Change-Id: I76545c1d471eb496be352908db1b05feae83fc33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436435
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/build.go                    | 15 ++++++++++
- src/cmd/dist/buildruntime.go             |  1 +
- src/cmd/go/alldocs.go                    |  9 +++++-
- src/cmd/go/internal/cfg/cfg.go           | 17 ++++++-----
- src/cmd/go/internal/help/helpdoc.go      |  9 +++++-
- src/cmd/go/internal/work/gc.go           |  5 ++++
- src/cmd/go/testdata/script/tooltags.txt  | 20 +++++++++++++
- src/cmd/internal/testdir/testdir_test.go |  2 +-
- src/internal/buildcfg/cfg.go             | 49 +++++++++++++++++++++++---------
- src/internal/buildcfg/cfg_test.go        | 14 +++++++++
- src/internal/cfg/cfg.go                  |  1 +
- 11 files changed, 119 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/reflectdata/alg.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

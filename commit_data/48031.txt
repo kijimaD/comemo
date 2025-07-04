@@ -1,28 +1,20 @@
-commit 2e30c4b4bb7c4426ebc27e8af6d0570dbd97054b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 27 10:28:46 2022 -0800
+commit 74059685fda0b60d539450ad6b7331ade838e90c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 22 12:42:33 2021 -0700
 
-    go/types, types2: better error reporting for Checker.implements
+    go/types: suppress index-out-of-bounds error on Unknown constants
     
-    This CL copies (and adjusts as needed) the logic for error reporting
-    from operand.assignableTo to Checker.implements in the case of a missing
-    method failure and assignment to an interface pointer.
+    Follow up to CL 312591, which was stumping rfindley and I for a
+    while. Credit to him for figuring out a repro and explaining the
+    correct solution.
     
-    Preparation for using Checker.implements in operand.assignableTo
-    rather than implementing the same logic twice.
-    
-    This also leads to better errors from Checker.implements as it's
-    using the same logic we already use elsewhere.
-    
-    For #50646.
-    
-    Change-Id: I199a1e02cf328b222ae52c10131db871539863bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381434
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: Ib8578bba05f60fc41d382c34c5266d815441e7a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312790
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/instantiate.go     | 32 ++++++++++++-------
- .../internal/types2/testdata/check/issues.go2      |  2 +-
- src/go/types/instantiate.go                        | 37 ++++++++++++++--------
- src/go/types/testdata/check/issues.go2             |  2 +-
- 4 files changed, 46 insertions(+), 27 deletions(-)
+ src/go/types/expr.go            | 11 ++++++++---
+ src/go/types/testdata/expr3.src |  1 +
+ 2 files changed, 9 insertions(+), 3 deletions(-)

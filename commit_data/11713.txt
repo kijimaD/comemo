@@ -1,17 +1,12 @@
-commit d37a8b73c504c232084666b292f20debb397bd27
-Author: Paul Borman <borman@google.com>
-Date:   Wed Feb 8 14:39:16 2012 -0500
+commit 1127b229763811c5e90d4d96b2c9f150e816df1d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 8 14:36:38 2012 -0500
 
-    runtime: drop to 32 bit malloc if 64 bit will not work
+    cmd/dist: pass correct -DGOARCH_$GOARCH flag to gcc.
     
-    On 64 bit UML it is not possible to reserve memory at 0xF8<<32.
-    Detect when linux cannot use these high virtual memory addresses
-    and drop back to the 32 bit memory allocator.
-    
-    R=rsc, cw
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5634050
+    https://golang.org/cl/5643061
 
- src/pkg/runtime/malloc.goc  | 11 ++++++-----
- src/pkg/runtime/mem_linux.c | 15 ++++++++++++---
- 2 files changed, 18 insertions(+), 8 deletions(-)
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

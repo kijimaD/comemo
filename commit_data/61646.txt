@@ -1,0 +1,25 @@
+commit e75e5246a97b696ab60208b6dfe1318a92e5e659
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Jul 27 13:58:25 2024 +0200
+
+    crypto/internal/nistec: drop endianness swap assembly
+    
+    It has negligible performance impact now that we have compiler
+    intrinsics, and removing it helps slightly narrow the gap between
+    the assembly and Go implementations.
+    
+    Change-Id: Ia02807a973b567952c659bb4868632a73ff3c143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627939
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .../nistec/_asm/{p256_asm_amd64.go => p256_asm.go} | 82 +---------------------
+ src/crypto/internal/nistec/p256_asm.go             | 42 +++++++----
+ src/crypto/internal/nistec/p256_asm_amd64.s        | 32 +--------
+ src/crypto/internal/nistec/p256_asm_arm64.s        | 29 --------
+ src/crypto/internal/nistec/p256_asm_ppc64le.s      | 44 ------------
+ src/crypto/internal/nistec/p256_asm_s390x.s        | 38 ----------
+ 6 files changed, 32 insertions(+), 235 deletions(-)

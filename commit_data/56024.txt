@@ -1,23 +1,34 @@
-commit a6ecdf29e34ddc82b6ed2315aaedf4c4d522b96c
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Dec 9 19:18:00 2023 +1100
+commit 3c010f2c2182a12f28ad86c5e1ff984f1f2d880a
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 16 16:56:12 2023 -0700
 
-    cmd/internal/obj/riscv: improve register MOVB/MOVH/MOVBU/MOVHU for rva22u64
+    net/textproto, mime/multipart: improve accounting of non-file data
     
-    When GORISCV64 enables rva22u64, use SEXTB for MOVB, SEXTH for MOVH, ZEXTH
-    for MOVHU and ADDUW for MOVWU. These are single instruction alternatives
-    to the two instruction shift sequences that are needed otherwise.
+    For requests containing large numbers of small parts,
+    memory consumption of a parsed form could be about 250%
+    over the estimated size.
     
-    Change-Id: Iea5e394f57e238ae8771400a87287c1ee507d44c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572736
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    When considering the size of parsed forms, account for the size of
+    FileHeader structs and increase the estimate of memory consumed by
+    map entries.
+    
+    Thanks to Jakob Ackermann (@das7pad) for reporting this issue.
+    
+    For CVE-2023-24536
+    For #59153
+    
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1802454
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Change-Id: I9620758495ed77c09ca6dc5db4b723c29f3baad8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482076
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s |  8 ++---
- src/cmd/internal/obj/riscv/obj.go           | 49 +++++++++++++++++++----------
- 2 files changed, 37 insertions(+), 20 deletions(-)
+ src/mime/multipart/formdata.go      |  9 ++++--
+ src/mime/multipart/formdata_test.go | 55 ++++++++++++++++---------------------
+ src/net/textproto/reader.go         |  8 +++++-
+ 3 files changed, 37 insertions(+), 35 deletions(-)

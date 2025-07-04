@@ -1,20 +1,34 @@
-commit 29eb7d18ed71c057bbdb69d85953a32252f0ea73
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Jul 16 13:14:56 2015 -0400
+commit 306f8f11ad18452b61a8ba08aeaa488e48c3b40d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 5 14:49:27 2015 -0400
 
-    crypto/x509: iOS build tag
+    runtime: unwind stack barriers when writing above the current frame
     
-    The iOS simulator compiles with GOOS=darwin GOARCH=386, and x509
-    sets the inappropriate flag -mmacosx-version-min=10.6. Condition
-    its compilation on the absence of an "ios" build tag.
+    Stack barriers assume that writes through pointers to frames above the
+    current frame will get write barriers, and hence these frames do not
+    need to be re-scanned to pick up these changes. For normal writes,
+    this is true. However, there are places in the runtime that use
+    typedmemmove to potentially write through pointers to higher frames
+    (such as mapassign1). Currently, typedmemmove does not execute write
+    barriers if the destination is on the stack. If there's a stack
+    barrier between the current frame and the frame being modified with
+    typedmemmove, and the stack barrier is not otherwise hit, it's
+    possible that the garbage collector will never see the updated pointer
+    and incorrectly reclaim the object.
     
-    Fixes #11736.
+    Fix this by making heapBitsBulkBarrier (which lies behind typedmemmove
+    and its variants) detect when the destination is in the stack and
+    unwind stack barriers up to the point, forcing mark termination to
+    later rescan the effected frame and collect these pointers.
     
-    Change-Id: I4aa230643347320c3cb9d03b972734b2e0db930e
-    Reviewed-on: https://go-review.googlesource.com/12301
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #11084. Might be related to #10240, #10541, #10941, #11023,
+     #11027 and possibly others.
+    
+    Change-Id: I323d6cd0f1d29fa01f8fc946f4b90e04ef210efd
+    Reviewed-on: https://go-review.googlesource.com/10791
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/x509/root_cgo_darwin.go  | 2 +-
- src/crypto/x509/root_darwin_armx.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mbitmap.go | 29 ++++++++++++++++++++++++++++-
+ src/runtime/mgcmark.go | 18 ++++++++++++++----
+ src/runtime/panic1.go  |  2 +-
+ 3 files changed, 43 insertions(+), 6 deletions(-)

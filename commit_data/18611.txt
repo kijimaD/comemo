@@ -1,13 +1,21 @@
-commit b5705ed9ab26d69cb32d484289efc5f1cbc50144
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 24 20:23:35 2014 +0400
+commit dd740343e0dec4f998575a49b6a90b14db6b8749
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Feb 24 11:09:19 2014 -0500
 
-    net/rpc: use RunParallel in benchmarks
+    runtime: stack allocate Panic structure during runtime.panic
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Update #7347
+    
+    When runtime.panic is called the *Panic is malloced from the heap. This can lead to a gc cycle while panicing which can make a bad situation worse.
+    
+    It appears to be possible to stack allocate the Panic and avoid malloc'ing during a panic.
+    
+    Ref: https://groups.google.com/d/topic/golang-dev/OfxqpklGkh0/discussion
+    
+    LGTM=minux.ma, dvyukov, rsc
+    R=r, minux.ma, gobot, rsc, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/68040044
+    https://golang.org/cl/66830043
 
- src/pkg/net/rpc/server_test.go | 38 ++++++++++++++------------------------
- 1 file changed, 14 insertions(+), 24 deletions(-)
+ src/pkg/runtime/panic.c | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

@@ -1,18 +1,35 @@
-commit 84b96c21bf226e80e46d5c22c5e42815bb392af3
-Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 24 13:33:14 2018 +1100
+commit 7254cfc37b3a93a6e83dae22c4bfd6f777edb97e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 6 13:15:01 2018 -0700
 
-    cmd/doc: allow -all to apply to individual items
+    cmd/go: revert "output coverage report even if there are no test files"
     
-    It really only matters for types, and the code already worked but was
-    blocked by a usage check.
+    Original CL description:
     
-    Fixes #25595
+        When using test -cover or -coverprofile the output for "no test files"
+        is the same format as for "no tests to run".
     
-    Change-Id: I823f313b682b37616ea555aee079e2fe39f914c2
-    Reviewed-on: https://go-review.googlesource.com/c/144357
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reverting because this CL changed cmd/go to build test binaries for
+    packages that have no tests, leading to extra work and confusion.
+    
+    Updates #24570
+    Fixes #25789
+    Fixes #26157
+    Fixes #26242
+    
+    Change-Id: Ibab1307d39dfaec0de9359d6d96706e3910c8efd
+    Reviewed-on: https://go-review.googlesource.com/122518
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/doc/doc_test.go | 20 ++++++++++++++++++++
- src/cmd/doc/main.go     |  5 +----
- 2 files changed, 21 insertions(+), 4 deletions(-)
+ src/cmd/go/go_test.go                        | 37 ----------------------------
+ src/cmd/go/internal/load/test.go             |  3 +++
+ src/cmd/go/internal/test/test.go             | 28 ++++++++++++++++-----
+ src/cmd/go/testdata/testcover/pkg1/a.go      |  7 ------
+ src/cmd/go/testdata/testcover/pkg2/a.go      |  7 ------
+ src/cmd/go/testdata/testcover/pkg2/a_test.go |  1 -
+ src/cmd/go/testdata/testcover/pkg3/a.go      |  7 ------
+ src/cmd/go/testdata/testcover/pkg3/a_test.go |  7 ------
+ src/cmd/internal/test2json/test2json.go      |  4 +--
+ 9 files changed, 27 insertions(+), 74 deletions(-)

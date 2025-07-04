@@ -1,16 +1,15 @@
-commit f35bc3ee87e1771891e2087363381bda616e67ee
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jul 22 12:33:21 2015 -0700
+commit 0ad9c8c720324b6c4e483ac7fe0e20f36274e2eb
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jun 12 16:24:33 2015 -0700
 
-    math/big: document rounding for Rat.FloatToString
+    [dev.ssa] cmd/compile/internal/gc: Small fixes
     
-    Fixes #11523.
+    Allow labels to be unreachable via fallthrough from above.
+    Implement OCONVNOP.
     
-    Change-Id: I172f6facd555a1c6db76f25d5097343c20dea59a
-    Reviewed-on: https://go-review.googlesource.com/12507
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6869993cad8a27ad134dd637de89a40117daf47b
+    Reviewed-on: https://go-review.googlesource.com/11001
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
 
- src/math/big/ratconv.go      | 3 ++-
- src/math/big/ratconv_test.go | 2 ++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,17 +1,24 @@
-commit 45c0a7f27ea5e3556009764939aa8a491a8d1045
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 12 13:16:44 2023 -0700
+commit 19156a54741d4f353c9e8e0860197ca95a6ee6ca
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat May 14 16:15:26 2022 +0700
 
-    go/types, types2: factor out inference cycle detector (cleanup)
+    cmd/compile: fix inlining function has shape in type
     
-    Change-Id: If3c6724497dfbe8611ffffb4735e47ddc53a742c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484158
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    CL 395854 made inline pass to not inlining function with shape params,
+    but pass no shape arguments. But it does not consider the case where
+    function has shape params, but passing zero arguments. In this case, the
+    un-safe interface conversion that may be applied to a shape argument can
+    not happen, so it's safe to inline the function.
+    
+    Fixes #52907
+    
+    Change-Id: Ifa7b23709bb47b97e27dc1bf32343d92683ef783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406176
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types2/infer.go | 27 +++++++++++++++++++--------
- src/go/types/infer.go                    | 27 +++++++++++++++++++--------
- 2 files changed, 38 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/inline/inl.go |  4 ++--
+ test/fixedbugs/issue52907.go           | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

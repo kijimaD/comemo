@@ -1,25 +1,15 @@
-commit 50effb654cf3bf7fdfb49898e765db444dfd619a
-Author: Christopher Wedgwood <cw@f00f.org>
-Date:   Tue May 31 11:40:11 2011 -0400
+commit 91cc1e6b778880e7a8f85d057a51fbb0cd23d7c8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 31 10:38:51 2011 -0400
 
-    net: name-based destination address selection
+    runtime: reset GOMAXPROCS during tests
     
-    getaddrinfo() orders the addresses according to RFC 3484.
+    Fix the fact that the test leaves GOMAXPROCS=3
+    and a running goroutine behind.
     
-    This means when IPv6 is working on a host we get results like:
-        []string = {"2001:4810::110", "66.117.47.214"}
-    
-    and when it's not working we get:
-        []string = {"66.117.47.214", "2001:4810::110"}
-    
-    thus can drop firstFavoriteAddr.
-    
-    This also means /etc/gai.conf works on relevant systems.
-    
-    R=rsc, mikioh.mikioh
-    CC=golang-dev
-    https://golang.org/cl/4557058
+    R=golang-dev, rsc
+    CC=dvyukov, golang-dev
+    https://golang.org/cl/4517121
 
- src/pkg/net/iprawsock.go |  2 +-
- src/pkg/net/ipsock.go    | 19 +------------------
- 2 files changed, 2 insertions(+), 19 deletions(-)
+ src/pkg/runtime/proc_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

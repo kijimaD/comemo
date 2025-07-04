@@ -1,25 +1,30 @@
-commit 5114a7daa2f128d2de82cddb29a076d2a8e4def8
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Feb 13 22:11:20 2018 +0100
+commit 3b8a031569f5f209e97c6a815fcf24a2c4c05e65
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Sep 18 11:55:18 2017 +0100
 
-    runtime/trace: fix TestTraceSymbolize when GOMAXPROCS=1
+    crypto/elliptic: fix incomplete addition used in CombinedMult on s390x
     
-    CL 92916 added the GOMAXPROCS test in TestTraceSymbolize.
+    This applies the amd64-specific changes from CL 42611 to the s390x P256
+    implementation. The s390x implementation was disabled in CL 62292 and
+    this CL re-enables it.
     
-    This test only succeeds when the value of GOMAXPROCS changes.
+    Adam Langley's commit message from CL 42611:
     
-    Since the test calls runtime.GOMAXPROCS(1), it will fails
-    on machines where GOMAXPROCS=1.
+    The optimised P-256 includes a CombinedMult function, which doesn't do
+    dual-scalar multiplication, but does avoid an affine conversion for
+    ECDSA verification.
     
-    This change fixes the test by calling runtime.GOMAXPROCS(oldGoMaxProcs+1).
+    However, it currently uses an assembly point addition function that
+    doesn't handle exceptional cases.
     
-    Fixes #23816.
+    Fixes #20215.
     
-    Change-Id: I1183dbbd7db6077cbd7fa0754032ff32793b2195
-    Reviewed-on: https://go-review.googlesource.com/93735
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I2f6b532f495e85b8903475b4f64cc32a3b2f6769
+    Reviewed-on: https://go-review.googlesource.com/64290
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/trace/trace_stack_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/crypto/elliptic/p256_asm_s390x.s | 41 ++++++++++++++++++++++++++++++++----
+ src/crypto/elliptic/p256_s390x.go    | 34 +++++++++++++++++++++++-------
+ 2 files changed, 63 insertions(+), 12 deletions(-)

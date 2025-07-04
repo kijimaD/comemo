@@ -1,19 +1,25 @@
-commit ba01453bbed831f143d3005abc85fd6baec36da5
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Mar 19 09:57:36 2025 +0100
+commit a3c35430fc0a67b5c8af6d57d21e2881929076ac
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Feb 16 14:32:27 2024 +0800
 
-    cmd/link/internal/ld: change pe64 from int to bool
+    runtime/internal/syscall: merge duplicate constants
     
-    pe64 should be a bool, not a int. Probable a leftover from the
-    previous C implementation.
-    
-    While here, us pe64 in more places.
-    
-    Change-Id: Ie9871b39b64a7b9d317cb0700cb77a19ee23838d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659115
+    Change-Id: Ifdc6e22d52317cdb90a607ac4d72437d4d6b33e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564716
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/link/internal/ld/pe.go | 38 +++++++++++++++++---------------------
- 1 file changed, 17 insertions(+), 21 deletions(-)
+ src/runtime/internal/syscall/defs_linux.go         | 12 +++++++++++-
+ src/runtime/internal/syscall/defs_linux_386.go     | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_amd64.go   | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_arm.go     | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_arm64.go   | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_loong64.go | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_mips64x.go | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_mipsx.go   | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_ppc64x.go  | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_riscv64.go | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_s390x.go   | 12 +-----------
+ 11 files changed, 21 insertions(+), 111 deletions(-)

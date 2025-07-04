@@ -1,38 +1,25 @@
-commit 0271d41ed63cacd1d79716161d0797790e930dfa
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 8 13:26:04 2019 -0500
+commit 6c631ae227cb6f15d5b0b8cc39c1715b8f4e9187
+Author: Denys Smirnov <denis.smirnov.91@gmail.com>
+Date:   Fri Oct 19 19:04:29 2018 +0000
 
-    internal/testenv: remove SetModVendor
+    cmd/compile: in wasm, allocate approximately right number of locals for functions
     
-    It turns out not to be necessary. Russ expressed a preference for
-    avoiding module fetches over making 'go mod tidy' work within std and
-    cmd right away, so for now we will make the loader use the vendor
-    directory for the standard library even if '-mod=vendor' is not set
-    explicitly.
+    Currently, WASM binary writer requests 16 int registers (locals) and
+    16 float registers for every function regardless of how many locals the
+    function uses.
     
-    Updates #30228
+    This change counts the number of used registers and requests a number
+    of locals matching the highest register index. The change has no effect
+    on performance and neglectable binary size improvement, but it makes
+    WASM code more readable and easy to analyze.
     
-    Change-Id: Idf7208e63da8cb7bfe281b93ec21b61d40334947
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166357
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic1079623c0d632b215c68482db909fa440892700
+    GitHub-Last-Rev: 184634fa918aff74e280904dc2efafcc80735a8b
+    GitHub-Pull-Request: golang/go#28116
+    Reviewed-on: https://go-review.googlesource.com/c/140999
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/addr2line/addr2line_test.go             |  2 --
- src/cmd/compile/internal/gc/scope_test.go       |  2 --
- src/cmd/cover/cover_test.go                     |  2 --
- src/cmd/internal/obj/x86/obj6_test.go           |  2 --
- src/cmd/link/internal/ld/ld_test.go             |  2 --
- src/cmd/link/link_test.go                       |  2 --
- src/cmd/nm/nm_test.go                           |  2 --
- src/cmd/objdump/objdump_test.go                 |  1 -
- src/cmd/vet/all/main.go                         |  1 -
- src/cmd/vet/vet_test.go                         |  2 --
- src/crypto/x509/x509_test.go                    |  2 --
- src/debug/gosym/pclntab_test.go                 |  2 --
- src/go/importer/importer_test.go                |  2 --
- src/go/internal/srcimporter/srcimporter_test.go |  2 --
- src/internal/testenv/testenv.go                 | 26 -------------------------
- src/runtime/crash_test.go                       |  2 --
- src/runtime/pprof/proto_test.go                 |  2 --
- 17 files changed, 56 deletions(-)
+ src/cmd/internal/obj/wasm/wasmobj.go | 73 +++++++++++++++++++++++++++++++-----
+ 1 file changed, 63 insertions(+), 10 deletions(-)

@@ -1,27 +1,16 @@
-commit 556fb16bbda6c9312d8862cfce2d0c03e5ce0426
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue Jun 13 11:07:34 2017 +0000
+commit c195deb48cf09970c6bb77fad96926e0af102dcf
+Author: Wei Xiao <Wei.Xiao@arm.com>
+Date:   Thu Aug 24 18:24:36 2017 +0800
 
-    cmd/internal/obj/arm64: fix assemble msr/mrs bug
+    cmd/internal/objfile: add arm64 disassembler support
     
-    The arguments <pstatefield> is a struct that includes two elements,
-    element reg is special register, elememt enc is pstate field values.
-    The current code compares two different type values and get a incorrect
-    result.
+    Fixes #19157
     
-    The fix follows pstate field to create a systemreg struct,
-    each system register has a vaule to use in instruction.
-    
-    Uncomment the msr/mrs cases.
-    
-    Fixes #21464
-    
-    Change-Id: I1bb1587ec8548f3e4bd8d5be4d7127bd10d53186
-    Reviewed-on: https://go-review.googlesource.com/56030
+    Change-Id: Ieea286e8dc03929c3645f3113c33df569f8e26f3
+    Reviewed-on: https://go-review.googlesource.com/58930
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64enc.s | 10 +++---
- src/cmd/internal/obj/arm64/asm7.go           | 48 ++++++++++++++++++++++------
- 2 files changed, 43 insertions(+), 15 deletions(-)
+ src/cmd/internal/objfile/disasm.go | 14 ++++++++++++++
+ src/cmd/internal/objfile/elf.go    |  2 ++
+ src/cmd/objdump/objdump_test.go    |  8 --------
+ 3 files changed, 16 insertions(+), 8 deletions(-)

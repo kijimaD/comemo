@@ -1,14 +1,27 @@
-commit 35710eecd64097598ba33166692fba54078d6b34
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 15 13:12:32 2014 -0800
+commit fdbf3d901b3c6c91ba0e5efe496f1518b53fd885
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 15 09:13:52 2014 -0800
 
-    net/http: add disabled test for Body Read/Close lock granularity
+    cmd/pack: rewrite in Go
+    Replace the pack command, a C program, with a clean reimplementation in Go.
+    It does not need to reproduce the full feature set and it is no longer used by
+    the build chain, but has a role in looking inside archives created by the build
+    chain directly.
     
-    Update #7121
+    Since it's not in C, it is no longer build by dist, so remove it from cmd/dist and
+    make it a "tool" in cmd/go terminology.
     
-    R=golang-codereviews, gobot, dsymonds
+    Fixes #2705
+    
+    R=rsc, dave, minux.ma, josharian
     CC=golang-codereviews
-    https://golang.org/cl/51750044
+    https://golang.org/cl/52310044
 
- src/pkg/net/http/serve_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 51 insertions(+)
+ src/cmd/dist/build.c      |    2 -
+ src/cmd/go/pkg.go         |    1 +
+ src/cmd/pack/Makefile     |    5 -
+ src/cmd/pack/ar.c         | 1589 ---------------------------------------------
+ src/cmd/pack/doc.go       |   39 +-
+ src/cmd/pack/pack.go      |  397 +++++++++++
+ src/cmd/pack/pack_test.go |  252 +++++++
+ 7 files changed, 673 insertions(+), 1612 deletions(-)

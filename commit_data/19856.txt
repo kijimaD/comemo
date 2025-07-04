@@ -1,22 +1,15 @@
-commit cc9ec52d739ec3c9f2a3e9bfdcc98643bee61cca
+commit 1e0b37890559538efbde6e1fb013b8b676db7d17
 Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 31 12:43:40 2014 -0700
+Date:   Thu Jul 31 09:32:09 2014 -0700
 
-    runtime: convert slice operations to Go.
+    runtime: use right mask to extract type kind
     
-    LGTM=bradfitz, dvyukov
-    R=golang-codereviews, bradfitz, dvyukov
+    Cleanup from recent malloc changes.
+    
+    LGTM=dvyukov
+    R=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/120190044
+    https://golang.org/cl/120960043
 
- src/cmd/api/goapi.go      |   2 +-
- src/cmd/gc/builtin.c      |   2 +-
- src/cmd/gc/runtime.go     |   2 +-
- src/cmd/gc/walk.c         |   4 +-
- src/pkg/runtime/alg.goc   |   4 +-
- src/pkg/runtime/malloc.go |   6 ++
- src/pkg/runtime/slice.c   |  27 ++++++
- src/pkg/runtime/slice.go  | 154 ++++++++++++++++++++++++++++++++++
- src/pkg/runtime/slice.goc | 208 ----------------------------------------------
- src/pkg/runtime/stubs.go  |   3 +
- 10 files changed, 197 insertions(+), 215 deletions(-)
+ src/pkg/runtime/race.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

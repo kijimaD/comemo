@@ -1,15 +1,14 @@
-commit 4fdc81d001b02918728f8c8bcac99323c6a83b22
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jul 10 12:01:07 2013 -0700
+commit 231dfd9049a1344fc98ee3cd950473b2f986c28f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jul 10 15:34:24 2013 +1000
 
-    go/parser: more tolerant parsing of const and var decls
+    time: find correct zone abbreviations even on non-English windows systems
     
-    Instead, rely on the type checker.
+    Fixes #5783
     
-    R=adonovan
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/10826044
+    https://golang.org/cl/10956043
 
- src/pkg/go/parser/parser.go     | 5 +++--
- src/pkg/go/parser/short_test.go | 1 -
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/time/zoneinfo_windows.go | 83 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 82 insertions(+), 1 deletion(-)

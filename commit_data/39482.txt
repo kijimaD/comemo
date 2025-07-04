@@ -1,23 +1,22 @@
-commit 1c1e517005786daeca0e77f2be6769e9b8e1f5a5
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Jul 2 15:36:59 2019 -0400
+commit aef1a7e19251dee75c30c5fc0828ac5cb9722035
+Author: Marat Khabibullin <marat.khabibullin@jetbrains.com>
+Date:   Wed Feb 13 19:20:50 2019 +0000
 
-    test: add a test for gccgo bug #32901
+    html/template: prevent test from failing with nil pointer dereference
     
-    This CL adds a test for gccgo bug #32901: not all the type
-    descriptors are registered and thus deduplicated with types
-    created by reflection. It needs a few levels of indirect imports
-    to trigger this bug.
+    The variable err could have nil value when we call err.Error(),
+    because after we check it for nil above we continue the test
+    (t.Errorf doesn't stop the test execution).
     
-    Updates #32901.
+    Updates #30208
     
-    Change-Id: Idbd89bedd63fea746769f2687f3f31c9767e5ec0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184718
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6f7a8609f2453f622a1fa94a50c99d2e04d5fbcd
+    GitHub-Last-Rev: 3a5d9b1e9e202327af17cc1b93bfa69f6701af84
+    GitHub-Pull-Request: golang/go#30215
+    Reviewed-on: https://go-review.googlesource.com/c/162477
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/issue32901.dir/a.go    | 15 +++++++++++++++
- test/fixedbugs/issue32901.dir/b.go    | 15 +++++++++++++++
- test/fixedbugs/issue32901.dir/c.go    | 17 +++++++++++++++++
- test/fixedbugs/issue32901.dir/main.go | 18 ++++++++++++++++++
- test/fixedbugs/issue32901.go          |  9 +++++++++
- 5 files changed, 74 insertions(+)
+ src/html/template/escape_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

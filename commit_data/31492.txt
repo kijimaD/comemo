@@ -1,20 +1,19 @@
-commit 39c07ce9e5311c94880789f19f2f8b49bf1b5241
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 4 16:13:24 2017 -0400
+commit 8c24e52247365725c97b1ed5bea63a84642fd0f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 17 15:27:12 2017 -0500
 
-    cmd/link: set ELF CPIC bit in mips64 objects
+    runtime: check that pprof accepts but doesn't need executable
     
-    We already set it for mips32 objects. The native ELF linker warns when
-    linking PIC objects with non-PIC objects. Our objects are PIC, but we
-    were not marking them as such.
+    The profiles are self-contained now.
+    Check that they work by themselves in the tests that invoke pprof,
+    but also keep checking that the old command lines work.
     
-    Fixes #20243.
-    
-    Change-Id: Ifab131200b263e4c72cf81f7b131a65ac02a13a9
-    Reviewed-on: https://go-review.googlesource.com/42710
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I24c74b5456f0b50473883c3640625c6612f72309
+    Reviewed-on: https://go-review.googlesource.com/37166
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/link/internal/ld/elf.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/crash_cgo_test.go | 44 ++++++++++++++++++++++++------------------
+ src/runtime/crash_test.go     | 45 ++++++++++++++++++++++++-------------------
+ 2 files changed, 50 insertions(+), 39 deletions(-)

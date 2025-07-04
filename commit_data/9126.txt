@@ -1,13 +1,16 @@
-commit 894222f9de5e139d63d8f64e9b799ff4eda0b46c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jul 19 14:10:12 2011 +1000
+commit 42effdf096d9c04aaacfdc48853937e9cbad2c09
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jul 19 14:02:23 2011 +1000
 
-    doc/talks/io2010: handle the errors
+    go/build: fixes for windows paths
     
-    R=golang-dev, dsymonds, dsymonds, r
+    R=golang-dev, mattn.jp, adg
     CC=golang-dev
-    https://golang.org/cl/4771041
+    https://golang.org/cl/4746047
 
- doc/talks/io2010/decrypt.go | 75 ++++++++++++++++++++++++++++++++++++---------
- doc/talks/io2010/encrypt.go | 38 ++++++++++++++++++-----
- 2 files changed, 91 insertions(+), 22 deletions(-)
+ src/pkg/go/build/path.go              |  9 ++++++---
+ src/pkg/path/filepath/path.go         |  2 +-
+ src/pkg/path/filepath/path_plan9.go   |  9 +++++++--
+ src/pkg/path/filepath/path_unix.go    |  9 +++++++--
+ src/pkg/path/filepath/path_windows.go | 20 ++++++++++++++++----
+ 5 files changed, 37 insertions(+), 12 deletions(-)

@@ -1,21 +1,22 @@
-commit 005c78d8bbf6389d482a0bbb4e6c46719d77f59f
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Oct 5 19:06:23 2022 -0400
+commit a52e4b9c7e8f5aae678596e0c198e67b3b2b1087
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 15 14:56:33 2021 -0800
 
-    cmd/go: avoid setting mod=vendor in workspace mode
+    cmd/compile/internal/types2: use Identical to verify type identity in the Context map
     
-    Workspaces with a single module would enter mod=vendor mode even when
-    in workspace mode. Fix that by explicitly checking that we're not in
-    workspace mode when deciding whether to enter vendor mode.
+    This is a clean port of CL 362798 from go/types to types2,
+    with an additional comment adjustment in types2 and go/types.
     
-    Fixes #54130
-    
-    Change-Id: I03fcd9db4160c9872aa2b7957a80f24d49f787d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439415
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: Ifa3d11f512f794f8ae2b6aca50b625a4a44672de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364135
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/modload/init.go               |  2 +-
- src/cmd/go/testdata/script/work_disablevendor.txt | 56 +++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/context.go     | 52 ++++++++++++++++++++------
+ src/cmd/compile/internal/types2/instantiate.go |  4 +-
+ src/cmd/compile/internal/types2/named.go       |  2 +-
+ src/cmd/compile/internal/types2/predicates.go  | 17 +++++++++
+ src/cmd/compile/internal/types2/subst.go       |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go     | 18 ++++-----
+ src/go/types/typexpr.go                        |  2 +-
+ 7 files changed, 72 insertions(+), 25 deletions(-)

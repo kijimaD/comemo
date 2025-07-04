@@ -1,28 +1,62 @@
-commit b445d6ea34661328a7310beda285c64d6823624d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 15 17:02:30 2021 -0500
+commit 886caba73ca3d895ecb8f17ea6866b34f2f7e8c1
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 5 22:01:25 2020 -0400
 
-    runtime/pprof: expect tests to pass on macOS
+    runtime: always mark span when marking an object
     
-    macOS tests have been disabled since CL 12429045 (Aug 2013).
-    At the time, macOS required a kernel patch to get a working profiler
-    (https://research.swtch.com/macpprof), which we didn't want
-    to require, of course.
+    The page sweeper depends on spans being marked if any object in the
+    span is marked, but currently only greyobject does this.
+    gcmarknewobject and wbBufFlush1 also mark objects, but neither set
+    span marks. As a result, if there are live objects on a span, but
+    they're all marked via allocation or write barriers, then the span
+    itself won't be marked and the page reclaimer will free the span,
+    ultimately leading to memory corruption when the memory for those live
+    allocations gets reused.
     
-    macOS has improved - it no longer requires the kernel patch - but
-    we never updated the list of exceptions.
+    Fix this by making gcmarknewobject and wbBufFlush1 also mark pages.
     
-    As far as I can tell, the builders have no problem passing the pprof test now.
-    (It is possible that the iOS builders have trouble, but that is now a different GOOS.)
+    No test because I have no idea how to reliably (or even unreliably)
+    trigger this.
     
-    Remove the exception for macOS. The test should now pass.
+    Fixes #39432.
     
-    Fixes #6047.
+    Performance is a wash or very slightly worse. I benchmarked the
+    gcmarknewobject and wbBufFlush1 changes independently and both showed
+    a slight performance improvement, so I'm going to call this noise.
     
-    Change-Id: Iab49036cacc1025e56f515bd19d084390c2f5357
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292229
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    name                                old time/op  new time/op  delta
+    BiogoIgor                            15.9s ± 2%   15.9s ± 2%    ~     (p=0.758 n=25+25)
+    BiogoKrishna                         15.7s ± 3%   15.7s ± 3%    ~     (p=0.382 n=21+21)
+    BleveIndexBatch100                   4.94s ± 3%   5.07s ± 4%  +2.63%  (p=0.000 n=25+25)
+    CompileTemplate                      204ms ± 1%   205ms ± 1%  +0.43%  (p=0.000 n=21+23)
+    CompileUnicode                      77.8ms ± 1%  78.1ms ± 1%    ~     (p=0.130 n=23+23)
+    CompileGoTypes                       731ms ± 1%   733ms ± 1%  +0.30%  (p=0.006 n=22+22)
+    CompileCompiler                      3.64s ± 2%   3.65s ± 3%    ~     (p=0.179 n=24+25)
+    CompileSSA                           8.44s ± 1%   8.46s ± 1%  +0.30%  (p=0.003 n=22+23)
+    CompileFlate                         132ms ± 1%   133ms ± 1%    ~     (p=0.098 n=22+22)
+    CompileGoParser                      164ms ± 1%   164ms ± 1%  +0.37%  (p=0.000 n=21+23)
+    CompileReflect                       455ms ± 1%   457ms ± 2%  +0.50%  (p=0.002 n=20+22)
+    CompileTar                           182ms ± 2%   182ms ± 1%    ~     (p=0.382 n=22+22)
+    CompileXML                           245ms ± 3%   245ms ± 1%    ~     (p=0.070 n=21+23)
+    CompileStdCmd                        16.5s ± 2%   16.5s ± 3%    ~     (p=0.486 n=23+23)
+    FoglemanFauxGLRenderRotateBoat       12.9s ± 1%   13.0s ± 1%  +0.97%  (p=0.000 n=21+24)
+    FoglemanPathTraceRenderGopherIter1   18.6s ± 1%   18.7s ± 0%    ~     (p=0.083 n=23+24)
+    GopherLuaKNucleotide                 28.4s ± 1%   29.3s ± 1%  +2.84%  (p=0.000 n=25+25)
+    MarkdownRenderXHTML                  252ms ± 0%   251ms ± 1%  -0.50%  (p=0.000 n=23+24)
+    Tile38WithinCircle100kmRequest       516µs ± 2%   516µs ± 2%    ~     (p=0.763 n=24+25)
+    Tile38IntersectsCircle100kmRequest   689µs ± 2%   689µs ± 2%    ~     (p=0.617 n=24+24)
+    Tile38KNearestLimit100Request        608µs ± 1%   606µs ± 2%  -0.35%  (p=0.030 n=19+22)
+    [Geo mean]                           522ms        524ms       +0.41%
+    
+    https://perf.golang.org/search?q=upload:20200606.4
+    
+    Change-Id: I8b331f310dbfaba0468035f207467c8403005bf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236817
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/pprof/pprof_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/malloc.go  | 20 ++++++++++----------
+ src/runtime/mgcmark.go | 14 ++++++++++++--
+ src/runtime/mwbbuf.go  |  7 +++++++
+ 3 files changed, 29 insertions(+), 12 deletions(-)

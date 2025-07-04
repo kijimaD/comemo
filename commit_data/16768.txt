@@ -1,12 +1,13 @@
-commit 4e3051c6e63def826d4f53ecf9cfe7b3e95779ca
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 15 18:40:47 2013 -0400
+commit 3d236aed9a122e1ac4cbff0e4c83b6a656d62f24
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Jul 15 14:37:36 2013 +0800
 
-    CONTRIBUTORS: add David Presotto (Google CLA)
+    misc/cgo/test: skip test for issue 3250, the runtime isn't ready yet.
+    see issue 5885.
     
-    R=golang-dev, r
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/11299043
+    https://golang.org/cl/10914045
 
- CONTRIBUTORS | 1 +
+ misc/cgo/test/issue3250.go | 1 +
  1 file changed, 1 insertion(+)

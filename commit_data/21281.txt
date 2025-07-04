@@ -1,14 +1,12 @@
-commit e10e913d08b6eb53b81f18ea9fc7b7caaf599b4a
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Jan 14 14:36:17 2015 -0500
+commit 0fa6e7fe8281e49b73de63f1df66b98c1798285f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Dec 14 04:05:37 2014 -0500
 
-    syscall: use name+(NN)FP on linux/arm
+    api: update next.txt
     
-    Generated with a modified version of go vet and tested on android.
-    
-    Change-Id: I1ff20135c5ab9de5a6dbf76ea2991167271ee70d
-    Reviewed-on: https://go-review.googlesource.com/2815
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9eac8b23eb9e6b6940069811177365b4772c2fb1
+    Reviewed-on: https://go-review.googlesource.com/1513
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/asm_linux_arm.s | 110 ++++++++++++++++++++++----------------------
- 1 file changed, 55 insertions(+), 55 deletions(-)
+ api/next.txt | 392 ++++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 251 insertions(+), 141 deletions(-)

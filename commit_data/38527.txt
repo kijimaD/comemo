@@ -1,38 +1,22 @@
-commit c7bb4533cb7d91eadc9c674e48dc644bc831e64e
-Author: sergey <sngasuan@gmail.com>
-Date:   Sun Mar 24 19:33:19 2019 +0300
+commit 1645dfa23fbb1d1bab258d1c458f08d9f2741295
+Author: Carl Mastrangelo <notcarl@google.com>
+Date:   Thu Oct 25 22:03:43 2018 -0700
 
-    net/url: check for lowercase before uppercase in shouldEscape
+    net/http: speed up ServeMux matching
     
-    Most chars in URLs are lowercase, so check that first.
+    Scanning through all path patterns is not necessary, since the
+    paths do not change frequently.  Instead, maintain a sorted list
+    of path prefixes and return the first match.
     
-    Performance change:
+    name            old time/op  new time/op  delta
+    ServerMatch-12   134ns ± 3%    17ns ± 4%  -86.95%  (p=0.000 n=19+20)
     
-    String-4               7.62µs ± 1%    7.27µs ± 3%  -4.61%  (p=0.008 n=5+5)
-    QueryEscape/#00-4      92.6ns ± 3%    90.3ns ± 1%  -2.48%  (p=0.016 n=5+5)
-    QueryEscape/#01-4       515ns ± 4%     510ns ± 2%    ~     (p=0.683 n=5+5)
-    QueryEscape/#02-4       375ns ± 1%     343ns ± 1%  -8.52%  (p=0.008 n=5+5)
-    QueryEscape/#03-4       758ns ± 1%     699ns ± 1%  -7.83%  (p=0.008 n=5+5)
-    QueryEscape/#04-4      6.06µs ± 1%    5.74µs ± 1%  -5.38%  (p=0.008 n=5+5)
-    PathEscape/#00-4        140ns ± 1%     135ns ± 2%  -3.85%  (p=0.008 n=5+5)
-    PathEscape/#01-4        511ns ± 3%     507ns ± 3%    ~     (p=0.587 n=5+5)
-    PathEscape/#02-4        372ns ± 1%     342ns ± 2%  -8.22%  (p=0.008 n=5+5)
-    PathEscape/#03-4        747ns ± 1%     685ns ± 1%  -8.30%  (p=0.008 n=5+5)
-    PathEscape/#04-4       5.94µs ± 1%    5.64µs ± 3%  -4.98%  (p=0.008 n=5+5)
-    QueryUnescape/#00-4     111ns ± 4%     110ns ± 2%    ~     (p=0.952 n=5+5)
-    QueryUnescape/#01-4     390ns ± 0%     391ns ± 2%    ~     (p=0.714 n=5+5)
-    QueryUnescape/#02-4     297ns ± 5%     295ns ± 3%    ~     (p=0.524 n=5+5)
-    QueryUnescape/#03-4     543ns ± 3%     556ns ± 2%  +2.39%  (p=0.032 n=5+5)
-    QueryUnescape/#04-4    3.23µs ± 3%    3.22µs ± 2%    ~     (p=1.000 n=5+5)
-    PathUnescape/#00-4      111ns ± 1%     110ns ± 3%    ~     (p=0.881 n=5+5)
-    PathUnescape/#01-4      389ns ± 2%     386ns ± 2%    ~     (p=0.444 n=5+5)
-    PathUnescape/#02-4      297ns ± 1%     295ns ± 3%    ~     (p=0.738 n=5+5)
-    PathUnescape/#03-4      557ns ± 3%     553ns ± 2%    ~     (p=0.810 n=5+5)
-    PathUnescape/#04-4     2.94µs ± 2%    2.97µs ± 2%    ~     (p=0.222 n=5+5)
-    
-    Change-Id: I7e6d64cd5f8f5218cb40f52f0015168a8674aabb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168883
+    Change-Id: I15b4483dc30db413321435ee6815fc9bf2bcc546
+    Reviewed-on: https://go-review.googlesource.com/c/144937
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/url/url.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/server.go      | 55 ++++++++++++++++++++++++---------------------
+ src/net/http/server_test.go | 45 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 26 deletions(-)

@@ -1,14 +1,13 @@
-commit 39ffd546bd575789e116f764cab8ee41de61becf
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 23 14:24:30 2011 +1100
+commit a73817716a25c3e7584daf378c72d14c7a33ba18
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Mar 22 18:41:17 2011 -0700
 
-    sync: fix example code
+    chan: allocate a new chan with one
+    malloc rather than nelements + 1.
     
-    Fixes #1631.
-    
-    R=golang-dev, dsymonds
+    R=rob
     CC=golang-dev
-    https://golang.org/cl/4303046
+    https://golang.org/cl/4291064
 
- src/pkg/sync/waitgroup.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/chan.c | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)

@@ -1,16 +1,24 @@
-commit c50074e5104563d23455a27ece2430bef2d4c844
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Wed Feb 29 15:07:52 2012 -0800
+commit 6652b0b86639a6a59e038bcb85b18fd1c1f25a95
+Author: Johan Euphrosine <proppy@google.com>
+Date:   Thu Mar 1 10:05:51 2012 +1100
 
-    doc: add a bunch of missing <p> tags
+    doc: add The Laws of Reflection article
     
-    R=golang-dev, gri
+    Originally published on The Go Programming Language Blog, September 6, 2011.
+    
+    http://blog.golang.org/2011/09/laws-of-reflection.html
+    
+    Update #2547
+    
+    R=golang-dev, r, adg
     CC=golang-dev
-    https://golang.org/cl/5707065
+    https://golang.org/cl/5689054
 
- doc/code.html         | 2 +-
- doc/effective_go.html | 9 +++++++++
- doc/effective_go.tmpl | 9 +++++++++
- doc/go_faq.html       | 2 ++
- doc/go_spec.html      | 3 ++-
- 5 files changed, 23 insertions(+), 2 deletions(-)
+ doc/Makefile                         |   1 +
+ doc/articles/laws_of_reflection.html | 752 +++++++++++++++++++++++++++++++++++
+ doc/articles/laws_of_reflection.tmpl | 654 ++++++++++++++++++++++++++++++
+ doc/docs.html                        |   3 +-
+ doc/progs/interface.go               |  56 +++
+ doc/progs/interface2.go              | 112 ++++++
+ src/pkg/reflect/type.go              |   2 +-
+ 7 files changed, 1577 insertions(+), 3 deletions(-)

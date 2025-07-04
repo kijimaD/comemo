@@ -1,14 +1,21 @@
-commit 6037841dbdf69cf02ae2db8c01e53c6a840598a2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Apr 16 00:00:25 2014 -0400
+commit cabdb85333bc0af0ce32ce45e58385e61f84dc43
+Author: Billie Harold Cleek <bhcleek@gmail.com>
+Date:   Wed Apr 16 13:40:47 2014 +1000
 
-    doc: remove outdated Makefile
-    Fixes #7773.
+    doc: edit documentation that uses "satisfies reads" and "satisfies writes"
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Make it clear that types that wrap another reader or writer delegate to the wrapped type.
+    
+    Fixes #7667
+    
+    LGTM=adg
+    R=golang-codereviews, adg
     CC=golang-codereviews
-    https://golang.org/cl/87400043
+    https://golang.org/cl/85720044
 
- doc/Makefile | 32 --------------------------------
- 1 file changed, 32 deletions(-)
+ src/pkg/compress/gzip/gzip.go   | 8 ++++----
+ src/pkg/compress/lzw/reader.go  | 4 ++--
+ src/pkg/compress/lzw/writer.go  | 4 ++--
+ src/pkg/compress/zlib/reader.go | 3 ++-
+ src/pkg/compress/zlib/writer.go | 4 ++--
+ 5 files changed, 12 insertions(+), 11 deletions(-)

@@ -1,108 +1,12 @@
-commit 504bc3ed24765294cf3d665a68d57a6e4fc7d23a
+commit 9f5859759eccebb5d0e9d3ef4de1db41d66b41ac
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Feb 3 22:40:56 2017 -0800
+Date:   Thu Nov 3 19:20:27 2016 -0700
 
-    cmd/compile, runtime: specialize convT2x, don't alloc for zero vals
+    cmd/go: fix minor typo in 'go bug'
     
-    Prior to this CL, all runtime conversions
-    from a concrete value to an interface went
-    through one of two runtime calls: convT2E or convT2I.
-    However, in practice, basic types are very common.
-    Specializing convT2x for those basic types allows
-    for a more efficient implementation for those types.
-    For basic scalars and strings, allocation and copying
-    can use the same methods as normal code.
-    For pointer-free types, allocation can occur without
-    zeroing, and copying can take place without GC calls.
-    For slices, copying is cheaper and simpler.
-    
-    This CL adds twelve runtime routines:
-    
-    convT2E16, convT2I16
-    convT2E32, convT2I32
-    convT2E64, convT2I64
-    convT2Estring, convT2Istring
-    convT2Eslice, convT2Islice
-    convT2Enoptr, convT2Inoptr
-    
-    While compiling make.bash, 93% of all convT2x calls
-    are now to one of these specialized convT2x call.
-    
-    Within specialized convT2x routines, it is cheap to check
-    for a zero value, in a way that it is not in general.
-    When we detect a zero value there, we return a pointer
-    to zeroVal, rather than allocating.
-    
-    name                         old time/op  new time/op  delta
-    ConvT2Ezero/zero/16-8        17.9ns ± 2%   3.0ns ± 3%  -83.20%  (p=0.000 n=56+56)
-    ConvT2Ezero/zero/32-8        17.8ns ± 2%   3.0ns ± 3%  -83.15%  (p=0.000 n=59+60)
-    ConvT2Ezero/zero/64-8        20.1ns ± 1%   3.0ns ± 2%  -84.98%  (p=0.000 n=57+57)
-    ConvT2Ezero/zero/str-8       32.6ns ± 1%   3.0ns ± 4%  -90.70%  (p=0.000 n=59+60)
-    ConvT2Ezero/zero/slice-8     36.7ns ± 2%   3.0ns ± 2%  -91.78%  (p=0.000 n=59+59)
-    ConvT2Ezero/zero/big-8       91.9ns ± 2%  85.9ns ± 2%   -6.52%  (p=0.000 n=57+57)
-    ConvT2Ezero/nonzero/16-8     17.7ns ± 2%  12.7ns ± 3%  -28.38%  (p=0.000 n=55+60)
-    ConvT2Ezero/nonzero/32-8     17.8ns ± 1%  12.7ns ± 1%  -28.44%  (p=0.000 n=54+57)
-    ConvT2Ezero/nonzero/64-8     20.0ns ± 1%  15.0ns ± 1%  -24.90%  (p=0.000 n=56+58)
-    ConvT2Ezero/nonzero/str-8    32.6ns ± 1%  25.7ns ± 1%  -21.17%  (p=0.000 n=58+55)
-    ConvT2Ezero/nonzero/slice-8  36.8ns ± 2%  30.4ns ± 1%  -17.32%  (p=0.000 n=60+52)
-    ConvT2Ezero/nonzero/big-8    92.1ns ± 2%  85.9ns ± 2%   -6.70%  (p=0.000 n=57+59)
-    
-    Benchmarks on a real program (the compiler):
-    
-    name       old time/op      new time/op      delta
-    Template        227ms ± 5%       221ms ± 2%  -2.48%  (p=0.000 n=30+26)
-    Unicode         102ms ± 5%       100ms ± 3%  -1.30%  (p=0.009 n=30+26)
-    GoTypes         656ms ± 5%       659ms ± 4%    ~     (p=0.208 n=30+30)
-    Compiler        2.82s ± 2%       2.82s ± 1%    ~     (p=0.614 n=29+27)
-    Flate           128ms ± 2%       128ms ± 5%    ~     (p=0.783 n=27+28)
-    GoParser        158ms ± 3%       158ms ± 3%    ~     (p=0.261 n=28+30)
-    Reflect         408ms ± 7%       401ms ± 3%    ~     (p=0.075 n=30+30)
-    Tar             123ms ± 6%       121ms ± 8%    ~     (p=0.287 n=29+30)
-    XML             220ms ± 2%       220ms ± 4%    ~     (p=0.805 n=29+29)
-    
-    name       old user-ns/op   new user-ns/op   delta
-    Template   281user-ms ± 4%  279user-ms ± 3%  -0.87%  (p=0.044 n=28+28)
-    Unicode    142user-ms ± 4%  141user-ms ± 3%  -1.04%  (p=0.015 n=30+27)
-    GoTypes    884user-ms ± 3%  886user-ms ± 2%    ~     (p=0.532 n=30+30)
-    Compiler   3.94user-s ± 3%  3.92user-s ± 1%    ~     (p=0.185 n=30+28)
-    Flate      165user-ms ± 2%  165user-ms ± 4%    ~     (p=0.780 n=27+29)
-    GoParser   209user-ms ± 2%  208user-ms ± 3%    ~     (p=0.453 n=28+30)
-    Reflect    533user-ms ± 6%  526user-ms ± 3%    ~     (p=0.057 n=30+30)
-    Tar        156user-ms ± 6%  154user-ms ± 6%    ~     (p=0.133 n=29+30)
-    XML        288user-ms ± 4%  288user-ms ± 4%    ~     (p=0.633 n=30+30)
-    
-    name       old alloc/op     new alloc/op     delta
-    Template       41.0MB ± 0%      40.9MB ± 0%  -0.11%  (p=0.000 n=29+29)
-    Unicode        32.6MB ± 0%      32.6MB ± 0%    ~     (p=0.572 n=29+30)
-    GoTypes         122MB ± 0%       122MB ± 0%  -0.10%  (p=0.000 n=30+30)
-    Compiler        482MB ± 0%       481MB ± 0%  -0.07%  (p=0.000 n=30+29)
-    Flate          26.6MB ± 0%      26.6MB ± 0%    ~     (p=0.096 n=30+30)
-    GoParser       32.7MB ± 0%      32.6MB ± 0%  -0.06%  (p=0.011 n=28+28)
-    Reflect        84.2MB ± 0%      84.1MB ± 0%  -0.17%  (p=0.000 n=29+30)
-    Tar            27.7MB ± 0%      27.7MB ± 0%  -0.05%  (p=0.032 n=27+28)
-    XML            44.7MB ± 0%      44.7MB ± 0%    ~     (p=0.131 n=28+30)
-    
-    name       old allocs/op    new allocs/op    delta
-    Template         373k ± 1%        370k ± 1%  -0.76%  (p=0.000 n=30+30)
-    Unicode          325k ± 1%        325k ± 1%    ~     (p=0.383 n=29+30)
-    GoTypes         1.16M ± 0%       1.15M ± 0%  -0.75%  (p=0.000 n=29+30)
-    Compiler        4.15M ± 0%       4.13M ± 0%  -0.59%  (p=0.000 n=30+29)
-    Flate            238k ± 1%        237k ± 1%  -0.62%  (p=0.000 n=30+30)
-    GoParser         304k ± 1%        302k ± 1%  -0.64%  (p=0.000 n=30+28)
-    Reflect         1.00M ± 0%       0.99M ± 0%  -1.10%  (p=0.000 n=29+30)
-    Tar              245k ± 1%        244k ± 1%  -0.59%  (p=0.000 n=27+29)
-    XML              391k ± 1%        389k ± 1%  -0.59%  (p=0.000 n=29+30)
-    
-    Change-Id: Id7f456d690567c2b0a96b0d6d64de8784b6e305f
-    Reviewed-on: https://go-review.googlesource.com/36476
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I6bb594576e174cb0df8d25d11b84f5a4752ebfd6
+    Reviewed-on: https://go-review.googlesource.com/32683
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         |  12 ++
- src/cmd/compile/internal/gc/builtin/runtime.go |  14 ++
- src/cmd/compile/internal/gc/walk.go            |  28 +++
- src/runtime/iface.go                           | 240 +++++++++++++++++++++++--
- src/runtime/iface_test.go                      | 140 +++++++++++++++
- test/live.go                                   |   8 +-
- 6 files changed, 426 insertions(+), 16 deletions(-)
+ src/cmd/go/bug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,13 @@
-commit e9ee0bf63c35c810afb1d820b04d4f41b2f4ff8b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 27 09:00:27 2014 -0800
+commit 7e0dac08c7f8948423135d05c085f076cce9ec6d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Feb 27 20:27:55 2014 +0400
 
-    cmd/gofmt: minor internal cleanups
-    
-    Reflect changes of reflect API.
+    runtime: fix and improve comments
     
     LGTM=r
     R=golang-codereviews, r
-    CC=golang-codereviews
-    https://golang.org/cl/69240044
+    CC=golang-codereviews, iant, khr, rsc
+    https://golang.org/cl/67460043
 
- src/cmd/gofmt/rewrite.go | 27 ++++++++++++++-------------
- 1 file changed, 14 insertions(+), 13 deletions(-)
+ src/pkg/runtime/panic.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

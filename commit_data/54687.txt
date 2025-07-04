@@ -1,23 +1,20 @@
-commit eb832afb2310b71db420943d91625552748ae5e6
-Author: David Chase <drchase@google.com>
-Date:   Wed Oct 11 17:28:02 2023 -0400
+commit cd8d1bca2cc2ec228b21e5df893fec7a2e766e08
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 8 17:02:49 2022 -0800
 
-    cmd/compiler: make decompose shortcuts apply for PtrShaped, not just Ptr
+    cmd/go: more informative test failures when GOROOT is stale
     
-    The immediate-data interface shortcuts also apply to pointer-shaped
-    things like maps, channels, and functions.
+    If GOROOT is stale, test fail when commands unexpectedly write to GOROOT.
+    Include an message in the test failure indicating that this is a possible
+    and expected reason for the failure, and how to fix it.
     
-    Fixes #63505.
+    For #48698.
     
-    Change-Id: I43982441bf523f53e9e5d183e95aea7c6655dd6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534657
+    Change-Id: I057c20260bab09aebf684e8f20794ab8fc0ede1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448895
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/ssa/_gen/dec.rules |  8 ++---
- src/cmd/compile/internal/ssa/rewritedec.go  | 16 +++++-----
- test/fixedbugs/issue63505.go                | 45 +++++++++++++++++++++++++++++
- 3 files changed, 57 insertions(+), 12 deletions(-)
+ src/cmd/go/go_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

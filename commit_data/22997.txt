@@ -1,26 +1,25 @@
-commit 99475dfb5923b775a9ab587ad99cb64de5d1f51c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 21 10:39:21 2015 -0700
+commit 6d3a7e79a4660b1ecce8cc9d930c3a9f6222a6f2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Apr 17 17:56:58 2015 +0900
 
-    cmd/internal/gc: avoid spurious div-zero errors
+    net: clean up cgo
     
-    Set overflowing integer constants to 1 rather than 0 to avoid
-    spurious div-zero errors in subsequent constant expressions.
+    This change adds a type addrinfoErrno to represent getaddrinfo,
+    getnameinfo-specific errors, and uses it in cgo-based lookup functions.
     
-    Also: Exclude new test case from go/types test since it's
-    running too long (go/types doesn't have an upper constant
-    size limit at the moment).
+    Also retags cgo files for clarification and does minor cleanup.
     
-    Fixes #7746.
-    
-    Change-Id: I3768488ad9909a3cf995247b81ee78a8eb5a1e41
-    Reviewed-on: https://go-review.googlesource.com/9165
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6db7130ad7bf35bbd4e8839a97759e1364c43828
+    Reviewed-on: https://go-review.googlesource.com/9020
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/gc/const.go    |   4 +-
- src/cmd/internal/gc/mparith2.go |   2 +-
- src/go/types/stdlib_test.go     |   1 +
- test/fixedbugs/issue7746.go     | 133 ++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 137 insertions(+), 3 deletions(-)
+ src/net/cgo_android.go |  4 +--
+ src/net/cgo_bsd.go     |  6 ++--
+ src/net/cgo_linux.go   | 16 ++++-----
+ src/net/cgo_netbsd.go  |  4 +--
+ src/net/cgo_openbsd.go |  4 +--
+ src/net/cgo_stub.go    |  8 +++--
+ src/net/cgo_unix.go    | 93 +++++++++++++++++++++++++++++---------------------
+ src/net/cgo_windows.go | 13 +++++++
+ src/net/error_test.go  |  2 +-
+ 9 files changed, 86 insertions(+), 64 deletions(-)

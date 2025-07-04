@@ -1,17 +1,42 @@
-commit aa878ee49b6954a818cc00c26754c84b86a4215b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 23 20:50:48 2021 -0700
+commit 9a19481acb93114948503d935e10f6985ff15843
+Author: David Chase <drchase@google.com>
+Date:   Wed Dec 30 12:05:57 2020 -0500
 
-    cmd/compile/internal/syntax: assume generic code for std lib
+    [dev.regabi] cmd/compile: make ordering for InvertFlags more stable
     
-    Also: improve some error message prints in testSyntaxErrors.
-    Change-Id: Iaa1d642398fa82975fefb4bde54f476dd5229eb5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351791
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Current many architectures use a rule along the lines of
+    
+    // Canonicalize the order of arguments to comparisons - helps with CSE.
+    ((CMP|CMPW) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW) y x))
+    
+    to normalize comparisons as much as possible for CSE.  Replace the
+    ID comparison with something less variable across compiler changes.
+    This helps avoid spurious failures in some of the codegen-comparison
+    tests (though the current choice of comparison is sensitive to Op
+    ordering).
+    
+    Two tests changed to accommodate modified instruction choice.
+    
+    Change-Id: Ib35f450bd2bae9d4f9f7838ceaf7ec682bcf1e1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280155
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/syntax/error_test.go  | 4 ++--
- src/cmd/compile/internal/syntax/parser_test.go | 7 ++-----
- 2 files changed, 4 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  2 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go      | 12 ++++++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go   | 12 ++++++------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 16 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteARM.go   |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go |  8 ++++----
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 16 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 16 ++++++++--------
+ test/codegen/condmove.go                     |  6 +++---
+ test/codegen/spectre.go                      |  4 ++--
+ 15 files changed, 59 insertions(+), 47 deletions(-)

@@ -1,22 +1,22 @@
-commit 4a459cbbad7b9528e5f569157b157800866a4fb8
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Oct 10 13:39:30 2022 -0400
+commit 3a4b95073a9fd7bca6e9fd80016275ef04bc1987
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 12 13:23:45 2021 -0800
 
-    cmd/compile: tweak inliners handling of coverage counter updates
+    cmd/compile/internal/types2: make sure we are safe for nil in underIs
     
-    This patch fixes up a bug in the inliner's special case code for
-    coverage counter updates, which was not properly working for
-    -covermode=atomic compilations.
+    Reviewed all uses of underIs (global function and method) and made
+    sure we are ok with a nil incoming argument (indicating a type set
+    with no specific types).
     
-    Updates #56044.
+    Added a couple of checks where we didn't have them (and somehow
+    didn't run into a problem yet).
     
-    Change-Id: I9e309312b123121c3df02862623bdbab1f6c6a4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/441858
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ifde45a3a80ddf2b1a19c83f79258ad8207dfb09f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363658
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/inline/inl.go    | 61 ++++++++++++++++++++++++++-----
- src/cmd/compile/internal/test/inl_test.go | 55 ++++++++++++++++++++++++++++
- src/runtime/coverage/emitdata_test.go     |  7 ++++
- 3 files changed, 114 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/types2/expr.go       | 3 +++
+ src/cmd/compile/internal/types2/predicates.go | 4 +++-
+ src/cmd/compile/internal/types2/type.go       | 3 +++
+ 3 files changed, 9 insertions(+), 1 deletion(-)

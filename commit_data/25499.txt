@@ -1,17 +1,14 @@
-commit 20d745c57cb44e6ca8f29179e9cb928fad3a5cb4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 14:32:17 2016 -0500
+commit 61ca7e5ccffbe6970da2462c2da535f5e021ee65
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Nov 4 21:20:33 2015 -0500
 
-    encoding/base64: fix streaming decode of padding-free base64
+    crypto/x509: add /etc/ssl/certs to certificate directories
     
-    Fixes #13384.
+    Fixes #12139.
     
-    Change-Id: Id9e827acddc8de139f93c5de0c6486bc4334c7d4
-    Reviewed-on: https://go-review.googlesource.com/18330
+    Change-Id: Ied760ac37e2fc21ef951ae872136dc3bfd49bf9f
+    Reviewed-on: https://go-review.googlesource.com/16671
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.6.html                     | 11 ++++++
- src/encoding/base64/base64.go      | 76 +++++++++++++++++++++++---------------
- src/encoding/base64/base64_test.go | 25 +++++++++++++
- test/bench/go1/jsondata_test.go    |  2 +-
- 4 files changed, 84 insertions(+), 30 deletions(-)
+ src/crypto/x509/root_unix.go | 1 +
+ 1 file changed, 1 insertion(+)

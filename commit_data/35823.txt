@@ -1,27 +1,32 @@
-commit bafe466a9537d8ea5ac5767504628803302ebb12
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Wed Jun 27 17:36:24 2018 +0200
+commit e4de522c95d49d943b99740aa4a1361357dcf869
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 8 04:18:18 2018 -0800
 
-    syscall/js: add TypedArrayOf
+    cmd/compile: fix Node.Etype overloading
     
-    The new function js.TypedArrayOf returns a JavaScript typed array for
-    a given slice.
-    https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays
+    Add helper methods that validate n.Op and convert to/from the
+    appropriate type.
     
-    This change also changes js.ValueOf to not accept a []byte any more.
+    Notably, there was a lot of code in walk.go that thought setting
+    Etype=1 on an OADDR node affected escape analysis.
     
-    Fixes #25532.
+    Passes toolstash-check.
     
-    Change-Id: I8c7bc98ca4e21c3514d19eee7a1f92388d74ab2a
-    Reviewed-on: https://go-review.googlesource.com/121215
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    TBR=marvin
+    
+    Change-Id: Ieae7c67225c1459c9719f9e6a748a25b975cf758
+    Reviewed-on: https://go-review.googlesource.com/99535
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/rand/rand_js.go   |   4 +-
- src/net/http/roundtrip_js.go |   8 +++-
- src/syscall/fs_js.go         |  16 +++++--
- src/syscall/js/js.go         |  23 ++++++----
- src/syscall/js/js_test.go    |  22 +++++++++
- src/syscall/js/typedarray.go | 103 +++++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 160 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/alg.go       |  5 ---
+ src/cmd/compile/internal/gc/bexport.go   |  4 +--
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 13 ++++---
+ src/cmd/compile/internal/gc/inl.go       |  1 -
+ src/cmd/compile/internal/gc/noder.go     |  4 +--
+ src/cmd/compile/internal/gc/order.go     | 11 +++---
+ src/cmd/compile/internal/gc/syntax.go    | 58 ++++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/typecheck.go | 36 +++++++++-----------
+ src/cmd/compile/internal/gc/universe.go  |  5 ++-
+ src/cmd/compile/internal/gc/walk.go      | 31 +++++------------
+ 11 files changed, 98 insertions(+), 72 deletions(-)

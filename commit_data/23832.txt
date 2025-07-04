@@ -1,12 +1,18 @@
-commit a60c5366f91934a36793bde74556f4b637954665
+commit a5f57d795010bba4b391944dac545adef017ed85
 Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Jul 24 15:35:45 2015 +1200
+Date:   Tue Jun 16 13:41:11 2015 +1200
 
-    test: do not run external linking test on ppc64le
+    cmd/link: when reading symbols from a shared library, allow duplicates when they are both in bss
     
-    Change-Id: I9b8a6ac1ff6bef3b7f1e033bfd029f2a59e30297
-    Reviewed-on: https://go-review.googlesource.com/12623
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This makes the behaviour match what happens when duplicate symbols are read
+    from regular object files and fixes errors about cgoAlwaysFalse when linking
+    an executable that uses cgo against a shared library.
+    
+    Change-Id: Ibb8cd8fe3f7813cde504b7483f1e857868d7e063
+    Reviewed-on: https://go-review.googlesource.com/11117
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue10607.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/testshared/shared_test.go    |  7 +++++++
+ misc/cgo/testshared/src/execgo/exe.go |  8 ++++++++
+ src/cmd/link/internal/ld/lib.go       | 27 ++++++++++++++++++---------
+ 3 files changed, 33 insertions(+), 9 deletions(-)

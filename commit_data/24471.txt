@@ -1,19 +1,26 @@
-commit b795ce9ab0cce86f9f76904a9f933b11ac993c8a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Oct 8 20:14:03 2015 +1100
+commit 6f6bcadc17087f564f1d5d915f08765b0a1e7263
+Author: David Chase <drchase@google.com>
+Date:   Thu Jul 30 12:31:18 2015 -0400
 
-    cmd/internal/obj: improve obj.ProgInfo struct layout
+    cmd/compile: add case for ODOTTYPE to escwalk
     
-    obj.ProgInfo is a field inside obj.Prog, which is currently 320 bytes
-    on 64bit platforms. By moving the Flags field below the other fields
-    the size of obj.Prog drops into the 288 byte size class, a saving of
-    32 bytes per value allocated on the heap.
+    ODOTTYPE should be treated a whole lot like ODOT,
+    but it was missing completely from the switch in
+    escwalk and thus escape status did not propagate
+    to fields.
     
-    Change-Id: If8bb12f45328996d7df1d0bac9d1c019d2af73bd
-    Reviewed-on: https://go-review.googlesource.com/15522
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Since interfaces are required to trigger this bug,
+    the test was added to escape_iface.go.
+    
+    Fixes #11931.
+    
+    Change-Id: Id0383981cc4b1a160f6ad447192a112eed084538
+    Reviewed-on: https://go-review.googlesource.com/12921
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/link.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/esc.go |  1 +
+ test/escape_iface.go               | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+)

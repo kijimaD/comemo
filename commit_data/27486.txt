@@ -1,17 +1,17 @@
-commit 7a9f6c2b56bd87ff7f9296344c9e63cc46194428
-Author: Keith Randall <khr@golang.org>
-Date:   Mon May 23 13:09:12 2016 -0700
+commit 268c31870a05374065965cdbaa56e8320fc33765
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 28 22:59:40 2016 -0700
 
-    cmd/compile: benchmark needs dominator tree
+    cmd/compile: move substAny to type.go
     
-    Now that CSE uses dom tree to order partitions, we need the
-    dom tree computed before benchmarking CSE.
+    substAny needs access to many internal details
+    of gc.Type. substArgTypes comes along for the ride.
     
-    Fixes #15801
-    
-    Change-Id: Ifa4702c7b75250f34de185e69a880b3f3cc46a12
-    Reviewed-on: https://go-review.googlesource.com/23361
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I430a4edfd54a1266522f7a9818e5e7b5da72479c
+    Reviewed-on: https://go-review.googlesource.com/21250
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/passbm_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 94 -------------------------------------
+ src/cmd/compile/internal/gc/type.go | 94 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 94 insertions(+), 94 deletions(-)

@@ -1,21 +1,21 @@
-commit 51ddeb9965e942d5909c03fef005006457156638
-Author: Keith Randall <khr@google.com>
-Date:   Tue Jul 24 09:59:57 2018 -0700
+commit 02328153520b10d6252064ef18d5eeb214f55824
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Wed Apr 11 12:38:04 2018 +0200
 
-    math: add tests for erf and erfc
+    net/http: skip a test on netbsd-arm
     
-    Test large but not infinite arguments.
+    TestServerDuplicateBackgroundRead has been causing crashes on the
+    netbsd-arm-bsiegert builder, with the system becoming completely
+    unresponsive (probably deadlocked). Skip this test while the crash
+    is under investigation.
     
-    This CL adds a test which breaks s390x.  Don't submit until
-    a fix for that is figured out.
+    Upstream bug report is http://gnats.netbsd.org/53173.
     
-    Update #26477
-    
-    Change-Id: Ic86739fe3554e87d7f8e15482875c198fcf1d59c
-    Reviewed-on: https://go-review.googlesource.com/125641
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib48f19005cf2cbba8a27e75e689c2acb025d8870
+    Reviewed-on: https://go-review.googlesource.com/106295
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/math/all_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/net/http/serve_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

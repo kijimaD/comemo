@@ -1,29 +1,27 @@
-commit 16e430e1ef8b9c9259bb4f07a0787de4310b3041
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jan 11 13:58:20 2017 -0800
+commit 7ff0c8267f25a628dc4c8b5fa356b26cbb72530d
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Oct 22 15:43:23 2016 +0200
 
-    cmd/compile: reduce slice growth in fuseBlockPlain
+    cmd/compile: replace ANDL with MOV?ZX
     
-    Instead of always appending to c.Values,
-    choose whichever slice is larger;
-    b.Values will be set to nil anyway.
+    According to "Intel 64 and IA-32 Architectures Optimization Reference
+    Manual" Section: "3.5.1.13 Zero-Latency MOV Instructions"
+    MOV?ZX instructions have zero latency on newer processors.
     
-    Appending once instead of in a loop also
-    limits slice growth to once per function call
-    and is more efficient.
+    during make.bash:
+    (ANDLconst [0xFF] x) -> (MOVBQZX x)
+    applies 422 times
+    (ANDLconst [0xFFFF] x) -> (MOVWQZX x)
+    applies 114 times
     
-    Reduces max rss for the program in #18602 by 6.5%,
-    and eliminates fuseBlockPlain from the alloc_space
-    pprof output. fuseBlockPlain previously accounted
-    for 16.74% of allocated memory.
+    Updates #15105
     
-    Updates #18602.
-    
-    Change-Id: I417b03722d011a59a679157da43dc91f4425210e
-    Reviewed-on: https://go-review.googlesource.com/35114
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I10933af599de3c26449c52f4b5cd859331028f39
+    Reviewed-on: https://go-review.googlesource.com/31639
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/fuse.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 +++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

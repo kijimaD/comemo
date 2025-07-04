@@ -1,0 +1,30 @@
+commit 2ebaff4890596ed6064e2dcbbe5e68bc93bed882
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 6 17:19:34 2024 -0700
+
+    runtime: if stop/reset races with running timer, return correct result
+    
+    The timer code is careful to ensure that if stop/reset is called
+    while a timer is being run, we cancel the run. However, the code
+    failed to ensure that in that case stop/reset returned true,
+    meaning that the timer had been stopped. In the racing case
+    stop/reset could see that t.when had been set to zero,
+    and return false, even though the timer had not and never would fire.
+    
+    Fix this by tracking whether a timer run is in progress,
+    and using that to reliably detect that the run was cancelled,
+    meaning that stop/reset should return true.
+    
+    Fixes #69312
+    
+    Change-Id: I78e870063eb96650638f12c056e32c931417c84a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611496
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/time.go    | 82 +++++++++++++++++++++++++++++++++++++++++++++++---
+ src/time/sleep_test.go | 62 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 139 insertions(+), 5 deletions(-)

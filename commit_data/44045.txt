@@ -1,18 +1,33 @@
-commit 9abbe277105f9b9a3b4c5905e7faf9a02827ce18
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Dec 19 13:46:49 2020 -0800
+commit d5734d4f2dd1168dc3df94f2b9912299aea0c0ac
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri May 1 00:58:55 2020 -0400
 
-    test: skip issue11656.go on mips/mips64/ppc64
+    net/http: only support "chunked" in inbound Transfer-Encoding headers
     
-    For #11656
-    For #43283
+    This is a security hardening measure against HTTP request smuggling.
+    Thank you to ZeddYu for reporting this issue.
     
-    Change-Id: I1fcf2b24800f421e36201af43130b487abe605b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279312
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    We weren't parsing things correctly anyway, allowing "identity" to be
+    combined with "chunked", and ignoring any Transfer-Encoding header past
+    the first. This is a delicate security surface that already broke
+    before, just be strict and don't add complexity to support cases not
+    observed in the wild (nginx removed "identity" support [1] and multiple
+    TE header support [2]) and removed by RFC 7230 (see page 81).
+    
+    It'd probably be good to also drop support for anything other than
+    "chunked" in outbound TE headers, as "identity" is not a thing anymore,
+    and we are probably off-spec for anything other than "chunked", but it
+    should not be a security concern, so leaving it for now. See #38867.
+    
+    [1]: https://hg.nginx.org/nginx/rev/fe5976aae0e3
+    [2]: https://hg.nginx.org/nginx/rev/aca005d232ff
+    
+    Change-Id: If17d0827f9c6167a0b19a158e2bc5844ec803288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231418
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- test/fixedbugs/issue11656.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/net/http/response_test.go |   1 +
+ src/net/http/serve_test.go    |  31 ------------
+ src/net/http/transfer.go      | 109 ++++++++++++++++++------------------------
+ src/net/http/transfer_test.go |  22 +++++++--
+ 4 files changed, 66 insertions(+), 97 deletions(-)

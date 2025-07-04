@@ -1,19 +1,20 @@
-commit 793f6f3cc3c2e6a5fc6636f984eadb808c7b62e8
-Author: Rob Pike <r@golang.org>
-Date:   Sat Feb 18 12:43:08 2012 +1100
+commit 3e804f98d75515bba73a86f563257eabceb1afe1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Feb 18 11:48:33 2012 +1100
 
-    encoding/gob: fix mutually recursive slices of structs
+    pkg: a slew of examples
     
-    Fix by setting the element type if we discover it's zero while building.
-    We could have fixed this better with foresight by doing the id setting in a
-    different sequence, but doing that now would break binary compatibility.
-    
-    Fixes #2995.
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, gri, r
     CC=golang-dev
-    https://golang.org/cl/5675083
+    https://golang.org/cl/5676071
 
- src/pkg/encoding/gob/encoder_test.go | 27 +++++++++++++++++++++++++++
- src/pkg/encoding/gob/type.go         | 16 ++++++++++++++++
- 2 files changed, 43 insertions(+)
+ src/pkg/archive/zip/example_test.go   | 75 +++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/md5/md5_test.go        | 13 +++++-
+ src/pkg/crypto/sha1/sha1_test.go      | 12 +++++-
+ src/pkg/encoding/json/example_test.go | 33 +++++++++++++++
+ src/pkg/errors/errors_test.go         | 30 +++++++++++---
+ src/pkg/errors/example_test.go        | 34 ++++++++++++++++
+ src/pkg/net/example_test.go           | 35 ++++++++++++++++
+ src/pkg/net/url/example_test.go       | 41 +++++++++++++++++++
+ src/pkg/sync/example_test.go          | 34 ++++++++++++++++
+ 9 files changed, 298 insertions(+), 9 deletions(-)

@@ -1,12 +1,16 @@
-commit 5833c96b0a3b1e77b787ee9b908456a7334f7821
+commit 0cdc0b3b78dcb029bc4951637a0d9be11ee0d7e5
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 21 13:30:31 2013 -0500
+Date:   Thu Feb 21 12:53:25 2013 -0500
 
-    runtime: better error from TestGcSys when gc is disabled
+    cmd/5g, cmd/6g: fix node dump formats
     
-    R=golang-dev, bradfitz
+    lvd changed the old %N to %+hN and these
+    never got updated.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7390047
+    https://golang.org/cl/7391045
 
- src/pkg/runtime/gc_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/5g/cgen.c | 4 ++--
+ src/cmd/6g/cgen.c | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

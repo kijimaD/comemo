@@ -1,12 +1,24 @@
-commit 8ac16b9d529bc42ef085cd633fe57e17d5db57f9
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Mon Aug 3 17:20:31 2015 -0700
+commit 1045351cef21a64d954b4477af9f5105ea4287d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 24 11:53:24 2015 +0200
 
-    cmd/go: re-run mkalldocs.sh after testflag change
+    net/http: bound the number of bytes read seeking EOF in Handler's Body.Close
     
-    Change-Id: Ia21501df23a91c065d9f2acc6f043019a1419b22
-    Reviewed-on: https://go-review.googlesource.com/13092
+    If a client sent a POST with a huge request body, calling
+    req.Body.Close in the handler (which is implicit at the end of a
+    request) would end up consuming it all.
+    
+    Put a cap on that, using the same threshold used elsewhere for similar
+    cases.
+    
+    Fixes #9662
+    
+    Change-Id: I26628413aa5f623a96ef7c2609a8d03c746669e5
+    Reviewed-on: https://go-review.googlesource.com/11412
     Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/alldocs.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/http/request.go    |   3 +-
+ src/net/http/serve_test.go | 159 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  28 +++++++-
+ src/net/http/transfer.go   |  54 ++++++++++++---
+ 4 files changed, 231 insertions(+), 13 deletions(-)

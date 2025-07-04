@@ -1,25 +1,19 @@
-commit 64b260dbdefcd2205e74d236a7f33d0e6b8f48cb
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Aug 8 00:14:43 2022 +0700
+commit b99abf3cce16721d79351c92031239a27fec3d22
+Author: Jake Ciolek <jakub@ciolek.dev>
+Date:   Sat Oct 9 20:09:21 2021 +0200
 
-    test: use cgo.Incomplete instead of go:notinheap for "run" tests
+    cmd/compile: use the shorter version of XOR for breaking POPCNT register
     
-    Same as CL 421880, but for test directory.
+    dependency
     
-    Updates #46731
+    XORL accomplishes the same thing while being shorter to encode.
     
-    Change-Id: If8d18df013a6833adcbd40acc1a721bbc23ca6b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421881
+    Change-Id: I4397999ff617edb61a7fb7d1eca757a202ab8134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354832
     Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
 
- test/fixedbugs/bug514.go                    |  8 ++++++--
- test/fixedbugs/issue40954.go                | 13 +++++++++----
- test/fixedbugs/issue42032.go                |  6 +++++-
- test/fixedbugs/issue42076.go                |  9 +++++++--
- test/fixedbugs/issue46903.go                | 12 ++++++++----
- test/{typeparam => fixedbugs}/issue51733.go |  6 ++++--
- 6 files changed, 39 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

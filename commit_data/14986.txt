@@ -1,12 +1,19 @@
-commit 5a49acc72fd41a8a9b02ac9f4e4c9c41d1bf8c42
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 25 15:35:25 2013 -0800
+commit df21f06fdfa393747634d378a5a4344d0a7b54c3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 25 10:06:18 2013 +1100
 
-    CONTRIBUTORS: add Carl Shapiro's golang.org address
+    misc/dashboard/builder: synchronize accesses to goroot, always -commit
     
-    R=golang-dev, dsymonds
+    This prevents the occasional issue when Mercurial screws up the locking
+    itself, and by moving the locking into this process we can use the
+    goroot for other things (such as automatically updating the builder
+    binary).
+    
+    It also asks all builders to poll for new commits.
+    
+    R=bradfitz, dave, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/7220046
+    https://golang.org/cl/7178046
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dashboard/builder/main.go | 90 ++++++++++++++++++++++++++++++------------
+ 1 file changed, 65 insertions(+), 25 deletions(-)

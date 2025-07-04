@@ -1,19 +1,22 @@
-commit f4ecfaa442ffdcab83bf63b2d40c67290d13f618
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 7 22:12:26 2014 -0700
+commit fc6753c7cd788cbd50cb80e18764541934141e63
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 7 17:40:00 2014 -0700
 
-    liblink: remove code that is never executed
+    runtime: make sure associated defers are copyable before trying to copy a stack.
     
-    This code tests linkmode == LinkExternal but is only invoked
-    by the compiler/assembler, not the linker.
+    Defers generated from cgo lie to us about their argument layout.
+    Mark those defers as not copyable.
     
-    Update #7164
+    CL 83820043 contains an additional test for this code and should be
+    checked in (and enabled) after this change is in.
+    
+    Fixes bug 7695.
     
     LGTM=rsc
-    R=rsc, dave
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/85080043
+    https://golang.org/cl/84740043
 
- src/liblink/asm6.c | 15 ---------------
- src/liblink/asm8.c | 22 ----------------------
- 2 files changed, 37 deletions(-)
+ src/pkg/runtime/stack.c       | 69 +++++++++++++++++++++++++++++++++++--------
+ src/pkg/runtime/stack_test.go | 17 +++++++++++
+ 2 files changed, 74 insertions(+), 12 deletions(-)

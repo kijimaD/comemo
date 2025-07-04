@@ -1,28 +1,12 @@
-commit 77aabbf217a93d59dd6c9d77e3b91b153291a79e
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Nov 3 17:12:13 2011 +1100
+commit 1c530d5d7812f6aa155f513264a43c28e3b22a0d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Nov 3 14:52:38 2011 +1100
 
-    html: parse <link> elements in <head>
+    builtin: remove errant spaces
     
-    Pass tests1.dat, test 83:
-    <title><meta></title><link><title><meta></title>
-    
-    | <html>
-    |   <head>
-    |     <title>
-    |       "<meta>"
-    |     <link>
-    |     <title>
-    |       "<meta>"
-    |   <body>
-    
-    Also pass test 84:
-    <style><!--</style><meta><script>--><link></script>
-    
-    R=nigeltao
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5331061
+    https://golang.org/cl/5337041
 
- src/pkg/html/parse.go      | 6 ++++--
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/builtin/builtin.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

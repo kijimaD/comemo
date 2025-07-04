@@ -1,12 +1,17 @@
-commit c27a7dbf78e976a4655478711da03537a38a206d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 22 09:01:30 2012 -0700
+commit 2e6d0968e308b69b8be720f51a4177e90f41668f
+Author: Joakim Sernbrant <serbaut@gmail.com>
+Date:   Wed Aug 22 11:05:24 2012 +1000
 
-    CONTRIBUTORS: Add Dave Borowitz (Google CLA)
+    archive/zip: zip64 support
     
-    R=golang-dev, r
+    R=golang-dev, r, adg
     CC=golang-dev
-    https://golang.org/cl/6484046
+    https://golang.org/cl/6463050
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/archive/zip/reader.go          | 114 +++++++++++++++++++++++++---
+ src/pkg/archive/zip/reader_test.go     |  11 +++
+ src/pkg/archive/zip/struct.go          |  93 ++++++++++++++++-------
+ src/pkg/archive/zip/testdata/zip64.zip | Bin 0 -> 242 bytes
+ src/pkg/archive/zip/writer.go          | 134 +++++++++++++++++++++++++++------
+ src/pkg/archive/zip/zip_test.go        | 114 +++++++++++++++++++++++++---
+ 6 files changed, 394 insertions(+), 72 deletions(-)

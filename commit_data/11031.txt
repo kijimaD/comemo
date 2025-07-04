@@ -1,13 +1,25 @@
-commit bab56ecb4dc9a2e03d3121c8a2c3582981b79175
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jan 5 09:44:25 2012 -0800
+commit c581ec4918ba7fc92e991afdb6f7dd4ccfb31124
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Thu Jan 5 12:05:38 2012 -0500
 
-    net: fix incorrect mode on ListenIP, ListenUDP
+    crypto/tls: Improve TLS Client Authentication
     
-    R=golang-dev, iant
-    CC=golang-dev
-    https://golang.org/cl/5523044
+    Fix incorrect marshal/unmarshal of certificateRequest.
+    Add support for configuring client-auth on the server side.
+    Fix the certificate selection in the client side.
+    Update generate_cert.go to new time package
+    
+    Fixes #2521.
+    
+    R=krautz, agl, bradfitz
+    CC=golang-dev, mikkel
+    https://golang.org/cl/5448093
 
- src/pkg/net/iprawsock_posix.go | 2 +-
- src/pkg/net/udpsock_posix.go   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/crypto/tls/common.go                |  32 +-
+ src/pkg/crypto/tls/handshake_client.go      |  83 +--
+ src/pkg/crypto/tls/handshake_messages.go    |  40 +-
+ src/pkg/crypto/tls/handshake_server.go      |  96 +++-
+ src/pkg/crypto/tls/handshake_server_test.go | 780 ++++++++++++++++++++++++++--
+ src/pkg/crypto/tls/tls.go                   |   2 +-
+ src/pkg/crypto/x509/cert_pool.go            |  10 +
+ 7 files changed, 915 insertions(+), 128 deletions(-)

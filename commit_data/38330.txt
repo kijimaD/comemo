@@ -1,79 +1,41 @@
-commit 05051b56a0184d8dfdb857e8ee10c99bfbf4646b
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Tue Nov 13 17:08:17 2018 +0900
+commit 1e8ecefcd50fe9e9ae86f7c3a7a4f918c5e8e0c4
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Mon Oct 15 22:29:05 2018 -0300
 
-    sync: allow inlining the RWMutex.RUnlock fast path
+    cmd/compile: intrinsify math/big.mulWW on ppc64x
     
-    RWMutex.RLock is already inlineable, so add a test for it as well.
+    This change implements mulWW as an intrinsic for ppc64x. Performance
+    numbers below:
     
-    name                    old time/op  new time/op  delta
-    RWMutexUncontended      66.5ns ± 0%  60.3ns ± 1%  -9.38%  (p=0.000 n=12+20)
-    RWMutexUncontended-4    16.7ns ± 0%  15.3ns ± 1%  -8.49%  (p=0.000 n=17+20)
-    RWMutexUncontended-16   7.86ns ± 0%  7.69ns ± 0%  -2.08%  (p=0.000 n=18+15)
-    RWMutexWrite100         25.1ns ± 0%  24.0ns ± 1%  -4.28%  (p=0.000 n=20+18)
-    RWMutexWrite100-4       46.7ns ± 5%  44.1ns ± 4%  -5.53%  (p=0.000 n=20+20)
-    RWMutexWrite100-16      68.3ns ±11%  65.7ns ± 8%  -3.81%  (p=0.003 n=20+20)
-    RWMutexWrite10          26.7ns ± 1%  25.7ns ± 0%  -3.75%  (p=0.000 n=17+14)
-    RWMutexWrite10-4        34.9ns ± 2%  33.8ns ± 2%  -3.15%  (p=0.000 n=20+20)
-    RWMutexWrite10-16       37.4ns ± 2%  36.1ns ± 2%  -3.51%  (p=0.000 n=18+20)
-    RWMutexWorkWrite100      163ns ± 0%   162ns ± 0%  -0.89%  (p=0.000 n=18+20)
-    RWMutexWorkWrite100-4    189ns ± 4%   184ns ± 4%  -2.89%  (p=0.000 n=19+20)
-    RWMutexWorkWrite100-16   207ns ± 4%   200ns ± 2%  -3.07%  (p=0.000 n=19+20)
-    RWMutexWorkWrite10       153ns ± 0%   151ns ± 1%  -0.75%  (p=0.000 n=20+20)
-    RWMutexWorkWrite10-4     177ns ± 1%   176ns ± 2%  -0.63%  (p=0.004 n=17+20)
-    RWMutexWorkWrite10-16    191ns ± 2%   189ns ± 1%  -0.83%  (p=0.015 n=20+17)
+    name                            old time/op    new time/op    delta
+    QuoRem                            4.54µs ±45%    3.22µs ± 0%  -29.22%  (p=0.029 n=4+4)
+    ModSqrt225_Tonelli                 765µs ± 3%     757µs ± 0%   -1.02%  (p=0.029 n=4+4)
+    ModSqrt225_3Mod4                   231µs ± 0%     231µs ± 0%   -0.10%  (p=0.029 n=4+4)
+    ModSqrt231_Tonelli                 789µs ± 0%     788µs ± 0%   -0.14%  (p=0.029 n=4+4)
+    ModSqrt231_5Mod8                   267µs ± 0%     267µs ± 0%   -0.13%  (p=0.029 n=4+4)
+    Sqrt                              49.5µs ±17%    45.3µs ± 0%   -8.48%  (p=0.029 n=4+4)
+    IntSqr/1                          32.2ns ±22%    24.2ns ± 0%  -24.79%  (p=0.029 n=4+4)
+    IntSqr/2                          60.6ns ± 0%    60.9ns ± 0%   +0.50%  (p=0.029 n=4+4)
+    IntSqr/3                          82.8ns ± 0%    83.3ns ± 0%   +0.51%  (p=0.029 n=4+4)
+    IntSqr/5                           122ns ± 0%     121ns ± 0%   -1.22%  (p=0.029 n=4+4)
+    IntSqr/8                           227ns ± 0%     226ns ± 0%   -0.44%  (p=0.029 n=4+4)
+    IntSqr/10                          300ns ± 0%     298ns ± 0%   -0.67%  (p=0.029 n=4+4)
+    IntSqr/20                         1.02µs ± 0%    0.89µs ± 0%  -13.08%  (p=0.029 n=4+4)
+    IntSqr/30                         1.73µs ± 0%    1.51µs ± 0%  -12.73%  (p=0.029 n=4+4)
+    IntSqr/50                         3.69µs ± 1%    3.29µs ± 0%  -10.70%  (p=0.029 n=4+4)
+    IntSqr/80                         7.64µs ± 0%    7.04µs ± 0%   -7.91%  (p=0.029 n=4+4)
+    IntSqr/100                        11.1µs ± 0%    10.3µs ± 0%   -7.04%  (p=0.029 n=4+4)
+    IntSqr/200                        37.9µs ± 0%    36.4µs ± 0%   -4.13%  (p=0.029 n=4+4)
+    IntSqr/300                        69.4µs ± 0%    66.0µs ± 0%   -4.94%  (p=0.029 n=4+4)
+    IntSqr/500                         174µs ± 0%     168µs ± 0%   -3.10%  (p=0.029 n=4+4)
+    IntSqr/800                         347µs ± 0%     333µs ± 0%   -4.06%  (p=0.029 n=4+4)
+    IntSqr/1000                        524µs ± 0%     507µs ± 0%   -3.21%  (p=0.029 n=4+4)
     
-    linux/amd64 bin/go 14688201 (previous commit 14675861, +12340/+0.08%)
-    
-    The cumulative effect of this and the previous 3 commits is:
-    
-    name                    old time/op  new time/op  delta
-    MutexUncontended        19.3ns ± 1%  16.4ns ± 1%  -15.13%  (p=0.000 n=20+20)
-    MutexUncontended-4      5.24ns ± 0%  4.09ns ± 0%  -21.95%  (p=0.000 n=20+18)
-    MutexUncontended-16     2.10ns ± 0%  2.12ns ± 0%   +0.95%  (p=0.000 n=15+17)
-    Mutex                   19.6ns ± 0%  16.3ns ± 1%  -17.12%  (p=0.000 n=20+20)
-    Mutex-4                 54.6ns ± 5%  45.6ns ±10%  -16.51%  (p=0.000 n=20+19)
-    Mutex-16                 133ns ± 5%   130ns ± 3%   -1.99%  (p=0.002 n=20+20)
-    MutexSlack              33.4ns ± 2%  16.2ns ± 0%  -51.44%  (p=0.000 n=19+20)
-    MutexSlack-4             206ns ± 5%   209ns ± 9%     ~     (p=0.154 n=20+20)
-    MutexSlack-16           89.4ns ± 1%  90.9ns ± 2%   +1.70%  (p=0.000 n=18+17)
-    MutexWork               60.5ns ± 0%  55.3ns ± 1%   -8.59%  (p=0.000 n=12+20)
-    MutexWork-4              105ns ± 5%    97ns ±11%   -7.95%  (p=0.000 n=20+20)
-    MutexWork-16             157ns ± 1%   158ns ± 1%   +0.66%  (p=0.001 n=18+17)
-    MutexWorkSlack          70.2ns ± 5%  55.3ns ± 0%  -21.30%  (p=0.000 n=19+18)
-    MutexWorkSlack-4         277ns ±13%   260ns ±15%   -6.35%  (p=0.002 n=20+18)
-    MutexWorkSlack-16        156ns ± 0%   146ns ± 1%   -6.40%  (p=0.000 n=16+19)
-    MutexNoSpin              966ns ± 0%   976ns ± 1%   +0.97%  (p=0.000 n=15+17)
-    MutexNoSpin-4            269ns ± 4%   272ns ± 4%   +1.15%  (p=0.048 n=20+18)
-    MutexNoSpin-16           122ns ± 0%   119ns ± 1%   -2.63%  (p=0.000 n=19+15)
-    MutexSpin               3.13µs ± 0%  3.12µs ± 0%   -0.17%  (p=0.000 n=18+18)
-    MutexSpin-4              826ns ± 1%   833ns ± 1%   +0.84%  (p=0.000 n=19+17)
-    MutexSpin-16             397ns ± 1%   394ns ± 1%   -0.78%  (p=0.000 n=19+19)
-    Once                    5.67ns ± 0%  2.07ns ± 2%  -63.43%  (p=0.000 n=20+20)
-    Once-4                  1.47ns ± 2%  0.54ns ± 3%  -63.49%  (p=0.000 n=19+20)
-    Once-16                 0.58ns ± 0%  0.17ns ± 5%  -70.49%  (p=0.000 n=17+17)
-    RWMutexUncontended      71.4ns ± 0%  60.3ns ± 1%  -15.60%  (p=0.000 n=16+20)
-    RWMutexUncontended-4    18.4ns ± 4%  15.3ns ± 1%  -17.14%  (p=0.000 n=20+20)
-    RWMutexUncontended-16   8.01ns ± 0%  7.69ns ± 0%   -3.91%  (p=0.000 n=18+15)
-    RWMutexWrite100         24.9ns ± 0%  24.0ns ± 1%   -3.57%  (p=0.000 n=19+18)
-    RWMutexWrite100-4       46.5ns ± 3%  44.1ns ± 4%   -5.09%  (p=0.000 n=17+20)
-    RWMutexWrite100-16      68.9ns ± 3%  65.7ns ± 8%   -4.65%  (p=0.000 n=18+20)
-    RWMutexWrite10          27.1ns ± 0%  25.7ns ± 0%   -5.25%  (p=0.000 n=17+14)
-    RWMutexWrite10-4        34.8ns ± 1%  33.8ns ± 2%   -2.96%  (p=0.000 n=20+20)
-    RWMutexWrite10-16       37.5ns ± 2%  36.1ns ± 2%   -3.72%  (p=0.000 n=20+20)
-    RWMutexWorkWrite100      164ns ± 0%   162ns ± 0%   -1.49%  (p=0.000 n=12+20)
-    RWMutexWorkWrite100-4    186ns ± 3%   184ns ± 4%     ~     (p=0.097 n=20+20)
-    RWMutexWorkWrite100-16   204ns ± 2%   200ns ± 2%   -1.58%  (p=0.000 n=18+20)
-    RWMutexWorkWrite10       153ns ± 0%   151ns ± 1%   -1.21%  (p=0.000 n=20+20)
-    RWMutexWorkWrite10-4     179ns ± 1%   176ns ± 2%   -1.25%  (p=0.000 n=19+20)
-    RWMutexWorkWrite10-16    191ns ± 1%   189ns ± 1%   -0.94%  (p=0.000 n=15+17)
-    
-    Change-Id: I9269bf2ac42a04c610624f707d3268dcb17390f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/152698
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If067452f5b6579ad3a2e9daa76a7ffe6fceae1bb
+    Reviewed-on: https://go-review.googlesource.com/c/143217
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/sync/rwmutex.go | 23 ++++++++++++++---------
- test/inline_sync.go | 13 +++++++++++++
- 2 files changed, 27 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

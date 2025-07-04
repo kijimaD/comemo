@@ -1,23 +1,22 @@
-commit 32d127823fcd2f9cc790157acbe1781c17ded149
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 23 14:12:42 2011 -0700
+commit 09dd5bf13bdf6365e364e81f9122b837670de080
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 23 14:05:18 2011 -0700
 
-    go spec: clarify rules for shifts
+    gophertool: Chrome extension to aid in Go development
     
-    Note: This is not a spec change.
+    Contains common links & a smart text box that recognizes various
+    identifiers and jumps to one of:
     
-    The spec was not clear on the result type of
-    constant shift expressions. Made it more
-    explicit and added additional examples.
+    * issue URL,
+    * codereview URL,
+    * commit URL,
+    * package docs
     
-    Also: Remove paragraph on send expressions (they
-    are statements, now).
-    
-    Fixes #1708.
-    
-    R=rsc, r, iant, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4517074
+    https://golang.org/cl/4553058
 
- doc/go_spec.html | 67 ++++++++++++++++++++++++++++++--------------------------
- 1 file changed, 36 insertions(+), 31 deletions(-)
+ misc/chrome/gophertool/gopher.png    | Bin 0 -> 5588 bytes
+ misc/chrome/gophertool/manifest.json |  12 ++++++
+ misc/chrome/gophertool/popup.html    |  69 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 81 insertions(+)

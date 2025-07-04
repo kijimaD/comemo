@@ -1,20 +1,14 @@
-commit 4720f49e189fcfd52d8bc61cbf0fc913f3336542
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 8 14:31:22 2016 -0800
+commit b73e247a8eeef69ea87afea80c7a7a1b88e61553
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 18 18:26:51 2015 +0000
 
-    cmd/compile: relocate a bunch of Type-related code
+    net/http: document that Server.TLSNextProto has automatic HTTP/2 also
     
-    Some cleaned up documentation, but no code changes.
+    Copy the same sentence from Transport.TLSNextProto.
     
-    Change-Id: I145398bb6d118c626ab3873ef75dbb64ebc286e9
-    Reviewed-on: https://go-review.googlesource.com/20404
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib67bf054e891a68be8ba466a8c52968363374d16
+    Reviewed-on: https://go-review.googlesource.com/18031
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |   7 -
- src/cmd/compile/internal/gc/go.go      | 135 ----------------
- src/cmd/compile/internal/gc/lex.go     |   6 -
- src/cmd/compile/internal/gc/subr.go    | 122 --------------
- src/cmd/compile/internal/gc/type.go    | 280 +++++++++++++++++++++++++++++++++
- 5 files changed, 280 insertions(+), 270 deletions(-)
+ src/net/http/server.go | 1 +
+ 1 file changed, 1 insertion(+)

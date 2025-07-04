@@ -1,23 +1,21 @@
-commit 4cb926001cbc068dac62012d86ed1dfbd0a66690
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 29 09:27:57 2019 -0700
+commit 5ec14065dcc4c066ca7e434be7239c942f0c2e5b
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Jun 6 19:17:01 2019 +0800
 
-    cmd/compile/internal/syntax: silence test function output
+    syscall: fix skip condition in skipUnprivilegedUserClone
     
-    Don't print to stdout in non-verbose (-v) test mode.
+    This is a follow up CL of CL 180877:
+    It will skip test create user namespaces under 3 conditions:
     
-    Exception: Timing output (2 lines) of TestStdLib. If
-    we want to disable that as well we should use another
-    flag to differenciate between -verbose output and
-    measurement results. Leaving alone for now.
+    1. sysctl file is missing
+    2. file reads nothing
+    3. user don't have permission to create namespaces
     
-    Fixes #35223.
-    
-    Change-Id: Ie8160760e8db1138f9031888d654eaeab202128c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204039
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I25f00a6b67213bf98d654972388637789978e1fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180937
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/syntax/dumper_test.go  |  3 +--
- src/cmd/compile/internal/syntax/printer_test.go | 11 ++++++++++-
- src/cmd/compile/internal/syntax/scanner_test.go |  3 +++
- 3 files changed, 14 insertions(+), 3 deletions(-)
+ src/syscall/exec_linux_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

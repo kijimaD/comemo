@@ -1,20 +1,26 @@
-commit d38f1d13fa413436d38d86fe86d6a146be44bb84
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 23 17:23:39 2022 -0700
+commit 647bef6c59e201792688d88cdc50ea0c6a68990b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 24 09:28:43 2021 -0700
 
-    doc/go1.19: Linux race detector now requires glibc 2.17
+    go/types: implement NewTypeList and use it instead of composite literals
     
-    Fixes #53522
+    Also, simplify a bit of code in predicates.go.
     
-    Change-Id: Ibed838d358a733d26a6c3d89446d7fadb1012961
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413876
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This is a backport of changes in CL 344615 that were made in addition
+    to the changes of the original CL 343933; it brings go/types in sync
+    with types2.
+    
+    Change-Id: I14cd4d4704d29894d0fbb8d129744d65e332ad22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344570
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- doc/go1.19.html | 1 +
- 1 file changed, 1 insertion(+)
+ src/go/types/check.go       | 2 +-
+ src/go/types/instantiate.go | 2 +-
+ src/go/types/predicates.go  | 8 +++-----
+ src/go/types/subst.go       | 2 +-
+ src/go/types/typelists.go   | 8 ++++++++
+ 5 files changed, 14 insertions(+), 8 deletions(-)

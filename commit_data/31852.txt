@@ -1,29 +1,21 @@
-commit bf0f69220255941196c684f235727fd6dc747b5c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 14 19:55:40 2017 -0700
+commit 4e35e5fcabb504a14b9533692c9ae1a8c38b1139
+Author: Jakob Borg <jakob@nym.se>
+Date:   Tue Mar 14 08:21:51 2017 +0900
 
-    net: handle spurious netpoll wakeups in connect
+    net/http: fix ProxyFromEnvironment panic on invalid $NO_PROXY value
     
-    In some cases the netpoll code can cause a spurious wakeup. This is
-    normally harmless, as the woken up code simply retries the operation.
-    However, for connect, the test we were using to see whether the
-    connect had succeeded (setsockopt(SO_ERROR)) was not reliable in the
-    case of a spurious wakeup.  Change to using a reliable test (getpeername).
-    On Darwin we used a different technique: a second call to connect;
-    change Darwin to use getpeername as well.
+    Given an entry in $no_proxy like ":1" we would interpret it as an empty
+    host name and a port number, then check the first character of the host
+    name for dots. This would then cause an index out of range panic. This
+    change simply skips these entries, as the following checks would anyway
+    have returned false.
     
-    Return the result of getpeername to avoid having to call it twice.
+    Fixes #19536
     
-    Fixes #19289.
-    
-    Change-Id: I119ec8e7a41f482f1e590d4c65a37f6103fa22d9
-    Reviewed-on: https://go-review.googlesource.com/45815
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iafe9c7a77ad4a6278c8ccb00a1575b56e4bdcd79
+    Reviewed-on: https://go-review.googlesource.com/38067
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/fd_unix.go           | 40 +++++++++++++++++++---------------------
- src/net/fd_windows.go        | 15 ++++++++-------
- src/net/sock_posix.go        | 15 ++++++++++++---
- src/net/tcpsock_unix_test.go | 39 ++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 77 insertions(+), 32 deletions(-)
+ src/net/http/proxy_test.go | 6 ++++++
+ src/net/http/transport.go  | 4 ++++
+ 2 files changed, 10 insertions(+)

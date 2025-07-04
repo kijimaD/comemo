@@ -1,20 +1,18 @@
-commit 7939c43748932c0caf1a1538410eb70fcd5a705f
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Mar 31 19:13:39 2020 -0400
+commit 813d8e886208e5e001df3b55e8bc1c65ca4249ff
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 23 14:28:55 2019 +0700
 
-    runtime: generate dummy duffcopy
+    runtime: factor out debug.invalidptr case in findObject
     
-    Although duffcopy is not used on PPC64, duff_ppc64x.s and
-    mkduff.go don't match. Make it so.
+    This helps keeping findObject's frame small.
     
-    Fixes #38188.
+    Updates #35068
     
-    Change-Id: Ic6c08e335795ea407880efd449f4229696af7744
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226719
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I1b8c1fcc5831944c86f1a30ed2f2d867a5f2b242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202797
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/duff_ppc64x.s | 6 ++----
- src/runtime/mkduff.go     | 4 +++-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/mbitmap.go | 50 +++++++++++++++++++++++++++-----------------------
+ 1 file changed, 27 insertions(+), 23 deletions(-)

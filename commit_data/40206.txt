@@ -1,28 +1,18 @@
-commit 900ebcfe4d592486dd5bc50f5e8101ba65e32948
-Author: Tom Thorogood <me+google@tomthorogood.co.uk>
-Date:   Thu Oct 10 10:48:00 2019 +0000
+commit a7dc6ca4b176cc4a918a73ffd0ab7df92011fdbb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 25 11:43:52 2019 -0400
 
-    encoding/json: stop escaping U+2028 and U+2029 in Compact
+    net/url: document, test that PathEscape escapes / to %2F
     
-    Compact has been inconsistently escaping only some problematic characters
-    (U+2028 and U+2029), but not others (<, > and &). This change addresses
-    this inconsistency by removing the escaping of U+2028 and U+2029.
+    I couldn't remember and couldn't tell from the docs,
+    so I added a test and documented what I found.
     
-    Callers who need to escape the output of Compact should use HTMLEscape
-    which escapes <, >, &, U+2028 and U+2029.
-    
-    Fixes #34070
-    Fixes #30357
-    Updates #5836
-    
-    Change-Id: Icfce7691d2b8b1d9b05ba7b64d2d1e4f3b67871b
-    GitHub-Last-Rev: 38859fe3e2fd586bbd45175c2742f7b123836bf3
-    GitHub-Pull-Request: golang/go#34804
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200217
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ic5d837c2d620b15d7a831823e94e70080f5e5324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173948
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/indent.go       | 2 +-
- src/encoding/json/scanner_test.go | 5 +++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/net/url/url.go      | 4 ++--
+ src/net/url/url_test.go | 5 +++++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

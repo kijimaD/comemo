@@ -1,12 +1,12 @@
-commit 6606995c9135c36c7c49af030673baee506790b6
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Fri Jan 28 23:44:37 2011 -0500
+commit 64c7f70c66080aca3fc0b5550608e052eb28ca5d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 28 15:56:14 2011 -0800
 
-    fix windows build
+    time: Support Solaris zoneinfo directory.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4124041
+    https://golang.org/cl/4079047
 
- src/pkg/runtime/windows/mem.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/time/zoneinfo_unix.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

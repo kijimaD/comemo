@@ -1,12 +1,14 @@
-commit a21b36da1cd1e00941536ee1b4e33f456a4500dc
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun May 5 02:23:19 2013 +0800
+commit 48c4a87a94652898653c24f0b7a6e58f76fffa6b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 3 15:24:05 2013 -0400
 
-    go/build: document GOOS.go also has implicit GOOS build constraint
+    doc: fix formatting in effective go code snippet
     
-    R=golang-dev, i.caught.air, alexb, r
+    Fixes #5403.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/9064044
+    https://golang.org/cl/9100046
 
- src/pkg/go/build/doc.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

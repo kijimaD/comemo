@@ -1,16 +1,20 @@
-commit a6950fe0f9c23fe681109db746038092b5a04728
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Aug 24 12:41:23 2014 +0400
+commit a18a3603795064cf45496f97da628308b2dc9700
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Fri Aug 15 16:37:19 2014 +1000
 
-    runtime: convert synchronous semaphores to Go
+    net: fix CNAME resolving on Windows
     
-    LGTM=rsc
-    R=golang-codereviews, khr, rsc
-    CC=golang-codereviews, rlh
-    https://golang.org/cl/130340043
+    Fixes #8492
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/122200043
 
- src/pkg/runtime/sema.go  | 117 +++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/sema.goc |  90 ------------------------------------
- src/pkg/runtime/thunk.s  |  21 +++++++++
- src/pkg/sync/runtime.go  |   8 +++-
- 4 files changed, 144 insertions(+), 92 deletions(-)
+ src/pkg/net/lookup_windows.go             |  79 ++++++++--
+ src/pkg/net/lookup_windows_test.go        | 243 ++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go        |   1 +
+ src/pkg/syscall/zsyscall_windows_386.go   |   9 +-
+ src/pkg/syscall/zsyscall_windows_amd64.go |   9 +-
+ src/pkg/syscall/ztypes_windows.go         |  12 ++
+ 6 files changed, 341 insertions(+), 12 deletions(-)

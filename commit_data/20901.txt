@@ -1,15 +1,17 @@
-commit b30d2a856ad7805a35b1642a553effef545c8879
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 17 14:41:18 2014 +1100
+commit 9efe7e819d500b4a7027811ff5e86be5007099f4
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon Oct 27 14:12:54 2014 -0400
 
-    bump go1.4rc1 tag
+    [dev.garbage] runtime: Linear map test give false negative due to GC.
+    This test gives a false negative at an observed rate of 1 in a 1000
+    due to the fact that it runs for < 100 ms. allowing GC pauses to
+    warp the results. Changed the test so that it triggers only if it
+    remains non-linear for much larger problem sizes.
     
-    Now that the build and builders are fixed, we're good to go.
-    
-    LGTM=dsymonds
-    R=rsc, dsymonds
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/177900043
+    https://golang.org/cl/164010043
 
- .hgtags | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/maplinear.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

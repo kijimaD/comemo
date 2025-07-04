@@ -1,18 +1,21 @@
-commit 2df6c1abce8cfd3f47ed5eb5a45733d7cbb53b4b
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Wed Jul 27 09:02:17 2022 +0200
+commit 8ff254e30ba9d9c13747fe42213c3f54b47c58e7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 8 11:12:50 2021 -0800
 
-    runtime: remove the started field from sweepdata
+    cmd/compile: preserve 'any' type alias in unified IR
     
-    This bool doesn't seem to be used anymore. Remove it.
+    When exporting the "any" empty interface type for unified IR, write it
+    out as a reference to the "any" alias, rather than to the underlying
+    empty interface. This matches how "byte" and "rune" are handled.
     
-    Change-Id: Ic73346a98513c392d89482c5e1d818a90d713516
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419654
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Verified to fix the issue demonstrated in CL 369975.
+    
+    Change-Id: Ic2844b0acc3b17c20b3a40aaf262f62ec653eb5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370374
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgcsweep.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

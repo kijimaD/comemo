@@ -1,23 +1,19 @@
-commit 736443c13a718f0a9c30327ebbf09f58ccbe6d49
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 17 17:20:48 2016 -0400
+commit 302dd7b71eb565c5460966292e434fc903362cb6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jul 9 14:51:00 2016 -0700
 
-    os/exec: allow simultaneous cmd.Wait and Write of cmd.StdinPipe
+    crypto/cipher, math/big: fix example names
     
-    cmd.StdinPipe returns an io.WriteCloser.
-    It's reasonable to expect the caller not to call Write and Close simultaneously,
-    but there is an implicit Close in cmd.Wait that's not obvious.
-    We already synchronize the implicit Close in cmd.Wait against
-    any explicit Close from the caller. Also synchronize that implicit
-    Close against any explicit Write from the caller.
+    Fixes (legit) vet warnings.
+    Fix some verb tenses while we're here.
     
-    Fixes #9307.
+    Updates #11041
     
-    Change-Id: I8561e9369d6e5ac88dfbca1175549f6dfa04b8ac
-    Reviewed-on: https://go-review.googlesource.com/31148
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I27e995f55b38f4cf584e97a67b8545e8247e83d6
+    Reviewed-on: https://go-review.googlesource.com/27122
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/os/exec/exec.go      | 49 +++++++++++++++++++++++++++++++++++++++++++++---
- src/os/exec/exec_test.go | 20 ++++++++++++++++++++
- 2 files changed, 66 insertions(+), 3 deletions(-)
+ src/crypto/cipher/example_test.go | 4 ++--
+ src/math/big/floatexample_test.go | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

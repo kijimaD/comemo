@@ -1,20 +1,17 @@
-commit ecc04b8927c89fd8aa278af88888d9f186d2417f
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Sep 13 11:00:16 2012 -0400
+commit ef87c0edae19d6437801cd74203f5a2c19ea6534
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 13 10:47:01 2012 -0400
 
-    crypto/tls: allow certificates and key to be in either order.
+    crypto/rsa: reject PublicKey.E if it won't fit in a 32-bit int
     
-    X509KeyPair wasn't really supposed to allow the certificate and
-    key to be in the same file, but it did work if you put the key
-    first. Since some HTTPS servers support loading keys and certs
-    like this, this change makes it work in either order.
+    Right now we only have 32-bit ints so that's a no-op.
+    Took the opportunity to check for some other invalid values too.
+    Suggestions for additions or modifications welcome.
     
-    Fixes #3986.
-    
-    R=golang-dev, dave, rsc
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/6499103
+    https://golang.org/cl/6493112
 
- src/pkg/crypto/tls/tls.go      | 14 +++++++++----
- src/pkg/crypto/tls/tls_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 4 deletions(-)
+ src/pkg/crypto/rsa/pkcs1v15.go |  9 +++++++++
+ src/pkg/crypto/rsa/rsa.go      | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)

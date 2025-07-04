@@ -1,15 +1,30 @@
-commit cc0a005c9d68c314fbf7eab92f0c04623df8a770
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 9 22:17:12 2013 +0400
+commit 89b5c6c0af854c53ba16da8bc8394853e04e6bb0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 9 09:46:47 2013 -0700
 
-    runtime: fix netbsd build
-    I've placed net.runtime_Semacquire into netpoll.goc,
-    but netbsd does not yet use netpoll.goc.
+    encoding/json: faster encoding
     
-    R=golang-dev, bradfitz, iant
-    CC=golang-dev
-    https://golang.org/cl/12699045
+    The old code was caching per-type struct field info. Instead,
+    cache type-specific encoding funcs, tailored for that
+    particular type to avoid unnecessary reflection at runtime.
+    Once the machine is built once, future encodings of that type
+    just run the func.
+    
+    benchmark               old ns/op    new ns/op    delta
+    BenchmarkCodeEncoder     48424939     36975320  -23.64%
+    
+    benchmark                old MB/s     new MB/s  speedup
+    BenchmarkCodeEncoder        40.07        52.48    1.31x
+    
+    Additionally, the numbers seem stable now at ~52 MB/s, whereas
+    the numbers for the old code were all over the place: 11 MB/s,
+    40 MB/s, 13 MB/s, 39 MB/s, etc.  In the benchmark above I compared
+    against the best I saw the old code do.
+    
+    R=rsc, adg
+    CC=gobot, golang-dev, r
+    https://golang.org/cl/9129044
 
- src/pkg/runtime/netpoll.goc |  8 --------
- src/pkg/runtime/sema.goc    | 11 +++++++++++
- 2 files changed, 11 insertions(+), 8 deletions(-)
+ src/pkg/encoding/json/decode_test.go |  45 +++-
+ src/pkg/encoding/json/encode.go      | 507 ++++++++++++++++++++++++-----------
+ 2 files changed, 400 insertions(+), 152 deletions(-)

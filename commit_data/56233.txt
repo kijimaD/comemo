@@ -1,17 +1,33 @@
-commit 8d4abd788c82227cd6706d9a5718129437b993da
-Author: apocelipes <seve3r@outlook.com>
-Date:   Tue Apr 16 08:11:21 2024 +0000
+commit 5c865c78c378548c282b22d96e6d0375079d4417
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 17 10:56:09 2023 -0400
 
-    net/http: add comments that servemux121.go should remain frozen
+    crypto/tls: retry DialWithTimeout until the listener accepts a connection
     
-    Change-Id: I6d1e02ffd07dbb722669abb2e72784dcb2bfffd0
-    GitHub-Last-Rev: 55a82f724a32237be059ae0696cf023db414f1d0
-    GitHub-Pull-Request: golang/go#66848
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/579118
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    The point of DialWithTimeout seems to be to test what happens when the
+    connection times out during handshake. However, the test wasn't
+    actually verifying that the connection made it into the handshake at
+    all. That would not only fail to test the intended behavior, but also
+    leak the Accept goroutine until arbitrarily later, at which point it
+    may call t.Error after the test t is already done.
+    
+    Instead, we now:
+    
+    - retry the test with a longer timeout if we didn't accept a
+      connection, and
+    
+    - wait for the Accept goroutine to actually complete when the test
+      finishes.
+    
+    Fixes #59646.
+    
+    Change-Id: Ie56ce3297e2c183c02e67b8f6b26a71e50964558
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485115
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Commit-Queue: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/servemux121.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/crypto/tls/tls_test.go | 70 +++++++++++++++++++++++++++++++---------------
+ 1 file changed, 47 insertions(+), 23 deletions(-)

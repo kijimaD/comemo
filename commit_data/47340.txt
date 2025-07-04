@@ -1,17 +1,18 @@
-commit ccea0b2fbe8eaf0ac69fab4aef28f300bf676d21
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Nov 8 12:45:41 2021 -0800
+commit 9289c120025be6fef3a27732229a38df3ebf47c7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 12 15:45:18 2021 +0000
 
-    net/http: deflake TestTimeoutHandlerContextCanceled
+    Revert "testing/fstest: test that ReadDirFile on a non-dir fails"
     
-    Fixes #49448
+    This reverts commit 1853411d8376570295711f9084d494d458822578.
     
-    Change-Id: Ie2acff7dedbca9bd1cc0b1b3dd0a01573c7befee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361920
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Reason for revert: broke plan 9 builder. fixes #44967
+    
+    Change-Id: Ib89448d37f7ab8bb05dbd89ce744431d807eb4da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301190
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/http/serve_test.go | 24 +++++++++++++++---------
- 1 file changed, 15 insertions(+), 9 deletions(-)
+ src/testing/fstest/testfs.go | 9 ---------
+ 1 file changed, 9 deletions(-)

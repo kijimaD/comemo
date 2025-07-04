@@ -1,14 +1,16 @@
-commit 7ab698b0221fd4a5b2842fb50a34ba8a5f49c6d5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 20 22:43:14 2016 +0000
+commit 9cc22a7f1fbabfc1b82d198d2ac6d1ec7771e47f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 29 12:24:18 2016 +1100
 
-    time: document that After uses memory until duration times out
+    net: skip TestInterfacesWithNetsh if "netsh help" contains no English words
     
-    Fixes #15698
+    Fixes #14859
     
-    Change-Id: I616fc06dcf04092bafdaf56fb1afba2a998a6d83
-    Reviewed-on: https://go-review.googlesource.com/23304
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I262d634ee22498ec9855d273afdd409149765294
+    Reviewed-on: https://go-review.googlesource.com/21195
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/sleep.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/net_windows_test.go | 40 ++++++++++++++++++++++------------------
+ 1 file changed, 22 insertions(+), 18 deletions(-)

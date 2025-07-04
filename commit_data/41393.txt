@@ -1,19 +1,23 @@
-commit 4e8badbbc2fe7854bb1c12a9ee42315b4d535051
-Author: Katie Hockman <katie@golang.org>
-Date:   Fri Feb 7 14:44:58 2020 -0500
+commit 5f1aeaeb77b36b92305b54acc4bd6a3319dce803
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Sat Aug 24 20:42:41 2019 +0900
 
-    crypto/cipher: require non-zero nonce size for AES-GCM
+    math/rand: devirtualize interface call in Read
     
-    Also fix typo in crypto/cipher/gcm_test.go.
+    This allows to inline the common case in which the Source is a
+    rngSource. On linux/amd64 in a VM:
     
-    Fixes #37118
+    name        old time/op  new time/op  delta
+    Read3-4     33.8ns ± 8%  18.5ns ± 8%  -45.38%  (p=0.000 n=10+10)
+    Read64-4     371ns ± 8%    70ns ± 7%  -81.00%  (p=0.000 n=10+10)
+    Read1000-4  5.33µs ± 5%  0.86µs ± 3%  -83.85%  (p=0.000 n=9+9)
     
-    Change-Id: I8544d1eeeb1f0336cebb977b8c5bfa5e4c5ad8c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218500
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: Ibf47b0e9ecdfe62ffcb66d6a92f191800bdc740e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191539
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/cipher/gcm.go      |  7 ++++++-
- src/crypto/cipher/gcm_test.go | 19 +++++++++++++++++--
- 2 files changed, 23 insertions(+), 3 deletions(-)
+ src/math/rand/rand.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

@@ -1,18 +1,12 @@
-commit 02f40842990c6f5e219f2ecd3f91041a820210e9
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Wed May 27 10:44:44 2015 +0200
+commit 181e81cfe4afd21f1ae9de9c0028055fbfaaca2b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 27 16:23:43 2015 -0700
 
-    archive/tar: don't panic on negative file size
+    doc/go1.5.txt: go doc
     
-    Fixes #10959.
-    Fixes #10960.
-    
-    Change-Id: I9a81a0e2b8275338d0d1c3f7f7265e0fd91f3de2
-    Reviewed-on: https://go-review.googlesource.com/10402
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Change-Id: I883017b67e8fa76b6f123e8f9bcec3d6f820bbb3
+    Reviewed-on: https://go-review.googlesource.com/9348
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/archive/tar/reader.go             |   4 ++++
- src/archive/tar/reader_test.go        |  16 ++++++++++++++++
- src/archive/tar/testdata/neg-size.tar | Bin 0 -> 512 bytes
- 3 files changed, 20 insertions(+)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

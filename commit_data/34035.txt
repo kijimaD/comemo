@@ -1,30 +1,29 @@
-commit 9b49ac0366d3e3948adf5a30bfcff52049e1799a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 22 16:20:01 2018 -0800
+commit 7340d1397701a0dc4d2570dac6414f0cdec3fff8
+Author: Florian Uekermann <florian@uekermann.me>
+Date:   Mon Sep 18 19:22:29 2017 +0200
 
-    spec: consistently use "defined type" and "type name" (cleanup)
+    time: reduce OS dependent timezone related code
     
-    When we introduced the notion of alias type declarations, we renamed
-    "named type" to "defined type" to avoid confusion with types denoted
-    by aliases and thus are also types with names, or "named types".
+    Loading and testing timezones is currently implemented using several,
+    partly redundant, OS specific data structures and functions. This
+    change merges most of that code into OS independent implementations.
     
-    Some of the old uses of "named types" remained; this change removes
-    them.
-    
-    Now the spec consistently uses the terms:
-    
-    - "defined type"  for a type declared via a type definition
-    - "type name"     for any name denoting an (alias or defined) type
-    - "alias"         for a type name declared in an alias declaration
-    
-    New prose is encouraged to avoid the term "named type" to counter-
-    act further confusion.
-    
-    Fixes #23474.
-    
-    Change-Id: I5fb59f1208baf958da79cf51ed3eb1411cd18e03
-    Reviewed-on: https://go-review.googlesource.com/89115
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iae2877c5f48d1e4a9de9ce55d0530d52e24cf96e
+    Reviewed-on: https://go-review.googlesource.com/64391
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/time/export_android_test.go   |  4 +--
+ src/time/export_windows_test.go   |  9 +++--
+ src/time/internal_test.go         | 19 +++++++++++
+ src/time/sys_unix.go              |  2 --
+ src/time/zoneinfo.go              | 11 +++---
+ src/time/zoneinfo_android.go      | 50 +++-------------------------
+ src/time/zoneinfo_ios.go          | 32 ++++--------------
+ src/time/zoneinfo_plan9.go        | 26 +++------------
+ src/time/zoneinfo_read.go         | 70 +++++++++++++++++++++++++++++++--------
+ src/time/zoneinfo_unix.go         | 44 ++----------------------
+ src/time/zoneinfo_windows.go      | 25 +++-----------
+ src/time/zoneinfo_windows_test.go |  6 ++--
+ 12 files changed, 116 insertions(+), 182 deletions(-)

@@ -1,35 +1,26 @@
-commit 064842450bd904d2519d723a0109b33007ad00e9
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Nov 8 20:06:58 2018 +0000
+commit b15a1e3cfb64aeeb90f74e0748524b38fde5ebf9
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Thu Aug 23 19:51:50 2018 +0200
 
-    runtime: allocate from free and scav fairly
+    text/template: Put bad function name in quotes in panic from (*Template).Funcs
     
-    This change modifies the behavior of span allocations to no longer
-    prefer the free treap over the scavenged treap.
+    This turns
     
-    While there is an additional cost to allocating out of the scavenged
-    treap, the current behavior of preferring the unscavenged spans can
-    lead to unbounded growth of a program's virtual memory footprint.
+            panic: function name  is not a valid identifier
     
-    In small programs (low # of Ps, low resident set size, low allocation
-    rate) this behavior isn't really apparent and is difficult to
-    reproduce.
+    into
+            panic: function name "" is not a valid identifier
     
-    However, in relatively large, long-running programs we see this
-    unbounded growth in free spans, and an unbounded amount of heap
-    growths.
+    and also makes it consistent with the func signature check.
     
-    It still remains unclear how this policy change actually ends up
-    increasing the number of heap growths over time, but switching the
-    policy back to best-fit does indeed solve the problem.
+    This CL also makes the testBadFuncName func a test helper.
     
-    Change-Id: Ibb88d24f9ef6766baaa7f12b411974cc03341e7b
-    Reviewed-on: https://go-review.googlesource.com/c/148979
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Id967cb61ac28228de81e1cd76a39f5195a5ebd11
+    Reviewed-on: https://go-review.googlesource.com/130998
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mgclarge.go | 13 +++++--------
- src/runtime/mheap.go    | 41 ++++++++++++++++++++++++++---------------
- 2 files changed, 31 insertions(+), 23 deletions(-)
+ src/text/template/exec_test.go | 1 +
+ src/text/template/funcs.go     | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,24 +1,23 @@
-commit 578523e4a0f68e9b35984f017bb3471b0bd313b4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 6 17:47:13 2022 -0700
+commit 1cd600301ea2a0b13d5e158282200114dc9de3fd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Oct 28 14:54:30 2021 -0400
 
-    internal/types/errors: add InvalidSyntaxTree error
+    cmd/go: use workspace modules' go.sum files to check sums
     
-    Type checkers should use InvalidSyntaxTree as error code
-    for invalid syntax tree errors instead of zero. This way
-    the zero value can be used to mark an unset error code.
+    By default, use workspace modules' go.sum files to check sums. Any
+    missing sums will still be written to go.work.sum
     
-    Also, add an example for BlankPkgName (and adjust the
-    test harness slightly to make it work).
+    For #45713
     
-    Change-Id: Ic15fa0e8e46be698e52352f2f0e4915b75e509d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439565
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0f537602523dfec44d423c3c80c7ef396e1397b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359478
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/types/errors/codes.go      | 8 ++++++++
- src/internal/types/errors/codes_test.go | 8 +++++---
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modfetch/fetch.go            | 79 ++++++++++++++++++++----
+ src/cmd/go/internal/modload/init.go              |  6 +-
+ src/cmd/go/testdata/script/work_sum.txt          |  5 +-
+ src/cmd/go/testdata/script/work_sum_mismatch.txt | 61 ++++++++++++++++++
+ 4 files changed, 134 insertions(+), 17 deletions(-)

@@ -1,22 +1,14 @@
-commit e518962a27ce0333d42833456e09557ba37a95a0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 16 18:31:25 2016 -0700
+commit 89283781c69314f09e999fe131b12c57059c1ba1
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue May 24 20:03:31 2016 +0200
 
-    cmd/internal/obj: simplify Plists
+    testing: added package doc for sub(tests/benchmarks)
     
-    Keep Plists in a slice instead of a linked list.
-    Eliminate unnecessary fields.
-    Also, while here remove gc's unused breakpc and continpc vars.
-    
-    Change-Id: Ia04264036c0442843869965d247ccf68a5295115
-    Reviewed-on: https://go-review.googlesource.com/29367
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6991cd7a41140da784a1ff8d69c5ea2032d05850
+    Reviewed-on: https://go-review.googlesource.com/23354
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/gc/dcl.go  |  2 --
- src/cmd/compile/internal/gc/go.go   |  4 ----
- src/cmd/compile/internal/gc/pgen.go |  6 +-----
- src/cmd/internal/obj/link.go        |  3 +--
- src/cmd/internal/obj/plist.go       | 15 +++------------
- 5 files changed, 5 insertions(+), 25 deletions(-)
+ src/testing/testing.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)

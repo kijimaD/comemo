@@ -1,42 +1,13 @@
-commit 8b3670ffc6491ee54245e27f99b2415fbb1287d5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 6 12:02:24 2015 -0800
+commit 09d7db3bbb67cd0746172349dc2807f9967a4ad6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 13 14:43:41 2015 -0500
 
-    cmd/internal/gc: remove namebuf variable
+    [dev.cc] cmd/dist, cmd/go: build new6g etc and verify against 6g
     
-    namebuf was a global char buffer in the C version of gc, which was
-    useful for providing common storage for constructing symbol and file
-    names.  However, now that it's just a global Go string and the string
-    data is dynamically allocated anyway, it doesn't serve any purpose
-    except to force extra write barriers everytime it's assigned to.
-    
-    Also, introduce Lookupf(fmt, args...) as shorthand for
-    Lookup(fmt.Sprintf(fmt, args...)), which was a very common pattern for
-    using namebuf.
-    
-    Passes "go build -toolexec 'toolstash -cmp' -a std".
-    
-    Notably, this CL shrinks 6g's text section by ~15kB:
-    
-    $ size toolstash/6g tool/linux_amd64/6g
-       text    data     bss     dec     hex filename
-    4600805  605968  342988 5549761  54aec1 toolstash/6g
-    4585547  605968  342956 5534471  547307 tool/linux_amd64/6g
-    
-    Change-Id: I98abb44fc7f43a2e2e48425cc9f215cd0be37442
-    Reviewed-on: https://go-review.googlesource.com/7080
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ide7cff506274ec76d26bdffe7890ca2c28737f2b
+    Reviewed-on: https://go-review.googlesource.com/4852
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/closure.go | 17 ++++-------
- src/cmd/internal/gc/dcl.go     |  7 ++---
- src/cmd/internal/gc/gen.go     |  4 +--
- src/cmd/internal/gc/go.go      |  2 --
- src/cmd/internal/gc/init.go    | 16 +++-------
- src/cmd/internal/gc/inl.go     |  9 ++----
- src/cmd/internal/gc/lex.go     | 67 +++++++++++++++++++-----------------------
- src/cmd/internal/gc/obj.go     | 15 +++++-----
- src/cmd/internal/gc/pgen.go    |  3 +-
- src/cmd/internal/gc/sinit.go   |  3 +-
- src/cmd/internal/gc/subr.go    |  4 +++
- src/cmd/internal/gc/walk.go    | 18 +++++++-----
- 12 files changed, 70 insertions(+), 95 deletions(-)
+ src/cmd/dist/buildtool.go | 15 ++++++++++-----
+ src/cmd/go/build.go       | 28 +++++++++++++++++++---------
+ 2 files changed, 29 insertions(+), 14 deletions(-)

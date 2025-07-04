@@ -1,25 +1,18 @@
-commit 51ff2ef409ef0e9b3748540e37ff378a9b8bcaea
-Author: Micah Stetson <micah.stetson@gmail.com>
-Date:   Mon Jun 25 16:03:18 2012 -0400
+commit 689931c5b02f7509a125f06480d3673ac85f21d5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 25 11:28:24 2012 -0700
 
-    encoding/json: simplify (*decodeState).indirect
+    spec: clarify receive operator
     
-    Removes an incorrect code comment and some superfluous variables.
+    - receiving from a closed channel returns immediately
+    - in the ,ok form, the 2nd result is of type bool, not
+      just boolean (gc and ggcgo agree).
     
-    The comment I removed says that struct fields which implement
-    Unmarshaler must be pointers, even if they're in an addressable
-    struct. That's not the case, and there's already a test in decode_test.go
-    that demonstrates as much.
+    Per dsymonds' suggestion.
     
-    Encoding/json has quite a few assignments of reflect.Values to extra
-    variables – things like "iv := v" when there's no need to make a copy. I
-    think these are left over from a previous version of the reflect API. If they
-    aren't wanted, I wouldn't mind going through the package and getting
-    rid of the rest of them.
-    
-    R=rsc
+    R=r, rsc, ken, iant, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6318047
+    https://golang.org/cl/6333057
 
- src/pkg/encoding/json/decode.go | 39 ++++++++++++---------------------------
- 1 file changed, 12 insertions(+), 27 deletions(-)
+ doc/go_spec.html | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

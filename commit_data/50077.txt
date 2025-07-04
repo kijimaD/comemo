@@ -1,44 +1,22 @@
-commit 332a5981d0ae3f21f668f94755f43ecd8ee9a9eb
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 22 10:26:50 2022 -0700
+commit eb9f090d1b543f54b319cab78027cdf2ce1a08b8
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jul 22 18:57:52 2021 -0400
 
-    cmd/compile: handle partially overlapping assignments
+    cmd/link: use "CC --print-prog-name" to locate tools
     
-    Normally, when moving Go values of type T from one location to another,
-    we don't need to worry about partial overlaps. The two Ts must either be
-    in disjoint (nonoverlapping) memory or in exactly the same location.
-    There are 2 cases where this isn't true:
-     1) Using unsafe you can arrange partial overlaps.
-     2) Since Go 1.17, you can use a cast from a slice to a ptr-to-array.
-        https://go.dev/ref/spec#Conversions_from_slice_to_array_pointer
-        This feature can be used to construct partial overlaps of array types.
-          var a [3]int
-          p := (*[2]int)(a[:])
-          q := (*[2]int)(a[1:])
-          *p = *q
-    We don't care about solving 1. Or at least, we haven't historically
-    and no one has complained.
-    For 2, we need to ensure that if there might be partial overlap,
-    then we can't use OpMove; we must use memmove instead.
-    (memmove handles partial overlap by copying in the correct
-    direction. OpMove does not.)
+    When building for macOS with external linking, we currently use
+    "xcrun" to invoke "dsymutil" and "strip" tools. That doesn't work
+    well for cross compilation. Use "CC --print-prog-name" to find the
+    tool path instead.
     
-    Note that we have to be careful here not to introduce a call when
-    we're marshaling arguments to a call or unmarshaling results from a call.
+    Fixes #47316.
     
-    Fixes #54467
-    
-    Change-Id: I1ca6aba8041576849c1d85f1fa33ae61b80a373d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425076
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib30c6494c48bfb6a505dc26fe644ef543d777076
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336769
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ir/symtab.go          |  1 +
- src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +-
- src/cmd/compile/internal/ssa/rewrite.go        | 14 ++++-
- src/cmd/compile/internal/ssagen/ssa.go         | 79 +++++++++++++++++++++++++-
- test/fixedbugs/issue54467.go                   | 26 +++++++++
- test/nilptr5.go                                |  8 +--
- 6 files changed, 124 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

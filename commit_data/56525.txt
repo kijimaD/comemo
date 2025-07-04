@@ -1,24 +1,24 @@
-commit d11e41728515aea6f7def4a279a3a2591fb18650
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu May 2 15:05:27 2024 -0500
+commit 2ce84c3a6e14bc2720ca635cb38cac565fab0d9b
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri May 12 10:27:33 2023 -0400
 
-    cmd/compile/internal/ssa: cleanup ANDCCconst rewrite rules on PPC64
+    go/types, types2: be sure to type-check wrong methods in missingMethod
     
-    Avoid creating duplicate usages of ANDCCconst. This is preparation for
-    a patch to reintroduce ANDconst to simplify the lower pass while
-    treating ANDCCconst like other *CC* ssa opcodes.
+    In the case of a wrong method, we were not ensuring that it was
+    type-checked before passing it to funcString.
     
-    Also, move many of the similar rules wich retarget ANDCCconst users
-    to the flag result to a common rule for all compares against zero.
+    Formatting the missing method error message requires a fully set-up
+    signature.
     
-    Change-Id: Ida86efe17ff413cb82c349d8ef69d2899361f4c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585400
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Fixes #59848
+    
+    Change-Id: I1467e036afbbbdd00899bfd627a945500dc709c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494615
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  18 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 512 +++++++-------------------
- test/codegen/arithmetic.go                    |   4 +-
- 3 files changed, 140 insertions(+), 394 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go           |  4 ++++
+ src/go/types/lookup.go                              |  4 ++++
+ src/internal/types/testdata/fixedbugs/issue59848.go | 10 ++++++++++
+ 3 files changed, 18 insertions(+)

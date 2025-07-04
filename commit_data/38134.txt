@@ -1,26 +1,32 @@
-commit 694ee61277300a4c24d570e75c1b63fff8dea468
-Author: Arash Bina <arash@arash.io>
-Date:   Wed Feb 6 21:41:55 2019 -0500
+commit 62e5215a2a12d95d1ce08cb6c996c3667e346779
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 6 14:50:30 2017 -0800
 
-    crypto/x509: improve error when PKCS1, PKCS8, EC keys are mixed up
+    cmd/compile: merge TPTR32 and TPTR64 as TPTR
     
-    Improve error messages if ParsePKCS8PrivateKey/ParseECPrivateKey
-    /ParsePKCS1PrivateKey or ParsePKIXPublicKey/ParsePKCS1PublicKey
-    are called erroneously instead of one another.
-    
-    Fixes #30094
-    
-    Change-Id: Ia419c5f320167791aa82e174b4e9ce0f3275ec63
-    Reviewed-on: https://go-review.googlesource.com/c/161557
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I0490098a7235458c5aede1135426a9f19f8584a7
+    Reviewed-on: https://go-review.googlesource.com/c/76312
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/pkcs1.go      |  9 +++++++++
- src/crypto/x509/pkcs8.go      |  6 ++++++
- src/crypto/x509/pkcs8_test.go | 22 ++++++++++++++++++++++
- src/crypto/x509/sec1.go       |  6 ++++++
- src/crypto/x509/sec1_test.go  | 22 ++++++++++++++++++++++
- src/crypto/x509/x509.go       |  3 +++
- src/crypto/x509/x509_test.go  | 43 +++++++++++++++++++++++++++++++++++++++++++
- 7 files changed, 111 insertions(+)
+ src/cmd/compile/internal/gc/alg.go          |  2 +-
+ src/cmd/compile/internal/gc/align.go        |  8 ++------
+ src/cmd/compile/internal/gc/bexport.go      |  2 +-
+ src/cmd/compile/internal/gc/const.go        |  4 ++--
+ src/cmd/compile/internal/gc/esc.go          |  2 +-
+ src/cmd/compile/internal/gc/fmt.go          |  2 +-
+ src/cmd/compile/internal/gc/iexport.go      |  4 ++--
+ src/cmd/compile/internal/gc/pgen_test.go    |  2 +-
+ src/cmd/compile/internal/gc/plive.go        |  5 ++---
+ src/cmd/compile/internal/gc/reflect.go      | 17 +++++++----------
+ src/cmd/compile/internal/gc/ssa.go          |  6 ++----
+ src/cmd/compile/internal/gc/subr.go         |  6 ++----
+ src/cmd/compile/internal/gc/typecheck.go    |  3 +--
+ src/cmd/compile/internal/gc/types.go        |  4 +---
+ src/cmd/compile/internal/gc/universe.go     | 23 +++++++----------------
+ src/cmd/compile/internal/gc/walk.go         |  2 +-
+ src/cmd/compile/internal/ssa/export_test.go |  1 -
+ src/cmd/compile/internal/types/type.go      | 28 +++++++++++-----------------
+ src/cmd/compile/internal/types/utils.go     |  3 ---
+ 19 files changed, 45 insertions(+), 79 deletions(-)

@@ -1,24 +1,16 @@
-commit 21ed40c8cb4795433bda0cfb7754db5603a916f0
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Apr 1 22:18:33 2015 +0900
+commit 671472c1c9e9d7bd61e0e7d94a4e7a72a3d3383e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 3 15:50:32 2015 -0800
 
-    net: deflake TestDialGoogle, TestResolveDialGoogle
+    build: don't run a cgo test when cgo is disabled
     
-    This change makes use of the socktest package instead of the non-thread
-    safe variable syscall.SocketDisableIPv6 for simulating unreachable
-    external networks.
+    Fixes the linux-amd64-nocgo builder.
     
-    Also adds -ipv4 flag, -ipv6 flag already exists, as a control knob for
-    testing on each of IPv4-only, IPv6-only and dual IP stack kernels.
+    Regression from https://golang.org/cl/6531
     
-    Fixes #7687.
-    
-    Change-Id: I82002007fd526e8cf4de207f935e721df049a22f
-    Reviewed-on: https://go-review.googlesource.com/8390
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibffd1ecfee4a888605ed54196f53956ae42e591c
+    Reviewed-on: https://go-review.googlesource.com/6700
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/dialgoogle_test.go | 289 ++++++++++++++++++++++-----------------------
- src/net/main_plan9_test.go |   4 +
- src/net/main_posix_test.go |  34 ++++++
- src/net/main_test.go       |   8 +-
- 4 files changed, 184 insertions(+), 151 deletions(-)
+ src/cmd/dist/test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

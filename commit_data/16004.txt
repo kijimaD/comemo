@@ -1,15 +1,16 @@
-commit fb3ed166e39fd13689b35ca7aa2496e113cbeaf5
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 29 11:04:07 2013 -0700
+commit df885e70d7eea5b421310ebd863423c1ed1a191b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 29 08:30:28 2013 -0700
 
-    runtime: fix gdb printing of maps
-    Fixes #5098
+    net/http: ignore more uninteresting goroutines
     
-    R=minux.ma, bradfitz, khr, rsc
+    These only show up if GOTRACEBACK=2
+    
+    Update #5005
+    
+    R=golang-dev, fullung
     CC=golang-dev
-    https://golang.org/cl/7746045
+    https://golang.org/cl/8156044
 
- src/cmd/ld/dwarf.c             | 72 +++++++++++++++++++++++++++++++++++++++---
- src/pkg/runtime/hashmap.c      |  2 +-
- src/pkg/runtime/runtime-gdb.py | 49 ++++++++++++++++------------
- 3 files changed, 98 insertions(+), 25 deletions(-)
+ src/pkg/net/http/z_last_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

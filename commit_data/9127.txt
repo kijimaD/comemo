@@ -1,13 +1,13 @@
-commit 423ab2333ac4f4e0fb3e7238ddf571af912c013e
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 19 15:44:25 2011 +1000
+commit 894222f9de5e139d63d8f64e9b799ff4eda0b46c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 19 14:10:12 2011 +1000
 
-    5l: fix arm linker bug introduced by 4742041
-    Should fix the arm build.
+    doc/talks/io2010: handle the errors
     
-    R=golang-dev, dsymonds, adg
+    R=golang-dev, dsymonds, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/4777041
+    https://golang.org/cl/4771041
 
- src/cmd/5l/span.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/talks/io2010/decrypt.go | 75 ++++++++++++++++++++++++++++++++++++---------
+ doc/talks/io2010/encrypt.go | 38 ++++++++++++++++++-----
+ 2 files changed, 91 insertions(+), 22 deletions(-)

@@ -1,15 +1,14 @@
-commit 0a5508c69238e9f68faff2747a1abe9cbdb10dd6
-Author: Rob Pike <r@golang.org>
-Date:   Mon Dec 5 19:40:52 2011 -0800
+commit ca7d86c4d3e15716ae7aa3d7ba84769218571460
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 6 14:12:09 2011 +1100
 
-    various: we don't cast, we convert
+    hash: rewrite comment on Hash.Sum method
     
-    R=golang-dev, dsymonds
+    Fixes #2530.
+    
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/5437142
+    https://golang.org/cl/5449101
 
- src/pkg/compress/bzip2/bit_reader.go | 2 +-
- src/pkg/exp/ssh/session_test.go      | 2 +-
- src/pkg/fmt/doc.go                   | 2 +-
- src/pkg/unicode/graphic.go           | 4 ++--
- 4 files changed, 5 insertions(+), 5 deletions(-)
+ src/pkg/hash/hash.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

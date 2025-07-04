@@ -1,12 +1,15 @@
-commit d9665d2381f6fc94cc0c71336a8d1caff82d3ccc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 2 19:34:38 2018 +0000
+commit 3d501df441b1d1d3e9fb2308140d8bb9b948ad65
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 10 15:56:17 2018 -0700
 
-    syscall: use deprecation convention in package comment, simplify
+    cmd/compile: better error message when referring to ambiguous method/field
     
-    Change-Id: I612041d31c01d49135947796fe2a09db3e6894d4
-    Reviewed-on: https://go-review.googlesource.com/127657
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #14321.
+    
+    Change-Id: I9c92c767b01cf7938c4808a8fef9f2936fc667bc
+    Reviewed-on: https://go-review.googlesource.com/106119
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/syscall.go | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  2 ++
+ test/fixedbugs/issue14321.go             | 33 ++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

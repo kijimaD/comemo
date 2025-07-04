@@ -1,0 +1,67 @@
+commit 17b9c9f2ad6f7943a4a1861dfc000d190abca55b
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Mar 6 11:06:44 2025 +0800
+
+    internal/bytealg: optimize Count{,String} in loong64
+    
+    Benchmark on Loongson 3A6000 and 3A5000:
+    
+    goos: linux
+    goarch: loong64
+    pkg: bytes
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                    |  bench.old   |              bench.new              |
+                    |    sec/op    |   sec/op     vs base                |
+    CountSingle/10    13.210n ± 0%   9.984n ± 0%  -24.42% (p=0.000 n=15)
+    CountSingle/32    31.970n ± 1%   7.205n ± 0%  -77.46% (p=0.000 n=15)
+    CountSingle/4K    4039.0n ± 0%   108.7n ± 0%  -97.31% (p=0.000 n=15)
+    CountSingle/4M    4158.9µ ± 0%   117.3µ ± 0%  -97.18% (p=0.000 n=15)
+    CountSingle/64M   68.641m ± 0%   2.585m ± 1%  -96.23% (p=0.000 n=15)
+    geomean            13.72µ        1.189µ       -91.34%
+    
+                    |  bench.old   |                bench.new                 |
+                    |     B/s      |      B/s        vs base                  |
+    CountSingle/10    722.0Mi ± 0%     955.2Mi ± 0%    +32.30% (p=0.000 n=15)
+    CountSingle/32    954.6Mi ± 1%    4235.4Mi ± 0%   +343.68% (p=0.000 n=15)
+    CountSingle/4K    967.2Mi ± 0%   35947.6Mi ± 0%  +3616.64% (p=0.000 n=15)
+    CountSingle/4M    961.8Mi ± 0%   34092.7Mi ± 0%  +3444.71% (p=0.000 n=15)
+    CountSingle/64M   932.4Mi ± 0%   24757.2Mi ± 1%  +2555.24% (p=0.000 n=15)
+    geomean           902.2Mi          10.17Gi       +1054.77%
+    
+    goos: linux
+    goarch: loong64
+    pkg: bytes
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                    |  bench.old   |              bench.new               |
+                    |    sec/op    |    sec/op     vs base                |
+    CountSingle/10     14.41n ± 0%   12.81n ±  0%  -11.10% (p=0.000 n=15)
+    CountSingle/32    36.230n ± 0%   9.609n ±  0%  -73.48% (p=0.000 n=15)
+    CountSingle/4K    4366.0n ± 0%   165.5n ±  0%  -96.21% (p=0.000 n=15)
+    CountSingle/4M    4464.7µ ± 0%   325.2µ ±  0%  -92.72% (p=0.000 n=15)
+    CountSingle/64M   75.627m ± 0%   8.307m ± 69%  -89.02% (p=0.000 n=15)
+    geomean            15.04µ        2.229µ        -85.18%
+    
+                    |  bench.old   |                 bench.new                 |
+                    |     B/s      |       B/s        vs base                  |
+    CountSingle/10    661.8Mi ± 0%     744.4Mi ±  0%    +12.49% (p=0.000 n=15)
+    CountSingle/32    842.4Mi ± 0%    3176.1Mi ±  0%   +277.03% (p=0.000 n=15)
+    CountSingle/4K    894.7Mi ± 0%   23596.7Mi ±  0%  +2537.34% (p=0.000 n=15)
+    CountSingle/4M    895.9Mi ± 0%   12299.7Mi ±  0%  +1272.88% (p=0.000 n=15)
+    CountSingle/64M   846.3Mi ± 0%    7703.9Mi ± 41%   +810.34% (p=0.000 n=15)
+    geomean           823.3Mi          5.424Gi         +574.68%
+    
+    Change-Id: Ie07592beac61bdb093470c524049ed494df4d703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586055
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/bytealg/bytealg.go       |   3 +
+ src/internal/bytealg/count_generic.go |   2 +-
+ src/internal/bytealg/count_loong64.s  | 238 ++++++++++++++++++++++++++++++++++
+ src/internal/bytealg/count_native.go  |   2 +-
+ src/internal/cpu/cpu.go               |   1 +
+ src/internal/cpu/cpu_loong64.go       |   1 +
+ src/internal/cpu/cpu_loong64_hwcap.go |   4 +-
+ 7 files changed, 248 insertions(+), 3 deletions(-)

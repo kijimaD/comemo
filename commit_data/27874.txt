@@ -1,28 +1,20 @@
-commit 507144c011c64fd6f18cee6592e79461817e3791
-Author: Florian Uekermann <florian@uekermann.me>
-Date:   Tue Apr 19 16:06:37 2016 +0200
+commit a85a224e8e835fc9544f5e9e7b28d7bbc732045b
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Apr 16 09:24:43 2016 +0200
 
-    math/rand: Document origin of cooked pseudo-random numbers
+    fmt: fix padding when precision is set for integer formatting
     
-    The Source provided by math/rand relies on an array of cooked
-    pseudo-random 63bit integers for seeding. The origin of these
-    numbers is undocumented.
+    Ignore the f.zero flag and use spaces for padding instead
+    when precision is set.
     
-    Add a standalone program in math/rand folder that generates
-    the 63bit integer array as well as a 64bit version supporting
-    extension of the Source to 64bit pseudo-random number
-    generation while maintaining the current sequence in the
-    lower 63bit.
+    Fixes #15331
     
-    The code is largely based on the initial implementation of the
-    random number generator in the go repository by Ken Thompson
-    (revision 399).
-    
-    Change-Id: Ib4192aea8127595027116a0f5a7be53f11dc110b
-    Reviewed-on: https://go-review.googlesource.com/22230
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3ac485df24b7bdf4fddf69e3cc17c213c737b5ff
+    Reviewed-on: https://go-review.googlesource.com/22131
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/rand/gen_cooked.go | 89 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 89 insertions(+)
+ src/fmt/fmt_test.go |  6 +++++-
+ src/fmt/format.go   | 31 +++++++++++++++----------------
+ 2 files changed, 20 insertions(+), 17 deletions(-)

@@ -1,17 +1,19 @@
-commit ebcc7ec148f4c224a2b026b6484ad0fa135dcf78
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Jun 4 15:03:38 2015 -0400
+commit 931328b8b837d0a827d05989f79f28725a704b71
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat May 2 04:36:53 2015 -0400
 
-    cmd/dist: use -tags=lldb for iOS tests
+    cmd/internal/gc: fix build on big endian systems
     
-    As of golang.org/cl/9154, running go test will override a previous
-    go install -a -tags=lldb std with the tag-less version of stdlib. So
-    we pass -tags=lldb into the relevant go test commands.
+    The siz argument to both runtime.newproc and runtime.deferproc is
+    int32, not uintptr. This problem won't manifest on little-endian
+    systems because that stack slot is uintptr sized anyway. However,
+    on big-endian systems, it will make a difference.
     
-    Change-Id: I1c718289d7212373a9383eff53a643f06598f5ed
-    Reviewed-on: https://go-review.googlesource.com/10701
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I2351d1ec81839abe25375cff95e327b80764c2b5
+    Reviewed-on: https://go-review.googlesource.com/9647
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
+ src/cmd/internal/gc/cgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

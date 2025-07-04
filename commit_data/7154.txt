@@ -1,12 +1,19 @@
-commit 1d1f1192d99273be68f137aefface121d4447f81
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 19 13:46:58 2011 -0500
+commit bcd910cfe28eb237741e3bf25fc2c454206a1c30
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 19 13:41:42 2011 -0500
 
-    CONTRIBUTORS: add Ben Lynn (Google employee)
+    runtime: add per-pause gc stats
     
-    R=benlynn, rsc
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4062042
+    https://golang.org/cl/3980042
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/debug.go | 12 +++++++-----
+ src/pkg/runtime/malloc.h |  4 +++-
+ src/pkg/runtime/mgc0.c   |  5 ++++-
+ test/garbage/Makefile    |  4 ++--
+ test/garbage/parser.go   | 48 +++++++++++++++++++++++++++++++++++-------------
+ test/garbage/peano.go    |  4 +---
+ test/garbage/stats.go    | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ test/garbage/tree.go     |  6 +-----
+ 8 files changed, 97 insertions(+), 30 deletions(-)

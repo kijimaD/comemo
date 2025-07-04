@@ -1,24 +1,14 @@
-commit abcf8457b30ef50b878b2a1add39fa5f5a2f1b60
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Oct 20 09:35:19 2016 -0700
+commit 29df4c8f0004aa259093bf8dbf0bf966a392d44d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 17 16:23:40 2016 -0700
 
-    vendor/golang_org/x/crypto/poly1305: update to 3ded668c5379f6951fb0de06174442072e5447d3
+    unsafe: document use of &^ to round/align pointers
     
-    This change updates the vendored copy of x/crypto/poly1305, specifically
-    to include the following changes:
-      3ded668 poly1305: enable assembly for ARM in Go 1.6.
-      dec8741 poly1305: fix stack handling in sum_arm.s
+    Follow-up to CL 27156
     
-    Fixes #17499.
-    
-    Change-Id: I8f152da9599bd15bb976f630b0ef602be05143d3
-    Reviewed-on: https://go-review.googlesource.com/31592
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4f1cfced2dced9c9fc8a05bbc00ec4229e85c5c9
+    Reviewed-on: https://go-review.googlesource.com/27314
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../golang_org/x/crypto/poly1305/sum_amd64.go      |  2 +-
- .../golang_org/x/crypto/poly1305/sum_amd64.s       |  2 +-
- src/vendor/golang_org/x/crypto/poly1305/sum_arm.s  | 38 +++++++++++++++++-----
- src/vendor/golang_org/x/crypto/poly1305/sum_ref.go |  2 +-
- 4 files changed, 33 insertions(+), 11 deletions(-)
+ src/unsafe/unsafe.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

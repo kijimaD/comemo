@@ -1,12 +1,12 @@
-commit 7600281bda2611d4a832a0b0bff6ef2e5dfb0abd
+commit 62203141ac0d3222dbdf35c4ed97356e0da9486b
 Author: Christopher Wedgwood <cw@f00f.org>
-Date:   Mon Nov 28 09:50:51 2011 -0800
+Date:   Mon Nov 28 09:50:40 2011 -0800
 
-    bytes: fix test output
+    doc/tmptohtml: output fix
     
-    R=rsc, gri
+    R=r, gri
     CC=golang-dev
-    https://golang.org/cl/5441048
+    https://golang.org/cl/5441047
 
- src/pkg/bytes/bytes_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/tmpltohtml.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

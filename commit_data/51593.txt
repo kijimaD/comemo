@@ -1,20 +1,19 @@
-commit bae7d772e800207ed764b70a9e5963f0c1e8f0aa
-Author: Piers <go.dev@hellopiers.io>
-Date:   Wed Jan 4 16:45:22 2023 +0000
+commit d27248c52f8545aa3c3de07e3d2568da5c5df785
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Feb 17 19:45:50 2022 -0500
 
-    doc/go1.20: fix links to new strings functions
+    runtime: save some stack space for racecall on ARM64
     
-    Links under strings package were linking to the bytes versions of the functions.
+    To avoid nosplit overflow in -race -N -l build.
     
-    Change-Id: If6ebe37fede8e417f8683695783aa767bc01e9c7
-    GitHub-Last-Rev: 8849285122cb58c17b5979144649075861d8a134
-    GitHub-Pull-Request: golang/go#57579
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460458
+    For #51247.
+    
+    Change-Id: I48426bbd4adefd18eaf26ed51b4113c6a28305b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386716
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/go1.20.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/race_arm64.s | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

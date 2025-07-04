@@ -1,18 +1,23 @@
-commit 8d7d02f14525874eafb6b0a00916bdb0bc24bc03
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Apr 15 14:43:29 2015 -0400
+commit 22701339817a591cd352ecd43b0439b84dbe8095
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 27 11:21:14 2015 -0400
 
-    go/internal/gcimporter: populate (*types.Package).Imports
+    cmd/gc: allocate backing storage for non-escaping interfaces on stack
     
-    This is an upstream change to the tools repo:
-    https://go-review.googlesource.com/#/c/8924/
+    Extend escape analysis to convT2E and conT2I. If the interface value
+    does not escape supply runtime with a stack buffer for the object copy.
     
-    Change-Id: I01fb1b2e9ec834354994c544f65c8ec8267c9626
-    Reviewed-on: https://go-review.googlesource.com/8954
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This is a straight port from .c to .go of Dmitry's patch
+    
+    Change-Id: Ic315dd50d144d94dd3324227099c116be5ca70b6
+    Reviewed-on: https://go-review.googlesource.com/8201
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/go/internal/gcimporter/gcimporter.go      | 90 ++++++++++++++++++---------
- src/go/internal/gcimporter/gcimporter_test.go | 22 +++++--
- src/go/types/package.go                       |  6 +-
- 3 files changed, 83 insertions(+), 35 deletions(-)
+ src/cmd/internal/gc/builtin.go         |  4 ++--
+ src/cmd/internal/gc/builtin/runtime.go |  4 ++--
+ src/cmd/internal/gc/esc.go             |  5 ++---
+ src/cmd/internal/gc/walk.go            | 18 ++++++++++++++-
+ src/runtime/iface.go                   | 12 ++++++----
+ src/runtime/iface_test.go              | 40 ++++++++++++++++++++++++++++++++++
+ test/escape2.go                        |  2 +-
+ 7 files changed, 72 insertions(+), 13 deletions(-)

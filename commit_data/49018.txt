@@ -1,40 +1,18 @@
-commit ab0bb52f2fdf454a2cbf20e95f5ecd2bd68b5ada
+commit 47547d8508ab416e28992e0e0965c9c25f840848
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 3 10:42:22 2022 -0700
+Date:   Thu Jul 1 22:10:01 2021 -0700
 
-    go/parser: accept all valid type parameter lists
+    [dev.typeparams] cmd/compile/internal/types2: disallow "free" type parameter as RHS of a type declaration
     
-    This is a port of CL 402256 from the syntax package to go/parser
-    with adjustments because of the different AST structure, and
-    excluding any necessary go/printer changes (separate CL).
+    For #45639.
     
-    Type parameter lists starting with the form [name *T|...] or
-    [name (X)|...] may look like an array length expression [x].
-    Only after parsing the entire initial expression and checking
-    whether the expression contains type elements or is followed
-    by a comma can we make the final decision.
-    
-    This change simplifies the existing parsing strategy: instead
-    of trying to make an upfront decision with limited information
-    (which is insufficient), the parser now parses the start of a
-    type parameter list or array length specification as expression.
-    In a second step, if the expression can be split into a name
-    followed by a type element, or a name followed by an ordinary
-    expression which is succeeded by a comma, we assume a type
-    parameter list (because it can't be an array length).
-    In all other cases we assume an array length specification.
-    
-    Fixes #52559.
-    
-    Change-Id: I11ab6e62b073b78b2331bb6063cf74d2a9eaa236
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403937
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I20e331b04f464db81e916af75f70ec8ae73eb989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332411
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/go/parser/parser.go                       | 154 ++++++++++++++------------
- src/go/parser/testdata/issue49482.go2         |   5 +-
- src/go/parser/testdata/tparams.go2            |  47 ++++++++
- src/go/printer/testdata/generics.golden       |   2 +-
- src/go/types/testdata/fixedbugs/issue49482.go |  21 ++--
- 5 files changed, 144 insertions(+), 85 deletions(-)
+ src/cmd/compile/internal/types2/decl.go            | 64 ++++++++++++----------
+ .../internal/types2/testdata/examples/types.go2    | 50 ++++++++++-------
+ .../types2/testdata/fixedbugs/issue45639.go2       | 12 ++++
+ src/cmd/compile/internal/types2/unify.go           | 15 +++--
+ 4 files changed, 87 insertions(+), 54 deletions(-)

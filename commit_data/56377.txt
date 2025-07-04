@@ -1,24 +1,39 @@
-commit 27ed85d4d1702e868730ab6ea2ad6326988c615c
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Thu Apr 18 21:01:06 2024 +0000
+commit aa6e16848041f07b004c7247cfe6b14bf64bcd22
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed May 3 20:56:41 2023 +0000
 
-    cmd/go: download 1.X.0 instead of 1.X during toolchain upgrade.
+    Revert "cmd/compile: enhance tighten pass for memory values"
     
-    This CL modifies the download behavior when downloading a toolchain for 1.21+. Previously, Go would attempt to download 1.X when upgrading the toolchain which would cause the download to fail for 1.21+ since 1.X is an invalid toolchain. We will attempt to download 1.X.0 since that's likely what the user intended.
+    This reverts CL 458755.
     
-    Additionally, we will also now provide a better error message when the
-    user provides a language version instead of a toolchain version for
-    1.21+.
+    Reason for revert: broke make.bash on GOAMD64=v3:
     
-    Fixes #66175
-    Fixes #62278
+    /workdir/go/src/crypto/sha1/sha1.go:54:35: internal compiler error: '(*digest).MarshalBinary': func (*digest).MarshalBinary, startMem[b13] has different values, old v206, new v338
     
-    Change-Id: I28f894290a19d8e3cd220e9d70aeca8f4447e5a1
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580217
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    goroutine 34 [running]:
+    runtime/debug.Stack()
+            /workdir/go/src/runtime/debug/stack.go:24 +0x9f
+    bootstrap/cmd/compile/internal/base.FatalfAt({0x13, 0xaa0f1}, {0xc000db4440, 0x40}, {0xc0013b0000, 0x5, 0x5})
+            /workdir/go/src/cmd/compile/internal/base/print.go:234 +0x2d1
+    bootstrap/cmd/compile/internal/base.Fatalf(...)
+            /workdir/go/src/cmd/compile/internal/base/print.go:203
+    bootstrap/cmd/compile/internal/ssagen.(*ssafn).Fatalf(0xc000d90000, {0x13, 0xaa0f1}, {0xcb7b91, 0x3a}, {0xc000d99bc0, 0x4, 0x4})
+            /workdir/go/src/cmd/compile/internal/ssagen/ssa.go:7896 +0x1f8
+    bootstrap/cmd/compile/internal/ssa.(*Func).Fatalf(0xc000d82340, {0xcb7b91, 0x3a}, {0xc000d99bc0, 0x4, 0x4})
+            /workdir/go/src/cmd/compile/internal/ssa/func.go:716 +0x342
+    bootstrap/cmd/compile/internal/ssa.memState(0xc000d82340, {0xc000ec6200, 0x22, 0x40}, {0xc001046000, 0x22, 0x40})
+            /workdir/go/src/cmd/compile/internal/ssa/tighten.go:240 +0x6c5
+    bootstrap/cmd/compile/internal/ssa.tighten(0xc000d82340)
+    [...]
+    
+    Change-Id: Ic445fb48fe0f2c60ac67abe259b66594f1419152
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492335
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/toolchain/select.go            |  11 +++
- .../go/testdata/script/gotoolchain_issue66175.txt  | 104 +++++++++++++++++++++
- 2 files changed, 115 insertions(+)
+ src/cmd/compile/internal/ssa/regalloc.go |   7 +--
+ src/cmd/compile/internal/ssa/tighten.go  | 105 ++-----------------------------
+ test/tighten.go                          |  22 -------
+ 3 files changed, 7 insertions(+), 127 deletions(-)

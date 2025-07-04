@@ -1,23 +1,19 @@
-commit a5f3823c27d93f16dfde56509071a20130e0c731
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Thu Jul 11 09:43:38 2019 +0200
+commit 0dc62565401eba11bf9aec127c6c9f5aa4ecf1c9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Mar 3 18:33:34 2019 +0100
 
-    net: set TestNotTemporaryRead flaky for AIX
+    doc: fix bad lib/time link in 1.12 release notes
     
-    This test sometimes times out when the machine is busy.
-    The reason behind is still a bit blurry. But it seems to comes from
-    the fact that on AIX, once a listen is performed a socket, every
-    connection will be accepted even before an accept is made (which only
-    occurs when a machine is busy). On Linux, a socket is created as a
-    "passive socket" which seems to wait for the accept before allowing
-    incoming connections.
+    There's a "lib/time" sub-section in the Go 1.12 relase notes that
+    points to a non-existent golang.org/pkg/lib/time page.
     
-    Updates #29685
+    The note is about a change in the tz database in the src/lib/time
+    directory, but the section's title (and the link) should probably just
+    refer to the time package.
     
-    Change-Id: I41b053b7d5f5b4420b72d6a217be72e41220d769
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185717
-    Run-TryBot: Clément Chigot <clement.chigot@atos.net>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibf9dacd710e72886f14ad0b7415fea1e8d25b83a
+    Reviewed-on: https://go-review.googlesource.com/c/164977
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/net_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go1.12.html | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

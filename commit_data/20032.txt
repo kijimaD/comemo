@@ -1,49 +1,14 @@
-commit 1806a5732b373e5a9048765db533bcb33952a067
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 18 21:13:11 2014 -0400
+commit e7e668d7174517210608bf8e556124c777ec06b7
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 19:50:40 2014 -0400
 
-    cmd/gc, runtime: refactor interface inlining decision into compiler
+    [dev.power64] math: implement Abs, add power64/power64le forwarding assembly functions
     
-    We need to change the interface value representation for
-    concurrent garbage collection, so that there is no ambiguity
-    about whether the data word holds a pointer or scalar.
-    
-    This CL does NOT make any representation changes.
-    
-    Instead, it removes representation assumptions from
-    various pieces of code throughout the tree.
-    The isdirectiface function in cmd/gc/subr.c is now
-    the only place that decides that policy.
-    The policy propagates out from there in the reflect
-    metadata, as a new flag in the internal kind value.
-    
-    A follow-up CL will change the representation by
-    changing the isdirectiface function. If that CL causes
-    problems, it will be easy to roll back.
-    
-    Update #8405.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=golang-codereviews, r
-    https://golang.org/cl/129090043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/119670043
 
- src/cmd/gc/go.h                      |  1 +
- src/cmd/gc/reflect.c                 |  4 +-
- src/cmd/gc/subr.c                    | 39 +++++++++++++++++++
- src/cmd/gc/walk.c                    |  7 +---
- src/pkg/database/sql/convert_test.go | 37 +++++++++++-------
- src/pkg/reflect/all_test.go          |  3 ++
- src/pkg/reflect/type.go              | 21 +++++++---
- src/pkg/reflect/value.go             | 74 ++++++++++++++++++++++++------------
- src/pkg/runtime/alg.go               |  8 ++--
- src/pkg/runtime/heapdump.c           |  4 +-
- src/pkg/runtime/iface.go             | 12 +++---
- src/pkg/runtime/malloc.c             |  8 ++--
- src/pkg/runtime/malloc.go            |  9 -----
- src/pkg/runtime/mgc0.c               |  6 +--
- src/pkg/runtime/stack.c              |  4 +-
- src/pkg/runtime/typekind.go          | 44 +++++++++++++++++++++
- src/pkg/runtime/typekind.h           |  3 +-
- test/live.go                         | 51 +++++++++++++------------
- 18 files changed, 230 insertions(+), 105 deletions(-)
+ src/pkg/math/abs_power64x.s   | 14 +++++++
+ src/pkg/math/stubs_power64x.s | 91 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 105 insertions(+)

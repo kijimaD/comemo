@@ -1,33 +1,23 @@
-commit 060669a68938a450235ca3c721e4095c9f320503
-Author: Ivan Trubach <mr.trubach@icloud.com>
-Date:   Mon Sep 2 13:57:09 2019 +0000
+commit fc1e6915dc04aeb95c2f736f8c8805ba6a696c30
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 18 07:33:43 2019 -0700
 
-    cmd/doc: make -src mode deterministic
+    cmd/internal/obj/x86: minor clean-up in span6
     
-    These changes make cmd/doc -src deterministic, or, more precisely,
-    go/ast.MergePackageFiles, which is used by cmd/doc. So far the order of
-    comments depended on the package file map iteration order.
+    * Reduce the scope of q.
+    * Remove duplicate handling of AADJSP.
+    * Move ab declaration closer to use.
+    * Collapse nested if statements.
+    * Change declaration of n for increased readability in context.
+    * Simplify AADJSP handling.
     
-    cmd/doc with -src flag has been inserting and omitting random comments
-    ever since the addition of -src flag. After investigating the code path
-    with the debugger, I’ve noticed that ast.File.Comments slice order changes
-    between invocations of the command. The bug was introduced in 3e24f2d,
-    which ironically claimed to “fix formatting of -src output”. The commit
-    implemented the collection of comments by iterating over the map and
-    c7cdce1 “godoc: make ?m=src mode deterministic” did’t actually make
-    go/ast.MergePackageFiles deterministic.
+    Passes toolstash-check.
     
-    I’ve found this issue after running “go doc -src sync.WaitGroup.Wait”.
-    There are likely other packages and functions affected, but the bug
-    should be somewhat reproducible across all Go versions.
-    
-    Change-Id: Iae223e99550c0a3b54005c5cde36f909e655b66b
-    GitHub-Last-Rev: c49532f79fcd7529d7ad1a369c467abc59d4df0a
-    GitHub-Pull-Request: golang/go#33553
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189477
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Change-Id: I046369477db567f2f7c4a9c8d400ec9dd9c32f3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168342
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/ast/filter.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go | 51 ++++++++++------------------------------
+ 1 file changed, 13 insertions(+), 38 deletions(-)

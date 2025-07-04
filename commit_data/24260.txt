@@ -1,17 +1,17 @@
-commit b9dbb030d5e7d2733e877972568368dc806b7304
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Sun Sep 13 22:58:12 2015 +0200
+commit 510f1dbad7cea17ca1154df862b7750eb9eeebb9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 20 09:15:46 2015 -0700
 
-    cmd/compiler/internal/gc: make Type.Copyto a []*Node
+    cmd/go: build errors rather than fmt in a couple of tests
     
-    Passes go build -a -toolexec 'toolstash -cmp' std cmd
+    The errors package is smaller and builds faster.
     
-    Change-Id: Ief4613cfb341172a85e3a894f44fb2bb308c7b55
-    Reviewed-on: https://go-review.googlesource.com/14554
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Update #11779.
+    
+    Change-Id: Iaf2d43734ec4b0aa325590eb5d38522306b608cb
+    Reviewed-on: https://go-review.googlesource.com/12366
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/gc/go.go        | 2 +-
- src/cmd/compile/internal/gc/typecheck.go | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/go_test.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

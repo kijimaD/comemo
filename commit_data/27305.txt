@@ -1,14 +1,25 @@
-commit ef92857e27556804d66e72e2360dc2c6b6554bd7
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu May 5 09:10:49 2016 -0700
+commit 36d5650a1c60be5e09abc89774758f525afc7874
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 21 10:55:20 2016 +1300
 
-    cmd/go, cmd/cgo: pass "-mabi=64" to gcc on mips64
+    cmd/internal/obj, cmd/link: put all symbol data in one contiguous section
     
-    Change-Id: I9ac2ae57a00cee23d6255db02419b0a0f087d4f3
-    Reviewed-on: https://go-review.googlesource.com/22801
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Another object file change, gives a reasonable improvement:
+    
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.46 ± 3%  0.44 ± 9%  -3.34%  (p=0.000 n=98+82)
+    LinkJuju   4.09 ± 4%  3.92 ± 5%  -4.30%  (p=0.000 n=98+99)
+    
+    I guess the data section could be mmap-ed instead of read, I haven't tried
+    that.
+    
+    Change-Id: I959eee470a05526ab1579e3f5d3ede41c16c954f
+    Reviewed-on: https://go-review.googlesource.com/20928
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/cgo/gcc.go  | 2 ++
- src/cmd/go/build.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/internal/goobj/read.go      | 27 +++++++++++---------
+ src/cmd/internal/obj/objfile.go     | 49 ++++++++++++++++++++++++++-----------
+ src/cmd/link/internal/ld/objfile.go | 42 ++++++++++++-------------------
+ 3 files changed, 67 insertions(+), 51 deletions(-)

@@ -1,17 +1,13 @@
-commit 5ac5a9856288d20634ac21b457ec458f19ea0a37
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jun 19 13:55:38 2015 -0700
+commit 5069452d6d23c9d1725305746ca948602f7a597c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu May 14 03:26:31 2015 -0400
 
-    doc: mention moderation delay in contributing docs
+    syscall: fix F_SETLK{,W} on linux/ppc64
     
-    This sometime worries new contributors.
-    Hopefully mentioning it here will help.
-    
-    Fixes #11300.
-    
-    Change-Id: Ica7f10d749731704ac6a2c39c7dcba389996011e
-    Reviewed-on: https://go-review.googlesource.com/11236
+    Change-Id: Ia81675b0f01ceafada32bdd2bc59088016a7421e
+    Reviewed-on: https://go-review.googlesource.com/10043
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/contribute.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/syscall/zerrors_linux_ppc64.go | 4 ++--
+ src/syscall/ztypes_linux_ppc64.go  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

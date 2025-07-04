@@ -1,22 +1,16 @@
-commit 9aa630faa868fde13af74e5b22ddba89a635d837
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 8 07:08:14 2016 -0500
+commit 2fa64c41828f746d917cf7b7b6c3a39f33bd1161
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Nov 20 12:03:07 2015 -0500
 
-    cmd/dist: accept "//+build" with no spaces, like go/build
+    runtime/pprof: check if test can fork
     
-    The go/build parser accepts "//+build", with no spaces.
-    Make the cmd/dist bootstrap parser do the same.
-    While in theory we should always use the space form,
-    I copied some code that did not into the standard tree,
-    and I was very confused that 'go test' had had no problem
-    but then make.bash died.
+    (TestStackBarrierProfiling is failing on darwin/arm.)
     
-    (As a reminder, cmd/dist does not use go/build because
-    cmd/dist must build against earlier versions of Go.)
-    
-    Change-Id: I90a18014bd878247b8811487e5c1a7589260cbfc
-    Reviewed-on: https://go-review.googlesource.com/19618
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8006d6222ccafc213821e02105896440079caa37
+    Reviewed-on: https://go-review.googlesource.com/17091
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/build.go | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ src/runtime/pprof/pprof_test.go | 1 +
+ 1 file changed, 1 insertion(+)

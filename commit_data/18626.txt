@@ -1,14 +1,20 @@
-commit e2fe968d5f814dd947f5bb2ddca1768171d39a3a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Feb 25 06:53:17 2014 +1100
+commit ff15e5c00f7fe3fcec1277f932fbca381fd2d2ad
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Feb 24 19:48:06 2014 +0100
 
-    cmd/ld: fix build for ARMv5.
-    Credit goes to Dave Cheney for debugging the issue.
+    cmd/go: Plan 9 compatible "env" output
     
-    LGTM=dave, rsc
-    R=dave, rsc
+    Fixes the output of go env so that variables can be set
+    more accurately when using Plan 9's rc shell. Specifically,
+    GOPATH may have multiple components and the current
+    representation is plain wrong. In practice, we probably
+    ought to change os. Getenv to produce the right result, but
+    that requires considerably more thought.
+    
+    LGTM=rsc
+    R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
-    https://golang.org/cl/67820043
+    https://golang.org/cl/66600043
 
- src/cmd/ld/data.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/env.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

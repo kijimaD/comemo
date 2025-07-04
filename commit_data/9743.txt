@@ -1,16 +1,12 @@
-commit 6b6cb725e99da3bf74be53489521636ee8ee4798
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 19 10:22:53 2011 -0700
+commit 24257a1ea2bee3f16efd6a154e87f02fccaf0ef2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 19 13:19:07 2011 -0400
 
-    http: prevent DumpRequest from adding implicit headers
+    json: clearer Unmarshal doc
     
-    Fixes #2272
-    
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5043051
+    https://golang.org/cl/5056049
 
- src/pkg/http/dump.go              |   2 +-
- src/pkg/http/request.go           |  56 +++++++++-
- src/pkg/http/requestwrite_test.go | 208 +++++++++++++++++++-------------------
- 3 files changed, 162 insertions(+), 104 deletions(-)
+ src/pkg/json/decode.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

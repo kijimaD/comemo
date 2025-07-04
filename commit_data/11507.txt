@@ -1,15 +1,21 @@
-commit 94b796133b3a236530f933362a3feb90af1fcbf2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Jan 31 10:59:29 2012 -0500
+commit 9a15c2186c59544d4587487f075ccee385373823
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 31 10:38:07 2012 -0500
 
-    5l: make -v option output less nonessential clutter
-            5l -v is for benchmarking various parts of the loader, but this code in
-            obj.c will clutter the output. I only comment them out, because this is
-            on par with 8l/6l.
+    build: move goapi, quietgcc, cgo, gotype, ebnflint into go-tool
     
-    R=golang-dev
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5600046
+    https://golang.org/cl/5552054
 
- src/cmd/5l/obj.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/Make.inc                                          |  4 ++--
+ src/cmd/{goapi => api}/goapi.go                       |  2 +-
+ src/cmd/{goapi => api}/goapi_test.go                  |  0
+ src/cmd/{goapi => api}/testdata/src/pkg/p1/golden.txt |  0
+ src/cmd/{goapi => api}/testdata/src/pkg/p1/p1.go      |  0
+ src/cmd/{goapi => api}/testdata/src/pkg/p2/golden.txt |  0
+ src/cmd/{goapi => api}/testdata/src/pkg/p2/p2.go      |  0
+ src/cmd/go/pkg.go                                     | 10 +++++++---
+ src/make.bash                                         |  5 +++--
+ src/pkg/runtime/autogen.sh                            |  4 ++--
+ 10 files changed, 15 insertions(+), 10 deletions(-)

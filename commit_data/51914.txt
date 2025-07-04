@@ -1,22 +1,25 @@
-commit b1fd277318fbc0d90b2befee915f2f542c143a6d
+commit c10fb508946bccbd015634c0bdb1cbd18e206c8f
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 30 11:51:48 2022 +0700
+Date:   Tue Mar 22 20:55:38 2022 +0700
 
-    cmd/compile: use memhash from package runtime
+    cmd/compile: remove ir.Node.SetDiag
     
-    Simplify the code, and prevent creating ONAME node with nil Func.
+    And use base.Fatalf in code that use n.SetDiag(true) instead.
     
-    Passes toolstash-check.
+    Updates #51691
     
-    Change-Id: I5e5be660510dc0ef5521d278c6b9214a80b994eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436958
+    Change-Id: Ib3c0b9c89b8d95717391cbe7d424240e288ada1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394575
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/reflectdata/alg.go            | 14 ++------------
- src/cmd/compile/internal/typecheck/_builtin/runtime.go |  2 +-
- src/cmd/compile/internal/typecheck/builtin.go          |  2 +-
- 3 files changed, 4 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ir/mini.go             |  3 ---
+ src/cmd/compile/internal/ir/node.go             |  1 -
+ src/cmd/compile/internal/typecheck/const.go     | 12 ++++--------
+ src/cmd/compile/internal/typecheck/expr.go      |  6 +-----
+ src/cmd/compile/internal/typecheck/func.go      |  3 +--
+ src/cmd/compile/internal/typecheck/stmt.go      |  3 +--
+ src/cmd/compile/internal/typecheck/typecheck.go | 19 +++++--------------
+ 7 files changed, 12 insertions(+), 35 deletions(-)

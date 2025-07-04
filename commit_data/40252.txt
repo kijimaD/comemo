@@ -1,28 +1,24 @@
-commit 1ed932d22b7f602d3aa0a4a5ab12ff479a2c1dce
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Oct 13 22:33:18 2019 +0100
+commit 98c5a56f0178db479c71fa76b5791ce2fcfc58b9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 25 22:39:56 2019 -0700
 
-    cmd/go: refuse -w with an invalid GO111MODULE
+    runtime: account for callbacks in checkdead on Windows
     
-    It was possible to get 'go env' to break itself:
+    When a callback runs on a different thread in Windows, as in the
+    runtime package test TestCallbackInAnotherThread, it will use the
+    extra M. That can cause the test in checkdead to fail incorrectly.
+    Check whether there actually is an extra M before expecting it.
     
-            $ go env -w GO111MODULE=bad
-            $ go env
-            go: unknown environment setting GO111MODULE=bad
+    I think this is a general problem unrelated to timers. I think the test
+    was passing previously because the timer goroutine was using an M.
+    But I haven't proved that. This change seems correct, and it avoids
+    the test failure when using the new timers on Windows.
     
-    We already check if the variable name is known. In some cases like
-    GO111MODULE, we also know what the variable's valid values are. Enforce
-    it when writing the variable, not just when fetching it.
+    Updates #27707
     
-    Fixes #34880.
-    
-    Change-Id: I10d682087c69f3445f314fd4473644f694e255f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200867
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ieb31c04ff0354d6fae7e173b59bcfadb8b0464cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174037
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/envcmd/env.go        | 12 ++++++++++++
- src/cmd/go/testdata/script/env_write.txt |  4 ++++
- 2 files changed, 16 insertions(+)
+ src/runtime/proc.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

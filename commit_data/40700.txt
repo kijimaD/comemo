@@ -1,17 +1,28 @@
-commit 0c8f6cc07c33f99b300c1337c9ccd76bf7e69910
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 6 15:11:20 2019 -0800
+commit 1962dc88eb89cd37d3f9f85e8e4b7ad4915db089
+Author: Raghavendra Nagaraj <jamdagni86@gmail.com>
+Date:   Tue Jun 18 08:30:24 2019 +0000
 
-    runtime: if InjectDebugCall sees "not at safe point", keep trying
+    net/http: fix Server.IdleTimeout and Server.ReadHeaderTimeout docs
     
-    Fixes #35376
+    CL 46434 changed the doc for Server.IdleTimeout to include
+    falling back to Server.ReadHeaderTimeout if both
+    Server.IdleTimeout and Server.ReadTimeout are zero.
+    However, we explicitly set the ReadDeadlines firstly based
+    off Server.IdleTimeout or Server.ReadTimeout before attempting
+    to read the next request, thus the current doc is incorrect.
     
-    Change-Id: Ib95ad336425e73cc4d412dafed0ba5e0a8130bd2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205718
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    This CL reverts CL 46434 and also updates the doc for
+    Server.ReadHeaderTimeout to documenting falling back
+    to Server.ReadTimeout, if the former is zero, otherwise
+    there is no timeout.
+    
+    Fixes #32053
+    
+    Change-Id: I43dd0252d1bcee6c29a8529abd84c84a49b2fba9
+    GitHub-Last-Rev: e1cdb599772476e0b52d9d2374c3ea3893844eb4
+    GitHub-Pull-Request: golang/go#32164
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178337
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/debug_test.go        | 12 ++++++------
- src/runtime/export_debug_test.go |  8 +++++++-
- 2 files changed, 13 insertions(+), 7 deletions(-)
+ src/net/http/server.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

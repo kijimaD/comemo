@@ -1,12 +1,17 @@
-commit fae4553a9dd324a540c3a5a2cca4eb63c7a9b57c
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Oct 21 17:32:45 2013 +1100
+commit dbe2eacf04898a9c77684424ec7c62700d08fb0c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 18 16:52:44 2013 -0400
 
-    net/mail: fix minor doc typo.
+    cmd/cgo: fix line number in an error message
     
-    R=golang-dev, minux.ma
+    Fixes #6563.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/15510043
+    https://golang.org/cl/14870046
 
- src/pkg/net/mail/message.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/errors/err1.go   |  6 +++++-
+ misc/cgo/errors/err2.go   | 13 +++++++++++++
+ misc/cgo/errors/test.bash | 38 +++++++++++++++++++++++++-------------
+ src/cmd/cgo/gcc.go        | 12 +++++++++++-
+ 4 files changed, 54 insertions(+), 15 deletions(-)

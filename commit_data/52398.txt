@@ -1,34 +1,397 @@
-commit e4abe90bf8bee451971c4b23d4418a9fc021c4a8
-Author: Matthieu Baerts <matthieu.baerts@tessares.net>
-Date:   Mon Mar 20 10:35:51 2023 +0100
+commit f771edd7f92a47c276d65fbd9619e16a786c6746
+Merge: 99f1bf54eb cdcb4b6ef3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 2 22:12:30 2022 -0400
 
-    net: add mptcpStatus type
+    all: REVERSE MERGE dev.boringcrypto (cdcb4b6) into master
     
-    This new type will be used in the following commits.
+    This commit is a REVERSE MERGE.
+    It merges dev.boringcrypto back into its parent branch, master.
+    This marks the end of development on dev.boringcrypto.
     
-    The goal is to have a tristate, an enum with three values:
+    Manual Changes:
+    - git rm README.boringcrypto.md
+    - git rm -r misc/boring
+    - git rm src/cmd/internal/notsha256/sha256block_arm64.s
+    - git cherry-pick -n 5856aa74  # remove GOEXPERIMENT=boringcrypto forcing in cmd/dist
     
-    - system default (0)
-    - enabled
-    - disabled
+    There are some minor cleanups like merging import statements
+    that I will apply in a follow-up CL.
     
-    The system default value is linked to defaultMPTCPEnabled: disabled by
-    default for the moment. Users will be able to force enabling/disabling
-    MPTCP or use the default behaviour.
+    Merge List:
     
-    This work has been co-developped by Gregory Detal
-    <gregory.detal@tessares.net>.
+    + 2022-04-29 cdcb4b6ef3 [dev.boringcrypto] cmd/compile: remove the awful boringcrypto kludge
+    + 2022-04-29 e845f572ec [dev.boringcrypto] crypto/ecdsa, crypto/rsa: use boring.Cache
+    + 2022-04-29 a840bf871e [dev.boringcrypto] crypto/internal/boring: add GC-aware cache
+    + 2022-04-29 0184fe5ece [dev.boringcrypto] crypto/x509: remove VerifyOptions.IsBoring
+    + 2022-04-29 9e9c7a0aec [dev.boringcrypto] crypto/..., go/build: align deps test with standard rules
+    + 2022-04-29 0ec08283c8 [dev.boringcrypto] crypto/internal/boring: make SHA calls allocation-free
+    + 2022-04-29 3cb10d14b7 [dev.boringcrypto] crypto/internal/boring: avoid allocation in big.Int conversion
+    + 2022-04-29 509776be5d [dev.boringcrypto] cmd/dist: default to use of boringcrypto
+    + 2022-04-29 f4c0f42f99 [dev.boringcrypto] all: add boringcrypto build tags
+    + 2022-04-29 1f0547c4ec [dev.boringcrypto] cmd/go: pass dependency syso to cgo too
+    + 2022-04-29 e5407501cb [dev.boringcrypto] cmd: use notsha256 instead of md5, sha1, sha256
+    + 2022-04-29 fe006d6410 [dev.boringcrypto] cmd/internal/notsha256: add new package
+    + 2022-04-27 ec7f5165dd [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2022-04-22 ca6fd39cf6 [dev.boringcrypto] misc/boring: skip long tests during build.release
+    + 2022-04-21 19e4b10f2f [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2022-04-20 e07d63964b [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2022-04-13 1f11660f54 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2022-04-13 bc3e5d0ab7 [dev.boringcrypto] misc/boring: remove -trust and individual reviewers
+    + 2022-04-05 4739b353bb [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2022-03-30 9d6ab825f6 [dev.boringcrypto] make.bash: disable GOEXPERIMENT when using bootstrap toolchain
+    + 2022-03-30 d1405d7410 [dev.boringcrypto] crypto/internal/boring: update build instructions to use podman
+    + 2022-03-29 50b8f490e1 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2022-03-15 0af0e19368 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2022-03-07 f492793839 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2022-03-07 768804dfdd [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2022-02-11 8521d1ea34 [dev.boringcrypto] misc/boring: use go install cmd@latest for installing command
+    + 2022-02-11 b75258fdd8 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2022-02-08 74d25c624c [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2022-02-03 e14fee553a [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2022-01-14 d382493a20 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-12-09 069bbf5434 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-12-06 21fa0b2199 [dev.boringcrypto] crypto/internal/boring: add -pthread linker flag
+    + 2021-12-03 a38b43e4ab [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-11-09 16215e5340 [dev.boringcrypto] cmd/compile: disable version test on boringcrypto
+    + 2021-11-08 c9858c7bdc [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2021-11-05 ed07c49cb6 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2021-11-05 dc2658558d [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-10-28 69d5e469a4 [dev.boringcrypto] all: convert +build to //go:build lines in boring-specific files
+    + 2021-10-08 2840ccbc05 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-10-08 114aa69932 [dev.boringcrypto] misc/boring: fix Docker Hub references
+    + 2021-10-08 7d26add6d5 [dev.boringcrypto] misc/boring: publish to Artifact Registry
+    + 2021-08-27 5ae200d526 [dev.boringcrypto] crypto/tls: permit P-521 in FIPS mode
+    + 2021-08-26 083811d079 [dev.boringcrypto] crypto/tls: use correct config in TestBoringClientHello
+    + 2021-08-16 c7e7ce5ec1 [dev.boringcrypto] all: merge commit 57c115e1 into dev.boringcrypto
+    + 2021-08-10 1fb58d6cad [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-07-14 934db9f0d6 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-06-08 a890a4de30 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-05-13 ed1f812cef [dev.boringcrypto] all: merge commit 9d0819b27c (CL 314609) into dev.boringcrypto
+    + 2021-05-10 ad1b6f3ee0 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-04-21 11061407d6 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-03-23 b397e0c028 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-03-15 128cecc70b [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-03-10 5e2f5a38c4 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-02-26 42089e72fd [dev.boringcrypto] api: add crypto/boring.Enabled
+    + 2021-02-24 03cd666173 [dev.boringcrypto] all: merge master (5b76343) into dev.boringcrypto
+    + 2021-02-17 0f210b75f9 [dev.boringcrypto] all: merge master (2f0da6d) into dev.boringcrypto
+    + 2021-02-12 1aea1b199f [dev.boringcrypto] misc/boring: support codereview.cfg in merge.sh
+    + 2021-02-07 0d34d85dee [dev.boringcrypto] crypto/internal/boring: remove .llvm_addrsig section
+    + 2021-02-07 325e03a64f [dev.boringcrypto] all: add codereview.cfg
+    + 2021-02-05 d4f73546c8 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-01-20 cf8ed7cca4 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2021-01-20 f22137d785 [dev.boringcrypto] misc/boring: add -trust and roland@ to merge.sh and release.sh
+    + 2020-12-12 e5c7bd0efa [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2020-12-02 5934c434c1 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2020-12-01 dea96ada17 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2020-11-18 906d6e362b [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2020-11-18 95ceba18d3 [dev.boringcrypto] crypto/hmac: merge up to 2a206c7 and skip test
+    + 2020-11-17 0985c1bd2d [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2020-11-16 af814af6e7 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2020-11-05 f42bd50779 [dev.boringcrypto] crypto/internal/boring: update BoringCrypto module to certificate 3678
+    + 2020-10-19 ceda58bfd0 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2020-09-29 af85c47233 [dev.boringcrypto] misc/boring: bump version to b6
+    + 2020-09-29 f9b86a6562 [dev.boringcrypto] go/build: satisfy the boringcrypto build tag
+    + 2020-09-29 ef2b318974 [dev.boringcrypto] crypto/boring: expose boring.Enabled()
+    + 2020-09-14 3782421230 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2020-08-18 6bbe47ccb6 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2020-07-21 6e6e0b73d6 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2020-07-09 d85ef2b979 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2020-07-09 a91ad4250c [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2020-06-10 5beb39baf8 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2020-05-07 dd98c0ca3f [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2020-05-07 a9d2e3abf7 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2020-05-07 c19c0a047b [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2020-05-07 36c94f8421 [dev.boringcrypto] crypto/internal/boring: reject short signatures in VerifyRSAPKCS1v15
+    + 2020-05-07 ee159d2f35 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2020-04-08 e067ce5225 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2020-03-03 79284c2873 [dev.boringcrypto] crypto/internal/boring: make accesses to RSA types with finalizers safer
+    + 2020-03-02 6c64b188a5 [dev.boringcrypto] crypto/internal/boring: update BoringCrypto module to certificate 3318
+    + 2020-02-28 13355c78ff [dev.boringcrypto] misc/boring: add go1.14b4 to RELEASES file
+    + 2020-02-28 4980c6b317 [dev.boringcrypto] misc/boring: x/build/cmd/release doesn't take subrepo flags anymore
+    + 2020-02-28 601da81916 [dev.boringcrypto] misc/boring: make merge.sh and release.sh a little more robust
+    + 2020-02-14 09bc5e8723 [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2020-02-06 f96dfe6b73 [dev.boringcrypto] misc/boring: add go1.13.7b4 and go1.12.16b4 releases to RELEASES file
+    + 2020-02-05 2f9b2e75c4 [dev.boringcrypto] misc/docker: update Dockerfile to match recent Buster based golang images
+    + 2020-02-05 527880d05c [dev.boringcrypto] misc/boring: update default CL reviewer to katie@golang.org
+    + 2019-11-25 50ada481fb [dev.boringcrypto] misc/boring: add new releases to RELEASES file
+    + 2019-11-20 6657395adf [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2019-11-20 ab0a649d44 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2019-11-19 62ce702c77 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2019-10-25 e8f14494a0 [dev.boringcrypto] misc/boring: add go1.13.3b4 and go1.12.12b4 to RELEASES file
+    + 2019-10-17 988e4d832e [dev.boringcrypto] misc/boring: add go1.13.2b4 and go1.12.11b4 to RELEASES file
+    + 2019-10-11 974fd1301a [dev.boringcrypto] misc/boring: publish to Docker Hub all releases, not only the latest
+    + 2019-09-27 62ce8cd3ad [dev.boringcrypto] misc/boring: add go1.13.1b4 and go1.12.10b4 to RELEASES file
+    + 2019-09-10 489d268683 [dev.boringcrypto] misc/boring: add Go+BoringCrypto 1.13b4 to RELEASES file
+    + 2019-09-04 e0ee09095c [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2019-09-03 ff197f326f [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2019-08-21 5a1705286e [dev.boringcrypto] misc/boring: add go1.12.9b4 to RELEASES
+    + 2019-08-15 1ebc594b3c [dev.boringcrypto] misc/boring: add go1.12.8b4 and go1.11.13b4 to RELEASES
+    + 2019-08-13 9417029290 [dev.boringcrypto] misc/boring: remove download of releaselet.go in build.release
+    + 2019-08-05 2691091a4a misc/boring: add Go 1.11.12b4 and 1.12.7b4 to RELEASES
+    + 2019-07-19 6eccf6a6cd [dev.boringcrypto] misc/boring: add scripts to automate merges and releases
+    + 2019-06-27 98188f3001 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2019-06-13 5c354e66d1 [dev.boringcrypto] misc/boring: add go1.12.6b4 and go1.11.11b4 releases
+    + 2019-06-09 9bf9e7d4b2 [dev.boringcrypto] crypto: move crypto/internal/boring imports to reduce merge conflicts
+    + 2019-06-05 324f8365be [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2019-05-28 e48f228c9b [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2019-05-14 42e353245c [dev.boringcrypto] misc/boring: add go1.12.5b4 release
+    + 2019-03-29 211a13fd44 [dev.boringcrypto] misc/boring: add go1.11.6b4 to RELEASES
+    + 2019-03-28 347af7f060 [dev.boringcrypto] misc/boring: add go1.12.1b4 and update build scripts
+    + 2019-02-27 a10558f870 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2019-02-08 4ed8ad4d69 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2019-01-24 14c64dbc4a [dev.boringcrypto] misc/boring: add go1.10.8b4 and go1.11.5b4
+    + 2018-12-15 3f9e53f346 [dev.boringcrypto] misc/boring: add go1.10.7b4 and go1.11.4b4 releases
+    + 2018-12-14 92d975e906 [dev.boringcrypto] misc/boring: add go1.11.2b4 release
+    + 2018-11-14 c524da4917 [dev.boringcrypto] crypto/tls: test for TLS 1.3 to be disabled in FIPS mode
+    + 2018-11-14 bfd6d30118 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-11-14 0007017f96 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-11-14 3169778c15 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-11-14 ab37582eb0 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-11-14 e8b3500d5c [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-11-14 de153ac2a1 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-11-14 0cbb11c720 [dev.boringcrypto] cmd/compile: by default accept any language
+    + 2018-11-13 11e916773e [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-11-13 af07f7734b [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-10-25 13bf5b80e8 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-10-15 623650b27a [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-10-01 36c789b1fd [dev.boringcrypto] misc/boring: add go1.10.4b4 and go1.11b4 releases
+    + 2018-09-07 693875e3f2 [dev.boringcrypto] crypto/internal/boring: avoid an allocation in AES-GCM Seal and Open
+    + 2018-09-06 4d1aa482b8 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-08-04 7eb1677c01 [dev.boringcrypto] crypto/internal/boring: fix aesCipher implementation of gcmAble
+    + 2018-07-11 eaa3e94eb8 [dev.boringcrypto] misc/boring: add go1.9.7b4 and go1.10.3b4 releases
+    + 2018-07-11 5f0402a26b [dev.boringcrypto] misc/boring: support build.release on macOS
+    + 2018-07-03 77db076129 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-06-13 b77f5e4c85 [dev.boringcrypto] crypto/rsa: drop random source reading emulation
+    + 2018-06-08 a4b7722ffa [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-05-29 18db93d7e6 [dev.boringcrypto] crypto/tls: restore AES-GCM priority when BoringCrypto is enabled
+    + 2018-05-25 3d9a6ac709 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-05-18 019a994e32 [dev.boringcrypto] crypto/rsa: fix boringFakeRandomBlind to work with (*big.Int).ModInverse
+    + 2018-05-17 a3f9ce3313 [dev.boringcrypto] all: merge master into dev.boringcrypto
+    + 2018-02-09 528dad8c72 [dev.cryptoboring] misc/boring: update README for Bazel
+    + 2018-02-06 c3d83ee31c [dev.boringcrypto] misc/boring: add go1.9.3b4 to RELEASES
+    + 2017-12-13 f62a24349d [dev.boringcrypto] all: merge go1.10beta1 into dev.boringcrypto
+    + 2017-12-06 3e52f22ece [dev.boringcrypto] crypto/internal/boring: add MarshalBinary/UnmarshalBinary to hashes
+    + 2017-12-06 5379f7847f [dev.boringcrypto] all: merge master (more nearly Go 1.10 beta 1) into dev.boringcrypto
+    + 2017-12-06 185e6094fd [dev.boringcrypto] all: merge master (nearly Go 1.10 beta 1) into dev.boringcrypto
+    + 2017-11-20 c36033a379 [dev.boringcrypto] misc/boring: add go1.9.2b4 release
+    + 2017-11-20 cda3c6f91d [dev.boringcrypto] all: merge go1.9.2 into dev.boringcrypto
+    + 2017-10-25 2ea7d3461b [release-branch.go1.9] go1.9.2
+    + 2017-10-25 d93cb46280 [release-branch.go1.9] runtime: use simple, more robust fastrandn
+    + 2017-10-25 78952c06c5 [release-branch.go1.9] cmd/compile: fix sign-extension merging rules
+    + 2017-10-25 79996e4a1d [release-branch.go1.9] cmd/compile: avoid generating large offsets
+    + 2017-10-25 f36b12657c [release-branch.go1.9] runtime: in cpuProfile.addExtra, set p.lostExtra to 0 after flush
+    + 2017-10-25 dffc9319f1 [release-branch.go1.9] cmd/cgo: support large unsigned macro again
+    + 2017-10-25 33ce1682c7 [release-branch.go1.9] cmd/cgo: avoid using common names for sniffing
+    + 2017-10-25 f69668e1d0 [release-branch.go1.9] os: skip TestPipeThreads as flaky for 1.9
+    + 2017-10-25 9be38a15e4 [release-branch.go1.9] runtime: avoid monotonic time zero on systems with low-res timers
+    + 2017-10-25 8bb333a9c0 [release-branch.go1.9] doc: document Go 1.9.2
+    + 2017-10-25 0758d2b9da [release-branch.go1.9] cmd/go: clean up x.exe properly in TestImportMain
+    + 2017-10-25 d487b15a61 [release-branch.go1.9] cmd/compile: omit ICE diagnostics after normal error messages
+    + 2017-10-25 fd17253587 [release-branch.go1.9] database/sql: prevent race in driver by locking dc in Next
+    + 2017-10-25 7e7cb30475 [release-branch.go1.9] internal/poll: only call SetFileCompletionNotificationModes for sockets
+    + 2017-10-25 f259aed082 [release-branch.go1.9] internal/poll: do not call SetFileCompletionNotificationModes if it is broken
+    + 2017-10-25 39d4bb9c0f [release-branch.go1.9] cmd/go: correct directory used in checkNestedVCS test
+    + 2017-10-25 bfc22319aa [release-branch.go1.9] crypto/x509: reject intermediates with unknown critical extensions.
+    + 2017-10-25 a1e34abfb3 [release-branch.go1.9] net/smtp: NewClient: set tls field to true when already using a TLS connection
+    + 2017-10-25 7dadd8d517 [release-branch.go1.9] net: increase expected time to dial a closed port on all Darwin ports
+    + 2017-10-25 d80889341c [release-branch.go1.9] cmd/compile: fix merge rules for panic calls
+    + 2017-10-25 87b3a27839 [release-branch.go1.9] net: bump TestDialerDualStackFDLeak timeout on iOS
+    + 2017-10-25 ebfcdef901 [release-branch.go1.9] runtime: make runtime.GC() trigger GC even if GOGC=off
+    + 2017-10-25 0ab99b396d [release-branch.go1.9] cmd/compile: fix regression in PPC64.rules move zero
+    + 2017-10-25 8d4279c111 [release-branch.go1.9] internal/poll: be explicit when using runtime netpoller
+    + 2017-10-25 1ded8334f7 [release-branch.go1.9] cmd/compile/internal/syntax: fix source buffer refilling
+    + 2017-10-25 ff8289f879 [release-branch.go1.9] reflect: fix pointer past-the-end in Call with zero-sized return value
+    + 2017-10-25 bd34e74134 [release-branch.go1.9] log: fix data race on log.Output
+    + 2017-10-25 0b55d8dbfc [release-branch.go1.9] cmd/compile: replace GOROOT in //line directives
+    + 2017-10-25 5c48811aec [release-branch.go1.9] cmd/compile: limit the number of simultaneously opened files to avoid EMFILE/ENFILE errors
+    + 2017-10-25 8c7fa95ad3 [release-branch.go1.9] expvar: make (*Map).Init clear existing keys
+    + 2017-10-25 ccd5abc105 [release-branch.go1.9] cmd/compile: simplify "missing function body" error message
+    + 2017-10-25 2e4358c960 [release-branch.go1.9] time: fix documentation of Round, Truncate behavior for d <= 0
+    + 2017-10-25 c6388d381e [release-branch.go1.9] runtime: capture runtimeInitTime after nanotime is initialized
+    + 2017-10-25 724638c9d8 [release-branch.go1.9] crypto/x509: skip TestSystemRoots
+    + 2017-10-25 ed3b0d63b7 [release-branch.go1.9] internal/poll: add tests for Windows file and serial ports
+    + 2017-10-04 93322a5b3d [release-branch.go1.9] doc: add missing "Minor revisions" header for 1.9
+    + 2017-10-04 7f40c1214d [release-branch.go1.9] go1.9.1
+    + 2017-10-04 598433b17a [release-branch.go1.9] doc: document go1.9.1 and go1.8.4
+    + 2017-10-04 815cad3ed0 [release-branch.go1.9] doc/1.9: add mention of net/http.LocalAddrContextKey
+    + 2017-10-04 1900d34a10 [release-branch.go1.9] net/smtp: fix PlainAuth to refuse to send passwords to non-TLS servers
+    + 2017-10-04 a39bcecea6 [release-branch.go1.9] cmd/go: reject update of VCS inside VCS
+    + 2017-10-04 d9e64910af [release-branch.go1.9] runtime: deflake TestPeriodicGC
+    + 2017-09-28 adc1f587ac [dev.boringcrypto] misc/boring: add src releases
+    + 2017-09-25 4038503543 [dev.boringcrypto] misc/boring: add go1.8.3b4
+    + 2017-09-25 d724c60b4d [dev.boringcrypto] misc/boring: update README
+    + 2017-09-22 70bada9db3 [dev.boringcrypto] misc/boring: add go1.9b4 release
+    + 2017-09-22 e6ad24cde7 [dev.boringcrypto] all: merge go1.9 into dev.boringcrypto
+    + 2017-09-22 431e071eed [dev.boringcrypto] misc/boring: add go1.9rc2b4 release
+    + 2017-09-22 cc6e26b2e1 [dev.boringcrypto] api: add crypto/x509.VerifyOptions.IsBoring to make release builder happy
+    + 2017-09-22 bac02b14b5 [dev.boringcrypto] misc/boring: update VERSION
+    + 2017-09-22 3ed08db261 [dev.boringcrypto] crypto/tls/fipsonly: new package to force FIPS-allowed TLS settings
+    + 2017-09-20 2ba76155cd [dev.boringcrypto] crypto/internal/boring: fix finalizer-induced crashes
+    + 2017-09-18 32dc9b247f [dev.boringcrypto] cmd/go: exclude SysoFiles when using -msan
+    + 2017-09-18 9f025cbdeb [dev.boringcrypto] crypto/internal/boring: fall back to standard crypto when using -msan
+    + 2017-09-18 89ba9e3541 [dev.boringcrypto] crypto/aes: panic on invalid dst, src overlap
+    + 2017-09-18 a929f3a04d [dev.boringcrypto] crypto/rsa: fix boring GenerateKey to set non-nil Precomputed.CRTValues
+    + 2017-09-18 aa4a4a80ff [dev.boringcrypto] crypto/internal/boring: fix detection of tests to allow *.test and *_test
+    + 2017-09-18 c9e2d9eb06 [dev.boringcrypto] crypto/rsa: add test for, fix observable reads from custom randomness
+    + 2017-09-18 e773ea9aa3 [dev.boringcrypto] crypto/hmac: add test for Write/Sum after Sum
+    + 2017-09-18 8fa8f42cb3 [dev.boringcrypto] crypto/internal/boring: allow hmac operations after Sum
+    + 2017-09-18 07f6ce9d39 [dev.boringcrypto] crypto/internal/boring: handle RSA verification of short signatures
+    + 2017-09-14 e8eec3fbdb [dev.boringcrypto] cmd/compile: refine BoringCrypto kludge
+    + 2017-08-30 7b49445d0f [dev.boringcrypto] cmd/compile: hide new boring fields from reflection
+    + 2017-08-30 81b9d733b0 [dev.boringcrypto] crypto/hmac: test empty key
+    + 2017-08-30 f6358bdb6c [dev.boringcrypto] crypto/internal/boring: fix NewHMAC with empty key
+    + 2017-08-30 9c307d8039 [dev.boringcrypto] crypto/internal/cipherhw: fix AESGCMSupport for BoringCrypto
+    + 2017-08-26 f48a9fb815 [dev.boringcrypto] misc/boring: release packaging
+    + 2017-08-25 94fb8224b2 [dev.boringcrypto] crypto/internal/boring: disable for android & non-cgo builds
+    + 2017-08-25 7ff9fcafbd [dev.boringcrypto] crypto/internal/boring: clear "executable stack" bit from syso
+    + 2017-08-24 c8aec4095e [release-branch.go1.9] go1.9
+    + 2017-08-24 b8c9ef9f09 [release-branch.go1.9] doc: add go1.9 to golang.org/project
+    + 2017-08-24 136f4a6b2a [release-branch.go1.9] doc: document go1.9
+    + 2017-08-24 867be4c60c [release-branch.go1.9] doc/go1.9: fix typo in Moved GOROOT
+    + 2017-08-24 d1351fbc31 [dev.boringcrypto] cmd/link: allow internal linking for crypto/internal/boring
+    + 2017-08-24 991652dcf0 [dev.boringcrypto] cmd/link: work around DWARF symbol bug
+    + 2017-08-22 9a4e7942ea [release-branch.go1.9] cmd/compile: remove gc.Sysfunc calls from 387 backend
+    + 2017-08-22 ff38035a62 [release-branch.go1.9] doc/go1.9: fix typo in crypto/x509 of "Minor changes to the library".
+    + 2017-08-19 7e9e3a06cb [dev.boringcrypto] crypto/rsa: use BoringCrypto
+    + 2017-08-19 bc38fda367 [dev.boringcrypto] crypto/ecdsa: use unsafe.Pointer instead of atomic.Value
+    + 2017-08-18 42046e8989 [release-branch.go1.9] runtime: fix false positive race in profile label reading
+    + 2017-08-18 fbf7e1f295 [release-branch.go1.9] testing: don't fail all tests after racy test failure
+    + 2017-08-18 21312a4b5e [release-branch.go1.9] cmd/dist: update deps.go for current dependencies
+    + 2017-08-18 5927854f7d [release-branch.go1.9] cmd/compile: add rules handling unsigned div/mod by constant 1<<63
+    + 2017-08-18 65717b2dca [release-branch.go1.9] runtime: fix usleep by correctly setting nanoseconds parameter for pselect6
+    + 2017-08-17 b1f201e951 [dev.boringcrypto] crypto/ecdsa: use BoringCrypto
+    + 2017-08-17 2efded1cd2 [dev.boringcrypto] crypto/tls: use TLS-specific AES-GCM mode if available
+    + 2017-08-17 335a0f87bf [dev.boringcrypto] crypto/aes: implement TLS-specific AES-GCM mode from BoringCrypto
+    + 2017-08-17 8d05ec9e58 [dev.boringcrypto] crypto/aes: use BoringCrypto
+    + 2017-08-17 74e33c43e9 [dev.boringcrypto] crypto/hmac: use BoringCrypto
+    + 2017-08-17 96d6718e4f [dev.boringcrypto] crypto/sha1,sha256,sha512: use BoringCrypto
+    + 2017-08-17 e0e2bbdd00 [dev.boringcrypto] runtime/race: move TestRaceIssue5567 from sha1 to crc32
+    + 2017-08-17 fe02ba30f1 [dev.boringcrypto] crypto/rand: use BoringCrypto
+    + 2017-08-17 6e70f88f84 [dev.boringcrypto] crypto/internal/boring: add initial BoringCrypto access
+    + 2017-08-16 dcdcc38440 [dev.boringcrypto] add README.boringcrypto.md, update VERSION
+    + 2017-08-16 19b89a22df [dev.boringcrypto] cmd/link: implement R_X86_64_PC64 relocations
+    + 2017-08-07 048c9cfaac [release-branch.go1.9] go1.9rc2
+    + 2017-08-07 cff0de3da3 [release-branch.go1.9] all: merge master into release-branch.go1.9
+    + 2017-07-31 196492a299 [release-branch.go1.9] runtime: map bitmap and spans during heap initialization
+    + 2017-07-31 1a6d87d4bf [release-branch.go1.9] runtime: fall back to small mmaps if we fail to grow reservation
+    + 2017-07-27 7320506bc5 [release-branch.go1.9] cmd/dist: skip moved GOROOT on Go's Windows builders when not sharding tests
+    + 2017-07-24 65c6c88a94 [release-branch.go1.9] go1.9rc1
+    + 2017-07-24 fbc9b49790 [release-branch.go1.9] cmd/compile: consider exported flag in namedata
     
-    Updates #56539
-    
-    Change-Id: I8fa0cad7a18ca967508799fc828ef060b27683d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477735
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I5344e8e4813a9a0900f6633499a3ddf22895a4d5
 
- src/net/dial.go | 37 +++++++++++++++++++++++++++++++++++--
- 1 file changed, 35 insertions(+), 2 deletions(-)
+ misc/cgo/testshared/shared_test.go                 |   2 +-
+ src/cmd/api/goapi_boring_test.go                   |  17 +
+ src/cmd/cgo/main.go                                |   6 +-
+ src/cmd/compile/internal/amd64/versions_test.go    |   4 +
+ src/cmd/compile/internal/liveness/plive.go         |   4 +-
+ src/cmd/compile/internal/ssa/func.go               |   4 +-
+ src/cmd/compile/internal/ssa/print.go              |   9 +-
+ src/cmd/compile/internal/staticdata/data.go        |   8 +-
+ src/cmd/compile/internal/typecheck/iexport.go      |   4 +-
+ src/cmd/compile/internal/types/fmt.go              |   6 +-
+ src/cmd/dist/buildtool.go                          |   1 +
+ src/cmd/go/go_boring_test.go                       |  22 +
+ src/cmd/go/go_test.go                              |  12 +-
+ src/cmd/go/internal/load/pkg.go                    |   6 +
+ src/cmd/go/internal/work/exec.go                   |  22 +-
+ src/cmd/go/testdata/script/link_syso_deps.txt      |  54 ++
+ src/cmd/internal/codesign/codesign.go              |  16 +-
+ src/cmd/internal/goobj/objfile.go                  |   4 +-
+ src/cmd/internal/notsha256/example_test.go         |  41 ++
+ src/cmd/internal/notsha256/sha256.go               | 141 +++++
+ src/cmd/internal/notsha256/sha256_test.go          | 175 ++++++
+ src/cmd/internal/notsha256/sha256block.go          | 128 +++++
+ src/cmd/internal/notsha256/sha256block_386.s       | 283 ++++++++++
+ src/cmd/internal/notsha256/sha256block_amd64.go    |   7 +
+ src/cmd/internal/notsha256/sha256block_amd64.s     | 424 ++++++++++++++
+ src/cmd/internal/notsha256/sha256block_decl.go     |  12 +
+ src/cmd/internal/notsha256/sha256block_generic.go  |  12 +
+ src/cmd/internal/notsha256/sha256block_ppc64x.s    | 424 ++++++++++++++
+ src/cmd/internal/obj/objfile.go                    |   4 +-
+ src/cmd/internal/obj/sym.go                        |   4 +-
+ src/cmd/link/internal/ld/elf.go                    |   6 +-
+ src/cmd/link/internal/ld/lib.go                    |   6 +-
+ src/cmd/objdump/objdump_test.go                    |   4 +-
+ src/crypto/aes/cipher.go                           |   5 +
+ src/crypto/aes/cipher_asm.go                       |   4 +
+ src/crypto/boring/boring.go                        |  21 +
+ src/crypto/boring/boring_test.go                   |  22 +
+ src/crypto/boring/notboring_test.go                |  14 +
+ src/crypto/ecdsa/boring.go                         | 106 ++++
+ src/crypto/ecdsa/ecdsa.go                          |  62 +++
+ src/crypto/ecdsa/notboring.go                      |  16 +
+ src/crypto/ed25519/ed25519_test.go                 |   6 +-
+ src/crypto/hmac/hmac.go                            |   9 +
+ src/crypto/hmac/hmac_test.go                       |  66 +++
+ src/crypto/internal/boring/Dockerfile              |  44 ++
+ src/crypto/internal/boring/LICENSE                 | 202 +++++++
+ src/crypto/internal/boring/aes.go                  | 389 +++++++++++++
+ src/crypto/internal/boring/bbig/big.go             |  33 ++
+ src/crypto/internal/boring/boring.go               | 109 ++++
+ src/crypto/internal/boring/boring_test.go          |  34 ++
+ src/crypto/internal/boring/build.sh                | 196 +++++++
+ src/crypto/internal/boring/cache.go                | 140 +++++
+ src/crypto/internal/boring/cache_test.go           | 120 ++++
+ src/crypto/internal/boring/doc.go                  |  19 +
+ src/crypto/internal/boring/ecdsa.go                | 174 ++++++
+ src/crypto/internal/boring/fipstls/stub.s          |  12 +
+ src/crypto/internal/boring/fipstls/tls.go          |  52 ++
+ src/crypto/internal/boring/goboringcrypto.h        | 239 ++++++++
+ src/crypto/internal/boring/hmac.go                 | 154 ++++++
+ src/crypto/internal/boring/notboring.go            | 112 ++++
+ src/crypto/internal/boring/rand.go                 |  25 +
+ src/crypto/internal/boring/rsa.go                  | 347 ++++++++++++
+ src/crypto/internal/boring/sha.go                  | 597 ++++++++++++++++++++
+ src/crypto/internal/boring/sig/sig.go              |  17 +
+ src/crypto/internal/boring/sig/sig_amd64.s         |  54 ++
+ src/crypto/internal/boring/sig/sig_other.s         |  20 +
+ src/crypto/internal/boring/stub.s                  |   6 +
+ .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 0 -> 10864368 bytes
+ src/crypto/internal/boring/syso/syso.go            |   9 +
+ src/crypto/issue21104_test.go                      |   2 +-
+ src/crypto/rand/rand_unix.go                       |   7 +
+ src/crypto/rsa/boring.go                           | 130 +++++
+ src/crypto/rsa/boring_test.go                      | 130 +++++
+ src/crypto/rsa/notboring.go                        |  16 +
+ src/crypto/rsa/pkcs1v15.go                         |  86 ++-
+ src/crypto/rsa/pkcs1v15_test.go                    |   2 +-
+ src/crypto/rsa/pss.go                              |  35 ++
+ src/crypto/rsa/pss_test.go                         |   3 +-
+ src/crypto/rsa/rsa.go                              |  72 ++-
+ src/crypto/rsa/rsa_test.go                         |  87 ++-
+ src/crypto/sha1/boring.go                          |  25 +
+ src/crypto/sha1/notboring.go                       |  20 +
+ src/crypto/sha1/sha1.go                            |   8 +
+ src/crypto/sha1/sha1_test.go                       |  32 +-
+ src/crypto/sha256/sha256.go                        |  15 +
+ src/crypto/sha256/sha256_test.go                   |  36 +-
+ src/crypto/sha512/sha512.go                        |  19 +
+ src/crypto/sha512/sha512_test.go                   |  36 +-
+ src/crypto/tls/auth.go                             |   4 +
+ src/crypto/tls/auth_test.go                        |   2 +-
+ src/crypto/tls/boring.go                           |  98 ++++
+ src/crypto/tls/boring_test.go                      | 616 +++++++++++++++++++++
+ src/crypto/tls/cipher_suites.go                    |  22 +-
+ src/crypto/tls/common.go                           |  13 +-
+ src/crypto/tls/fipsonly/fipsonly.go                |  29 +
+ src/crypto/tls/fipsonly/fipsonly_test.go           |  18 +
+ src/crypto/tls/handshake_client.go                 |   8 +-
+ src/crypto/tls/handshake_client_tls13.go           |   6 +-
+ src/crypto/tls/handshake_messages_test.go          |   8 +-
+ src/crypto/tls/handshake_server.go                 |   2 +-
+ src/crypto/tls/handshake_server_tls13.go           |   8 +-
+ src/crypto/tls/notboring.go                        |  20 +
+ src/crypto/x509/boring.go                          |  38 ++
+ src/crypto/x509/boring_test.go                     | 138 +++++
+ src/crypto/x509/notboring.go                       |   9 +
+ src/crypto/x509/verify.go                          |   7 +
+ src/go/build/build.go                              |   4 +
+ src/go/build/deps_test.go                          |  22 +-
+ src/math/big/intmarsh_test.go                      |   1 -
+ src/runtime/mgc.go                                 |  11 +
+ src/runtime/race/testdata/mop_test.go              |   4 +-
+ src/runtime/runtime_boring.go                      |  19 +
+ 112 files changed, 7065 insertions(+), 110 deletions(-)

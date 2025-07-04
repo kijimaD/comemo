@@ -1,14 +1,15 @@
-commit a0a10d1988b5fe242d768402b406342fe47ad5b2
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 26 15:07:25 2011 -0700
+commit 214b82f2e0eaadc9d15384538d3b3787867a675a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 26 12:32:59 2011 -0700
 
-    rpc: allow the argument (first arg of method) to be a value rather than a pointer.
-    Can make the API nicer in some cases.
+    http: new tests + panic hunting issue 1725
     
-    R=rsc, rog, r2
+    No bugs found yet, though.
+    
+    R=rsc, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4428064
+    https://golang.org/cl/4436058
 
- src/pkg/rpc/server.go      | 45 ++++++++++++++++++++++++++++++++-------------
- src/pkg/rpc/server_test.go | 21 +++++++--------------
- 2 files changed, 39 insertions(+), 27 deletions(-)
+ src/pkg/http/response_test.go | 93 ++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/http/transport.go     | 11 +++--
+ 2 files changed, 99 insertions(+), 5 deletions(-)

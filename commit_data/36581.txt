@@ -1,19 +1,25 @@
-commit f7a633aa790c413fc460cdc0901c9ae429cf1175
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 24 12:37:25 2018 -0700
+commit b382fe28a79d97d3ee1f3b79548d63929b0119b1
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 13:38:57 2018 +0100
 
-    cmd/compile: use "N variables but M values" error for OAS
+    internal/bytealg: add wasm architecture
     
-    Makes the error message more consistent between OAS and OAS2.
+    This commit adds the wasm architecture to the internal/bytealg package.
     
-    Fixes #26616.
+    Some parts of the assembly code have been extracted from WebAssembly
+    bytecode generated with Emscripten (which uses musl libc).
     
-    Change-Id: I07ab46c5ef8a37efb2cb557632697f5d1bf789f7
-    Reviewed-on: https://go-review.googlesource.com/131280
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #18892
+    
+    Change-Id: Iba7f7158356b816c9ad03ca9223903a41a024da6
+    Reviewed-on: https://go-review.googlesource.com/103915
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 11 +++++++++--
- test/fixedbugs/issue26616.go             | 20 ++++++++++++++++++++
- 2 files changed, 29 insertions(+), 2 deletions(-)
+ src/internal/bytealg/compare_generic.go   |   2 +-
+ src/internal/bytealg/compare_native.go    |   2 +-
+ src/internal/bytealg/compare_wasm.s       | 126 ++++++++++++++++
+ src/internal/bytealg/equal_wasm.s         | 117 ++++++++++++++
+ src/internal/bytealg/indexbyte_generic.go |   2 +-
+ src/internal/bytealg/indexbyte_native.go  |   2 +-
+ src/internal/bytealg/indexbyte_wasm.s     | 243 ++++++++++++++++++++++++++++++
+ 7 files changed, 490 insertions(+), 4 deletions(-)

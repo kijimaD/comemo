@@ -1,19 +1,16 @@
-commit ae9938fae287606fb08395f4248393ea4acaa071
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 20 12:50:54 2024 -0800
+commit 2470d058727e0838167914c40cf258c8a457b78e
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Oct 10 10:51:19 2023 +0800
 
-    doc: document new restriction on cgo-generated method receicer types
+    maps: add examples for Clone,Copy and Equal
     
-    Follow-up on CL 629715.
-    
-    For #60725.
-    
-    Change-Id: I1b980ad44f73550b633c74fc881c70255e7d8565
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630335
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I72adaf48588e7d6cffbc0ee8005decda06808e84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534055
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- doc/next/5-toolchain.md | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/maps/example_test.go | 90 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 90 insertions(+)

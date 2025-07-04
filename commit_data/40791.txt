@@ -1,23 +1,18 @@
-commit 718f553915cc1c13d7b31cd264c131987f67f14d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 13 11:09:27 2019 -0800
+commit adcb2b1e7aef2d06ec19cad52f24e8271a12d26a
+Author: Kyle Shannon <kyle@pobox.com>
+Date:   Mon Jul 1 18:45:06 2019 -0600
 
-    os/exec: skip poll descriptors when checking for open descriptors
+    lib/time: update tz data to 2019b
     
-    It turns out that there is a path that initializes netpoll and opens
-    file descriptors before running the os/exec init function: on some
-    systems, the uses of NewFile when setting os.Stdin and friends can
-    initialize netpoll which can open file descriptors. This in itself
-    is not a problem, but when we check whether the new files are open
-    using os.NewFile, a side-effect is to put them into non-blocking mode.
-    This can then break future uses of netpoll.
+    Updates #22487
     
-    Updates #35469
-    Fixes #35566
-    
-    Change-Id: I1b2e2c943695d1c2d29496b050abbce9ee710a00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207078
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I3c933c68b5c3c5e78e3a9656ea2dcdbcbb59533f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184577
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec/exec_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 788764 -> 781554 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

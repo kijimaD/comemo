@@ -1,17 +1,19 @@
-commit 06cff114cf786d5f901aa41ac873f9e8bb8e1eba
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Fri Apr 5 13:01:58 2019 -0700
+commit 69397422c0ac74f9f9ec8e2b3e6d0b0b7ab1b697
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 13 15:36:02 2018 -0800
 
-    syscall: use openat instead of dup to make a really new file descriptor
+    cmd/compile: by default accept any language
     
-    Update #31269
+    The bootstrap stage 1 compiler was defaulting to the language version
+    used by the bootstrap compiler itself, typically 1.4. Normally this
+    doesn't matter since the bootstrap code has to build with 1.4 anyhow,
+    but it broke the boringcrypto branch which uses cgo during the
+    bootstrap, as cgo now generates code that uses type aliases.
     
-    Change-Id: I0e7184420055b8dfd23688dab9f9d8cba1fa2485
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170892
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8a8312bb9ca4befaf65c00a8d71a78566075c2f7
+    Reviewed-on: https://go-review.googlesource.com/c/149459
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/syscall/getdirentries_test.go | 82 +++++++++++++++++++++++++++++++++++++++
- src/syscall/syscall_darwin.go     |  8 +++-
- 2 files changed, 89 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

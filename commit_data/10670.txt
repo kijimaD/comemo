@@ -1,13 +1,15 @@
-commit 692c31d60a1bba484bca6efb59619243bb93d483
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Dec 9 11:00:49 2011 +1100
+commit 5d045fb0f16ba12cdde5ad9656a71376bece0585
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Fri Dec 9 10:42:34 2011 +1100
 
-    misc/cgo/testso: do not leave out file behind
+    syscall: Remove obsolete Errstr call from commented-out example.
     
-    R=golang-dev, dvyukov
+    syscall_windows.go contains a small demo, which calls the obsolete
+    syscall.Errstr function.
+    
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5461044
+    https://golang.org/cl/5475044
 
- misc/cgo/testso/test.bash | 9 +++++++++
- src/run.bash              | 3 +--
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ src/pkg/syscall/syscall_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

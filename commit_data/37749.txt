@@ -1,18 +1,20 @@
-commit c343b6b2b81f9c6d4007c2c3c567dfaadd4fa4e6
-Author: Kevin Burke <kev@inburke.com>
-Date:   Mon Dec 17 00:37:07 2018 +0000
+commit 2200b18258874ba61771ea78d5fbee99ba6fe71f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Aug 20 21:31:49 2018 +0100
 
-    os: show how to print permission bits in octal
+    cmd/compile: cleanup walking OCONV/OCONVNOP
     
-    Permission bits are most commonly viewed in string form (rwx-- etc) or
-    in octal form (0755), but the latter is relatively rare in Go.
-    Demonstrate how to print a FileMode in readable octal format.
+    Use a separate func, which needs less indentation and can use returns
+    instead of labelled breaks. We can also give the types better names, and
+    we don't have to repeat the calls to conv and mkcall.
     
-    Change-Id: I41feb801bcecb5077d4eabafdea27c149fc179a1
-    Reviewed-on: https://go-review.googlesource.com/c/154423
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I1071c170fa729562d70093a09b7dea003c5fe26e
+    Reviewed-on: https://go-review.googlesource.com/130075
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/example_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/walk.go | 107 +++++++++++++++++-------------------
+ 1 file changed, 51 insertions(+), 56 deletions(-)

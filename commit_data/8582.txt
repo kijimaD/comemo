@@ -1,17 +1,20 @@
-commit bc3a72fa28d45f0dffbb89e6d07566c2b3997393
-Author: William Chan <willchan@chromium.org>
-Date:   Wed Jun 1 17:30:49 2011 -0700
+commit 17bfa32fde692b3d299ced5e1879b4f6bfefbfac
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jun 1 20:30:42 2011 -0300
 
-    http/spdy: reorganize package.
+    sync: always wake up previously sleeping goroutines on Cond.Signal
     
-    R=bradfitz, rsc
+    This changes the internal implementation of Cond so that
+    it uses two generations of waiters.  This enables Signal
+    to guarantee that it will only wake up waiters that are
+    currently sleeping at the call time.
+    
+    Fixes #1648.
+    
+    R=dvyukov, gustavo, rsc
     CC=golang-dev
-    https://golang.org/cl/4524087
+    https://golang.org/cl/4524083
 
- src/pkg/http/spdy/Makefile                         |   5 +-
- src/pkg/http/spdy/framer.go                        | 443 ---------------------
- src/pkg/http/spdy/read.go                          | 287 +++++++++++++
- src/pkg/http/spdy/{framer_test.go => spdy_test.go} |   0
- src/pkg/http/spdy/{protocol.go => types.go}        | 249 +++---------
- src/pkg/http/spdy/write.go                         | 287 +++++++++++++
- 6 files changed, 641 insertions(+), 630 deletions(-)
+ src/pkg/sync/cond.go      | 69 +++++++++++++++++++++++++++++++----------------
+ src/pkg/sync/cond_test.go | 27 +++++++++++++++++++
+ 2 files changed, 73 insertions(+), 23 deletions(-)

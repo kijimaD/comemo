@@ -1,22 +1,17 @@
-commit ca1123f9c51e95d4b2383fbfe1652d70b373aac6
-Author: aimuz <mr.imuz@gmail.com>
-Date:   Wed Sep 25 14:25:58 2024 +0000
+commit 16ec27b47c4c103ddcdd46888e1b5175cc574d7a
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Aug 15 23:07:18 2023 +0800
 
-    internal/zstd: optimize skipFrame by using io.CopyN
+    errors: add a colon after Output to make the Example in the document display correctly
     
-    Replaced the manual byte skipping logic with io.CopyN
-    to improve performance and reduce memory allocation.
-    This change simplifies the code by directly discarding
-    the bytes read, enhancing readability and efficiency.
-    
-    Change-Id: Id11496d072fb554c394947d08e63616ca48ecab4
-    GitHub-Last-Rev: dc5f836cc76ea1355effa49a665b9091a888541b
-    GitHub-Pull-Request: golang/go#69619
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615716
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iaa1751c6ac0df9d5b2cb74efb16996f4eaea0503
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519236
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/internal/zstd/zstd.go | 26 ++++----------------------
- 1 file changed, 4 insertions(+), 22 deletions(-)
+ src/errors/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

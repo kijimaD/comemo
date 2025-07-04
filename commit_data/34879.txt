@@ -1,47 +1,23 @@
-commit 31db81d329ddeacc4ba18671783cca5f1ddb4b9d
+commit 88599f184d686339954482d1be067d44b2efb644
 Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Apr 6 22:38:48 2018 +0100
+Date:   Wed Nov 22 18:21:39 2017 +0000
 
-    cmd/vendor/.../pprof: update to 0f7d9ba1
+    cmd/vet: add missing %v to the verb regex
     
-    In particular, to pull a few fixes that were causing some tests to be
-    flaky on our build dashboard.
+    In golang.org/cl/74352, the print rules were overhauled to give better
+    error messages. This also meant adding a regex to find and extract the
+    used formatting verbs.
     
-    Fixes #24405.
-    Fixes #24508.
-    Fixes #24611.
+    However, %v was missed. Add it to the expression, and add a test too.
     
-    Change-Id: I713156ad11c924e4a4b603144d10395523d526ed
-    Reviewed-on: https://go-review.googlesource.com/105275
+    Fixes #22847.
+    
+    Change-Id: If117cc364db0cb91373742239b8a626c137642b0
+    Reviewed-on: https://go-review.googlesource.com/79455
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../github.com/google/pprof/driver/driver.go       |  39 +++--
- .../google/pprof/internal/binutils/addr2liner.go   |  25 ++-
- .../google/pprof/internal/binutils/binutils.go     |  31 +++-
- .../pprof/internal/binutils/binutils_test.go       |  11 +-
- .../pprof/internal/binutils/testdata/build_mac.sh  |  31 ++++
- .../pprof/internal/binutils/testdata/exe_mac_64    | Bin 0 -> 8648 bytes
- .../testdata/exe_mac_64.dSYM/Contents/Info.plist   |  20 +++
- .../Contents/Resources/DWARF/exe_mac_64            | Bin 0 -> 8840 bytes
- .../pprof/internal/binutils/testdata/lib_mac_64    | Bin 0 -> 4496 bytes
- .../testdata/lib_mac_64.dSYM/Contents/Info.plist   |  20 +++
- .../Contents/Resources/DWARF/lib_mac_64            | Bin 0 -> 8934 bytes
- .../google/pprof/internal/driver/driver.go         |   4 +-
- .../google/pprof/internal/driver/driver_test.go    | 192 +++++++++++----------
- .../google/pprof/internal/driver/fetch.go          |   4 +-
- .../google/pprof/internal/driver/fetch_test.go     |  39 +----
- .../google/pprof/internal/driver/flamegraph.go     |   2 +-
- .../google/pprof/internal/driver/interactive.go    |   9 +-
- .../google/pprof/internal/driver/options.go        |   4 +
- .../google/pprof/internal/driver/webhtml.go        |  36 ++--
- .../google/pprof/internal/driver/webui.go          |  28 +--
- .../google/pprof/internal/driver/webui_test.go     |   5 +-
- .../google/pprof/internal/elfexec/elfexec.go       |   2 +-
- .../google/pprof/internal/plugin/plugin.go         |   3 +
- .../google/pprof/internal/proftest/proftest.go     |   7 +-
- .../google/pprof/internal/report/source.go         |   2 +-
- .../google/pprof/internal/report/source_test.go    |  80 +++++++++
- .../google/pprof/third_party/svgpan/svgpan.go      |   2 +-
- 27 files changed, 401 insertions(+), 195 deletions(-)
+ src/cmd/vet/print.go          | 2 +-
+ src/cmd/vet/testdata/print.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,13 +1,14 @@
-commit 8bb7f7791b20d6d1b287e728b76ef95a8dd6af7c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Feb 16 13:16:07 2012 +1100
+commit d3f9aa47e5bc8e95234279d8b0aed6f54bb98d81
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 15 18:12:42 2012 -0800
 
-    sort: add interface examples
+    cmd/go: fix 'go help'
+    It depended on old behavior of functions in structs.
+    Solved by adding a boolean method to check .Run != nil.
     
-    R=golang-dev, bradfitz, r
+    R=golang-dev, adg, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5677060
+    https://golang.org/cl/5674062
 
- src/pkg/sort/example_interface_test.go | 77 ++++++++++++++++++++++++++++++++++
- src/pkg/sort/example_reverse_test.go   | 30 +++++++++++++
- 2 files changed, 107 insertions(+)
+ src/cmd/go/main.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

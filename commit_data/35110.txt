@@ -1,27 +1,29 @@
-commit d4e936cfd622de322dc93f69144c68bb4c133e21
-Author: erifan01 <eric.fang@arm.com>
-Date:   Tue Apr 17 07:37:38 2018 +0000
+commit 9006d1f85f51c41f84be5ef11f5b36479778e4b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 14:39:40 2017 -0500
 
-    internal/bytealg: optimize IndexString on arm64
+    cmd/go: vet support for upcoming cmd/vet fixes
     
-    This CL adjusts the order of the branch instructions of the
-    code to make it easier for the LIKELY branch to happen.
+    Two minor changes to allow fixes in cmd/vet's printf checking.
     
-    Benchmarks:
-    name                            old time/op    new time/op    delta
-    pkg:strings goos:linux goarch:arm64
-    IndexHard2-8                      2.17ms ± 1%    1.23ms ± 0%  -43.34%  (p=0.008 n=5+5)
-    CountHard2-8                      2.13ms ± 1%    1.21ms ± 2%  -43.31%  (p=0.008 n=5+5)
+    1. Pass package import path in vet config, so that vet knows
+    whether it is, for example, vetting "fmt".
     
-    pkg:bytes goos:linux goarch:arm64
-    IndexRune/4M-8                     661µs ±22%     513µs ± 0%  -22.32%  (p=0.008 n=5+5)
-    IndexEasy/4M-8                     672µs ±23%     513µs ± 0%  -23.71%  (p=0.016 n=5+4)
+    2. Add new, but undocumented and for now unsupported
+    flag -vettool to control which vet binary is invoked during go vet.
+    This lets the cmd/vet tests build and test a throwaway vet.exe
+    using cmd/go to ensure type checking information, all without
+    installing a potentially buggy cmd/vet.
     
-    Change-Id: Ib96f095edf77747edc8a971e79f5c1428e5808ce
-    Reviewed-on: https://go-review.googlesource.com/109015
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    For #22936.
+    
+    Change-Id: I18df7c796ebc711361c847c63eb3ee17fb041ff7
+    Reviewed-on: https://go-review.googlesource.com/83837
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/bytealg/index_arm64.s | 74 ++++++++++++++++++--------------------
- 1 file changed, 35 insertions(+), 39 deletions(-)
+ src/cmd/go/internal/vet/vet.go     |  8 ++++++++
+ src/cmd/go/internal/vet/vetflag.go | 12 ++++++++++--
+ src/cmd/go/internal/work/exec.go   | 12 +++++++++++-
+ 3 files changed, 29 insertions(+), 3 deletions(-)

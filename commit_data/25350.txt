@@ -1,16 +1,12 @@
-commit 4577cfcb0b861b70e5d503ffb14dba1ac2a66314
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 14:01:17 2015 -0800
+commit 03b0065204df9cd141919890b23de6291ab52885
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 21 13:41:30 2015 -0700
 
-    src: remove reference to since-deleted dist -s flag
+    doc: go1.6.txt: -msan option for cmd/{go,compile,link}
     
-    (Found while debugging release problems with go1.6beta1)
-    
-    Updates #12002
-    
-    Change-Id: Iec197a754205e7fd28be154f27f17f3315886364
-    Reviewed-on: https://go-review.googlesource.com/18011
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: I8b41de496e4b58214b98267b529f3525ff6d9745
+    Reviewed-on: https://go-review.googlesource.com/16171
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/make.bash | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ doc/go1.6.txt | 3 +++
+ 1 file changed, 3 insertions(+)

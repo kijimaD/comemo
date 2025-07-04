@@ -1,18 +1,18 @@
-commit 9f447c20efeaab1e60e1da03feee2fa0935cf95c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 16 11:26:41 2016 -0700
+commit 7b9d3ff4cbd93c0b9e69c78cbb2cb891839c7fb3
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sat May 21 14:37:29 2016 +0200
 
-    cmd/compile: remove unused Label fields
+    testing: don't be silent if a test's goroutine fails a test after test exits
     
-    Updates #16357.
+    Fixes #15654
     
-    Change-Id: I37f04d83134b5e1e7f6ba44eb9a566758ef594d3
-    Reviewed-on: https://go-review.googlesource.com/29350
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9bdaa9b76d480d75f24d95f0235efd4a79e3593e
+    Reviewed-on: https://go-review.googlesource.com/23320
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/gc/gen.go  | 10 ----------
- src/cmd/compile/internal/gc/go.go   | 10 ----------
- src/cmd/compile/internal/gc/pgen.go |  3 ---
- 3 files changed, 23 deletions(-)
+ src/testing/sub_test.go | 21 +++++++++++++++++++++
+ src/testing/testing.go  | 12 ++++++++++--
+ 2 files changed, 31 insertions(+), 2 deletions(-)

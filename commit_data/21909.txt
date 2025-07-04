@@ -1,19 +1,16 @@
-commit f09887cdce9dbb63e01503e0598bdeae74ee4e0b
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Mar 3 23:28:00 2015 -0500
+commit c1bbf0a2eac5a6ad71debb050cd46384649fcb04
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 3 12:48:35 2015 +0300
 
-    cmd/internal/gc: do not show original expression for constants in export data
+    cmd/gc: remove several copies of outervalue
     
-    Fixes #10066.
+    Walk calls it outervalue, racewalk calls it basenod,
+    isstack does it manually and slightly differently.
     
-    Change-Id: I43c423793dd094989e921e163a06b12181a35719
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/6750
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: Id5b5d32b8faf143fe9d34bd08457bfab6fb33daa
+    Reviewed-on: https://go-review.googlesource.com/3745
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/gc/fmt.go         | 13 +++++++++----
- test/fixedbugs/issue10066.dir/a.go | 11 +++++++++++
- test/fixedbugs/issue10066.dir/b.go |  7 +++++++
- test/fixedbugs/issue10066.go       | 10 ++++++++++
- 4 files changed, 37 insertions(+), 4 deletions(-)
+ src/cmd/gc/racewalk.c | 34 +++++++---------------------------
+ src/cmd/gc/walk.c     | 10 +++++-----
+ 2 files changed, 12 insertions(+), 32 deletions(-)

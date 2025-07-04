@@ -1,12 +1,15 @@
-commit d380a9775093cb99e9fb8103955f39b8a15bf60a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Jul 22 01:48:15 2012 +0900
+commit c0efcac6a97588f7013b7ec09dd56cb780bdce64
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Jul 20 16:04:22 2012 -0300
 
-    net: fix file descriptor leak on FileListener, FileConn and FilePacketConn
+    bytes: make Join return a new buffer on len(a) == 1
     
-    R=golang-dev, dave, r
+    Fixes #3844.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6430062
+    https://golang.org/cl/6432054
 
- src/pkg/net/file.go | 18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+ src/pkg/bytes/bytes.go      | 11 +++++------
+ src/pkg/bytes/bytes_test.go |  6 ++++++
+ 2 files changed, 11 insertions(+), 6 deletions(-)

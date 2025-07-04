@@ -1,12 +1,21 @@
-commit 2560f8fe223a35aa5a6b203a3bfd922cb4bd819e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 14 14:54:08 2013 -0400
+commit 4e76abbc6042ba7f415c5932674d0608528c9c42
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 14 21:54:07 2013 +0400
 
-    runtime/cgo: use old-style indirect call on arm
+    runtime: implement SysUnused on windows
+    Fixes #5584.
     
-    TBR=elias.naur
+    R=golang-dev, chaishushan, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/12943043
+    https://golang.org/cl/12720043
 
- src/pkg/runtime/cgo/gcc_arm.S | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/runtime/malloc.h      |  6 ++++--
+ src/pkg/runtime/mem_darwin.c  |  7 +++++++
+ src/pkg/runtime/mem_freebsd.c |  7 +++++++
+ src/pkg/runtime/mem_linux.c   |  7 +++++++
+ src/pkg/runtime/mem_netbsd.c  |  7 +++++++
+ src/pkg/runtime/mem_openbsd.c |  7 +++++++
+ src/pkg/runtime/mem_plan9.c   |  6 ++++++
+ src/pkg/runtime/mem_windows.c | 18 ++++++++++++++++--
+ src/pkg/runtime/mheap.c       | 15 ++++++++++-----
+ 9 files changed, 71 insertions(+), 9 deletions(-)

@@ -1,23 +1,18 @@
-commit dc094f9c9613a2a8ed24ace1b5416170aa3a334b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Nov 20 16:33:29 2023 -0500
+commit bd42aa86d32f1c29859151520647175e07f3fbca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 13 13:59:12 2022 -0800
 
-    runtime: disable crash stack on Windows
+    spec: describe new semantics for comparable and constraint satisfaction
     
-    Apparently, on Windows, throwing an exception on a non-system-
-    allocated crash stack causes EXCEPTION_STACK_OVERFLOW and hangs
-    the process (see issue #63938). Disable crash stack for now, which
-    gets us back the the behavior of Go 1.21.
+    For #56548.
+    Fixes #57012.
     
-    Fixes #63938.
-    
-    Change-Id: I4c090315b93b484e756b242f0de7a9e02f199261
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543996
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: I44f850522e52b1811025fb31bcef289da8f8089d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457437
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/runtime/crash_test.go | 4 +---
- src/runtime/proc.go       | 5 ++++-
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 80 ++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 57 insertions(+), 23 deletions(-)

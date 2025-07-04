@@ -1,17 +1,30 @@
-commit 4f5863c2ce7d18f2c51db02cebe3f715d4efb925
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Jan 8 04:08:29 2023 +1100
+commit 81609c454be36b92155f795e726dc090659e1c50
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 8 14:29:26 2024 -0800
 
-    cmd/internal/obj/arm64: provide and use an oprrrr function
+    go/types: generate builtins.go from types2 source
     
-    Provide a four register version of oprrr, which takes an additional 'ra'
-    register. Use this instead of oprrr where appropriate.
+    Minor changes to types2.builtin.go to simplify automatic translation.
     
-    Change-Id: I8882957a83c2b08e407f37a37c61864cd920bbc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471519
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Added new conversion functions to generate_test.go to handle the
+    translation of builtins.go.
+    
+    While at it, added additional helper functions to generate_test.go
+    and simplified some of the existing conversion functions.
+    
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 1000 LOC.
+    
+    Change-Id: I1bd5c8eda0c0194a0b47e69882d2b987d91eef50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562835
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go |   5 +-
+ src/cmd/compile/internal/types2/util.go     |  11 ++
+ src/go/types/builtins.go                    |   6 +-
+ src/go/types/generate_test.go               | 201 ++++++++++++++++++----------
+ src/go/types/util.go                        |  10 ++
+ 5 files changed, 159 insertions(+), 74 deletions(-)

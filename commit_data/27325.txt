@@ -1,12 +1,16 @@
-commit 83676d694b64205e80c042ca7cf61f7ad4de6c62
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 6 18:33:39 2016 +0000
+commit cd187e9102bd6c55bb611a0b0f35fc4a7e0fbc51
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 18:55:26 2016 -0400
 
-    net/url: remove RFC 3986 mention in package comment
+    syscall: change clone argument order on s390x
     
-    Change-Id: Ifd707a4bbfcb1721655b4fce2045f3b043e66818
-    Reviewed-on: https://go-review.googlesource.com/22859
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The Linux ABI takes arguments in a different order on s390x.
+    
+    Change-Id: Ic9cfcc22a5ea3d8ef77d4dd0b915fc266ff3e5f7
+    Reviewed-on: https://go-review.googlesource.com/20960
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/url/url.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/syscall/exec_linux.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

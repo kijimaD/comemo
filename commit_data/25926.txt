@@ -1,17 +1,20 @@
-commit 5c613e9162aad2ea171d401754d97ea2be1442ce
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Wed Jan 27 16:18:34 2016 +0000
+commit cd294636c846860e4bb792e62c30b516ef6676ec
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Oct 8 22:33:38 2015 +0200
 
-    sync/atomic: new file for plan9_arm support
+    net: return rooted DNS names on Plan 9
     
-    Atomic load/store/add/swap routines, as for other ARM platforms, but with DMB inserted
-    for load/store (assuming that "atomic" also implies acquire/release memory ordering).
+    This change returns rooted DNS names on Plan 9,
+    for consistency with other operating systems.
     
-    Change-Id: I70a283d8f0ae61a66432998ce59eac76fd940c67
-    Reviewed-on: https://go-review.googlesource.com/18965
+    Updates #12193.
+    
+    Change-Id: If983920c5b9a8f67d4ccb51bb295fac8dfb87e88
+    Reviewed-on: https://go-review.googlesource.com/15581
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/sync/atomic/asm_plan9_arm.s | 108 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 108 insertions(+)
+ src/net/lookup_plan9.go | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

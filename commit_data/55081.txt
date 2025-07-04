@@ -1,19 +1,20 @@
-commit 945c2bc74e9f3f6a2a011a35b1f03e21f2ad5d4d
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Aug 15 17:11:19 2023 +0800
+commit 78fc81070a853d08a71f70fa20b2093f5535e6c5
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Dec 20 15:24:06 2022 +0000
 
-    cmd/compile: add ABI register definations for loong64
+    net: use correct dns msg size
     
-    Updates #40724
+    Set bufSize to the actual dns message size, so that the p.Start (below) gets a fully valid dns message.
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: I56f7382dda58a565b8c3256f1c7845a3031f67de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521776
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
+    Change-Id: I585e8a3d71f88db93e09bd0dbbc0875ee6de9a97
+    GitHub-Last-Rev: 0967be35012d2e28366e6d47eee4968c7e8d5e4a
+    GitHub-Pull-Request: golang/go#57392
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458375
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/abi-internal.md | 50 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 50 insertions(+)
+ src/net/cgo_unix.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

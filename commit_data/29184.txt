@@ -1,26 +1,42 @@
-commit f4dcc9b29b052b99b97d0e445cda589f08bfc798
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 18 17:29:37 2016 -0400
+commit 8c85e23087d90e831a70ccd199cac49a38d91027
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 17 16:27:23 2016 -0700
 
-    runtime: make _MSpanDead be the zero state
+    cmd/compile: recognize integer ranges in switch statements
     
-    Currently the zero value of an mspan is in the "in use" state. This
-    seems like a bad idea in general. But it's going to wreak havoc when
-    we make fixalloc zero allocations: even "freed" mspan objects are
-    still on the allspans list and still get looked at by the garbage
-    collector. Hence, if we leave the mspan states the way they are,
-    allocating a span that reuses old memory will temporarily pass that
-    span (which is visible to GC!) through the "in use" state, which can
-    cause "unswept span" panics.
+    Consider a switch statement like:
     
-    Fix all of this by making the zero state "dead".
+    switch x {
+    case 1:
+      // ...
+    case 2, 3, 4, 5, 6:
+      // ...
+    case 5:
+      // ...
+    }
     
-    Updates #17503.
+    Prior to this CL, the generated code treated
+    2, 3, 4, 5, and 6 independently in a binary search.
+    With this CL, the generated code checks whether
+    2 <= x && x <= 6.
+    walkinrange then optimizes that range check
+    into a single unsigned comparison.
     
-    Change-Id: I77c7ac06e297af4b9e6258bc091c37abe102acc3
-    Reviewed-on: https://go-review.googlesource.com/31367
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Experiments suggest that the best min range size
+    is 2, using binary size as a proxy for optimization.
+    
+    Binary sizes before/after this CL:
+    
+    cmd/compile: 14209728 / 14165360
+    cmd/go:       9543100 /  9539004
+    
+    Change-Id: If2f7fb97ca80468fa70351ef540866200c4c996c
+    Reviewed-on: https://go-review.googlesource.com/26770
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mheap.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go    |  22 ++++--
+ src/cmd/compile/internal/gc/swt.go    | 139 ++++++++++++++++++++++++++++++----
+ src/cmd/compile/internal/gc/syntax.go |   2 +-
+ 3 files changed, 141 insertions(+), 22 deletions(-)

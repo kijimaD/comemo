@@ -1,32 +1,51 @@
-commit 701d49245fcbe9cf095be2afadab0a68986acb72
-Author: Wei Xiao <wei.xiao@arm.com>
-Date:   Mon Sep 11 07:59:30 2017 +0000
+commit 2ad41a30906ca1d0736f7efc40da60cb519a9f89
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue May 2 16:46:01 2017 +0200
 
-    cmd/vet: fix go vet on parentheses of assembly function flag
+    cmd/compile: output DWARF lexical blocks for local variables
     
-    Current implementation doesn't recognize parentheses that may appear in flags
-    of assembly function as shown below:
+    Change compiler and linker to emit DWARF lexical blocks in .debug_info
+    section when compiling with -N -l.
     
-            TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$24
+    Version of debug_info is updated from DWARF v2 to DWARF v3 since
+    version 2 does not allow lexical blocks with discontinuous PC ranges.
     
-    It results in vet reporting false positives and a lot of whitelists are added
-    for suppressing the false alarms.
+    Remaining open problems:
+    - scope information is removed from inlined functions
+    - variables records do not have DW_AT_start_scope attributes so a
+    variable will shadow other variables with the same name as soon as its
+    containing scope begins, even before its declaration.
     
-    This CL fixes the issue and eliminates the redundant whitelists.
+    Updates #6913.
+    Updates #12899.
     
-    Change-Id: Idbc1b42965b31cea8ee7c23d1a6f62feb68e844c
-    Reviewed-on: https://go-review.googlesource.com/62850
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: Idc6808788512ea20e7e45bcf782453acb416fb49
+    Reviewed-on: https://go-review.googlesource.com/40095
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/vet/all/whitelist/386.txt           | 2 --
- src/cmd/vet/all/whitelist/amd64.txt         | 2 --
- src/cmd/vet/all/whitelist/arm.txt           | 2 --
- src/cmd/vet/all/whitelist/arm64.txt         | 6 ------
- src/cmd/vet/all/whitelist/mips64x.txt       | 2 --
- src/cmd/vet/all/whitelist/mipsx.txt         | 2 --
- src/cmd/vet/all/whitelist/nacl_amd64p32.txt | 2 --
- src/cmd/vet/all/whitelist/s390x.txt         | 2 --
- src/cmd/vet/asmdecl.go                      | 2 +-
- 9 files changed, 1 insertion(+), 21 deletions(-)
+ src/cmd/compile/internal/gc/closure.go        |  32 +-
+ src/cmd/compile/internal/gc/go.go             |   3 +
+ src/cmd/compile/internal/gc/main.go           |   2 +
+ src/cmd/compile/internal/gc/noder.go          | 117 ++++++--
+ src/cmd/compile/internal/gc/pgen.go           |  24 +-
+ src/cmd/compile/internal/gc/scope.go          | 177 +++++++++++
+ src/cmd/compile/internal/gc/scope_test.go     | 407 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/sizeof_test.go    |   2 +-
+ src/cmd/compile/internal/gc/syntax.go         |  34 ++-
+ src/cmd/internal/dwarf/dwarf.go               | 169 +++++++++--
+ src/cmd/internal/obj/data.go                  |   3 +-
+ src/cmd/internal/obj/link.go                  |  17 +-
+ src/cmd/internal/obj/objfile.go               |  34 ++-
+ src/cmd/internal/obj/plist.go                 |   7 +-
+ src/cmd/internal/objabi/symkind.go            |   1 +
+ src/cmd/internal/objabi/symkind_string.go     |   4 +-
+ src/cmd/link/internal/ld/data.go              |  19 +-
+ src/cmd/link/internal/ld/dwarf.go             |  38 ++-
+ src/cmd/link/internal/ld/link.go              |   4 +
+ src/cmd/link/internal/ld/nooptcgolink_test.go |  32 ++
+ src/cmd/link/internal/ld/symkind.go           |   2 +
+ src/cmd/link/internal/ld/symkind_string.go    |   4 +-
+ 22 files changed, 1021 insertions(+), 111 deletions(-)

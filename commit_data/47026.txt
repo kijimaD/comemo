@@ -1,36 +1,41 @@
-commit fd2f4b58b34effdbdacba41e0c36fa701c6dfa27
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Oct 19 13:28:54 2021 -0700
+commit 0625460f79eed41039939f957baceaff5e269672
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 09:01:32 2021 -0500
 
-    cmd/compile:  update the export version for generics
+    cmd/vet: update buildtag check for //go:build lines
     
-    Bump the export version to a new value iexportVersionGo1_18 (2). This
-    will give a better error message when old compilers/tools encounter the
-    new export format (that includes parameterized types and functions).
+    Brings in golang.org/x/tools@2363391a
+    and adjusts, adds cmd/vet tests accordingly.
     
-    We are also making a breaking change in the format:
-     - a 'kind' byte is added to constant values
+    Part of //go:build change (#41184).
+    See https://golang.org/design/draft-gobuild
     
-    Also updated tinter() to pass the implicit bit through during type
-    substitution.
+    This brings in the new //go:build checks in cmd/vet.
     
-    Tested that all tests still pass if the iexportVersionCurrent is changed
-    back to 1 in typecheck/iexport.go, iimporter/iimport.go, and
-    gcimporter/iimport.go
-    
-    Updates #47654
-    
-    Change-Id: I1dbeb167a97f6c7e0b7e0c011d6bada5db312b36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357049
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I8a9735cc014171691012b307ec30e94c81aadfe1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240609
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/importer/iimport.go  | 36 ++++++++++++++++---------
- src/cmd/compile/internal/typecheck/iexport.go | 38 ++++++++++++++++++---------
- src/cmd/compile/internal/typecheck/iimport.go | 32 ++++++++++++++--------
- src/cmd/compile/internal/typecheck/subr.go    |  2 +-
- src/cmd/compile/internal/types/type.go        |  6 +++++
- src/go/internal/gcimporter/iimport.go         | 36 ++++++++++++++++---------
- 6 files changed, 101 insertions(+), 49 deletions(-)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   6 +-
+ .../tools/go/analysis/passes/buildtag/buildtag.go  | 318 +++++++++++++++++----
+ .../go/analysis/passes/buildtag/buildtag_old.go    | 174 +++++++++++
+ .../go/analysis/passes/loopclosure/loopclosure.go  |  67 +++--
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |   2 +-
+ .../go/analysis/unitchecker/unitchecker112.go      |   1 +
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/cmd/vet/testdata/asm/asm1.s                    |   1 +
+ src/cmd/vet/testdata/buildtag/buildtag.go          |   6 +-
+ src/cmd/vet/testdata/buildtag/buildtag2.go         |  22 ++
+ src/cmd/vet/testdata/buildtag/buildtag3.go         |  15 +
+ src/cmd/vet/testdata/buildtag/buildtag4.go         |  11 +
+ src/cmd/vet/testdata/buildtag/buildtag5.go         |  11 +
+ src/cmd/vet/testdata/buildtag/buildtag6.s          |   9 +
+ src/cmd/vet/testdata/buildtag/buildtag7.s          |  11 +
+ src/cmd/vet/testdata/tagtest/file1.go              |   1 +
+ src/cmd/vet/testdata/tagtest/file2.go              |   1 +
+ src/cmd/vet/vet_test.go                            |   9 +-
+ 19 files changed, 582 insertions(+), 87 deletions(-)

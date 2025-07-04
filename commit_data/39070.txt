@@ -1,19 +1,26 @@
-commit 4cd6c3bac77a4c35cdc9c6c7ca63f09d8747254b
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Wed May 8 09:36:07 2019 +0200
+commit b7451e299ba2b1f69ecf8744adaf028ae437f262
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 21 13:47:20 2018 -0500
 
-    cmd/link/internal/ld: bump macOS and macOS SDK version to 10.9
+    cmd/go: use cached source files in "go list -find -compiled"
     
-    Satisfies the Apple Notary.
+    When "go list" is invoked with -find, it clears the list of imports
+    for each package matched on the command line. This affects action IDs,
+    since they incorporate dependencies' action IDs. Consequently, the
+    build triggered by -compiled won't find sources cached by
+    "go build".
     
-    Fixes #30488
+    We can still safely cache compiled sources from multiple runs of
+    "go list -find -compiled" though, since cgo generated sources are not
+    affected by imported dependencies. This change adds a second look into
+    the cache in this situation.
     
-    Change-Id: I91cf2d706a3ebe79bafdb759a0d32266ed6b9096
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175918
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #29371
+    
+    Change-Id: Ia0ae5a403ab5d621feaa16f521e6a65ac0ae6d9a
+    Reviewed-on: https://go-review.googlesource.com/c/155481
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/macho.go |  6 ++--
- src/cmd/link/link_test.go         | 65 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/exec.go         | 7 +++++++
+ src/cmd/go/testdata/script/list_find.txt | 9 +++++++++
+ 2 files changed, 16 insertions(+)

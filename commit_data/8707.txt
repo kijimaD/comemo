@@ -1,17 +1,17 @@
-commit 2769356ddac0e102dfcad47e9856c3d52314b0a6
+commit eee70b07c197e3cd48d4d41315a31ffba901b6b8
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 13 16:47:33 2011 -0700
+Date:   Mon Jun 13 16:46:42 2011 -0700
 
-    go spec: specify constant conversions
+    go spec: unsafe.Alignof/Offsetof/Sizeof return uintptr
     
-    This is not a language change.
+    This is (indirectly) a language change. Per e-mail discussion
+    on golang-dev.
     
-    Added paragraphs specifying which conversions
-    yield results that are constants.
+    Fixes #1943.
     
-    R=r, rsc, iant, ken
+    R=rsc, iant, r, ken
     CC=golang-dev
-    https://golang.org/cl/4515176
+    https://golang.org/cl/4581058
 
- doc/go_spec.html | 70 ++++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 55 insertions(+), 15 deletions(-)
+ doc/go_spec.html | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)

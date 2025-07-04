@@ -1,28 +1,23 @@
-commit abaf53fb8e7dfbb9d513745e8280488b159ceb1e
-Author: Paul Jolly <paul@myitcv.io>
-Date:   Mon Jul 2 08:08:14 2018 +0100
+commit 9ff7df003d770b1dffc984e1861fd009fe08d579
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Tue Mar 13 23:36:45 2018 +0000
 
-    misc/wasm: use single map for string, symbol and object id mapping.
+    sync: make WaitGroup more space-efficient
     
-    Currently we use a globally unique symbol property on objects that get
-    passed from JavaScript to Go to store a unique ID that Go then uses when
-    referring back to the JavaScript object (via js.Value.ref). This
-    approach fails however when a JavaScript object cannot be modified, i.e.
-    cannot have new properties added or is frozen. The test that is added as
-    part of this commit currently fails with:
+    The struct stores its 64-bit state field in a 12-byte array to
+    ensure that it can be 64-bit-aligned. This leaves 4 spare bytes,
+    which we can reuse to store the sema field.
     
-      Cannot add property Symbol(), object is not extensible
+    (32-bit alignment is still guaranteed because the array type was
+    changed to [3]uint32.)
     
-    Instead we consolidate the string, symbol and object unique ID mapping
-    into a single map. Map key equality is determined via strict equality,
-    which is the semantic we want in this situation.
+    Fixes #19149.
     
-    Change-Id: Ieb2b50fc36d3c30e148aa7a41557f3c59cd33766
-    Reviewed-on: https://go-review.googlesource.com/121799
-    Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
+    Change-Id: I9bc20e69e45e0e07fbf496080f3650e8be0d6e8d
+    Reviewed-on: https://go-review.googlesource.com/100515
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- misc/wasm/wasm_exec.js    | 32 ++++----------------------------
- src/syscall/js/js_test.go |  8 ++++++++
- 2 files changed, 12 insertions(+), 28 deletions(-)
+ src/sync/waitgroup.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

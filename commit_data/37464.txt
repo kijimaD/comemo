@@ -1,17 +1,16 @@
-commit 72496e35ce13af04564d10bad3a566901eda867a
-Author: David Chase <drchase@google.com>
-Date:   Tue Nov 20 16:33:33 2018 -0500
+commit b3b2f5d9cad01a23622287028fe8c57d59559169
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 2 05:08:51 2018 +0000
 
-    cmd/compile: for non-SSA-typed params, emit simple vars.
+    cmd/go: skip cgo test when cgo isn't available
     
-    This case was missed entirely and caused such params to be
-    unprintable.  This change gives them stack addresses
-    for the entire function (which is correct).
+    Fixes #26758
     
-    Change-Id: Ia4f706450219e48bce65b6395d3d9792df142fb5
-    Reviewed-on: https://go-review.googlesource.com/c/150657
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: If08bafc85c353dfbb546107b75c8c884ab9c88e4
+    Reviewed-on: https://go-review.googlesource.com/127475
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/pgen.go | 106 +++++++++++++++++++++---------------
- 1 file changed, 63 insertions(+), 43 deletions(-)
+ src/cmd/go/testdata/script/mod_case_cgo.txt | 2 ++
+ 1 file changed, 2 insertions(+)

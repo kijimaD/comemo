@@ -1,21 +1,29 @@
-commit 15a11cedc6a9aac722369f134b76a157a559e050
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Oct 6 13:16:46 2020 -0400
+commit 330f53b6155954af81d8876a8dc251d8908db581
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 20 12:36:11 2020 -0400
 
-    cmd/go: support walking through overlay directories
+    [dev.link] cmd/asm, cmd/compile: add back newobj flag
     
-    Change-Id: I7d9d75aa1dbc34fec5073ca36091c626b9dd4920
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261537
-    Trust: Michael Matloob <matloob@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Add back the newobj flag, renamed to go115newobj, for feature
+    gating. The flag defaults to true.
+    
+    This essentially reverts CL 206398 as well as CL 220060.
+    
+    The old object format isn't working yet. Will fix in followup CLs.
+    
+    Change-Id: I1ace2a9cbb1a322d2266972670d27bda4e24adbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224623
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/fsys/fsys.go            |  78 ++++++-
- src/cmd/go/internal/fsys/fsys_test.go       | 338 +++++++++++++++++++++++++++-
- src/cmd/go/internal/modload/search.go       |   3 +-
- src/cmd/go/internal/search/search.go        |   8 +-
- src/cmd/go/testdata/script/list_overlay.txt |  21 +-
- 5 files changed, 434 insertions(+), 14 deletions(-)
+ src/cmd/asm/internal/flags/flags.go    |   2 +
+ src/cmd/asm/main.go                    |   1 +
+ src/cmd/compile/internal/gc/iexport.go |  22 ++-
+ src/cmd/compile/internal/gc/iimport.go |  16 +-
+ src/cmd/compile/internal/gc/main.go    |   3 +-
+ src/cmd/internal/obj/link.go           |   4 +-
+ src/cmd/internal/obj/objfile.go        | 341 ++++++++++++++++++++++++++++++++-
+ src/cmd/internal/obj/sizeof_test.go    |   2 +-
+ src/cmd/internal/obj/sym.go            |   4 +
+ 9 files changed, 374 insertions(+), 21 deletions(-)

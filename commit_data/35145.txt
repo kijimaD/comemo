@@ -1,19 +1,24 @@
-commit bf6530a25b07b6cbde4f1d7b25e549675340dec1
-Author: Balaram Makam <bmakam.qdt@qualcommdatacenter.com>
-Date:   Wed Apr 25 15:33:35 2018 -0400
+commit 78583a125ae028b4c4ffc2732dfd1cd98855917c
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Dec 21 09:31:39 2017 -0800
 
-    cmd/asm: add VSRI instruction on ARM64
+    database/sql: fix nil pointer use within withLock
     
-    This change provides VSRI instruction for ChaCha20Poly1305 implementation.
+    During the refactor in 1126d1483f0397648905fcd4590ae45352cabd69 I
+    introduced a logical error within one withLock function that used
+    the result of the call before checking for the error. Change
+    the order so that the error is checked before the result is used.
     
-    Change-Id: Ifee727b6f3982b629b44a67cac5bbe87ca59027b
-    Reviewed-on: https://go-review.googlesource.com/109342
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    None of the other withLock uses have similar issues.
+    
+    Fixes #23208
+    
+    Change-Id: I6c5dcf262e36bad4369c850f1e0131066360a82e
+    Reviewed-on: https://go-review.googlesource.com/85175
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s |  7 +++++++
- src/cmd/internal/obj/arm64/a.out.go       |  1 +
- src/cmd/internal/obj/arm64/anames.go      |  1 +
- src/cmd/internal/obj/arm64/asm7.go        | 13 +++++++++----
- 4 files changed, 18 insertions(+), 4 deletions(-)
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,19 +1,30 @@
-commit b43fe463ff93e5ab0849d9d31bf53f87b42a9b28
-Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
-Date:   Sat Jun 25 20:32:40 2016 +0800
+commit 3fafe2e8888dadb6877fa1e7569f5bd1f688dd3a
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Apr 11 08:57:52 2016 +0200
 
-    net/http/httptest: show usage of httptest.NewRequest in example
+    internal/trace: support parsing of 1.5 traces
     
-    Change ExampleResponseRecorder to use httptest.NewRequest instead of
-    http.NewRequest. This makes the example shorter and shows how to use
-    one more function from the httptest package.
+    1. Parse out version from trace header.
+    2. Restore handling of 1.5 traces.
+    3. Restore optional symbolization of traces.
+    4. Add some canned 1.5 traces for regression testing
+       (http benchmark trace, runtime/trace stress traces,
+        plus one with broken timestamps).
     
-    Change-Id: I3d35869bd0a4daf1c7551b649428bb2f2a45eba2
-    Reviewed-on: https://go-review.googlesource.com/24480
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idb18a001d03ded8e13c2730eeeb37c5836e31256
+    Reviewed-on: https://go-review.googlesource.com/21803
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/httptest/example_test.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ misc/nacl/testzip.proto                            |   4 +
+ src/cmd/trace/main.go                              |   2 +-
+ src/internal/trace/parser.go                       | 314 +++++++++++++++------
+ src/internal/trace/parser_test.go                  |  61 +++-
+ src/internal/trace/testdata/http_1_5_good          | Bin 0 -> 42218 bytes
+ src/internal/trace/testdata/stress_1_5_good        | Bin 0 -> 7446 bytes
+ src/internal/trace/testdata/stress_1_5_unordered   | Bin 0 -> 8194 bytes
+ .../trace/testdata/stress_start_stop_1_5_good      | Bin 0 -> 6997 bytes
+ src/runtime/trace.go                               |   2 +-
+ src/runtime/trace/trace_test.go                    |   4 +-
+ 10 files changed, 295 insertions(+), 92 deletions(-)

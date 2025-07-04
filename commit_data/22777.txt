@@ -1,20 +1,19 @@
-commit bfb077e0eefd997454a5b5eeaea6305afc0bac32
-Author: tnt <alkaloid.btx@gmail.com>
-Date:   Thu Apr 16 22:18:36 2015 +0200
+commit 68f57c83274c0f30b94a6adc1668fe034b5780f2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 8 09:28:05 2015 -0400
 
-    net: allow a dns TXT record to contain more than one <character-string>
+    androidtest.bash: copy pkg for gcimporter tests
     
-    RFC 1035 3.3.14 allows a TXT record to contain one or more <character-string>s.
-    The current implementation returns a "no such host" error if there is more
-    than one <character-string> in the TXT record.
+    The tests for go/types depend on reading gc export data from the
+    $GOROOT/pkg directory. This is the first use of these files as
+    testdata, so previously they were not copied to the android device.
+    Now they are used, copy them.
     
-    Fixes #10482
+    Fixes android/arm build.
     
-    Change-Id: I0ded258005e6b7ba45f687fecd10afa2b321bb77
-    Reviewed-on: https://go-review.googlesource.com/8966
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If13bbe603ce0aff697a73a97ae9a7d6b3ea800f9
+    Reviewed-on: https://go-review.googlesource.com/8624
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dnsmsg.go      |  18 +++++-
- src/net/dnsmsg_test.go | 147 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 164 insertions(+), 1 deletion(-)
+ src/androidtest.bash | 2 ++
+ 1 file changed, 2 insertions(+)

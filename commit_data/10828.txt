@@ -1,21 +1,14 @@
-commit cb7d6e37d81a92eb990f314a3824ec17d9099f0c
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Fri Dec 16 10:01:54 2011 +1100
+commit 9834a25d338c957e24f0f19236b8bf56addb2e9c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 16 09:43:58 2011 +1100
 
-    godoc: Allow examples for methods.
+    testing: trim spaces before comparing example output
+    bytes: add two Buffer examples
     
-    An example for a method M() of type T can be written as
-    func ExampleT_M() { ... }.
-    To differentiate between multiple examples for one function, type or
-    method a suffix with a lowercase start may be appended to the name
-    of the example function, e.g. ExampleFoo_basicUsage.
-    
-    Fixes #2465.
-    
-    R=golang-dev, adg, r, rsc, duperray.olivier, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5440100
+    https://golang.org/cl/5490048
 
- src/cmd/godoc/godoc.go | 18 +++++++++++++++---
- src/cmd/gotest/doc.go  | 11 +++++++++--
- 2 files changed, 24 insertions(+), 5 deletions(-)
+ src/pkg/bytes/example_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/testing/example.go    |  9 ++++-----
+ 2 files changed, 28 insertions(+), 5 deletions(-)

@@ -1,24 +1,51 @@
-commit 7722d0f90383750784377bb395a8c799868bbab8
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Fri Aug 19 09:37:19 2016 +0900
+commit 5f9a870bf1bf461ca3609502608b12cc4aab189a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 27 14:18:29 2016 -0700
 
-    path/filepath: handle ".." in normalizing a path on Windows
+    cmd/cgo, runtime, runtime/cgo: use cgo context function
     
-    Current code assumes there are not ".." in the Clean(path).
-    That's not true. Clean doesn't handle leading "..", so we need to stop
-    normalization if we see "..".
+    Add support for the context function set by runtime.SetCgoTraceback.
+    The context function was added in CL 17761, without support.
+    This CL is the support.
     
-    Fixes #16793
+    This CL has not been tested for real C code, as a working context
+    function for C code requires unwind support that does not seem to exist.
+    I wanted to get the CL out before the freeze.
     
-    Change-Id: I0a7901bedac17f1210b134d593ebd9f5e8483775
-    Reviewed-on: https://go-review.googlesource.com/27410
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    I apologize for the length of this CL.  It's mostly plumbing, but
+    unfortunately the plumbing is processor-specific.
+    
+    Change-Id: I8ce11a0de9b3dafcc29efd2649d776e93bff0e90
+    Reviewed-on: https://go-review.googlesource.com/22508
+    Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/path/filepath/export_windows_test.go |   5 +-
- src/path/filepath/path_test.go           |  32 +++++++++-
- src/path/filepath/path_windows_test.go   | 101 ++++++++++++++++++++++++++++++-
- src/path/filepath/symlink_windows.go     |  29 ++++++++-
- 4 files changed, 159 insertions(+), 8 deletions(-)
+ src/cmd/cgo/doc.go                                |   8 +-
+ src/cmd/cgo/out.go                                |  30 ++--
+ src/runtime/asm_386.s                             |  20 ++-
+ src/runtime/asm_amd64.s                           |  18 +-
+ src/runtime/asm_arm.s                             |  17 +-
+ src/runtime/asm_arm64.s                           |  17 +-
+ src/runtime/asm_ppc64x.s                          |  15 +-
+ src/runtime/asm_s390x.s                           |  15 +-
+ src/runtime/cgo.go                                |   2 +
+ src/runtime/cgo/asm_386.s                         |  13 +-
+ src/runtime/cgo/asm_amd64.s                       |  93 +++++------
+ src/runtime/cgo/asm_arm.s                         |  13 +-
+ src/runtime/cgo/asm_arm64.s                       |  91 ++++++-----
+ src/runtime/cgo/asm_ppc64x.s                      |  11 +-
+ src/runtime/cgo/asm_s390x.s                       |  17 +-
+ src/runtime/cgo/callbacks.go                      |  16 +-
+ src/runtime/cgo/gcc_context.c                     |  27 +++
+ src/runtime/cgo/gcc_libinit.c                     |  11 +-
+ src/runtime/cgo/gcc_libinit_openbsd.c             |  13 +-
+ src/runtime/cgo/gcc_libinit_windows.c             |  12 +-
+ src/runtime/cgo/libcgo.h                          |  12 +-
+ src/runtime/cgocall.go                            |  35 +++-
+ src/runtime/crash_cgo_test.go                     |  11 ++
+ src/runtime/runtime2.go                           |   3 +-
+ src/runtime/symtab.go                             |  68 +++++++-
+ src/runtime/testdata/testprogcgo/tracebackctxt.go | 191 ++++++++++++++++++++++
+ src/runtime/traceback.go                          | 162 +++++++++++++-----
+ 27 files changed, 714 insertions(+), 227 deletions(-)

@@ -1,41 +1,31 @@
-commit 09ada1af8f54584e46deb0d643713393a9d83b10
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 25 16:26:10 2022 -0700
+commit 37f9a8f69d6299783eac8848d87e27eb563500ac
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 24 11:01:49 2021 -0400
 
-    cmd/compile/internal/syntax: parser to accept ~x as unary expression
+    go/types: fix a bug in package qualification logic
     
-    Accept ~x as ordinary unary expression in the parser but recognize
-    such expressions as invalid in the type checker.
+    CL 313035 had a bug, initializing pkgPathMap by walking the imported
+    package being considered rather than check.pkg.
     
-    This change opens the door to recognizing complex type constraint
-    literals such as `*E|~int` in `[P *E|~int]` and parse them correctly
-    instead of reporting a parse error because `P*E|~int` syntactically
-    looks like an incorrect array length expression (binary expression
-    where the RHS of | is an invalid unary expression ~int).
+    Fix this, and enhance our tests to exercise this bug as well as other
+    edge cases.
     
-    As a result, the parser is more forgiving with expressions but the
-    type checker will reject invalid uses as before.
+    Also fix error assertions in issues.src to not use quotation marks
+    inside the error regexp. The check tests only matched the error regexp
+    up to the first quotation mark.
     
-    We could pass extra information into the binary/unary expression
-    parse functions to prevent the use of ~ in invalid situations but
-    it doesn't seem worth the trouble. In fact it may be advantageous
-    to allow a more liberal expression syntax especially in the presence
-    of errors (better parser synchronization after an error).
+    Fixes #46905
     
-    Preparation for fixing #49482.
-    
-    Change-Id: I119e8bd9445dfa6460fcd7e0658e3554a34b2769
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402255
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I6aa8eae4bec6495006a5c03fc063db0d66b44cd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330629
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go                  |  2 +-
- src/cmd/compile/internal/syntax/testdata/typeset.go        | 14 ++++++++------
- src/cmd/compile/internal/types2/expr.go                    |  6 ++++++
- src/cmd/compile/internal/types2/testdata/check/expr0.go    |  7 +++++++
- .../internal/types2/testdata/fixedbugs/issue49482.go       |  2 +-
- test/fixedbugs/issue23587.go                               |  2 +-
- 6 files changed, 24 insertions(+), 9 deletions(-)
+ src/go/types/check_test.go             | 15 ++++---
+ src/go/types/errors.go                 |  2 +-
+ src/go/types/issues_test.go            | 72 ++++++++++++++++++++++------------
+ src/go/types/testdata/check/issues.src |  4 +-
+ 4 files changed, 59 insertions(+), 34 deletions(-)

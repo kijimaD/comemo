@@ -1,15 +1,33 @@
-commit 4e1cc09f8b9bcef2b6d0839a7d0026b50c21998b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 20 09:38:47 2024 -0700
+commit 5d481abc87643146a3a3ee9f005ca01c7715772a
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Jun 23 07:47:48 2023 +0000
 
-    doc/next: update 36532.md to wording suggested in CL
+    all: fix typos
     
-    Change-Id: If7a2aa45770d19ee15f8fe99cab62624c2e29ef6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606958
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I510b0a4bf3472d937393800dd57472c30beef329
+    GitHub-Last-Rev: 8d289b73a37bd86080936423d981d21e152aaa33
+    GitHub-Pull-Request: golang/go#60960
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505398
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/next/6-stdlib/99-minor/testing/36532.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/internal/test/issue9400_linux.go  | 2 +-
+ src/cmd/compile/internal/types2/predicates.go | 4 ++--
+ src/cmd/compile/internal/types2/unify.go      | 2 +-
+ src/cmd/go/internal/modget/get.go             | 2 +-
+ src/cmd/internal/obj/arm64/doc.go             | 2 +-
+ src/cmd/internal/obj/objfile.go               | 2 +-
+ src/cmd/internal/obj/x86/asm6.go              | 2 +-
+ src/encoding/gob/encoder_test.go              | 2 +-
+ src/go/types/predicates.go                    | 4 ++--
+ src/go/types/unify.go                         | 2 +-
+ src/regexp/testdata/nullsubexpr.dat           | 2 +-
+ src/runtime/cgocall.go                        | 2 +-
+ src/runtime/coverage/emit.go                  | 2 +-
+ src/runtime/mgcmark.go                        | 2 +-
+ src/runtime/race/testdata/chan_test.go        | 2 +-
+ test/codegen/README                           | 2 +-
+ 16 files changed, 18 insertions(+), 18 deletions(-)

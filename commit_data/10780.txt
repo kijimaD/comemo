@@ -1,15 +1,20 @@
-commit 1f6d130b14054f57a530dce20b19a79a55c4fc0d
+commit a62722bba4e7ccfe2ebfae4a5702c17e0a64937d
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Dec 14 15:54:10 2011 +0100
+Date:   Wed Dec 14 15:05:33 2011 +0100
 
-    gc: add forgotten typecheck in a lonely corner of sinit
+    gc: inlining (disabled without -l)
     
-    Fixes #2549
+    Cross- and intra package inlining of single assignments or return <expression>.
+    Minus some hairy cases, currently including other calls, expressions with closures and ... arguments.
     
-    R=rsc
+    R=rsc, rogpeppe, adg, gri
     CC=golang-dev
-    https://golang.org/cl/5484060
+    https://golang.org/cl/5400043
 
- src/cmd/gc/sinit.c       |  7 ++++---
- test/fixedbugs/bug387.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 3 deletions(-)
+ src/cmd/gc/Makefile |   1 +
+ src/cmd/gc/export.c |  83 ++++++-
+ src/cmd/gc/go.h     |  13 +-
+ src/cmd/gc/go.y     |  12 +-
+ src/cmd/gc/inl.c    | 688 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/lex.c    |  40 ++-
+ 6 files changed, 824 insertions(+), 13 deletions(-)

@@ -1,12 +1,19 @@
-commit 8cb40fa4215c736aed011fe8b580ade7150acffa
-Author: Adam Kisala <adam.kisala@gmail.com>
-Date:   Sat Jul 15 19:27:56 2017 +0100
+commit 399086f2db0257f9f90a87dfd8a251944b52120a
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Mar 30 15:58:01 2017 -0400
 
-    strconv: adds missing comment to neg flag, formats comment on trunc flag
+    cmd/compile/internal/ssa/gen: add comment on SB-addressing on s390x
     
-    Change-Id: Ibdd57489543d57a24d1e3c41210abd9fbc930b8f
-    Reviewed-on: https://go-review.googlesource.com/48867
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    During the review of CL 38801 it was noted that it would be nice
+    to have a bit more clarity on how-and-why SB addressing is handled
+    strangely on s390x. This additional comment should hopefully help.
+    
+    In general SB is handled differently because not all instructions
+    have variants that use relative addressing.
+    
+    Change-Id: I3379012ae3f167478c191c435939c3b876c645ed
+    Reviewed-on: https://go-review.googlesource.com/38952
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/strconv/decimal.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390XOps.go | 38 +++++++++++++++++++++++-----
+ 1 file changed, 31 insertions(+), 7 deletions(-)

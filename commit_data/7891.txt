@@ -1,22 +1,15 @@
-commit 6b3357129aacd4df1b03772f0d48fa0e46c2407c
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 27 23:39:42 2011 -0400
+commit dacd1cad770c32ec6ce2ead159f7f7c295f7a597
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Mar 27 20:38:28 2011 -0700
 
-    build: add all-qemu.bash, handful of arm fixes
+    test: match gccgo error messages for bug323.go.
     
-    R=r
+    bug323.go:18:3: error: reference to undefined field or method ‘Meth’
+    bug323.go:19:3: error: reference to undefined field or method ‘Meth2’
+    
+    R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4313051
+    https://golang.org/cl/4280072
 
- doc/codelab/wiki/Makefile          |  2 +-
- src/all-qemu.bash                  | 16 +++++++++++++++
- src/pkg/Makefile                   |  4 ++--
- src/pkg/go/printer/printer_test.go |  2 +-
- src/pkg/runtime/linux/arm/signal.c |  2 ++
- src/pkg/runtime/linux/signals.h    |  2 +-
- src/pkg/sync/atomic/asm_arm.s      | 41 ++++++++++++++++++++++++++++++++++++++
- src/pkg/sync/atomic/atomic_test.go | 33 +++++++++++++++++++++++++++++-
- src/pkg/sync/atomic/doc.go         |  5 +++++
- src/run.bash                       |  1 +
- test/fixedbugs/bug243.go           | 37 +++++++++++++++++++++++++++++-----
- 11 files changed, 134 insertions(+), 11 deletions(-)
+ test/fixedbugs/bug323.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

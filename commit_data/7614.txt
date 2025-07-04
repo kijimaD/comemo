@@ -1,21 +1,14 @@
-commit 7483c6ee3c688d078fe00d375d968ce99077759e
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Mar 3 20:35:49 2011 +1100
+commit 3fea5badc29200e0ea4e1fe790e1803a7d17ee2c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 3 16:41:03 2011 +1100
 
-    image: add a decoding test for common file formats.
+    doc: remove reference to bug count from install.html
     
-    The test image was converted from doc/video-001.png using the
-    convert command line tool (ImageMagick 6.5.7-8) at -quality 100.
+    Fixes #1574.
     
-    R=r, nigeltao_gnome
+    R=rsc, r2
     CC=golang-dev
-    https://golang.org/cl/4259047
+    https://golang.org/cl/4240066
 
- src/pkg/Makefile                      |   1 -
- src/pkg/image/decode_test.go          |  89 ++++++++++++++++++++++++++++++++++
- src/pkg/image/testdata/video-001.bmp  | Bin 0 -> 46610 bytes
- src/pkg/image/testdata/video-001.gif  | Bin 0 -> 13106 bytes
- src/pkg/image/testdata/video-001.jpeg | Bin 0 -> 21459 bytes
- src/pkg/image/testdata/video-001.png  | Bin 0 -> 29228 bytes
- src/pkg/image/testdata/video-001.tiff | Bin 0 -> 30810 bytes
- 7 files changed, 89 insertions(+), 1 deletion(-)
+ doc/install.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,12 +1,49 @@
-commit 2b2f09be7ad7117c49e9dab20f578e3b0d52233b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 23 10:49:23 2015 -0700
+commit 29421cbb5bc892124c965ead9e4d2e14d963254c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 25 09:07:02 2015 -0800
 
-    doc: update go1.5.txt
+    cmd/internal/obj: make Dconv a portable top-level function
     
-    Change-Id: Ie45d45649ea978becf84eb911cf4ace1dd237d9e
-    Reviewed-on: https://go-review.googlesource.com/7918
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Each architecture had its own Dconv (operand printer) but the syntax is
+    close to uniform and the code overlap was considerable. Consolidate these
+    into a single top-level function. A similar but smaller unification is done
+    for Mconv ("Name" formatter) as well.
+    
+    The signature is changed. The flag was unused so drop it. Add a
+    function argument, Rconv, that must be supplied by the caller.
+    TODO: A future change will unify Rconv as well and this argument
+    will go away.
+    
+    Some formats changed, because of the automatic consistency
+    created by unification. For instance, 0(R1) always prints as (R1)
+    now, and foo+0(SB) is just foo(SB). Before, some made these
+    simplifications and some didn't; now they all do.
+    
+    Update the asm tests that depend on the format.
+    
+    Change-Id: I6e3310bc19814c0c784ff0b960a154521acd9532
+    Reviewed-on: https://go-review.googlesource.com/5920
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.5.txt | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arch.go           |  12 +-
+ src/cmd/asm/internal/asm/asm.go             |  24 ++--
+ src/cmd/asm/internal/asm/operand_test.go    | 104 ++++++++---------
+ src/cmd/asm/internal/asm/parse.go           |  16 +--
+ src/cmd/asm/internal/asm/testdata/386.out   |   4 +-
+ src/cmd/asm/internal/asm/testdata/amd64.out |   2 +-
+ src/cmd/asm/internal/asm/testdata/arm.out   |  38 +++----
+ src/cmd/asm/internal/asm/testdata/ppc64.out |  56 +++++-----
+ src/cmd/internal/obj/arm/list5.go           | 143 +++---------------------
+ src/cmd/internal/obj/arm/obj5.go            |   1 -
+ src/cmd/internal/obj/data.go                |   2 +-
+ src/cmd/internal/obj/i386/asm8.go           |  12 +-
+ src/cmd/internal/obj/i386/list8.go          | 111 ++----------------
+ src/cmd/internal/obj/i386/obj8.go           |   1 -
+ src/cmd/internal/obj/link.go                |   1 -
+ src/cmd/internal/obj/ppc64/list9.go         | 167 ++++------------------------
+ src/cmd/internal/obj/ppc64/obj9.go          |   2 -
+ src/cmd/internal/obj/util.go                | 161 +++++++++++++++++++++++++--
+ src/cmd/internal/obj/x86/asm6.go            |  12 +-
+ src/cmd/internal/obj/x86/list6.go           | 111 ++----------------
+ src/cmd/internal/obj/x86/obj6.go            |   2 -
+ 21 files changed, 348 insertions(+), 634 deletions(-)

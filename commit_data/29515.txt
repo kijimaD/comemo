@@ -1,16 +1,26 @@
-commit 4966150af0139b5f26a943eb4c33fe5cb6758043
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Nov 12 17:01:08 2016 +0100
+commit 1d3fae461c6302d2d91085e03d50712177af74c0
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 17 10:01:17 2016 -0400
 
-    net: enable TestReadTimeoutUnblocksRead on Plan 9
+    cmd/link: remove Cursym
     
-    Deadlines have been implemented on Plan 9 in CL 31521.
-    
-    Fixes #17477.
-    
-    Change-Id: Icb742ac30933b6d2f9350fc4e6acbcd433c66c21
-    Reviewed-on: https://go-review.googlesource.com/33190
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I58253a6cd2d77a9319c0783afb0d92cd5a88a7f7
+    Reviewed-on: https://go-review.googlesource.com/29370
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/net/net_test.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/link/internal/amd64/asm.go  |  1 -
+ src/cmd/link/internal/arm/asm.go    |  2 --
+ src/cmd/link/internal/arm64/asm.go  |  1 -
+ src/cmd/link/internal/ld/data.go    | 12 ++----------
+ src/cmd/link/internal/ld/dwarf.go   |  6 ++----
+ src/cmd/link/internal/ld/elf.go     |  2 --
+ src/cmd/link/internal/ld/link.go    |  1 -
+ src/cmd/link/internal/ld/pcln.go    | 24 ++++++++++++------------
+ src/cmd/link/internal/ld/pe.go      |  2 --
+ src/cmd/link/internal/mips64/asm.go |  1 -
+ src/cmd/link/internal/ppc64/asm.go  |  2 --
+ src/cmd/link/internal/s390x/asm.go  |  1 -
+ src/cmd/link/internal/x86/asm.go    |  1 -
+ 13 files changed, 16 insertions(+), 40 deletions(-)

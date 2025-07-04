@@ -1,24 +1,19 @@
-commit 287c5e8066396e953254d7980a80ec082edf11bd
-Author: go101 <tapir.liu@gmail.com>
-Date:   Fri Jul 2 08:01:20 2021 +0000
+commit 926994fd7cf65b2703552686965fb05569699897
+Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
+Date:   Thu Nov 26 17:01:35 2020 +0100
 
-    cmd/compile: fix stack growing algorithm
+    log: make Default doc comment consistent with package doc
     
-    The current stack growing implementation looks not right.
-    Specially, the line runtime/stack.go#L1068 never gets executed,
-    which causes many unnecessary copystack calls.
+    None of the other, older, doc comments use the '*Logger' form, and while
+    'Logger' and 'logger' are both used in the package doc comment, the
+    common term used with the intended meaning is 'standard logger', which
+    appears another eleven times in doc comments.
     
-    This PR is trying to correct the implementation.
-    As I'm not familiar with the code, the fix is just a guess.
-    
-    Change-Id: I0bea1148175fad34f74f19d455c240c94d3cb78b
-    GitHub-Last-Rev: 57205f91fe6f7cecbf0b7aad0d90d2f81270b1e8
-    GitHub-Pull-Request: golang/go#47010
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/332229
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I089103198fc82390517615eb27bbe7ef77107d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273486
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/stack.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/log/log.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

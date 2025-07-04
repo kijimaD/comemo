@@ -1,29 +1,32 @@
-commit 5b48fca1fad44d22105f64be725514020432a2c1
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Fri Sep 3 15:04:52 2021 +0200
+commit 477b049060966e90124edf950413575f84a9aa74
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 30 18:43:10 2020 -0800
 
-    cmd/compile: mark wrapper functions with DW_AT_trampoline
+    [dev.regabi] cmd/compile: fix printing of method expressions
     
-    Change DWARF generation to tag wrapper functions with the
-    "DW_AT_trampoline attribute". The intent is that debuggers can pick up
-    on this attr so as to skip through the wrapper to the eventual target.
+    OTYPE and OMETHEXPR were missing from OpPrec. So add them with the
+    same precedences as OT{ARRAY,MAP,STRUCT,etc} and
+    ODOT{,METH,INTER,etc}, respectively. However, ODEREF (which is also
+    used for pointer types *T) has a lower precedence than other types, so
+    pointer types need to be specially handled to assign them their
+    correct, lower precedence.
     
-    DWARF standard allows for a couple of different possible variants of
-    the trampoline attr; this is the simplest variant (all it tells the
-    debugger is that the function is a wrapper, doesn't include a
-    reference to the wrapper routine).
+    Incidentally, this also improves the error messages in issue15055.go,
+    where we were adding unnecessary parentheses around the types in
+    conversion expressions.
     
-    This implementation keys off the WRAPPER LSym attribute, which is set
-    for method wrappers, ABI wrappers, and a selected set of runtime
-    assembly routines (ex: "runtime.call32").
+    Thanks to Cuong Manh Le for writing the test cases for #43428.
     
-    Change-Id: Ib53e1bc56c02b86ca3ac5e7da1a541ec262726cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347352
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Fixes #43428.
+    
+    Change-Id: I57e7979babe3ed9ef8a8b5a2a3745e3737dd785f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280873
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/internal/dwarf/dwarf.go | 61 ++++++++++++++++++++++++++++++++++-------
- src/cmd/internal/obj/dwarf.go   |  4 +--
- 2 files changed, 53 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ir/fmt.go |  6 ++++--
+ test/fixedbugs/issue15055.go       |  8 +++++---
+ test/fixedbugs/issue43428.go       | 25 +++++++++++++++++++++++++
+ 3 files changed, 34 insertions(+), 5 deletions(-)

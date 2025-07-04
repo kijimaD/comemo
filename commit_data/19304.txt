@@ -1,17 +1,24 @@
-commit 3e8ed96c63145f5164dbc96b294220e1e6050b5d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 9 15:40:55 2014 -0400
+commit 1848d71445adc043b8c70cf80a36819b4b84efbd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 9 09:55:17 2014 -0700
 
-    crypto/aes: fix overrun in assembly encrypt/decrypt
+    cmd/gc: don't give credit for NOPs during register allocation
     
-    Fixes #7928.
+    The register allocator decides which variables should be placed into registers by charging for each load/store and crediting for each use, and then selecting an allocation with minimal cost. NOPs will be eliminated, however, so using a variable in a NOP should not generate credit.
     
-    LGTM=bradfitz
-    R=golang-codereviews
-    CC=agl, bradfitz, golang-codereviews
-    https://golang.org/cl/91320043
+    Issue 7867 arises from attempted registerization of multi-word variables because they are used in NOPs. By not crediting for that use, they will no longer be considered for registerization.
+    
+    This fix could theoretically lead to better register allocation, but NOPs are rare relative to other instructions.
+    
+    Fixes #7867.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/94810044
 
- src/pkg/crypto/aes/aes_test.go   | 28 ++++++++++++++++++++++++++++
- src/pkg/crypto/aes/cipher.go     | 12 ++++++++++++
- src/pkg/crypto/aes/cipher_asm.go |  2 ++
- 3 files changed, 42 insertions(+)
+ src/cmd/5g/reg.c            | 24 +++++++++++++-----------
+ src/cmd/6g/reg.c            | 11 +++++------
+ src/cmd/8g/reg.c            | 25 +++++++++++++------------
+ test/fixedbugs/issue7867.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 29 deletions(-)

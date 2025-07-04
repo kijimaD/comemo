@@ -1,16 +1,16 @@
-commit fb036824df95f5d127064b3897e3e74fb9691b29
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 12 11:05:54 2012 -0800
+commit eb9432706803566bcf6e42fef75902fe1d80b862
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 12 10:42:39 2012 -0800
 
-    go/build: allow colon in #cgo flags
+    dashboard: use build.golang.org as the domain
+    The domain returned by appengine.DefaultVersionHostname
+    isn't the one we want.
+    This change has been uploaded to build.golang.org
     
-    This makes it possible to say -I c:/foo on Windows.
-    
-    Fixes #2683 comment #3.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5540043
+    https://golang.org/cl/5539043
 
- src/pkg/go/build/dir.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dashboard/app/build/notify.go | 3 ++-
+ misc/dashboard/app/build/test.go   | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

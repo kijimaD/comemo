@@ -1,20 +1,24 @@
-commit 8127dbf76ad16350b72bbe29728836a90e60e3dc
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Aug 16 20:30:26 2017 +0200
+commit ff7994ac1030525be5229a9f665d01ed50cd945e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Apr 19 20:38:10 2017 +0100
 
-    cmd/link: skip TestFieldOverlap on Plan 9
+    all: remove redundant returns
     
-    TestSizes has been added in CL 50170. This test is
-    failing on Plan 9 because executables don't have
-    a DWARF symbol table.
+    Returns at the end of func bodies where the funcs have no return values
+    are pointless.
     
-    Fixes #21480.
-    
-    Change-Id: I51079abdc18ad944617bdbcfe2dad970a0cea0f2
-    Reviewed-on: https://go-review.googlesource.com/56210
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0da5ea78671503e41a9f56dd770df8c919310ce5
+    Reviewed-on: https://go-review.googlesource.com/41093
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/bufio/scan_test.go           | 1 -
+ src/encoding/gob/codec_test.go   | 1 -
+ src/encoding/gob/error.go        | 1 -
+ src/go/printer/nodes.go          | 4 ----
+ src/net/http/pprof/pprof.go      | 1 -
+ src/runtime/mgclarge.go          | 1 -
+ src/runtime/runtime_test.go      | 1 -
+ src/text/template/parse/parse.go | 1 -
+ 8 files changed, 11 deletions(-)

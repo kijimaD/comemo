@@ -1,19 +1,26 @@
-commit 06ac303f6a14b133254f757e54599c48e3c2a4ad
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 9 16:55:15 2021 -0600
+commit 93d7d1685ee9e9f296e20f6c712796e54602e891
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 20:17:40 2020 +0000
 
-    cmd/internal/obj/ppc64: simplify got/toc address classification
+    runtime: load gcControllerState.scanWork atomically in revise
     
-    These generate similar machine code sequences to
-    other symbol accesses, therefore we should merge them.
+    gcControllerState.scanWork's docs state that it must be accessed
+    atomically during a GC cycle, but gcControllerState.revise does not do
+    this (even when called with the heap lock held).
     
-    Change-Id: Id8ead284d430fadd2e58bad255deb465498dfade
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314109
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    This change makes it so that gcControllerState.revise accesses scanWork
+    atomically and explicitly.
+    
+    Note that we don't update gcControllerState.revise's erroneous doc
+    comment here because this change isn't about revise's guarantees, just
+    about heap_scan. The comment is updated in a later change.
+    
+    Change-Id: Iafc3ad214e517190bfd8a219896d23da19f7659d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246961
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/internal/obj/ppc64/a.out.go   |  2 -
- src/cmd/internal/obj/ppc64/anames9.go |  2 -
- src/cmd/internal/obj/ppc64/asm9.go    | 92 +++++++++++++----------------------
- 3 files changed, 33 insertions(+), 63 deletions(-)
+ src/runtime/mgc.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

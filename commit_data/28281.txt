@@ -1,24 +1,24 @@
-commit 3877f820a61886b74bb596bdb128a8d705a44628
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Sep 7 14:45:27 2016 -0400
+commit d958dab095febfe542c6209b023d15f1d0de7128
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 10 17:06:19 2016 -0700
 
-    cmd/link, etc: introduce SymKind type
+    go/importer: use correct path when checking if package was already imported
     
-    Moves the grouping of symbol kinds (sections) into cmd/internal/obj
-    to keep it near the definition. Groundwork for CL 28538.
+    The importer uses a global (shared) package map across multiple imports
+    to determine if a package was imported before. That package map is usually
+    indexed by package (import) path ('id' in this code). However, the binary
+    importer was using the incoming (possibly unclean) path.
     
-    Change-Id: I99112981e69b028f366e1333f31cd7defd4ff82c
-    Reviewed-on: https://go-review.googlesource.com/28691
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Fixes #15517.
+    
+    Change-Id: I0c32a708dfccf345e0353fbda20ad882121e437c
+    Reviewed-on: https://go-review.googlesource.com/23012
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/goobj/read.go         | 72 +++++++++++++++++-----------------
- src/cmd/internal/obj/link.go           | 48 +++++++++++++++++++----
- src/cmd/internal/obj/symkind_string.go | 16 ++++++++
- src/cmd/link/internal/ld/data.go       | 48 +++++++----------------
- src/cmd/link/internal/ld/lib.go        |  4 +-
- src/cmd/link/internal/ld/link.go       |  2 +-
- src/cmd/link/internal/ld/objfile.go    |  6 +--
- src/cmd/link/internal/ld/symtab.go     |  2 +-
- 8 files changed, 114 insertions(+), 84 deletions(-)
+ src/go/internal/gcimporter/bimport.go         |  2 +-
+ src/go/internal/gcimporter/gcimporter.go      |  2 +-
+ src/go/internal/gcimporter/gcimporter_test.go | 39 +++++++++++++++++++++++++++
+ src/go/internal/gcimporter/testdata/p.go      | 13 +++++++++
+ 4 files changed, 54 insertions(+), 2 deletions(-)

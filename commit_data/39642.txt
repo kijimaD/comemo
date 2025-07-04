@@ -1,40 +1,26 @@
-commit 95c3c43072a3d613429ff5eb80b5fcf212dd9998
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Jul 11 21:27:19 2019 +0900
+commit ac56baa09f789ab93dd97b31c4f033da7c85a6a4
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Mar 5 03:58:37 2019 -0800
 
-    encoding/json: fix the broken "overwriting of data" tests
+    testing: enable examples on js/wasm with non os.Pipe runExample
     
-    Because TestUnmarshal actually allocates a new value to decode into
-    using ptr's pointer type, any existing data is thrown away. This was
-    harmless in alomst all of the test cases, minus the "overwriting of
-    data" ones added in 2015 in CL 12209.
+    os.Pipe is not implemented on wasm/js so for that purpose use
+    a temporary file for js/wasm. This change creates two versions
+    of runExample:
     
-    I spotted that nothing covered decoding a JSON array with few elements
-    into a slice which already had many elements. I initially assumed that
-    the code was buggy or that some code could be removed, when in fact
-    there simply wasn't any code covering the edge case.
+    * runExample verbatim that still uses os.Pipe for non js/wasm
+    * runExample that uses a temporary file
     
-    Move those two tests to TestPrefilled, which already served a very
-    similar purpose. Remove the map case, as TestPrefilled already has
-    plenty of prefilled map cases. Moreover, we no longer reset an entire
-    map when decoding, as per the godoc:
+    Also added a TODO to re-unify these function versions back into
+    example.go wasm/js gets an os.Pipe implementation.
     
-            To unmarshal a JSON object into a map, Unmarshal first
-            establishes a map to use. If the map is nil, Unmarshal allocates
-            a new map. Otherwise Unmarshal reuses the existing map, keeping
-            existing entries.
-    
-    Finally, to ensure that ptr is used correctly in the future, make
-    TestUnmarshal error if it's anything other than a pointer to a zero
-    value. That is, the only correct use should be new(type). Don't rename
-    the ptr field, as that would be extremely noisy and cause unwanted merge
-    conflicts.
-    
-    Change-Id: I41e3ecfeae42d877ac5443a6bd622ac3d6c8120c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185738
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I9f418a49b2c397e1667724c7442b7bbe8942225e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165357
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/decode_test.go | 109 +++++++++++++++++++++++----------------
- 1 file changed, 65 insertions(+), 44 deletions(-)
+ src/testing/example.go        | 92 +++++++++++++++----------------------------
+ src/testing/run_example.go    | 64 ++++++++++++++++++++++++++++++
+ src/testing/run_example_js.go | 74 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 169 insertions(+), 61 deletions(-)

@@ -1,39 +1,12 @@
-commit ab2a5b48665eed6d670d719cdef5335bc3602359
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Aug 11 12:57:01 2020 -0400
+commit 7ec4adbc919df7dbd549ccc71a2e17d8a0bafe4d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 16 03:31:32 2020 +1100
 
-    cmd/go: add basic support for overlays
+    cmd/internal/obj/riscv: add comments for Go registers
     
-    This CL adds basic support for listing packages with overlays.
-    The new cmd/go/internal/fs package adds an abstraction for communicating
-    with the file system that will open files according to their overlaid paths,
-    and provides functions to override those in the build context to open
-    overlaid files. There is also some support for executing builds on packages
-    with overlays. In cmd/go/internal/work.(*Builder).build, paths are mapped
-    to their overlaid paths before they are given as arguments to tools.
-    
-    For #39958
-    
-    Change-Id: I5ec0eb9ebbca303e2f1e7dbe22ec32613bc1fd17
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253747
-    Trust: Michael Matloob <matloob@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id9aa6ba268eee67f2dc74096d4ec3bc0a80aefe2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223563
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/cfg/cfg.go               |  12 +
- src/cmd/go/internal/envcmd/env.go            |   5 +
- src/cmd/go/internal/fsys/fsys.go             | 426 ++++++++++++++++++++++++
- src/cmd/go/internal/fsys/fsys_test.go        | 479 +++++++++++++++++++++++++++
- src/cmd/go/internal/imports/scan.go          |   7 +-
- src/cmd/go/internal/modload/import.go        |  51 +--
- src/cmd/go/internal/modload/init.go          |   5 +
- src/cmd/go/internal/search/search.go         |   1 +
- src/cmd/go/internal/work/build.go            |   3 +
- src/cmd/go/internal/work/gc.go               |  23 +-
- src/cmd/go/internal/work/init.go             |   4 +
- src/cmd/go/testdata/script/build_overlay.txt |  64 ++++
- src/cmd/go/testdata/script/list_overlay.txt  |  54 +++
- 13 files changed, 1081 insertions(+), 53 deletions(-)
+ src/cmd/internal/obj/riscv/cpu.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

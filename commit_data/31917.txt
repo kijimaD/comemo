@@ -1,14 +1,14 @@
-commit eab99a8d548f8ba864647ab171a44f0a5376a6b3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 26 21:08:05 2017 +0000
+commit 7ac2e413ebc42cb2e8cac73f72a679b60f9c906b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 23 10:59:41 2017 -0700
 
-    cmd/go: add more info in t.Fatal message
+    cmd/compile: minor cleanup in widstruct
     
-    Updates #20284
-    
-    Change-Id: I4d55d6adec4e8efb54285ca27bb4fa39c76582c3
-    Reviewed-on: https://go-review.googlesource.com/46719
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: I9e52a2c52b754568412d719b415f91a998d247fe
+    Reviewed-on: https://go-review.googlesource.com/38467
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/align.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

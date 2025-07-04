@@ -1,0 +1,17 @@
+commit 195e64232d6a799c43b18b02bd7ff24d6bc11c48
+Author: Mark Freeman <mark@golang.org>
+Date:   Fri May 16 10:58:45 2025 -0400
+
+    cmd/compile/internal/noder: format grammar
+    
+    This just wraps column width to 72 and indents production definitions
+    so they are easier to distinguish from prose.
+    
+    Change-Id: I386b122b4f617db4b182ebb549fbee4f35a0122c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673536
+    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+
+ src/cmd/compile/internal/noder/doc.go | 193 +++++++++++++++++-----------------
+ 1 file changed, 98 insertions(+), 95 deletions(-)

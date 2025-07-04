@@ -1,18 +1,21 @@
-commit 7a4247cd46b61ae724d6eaebd51b15d2e5fd7c1c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue May 28 10:35:26 2019 -0700
+commit 5a210b58588f9614c33e1b1e7231a9968879d9e4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 30 19:49:53 2019 -0400
 
-    cmd/compile: use math/bits for bvec
+    [dev.link] cmd/link: keep DWARF constant DIE symbols live
     
-    And delete some dead code.
+    DWARF constant DIE symbols are not referenced by any other symbol,
+    but are needed by the DWARF pass, where they get linked to the
+    compilation unit.
     
-    Minor cleanup. Passes toolstash-check.
+    Reenable gdb constant test.
     
-    Change-Id: Ia3c77c6bf14942654d00d125a6221e63a442f3c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227317
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If77a0d379d9a6f1591939345bc31b027c2567f22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204397
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/bv.go | 25 +++++--------------------
- 1 file changed, 5 insertions(+), 20 deletions(-)
+ src/cmd/link/internal/ld/deadcode2.go | 9 +++++++++
+ src/runtime/runtime-gdb_test.go       | 2 --
+ 2 files changed, 9 insertions(+), 2 deletions(-)

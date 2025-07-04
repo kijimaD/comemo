@@ -1,32 +1,14 @@
-commit 07de3465be8efafd66c96552de38c2cbb5851f28
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 20 11:56:15 2017 -0700
+commit 85bcf7f59d68c59be50087f68f7f25736c6a2adf
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Dec 1 07:10:21 2016 -0800
 
-    cmd/compile/internal/gc: handle recursive interfaces better
+    doc: update go1.8 release notes to say NamedArg not NamedParam
     
-    Previously, we handled recursive interfaces by deferring typechecking
-    of interface methods, while eagerly expanding interface embeddings.
+    Fixes #18135
     
-    This CL switches to eagerly evaluating interface methods, and
-    deferring expanding interface embeddings to dowidth. This allows us to
-    detect recursive interface embeddings with the same mechanism used for
-    detecting recursive struct embeddings.
-    
-    Updates #16369.
-    
-    Change-Id: If4c0320058047f8a2d9b52b9a79de47eb9887f95
-    Reviewed-on: https://go-review.googlesource.com/38391
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I54ef9d6fc804d0fb77b729a04367a138e40f9ddf
+    Reviewed-on: https://go-review.googlesource.com/33766
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/align.go     | 56 +++++++++++++++++++-
- src/cmd/compile/internal/gc/bimport.go   |  1 -
- src/cmd/compile/internal/gc/dcl.go       | 87 +++++++-------------------------
- src/cmd/compile/internal/gc/fmt.go       |  1 -
- src/cmd/compile/internal/gc/type.go      | 10 +---
- src/cmd/compile/internal/gc/typecheck.go | 11 +++-
- test/fixedbugs/bug195.go                 |  8 +--
- test/fixedbugs/bug251.go                 | 10 ++--
- test/fixedbugs/issue18392.go             |  5 +-
- 9 files changed, 99 insertions(+), 90 deletions(-)
+ doc/go1.8.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

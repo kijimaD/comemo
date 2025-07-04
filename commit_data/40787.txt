@@ -1,15 +1,23 @@
-commit bf4990522263503a1219372cd8f1ee9422b51324
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Nov 5 23:56:35 2019 +0700
+commit 1c1e517005786daeca0e77f2be6769e9b8e1f5a5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jul 2 15:36:59 2019 -0400
 
-    cmd/compile: update comments to refer to Order methods
+    test: add a test for gccgo bug #32901
     
-    Change-Id: I09090effcc5d814d4e024da3f944e825365588f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205477
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This CL adds a test for gccgo bug #32901: not all the type
+    descriptors are registered and thus deduplicated with types
+    created by reflection. It needs a few levels of indirect imports
+    to trigger this bug.
+    
+    Updates #32901.
+    
+    Change-Id: Idbd89bedd63fea746769f2687f3f31c9767e5ec0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184718
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/range.go |  8 ++++----
- src/cmd/compile/internal/gc/walk.go  | 16 ++++++++--------
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ test/fixedbugs/issue32901.dir/a.go    | 15 +++++++++++++++
+ test/fixedbugs/issue32901.dir/b.go    | 15 +++++++++++++++
+ test/fixedbugs/issue32901.dir/c.go    | 17 +++++++++++++++++
+ test/fixedbugs/issue32901.dir/main.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue32901.go          |  9 +++++++++
+ 5 files changed, 74 insertions(+)

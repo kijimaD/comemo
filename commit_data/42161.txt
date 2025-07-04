@@ -1,35 +1,62 @@
-commit d646c035f9749d647b2a3fdab48011d04e0bc2c1
-Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
-Date:   Mon Oct 21 13:18:31 2019 -0400
+commit ec732632c2c26dadf424462ac42ebd32dce3ee88
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 1 19:00:33 2019 -0400
 
-    crypto/ed25519: implement ed25519 on s390x using KDSA instruction
+    crypto/tls: refactor certificate and signature algorithm logic
     
-    This CL allows the usage of KDSA instruction when it is available.  The
-    instruction is designed to be resistant to side channel attacks and
-    offers performance improvement for ed25519.
+    This refactors a lot of the certificate support logic to make it cleaner
+    and reusable where possible. These changes will make the following CLs
+    much simpler.
     
-    Benchmarks:
-    name              old time/op    new time/op    delta
-    Signing-8            120µs ±20%      62µs ±12%   -48.40%  (p=0.000 n=10+10)
-    Verification-8       325µs ±17%      69µs ±10%   -78.80%  (p=0.000 n=10+10)
+    In particular, the heavily overloaded pickSignatureAlgorithm is gone.
+    That function used to cover both signing and verifying side, would work
+    both for pre-signature_algorithms TLS 1.0/1.1 and TLS 1.2, and returned
+    sigalg, type and hash.
     
-    name              old alloc/op   new alloc/op   delta
-    Signing-8             448B ± 0%        0B       -100.00%  (p=0.000 n=10+10)
-    Verification-8        288B ± 0%        0B       -100.00%  (p=0.000 n=10+10)
+    Now, TLS 1.0/1.1 and 1.2 are differentiated at the caller, as they have
+    effectively completely different logic. TLS 1.0/1.1 simply use
+    legacyTypeAndHashFromPublicKey as they employ a fixed hash function and
+    signature algorithm for each public key type. TLS 1.2 is instead routed
+    through selectSignatureScheme (on the signing side) or
+    isSupportedSignatureAlgorithm (on the verifying side) and
+    typeAndHashFromSignatureScheme, like TLS 1.3.
     
-    name              old allocs/op  new allocs/op  delta
-    Signing-8             5.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
-    Verification-8        2.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
+    On the signing side, signatureSchemesForCertificate was already version
+    aware (for PKCS#1 v1.5 vs PSS support), so selectSignatureScheme just
+    had to learn the Section 7.4.1.4.1 defaults for a missing
+    signature_algorithms to replace pickSignatureAlgorithm.
     
-    Change-Id: I0330ce83d807370b419ce638bc2cae4cb3c250dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202578
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    On the verifying side, pickSignatureAlgorithm was also checking the
+    public key type, while isSupportedSignatureAlgorithm +
+    typeAndHashFromSignatureScheme are not, but that check was redundant
+    with the one in verifyHandshakeSignature.
+    
+    There should be no major change in behavior so far. A few minor changes
+    came from the refactor: we now correctly require signature_algorithms in
+    TLS 1.3 when using a certificate; we won't use Ed25519 in TLS 1.2 if the
+    client didn't send signature_algorithms; and we don't send
+    ec_points_format in the ServerHello (a compatibility measure) if we are
+    not doing ECDHE anyway because there are no mutually supported curves.
+    
+    The tests also got simpler because they test simpler functions. The
+    caller logic switching between TLS 1.0/1.1 and 1.2 is tested by the
+    transcript tests.
+    
+    Updates #32426
+    
+    Change-Id: Ice9dcaea78d204718f661f8d60efdb408ba41577
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205061
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/crypto/ed25519/ed25519.go       |   6 +-
- src/crypto/ed25519/ed25519_noasm.go |  15 ++++
- src/crypto/ed25519/ed25519_s390x.go |  53 ++++++++++++
- src/crypto/ed25519/ed25519_s390x.s  | 163 ++++++++++++++++++++++++++++++++++++
- src/crypto/ed25519/ed25519_test.go  |  44 ++++++++--
- 5 files changed, 273 insertions(+), 8 deletions(-)
+ src/crypto/tls/auth.go                   | 147 +++++++++++++++-------------
+ src/crypto/tls/auth_test.go              | 158 +++++++++++++++++++-----------
+ src/crypto/tls/cipher_suites.go          |  20 +++-
+ src/crypto/tls/common.go                 |  69 +++++--------
+ src/crypto/tls/handshake_client.go       |  37 ++++---
+ src/crypto/tls/handshake_client_tls13.go |  18 +---
+ src/crypto/tls/handshake_server.go       | 160 +++++++++++++++----------------
+ src/crypto/tls/handshake_server_test.go  |   2 +-
+ src/crypto/tls/handshake_server_tls13.go |  27 ++----
+ src/crypto/tls/key_agreement.go          |  91 +++++++++++-------
+ src/crypto/tls/tls_test.go               |  17 ----
+ 11 files changed, 398 insertions(+), 348 deletions(-)

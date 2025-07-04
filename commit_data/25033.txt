@@ -1,19 +1,15 @@
-commit 984004263d187240adda58fc72e2011a75d7930c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Sep 11 10:15:17 2015 +1000
+commit 5f10573e6005f1ad34710335af94c1ba6d1a6157
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 17 15:19:23 2015 -0700
 
-    runtime: skip CallbackGC test in short mode on linux/arm
+    [dev.ssa] cmd/compile: Generate AUNDEF at the end of BlockExit blocks
     
-    Fixes #11959
-    Fixes #12035
+    Generate AUNDEF for every exit block, not just for certain
+    control values.
     
-    Skip the CallbackGC test on linux/arm. This test takes between 30 and 60
-    seconds to run by itself, and is run 4 times over the course of ./run.bash
-    (once during the runtime test, three times more later in the build).
-    
-    Change-Id: I4e7d3046031cd8c08f39634bdd91da6e00054caf
-    Reviewed-on: https://go-review.googlesource.com/14485
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ife500ac5159ee790bc1e70c0e9b0b1f854bc4c47
+    Reviewed-on: https://go-review.googlesource.com/14721
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/crash_cgo_test.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

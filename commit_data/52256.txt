@@ -1,31 +1,12 @@
-commit b6f29d23654eba09209db00704ccef1f01a60c71
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Feb 24 18:15:32 2023 +0100
+commit 19e4b10f2fcad0a43adcd3e59877e9f638330f44
+Merge: e07d63964b 3ae414c31e
+Author: Chressie Himpel <chressie@google.com>
+Date:   Thu Apr 21 17:30:08 2022 +0200
 
-    runtime: implement high resolution timer on windows arm/arm64
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    This CL moves the usleep2HighRes from assembly to good old Go.
-    This is safe because since CL 288793 usleep is always called with
-    a g, else one wold have to call usleep_no_g. This condition was
-    not enforced when high resolution timers were first implemented
-    on Windows (CL 248699), so the implementation was done in assembly.
-    
-    Other than removing a bunch of obscure assembly code, this CL makes
-    high resolution timers work on windows arm/arm64 by free, as the
-    system calls are the same in all windows platforms.
-    
-    Change-Id: I41ecf78026fd7e11e85258a411ae074a77e8c7fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471142
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: I30dbbe508a6252d50b4154cb9a8299cf0a054449
 
- src/runtime/os_windows.go       | 15 +++++----------
- src/runtime/sys_windows_386.s   | 37 -------------------------------------
- src/runtime/sys_windows_amd64.s | 33 ---------------------------------
- src/runtime/sys_windows_arm.s   |  7 -------
- src/runtime/sys_windows_arm64.s |  7 -------
- 5 files changed, 5 insertions(+), 94 deletions(-)
+ src/crypto/rand/rand_batched_test.go |  2 +-
+ src/crypto/rand/rand_unix.go         | 62 +++++++++++-------------------------
+ 2 files changed, 19 insertions(+), 45 deletions(-)

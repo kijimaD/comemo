@@ -1,22 +1,27 @@
-commit 5c45e56898261c29ae44e65bd087a508c9abe0a5
+commit 5233c50321828323959663faf000d599f0cefa6c
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 12 15:43:10 2011 -0700
+Date:   Fri Aug 12 10:06:32 2011 -0700
 
-    godoc: remove last vestiges of old template system
+    godoc: first round of template cleanups
     
-    - rename template funcs for better consistency and
-      sort them into groups of related functionality
-    - try to be more consistent with html vs url escaping
+    - simplified pipelines
+    - simplified templates by using template variables
+    - converted most old-style formatters into new-style funcs
+    - fixed some escaping bugs (use of url escaping where it was missing)
     
-    R=r
+    R=r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4887041
+    https://golang.org/cl/4868044
 
- lib/godoc/godoc.html     |   2 +-
- lib/godoc/package.html   |  50 +++++------
- lib/godoc/package.txt    |  20 ++---
- lib/godoc/search.html    |  41 ++++-----
- lib/godoc/search.txt     |   6 +-
- src/cmd/godoc/godoc.go   | 228 ++++++++++++++++++-----------------------------
- src/cmd/godoc/snippet.go |   9 +-
- 7 files changed, 152 insertions(+), 204 deletions(-)
+ lib/godoc/codewalk.html    |  10 +--
+ lib/godoc/codewalkdir.html |   4 +-
+ lib/godoc/dirlist.html     |   6 +-
+ lib/godoc/error.html       |   2 +-
+ lib/godoc/godoc.html       |  12 +--
+ lib/godoc/package.html     |  66 ++++++++---------
+ lib/godoc/package.txt      |  20 ++---
+ lib/godoc/search.html      |  37 +++++-----
+ lib/godoc/search.txt       |   9 ++-
+ src/cmd/godoc/godoc.go     | 179 +++++++++++++++------------------------------
+ src/cmd/godoc/main.go      |   6 +-
+ 11 files changed, 150 insertions(+), 201 deletions(-)

@@ -1,24 +1,21 @@
-commit 2a18cc10b1a8b1e19c3cc767d86d2804a8d58893
-Author: Damien Lespiau <damien.lespiau@intel.com>
-Date:   Sat Apr 22 18:10:09 2017 +0100
+commit 630e93ed2d8a13226903451a0e85e62efd78cdcd
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Feb 9 15:57:53 2017 -0800
 
-    cmd/objdump: remove two unused types
+    crypto/x509: ignore CN if SAN extension present.
     
-    The last mention of those types in this package are in:
+    The code previously tested only whether DNS-name SANs were present in a
+    certificate which is only approximately correct. In fact, /any/ SAN
+    extension, including one with no DNS names, should cause the CN to be
+    ignored.
     
-      commit 6bd0d0542ee15fda0da545c16af43fcfd34d6334
-      Author: Russ Cox <rsc@golang.org>
-      Date:   Thu Nov 6 19:56:55 2014 -0500
-    
-          cmd/objdump, cmd/pprof: factor disassembly into cmd/internal/objfile
-    
-    Found with honnef.co/go/tools/cmd/unused.
-    
-    Change-Id: Iacc2902f7d0784ac0efdd92da239f3e97491469a
-    Reviewed-on: https://go-review.googlesource.com/41472
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3d9824918975be6d4817e7cbb48ed1b0c5a2fc8b
+    Reviewed-on: https://go-review.googlesource.com/36696
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/objdump/main.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/crypto/x509/verify.go      |  4 +--
+ src/crypto/x509/verify_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/x509/x509.go        |  4 +++
+ 3 files changed, 62 insertions(+), 2 deletions(-)

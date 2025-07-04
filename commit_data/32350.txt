@@ -1,19 +1,15 @@
-commit 497f891fce8c6657ab28dfcd2e7195014f3a967f
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Thu Aug 17 23:26:31 2017 -0700
+commit 963b6d1d0756e1805092a90856d4f1596b282cff
+Author: Carlisia Campos <carlisia@grokkingtech.io>
+Date:   Wed Apr 19 22:44:03 2017 -0700
 
-    math/big: recognize squaring for Floats
+    doc: add Go Time podcast to the help page
     
-    Updates #13745
+    Adding the Go Time podcast under the `Stay informed` section of the help
+    page on the website.
     
-    Recognize z.Mul(x, x) as squaring for Floats and use
-    the internal z.sqr(x) method for nat on the mantissa.
-    
-    Change-Id: I0f792157bad93a13cae1aecc4c10bd20c6397693
-    Reviewed-on: https://go-review.googlesource.com/56774
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ifb1c6bb20cbf640a91572d47f14a432f58439261
+    Reviewed-on: https://go-review.googlesource.com/41146
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/float.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ doc/help.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

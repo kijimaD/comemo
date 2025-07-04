@@ -1,18 +1,63 @@
-commit 5ed4bb6db111d31a2c8625fe122de0ed7f1a9cbd
+commit 17228f44b223c146714040143baa336f4a1d3021
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 12 15:51:22 2015 -0400
+Date:   Fri Apr 17 12:03:22 2015 -0400
 
-    cmd/5g: fix build
+    cmd/internal/gc: make use of new String methods in prints
     
-    The line in cgen.go was lost during the ginscmp CL.
-    The ggen.go change is not strictly necessary, but
-    it makes the 5g -S output for x[0] match what it said
-    before the ginscmp CL.
+    $ sam -d cmd/internal/gc/*.{go,y} cmd/?g/*.go
+    X ,s/, (gc\.)?[BFHNST]conv\(([^()]+), 0\)/, \2/g
+    X/'/w
+    q
+    $
     
-    Change-Id: I5890a9ec1ac69a38509416eda5aea13b8b12b94a
-    Reviewed-on: https://go-review.googlesource.com/9929
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic28a4807d237b8ae53ceca1e4e7fdb43580ab560
+    Reviewed-on: https://go-review.googlesource.com/9032
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/5g/ggen.go          | 22 +++++++++++++++-------
- src/cmd/internal/gc/cgen.go |  1 +
- 2 files changed, 16 insertions(+), 7 deletions(-)
+ src/cmd/5g/cgen.go               |   4 +-
+ src/cmd/5g/cgen64.go             |   4 +-
+ src/cmd/5g/ggen.go               |   4 +-
+ src/cmd/5g/gsubr.go              |   8 +-
+ src/cmd/6g/gsubr.go              |   4 +-
+ src/cmd/7g/cgen.go               |   4 +-
+ src/cmd/7g/ggen.go               |   4 +-
+ src/cmd/7g/gsubr.go              |   2 +-
+ src/cmd/8g/cgen64.go             |   2 +-
+ src/cmd/8g/ggen.go               |   4 +-
+ src/cmd/8g/gsubr.go              |  20 ++--
+ src/cmd/9g/cgen.go               |   4 +-
+ src/cmd/9g/ggen.go               |   4 +-
+ src/cmd/9g/gsubr.go              |   4 +-
+ src/cmd/internal/gc/align.go     |  18 +--
+ src/cmd/internal/gc/cgen.go      |   4 +-
+ src/cmd/internal/gc/closure.go   |   4 +-
+ src/cmd/internal/gc/const.go     |  26 ++---
+ src/cmd/internal/gc/cplx.go      |   4 +-
+ src/cmd/internal/gc/dcl.go       |  54 ++++-----
+ src/cmd/internal/gc/esc.go       |  22 ++--
+ src/cmd/internal/gc/export.go    |  36 +++---
+ src/cmd/internal/gc/fmt.go       | 198 ++++++++++++++++----------------
+ src/cmd/internal/gc/gen.go       |  28 ++---
+ src/cmd/internal/gc/go.y         |   8 +-
+ src/cmd/internal/gc/gsubr.go     |  10 +-
+ src/cmd/internal/gc/inl.go       |  20 ++--
+ src/cmd/internal/gc/lex.go       |   2 +-
+ src/cmd/internal/gc/mparith3.go  |  18 +--
+ src/cmd/internal/gc/obj.go       |   4 +-
+ src/cmd/internal/gc/order.go     |   6 +-
+ src/cmd/internal/gc/pgen.go      |   2 +-
+ src/cmd/internal/gc/plive.go     |  34 +++---
+ src/cmd/internal/gc/popt.go      |  14 +--
+ src/cmd/internal/gc/racewalk.go  |   6 +-
+ src/cmd/internal/gc/range.go     |   6 +-
+ src/cmd/internal/gc/reflect.go   |  18 +--
+ src/cmd/internal/gc/reg.go       |   4 +-
+ src/cmd/internal/gc/sinit.go     |  22 ++--
+ src/cmd/internal/gc/subr.go      |  86 +++++++-------
+ src/cmd/internal/gc/swt.go       |  18 +--
+ src/cmd/internal/gc/typecheck.go | 242 +++++++++++++++++++--------------------
+ src/cmd/internal/gc/unsafe.go    |  10 +-
+ src/cmd/internal/gc/walk.go      |  36 +++---
+ src/cmd/internal/gc/y.go         |   8 +-
+ 45 files changed, 520 insertions(+), 520 deletions(-)

@@ -1,15 +1,15 @@
-commit 8a70b50b1f486319a3e6c1707d49bd90192f32d8
+commit c327e82ddb306fb4730a0fe624553d9e45ebde60
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Sep 6 12:01:01 2013 -0700
+Date:   Fri Sep 6 12:00:27 2013 -0700
 
-    cmd/api: include constant values
+    crypto/rand: make Read use io.ReadFull
     
-    Update #5935
+    Fixes #6084
     
-    R=golang-dev, rsc, iant, dave
+    R=golang-dev, rsc, dave
     CC=golang-dev
-    https://golang.org/cl/13261050
+    https://golang.org/cl/13523044
 
- src/cmd/api/goapi.go                       | 5 +----
- src/cmd/api/testdata/src/pkg/p1/golden.txt | 8 ++++++++
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ src/pkg/crypto/rand/example_test.go | 3 +--
+ src/pkg/crypto/rand/rand.go         | 7 +++++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

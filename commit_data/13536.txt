@@ -1,20 +1,13 @@
-commit 36fe436cbac4d2a55d06063de966798fc2216156
-Author: Han-Wen Nienhuys <hanwen@google.com>
-Date:   Tue Jul 31 08:21:24 2012 +1000
+commit 4783ad82dac77de7bcb49d6addefdf758412bfe5
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 30 12:46:50 2012 -0700
 
-    pkg/syscall: unexport Prlimit.
+    regexp: fix glitch in doc for FindReaderIndex
+    Fixes #3878.
     
-    This syscall was inadvertently exported when fixing
-    Getrlimit/Setrlimit on 32-bit platforms.
-    
-    R=golang-dev, minux.ma
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6458051
+    https://golang.org/cl/6457054
 
- src/pkg/syscall/syscall_linux.go        | 2 +-
- src/pkg/syscall/syscall_linux_386.go    | 4 ++--
- src/pkg/syscall/syscall_linux_arm.go    | 4 ++--
- src/pkg/syscall/zsyscall_linux_386.go   | 2 +-
- src/pkg/syscall/zsyscall_linux_amd64.go | 2 +-
- src/pkg/syscall/zsyscall_linux_arm.go   | 2 +-
- 6 files changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/regexp/regexp.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

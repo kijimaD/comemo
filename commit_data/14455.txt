@@ -1,12 +1,12 @@
-commit f142deee959dbc753b23efc23f60bd755498ec3d
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Nov 23 19:29:22 2012 +0800
+commit 6a1036422f9b06aa140d99f13c6036b14e12f85b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Nov 22 08:41:02 2012 +1100
 
-    cmd/go: show -race if necessary when giving "go test -i" hint
+    dashboard/builder: pass $CC to builder if set
     
-    R=golang-dev, dsymonds
+    R=adg, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6851100
+    https://golang.org/cl/6843068
 
- src/cmd/go/test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ misc/dashboard/builder/main.go | 1 +
+ 1 file changed, 1 insertion(+)

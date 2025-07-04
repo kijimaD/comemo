@@ -1,32 +1,17 @@
-commit 63acc48f8794aa51b91d7e482ba9271e54d3f77a
-Author: Rob Pike <r@golang.org>
-Date:   Mon Oct 20 07:33:08 2014 -0700
+commit f8f95590d946bb4619599f909b6facf14f9bed03
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 6 15:08:31 2014 -0700
 
-    encoding/gob: add custom decoder buffer for performance
-    As we did with encoding, provide a trivial byte reader for
-    faster decoding. We can also reduce some of the copying
-    by doing the allocation all at once using a slightly different
-    interface from byte buffers.
+    go/build: update docs for GOOS.go change
     
-    benchmark                            old ns/op     new ns/op     delta
-    BenchmarkEndToEndPipe                13368         12902         -3.49%
-    BenchmarkEndToEndByteBuffer          5969          5642          -5.48%
-    BenchmarkEndToEndSliceByteBuffer     479485        470798        -1.81%
-    BenchmarkEncodeComplex128Slice       92367         92201         -0.18%
-    BenchmarkEncodeFloat64Slice          39990         38960         -2.58%
-    BenchmarkEncodeInt32Slice            30510         27938         -8.43%
-    BenchmarkEncodeStringSlice           33753         33365         -1.15%
-    BenchmarkDecodeComplex128Slice       232278        196704        -15.32%
-    BenchmarkDecodeFloat64Slice          150258        128191        -14.69%
-    BenchmarkDecodeInt32Slice            133806        115748        -13.50%
-    BenchmarkDecodeStringSlice           335117        300534        -10.32%
+    Forgotten in https://golang.org/cl/147690043/
     
-    LGTM=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/154360049
+    Update #8838
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/152220045
 
- src/encoding/gob/codec_test.go | 14 +++++++---
- src/encoding/gob/decode.go     | 63 +++++++++++++++++++++++++++++++++++++++---
- src/encoding/gob/decoder.go    | 40 ++++++---------------------
- 3 files changed, 78 insertions(+), 39 deletions(-)
+ src/go/build/doc.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

@@ -1,18 +1,22 @@
-commit 181e8cde301cd8205489e746334174fee7290c9b
+commit 850aa7c60cb56d0cc40e3c213acb14ac96e2bf9e
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Sep 14 10:36:29 2021 +0700
+Date:   Wed Dec 30 01:24:30 2020 +0700
 
-    go/internal/gcimporter: remove outdated comment
+    [dev.regabi] cmd/compile: use *ir.Name instead of ir.Node for CaseClause.Var
     
-    CL 349010 ported the fix from CL 349009, but forgot to remove the
-    outdated comment from old solution. This CL removes that one.
+    Passes toolstash -cmp.
     
-    Change-Id: Ia401295e9d0984f4a088ddce5db09d306bfd89b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349729
+    Change-Id: Ib0b6ebf5751ffce2c9500dc67d78e54937ead208
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279449
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/internal/gcimporter/iimport.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/escape/escape.go     | 2 +-
+ src/cmd/compile/internal/ir/node_gen.go       | 8 ++++++--
+ src/cmd/compile/internal/ir/stmt.go           | 2 +-
+ src/cmd/compile/internal/typecheck/iexport.go | 2 +-
+ src/cmd/compile/internal/typecheck/stmt.go    | 2 +-
+ src/cmd/compile/internal/walk/switch.go       | 4 ++--
+ 6 files changed, 12 insertions(+), 8 deletions(-)

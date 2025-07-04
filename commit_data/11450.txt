@@ -1,19 +1,15 @@
-commit 4a9138751abd2dbd2c2dbe86697fdd08718535c7
-Author: Rob Pike <r@golang.org>
-Date:   Sun Jan 29 10:14:36 2012 -0800
+commit 916eea04f8109a9ef8383341d00b884a9d687399
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jan 29 12:46:26 2012 -0500
 
-    cmd/go: c tools not used during compilation
-    cov, nm, pprof, prof
+    5l, 6l, 8l, ld: remove memory leaks
     
-    R=rsc, r, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5576067
+    https://golang.org/cl/5569085
 
- src/Make.ctool                  | 50 +++++++++++++++++++++++++++++++++++++++++
- src/cmd/cov/Makefile            |  6 ++---
- src/cmd/go/tool.go              |  2 +-
- src/cmd/nm/Makefile             |  4 ++--
- src/cmd/prof/Makefile           | 14 +++++-------
- src/cmd/prof/{gopprof => pprof} |  0
- src/sudo.bash                   |  9 +++++---
- 7 files changed, 68 insertions(+), 17 deletions(-)
+ src/cmd/5l/asm.c | 1 +
+ src/cmd/6l/asm.c | 1 +
+ src/cmd/8l/asm.c | 1 +
+ src/cmd/ld/go.c  | 1 +
+ 4 files changed, 4 insertions(+)

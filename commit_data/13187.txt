@@ -1,26 +1,22 @@
-commit 992a11b88b5cf28d651fd5834852ed36f326c528
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 29 12:45:40 2012 -0400
+commit 14ad411407e539c7ebf478673f0afd9bf904af3c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 30 01:42:36 2012 +0900
 
-    crypto: housekeeping
+    undo CL 6248054 / 0f418a63cdf9
     
-    Rename _Block to block, don't bother making it compute count.
-    Add benchmarks.
+    breaks public API document style
     
-    R=agl, agl
+    ««« original CL description
+    net: fix comment on FileListener
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6243053
+    https://golang.org/cl/6248054
+    »»»
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6242066
 
- src/pkg/crypto/md5/gen.go            |  9 ++--
- src/pkg/crypto/md5/md5.go            | 35 ++++++++-------
- src/pkg/crypto/md5/md5block.go       |  9 ++--
- src/pkg/crypto/sha1/sha1.go          | 39 +++++++++--------
- src/pkg/crypto/sha1/sha1_test.go     | 25 +++++++++++
- src/pkg/crypto/sha1/sha1block.go     |  9 ++--
- src/pkg/crypto/sha256/sha256.go      | 83 +++++++++++++++++++-----------------
- src/pkg/crypto/sha256/sha256_test.go | 25 +++++++++++
- src/pkg/crypto/sha256/sha256block.go |  9 ++--
- src/pkg/crypto/sha512/sha512.go      | 83 +++++++++++++++++++-----------------
- src/pkg/crypto/sha512/sha512_test.go | 25 +++++++++++
- src/pkg/crypto/sha512/sha512block.go |  9 ++--
- 12 files changed, 216 insertions(+), 144 deletions(-)
+ src/pkg/net/file.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

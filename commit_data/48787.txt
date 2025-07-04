@@ -1,21 +1,39 @@
-commit cc43e191ce562cd879a9baaf7a2e4fb1a7216d31
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Apr 14 14:02:25 2022 -0700
+commit dd95a4e3dbe1e060b59840efd7311e8d5e82c08c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jun 14 16:26:26 2021 -0700
 
-    crypto/x509: don't allow too long serials
+    [dev.typeparams] cmd/compile: simplify SSA devirtualization
     
-    Don't create certificates that have serial numbers that are longer
-    than 20 octets (when encoded), since these are explicitly disallowed
-    by RFC 5280.
+    This CL implements a few improvements to SSA devirtualization to make
+    it simpler and more general:
     
-    Change-Id: I292b7001f45bed0971b2d519b6de26f0b90860ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400377
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    1. Change reflectdata.ITabAddr to now immediately generate the wrapper
+    functions and write out the itab symbol data. Previously, these were
+    each handled by separate phases later on.
+    
+    2. Removes the hack in typecheck where we marked itabs that we
+    expected to need later. Instead, the calls to ITabAddr in walk now
+    handle generating the wrappers.
+    
+    3. Changes the SSA interface call devirtualization algorithm to just
+    use the itab symbol data (namely, its relocations) to figure out what
+    pointer is available in memory at the given offset. This decouples it
+    somewhat from reflectdata.
+    
+    Change-Id: I8fe06922af8f8a1e7c93f5aff2b60ff59b8e7114
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327871
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/x509/x509.go      | 12 ++++++++++++
- src/crypto/x509/x509_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+ src/cmd/compile/internal/escape/escape.go       |   2 +-
+ src/cmd/compile/internal/gc/main.go             |  21 ++-
+ src/cmd/compile/internal/gc/obj.go              |   7 +-
+ src/cmd/compile/internal/reflectdata/reflect.go | 196 ++++++++----------------
+ src/cmd/compile/internal/ssa/config.go          |   6 -
+ src/cmd/compile/internal/ssa/rewrite.go         |  36 ++---
+ src/cmd/compile/internal/ssagen/ssa.go          |   4 -
+ src/cmd/compile/internal/typecheck/subr.go      |   8 -
+ src/cmd/compile/internal/typecheck/typecheck.go |   1 -
+ 9 files changed, 92 insertions(+), 189 deletions(-)

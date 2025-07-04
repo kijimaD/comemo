@@ -1,39 +1,23 @@
-commit cee9dfc39bef7b53ffa4ee584ec7fdec03c95a5a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Dec 10 15:02:38 2018 -0500
+commit 187a41dbf730117bd52f871009466a9679d6b718
+Author: Marcus Willock <crazcalm@gmail.com>
+Date:   Fri Aug 3 15:13:14 2018 +0000
 
-    cmd/go: fix 'go test' and 'go fmt' with files outside a module
+    net/http: add an example of creating a custom FileSystem
     
-    Use the actual loader result in findModule instead of making
-    assumptions about nesting in the build list.
-    As a side-effect, this produces much clearer error messages for
-    packages that (for one reason or another) failed to load.
+    The existing documentation of http.Dir is clear in that, if you want to hide
+    your files and directories that start with a period, you must create
+    a custom FileSystem. However, there are currently no example on how
+    to create a custom FileSystem. This commit provides an example.
     
-    Adjust the package and module path outside a module to
-    "command-line-arguments". That string already appears in the output of
-    a number of (module-mode and GOPATH-mode) commands for file arguments,
-    and as far as I can tell operation outside a module is currently the
-    only case in which the module path of a package is not actually a
-    prefix of the import path.
+    Fixes #20759
     
-    Fixes #28011
-    Fixes #27099
-    Fixes #28943
-    Updates #27102
-    Updates #28459
-    Updates #27063
-    
-    Change-Id: I61d5556df7b1b7d1efdaffa892f0e3e95b612d87
-    Reviewed-on: https://go-review.googlesource.com/c/153459
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I5a350675536f81412af384d1a316fd6cd6241563
+    GitHub-Last-Rev: 8b0b644cd02c59fe2461908304c44d64e8be431e
+    GitHub-Pull-Request: golang/go#26768
+    Reviewed-on: https://go-review.googlesource.com/127576
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/load/pkg.go               | 17 +++++-----
- src/cmd/go/internal/modload/build.go          | 36 ++++++++++++--------
- src/cmd/go/internal/modload/init.go           |  2 +-
- src/cmd/go/testdata/script/mod_enabled.txt    |  4 +--
- src/cmd/go/testdata/script/mod_get_svn.txt    |  3 +-
- src/cmd/go/testdata/script/mod_outside.txt    | 12 ++++---
- src/cmd/go/testdata/script/mod_test_files.txt | 49 +++++++++++++++++++++++++++
- 7 files changed, 91 insertions(+), 32 deletions(-)
+ src/net/http/example_filesystem_test.go | 71 +++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)

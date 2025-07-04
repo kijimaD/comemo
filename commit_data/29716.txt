@@ -1,19 +1,19 @@
-commit 2d136ae82e68bc820804b6a38262f240ea2bb5cf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 1 13:03:54 2016 -0800
+commit efaa36017e34b87a5731793594b42d483209d808
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 4 23:34:01 2016 +0000
 
-    cmd/compile: correctly parse //line filename:line where filename contains ':'
+    encoding/csv: update and add CSV reading benchmarks
     
-    This was a regression from 1.7. See the issue for details.
+    Benchmarks broken off from https://golang.org/cl/24723 and modified to
+    allocate less in the places we're not trying to measure.
     
-    Fixes #18149.
+    Updates #16791
     
-    Change-Id: Ic8f5a35d14edf9254b1275400316cff7aff32a27
-    Reviewed-on: https://go-review.googlesource.com/33799
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I508e4cfeac60322d56f1d71ff1912f6a6f183a63
+    Reviewed-on: https://go-review.googlesource.com/30357
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/noder.go |  5 +++--
- test/fixedbugs/issue18149.go         | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 2 deletions(-)
+ src/encoding/csv/reader_test.go | 72 ++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 64 insertions(+), 8 deletions(-)

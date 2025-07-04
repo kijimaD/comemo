@@ -1,24 +1,12 @@
-commit 6e87082d41f0267b39e6a1854d655b1d1c2f7541
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Sep 9 18:06:56 2016 +0000
+commit c1e88920606e78b06e936c9c249bd55f06dd8c51
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 11 13:04:22 2016 +0900
 
-    net/http: make Client copy headers on redirect
+    net: fix nits found by vet
     
-    Copy all of the original request's headers on redirect, unless they're
-    sensitive. Only send sensitive ones to the same origin, or subdomains
-    thereof.
-    
-    Fixes #4800
-    
-    Change-Id: Ie9fa75265c9d5e4c1012c028d31fd1fd74465712
-    Reviewed-on: https://go-review.googlesource.com/28930
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Francesc Campoy Flores <campoy@golang.org>
-    Reviewed-by: Ross Light <light@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I323231f31c4e1e7415661ebd943a90b2f1e9da1c
+    Reviewed-on: https://go-review.googlesource.com/23020
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/client.go      |  61 +++++++++++++++++++++++++
- src/net/http/client_test.go | 109 ++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/export_test.go |   2 +
- 3 files changed, 172 insertions(+)
+ src/net/dnsclient_unix_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

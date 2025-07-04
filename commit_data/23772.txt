@@ -1,16 +1,15 @@
-commit fc7f6d307a7e220506ad2798cd0610962208d26e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jul 21 12:47:22 2015 -0700
+commit 4105265c66b860244b9f17ae495f8cc27fcd5344
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Thu Jun 11 11:51:54 2015 +0200
 
-    cmd/dist: remove prints during test registration
+    mime: add mime.types paths for BSDs
     
-    dist test should not print (especially to stdout) during test
-    registration.  This confuses other tools interacting with dist using
-    dist test --list, etc.
-    
-    Change-Id: Ie4f82c13e49590c23a7a235d90ddbc4f5ed81e0b
-    Reviewed-on: https://go-review.googlesource.com/12487
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I22ac23e7e180071de4443291e0a644675200d642
+    Reviewed-on: https://go-review.googlesource.com/10950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/mime/type_dragonfly.go | 9 +++++++++
+ src/mime/type_freebsd.go   | 9 +++++++++
+ src/mime/type_openbsd.go   | 9 +++++++++
+ 3 files changed, 27 insertions(+)

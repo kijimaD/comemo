@@ -1,12 +1,12 @@
-commit 2356e438274814a3dabc56541dbd5788a3c1750c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jan 19 12:23:30 2012 +0900
+commit f44304ee634ce8f97a0000b72dafba4fdbdf46b1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 18 19:05:53 2012 -0800
 
-    net: fix comments
+    net/http: update the Client docs a bit
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds, adg
     CC=golang-dev
-    https://golang.org/cl/5557059
+    https://golang.org/cl/5557058
 
- src/pkg/net/net.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/client.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

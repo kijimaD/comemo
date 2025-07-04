@@ -1,38 +1,32 @@
-commit 3036b76df0ae748856e3e0008b67241cc580e263
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sat Jun 13 00:06:49 2020 +0800
+commit 0dff5b0b9e08157e817cfd95ad240ea2509e6644
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Mar 12 14:10:09 2020 -0400
 
-    cmd/asm: Add SHA3 hardware instructions for ARM64
+    [dev.link] cmd/compile, cmd/link: move away from DWARF file renumbering
     
-    Armv8.2-SHA introduced four SHA3-related instructions
+    This patch moves the compiler and linker away from the current scheme
+    used to generate file references in DWARF subprogram dies.
     
-    EOR3 <Vd>.16B, <Vn>.16B, <Vm>.16B, <Va>.16B
-    RAX1 <Vd>.2D, <Vn>.2D, <Vm>.2D
-    XAR <Vd>.2D, <Vn>.2D, <Vm>.2D, #<imm6>
-    BCAX <Vd>.16B, <Vn>.16B, <Vm>.16B, <Va>.16B
+    Up until now the scheme has been to have the compiler emit a special
+    relocation on a DIE file reference that points to the file symbol in
+    question. The linker then reads this relocation and updates the addend
+    to the index of the appropriate file in the line table of the
+    compilation unit of the DIE (the linker emits the comp unit file
+    table, so it knows at that point what number use). The drawback of
+    this scheme is that it requires a lot of relocation processing.
     
-    We convert them into Go asm style as:
+    With this patch, we switch to having the compiler emit the file index
+    directly, and then have the linker use the compiler-generated file
+    table to emit the line table file section (no renumbering, no
+    relocations, etc).
     
-    VEOR3 <Va>.B16, <Vm>.B16, <Vn>.B16, <Vd>.B16
-    VRAX1 <Vm>.D2, <Vn>.D2, <Vd>.D2
-    VXAR $imm6, <Vm>.D2, <Vn>.D2, <Vd>.D2
-    VBCAX <Va>.B16, <Vm>.B16, <Vn>.B16, <Vd>.B16
-    
-    Armv8 Reference Manual:
-    * EOR3 (Three-way Exclusive OR) on C7.2.42
-    * RAX1 (Rotate and Exclusive OR) on C7.2.217
-    * XAR (Exclusive OR and Rotate) on C7.2.401
-    * BCAX (Bit Clear and Exclusive OR) on C7.2.12
-    
-    Change-Id: I9a5d1b5ad508ed8fd5289d535906c54d9a63ca5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180757
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Id4fbe67b28a64200a083e3c5ea358dbe091ec917
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223318
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/asm/internal/asm/testdata/arm64.s |  4 ++
- src/cmd/internal/obj/arm64/a.out.go       |  4 ++
- src/cmd/internal/obj/arm64/anames.go      |  4 ++
- src/cmd/internal/obj/arm64/asm7.go        | 73 ++++++++++++++++++++++++++++++-
- 4 files changed, 83 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/objfile.go        |  9 +++--
+ src/cmd/link/internal/ld/dwarf.go      | 68 ----------------------------------
+ src/cmd/link/internal/loader/loader.go | 23 ------------
+ 3 files changed, 6 insertions(+), 94 deletions(-)

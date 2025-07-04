@@ -1,15 +1,16 @@
-commit 1ddc9feb53d039f06ceb94cc4f6d0339be9a7ae2
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Wed Mar 14 12:49:57 2012 -0400
+commit 24ed667b33aa634081a4f562f1503c758a208ddc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 14 23:54:40 2012 +0800
 
-    cmd/go: trivial help message fix for go help get
+    os: IsNotExist() should also consider ERROR_PATH_NOT_FOUND on Windows
+        Also update documentation about IsExist() and IsNotExist(), they are not
+        about files only.
     
-    Direct reference to go help build where the flags are described.
-    
-    R=golang-dev, adg, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5825046
+    https://golang.org/cl/5794073
 
- src/cmd/go/doc.go | 2 +-
- src/cmd/go/get.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/os/error.go         |  8 +++----
+ src/pkg/os/error_test.go    | 54 +++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/os/error_windows.go |  7 +++---
+ 3 files changed, 60 insertions(+), 9 deletions(-)

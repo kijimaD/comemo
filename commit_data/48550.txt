@@ -1,23 +1,16 @@
-commit 0a69c98214839a07cb4ac16466fa7961e537881f
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Mar 18 18:49:39 2022 -0400
+commit c295107708ad5fd26a78f9f1cb478f91aa7763e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 27 16:24:49 2021 -0700
 
-    all: delete PPC64 non-register ABI fallback path
+    doc/go1.17: mention new encoding/csv/Reader.FieldPos method
     
-    Change-Id: Ie058c0549167b256ad943a0134907df3aca4a69f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394215
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #44221
+    For #44513
+    
+    Change-Id: I2d2d1c55255f4411c11fd51f0f3ae726cbf4d136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323349
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
 
- src/internal/bytealg/compare_ppc64x.s   | 98 ++++++++-------------------------
- src/internal/bytealg/count_ppc64x.s     | 37 +++----------
- src/internal/bytealg/equal_ppc64x.s     | 29 +++-------
- src/internal/bytealg/index_ppc64x.s     | 69 +++++------------------
- src/internal/bytealg/indexbyte_ppc64x.s | 34 ++++--------
- src/runtime/asm_ppc64x.s                | 92 -------------------------------
- src/runtime/memclr_ppc64x.s             |  6 +-
- src/runtime/memmove_ppc64x.s            |  8 +--
- src/runtime/race_ppc64le.s              | 30 ++--------
- 9 files changed, 76 insertions(+), 327 deletions(-)
+ doc/go1.17.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,33 +1,19 @@
-commit 85a8d25d535a9b70f6c908e44f8558c207366ff1
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Fri Mar 9 23:09:46 2018 +0300
+commit 541bf9f8ea458560353acf78d940c69f5080750a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Oct 27 18:13:17 2017 +0900
 
-    cmd/compile/internal/ssa: emit IMUL3{L/Q} for MUL{L/Q}const on x86
+    net/smtp: don't call testing.T.Fatal{,f} from goroutines not running Test function
     
-    cmd/asm now supports three-operand form of IMUL,
-    so instead of using IMUL with resultInArg0, emit IMUL3 instruction.
+    Also replaces verbs for error message from %s to %v. In general, low
+    level IO APIs return an error value containing non-string types and
+    there's no guarantee that all the types implement fmt.Stringer
+    interface.
     
-    This results in less redundant MOVs where SSA assigns
-    different registers to input[0] and dst arguments.
-    
-    Note: these have exactly the same encoding when reg0=reg1:
-          IMUL3x $const, reg0, reg1
-          IMULx $const, reg
-    Two-operand IMULx is like a crippled IMUL3x, with dst fixed to input[0].
-    This is why we don't bother to generate IMULx for the case where
-    dst is the same as input[0].
-    
-    Change-Id: I4becda475b3dffdd07b6fdf1c75bacc82af654e4
-    Reviewed-on: https://go-review.googlesource.com/99656
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: I8a6e2a80d5c721c772a83b9556bac16556eaa771
+    Reviewed-on: https://go-review.googlesource.com/73931
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |  9 +--------
- src/cmd/compile/internal/ssa/gen/386Ops.go   |  2 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
- src/cmd/compile/internal/ssa/opGen.go        |  9 +++------
- src/cmd/compile/internal/x86/ssa.go          |  9 +--------
- test/codegen/arithmetic.go                   | 12 ++++++------
- 6 files changed, 14 insertions(+), 31 deletions(-)
+ src/net/smtp/smtp_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,14 +1,23 @@
-commit 68f496949b9524c610cd25bffd109f27b78536dc
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 23 14:48:59 2018 -0400
+commit d611e95cabbd531418beb7c1fdc7191ba3151c2a
+Author: Suzy Mueller <suzmue@golang.org>
+Date:   Thu Aug 9 13:05:54 2018 -0400
 
-    cmd/go/internal/cache: write shared mutable files atomically
+    cmd/go: make 'go list -test' report the correct import path
     
-    Updates #26794
+    When a test variant of a package is created, the two versions cannot
+    share memory for the fields that contain information about their
+    imports, as these will be different between the two packagse.
     
-    Change-Id: I2a50e3b756ff6a2bbaee4737ca7ed053b01c8d0e
-    Reviewed-on: https://go-review.googlesource.com/c/146378
+    Both the Internal.Imports and the Imports fields must be able to be
+    updated in the test variant without affecting the values of the
+    original.
+    
+    Fixes golang/go#26880
+    
+    Change-Id: Id61fad7d976e179c6c7711a394ce43ec8302fd7a
+    Reviewed-on: https://go-review.googlesource.com/128836
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/cache/cache.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/load/test.go                 |  2 ++
+ src/cmd/go/testdata/script/list_test_imports.txt | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+)

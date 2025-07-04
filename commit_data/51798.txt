@@ -1,29 +1,18 @@
-commit 7cf8593140f41358f77041ab0fc6ca7e99f6e715
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Dec 20 11:23:23 2022 -0800
+commit db3045b4be5b91cd42c3387dc550c89bbc2f7fb4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Feb 24 23:44:05 2022 -0500
 
-    cmd/compile: apply FixVariadicCall and FixMethodCall during typecheck
+    cmd/asm: support -d=pctab flag
     
-    To simplify backend analysis, we normalize variadic and method calls:
-    variadic calls are rewritten with an explicit slice argument, and
-    method calls are turned into function calls that pass the receiver
-    argument as the first parameter.
+    To debug PC data generation.
     
-    But because we've been supporting multiple frontends, this
-    normalization was scattered in various later passes. Now that we're
-    back to just one frontend, we can move the normalization forward into
-    typecheck (where most other IR normalization already happens).
-    
-    Change-Id: Idd05ae231fc180ae3dd1664452414f6b6d578962
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463737
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Id7ac8d607cc27ad52db490bd758c3a768c3e1df2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388015
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/escape/call.go    |  3 +--
- src/cmd/compile/internal/inline/inl.go     |  2 +-
- src/cmd/compile/internal/typecheck/func.go | 10 ++++++++++
- src/cmd/compile/internal/walk/order.go     |  2 +-
- 4 files changed, 13 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/flags/flags.go | 1 +
+ src/cmd/asm/main.go                 | 1 +
+ 2 files changed, 2 insertions(+)

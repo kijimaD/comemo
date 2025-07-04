@@ -1,39 +1,46 @@
-commit b38b1b2f9ae710ee2c16a103bb21644f1adbc5d3
-Author: David Chase <drchase@google.com>
-Date:   Wed Apr 21 10:55:42 2021 -0400
+commit e1faebe7b40c23811a6025ed104d3ce9882f0c3b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 13 12:39:13 2020 -0400
 
-    cmd/compile: manage Slot array better
+    runtime: manage gcBgMarkWorkers with a global pool
     
-    steals idea from CL 312093
+    Background mark workers perform per-P marking work. Currently each
+    worker is assigned a P at creation time. The worker "attaches" to the P
+    via p.gcBgMarkWorker, making itself (usually) available to
+    findRunnableGCWorker for scheduling GC work.
     
-    further investigation revealed additional duplicate
-    slots (equivalent, but not equal), so delete those too.
+    While running gcMarkDone, the worker "detaches" from the P (by clearing
+    p.gcBgMarkWorker), since it may park for other reasons and should not be
+    scheduled by findRunnableGCWorker.
     
-    Rearranged Func.Names to be addresses of slots,
-    create canonical addresses so that split slots
-    (which use those addresses to refer to their parent,
-    and split slots can be further split)
-    will preserve "equivalent slots are equal".
+    Unfortunately, this design is complex and difficult to reason about. We
+    simplify things by changing the design to eliminate the hard P
+    attachment. Rather than workers always performing work from the same P,
+    workers perform work for whichever P they find themselves on. On park,
+    the workers are placed in a pool of free workers, which each P's
+    findRunnableGCWorker can use to run a worker for its P.
     
-    Removes duplicates, improves metrics for "args at entry".
+    Now if a worker parks in gcMarkDone, a P may simply use another worker
+    from the pool to complete its own work.
     
-    Change-Id: I5bbdcb50bd33655abcab3d27ad8cdce25499faaf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312292
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    The P's GC worker mode is used to communicate the mode to run to the
+    selected worker. It is also used to emit the appropriate worker
+    EvGoStart tracepoint. This is a slight change, as this G may be
+    preempted (e.g., in gcMarkDone). When it is rescheduled, the trace
+    viewer will show it as a normal goroutine again. It is currently a bit
+    difficult to connect to the original worker tracepoint, as the viewer
+    does not display the goid for the original worker (though the data is in
+    the trace file).
+    
+    Change-Id: Id7bd3a364dc18a4d2b1c99c4dc4810fae1293c1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262348
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/ssa/config.go       |   7 --
- src/cmd/compile/internal/ssa/copyelim.go     |   2 +-
- src/cmd/compile/internal/ssa/deadcode.go     |   8 +-
- src/cmd/compile/internal/ssa/debug.go        |   6 +-
- src/cmd/compile/internal/ssa/decompose.go    | 140 +++++++++++++++++----------
- src/cmd/compile/internal/ssa/expand_calls.go |  40 ++++----
- src/cmd/compile/internal/ssa/export_test.go  |  30 ------
- src/cmd/compile/internal/ssa/func.go         | 110 ++++++++++++++++++++-
- src/cmd/compile/internal/ssa/layout.go       |  22 +----
- src/cmd/compile/internal/ssa/print.go        |   2 +-
- src/cmd/compile/internal/ssa/stackalloc.go   |  11 ++-
- src/cmd/compile/internal/ssagen/ssa.go       |  80 +--------------
- 12 files changed, 238 insertions(+), 220 deletions(-)
+ src/runtime/mgc.go      | 222 ++++++++++++++++++++++++++----------------------
+ src/runtime/proc.go     |  69 +++++++++------
+ src/runtime/runtime2.go |  19 ++++-
+ src/runtime/trace.go    |   2 +-
+ 4 files changed, 182 insertions(+), 130 deletions(-)

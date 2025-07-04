@@ -1,25 +1,22 @@
-commit ef4b2fdc48f242fe8f95f15df055c674efa8f35e
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Apr 6 12:09:04 2023 -0700
+commit 7a574ff23f9cda0967fd63a55c897e7598b60ad2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 9 14:56:14 2022 -0400
 
-    net/http: improve failure mode for TestResponseControllerSetPastReadDeadline
+    cmd/compile: fix boolean comparison on PPC64
     
-    A test flake in #59447 seems to indicate that this test got stuck
-    waiting for the test handler to close the readc channel.
-    If the handler returns early due to an unexpected error, it might
-    fail to close this channel. Add a second channel to act as a
-    signal that the handler has given up and the test should stop.
-    This won't fix whatever happened in the flake, but might help
-    us debug it if it happens again.
+    Following CL 405114, for PPC64.
     
-    For #59447
+    Should fix PPC64 builds.
     
-    Change-Id: I05d84c6176aa938887d93126a6f3bb4dc941c90d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482935
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Updates #52788.
+    
+    Change-Id: I193ac31cfba18b4f907dd2523b51368251fd6fad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405116
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/responsecontroller_test.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  22 +++---
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 108 +++++++++++++++++++--------
+ src/cmd/objdump/objdump_test.go              |   2 +-
+ 3 files changed, 88 insertions(+), 44 deletions(-)

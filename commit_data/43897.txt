@@ -1,15 +1,18 @@
-commit f3741bdf7cab5fc8254bebce00479c0168ace86c
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Nov 30 16:32:41 2020 -0800
+commit 1adae7fe76d27cb9623cb269bb3ede2372f5eea6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 25 17:50:48 2020 -0400
 
-    doc/go1.16: add crypto/x509 note about Verify on Windows
+    [dev.link] cmd/link: convert asmb pass to new style
     
-    Updates #42897
-    
-    Change-Id: Ice25922475405aca3cf2cb1c163462f223ede736
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274239
-    Trust: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I8675f56a7f7f18653754eb87b95f5a7aec31ad74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229860
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.16.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go       | 75 ++++++++++++++++++----------------
+ src/cmd/link/internal/ld/main.go       |  5 ++-
+ src/cmd/link/internal/ld/outbuf.go     | 11 ++---
+ src/cmd/link/internal/loader/loader.go | 31 +++++++++++++-
+ 4 files changed, 77 insertions(+), 45 deletions(-)

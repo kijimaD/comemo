@@ -1,24 +1,24 @@
-commit 88cafe0f58cf7374722a2a98d8919c32bb8795e5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jan 5 14:20:30 2022 -0500
+commit d1f8104b587838647e1ae0c600bff1621c7188f2
+Author: Martin Sucha <anty.sk+git@gmail.com>
+Date:   Mon Apr 12 07:57:25 2021 +0200
 
-    net/http: skip TestClientTimeout_h{1,2} on windows/arm and windows/arm64
+    time: move slim test tzdata to testdata directory
     
-    These tests are empirically flaky on the windows/arm and windows/arm64
-    builders, with a consistent (but rare) failure mode.
+    The lines with tzdata are quite long.
     
-    This change skips the test if that particular failure mode is
-    encountered on those platforms; the skip can be removed if and when
-    someone has the time to pin down the root cause.
+    It is easier to just copy a file than to encode it as
+    a string literal when adding a new test case.
     
-    For #43120
-    
-    Change-Id: Ie3a9a06bf47e3a907c7b07441acc1494a4631135
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375635
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ibcaf347c3101a0f05b094e582b3473c7c35b685a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308998
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/net/http/client_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/time/testdata/2020b_Europe_Berlin | Bin 0 -> 705 bytes
+ src/time/testdata/2021a_America_Nuuk  | Bin 0 -> 465 bytes
+ src/time/testdata/2021a_Asia_Gaza     | Bin 0 -> 1213 bytes
+ src/time/testdata/2021a_Europe_Dublin | Bin 0 -> 1496 bytes
+ src/time/zoneinfo_test.go             |  20 +++++++++++++-------
+ 5 files changed, 13 insertions(+), 7 deletions(-)

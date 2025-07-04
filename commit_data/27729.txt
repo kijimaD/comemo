@@ -1,32 +1,16 @@
-commit 5f209aba6d903688fd5d801bad3fbb5572c85a02
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Jun 25 10:23:30 2016 -0400
+commit b0eeb8b0aaaf4997c25e3048bfc40e53d556a8eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 12:52:12 2016 -0400
 
-    encoding/json: copy-on-write cacheTypeFields
+    net/http/pprof: accept fractional seconds in trace handler
     
-    Swtich from a sync.RWMutex to atomic.Value for cacheTypeFields.
+    For heavily loaded servers, even 1 second of trace is too large
+    to process with the trace viewer; using a float64 here allows
+    fetching /debug/pprof/trace?seconds=0.1.
     
-    On GOARCH=386, this recovers most of the remaining performance
-    difference from the 1.6 release. Compared with tip on linux/386:
-    
-            name            old time/op    new time/op    delta
-            CodeDecoder-40    92.8ms ± 1%    87.7ms ± 1%  -5.50%  (p=0.000 n=10+10)
-    
-            name            old speed      new speed      delta
-            CodeDecoder-40  20.9MB/s ± 1%  22.1MB/s ± 1%  +5.83%  (p=0.000 n=10+10)
-    
-    With more time and care, I believe more of the JSON decoder's work
-    could be shifted so it is done before decoding, and independent of
-    the number of bytes processed. Maybe someone could explore that for
-    Go 1.8.
-    
-    For #16117.
-    
-    Change-Id: I049655b2e5b76384a0d5f4b90e3ec7cc8d8c4340
-    Reviewed-on: https://go-review.googlesource.com/24472
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I286c07abf04f9c1fe594b0e26799bf37f5c734db
+    Reviewed-on: https://go-review.googlesource.com/21455
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/encoding/json/encode.go | 23 +++++++++++++----------
- 1 file changed, 13 insertions(+), 10 deletions(-)
+ src/net/http/pprof/pprof.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

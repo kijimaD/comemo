@@ -1,29 +1,19 @@
-commit e65c543f3c34f4a505c37ebc3c2b608bc8ae83ec
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 22 13:06:40 2020 -0400
+commit c844fec7f6097289abb657d9a334cce97786c48c
+Author: Ayan George <ayan@ayan.net>
+Date:   Fri May 8 00:13:44 2020 -0400
 
-    go/build/constraint: add parser for build tag constraint expressions
+    image/png: remove too early declaration of "n"
     
-    This package implements a parser for the new //go:build constraint lines.
-    The parser also handles // +build lines, to be able to process legacy files.
+    Before this commit, the code declares and assigns "n" with the result of
+    io.ReadFull() -- but the value is not used.  The variable is then reused
+    later in the function.
     
-    This will not be used in the standard library until Go 1.17,
-    but it seems worth publishing in Go 1.16 so that code that
-    needs to process both kinds of lines once Go 1.17 comes out
-    will be able to build using Go 1.16 as well.
+    This commit removes the first declaration of "n" and declares it closer
+    to where it is used.
     
-    For #41184. Design in https://golang.org/design/draft-gobuild.
-    
-    Change-Id: I756c0de4081c5039e8b7397200e5274f223ab111
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240604
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I7ffe19a10f2a563c306bb6fe6562493435b9dc5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232917
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/build/build_test.go           |   3 +-
- src/go/build/constraint/expr.go      | 574 +++++++++++++++++++++++++++++++++++
- src/go/build/constraint/expr_test.go | 317 +++++++++++++++++++
- src/go/build/deps_test.go            |   3 +
- 4 files changed, 896 insertions(+), 1 deletion(-)
+ src/image/png/reader.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

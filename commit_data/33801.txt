@@ -1,16 +1,15 @@
-commit 358d7c93e2df39e1e76d27d79fa18e584dca9d5a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 5 20:40:26 2017 -0500
+commit a7489ec2ccd53511ae004517ad0f640394063c35
+Author: Juan Carlos <juanjcsr@gmail.com>
+Date:   Fri Jul 21 17:55:57 2017 -0500
 
-    net/url: fix PathUnescape, QueryUnescape number grammar
+    time: change wording in duration hours example
     
-    They do not convert a plural into a singular.
-    (Introduced recently, in CL 77050.)
-    
-    Change-Id: I3b6c4d03b1866d4133e90b8ab05e8d4bfbd55125
-    Reviewed-on: https://go-review.googlesource.com/82078
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I86728a1c6c20471beaa3546ca7a43a8edeb9f0b7
+    Reviewed-on: https://go-review.googlesource.com/50691
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adrian Hesketh <adrianhesketh@hushmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/url/url.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/time/example_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

@@ -1,32 +1,17 @@
-commit 50d8787822e1919815ecca4f30600a118841cc7c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 17 11:35:59 2012 -0800
+commit 5a2c275be125d935440ddad3042bfc7bb2ce5027
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Dec 18 01:26:48 2012 +0800
 
-    exp/types: completed typechecking of parameter passing
+    fmt, encoding/gob: fix misuse of Read
+    reader.Read() can return both 0,nil and len(buf),err.
+    To be safe, we use io.ReadFull instead of doing reader.Read directly.
     
-    Details:
-    - fixed variadic parameter passing and calls of the form f(g())
-    - fixed implementation of ^x for unsigned constants x
-    - fixed assignability of untyped booleans
-    - resolved a few TODOs, various minor fixes
-    - enabled many more tests (only 6 std packages don't typecheck)
+    Fixes #3472.
     
-    R=rsc
+    R=bradfitz, rsc, ality
     CC=golang-dev
-    https://golang.org/cl/6930053
+    https://golang.org/cl/6285050
 
- src/pkg/exp/gotype/gotype_test.go     |  44 +++++-----
- src/pkg/exp/types/builtins.go         |   5 +-
- src/pkg/exp/types/const.go            | 110 ++++++++++++++++++-------
- src/pkg/exp/types/errors.go           |  11 +--
- src/pkg/exp/types/expr.go             | 148 +++++++++++++++++++++++++---------
- src/pkg/exp/types/operand.go          |   9 ++-
- src/pkg/exp/types/predicates.go       |  15 ++--
- src/pkg/exp/types/stmt.go             |  29 ++++---
- src/pkg/exp/types/testdata/decls1.src |   5 +-
- src/pkg/exp/types/testdata/expr0.src  |   4 +-
- src/pkg/exp/types/testdata/expr2.src  |  11 +++
- src/pkg/exp/types/testdata/expr3.src  |  61 ++++++++++++++
- src/pkg/exp/types/types.go            |  10 +--
- src/pkg/exp/types/types_test.go       |   2 +-
- 14 files changed, 335 insertions(+), 129 deletions(-)
+ src/pkg/encoding/gob/decode.go | 6 +++---
+ src/pkg/fmt/scan.go            | 5 ++++-
+ 2 files changed, 7 insertions(+), 4 deletions(-)

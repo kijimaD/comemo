@@ -1,12 +1,60 @@
-commit 892286419e83dc219504dff70a6493dfa861a6ca
+commit d6f6e420fcea98a84a9c6a69a7bcf81ddca7ea74
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 11 22:39:21 2015 -0500
+Date:   Mon Jan 19 14:34:58 2015 -0500
 
-    cmd/dist: avoid trailing space in instruction name strings
+    [dev.cc] cmd/internal/obj: convert liblink C to Go
     
-    Change-Id: I2db4db852492eaddaf09dd7bae2fbd49f916e78a
-    Reviewed-on: https://go-review.googlesource.com/4648
-    Reviewed-by: Rob Pike <r@golang.org>
+    This CL adds the real cmd/internal/obj packages.
+    Collectively they correspond to the liblink library.
+    The conversion was done using rsc.io/c2go's run script
+    at rsc.io/c2go repo version 706fac7.
+    
+    This is not the final conversion, just the first working draft.
+    There will be more updates, but this works well enough
+    to use with go tool objwriter and pass all.bash.
+    
+    Change-Id: I9359e835425f995a392bb2fcdbebf29511477bed
+    Reviewed-on: https://go-review.googlesource.com/3046
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/buildgc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/build.go                          |    3 +
+ src/cmd/dist/buildtool.go                      |    3 +
+ src/cmd/internal/obj/arm/5.out.go              |  305 ++
+ src/cmd/internal/obj/arm/anames5.go            |  196 +
+ src/cmd/internal/obj/arm/asm5.go               | 3003 +++++++++++++++
+ src/cmd/internal/obj/arm/list5.go              |  311 ++
+ src/cmd/internal/obj/arm/obj5.go               | 1175 ++++++
+ src/cmd/internal/obj/{dummy.go => arm/util.go} |   11 +-
+ src/cmd/internal/obj/data.go                   |  292 ++
+ src/cmd/internal/obj/fmt.go                    |   60 +
+ src/cmd/internal/obj/funcdata.go               |   78 +
+ src/cmd/internal/obj/go.go                     |   21 +
+ src/cmd/internal/obj/i386/8.out.go             |  627 ++++
+ src/cmd/internal/obj/i386/anames8.go           |  584 +++
+ src/cmd/internal/obj/i386/asm8.go              | 4081 +++++++++++++++++++++
+ src/cmd/internal/obj/i386/list8.go             |  273 ++
+ src/cmd/internal/obj/i386/obj8.go              |  999 +++++
+ src/cmd/internal/obj/i386/util.go              |   16 +
+ src/cmd/internal/obj/ld.go                     |  161 +
+ src/cmd/internal/obj/link.go                   |  463 +++
+ src/cmd/internal/obj/obj.go                    |  314 ++
+ src/cmd/internal/obj/objfile.go                |  457 +++
+ src/cmd/internal/obj/pass.go                   |  129 +
+ src/cmd/internal/obj/pcln.go                   |  370 ++
+ src/cmd/internal/obj/ppc64/9.out.go            |  485 +++
+ src/cmd/internal/obj/ppc64/anames9.go          |  389 ++
+ src/cmd/internal/obj/ppc64/asm9.go             | 3381 +++++++++++++++++
+ src/cmd/internal/obj/ppc64/list9.go            |  372 ++
+ src/cmd/internal/obj/ppc64/obj9.go             | 1151 ++++++
+ src/cmd/internal/obj/ppc64/util.go             |   16 +
+ src/cmd/internal/obj/stack.go                  |   52 +
+ src/cmd/internal/obj/sym.go                    |  286 ++
+ src/cmd/internal/obj/textflag.go               |   33 +
+ src/cmd/internal/obj/util.go                   |  113 +
+ src/cmd/internal/obj/x86/6.out.go              |  836 +++++
+ src/cmd/internal/obj/x86/anames6.go            |  789 ++++
+ src/cmd/internal/obj/x86/asm6.go               | 4613 ++++++++++++++++++++++++
+ src/cmd/internal/obj/x86/list6.go              |  324 ++
+ src/cmd/internal/obj/x86/obj6.go               | 1220 +++++++
+ src/cmd/internal/obj/x86/{dummy.go => util.go} |   13 +-
+ 40 files changed, 27998 insertions(+), 7 deletions(-)

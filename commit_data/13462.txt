@@ -1,16 +1,13 @@
-commit 6a135a0894fff5bbb1885c27fd9eb41b9a2b4e51
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 12 14:19:09 2012 -0700
+commit 1fa32d21a947dbe00217baa5ff22a27dd54fbb9f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 12 10:23:54 2012 -0700
 
-    mat/big: more optimal Karatsuba threshold
+    encoding/gob: fix check for short input in slice decode
     
-    benchmark           old ns/op    new ns/op    delta
-    BenchmarkHilbert      6253043      6267289   +0.23%
-    BenchmarkMul         45355940     39490633  -12.93%
-    
-    R=r
+    R=golang-dev, dsymonds, r, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6355104
+    https://golang.org/cl/6374059
 
- src/pkg/math/big/nat.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/gob/decode.go       |  6 +++---
+ src/pkg/encoding/gob/encoder_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 3 deletions(-)

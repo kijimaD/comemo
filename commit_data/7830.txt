@@ -1,14 +1,22 @@
-commit 544cf759040667768348ea516bcb2f72b08e573f
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 22 11:43:00 2011 -0700
+commit 6684d5503ac0045efd740dc1b7649577f81654a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 22 11:05:26 2011 -0700
 
-    gob: use pointers in bootstrapType so interfaces behave properly
-    and don't lead to a nil reflect.Type.
-    Fixes #1626.
+    go/printer, gofmt: simplify struct formatting and respect line breaks
+    
+    Also: gofmt src misc
+    
+    Fixes #1627.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4289062
+    https://golang.org/cl/4303042
 
- src/pkg/gob/type.go | 58 +++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 41 insertions(+), 17 deletions(-)
+ misc/cgo/test/callback.go                      | 10 +++---
+ misc/cgo/test/cgo_test.go                      |  1 -
+ misc/cgo/test/issue1560.go                     |  4 +--
+ src/pkg/go/printer/nodes.go                    | 45 +++++++++++---------------
+ src/pkg/go/printer/testdata/expressions.golden |  6 +---
+ src/pkg/go/printer/testdata/expressions.input  |  2 +-
+ src/pkg/go/printer/testdata/expressions.raw    |  6 +---
+ 7 files changed, 28 insertions(+), 46 deletions(-)

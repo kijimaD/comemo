@@ -1,17 +1,21 @@
-commit 8958d8ce37fdae15693787019869ab21e7b8347a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Jan 22 10:17:12 2017 -0800
+commit 17ad60b8a4b92ee36f5b14c609ad1d0b5805b886
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 10:45:47 2016 -0400
 
-    cmd/compile: skip convT2E for empty structs
+    cmd/go: fix test for moved package in go get -u
     
-    Fixes #18402
+    What matters during go get -u is not whether there is an import comment
+    but whether we resolved the path by an HTML <meta> tag.
     
-    Change-Id: I5af800857fb2e365ce4224eece9171277106ec7d
-    Reviewed-on: https://go-review.googlesource.com/35562
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #16471.
+    
+    Change-Id: I6b194a3f73a7962a0170b4d5cf51cfed74e02c00
+    Reviewed-on: https://go-review.googlesource.com/31658
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/cmd/compile/internal/gc/go.go   |  1 +
- src/cmd/compile/internal/gc/walk.go | 29 +++++++++++++++++++----------
- 2 files changed, 20 insertions(+), 10 deletions(-)
+ src/cmd/go/get.go     |  2 +-
+ src/cmd/go/go_test.go | 17 +++++++++++++++++
+ src/cmd/go/vcs.go     | 10 +++++++---
+ 3 files changed, 25 insertions(+), 4 deletions(-)

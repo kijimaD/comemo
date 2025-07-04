@@ -1,42 +1,23 @@
-commit 3073f3f9411737de2232e6f6d634c118b53aed22
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Nov 14 18:56:21 2023 +0000
+commit 3b3ab616925fb820d5168727d92f1745020f9f9d
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Nov 30 13:57:33 2022 -0500
 
-    runtime: prevent send on closed channel in wakeableSleep
+    net: reenable SRV tests with _ldap._tcp.google.com
     
-    Currently wakeableSleep has a race where, although stopTimer is called,
-    the timer could be queued already and fire *after* the wakeup channel is
-    closed.
+    TestLookupDotsWithRemoteSource and TestLookupGoogleSRV
+    were disabled because they look up the no-longer-present
+    SRV record for _xmpp-server._tcp.google.com.
     
-    Fix this by protecting wakeup with a lock used on the close and wake
-    paths and assigning the wakeup to nil on close. The wake path then
-    ignores a nil wakeup channel. This fixes the problem by ensuring that a
-    failure to stop the timer only results in the timer doing nothing,
-    rather than trying to send on a closed channel.
+    Change the tests to look for _ldap._tcp.google.com and
+    reenable them.
     
-    The addition of this lock requires some changes to the static lock
-    ranking system.
+    Fixes #56708.
     
-    Thiere's also a second problem here: the timer could be delayed far
-    enough into the future that when it fires, it observes a non-nil wakeup
-    if the wakeableSleep has been re-initialized and reset.
-    
-    Fix this problem too  by allocating the wakeableSleep on the heap and
-    creating a new one instead of reinitializing the old one. The GC will
-    make sure that the reference to the old one stays alive for the timer to
-    fire, but that timer firing won't cause a spurious wakeup in the new
-    one.
-    
-    Change-Id: I2b979304e755c015d4466991f135396f6a271069
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542335
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Commit-Queue: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I26475fa3ff6fc008048a4e5f24f0e96ee12f655c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453861
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/lockrank.go   |  3 +++
- src/runtime/mklockrank.go |  1 +
- src/runtime/trace2.go     | 62 +++++++++++++++++++++++++++++++++--------------
- src/runtime/trace2cpu.go  |  2 +-
- 4 files changed, 49 insertions(+), 19 deletions(-)
+ src/net/lookup_test.go | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)

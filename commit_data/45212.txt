@@ -1,18 +1,15 @@
-commit 4efd581383ade76c562953289ed8210bb55bff47
-Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
-Date:   Tue Apr 13 15:51:58 2021 +0300
+commit e69f6e839315b1df4e6273c38ae1a49e340b8a91
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 12 11:19:41 2020 +0200
 
-    archive/zip: fix imports block of biggestZipBytes generator
+    internal/bytealg: fix typo in IndexRabinKarp{,Bytes} godoc
     
-    Fixes #45529
-    
-    Change-Id: I4d64c40aa6733b783dc4066e222f17abeb7ad413
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309357
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Trust: Joe Tsai <thebrokentoaster@gmail.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I09ba19e19b195e345a0fe29d542e0d86529b0d31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261359
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/zip/reader_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/bytealg/bytealg.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

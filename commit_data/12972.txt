@@ -1,19 +1,16 @@
-commit 42aa9abae967b27582e1275793a841bd312d18f4
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Thu Apr 26 02:57:23 2012 -0700
+commit 4d3db77c6906d09038e55915653dc98cdf4d66bb
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Apr 26 17:50:44 2012 +1000
 
-    gc: use correct line number for EOF syntax error
+    doc: update wiki article to use html/template properly.
     
-    I also added some debugging code that's turned
-    on with -xx.
+    Fixes #3569.
     
-    Fixes #3392.
-    
-    R=rsc, lvd
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5909058
+    https://golang.org/cl/6116055
 
- src/cmd/gc/lex.c         |  5 ++---
- src/cmd/gc/subr.c        |  5 +++++
- test/fixedbugs/bug435.go | 15 +++++++++++++++
- 3 files changed, 22 insertions(+), 3 deletions(-)
+ doc/articles/wiki/edit.html  |  6 +++---
+ doc/articles/wiki/index.html | 11 ++++++-----
+ doc/articles/wiki/view.html  |  6 +++---
+ 3 files changed, 12 insertions(+), 11 deletions(-)

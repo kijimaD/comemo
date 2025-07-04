@@ -1,29 +1,12 @@
-commit 22d377077c01ced185f5f8d27f608e8c6dcb473c
-Author: Phil Pearl <philip.j.r.pearl@gmail.com>
-Date:   Sun Oct 13 13:01:58 2019 +0100
+commit 2637f1f9505fec6d1e5db39ebc5a182a54356aa6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 15:49:27 2019 +0000
 
-    encoding/json: improve performance of Compact
+    database/sql: fix subject of unexported func comment
     
-    This change improves performance of Compact by using a sync.Pool to allow re-use
-    of a scanner. This also has the side-effect of removing an allocation for each
-    field that implements Marshaler when marshalling JSON.
-    
-    name               old time/op    new time/op    delta
-    EncodeMarshaler-8     118ns ± 2%     104ns ± 1%  -12.21%  (p=0.001 n=7+7)
-    
-    name               old alloc/op   new alloc/op   delta
-    EncodeMarshaler-8      100B ± 0%       36B ± 0%  -64.00%  (p=0.000 n=8+8)
-    
-    name               old allocs/op  new allocs/op  delta
-    EncodeMarshaler-8      3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=8+8)
-    
-    Change-Id: Ic70c61a0a6354823da5220f5aad04b94c054f233
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200864
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5db429c86e01b55ec3abc6ab4ca11c221b27f189
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177039
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/encoding/json/bench_test.go | 19 +++++++++++++++++++
- src/encoding/json/indent.go     | 16 +++++++++-------
- src/encoding/json/scanner.go    | 36 ++++++++++++++++++++++++++++++++----
- 3 files changed, 60 insertions(+), 11 deletions(-)
+ src/database/sql/convert.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

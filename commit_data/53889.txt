@@ -1,35 +1,20 @@
-commit 611706b17136beb602711f7bfebd15622f73f58f
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 1 14:32:56 2023 -0700
+commit b6a6847b2f33dc8fb231c78cc4d807eaf10a133a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 30 06:32:09 2022 +1000
 
-    cmd/compile: don't use BTS when OR works, add direct memory BTS operations
+    cmd/compile: avoid zero extension after properly typed atomic operation on riscv64
     
-    Stop using BTSconst and friends when ORLconst can be used instead.
-    OR can be issued by more function units than BTS can, so it could
-    lead to better IPC. OR might take a few more bytes to encode, but
-    not a lot more.
+    LoweredAtomicLoad8 is implemented using MOVBU, hence it is already zero
+    extended. LoweredAtomicCas32 and LoweredAtomicCas64 return a properly
+    typed boolean.
     
-    Still use BTSconst for cases where the constant otherwise wouldn't
-    fit and would require a separate movabs instruction to materialize
-    the constant. This happens when setting bits 31-63 of 64-bit targets.
-    
-    Add BTS-to-memory operations so we don't need to load/bts/store.
-    
-    Fixes #61694
-    
-    Change-Id: I00379608df8fb0167cb01466e97d11dec7c1596c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515755
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie0acbaa19403d59c7e5f76d060cc13ee51eb7834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428214
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/cmd/compile/internal/amd64/ssa.go         |   9 +-
- src/cmd/compile/internal/ssa/_gen/AMD64.rules |  71 +--
- src/cmd/compile/internal/ssa/_gen/AMD64Ops.go |  27 +-
- src/cmd/compile/internal/ssa/opGen.go         |  72 ++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go  | 658 ++++----------------------
- test/codegen/bits.go                          |  12 +-
- test/codegen/mathbits.go                      |   4 +-
- test/codegen/memops.go                        |  29 ++
- 8 files changed, 211 insertions(+), 671 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  5 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 45 ++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)

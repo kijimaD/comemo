@@ -1,15 +1,17 @@
-commit ad7320acc4c05860b1527d55a6044017013d8969
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 29 20:19:24 2018 +0000
+commit adcf2d59ec25e6a1f5fda7eb5c125302363657ea
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Mon Mar 5 22:00:34 2018 +0200
 
-    net/http: document that Handlers are resposible for validating Host headers
+    os/exec: document Process.Kill behaviour
     
-    Fixes #23993
+    It is not clear from documentation what the Process.Kill does. And it
+    leads to reccuring confusion about Cmd.Start/Wait methods.
     
-    Change-Id: I112415c894e8c680bfc17d53772275430e46794b
-    Reviewed-on: https://go-review.googlesource.com/115116
-    Reviewed-by: Tim Cooper <tim.cooper@layeh.com>
+    Fixes #24220
+    
+    Change-Id: I66609d21d2954e195d13648014681530eed8ea6c
+    Reviewed-on: https://go-review.googlesource.com/98715
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/request.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/os/exec.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

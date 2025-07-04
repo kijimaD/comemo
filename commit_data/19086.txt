@@ -1,27 +1,20 @@
-commit 34a21dcae425a9353b7d763958c5039a0e767531
+commit 8bd9242f7cd27f69449b2cdae8acbf25a952134c
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 9 18:23:53 2014 -0700
+Date:   Wed Apr 9 14:19:13 2014 -0700
 
-    undo CL 86220044 / 41388e58be65
+    bufio: fix UnreadByte
     
-    bufio: undo incorrect bug fix
+    Also:
+    - fix error messages in tests
+    - make tests more symmetric
     
-    ««« original CL description
-    bufio: fix potential endless loop in ReadByte
+    Fixes #7607.
     
-    Fixes #7745.
-    
-    LGTM=bradfitz, r
-    R=r, bradfitz
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/86220044
-    »»»
-    
-    LGTM=adg
-    R=r, adg
-    CC=golang-codereviews
-    https://golang.org/cl/85550045
+    https://golang.org/cl/86180043
 
- src/pkg/bufio/bufio.go      | 26 ++++++++------------------
- src/pkg/bufio/bufio_test.go | 29 -----------------------------
- 2 files changed, 8 insertions(+), 47 deletions(-)
+ src/pkg/bufio/bufio.go      | 24 +++++++++---------
+ src/pkg/bufio/bufio_test.go | 62 ++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 57 insertions(+), 29 deletions(-)

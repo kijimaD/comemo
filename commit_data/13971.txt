@@ -1,13 +1,15 @@
-commit 063b074407185223ccdb2f5986243e027ff8cf8e
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 27 15:47:18 2012 +1000
+commit 791ac65b8271ad374df3877d94c3b5eee9c09537
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 27 13:29:39 2012 +1000
 
-    CLA: Josh Holland <jrh@joshh.co.uk> individual contributor
+    lzw: fix Write returning the wrong number of bytes written.
     
-    R=golang-dev, dsymonds
+    Fixes #4160.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/6568059
+    https://golang.org/cl/6564060
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/compress/lzw/writer.go      | 11 ++++++-----
+ src/pkg/compress/lzw/writer_test.go |  8 ++++++++
+ 2 files changed, 14 insertions(+), 5 deletions(-)

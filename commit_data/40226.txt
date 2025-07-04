@@ -1,18 +1,17 @@
-commit 33fac9bad86d7f3bba8926d92c33e5a0cf28061f
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Thu Oct 10 00:04:14 2019 +0300
+commit f67f5511ee0f225bcc8943994ba6139eed375e85
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Apr 27 02:36:34 2019 +1000
 
-    cmd/compile/internal/gc: preallocate slices in noder
+    cmd/dist: add support for openbsd/arm64
     
-    The slice capacity is known for all these cases. Therefore,
-    we can initialize them with the desired capacity.
+    Updates #31656
     
-    Change-Id: I1835b49108d157203d62e4aa119c2d7ab5e5e46f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200119
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If481df050cd879f7c7c22a79c17c33af00a8b389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174125
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/dist/build.go | 1 +
+ src/cmd/dist/main.go  | 5 +++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

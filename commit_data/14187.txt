@@ -1,15 +1,20 @@
-commit d7a3407e3d6543f3884c181a6b1135fa0fcc882b
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Sun Oct 21 20:50:31 2012 +0200
+commit c1b7ddc6aa476340e9f1d61edc83102e87fc8f9b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 22 01:08:13 2012 +0800
 
-    cmd/gc: fix confusing error when using variable as type.
+    runtime: update docs for MemStats.PauseNs
+       PauseNs is a circular buffer of recent pause times, and the
+    most recent one is at [((NumGC-1)+256)%256].
     
-    Fixes #3783.
+       Also fix comments cross-linking the Go and C definition of
+    various structs.
     
-    R=golang-dev, rsc
+    R=golang-dev, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6737053
+    https://golang.org/cl/6657047
 
- src/cmd/gc/typecheck.c      |  2 +-
- test/fixedbugs/issue3783.go | 12 ++++++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/pkg/runtime/malloc.goc | 2 +-
+ src/pkg/runtime/malloc.h   | 2 +-
+ src/pkg/runtime/mem.go     | 5 ++++-
+ src/pkg/runtime/mprof.goc  | 3 +--
+ 4 files changed, 7 insertions(+), 5 deletions(-)

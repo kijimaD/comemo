@@ -1,16 +1,12 @@
-commit ca5cea9dca0bc635b9a23cfe65226f3e1a423342
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Nov 2 17:55:53 2016 -0700
+commit f2f374d125312cd6f9c91581e85a80ee1f143cc1
+Author: Tormod Erevik Lea <tormodlea@gmail.com>
+Date:   Fri Sep 9 16:41:30 2016 +0200
 
-    cmd/compile: add OMOD to list of ops that might panic
+    reflect: update location of vet tool in comment
     
-    Follow-up to CL 32551.
-    
-    Change-Id: If68f9581a7f13e04796aaff2007c09f8ea2c3611
-    Reviewed-on: https://go-review.googlesource.com/32586
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic5160edbbca4a8ffc7c7e6246e34fae1978470fd
+    Reviewed-on: https://go-review.googlesource.com/28912
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 2 +-
+ src/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

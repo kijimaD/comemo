@@ -1,20 +1,21 @@
-commit 9a7947288b55948eeb141ef7020cb542217e54c5
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Aug 25 08:44:31 2013 +0900
+commit e7b125fc65695e22e33da1f6bc5bec7efae2bf65
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Aug 24 16:54:56 2013 -0500
 
-    syscall: update routing socket parser for NetBSD 6 and beyond
+    cmd/api: be more robust against OS deleting temp files
     
-    NetBSD 6 kernel and beyond require 64-bit aligned access to routing
-    facilities.
+    OS X in particular deletes tmp files (but not directories)
+    pretty reliably.
     
-    Fixes #6226.
+    Ask hg whether the go.tools directory in tmp is good before
+    using it.
     
-    R=golang-dev, bsiegert, bradfitz
+    Fixes issue Rob and others were reporting, which I just hit
+    myself now.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13170043
+    https://golang.org/cl/13084049
 
- src/pkg/net/interface_test.go    |  8 ++++----
- src/pkg/syscall/route_bsd.go     | 28 +++++++++++++++++++++++-----
- src/pkg/syscall/sockcmsg_unix.go |  2 +-
- src/pkg/syscall/syscall_unix.go  |  5 ++++-
- 4 files changed, 32 insertions(+), 11 deletions(-)
+ src/cmd/api/run.go | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)

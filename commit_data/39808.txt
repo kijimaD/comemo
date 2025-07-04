@@ -1,18 +1,14 @@
-commit 3aae49b8b48a458837abb2dc6bb09f5e5ad976c6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Sep 5 16:04:06 2019 -0700
+commit 83d90bbc824e5874022a41bbbbe4f34c65876480
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Mar 22 12:52:54 2019 +0100
 
-    cmd/dist: default to clang on OpenBSD
+    syscall: fix returned values of Dup2 on aix/ppc64
     
-    OpenBSD ships with GCC 4.2, the last version of GCC that used GPLv2.
-    As that is quite old (current GCC version is GCC 9, GCC 4.2 was
-    released in 2007), default to clang.
-    
-    Change-Id: Ib93e7b4f4f3ffb9e047e60ffca3696d26ab08aac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193621
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia78ea589cc6d58ff22f7d519399c06c5308419dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168878
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/dist/main.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/syscall/syscall_aix.go        | 2 +-
+ src/syscall/zsyscall_aix_ppc64.go | 5 ++---
+ 2 files changed, 3 insertions(+), 4 deletions(-)

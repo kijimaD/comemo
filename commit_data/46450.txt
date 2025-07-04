@@ -1,21 +1,21 @@
-commit e4dfd788e66f4a44825598dd3cb6ca9626369228
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Sep 14 20:40:09 2021 -0400
+commit 95ce805d14642a8e8e40fe1f8f50b9b5a2c4e38b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 30 17:36:08 2020 -0500
 
-    go/internal/gcimporter,cmd/compile: minor clean-up in iimport.go
+    io/fs: remove darwin/arm64 special condition
     
-    Make two superficial fixes to iimport.go: rename instType to
-    instanceType (suggested in CL 349949), and fix a stale comment.
+    It isn't necessary on darwin/arm64 (macOS).
     
-    Done in both go/internal/gcimporter and cmd/compile/internal/importer.
+    It was probably leftover from the old code when darwin/arm64
+    meant iOS. The test passes on iOS builder. Apparently this is
+    not needed either. Remove.
     
-    Change-Id: Idfdda11a59b036a35824bbb1c101cba3652aeff4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350031
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I6fa0c55d6086325d4b722862c4fe6c30bcd6e6e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280158
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/importer/iimport.go | 6 +++---
- src/go/internal/gcimporter/iimport.go        | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/io/fs/walk_test.go | 26 --------------------------
+ 1 file changed, 26 deletions(-)

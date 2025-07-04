@@ -1,15 +1,35 @@
-commit c9ac5898534732f9a79da6042e3da3c64c7a6da7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 14 12:19:32 2024 -0800
+commit 856cf23a8acfa14756a6e9b82ace76f5604262c9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 25 16:24:54 2023 -0700
 
-    cmd/compile/internal/types2: enable disabled part of an example test (cleanup)
+    spec: specify evaluation order for binary logical operations
     
-    Change-Id: I8ffb198d64ec1b89e6d13bfa299bf699f1ca3830
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628156
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This CL clarifies the order of evaluation of the binary logical
+    operators, && and ||. The clarified semantics matches what cmd/compile
+    and x/tools/go/ssa already implement, and prohibit some optimizations
+    that are arguably allowed today but risk surprising users.
+    
+    First, it specifies that the left operand is evaluated before the
+    right operand. This prohibits "(f() || true) && *p" from evaluating
+    "*p" before "f()".
+    
+    Second, it specifies that binary logical operations are also ordered
+    lexically left-to-right with regard to function calls and receive
+    operations. This prohibits "h(*p || true || f(), g())" from evaluating
+    "*p" after "g()".
+    
+    Finally, the "order of evaluation of [...] is not specified" wording
+    in the example is clarified to acknowledge that there are still some
+    other orderings that are implied lexically; e.g., x must be evaluated
+    and indexed before g(), and z now must be evaluated before h(). (Note:
+    Whether z is evaluated before or after f() remains unspecified, as
+    there's no lexical dependency.)
+    
+    Change-Id: I9d316a7f1fbc83be663e116380a2cc7a4ace623d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522938
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/types2/example_test.go | 92 ++++++++++++-------------
- 1 file changed, 45 insertions(+), 47 deletions(-)
+ doc/go_spec.html | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

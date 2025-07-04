@@ -1,20 +1,22 @@
-commit 66c22cdb849d609b56e59927917ddb62ce13a65a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Nov 16 15:14:04 2023 +0100
+commit 9e059630ad5b7f6ddd4cf4559cd111906776d5fb
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 11 14:26:10 2022 -0700
 
-    runtime: remove unused _CTL_KERN on openbsd
+    cmd/compile: clean up amd64 opcode comments
     
-    This was supposed to be removed in CL 539155 already.
+    Put comments about what operations do per block of related opcodes
+    instead of on each line. This is less repetitive and lets us be a bit
+    more verbose in our descriptions.
     
-    Change-Id: I22be1a72d5d8eb02514045609429e706c344d5fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542915
+    Doesn't change the generated code at all.
+    
+    Change-Id: I98fbd4029df6537b10aac2113a00df121d0fca1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433736
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/os_openbsd.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go | 755 +++++++++++++++-----------
+ 1 file changed, 433 insertions(+), 322 deletions(-)

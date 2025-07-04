@@ -1,20 +1,30 @@
-commit f4827240dbd29d0c1c308b07c3406f600d5ef82b
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 8 12:16:38 2020 -0400
+commit f4e32aeed18dadb077dc5458b03a812234390046
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Oct 16 10:20:12 2019 +0200
 
-    crypto/x509: tidy darwin/arm64 build tags
+    cmd/link/internal/ld: remove flags incompatible with -fembed-bitcode
     
-    The cgo build tag is not necessary for root_darwin_arm64.go. We can't
-    build for darwin/arm64 without cgo, and even if we did 1) this code
-    would work fine 2) the no-cgo code that shells out to
-    /usr/bin/security would not work.
+    The flags -headerpad, -Wl,-no_pie and -pagezero_size are incompatible with
+    the -fembed-bitcode flag used by `gomobile build`. Than McIntosh
+    suggested we might not need the offending flags; this change removes
+    the flags on darwin/arm64 and -headerpad, -pagezero_size on darwin/arm.
     
-    (Suggested by Filippo.)
+    The -Wl,-no_pie flag is left for darwin/arm because linking fails
+    without it:
     
-    Change-Id: I98cac2ea96ec5ac1ae60b7e32d195d5e86e2bd66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227583
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    ld: warning: PIE disabled. Absolute addressing (perhaps -mdynamic-no-pic) not allowed in code signed PIE, but used in _runtime.rodata from /var/folders/qq/qxn86k813bn9fjxydm095rxw0000gp/T/workdir-host-darwin-amd64-zenly-ios/tmp/go-link-225285265/go.o. To fix this warning, don't compile with -mdynamic-no-pic or link with -Wl,-no_pie
+    
+    Discussion: https://groups.google.com/d/msg/golang-dev/U1jK3xmmGAk/j0_ty46EDAAJ
+    
+    I've verified the CL on the builders, built the "flappy" example from
+    gomobile with `gomobile build`, and verified that flappy runs on an
+    iPhone 5S.
+    
+    Updates #32963
+    
+    Change-Id: I783abc93ccf3c1d2b7ca00144b7164ba223d3529
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201358
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/x509/root_darwin_arm64.go   | 2 --
- src/crypto/x509/root_darwin_arm_gen.go | 2 --
- 2 files changed, 4 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

@@ -1,16 +1,19 @@
-commit 2a3db5c0175e26ba99adca90e5bab6cb4e85cc2d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 20 22:22:25 2016 -0400
+commit ef6fde26e5cac06c0dbd4ffe628a3ecd2ef7c450
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 21 11:40:01 2016 -0700
 
-    cmd/cgo: document C.malloc behavior
+    cmd/vet: handle multiple arches in asm build directives
     
-    Fixes #16309.
+    If a build directive contains multiple arches,
+    try to match the build context.
     
-    Change-Id: Ifcd28b0746e1af30e2519a7b118485aecfb12396
-    Reviewed-on: https://go-review.googlesource.com/31811
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Updates #11041
+    
+    Change-Id: I03b5d7bfb29d1ff6c7d36a9d7c7fabfcc1d871c1
+    Reviewed-on: https://go-review.googlesource.com/27158
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/cgo/doc.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/vet/asmdecl.go | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)

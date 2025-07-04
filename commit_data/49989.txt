@@ -1,26 +1,25 @@
-commit 6dc7b060cd725aa61421e627ec233e9a936600fc
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jul 22 15:08:07 2022 -0700
+commit 8854368cb076ea9a2b71c8b3c8f675a8e19b751c
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Sep 24 08:57:06 2021 -0700
 
-    cmd/compile: rip out support for OpVarKill from ssa backend
+    cmd/compile: deal with blank nodes with typeparam type during stenciling
     
-    Change-Id: I008479a7516d8379186ce630748e503d94d3b1e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419235
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Deal correctly with a blank local variable with type param type. This is
+    a special case, because a blank local variable is not in the fn.Dcl
+    list. In this case, we must explicitly create a new blank node with the
+    correct substituted type, so we have correct types if the blank local
+    variable has an initializing assignment.
+    
+    Fixes #48602
+    
+    Change-Id: I903ea44b29934e180404e32800773b7309bf297b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352117
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/liveness/arg.go       |  2 +-
- src/cmd/compile/internal/liveness/plive.go     | 13 ++-----------
- src/cmd/compile/internal/ssa/deadstore.go      |  4 ++--
- src/cmd/compile/internal/ssa/debug.go          |  4 ++--
- src/cmd/compile/internal/ssa/gen/genericOps.go |  1 -
- src/cmd/compile/internal/ssa/lower.go          |  2 +-
- src/cmd/compile/internal/ssa/nilcheck.go       |  2 +-
- src/cmd/compile/internal/ssa/numberlines.go    |  2 +-
- src/cmd/compile/internal/ssa/opGen.go          |  8 --------
- src/cmd/compile/internal/ssa/value.go          |  2 +-
- src/cmd/compile/internal/ssa/writebarrier.go   |  8 ++++----
- src/cmd/compile/internal/ssagen/ssa.go         |  5 +----
- 12 files changed, 16 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  6 ++++++
+ test/typeparam/issue48602.go              | 25 +++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

@@ -1,19 +1,93 @@
-commit de5329f1de4cd4a938323012910310e548b2d936
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jun 23 14:11:59 2022 -0400
+commit 6cf1d5d0fa1049e2910d048ce2b6b5a97fe6edc4
+Author: Jake Ciolek <jakub@ciolek.dev>
+Date:   Wed Aug 25 12:36:17 2021 +0200
 
-    debug/dwarf: handle malformed line table with bad program offset
+    cmd/compile: generic SSA rules for simplifying 2 and 3 operand integer arithmetic expressions
     
-    Touch up the line table reader to ensure that it can detect and reject
-    an invalid program offset field in the table header.
+    This applies the following generic integer addition/subtraction transformations:
     
-    Fixes #53329.
+    x - (x + y) = -y
+    (x - y) - x = -y
+    y + (x - y) = x
+    y + (z + (x - y) = x + z
     
-    Change-Id: Ia8d684e909af3aca3014b4a3d0dfd431e3f5a9f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413814
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    There's over 40 unique functions matching in Go. Hits 2 funcs in the runtime itself:
+    
+    runtime.stackfree()
+    runtime.runqdrain()
+    
+    Go binary size reduced by 0.05% on Linux x86_64.
+    
+    StackCopy bench (perflocked Cascade Lake x86):
+    
+    name                old time/op  new time/op  delta
+    StackCopyPtr-8      87.3ms ± 1%  86.9ms ± 0%  -0.45%  (p=0.000 n=20+20)
+    StackCopy-8         77.6ms ± 1%  77.0ms ± 0%  -0.76%  (p=0.000 n=20+20)
+    StackCopyNoCache-8  2.28ms ± 2%  2.26ms ± 2%  -0.93%  (p=0.008 n=19+20)
+    
+    test/bench/go1 benchmarks (perflocked Cascade Lake x86):
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-8              1.88s ± 1%     1.88s ± 0%    ~     (p=0.373 n=15+12)
+    Fannkuch11-8                2.31s ± 0%     2.35s ± 0%  +1.52%  (p=0.000 n=15+14)
+    FmtFprintfEmpty-8          26.6ns ± 0%    26.6ns ± 0%    ~     (p=0.081 n=14+13)
+    FmtFprintfString-8         48.6ns ± 0%    50.0ns ± 0%  +2.86%  (p=0.000 n=15+14)
+    FmtFprintfInt-8            56.9ns ± 0%    54.8ns ± 0%  -3.70%  (p=0.000 n=15+15)
+    FmtFprintfIntInt-8         90.4ns ± 0%    88.8ns ± 0%  -1.78%  (p=0.000 n=15+15)
+    FmtFprintfPrefixedInt-8     104ns ± 0%     104ns ± 0%    ~     (p=0.905 n=14+13)
+    FmtFprintfFloat-8           148ns ± 0%     144ns ± 0%  -2.19%  (p=0.000 n=14+15)
+    FmtManyArgs-8               389ns ± 0%     390ns ± 0%  +0.35%  (p=0.000 n=12+15)
+    GobDecode-8                3.90ms ± 1%    3.88ms ± 0%  -0.49%  (p=0.000 n=15+14)
+    GobEncode-8                2.73ms ± 0%    2.73ms ± 0%    ~     (p=0.425 n=15+14)
+    Gzip-8                      169ms ± 0%     168ms ± 0%  -0.52%  (p=0.000 n=13+13)
+    Gunzip-8                   24.7ms ± 0%    24.8ms ± 0%  +0.61%  (p=0.000 n=15+15)
+    HTTPClientServer-8         60.5µs ± 6%    60.4µs ± 7%    ~     (p=0.595 n=15+15)
+    JSONEncode-8               6.97ms ± 1%    6.93ms ± 0%  -0.69%  (p=0.000 n=14+14)
+    JSONDecode-8               31.2ms ± 1%    30.8ms ± 1%  -1.27%  (p=0.000 n=14+14)
+    Mandelbrot200-8            3.87ms ± 0%    3.87ms ± 0%    ~     (p=0.652 n=15+14)
+    GoParse-8                  2.65ms ± 2%    2.64ms ± 1%    ~     (p=0.202 n=15+15)
+    RegexpMatchEasy0_32-8      45.1ns ± 0%    45.9ns ± 0%  +1.68%  (p=0.000 n=14+15)
+    RegexpMatchEasy0_1K-8       140ns ± 0%     139ns ± 0%  -0.44%  (p=0.000 n=15+14)
+    RegexpMatchEasy1_32-8      40.9ns ± 3%    40.5ns ± 0%  -0.88%  (p=0.000 n=15+13)
+    RegexpMatchEasy1_1K-8       215ns ± 1%     220ns ± 1%  +2.27%  (p=0.000 n=15+15)
+    RegexpMatchMedium_32-8      783ns ± 7%     738ns ± 0%    ~     (p=0.361 n=15+15)
+    RegexpMatchMedium_1K-8     24.1µs ± 6%    23.4µs ± 6%  -2.94%  (p=0.004 n=15+15)
+    RegexpMatchHard_32-8       1.10µs ± 1%    1.09µs ± 1%  -0.40%  (p=0.006 n=15+14)
+    RegexpMatchHard_1K-8       33.0µs ± 0%    33.0µs ± 0%    ~     (p=0.535 n=12+14)
+    Revcomp-8                   354ms ± 0%     353ms ± 0%  -0.23%  (p=0.002 n=15+13)
+    Template-8                 42.0ms ± 1%    41.8ms ± 2%  -0.37%  (p=0.023 n=14+15)
+    TimeParse-8                 181ns ± 0%     180ns ± 1%  -0.18%  (p=0.014 n=12+13)
+    TimeFormat-8                240ns ± 0%     242ns ± 1%  +0.69%  (p=0.000 n=12+15)
+    [Geo mean]                 35.2µs         35.1µs       -0.43%
+    
+    name                     old speed      new speed      delta
+    GobDecode-8               197MB/s ± 1%   198MB/s ± 0%  +0.49%  (p=0.000 n=15+14)
+    GobEncode-8               281MB/s ± 0%   281MB/s ± 0%    ~     (p=0.419 n=15+14)
+    Gzip-8                    115MB/s ± 0%   115MB/s ± 0%  +0.52%  (p=0.000 n=13+13)
+    Gunzip-8                  786MB/s ± 0%   781MB/s ± 0%  -0.60%  (p=0.000 n=15+15)
+    JSONEncode-8              278MB/s ± 1%   280MB/s ± 0%  +0.69%  (p=0.000 n=14+14)
+    JSONDecode-8             62.3MB/s ± 1%  63.1MB/s ± 1%  +1.29%  (p=0.000 n=14+14)
+    GoParse-8                21.9MB/s ± 2%  22.0MB/s ± 1%    ~     (p=0.205 n=15+15)
+    RegexpMatchEasy0_32-8     709MB/s ± 0%   697MB/s ± 0%  -1.65%  (p=0.000 n=14+15)
+    RegexpMatchEasy0_1K-8    7.34GB/s ± 0%  7.37GB/s ± 0%  +0.43%  (p=0.000 n=15+15)
+    RegexpMatchEasy1_32-8     783MB/s ± 2%   790MB/s ± 0%  +0.88%  (p=0.000 n=15+13)
+    RegexpMatchEasy1_1K-8    4.77GB/s ± 1%  4.66GB/s ± 1%  -2.23%  (p=0.000 n=15+15)
+    RegexpMatchMedium_32-8   41.0MB/s ± 7%  43.3MB/s ± 0%    ~     (p=0.360 n=15+15)
+    RegexpMatchMedium_1K-8   42.5MB/s ± 6%  43.8MB/s ± 6%  +3.07%  (p=0.004 n=15+15)
+    RegexpMatchHard_32-8     29.2MB/s ± 1%  29.3MB/s ± 1%  +0.41%  (p=0.006 n=15+14)
+    RegexpMatchHard_1K-8     31.1MB/s ± 0%  31.1MB/s ± 0%    ~     (p=0.495 n=12+14)
+    Revcomp-8                 718MB/s ± 0%   720MB/s ± 0%  +0.23%  (p=0.002 n=15+13)
+    Template-8               46.3MB/s ± 1%  46.4MB/s ± 2%  +0.38%  (p=0.021 n=14+15)
+    [Geo mean]                205MB/s        206MB/s       +0.57%
+    
+    Change-Id: Ibd1afdf8b6c0b08087dcc3acd8f943637eb95ac0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344930
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/debug/dwarf/line.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   4 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 328 +++++++++++++++++++++++++
+ test/codegen/arithmetic.go                     |  24 ++
+ 3 files changed, 356 insertions(+)

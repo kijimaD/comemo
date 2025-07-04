@@ -1,17 +1,152 @@
-commit bc0406333f686a754c2d787f93b143c27721925d
-Author: Sean Liao <sean@liao.dev>
-Date:   Tue Dec 3 22:41:38 2024 +0000
+commit 8631fcbf31334321ce7e32d036e8b150fa1c9d9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 6 13:50:08 2023 -0400
 
-    sync: document RWMutex locks cannot be upgraded / downgraded
+    math/rand/v2: add PCG-DXSM
     
-    Fixes #38859
+    For the original math/rand, we ported Plan 9's random number
+    generator, which was a refinement by Ken Thompson of an algorithm
+    by Don Mitchell and Jim Reeds, which Mitchell in turn recalls as
+    having been derived from an algorithm by Marsaglia. At its core,
+    it is an additive lagged Fibonacci generator (ALFG).
     
-    Change-Id: I9f4f6fa4cb529aaadfb3812e3a5c0da982a95f68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633415
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Whatever the details of the history, this generator is nowhere
+    near the current state of the art for simple, pseudo-random
+    generators.
+    
+    This CL adds an implementation of Melissa O'Neill's PCG, specifically
+    the variant PCG-DXSM, which she defined after writing the PCG paper
+    and which is now the default in Numpy. The update is slightly slower
+    (a few multiplies and adds, instead of a few adds), but the state
+    is dramatically smaller (2 words instead of 607). The statistical
+    output properties are better too.
+    
+    A followup CL will delete the old generator.
+    
+    PCG is the only change here, so no benchmarks should be affected.
+    Including them anyway as further evidence for caution.
+    
+    goos: linux
+    goarch: amd64
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ 8993506f2f.amd64 │           01ff938549.amd64           │
+                            │      sec/op      │    sec/op     vs base                │
+    SourceUint64-32                1.325n ± 1%    1.352n ± 1%   +2.00% (p=0.000 n=20)
+    GlobalInt64-32                 2.240n ± 1%    2.083n ± 0%   -7.03% (p=0.000 n=20)
+    GlobalInt64Parallel-32        0.1041n ± 1%   0.1035n ± 1%        ~ (p=0.064 n=20)
+    GlobalUint64-32                2.072n ± 3%    2.038n ± 1%        ~ (p=0.089 n=20)
+    GlobalUint64Parallel-32       0.1008n ± 1%   0.1006n ± 1%        ~ (p=0.804 n=20)
+    Int64-32                       1.716n ± 1%    1.687n ± 2%        ~ (p=0.045 n=20)
+    Uint64-32                      1.665n ± 1%    1.674n ± 2%        ~ (p=0.878 n=20)
+    GlobalIntN1000-32              3.335n ± 1%    3.135n ± 1%   -6.00% (p=0.000 n=20)
+    IntN1000-32                    2.484n ± 1%    2.478n ± 1%        ~ (p=0.085 n=20)
+    Int64N1000-32                  2.502n ± 2%    2.455n ± 1%   -1.88% (p=0.002 n=20)
+    Int64N1e8-32                   2.484n ± 2%    2.467n ± 2%        ~ (p=0.048 n=20)
+    Int64N1e9-32                   2.502n ± 0%    2.454n ± 1%   -1.92% (p=0.000 n=20)
+    Int64N2e9-32                   2.502n ± 0%    2.482n ± 1%   -0.76% (p=0.000 n=20)
+    Int64N1e18-32                  3.201n ± 1%    3.349n ± 2%   +4.62% (p=0.000 n=20)
+    Int64N2e18-32                  3.504n ± 1%    3.537n ± 1%        ~ (p=0.185 n=20)
+    Int64N4e18-32                  4.873n ± 1%    4.917n ± 0%   +0.90% (p=0.000 n=20)
+    Int32N1000-32                  2.639n ± 1%    2.386n ± 1%   -9.57% (p=0.000 n=20)
+    Int32N1e8-32                   2.686n ± 2%    2.366n ± 1%  -11.91% (p=0.000 n=20)
+    Int32N1e9-32                   2.636n ± 1%    2.355n ± 2%  -10.70% (p=0.000 n=20)
+    Int32N2e9-32                   2.660n ± 1%    2.371n ± 1%  -10.88% (p=0.000 n=20)
+    Float32-32                     2.261n ± 1%    2.245n ± 2%        ~ (p=0.752 n=20)
+    Float64-32                     2.280n ± 1%    2.235n ± 1%   -1.97% (p=0.007 n=20)
+    ExpFloat64-32                  3.891n ± 1%    3.813n ± 3%        ~ (p=0.087 n=20)
+    NormFloat64-32                 3.711n ± 1%    3.652n ± 2%        ~ (p=0.021 n=20)
+    Perm3-32                       32.60n ± 2%    33.12n ± 3%        ~ (p=0.107 n=20)
+    Perm30-32                      204.2n ± 0%    205.1n ± 1%        ~ (p=0.358 n=20)
+    Perm30ViaShuffle-32            121.7n ± 2%    110.8n ± 1%   -8.96% (p=0.000 n=20)
+    ShuffleOverhead-32             106.2n ± 2%    113.0n ± 1%   +6.36% (p=0.000 n=20)
+    Concurrent-32                  2.190n ± 5%    2.100n ± 0%   -4.13% (p=0.001 n=20)
+    PCG_DXSM-32                                   1.490n ± 0%
+    
+    goos: darwin
+    goarch: arm64
+    pkg: math/rand/v2
+    cpu: Apple M1
+                           │ 8993506f2f.arm64 │           01ff938549.arm64           │
+                           │      sec/op      │    sec/op     vs base                │
+    SourceUint64-8                2.271n ± 0%    2.258n ± 1%        ~ (p=0.167 n=20)
+    GlobalInt64-8                 2.161n ± 1%    2.167n ± 0%        ~ (p=0.693 n=20)
+    GlobalInt64Parallel-8        0.4303n ± 0%   0.4310n ± 0%        ~ (p=0.051 n=20)
+    GlobalUint64-8                2.164n ± 1%    2.182n ± 1%        ~ (p=0.042 n=20)
+    GlobalUint64Parallel-8       0.4287n ± 0%   0.4297n ± 0%        ~ (p=0.082 n=20)
+    Int64-8                       2.478n ± 1%    2.472n ± 1%        ~ (p=0.151 n=20)
+    Uint64-8                      2.460n ± 1%    2.449n ± 1%        ~ (p=0.013 n=20)
+    GlobalIntN1000-8              2.814n ± 2%    2.814n ± 2%        ~ (p=0.821 n=20)
+    IntN1000-8                    3.003n ± 2%    2.998n ± 2%        ~ (p=0.024 n=20)
+    Int64N1000-8                  2.954n ± 0%    2.949n ± 2%        ~ (p=0.192 n=20)
+    Int64N1e8-8                   2.956n ± 0%    2.953n ± 2%        ~ (p=0.109 n=20)
+    Int64N1e9-8                   3.325n ± 0%    2.950n ± 0%  -11.26% (p=0.000 n=20)
+    Int64N2e9-8                   2.956n ± 2%    2.946n ± 2%        ~ (p=0.027 n=20)
+    Int64N1e18-8                  3.780n ± 1%    3.779n ± 1%        ~ (p=0.815 n=20)
+    Int64N2e18-8                  4.385n ± 0%    4.370n ± 1%        ~ (p=0.402 n=20)
+    Int64N4e18-8                  6.527n ± 0%    6.544n ± 1%        ~ (p=0.140 n=20)
+    Int32N1000-8                  2.964n ± 1%    2.950n ± 0%   -0.47% (p=0.002 n=20)
+    Int32N1e8-8                   2.964n ± 1%    2.950n ± 2%        ~ (p=0.013 n=20)
+    Int32N1e9-8                   2.963n ± 2%    2.951n ± 2%        ~ (p=0.062 n=20)
+    Int32N2e9-8                   2.961n ± 2%    2.950n ± 2%   -0.37% (p=0.002 n=20)
+    Float32-8                     3.442n ± 0%    3.441n ± 0%        ~ (p=0.211 n=20)
+    Float64-8                     3.442n ± 0%    3.442n ± 0%        ~ (p=0.067 n=20)
+    ExpFloat64-8                  4.472n ± 0%    4.481n ± 0%   +0.20% (p=0.000 n=20)
+    NormFloat64-8                 4.734n ± 0%    4.725n ± 0%   -0.19% (p=0.003 n=20)
+    Perm3-8                       26.55n ± 0%    26.55n ± 0%        ~ (p=0.833 n=20)
+    Perm30-8                      181.9n ± 0%    181.9n ± 0%   -0.03% (p=0.004 n=20)
+    Perm30ViaShuffle-8            143.1n ± 0%    142.9n ± 0%        ~ (p=0.204 n=20)
+    ShuffleOverhead-8             120.6n ± 1%    120.8n ± 2%        ~ (p=0.102 n=20)
+    Concurrent-8                  2.357n ± 2%    2.421n ± 6%        ~ (p=0.016 n=20)
+    PCG_DXSM-8                                   2.531n ± 0%
+    
+    goos: linux
+    goarch: 386
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ 8993506f2f.386 │           01ff938549.386            │
+                            │     sec/op     │    sec/op     vs base               │
+    SourceUint64-32              2.102n ± 2%    2.069n ± 0%       ~ (p=0.021 n=20)
+    GlobalInt64-32               3.542n ± 2%    3.456n ± 1%  -2.44% (p=0.001 n=20)
+    GlobalInt64Parallel-32      0.3202n ± 0%   0.3252n ± 0%  +1.56% (p=0.000 n=20)
+    GlobalUint64-32              3.507n ± 1%    3.573n ± 1%  +1.87% (p=0.000 n=20)
+    GlobalUint64Parallel-32     0.3170n ± 1%   0.3159n ± 0%       ~ (p=0.167 n=20)
+    Int64-32                     2.516n ± 1%    2.562n ± 2%       ~ (p=0.016 n=20)
+    Uint64-32                    2.544n ± 1%    2.592n ± 0%  +1.85% (p=0.000 n=20)
+    GlobalIntN1000-32            6.237n ± 1%    6.266n ± 2%       ~ (p=0.268 n=20)
+    IntN1000-32                  4.670n ± 2%    4.724n ± 2%       ~ (p=0.644 n=20)
+    Int64N1000-32                5.412n ± 1%    5.490n ± 2%       ~ (p=0.159 n=20)
+    Int64N1e8-32                 5.414n ± 2%    5.513n ± 2%       ~ (p=0.129 n=20)
+    Int64N1e9-32                 5.473n ± 1%    5.476n ± 1%       ~ (p=0.723 n=20)
+    Int64N2e9-32                 5.487n ± 1%    5.501n ± 2%       ~ (p=0.481 n=20)
+    Int64N1e18-32                8.901n ± 2%    9.043n ± 2%       ~ (p=0.330 n=20)
+    Int64N2e18-32                9.521n ± 1%    9.601n ± 2%       ~ (p=0.703 n=20)
+    Int64N4e18-32                11.92n ± 1%    12.00n ± 1%       ~ (p=0.489 n=20)
+    Int32N1000-32                4.785n ± 1%    4.829n ± 2%       ~ (p=0.402 n=20)
+    Int32N1e8-32                 4.748n ± 1%    4.825n ± 2%       ~ (p=0.218 n=20)
+    Int32N1e9-32                 4.810n ± 1%    4.830n ± 2%       ~ (p=0.794 n=20)
+    Int32N2e9-32                 4.812n ± 1%    4.750n ± 2%       ~ (p=0.057 n=20)
+    Float32-32                   10.48n ± 4%    10.89n ± 4%       ~ (p=0.162 n=20)
+    Float64-32                   19.79n ± 3%    19.60n ± 4%       ~ (p=0.668 n=20)
+    ExpFloat64-32                12.91n ± 3%    12.96n ± 3%       ~ (p=1.000 n=20)
+    NormFloat64-32               7.462n ± 1%    7.516n ± 1%       ~ (p=0.051 n=20)
+    Perm3-32                     35.98n ± 2%    36.78n ± 2%       ~ (p=0.033 n=20)
+    Perm30-32                    241.5n ± 1%    238.9n ± 2%       ~ (p=0.126 n=20)
+    Perm30ViaShuffle-32          187.3n ± 2%    189.7n ± 2%       ~ (p=0.387 n=20)
+    ShuffleOverhead-32           160.2n ± 1%    159.8n ± 1%       ~ (p=0.256 n=20)
+    Concurrent-32                3.308n ± 3%    3.286n ± 1%       ~ (p=0.038 n=20)
+    PCG_DXSM-32                                 7.613n ± 1%
+    
+    For #61716.
+    
+    Change-Id: Icb274ca1f782504d658305a40159b4ae6a2f3f1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502505
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/sync/rwmutex.go | 2 ++
- 1 file changed, 2 insertions(+)
+ api/next/61716.txt           |   6 +++
+ src/math/rand/v2/pcg.go      | 121 +++++++++++++++++++++++++++++++++++++++++++
+ src/math/rand/v2/pcg_test.go |  79 ++++++++++++++++++++++++++++
+ 3 files changed, 206 insertions(+)

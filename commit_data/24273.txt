@@ -1,16 +1,12 @@
-commit 173bf3487fd63232fd1c8b2cf2441c1e17e6ca28
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 14 11:48:19 2015 -0700
+commit abf943aa37b205b34c02b2edd9f0267782283d0a
+Author: Paul Marks <pmarks@google.com>
+Date:   Fri Jul 17 14:23:26 2015 -0700
 
-    asm: more early returns on errors
+    doc/go1.5.html: update the net.Dial release notes.
     
-    More protection against random input bytes.
-    
-    Fixes #12614.
-    
-    Change-Id: Ie9f817de1376a10bb80b22ecee3bae4f1d26cc6c
-    Reviewed-on: https://go-review.googlesource.com/14563
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ie02426b2b726170d858de96fdd8c51bfdf20d7dc
+    Reviewed-on: https://go-review.googlesource.com/12376
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/asm.go | 48 ++++++++++++++++++++++++++++++-----------
- 1 file changed, 35 insertions(+), 13 deletions(-)
+ doc/go1.5.html | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

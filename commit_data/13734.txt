@@ -1,13 +1,17 @@
-commit 5fa8987fe33210aed95aabe86864cbf75eca3fa0
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Sep 1 19:55:03 2012 -0400
+commit 1c2021ca142677fbfbbea950dd5a35986d86e678
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Sep 1 13:52:55 2012 -0400
 
-    A+C: add Uriel Mangado (individual CLA)
+    cmd/gc: Suggest *T in error for x.(T) if it would work.
     
-    R=golang-dev, r
+    Accomplished by synchronizing the formatting of conversion errors between typecheck.c and subr.c
+    
+    Fixes #3984.
+    
+    R=golang-dev, remyoudompheng, rsc
     CC=golang-dev
-    https://golang.org/cl/6492070
+    https://golang.org/cl/6500064
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/gc/typecheck.c     | 20 +++++++++++++-------
+ test/interface/explicit.go |  6 ++++++
+ 2 files changed, 19 insertions(+), 7 deletions(-)

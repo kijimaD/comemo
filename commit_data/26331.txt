@@ -1,67 +1,25 @@
-commit f11e4eb5cc94a64f05204972874ec457c1401b8d
-Author: Austin Clements <austin@google.com>
-Date:   Mon Feb 15 18:30:48 2016 -0500
+commit b80b098bc523871d0657f8f68ed71882558f557f
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Jan 8 12:57:02 2016 +1300
 
-    runtime: shrink stacks during concurrent mark
+    cmd/go: pass -no-pie along with -Wl,-r to gcc when supported on linux
     
-    Currently we shrink stacks during STW mark termination because it used
-    to be unsafe to shrink them concurrently. For some programs, this
-    significantly increases pause time: stack shrinking costs ~5ms/MB
-    copied plus 2µs/shrink.
+    Go fails to build on a system which has PIE enabled by default like this:
     
-    Now that we've made it safe to shrink a stack without the world being
-    stopped, shrink them during the concurrent mark phase.
+    /usr/bin/ld: -r and -pie may not be used together
+    collect2: error: ld returned 1 exit status
     
-    This reduces the STW time in the program from issue #12967 by an order
-    of magnitude and brings it from over the 10ms goal to well under:
+    The only system I know that has this property right now is Ubuntu Xenial
+    running on s390x, which is hardly the most accessible system, but it's planned
+    to enable this on amd64 soon too. The fix is to pass -no-pie along with -Wl,-r
+    to the compiler, but unfortunately that flag is very new as well. So this does
+    a test compile of a trivial file to see if the flag is supported.
     
-    name           old 95%ile-markTerm-time  new 95%ile-markTerm-time  delta
-    Stackshrink-4               23.8ms ±60%               1.80ms ±39%  -92.44%  (p=0.008 n=5+5)
-    
-    Fixes #12967.
-    
-    This slows down the go1 and garbage benchmarks overall by < 0.5%.
-    
-    name              old time/op  new time/op  delta
-    XBenchGarbage-12  2.48ms ± 1%  2.49ms ± 1%  +0.45%  (p=0.005 n=25+21)
-    
-    name                      old time/op    new time/op    delta
-    BinaryTree17-12              2.93s ± 2%     2.97s ± 2%  +1.34%  (p=0.002 n=19+20)
-    Fannkuch11-12                2.51s ± 1%     2.59s ± 0%  +3.09%  (p=0.000 n=18+18)
-    FmtFprintfEmpty-12          51.1ns ± 2%    51.5ns ± 1%    ~     (p=0.280 n=20+17)
-    FmtFprintfString-12          175ns ± 1%     169ns ± 1%  -3.01%  (p=0.000 n=20+20)
-    FmtFprintfInt-12             160ns ± 1%     160ns ± 0%  +0.53%  (p=0.000 n=20+20)
-    FmtFprintfIntInt-12          265ns ± 0%     266ns ± 1%  +0.59%  (p=0.000 n=20+20)
-    FmtFprintfPrefixedInt-12     237ns ± 1%     238ns ± 1%  +0.44%  (p=0.000 n=20+20)
-    FmtFprintfFloat-12           326ns ± 1%     341ns ± 1%  +4.55%  (p=0.000 n=20+19)
-    FmtManyArgs-12              1.01µs ± 0%    1.02µs ± 0%  +0.43%  (p=0.000 n=20+19)
-    GobDecode-12                8.41ms ± 1%    8.30ms ± 2%  -1.22%  (p=0.000 n=20+19)
-    GobEncode-12                6.66ms ± 1%    6.68ms ± 0%  +0.30%  (p=0.000 n=18+19)
-    Gzip-12                      322ms ± 1%     322ms ± 1%    ~     (p=1.000 n=20+20)
-    Gunzip-12                   42.8ms ± 0%    42.9ms ± 0%    ~     (p=0.174 n=20+20)
-    HTTPClientServer-12         69.7µs ± 1%    70.6µs ± 1%  +1.20%  (p=0.000 n=20+20)
-    JSONEncode-12               16.8ms ± 0%    16.8ms ± 1%    ~     (p=0.154 n=19+19)
-    JSONDecode-12               65.1ms ± 0%    65.3ms ± 1%  +0.34%  (p=0.003 n=20+20)
-    Mandelbrot200-12            3.93ms ± 0%    3.92ms ± 0%    ~     (p=0.396 n=19+20)
-    GoParse-12                  3.66ms ± 1%    3.65ms ± 1%    ~     (p=0.117 n=16+18)
-    RegexpMatchEasy0_32-12      85.0ns ± 2%    85.5ns ± 2%    ~     (p=0.143 n=20+20)
-    RegexpMatchEasy0_1K-12       267ns ± 1%     267ns ± 1%    ~     (p=0.867 n=20+17)
-    RegexpMatchEasy1_32-12      83.3ns ± 2%    83.8ns ± 1%    ~     (p=0.068 n=20+20)
-    RegexpMatchEasy1_1K-12       432ns ± 1%     432ns ± 1%    ~     (p=0.804 n=20+19)
-    RegexpMatchMedium_32-12      133ns ± 0%     133ns ± 0%    ~     (p=1.000 n=20+20)
-    RegexpMatchMedium_1K-12     40.3µs ± 1%    40.4µs ± 1%    ~     (p=0.319 n=20+19)
-    RegexpMatchHard_32-12       2.10µs ± 1%    2.10µs ± 1%    ~     (p=0.723 n=20+18)
-    RegexpMatchHard_1K-12       63.0µs ± 0%    63.0µs ± 0%    ~     (p=0.158 n=19+17)
-    Revcomp-12                   461ms ± 1%     476ms ± 8%  +3.29%  (p=0.002 n=20+20)
-    Template-12                 80.1ms ± 1%    79.3ms ± 1%  -1.00%  (p=0.000 n=20+20)
-    TimeParse-12                 360ns ± 0%     360ns ± 0%    ~     (p=0.802 n=18+19)
-    TimeFormat-12                374ns ± 1%     372ns ± 0%  -0.77%  (p=0.000 n=20+19)
-    [Geo mean]                  61.8µs         62.0µs       +0.40%
-    
-    Change-Id: Ib60cd46b7a4987e07670eb271d22f6cee5802842
-    Reviewed-on: https://go-review.googlesource.com/20044
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1345571142b7c3a96212e43297d19e84ec4a3d41
+    Reviewed-on: https://go-review.googlesource.com/18359
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgcmark.go | 17 ++++++++++++-----
- src/runtime/stack.go   |  8 +++++---
- 2 files changed, 17 insertions(+), 8 deletions(-)
+ src/cmd/go/build.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

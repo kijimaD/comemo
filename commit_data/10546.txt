@@ -1,61 +1,93 @@
-commit 8dce57e169255608b46bb563bb7de1581908aea6
+commit 03823b881cdfd4432ac1ea576677b6279bc6bb74
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 30 12:04:16 2011 -0500
+Date:   Wed Nov 30 12:01:46 2011 -0500
 
-    os: new FileInfo, FileMode types + update tree
+    use new time API
     
-    R=golang-dev, r, r, gri, bradfitz, iant, iant, nigeltao, n13m3y3r
+    R=bradfitz, gri, r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5416060
+    https://golang.org/cl/5390042
 
- misc/dashboard/builder/main.go       |   4 +-
- misc/dashboard/builder/package.go    |  10 +--
- src/cmd/godoc/codewalk.go            |   4 +-
- src/cmd/godoc/dirtrees.go            |  11 +--
- src/cmd/godoc/filesystem.go          |  60 +++-------------
- src/cmd/godoc/godoc.go               |  30 +++-----
- src/cmd/godoc/httpzip.go             |  62 ++++++++--------
- src/cmd/godoc/index.go               |   7 +-
- src/cmd/godoc/parser.go              |   3 +-
- src/cmd/godoc/zip.go                 |  25 ++++---
- src/cmd/gofix/main.go                |  13 ++--
- src/cmd/gofmt/gofmt.go               |  13 ++--
- src/cmd/goinstall/download.go        |   2 +-
- src/cmd/govet/govet.go               |   6 +-
- src/cmd/hgpatch/main.go              |   4 +-
- src/pkg/archive/zip/reader.go        |   2 +-
- src/pkg/exp/gotype/gotype.go         |  12 ++--
- src/pkg/exp/types/check_test.go      |   2 +-
- src/pkg/exp/types/gcimporter.go      |   2 +-
- src/pkg/exp/types/gcimporter_test.go |  10 +--
- src/pkg/go/build/build.go            |   6 +-
- src/pkg/go/build/dir.go              |  35 ++++-----
- src/pkg/go/build/path.go             |   4 +-
- src/pkg/go/parser/interface.go       |   7 +-
- src/pkg/go/parser/parser_test.go     |   2 +-
- src/pkg/io/ioutil/ioutil.go          |  24 +++----
- src/pkg/io/ioutil/ioutil_test.go     |   8 +--
- src/pkg/net/http/fs.go               |  20 +++---
- src/pkg/net/http/fs_test.go          |   4 +-
- src/pkg/os/dir_windows.go            |   2 +-
- src/pkg/os/exec/lp_unix.go           |   2 +-
- src/pkg/os/exec/lp_windows.go        |   6 +-
- src/pkg/os/export_test.go            |  10 +++
- src/pkg/os/file_unix.go              |  53 ++++++--------
- src/pkg/os/file_windows.go           |   6 +-
- src/pkg/os/getwd.go                  |  12 ++--
- src/pkg/os/os_test.go                | 136 ++++++++++-------------------------
- src/pkg/os/os_unix_test.go           |  75 +++++++++++++++++++
- src/pkg/os/path.go                   |   6 +-
- src/pkg/os/stat_darwin.go            |  57 +++++++++------
- src/pkg/os/stat_freebsd.go           |  57 +++++++++------
- src/pkg/os/stat_linux.go             |  57 +++++++++------
- src/pkg/os/stat_openbsd.go           |  57 +++++++++------
- src/pkg/os/stat_windows.go           |  38 +++++-----
- src/pkg/os/types.go                  | 124 ++++++++++++++++++++++----------
- src/pkg/os/user/user_test.go         |   4 +-
- src/pkg/path/filepath/match.go       |   2 +-
- src/pkg/path/filepath/path.go        |  32 ++++-----
- src/pkg/path/filepath/path_test.go   |   9 +--
- src/pkg/time/zoneinfo_plan9.go       |   8 +--
- 50 files changed, 620 insertions(+), 525 deletions(-)
+ misc/dashboard/builder/main.go                    | 18 ++++----
+ src/cmd/godoc/filesystem.go                       |  7 +--
+ src/cmd/godoc/godoc.go                            | 41 +++++++++---------
+ src/cmd/godoc/httpzip.go                          | 26 ++++++-----
+ src/cmd/godoc/main.go                             |  9 ++--
+ src/cmd/godoc/throttle.go                         | 36 +++++++--------
+ src/cmd/godoc/utils.go                            |  6 +--
+ src/cmd/godoc/zip.go                              |  7 +--
+ src/cmd/gotest/gotest.go                          | 10 ++---
+ src/pkg/archive/tar/common.go                     | 53 ++++++++++++-----------
+ src/pkg/archive/tar/reader.go                     |  7 +--
+ src/pkg/archive/tar/reader_test.go                | 53 ++++++++++++-----------
+ src/pkg/archive/tar/writer.go                     | 26 +++++------
+ src/pkg/archive/tar/writer_test.go                |  9 ++--
+ src/pkg/archive/zip/reader_test.go                |  4 +-
+ src/pkg/archive/zip/struct.go                     | 32 ++++++++------
+ src/pkg/compress/gzip/gunzip.go                   | 13 +++---
+ src/pkg/compress/gzip/gzip.go                     |  2 +-
+ src/pkg/compress/gzip/gzip_test.go                |  7 +--
+ src/pkg/crypto/ocsp/ocsp.go                       | 10 ++---
+ src/pkg/crypto/ocsp/ocsp_test.go                  |  8 +++-
+ src/pkg/crypto/openpgp/keys.go                    | 18 ++++----
+ src/pkg/crypto/openpgp/packet/private_key.go      |  5 ++-
+ src/pkg/crypto/openpgp/packet/private_key_test.go |  9 ++--
+ src/pkg/crypto/openpgp/packet/public_key.go       | 18 ++++----
+ src/pkg/crypto/openpgp/packet/public_key_test.go  | 11 ++---
+ src/pkg/crypto/openpgp/packet/signature.go        | 17 +++++---
+ src/pkg/crypto/openpgp/write.go                   | 20 ++++++---
+ src/pkg/crypto/openpgp/write_test.go              |  2 +-
+ src/pkg/crypto/rand/rand_unix.go                  |  2 +-
+ src/pkg/crypto/tls/common.go                      |  6 +--
+ src/pkg/crypto/tls/handshake_client.go            |  2 +-
+ src/pkg/crypto/tls/handshake_server.go            |  2 +-
+ src/pkg/crypto/tls/handshake_server_test.go       |  3 +-
+ src/pkg/crypto/x509/pkix/pkix.go                  | 13 +++---
+ src/pkg/crypto/x509/verify.go                     | 12 ++---
+ src/pkg/crypto/x509/verify_test.go                |  3 +-
+ src/pkg/crypto/x509/x509.go                       |  6 +--
+ src/pkg/crypto/x509/x509_test.go                  | 12 ++---
+ src/pkg/encoding/asn1/asn1.go                     | 10 ++---
+ src/pkg/encoding/asn1/asn1_test.go                | 41 ++++++++++--------
+ src/pkg/encoding/asn1/marshal.go                  | 38 +++++++++-------
+ src/pkg/encoding/asn1/marshal_test.go             | 14 +++---
+ src/pkg/exp/types/gcimporter_test.go              |  8 ++--
+ src/pkg/go/build/build.go                         |  9 ++--
+ src/pkg/io/ioutil/tempfile.go                     |  2 +-
+ src/pkg/log/log.go                                | 21 ++++-----
+ src/pkg/math/big/calibrate_test.go                | 10 ++---
+ src/pkg/net/dnsclient_unix.go                     |  2 +-
+ src/pkg/net/fd.go                                 |  2 +-
+ src/pkg/net/fd_windows.go                         |  3 +-
+ src/pkg/net/hosts.go                              | 10 ++---
+ src/pkg/net/http/cgi/host_test.go                 |  2 +-
+ src/pkg/net/http/cookie.go                        |  6 +--
+ src/pkg/net/http/cookie_test.go                   |  2 +-
+ src/pkg/net/http/export_test.go                   |  6 ++-
+ src/pkg/net/http/fcgi/child.go                    |  2 +-
+ src/pkg/net/http/fs.go                            |  4 +-
+ src/pkg/net/http/httptest/server.go               |  4 --
+ src/pkg/net/http/httputil/reverseproxy.go         | 10 ++---
+ src/pkg/net/http/pprof/pprof.go                   |  2 +-
+ src/pkg/net/http/serve_test.go                    | 12 ++---
+ src/pkg/net/http/server.go                        | 11 +++--
+ src/pkg/net/http/transport_test.go                |  2 +-
+ src/pkg/net/mail/message.go                       |  8 ++--
+ src/pkg/net/mail/message_test.go                  | 22 ++--------
+ src/pkg/net/timeout_test.go                       |  8 ++--
+ src/pkg/old/netchan/common.go                     | 12 ++---
+ src/pkg/old/netchan/export.go                     | 14 +++---
+ src/pkg/old/netchan/import.go                     |  4 +-
+ src/pkg/os/file_posix.go                          | 10 +++--
+ src/pkg/os/os_test.go                             | 20 ++++-----
+ src/pkg/os/stat_darwin.go                         | 15 +++++--
+ src/pkg/os/stat_freebsd.go                        | 15 +++++--
+ src/pkg/os/stat_linux.go                          | 15 +++++--
+ src/pkg/os/stat_openbsd.go                        | 15 +++++--
+ src/pkg/os/stat_windows.go                        |  7 +--
+ src/pkg/os/types.go                               | 35 ++++++++-------
+ src/pkg/testing/benchmark.go                      | 44 ++++++++++---------
+ src/pkg/testing/example.go                        |  6 +--
+ src/pkg/testing/testing.go                        | 21 ++++-----
+ test/initsyscall.go                               |  3 +-
+ 82 files changed, 558 insertions(+), 494 deletions(-)

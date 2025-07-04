@@ -1,0 +1,32 @@
+commit 715754ba86665b860c7245759149f1e86c24ee8d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 24 20:56:47 2025 +0000
+
+    internal/trace: be stricter about allowed events in v2 trace versions
+    
+    Currently all v2 trace versions, Go 1.22 and Go 1.23, share a full set
+    of specs. This is mostly OK, but it means quite a few events will be
+    accepted for 1.22 traces that should be rejected. This change fixes that
+    by limiting which event specs are returned by version.Version.Specs for
+    Go 1.22.
+    
+    While we're here, let's be stricter about event names too, and move
+    tracev2.EventString to be a method on the version, so we can be more
+    precise. An intended consequence of this move is that tracev2 no longer
+    depends on fmt, since we will want the runtime to depend on tracev2 in
+    the near future.
+    
+    Change-Id: If7285460c8ba59ab73da00993b7b12e61cdfe6a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644219
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/go/build/deps_test.go             |  4 +--
+ src/internal/trace/batch.go           |  2 +-
+ src/internal/trace/event.go           | 14 +++++-----
+ src/internal/trace/order.go           | 49 +++++++++++++++++++----------------
+ src/internal/trace/reader.go          |  5 +++-
+ src/internal/trace/tracev2/event.go   |  9 -------
+ src/internal/trace/version/version.go | 31 +++++++++++++++-------
+ 7 files changed, 62 insertions(+), 52 deletions(-)

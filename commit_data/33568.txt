@@ -1,16 +1,54 @@
-commit f1966de63f1174f93cdca87b36e8c02b7b95f652
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 13 23:06:54 2017 -0500
+commit 9d3d370632ef56c1966afc67b796fa950cb347c5
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 23 15:56:24 2017 -0700
 
-    cmd/dist: adjust package doc
+    archive/tar: support reporting and selecting the format
     
-    Mainly capitalize the first letter.
-    (Followup to CL 54351.)
+    The Reader and Writer are now at feature parity,
+    meaning that everything that can be parsed by the Reader,
+    can also be composed by the Writer.
     
-    Change-Id: I2d5c3d72c53d3468de7a9d4af8bd009182ff3d38
-    Reviewed-on: https://go-review.googlesource.com/78114
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This position enables us to support selection of the format
+    in a backwards compatible way, since it ensures that everything
+    that can be read can also be round-trip written.
+    
+    As such, we add the following new API:
+        type Format int
+                const FormatUnknown Format = 0 ...
+        type Header struct { ...; Format Format }
+    
+    The new Header.Format field is populated by the Reader on the
+    best guess on what the format is. Note that the Reader is very liberal
+    in what it permits, so a hybrid TAR file using aspects of multiple
+    formats can still be decoded, but will be reported as FormatUnknown.
+    
+    Even though Reader has full support for V7 and basic support for STAR,
+    it will still report those formats as unknown (and the constants for
+    those formats are not even exported). The reasons for this is because
+    the Writer has no support for V7 or STAR. Leaving it as unknown allows
+    the Writer to choose a format usually USTAR or GNU that can encode
+    the equivalent Header.
+    
+    When writing, the Header.allowedFormats will take the Format field
+    into consideration if it is a known format.
+    
+    Fixes #18710
+    
+    Change-Id: I00980c475d067c6969d3414e1ff0224fdd89cd49
+    Reviewed-on: https://go-review.googlesource.com/58230
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/archive/tar/common.go                      |  66 ++++++++------
+ src/archive/tar/format.go                      | 115 ++++++++++++++++++-------
+ src/archive/tar/reader.go                      |  45 ++++++++--
+ src/archive/tar/reader_test.go                 |  56 ++++++++----
+ src/archive/tar/tar_test.go                    | 115 +++++++++++++------------
+ src/archive/tar/testdata/gnu-not-utf8.tar      | Bin 1536 -> 1536 bytes
+ src/archive/tar/testdata/gnu-utf8.tar          | Bin 2560 -> 2560 bytes
+ src/archive/tar/testdata/pax-pos-size-file.tar | Bin 2560 -> 2560 bytes
+ src/archive/tar/testdata/writer-big.tar        | Bin 512 -> 512 bytes
+ src/archive/tar/writer.go                      |  20 ++---
+ src/archive/tar/writer_test.go                 |  14 +--
+ 11 files changed, 277 insertions(+), 154 deletions(-)

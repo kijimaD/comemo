@@ -1,23 +1,17 @@
-commit 99f179f55a66f35dc7861fa411b42ed61bd0df31
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Jul 20 07:57:06 2020 +0200
+commit 921ceadd2997f2c0267455e13f909df044234805
+Author: Jerrin Shaji George <jerrinsg@gmail.com>
+Date:   Wed Feb 5 01:21:11 2020 +0000
 
-    fmt: avoid badverb formatting for %q when used with integers
+    runtime: rewrite a comment in malloc.go
     
-    Instead of returning a bad verb error format for runes above
-    utf8.Maxrune return a quoted utf8.RuneError rune (\ufffd).
-    This makes the behaviour consistent with the "c" verb and
-    aligns behaviour to not return bad verb error format when
-    a verb is applied to the correct argument type.
+    This commit changes the wording of a comment in malloc.go that describes
+    how span objects are zeroed to make it more clear.
     
-    Fixes #14569
-    
-    Change-Id: I679485f6bb90ebe408423ab68af16cce38816cd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248759
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I07722df1e101af3cbf8680ad07437d4a230b0168
+    GitHub-Last-Rev: 0e909898c709a9119cea7dbd80c25d9d7a73e22b
+    GitHub-Pull-Request: golang/go#37008
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217618
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/fmt/fmt_test.go | 8 ++++----
- src/fmt/print.go    | 6 +-----
- 2 files changed, 5 insertions(+), 9 deletions(-)
+ src/runtime/malloc.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,37 +1,38 @@
-commit 4eea887fd477368653f6fcf8ad766030167936e5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 6 21:28:24 2018 -0800
+commit 731b6321728eb53e6087dc877344878b06cc4b06
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Sep 27 19:46:58 2017 -0300
 
-    runtime: convert g.waitreason from string to uint8
+    crypto, hash: implement BinaryMarshaler, BinaryUnmarshaler in hash implementations
     
-    Every time I poke at #14921, the g.waitreason string
-    pointer writes show up.
+    The marshal method allows the hash's internal state to be serialized and
+    unmarshaled at a later time, without having the re-write the entire stream
+    of data that was already written to the hash.
     
-    They're not particularly important performance-wise,
-    but it'd be nice to clear the noise away.
+    Fixes #20573
     
-    And it does open up a few extra bytes in the g struct
-    for some future use.
-    
-    Change-Id: I7ffbd52fbc2a286931a2218038fda52ed6473cc9
-    Reviewed-on: https://go-review.googlesource.com/99078
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I40bbb84702ac4b7c5662f99bf943cdf4081203e5
+    Reviewed-on: https://go-review.googlesource.com/66710
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/chan.go        |  8 ++---
- src/runtime/heapdump.go    |  4 +--
- src/runtime/mfinal.go      |  2 +-
- src/runtime/mgc.go         | 10 +++---
- src/runtime/mgcmark.go     |  6 ++--
- src/runtime/mgcsweep.go    |  4 +--
- src/runtime/netpoll.go     |  2 +-
- src/runtime/proc.go        | 16 +++++----
- src/runtime/runtime2.go    | 89 +++++++++++++++++++++++++++++++++++++++-------
- src/runtime/select.go      |  4 +--
- src/runtime/sema.go        |  4 +--
- src/runtime/sizeof_test.go |  2 +-
- src/runtime/time.go        |  4 +--
- src/runtime/trace.go       |  2 +-
- src/runtime/traceback.go   |  4 +--
- 15 files changed, 114 insertions(+), 47 deletions(-)
+ src/cmd/dist/deps.go             |   5 +-
+ src/crypto/md5/md5.go            |  73 ++++
+ src/crypto/md5/md5_test.go       | 101 +++--
+ src/crypto/sha1/sha1.go          |  63 ++++
+ src/crypto/sha1/sha1_test.go     | 105 ++++--
+ src/crypto/sha256/sha256.go      |  86 +++++
+ src/crypto/sha256/sha256_test.go | 191 ++++++----
+ src/crypto/sha512/sha512.go      |  87 +++++
+ src/crypto/sha512/sha512_test.go | 790 ++++++++++++++++++++++++++++++++-------
+ src/hash/adler32/adler32.go      |  43 ++-
+ src/hash/adler32/adler32_test.go | 125 ++++---
+ src/hash/crc32/crc32.go          |  55 +++
+ src/hash/crc32/crc32_test.go     | 150 ++++++--
+ src/hash/crc64/crc64.go          |  64 +++-
+ src/hash/crc64/crc64_test.go     | 154 ++++++--
+ src/hash/fnv/fnv.go              | 161 ++++++++
+ src/hash/fnv/fnv_test.go         | 113 ++++--
+ src/hash/hash.go                 |  13 +
+ 18 files changed, 1963 insertions(+), 416 deletions(-)

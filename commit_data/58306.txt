@@ -1,23 +1,26 @@
-commit fa38b41be94f66d3d49e10f673643105f44fe540
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Nov 28 19:55:53 2024 +0100
+commit 5fe2035927bc9fac8a375a96d9ef47735c10fba4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 7 18:53:49 2023 +0100
 
-    crypto/internal/fips140/rsa: check that e and N are odd
+    internal/profile: actually return errors in postDecode
     
-    N needs to be odd or we can't call Nat.Exp with it. This was previously
-    enforced at the Modulus level, but was relaxed in CL 630515.
+    As spotted by staticcheck, the body did keep track of errors by sharing
+    a single err variable, but its last value was never used as the function
+    simply finished by returning nil.
     
-    While at it, also assert that e is odd. If it's even, there is no
-    possible corresponding private key, and we might as well error out.
+    To prevent postDecode from erroring on empty profiles,
+    which breaks TestEmptyProfile, add a check at the top of the function.
     
-    Change-Id: I43a6c6e5789683854e4aece650fbf85166b6c318
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632475
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Update the runtime/pprof test accordingly,
+    since the default units didn't make sense for an empty profile anyway.
+    
+    Change-Id: I188cd8337434adf9169651ab5c914731b8b20f39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483137
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/internal/fips140/rsa/rsa.go | 10 +++++++++-
- src/crypto/rsa/rsa.go                  |  9 ++++++---
- 2 files changed, 15 insertions(+), 4 deletions(-)
+ src/internal/profile/encode.go  | 5 ++++-
+ src/runtime/pprof/proto_test.go | 8 ++------
+ 2 files changed, 6 insertions(+), 7 deletions(-)

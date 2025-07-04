@@ -1,22 +1,30 @@
-commit b8bf820d5d4602f7e83ff89c0f8d0f2bd3a220d4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jul 11 13:32:40 2022 -0400
+commit d15a75e070f3ba726645dc2857ba091f824ad2d2
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 16:56:07 2021 -0400
 
-    cmd/nm: don't rely on an erroneous install target in tests
+    go/types: address some TODOs (cleanup)
     
-    Non-main packages in module mode should not be installed to
-    GOPATH/pkg, but due to #37015 they were installed there anyway.
-    This change switches the 'go install' command in testGoLib to instead
-    use 'go build -buildmode=archive' with an explicit output file.
+    This is a port of CL 345176 to go/types, though not all TODOs were
+    present in go/types.
     
-    For #37015.
+    A TODO that still needs to be resolved was added back to types2.
     
-    Change-Id: I15781aa33d1b2adc6a4437a58622276f4e20b889
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416955
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Icf79483c92d0bc1248de772c7044620f0f0a5c58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346550
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/nm/nm_test.go | 13 ++-----------
- 1 file changed, 2 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/types2/unify.go   |  3 +++
+ src/go/types/check_test.go                 |  3 ---
+ src/go/types/expr.go                       |  4 +--
+ src/go/types/instantiate.go                | 43 +++++++++++-------------------
+ src/go/types/named.go                      |  2 --
+ src/go/types/self_test.go                  |  7 +----
+ src/go/types/signature.go                  |  7 +----
+ src/go/types/stmt.go                       |  5 ----
+ src/go/types/testdata/check/tinference.go2 |  4 +--
+ src/go/types/tuple.go                      |  2 --
+ src/go/types/type.go                       |  1 -
+ 11 files changed, 23 insertions(+), 58 deletions(-)

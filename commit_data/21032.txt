@@ -1,17 +1,26 @@
-commit 01b25600689250b3672465ae30b821086645013d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Dec 20 15:46:09 2014 +1100
+commit b53bdd496c2de8d33e1e65452f184c829303de9f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 10 09:46:27 2014 +1100
 
-    net/http: make Client.Timeout return net.Error errors indicating timeout
+    undo CL 169000043 / 05b838013df9
     
-    Co-hacking with Dave Cheney.
+    This was a mistake. The cmd/api tool
+    depends on an old version of go/types.
     
-    Fixes #9405
+    ««« original CL description
+    cmd/api: use golang.org/x/... import paths
     
-    Change-Id: I14fc3b6a47dcdb5e514e93d062b804bb24e89f47
-    Reviewed-on: https://go-review.googlesource.com/1875
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    LGTM=bradfitz, rsc
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/169000043
+    »»»
+    
+    TBR=rsc, bradfitz
+    R=bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169320043
 
- src/net/http/client.go      | 33 ++++++++++++++++++++++++++++---
- src/net/http/client_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 75 insertions(+), 5 deletions(-)
+ src/cmd/api/goapi.go | 2 +-
+ src/cmd/api/run.go   | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

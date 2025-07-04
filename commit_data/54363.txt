@@ -1,22 +1,21 @@
-commit c6d550a6683cebb2a11d7fa91823edf7db1d58a5
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Sep 8 12:14:30 2023 -0400
+commit 4274ffd4b8bcef4e07cfdef9405a2e33f935d079
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Sep 9 23:15:46 2022 +1000
 
-    runtime: increase g0 stack size in non-cgo case
+    cmd/compile: fold negation into subtraction on riscv64
     
-    Currently, for non-cgo programs, the g0 stack size is 8 KiB on
-    most platforms. With PGO which could cause aggressive inlining in
-    the runtime, the runtime stack frames are larger and could
-    overflow the 8 KiB g0 stack. Increase it to 16 KiB. This is only
-    one per OS thread, so it shouldn't increase memory use much.
+    Fold negation into subtraction and avoid double negation.
     
-    Fixes #62120.
-    Fixes #62489.
+    This removes around 500 instructions from the Go binary on riscv64.
     
-    Change-Id: I565b154517021f1fd849424dafc3f0f26a755cac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526995
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4aac6c87baa2a0759b180ba87876d488a23df6d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431105
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/proc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  7 ++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 49 +++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+)

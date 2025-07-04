@@ -1,17 +1,22 @@
-commit 49e07f2b7e25a1f7a050f73fbb7807185e09e46b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Apr 8 20:09:10 2016 +1000
+commit c2d3e1123c2f49aab02260f125a940ed723e42a0
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Sat Feb 20 18:36:03 2016 -0200
 
-    cmd/compile/internal/gc: unexport Export
+    cmd/go: better error for test functions with wrong signature
     
-    Export does not need to be exported.
+    Check the function types before compiling the tests. Extend the same
+    approach taken by the type check used for TestMain function.
     
-    Change-Id: I252f0c024732f1d056817cab13e8e3c589b54d13
-    Reviewed-on: https://go-review.googlesource.com/21721
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    To keep existing behavior, wrong arguments for TestMain are ignored
+    instead of causing an error.
+    
+    Fixes #14226.
+    
+    Change-Id: I488a2555cddb273d35c1a8c4645bb5435c9eb91d
+    Reviewed-on: https://go-review.googlesource.com/19763
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 4 ++--
- src/cmd/compile/internal/gc/export.go  | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/test.go | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)

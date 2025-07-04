@@ -1,17 +1,22 @@
-commit d11a2184fb29d0f8a447b2e70299dc410c5642ed
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 8 14:48:43 2017 -0800
+commit fe057c1478c4309f715d689127125cabbb4efe08
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 16 13:51:32 2016 -0800
 
-    cmd/compile: allow earlier GC of freed constant value
+    runtime/cgo: fixes for calling sigaction in C
     
-    Minor fix, because it's the right thing to do.
-    No significant impact.
+    Zero out the sigaction structs, in case the sa_restorer field is set.
     
-    Change-Id: I2138285d397494daa9a88c414149c2a7860edd7e
-    Reviewed-on: https://go-review.googlesource.com/38001
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Clear the SA_RESTORER flag; it is part of the kernel interface, not the
+    libc interface.
+    
+    Fixes #17947.
+    
+    Change-Id: I610348ce3c196d3761cf2170f06c24ecc3507cf7
+    Reviewed-on: https://go-review.googlesource.com/33331
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/func.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/cgo/gcc_sigaction.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

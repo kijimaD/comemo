@@ -1,77 +1,56 @@
-commit 92c826b1b2473e743964d3478b73a9c39a579abf
+commit cdb7d7dcc22a2f09df0267641b73d45703ffc6e8
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 3 12:23:28 2015 -0400
+Date:   Thu Mar 5 13:57:36 2015 -0500
 
-    cmd/internal/gc: inline runtime.getg
+    cmd/5l etc: restore comments lost during C -> Go conversion
     
-    This more closely restores what the old C runtime did.
-    (In C, g was an 'extern register' with the same effective
-    implementation as in this CL.)
+    It appears that c2go dropped comments inside struct { ... } and enum { ... }.
+    Restore them.
     
-    On a late 2012 MacBookPro10,2, best of 5 old vs best of 5 new:
+    Identified missing comments by checking for comments present
+    in the C code but not the Go code, made a list, and then reapplied
+    with some mechanical help.
     
-    benchmark                          old ns/op      new ns/op      delta
-    BenchmarkBinaryTree17              4981312777     4463426605     -10.40%
-    BenchmarkFannkuch11                3046495712     3006819428     -1.30%
-    BenchmarkFmtFprintfEmpty           89.3           79.8           -10.64%
-    BenchmarkFmtFprintfString          284            262            -7.75%
-    BenchmarkFmtFprintfInt             282            262            -7.09%
-    BenchmarkFmtFprintfIntInt          480            448            -6.67%
-    BenchmarkFmtFprintfPrefixedInt     382            358            -6.28%
-    BenchmarkFmtFprintfFloat           529            486            -8.13%
-    BenchmarkFmtManyArgs               1849           1773           -4.11%
-    BenchmarkGobDecode                 12835963       11794385       -8.11%
-    BenchmarkGobEncode                 10527170       10288422       -2.27%
-    BenchmarkGzip                      436109569      438422516      +0.53%
-    BenchmarkGunzip                    110121663      109843648      -0.25%
-    BenchmarkHTTPClientServer          81930          85446          +4.29%
-    BenchmarkJSONEncode                24638574       24280603       -1.45%
-    BenchmarkJSONDecode                93022423       85753546       -7.81%
-    BenchmarkMandelbrot200             4703899        4735407        +0.67%
-    BenchmarkGoParse                   5319853        5086843        -4.38%
-    BenchmarkRegexpMatchEasy0_32       151            151            +0.00%
-    BenchmarkRegexpMatchEasy0_1K       452            453            +0.22%
-    BenchmarkRegexpMatchEasy1_32       131            132            +0.76%
-    BenchmarkRegexpMatchEasy1_1K       761            722            -5.12%
-    BenchmarkRegexpMatchMedium_32      228            224            -1.75%
-    BenchmarkRegexpMatchMedium_1K      63751          64296          +0.85%
-    BenchmarkRegexpMatchHard_32        3188           3238           +1.57%
-    BenchmarkRegexpMatchHard_1K        95396          96756          +1.43%
-    BenchmarkRevcomp                   661587262      687107364      +3.86%
-    BenchmarkTemplate                  108312598      104008540      -3.97%
-    BenchmarkTimeParse                 453            459            +1.32%
-    BenchmarkTimeFormat                475            441            -7.16%
+    Missing comment finder: http://play.golang.org/p/g6qNUAo1Y0
     
-    The garbage benchmark from the benchmarks subrepo gets 2.6% faster as well.
-    
-    Change-Id: I320aeda332db81012688b26ffab23f6581c59cfa
-    Reviewed-on: https://go-review.googlesource.com/8460
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I323ab45c7ef9d51e28eab3b699eb14bee1eef66b
+    Reviewed-on: https://go-review.googlesource.com/6899
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/5g/galign.go             |  1 +
- src/cmd/5g/ggen.go               |  7 +++++++
- src/cmd/6g/galign.go             |  1 +
- src/cmd/6g/ggen.go               | 17 +++++++++++++++++
- src/cmd/7g/galign.go             |  1 +
- src/cmd/7g/ggen.go               |  7 +++++++
- src/cmd/8g/galign.go             |  1 +
- src/cmd/8g/ggen.go               | 17 +++++++++++++++++
- src/cmd/9g/galign.go             |  1 +
- src/cmd/9g/ggen.go               |  7 +++++++
- src/cmd/internal/gc/cgen.go      |  4 ++++
- src/cmd/internal/gc/fmt.go       |  3 ++-
- src/cmd/internal/gc/gen.go       |  4 ++++
- src/cmd/internal/gc/go.go        |  1 +
- src/cmd/internal/gc/syntax.go    |  1 +
- src/cmd/internal/gc/typecheck.go | 12 ++++++++++++
- src/cmd/internal/gc/walk.go      |  6 ++++--
- src/runtime/asm_386.s            |  6 ------
- src/runtime/asm_amd64.s          |  6 ------
- src/runtime/asm_amd64p32.s       |  6 ------
- src/runtime/asm_arm.s            |  4 ----
- src/runtime/asm_arm64.s          |  4 ----
- src/runtime/asm_ppc64x.s         |  4 ----
- src/runtime/stubs.go             |  3 +++
- 24 files changed, 91 insertions(+), 33 deletions(-)
+ src/cmd/5l/asm.go                   |   2 +-
+ src/cmd/5l/l.go                     |   4 +-
+ src/cmd/6l/asm.go                   |   2 +-
+ src/cmd/6l/l.go                     |  38 +--
+ src/cmd/8g/reg.go                   |   2 +-
+ src/cmd/8l/l.go                     |  38 +--
+ src/cmd/9g/opt.go                   |  38 +--
+ src/cmd/9g/reg.go                   |   2 +-
+ src/cmd/9l/l.go                     |   2 +-
+ src/cmd/internal/gc/esc.go          |  45 ++--
+ src/cmd/internal/gc/go.go           | 365 +++++++++++++++-----------
+ src/cmd/internal/gc/gsubr.go        |   2 +
+ src/cmd/internal/gc/order.go        |   6 +-
+ src/cmd/internal/gc/plive.go        |  68 +++--
+ src/cmd/internal/gc/popt.go         |  37 ++-
+ src/cmd/internal/gc/range.go        |   7 +
+ src/cmd/internal/gc/syntax.go       | 499 +++++++++++++++++++-----------------
+ src/cmd/internal/gc/typecheck.go    |   2 +-
+ src/cmd/internal/gc/walk.go         |  11 +-
+ src/cmd/internal/ld/decodesym.go    |   2 +-
+ src/cmd/internal/ld/dwarf.go        |  35 ++-
+ src/cmd/internal/ld/dwarf_defs.go   | 492 ++++++++++++++++++-----------------
+ src/cmd/internal/ld/elf.go          |   7 +-
+ src/cmd/internal/ld/go.go           |   4 +-
+ src/cmd/internal/ld/ldelf.go        |   8 +-
+ src/cmd/internal/ld/ldmacho.go      |   4 +-
+ src/cmd/internal/ld/ldpe.go         |   2 +-
+ src/cmd/internal/ld/lib.go          |  16 +-
+ src/cmd/internal/ld/pe.go           |  11 +-
+ src/cmd/internal/obj/arm/5.out.go   | 120 ++++++---
+ src/cmd/internal/obj/arm/asm5.go    |   7 +-
+ src/cmd/internal/obj/objfile.go     |  96 +++++++
+ src/cmd/internal/obj/ppc64/9.out.go | 102 +++++---
+ src/cmd/internal/obj/ppc64/asm9.go  |   1 +
+ src/cmd/internal/obj/x86/6.out.go   |  61 ++++-
+ src/cmd/internal/obj/x86/asm6.go    |  64 +++--
+ 36 files changed, 1271 insertions(+), 931 deletions(-)

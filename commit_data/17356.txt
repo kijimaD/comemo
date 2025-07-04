@@ -1,12 +1,36 @@
-commit 4a7a72b8c1146cd84a869f61a77331a6de89b962
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Aug 22 00:59:48 2013 +0200
+commit 87fdb8fb9ab8de4e008fa7c1561b16e3df01223a
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Wed Aug 21 13:51:00 2013 -0700
 
-    syscall: fix stale URL for linux/arm unistd.h
+    undo CL 13010045 / 04f8101b46dd
     
-    R=golang-dev, bradfitz
+    Update the original change but do not read interface types in
+    the arguments area.  Once the arguments area is zeroed as the
+    locals area is we can safely read interface type values there
+    too.
+    
+    ««« original CL description
+    undo CL 12785045 / 71ce80dc4195
+    
+    This has broken the 32-bit builds.
+    
+    ««« original CL description
+    cmd/gc, runtime: use type information to scan interface values
+    
+    R=golang-dev, rsc, dvyukov
     CC=golang-dev
-    https://golang.org/cl/13105047
+    https://golang.org/cl/12785045
+    »»»
+    
+    R=khr, golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/13010045
+    »»»
+    
+    R=khr, khr
+    CC=golang-dev
+    https://golang.org/cl/13073045
 
- src/pkg/syscall/mkall.sh | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/pgen.c      |  1 -
+ src/pkg/runtime/mgc0.c | 54 ++++++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 43 insertions(+), 12 deletions(-)

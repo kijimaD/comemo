@@ -1,16 +1,18 @@
-commit cb2461ba46c3ef7e74e213b287ef09caaed64c3f
+commit 8e8b8b85c261d219ed3b37638b6cd96d47da79d6
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jun 19 09:44:40 2013 -0700
+Date:   Tue Jun 18 14:18:25 2013 -0700
 
-    cmd/go: another attempt at flag handling for coverage
-    The -cover flag is now just enable/disable and is implied if
-    either of the other flags is set.
+    cmd/go: write coverage to file, add percentage statistic
+    Move the data dumper to the testing package, where it has access
+    to file I/O.
+    Print a percentage value at the end of the run.
     
-    R=rsc
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/10420043
+    https://golang.org/cl/10264045
 
- src/cmd/go/doc.go      |  8 ++++----
- src/cmd/go/test.go     |  8 ++++----
- src/cmd/go/testflag.go | 46 ++++++++++++++++++----------------------------
- 3 files changed, 26 insertions(+), 36 deletions(-)
+ src/cmd/go/test.go         | 62 +++++++++++--------------------
+ src/cmd/go/testflag.go     |  9 ++++-
+ src/pkg/testing/cover.go   | 91 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/testing/testing.go |  5 +++
+ 4 files changed, 124 insertions(+), 43 deletions(-)

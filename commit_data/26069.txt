@@ -1,20 +1,15 @@
-commit eb6ee75add2c9eaffd52fe572230a3fa08080f50
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 4 16:13:17 2016 -0800
+commit 1babba2e4cf49fce0d6bc00460020d13e94a0c4c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 13:24:27 2015 -0500
 
-    cmd/compile: convert select, sinit, ssa to nodeSeq
+    cmd/compile: fix -race nit
     
-    Passes toolstash -cmp.
+    Fixes #13264.
     
-    Update #14473.
-    
-    Change-Id: I1b50fe981e7a266d4b14f31d849eb91afccdfda3
-    Reviewed-on: https://go-review.googlesource.com/20270
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I74b941164610921a03814733fea08631f18b6178
+    Reviewed-on: https://go-review.googlesource.com/17815
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/select.go | 151 ++++++++++++++++------------------
- src/cmd/compile/internal/gc/sinit.go  |  96 ++++++++++-----------
- src/cmd/compile/internal/gc/ssa.go    |  30 +++----
- 3 files changed, 134 insertions(+), 143 deletions(-)
+ src/cmd/compile/internal/gc/racewalk.go      |  2 +-
+ src/runtime/race/testdata/issue13264_test.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

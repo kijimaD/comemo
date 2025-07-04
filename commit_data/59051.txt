@@ -1,19 +1,27 @@
-commit f3c69c2e784cfa8a38a83de6ee253fe4b09e5dff
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Mar 12 15:46:37 2025 +0000
+commit d3d390984bffed4a2d188043a498e535953eec3a
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sat Jan 20 17:34:06 2024 +0100
 
-    cmd/go/internal/load,cmd/link/internal/ld: use objabi.LookupPkgSpecial(pkg).Runtime
+    internal/trace/v2: store stacks as PCs, not frames
     
-    As suggested by Michael in CL 655515.
+    Most stacks share some frames, especially prefixes, and deduplicating
+    them can save significant amounts of memory.
     
-    Change-Id: Idf0b879287bd777d03443aebc7351fcb0d724885
-    GitHub-Last-Rev: 58eda020f5310f873674f56903facec4f212d6c0
-    GitHub-Pull-Request: golang/go#72806
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656856
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    This will be especially true when we convert traces from the old to the
+    new format. Here, all stacks exist in a single generation and will be
+    live together.
+    
+    For busy traces, such as one of running Staticcheck on std, with CPU
+    profiling enabled, this change saves ~400 MiB of memory.
+    
+    Change-Id: Ie676f628dd2715e1c6077747dd4e08acf3331e5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557355
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/go/internal/load/pkg.go  |  3 ++-
- src/cmd/link/internal/ld/data.go | 24 +-----------------------
- 2 files changed, 3 insertions(+), 24 deletions(-)
+ src/internal/trace/v2/base.go       |  5 +++--
+ src/internal/trace/v2/event.go      |  3 ++-
+ src/internal/trace/v2/generation.go | 45 ++++++++++++++++++++++++-------------
+ 3 files changed, 35 insertions(+), 18 deletions(-)

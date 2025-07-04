@@ -1,13 +1,26 @@
-commit 258752079766607682e07834e81e0b69208cece8
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Mar 4 12:55:04 2015 -0500
+commit 1250d2e3742c15054fd94ca43aadae5ef39da539
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 05:18:08 2015 -0500
 
-    log/syslog: avoid unix sockets on darwin/arm
+    cmd/gc: remove C subclassing trick from popt.c
     
-    Change-Id: Ice4f78e74ec3025a974ffd9ca5e3d28bb3164f40
-    Reviewed-on: https://go-review.googlesource.com/6794
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    It does not convert to Go well.
+    
+    Being able to do this just once, instead of 4 times, was the primary
+    motivation for all the recent refactoring (not that it wasn't overdue).
+    
+    Still bit-for-bit identical.
+    
+    Change-Id: Ia01f17948441bf64fa78ec4226f0bb40af0bbaab
+    Reviewed-on: https://go-review.googlesource.com/3962
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/log/syslog/syslog_test.go | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/5g/peep.c |   2 +-
+ src/cmd/6g/peep.c |   2 +-
+ src/cmd/8g/peep.c |   2 +-
+ src/cmd/9g/peep.c |   2 +-
+ src/cmd/gc/go.h   |   3 +
+ src/cmd/gc/popt.c | 226 ++++++++++++++++++-------------------
+ src/cmd/gc/popt.h |  15 +--
+ src/cmd/gc/reg.c  | 328 ++++++++++++++++++++++++++++++------------------------
+ 8 files changed, 302 insertions(+), 278 deletions(-)

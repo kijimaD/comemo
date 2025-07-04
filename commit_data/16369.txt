@@ -1,12 +1,16 @@
-commit 6289dccf8b2d406e645c7134ee60a1fbd3b04503
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed May 22 18:51:15 2013 +0800
+commit 23dec8d1907f85d487b2adf3f0672c2cc02e4ce6
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 21 21:18:10 2013 -0700
 
-    include: add a README file
+    cmd/go: support new location for vet
+    Also delete the special case for exp, which isn't necessary any more.
     
-    R=golang-dev, r
+    Fixes #5529.
+    
+    R=rsc, nightlyone
     CC=golang-dev
-    https://golang.org/cl/9392049
+    https://golang.org/cl/9611048
 
- include/README | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/go/pkg.go  | 12 ++++++------
+ src/cmd/go/tool.go | 34 ++++++++++++++++++++++++----------
+ 2 files changed, 30 insertions(+), 16 deletions(-)

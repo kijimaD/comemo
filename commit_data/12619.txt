@@ -1,29 +1,15 @@
-commit fef92cbbac97022c094f4ff5bfb47b12852e076b
-Author: Johan Euphrosine <proppy@google.com>
-Date:   Wed Mar 14 11:27:41 2012 +1100
+commit 5f32c8b88bfe5f6e2ba32bb444dbda88ec741024
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 13 16:55:43 2012 -0700
 
-    doc: add Go image/draw package article and convert code snippets to Go1.
+    html/template: fix panic on Clone
     
-    Originally published on The Go Programming Language Blog, September 29, 2011.
+    Fixes #3281
     
-    http://blog.golang.org/2011/09/go-imagedraw-package.html
-    
-    Update #2547.
-    
-    R=golang-dev, adg, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5755057
+    https://golang.org/cl/5819044
 
- doc/Makefile                 |   3 +-
- doc/articles/image-20.png    | Bin 0 -> 95383 bytes
- doc/articles/image-2a.png    | Bin 0 -> 3625 bytes
- doc/articles/image-2b.png    | Bin 0 -> 95423 bytes
- doc/articles/image-2c.png    | Bin 0 -> 60552 bytes
- doc/articles/image-2d.png    | Bin 0 -> 68314 bytes
- doc/articles/image-2e.png    | Bin 0 -> 96721 bytes
- doc/articles/image-2f.png    | Bin 0 -> 62662 bytes
- doc/articles/image_draw.html | 222 +++++++++++++++++++++++++++++++++++++++++++
- doc/docs.html                |   2 +-
- doc/progs/image_draw.go      | 142 +++++++++++++++++++++++++++
- src/pkg/image/draw/draw.go   |   2 +-
- 12 files changed, 368 insertions(+), 3 deletions(-)
+ src/pkg/html/template/clone_test.go | 7 +++++++
+ src/pkg/html/template/template.go   | 8 +++++---
+ 2 files changed, 12 insertions(+), 3 deletions(-)

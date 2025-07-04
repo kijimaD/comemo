@@ -1,18 +1,12 @@
-commit 8511ed454a40f861e1b2aac6acbe6d6aa8325bf3
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Aug 25 14:00:00 2011 +0400
+commit 1f0d277cc1bfac5a92432f645c6a504a17dabce0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Aug 25 13:48:21 2011 +1000
 
-    http: return 413 instead of 400 when the request body is too large
+    exp/template/html: add some tests for ">" attributes.
     
-    RFC2616 says servers should return this status code when
-    rejecting requests that are too large.
-    
-    http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.14
-    
-    R=bradfitz
+    R=mikesamuel
     CC=golang-dev
-    https://golang.org/cl/4962041
+    https://golang.org/cl/4956042
 
- src/pkg/http/serve_test.go | 4 ++--
- src/pkg/http/server.go     | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/exp/template/html/escape_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

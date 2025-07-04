@@ -1,28 +1,35 @@
-commit 045b5c1bfb4535dc8149d93efec1f6412f5ccdae
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Thu May 15 15:21:06 2025 +0800
+commit 68a508cdaf3caf98b0ed3ca1bcc3046a77df1722
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Mar 8 15:40:34 2024 +0100
 
-    cmd/internal/obj/loong64: change the plan9 format of the prefetch instruction PRELDX
+    net,internal/syscall/windows: prove that keep alive options exists
     
-    before:
-        MOVV    $n + $offset, Roff
-        PRELDX  (Rbase)(Roff), $hint
-    after:
-        PRELDX  offset(Rbase), $n, $hint
+    The net package currently uses windows.SupportFullTCPKeepAlive to
+    know if TCP_KEEPIDLE, TCP_KEEPINTVL, and TCP_KEEPCNT are available.
+    This function is a wrapper over the undocumented RtlGetNtVersionNumbers
+    API, which tests if the Windows version is at least 10.0.16299. This
+    approach artificially limits the use of TCP_KEEPCNT, which is
+    available since Windows 10.0.15063. It also uses an undocumented API,
+    which is not something we want to rely on.
     
-    This instruction is supported in CL 671875, but is not actually used
+    This CL removes windows.SupportFullTCPKeepAlive in favor of dedicated
+    proves for each option which are not based on the Windows version.
     
-    Change-Id: I943d488ea6dc77781cd796ef480a89fede666bab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673155
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    While here, remove some assertions in setKeepAliveCount. It is better
+    to let the system decide if the value is valid or not.
+    
+    Updates #65817.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64
+    Change-Id: I0fe70d46c8675eab06c0e4628cf68571b6e50b80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570077
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/asm/internal/asm/asm.go                 |  5 ++
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  3 -
- src/cmd/asm/internal/asm/testdata/loong64enc5.s |  5 ++
- src/cmd/internal/obj/loong64/asm.go             | 73 +++++++++++++++++++------
- src/cmd/internal/obj/loong64/doc.go             | 26 +++++++++
- 5 files changed, 93 insertions(+), 19 deletions(-)
+ src/internal/syscall/windows/version_windows.go | 53 ++++++++++++++++++++++---
+ src/net/tcpconn_keepalive_conf_windows_test.go  |  2 +-
+ src/net/tcpsock_windows.go                      |  2 +-
+ src/net/tcpsockopt_windows.go                   | 13 +-----
+ 4 files changed, 51 insertions(+), 19 deletions(-)

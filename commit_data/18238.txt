@@ -1,12 +1,16 @@
-commit fa6ffc6c9b8bf0945921c8710f3c0d74d1af0126
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jan 14 16:56:22 2014 +1100
+commit 6e8b4920c1ce5853d4b1ceb2b7b1149f0a2ba203
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 13 23:20:53 2014 -0500
 
-    cmd/api: ensure GOPATH always points to the correct go.tools
+    cmd/link: fix build
     
-    R=golang-codereviews, dave, bradfitz
+    The golden file for link.hello.darwin.amd64
+    was a little ahead of the checked-in code.
+    
+    R=iant
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/51000043
+    https://golang.org/cl/51870043
 
- src/cmd/api/run.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/testdata/link.hello.darwin.amd64 | 54 ++++++++-------------------
+ 1 file changed, 16 insertions(+), 38 deletions(-)

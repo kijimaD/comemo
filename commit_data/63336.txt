@@ -1,0 +1,30 @@
+commit 0b4d2eab2f7a20917639f0025de39ce9f0198d9f
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Jun 24 20:30:29 2025 -0700
+
+    encoding/json/jsontext: rename Encoder.UnusedBuffer as Encoder.AvailableBuffer
+    
+    This follows the precedent set by:
+    
+            bufio.Writer.AvailableBuffer
+            bytes.Buffer.AvailableBuffer
+    
+    both with methods that return a zero-length buffer that
+    is intended to only be used with a following Write call.
+    
+    This keeps the older UnusedBuffer method around so that
+    at least one commit that has both methods for migration purposes.
+    
+    Updates #71497
+    
+    Change-Id: I3815f593e09f645280ae5ad9cbdd63a6c147123b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683896
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/json/jsontext/encode.go   | 25 +++++++++++++++----------
+ src/encoding/json/v2/arshal_inlined.go |  2 +-
+ src/encoding/json/v2_decode.go         |  2 +-
+ 3 files changed, 17 insertions(+), 12 deletions(-)

@@ -1,18 +1,12 @@
-commit fca453e062a39f64b0760aa4555bb974f504aba3
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 8 15:56:40 2014 -0800
+commit e7d010a6a7c19c3af6a8157356d09cea23eab198
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 8 12:41:26 2014 -0800
 
-    cmd/nm: add -sort=size
-    When printing the size, we often want to sort on that key.
-    Because it's used when looking for large things, make the
-    sort go from largest to smallest.
+    runtime: deallocate specials before deallocating the underlying object.
     
-    Perfect recreation of CL 45150044, which was lost to some blunder.
-    
-    R=golang-codereviews, gobot, rsc
+    R=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/48500044
+    https://golang.org/cl/48840043
 
- src/cmd/nm/doc.go |  3 ++-
- src/cmd/nm/nm.go  | 10 +++++++++-
- 2 files changed, 11 insertions(+), 2 deletions(-)
+ src/pkg/runtime/malloc.goc | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

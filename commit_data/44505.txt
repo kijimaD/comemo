@@ -1,33 +1,19 @@
-commit cfb609bfb70027e60d71a5ac7e9202144246b98a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 4 22:46:23 2021 -0500
+commit 9591515f515a76f627bc1cfc6d71f98f43526faf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 24 16:50:47 2020 -0700
 
-    cmd/go: ensure that the test subprocess always times out in TestScript/test_write_profiles_on_timeout
+    runtime, sync: add copyright headers to new files
     
-    This test verifies the behavior of a test that fails due to timing
-    out. However, the test to be timed out was only sleeping for 1s before
-    returning successfully. That is empirically not always long enough for
-    the test process itself to detect the timeout and terminate.
+    For #38029
     
-    We could replace the sleep with a select{}, but that would assume that
-    the deadlock detector does not terminate a test that reaches that
-    state (true today, but not necessarily so).
-    
-    We could replace the arbitrarily sleep with an arbitrarily longer
-    sleep, but that's, well, arbitrary.
-    
-    Instead, have the test sleep in an unbounded loop to ensure that it
-    always continues to run until the timeout is detected, and check the
-    test output to ensure that it actually reached the timeout path.
-    
-    Fixes #32983
-    
-    Change-Id: Ie7f210b36ef0cc0a4db473f780e15a3d6def8bda
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/289889
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I71de2b66c1de617d32c46d4f2c1866f9ff1756ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244631
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .../go/testdata/script/test_write_profiles_on_timeout.txt | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ src/runtime/lockrank_off.go   | 4 ++++
+ src/runtime/lockrank_on.go    | 4 ++++
+ src/sync/runtime2.go          | 4 ++++
+ src/sync/runtime2_lockrank.go | 4 ++++
+ 4 files changed, 16 insertions(+)

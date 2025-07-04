@@ -1,0 +1,45 @@
+commit 9a8995b8b6a08d5fe01122771f962b36336f8aec
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 22 17:09:02 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥100 dependents
+    
+    For #67401.
+    
+    Change-Id: I015408a3f437c1733d97160ef2fb5da6d4efcc5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587598
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/go/build/build.go                   |  9 +++++
+ src/go/build/read.go                    | 11 ++++++
+ src/go/types/badlinkname.go             | 18 ++++-----
+ src/internal/bytealg/compare_generic.go |  1 +
+ src/internal/cpu/cpu_arm64_darwin.go    |  1 +
+ src/reflect/badlinkname.go              |  1 +
+ src/reflect/type.go                     |  3 ++
+ src/runtime/alg.go                      | 22 +++++++++++
+ src/runtime/atomic_pointer.go           |  1 +
+ src/runtime/badlinkname.go              |  2 -
+ src/runtime/cpuprof.go                  | 10 ++++-
+ src/runtime/linkname.go                 |  1 -
+ src/runtime/malloc.go                   |  1 +
+ src/runtime/map.go                      |  4 ++
+ src/runtime/mbarrier.go                 |  2 +
+ src/runtime/mgc.go                      |  1 +
+ src/runtime/panic.go                    |  1 +
+ src/runtime/pprof/pprof.go              |  2 +-
+ src/runtime/proc.go                     | 12 ++++++
+ src/runtime/proflabel.go                |  2 +
+ src/runtime/rand.go                     |  9 +++++
+ src/runtime/slice.go                    |  9 +++++
+ src/runtime/stubs.go                    | 14 +++++++
+ src/runtime/symtab.go                   | 65 ++++++++++++++++++++++++++++-----
+ src/runtime/symtabinl.go                | 28 +++++++++++++-
+ src/runtime/timestub.go                 |  1 +
+ src/runtime/traceback.go                | 10 +++++
+ src/sync/pool.go                        |  1 +
+ src/time/badlinkname.go                 | 15 --------
+ src/time/time.go                        | 11 ++++++
+ 30 files changed, 228 insertions(+), 40 deletions(-)

@@ -1,20 +1,27 @@
-commit d0099eff5e2e8dedd94eb1821408212c10231a47
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Tue Apr 4 13:02:02 2023 -0400
+commit 130775cd16d74401a2206218e2dc0f32d1c59898
+Author: michael <info@komika.org>
+Date:   Tue Feb 1 14:41:20 2022 +0000
 
-    cmd/dist: mark openbsd-mips64 and openbsd-ppc64 broken
+    net: improve error handling in dnsclient_unix.go
     
-    The former was broken deliberately; see #58110. The latter is just an
-    in-progress port.
+    In the file net/dnsclient_unix.go in the function newRequest
+    error handling is missing after calling b.Finish(). If
+    the implementation of dnsmessage.Builder.Finish changes
+    it is theoretically possible that the missing error handling
+    introduces a nil pointer exception.
     
-    Updates #58110, #56001.
+    Fixes #50946
     
-    Change-Id: I7f1c5e2ac016fb7c65c081174d19239fc9b1ea32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482115
-    Auto-Submit: Heschi Kreinick <heschi@google.com>
-    TryBot-Bypass: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: I3f0785f71def6649d6089d0af71c9e50f5ccb259
+    GitHub-Last-Rev: 2a2197f7e6d18d5477967b299ed734a7b224536d
+    GitHub-Pull-Request: golang/go#50948
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381966
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/build.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/net/dnsclient_unix.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

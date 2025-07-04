@@ -1,29 +1,21 @@
-commit 3a27f28e9b62fc4e7229dbf9b08fbb8f3d65157b
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Jun 6 11:25:17 2017 +0200
+commit d9fe2332ba63d1dd9416438a53b58bd6a91626b6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 9 22:02:13 2017 -0800
 
-    strings: document Split{,N,After,AfterN} edge cases
+    net/http: change TestServerAllowsBlockingRemoteAddr to non-parallel
     
-    Apparently people get confused by the fact that
+    It appears that this test is particularly
+    sensitive to resource starvation.
+    Returning it to non-parallel should reduce flakiness,
+    by giving it the full system resources to run.
     
-      Split("", ",")
+    Fixes #19161
     
-    returns []{""} instead of []{}.
-    
-    This is actually just a consequence of the fact that if the separator
-    sep (2nd argument) is not found the string s (1st argument), then the
-    Split* functions return a length 1 slice with the string s in it.
-    
-    Document the general case: if sep is not in s, what you get is a len 1
-    slice with s in it; unless both s and sep are "", in that case you get
-    an empty slice of length 0.
-    
-    Fixes #19726
-    
-    Change-Id: I64c8220b91acd1e5aa1cc1829199e0cd8c47c404
-    Reviewed-on: https://go-review.googlesource.com/44950
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I6e8906516629badaa0cffeb5712af649dc197f39
+    Reviewed-on: https://go-review.googlesource.com/38005
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strings/strings.go | 26 ++++++++++++++++++++++----
- 1 file changed, 22 insertions(+), 4 deletions(-)
+ src/net/http/serve_test.go | 1 -
+ 1 file changed, 1 deletion(-)

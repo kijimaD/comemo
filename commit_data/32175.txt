@@ -1,19 +1,28 @@
-commit 49ab0dba561ba1abd8b6b001789a155f47a8cb34
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 7 12:57:58 2017 +1000
+commit e367ba9eaea80917c877709da365ff8f13cc60bd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 10 16:57:06 2017 -0700
 
-    internal/poll: add tests for Windows file and serial ports
+    cmd/internal/obj: refactor ATEXT symbol initialization
     
-    I also wanted to test net sockets, but I do not know how to
-    access their file handles. So I did not implement socket tests.
+    This makes the core Flushplist loop clearer.
     
-    Updates #21172
+    We may also want to move the Sym initialization
+    much earlier in the compiler (see discussion on
+    CL 40254), for which this paves the way.
     
-    Change-Id: I5062c0e65a817571d755397d60762c175f9791ce
-    Reviewed-on: https://go-review.googlesource.com/53530
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    While we're here, eliminate package log in favor of ctxt.Diag.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Ieaf848d196764a5aa82578b689af7bc6638c385a
+    Reviewed-on: https://go-review.googlesource.com/40313
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/internal/poll/export_windows_test.go |  17 +++++
- src/internal/poll/fd_windows.go          |  14 +++-
- src/internal/poll/fd_windows_test.go     | 111 +++++++++++++++++++++++++++++++
- 3 files changed, 139 insertions(+), 3 deletions(-)
+ src/cmd/asm/internal/asm/asm.go      |  1 +
+ src/cmd/compile/internal/gc/gsubr.go |  2 ++
+ src/cmd/internal/obj/plist.go        | 61 +++++++++++++++++++++---------------
+ 3 files changed, 38 insertions(+), 26 deletions(-)

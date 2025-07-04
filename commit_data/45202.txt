@@ -1,34 +1,21 @@
-commit 9e8a312b71b3ad271026947d15f4d9fc483b0132
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Mar 24 21:55:49 2021 -0400
+commit 617b6339170a56a235625f8359730ba710d3ae96
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 12 13:11:03 2020 -0700
 
-    go/parser: move type params in scope for the function signature
+    [dev.typeparams] cmd/compile/internal/syntax: prepare syntax nodes for type parameters
     
-    Type parameter resolution is a bit tricky: type parameters are in the
-    function scope, but unlike ordinary parameters may reference eachother.
-    When resolving the function scope, we must be careful about the order in
-    which objects are resolved and declared.
+    - add TParamList fields to TypeDecl, FuncDecl
+    - also: change File.Lines to File.EOF so we have the actual file end position
     
-    Using ordering allows us to avoid passing around temporary scopes for
-    field declarations.
-    
-    Add a bunch of tests for this behavior, and skip "_" in resolution tests
-    as it just adds noise.
-    
-    For #45221
-    
-    Change-Id: Id080cddce3fd76396bf86ba5aba856aedf64a458
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304456
-    Trust: Robert Findley <rfindley@google.com>
+    Change-Id: Ia345f888080a884f7ac5cefd8bff3d80e4a59cdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261657
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/parser/resolver.go                        | 101 +++++++++++++++++------
- src/go/parser/resolver_test.go                   |   3 +-
- src/go/parser/testdata/resolution/issue45136.src |   6 +-
- src/go/parser/testdata/resolution/issue45160.src |   2 +-
- src/go/parser/testdata/resolution/resolution.src |  13 ++-
- src/go/parser/testdata/resolution/typeparams.go2 |  32 +++++--
- 6 files changed, 119 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/gc/noder.go           |  2 +-
+ src/cmd/compile/internal/syntax/nodes.go       | 33 ++++++++++++++------------
+ src/cmd/compile/internal/syntax/parser.go      |  2 +-
+ src/cmd/compile/internal/syntax/parser_test.go |  2 +-
+ 4 files changed, 21 insertions(+), 18 deletions(-)

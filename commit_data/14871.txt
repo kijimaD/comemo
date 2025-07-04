@@ -1,12 +1,14 @@
-commit 39ffa83fdbbb21d59ecc07afb201b3839968587b
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Fri Jan 11 16:58:46 2013 -0800
+commit ad63c7e50beb5b148fae72e267f87f782769821a
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Sat Jan 12 11:06:13 2013 +1100
 
-    build: add missing function declarations for Plan 9
+    text/template: Document that range can be used on chan types.
     
-    R=golang-dev, minux.ma, rsc, ality, seed
+    Fixes #4640.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7034052
+    https://golang.org/cl/7082044
 
- include/plan9/libc.h | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/text/template/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,22 +1,22 @@
-commit a5350558e6e2db16bfe09f2ba8104549c6598c46
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 4 10:54:12 2023 -0700
+commit 7eeec1f6e4b9359381e9aeffdb87c59308ecbb7e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jun 11 01:33:11 2022 +0700
 
-    go/types, types2: exclude untyped nil arguments early in type inference
+    cmd/compile: fix missing dict pass for type assertions
     
-    An untyped nil argument cannot be used to infer any type information.
-    We don't need to include it in the untyped arguments.
+    For type assertions, if either src or dst type has shape, we must
+    convert them to dynamic type assertions.
     
-    Change-Id: Ied44738ff1b135e65a3acfa19223cd3889b7fa7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492695
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Fixes #53309
+    
+    Change-Id: Ia3362fa67c011febcbdb5b26f856d081b5c366de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411617
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/types2/infer.go   | 12 ++++++------
- src/cmd/compile/internal/types2/operand.go |  2 +-
- src/go/types/infer.go                      | 12 ++++++------
- src/go/types/operand.go                    |  6 ++----
- 4 files changed, 15 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  4 +--
+ test/fixedbugs/issue53309.go              | 42 +++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 2 deletions(-)

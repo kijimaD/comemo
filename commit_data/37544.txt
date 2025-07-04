@@ -1,34 +1,18 @@
-commit d8ce141dde36c7781a5c43356feb403550cc47ec
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Thu Nov 29 01:38:07 2018 -0500
+commit dea36a6f751783c3c511e2eb0e1de3696daec1f7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 16 09:54:11 2018 -0700
 
-    crypto/tls: fix client certificates support for legacy servers
+    cmd/go: disable TestAccidentalGitCheckout for now
     
-    signatureSchemesForCertificate was written to be used with TLS 1.3, but
-    ended up used for TLS 1.2 client certificates in a refactor. Since it
-    only supported TLS 1.3 signature algorithms, it would lead to no RSA
-    client certificates being sent to servers that didn't support RSA-PSS.
+    It seems it might not have ever worked.
     
-    TestHandshakeClientCertRSAPKCS1v15 was testing *specifically* for this,
-    but alas the OpenSSL flag -verify accepts an empty certificates list as
-    valid, as opposed to -Verify...
+    Updates #22983
     
-    Fixes #28925
-    
-    Change-Id: I61afc02ca501d3d64ab4ad77bbb4cf10931e6f93
-    Reviewed-on: https://go-review.googlesource.com/c/151660
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Icc022539aa2555486a65900abf97dfa30f92a1ea
+    Reviewed-on: https://go-review.googlesource.com/129615
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/crypto/tls/auth.go                             |  27 ++++-
- src/crypto/tls/common.go                           |  13 +--
- src/crypto/tls/handshake_client.go                 |   2 +-
- src/crypto/tls/handshake_client_test.go            |  35 ++++---
- src/crypto/tls/handshake_client_tls13.go           |  15 +--
- src/crypto/tls/handshake_server_test.go            |   9 +-
- src/crypto/tls/handshake_server_tls13.go           |   9 +-
- .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    | 116 ++++++++++++++-------
- .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  | 110 ++++++++++++-------
- .../Client-TLSv12-ClientCert-RSA-RSAPKCS1v15       | 104 ++++++++++++------
- 10 files changed, 298 insertions(+), 142 deletions(-)
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

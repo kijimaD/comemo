@@ -1,30 +1,15 @@
-commit ad26bb5e3098cbfd7c0ad9a1dc9d38c92e50f06e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 4 03:01:09 2016 +0000
+commit c3818e56d0f60493a63b2bb03a09f261d3e0ada2
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Wed Jun 15 12:53:05 2016 -0400
 
-    all: use sort.Slice where applicable
+    internal/trace: err if binary is not supplied for old trace
     
-    I avoided anywhere in the compiler or things which might be used by
-    the compiler in the future, since they need to build with Go 1.4.
-    
-    I also avoided anywhere where there was no benefit to changing it.
-    
-    I probably missed some.
-    
-    Updates #16721
-    
-    Change-Id: Ib3c895ff475c6dec2d4322393faaf8cb6a6d4956
-    Reviewed-on: https://go-review.googlesource.com/30250
+    Change-Id: Id25c90993c4cbb7449d7031301b6d214a67d7633
+    Reviewed-on: https://go-review.googlesource.com/24134
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/test.go            |  8 +------
- src/cmd/nm/nm.go              | 24 +++------------------
- src/encoding/json/encode.go   | 50 +++++++++++++++----------------------------
- src/io/ioutil/ioutil.go       |  9 +-------
- src/net/http/cookiejar/jar.go | 31 +++++++++++----------------
- src/net/http/fs.go            |  8 +------
- src/runtime/debug/garbage.go  |  8 +------
- src/runtime/pprof/pprof.go    | 24 +++------------------
- 8 files changed, 39 insertions(+), 123 deletions(-)
+ src/internal/trace/parser.go      | 25 +++++++++++++++++++------
+ src/internal/trace/parser_test.go |  4 +++-
+ 2 files changed, 22 insertions(+), 7 deletions(-)

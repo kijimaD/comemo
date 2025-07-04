@@ -1,14 +1,159 @@
-commit 9db2bc741e87571a9a3d31b1d1f3d6b9cda0fac4
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 25 11:28:31 2011 -0700
+commit 071d212a22a027510d35d929be1e4e3da85558c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 25 13:47:07 2011 -0400
 
-    flag: fix error in documentation example.
-    Fixes #1615.
-    This time for sure.
+    runtime/pprof: disable test on darwin
     
-    R=rsc, gri
+    Fixes #1641.
+    
+    Actually it side steps the real issue, which is that the
+    setitimer(2) implementation on OS X is not useful for
+    profiling of multi-threaded programs.  I filed the below
+    using the Apple Bug Reporter.
+    
+    /*
+    Filed as Apple Bug Report #9177434.
+    
+    This program creates a new pthread that loops, wasting cpu time.
+    In the main pthread, it sleeps on a condition that will never come true.
+    Before doing so it sets up an interval timer using ITIMER_PROF.
+    The handler prints a message saying which thread it is running on.
+    
+    POSIX does not specify which thread should receive the signal, but
+    in order to be useful in a user-mode self-profiler like pprof or gprof
+       http://code.google.com/p/google-perftools
+       http://www.delorie.com/gnu/docs/binutils/gprof_25.html
+    it is important that the thread that receives the signal is the one
+    whose execution caused the timer to expire.
+    
+    Linux and FreeBSD handle this by sending the signal to the process's
+    queue but delivering it to the current thread if possible:
+    
+       http://lxr.linux.no/linux+v2.6.38/kernel/signal.c#L802
+         807        /*
+         808         * Now find a thread we can wake up to take the signal off the queue.
+         809         *
+         810         * If the main thread wants the signal, it gets first crack.
+         811         * Probably the least surprising to the average bear.
+         812         * /
+    
+       http://fxr.watson.org/fxr/source/kern/kern_sig.c?v=FREEBSD8;im=bigexcerpts#L1907
+         1914         /*
+         1915          * Check if current thread can handle the signal without
+         1916          * switching context to another thread.
+         1917          * /
+    
+    On those operating systems, this program prints:
+    
+        $ ./a.out
+        signal on cpu-chewing looper thread
+        signal on cpu-chewing looper thread
+        signal on cpu-chewing looper thread
+        signal on cpu-chewing looper thread
+        signal on cpu-chewing looper thread
+        signal on cpu-chewing looper thread
+        signal on cpu-chewing looper thread
+        signal on cpu-chewing looper thread
+        signal on cpu-chewing looper thread
+        signal on cpu-chewing looper thread
+        $
+    
+    The OS X kernel does not have any such preference.  Its get_signalthread
+    does not prefer current_thread(), in contrast to the other two systems,
+    so the signal gets delivered to the first thread in the list that is able to
+    handle it, which ends up being the main thread in this experiment.
+    http://fxr.watson.org/fxr/source/bsd/kern/kern_sig.c?v=xnu-1456.1.26;im=excerpts#L1666
+    
+        $ ./a.out
+        signal on sleeping main thread
+        signal on sleeping main thread
+        signal on sleeping main thread
+        signal on sleeping main thread
+        signal on sleeping main thread
+        signal on sleeping main thread
+        signal on sleeping main thread
+        signal on sleeping main thread
+        signal on sleeping main thread
+        signal on sleeping main thread
+        $
+    
+    The fix is to make get_signalthread use the same heuristic as
+    Linux and FreeBSD, namely to use current_thread() if possible
+    before scanning the process thread list.
+    
+    */
+    
+    #include <sys/time.h>
+    #include <sys/signal.h>
+    #include <pthread.h>
+    #include <unistd.h>
+    #include <stdlib.h>
+    #include <stdio.h>
+    #include <string.h>
+    
+    static void handler(int);
+    static void* looper(void*);
+    
+    static pthread_t pmain, ploop;
+    
+    int
+    main(void)
+    {
+            struct itimerval it;
+            struct sigaction sa;
+            pthread_cond_t cond;
+            pthread_mutex_t mu;
+    
+            memset(&sa, 0, sizeof sa);
+            sa.sa_handler = handler;
+            sa.sa_flags = SA_RESTART;
+            memset(&sa.sa_mask, 0xff, sizeof sa.sa_mask);
+            sigaction(SIGPROF, &sa, 0);
+    
+            pmain = pthread_self();
+            pthread_create(&ploop, 0, looper, 0);
+    
+            memset(&it, 0, sizeof it);
+            it.it_interval.tv_usec = 10000;
+            it.it_value = it.it_interval;
+            setitimer(ITIMER_PROF, &it, 0);
+    
+            pthread_mutex_init(&mu, 0);
+            pthread_mutex_lock(&mu);
+    
+            pthread_cond_init(&cond, 0);
+            for(;;)
+                    pthread_cond_wait(&cond, &mu);
+    
+            return 0;
+    }
+    
+    static void
+    handler(int sig)
+    {
+            static int nsig;
+            pthread_t p;
+    
+            p = pthread_self();
+            if(p == pmain)
+                    printf("signal on sleeping main thread\n");
+            else if(p == ploop)
+                    printf("signal on cpu-chewing looper thread\n");
+            else
+                    printf("signal on %p\n", (void*)p);
+            if(++nsig >= 10)
+                    exit(0);
+    }
+    
+    static void*
+    looper(void *v)
+    {
+            for(;;);
+    }
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4275079
+    https://golang.org/cl/4273113
 
- src/pkg/flag/flag.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/pprof/pprof_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,28 +1,20 @@
-commit b29b123e079183a05abc1066007a51d4f565cd88
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jun 3 18:00:53 2021 -0700
+commit d7974c31d0eb0ef377a8681f6f7306d46854eb1c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 12 11:01:23 2020 +0100
 
-    cmd/compile: remove spurious ir.Dump
+    os: gofmt
     
-    This ir.Dump call is a debugging artifact introduced in
-    golang.org/cl/274103, which should never be printed for valid,
-    non-generic code, but evidently can now sometimes appear due to how
-    the parser handles invalid syntax.
+    As reported by John Papandriopoulos, some parts of CL 216622 weren't
+    properly formatted.
     
-    The parser should probably not recognize "x[2]" as a type expression
-    in non-generics mode, but also probably we shouldn't try noding after
-    reporting syntax errors. Either way, this diagnostic has outlived its
-    usefulness, and noder's days are numbered anyway, so we might as well
-    just remove it to save end users any confusion.
-    
-    Updates #46558.
-    
-    Change-Id: Ib68502ef834d610b883c2f2bb11d9b385bc66e37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324991
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I3a76abb6213bb17ef440036295c86d930703b456
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269218
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/noder/noder.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/os/executable_dragonfly.go | 6 +++---
+ src/os/executable_freebsd.go   | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

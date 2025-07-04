@@ -1,17 +1,20 @@
-commit 8d8abb3b8a80d341ce2d7c6dd3f2a43fd586bed8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Apr 29 10:27:43 2021 -0400
+commit 39e335ac0618044bbd8ed2fca5e5b3583d8c444e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jul 31 21:32:26 2020 +0000
 
-    cmd/go: verify lazy-loading invariants when loading the vendor list for a lazy module
+    runtime: copy in MemStats fields explicitly
     
-    For #36460
+    Currently MemStats is populated via an unsafe memmove from memstats, but
+    this places unnecessary structural restrictions on memstats, is annoying
+    to reason about, and tightly couples the two. Instead, just populate the
+    fields of MemStats explicitly.
     
-    Change-Id: Ib4b1baea35826c3e359456f8dba09a49283e7fee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315069
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I96f6a64326b1a91d4084e7b30169a4bbe6a331f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246972
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/modload/buildlist.go | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+ src/runtime/mstats.go | 70 ++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 47 insertions(+), 23 deletions(-)

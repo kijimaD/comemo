@@ -1,15 +1,18 @@
-commit 763766e9ab8ed095e8f845228d89b856337aadc0
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 16 12:17:10 2025 -0500
+commit 73eff89d0766718c72eea7e54e49d65bd96edc59
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 23 10:56:57 2023 +0700
 
-    math/big: report allocs in BenchmarkNatMul, BenchmarkNatSqr
+    runtime: document GODEBUG panicnil values
     
-    Change-Id: I112f55c0e3ee3b75e615a06b27552de164565c04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650637
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Updates #25448
+    
+    Change-Id: Ia1b7a376f5175f67e14ad4bd065d6e8ad5250d38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536955
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/math/big/nat_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/extern.go | 3 +++
+ 1 file changed, 3 insertions(+)

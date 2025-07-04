@@ -1,22 +1,20 @@
-commit 6fa6bde92408a526021d690003f19368f5d57b20
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 22 15:50:14 2018 -0800
+commit 5c18a3ca70268c3a85972a4bb40f5dbb0277a27f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 20 10:53:48 2017 -0400
 
-    cmd/compile/internal/syntax: implement //line :line:col handling
+    cmd/compile: skip runtime.nextFreeFast inlining test on MIPS64x
     
-    For line directives which have a line and a column number,
-    an omitted filename means that the filename has not changed
-    (per the issue below).
+    Since inlining budget calculation is fixed in CL 70151
+    runtime.nextFreeFast is no longer inlineable on MIPS64x because
+    it does not support Ctz64 as intrinsic. Skip the test.
     
-    For line directives w/o a column number, an omitted filename
-    means the empty filename (to preserve the existing behavior).
+    Updates #22239.
     
-    For #22662.
-    
-    Change-Id: I32cd9037550485da5445a34bb104706eccce1df1
-    Reviewed-on: https://go-review.googlesource.com/96476
+    Change-Id: Id00d55628ddb4b48d27aebfa10377a896765d569
+    Reviewed-on: https://go-review.googlesource.com/72271
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/syntax/parser.go      |  13 +++-
- src/cmd/compile/internal/syntax/parser_test.go | 102 ++++++++++++++-----------
- 2 files changed, 68 insertions(+), 47 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

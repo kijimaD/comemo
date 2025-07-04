@@ -1,12 +1,18 @@
-commit b39329bff56abf35edc91537252782814a7a4f84
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Wed Oct 28 08:58:26 2015 +1100
+commit eddd7ff3cd749ecdbc05ed5c190c860c2ac6d161
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Thu Sep 17 21:01:29 2015 +0200
 
-    unicode/utf8: don't imply that the empty string is incorrect UTF-8
+    cmd/compile/internal/gc: avoid stringsCompare for string literals
     
-    Change-Id: Idd9523949ee4f2f304b12be39f8940ba34a420be
-    Reviewed-on: https://go-review.googlesource.com/16361
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Passes go build -a -toolexec 'toolstash -cmp' std cmp.
+    
+    Change-Id: I7567355d405c976c5d91a0cd4e9486ebeb348dbb
+    Reviewed-on: https://go-review.googlesource.com/14682
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/unicode/utf8/utf8.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 17 +++++++++--------
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 2 files changed, 10 insertions(+), 9 deletions(-)

@@ -1,17 +1,31 @@
-commit 04fc88776187a3c9c35a575eef65a7e9b9276e6d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 2 06:30:26 2017 -0800
+commit 41eb9bb993b22979eebffe4eaeeca53db8e7b388
+Author: Volodymyr Paprotski <vpaprots@ca.ibm.com>
+Date:   Fri Oct 14 16:19:25 2016 -0400
 
-    runtime: delay marking maps as writing until after first alg call
+    crypto/elliptic: add s390x assembly implementation of NIST P-256 Curve
     
-    Fixes #19359
+    A paranoid go at constant time implementation of P256 curve.
     
-    Change-Id: I196b47cf0471915b6dc63785e8542aa1876ff695
-    Reviewed-on: https://go-review.googlesource.com/37665
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    This code relies on z13 SIMD instruction set. For zEC12 and below,
+    the fallback is the existing P256 implementation. To facilitate this
+    fallback mode, I've refactored the code so that implementations can
+    be picked at run-time.
+    
+    Its 'slightly' difficult to grok, but there is ASCII art..
+    
+    name            old time/op  new time/op  delta
+    BaseMultP256     419µs ± 3%    27µs ± 1%  -93.65% (p=0.000 n=10+8)
+    ScalarMultP256  1.05ms ±10%  0.09ms ± 1%  -90.94% (p=0.000 n=10+8)
+    
+    Change-Id: Ic1ded898a2ceab055b1c69570c03179c4b85b177
+    Reviewed-on: https://go-review.googlesource.com/31231
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/hashmap.go       | 12 +++++++++---
- test/fixedbugs/issue19359.go | 37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 3 deletions(-)
+ src/crypto/elliptic/p256.go          |   28 +-
+ src/crypto/elliptic/p256_asm_s390x.s | 2201 ++++++++++++++++++++++++++++++++++
+ src/crypto/elliptic/p256_generic.go  |   16 +
+ src/crypto/elliptic/p256_s390x.go    |  513 ++++++++
+ 4 files changed, 2746 insertions(+), 12 deletions(-)

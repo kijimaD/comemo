@@ -1,29 +1,15 @@
-commit 2ad8a9c507ede9621bb1cd1f8d02f6cdac7a9e88
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 14 22:42:42 2011 -0500
+commit 24e9683ae654c804b7da6da47ef60b9060db718e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 14 16:37:54 2011 -0800
 
-    go: implement build, install, run
+    fmt: don't recur if String method (etc.) misbehaves
     
-    clean is gone; all the intermediate files are created
-    in a temporary tree that is wiped when the command ends.
+    Fixes #2555.
     
-    Not using go/build's Script because it is not well aligned
-    with this API.  The various builder methods are copied from
-    go/build and adapted.  Probably once we delete goinstall
-    we can delete the Script API too.
-    
-    R=rogpeppe, adg, adg
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/5483069
+    https://golang.org/cl/5486076
 
- src/cmd/cgo/gcc.go  |  20 +-
- src/cmd/cgo/main.go |  12 +-
- src/cmd/cgo/out.go  |  36 ++--
- src/cmd/go/Makefile |   2 +-
- src/cmd/go/build.go | 589 ++++++++++++++++++++++++++++++++++++++++++++++++++--
- src/cmd/go/clean.go |  31 ---
- src/cmd/go/list.go  |  11 +-
- src/cmd/go/main.go  |  78 ++++++-
- src/cmd/go/pkg.go   |  34 ++-
- src/cmd/go/run.go   |  47 +++++
- 10 files changed, 778 insertions(+), 82 deletions(-)
+ src/pkg/fmt/fmt_test.go | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/fmt/print.go    |  7 +++++++
+ 2 files changed, 41 insertions(+)

@@ -1,29 +1,22 @@
-commit cf06b1f1db9bf84301aa7e760267fdab46373116
-Author: Fábio Mata <fabio.mata@tecnico.ulisboa.pt>
-Date:   Tue Mar 19 22:58:26 2024 +0000
+commit b42ce3a65fd0ea323a67bc8bdbb2a88e7148dcc7
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 18 16:26:13 2023 -0400
 
-    net/url: fix missing handling for opaque value in ResolveReference method
+    cmd/cgo/internal/testtls: cleanup and support more arches
     
-    The current implementation doesn't resolve as per spec RFC 3986 the case
-    where the base URL has an opaque value, and the reference doesn't have
-    either a scheme, authority or path. Currently, this specific case falls
-    back to the "abs_path" or "rel_path" cases, where the final path results
-    of the base_path being resolved relatively to the reference's, but since
-    the opaque value is stored independently, it needs a case of its own.
+    Currently, this test only enabled on non-Darwin UNIX platforms because
+    it uses the non-standard _thread attribute for thread-local storage.
+    C11 introduced a standard way to declare something thread-local, so
+    this CL takes advantage of that to generalize the test to Darwin and
+    Windows.
     
-    The algorith for resolving references is defined in RFC 3986 section 5.2.2:
-    https://www.rfc-editor.org/rfc/rfc3986.html#section-5.2.2
-    
-    Fixes #66084
-    
-    Change-Id: I82813e2333d8f2c4433c742f10e8c941888b55ac
-    GitHub-Last-Rev: cb96626988f4bd4546ee840ba50e2b4efa1e23f1
-    GitHub-Pull-Request: golang/go#66415
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572915
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Iba31b6216721df6eb8e978d7487cd3a787cae588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496295
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/net/url/url.go      | 7 +++++++
- src/net/url/url_test.go | 8 ++++++++
- 2 files changed, 15 insertions(+)
+ src/cmd/cgo/internal/testtls/tls.c       | 32 ++++++++++++++++++++++++++++----
+ src/cmd/cgo/internal/testtls/tls.go      |  8 +++++---
+ src/cmd/cgo/internal/testtls/tls_none.go |  4 ++--
+ 3 files changed, 35 insertions(+), 9 deletions(-)

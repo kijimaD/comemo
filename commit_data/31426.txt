@@ -1,23 +1,42 @@
-commit d2a954517834104dfa55341202efba911b17e03d
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Apr 19 15:30:08 2017 +1200
+commit f37428d8b7e06edc4be472695db677f82c9564c5
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Sat Feb 18 15:07:13 2017 -0800
 
-    cmd/internal: remove SymKind values that are only checked for, never set
+    cmd/go/internal/envcmd: report PKG_CONFIG after the CGO group
     
-    Change-Id: Id152767c033c12966e9e12ae303b99f38776f919
-    Reviewed-on: https://go-review.googlesource.com/40987
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Before the change, `go env` reports PKG_CONFIG in between the
+    CGO env group:
+    
+        GOARCH="amd64"
+        GOBIN=""
+        GOEXE=""
+        GOHOSTARCH="amd64"
+        GOHOSTOS="darwin"
+        GOOS="darwin"
+        GOPATH="/Users/jbd"
+        GORACE=""
+        GOROOT="/Users/jbd/go"
+        GOTOOLDIR="/Users/jbd/go/pkg/tool/darwin_amd64"
+        GCCGO="gccgo"
+        CC="clang"
+        GOGCCFLAGS="-fPIC -m64 -pthread -fno-caret-diagnostics -Qunused-arguments -fmessage-length=0 -fdebug-prefix-map=/var/folders/lq/qcn67khn4_1b41_g48x3zchh005d21/T/go-build184491598=/tmp/go-build -gno-record-gcc-switches -fno-common"
+        CXX="clang++"
+        CGO_ENABLED="1"
+        PKG_CONFIG="pkg-config"
+        CGO_CFLAGS="-g -O2"
+        CGO_CPPFLAGS=""
+        CGO_CXXFLAGS="-g -O2"
+        CGO_FFLAGS="-g -O2"
+        CGO_LDFLAGS="-g -O2"
+    
+    The change makes PKG_CONFIG to be reported as the final item,
+    and not breaking the CGO_* group apart.
+    
+    Change-Id: I1e7ed6bdec83009ff118f85c9f0f7b78a67fdd76
+    Reviewed-on: https://go-review.googlesource.com/37228
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/mips/asm0.go         | 4 ----
- src/cmd/internal/obj/plist.go             | 2 +-
- src/cmd/internal/obj/ppc64/asm9.go        | 4 ----
- src/cmd/internal/obj/s390x/asmz.go        | 3 ---
- src/cmd/internal/objabi/symkind.go        | 4 ----
- src/cmd/internal/objabi/symkind_string.go | 4 ++--
- src/cmd/internal/objfile/goobj.go         | 2 --
- src/cmd/link/internal/ld/symkind.go       | 2 --
- 8 files changed, 3 insertions(+), 22 deletions(-)
+ src/cmd/go/internal/envcmd/env.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

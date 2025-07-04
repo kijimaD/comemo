@@ -1,16 +1,17 @@
-commit 46deaa297bcf76438ae17b070ef351d5b91d3d59
+commit e4e4cdb39a821eb850200967cb21ab36e8d3a1be
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 6 10:48:17 2011 -0500
+Date:   Tue Dec 6 10:47:42 2011 -0500
 
-    gc: disallow map/func equality via interface comparison
+    image: avoid func comparison during ColorModel comparison
     
-    Missed when I removed direct map/func equality.
+    When I disallowed map + func comparisons, I only did it
+    in the static case and missed the comparisons via == on
+    interface values.  Fixing that turned these up.
     
-    R=ken2
+    R=nigeltao, r
     CC=golang-dev
-    https://golang.org/cl/5452052
+    https://golang.org/cl/5440103
 
- src/cmd/gc/subr.c           |  3 +--
- src/pkg/reflect/all_test.go |  4 ++--
- test/interface/noeq.go      | 39 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 42 insertions(+), 4 deletions(-)
+ src/pkg/image/color/color.go | 21 +++++++++++++++------
+ src/pkg/image/names.go       |  8 ++++++--
+ 2 files changed, 21 insertions(+), 8 deletions(-)

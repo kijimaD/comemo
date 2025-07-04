@@ -1,13 +1,15 @@
-commit 348a20548d8676fef64a304bea2e5675e5f4af2d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Jul 15 06:03:36 2014 -0700
+commit 8422d1ea65e4722098ec940e202a0aa33efa3309
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 15 10:27:36 2014 +0400
 
-    objdump: remove out-of-date comment
+    runtime: zero dangling pointer
+    I don't see how it can lead to bad things today.
+    But it's better to kill it before it does.
     
-    LGTM=iant
-    R=rsc, iant
-    CC=golang-codereviews
-    https://golang.org/cl/112320043
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/111130045
 
- src/cmd/objdump/main.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/pkg/runtime/chan.goc | 2 ++
+ 1 file changed, 2 insertions(+)

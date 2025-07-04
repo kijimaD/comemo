@@ -1,40 +1,17 @@
-commit 385cd6681bd5dcb1dd2678d1d8db93b4f3d751f9
-Merge: 9aea0e89b6 6f6a9398e2
-Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
-Date:   Fri Aug 11 17:47:15 2017 +0000
+commit 927f8a04cce3960f1415c4efe246eb64bdb945fa
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Apr 8 15:12:17 2017 +0900
 
-    Merge "Merge remote-tracking branch 'origin/dev.debug' into master"
+    encoding/asn1: document "utc" and "generalized" tags
+    
+    Also reformat tables.
+    
+    Fixes #19889
+    
+    Change-Id: I05083d2bab8bca46c4e22a415eb9b73513df6994
+    Reviewed-on: https://go-review.googlesource.com/40071
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/fmt_test.go                    |  15 +
- src/cmd/compile/internal/gc/main.go            |   8 +-
- src/cmd/compile/internal/gc/pgen.go            | 357 ++++++++++++++--
- src/cmd/compile/internal/gc/scope.go           |   2 +-
- src/cmd/compile/internal/gc/sizeof_test.go     |   2 +-
- src/cmd/compile/internal/gc/ssa.go             | 105 +++--
- src/cmd/compile/internal/gc/syntax.go          |   2 +
- src/cmd/compile/internal/ssa/cache.go          |  22 +
- src/cmd/compile/internal/ssa/debug.go          | 559 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/decompose.go      |   1 +
- src/cmd/compile/internal/ssa/export_test.go    |  22 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go |   1 +
- src/cmd/compile/internal/ssa/html.go           |  13 +
- src/cmd/compile/internal/ssa/location.go       |  32 +-
- src/cmd/compile/internal/ssa/opGen.go          |   6 +
- src/cmd/compile/internal/ssa/regalloc.go       |  98 ++++-
- src/cmd/compile/internal/ssa/sizeof_test.go    |   1 +
- src/cmd/compile/internal/ssa/stackalloc.go     |   2 +-
- src/cmd/compile/internal/ssa/value.go          |  15 +-
- src/cmd/internal/dwarf/dwarf.go                | 159 +++++--
- src/cmd/internal/obj/link.go                   |  53 +--
- src/cmd/internal/obj/objfile.go                |  17 +-
- src/cmd/internal/obj/plist.go                  |  18 +-
- src/cmd/internal/obj/x86/a.out.go              | 117 ++++++
- src/cmd/internal/obj/x86/obj6.go               |  39 +-
- src/cmd/internal/objabi/symkind.go             |   1 +
- src/cmd/internal/objabi/symkind_string.go      |   4 +-
- src/cmd/link/internal/ld/data.go               |  43 +-
- src/cmd/link/internal/ld/dwarf.go              | 114 ++---
- src/cmd/link/internal/ld/elf.go                |   7 +-
- src/cmd/link/internal/ld/symkind.go            |   2 +
- src/cmd/link/internal/ld/symkind_string.go     |   4 +-
- 32 files changed, 1551 insertions(+), 290 deletions(-)
+ src/encoding/asn1/asn1.go    | 12 ++++++------
+ src/encoding/asn1/marshal.go | 10 ++++++----
+ 2 files changed, 12 insertions(+), 10 deletions(-)

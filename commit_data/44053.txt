@@ -1,21 +1,15 @@
-commit 0aa9b4709acd609c1a3e9cb028e7f4c4da3f0357
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Dec 22 12:40:32 2020 -0500
+commit 5d9549debb313269a7adabdb271f3d67113fef1a
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Wed Dec 18 22:41:10 2019 +0800
 
-    cmd/pack: r command create output file if not exist
+    cmd/go: accept hash-style in LDFLAGS
     
-    Go 1.15 pack's r command creates the output file if it does not
-    exist. The system "ar" command does this as well. Do the same.
-    
-    For bazelbuild/rules_go#2762.
-    
-    Change-Id: Icd88396b5c714b735c859a29ab29851e4301f4d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279516
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I493bb7e5e9a9e1752236dea1e032b317da7f67f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211560
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/pack/pack.go      |  7 +++++--
- src/cmd/pack/pack_test.go | 25 ++++++++++++++++++++++++-
- 2 files changed, 29 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/work/security.go      | 1 +
+ src/cmd/go/internal/work/security_test.go | 2 ++
+ 2 files changed, 3 insertions(+)

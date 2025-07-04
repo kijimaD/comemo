@@ -1,23 +1,16 @@
-commit 5da31049a633e225c2fc9d3500c162f87651ceef
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Oct 5 12:02:43 2023 +0200
+commit 9860faa5127931183e4dfb716d89ce7dface3f41
+Author: Eric Lagergren <eric@ericlagergren.com>
+Date:   Thu Nov 3 23:13:37 2022 -0700
 
-    runtime: normalize line endings in TestGdbPython
+    math/big: remove underscores from Binomial docs
     
-    TestGdbPython fails on some Windows setups because the line endings in
-    the output of the gdb command can potentially be CRLF, but the test
-    expects LF.
-    
-    This CL changes the test to normalize the line endings.
-    
-    Change-Id: Iada9c37dc98249ac3c5f1edca4a657c51d4382a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532816
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I7605bcbbaa64bb4273ad458a157b1c6011467973
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447915
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
 
- src/runtime/runtime-gdb_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/math/big/int.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

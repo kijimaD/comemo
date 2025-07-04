@@ -1,13 +1,13 @@
-commit 73f4b847aeb9a7537ae7ee77696e321533001b7c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue May 3 20:45:10 2011 -0700
+commit 684e065d05f0cd6f1dc2b141e6fa519a01056ece
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 4 13:08:36 2011 +1000
 
-    http: fix FormFile nil pointer dereference on missing  multipart form
+    net: disable dnsmsg_test on windows
     
-    R=rsc
+    R=golang-dev, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4463042
+    https://golang.org/cl/4466041
 
- src/pkg/http/request.go      |  8 +++++---
- src/pkg/http/request_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 3 deletions(-)
+ src/pkg/net/dnsmsg_test.go    | 7 +++++++
+ src/pkg/net/resolv_windows.go | 4 ++++
+ 2 files changed, 11 insertions(+)

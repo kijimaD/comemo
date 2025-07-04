@@ -1,29 +1,23 @@
-commit 9dee7771f561cf6aee081c0af6658cc81fac3918
-Author: Vishvananda Ishaya <vishvananda@gmail.com>
-Date:   Tue Feb 16 17:58:11 2016 -0800
+commit 15ed37d7b79721ad2077290f844d25e3e42a7821
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 16 21:51:17 2016 -0700
 
-    net: allow netgo to use lookup from nsswitch.conf
+    cmd/compile: enforce nowritebarrier in SSA compiler
     
-    Change https://golang.org/cl/8945 allowed Go to use its own DNS resolver
-    instead of libc in a number of cases. The code parses nsswitch.conf and
-    attempts to resolve things in the same order. Unfortunately, builds with
-    netgo completely ignore this parsing and always search via
-    hostLookupFilesDNS.
+    Make sure we don't generate write barriers in runtime
+    code that is marked to forbid write barriers.
     
-    This commit modifies the logic to allow binaries built with netgo to
-    parse nsswitch.conf and attempt to resolve using the order specified
-    there. If the parsing results in hostLookupCGo, it falls back to the
-    original hostLookupFilesDNS. Tests are also added to ensure that both
-    the parsing and the fallback work properly.
+    Implement the optimization that if we're writing a sliced
+    slice back to the location it came from, we don't need a
+    write barrier.
     
-    Fixes #14354
+    Fixes #14784
     
-    Change-Id: Ib079ad03d7036a4ec57f18352a15ba55d933f261
-    Reviewed-on: https://go-review.googlesource.com/19523
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I04b6a3b2ac303c19817e932a36a3b006de103aaa
+    Reviewed-on: https://go-review.googlesource.com/20791
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/conf.go      | 31 ++++++++++++++++---------------
- src/net/conf_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go  | 23 +++++++++++++++++++++++
+ src/cmd/compile/internal/gc/walk.go |  7 +++++++
+ test/writebarrier.go                | 13 +++++++++++++
+ 3 files changed, 43 insertions(+)

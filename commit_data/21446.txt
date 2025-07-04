@@ -1,30 +1,16 @@
-commit a293c7e68f64d3935c4720372cb26925e4d8353f
+commit ff979626fc14eb0debcce44494ca114879de618d
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 29 13:50:19 2015 -0500
+Date:   Mon Dec 29 16:26:25 2014 -0500
 
-    cmd/9a: fix GLOBL instruction
+    cmd/gc: add write barrier for append(slice, slice...)
     
-    Because it was lumped in with the TEXT instruction,
-    the high 32 bits of the 64-bit constant holding the size
-    were always set to 0x80000000 (ArgsSizeUnknown).
-    This only worked because cmd/9l was reading the 64-bit
-    value into an int32.
+    Found with GODEBUG=wbshadow=2 mode.
+    Eventually that will run automatically, but right now
+    it still detects other missing write barriers.
     
-    While we're here, fix 5a.
-    It wasn't as much of a problem there because
-    the two values were being stored in two different fields.
-    But it was still wrong.
-    
-    Change-Id: I69a2214c7be939530d499e29cfdc3b26720ac05a
-    Reviewed-on: https://go-review.googlesource.com/3570
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I5624b509a36650bce6834cf394b9da163abbf8c0
+    Reviewed-on: https://go-review.googlesource.com/2310
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/5a/a.y     |   17 +-
- src/cmd/5a/lex.c   |    2 +-
- src/cmd/5a/y.tab.c | 1177 ++++++++++++++++++++++++-----------------------
- src/cmd/5a/y.tab.h |  152 ++++---
- src/cmd/9a/a.y     |   18 +-
- src/cmd/9a/lex.c   |    2 +-
- src/cmd/9a/y.tab.c | 1287 ++++++++++++++++++++++++++--------------------------
- src/cmd/9a/y.tab.h |  160 +++----
- 8 files changed, 1449 insertions(+), 1366 deletions(-)
+ src/cmd/gc/walk.c | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

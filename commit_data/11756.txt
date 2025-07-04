@@ -1,17 +1,14 @@
-commit 7750fc894ad8697349cc9b97bb5c0a9c2201c3ae
+commit 0a398c4057afeb13cd0c2bf61571dcf9c7ec2b1b
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 10 11:44:51 2012 +1100
+Date:   Fri Feb 10 10:29:57 2012 +1100
 
-    os: remove Time; callers should use time.Time.
+    net/http/fcgi: don't mention threads in docs
     
-    Part of issue 2947
+    Fixes #2942
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5651051
+    https://golang.org/cl/5650049
 
- doc/go1.html          | 13 ++++++++++++-
- doc/go1.tmpl          | 13 ++++++++++++-
- src/pkg/os/os_test.go | 14 --------------
- src/pkg/os/time.go    | 19 -------------------
- 4 files changed, 24 insertions(+), 35 deletions(-)
+ src/pkg/net/http/fcgi/child.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

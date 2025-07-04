@@ -1,34 +1,33 @@
-commit 3d5eb4a6bef97c16308442a0e7b87fcdf5fd0f02
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jan 24 12:48:10 2017 -0800
+commit f3b4abd806c392ff0bf8566009e750ebc01ae355
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 11:37:54 2016 -0400
 
-    cmd/compile: better implementation of Slicemask
+    cmd/go: allow 'go generate' even if imports do not resolve
     
-    Use (-x)>>63 instead of ((x-1)>>63)^-1 to get a mask that
-    is 0 when x is 0 and all ones when x is positive.
+    Maybe the go generate is generating the imports,
+    or maybe there's some other good reason the code
+    is incomplete.
     
-    Saves one instruction when slicing.
+    The help text already says:
     
-    Change-Id: Ib46d53d3aac6530ac481fa2f265a6eadf3df0567
-    Reviewed-on: https://go-review.googlesource.com/35641
-    Run-TryBot: Keith Randall <khr@golang.org>
+            Note that go generate does not parse the file, so lines that look
+            like directives in comments or multiline strings will be treated
+            as directives.
+    
+    We'll still reject Go source files that don't begin with a package statement
+    or have a syntax error in the import block, but those are I think more
+    defensible rejections.
+    
+    Fixes #16307.
+    
+    Change-Id: I4f8496c02fdff993f038adfed2df4db7f067dc06
+    Reviewed-on: https://go-review.googlesource.com/31659
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules    |  2 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules  |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules    |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules  |  2 +-
- src/cmd/compile/internal/ssa/gen/MIPS.rules   |  2 +-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules |  2 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules  |  2 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules  |  2 +-
- src/cmd/compile/internal/ssa/rewrite386.go    | 14 +++++---------
- src/cmd/compile/internal/ssa/rewriteAMD64.go  | 14 +++++---------
- src/cmd/compile/internal/ssa/rewriteARM.go    | 14 ++++++--------
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 13 +++++--------
- src/cmd/compile/internal/ssa/rewriteMIPS.go   | 13 ++++++-------
- src/cmd/compile/internal/ssa/rewriteMIPS64.go | 14 +++++---------
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 14 +++++---------
- src/cmd/compile/internal/ssa/rewriteS390X.go  | 16 +++++-----------
- 16 files changed, 50 insertions(+), 78 deletions(-)
+ src/cmd/go/generate.go                       |  2 ++
+ src/cmd/go/go_test.go                        | 14 ++++++++++++++
+ src/cmd/go/pkg.go                            |  7 +++++++
+ src/cmd/go/testdata/src/gencycle/gencycle.go |  5 +++++
+ 4 files changed, 28 insertions(+)

@@ -1,45 +1,16 @@
-commit ad7732a9acf6447e4b70845085263772ea788a6c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Sep 15 08:07:54 2016 -0700
+commit 1ded9fdcff8722ae961fb9da015faac874b7690e
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Thu May 19 22:26:01 2016 -0700
 
-    cmd/compile: remove gins
+    syscall: fix unshare test on mips
     
-    The only remaining consumers of gins were
-    ginsnop and arch-independent opcodes like GVARDEF.
-    Rewrite ginsnop to create and populate progs directly.
-    Move arch-independent opcodes to package gc
-    and simplify.
-    Delete some now unused code.
-    There is more.
-    Step one towards eliminating gc.Node.Reg.
-    
-    Change-Id: I7c34cd8a848f6fc3b030705ab8e293838e0b6c20
-    Reviewed-on: https://go-review.googlesource.com/29220
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iedce3770a92112802f3a45c7b95ee145ab5b187e
+    Reviewed-on: https://go-review.googlesource.com/23282
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/galign.go  |   1 -
- src/cmd/compile/internal/amd64/gsubr.go   | 115 +-------------------
- src/cmd/compile/internal/arm/galign.go    |   1 -
- src/cmd/compile/internal/arm/ggen.go      |   8 +-
- src/cmd/compile/internal/arm/gsubr.go     |  80 --------------
- src/cmd/compile/internal/arm64/galign.go  |   1 -
- src/cmd/compile/internal/arm64/ggen.go    |   5 +-
- src/cmd/compile/internal/arm64/gsubr.go   | 110 -------------------
- src/cmd/compile/internal/gc/go.go         |   1 -
- src/cmd/compile/internal/gc/gsubr.go      | 168 ++++--------------------------
- src/cmd/compile/internal/gc/pgen.go       |  10 +-
- src/cmd/compile/internal/mips64/galign.go |   1 -
- src/cmd/compile/internal/mips64/ggen.go   |   8 +-
- src/cmd/compile/internal/mips64/gsubr.go  | 140 +------------------------
- src/cmd/compile/internal/ppc64/galign.go  |   1 -
- src/cmd/compile/internal/ppc64/ggen.go    |   8 +-
- src/cmd/compile/internal/ppc64/gsubr.go   | 157 +---------------------------
- src/cmd/compile/internal/s390x/galign.go  |   1 -
- src/cmd/compile/internal/s390x/ggen.go    |   8 +-
- src/cmd/compile/internal/s390x/gsubr.go   | 114 +-------------------
- src/cmd/compile/internal/x86/galign.go    |   1 -
- src/cmd/compile/internal/x86/gsubr.go     |  96 +----------------
- 22 files changed, 62 insertions(+), 973 deletions(-)
+ src/syscall/exec_linux_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

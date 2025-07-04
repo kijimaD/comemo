@@ -1,41 +1,24 @@
-commit 4068fb6c2162b38db7912903ff12bafe9f5ca9bb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 24 18:07:42 2021 -0700
+commit 1341a3decd00d1106efaa73c5ff4ffcabc4e6afd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Dec 1 21:45:49 2020 -0500
 
-    cmd/compile: always accept 1.18 syntax but complain if not 1.18
+    cmd/go: add documentation for the -overlay flag
     
-    This CL configures the parser to always accept 1.18 syntax
-    (type parameters, type instantiations, interface elements),
-    even when -lang is set to an earlier release.
+    Also add -overlay to the Go 1.16 release notes.
     
-    Instead, the type checker looks for 1.18 operations and
-    complains if the language version is set to an earlier
-    release.
+    For #40700
+    Fixes #39958
+    Fixes #42893
     
-    Doing these checks during type checking is necessary because it
-    it is possible to write "generic" code using pre-1.18 syntax;
-    for instance, an imported generic function may be implicitly
-    instantiated (as in imported.Max(2, 3)), or an imported constraint
-    interface may be embedded in an "ordinary" interface.
-    
-    Fixes #47818.
-    
-    Change-Id: I83ec302b3f4ba7196c0a4743c03670cfb901310d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344871
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ifd397549e368b255e7b8800986cfa0563a942af5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274714
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/noder/noder.go            |  2 +-
- src/cmd/compile/internal/types2/call.go            | 11 ++++
- src/cmd/compile/internal/types2/decl.go            | 23 +++++++--
- src/cmd/compile/internal/types2/resolver.go        | 40 +++++++++------
- src/cmd/compile/internal/types2/subst.go           |  2 +-
- .../internal/types2/testdata/check/decls0.src      |  2 +-
- .../internal/types2/testdata/check/issues.src      |  6 +--
- .../internal/types2/testdata/check/main.go2        |  2 +-
- .../internal/types2/testdata/check/typeparams.go2  |  4 +-
- .../types2/testdata/fixedbugs/issue47818.go2       | 59 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/typeset.go         | 11 +++-
- src/cmd/compile/internal/types2/typexpr.go         | 15 +++---
- test/fixedbugs/issue10975.go                       |  2 +-
- 13 files changed, 142 insertions(+), 37 deletions(-)
+ doc/go1.16.html                   | 14 ++++++++++++++
+ src/cmd/go/alldocs.go             | 11 +++++++++++
+ src/cmd/go/internal/work/build.go | 11 +++++++++++
+ 3 files changed, 36 insertions(+)

@@ -1,18 +1,17 @@
-commit 1f41f04d2c121ba229072bd954f8346a0fc6d3e4
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sat Jul 4 11:01:29 2020 +0200
+commit b00ebeaebcd8d7535ff08163a7907a6a8fe7b703
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Thu Feb 27 12:11:30 2020 -0600
 
-    cmd/compile: enforce strongly typed rules for ARM (8)
+    net/http/cgi: remove outdated TODO
     
-    add type casting to int32: L148-L156, L774-L778
+    Cookies already work as http.Request parses the Cookie header on-demand
+    when the Cookie methods are called.
     
-    Toolstash-check successful
-    
-    Change-Id: Ib6544c1d7853c2811def5b18786e1fc5c18086ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256097
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
+    Change-Id: Ib7a6f68be02940ff0b56d2465c94545d6fd43847
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221417
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules | 26 ++++-----
- src/cmd/compile/internal/ssa/rewriteARM.go | 86 +++++++++++++++---------------
- 2 files changed, 56 insertions(+), 56 deletions(-)
+ src/net/http/cgi/child.go | 2 --
+ 1 file changed, 2 deletions(-)

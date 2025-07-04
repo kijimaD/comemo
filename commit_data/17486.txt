@@ -1,12 +1,18 @@
-commit b7a609b660a0d656b32a3a2a1e2e0e4420b7f049
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Fri Sep 6 16:08:11 2013 -0400
+commit e1ac15743b026f843401b95d34c2c0f54847e15d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 6 15:47:52 2013 -0400
 
-    misc/emacs: use built-in buffer-base-buffer instead of own variable
+    cmd/gc: remove "send used as value" hint
     
-    R=adonovan
+    This message was helpful for pre-Go 1 users updating to Go 1.
+    That time is past. Now the message is confusing because it
+    depends on knowing what pre-Go 1 looked like.
+    
+    Update #4697.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13476043
+    https://golang.org/cl/13335051
 
- misc/emacs/go-mode.el | 6 +-----
+ src/cmd/gc/typecheck.c | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)

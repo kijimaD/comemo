@@ -1,13 +1,12 @@
-commit 10d1e55103c17f4b379729f2d6b40327cefea6be
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jul 22 20:47:39 2013 +0400
+commit 5d14b899333c0d59dd7414d328d622ece83ba61c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jul 22 20:08:58 2013 +0900
 
-    runtime: allow stack split in body of closechan
-    This gives more space during the call to runtime.lock.
+    net: remove unnecessary bit masking
     
-    R=golang-dev, rsc
+    R=dave
     CC=golang-dev
-    https://golang.org/cl/11679043
+    https://golang.org/cl/11537044
 
- src/pkg/runtime/chan.c | 27 ++++++++++++++++++---------
- 1 file changed, 18 insertions(+), 9 deletions(-)
+ src/pkg/net/ipraw_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

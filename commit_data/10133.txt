@@ -1,12 +1,12 @@
-commit 8a7b2b2f7060427890143fb7263d231acf689bb3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Oct 28 10:55:58 2011 +0900
+commit 785baa86f12f9f9a2746f66e59bae7c4cf032424
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 18:04:29 2011 -0700
 
-    doc: A Tour of Go in Japanese
+    html: fix print argument in test
     
-    R=golang-dev, dsymonds
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5318058
+    https://golang.org/cl/5302069
 
- doc/docs.html | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/html/token_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

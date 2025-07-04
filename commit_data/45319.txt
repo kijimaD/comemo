@@ -1,23 +1,138 @@
-commit c0e1301b8c137d4b9f93067469b9608c252f2cea
+commit 7bb721b9384bdd196befeaed593b185f7f2a5589
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 20 15:00:35 2021 -0400
+Date:   Tue Jul 7 13:49:21 2020 -0400
 
-    cmd/link: fix PE section attributes for windows/arm64
+    all: update references to symbols moved from os to io/fs
     
-    The clang-mingw toolchain on windows/arm64 expects
-    .text to NOT be listed as containing initialized data and
-    .dwarf* to be listed as  containing initialized data.
-    Neither is true today, resulting in the go .text and .dwarf*
-    not being merged with the system .text and .dwarf*.
-    Having multiple .text and .dwarf* sections confuses all
-    kinds of tools.
+    The old os references are still valid, but update our code
+    to reflect best practices and get used to the new locations.
     
-    Change-Id: I1b9832804c5f5d594bf19e8ee0a5ed31bc1d381d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312032
+    Code compiled with the bootstrap toolchain
+    (cmd/asm, cmd/dist, cmd/compile, debug/elf)
+    must remain Go 1.4-compatible and is excluded.
+    
+    For #41190.
+    
+    Change-Id: I8f9526977867c10a221e2f392f78d7dec073f1bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243907
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/archive/tar/common.go                          | 68 ++++++++++----------
+ src/archive/tar/stat_unix.go                       |  4 +-
+ src/archive/tar/tar_test.go                        | 19 +++---
+ src/archive/zip/reader_test.go                     | 11 ++--
+ src/archive/zip/struct.go                          | 72 +++++++++++-----------
+ src/archive/zip/writer_test.go                     | 10 +--
+ src/cmd/doc/pkg.go                                 | 10 +--
+ src/cmd/fix/main.go                                |  5 +-
+ src/cmd/go/go_test.go                              |  7 ++-
+ src/cmd/go/internal/cache/cache.go                 |  3 +-
+ src/cmd/go/internal/fsys/fsys.go                   | 41 ++++++------
+ src/cmd/go/internal/fsys/fsys_test.go              | 39 ++++++------
+ src/cmd/go/internal/imports/scan.go                |  3 +-
+ src/cmd/go/internal/load/pkg.go                    |  5 +-
+ .../lockedfile/internal/filelock/filelock.go       |  5 +-
+ .../lockedfile/internal/filelock/filelock_fcntl.go |  6 +-
+ .../lockedfile/internal/filelock/filelock_other.go |  6 +-
+ .../lockedfile/internal/filelock/filelock_plan9.go |  8 +--
+ .../lockedfile/internal/filelock/filelock_unix.go  |  4 +-
+ .../internal/filelock/filelock_windows.go          |  6 +-
+ src/cmd/go/internal/lockedfile/lockedfile.go       |  9 +--
+ .../go/internal/lockedfile/lockedfile_filelock.go  |  3 +-
+ src/cmd/go/internal/lockedfile/lockedfile_plan9.go |  9 +--
+ src/cmd/go/internal/modcmd/vendor.go               |  7 ++-
+ src/cmd/go/internal/modcmd/verify.go               |  9 +--
+ src/cmd/go/internal/modfetch/cache.go              |  7 ++-
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  9 +--
+ src/cmd/go/internal/modfetch/codehost/git.go       | 15 ++---
+ src/cmd/go/internal/modfetch/codehost/git_test.go  |  3 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       |  3 +-
+ src/cmd/go/internal/modfetch/coderepo.go           |  7 ++-
+ src/cmd/go/internal/modfetch/fetch.go              | 11 ++--
+ src/cmd/go/internal/modfetch/proxy.go              |  8 +--
+ src/cmd/go/internal/modfetch/repo.go               |  5 +-
+ src/cmd/go/internal/modfetch/sumdb.go              |  7 ++-
+ src/cmd/go/internal/modload/import.go              |  3 +-
+ src/cmd/go/internal/modload/load.go                |  3 +-
+ src/cmd/go/internal/modload/query.go               | 11 ++--
+ src/cmd/go/internal/modload/search.go              |  5 +-
+ src/cmd/go/internal/modload/stat_openfile.go       |  3 +-
+ src/cmd/go/internal/modload/stat_unix.go           |  3 +-
+ src/cmd/go/internal/modload/stat_windows.go        |  6 +-
+ src/cmd/go/internal/modload/vendor.go              |  4 +-
+ src/cmd/go/internal/renameio/renameio.go           |  7 ++-
+ src/cmd/go/internal/renameio/umask_test.go         |  5 +-
+ src/cmd/go/internal/search/search.go               |  7 ++-
+ src/cmd/go/internal/test/test.go                   |  3 +-
+ src/cmd/go/internal/vcs/vcs.go                     |  5 +-
+ src/cmd/go/internal/version/version.go             | 11 ++--
+ src/cmd/go/internal/web/api.go                     |  6 +-
+ src/cmd/go/internal/web/file_test.go               |  5 +-
+ src/cmd/go/internal/work/build_test.go             |  3 +-
+ src/cmd/go/internal/work/exec.go                   |  9 +--
+ src/cmd/go/proxy_test.go                           |  5 +-
+ src/cmd/go/script_test.go                          |  7 ++-
+ src/cmd/go/testdata/addmod.go                      |  3 +-
+ src/cmd/go/testdata/savedir.go                     |  3 +-
+ src/cmd/gofmt/gofmt.go                             |  9 +--
+ src/cmd/gofmt/long_test.go                         |  3 +-
+ src/cmd/internal/buildid/buildid.go                |  9 +--
+ src/cmd/internal/buildid/note.go                   |  7 ++-
+ src/cmd/internal/moddeps/moddeps_test.go           |  3 +-
+ src/cmd/pack/pack.go                               |  3 +-
+ src/cmd/pack/pack_test.go                          | 11 ++--
+ src/compress/gzip/issue14937_test.go               |  3 +-
+ src/crypto/rand/eagain.go                          |  4 +-
+ src/crypto/x509/root_unix.go                       |  7 ++-
+ src/errors/errors.go                               | 12 ++--
+ src/errors/wrap.go                                 |  4 +-
+ src/errors/wrap_test.go                            | 11 ++--
+ src/go/build/build.go                              |  9 +--
+ src/go/build/deps_test.go                          |  3 +-
+ src/go/doc/doc_test.go                             |  6 +-
+ src/go/doc/headscan.go                             |  5 +-
+ src/go/parser/interface.go                         |  6 +-
+ src/go/parser/parser_test.go                       |  4 +-
+ src/index/suffixarray/suffixarray_test.go          |  4 +-
+ src/internal/poll/error_test.go                    |  3 +-
+ src/internal/reflectlite/reflect_mirror_test.go    |  3 +-
+ src/io/ioutil/ioutil.go                            |  5 +-
+ src/io/ioutil/tempfile_test.go                     |  3 +-
+ src/net/conf_test.go                               |  8 +--
+ src/net/dnsconfig_unix_test.go                     |  3 +-
+ src/net/error_test.go                              | 13 ++--
+ src/net/http/example_filesystem_test.go            | 14 ++---
+ src/net/http/fs.go                                 |  9 +--
+ src/net/http/fs_test.go                            | 27 ++++----
+ src/net/ipsock_plan9.go                            |  3 +-
+ src/os/error_test.go                               | 55 +++++++++--------
+ src/os/error_unix_test.go                          | 11 ++--
+ src/os/error_windows_test.go                       | 11 ++--
+ src/os/example_test.go                             |  5 +-
+ src/os/exec/exec_plan9.go                          |  4 +-
+ src/os/exec/exec_unix.go                           |  4 +-
+ src/os/exec/exec_windows.go                        |  4 +-
+ src/os/exec/lp_plan9.go                            |  3 +-
+ src/os/exec/lp_unix.go                             |  3 +-
+ src/os/exec/lp_windows.go                          |  5 +-
+ src/os/os_test.go                                  |  2 +-
+ src/os/os_windows_test.go                          | 11 ++--
+ src/os/pipe_test.go                                | 17 ++---
+ src/os/removeall_test.go                           |  2 +-
+ src/os/signal/signal_cgo_test.go                   |  3 +-
+ src/os/stat_test.go                                | 19 +++---
+ src/path/filepath/example_unix_walk_test.go        |  3 +-
+ src/path/filepath/path.go                          |  7 ++-
+ src/path/filepath/path_test.go                     | 15 ++---
+ src/path/filepath/path_windows_test.go             |  3 +-
+ src/path/filepath/symlink.go                       |  3 +-
+ src/runtime/testdata/testprogcgo/exec.go           |  3 +-
+ src/syscall/syscall_js.go                          |  2 +-
+ src/syscall/syscall_linux_test.go                  |  3 +-
+ src/syscall/syscall_plan9.go                       |  2 +-
+ src/syscall/syscall_unix.go                        |  2 +-
+ src/syscall/syscall_windows.go                     |  2 +-
+ 115 files changed, 529 insertions(+), 450 deletions(-)

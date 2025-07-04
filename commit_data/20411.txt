@@ -1,15 +1,40 @@
-commit e3d2e5550e525308e9e9323fbaf05c4ea6588215
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 12 16:35:40 2014 -0700
+commit 8473695797d346f9adf72ee40013a8c8421a7c87
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 6 13:19:08 2014 -0400
 
-    cmd/8g: remove unused variable (fix build)
+    runtime: fix panic/wrapper/recover math
     
-    http://build.golang.org/log/0434a945e3351eedaf56aa824d2bfe9c0d5e6735
+    The gp->panicwrap adjustment is just fatally flawed.
+    Now that there is a Panic.argp field, update that instead.
+    That can be done on entry only, so that unwinding doesn't
+    need to worry about undoing anything. The wrappers
+    emit a few more instructions in the prologue but everything
+    else in the system gets much simpler.
     
-    LGTM=dave
-    R=bradfitz, dave
-    CC=golang-codereviews
-    https://golang.org/cl/144800043
+    It also fixes (without trying) a broken test I never checked in.
+    
+    Fixes #7491.
+    
+    LGTM=khr
+    R=khr
+    CC=dvyukov, golang-codereviews, iant, r
+    https://golang.org/cl/135490044
 
- src/cmd/8g/ggen.c | 1 -
- 1 file changed, 1 deletion(-)
+ src/liblink/obj5.c             | 123 ++++++++++++++++++++++++-----------------
+ src/liblink/obj6.c             |  78 +++++++++++++++++++-------
+ src/liblink/obj8.c             |  78 +++++++++++++++++++-------
+ src/pkg/reflect/value.go       |   8 +--
+ src/pkg/runtime/asm_386.s      |  20 ++-----
+ src/pkg/runtime/asm_amd64.s    |  29 ++--------
+ src/pkg/runtime/asm_amd64p32.s |   5 +-
+ src/pkg/runtime/asm_arm.s      |  21 ++-----
+ src/pkg/runtime/cgocall.go     |   2 +-
+ src/pkg/runtime/malloc.go      |   2 +-
+ src/pkg/runtime/panic.go       |   2 +-
+ src/pkg/runtime/panic1.go      |  52 +++++++++--------
+ src/pkg/runtime/proc.c         |   1 -
+ src/pkg/runtime/runtime.h      |  10 +---
+ src/pkg/runtime/stack.c        |   4 --
+ src/pkg/runtime/stubs.go       |   2 +-
+ test/recover.go                |  48 +++++++++++++++-
+ 17 files changed, 289 insertions(+), 196 deletions(-)

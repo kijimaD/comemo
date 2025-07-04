@@ -1,18 +1,15 @@
-commit 61089984a89743af1d8bad569dcffe62f00a6970
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Oct 22 14:20:51 2019 +0200
+commit e9a136d185af8dcdb270096af520087c92c8b4af
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 3 15:20:30 2019 -0400
 
-    runtime: clarify that itab.hash of dynamic entries is unused
+    cmd/link: regenerate symkind_string.go
     
-    The hash is used in type switches. However, compiler statically generates itab's
-    for all interface/type pairs used in switches (which are added to itabTable
-    in itabsinit). The dynamically-generated itab's never participate in type switches,
-    and thus the hash is irrelevant.
-    
-    Change-Id: I4f6e37be31b8f5605cca7a1806cb04708e948cea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202448
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ibe514058770bd5342e1f344c5b8a9ab1427d5dfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180297
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/iface.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/sym/symkind_string.go | 62 ++++++++++++++++++++++++++++-
+ 1 file changed, 60 insertions(+), 2 deletions(-)

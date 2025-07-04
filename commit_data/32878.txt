@@ -1,18 +1,36 @@
-commit 70bcd2c54e8f26ee67372dffa56a86ae9701e843
-Author: Cyrill Schumacher <cyrill@schumacher.fm>
-Date:   Wed Sep 27 20:37:02 2017 +0200
+commit af2ac479fc9e4833357a3281a67cd517d2da07ad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 9 20:17:51 2017 +0000
 
-    database/sql: TestConversions add forgotten fields wantbytes and wantraw
+    all: single space after period
     
-    The fields wantbytes and wantraw in the test struct `conversionTest` has
-    been forgotten to include in the TestConversions function.
+    Done with grep & interactive search & replace, to double-check
+    replacements. Not many remained after CL 20022.
     
-    Change-Id: I6dab69e76de3799a1bbf9fa09a15607e55172114
-    Reviewed-on: https://go-review.googlesource.com/66610
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #18572
+    
+    Change-Id: Idbe90ba3b584f9b9661d2bbd141607daaadfa41a
+    Reviewed-on: https://go-review.googlesource.com/45270
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/database/sql/convert_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/bufio/bufio.go                       |  2 +-
+ src/cmd/cgo/doc.go                       | 80 ++++++++++++++++----------------
+ src/cmd/go/alldocs.go                    | 70 ++++++++++++++--------------
+ src/cmd/go/go_test.go                    |  6 +--
+ src/cmd/go/internal/doc/doc.go           |  2 +-
+ src/cmd/go/internal/envcmd/env.go        |  4 +-
+ src/cmd/go/internal/fmtcmd/fmt.go        |  2 +-
+ src/cmd/go/internal/generate/generate.go |  2 +-
+ src/cmd/go/internal/get/get.go           |  8 ++--
+ src/cmd/go/internal/get/vcs.go           |  4 +-
+ src/cmd/go/internal/help/help.go         |  2 +-
+ src/cmd/go/internal/help/helpdoc.go      | 32 ++++++-------
+ src/cmd/go/internal/list/list.go         |  6 +--
+ src/cmd/go/internal/load/pkg.go          |  6 +--
+ src/cmd/go/internal/test/test.go         | 16 +++----
+ src/cmd/go/internal/work/build.go        |  8 ++--
+ src/sort/search.go                       |  2 +-
+ src/text/template/doc.go                 | 10 ++--
+ src/time/time.go                         | 16 +++----
+ src/unicode/letter.go                    |  4 +-
+ 20 files changed, 141 insertions(+), 141 deletions(-)

@@ -1,23 +1,24 @@
-commit e6cd9c083ec1a2d989608fd6b4d4809b8b08d0fe
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 16 04:42:38 2025 +0000
+commit 802473cfda17a116f705e4060d7b70828e763689
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 21 09:15:30 2024 -0700
 
-    sync: set GOMAXPROCS to 1 in TestPoolGC
+    cmd/compile: include constant bools in memcombine
     
-    This test expects to be able to drain a Pool using only Get. This isn't
-    actually possible in the general case, since a pooled value could get
-    stuck in some P's private slot. However, if GOMAXPROCS=1, there's only 1
-    P we could be running on, so getting stuck becomes impossible.
+    Constant bools are like constant 1-byte values, they memcombine just fine.
     
-    This test isn't checking any concurrent properties of Pool, so this is
-    fine. Just set GOMAXPROCS=1 for this one particular test.
+    (There are still trickier cases that this pass doesn't catch
+    yet, see TODO at memcombine.go:503.)
     
-    Fixes #73728.
+    Fixes #66413
     
-    Change-Id: I9053e28118060650f2cd7d0d58f5a86d630b36f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673375
+    Change-Id: Ia67cf72ed1c416e27ac22da443bd88a3f09a6cc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573416
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/sync/pool_test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/compile/internal/ssa/memcombine.go |  2 +-
+ test/codegen/memcombine.go                 | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

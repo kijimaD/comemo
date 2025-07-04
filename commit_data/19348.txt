@@ -1,35 +1,22 @@
-commit 8c2fefe89cbc9fa64e600c400d127905e3c375a5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed May 14 19:24:00 2014 +0400
+commit f54f790a77274b132b64587f6cf1baea42d60709
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 13 12:17:49 2014 -0700
 
-    cmd/gc: fix out of bounds access
-    AddressSanitizer says:
+    regexp/syntax: don't waste time checking for one pass algorithm
+    The code recurs very deeply in cases like (?:x{1,1000}){1,1000}
+    Since if much time is spent checking whether one pass is possible, it's not
+    worth doing at all, a simple fix is proposed: Stop if the check takes too long.
+    To do this, we simply avoid machines with >1000 instructions.
     
-    AddressSanitizer: heap-buffer-overflow on address 0x60200001b6f3
-    READ of size 6 at 0x60200001b6f3 thread T0
-        #0 0x46741b in __interceptor_memcmp asan_interceptors.cc:337
-        #1 0x4b5794 in compile src/cmd/6g/../gc/pgen.c:177
-        #2 0x509b81 in funccompile src/cmd/gc/dcl.c:1457
-        #3 0x520fe2 in p9main src/cmd/gc/lex.c:489
-        #4 0x5e2e01 in main src/lib9/main.c:57
-        #5 0x7fab81f7976c in __libc_start_main /build/buildd/eglibc-2.15/csu/libc-start.c:226
-        #6 0x4b16dc in _start (pkg/tool/linux_amd64/6g+0x4b16dc)
+    Benchmarks show a percent or less change either way, effectively zero.
     
-    0x60200001b6f3 is located 0 bytes to the right of 3-byte region [0x60200001b6f0,0x60200001b6f3)
-    allocated by thread T0 here:
-        #0 0x493ec8 in __interceptor_malloc asan_malloc_linux.cc:75
-        #1 0x54d64e in mal src/cmd/gc/subr.c:459
-        #2 0x5260d5 in yylex src/cmd/gc/lex.c:1605
-        #3 0x52078f in p9main src/cmd/gc/lex.c:402
-        #4 0x5e2e01 in main src/lib9/main.c:57
+    Fixes #7608.
     
-    If the memory block happens to be at the end of hunk and page bounadry,
-    this out-of-bounds can lead to a crash.
-    
-    LGTM=dave, iant
-    R=golang-codereviews, dave, iant
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/93370043
+    https://golang.org/cl/92290043
 
- src/cmd/gc/pgen.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/regexp/all_test.go    | 10 ++++++++++
+ src/pkg/regexp/syntax/prog.go |  5 +++++
+ 2 files changed, 15 insertions(+)

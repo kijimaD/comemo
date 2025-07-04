@@ -1,15 +1,20 @@
-commit c22c7607d3657f7945580f5cf5e0f612c694389f
-Author: Jongmin Kim <jmkim@pukyong.ac.kr>
-Date:   Sat Sep 22 23:05:06 2018 +0900
+commit 5c8f65b9ca3a7db5331083acf7808282a01aa74c
+Author: Martin Sucha <anty.sk+git@gmail.com>
+Date:   Sun May 20 21:01:31 2018 +0200
 
-    test/bench/garbage: update Benchmarks Game URL to new page
+    crypto/x509: reformat template members in docs
     
-    The existing URL in comment points to an Alioth page which was
-    deprecated (and not working), so use the new Benchmarks Game URL.
+    It's easier to skim a list of items visually when the
+    items are each on a separate line. Separate lines also
+    help reduce diff size when items are added/removed.
     
-    Change-Id: Ifd694382a44a24c44acbed3fe1b17bca6dab998f
-    Reviewed-on: https://go-review.googlesource.com/136835
+    The list is indented so that it's displayed preformatted
+    in HTML output as godoc doesn't support formatting lists
+    natively yet (see #7873).
+    
+    Change-Id: Ibf9e92437e4b464ba58ea3ccef579e8df4745d75
+    Reviewed-on: https://go-review.googlesource.com/113915
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/bench/garbage/tree.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/x509.go | 40 ++++++++++++++++++++++++++++++++--------
+ 1 file changed, 32 insertions(+), 8 deletions(-)

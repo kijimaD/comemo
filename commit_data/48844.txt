@@ -1,17 +1,15 @@
-commit a4bbcd4b1fc9dd40e0f86416d37bdd9e6d430f3f
-Author: zhangyunhao <zhangyunhao@bytedance.com>
-Date:   Tue Apr 19 14:20:29 2022 +0800
+commit e57da8e53cadd2f456c6a9457beabd1b4659fc1f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jun 20 22:17:19 2021 +0700
 
-    net: use fastrand64 in randInt
+    [dev.typeparams] cmd/compile: explain why reader.funcExt need to set n.Defn
     
-    Change-Id: If3d8391d81e8de869dbb3c857f0570817e8aa440
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400914
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1a7d669879af57a1c1f48ce63ff0d214b694e680
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329572
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/dnsclient.go | 7 ++-----
- src/runtime/stubs.go | 4 ++--
- 2 files changed, 4 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

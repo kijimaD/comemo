@@ -1,15 +1,18 @@
-commit e3eee85b0d4010be0a1a24fb6a423945c156fb3d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 9 15:49:21 2014 -0700
+commit aed9762638b9b619b6239367c9368bfa79096cf0
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Fri May 9 14:34:50 2014 -0700
 
-    net/url: correct documentation of Values.Add
+    test/bench/shootout: support windows
     
-    Fixes #7816.
+    1. fix executable extension (a.out -> a.exe).
+    2. fix pthread build error on mingw
+    3. if depends lib messing, skip the test
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/98160043
+    https://golang.org/cl/100210043
 
- src/pkg/net/url/url.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/bench/shootout/threadring.c |  12 ++-
+ test/bench/shootout/timing.sh    | 157 +++++++++++++++++++++++----------------
+ 2 files changed, 105 insertions(+), 64 deletions(-)

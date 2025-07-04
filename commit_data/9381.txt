@@ -1,21 +1,14 @@
-commit 1bc245181e8366edba72563737df2df0f599219e
-Author: Joel Sing <jsing@google.com>
-Date:   Tue Aug 16 17:26:51 2011 -0400
+commit c20ced956ece23a5e8f1d5b6e48ad9ba8e8c5d05
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Aug 16 16:53:09 2011 -0400
 
-    net, syscall: move multicast address handling
+    net: return correct local address for an accepted TCP connection
     
-    Multicast address handling is not consistent across all BSDs. Move
-    the multicast address handling code into OS dependent files. This
-    will be needed for OpenBSD support.
+    Fixes #2127.
     
-    R=mikioh.mikioh, golang-dev
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4809074
+    https://golang.org/cl/4873043
 
- src/pkg/net/interface_bsd.go     | 31 -------------------------------
- src/pkg/net/interface_darwin.go  | 31 +++++++++++++++++++++++++++++++
- src/pkg/net/interface_freebsd.go | 31 +++++++++++++++++++++++++++++++
- src/pkg/syscall/route_bsd.go     | 29 -----------------------------
- src/pkg/syscall/route_darwin.go  | 29 +++++++++++++++++++++++++++++
- src/pkg/syscall/route_freebsd.go | 29 +++++++++++++++++++++++++++++
- 6 files changed, 120 insertions(+), 60 deletions(-)
+ src/pkg/net/fd.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

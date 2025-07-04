@@ -1,20 +1,25 @@
-commit 220fe7987138a4b6c63de4b750fda58852237560
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Feb 5 15:27:29 2025 -0500
+commit 539b4d8d5bb91f74f580a1bc6e8e28b9de38aedd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 21 17:23:43 2023 +0000
 
-    cmd/go: add '-skip' to list of cacheable test flags
+    internal/trace/v2: forward Event.Stack to StateTransition.Stack
     
-    -run is cacheable, so -skip should be cacheable too.
+    Currently StateTransition.Stack is only set for the GoCreate case,
+    because there are two stacks and we need to distinguish them. But the
+    docs for StateTransition.Stack say that that stack always references the
+    resource that is transitioning. There are quite a few cases where
+    Event.Stack is actually the appropriate stack to for
+    StateTransition.Stack, but in these cases it's left empty, and the
+    caller just needs to understand which one to look at. This isn't great.
+    Forward Event.Stack to StateTransition.Stack whenever Event.Stack also
+    refers to the resource experiencing the state transition.
     
-    Fixes #70692
-    
-    Change-Id: I16880189b0d3a963f8f08008fc7fedcdc6f11630
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646997
+    Change-Id: Ie43fc6036f2712c7982174d5739d95765312dfcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544316
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
 
- src/cmd/go/alldocs.go                            | 2 +-
- src/cmd/go/internal/test/test.go                 | 3 ++-
- src/cmd/go/testdata/script/test_cache_inputs.txt | 5 +++++
- 3 files changed, 8 insertions(+), 2 deletions(-)
+ src/internal/trace/v2/event.go                | 6 ++++++
+ src/internal/trace/v2/testtrace/validation.go | 5 +++++
+ 2 files changed, 11 insertions(+)

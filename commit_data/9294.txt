@@ -1,14 +1,12 @@
-commit ba9833269d2ebeab691eac72efadf094e12545d1
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Aug 5 09:20:13 2011 +1000
+commit 5b1f159fb580c14f90227cdc51ea635a474762af
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 5 08:25:49 2011 +1000
 
-    net: fix /proc/net/igmp,igmp6 reading bug on linux
+    exp/norm: fix build by adding a test placeholder
     
-    Fixes #2130.
-    
-    R=rsc, dave
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4846044
+    https://golang.org/cl/4838050
 
- src/pkg/net/interface_linux.go | 29 ++++++++++-------------------
- 1 file changed, 10 insertions(+), 19 deletions(-)
+ src/pkg/exp/norm/norm_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

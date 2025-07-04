@@ -1,14 +1,25 @@
-commit 396c957a32f094ef0f410235250cf0ed6b8dcf9f
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Mon Jan 7 09:44:35 2013 +1100
+commit 0f545d9ab22034dffa468367d44aceb257e1048e
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jan 6 23:38:38 2013 +0100
 
-    encoding/json: documented that ,string applies only to string and numeric fields.
+    go/types: less closure creations in gcimporter.
     
-    Fixes #4437.
+    Closures are incredibly expensive on linux/arm due to
+    repetitive flush of instruction cache.
     
-    R=golang-dev, adg
-    CC=golang-dev, rsc
-    https://golang.org/cl/7064045
+    go test -short on ODROID-X:
+    
+    Before:
+    ok      exp/gotype      17.091s
+    ok      go/types        2.225s
+    
+    After:
+    ok      exp/gotype      7.193s
+    ok      go/types        1.143s
+    
+    R=dave, minux.ma, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/7062045
 
- src/pkg/encoding/json/encode.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/go/types/gcimporter.go | 45 ++++++++++++++----------------------------
+ 1 file changed, 15 insertions(+), 30 deletions(-)

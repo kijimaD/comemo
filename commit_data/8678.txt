@@ -1,14 +1,13 @@
-commit aac6afbb11d7845ecd431f296d4cbe625a0001da
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Jun 9 18:04:26 2011 -0700
+commit 63639dd237553ec0db95351eae79e2e75592532e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jun 10 08:47:27 2011 +1000
 
-    gopack: remove warning from the use of mktemp
+    mail: decode RFC 2047-encoded words, not phrases.
     
-    gcc-4.6 considers mktemp to be racey
-    
-    R=golang-dev, rsc, iant
+    R=rsc, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4602050
+    https://golang.org/cl/4590047
 
- src/cmd/gopack/ar.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/mail/message.go      | 11 ++++++-----
+ src/pkg/mail/message_test.go | 10 ++++++++++
+ 2 files changed, 16 insertions(+), 5 deletions(-)

@@ -1,21 +1,27 @@
-commit 5a7cfbc0117bce314c3f079ece459173b9efc854
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Sat Oct 20 18:54:07 2018 +0300
+commit bafe466a9537d8ea5ac5767504628803302ebb12
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Jun 27 17:36:24 2018 +0200
 
-    syscall: swap src, dest arguments in convertFromDirents11 for FreeBSD
+    syscall/js: add TypedArrayOf
     
-    make fixedSize, oldFixedSize constants.
-    use st instead of stat for function arg so that we do not shadow the stat() function.
+    The new function js.TypedArrayOf returns a JavaScript typed array for
+    a given slice.
+    https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays
     
-    dstPos+reclen == len(buf) is a valid write location, update the break condition.
+    This change also changes js.ValueOf to not accept a []byte any more.
     
-    Change-Id: I55f9210f54d24a3f9cda1ebab52437436254f8f4
-    Reviewed-on: https://go-review.googlesource.com/c/143637
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #25532.
+    
+    Change-Id: I8c7bc98ca4e21c3514d19eee7a1f92388d74ab2a
+    Reviewed-on: https://go-review.googlesource.com/121215
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/export_freebsd_test.go  | 12 +++++++++
- src/syscall/syscall_freebsd.go      | 29 +++++++++++---------
- src/syscall/syscall_freebsd_test.go | 54 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 82 insertions(+), 13 deletions(-)
+ src/crypto/rand/rand_js.go   |   4 +-
+ src/net/http/roundtrip_js.go |   8 +++-
+ src/syscall/fs_js.go         |  16 +++++--
+ src/syscall/js/js.go         |  23 ++++++----
+ src/syscall/js/js_test.go    |  22 +++++++++
+ src/syscall/js/typedarray.go | 103 +++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 160 insertions(+), 16 deletions(-)

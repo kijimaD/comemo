@@ -1,18 +1,16 @@
-commit bc529506d21f4393af20becb7f50b6628b27c291
-Author: Keith Randall <khr@google.com>
-Date:   Tue Sep 17 14:10:50 2019 -0700
+commit fad365ba924291ce9994cb382191fc610984ed79
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Wed May 1 12:07:23 2019 -0400
 
-    runtime/race: add test for midstack inlining
+    cmd/go/internal/get: fix strayed verbose output on stdout
     
-    Add test to make sure we get the right traceback when mid-stack inlining.
+    Fixes #31768
     
-    Update #33309
-    
-    Change-Id: I23979cbe6b12fad105dbd26698243648aa86a354
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195984
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I3cc0ebc4be34d7c2d2d4fd655bfd0c2515ff3021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174739
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/race/output_test.go | 52 ++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 49 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/get/vcs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

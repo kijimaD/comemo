@@ -1,23 +1,31 @@
-commit 0aa8a87b5d8f9425ed4c1b66b85e453bef8b7f29
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 18 16:42:30 2022 -0400
+commit f78d538858a2d9aae975b2e2c144d23bcc22c22e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 4 12:57:23 2021 -0700
 
-    syscall: make //sys lines not doc comments
+    [dev.typeparams] cmd/compile/internal/types2: cleanup panic calls
     
-    If they are doc comments then gofmt will put a space between // and sys.
-    Most of syscall was already this way, following CL 7324056 (in 2013).
-    These were not.
+    End-users are not expected to deal with the details of panics,
+    so providing extra information such as an "internal error" prefix
+    or the name of the function invoking the panic are not helpful.
     
-    Change-Id: Ie6ebf82809c199d0d06b87c86045bbb62b687d5f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407136
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Remove unnecessary panic verbiage if it is readily available from
+    a stack trace (such as the function where it happens, and the fact
+    that is is an "internal error").
+    
+    Change-Id: I5f86bae6d2cca7c04ce692d17257da7ddee206d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339969
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/syscall/syscall_aix.go       |  9 +++++++++
- src/syscall/syscall_dragonfly.go |  2 ++
- src/syscall/syscall_netbsd.go    |  3 +++
- src/syscall/syscall_openbsd.go   |  3 +++
- src/syscall/syscall_plan9.go     | 10 ++++++++++
- 5 files changed, 27 insertions(+)
+ src/cmd/compile/internal/types2/decl.go       |  4 ++--
+ src/cmd/compile/internal/types2/errors.go     |  4 ++--
+ src/cmd/compile/internal/types2/lookup.go     |  4 ++--
+ src/cmd/compile/internal/types2/named.go      | 12 ++++++------
+ src/cmd/compile/internal/types2/signature.go  |  4 ++--
+ src/cmd/compile/internal/types2/stmt.go       |  2 +-
+ src/cmd/compile/internal/types2/typeparam.go  |  4 ++--
+ src/cmd/compile/internal/types2/typeset.go    |  4 ++--
+ src/cmd/compile/internal/types2/typestring.go |  6 +++---
+ src/cmd/compile/internal/types2/union.go      |  2 +-
+ src/cmd/compile/internal/types2/universe.go   |  2 +-
+ 11 files changed, 24 insertions(+), 24 deletions(-)

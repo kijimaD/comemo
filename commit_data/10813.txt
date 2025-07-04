@@ -1,36 +1,17 @@
-commit 6e8875551a0db770c5fbaaf4c126646f1709cab1
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 15 12:32:59 2011 -0500
+commit d10126a622d2e9010b5250d1bcec6acb51b4ce24
+Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
+Date:   Thu Dec 15 12:19:19 2011 -0500
 
-    test/bench/go1: first draft of Go 1 benchmark suite
+    os: OS-dependent bits to support NetBSD.
     
-    I have included a few important microbenchmarks,
-    but the overall intent is to have mostly end-to-end
-    benchmarks timing real world operations.
-    
-    The jsondata.go file is a summary of agl's
-    activity in various open source repositories.
-    It gets used as test data for many of the benchmarks.
-    
-    Everything links into one binary (even the test data)
-    so that it is easy to run the benchmarks on many
-    computers: there is just one file to copy around.
-    
-    R=golang-dev, r, bradfitz, adg, r
+    R=golang-dev, jsing
     CC=golang-dev
-    https://golang.org/cl/5484071
+    https://golang.org/cl/5482068
 
- src/clean.bash                    |    2 +-
- src/run.bash                      |    4 +
- test/bench/go1/Makefile           |    7 +
- test/bench/go1/binarytree_test.go |   63 ++
- test/bench/go1/dummy.go           |    3 +
- test/bench/go1/fannkuch_test.go   |   84 ++
- test/bench/go1/fasta_test.go      |  164 ++++
- test/bench/go1/gob_test.go        |   95 ++
- test/bench/go1/gzip_test.go       |   69 ++
- test/bench/go1/json_test.go       |   84 ++
- test/bench/go1/jsondata_test.go   | 1818 +++++++++++++++++++++++++++++++++++++
- test/bench/go1/revcomp_test.go    |   85 ++
- test/bench/go1/template_test.go   |   76 ++
- 13 files changed, 2553 insertions(+), 1 deletion(-)
+ include/libc.h                  |   2 +-
+ src/libmach/netbsd.c            |  46 ++++++++++++++++
+ src/pkg/net/fd_netbsd.go        | 115 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/interface_netbsd.go |  14 +++++
+ src/pkg/net/tcpsock_posix.go    |   2 +-
+ src/pkg/os/stat_netbsd.go       |  56 +++++++++++++++++++
+ 6 files changed, 233 insertions(+), 2 deletions(-)

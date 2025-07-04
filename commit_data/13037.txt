@@ -1,14 +1,12 @@
-commit 18aded7ab924d32be1dcd4b82c904947fd537434
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon May 7 11:41:40 2012 +0200
+commit 6c8447d429811b5b6659836739272f4e7366cf60
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 4 13:14:09 2012 -0700
 
-    exp/norm: It is important that the unicode versions of the various packages align.
-    Replace hard-coded version strings with unicode.Version.
+    test: add bug438, a valid test case that gccgo used to fail to compile
     
-    R=r, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6163045
+    https://golang.org/cl/6196047
 
- src/pkg/exp/norm/maketables.go  | 3 ++-
- src/pkg/exp/norm/normregtest.go | 5 +++--
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ test/fixedbugs/bug438.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

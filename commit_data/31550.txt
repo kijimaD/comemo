@@ -1,20 +1,22 @@
-commit 19b05acd13da49ebff6812012d20e5ace6957b58
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed May 10 18:21:21 2017 +0200
+commit 218313555473ebd2c47bf2b1bb9aee70a7f0164a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 6 10:55:39 2017 -0800
 
-    reflect: remove dead v.typ assignment
+    cmd/compile: recognize bit test patterns on amd64
     
-    v is not a pointer receiver, and v.typ isn't used in the lines below.
-    The assignment is dead. Remove it.
+    Updates #18943
     
-    Keep the comment, as it refers to the whole case block and not just the
-    removed line.
-    
-    Change-Id: Icb2d20c287d9a41bf620ebe5cdec764cd84178a7
-    Reviewed-on: https://go-review.googlesource.com/43134
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If3080d6133bb6d2710b57294da24c90251ab4e08
+    Reviewed-on: https://go-review.googlesource.com/36329
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/reflect/value.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/amd64/prog.go       |   2 +
+ src/cmd/compile/internal/amd64/ssa.go        |   6 +-
+ src/cmd/compile/internal/gc/asm_test.go      |  39 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  41 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   5 +
+ src/cmd/compile/internal/ssa/opGen.go        |  48 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 713 +++++++++++++++++++++++++++
+ 7 files changed, 852 insertions(+), 2 deletions(-)

@@ -1,12 +1,12 @@
-commit 0724e5cefe92f9f4fd52101e3a7a25299a2b7f63
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 15 23:52:07 2012 +0900
+commit def2022bc08f0326503df4f661eeaca3809dd5f0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 15 09:02:45 2012 -0500
 
-    build: fix clean.bash
+    cmd/dist: use correct package target when cross-compiling
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5672052
+    https://golang.org/cl/5672050
 
- src/clean.bash | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/dist/build.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

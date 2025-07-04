@@ -1,14 +1,21 @@
-commit c0a842e57f38b632ae492174519851036979c988
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 5 16:13:15 2012 -0500
+commit 0eb4df0bc8e32fe68d7954055ee36e24e33dc15e
+Author: Ugorji Nwoke <ugorji@gmail.com>
+Date:   Mon Mar 5 15:36:33 2012 -0500
 
-    runtime/debug: fix test when source cannot be found
+    cmd/godoc: remove extra / in paths
     
-    This happens with GOROOT_FINAL=/somewhere/else
+    If I click on links which should send you to source code (e.g. type, function, etc),
+    the link is to //src/... (instead of /src/...).
+    This causes a DNS resolution failure on the browser.
     
-    R=golang-dev, bradfitz
+    Quick fix is to remove the leading / from package.html
+    (since godoc.go src links automatically add a leading / as necessary).
+    
+    Fixes #3193.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5727069
+    https://golang.org/cl/5730059
 
- src/pkg/runtime/debug/stack_test.go | 21 ++++++++++++++-------
- 1 file changed, 14 insertions(+), 7 deletions(-)
+ lib/godoc/package.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

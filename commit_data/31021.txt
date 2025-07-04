@@ -1,19 +1,21 @@
-commit 2e1b42a81437ff589775d15228c5f9732b2df1e5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Apr 5 18:52:33 2017 -0700
+commit 08da8201ca3c2c1068fddf2ab33bc8eedae24ce4
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 11 15:02:16 2017 -0800
 
-    cmd/compile/internal/gc: remove a bunch of uses of typenod
+    misc/cgo/testshared: test that types and itabs are unique
     
-    Passes toolstash-check -all.
+    Make sure that the same type and itab generated in two
+    different shared library are actually the same thing.
     
-    Change-Id: Ic9eb0c52bedac185ab86cc62207f199d93700344
-    Reviewed-on: https://go-review.googlesource.com/39795
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ica45862d65ff8bc7ad04d59a41f57223f71224cd
+    Reviewed-on: https://go-review.googlesource.com/35115
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |  8 ++++----
- src/cmd/compile/internal/gc/bimport.go | 24 +++++++++++++-----------
- src/cmd/compile/internal/gc/closure.go |  6 +++---
- src/cmd/compile/internal/gc/swt.go     |  4 ++--
- 4 files changed, 22 insertions(+), 20 deletions(-)
+ misc/cgo/testshared/shared_test.go    | 11 +++++++++++
+ misc/cgo/testshared/src/iface/main.go | 17 +++++++++++++++++
+ misc/cgo/testshared/src/iface_a/a.go  | 17 +++++++++++++++++
+ misc/cgo/testshared/src/iface_b/b.go  | 17 +++++++++++++++++
+ misc/cgo/testshared/src/iface_i/i.go  | 17 +++++++++++++++++
+ 5 files changed, 79 insertions(+)

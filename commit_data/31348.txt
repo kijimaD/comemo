@@ -1,20 +1,19 @@
-commit 9cb004be14da73e156258ef433551be3247b3682
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Apr 25 18:08:59 2017 +0900
+commit f823d305141be6b18f82c875652019eccd0c6679
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 13 12:48:39 2017 -0800
 
-    vendor: update vendored lif
+    cmd/compile/internal/syntax: better error for malformed 'if' statements
     
-    Updates golang_org/x/net/lif to rev a25ba90 for:
-    - lif: don't fail test when at least one version of INET protocols is available
+    Use distinction between explicit and automatically inserted semicolons
+    to provide a better error message if the condition in an 'if' statement
+    is missing.
     
-    Updates #19967.
+    For #18747.
     
-    Change-Id: I4b946a4c6eee7938193688ecbfc4a9d69d88c94e
-    Reviewed-on: https://go-review.googlesource.com/41651
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iac167ae4e5ad53d2dc73f746b4dee9912434bb59
+    Reviewed-on: https://go-review.googlesource.com/36930
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/vendor/golang_org/x/net/lif/address_test.go | 6 ++++--
- src/vendor/golang_org/x/net/lif/link_test.go    | 6 ++++--
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go | 42 ++++++++++++++++++++-----------
+ test/fixedbugs/issue18747.go              | 28 +++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 15 deletions(-)

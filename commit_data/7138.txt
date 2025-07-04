@@ -1,24 +1,13 @@
-commit acd858eee024469103bce2b9a669e2e96ccbf189
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 18 14:02:41 2011 -0500
+commit 166b444a9320a6c99f3b6f1f5d2c353c02c5182f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 18 11:01:47 2011 -0800
 
-    syscall: correct WSTOPPED on OS X
+    tutorial: make stdin, stdout, stderr work on Windows.
     
-    Have to set #defines correctly to get correct value.
-    Otherwise get a mask for use in implementing WIFSTOPPED(status).
-    
-    Changed WSTOPPED definition in os because on
-    OS X WSTOPPED and WUNTRACED have different values
-    even though they seem to mean the same thing.
-    
-    Fixes #1374.
-    
-    R=r, r2
+    R=brainman
     CC=golang-dev
-    https://golang.org/cl/4063042
+    https://golang.org/cl/4042042
 
- src/pkg/os/exec.go                      |  8 +++----
- src/pkg/syscall/mkerrors.sh             |  3 ++-
- src/pkg/syscall/zerrors_darwin_386.go   | 37 ++++++++++++++++++++++++++++++++-
- src/pkg/syscall/zerrors_darwin_amd64.go | 37 ++++++++++++++++++++++++++++++++-
- 4 files changed, 78 insertions(+), 7 deletions(-)
+ doc/go_tutorial.html | 8 ++++----
+ doc/progs/file.go    | 6 +++---
+ 2 files changed, 7 insertions(+), 7 deletions(-)

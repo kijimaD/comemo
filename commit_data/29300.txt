@@ -1,23 +1,24 @@
-commit d0e408334be22158fbf58a4d02789a48f5cb911e
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Oct 30 23:53:09 2016 -0400
+commit 2321895fe2a2def7b511453329f4cd8662230256
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Wed Sep 7 08:59:00 2016 +0200
 
-    cmd/link: support plugins with no exported symbols
+    bytes: improve WriteRune performance
     
-    A plugin with no exported symbols is still potentially very useful.
-    Its init functions are called on load, and it so it can have visible
-    side effects.
+    Remove the runeBytes buffer and write the utf8 encoding directly
+    to the internal buf byte slice.
     
-    Fixes #17681
+    name         old time/op   new time/op   delta
+    WriteRune-4   80.5µs ± 2%   57.1µs ± 2%  -29.06%  (p=0.000 n=20+20)
     
-    Change-Id: Icdca31f48e5ab13c99020a2ef724f3de47dcd74b
-    Reviewed-on: https://go-review.googlesource.com/32437
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    name         old speed     new speed     delta
+    WriteRune-4  153MB/s ± 2%  215MB/s ± 2%  +40.96%  (p=0.000 n=20+20)
+    
+    Change-Id: Ic15f6e2d6e56a3d15c74f56159e2eae020ba73ba
+    Reviewed-on: https://go-review.googlesource.com/28816
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testplugin/src/host/host.go       |  8 ++++++++
- misc/cgo/testplugin/src/plugin2/plugin2.go | 18 ++++++++++++++++++
- misc/cgo/testplugin/test.bash              |  1 +
- src/cmd/link/internal/ld/deadcode.go       |  6 ++++--
- src/cmd/link/internal/ld/symtab.go         |  3 +--
- 5 files changed, 32 insertions(+), 4 deletions(-)
+ src/bytes/buffer.go      | 15 ++++++++-------
+ src/bytes/buffer_test.go | 13 +++++++++++++
+ 2 files changed, 21 insertions(+), 7 deletions(-)

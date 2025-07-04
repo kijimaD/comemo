@@ -1,24 +1,17 @@
-commit faf4e97200df9415d55b04924ce77599f9e6fdfa
-Author: database64128 <free122448@hotmail.com>
-Date:   Fri Apr 29 17:29:58 2022 +0000
+commit 52aef05498a9e84ede16fb7ce46a2a252af05479
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 3 11:18:16 2021 +0700
 
-    net: fix WriteMsgUDPAddrPort addr handling
+    go/ast: clarify when Ident.Obj is nil
     
-    WriteMsgUDPAddrPort should accept IPv4 target addresses on IPv6 UDP sockets.
-    An IPv4 target address will be converted to an IPv4-mapped IPv6 address.
+    Fixes #48141
     
-    Fixes #52264.
-    
-    Change-Id: Ib9ed4c61fa1289ae7bbc8c4c9de1a9951b647ec0
-    GitHub-Last-Rev: 6776fdb0a76faa71ebde58f5143fb1ffb3112adf
-    GitHub-Pull-Request: golang/go#52265
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399454
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id20b7801d31456ffd74301ed0fd84788b8982fb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347530
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/ipsock_posix.go |  6 +++++-
- src/net/udpsock_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 1 deletion(-)
+ src/go/ast/ast.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,16 @@
-commit 3def99a8a8e3dc9841132e7b3515187b51b6a528
-Author: Luka Zitnik <luka.zitnik@gmail.com>
-Date:   Sun Apr 7 16:41:11 2019 +0200
+commit f7248ba75321ace8e76f9723e9ef3badea2bdd4d
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sat Jan 5 23:39:24 2019 +0700
 
-    cmd/go: print finally FAIL if a test has failed in package list mode
+    archive/zip: fix casting overflow on 32-bit arch
     
-    Fixes #30507
+    Fixes #29555
     
-    Change-Id: Ic598e4d5f71c624fcde051982bf85533e2f18e8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170948
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ia3c0dd65bcf94dea3f6e04c23c1fe5d6d0b2c1e9
+    Reviewed-on: https://go-review.googlesource.com/c/156399
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go                      |  5 ++++-
- src/cmd/go/internal/base/base.go           |  4 ++++
- src/cmd/go/internal/test/test.go           | 18 ++++++++++++++++--
- src/cmd/go/testdata/script/test_status.txt | 18 ++++++++++++++++++
- 4 files changed, 42 insertions(+), 3 deletions(-)
+ src/archive/zip/zip_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,14 +1,12 @@
-commit a18608a044afed86c789e541db65526b9ccacef9
-Author: Günther Noack <gnoack@google.com>
-Date:   Mon Dec 2 19:27:51 2019 +0000
+commit 5a1705286e8ec116645244978d9c54c5ba6dc448
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 20 15:39:41 2019 -0400
 
-    os/exec: document that cmd.Start() sets the Process field
+    [dev.boringcrypto] misc/boring: add go1.12.9b4 to RELEASES
     
-    Change-Id: I4f41b680741e9bd2a4e8c094ecf3ce6226e48d12
-    GitHub-Last-Rev: 8f58bc6c4398cf739b33f8b5368926d6650059c3
-    GitHub-Pull-Request: golang/go#35934
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209558
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0325d686fd518725c5d8bbf572c6fcb50fdf9a22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190905
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/os/exec/exec.go | 2 ++
+ misc/boring/RELEASES | 2 ++
  1 file changed, 2 insertions(+)

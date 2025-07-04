@@ -1,20 +1,29 @@
-commit e213a0c0fcd51f43d38b9423561989ed0b9e616c
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Sun Sep 18 11:55:14 2011 -0700
+commit 605e57d8fee696238f3338c415043f16a7743731
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Sep 17 15:57:24 2011 -0400
 
-    exp/template/html: recognize whitespace at start of URLs.
+    exp/ssh: new package.
     
-    HTML5 uses "Valid URL potentially surrounded by spaces" for
-    attrs: http://www.w3.org/TR/html5/index.html#attributes-1
+    The typical UNIX method for controlling long running process is to
+    send the process signals. Since this doesn't get you very far, various
+    ad-hoc, remote-control protocols have been used over time by programs
+    like Apache and BIND.
     
-        <a href=" {{.}}">
+    Implementing an SSH server means that Go code will have a standard,
+    secure way to do this in the future.
     
-    should be escaped to filter out "javascript:..." as data.
-    
-    R=nigeltao
+    R=bradfitz, borman, dave, gustavo, dsymonds, r, adg, rsc, rogpeppe, lvd, kevlar, raul.san
     CC=golang-dev
-    https://golang.org/cl/5027045
+    https://golang.org/cl/4962064
 
- src/pkg/exp/template/html/escape_test.go | 5 +++++
- src/pkg/exp/template/html/transition.go  | 4 +++-
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/exp/ssh/Makefile             |  16 +
+ src/pkg/exp/ssh/channel.go           | 317 ++++++++++++++++
+ src/pkg/exp/ssh/common.go            |  96 +++++
+ src/pkg/exp/ssh/doc.go               |  79 ++++
+ src/pkg/exp/ssh/messages.go          | 557 +++++++++++++++++++++++++++
+ src/pkg/exp/ssh/messages_test.go     | 125 ++++++
+ src/pkg/exp/ssh/server.go            | 711 +++++++++++++++++++++++++++++++++++
+ src/pkg/exp/ssh/server_shell.go      | 399 ++++++++++++++++++++
+ src/pkg/exp/ssh/server_shell_test.go | 134 +++++++
+ src/pkg/exp/ssh/transport.go         | 308 +++++++++++++++
+ 10 files changed, 2742 insertions(+)

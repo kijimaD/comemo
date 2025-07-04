@@ -1,38 +1,20 @@
-commit 30a63ecee351c029ea99dce388a5953a150b4e02
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Fri Jun 8 11:07:18 2018 -0400
+commit d7cd61ceaac488e3130ccf9dd12eeaa13df8e814
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 27 11:14:11 2018 -0800
 
-    runtime: restore r2 when restoring state from gobuf in gogo on ppc64x
+    cmd/compile: fix inlining of constant if statements
     
-    When using plugins with goroutines calling cgo, we hit a case where
-    an intermittent SIGSEGV occurs when referencing an address that is based
-    on r2 (TOC address). When the failure can be generated in gdb, the
-    contents of r2 is wrong even though the value in the current stack's
-    slot for r2 is correct. So that means it somehow switched to start
-    running the code in this function without passing through the beginning
-    of the function which had the correct value of r2 and stored it there.
+    We accidentally overlooked needing to still visit Ninit for OIF
+    statements with constant conditions in golang.org/cl/96778.
     
-    It was noted that in runtime.gogo when the state is restored from
-    gobuf, r2 is not restored from its slot on the stack. Adding the
-    instruction to restore r2 prevents the SIGSEGV.
+    Fixes #24120.
     
-    This adds a testcase under testplugin which reproduces the problem if
-    the program is run multiple times. The team who reported this problem
-    has verified it fixes the issue on their larger, more complex
-    application.
-    
-    Fixes #25756
-    
-    Change-Id: I6028b6f1f8775d5c23f4ebb57ae273330a28eb8f
-    Reviewed-on: https://go-review.googlesource.com/117515
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5b341913065ff90e1163fb872b9e8d47e2a789d2
+    Reviewed-on: https://go-review.googlesource.com/97475
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testplugin/src/issue25756/main.go         | 52 ++++++++++++++++++++
- misc/cgo/testplugin/src/issue25756/plugin/c-life.c | 56 ++++++++++++++++++++++
- misc/cgo/testplugin/src/issue25756/plugin/life.go  | 39 +++++++++++++++
- misc/cgo/testplugin/src/issue25756/plugin/life.h   |  7 +++
- misc/cgo/testplugin/test.bash                      | 11 ++++-
- src/runtime/asm_ppc64x.s                           |  1 +
- 6 files changed, 165 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/inl.go |  3 ++-
+ test/fixedbugs/issue24120.go       | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

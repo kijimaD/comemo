@@ -1,114 +1,20 @@
-commit 187afdebef7953295189d4531e7dccdc0cb64500
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Mon Apr 4 19:28:15 2016 +0300
+commit a5b7a8d6dd143b5b0b9631b0281559938d542c78
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 18:17:31 2016 -0800
 
-    math/big: re-use memory in Int.GCD
+    cmd/compile: simplify error sorting
     
-    This improves TLS handshake performance.
+    Errors have unique seq values (their index within the errors slice),
+    so errcmp never needs to fallback to sorting by message text.
+    Moreover, comparing by original index is exactly the purpose of using
+    a stable sort algorithm (and sort.Stable was added in Go 1.2), so we
+    really only need to compare by lineno.
     
-    benchmark                                 old ns/op     new ns/op     delta
-    BenchmarkGCD10x10/WithoutXY-4             965           968           +0.31%
-    BenchmarkGCD10x10/WithXY-4                1813          1391          -23.28%
-    BenchmarkGCD10x100/WithoutXY-4            1093          1075          -1.65%
-    BenchmarkGCD10x100/WithXY-4               2348          1676          -28.62%
-    BenchmarkGCD10x1000/WithoutXY-4           1569          1565          -0.25%
-    BenchmarkGCD10x1000/WithXY-4              4262          3242          -23.93%
-    BenchmarkGCD10x10000/WithoutXY-4          6069          6066          -0.05%
-    BenchmarkGCD10x10000/WithXY-4             12123         11331         -6.53%
-    BenchmarkGCD10x100000/WithoutXY-4         52664         52610         -0.10%
-    BenchmarkGCD10x100000/WithXY-4            97494         95649         -1.89%
-    BenchmarkGCD100x100/WithoutXY-4           5244          5228          -0.31%
-    BenchmarkGCD100x100/WithXY-4              22572         18630         -17.46%
-    BenchmarkGCD100x1000/WithoutXY-4          6143          6233          +1.47%
-    BenchmarkGCD100x1000/WithXY-4             24652         19357         -21.48%
-    BenchmarkGCD100x10000/WithoutXY-4         15725         15804         +0.50%
-    BenchmarkGCD100x10000/WithXY-4            60552         55973         -7.56%
-    BenchmarkGCD100x100000/WithoutXY-4        107008        107853        +0.79%
-    BenchmarkGCD100x100000/WithXY-4           349597        340994        -2.46%
-    BenchmarkGCD1000x1000/WithoutXY-4         63785         64434         +1.02%
-    BenchmarkGCD1000x1000/WithXY-4            373186        334035        -10.49%
-    BenchmarkGCD1000x10000/WithoutXY-4        78038         78241         +0.26%
-    BenchmarkGCD1000x10000/WithXY-4           543692        507034        -6.74%
-    BenchmarkGCD1000x100000/WithoutXY-4       205607        207727        +1.03%
-    BenchmarkGCD1000x100000/WithXY-4          2488113       2415323       -2.93%
-    BenchmarkGCD10000x10000/WithoutXY-4       1731340       1714992       -0.94%
-    BenchmarkGCD10000x10000/WithXY-4          10601046      7111329       -32.92%
-    BenchmarkGCD10000x100000/WithoutXY-4      2239155       2212173       -1.21%
-    BenchmarkGCD10000x100000/WithXY-4         30097040      26538887      -11.82%
-    BenchmarkGCD100000x100000/WithoutXY-4     119845326     119863916     +0.02%
-    BenchmarkGCD100000x100000/WithXY-4        768006543     426795966     -44.43%
-    
-    benchmark                                 old allocs     new allocs     delta
-    BenchmarkGCD10x10/WithoutXY-4             5              5              +0.00%
-    BenchmarkGCD10x10/WithXY-4                17             9              -47.06%
-    BenchmarkGCD10x100/WithoutXY-4            6              6              +0.00%
-    BenchmarkGCD10x100/WithXY-4               21             9              -57.14%
-    BenchmarkGCD10x1000/WithoutXY-4           6              6              +0.00%
-    BenchmarkGCD10x1000/WithXY-4              30             12             -60.00%
-    BenchmarkGCD10x10000/WithoutXY-4          6              6              +0.00%
-    BenchmarkGCD10x10000/WithXY-4             26             12             -53.85%
-    BenchmarkGCD10x100000/WithoutXY-4         6              6              +0.00%
-    BenchmarkGCD10x100000/WithXY-4            28             12             -57.14%
-    BenchmarkGCD100x100/WithoutXY-4           5              5              +0.00%
-    BenchmarkGCD100x100/WithXY-4              183            61             -66.67%
-    BenchmarkGCD100x1000/WithoutXY-4          8              8              +0.00%
-    BenchmarkGCD100x1000/WithXY-4             170            47             -72.35%
-    BenchmarkGCD100x10000/WithoutXY-4         8              8              +0.00%
-    BenchmarkGCD100x10000/WithXY-4            200            67             -66.50%
-    BenchmarkGCD100x100000/WithoutXY-4        8              8              +0.00%
-    BenchmarkGCD100x100000/WithXY-4           188            65             -65.43%
-    BenchmarkGCD1000x1000/WithoutXY-4         5              5              +0.00%
-    BenchmarkGCD1000x1000/WithXY-4            2435           1193           -51.01%
-    BenchmarkGCD1000x10000/WithoutXY-4        8              8              +0.00%
-    BenchmarkGCD1000x10000/WithXY-4           2211           1076           -51.33%
-    BenchmarkGCD1000x100000/WithoutXY-4       8              8              +0.00%
-    BenchmarkGCD1000x100000/WithXY-4          2271           1108           -51.21%
-    BenchmarkGCD10000x10000/WithoutXY-4       5              5              +0.00%
-    BenchmarkGCD10000x10000/WithXY-4          23183          11605          -49.94%
-    BenchmarkGCD10000x100000/WithoutXY-4      8              8              +0.00%
-    BenchmarkGCD10000x100000/WithXY-4         23421          11717          -49.97%
-    BenchmarkGCD100000x100000/WithoutXY-4     5              5              +0.00%
-    BenchmarkGCD100000x100000/WithXY-4        232976         116815         -49.86%
-    
-    benchmark                                 old bytes      new bytes     delta
-    BenchmarkGCD10x10/WithoutXY-4             208            208           +0.00%
-    BenchmarkGCD10x10/WithXY-4                736            432           -41.30%
-    BenchmarkGCD10x100/WithoutXY-4            256            256           +0.00%
-    BenchmarkGCD10x100/WithXY-4               896            432           -51.79%
-    BenchmarkGCD10x1000/WithoutXY-4           368            368           +0.00%
-    BenchmarkGCD10x1000/WithXY-4              1856           1152          -37.93%
-    BenchmarkGCD10x10000/WithoutXY-4          1616           1616          +0.00%
-    BenchmarkGCD10x10000/WithXY-4             7920           7376          -6.87%
-    BenchmarkGCD10x100000/WithoutXY-4         13776          13776         +0.00%
-    BenchmarkGCD10x100000/WithXY-4            68800          68176         -0.91%
-    BenchmarkGCD100x100/WithoutXY-4           208            208           +0.00%
-    BenchmarkGCD100x100/WithXY-4              6960           2112          -69.66%
-    BenchmarkGCD100x1000/WithoutXY-4          544            560           +2.94%
-    BenchmarkGCD100x1000/WithXY-4             7280           2400          -67.03%
-    BenchmarkGCD100x10000/WithoutXY-4         2896           2912          +0.55%
-    BenchmarkGCD100x10000/WithXY-4            15280          10002         -34.54%
-    BenchmarkGCD100x100000/WithoutXY-4        27344          27365         +0.08%
-    BenchmarkGCD100x100000/WithXY-4           88288          83427         -5.51%
-    BenchmarkGCD1000x1000/WithoutXY-4         544            544           +0.00%
-    BenchmarkGCD1000x1000/WithXY-4            178288         40043         -77.54%
-    BenchmarkGCD1000x10000/WithoutXY-4        3344           3136          -6.22%
-    BenchmarkGCD1000x10000/WithXY-4           188720         54432         -71.16%
-    BenchmarkGCD1000x100000/WithoutXY-4       27792          27592         -0.72%
-    BenchmarkGCD1000x100000/WithXY-4          373872         239447        -35.95%
-    BenchmarkGCD10000x10000/WithoutXY-4       4288           4288          +0.00%
-    BenchmarkGCD10000x10000/WithXY-4          11935584       481875        -95.96%
-    BenchmarkGCD10000x100000/WithoutXY-4      31296          28834         -7.87%
-    BenchmarkGCD10000x100000/WithXY-4         13237088       1662620       -87.44%
-    BenchmarkGCD100000x100000/WithoutXY-4     40768          40768         +0.00%
-    BenchmarkGCD100000x100000/WithXY-4        1165518864     14256010      -98.78%
-    
-    Change-Id: I652b3244bd074a03f3bc9a87c282330f9e5f1507
-    Reviewed-on: https://go-review.googlesource.com/21506
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7f534b72a05d899ae9788dc7ef0541dd92a8b578
+    Reviewed-on: https://go-review.googlesource.com/19929
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/gcd_test.go | 16 +++++++++++++++-
- src/math/big/int.go      |  4 ++--
- src/math/big/nat.go      | 29 ++++++++++++++++++++++++++---
- 3 files changed, 43 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 24 ++++++------------------
+ 1 file changed, 6 insertions(+), 18 deletions(-)

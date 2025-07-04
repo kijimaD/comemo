@@ -1,19 +1,20 @@
-commit 5e66ac9ac61efb045f8ae28ff0fc019a4a98b473
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Aug 14 20:39:30 2016 -0700
+commit 0b8c0767d0b95066734647edeb5a252c270a4a1a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 25 14:39:51 2016 -0700
 
-    flag: document that Value.String must work on the zero value
+    cmd/compile: for now, keep parameter numbering in binary export format
     
-    Otherwise flag.PrintDefaults will fail when it tries to determine
-    whether the default is the zero value.
+    The numbering is only required for parameters of functions/methods
+    with exported inlineable bodies. For now, always export parameter names
+    with internal numbering to minimize the diffs between assembly code
+    dumps of code compiled with the textual vs the binary format.
     
-    Fixes #16694.
+    To be disabled again once the new export format is default.
     
-    Change-Id: I253fbf11ffc0a9069fd48c2c3cf3074df53e3a03
-    Reviewed-on: https://go-review.googlesource.com/27003
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6d14c564e734cc5596c7e995d8851e06d5a35013
+    Reviewed-on: https://go-review.googlesource.com/22441
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/flag/flag.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/bexport.go | 9 ++++++++-
+ src/go/internal/gcimporter/bimport.go  | 4 ++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 889abb17e125bb0f5d8de61bb80ef15fbe2a130d
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 25 14:04:22 2024 -0400
+
+    cmd/compile: use a non-fragile test for "does f contain closure c?"
+    
+    The old test relied on naming conventions.  The new test
+    uses an explicit parent pointer chain initialized when the
+    closures are created (in the same place that the names
+    used in the older fragile test were assigned).
+    
+    Fixes #70035.
+    
+    Change-Id: Ie834103c7096e4505faaff3bed1fc6e918a21211
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622656
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/escape/solve.go           | 11 +++++-----
+ src/cmd/compile/internal/ir/func.go                |  6 ++++++
+ src/cmd/compile/internal/ir/sizeof_test.go         |  2 +-
+ .../compile/internal/rangefunc/rangefunc_test.go   | 24 ++++++++++++++++++++++
+ 4 files changed, 37 insertions(+), 6 deletions(-)

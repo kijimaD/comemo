@@ -1,36 +1,17 @@
-commit d50bb8dbb9d13858319db0914068126ed78e5144
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 14 05:33:15 2018 +0900
+commit 3a165bba34e2f68c2d0e3ab223efc7b8245d7083
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Thu Oct 5 17:30:13 2017 -0400
 
-    all: drop support for Windows Vista or below (Windows XP)
+    cmd/asm, cmd/internal/obj/ppc64: Fix Data Cache instructions for ppc64x
     
-    Per the notice in the Go 1.10 release notes, this change drops the
-    support for Windows Vista or below (including Windows XP) and
-    simplifies the code for the sake of maintenance.
+    This change fixes the implementation of Data Cache instructions for
+    ppc64x, allowing non-zero hint field values.
     
-    There is one exception to the above. The code related to DLL and
-    system calls still remains in the runtime package. The remaining code
-    will be refined and used for supporting upcoming Windows versions in
-    future.
-    
-    Updates #17245
-    Fixes #23072
-    
-    Change-Id: I9e2821721f25ef9b83dfbf85be2b7ee5d9023aa5
-    Reviewed-on: https://go-review.googlesource.com/94255
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I454aac9293d069a4817ee574d5809fa1799b3216
+    Reviewed-on: https://go-review.googlesource.com/68670
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/go/go_windows_test.go                     |  14 ---
- src/internal/syscall/windows/exec_windows_test.go |  13 ---
- src/internal/testenv/testenv_notwin.go            |   4 -
- src/internal/testenv/testenv_windows.go           |   9 --
- src/net/interface_windows.go                      |  91 +--------------
- src/net/interface_windows_test.go                 | 132 ----------------------
- src/net/net_windows_test.go                       |  18 ---
- src/net/protoconn_test.go                         |  15 +--
- src/net/udpsock_test.go                           |  10 --
- src/os/exec/exec_test.go                          |   3 -
- src/os/file_windows.go                            |   5 -
- 11 files changed, 7 insertions(+), 307 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  4 ++++
+ src/cmd/internal/obj/ppc64/asm9.go        | 23 ++++++++++++++++++++---
+ 2 files changed, 24 insertions(+), 3 deletions(-)

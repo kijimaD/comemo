@@ -1,15 +1,18 @@
-commit 9e9e2a82d8ee82330577d5241aa2ddefd90c76c7
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Mar 24 09:03:37 2022 +0000
+commit c079b6baaa781e71a48661c05063d1d2754937f8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 28 13:50:09 2021 -0700
 
-    cmd/compile: tidy up noder's unified IR docs
+    [dev.typeparams] cmd/compile/internal/types2: trigger verification while resolving instance
     
-    Hopefully made the wording clearer as I was reading it.
+    This is a straight port of CL 335978 with minor adjustements to
+    white space and an error message.
     
-    Change-Id: I241ce3f2ac7ae77de00dbc969540c09ef0b77496
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395394
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Icfcb562f75802a119ce5d02427bffecf7e279b2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338097
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/noder/unified.go | 44 +++++++++++++++----------------
- 1 file changed, 22 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/types2/instance.go        |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go     | 59 +++++++++++++---------
+ .../internal/types2/testdata/check/issues.go2      |  4 +-
+ 3 files changed, 37 insertions(+), 28 deletions(-)

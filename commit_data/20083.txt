@@ -1,13 +1,20 @@
-commit d2165672ca8f9bf02389f02ad211ec34394cb722
+commit 0c32bd6262e2ddaead83ea3e8486b48fb6967532
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 22 22:22:16 2014 +0400
+Date:   Thu Aug 14 21:38:24 2014 +0400
 
-    runtime: fix futex notes
+    runtime: mark objects with non-atomic operations
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/126540043
+    On the go.benchmarks/garbage benchmark with GOMAXPROCS=16:
+                       old ns/op     new ns/op     delta
+    time               1392254       1353170       -2.81%
+    cputime            21995751      21373999      -2.83%
+    gc-pause-one       15044812      13050524      -13.26%
+    gc-pause-total     213636        185317        -13.26%
+    
+    LGTM=rlh
+    R=golang-codereviews, rlh
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/123380043
 
- src/pkg/runtime/lock_futex.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

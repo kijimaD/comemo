@@ -1,16 +1,22 @@
-commit 6bea504b9407a1ce8ac3f6909f4e728be5b18764
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Jun 21 15:17:13 2013 -0400
+commit 0bc7e79afda9d76fb470eac695445e7332cf7ecd
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 20 16:14:40 2013 -0700
 
-    cmd/6a, cmd/6l: add PCLMULQDQ instruction.
+    all: excise some warts found by vet -shadow
+    These are not erroneous, just poor or confusing.
     
-    This Intel instruction implements multiplication in binary fields.
-    
-    R=golang-dev, minux.ma, dave, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10428043
+    https://golang.org/cl/10448043
 
- src/cmd/6a/lex.c   | 1 +
- src/cmd/6l/6.out.h | 2 ++
- src/cmd/6l/optab.c | 2 ++
- 3 files changed, 5 insertions(+)
+ src/cmd/go/get.go                | 2 +-
+ src/pkg/encoding/asn1/marshal.go | 4 ++--
+ src/pkg/encoding/gob/encode.go   | 8 ++++----
+ src/pkg/fmt/print.go             | 8 ++++----
+ src/pkg/fmt/scan.go              | 7 +++----
+ src/pkg/net/dial_test.go         | 1 -
+ src/pkg/net/unix_test.go         | 1 -
+ src/pkg/os/path_test.go          | 6 +++---
+ src/pkg/syscall/syscall_bsd.go   | 3 +--
+ src/pkg/time/format.go           | 2 +-
+ 10 files changed, 19 insertions(+), 23 deletions(-)

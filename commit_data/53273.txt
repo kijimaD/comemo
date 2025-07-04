@@ -1,24 +1,41 @@
-commit 5d68121628afe73ea093bb46dac45f71f92eecac
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 23 21:02:36 2023 +0000
+commit b589208c8cc6e08239868f47e12c1449cd797bac
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 29 13:21:44 2022 -0700
 
-    runtime: move pinned object out of inner loop for benchmarks
+    runtime: redo heap bitmap
     
-    In theory by allocating new objects every time, the benchmark is
-    including the performance of allocating new pinner bits for a span. In
-    practice however, most of the time each span already does have pinner
-    bits allocated (it's still a rare operation).
+    Use just 1 bit per word to record the ptr/nonptr bitmap.
+    Use word-sized operations to manipulate the bitmap, so we can operate
+    on up to 64 ptr/nonptr bits at a time.
     
-    We can get a better sense of the raw cost of pinning an object (minus
-    pinner bits allocation) by moving the object allocation out of the inner
-    loop.
+    Use a separate bitmap, one bit per word of the ptr/nonptr bitmap,
+    to encode a no-more-pointers signal. Since we can check 64 ptr/nonptr
+    bits at once, knowing the exact last pointer location is not necessary.
     
-    Change-Id: I2869fa6c3f353b726fe8440d2e6b7f89902f9364
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497620
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    This cleans up the bitmap implementation significantly, which will
+    hopefully make it faster. TODO: measure
+    
+    As a followon CL, we should make the gcdata bitmap an array of
+    uintptr instead of an array of byte, so we can load 64 bits of it at once.
+    Similarly for the processing of gc programs.
+    
+    Change-Id: I18151b1876d9543599800dec51e2a1b19df97d49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407035
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/pinner_test.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/test/inl_test.go |    8 +-
+ src/reflect/all_test.go                   |   21 +-
+ src/runtime/cgocall.go                    |   11 +-
+ src/runtime/cgocheck.go                   |   18 +-
+ src/runtime/heapdump.go                   |   20 +-
+ src/runtime/malloc.go                     |   10 +-
+ src/runtime/mbitmap.go                    | 1492 +++++++++--------------------
+ src/runtime/mcache.go                     |    2 +-
+ src/runtime/mcentral.go                   |    2 +-
+ src/runtime/mgcmark.go                    |   31 +-
+ src/runtime/mheap.go                      |   19 +-
+ src/runtime/slice.go                      |    2 +
+ 12 files changed, 520 insertions(+), 1116 deletions(-)

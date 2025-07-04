@@ -1,12 +1,13 @@
-commit 6677d2954eaa4d2ff89a5c962168440825b38611
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 14 01:21:38 2011 -0500
+commit f19aef53932473e30d95a1654900ab228870a618
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Nov 14 13:27:40 2011 +0900
 
-    syscall: make windows Errno implement net.Error (fix build)
+    syscall: regenerate z-files for freebsd
     
-    TBR=brainman
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5371086
+    https://golang.org/cl/5369102
 
- src/pkg/syscall/dll_windows.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/syscall/zerrors_freebsd_386.go   | 14 +++++++-------
+ src/pkg/syscall/zerrors_freebsd_amd64.go | 14 +++++++-------
+ 2 files changed, 14 insertions(+), 14 deletions(-)

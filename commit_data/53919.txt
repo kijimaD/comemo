@@ -1,25 +1,19 @@
-commit 65d4723b49cedaf533a21845013814fc4d0a467f
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Mon Jul 31 20:58:45 2023 +0000
+commit 29604312784cfbf530fcf54837b7cf42c0500d0b
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 19:19:27 2022 +0800
 
-    net/http: add ServeFileFS, FileServerFS, NewFileTransportFS
+    text/template: use strings.Builder
     
-    These new apis are analogous to ServeFile, FileServer and NewFileTransport respectively. The main difference is that these functions operate on an fs.FS.
-    
-    Fixes #51971
-    
-    Change-Id: Ie56b245b795eeb7edf613657578592306945469b
-    GitHub-Last-Rev: 26e75c0368f155a2299fbdcb72f47036b71a5e06
-    GitHub-Pull-Request: golang/go#61641
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513956
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I559986b5408d3967c58c9abc6e8f4b04b25496a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428280
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- api/next/51971.txt                 |  3 +++
- src/net/http/filetransport.go      | 19 +++++++++++++++
- src/net/http/filetransport_test.go | 42 ++++++++++++++++++++++++++++++++
- src/net/http/fs.go                 | 50 +++++++++++++++++++++++++++++++++++---
- src/net/http/fs_test.go            | 49 +++++++++++++++++++++++++++++++++++++
- 5 files changed, 160 insertions(+), 3 deletions(-)
+ src/text/template/exec_test.go  | 18 +++++++++---------
+ src/text/template/funcs.go      |  5 ++---
+ src/text/template/multi_test.go | 10 +++++-----
+ 3 files changed, 16 insertions(+), 17 deletions(-)

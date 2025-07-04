@@ -1,19 +1,23 @@
-commit cdf136217922ecc2681c0d12072348018a7db1cf
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sat Oct 28 17:42:51 2023 +0000
+commit 38b9ff60071fc40d197e7002db1320539e74a678
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Nov 17 08:51:03 2022 -0800
 
-    runtime: move userArenaHeapBitsSetType into mbitmap.go
+    crypto/x509: reduce boring test key size
     
-    This will make the upcoming GOEXPERIMENT easier to implement, since this
-    function relies on a lot of heap bitmap internals.
+    Generating 8192 bit keys times out on builders relatively frequently. We
+    just need something that isn't a boringAllowCert allowed key size so we
+    can test that a non-boringAllowCert signed intermediate works, so just
+    use 512 instead since it'll be significantly faster.
     
-    Change-Id: I2ab76e928e7bfd383dcdb5bfe72c9b23c2002a4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/537979
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #56798
+    
+    Change-Id: I416e0d8c3aa11ff44e9870755efa95c74d1013f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451656
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/arena.go   | 96 --------------------------------------------------
- src/runtime/mbitmap.go | 95 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 95 insertions(+), 96 deletions(-)
+ src/crypto/x509/boring_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,27 @@
-commit d1cc83472d611a17513795676d650276f823cafd
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 3 16:18:17 2016 -0400
+commit 9741d83ceaf046e55077d68719cc2781cd96d5f1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 18 13:27:11 2016 -0700
 
-    runtime: debug code to panic when marking a free object
+    cmd/asm, go/build: invoke cmd/asm only once per package
     
-    This adds debug code enabled in gccheckmark mode that panics if we
-    attempt to mark an unallocated object. This is a common issue with the
-    hybrid barrier when we're manipulating uninitialized memory that
-    contains stale pointers. This also tends to catch bugs that will lead
-    to "sweep increased allocation count" crashes closer to the source of
-    the bug.
+    Prior to this CL, cmd/go invoked cmd/asm once
+    for every assembly file.
+    The exec and cmd/asm startup overhead dwarfed
+    the actual time spent assembling.
+    This CL adds support to cmd/asm to process
+    multiple input files and uses it in cmd/go.
     
-    Change-Id: I443ead3eac6f316a46f50b106078b524cac317f4
-    Reviewed-on: https://go-review.googlesource.com/31761
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    This cuts 10% off the wall time for 'go build -a math'.
+    
+    Fixes #15680
+    
+    Change-Id: I12d2ee2c817207954961dc8f37b8f2b09f835550
+    Reviewed-on: https://go-review.googlesource.com/27636
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgcmark.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/asm/internal/flags/flags.go |  9 ++++--
+ src/cmd/asm/main.go                 | 30 +++++++++++++-------
+ src/cmd/go/build.go                 | 55 ++++++++++++++++++++++---------------
+ 3 files changed, 59 insertions(+), 35 deletions(-)

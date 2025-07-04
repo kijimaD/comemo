@@ -1,18 +1,30 @@
-commit 8fcd69d330d53d05ba50003de189e38db12b6227
-Author: Damien Lespiau <damien.lespiau@intel.com>
-Date:   Sat Apr 22 20:03:06 2017 +0100
+commit 1cde87b312c5687cd0d70457c48586055e8c53ca
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Fri Dec 23 22:28:45 2016 -0800
 
-    cmd/go/internal/get: remove unused pkgImportPath
+    cmd/compile: Ensure left-to-right assignment
     
-    We can also remove the internal/load import as a result.
+    Add temporaries to reorder the assignment for OAS2XXX nodes.
+    This makes orderstmt(), rewrite
+      a, b, c = ...
+    as
+      tmp1, tmp2, tmp3 = ...
+      a, b, c = tmp1, tmp2, tmp3
+    and
+      a, ok = ...
+    as
+      t1, t2 = ...
+      a  = t1
+      ok = t2
     
-    Found with honnef.co/go/tools/cmd/unused.
+    Fixes #13433.
     
-    Change-Id: Ie70c5713e7a6f238158804acec07807c14f8e092
-    Reviewed-on: https://go-review.googlesource.com/41473
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id0f5956e3a254d0a6f4b89b5f7b0e055b1f0e21f
+    Reviewed-on: https://go-review.googlesource.com/34713
+    Run-TryBot: Dhananjay Nakrani <dhananjayn@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/get/pkg_test.go | 9 ---------
- 1 file changed, 9 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 97 +++++++++++++++++++++++++-----------
+ test/reorder.go                      | 37 ++++++++++++++
+ 2 files changed, 106 insertions(+), 28 deletions(-)

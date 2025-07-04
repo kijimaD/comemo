@@ -1,12 +1,12 @@
-commit a3baf7f90ebdfaa38358cb2e45abae827b97b99a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon May 2 20:40:47 2011 -0700
+commit ec1ee024adbd673d2422c7640ad16b4cdd5d41f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 23:08:27 2011 -0400
 
-    doc/install: specify clone -u instead of -r
+    os: remove race paranoia from Environ(); it's guarded now
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4435081
+    https://golang.org/cl/4426077
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/os/env_unix.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

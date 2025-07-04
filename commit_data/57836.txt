@@ -1,22 +1,19 @@
-commit 4efd5191653293d98ba2a89ea9a5667bbf9abd15
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Oct 29 11:46:25 2024 -0700
+commit 3d62c76736717613c4a921e45f59d40190c0792e
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Aug 1 12:00:57 2023 -0400
 
-    internal/poll: avoid overflow in sendfile limit, simplify Solaris
+    cmd/compile/internal/ir: add "never returns" func flag
     
-    Avoid integer overflow when passing a number of bytes to sendfile.
+    Add a flag to ir.Func's flags field to record whether a given function
+    is deemed to never return (e.g. always calls exit or panic or
+    equivalent on all control paths). So as to not increase the amount of
+    flag storage, this new flag replaces the existing "ExportInline" flag,
+    which is currently unused.
     
-    Also, Solaris might not support passing a 0 length to read to
-    the end of a file, but it does support passing a very large length.
-    So just do that instead of looking up the source file size.
-    
-    Change-Id: Ibf750892938d9e2bafb1256c6e380c88899495f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623315
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Idd336e47381048cfc995eda05faf8b62f06ba206
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518256
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/poll/sendfile_unix.go | 34 +++++++++-------------------------
- src/os/copy_test.go                |  2 +-
- 2 files changed, 10 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/ir/func.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

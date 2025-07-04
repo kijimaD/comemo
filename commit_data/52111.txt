@@ -1,19 +1,177 @@
-commit 1e0c32cccbe73be45414967612800be76d933870
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Feb 27 08:53:34 2023 -0800
+commit 9839668b5619f45e293dd40339bf0ac614ea6bee
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 30 20:13:43 2022 -0500
 
-    cmd/asm: preserve 3rd arg when GOT-rewriting assembly instructions
+    all: separate doc comment from //go: directives
     
-    Fixes #58735
+    A future change to gofmt will rewrite
     
-    Change-Id: I7cc1c34ed8454553328d44b2ea72e4c0255b6ec1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471675
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+            // Doc comment.
+            //go:foo
+    
+    to
+    
+            // Doc comment.
+            //
+            //go:foo
+    
+    Apply that change preemptively to all comments (not necessarily just doc comments).
+    
+    For #51082.
+    
+    Change-Id: Iffe0285418d1e79d34526af3520b415a12203ca9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384260
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64dynlinkerror.s | 6 ++++++
- src/cmd/internal/obj/x86/obj6.go                      | 3 +++
- 2 files changed, 9 insertions(+)
+ src/cmd/compile/internal/ssa/value.go              |  3 +++
+ src/cmd/compile/internal/test/float_test.go        |  1 +
+ .../internal/test/testdata/addressed_test.go       |  4 +++
+ .../compile/internal/test/testdata/arith_test.go   |  1 +
+ src/cmd/compile/internal/test/testdata/ctl_test.go |  1 +
+ src/cmd/compile/internal/test/testdata/fp_test.go  |  2 ++
+ .../internal/test/testdata/loadstore_test.go       |  1 +
+ src/cmd/compile/internal/typecheck/builtin.go      |  1 +
+ src/cmd/compile/internal/typecheck/mkbuiltin.go    |  1 +
+ src/cmd/go/internal/lockedfile/lockedfile_test.go  |  1 +
+ src/cmd/go/internal/lockedfile/transform_test.go   |  1 +
+ src/cmd/internal/objabi/symkind.go                 |  1 +
+ src/cmd/link/internal/ld/outbuf_darwin.go          |  1 +
+ src/cmd/link/internal/sym/symkind.go               |  1 +
+ src/crypto/aes/cbc_s390x.go                        |  1 +
+ src/crypto/aes/cipher_s390x.go                     |  1 +
+ src/crypto/aes/ctr_s390x.go                        |  1 +
+ src/crypto/aes/gcm_s390x.go                        |  3 +++
+ src/crypto/ecdsa/ecdsa_s390x.go                    |  1 +
+ .../internal/edwards25519/field/fe_amd64.go        |  2 ++
+ src/crypto/elliptic/p256_asm.go                    | 12 +++++++++
+ src/crypto/x509/internal/macos/corefoundation.go   |  1 +
+ src/crypto/x509/internal/macos/security.go         |  1 +
+ src/crypto/x509/root.go                            |  1 +
+ src/encoding/gob/debug.go                          |  1 +
+ src/hash/crc32/crc32_amd64.go                      |  3 +++
+ src/hash/crc32/crc32_ppc64le.go                    |  1 +
+ src/hash/crc32/crc32_s390x.go                      |  2 ++
+ src/internal/goarch/goarch.go                      |  1 +
+ src/internal/goos/goos.go                          |  1 +
+ src/internal/intern/intern.go                      |  1 +
+ src/internal/poll/fcntl_libc.go                    |  1 +
+ src/internal/poll/fd_opendir_darwin.go             |  1 +
+ src/internal/poll/fd_poll_runtime.go               |  1 +
+ src/internal/poll/fd_writev_darwin.go              |  1 +
+ src/internal/poll/sendfile_solaris.go              |  1 +
+ src/internal/reflectlite/value.go                  |  1 +
+ src/internal/syscall/unix/nonblocking_libc.go      |  1 +
+ src/net/fcntl_libc_test.go                         |  1 +
+ src/os/pipe_test.go                                |  1 +
+ src/os/rawconn_test.go                             |  1 +
+ src/plugin/plugin_dlopen.go                        |  1 +
+ src/reflect/abi_test.go                            |  1 +
+ src/reflect/makefunc.go                            |  1 +
+ src/reflect/value.go                               |  8 ++++++
+ src/runtime/asan.go                                |  1 +
+ src/runtime/cgo/callbacks.go                       |  1 +
+ src/runtime/cgo/callbacks_aix.go                   |  1 +
+ src/runtime/cgo/openbsd.go                         |  1 +
+ src/runtime/cgo_mmap.go                            |  3 +++
+ src/runtime/cgo_ppc64x.go                          |  1 +
+ src/runtime/cgo_sigaction.go                       |  2 ++
+ src/runtime/cgocall.go                             |  4 +++
+ src/runtime/cgocheck.go                            |  5 ++++
+ src/runtime/chan.go                                |  2 ++
+ src/runtime/cpuprof.go                             |  2 ++
+ src/runtime/env_plan9.go                           |  4 +++
+ src/runtime/env_posix.go                           |  2 ++
+ src/runtime/export_test.go                         |  1 +
+ src/runtime/histogram.go                           |  1 +
+ src/runtime/internal/atomic/atomic_386.go          |  1 +
+ src/runtime/internal/atomic/atomic_amd64.go        |  1 +
+ src/runtime/internal/atomic/atomic_arm.go          |  2 ++
+ src/runtime/internal/atomic/atomic_mipsx.go        |  1 +
+ src/runtime/internal/atomic/atomic_s390x.go        |  1 +
+ src/runtime/internal/atomic/atomic_wasm.go         |  1 +
+ src/runtime/lock_futex.go                          |  1 +
+ src/runtime/lockrank_off.go                        |  2 ++
+ src/runtime/lockrank_on.go                         | 11 ++++++++
+ src/runtime/malloc.go                              |  2 ++
+ src/runtime/mbarrier.go                            |  1 +
+ src/runtime/mbitmap.go                             | 14 ++++++++++
+ src/runtime/mem_aix.go                             |  2 ++
+ src/runtime/mem_bsd.go                             |  2 ++
+ src/runtime/mem_darwin.go                          |  2 ++
+ src/runtime/mem_js.go                              |  2 ++
+ src/runtime/mem_linux.go                           |  2 ++
+ src/runtime/mem_windows.go                         |  2 ++
+ src/runtime/mfinal.go                              |  1 +
+ src/runtime/mgcmark.go                             |  3 +++
+ src/runtime/mgcstack.go                            |  1 +
+ src/runtime/mgcsweep.go                            |  1 +
+ src/runtime/mgcwork.go                             | 10 ++++++++
+ src/runtime/mheap.go                               |  1 +
+ src/runtime/msan.go                                |  1 +
+ src/runtime/mstats.go                              |  3 +++
+ src/runtime/netpoll.go                             |  3 +++
+ src/runtime/netpoll_aix.go                         |  1 +
+ src/runtime/norace_linux_test.go                   |  1 +
+ src/runtime/norace_test.go                         |  1 +
+ src/runtime/os2_aix.go                             |  1 +
+ src/runtime/os3_solaris.go                         |  2 ++
+ src/runtime/os_aix.go                              |  2 ++
+ src/runtime/os_darwin.go                           |  4 +++
+ src/runtime/os_dragonfly.go                        |  3 +++
+ src/runtime/os_freebsd.go                          |  7 +++++
+ src/runtime/os_js.go                               |  1 +
+ src/runtime/os_linux.go                            |  9 +++++++
+ src/runtime/os_netbsd.go                           |  4 +++
+ src/runtime/os_openbsd.go                          |  2 ++
+ src/runtime/os_openbsd_libc.go                     |  1 +
+ src/runtime/os_openbsd_syscall.go                  |  1 +
+ src/runtime/os_openbsd_syscall2.go                 |  1 +
+ src/runtime/os_plan9.go                            |  2 ++
+ src/runtime/os_windows.go                          |  5 ++++
+ src/runtime/panic.go                               |  2 ++
+ src/runtime/pprof/pprof_test.go                    |  1 +
+ src/runtime/proc.go                                | 30 ++++++++++++++++++++++
+ src/runtime/proc_test.go                           |  1 +
+ src/runtime/race.go                                |  4 +++
+ src/runtime/runtime1.go                            |  8 ++++++
+ src/runtime/runtime2.go                            |  2 ++
+ src/runtime/runtime_test.go                        |  1 +
+ src/runtime/sema.go                                |  4 +++
+ src/runtime/signal_unix.go                         | 16 ++++++++++++
+ src/runtime/sigqueue.go                            |  7 +++++
+ src/runtime/sigqueue_plan9.go                      |  5 ++++
+ src/runtime/string.go                              |  1 +
+ src/runtime/stubs.go                               |  5 ++++
+ src/runtime/stubs2.go                              |  1 +
+ src/runtime/stubs_linux.go                         |  1 +
+ src/runtime/stubs_ppc64.go                         |  1 +
+ src/runtime/symtab.go                              |  3 +++
+ src/runtime/symtab_test.go                         |  1 +
+ src/runtime/sys_darwin.go                          |  2 ++
+ src/runtime/sys_libc.go                            |  1 +
+ src/runtime/sys_openbsd2.go                        |  2 ++
+ src/runtime/syscall_aix.go                         |  2 ++
+ src/runtime/syscall_solaris.go                     |  2 ++
+ src/runtime/syscall_windows.go                     |  1 +
+ src/runtime/syscall_windows_test.go                |  1 +
+ src/runtime/testdata/testprogcgo/dropm_stub.go     |  1 +
+ src/runtime/testdata/testprogcgo/eintr.go          |  1 +
+ src/runtime/time.go                                |  8 ++++++
+ src/runtime/time_fake.go                           |  1 +
+ src/runtime/vdso_linux.go                          |  1 +
+ src/strings/builder.go                             |  1 +
+ src/sync/pool_test.go                              |  1 +
+ src/syscall/dir_plan9.go                           |  1 +
+ src/syscall/exec_bsd.go                            |  1 +
+ src/syscall/exec_freebsd.go                        |  1 +
+ src/syscall/exec_libc.go                           |  1 +
+ src/syscall/exec_libc2.go                          |  1 +
+ src/syscall/exec_linux.go                          |  1 +
+ src/syscall/exec_plan9.go                          |  4 +++
+ src/syscall/syscall_linux.go                       |  4 +++
+ src/time/time.go                                   |  1 +
+ src/time/tzdata/tzdata.go                          |  1 +
+ 148 files changed, 363 insertions(+)

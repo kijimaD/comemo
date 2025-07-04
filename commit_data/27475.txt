@@ -1,20 +1,20 @@
-commit db5af0d7115781be12f510322ee01556fb1e6d16
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 20 20:58:44 2016 +0000
+commit d175a85c5cef41b7f9ad8e7a9e2ebf84546a216e
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Mar 27 11:50:25 2016 +0200
 
-    net/http: update bundled http2
+    fmt: improve handling of zero padding
     
-    Updates x/net/http2 to git rev 4d07e8a49 for CL 23287:
+    Simplify the handling of zero padding in fmt_integer and
+    fmt_float to not require any adjustment of the format flags.
     
-       http2: let handlers close Request.Body without killing streams
-       https://golang.org/cl/23287
+    Note that f.zero can only be true when padding to the left
+    and f.wid is always greater than or equal to 0.
     
-    Fixes #15425
-    
-    Change-Id: I20b6e37cd09aa1d5a040c122ca0daf14b8916559
-    Reviewed-on: https://go-review.googlesource.com/23301
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I204b57d103c0eac13d86995992f2b26209196925
+    Reviewed-on: https://go-review.googlesource.com/21185
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/h2_bundle.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/fmt/format.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

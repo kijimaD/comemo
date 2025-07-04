@@ -1,19 +1,12 @@
-commit 6392fc75cf5d51f69f9e353da81c84e488dbf629
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Apr 13 15:12:28 2011 -0400
+commit 0be2ef3fc474f2716bf60114ddd2a0b481970460
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 13 11:18:38 2011 -0700
 
-    bufio: add ReadLine
+    io: clarify that ReadAt shouldn't move the seek offset
     
-    It matches encoding/line exactly and the tests are copied from there.
-    If we land this, then encoding/line will get marked as deprecated then
-    deleted in time.
-    
-    R=rsc, rog, peterGo
+    R=r, mkrautz, r2, rsc
     CC=golang-dev
-    https://golang.org/cl/4389046
+    https://golang.org/cl/4415041
 
- src/pkg/bufio/bufio.go                |  27 ++++++++
- src/pkg/bufio/bufio_test.go           | 126 ++++++++++++++++++++++++++++++++++
- src/pkg/crypto/openpgp/armor/armor.go |   6 +-
- src/pkg/http/cgi/host.go              |   4 +-
- 4 files changed, 158 insertions(+), 5 deletions(-)
+ src/pkg/io/io.go | 4 ++++
+ 1 file changed, 4 insertions(+)

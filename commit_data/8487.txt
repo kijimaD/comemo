@@ -1,20 +1,14 @@
-commit 64b497c62a5a56563e09ddbf9ce1b7b5edf6937c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 25 08:25:33 2011 -0400
+commit 2ad58d48fb88d84989e0e6bf5844cd31fb7beb9d
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Wed May 25 07:53:00 2011 -0400
 
-    ld: add -w to disable dwarf, make errors obviously from dwarf
+    8l: emit resources (.rsrc) in Windows PE.
     
-    Reenable dwarf output on Mac.
-    Was writing headers but no actual dwarf data.
-    
-    Fixes #1877 (accidentally).
-    Workaround for issue 1878.
-    
-    R=lvd
-    CC=golang-dev
-    https://golang.org/cl/4515139
+    R=alex.brainman, rsc
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/4516055
 
- src/cmd/6l/asm.c   |  1 +
- src/cmd/8l/asm.c   |  1 +
- src/cmd/ld/dwarf.c | 49 +++++++++++++++++++++++++++++++++----------------
- 3 files changed, 35 insertions(+), 16 deletions(-)
+ src/cmd/ld/ldpe.c |  5 ++++-
+ src/cmd/ld/pe.c   | 48 +++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/ld/pe.h   |  2 ++
+ 3 files changed, 53 insertions(+), 2 deletions(-)

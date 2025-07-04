@@ -1,53 +1,29 @@
-commit e4371fb179ad69cbd057f2430120843948e09f2f
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 3 19:26:13 2017 -0500
+commit 2e196b15b94e48009369aae25299a59cbc7d45f4
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Sat Oct 22 18:50:02 2016 +0200
 
-    time: optimize Now on darwin, windows
+    compress/flate: level 1 (best speed) match across blocks
     
-    Fetch both monotonic and wall time together when possible.
-    Avoids skew and is cheaper.
+    This change makes deflate level 1 (best speed) match across
+    block boundaries. This comes at a small speed penalty,
+    but improves compression on almost all output.
     
-    Also shave a few ns off in conversion in package time.
+    Sample numbers on various content types:
     
-    Compared to current implementation (after monotonic changes):
+    enwik9:            391052014 ->  382578469 bytes, 77.59 -> 74.28 MB/s
+    adresser.001:       57269799 ->   47756095 bytes, 287.84 -> 357.86 MB/s
+    10gb:             5233055166 -> 5198328382 bytes, 105.85 -> 96.99 MB/s
+    rawstudio-mint14: 3972329211 -> 3927423364 bytes, 100.07 -> 94.22 MB/s
+    sites:             165556800 ->  163178702 bytes, 72.31 -> 70.15 MB/s
+    objectfiles:       115962472 ->  111649524 bytes, 132.60 -> 128.05 MB/s
+    sharnd.out:        200015283 ->  200015283 bytes, 221.50 -> 218.83 MB/s
     
-    name   old time/op  new time/op  delta
-    Now    19.6ns ± 1%   9.7ns ± 1%  -50.63%  (p=0.000 n=41+49) darwin/amd64
-    Now    23.5ns ± 4%  10.6ns ± 5%  -54.61%  (p=0.000 n=30+28) windows/amd64
-    Now    54.5ns ± 5%  29.8ns ± 9%  -45.40%  (p=0.000 n=27+29) windows/386
-    
-    More importantly, compared to Go 1.8:
-    
-    name   old time/op  new time/op  delta
-    Now     9.5ns ± 1%   9.7ns ± 1%   +1.94%  (p=0.000 n=41+49) darwin/amd64
-    Now    12.9ns ± 5%  10.6ns ± 5%  -17.73%  (p=0.000 n=30+28) windows/amd64
-    Now    15.3ns ± 5%  29.8ns ± 9%  +94.36%  (p=0.000 n=30+29) windows/386
-    
-    This brings time.Now back in line with Go 1.8 on darwin/amd64 and windows/amd64.
-    
-    It's not obvious why windows/386 is still noticeably worse than Go 1.8,
-    but it's better than before this CL. The windows/386 speed is not too
-    important; the changes just keep the two architectures similar.
-    
-    Change-Id: If69b94970c8a1a57910a371ee91e0d4e82e46c5d
-    Reviewed-on: https://go-review.googlesource.com/36428
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I62a139e5c06976e803439a4268acede5139b8cfc
+    Reviewed-on: https://go-review.googlesource.com/31640
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/runtime/heapdump.go         |   2 +-
- src/runtime/mgc.go              |   7 ++-
- src/runtime/mstats.go           |   7 +--
- src/runtime/os_windows.go       |  45 +---------------
- src/runtime/proc.go             |   5 +-
- src/runtime/stubs.go            |   7 ---
- src/runtime/sys_darwin_386.s    |  22 +++++++-
- src/runtime/sys_darwin_amd64.s  | 110 +++++++++++++++++++++-------------------
- src/runtime/sys_windows_386.s   | 104 ++++++++++++++++++++++++++++++++++---
- src/runtime/sys_windows_amd64.s |  54 ++++++++++++++++++--
- src/runtime/time.go             |   8 +--
- src/runtime/timeasm.go          |  16 ++++++
- src/runtime/timestub.go         |  21 ++++++++
- src/time/mono_test.go           |   3 ++
- src/time/time.go                |  10 ++--
- 15 files changed, 284 insertions(+), 137 deletions(-)
+ src/compress/flate/deflate.go      |  12 ++-
+ src/compress/flate/deflate_test.go | 117 +++++++++++++++++++++++
+ src/compress/flate/deflatefast.go  | 186 ++++++++++++++++++++++++++++---------
+ 3 files changed, 267 insertions(+), 48 deletions(-)

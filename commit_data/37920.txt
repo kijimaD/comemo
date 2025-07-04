@@ -1,25 +1,20 @@
-commit 447965d4e008764a8635df6ca7d5d2e59c6d4229
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Jan 25 18:22:27 2019 +1100
+commit e7f5f3eca42a98340e4eb4fc5d490a9aa4bd5054
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Sep 10 02:22:48 2018 +0000
 
-    path/filepath: skip TestIssue29372 on windows, if /tmp has symilinks
+    cmd/internal/obj/arm64: add error report for invalid base register
     
-    TestIssue29372 is broken on windows when temporary directory has
-    symlink in its path.
+    The current assembler accepts the non-integer register as the base register,
+    which should be an illegal combination.
     
-    Adjust the test to use filepath.EvalSymlinks of temporary directory,
-    instead of temporary directory on windows. This change is not a
-    proper fix, but at least it makes TestIssue29372 pass on windows-arm.
+    Add the test cases.
     
-    See issue for details.
-    
-    Updates #29746
-    
-    Change-Id: I2af8ebb89da7cb9daf027a5e49e32ee22dbd0e3d
-    Reviewed-on: https://go-review.googlesource.com/c/159578
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ia21596bbb5b1e212e34bd3a170748ae788860422
+    Reviewed-on: https://go-review.googlesource.com/134575
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/path/filepath/path_test.go | 22 ++++++++++++++++++----
- 1 file changed, 18 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 2 ++
+ src/cmd/internal/obj/arm64/asm7.go             | 8 ++++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

@@ -1,26 +1,21 @@
-commit 7e63ce61e640a9e2b14ff545c28bf5d7a6f730f3
+commit b029e943448c2ddf6faa9007a8ba4ab76238f18b
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Jan 8 17:15:54 2017 +0900
+Date:   Fri Feb 10 06:22:39 2017 +0900
 
-    net: update documentation on Dial and its variants
+    net/http: fix possible nil pointer dereference in TestOnlyWriteTimeout
     
-    This change clarifies the documentation on Dial and its variants to
-    avoid unnecessary confusion about how the arguments for the connection
-    setup functions are used to make connections.
+    TestOnlyWriteTimeout assumes wrongly that:
+    - the Accept method of trackLastConnListener is called only once
+    - the shared variable conn never becomes nil
+    and crashes on some circumstances.
     
-    Also replaces "name" or "hostname" with "host name" when the term
-    implies the use of DNS.
+    Updates #19032.
     
-    Updates #17613.
-    Fixes #17614.
-    Fixes #17738.
-    Fixes #17956.
-    Updates #18806.
-    
-    Change-Id: I6adb3f2ae04a3bf83b96016ed73d8e59926f3e8a
-    Reviewed-on: https://go-review.googlesource.com/34875
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I61de22618cd90b84a2b6401afdb6e5d9b3336b12
+    Reviewed-on: https://go-review.googlesource.com/36735
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dial.go   | 62 +++++++++++++++++++++++++++++++++++++------------------
- src/net/lookup.go | 14 +++++++------
- 2 files changed, 50 insertions(+), 26 deletions(-)
+ src/net/http/serve_test.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

@@ -1,57 +1,32 @@
-commit fdba5a7544e54227c910ae3b26511c718df786a1
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Mon Mar 21 00:12:18 2016 +0100
+commit 0f89efa255a46eb6528d27c920030721ae68b507
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 29 10:16:24 2016 -0500
 
-    all: delete dead non-test code
+    cmd/vet: report uncalled functions in Printf %v
     
-    This change removes a lot of dead code. Some of the code has never been
-    used, not even when it was first commited. The rest shouldn't have
-    survived refactors.
+    Given, say, var f *os.File, a new vet check in CL 14122 diagnoses:
     
-    This change doesn't remove unused routines helpful for debugging, nor
-    does it remove code that's used in commented out blocks of code that are
-    only unused temporarily. Furthermore, unused constants weren't removed
-    when they were part of a set of constants from specifications.
+            fmt.Printf("%s\n", f.Name)
+            fmt.Println(f.Name)
     
-    One noteworthy omission from this CL are about 1000 lines of unused code
-    in cmd/fix, 700 lines of which are the typechecker, which hasn't been
-    used ever since the pre-Go 1 fixes have been removed. I wasn't sure if
-    this code should stick around for future uses of cmd/fix or be culled as
-    well.
+    but not
     
-    Change-Id: Ib714bc7e487edc11ad23ba1c3222d1fd02e4a549
-    Reviewed-on: https://go-review.googlesource.com/20926
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+            fmt.Printf("%v\n", f.Name)
+    
+    In all three cases the error is that the argument should be f.Name().
+    
+    Diagnosing Println but not Printf %v seems oddly inconsistent,
+    so I changed %v to have the check too. In fact, all verbs now have
+    the check except %p and %T.
+    
+    Fixes Dave Cheney's confusion when trying to write an example
+    of the new vet check advertised in the Go 1.6 release notes.
+    
+    Change-Id: I92fa6a7a1d5d9339a6a59ae4e587a254e633f500
+    Reviewed-on: https://go-review.googlesource.com/19101
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/api/goapi.go                    |  9 ---------
- src/cmd/cgo/gcc.go                      |  3 +--
- src/cmd/dist/util.go                    |  1 -
- src/cmd/doc/pkg.go                      | 20 +++++++++---------
- src/cmd/go/build.go                     | 10 ---------
- src/cmd/go/generate.go                  | 12 -----------
- src/cmd/go/main.go                      | 15 --------------
- src/cmd/go/pkg.go                       |  1 -
- src/cmd/pprof/internal/report/report.go | 36 ---------------------------------
- src/cmd/yacc/yacc.go                    | 10 ---------
- src/compress/bzip2/bzip2.go             |  1 -
- src/compress/flate/token.go             |  3 ---
- src/crypto/tls/common.go                |  7 -------
- src/crypto/tls/conn.go                  |  7 -------
- src/database/sql/sql.go                 |  5 -----
- src/debug/macho/macho.go                | 23 ---------------------
- src/encoding/xml/marshal.go             |  7 +++----
- src/html/escape.go                      |  4 ----
- src/io/pipe.go                          |  5 -----
- src/net/http/fcgi/fcgi.go               |  7 -------
- src/net/http/httputil/dump.go           |  7 -------
- src/net/http/transport.go               | 12 -----------
- src/reflect/value.go                    |  1 -
- src/regexp/backtrack.go                 |  1 -
- src/regexp/exec.go                      | 12 -----------
- src/regexp/regexp.go                    |  2 --
- src/sort/sort.go                        |  7 -------
- src/text/template/funcs.go              |  1 -
- src/time/time.go                        |  3 ---
- 29 files changed, 13 insertions(+), 219 deletions(-)
+ src/cmd/vet/print.go          | 8 ++++----
+ src/cmd/vet/testdata/print.go | 3 +++
+ 2 files changed, 7 insertions(+), 4 deletions(-)

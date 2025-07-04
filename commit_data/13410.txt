@@ -1,12 +1,19 @@
-commit 8744d35dd3429b175559ca89799858b1fd497bcb
+commit 9525372e31f6bad979a5f472aecfc24af34f28d0
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 27 17:06:49 2012 -0400
+Date:   Wed Jun 27 16:52:36 2012 -0400
 
-    runtime: avoid allocation for "" + x + ""
+    path/filepath: avoid allocation in Clean of cleaned path
     
-    R=golang-dev, r
+    Alternative to https://golang.org/cl/6330044.
+    
+    Fixes #3681.
+    
+    R=golang-dev, r, hanwen, iant
     CC=golang-dev
-    https://golang.org/cl/6359043
+    https://golang.org/cl/6335056
 
- src/pkg/runtime/string.goc | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/path/filepath/path.go      | 81 ++++++++++++++++++++++++++------------
+ src/pkg/path/filepath/path_test.go | 18 +++++++++
+ src/pkg/path/path.go               | 80 ++++++++++++++++++++++++++-----------
+ src/pkg/path/path_test.go          | 19 +++++++++
+ 4 files changed, 149 insertions(+), 49 deletions(-)

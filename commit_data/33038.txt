@@ -1,22 +1,14 @@
-commit 862b78e1553a56adbc9117c2584ce5582f055b30
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 10 14:10:28 2017 -0700
+commit 4e9c86ab8e9faf6da9864db6ad81d396f3f55379
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 28 10:15:24 2017 -0700
 
-    cmd/go: correct directory used in checkNestedVCS test
+    spec: minor grammar fix
     
-    This error was not used when using git because nested git is permitted.
-    Add test using Mercurial, so that at least we have a test, even though
-    the test is not run by default.
+    Fixes #20830.
     
-    Fixes #22157
-    Fixes #22201
-    
-    Change-Id: If521f3c09b0754e00e56fa3cd0364764a57a43ad
-    Reviewed-on: https://go-review.googlesource.com/69670
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I18178064c955ad8d259df05ee954075ae42909b0
+    Reviewed-on: https://go-review.googlesource.com/47030
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go          | 9 ++++-----
- src/cmd/go/internal/get/vcs.go | 2 +-
- 2 files changed, 5 insertions(+), 6 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

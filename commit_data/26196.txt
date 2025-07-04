@@ -1,15 +1,12 @@
-commit 7a05fa8a70d0ddc109b246b4a3f0421ce2d64ea6
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Mar 10 02:36:28 2016 -0500
+commit 7f4443d5fa9248c1d0e9d07b2c502a46ca252db2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 29 12:10:01 2015 -0500
 
-    doc: fix dead links in FAQ
+    testing: add clear panic for duplicate call to t.Parallel
     
-    Fixes #14741.
-    
-    Change-Id: Idb8de8b0c1059c15e4c3df4a60bbd340d4e74aba
-    Reviewed-on: https://go-review.googlesource.com/20487
+    Change-Id: I155633b58e1823344a26c3edf11f5626fae080ee
+    Reviewed-on: https://go-review.googlesource.com/18204
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/go_faq.html | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/testing/testing.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

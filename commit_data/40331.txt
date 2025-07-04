@@ -1,23 +1,20 @@
-commit ba97d0d84d4272c4b8497fa6af2eab1580b62d44
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Oct 19 23:31:52 2019 +0700
+commit 59ea685ce96a696281e56badd80d2e5dd618b0b0
+Author: Paul Jolly <paul@myitcv.io>
+Date:   Fri May 3 20:46:52 2019 +0100
 
-    cmd/compile: remove overflow pointer padding for nacl
+    cmd/go: fix clang test break as a result of golang.org/cl/127495
     
-    CL 200077 removed nacl bits in the toolchain, but it misses the code to
-    add pointer overflow padding, which is specific for nacl.
+    golang.org/cl/127495 incorrectly tested against environment specifc
+    details that do not form part of the script test conditions. This broke
+    the clang build.
     
-    This CL removes that part.
+    Fix by removing the specific check; the existing checks are sufficient.
     
-    Passes toolstash-check.
-    
-    Updates #30439
-    
-    Change-Id: I1e77cade9f31690e16cd13d3445a98b500671252
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202159
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ic6ec873df9343c809968a08dd676e210046da5fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175179
+    Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 23 +----------------------
- 1 file changed, 1 insertion(+), 22 deletions(-)
+ src/cmd/go/testdata/script/bug.txt | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,16 +1,18 @@
-commit ee4b58df61e25bec2d526947dd76cd2ab5d3051d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 20 15:51:26 2016 -0400
+commit 16e3ce278591069c4f49c29f28d222768f026747
+Author: Michael Matloob <matloob@golang.org>
+Date:   Sun Aug 21 18:34:24 2016 -0400
 
-    log: document that log messages end in newlines
+    cmd/link/internal/ld: rename pobj.go to main.go
     
-    Fixes #16564.
+    The only thing pobj contains is the Ldmain function.
     
-    Change-Id: Idd7b3c8f1d8415acd952d1efb6dc35ba4191805d
-    Reviewed-on: https://go-review.googlesource.com/31578
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Updates #16818
+    
+    Change-Id: Id114bdb264cb5ea2f372eb2166201f1f8eb99445
+    Reviewed-on: https://go-review.googlesource.com/27472
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/log/log.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/link/internal/ld/{pobj.go => main.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

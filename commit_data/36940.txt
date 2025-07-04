@@ -1,19 +1,14 @@
-commit 689321e1087180ef8e823bee7befe4609d67b727
-Author: Florian <sinnlosername@users.noreply.github.com>
-Date:   Wed Oct 3 15:31:35 2018 +0000
+commit f027d1a8782387fb7e354054a669a202524335e4
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Jun 12 11:10:49 2018 +0200
 
-    doc: add link to the Go Discord forum
+    runtime: convert a darwin/arm64 syscall to libc
     
-    I've linked the  gophers discord. It's a well administered discord which already got many members, but it was never officially linked. For many people it's a quality proof if a discord is linked on the official page. I think there are much more people out there, who would prefer to use discord instead of slack or irc.
-    
-    The discord already got many users without even being promoted, so it's very likely there are many people who are interested in a discord, but they don't want to use unofficial discords. This discord shouldn't be seen as a competitor for the slack, it's a platform for those, who don't want to use slack.
-    
-    Change-Id: Ib1ee7173f394b810f5cccf67b498485ecbf8a7db
-    GitHub-Last-Rev: 286ebad994a52f55b685deeda8a86cfac4a9964b
-    GitHub-Pull-Request: golang/go#24176
-    Reviewed-on: https://go-review.googlesource.com/c/97718
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5704a07375fc672ac70c1f4e8df6f4fff760b4bf
+    Reviewed-on: https://go-review.googlesource.com/118117
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/help.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/rt0_darwin_arm64.s | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

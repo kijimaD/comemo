@@ -1,25 +1,19 @@
-commit 899cd04e214435ee09483231fc3fa03ad270c5e6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 26 14:37:14 2012 -0800
+commit 408f0b1f7459ebcbc74ad5936950072796fe449a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 26 16:25:07 2012 -0500
 
-    net/http: add Request.RequestURI field
+    gc, runtime: handle floating point map keys
     
-    The new url.URL's parsing can be too canonicalizing for
-    certain applications. By keeping the original request URI
-    around, we give applications a gross escape hatch while
-    keeping the URL package clean and simple for normal uses.
+    Fixes #2609.
     
-    (From a discussion with Gary Burd, Gustavo Niemeyer,
-    and Russ Cox.)
-    
-    Fixes #2782
-    
-    R=golang-dev, rsc, dsymonds
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5580044
+    https://golang.org/cl/5572069
 
- src/pkg/net/http/client.go           |  4 ++++
- src/pkg/net/http/client_test.go      | 12 ++++++++++++
- src/pkg/net/http/readrequest_test.go |  7 +++++++
- src/pkg/net/http/request.go          | 10 ++++++++--
- 4 files changed, 31 insertions(+), 2 deletions(-)
+ src/cmd/gc/go.h           |   4 ++
+ src/cmd/gc/subr.c         |  43 +++++++++++--
+ src/pkg/runtime/alg.c     | 104 ++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.c |  28 ++++++++-
+ src/pkg/runtime/runtime.h |   4 ++
+ test/map.go               | 157 ++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 332 insertions(+), 8 deletions(-)

@@ -1,25 +1,20 @@
-commit cb733da42c582bfce9387a4811e8b757b058d1b6
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Mar 7 23:57:41 2024 +0700
+commit b98c1b22bd1b91e46144537fd3146f5b9e3d8acb
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Mar 20 13:01:14 2023 -0700
 
-    net/http: set Cache-Control header only if presents on error
+    all: gofmt
     
-    CL 544019 changes http.Error to remove misleading response headers.
-    However, it also adds new "Cache-Control" header unconditionally, which
-    may breaks existing clients out there, who do not expect to see the
-    this header in the response like test in golang.org/x/net/http2.
-    
-    To keep thing backward compatible, http.Error should only add
-    Cache-Control header if it has been presented.
-    
-    Updates #50905
-    
-    Change-Id: I989e9f999a30ec170df4fb28905f50aed0267dad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569815
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I926388ee5aeeff11f765cbd4558b66645d1bbc08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477836
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/http/server.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go |  6 +++---
+ src/internal/godebug/godebug.go          | 10 +++++++---
+ src/runtime/cgocheck.go                  |  1 +
+ src/runtime/internal/atomic/types.go     |  2 ++
+ src/runtime/mbarrier.go                  |  2 ++
+ src/runtime/metrics/description_test.go  |  1 +
+ src/runtime/start_line_test.go           |  2 +-
+ 7 files changed, 17 insertions(+), 7 deletions(-)

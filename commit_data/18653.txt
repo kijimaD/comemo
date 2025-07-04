@@ -1,15 +1,20 @@
-commit 1b135172df75d7d5ca17aa61132a4358c29b598a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 26 10:20:49 2014 +0900
+commit d97d37188a7e58250b2a655dc86dbf644637d034
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 25 14:43:53 2014 -0800
 
-    net: clean the dregs of NaCL merge
+    5g, 8g: remove dead code
     
-    LGTM=iant, aram, dave
-    R=golang-codereviews, iant, aram, dave
+    maxstksize is superfluous and appears to be vestigial. 6g does not use it.
+    
+    c >= 4 cannot occur; c = w % 4.
+    
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/68770044
+    https://golang.org/cl/68750043
 
- src/pkg/net/file_test.go  | 2 +-
- src/pkg/net/file_unix.go  | 1 -
- src/pkg/net/ipraw_test.go | 2 +-
- 3 files changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/5g/gg.h   |  1 -
+ src/cmd/5g/ggen.c |  5 +----
+ src/cmd/8g/gg.h   |  1 -
+ src/cmd/8g/ggen.c | 10 +---------
+ 4 files changed, 2 insertions(+), 15 deletions(-)

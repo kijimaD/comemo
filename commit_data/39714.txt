@@ -1,34 +1,15 @@
-commit 5d1a95175e693f5be0bc31ae9e6a7873318925eb
-Author: Tianon Gravi <tianon@debian.org>
-Date:   Wed Aug 14 15:19:55 2019 +0000
+commit d98e0720bcd05d0c162e932710a4ca39d9ef0fd2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 14 17:22:00 2019 +0000
 
-    runtime: treat CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT as SIGTERM on Windows
+    cmd/compile/internal/ssa: re-run generator
     
-    This matches the existing behavior of treating CTRL_C_EVENT, CTRL_BREAK_EVENT as a synthesized SIGINT event.
+    CL 163760 was submitted with this file generated from an old version
+    of the code generator.
     
-    See https://docs.microsoft.com/en-us/windows/console/handlerroutine for a good documentation source upstream to confirm these values.
-    
-    As for the usage of these events, the "Timeouts" section of that upstream documentation is important to note, especially the limited window in which to do any cleanup before the program will be forcibly killed (defaults typically 5s, but as low as 500ms, and in many cases configurable system-wide).
-    
-    These events are especially relevant for Windows containers, where these events (particularly `CTRL_SHUTDOWN_EVENT`) are one of the only ways containers can "gracefully" shut down (https://github.com/moby/moby/issues/25982#issuecomment-466804071).
-    
-    This was verified by making a simple `main()` which implements the same code as in `ExampleNotify_allSignals` but in a `for` loop, building a `main.exe`, running that in a container, then doing `docker kill -sTERM` on said container.  The program prints `Got signal: SIGTERM`, then exits after the aforementioned timeout, as expected.  Behavior before this patch is that the program gets no notification (and thus no output) but still exits after the timeout.
-    
-    Fixes #7479
-    
-    Change-Id: I2af79421cd484a0fbb9467bb7ddb5f0e8bc3610e
-    GitHub-Last-Rev: 9e05d631b542393f5ebb0eb3747157c8bd0de635
-    GitHub-Pull-Request: golang/go#33311
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187739
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I9a3b9a48f794f74567f82ef58637cb1820befd11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167677
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/os/signal/doc.go              |  8 ++++++++
- src/runtime/defs_windows.go       | 10 +++++++---
- src/runtime/defs_windows_386.go   | 10 +++++++---
- src/runtime/defs_windows_amd64.go | 10 +++++++---
- src/runtime/defs_windows_arm.go   | 10 +++++++---
- src/runtime/os_windows.go         |  2 ++
- src/syscall/types_windows.go      |  7 +++++--
- 7 files changed, 43 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

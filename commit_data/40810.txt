@@ -1,24 +1,19 @@
-commit 4160a71d4206e11d2122d1d9520c55a5b95c2085
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 15 12:26:09 2019 -0500
+commit 80cca23b59fe75ba588f7ddee7adb48a6afe2eb7
+Author: Francesco Renzi <rentziass@gmail.com>
+Date:   Tue Jul 9 14:43:10 2019 +0100
 
-    cmd/dist: fix GOROOT permissions on failure
+    strings: document that order of pairs matters in NewReplacer
     
-    While running various tests for #28387, I keep ending up with an
-    unwritable GOROOT after a failure.
+    Update NewReplacer documentation to specify that in the case of
+    multiple matches at the same position, the matching old/new
+    pair that appears first in NewReplacer arguments takes precedence.
     
-    While the unwritable GOROOT is a fairly exotic condition (normally
-    only happens on builders), it's somewhat annoying when debugging, so
-    I'm switching all of the log.Fatal* call sites to use the existing
-    fatalf function, which supports general atexit-like cleanup.
+    Fixes #32699
     
-    Updates #28387
-    
-    Change-Id: I473cda7eacd9ad82bdeab647766373126dc7390e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207341
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9d0616d28e5cd8c9bfa301be201f2b0ebf361dff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185099
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/test.go | 31 ++++++++++++++-----------------
- 1 file changed, 14 insertions(+), 17 deletions(-)
+ src/strings/replace.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

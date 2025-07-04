@@ -1,12 +1,15 @@
-commit b1a3b61f0d0870a3142e99715d315e6516b4d363
+commit 0403181a880d25427d35316fcf0ea9a89fc9e40d
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Jul 23 16:36:29 2014 +1000
+Date:   Wed Jul 23 12:36:34 2014 +1000
 
-    doc/go1.4.txt: windows can do symlinks now
+    syscall: allow for mksyscall_windows.go to be used outside of syscall
     
-    R=golang-codereviews
+    Fixes #8398.
+    
+    LGTM=chines
+    R=golang-codereviews, chines, josharian
     CC=golang-codereviews
-    https://golang.org/cl/111560043
+    https://golang.org/cl/114140043
 
- doc/go1.4.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/syscall/mksyscall_windows.go | 57 ++++++++++++++++++++++++++++--------
+ 1 file changed, 45 insertions(+), 12 deletions(-)

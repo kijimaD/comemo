@@ -1,18 +1,16 @@
-commit 16b95507a5424452423ca44c7396fe960c7a5bef
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Apr 1 02:57:51 2014 -0400
+commit f8c25b62b8a154a523d48410096e07f80eec7e6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 31 16:39:41 2014 -0400
 
-    html/template: fix broken links
-    Fixes #7562.
+    benchcmp: leave a forwarding script
     
-    LGTM=nigeltao
-    R=nigeltao
-    CC=golang-codereviews
-    https://golang.org/cl/81190044
+    People (like me!) will still try to run misc/benchcmp
+    and wonder where it went. Tell them.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, dave
+    CC=adg, golang-codereviews, r
+    https://golang.org/cl/82710043
 
- src/pkg/html/template/attr.go    | 4 ++--
- src/pkg/html/template/content.go | 3 ++-
- src/pkg/html/template/context.go | 4 ++--
- src/pkg/html/template/escape.go  | 2 +-
- src/pkg/html/template/html.go    | 4 ++--
- 5 files changed, 9 insertions(+), 8 deletions(-)
+ misc/benchcmp | 5 +++++
+ 1 file changed, 5 insertions(+)

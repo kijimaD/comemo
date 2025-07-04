@@ -1,47 +1,12 @@
-commit 2de064b63c6d0eb5cba5bd877da81c8100aaeb2a
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Oct 2 08:19:27 2012 +0200
+commit cf513387c3839e0815016ec8d9b4cf0cd1802aae
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Oct 2 08:35:20 2012 +1000
 
-    cmd/8g: do not take the address of string/slice for &s[i]
+    go/doc: strip example output comment from synthesized main function
     
-    A similar change was made in 6g recently.
-    
-    LEALs in cmd/go: 31440 before, 27867 after.
-    
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkBinaryTree17    7065794000   6723617000   -4.84%
-    BenchmarkFannkuch11      7767395000   7477945000   -3.73%
-    BenchmarkGobDecode         34708140     34857820   +0.43%
-    BenchmarkGobEncode         10998780     10960060   -0.35%
-    BenchmarkGzip            1603630000   1471052000   -8.27%
-    BenchmarkGunzip           242573900    240650400   -0.79%
-    BenchmarkJSONEncode       120842200    117966100   -2.38%
-    BenchmarkJSONDecode       247254900    249103100   +0.75%
-    BenchmarkMandelbrot200     29237330     29241790   +0.02%
-    BenchmarkParse              8111320      8096865   -0.18%
-    BenchmarkRevcomp         2595780000   2694153000   +3.79%
-    BenchmarkTemplate         276679600    264497000   -4.40%
-    
-    benchmark                              old ns/op    new ns/op    delta
-    BenchmarkAppendFloatDecimal                  429          416   -3.03%
-    BenchmarkAppendFloat                         780          740   -5.13%
-    BenchmarkAppendFloatExp                      746          700   -6.17%
-    BenchmarkAppendFloatNegExp                   752          694   -7.71%
-    BenchmarkAppendFloatBig                     1228         1108   -9.77%
-    BenchmarkAppendFloat32Integer                457          416   -8.97%
-    BenchmarkAppendFloat32ExactFraction          662          631   -4.68%
-    BenchmarkAppendFloat32Point                  771          735   -4.67%
-    BenchmarkAppendFloat32Exp                    722          672   -6.93%
-    BenchmarkAppendFloat32NegExp                 724          659   -8.98%
-    BenchmarkAppendFloat64Fixed1                 429          400   -6.76%
-    BenchmarkAppendFloat64Fixed2                 463          442   -4.54%
-    
-    Update #1914.
-    
-    R=golang-dev, daniel.morsing, rsc
-    CC=golang-dev
-    https://golang.org/cl/6574043
+    R=gri
+    CC=gobot, golang-dev
+    https://golang.org/cl/6524047
 
- src/cmd/8g/cgen.c | 153 +++++++++++++++++++++++++++---------------------------
- src/cmd/8g/gg.h   |   1 -
- 2 files changed, 77 insertions(+), 77 deletions(-)
+ src/pkg/go/doc/example.go | 38 ++++++++++++++++++++++++++------------
+ 1 file changed, 26 insertions(+), 12 deletions(-)

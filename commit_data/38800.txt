@@ -1,16 +1,12 @@
-commit f85d0e32e5cd462c4617d0189ad858d5a775424c
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Tue Apr 16 20:45:41 2019 -0400
+commit 7f3c6f64bdf5ed03e0a6308520958c88d244e522
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Nov 28 11:35:39 2018 -0500
 
-    test: add escape regress for empty variadic function
+    doc: update go1.12.html using latest output from relnote tool
     
-    Fixes #30898
-    
-    Change-Id: I903dd8ed2b10c49b2291ad0858774f3ca2f5b223
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172422
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6b20c3fd7f15f35d2288d9a0fd6512c541a62c92
+    Reviewed-on: https://go-review.googlesource.com/c/151558
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- test/fixedbugs/issue30898.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ doc/go1.12.html | 146 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 146 insertions(+)

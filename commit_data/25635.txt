@@ -1,16 +1,17 @@
-commit d3ff40fb1f4daae5b7ef4c54909a35d57e1ca753
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 22 15:50:01 2016 -0500
+commit d10675089d74db0408f2432eae3bd89a8e1c2d6a
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Nov 13 08:55:44 2015 +1300
 
-    cmd/internal/obj/x86: fix doubled REX byte in POPCNT, others
+    runtime: ignore rt_sigaction error if it is for SIGRTMAX
     
-    Tests for this and many other instructions are in a separate followup CL.
+    A forward port of https://codereview.appspot.com/124900043/ which somehow
+    got lost somewhere.
     
-    For #14068.
+    Fixes #13024
     
-    Change-Id: I6955315996a34d7fb79369b9d9a0119d11745e85
-    Reviewed-on: https://go-review.googlesource.com/18849
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iab128899e65c51d90f6704e3e1b2fc9326e3a1c2
+    Reviewed-on: https://go-review.googlesource.com/16853
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ src/runtime/os1_linux.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

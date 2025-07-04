@@ -1,17 +1,13 @@
-commit 844889dfe2321905e7aa1273f98596d156893527
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 10 09:27:25 2014 +1100
+commit f29bd6c4a4385cd9ad24b4a0da0b66dd4f6644aa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 21 10:10:11 2014 -0700
 
-    cmd/go: use golang.org/x/... import paths
+    cmd/ld: fix addstrdata for big-endian systems
     
     LGTM=rsc
-    R=rsc
+    R=minux, rsc
     CC=golang-codereviews
-    https://golang.org/cl/168170043
+    https://golang.org/cl/158280043
 
- src/cmd/go/doc.go    |  2 +-
- src/cmd/go/pkg.go    | 23 +++++++++++++++++------
- src/cmd/go/test.bash | 18 +++++++++---------
- src/cmd/go/tool.go   |  2 +-
- src/cmd/go/vet.go    |  2 +-
- 5 files changed, 29 insertions(+), 18 deletions(-)
+ src/cmd/ld/data.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

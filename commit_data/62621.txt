@@ -1,0 +1,29 @@
+commit f9f5d1e8442e3268489f3cfab2f9b65922bd4b5b
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Mar 18 10:22:04 2025 -0700
+
+    runtime/race: detect when TestRace fails to run all tests, skip failures
+    
+    TestRace runs a collection of tests, some of which are expected
+    to fail with data races. Make TestRace more robust at detecting
+    when the test run is cut short, such as when a test causes
+    an unhandled panic.
+    
+    Skip TestRaceRangeFuncIterator, which contains an unhandled panic.
+    This test was causing all subsequent tests to not run.
+    
+    Skip TestNoRaceRangeFuncIterator, which contains an unexpected data race.
+    This test was not running due to the above failure.
+    
+    For #72925
+    
+    Change-Id: Id662375cc498ea25ae308619709768588bf6a2f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658875
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/runtime/race/race_test.go               | 16 ++++++++++------
+ src/runtime/race/testdata/main_test.go      | 15 +++++++++++++++
+ src/runtime/race/testdata/rangefunc_test.go |  2 ++
+ 3 files changed, 27 insertions(+), 6 deletions(-)

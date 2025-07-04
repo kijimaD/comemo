@@ -1,30 +1,28 @@
-commit 8fc99d20f3377c7c5c1dba51b1be865ff61483b0
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Oct 26 18:09:42 2018 +0200
+commit abaf53fb8e7dfbb9d513745e8280488b159ceb1e
+Author: Paul Jolly <paul@myitcv.io>
+Date:   Mon Jul 2 08:08:14 2018 +0100
 
-    internal/cpu: remove unused and not required ppc64(le) feature detection
+    misc/wasm: use single map for string, symbol and object id mapping.
     
-    Minimum Go requirement for ppc64(le) architecture support is POWER8.
-    https://github.com/golang/go/wiki/MinimumRequirements#ppc64-big-endian
+    Currently we use a globally unique symbol property on objects that get
+    passed from JavaScript to Go to store a unique ID that Go then uses when
+    referring back to the JavaScript object (via js.Value.ref). This
+    approach fails however when a JavaScript object cannot be modified, i.e.
+    cannot have new properties added or is frozen. The test that is added as
+    part of this commit currently fails with:
     
-    Reduce CPU features supported in internal/cpu to those needed to
-    test minimum requirements and cpu feature kernel support for ppc64(le).
-    Currently no internal/cpu feature variables are used to guard code
-    from using unsupported instructions. The IsPower9 feature variable
-    and detection is kept as it will soon be used to guard code execution.
+      Cannot add property Symbol(), object is not extensible
     
-    Reducing the set of detected CPU features for ppc64(le) makes
-    implementing Go support for new operating systems easier as
-    CPU feature detection for ppc64(le) needs operating system support
-    (e.g. hwcap on Linux and getsystemcfg syscall on AIX).
+    Instead we consolidate the string, symbol and object unique ID mapping
+    into a single map. Map key equality is determined via strict equality,
+    which is the semantic we want in this situation.
     
-    Change-Id: Ic4c17b31610970e481cd139c657da46507391d1d
-    Reviewed-on: https://go-review.googlesource.com/c/145117
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    Change-Id: Ieb2b50fc36d3c30e148aa7a41557f3c59cd33766
+    Reviewed-on: https://go-review.googlesource.com/121799
+    Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/internal/cpu/cpu.go        | 25 ++++++++-----------------
- src/internal/cpu/cpu_ppc64x.go | 28 +++-------------------------
- 2 files changed, 11 insertions(+), 42 deletions(-)
+ misc/wasm/wasm_exec.js    | 32 ++++----------------------------
+ src/syscall/js/js_test.go |  8 ++++++++
+ 2 files changed, 12 insertions(+), 28 deletions(-)

@@ -1,71 +1,24 @@
-commit 5a9dabc2ba873f89a5de9ff53c8eab7c96d0c6b5
-Author: David Chase <drchase@google.com>
-Date:   Fri Jan 26 17:49:33 2024 -0500
+commit 1bb2f73237f8375d364564c4bb2c2ab16a31da87
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 16 12:02:52 2023 -0700
 
-    cmd/compile: for rangefunc, add checks and tests, fix panic interactions
+    hash/maphash: weaken avalanche test a bit
     
-    Modify rangefunc #next protocol to make it more robust
+    Give the test a bit more wiggle room.
     
-    Extra-terrible nests of rangefunc iterators caused the
-    prior implementation to misbehave non-locally (in outer loops).
+    Previously the allowed range was about 46.5% to 53.5%. Now it is about 43% TO 57%.
     
-    Add more rangefunc exit flag tests, parallel and tricky
+    Fixes #60170
     
-    This tests the assertion that a rangefunc iterator running
-    in parallel can trigger the race detector if any of the
-    parallel goroutines attempts an early exit.  It also
-    verifies that if everything else is carefully written,
-    that it does NOT trigger the race detector if all the
-    parts run time completion.
-    
-    Another test tries to rerun a yield function within a loop,
-    so that any per-line shared checking would be fooled.
-    
-    Added all the use-of-body/yield-function checking.
-    
-    These checks handle pathological cases that would cause
-    rangefunc for loops to behave in surprising ways (compared
-    to "regular" for loops).  For example, a rangefunc iterator
-    might defer-recover a panic thrown in the syntactic body
-    of a loop; this notices the fault and panics with an
-    explanation
-    
-    Modified closure naming to ID rangefunc bodies
-    
-    Add a "-range<N>" suffix to the name of any closure generated for
-    a rangefunc loop body, as provided in Alessandro Arzilli's CL
-    (which is merged into this one).
-    
-    Fix return values for panicky range functions
-    
-    This removes the delayed implementation of "return x" by
-    ensuring that return values (in rangefunc-return-containing
-    functions) always have names and translating the "return x"
-    into "#rv1 = x" where #rv1 is the synthesized name of the
-    first result.
-    
-    Updates #61405.
-    
-    Change-Id: I933299ecce04ceabcf1c0c2de8e610b2ecd1cfd8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584596
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tim King <taking@google.com>
+    Change-Id: Ieda471e0986c52edb9f6d31beb8e41917876d6c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/inline/inl.go             |   2 +-
- src/cmd/compile/internal/ir/func.go                |  46 +-
- src/cmd/compile/internal/ir/sizeof_test.go         |   2 +-
- src/cmd/compile/internal/noder/irgen.go            |   7 +-
- src/cmd/compile/internal/noder/reader.go           |  12 +-
- src/cmd/compile/internal/noder/unified.go          |   4 +-
- src/cmd/compile/internal/noder/writer.go           |  17 +-
- .../compile/internal/rangefunc/rangefunc_test.go   | 890 ++++++++++++++++++++-
- src/cmd/compile/internal/rangefunc/rewrite.go      | 745 ++++++++++-------
- src/cmd/compile/internal/ssagen/ssa.go             |   6 +-
- .../compile/internal/typecheck/_builtin/runtime.go |   4 +-
- src/cmd/compile/internal/typecheck/builtin.go      | 403 +++++-----
- .../compile/internal/types2/compiler_internal.go   |  50 ++
- src/cmd/internal/goobj/builtinlist.go              |   4 +-
- src/runtime/panic.go                               |  26 +-
- src/runtime/race/testdata/rangefunc_test.go        |  77 ++
- 16 files changed, 1723 insertions(+), 572 deletions(-)
+ src/hash/maphash/smhasher_test.go | 2 +-
+ src/runtime/hash_test.go          | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

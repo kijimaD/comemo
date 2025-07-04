@@ -1,17 +1,16 @@
-commit 58bf401293bd1de3740613f586b5b970dc991d39
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Dec 27 14:23:29 2018 -1000
+commit fa1a49aa556d87d41315329811de328e19022608
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 3 21:21:55 2018 +0000
 
-    time: reject tzdata with no zones
+    os: add UserHomeDir
     
-    Fixes #29437
+    Fixes #26463
     
-    Change-Id: Ice0a03a543e564d66651bfdfce5cd32ebaa35926
-    Reviewed-on: https://go-review.googlesource.com/c/155746
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iaef1c7456ffaeadeead6027a37d09c44a3d05bd5
+    Reviewed-on: https://go-review.googlesource.com/c/139418
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/zoneinfo_read.go | 8 +++++++-
- src/time/zoneinfo_test.go | 9 +++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/os/example_test.go | 33 +++++++++++++++++++--------------
+ src/os/file.go         | 18 ++++++++++++++++++
+ src/os/os_test.go      | 14 ++++++++++++++
+ 3 files changed, 51 insertions(+), 14 deletions(-)

@@ -1,18 +1,81 @@
-commit e8d9fd707f4914bdd298f5dcdd14d3b6035e278b
-Author: Jordan Liggitt <liggitt@google.com>
-Date:   Wed Mar 30 09:53:58 2022 -0400
+commit 122f5e16d690bd14ae46e9cc7e37c0c84fdc2be8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 20:14:22 2021 +0000
 
-    crypto/x509: move sha1 removal to unspecified future release
+    [dev.typeparams] internal/goarch,internal/goos: explode runtime/internal/sys into pieces
     
-    Updates #41682
+    This change extracts the GOOS and GOARCH specific constants from
+    runtime/internal/sys into packages that are available to the entire
+    standard library.
     
-    Change-Id: I3a2d6eedf4030cdc7308001aef549eb20eeb11c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396774
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    Run-TryBot: Filippo Valsorda <valsorda@google.com>
-    Auto-Submit: Filippo Valsorda <valsorda@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This change does not yet update the runtime and associated packages to
+    use them, and instead adds constants to runtime/internal/sys to forward
+    the constants defined by these new packages.
+    
+    Change-Id: I14d574b8d7bfe599ad25da29dc1b39716e35a734
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328336
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/crypto/x509/x509.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/work/gc.go                     |  19 +++-
+ src/go/build/deps_test.go                          |   6 +-
+ src/internal/goarch/gengoarch.go                   |  59 +++++++++++
+ .../sys/arch.go => internal/goarch/goarch.go}      |  14 ++-
+ .../arch_386.go => internal/goarch/goarch_386.go}  |   2 +-
+ .../goarch/goarch_amd64.go}                        |   2 +-
+ .../arch_arm.go => internal/goarch/goarch_arm.go}  |   2 +-
+ .../goarch/goarch_arm64.go}                        |   2 +-
+ .../goarch/goarch_mips.go}                         |   2 +-
+ .../goarch/goarch_mips64.go}                       |   2 +-
+ .../goarch/goarch_mips64le.go}                     |   2 +-
+ .../goarch/goarch_mipsle.go}                       |   2 +-
+ .../goarch/goarch_ppc64.go}                        |   2 +-
+ .../goarch/goarch_ppc64le.go}                      |   2 +-
+ .../goarch/goarch_riscv64.go}                      |   2 +-
+ .../goarch/goarch_s390x.go}                        |   2 +-
+ .../goarch/goarch_wasm.go}                         |   2 +-
+ .../sys => internal/goarch}/zgoarch_386.go         |   4 +-
+ .../sys => internal/goarch}/zgoarch_amd64.go       |   4 +-
+ .../sys => internal/goarch}/zgoarch_arm.go         |   4 +-
+ .../sys => internal/goarch}/zgoarch_arm64.go       |   4 +-
+ .../sys => internal/goarch}/zgoarch_arm64be.go     |   4 +-
+ .../sys => internal/goarch}/zgoarch_armbe.go       |   4 +-
+ .../sys => internal/goarch}/zgoarch_mips.go        |   4 +-
+ .../sys => internal/goarch}/zgoarch_mips64.go      |   4 +-
+ .../sys => internal/goarch}/zgoarch_mips64le.go    |   4 +-
+ .../sys => internal/goarch}/zgoarch_mips64p32.go   |   4 +-
+ .../sys => internal/goarch}/zgoarch_mips64p32le.go |   4 +-
+ .../sys => internal/goarch}/zgoarch_mipsle.go      |   4 +-
+ .../sys => internal/goarch}/zgoarch_ppc.go         |   4 +-
+ .../sys => internal/goarch}/zgoarch_ppc64.go       |   4 +-
+ .../sys => internal/goarch}/zgoarch_ppc64le.go     |   4 +-
+ .../sys => internal/goarch}/zgoarch_riscv.go       |   4 +-
+ .../sys => internal/goarch}/zgoarch_riscv64.go     |   4 +-
+ .../sys => internal/goarch}/zgoarch_s390.go        |   4 +-
+ .../sys => internal/goarch}/zgoarch_s390x.go       |   4 +-
+ .../sys => internal/goarch}/zgoarch_sparc.go       |   4 +-
+ .../sys => internal/goarch}/zgoarch_sparc64.go     |   4 +-
+ .../sys => internal/goarch}/zgoarch_wasm.go        |   4 +-
+ .../internal/sys => internal/goos}/gengoos.go      |  41 +-------
+ src/internal/goos/goos.go                          |  12 +++
+ .../internal/sys => internal/goos}/zgoos_aix.go    |   2 +-
+ .../sys => internal/goos}/zgoos_android.go         |   2 +-
+ .../internal/sys => internal/goos}/zgoos_darwin.go |   2 +-
+ .../sys => internal/goos}/zgoos_dragonfly.go       |   2 +-
+ .../sys => internal/goos}/zgoos_freebsd.go         |   2 +-
+ .../internal/sys => internal/goos}/zgoos_hurd.go   |   2 +-
+ .../sys => internal/goos}/zgoos_illumos.go         |   2 +-
+ .../internal/sys => internal/goos}/zgoos_ios.go    |   2 +-
+ .../internal/sys => internal/goos}/zgoos_js.go     |   2 +-
+ .../internal/sys => internal/goos}/zgoos_linux.go  |   2 +-
+ .../internal/sys => internal/goos}/zgoos_netbsd.go |   2 +-
+ .../sys => internal/goos}/zgoos_openbsd.go         |   2 +-
+ .../internal/sys => internal/goos}/zgoos_plan9.go  |   2 +-
+ .../sys => internal/goos}/zgoos_solaris.go         |   2 +-
+ .../sys => internal/goos}/zgoos_windows.go         |   2 +-
+ .../internal/sys => internal/goos}/zgoos_zos.go    |   2 +-
+ src/runtime/internal/sys/consts.go                 | 109 +++++++++++++++++++++
+ src/runtime/internal/sys/sys.go                    |   8 --
+ 59 files changed, 284 insertions(+), 130 deletions(-)

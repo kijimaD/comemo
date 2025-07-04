@@ -1,30 +1,35 @@
-commit 33ff1559702388c57c45f9e6cd032f06e8c3c163
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Jul 26 16:33:44 2021 -0400
+commit 9a5a11adfa0f5ead728641d8fb72244e03239547
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 29 21:25:47 2020 -0500
 
-    go/types: preserve untyped constants on the RHS of a shift expression
+    [dev.regabi] cmd/compile: add custom expression Node implementations
     
-    CL 291316 fixed go/types to verify that untyped shift counts are
-    representable by uint, but as a side effect also converted their types
-    to uint.
+    These are fairly rote implementations of structs appropriate to
+    each Op (or group of Ops).
     
-    Rearrange the logic to keep the check for representability, but not
-    actually convert untyped integer constants. Untyped non-integer
-    constants are still converted, to preserve the behavior of 1.16. This
-    behavior for non-integer types is a bug, filed as #47410.
+    The names of these are unknown except to ir.NodAt for now.
+    A later, automated change will introduce direct use of the types
+    throughout package gc.
     
-    Updates #47410
-    Fixes #47243
+    (This CL is expressions; the previous one was statements.)
     
-    Change-Id: I5eab4aab35b97f932fccdee2d4a18623ee2ccad5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337529
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    This is the last of the Ops that were previously handled by the
+    generic node struct, so that struct and its methods can be
+    and are deleted in this CL.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I1703f35f24dcd3f7c5782a278e53c3fe04e87c37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274109
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/api_test.go   | 12 ++++++++++++
- src/go/types/check_test.go |  7 +++++++
- src/go/types/expr.go       | 34 +++++++++++++++++++++++++---------
- 3 files changed, 44 insertions(+), 9 deletions(-)
+ src/cmd/compile/fmtmap_test.go             |   2 +-
+ src/cmd/compile/internal/ir/dump.go        |   4 +-
+ src/cmd/compile/internal/ir/expr.go        | 725 ++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ir/fmt.go         |   5 -
+ src/cmd/compile/internal/ir/node.go        | 504 +++-----------------
+ src/cmd/compile/internal/ir/sizeof_test.go |   1 -
+ 6 files changed, 782 insertions(+), 459 deletions(-)

@@ -1,31 +1,38 @@
-commit 61ed6d5c3341f73af9529b4808dd0997c6c86ed4
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Aug 31 17:15:08 2022 -0700
+commit 9b2dd1f7714b38f1bfe25676357b62c1bb4cad64
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Nov 3 14:44:16 2021 -0400
 
-    crypto/rsa,crypto/internal/boring: fix PSS salt handling
+    internal/fuzz: fix internal error handling
     
-    Fix the coversion between our sentinel salt length variables and the
-    BoringSSL versions in SignRSAPSS. We previously set -1 (hash length
-    equals salt length) when 0 was passed when we should've been setting
-    -2. This now matches the conversion that happens in VerifyRSAPSS. Also
-    adds a note documenting why we do this.
+    This doesn't handle every possible scenario,
+    but improves the one we can control. For example,
+    if the worker panics for some reason, we have no
+    way of knowing whether the panic occurred in an
+    expected way (while executing the fuzz target) or
+    due to an internal error in the worker. So any
+    panic will still be treated as a crash.
     
-    Additionally in non-Boring mode, properly handle passing of salt lengths
-    with a negative value which aren't one of the magic constants, returning
-    an error instead of panicking.
+    However, if it fails due to some internal bug that
+    we know how to catch, then the error should be
+    reported to the user without a new crasher being
+    written to testdata.
     
-    See https://commondatastorage.googleapis.com/chromium-boringssl-docs/rsa.h.html#RSA_sign_pss_mgf1
-    for the BoringSSL docs.
+    This is very difficult to test. The reasons an
+    internal error would occur is because something went
+    very wrong, and we have a bug in our code (which is
+    why they were previously panics). So simulating
+    a problem like this in a test is not really feasible.
     
-    Fixes #54803
+    Fixes #48804
     
-    Change-Id: Id1bd14dcf0ef4733867367257830ed43e25ef882
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426659
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: I334618f84eb4a994a8d17419551a510b1fdef071
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361115
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/crypto/internal/boring/rsa.go | 30 ++++++++++++++++++++++++++++--
- src/crypto/rsa/pss.go             | 35 ++++++++++++++++++++++++-----------
- src/crypto/rsa/pss_test.go        | 28 ++++++++++++++++++++++++++++
- 3 files changed, 80 insertions(+), 13 deletions(-)
+ src/internal/fuzz/worker.go      | 47 +++++++++++++++++++++++-----------------
+ src/internal/fuzz/worker_test.go |  2 +-
+ 2 files changed, 28 insertions(+), 21 deletions(-)

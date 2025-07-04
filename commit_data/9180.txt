@@ -1,19 +1,15 @@
-commit 07c103f6e61f390d2fb344c6e4437fdf744d4c73
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 22 21:17:46 2011 -0400
+commit e62e595e7a376740c894f281948e305ba2c0ffd1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 22 15:21:50 2011 -0700
 
-    sort: remove testing cycle
+    godoc/zip.go: fix another zip file system bug
     
-    import cycle:
-            "testing"
-            imports "flag"
-            imports "sort"
-            imports "testing"
+    Don't report that a directory was found just because we found
+    the list index where the directory would be if it were there...
     
-    R=golang-dev, r
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/4811048
+    https://golang.org/cl/4812051
 
- src/pkg/sort/search_test.go |  7 +++++--
- src/pkg/sort/sort_test.go   | 10 +++++++++-
- 2 files changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/godoc/zip.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

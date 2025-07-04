@@ -1,19 +1,13 @@
-commit 40745a579cd4f8fc9e1943ab651e30b2bf4a9543
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 16 16:14:37 2011 -0400
+commit d84415d8f0457993e3d536c66a22a555f17c14aa
+Author: Adam Langley <agl@golang.org>
+Date:   Mon May 16 11:16:48 2011 -0700
 
-    5l: delete pre-ARMv4 instruction implementations
+    crypto/x509: support DSA public keys in X.509 certs.
     
-    Add implementation for addr<->reg short moves.
-    Align large data, for ARM.
-    
-    R=ken2
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/4545050
+    https://golang.org/cl/4517072
 
- src/cmd/5l/asm.c   | 140 ++++++-----------------------------------------------
- src/cmd/5l/obj.c   |   2 +-
- src/cmd/5l/optab.c |  35 +++-----------
- src/cmd/5l/span.c  |   2 +-
- src/cmd/ld/data.c  |   8 +++
- 5 files changed, 32 insertions(+), 155 deletions(-)
+ src/pkg/crypto/x509/x509.go      | 78 ++++++++++++++++++++++++++++++++--------
+ src/pkg/crypto/x509/x509_test.go | 62 ++++++++++++++++++++++++++++++++
+ 2 files changed, 125 insertions(+), 15 deletions(-)

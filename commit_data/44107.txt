@@ -1,24 +1,14 @@
-commit fefad1dc856d66c024a94d3421fc52ff326fe970
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 7 11:22:42 2021 -0500
+commit 0242d461c9293d50f429fc9bdc41a02510b86995
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue Apr 28 12:11:14 2020 -0400
 
-    test: fix timeout code for invoking compiler
+    net/http/pprof: document the trace endpoint is for execution trace
     
-    When running go tool compile,
-    go tool is running compile as a subprocess.
-    Killing go tool with Process.Kill leaves the subprocess behind.
-    Send an interrupt signal first, which it can forward on
-    to the compile subprocess.
+    Update google/pprof#529
     
-    Also report the timeout in errorcheck -t.
-    
-    Change-Id: I7ae0029bbe543ed7e60e0fea790dd0739d10bcaa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282313
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iec3b343a487b399ada3a6f73c120b5f7ed8938be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230538
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- test/run.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/net/http/pprof/pprof.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

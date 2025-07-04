@@ -1,23 +1,22 @@
-commit a93849b9e2326cffe4c9aef656b507e2cead8e5f
-Author: David Chase <drchase@google.com>
-Date:   Fri Mar 19 15:21:14 2021 -0400
+commit e9ad52e46dee4b4f9c73ff44f44e1e234815800f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 24 21:42:20 2020 -0700
 
-    cmd/compile: remove now-redundant AuxCall.args
+    net: export ErrClosed
     
-    Cleanup, ABI information subsumes this.
+    This permits programs to reliably detect whether they are using a
+    closed network connection.
     
-    Updates #40724
+    Fixes #4373
     
-    Change-Id: I6c69da44380f7b0d159b22acacbd68dc000e4725
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303432
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib4ce8cc82bbb134c4689f0ebc8b9b11bb8b32a22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250357
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
- src/cmd/compile/internal/ssa/op.go                | 22 +++++-----------------
- src/cmd/compile/internal/ssa/rewrite.go           |  2 +-
- src/cmd/compile/internal/ssa/writebarrier.go      |  2 +-
- src/cmd/compile/internal/ssagen/ssa.go            | 16 ++++++----------
- 5 files changed, 14 insertions(+), 30 deletions(-)
+ doc/go1.16.html       | 12 ++++++++++++
+ src/net/error_test.go | 17 +++++++++++------
+ src/net/net.go        | 12 ++++++++++++
+ 3 files changed, 35 insertions(+), 6 deletions(-)

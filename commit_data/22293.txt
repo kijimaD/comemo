@@ -1,26 +1,22 @@
-commit a51d5f27e8a6fd97b27fb864cd284589c850836e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 2 16:34:48 2015 -0700
+commit 81d4072eb062a6af09e9a36314887a88acd50ebf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 27 15:13:05 2015 +0900
 
-    cmd/internal/gc: use 512 bits (rather than 464) for multi-precision arithmetic
+    cmd/internal/gc, runtime: change growslice to use int instead of int64
     
-    The original implementation used 16 int "words" but only 29 bits per word
-    for a total of 16*29 = 464 bits, with a space consumption of 16*64 = 1024
-    bits on a 64 bit machine. Switching to 512 bits increases precision while
-    still using (in the worst case) half the amount of memory per mp value on
-    a 64 bit machine.
+    Gc already calculates n as an int, so converting to int64 to call
+    growslice doesn't serve any purpose except to emit slightly larger
+    code on 32-bit platforms.  Passing n as an int shrinks godoc's text
+    segment by 8kB (9472633 => 9464133) when building for ARM.
     
-    Also: Decreased permitted number of least-significant mantissa bits which
-    may be incorrect when considering if a precise floating-point constant is
-    an integer from 29 to 16 bits.
-    
-    Change-Id: Iee9287056f0e9aa4f06ceac0724ff4674f710c53
-    Reviewed-on: https://go-review.googlesource.com/8429
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ief9492c21d01afcb624d3f2a484df741450b788d
+    Reviewed-on: https://go-review.googlesource.com/6231
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/gc/go.go       |  9 +++++----
- src/cmd/internal/gc/mparith2.go |  5 +----
- src/cmd/internal/gc/mparith3.go | 20 ++++++++++----------
- test/fixedbugs/issue6889.go     | 10 +++++++++-
- test/fixedbugs/issue7740.go     |  2 +-
- 5 files changed, 26 insertions(+), 20 deletions(-)
+ src/cmd/internal/gc/builtin.go          | 2 +-
+ src/cmd/internal/gc/builtins/runtime.go | 2 +-
+ src/cmd/internal/gc/walk.go             | 8 ++++----
+ src/runtime/slice.go                    | 9 +++------
+ 4 files changed, 9 insertions(+), 12 deletions(-)

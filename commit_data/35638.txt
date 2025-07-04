@@ -1,52 +1,15 @@
-commit 289ab30457a73d29462d584a499fcf48a6aa7fa5
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Wed Jun 6 20:13:19 2018 +0300
+commit 098208a0d92ecfcc6e03048d3f731153963f1f0d
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Feb 18 12:58:11 2018 +0100
 
-    cmd/link: fix duplicated "unresolved inter-package jump" errors
+    cmd/compile: fold bit masking on bits that have been shifted away
     
-    This is extension to https://golang.org/cl/113955 that handled
-    duplicated "unresolved relocation" errors.
+    Spotted while working on #18943, it triggers once during bootstrap.
     
-    For platforms with trampoline support, additional error is generated
-    per each undefined symbol. This breaks TestUndefinedRelocErrors test
-    on these platforms.
-    
-    Proposed fix:
-    
-            1. Changes error text to be identical to normal undefined reloc.
-               If relocation is undefined, jump to it will be unresolved
-               as well.
-    
-            2. Introduces a map that can be used by all sites that
-               handle this kind of errors which makes it easier
-               to report such errors exactly once.
-    
-    Errors on ppc64 before this change (note first 4 lines):
-    
-            main.defined1: unresolved inter-package jump to main.undefined()
-            main.defined1: unresolved inter-package jump to main.undefined()
-            main.defined2: unresolved inter-package jump to main.undefined()
-            main.defined2: unresolved inter-package jump to main.undefined()
-            main.defined1: relocation target main.undefined not defined
-            main.defined2: relocation target main.undefined not defined
-            runtime.main_main·f: function main is undeclared in the main package
-    
-    After this change:
-    
-            main.defined1: relocation target main.undefined not defined
-            main.defined2: relocation target main.undefined not defined
-            runtime.main_main·f: function main is undeclared in the main package
-    
-    Because of (1), errors output is the same on all platforms now.
-    
-    Fixes #25753
-    
-    Change-Id: Ic3084202a6fc5d4a6d2d0a93344f012b37fe58ed
-    Reviewed-on: https://go-review.googlesource.com/116676
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia4330ccc6395627c233a8eb4dcc0e3e2a770bea7
+    Reviewed-on: https://go-review.googlesource.com/94764
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/data.go | 23 ++---------------------
- src/cmd/link/internal/ld/link.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  12 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 503 +++++++++++++++++++++++--
+ 2 files changed, 487 insertions(+), 28 deletions(-)

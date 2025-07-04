@@ -1,38 +1,14 @@
-commit d7b10060b6275af78b4d7b8d01b80b63747a3869
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 24 22:22:32 2015 -0500
+commit 721d5893d7fbc6b1791ee067e95dab3ae8d7d13e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 3 17:37:01 2015 -0800
 
-    cmd/ld: clean for c2go
+    math/big: first version of Float %e, %f, %g, %G formatting working
     
-    Change-Id: Iaab2be9a1919f2fa9dbc61a5b7fbf99bcd0712a9
-    Reviewed-on: https://go-review.googlesource.com/6332
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I10efa3bc8bc7f41100feabe17837f805a42d7eb6
+    Reviewed-on: https://go-review.googlesource.com/3842
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- include/ar.h           |   17 +-
- include/link.h         |    5 +-
- include/plan9/ar.h     |   54 ++
- src/cmd/5l/asm.c       |   27 +-
- src/cmd/6l/asm.c       |   18 +-
- src/cmd/8l/asm.c       |   23 +-
- src/cmd/9l/asm.c       |   21 +-
- src/cmd/ld/data.c      |  153 +++---
- src/cmd/ld/decodesym.c |    6 +-
- src/cmd/ld/dwarf.c     |  291 +++++-----
- src/cmd/ld/dwarf.h     |    1 +
- src/cmd/ld/elf.c       |  263 ++++++---
- src/cmd/ld/elf.h       | 1422 +++++++++++++++++++++---------------------------
- src/cmd/ld/go.c        |   40 +-
- src/cmd/ld/ldelf.c     |  214 ++++----
- src/cmd/ld/ldmacho.c   |  194 +++----
- src/cmd/ld/ldpe.c      |  300 +++++-----
- src/cmd/ld/lib.c       |  128 ++---
- src/cmd/ld/lib.h       |   48 +-
- src/cmd/ld/macho.c     |   36 +-
- src/cmd/ld/macho.h     |    5 +-
- src/cmd/ld/pe.c        |  168 +++---
- src/cmd/ld/pe.h        |   44 +-
- src/cmd/ld/pobj.c      |    3 -
- src/cmd/ld/symtab.c    |   20 +-
- src/liblink/objfile.c  |    8 +-
- 26 files changed, 1774 insertions(+), 1735 deletions(-)
+ src/math/big/floatconv.go      |   9 +-
+ src/math/big/floatconv_test.go | 165 ++++++++++++++++++++++++++++++++-----
+ src/math/big/ftoa.go           | 181 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 329 insertions(+), 26 deletions(-)

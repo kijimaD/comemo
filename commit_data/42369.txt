@@ -1,23 +1,16 @@
-commit 185c3d46109fe067abf1d4ad4d4812006a55dbe2
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon May 18 16:49:04 2020 -0400
+commit bf865823baecefbf2996a9b56bdb8b73a387fbc9
+Author: po3rin <abctail30@gmail.com>
+Date:   Sat Dec 7 04:44:39 2019 +0900
 
-    crypto/tls: remove version check when unmarshaling sessionState
+    strings: fix nonexistent path in comment
     
-    This was causing issues when fuzzing with
-    TestMarshalUnmarshal since the test would
-    occassionally set the version to VersionTLS13,
-    which would fail when unmarshaling. The check
-    doesn't add much in practice, and there is no
-    harm in removing it to de-flake the test.
+    There is a part in the comment that points to a non-existent file.
+    It seems to have been overlooked in following PR.
+    https://go-review.googlesource.com/c/go/+/98518/
     
-    Fixes #38902
-    
-    Change-Id: I0906c570e9ed69c85fdd2c15f1b52f9e372c62e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234486
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I21dbfbd270c654d5cd7fa88d114a356862612d90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210298
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/ticket.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/strings/strings.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

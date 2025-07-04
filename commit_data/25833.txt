@@ -1,18 +1,19 @@
-commit a4b833940da77449afd95dc95f8596bae4fa1621
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 22 11:32:56 2016 -0800
+commit c4be790c0e20bfa4def3103392f404de201b3487
+Author: Erik Dubbelboer <erik@dubbelboer.com>
+Date:   Wed Jul 15 16:12:05 2015 +0200
 
-    runtime: move machport into darwin's mOS
+    encoding/json: check if Number is valid
     
-    It's not needed on other OSes.
+    json.Number is a special case which didn't have any checks and could result in invalid JSON.
     
-    Change-Id: Ia6b13510585392a7062374806527d33876beba2a
-    Reviewed-on: https://go-review.googlesource.com/19818
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #10281
+    
+    Change-Id: Ie3e726e4d6bf6a6aba535d36f6107013ceac913a
+    Reviewed-on: https://go-review.googlesource.com/12250
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/os_darwin.go | 1 +
- src/runtime/runtime2.go  | 1 -
- 2 files changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/json/decode.go      | 121 +++++++++++++++++++++++++++++++++++
+ src/encoding/json/encode.go      |   5 ++
+ src/encoding/json/encode_test.go |  12 ++++
+ src/encoding/json/number_test.go | 133 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 271 insertions(+)

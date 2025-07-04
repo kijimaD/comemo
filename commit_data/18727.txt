@@ -1,16 +1,27 @@
-commit 52e6d7c6224612a3b60caa799bc22bd50ab16acb
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Mar 4 08:18:17 2014 +0100
+commit 871698136d7a6452267b90e06d7cab4fc1f7cfea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 3 20:07:34 2014 -0800
 
-    cmd/gc: use a register to checknil constants.
+    spec: clarify what is considered a function call for len/cap special case
     
-    Fixes #7346.
+    gccgo considers built-in function calls returning a constant not as function call (issue 7386)
+    go/types considers any call (regular or built-in) as a function call
     
-    LGTM=rsc
-    R=rsc, iant, khr
+    The wording and examples clarify that only "function calls" that are issued
+    at run-time (and thus do not result in a constant result) are considered
+    function calls in this case.
+    
+    gc is inconsistent (issue 7385)
+    gccgo already interprets the spec accordingly and issue 7386 is moot.
+    go/types considers all calls (constant or not) as function calls (issue 7457).
+    
+    Fixes #7387.
+    Fixes #7386.
+    
+    LGTM=r, rsc, iant
+    R=r, rsc, iant, ken
     CC=golang-codereviews
-    https://golang.org/cl/69050044
+    https://golang.org/cl/66860046
 
- src/cmd/gc/pgen.c           |  2 +-
- test/fixedbugs/issue7346.go | 14 ++++++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

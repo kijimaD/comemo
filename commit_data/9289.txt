@@ -1,13 +1,12 @@
-commit 4143491c4ad17021b062c9fbabdc2d9d6aed11ef
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Aug 4 22:10:17 2011 +1000
+commit 583f72434f5930bc40177bc9e3bca1a4ee027501
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 4 16:32:14 2011 +1000
 
-    http: add more MPEG-4 MIME types to sniffer, and disable MP4 sniffing.
+    fmt: call UpdateMemStats in malloc counter
     
-    R=rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4808056
+    https://golang.org/cl/4830059
 
- src/pkg/http/sniff.go      | 15 +++++++++++++--
- src/pkg/http/sniff_test.go |  4 +++-
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ src/pkg/fmt/fmt_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

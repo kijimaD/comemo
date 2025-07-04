@@ -1,19 +1,20 @@
-commit e0739d12007f4fabbbef91deee9de9923d5924d8
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Jul 11 16:09:50 2019 -0400
+commit 42b79f08239216eeea3cc1b0febc992f91bd88de
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Dec 26 13:34:47 2018 +0100
 
-    test: add a test for gccgo bug #33062.
+    misc/wasm: better adapt to different JavaScript environments
     
-    Gccgo generates incorrect type equality functions for some types.
-    CL 185817 fixes it. This CL adds a test.
+    This change adds support for using wasm with Electron. It refactors
+    environment detection to a more modular approach instead of explicitly
+    testing for Node.js.
     
-    Updates #33062.
+    Fixes #29404
     
-    Change-Id: Id445c5d44a437512c65c46a029e49b7fc32e4d89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185818
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I882a9c56523744e7fd7cb2013d158df91cf91d14
+    Reviewed-on: https://go-review.googlesource.com/c/164665
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue33062.go | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ misc/wasm/wasm_exec.js | 72 +++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 50 insertions(+), 22 deletions(-)

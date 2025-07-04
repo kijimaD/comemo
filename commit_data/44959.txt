@@ -1,22 +1,23 @@
-commit d446cb7cff024412c0a80c3971dac3049db9f18c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Apr 4 12:10:32 2021 -0400
+commit 06f7e655d1764f5ad57bc14f82326c181c37901c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 18 13:57:04 2020 +0700
 
-    reflect: call ABI0 callReflect/callMethod
+    cmd/compile: refactoring mixing untyped type logic
     
-    Currently the assembly code marshals arguments in ABI0 layout.
-    Call the ABI0 functions. We may want to move to ABIInternal at
-    some point (maybe when register args is always enabled).
+    defaultlit2 and typecheck use the same logic for getting mixing untyped
+    type, so move that logic to a function.
     
-    Updates #40724.
+    This is a followup of CL 255217.
     
-    Change-Id: I23bb3073f3f6420a8d0c119b65ae3e577578aadb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307237
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Passes toolstash-check.
+    
+    Change-Id: Ic0eadb7ed27a2f0f72e2d28fd5438500bf4c79e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255897
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/asm_amd64.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go     | 15 +++++++++------
+ src/cmd/compile/internal/gc/typecheck.go | 13 +------------
+ 2 files changed, 10 insertions(+), 18 deletions(-)

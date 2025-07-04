@@ -1,26 +1,20 @@
-commit 52e24b492dc9295f2833f32e4f3601e716e5c1ed
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Mar 30 21:58:12 2022 +0200
+commit 2a8087817c18314d81c4165258487cdba73ebc71
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 9 21:18:12 2021 -0700
 
-    crypto/elliptic: implement UnmarshalCompressed in nistec
+    [dev.typeparams] cmd/compile/internal/types2: cleanups around receiver type checks
     
-    For #52182
+    Generic receiver types may be defined such that an instantiated
+    receiver ends up being a pointer type. Disallow them as we do
+    for non-generic receivers.
     
-    Change-Id: If9eace36b757ada6cb5123cc60f1e10d4e8280c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396935
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Fernando Lobato Meeser <felobato@google.com>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6612a52615a2999375c35aa1d69ab42f37d9f55d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333770
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/elliptic/elliptic.go                    |  20 +++
- src/crypto/elliptic/internal/nistec/generate.go    | 197 +++++++++++++++++++--
- src/crypto/elliptic/internal/nistec/nistec_test.go |  16 ++
- src/crypto/elliptic/internal/nistec/p224.go        |  99 +++++++++--
- src/crypto/elliptic/internal/nistec/p224_sqrt.go   | 132 ++++++++++++++
- src/crypto/elliptic/internal/nistec/p256.go        | 153 ++++++++++++++--
- src/crypto/elliptic/internal/nistec/p256_asm.go    | 150 +++++++++++++---
- src/crypto/elliptic/internal/nistec/p384.go        | 186 +++++++++++++++++--
- src/crypto/elliptic/internal/nistec/p521.go        | 115 ++++++++++--
- src/crypto/elliptic/nistec.go                      |  40 ++++-
- 10 files changed, 986 insertions(+), 122 deletions(-)
+ src/cmd/compile/internal/types2/signature.go       | 32 ++++++++++++++--------
+ .../internal/types2/testdata/examples/methods.go2  | 17 ++++++++++++
+ 2 files changed, 37 insertions(+), 12 deletions(-)

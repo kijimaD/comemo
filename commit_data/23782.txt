@@ -1,20 +1,21 @@
-commit bad52b352ad8ce432d394656e8d00482a25aa42e
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Jul 22 09:31:29 2015 -0700
+commit a1fe3b5046d9f7249c04ce942f4d2d1d771bff40
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 12 16:17:08 2015 -0700
 
-    crypto/elliptic: call IsOnCurve via the interface.
+    fmt: scanning widths apply after leading spaces
     
-    https://go-review.googlesource.com/#/c/2421/ contains an unfortunate
-    slip where IsOnCurve is called on the CurveParams rather than the curve.
-    This doesn't really matter, but it's a pain for people doing tricks with
-    crypto/elliptic and means that 1.5 would be a regression for them
-    without this change.
+    When scanning with a width, as in %5s, C skips leading spaces
+    brefore counting the 5 characters. We should do the same.
     
-    See https://groups.google.com/forum/#!topic/golang-dev/i8OPUTYctOk
+    Reword the documentation about widths to make this clear.
     
-    Change-Id: Ifa5f25f9a95d7484cb53d4883cfd78dc58a0f9a7
-    Reviewed-on: https://go-review.googlesource.com/12506
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #9444
+    
+    Change-Id: I443a6441adcf1c834057ef3977f9116a987a79cd
+    Reviewed-on: https://go-review.googlesource.com/10997
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/crypto/elliptic/elliptic.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/fmt/doc.go       | 19 ++++++++++++-------
+ src/fmt/scan.go      |  1 +
+ src/fmt/scan_test.go |  2 ++
+ 3 files changed, 15 insertions(+), 7 deletions(-)

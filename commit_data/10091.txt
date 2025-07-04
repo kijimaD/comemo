@@ -1,12 +1,25 @@
-commit f4568882eb8d7638031430b8c5b1f248aa2155c0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 22:19:09 2011 -0700
+commit 5abb29d1b8b741dcadb22720ced7e5e8a131633f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 26 14:16:34 2011 +0900
 
-    exp/types: add rune to universe
+    undo CL 5302057 / dac58d9c9e4a
     
-    R=gri
+    need a clean base from weekly.2011-10-25 for rune change
+    
+    ««« original CL description
+    http: remove Connection header in ReverseProxy
+    
+    Fixes #2342
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5295045
+    https://golang.org/cl/5302057
+    »»»
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5294068
 
- src/pkg/exp/types/universe.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/http/reverseproxy.go      | 25 ++++++-------------------
+ src/pkg/http/reverseproxy_test.go |  5 -----
+ 2 files changed, 6 insertions(+), 24 deletions(-)

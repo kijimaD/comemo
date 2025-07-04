@@ -1,16 +1,14 @@
-commit 22e8f82e8d4b62a4c96a82d4f731606a87db8d09
+commit 7fb3d8e45e523ceffd6eb748a3b9b0bf11a65ffd
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 13 15:43:54 2013 -0400
+Date:   Fri Sep 13 13:56:39 2013 -0400
 
-    os/exec: add more caveats to StdoutPipe, StderrPipe
+    reflect: document FieldByName shortcoming
     
-    (StdinPipe was taken care of by CL 13329043.)
-    
-    Fixes #6008.
+    Fixes #4876.
     
     R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13606046
+    https://golang.org/cl/13701044
 
- src/pkg/os/exec/exec.go | 20 ++++++++++++++++----
- 1 file changed, 16 insertions(+), 4 deletions(-)
+ src/pkg/reflect/type.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

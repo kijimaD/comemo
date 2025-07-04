@@ -1,18 +1,32 @@
-commit 846a9adf0592a0f34846c871c59b71d033187b0f
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 24 08:56:15 2015 -0400
+commit 5c78589b69c87f25a4792d9c8a1446294c07600e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 1 23:42:43 2015 -0700
 
-    runtime: restructured signal_linux.go, added signal table for mips64.
+    compress/flate: simplify inflate logic
     
-    Linux/mips64 uses a different signal table. To avoid code copying,
-    signal table is factored out from signal_linux.go to
-    sigtab_linux_generic.go. And a mips64-specific version is added.
+    The flate library contains generator code, which is used to generate
+    the fixed huffman table. This is done so that fixed blocks can be
+    processed quicker since there is no need generate the decoder table
+    for fixed codes.
     
-    Change-Id: I842d7a7467c330bf772855fde01aecc77a42316b
-    Reviewed-on: https://go-review.googlesource.com/14993
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Instead, delete the precomputed table, and use sync.Once to generate
+    it at runtime when used.
+    
+    Advantages:
+    * Reduces duplicated logic in flate package
+    * Reduces binary size by approximately 2KiB
+    
+    Disadvantages:
+    * For the simplest possible program that simply decodes the fixed
+    block "\x03\x00" once, the modified code takes 4.7% longer for the
+    first decode. Compression performance for subsequent blocks afterwards
+    has no noticeable slow down.
+    
+    Change-Id: I8f351218debf7d732118808859eda481b01011f6
+    Reviewed-on: https://go-review.googlesource.com/14181
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/runtime/signal_linux.go         | 73 ---------------------------------
- src/runtime/sigtab_linux_generic.go | 82 +++++++++++++++++++++++++++++++++++++
- src/runtime/sigtab_linux_mips64x.go | 81 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 163 insertions(+), 73 deletions(-)
+ src/compress/flate/fixedhuff.go |  78 ------------
+ src/compress/flate/gen.go       | 265 ----------------------------------------
+ src/compress/flate/inflate.go   |  44 +++++--
+ 3 files changed, 35 insertions(+), 352 deletions(-)

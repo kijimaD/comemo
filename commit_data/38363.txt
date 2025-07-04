@@ -1,16 +1,40 @@
-commit 781da440912c095e61b9e5a95e5b068062b150a9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 12 00:26:24 2019 -0400
+commit bdba55653fa56eb119099a3efbff187a97e8cf44
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Oct 23 12:33:56 2018 -0400
 
-    cmd/dist: write and use a go.mod file in the bootstrap directory
+    cmd/asm/internal,cmd/internal/obj/ppc64: add alignment directive to asm for ppc64x
     
-    Updates #30228
+    This adds support for an alignment directive that can be used
+    within Go asm to indicate preferred code alignment for ppc64x.
+    This is intended to be used with loops to improve
+    performance.
     
-    Change-Id: Ica28525b31a8a787875c147e16274eba8f4dbffc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167078
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    This change only adds the directive and aligns the code based
+    on it. Follow up changes will modify asm functions for
+    ppc64x that benefit from preferred alignment.
+    
+    Fixes #14935
+    
+    Here is one example of the improvement in memmove when the
+    directive is used on the loops in the code:
+    
+    Memmove/64      8.74ns ± 0%    8.64ns ± 0%   -1.19%  (p=0.000 n=8+8)
+    Memmove/128     11.5ns ± 0%    11.0ns ± 0%   -4.35%  (p=0.000 n=8+8)
+    Memmove/256     23.0ns ± 0%    15.3ns ± 0%  -33.48%  (p=0.000 n=8+8)
+    Memmove/512     31.7ns ± 0%    31.8ns ± 0%   +0.32%  (p=0.000 n=8+8)
+    Memmove/1024    52.3ns ± 0%    43.9ns ± 0%  -16.10%  (p=0.000 n=8+8)
+    Memmove/2048    93.2ns ± 0%    76.2ns ± 0%  -18.24%  (p=0.000 n=8+8)
+    Memmove/4096     174ns ± 0%     141ns ± 0%  -18.97%  (p=0.000 n=8+8)
+    
+    Change-Id: I200d77e923dd5d78c22fe3f8eb142a8fbaff57bf
+    Reviewed-on: https://go-review.googlesource.com/c/144218
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/dist/buildtool.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/asm.go    | 22 +++++++++++
+ src/cmd/asm/internal/asm/parse.go  |  2 +
+ src/cmd/internal/obj/link.go       |  1 +
+ src/cmd/internal/obj/ppc64/asm9.go | 80 ++++++++++++++++++++++++++++++++------
+ src/cmd/internal/obj/util.go       |  1 +
+ 5 files changed, 95 insertions(+), 11 deletions(-)

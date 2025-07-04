@@ -1,56 +1,12 @@
-commit b3be360f16c44d21b2594d06e8d0e609e8fe3c0c
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Jan 29 19:40:02 2015 +0300
+commit dca54d7cdda3b88f5136c0ceee3eff99594e0643
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jan 16 22:08:22 2015 -0500
 
-    cmd/gc: allocate non-escaping maps on stack
+    cmd/dist: do not leave go-tool-dist-* temporary directories behind
     
-    Extend escape analysis to make(map[k]v).
-    If it does not escape, allocate temp buffer for hmap and one bucket on stack.
-    
-    There are 75 cases of non-escaping maps in std lib.
-    
-    benchmark                                    old allocs     new allocs     delta
-    BenchmarkConcurrentStmtQuery                 16161          15161          -6.19%
-    BenchmarkConcurrentTxQuery                   17658          16658          -5.66%
-    BenchmarkConcurrentTxStmtQuery               16157          15156          -6.20%
-    BenchmarkConcurrentRandom                    13637          13114          -3.84%
-    BenchmarkManyConcurrentQueries               22             20             -9.09%
-    BenchmarkDecodeComplex128Slice               250            188            -24.80%
-    BenchmarkDecodeFloat64Slice                  250            188            -24.80%
-    BenchmarkDecodeInt32Slice                    250            188            -24.80%
-    BenchmarkDecodeStringSlice                   2250           2188           -2.76%
-    BenchmarkNewEmptyMap                         1              0              -100.00%
-    BenchmarkNewSmallMap                         2              0              -100.00%
-    
-    benchmark                old ns/op     new ns/op     delta
-    BenchmarkNewEmptyMap     124           55.7          -55.08%
-    BenchmarkNewSmallMap     317           148           -53.31%
-    
-    benchmark                old allocs     new allocs     delta
-    BenchmarkNewEmptyMap     1              0              -100.00%
-    BenchmarkNewSmallMap     2              0              -100.00%
-    
-    benchmark                old bytes     new bytes     delta
-    BenchmarkNewEmptyMap     48            0             -100.00%
-    BenchmarkNewSmallMap     192           0             -100.00%
-    
-    Fixes #5449
-    
-    Change-Id: I24fa66f949d2f138885d9e66a0d160240dc9e8fa
-    Reviewed-on: https://go-review.googlesource.com/3508
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I3f6ba5591130b2c4762d33bd4553220765ad9fc5
+    Reviewed-on: https://go-review.googlesource.com/2996
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/gc/builtin.c         |   2 +-
- src/cmd/gc/go.h              |   2 +
- src/cmd/gc/reflect.c         | 229 +++++++++++++++----------------------------
- src/cmd/gc/runtime.go        |   2 +-
- src/cmd/gc/walk.c            |  30 +++++-
- src/runtime/hashmap.go       |  16 ++-
- src/runtime/map_test.go      |  10 ++
- src/runtime/mapspeed_test.go |   9 ++
- test/escape2.go              |  17 ++++
- test/escape2n.go             |  17 ++++
- test/live.go                 |   4 +-
- test/live2.go                |   8 +-
- 12 files changed, 178 insertions(+), 168 deletions(-)
+ src/cmd/dist/util.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,21 +1,20 @@
-commit 4ae4e81c2c14d4b36768d8d44b440c95f76411db
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Apr 2 15:24:32 2016 -0700
+commit e960302410fafaf595c1ad92c28c61da3a254d63
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Feb 21 13:56:08 2016 -0500
 
-    compress/gzip: fix Reader.Reset
+    runtime: when crash with panic, call user Error/String methods before freezing the world
     
-    Rather than specifying every field that should be cleared in Reset,
-    it is better to just zero the entire struct and only preserve or set the
-    fields that we actually care about. This ensures that the Header field
-    is reset for the next use.
+    Fixes #14432.
     
-    Fixes #15077
-    
-    Change-Id: I41832e506d2d64c62b700aa1986e7de24a577511
-    Reviewed-on: https://go-review.googlesource.com/21465
-    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0a92ef86de95de39217df9a664d8034ef685a906
+    Reviewed-on: https://go-review.googlesource.com/19792
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/compress/gzip/gunzip.go      | 25 +++++++---------
- src/compress/gzip/gunzip_test.go | 63 +++++++++++++++++++++-------------------
- 2 files changed, 43 insertions(+), 45 deletions(-)
+ src/runtime/crash_cgo_test.go                |  9 +++++++++
+ src/runtime/crash_test.go                    | 16 +++++++++++++++
+ src/runtime/panic.go                         | 19 ++++++++++++++++++
+ src/runtime/testdata/testprog/deadlock.go    | 25 +++++++++++++++++++++++
+ src/runtime/testdata/testprogcgo/deadlock.go | 30 ++++++++++++++++++++++++++++
+ 5 files changed, 99 insertions(+)

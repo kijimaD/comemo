@@ -1,23 +1,16 @@
-commit 1d765b77a04fb12c2d97e0a8c9491de2bbfcbacc
-Author: Raul Silvera <rsilvera@google.com>
-Date:   Tue Oct 13 19:49:40 2015 -0700
+commit 02d74485e41feadd2dd98edce3416eda57168772
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 31 11:15:11 2015 -0700
 
-    runtime: Reduce testing for fastlog2 implementation
+    spec: fixed various example code snippets
     
-    The current fastlog2 testing checks all 64M values in the domain of
-    interest, which is too much for platforms with no native floating point.
+    Per suggestions by Peter Olsen (https://github.com/pto).
     
-    Reduce testing under testing.Short() to speed up builds for those platforms.
+    Fixes #11964.
     
-    Related to #12620
-    
-    Change-Id: Ie5dcd408724ba91c3b3fcf9ba0dddedb34706cd1
-    Reviewed-on: https://go-review.googlesource.com/15830
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Joel Sing <jsing@google.com>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iae261ac14f75abf848f5601f59d7fe6e95b6805a
+    Reviewed-on: https://go-review.googlesource.com/13006
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/fastlog2_test.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

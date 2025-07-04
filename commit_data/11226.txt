@@ -1,12 +1,18 @@
-commit 90c38c46af79991245545de47002537414c986a6
-Author: Olivier Duperray <duperray.olivier@gmail.com>
-Date:   Wed Jan 18 09:33:50 2012 -0800
+commit 6ff01f01f4e477a931d10c133f33bfe7e0c4ef15
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Jan 18 17:51:28 2012 +0100
 
-    go/scanner: fix example
+    gc: fieldnames in structliterals in exported inlines should not be qualified if they're embedded builtin types.
     
-    R=golang-dev, gri
+    Trust me.
+    Fixes #2687.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5532085
+    https://golang.org/cl/5545047
 
- src/pkg/go/scanner/scanner.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/fmt.c                 | 18 +++++++++++++++---
+ test/fixedbugs/bug396.dir/one.go |  9 +++++++++
+ test/fixedbugs/bug396.dir/two.go | 14 ++++++++++++++
+ test/fixedbugs/bug396.go         |  7 +++++++
+ 4 files changed, 45 insertions(+), 3 deletions(-)

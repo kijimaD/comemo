@@ -1,19 +1,15 @@
-commit 1a21dbc5720326b0e325a54c3e01c0e50b32eb03
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Tue Mar 18 20:52:58 2014 -0700
+commit f081e2b9f41c8f4c1eec78180cbcaeab17f10f65
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue Mar 18 21:47:21 2014 +0100
 
-    bytes: fix panic in Map
+    cmd/go: let build -x output describe CGO_LDFLAGS env variable
     
-    utf8.RuneLen returns -1 for an invalid rune. In that case we
-    need to extend the internal buffer at least by 3 for \uFFFD.
-    
-    Fixes #7577.
+    Fixes #7249
     
     LGTM=iant
     R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/77420044
+    https://golang.org/cl/75820046
 
- src/pkg/bytes/bytes.go      |  6 +++++-
- src/pkg/bytes/bytes_test.go | 10 ++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/go/build.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

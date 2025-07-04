@@ -1,22 +1,19 @@
-commit 86c4c4f00cc2ab6445ccb333c5b585bfe4a1002f
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Aug 30 14:54:09 2014 -0400
+commit 87b452537a599522cb155592f1f24bfc8a956e4c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 25 21:38:39 2014 -0700
 
-    cmd/cc: generate error if #pragma pack off does anything
+    io: document that Readers and Writers must not retain buffers
     
-    We can't translate misaligned things to Go, so start rejecting them in C.
+    There are both many callers and many implementations of these
+    interfaces, so make the contract explicit. Callers generally
+    assume this, and at least the standard library and other
+    implementations obey this, but it's never stated explicitly,
+    making it somewhat risky to assume.
     
-    The only one in any build appears to be EpollEvent on linux/amd64.
-    Fix that.
-    
-    LGTM=r
-    R=golang-codereviews, r, dvyukov
-    CC=golang-codereviews, iant
-    https://golang.org/cl/137020043
+    LGTM=gri, rsc
+    R=golang-codereviews, gri
+    CC=golang-codereviews, r, rsc
+    https://golang.org/cl/132150043
 
- src/cmd/5c/swt.c                   | 9 ++++++---
- src/cmd/6c/swt.c                   | 9 ++++++---
- src/cmd/8c/swt.c                   | 9 ++++++---
- src/pkg/runtime/defs_linux_amd64.h | 2 +-
- src/pkg/runtime/netpoll_epoll.c    | 2 +-
- 5 files changed, 20 insertions(+), 11 deletions(-)
+ src/pkg/io/io.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

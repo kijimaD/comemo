@@ -1,18 +1,17 @@
-commit 505fa7b42338f0aba7e4235acbc8274a20f3c1f0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 12 07:03:28 2016 -0800
+commit c776cb999bf0dc650e233839ed5e99f9df231f24
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 6 17:29:27 2015 +1100
 
-    cmd/cgo: document C.sizeof_T and zero-sized field restriction
+    net: fix off by one error while counting interfaces on windows
     
-    Update #9401.
-    Update #11925.
-    Update #13919.
+    Fixes #12301
     
-    Change-Id: I52c679353693e8165b2972d4d3974ee8bb1207ef
-    Reviewed-on: https://go-review.googlesource.com/18542
+    Change-Id: I8d01ec9551c6cff7e6129e06a7deb36a3be9de41
+    Reviewed-on: https://go-review.googlesource.com/16751
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/cgo/doc.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/net/interface_windows.go |  2 +-
+ src/net/net_windows_test.go  | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 1 deletion(-)

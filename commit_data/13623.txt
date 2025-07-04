@@ -1,19 +1,13 @@
-commit 7fa3b9f7ea3f6c24a32a6592c4cd21ee0b1f2add
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Aug 14 13:04:14 2012 -0400
+commit 6d5eb61ae7d65d56bc6277ddea4264a10054f28b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 14 01:57:24 2012 +0400
 
-    exp/proxy: remove package.
+    net: remove unused fields
     
-    This package has moved to go.net.
-    
-    R=golang-dev, minux.ma, r, dave
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6461056
+    https://golang.org/cl/6454145
 
- src/pkg/exp/proxy/direct.go        |  18 ----
- src/pkg/exp/proxy/per_host.go      | 140 -------------------------
- src/pkg/exp/proxy/per_host_test.go |  55 ----------
- src/pkg/exp/proxy/proxy.go         |  94 -----------------
- src/pkg/exp/proxy/proxy_test.go    |  50 ---------
- src/pkg/exp/proxy/socks5.go        | 207 -------------------------------------
- 6 files changed, 564 deletions(-)
+ src/pkg/net/fd.go            | 28 ++--------------------------
+ src/pkg/net/newpollserver.go |  2 --
+ 2 files changed, 2 insertions(+), 28 deletions(-)

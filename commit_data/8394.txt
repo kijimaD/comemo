@@ -1,15 +1,17 @@
-commit 816f4bb1d81e20fe1a9fff06b1cff7e69fb6e581
-Author: David Symonds <dsymonds@golang.org>
-Date:   Sat May 14 09:45:32 2011 -0700
+commit b2400c28cffd3ca1beda6176efd663a9df3aad1a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 13 18:56:39 2011 -0700
 
-    misc/vim: drop indent support for jump labels.
+    fix windows build: http.Get finalURL removal missed earlier
     
-    It interferes with keys in composite literals,
-    which are much more common.
+    Not sure why this only broke Windows. Make test is only run
+    on windows for that directory?
     
-    R=dchest, jnwhiteh, rlight2
+    TBR=golang-dev
+    
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/4521065
+    https://golang.org/cl/4545044
 
- misc/vim/indent/go.vim | 12 +++---------
- 1 file changed, 3 insertions(+), 9 deletions(-)
+ src/pkg/unicode/maketables.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

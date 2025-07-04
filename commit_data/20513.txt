@@ -1,36 +1,21 @@
-commit 7283e08cbf06bcd32a391183e26080cff301e7f9
-Author: Hector Martin Cantero <hector@marcansoft.com>
-Date:   Wed Sep 24 13:20:25 2014 -0400
+commit 8d47b0825549b9ec55882e0d2c135048d88734b5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Sep 15 18:24:16 2014 +0200
 
-    runtime: keep g->syscallsp consistent after cgo->Go callbacks
+    cmd/gc: generate type alg after calling dowidth.
     
-    Normally, the caller to runtime.entersyscall() must not return before
-    calling runtime.exitsyscall(), lest g->syscallsp become a dangling
-    pointer. runtime.cgocallbackg() violates this constraint. To work around
-    this, save g->syscallsp and g->syscallpc around cgo->Go callbacks, then
-    restore them after calling runtime.entersyscall(), which restores the
-    syscall stack frame pointer saved by cgocall. This allows the GC to
-    correctly trace a goroutine that is currently returning from a
-    Go->cgo->Go chain.
+    Previously it might happen before calling dowidth and
+    result in a compiler crash.
     
-    This also adds a check to proc.c that panics if g->syscallsp is clearly
-    invalid. It is not 100% foolproof, as it will not catch a case where the
-    stack was popped then pushed back beyond g->syscallsp, but it does catch
-    the present cgo issue and makes existing tests fail without the bugfix.
-    
-    Fixes #7978.
+    Fixes #8060.
     
     LGTM=dvyukov, rsc
-    R=golang-codereviews, dvyukov, minux, bradfitz, iant, gobot, rsc
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/131910043
+    R=golang-codereviews, dvyukov, gobot, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/110980044
 
- misc/cgo/test/cgo_test.go  |  1 +
- misc/cgo/test/issue7978.go | 99 ++++++++++++++++++++++++++++++++++++++++++++++
- src/run.bash               |  2 +
- src/run.bat                |  7 ++++
- src/runtime/cgocall.go     | 12 +++++-
- src/runtime/proc.c         | 39 ++++++++++++------
- src/runtime/runtime.h      |  1 +
- src/runtime/stubs.go       |  1 +
- 8 files changed, 149 insertions(+), 13 deletions(-)
+ src/cmd/gc/reflect.c              |  2 +-
+ test/fixedbugs/issue8060.dir/a.go |  7 +++++++
+ test/fixedbugs/issue8060.dir/b.go | 13 +++++++++++++
+ test/fixedbugs/issue8060.go       |  9 +++++++++
+ 4 files changed, 30 insertions(+), 1 deletion(-)

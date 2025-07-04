@@ -1,0 +1,23 @@
+commit 180795ceac69b57b9a13f51c87f0be9bf9af9050
+Author: limeidan <limeidan@loongson.cn>
+Date:   Wed Mar 5 15:07:07 2025 +0800
+
+    runtime, runtime/cgo: use libc for sigaction syscalls when cgo is enabled on loong64
+    
+    This ensures that runtime's signal handlers pass through the TSAN and
+    MSAN libc interceptors and subsequent calls to the intercepted
+    sigaction function from C will correctly see them.
+    
+    Change-Id: I243a70d9dcb6d95a65c8494d5f9f9f09a316c693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654995
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/cgo/gcc_sigaction.c | 11 ++++++++---
+ src/runtime/cgo/sigaction.go    |  2 +-
+ src/runtime/cgo_sigaction.go    |  2 +-
+ src/runtime/sigaction.go        |  2 +-
+ src/runtime/sys_linux_loong64.s | 10 ++++++++++
+ 5 files changed, 21 insertions(+), 6 deletions(-)

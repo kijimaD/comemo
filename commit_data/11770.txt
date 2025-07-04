@@ -1,14 +1,14 @@
-commit ef1d2a32ea0b096b1aca9f1bda096f0718f6a2ef
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Thu Feb 9 23:10:27 2012 -0500
+commit 9bcfc57660e23bb79894dfcd9253bc2b6d601ba4
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 15:09:09 2012 +1100
 
-    dist: prevent recusive loop on windows when fatal() is called.
+    reflect: documentation tweaks
     
-    Fixes #2931.
+    Fixes #2952.
     
-    R=golang-dev, alex.brainman
-    CC=golang-dev, rsc
-    https://golang.org/cl/5651049
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5651054
 
- src/cmd/dist/windows.c | 28 +++++++++++++++++++++++-----
- 1 file changed, 23 insertions(+), 5 deletions(-)
+ src/pkg/reflect/value.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

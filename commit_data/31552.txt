@@ -1,16 +1,32 @@
-commit 8f36668178d07e6f1b979252c1c68ebe788d14be
-Author: Tom Bergan <tombergan@google.com>
-Date:   Thu May 11 10:13:10 2017 -0700
+commit b6c600fc9a75fd6f4b6f4478058b95902ae6be94
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 28 15:51:29 2017 -0800
 
-    net/http: for http2, use the priority write scheduler by default
+    cmd/compile/internal/gc: separate builtin and real runtime packages
     
-    Updates #18318
+    The builtin runtime package definitions intentionally diverge from the
+    actual runtime package's, but this only works as long as they never
+    overlap.
     
-    Change-Id: Ibd4ebc7708abf87eded8da9661378b5777b8a400
-    Reviewed-on: https://go-review.googlesource.com/43231
-    Run-TryBot: Tom Bergan <tombergan@google.com>
+    To make it easier to expand the builtin runtime package, this CL now
+    loads their definitions into a logically separate "go.runtime"
+    package.  By resetting the package's Prefix field to "runtime", any
+    references to builtin definitions will still resolve against the real
+    package runtime.
+    
+    Fixes #14482.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I539c0994deaed4506a331f38c5b4d6bc8c95433f
+    Reviewed-on: https://go-review.googlesource.com/37538
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/server.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/go.go        | 10 +++++++++-
+ src/cmd/compile/internal/gc/main.go      |  9 +++++++--
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ test/runtime.go                          |  2 +-
+ 5 files changed, 19 insertions(+), 6 deletions(-)

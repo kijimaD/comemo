@@ -1,30 +1,20 @@
-commit 40bdc5618053c16e171473b99186affcbda2166c
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue May 9 11:24:28 2023 -0400
+commit e9d7f54a1acf6706f790776f69972ce92d59e910
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 10 12:46:09 2021 -0500
 
-    go/types: resolve cgo base type names
+    runtime: tricky replacements of _g_ in proc.go
     
-    When associating methods with their receiver base, we need to implement
-    the same indirection through Cgo types as is done for selector
-    expressions. This fixes a bug where methods declared on aliases of Cgo
-    types were not associated with their receiver.
+    This manually replaces uses of _g_ that cannot be trivially switched to
+    gp since there is another gp variable in scope.
     
-    While porting to types2, align the types2 testFiles helper with the
-    go/types implementation. In order to avoid call-site bloat, switch to an
-    options pattern for configuring the Config used to type-check.
+    Most of these functions only use the current g to reach the m, so this
+    helps with clarity by switching all accesses directly to an mp variable.
     
-    Fixes golang/go#59944
-    
-    Change-Id: Id14101f01c122b6c856ae5453bd00ec07e83f414
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493877
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I96a4fc1c32470a7f3d12ddec9f147c2743210e71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418577
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/check_test.go  | 93 ++++++++++++++------------
- src/cmd/compile/internal/types2/issues_test.go | 69 +++++++++++++++++++
- src/cmd/compile/internal/types2/resolver.go    | 42 +++++++++---
- src/go/types/check_test.go                     | 64 +++++++++---------
- src/go/types/issues_test.go                    | 79 +++++++++++++++++++++-
- src/go/types/resolver.go                       | 43 ++++++++++--
- 6 files changed, 298 insertions(+), 92 deletions(-)
+ src/runtime/proc.go | 103 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 49 insertions(+), 54 deletions(-)

@@ -1,14 +1,15 @@
-commit 591d4a47aefc74d96ec283abada57868a37d1f19
+commit 5fbb54eaca57e2626e24f1982d28a7de9f91ac49
 Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 18 17:37:21 2013 -0700
+Date:   Thu Apr 18 17:36:25 2013 -0700
 
-    bufio.Scan: don't stop after Read returns 0, nil
-    But stop eventually if the reader misbehaves.
+    io: explain what (0,nil) means from Read
+    Also add a new variable ErrNoProgress that io.Readers can use to
+    report ineffectual Read calls.
+    Fixes #5310.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8757045
+    https://golang.org/cl/8845043
 
- src/pkg/bufio/scan.go      | 29 +++++++++++++++++++----------
- src/pkg/bufio/scan_test.go | 18 ++++++++++++++++++
- 2 files changed, 37 insertions(+), 10 deletions(-)
+ src/pkg/io/io.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

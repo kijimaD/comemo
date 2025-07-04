@@ -1,17 +1,23 @@
-commit 5f4f7519b6c038ab6771e6c7111bcd29967f2750
-Author: Gustav Westling <gustav@westling.xyz>
-Date:   Sat Mar 25 00:35:40 2017 +0100
+commit 789c5255a4ee2bca8906baa15fc3e400054ff44d
+Author: Eitan Adler <lists@eitanadler.com>
+Date:   Sun Mar 5 09:14:38 2017 -0800
 
-    encoding/base32: add Encoding.WithPadding, StdPadding, NoPadding
+    all: remove the the duplicate words
     
-    Fixes #19478
-    
-    Change-Id: I9fc186610d79fd003e7b5d88c0955286ebe7d3cf
-    Reviewed-on: https://go-review.googlesource.com/38634
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6343c162e27e2e492547c96f1fc504909b1c03c0
+    Reviewed-on: https://go-review.googlesource.com/37793
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/base32/base32.go      | 92 ++++++++++++++++++++++++++------------
- src/encoding/base32/base32_test.go | 30 +++++++++++++
- 2 files changed, 94 insertions(+), 28 deletions(-)
+ src/archive/zip/zip_test.go                  | 2 +-
+ src/cmd/compile/internal/ssa/rewrite_test.go | 2 +-
+ src/cmd/compile/internal/x86/387.go          | 2 +-
+ src/cmd/internal/obj/link.go                 | 2 +-
+ src/cmd/internal/obj/objfile.go              | 2 +-
+ src/math/big/float.go                        | 2 +-
+ src/mime/encodedword.go                      | 2 +-
+ src/net/smtp/smtp.go                         | 2 +-
+ src/runtime/mheap.go                         | 2 +-
+ 9 files changed, 9 insertions(+), 9 deletions(-)

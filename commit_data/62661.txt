@@ -1,0 +1,36 @@
+commit 4ae6ab2bdfe3ebe8340d0d49fd2bb73f1a3e19ff
+Author: Vishwanatha HD <Vishwanatha.HD@ibm.com>
+Date:   Mon Feb 10 10:50:59 2025 +0000
+
+    cmd/asm: add LCDBR instruction on s390x
+    
+    This CL is to add LCDBR assembly instruction mnemonics, mainly used in math package.
+    
+    The LCDBR instruction has the same effect as the FNEG pseudo-instructions, just that it sets the flag.
+    
+    Change-Id: I3f00f1ed19148d074c3b6c5f64af0772289f2802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648036
+    Reviewed-by: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s |  5 +++--
+ src/cmd/internal/obj/s390x/a.out.go       |  1 +
+ src/cmd/internal/obj/s390x/anames.go      |  1 +
+ src/cmd/internal/obj/s390x/asmz.go        |  3 +++
+ src/math/acos_s390x.s                     |  4 ++--
+ src/math/asin_s390x.s                     |  4 ++--
+ src/math/asinh_s390x.s                    |  6 +++---
+ src/math/atan2_s390x.s                    |  6 +++---
+ src/math/erfc_s390x.s                     |  4 ++--
+ src/math/exp_s390x.s                      |  2 +-
+ src/math/expm1_s390x.s                    | 10 +++++-----
+ src/math/log1p_s390x.s                    |  4 ++--
+ src/math/log_s390x.s                      |  2 +-
+ src/math/pow_s390x.s                      |  6 +++---
+ src/math/tan_s390x.s                      |  4 ++--
+ 15 files changed, 34 insertions(+), 28 deletions(-)

@@ -1,19 +1,15 @@
-commit d3498c5abdea7bd8c74f349abb5c2bf110229e75
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Nov 12 13:43:27 2015 -0500
+commit 24dcede1c0c0338a06da4d0b4b3d2996b90bf7d6
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Aug 10 19:00:34 2015 -0500
 
-    runtime: move arch_mips64(le)?.go into runtime/internal/sys
+    [dev.ssa] cmd/compile/ssa: add timing to compiler passes
     
-    Somehow these were left out of the orignial CL.
+    Add timing/allocation information to each compiler pass for both the
+    console and html output.
     
-    Updates #11647
-    
-    Change-Id: I058a30eaa25fbb72d60e7fb6bc9ff0a3b54fdb2a
-    Reviewed-on: https://go-review.googlesource.com/16870
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I75833003b806a09b4fb1bbf63983258612cdb7b0
+    Reviewed-on: https://go-review.googlesource.com/14277
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/arch_mips64.go                | 19 -------------------
- src/runtime/arch_mips64le.go              | 19 -------------------
- src/runtime/internal/sys/arch_mips64.go   | 19 +++++++++++++++++++
- src/runtime/internal/sys/arch_mips64le.go | 19 +++++++++++++++++++
- 4 files changed, 38 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go | 26 ++++++++++++++++++++++++--
+ 1 file changed, 24 insertions(+), 2 deletions(-)

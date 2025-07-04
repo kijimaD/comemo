@@ -1,0 +1,19 @@
+commit 0dae393a2643de239e5872260ec6e379f221f585
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Jul 10 19:07:05 2024 -0700
+
+    encoding/binary: use list format in docstrings
+    
+    This looks way better than the code formatting.
+    
+    Similar to CL 597656.
+    
+    Change-Id: If404c952ece384aea096f2394bd475a601627a79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597657
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/binary/varint.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

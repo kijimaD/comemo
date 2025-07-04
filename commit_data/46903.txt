@@ -1,18 +1,22 @@
-commit 1cbec685124b7a40fe899286db697a85da7be28a
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Oct 14 23:01:34 2021 -0700
+commit a7e9b4b94804a1fbefc0c012ec510f4ee0837ffa
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 11 10:17:39 2021 -0500
 
-    reflect: fix SetIter test
+    [dev.regabi] go/types: untyped shift counts must fit into uint
     
-    Missed one review comment in CL 356049
+    This is a port of CL 283872 to go/types. It differs from that CL only in
+    added error codes.
     
-    Change-Id: I05be585d15e77afc1aa57b737cdc8ba7204bab98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356051
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    For #43697
+    
+    Change-Id: I62277834cef1c0359bcf2c6ee4388731babbc855
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291316
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/reflect/all_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/expr.go             | 26 ++++++++++++++++++--------
+ src/go/types/testdata/shifts.src | 12 +++++++-----
+ 2 files changed, 25 insertions(+), 13 deletions(-)

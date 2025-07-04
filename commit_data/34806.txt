@@ -1,32 +1,26 @@
-commit da02dcda0296b12811a8ee772c6f1cb146292637
-Author: quasilyte <quasilyte@gmail.com>
-Date:   Sun Apr 1 00:58:48 2018 +0300
+commit 1d47a145913f76f64414bbbc14bff3c95450535e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 16 10:29:50 2017 -0500
 
-    cmd/link/internal/ld: make Thearch unexported
+    encoding/csv: restore Go 1.9 quoted \r\n handling in Reader
     
-    s/Thearch/thearch/
+    CL 52810 changed Reader to interpret a quoted \r\n as a raw \r\n
+    when reading fields. This seems likely to break existing users, and
+    discussion on both #21201 (the original issue that triggered the change)
+    and #22746 (discussing whether to revert the change) failed to identify
+    a single motivating example for this change. To avoid breaking existing
+    users for no clear reason, revert the change.
     
-    This reduces the amount of exported global variables,
-    which in turn could make it easier to refactor them later.
+    The Reader has been rewritten in the interim so this is not a git revert
+    but instead and adjustment (and slight simplification) of the new Reader.
     
-    Also updated somewhat vague comment about ld.Thearch.
-    There is no need for Thearch to be exported as Archinit is
-    called by ld.Main.
+    Fixes #22746.
     
-    Updates #22095
-    
-    Change-Id: I266b291f6eac0165f70c51964738206e066cea08
-    Reviewed-on: https://go-review.googlesource.com/103878
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie857b2f4b1359a207d085b6d3c3a6d440a997d12
+    Reviewed-on: https://go-review.googlesource.com/78295
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/link/internal/ld/data.go  | 24 ++++++++++++------------
- src/cmd/link/internal/ld/dwarf.go | 14 +++++++-------
- src/cmd/link/internal/ld/elf.go   | 16 ++++++++--------
- src/cmd/link/internal/ld/lib.go   |  4 ++--
- src/cmd/link/internal/ld/macho.go |  2 +-
- src/cmd/link/internal/ld/main.go  |  8 ++++----
- src/cmd/link/internal/ld/pe.go    |  2 +-
- src/cmd/link/main.go              |  2 +-
- 8 files changed, 36 insertions(+), 36 deletions(-)
+ src/encoding/csv/reader.go      | 29 ++++++++++++++++++++---------
+ src/encoding/csv/reader_test.go |  4 ++--
+ src/encoding/csv/writer.go      |  2 +-
+ 3 files changed, 23 insertions(+), 12 deletions(-)

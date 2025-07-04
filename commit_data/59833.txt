@@ -1,44 +1,19 @@
-commit f1e6ae2f6f5424f9f5c6dc915866d4f457c1483e
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Jun 27 10:59:44 2025 -0700
+commit f6e6b637c0c5e66d177becd4b3539d54636f5705
+Author: plasmatium <slv309@163.com>
+Date:   Fri Apr 26 01:15:34 2024 +0000
 
-    reflect: fix TypeAssert on nil interface values
+    time: add notes about monotonic time paused
     
-    In the Go language a type assertion of a nil interface value
-    will always report false:
+    See #66870
     
-            var err error
-            v, ok := err.(error) // always reports (nil, false)
-    
-    Consequently, assertion on a reflect.Value.Interface()
-    will also report false:
-    
-            var err error
-            rv := ValueOf(&err).Elem()
-            v, ok := rv.Interface().(error) // reports (nil, false)
-    
-    However, prior to this change, a TypeAssert would report true:
-    
-            var err error
-            rv := ValueOf(&err).Elem()
-            v, ok := TypeAssert[error](rv) // reports (nil, true)
-    
-    when it should report false.
-    
-    This fixes TypeAssert to match the Go language by
-    pushing the typ != v.typ check to the very end after
-    we have validated that neither v nor T are interface kinds.
-    
-    Fixes #74404
-    
-    Change-Id: Ie14d5cf18c8370c3e27ce4bdf4570c89519d8a16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/684675
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Change-Id: I781265355a3dbd0d9538bc9dcafaa83b482ec3f8
+    GitHub-Last-Rev: 9d92f116b05db5568dd4d5834bace659eaf8cc49
+    GitHub-Pull-Request: golang/go#66922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580515
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/reflect/all_test.go |  5 ++++
- src/reflect/value.go    | 72 ++++++++++++++++++++++++-------------------------
- 2 files changed, 41 insertions(+), 36 deletions(-)
+ src/time/time.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

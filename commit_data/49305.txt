@@ -1,23 +1,16 @@
-commit c3470ca83cfdbcc71ce162b00d6b9a0004a7f649
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Mon Apr 25 15:40:00 2022 +0930
+commit fb8579746c9de74a6faa70de544286e45bc8386e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Aug 2 12:17:13 2021 -0400
 
-    internal/fuzz: trim carriage return from version line
+    [dev.typeparams] internal/goexperiment: update comment for RegabiArgs requirements
     
-    On windows hosts, when code is checked out using git with the default
-    setting of autocrlf=true, carriage returns are appended to source lines
-    which then prevent the version check from being successful. This removes
-    carriage returns to allow version matching.
+    RegabiG and regabiDefer have been always enabled and removed from
+    experiments. Update the comment.
     
-    Fixes #52268
-    
-    Change-Id: I9acc4e907c93a20305f8742cc01687a122a88645
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402074
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Dan Kortschak <dan@kortschak.io>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ieaf4b4f0a7e0e9d6733a18932ca457be4f150d08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341150
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/internal/fuzz/encoding.go      | 6 ++++--
- src/internal/fuzz/encoding_test.go | 5 +++++
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ src/internal/goexperiment/flags.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

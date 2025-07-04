@@ -1,22 +1,35 @@
-commit ab5cee538ae30cab8cc7ecc97f51a051d767dcb0
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed May 1 10:40:30 2019 -0400
+commit 770130659b6fb2acf271476579a3644e093dda7f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Dec 4 22:23:22 2018 -0500
 
-    go/internal/gccgoimporter: skip new test with aliases with old gccgo
+    crypto/x509: limit number of signature checks for each verification
     
-    Add the issue31540 test to the list of tests that needs to be skipped
-    with old copies of gccgo. Along the way, add an explicit field to the
-    importer test struct that can be used to tag the test (as opposed to
-    having special cases by name in the test routine), so as to make it
-    easier to remember to tag testcases correctly.
+    That number grows quadratically with the number of intermediate
+    certificates in certain pathological cases (for example if they all have
+    the same Subject) leading to a CPU DoS. Set a fixed budget that should
+    fit all real world chains, given we only look at intermediates provided
+    by the peer.
     
-    Fixes #31764.
+    The algorithm can be improved, but that's left for follow-up CLs:
     
-    Change-Id: Ib9d98fea2df8ce0b51e5a886fb2c4acd6db490ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174738
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+        * the cache logic should be reviewed for correctness, as it seems to
+          override the entire chain with the cached one
+        * the equality check should compare Subject and public key, not the
+          whole certificate
+        * certificates with the right SKID but the wrong Subject should not
+          be considered, and in particular should not take priority over
+          certificates with the right Subject
+    
+    Fixes #29233
+    
+    Change-Id: Ib257c12cd5563df7723f9c81231d82b882854213
+    Reviewed-on: https://team-review.git.corp.google.com/c/370475
+    Reviewed-by: Andrew Bonventre <andybons@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/154105
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
 
- src/go/internal/gccgoimporter/importer_test.go | 23 ++++++++++++-----------
- 1 file changed, 12 insertions(+), 11 deletions(-)
+ src/crypto/x509/cert_pool.go   |  28 +++-------
+ src/crypto/x509/verify.go      |  86 +++++++++++++++++------------
+ src/crypto/x509/verify_test.go | 119 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 176 insertions(+), 57 deletions(-)

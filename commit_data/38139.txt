@@ -1,15 +1,14 @@
-commit e32203f647370897c6a28018c16cfd9584849569
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 27 14:13:55 2019 -0800
+commit f22c357a34521404c445dc2e848657ecbfa4ad5e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 4 15:26:04 2018 +0000
 
-    doc/go1.12: new go line in go.mod can break builds with Go 1.11 - 1.11.3
+    os: make UserHomeDir specialize behavior for GOOS=android
     
-    Fixes #30446
-    
-    Change-Id: If069f72fa9735f839df92f3ede3bf7b6d7a695a5
-    Reviewed-on: https://go-review.googlesource.com/c/164317
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I69582662aeee7344226856c24907516ddfc92f60
+    Reviewed-on: https://go-review.googlesource.com/c/139717
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
 
- doc/go1.12.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/os/file.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

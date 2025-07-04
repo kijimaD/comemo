@@ -1,34 +1,27 @@
-commit bd3f44e4ffe54e9cf841ebc8356e403bb38436bd
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 2 17:37:00 2023 +0000
+commit 318027044aa33c109a6f3e6ac12792f129ff2d6a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 18 13:13:46 2022 -0700
 
-    cmd/compile: constant-fold loads from constant dictionaries and types
+    [dev.unified] cmd/compile/internal/noder: explicit nil handling
     
-    Retrying the original CL with a small modification. The original CL
-    did not handle the case of reading an itab out of a dictionary
-    correctly.  When we read an itab out of a dictionary, we must treat
-    the type inside that itab as maybe being put in an interface.
+    Currently, uses of "nil" are handling as references to cmd/compile's
+    own untyped "nil" object, and then we rely on implicitly converting
+    that to its appropriate type. But there are cases where this can
+    subtly go wrong (e.g., the switch test case added in the previous CL).
     
-    Original CL: 486895
-    Revert CL: 490156
+    Instead, explicitly handling "nil" expressions so that we can
+    construct them directly with the appropriate type, as computed already
+    by types2.
     
-    Change-Id: Id2dc1699d184cd8c63dac83986a70b60b4e6cbd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491495
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I587f044f60f24e87525dde6d7dad6c58f14478de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418100
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/noder/reader.go        |   2 +-
- src/cmd/compile/internal/reflectdata/reflect.go |  13 +-
- src/cmd/compile/internal/ssa/_gen/generic.rules |  27 +-
- src/cmd/compile/internal/ssa/rewrite.go         |  95 +++++--
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 347 ++++++++++++++++++++++--
- src/cmd/internal/obj/link.go                    |  18 +-
- src/cmd/internal/objabi/reloctype.go            |   3 +-
- src/cmd/link/internal/ld/deadcode.go            |   8 +
- src/cmd/link/internal/ld/decodesym.go           |   6 +
- test/typeparam/devirtualize1.go                 |  22 ++
- test/typeparam/devirtualize2.go                 |  28 ++
- 11 files changed, 513 insertions(+), 56 deletions(-)
+ src/cmd/compile/internal/noder/codes.go  | 1 +
+ src/cmd/compile/internal/noder/reader.go | 5 +++++
+ src/cmd/compile/internal/noder/writer.go | 7 +++++++
+ 3 files changed, 13 insertions(+)

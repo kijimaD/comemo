@@ -1,21 +1,17 @@
-commit f37ca81c84ec21cb50d32e2161c6fc4875195acf
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 24 15:05:11 2018 -0400
+commit b0d437f866eb8987cde7e6550cacd77876f36d4b
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Apr 5 14:15:56 2018 -0500
 
-    cmd/go: fix spurious edges in mod -graph output
+    cmd/compile/internal/gc: use bool in racewalk
     
-    The mod -graph output was showing every dependency
-    as an edge from the main module, instead of showing only
-    the things that are listed in go.mod.
+    Replace int variables with 0/1 as only possible values with bools,
+    where possible.
     
-    Fixes #26489.
-    
-    Change-Id: I248fedb1fc9225e2a7a9ddc2f4a84520b3a96138
-    Reviewed-on: https://go-review.googlesource.com/125657
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I958c082e703bbc1540309da3e17612fc8e247932
+    Reviewed-on: https://go-review.googlesource.com/105036
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modcmd/mod.go        |  2 +-
- src/cmd/go/internal/modload/build.go     | 12 +++++++++++-
- src/cmd/go/internal/modload/init.go      | 25 ++++++++++++++++++-------
- src/cmd/go/testdata/script/mod_graph.txt | 10 ++++++++++
- 4 files changed, 40 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/racewalk.go | 93 ++++++++++++++++++---------------
+ 1 file changed, 50 insertions(+), 43 deletions(-)

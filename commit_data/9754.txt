@@ -1,14 +1,21 @@
-commit c55d0c4dd7947433a21171ccd4ad90592d8b04e7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 20 09:31:07 2011 -0700
+commit fd3978552ba514bff23ebadac6a75066c36f651d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Sep 20 12:21:50 2011 -0400
 
-    test: match gccgo error message for bug337.go
+    exp/ssh: refactor halfConnection to transport
+            This CL generalises the pair of halfConnection members that the
+            serverConn holds into a single transport struct that is shared by
+            both Server and Client, see also CL 5037047.
     
-    bug337.go:17:2: error: value computed is not used
+            This CL is a replacement for 5040046 which I closed by accident.
     
-    R=golang-dev, rsc
+    R=agl, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5094042
+    https://golang.org/cl/5075042
 
- test/fixedbugs/bug337.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/ssh/channel.go        |  14 +--
+ src/pkg/exp/ssh/common.go         |   2 +-
+ src/pkg/exp/ssh/server.go         |  79 ++++++-------
+ src/pkg/exp/ssh/transport.go      | 232 ++++++++++++++++++++------------------
+ src/pkg/exp/ssh/transport_test.go |  37 ++++++
+ 5 files changed, 209 insertions(+), 155 deletions(-)

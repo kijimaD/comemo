@@ -1,27 +1,30 @@
-commit 436f2d8d974954ef052f1b71c751df713704ab00
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Wed Jun 14 03:42:36 2017 +0000
+commit 0c4d035ca884c9150ab4114922e29f457b45b996
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Aug 27 22:00:00 2017 +0900
 
-    cmd/internal/obj/arm64: fix assemble hlt/hvc/smc/brk/clrex bug
+    cmd/link: refactor *reloc
     
-    When instruction has only one argument, Go parser saves the
-    argument value into prog.From without any special handling.
-    But assembler gets the argument value from prog.To.
+    * use bool instead of int if it's adequate.
+    * remove blank lines.
     
-    The fix adds special handling for CLREX and puts other instructions
-    arguments value into prog.From.
-    
-    Uncomment hlt/hvc/smc/brk/dcps1/dcps2/dcps3/clrex test cases.
-    
-    Fixes #20765
-    
-    Change-Id: I1fc0d2faafb19b537cab5a665bd4af56c3a2c925
-    Reviewed-on: https://go-review.googlesource.com/78275
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic4a5644a33ed9fc7ce388ef8ba15f1732446fcfc
+    Reviewed-on: https://go-review.googlesource.com/59375
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64enc.s | 18 +++++++++---------
- src/cmd/internal/obj/arm64/asm7.go           |  8 ++++----
- src/cmd/internal/obj/arm64/obj7.go           |  2 +-
- 3 files changed, 14 insertions(+), 14 deletions(-)
+ src/cmd/link/internal/amd64/asm.go  | 40 +++++++++------------
+ src/cmd/link/internal/arm/asm.go    | 67 +++++++++++++++-------------------
+ src/cmd/link/internal/arm64/asm.go  | 68 +++++++++++++----------------------
+ src/cmd/link/internal/ld/data.go    | 25 +++++--------
+ src/cmd/link/internal/ld/elf.go     |  4 +--
+ src/cmd/link/internal/ld/lib.go     |  6 ++--
+ src/cmd/link/internal/ld/link.go    |  2 +-
+ src/cmd/link/internal/ld/macho.go   |  4 +--
+ src/cmd/link/internal/ld/pe.go      |  2 +-
+ src/cmd/link/internal/mips/asm.go   | 48 ++++++++++---------------
+ src/cmd/link/internal/mips64/asm.go | 47 ++++++++++--------------
+ src/cmd/link/internal/ppc64/asm.go  | 71 +++++++++++++------------------------
+ src/cmd/link/internal/s390x/asm.go  | 36 ++++++++-----------
+ src/cmd/link/internal/x86/asm.go    | 53 +++++++++++----------------
+ 14 files changed, 182 insertions(+), 291 deletions(-)

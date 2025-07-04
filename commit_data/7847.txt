@@ -1,14 +1,26 @@
-commit b47ec598b79bb28a14bce146fc47cb9a4700ba3a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 23 13:54:31 2011 -0400
+commit 059c07cab02802edda5aeb2e8c4f5033df3986f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 23 10:38:18 2011 -0700
 
-    runtime/pprof: cpu profiling support
+    http: export Transport, add keep-alive support
     
-    R=r, bradfitzgo, r2
+    This patch adds a connection cache and keep-alive
+    support to Transport, which is used by the
+    HTTP client.
+    
+    It's also structured such that it's easy to add
+    HTTP pipelining in the future.
+    
+    R=rsc, petar-m, bradfitzwork, r
     CC=golang-dev
-    https://golang.org/cl/4313041
+    https://golang.org/cl/4272045
 
- src/pkg/Makefile                    |  1 -
- src/pkg/runtime/pprof/pprof.go      | 69 +++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/pprof/pprof_test.go | 69 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 138 insertions(+), 1 deletion(-)
+ src/pkg/http/client.go          |  34 ---
+ src/pkg/http/export_test.go     |  34 +++
+ src/pkg/http/httptest/server.go |  32 ++-
+ src/pkg/http/persist.go         |   4 +-
+ src/pkg/http/proxy_test.go      |  30 +--
+ src/pkg/http/serve_test.go      |   6 +-
+ src/pkg/http/transport.go       | 537 +++++++++++++++++++++++++++++++++-------
+ src/pkg/http/transport_test.go  | 200 ++++++++++++++-
+ 8 files changed, 738 insertions(+), 139 deletions(-)

@@ -1,18 +1,22 @@
-commit 01cad815a1c3c48d54b3cbbfc9f599f5f91918fe
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jun 26 22:34:05 2023 -0400
+commit 361f5eba9f9e9902226e7edac76646253b7025e4
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Sep 27 01:31:31 2022 +0000
 
-    runtime: remove runtime.Add testing function
+    all: use strings.CutPrefix
     
-    Replace with unsafe.Add.
+    Updates #42537
     
-    Change-Id: Ic5c155349dadc51457119b3c05ab717cdfd26c95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521176
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: Ice23d7d36bbede27551cbc086119694f6a3b5e4a
+    GitHub-Last-Rev: 0d65208313ea318725159186fad045fc6400fb25
+    GitHub-Pull-Request: golang/go#55347
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432895
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/export_linux_test.go  | 1 -
- src/runtime/runtime_linux_test.go | 2 +-
- 2 files changed, 1 insertion(+), 2 deletions(-)
+ src/go/build/build.go     | 5 +++--
+ src/go/printer/comment.go | 7 ++++---
+ 2 files changed, 7 insertions(+), 5 deletions(-)

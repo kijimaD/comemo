@@ -1,20 +1,19 @@
-commit 753caecc7e576e46a329b71c49dbf0ea9bfbd867
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Oct 29 22:32:59 2016 -0400
+commit 38abd43b6a4d215375901d137a3eac9d0d3393a5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Aug 31 14:39:41 2016 +1000
 
-    cmd/go: set CCACHE_DIR when setting HOME to non-existent dir
+    cmd/compile/internal/gc: clean up sinit.go
     
-    This fixes systems for which ccache is the default compiler.
+    The ctxt parameter is always set to 0 on entry into anylit so make this
+    parameter a literal constant, and where possibly remove ctxt as a parameter
+    where it is known to be a constant zero.
     
-    Also remove a couple of temporary files created by TestImportMain.
-    
-    Fixes #17668.
-    
-    Change-Id: I1edefdcec5f417be0533c146253c35ff4928c1c0
-    Reviewed-on: https://go-review.googlesource.com/32328
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3e76e06456d7b1a1ea875ffeb2efefa4a1ff5a7e
+    Reviewed-on: https://go-review.googlesource.com/28221
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/gc/sinit.go | 83 +++++++++++++-----------------------
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 2 files changed, 31 insertions(+), 54 deletions(-)

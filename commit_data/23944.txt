@@ -1,14 +1,14 @@
-commit 9991227229a711b8c606bc93ea0731f8b43823bf
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 3 11:05:05 2015 +1000
+commit 2917ab204933d345c3fd5ed7ce5a1c4fb46ce043
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 24 12:34:06 2015 +0200
 
-    doc: document new linker -X syntax in go1.5.html
+    net/http: document that FormValue returns the empty string
     
-    Fixes #11973.
+    Fixes #8137
     
-    Change-Id: Icffa3213246663982b7cc795982e0923e272f405
-    Reviewed-on: https://go-review.googlesource.com/12919
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icd94bbe430a3ef333248425449b5fc678edb0343
+    Reviewed-on: https://go-review.googlesource.com/11410
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/go1.5.html | 27 +++++++++++++++++++++++++--
- 1 file changed, 25 insertions(+), 2 deletions(-)
+ src/net/http/request.go | 2 ++
+ 1 file changed, 2 insertions(+)

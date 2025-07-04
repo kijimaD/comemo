@@ -1,19 +1,15 @@
-commit f284a3ff4d525da4fb1dff6580588cabdbeab423
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 1 11:13:50 2012 -0700
+commit b11f85a8aac69c6f065df753bd527e85293a1360
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Nov 1 22:11:12 2012 +0400
 
-    cmd/go: fixes to gccgo support
-    
-    * Use -fgo-pkgpath and -gccgopkgpath rather than -fgo-prefix
-      and -gccgoprefix.
-    * Define GOPKGPATH when compiling .c or .s files for gccgo.
-    * Use -fgo-relative-import-path.
-    * Produce .o files for gccgo, not .[568] files.
-    * Pass -E when linking if using cgo.
+    cmd/gc: racewalk: fix instrumentation of ninit lists
+    The idea is to (1) process ninit of all nodes,
+    and (2) put instrumentation of ninit into the nodes themselves (not the top-level statement ninit).
+    Fixes #4304.
     
     R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/6820064
+    CC=golang-dev, lvd
+    https://golang.org/cl/6818049
 
- src/cmd/go/build.go | 62 ++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 47 insertions(+), 15 deletions(-)
+ src/cmd/gc/racewalk.c | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

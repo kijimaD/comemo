@@ -1,16 +1,17 @@
-commit 35edc960c42e570fd196292148c985ffc3a17692
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 13 14:30:57 2018 -0500
+commit c92354f46e468f89fcf1497e7c9e2f3c66025dfa
+Author: Shivansh Rai <shivansh@freebsd.org>
+Date:   Sun May 20 22:35:02 2018 +0530
 
-    cmd/go/internal/work: skip TestRespectSetgidDir on js.
+    all: use consistent shebang line across all shell scripts
     
-    chown is not implemented on js: see https://build.golang.org/log/43d7b12602660b786a6e080e685165193df0de00.
-    
-    Change-Id: I3f461338825bb670d682c3f47b17ee1638343fc8
-    Reviewed-on: https://go-review.googlesource.com/c/154097
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4aac882b1b618a388d0748a427dc998203d3a1b2
+    Reviewed-on: https://go-review.googlesource.com/113856
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/work/build_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/mkalldocs.sh | 2 +-
+ src/naclmake.bash       | 2 +-
+ src/nacltest.bash       | 2 +-
+ src/runtime/mknacl.sh   | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

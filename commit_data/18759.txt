@@ -1,20 +1,24 @@
-commit c97778f4302bd0e39045c931941e32f178493f45
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 5 11:59:53 2014 -0800
+commit 13e359bdca44f204cbeb3368a0ba44c3bc92d55d
+Author: Kelsey Hightower <kelsey.hightower@gmail.com>
+Date:   Thu Mar 6 06:52:18 2014 +1100
 
-    spec: shadowed return parameters may be disallowed
+    encoding/gob: improve interface assignment error message
     
-    This documents the implemented behavior of both
-    gc and gccgo as an implementation restriction.
+    During the glob decoding process interface values are set to concrete
+    values after a test for assignability. If the assignability test fails
+    a slightly vague error message is produced. While technically accurate
+    the error message does not clearly describe the problem.
     
-    NOT A LANGUAGE CHANGE.
+    Rewrite the error message to include the usage of the word assignable,
+    which makes it clear the concrete value type is not assignable to the
+    interface value type.
     
-    Fixes #5425.
+    Fixes #6467.
     
-    LGTM=rsc, r, iant
-    R=r, iant, rsc, ken
+    LGTM=r
+    R=golang-codereviews, rsc, r
     CC=golang-codereviews
-    https://golang.org/cl/71430043
+    https://golang.org/cl/71590043
 
- doc/go_spec.html | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/pkg/encoding/gob/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

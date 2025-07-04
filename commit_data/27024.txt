@@ -1,20 +1,62 @@
-commit 30c278dbe907111b51737adb8ba0a9e1956f3ed5
-Author: Jamil Djadala <djadala@gmail.com>
-Date:   Wed Apr 20 09:08:28 2016 +0300
+commit fb880b8a03f33b6a1809d76e7673717875c74606
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 8 12:47:49 2016 -0500
 
-    container/heap: correct number of elements in BenchmarkDup
+    cmd/newlink: delete
     
-    In BenchmarkDup fuction, heap is created as h := make(myHeap, n)
-    and then n elements are added, so first time there are 2*n elements
-    in heap.
+    cmd/link is clearly the way forward.
+    The original rationale for cmd/newlink was that it would be a clean Go reimplementation.
+    But when push came to shove, cmd/link got converted from C instead,
+    and all the work on build modes and the like is in cmd/link now.
+    Cleaning up cmd/link is likely a much better plan.
     
-    Fixes #15380
+    This directory is something to delete from releases and the
+    testdata is something that breaks every time the .6 format changes.
+    Fix both problems by just deleting it outright.
     
-    Change-Id: I0508486a847006b3cd545fd695e8b09af339134f
-    Reviewed-on: https://go-review.googlesource.com/22310
+    Change-Id: Ib00fecda258ba685f1752725971182af9d4459eb
+    Reviewed-on: https://go-review.googlesource.com/20380
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/container/heap/heap_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/nacl/testzip.proto                          |    3 -
+ src/cmd/newlink/auto.go                          |   98 --
+ src/cmd/newlink/auto_test.go                     |   71 -
+ src/cmd/newlink/dead.go                          |   74 -
+ src/cmd/newlink/dead_test.go                     |   97 --
+ src/cmd/newlink/debug.go                         |   11 -
+ src/cmd/newlink/hex_test.go                      |   74 -
+ src/cmd/newlink/layout.go                        |  180 ---
+ src/cmd/newlink/layout_test.go                   |   45 -
+ src/cmd/newlink/link_test.go                     |   35 -
+ src/cmd/newlink/load.go                          |  108 --
+ src/cmd/newlink/macho.go                         |  380 -----
+ src/cmd/newlink/macho_test.go                    |  407 -----
+ src/cmd/newlink/main.go                          |    9 -
+ src/cmd/newlink/pclntab.go                       |  480 ------
+ src/cmd/newlink/pclntab_test.go                  |  340 -----
+ src/cmd/newlink/prog.go                          |  219 ---
+ src/cmd/newlink/prog_test.go                     |  163 --
+ src/cmd/newlink/runtime.go                       |   28 -
+ src/cmd/newlink/scan.go                          |  187 ---
+ src/cmd/newlink/testdata/Makefile                |   15 -
+ src/cmd/newlink/testdata/autosection.6           |  Bin 936 -> 0 bytes
+ src/cmd/newlink/testdata/autosection.s           |   60 -
+ src/cmd/newlink/testdata/dead.6                  |  Bin 848 -> 0 bytes
+ src/cmd/newlink/testdata/dead.s                  |   48 -
+ src/cmd/newlink/testdata/genpcln.go              |  112 --
+ src/cmd/newlink/testdata/hello.6                 |  Bin 228 -> 0 bytes
+ src/cmd/newlink/testdata/hello.s                 |   15 -
+ src/cmd/newlink/testdata/layout.6                |  Bin 395 -> 0 bytes
+ src/cmd/newlink/testdata/layout.s                |   29 -
+ src/cmd/newlink/testdata/link.hello.darwin.amd64 |   55 -
+ src/cmd/newlink/testdata/macho.amd64.exit9       |   24 -
+ src/cmd/newlink/testdata/macho.amd64.hello       |   39 -
+ src/cmd/newlink/testdata/macho.amd64.helloro     |   34 -
+ src/cmd/newlink/testdata/pclntab.6               |  Bin 3803 -> 0 bytes
+ src/cmd/newlink/testdata/pclntab.s               | 1751 ----------------------
+ src/cmd/newlink/util.go                          |   11 -
+ src/cmd/newlink/write.go                         |   14 -
+ 38 files changed, 5216 deletions(-)

@@ -1,49 +1,41 @@
-commit 7d7192e54f4d4eb51018ad128c25d52e26f02a3f
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Nov 29 13:15:11 2024 +0100
+commit 1af424c196584cd0b05e559c2740f046d1f32042
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Oct 25 11:40:56 2023 -0400
 
-    crypto/rsa: move precomputation to crypto/internal/fips140/rsa
+    runtime: clear g0 stack bounds in dropm
     
-    We are severely limited by the crypto/rsa API in a few ways:
+    After CL 527715, needm uses callbackUpdateSystemStack to set the stack
+    bounds for g0 on an M from the extra M list. Since
+    callbackUpdateSystemStack is also used for recursive cgocallback, it
+    does nothing if the stack is already in bounds.
     
-     - Precompute doesn't return an error, but is the only function allowed
-       to modify a PrivateKey.
+    Currently, the stack bounds in an extra M may contain stale bounds from
+    a previous thread that used this M and then returned it to the extra
+    list in dropm.
     
-     - Clients presumably expect the PrecomputedValues big.Ints to be
-       populated after Precompute.
+    Typically a new thread will not have an overlapping stack with an old
+    thread, but because the old thread has exited there is a small chance
+    that the C memory allocator will allocate the new thread's stack
+    partially or fully overlapping with the old thread's stack.
     
-     - MarshalPKCS1PrivateKey requires the precomputed values, and doesn't
-       have an error return.
+    If this occurs, then callbackUpdateSystemStack will not update the stack
+    bounds. If in addition, the overlap is partial such that SP on
+    cgocallback is close to the recorded stack lower bound, then Go may
+    quickly "overflow" the stack and crash with "morestack on g0".
     
-     - PrivateKeys with only N, e, and D have worked so far, so they might
-       have to keep working.
+    Fix this by clearing the stack bounds in dropm, which ensures that
+    callbackUpdateSystemStack will unconditionally update the bounds in
+    needm.
     
-    To move precomputation to the FIPS module, we focus on the happy path of
-    a PrivateKey with two primes where Precompute is called before anything
-    else, which match ParsePKCS1PrivateKey and GenerateKey.
+    For #62440.
     
-    There is a significant slowdown in the Parse benchmark due to the
-    constant-time inversion of qInv. This will be addressed in a follow-up
-    CL that will use (and check) the value in the ASN.1.
-    
-    Note that the prime product check now moved to checkPrivateKey is broken
-    (Π should start at 1 not 0) and fixed in CL 632478.
-    
-    Updates #69799
-    For #69536
-    
-    Change-Id: I95a8bc1244755c6d15d7c4eb179135a15608ddd6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632476
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic9e2052c2090dd679ed716d1a23a86d66cbcada7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537695
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Bypass: Michael Pratt <mpratt@google.com>
 
- doc/next/6-stdlib/99-minor/crypto/x509/69799.md |   3 +
- src/crypto/internal/fips140/bigmod/nat.go       |  21 ++-
- src/crypto/internal/fips140/rsa/rsa.go          | 108 ++++++++++++--
- src/crypto/rsa/rsa.go                           | 191 ++++++++++++------------
- src/crypto/x509/pkcs1.go                        |   9 +-
- src/crypto/x509/pkcs8.go                        |   6 +
- src/crypto/x509/x509_test.go                    |   2 +-
- 7 files changed, 217 insertions(+), 123 deletions(-)
+ src/runtime/proc.go                            |  8 +++++
+ src/runtime/testdata/testprogcgo/stackswitch.c | 43 +++++++++++++++++++++++++-
+ 2 files changed, 50 insertions(+), 1 deletion(-)

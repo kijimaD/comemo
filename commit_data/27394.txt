@@ -1,15 +1,54 @@
-commit 5f833121cb8e7722667d17dcf07bb32e4e524f23
-Author: Kevin Burke <kev@inburke.com>
-Date:   Sat May 14 10:23:09 2016 -0700
+commit 24ce64d1a967eb9c4f1a42e7371362b09920bd60
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 21 13:21:55 2016 -0400
 
-    archive/zip: use HTTPS for documentation link
+    cmd/compile, runtime: new static name encoding
     
-    The resource is available over (and redirects to) HTTPS, it seems like a good
-    idea to save a redirect and ensure an encrypted connection.
+    Create a byte encoding designed for static Go names.
     
-    Change-Id: I262c7616ae289cdd756b6f67573ba6bd7e3e0ca6
-    Reviewed-on: https://go-review.googlesource.com/23104
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    It is intended to be a compact representation of a name
+    and optional tag data that can be turned into a Go string
+    without allocating, and describes whether or not it is
+    exported without unicode table.
+    
+    The encoding is described in reflect/type.go:
+    
+    // The first byte is a bit field containing:
+    //
+    //      1<<0 the name is exported
+    //      1<<1 tag data follows the name
+    //      1<<2 pkgPath *string follow the name and tag
+    //
+    // The next two bytes are the data length:
+    //
+    //       l := uint16(data[1])<<8 | uint16(data[2])
+    //
+    // Bytes [3:3+l] are the string data.
+    //
+    // If tag data follows then bytes 3+l and 3+l+1 are the tag length,
+    // with the data following.
+    //
+    // If the import path follows, then ptrSize bytes at the end of
+    // the data form a *string. The import path is only set for concrete
+    // methods that are defined in a different package than their type.
+    
+    Shrinks binary sizes:
+    
+            cmd/go: 164KB (1.6%)
+            jujud:  1.0MB (1.5%)
+    
+    For #6853.
+    
+    Change-Id: I46b6591015b17936a443c9efb5009de8dfe8b609
+    Reviewed-on: https://go-review.googlesource.com/20968
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/zip/struct.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/reflect.go | 185 +++++++++++++++++++++++++--------
+ src/cmd/link/internal/ld/decodesym.go  |  43 +++++---
+ src/reflect/type.go                    | 175 +++++++++++++++++++++++--------
+ src/reflect/value.go                   |   8 +-
+ src/runtime/iface.go                   |  28 +++--
+ src/runtime/type.go                    |  86 +++++++++++----
+ 6 files changed, 387 insertions(+), 138 deletions(-)

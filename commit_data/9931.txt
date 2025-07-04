@@ -1,21 +1,16 @@
-commit e9ba607bf531c5e5b223a54c164714b6b00411a6
+commit 187c3536a894b7d50db2133f3c8da1a6f6f1af9f
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 11 21:49:53 2011 -0700
+Date:   Tue Oct 11 17:52:37 2011 -0700
 
-    gofmt: fix a couple of crashes, disallow rewrites for incomplete programs
+    exp/datafmt: delete per Go 1 plan
     
-    The current implementation of formatting for incomplete programs
-    cannot tolerate program rewrites; ignore -rewrite in that case
-    with a warning message (temporary solution).
-    
-    Fix a couple of crashes that were introduced recently.
-    
-    Fixes #2348.
-    
-    R=rsc
+    R=r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5233054
+    https://golang.org/cl/5249055
 
- src/cmd/gofmt/gofmt.go   | 19 ++++++++++++++-----
- src/cmd/gofmt/rewrite.go |  3 ++-
- 2 files changed, 16 insertions(+), 6 deletions(-)
+ src/pkg/Makefile                    |   1 -
+ src/pkg/exp/datafmt/Makefile        |  12 -
+ src/pkg/exp/datafmt/datafmt.go      | 710 ------------------------------------
+ src/pkg/exp/datafmt/datafmt_test.go | 330 -----------------
+ src/pkg/exp/datafmt/parser.go       | 368 -------------------
+ 5 files changed, 1421 deletions(-)

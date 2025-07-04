@@ -1,22 +1,22 @@
-commit 0f78ee574b230d72fd8112bce9a94b6cf107ccdd
+commit d53cdd177565ef349e547b7125d2c1e2094d62c2
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 3 10:53:51 2012 -0500
+Date:   Fri Feb 3 10:53:31 2012 -0500
 
-    5a, 6a, 8a, cc: check in y.tab.[ch]
+    gc: check in y.tab.[ch], yerr.h, builtin.c.
     
     This enables builds on systems without Bison/yacc.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5622050
+    https://golang.org/cl/5622051
 
- src/Make.ctool     |    2 -
- src/cmd/5a/y.tab.c | 2949 ++++++++++++++++++++++++++++++++++++++++
- src/cmd/5a/y.tab.h |  166 +++
- src/cmd/6a/y.tab.c | 2730 +++++++++++++++++++++++++++++++++++++
- src/cmd/6a/y.tab.h |  135 ++
- src/cmd/8a/y.tab.c | 2852 +++++++++++++++++++++++++++++++++++++++
- src/cmd/8a/y.tab.h |  135 ++
- src/cmd/cc/y.tab.c | 3811 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/cc/y.tab.h |  228 ++++
- 9 files changed, 13006 insertions(+), 2 deletions(-)
+ .hgignore                                |    4 -
+ src/Make.clib                            |    4 +-
+ src/cmd/gc/Makefile                      |   26 +-
+ src/cmd/gc/{builtin.c.boot => builtin.c} |    0
+ src/cmd/gc/mkbuiltin                     |   11 +-
+ src/cmd/gc/mkbuiltin1.c                  |    2 +
+ src/cmd/gc/y.tab.c                       | 4927 ++++++++++++++++++++++++++++++
+ src/cmd/gc/y.tab.h                       |  167 +
+ src/cmd/gc/yerr.h                        |   73 +
+ 9 files changed, 5188 insertions(+), 26 deletions(-)

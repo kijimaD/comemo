@@ -1,17 +1,49 @@
-commit 6795687427ad79574465ee83b4fa398aa036aa0c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Dec 10 11:30:12 2013 +1100
+commit 58005207d2404c8f6454c522c44d44926974496d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Dec 9 18:47:22 2013 -0500
 
-    cmd/cgo: use __gcc_struct__ for go exported functions
+    cmd/8c, cmd/8g, cmd/8l: fix Plan 9 warnings
     
-    Fixes #6833
+    warning: src/cmd/8c/list.c:124 format mismatch d VLONG, arg 3
+    warning: src/cmd/8c/list.c:134 format mismatch d VLONG, arg 3
+    warning: src/cmd/8c/list.c:142 format mismatch d VLONG, arg 3
+    warning: src/cmd/8c/list.c:152 format mismatch d VLONG, arg 3
+    warning: src/cmd/8c/list.c:156 format mismatch d VLONG, arg 4
+    warning: src/cmd/8c/list.c:160 format mismatch d VLONG, arg 4
+    warning: src/cmd/8c/list.c:165 format mismatch d VLONG, arg 4
+    warning: src/cmd/8c/list.c:167 format mismatch d VLONG, arg 3
+    warning: src/cmd/8c/list.c:172 format mismatch d VLONG, arg 4
+    warning: src/cmd/8c/list.c:174 format mismatch d VLONG, arg 3
+    warning: src/cmd/8c/list.c:178 format mismatch d VLONG, arg 3
+    warning: src/cmd/8c/list.c:184 format mismatch d VLONG, arg 3
     
-    R=minux.ma, iant
+    warning: src/cmd/8g/list.c:91 format mismatch d VLONG, arg 4
+    warning: src/cmd/8g/list.c:100 format mismatch d VLONG, arg 4
+    warning: src/cmd/8g/list.c:114 format mismatch d VLONG, arg 5
+    warning: src/cmd/8g/list.c:118 format mismatch d VLONG, arg 5
+    warning: src/cmd/8g/list.c:122 format mismatch d VLONG, arg 5
+    warning: src/cmd/8g/list.c:126 format mismatch d VLONG, arg 5
+    warning: src/cmd/8g/list.c:136 format mismatch d VLONG, arg 4
+    
+    warning: src/cmd/8l/list.c:107 format mismatch d VLONG, arg 4
+    warning: src/cmd/8l/list.c:125 format mismatch ux VLONG, arg 4
+    warning: src/cmd/8l/list.c:128 format mismatch ux VLONG, arg 4
+    warning: src/cmd/8l/list.c:130 format mismatch d VLONG, arg 4
+    warning: src/cmd/8l/list.c:134 format mismatch d VLONG, arg 5
+    warning: src/cmd/8l/list.c:138 format mismatch d VLONG, arg 6
+    warning: src/cmd/8l/list.c:143 format mismatch d VLONG, arg 5
+    warning: src/cmd/8l/list.c:148 format mismatch d VLONG, arg 5
+    warning: src/cmd/8l/list.c:150 format mismatch d VLONG, arg 4
+    warning: src/cmd/8l/list.c:154 format mismatch d VLONG, arg 4
+    warning: src/cmd/8l/list.c:158 format mismatch d VLONG, arg 4
+    warning: src/cmd/8l/obj.c:132 format mismatch ux VLONG, arg 2
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/35790045
+    https://golang.org/cl/39710043
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue6833.go  | 27 +++++++++++++++++++++++++++
- misc/cgo/test/issue6833_c.c | 10 ++++++++++
- src/cmd/cgo/out.go          | 26 ++++++++++++++++----------
- 4 files changed, 54 insertions(+), 10 deletions(-)
+ src/cmd/8c/list.c | 24 ++++++++++++------------
+ src/cmd/8g/list.c | 14 +++++++-------
+ src/cmd/8l/list.c | 22 +++++++++++-----------
+ src/cmd/8l/obj.c  |  2 +-
+ 4 files changed, 31 insertions(+), 31 deletions(-)

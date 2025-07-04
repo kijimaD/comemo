@@ -1,19 +1,65 @@
-commit 2bf7a925712dca5646f9215cda17c5b61eea14ce
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Wed Oct 2 11:50:34 2019 +0800
+commit c1544ff906c3696774152aaa6594d6cefce15552
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 17 10:46:01 2019 -0700
 
-    cmd/asm: add VLD[1-4]R vector instructions on arm64
+    cmd/compile: move phi tighten after critical
     
-    This change adds VLD1R, VLD2R, VLD3R, VLD4R
+    The phi tighten pass moves rematerializable phi args
+    to the immediate predecessor of the phis.
+    This reduces value lifetimes for regalloc.
     
-    Change-Id: Ie19e9ae02fdfc94b9344acde8c9938849efb0bf0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181697
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    However, the critical edge removal pass can introduce
+    new blocks, which can change what a block's
+    immediate precedessor is. This can result in tightened
+    phi args being spilled unnecessarily.
+    
+    This change moves the phi tighten pass after the
+    critical edge pass, when the block structure is stable.
+    
+    This improves the code generated for
+    
+    func f(s string) bool { return s == "abcde" }
+    
+    Before this change:
+    
+    "".f STEXT nosplit size=44 args=0x18 locals=0x0
+            0x0000 00000 (x.go:3)   MOVQ    "".s+16(SP), AX
+            0x0005 00005 (x.go:3)   CMPQ    AX, $5
+            0x0009 00009 (x.go:3)   JNE     40
+            0x000b 00011 (x.go:3)   MOVQ    "".s+8(SP), AX
+            0x0010 00016 (x.go:3)   CMPL    (AX), $1684234849
+            0x0016 00022 (x.go:3)   JNE     36
+            0x0018 00024 (x.go:3)   CMPB    4(AX), $101
+            0x001c 00028 (x.go:3)   SETEQ   AL
+            0x001f 00031 (x.go:3)   MOVB    AL, "".~r1+24(SP)
+            0x0023 00035 (x.go:3)   RET
+            0x0024 00036 (x.go:3)   XORL    AX, AX
+            0x0026 00038 (x.go:3)   JMP     31
+            0x0028 00040 (x.go:3)   XORL    AX, AX
+            0x002a 00042 (x.go:3)   JMP     31
+    
+    Observe the duplicated blocks at the end.
+    After this change:
+    
+    "".f STEXT nosplit size=40 args=0x18 locals=0x0
+            0x0000 00000 (x.go:3)   MOVQ    "".s+16(SP), AX
+            0x0005 00005 (x.go:3)   CMPQ    AX, $5
+            0x0009 00009 (x.go:3)   JNE     36
+            0x000b 00011 (x.go:3)   MOVQ    "".s+8(SP), AX
+            0x0010 00016 (x.go:3)   CMPL    (AX), $1684234849
+            0x0016 00022 (x.go:3)   JNE     36
+            0x0018 00024 (x.go:3)   CMPB    4(AX), $101
+            0x001c 00028 (x.go:3)   SETEQ   AL
+            0x001f 00031 (x.go:3)   MOVB    AL, "".~r1+24(SP)
+            0x0023 00035 (x.go:3)   RET
+            0x0024 00036 (x.go:3)   XORL    AX, AX
+            0x0026 00038 (x.go:3)   JMP     31
+    
+    Change-Id: I12c81aa53b89456cb5809aa5396378245f3beda9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172597
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s | 12 +++++++
- src/cmd/internal/obj/arm64/a.out.go       |  4 +++
- src/cmd/internal/obj/arm64/anames.go      |  4 +++
- src/cmd/internal/obj/arm64/asm7.go        | 52 ++++++++++++++++++++-----------
- 4 files changed, 53 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

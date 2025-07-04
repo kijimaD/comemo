@@ -1,0 +1,36 @@
+commit 170436c045f1303543e6d0bf8b36fccac57da2cd
+Author: David Chase <drchase@google.com>
+Date:   Fri Nov 15 17:08:34 2024 -0500
+
+    cmd/compile: strongly favor closure inlining
+    
+    This tweaks the inlining cost knob for closures
+    specifically, they receive a doubled budget.  The
+    rationale for this is that closures have a lot of
+    "crud" in their IR that will disappear after inlining,
+    so the standard budget penalizes them unnecessarily.
+    
+    This is also the cause of these bugs -- looking at the
+    code involved, these closures "should" be inlineable,
+    therefore tweak the parameters until behavior matches
+    expectations.  It's not costly in binary size, because
+    the only-called-from-one-site case is common (especially
+    for rangefunc iterators).
+    
+    I can imagine better fixes and I am going to try to
+    get that done, but this one is small and makes things
+    better.
+    
+    Fixes #69411, #69539.
+    
+    Change-Id: I8a892c40323173a723799e0ddad69dcc2724a8f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629195
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/internal/test/callback_windows.go |  5 +++--
+ src/cmd/compile/internal/inline/inl.go        |  7 +++++++
+ test/closure3.dir/main.go                     | 18 +++++++++---------
+ 3 files changed, 19 insertions(+), 11 deletions(-)

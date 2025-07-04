@@ -1,16 +1,37 @@
-commit ae3bfba6269fcc75aced2418b870ba2706b0d35f
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Dec 1 13:54:53 2020 +0100
+commit 17d5cef257dbb50bbe38c4f2f79cd000e01c97a6
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Apr 28 21:58:46 2020 +0200
 
-    doc/go1.16: add text/template changes to release notes
+    reflect: reduce allocations for Select with up to 4 cases
     
-    For #40700
-    Fixes #42914
+    Allocate the runcases slice on the stack if the number
+    of select cases is small (up to 4).
     
-    Change-Id: I673d86a946c362e28bfbf35fab2c60ebfbd8bda2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274472
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Found while looking at production profiles of common
+    proto based RPC server framework code in Google which do
+    not have a large number of cases.
+    
+    name      old time/op    new time/op    delta
+    Select/1     147ns ± 2%     120ns ± 6%  -18.32%  (p=0.000 n=7+10)
+    Select/4     316ns ± 5%     249ns ± 2%  -21.23%  (p=0.000 n=10+10)
+    Select/8     516ns ± 3%     515ns ± 3%     ~     (p=0.858 n=10+9)
+    
+    name      old alloc/op   new alloc/op   delta
+    Select/1     96.0B ± 0%     64.0B ± 0%  -33.33%  (p=0.000 n=10+10)
+    Select/4      336B ± 0%      208B ± 0%  -38.10%  (p=0.000 n=10+10)
+    Select/8      672B ± 0%      672B ± 0%     ~     (all equal)
+    
+    name      old allocs/op  new allocs/op  delta
+    Select/1      4.00 ± 0%      3.00 ± 0%  -25.00%  (p=0.000 n=10+10)
+    Select/4      7.00 ± 0%      6.00 ± 0%  -14.29%  (p=0.000 n=10+10)
+    Select/8      11.0 ± 0%      11.0 ± 0%     ~     (all equal)
+    
+    Change-Id: I1687e74fc8e86606a27f03fa8a561bcfb68775d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230657
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.16.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/reflect/all_test.go | 20 ++++++++++++++++++++
+ src/reflect/value.go    | 10 +++++++++-
+ 2 files changed, 29 insertions(+), 1 deletion(-)

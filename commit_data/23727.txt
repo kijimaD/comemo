@@ -1,14 +1,14 @@
-commit 9f70cd8223fd1570075a888e596759774c0cb66d
-Author: Carlos C <uldericofilho@gmail.com>
-Date:   Thu Jul 9 15:08:39 2015 +0200
+commit 6241a41e33fb1dcfb36f86b0578592219a36d443
+Author: Michael Matloob <matloob@google.com>
+Date:   Sat May 30 01:03:40 2015 -0400
 
-    net/mail: add example to package
+    [dev.ssa] cmd/compile/internal/ssa: enforce single live mem
     
-    Change-Id: I912cafc66463f81cde839afc8f06b7eadcbf6f57
-    Reviewed-on: https://go-review.googlesource.com/11992
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I21edff280a283895e4f0cbf91a3b4406f2f86788
+    Reviewed-on: https://go-review.googlesource.com/10558
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/mail/example_test.go | 77 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 77 insertions(+)
+ src/cmd/compile/internal/ssa/schedule.go      | 47 ++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/schedule_test.go | 57 +++++++++++++++++++++++++++
+ 2 files changed, 100 insertions(+), 4 deletions(-)

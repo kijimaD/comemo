@@ -1,25 +1,18 @@
-commit 5f0a9ba1342674b3209c13035b5aa39a96dbd80c
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Dec 12 08:59:01 2017 +0900
+commit da109c6075e135bae4b8681e0c53c725e62a354c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Nov 6 10:47:02 2017 -0500
 
-    go/internal/srcimporter: simplify and fix package file lookup
+    cmd/compile: enable ssacheck for tests in ssa_test.go
     
-    The old code was a blend of (copied) code that existed before go/build,
-    and incorrect adjustments made when go/build was introduced. This change
-    leaves package path determination entirely to go/build and in the process
-    fixes issues with relative import paths.
+    I thought SSA check was enabled for those tests, but in fact it
+    was not. Enable it. So we have SSA check on for at least some
+    tests on all architectures.
     
-    Fixes #23092
-    Fixes #24392
+    Updates #22499.
     
-    Change-Id: I9e900538b365398751bace56964495c5440ac4ae
-    Reviewed-on: https://go-review.googlesource.com/83415
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I51fcdda3af7faab5aeb33bf46c6db309285ce42c
+    Reviewed-on: https://go-review.googlesource.com/76024
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/internal/srcimporter/srcimporter.go         | 28 ++++---------------
- src/go/internal/srcimporter/srcimporter_test.go    | 32 ++++++++++++++++++++++
- .../srcimporter/testdata/issue23092/issue23092.go  |  5 ++++
- .../srcimporter/testdata/issue24392/issue24392.go  |  5 ++++
- 4 files changed, 47 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go | 32 ++++++++++++++++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)

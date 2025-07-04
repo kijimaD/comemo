@@ -1,21 +1,32 @@
-commit bfa3284f9b3af76030d8058ae22e3d212637a286
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed May 31 15:07:03 2023 +0200
+commit 2cf49a76b674ee5075f3ed6ff857c5b3e7a8109a
+Author: darmiel <71837281+darmiel@users.noreply.github.com>
+Date:   Wed May 4 12:39:49 2022 +0000
 
-    doc: document WER and SEH changes in Go 1.21
+    net/http: trim cookie names
     
-    While here, I've removed the CL 472195 TODO, which I marked as
-    RELNOTE=yes by mistake.
+    The current implementation ignores cookies where the
+    cookie name starts or ends with a space. For example,
     
-    For #57441
-    For #57302
+    name =value
     
-    Change-Id: I7563140bf307f8d732f0154d02b8fa0735527323
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499515
+    is ignored.
+    
+    I have come across pages that send cookies in this weird format.
+    I tested with the latest versions of Firefox, Safari and Chrome,
+    all of which accept cookies in this format.
+    
+    To do this, I remove leading and trailing spaces from the
+    cookie name after cutting at '='.
+    
+    Change-Id: I8fd0c37a2113b6ce75712dd43607d1ea55e86c68
+    GitHub-Last-Rev: 368f50fcb4c7537b90249c3c497e61dc81038f6e
+    GitHub-Pull-Request: golang/go#52121
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397734
+    Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- doc/go1.21.html | 21 +++++++++++----------
- 1 file changed, 11 insertions(+), 10 deletions(-)
+ src/net/http/cookie.go      | 2 ++
+ src/net/http/cookie_test.go | 6 ++++++
+ 2 files changed, 8 insertions(+)

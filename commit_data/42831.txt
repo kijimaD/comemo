@@ -1,14 +1,25 @@
-commit 6f561e65b16645fea771375d3af6d7896ab025e6
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 26 23:18:41 2020 +0700
+commit 8c09e8af3633b0c08d2c309e56a58124dfee3d7c
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Feb 5 15:19:41 2020 -0500
 
-    cmd/fix: remove un-used code
+    crypto/ecdsa: add SignASN1, VerifyASN1
     
-    Change-Id: Ibbd9da6fd1f3219c9c6103d8f858347ab3a21210
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250857
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Update the Example in the crypto/ecdsa package for signing
+    and verifying signatures to use these new functions.
+    
+    This also changes (*PrivateKey).Sign to use
+    x/crypto/cryptobyte/asn1 instead of encoding/asn1
+    to marshal the signature.
+    
+    Fixes #20544
+    
+    Change-Id: I3423cfc4d7f9e1748fbed5a631438c8a3b280df4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217940
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/fix/fix.go | 292 -----------------------------------------------------
- 1 file changed, 292 deletions(-)
+ src/crypto/ecdsa/ecdsa.go        | 44 +++++++++++++++++++++++++++++++++-------
+ src/crypto/ecdsa/ecdsa_test.go   | 30 +++++++++++++++++++++++++++
+ src/crypto/ecdsa/example_test.go |  6 +++---
+ src/go/build/deps_test.go        |  7 +++++--
+ 4 files changed, 75 insertions(+), 12 deletions(-)

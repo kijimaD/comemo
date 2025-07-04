@@ -1,25 +1,222 @@
-commit ed56ea73e8aa60269bbb3d33af9e7614e6b3babf
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jun 30 09:44:30 2021 -0700
+commit acb4d1cef14529585266df1868045f80e37ae081
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 22 09:59:15 2020 -0500
 
-    path/filepath: deflake TestEvalSymlinksAboveRoot on darwin
+    [dev.regabi] cmd/compile: use Node getters and setters [generated]
     
-    On darwin, under load, it appears that the system occasionally
-    deletes the temp dir mid-test. Don't fail the test when that happens.
+    Now that we have all the getters and setters defined, use them
+    and unexport all the actual Node fields. This is the next step
+    toward replacing Node with an interface.
     
-    It would be nice to fix this in a deeper way.
-    See golang.org/cl/332009 for some discussion.
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+            ex . ../ir ../ssa {
+                    import "cmd/compile/internal/ir"
+                    import "cmd/compile/internal/types"
+                    import "cmd/internal/src"
+                    var n, x *ir.Node
+                    var op ir.Op
+                    var t *types.Type
+                    var f *ir.Func
+                    var m *ir.Name
+                    var s *types.Sym
+                    var p src.XPos
+                    var i int64
+                    var e uint16
+                    var nodes ir.Nodes
     
-    In the meantime, this will at least stop the flakiness.
+                    n.Op = op    -> n.SetOp(op)
+                    n.Left = x   -> n.SetLeft(x)
+                    n.Right = x  -> n.SetRight(x)
+                    n.Orig = x -> n.SetOrig(x)
+                    n.Type = t -> n.SetType(t)
+                    n.Func = f -> n.SetFunc(f)
+                    n.Name = m -> n.SetName(m)
+                    n.Sym = s -> n.SetSym(s)
+                    n.Pos = p -> n.SetPos(p)
+                    n.Xoffset = i -> n.SetXoffset(i)
+                    n.Esc = e -> n.SetEsc(e)
     
-    Updates #37910
+                    n.Ninit.Append -> n.PtrNinit().Append
+                    n.Ninit.AppendNodes -> n.PtrNinit().AppendNodes
+                    n.Ninit.MoveNodes -> n.PtrNinit().MoveNodes
+                    n.Ninit.Prepend -> n.PtrNinit().Prepend
+                    n.Ninit.Set -> n.PtrNinit().Set
+                    n.Ninit.Set1 -> n.PtrNinit().Set1
+                    n.Ninit.Set2 -> n.PtrNinit().Set2
+                    n.Ninit.Set3 -> n.PtrNinit().Set3
+                    &n.Ninit -> n.PtrNinit()
+                    n.Ninit = nodes -> n.SetNinit(nodes)
     
-    Change-Id: I6669e466fed9abda4a87ca88345c04cd7986b41e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/332009
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+                    n.Nbody.Append -> n.PtrNbody().Append
+                    n.Nbody.AppendNodes -> n.PtrNbody().AppendNodes
+                    n.Nbody.MoveNodes -> n.PtrNbody().MoveNodes
+                    n.Nbody.Prepend -> n.PtrNbody().Prepend
+                    n.Nbody.Set -> n.PtrNbody().Set
+                    n.Nbody.Set1 -> n.PtrNbody().Set1
+                    n.Nbody.Set2 -> n.PtrNbody().Set2
+                    n.Nbody.Set3 -> n.PtrNbody().Set3
+                    &n.Nbody -> n.PtrNbody()
+                    n.Nbody = nodes -> n.SetNbody(nodes)
+    
+                    n.List.Append -> n.PtrList().Append
+                    n.List.AppendNodes -> n.PtrList().AppendNodes
+                    n.List.MoveNodes -> n.PtrList().MoveNodes
+                    n.List.Prepend -> n.PtrList().Prepend
+                    n.List.Set -> n.PtrList().Set
+                    n.List.Set1 -> n.PtrList().Set1
+                    n.List.Set2 -> n.PtrList().Set2
+                    n.List.Set3 -> n.PtrList().Set3
+                    &n.List -> n.PtrList()
+                    n.List = nodes -> n.SetList(nodes)
+    
+                    n.Rlist.Append -> n.PtrRlist().Append
+                    n.Rlist.AppendNodes -> n.PtrRlist().AppendNodes
+                    n.Rlist.MoveNodes -> n.PtrRlist().MoveNodes
+                    n.Rlist.Prepend -> n.PtrRlist().Prepend
+                    n.Rlist.Set -> n.PtrRlist().Set
+                    n.Rlist.Set1 -> n.PtrRlist().Set1
+                    n.Rlist.Set2 -> n.PtrRlist().Set2
+                    n.Rlist.Set3 -> n.PtrRlist().Set3
+                    &n.Rlist -> n.PtrRlist()
+                    n.Rlist = nodes -> n.SetRlist(nodes)
+            }
+            ex . ../ir ../ssa {
+                    import "cmd/compile/internal/ir"
+    
+                    var n *ir.Node
+                    n.Op         -> n.GetOp()
+                    n.Left       -> n.GetLeft()
+                    n.Right      -> n.GetRight()
+                    n.Orig -> n.GetOrig()
+                    n.Type -> n.GetType()
+                    n.Func -> n.GetFunc()
+                    n.Name -> n.GetName()
+                    n.Sym -> n.GetSym()
+                    n.Pos -> n.GetPos()
+                    n.Xoffset -> n.GetXoffset()
+                    n.Esc -> n.GetEsc()
+    
+                    avoid (*ir.Node).PtrNinit
+                    avoid (*ir.Node).PtrNbody
+                    avoid (*ir.Node).PtrList
+                    avoid (*ir.Node).PtrRlist
+    
+                    n.Ninit -> n.GetNinit()
+                    n.Nbody -> n.GetNbody()
+                    n.List -> n.GetList()
+                    n.Rlist -> n.GetRlist()
+            }
+    '
+    
+    cd ../ir
+    rf '
+            mv Node.Op Node.op
+            mv Node.GetOp Node.Op
+    
+            mv Node.Left Node.left
+            mv Node.GetLeft Node.Left
+    
+            mv Node.Right Node.right
+            mv Node.GetRight Node.Right
+    
+            mv Node.Orig Node.orig
+            mv Node.GetOrig Node.Orig
+    
+            mv Node.Type Node.typ
+            mv Node.GetType Node.Type
+    
+            mv Node.Func Node.fn
+            mv Node.GetFunc Node.Func
+    
+            mv Node.Name Node.name
+            mv Node.GetName Node.Name
+    
+            # All uses are in other Node methods already.
+            mv Node.E Node.e
+    
+            mv Node.Sym Node.sym
+            mv Node.GetSym Node.Sym
+    
+            mv Node.Pos Node.pos
+            mv Node.GetPos Node.Pos
+    
+            mv Node.Esc Node.esc
+            mv Node.GetEsc Node.Esc
+    
+            # While we are here, rename Xoffset to more idiomatic Offset.
+            mv Node.Xoffset Node.offset
+            mv Node.GetXoffset Node.Offset
+            mv Node.SetXoffset Node.SetOffset
+    
+            # While we are here, rename Ninit, Nbody to more idiomatic Init, Body.
+            mv Node.Ninit Node.init
+            mv Node.GetNinit Node.Init
+            mv Node.PtrNinit Node.PtrInit
+            mv Node.SetNinit Node.SetInit
+            mv Node.Nbody Node.body
+            mv Node.GetNbody Node.Body
+            mv Node.PtrNbody Node.PtrBody
+            mv Node.SetNbody Node.SetBody
+            mv Node.List Node.list
+            mv Node.GetList Node.List
+            mv Node.Rlist Node.rlist
+            mv Node.GetRlist Node.Rlist
+    
+            # Unexport these
+            mv Node.SetHasOpt Node.setHasOpt
+            mv Node.SetHasVal Node.setHasVal
+    '
+    
+    Change-Id: I9894f633375c5237a29b6d6d7b89ba181b56ca3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273009
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/path/filepath/path_test.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/alg.go       |  154 +--
+ src/cmd/compile/internal/gc/align.go     |   12 +-
+ src/cmd/compile/internal/gc/bexport.go   |    4 +-
+ src/cmd/compile/internal/gc/bimport.go   |    2 +-
+ src/cmd/compile/internal/gc/closure.go   |  222 ++--
+ src/cmd/compile/internal/gc/const.go     |  172 +--
+ src/cmd/compile/internal/gc/dcl.go       |  266 ++--
+ src/cmd/compile/internal/gc/dwinl.go     |    6 +-
+ src/cmd/compile/internal/gc/embed.go     |   36 +-
+ src/cmd/compile/internal/gc/escape.go    |  518 ++++----
+ src/cmd/compile/internal/gc/export.go    |   54 +-
+ src/cmd/compile/internal/gc/gen.go       |   22 +-
+ src/cmd/compile/internal/gc/gsubr.go     |   24 +-
+ src/cmd/compile/internal/gc/iexport.go   |  338 ++---
+ src/cmd/compile/internal/gc/iimport.go   |  144 +--
+ src/cmd/compile/internal/gc/init.go      |   20 +-
+ src/cmd/compile/internal/gc/initorder.go |   70 +-
+ src/cmd/compile/internal/gc/inl.go       |  554 ++++-----
+ src/cmd/compile/internal/gc/main.go      |   40 +-
+ src/cmd/compile/internal/gc/noder.go     |  254 ++--
+ src/cmd/compile/internal/gc/obj.go       |  110 +-
+ src/cmd/compile/internal/gc/order.go     |  604 ++++-----
+ src/cmd/compile/internal/gc/pgen.go      |  178 +--
+ src/cmd/compile/internal/gc/pgen_test.go |   12 +-
+ src/cmd/compile/internal/gc/plive.go     |   48 +-
+ src/cmd/compile/internal/gc/racewalk.go  |   18 +-
+ src/cmd/compile/internal/gc/range.go     |  208 ++--
+ src/cmd/compile/internal/gc/reflect.go   |   16 +-
+ src/cmd/compile/internal/gc/scc.go       |   26 +-
+ src/cmd/compile/internal/gc/scope.go     |    6 +-
+ src/cmd/compile/internal/gc/select.go    |  192 +--
+ src/cmd/compile/internal/gc/sinit.go     |  356 +++---
+ src/cmd/compile/internal/gc/ssa.go       | 1082 ++++++++--------
+ src/cmd/compile/internal/gc/subr.go      |  206 ++--
+ src/cmd/compile/internal/gc/swt.go       |  278 ++---
+ src/cmd/compile/internal/gc/typecheck.go | 1970 +++++++++++++++---------------
+ src/cmd/compile/internal/gc/universe.go  |   38 +-
+ src/cmd/compile/internal/gc/unsafe.go    |   38 +-
+ src/cmd/compile/internal/gc/walk.go      | 1404 ++++++++++-----------
+ src/cmd/compile/internal/ir/dump.go      |    2 +-
+ src/cmd/compile/internal/ir/fmt.go       |  402 +++---
+ src/cmd/compile/internal/ir/node.go      |  266 ++--
+ src/cmd/compile/internal/ir/val.go       |    6 +-
+ src/cmd/compile/internal/ssa/nilcheck.go |    2 +-
+ 44 files changed, 5191 insertions(+), 5189 deletions(-)

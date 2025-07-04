@@ -1,12 +1,20 @@
-commit 0ba5ec53b047376e77418a248233b0645a79a838
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sat Oct 20 13:02:29 2012 +1100
+commit 3bde00033b8d1ff7c494d10b1343178c32abb7ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 19 10:11:06 2012 -0700
 
-    bufio: remove a little unnecessary indirection in tests.
+    go spec: define make() restrictions as for index expressions
     
-    R=mchaten, r
+    This is a language change: Until now, the spec required run-
+    time panics for some of these errors. Note that gc and gccgo
+    implemented this inconsistently, and that both compilers already
+    reported compile-time errors in some cases. This change makes
+    make() behave along the same vein as index expressions.
+    
+    This addresses the spec aspect of issue 4085.
+    
+    R=r, rsc, iant, ken
     CC=golang-dev
-    https://golang.org/cl/6739045
+    https://golang.org/cl/6725053
 
- src/pkg/bufio/bufio_test.go | 36 ++++++++++++++++++------------------
- 1 file changed, 18 insertions(+), 18 deletions(-)
+ doc/go_spec.html | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

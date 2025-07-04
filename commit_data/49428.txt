@@ -1,27 +1,19 @@
-commit 30b929b1efb470cb9b434cd47d6cbaa74c2baedf
+commit 0c83e01e0c1df712002af8bded845fbca9677ffa
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Jun 7 07:25:36 2022 +0200
+Date:   Wed Aug 18 09:03:44 2021 +0200
 
-    syscall: remove unused accept on linux/loong64
+    cmd/go/testdata/script: fix test script added by CL 334873
     
-    accept is no longer used on Linux since CL 346849 changed Accept to use
-    accept4 only.
+    CL 334873 added the net/http import to the wrong section in
+    test_vet.txt. Correct this to fix the longtest builders.
     
-    This follows CL 386415 which already removed accept on all other Linux
-    platforms before the linux/loong64 port was submitted.
-    
-    For #45964
-    
-    Change-Id: I26945ff780e71174a0b0c2f5313c4bc1e1cbf786
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410737
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: If28409ad1c2ed3bd3a2922fc20d5e534c30fa249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343169
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/syscall/syscall_linux_loong64.go  |  1 -
- src/syscall/zsyscall_linux_loong64.go | 11 -----------
- 2 files changed, 12 deletions(-)
+ src/cmd/go/testdata/script/test_vet.txt | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

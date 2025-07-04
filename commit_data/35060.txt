@@ -1,24 +1,21 @@
-commit 9f10d283045d9fd7dc9afb64c49e6719ef1a33c8
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu Mar 15 12:16:48 2018 +0000
+commit 98d0da98da7ff26d59e478e6baa16bf4eb9d266c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 8 07:07:45 2017 -0800
 
-    cmd/internal/obj/arm64: summarize the Go assembly syntax and the GNU syntax mapping rules
+    net: increase timeout for TestDialerDualStackFDLeak
     
-    The patch rewrites the content of doc.go file. The file describes some
-    general rules of the mapping between Go assembly syntax and GNU syntax.
-    And it gives some Go assembly examples and corresponding GNU assembly
-    examples.
+    This test has been getting occasional timeouts on the race builder.
+    The point of the test is whether a file descriptor leaks, not whether
+    the connection occurs in a certain amount of time. So use a very large
+    timeout. The connection is normally fast and the timeout doesn't matter.
     
-    The patch changes the doc.go to use standard doc comment format so that
-    the link https://golang.org/cmd/internal/obj/arm64/ can display it.
+    Updates #13324
     
-    Assembly document framework is mainly contributed by Eric Fang <Eric.Fang@arm.com>
-    Documentation work is contributed by Eric Fang and Fannie Zhang <Fannie.Zhang@arm.com>
-    
-    Change-Id: I8b3f6d6c6b91afdc2c44602e8f796beea905085e
-    Reviewed-on: https://go-review.googlesource.com/102055
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ie1051c4a0be1fca4e63b1277101770be0cdae512
+    Reviewed-on: https://go-review.googlesource.com/82916
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/asm.html                      |  59 ++++-
- src/cmd/internal/obj/arm64/doc.go | 521 ++++++++++++++------------------------
- 2 files changed, 252 insertions(+), 328 deletions(-)
+ src/net/dial_test.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

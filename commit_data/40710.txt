@@ -1,40 +1,21 @@
-commit b7d097a4cf6b8a9125e4770b54d33826fa803023
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Nov 7 15:54:59 2019 -0800
+commit 71a6a44428feb844b9dd3c4c8e16be8dee2fd8fa
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jun 19 17:25:27 2019 -0400
 
-    cmd/compile: don't apply -lang=go1.X restrictions to imported packages
+    cmd/go: install binaries in cmd/ in $GOROOT/bin instead of $GOBIN
     
-    Previously langSupported applied -lang as though it's a global
-    restriction, but it's actually a per-package restriction. This CL
-    fixes langSupported to take a *types.Pkg parameter to reflect this and
-    updates its callers accordingly.
+    This was caused by CL 167748, which removed a special case for command
+    line arguments starting with "cmd/". This CL restores the behavior
+    from go1.12.
     
-    This is relevant for signed shifts (added in Go 1.12), because they
-    can be inlined into a Go 1.11 package; and for overlapping interfaces
-    (added in Go 1.13), because they can be exported as part of the
-    package's API.
+    Fixes #32674
     
-    Today we require all Go packages to be compiled with the same
-    toolchain, and all uses of langSupported are for controlling
-    backwards-compatible features. So we can simply assume that since the
-    imported packages type-checked successfully, they must have been
-    compiled with an appropriate -lang setting.
-    
-    In the future if we ever want to use langSupported to control
-    backwards-incompatible language changes, we might need to record the
-    -lang flag used for compiling a package in its export data.
-    
-    Fixes #35437.
-    Fixes #35442.
-    
-    Change-Id: Ifdf6a62ee80cd5fb4366cbf12933152506d1b36e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205977
+    Change-Id: I72180d11fb0261ef0af9632e512bd9c03481b6c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183058
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/align.go               |  2 +-
- src/cmd/compile/internal/gc/main.go                | 14 ++++++-
- src/cmd/compile/internal/gc/noder.go               |  4 +-
- src/cmd/compile/internal/gc/typecheck.go           | 19 +++++++++-
- .../go/testdata/script/mod_go_version_mixed.txt    | 43 ++++++++++++++++++++++
- 5 files changed, 76 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/load/pkg.go                  | 14 ++++++++++----
+ src/cmd/go/testdata/script/install_cmd_gobin.txt | 10 ++++++++++
+ 2 files changed, 20 insertions(+), 4 deletions(-)

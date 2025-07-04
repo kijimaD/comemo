@@ -1,12 +1,18 @@
-commit 9094941a40d8e9322f0ec90b7b44ecc1093bfad2
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Jul 18 10:11:43 2013 +1000
+commit 1da96a30395b20cb4e2059c49bee05540e36aac6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 17 16:15:46 2013 -0700
 
-    cmd/ld: trivial: fix unused parameter pedantry
+    runtime: disable preemption again to fix linux build
     
-    R=golang-dev, r, rsc
+    Otherwise the tests in pkg/runtime fail:
+    
+    runtime: unknown argument frame size for runtime.deferreturn called from 0x48657b [runtime_test.func·022]
+    fatal error: invalid stack
+    ...
+    
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/11436043
+    https://golang.org/cl/11483043
 
- src/cmd/ld/lib.c | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/runtime/proc.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,21 +1,14 @@
-commit d92aaa970791472a1657e878bf686fe802943ebe
+commit 909f409a8d21c69198fc4d3f9bc08b6774650980
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 13 13:52:57 2017 -0700
+Date:   Fri Aug 4 11:23:25 2017 -0700
 
-    runtime: unify arm entry point code
+    doc: mention handling of moved GOROOT in 1.9 release notes
     
-    Change-Id: Id51a2d63f7199b3ff71cedd415345ad20e5bd981
-    Reviewed-on: https://go-review.googlesource.com/70791
-    Reviewed-by: Austin Clements <austin@google.com>
+    Updates #20587
+    
+    Change-Id: Ia131b9a4dc4986950d9ecbfcbd6b026ade234fc0
+    Reviewed-on: https://go-review.googlesource.com/53370
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/all/whitelist/arm.txt |   3 --
- src/runtime/asm_arm.s             | 102 +++++++++++++++++++++++++++++++++++++-
- src/runtime/rt0_android_arm.s     |   5 +-
- src/runtime/rt0_darwin_arm.s      |  94 ++---------------------------------
- src/runtime/rt0_freebsd_arm.s     |  13 ++---
- src/runtime/rt0_linux_arm.s       |  90 ++-------------------------------
- src/runtime/rt0_nacl_arm.s        |   4 --
- src/runtime/rt0_netbsd_arm.s      |  10 ++--
- src/runtime/rt0_openbsd_arm.s     |  10 ++--
- src/runtime/rt0_plan9_arm.s       |   2 -
- 10 files changed, 124 insertions(+), 209 deletions(-)
+ doc/go1.9.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

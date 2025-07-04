@@ -1,28 +1,19 @@
-commit 048c9164a0c5572df18325e377473e7893dbfb07
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Nov 24 16:54:01 2018 +1100
+commit 6eabfab438fa504df234a079411a3b153257b338
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 2 12:11:46 2018 -0400
 
-    debug/pe: use kernel32.dll in TestImportTableInUnknownSection
+    cmd/go: move mod_tidy.txt from testdata/mod to testdata/src
     
-    TestImportTableInUnknownSection was introduced in CL 110555 to
-    test PE executable with import table located in section other than
-    ".idata". We used atmfd.dll for that purpose, but it seems
-    atmfd.dll is not present on some systems.
+    This file is clearly a script test, not a module definition, but it's in the
+    wrong directory to be run as one.
     
-    Use kernel32.dll instead. kernel32.dll import table is located in
-    ".rdata" section, so it should do the job. And every Windows
-    system has kernel32.dll file.
+    Fortunately, it passes with only minor modifications (changing “..” to “.”).
     
-    Also make TestImportTableInUnknownSection run on windows-arm,
-    since windows-arm should also have kernel32.dll file.
-    
-    Updates #27904
-    
-    Change-Id: Ie005ee10e46ae0c06e83929d581e89f86c051eea
-    Reviewed-on: https://go-review.googlesource.com/c/151137
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I66a544dfde82b8348108d2596c74e174157ae297
+    Reviewed-on: https://go-review.googlesource.com/127615
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/pe/file_test.go | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/{mod => script}/mod_tidy.txt | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

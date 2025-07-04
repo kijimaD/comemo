@@ -1,64 +1,42 @@
-commit ba1698e9632d2d21fb45302e0f1356d23031aeb1
-Author: Austin Clements <austin@google.com>
-Date:   Wed Sep 26 15:59:21 2018 -0400
+commit d970519086765367f545186d860080059c69fad8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 27 10:48:18 2018 -0700
 
-    runtime: mark span when marking any object on the span
+    syscall: support Faccessat flags argument
     
-    This adds a mark bit for each span that is set if any objects on the
-    span are marked. This will be used for sweeping.
+    The Linux kernel faccessat system call does not take a flags parameter.
+    The flag parameter to the C library faccessat function is implemented in C.
+    The syscall.Faccessat function takes a flags parameter. In older releases
+    we have passed the flags parameter to the kernel, which ignored it.
+    In CL 120015 we started returning an error if any flags were set.
+    That seems clearly better than ignoring them, but it turns out that some
+    code was using the flags. The code was previously subtly broken.
+    Now it is obviously broken. That is better, but we can do better still:
+    we can implement the flags as the C library does. That is what this CL does.
     
-    For #18155.
-    
-    The impact of this is negligible for most benchmarks, and < 1% for
-    GC-heavy benchmarks.
-    
-    name                       old time/op  new time/op  delta
-    Garbage/benchmem-MB=64-12  2.18ms ± 0%  2.20ms ± 1%  +0.88%  (p=0.000 n=16+18)
-    
-    (https://perf.golang.org/search?q=upload:20180928.1)
-    
-    name                      old time/op    new time/op    delta
-    BinaryTree17-12              2.68s ± 1%     2.68s ± 1%    ~     (p=0.707 n=17+19)
-    Fannkuch11-12                2.28s ± 0%     2.39s ± 0%  +4.95%  (p=0.000 n=19+18)
-    FmtFprintfEmpty-12          40.3ns ± 4%    39.4ns ± 2%  -2.27%  (p=0.000 n=17+18)
-    FmtFprintfString-12         67.9ns ± 1%    68.3ns ± 1%  +0.55%  (p=0.000 n=18+19)
-    FmtFprintfInt-12            75.7ns ± 1%    76.1ns ± 1%  +0.44%  (p=0.005 n=18+19)
-    FmtFprintfIntInt-12          123ns ± 1%     121ns ± 1%  -1.00%  (p=0.000 n=18+18)
-    FmtFprintfPrefixedInt-12     150ns ± 0%     148ns ± 0%  -1.33%  (p=0.000 n=16+13)
-    FmtFprintfFloat-12           208ns ± 0%     204ns ± 0%  -1.92%  (p=0.000 n=13+17)
-    FmtManyArgs-12               501ns ± 1%     498ns ± 0%  -0.55%  (p=0.000 n=19+17)
-    GobDecode-12                6.24ms ± 0%    6.25ms ± 1%    ~     (p=0.113 n=20+19)
-    GobEncode-12                5.33ms ± 0%    5.29ms ± 1%  -0.72%  (p=0.000 n=20+18)
-    Gzip-12                      220ms ± 1%     218ms ± 1%  -1.02%  (p=0.000 n=19+19)
-    Gunzip-12                   35.5ms ± 0%    35.7ms ± 0%  +0.45%  (p=0.000 n=16+18)
-    HTTPClientServer-12         77.9µs ± 1%    77.7µs ± 1%  -0.30%  (p=0.047 n=20+19)
-    JSONEncode-12               8.82ms ± 0%    8.93ms ± 0%  +1.20%  (p=0.000 n=18+17)
-    JSONDecode-12               47.3ms ± 0%    47.0ms ± 0%  -0.49%  (p=0.000 n=17+18)
-    Mandelbrot200-12            3.69ms ± 0%    3.68ms ± 0%  -0.25%  (p=0.000 n=19+18)
-    GoParse-12                  3.13ms ± 1%    3.13ms ± 1%    ~     (p=0.640 n=20+20)
-    RegexpMatchEasy0_32-12      76.2ns ± 1%    76.2ns ± 1%    ~     (p=0.818 n=20+19)
-    RegexpMatchEasy0_1K-12       226ns ± 0%     226ns ± 0%  -0.22%  (p=0.001 n=17+18)
-    RegexpMatchEasy1_32-12      71.9ns ± 1%    72.0ns ± 1%    ~     (p=0.653 n=18+18)
-    RegexpMatchEasy1_1K-12       355ns ± 1%     356ns ± 1%    ~     (p=0.160 n=18+19)
-    RegexpMatchMedium_32-12      106ns ± 1%     106ns ± 1%    ~     (p=0.325 n=17+20)
-    RegexpMatchMedium_1K-12     31.1µs ± 2%    31.2µs ± 0%  +0.59%  (p=0.007 n=19+15)
-    RegexpMatchHard_32-12       1.54µs ± 2%    1.53µs ± 2%  -0.78%  (p=0.021 n=17+18)
-    RegexpMatchHard_1K-12       46.0µs ± 1%    45.9µs ± 1%  -0.31%  (p=0.025 n=17+19)
-    Revcomp-12                   391ms ± 1%     394ms ± 2%  +0.80%  (p=0.000 n=17+19)
-    Template-12                 59.9ms ± 1%    59.9ms ± 1%    ~     (p=0.428 n=20+19)
-    TimeParse-12                 304ns ± 1%     312ns ± 0%  +2.88%  (p=0.000 n=20+17)
-    TimeFormat-12                318ns ± 0%     326ns ± 0%  +2.64%  (p=0.000 n=20+17)
-    
-    (https://perf.golang.org/search?q=upload:20180928.2)
-    
-    Change-Id: I336b9bf054113580a24103192904c8c76593e90e
-    Reviewed-on: https://go-review.googlesource.com/c/138958
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I259bd6f240c3951e939b81c3032dead3d9c567b4
+    Reviewed-on: https://go-review.googlesource.com/126415
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go     | 12 ++++++++++++
- src/runtime/mgcmark.go |  7 +++++++
- src/runtime/mheap.go   | 15 +++++++++++++++
- 3 files changed, 34 insertions(+)
+ src/syscall/syscall_linux.go           | 66 ++++++++++++++++++++++++++++++++--
+ src/syscall/syscall_linux_386.go       |  1 +
+ src/syscall/syscall_linux_arm.go       |  1 +
+ src/syscall/syscall_linux_arm64.go     |  1 +
+ src/syscall/syscall_linux_mips64x.go   |  1 +
+ src/syscall/syscall_linux_mipsx.go     |  1 +
+ src/syscall/syscall_linux_ppc64x.go    |  1 +
+ src/syscall/syscall_linux_s390x.go     |  1 +
+ src/syscall/syscall_linux_test.go      | 40 ++++++++++++++++-----
+ src/syscall/zsyscall_linux_386.go      | 15 ++++++++
+ src/syscall/zsyscall_linux_arm.go      | 15 ++++++++
+ src/syscall/zsyscall_linux_arm64.go    | 15 ++++++++
+ src/syscall/zsyscall_linux_mips.go     | 15 ++++++++
+ src/syscall/zsyscall_linux_mips64.go   | 15 ++++++++
+ src/syscall/zsyscall_linux_mips64le.go | 15 ++++++++
+ src/syscall/zsyscall_linux_mipsle.go   | 15 ++++++++
+ src/syscall/zsyscall_linux_ppc64.go    | 15 ++++++++
+ src/syscall/zsyscall_linux_ppc64le.go  | 15 ++++++++
+ src/syscall/zsyscall_linux_s390x.go    | 15 ++++++++
+ 19 files changed, 252 insertions(+), 11 deletions(-)

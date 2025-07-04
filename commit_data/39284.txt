@@ -1,16 +1,14 @@
-commit 9e31b1775aaab995986c9d986704e5ba4eddbe47
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Wed May 22 17:52:24 2019 +0700
+commit a10b4cff91cb5d26e2049f6efc20349aa4d50d20
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 5 14:33:24 2019 -0800
 
-    cmd/go: use the rev to resolve tags for pseudo-versions in mod init
+    spec: document signed integer shift counts
     
-    Fixes #32161
-    Updates #31251
+    Updates #19113.
     
-    Change-Id: I22760836b48cd734b90bc43aacb23e23e38c0f4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178497
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I4726f51c5061c33979cdd061f6d4616fa97edb9a
+    Reviewed-on: https://go-review.googlesource.com/c/161201
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/modfetch/repo.go          |  2 +-
- src/cmd/go/testdata/script/mod_init_glide.txt | 32 +++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

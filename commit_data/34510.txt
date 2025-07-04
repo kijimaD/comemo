@@ -1,16 +1,27 @@
-commit d8c9ef9e5cb6d485d9e15a48884ffb1162c48fb3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 7 22:14:55 2018 +0000
+commit b4c3fe7b049f79f81fae52d5006aa29b926bb4e0
+Author: David Chase <drchase@google.com>
+Date:   Mon Oct 30 11:39:29 2017 -0400
 
-    cmd/dist: skip rebuild before running tests when on the build systems
+    cmd/compile: adjust expectations of test for issue 18902
     
-    Updates #24300
+    The test for #18902 reads the assembly stream to be sure
+    that the line number does not change too often (this is an
+    indication that debugging the code will be unpleasant and
+    that the compiler is probably getting line numbers "wrong").
     
-    Change-Id: I7752dab67e15a6dfe5fffe5b5ccbf3373bbc2c13
-    Reviewed-on: https://go-review.googlesource.com/99296
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    It checks that it is getting "enough" input, but the
+    compiler has gotten enough better since the test was written
+    that it now fails for lack of enough input.  The old
+    threshould was 200 instructions, the new one is 150 (the
+    minimum observed input is on arm64 with 184 instructions).
+    
+    Fixes #22494.
+    
+    Change-Id: Ibba7e9ff4ab6a7be369e5dd5859d150b7db94653
+    Reviewed-on: https://go-review.googlesource.com/74357
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ test/fixedbugs/issue18902.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

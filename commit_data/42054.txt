@@ -1,12 +1,25 @@
-commit 24a1c8f60586b0f59f7c3a44b1b37ffe603d4d7b
-Author: Koichi Shiraishi <zchee.io@gmail.com>
-Date:   Wed Apr 22 03:24:58 2020 +0900
+commit e1ddf0507c6d6dcbe1a2ebe54b8728498edf0995
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Sep 10 18:53:51 2019 +0000
 
-    reflect: fix typo on resolveReflectName function documentation
+    runtime: count scavenged bits for new allocation for new page allocator
     
-    Change-Id: I250de9db4e8aca6e1069d05c73051571f1712091
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229141
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This change makes it so that the new page allocator returns the number
+    of pages that are scavenged in a new allocation so that mheap can update
+    memstats appropriately.
+    
+    The accounting could be embedded into pageAlloc, but that would make
+    the new allocator more difficult to test.
+    
+    Updates #35112.
+    
+    Change-Id: I0f94f563d7af2458e6d534f589d2e7dd6af26d12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195698
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/reflect/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/export_test.go      |  15 ++-
+ src/runtime/mpagealloc.go       |  29 ++++--
+ src/runtime/mpagealloc_test.go  | 201 +++++++++++++++++++++++++++-------------
+ src/runtime/mpallocbits.go      |  20 ++++
+ src/runtime/mpallocbits_test.go |  92 ++++++++++++++++++
+ 5 files changed, 281 insertions(+), 76 deletions(-)

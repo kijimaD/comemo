@@ -1,14 +1,14 @@
-commit 228f44a1f5b63233a007f52f6553df4acaa7180c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Feb 27 16:29:22 2012 +1100
+commit 28668c3a28c8eee186362692af981d9f4fc4fc96
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 27 16:23:22 2012 +1100
 
-    archive/zip: stop using encoding/binary
+    cmd/go: run examples even if -run is set if -example is also set
+    Allows one to disable everything but the example being debugged.
+    This time for sure.
     
-    R=golang-dev, r, bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5694085
+    https://golang.org/cl/5700079
 
- src/pkg/archive/zip/reader.go |  93 +++++++++++++------------
- src/pkg/archive/zip/struct.go |  10 ---
- src/pkg/archive/zip/writer.go | 156 +++++++++++++++++++++++-------------------
- 3 files changed, 131 insertions(+), 128 deletions(-)
+ src/pkg/testing/example.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,62 +1,17 @@
-commit 4a49af5755564b5412acea2cfc3ac8556a7af453
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Sep 30 18:43:25 2022 +0000
+commit 2559a98a3cda46084cbdd3ea49217fdc8074ce7a
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Nov 8 12:13:01 2021 -0500
 
-    Revert "runtime: move epoll syscalls to runtime/internal/syscall"
+    testing: remove package from fuzz crasher message
     
-    This reverts CL 421994.
+    Fixes #48149
     
-    Reason for revert: breaks runtime.TestCheckPtr2
-    
-    For #53824
-    For #51087
-    
-    Change-Id: I044ea4d6efdffe0a4b7fb0d2bb3717d9f391fc59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/437295
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Iaf91d2c54fda809c7da90cdfb6d1d075f474c69b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362116
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Julie Qiu <julie@golang.org>
 
- src/runtime/defs2_linux.go                         | 11 +++
- src/runtime/defs_linux.go                          | 12 ++++
- src/runtime/defs_linux_386.go                      | 16 +++++
- src/runtime/defs_linux_amd64.go                    | 16 +++++
- src/runtime/defs_linux_arm.go                      | 17 +++++
- src/runtime/defs_linux_arm64.go                    | 17 +++++
- src/runtime/defs_linux_loong64.go                  | 17 +++++
- src/runtime/defs_linux_mips64x.go                  | 17 +++++
- src/runtime/defs_linux_mipsx.go                    | 17 +++++
- src/runtime/defs_linux_ppc64.go                    | 17 +++++
- src/runtime/defs_linux_ppc64le.go                  | 17 +++++
- src/runtime/defs_linux_riscv64.go                  | 17 +++++
- src/runtime/defs_linux_s390x.go                    | 17 +++++
- src/runtime/export_linux_test.go                   | 10 +--
- src/runtime/export_unix2_test.go                   | 10 ---
- src/runtime/export_unix_test.go                    |  1 +
- src/runtime/internal/syscall/defs_linux.go         | 10 ---
- src/runtime/internal/syscall/defs_linux_386.go     | 29 --------
- src/runtime/internal/syscall/defs_linux_amd64.go   | 29 --------
- src/runtime/internal/syscall/defs_linux_arm.go     | 30 --------
- src/runtime/internal/syscall/defs_linux_arm64.go   | 30 --------
- src/runtime/internal/syscall/defs_linux_loong64.go | 30 --------
- src/runtime/internal/syscall/defs_linux_mips64x.go | 32 ---------
- src/runtime/internal/syscall/defs_linux_mipsx.go   | 32 ---------
- src/runtime/internal/syscall/defs_linux_ppc64x.go  | 32 ---------
- src/runtime/internal/syscall/defs_linux_riscv64.go | 30 --------
- src/runtime/internal/syscall/defs_linux_s390x.go   | 30 --------
- src/runtime/internal/syscall/syscall_linux.go      | 29 +-------
- src/runtime/internal/syscall/syscall_linux_test.go | 19 -----
- src/runtime/netpoll_epoll.go                       | 84 ++++++++++++----------
- src/runtime/runtime_linux_test.go                  |  9 +++
- src/runtime/sys_linux_386.s                        | 52 ++++++++++++++
- src/runtime/sys_linux_amd64.s                      | 54 ++++++++++++++
- src/runtime/sys_linux_arm.s                        | 52 ++++++++++++++
- src/runtime/sys_linux_arm64.s                      | 52 ++++++++++++++
- src/runtime/sys_linux_loong64.s                    | 52 ++++++++++++++
- src/runtime/sys_linux_mips64x.s                    | 61 ++++++++++++++++
- src/runtime/sys_linux_mipsx.s                      | 59 +++++++++++++++
- src/runtime/sys_linux_ppc64x.s                     | 54 ++++++++++++++
- src/runtime/sys_linux_riscv64.s                    | 52 ++++++++++++++
- src/runtime/sys_linux_s390x.s                      | 52 ++++++++++++++
- 41 files changed, 813 insertions(+), 411 deletions(-)
+ src/testing/fuzz.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

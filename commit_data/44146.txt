@@ -1,23 +1,35 @@
-commit 928bda4f4a88efe2e53f3607e8d2ad0796b449c0
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jan 16 04:38:50 2021 +1100
+commit b97212d1f1a60b4b83e7f88be1cd9d336b627ae2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 14 16:05:29 2020 -0400
 
-    runtime: convert openbsd/amd64 locking to libc
+    [dev.link] cmd/link: delete sym.Symbol and sym.Reloc
     
-    Switch openbsd/amd64 to locking via libc, rather than performing direct
-    system calls.
+    This deletes all sym.Symbol and sym.Reloc references. This is
+    certainly not complete, and there are more cleanups to do. But I
+    feel this makes a good first round.
     
-    Update #36435
-    
-    Change-Id: I5e92bd70ce557b78ff385577088a9775cc468ea9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270378
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I7621d016957f7ef114be5f0606fcb3ad6aee71c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234097
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/os_openbsd.go          |  8 --------
- src/runtime/os_openbsd_syscall1.go | 15 ++++++++++++++
- src/runtime/sys_openbsd1.go        | 34 ++++++++++++++++++++++++++++++++
- src/runtime/sys_openbsd_amd64.s    | 40 +++++++++++++++++++++-----------------
- 4 files changed, 71 insertions(+), 26 deletions(-)
+ src/cmd/link/internal/amd64/asm.go            |   8 -
+ src/cmd/link/internal/ld/data.go              |  17 +-
+ src/cmd/link/internal/ld/dwarf2.go            |  22 --
+ src/cmd/link/internal/ld/errors.go            |  45 ---
+ src/cmd/link/internal/ld/go.go                |  11 -
+ src/cmd/link/internal/ld/lib.go               | 382 ++-----------------
+ src/cmd/link/internal/ld/link.go              |   3 -
+ src/cmd/link/internal/ld/main.go              |   2 +-
+ src/cmd/link/internal/ld/util.go              |  16 +-
+ src/cmd/link/internal/loader/loader.go        | 525 +-------------------------
+ src/cmd/link/internal/loader/loader_test.go   |   4 +-
+ src/cmd/link/internal/loader/symbolbuilder.go |  12 -
+ src/cmd/link/internal/sym/compilation_unit.go |   5 -
+ src/cmd/link/internal/sym/reloc.go            |  54 ---
+ src/cmd/link/internal/sym/segment.go          |   1 -
+ src/cmd/link/internal/sym/sizeof_test.go      |  37 --
+ src/cmd/link/internal/sym/symbol.go           | 395 -------------------
+ src/cmd/link/internal/sym/symbols.go          |  10 -
+ 18 files changed, 34 insertions(+), 1515 deletions(-)

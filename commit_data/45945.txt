@@ -1,13 +1,18 @@
-commit 840e583ff340d22a6263a348922283e6d5cd2e31
-Author: Koichi Shiraishi <zchee.io@gmail.com>
-Date:   Sun Jul 25 03:00:04 2021 +0900
+commit 0ecf7696335a3aade9e41843acfd5ab188d2511f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Nov 26 23:28:11 2020 +0700
 
-    runtime: correct variable name in comment
+    cmd/compile: do not mark OpSP, OpSB pos for debugging
     
-    Change-Id: Ic35ec2ed320c3c266afbeec8bdea1dedac4725e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336892
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Austin Clements <austin@google.com>
+    Fixes #42801
+    
+    Change-Id: I2080ecacc109479f5820035401ce2b26d72e2ef2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273506
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/race.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/func.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

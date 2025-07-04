@@ -1,21 +1,20 @@
-commit 386c0e6598eadab18e01d3fa60f8e21872cbe70c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Apr 3 22:58:10 2016 +0000
+commit b86cafc7dced537165a7cda61b90feae44796055
+Author: David Chase <drchase@google.com>
+Date:   Wed Feb 10 17:43:31 2016 -0500
 
-    cmd/compile: give ChanDir a type
+    [dev.ssa] cmd/compile: memory allocation tweaks to regalloc and dom
     
-    Change-Id: I03621db79637b04982e1f0e7b4268c4ed2db6d22
-    Reviewed-on: https://go-review.googlesource.com/21484
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Spotted a minor source of excess allocation in the register
+    allocator.  Rearranged the dominator tree code to pull its
+    scratch memory from a reused buffer attached to Config.
+    
+    Change-Id: I6da6e7b112f7d3eb1fd00c58faa8214cdea44e38
+    Reviewed-on: https://go-review.googlesource.com/19450
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go   |  2 +-
- src/cmd/compile/internal/gc/fmt.go       |  4 ++--
- src/cmd/compile/internal/gc/go.go        | 12 +++++++++---
- src/cmd/compile/internal/gc/parser.go    | 12 ++++++------
- src/cmd/compile/internal/gc/range.go     |  2 +-
- src/cmd/compile/internal/gc/syntax.go    |  2 +-
- src/cmd/compile/internal/gc/type.go      |  6 +++---
- src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
- 8 files changed, 27 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ssa/config.go   |  3 +-
+ src/cmd/compile/internal/ssa/dom.go      | 76 +++++++++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/regalloc.go | 15 +++++--
+ 3 files changed, 74 insertions(+), 20 deletions(-)

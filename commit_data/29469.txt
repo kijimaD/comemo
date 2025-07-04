@@ -1,24 +1,17 @@
-commit c9ed065fbb7514a5da52b92575576cf359aead73
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 10 12:49:06 2016 -0800
+commit 882dd1c3baff19cfe8d59bc1f69d766b38540fa5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Sep 16 09:27:06 2016 -0400
 
-    debug/elf: SPARC64 relocation type is only 8 bits
+    cmd/compile: enable rewritings that are blocked by old backends
     
-    https://docs.oracle.com/cd/E53394_01/html/E54813/chapter6-54839.html#OSLLGchapter6-24:
+    Old backends did not implement them, but SSA do.
     
-    "For 64–bit SPARC Elf64_Rela structures, the r_info field is further
-    broken down into an 8–bit type identifier and a 24–bit type dependent
-    data field. For the existing relocation types, the data field is
-    zero. New relocation types, however, might make use of the data bits.
-    
-     #define ELF64_R_TYPE_ID(info)         (((Elf64_Xword)(info)<<56)>>56)
-    "
-    
-    No test for this because the only test would be an invalid object file.
-    
-    Change-Id: I5052ca3bfaf0759e920f9a24a16fd97543b24486
-    Reviewed-on: https://go-review.googlesource.com/33091
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I543b2281dcf4bab0da37c9b1f26a5ef55a0ea11b
+    Reviewed-on: https://go-review.googlesource.com/29278
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/debug/elf/file.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go    | 8 +-------
+ src/cmd/compile/internal/ppc64/prog.go | 6 ++++--
+ 2 files changed, 5 insertions(+), 9 deletions(-)

@@ -1,34 +1,16 @@
-commit 23e4744c07f78151a4e9fa5187b84ed26fe3628b
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 29 14:02:34 2015 -0400
+commit 8668ac081a8596af97fbeed1bd3ae74d5e93e7d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 15 11:13:57 2015 -0700
 
-    runtime: report GC CPU utilization in MemStats
+    doc: update gccgo docs for move of gofrontend to git
     
-    This adds a GCCPUFraction field to MemStats that reports the
-    cumulative fraction of the program's execution time spent in the
-    garbage collector. This is equivalent to the utilization percent shown
-    in the gctrace output and makes this available programmatically.
+    This also includes some other minor updates to the documentation.
     
-    This does make one small effect on the gctrace output: we now report
-    the duration of mark termination up to just before the final
-    start-the-world, rather than up to just after. However, unlike
-    stop-the-world, I don't believe there's any way that start-the-world
-    can block, so it should take negligible time.
-    
-    While there are many statistics one might want to expose via MemStats,
-    this is one of the few that will undoubtedly remain meaningful
-    regardless of future changes to the memory system.
-    
-    The diff for this change is larger than the actual change. Mostly it
-    lifts the code for computing the GC CPU utilization out of the
-    debug.gctrace path.
-    
-    Updates #10323.
-    
-    Change-Id: I0f7dc3fdcafe95e8d1233ceb79de606b48acd989
-    Reviewed-on: https://go-review.googlesource.com/12844
+    Change-Id: Iafab353727d7622d125b97fbdeaa81525b7a92aa
+    Reviewed-on: https://go-review.googlesource.com/11123
+    Reviewed-by: Yves Junqueira <yves.junqueira@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go    | 33 +++++++++++++++++----------------
- src/runtime/mstats.go | 36 +++++++++++++++++++-----------------
- 2 files changed, 36 insertions(+), 33 deletions(-)
+ doc/gccgo_contribute.html | 18 ++++++++---------
+ doc/gccgo_install.html    | 51 ++++++++++++++++++++++++++++-------------------
+ 2 files changed, 40 insertions(+), 29 deletions(-)

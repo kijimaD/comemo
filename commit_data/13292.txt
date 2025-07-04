@@ -1,17 +1,15 @@
-commit 58993e514ec8ee306b305df7db761f73ae522d3a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Jun 6 22:03:31 2012 +0800
+commit 2cb74984553e07ae3bc7ca7e89099c11925b01c1
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Jun 6 20:39:27 2012 +1000
 
-    net: fix cgoAddrInfoFlags() on FreeBSD
-            CL 6250075 removed AI_MASK mask on all BSD variants,
-            however FreeBSD's AI_MASK does not include AI_V4MAPPED
-            and AI_ALL, and its libc is strict about the ai_flags.
+    runtime: fix tv_sec handling for netbsd/386
     
-            This will fix the FreeBSD builder.
+    On netbsd/386, tv_sec is a 64-bit integer for both timeval and timespec.
+    Fix the time handling code so that it works correctly.
     
-    R=golang-dev, rsc
+    R=golang-dev, rsc, m4dh4tt3r
     CC=golang-dev
-    https://golang.org/cl/6305054
+    https://golang.org/cl/6256056
 
- src/pkg/net/cgo_bsd.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/sys_netbsd_386.s | 32 ++++++++++++++++++--------------
+ 1 file changed, 18 insertions(+), 14 deletions(-)

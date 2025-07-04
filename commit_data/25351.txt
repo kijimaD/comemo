@@ -1,16 +1,30 @@
-commit 8db371b3d58a1c139f0854738f9962de05ca5d7a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 14:23:08 2015 -0800
+commit 84afa1be76f89a602c1aef73603175e644f1dc2f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 21 12:12:25 2015 -0700
 
-    api: create go1.6.txt
+    runtime: make iface/eface handling more type safe
     
-    Change-Id: If2b30ab412d6799c8be01eb007462d6b58660ece
-    Reviewed-on: https://go-review.googlesource.com/18014
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change compiler-invoked interface functions to directly take
+    iface/eface parameters instead of fInterface/interface{} to avoid
+    needing to always convert.
+    
+    For the handful of functions that legitimately need to take an
+    interface{} parameter, add efaceOf to type-safely convert *interface{}
+    to *eface.
+    
+    Change-Id: I8928761a12fd3c771394f36adf93d3006a9fcf39
+    Reviewed-on: https://go-review.googlesource.com/16166
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/go1.6.txt      | 267 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next.txt       | 160 --------------------------------
- src/cmd/api/run.go |   2 +-
- 3 files changed, 268 insertions(+), 161 deletions(-)
+ src/runtime/alg.go         |  18 +----
+ src/runtime/error.go       |   4 +-
+ src/runtime/export_test.go |   2 +-
+ src/runtime/heapdump.go    |   2 +-
+ src/runtime/iface.go       | 189 +++++++++++++++++++--------------------------
+ src/runtime/mbitmap.go     |   4 +-
+ src/runtime/mfinal.go      |   8 +-
+ src/runtime/print.go       |  10 +--
+ src/runtime/runtime2.go    |   4 +
+ 9 files changed, 99 insertions(+), 142 deletions(-)

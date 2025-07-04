@@ -1,23 +1,26 @@
-commit 8668d7bbb93285e3f8456fe6e4f666db51bdcadd
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Oct 21 12:58:22 2024 -0400
+commit 0a17b2c174dcbe0f30a19be2ca5517ed0660f706
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 7 16:26:15 2023 +1100
 
-    test: split non-regabi stack map test
+    cmd/internal/obj/arm64: load large constants into vector registers from rodata
     
-    CL 594596 already did this for regabi, but missed non-regabi.
+    Load large constants into vector registers from rodata, instead of placing them
+    in the literal pool. This treats VMOVQ/VMOVD/VMOVS the same as FMOVD/FMOVS and
+    makes use of the existing mechanism for storing values in rodata. Two additional
+    instructions are required for a load, however these instructions are used
+    infrequently and already have a high latency.
     
-    Stack allocated swiss maps don't call rand32.
+    Updates #59615
     
-    For #54766.
-    
-    Change-Id: I312ea77532ecc6fa860adfea58ea00b01683ca69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621615
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I54226730267689963d73321e548733ae2d66740e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515617
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- test/live.go         | 10 ----------
- test/live_noswiss.go | 19 +++++++++++++++++++
- test/live_swiss.go   | 19 +++++++++++++++++++
- 3 files changed, 38 insertions(+), 10 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 53 +++++++-------------------------------
+ src/cmd/internal/obj/arm64/obj7.go | 29 ++++++++++++++++++---
+ src/cmd/internal/obj/sym.go        | 31 ++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 47 deletions(-)

@@ -1,29 +1,27 @@
-commit 6355d6c7e2e8f4ea4cfd3fed8da6677106937f66
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Oct 21 07:29:46 2017 -0400
+commit 2fe53d8d55e93602a8fcda7bf78385d93da58da4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 8 16:38:25 2017 -0700
 
-    cmd/link, plugin: always encode path
+    cmd/compile: remove gc.Sysfunc calls from 387 backend
     
-    Both the linker and the plugin package were inconsistent
-    about when they applied the path encoding defined in
-    objabi.PathToPrefix. As a result, only some symbols from
-    a package path that required encoding were being found.
+    gc.Sysfunc must not be called concurrently.
+    We set up runtime routines used by the backend
+    prior to doing any backend compilation.
+    I missed the 387 ones; fix that.
     
-    So always encoding the path.
+    Sysfunc should have been unexported during 1.9.
+    I will rectify that in a subsequent CL.
     
-    Fixes #22295
+    Fixes #21352
     
-    Change-Id: Ife86c79ca20b2e9307008ed83885e193d32b7dc4
-    Reviewed-on: https://go-review.googlesource.com/72390
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I8386eaa1e05879c25c672b9c9fc693c938e9aeb6
+    Reviewed-on: https://go-review.googlesource.com/54090
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testplugin/src/issue22295.pkg/main.go   | 28 ++++++++++++++++++++
- misc/cgo/testplugin/src/issue22295.pkg/plugin.go | 16 ++++++++++++
- misc/cgo/testplugin/test.bash                    |  5 ++++
- src/cmd/link/internal/ld/data.go                 |  3 ++-
- src/cmd/link/internal/ld/deadcode.go             |  2 +-
- src/cmd/link/internal/ld/symtab.go               |  2 +-
- src/plugin/plugin_dlopen.go                      | 33 +-----------------------
- 7 files changed, 54 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/gc/go.go   | 4 ++++
+ src/cmd/compile/internal/gc/ssa.go  | 4 ++++
+ src/cmd/compile/internal/x86/387.go | 4 ++--
+ 3 files changed, 10 insertions(+), 2 deletions(-)

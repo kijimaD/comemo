@@ -1,26 +1,25 @@
-commit d65166024f3969289be5c74fd8be7d06a93264f1
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Jun 7 15:31:20 2022 -0400
+commit 687f2acf6ae00226e8304e15f156f36e19ac971f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 17 10:40:44 2021 -0700
 
-    cmd/go: set Root and target fields for packages in GOPATH
+    cmd/compile: only use dictionaries for conversions to type parameters
     
-    This change replicates the behavior filed in issue #37015 for packages
-    imported from the module index. That behavior is that packages that
-    happen to exist in a GOPATH src directory have p.Root and p.Target set
-    even when the packages are loaded from modules. This is likely
-    unintentional behavior because in module mode, packages shouldn't behave
-    differently depending on whether their directories exist in GOPATH. But
-    for uniformity, (and because two of our tests depend on this behavior),
-    this CL will implement this behavior. We can remove it from the module
-    index when we remove it from the go/build logic.
+    Conversions to regular concrete types should not be rewritten during
+    stenciling.
     
-    Change-Id: I3f501c92fbb76eaf86b6b9275539f2129b67f884
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410822
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #47740
+    
+    Change-Id: I2b45e22f962dcd2e18bd6cc876ebc0f850860822
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342989
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/go/internal/modindex/build.go | 31 ++++++++++++++++++++++++
- src/cmd/go/internal/modindex/read.go  | 44 ++++++++++++++++++++++++-----------
- 2 files changed, 61 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  3 +++
+ test/typeparam/issue47740.go              | 37 +++++++++++++++++++++++++++++++
+ test/typeparam/issue47740.out             |  2 ++
+ test/typeparam/issue47740b.go             | 23 +++++++++++++++++++
+ 4 files changed, 65 insertions(+)

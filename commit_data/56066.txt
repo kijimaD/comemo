@@ -1,34 +1,32 @@
-commit d4cc35c4fdbc37ad3bbc42ff6d6dcba6007b169b
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Mar 27 20:44:18 2024 +0800
+commit 7f5af094f83957680114e3fd357cfd4b7a5b34c1
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Sat Mar 25 08:50:19 2023 -0700
 
-    all: make use of builtin clear
+    cmd: add wasip1 support
     
-    Change-Id: I1df0685c75fc1044ba46003a69ecc7dfc53bbc2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574675
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    For #58141
+    
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: I530ea78a3cd142f3a745f650b21c30e7f10ce981
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479621
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/archive/zip/reader_test.go      | 4 +---
- src/archive/zip/zip_test.go         | 4 +---
- src/crypto/aes/aes_gcm.go           | 4 +---
- src/crypto/aes/gcm_ppc64x.go        | 4 +---
- src/crypto/aes/gcm_s390x.go         | 8 ++------
- src/crypto/cipher/gcm.go            | 4 +---
- src/crypto/ecdh/ecdh_test.go        | 4 +---
- src/crypto/ecdsa/ecdsa.go           | 4 +---
- src/crypto/ed25519/ed25519_test.go  | 4 +---
- src/crypto/internal/bigmod/nat.go   | 8 ++------
- src/crypto/tls/example_test.go      | 5 +----
- src/crypto/tls/handshake_test.go    | 5 +----
- src/hash/maphash/smhasher_test.go   | 4 +---
- src/internal/fuzz/coverage.go       | 4 +---
- src/internal/poll/writev.go         | 4 +---
- src/runtime/debug/garbage.go        | 4 +---
- src/runtime/mbitmap_allocheaders.go | 4 +---
- src/runtime/memmove_test.go         | 4 +---
- src/runtime/netpoll_wasip1.go       | 4 +---
- src/runtime/write_err_android.go    | 4 +---
- 20 files changed, 22 insertions(+), 68 deletions(-)
+ src/cmd/compile/internal/types2/example_test.go       |  2 +-
+ src/cmd/dist/test.go                                  | 16 ++++++++++++----
+ src/cmd/go/internal/base/signal_unix.go               |  2 +-
+ src/cmd/go/internal/cache/cache_test.go               |  5 ++---
+ .../lockedfile/internal/filelock/filelock_test.go     |  2 +-
+ src/cmd/go/internal/lockedfile/lockedfile_test.go     |  4 ++--
+ src/cmd/go/internal/lockedfile/transform_test.go      |  4 ++--
+ src/cmd/go/internal/mmap/mmap_other.go                |  2 +-
+ src/cmd/go/internal/work/build_test.go                | 19 ++++++++++++-------
+ src/cmd/internal/osinfo/os_wasip1.go                  | 17 +++++++++++++++++
+ src/cmd/test2json/signal_unix.go                      |  2 +-
+ 11 files changed, 52 insertions(+), 23 deletions(-)

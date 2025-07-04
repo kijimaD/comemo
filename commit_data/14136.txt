@@ -1,22 +1,17 @@
-commit 1e9f3085457eb911cb46a13e2766697bddd9d413
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Oct 12 13:39:12 2012 +0800
+commit e171b97ee69b65400dbccb6ae2528747605e1505
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 12 16:16:55 2012 +1100
 
-    cmd/5l: reorder some struct fields to reduce memory consumption
-    Valgrind Massif result when linking godoc:
-    On amd64:
-                        old          new         -/+
-    mem_heap_B       185844612    175358047    -5.7%
-    mem_heap_extra_B    773404       773137    -0.0%
+    fmt: document some undocumented details
+    Better explanation of width for floating-point values.
+    Explain that scanning does not handle %#q etc.
     
-    On 386/ARM:
-                        old          new         -/+
-    mem_heap_B       141775701    131289941    -7.4%
-    mem_heap_extra_B    737011       736955    -0.0%
+    Fixes #4202.
+    Fixes #4206.
     
-    R=golang-dev, r, dave
+    R=golang-dev, adg, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/6655045
+    https://golang.org/cl/6620074
 
- src/cmd/5l/l.h | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/pkg/fmt/doc.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

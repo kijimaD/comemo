@@ -1,16 +1,21 @@
-commit 9162c4be9c1eb2a36f46a493d8931a7caa3cac10
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Oct 23 14:51:51 2023 -0400
+commit 80d487111ba8fe1d0ddcd04972046070e2e4bbe9
+Author: Changkun Ou <hi@changkun.de>
+Date:   Mon Jul 26 14:23:26 2021 +0200
 
-    cmd/compile/internal/ir: update CallExpr comment reference
+    runtime: clarify finalizer semantics for tiny objects
     
-    CL 532795 changed CallExpr.X to CallExpr.Fun.
+    This change clarifies that a finalizer is not guaranteed to run,
+    not only for zero bytes objects but also tiny objects (< 16bytes).
     
-    Change-Id: Ib2079e239a85daa4a3f5b5165c2cddc76a648b5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/537175
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Fixes #46827
+    
+    Change-Id: I193e77f6f024c79110604f86bcb1a28b16cf98ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337391
+    Run-TryBot: Changkun Ou <mail@changkun.de>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ir/expr.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mfinal.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

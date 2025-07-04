@@ -1,13 +1,12 @@
-commit f90fd754e3c069399c88497b70b9da860dc24cf3
+commit 4314087b625b52f907424d54461b464bc45d23ec
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Sun Mar 4 11:34:10 2012 +1100
+Date:   Sun Mar 4 09:57:09 2012 +1100
 
-    A+C: add Francisco Souza
+    godoc: hide "Subdirectories" subheading if it is the only section
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5729054
+    https://golang.org/cl/5731056
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ lib/godoc/package.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

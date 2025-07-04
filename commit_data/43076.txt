@@ -1,25 +1,19 @@
-commit 0a9dd47dd817904ec2b4a80b551e6050218ee8a6
-Author: Cuong Manh Le <cuong@orijtech.com>
-Date:   Tue Sep 22 09:30:31 2020 +0700
+commit 4a70ff425b3c16c19785b04bb89ca856749ed65b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 5 11:14:25 2020 -0500
 
-    net: reflect TCP backlog size update of uint16->uint32 on Linux
+    cmd/go/internal/renameio: skip test affected by kernel bug on macOS 10.14 builders
     
-    The sk_max_ack_backlog was increased from uint16 to uint32 in kernel
-    version 4.1 and above, so adopt that change to maxListenerBacklog.
+    The test will remain flaky on the -nocgo builder until #37695 is addressed.
     
-    See https://github.com/torvalds/linux/commit/becb74f0acca19b5abfcb24dc602530f3deea66a
+    Updates #37695
+    Fixes #33041
     
-    Fixes #41470
-    
-    Change-Id: I63a142eb28f3ac3acaca57f0903c085c6cb15a6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255898
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I5d661ef39e82ab1dce3a76e0e4059cf556135e89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222158
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/sock_linux.go      | 62 +++++++++++++++++++++++++++++++++++++++++++---
- src/net/sock_linux_test.go | 22 ++++++++++++++++
- 2 files changed, 80 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/renameio/renameio_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

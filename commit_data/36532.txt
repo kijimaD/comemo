@@ -1,19 +1,17 @@
-commit c99687f87aed84342cfe92ae78924f791237c6f6
-Author: Rebecca Stambler <rstambler@golang.org>
-Date:   Thu Aug 30 11:33:19 2018 -0400
+commit dc4b9cffde2846b2f5f442b7bd72d2188c580c9a
+Author: Sam Whited <sam@samwhited.com>
+Date:   Mon Apr 30 11:42:54 2018 -0500
 
-    go/types: handle nil pointer when panic is written outside of a function
+    net/http: don't write redirect body if content-type is set
     
-    The current implementation crashes when someone writes a panic outside of
-    a function, which makes sense since that is broken code. This fix allows
-    one to type-check broken code.
+    Fixes #25166
     
-    Updates #22467
-    
-    Change-Id: I81b90dbd918162a20c60a821340898eaf02e648d
-    Reviewed-on: https://go-review.googlesource.com/132235
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Id1fe18899579365519ac08ebedf74cd23c0fbd9f
+    Reviewed-on: https://go-review.googlesource.com/110296
+    Run-TryBot: Sam Whited <sam@samwhited.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/api_test.go | 2 ++
- src/go/types/builtins.go | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/net/http/serve_test.go | 19 ++++++++++++++-----
+ src/net/http/server.go     | 12 ++++++++++--
+ 2 files changed, 24 insertions(+), 7 deletions(-)

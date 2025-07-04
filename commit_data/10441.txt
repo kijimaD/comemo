@@ -1,16 +1,15 @@
-commit 558d055352747b2a2b5329ece9fa8ddb3c4ed999
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Fri Nov 18 01:12:57 2011 -0200
+commit 4a2d30e13bf6f52e51c347d562871648bf5ef3bb
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Nov 17 22:09:28 2011 -0500
 
-    exp/terminal: fix build after os.Errno changes
+    runtime: add nanotime for Plan 9
     
-    Also include exp/terminal in linux build so such failures
-    are noticed.
-    
-    R=rsc
+    R=paulzhol, rsc, dave, rminnich
     CC=golang-dev
-    https://golang.org/cl/5416044
+    https://golang.org/cl/5327063
 
- src/pkg/Makefile             |  1 +
- src/pkg/exp/terminal/util.go | 31 +++++++++++++++----------------
- 2 files changed, 16 insertions(+), 16 deletions(-)
+ src/pkg/runtime/plan9/386/signal.c |  6 ------
+ src/pkg/runtime/plan9/386/sys.s    | 18 ++++++++---------
+ src/pkg/runtime/plan9/os.h         | 13 ++++++++++---
+ src/pkg/runtime/plan9/thread.c     | 40 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 58 insertions(+), 19 deletions(-)

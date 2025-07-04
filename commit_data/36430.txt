@@ -1,18 +1,16 @@
-commit fa6639d62664ecd710b112eb1c1e759104c9193c
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Wed Jul 11 23:34:18 2018 +0300
+commit b9785fc844f49230c6b7a59e2b9e4114feb9ae4f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 26 15:46:12 2018 -0700
 
-    runtime: simplify slice expression to sliced value itself
+    cmd/compile: log Ctz non-zero proofs
     
-    Replace `x[:]` where x is a slice with just `x`.
+    I forgot this in CL 109358.
     
-    Found using https://go-critic.github.io/overview.html#unslice-ref
-    
-    Change-Id: Ib0ee16e1d49b2a875b6b92a770049acc33208362
-    Reviewed-on: https://go-review.googlesource.com/123375
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: Ia5e8bd9cf43393f098b101a0d6a0c526e3e4f101
+    Reviewed-on: https://go-review.googlesource.com/109775
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/trace.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,21 +1,26 @@
-commit e41ec30c8a7369872d22113b022b2a31757ff72b
-Author: Ilya Priven <ilya.konstantinov@gmail.com>
-Date:   Sat Mar 15 22:58:18 2025 +0000
+commit 4a7f3ac8eb4381ea62caa1741eeeec28363245b4
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Fri Feb 9 11:47:26 2024 +0000
 
-    reflect: document Method(ByName) w.r.t dead code elimination
+    runtime/cgo: ignore -Watomic-alignment in gcc_libinit.c
     
-    The behavior is described in src/cmd/link/internal/ld/deadcode.go
-    but is not otherwise documented. Since the usage of those functions
-    could have significant caveats (longer builds, larger binaries),
-    we are informing the user.
+    When cross-compiling a cgo program with CC=clang for Linux/ARMv5,
+    atomic warnings cause build errors, as cgo uses -Werror.
     
-    Change-Id: I87571dd14aa16d7aac59fe45dfc52cb7c5b956c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658255
+    These warnings seem to be harmless and come from the usage of
+    __atomic_load_n, which is emulated due to the lack of atomic
+    instructions in armv5.
+    
+    Fixes #65290
+    
+    Change-Id: Ie72efb77468f06888f81f15850401dc8ce2c78f9
+    GitHub-Last-Rev: fbad847b962f6b4599cd843018e79f4b55be097e
+    GitHub-Pull-Request: golang/go#65588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562348
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/reflect/type.go  | 7 +++++++
- src/reflect/value.go | 7 +++++++
- 2 files changed, 14 insertions(+)
+ src/runtime/cgo/gcc_libinit.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

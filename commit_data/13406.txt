@@ -1,14 +1,15 @@
-commit 809e06babc883bf756d62b1e1fa971beafcf2713
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 26 11:49:19 2012 -0700
+commit abb3c0618b658a41bf91a087f1737412e93ff6d9
+Author: Patrick Mylund Nielsen <patrick@patrickmn.com>
+Date:   Mon Jun 25 20:41:46 2012 -0400
 
-    go spec: clean up use of QualifiedIdent production.
+    net/http: provide access to POST-only form values
     
-    Fixes #3763.
+    Fixes #3630.
     
-    R=r, rsc, iant, ken
-    CC=golang-dev
-    https://golang.org/cl/6333066
+    R=rsc
+    CC=bradfitz, dsymonds, golang-dev, rodrigo.moraes
+    https://golang.org/cl/6210067
 
- doc/go_spec.html | 29 +++++++++++++++++++----------
- 1 file changed, 19 insertions(+), 10 deletions(-)
+ src/pkg/net/http/request.go      | 139 ++++++++++++++++++++++++++-------------
+ src/pkg/net/http/request_test.go |  40 +++++++++--
+ 2 files changed, 129 insertions(+), 50 deletions(-)

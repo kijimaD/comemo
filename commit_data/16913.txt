@@ -1,14 +1,18 @@
-commit fdb69cb0a32c6eb0a2ff8f4fdce170b982faf26e
+commit 46437f0028b2a3332339992c1b5867f039fee06e
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 29 16:52:40 2013 -0400
+Date:   Mon Jul 29 16:52:03 2013 -0400
 
-    build: fix build
+    build: break builds
     
-    As promised.
+    I want to see the timing information in build logs,
+    and we can't see the logs for "ok" builds.
+    So make the build fail everywhere.
+    
+    Will roll back immediately.
     
     TBR=dvyukov
     CC=golang-dev
-    https://golang.org/cl/12063043
+    https://golang.org/cl/12058046
 
- src/run.bash | 2 --
- 1 file changed, 2 deletions(-)
+ src/run.bash | 2 ++
+ 1 file changed, 2 insertions(+)

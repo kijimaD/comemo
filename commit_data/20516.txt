@@ -1,11 +1,15 @@
-commit 50c9d6345915dfacf6d09bf40d21161e77be987a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 24 15:10:54 2014 -0400
+commit 1e4f86e48550c1d04a3778948613f38a078e2801
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 15 12:30:57 2014 -0700
 
-    doc/go1.4.txt: document that C sources in non-cgo packages are no longer allowed
+    runtime: try harder to get different iteration orders.
     
+    Fixes #8736.
+    
+    LGTM=iant, josharian
+    R=golang-codereviews, iant, josharian
     CC=golang-codereviews
-    https://golang.org/cl/145890046
+    https://golang.org/cl/144910044
 
- doc/go1.4.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/map_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

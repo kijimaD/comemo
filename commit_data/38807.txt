@@ -1,18 +1,23 @@
-commit cbaa8e5f93a9571c30271c0f6d7c874793ec49ce
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Apr 17 13:32:19 2019 +0200
+commit 4f26f24d2ae8c99bfaafb33db4b7be27ee13afab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 28 16:02:15 2018 -0800
 
-    runtime: move libcall to stack for runtime syscalls on AIX
+    cmd/cgo: recognize untyped constants defined in different files
     
-    As the stackguard was increased on AIX by CL 157117, every syscalls can
-    now have libcall directly on the stack. This fixes some concurrency bugs
-    which seems to occur when semasleep is interrupted by a SIGPROF signal.
+    An untyped constant can be defined in any input file, we shouldn't
+    segregate them by file.
     
-    Change-Id: I905a9618d13ef227dad6f8328b0f958f2f917a5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172359
+    Updates #28772
+    
+    Change-Id: I0347f15236833bb511eb49f86c449ee9241b0a25
+    Reviewed-on: https://go-review.googlesource.com/c/151600
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/os2_aix.go | 77 +++++++++++++++++++++++++++-----------------------
- 1 file changed, 42 insertions(+), 35 deletions(-)
+ misc/cgo/test/issue28545.go |  2 +-
+ misc/cgo/test/issue28772.go | 12 ++++++++++++
+ src/cmd/cgo/ast.go          |  3 +--
+ src/cmd/cgo/gcc.go          |  2 +-
+ src/cmd/cgo/main.go         |  4 +++-
+ 5 files changed, 18 insertions(+), 5 deletions(-)

@@ -1,22 +1,24 @@
-commit af9342ca10ea661ca34d6d6950edc553fdd27856
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Aug 19 15:00:29 2016 +1000
+commit 8d075beeef137455b9dc40f1c724b495f3ceda26
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 26 10:55:32 2016 -0700
 
-    syscall, internal/syscall/windows, internal/syscall/windows/registry: make go generate work on every os
+    cmd/compile: lazily initialize litbuf
     
-    Fixes #16368
+    Instead of eagerly creating strings like "literal 2.01" for every
+    lexed number in case we need to mention it in an error message, defer
+    this work to (*parser).syntax_error.
     
-    Change-Id: I2ef7a2deb5798e11cc1d3f8ca29a6e1655155422
-    Reviewed-on: https://go-review.googlesource.com/27411
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    name      old allocs/op  new allocs/op  delta
+    Template      482k ± 0%      482k ± 0%  -0.12%   (p=0.000 n=9+10)
+    GoTypes      1.35M ± 0%     1.35M ± 0%  -0.04%  (p=0.015 n=10+10)
+    Compiler     5.45M ± 0%     5.44M ± 0%  -0.12%    (p=0.000 n=9+8)
+    
+    Change-Id: I333b3c80e583864914412fb38f8c0b7f1d8c8821
+    Reviewed-on: https://go-review.googlesource.com/22480
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/syscall/windows/mksyscall.go          | 7 +++++++
- src/internal/syscall/windows/registry/mksyscall.go | 7 +++++++
- src/internal/syscall/windows/registry/syscall.go   | 2 --
- src/internal/syscall/windows/syscall_windows.go    | 2 --
- src/syscall/mkall.sh                               | 2 +-
- src/syscall/syscall.go                             | 2 ++
- src/syscall/syscall_windows.go                     | 2 --
- 7 files changed, 17 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/lex.go    | 2 +-
+ src/cmd/compile/internal/gc/parser.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

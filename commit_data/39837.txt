@@ -1,18 +1,22 @@
-commit 28f8f55bd29f997fc814782f161ae09520955a8d
-Author: Eli Bendersky <eliben@google.com>
-Date:   Fri Aug 2 14:13:23 2019 -0700
+commit 24f846e21240f6d6ab2ca23fe319230b7d7f8168
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 22 14:51:33 2019 -0700
 
-    encoding/json: clarify Unmarshal behavior for map keys
+    runtime: skip wb call in growslice when unnecessary
     
-    This is a documentation-only change
+    Instrumenting make.bash reveals that almost half (49.54%)
+    of the >16 million calls to growslice for
+    pointer-containing slices are
+    growing from an empty to a non-empty slice.
     
-    Fixes #33298
+    In that case, there is no need to call the write barrier,
+    which does some work before discovering that no pointers need shading.
     
-    Change-Id: I816058a872b57dc868dff11887214d9de92d9342
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188821
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ide741468d8dee7ad43ea0bfbea6ccdf680030a0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168959
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/json/decode.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/slice.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

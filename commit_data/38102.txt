@@ -1,34 +1,26 @@
-commit 88343530720a52c96b21f2bd5488c8fb607605d7
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Feb 20 13:40:31 2019 -0500
+commit a3a69afff85c94be8b6419b03efd5dc14f2425f9
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 14:34:00 2018 +0200
 
-    Revert "crypto/tls: disable RSA-PSS in TLS 1.2"
+    cmd/dist: add AIX operating system.
     
-    In Go 1.13 we will enable RSA-PSS in TLS 1.2 at the same time as we make
-    TLS 1.3 enabled by default.
+    This commit adds AIX operating system to cmd/dist package for ppc64
+    architecture.
     
-    This reverts commit 7ccd3583eddcd79679fb29cfc83a6e6fb6973f1e.
+    The stack guard is increased because of syscalls made inside the runtime
+    which need a larger stack.
     
-    Updates #30055
+    Disable cmd/vet/all tests until aix/ppc64 is fully available.
     
-    Change-Id: I6f2ddf7652d1172a6b29f4e335ff3a71a89974bc
-    Reviewed-on: https://go-review.googlesource.com/c/163080
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I7e3caf86724249ae564a152d90c1cbd4de288814
+    Reviewed-on: https://go-review.googlesource.com/c/138715
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/common.go                           |   3 -
- src/crypto/tls/handshake_client_test.go            |  24 ---
- src/crypto/tls/handshake_server.go                 |   4 +-
- src/crypto/tls/handshake_server_test.go            | 146 +++++------------
- src/crypto/tls/key_agreement.go                    |   2 +-
- .../Client-TLSv12-ClientCert-RSA-PSS-Disabled      | 137 ----------------
- .../Client-TLSv13-ClientCert-RSA-PSS-Disabled      | 138 ----------------
- ...TLSv12-ClientAuthRequestedAndGiven-PSS-Disabled | 126 --------------
- ...ientAuthRequestedAndGiven-PSS-Disabled-Required |  74 ---------
- .../tls/testdata/Server-TLSv12-RSA-PSS-Disabled    |  84 ----------
- .../Server-TLSv12-RSA-PSS-Disabled-Required        |  54 ------
- ...TLSv13-ClientAuthRequestedAndGiven-PSS-Disabled | 182 ---------------------
- .../tls/testdata/Server-TLSv13-RSA-PSS-Disabled    | 103 ------------
- src/crypto/tls/tls_test.go                         |   8 +-
- 14 files changed, 42 insertions(+), 1043 deletions(-)
+ src/cmd/dist/build.go           | 2 ++
+ src/cmd/dist/buildruntime.go    | 4 ++++
+ src/cmd/dist/main.go            | 3 +++
+ src/cmd/internal/objabi/head.go | 5 +++++
+ src/cmd/vet/all/main.go         | 6 ++++++
+ 5 files changed, 20 insertions(+)

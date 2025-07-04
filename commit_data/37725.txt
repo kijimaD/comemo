@@ -1,23 +1,21 @@
-commit db1e8a9e1f1b019dd7928ea239d5b0e4af66d9a6
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 17 14:23:56 2018 -0500
+commit eeb8aebed6d158ad55cea346fdd659f6d6112de5
+Author: Oryan Moshe <iamoryanmoshe@gmail.com>
+Date:   Fri Aug 3 14:52:39 2018 +0300
 
-    runtime: make traceback indicate whether _defer was just allocated
+    cmd/cgo: pass explicit -O0 to the compiler
     
-    Many of the crashes observed in #27993 involve committing the new
-    _defer object at the end of newdefer. It would be helpful to know if
-    the _defer was just allocated or was retrieved from the defer pool. In
-    order to indicate this in the traceback, this CL duplicates the tail
-    of newdefer so that the PC/line number will tell us whether d is new
-    or not.
+    The current implementation removes all of the optimization flags from
+    the compiler.
+    Added the -O0 optimization flag after the removal loop, so go can
+    compile cgo on every OS consistently.
     
-    For #27993.
+    Fixes #26487
     
-    Change-Id: Icd3e23dbcf00461877bb082b6f18df701149a607
-    Reviewed-on: https://go-review.googlesource.com/c/154598
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ia98bca90def186dfe10f50b1787c2f40d85533da
+    Reviewed-on: https://go-review.googlesource.com/127755
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/panic.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/cgo/gcc.go | 3 +++
+ 1 file changed, 3 insertions(+)

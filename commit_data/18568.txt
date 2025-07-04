@@ -1,18 +1,21 @@
-commit 8eec4ebd7d6f81ec432710a87902746e560b7a37
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Wed Feb 19 11:29:36 2014 -0800
+commit 80692a3f81f6367e9c61b652bf3dff30f4cc6624
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 19 11:17:09 2014 -0500
 
-    cmd/gc: fix array index out of bounds error message
+    crypto/tls: improve documentation for ServerName.
     
-    The error message was previously off by one in all cases.
+    Users of the low-level, Client function are frequenctly missing the
+    fact that, unless they pass a ServerName to the TLS connection then it
+    cannot verify the certificates against any name.
     
-    Fixes #7150.
+    This change makes it clear that at least one of InsecureSkipVerify and
+    ServerName should always be set.
     
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/65850043
+    https://golang.org/cl/65440043
 
- src/cmd/gc/typecheck.c      |  2 +-
- test/fixedbugs/issue7150.go | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/pkg/crypto/tls/common.go | 5 +++--
+ src/pkg/crypto/tls/tls.go    | 5 ++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

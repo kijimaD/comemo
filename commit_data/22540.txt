@@ -1,17 +1,15 @@
-commit 6b045d9aefa567ae994d7adec067abbaf8ec11ec
-Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
-Date:   Thu Apr 16 16:08:09 2015 +0200
+commit 98485f5ad4fff7d63b63cb4d93b162e892fa0285
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Mar 21 13:19:33 2015 +1100
 
-    mime/quotedprintable: Return a Reader instead of an io.Reader
+    runtime: fix linux/amd64p32 build
     
-    It is not needed right now, but it will allow more flexibility in
-    the future.
+    Implement runtime.atomicand8 for amd64p32 which was overlooked
+    in CL 7861.
     
-    Fixes #10472
-    
-    Change-Id: I2eaea70abeca5ed10f89b0b2dfdabdac376a0a41
-    Reviewed-on: https://go-review.googlesource.com/8964
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic7eccddc6fd6c4682cac1761294893928f5428a2
+    Reviewed-on: https://go-review.googlesource.com/7920
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/mime/quotedprintable/reader.go | 56 ++++++++++++++++++++------------------
- 1 file changed, 29 insertions(+), 27 deletions(-)
+ src/runtime/asm_amd64p32.s | 8 ++++++++
+ 1 file changed, 8 insertions(+)

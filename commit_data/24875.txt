@@ -1,19 +1,23 @@
-commit 3a3049897c0c62907da398819f61d77199df52ad
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Thu Aug 27 14:52:06 2015 -0400
+commit dab0dac01aa5074857ef8a2e089c3eda107a0fa1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Sep 5 14:43:50 2015 +1000
 
-    archive/tar: make output deterministic
+    cmd/compile: convert typecheck_stack to []*Node
     
-    Replaces PID in PaxHeaders with 0.  Sorts PAX header keys before writing
-    them to the archive.
+    This one of a set of changes to make the transition away from NodeList
+    easier by removing cases in which NodeList doesn't act semi-trivially like a
+    []*Node.
     
-    Fixes #12358
+    This CL was originally prepared by Josh Bleecher Snyder <josharian@gmail.com>.
     
-    Change-Id: If239f89c85f1c9d9895a253fb06a47ad44960124
-    Reviewed-on: https://go-review.googlesource.com/13975
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I4d041b343952f4a31f3150fd70669e08fcaa74f8
+    Reviewed-on: https://go-review.googlesource.com/14305
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/writer.go      | 21 +++++++++++------
- src/archive/tar/writer_test.go | 53 +++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 64 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 62 +++++++++++---------------------
+ test/typecheckloop.go                    | 14 ++++++++
+ 2 files changed, 35 insertions(+), 41 deletions(-)

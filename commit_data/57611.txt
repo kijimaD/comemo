@@ -1,28 +1,29 @@
-commit 726d898c92ed0159f283f324478d00f15419f476
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 3 13:51:25 2024 -0700
+commit 7af28fa90ec2ce4c90ca47b6bc3e348ac8cb133a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 18 00:09:06 2023 -0700
 
-    go/types, types2: always try inference over methods when possible
+    cmd/compile/internal/ir: remove AsNode
     
-    During type inference, when comparing type parameters against their
-    constraints, if a type argument is completely known it must implement
-    its constraint. In this case, always unify the type argument's methods
-    against the constraint methods, if any.
+    Except for a single call site in escape analysis, every use of
+    ir.AsNode involves a types.Object that's known to contain
+    an *ir.Name. Asserting directly to that type makes the code simpler
+    and more efficient.
     
-    Before this CL, this step was only attempted if the constraint had no
-    core type. That left information unused which led to type inference
-    failures where it should have succeeded.
+    The one use in escape analysis is extended to handle nil correctly
+    without it.
     
-    Fixes #66751.
-    
-    Change-Id: I71e96b71258624212186cf17ec47e67a589817b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617896
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I694ae516903e541341d82c2f65a9155e4b0a9809
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520775
+    TryBot-Bypass: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/types2/infer.go           | 63 ++++++++++++----------
- src/go/types/infer.go                              | 63 ++++++++++++----------
- .../types/testdata/fixedbugs/issue66751.go         | 62 +++++++++++++++++++++
- 3 files changed, 134 insertions(+), 54 deletions(-)
+ src/cmd/compile/internal/escape/call.go           |  5 ++++-
+ src/cmd/compile/internal/ir/expr.go               |  2 +-
+ src/cmd/compile/internal/ir/node.go               |  7 -------
+ src/cmd/compile/internal/reflectdata/alg.go       | 10 +++++-----
+ src/cmd/compile/internal/test/abiutilsaux_test.go |  2 +-
+ src/cmd/compile/internal/typecheck/syms.go        |  4 ++--
+ 6 files changed, 13 insertions(+), 17 deletions(-)

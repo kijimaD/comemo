@@ -1,12 +1,15 @@
-commit 59bacb285c9dd6626b3fa6c620eb38dd7ea095b3
-Author: Jeremy Schlatter <jeremy.schlatter@gmail.com>
-Date:   Thu Oct 1 07:55:51 2015 +0000
+commit 669f5be2ac6f761f8c917baa2ba899ed7f64bc14
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 02:04:21 2015 -0400
 
-    runtime: update comment to match function name
+    cmd/go: prefer <meta> tags on launchpad.net to the hard-coded logic
     
-    Change-Id: I8f22434ade576cc7e3e6d9f357bba12c1296e3d1
-    Reviewed-on: https://go-review.googlesource.com/15250
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #11436.
+    
+    Change-Id: I5c4455e9b13b478838f23ac31e6343672dfc60af
+    Reviewed-on: https://go-review.googlesource.com/12143
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/signal1_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/vcs.go | 51 ++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 34 insertions(+), 17 deletions(-)

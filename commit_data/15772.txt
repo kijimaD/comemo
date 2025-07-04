@@ -1,12 +1,15 @@
-commit c89fc124c424b194af37c5ca71918f6b89a5c60e
+commit 45ebc064849296cdf51f8e245db30051aaefc744
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 14 17:50:07 2013 -0400
+Date:   Thu Mar 14 17:39:39 2013 -0400
 
-    runtime: fix build for freebsd/arm after reorg
+    runtime: freebsd, netbsd build fixes after reorg
     
     R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7701046
+    https://golang.org/cl/7826044
 
- src/pkg/runtime/signal_freebsd_arm.h | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/runtime/os_netbsd.c            | 1 +
+ src/pkg/runtime/signal_freebsd_386.h   | 2 +-
+ src/pkg/runtime/signal_freebsd_amd64.h | 2 +-
+ src/pkg/runtime/signal_freebsd_arm.h   | 2 +-
+ 4 files changed, 4 insertions(+), 3 deletions(-)

@@ -1,25 +1,12 @@
-commit 69dcdbd2ba54e65faafbb40327e4db41dd255ad7
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Oct 26 22:49:13 2019 -0400
+commit 55453016979124e18d3afb53c9df1590877a3b53
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Jun 10 18:02:33 2019 -0400
 
-    cmd/internal/obj/mips: mark unsafe points
+    doc: document Go 1.11.11
     
-    For async preemption, we will be using REGTMP as a temporary
-    register in injected call on MIPS, which will clobber it. So any
-    code that uses REGTMP is not safe for async preemption.
-    
-    In the assembler backend, we expand a Prog to multiple machine
-    instructions and use REGTMP as a temporary register if necessary.
-    These need to be marked unsafe. In fact, most of the
-    multi-instruction Progs use REGTMP, so we mark all of them,
-    except ones that are whitelisted.
-    
-    Change-Id: Ic00ae5589683c2c9525abdaee076d884df6b0d1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203718
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1c3e3305dfee4545a6caedd48243770ab3b28277
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181550
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/internal/obj/mips/asm0.go | 76 ++++++++++++++++++++++++++++-----------
- src/cmd/internal/obj/mips/obj0.go |  6 ++++
- 2 files changed, 62 insertions(+), 20 deletions(-)
+ doc/devel/release.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

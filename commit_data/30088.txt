@@ -1,22 +1,25 @@
-commit ad784caa746515c28033435318c8b82c187fa583
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Oct 28 11:42:40 2016 -0700
+commit 643c6b3c74409871d7f96cbad145dabdefbbc8c1
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Oct 24 08:52:04 2016 +0900
 
-    cmd/compile: move Heapaddr field from Name to Param
+    path/filepath: make TestToNorm robust
     
-    No performance impact, just cleanup.
+    The old code leaves garbages in a temporary directory because it
+    cannot remove the current working directory on windows.
+    The new code changes the directory before calling os.Remove.
     
-    Passes toolstash -cmp.
+    Furthermore, the old code assumes that ioutil.TempDir (os.TempDir)
+    doesn't return a relative path nor an UNC path.
+    If it isn't the case, the new code calls t.Fatal earlier for preventing
+    ambiguous errors.
     
-    Change-Id: Ic7957d2686de53a9680c2bdefe926cccccd73a5c
-    Reviewed-on: https://go-review.googlesource.com/36316
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Finally, the old code reassigns the variable which is used by the defer
+    function. It could cause unexpected results, so avoid that.
+    
+    Change-Id: I5fc3902059ecaf18dc1341ecc4979d1206034cd7
+    Reviewed-on: https://go-review.googlesource.com/31790
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/gc/closure.go     | 4 ++--
- src/cmd/compile/internal/gc/gen.go         | 6 +++---
- src/cmd/compile/internal/gc/sizeof_test.go | 4 ++--
- src/cmd/compile/internal/gc/syntax.go      | 4 ++--
- src/cmd/compile/internal/gc/walk.go        | 6 +++---
- 5 files changed, 12 insertions(+), 12 deletions(-)
+ src/path/filepath/path_windows_test.go | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)

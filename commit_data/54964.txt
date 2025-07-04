@@ -1,31 +1,35 @@
-commit 42bd21be1cf54876ce24c489852721049ef293e2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Nov 6 16:28:25 2023 -0500
+commit 0a8055ef3f84673dc3a70ce5143bdf9817986dea
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 23 14:16:53 2022 -0500
 
-    cmd/compile: support lookup of functions from export data
+    cmd/api: rewrite as package test
     
-    As of CL 539699, PGO-based devirtualization supports devirtualization of
-    function values in addition to interface method calls. As with CL
-    497175, we need to explicitly look up functions from export data that
-    may not be imported already.
+    No one ever runs 'go tool api', because the invocation
+    has gotten unwieldy enough that it's not practical.
+    And we don't support it as a standalone tool for other
+    packages - it's not even in the distribution.
     
-    Symbol naming is ambiguous (`foo.Bar.func1` could be a closure or a
-    method), so we simply attempt to do both types of lookup. That said,
-    closures are defined in export data only as OCLOSURE nodes in the
-    enclosing function, which this CL does not yet attempt to expand.
+    Making it an ordinary package test lets us invoke it
+    more easily from cmd/dist (as go test cmd/api -check)
+    and avoids the increasingly baroque code in run.go to
+    build a command line.
     
-    For #61577.
+    Left in cmd/api even though it's no longer a command
+    because (1) it uses a package from cmd/vendor and
+    (2) it uses internal/testenv. Otherwise it could be misc/api.
     
-    Change-Id: Ic7205b046218a4dfb8c4162ece3620ed1c3cb40a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540258
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #56845.
+    
+    Change-Id: I00a13d9c19b1e259fa0e6bb93d1a4dca25f0e8c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453258
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/noder/unified.go          |  45 +++++++++++++++++++--
- src/cmd/compile/internal/pgo/irgraph.go            |  12 +++---
- .../compile/internal/test/pgo_devirtualize_test.go |  26 ++++++------
- .../test/testdata/pgo/devirtualize/devirt.go       |  24 ++---------
- .../test/testdata/pgo/devirtualize/devirt.pprof    | Bin 1411 -> 1345 bytes
- .../testdata/pgo/devirtualize/mult.pkg/mult.go     |  12 ++++++
- 6 files changed, 73 insertions(+), 46 deletions(-)
+ src/cmd/api/{goapi.go => api.go}                   | 130 +++++++++------------
+ src/cmd/api/{goapi_test.go => api_test.go}         |  33 +++++-
+ .../api/{goapi_boring_test.go => boring_test.go}   |   2 +-
+ src/cmd/api/run.go                                 | 123 -------------------
+ src/cmd/dist/test.go                               |  17 +--
+ 5 files changed, 87 insertions(+), 218 deletions(-)

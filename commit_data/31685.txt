@@ -1,16 +1,14 @@
-commit d10549fb5763d33667ab02c0713c22c14f90078c
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Tue May 30 12:11:04 2017 +0200
+commit caa7dacfd27beb493c262b18a9aae514863ddec7
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 7 15:24:02 2017 -0500
 
-    testing: clarify that subtests are run as goroutines
+    runtime: honor GOTRACEBACK=crash even if _g_.m.traceback != 0
     
-    Fixes #20394
-    
-    Change-Id: Iabb2a53fd1ddb783e7fb5b60ced8482c2e2569c4
-    Reviewed-on: https://go-review.googlesource.com/44377
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: I6de1ef8f67bde044b8706c01e98400e266e1f8f0
+    Reviewed-on: https://go-review.googlesource.com/37857
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/testing/testing.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/runtime/runtime1.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

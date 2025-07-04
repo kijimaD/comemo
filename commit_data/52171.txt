@@ -1,21 +1,33 @@
-commit 2f9e38a1be0b2e09898dac261ae8894dcb2594a0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 1 13:53:48 2023 -0800
+commit f2d9ab263b8c62a81d314feb1e7a7fb424bb9c43
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 8 15:26:38 2022 -0400
 
-    go/types, types2: combine missingMethodCause with missingMethod
+    cmd/go: set GOROOT explicitly for 'go generate' subprocesses
     
-    For now this is simply a mechanical combination without any
-    relevant logic changes. This will make it easier to review
-    subsequent changes.
+    Code generators may reasonably expect to find the GOROOT for which the
+    code is being generated.
     
-    Change-Id: Ic2e2ae32b031d2dda0f69a08a5cc2349748bd25d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472675
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    If the generator invokes 'go run' (which ought to be reasonable to do)
+    and the user has set 'GOFLAGS=trimpath' (which also ought to be
+    reasonable), then either 'go generate' or 'go run' needs to set GOROOT
+    explicitly.
+    
+    I would argue that it is more appropriate for 'go generate' to set
+    GOROOT than for 'go run' to do so, since a user may reasonably invoke
+    'go run' to reproduce a user-reported bug in a standalone Go program,
+    but should not invoke 'go generate' except to regenerate code for a Go
+    package.
+    
+    Updates #51461.
+    
+    Change-Id: Iceba233b4eebd57c40cf5dcd4af9031d210dc9d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399157
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/lookup.go | 83 +++++++++++++++----------------
- src/go/types/lookup.go                    | 83 +++++++++++++++----------------
- 2 files changed, 82 insertions(+), 84 deletions(-)
+ src/cmd/go/alldocs.go                                | 3 +++
+ src/cmd/go/internal/generate/generate.go             | 4 ++++
+ src/cmd/go/testdata/script/build_trimpath_goroot.txt | 7 +++++++
+ 3 files changed, 14 insertions(+)

@@ -1,23 +1,22 @@
-commit d646040fd13b79f811c85bc7280a71c3493419ec
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 2 21:06:30 2014 -0400
+commit 4e65f18cae1b4ee6074e3e544c322af030d04288
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 2 12:55:43 2014 -0700
 
-    runtime: fix 1-byte return during x.(T) for 0-byte T
+    cmd/cgo: use same Go type for typedef to anonymous struct
     
-    The 1-byte write was silently clearing a byte on the stack.
-    If there was another function call with more arguments
-    in the same stack frame, no harm done.
-    Otherwise, if the variable at that location was already zero,
-    no harm done.
-    Otherwise, problems.
+    If we see a typedef to an anonymous struct more than once,
+    presumably in two different Go files that import "C", use the
+    same Go type name.
     
-    Fixes #8139.
+    Fixes #8133.
     
-    LGTM=dsymonds
-    R=golang-codereviews, dsymonds
-    CC=golang-codereviews, iant, r
-    https://golang.org/cl/100940043
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/102080043
 
- src/pkg/runtime/iface.goc   | 23 +++++++++++++++++----
- test/fixedbugs/issue8139.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+), 4 deletions(-)
+ misc/cgo/test/issue8331.h   |  7 +++++++
+ misc/cgo/test/issue8331a.go | 15 +++++++++++++++
+ misc/cgo/test/issue8331b.go | 13 +++++++++++++
+ src/cmd/cgo/gcc.go          | 12 +++++++++++-
+ 4 files changed, 46 insertions(+), 1 deletion(-)

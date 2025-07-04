@@ -1,18 +1,27 @@
-commit 09e8de70c2ee36d99ba02389da0fe2e203879022
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 21 21:26:50 2021 +0000
+commit b8e9ec856c2b2d717ab14e85f43e00b532c4370a
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Mar 10 07:21:56 2021 -0700
 
-    runtime: eliminate rendundant loads gcPercent
+    syscall: use runtime.KeepAlive for ProcThreadAttributeList arguments
     
-    The previous change was an automated change that made gcPercent a
-    type-safe atomic variable. However, that introduced a lot of redundant
-    formal atomic loads of the variable. Remove them by only loading once in
-    each case, and reusing the value.
+    It turns out that if you write Go pointers to Go memory, the Go compiler
+    must be involved so that it generates various calls to the GC in the
+    process. Letting Windows write Go pointers to Go memory violated this.
+    So, we replace that with just a boring call to runtime.KeepAlive. That's
+    not a great API, but this is all internal code anyway. We fix it up
+    more elegantly for external consumption in x/sys/windows with CL 300369.
     
-    Change-Id: I49647135f423574f94506d456d1cc390150fad02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357795
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Fixes #44900.
+    
+    Change-Id: Id6599a793af9c4815f6c9387b00796923f32cb97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300349
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mgcpacer.go | 19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+ src/syscall/exec_windows.go         |  3 +++
+ src/syscall/syscall_windows.go      |  2 +-
+ src/syscall/syscall_windows_test.go | 36 ------------------------------------
+ src/syscall/types_windows.go        |  8 +-------
+ 4 files changed, 5 insertions(+), 44 deletions(-)

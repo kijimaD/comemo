@@ -1,19 +1,20 @@
-commit 95f3e47456e42899b64d3740eab1dd7ee1db5bf9
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Oct 24 14:19:18 2016 -0500
+commit 7c5f33b173d7bde6b3ae33bab940b76b4c991556
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 11 16:05:41 2016 -0700
 
-    cmd/compile: add rule to use ANDN for a&^b on ppc64x
+    runtime: cull dead code
     
-    Adds a rule to generate ANDN for AND x ^y.
+    They are unused, and vet wants them to have
+    a function prototype.
     
-    Fixes #17567
+    Updates #11041
     
-    Change-Id: I3b978058d5663f32c42b1af19bb207eac5622615
-    Reviewed-on: https://go-review.googlesource.com/31769
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Idedc96ddd3c3cf1b1d2ab6d98796367eab29f032
+    Reviewed-on: https://go-review.googlesource.com/27492
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 +++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 18 ++++++++++++++++++
- 2 files changed, 21 insertions(+)
+ src/runtime/asm.s                          | 3 ---
+ src/runtime/internal/atomic/asm.s          | 8 --------
+ src/runtime/internal/atomic/sys_nacl_arm.s | 3 ---
+ 3 files changed, 14 deletions(-)

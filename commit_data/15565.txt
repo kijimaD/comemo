@@ -1,18 +1,14 @@
-commit 15825dc935b9ba8e3a77ed0a0e925049f2d003c9
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 4 09:02:45 2013 +1100
+commit 51d52f820e11a713f1253e9130165cb4cd62ac50
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 3 20:06:51 2013 +0900
 
-    cmd/godoc: move note argument to godoc.go
+    net: disable unixgram test on Plan 9 and Windows
     
-    Fixes the App Engine version of godoc. The other fix is to duplicate
-    this code inside appinit.go. I think initHandlers is the right place
-    to put the strings.Split call, as the notesToShow var is used by
-    docServer, which is what initHandlers sets up.
+    Fixes build on Plan 9 and Windows.
     
-    R=dsymonds
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7434044
+    https://golang.org/cl/7454049
 
- src/cmd/godoc/godoc.go | 7 +++++++
- src/cmd/godoc/main.go  | 7 -------
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/net/packetconn_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

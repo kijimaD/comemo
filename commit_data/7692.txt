@@ -1,12 +1,13 @@
-commit d2e011d518a9701e6951c283e4512afa76ca8f4d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 8 16:12:44 2011 +1100
+commit d7eacee603c1e1d380cf1b1c3321f5f5a163ea09
+Author: Ross Light <rlight2@gmail.com>
+Date:   Tue Mar 8 15:42:23 2011 +1100
 
-    http: add test for recently fixed HTTP/1.0 keep-alive issue
+    misc/vim: Add indent script for Vim
     
-    R=bradfitzgo, rsc, bradfitzwork
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4235056
+    https://golang.org/cl/4258041
 
- src/pkg/http/serve_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 41 insertions(+)
+ misc/vim/indent/go.vim | 30 ++++++++++++++++++++++++++++++
+ misc/vim/readme.txt    | 13 +++++++++++++
+ 2 files changed, 43 insertions(+)

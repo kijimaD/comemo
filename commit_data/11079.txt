@@ -1,17 +1,14 @@
-commit 4bcc9c6b5e91eca8de1329ea2151610e2f3e3ada
+commit 556258e57b4a937b0021472b7489520605f80c79
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Tue Jan 10 11:18:56 2012 +0100
+Date:   Tue Jan 10 11:09:04 2012 +0100
 
-    gc: disallow declaration of variables outside package.
+    gc: fix stray %#N in error message
     
-    Fixes #2231.
-    
-    Declaring main.i in package main in the same way already triggers syntax errors.
+    Fixes #2639.
     
     R=rsc
-    CC=golang-dev
-    https://golang.org/cl/5483078
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/5489140
 
- src/cmd/gc/dcl.c         |  5 +++++
- test/fixedbugs/bug388.go | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+)
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

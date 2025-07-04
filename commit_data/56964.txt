@@ -1,28 +1,31 @@
-commit 05861ff90cfc855620d0dcbd1d6cc488ebf04880
-Author: apocelipes <seve3r@outlook.com>
-Date:   Wed Jul 24 10:47:14 2024 +0000
+commit 3fd867cecc2b31c767f8a60f49ac4138dea69d0f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 30 16:43:50 2023 -0400
 
-    os,path/filepath,testing: use slices to clean up tests
+    cmd/go: adjust pruning and switch toolchain when needed in 'go mod tidy'
     
-    Replace reflect.DeepEqual with slices.Equal which is much faster.
+    'go mod tidy' may resolve an imported package by added a dependency
+    that requires a higher 'go' version, which may activate graph pruning
+    (if the version goes from below go 1.16 to above it), and may even
+    require switching to a newer toolchain (if the version is not
+    supported by the current one).
     
-    Change-Id: I299db6f998738174983731f08c1021346b87dfaa
-    GitHub-Last-Rev: 44ca9015d6af4e0fbe8d23c93b3f2da08a2d7728
-    GitHub-Pull-Request: golang/go#67613
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587938
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    For #57001.
+    
+    Change-Id: Ic8e9b87d5979b3a6d1ee70f1f2bf2eea46b1bb0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499676
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/os/env_test.go                     | 4 ++--
- src/os/exec/env_test.go                | 4 ++--
- src/os/exec/exec_posix_test.go         | 6 +++---
- src/os/os_test.go                      | 5 ++---
- src/os/os_windows_test.go              | 3 +--
- src/path/filepath/match_test.go        | 3 +--
- src/path/filepath/path_test.go         | 6 +++---
- src/path/filepath/path_windows_test.go | 4 ++--
- src/testing/fstest/testfs.go           | 3 +--
- src/testing/sub_test.go                | 4 ++--
- 10 files changed, 19 insertions(+), 23 deletions(-)
+ src/cmd/go/internal/modcmd/tidy.go                 |  14 +-
+ src/cmd/go/internal/modget/get.go                  |   1 +
+ src/cmd/go/internal/modload/buildlist.go           |  12 +-
+ src/cmd/go/internal/modload/import.go              |   3 +
+ src/cmd/go/internal/modload/init.go                |  13 +-
+ src/cmd/go/internal/modload/load.go                | 280 +++++++++++++--------
+ .../go/testdata/script/mod_import_toolchain.txt    | 181 +++++++++++++
+ .../go/testdata/script/mod_tidy_version_tooold.txt |  23 ++
+ src/cmd/go/testdata/script/work.txt                |  16 +-
+ 9 files changed, 422 insertions(+), 121 deletions(-)

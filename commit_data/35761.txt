@@ -1,20 +1,35 @@
-commit e4a50ce97af2d9bb41d5f5af8561a17486274e1e
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed Jun 20 11:35:20 2018 +0530
+commit d7eb4901f18b25aa35de648dacb6bc04528bab6e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 6 18:30:58 2018 -0800
 
-    cmd/go: remove inadvertent comment for vgo
+    cmd/compile: remove funcdepth variables
     
-    This change was introduced while adding the dark copy
-    of golang.org/x/vgo in CL 118095.
+    There were only two large classes of use for these variables:
     
-    While the comment made sense in a separate vgo repo, when it is
-    merged with the main repo, this should not remain.
+    1) Testing "funcdepth != 0" or "funcdepth > 0", which is equivalent to
+    checking "Curfn != nil".
     
-    Found while running mkalldocs.sh in CL 119695.
+    2) In oldname, detecting whether a closure variable has been created
+    for the current function, which can be handled by instead testing
+    "n.Name.Curfn != Curfn".
     
-    Change-Id: I112a4629c415032bd29e165ac1c27a0f3cabeede
-    Reviewed-on: https://go-review.googlesource.com/119938
+    Lastly, merge funcstart into funchdr, since it's only called once, and
+    it better matches up with funcbody now.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I8fe159a9d37ef7debc4cd310354cea22a8b23394
+    Reviewed-on: https://go-review.googlesource.com/99076
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/help/help.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go     |  4 ++--
+ src/cmd/compile/internal/gc/closure.go     |  3 ---
+ src/cmd/compile/internal/gc/dcl.go         | 31 ++++++++++--------------------
+ src/cmd/compile/internal/gc/fmt.go         |  7 -------
+ src/cmd/compile/internal/gc/pgen.go        |  2 --
+ src/cmd/compile/internal/gc/sizeof_test.go |  4 ++--
+ src/cmd/compile/internal/gc/syntax.go      |  2 --
+ src/cmd/compile/internal/gc/walk.go        |  4 ----
+ 8 files changed, 14 insertions(+), 43 deletions(-)

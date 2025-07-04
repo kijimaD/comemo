@@ -1,18 +1,48 @@
-commit e1c1fa291934e49056b738166e243fd3aea7a7dd
-Author: Dave Day <djd@golang.org>
-Date:   Tue Dec 23 15:19:30 2014 +1100
+commit 532ccae1547580e572cf5cd0f687f4508ceeddb9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 16 15:54:44 2015 -0400
 
-    reflect: add FuncOf function
+    cmd/internal/obj: replace Addr.U struct {...} with Val interface{}
     
-    This also involves adding functions to typelinks along with a minor
-    change to ensure they are sorted correctly.
+    An interface{} is more in the spirit of the original union.
+    By my calculations, on 64-bit systems this reduces
+    Addr from 120 to 80 bytes, and Prog from 592 to 424 bytes.
     
-    Change-Id: I054a79b6498a634cbccce17579f52c299733c2cf
-    Reviewed-on: https://go-review.googlesource.com/1996
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0d7b0981513c2a3c94c9ac76bb4f8816485b5a3c
+    Reviewed-on: https://go-review.googlesource.com/7744
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/reflect.go |  11 ++--
- src/reflect/all_test.go        |  61 +++++++++++++++++++++
- src/reflect/export_test.go     |  10 ++++
- src/reflect/type.go            | 122 +++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 199 insertions(+), 5 deletions(-)
+ src/cmd/5g/ggen.go                 |  2 +-
+ src/cmd/6g/ggen.go                 |  4 ++--
+ src/cmd/6g/peep.go                 |  2 +-
+ src/cmd/7g/ggen.go                 |  4 ++--
+ src/cmd/8g/ggen.go                 |  4 ++--
+ src/cmd/8g/peep.go                 |  2 +-
+ src/cmd/9g/ggen.go                 |  4 ++--
+ src/cmd/asm/internal/asm/asm.go    |  4 ++--
+ src/cmd/asm/internal/asm/parse.go  |  4 ++--
+ src/cmd/internal/gc/gsubr.go       | 10 +++++-----
+ src/cmd/internal/gc/obj.go         |  6 +++---
+ src/cmd/internal/gc/pgen.go        |  4 ++--
+ src/cmd/internal/gc/plive.go       | 10 +++++-----
+ src/cmd/internal/gc/popt.go        | 18 ++++++++---------
+ src/cmd/internal/gc/reg.go         |  4 ++--
+ src/cmd/internal/obj/arm/asm5.go   |  6 +++---
+ src/cmd/internal/obj/arm/obj5.go   | 10 +++++-----
+ src/cmd/internal/obj/arm64/asm7.go |  2 +-
+ src/cmd/internal/obj/arm64/obj7.go |  6 +++---
+ src/cmd/internal/obj/data.go       |  6 +++---
+ src/cmd/internal/obj/link.go       | 41 +++++++++++++++++++-------------------
+ src/cmd/internal/obj/pass.go       | 19 +++++++++---------
+ src/cmd/internal/obj/ppc64/obj9.go |  6 +++---
+ src/cmd/internal/obj/util.go       | 12 +++++------
+ src/cmd/internal/obj/x86/obj6.go   | 10 +++++-----
+ src/cmd/old5a/a.y                  | 14 ++++++-------
+ src/cmd/old5a/y.go                 | 14 ++++++-------
+ src/cmd/old6a/a.y                  | 18 ++++++++---------
+ src/cmd/old6a/y.go                 | 18 ++++++++---------
+ src/cmd/old8a/a.y                  | 18 ++++++++---------
+ src/cmd/old8a/y.go                 | 18 ++++++++---------
+ src/cmd/old9a/a.y                  | 14 ++++++-------
+ src/cmd/old9a/y.go                 | 14 ++++++-------
+ 33 files changed, 164 insertions(+), 164 deletions(-)

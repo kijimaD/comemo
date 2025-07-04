@@ -1,44 +1,33 @@
-commit 1dfa380e3dd9c46aa945205d9e142bf503c1e198
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 2 16:44:27 2018 -0800
+commit d93cb46280ae4710c5c6113159c7973a08a72249
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 14 22:47:24 2017 -0400
 
-    internal/bytealg: move equal functions to bytealg
+    [release-branch.go1.9] runtime: use simple, more robust fastrandn
     
-    Move bytes.Equal, runtime.memequal, and runtime.memequal_varlen
-    to the bytealg package.
+    CL 36932 (speed up fastrandn) made it faster but introduced
+    bad interference with some properties of fastrand itself, making
+    fastrandn not very random in certain ways. In particular, certain
+    selects are demonstrably unfair.
     
-    Update #19792
+    For Go 1.10 the new faster fastrandn has induced a new fastrand,
+    which in turn has caused other follow-on bugs that are still being
+    discovered and fixed.
     
-    Change-Id: Ic4175e952936016ea0bda6c7c3dbb33afdc8e4ac
-    Reviewed-on: https://go-review.googlesource.com/98355
-    Run-TryBot: Keith Randall <khr@golang.org>
+    For Go 1.9.2, just go back to the barely slower % implementation
+    that we used in Go 1.8 and earlier. This should restore fairness in
+    select and any other problems caused by the clever fastrandn.
+    
+    The test in this CL is copied from CL 62530.
+    
+    Fixes #22253.
+    
+    Change-Id: Ibcf948a7bce981452e05c90dbdac122043f6f813
+    Reviewed-on: https://go-review.googlesource.com/70991
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/vet/all/whitelist/386.txt           |   1 -
- src/cmd/vet/all/whitelist/all.txt           |   4 +-
- src/cmd/vet/all/whitelist/amd64.txt         |   1 -
- src/cmd/vet/all/whitelist/nacl_amd64p32.txt |   1 -
- src/cmd/vet/all/whitelist/ppc64x.txt        |   1 -
- src/cmd/vet/all/whitelist/s390x.txt         |   2 -
- src/internal/bytealg/equal_386.s            | 165 ++++++++++++++++++++++++
- src/internal/bytealg/equal_amd64.s          | 190 ++++++++++++++++++++++++++++
- src/internal/bytealg/equal_amd64p32.s       | 170 +++++++++++++++++++++++++
- src/internal/bytealg/equal_arm.s            |  80 ++++++++++++
- src/internal/bytealg/equal_arm64.s          | 164 ++++++++++++++++++++++++
- src/internal/bytealg/equal_mips64x.s        |  83 ++++++++++++
- src/internal/bytealg/equal_mipsx.s          |  91 +++++++++++++
- src/internal/bytealg/equal_native.go        |  27 ++++
- src/internal/bytealg/equal_ppc64x.s         | 152 ++++++++++++++++++++++
- src/internal/bytealg/equal_s390x.s          | 116 +++++++++++++++++
- src/internal/bytealg/indexbyte_native.go    |  10 --
- src/runtime/asm_386.s                       | 136 --------------------
- src/runtime/asm_amd64.s                     | 161 -----------------------
- src/runtime/asm_amd64p32.s                  | 139 --------------------
- src/runtime/asm_arm.s                       |  71 -----------
- src/runtime/asm_arm64.s                     | 143 ---------------------
- src/runtime/asm_mips64x.s                   |  71 -----------
- src/runtime/asm_mipsx.s                     |  79 ------------
- src/runtime/asm_ppc64x.s                    | 121 ------------------
- src/runtime/asm_s390x.s                     |  98 --------------
- 26 files changed, 1241 insertions(+), 1036 deletions(-)
+ src/runtime/chan_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/stubs.go     |  8 ++++---
+ 2 files changed, 62 insertions(+), 3 deletions(-)

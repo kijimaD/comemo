@@ -1,32 +1,23 @@
-commit a971904e10c85e4aeb2cb6a3cf6d8efadc259fdc
+commit 17aa21279965f5d088606639c17aa60208a34b7d
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 18 13:54:43 2022 -0400
+Date:   Mon Nov 22 14:30:40 2021 -0500
 
-    cmd/go/internal/script: remove special-case escaping logic for $WORK
+    runtime: in TestSpuriousWakeupsNeverHangSemasleep, wait for the runtime to register handlers
     
-    Previously, the script engine implicitly escaped the path in the
-    $WORK environment variable to be the literal string '$WORK', which
-    produces somewhat better error messages in case of failure.
+    According to https://man7.org/linux/man-pages/man7/signal.7.html, the
+    default behavior of SIGIO is to terminate the program. The Go runtime
+    changes that behavior with its own signal handler, so the program will
+    terminate if we send the signal before the runtime has finished
+    setting up.
     
-    However, for a general-purpose script engine that implicit behavior is
-    surprising, and it isn't really necessary.
+    Fixes #49727
     
-    For #27494.
-    
-    Change-Id: Ic1d5b8801bbd068157315685539e7cc2795b3aa5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426854
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I65db66f5176831c8d7454eebc0138d825c68e100
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366255
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/script/cmds.go                   | 3 ---
- src/cmd/go/internal/script/state.go                  | 7 -------
- src/cmd/go/script_test.go                            | 6 ++----
- src/cmd/go/testdata/script/build_n_cgo.txt           | 1 +
- src/cmd/go/testdata/script/build_relative_tmpdir.txt | 4 ++--
- src/cmd/go/testdata/script/cache_unix.txt            | 6 +++---
- src/cmd/go/testdata/script/mod_empty_err.txt         | 8 ++++----
- src/cmd/go/testdata/script/mod_gobuild_import.txt    | 4 ++--
- src/cmd/go/testdata/script/modfile_flag.txt          | 2 +-
- 9 files changed, 15 insertions(+), 26 deletions(-)
+ src/runtime/semasleep_test.go          | 41 +++++++++++++++++++++++++---------
+ src/runtime/testdata/testprog/sleep.go |  7 +++++-
+ 2 files changed, 37 insertions(+), 11 deletions(-)

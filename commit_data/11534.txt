@@ -1,28 +1,18 @@
-commit 6273d6e7135a7019a4ac73e37d014007a920f574
+commit 8039683cef026edb88ae9dc6cd766feccdb40ff4
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Jan 31 19:31:30 2012 -0800
+Date:   Tue Jan 31 18:15:42 2012 -0800
 
-    build: move the "-c" flag into HOST_CFLAGS
+    gc: use octal escapes in mkopnames
     
-    On Plan 9 this flag is used to discover
-    constant expressions in "if" statements.
+    Plan 9's tr(1) doesn't accept the C-style escapes
+    for tab and newline characters.  I was going to use
+    the \xFF hexadecimal escapes but GNU tr(1) doesn't
+    accept those.  It seems octal is the least common
+    denominator.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5601060
+    https://golang.org/cl/5576079
 
- src/Make.ccmd       | 2 +-
- src/Make.clib       | 2 +-
- src/Make.ctool      | 2 +-
- src/Make.inc        | 2 +-
- src/cmd/5c/Makefile | 2 +-
- src/cmd/5g/Makefile | 2 +-
- src/cmd/5l/Makefile | 2 +-
- src/cmd/6c/Makefile | 2 +-
- src/cmd/6g/Makefile | 2 +-
- src/cmd/6l/Makefile | 2 +-
- src/cmd/8c/Makefile | 2 +-
- src/cmd/8g/Makefile | 2 +-
- src/cmd/8l/Makefile | 2 +-
- src/lib9/Makefile   | 6 +++---
- 14 files changed, 16 insertions(+), 16 deletions(-)
+ src/cmd/gc/mkopnames | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,14 +1,12 @@
-commit 82189f654df7f3032f27a764ec8ce662f68764c1
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 19 14:19:56 2011 +1000
+commit fd80efee103b96ac9d5b70f3a1be363fa2234666
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 19 13:00:09 2011 +1000
 
-    template/parse: add a Walk method to Tree.
+    net: fix windows build
     
-    R=golang-dev, dsymonds, r
-    CC=golang-dev, mikesamuel
-    https://golang.org/cl/4918041
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4873058
 
- src/pkg/template/parse/Makefile      |   1 +
- src/pkg/template/parse/parse_test.go | 127 +++++++++++++++++++++++++++++++++++
- src/pkg/template/parse/walk.go       |  89 ++++++++++++++++++++++++
- 3 files changed, 217 insertions(+)
+ src/pkg/syscall/ztypes_windows.go | 3 +++
+ 1 file changed, 3 insertions(+)

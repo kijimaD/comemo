@@ -1,17 +1,19 @@
-commit f59d36d2e3f0707c8bf2b157009ffc38a9b74d25
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 9 11:19:20 2021 -0500
+commit 8336c311f848cb9adc76aeb8bd8172f67bda67e6
+Author: JulianChu <yulang.chu@gmail.com>
+Date:   Sat Mar 13 17:44:10 2021 +0000
 
-    go/types: make object test an external test
+    io: add error check to WriteString Example test
     
-    This is a port of CL 361409 to go/types.
-    
-    Change-Id: I17ccf8a5b4ba715fd8a87ea2c1811700fb1157e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362538
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I9ce1c79e5799f205aec3a4dc02645ed26bdc3581
+    GitHub-Last-Rev: 59b637db0154e55ddfdd55e54b9596dc3a0ad32d
+    GitHub-Pull-Request: golang/go#44533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295389
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/types/object_test.go | 22 ++++++++++++----------
- 1 file changed, 12 insertions(+), 10 deletions(-)
+ src/io/example_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

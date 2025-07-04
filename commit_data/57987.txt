@@ -1,30 +1,46 @@
-commit 956d4bb9cf47718cdb24f6e34990df47d73b1a69
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Tue Aug 13 17:40:46 2024 +0000
+commit 0b07bbd2be98f80f3d447a266803f1d68aee2902
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Aug 11 09:40:31 2023 -0400
 
-    cmd/go: add user provided auth mode for GOAUTH
+    cmd/compile/internal/inl: inline based on scoring when GOEXPERIMENT=newinliner
     
-    This CL adds support for a custom authenticator as a valid GOAUTH command.
-    This follows the specification in
-    https://go.dev/issue/26232#issuecomment-461525141
+    This patch changes the inliner to use callsite scores when deciding to
+    inline as opposed to looking only at callee cost/hairyness.
     
-    For #26232
+    For this to work, we have to relax the inline budget cutoff as part of
+    CanInline to allow for the possibility that a given function might
+    start off with a cost of N where N > 80, but then be called from a
+    callsites whose score is less than 80. Once a given function F in
+    package P has been approved by CanInline (based on the relaxed budget)
+    it will then be emitted as part of the export data, meaning that other
+    packages importing P will need to also need to compute callsite scores
+    appropriately.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: Id1d4b309f11eb9c7ce14793021a9d8caf3b192ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605298
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    For a function F that calls function G, if G is marked as potentially
+    inlinable then the hairyness computation for F will use G's cost for
+    the call to G as opposed to the default call cost; for this to work
+    with the new scheme (given relaxed cost change described above) we
+    use G's cost only if it falls below inlineExtraCallCost, otherwise
+    just use inlineExtraCallCost.
+    
+    Included in this patch are a bunch of skips and workarounds to
+    selected 'errorcheck' tests in the <GOROOT>/test directory to deal
+    with the additional "can inline" messages emitted when the new inliner
+    is turned on.
+    
+    Change-Id: I9be5f8cd0cd8676beb4296faf80d2f6be7246335
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519197
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go                          |  78 +++++++++++-
- src/cmd/go/internal/auth/auth.go               | 111 ++++++++--------
- src/cmd/go/internal/auth/auth_test.go          |   6 +-
- src/cmd/go/internal/auth/gitauth.go            |  28 ++--
- src/cmd/go/internal/auth/userauth.go           | 136 ++++++++++++++++++++
- src/cmd/go/internal/auth/userauth_test.go      | 169 +++++++++++++++++++++++++
- src/cmd/go/internal/help/helpdoc.go            |  74 ++++++++++-
- src/cmd/go/internal/web/http.go                |   4 +-
- src/cmd/go/main.go                             |   1 +
- src/cmd/go/testdata/script/goauth_userauth.txt |  79 ++++++++++++
- 10 files changed, 603 insertions(+), 83 deletions(-)
+ src/cmd/compile/internal/inline/inl.go             |  53 ++-
+ .../compile/internal/inline/inlheur/callsite.go    |   8 +
+ test/closure3.go                                   |   3 +
+ test/escape4.go                                    |   2 +
+ test/fixedbugs/issue19261.go                       |   3 +
+ test/fixedbugs/issue4099.go                        |   5 +-
+ test/fixedbugs/issue42284.go                       |   3 +
+ test/fixedbugs/issue7921.go                        |   3 +-
+ test/inline.go                                     |   3 +
+ test/newinline.go                                  | 398 +++++++++++++++++++++
+ 10 files changed, 470 insertions(+), 11 deletions(-)

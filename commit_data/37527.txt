@@ -1,37 +1,23 @@
-commit 04e12a5bfa51777c4ba46ed2e026f53578206754
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Oct 15 15:52:01 2018 -0400
+commit 479da24aac375d4d61dd34733b4fda643141991e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 9 17:03:05 2018 -0400
 
-    cmd/go/internal/modfetch: lock files and directories
+    cmd/go: fix handling of gopkg.in/macaroon-bakery.v2-unstable
     
-    We employ the following new locking mechanisms:
+    When we added v2.0.0+incompatible we generalized the API
+    enough to make it easy to also accepting these gopkg-specific
+    v2-unstable suffixes. Do that.
     
-    • Zip files and list files within the module cache are written using
-      atomic renames of temporary files, so that GOPROXY servers reading
-      from the cache will never serve incomplete content.
+    Fixes #23989.
     
-    • A lock file for each module version guards downloading and extraction of
-      (immutable) module contents.
-    
-    • A lock file alongside each version list (named 'list.lock')
-      guards updates to the list.
-    
-    • A single lock file in the module cache guards updates to all go.sum
-      files. The go.sum files themselves are written using an atomic
-      rename to ensure that we never accidentally discard existing sums.
-    
-    Updates #26794
-    
-    RELNOTE=yes
-    
-    Change-Id: I16ef8b06ee4bd7b94d0c0a6f5d17e1cecc379076
-    Reviewed-on: https://go-review.googlesource.com/c/146382
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ieabed11a5250c2999d73450c10b20f4c645ad445
+    Reviewed-on: https://go-review.googlesource.com/128901
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/clean/clean.go            |  16 +-
- src/cmd/go/internal/modfetch/cache.go         |  75 +++++--
- src/cmd/go/internal/modfetch/fetch.go         | 305 ++++++++++++++++++++------
- src/cmd/go/internal/modfetch/unzip.go         |  22 +-
- src/cmd/go/testdata/script/mod_concurrent.txt |  31 +++
- 5 files changed, 337 insertions(+), 112 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo.go           |  7 +++++++
+ src/cmd/go/internal/modfetch/pseudo.go             |  1 +
+ src/cmd/go/internal/module/module.go               |  8 +++++++-
+ src/cmd/go/proxy_test.go                           |  6 +++---
+ .../mod/gopkg.in_dummy.v2-unstable_v2.0.0.txt      |  9 +++++++++
+ src/cmd/go/testdata/script/mod_gopkg_unstable.txt  | 22 ++++++++++++++++++++++
+ 6 files changed, 49 insertions(+), 4 deletions(-)

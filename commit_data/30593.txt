@@ -1,36 +1,20 @@
-commit 82e1732f14d6b50ba29dcc3f0eb71c80fa52c2d3
-Author: Sarah Adams <shadams@google.com>
-Date:   Thu Jan 19 14:17:10 2017 -0800
+commit fab3fcaf750445c0016a44376aa81c720133e02c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Nov 12 06:50:24 2016 -0500
 
-    database/sql: proper prepared statement support in transactions
+    cmd/go: use build ID as plugin symbol prefix
     
-    This change was originally written by Marko Tiikkaja <marko@joh.to>.
-    https://go-review.googlesource.com/#/c/2035/
+    Updates #17821
     
-    Previously *Tx.Stmt always prepared a new statement, even if an
-    existing one was available on the connection the transaction was on.
-    Now we first see if the statement is already available on the
-    connection and only prepare if it isn't. Additionally, when we do
-    need to prepare one, we store it in the parent *Stmt to allow it to be
-    later reused by other calls to *Tx.Stmt on that statement or just
-    straight up by *Stmt.Exec et al.
-    
-    To make sure that the statement doesn't disappear unexpectedly, we
-    record a dependency from the statement returned by *Tx.Stmt to the
-    *Stmt it came from and set a new field, parentStmt, to point to the
-    originating *Stmt. When the transaction's *Stmt is closed, we remove
-    the dependency. This way the "parent" *Stmt can be closed by the user
-    without her having to know whether any transactions are still using it
-    or not.
-    
-    Fixes #15606
-    
-    Change-Id: I41b5056847e117ac61130328b0239d1e000a4a08
-    Reviewed-on: https://go-review.googlesource.com/35476
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: Iebd2e88b2d4f3d757ffad72456f4bfc0607d8110
+    Reviewed-on: https://go-review.googlesource.com/33162
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go      | 106 +++++++++++++++++-------
- src/database/sql/sql_test.go | 190 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 265 insertions(+), 31 deletions(-)
+ misc/cgo/testplugin/src/host/host.go | 31 +++++++++++++++++++++++++++++++
+ misc/cgo/testplugin/test.bash        |  5 ++++-
+ misc/cgo/testplugin/unnamed1.go      | 12 ++++++++++++
+ misc/cgo/testplugin/unnamed2.go      | 12 ++++++++++++
+ src/cmd/go/build.go                  |  6 +++++-
+ 5 files changed, 64 insertions(+), 2 deletions(-)

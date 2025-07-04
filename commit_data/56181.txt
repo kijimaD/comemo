@@ -1,30 +1,21 @@
-commit 1843464f014c946c1663de76249267486887626f
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Apr 1 13:13:50 2024 -0700
+commit 9fab498ab1c2c03595f8e4a261b67e9eb9cbd0e7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 13 22:05:14 2023 +0700
 
-    all: consistently use "IEEE 754" over "IEEE-754"
+    cmd/compile/internal/typecheck: remove some un-used functions
     
-    There is no hyphen between the organization and the number.
+    CL 405094 removed the only caller of markBreak/setHasBreak and
+    isTermNodes/isTermNode.
     
-    For example, https://standards.ieee.org/ieee/754/6210/
-    shows the string "IEEE 754-2019" and not "IEEE-754-2019".
+    importlist variable is only used in old frontend.
     
-    This assists in searching for "IEEE 754" in documentation
-    and not missing those using "IEEE-754".
-    
-    Change-Id: I9a50ede807984ff1e2f17390bc1039f6a5d162e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/575438
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Change-Id: I9472f2c0017b6200847999f2cea0e9021a1b14e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484435
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- doc/go1.17_spec.html       | 12 ++++++------
- doc/go_spec.html           | 12 ++++++------
- src/builtin/builtin.go     |  4 ++--
- src/encoding/gob/doc.go    |  2 +-
- src/math/big/float.go      |  6 +++---
- src/math/big/float_test.go |  2 +-
- 6 files changed, 19 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/typecheck/typecheck.go | 143 ------------------------
+ 1 file changed, 143 deletions(-)

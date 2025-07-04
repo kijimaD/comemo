@@ -1,13 +1,18 @@
-commit c515852732a490bab64f35d001ddc444b0f0f553
-Author: Heisenberg <lziqiang1@gmail.com>
-Date:   Tue Sep 8 14:31:39 2020 +0800
+commit c39439c53fe1344830446226201e9d96b3ee6a77
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Apr 13 02:47:11 2020 +1000
 
-    runtime: add 2-byte and 8-byte sub-benchmarks for memmove load/store
+    cmd/compile: run TestLogOpt for riscv64 on amd64
     
-    Change-Id: I6389d7efe90836b6ece44d2e75053d1ad9f35d08
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253417
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Run TestLogOpt for riscv64 on amd64, as is done for other architectures.
+    This would have caught the test failure on riscv64 introduced in
+    47ade08141b23cfeafed92943e16012d5dc5eb8b.
+    
+    Change-Id: If29dea2ef383b087154d046728f6d1c96811f5a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227806
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/memmove_test.go | 39 ++++++++++++++++++++++++---------------
- 1 file changed, 24 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

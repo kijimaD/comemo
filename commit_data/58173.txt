@@ -1,23 +1,58 @@
-commit 297081eb021d3c66854f21a93462553e518988cc
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Nov 20 15:02:40 2024 +0100
+commit 51bdd3bdcc016fe85add6ce912a0c3075e3a6d47
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Oct 8 10:51:45 2023 +0800
 
-    crypto/internal/fips/rsa: support all SHA hashes in PKCS#1 v1.5
+    os: use strings.EqualFold in os_test.go
     
-    The byte sequences match those in
-    https://github.com/randombit/botan/blob/e5ec40828/src/lib/pk_pad/hash_id/hash_id.cpp
+    strings.EqualFold has no memory overhead and has better performance than strings.ToLower.
     
-    For #69536
-    Fixes #43923
+    This is a performance test:
     
-    Change-Id: I8b4daea71c2f696ad67ddc13affefd1563c51266
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630095
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    package bench
+    
+    import (
+            "strings"
+            "testing"
+    )
+    
+    func BenchmarkToLower(b *testing.B) {
+    
+            str1 := "Windows"
+            str2 := "windows"
+    
+            for i := 0; i < b.N; i++ {
+                    if strings.ToLower(str1) == strings.ToLower(str2) {
+                    }
+            }
+    }
+    
+    func BenchmarkEqualFold(b *testing.B) {
+    
+            str1 := "Windows"
+            str2 := "windows"
+    
+            for i := 0; i < b.N; i++ {
+                    if strings.EqualFold(str1, str2) {
+                    }
+            }
+    }
+    
+    The result:
+    
+    goos: darwin
+    goarch: arm64
+    BenchmarkToLower-8      31404808                36.99 ns/op            8 B/op          1 allocs/op
+    BenchmarkEqualFold-8    194780793                5.989 ns/op           0 B/op          0 allocs/op
+    PASS
+    
+    Change-Id: Id3d92534942d3eb0bdc1d01359324030ad0e434f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533635
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/fips/rsa/pkcs1v15.go      | 25 +++++----
- src/crypto/internal/fips/rsa/pkcs1v15_test.go | 76 +++++++++++++++++++++++++++
- 2 files changed, 92 insertions(+), 9 deletions(-)
+ src/os/os_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

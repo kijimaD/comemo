@@ -1,22 +1,22 @@
-commit 0e031676288ddd56fb410b6b27807a180a585db3
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sun Apr 12 21:28:41 2020 +0200
+commit 8fa2b6dcde6008c107c097e44eb0ee94a2a8af3d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 13:14:49 2020 -0500
 
-    cmd/go: use verbose flag to log proxy activities
+    cmd/go: convert TestShadowingLogic to the script framework
     
-    Fixes #29515
-    Fixes #30604
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Change-Id: Ie75a331cd6ca51806c5720443506d4fe0bec28cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227162
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I6db652a4a515daf6e87645d34191dc9a441f5720
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214431
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/proxy_test.go                         | 17 +++++------------
- src/cmd/go/testdata/script/mod_download.txt      |  1 -
- src/cmd/go/testdata/script/mod_download_json.txt |  1 -
- src/cmd/go/testdata/script/mod_get_commit.txt    |  1 -
- src/cmd/go/testdata/script/mod_get_moved.txt     |  1 -
- src/cmd/go/testdata/script/mod_query_exclude.txt |  1 -
- 6 files changed, 5 insertions(+), 17 deletions(-)
+ src/cmd/go/go_test.go                             | 45 -----------------------
+ src/cmd/go/testdata/script/list_shadow.txt        | 25 +++++++++++++
+ src/cmd/go/testdata/shadow/root1/src/foo/foo.go   |  1 -
+ src/cmd/go/testdata/shadow/root1/src/math/math.go |  1 -
+ src/cmd/go/testdata/shadow/root2/src/foo/foo.go   |  1 -
+ 5 files changed, 25 insertions(+), 48 deletions(-)

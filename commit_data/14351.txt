@@ -1,17 +1,14 @@
-commit 024a92c1da0b5e147df01ed184fe8d655af62900
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Nov 7 18:29:31 2012 -0800
+commit e3977f0d3a20ec7311b939fd2e60d78f4c6031ef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 7 17:34:06 2012 -0800
 
-    runtime: use vDSO for gettimeofday on linux/amd64
+    cmd/gc: warn about slice indexes larger than int in typecheck pass
     
-    Intel Core 2 Duo (2.16 GHz) running 3.6.5-1-ARCH
+    Fixes GOARCH=386 build.
     
-    benchmark       old ns/op    new ns/op    delta
-    BenchmarkNow         1856         1034  -44.29%
-    
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6826072
+    https://golang.org/cl/6810098
 
- src/pkg/runtime/sys_linux_amd64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/typecheck.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

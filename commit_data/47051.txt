@@ -1,17 +1,25 @@
-commit bdefb77309fdc6e47102a8d6272fd2293aefa1d9
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Tue Oct 26 09:15:17 2021 +0800
+commit 4048491234203e1ee803d489d11a02c90b14596a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 17 11:36:58 2021 +0700
 
-    internal/poll: improve the padding calculation inside struct splicePipe
+    cmd/compile,runtime: make selectnbrecv return two values
     
-    Updates #48968 and CL 358114
+    The only different between selectnbrecv and selectnbrecv2 is the later
+    set the input pointer value by second return value from chanrecv.
     
-    Change-Id: Ic68b4c5420c1c32f78b56874b53d717fa9af1f74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358734
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    So by making selectnbrecv return two values from chanrecv, we can get
+    rid of selectnbrecv2, the compiler can now call only selectnbrecv and
+    generate simpler code.
+    
+    Change-Id: Ifaf6cf1314c4f47b06ed9606b1578319be808507
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292890
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/poll/splice_linux.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/typecheck/builtin.go      |  2 +-
+ .../compile/internal/typecheck/builtin/runtime.go  |  2 +-
+ src/cmd/compile/internal/walk/select.go            | 20 ++++++---------
+ src/runtime/chan.go                                | 30 +++-------------------
+ 4 files changed, 13 insertions(+), 41 deletions(-)

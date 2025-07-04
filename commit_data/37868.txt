@@ -1,17 +1,14 @@
-commit 94d9a2045398b471c8aec0b701cad06536e049b3
-Author: Mikio Hara <mikioh.public.networking@gmail.com>
-Date:   Thu Jan 10 05:14:40 2019 +0900
+commit bcf3e063cc332e4c75b99d0102c0f12dd307c0b5
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Tue Sep 4 17:35:55 2018 +0300
 
-    net: drop confusing comment
+    test: remove go:noinline from escape_because.go
     
-    On AIX, we don't need to be aware of any change on the protocol stack of
-    Linux kernel.
+    File is compiled with "-l" flag, so go:noinline is redundant.
     
-    Change-Id: Ib8b14fa930acddb3bc720d401271e8daf567b784
-    Reviewed-on: https://go-review.googlesource.com/c/157298
-    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia269f3b9de9466857fc578ba5164613393e82369
+    Reviewed-on: https://go-review.googlesource.com/133295
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/sockopt_aix.go | 2 --
- 1 file changed, 2 deletions(-)
+ test/escape_because.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

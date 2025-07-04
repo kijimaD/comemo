@@ -1,18 +1,23 @@
-commit 080466fffb47f420456b4a19129ffb271cae5aa6
-Author: Sean Liao <sean@liao.dev>
-Date:   Wed Dec 4 21:56:45 2024 +0000
+commit 3dea7c3f690cb35858b122605d1f029df8062293
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 31 18:34:42 2023 +0700
 
-    embed: document exclusions more explicitly
+    hash/maphash: weaken avalanche test a bit more
     
-    Fixes #45197
-    Fixes #45744
+    CL 495415 weaken avalanche, making allowed range from 43% to 57%. Since
+    then, we only see a failure with 58% on linux-386-longtest builder, so
+    let give the test a bit more wiggle room: 40% to 59%.
     
-    Change-Id: Ic221da1b652f693c7aa37287932c0a8726f46765
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633815
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #60170
+    
+    Change-Id: I9528ebc8601975b733c3d9fd464ce41429654273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538655
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/embed/embed.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/hash/maphash/smhasher_test.go | 2 +-
+ src/runtime/hash_test.go          | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

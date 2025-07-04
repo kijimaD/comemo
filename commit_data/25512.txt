@@ -1,15 +1,19 @@
-commit a120beaa8db6b723c120c8d3bf3324dfa503cb2d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 8 17:17:53 2016 +0000
+commit 171204b5617b317250d54bd45750476f69ee33d8
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 24 21:30:59 2015 -0400
 
-    Revert "net: ensure that malformed domain names report a consistent error"
+    runtime: factor mark done transition
     
-    This reverts commit bb8c2e19a7fe2ca2283eca44dba2047c9f4307fe.
+    Currently the code for completion of mark 1/mark 2 is duplicated in
+    background workers and assists. Factor this in to a single function
+    that will serve as the transition function for concurrent mark.
     
-    Change-Id: I9bc089e9f2296805ef055b98e8c86ba73af30226
-    Reviewed-on: https://go-review.googlesource.com/18439
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I4d9f697a15da0d349db3b34d56f3a220dd41d41b
+    Reviewed-on: https://go-review.googlesource.com/16359
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/ip_test.go | 45 ---------------------------------------------
- src/net/lookup.go  | 21 ---------------------
- 2 files changed, 66 deletions(-)
+ src/runtime/mgc.go     | 30 ++++++++++++++++++++++--------
+ src/runtime/mgcmark.go |  9 +--------
+ 2 files changed, 23 insertions(+), 16 deletions(-)

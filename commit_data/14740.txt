@@ -1,15 +1,20 @@
-commit ecbf99ad975970bd3496880ebf6bc8a2d19b31eb
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Dec 24 12:14:41 2012 +0100
+commit 82ae6434b3a95beb64f708078af5a525088d6ccc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Dec 22 17:41:00 2012 -0800
 
-    cmd/gc: fix race instrumentation of unaddressable arrays.
+    net/http: match curl and others' NO_PROXY wildcard handling
     
-    Fixes #4578.
+    NO_PROXY="example.com" should match "foo.example.com", just
+    the same as NO_PROXY=".example.com".  This is what curl and
+    Python do.
     
-    R=dvyukov, golang-dev
+    Fixes #4574
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7005050
+    https://golang.org/cl/7005049
 
- src/cmd/gc/racewalk.c                     |  8 +++++++-
- src/pkg/runtime/race/testdata/map_test.go | 12 ++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/pkg/net/http/proxy_test.go     |  2 +-
+ src/pkg/net/http/transport.go      | 10 ++++++-
+ src/pkg/net/http/transport_test.go | 60 ++++++++++++++++++++++++++++----------
+ 3 files changed, 55 insertions(+), 17 deletions(-)

@@ -1,24 +1,18 @@
-commit cd2f347c61bd9f41e977d74dc2dd3a1f36b65800
-Author: 古大羊 <lj1788@gmail.com>
-Date:   Mon Feb 10 12:49:15 2025 +0800
+commit e45c262fe55ada091a4ae53bf140ff22d9f74b35
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Feb 12 14:32:22 2024 -0500
 
-    crypto/tls: fix ECH compatibility
+    runtime/cgo: add note about default stack bounds
     
-    Previously, the code only checked supportedVersions[0] for TLS 1.3
-    However, Chromium-based
-    browsers may list TLS 1.3 at different positions, causing ECH failures.
-    This fix:
-        Iterates through supportedVersions to accept connections as long as TLS 1.3 is present.
-        Improves ECH compatibility, ensuring Chrome, Edge, and other browsers work properly.
+    The default case in x_cgo_getstackbound does not actually get the stack bound of
+    the current thread, but estimates the bound based on the default stack size. Add
+    a comment noting this.
     
-    Fixes #71642
-    
-    Change-Id: I32f4219fb6654d5cc22c7f33497c6142c0acb4f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648015
+    Change-Id: I7d886461f0bbc795834bed37b554417cf3837a2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563376
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
 
- src/crypto/tls/ech.go | 24 ++++++++++++++++++++++--
- 1 file changed, 22 insertions(+), 2 deletions(-)
+ src/runtime/cgo/gcc_stack_unix.c | 2 ++
+ 1 file changed, 2 insertions(+)

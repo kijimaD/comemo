@@ -1,24 +1,30 @@
-commit f3d4ff7ddc86d2e5f3318fbf8a897edae6da1379
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 13 14:47:45 2017 -0700
+commit a005a8d1b4ab37c1f5fd200fc57d2a67ce87c8ac
+Author: Samuel Tan <samueltan@google.com>
+Date:   Wed Jul 5 16:28:41 2017 -0700
 
-    cmd/compile: omit ICE diagnostics after normal error messages
+    html/template: use the same escaper across multiple template executions
     
-    After we detect errors, the AST is in a precarious state and more
-    likely to trip useless ICE failures. Instead let the user fix any
-    existing errors and see if the ICE persists.  This makes Fatalf more
-    consistent with how panics are handled by hidePanic.
+    The escaper contains information about which templates have already been
+    visited and escaped. This information is necessary to prevent templates
+    that have already been escaped from being over-escaped. However, since we
+    currently create a new escaper each time we execute a template, this
+    information does not persist across multiple template executions.
     
-    While here, also fix detection for release versions: release version
-    strings begin with "go" ("go1.8", "go1.9.1", etc), not "release".
+    Fix this by saving an escaper in each template name space which is shared by
+    all templates in that name space.
     
-    Fixes #22252.
+    While there, fix error message formatting for an escaping unit test.
     
-    Change-Id: I1c400af62fb49dd979b96e1bf0fb295a81c8b336
-    Reviewed-on: https://go-review.googlesource.com/70850
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #20842
+    
+    Change-Id: Ie392c3e7ce0e0a9947bdf56c99e926e7c7db76e4
+    Reviewed-on: https://go-review.googlesource.com/47256
+    Reviewed-by: Mike Samuel <mikesamuel@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 28 +++++++++++++++-------------
- 1 file changed, 15 insertions(+), 13 deletions(-)
+ src/html/template/escape.go      | 46 +++++++++++++++++++++++++----------
+ src/html/template/escape_test.go | 52 ++++++++++++++++++++++++++++++----------
+ src/html/template/template.go    | 13 +++++-----
+ 3 files changed, 79 insertions(+), 32 deletions(-)

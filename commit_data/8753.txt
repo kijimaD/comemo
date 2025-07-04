@@ -1,13 +1,22 @@
-commit d81147b617e192a7e9f33e32da1ea01da43aa381
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 16 12:56:39 2011 -0400
+commit 98f95b80482d044f5e653a01851f39b6c9a4b8ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 16 08:55:53 2011 -0700
 
-    A+C: Volker Dobler (individual CLA)
+    mime/multipart: convert Reader from interface to struct
     
-    R=golang-dev, gri
+    It was always a weird interface but I didn't know what I
+    was doing at the time.  rsc questioned me about it then
+    but didn't press on it during review.  Then adg bugged me
+    about it too recently.
+    
+    So clean it up. It parallels the Writer struct too.
+    
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/4589055
+    https://golang.org/cl/4602063
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/http/request.go                  |  4 ++--
+ src/pkg/mime/multipart/formdata.go       |  2 +-
+ src/pkg/mime/multipart/multipart.go      | 36 +++++++++++---------------------
+ src/pkg/mime/multipart/multipart_test.go |  2 +-
+ 4 files changed, 16 insertions(+), 28 deletions(-)

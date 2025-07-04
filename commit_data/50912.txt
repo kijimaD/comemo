@@ -1,21 +1,16 @@
-commit 44563340cc6b6e3b8b1bf8f510dad9ee3f075633
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Fri Oct 7 12:19:32 2022 +0800
+commit 633d8c120b8f9c2ce4a0d079cd700a152a27dad6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 16 08:39:44 2021 -0800
 
-    cmd/compile: move {SHL,SHR,SAR}X rules to late lower pass
+    cmd/compile/internal/types2: when type hashing, canonicalize interfaces
     
-    This can reduce a bunch of rules.
+    This CL is a clean port of CL 363115 from go/types to types2.
     
-    Change-Id: Id7d644307c295a0ed16eb837b3755d1117a4fbf7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/440036
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic2bd9388c57ffa02e75ab136d952e3ab49eb9018
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364394
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/_gen/AMD64.rules      |   68 +-
- .../compile/internal/ssa/_gen/AMD64latelower.rules |    5 +
- src/cmd/compile/internal/ssa/rewriteAMD64.go       | 2052 ++------------------
- .../compile/internal/ssa/rewriteAMD64latelower.go  |  122 ++
- 4 files changed, 281 insertions(+), 1966 deletions(-)
+ .../compile/internal/types2/instantiate_test.go    | 32 +++++++++++
+ src/cmd/compile/internal/types2/typestring.go      | 66 ++++++++++++++++++----
+ 2 files changed, 86 insertions(+), 12 deletions(-)

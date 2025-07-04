@@ -1,20 +1,17 @@
-commit 032e5bfb302714c4f9330540ca3d4087062bdc1a
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Thu Sep 13 15:59:34 2012 -0400
+commit d06dcd45959f83c3b82c10116acc9a64beff14cd
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Sep 13 18:40:50 2012 +0200
 
-    ld: add .gcdata and .gcbss sections
+    cmd/gc: Specify which package import caused an redeclaration error.
     
-    R=rsc
+    Fixes #4012.
+    
+    R=dave, remyoudompheng, rsc
     CC=golang-dev
-    https://golang.org/cl/6281048
+    https://golang.org/cl/6490082
 
- src/cmd/5l/asm.c       |   6 +-
- src/cmd/6l/asm.c       |   6 +-
- src/cmd/8l/asm.c       |   6 +-
- src/cmd/gc/subr.c      |   1 -
- src/cmd/ld/data.c      | 340 ++++++++++++++++++++++++++++++++++---------------
- src/cmd/ld/decodesym.c | 215 +++++++++++++++++++++++++++++++
- src/cmd/ld/dwarf.c     | 236 +---------------------------------
- src/cmd/ld/lib.h       |  30 ++++-
- src/cmd/ld/symtab.c    |   4 +
- 9 files changed, 498 insertions(+), 346 deletions(-)
+ src/cmd/gc/dcl.c    | 11 +++++++----
+ src/cmd/gc/export.c |  8 ++++++--
+ src/cmd/gc/go.h     |  1 +
+ src/cmd/gc/subr.c   |  5 ++++-
+ 4 files changed, 18 insertions(+), 7 deletions(-)

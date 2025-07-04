@@ -1,22 +1,24 @@
-commit d965bb613086cd780cf73418bcdeaef50a9afc55
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 20 11:37:54 2020 -0400
+commit 71d127aafd15d7d11afb7752c22689a8c13ef21a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 21 14:12:26 2019 -0400
 
-    runtime: use divRoundUp
+    crypto/tls: retry net.Dial flakes on Dragonfly
     
-    There are a handful of places where the runtime wants to round up the
-    result of a division. We just introduced a helper to do this. This CL
-    replaces all of the hand-coded round-ups (that I could find) with this
-    helper.
+    localPipe currently flakes in various crypto/tls tests. Since that
+    function doesn't seem to flake anywhere else, I suspect a kernel bug.
     
-    Change-Id: I465d152157ff0f3cad40c0aa57491e4f2de510ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224385
-    Run-TryBot: Austin Clements <austin@google.com>
+    To make the test less flaky, retry the Dial if we suspect that it is
+    affected. (Worst case, we delay the test by a few seconds before
+    erroring out as usual.)
+    
+    Fixes #29583
+    
+    Change-Id: I357990ffa316edb471bd7d46d6404fa0884da646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202557
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc.go      | 4 ++--
- src/runtime/mgcmark.go     | 2 +-
- src/runtime/mgcsweepbuf.go | 2 +-
- src/runtime/msize.go       | 4 ++--
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/crypto/tls/handshake_test.go      | 15 +++++++++++++--
+ src/crypto/tls/handshake_unix_test.go | 18 ++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

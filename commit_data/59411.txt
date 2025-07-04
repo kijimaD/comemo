@@ -1,31 +1,18 @@
-commit 044ca4e5c878c785e2c69e5ebcb3d44bf97abc9f
-Author: Ernesto Alejandro Santana Hidalgo <ernesto.alejandrosantana@gmail.com>
-Date:   Sun May 4 04:30:25 2025 +0000
+commit a3eb3b8148b5f615f24f9e58451adec3d55b739a
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sat Mar 9 03:10:36 2024 +0000
 
-    log/slog: export Source method in Record for custom handler support
+    compress/gzip: close writer in test
     
-    Currently, the `source` method in `slog.Record` is not accessible to
-    custom handlers, requiring developers to re-implement logic for
-    retrieving source location information. This commit exports the `source`
-    method as `Source`, enabling consistent access for custom logging
-    handlers and reducing code redundancy.
-    
-    Fixes #70280
-    
-    Change-Id: I3eb3bc60658abc5de95697a10bddd11ab54c6e13
-    GitHub-Last-Rev: bd81afe5a502bf0e2d03c30d0f5199a532cc4c62
-    GitHub-Pull-Request: golang/go#70281
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626976
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I12bc9287106f1492cbc9e74b4163cce97c957d31
+    GitHub-Last-Rev: cda1b48fe3ee9083a2262f1d6eeb039c66c12b40
+    GitHub-Pull-Request: golang/go#66185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569896
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- api/next/70280.txt                           |  1 +
- doc/next/6-stdlib/99-minor/log/slog/70280.md |  1 +
- src/log/slog/handler.go                      |  6 ++++-
- src/log/slog/handler_test.go                 | 40 +++++++++++++++++++++++++++-
- src/log/slog/logger_test.go                  |  5 +++-
- src/log/slog/record.go                       | 13 +++++----
- src/log/slog/record_test.go                  | 23 +++++++++++-----
- 7 files changed, 75 insertions(+), 14 deletions(-)
+ src/compress/gzip/gzip_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

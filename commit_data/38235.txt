@@ -1,16 +1,25 @@
-commit b3fac018f15e653ed69f19f4c85c811ef2a62b9f
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Tue Mar 5 16:05:07 2019 +0100
+commit 56131cbd1d61ec446e10dfe72a96f329ed3d952a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 11 16:47:41 2018 -0700
 
-    net: fix fd leak with interfaces on aix/ppc64
+    go/types: remove a test case and update comment
     
-    To retrieve MTU on aix/ppc64, a socket must be created. Previously, this
-    socket was recreated for each interface and not close at all, causing a
-    fd leak on software using interface API.
+    The original need for the extra test case and issue was eliminated
+    by https://golang.org/cl/116815 which introduced systematic cycle
+    detection. Now that we correctly report the cycle, we can't say much
+    about the invalid cast anyway (the type is invalid due to the cycle).
     
-    Change-Id: Ib573e234bfce58964935831b68d007bfbd923476
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165397
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    A more sophisticated approach would be able to tell the size of
+    a function type independent of the details of that type, but the
+    type-checker is not set up for this kind of lazy type-checking.
+    
+    Fixes #23127.
+    
+    Change-Id: Ia8479e66baf630ce96f6f36770c8e1c810c59ddc
+    Reviewed-on: https://go-review.googlesource.com/c/141640
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/interface_aix.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/go/types/testdata/cycles2.src | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)

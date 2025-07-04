@@ -1,27 +1,26 @@
-commit aecf4b12e100dbf1ced36f981fbf00ae64d32af8
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Oct 5 16:25:06 2021 -0400
+commit f7dad5eae43d5feb77c16fbd892a5a24a4d309ae
+Author: David Chase <drchase@google.com>
+Date:   Fri Jan 22 22:53:47 2021 -0500
 
-    internal/fuzz: log average execs/sec since last log
+    [dev.regabi] cmd/compile: remove leftover code form late call lowering work
     
-    This change also fixes a bug with calculating the
-    total interesting count. When fuzzing with an empty
-    corpus, the fuzzing engine adds an starting corpus
-    value in that run in order to start fuzzing. That
-    meant that the interesting total count was off by one:
-    it would start at 1, even though the cache was empty.
-    Added some tests for this as well.
+    It's no longer conditional.
     
-    Fixes #48787
-    
-    Change-Id: I47acf96f0a0797214ebb24a95366d8460bf303bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354150
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: I697bb0e9ffe9644ec4d2766f7e8be8b82d3b0638
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286013
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/testdata/script/test_fuzz.txt | 14 ++++++++++++++
- src/internal/fuzz/fuzz.go                | 27 +++++++++++++++++++--------
- 2 files changed, 33 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go        |   1 -
+ src/cmd/compile/internal/ssa/config.go         |   8 -
+ src/cmd/compile/internal/ssa/decompose.go      |   4 -
+ src/cmd/compile/internal/ssa/expand_calls.go   |   3 -
+ src/cmd/compile/internal/ssa/gen/dec64.rules   |   8 +-
+ src/cmd/compile/internal/ssa/gen/decArgs.rules |  58 ------
+ src/cmd/compile/internal/ssa/gen/decArgsOps.go |  20 --
+ src/cmd/compile/internal/ssa/rewritedec64.go   |  16 +-
+ src/cmd/compile/internal/ssa/rewritedecArgs.go | 247 -------------------------
+ src/cmd/compile/internal/ssagen/ssa.go         | 211 +++++----------------
+ 10 files changed, 63 insertions(+), 513 deletions(-)

@@ -1,22 +1,16 @@
-commit e2467f047b0d22b79aed86157064abfa5e205859
-Author: Sébastien Paolacci <sebastien.paolacci@gmail.com>
-Date:   Sat Nov 19 15:17:40 2011 +0900
+commit 82182514989c9872b9bc3be35c4fb02cf8d82a5b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 18 20:55:35 2011 -0800
 
-    syscall: add SUSv3 RLIMIT/RUSAGE constants
+    go/printer: cleanup more string/byte conversions
     
-    R=golang-dev, mikioh.mikioh, rsc
+    Slight slow-down for printer benchmark (-0.7%) before
+    applying CL 5416049 (which will wash it out). Code is
+    cleaner and simpler.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5369092
+    https://golang.org/cl/5417053
 
- src/pkg/syscall/mkerrors.sh              |  3 +++
- src/pkg/syscall/zerrors_freebsd_386.go   | 11 +++++++++++
- src/pkg/syscall/zerrors_freebsd_amd64.go | 11 +++++++++++
- src/pkg/syscall/zerrors_linux_386.go     | 15 +++++++++++++++
- src/pkg/syscall/zerrors_linux_amd64.go   | 15 +++++++++++++++
- src/pkg/syscall/zsysnum_freebsd_386.go   | 18 +++++++++++++++++-
- src/pkg/syscall/zsysnum_freebsd_amd64.go | 18 +++++++++++++++++-
- src/pkg/syscall/zsysnum_linux_386.go     |  6 ++++++
- src/pkg/syscall/zsysnum_linux_amd64.go   |  6 ++++++
- src/pkg/syscall/ztypes_linux_386.go      |  2 +-
- src/pkg/syscall/ztypes_linux_amd64.go    |  2 +-
- 11 files changed, 103 insertions(+), 4 deletions(-)
+ src/pkg/go/printer/printer.go | 69 +++++++++++++++++++------------------------
+ 1 file changed, 30 insertions(+), 39 deletions(-)

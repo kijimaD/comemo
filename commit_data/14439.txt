@@ -1,16 +1,16 @@
-commit c00bda13528c47b604595b17d76cf4b89425f632
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 19 13:23:32 2012 -0800
+commit e070aeae779b641a5180c1807de19bfc9e5864c2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 19 10:40:13 2012 -0800
 
-    go/printer: simply ignore filename changes in position information
+    net/http/cgi: more windows perl test work
     
-    There's no good reason to make any printer state adjustments
-    simply because the file name in node position information has
-    changed. Eliminate the relevant code.
+    Don't rely on finding cmd.exe in a particular spot.
     
-    R=r
+    Fixes #4401
+    
+    R=golang-dev, krautz
     CC=golang-dev
-    https://golang.org/cl/6856054
+    https://golang.org/cl/6842066
 
- src/pkg/go/printer/printer.go | 15 ---------------
- 1 file changed, 15 deletions(-)
+ src/pkg/net/http/cgi/testdata/test.cgi | 61 ++++++++++++++++++++++++----------
+ 1 file changed, 44 insertions(+), 17 deletions(-)

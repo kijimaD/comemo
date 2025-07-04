@@ -1,18 +1,26 @@
-commit 564a1f3358c2d4f6d1f04ef5acef4057d4421360
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Feb 29 13:55:50 2012 -0800
+commit fc268acf05adf5d0437ef1bf80c6e919818fe6ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 29 16:37:40 2012 -0500
 
-    gc: fix string comparisons for new bool rules
+    path/filepath: steer people away from HasPrefix
     
-    The two string comparison optimizations were
-    missing the implicit cast from ideal bool.
+    The strikes against it are:
     
-    Fixes #3119.
+    1. It does not take path boundaries into account.
+    2. It assumes that Windows==case-insensitive file system
+    and non-Windows==case-sensitive file system, neither of
+    which is always true.
+    3. Comparing ToLower against ToLower is not a correct
+    implementation of a case-insensitive string comparison.
+    4. If it returns true on Windows you still don't know how long
+    the matching prefix is in bytes, so you can't compute what
+    the suffix is.
     
-    R=golang-dev, rsc
+    R=golang-dev, r, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/5696071
+    https://golang.org/cl/5712045
 
- src/cmd/gc/walk.c        |  2 ++
- test/fixedbugs/bug425.go | 17 +++++++++++++++++
- 2 files changed, 19 insertions(+)
+ src/pkg/path/filepath/path_plan9.go   | 2 +-
+ src/pkg/path/filepath/path_unix.go    | 2 +-
+ src/pkg/path/filepath/path_windows.go | 3 +--
+ 3 files changed, 3 insertions(+), 4 deletions(-)

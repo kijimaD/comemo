@@ -1,28 +1,22 @@
-commit b928e2faa8d90989276ff0880aaef666c970cc68
-Author: David Lazar <lazard@golang.org>
-Date:   Sat May 27 17:43:37 2017 -0400
+commit 228438e0973b688829fdd601e31352920a5914f4
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Mar 8 21:56:57 2017 +0100
 
-    cmd/compile: retain source positions of arguments to inlined calls
+    os/user: fake Current on Android
     
-    Arguments to inlined calls are hidden from setPos as follows:
+    On Android devices where the stub fallback for Current fails to
+    extract a User from the environment, return a dummy fallback instead
+    of failing.
     
-        args := as.Rlist
-        as.Rlist.Set(nil)
-        // setPos...
-        as.Rlist.Set(args.Slice())
+    While we're here, use / instead of /home/nacl for the NaCL fallback.
     
-    Previously, this code had no effect since the value of as was
-    overwritten by the assignment in the retvars loop.
+    Hopefully fixes the Android builder.
     
-    Fixes #19799.
-    
-    Change-Id: Iaf97259f82fdba8b236136337cc42b2774c7fef5
-    Reviewed-on: https://go-review.googlesource.com/44351
-    Run-TryBot: David Lazar <lazard@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ia29304fbc224ee5f9c0f4e706d1756f765a7eae5
+    Reviewed-on: https://go-review.googlesource.com/37960
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/inl.go |  6 ++--
- test/fixedbugs/issue19799.go       | 71 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 74 insertions(+), 3 deletions(-)
+ src/os/user/lookup_stubs.go | 16 ++++++++++++++--
+ src/os/user/user_test.go    |  3 ---
+ 2 files changed, 14 insertions(+), 5 deletions(-)

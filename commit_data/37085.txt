@@ -1,19 +1,26 @@
-commit 980340ade7acb057c2e0e244a4002c96274f8a77
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue Oct 23 23:39:29 2018 +0200
+commit f040e439cbf860244d2bd9d6808712b93c31c605
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 26 15:57:35 2018 -0700
 
-    internal/cpu: add options and warnings for required cpu features
+    mime/multipart: restore 1.9 handling of missing/empty form-data file name
     
-    Updates #27218
+    Revert the code changes of CL 96975 and CL 70931, but keep the tests,
+    appropriately modified for the code changes. This restores the 1.9
+    handling of form-data entries with missing or empty file names.
     
-    Change-Id: I8603f3a639cdd9ee201c4f1566692e5b88877fc4
-    Reviewed-on: https://go-review.googlesource.com/c/144107
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    Changing the handling of this simply confused existing programs for no
+    useful benefit. Go back to the old behavior.
+    
+    Updates #19183
+    Fixes #24041
+    
+    Change-Id: I4ebc32433911e6360b9fd79d8f63a6d884822e0e
+    Reviewed-on: https://go-review.googlesource.com/121055
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/cpu/cpu.go        | 12 +++++++++---
- src/internal/cpu/cpu_arm64.go  |  4 ++--
- src/internal/cpu/cpu_ppc64x.go | 10 +++++-----
- src/internal/cpu/cpu_test.go   |  5 +++--
- src/internal/cpu/cpu_x86.go    |  9 ++-------
- 5 files changed, 21 insertions(+), 19 deletions(-)
+ src/mime/multipart/formdata.go      |  2 +-
+ src/mime/multipart/formdata_test.go |  7 ++-----
+ src/mime/multipart/multipart.go     | 10 ----------
+ 3 files changed, 3 insertions(+), 16 deletions(-)

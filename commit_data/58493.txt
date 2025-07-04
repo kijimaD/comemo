@@ -1,16 +1,42 @@
-commit 0cdf8c7a8ce5913845ab46e49a1befd86c9c565d
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Jan 6 21:12:03 2025 +0100
+commit 3073f3f9411737de2232e6f6d634c118b53aed22
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 14 18:56:21 2023 +0000
 
-    crypto/ecdsa: apply fips140=only to deterministic ECDSA hash
+    runtime: prevent send on closed channel in wakeableSleep
     
-    Change-Id: I6a6a46567b1eaaef080ac0994afa83db2624a75a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641316
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Currently wakeableSleep has a race where, although stopTimer is called,
+    the timer could be queued already and fire *after* the wakeup channel is
+    closed.
+    
+    Fix this by protecting wakeup with a lock used on the close and wake
+    paths and assigning the wakeup to nil on close. The wake path then
+    ignores a nil wakeup channel. This fixes the problem by ensuring that a
+    failure to stop the timer only results in the timer doing nothing,
+    rather than trying to send on a closed channel.
+    
+    The addition of this lock requires some changes to the static lock
+    ranking system.
+    
+    Thiere's also a second problem here: the timer could be delayed far
+    enough into the future that when it fires, it observes a non-nil wakeup
+    if the wakeableSleep has been re-initialized and reset.
+    
+    Fix this problem too  by allocating the wakeableSleep on the heap and
+    creating a new one instead of reinitializing the old one. The GC will
+    make sure that the reference to the old one stays alive for the timer to
+    fire, but that timer firing won't cause a spurious wakeup in the new
+    one.
+    
+    Change-Id: I2b979304e755c015d4466991f135396f6a271069
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542335
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Commit-Queue: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/crypto/ecdsa/ecdsa.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/lockrank.go   |  3 +++
+ src/runtime/mklockrank.go |  1 +
+ src/runtime/trace2.go     | 62 +++++++++++++++++++++++++++++++++--------------
+ src/runtime/trace2cpu.go  |  2 +-
+ 4 files changed, 49 insertions(+), 19 deletions(-)

@@ -1,14 +1,14 @@
-commit 5f739d9dcd01730e10d829968755c7b1a7b5f2b7
-Author: Marko Tiikkaja <marko@joh.to>
-Date:   Mon Sep 22 09:19:27 2014 -0400
+commit d78823168fb90c33b6a208e56bffa1e17e32de59
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Sep 12 15:05:41 2014 -0700
 
-    database/sql: Close per-tx prepared statements when the associated tx ends
+    cmd/gc: fix racewalk after writebarrier change
+    Instrument dst argument of writebarrier calls.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz, mattn.jp
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/131650043
+    https://golang.org/cl/139560045
 
- src/database/sql/sql.go      | 41 ++++++++++++++++++++++++++++++++++++-----
- src/database/sql/sql_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 67 insertions(+), 5 deletions(-)
+ src/cmd/gc/racewalk.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

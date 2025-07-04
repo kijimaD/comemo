@@ -1,15 +1,18 @@
-commit fac7d5dd9566712b21486e50f9fcf554c06773a9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 2 16:15:25 2018 -0700
+commit 918b98ca707e36ec84c0494b884ff0a02c9121c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 13 22:32:19 2017 -0500
 
-    cmd/compile: simplify exportsym debug message
+    cmd/internal/obj, cmd/trace: restore bounds checks dropped in CL 56950
     
-    No need to disambiguate if we're exporting or reexporting, because
-    it's obvious from the output.
+    CL 56950 correctly identified code with checks that were impossible.
+    But instead of correcting the checks it deleted them.
+    This CL corrects the code to check what was meant.
     
-    Change-Id: I59053d34dc6f8b29e20749c7b03c3cb4f4d641ff
-    Reviewed-on: https://go-review.googlesource.com/104236
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic89222184ee4fa5cacccae12d750601a9438ac8d
+    Reviewed-on: https://go-review.googlesource.com/78113
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/export.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/internal/obj/sym.go | 5 ++++-
+ src/cmd/trace/trace.go      | 7 +++++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)

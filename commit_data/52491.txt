@@ -1,19 +1,58 @@
-commit 75317dee399b66eaf09b8e4f6c4f8c45ecdce1f3
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Mar 30 10:45:21 2023 +0200
+commit 52de40120d2efdaf39e881b53a14ad38e948cbd7
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 6 15:04:47 2022 -0400
 
-    cmd/objdump: unskip TestDisasmExtld on Windows
+    crypto/elliptic/internal/nistec: move to crypto/internal/nistec
     
-    Windows has supported external linking for a while, there is no
-    need to skip this test.
+    So it's reachable from crypto/ecdsa and the upcoming crypto/ecdh.
     
-    Change-Id: Ic3d0cc3441ee670767dae085db5e62fce205ff04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480417
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    No code changes.
+    
+    For #52182
+    
+    Change-Id: Ie3216052f46c6ef7ec64d8b87a233a9c50c4b16a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398674
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/objdump/objdump_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/stmtlines_test.go              |   2 +-
+ src/crypto/elliptic/nistec.go                               |   2 +-
+ src/crypto/elliptic/nistec_p256.go                          |   2 +-
+ .../{elliptic/internal => internal/nistec}/fiat/Dockerfile  |   0
+ .../{elliptic/internal => internal/nistec}/fiat/README      |   0
+ .../internal => internal/nistec}/fiat/fiat_test.go          |   2 +-
+ .../{elliptic/internal => internal/nistec}/fiat/generate.go |   0
+ .../{elliptic/internal => internal/nistec}/fiat/p224.go     |   0
+ .../internal => internal/nistec}/fiat/p224_fiat64.go        |   0
+ .../internal => internal/nistec}/fiat/p224_invert.go        |   0
+ .../{elliptic/internal => internal/nistec}/fiat/p256.go     |   0
+ .../internal => internal/nistec}/fiat/p256_fiat64.go        |   0
+ .../internal => internal/nistec}/fiat/p256_invert.go        |   0
+ .../{elliptic/internal => internal/nistec}/fiat/p384.go     |   0
+ .../internal => internal/nistec}/fiat/p384_fiat64.go        |   0
+ .../internal => internal/nistec}/fiat/p384_invert.go        |   0
+ .../{elliptic/internal => internal/nistec}/fiat/p521.go     |   0
+ .../internal => internal/nistec}/fiat/p521_fiat64.go        |   0
+ .../internal => internal/nistec}/fiat/p521_invert.go        |   0
+ src/crypto/{elliptic => }/internal/nistec/generate.go       |   2 +-
+ src/crypto/{elliptic => }/internal/nistec/nistec.go         |   0
+ src/crypto/{elliptic => }/internal/nistec/nistec_test.go    |   2 +-
+ src/crypto/{elliptic => }/internal/nistec/p224.go           |   2 +-
+ src/crypto/{elliptic => }/internal/nistec/p224_sqrt.go      |   2 +-
+ src/crypto/{elliptic => }/internal/nistec/p256.go           |   2 +-
+ src/crypto/{elliptic => }/internal/nistec/p256_asm.go       |   0
+ src/crypto/{elliptic => }/internal/nistec/p256_asm_amd64.s  |   0
+ src/crypto/{elliptic => }/internal/nistec/p256_asm_arm64.s  |   0
+ .../{elliptic => }/internal/nistec/p256_asm_ppc64le.s       |   0
+ src/crypto/{elliptic => }/internal/nistec/p256_asm_s390x.s  |   0
+ .../{elliptic => }/internal/nistec/p256_asm_table.bin       | Bin
+ .../{elliptic => }/internal/nistec/p256_asm_table_test.go   |   0
+ src/crypto/{elliptic => }/internal/nistec/p256_asm_test.go  |   2 +-
+ src/crypto/{elliptic => }/internal/nistec/p256_ppc64le.go   |   0
+ src/crypto/{elliptic => }/internal/nistec/p256_s390x.go     |   0
+ src/crypto/{elliptic => }/internal/nistec/p384.go           |   2 +-
+ src/crypto/{elliptic => }/internal/nistec/p521.go           |   2 +-
+ src/go/build/deps_test.go                                   |   4 ++--
+ 38 files changed, 14 insertions(+), 14 deletions(-)

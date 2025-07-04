@@ -1,69 +1,29 @@
-commit dae5389d3d2b5303542a6b699eff49307b7ed985
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 28 00:19:49 2017 +0000
+commit c4ef597c47a00c3f78916425153aefa171a3b12f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 1 14:27:40 2017 -0500
 
-    Revert "cmd/compile: add Type.MustSize and Type.MustAlignment"
+    cmd/compile: redo writebarrier pass
     
-    This reverts commit 94d540a4b6bf68ec472bf4469037955e3133fcf7.
+    SSA's writebarrier pass requires WB store ops are always at the
+    end of a block. If we move write barrier insertion into SSA and
+    emits normal Store ops when building SSA, this requirement becomes
+    impractical -- it will create too many blocks for all the Store
+    ops.
     
-    Reason for revert: prefer something along the lines of CL 42018.
+    Redo SSA's writebarrier pass, explicitly order values in store
+    order, so it no longer needs this requirement.
     
-    Change-Id: I876fe32e98f37d8d725fe55e0fd0ea429c0198e0
-    Reviewed-on: https://go-review.googlesource.com/42022
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Updates #17583.
+    Fixes #19067.
+    
+    Change-Id: I66e817e526affb7e13517d4245905300a90b7170
+    Reviewed-on: https://go-review.googlesource.com/36834
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/amd64/ggen.go            |   2 +-
- src/cmd/compile/internal/amd64/ssa.go             |  12 +-
- src/cmd/compile/internal/arm/ggen.go              |   2 +-
- src/cmd/compile/internal/arm/ssa.go               |  18 +--
- src/cmd/compile/internal/arm64/ggen.go            |   2 +-
- src/cmd/compile/internal/arm64/ssa.go             |  22 +--
- src/cmd/compile/internal/gc/plive.go              |   4 +-
- src/cmd/compile/internal/gc/ssa.go                |  92 ++++++------
- src/cmd/compile/internal/mips/ggen.go             |   2 +-
- src/cmd/compile/internal/mips/ssa.go              |  18 +--
- src/cmd/compile/internal/mips64/ggen.go           |   2 +-
- src/cmd/compile/internal/mips64/ssa.go            |  20 +--
- src/cmd/compile/internal/ppc64/ggen.go            |   2 +-
- src/cmd/compile/internal/ppc64/ssa.go             |   8 +-
- src/cmd/compile/internal/s390x/ggen.go            |   2 +-
- src/cmd/compile/internal/s390x/ssa.go             |   8 +-
- src/cmd/compile/internal/ssa/deadstore.go         |   4 +-
- src/cmd/compile/internal/ssa/decompose.go         |  12 +-
- src/cmd/compile/internal/ssa/export_test.go       |   2 +-
- src/cmd/compile/internal/ssa/gen/386.rules        |  24 ++--
- src/cmd/compile/internal/ssa/gen/AMD64.rules      |  42 +++---
- src/cmd/compile/internal/ssa/gen/ARM.rules        |  38 ++---
- src/cmd/compile/internal/ssa/gen/ARM64.rules      |  24 ++--
- src/cmd/compile/internal/ssa/gen/MIPS.rules       |  52 +++----
- src/cmd/compile/internal/ssa/gen/MIPS64.rules     |  66 ++++-----
- src/cmd/compile/internal/ssa/gen/PPC64.rules      |  16 +--
- src/cmd/compile/internal/ssa/gen/S390X.rules      |  12 +-
- src/cmd/compile/internal/ssa/gen/dec.rules        |   8 +-
- src/cmd/compile/internal/ssa/gen/dec64.rules      |   4 +-
- src/cmd/compile/internal/ssa/gen/generic.rules    |  14 +-
- src/cmd/compile/internal/ssa/loopreschedchecks.go |   4 +-
- src/cmd/compile/internal/ssa/op.go                |   2 +-
- src/cmd/compile/internal/ssa/phiopt.go            |   6 +-
- src/cmd/compile/internal/ssa/rewrite.go           |  14 +-
- src/cmd/compile/internal/ssa/rewrite386.go        |  68 ++++-----
- src/cmd/compile/internal/ssa/rewriteAMD64.go      | 168 +++++++++++-----------
- src/cmd/compile/internal/ssa/rewriteARM.go        |  72 +++++-----
- src/cmd/compile/internal/ssa/rewriteARM64.go      |  48 +++----
- src/cmd/compile/internal/ssa/rewriteMIPS.go       | 100 ++++++-------
- src/cmd/compile/internal/ssa/rewriteMIPS64.go     | 128 ++++++++---------
- src/cmd/compile/internal/ssa/rewritePPC64.go      |  32 ++---
- src/cmd/compile/internal/ssa/rewriteS390X.go      |  24 ++--
- src/cmd/compile/internal/ssa/rewritedec.go        |  16 +--
- src/cmd/compile/internal/ssa/rewritedec64.go      |   8 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go    |  28 ++--
- src/cmd/compile/internal/ssa/type.go              |  12 +-
- src/cmd/compile/internal/ssa/type_test.go         |   4 +-
- src/cmd/compile/internal/ssa/writebarrier.go      |  14 +-
- src/cmd/compile/internal/types/type.go            |  16 ---
- src/cmd/compile/internal/x86/387.go               |   4 +-
- src/cmd/compile/internal/x86/ggen.go              |   2 +-
- src/cmd/compile/internal/x86/ssa.go               |  16 +--
- 52 files changed, 652 insertions(+), 668 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |  16 --
+ src/cmd/compile/internal/ssa/nilcheck.go     | 160 -------------
+ src/cmd/compile/internal/ssa/schedule.go     | 164 +++++++++++++
+ src/cmd/compile/internal/ssa/writebarrier.go | 344 +++++++++++++--------------
+ 4 files changed, 332 insertions(+), 352 deletions(-)

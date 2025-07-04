@@ -1,15 +1,20 @@
-commit 28e9e15802aba9caef309edc5568c48c2965a19f
-Author: Peter Kleiweg <pkleiweg@xs4all.nl>
-Date:   Tue May 29 12:40:12 2012 -0400
+commit 154c84cdacd00a12da7ec44fa34a5c7d01823827
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Tue May 29 12:32:42 2012 -0400
 
-    Emacs go-mode: fix Emacs freeze-up when copy/pasting from string or comment.
+    cmd/6l: Fixes for 64-bit Plan 9
     
-    Fixes #3509.
-    Fixes #2767.
+    Plan 9 versions for amd64 have 2 megabyte pages.
+    This also fixes the logic for 32-bit vs 64-bit Plan 9,
+    making 64-bit the default, and adds logic to generate
+    a symbols table.
     
-    R=golang-dev, sameer
-    CC=golang-dev
-    https://golang.org/cl/6139066
+    R=golang-dev, rsc, rminnich, ality, 0intro
+    CC=golang-dev, john
+    https://golang.org/cl/6218046
 
- misc/emacs/go-mode.el | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/6l/asm.c    | 23 +++++++++++++++++++----
+ src/cmd/6l/obj.c    | 12 ++++++------
+ src/cmd/ld/data.c   |  2 +-
+ src/cmd/ld/symtab.c |  9 +++++++--
+ 4 files changed, 33 insertions(+), 13 deletions(-)

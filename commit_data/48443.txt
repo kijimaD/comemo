@@ -1,26 +1,25 @@
-commit 9ac75d39514402d9b314e758524dcc28612b8937
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 15 16:37:50 2022 -0400
+commit baa934d26dd6e201dcda0962dd51b0e5f6f69c1b
+Author: Tim King <taking@google.com>
+Date:   Wed May 19 18:45:53 2021 -0700
 
-    cmd/link: avoid stamping runtime.defaultGOROOT when paths are being trimmed
+    cmd: go get golang.org/x/tools/analysis@49064d23 && go mod vendor
     
-    Previously, runtime.GOROOT() would return the string "go" in a binary
-    build with -trimpath. This change stamps the empty string instead,
-    using a sentinel value passed from cmd/go that looks like the GOROOT
-    environment variable (either "$GOROOT" or "%GOROOT%", depending on the
-    platform).
+    This brings in CLs 312829, 317431, 319211.
     
-    Fixes #51461
+    Fixes #40356.
+    Fixes #46129.
     
-    Change-Id: I1f10ef2435016a7b6213bd8c547df911f7feeae7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390024
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2ee1f858b2a41ffa60d88b0c17511ccad57f1816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321389
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Tim King <taking@google.com>
+    Run-TryBot: Tim King <taking@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/work/gc.go                     |  2 +-
- .../go/testdata/script/build_trimpath_goroot.txt   | 63 ++++++++++++++++++++++
- src/cmd/link/internal/ld/main.go                   |  9 +++-
- src/cmd/link/internal/ld/pcln.go                   |  4 +-
- 4 files changed, 74 insertions(+), 4 deletions(-)
+ src/cmd/go.mod                                          |  2 +-
+ src/cmd/go.sum                                          |  4 ++--
+ .../x/tools/go/analysis/passes/printf/printf.go         |  2 +-
+ .../tools/go/analysis/passes/sigchanyzer/sigchanyzer.go | 11 +++++++++--
+ .../x/tools/go/analysis/passes/stdmethods/stdmethods.go | 17 +++++++++++++++++
+ src/cmd/vendor/modules.txt                              |  2 +-
+ 6 files changed, 31 insertions(+), 7 deletions(-)

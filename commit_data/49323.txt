@@ -1,20 +1,103 @@
-commit ccf84a97501b1cc894536162479279df1e165fc5
-Author: David Chase <drchase@google.com>
-Date:   Mon May 16 17:50:31 2022 -0400
+commit a64ab8d3ecb38e10007e136edc9dc3abde873e1e
+Merge: 677dfe5ad6 46fd547d89
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 12 12:18:51 2021 -0700
 
-    cmd/compile: catch pointless recursion on function types
+    [dev.typeparams] all: merge master (46fd547) into dev.typeparams
     
-    If a function type has no type parameters, note when it
-    is visited and do not recur.  (It must be visited
-    at least once because of closures and their associated
-    types occurring in a generic context).
+    Conflicts:
     
-    Fixes #51832.
+    - src/go/types/check_test.go
     
-    Change-Id: Iee20612ffd0a03b838b9e59615f4a0206fc8940b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406714
-    Reviewed-by: Keith Randall <khr@google.com>
+      CL 324730 on dev.typeparams changed the directory paths in TestCheck,
+      TestExamples, and TestFixedbugs and renamed checkFiles to testFiles;
+      whereas CL 337529 on master added a new test case just above them and
+      that used checkFiles.
+    
+    Merge List:
+    
+    + 2021-08-12 46fd547d89 internal/goversion: update Version to 1.18
+    + 2021-08-12 5805efc78e doc/go1.17: remove draft notice
+    + 2021-08-12 39634e7dae CONTRIBUTORS: update for the Go 1.17 release
+    + 2021-08-12 095bb790e1 os/exec: re-enable LookPathTest/16
+    + 2021-08-11 dea23e9ca8 src/make.*: make --no-clean flag a no-op that prints a warning
+    + 2021-08-11 d4c0ed26ac doc/go1.17: linker passes -I to extld as -Wl,--dynamic-linker
+    + 2021-08-10 1f9c9d8530 doc: use "high address/low address" instead of "top/bottom"
+    + 2021-08-09 f1dce319ff cmd/go: with -mod=vendor, don't panic if there are duplicate requirements
+    + 2021-08-09 7aeaad5c86 runtime/cgo: when using msan explicitly unpoison cgoCallers
+    + 2021-08-08 507cc341ec doc: add example for conversion from slice expressions to array ptr
+    + 2021-08-07 891547e2d4 doc/go1.17: fix a typo introduced in CL 335135
+    + 2021-08-06 8eaf4d16bc make.bash: do not overwrite GO_LDSO if already set
+    + 2021-08-06 63b968f4f8 doc/go1.17: clarify Modules changes
+    + 2021-08-06 70546f6404 runtime: allow arm64 SEH to be called if illegal instruction
+    + 2021-08-05 fd45e267c2 runtime: warn that KeepAlive is not an unsafe.Pointer workaround
+    + 2021-08-04 6e738868a7 net/http: speed up and deflake TestCancelRequestWhenSharingConnection
+    + 2021-08-02 8a7ee4c51e io/fs: don't use absolute path in DirEntry.Name doc
+    + 2021-07-31 b8ca6e59ed all: gofmt
+    + 2021-07-30 b7a85e0003 net/http/httputil: close incoming ReverseProxy request body
+    + 2021-07-29 70fd4e47d7 runtime: avoid possible preemption when returning from Go to C
+    + 2021-07-28 9eee0ed439 cmd/go: fix go.mod file name printed in error messages for replacements
+    + 2021-07-28 b39e0f461c runtime: don't crash on nil pointers in checkptrAlignment
+    + 2021-07-27 7cd10c1149 cmd/go: use .mod instead of .zip to determine if version has go.mod file
+    + 2021-07-27 c8cf0f74e4 cmd/go: add missing flag in UsageLine
+    + 2021-07-27 7ba8e796c9 testing: clarify T.Name returns a distinct name of the running test
+    + 2021-07-27 33ff155970 go/types: preserve untyped constants on the RHS of a shift expression
+    + 2021-07-26 840e583ff3 runtime: correct variable name in comment
+    + 2021-07-26 bfbb288574 runtime: remove adjustTimers counter
+    + 2021-07-26 9c81fd53b3 cmd/vet: add missing copyright header
+    
+    Change-Id: Ia80604d24c6f4205265683024e3100769cf32065
 
- src/cmd/compile/internal/typecheck/subr.go | 23 ++++++++++++++++++++---
- test/typeparam/issue51832.go               | 25 +++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 3 deletions(-)
+ CONTRIBUTORS                                       | 136 ++++++++++++++++++++-
+ doc/asm.html                                       |   8 +-
+ doc/go1.17.html                                    |  89 +++++++++-----
+ doc/go_spec.html                                   |   1 +
+ misc/cgo/testsanitizers/msan_test.go               |   1 +
+ misc/cgo/testsanitizers/testdata/msan8.go          | 109 +++++++++++++++++
+ src/cmd/dist/build.go                              |   7 +-
+ src/cmd/go/alldocs.go                              |   4 +-
+ src/cmd/go/internal/modcmd/edit.go                 |   2 +-
+ src/cmd/go/internal/modcmd/init.go                 |   2 +-
+ src/cmd/go/internal/modfetch/coderepo.go           |  23 ++--
+ src/cmd/go/internal/modload/buildlist.go           |  19 +++
+ src/cmd/go/internal/modload/init.go                |  39 +++---
+ src/cmd/go/internal/modload/modfile.go             |  84 +++++++------
+ src/cmd/go/internal/modload/query.go               |  30 ++++-
+ src/cmd/go/testdata/script/mod_tidy_lazy_self.txt  |  17 +--
+ .../go/testdata/script/mod_update_sum_readonly.txt |  34 ++++++
+ .../script/mod_vendor_redundant_requirement.txt    |  29 +++++
+ src/cmd/internal/obj/textflag.go                   |   4 +-
+ src/cmd/vet/main.go                                |   4 +
+ src/cmd/vet/testdata/copylock/copylock.go          |   4 +
+ src/cmd/vet/testdata/httpresponse/httpresponse.go  |   4 +
+ src/cmd/vet/testdata/testingpkg/tests.go           |   4 +
+ src/cmd/vet/testdata/testingpkg/tests_test.go      |   4 +
+ .../internal/edwards25519/field/fe_amd64.go        |   1 +
+ src/go/types/api_test.go                           |  12 ++
+ src/go/types/check_test.go                         |   7 ++
+ src/go/types/expr.go                               |  34 ++++--
+ src/io/fs/fs.go                                    |   2 +-
+ src/make.bash                                      |  12 +-
+ src/make.bat                                       |  20 +--
+ src/make.rc                                        |   7 +-
+ src/net/http/httputil/reverseproxy.go              |   9 ++
+ src/net/http/httputil/reverseproxy_test.go         |  39 ++++++
+ src/net/http/transport_test.go                     |  77 ++++++++----
+ src/os/exec/lp_windows_test.go                     |   3 -
+ src/runtime/cgo/gcc_traceback.c                    |  20 +++
+ src/runtime/cgocall.go                             |  20 ++-
+ src/runtime/checkptr.go                            |  11 +-
+ src/runtime/checkptr_test.go                       |   1 +
+ src/runtime/crash_cgo_test.go                      |   9 ++
+ src/runtime/mfinal.go                              |   4 +
+ src/runtime/proc.go                                |   1 -
+ src/runtime/race.go                                |   2 +-
+ src/runtime/runtime2.go                            |   6 -
+ src/runtime/signal_windows.go                      |  11 ++
+ src/runtime/testdata/testprog/checkptr.go          |  36 +++++-
+ src/runtime/testdata/testprogcgo/tracebackctxt.go  |  33 ++++-
+ src/runtime/testdata/testprogcgo/tracebackctxt_c.c |  14 ++-
+ src/runtime/textflag.h                             |   4 +-
+ src/runtime/time.go                                |  53 ++------
+ src/testing/testing.go                             |   6 +-
+ 52 files changed, 850 insertions(+), 262 deletions(-)

@@ -1,19 +1,16 @@
-commit f40dd8f1d9a1c2ed2e7160702b7466df5d9ccb5b
+commit 073bd0ba245395fdb9b2837fa365fb4a23eebb7a
 Author: Joel Sing <jsing@google.com>
-Date:   Mon Jan 13 11:25:48 2014 +1100
+Date:   Mon Jan 13 11:24:08 2014 +1100
 
-    syscall: include mmap constants in openbsd zerror* files
+    runtime/pprof: enable profiling test on openbsd
     
-    Include the <sys/mman.h> header for OpenBSD mkerrors.sh. This brings
-    in constants used with madvise(2), mmap(2), msync(2) and mlockall(2).
-    
-    Fixes #4929
+    Profiling of multithreaded applications works correctly on OpenBSD
+    5.4-current, so enable the profiling test.
     
     R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/50930043
+    https://golang.org/cl/50940043
 
- src/pkg/syscall/mkerrors.sh              |  1 +
- src/pkg/syscall/zerrors_openbsd_386.go   | 33 ++++++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_openbsd_amd64.go | 33 ++++++++++++++++++++++++++++++++
- 3 files changed, 67 insertions(+)
+ src/pkg/runtime/pprof/pprof.go      | 2 +-
+ src/pkg/runtime/pprof/pprof_test.go | 5 ++---
+ 2 files changed, 3 insertions(+), 4 deletions(-)

@@ -1,12 +1,12 @@
-commit 9e88f79d325b1c0d594959b3313f6cd99e5d426b
-Author: Jonathan Rudenberg <jonathan@titanous.com>
-Date:   Tue Jul 14 18:53:13 2015 -0400
+commit c1fed8482d312d5c1bf0b92f22b4217580fc1f8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 3 15:05:07 2015 -0700
 
-    doc/go1.5.html: fix typo
+    math/big: turn off debug mode
     
-    Change-Id: I8bbdf6c769e089fca8458166dffff5aea0f74675
-    Reviewed-on: https://go-review.googlesource.com/12196
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ie38742cddc5a256e2f0fc0f720c0ed2f1b2e1bca
+    Reviewed-on: https://go-review.googlesource.com/10664
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/go1.5.html | 2 +-
+ src/math/big/float.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

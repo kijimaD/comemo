@@ -1,22 +1,21 @@
-commit 8c1f78524e421ac01e35e8805dd7a45bf98c2a79
-Author: Haosdent Huang <haosdent@gmail.com>
-Date:   Mon Apr 29 02:04:26 2019 +0000
+commit 2de2dc26b08f2781981fe3c3a1e6c7004e1caca0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Dec 12 03:36:39 2018 +1100
 
-    runtime: support all as parameter in gdb goroutine commands.
+    syscall: regenerate ztypes for openbsd/arm
     
-    For example, can use `goroutine all bt` to dump all goroutines'
-    information.
+    Regenerate ztypes for openbsd/arm - most of the changes relate to the OpenBSD armv7 port
+    switching to EABI in September 2016.
     
-    Change-Id: I51b547c2b837913e4bdabf0f45b28f09250a3e34
-    GitHub-Last-Rev: d04dcd4f581f97e35ee45969a864f1270d79e49b
-    GitHub-Pull-Request: golang/go#26283
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/122589
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Also use signed char when generating openbsd/arm ztypes, to avoid inconsistencies between
+    architectures impacting MI code.
+    
+    Change-Id: I9d2e19c1ac045922e270896861c830f94fc59c10
+    Reviewed-on: https://go-review.googlesource.com/c/153578
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/debugging_with_gdb.html     |  3 +++
- src/runtime/runtime-gdb.py      | 21 ++++++++++++++++++---
- src/runtime/runtime-gdb_test.go |  7 +++++++
- 3 files changed, 28 insertions(+), 3 deletions(-)
+ src/syscall/mkall.sh              |  4 ++-
+ src/syscall/ztypes_openbsd_arm.go | 54 ++++++++++++++++++++++-----------------
+ 2 files changed, 33 insertions(+), 25 deletions(-)

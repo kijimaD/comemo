@@ -1,16 +1,18 @@
-commit 9de57244e1708cbdac5b8d53e5cf7eea788f3f33
+commit 117ebe0f52efc5128a9c86722e07fe22cb65450d
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Apr 21 11:19:56 2022 -0400
+Date:   Wed Jun 16 14:48:45 2021 -0400
 
-    go/build: replace a call to os.Environ with (*exec.Cmd).Environ
+    cmd/go: do not require the module cache to exist for 'go mod edit'
     
-    This is a code simplification using the new API added in #50599.
+    Updates #46695
     
-    Change-Id: Icb9628bcd0daa3dc2d653e9654b38099730137d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401535
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I4afbc1401ef4183d94c1ac6271394fac1fff95ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328769
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/build/build.go | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ src/cmd/go/internal/modfetch/cache.go               |  2 +-
+ src/cmd/go/testdata/script/mod_edit_no_modcache.txt | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

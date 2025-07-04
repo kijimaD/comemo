@@ -1,25 +1,29 @@
-commit 33a7e5a4b49fa04ce6f65b5b0645a44a0c93eaad
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 18 14:13:33 2022 -0700
+commit e1c294a56d5d03cdba1f059cdb6b1225477dc546
+Author: Alejandro García Montoro <alejandro.garciamontoro@gmail.com>
+Date:   Fri May 14 18:42:16 2021 +0200
 
-    cmd/compile: combine multiple rotate instructions
+    cmd/compile: eliminate successive swaps
     
-    Rotating by c, then by d, is the same as rotating by c+d.
+    The code generated when storing eight bytes loaded from memory in big
+    endian introduced two successive byte swaps that did not actually
+    modified the data.
     
-    Change-Id: I36df82261460ff80f7c6d39bcdf0e840cef1c91a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424894
-    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ruinan Sun <Ruinan.Sun@arm.com>
+    The new rules match this specific pattern both for amd64 and for arm64,
+    eliminating the double swap.
+    
+    Fixes #41684
+    
+    Change-Id: Icb6dc20b68e4393cef4fe6a07b33aba0d18c3ff3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320073
+    Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules     |   6 -
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |   3 -
- src/cmd/compile/internal/ssa/gen/generic.rules |   8 +
- src/cmd/compile/internal/ssa/rewrite386.go     |  42 ----
- src/cmd/compile/internal/ssa/rewriteARM64.go   |  40 ----
- src/cmd/compile/internal/ssa/rewritegeneric.go | 304 +++++++++++++++++++++++++
- test/codegen/rotate.go                         |  14 +-
- 7 files changed, 323 insertions(+), 94 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 32 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 32 ++++++++++++++++++++++++++++
+ test/codegen/memcombine.go                   | 12 +++++++++++
+ 5 files changed, 80 insertions(+)

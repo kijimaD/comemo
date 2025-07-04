@@ -1,12 +1,16 @@
-commit e63fcd613fd1770dc73fedb11dca616ce59e961c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Oct 9 17:57:31 2011 -0700
+commit cab53c899ce19305be4bfac730a9d1e9b7f0b1ce
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Oct 10 11:16:04 2011 +1100
 
-    http: cancel test timers; don't t.Fatalf in other goroutines
+    doc: fix tutorial and Makefile PATH without dot
     
-    R=rsc
+    Fixes #2351.
+    
+    R=r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5228041
+    https://golang.org/cl/5235056
 
- src/pkg/http/serve_test.go | 93 +++++++++++++++++++++++++++-------------------
- 1 file changed, 55 insertions(+), 38 deletions(-)
+ doc/Makefile         | 5 ++---
+ doc/go_tutorial.html | 4 ++--
+ doc/go_tutorial.tmpl | 4 ++--
+ 3 files changed, 6 insertions(+), 7 deletions(-)

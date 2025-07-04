@@ -1,24 +1,22 @@
-commit 9d40fadb1c3245a318b155ee3e19a4de139401dc
-Author: lukechampine <luke.champine@gmail.com>
-Date:   Thu Feb 28 19:03:18 2019 +0000
+commit 8ae8576abf483cf928eb0f63bc55c09c7bf73576
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 4 16:20:48 2018 -0700
 
-    fmtsort: sort interfaces deterministically
+    go/types: don't type-check method signatures eagerly anymore
     
-    Previously, the result of sorting a map[interface{}] containing
-    multiple concrete types was non-deterministic. To ensure consistent
-    results, sort first by type name, then by concrete value.
+    As a side-effect we also get slightly clearer errors for some
+    pathological cyclic method declarations.
     
-    Fixes #30398
+    Fixes #23203.
+    Updates #26854.
     
-    Change-Id: I10fd4b6a74eefbc87136853af6b2e689bc76ae9d
-    GitHub-Last-Rev: 1b07f0c275716e1b2834f74f9c67f897bae82882
-    GitHub-Pull-Request: golang/go#30406
-    Reviewed-on: https://go-review.googlesource.com/c/163745
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I30bd6634ac6be26d3f4ef8c7b32e5c1bf76987dd
+    Reviewed-on: https://go-review.googlesource.com/c/139897
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/internal/fmtsort/sort.go      |  2 +-
- src/internal/fmtsort/sort_test.go | 42 +++++++++++++++++++++++++++++++++++----
- 2 files changed, 39 insertions(+), 5 deletions(-)
+ src/go/types/check_test.go            |  2 ++
+ src/go/types/decl.go                  | 14 +-------------
+ src/go/types/testdata/decls0.src      |  8 ++++----
+ src/go/types/testdata/issue23203a.src | 14 ++++++++++++++
+ src/go/types/testdata/issue23203b.src | 14 ++++++++++++++
+ 5 files changed, 35 insertions(+), 17 deletions(-)

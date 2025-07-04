@@ -1,15 +1,15 @@
-commit c0a895fc0a512cea6daa4543fca67a32bae5f1eb
+commit 815a1b84c7724fa4ccb4ece1e92ff41c9dc533ab
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Apr 23 10:55:32 2011 -0400
+Date:   Sat Apr 23 10:54:19 2011 -0400
 
-    gc: fix conversion of user-defined string type to []byte
+    gc: fix return variable named _
     
-    Fixes #1709.
+    Fixes #1712.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4438068
+    https://golang.org/cl/4445055
 
- src/cmd/gc/walk.c        |  2 +-
- test/fixedbugs/bug333.go | 19 +++++++++++++++++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/gc/dcl.c         |  7 +++++++
+ test/fixedbugs/bug331.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)

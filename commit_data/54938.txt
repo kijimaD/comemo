@@ -1,19 +1,25 @@
-commit bd7d757e91181a0a4be26032b6d6d7fc79c85acc
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 9 13:28:14 2023 -0500
+commit 7a00f973a557fa8b5294652382a6280ddb196c1e
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 21 14:27:24 2022 -0800
 
-    runtime: skip TestG0StackOverflow on windows/arm64
+    archive/tar, archive/zip: disable ErrInsecurePath by default
     
-    Temporarily skip to make the builder happy. Will work on a fix.
+    This change is being made late in the release cycle.
+    Disable it by default. Insecure path checks may be enabled by setting
+    GODEBUG=tarinsecurepath=0 or GODEBUG=zipinsecurepath=0.
+    We can enable this by default in Go 1.21 after publicizing the change
+    more broadly and giving users a chance to adapt to the change.
     
-    Updates #63938.
+    For #55356.
     
-    Change-Id: Ic9db771342108430c29774b2c3e50043791189a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541195
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I549298b3c85d6c8c7fd607c41de1073083f79b1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452616
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/runtime/crash_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go1.20.html           | 40 ++++++++++++++++------------------------
+ src/archive/tar/reader.go |  2 +-
+ src/archive/zip/reader.go |  2 +-
+ 3 files changed, 18 insertions(+), 26 deletions(-)

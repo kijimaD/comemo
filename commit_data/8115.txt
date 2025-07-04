@@ -1,17 +1,12 @@
-commit 57d0c26c01de5bfefd936cec3ef7f1c6f7926255
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Apr 15 01:21:18 2011 -0700
+commit 6ca71fb8975294122501f722c5409a675a943ff2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 15 00:01:29 2011 -0400
 
-    expvar: add Func for functions that return values that are JSON marshalable.
+    os: turn EPIPE exit into panic
     
-    Remove {Float,Int,String}Func, which are now redundant.
-    
-    Fixes #1684.
-    
-    R=rsc, r, r2
+    R=iant, r2
     CC=golang-dev
-    https://golang.org/cl/4410041
+    https://golang.org/cl/4427042
 
- src/pkg/expvar/expvar.go      | 37 +++++++++++++------------------------
- src/pkg/expvar/expvar_test.go | 42 ++++++++----------------------------------
- 2 files changed, 21 insertions(+), 58 deletions(-)
+ src/pkg/os/file_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

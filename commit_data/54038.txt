@@ -1,24 +1,162 @@
-commit 390763aed84189cb360e7ceb94aef56125fb140d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 30 16:18:44 2023 -0400
+commit 638c9aad5f88f96d9aa525bbe403c8a5d3b743e8
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 15 23:04:53 2022 +0700
 
-    cmd/compile, runtime: make room for rangefunc defers
+    cmd/compile,sync: make accessing address of zero offset struct field inline cost 0
     
-    This is subtle and the compiler and runtime be in sync.
-    It is easier to develop the rest of the changes (especially when using
-    toolstash save/restore) if this change is separated out and done first.
+    Accessing the address of something often needs the same (or even less)
+    number of instructions as accessing the content of the thing. That would
+    help us rolling back the hack of CL 429766 to lower sync atomic types
+    inline cost.
     
-    Preparation for proposal #61405. The actual logic in the
-    compiler will be guarded by a GOEXPERIMENT, but it is
-    easier not to have GOEXPERIMENT-specific data structures
-    in the runtime, so just make the field always.
+    Compiled objects size increase a bit:
     
-    Change-Id: I7ec7049b99ae98bf0db365d42966baeec56e3774
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/510539
+    file      before    after     Δ       %
+    addr2line 3729827   3733958   +4131   +0.111%
+    api       5457224   5456267   -957    -0.018%
+    asm       4806486   4808993   +2507   +0.052%
+    buildid   2480271   2480562   +291    +0.012%
+    cgo       4593496   4593947   +451    +0.010%
+    compile   23906958  23910086  +3128   +0.013%
+    cover     4680870   4681461   +591    +0.013%
+    dist      3341333   3341692   +359    +0.011%
+    doc       3879927   3880409   +482    +0.012%
+    fix       3298081   3298979   +898    +0.027%
+    link      6500098   6499873   -225    -0.003%
+    nm        3654362   3656997   +2635   +0.072%
+    objdump   4108300   4108671   +371    +0.009%
+    pack      2255445   2256391   +946    +0.042%
+    pprof     14364561  14379475  +14914  +0.104%
+    test2json 2550942   2555333   +4391   +0.172%
+    trace     13573199  13578409  +5210   +0.038%
+    vet       7430923   7430094   -829    -0.011%
+    total     114612303 114651597 +39294  +0.034%
+    
+    file                                                                     before    after     Δ       %
+    archive/tar.a                                                            905032    905560    +528    +0.058%
+    archive/zip.a                                                            853464    853916    +452    +0.053%
+    cmd/asm/internal/lex.a                                                   359388    367418    +8030   +2.234%
+    cmd/compile/internal/importer.a                                          947206    947734    +528    +0.056%
+    cmd/compile/internal/inline.a                                            563390    566828    +3438   +0.610%
+    cmd/compile/internal/types2.a                                            5761990   5764274   +2284   +0.040%
+    cmd/go/internal/cfg.a                                                    234892    235342    +450    +0.192%
+    cmd/go/internal/envcmd.a                                                 257166    257694    +528    +0.205%
+    cmd/go/internal/fix.a                                                    93522     94052     +530    +0.567%
+    cmd/go/internal/generate.a                                               201308    201838    +530    +0.263%
+    cmd/go/internal/get.a                                                    207862    208390    +528    +0.254%
+    cmd/go/internal/imports.a                                                230266    230794    +528    +0.229%
+    cmd/go/internal/list.a                                                   385044    386632    +1588   +0.412%
+    cmd/go/internal/load.a                                                   1164508   1165566   +1058   +0.091%
+    cmd/go/internal/modcmd.a                                                 627582    629168    +1586   +0.253%
+    cmd/go/internal/modfetch/codehost.a                                      1031962   1032490   +528    +0.051%
+    cmd/go/internal/modfetch.a                                               1289294   1289822   +528    +0.041%
+    cmd/go/internal/modget.a                                                 674566    675624    +1058   +0.157%
+    cmd/go/internal/modindex.a                                               935598    936576    +978    +0.105%
+    cmd/go/internal/modload.a                                                2640784   2642058   +1274   +0.048%
+    cmd/go/internal/par.a                                                    135858    136476    +618    +0.455%
+    cmd/go/internal/run.a                                                    127158    127688    +530    +0.417%
+    cmd/go/internal/search.a                                                 242918    243446    +528    +0.217%
+    cmd/go/internal/trace.a                                                  113216    113188    -28     -0.025%
+    cmd/go/internal/vcs.a                                                    517280    517810    +530    +0.102%
+    cmd/go/internal/work.a                                                   2389522   2390580   +1058   +0.044%
+    cmd/go/internal/workcmd.a                                                311118    311452    +334    +0.107%
+    cmd/vendor/github.com/google/pprof/internal/driver.a                     1714950   1715478   +528    +0.031%
+    cmd/vendor/golang.org/x/mod/sumdb.a                                      453840    454290    +450    +0.099%
+    cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags.a       326162    326610    +448    +0.137%
+    cmd/vendor/golang.org/x/tools/go/analysis/internal/facts.a               302476    303006    +530    +0.175%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl.a               366580    367030    +450    +0.123%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/assign.a                129556    130006    +450    +0.347%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic.a                133466    133916    +450    +0.337%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/bools.a                 193558    194006    +448    +0.231%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag.a              177984    178434    +450    +0.253%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall.a               221226    221674    +448    +0.203%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/composite.a             168572    169022    +450    +0.267%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock.a              227040    227490    +450    +0.198%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow.a              204650    205098    +448    +0.219%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas.a              138020    138468    +448    +0.325%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/framepointer.a          119030    119480    +450    +0.378%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse.a          165006    165454    +448    +0.272%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert.a           180850    181300    +450    +0.249%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect.a               103876    104326    +450    +0.433%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil.a 116070    116516    +446    +0.384%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure.a           153068    153518    +450    +0.294%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel.a            244936    245384    +448    +0.183%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc.a               135720    136168    +448    +0.330%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/printf.a                527134    527584    +450    +0.085%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/shift.a                 172026    172476    +450    +0.262%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer.a           151690    152138    +448    +0.295%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods.a            187494    187944    +450    +0.240%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv.a         164752    165200    +448    +0.272%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag.a             200144    200594    +450    +0.225%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine.a      161146    161596    +450    +0.279%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/tests.a                 270252    270702    +450    +0.167%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal.a             130646    131094    +448    +0.343%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable.a           182130    182580    +450    +0.247%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr.a             153646    154094    +448    +0.292%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult.a          179800    180248    +448    +0.249%
+    cmd/vendor/golang.org/x/tools/go/analysis/unitchecker.a                  303838    304286    +448    +0.147%
+    cmd/vendor/golang.org/x/tools/go/analysis.a                              217930    218380    +450    +0.206%
+    cmd/vendor/golang.org/x/tools/go/ast/astutil.a                           539428    539874    +446    +0.083%
+    cmd/vendor/golang.org/x/tools/go/cfg.a                                   286820    287270    +450    +0.157%
+    cmd/vendor/golang.org/x/tools/go/types/objectpath.a                      236144    236674    +530    +0.224%
+    cmd/vendor/golang.org/x/tools/go/types/typeutil.a                        412728    413176    +448    +0.109%
+    cmd/vendor/golang.org/x/tools/internal/analysisinternal.a                223256    223704    +448    +0.201%
+    cmd/vendor/golang.org/x/tools/internal/typeparams.a                      419498    419946    +448    +0.107%
+    context.a                                                                210000    209972    -28     -0.013%
+    crypto/internal/boring/bcache.a                                          8652      8568      -84     -0.971%
+    crypto/tls.a                                                             3295282   3295202   -80     -0.002%
+    database/sql.a                                                           1365892   1365762   -130    -0.010%
+    encoding/base64.a                                                        131572    136228    +4656   +3.539%
+    encoding/binary.a                                                        452546    453076    +530    +0.117%
+    encoding/gob.a                                                           1690728   1691672   +944    +0.056%
+    encoding/json.a                                                          1198834   1199276   +442    +0.037%
+    encoding/xml.a                                                           1035784   1036314   +530    +0.051%
+    expvar.a                                                                 285282    285678    +396    +0.139%
+    go/ast.a                                                                 1175212   1175662   +450    +0.038%
+    go/build.a                                                               657802    658252    +450    +0.068%
+    go/doc.a                                                                 808002    808452    +450    +0.056%
+    go/format.a                                                              101378    101824    +446    +0.440%
+    go/importer.a                                                            101816    102266    +450    +0.442%
+    go/internal/gccgoimporter.a                                              593828    594358    +530    +0.089%
+    go/internal/gcimporter.a                                                 974178    974626    +448    +0.046%
+    go/internal/srcimporter.a                                                196600    197050    +450    +0.229%
+    go/parser.a                                                              1152502   1152946   +444    +0.039%
+    go/printer.a                                                             910744    911194    +450    +0.049%
+    go/token.a                                                               299624    299768    +144    +0.048%
+    go/types.a                                                               5763222   5766118   +2896   +0.050%
+    hash/crc32.a                                                             128130    128098    -32     -0.025%
+    internal/fuzz.a                                                          1058644   1059174   +530    +0.050%
+    internal/poll.a                                                          660412    660382    -30     -0.005%
+    internal/testenv.a                                                       212792    213320    +528    +0.248%
+    log/syslog.a                                                             128718    128654    -64     -0.050%
+    log.a                                                                    157330    157274    -56     -0.036%
+    mime.a                                                                   383058    383588    +530    +0.138%
+    net/http/httptest.a                                                      430550    431000    +450    +0.105%
+    net/http/pprof.a                                                         306918    307448    +530    +0.173%
+    net/http.a                                                               7413852   7414074   +222    +0.003%
+    net/internal/socktest.a                                                  258934    258900    -34     -0.013%
+    net/rpc/jsonrpc.a                                                        173158    172962    -196    -0.113%
+    net/rpc.a                                                                634464    634914    +450    +0.071%
+    net.a                                                                    3539574   3541348   +1774   +0.050%
+    os.a                                                                     891416    891390    -26     -0.003%
+    reflect.a                                                                3956224   3956666   +442    +0.011%
+    runtime/cgo.a                                                            187406    187852    +446    +0.238%
+    runtime/trace.a                                                          85720     85616     -104    -0.121%
+    runtime.a                                                                9357520   9371302   +13782  +0.147%
+    sync/atomic.a                                                            232512    232376    -136    -0.058%
+    sync.a                                                                   353112    355068    +1956   +0.554%
+    syscall.a                                                                1660308   1660222   -86     -0.005%
+    testing.a                                                                1399348   1399198   -150    -0.011%
+    text/template.a                                                          1384750   1384726   -24     -0.002%
+    total                                                                    265209524 265294628 +85104  +0.032%
+    
+    Change-Id: I21114dcddeb4fc2c56e781ea2f6e732fe3da2b01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431095
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 21 ++++++++++++++-------
- src/runtime/runtime2.go                | 15 ++++++++++-----
- 2 files changed, 24 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/inline/inl.go |  9 ++++
+ src/sync/atomic/type.go                | 80 ++++++++++++++--------------------
+ 2 files changed, 42 insertions(+), 47 deletions(-)

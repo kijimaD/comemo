@@ -1,18 +1,22 @@
-commit 6d73537128ad7ff35ba1dbc55fc2837b0989b6b2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 4 17:06:21 2018 +0000
+commit b219a68ad957462470695bcd0333e24ea9bdf08c
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Mon Jun 4 15:12:45 2018 -0400
 
-    debug/pe: skip a test on windows/arm
+    strconv: check for empty string in UnquoteChar
     
-    It requires a DLL that's not available on windows/arm apparently.
+    The existing implementation panics on malformed input of an empty
+    string. strconv.Unquote validates the length of the inputs, but calling
+    UnquoteChar directly with an empty string leads to a panic, so add a
+    check for length. Also, add a test to go/constant to ensure that
+    MakeFromLiteral does not panic on malformed input such as
+    "const x = ''".
     
-    Fixes #27904
-    
-    Change-Id: I082a273f62976b7184636c6aeca6201a7871d238
-    Reviewed-on: https://go-review.googlesource.com/c/139720
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: I4217e38db48a09a21ec414bbfb3087709da62904
+    Reviewed-on: https://go-review.googlesource.com/116215
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/debug/pe/file_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/go/constant/value_test.go | 1 +
+ src/strconv/quote.go          | 4 ++++
+ 2 files changed, 5 insertions(+)

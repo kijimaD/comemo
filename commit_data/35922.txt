@@ -1,21 +1,17 @@
-commit 5fbfda6a833f3bbc3d714459b5194f7fef1e0b43
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jul 6 13:59:06 2018 -0700
+commit be371edd677abe6de310c9ffc225b9e8b052d2b8
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Mar 20 10:42:06 2018 +0100
 
-    cmd/go: add LDFLAGS to cache ID when using cgo
+    test/codegen: port comparisons tests to codegen
     
-    The cgo tool records the value of the CGO_LDFLAGS environment variable
-    in the generated file, so that the linker can later read and use it.
-    Therefore, we must add CGO_LDFLAGS to the cache ID, as otherwise
-    changing CGO_LDFLAGS may cause a build result to be incorrectly read
-    from the cache, producing a different final program.
+    And delete them from asm_test.
     
-    Change-Id: Ic89c1edc4069837451a36376710ca9b56fb87455
-    Reviewed-on: https://go-review.googlesource.com/122520
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I64c512bfef3b3da6db5c5d29277675dade28b8ab
+    Reviewed-on: https://go-review.googlesource.com/101595
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/go/go_test.go            | 24 ++++++++++++++++++++++++
- src/cmd/go/internal/work/exec.go |  4 ++--
- 2 files changed, 26 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 76 +--------------------------------
+ test/codegen/comparisons.go             | 69 ++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 75 deletions(-)

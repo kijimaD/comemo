@@ -1,24 +1,13 @@
-commit 374c2847f9c03da7365bfb78e5ef96a0cb837656
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Oct 28 00:53:14 2019 -0400
+commit 9838f4dfb40f83929140937e75c6eb182ea5e40d
+Author: Julie <julie@golang.org>
+Date:   Wed Jun 12 13:38:45 2019 -0400
 
-    runtime: add async preemption support on PPC64
+    doc: add release notes for log
     
-    This CL adds support of call injection and async preemption on
-    PPC64.
-    
-    For the injected call to return to the preempted PC, we have to
-    clobber either LR or CTR. For reasons mentioned in previous CLs,
-    we choose CTR. Previous CLs have marked code sequences that use
-    CTR async-nonpreemtible.
-    
-    Change-Id: Ia642b5f06a890dd52476f45023b2a830c522eee0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203824
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ifd330053094c172b7dcd9086da173289efc7f9b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181942
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   2 +
- src/runtime/mkpreempt.go                     |  57 ++++++++++-
- src/runtime/preempt_ppc64x.s                 | 141 ++++++++++++++++++++++++++-
- src/runtime/signal_ppc64x.go                 |  24 ++++-
- 4 files changed, 219 insertions(+), 5 deletions(-)
+ doc/go1.13.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

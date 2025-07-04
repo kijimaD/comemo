@@ -1,23 +1,22 @@
-commit 00c638d243056b24f1deeb2d1d954e62baedd468
+commit cd7e0594963fdd77c9baba60677c68c6e218dad6
 Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 8 08:42:28 2015 -0700
+Date:   Wed Jul 15 21:33:49 2015 -0700
 
-    runtime: on map update, don't overwrite key if we don't need to.
+    [dev.ssa] cmd/compile/internal/ssa: implement ODOT
     
-    Keep track of which types of keys need an update and which don't.
+    Implement ODOT.  Similar to ArrayIndex, StructSelect selects a field
+    out of a larger Value.
     
-    Strings need an update because the new key might pin a smaller backing store.
-    Floats need an update because it might be +0/-0.
-    Interfaces need an update because they may contain strings or floats.
+    We may need more ways to rewrite StructSelect, but StructSelect/Load
+    is the typical way it is used.
     
-    Fixes #11088
-    
-    Change-Id: I9ade53c1dfb3c1a2870d68d07201bc8128e9f217
-    Reviewed-on: https://go-review.googlesource.com/10843
+    Change-Id: Ida7b8aab3298f4754eaf9fee733974cf8736e45d
+    Reviewed-on: https://go-review.googlesource.com/12265
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 58 +++++++++++++++++++++++++++++++---
- src/reflect/type.go                    | 29 +++++++++++++++++
- src/runtime/hashmap.go                 |  4 ++-
- src/runtime/type.go                    |  1 +
- 4 files changed, 86 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             |  9 +++++++++
+ src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  7 ++++---
+ src/cmd/compile/internal/ssa/opGen.go          | 10 ++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 26 ++++++++++++++++++++++++++
+ 5 files changed, 50 insertions(+), 3 deletions(-)

@@ -1,12 +1,15 @@
-commit 0645bdd11007a264988029459844cb78ec06e790
-Author: Carlos C <uldericofilho@gmail.com>
-Date:   Fri Jun 19 11:41:41 2015 +0200
+commit 0991ec454b8a53bf11c4c01f75dd2fa7a34362cc
+Author: Michael Matloob <matloob@google.com>
+Date:   Sun Jun 14 09:52:13 2015 -0700
 
-    html/template: add examples to package and functions
+    [dev.ssa] cmd/compile/internal/ssa: set line in newValue variants
     
-    Change-Id: Ib4fb8256863d908580a07e6f2e1c92ea109ea989
-    Reviewed-on: https://go-review.googlesource.com/11249
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This CL sets line numbers on Values in the newValue variants
+    introduced in cl/10929.
+    
+    Change-Id: Ibd15bc90631a1e948177878ea4191d995e8bb19b
+    Reviewed-on: https://go-review.googlesource.com/11090
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/html/template/example_test.go | 122 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 122 insertions(+)
+ src/cmd/compile/internal/ssa/func.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

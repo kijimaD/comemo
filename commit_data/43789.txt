@@ -1,17 +1,18 @@
-commit e75aef80ca3722684e707502c424c0fb28e8b1cc
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Nov 11 16:59:55 2020 -0500
+commit 880ef2da7b81fe2e4e9fb75f4677377eeba70d1e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 24 13:02:37 2020 -0400
 
-    cmd/go: migrate away from semver.Max
+    [dev.link] cmd/link: panic if HeadType is not set
     
-    For #32700
+    In the code there are conditions like !ctxt.IsDarwin(). This will
+    accidentally be true if HeadType is not yet set. Panic when
+    HeadType is not set, to catch errors.
     
-    Change-Id: Ib5cd7004e4558bebebc5f9e7c9263d720c590845
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269338
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic891123f27f0276fff5a4b5d29e5b1f7ebbb94ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229869
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modfetch/cache.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/target.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

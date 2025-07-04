@@ -1,19 +1,23 @@
-commit b6e1a563fc142d7129a0ea6a3c6137ee12ff43f7
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 13:46:26 2022 -0400
+commit 9115a7ba4a7e198befe26d69b740a34b495e1db5
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 19:04:17 2021 -0500
 
-    cmd/go: fix longtest builder after runtime/internal/atomic
+    go/types: remove asNamed
     
-    Loosen test to accept staleness in any runtime/internal package.
-    Fixes longtest builder.
+    This is a port of CL 363441 from types2 to go/types, with an additional
+    adjustment in methodset.go.
     
-    Change-Id: Iffda9c1d1816f76c782aecc4d53c0ea3e6580587
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443755
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ia04dcfb70bb9f6af6f45175dee3334dba7b2768e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364895
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/decl.go      |  2 +-
+ src/go/types/lookup.go    |  7 ++++---
+ src/go/types/methodset.go |  2 +-
+ src/go/types/type.go      |  9 ---------
+ src/go/types/unify.go     | 14 ++++++--------
+ src/go/types/universe.go  |  2 +-
+ 6 files changed, 13 insertions(+), 23 deletions(-)

@@ -1,22 +1,19 @@
-commit 2e84dc2596f5ca655fd5716e1c277a801c868566
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Mar 9 11:44:59 2018 +0100
+commit 5e48d2b62a4bf6f9ee11905f1c5f93da648df42f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 5 16:31:24 2017 -0500
 
-    runtime: parse auxv on freebsd
+    cmd/go: ignore stderr from tool version checks
     
-    Decode AT_PAGESZ to determine physPageSize on freebsd/{386,amd64,arm}
-    and AT_HWCAP for hwcap and hardDiv on freebsd/arm. Also use hwcap to
-    perform the FP checks in checkgoarm akin to the linux/arm
-    implementation.
+    There are multiple valid reasons a tool might print to stderr.
+    As long as we get the expected output on stdout, that's fine.
     
-    Change-Id: I532810a1581efe66277e4305cb234acdc79ee91e
-    Reviewed-on: https://go-review.googlesource.com/99780
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #22588.
+    
+    Change-Id: I9c5d32da08288cb26dd575530a8257cd5f375367
+    Reviewed-on: https://go-review.googlesource.com/76017
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/os_freebsd.go        | 39 ++++++++++++++++++++++++++++++++++++++-
- src/runtime/os_freebsd_arm.go    | 28 ++++++++++++++++++++++++++--
- src/runtime/os_freebsd_noauxv.go | 11 +++++++++++
- src/runtime/vdso_none.go         |  1 +
- 4 files changed, 76 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go               | 15 +++++++++++++++
+ src/cmd/go/internal/work/buildid.go | 11 +++++++----
+ 2 files changed, 22 insertions(+), 4 deletions(-)

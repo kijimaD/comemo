@@ -1,41 +1,24 @@
-commit 98aa97806b94495847f7f7151d4453f5830f0d38
-Author: Ruixin Bao <ruixin.bao@ibm.com>
-Date:   Sun Sep 8 18:50:24 2019 -0400
+commit 154e5abfcdb8ffe193d2af4c8ef590f4d9a27008
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Thu Mar 28 17:49:43 2019 -0400
 
-    cmd/compile: add math/bits.Mul64 intrinsic on s390x
+    bytes, strings: add tests for TrimLeftFunc and TrimRightFunc
     
-    This change adds an intrinsic for Mul64 on s390x. To achieve that,
-    a new assembly instruction, MLGR, is introduced in s390x/asmz.go. This assembly
-    instruction directly uses an existing instruction on Z and supports multiplication
-    of two 64 bit unsigned integer and stores the result in two separate registers.
+    When I was working on the fix for #31038 (make TrimSpace return nil on
+    all-space input) I noticed that there were no tests for TrimLeftFunc
+    and TrimRightFunc, including the funky nil behavior. So add some!
     
-    In this case, we require the multiplcand to be stored in register R3 and
-    the output result (the high and low 64 bit of the product) to be stored in
-    R2 and R3 respectively.
+    I've just reused the existing TrimFunc test cases for TrimLeftFunc and
+    TrimRightFunc, as well as adding new tests for the empty string and
+    all-trimmed cases (which test the nil-returning behavior of TrimFunc and
+    TrimLeftFunc).
     
-    A test case is also added.
-    
-    Benchmark:
-    name      old time/op  new time/op  delta
-    Mul-18    11.1ns ± 0%   1.4ns ± 0%  -87.39%  (p=0.002 n=8+10)
-    Mul32-18  2.07ns ± 0%  2.07ns ± 0%     ~     (all equal)
-    Mul64-18  11.1ns ± 1%   1.4ns ± 0%  -87.42%  (p=0.000 n=10+10)
-    
-    Change-Id: Ieca6ad1f61fff9a48a31d50bbd3f3c6d9e6675c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194572
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Ib580d4364e9b3c91350305f9d9873080d7862904
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170061
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s    |  1 +
- src/cmd/compile/internal/gc/ssa.go           |  4 ++--
- src/cmd/compile/internal/s390x/ssa.go        | 13 +++++++++++++
- src/cmd/compile/internal/ssa/gen/S390X.rules |  1 +
- src/cmd/compile/internal/ssa/gen/S390XOps.go | 13 +++++++++++++
- src/cmd/compile/internal/ssa/opGen.go        | 16 ++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go | 15 +++++++++++++++
- src/cmd/internal/obj/s390x/a.out.go          |  1 +
- src/cmd/internal/obj/s390x/anames.go         |  1 +
- src/cmd/internal/obj/s390x/asmz.go           |  4 ++++
- test/codegen/mathbits.go                     |  2 ++
- 11 files changed, 69 insertions(+), 2 deletions(-)
+ src/bytes/bytes_test.go     | 75 +++++++++++++++++++++++++++++++++++++--------
+ src/strings/strings_test.go | 67 ++++++++++++++++++++++++++++++++--------
+ 2 files changed, 118 insertions(+), 24 deletions(-)

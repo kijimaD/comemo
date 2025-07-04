@@ -1,31 +1,15 @@
-commit 8bde9b320e25b2d6edf96fa5e694046fea0c04c8
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 19 00:32:02 2020 -0400
+commit 281d41cb400fdc3f5581bb0e479f2e9ff02fe833
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Apr 5 16:51:10 2020 +0800
 
-    cmd/compile: add //go:embed support
+    A+C: add Andy Pan (individual CLA)
     
-    This commit contains the compiler support for //go:embed lines.
-    The go command passes to the compiler an "embed config"
-    that maps literal patterns like *.txt to the set of files to embed.
-    The compiler then lays out the content of those files as static data
-    in the form of an embed.Files or string or []byte in the final object file.
+    https://go-review.googlesource.com/q/author:panjf2000%2540gmail.com
     
-    The test for this code is the end-to-end test hooking up the
-    embed, cmd/compile, and cmd/go changes, in the next CL.
-    
-    For #41191.
-    
-    Change-Id: I916e57f8cc65871dc0044c13d3f90c252a3fe1bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243944
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I05c73d848b8f40dc864a18c733ca3f47b1eab54d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227004
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/embed.go     | 273 +++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/main.go      |   8 +-
- src/cmd/compile/internal/gc/noder.go     | 145 ++++++++++++++--
- src/cmd/compile/internal/gc/obj.go       | 132 +++++++++++++--
- src/cmd/compile/internal/gc/syntax.go    |  86 +++++++++-
- src/cmd/compile/internal/gc/typecheck.go |   8 +-
- src/cmd/internal/obj/link.go             |  29 +++-
- src/cmd/internal/obj/objfile.go          |  49 +++++-
- 8 files changed, 682 insertions(+), 48 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

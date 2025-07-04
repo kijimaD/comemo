@@ -1,31 +1,29 @@
-commit 1aee4f3464b678f135912e2b2703e0f6c060b980
-Author: Mark Ryan <markdryan@rivosinc.com>
-Date:   Wed Dec 11 14:03:17 2024 +0100
+commit d90a57ffe8ad8f3cb0137822a768ae48cf80a09d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Feb 14 11:52:22 2024 -0500
 
-    cmd/internal/obj/riscv: prevent panics on bad branches
+    cmd/link/internal/ld: unify OS/SDK versions for macOS linking
     
-    Syntactically incorrect branches, such as
+    Go 1.23 will require macOS 11 Big Sur or later, even on AMD64.
+    The comment here suggests the main requirement for the OS and
+    SDK version is to be recent enough not to break Apple signing,
+    and recent enough not to cause other problems.
     
-    BEQ     X5, X6, $1
-    BEQ     X5, X6, 31(X10)
+    For now, this CL simplifies the code by merging the ARM64 and
+    AMD64 cases into one, given 1.23 will be the first Go release
+    with a common minimum macOS version for both architectures so
+    there's no need to treat them separately here.
     
-    cause the assembler to panic, which they shouldn't really do.  It's
-    better for the user to see a normal error, as reported for other
-    syntax errors in riscv64 assembly.  The panics also prevent us
-    from writing negative tests for these sorts of errors.
+    For #64207.
     
-    Here we fix the issue by ensuring we generate a normal error instead
-    of panicking when the user provides an invalid branch target.  We
-    also add a couple of negative tests.
-    
-    Change-Id: I1da568999a75097484b61a01d418f5d4be3e04fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637316
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Change-Id: I821fcb9a2a316de0703833c8a75abcbaa10b17a3
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_11,gotip-darwin-amd64_14,gotip-darwin-arm64_11,gotip-darwin-arm64_13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563857
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64error.s | 2 ++
- src/cmd/internal/obj/riscv/obj.go                | 8 ++++++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/macho.go | 4 +---
+ src/cmd/link/link_test.go         | 6 +++---
+ 2 files changed, 4 insertions(+), 6 deletions(-)

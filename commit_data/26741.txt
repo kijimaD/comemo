@@ -1,12 +1,16 @@
-commit fd2bb1e30ae2f489e05ec022a8457a680663c27d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 6 02:39:47 2016 +0000
+commit 9c269e6a46fce4ee19e1603eaa9f5bb78dec78fd
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 24 14:07:25 2016 -0800
 
-    runtime: rename os1_windows.go to os_windows.go
+    cmd/compile: don't free the Prog list if we look at it after flush
     
-    Change-Id: I11172f3d0e28f17b812e67a4db9cfe513b8e1974
-    Reviewed-on: https://go-review.googlesource.com/21565
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Only tests do this, provide them a hook to disable freeing
+    after flush.
+    
+    Change-Id: I810c6c51414a93f476a18ba07b807e16092bf8cf
+    Reviewed-on: https://go-review.googlesource.com/19907
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/{os1_windows.go => os_windows.go} | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go |  2 +-
+ src/cmd/internal/obj/objfile.go           | 10 +++++++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

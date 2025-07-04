@@ -1,33 +1,33 @@
-commit f3b4abd806c392ff0bf8566009e750ebc01ae355
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 21 11:37:54 2016 -0400
+commit 64f5023e6f4d1bcb7f293d29cdaf259a80864920
+Author: Michael Matloob <matloob@golang.org>
+Date:   Sun Aug 21 13:52:23 2016 -0400
 
-    cmd/go: allow 'go generate' even if imports do not resolve
+    cmd/link: remove global Bso variable
     
-    Maybe the go generate is generating the imports,
-    or maybe there's some other good reason the code
-    is incomplete.
+    Bso is already a member on ld.Link. Use that instead of
+    the global.
     
-    The help text already says:
+    Updates #16818
     
-            Note that go generate does not parse the file, so lines that look
-            like directives in comments or multiline strings will be treated
-            as directives.
-    
-    We'll still reject Go source files that don't begin with a package statement
-    or have a syntax error in the import block, but those are I think more
-    defensible rejections.
-    
-    Fixes #16307.
-    
-    Change-Id: I4f8496c02fdff993f038adfed2df4db7f067dc06
-    Reviewed-on: https://go-review.googlesource.com/31659
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Icfc0f6cb1ff551e8129253fb6b5e0d6a94479f51
+    Reviewed-on: https://go-review.googlesource.com/27470
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/generate.go                       |  2 ++
- src/cmd/go/go_test.go                        | 14 ++++++++++++++
- src/cmd/go/pkg.go                            |  7 +++++++
- src/cmd/go/testdata/src/gencycle/gencycle.go |  5 +++++
- 4 files changed, 28 insertions(+)
+ src/cmd/link/internal/amd64/asm.go  | 28 +++++++++----------
+ src/cmd/link/internal/arm/asm.go    | 22 +++++++--------
+ src/cmd/link/internal/arm64/asm.go  | 22 +++++++--------
+ src/cmd/link/internal/ld/ar.go      |  2 +-
+ src/cmd/link/internal/ld/data.go    | 54 ++++++++++++++++++-------------------
+ src/cmd/link/internal/ld/dwarf.go   |  2 +-
+ src/cmd/link/internal/ld/ldelf.go   | 12 ++++-----
+ src/cmd/link/internal/ld/ldpe.go    |  2 +-
+ src/cmd/link/internal/ld/lib.go     | 46 +++++++++++++++----------------
+ src/cmd/link/internal/ld/pcln.go    |  2 +-
+ src/cmd/link/internal/ld/pobj.go    | 20 +++++++-------
+ src/cmd/link/internal/mips64/asm.go | 22 +++++++--------
+ src/cmd/link/internal/ppc64/asm.go  | 22 +++++++--------
+ src/cmd/link/internal/s390x/asm.go  | 24 ++++++++---------
+ src/cmd/link/internal/x86/asm.go    | 24 ++++++++---------
+ 15 files changed, 150 insertions(+), 154 deletions(-)

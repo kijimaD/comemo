@@ -1,20 +1,20 @@
-commit b7a2f62c719dfe55cfc4d1b81f287ef0712253ce
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Sep 8 23:07:12 2023 +0000
+commit 79d0d330a9340d9e3ccb331660eb74f30e2edd01
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 4 18:40:38 2022 -0700
 
-    Revert "cmd/cgo: silence unaligned-access"
+    go/types, types2: better error if there's a field with the name of a missing method
     
-    This reverts commit http://go.dev/cl/c/go/+/526915
+    Fixes #51025.
     
-    Reason for revert: darwin builders unhappy with '-Wunaligned-access' C compiler flag
-    
-    Change-Id: I5e6ca7c9a0ca08b7e758b7f603da70a2fca79b58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526978
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I469a705e7da059e7ac0b12b05beb9ed5d3617396
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438856
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/cgo/out.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go          |  5 +++
+ src/go/types/lookup.go                             |  5 +++
+ .../types/testdata/fixedbugs/issue51025.go         | 38 ++++++++++++++++++++++
+ 3 files changed, 48 insertions(+)

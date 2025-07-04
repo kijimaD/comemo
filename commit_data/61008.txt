@@ -1,0 +1,25 @@
+commit 7c72dc77a934cf5957e5667e204506a61457e66a
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Sep 22 15:00:36 2024 +0200
+
+    cmd/go: skip TestScript on Plan 9 in short mode
+    
+    TestScript is very slow on Plan 9 because this test
+    is particularly i/o intensive.
+    
+    This is leading the plan9/386 and plan9/amd64 builders
+    to time out. This test was already skipped on plan9/arm
+    because arm is part of the "slow architectures" list.
+    
+    This change skips TestScript on Plan 9 on short mode.
+    
+    Change-Id: I3e68046dac825cd14fa8daca601c492cf11c6fff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614855
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/script_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

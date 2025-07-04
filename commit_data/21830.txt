@@ -1,23 +1,14 @@
-commit 04a3a74456fc32ff5a5197b4cb10640f270d19e4
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sun Mar 1 16:23:55 2015 +0300
+commit a5bff443c7f23ad5c4abb70d3ce2c59aed2ec13a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 01:17:42 2014 -0500
 
-    net/http/fcgi: fix test
+    runtime/cgo: darwin/arm cgo support
     
-    Currently the test fails if run more than once:
-    
-    $ go test -v -run=TestChildServeCleansUp -cpu=1,1 net/http/fcgi
-    === RUN TestChildServeCleansUp
-    --- PASS: TestChildServeCleansUp (0.00s)
-    === RUN TestChildServeCleansUp
-    fatal error: all goroutines are asleep - deadlock!
-    
-    The problem is that the writer mutates test input data,
-    so it is wrong on the second execution.
-    
-    Change-Id: I4ca54dd2926c6986b2908023ac65e5e65630ed26
-    Reviewed-on: https://go-review.googlesource.com/6383
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I936be12eed95b99d1d20ed16fb785182e1817b33
+    Reviewed-on: https://go-review.googlesource.com/2124
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/http/fcgi/fcgi_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/cgo/cgo.go           |  2 +-
+ src/runtime/cgo/gcc_arm.S        |  4 ++
+ src/runtime/cgo/gcc_darwin_arm.c | 99 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 104 insertions(+), 1 deletion(-)

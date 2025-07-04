@@ -1,21 +1,30 @@
-commit 2994e9aa79718fbb0658ec5f50ee4b69276401d6
-Author: Will Hawkins <whh8b@obs.cr>
-Date:   Mon Dec 19 11:49:33 2022 -0500
+commit a80070e0cf0b65d619b6669a789d27746a5b2126
+Author: Shulhan <m.shulhan@gmail.com>
+Date:   Wed Nov 17 01:36:15 2021 +0700
 
-    net/http: support streaming POST content in wasm
+    math/big: call norm when returning success from Rat SetString
     
-    With new releases of Chrome, Opera and Deno it is possible to stream the
-    body of a POST request. Add support for using that interface when it is
-    available.
+    After CL 24430, reflect.DeepEqual no longer returns true when comparing
+    a *Rat built with (*Rat).SetString("0") with one built with
+    (*Rat).SetInt64(0).
+    These should be equivalent, but because (*Rat).SetString does not call
+    norm() when returning the zero value, the result of reflect.DeepEqual
+    will be false.
     
-    Change-Id: Ib23d63cd3dea634bd9e267abf4e9a9bfa9c525ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458395
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    One could suggest that developers should use (*Rat).Cmp instead
+    of relying on reflect.DeepEqual, but if a (*Rat) is part of a
+    larger struct that is being compared, this can be cumbersome.
+    
+    This is fixed by calling z.norm() when returning zero in SetString.
+    
+    Fixes #50944
+    
+    Change-Id: Ib84ae975bf82fe02d1203aa9668a01960c0fd59d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364434
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/roundtrip_js.go | 112 ++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 96 insertions(+), 16 deletions(-)
+ src/math/big/ratconv.go      | 2 +-
+ src/math/big/ratconv_test.go | 9 +++++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

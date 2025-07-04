@@ -1,0 +1,23 @@
+commit 93e3696b5dac778cf638a67616a4a4d521d6fce9
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 8 08:51:39 2024 -0700
+
+    cmd/compile: avoid past-the-end pointer when zeroing
+    
+    When we optimize append(s, make([]T, n)...), we have to be careful
+    not to pass &s[0] + len(s)*sizeof(T) as the argument to memclr, as that
+    pointer might be past-the-end. This can only happen if n is zero, so
+    just special-case n==0 in the generated code.
+    
+    Fixes #67255
+    
+    Change-Id: Ic680711bb8c38440eba5e759363ef65f5945658b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584116
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/walk/assign.go | 43 ++++++++++++++++++++-------------
+ test/fixedbugs/issue67255.go            | 33 +++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 17 deletions(-)

@@ -1,15 +1,13 @@
-commit 00e2524d8aa7d4ee045530696a76efc9038962c0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 20 22:58:11 2017 -0800
+commit 2c5bce1cfa242f27ffece3d30e8b851e3e923be2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Oct 30 11:56:19 2016 -0400
 
-    sync/atomic: fix mipsx frame sizes
+    time: simplify: tell people to not use == with Time values
     
-    Found by vet.
-    
-    Change-Id: Ied3089a2cc8757ae5377fb5fa05bbb385d26ad9c
-    Reviewed-on: https://go-review.googlesource.com/37307
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I49952f89b04f41109bb6591c6f025971d9880123
+    Reviewed-on: https://go-review.googlesource.com/32411
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/sync/atomic/asm_mipsx.s | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

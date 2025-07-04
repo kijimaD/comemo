@@ -1,14 +1,23 @@
-commit 79a4a779a7c2d90509ac05d31c959b7c9d7147de
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Dec 22 10:30:43 2014 +1100
+commit 1f0142f66f3cc570e834db03fe68ac2878cc28fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 9 21:14:36 2014 -0500
 
-    syscall: clean up TestStdcallAndCDeclCallbacks to have no warnings
+    [dev.cc] create new branch
     
-    Fixes #9188
+    This branch is for work on converting the remaining C code in
+    package runtime to Go and then deleting the cc, 5c, 6c, and 8c
+    directories. It is targeted to land at the beginning of the 1.5 cycle.
     
-    Change-Id: Ifbf5d9fa78a4f4ceb7f92d42494fe37fa7878c45
-    Reviewed-on: https://go-review.googlesource.com/1930
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The conversion will proceed one GOOS/GOARCH combination
+    at a time; red lines on the dashboard are expected and okay.
+    
+    Once Linux and OS X are converted, help with other systems
+    will be most welcome.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/174760043
 
- src/runtime/syscall_windows_test.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ dev.cc | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

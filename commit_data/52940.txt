@@ -1,41 +1,335 @@
-commit aa4d5e739f32397969fd5c33cbc95d316686039f
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue May 9 16:16:42 2023 +0200
+commit 1f4e8afafee02b69231ac31bfff7c7211bb41336
+Merge: 8a9485c023 635b1244aa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 16 13:08:10 2022 -0700
 
-    syscall,internal/poll: move pipe check from syscall.Seek to callers
+    [dev.unified] all: merge master (635b124) into dev.unified
     
-    On Windows, syscall.Seek is a thin wrapper over SetFilePointerEx [1],
-    which does not work on pipes, although it doesn't return an error on
-    that case. To avoid this undefined behavior, Seek defensively
-    calls GetFileType and errors if the type is FILE_TYPE_PIPE.
+    Merge List:
     
-    The problem with this approach is that Seek is a low level
-    foundational function that can be called many times for the same file,
-    and the additional cgo call (GetFileType) will artificially slow
-    down seek operations. I've seen GetFileType to account for 10% of cpu
-    time in seek-intensive workloads.
+    + 2022-06-16 635b1244aa cmd/go: pass GOEXPERIMENT through to subtests
+    + 2022-06-16 ef808ae1d4 expvar: don't crash if map value set to nil
+    + 2022-06-16 32510eea74 go/parser: remove unused method checkBinaryExpr
+    + 2022-06-16 74f1fa6ecb cmd/go: parallelize matchPackages work in each module
+    + 2022-06-16 1d9d99b7ce cmd/link: consider alignment in carrier symbol size calculation
+    + 2022-06-16 bcce8ef498 spec: adjust incorrect sentence in section on rune literals
+    + 2022-06-16 ecc268aa26 test: add test that gofrontend fails
+    + 2022-06-15 b6c1606889 internal/goarch, internal/goos: update generators for syslist.go
+    + 2022-06-15 91baf5cecc reflect: fix reference comment to runtime/map.go
+    + 2022-06-15 0e3d0c9581 syscall: clarify Pdeathsig documentation on Linux
+    + 2022-06-15 74bf90c779 go/types, types2: add test case for issue for coverage
+    + 2022-06-15 0cd0c12f57 doc/go1.19: use matching closing tag in unix build constraint heading
+    + 2022-06-15 97bfc77f38 syscall, runtime/internal/syscall: always zero the higher bits of return value on linux/loong64
+    + 2022-06-15 937fa5000a net/netip: add missing ) in ParsePrefix errors
+    + 2022-06-15 c2c76c6f19 cmd/link: set alignment for carrier symbols
+    + 2022-06-15 36147dd1e8 cmd/go/internal/modindex: disable indexing for modules outside GOROOT and the module cache
+    + 2022-06-15 2a78e8afc0 test: add tests for string/[]byte/[]rune conversions
+    + 2022-06-15 f9c0264107 net: avoid infinite recursion in Windows Resolver.lookupTXT
+    + 2022-06-14 0dffda1383 spec: clarify "slice of bytes" and "slice of runes" through examples
+    + 2022-06-14 c22a6c3b90 reflect: when StructOf overflows computing size/offset, panic
+    + 2022-06-14 e1e66a03a6 cmd/compile,runtime,reflect: move embedded bit from offset to name
+    + 2022-06-14 cb9bf93078 cmd/go: quote package directory when calling glob
+    + 2022-06-14 cad477c922 cpu: fix typos in test case
+    + 2022-06-13 c29be2d41c runtime: add HACKING section on nosplit functions
+    + 2022-06-13 c5be77b687 doc/go1.19: minor edits
+    + 2022-06-13 56bc3098f4 sync: improve linearity test robustness
+    + 2022-06-13 1fe2810f9c sync: move lock linearity test and treat it like a performance test
+    + 2022-06-13 6130461149 internal/testmath: add two-sample Welch's t-test for performance tests
+    + 2022-06-13 24b9039149 doc/go1.19: prefer relative links to other parts of the Go website
+    + 2022-06-13 fbc75dff2f cmd/cgo: remove -fsanitize=hwaddress hardware tags
+    + 2022-06-13 5ee939b819 spec: clarify behavior of map size hint for make built-in
+    + 2022-06-13 4703546a29 spec: add missing optional type arguments after TypeName in syntax
+    + 2022-06-13 2c52465cb3 net: avoid darwin_arm64 bug in TestDialParallelSpuriousConnection
+    + 2022-06-13 9228d7d7d5 doc/go1.19: add a release note for module indexing
+    + 2022-06-13 7eeec1f6e4 cmd/compile: fix missing dict pass for type assertions
+    + 2022-06-13 d27128b065 doc/go1.19: fix crypto tags
+    + 2022-06-10 55590f3a2b net/http: doc: update RFC reference for appropriate HTTP codes
+    + 2022-06-10 ff3db8d12d doc: fix typos in Go memory model
+    + 2022-06-10 fb75c2da91 cmd/dist, cmd/internal/metadata: don't install metadata binary
+    + 2022-06-10 386245b68e runtime: fix stack split at bad time when fuzzing
+    + 2022-06-09 2cfbef4380 cmd/cgo: recognize clang 14 DWARF type names
+    + 2022-06-09 c7ccabf3fe runtime/cgo: retry _beginthread on EACCES
+    + 2022-06-09 91019cc13d runtime/cgo: merge bodies of cgo_sys_thread_start on windows
+    + 2022-06-09 840e99ed74 api: promote next to go1.19
+    + 2022-06-09 1a2ca95ad2 go/types, types2: only set instance context if packages match
+    + 2022-06-08 b51d44c6dd cmd/go/testdata/script: fix skip on list_replace_absolute_windows
+    + 2022-06-08 80f86f706d api/next: minor reformat
+    + 2022-06-08 13f6be2833 runtime: use pidleget for faketime jump
+    + 2022-06-08 1292176bc9 cmd/go: clean paths before using them form index functions
+    + 2022-06-08 1858ea5d85 syscall: remove unused setgroups on linux/loong64
+    + 2022-06-08 bdde41e3ba runtime: skip TestGdbBacktrace on gdb bug
+    + 2022-06-08 432158b69a net: fix testHookDialTCP race
+    + 2022-06-08 899f0a29c7 cmd/go: enable module index by default
+    + 2022-06-08 f862280e30 cmd/go: properly call PackageModuleRoot to get modroot for index
+    + 2022-06-08 d65166024f cmd/go: set Root and target fields for packages in GOPATH
+    + 2022-06-08 4afb0b9e53 doc/go1.19: delete remaining TODOs
+    + 2022-06-08 3426b7201d runtime: gofmt
+    + 2022-06-08 f330a3a987 doc/go1.19: complete most remaining TODOs
+    + 2022-06-08 2882786bf4 runtime: remove unused pipe and setNonblock on linux/loong64
+    + 2022-06-08 decdd87bea doc/go1.19: mention riscv64 supported regabi
+    + 2022-06-07 b72a6a7b86 os: document that Chdir affects fs.FS returned by DirFS with a relative path
+    + 2022-06-07 30b929b1ef syscall: remove unused accept on linux/loong64
+    + 2022-06-07 a7551fe245 net: use synthetic network in TestDialParallel
+    + 2022-06-07 19d71acd97 doc/go1.19: document that the assembler requires -p
+    + 2022-06-07 d151134851 doc/go1.19: document linker CL that switches DWARF compressed section format
+    + 2022-06-07 3507805bcd go/types, types2: better error message for invalid use of constraint type
+    + 2022-06-07 269bf7e855 go/types, types2: better error message if type is not in type set
+    + 2022-06-07 d4fb93be87 go/types, types2: use | rather than ∪ when printing term lists
+    + 2022-06-07 346698eea7 doc/go1.19: add release notes for net/http and net/url
+    + 2022-06-07 7a82c6859f doc/go1.19: adjust runtime release notes
+    + 2022-06-07 f3e051a184 runtime: document GOMEMLIMIT in environment variables section
+    + 2022-06-07 ef2567c7dd doc/go1.19: document loong64 port
+    + 2022-06-07 69bb7c6ef5 sync/atomic: clarify that 8-byte alignment of variables is due to escape
+    + 2022-06-07 81033fbd8e doc/go1.19: some platforms are still on TSAN v2
+    + 2022-06-07 0c3a0543c2 doc/go1.19: compiler section is complete, modulo TODOs
+    + 2022-06-07 835a946137 doc/go1.19: minor edits
+    + 2022-06-07 429a4041eb doc/go1.19: complete TODOs for go/types
+    + 2022-06-07 d2630aa4b2 doc/go1.19: add various crypto release notes
+    + 2022-06-07 77d9252ddf runtime: fix inline assembly trampoline for arm64
+    + 2022-06-07 38607c5538 cmd/link: specify -Wl,-z params as documented
+    + 2022-06-07 95b68e1e02 doc/go1.19: delete boringcrypto TODO
+    + 2022-06-07 a79623b019 doc/go1.19: add more TODOs from updated relnote
+    + 2022-06-06 acfff42802 doc/go1.19: add release notes for the soft memory limit and idle GC
+    + 2022-06-06 a71ca3dfbd runtime, sync, sync/atomic: document happens-before guarantees
+    + 2022-06-06 3651a6117e go/doc/comment: add heuristics for common badly formatted comments
+    + 2022-06-06 4c08260c51 doc/go_mem: update revision date
+    + 2022-06-06 7271a0a287 doc/go1.19: gc requires -p=importpath
+    + 2022-06-06 c1e2ecbaf9 doc/go1.19: document Resolver.PreferGo
+    + 2022-06-06 11195c60e6 cmd/go: use index to match packages in dependency modules
+    + 2022-06-06 ea5d7cbc26 all: boringcrypto post-merge cleanup
+    + 2022-06-06 6c7b223c2b go/doc/comment: do not turn ``` into “`
+    + 2022-06-06 ce757e94e0 go/doc/comment: add doc comment
+    + 2022-06-06 95547aee8c cmd/compile: cast riscv64 rewrite shifts to unsigned int
+    + 2022-06-06 d43ddc1f3f strconv: fix typo in atof.go
+    + 2022-06-06 2fa45a4fcd cmd/link/internal/loadpe: handle _main reference properly
+    + 2022-06-06 fc97075949 go/types, types2: simplify implementation of validType (fix TODO)
+    + 2022-06-06 07eca49055 go/types, types2: use type nest to detect type cycles (fix validType)
+    + 2022-06-06 770146d5a8 doc/go1.19: add TODOs for changes to go/types
+    + 2022-06-06 1b8ca75eaa runtime: fix breakpoint in ppc64x
+    + 2022-06-06 9ce28b518d text/template/parse: fix data race on lexer initialization
+    + 2022-06-06 47e34ca533 go/types, types2: ensure that named types never expand infinitely
+    + 2022-06-06 02e69cfa96 go/types, types2: store Named instance information separately
+    + 2022-06-06 1323b0e8f0 go/types, types2: eliminate methodList in favor of just using Named.mu
+    + 2022-06-06 846f971daa go/types, types2: remove Named.once in favor of monotonic state
+    + 2022-06-06 66cbf67345 cmd/buildid: reject rewriting legacy buildids
+    + 2022-06-04 47f806ce81 strconv: clarify ParseFloat accepts Go syntax for float literals
+    + 2022-06-04 2730c6af9f runtime: fix typo in libfuzzer_arm64.s
+    + 2022-06-04 a32a592c8c database/sql/driver: fix typo in driver.go
+    + 2022-06-04 0293c51bc5 regexp: avoid copying each instruction executed
+    + 2022-06-04 865911424d doc: update Go memory model
+    + 2022-06-04 fc66cae490 doc/go1.19: remove TODO about LimitedReader
+    + 2022-06-04 f8a53df314 io: revert: add an Err field to LimitedReader
+    + 2022-06-04 21f05284c7 cmd/go: index standard library packages
     
-    A better approach, implemented in this CL, would be to move the check
-    one level up, where many times the file type is already known so the
-    GetFileType is unnecessary.
-    
-    The drawback is that syscall.Seek has had this behavior since pipes
-    where first introduced to Windows in
-    https://codereview.appspot.com/1715046 and someone could be relying on
-    it. On the other hand, this behavior is not documented, so we couldn't
-    be breaking any contract.
-    
-    [1] https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointerex
-    
-    Change-Id: I7602182f9d08632e22a8a1635bc8ad9ad35a5056
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493626
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia7595c77a555fd2a0e7bb3b6b2cfbb745bd4947b
 
- src/internal/poll/fd_windows.go       | 11 +++++++++++
- src/internal/poll/sendfile_windows.go |  3 +++
- src/syscall/syscall_windows.go        |  5 -----
- 3 files changed, 14 insertions(+), 5 deletions(-)
+ api/go1.19.txt                                     | 288 +++++++++
+ api/next/30715.txt                                 |   3 -
+ api/next/35044.txt                                 |   1 -
+ api/next/42710.txt                                 |   2 -
+ api/next/43401.txt                                 |   1 -
+ api/next/43724.txt                                 |   2 -
+ api/next/45628.txt                                 |   1 -
+ api/next/45754.txt                                 |   2 -
+ api/next/46057.txt                                 |   1 -
+ api/next/46059.txt                                 |   2 -
+ api/next/46121.txt                                 |   2 -
+ api/next/46229.txt                                 | 105 ----
+ api/next/47005.txt                                 |   2 -
+ api/next/47579.txt                                 |   3 -
+ api/next/48409.txt                                 |   1 -
+ api/next/50062.txt                                 |   1 -
+ api/next/50340.txt                                 |   1 -
+ api/next/50599.txt                                 |   1 -
+ api/next/50601.txt                                 |   5 -
+ api/next/50674.txt                                 |   9 -
+ api/next/50860.txt                                 |  40 --
+ api/next/51082.txt                                 |  61 --
+ api/next/51115.txt                                 |   1 -
+ api/next/51414.txt                                 |   1 -
+ api/next/51644.txt                                 |   2 -
+ api/next/51682.txt                                 |   2 -
+ api/next/51684.txt                                 |   2 -
+ api/next/51868.txt                                 |  36 --
+ doc/go1.19.html                                    | 657 +++++++++++++++++----
+ doc/go_mem.html                                    | 577 +++++++++++++++---
+ doc/go_spec.html                                   |  53 +-
+ src/cmd/buildid/buildid.go                         |   5 +
+ src/cmd/cgo/gcc.go                                 |  39 +-
+ src/cmd/compile/internal/noder/stencil.go          |   4 +-
+ src/cmd/compile/internal/reflectdata/reflect.go    |  33 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules     |   6 +-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go     |  16 +-
+ src/cmd/compile/internal/types2/api_test.go        |   2 +-
+ src/cmd/compile/internal/types2/call.go            |   6 +-
+ src/cmd/compile/internal/types2/check.go           |   3 +-
+ src/cmd/compile/internal/types2/decl.go            |  16 +-
+ src/cmd/compile/internal/types2/infer.go           |  12 +-
+ src/cmd/compile/internal/types2/instantiate.go     |  90 ++-
+ src/cmd/compile/internal/types2/methodlist.go      |  79 ---
+ src/cmd/compile/internal/types2/methodlist_test.go |  40 --
+ src/cmd/compile/internal/types2/named.go           | 506 +++++++++++-----
+ src/cmd/compile/internal/types2/named_test.go      | 120 ++++
+ src/cmd/compile/internal/types2/object.go          |  14 +-
+ src/cmd/compile/internal/types2/predicates.go      |  13 +-
+ src/cmd/compile/internal/types2/signature.go       |   2 +-
+ src/cmd/compile/internal/types2/sizeof_test.go     |   2 +-
+ src/cmd/compile/internal/types2/subst.go           |  60 +-
+ src/cmd/compile/internal/types2/termlist.go        |   2 +-
+ src/cmd/compile/internal/types2/termlist_test.go   | 140 ++---
+ .../types2/testdata/fixedbugs/issue40350.go        |  16 +
+ .../types2/testdata/fixedbugs/issue42881.go        |  16 +
+ .../types2/testdata/fixedbugs/issue50729.go        |  19 +
+ .../types2/testdata/fixedbugs/issue52698.go        |  62 ++
+ src/cmd/compile/internal/types2/typeset_test.go    |   6 +-
+ src/cmd/compile/internal/types2/typestring.go      |   4 +-
+ src/cmd/compile/internal/types2/typexpr.go         |  53 +-
+ src/cmd/compile/internal/types2/unify.go           |   4 +-
+ src/cmd/compile/internal/types2/validtype.go       | 261 +++++---
+ src/cmd/dist/test.go                               |   2 +-
+ src/cmd/go/internal/clean/clean.go                 |   3 +-
+ src/cmd/go/internal/load/pkg.go                    |   7 +-
+ src/cmd/go/internal/modfetch/fetch.go              |   5 +-
+ src/cmd/go/internal/modindex/build.go              |  35 +-
+ src/cmd/go/internal/modindex/read.go               | 226 +++++--
+ src/cmd/go/internal/modindex/scan.go               |   7 +-
+ src/cmd/go/internal/modload/build.go               |   4 +-
+ src/cmd/go/internal/modload/import.go              |   3 +-
+ src/cmd/go/internal/modload/search.go              |  83 ++-
+ src/cmd/go/internal/str/path.go                    |  18 +
+ src/cmd/go/script_test.go                          |   2 +-
+ src/cmd/go/testdata/script/embed_brackets.txt      |  18 +
+ .../script/list_replace_absolute_windows.txt       |  38 ++
+ src/cmd/internal/metadata/main.go                  |   6 +
+ src/cmd/internal/notsha256/example_test.go         |  41 --
+ src/cmd/link/internal/ld/data.go                   |   6 +
+ src/cmd/link/internal/ld/decodesym.go              |  17 +-
+ src/cmd/link/internal/ld/dwarf.go                  |   6 +-
+ src/cmd/link/internal/ld/lib.go                    |   4 +-
+ src/cmd/link/internal/ld/symtab.go                 |   4 +
+ src/cmd/link/internal/loadpe/ldpe.go               |   8 +-
+ src/crypto/aes/cipher.go                           |   3 +-
+ src/crypto/aes/cipher_asm.go                       |   3 +-
+ src/crypto/ecdsa/ecdsa.go                          |   3 +-
+ src/crypto/hmac/hmac.go                            |   3 +-
+ src/crypto/internal/boring/aes.go                  |   7 +-
+ src/crypto/internal/boring/notboring.go            |   1 +
+ src/crypto/rand/rand_unix.go                       |   3 +-
+ src/crypto/rsa/pkcs1v15.go                         |  34 +-
+ src/crypto/rsa/pss.go                              |   4 +-
+ src/crypto/tls/cipher_suites.go                    |  10 +-
+ src/database/sql/driver/driver.go                  |   8 +-
+ src/expvar/expvar.go                               |  10 +-
+ src/expvar/expvar_test.go                          |  23 +
+ src/go/build/build.go                              |   6 +-
+ src/go/build/deps_test.go                          |   5 +-
+ src/go/build/syslist.go                            |   4 +
+ src/go/doc/comment/doc.go                          |  36 ++
+ src/go/doc/comment/parse.go                        | 302 +++++++---
+ src/go/doc/comment/testdata/code4.txt              |  38 ++
+ src/go/doc/comment/testdata/code5.txt              |  21 +
+ src/go/doc/comment/testdata/code6.txt              |  24 +
+ src/go/doc/comment/testdata/list10.txt             |  13 +
+ src/go/doc/comment/testdata/list9.txt              |  30 +
+ src/go/doc/comment/testdata/quote.txt              |   5 +-
+ src/go/doc/comment/text.go                         |   1 -
+ src/go/parser/parser.go                            |  17 -
+ src/go/types/api_test.go                           |   2 +-
+ src/go/types/call.go                               |   6 +-
+ src/go/types/check.go                              |   3 +-
+ src/go/types/decl.go                               |  16 +-
+ src/go/types/infer.go                              |  12 +-
+ src/go/types/instantiate.go                        |  90 ++-
+ src/go/types/methodlist.go                         |  79 ---
+ src/go/types/methodlist_test.go                    |  41 --
+ src/go/types/named.go                              | 504 +++++++++++-----
+ src/go/types/named_test.go                         | 136 +++++
+ src/go/types/object.go                             |  14 +-
+ src/go/types/predicates.go                         |  13 +-
+ src/go/types/signature.go                          |   2 +-
+ src/go/types/sizeof_test.go                        |   2 +-
+ src/go/types/subst.go                              |  60 +-
+ src/go/types/termlist.go                           |   2 +-
+ src/go/types/termlist_test.go                      | 140 ++---
+ src/go/types/testdata/fixedbugs/issue40350.go      |  16 +
+ src/go/types/testdata/fixedbugs/issue42881.go      |  16 +
+ src/go/types/testdata/fixedbugs/issue50729.go      |  19 +
+ src/go/types/testdata/fixedbugs/issue52698.go      |  50 ++
+ src/go/types/typeset_test.go                       |   6 +-
+ src/go/types/typestring.go                         |   4 +-
+ src/go/types/typexpr.go                            |  58 +-
+ src/go/types/unify.go                              |   4 +-
+ src/go/types/validtype.go                          | 262 +++++---
+ src/internal/cpu/cpu_test.go                       |   4 +-
+ src/internal/goarch/gengoarch.go                   |  19 +-
+ src/internal/goos/gengoos.go                       |  19 +-
+ src/internal/reflectlite/export_test.go            |   2 +-
+ src/internal/reflectlite/type.go                   |  21 +-
+ src/internal/testenv/testenv.go                    |  65 ++
+ src/internal/testmath/bench.go                     |  38 ++
+ src/internal/testmath/ttest.go                     | 213 +++++++
+ src/io/example_test.go                             |  14 -
+ src/io/io.go                                       |  16 +-
+ src/net/dial.go                                    |   1 +
+ src/net/dial_test.go                               | 183 +++---
+ src/net/http/status.go                             |  92 +--
+ src/net/lookup_windows.go                          |   2 +-
+ src/net/lookup_windows_test.go                     |  82 +--
+ src/net/netip/netip.go                             |   4 +-
+ src/net/tcpsock_plan9.go                           |   7 +-
+ src/net/tcpsock_posix.go                           |   7 +-
+ src/os/file.go                                     |   6 +-
+ src/reflect/abi.go                                 |   2 +-
+ src/reflect/all_test.go                            |  81 +++
+ src/reflect/export_test.go                         |   2 +-
+ src/reflect/type.go                                |  93 +--
+ src/reflect/value.go                               |   2 +-
+ src/regexp/backtrack.go                            |   2 +-
+ src/regexp/exec.go                                 |   6 +-
+ src/runtime/HACKING.md                             |  48 +-
+ src/runtime/alg.go                                 |   2 +-
+ src/runtime/asm_ppc64x.s                           |   2 +-
+ src/runtime/cgo/gcc_libinit_windows.c              |  40 +-
+ src/runtime/cgo/gcc_windows_386.c                  |  10 +-
+ src/runtime/cgo/gcc_windows_amd64.c                |   8 +-
+ src/runtime/cgo/gcc_windows_arm64.c                |   8 +-
+ src/runtime/cgo/libcgo_windows.h                   |  10 +-
+ src/runtime/cgocall.go                             |   2 +-
+ src/runtime/defs_linux_loong64.go                  |   1 -
+ src/runtime/extern.go                              |  15 +-
+ src/runtime/internal/syscall/asm_linux_loong64.s   |   2 +-
+ src/runtime/libfuzzer.go                           |  32 +-
+ src/runtime/libfuzzer_arm64.s                      |   9 +-
+ src/runtime/mfinal.go                              |  14 +-
+ src/runtime/proc.go                                |  26 +-
+ src/runtime/runtime-gdb_test.go                    |   5 +
+ src/runtime/sys_linux_loong64.s                    |  24 -
+ src/runtime/syscall_windows.go                     |   2 +-
+ src/runtime/testdata/testprog/crash.go             |   6 +-
+ src/runtime/testdata/testprogcgo/pprof_callback.go |   2 +-
+ src/runtime/testdata/testwinlib/main.go            |   2 +
+ src/runtime/time.go                                |  11 +-
+ src/runtime/type.go                                |  19 +-
+ src/strconv/atof.go                                |   7 +-
+ src/strconv/atoi.go                                |   4 +-
+ src/sync/atomic/doc.go                             |  13 +-
+ src/sync/cond.go                                   |   8 +-
+ src/sync/map.go                                    |   7 +
+ src/sync/mutex.go                                  |   7 +
+ src/sync/mutex_test.go                             | 112 ++++
+ src/sync/once.go                                   |   4 +
+ src/sync/pool.go                                   |   5 +
+ src/sync/rwmutex.go                                |   8 +
+ src/sync/waitgroup.go                              |   3 +
+ src/syscall/asm_linux_loong64.s                    |   2 +-
+ src/syscall/exec_linux.go                          |   6 +-
+ src/syscall/syscall_linux_loong64.go               |   2 -
+ src/syscall/zsyscall_linux_loong64.go              |  21 -
+ src/text/template/parse/lex.go                     |   4 +-
+ src/text/template/parse/lex_test.go                |   4 +-
+ src/text/template/parse/parse.go                   |   7 +-
+ test/fixedbugs/issue23814.go                       |  61 ++
+ test/fixedbugs/issue52870.go                       |  27 +
+ test/fixedbugs/issue53309.go                       |  42 ++
+ test/locklinear.go                                 | 171 ------
+ 209 files changed, 5421 insertions(+), 2617 deletions(-)

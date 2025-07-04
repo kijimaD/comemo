@@ -1,19 +1,18 @@
-commit 78cb5d7a68f994978b1520baf724c8a7008a97c0
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed May 2 23:26:58 2018 +0200
+commit 99e6e482f4f03d80c7dcf1c33b4f49f349d4b3b6
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Sun Jan 21 13:49:41 2018 -0500
 
-    misc/ios: retry app install
+    os: handle ' is a directory' error as IsExist on Plan 9
     
-    Sometimes ideviceinstaller fails to install the app. Retry a few
-    times before giving up.
+    This error is returned by os.Mkdir when the directory already exists.
     
-    For the iOS builder.
+    This change fixes some upspin tests.
     
-    Change-Id: Ib066ffd4f97ae8d22c0fa9a78ea4d04f67c17410
-    Reviewed-on: https://go-review.googlesource.com/111055
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: I9ad5aefebb32dff577726d537b4f3826d79868eb
+    Reviewed-on: https://go-review.googlesource.com/88656
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 26 ++++++++++++++++++--------
- 1 file changed, 18 insertions(+), 8 deletions(-)
+ src/os/error_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

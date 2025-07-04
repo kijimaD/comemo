@@ -1,17 +1,58 @@
-commit 1926fa5f84b87a7a6cb9f153337424baf367937a
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Wed May 4 07:26:21 2022 -0700
+commit 2b1d70a137481c0b9f652950f1ac3570f24f68b8
+Merge: 42fe132787 296ddf2a93
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 8 13:04:25 2021 -0700
 
-    runtime: use profile data before advancing index
+    [dev.typeparams] all: merge master (296ddf2) into dev.typeparams
     
-    Fixes #52704
+    Conflicts:
     
-    Change-Id: Ia2104c62d7ea9d67469144948b2ceb5d9f1313b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404054
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    - src/runtime/runtime2.go
+    
+      On master, CL 317191 fixed the mentions of gc/reflect.go in comments
+      to reflectdata/reflect.go; but on dev.typeparams, CL 325921 fixed
+      that the same comment to reflect that deferstruct actually ended up
+      in ssagen/ssa.go.
+    
+    Merge List:
+    
+    + 2021-07-08 296ddf2a93 net: filter bad names from Lookup functions instead of hard failing
+    + 2021-07-08 ce76298ee7 Update oudated comment
+    + 2021-07-08 2ca44fe221 doc/go1.17: linkify time.UnixMilli and time.UnixMicro
+    + 2021-07-07 5c59e11f5e cmd/compile: remove special-casing of blank in types.sconv{,2}
+    + 2021-07-07 b003a8b1ae cmd/compile: optimize types.sconv
+    + 2021-07-07 11f5df2d67 cmd/compile: extract pkgqual from symfmt
+    + 2021-07-07 991fd381d5 cmd/go: don't lock .mod and .sum files for read in overlay
+    + 2021-07-07 186a3bb4b0 cmd/go/internal/modfetch/codehost: skip hg tests if no hg binary is present
+    + 2021-07-07 00c00558e1 cmd/go/internal/modload: remove unused functions
+    + 2021-07-07 f264879f74 cmd/go/internal/modload: fix an apparent typo in the AutoRoot comment
+    + 2021-07-07 c96833e5ba doc: remove stale comment about arm64 port
+    
+    Change-Id: I849046b6d8f7421f60323549f3f763ef418bf9e7
 
- src/runtime/trace.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/asm.html                                       |   4 -
+ doc/go1.17.html                                    |  11 +-
+ src/cmd/compile/internal/reflectdata/reflect.go    |   2 +-
+ src/cmd/compile/internal/types/fmt.go              |  57 +++---
+ .../go/internal/lockedfile/lockedfile_filelock.go  |   3 +-
+ src/cmd/go/internal/lockedfile/lockedfile_plan9.go |   6 +-
+ src/cmd/go/internal/modfetch/codehost/git_test.go  |  49 +++--
+ src/cmd/go/internal/modfetch/fetch.go              |  17 +-
+ src/cmd/go/internal/modload/init.go                |  20 +-
+ src/cmd/go/internal/modload/load.go                |  37 ----
+ src/cmd/go/internal/modload/modfile.go             |  14 +-
+ src/cmd/go/internal/modload/query.go               |   4 +-
+ src/cmd/go/testdata/script/mod_overlay.txt         |  10 +-
+ src/cmd/link/internal/ld/decodesym.go              |   4 +-
+ src/internal/reflectlite/type.go                   |   4 +-
+ src/net/dnsclient_unix_test.go                     | 222 ++++++++++++++++-----
+ src/net/lookup.go                                  |  74 +++++--
+ src/reflect/type.go                                |  10 +-
+ src/runtime/runtime2.go                            |   2 +-
+ src/runtime/select.go                              |   2 +-
+ src/runtime/type.go                                |   6 +-
+ test/fixedbugs/issue47087.dir/a.go                 |   9 +
+ test/fixedbugs/issue47087.dir/b.go                 |   9 +
+ test/fixedbugs/issue47087.dir/main.go              |  19 ++
+ test/fixedbugs/issue47087.go                       |   7 +
+ 25 files changed, 401 insertions(+), 201 deletions(-)

@@ -1,33 +1,27 @@
-commit 59b0e147603e4a3a6170b56e30383a94e157e37a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 21 16:04:41 2016 -0400
+commit 873dca4c17437d07ae97ef4f9e9a8e8c93d88bd7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 23 17:47:11 2016 -0700
 
-    cmd/go: diagnose non-canonical import paths before compilation
+    net: use runtime.Keepalive for *netFD values
     
-    If we leave it for compilation sometimes the error appears first
-    in derived vendor paths, without any indication where they came from.
-    This is better.
+    The net package sets a finalizer on *netFD. I looked through all the
+    uses of *netFD in the package, looking for each case where a *netFD
+    was passed as an argument and the final reference to the argument was
+    not a function or method call. I added a call to runtime.KeepAlive after
+    each such final reference (there were only three).
     
-    $ go1.7 build canonical/d
-    cmd/go/testdata/src/canonical/a/a.go:3: non-canonical import path "canonical/a//vendor/c" (should be "canonical/a/vendor/c")
-    cmd/go/testdata/src/canonical/a/a.go:3: can't find import: "canonical/a//vendor/c"
+    The code is safe today without the KeepAlive calls because the compiler
+    keeps arguments alive for the duration of the function. However, that is
+    not a language requirement, so adding the KeepAlive calls ensures that
+    this code remains safe even if the compiler changes in the future.
     
-    $ go build canonical/d
-    package canonical/d
-            imports canonical/b
-            imports canonical/a/: non-canonical import path: "canonical/a/" should be "canonical/a"
-    $
-    
-    Fixes #16954.
-    
-    Change-Id: I315ccec92a00d98a08c139b3dc4e17dbc640edd0
-    Reviewed-on: https://go-review.googlesource.com/31668
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Change-Id: I4e2bd7c5a946035dc509ccefb4828f72335a9ee3
+    Reviewed-on: https://go-review.googlesource.com/27650
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                             | 10 ++++++++++
- src/cmd/go/pkg.go                                 | 17 +++++++++++++++++
- src/cmd/go/testdata/src/canonical/a/a.go          |  3 +++
- src/cmd/go/testdata/src/canonical/a/vendor/c/c.go |  1 +
- src/cmd/go/testdata/src/canonical/b/b.go          |  3 +++
- src/cmd/go/testdata/src/canonical/d/d.go          |  3 +++
- 6 files changed, 37 insertions(+)
+ src/net/fd_poll_nacl.go    | 2 ++
+ src/net/fd_poll_runtime.go | 2 ++
+ src/net/fd_windows.go      | 2 +-
+ 3 files changed, 5 insertions(+), 1 deletion(-)

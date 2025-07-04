@@ -1,27 +1,15 @@
-commit ab0a94c6d32f758d9e61e3893e09f0a742347b4a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 3 22:50:37 2022 -0400
+commit 963218cc9c331931c5886f2eb7199e6d0c362e93
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 7 16:10:31 2021 -0700
 
-    cmd/dist: require Go 1.17 for building Go
+    reflect: correct typoo in comment
     
-    This makes builds using earlier Go bootstrap versions fail pretty clearly:
-    
-    % GOROOT_BOOTSTRAP=$HOME/sdk/go1.16 ./make.bash
-    Building Go cmd/dist using /Users/rsc/sdk/go1.16. (go1.16 darwin/amd64)
-    found packages main (build.go) and building_Go_requires_Go_1_17_or_later (notgo117.go) in /Users/rsc/go/src/cmd/dist
-    %
-    
-    All the builders have Go 1.17 or later for bootstrap now except
-    for the android corellium builders, which still need updating (#54246).
-    We are accepting breakage on those for now.
-    
-    Fixes #44505.
-    
-    Change-Id: I12a67f42f61dba43a331cee0a150194d3e42c044
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420902
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ic3c69906a8afde63278f173df0427b1c460c9f3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348189
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/dist/notgo117.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

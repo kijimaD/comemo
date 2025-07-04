@@ -1,17 +1,18 @@
-commit 0cacc4d0e2a7bde8c50b5ef47ef65679226a1592
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Feb 18 20:02:17 2018 +0100
+commit 27923482fa0b9684a2b672b3f88267d9858e3e79
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 4 17:12:28 2017 -0400
 
-    cmd/compile: fold LEAQ/ADDQconst into SETx ops
+    runtime: separate GC background utilization from goal utilization
     
-    This saves an instruction and a register. The new rules
-    match ~4900 times during all.bash.
+    Currently these are the same constant, but are separate concepts.
+    Split them into two constants for easier experimentation and better
+    documentation.
     
-    Change-Id: I2f867c5e70262004e31f545f3bb89e939c45b718
-    Reviewed-on: https://go-review.googlesource.com/94767
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I121854d4fd1a4a827f727c8e5153160c24aacda7
+    Reviewed-on: https://go-review.googlesource.com/68570
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go      |   2 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |   5 +
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 544 ++++++++++++++++++++++++++-
- 3 files changed, 548 insertions(+), 3 deletions(-)
+ src/runtime/mgc.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

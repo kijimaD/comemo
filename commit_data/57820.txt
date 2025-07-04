@@ -1,34 +1,20 @@
-commit 3b424cfa9d2704a283bdba544497daad0d47fb65
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Sep 12 10:44:38 2024 -0400
+commit 0e1a9e18671a1ba171cda9d681cacaf91bd2c0bb
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Sep 4 00:00:11 2023 -0700
 
-    internal/runtime/maps: proper capacity hint handling
+    syscall: fixup TestUseCgroupFD error checking
     
-    When given a hint size, set the initial capacity large enough to avoid
-    requiring growth in the average case.
+    Fixup for CL 520265; of course errors returned from os/exec are wrapped.
     
-    When not given a hint (or given 0), don't allocate anything at all.
+    While at it, change the order -- it seems more readable this way.
     
-    For #54766.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
-    Change-Id: I8844fc652b8d2d4e5136cd56f7e78999a07fe381
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616457
+    Change-Id: Ifb5d0c113f4fb2b3cc4be922021dbd2a8a886b7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524959
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/go/build/deps_test.go                    |  2 +-
- src/internal/runtime/maps/export_test.go     |  8 ++-
- src/internal/runtime/maps/map.go             | 95 ++++++++++++++++++++++------
- src/internal/runtime/maps/map_swiss_test.go  | 55 ++++++----------
- src/internal/runtime/maps/runtime.go         |  3 +
- src/internal/runtime/maps/runtime_noswiss.go | 17 +++++
- src/internal/runtime/maps/runtime_swiss.go   |  4 ++
- src/internal/runtime/maps/table.go           |  3 -
- src/runtime/alg.go                           |  5 --
- src/runtime/crash_test.go                    | 20 ++++--
- src/runtime/map_swiss.go                     | 70 +++-----------------
- src/runtime/panic.go                         |  5 ++
- 12 files changed, 159 insertions(+), 128 deletions(-)
+ src/syscall/exec_linux_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

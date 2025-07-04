@@ -1,29 +1,26 @@
-commit 13201d57283e3684ab46ccb5ee0bb6b3fe67c221
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 3 21:34:25 2023 -0700
+commit d65166024f3969289be5c74fd8be7d06a93264f1
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jun 7 15:31:20 2022 -0400
 
-    go/types, types2: consider generic functions in inference simplify step
+    cmd/go: set Root and target fields for packages in GOPATH
     
-    After type arguments for all type parameters have been determined,
-    the type arguments are "simplified" by substituting any type parameters
-    that might occur in them with their corresponding type arguments until
-    all type parameters have been removed.
+    This change replicates the behavior filed in issue #37015 for packages
+    imported from the module index. That behavior is that packages that
+    happen to exist in a GOPATH src directory have p.Root and p.Target set
+    even when the packages are loaded from modules. This is likely
+    unintentional behavior because in module mode, packages shouldn't behave
+    differently depending on whether their directories exist in GOPATH. But
+    for uniformity, (and because two of our tests depend on this behavior),
+    this CL will implement this behavior. We can remove it from the module
+    index when we remove it from the go/build logic.
     
-    If in this process a (formerly) generic function signature becomes
-    non-generic, make sure to nil out its (declared) type parameters.
-    
-    Fixes #59953.
-    For #59338.
-    
-    Change-Id: Ie16bffd7b0a8baed18e76e5532cdfaecd26e4278
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491797
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I3f501c92fbb76eaf86b6b9275539f2129b67f884
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410822
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/infer.go            | 20 ++++++++++++++++++++
- src/go/types/infer.go                               | 20 ++++++++++++++++++++
- src/internal/types/testdata/fixedbugs/issue59953.go | 11 +++++++++++
- 3 files changed, 51 insertions(+)
+ src/cmd/go/internal/modindex/build.go | 31 ++++++++++++++++++++++++
+ src/cmd/go/internal/modindex/read.go  | 44 ++++++++++++++++++++++++-----------
+ 2 files changed, 61 insertions(+), 14 deletions(-)

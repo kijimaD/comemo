@@ -1,22 +1,30 @@
-commit 26a1f4ae000dc9ce69ce40034302a86ac8f3ee3a
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Apr 5 12:53:20 2024 +0000
+commit b5a7f2eef7cb17255cb396cd4ff7df04957dd21e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Feb 27 07:15:50 2023 +0800
 
-    cmd/compile/internal: small tweak to merge locals trace output
+    maps,runtime: improve maps.Clone
     
-    For -gcflags=-d=mergelocalstrace=1 (which reports estimated savings
-    from stack slot merging), emit separate values for pointerful vs
-    non-pointerful variables, for a bit more detail.
+    name         old time/op    new time/op    delta
+    MapClone-10    65.8ms ± 7%    10.3ms ± 2%  -84.30%  (p=0.000 n=10+9)
     
-    Updates #62737.
-    Updates #65532.
-    Updates #65495.
+    name         old alloc/op   new alloc/op   delta
+    MapClone-10    40.2MB ± 0%    40.5MB ± 0%   +0.57%  (p=0.000 n=10+9)
     
-    Change-Id: I9dd27d2a254036448c85c13d189d1ed36157c9d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576680
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    name         old allocs/op  new allocs/op  delta
+    MapClone-10      20.0 ± 0%      23.0 ± 0%  +15.00%  (p=0.000 n=10+10)
+    
+    Updates #58740.
+    
+    Change-Id: I148501e723cb2124f02045400e7ceb36af0871c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471400
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/liveness/mergelocals.go | 18 ++++++++++++------
- src/cmd/compile/internal/ssagen/pgen.go          |  5 +++--
- 2 files changed, 15 insertions(+), 8 deletions(-)
+ src/maps/maps.go      |   9 ++-
+ src/maps/maps.s       |   5 ++
+ src/maps/maps_test.go |  49 +++++++++++++++++
+ src/runtime/map.go    | 148 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 206 insertions(+), 5 deletions(-)

@@ -1,14 +1,14 @@
-commit 73d7d12ea62e99fef210ec3d9d2ffbe87d1628f0
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Oct 18 10:51:21 2013 +0900
+commit 88c448ba40a29ac96563e9945d2af17fba779d23
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 17 11:57:48 2013 -0700
 
-    misc/dist: set default go.tools tag
+    runtime: correct test for when to poll network
     
-    Fixes #6607.
+    Fixes #6610.
     
-    R=dsymonds
+    R=golang-dev, khr
     CC=golang-dev
-    https://golang.org/cl/14830043
+    https://golang.org/cl/14793043
 
- misc/dist/bindist.go | 2 +-
+ src/pkg/runtime/proc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

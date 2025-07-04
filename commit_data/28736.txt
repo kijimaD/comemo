@@ -1,29 +1,22 @@
-commit 3a9072829e7d315ecda030281b622632c1bbe1b6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 6 22:42:20 2016 -0400
+commit fad2bbdc6a686a20174d2e73cf78f1659722bb39
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 7 16:41:29 2016 -0700
 
-    math/big: make division faster
+    runtime: fix nanotime for macOS Sierra
     
-    - Add new BenchmarkQuoRem.
-    - Eliminate allocation in divLarge nat pool
-    - Unroll mulAddVWW body 4x
-    - Remove some redundant slice loads in divLarge
+    In the beta version of the macOS Sierra (10.12) release, the
+    gettimeofday system call changed on x86. Previously it always returned
+    the time in the AX/DX registers. Now, if AX is returned as 0, it means
+    that the system call has stored the values into the memory pointed to by
+    the first argument, just as the libc gettimeofday function does. The
+    libc function handles both cases, and we need to do so as well.
     
-    name      old time/op  new time/op  delta
-    QuoRem-8  2.18µs ± 1%  1.93µs ± 1%  -11.38%  (p=0.000 n=19+18)
+    Fixes #16272.
     
-    The starting point in the comparison here is Cherry's
-    pending CL to turn mulWW and divWW into intrinsics.
-    The optimizations in divLarge work best because all
-    the function calls are gone. The effect of this CL is not
-    as large if you don't assume Cherry's CL.
-    
-    Change-Id: Ia6138907489c5b9168497912e43705634e163b35
-    Reviewed-on: https://go-review.googlesource.com/30613
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ibe5ad50a2c5b125e92b5a4e787db4b5179f6b723
+    Reviewed-on: https://go-review.googlesource.com/24812
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/arith_amd64.s | 35 +++++++++++++++++++++++++++++++++++
- src/math/big/int_test.go   | 23 +++++++++++++++++++++++
- src/math/big/nat.go        | 46 ++++++++++++++++++++++++++++------------------
- 3 files changed, 86 insertions(+), 18 deletions(-)
+ src/runtime/sys_darwin_386.s   | 5 +++++
+ src/runtime/sys_darwin_amd64.s | 7 ++++++-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

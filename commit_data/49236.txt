@@ -1,23 +1,17 @@
-commit afd181cf0b69c3591d7e47ceca4fabf14434d77e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue May 17 15:38:35 2022 +0700
+commit 8a7ee4c51e992174d432ce0f40d9387a32d6ee4a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 31 15:39:08 2021 -0700
 
-    test,misc: fix builders that do not support plugin
+    io/fs: don't use absolute path in DirEntry.Name doc
     
-    CL 406358 added test that use -buildmode=plugin. But plugin mode only
-    supports on some os/arch pairs, so this CL moving the test to
-    misc/cgo/testplugin directory instead.
+    Fixes #47485
     
-    Updates #52937
-    
-    Change-Id: Iad049443c1f6539f6af1988bebd4dff56c6e1bf9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406774
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I64ac00905a403b7594c706141679051a93058a31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338889
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- misc/cgo/testplugin/plugin_test.go                                   | 4 ++++
- .../issue52937.go => misc/cgo/testplugin/testdata/issue52937/main.go | 5 -----
- 2 files changed, 4 insertions(+), 5 deletions(-)
+ src/io/fs/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

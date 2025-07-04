@@ -1,17 +1,29 @@
-commit 76e4a033523bb6ca661e1905f0381e2603c109d4
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Feb 28 10:39:09 2013 +1100
+commit 11776a39a118742b61510a3ef3bfa2a80e4b3005
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 27 15:20:13 2013 -0800
 
-    misc/osx: remove legacy packaging scripts
+    net/http: add Transport.CancelRequest
     
-    These are superseded by the tool at misc/dist.
+    Permits all sorts of custom HTTP timeout policies without
+    adding a new Transport timeout Duration for each combination
+    of HTTP phases.
     
-    R=golang-dev, r
+    This keeps track internally of which TCP connection a given
+    Request is on, and lets callers forcefully close the TCP
+    connection for a given request, without actually getting
+    the net.Conn directly.
+    
+    Additionally, a future CL will implement res.Body.Close (Issue
+    3672) in terms of this.
+    
+    Update #3362
+    Update #3672
+    
+    R=golang-dev, rsc, adg
     CC=golang-dev
-    https://golang.org/cl/7420044
+    https://golang.org/cl/7372054
 
- misc/osx/README              |  3 --
- misc/osx/etc/paths.d/go      |  1 -
- misc/osx/package.bash        | 69 --------------------------------------------
- misc/osx/scripts/postinstall | 23 ---------------
- 4 files changed, 96 deletions(-)
+ src/pkg/net/http/export_test.go    | 14 ++++++---
+ src/pkg/net/http/transport.go      | 58 +++++++++++++++++++++++++++++---------
+ src/pkg/net/http/transport_test.go | 55 +++++++++++++++++++++++++++++++++++-
+ 3 files changed, 109 insertions(+), 18 deletions(-)

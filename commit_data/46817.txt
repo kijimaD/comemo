@@ -1,16 +1,35 @@
-commit b3a4b2df09be4e0a85f4204e71a4c1c8e542f4f8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 7 11:20:05 2021 -0400
+commit 401d7e5a242f1007c2637a25111a6fa985728c08
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jan 29 13:46:34 2021 -0500
 
-    misc/cgo/testshared: pass the testing.T to goCmd when available
+    [dev.regabi] cmd/compile: reserve X15 as zero register on AMD64
     
-    Noticed while investigating the test failure in
-    https://build.golang.org/log/4fc4aa11087c74bb8f66c81a8b212f41fb495be4.
+    In ABIInternal, reserve X15 as constant zero, and use it to zero
+    memory. (Maybe there can be more use of it?)
     
-    Change-Id: I0ed80dad99d6920a187af4339e437a08fbe91ade
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354572
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The register is zeroed when transition to ABIInternal from ABI0.
+    
+    Caveat: using X15 generates longer instructions than using X0.
+    Maybe we want to use X0?
+    
+    Change-Id: I12d5ee92a01fc0b59dad4e5ab023ac71bc2a8b7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288093
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- misc/cgo/testshared/shared_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go       |   4 +-
+ src/cmd/compile/internal/amd64/ssa.go        |  43 +++-
+ src/cmd/compile/internal/ssa/config.go       |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  26 +--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  41 ++--
+ src/cmd/compile/internal/ssa/op.go           |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 281 ++++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |  96 ++++-----
+ src/cmd/compile/internal/ssagen/abi.go       |  15 +-
+ src/cmd/compile/internal/ssagen/ssa.go       |   5 +-
+ src/runtime/duff_amd64.s                     | 128 ++++++------
+ src/runtime/mkduff.go                        |  14 +-
+ test/codegen/structs.go                      |   4 +-
+ 13 files changed, 347 insertions(+), 315 deletions(-)

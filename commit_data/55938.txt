@@ -1,27 +1,26 @@
-commit 386dcf4c93bfc8af232a12086d73da4bb3558af9
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 14 15:30:13 2024 -0400
+commit 3ed8a1e629e95dc6337a73d5db9936dabd43f4f4
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Jul 5 19:41:27 2022 +0800
 
-    runtime: revert "traceback: include pc=0x%x for inline frames"
+    cmd/internal/obj/loong64: save LR after decrementing SP
     
-    This reverts commit 643d816c8b43 (CL 561635).
+    Refer to CL 413428 and 412474, for loong64, like mips, s390x and riscv, there
+    is no single instruction that saves the LR and decrements the SP, so we also
+    need to insert an instruction to save the LR after decrementing the SP.
     
-    Reason for revert: This works for telemetry but broke various other
-    properties of the tracebacks as well as some programs that read
-    tracebacks. We should figure out a solution that works for all uses,
-    and in the interim we should not be making telemetry work at the
-    cost of breaking other, existing valid uses.
+    Fixes #56623.
+    Updates #53374.
     
-    See #65761 for details.
-    
-    Change-Id: I467993ae778887e5bd3cca4c0fb54e9d44802ee1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571797
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I3de040792f0a041d3d2a98ea89c23a2dd2f4ad10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416154
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
 
- src/runtime/crash_test.go            |  13 --
- src/runtime/traceback.go             |  24 +---
- src/runtime/traceback_system_test.go | 238 -----------------------------------
- 3 files changed, 6 insertions(+), 269 deletions(-)
+ src/cmd/internal/obj/loong64/obj.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

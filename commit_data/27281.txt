@@ -1,31 +1,12 @@
-commit 57be1607d975ebec2f5faecea068f2db31abc041
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue May 3 16:37:33 2016 +1000
+commit f693015be62a6571e053e15040664d01a450c0e0
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 17:16:56 2016 +0100
 
-    debug/pe: unexport newly introduced identifiers
+    sync: don't assume b.N > 0
     
-    CLs 22181, 22332 and 22336 intorduced new functionality to be used
-    in cmd/link (see issue #15345 for details). But we didn't have chance
-    to use new functionality yet. Unexport newly introduced identifiers,
-    so we don't have to commit to the API until we actually tried it.
-    
-    Rename File.COFFSymbols into File._COFFSymbols,
-    COFFSymbol.FullName into COFFSymbol._FullName,
-    Section.Relocs into Section._Relocs,
-    Reloc into _Relocs,
-    File.StringTable into File._StringTable and
-    StringTable into _StringTable.
-    
-    Updates #15345
-    
-    Change-Id: I770eeb61f855de85e0c175225d5d1c006869b9ec
-    Reviewed-on: https://go-review.googlesource.com/22720
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6eb91ea73ef887b025e5a8de1dd55f30618e1aa6
+    Reviewed-on: https://go-review.googlesource.com/20857
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/pe/file.go    | 14 +++++++-------
- src/debug/pe/section.go | 12 ++++++------
- src/debug/pe/string.go  | 10 +++++-----
- src/debug/pe/symbol.go  |  8 ++++----
- 4 files changed, 22 insertions(+), 22 deletions(-)
+ src/sync/runtime_sema_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

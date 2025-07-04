@@ -1,19 +1,48 @@
-commit 9fc41cd697634c1a292750a66208ebba626efd5e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Oct 23 08:58:49 2019 +0200
+commit b6f59cbc803695f8da6b888fe7a88c6f8c5b3ea7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 9 08:57:20 2019 -0400
 
-    runtime: report correct error if kevent failed in netpollinit
+    cmd/vet/all: update whitelist for vet fixes
     
-    Report the value returned by kevent, not the previously set errno which
-    is 0.
+    The vetall builder runs vet straight out of golang.org/x/tools,
+    so submiting CL 176097 in that repo will break the builder
+    by making all these whitelist entries stale.
+    Submiting this CL will fix it, by removing them.
     
-    Found while debugging CL 198544
+    The addition of the gcWriteBarrier declaration in runtime/stubs.go
+    is necessary because the diagnostic is no longer emitted on arm,
+    so it must be removed from all.txt. Adding it to runtime is better
+    than adding it to every-other-goarch.txt.
     
-    Change-Id: I854f5418f8ed8e083d909d328501355496c67a53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202777
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    For #31916.
+    
+    Change-Id: I432f6049cd3ee5a467add5066c440be8616d9d54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176177
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/netpoll_kqueue.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/vet/all/whitelist/aix_ppc64.txt            |  3 ---
+ src/cmd/vet/all/whitelist/all.txt                  | 24 ----------------------
+ src/cmd/vet/all/whitelist/android_arm.txt          |  1 -
+ src/cmd/vet/all/whitelist/arm.txt                  |  4 ----
+ src/cmd/vet/all/whitelist/arm64.txt                |  2 --
+ src/cmd/vet/all/whitelist/freebsd_arm.txt          |  3 ---
+ src/cmd/vet/all/whitelist/linux_arm.txt            |  1 -
+ src/cmd/vet/all/whitelist/mips64x.txt              |  5 -----
+ src/cmd/vet/all/whitelist/mipsx.txt                |  7 -------
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt        |  2 --
+ src/cmd/vet/all/whitelist/nacl_arm.txt             |  1 -
+ src/cmd/vet/all/whitelist/netbsd_386.txt           |  1 +
+ src/cmd/vet/all/whitelist/netbsd_amd64.txt         |  2 ++
+ src/cmd/vet/all/whitelist/netbsd_arm.txt           |  1 -
+ .../all/whitelist/{netbsd.txt => netbsd_arm64.txt} |  2 --
+ src/cmd/vet/all/whitelist/openbsd_arm.txt          |  3 ---
+ src/cmd/vet/all/whitelist/plan9_arm.txt            |  3 ---
+ src/cmd/vet/all/whitelist/ppc64x.txt               |  8 --------
+ src/cmd/vet/all/whitelist/s390x.txt                | 20 ------------------
+ src/cmd/vet/all/whitelist/wasm.txt                 | 13 ------------
+ src/cmd/vet/all/whitelist/windows.txt              |  1 -
+ src/cmd/vet/all/whitelist/windows_386.txt          |  1 +
+ src/cmd/vet/all/whitelist/windows_amd64.txt        |  1 -
+ src/runtime/stubs.go                               |  3 +++
+ 24 files changed, 7 insertions(+), 105 deletions(-)

@@ -1,22 +1,37 @@
-commit f7670b9f9471d0d40666c28faaaa67851eb8ec2e
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Feb 8 11:56:10 2022 -0500
+commit 370ff5ff96cf02dfbbc33b70934219367fa700bb
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Jun 2 18:12:14 2021 -0700
 
-    cmd/go: update TestCgoHandlesWlORIGIN to avoid -rpath on windows
+    [dev.typeparams] test: update all the typeparam tests to use the new union/tilde syntax
     
-    Tweak the cgo recipe for the TestCgoHandlesWlORIGIN testpoint to avoid
-    using "-rpath" on Windows, where it doesn't make sense to use it. This
-    change needed to avoid an "unknown flag -rpath" from clang/ldd on
-    windows.
+    Did a mix of tilde and non-tilde usage. Tilde notation is not quite
+    fully functional, so no tests are currently trying to distinguish
+    (fail/not fail) based on tilde usage.
     
-    Updates #35006.
-    
-    Change-Id: I4fcd649df4687aa3aff5690e11a15fc0e0f42332
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384155
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib50cec2fc0684f9d9f3561c889fd44c7a7af458c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324572
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/typeparam/absdiff.go           | 16 ++++++++--------
+ test/typeparam/adder.go             |  2 +-
+ test/typeparam/double.go            |  2 +-
+ test/typeparam/fact.go              |  2 +-
+ test/typeparam/factimp.dir/a.go     |  2 +-
+ test/typeparam/list.go              | 14 +++++++-------
+ test/typeparam/listimp.dir/a.go     | 14 +++++++-------
+ test/typeparam/min.go               |  2 +-
+ test/typeparam/mincheck.dir/a.go    |  2 +-
+ test/typeparam/minimp.dir/a.go      |  2 +-
+ test/typeparam/ordered.go           |  8 ++++----
+ test/typeparam/orderedmap.go        |  8 ++++----
+ test/typeparam/sliceimp.dir/a.go    |  8 ++++----
+ test/typeparam/sliceimp.dir/main.go |  4 ++--
+ test/typeparam/slices.go            | 12 ++++++------
+ test/typeparam/smallest.go          |  8 ++++----
+ test/typeparam/smoketest.go         |  2 +-
+ test/typeparam/sum.go               |  2 +-
+ 18 files changed, 55 insertions(+), 55 deletions(-)

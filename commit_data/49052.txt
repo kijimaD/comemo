@@ -1,31 +1,18 @@
-commit 68c2e9eedeaa2ad9d9528fbb58adffb0a48365c9
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed May 4 09:58:56 2022 -0400
+commit ff33d3dc3a47a4eed17728b8460de4572198cec3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 9 17:12:07 2021 -0700
 
-    crypto/elliptic: replace generic P-256 with fiat-crypto
+    [dev.typeparams] cmd/compile/internal/types2: implement <-ch where ch is of type parameter type
     
-    For #52182
+    For #43671
     
-    Change-Id: I8d8b4c3d8299fbd59b0bf48e5c8b7b41c533a2cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360114
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Fernando Lobato Meeser <felobato@google.com>
+    Change-Id: I7db4b3886fab44ec0de7c0935e0ab21c26e3335c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333709
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/elliptic/internal/fiat/generate.go      |   19 +-
- src/crypto/elliptic/internal/fiat/p256.go          |  135 ++
- src/crypto/elliptic/internal/fiat/p256_fiat64.go   | 1400 ++++++++++++++++++++
- src/crypto/elliptic/internal/fiat/p256_invert.go   |   84 ++
- src/crypto/elliptic/internal/nistec/generate.go    |    5 +
- src/crypto/elliptic/internal/nistec/nistec_test.go |   97 +-
- src/crypto/elliptic/internal/nistec/p256.go        |  288 ++++
- src/crypto/elliptic/nistec.go                      |   30 +
- src/crypto/elliptic/p256.go                        |   32 -
- src/crypto/elliptic/p256_asm.go                    |   20 +-
- src/crypto/elliptic/p256_generic.go                |  477 -------
- src/crypto/elliptic/p256_generic_field.go          |  705 ----------
- src/crypto/elliptic/p256_noasm.go                  |   15 -
- src/crypto/elliptic/p256_ppc64le.go                |   13 +-
- src/crypto/elliptic/p256_s390x.go                  |   17 +-
- 15 files changed, 2045 insertions(+), 1292 deletions(-)
+ src/cmd/compile/internal/types2/expr.go            | 36 ++++++++++----
+ .../types2/testdata/fixedbugs/issue43671.go2       | 58 ++++++++++++++++++++++
+ 2 files changed, 85 insertions(+), 9 deletions(-)

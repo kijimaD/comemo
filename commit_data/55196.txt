@@ -1,19 +1,27 @@
-commit af5d544b6d847e1610132aa6301afd2c2cd77d9f
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Dec 5 04:12:45 2023 +0000
+commit 78558d5e10a30c88c0b564e69963a0f0188c1dbd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 11 12:17:20 2023 -0800
 
-    log/slog: correct doc examples for Handler.WithGroup
+    archive/zip: use base offset 0 if it has a valid entry
     
-    Fixes #64519
+    In CL 408734 we introduced a fall back to base offset 0 if reading a
+    directory entry at the computed base offset failed. We have now found
+    a file in the wild for which the computed base offset is incorrect,
+    but happens to refer to a valid directory entry. In this CL, we change
+    the fallback such that if the first directory header relative to base
+    offset 0 is valid, we just use base offset 0.
     
-    Change-Id: Iaea5de74402b77eb5a42979bd3baa1276b13d585
-    GitHub-Last-Rev: 5080a257b2d7aa7c4333d05bdef0b5dcbb0449ed
-    GitHub-Pull-Request: golang/go#64551
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547215
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    Change-Id: Ia9ace20c1065d1f651035f16f7d91d741ab1dbf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461598
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/log/slog/handler.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/archive/zip/reader.go                 |  28 ++++++++++++++--------------
+ src/archive/zip/reader_test.go            |  18 ++++++++++++++++++
+ src/archive/zip/testdata/test-badbase.zip | Bin 0 -> 1170 bytes
+ 3 files changed, 32 insertions(+), 14 deletions(-)

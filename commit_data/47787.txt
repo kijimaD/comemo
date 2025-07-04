@@ -1,36 +1,20 @@
-commit 006d4e627812816123a5bb86ebf5a2fa57af8b4a
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Dec 13 16:15:52 2021 -0800
+commit 3f4977bd5800beca059defb5de4dc64cd758cbb9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 7 22:36:15 2021 -0700
 
-    cmd/compile: fix case where we didn't delay transformAssign in varDecl
+    cmd/compile/internal/types2: use combined type and ordinary args for type inference
     
-    We delay all transformations on generic functions, and only do them on
-    instantiated functions, for several reasons, of which one is that
-    otherwise the compiler won't understand the relationship between
-    constrained type parameters. In an instantiation with shape arguments,
-    the underlying relationship between the type arguments are clear and
-    don't lead to compiler errors.
+    Fixes #44799.
     
-    This issue is because I missed delaying assignment transformations for
-    variable declarations. So, we were trying to transform an assignment,
-    and the compiler doesn't understand the relationship between the T and U
-    type parameters.
-    
-    The fix is to delay assignment transformations for variable declarations
-    of generic functions, just as we do already for normal assignment
-    statements.
-    
-    A work-around for this issue would be to just separate the assignment
-    from the variable declaration in the generic function (for this case of
-    an assignment involving both of the constrained type parameters).
-    
-    Fixes #50147
-    
-    Change-Id: Icdbcda147e5c4b386e4715811761cbe73d0d837e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371534
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I51d5b6d6fdfcf47b87bf40b1f7e31c3284c2813f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308372
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/noder/decl.go | 24 ++++++++++++++----------
- test/typeparam/issue50147.go           | 11 +++++++++++
- 2 files changed, 25 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        |  2 +-
+ src/cmd/compile/internal/types2/call.go            | 37 +++++++++++++++++++---
+ .../internal/types2/fixedbugs/issue39754.go2       |  6 ++--
+ .../internal/types2/fixedbugs/issue44799.go2       | 19 +++++++++++
+ 4 files changed, 57 insertions(+), 7 deletions(-)

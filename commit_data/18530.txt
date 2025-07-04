@@ -1,16 +1,20 @@
-commit 1dc82d25632fc402edb36b0d50ecf4d681d77286
-Author: Michael T. Jones <mtj@google.com>
-Date:   Fri Feb 14 12:57:03 2014 -0800
+commit 92b4741728faca77329b204340b02e8df4f4d097
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 14 11:06:53 2014 -0800
 
-    math/big: Add text marshaller interface to Int
+    runtime: if traceback sees a breakpoint, don't change the PC
     
-    Fixes #7329
+    Changing the PC confuses gdb, because execution does not
+    continue where gdb expects it.  Not changing the PC has the
+    potential to confuse a stack dump, but when running under gdb
+    it seems better to confuse a stack dump than to confuse gdb.
     
-    LGTM=gri
-    R=gri, bradfitz, mtj
+    Fixes #6776.
+    
+    LGTM=rsc
+    R=golang-codereviews, dvyukov, rsc
     CC=golang-codereviews
-    https://golang.org/cl/63710043
+    https://golang.org/cl/49580044
 
- src/pkg/math/big/int.go      | 24 +++++++++++++++-----
- src/pkg/math/big/int_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+), 6 deletions(-)
+ src/pkg/runtime/sys_x86.c | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

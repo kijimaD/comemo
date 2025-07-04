@@ -1,34 +1,16 @@
-commit a5a423e0e809e451b06771eb6a7b95cc9255f9fd
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Oct 27 09:19:50 2021 -0400
+commit fbed561f8a596ddbd2bb599a17ea3c6e0b223602
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 23 14:02:33 2021 -0500
 
-    go/parser: fix parsing of array or slice constraint types
+    runtime: reset stack poison flag accidentally set
     
-    Now that we allow eliding 'interface' from constraint types, we need to
-    be a bit more careful about not consuming a '[' when parsing the next
-    expression after "type T [". We want to check if the next expression is
-    an identifier not followed by ']', in which case we're in a generic
-    type, but need to avoid parsing index or slice expressions. Such
-    expressions aren't valid array lengths because these expressions are
-    never constant, so when encountering a following '[' we can instead
-    assume that this is a type parameter field with array or slice type
-    constraint.
+    See if this clears failure on openbsd-amd64-68 (ahem).
     
-    Test cases are added for the related issues #49174 and #49175, along
-    with a flag to enable tracing error tests.
-    
-    For #49174
-    For #49175
-    
-    Change-Id: I0476ef20c4c134ac537118272f20caaf123ee70e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359134
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ifa60ef711a95e5de8ad91433ffa425f75b36c76f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295629
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/parser/error_test.go           |  6 +++
- src/go/parser/parser.go               | 81 ++++++++++++++++++++++-------------
- src/go/parser/testdata/issue49174.go2 |  8 ++++
- src/go/parser/testdata/issue49175.go2 | 13 ++++++
- 4 files changed, 79 insertions(+), 29 deletions(-)
+ src/runtime/stack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

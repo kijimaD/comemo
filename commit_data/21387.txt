@@ -1,16 +1,15 @@
-commit a257ffb1784709658efcb622a88d7b54cbee0b55
-Author: Alex Plugaru <alex@plugaru.org>
-Date:   Mon Jan 26 11:51:43 2015 +0100
+commit c85a2bf9c2912bc09fb0d4cea93ffa91b3100136
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 29 10:54:42 2014 -0800
 
-    encoding/json: add UnmarshalTypeError.Offset
+    testing/iotest: fix copy/paste error in comment
     
-    Fixes #9693
+    Reported via unsupported GitHub pull request:
+    https://github.com/golang/go/pull/9436/
     
-    Change-Id: Ibf07199729bfc883b2a7e051cafd98185f912acd
-    Reviewed-on: https://go-review.googlesource.com/3283
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I12b00e8ccac700bb36b200196e2867fcc863fdf1
+    Reviewed-on: https://go-review.googlesource.com/2139
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/encoding/json/decode.go      | 39 ++++++++++++++++++++-------------------
- src/encoding/json/decode_test.go |  4 ++--
- 2 files changed, 22 insertions(+), 21 deletions(-)
+ src/testing/iotest/logger.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

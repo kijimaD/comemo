@@ -1,20 +1,21 @@
-commit f31a030e90d50ac7245bbae77f5598ad99411b0d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Nov 2 10:29:29 2023 +0100
+commit b74aaa1427916368c5a1e0ba156f461b2a0f411a
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Nov 17 11:09:11 2022 -0800
 
-    runtime: remove unused getOSRev on openbsd
+    net/http: deflake TestResponseControllerSetFutureWriteDeadline
     
-    It's unused since CL 538458.
+    Don't set the server's write deadline until after the client has
+    read the response headers, avoiding test failures if the deadline
+    expires before or while writing headers.
     
-    Change-Id: Ic8d30b0fb54f3f1d723626c5db56fbf4cf181dea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539155
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #56807.
+    
+    Change-Id: I5f80c108b360d030132a13661774a30fac453856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451715
+    Auto-Submit: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/os_openbsd.go | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/net/http/responsecontroller_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

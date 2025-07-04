@@ -1,21 +1,31 @@
-commit 17d67ed0c904871bb2738ec7d1ed7831924c9aaf
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Sat Jul 29 17:00:35 2023 +0000
+commit 1c50484335ff8c752f872cf730f262b66280b5be
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 5 08:37:48 2022 +0000
 
-    debug/buildinfo: read full data segment to lookup buildinfo magic
+    Revert "internal/poll: drop redundant ENOSYS and EXDEV error checks in CopyFileRange()"
     
-    Fixes #61644
+    This reverts https://go.dev/cl/425881.
     
-    Change-Id: I7d40c33e65221994bb6865d22dd0994545603ba8
-    GitHub-Last-Rev: aca92afcbdef2dd191ed0e5c61da29d3b1cb0698
-    GitHub-Pull-Request: golang/go#61649
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514075
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reason for revert: broke make.bash on linux/amd64 with Linux 5.19.6.
+    
+            [...]
+            Building Go toolchain2 using go_bootstrap and Go toolchain1.
+            go install internal/unsafeheader: copying /tmp/go-build4206185186/b007/_pkg_.a to /home/mvdan/tip/pkg/linux_amd64/internal/unsafeheader.a: write /home/mvdan/tip/pkg/linux_amd64/internal/unsafeheader.a: copy_file_range: invalid cross-device link
+            go install internal/goarch: copying /tmp/go-build4206185186/b006/_pkg_.a to /home/mvdan/tip/pkg/linux_amd64/internal/goarch.a: write /home/mvdan/tip/pkg/linux_amd64/internal/goarch.a: copy_file_range: invalid cross-device link
+            [...]
+    
+    Change-Id: I793856935d4315a870c2d31da46be00cc342b5f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428396
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Andy Pan <panjf2000@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/debug/buildinfo/buildinfo.go | 49 +++++++++++++++++++++-------------------
- 1 file changed, 26 insertions(+), 23 deletions(-)
+ src/internal/poll/copy_file_range_linux.go | 31 ++++++++++++++++++++++--------
+ 1 file changed, 23 insertions(+), 8 deletions(-)

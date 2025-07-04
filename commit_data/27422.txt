@@ -1,28 +1,24 @@
-commit 733162fd6c0df8bd700859974957b25045fe9ee4
-Author: James Chacon <jchacon@google.com>
-Date:   Fri May 6 11:51:56 2016 -0700
+commit 93c5fbf3905920a8d0cb0618816165f368e9d965
+Author: Christopher Nelson <nadiasvertex@gmail.com>
+Date:   Thu Mar 24 17:50:21 2016 -0400
 
-    runtime: prevent racefini from being invoked more than once
+    misc/cgo/testcarchive: split main.c into unix and non-unix
     
-    racefini calls __tsan_fini which is C code and at the end of it
-    invoked the standard C library exit(3) call. This has undefined
-    behavior if invoked more than once. Specifically in C++ programs
-    it caused static destructors to run twice. At least on glibc
-    impls it also means the at_exit handlers list (where those are
-    stored) also free's a list entry when it completes these. So invoking
-    twice results in a double free at exit which trips debug memory
-    allocation tracking.
+    This is in support of https://golang.org/cl/18057 which adds
+    support for c-archive to the Windows platform.
     
-    Fix all of this by using an atomic as a boolean barrier around
-    calls to racefini being invoked > 1 time.
+    The signal handling tests do not compile on Windows. This splits
+    them out into a separate main_unix.c file, and conditionally
+    includes them for non-Windows platforms.
     
-    Fixes #15578
-    
-    Change-Id: I49222aa9b8ded77160931f46434c61a8379570fc
-    Reviewed-on: https://go-review.googlesource.com/22882
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ic79ce83da7656d6703505e514554748a482b81a1
+    Reviewed-on: https://go-review.googlesource.com/21086
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/race.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ misc/cgo/testcarchive/carchive_test.go | 33 ++++++++++++---------
+ misc/cgo/testcarchive/main.c           | 41 +++++---------------------
+ misc/cgo/testcarchive/main_unix.c      | 53 ++++++++++++++++++++++++++++++++++
+ misc/cgo/testcarchive/main_windows.c   | 17 +++++++++++
+ 4 files changed, 97 insertions(+), 47 deletions(-)

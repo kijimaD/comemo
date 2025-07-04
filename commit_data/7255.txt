@@ -1,14 +1,14 @@
-commit 32a7e464880103415c93219b6e4bb50539f93bd1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 26 19:17:53 2011 -0800
+commit 9ec785af2f97b3208c694302aad72e4c1ef4782d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 27 10:32:41 2011 +1000
 
-    gofmt -r: match(...) arguments may be nil; add missing guards
+    doc/codelab/wiki: replace curl with a Go program
     
-    Fixes #1446.
-    
-    R=rsc
+    R=rsc, bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/3981043
+    https://golang.org/cl/4087043
 
- src/cmd/gofmt/rewrite.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/codelab/wiki/Makefile |  4 ++--
+ doc/codelab/wiki/get.go   | 36 ++++++++++++++++++++++++++++++++++++
+ doc/codelab/wiki/test.sh  |  6 +++---
+ 3 files changed, 41 insertions(+), 5 deletions(-)

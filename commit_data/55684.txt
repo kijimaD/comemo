@@ -1,24 +1,19 @@
-commit e0fc269f77af97f7cf33097d82f92ff7e08a2f06
-Author: Max 👨🏽‍💻 Coplan <mchcopl@gmail.com>
-Date:   Fri Dec 22 11:38:29 2023 -0800
+commit b958d4a597a599e22c78d25d83d803ab2a1f2c52
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 1 22:32:46 2023 -0800
 
-    net/http: make FileServer look good on mobile
+    cmd/asm: don't panic on bad GATHER x86 instructions
     
-    Currently when viewing directories on a phone, the text is small and
-    often hard to tap correctly.  This commit adds the viewport property to
-    the page to make it look correct on phones.  This commit also makes the
-    page behave in Standards Mode instead of Quirks Mode which does not
-    effect the behavior of this page but makes me feel good inside ☺️
+    Fixes #58822
     
-    Change-Id: I4babcf79085e85fba57453b7a235e4750a269a42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/552595
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Max Coplan <mchcopl@gmail.com>
+    Change-Id: I9c44c57dac72884ec3209d87ddb25e7e1675a737
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472795
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/net/http/fs.go      | 2 ++
- src/net/http/fs_test.go | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/x86/asm6.go | 5 +++++
+ 1 file changed, 5 insertions(+)

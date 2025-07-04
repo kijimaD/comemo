@@ -1,28 +1,24 @@
-commit bd997b24f7a7cdb57bb9bf02fbfacef1f59f0f89
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 27 10:18:22 2014 -0800
+commit bace9523eed9bc695310cd327b19ecdf7aa44612
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jan 27 15:11:12 2014 +0400
 
-    debug/dwarf, debug/elf: add support for reading DWARF 4 type info
+    runtime: smarter slice grow
+    When growing slice take into account size of the allocated memory block.
+    Also apply the same optimization to string->[]byte conversion.
+    Fixes #6307.
     
-    In DWARF 4 the debug info for large types is put into
-    .debug_type sections, so that the linker can discard duplicate
-    info.  This change adds support for reading type units.
+    benchmark                    old ns/op    new ns/op    delta
+    BenchmarkAppendGrowByte        4541036      4434108   -2.35%
+    BenchmarkAppendGrowString     59885673     44813604  -25.17%
     
-    Another small change included here is that DWARF 3 supports
-    storing the byte offset of a struct field as a formData rather
-    than a formDwarfBlock.
-    
-    R=golang-codereviews, r
-    CC=golang-codereviews
-    https://golang.org/cl/56300043
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews, iant, rsc
+    https://golang.org/cl/53340044
 
- src/pkg/debug/dwarf/const.go              |  31 ++++--
- src/pkg/debug/dwarf/entry.go              |  12 +++
- src/pkg/debug/dwarf/open.go               |  10 ++
- src/pkg/debug/dwarf/testdata/typedef.elf4 | Bin 0 -> 9496 bytes
- src/pkg/debug/dwarf/type.go               |  75 +++++++++-----
- src/pkg/debug/dwarf/type_test.go          |   2 +
- src/pkg/debug/dwarf/typeunit.go           | 166 ++++++++++++++++++++++++++++++
- src/pkg/debug/dwarf/unit.go               |   2 +-
- src/pkg/debug/elf/file.go                 |  39 ++++++-
- 9 files changed, 300 insertions(+), 37 deletions(-)
+ src/pkg/runtime/append_test.go | 19 +++++++++++++++++
+ src/pkg/runtime/malloc.h       |  1 +
+ src/pkg/runtime/msize.c        | 15 ++++++++++++++
+ src/pkg/runtime/slice.c        | 46 +++++++++++++++++++++++++++++++++---------
+ src/pkg/runtime/string.goc     | 18 +++++++++++++----
+ 5 files changed, 86 insertions(+), 13 deletions(-)

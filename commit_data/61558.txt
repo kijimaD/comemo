@@ -1,0 +1,17 @@
+commit 872031dc10f30380663eda1c83d830c19eb13dff
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Aug 13 15:12:21 2024 +0000
+
+    internal/sync: add Store to HashTrieMap
+    
+    This change adds the Store operation (with the same semantics as
+    sync.Map's Store) to HashTrieMap.
+    
+    Change-Id: Ida55421f28d8cc6527f983f7f1c2fd55bb280925
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606455
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/sync/hashtriemap.go | 5 +++++
+ 1 file changed, 5 insertions(+)

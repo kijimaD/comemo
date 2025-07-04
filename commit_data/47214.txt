@@ -1,22 +1,22 @@
-commit 5f0e5d21bb1f2c1baf15bfd90ad5b090b88e6292
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Fri Oct 29 17:35:30 2021 -0700
+commit 2d30c94874c127d9028e29b77fadeb284c23e89a
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Nov 3 10:35:34 2020 -0600
 
-    runtime/pprof: disable GC during calibration test
+    cmd/internal: Add 6 args to ppc64 optab
     
-    TestCPUProfileMultithreadMagnitude compares Go's CPU profile against the
-    OS's accounting of the process's execution time, expecting them to be
-    near equal. Background work from the runtime (especially in the garbage
-    collector) can add significant noise to that measurement and flakiness
-    to the test. Disable automatic GC cycles during the test.
+    This is a preparatory patch to support 6 arg opcodes on POWER10,
+    and simplify 5 arg opcode processing (e.g RLWNM and similar).
     
-    Updates #49065
+    This expands the optab structure, and renames a4 arguments to a6.
+    No actual change in functionality is made.
     
-    Change-Id: Ie88895bfea17374278c5187f3a83e9f486bd37fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359934
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I785e4177778e4bf1326cf8e46e8aeaaa0e4d406b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295031
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/runtime/pprof/pprof_test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/internal/obj/ppc64/asm9.go | 915 +++++++++++++++++++------------------
+ 1 file changed, 465 insertions(+), 450 deletions(-)

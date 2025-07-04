@@ -1,21 +1,12 @@
-commit 508a424eedccfe77f64d50c9870988a8c15b46b1
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Apr 18 10:30:20 2016 -0400
+commit a9c48f3b031c2dc3a3a0aa47987137e1fdf76024
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Feb 21 15:42:38 2016 -0500
 
-    cmd/compile/internal/gc: fix return value offset for SSA backend on ARM
+    doc: security fixes are prepared for two most recent stable releases
     
-    Progress on SSA backend for ARM. Still not complete. It compiles a
-    Fibonacci function, but the caller picked the return value from an
-    incorrect offset. This CL adjusts it to match the stack frame layout
-    for architectures with link register.
-    
-    Updates #15365.
-    
-    Change-Id: I01e03c3e95f5503a185e8ac2b6d9caf4faf3d014
-    Reviewed-on: https://go-review.googlesource.com/22186
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia22f681b0e90876ec87363c50c6a284db050f649
+    Reviewed-on: https://go-review.googlesource.com/19793
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 2 +-
+ doc/security.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

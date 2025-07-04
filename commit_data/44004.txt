@@ -1,26 +1,27 @@
-commit c81343ce3aa1b8f1b2539a3d391f628f69a0a490
-Author: Anmol Sethi <hi@nhooyr.io>
-Date:   Fri Dec 11 23:01:12 2020 +0000
+commit be08e10b3bc07f3a4e7b27f44d53d582e15fd6c7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 1 12:26:30 2020 -0700
 
-    net/http: attempt deadlock fix in TestDisableKeepAliveUpgrade
+    syscall: if Setctty, require that Ctty be a child descriptor
     
-    1. The test now checks the response status code.
-    2. The transport has been changed to not set "Connection: Close" if
-       DisableKeepAlive is set and the request is a HTTP/1.1 protocol
-       upgrade.
+    Ctty was always handled as a child descriptor, but in some cases
+    passing a parent descriptor would also work. This depended on
+    unpredictable details of the implementation. Reject those cases to
+    avoid confusion.
     
-    Updates #43073
+    Also reject setting both Setctty and Foreground, as they use Ctty
+    in incompatible ways. It's unlikely that any programs set both fields,
+    as they don't make sense together.
     
-    Change-Id: I9977a18b33b8747ef847a8d11bb7b4f2d8053b8c
-    GitHub-Last-Rev: f809cebb139df4f5560a8456973351c95a3dfa97
-    GitHub-Pull-Request: golang/go#43086
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276375
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Fixes #29458
+    
+    Change-Id: Ieba2d625711fd4b82c8e65e1feed02fd1fb25e6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231638
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/net/http/response.go   | 9 +++++++--
- src/net/http/serve_test.go | 4 ++++
- src/net/http/transport.go  | 4 +++-
- 3 files changed, 14 insertions(+), 3 deletions(-)
+ doc/go1.15.html                  | 22 ++++++++++++++++++++++
+ src/os/signal/signal_cgo_test.go |  2 +-
+ src/syscall/exec_unix.go         | 10 ++++++++++
+ src/syscall/exec_unix_test.go    | 28 ++++++++++++++++++++++++++++
+ 4 files changed, 61 insertions(+), 1 deletion(-)

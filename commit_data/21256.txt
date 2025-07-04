@@ -1,15 +1,14 @@
-commit 094a054bd08ed1f2d28ae660fe6d65028d4c9723
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Jan 14 10:20:58 2015 -0500
+commit 0e4ee0c9bfc8d4048fd49a1061080a92c0dc0804
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Dec 13 18:19:05 2014 +1100
 
-    syscall: match seek argument size to signature
+    net/http: fix timer leak in Transport when using ResponseHeaderTimeout
     
-    Caught by go vet:
-    asm_linux_arm.s:110: [arm] seek: wrong argument size 32; expected $...-28
+    Fixes #9104
     
-    Change-Id: I62ec5327a25bff9ef501c42cc1e28ea7ec78510f
-    Reviewed-on: https://go-review.googlesource.com/2810
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ide5ac70215d73278e6910f5b9c7687ad7734c0be
+    Reviewed-on: https://go-review.googlesource.com/1530
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/syscall/asm_linux_arm.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/transport.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

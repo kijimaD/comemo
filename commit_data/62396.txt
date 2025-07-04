@@ -1,0 +1,30 @@
+commit c594762ad5289c0ea5e1cb63675acf7350c2503e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 25 14:21:42 2025 -0800
+
+    runtime: remove ret field from gobuf
+    
+    It's not used for anything.
+    
+    Change-Id: I031b3cdfe52b6b1cff4b3cb6713ffe588084542f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652276
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/obj/arm/obj5.go | 2 +-
+ src/runtime/asm_386.s            | 3 ---
+ src/runtime/asm_amd64.s          | 3 ---
+ src/runtime/asm_arm.s            | 3 ---
+ src/runtime/asm_arm64.s          | 3 ---
+ src/runtime/asm_loong64.s        | 3 ---
+ src/runtime/asm_mips64x.s        | 3 ---
+ src/runtime/asm_mipsx.s          | 3 ---
+ src/runtime/asm_ppc64x.s         | 3 ---
+ src/runtime/asm_riscv64.s        | 3 ---
+ src/runtime/asm_s390x.s          | 3 ---
+ src/runtime/asm_wasm.s           | 2 --
+ src/runtime/proc.go              | 1 -
+ src/runtime/runtime2.go          | 4 +---
+ src/runtime/sizeof_test.go       | 2 +-
+ 15 files changed, 3 insertions(+), 38 deletions(-)

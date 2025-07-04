@@ -1,24 +1,22 @@
-commit cdd9e939ef28390ecb04c780499f1e3cc2195234
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 18 22:30:03 2022 -0800
+commit f9e2dbbfc92fdc19c4e9412b318beb5294d91bff
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Apr 21 12:24:27 2021 +0200
 
-    go/types, types2: validType argument must be *Named type
+    syscall: use libc in Exec on openbsd/arm64
     
-    Now that we have a separate top-level entry point for validType
-    we can use the more narrow type *Named (instead of Type) for its
-    argument.
+    Like on openbsd/amd64, use libc instead of direct syscalls on
+    openbsd/arm64.
     
-    Preparation for fixing issue #48962.
+    This was likely missed in CL 286815. A similar change was done for
+    openbsd/amd64 in CL 270380.
     
-    Change-Id: I93aee4abc87036c6a68323dc970efe8e617a9103
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379434
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #36435
+    
+    Change-Id: Ie496a6130f1a43d30974502777db12217e65c551
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312229
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/cmd/compile/internal/types2/decl.go      | 4 +++-
- src/cmd/compile/internal/types2/validtype.go | 2 +-
- src/go/types/decl.go                         | 4 +++-
- src/go/types/validtype.go                    | 2 +-
- 4 files changed, 8 insertions(+), 4 deletions(-)
+ src/syscall/exec_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

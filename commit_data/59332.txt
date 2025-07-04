@@ -1,22 +1,45 @@
-commit 39070da4f82b8d80899c3ffa7d671a934dadd267
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 10 19:17:30 2025 -0400
+commit 7986e26a39e9df870886a9933107372f4e16ea4c
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 28 16:06:04 2024 +0100
 
-    math/big: add shift and mul to mini-compiler
+    os: don't treat mount points as symbolic links
     
-    Step 3 of the mini-compiler: add the generators for the shift and mul routines.
+    This CL changes the behavior of os.Lstat to stop setting the
+    os.ModeSymlink type mode bit for mount points on Windows. As a result,
+    filepath.EvalSymlinks no longer evaluates mount points, which was the
+    cause of many inconsistencies and bugs.
     
-    Change-Id: I981d5b7086262c740036f5db768d3e63083984e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664937
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Additionally, os.Lstat starts setting the os.ModeIrregular type mode bit
+    for all reparse tags on Windows, except for those that are explicitly
+    supported by the os package, which, since this CL, doesn't include mount
+    points. This helps to identify files that need special handling outside
+    of the os package.
+    
+    This behavior is controlled by the `winsymlink` GODEBUG setting.
+    For Go 1.23, it defaults to `winsymlink=1`.
+    Previous versions default to `winsymlink=0`.
+    
+    Fixes #39786
+    Fixes #40176
+    Fixes #61893
+    Updates #63703
+    Updates #40180
+    Updates #63429
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-arm64
+    Change-Id: I2e7372ab8862f5062667d30db6958d972bce5407
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565136
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/math/big/internal/asmgen/arch.go  |  16 +-
- src/math/big/internal/asmgen/arm.go   |  13 +-
- src/math/big/internal/asmgen/asm.go   |  31 +++-
- src/math/big/internal/asmgen/cheat.go |   9 +-
- src/math/big/internal/asmgen/main.go  |   4 +
- src/math/big/internal/asmgen/mul.go   | 320 ++++++++++++++++++++++++++++++++++
- src/math/big/internal/asmgen/shift.go | 135 ++++++++++++++
- 7 files changed, 500 insertions(+), 28 deletions(-)
+ doc/godebug.md                                    |  13 +++
+ doc/next/6-stdlib/99-minor/os/61893.md            |   7 ++
+ doc/next/6-stdlib/99-minor/path/filepath/63703.md |   5 +
+ src/internal/godebugs/table.go                    |   1 +
+ src/os/os_windows_test.go                         |  48 +++++----
+ src/os/types_windows.go                           | 102 +++++++++++++------
+ src/path/filepath/path_test.go                    |  13 +++
+ src/path/filepath/path_windows_test.go            | 117 +++++++++++++++++++++-
+ src/runtime/metrics/doc.go                        |   4 +
+ 9 files changed, 253 insertions(+), 57 deletions(-)

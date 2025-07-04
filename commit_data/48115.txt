@@ -1,17 +1,20 @@
-commit 6749dd40b31dbcfae2eb91deb93989899b868617
-Author: Sean Liao <seankhliao@gmail.com>
-Date:   Tue Feb 8 22:34:13 2022 +0100
+commit 214c8dd80c4059543b91d45c55ab12e8d58dec48
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Apr 27 16:30:26 2021 -0400
 
-    net/smtp: match actual behavior for Auth.Start
+    go/types: factor out index/slice expr handling
     
-    Looking at history, it appears to never have worked as documented.
+    This is a port of CL 308370 to go/types. There are some differences in
+    the index checking code, but the methodology for moving the code was the
+    same: replace `goto Error` with `x.mode = invalid; return`.
     
-    Fixes #48759
-    
-    Change-Id: I066307c28e3ed1875c1c4049bade62e2818dd400
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383998
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Change-Id: I880f577a7720e6ad8a5b096207001fcf7620396d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312095
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/smtp/auth.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/go/types/expr.go  | 380 +---------------------------------------------
+ src/go/types/index.go | 410 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 412 insertions(+), 378 deletions(-)

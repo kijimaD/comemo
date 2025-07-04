@@ -1,16 +1,19 @@
-commit 3224990dad27d5a06961a168c3760b13a6d140c1
-Author: zfCode <zfcode@qq.com>
-Date:   Sat Mar 13 18:00:30 2021 +0000
+commit 88c094c96a164aef2134e548d495c4bc14dc4687
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jun 25 09:10:23 2020 -0700
 
-    fmt: use “truncateString” not “truncate” in method doc
+    runtime: print faulting instruction on a SIGFPE
     
-    Change-Id: If1acb6a8533a782f80c7d1f0ad5155e98e1134dd
-    GitHub-Last-Rev: 03384a3d99dd89d802635f7ef48ce4456ec338b0
-    GitHub-Pull-Request: golang/go#44375
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293629
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Trust: Rob Pike <r@golang.org>
+    Just like SIGILL, it might be useful to see what the instruction
+    that generated the SIGFPE is.
+    
+    Update #39816
+    
+    Change-Id: I8b2ff692998f0b770289339537dceab96b09d1ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239999
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/fmt/format.go | 2 +-
+ src/runtime/signal_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

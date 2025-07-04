@@ -1,15 +1,16 @@
-commit 9844e4cd7cc52ecbe7d49307b6546a118de5bea7
+commit caff4398203582dcdfe400b8b27c9ce218ea4564
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Oct 7 21:52:57 2012 +0200
+Date:   Sun Oct 7 21:46:10 2012 +0200
 
-    test: correct type in declbad.go
+    cmd/gc: more graceful handling of invalid fields in widstruct.
     
-    The test is not about type mismatches and it causes
-    an extra error to appear.
+    The protection against segfaults does not completely solve
+    crashes and breaks test/fixedbugs/bug365.go
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6614062
+    https://golang.org/cl/6615058
 
- test/declbad.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/gc/align.c | 7 +++++--
+ src/cmd/gc/go.h    | 2 +-
+ 2 files changed, 6 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit ce51533a9d541fa0d1511e18f20ee61d4ecbb5a9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 5 13:41:20 2024 -0700
+
+    os/signal: remove SIGSYS from list of signals that take no action
+    
+    It actually causes the program to throw.
+    
+    Fixes #67729
+    
+    Change-Id: Id970baff631616a4dc4e434827e622e1b16f2724
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/signal/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,16 @@
-commit 1f65c399befa37e6727bb1a1a40aca65c4b6bcc4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 3 12:21:58 2022 -0400
+commit ebe99189fce39be68ef4eafa29923b3a6585a262
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 3 13:39:42 2021 -0500
 
-    cmd/objdump: skip PIE test when cgo is disabled and PIE needs external linking
+    doc/go1.18: catch up with runtime/compiler commits and API changes
     
-    On some platforms, building PIE needs external linking, which
-    cannot run if cgo is not available.
+    For #47694.
     
-    Change-Id: I6d504aed0f0442cda0355d0beac606ad365e2046
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447616
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I21b1af1807d4da2fb2f4d9b961d44a21d715d7d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369155
+    Trust: Austin Clements <austin@google.com>
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/objdump/objdump_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/go1.18.html | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 54 insertions(+), 4 deletions(-)

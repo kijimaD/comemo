@@ -1,16 +1,23 @@
-commit 98a5f52ef0658f1e1ad823bfad91dd5bbc261a75
+commit f9829e92e196cdae33e256dd82c690c7beba76ed
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 18 14:48:47 2014 -0400
+Date:   Tue Sep 9 17:16:31 2014 -0400
 
-    os: avoid error result when dir is removed out from under RemoveAll
+    runtime: fix plan9/amd64 build?
     
-    Fixes #7776.
+    The only thing I can see that is really Plan 9-specific
+    is that the stack pointer used for signal handling used
+    to have more mapped memory above it.
+    Specifically it used to have at most 88 bytes (StackTop),
+    so change the allocation of a 40-byte frame to a 128-byte frame.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews, r
-    https://golang.org/cl/145860043
+    No idea if this will work, but worth a try.
+    
+    Note that "fix" here means get it back to timing out
+    instead of crashing.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/142840043
 
- src/os/os_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- src/os/path.go    |  5 ++++-
- 2 files changed, 46 insertions(+), 1 deletion(-)
+ src/runtime/sys_plan9_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

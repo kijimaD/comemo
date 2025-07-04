@@ -1,13 +1,12 @@
-commit 8ef0d181f6c05a8c500ad7a47a7d01d5ed92caf9
+commit 9f03d4a3f7cb5df43fdac3d726e495ae2ee4f7e4
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 16 17:47:54 2011 -0400
+Date:   Mon May 16 17:03:51 2011 -0400
 
-    A+C: Gary Burd (individual CLA)
+    doc/go_mem.html: close happens before receive on closed channel
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4519064
+    https://golang.org/cl/4551042
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ doc/go_mem.html | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

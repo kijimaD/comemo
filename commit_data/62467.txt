@@ -1,0 +1,19 @@
+commit 92a63bdfee9f8347df70293e5733661ae31ae285
+Author: Andy Pan <i@andypan.me>
+Date:   Wed Mar 5 16:14:42 2025 +0800
+
+    runtime: explicitly disable async preempt for internal/runtime
+    
+    For #71591
+    Relevant CL 560155
+    
+    Change-Id: Iebc497d56b36d50c13a6dd88e7bca4578a03cf63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654916
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/internal/objabi/pkgspecial.go |  3 +++
+ src/runtime/preempt.go                | 11 +++++++++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)

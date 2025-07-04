@@ -1,30 +1,24 @@
-commit 8f65379f947f77f5caadf283f219b2cc6e9bdb84
-Author: John Dethridge <jcd@golang.org>
-Date:   Fri Oct 7 15:06:09 2016 +1100
+commit 53da5fd4d431881bb3583c9790db7735a6530a1b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 7 16:41:29 2016 -0700
 
-    cmd/link: more efficient encoding of DWARF line number information
+    [release-branch.go1.7] runtime: fix nanotime for macOS Sierra
     
-    The (pc, line) deltas in the line number information are currently encoded
-    either with a special opcode, or with a triplet of DW_LNS_advance_pc,
-    DW_LNS_advance_line, and DW_LNS_copy instructions.  Instead of DW_LNS_copy,
-    this change always uses a special opcode, which can make DW_LNS_advance_pc or
-    DW_LNS_advance_line unnecessary, or make their operands take fewer bytes.  It
-    chooses the special opcode so that the encoding of the remaining deltas is as
-    small as possible.
+    In the beta version of the macOS Sierra (10.12) release, the
+    gettimeofday system call changed on x86. Previously it always returned
+    the time in the AX/DX registers. Now, if AX is returned as 0, it means
+    that the system call has stored the values into the memory pointed to by
+    the first argument, just as the libc gettimeofday function does. The
+    libc function handles both cases, and we need to do so as well.
     
-    Use DW_LNS_const_add_pc or DW_LNS_fixed_advance_pc instead of DW_LNS_advance_pc
-    for deltas where they save a byte.
+    Fixes #16272.
     
-    Update LINE_BASE and LINE_RANGE constants to optimal values for this strategy.
-    
-    This reduces line number information by about 35% and total size by about 2%
-    for a typical binary.
-    
-    Change-Id: Ia61d6bf19c95c1d34ba63c67ed32b376beda225f
-    Reviewed-on: https://go-review.googlesource.com/30577
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibe5ad50a2c5b125e92b5a4e787db4b5179f6b723
+    Reviewed-on: https://go-review.googlesource.com/24812
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/24755
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 102 ++++++++++++++++++++++++++++++++------
- 1 file changed, 87 insertions(+), 15 deletions(-)
+ src/runtime/sys_darwin_386.s   | 5 +++++
+ src/runtime/sys_darwin_amd64.s | 7 ++++++-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

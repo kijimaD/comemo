@@ -1,32 +1,16 @@
-commit 65c53a1833a26467357b4aa6223e4dde5d6d7ed0
-Author: Chris Duncan <veqryn@hotmail.com>
-Date:   Wed Sep 13 22:26:19 2023 +0000
+commit 2b21a27f82cdda5b0339a4b0693c760c69b0c80a
+Author: Park Zhou <buildpaas@gmail.com>
+Date:   Fri May 13 09:36:52 2022 +0800
 
-    log/slog: fix Record.back slice always too small during Add()
+    go/scanner: use constant name rather than its value (cleanup)
     
-    When slog.Record.Add(args) is called, with enough args to cause the
-    Record.back []Attr to be created, it is being created 1 too small, which
-    results in it immediately being grown again by append before the function
-    exits (needless allocation and copying).
-    This is because it is created with a capacity equal to countAttrs(args),
-    but forgets that there is an additional attribute to be appended: a
-    (args is just the remaining unconsumed attributes).
-    This PR fixes that by adding 1 to the capacity to account for the `a` attribute.
-    
-    Additionally, when Record.back already exists, it will most likely be at
-    max capacity already. Rather than append to it and risk having it grown
-    multiple times, or grow too large, this adds a slices.Grow call to set it
-    to the right capacity, similar to what is already done in the
-    Record.AddAttrs(attrs) function.
-    
-    Change-Id: Ic4bcf45909fe4436c586ccd2b8d61f24606b6be8
-    GitHub-Last-Rev: 4c924b610a7987a940360bb1b4cc7c53981afdc5
-    GitHub-Pull-Request: golang/go#62388
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524618
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I3fcd1683870f66a1d65e2acf0beaf1046e7f5446
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407535
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/log/slog/logger_test.go | 2 +-
- src/log/slog/record.go      | 3 +--
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ src/go/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

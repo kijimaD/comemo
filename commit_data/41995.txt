@@ -1,18 +1,21 @@
-commit de2318e3c68530cd3ff6d3a1d378239598301fb0
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Apr 18 01:38:31 2020 -0400
+commit f0390ffc9d461cb84207b5a94c4b645c87673406
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 5 11:01:10 2019 -0500
 
-    cmd/link: add a test that reflect.Value.Call does not bring methods live
+    cmd/go/internal/modfetch: remove non-hermetic test
     
-    reflect.Value.Call, if reachable, used to bring all exported
-    methods live. CL 228792 fixes this, removing the check of
-    reflect.Value.Call. This CL adds a test.
+    The test for gopkg.in/yaml.v2@v2 assumes that there are
+    no future upstream releases. That assumption empirically
+    does not hold. Backporting fixes to this test is annoying,
+    and other gopkg.in cases are already reasonably covered,
+    so remove the problematic test.
     
-    Updates #38505.
+    Updates #28856
     
-    Change-Id: Ib4cab3c3c86c9c9702d041266e59b159d0ff0a97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228878
+    Change-Id: I6455baa1816ac69e02d1ad5d03b82a93e1481a17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205437
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/deadcode_test.go | 61 +++++++++++++++++++++++++++++++
- 1 file changed, 61 insertions(+)
+ src/cmd/go/internal/modfetch/coderepo_test.go | 12 ------------
+ 1 file changed, 12 deletions(-)

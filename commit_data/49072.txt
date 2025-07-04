@@ -1,35 +1,38 @@
-commit 2049649e8bf582bd1ee19d2e565e4e3bc3f466ea
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 5 13:46:15 2022 -0400
+commit fce6290e0ac18ca2d5cc635adf4c3a77b375a49a
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jul 15 23:18:59 2021 -0400
 
-    cmd/link: fix handling of visibility hidden symbols
+    [dev.typeparams] go/types: remove typeparams wrappers and aliases
     
-    There is a TODO comment that checking hidden visibility is
-    probably not the right thing to do. I think it is indeed not. Here
-    we are not referencing symbols across DSO boundaries, just within
-    an executable binary. The hidden visibility is for references from
-    another DSO. So it doesn't actually matter.
+    These wrappers and aliases were necessary when we had different versions
+    of the API depending on the typeparams build constraint, but now they're
+    just boilerplate. Remove them.
     
-    This makes cgo internal linking tests work on ARM64 with newer
-    GCC. It failed and was disabled due to a visibility hidden symbol
-    in libgcc.a that we didn't handle correctly. Specifically, the
-    problem is that we didn't mark visibility hidden symbol references
-    SXREF, which caused the loader to not think it is an unresolved
-    external symbol, which in turn made it not loading an object file
-    from the libgcc.a archive which contains the actual definition.
-    Later stage when we try to resolve the relocation, we couldn't
-    resolve it. Enable the test as it works now.
+    Notably the documentation for types.Info is restored.
     
-    Fixes #39466.
-    
-    Change-Id: I2759e3ae15e7a7a1ab9a820223b688ad894509ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404296
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I5363d1d5df47649c2641c03328dfba45b1456278
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334895
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/test.go                   | 8 ++------
- src/cmd/link/internal/amd64/asm.go     | 4 +---
- src/cmd/link/internal/arm64/asm.go     | 6 ++----
- src/cmd/link/internal/loadelf/ldelf.go | 4 +---
- 4 files changed, 6 insertions(+), 16 deletions(-)
+ src/go/types/api.go                 | 100 +++++++++++++++++++++++++-
+ src/go/types/api_test.go            | 123 ++++++++++++++++++++++++++++++++
+ src/go/types/api_typeparams.go      |  48 -------------
+ src/go/types/api_typeparams_test.go | 136 ------------------------------------
+ src/go/types/check.go               |   4 +-
+ src/go/types/decl.go                |   2 +-
+ src/go/types/index.go               |   4 +-
+ src/go/types/infer.go               |   6 +-
+ src/go/types/lookup.go              |   4 +-
+ src/go/types/methodset.go           |   4 +-
+ src/go/types/predicates.go          |   8 +--
+ src/go/types/sanitize.go            |   4 +-
+ src/go/types/signature.go           |   4 +-
+ src/go/types/sizeof_test.go         |   2 +-
+ src/go/types/subst.go               |  16 ++---
+ src/go/types/type.go                |  87 ++++++++++++-----------
+ src/go/types/typestring.go          |   6 +-
+ src/go/types/unify.go               |   6 +-
+ 18 files changed, 302 insertions(+), 262 deletions(-)

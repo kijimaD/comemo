@@ -1,24 +1,46 @@
-commit f92a69f9079bc6aba242b90f185b5f40ee424fa2
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Aug 5 13:32:08 2022 +0800
+commit 5f625de4d09843ba1c996019abaddd1f85840f56
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 18 13:41:08 2022 -0400
 
-    runtime: implement cputicks with the stable counter on loong64
+    cmd/compile,cmd/internal/obj: replace Ctxt.FixedFrameSize method with Arch field
     
-    The stable counter is described in Section 2.2.10.4, LoongArch Reference Manual Volume 1.
+    And delete now-unused FixedFrameSize methods.
     
-    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
-    
-    Change-Id: I160b695a8c0e38ef49b21fb8b41460fd23d9538c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421656
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Change-Id: Id257e1647dbeb4eb4ab866c53744010c4efeb953
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400819
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/asm_loong64.s       | 6 ++++++
- src/runtime/cputicks.go         | 2 +-
- src/runtime/os_linux_loong64.go | 7 -------
- 3 files changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go     |  2 +-
+ src/cmd/compile/internal/amd64/ssa.go        |  2 +-
+ src/cmd/compile/internal/arm/ssa.go          |  2 +-
+ src/cmd/compile/internal/arm64/ssa.go        |  4 ++--
+ src/cmd/compile/internal/dwarfgen/dwarf.go   |  4 ++--
+ src/cmd/compile/internal/escape/desugar.go   |  4 ++--
+ src/cmd/compile/internal/mips/ggen.go        |  4 ++--
+ src/cmd/compile/internal/mips/ssa.go         |  2 +-
+ src/cmd/compile/internal/mips64/ssa.go       |  2 +-
+ src/cmd/compile/internal/ppc64/ggen.go       |  6 +++---
+ src/cmd/compile/internal/ppc64/ssa.go        |  4 ++--
+ src/cmd/compile/internal/riscv64/ggen.go     |  2 +-
+ src/cmd/compile/internal/riscv64/ssa.go      |  4 ++--
+ src/cmd/compile/internal/s390x/ggen.go       |  2 +-
+ src/cmd/compile/internal/s390x/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/config.go       |  4 ++--
+ src/cmd/compile/internal/ssa/expand_calls.go |  4 ++--
+ src/cmd/compile/internal/ssa/writebarrier.go |  6 +++---
+ src/cmd/compile/internal/ssagen/pgen.go      |  4 ++--
+ src/cmd/compile/internal/ssagen/ssa.go       |  6 +++---
+ src/cmd/compile/internal/x86/ssa.go          |  2 +-
+ src/cmd/internal/obj/link.go                 |  8 --------
+ src/cmd/internal/obj/mips/asm0.go            |  6 +++---
+ src/cmd/internal/obj/mips/obj0.go            | 10 +++++-----
+ src/cmd/internal/obj/ppc64/asm9.go           |  4 ++--
+ src/cmd/internal/obj/ppc64/obj9.go           |  8 ++++----
+ src/cmd/internal/obj/riscv/obj.go            |  4 ++--
+ src/cmd/internal/obj/s390x/asmz.go           |  4 ++--
+ src/cmd/internal/obj/s390x/objz.go           |  6 +++---
+ src/cmd/link/internal/ld/lib.go              |  2 +-
+ src/cmd/link/internal/ld/link.go             |  8 --------
+ 31 files changed, 58 insertions(+), 74 deletions(-)

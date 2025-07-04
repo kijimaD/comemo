@@ -1,15 +1,14 @@
-commit 95a8bab7b6db9c63281a0055b1a2471818129cd5
+commit 70e58a2f9b2531c8e18a2e80051ffe6f1f08a33d
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 14 15:12:57 2012 -0400
+Date:   Wed Mar 14 14:47:13 2012 -0400
 
-    cmd/go: fix directory->import path conversion
+    io/ioutil: fix crash when Stat fails
     
-    Fixes #3306.
+    Fixes #3320.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5821048
+    https://golang.org/cl/5824051
 
- src/cmd/go/pkg.go    | 12 ++++++++-
- src/cmd/go/test.bash | 71 +++++++++++++++++++++++++++++++---------------------
- 2 files changed, 53 insertions(+), 30 deletions(-)
+ src/pkg/io/ioutil/ioutil.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

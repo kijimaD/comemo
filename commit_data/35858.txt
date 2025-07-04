@@ -1,14 +1,17 @@
-commit 5110d19fc2986b702ba0cfcbeacfe692154c77b1
-Author: cch123 <buaa.cch@gmail.com>
-Date:   Mon Jul 2 04:32:48 2018 +0000
+commit e601c079082658399445c2698f7e5cb60d23db29
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 13 14:26:45 2018 -0700
 
-    runtime: fix typo in mapextra comment
+    cmd/compile: reject type switch with guarded declaration and no cases
     
-    Change-Id: Idbd8a1b5bfeb1c23c86cef0697cf0380900e95f3
-    GitHub-Last-Rev: a8c2b27046582c4eef932a8502826a3b23b8dab3
-    GitHub-Pull-Request: golang/go#26175
-    Reviewed-on: https://go-review.googlesource.com/121821
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #23116.
+    
+    Change-Id: I5db5c5c39bbb50148ffa18c9393b045f255f80a3
+    Reviewed-on: https://go-review.googlesource.com/100459
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/map.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/swt.go |  6 ++++++
+ test/fixedbugs/issue23116.go       | 15 +++++++++++++++
+ 2 files changed, 21 insertions(+)

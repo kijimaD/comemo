@@ -1,20 +1,13 @@
-commit 39208939c66a375a01a6b464b13e5b2d8bf86998
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jun 15 21:35:34 2011 +1000
+commit bee3b0358c4d524582d74896bf6a8c8a3fe28f7e
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Wed Jun 15 21:07:21 2011 +1000
 
-    go/build: better, self-contained tests
+    gofix: Fix inconsistent indentation in help output
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4576063
+    https://golang.org/cl/4572066
 
- src/pkg/go/build/Makefile             |  2 +-
- src/pkg/go/build/build_test.go        | 67 ++++++++++++++++++++---------------
- src/pkg/go/build/cgotest/cgotest.go   | 12 +++++++
- src/pkg/go/build/cgotest/file.go      | 45 -----------------------
- src/pkg/go/build/cmdtest/main.go      | 12 +++++++
- src/pkg/go/build/pkgtest/pkgtest.go   |  9 +++++
- src/pkg/go/build/pkgtest/sqrt_386.s   | 10 ++++++
- src/pkg/go/build/pkgtest/sqrt_amd64.s |  9 +++++
- src/pkg/go/build/pkgtest/sqrt_arm.s   | 10 ++++++
- 9 files changed, 102 insertions(+), 74 deletions(-)
+ src/cmd/gofix/httpfinalurl.go | 2 +-
+ src/cmd/gofix/osopen.go       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

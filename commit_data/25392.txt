@@ -1,17 +1,23 @@
-commit b6473ff132d580ca7ca1ff6d6523fa595016a8a6
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 21 16:15:36 2015 -0500
+commit afe9837b23f889c59144d90ce3ae87d32aee59fe
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Aug 31 22:24:07 2015 +0200
 
-    cmd/dist: run wiki, shootout etc tests only on builders
+    cmd/compile/internal/gc: make embedded unexported structs RO
     
-    These find approximately nothing.
-    Takes 5% off my all.bash run time.
+    gc will need to be rebuild.
     
-    For #10571.
+    Package that assume f.PkgPath != nil means a field is unexported and
+    must be ignored must be revised to check for
+            f.PkgPath != nil && !f.Anonymous,
+    so that they do try to walk into the embedded fields to look for
+    exported fields contained within.
     
-    Change-Id: I21d3a844af756eb37f59bba0064f24995626da0d
-    Reviewed-on: https://go-review.googlesource.com/18198
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Closes #12367, fixes #7363, fixes #11007, and fixes #7247.
+    
+    Change-Id: I16402ee21ccfede80f277f84b3995cf26e97433d
+    Reviewed-on: https://go-review.googlesource.com/14085
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/reflect.go |   3 +-
+ src/reflect/all_test.go                | 190 +++++++++++++++++++++++++++++++++
+ 2 files changed, 192 insertions(+), 1 deletion(-)

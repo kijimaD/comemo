@@ -1,21 +1,14 @@
-commit a5aa91b9a2a013be9ced9ae05474e1dce2fe16d4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 19 09:20:41 2012 -0700
+commit ca2ae27dd08ac33fa2bca010906633d8b8432e4d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 18 21:56:41 2012 -0700
 
-    net/http: make client await response concurrently with writing request
+    go/ast: multiple "blank" imports are permitted
     
-    If the server replies with an HTTP response before we're done
-    writing our body (for instance "401 Unauthorized" response), we
-    were previously ignoring that, since we returned our write
-    error ("broken pipe", etc) before ever reading the response.
-    Now we read and write at the same time.
-    
-    Fixes #3595
-    
-    R=rsc, adg
+    R=rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6238043
+    https://golang.org/cl/6303099
 
- src/pkg/net/http/transport.go      | 72 ++++++++++++++++++++++++++++++++------
- src/pkg/net/http/transport_test.go | 24 +++++++++++++
- 2 files changed, 86 insertions(+), 10 deletions(-)
+ src/pkg/exp/types/check_test.go      | 2 +-
+ src/pkg/exp/types/testdata/test0.src | 7 ++++++-
+ src/pkg/go/ast/resolve.go            | 2 +-
+ 3 files changed, 8 insertions(+), 3 deletions(-)

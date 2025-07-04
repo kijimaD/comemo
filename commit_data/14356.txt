@@ -1,12 +1,21 @@
-commit 3f7f030c5965bbf62ae2cb54f10ea01d2f49e212
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Nov 8 20:37:05 2012 +0400
+commit a384b5b9c38289cb2b912d8c38a201fee6500663
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 8 10:34:54 2012 -0600
 
-    runtime: fix instrumentation of slice append for race detection
+    cmd/api: bug fix for goapi's lame type checker
     
-    R=golang-dev, iant
+    This is blocking me submitting the net fd timeout
+    CL, since goapi chokes on my constant.
+    
+    The much more extensive fix to goapi's type checker
+    in pending review in https://golang.org/cl/6742050
+    
+    But I'd rather get this quick fix in first.
+    
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6819107
+    https://golang.org/cl/6818104
 
- src/pkg/runtime/slice.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/api/goapi.go                  | 25 +++++--------------------
+ src/cmd/api/testdata/src/pkg/p1/p1.go |  6 ++++++
+ 2 files changed, 11 insertions(+), 20 deletions(-)

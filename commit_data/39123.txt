@@ -1,13 +1,19 @@
-commit afd79150d99abe06bd56870f146842f77f279d6d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon May 13 12:02:43 2019 +0200
+commit 0d6a2d5f9a0cd3c7111f38abd12a2255363bbd51
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 21 16:06:54 2018 -0800
 
-    os: fix typo in Chmod godoc
+    runtime: skip writes to persistent memory in cgo checker
     
-    Change-Id: I3e5c20d2ffbbe604e6c8b21e2afa50dd6c9f2b7a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176626
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #23899
+    Fixes #28458
+    
+    Change-Id: Ie177f2d4c399445d8d5e1a327f2419c7866cb45e
+    Reviewed-on: https://go-review.googlesource.com/c/155697
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/file.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/errors/ptr_test.go | 33 ++++++++++++++++++++-------------
+ src/runtime/cgocheck.go     |  7 +++++++
+ src/runtime/malloc.go       | 40 ++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 63 insertions(+), 17 deletions(-)

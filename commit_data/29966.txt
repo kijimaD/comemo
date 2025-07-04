@@ -1,20 +1,14 @@
-commit 6593d8650da5d19787bea9383dabe94f36fa04be
-Author: Hironao OTSUBO <motemen@gmail.com>
-Date:   Thu Jan 12 23:21:53 2017 +0900
+commit ebf827ded7d6997747c96ae8f0f4871c15090d49
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 10:46:55 2016 -0400
 
-    go/ast: fix Object's doc comment about Data
+    testing: wrap long comment line
     
-    The doc comment about the Data field of go/ast.Object reflects its old
-    behavior, from when the go/types typechecker depended on ast.Objects.
+    Requested in CL 31324 review.
     
-    Since when the doc was written, the behavior has changed in
-    https://golang.org/cl/7058060 and https://golang.org/cl/7096048 .
-    
-    Fixes #18631
-    
-    Change-Id: I10fc3e31cfbf7b303eec44150df917f6eb285f90
-    Reviewed-on: https://go-review.googlesource.com/35075
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic81410e07cce07c6f3727bc46d86b6c54c15eca0
+    Reviewed-on: https://go-review.googlesource.com/31410
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/ast/scope.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/testing/testing.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

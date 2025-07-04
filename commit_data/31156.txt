@@ -1,24 +1,12 @@
-commit bb215de8a67bc294d933df0413376be7e973d404
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 16 14:48:16 2017 -0700
+commit ecbf90840471a8cd5500c90baea7a60a65b14b10
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Thu Feb 2 11:39:02 2017 -0800
 
-    cmd/internal/obj: pretty-print LSym.Type when debugging
+    doc: consistently link to the SettingGOPATH page
     
-    We have a stringer for LSym.Type. Use it.
-    
-    Before:
-    
-            "".algarray t=31 size=224
-    
-    After:
-    
-            "".algarray SBSS size=224
-    
-    Change-Id: Ib4c7d2bc1dbe9943cf2a5dfa5d9f2d7fbd50b7f2
-    Reviewed-on: https://go-review.googlesource.com/40862
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4fdd81aa7c9b180cb72ec4af3e7d9d803c99ecac
+    Reviewed-on: https://go-review.googlesource.com/36033
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/objfile.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/install.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

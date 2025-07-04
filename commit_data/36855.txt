@@ -1,33 +1,37 @@
-commit d6ab653c78df74d49d882774228bda459de6c584
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 3 14:40:09 2018 -0700
+commit ab5031fb86e6d7121483e38d742235994972a0cf
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Thu May 31 06:46:50 2018 +0000
 
-    go/types: determine hasPtrRecv property from source rather than type
+    syscall: fix EpollWait for arm64
     
-    LookupFieldOrMethod needs to know if a method receiver is a pointer
-    type. Until now this was computed from the the method signature's
-    receiver, which required the method signature to be type-checked.
-    Furthermore, it required the receiver to be set before the method
-    signature was fully type-checked in some cases (see issue #6638).
+    The SYS_EPOLL_WAIT syscall doesn't exist on arm64. This CL implements EpollWait
+    with SYS_EPOLL_PWAIT syscall.
     
-    This CL remembers this property during object resolution, when we
-    know it from the source.
-    
-    With this CL, method signatures don't need to be type-checked before
-    they can be looked up; this is a first step towards separating
-    type checking of types and type-checking of associated methods.
-    
-    Updates #23203.
-    Updates #26854.
-    
-    Change-Id: Ie3eb7976e8fe8176ea1b284fa7471a4b7000f80b
-    Reviewed-on: https://go-review.googlesource.com/c/139422
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ica9107a58d7da45351fe2e900f59bec5b7b18f39
+    Reviewed-on: https://go-review.googlesource.com/115735
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/methodset.go | 15 ++++++++++++---
- src/go/types/object.go    |  3 ++-
- src/go/types/resolver.go  |  2 ++
- src/go/types/typexpr.go   | 10 +++++++---
- 4 files changed, 23 insertions(+), 7 deletions(-)
+ src/syscall/syscall_linux.go           |  1 -
+ src/syscall/syscall_linux_386.go       |  1 +
+ src/syscall/syscall_linux_amd64.go     |  1 +
+ src/syscall/syscall_linux_arm.go       |  1 +
+ src/syscall/syscall_linux_arm64.go     |  1 +
+ src/syscall/syscall_linux_mips64x.go   |  1 +
+ src/syscall/syscall_linux_mipsx.go     |  1 +
+ src/syscall/syscall_linux_ppc64x.go    |  1 +
+ src/syscall/syscall_linux_s390x.go     |  1 +
+ src/syscall/zsyscall_linux_386.go      | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_amd64.go    | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_arm.go      | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_arm64.go    | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_mips.go     | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_mips64.go   | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_mips64le.go | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_mipsle.go   | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_ppc64.go    | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_ppc64le.go  | 34 +++++++++++++++++-----------------
+ src/syscall/zsyscall_linux_s390x.go    | 34 +++++++++++++++++-----------------
+ 20 files changed, 195 insertions(+), 188 deletions(-)

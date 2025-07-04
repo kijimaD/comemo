@@ -1,32 +1,18 @@
-commit 5af3658eaa4b6bb9e66fcb4ac426207359628477
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 4 08:47:25 2025 -0800
+commit a428387e978919a9885b2b7d8a1682feba851d1b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jan 26 12:08:00 2024 -0500
 
-    go/types, types2: use errorCause instead of reportf in comparableType
+    cmd/link: print failed external command invocation
     
-    If the error cause is not further specified (empty string),
-    avoid allocating a new errorCause. This makes using errorCauses
-    as boolean signals efficient.
+    When the invocation of the external linker, dsymutil or strip
+    command fails, print the command we invoked.
     
-    While at it, fix an error message for incomparable arrays:
-    report the array type rather than its underlying type.
+    For #65292.
     
-    Change-Id: I844b18a76695330ca726932ee760aa89635f6a38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654575
+    Change-Id: Icdb5f9ee942ebda4276f6373c3fbbf5222088d0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558856
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/expr.go         |  6 +--
- src/cmd/compile/internal/types2/instantiate.go  |  4 +-
- src/cmd/compile/internal/types2/predicates.go   | 59 +++++++++++++------------
- src/cmd/compile/internal/types2/typeset.go      |  4 +-
- src/cmd/compile/internal/types2/under.go        |  5 +++
- src/go/types/expr.go                            |  6 +--
- src/go/types/instantiate.go                     |  4 +-
- src/go/types/predicates.go                      | 59 +++++++++++++------------
- src/go/types/typeset.go                         |  4 +-
- src/go/types/under.go                           |  5 +++
- src/internal/types/testdata/spec/comparisons.go |  2 +-
- 11 files changed, 81 insertions(+), 77 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

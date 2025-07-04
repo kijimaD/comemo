@@ -1,14 +1,19 @@
-commit 61da0e92d06137dec73c736ab93213ac652a06fe
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Oct 28 11:43:15 2015 +1300
+commit 8b96be15f6632b33c7341840002bc5b0744b2977
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 31 15:45:47 2015 -0700
 
-    cmd/compile, cmd/compile/internal/x86: do not let regopt use CX in position independent code
+    time: allow any one- or two-digit day of the month when parsing.
     
-    We might be able to do better than this, but it's a start.
+    In Parse, one can now say Feb 31 or even Feb 99. This is easy
+    to explain, consistent with time.Date, and even maybe useful.
     
-    Change-Id: I80ebce9094e084a4746039106ccf1ad9c4b8bb7c
-    Reviewed-on: https://go-review.googlesource.com/16384
+    Fixes #12333.
+    Fixes #7268. (By disagreeing with it.)
+    
+    Change-Id: I7b95c842528bed66933681c8b9cc00640fccfcb4
+    Reviewed-on: https://go-review.googlesource.com/14123
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/x86/reg.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/time/format.go      | 8 +++++++-
+ src/time/format_test.go | 3 +++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

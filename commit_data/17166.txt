@@ -1,23 +1,15 @@
-commit 4f86a96ac9020f756fe4eda004ab16f2141f9746
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Mon Aug 12 15:14:34 2013 -0700
+commit 2791ef0b6784f487738b7dbe6bda520b426131f3
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 12 22:04:10 2013 +0400
 
-    net/http: do not send malformed cookie domain attribute
-    
-    Malformed domain attributes are not sent in a Set-Cookie header.
-    Instead the domain attribute is dropped which turns the cookie
-    into a host-only cookie. This is much safer than dropping characters
-    from domain attribute.
-    
-    Domain attributes with a leading dot '.' are still allowed, even
-    if discouraged by RFC 6265 section 4.1.1.
-    
-    Fixes #6013
+    runtime/race: add end-to-end test
+    Fixes #5933.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12745043
+    https://golang.org/cl/12699051
 
- src/pkg/net/http/cookie.go      | 89 ++++++++++++++++++++++++++++++++++-------
- src/pkg/net/http/cookie_test.go | 16 ++++++++
- 2 files changed, 91 insertions(+), 14 deletions(-)
+ src/pkg/runtime/crash_test.go       |   6 +-
+ src/pkg/runtime/race/output_test.go | 109 ++++++++++++++++++++++++++++++++++++
+ src/run.bash                        |   3 +-
+ 3 files changed, 115 insertions(+), 3 deletions(-)

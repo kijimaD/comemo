@@ -1,23 +1,13 @@
-commit 8c3c8332cd3e0d78e9b0372097953c7af4aa219a
-Author: erifan01 <eric.fang@arm.com>
-Date:   Tue Jan 23 11:35:54 2018 +0000
+commit eb7e84500ffef1f72958a94f135774f6c25b7aad
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 25 10:57:00 2017 -0400
 
-    cmd/asm: enable several arm64 load & store instructions
+    doc: document Go 1.9.2
     
-    Instructions LDARB, LDARH, LDAXPW, LDAXP, STLRB, STLRH, STLXP, STLXPW, STXP,
-    STXPW have been added before, but they are not enabled. This CL enabled them.
-    
-    Change the form of LDXP and LDXPW to the form of LDP, and fix a bug of STLXP.
-    
-    Change-Id: I5d2b51494b92451bf6b072c65cfdd8acf07e9b54
-    Reviewed-on: https://go-review.googlesource.com/96215
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I7d63e747e798d588bdcf2b79b6ecd21fce7bbc9c
+    Reviewed-on: https://go-review.googlesource.com/73391
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/asm/internal/arch/arm64.go           |  3 +-
- src/cmd/asm/internal/asm/testdata/arm64.s    | 18 ++++++++-
- src/cmd/asm/internal/asm/testdata/arm64enc.s | 22 ++++++-----
- src/cmd/internal/obj/arm64/asm7.go           | 35 +++++++++--------
- src/cmd/internal/obj/arm64/doc.go            | 57 +++++++++++++++++++++++++++-
- 5 files changed, 106 insertions(+), 29 deletions(-)
+ doc/devel/release.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

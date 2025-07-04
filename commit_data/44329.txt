@@ -1,25 +1,81 @@
-commit b2bdadfe88c205baed2f3dde6aa4709940ce4a7b
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Nov 2 15:05:40 2020 -0600
+commit 3187b05b87e39231202bf2a9bf89905649472b6c
+Merge: 6bf51c3406 f7ba82d68f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 11 16:49:19 2020 -0400
 
-    cmd/internal: cleanup ppc64 optab structure
+    [dev.link] all: merge branch 'master' into dev.link
     
-    This is no-functionality change to begin the process of supporting
-    more than 6 operands.
-    
-    This rewrites the table to use named arguments, and removes default
-    initialized argument values.  The following sed regexes rewrote the table:
-    
-      s/{\([^,]*\),\([^,]*\),\([^,]*\),\([^,]*\),\([^,]*\),\([^,]*\),\([^,]*\),\([^,]*\)}/{as:\1,a1:\2,a2:\3,a3:\4,a4:\5,type_:\6,size:\7,param:\8}
-      s/a[1-4]: C_NONE, //g
-      s/, param: 0//
-    
-    Change-Id: I5f4de9da75f2fb3964d625d6b4e2f1ce1e29cc47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294189
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Change-Id: I446db56b20ef2189e23e225a91a17736c1d11e4c
 
- src/cmd/internal/obj/ppc64/asm9.go | 912 +++++++++++++++++++------------------
- 1 file changed, 459 insertions(+), 453 deletions(-)
+ .gitattributes                                     |  20 +-
+ AUTHORS                                            |   1 +
+ CONTRIBUTORS                                       |   1 +
+ api/go1.15.txt                                     | 132 +++++++++
+ api/next.txt                                       |   3 -
+ doc/go1.10.html                                    |   4 +-
+ doc/go1.15.html                                    | 300 +++++++++++++++----
+ src/all.bat                                        |  54 ++--
+ src/clean.bat                                      |  64 ++--
+ src/cmd/addr2line/addr2line_test.go                |  16 +-
+ src/cmd/asm/internal/asm/testdata/arm64enc.s       |   1 +
+ src/cmd/cgo/doc.go                                 |   2 +-
+ src/cmd/compile/fmt_test.go                        |  15 +-
+ src/cmd/compile/fmtmap_test.go                     |   2 +
+ src/cmd/compile/internal/arm/ssa.go                |  43 ++-
+ src/cmd/compile/internal/gc/esc.go                 |  12 +-
+ src/cmd/compile/internal/ssa/compile.go            |   3 +
+ src/cmd/compile/internal/ssa/cse.go                |  54 ----
+ src/cmd/compile/internal/ssa/gen/ARM.rules         | 148 +++++-----
+ src/cmd/compile/internal/ssa/gen/ARMOps.go         |   4 +
+ src/cmd/compile/internal/ssa/opGen.go              |  28 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go         | 324 ++++++++++++---------
+ src/cmd/compile/internal/ssa/rewriteCond_test.go   |  95 ++++--
+ src/cmd/compile/internal/ssa/tuple.go              |  59 ++++
+ src/cmd/dist/test.go                               |   9 -
+ src/cmd/go/go_test.go                              |  12 +-
+ src/cmd/go/internal/web/http.go                    |   8 +
+ src/cmd/go/internal/work/gc.go                     |   2 +-
+ src/cmd/go/proxy_test.go                           |  19 ++
+ src/cmd/go/script_test.go                          |   1 +
+ src/cmd/go/testdata/script/README                  |   1 +
+ src/cmd/go/testdata/script/build_trimpath.txt      |   4 +
+ src/cmd/go/testdata/script/goroot_executable.txt   |   7 +
+ src/cmd/go/testdata/script/mod_convert_dep.txt     |   1 -
+ .../testdata/script/mod_get_too_many_redirects.txt |  10 +
+ src/cmd/internal/moddeps/moddeps_test.go           |   2 +-
+ src/cmd/internal/obj/arm64/asm7.go                 |   4 +-
+ src/cmd/internal/objabi/util.go                    |   2 +-
+ src/cmd/link/dwarf_test.go                         |   4 +-
+ src/cmd/link/internal/loader/loader.go             |   6 +-
+ src/cmd/objdump/objdump_test.go                    |   6 +-
+ src/crypto/tls/common.go                           |   2 +
+ src/crypto/tls/handshake_client.go                 |  11 +-
+ src/crypto/tls/handshake_client_test.go            |  81 ++++++
+ src/crypto/tls/handshake_client_tls13.go           |   4 +
+ src/crypto/x509/x509.go                            |  16 +-
+ src/go/internal/srcimporter/srcimporter.go         |   6 +-
+ src/go/types/api.go                                |  10 +-
+ src/go/types/check.go                              |   4 +-
+ src/go/types/resolver.go                           |   4 +-
+ src/html/template/html.go                          |   3 +-
+ src/internal/poll/fd_unix.go                       |   2 +-
+ src/make.bat                                       | 305 ++++++++++---------
+ src/net/http/request.go                            |   2 +-
+ src/net/http/server.go                             |   6 +-
+ src/os/file_unix.go                                |   6 +-
+ src/os/removeall_at.go                             |   3 +-
+ src/os/signal/internal/pty/pty.go                  |   8 +-
+ src/os/signal/signal_cgo_test.go                   |  44 +--
+ src/race.bat                                       | 102 +++----
+ src/run.bat                                        | 113 ++++---
+ src/runtime/cgo_sigaction.go                       |  10 +-
+ src/runtime/debugcall.go                           |   2 +-
+ src/runtime/malloc.go                              |  20 +-
+ src/runtime/mgcmark.go                             |  14 +-
+ src/runtime/mstats.go                              |   2 +-
+ src/runtime/mwbbuf.go                              |   7 +
+ src/runtime/symtab.go                              |   4 +-
+ test/codegen/comparisons.go                        |  33 ++-
+ test/fixedbugs/issue39472.go                       |  12 +
+ test/winbatch.go                                   |  54 +++-
+ 71 files changed, 1541 insertions(+), 832 deletions(-)

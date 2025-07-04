@@ -1,30 +1,21 @@
-commit a80070e0cf0b65d619b6669a789d27746a5b2126
-Author: Shulhan <m.shulhan@gmail.com>
-Date:   Wed Nov 17 01:36:15 2021 +0700
+commit a3b5084204a69e441fa1cc4162a14d93c3507d54
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jun 1 12:49:50 2021 -0400
 
-    math/big: call norm when returning success from Rat SetString
+    [dev.fuzz] cmd/go: split test_fuzz_minimize from test_fuzz_mutator
     
-    After CL 24430, reflect.DeepEqual no longer returns true when comparing
-    a *Rat built with (*Rat).SetString("0") with one built with
-    (*Rat).SetInt64(0).
-    These should be equivalent, but because (*Rat).SetString does not call
-    norm() when returning the zero value, the result of reflect.DeepEqual
-    will be false.
+    This CL moves test cases for minimization into a new script. The tests
+    are changed to be more deterministic. Any non-zero byte now triggers a
+    failure.
     
-    One could suggest that developers should use (*Rat).Cmp instead
-    of relying on reflect.DeepEqual, but if a (*Rat) is part of a
-    larger struct that is being compared, this can be cumbersome.
-    
-    This is fixed by calling z.norm() when returning zero in SetString.
-    
-    Fixes #50944
-    
-    Change-Id: Ib84ae975bf82fe02d1203aa9668a01960c0fd59d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364434
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: Id45a721071dbfc3aec46be369966b0a67a745c55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323851
+    Trust: Jay Conrod <jayconrod@google.com>
     Trust: Katie Hockman <katie@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/math/big/ratconv.go      | 2 +-
- src/math/big/ratconv_test.go | 9 +++++++++
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt | 159 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt  | 150 +-------------------
+ 2 files changed, 162 insertions(+), 147 deletions(-)

@@ -1,12 +1,49 @@
-commit 1d55685e261a6c53403996aa31b1d147ee0090fb
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 16 19:51:18 2013 +0400
+commit 5d363c6357ebcacc8ba7c24420f7cfd2e530591a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 16 09:41:38 2013 -0400
 
-    runtime: minor cleanup of hashmap code
+    cmd/ld, runtime: new in-memory symbol table format
     
-    R=golang-dev, iant
-    CC=golang-dev
-    https://golang.org/cl/11357043
+    Design at http://golang.org/s/go12symtab.
+    
+    This enables some cleanup of the garbage collector metadata
+    that will be done in future CLs.
+    
+    This CL does not move the old symtab and pclntab back into
+    an unmapped section of the file. That's a bit tricky and will be
+    done separately.
+    
+    Fixes #4020.
+    
+    R=golang-dev, dave, cshapiro, iant, r
+    CC=golang-dev, nigeltao
+    https://golang.org/cl/11085043
 
- src/pkg/runtime/hashmap.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/5l/5.out.h              |   6 +-
+ src/cmd/5l/l.h                  |   4 +-
+ src/cmd/5l/obj.c                |   3 +
+ src/cmd/6l/6.out.h              |  11 +-
+ src/cmd/6l/l.h                  |   4 +-
+ src/cmd/6l/obj.c                |   3 +
+ src/cmd/6l/optab.c              |   9 +-
+ src/cmd/8l/8.out.h              |   6 +-
+ src/cmd/8l/l.h                  |   4 +-
+ src/cmd/8l/obj.c                |   3 +
+ src/cmd/8l/optab.c              |   5 +-
+ src/cmd/gc/fmt.c                |   2 +
+ src/cmd/ld/data.c               |  28 +-
+ src/cmd/ld/go.c                 |  17 +-
+ src/cmd/ld/lib.c                | 614 +++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/lib.h                |  26 +-
+ src/cmd/ld/symtab.c             |  14 +-
+ src/pkg/runtime/asm_386.s       |   8 +-
+ src/pkg/runtime/asm_amd64.s     |   8 +-
+ src/pkg/runtime/asm_arm.s       |   8 +-
+ src/pkg/runtime/extern.go       |  24 +-
+ src/pkg/runtime/mgc0.c          |   9 +-
+ src/pkg/runtime/runtime.c       |   3 +-
+ src/pkg/runtime/runtime.h       |  30 +-
+ src/pkg/runtime/symtab.c        | 661 +++++++++-------------------------------
+ src/pkg/runtime/traceback_arm.c |  41 ++-
+ src/pkg/runtime/traceback_x86.c |  54 ++--
+ 27 files changed, 953 insertions(+), 652 deletions(-)

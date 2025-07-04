@@ -1,20 +1,18 @@
-commit e5ad73508e5ab5cadfba25e25d6cc3b025865e29
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 16 16:49:56 2020 -0400
+commit 7dc1c62cc9eb7a8c0c554dd6d67da9bd4ddeac1c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 6 11:39:44 2020 -0400
 
-    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on MIPS
+    cmd/link: remove darwin/arm test
     
-    This one is trivial, as there are already 32-bit AND and OR ops used to
-    implement the more complex 8-bit versions.
+    The darwin/arm port is removed in Go 1.15. Setting GOOS=darwin
+    GOARCH=arm will fail, therefore "go test cmd/link" on macOS will
+    fail (in non -short mode). Remove this test point.
     
-    Change-Id: Ic48a53ea291d0067ebeab8e96c82e054daf20ae7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263149
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #37611.
+    
+    Change-Id: Ia9531c4b4a6692a0c49153517af9fdddd1f3e0bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227341
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go          | 4 ++--
- src/cmd/compile/internal/ssa/gen/MIPS.rules | 3 +++
- src/cmd/compile/internal/ssa/rewriteMIPS.go | 6 ++++++
- 3 files changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/link/dwarf_test.go | 2 --
+ 1 file changed, 2 deletions(-)

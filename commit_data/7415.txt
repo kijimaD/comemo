@@ -1,14 +1,13 @@
-commit acc82ad72174111f3ced310f2bd3bd10d5c83f77
-Author: Ken Thompson <ken@golang.org>
-Date:   Wed Feb 9 13:13:17 2011 -0800
+commit 6c03b0d468e0cef300397aa9d254885d3a03753e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 9 12:46:49 2011 -0800
 
-    peep: bug fix
+    run.bash: must make codelab before we can test it.
+    this will break the build, but it's already silently broken.
     
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4173041
+    https://golang.org/cl/4168041
 
- src/cmd/5g/list.c |   6 +-
- src/cmd/5g/peep.c | 173 +++++++++++++++++++++++-------------------------------
- src/cmd/5g/reg.c  |  68 +++++++++++++++++++++
- 3 files changed, 145 insertions(+), 102 deletions(-)
+ src/run.bash | 2 ++
+ 1 file changed, 2 insertions(+)

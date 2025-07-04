@@ -1,25 +1,12 @@
-commit 1fb596143cd47145c8cee0c1c5ed5e871feeb2b1
-Author: Keith Randall <khr@google.com>
-Date:   Tue Jan 22 13:49:47 2019 -0800
+commit 12c5ca90a00768c6ad5f6d83f7c37964a30256fb
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sun Sep 9 11:50:56 2018 +0200
 
-    cmd/compile: don't bother compiling functions named "_"
+    go/types: fix swapped use of "uses" and "defines" in ObjectOf documentation
     
-    They can't be used, so we don't need code generated for them. We just
-    need to report errors in their bodies.
-    
-    This is the minimal CL for 1.12. For 1.13, CL 158845 will remove
-    a bunch of special cases sprinkled about the compiler to handle "_"
-    functions, which should (after this CL) be unnecessary.
-    
-    Update #29870
-    
-    Change-Id: Iaa1c194bd0017dffdce86589fe2d36726ee83c13
-    Reviewed-on: https://go-review.googlesource.com/c/158820
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I855a9c88c379978099ea53c7d28b87cefd7f5d73
+    Reviewed-on: https://go-review.googlesource.com/134295
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go |  8 ++++++++
- test/fixedbugs/issue29870.go        | 15 +++++++++++++++
- test/fixedbugs/issue29870b.go       | 14 ++++++++++++++
- 3 files changed, 37 insertions(+)
+ src/go/types/api.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

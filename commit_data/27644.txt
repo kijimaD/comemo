@@ -1,16 +1,12 @@
-commit a871464e5aca9b81a6dc54cde8c31629387cb785
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Jun 5 09:24:09 2016 -0700
+commit d70cb46f0fde56ec0147c5cc679714fd63cb10bb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 6 16:11:22 2016 +1000
 
-    runtime: fix typo
+    runtime: use windows.NewLazySystemDLL in mksyscall_windows.go
     
-    Fixes #15962
-    
-    Change-Id: I1949e0787f6c2b1e19b9f9d3af2f712606a6d4cf
-    Reviewed-on: https://go-review.googlesource.com/23786
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie4c4ff4167ee45ae93a8b764fb6197f402e7994d
+    Reviewed-on: https://go-review.googlesource.com/21593
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_386.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/mksyscall_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

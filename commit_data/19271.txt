@@ -1,38 +1,15 @@
-commit f3913624a7615fcd25cad078c19e0374ad4e1f3f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 2 13:17:55 2014 -0700
+commit 28c515f40faba1cd1589dcc3f6f0fe3e2f5f6325
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri May 2 13:06:58 2014 -0400
 
-    std lib: fix various typos in comments
+    runtime: fix bug in GOTRACEBACK=crash causing suppression of core dumps.
     
-    Where the spelling changed from British to
-    US norm (e.g., optimise -> optimize) it follows
-    the style in that file.
+    Because gotraceback is called early and often, its cache commits to the value of getenv("GOTRACEBACK") before getenv is even ready.  So now we reset its cache once getenv becomes ready.  Panicking programs now dump core again.
     
-    LGTM=adonovan
-    R=golang-codereviews, adonovan
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/96980043
+    https://golang.org/cl/97800045
 
- src/cmd/api/goapi.go                 | 2 +-
- src/cmd/go/clean.go                  | 2 +-
- src/cmd/go/get.go                    | 2 +-
- src/pkg/container/heap/heap.go       | 2 +-
- src/pkg/crypto/tls/key_agreement.go  | 2 +-
- src/pkg/math/big/rat.go              | 2 +-
- src/pkg/math/cmplx/pow.go            | 2 +-
- src/pkg/net/http/fs.go               | 2 +-
- src/pkg/net/ipsock.go                | 6 +++---
- src/pkg/net/sendfile_dragonfly.go    | 2 +-
- src/pkg/net/sendfile_freebsd.go      | 2 +-
- src/pkg/regexp/syntax/prog.go        | 2 +-
- src/pkg/runtime/pprof/pprof.go       | 2 +-
- src/pkg/sort/sort.go                 | 2 +-
- src/pkg/syscall/dir_plan9.go         | 2 +-
- src/pkg/syscall/fd_nacl.go           | 2 +-
- src/pkg/syscall/mksyscall_windows.go | 6 +++---
- src/pkg/syscall/route_dragonfly.go   | 2 +-
- src/pkg/syscall/route_freebsd.go     | 2 +-
- src/pkg/syscall/route_netbsd.go      | 2 +-
- src/pkg/syscall/route_openbsd.go     | 2 +-
- src/pkg/time/zoneinfo_windows.go     | 2 +-
- 22 files changed, 26 insertions(+), 26 deletions(-)
+ src/pkg/runtime/runtime.c | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

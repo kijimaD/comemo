@@ -1,45 +1,27 @@
-commit f1980efb92c011eab71aa61b68ccf58d845d1de7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 29 14:46:29 2020 -0400
+commit f875f8fe76160699432cdab8a23cfd292462c2b3
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 30 16:07:31 2020 -0400
 
-    all: update to use os.ReadDir where appropriate
+    [dev.link] cmd/link: tweaks to data alignment processing
     
-    os.ReadDir is a replacement for ioutil.ReadDir that returns
-    a slice of fs.DirEntry instead of fs.FileInfo, meaning it is the
-    more efficient form.
+    Now that the loader's internal storage mechanism for symbol alignment
+    is array-based and not map-based, we can go back to computing symbol
+    alignment in the parallel-by-section section of dodata.
     
-    This CL updates call sites throughout the Go source tree
-    wherever possible. As usual, code built using the Go 1.4
-    bootstrap toolchain is not included. There is also a use in
-    go/build that appears in the public API and can't be changed,
-    at least not without additional changes.
+    With this patch plus the previous one, this produces a small
+    kubelet speedup:
     
-    Fixes #42026.
+    $ benchstat out.devlink.txt out.align.txt
+    name                        old time/op  new time/op  delta
+    RelinkKubelet                13.3s ± 2%   13.1s ± 2%  -1.27%  (p=0.000 n=20+20)
+    RelinkKubelet-WithoutDebug   7.36s ± 5%   7.14s ± 3%  -3.00%  (p=0.000 n=20+20)
     
-    Change-Id: Icfc9dd52c6045020f6830e22c72128499462d561
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266366
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9eb0e8fea6aeb12f188f499e9031d5a3a23232c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231221
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/clean/clean.go              |  3 +-
- src/cmd/go/internal/imports/scan_test.go        |  3 +-
- src/cmd/go/internal/load/pkg.go                 |  7 ++---
- src/cmd/go/internal/modcmd/vendor.go            | 11 +++----
- src/cmd/go/internal/modfetch/cache.go           |  3 +-
- src/cmd/go/internal/modload/init.go             | 17 +++++-----
- src/cmd/go/internal/test/test.go                | 12 +++++---
- src/cmd/go/proxy_test.go                        |  7 ++---
- src/crypto/x509/root_unix.go                    | 21 ++++++-------
- src/go/build/deps_test.go                       |  3 +-
- src/go/internal/gcimporter/gcimporter_test.go   |  5 ++-
- src/go/internal/srcimporter/srcimporter_test.go |  3 +-
- src/go/parser/error_test.go                     | 10 +++---
- src/go/parser/interface.go                      | 41 +++++++++++++++----------
- src/go/types/check_test.go                      | 11 +++----
- src/go/types/stdlib_test.go                     | 11 +++----
- src/internal/trace/parser_test.go               |  7 ++---
- src/os/exec/exec_test.go                        |  3 +-
- src/testing/testing_test.go                     |  7 ++---
- 19 files changed, 91 insertions(+), 94 deletions(-)
+ src/cmd/link/internal/ld/data.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

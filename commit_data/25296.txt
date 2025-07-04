@@ -1,35 +1,21 @@
-commit 654daac3bce1314d5568b46bfa48ec4c546d7395
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 16 19:47:42 2015 +0000
+commit b0d5e5c5001f6c9e2a0c12bb8e33883710126974
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 17 23:52:49 2015 -0400
 
-    net/http: split Trailers tests into two halves
+    runtime: consolidate gcResetGState calls
     
-    The old test was in client_test.go but was a mix of four things:
+    Currently gcResetGState is called by func gcscan_m for concurrent GC
+    and directly by func gc for STW GC. Simplify this by consolidating
+    these two calls in to one call by func gc above where it splits for
+    concurrent and STW GC.
     
-    - clients writing trailers
-    - servers reading trailers
-    - servers writing trailers
-    - clients reading trailers
+    As a consequence, gcResetGState and gcResetMarkState are always called
+    together, so the next commit will consolidate these.
     
-    It definitely wasn't just about clients.
-    
-    This moves it into clientserver_test.go and separates it into two
-    halves:
-    
-    - servers writing trailers + clients reading trailers
-    - clients writing trailers + servers reading trailers
-    
-    Which still isn't ideal, but is much better, and easier to read.
-    
-    Updates #13557
-    
-    Change-Id: I8c3e58a1f974c1b10bb11ef9b588cfa0f73ff5d9
-    Reviewed-on: https://go-review.googlesource.com/17895
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib62d404c7b32b28f7d3080d26ecf3966cbc4aca0
+    Reviewed-on: https://go-review.googlesource.com/16040
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/client_test.go       |  77 -----------------------
- src/net/http/clientserver_test.go | 126 ++++++++++++++++++++++++++++++++++++++
- src/net/http/transfer.go          |  30 +++++----
- 3 files changed, 145 insertions(+), 88 deletions(-)
+ src/runtime/mgc.go     | 14 ++++----------
+ src/runtime/mgcmark.go |  8 ++++++--
+ 2 files changed, 10 insertions(+), 12 deletions(-)

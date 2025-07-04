@@ -1,12 +1,18 @@
-commit 82555d7b40c9523504e5eec418022a254b6b50ae
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Jan 31 18:13:17 2012 -0800
+commit 238af7700e6e61d75b108d8d67e354b3b2c49aee
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 1 12:13:46 2012 +1100
 
-    libmach: add stubs for Plan 9
+    net: fix windows build
     
-    R=golang-dev, rsc
+    Ignore result of setting SO_BROADCAST.
+    
+    Disable TestSimpleListenMulticastUDP as
+    setIPv4MulticastInterface is not implemented.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/5576080
+    https://golang.org/cl/5610044
 
- src/libmach/plan9.c | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 72 insertions(+)
+ src/pkg/net/multicast_test.go  | 2 +-
+ src/pkg/net/sockopt_windows.go | 6 +-----
+ 2 files changed, 2 insertions(+), 6 deletions(-)

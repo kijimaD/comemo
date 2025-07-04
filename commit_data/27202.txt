@@ -1,22 +1,23 @@
-commit 5edcff01343f36618dd6330438cf8b456bd914ef
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Apr 29 14:17:04 2016 +1000
+commit 5ce0170a26fc60bfde176cb9c09d2a47fac94cd3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 3 06:22:11 2016 +0900
 
-    cmd/compile/internal/gc: bv.go cleanup
+    net: deduplicate Unix socket code
     
-    Drive by gardening of bv.go.
+    This change consolidates functions and methods related to UnixAddr,
+    UnixConn and UnixListener for maintenance purpose, especially for
+    documentation.
     
-    - Unexport the Bvec type, it is not used outside internal/gc.
-      (machine translated with gofmt -r)
-    - Removed unused constants and functions.
-      (driven by cmd/unused)
+    The followup changes will update comments and examples.
     
-    Change-Id: I3433758ad4e62439f802f4b0ed306e67336d9aba
-    Reviewed-on: https://go-review.googlesource.com/22602
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Updates #10624.
+    
+    Change-Id: I372d152099ac10956284e6b3863d7e4d9fe5c8e9
+    Reviewed-on: https://go-review.googlesource.com/20125
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bv.go    | 73 ++++++++++--------------------------
- src/cmd/compile/internal/gc/plive.go | 40 ++++++++++----------
- 2 files changed, 39 insertions(+), 74 deletions(-)
+ src/net/unixsock.go       | 271 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/unixsock_plan9.go | 136 ++++-------------------
+ src/net/unixsock_posix.go | 263 ++++++--------------------------------------
+ 3 files changed, 323 insertions(+), 347 deletions(-)

@@ -1,24 +1,19 @@
-commit ced4d6fd2d415d43c0f26e01fe332e4afa80114a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Aug 6 13:28:20 2022 -0700
+commit 1a708bcf1d17171056a42ec1597ca8848c854d2a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 9 14:42:42 2021 -0700
 
-    syscall: rename close to closeFD
+    cmd/compile: don't crash while reporting invalid alias cycle
     
-    ...to avoid conflicts with the predeclared close function.
+    Add a missing nil check in the formatting code for expression
+    nodes. Matches the nil checks in the same code.
     
-    Change-Id: If6a19a004c390f4e0795ec207c72caa79a7281f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421934
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Fixes #48301.
+    
+    Change-Id: Ia9bfd3535254a94996ee190b544d95e15433d252
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348740
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/syscall_aix.go      | 4 ++--
- src/syscall/asm_solaris_amd64.s | 2 +-
- src/syscall/exec_libc.go        | 6 +++---
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ir/fmt.go |  2 +-
+ test/fixedbugs/issue48301.go       | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

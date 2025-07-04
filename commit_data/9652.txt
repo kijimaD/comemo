@@ -1,15 +1,15 @@
-commit 9c6265d339424b504b515cdaf078342a4dc11778
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 12 14:03:53 2011 -0400
+commit 73fd9e7d9389579b5a2ea401df18b7316fa66323
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Mon Sep 12 13:48:56 2011 -0400
 
-    exp/regexp/syntax: fix invalid input parser crash
+    websocket: Fix infinite recursion in WebSockAddr String()
     
-    Reported by Kyle Lemons.
+    String() is already inherited from the embedded *url.URL
     
-    R=r
+    R=ukai, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/4992045
+    https://golang.org/cl/4992049
 
- src/pkg/exp/regexp/syntax/parse.go      | 37 ++++++++++++++++++++-------------
- src/pkg/exp/regexp/syntax/parse_test.go |  1 +
- 2 files changed, 23 insertions(+), 15 deletions(-)
+ src/pkg/websocket/websocket.go      |  3 ---
+ src/pkg/websocket/websocket_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 3 deletions(-)

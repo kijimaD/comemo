@@ -1,15 +1,12 @@
-commit 2a983aa3117a1647be2759edad8643cfdd5c7398
+commit 555e51f27b02c08db4e34a396d85d1cabbf221dc
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Jul 12 04:35:53 2013 +0800
+Date:   Fri Jul 12 04:34:04 2013 +0800
 
-    cmd/cgo: silence two gcc warnings for *.cgo2.c
-    1. "int e;" is unused, generating "unused variable" error.
-    2. a->e was typed void *[2], but was accessed with *(int *)(a->e), this
-    generated "dereferencing type-punned pointer will break strict-aliasing rules" error.
+    cmd/cgo: clarify the underscore prefix rule and C union representation in Go.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/11009043
+    https://golang.org/cl/10981043
 
- src/cmd/cgo/out.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/cgo/doc.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

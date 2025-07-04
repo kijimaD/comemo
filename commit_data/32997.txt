@@ -1,18 +1,17 @@
-commit 35483c8e2540a4ba731ded6b9f19b2f5244fe4fa
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Oct 6 12:55:20 2017 +1100
+commit 47e659b01fa0e90906f2294e396ff2be03032966
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 22 15:35:35 2017 -0700
 
-    misc/cgo/testcshared: delete testp0.exe not testp0 file
+    cmd/compile: fix array slice expression bounds check
     
-    Otherwise we end up with testp?.exe files after the tests run.
+    Fixes #20749.
     
-    Updates #11058
-    
-    Change-Id: Ieccfc42da6192622bdab1f9a411ccd50bb59fd5b
-    Reviewed-on: https://go-review.googlesource.com/68770
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ic6a7edc858575c4cb8b2e2ca97ee0c4b69f22c27
+    Reviewed-on: https://go-review.googlesource.com/46466
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testcshared/cshared_test.go | 25 +++++++++++++++----------
- 1 file changed, 15 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue20749.go             | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

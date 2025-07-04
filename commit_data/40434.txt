@@ -1,22 +1,25 @@
-commit 66f78e9d885e9a8ed7f8d2432d9f08bb586dd7cb
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Oct 23 14:31:29 2019 +0700
+commit ed7a92bab459806c958459264f8c88495ea6c4ba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 13 11:59:27 2019 -0700
 
-    runtime: mark findObject nosplit
+    cmd/objdump: mark tests as parallel
     
-    findObject takes the pointer argument as uintptr. If the pointer is to
-    the local stack and calling findObject happens to require the stack to
-    be reallocated, then spanOf is called for the old pointer.
+    Speeds up
     
-    Marking findObject as nosplit fixes the issue.
+    go test -short -count=1 cmd/objdump
     
-    Fixes #35068
+    on my machine from 1.7s to 1.3s.
     
-    Change-Id: I029d36f9c23f91812f18f98839edf02e0ba4082e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202798
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Not much, but as the backpacking saying goes,
+    take care of the ounces and the pounds will take care of themselves.
+    
+    Updates #26473
+    
+    Change-Id: I59fe9a179e48537c7d82cbba72cde9f92b42a029
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176901
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mbitmap.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/objdump/objdump_test.go | 1 +
+ 1 file changed, 1 insertion(+)

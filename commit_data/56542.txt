@@ -1,24 +1,24 @@
-commit e3d87d19320001e6081449550292d76ef660ab03
-Author: apocelipes <seve3r@outlook.com>
-Date:   Fri May 17 21:40:55 2024 +0000
+commit 719e2b6f0991f89702a86d46bead2b23efc82aa7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 17 13:30:22 2023 -0700
 
-    hash: use more internal/byteorder functions to simplify the code
+    os, runtime: remove unused implementations of os.sigpipe
     
-    A follow-up for the CL 585015.
+    Clean up instances that are unused since CL 6450058.
     
-    Change-Id: I412f33f1d75abe1446cb3fd742d44d3cb4350380
-    GitHub-Last-Rev: 554ace757cc75389e7a3c441d3a60cfa85c815a5
-    GitHub-Pull-Request: golang/go#67476
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586240
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0e9ae28cfa83fcc8abda8f5eca9c7dfc2c1c4ad1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477396
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
 
- src/hash/crc32/crc32_generic.go |  4 +++-
- src/hash/crc64/crc64.go         |  3 +--
- src/hash/fnv/fnv.go             | 20 ++++++++------------
- 3 files changed, 12 insertions(+), 15 deletions(-)
+ src/os/file_posix.go      | 2 --
+ src/os/file_unix.go       | 2 ++
+ src/runtime/os_plan9.go   | 5 -----
+ src/runtime/os_windows.go | 5 -----
+ 4 files changed, 2 insertions(+), 12 deletions(-)

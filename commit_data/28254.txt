@@ -1,13 +1,24 @@
-commit adcd34c732d01d60ca336627fc0fd7647d46a0c1
+commit 87a2ae1fa25677dc9097a25292c54b7b9dac2c9d
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 30 14:13:41 2016 -0700
+Date:   Sun May 8 20:59:53 2016 -0700
 
-    cmd/compile: implement fmt.Formatter for *Node formats %s, %v, %j
+    cmd/compile: fix binary export of composite literals with implicit types
     
-    Change-Id: I44ee5843bb9dfd65b9a18091f365355e84888f21
-    Reviewed-on: https://go-review.googlesource.com/28330
+    Also:
+    - replaced remaining panics with Fatal calls
+    - more comments
+    
+    Fixes #15572.
+    
+    Change-Id: Ifb27e80b66700f5692a84078764a1e928d4b310d
+    Reviewed-on: https://go-review.googlesource.com/22935
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/esc.go |  10 +--
- src/cmd/compile/internal/gc/fmt.go | 136 ++++++++++++++++++++++++-------------
- 2 files changed, 93 insertions(+), 53 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 43 +++++++++++++++++++---------------
+ src/cmd/compile/internal/gc/bimport.go | 27 +++++++++------------
+ test/fixedbugs/issue15572.dir/a.go     | 40 +++++++++++++++++++++++++++++++
+ test/fixedbugs/issue15572.dir/b.go     | 27 +++++++++++++++++++++
+ test/fixedbugs/issue15572.go           | 11 +++++++++
+ 5 files changed, 113 insertions(+), 35 deletions(-)

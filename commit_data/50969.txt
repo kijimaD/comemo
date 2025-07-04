@@ -1,20 +1,29 @@
-commit 7e72d384d66f48a78289edc6a7d1dc6ab878f990
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Mon Oct 17 17:38:50 2022 +0800
+commit e73c6c8808da281186a4d8f7107e34e9f7a4a9ee
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Nov 18 14:48:26 2021 -0500
 
-    internal/abi, internal/buildcfg: always enable register ABI on riscv64
+    cmd/go: fix go work sync when there are zero workspace modules
     
-    In Go 1.19, we develop register ABI for riscv64, enabled by default as a
-    GOEXPERIMENT. We can turn it on all the time in Go 1.20.
+    go work sync panics when there are no workspace modules. This is
+    because the code that set the pruning mode only did so with modules
+    present. This change changes pruningForGoVersion to properly return
+    workspace pruning in workspace mode to prevent that. Another weird
+    scenario can happen when there are no workspace modules, but the
+    command-line-arguments module is created by default. Check for that
+    when iterating over the workspace modules to avoid trying to find the
+    nonexistant go.mod file for that modules.
     
-    Change-Id: Ie8e2ac8b8bd3ebddb0dc6d58a5599547fb440e03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443555
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #49591
+    
+    Change-Id: Iee8bc92a8aaf9c440f88fe4f9ca908a8d461cd36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365234
+    Trust: Michael Matloob <matloob@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/abi/abi_generic.go | 2 +-
- src/internal/abi/abi_riscv64.go | 2 --
- src/internal/buildcfg/exp.go    | 4 +---
- 3 files changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/modload/modfile.go                  |  3 +++
+ src/cmd/go/internal/workcmd/sync.go                     |  7 +++++++
+ src/cmd/go/testdata/script/work_sync_missing_module.txt | 12 ++++++++++++
+ 3 files changed, 22 insertions(+)

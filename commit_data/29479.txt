@@ -1,15 +1,18 @@
-commit ebc0b625a07ccce6ade7a0082f4ab49c2817e965
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 10 16:38:22 2016 -0800
+commit c199c76cb47f065f9f513bc6f74f58be0484765d
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 16 12:11:33 2016 -0700
 
-    doc/go1.8.txt: mention that struct conversions ignore tags
+    cmd/compile: turn live variable test off for ppc
     
-    Also:
-    - update performance improvements for CL 31275.
+    ppc64 has an extraneous variable live in some situations.
+    We need a better tighten pass to get rid of this extra variable.
+    I'm working on it, but fix the test in the meantime.
     
-    Change-Id: I2f2ec0a42b248643e76df8654e11bf0b01a5d030
-    Reviewed-on: https://go-review.googlesource.com/33114
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes build for ppc64.
+    
+    Change-Id: I1efb9ccb234a64f2a1c228abd2b3195f67fbeb41
+    Reviewed-on: https://go-review.googlesource.com/29353
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.8.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ test/live.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,25 +1,22 @@
-commit d5004ee69e117936890bf85b924c38f3bb505a6d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jul 6 10:34:01 2015 +1000
+commit 10083d80079055aa5e7946f3f4972fc4d8c296f1
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 2 14:48:12 2015 -0400
 
-    runtime: use AddVectoredContinueHandler on Windows XP amd64
+    runtime: print start of GC cycle in gctrace, rather than end
     
-    Recent change (CL 10370) unexpectedly broke TestRaiseException on
-    Windows XP amd64. I still do not know why. But reverting old
-    CL 8165 fixes the problem.
+    Currently the GODEBUG=gctrace=1 trace line includes "@n.nnns" to
+    indicate the time that the GC cycle ended relative to the time the
+    program started. This was meant to be consistent with the utilization
+    as of the end of the cycle, which is printed next on the trace line,
+    but it winds up just being confusing and unexpected.
     
-    This effectively makes Windows XP amd64 use AddVectoredContinueHandler
-    instead of SetUnhandledExceptionFilter for exception handling. That is
-    what we do for all recent Windows versions too.
+    Change the trace line to include the time that the GC cycle started
+    relative to the time the program started.
     
-    Fixes #11481
-    
-    Change-Id: If2e8037711f05bf97e3c69f5a8d86af67c58f6fc
-    Reviewed-on: https://go-review.googlesource.com/11888
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7d64580cd696eb17540716d3e8a74a9d6ae50650
+    Reviewed-on: https://go-review.googlesource.com/10634
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/os1_windows.go    | 8 --------
- src/runtime/signal_windows.go | 8 ++------
- 2 files changed, 2 insertions(+), 14 deletions(-)
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

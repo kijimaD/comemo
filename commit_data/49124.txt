@@ -1,19 +1,23 @@
-commit 508cb32d4be3f71f2975ee978a474eb7d95d868a
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri May 6 16:05:06 2022 -0400
+commit 6a931673f0b655e7ca538826af21a54d3f958070
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jul 20 13:28:12 2021 -0700
 
-    cmd/link: more cleanups for visibility hidden symbol handling
+    [dev.typeparams] cmd/compile: add base.Assertf{,At} functions
     
-    CL 404296 removes the hidden visibility checks, but a few of them
-    were left. Remove them as well.
+    We have almost 200 uses of the "assert" helper functions in noder and
+    typecheck. Clearly the tiny bit of extra convenience of writing a
+    one-line assertion rather than an if+panic is helpful, so we might as
+    well add functions for this to base itself so that it's easier to
+    write more informative error messages.
     
-    Change-Id: Idbcf37429709c91403803d32684239d398e43543
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404303
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I06e2db2f0455af063937b25a53ca42f9413cf496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336050
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/data.go   | 2 +-
- src/cmd/link/internal/s390x/asm.go | 4 +---
- src/cmd/link/internal/x86/asm.go   | 4 +---
- 3 files changed, 3 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/base/print.go     | 21 +++++++++++++++++++++
+ src/cmd/compile/internal/noder/stencil.go  |  4 +---
+ src/cmd/compile/internal/typecheck/subr.go |  4 +---
+ 3 files changed, 23 insertions(+), 6 deletions(-)

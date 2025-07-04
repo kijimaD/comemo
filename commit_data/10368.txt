@@ -1,20 +1,118 @@
-commit 558e7fc33279d2f43ef8253d39c828ca7cae3d8a
+commit c017a8299fec188913726e5c0d19e669bc4a2feb
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 13 22:57:19 2011 -0500
+Date:   Sun Nov 13 22:44:52 2011 -0500
 
-    various: avoid func compare
+    syscall: use error
     
-    R=gri, r, bradfitz
+    - syscall (not os) now defines the Errno type.
+    - the low-level assembly functions Syscall, Syscall6, and so on
+      return Errno, not uintptr
+    - syscall wrappers all return error, not uintptr.
+    
+    R=golang-dev, mikioh.mikioh, r, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5371074
+    https://golang.org/cl/5372080
 
- src/cmd/gofix/main_test.go       | 10 +++---
- src/cmd/gofix/typecheck.go       |  4 ++-
- src/pkg/bytes/bytes_test.go      | 63 ++++++++++++++++++------------------
- src/pkg/compress/lzw/writer.go   |  8 +++--
- src/pkg/encoding/json/decode.go  |  2 +-
- src/pkg/encoding/json/scanner.go | 19 ++++++++---
- src/pkg/go/ast/filter.go         | 70 +++++++++++++++++++++++-----------------
- src/pkg/net/ipsock.go            |  4 +--
- src/pkg/strings/strings_test.go  | 63 ++++++++++++++++++------------------
- 9 files changed, 136 insertions(+), 107 deletions(-)
+ doc/progs/file.go                         |  22 +-
+ src/cmd/cgo/out.go                        |   4 +-
+ src/pkg/crypto/rand/rand_windows.go       |  12 +-
+ src/pkg/crypto/tls/root_windows.go        |   4 +-
+ src/pkg/exp/inotify/inotify_linux.go      |  22 +-
+ src/pkg/net/fd.go                         | 204 ++++----
+ src/pkg/net/fd_darwin.go                  |  17 +-
+ src/pkg/net/fd_freebsd.go                 |  11 +-
+ src/pkg/net/fd_linux.go                   |  16 +-
+ src/pkg/net/fd_openbsd.go                 |  11 +-
+ src/pkg/net/fd_windows.go                 |  76 ++-
+ src/pkg/net/file.go                       |   4 +-
+ src/pkg/net/http/serve_test.go            |   2 +-
+ src/pkg/net/http/transport_windows.go     |   6 +-
+ src/pkg/net/interface_bsd.go              |  16 +-
+ src/pkg/net/interface_darwin.go           |   8 +-
+ src/pkg/net/interface_freebsd.go          |   8 +-
+ src/pkg/net/interface_linux.go            |  32 +-
+ src/pkg/net/interface_windows.go          |   4 +-
+ src/pkg/net/ipsock_posix.go               |   8 +-
+ src/pkg/net/lookup_windows.go             |  16 +-
+ src/pkg/net/newpollserver.go              |   7 +-
+ src/pkg/net/sendfile_linux.go             |   6 +-
+ src/pkg/net/sendfile_windows.go           |   2 +-
+ src/pkg/net/sock.go                       |   8 +-
+ src/pkg/net/tcpsock_posix.go              |   4 +-
+ src/pkg/net/unixsock_posix.go             |   4 +-
+ src/pkg/os/dir_unix.go                    |   4 +-
+ src/pkg/os/env_plan9.go                   |  12 +-
+ src/pkg/os/env_windows.go                 |   6 +-
+ src/pkg/os/error_plan9.go                 |   6 -
+ src/pkg/os/error_posix.go                 | 106 ++--
+ src/pkg/os/exec_plan9.go                  |  10 +-
+ src/pkg/os/exec_posix.go                  |   8 +-
+ src/pkg/os/exec_unix.go                   |   6 +-
+ src/pkg/os/exec_windows.go                |   8 +-
+ src/pkg/os/file.go                        |  38 +-
+ src/pkg/os/file_plan9.go                  |  26 +-
+ src/pkg/os/file_posix.go                  |  54 +--
+ src/pkg/os/file_unix.go                   |  38 +-
+ src/pkg/os/file_windows.go                |  42 +-
+ src/pkg/os/stat_plan9.go                  |   4 +-
+ src/pkg/os/stat_windows.go                |  10 +-
+ src/pkg/os/sys_bsd.go                     |   7 +-
+ src/pkg/os/sys_windows.go                 |   2 +-
+ src/pkg/os/time.go                        |   2 +-
+ src/pkg/os/user/lookup_unix.go            |   6 +-
+ src/pkg/syscall/bpf_bsd.go                | 160 +++---
+ src/pkg/syscall/dll_windows.go            |  36 +-
+ src/pkg/syscall/exec_unix.go              |  50 +-
+ src/pkg/syscall/exec_windows.go           |  42 +-
+ src/pkg/syscall/lsf_linux.go              |  26 +-
+ src/pkg/syscall/mkerrors.sh               |  15 +-
+ src/pkg/syscall/mksyscall.pl              |  22 +-
+ src/pkg/syscall/mksyscall_windows.pl      |  24 +-
+ src/pkg/syscall/netlink_linux.go          |  43 +-
+ src/pkg/syscall/route_bsd.go              |  35 +-
+ src/pkg/syscall/route_darwin.go           |   2 +-
+ src/pkg/syscall/route_freebsd.go          |   2 +-
+ src/pkg/syscall/sockcmsg_linux.go         |   4 +-
+ src/pkg/syscall/sockcmsg_unix.go          |  14 +-
+ src/pkg/syscall/syscall.go                |   5 +-
+ src/pkg/syscall/syscall_bsd.go            | 266 +++++-----
+ src/pkg/syscall/syscall_darwin.go         | 164 +++----
+ src/pkg/syscall/syscall_darwin_386.go     |   6 +-
+ src/pkg/syscall/syscall_darwin_amd64.go   |   4 +-
+ src/pkg/syscall/syscall_freebsd.go        | 160 +++---
+ src/pkg/syscall/syscall_freebsd_386.go    |   2 +-
+ src/pkg/syscall/syscall_linux.go          | 442 ++++++++---------
+ src/pkg/syscall/syscall_linux_386.go      | 189 +++++---
+ src/pkg/syscall/syscall_linux_amd64.go    |  92 ++--
+ src/pkg/syscall/syscall_linux_arm.go      |  92 ++--
+ src/pkg/syscall/syscall_openbsd.go        | 156 +++---
+ src/pkg/syscall/syscall_plan9.go          |   5 -
+ src/pkg/syscall/syscall_unix.go           |  58 ++-
+ src/pkg/syscall/syscall_windows.go        | 361 +++++++-------
+ src/pkg/syscall/types_darwin.go           |   4 -
+ src/pkg/syscall/zerrors_darwin_386.go     | 285 ++++++-----
+ src/pkg/syscall/zerrors_darwin_amd64.go   | 289 ++++++-----
+ src/pkg/syscall/zerrors_freebsd_386.go    | 210 ++++----
+ src/pkg/syscall/zerrors_freebsd_amd64.go  | 210 ++++----
+ src/pkg/syscall/zerrors_linux_386.go      | 270 ++++++-----
+ src/pkg/syscall/zerrors_linux_amd64.go    | 270 ++++++-----
+ src/pkg/syscall/zerrors_openbsd_386.go    | 206 ++++----
+ src/pkg/syscall/zerrors_openbsd_amd64.go  | 206 ++++----
+ src/pkg/syscall/zerrors_windows.go        |   6 +-
+ src/pkg/syscall/zsyscall_darwin_386.go    | 594 +++++++++++++++--------
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 594 +++++++++++++++--------
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 582 ++++++++++++++--------
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 582 ++++++++++++++--------
+ src/pkg/syscall/zsyscall_linux_386.go     | 684 +++++++++++++++++---------
+ src/pkg/syscall/zsyscall_linux_amd64.go   | 780 ++++++++++++++++++++----------
+ src/pkg/syscall/zsyscall_openbsd_386.go   | 576 ++++++++++++++--------
+ src/pkg/syscall/zsyscall_openbsd_amd64.go | 576 ++++++++++++++--------
+ src/pkg/syscall/zsyscall_windows_386.go   | 692 ++++++++++----------------
+ src/pkg/syscall/zsyscall_windows_amd64.go | 692 ++++++++++----------------
+ src/pkg/syscall/zsysnum_darwin_386.go     | 701 ++++++++++++++-------------
+ src/pkg/syscall/zsysnum_darwin_amd64.go   | 701 ++++++++++++++-------------
+ src/pkg/syscall/ztypes_darwin_386.go      | 116 +++--
+ src/pkg/syscall/ztypes_darwin_amd64.go    | 154 +++---
+ src/pkg/syscall/ztypes_windows.go         |  24 +-
+ src/pkg/time/zoneinfo_windows.go          |   2 +-
+ 102 files changed, 7433 insertions(+), 5979 deletions(-)

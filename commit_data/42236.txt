@@ -1,28 +1,21 @@
-commit 4c78d54fdd9ffc81c15ffc3c4a2946f89d4fca22
-Author: Anton Kuklin <anton.a.kuklin@gmail.com>
-Date:   Sat Apr 25 02:33:30 2020 +0300
+commit 48989d519cbf2d7cb4a64de107f0471be67bcc3e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 12:35:55 2019 -0500
 
-    cmd: disable *.go domains lookup in go get command
+    cmd/go: convert DevNull tests to script tests
     
-    Using 'go get x.go' instead of 'go build x.go' or some other
-    go command is a common mistake. By that mistake, a user gets
-    a misleading error message about unsuccessful `x.go` domain lookup.
-    This improvement handles such cases, by validating, whether the
-    argument hasn't specified version, has .go suffix, and either has
-    no slashes or such file locally exists. Handled both GOPATH
-    and GOMOD modes.
+    I'm hoping to eliminate testdata/src/go-cmd-test, so porting over
+    tests that assume its existence.
     
-    Fixes #38478
+    Updates #28387
+    Updates #30316
     
-    Change-Id: I583a4ef7f7ca8901deb07ebc811e2b3c0e828fa6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229938
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I20bae780a4eb87cc19cc1e8531b84ab4a8a3c255
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207608
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/get/get.go                 | 16 ++++++
- src/cmd/go/internal/modget/get.go              | 14 ++++++
- src/cmd/go/testdata/script/get_go_file.txt     | 60 +++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_get_go_file.txt | 68 ++++++++++++++++++++++++++
- 4 files changed, 158 insertions(+)
+ src/cmd/go/go_test.go                       | 38 -----------------------------
+ src/cmd/go/testdata/script/devnull.txt      | 26 ++++++++++++++++++++
+ src/cmd/go/testdata/script/test_devnull.txt | 15 ------------
+ 3 files changed, 26 insertions(+), 53 deletions(-)

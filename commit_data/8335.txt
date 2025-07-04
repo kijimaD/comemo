@@ -1,12 +1,16 @@
-commit 8bf151582562eb9d70b46d1d999ab317444298fd
+commit b191155ab42e02bf1d16c702102888d9091d800e
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun May 8 16:33:44 2011 +1000
+Date:   Sun May 8 16:32:00 2011 +1000
 
-    syscall: change Overlapped.HEvent type, it is a handle
+    syscall: fix bug in mksyscall_windows.pl
     
-    R=golang-dev, r, r2
+    This change fixes generation of "shadow" variables for bool parameters.
+    Before the change, it was naming all bool variables with the same name of _p0.
+    Now it calls them _p0, _p1, ... So the code could compile.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4471046
+    https://golang.org/cl/4479047
 
- src/pkg/syscall/ztypes_windows_386.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/mksyscall_windows.pl | 1 +
+ 1 file changed, 1 insertion(+)

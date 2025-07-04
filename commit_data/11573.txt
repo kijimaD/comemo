@@ -1,12 +1,18 @@
-commit 77f11f3ef12ecd55a0d6386c83fe727f7abb3879
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 2 16:42:29 2012 -0800
+commit 8fe75a28fbd7dcbdaf41f904fca5065a54a89998
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 2 19:42:02 2012 -0500
 
-    go/scanner: idiomatic receiver names
+    syscall: fix // +build comments in types_*.go
     
-    R=rsc
+    I fixed types_linux.go yesterday but missed the others.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5606057
+    https://golang.org/cl/5620054
 
- src/pkg/go/scanner/scanner.go | 450 +++++++++++++++++++++---------------------
- 1 file changed, 225 insertions(+), 225 deletions(-)
+ src/pkg/syscall/types_darwin.go  | 4 ++--
+ src/pkg/syscall/types_freebsd.go | 4 ++--
+ src/pkg/syscall/types_linux.go   | 6 ++++--
+ src/pkg/syscall/types_netbsd.go  | 4 ++--
+ src/pkg/syscall/types_openbsd.go | 4 ++--
+ 5 files changed, 12 insertions(+), 10 deletions(-)

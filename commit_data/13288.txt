@@ -1,33 +1,20 @@
-commit 166dab6993029802526804393a31cb8d080743e6
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Jun 6 07:49:58 2012 +1000
+commit c7be4defe31fbcbae028b382c707361d28d5d7ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 5 16:23:30 2012 -0400
 
-    test/bench/go1: reduce fasta data size for linux/arm
+    runtime: use OS X vsyscall for gettimeofday (386)
     
-    As discussed on golang-dev, reduce the size of the fasta
-    dataset to make it possible to run the go1 benchmarks on
-    small ARM systems.
+    amd64 was done in CL 6275056.
     
-    Also, remove the 25m suffix from fasta data and Revcomp.
+    We don't attempt to handle machines with clock speeds
+    less than 1 GHz. Those will fall back to the system call.
     
-    linux/arm: pandaboard OMAP4
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkNow          364           38  -89.53%
     
-    BenchmarkBinaryTree17          1        70892426000 ns/op
-    BenchmarkFannkuch11            1        35712066000 ns/op
-    BenchmarkGobDecode            10         137146000 ns/op           5.60 MB/s
-    BenchmarkGobEncode            50          64953000 ns/op          11.82 MB/s
-    BenchmarkGzip          1        5675690000 ns/op           3.42 MB/s
-    BenchmarkGunzip        1        1207001000 ns/op          16.08 MB/s
-    BenchmarkJSONEncode            5         860424800 ns/op           2.26 MB/s
-    BenchmarkJSONDecode            1        3321839000 ns/op           0.58 MB/s
-    BenchmarkMandelbrot200        50          45893560 ns/op
-    BenchmarkRevcomp              10         135220300 ns/op          18.80 MB/s
-    BenchmarkTemplate              1        6385681000 ns/op           0.30 MB/s
-    
-    R=rsc, minux.ma, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6278048
+    https://golang.org/cl/6307045
 
- test/bench/go1/fasta_test.go   | 17 ++++++++++++++++-
- test/bench/go1/revcomp_test.go |  6 +++---
- 2 files changed, 19 insertions(+), 4 deletions(-)
+ src/pkg/runtime/sys_darwin_386.s | 131 +++++++++++++++++++++++++++++++++------
+ 1 file changed, 112 insertions(+), 19 deletions(-)

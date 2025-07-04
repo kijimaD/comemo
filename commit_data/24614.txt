@@ -1,14 +1,12 @@
-commit 79a3b561b5497db2caeb76ea18cac852981b7b87
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 22 14:14:41 2015 -0700
+commit a2d1580fdb3fcac97391ba6574452b4dbe3f13f9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 12 10:12:14 2015 -0700
 
-    cmd/compile/internal/gc: remove special handling for -0.0
+    [dev.ssa] cmd/compile: implement OSPTR
     
-    Per the latest spec change, Go doesn't have -0 constants.
-    
-    Change-Id: Ic2bcdc3bf507d121ed204f30f6744bb8764202c0
-    Reviewed-on: https://go-review.googlesource.com/16232
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: Iaa40f14a1e3e4393af3c446953ffc315e79a3762
+    Reviewed-on: https://go-review.googlesource.com/13581
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 13 ++-----------
- 1 file changed, 2 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

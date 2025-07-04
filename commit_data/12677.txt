@@ -1,14 +1,20 @@
-commit c97cf055d91f25e25c3d576ab483586eff224e0b
+commit f69132d7ad89c6507af6079bd75d2fe50f7f7fe8
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Mar 17 22:19:57 2012 -0700
+Date:   Sat Mar 17 11:20:46 2012 -0700
 
-    syscall: add a test for passing an fd over a unix socket
+    build: catch API changes during build
     
-    Updates #1101
+    Adds new file api/go1.txt, locking down the current API.
+    Any changes to the API will need to update that file.
     
-    R=golang-dev, iant
+    run.bash (but not make.bash, or Windows) will check for
+    accidental API changes.
+    
+    R=golang-dev, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/5849057
+    https://golang.org/cl/5820070
 
- src/pkg/syscall/passfd_test.go | 150 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 150 insertions(+)
+ api/go1.txt          | 24524 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/api/goapi.go |    13 +-
+ src/run.bash         |     8 +-
+ 3 files changed, 24541 insertions(+), 4 deletions(-)

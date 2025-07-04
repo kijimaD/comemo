@@ -1,0 +1,19 @@
+commit 23c9efa24446186562ec23c1af7c9a549bc18362
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 21 14:42:33 2024 +0000
+
+    unique: clean up handle test code
+    
+    Currently the handle test code has a lot of duplicate type parameters
+    that are already inferred. This results in IDE warnings which are
+    annoying. Clean this up by consistently explicitly calling out the type
+    in the argument, not the type parameter.
+    
+    Change-Id: I756203f37fc97c793cd5c5e612c6fd1802a84bc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607356
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/unique/handle_test.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

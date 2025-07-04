@@ -1,17 +1,13 @@
-commit feb509c794584d634ad1a51d88c0f6d109bf42d8
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Dec 13 16:21:25 2012 +0900
+commit 309eae19235349d39053f06887f0384c5757fa3e
+Author: James David Chalfant <james.chalfant@gmail.com>
+Date:   Wed Dec 12 22:04:55 2012 -0800
 
-    net: make TestDialTimeoutFDLeak a bit robust
+        database/sql: Alter *DB.begin to return driver.ErrBadConn when driver.Conn.Begin returns driver.ErrBadConn
+    Fixes #4433
     
-    TestDialTimeoutFDLeak will fail when system state somaxconn is
-    greater than expected fixed value.
-    
-    Fixes #4384 (again).
-    
-    R=fullung, dave, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6873069
+    https://golang.org/cl/6845094
 
- src/pkg/net/dial_test.go | 2 +-
+ src/pkg/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

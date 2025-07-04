@@ -1,15 +1,26 @@
-commit 9f7b1a8259fb5be07e41b5f74445f16a6a23e963
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 24 10:23:43 2018 -0700
+commit 87867505c0dae0c9a9b3b93cc01ee8c5a30dc8bb
+Author: Peter Wu <pwu@cloudflare.com>
+Date:   Wed Nov 22 19:27:20 2017 +0000
 
-    go/types: untyped shifted constants must fit their expected int type
+    crypto/tls: add RSASSA-PSS support for handshake messages
     
-    Fixes #22969.
+    This adds support for RSASSA-PSS signatures in handshake messages as
+    required by TLS 1.3. Even if TLS 1.2 is negotiated, it must support PSS
+    when advertised in the Client Hello (this will be done later as the
+    testdata will change).
     
-    Change-Id: Ie9d1748c36864a81a633f0016594912ac7dfc005
-    Reviewed-on: https://go-review.googlesource.com/c/144385
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Updates #9671
+    
+    Change-Id: I8006b92e017453ae408c153233ce5ccef99b5c3f
+    Reviewed-on: https://go-review.googlesource.com/79736
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/go/types/expr.go             |  6 +++++-
- src/go/types/testdata/shifts.src | 12 ++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/crypto/tls/auth.go                  | 17 ++++++++++----
+ src/crypto/tls/auth_test.go             | 21 +++++++++++-------
+ src/crypto/tls/cipher_suites.go         |  4 ++--
+ src/crypto/tls/common.go                | 12 ++++++----
+ src/crypto/tls/handshake_client.go      |  6 ++++-
+ src/crypto/tls/handshake_client_test.go | 39 +++++++++++++++++++++++++++++++++
+ src/crypto/tls/key_agreement.go         | 14 +++++++-----
+ src/crypto/tls/prf.go                   |  2 +-
+ 8 files changed, 90 insertions(+), 25 deletions(-)

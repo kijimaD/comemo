@@ -1,25 +1,22 @@
-commit a475a38a3dcd48541f60e40b1dac3c84ab72d0e5
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 25 13:56:37 2016 -0400
+commit 74a00b249b049459b6f8b3c3999969f2beef3d31
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 30 11:15:38 2016 -0700
 
-    runtime: parallelize STW mcache flushing
+    cmd/compile: get rid of ugly {Recvs,Params,Results}P methods
     
-    Currently all mcaches are flushed in a single STW root job. This takes
-    about 5 µs per P, but since it's done sequentially it adds about
-    5*GOMAXPROCS µs to the STW.
+    These were a hack abstraction for before FuncType existed.
     
-    Fix this by parallelizing the job. Since there are exactly GOMAXPROCS
-    mcaches to flush, this parallelizes quite nicely and brings the STW
-    latency cost down to a constant 5 µs (assuming GOMAXPROCS actually
-    reflects the number of CPUs).
+    The result value from calling FuncType() could be saved, but this
+    maintains the current idiom of consistently using t.FuncType().foo
+    everywhere in case we choose to evolve the API further.
     
-    Updates #17503.
-    
-    Change-Id: Ibefeb1c2229975d5137c6e67fac3b6c92103742d
-    Reviewed-on: https://go-review.googlesource.com/32033
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I81f19aaeab6fb7caa2d4da8bf0bbbc358ab970d0
+    Reviewed-on: https://go-review.googlesource.com/28150
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mgc.go     |  1 +
- src/runtime/mgcmark.go | 20 ++++++++++++--------
- src/runtime/mstats.go  | 35 ++++++++++++++++++++++++-----------
- 3 files changed, 37 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go      |  6 +++---
+ src/cmd/compile/internal/gc/type.go     | 27 ++++++---------------------
+ src/cmd/compile/internal/gc/universe.go |  6 +++---
+ 3 files changed, 12 insertions(+), 27 deletions(-)

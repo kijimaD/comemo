@@ -1,18 +1,16 @@
-commit ce645534e481368b4ec6141d48eb361422e423b8
-Author: Quentin Smith <quentin@golang.org>
-Date:   Wed Oct 5 18:04:54 2016 -0400
+commit 05ecf534566c0cd05b4afdaa9619522e4204328e
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Mon Jun 27 19:06:17 2016 -0700
 
-    crypto/x509: support RHEL 7 cert bundle
+    net/http/pprof: remove comments pointing to gperftools
     
-    RHEL 7 introduces a new tool, update-ca-trust(8), which places the
-    certificate bundle in a new location. Add this path to the list of
-    locations that are searched for the certificate bundle.
+    The version of pprof in gperftools has been deprecated.
+    No need to have a pointer to that version since go tool pprof
+    is included with the Go distro.
     
-    Fixes #15749
-    
-    Change-Id: Idc97f885ee48ef085f1eb4dacbd1c2cf55f94ff5
-    Reviewed-on: https://go-review.googlesource.com/30375
+    Change-Id: I6d769a68f64280f5db89ff6fbc67bfea9c8f1526
+    Reviewed-on: https://go-review.googlesource.com/24509
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/x509/root_linux.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/net/http/pprof/pprof.go | 2 --
+ 1 file changed, 2 deletions(-)

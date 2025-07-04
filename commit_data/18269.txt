@@ -1,20 +1,18 @@
-commit 36477291cc13313e816cccfcfa62a6bc0ac43d15
+commit 4deead7645fbb7302e0e86594445268085ded330
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 16 11:43:52 2014 -0800
+Date:   Thu Jan 16 10:25:45 2014 -0800
 
-    net/http: don't allow Content-Type or body on 204 and 1xx
+    net/http: cache transport environment lookup
     
-    Status codes 204, 304, and 1xx don't allow bodies. We already
-    had a function for this, but we were hard-coding just 304
-    (StatusNotModified) in a few places.  Use the function
-    instead, and flesh out tests for all codes.
+    Apparently this is expensive on Windows.
     
-    Fixes #6685
+    Fixes #7020
     
-    R=golang-codereviews, r
+    R=golang-codereviews, alex.brainman, mattn.jp, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/53290044
+    https://golang.org/cl/52840043
 
- src/pkg/net/http/serve_test.go | 53 +++++++++++++++++++++++-------------------
- src/pkg/net/http/server.go     | 10 ++++----
- 2 files changed, 34 insertions(+), 29 deletions(-)
+ src/pkg/net/http/export_test.go    |  5 +++++
+ src/pkg/net/http/transport.go      | 43 ++++++++++++++++++++++++++++++++------
+ src/pkg/net/http/transport_test.go |  1 +
+ 3 files changed, 43 insertions(+), 6 deletions(-)

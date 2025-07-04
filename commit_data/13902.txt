@@ -1,23 +1,16 @@
-commit 658482d70f10962e44801565f059e26d85bf4746
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Sep 22 10:01:35 2012 -0400
+commit 49aa74ef7f3a3c3c261bd9cdf3b8eb26631dcd17
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Sep 22 17:57:54 2012 +1000
 
-    cmd/5g: fix register opt bug
+    cmd/cgo: use debug data for enums on windows
     
-    The width was not being set on the address, which meant
-    that the optimizer could not find variables that overlapped
-    with it and mark them as having had their address taken.
-    This let to the compiler believing variables had been set
-    but never used and then optimizing away the set.
+    Use the debug data for enums on windows.
     
-    Fixes #4129.
+    Fixes #4120.
     
-    R=ken2
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/6552059
+    https://golang.org/cl/6545047
 
- src/cmd/5g/gsubr.c |  8 ++++++++
- src/cmd/5g/reg.c   | 37 ++++++++++++++++++++++++++++++++++---
- src/cmd/6g/reg.c   | 10 +++++++---
- src/cmd/8g/reg.c   |  7 +++++--
- 4 files changed, 54 insertions(+), 8 deletions(-)
+ src/cmd/cgo/gcc.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

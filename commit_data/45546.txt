@@ -1,20 +1,18 @@
-commit caf4c9434b0c9b3f27e1c5e620b2acb0e46a74bb
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue May 4 20:38:24 2021 -0400
+commit 4d6dfd64c1aeefc49cb072f727adc51060ae600c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 25 17:53:08 2020 +1000
 
-    cmd/compile: debug trace output for -N variable location gen
+    runtime: add defs for openbsd/mips64
     
-    Add some rudimentary debug trace output for -N location list
-    generation if "-d=ssa/locationlists" is set.
+    Update #40995
     
-    Updates #45948.
-    
-    Change-Id: If1a95730538a6e7def7ebe1ece1a71da8e5f0975
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317089
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I6963ead1a7c4520092361cce80edb17010e7f436
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250579
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/ssa/debug.go | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ src/runtime/defs_openbsd.go        |   8 +-
+ src/runtime/defs_openbsd_mips64.go | 167 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 173 insertions(+), 2 deletions(-)

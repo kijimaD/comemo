@@ -1,27 +1,17 @@
-commit bb929b7452b5b8a6a584a94a110c98b0c6543a6e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 12 12:14:02 2020 -0700
+commit a59808ed01b52119025c49c7ab71ceffbf56c080
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 21 15:29:41 2019 -0700
 
-    cmd/compile: skip generating args_stackmap for "pulled" funcs
+    go/parser: better error (recovery) for Allman/BSD-style func decls
     
-    In golang.org/cl/171464, we cleaned up generation of .stkobj linker
-    symbols, but we couldn't figure out why a similar cleanup to
-    .args_stackmap linker symbols caused problems.
+    This matches the behavior and error of cmd/compile.
     
-    The issue is that we only need/want to generate .args_stackmap for
-    functions that are implemented in assembly in the same package. When
-    "pulling" a function from another package via //go:linkname, we can
-    safely skip emitting .args_stackmap, because compiling that package
-    will have generated it, if necessary.
+    Fixes #34946.
     
-    Fixes #31615.
-    
-    Change-Id: If8680aa7dd5b4e8f268b6b032d746f1b8536c867
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223238
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I329ef358deea63d8425f76f1d54c95749b96c365
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202484
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/go/parser/parser.go               | 12 +++++++++++-
+ src/go/parser/testdata/issue34946.src | 22 ++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

@@ -1,23 +1,14 @@
-commit 5ce0170a26fc60bfde176cb9c09d2a47fac94cd3
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Mar 3 06:22:11 2016 +0900
+commit 4c38b6a96a19022f6ab87c489f32d7e78ca83214
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 14:51:50 2016 -0500
 
-    net: deduplicate Unix socket code
+    api: fix build for go/build change
     
-    This change consolidates functions and methods related to UnixAddr,
-    UnixConn and UnixListener for maintenance purpose, especially for
-    documentation.
+    Fixes build.
     
-    The followup changes will update comments and examples.
-    
-    Updates #10624.
-    
-    Change-Id: I372d152099ac10956284e6b3863d7e4d9fe5c8e9
-    Reviewed-on: https://go-review.googlesource.com/20125
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5235deed7b93157854acb79c15e2e99cc28d300a
+    Reviewed-on: https://go-review.googlesource.com/18456
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/unixsock.go       | 271 ++++++++++++++++++++++++++++++++++++++++++++++
- src/net/unixsock_plan9.go | 136 ++++-------------------
- src/net/unixsock_posix.go | 263 ++++++--------------------------------------
- 3 files changed, 323 insertions(+), 347 deletions(-)
+ api/go1.6.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

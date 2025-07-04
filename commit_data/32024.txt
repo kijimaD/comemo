@@ -1,12 +1,17 @@
-commit 0593ad1e235d324d928fd045bb97098cb3bd1c66
-Author: Jamie Kerr <jkerr113@googlemail.com>
-Date:   Sat Jul 15 12:20:25 2017 -0600
+commit beb833f12456f8ae49e003df79f1e0813b610032
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 11:13:01 2017 -0700
 
-    cmd/compile: fix comment typo
+    cmd/compile: initialize SSA runtime functions in initssaconfig
     
-    Change-Id: If581bd4e9d9b4421e2ae20582c596fccb73d9aed
-    Reviewed-on: https://go-review.googlesource.com/48866
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This is a better home for it.
+    
+    Change-Id: I7ce96c16378d841613edaa53c07347b0ac99ea6e
+    Reviewed-on: https://go-review.googlesource.com/38970
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 19 -------------------
+ src/cmd/compile/internal/gc/ssa.go  | 18 ++++++++++++++++++
+ 2 files changed, 18 insertions(+), 19 deletions(-)

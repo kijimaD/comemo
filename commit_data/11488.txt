@@ -1,12 +1,12 @@
-commit 61ac24cecc8f3d69a808cfb19236c07411b63856
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Jan 31 12:27:58 2012 +1100
+commit 2ea25e240ef4a3e20be35c3ccdf5a3813c8ecd36
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 31 12:15:33 2012 +1100
 
-    fix: add image/{bmp,tiff} to go1pkgrename.
+    doc: update weekly snapshot notes with subrepo changes
     
-    R=rsc, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5581053
+    https://golang.org/cl/5599051
 
- src/cmd/fix/go1pkgrename.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/devel/weekly.html | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

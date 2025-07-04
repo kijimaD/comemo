@@ -1,19 +1,20 @@
-commit 2ff463948c92e71651a31c621826281035a7071a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri May 6 23:17:29 2016 -0700
+commit 30c278dbe907111b51737adb8ba0a9e1956f3ed5
+Author: Jamil Djadala <djadala@gmail.com>
+Date:   Wed Apr 20 09:08:28 2016 +0300
 
-    cmd/compile/internal/gc: use new AST parser
+    container/heap: correct number of elements in BenchmarkDup
     
-    Introduce a new noder type to transform package syntax's AST into gc's
-    Node tree. Hidden behind a new -newparser flag.
+    In BenchmarkDup fuction, heap is created as h := make(myHeap, n)
+    and then n elements are added, so first time there are 2*n elements
+    in heap.
     
-    Change-Id: Id0e862ef6196c41533876afc4ec289e21d422d18
-    Reviewed-on: https://go-review.googlesource.com/27198
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #15380
+    
+    Change-Id: I0508486a847006b3cd545fd695e8b09af339134f
+    Reviewed-on: https://go-review.googlesource.com/22310
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/main.go   |   26 +-
- src/cmd/compile/internal/gc/noder.go  | 1116 +++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/parser.go |   17 +-
- 3 files changed, 1139 insertions(+), 20 deletions(-)
+ src/container/heap/heap_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

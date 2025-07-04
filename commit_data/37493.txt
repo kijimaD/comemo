@@ -1,21 +1,18 @@
-commit cfac65bf2fc103411aab9d6913c777f5e78e065a
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Tue Nov 27 16:07:14 2018 +0100
+commit 6d0f757bb9a9e9caa6ed0356ab43e7705c3e2015
+Author: Mario Arranz <marioarranzr@gmail.com>
+Date:   Mon Aug 6 18:50:41 2018 +0000
 
-    cmd/link/internal/ld: omit deprecated linker argument for iOS builds
+    cmd/asm/internal/arch: add package definition
     
-    After CL 151139 introduced a plugin test, the macOS linker for iOS
-    outputs:
+    The package arch didn't have a definition as you can see in https://tip.golang.org/pkg/cmd/asm/internal/arch/
     
-    ld: warning: -flat_namespace is deprecated on iOS
-    
-    Omit the -flat_namespace flag on iOS; plugins are not supported on
-    iOS, and unlikely to ever be.
-    
-    Change-Id: I2d08f8b984efcfd442d572b4a0f3a2c95c551b9f
-    Reviewed-on: https://go-review.googlesource.com/c/151300
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: I07653b396393a75c445d04dbae5e22e90a0d5133
+    GitHub-Last-Rev: a859e9410f38073853687b933f53eb6570af3216
+    GitHub-Pull-Request: golang/go#26817
+    Reviewed-on: https://go-review.googlesource.com/127929
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arch.go | 1 +
+ 1 file changed, 1 insertion(+)

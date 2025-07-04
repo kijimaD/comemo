@@ -1,45 +1,20 @@
-commit 22278e3835b15fee7057d4bfa5ec717c65e9cc82
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 13 16:46:47 2023 -0800
+commit 7e92b80c21ea22b9dcfb27cc68c61b805485f379
+Author: Chaoshuai Lü <lcs@meta.com>
+Date:   Wed Nov 30 12:29:46 2022 +0000
 
-    math/big: faster FloatPrec implementation
+    crypto/des: fix a typo in the comment for permuteFinalBlock
     
-    Based on observations by Cherry Mui (see comments in CL 539299).
-    Add new benchmark FloatPrecMixed.
+    The comment copy pasted from the permuteInitialBlock and should be fixed.
     
-    For #50489.
-    
-    name                         old time/op  new time/op  delta
-    FloatPrecExact/1-12           129ns ± 0%   105ns ±11%  -18.51%  (p=0.008 n=5+5)
-    FloatPrecExact/10-12          317ns ± 2%   283ns ± 1%  -10.65%  (p=0.008 n=5+5)
-    FloatPrecExact/100-12        1.80µs ±15%  1.35µs ± 0%  -25.09%  (p=0.008 n=5+5)
-    FloatPrecExact/1000-12       9.48µs ±14%  8.32µs ± 1%  -12.25%  (p=0.008 n=5+5)
-    FloatPrecExact/10000-12       195µs ± 1%   191µs ± 0%   -1.73%  (p=0.008 n=5+5)
-    FloatPrecExact/100000-12     7.31ms ± 1%  7.24ms ± 1%   -0.99%  (p=0.032 n=5+5)
-    FloatPrecExact/1000000-12     301ms ± 3%   302ms ± 2%     ~     (p=0.841 n=5+5)
-    FloatPrecMixed/1-12           141ns ± 0%   110ns ± 3%  -21.88%  (p=0.008 n=5+5)
-    FloatPrecMixed/10-12          767ns ± 0%   739ns ± 5%     ~     (p=0.151 n=5+5)
-    FloatPrecMixed/100-12        4.93µs ± 2%  3.73µs ± 1%  -24.33%  (p=0.008 n=5+5)
-    FloatPrecMixed/1000-12       90.9µs ±11%  70.3µs ± 2%  -22.66%  (p=0.008 n=5+5)
-    FloatPrecMixed/10000-12      2.30ms ± 0%  1.92ms ± 1%  -16.41%  (p=0.008 n=5+5)
-    FloatPrecMixed/100000-12     87.1ms ± 1%  68.5ms ± 1%  -21.42%  (p=0.008 n=5+5)
-    FloatPrecMixed/1000000-12     4.09s ± 1%   3.58s ± 1%  -12.35%  (p=0.008 n=5+5)
-    FloatPrecInexact/1-12        92.4ns ± 0%  66.1ns ± 5%  -28.41%  (p=0.008 n=5+5)
-    FloatPrecInexact/10-12        118ns ± 0%    91ns ± 1%  -23.14%  (p=0.016 n=5+4)
-    FloatPrecInexact/100-12       310ns ±10%   244ns ± 1%  -21.32%  (p=0.008 n=5+5)
-    FloatPrecInexact/1000-12      952ns ± 1%   828ns ± 1%  -12.96%  (p=0.016 n=4+5)
-    FloatPrecInexact/10000-12    6.71µs ± 1%  6.25µs ± 3%   -6.83%  (p=0.008 n=5+5)
-    FloatPrecInexact/100000-12   66.1µs ± 1%  61.2µs ± 1%   -7.45%  (p=0.008 n=5+5)
-    FloatPrecInexact/1000000-12   635µs ± 2%   584µs ± 1%   -7.97%  (p=0.008 n=5+5)
-    
-    Change-Id: I3aa67b49a042814a3286ee8306fbed36709cbb6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542756
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I101f1deceadf9b0480e5b679e4e237bda601950b
+    GitHub-Last-Rev: 7662df772e4ac171c79467678861ac4d7547da78
+    GitHub-Pull-Request: golang/go#56982
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453995
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/ratconv.go      | 61 ++++++++++++++++----------------------------
- src/math/big/ratconv_test.go | 22 ++++++++++++++++
- 2 files changed, 44 insertions(+), 39 deletions(-)
+ src/crypto/des/block.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

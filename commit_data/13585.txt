@@ -1,13 +1,24 @@
-commit 41645847b4f5187c088149f1177e8a3fc7d1f373
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Aug 7 09:49:56 2012 +0800
+commit 2276ab92c116b8ae376fd28850bb0cf845f6de49
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Aug 7 09:35:09 2012 +1000
 
-    runtime: remove unnecessary ROUND in alg.c
-            Introduced in CL 6452046.
+    exp/html: fix foster-parenting when elements are implicitly closed
     
-    R=golang-dev, nigeltao, dave
+    When an element (like <nobr> or <p>) was implicitly closed by another
+    start tag, it would keep foster parenting from working because
+    the check for what was on top of the stack of open elements was
+    in the wrong place.
+    
+    Move the check to addChild.
+    
+    Pass 2 additional tests.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6459051
+    https://golang.org/cl/6460045
 
- src/pkg/runtime/alg.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/html/parse.go                  | 16 ++++++++++------
+ src/pkg/exp/html/parse_test.go             |  2 ++
+ src/pkg/exp/html/testlogs/tests26.dat.log  |  2 +-
+ src/pkg/exp/html/testlogs/tricky01.dat.log |  2 +-
+ 4 files changed, 14 insertions(+), 8 deletions(-)

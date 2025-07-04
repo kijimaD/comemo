@@ -1,41 +1,27 @@
-commit b521ebb55a9b26c8824b219376c7f91f7cda6ec2
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Thu Sep 12 11:37:45 2024 +0800
+commit 5dda49037209290519f4881a0080caaef025bbd7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 22 11:01:29 2023 -0400
 
-    math: implement arch{Floor, Ceil, Trunc} in hardware on loong64
+    net/http: use testenv.Command instead of exec.Command in tests
     
-    benchmark:
+    On Unix platforms, testenv.Command sends SIGQUIT to stuck commands
+    before the test times out. For subprocesses that are written in Go,
+    that causes the runtime to dump running goroutines, and in other
+    languages it triggers similar behavior (such as a core dump).
+    If the subprocess is stuck due to a bug (such as #57999), that may
+    help to diagnose it.
     
-    goos: linux
-    goarch: loong64
-    pkg: math
-    cpu: Loongson-3A6000 @ 2500.00MHz
-            │  bench.old   │              bench.new              │
-            │    sec/op    │   sec/op     vs base                │
-    Ceil      10.810n ± 0%   2.578n ± 0%  -76.15% (p=0.000 n=20)
-    Floor     10.810n ± 0%   2.531n ± 0%  -76.59% (p=0.000 n=20)
-    Trunc      9.606n ± 0%   2.530n ± 0%  -73.67% (p=0.000 n=20)
-    geomean    10.39n        2.546n       -75.50%
+    For #57999.
     
-    goos: linux
-    goarch: loong64
-    pkg: math
-    cpu: Loongson-3A5000 @ 2500.00MHz
-            │  bench.old   │              bench.new              │
-            │    sec/op    │   sec/op     vs base                │
-    Ceil      13.220n ± 0%   7.703n ± 8%  -41.73% (p=0.000 n=20)
-    Floor     12.410n ± 0%   7.248n ± 2%  -41.59% (p=0.000 n=20)
-    Trunc     11.210n ± 0%   7.757n ± 4%  -30.80% (p=0.000 n=20)
-    geomean    12.25n        7.566n       -38.25%
-    
-    Change-Id: I3af51e9852e9cf5f965fed895d68945a2e8675f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612615
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ia2e9d14718a26001e030e162c69892497a8ebb21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521816
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/math/floor_asm.go    |  2 +-
- src/math/floor_loong64.s | 41 +++++++++++++++++++++++++++++++++++++++++
- src/math/floor_noasm.go  |  2 +-
- 3 files changed, 43 insertions(+), 2 deletions(-)
+ src/net/http/cgi/host_test.go | 5 +++--
+ src/net/http/fs_test.go       | 5 +++--
+ src/net/http/http_test.go     | 7 +++----
+ src/net/http/serve_test.go    | 3 +--
+ 4 files changed, 10 insertions(+), 10 deletions(-)

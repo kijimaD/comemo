@@ -1,21 +1,47 @@
-commit e8666abd9884f6743f78229ed210bf12a35e7368
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 22 11:36:29 2021 -0400
+commit dd58239dd20f7002b3e219a477514b91dd0cc5fc
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 7 12:31:05 2020 -0400
 
-    cmd/compile: keep call's args in elim dead auto pass
+    cmd/asm: allow def/ref of func ABI when compiling runtime
     
-    If the address of an auto is used in a Call, we need to keep it,
-    as we keep the Call itself.
+    Function symbols defined and referenced by assembly source currently
+    always default to ABI0; this patch adds preliminary support for
+    accepting an explicit ABI selector clause for func defs/refs. This
+    functionality is currently only enabled when compiling runtime-related
+    packages (runtime, syscall, reflect). Examples:
     
-    Fixes #45693.
+      TEXT ·DefinedAbi0Symbol<ABI0>(SB),NOSPLIT,$0
+            RET
     
-    Change-Id: Ie548d6dffc95bf916868a8885d4ab4cf9e86355a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312670
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+      TEXT ·DefinedAbi1Symbol<ABIInternal>(SB),NOSPLIT,$0
+            CALL    ·AbiZerolSym<ABI0>(SB)
+            ...
+            JMP     ·AbiInternalSym<ABIInternal>(SB)
+            RET
+    
+    Also included is a small change to the code in the compiler that reads
+    the symabis file emitted by the assembler.
+    
+    New behavior is currently gated under GOEXPERIMENT=regabi.
+    
+    Updates #27539, #40724.
+    
+    Change-Id: Ia22221fe26df0fa002191cfb13bdfaaa38d7df38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260477
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/deadstore.go |  3 ++-
- test/fixedbugs/issue45693.go              | 16 ++++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/endtoend_test.go |   4 +-
+ src/cmd/asm/internal/asm/expr_test.go     |   4 +-
+ src/cmd/asm/internal/asm/line_test.go     |   2 +-
+ src/cmd/asm/internal/asm/operand_test.go  |  24 ++++-
+ src/cmd/asm/internal/asm/parse.go         | 148 ++++++++++++++++++++----------
+ src/cmd/asm/internal/asm/pseudo_test.go   |   1 +
+ src/cmd/asm/main.go                       |   3 +-
+ src/cmd/compile/internal/gc/main.go       |  11 ++-
+ src/cmd/internal/obj/link.go              |  14 +++
+ src/cmd/internal/obj/util.go              |  39 +++++++-
+ src/cmd/internal/objabi/path.go           |  22 +++++
+ 11 files changed, 207 insertions(+), 65 deletions(-)

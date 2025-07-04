@@ -1,17 +1,33 @@
-commit 2d77d3330537e11a0d9a233ba5f4facf262e9d8c
+commit dcad830621abe2856e4540e4b9afbb7873f939ee
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 26 21:28:37 2020 -0400
+Date:   Thu Oct 24 15:11:18 2019 -0400
 
-    net/http: treat a nil Body from a custom RoundTripper as an empty one
+    cmd/go: implement svn support in module mode
     
-    Fixes #38095
+    mod_get_svn passes, and I also tested this manually on a real-world svn-hosted package:
     
-    Change-Id: I4f65ce01e7aed22240eee979c41535d0b8b9a8dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225717
+            example.com$ go mod init example.com
+            go: creating new go.mod: module example.com
+    
+            example.com$ GOPROXY=direct GONOSUMDB=llvm.org go get -d llvm.org/llvm/bindings/go/llvm
+            go: finding llvm.org/llvm latest
+            go: finding llvm.org/llvm/bindings/go/llvm latest
+            go: downloading llvm.org/llvm v0.0.0-20191022153947-000000375505
+            go: extracting llvm.org/llvm v0.0.0-20191022153947-000000375505
+    
+            example.com$ go list llvm.org/llvm/bindings/...
+            llvm.org/llvm/bindings/go
+            llvm.org/llvm/bindings/go/llvm
+    
+    Fixes #26092
+    
+    Change-Id: Iefe2151b82a0225c73bb6f8dd7cd8a352897d4c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203497
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/http/client.go      | 15 ++++++++++++++-
- src/net/http/client_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 1 deletion(-)
+ doc/go1.14.html                              |   4 +
+ src/cmd/go/internal/modfetch/codehost/svn.go | 154 +++++++++++++++++++++++++++
+ src/cmd/go/internal/modfetch/codehost/vcs.go |  92 ++++++++--------
+ src/cmd/go/testdata/script/mod_get_svn.txt   |  18 ++--
+ 4 files changed, 215 insertions(+), 53 deletions(-)

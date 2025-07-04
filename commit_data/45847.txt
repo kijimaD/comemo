@@ -1,28 +1,24 @@
-commit 44f9a3566ce564f9a21b1b92940a520ea241e065
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Mon Jun 21 11:11:20 2021 -0500
+commit 668e3a598f56d2c9618d800a163f3e784ba3ae0b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 16 08:44:40 2020 -0800
 
-    database/sql: fix deadlock test in prepare statement
+    [dev.regabi] cmd/compile: cleanup type switch typechecking
     
-    The issue go#46783 correctly diagnosed the context timeout
-    caused an intermittent failure when the context was canceled
-    prior to the BeginTx call. However due to the asynchronous nature
-    of canceling a Tx through a context on fast systems, the tx.Prepare
-    also succeeded. On slower systems or if a time.Sleep was inserted
-    between the BeginTx and Prepare, the Prepare would fail.
+    Address outstanding TODO, which simplifies subsequent CLs.
     
-    Resolve this by moving the context cancel after the Prepare.
-    This will still trigger the deadlock which I tested locally.
-    In addition, I interspersed multiple time.Sleep calls and the
-    test still functioned.
+    Now the compiler always type checks type-switch case clauses (like
+    gccgo), but it treats clause variables as broken if an appropriate
+    type cannot be determined for it (like go/types).
     
-    Fixes #46852
+    Passes toolstash-check.
     
-    Change-Id: I9cbf90d3c12b2555493a37799738772b615ae39d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329830
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iedfe9cdf38c6865211e4b93391f1cf72c1bed136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272648
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/database/sql/sql_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/swt.go | 16 ++++++++--------
+ test/fixedbugs/bug340.go           |  3 ++-
+ 2 files changed, 10 insertions(+), 9 deletions(-)

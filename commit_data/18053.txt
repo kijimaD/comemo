@@ -1,17 +1,12 @@
-commit f48120ef51bd007f0d84b42e25e1e23e75b9f244
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 18 13:29:40 2013 -0500
+commit a025e1caac516c967486f4644fbe4c647100b632
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Wed Dec 18 10:20:25 2013 -0800
 
-    cmd/nm: minor cleanup from previous CL
+    html: add tests for UnescapeString edge cases
     
-    I forgot to apply Ian's suggestions before submitting CL 40600043.
-    
-    R=iant
+    R=golang-dev, gobot, bradfitz
     CC=golang-dev
-    https://golang.org/cl/43560045
+    https://golang.org/cl/40810044
 
- src/cmd/nm/doc.go   |  2 ++
- src/cmd/nm/elf.go   |  3 +++
- src/cmd/nm/goobj.go |  2 +-
- src/cmd/nm/nm.go    | 16 ++++++----------
- 4 files changed, 12 insertions(+), 11 deletions(-)
+ src/pkg/html/escape_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

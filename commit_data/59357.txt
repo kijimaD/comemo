@@ -1,28 +1,34 @@
-commit 702f164ed1a4a64cfa60e10723b9b7344bd3f601
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Apr 23 14:23:45 2025 -0400
+commit 1cce1a6a1110a53c1aa8fa0f40b69307ff641ca4
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Feb 21 02:30:42 2024 +0800
 
-    cmd/vet: add hostport analyzer
+    net: support TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT on newer Windows
     
-    + test, release note
+    Follows up CL 542275
     
-    Fixes #28308
+    Fixes #65817
     
-    Change-Id: I190e2fe513eeb6b90b0398841f67bf52510b5f59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667596
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I0b77c23f15d595d58492dfa20839a08e8670448b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565495
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- doc/next/3-tools.md                                |  13 +-
- src/cmd/go/internal/test/flagdefs.go               |   1 +
- src/cmd/go/internal/test/flagdefs_test.go          |   3 +
- .../tools/go/analysis/passes/hostport/hostport.go  | 185 +++++++++++++++++
- .../analysisinternal/typeindex/typeindex.go        |  33 +++
- .../internal/typesinternal/typeindex/typeindex.go  | 223 +++++++++++++++++++++
- src/cmd/vendor/modules.txt                         |   3 +
- src/cmd/vet/main.go                                |   2 +
- src/cmd/vet/testdata/hostport/hostport.go          |  17 ++
- src/cmd/vet/vet_test.go                            |   1 +
- 10 files changed, 478 insertions(+), 3 deletions(-)
+ doc/next/6-stdlib/99-minor/syscall/65817.md        |   1 +
+ src/internal/syscall/windows/types_windows.go      |  12 +++
+ src/internal/syscall/windows/version_windows.go    |  24 +++++
+ src/net/tcpconn_keepalive_conf_darwin_test.go      |  22 ++++
+ src/net/tcpconn_keepalive_conf_posix_test.go       | 102 +++++++++++++++++++
+ src/net/tcpconn_keepalive_conf_unix_test.go        | 113 ++++-----------------
+ src/net/tcpconn_keepalive_conf_windows_test.go     |  31 ++++++
+ ...win_test.go => tcpconn_keepalive_posix_test.go} |  18 ++--
+ src/net/tcpconn_keepalive_solaris_test.go          |   4 +-
+ src/net/tcpconn_keepalive_test.go                  |  43 +++-----
+ src/net/tcpconn_keepalive_unix_test.go             |  92 -----------------
+ src/net/tcpconn_keepalive_windows_test.go          |  33 ------
+ src/net/tcpsock.go                                 |  18 ++--
+ src/net/tcpsock_windows.go                         |  14 ++-
+ src/net/tcpsockopt_windows.go                      |  52 ++++++++--
+ src/syscall/syscall_windows.go                     |   7 +-
+ 16 files changed, 311 insertions(+), 275 deletions(-)

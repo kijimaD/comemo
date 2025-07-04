@@ -1,16 +1,15 @@
-commit 73b803ee532173f64a5d3fb2cd0fbe789d49571e
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sun Feb 24 16:46:23 2019 +0100
+commit 93ad702251e3b72bb90df5d7c29204e0edef4351
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 25 13:01:27 2018 -0700
 
-    misc: wait for device readyness in the exec wrapper
+    cmd/go: use internal/goroot to check for a standard library package
     
-    Updates #23824
-    
-    Change-Id: I5472a05eb2cf571ccc84c76c6f592bf4dd2e3cb4
-    Reviewed-on: https://go-review.googlesource.com/c/163621
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I739728f976162a0b8425a93666e3694d967dceb7
+    Reviewed-on: https://go-review.googlesource.com/137436
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/android/go_android_exec.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/internal/modload/build.go  | 11 +++++------
+ src/cmd/go/internal/modload/import.go |  5 +++--
+ 2 files changed, 8 insertions(+), 8 deletions(-)

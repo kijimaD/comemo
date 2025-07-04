@@ -1,15 +1,14 @@
-commit ce27b00f48bf3b90445bb4bcd28f6115c129d75b
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Dec 1 12:47:57 2011 +1100
+commit 595efd0d205b2a1fe143440088f8f394b09c3b8c
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Dec 1 10:17:33 2011 +1100
 
-    html: implement fragment parsing algorithm
+    syscall: fix openbsd sysctl hostname/domainname workaround
     
-    Pass the tests in tests4.dat.
+    Fixes #2509.
     
-    R=nigeltao
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5447055
+    https://golang.org/cl/5451055
 
- src/pkg/html/parse.go      | 95 ++++++++++++++++++++++++++++++++++++++--------
- src/pkg/html/parse_test.go | 62 ++++++++++++++++++++++--------
- 2 files changed, 127 insertions(+), 30 deletions(-)
+ src/pkg/syscall/syscall_bsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

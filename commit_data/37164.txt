@@ -1,42 +1,37 @@
-commit 85143d355493c6bba994d49ed154b4df8b78874b
-Author: Oliver Stenbom <ostenbom@pivotal.io>
-Date:   Tue Oct 30 00:40:24 2018 +0000
+commit 96186a58e3ceb6bc3703f9dae0c37e2118a01b0d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Jul 5 17:46:51 2018 +0100
 
-    os: add support for long path names on unix RemoveAll
+    net/http: deflake TestServerShutdownStateNew
     
-    On unix systems, long enough path names will fail when performing syscalls
-    like `Lstat`. The current RemoveAll uses several of these syscalls, and so
-    will fail for long paths. This can be risky, as it can let users "hide"
-    files from the system or otherwise make long enough paths for programs
-    to fail. By using `Unlinkat` and `Openat` syscalls instead, RemoveAll is
-    safer on unix systems. Initially implemented for linux, darwin, and several bsds.
+    This function tests that calling Shutdown on a Server that has a "new"
+    connection yet to write any bytes, in which case it should wait for five
+    seconds until considering the connection as "idle".
     
-    Fixes #27029
+    However, the test was flaky. If Shutdown happened to run before the
+    server accepted the connection, the connection would immediately be
+    rejected as the server is already closed, as opposed to being accepted
+    in the "new" state. Then, Shutdown would return almost immediately, as
+    it had no connections to wait for:
     
-    Co-authored-by: Giuseppe Capizzi <gcapizzi@pivotal.io>
-    Co-authored-by: Julia Nedialkova <yulia.nedyalkova@sap.com>
+            --- FAIL: TestServerShutdownStateNew (2.00s)
+                serve_test.go:5603: shutdown too soon after 49.41µs
+                serve_test.go:5617: timeout waiting for Read to unblock
     
-    Change-Id: Id9fcdf4775962b021b7ff438dc51ee6d16bb5f56
-    GitHub-Last-Rev: b30a621fe359fa2acbb055445b54202b0c508167
-    GitHub-Pull-Request: golang/go#27871
-    Reviewed-on: https://go-review.googlesource.com/c/137442
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fix this by making sure that the connection has been accepted before
+    calling Shutdown. Verified that the flake is gone after 50k concurrent
+    runs of the test with no failures, whereas the test used to fail around
+    10% of the time on my laptop:
+    
+            go test -c && stress -p 256 ./http.test -test.run TestServerShutdownStateNew
+    
+    Fixes #26233.
+    
+    Change-Id: I819d7eedb67c48839313427675facb39d9c17257
+    Reviewed-on: https://go-review.googlesource.com/122355
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/syscall/unix/at.go                    |  58 +++++
- src/internal/syscall/unix/at_sysnum_darwin.go      |  12 ++
- src/internal/syscall/unix/at_sysnum_dragonfly.go   |  14 ++
- src/internal/syscall/unix/at_sysnum_freebsd.go     |  14 ++
- .../syscall/unix/at_sysnum_fstatat64_linux.go      |  11 +
- .../syscall/unix/at_sysnum_fstatat_linux.go        |  11 +
- src/internal/syscall/unix/at_sysnum_linux.go       |  13 ++
- src/internal/syscall/unix/at_sysnum_netbsd.go      |  14 ++
- .../syscall/unix/at_sysnum_newfstatat_linux.go     |  11 +
- src/internal/syscall/unix/at_sysnum_openbsd.go     |  14 ++
- src/os/path.go                                     |  99 ---------
- src/os/path_test.go                                | 125 -----------
- src/os/path_unix.go                                |  28 ++-
- src/os/removeall_at.go                             | 139 ++++++++++++
- src/os/removeall_noat.go                           | 110 ++++++++++
- src/os/removeall_test.go                           | 237 +++++++++++++++++++++
- 16 files changed, 685 insertions(+), 225 deletions(-)
+ src/net/http/serve_test.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

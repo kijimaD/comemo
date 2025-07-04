@@ -1,35 +1,12 @@
-commit a775fbf8a446273ae35de95fb9a1cc7ccdcecdc6
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Sep 14 15:32:19 2011 -0400
+commit 514c9243f21fb8ec1df73ac63717d10e3136afa2
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Wed Sep 14 11:52:03 2011 -0700
 
-    crypto/tls: support SSLv3
+    exp/template/html: check that modified nodes are not shared by templates
     
-    It would be nice not to have to support this since all the clients
-    that we care about support TLSv1 by now. However, due to buggy
-    implementations of SSLv3 on the Internet which can't do version
-    negotiation correctly, browsers will sometimes switch to SSLv3. Since
-    there's no good way for a browser tell a network problem from a buggy
-    server, this downgrade can occur even if the server in question is
-    actually working correctly.
-    
-    So we need to support SSLv3 for robustness :(
-    
-    Fixes #1703.
-    
-    R=bradfitz
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5018045
+    https://golang.org/cl/5012044
 
- src/pkg/crypto/tls/cipher_suites.go           |  84 +++++++++-
- src/pkg/crypto/tls/common.go                  |   7 +-
- src/pkg/crypto/tls/conn.go                    |  50 ++++--
- src/pkg/crypto/tls/handshake_client.go        |  12 +-
- src/pkg/crypto/tls/handshake_client_test.go   |   1 +
- src/pkg/crypto/tls/handshake_messages.go      |   6 +-
- src/pkg/crypto/tls/handshake_messages_test.go |  13 +-
- src/pkg/crypto/tls/handshake_server.go        |  15 +-
- src/pkg/crypto/tls/handshake_server_test.go   | 215 ++++++++++++++++++++------
- src/pkg/crypto/tls/key_agreement.go           |  16 +-
- src/pkg/crypto/tls/prf.go                     | 107 +++++++++++--
- src/pkg/crypto/tls/prf_test.go                |  21 ++-
- 12 files changed, 430 insertions(+), 117 deletions(-)
+ src/pkg/exp/template/html/escape.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

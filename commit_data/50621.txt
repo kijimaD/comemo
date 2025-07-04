@@ -1,19 +1,22 @@
-commit b0f8e20d041cdb739db558c00edf14eb7e01c3da
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 27 09:10:21 2022 -0700
+commit be0cd9e5ec01141def07412b0ef3fa0d3f8cba9d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Nov 2 11:59:56 2021 -0700
 
-    reflect: clarify that Value.Comparable checks the value
+    syscall: unify unix Sendmsg prologues
     
-    For #46746
+    These were identical. This is a preliminary step
+    towards remove allocs per UDP send.
     
-    Change-Id: Ic7a31ddf7cd6bf6dd0db6b9eb3fee68fc180f72e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435277
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I21e1264c7d4747baa626ddb93afff4c1cf225d13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361256
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/value.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/syscall_aix.go     | 15 +--------------
+ src/syscall/syscall_bsd.go     | 15 +--------------
+ src/syscall/syscall_linux.go   | 16 +---------------
+ src/syscall/syscall_solaris.go | 15 +--------------
+ src/syscall/syscall_unix.go    | 17 +++++++++++++++++
+ 5 files changed, 21 insertions(+), 57 deletions(-)

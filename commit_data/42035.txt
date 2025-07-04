@@ -1,29 +1,28 @@
-commit 4974ac6874a1fdeb50a025e84f03bb354a400ea7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 20 15:40:38 2020 -0700
+commit a8f57f4adad2122b42ea05024b61e93442788289
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Wed Oct 2 19:15:53 2019 +0900
 
-    cmd/compile: use cheaper implementation of oneBit
+    sync: yield to the waiter when unlocking a starving mutex
     
-    This is the second attempt. The first attempt was CL 229127,
-    which got rolled back by CL 229177, because it caused
-    an infinite loop during compilation on some platforms.
-    I didn't notice that the trybots hadn't completed when I submitted; mea culpa.
+    When we have already assigned the semaphore ticket to a specific
+    waiter, we want to get the waiter running as fast as possible since
+    no other G waiting on the semaphore can acquire it optimistically.
     
-    The bug was that we were checking x&(x-1)==0, which is also true of 0,
-    which does not have exactly one bit set.
-    This caused an infinite rewrite rule loop.
+    The net effect is that, when a sync.Mutex is contented, the code in
+    the critical section guarded by the Mutex gets a priority boost.
     
-    Updates #38547
+    Fixes #33747
     
-    file    before    after     Δ       %
-    compile 19678112  19669808  -8304   -0.042%
-    total   113143160 113134856 -8304   -0.007%
-    
-    Change-Id: I417a4f806e1ba61277e31bab2e57dd3f1ac7e835
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229197
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9967f0f763c25504010651bdd7f944ee0189cd45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200577
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/cmd/compile/internal/ssa/rewrite.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/export_test.go |  8 +++++
+ src/runtime/proc.go        | 15 +++++++++
+ src/runtime/sema.go        | 21 +++++++++++-
+ src/runtime/sema_test.go   | 80 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/sync/mutex.go          |  3 +-
+ 5 files changed, 125 insertions(+), 2 deletions(-)

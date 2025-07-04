@@ -1,20 +1,15 @@
-commit 7badae85f20f1bce4cc344f9202447618d45d414
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 9 19:54:42 2017 -0500
+commit 21312a4b5ef42670dfb1d5d38d8a9e4e97cf13a8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 18 13:26:52 2017 -0700
 
-    cmd/go: guarantee all test output is on stdout
+    [release-branch.go1.9] cmd/dist: update deps.go for current dependencies
     
-    In past releases, whether test output appears on stdout or stderr
-    has varied depending on exactly how go test was invoked and
-    also (indefensibly) on the number of CPUs available.
-    Standardize on standard output for all test output.
-    This is easy to explain and makes go test | go tool test2json work nicely.
+    Fixes #21456
     
-    Change-Id: I605641213fbc6c7ff49e1fd38a0f732045a8383d
-    Reviewed-on: https://go-review.googlesource.com/76871
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7841d816e8c1c581e61db4f24124f99f5184fead
+    Reviewed-on: https://go-review.googlesource.com/57170
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/test/test.go | 56 ++++++++++++++--------------------------
- 1 file changed, 19 insertions(+), 37 deletions(-)
+ src/cmd/dist/deps.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

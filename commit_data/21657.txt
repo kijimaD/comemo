@@ -1,12 +1,19 @@
-commit 95ab84a34f67742b59227e6c7b45d287071d87b0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 16 18:18:13 2015 +0900
+commit 52d277906da573cd58e174b5ed783634c01e29fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 19 16:26:14 2015 -0500
 
-    runtime: fix accidentally exported OpenBSD constants
+    liblink: arrange for Prog* argument in vaddr
     
-    Change-Id: I2de63668a1c0152cc329df55c2d6d014e8183158
-    Reviewed-on: https://go-review.googlesource.com/4943
-    Reviewed-by: Minux Ma <minux@golang.org>
+    The argument is unused in the C code but will be used in the Go translation,
+    because the Prog holds information needed to invoke the right meaning
+    of %A in the ctxt->diag calls in vaddr.
+    
+    Change-Id: I501830f8ea0e909aafd8ec9ef5d7338e109d9548
+    Reviewed-on: https://go-review.googlesource.com/3041
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/3310
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/os1_openbsd.go | 30 +++++++++++++++---------------
- 1 file changed, 15 insertions(+), 15 deletions(-)
+ src/liblink/asm6.c | 132 +++++++++++++++++++++++++++--------------------------
+ src/liblink/asm8.c | 106 +++++++++++++++++++++---------------------
+ 2 files changed, 123 insertions(+), 115 deletions(-)

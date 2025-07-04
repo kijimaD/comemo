@@ -1,15 +1,16 @@
-commit 6d37c830b6bcf466cd03463c20843a89a22d0a23
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Jan 27 22:55:03 2015 +0300
+commit 59cb2d9ca67ec4be6eb118a7faa8139eedadba80
+Author: Guobiao Mei <meiguobiao@gmail.com>
+Date:   Tue Dec 23 10:47:12 2014 -0500
 
-    runtime: simplify code
+    math/rand: fix example_test to show with the correct method
     
-    The %61 hack was added when runtime was is in C.
-    Now the Go compiler does the optimization.
+    Originally it used r.Int63() to show "Uint32", and now we use the correct r.Uint32() method.
     
-    Change-Id: I79c3302ec4b931eaaaaffe75e7101c92bf287fc7
-    Reviewed-on: https://go-review.googlesource.com/3289
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #9429
+    
+    Change-Id: I8a1228f1ca1af93b0e3104676fc99000257c456f
+    Reviewed-on: https://go-review.googlesource.com/2069
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc1.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/math/rand/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

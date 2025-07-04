@@ -1,20 +1,21 @@
-commit ce5c3871a461b0a2c8737b0d31215012d7a04d24
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 30 19:25:46 2018 -0700
+commit 4458a357ab819a612c0c4cafae88a65287254fe9
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jan 10 13:59:51 2018 -0800
 
-    runtime: move more syscalls to libc on Darwin
+    crypto/x509: parse multiple URLs in a single CRLDP.
     
-    Moving mmap, munmap, madvise, usleep.
+    Previously we would only extract a single URL from a given CRLDP, but
+    https://tools.ietf.org/html/rfc5280#section-4.2.1.13 permits multiple
+    URLs for a single distribution point.
     
-    Also introduce __error function to get at libc's errno variable.
+    Fixes #23403
     
-    Change-Id: Ic47ac1d9eb71c64ba2668ce304644dd7e5bdfb5a
-    Reviewed-on: https://go-review.googlesource.com/110437
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I2eaed1537df02d0627db1b86bcd9c94506236bea
+    Reviewed-on: https://go-review.googlesource.com/87299
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/sys_darwin.go      |  6 +++
- src/runtime/sys_darwin_386.s   | 96 ++++++++++++++++++++++++++++--------------
- src/runtime/sys_darwin_amd64.s | 73 +++++++++++++++++---------------
- 3 files changed, 110 insertions(+), 65 deletions(-)
+ src/crypto/x509/x509.go      | 24 ++++++++-----------
+ src/crypto/x509/x509_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+), 15 deletions(-)

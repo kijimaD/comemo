@@ -1,22 +1,27 @@
-commit 67983c0f7810a1fd620c954923c90b5c61cbe325
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jul 17 10:21:07 2023 -0700
+commit 5befb24bb5cbd8ae6210b4d6a88a4437eec6fb0b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 1 20:47:41 2022 -0700
 
-    cmd/compile: add indexed SET* opcodes for amd64
+    go/types: use function name position for init errors
     
-    Update #61356
+    This seems more sensible than the func keyword. With this change,
+    go/types uses the same error position as types2 and we can narrow
+    the error tolerance a bit.
     
-    Change-Id: I391af98563b1c068208784c80ea736c78c29639d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/510435
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    (The types2 change doesn't change its position, but it makes the
+    code clearer and symmetric to go/types.)
+    
+    Change-Id: Iedea7c80caa7239a4343c8748cb779ec545e84d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427775
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go           |   9 ++
- src/cmd/compile/internal/ssa/_gen/AMD64Ops.go   |  31 +++--
- src/cmd/compile/internal/ssa/addressingmodes.go |  11 ++
- src/cmd/compile/internal/ssa/opGen.go           | 160 ++++++++++++++++++++++++
- test/codegen/memops.go                          |   7 ++
- 5 files changed, 208 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go | 2 +-
+ src/cmd/compile/internal/types2/resolver.go   | 2 +-
+ src/go/types/resolver.go                      | 2 +-
+ src/internal/types/testdata/check/decls1.go   | 6 +++---
+ src/internal/types/testdata/check/main0.go    | 4 ++--
+ 5 files changed, 8 insertions(+), 8 deletions(-)

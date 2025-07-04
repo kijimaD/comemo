@@ -1,15 +1,16 @@
-commit c0efcac6a97588f7013b7ec09dd56cb780bdce64
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Fri Jul 20 16:04:22 2012 -0300
+commit fc360f238137717e7246cc0fde908b71a3f1e5c7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 19 11:58:14 2012 -0700
 
-    bytes: make Join return a new buffer on len(a) == 1
+    unicode/utf8: reject out-of-range runes.
+    Surrogates are still admitted, but I have sent mail to golang-dev on that topic.
     
-    Fixes #3844.
+    Fixes #3785.
     
-    R=golang-dev, r
+    R=golang-dev, rogpeppe, iant
     CC=golang-dev
-    https://golang.org/cl/6432054
+    https://golang.org/cl/6398049
 
- src/pkg/bytes/bytes.go      | 11 +++++------
- src/pkg/bytes/bytes_test.go |  6 ++++++
- 2 files changed, 11 insertions(+), 6 deletions(-)
+ src/pkg/unicode/utf8/utf8.go      | 16 ++++++++++++++--
+ src/pkg/unicode/utf8/utf8_test.go |  5 +++++
+ 2 files changed, 19 insertions(+), 2 deletions(-)

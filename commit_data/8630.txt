@@ -1,15 +1,15 @@
-commit 7dd47326e51d85804415bd80d640be19f3166df5
-Author: Jeffrey M Hodges <jeff@somethingsimilar.com>
-Date:   Mon Jun 6 06:56:09 2011 +0000
+commit ce877acf310a14c4c41f1e0df91bd57147461f06
+Author: David Jakob Fritz <david.jakob.fritz@gmail.com>
+Date:   Mon Jun 6 06:55:32 2011 +0000
 
-    libmach: use the standardized format for designated initializers.
-    The brace style in these files are a little inconsistent so I rolled with
-    it on a per-file basis.
+    netchan: added drain method to importer.
     
-    R=dave, r
+    Fixes #1868.
+    
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/4515194
+    https://golang.org/cl/4550093
 
- src/libmach/8db.c | 1682 ++++++++++++++++++++++++++---------------------------
- src/libmach/obj.c |   22 +-
- 2 files changed, 852 insertions(+), 852 deletions(-)
+ src/pkg/netchan/import.go       | 45 +++++++++++++++++++++++++++++++++++++++--
+ src/pkg/netchan/netchan_test.go | 10 +++++++++
+ 2 files changed, 53 insertions(+), 2 deletions(-)

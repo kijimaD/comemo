@@ -1,28 +1,18 @@
-commit eb55b985a1b75bd796883a7a22dd41e76f0a45ba
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Apr 24 17:07:04 2025 -0400
+commit b57a544f99e5c4166468737942b7af5acb5936b3
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Mar 7 12:35:33 2024 +0000
 
-    cmd/dist: add "devel" substring check to isRelease computation
+    archive/tar: use built-in clear to simplify code
     
-    Non-release versions that are built from source without a VERSION file
-    specifying any particular version end up with a development version like
-    "devel go1.25-67e0681aef Thu Apr 24 12:17:27 2025 -0700". Right now
-    those versions are correctly determined to be non-release because they
-    don't have a "go" prefix, instead they have a "devel " prefix.
-    
-    In preparation of being able to move the "devel" substring, add a check
-    that said substring isn't present anywhere, since it is certain not to
-    be included in any released Go version we publish at https://go.dev/dl/.
-    
-    For #73372.
-    
-    Change-Id: Ia3e0d03b5723d4034d6270c3a2224f8dfae380e9
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667955
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I0e55dd68d92c39aba511b55368bf50d929d75f86
+    GitHub-Last-Rev: 17430140783db8bf3354304c8f28d6826186c6cb
+    GitHub-Pull-Request: golang/go#66158
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569696
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/dist/build.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/archive/tar/reader.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

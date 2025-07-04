@@ -1,15 +1,15 @@
-commit bd105b2bcafc3b8d4e5a17608da33f31d6486946
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jun 24 23:51:00 2013 +0400
+commit ce5d91baa5df81f88161f3eb42b5dab7d829461c
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jun 24 10:59:41 2013 -0400
 
-    runtime/pprof: disable testing under race detector
-    until we decide what to do with issues 5659/5736.
-    Profiling with race detector is not very useful in general,
-    and now it makes race builders red.
+    compress/bzip2: don't panic on invalid input.
     
-    R=golang-dev, rsc
+    Fixes 5747.
+    
+    R=golang-dev, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10523043
+    https://golang.org/cl/10401050
 
- src/pkg/runtime/pprof/pprof_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/compress/bzip2/bzip2.go      |   6 ++
+ src/pkg/compress/bzip2/bzip2_test.go | 164 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 170 insertions(+)

@@ -1,28 +1,46 @@
-commit 9e2a04d5ebe450defe3435d827ef07ca3c0eae3f
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Thu Jul 26 12:51:06 2018 +0300
+commit e0d37a33ab6260f5acc68dbb9a02c3135d19bcbb
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 16:52:49 2018 +0200
 
-    cmd/compile: add sources for inlined functions to ssa.html
+    cmd/compile: teach prove to handle expressions like len(s)-delta
     
-    This CL adds the source code of all inlined functions
-    into the function specified in $GOSSAFUNC.
-    The code is appended to the sources column of ssa.html.
+    When a loop has bound len(s)-delta, findIndVar detected it and
+    returned len(s) as (conservative) upper bound. This little lie
+    allowed loopbce to drop bound checks.
     
-    ssaDumpInlined is populated with references to inlined functions.
-    Then it is used for dumping the sources in buildssa.
+    It is obviously more generic to teach prove about relations like
+    x+d<w for non-constant "w"; we already handled the case for
+    constant "w", so we just want to learn that if d<0, then x+d<w
+    proves that x<w.
     
-    The source columns contains code in following order:
-    target function, inlined functions sorted by filename, lineno.
+    To be able to remove the code from findIndVar, we also need
+    to teach prove that len() and cap() are always non-negative.
     
-    Fixes #25904
+    This CL allows to prove 633 more checks in cmd+std. Most
+    of them are cases where the code was already testing before
+    accessing a slice but the compiler didn't know it. For instance,
+    take strings.HasSuffix:
     
-    Change-Id: I4f6d4834376f1efdfda1f968a5335c0543ed36bc
-    Reviewed-on: https://go-review.googlesource.com/126606
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+        func HasSuffix(s, suffix string) bool {
+            return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+        }
+    
+    When suffix is a literal string, the compiler now understands
+    that the explicit check is enough to not emit a slice check.
+    
+    I also found a loopbce test that was incorrectly
+    written to detect an overflow but had a off-by-one (on the
+    conservative side), so it unexpectly passed with this CL; I
+    changed it to really trigger the overflow as intended.
+    
+    Change-Id: Ib5abade337db46b8811425afebad4719b6e46c4a
+    Reviewed-on: https://go-review.googlesource.com/105635
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/inl.go   |  4 ++
- src/cmd/compile/internal/gc/ssa.go   | 78 ++++++++++++++++++++++++++----------
- src/cmd/compile/internal/ssa/html.go | 61 ++++++++++++++++++++++++----
- 3 files changed, 114 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/ssa/loopbce.go |   7 --
+ src/cmd/compile/internal/ssa/prove.go   | 145 +++++++++++++++++++-------------
+ test/loopbce.go                         |  25 +++++-
+ test/prove.go                           |  39 ++++++++-
+ 4 files changed, 147 insertions(+), 69 deletions(-)

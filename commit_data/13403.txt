@@ -1,16 +1,14 @@
-commit a9a8d7b544b62c08095c945cb642d8a307cfb4cf
-Author: L Campbell <unpantsu@gmail.com>
-Date:   Mon Jun 25 20:26:19 2012 -0400
+commit a308be5fa8e9ea4f0878cf4fe8ebcfc9ebc1a326
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 25 16:48:20 2012 -0700
 
-    syscall, net: sendfile for FreeBSD
+    fmt: set p.field before nil check
+    Fixes #3752.
     
-    R=golang-dev, rsc, bradfitz, devon.odell
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6221054
+    https://golang.org/cl/6331062
 
- src/pkg/net/sendfile_freebsd.go          | 104 +++++++++++++++++++++++++++++++
- src/pkg/net/sendfile_stub.go             |   2 +-
- src/pkg/syscall/asm_freebsd_amd64.s      |  34 ++++++++++
- src/pkg/syscall/syscall_freebsd.go       |  13 +++-
- src/pkg/syscall/syscall_freebsd_amd64.go |   2 +
- 5 files changed, 151 insertions(+), 4 deletions(-)
+ src/pkg/fmt/fmt_test.go | 12 ++++++++++++
+ src/pkg/fmt/print.go    |  5 +++--
+ 2 files changed, 15 insertions(+), 2 deletions(-)

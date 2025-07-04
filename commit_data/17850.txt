@@ -1,24 +1,15 @@
-commit a508381e89523c6a1682a1498b196d4262a1504a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 29 17:11:51 2013 -0400
+commit 1428045469302d81a6bc19ae9f1dd1e2905ea855
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 29 14:06:11 2013 -0700
 
-    time: correct path to time zone zip file on Unix
+    net/http/httputil: fix DumpRequestOut with ContentLength & false body param
     
-    Most Unix systems have their own time zone data,
-    so we almost never get far enough in the list to
-    discover that we cannot fall back to the zip file.
-    Adjust testing to exercise the final fallback.
+    Fixes #6471
     
-    Plan 9 and Windows were already correct
-    (and are the main users of the zip file).
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/19280043
+    https://golang.org/cl/14920050
 
- src/pkg/time/export_test.go      |  5 ++++-
- src/pkg/time/time_test.go        | 10 ++++++++++
- src/pkg/time/zoneinfo_plan9.go   |  4 ++++
- src/pkg/time/zoneinfo_unix.go    | 14 +++++++++++++-
- src/pkg/time/zoneinfo_windows.go |  4 ++++
- 5 files changed, 35 insertions(+), 2 deletions(-)
+ src/pkg/net/http/httputil/dump.go      | 28 +++++++++++++++++++++++++++-
+ src/pkg/net/http/httputil/dump_test.go | 30 ++++++++++++++++++++++++++++--
+ 2 files changed, 55 insertions(+), 3 deletions(-)

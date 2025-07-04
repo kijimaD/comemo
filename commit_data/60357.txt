@@ -1,0 +1,22 @@
+commit b3b4556c245c8f21872910ee866133428bbb5a60
+Author: func25 <phuongle0205@gmail.com>
+Date:   Sun Jun 23 05:53:47 2024 +0000
+
+    cmd/compile: update README to reflect dead code elimination changes
+    
+    The description of middle-end dead code elimination is inconsistent with the current implementation.
+    
+    The early dead code elimination pass of IR nodes is no longer located in cmd/compile/internal/deadcode and is no longer called by gc/main.go:Main. It has been moved to the unified IR writer phase. This update modifies the README to reflect this architectural change.
+    
+    Change-Id: I78bd486edefd6b02948fee7de9ce6c83b147bc1d
+    GitHub-Last-Rev: 76493ce8b08cd585d761d65d29b984360f7ee628
+    GitHub-Pull-Request: golang/go#68134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593638
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/README.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

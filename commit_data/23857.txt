@@ -1,31 +1,20 @@
-commit c1f7a56fc05584b931c979779dd086c417b50dcb
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jul 27 14:35:38 2015 -0400
+commit 289e28296614fac332c51be6bae997d8c71091bf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 16:47:45 2015 -0700
 
-    runtime: close window that hides GC work from concurrent mark
+    go/internal/gccgoimporter: adjust to std repo libraries (fix build)
     
-    Currently we enter mark 2 by first flushing all existing gcWork caches
-    and then setting gcBlackenPromptly, which disables further gcWork
-    caching. However, if a worker or assist pulls a work buffer in to its
-    gcWork cache after that cache has been flushed but before caching is
-    disabled, that work may remain in that cache until mark termination.
-    If that work represents a heap bottleneck (e.g., a single pointer that
-    is the only way to reach a large amount of the heap), this can force
-    mark termination to do a large amount of work, resulting in a long
-    STW.
-    
-    Fix this by reversing the order of these steps: first disable caching,
-    then flush all existing caches.
-    
-    Rick Hudson <rlh> did the hard work of tracking this down. This CL
-    combined with CL 12672 and CL 12646 distills the critical parts of his
-    fix from CL 12539.
-    
-    Fixes #11694.
-    
-    Change-Id: Ib10d0a21e3f6170a80727d0286f9990df049fed2
-    Reviewed-on: https://go-review.googlesource.com/12688
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ia9cbe3bfaa3e66c93d568d8beeed624b113d51a2
+    Reviewed-on: https://go-review.googlesource.com/11152
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgc.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/go/build/deps_test.go                          |  5 +-
+ src/go/internal/gccgoimporter/gccgoinstallation.go |  5 +-
+ .../gccgoimporter/gccgoinstallation_test.go        |  7 ++-
+ src/go/internal/gccgoimporter/importer.go          | 57 ++++++++++++----------
+ src/go/internal/gccgoimporter/importer_test.go     | 14 ++++--
+ src/go/internal/gccgoimporter/parser.go            | 21 ++++----
+ src/go/internal/gccgoimporter/parser_test.go       |  3 +-
+ 7 files changed, 64 insertions(+), 48 deletions(-)

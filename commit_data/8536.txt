@@ -1,13 +1,13 @@
-commit 5784dcfd1957419353f03562c53656174c880101
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon May 30 11:27:31 2011 +1000
+commit 55dd63bb4eb80908281b243bc78844c5a3f2946e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 30 11:20:46 2011 +1000
 
-    dashboard: send notification emails when the build breaks
+    gobuilder: fixes for windows
     
-    R=bradfitz, rsc
-    CC=golang-dev
-    https://golang.org/cl/4530061
+    R=r, devon.odell, iant, rsc, adg
+    CC=bradfitz, golang-dev, jdpoirier
+    https://golang.org/cl/4536053
 
- misc/dashboard/godashboard/app.yaml   |  2 +-
- misc/dashboard/godashboard/gobuild.py | 91 ++++++++++++++++++++++++++++++++---
- 2 files changed, 86 insertions(+), 7 deletions(-)
+ misc/dashboard/builder/exec.go | 15 +++++++++++++++
+ misc/dashboard/builder/main.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

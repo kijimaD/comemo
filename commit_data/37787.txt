@@ -1,16 +1,14 @@
-commit bfaf11c158b5ccd7db3c43727357b8b1071d7fde
-Author: Will Beason <willbeason@gmail.com>
-Date:   Wed Dec 26 01:17:47 2018 +0000
+commit 2e234754d7aee07eb00c7133a331e96a75517f9e
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Tue Aug 28 09:55:43 2018 -0400
 
-    math/big: fix incorrect comment variable reference
+    os/exec: pass ExitCode tests on Plan 9
     
-    Fix comment as w&1 is the parity of 'x', not of 'n'.
+    Fixes #27294
     
-    Change-Id: Ia0e448f7e5896412ff9b164459ce15561ab624cc
-    GitHub-Last-Rev: 54ba08ab1055b5e6e506fc8ac06c2920ff095b6e
-    GitHub-Pull-Request: golang/go#29419
-    Reviewed-on: https://go-review.googlesource.com/c/155743
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I8db5ca0f0c690bf532d3d33b8ed7d2633ad1702b
+    Reviewed-on: https://go-review.googlesource.com/131855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/prime.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/exec/exec_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

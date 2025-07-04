@@ -1,12 +1,13 @@
-commit 8ee2a6658b87eb14361b813d1f58d45df923427f
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 31 15:12:53 2014 -0700
+commit 5a3336096f19c7c813305f548e054b86391874ff
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Jul 31 13:54:42 2014 -0700
 
-    runtime: missed a file in alg checkin
+    strconv: remove needless cast
     
-    TBR=dvyukov
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/122740044
+    https://golang.org/cl/119340043
 
- src/pkg/runtime/alg.go | 153 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 153 insertions(+)
+ src/pkg/strconv/atoi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

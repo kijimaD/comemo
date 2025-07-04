@@ -1,22 +1,28 @@
-commit 1c0d664128ed5f1d7c66afb69cb2d15064a1ba43
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Feb 24 12:51:45 2020 -0500
+commit e76b9e8908bdcdb4363d6bd23aa7ff3120237426
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 26 11:00:13 2019 -0700
 
-    doc/go1.14: remove draft notice
+    cmd/compile: remove pointer temporaries in walkcompare
     
-    Use consistent indentation for one of the paragraphs.
+    When comparing two T-typed values t1 and t2 using the T_eq function,
+    we used to generate:
     
-    Include issue number in the visible text, so it is easier to read.
+        pl := &t1
+        pr := &t2
+        return T_eq(pl, pr, unsafe.Sizeof(T{}))
     
-    Fixes #36878
+    This CL changes it to simply generate:
     
-    Change-Id: Iab857b26b1d27b0137e981126207089db108d530
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220646
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+        return T_eq(&t1, &t2, unsafe.Sizeof(T{}))
+    
+    Surprisingly, this does not pass toolstash. For some reason, it seems
+    like SSA wasn't able to SSA-ify the pl and pr variables in all cases.
+    
+    Change-Id: I111fbb068a1741fa169c9922cb8cdb6e21579aa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197601
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.14.html | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

@@ -1,22 +1,33 @@
-commit 1d06667bc40160d909897470948bb3fc6ad4da96
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Mar 15 15:17:11 2023 +0100
+commit bf19163a545c3117ab3c309a691f32a42cf29efd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 2 09:39:22 2021 -0500
 
-    net: skip tests if creating a socket is disallowed
+    runtime/cgo: remove stdlib.h warning workaround on darwin
     
-    In a container environment, creating a socket may be disallowed. Try to
-    detect these cases and skip the tests instead of failing them.
+    CL 205457 added the flag -Wno-nullability-completeness to work
+    around a user-reported build breakage on macOS Catalina.
     
-    Fixes #58114
+    However, according to
+    https://golang.org/issue/35247#issuecomment-589115489 the root cause
+    of the breakage may be a toolchain misconfiguration on the host
+    (perhaps compiling the XCode stdlib using a Homebrew build of the
+    "clang" compiler?).
     
-    Change-Id: I681d19107e946d2508e2d1704956360f13c7335b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476217
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Adding an obscure warning flag to enable building stdlib.h with an
+    otherwise-broken toolchain seems clearly inappropriate to me.
+    If need be we can instead provide guidance to users on how to unbreak
+    their toolchain.
+    
+    Updates #35247
+    Fixes #49913
+    
+    Change-Id: I84def34e101bed7911d8d78a991a29095b8791fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368634
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/iprawsock_test.go | 19 ++++++++++++++-----
- src/net/protoconn_test.go | 10 +++++-----
- 2 files changed, 19 insertions(+), 10 deletions(-)
+ src/runtime/cgo/cgo.go | 3 ---
+ 1 file changed, 3 deletions(-)

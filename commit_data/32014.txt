@@ -1,25 +1,28 @@
-commit 4dbcacda961abb0ca3490dc06923fa7ab344d702
-Author: Nathaniel Caza <mastercactapus@gmail.com>
-Date:   Mon Feb 13 21:00:06 2017 -0600
+commit 5272a2cdc551c041a9f744ede72506be5f622196
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 06:45:36 2017 -0700
 
-    crypto/x509: load all trusted certs on darwin (nocgo)
+    cmd/compile: avoid infinite loops in dead blocks during phi insertion
     
-    The current implementation ignores certificates that exist
-    in the login and System keychains.
+    Now that we no longer generate dead code,
+    it is possible to follow block predecessors
+    into infinite loops with no variable definitions,
+    causing an infinite loop during phi insertion.
     
-    This change adds the missing System and login keychain
-    files to the `/usr/bin/security` command in
-    `execSecurityRoots`. If the current user cannot be
-    obtained, the login keychain is ignored.
+    To fix that, check explicitly whether the predecessor
+    is dead in lookupVarOutgoing, and if so, bail.
     
-    Refs #16532
+    The loop in lookupVarOutgoing is very hot code,
+    so I am wary of adding anything to it.
+    However, a long, CPU-only benchmarking run shows no
+    performance impact at all.
     
-    Change-Id: I8594a6b8940c58df8a8015b274fa45c39e18862c
-    Reviewed-on: https://go-review.googlesource.com/36941
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #19783
+    
+    Change-Id: I8ef8d267e0b20a29b5cb0fecd7084f76c6f98e47
+    Reviewed-on: https://go-review.googlesource.com/38913
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/crypto/x509/root_darwin.go | 22 +++++++++++++++++++++-
- src/go/build/deps_test.go      |  2 +-
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/phi.go | 18 ++++++++++++------
+ test/fixedbugs/issue19783.go       | 18 ++++++++++++++++++
+ 2 files changed, 30 insertions(+), 6 deletions(-)

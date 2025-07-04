@@ -1,45 +1,24 @@
-commit f1d669aee994b28e1afcfe974680565932d25b70
-Author: Jacob H. Haven <jacob@cloudflare.com>
-Date:   Tue Feb 3 16:15:18 2015 -0800
+commit 5aae246f1e1c59511a82398d88128e9fc9357107
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 26 18:10:59 2014 -0800
 
-    crypto/tls: add support for AES_256_GCM_SHA384 cipher suites specified in RFC5289
+    runtime: increase number of stack orders to 4
     
-    Generalizes PRF calculation for TLS 1.2 to support arbitrary hashes (SHA-384 instead of SHA-256).
-    Testdata were all updated to correspond with the new cipher suites in the handshake.
+    Cache 2KB, 4KB, 8KB, and 16KB stacks.  Larger stacks
+    will be allocated directly.  There is no point in cacheing
+    32KB+ stacks as we ask for and return 32KB at a time
+    from the allocator.
     
-    Change-Id: I3d9fc48c19d1043899e38255a53c80dc952ee08f
-    Reviewed-on: https://go-review.googlesource.com/3265
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Note that the minimum stack is 8K on windows/64bit and 4K on
+    windows/32bit and plan9.  For these os/arch combinations,
+    the number of stack orders is less so that we have the same
+    maximum cached size.
+    
+    Fixes #9045
+    
+    Change-Id: Ia4195dd1858fb79fc0e6a91ae29c374d28839e44
+    Reviewed-on: https://go-review.googlesource.com/2098
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/tls/cipher_suites.go                    |  40 +++---
- src/crypto/tls/handshake_client.go                 |   6 +-
- src/crypto/tls/handshake_client_test.go            |  15 ++-
- src/crypto/tls/handshake_server.go                 |  13 +-
- src/crypto/tls/handshake_server_test.go            |   8 ++
- src/crypto/tls/prf.go                              |  44 ++++---
- src/crypto/tls/prf_test.go                         |  10 +-
- .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  | 104 +++++++--------
- .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  62 ++++-----
- .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    | 102 +++++++--------
- .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  |  62 ++++-----
- .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     | 143 ++++++++++++---------
- .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |  82 ++++++------
- src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      |  44 +++----
- .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  84 ++++++------
- .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |  82 ++++++------
- src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      |  44 +++----
- src/crypto/tls/testdata/Client-TLSv12-ALPN         |  78 +++++------
- src/crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch |  78 +++++------
- .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 111 ++++++++--------
- .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  65 +++++-----
- .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 106 +++++++--------
- .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  68 +++++-----
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  84 ++++++------
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  78 +++++------
- .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  84 ++++++++++++
- .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |  82 ++++++------
- src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      |  44 +++----
- src/crypto/tls/testdata/Server-TLSv12-ALPN         | 119 ++++++++---------
- src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch | 119 ++++++++---------
- .../testdata/Server-TLSv12-RSA-AES256-GCM-SHA384   |  92 +++++++++++++
- 31 files changed, 1185 insertions(+), 968 deletions(-)
+ src/runtime/malloc2.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

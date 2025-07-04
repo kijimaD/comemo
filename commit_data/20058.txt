@@ -1,17 +1,13 @@
-commit 99e9bac8c42ccc950315dff1ee6933d7de180026
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 21 11:55:05 2014 +0400
+commit f375c0eb0d30f078baf5580c30b2a34f5507279b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 13 01:22:47 2014 -0400
 
-    runtime: init GC later
-    Init GC later as it needs to read GOGC env var.
-    Fixes #8562.
+    [dev.power64] liblink: rewrite MOVD $con(Ra), Rb into ADD $con, Ra, Rb; fix stack split prologue
     
-    LGTM=daniel.morsing, rsc
-    R=golang-codereviews, daniel.morsing, rsc
-    CC=golang-codereviews, khr, rlh
-    https://golang.org/cl/130990043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/129050043
 
- src/pkg/runtime/env_posix.c |  2 ++
- src/pkg/runtime/proc.c      |  6 +-----
- src/pkg/runtime/runtime.c   | 34 +++++++++++++---------------------
- 3 files changed, 16 insertions(+), 26 deletions(-)
+ src/liblink/obj9.c | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

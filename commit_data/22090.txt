@@ -1,20 +1,17 @@
-commit d21cef1f8f7b09bac11642a705078675e8e59164
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 17 15:28:57 2015 -0400
+commit 9d6ed4af66e588cf7e9b45e397b53c80bacdc951
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 23 11:49:36 2015 -0800
 
-    runtime: remove pointless harvestwbufs
+    [dev.cc] cmd/asm: add end to end test for amd64
     
-    Currently we harvestwbufs the moment we enter the mark phase, even
-    before starting the world again. Since cached wbufs are only filled
-    when we're in mark or mark termination, they should all be empty at
-    this point, making the harvest pointless. Remove the harvest.
-    
-    We should, but do not currently harvest at the end of the mark phase
-    when we're running out of work to do.
-    
-    Change-Id: I5f4ba874f14dd915b8dfbc4ee5bb526eecc2c0b4
-    Reviewed-on: https://go-review.googlesource.com/7669
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I40839c2d1c0c105a5ba9aadcb55a13693bf4afa6
+    Reviewed-on: https://go-review.googlesource.com/5592
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/asm/internal/asm/endtoend_test.go   |   4 ++
+ src/cmd/asm/internal/asm/testdata/amd64.out |  56 +++++++++++++++
+ src/cmd/asm/internal/asm/testdata/amd64.s   |  93 ++++++++++++++++++++++++
+ src/cmd/asm/internal/asm/testdata/arm.out   | 106 ++++++++++++++--------------
+ src/cmd/asm/internal/asm/testdata/arm.s     |   4 ++
+ src/cmd/asm/internal/asm/testdata/ppc64.s   |   4 +-
+ 6 files changed, 212 insertions(+), 55 deletions(-)

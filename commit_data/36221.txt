@@ -1,17 +1,17 @@
-commit a685a8d11484b87f61f9317fd92151b7cc46d124
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 1 13:22:02 2018 -0400
+commit 740a209a2ed416fa0be306dca5c84e55954e6924
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 12 17:20:18 2018 +0000
 
-    cmd/go: make 'go get <module>@none' idempotent
+    net/http: don't crash if Server.Server is called with non-comparable Listener
     
-    Before this change, 'go get <module>@none' for a module not in the build list
-    would add the module to go.mod (with the explicit version string "none").
-    Subsequent go commands would fail with 'invalid module version "none"'.
+    Fixes #24812
     
-    Change-Id: Iebcaeab89eb19959f0a9aeda836f179962953313
-    Reviewed-on: https://go-review.googlesource.com/127215
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If8d496d61b1120233e44c72d854e80cb06bab970
+    Reviewed-on: https://go-review.googlesource.com/106657
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modget/get.go           |  6 ++++--
- src/cmd/go/testdata/script/mod_get_none.txt | 12 ++++++++++++
- 2 files changed, 16 insertions(+), 2 deletions(-)
+ src/net/http/serve_test.go | 13 +++++++++++++
+ src/net/http/server.go     | 20 ++++++++++++++------
+ 2 files changed, 27 insertions(+), 6 deletions(-)

@@ -1,36 +1,12 @@
-commit 6bcfb95168d6f978f9eacb58539bbca2a0f047ef
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Mon Jun 27 14:42:18 2011 -0400
+commit 10d0dffd7672ee27a5a1ed3451d9d9aa547075da
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Jun 27 14:39:38 2011 -0400
 
-    8a: fixes for Plan 9 build
+    ld: elide the Go symbol table when using -s
     
-    8a/a.h:
-    . Removed <u.h> and <libc.h> includes as they work better in "a.y".
-    . Made definition of EOF conditional as it's defined in the Plan 9
-      header files, but not elsewhere.
-    
-    8a/a.y:
-    . Added <u.h> and <libc.h> because <stdio.h> in Plan 9 needs them.
-      Sequence <u.h>, <stdio.h>, <libc.h> recommended by RSC.
-    
-    8a/lex.c:
-    . Added <u.h> and <libc.h> as now needed by "a.h".
-    . Dropped <ctype.h>.
-    
-    cc/lexbody:
-    . exit() -> exits().
-    . Dropped unwanted incrementation.
-    
-    cc/macbody:
-    . Adjusted a few format specifications.
-    
-    R=rsc
+    R=rsc, n13m3y3r, gustavo
     CC=golang-dev
-    https://golang.org/cl/4644047
+    https://golang.org/cl/4661050
 
- src/cmd/8a/a.h     | 4 ++--
- src/cmd/8a/a.y     | 2 ++
- src/cmd/8a/lex.c   | 3 ++-
- src/cmd/cc/lexbody | 6 +++---
- src/cmd/cc/macbody | 6 +++---
- 5 files changed, 12 insertions(+), 9 deletions(-)
+ src/cmd/ld/symtab.c | 2 ++
+ 1 file changed, 2 insertions(+)

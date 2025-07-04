@@ -1,48 +1,20 @@
-commit 9b331189c15c4a96651c3d6842d5bd8ee5b5f462
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 25 11:35:27 2018 -0500
+commit 1b873f5fd2c5f5d6b0c95da470c4b660e474e5db
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 29 15:42:01 2017 -0400
 
-    cmd/internal/obj/x86: adjust SP correctly for tail calls
+    cmd/go: declare runtime/cgo dependency for darwin/arm, darwin/arm64 tests
     
-    Currently, tail calls on x86 don't adjust the SP on return, so it's
-    important that the compiler produce a zero-sized frame and disable the
-    frame pointer. However, these constraints aren't necessary. For
-    example, on other architectures it's generally necessary to restore
-    the saved LR before a tail call, so obj simply makes this work.
-    Likewise, on x86, there's no reason we can't simply make this work.
+    I don't know why these tests must import runtime/cgo
+    in _testmain.go, but if they must, they must also tell the
+    rest of the go command that they are doing so.
     
-    Hence, this CL adjusts the compiler to use the same tail call
-    convention for x86 that we use on LR machines by producing a RET with
-    a target, rather than a JMP with a target. In fact, obj already
-    understands this convention for x86 except that it's buggy with
-    non-zero frame sizes. So we also fix this bug obj. As a result of
-    these fixes, the compiler no longer needs to mark wrappers as
-    NoFramePointer since it's now perfectly fine to save the frame
-    pointer.
+    Should fix the newly-broken darwin/arm and darwin/arm64 builders.
     
-    In fact, this eliminates the only use of NoFramePointer in the
-    compiler, which will enable further cleanups.
-    
-    This also fixes what is very nearly, but not quite, a code generation
-    bug. NoFramePointer becomes obj.NOFRAME in the object file, which on
-    ppc64 and s390x means to omit the saved LR. Hence, on these
-    architectures, NoFramePointer (and NOFRAME) is only safe to set on
-    leaf functions. However, on *most* architectures, wrappers aren't
-    necessarily leaf functions because they may call DUFFZERO. We're saved
-    on ppc64 and s390x only because the compiler doesn't have the rules to
-    produce DUFFZERO calls on these architectures. Hence, this only works
-    because the set of LR architectures that implement NOFRAME is disjoint
-    from the set where the compiler produces DUFFZERO operations. (I
-    discovered this whole mess when I attempted to add NOFRAME support to
-    arm.)
-    
-    Change-Id: Icc589aeb86beacb850d0a6a80bd3024974a33947
-    Reviewed-on: https://go-review.googlesource.com/92035
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I9b183f8c84c6f403bf3a90cbfc838d6ef428e16f
+    Reviewed-on: https://go-review.googlesource.com/67230
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 2 +-
- src/cmd/compile/internal/gc/subr.go   | 2 --
- src/cmd/internal/obj/x86/obj6.go      | 3 +++
- 3 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/test/test.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

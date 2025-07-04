@@ -1,25 +1,18 @@
-commit 2a29cddec377e2dccb6bceb7a542249ec8ec96b2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon May 5 15:51:05 2025 -0400
+commit 27fdef6168d2802dcf9ef382407fb6b16db3e150
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Mar 22 23:07:57 2024 +0800
 
-    internal/runtime/syscall: add basic file system calls
+    test: put type declaration back inside the function
     
-    Change-Id: I6a6a636c5e119165dc1018d1fc0354f5b6929656
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670496
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Because issue #47631 has been fixed, remove TODO.
+    
+    Change-Id: Ic476616729f47485a18a5145bd28c87dd18b4492
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573775
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/runtime/syscall/defs_linux.go         |  7 ++++
- src/internal/runtime/syscall/defs_linux_386.go     |  6 +++
- src/internal/runtime/syscall/defs_linux_amd64.go   |  6 +++
- src/internal/runtime/syscall/defs_linux_arm.go     |  6 +++
- src/internal/runtime/syscall/defs_linux_arm64.go   |  6 +++
- src/internal/runtime/syscall/defs_linux_loong64.go |  6 +++
- src/internal/runtime/syscall/defs_linux_mips64x.go |  6 +++
- src/internal/runtime/syscall/defs_linux_mipsx.go   |  6 +++
- src/internal/runtime/syscall/defs_linux_ppc64x.go  |  6 +++
- src/internal/runtime/syscall/defs_linux_riscv64.go |  6 +++
- src/internal/runtime/syscall/defs_linux_s390x.go   |  6 +++
- src/internal/runtime/syscall/syscall_linux.go      | 45 ++++++++++++++++++++++
- 12 files changed, 112 insertions(+)
+ test/typeparam/builtins.go | 8 ++++----
+ test/typeparam/typelist.go | 4 +---
+ 2 files changed, 5 insertions(+), 7 deletions(-)

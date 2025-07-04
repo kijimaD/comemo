@@ -1,25 +1,38 @@
-commit b2ce3931d8d34ffe3fbed0d9eed2676d916e5431
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu May 21 10:59:29 2020 -0400
+commit 1b1fbb3192984624871ab92518499d4bd6e6e65c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 18 19:23:39 2019 +0000
 
-    cmd/go: report error for empty GOPROXY list
+    runtime: use inUse ranges to map in summary memory only as needed
     
-    If GOPROXY is "", we set it to the default value,
-    "https://proxy.golang.org,direct". However, if GOPROXY is a non-empty
-    string that doesn't contain any URLs or keywords, we treat it as
-    either "off" or "noproxy", which can lead to some strange errors.
+    Prior to this change, if the heap was very discontiguous (such as in
+    TestArenaCollision) it's possible we could map a large amount of memory
+    as R/W and commit it. We would use only the start and end to track what
+    should be mapped, and we would extend that mapping as needed to
+    accomodate a potentially fragmented address space.
     
-    This change reports an error for this kind of GOPROXY value.
+    After this change, we only map exactly the part of the summary arrays
+    that we need by using the inUse ranges from the previous change. This
+    reduces the GCSys footprint of TestArenaCollision from 300 MiB to 18
+    MiB.
     
-    For #39180
+    Because summaries are no longer mapped contiguously, this means the
+    scavenger can no longer iterate directly. This change also updates the
+    scavenger to borrow ranges out of inUse and iterate over only the
+    parts of the heap which are actually currently in use. This is both an
+    optimization and necessary for correctness.
     
-    Change-Id: If2e6e39d6f74c708e5ec8f90e9d4880e0e91894f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234857
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Fixes #35514.
+    
+    Change-Id: I96bf0c73ed0d2d89a00202ece7b9d089a53bac90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207758
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/modfetch/proxy.go        | 10 +++++++++-
- src/cmd/go/testdata/script/mod_gonoproxy.txt |  5 +++++
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/runtime/export_test.go      |   1 +
+ src/runtime/mgcscavenge.go      | 131 ++++++++++++++++++++++++++--------------
+ src/runtime/mpagealloc.go       |  60 +++---------------
+ src/runtime/mpagealloc_64bit.go |  91 +++++++++++++++++++---------
+ src/runtime/mpagealloc_test.go  |  17 +++++-
+ src/runtime/mranges.go          |  25 ++++++++
+ 6 files changed, 196 insertions(+), 129 deletions(-)

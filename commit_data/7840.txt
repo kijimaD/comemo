@@ -1,14 +1,12 @@
-commit ccdbb8a6c2bf8a058d5cd8dd94374d02e584e39a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 23 11:28:24 2011 -0400
+commit aa798d26c46956f92042f8a6394c830b91f53f21
+Author: Anthony Starks <ajstarks@gmail.com>
+Date:   Wed Mar 23 16:29:40 2011 +1100
 
-    runtime: more stack split fixes
+    misc/bbedit: remove closed keyword
     
-    Found by stkcheck after 6l, 8l bug fixes Luuk is about to submit.
-    
-    R=lvd
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4306047
+    https://golang.org/cl/4284058
 
- src/pkg/runtime/chan.c | 70 ++++++++++++++++++++++++++------------------------
- 1 file changed, 36 insertions(+), 34 deletions(-)
+ misc/bbedit/Go.plist | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

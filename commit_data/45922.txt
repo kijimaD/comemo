@@ -1,25 +1,59 @@
-commit 69728ead871f15cc1fd7e70b67e6768dd1100bae
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jul 15 14:48:45 2021 -0400
+commit e84b27bec587e4393533e83e3ea1cbf1ed548425
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 28 07:31:18 2020 -0500
 
-    cmd/go: update error messages in tests to match CL 332573
+    [dev.regabi] cmd/compile: clean up Name and Func uses
     
-    I neglected to run the 'longtest' builder, and the tests
-    that cover the error message changed in CL 332573 apparently
-    do not run in short mode.
+    Now that we have specific types for ONAME and ODCLFUNC nodes
+    (*Name and *Func), use them throughout the compiler to be more
+    precise about what data is being operated on.
     
-    Updates #36460
-    Updates #42661
+    This is a somewhat large CL, but once you start applying the types
+    in a few places, you end up needing to apply them to many other
+    places to keep everything type-checking. A lot of code also melts
+    away as types are added.
     
-    Change-Id: I53500ddaca8ac9f0dfaab538923b3c9a4f71665e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334889
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I21dd9b945d701c470332bac5394fca744a5b232d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274097
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt    | 2 +-
- src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt      | 2 +-
- src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt     | 2 +-
- src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/fmtmap_test.go             |   8 +-
+ src/cmd/compile/internal/gc/alg.go         |  12 +-
+ src/cmd/compile/internal/gc/bexport.go     |   2 +-
+ src/cmd/compile/internal/gc/closure.go     | 142 +++++++++---------
+ src/cmd/compile/internal/gc/dcl.go         | 121 ++++++++-------
+ src/cmd/compile/internal/gc/dwinl.go       |   2 +
+ src/cmd/compile/internal/gc/escape.go      |  80 +++++-----
+ src/cmd/compile/internal/gc/export.go      |   6 +-
+ src/cmd/compile/internal/gc/gen.go         |  12 +-
+ src/cmd/compile/internal/gc/go.go          |   6 +-
+ src/cmd/compile/internal/gc/gsubr.go       |  12 +-
+ src/cmd/compile/internal/gc/iexport.go     |  16 +-
+ src/cmd/compile/internal/gc/iimport.go     |  34 +++--
+ src/cmd/compile/internal/gc/init.go        |  12 +-
+ src/cmd/compile/internal/gc/initorder.go   |  10 +-
+ src/cmd/compile/internal/gc/inl.go         | 231 ++++++++++++++---------------
+ src/cmd/compile/internal/gc/main.go        |  26 ++--
+ src/cmd/compile/internal/gc/noder.go       |  63 ++++----
+ src/cmd/compile/internal/gc/obj.go         |   2 +-
+ src/cmd/compile/internal/gc/order.go       |   6 +-
+ src/cmd/compile/internal/gc/pgen.go        |  72 ++++-----
+ src/cmd/compile/internal/gc/pgen_test.go   |  18 +--
+ src/cmd/compile/internal/gc/plive.go       |  22 +--
+ src/cmd/compile/internal/gc/racewalk.go    |  18 +--
+ src/cmd/compile/internal/gc/range.go       |   2 +-
+ src/cmd/compile/internal/gc/scc.go         |  30 ++--
+ src/cmd/compile/internal/gc/ssa.go         |  82 +++++-----
+ src/cmd/compile/internal/gc/subr.go        |  15 +-
+ src/cmd/compile/internal/gc/typecheck.go   |  56 +++----
+ src/cmd/compile/internal/gc/walk.go        |  79 +++++-----
+ src/cmd/compile/internal/ir/fmt.go         |  20 ++-
+ src/cmd/compile/internal/ir/func.go        |  34 ++---
+ src/cmd/compile/internal/ir/name.go        |   7 +-
+ src/cmd/compile/internal/ir/sizeof_test.go |   4 +-
+ 34 files changed, 628 insertions(+), 634 deletions(-)

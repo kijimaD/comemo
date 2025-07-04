@@ -1,0 +1,18 @@
+commit 3473d2f8efcb448e5433931a31fb358304bb9b80
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Jul 24 14:49:18 2024 +0800
+
+    math: add large exact float rounding tests
+    
+    This CL adds trunc,ceil,floor tests for large exact float.
+    
+    Change-Id: Ib7ffec1d2d50d2ac955398a3dd0fd06d494fcf4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601095
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/math/all_test.go | 52 +++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 47 insertions(+), 5 deletions(-)

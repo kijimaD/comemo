@@ -1,19 +1,44 @@
-commit c966f1c0c0e872773c38a6ddbd08df72726c8ba8
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Apr 25 15:30:53 2025 +0200
+commit 7348773640c1cf5c1c9d00e1957d859d9115c230
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Feb 20 20:58:18 2024 +0000
 
-    net: support IPv6 addresses in ListenMulticastUDP on Windows
+    internal/trace/v2: clean up the ordering interface
     
-    Fixes #63529.
+    This change cleans up the ordering interface in several ways.
     
-    Change-Id: Id9246af1a72beef3149af571f0891437bba2f4e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668216
+    First, it resolves a TODO about using a proper queue of events for extra
+    events produced while performing ordering. This will be necessary for a
+    follow-up change to handle coroutine switch events.
+    
+    Next, it simplifies the ordering.advance method's signature by not
+    returning a schedCtx. Instead, ordering.advance will take responsibility
+    for constructing the final Event instead of the caller, and places it on
+    its own internal queue (in addition to any other Events generated). The
+    caller is then responsible for taking events off of the queue with a new
+    method Next.
+    
+    Finally, hand-in-hand with the signature change, the implementation of
+    ordering.advance no longer forces each switch case to return but instead
+    has them converge past the switch. This has two effects. One is that we
+    eliminate the deferred call to update the M state. Using a defer here is
+    technically incorrect, because we might end up changing the M state even
+    if we don't advance the event! We got lucky here that curCtx == newCtx
+    in all such cases, but there may have been a subtle bug lurking here.
+    
+    Unfortunately because of the queue's semantics however, we can't
+    actually avoid pushing into the queue at every possible successful exit
+    out of the switch. Hopefully this can become less error-prone in the
+    future by splitting up the switch into a dispatch of different
+    functions, instead of everything living in one giant function. This
+    cleanup will happen in a follow-up change.
+    
+    Change-Id: Ifebbbf14e8ed5c08be5c1b0fadc2e5df3915c656
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565936
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- doc/next/6-stdlib/99-minor/net/63529.md | 1 +
- src/net/listen_test.go                  | 5 +++--
- src/syscall/syscall_windows.go          | 4 +++-
- 3 files changed, 7 insertions(+), 3 deletions(-)
+ src/internal/trace/v2/order.go      | 367 +++++++++++++++++++++---------------
+ src/internal/trace/v2/order_test.go |  34 ++++
+ src/internal/trace/v2/reader.go     |  59 +++---
+ 3 files changed, 284 insertions(+), 176 deletions(-)

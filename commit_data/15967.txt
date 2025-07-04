@@ -1,58 +1,19 @@
-commit 30e29ee9b6b71a4c40f781c513a8680e8f2c4f64
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 27 13:27:35 2013 -0700
+commit 7c79910cb9abbac2f525c2b2ecad188ff27eb8af
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Mar 27 20:33:17 2013 +0100
 
-    cmd/ld: emit TLS relocations during external linking
+    cmd/gc: fix race instrumentation of append and type switches.
     
-    This CL was written by rsc.  I just tweaked 8l.
+    The remaining issues are about runtime and sync package
+    instrumentation.
     
-    This CL adds TLS relocation to the ELF .o file we write during external linking,
-    so that the host linker (gcc) can decide the final location of m and g.
+    Update #4228
     
-    Similar relocations are not necessary on OS X because we use an alternate
-    program start-time mechanism to acquire thread-local storage.
-    
-    Similar relocations are not necessary on ARM or Plan 9 or Windows
-    because external linking mode is not yet supported on those systems.
-    
-    On almost all ELF systems, the references we use are like %fs:-0x4 or %gs:-0x4,
-    which we write in 6a/8a as -0x4(FS) or -0x4(GS). On Linux/ELF, however,
-    Xen's lack of support for this mode forced us long ago to use a two-instruction
-    sequence: first we load %gs:0x0 into a register r, and then we use -0x4(r).
-    (The ELF program loader arranges that %gs:0x0 contains a regular pointer to
-    that same memory location.) In order to relocate those -0x4(r) references,
-    the linker must know where they are. This CL adds the equivalent notation
-    -0x4(r)(GS*1) for this purpose: it assembles to the same encoding as -0x4(r)
-    but the (GS*1) indicates to the linker that this is one of those thread-local
-    references that needs relocation.
-    
-    Thanks to Elias Naur for reminding me about this missing piece and
-    also for writing the test.
-    
-    R=r
+    R=dvyukov, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7891047
+    https://golang.org/cl/8041043
 
- misc/cgo/testtls/tls.go      |   28 +
- misc/cgo/testtls/tls_test.go |   13 +
- misc/cgo/testtls/tls_unix.c  |   19 +
- src/cmd/5l/5.out.h           |    1 +
- src/cmd/6l/6.out.h           |    1 +
- src/cmd/6l/asm.c             |    7 +
- src/cmd/6l/obj.c             |    2 +-
- src/cmd/6l/span.c            |   23 +
- src/cmd/8a/a.y               |    9 +
- src/cmd/8a/y.tab.c           | 1326 +++++++++++++++++-------------------------
- src/cmd/8a/y.tab.h           |   46 +-
- src/cmd/8l/8.out.h           |    1 +
- src/cmd/8l/asm.c             |    6 +
- src/cmd/8l/obj.c             |    2 +-
- src/cmd/8l/pass.c            |   50 +-
- src/cmd/8l/span.c            |   35 +-
- src/cmd/dist/buildruntime.c  |   11 +-
- src/cmd/ld/data.c            |   31 +-
- src/cmd/ld/elf.c             |    8 +-
- src/cmd/ld/lib.h             |    1 +
- src/cmd/ld/symtab.c          |   20 +
- src/run.bash                 |    8 +-
- 22 files changed, 798 insertions(+), 850 deletions(-)
+ src/cmd/gc/racewalk.c                       | 25 ++++++++--------
+ src/pkg/runtime/race/testdata/mop_test.go   | 46 +++++++++++++++++++++++++++++
+ src/pkg/runtime/race/testdata/slice_test.go |  3 +-
+ 3 files changed, 59 insertions(+), 15 deletions(-)

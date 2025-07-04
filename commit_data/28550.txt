@@ -1,21 +1,26 @@
-commit 9d4b40f55d2298fcb69e049b031e2e3ce8a1de8c
+commit 4636d02244e683a0d9c078a49b4c614bed401d6b
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Sep 27 08:57:02 2016 -0400
+Date:   Wed May 25 23:17:42 2016 -0400
 
-    runtime, cmd/compile: implement and use DUFFCOPY on ARM64
+    [dev.ssa] cmd/compile: handle 64-bit shifts on ARM
     
-    Change-Id: I8984eac30e5df78d4b94f19412135d3cc36969f8
-    Reviewed-on: https://go-review.googlesource.com/29910
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Also fix a mistake in previous CL about x8 and x16 shifts:
+    the shift needs ZeroExt.
+    
+    Progress on SSA for ARM. Still not complete.
+    
+    Updates #15365.
+    
+    Change-Id: Ibc352760023d38bc6b9c5251e929fe26e016637a
+    Reviewed-on: https://go-review.googlesource.com/23486
     Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/arm64/ssa.go        |   6 +
- src/cmd/compile/internal/ssa/gen/ARM64.rules |   8 +-
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  19 ++
- src/cmd/compile/internal/ssa/opGen.go        |  15 ++
- src/cmd/compile/internal/ssa/rewriteARM64.go |  18 ++
- src/cmd/internal/obj/arm64/asm7.go           |   3 +-
- src/runtime/duff_arm64.s                     | 387 ++++++++++++++++++++++++++-
- src/runtime/mkduff.go                        |  12 +-
- 8 files changed, 463 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go            |   24 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |   41 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |    3 +
+ src/cmd/compile/internal/ssa/gen/dec64.rules   |  225 ++++++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |    3 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   33 +
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  188 ++++-
+ src/cmd/compile/internal/ssa/rewritedec64.go   | 1034 +++++++++++++++++++++++-
+ 8 files changed, 1488 insertions(+), 63 deletions(-)

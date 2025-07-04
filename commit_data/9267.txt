@@ -1,13 +1,14 @@
-commit 4d2766e9944e2524ece4a1c0e30dd777227aa174
+commit 70f6133b840e33b61cfd4d19aa85d62493906dc7
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Sun Jul 31 15:29:10 2011 -0700
+Date:   Sun Jul 31 15:25:26 2011 -0700
 
-    doc: document release.r59
+    doc: fix typo in Effective Go
     
-    R=golang-dev, dsymonds, r, r
+    Fixes #2120.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4835044
+    https://golang.org/cl/4810061
 
- doc/devel/release.html | 107 +++++++++++++++++++++++++++++++++++++++++++++++++
- doc/devel/weekly.html  |   2 +-
- 2 files changed, 108 insertions(+), 1 deletion(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,28 @@
-commit 095c0e5c000a18f63c47009fd0684669cc602584
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 11 13:33:33 2016 -0500
+commit aae81d948cb7b4fb6e55b96cbba6ae2131d46e25
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 18 15:36:51 2015 -0800
 
-    doc: fix remaining TODOs in Go 1.6 release notes
+    net/http: start of making all relevant tests test both http1 and http2
     
-    Fixes #14300.
+    This CL adds skipped failing tests, showing differences between HTTP/1
+    and HTTP/2 behavior. They'll be fixed in later commits.
     
-    Change-Id: Idb6a300fe0e06fb8966cf06b55f9b252752a69a6
-    Reviewed-on: https://go-review.googlesource.com/19459
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Only a tiny fraction of the net/http tests have been split into their
+    "_h1" and "_h2" variants. That will also continue. (help welcome)
+    
+    Updates #6891
+    Updates #13315
+    Updates #13316
+    Updates #13317
+    
+    Change-Id: I16c3c381dbe267a3098fb266ab0d804c36473a64
+    Reviewed-on: https://go-review.googlesource.com/17046
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/asm.html   |  9 +++++++++
- doc/go1.6.html | 14 +++++++-------
- 2 files changed, 16 insertions(+), 7 deletions(-)
+ src/net/http/export_test.go    |  4 +++
+ src/net/http/main_test.go      | 42 +++++++++++++++++++++++++++
+ src/net/http/serve_test.go     | 59 ++++++++++++++++++++++++++++++--------
+ src/net/http/transport_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 157 insertions(+), 12 deletions(-)

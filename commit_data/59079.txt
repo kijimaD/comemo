@@ -1,37 +1,25 @@
-commit 6fb7bdc96d0398fab313586fba6fdc89cc14c679
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Feb 23 22:17:53 2025 +1100
+commit 644bc4a3e7095789843438648badb82a9a78abef
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 9 14:06:39 2024 -0500
 
-    cmd/compile: intrinsify math/bits.TrailingZeros on riscv64
+    internal/trace: run children in race mode during race testing
     
-    For riscv64/rva22u64 and above, we can intrinsify math/bits.TrailingZeros
-    using the CTZ/CTZW machine instructions.
+    This would have caught #65607.
     
-    On a StarFive VisionFive 2 with GORISCV64=rva22u64:
+    On my machine:
     
-                      │   ctz.b.1    │               ctz.b.2               │
-                      │    sec/op    │   sec/op     vs base                │
-    TrailingZeros-4     25.500n ± 0%   8.052n ± 0%  -68.42% (p=0.000 n=10)
-    TrailingZeros8-4     14.76n ± 0%   10.74n ± 0%  -27.24% (p=0.000 n=10)
-    TrailingZeros16-4    26.84n ± 0%   10.74n ± 0%  -59.99% (p=0.000 n=10)
-    TrailingZeros32-4   25.500n ± 0%   8.052n ± 0%  -68.42% (p=0.000 n=10)
-    TrailingZeros64-4   25.500n ± 0%   8.052n ± 0%  -68.42% (p=0.000 n=10)
-    geomean              23.09n        9.035n       -60.88%
+    internal/trace/v2:               ~13s
+    internal/trace/v2: -short:        ~4s
+    internal/trace/v2: -race -short: ~20s
+    internal/trace/v2: -race:        ~46s
     
-    Change-Id: I71edf2b988acb7a68e797afda4ee66d7a57d587e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652320
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    For #65607.
+    
+    Change-Id: I03a555ebaf8c761c98a82b6d35fa16d7a99aa9e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562998
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/riscv64/ssa.go            |  2 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules    |  7 +++
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go    |  2 +
- src/cmd/compile/internal/ssa/opGen.go              | 28 +++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go     | 54 ++++++++++++++++++++++
- src/cmd/compile/internal/ssagen/intrinsics.go      | 24 ++++++++++
- src/cmd/compile/internal/ssagen/intrinsics_test.go | 10 +++-
- test/codegen/mathbits.go                           | 25 ++++++----
- 8 files changed, 141 insertions(+), 11 deletions(-)
+ src/internal/trace/v2/trace_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

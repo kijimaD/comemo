@@ -1,79 +1,26 @@
-commit 203e18883726409205df4af11935d6393ed9ad52
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sat Apr 27 01:16:10 2019 +0200
+commit 3ae2c6c52eb4b8714245b91d094e0ccdfdbe585c
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 12 14:38:03 2018 -0500
 
-    cmd/internal/obj/wasm: cache SP in a local
+    go/internal/gccgoimporter: permit fixups for V2 export data
     
-    We use Wasm global variables extensively for simulating
-    registers, especially SP. V8 does not handle global variables
-    efficiently.
+    The changes added in https://golang.org/cl/151997 to fix problems when
+    reading older export data introduced the ability to add "fixups" to
+    handle references to a type whose definition has not yet been
+    finalized. It turns out we need to allow for fixups even for more
+    recent export data (V2 and V3); this patch removes a version guard for
+    the fixup generation logic.
     
-    This CL reduces global variable accesses by caching the global SP
-    in a local variable in each function. The local cache is set on
-    function entry and updated after each call (where the stack could
-    have moved). Within a function, the SP access will use the local
-    variable.
+    Fixes #29198.
     
-    Supersedes https://golang.org/cl/173979.
-    
-    Running on Chrome Version 73.0.3683.103 on darwin/amd64:
-    
-    name                   old time/op    new time/op     delta
-    BinaryTree17              15.3s ± 2%      14.5s ± 3%   -5.20%  (p=0.000 n=9+10)
-    Fannkuch11                8.91s ± 2%      9.48s ± 2%   +6.41%  (p=0.000 n=9+10)
-    FmtFprintfEmpty           197ns ± 5%      165ns ± 3%  -16.09%  (p=0.000 n=9+8)
-    FmtFprintfString          354ns ± 8%      325ns ± 7%   -8.33%  (p=0.001 n=10+10)
-    FmtFprintfInt             400ns ± 4%      368ns ± 6%   -8.01%  (p=0.000 n=10+10)
-    FmtFprintfIntInt          618ns ± 3%      587ns ± 6%   -4.97%  (p=0.001 n=10+10)
-    FmtFprintfPrefixedInt     637ns ± 4%      606ns ± 4%   -4.88%  (p=0.000 n=10+10)
-    FmtFprintfFloat           965ns ± 7%      898ns ± 4%   -6.97%  (p=0.000 n=10+10)
-    FmtManyArgs              2.34µs ± 1%     2.24µs ± 3%   -4.40%  (p=0.000 n=9+10)
-    GobDecode                29.8ms ± 3%     28.8ms ± 6%   -3.60%  (p=0.006 n=9+10)
-    GobEncode                20.5ms ± 8%     17.6ms ± 3%  -14.32%  (p=0.000 n=10+10)
-    Gzip                      714ms ± 3%      718ms ± 8%     ~     (p=0.971 n=10+10)
-    Gunzip                    148ms ± 3%      136ms ± 3%   -7.99%  (p=0.000 n=10+9)
-    HTTPClientServer          219µs ± 3%      215µs ± 4%     ~     (p=0.190 n=10+10)
-    JSONEncode               35.1ms ± 2%     31.8ms ±13%   -9.52%  (p=0.002 n=10+10)
-    JSONDecode                220ms ± 3%      207ms ± 5%   -5.87%  (p=0.000 n=10+10)
-    Mandelbrot200            5.22ms ± 1%     5.11ms ± 4%   -2.11%  (p=0.027 n=8+10)
-    GoParse                  17.2ms ± 6%     16.1ms ± 5%   -6.63%  (p=0.000 n=10+9)
-    RegexpMatchEasy0_32       375ns ± 3%      340ns ± 3%   -9.25%  (p=0.000 n=10+10)
-    RegexpMatchEasy0_1K      2.70µs ± 3%     2.65µs ± 4%     ~     (p=0.118 n=10+10)
-    RegexpMatchEasy1_32       341ns ± 2%      305ns ± 4%  -10.62%  (p=0.000 n=9+10)
-    RegexpMatchEasy1_1K      3.20µs ± 3%     2.99µs ± 3%   -6.35%  (p=0.000 n=10+10)
-    RegexpMatchMedium_32      520ns ± 3%      501ns ± 4%   -3.64%  (p=0.002 n=9+10)
-    RegexpMatchMedium_1K      145µs ± 7%      128µs ± 3%  -11.57%  (p=0.000 n=9+10)
-    RegexpMatchHard_32       7.88µs ± 3%     7.01µs ± 5%  -10.97%  (p=0.000 n=10+10)
-    RegexpMatchHard_1K        237µs ± 5%      207µs ± 4%  -12.71%  (p=0.000 n=9+10)
-    Revcomp                   2.34s ± 1%      2.31s ± 5%     ~     (p=0.230 n=7+10)
-    Template                  261ms ± 7%      246ms ± 5%   -5.93%  (p=0.007 n=10+10)
-    TimeParse                1.47µs ± 3%     1.39µs ± 5%   -5.75%  (p=0.000 n=9+10)
-    TimeFormat               1.52µs ± 3%     1.43µs ± 4%   -6.42%  (p=0.000 n=8+10)
-    
-    name                   old speed      new speed       delta
-    GobDecode              25.7MB/s ± 3%   26.7MB/s ± 5%   +3.77%  (p=0.006 n=9+10)
-    GobEncode              37.5MB/s ± 8%   43.7MB/s ± 3%  +16.61%  (p=0.000 n=10+10)
-    Gzip                   27.2MB/s ± 3%   27.0MB/s ± 7%     ~     (p=0.971 n=10+10)
-    Gunzip                  131MB/s ± 3%    142MB/s ± 5%   +8.07%  (p=0.000 n=10+10)
-    JSONEncode             55.2MB/s ± 2%   61.2MB/s ±12%  +10.80%  (p=0.002 n=10+10)
-    JSONDecode             8.84MB/s ± 3%   9.39MB/s ± 5%   +6.28%  (p=0.000 n=10+10)
-    GoParse                3.37MB/s ± 6%   3.61MB/s ± 5%   +7.09%  (p=0.000 n=10+9)
-    RegexpMatchEasy0_32    85.3MB/s ± 3%   94.0MB/s ± 3%  +10.20%  (p=0.000 n=10+10)
-    RegexpMatchEasy0_1K     379MB/s ± 3%    387MB/s ± 4%     ~     (p=0.123 n=10+10)
-    RegexpMatchEasy1_32    93.9MB/s ± 2%  105.1MB/s ± 4%  +11.96%  (p=0.000 n=9+10)
-    RegexpMatchEasy1_1K     320MB/s ± 3%    342MB/s ± 3%   +6.79%  (p=0.000 n=10+10)
-    RegexpMatchMedium_32   1.92MB/s ± 2%   2.00MB/s ± 3%   +3.94%  (p=0.001 n=9+10)
-    RegexpMatchMedium_1K   7.09MB/s ± 6%   8.01MB/s ± 3%  +13.00%  (p=0.000 n=9+10)
-    RegexpMatchHard_32     4.06MB/s ± 3%   4.56MB/s ± 5%  +12.38%  (p=0.000 n=10+10)
-    RegexpMatchHard_1K     4.32MB/s ± 4%   4.96MB/s ± 4%  +14.60%  (p=0.000 n=9+10)
-    Revcomp                 109MB/s ± 1%    110MB/s ± 5%     ~     (p=0.219 n=7+10)
-    Template               7.44MB/s ± 8%   7.91MB/s ± 5%   +6.30%  (p=0.007 n=10+10)
-    
-    Change-Id: I5828cf6b23ce104c02addc2642aba48dd6c48aab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174062
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Change-Id: I82136ac45b53e4a59c05ff0879ac6bb545d0ff31
+    Reviewed-on: https://go-review.googlesource.com/c/153821
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/wasm/wasmobj.go | 67 +++++++++++++++++++++++++++++-------
- 1 file changed, 54 insertions(+), 13 deletions(-)
+ src/go/internal/gccgoimporter/importer_test.go     |  1 +
+ src/go/internal/gccgoimporter/parser.go            |  9 +--
+ .../internal/gccgoimporter/testdata/issue29198.go  | 37 ++++++++++
+ .../internal/gccgoimporter/testdata/issue29198.gox | 86 ++++++++++++++++++++++
+ 4 files changed, 127 insertions(+), 6 deletions(-)

@@ -1,13 +1,12 @@
-commit 02e88019f23e56a17824b65e462be0746acdd116
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 11 15:47:45 2011 -0800
+commit ac1c09458c465c83af1cee17b05c51ffcb51b578
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 11 14:43:28 2011 -0800
 
-    template: allow accesses only to exported fields and methods
+    ld: Fix exported dynamic symbols on 386 Mach-O.
     
-    R=rsc, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3890042
+    https://golang.org/cl/3948043
 
- src/pkg/template/template.go      |  14 +++
- src/pkg/template/template_test.go | 221 +++++++++++++++++++-------------------
- 2 files changed, 125 insertions(+), 110 deletions(-)
+ src/cmd/8l/asm.c | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

@@ -1,22 +1,28 @@
-commit 718d9de60fd4337d9044cdc2c685177dd2177ef6
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Sep 21 08:44:05 2017 -0700
+commit b928e2faa8d90989276ff0880aaef666c970cc68
+Author: David Lazar <lazard@golang.org>
+Date:   Sat May 27 17:43:37 2017 -0400
 
-    archive/tar: perform test for hole-detection on specific builders
+    cmd/compile: retain source positions of arguments to inlined calls
     
-    The test for hole-detection is heavily dependent on whether the
-    OS and underlying FS provides support for it.
-    Even on Linux, which has support for SEEK_HOLE and SEEK_DATA,
-    the underlying filesystem may not have support for it.
-    In order to avoid an ever-changing game of whack-a-mole,
-    we whitelist the specific builders that we expect the test to pass on.
+    Arguments to inlined calls are hidden from setPos as follows:
     
-    Updates #21964
+        args := as.Rlist
+        as.Rlist.Set(nil)
+        // setPos...
+        as.Rlist.Set(args.Slice())
     
-    Change-Id: I7334e8532c96cc346ea83aabbb81b719685ad7e5
-    Reviewed-on: https://go-review.googlesource.com/65270
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Previously, this code had no effect since the value of as was
+    overwritten by the assignment in the retvars loop.
+    
+    Fixes #19799.
+    
+    Change-Id: Iaf97259f82fdba8b236136337cc42b2774c7fef5
+    Reviewed-on: https://go-review.googlesource.com/44351
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/archive/tar/tar_test.go | 16 +++-------------
- 1 file changed, 3 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/inl.go |  6 ++--
+ test/fixedbugs/issue19799.go       | 71 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 3 deletions(-)

@@ -1,13 +1,15 @@
-commit 64eb7749bca304a858638222849c5765e6427c79
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Dec 21 20:39:30 2012 +0100
+commit 080d31cc50f4be0cbdbcaa74b43f019887b75cd0
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Dec 21 19:12:00 2012 +0400
 
-    cmd/gc: mapassign2 doesn't exist anymore.
+    runtime/race: update linux runtime to r170876.
+    This disables checks for limited address space
+    and unlimited stack. They are not required for Go.
+    Fixes #4577.
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/6997043
+    R=golang-dev, iant
+    CC=golang-dev, kamil.kisiel, minux.ma
+    https://golang.org/cl/7003045
 
- src/cmd/gc/builtin.c  | 1 -
- src/cmd/gc/runtime.go | 1 -
- 2 files changed, 2 deletions(-)
+ src/pkg/runtime/race/race_linux_amd64.syso | Bin 149080 -> 148760 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

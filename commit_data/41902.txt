@@ -1,22 +1,15 @@
-commit 245409ea86f20fd9f4167223c2339fb238f9e4b6
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Fri Apr 10 10:45:58 2020 +0800
+commit 15bff20829a474909e39f73a525e237496afc144
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Oct 31 17:19:28 2019 -0400
 
-    runtime: replace the type of netpollWakeSig from a uintptr to a uint32
+    doc: document Go 1.13.4
     
-    There's no need for netpollWakeSig to use a uintptr type, a uint32 is enough.
-    
-    Relevant CL: CL 212737
-    
-    Change-Id: Ide24478b217a02bad62f7e000a9680c26a8c5366
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227798
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib29e642c56eca96826187f5737d74f8c0430ac3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204638
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/netpoll_aix.go     | 6 +++---
- src/runtime/netpoll_epoll.go   | 6 +++---
- src/runtime/netpoll_kqueue.go  | 6 +++---
- src/runtime/netpoll_solaris.go | 6 +++---
- src/runtime/netpoll_windows.go | 6 +++---
- 5 files changed, 15 insertions(+), 15 deletions(-)
+ doc/devel/release.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

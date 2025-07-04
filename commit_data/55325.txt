@@ -1,18 +1,17 @@
-commit 03242506def60494d1b7231e2be57ea2f07f27a8
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Dec 19 10:32:52 2023 -0500
+commit 469afbcc468115153b7ce3462619197aeadd87ad
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 26 14:49:03 2023 -0800
 
-    doc: comment out remaining TODOs in Go 1.22 relnotes (for now)
+    runtime: remove go119ConcurrentGoroutineProfile flag
     
-    This patch comments out the remaining "TODO" items in the Go 1.22
-    release notes temporarily, so as to have RC1 go out with the notes
-    in a clean (TODO-less) state.
-    
-    Change-Id: I88f5fef75860fc78b8077dce704ae71c6194a6a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/551257
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
+    Change-Id: If7a248374dcb2c276d2d85a4863eb2ed1bc246a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463226
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
 
- doc/go1.22.html | 76 ++++++++++++++++++++++++++++-----------------------------
- 1 file changed, 38 insertions(+), 38 deletions(-)
+ src/runtime/mprof.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

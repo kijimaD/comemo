@@ -1,26 +1,24 @@
-commit 0492d936c5ce2dde9ec41b2861a95a3697e58569
-Author: Shuo Wang <wangshuo@kylinos.cn>
-Date:   Fri Oct 18 02:37:57 2024 +0000
+commit 291a32aa4bd894eaad0517ce1ac3e04dd885cb8b
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Tue Aug 22 21:14:14 2023 +0000
 
-    syscall: skip TestSetuidEtc when root's gid is not 0
+    net/http: fix request canceler leak on connection close
     
-    When the root user belongs to a special user group
-    (for example, in a mock environment), TestSetuidEtc will fail.
+    Due to a race condition persistConn could be closed without removing request canceler.
     
-    For example: Setegid(1)
-    want:"Gid: 0 1 0 1"
-    got:"Gid: 1001 1 1001 1"
+    Note that without the fix test occasionally passes and to demonstrate the issue it has to be run multiple times, e.g. using -count=10.
     
-    Fixes #69921
+    Fixes #61708
     
-    Change-Id: I74d0a006b7529b1b569120a067eb4d7c4ed2e491
-    GitHub-Last-Rev: 5724383eb134c8a5c2a4a5ed67e2d3999073b98b
-    GitHub-Pull-Request: golang/go#69922
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620775
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9029d7d65cf602dd29ee1b2a87a77a73e99d9c92
+    GitHub-Last-Rev: 6b31f9826da71dad4ee8c0491efba995a8f51440
+    GitHub-Pull-Request: golang/go#61745
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515796
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/syscall/syscall_linux_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/http/transport.go      |  1 +
+ src/net/http/transport_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

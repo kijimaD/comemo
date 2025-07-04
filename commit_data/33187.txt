@@ -1,20 +1,15 @@
-commit 6db4950dc57deb899bf5550411c01ce32f16bdd0
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Wed Oct 11 22:05:03 2017 -0300
+commit c1c08a13e7ed219148f18ce8e4aaed5202eed409
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Jul 21 18:00:22 2017 -0400
 
-    encoding/hex: add NewEncoder, NewDecoder
+    [dev.debug] cmd/compile: rename some locals in genssa
     
-    NewEncoder returns an io.Writer that writes all incoming bytes as
-    hexadecimal characters to the underlying io.Writer. NewDecoder returns an
-    io.Reader that does the inverse.
+    When we start tracking the mapping from Value to Prog, valueProgs will
+    be confusing. Disambiguate.
     
-    Fixes #21590
-    
-    Change-Id: Iebe0813faf365b42598f19a9aa41768f571dc0a8
-    Reviewed-on: https://go-review.googlesource.com/70210
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib3b302fedb7eb0ff1bde789d70a11656d82f0897
+    Reviewed-on: https://go-review.googlesource.com/50876
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/encoding/hex/hex.go      | 75 ++++++++++++++++++++++++++++++++++++++++++--
- src/encoding/hex/hex_test.go | 60 +++++++++++++++++++++++++++++++++++
- 2 files changed, 133 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

@@ -1,33 +1,12 @@
-commit ccc61eadd548e66c906a0a33e8a9c2d03238649a
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Jan 30 01:55:02 2013 +0100
+commit ba4197851606c9cd95e98b75d86c47604c5ffce8
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Tue Jan 29 15:17:39 2013 -0800
 
-    runtime: implement range access functions in race detector.
+    go/misc/dist: Keep file modes when copying.
     
-    Range access functions are already available in TSan library
-    but were not yet used.
-    
-    Time for go test -race -short:
-    
-    Before:
-    compress/flate 24.244s
-    exp/norm       >200s
-    go/printer     78.268s
-    
-    After:
-    compress/flate 17.760s
-    exp/norm        5.537s
-    go/printer      5.738s
-    
-    Fixes #4250.
-    
-    R=dvyukov, golang-dev, fullung
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/7229044
+    https://golang.org/cl/7221055
 
- src/pkg/runtime/race.c       | 38 ++++++++++++++++++++++++++
- src/pkg/runtime/race.h       |  2 ++
- src/pkg/runtime/race/race.go | 12 +++++++++
- src/pkg/runtime/race0.c      | 20 ++++++++++++++
- src/pkg/runtime/slice.c      | 64 +++++++++++++++++++++-----------------------
- 5 files changed, 103 insertions(+), 33 deletions(-)
+ misc/dist/bindist.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

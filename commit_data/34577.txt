@@ -1,22 +1,14 @@
-commit 867d07f3ac708556f406f75e08bc68c70567f907
-Author: jimmyfrasche <soapboxcicero@gmail.com>
-Date:   Sun Mar 11 17:15:44 2018 -0700
+commit 86b7721ce3203ae002294f2c6027dfe48a968744
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 1 13:38:05 2017 -0700
 
-    go/token: add example for retrieving Position from Pos
+    os: rearrange OpenFile Flags doc
     
-    There are few uses for the majority of the API in go/token for the
-    average user. The exception to this is getting the filename, line, and
-    column information from a token.Pos (reported and absolute. This is
-    straightforward but figuring out how to do it requires combing through
-    a lot of documentation. This example makes it more easily discoverable.
+    Updates #21322
     
-    Updates #24352.
-    
-    Change-Id: I0a45da6173b3dabebf42484bbbed30d9e5e20e01
-    Reviewed-on: https://go-review.googlesource.com/100058
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib03ee9dbe1b44c2fecd51f2f2c23a88482158e7e
+    Reviewed-on: https://go-review.googlesource.com/75250
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/token/example_test.go | 77 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 77 insertions(+)
+ src/os/file.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

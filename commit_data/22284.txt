@@ -1,20 +1,18 @@
-commit 88399b2e4662ad5a8ca8dc50c5d60fbe42d86396
-Author: Jacob H. Haven <jacob@cloudflare.com>
-Date:   Thu Mar 26 15:05:09 2015 -0700
+commit f05f273525e7547d5dd4ee17d97f53dd210bde97
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 3 09:14:31 2015 -0800
 
-    crypto/x509: Fix parsing bug in uncommon CSR Attributes.
+    cmd/internal/obj: print g for the g register on arm and ppc64
     
-    A CSR containing challengePassword or unstructuredName Attributes
-    (included in default OpenSSL prompts) would break ASN.1 parsing.
-    This updates the parsing structures to allow but then ignore these
-    fields.
+    The name g is an alias for R10 and R30, respectively. Have Rconv
+    print the alias, for consistency with the input language.
     
-    See this CFSSL issue: https://github.com/cloudflare/cfssl/issues/115
-    
-    Change-Id: I26a3bf1794589d27e6e763da88ae32276f0170c7
-    Reviewed-on: https://go-review.googlesource.com/8160
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: Ic3f40037884a0c8de5089d8c8a8efbcdc38c0d56
+    Reviewed-on: https://go-review.googlesource.com/6630
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/x509/x509.go      | 51 ++++++++++++++++++++++++++++++------
- src/crypto/x509/x509_test.go | 62 +++++++++++++++++++++++++-------------------
- 2 files changed, 79 insertions(+), 34 deletions(-)
+ src/cmd/asm/internal/asm/operand_test.go | 8 ++++----
+ src/cmd/internal/obj/arm/list5.go        | 4 ++++
+ src/cmd/internal/obj/ppc64/list9.go      | 4 ++++
+ 3 files changed, 12 insertions(+), 4 deletions(-)

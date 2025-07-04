@@ -1,147 +1,100 @@
-commit 488e2a56b93e174d2dd748cf9583365495dbe007
-Author: Branden Brown <zephyrtronium@gmail.com>
-Date:   Sat Aug 5 09:24:57 2023 -0400
+commit b1678e508bf04b32fcd8153d09c39ff25b51d287
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 13 09:22:35 2022 -0500
 
-    math/rand/v2: remove bias in ExpFloat64 and NormFloat64
+    cmd/compile: handle simple inlined calls in staticinit
     
-    The original implementation of the ziggurat algorithm was designed for
-    32-bit random integer inputs. This necessitated reusing some low-order
-    bits for the slice selection and the random coordinate, which introduces
-    statistical bias. The result is that PractRand consistently fails the
-    math/rand normal and exponential sequences (transformed to uniform)
-    within 2 GB of variates.
+    Global variable initializers like
     
-    This change adjusts the ziggurat procedures to use 63-bit random inputs,
-    so that there is no need to reuse bits between the slice and coordinate.
-    This is sufficient for the normal sequence to survive to 256 GB of
-    PractRand testing.
+            var myErr error = &myError{"msg"}
     
-    An alternative technique is to recalculate the ziggurats to use 1024
-    rather than 128 or 256 slices to make full use of 64-bit inputs. This
-    improves the survival of the normal sequence to far beyond 256 GB and
-    additionally provides a 6% performance improvement due to the improved
-    rejection procedure efficiency. However, doing so increases the total
-    size of the ziggurat tables from 4.5 kB to 48 kB.
+    have been converted to statically initialized data
+    from the earliest days of Go: there is no init-time
+    execution or allocation for that line of code.
     
-    goos: linux
-    goarch: amd64
-    pkg: math/rand/v2
-    cpu: AMD Ryzen 9 7950X 16-Core Processor
-                            │ 2703446c2e.amd64 │           e1bbe739fb.amd64           │
-                            │      sec/op      │    sec/op     vs base                │
-    SourceUint64-32                1.337n ± 1%    1.316n ± 2%        ~ (p=0.024 n=20)
-    GlobalInt64-32                 2.225n ± 2%    2.048n ± 1%   -7.93% (p=0.000 n=20)
-    GlobalInt64Parallel-32        0.1043n ± 2%   0.1037n ± 1%        ~ (p=0.587 n=20)
-    GlobalUint64-32                2.058n ± 1%    2.039n ± 2%        ~ (p=0.030 n=20)
-    GlobalUint64Parallel-32       0.1009n ± 1%   0.1013n ± 1%        ~ (p=0.984 n=20)
-    Int64-32                       1.719n ± 2%    1.692n ± 2%        ~ (p=0.085 n=20)
-    Uint64-32                      1.669n ± 1%    1.643n ± 2%        ~ (p=0.049 n=20)
-    GlobalIntN1000-32              3.321n ± 2%    3.287n ± 1%        ~ (p=0.298 n=20)
-    IntN1000-32                    2.479n ± 1%    2.678n ± 2%   +8.01% (p=0.000 n=20)
-    Int64N1000-32                  2.477n ± 1%    2.684n ± 2%   +8.38% (p=0.000 n=20)
-    Int64N1e8-32                   2.490n ± 1%    2.663n ± 2%   +6.99% (p=0.000 n=20)
-    Int64N1e9-32                   2.458n ± 1%    2.633n ± 1%   +7.12% (p=0.000 n=20)
-    Int64N2e9-32                   2.486n ± 2%    2.657n ± 1%   +6.90% (p=0.000 n=20)
-    Int64N1e18-32                  3.215n ± 2%    3.125n ± 2%   -2.78% (p=0.000 n=20)
-    Int64N2e18-32                  3.588n ± 2%    3.476n ± 1%   -3.15% (p=0.000 n=20)
-    Int64N4e18-32                  4.938n ± 2%    4.795n ± 1%   -2.91% (p=0.000 n=20)
-    Int32N1000-32                  2.673n ± 2%    2.485n ± 2%   -7.02% (p=0.000 n=20)
-    Int32N1e8-32                   2.631n ± 2%    2.457n ± 1%   -6.63% (p=0.000 n=20)
-    Int32N1e9-32                   2.628n ± 2%    2.452n ± 1%   -6.70% (p=0.000 n=20)
-    Int32N2e9-32                   2.684n ± 2%    2.453n ± 1%   -8.61% (p=0.000 n=20)
-    Float32-32                     2.240n ± 2%    2.254n ± 1%        ~ (p=0.878 n=20)
-    Float64-32                     2.253n ± 1%    2.262n ± 1%        ~ (p=0.963 n=20)
-    ExpFloat64-32                  3.677n ± 1%    3.777n ± 2%   +2.71% (p=0.004 n=20)
-    NormFloat64-32                 3.761n ± 1%    3.606n ± 1%   -4.15% (p=0.000 n=20)
-    Perm3-32                       33.55n ± 2%    33.12n ± 2%        ~ (p=0.402 n=20)
-    Perm30-32                      173.2n ± 1%    176.1n ± 1%   +1.67% (p=0.000 n=20)
-    Perm30ViaShuffle-32            115.9n ± 1%    109.3n ± 1%   -5.69% (p=0.000 n=20)
-    ShuffleOverhead-32             101.9n ± 1%    112.5n ± 1%  +10.35% (p=0.000 n=20)
-    Concurrent-32                  2.107n ± 6%    2.099n ± 0%        ~ (p=0.051 n=20)
+    But if the expression is moved into an inlinable function,
+    the static initialization no longer happens.
+    That is, this code has always executed and allocated
+    at init time, even after we added inlining to the compiler,
+    which should in theory make this code equivalent to
+    the original:
     
-    goos: darwin
-    goarch: arm64
-    pkg: math/rand/v2
-    cpu: Apple M1
-                           │ 2703446c2e.arm64 │          e1bbe739fb.arm64           │
-                           │      sec/op      │    sec/op     vs base               │
-    SourceUint64-8                2.275n ± 0%    2.290n ± 1%       ~ (p=0.044 n=20)
-    GlobalInt64-8                 2.154n ± 1%    2.180n ± 1%       ~ (p=0.068 n=20)
-    GlobalInt64Parallel-8        0.4298n ± 0%   0.4294n ± 0%       ~ (p=0.079 n=20)
-    GlobalUint64-8                2.160n ± 1%    2.170n ± 1%       ~ (p=0.129 n=20)
-    GlobalUint64Parallel-8       0.4286n ± 0%   0.4283n ± 0%       ~ (p=0.350 n=20)
-    Int64-8                       2.491n ± 1%    2.481n ± 1%       ~ (p=0.330 n=20)
-    Uint64-8                      2.458n ± 0%    2.464n ± 1%       ~ (p=0.351 n=20)
-    GlobalIntN1000-8              2.814n ± 2%    2.814n ± 0%       ~ (p=0.325 n=20)
-    IntN1000-8                    2.933n ± 0%    2.934n ± 2%       ~ (p=0.079 n=20)
-    Int64N1000-8                  2.962n ± 1%    2.957n ± 1%       ~ (p=0.259 n=20)
-    Int64N1e8-8                   2.960n ± 1%    2.935n ± 2%       ~ (p=0.276 n=20)
-    Int64N1e9-8                   2.935n ± 2%    2.935n ± 2%       ~ (p=0.984 n=20)
-    Int64N2e9-8                   2.934n ± 0%    2.933n ± 4%       ~ (p=0.463 n=20)
-    Int64N1e18-8                  3.777n ± 1%    3.781n ± 1%       ~ (p=0.516 n=20)
-    Int64N2e18-8                  4.359n ± 1%    4.362n ± 0%       ~ (p=0.256 n=20)
-    Int64N4e18-8                  6.536n ± 1%    6.576n ± 1%       ~ (p=0.224 n=20)
-    Int32N1000-8                  2.937n ± 0%    2.942n ± 2%       ~ (p=0.312 n=20)
-    Int32N1e8-8                   2.937n ± 1%    2.941n ± 1%       ~ (p=0.463 n=20)
-    Int32N1e9-8                   2.936n ± 0%    2.938n ± 2%       ~ (p=0.044 n=20)
-    Int32N2e9-8                   2.938n ± 2%    2.982n ± 2%       ~ (p=0.174 n=20)
-    Float32-8                     3.441n ± 0%    3.441n ± 0%       ~ (p=0.064 n=20)
-    Float64-8                     3.441n ± 0%    3.441n ± 0%       ~ (p=0.826 n=20)
-    ExpFloat64-8                  4.486n ± 0%    4.472n ± 0%  -0.31% (p=0.000 n=20)
-    NormFloat64-8                 4.721n ± 0%    4.716n ± 0%       ~ (p=0.051 n=20)
-    Perm3-8                       26.65n ± 0%    26.66n ± 0%       ~ (p=0.080 n=20)
-    Perm30-8                      143.2n ± 0%    143.3n ± 0%  +0.10% (p=0.000 n=20)
-    Perm30ViaShuffle-8            143.0n ± 0%    142.9n ± 0%       ~ (p=0.642 n=20)
-    ShuffleOverhead-8             120.6n ± 1%    121.1n ± 1%  +0.41% (p=0.010 n=20)
-    Concurrent-8                  2.399n ± 5%    2.379n ± 2%       ~ (p=0.365 n=20)
+            func NewError(s string) error { return &myError{s} }
+            var myErr2 = NewError("msg")
     
-    goos: linux
-    goarch: 386
-    pkg: math/rand/v2
-    cpu: AMD Ryzen 9 7950X 16-Core Processor
-                            │ 2703446c2e.386 │           e1bbe739fb.386            │
-                            │     sec/op     │    sec/op     vs base               │
-    SourceUint64-32             2.072n ±  2%    2.087n ± 1%       ~ (p=0.440 n=20)
-    GlobalInt64-32              3.546n ± 27%    3.538n ± 2%       ~ (p=0.101 n=20)
-    GlobalInt64Parallel-32     0.3211n ±  0%   0.3207n ± 1%       ~ (p=0.753 n=20)
-    GlobalUint64-32             3.522n ±  2%    3.543n ± 1%       ~ (p=0.071 n=20)
-    GlobalUint64Parallel-32    0.3172n ±  0%   0.3170n ± 0%       ~ (p=0.507 n=20)
-    Int64-32                    2.520n ±  2%    2.548n ± 1%       ~ (p=0.267 n=20)
-    Uint64-32                   2.581n ±  1%    2.565n ± 2%       ~ (p=0.143 n=20)
-    GlobalIntN1000-32           6.171n ±  1%    6.300n ± 1%       ~ (p=0.037 n=20)
-    IntN1000-32                 4.752n ±  2%    4.750n ± 0%       ~ (p=0.984 n=20)
-    Int64N1000-32               5.429n ±  1%    5.515n ± 2%       ~ (p=0.292 n=20)
-    Int64N1e8-32                5.469n ±  2%    5.527n ± 0%       ~ (p=0.013 n=20)
-    Int64N1e9-32                5.489n ±  2%    5.531n ± 2%       ~ (p=0.256 n=20)
-    Int64N2e9-32                5.492n ±  2%    5.514n ± 2%       ~ (p=0.606 n=20)
-    Int64N1e18-32               8.927n ±  1%    9.059n ± 1%       ~ (p=0.229 n=20)
-    Int64N2e18-32               9.622n ±  1%    9.594n ± 1%       ~ (p=0.703 n=20)
-    Int64N4e18-32               12.03n ±  1%    12.05n ± 2%       ~ (p=0.733 n=20)
-    Int32N1000-32               4.817n ±  1%    4.840n ± 2%       ~ (p=0.941 n=20)
-    Int32N1e8-32                4.801n ±  1%    4.832n ± 2%       ~ (p=0.228 n=20)
-    Int32N1e9-32                4.798n ±  1%    4.815n ± 2%       ~ (p=0.560 n=20)
-    Int32N2e9-32                4.840n ±  1%    4.813n ± 1%       ~ (p=0.015 n=20)
-    Float32-32                  10.51n ±  4%    10.90n ± 2%  +3.71% (p=0.007 n=20)
-    Float64-32                  20.33n ±  3%    20.32n ± 4%       ~ (p=0.566 n=20)
-    ExpFloat64-32               12.59n ±  2%    12.95n ± 3%  +2.86% (p=0.002 n=20)
-    NormFloat64-32              7.350n ±  2%    7.570n ± 1%  +2.99% (p=0.007 n=20)
-    Perm3-32                    39.29n ±  2%    37.80n ± 2%  -3.79% (p=0.000 n=20)
-    Perm30-32                   219.1n ±  2%    214.0n ± 1%  -2.33% (p=0.002 n=20)
-    Perm30ViaShuffle-32         189.8n ±  2%    188.7n ± 2%       ~ (p=0.147 n=20)
-    ShuffleOverhead-32          158.9n ±  2%    160.8n ± 1%       ~ (p=0.176 n=20)
-    Concurrent-32               3.306n ±  3%    3.288n ± 0%  -0.54% (p=0.005 n=20)
+    This CL makes the static initialization rewriter understand
+    inlined functions consisting of a single return statement,
+    like in this example, so that myErr2 can be implemented as
+    statically initialized data too, just like myErr, with no init-time
+    execution or allocation.
     
-    For #61716.
+    A real example of code that benefits from this rewrite is
+    all globally declared errors created with errors.New, like
     
-    Change-Id: I4c5fe710b310dc075ae21c97d1805bcc20db5050
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516275
+            package io
+            var EOF = errors.New("EOF")
+    
+    Package io no longer has to allocate and initialize EOF each
+    time a program starts.
+    
+    Another example of code that benefits is any globally declared
+    godebug setting (using the API from CL 449504), like
+    
+            package http
+            var http2server = godebug.New("http2server")
+    
+    These are no longer allocated and initialized at program startup either.
+    
+    The list of functions that are inlined into static initializers when
+    compiling std and cmd (along with how many times each occurs) is:
+    
+            cmd/compile/internal/ssa.StringToAux (3)
+            cmd/compile/internal/walk.mkmapnames (4)
+            errors.New (360)
+            go/ast.NewIdent (1)
+            go/constant.MakeBool (4)
+            go/constant.MakeInt64 (3)
+            image.NewUniform (4)
+            image/color.ModelFunc (11)
+            internal/godebug.New (12)
+            vendor/golang.org/x/text/unicode/bidi.newBidiTrie (1)
+            vendor/golang.org/x/text/unicode/norm.newNfcTrie (1)
+            vendor/golang.org/x/text/unicode/norm.newNfkcTrie (1)
+    
+    For the cmd/go binary, this CL cuts the number of init-time
+    allocations from about 1920 to about 1620 (a 15% reduction).
+    
+    The total executable code footprint of init functions is reduced
+    by 24kB, from 137kB to 113kB (an 18% reduction).
+    The overall binary size is reduced by 45kB,
+    from 15.335MB to 15.290MB (a 0.3% reduction).
+    (The binary size savings is larger than the executable code savings
+    because every byte of executable code also requires corresponding
+    runtime tables for unwinding, source-line mapping, and so on.)
+    
+    Also merge test/sinit_run.go, which had stopped testing anything
+    at all as of CL 161337 (Feb 2019) and initempty.go into a new test
+    noinit.go.
+    
+    Fixes #30820.
+    
+    Change-Id: I52f7275b1ac2a0a32e22c29f9095071c7b1fac20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450136
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/math/rand/v2/example_test.go | 22 +++++------
- src/math/rand/v2/exp.go          |  5 ++-
- src/math/rand/v2/normal.go       |  5 ++-
- src/math/rand/v2/regress_test.go | 80 ++++++++++++++++++++--------------------
- 4 files changed, 57 insertions(+), 55 deletions(-)
+ src/cmd/compile/internal/base/flag.go        |   4 +-
+ src/cmd/compile/internal/ssagen/phi.go       |   2 +-
+ src/cmd/compile/internal/staticinit/sched.go | 368 +++++++++++++++++++++------
+ test/initempty.go                            |  40 ---
+ test/initialize.go                           |  87 +++++--
+ test/inline.go                               |   3 +
+ test/{sinit.go => noinit.go}                 |  82 +++++-
+ test/sinit_run.go                            |  45 ----
+ 8 files changed, 429 insertions(+), 202 deletions(-)

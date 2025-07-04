@@ -1,19 +1,18 @@
-commit e5ef4846911d91eed4fdea27e6bfeb5733d829a6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 31 15:38:35 2023 -0700
+commit b138e71e5b90c75e6e5239fb8f4536c6dcc31c36
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Nov 16 17:33:03 2022 -0800
 
-    spec: document range over integer expression
+    path/filepath: remove IsLocal tests dependent on Windows version
     
-    This CL is partly based on CL 510535.
+    Don't test IsLocal("nul.txt"), since whether this name is reserved
+    or not is version-dependent.
     
-    For #61405.
-    
-    Change-Id: Ic94f6726f9eb34313f11bec7b651921d7e5c18d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538859
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ifff3edc77454e052080e325871c08bbba49e692c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451222
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/go_spec.html | 28 +++++++++++++++++++++-------
- 1 file changed, 21 insertions(+), 7 deletions(-)
+ src/path/filepath/path_test.go | 2 --
+ 1 file changed, 2 deletions(-)

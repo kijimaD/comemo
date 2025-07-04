@@ -1,12 +1,15 @@
-commit 87380415e0a6634e822d4afbb506eaa74d6acf12
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 1 16:48:31 2013 +1000
+commit 252c107f2fe3e1ba8a58e06ec0e63fa8c8f90bb5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 31 23:38:32 2013 -0700
 
-    misc/dist: include godoc from go.tools
+    net/http: don't MIME sniff if handler set an empty string Content-Type
     
-    R=golang-dev, bradfitz
+    Fixes #5953
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/12075045
+    https://golang.org/cl/12117043
 
- misc/dist/bindist.go | 58 +++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 46 insertions(+), 12 deletions(-)
+ src/pkg/net/http/server.go     |  3 ++-
+ src/pkg/net/http/sniff_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

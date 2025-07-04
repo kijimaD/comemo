@@ -1,33 +1,19 @@
-commit 02f89331c2ec09923806611bc1a8fbb2ffcbcca5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 5 15:02:09 2015 -0500
+commit d3526ea0f6ff6775794ebce22192f48eec20aca0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Nov 21 18:15:30 2014 -0500
 
-    runtime: fix two garbage collector bugs
+    [dev.cc] runtime: migrate Android/ARM port to Go.
     
-    First, call clearcheckmarks immediately after changing checkmark,
-    so that there is less time when the checkmark flag and the bitmap
-    are inconsistent. The tiny gap between the two lines is fine, because
-    the world is stopped. Before, the gap was much larger and included
-    such code as "go bgsweep()", which allocated.
+    I tested building Go itself, but not any of go.mobile tests.
     
-    Second, modify gcphase only when the world is stopped.
-    As written, gcscan_m was changing gcphase from 0 to GCscan
-    and back to 0 while other goroutines were running.
-    Another goroutine running at the same time might decide to
-    sleep, see GCscan, call gcphasework, and start "helping" by
-    scanning its stack. That's fine, except that if gcphase flips back
-    to 0 as the goroutine calls scanblock, it will start draining the
-    work buffers prematurely.
-    
-    Both of these were found wbshadow=2 (and a lot of hard work).
-    Eventually that will run automatically, but right now it still
-    doesn't quite work for all.bash, due to mmap conflicts with
-    pthread-created threads.
-    
-    Change-Id: I99aa8210cff9c6e7d0a1b62c75be32a23321897b
-    Reviewed-on: https://go-review.googlesource.com/2340
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    LGTM=crawshaw
+    R=crawshaw, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/179110043
 
- src/runtime/malloc.go |  1 +
- src/runtime/mgc.go    | 21 ++++++++++++---------
- 2 files changed, 13 insertions(+), 9 deletions(-)
+ src/runtime/os_android.h                        |  1 -
+ src/runtime/{os_android.c => os_android_arm.go} | 11 +++++------
+ src/runtime/signal_android_386.h                |  1 -
+ src/runtime/signal_android_arm.h                |  1 -
+ src/runtime/signals_android.h                   |  1 -
+ 5 files changed, 5 insertions(+), 10 deletions(-)

@@ -1,19 +1,18 @@
-commit 73e791a38a719885df48817b2272ede1819c7053
+commit a50b24c649f09e5b65e707fc634637aa984b9d96
 Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Apr 1 21:38:05 2015 -0400
+Date:   Wed Apr 8 04:27:58 2015 -0400
 
-    cmd/internal/obj: do not generate data for $f32. and $f64. symbols at assemble time
+    cmd/api: make the test more robust
     
-    When reading the object files for linking, liblink takes care of
-    generate the data for them.
+    Previously, the TestCompareAPI test would fail if runtime.Version()
+    is "dev", or, more importantly, "go1.5"; because compareAPI depends
+    on runtime.Version and -allow_new flag. Move that logic out make
+    its test more robust.
     
-    This is a port of https://golang.org/cl/3101 to Go.
-    
-    Change-Id: Ie3e2d6515bd7d253a8c1e25c70ef8fed064436d8
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/8383
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8f40daa1838b8acd26adac8848762d95315053b0
+    Reviewed-on: https://go-review.googlesource.com/8622
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go | 10 ----------
- src/cmd/internal/obj/x86/obj6.go | 10 ----------
- 2 files changed, 20 deletions(-)
+ src/cmd/api/goapi.go      | 7 ++++---
+ src/cmd/api/goapi_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

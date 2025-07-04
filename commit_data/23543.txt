@@ -1,30 +1,24 @@
-commit 1bab3a16db964e331097e314ef4c57e1ac44cc4a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 26 20:51:13 2015 -0700
+commit db0594b633525e5b88e1b508019edaeb1b44ed2f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 21 18:13:44 2015 -0700
 
-    net/http: fix now-flaky TransportAndServerSharedBodyRace test
+    cmd/compile/internal/big: update to latest version (run sh vendor.bash)
     
-    TestTransportAndServerSharedBodyRace got flaky after
-    issue #9662 was fixed by https://golang.org/cl/11412, which made
-    servers hang up on clients when a Handler stopped reading its body
-    early.
+    No manual code changes.
     
-    This test was affected by a race between the the two goroutines in the
-    test both only reading part of the request, which was an unnecessary
-    detail for what the test was trying to test (concurrent Read/Close
-    races on an *http.body)
+    This will permit addressing the compiler aspect of issue #10321 in a
+    subsequent change.
     
-    Also remove an unused remnant from an old test from which this one was
-    derived. And make the test not deadlock when it fails. (which was why
-    the test was showing up as 2m timeouts on the dashboard)
-    
-    Fixes #11418
-    
-    Change-Id: Ic83d18aef7e09a9cd56ac15e22ebed75713026cb
-    Reviewed-on: https://go-review.googlesource.com/11610
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I3376dc38cafa0ec98bf54de33293015d0183cc82
+    Reviewed-on: https://go-review.googlesource.com/10354
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/http/serve_test.go | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/big/arith.go      |   1 -
+ src/cmd/compile/internal/big/arith_test.go |   1 +
+ src/cmd/compile/internal/big/float.go      | 155 +++++++++++++-----------
+ src/cmd/compile/internal/big/float_test.go | 183 ++++++++++++++++++-----------
+ src/cmd/compile/internal/big/int.go        | 118 +++++++++++++++++++
+ src/cmd/compile/internal/big/int_test.go   | 138 ++++++++++++++++++++++
+ src/cmd/compile/internal/big/nat.go        | 121 ++++++++++++++++++-
+ src/cmd/compile/internal/big/nat_test.go   |  61 ++++++++++
+ 8 files changed, 635 insertions(+), 143 deletions(-)

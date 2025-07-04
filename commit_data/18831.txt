@@ -1,14 +1,23 @@
-commit 5b5c8f0576e15db9bc5aa1e63507cef3aa370478
-Author: Dhiru Kholia <dhiru.kholia@gmail.com>
-Date:   Tue Mar 11 18:49:50 2014 -0700
+commit ef6c21d0e9158e8dcb95543f684c01219f56b193
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 12 10:32:46 2014 +0900
 
-    dwarf: add extensions for multi-file compression (.dwz)
+    syscall, net: clean up socket stub for solaris
     
-    LGTM=iant
-    R=golang-codereviews, iant, bradfitz
-    CC=golang-codereviews, math-nuts
-    https://golang.org/cl/72820044
+    Solaris doesn't have struct ip_mreqn, instead it uses struct ip_mreq
+    and struct group_req with struct sockaddr_storage.
+    
+    Also fixes incorrect SockaddrDatalink.
+    
+    Update #7399
+    
+    LGTM=aram, iant
+    R=golang-codereviews, aram, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/73920043
 
- src/pkg/debug/dwarf/const.go | 4 ++++
- src/pkg/debug/dwarf/entry.go | 4 ++--
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/net/sockoptip_bsd.go       |  2 +-
+ src/pkg/net/sockoptip_posix.go     |  2 +-
+ src/pkg/net/sockoptip_stub.go      | 39 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_solaris.go | 26 ++-----------------------
+ 4 files changed, 43 insertions(+), 26 deletions(-)

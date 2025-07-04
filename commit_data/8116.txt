@@ -1,16 +1,17 @@
-commit 4c9634fc5b3c22ddc7e402175e13536c008f6481
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 15 08:20:42 2011 -0400
+commit 57d0c26c01de5bfefd936cec3ef7f1c6f7926255
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Apr 15 01:21:18 2011 -0700
 
-    build: remove DISABLE_NET_TESTS
+    expvar: add Func for functions that return values that are JSON marshalable.
     
-    Don't use external network during all.bash.
+    Remove {Float,Int,String}Func, which are now redundant.
     
-    R=r, r2, rh, ality
+    Fixes #1684.
+    
+    R=rsc, r, r2
     CC=golang-dev
-    https://golang.org/cl/4429041
+    https://golang.org/cl/4410041
 
- src/pkg/Makefile               |  5 -----
- src/pkg/net/dialgoogle_test.go | 10 ++++++++++
- src/pkg/syslog/syslog_test.go  |  4 ++++
- 3 files changed, 14 insertions(+), 5 deletions(-)
+ src/pkg/expvar/expvar.go      | 37 +++++++++++++------------------------
+ src/pkg/expvar/expvar_test.go | 42 ++++++++----------------------------------
+ 2 files changed, 21 insertions(+), 58 deletions(-)

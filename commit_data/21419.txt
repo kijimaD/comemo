@@ -1,17 +1,18 @@
-commit d135966ef60cc4d1b94de1a184cafdfcb6ee59b1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 30 14:12:21 2015 -0800
+commit 281ae9288133a8880d910b96a1c0c96585ae3974
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jan 2 16:30:08 2015 -0500
 
-    math/big: split nat conversion routines and tests into separate files
+    liblink: fix encoding of SETcc for amd64
     
-    No functional changes.
+    liblink used to encode both SETEQ BP and SETEQ CH as 0f 94 c5,
+    however, SETEQ BP should have used a REX prefix.
     
-    Change-Id: Ibbb705b167603d30467f3ebb83a3bb39845306a5
-    Reviewed-on: https://go-review.googlesource.com/3671
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #8545.
+    
+    Change-Id: Ie59c990cdd0ec506cffe4318e9ad1b48db5e57dd
+    Reviewed-on: https://go-review.googlesource.com/2270
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/math/big/nat.go          | 483 +-----------------------------------------
- src/math/big/nat_test.go     | 419 ------------------------------------
- src/math/big/natconv.go      | 489 +++++++++++++++++++++++++++++++++++++++++++
- src/math/big/natconv_test.go | 429 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 919 insertions(+), 901 deletions(-)
+ src/liblink/asm6.c | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

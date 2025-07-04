@@ -1,22 +1,14 @@
-commit d53cdd177565ef349e547b7125d2c1e2094d62c2
+commit c739dd229986d3f1560a3962ad5a9bafc7530364
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 3 10:53:31 2012 -0500
+Date:   Fri Feb 3 10:30:52 2012 -0500
 
-    gc: check in y.tab.[ch], yerr.h, builtin.c.
+    spec: 9 only looks prime
     
-    This enables builds on systems without Bison/yacc.
+    Fixes #2870.
     
-    R=golang-dev, iant
+    R=golang-dev, agl, lvd
     CC=golang-dev
-    https://golang.org/cl/5622051
+    https://golang.org/cl/5618050
 
- .hgignore                                |    4 -
- src/Make.clib                            |    4 +-
- src/cmd/gc/Makefile                      |   26 +-
- src/cmd/gc/{builtin.c.boot => builtin.c} |    0
- src/cmd/gc/mkbuiltin                     |   11 +-
- src/cmd/gc/mkbuiltin1.c                  |    2 +
- src/cmd/gc/y.tab.c                       | 4927 ++++++++++++++++++++++++++++++
- src/cmd/gc/y.tab.h                       |  167 +
- src/cmd/gc/yerr.h                        |   73 +
- 9 files changed, 5188 insertions(+), 26 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

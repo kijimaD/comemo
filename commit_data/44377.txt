@@ -1,32 +1,24 @@
-commit 74903553bc91cef8f31067ad69ef2aa7d60ceb00
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Feb 22 17:21:10 2021 -0500
+commit f2bba30e4068695fcb08ddf5006e776c1fd38eca
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 18 18:05:10 2020 -0400
 
-    doc: start draft go1.17 release notes, move go1.16 to x/website
+    cmd/link: use sym.Symbol in addpersrc
     
-    This template is based on CL 248198 and previous ones like it.
-    Continue to eagerly include often-used sections, and clarify that
-    the TODO is about completing the section, or removing if it turns
-    out not to be needed.
+    addpersrc is called very late, after we have converted to
+    sym.Symbols and various fields in loader representation have been
+    dropped. Use the Symbol representation there.
     
-    Move the Go 1.16 release notes to x/website, since that's the new
-    home for past Go release notes as of CL 291711. They're added to
-    x/website in CL 295249.
+    Fixes #39658.
     
-    'relnote -html' does not report any CLs with RELNOTE annotations
-    since 2021/02/01.
-    
-    For #44513.
-    Updates #40700.
-    
-    Change-Id: Idd389335500ec4dec2764cbbaa385918cc8a79ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295209
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I616e838655b6f01554644171317e2cc5cefabf39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238779
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.16.html | 1220 -------------------------------------------------------
- doc/go1.17.html |   84 ++++
- 2 files changed, 84 insertions(+), 1220 deletions(-)
+ src/cmd/link/internal/ld/pe.go             |  13 ++++++-----
+ src/cmd/link/link_test.go                  |  34 +++++++++++++++++++++++++++++
+ src/cmd/link/testdata/testPErsrc/main.go   |  19 ++++++++++++++++
+ src/cmd/link/testdata/testPErsrc/rsrc.syso | Bin 0 -> 228 bytes
+ 4 files changed, 60 insertions(+), 6 deletions(-)

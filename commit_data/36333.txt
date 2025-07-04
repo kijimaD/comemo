@@ -1,14 +1,16 @@
-commit c9b018918d461da758e448ac370c2df8c6f77ab3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 2 10:36:49 2018 -0700
+commit c284171bbb658085d364127f0d20a92341643583
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Apr 20 18:56:42 2018 +0200
 
-    testing: exit with error if testing.Short is called before flag.Parse
+    cmd/compile: use more ORs in lowering AMD64.rules
     
-    Change-Id: I2fa547d1074ef0931196066678fadd7250a1148d
-    Reviewed-on: https://go-review.googlesource.com/121936
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    No changes in the actual generated compiler code.
+    
+    Change-Id: Ibae71b6de35722792cc94fea0cdfa5e53cf3c83e
+    Reviewed-on: https://go-review.googlesource.com/108476
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/testing.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 182 ++++++++-------------------
+ 1 file changed, 50 insertions(+), 132 deletions(-)

@@ -1,14 +1,16 @@
-commit 7f0b4a879b24db2931e8b6e198540e6c45cb63b5
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 11:44:09 2016 -0500
+commit c229d2fdc684e366be4b4cf17949a02ae35caaaa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 30 02:31:15 2015 +0000
 
-    crypto/dsa: adjust GenerateParameters comment
+    net/http: update x/net/http2
     
-    Fixes #13725.
+    Updated bundle of golang.org/x/net/http2 to rev c95266
     
-    Change-Id: I5fe46851b238fc9ab301da8f8fc37bd1b7871748
-    Reviewed-on: https://go-review.googlesource.com/18316
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id6df66a8f4eadd6a100f359fd6cac981653dafa6
+    Reviewed-on: https://go-review.googlesource.com/16448
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/dsa/dsa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/h2_bundle.go | 1100 +++++++++++++++++++++++++++++++++------------
+ 1 file changed, 825 insertions(+), 275 deletions(-)

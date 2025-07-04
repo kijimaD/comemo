@@ -1,22 +1,27 @@
-commit c79a486be20b395bdd198be9112e633623665988
-Author: Tim King <taking@google.com>
-Date:   Fri Nov 8 15:07:51 2024 -0800
+commit de4ead8102c3ba5dc9475ed3e117b2c50220b4df
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Sep 12 15:32:22 2023 +0200
 
-    cmd/compile/internal/importer: minimize Import differences
+    time: unconditionally use RegLoadMUIString on Windows
     
-    Minimizes the differences with go/internal/gcimporter.Import.
+    RegLoadMUIString is supported on Windows Vista and later, so this
+    should be safe to do unconditionally.
     
-    Note that the copy in cmd/compile/internal/importer is currently
-    only used in tests.
+    While here, also unconditionally use GetDynamicTimeZoneInformation
+    in syscall/windows/registry tests, since it's also supported on Windows
+    Vista and later.
     
-    The delta between the two Import functions is now just types vs types2.
-    
-    Change-Id: I5e94d3aa5bbdb78252e47310c95807f63e27ef3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626698
-    Commit-Queue: Tim King <taking@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ifa32a81f4727d4810f2b9ccc814aa77a43513e59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527595
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/cmd/compile/internal/importer/gcimporter.go | 32 ++++++++++++-------------
- src/go/internal/gcimporter/gcimporter.go        |  3 ---
- 2 files changed, 16 insertions(+), 19 deletions(-)
+ src/internal/syscall/windows/registry/registry_test.go |  6 ------
+ src/internal/syscall/windows/registry/syscall.go       |  4 ----
+ src/internal/syscall/windows/registry/value.go         |  3 ---
+ src/time/zoneinfo_windows.go                           | 14 ++++++--------
+ src/time/zoneinfo_windows_test.go                      | 10 ++++------
+ 5 files changed, 10 insertions(+), 27 deletions(-)

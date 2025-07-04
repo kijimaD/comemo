@@ -1,0 +1,53 @@
+commit 7ba074fe43a3c1e9a35cd579520d7184d3a20d36
+Author: Kyle Xiao <xiaost7@gmail.com>
+Date:   Thu Sep 12 22:52:56 2024 +0800
+
+    reflect: remove calling mapiterkey, mapiterelem
+    
+    It makes use of the hiter structure which matches runtime.hiter's.
+    
+    This change mainly improves the performance of Next method of MapIter.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: reflect
+    cpu: Apple M2
+                  │  ./old.txt  │              ./new.txt              │
+                  │   sec/op    │   sec/op     vs base                │
+    MapIterNext-8   61.95n ± 0%   54.95n ± 0%  -11.28% (p=0.000 n=10)
+    
+    for the change of `test/escape_reflect.go`:
+    removing mapiterkey, mapiterelem would cause leaking MapIter content
+    when calling SetIterKey and SetIterValue,
+    and this may cause map bucket to be allocated on heap instead of stack.
+    Reproduce:
+    ```
+    {
+      m := map[int]int{1: 2} // escapes to heap after this change
+      it := reflect.ValueOf(m).MapRange()
+      it.Next()
+      var k, v int
+      reflect.ValueOf(&k).Elem().SetIterKey(it)
+      reflect.ValueOf(&v).Elem().SetIterValue(it)
+      println(k, v)
+    }
+    ```
+    This CL would not introduce abi.NoEscape to fix this. It may need futher
+    optimization and tests on hiter field usage and its escape analysis.
+    
+    Fixes #69416
+    
+    Change-Id: Ibaa33bcf86228070b4a505b9512680791aa59f04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612616
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/reflect/map_noswiss.go | 14 +++++++-------
+ src/reflect/map_swiss.go   | 14 +++++++-------
+ src/reflect/value.go       |  6 ------
+ src/runtime/map_noswiss.go |  4 ++--
+ test/escape_reflect.go     |  4 ++--
+ 5 files changed, 18 insertions(+), 24 deletions(-)

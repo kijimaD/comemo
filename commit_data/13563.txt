@@ -1,13 +1,17 @@
-commit cf06750372c054f0faa9c79f0f957a2114b68b46
-Author: Mike Rosset <mike.rosset@gmail.com>
-Date:   Fri Aug 3 14:46:20 2012 -0400
+commit e1077420807882bd52fd4857100a199b9afc5909
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Aug 3 13:28:05 2012 -0400
 
-    debug/elf: Add support for getting DynTag string table values.
+    crypto/tls: remove flakey tests
     
-    R=rsc
+    This removes some (non-short only) tests that involved connections to
+    the outside world and thus were flakey. This does remove some test
+    coverage of the root fetchers on non-Windows platforms, but the right
+    place for that is crypto/x509.
+    
+    R=golang-dev, krautz, rsc
     CC=golang-dev
-    https://golang.org/cl/6430064
+    https://golang.org/cl/6455085
 
- src/pkg/debug/elf/file.go      | 31 ++++++++++++++++++++++---------
- src/pkg/debug/elf/file_test.go | 11 +++++++++++
- 2 files changed, 33 insertions(+), 9 deletions(-)
+ src/pkg/crypto/tls/root_test.go | 61 -----------------------------------------
+ 1 file changed, 61 deletions(-)

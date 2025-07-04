@@ -1,12 +1,16 @@
-commit 52ec4aa24aa6af413d950bfb50de56315a61fd73
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri May 4 00:58:48 2012 +0800
+commit 7a77645aa8f297b78ba0b297d6d50871d1d1ad05
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 3 09:22:45 2012 +1000
 
-    cmd/dist: remove stray src/pkg/runtime/z* when cleaning
+    misc/dashboard/codereview: add copyright notices to Go files
     
-    R=golang-dev, bradfitz, dave, rsc, lstoakes, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6180044
+    https://golang.org/cl/6177043
 
- src/cmd/dist/build.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ misc/dashboard/codereview/dashboard/cl.go     | 4 ++++
+ misc/dashboard/codereview/dashboard/front.go  | 4 ++++
+ misc/dashboard/codereview/dashboard/gc.go     | 4 ++++
+ misc/dashboard/codereview/dashboard/mail.go   | 4 ++++
+ misc/dashboard/codereview/dashboard/people.go | 4 ++++
+ 5 files changed, 20 insertions(+)

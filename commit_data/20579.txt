@@ -1,17 +1,19 @@
-commit 2da734189db9a7ad7d6de259ebe9003d20f9f291
-Author: James Tucker <raggi@google.com>
-Date:   Mon Sep 29 13:53:42 2014 -0700
+commit 66795e8ba101fc20916196db6d343b0d927e7dd5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Sep 19 02:02:21 2014 +0000
 
-    net/http: enable Transfer-Encoding: identity without Content-Length for HTTP 1.1.
+    runtime: fix GOARM<7 build
     
-    Use case is SSE recommended configuration: http://www.w3.org/TR/eventsource/#notes
-    Removes a TODO.
+    Update #8690
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz, tommi.virtanen
+    If liblink determines that the host doesn't support TLS it replaces the MRC call with a BL runtime.tls_read_fallback. The problem is save_g doesn't expect anyone to make any BL calls and hasn't setup its own link register properly so when runtime.tls_read_fallback returns the LR points to save_g, not save_g's caller so the RET at the end of the function turns into an infinite loop.
+    
+    This fix is only a proof of concept, I think the real fix should go into liblink as its MRC substitution is not as transparent as expected.
+    
+    LGTM=rsc
+    R=rsc, minux
     CC=golang-codereviews
-    https://golang.org/cl/100000044
+    https://golang.org/cl/143050043
 
- src/net/http/serve_test.go | 29 +++++++++++++++++++++++++++++
- src/net/http/server.go     | 21 ++++++++++++++-------
- 2 files changed, 43 insertions(+), 7 deletions(-)
+ src/runtime/tls_arm.s | 9 +++++++++
+ 1 file changed, 9 insertions(+)

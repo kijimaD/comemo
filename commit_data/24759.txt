@@ -1,14 +1,12 @@
-commit bb20266c9d94818358dce64607df35fa829f5da7
-Author: Tamir Duberstein <tamird@gmail.com>
-Date:   Sat Nov 7 19:30:25 2015 -0500
+commit 67ac8a3b22d07e9655f3909ddeffb310d12e50db
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Aug 28 15:20:54 2015 -0500
 
-    cmd/internal/ld: skip dwarf output if dsymutil no-ops
+    [dev.ssa] cmd/compile: fix type of nil ptr in check
     
-    Fixes #11994.
-    
-    Change-Id: Icee6ffa6e3a9d15b68b4ae9b2716d65ecbdba73a
-    Reviewed-on: https://go-review.googlesource.com/16702
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If7a6ab6b1336dbacb006f562be7f153eb93e7253
+    Reviewed-on: https://go-review.googlesource.com/14025
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

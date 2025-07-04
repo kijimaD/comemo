@@ -1,20 +1,17 @@
-commit 58125ffe73ccae5c625d31a02194aa571ac34939
+commit 20004ba889f9efe02e64b3c5a8287f7b50443ce7
 Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Feb 16 18:41:56 2015 +0300
+Date:   Fri Dec 12 19:43:23 2014 +0100
 
-    runtime/race: update race runtime to rev 229396
+    testing: add tracing support
     
-    Fixes #9720
-    Fixes #8053
-    Fixes https://code.google.com/p/thread-sanitizer/issues/detail?id=89
+    testing part of tracing functionality:
+    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
+    Full change:
+    https://codereview.appspot.com/146920043
     
-    Change-Id: I7d598e53de86586bb9702d8e9276a4d6aece2dfc
-    Reviewed-on: https://go-review.googlesource.com/4950
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia3c2c4417106937d5775b0e7064db92c1fc36679
+    Reviewed-on: https://go-review.googlesource.com/1461
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/race/README                  |   2 +-
- src/runtime/race/race_darwin_amd64.syso  | Bin 278328 -> 314000 bytes
- src/runtime/race/race_freebsd_amd64.syso | Bin 294224 -> 316816 bytes
- src/runtime/race/race_linux_amd64.syso   | Bin 298064 -> 330232 bytes
- src/runtime/race/race_windows_amd64.syso | Bin 292311 -> 331489 bytes
- 5 files changed, 1 insertion(+), 1 deletion(-)
+ src/testing/testing.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

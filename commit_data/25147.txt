@@ -1,23 +1,24 @@
-commit 8854bdbd76d66a39b35980cee6643b4d4bd48fd4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Nov 27 12:06:11 2015 +0900
+commit 1d5251f707af711720cbd92891a1d62b89c15977
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Sep 27 03:56:05 2015 +1000
 
-    net: fix parsing literal IPv6 address with zone identifier when using cgo
+    runtime: handle sysReserve failure in mHeap_SysAlloc
     
-    Parsing literal IPv6 address with zone identifier is already supported
-    when not using cgo. This change enables it when using cgo too.
+    sysReserve will return nil on failure - correctly handle this case and return
+    nil to the caller. Currently, a failure will result in h.arena_end being set
+    to psize, h.arena_used being set to zero and fun times ensue.
     
-    Fixes #12241.
+    On the openbsd/arm builder this has resulted in:
     
-    Change-Id: I3ed78c9e750e75eff0dae76ba8608df39503cf85
-    Reviewed-on: https://go-review.googlesource.com/17215
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+      runtime: address space conflict: map(0x0) = 0x40946000
+      fatal error: runtime: address space conflict
+    
+    When it should be reporting out of memory instead.
+    
+    Change-Id: Iba828d5ee48ee1946de75eba409e0cfb04f089d4
+    Reviewed-on: https://go-review.googlesource.com/15056
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/cgo_socknew.go |  4 ++--
- src/net/cgo_sockold.go |  4 ++--
- src/net/cgo_unix.go    | 12 ++++++++----
- src/net/lookup_test.go | 24 ++++++++++++++++++++++++
- src/net/testdata/hosts |  3 +--
- 5 files changed, 37 insertions(+), 10 deletions(-)
+ src/runtime/malloc.go | 3 +++
+ 1 file changed, 3 insertions(+)

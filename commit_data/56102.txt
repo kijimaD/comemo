@@ -1,72 +1,36 @@
-commit 3b29222ffdcaea70842ed167632468f54a1783ae
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Mar 29 15:49:38 2024 -0400
+commit c1ac63e9732a54ef8349fe0bdbb3fa47bd0847c2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Mar 28 12:45:17 2023 -0400
 
-    cmd: update vendored x/tools to 904c6ba
+    cmd/compile: don't inline hot calls into big functions
     
-    This fixes one of the many obstacles to enabling
-    types.Alias by updating vet.
+    Standard inlining has a reduced maximum cost of callees (20 instead of
+    80) when inlining into a "big" function, to limit how much bigger we
+    will make an already big function.
     
-    The 'loopclosure' checker (formerly 'rangeloop') no longer
-    reports any findings with go1.22, so the test needed work
-    to ensure that it still runs on files with go1.21 semantics.
+    When adding PGO hot call budget increases, we inadvertently bypassed
+    this "big" function restriction, allowing hot calls of up to
+    inlineHotMaxBudget, even into big functions.
     
-    Updates #65294
+    Add the restriction back, even for hot calls. If a function is already
+    very large, we probably shouldn't inline even more.
     
-    Change-Id: I987ff529d4e165b56b7241563c6003e63bf92bb1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/575315
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    A very important note here is that function "big"-ness is computed prior
+    to any inlining. One potential problem with PGO is that many hot calls
+    inline into an initially-small function and ultimately make it very
+    large. This CL does nothing to address that case, which would require
+    recomputing size after inlining.
+    
+    This CL has no impact on sweet PGO benchmarks. I specifically dug into
+    tile38, which contained 0 hot big functions. Other benchmarks are
+    probably similar.
+    
+    Change-Id: I3b6304eaf7738a219359d4b8bb121d68babfea8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482157
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/README.vendor                                  |     4 +-
- src/cmd/go.mod                                     |     2 +-
- src/cmd/go.sum                                     |     4 +-
- .../go/analysis/passes/asmdecl/arches_go118.go     |    12 -
- .../go/analysis/passes/asmdecl/arches_go119.go     |    14 -
- .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |     3 +-
- .../go/analysis/passes/composite/composite.go      |    26 +-
- .../tools/go/analysis/passes/copylock/copylock.go  |     3 +-
- .../analysis/passes/httpresponse/httpresponse.go   |     7 +-
- .../go/analysis/passes/ifaceassert/ifaceassert.go  |     8 +-
- .../analysis/passes/internal/analysisutil/util.go  |     3 +-
- .../go/analysis/passes/loopclosure/loopclosure.go  |    13 +-
- .../x/tools/go/analysis/passes/printf/printf.go    |     7 +-
- .../x/tools/go/analysis/passes/printf/types.go     |     5 +-
- .../x/tools/go/analysis/passes/shift/shift.go      |     6 +-
- .../x/tools/go/analysis/passes/slog/slog.go        |    47 +-
- .../go/analysis/passes/stringintconv/string.go     |     6 +-
- .../passes/testinggoroutine/testinggoroutine.go    |     3 +-
- .../go/analysis/passes/testinggoroutine/util.go    |     2 +-
- .../x/tools/go/analysis/passes/tests/tests.go      |     2 +
- .../go/analysis/passes/timeformat/timeformat.go    |     2 +-
- .../go/analysis/passes/unmarshal/unmarshal.go      |     9 +-
- .../go/analysis/passes/unsafeptr/unsafeptr.go      |     3 +-
- .../vendor/golang.org/x/tools/go/cfg/builder.go    |    86 +-
- src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go    |   114 +-
- .../x/tools/go/types/objectpath/objectpath.go      |    23 +-
- .../golang.org/x/tools/go/types/typeutil/ui.go     |     8 +-
- .../x/tools/internal/analysisinternal/analysis.go  |     7 +-
- .../golang.org/x/tools/internal/facts/imports.go   |     4 +
- .../golang.org/x/tools/internal/stdlib/manifest.go | 17320 +++++++++++++++++++
- .../golang.org/x/tools/internal/stdlib/stdlib.go   |    97 +
- .../x/tools/internal/typeparams/common.go          |    84 +-
- .../x/tools/internal/typeparams/coretype.go        |    32 +-
- .../typeparams/free.go}                            |    64 +-
- .../x/tools/internal/typesinternal/errorcode.go    |  1560 ++
- .../internal/typesinternal/errorcode_string.go     |   179 +
- .../x/tools/internal/typesinternal/recv.go         |    43 +
- .../x/tools/internal/typesinternal/toonew.go       |    89 +
- .../x/tools/internal/typesinternal/types.go        |    50 +
- .../x/tools/internal/versions/features.go          |    43 +
- .../x/tools/internal/versions/toolchain.go         |    14 +
- .../x/tools/internal/versions/toolchain_go119.go   |    14 +
- .../x/tools/internal/versions/toolchain_go120.go   |    14 +
- .../x/tools/internal/versions/toolchain_go121.go   |    14 +
- .../x/tools/internal/versions/types_go121.go       |    18 +-
- .../x/tools/internal/versions/types_go122.go       |    25 +-
- .../x/tools/internal/versions/versions.go          |     5 +
- src/cmd/vendor/modules.txt                         |     6 +-
- src/cmd/vet/testdata/rangeloop/go.mod              |     3 +
- src/cmd/vet/vet_test.go                            |    34 +-
- 50 files changed, 19862 insertions(+), 279 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 94 ++++++++++++++++++++++------------
+ 1 file changed, 61 insertions(+), 33 deletions(-)

@@ -1,17 +1,21 @@
-commit 444b7b53e02487e3292c9db04b584915a21de54b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Dec 1 11:02:08 2012 -0800
+commit e3e885bb481731370573e99ac20fd93ed652ae9a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Dec 1 14:49:54 2012 +0900
 
-    crypto/tls: fix loading keys labeled just "PRIVATE KEY"
+    net: allow "" as a hint wildcard to Resolve{IP,UDP,TCP}Addr
     
-    Worked in Go 1, broken in f440e65f93fe.
+    Also fixes comments on ResolveIPAddr.
     
-    Fixes #4477
+    Fixes #4476.
     
-    R=golang-dev, agl
+    R=bradfitz, golang-dev
     CC=golang-dev
-    https://golang.org/cl/6865043
+    https://golang.org/cl/6854129
 
- src/pkg/crypto/tls/tls.go      |  2 +-
- src/pkg/crypto/tls/tls_test.go | 26 ++++++++++++++++++++------
- 2 files changed, 21 insertions(+), 7 deletions(-)
+ src/pkg/net/ipraw_test.go | 3 +++
+ src/pkg/net/iprawsock.go  | 6 ++++--
+ src/pkg/net/tcp_test.go   | 3 +++
+ src/pkg/net/tcpsock.go    | 2 ++
+ src/pkg/net/udp_test.go   | 3 +++
+ src/pkg/net/udpsock.go    | 2 ++
+ 6 files changed, 17 insertions(+), 2 deletions(-)

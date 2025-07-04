@@ -1,17 +1,17 @@
-commit 43da336b151993fa3b0d17dc443f5ba9d29d482f
-Author: Steven Elliot Harris <seharris@gmail.com>
-Date:   Wed Feb 20 14:42:37 2013 -0800
+commit afde71cfbdb1032cce8fefc6bc665b816b3276e6
+Author: Olivier Saingre <osaingre@gmail.com>
+Date:   Wed Feb 20 14:41:23 2013 -0800
 
-    misc/emacs: Present "godoc" documentation buffers using view-mode.
+    encoding/xml: make sure Encoder.Encode reports Write errors.
     
-    Mimic the Emacs convention of presenting read-only files meant
-    for browsing using view-mode, rather than Fundamental mode
-    which mistakenly allows editing of the "godoc" content.
-    Fixes #4322.
+    Fixes #4112.
     
-    R=golang-dev, bradfitz, sameer
+    R=remyoudompheng, daniel.morsing, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7231055
+    https://golang.org/cl/7085053
 
- misc/emacs/go-mode.el | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/xml/marshal.go      | 27 ++++++++++++++++++---------
+ src/pkg/encoding/xml/marshal_test.go | 10 ++++++++++
+ src/pkg/encoding/xml/xml.go          | 24 +++++++++++++++++++-----
+ src/pkg/encoding/xml/xml_test.go     | 14 ++++++++++++++
+ 4 files changed, 61 insertions(+), 14 deletions(-)

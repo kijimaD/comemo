@@ -1,27 +1,21 @@
-commit e3323f57df1f4a44093a2d25fee33513325cbb86
-Author: nrxr <nrxrco@gmail.com>
-Date:   Wed Apr 8 10:21:40 2020 +0000
+commit a05934639bde593326f8d7ed9eb3f73f9ba6eb53
+Author: Sam Whited <sam@samwhited.com>
+Date:   Tue Aug 21 17:11:30 2018 -0500
 
-    net/url: add URL.Redacted to return a password scrubbed string
+    encoding/xml: fix token decoder on early EOF
     
-    Returning an URL.String() without the password is very useful for
-    situations where the URL is supposed to be logged and the password is
-    not useful to be shown.
+    The documentation for TokenReader suggests that implementations of the
+    interface may return a token and io.EOF together, indicating that it is
+    the last token in the stream. This is similar to io.Reader. However, if
+    you wrap such a TokenReader in a Decoder it complained about the EOF.
+    A test was added to ensure this behavior on Decoder's.
     
-    This method re-uses URL.String() but with the password scrubbed and
-    substituted for a "xxxxx" in order to make it obvious that there was a
-    password. If the URL had no password then no "xxxxx" will be shown.
-    
-    Fixes #34855
-    
-    Change-Id: I7f17d81aa09a7963d2731d16fe15c6ae8e2285fc
-    GitHub-Last-Rev: 46d06dbc4f9e30a57667bb8d0627bc1abed83bdc
-    GitHub-Pull-Request: golang/go#35578
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207082
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9083c91d9626180d3bcf5c069a017050f3c7c4a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/130556
+    Run-TryBot: Sam Whited <sam@samwhited.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/url/url.go      | 14 +++++++++++
- src/net/url/url_test.go | 67 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 81 insertions(+)
+ src/encoding/xml/xml.go      |  5 ++++-
+ src/encoding/xml/xml_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 1 deletion(-)

@@ -1,22 +1,21 @@
-commit 5a6a830c1ceafd551937876f11590fd60aea1799
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Apr 5 14:34:47 2022 -0400
+commit 00d01b57866d4b052c3b75706bbc8601167ead7c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 4 17:18:09 2021 -0400
 
-    cmd/vendor: undo stray edits from CL 384262
+    [dev.typeparams] runtime: remove tracebackdefers
     
-    cmd/internal/moddeps is currently failing on the longtest builders
-    because vendored third-party dependencies were accidentally edited as
-    part of CL 384262 (a global cleanup of the standard library).
+    tracebackdefers is used for scanning/copying deferred functions'
+    arguments. Now that deferred functions are always argumentless,
+    it does nothing. Remove.
     
-    Updates #51082
-    
-    Change-Id: I6f79c8f1177420a51128ce42d6c14fa5dcc4bd7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398455
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I55bedabe5584ea41a12cdb03d55ec9692a5aacd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325916
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go  | 2 +-
- src/cmd/vendor/golang.org/x/arch/x86/x86asm/inst.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mgcmark.go   |  7 ++-----
+ src/runtime/stack.go     |  5 -----
+ src/runtime/traceback.go | 32 --------------------------------
+ 3 files changed, 2 insertions(+), 42 deletions(-)

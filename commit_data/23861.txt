@@ -1,16 +1,13 @@
-commit 7e70c2468b6db5f4ebfa59714e9c561ba045e41c
-Author: Peter Waldschmidt <peter@waldschmidt.com>
-Date:   Mon Jul 27 21:33:53 2015 -0400
+commit 24db235deb09423c3dc8274bab5c19d93f242a85
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jun 18 09:38:04 2015 +0900
 
-    encoding/json: fix EOF bug decoding HTTP stream
+    net: fix build on android
     
-    Fixes bug referenced in this thread on golang-dev:
-    https://groups.google.com/d/topic/golang-dev/U4LSpMzL82c/discussion
-    
-    Change-Id: If01a2644863f9e5625dd2f95f9d344bda772e12c
-    Reviewed-on: https://go-review.googlesource.com/12726
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib6d0b2947748dec98cad2e6abb6812cac46a9897
+    Reviewed-on: https://go-review.googlesource.com/11220
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/stream.go      |  5 ++++-
- src/encoding/json/stream_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 1 deletion(-)
+ src/net/cgo_resnew.go | 2 +-
+ src/net/cgo_resold.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

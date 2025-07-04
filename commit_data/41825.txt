@@ -1,22 +1,24 @@
-commit 9baafabac9a84813a336f068862207d2bb06d255
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Apr 1 17:25:40 2020 -0400
+commit 0d3092ffa7e7f613429ddcfd596d26ccbc84766f
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sat Oct 26 23:05:22 2019 +0200
 
-    crypto/rsa: refactor RSA-PSS signing and verification
+    internal/syscall/windows/registry: remove TestWalkFullRegistry due to false assumptions
     
-    Cleaned up for readability and consistency.
+    This test's existence was predicated upon assumptions about the full
+    range of known data types and known data into those types. However,
+    we've learned from Microsoft that there are several undocumented secret
+    registry types that are in use by various parts of Windows, and we've
+    learned from inspection that many Microsoft uses of registry types don't
+    strictly adhere to the recommended value size. It's therefore foolhardy
+    to make any assumptions about what goes in and out of the registry, and
+    so this test, as well as its "blacklist", are meaningless.
     
-    There is one tiny behavioral change: when PSSSaltLengthEqualsHash is
-    used and both hash and opts.Hash were set, hash.Size() was used for the
-    salt length instead of opts.Hash.Size(). That's clearly wrong because
-    opts.Hash is documented to override hash.
+    Fixes #35084
     
-    Change-Id: I3e25dad933961eac827c6d2e3bbfe45fc5a6fb0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226937
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: I6c3fe5fb0e740e88858321b3b042c0ff1a23284e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203604
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/crypto/rsa/pss.go | 173 ++++++++++++++++++++++++++------------------------
- src/crypto/rsa/rsa.go |   9 +--
- 2 files changed, 96 insertions(+), 86 deletions(-)
+ .../syscall/windows/registry/registry_test.go      | 98 ----------------------
+ 1 file changed, 98 deletions(-)

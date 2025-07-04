@@ -1,36 +1,12 @@
-commit 841d865a56dee8dc4c712eea8eacc3a3d5256c6e
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Dec 20 09:54:13 2017 -0500
+commit c40579ac75b7fe012097af46c4e3dd7fbd291311
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Mon Sep 18 16:51:15 2017 +0200
 
-    cmd/compile: second attempt at fix for issue 23179
+    doc: simplify Append example in "Effective Go"
     
-    My previous fix for issue 23179 was incomplete; it turns out that if
-    an unnamed parameter is below a specific size threshold, it gets
-    register-promoted away by the compiler (hence not encountered during
-    some parts of DWARF inline info processing), but if it is sufficiently
-    large, it is allocated to the stack as a named variable and treated as
-    a regular parameter by DWARF generation. Interestingly, something in
-    the ppc64le build of k8s causes an unnamed parameter to be retained
-    (where on amd64 it is deleted), meaning that this wasn't caught in my
-    amd64 testing.
-    
-    The fix is to insure that "_" params are treated in the same way that
-    "~r%d" return temps are when matching up post-optimization inlined
-    routine params with pre-inlining declarations. I've also updated the
-    test case to include a "_" parameter with a very large size, which
-    also triggers the bug on amd64.
-    
-    Fixes #23179.
-    
-    Change-Id: I961c84cc7a873ad3f8f91db098a5e13896c4856e
-    Reviewed-on: https://go-review.googlesource.com/84975
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I011486993b167e65c69da1c8390bbcc625ca58c3
+    Reviewed-on: https://go-review.googlesource.com/64331
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/dwinl.go | 9 +++------
- test/fixedbugs/issue23179.dir/a.go   | 6 +++++-
- test/fixedbugs/issue23179.dir/b.go   | 2 +-
- 3 files changed, 9 insertions(+), 8 deletions(-)
+ doc/effective_go.html | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

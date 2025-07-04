@@ -1,25 +1,25 @@
-commit b86f770bec70e47a2e61142624975e19b7f69e51
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Nov 3 22:30:43 2024 +0100
+commit 5152be3959d4aa273932c12da971d14e7f84405d
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Sep 26 05:38:14 2023 +0000
 
-    crypto/internal/fips/aes/gcm: add SealWithRandomNonce
+    all: use the indefinite article an in comments
     
-    We don't expose it as an AEAD yet because the logic for that is complex
-    due to overlap issues. For #69981 we will make a cipher.AEAD wrapper
-    outside the FIPS module, but maybe a v2 interface will make it easier,
-    and then we'll be able to use this method more directly.
+    This is a follow up of CL 530120.
     
-    Updates #69981
-    For #69536
-    
-    Change-Id: Id88191c01443b0dec89ff0d6c4a6289f519369d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624916
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ifa0bd1c3bb9bb1202568eaae27500bcea376f56b
+    GitHub-Last-Rev: b4154fa1fc205a6a1af050ab49a4738f73b3c32a
+    GitHub-Pull-Request: golang/go#63228
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531136
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/crypto/internal/fips/aes/gcm/ctrkdf_test.go | 25 ++++++++++++++++
- src/crypto/internal/fips/aes/gcm/gcm_nonces.go  | 38 +++++++++++++++++++++++++
- 2 files changed, 63 insertions(+)
+ src/cmd/go/internal/script/engine.go                        | 2 +-
+ src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt    | 2 +-
+ src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt | 2 +-
+ src/crypto/ecdh/ecdh.go                                     | 4 ++--
+ src/crypto/internal/edwards25519/field/fe_generic.go        | 2 +-
+ src/encoding/xml/marshal.go                                 | 2 +-
+ 6 files changed, 7 insertions(+), 7 deletions(-)

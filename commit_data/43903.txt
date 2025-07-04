@@ -1,19 +1,21 @@
-commit 212d385a2f723a8dd5e7d2e83efb478ddd139349
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Sat Sep 26 09:20:16 2020 -0600
+commit 76c6cce1160996e730d87e620ddb674b1d54f96e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 25 22:08:50 2020 -0400
 
-    net/http: ignore connection closes once done with the connection
+    [dev.link] cmd/link: convert reloc pass to using the loader when internal linking
     
-    Once the connection is put back into the idle pool, the request should
-    not take any action if the connection is closed.
+    Only enabled for AMD64 when internal linking for now.
     
-    Fixes #41600
-    
-    Change-Id: I5e4ddcdc03cd44f5197ecfbe324638604961de84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257818
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Damien Neil <dneil@google.com>
+    Change-Id: I2aa9ee47c0f7413ea7bbcdd31b8317c14220bba3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230302
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/http/transport.go      | 13 +++++++----
- src/net/http/transport_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 60 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/amd64/asm.go     |  4 ++--
+ src/cmd/link/internal/ld/data.go       | 35 +++++++++++++++++-----------------
+ src/cmd/link/internal/ld/data2.go      | 35 +++++++++++++++++++++++++++++++++-
+ src/cmd/link/internal/ld/lib.go        |  7 +++----
+ src/cmd/link/internal/ld/main.go       | 20 +++++++++++++++----
+ src/cmd/link/internal/loader/loader.go | 34 +++++++++++++++++++--------------
+ 6 files changed, 92 insertions(+), 43 deletions(-)

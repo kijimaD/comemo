@@ -1,22 +1,28 @@
-commit 3da4281df1b0c7ea11b524ff19fc2f409b8e58c0
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Mon Sep 9 09:01:23 2024 +0000
+commit 20b5f3ae8b01a14195057af7e082cdcf93fa2bce
+Author: korzhao <korzhao95@gmail.com>
+Date:   Wed Jul 5 20:23:35 2023 +0800
 
-    runtime: Goexit on C-created thread report more useful error message
+    encoding/base32: optimize Encode
     
-    Fixes #68275
+    Converts the 5 x 8-bit source byte to two 32-bit integers.
+    This will reduce the number of shift operations.
     
-    Change-Id: I47b7a2092f1b4d48aebf437db4e329815c956bb9
-    GitHub-Last-Rev: b89bf3cab7f9f7611122f535914f2788564643c5
-    GitHub-Pull-Request: golang/go#69126
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609296
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkEncode-10             9005          4426          -50.85%
+    BenchmarkEncodeToString-10     10739         6155          -42.69%
+    
+    benchmark                      old MB/s     new MB/s     speedup
+    BenchmarkEncode-10             909.69       1850.81      2.03x
+    BenchmarkEncodeToString-10     762.84       1331.02      1.74x
+    
+    Change-Id: I9418d3436b73f94a4eb4b2b525e4f83612ff4d47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514095
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/panic.go                         |  2 ++
- src/runtime/proc.go                          |  3 +++
- src/runtime/proc_test.go                     | 10 ++++++++++
- src/runtime/testdata/testprogcgo/callback.go | 11 +++++++++++
- 4 files changed, 26 insertions(+)
+ src/encoding/base32/base32.go | 127 ++++++++++++++++++++----------------------
+ 1 file changed, 60 insertions(+), 67 deletions(-)

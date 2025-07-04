@@ -1,18 +1,29 @@
-commit ee5af6103da43c44104b1d06eaf5a23cd9b87085
+commit 9a1d3b0ad20ba5d73ba3a88c86563ae7b4cf03ca
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 7 16:56:28 2023 -0700
+Date:   Thu Aug 18 16:42:28 2022 -0700
 
-    spec: document new program initialization process
+    go/parser: match const/var decl parsing of syntax package
     
-    For #57411.
+    Use same approach to parsing const and var declarations
+    as the syntax package. Specifically, don't complain if
+    the first const specification in a const declaration
+    doesn't have a type and initialization expression. This
+    removes some duplicate errors when combined with the
+    type checker.
     
-    Change-Id: I94982d939d16ad17174f801cc167cc10ddc8da30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501696
-    Reviewed-by: Keith Randall <khr@google.com>
+    Adjust corresponding type checker tests accordingly.
+    
+    For #54511.
+    
+    Change-Id: I96702eba51dda6b581dad44577a7f93e4c02c857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424904
     Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- doc/go_spec.html | 39 +++++++++++++++++++++++++--------------
- 1 file changed, 25 insertions(+), 14 deletions(-)
+ src/go/parser/parser.go                  | 32 ++++++++++++++++++--------------
+ src/go/parser/short_test.go              |  5 +----
+ src/go/types/testdata/check/constdecl.go | 19 ++++++++-----------
+ src/go/types/testdata/check/vardecl.go   |  9 +++------
+ 4 files changed, 30 insertions(+), 35 deletions(-)

@@ -1,25 +1,24 @@
-commit 787708a6ff66092678cd4312358e90a5085eac89
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 12 08:59:49 2021 -0800
+commit d3ab6b50496a58ff3deb2502b6c8b9b38947eeca
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 18 11:35:45 2021 -0400
 
-    cmd/compile/internal/types2: remove tparamIsIface flag and corresponding dead code
+    test: switch fieldtrack test to use GOEXPERIMENT
     
-    Added/clarified some comments.
+    Now that we can set GOEXPERIMENT at build time, we no longer need
+    -d=fieldtrack in the compiler to enabled field tracking at build time.
+    Switch the one test that uses -d=fieldtrack to use GOEXPERIMENT
+    instead so we can eliminate this debug flag and centralize on
+    GOEXPERIMENT.
     
-    Change-Id: Ib08d3343ff08c23cc8880a27a0148d1ff077a80f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363654
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Updates #42681.
+    
+    Change-Id: I14c352c9a97187b9c5ec8027ff672d685f22f543
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302969
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/builtins.go   | 27 +-------
- src/cmd/compile/internal/types2/decl.go       |  4 ++
- src/cmd/compile/internal/types2/expr.go       | 15 +----
- src/cmd/compile/internal/types2/index.go      | 89 +--------------------------
- src/cmd/compile/internal/types2/predicates.go | 18 +-----
- src/cmd/compile/internal/types2/sizes.go      |  7 ++-
- src/cmd/compile/internal/types2/struct.go     |  5 +-
- src/cmd/compile/internal/types2/type.go       |  4 +-
- src/cmd/compile/internal/types2/typeparam.go  | 17 +----
- 9 files changed, 24 insertions(+), 162 deletions(-)
+ test/fixedbugs/issue42686.go | 2 +-
+ test/run.go                  | 6 +++++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

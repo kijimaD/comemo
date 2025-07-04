@@ -1,22 +1,17 @@
-commit 53c004f94efa85f05b28938509b250e02d1568ea
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 27 17:40:33 2016 -0700
+commit 7b5df0c195330d9c776139ffc8caaab2c66bbf2a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Jun 19 14:12:59 2016 -0700
 
-    go/types: local type-checking of alias declarations
+    cmd/compile: document sinit ctxt and pass/kind arguments
     
-    Does not handle imports of packages with exported aliases yet.
+    No functional changes. Passes toolstash -cmp.
     
-    For #17592.
-    
-    Change-Id: Iee63fb9d521014995003a417271fbe0384ae04ef
-    Reviewed-on: https://go-review.googlesource.com/32108
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I1ad467e574fd2ea80ab1459c0c943d9ff66c23ec
+    Reviewed-on: https://go-review.googlesource.com/26755
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/go/types/call.go                |  19 ++++---
- src/go/types/decl.go                |  82 +++++++++++++++++++++++++++
- src/go/types/object.go              |  29 +++++++---
- src/go/types/resolver.go            |   7 ++-
- src/go/types/stdlib_test.go         |   1 -
- src/go/types/testdata/aliasdecl.src | 107 +++++++++++++++++++++++++++++++++++-
- src/go/types/typexpr.go             |  13 +++++
- 7 files changed, 234 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go | 101 ++++++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go  |   6 +--
+ 2 files changed, 68 insertions(+), 39 deletions(-)

@@ -1,24 +1,13 @@
-commit 1a5e394ab74672f59dd10623717fc3e08b17f0ab
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 9 14:32:53 2014 -0700
+commit 1b47af21995cfbb5f8367b371b37f7c6f8454f5d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 4 10:16:57 2014 +0400
 
-    runtime: more cleanups
+    runtime: fix arm build
     
-    Move timenow thunk into time.s
-    Move declarations for generic c/asm services into stubs.go
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    TBR=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/137360043
+    https://golang.org/cl/140990043
 
- src/runtime/asm_386.s      | 3 ---
- src/runtime/asm_amd64.s    | 3 ---
- src/runtime/asm_amd64p32.s | 3 ---
- src/runtime/asm_arm.s      | 3 ---
- src/runtime/extern.go      | 2 --
- src/runtime/mgc0.go        | 2 --
- src/runtime/mprof.go       | 3 ---
- src/runtime/stubs.go       | 7 +++++++
- src/runtime/thunk.s        | 3 +++
- 9 files changed, 10 insertions(+), 19 deletions(-)
+ src/pkg/runtime/atomic_arm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

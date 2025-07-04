@@ -1,32 +1,21 @@
-commit e8905d2a66caf970d1f8e79d8101e6a670012447
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Tue Sep 26 07:32:26 2017 -0400
+commit 07ec4385f16ad5d10933f4540624aba8b48b1891
+Author: philhofer <phofer@umich.edu>
+Date:   Mon Aug 14 21:50:43 2017 -0700
 
-    crypto/elliptic: reduce allocations in s390x P256 code
+    cmd/compile: omit unnecessary boolean zero extension on arm64
     
-    The Go compiler assumes that pointers escape when passed into assembly
-    functions. To override this behavior we can annotate assembly functions
-    with go:noescape, telling the compiler that we know pointers do not
-    escape from it.
+    On arm64, all boolean-generating instructions (CSET, etc.) set the upper
+    63 bits of the destination register to zero, so there is no need
+    to zero-extend the lower 8 bits again.
     
-    By annotating the assembly functions in the s390x P256 code in this way
-    we enable more variables to be allocated on the stack rather than
-    the heap, reducing the number of heap allocations required to execute
-    this code:
+    Fixes #21445
     
-    name        old alloc/op   new alloc/op   delta
-    SignP256      3.66kB ± 0%    2.64kB ± 0%  -27.95%  (p=0.008 n=5+5)
-    VerifyP256    4.46kB ± 0%    1.23kB ± 0%  -72.40%  (p=0.008 n=5+5)
-    
-    name        old allocs/op  new allocs/op  delta
-    SignP256        40.0 ± 0%      31.0 ± 0%  -22.50%  (p=0.008 n=5+5)
-    VerifyP256      41.0 ± 0%      24.0 ± 0%  -41.46%  (p=0.008 n=5+5)
-    
-    Change-Id: Id526c30c9b04b2ad79a55d76cab0e30cc8d60402
-    Reviewed-on: https://go-review.googlesource.com/66230
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I3b176baab706eb684105400bacbaa24175f721f3
+    Reviewed-on: https://go-review.googlesource.com/55671
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/elliptic/p256_s390x.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 ++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 12 ++++++++++++
+ 2 files changed, 16 insertions(+)

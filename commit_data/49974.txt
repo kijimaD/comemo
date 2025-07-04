@@ -1,26 +1,20 @@
-commit b8b9e83ec7a92498c2c69a1a963c31983d303e21
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 9 17:45:01 2022 +0200
+commit 9ce601df6a8292f763b07994680013facd7b4a63
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 23 23:40:58 2021 +0700
 
-    internal/poll: remove fallback path in accept
+    cmd/go: move gc concurrency level computation near gcflags
     
-    Support for operating system versions requiring the fallback to
-    CloseOnExec/SetNonblock was dropped from recent Go versions. The minimum
-    Linux kernel version is 2.6.32 as of Go 1.18. FreeBSD 10 is no longer
-    supported as of Go 1.13.
+    So after constructing "args" variable, "gcflags" is not used anywhere.
+    It makes the code easier to maintain, and prevent subtle bug like #48490.
     
-    Follows a similar change for net.sysSocket in CL 403634 and
-    syscall.Socket in CL 422374.
-    
-    For #45964
-    
-    Change-Id: I60848415742a1d8204e1fda585462ff35ad6722f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422375
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I41653536480880a8a6f9fbf6cfa8a461b6fb3208
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351849
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/internal/poll/sock_cloexec.go | 30 +-----------------------------
- 1 file changed, 1 insertion(+), 29 deletions(-)
+ src/cmd/go/internal/work/gc.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

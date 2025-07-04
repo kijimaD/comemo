@@ -1,25 +1,18 @@
-commit 1308f118974fab4bd08d04a6a982db6dde6f9e52
-Author: eric fang <eric.fang@arm.com>
-Date:   Wed Nov 18 04:00:57 2020 +0000
+commit b6df7e555ec1e1f813cda0d250cd109533e6d4e5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 25 17:27:34 2020 -0400
 
-    cmd/link: add relocation type R_AARCH64_LDST16_ABS_LO12_NC for arm64
+    [dev.link] cmd/link: stop overwriting symbol types in loadlibfull
     
-    The linker already has R_AARCH64_LDST{8,32,64,128}_ABS_LO12_NC, some cgo tests require
-     R_AARCH64_LDST16_ABS_LO12_NC, this CL adds this relocation type.
+    symGroupType was needed for dodata. Now that we have converted
+    dodata to using the loader, stop overwriting it.
     
-    Fixes #42660
-    
-    Change-Id: I9a5120cd872f5095c61175cb602427c6ab3225cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271017
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: eric fang <eric.fang@arm.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: Ie94109c0b35dd2f71a19ebb38f8cf20b6a37c624
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229994
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/internal/objabi/reloctype.go        |  3 ++
- src/cmd/internal/objabi/reloctype_string.go | 47 +++++++++++++++--------------
- src/cmd/link/internal/arm64/asm.go          | 16 ++++++++++
- src/cmd/link/internal/loadelf/ldelf.go      |  1 +
- 4 files changed, 44 insertions(+), 23 deletions(-)
+ src/cmd/link/internal/ld/lib.go  | 16 +---------------
+ src/cmd/link/internal/ld/main.go |  2 +-
+ 2 files changed, 2 insertions(+), 16 deletions(-)

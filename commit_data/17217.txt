@@ -1,16 +1,14 @@
-commit 48b90bbc55889ab12239ef0b3c884316d8f31b1b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 14 00:18:20 2013 -0400
+commit 844bc6c0acdb053936321739083cab80c4a913d4
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Wed Aug 14 13:41:36 2013 +1000
 
-    encoding: new package
+    misc/notepadplus: support Calltips
     
-    See golang.org/s/go12encoding for design.
+    Fixes #5789.
     
-    R=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12541051
+    https://golang.org/cl/10601043
 
- src/cmd/dist/build.c          |  4 ++++
- src/pkg/encoding/encoding.go  | 48 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/go/build/deps_test.go |  5 +++--
- 3 files changed, 55 insertions(+), 2 deletions(-)
+ misc/notepadplus/go.xml | 178 ++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 121 insertions(+), 57 deletions(-)

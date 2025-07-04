@@ -1,19 +1,28 @@
-commit fc5baec37f65baf33a8b6777e576b85de62654ec
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 3 09:18:15 2015 -0500
+commit ccdb50931f815fdf8de16f876478d7a1d0ee6696
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 29 16:15:05 2014 -0500
 
-    runtime: rearrange framepointer check condition
+    cmd/gc, runtime: make assertI2T and variants not variadic
     
-    The test for the framepointer experiment flag is cheaper and more
-    branch-predictable than the other parts of this conditional, so move
-    it first.  This is also more readable.
+    A side effect of this change is that when assertI2T writes to the
+    memory for the T being extracted, it can use typedmemmove
+    for write barriers.
     
-    (Originally, the flag check required parsing the experiments string,
-    which is why it was done last.  Now that flag is cached.)
+    There are other ways we could have done this, but this one
+    finishes a TODO in package runtime.
     
-    Change-Id: I84e00fa7e939e9064f0fa0a4a6fe00576dd61457
-    Reviewed-on: https://go-review.googlesource.com/3782
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Found with GODEBUG=wbshadow=2 mode.
+    Eventually that will run automatically, but right now
+    it still detects other missing write barriers.
+    
+    Change-Id: Icbc8aabfd8a9b1f00be2e421af0e3b29fa54d01e
+    Reviewed-on: https://go-review.googlesource.com/2279
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/traceback.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/builtin.c  |  26 +++---
+ src/cmd/gc/order.c    |  28 ++++++-
+ src/cmd/gc/runtime.go |  26 +++---
+ src/cmd/gc/walk.c     | 114 ++++++++++++--------------
+ src/runtime/iface.go  | 219 ++++++++++++++++++++++----------------------------
+ src/runtime/malloc.go |   4 +-
+ 6 files changed, 197 insertions(+), 220 deletions(-)

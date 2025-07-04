@@ -1,21 +1,39 @@
-commit e41fabd6886ec16db6026b30486e20732f89960a
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Feb 16 21:16:29 2024 +0000
+commit 8538477d58b97ad7f5c91c9c5b7007404f2a6dac
+Author: miller <millerresearch@gmail.com>
+Date:   Wed Feb 22 14:15:08 2023 +0000
 
-    reflect: make Value.Comparable return true for nil interface value
+    internal/poll: avoid race between SetDeadline and timer expiry in Plan 9
     
-    Fixes #65718
+    The mutexes added by CL 235820 aren't sufficient to prevent a race when
+    an i/o deadline timer fires just as the deadline is being reset to zero.
     
-    Change-Id: I0b3edf9085f2d71f915bdf8ff9d312509b438c5f
-    GitHub-Last-Rev: 9fb1ca1a631c648d1f38f75b1fcb2f878048706b
-    GitHub-Pull-Request: golang/go#65750
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564795
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Consider this possible sequence when goroutine S is clearing the
+    deadline and goroutine T has been started by the timer:
+    
+    1. S locks the mutex
+    2. T blocks on the mutex
+    3. S sets the timedout flag to false
+    4. S calls Stop on the timer (and fails, because the timer has fired)
+    5. S unlocks the mutex
+    6. T locks the mutex
+    7. T sets the timedout flag to true
+    
+    Now all subsequent I/O will timeout, although the deadline has been
+    cleared.
+    
+    The fix is for the timeout goroutine to skip setting the timedout
+    flag if the timer pointer has been cleared, or reassigned by
+    another SetDeadline operation.
+    
+    Fixes #57114
+    
+    Change-Id: I4a45d19c3b4b66cdf151dcc3f70536deaa8216a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470215
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/reflect/all_test.go | 6 ++++++
- src/reflect/value.go    | 2 +-
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/internal/poll/fd_plan9.go | 44 ++++++++++++++++++++++++-------------------
+ 1 file changed, 25 insertions(+), 19 deletions(-)

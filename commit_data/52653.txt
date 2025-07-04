@@ -1,21 +1,68 @@
-commit 3de5b4da26b0062c9fd1b84849a0d4b7e78aaf5a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 12 13:57:21 2023 -0700
+commit ab8d7dd75ea4918cde5e71b4482ff5b4f0f69273
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 17 13:27:40 2022 -0700
 
-    slices: amortize allocations in Insert
+    cmd/compile: set LocalPkg.Path to -p flag
     
-    Fixes #54948
+    Since CL 391014, cmd/compile now requires the -p flag to be set the
+    build system. This CL changes it to initialize LocalPkg.Path to the
+    provided path, rather than relying on writing out `"".` into object
+    files and expecting cmd/link to substitute them.
     
-    Change-Id: I467afb940b539b100dcce687b05914a9da7b9ed2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484159
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    However, this actually involved a rather long tail of fixes. Many have
+    already been submitted, but a few notable ones that have to land
+    simultaneously with changing LocalPkg:
+    
+    1. When compiling package runtime, there are really two "runtime"
+    packages: types.LocalPkg (the source package itself) and
+    ir.Pkgs.Runtime (the compiler's internal representation, for synthetic
+    references). Previously, these ended up creating separate link
+    symbols (`"".xxx` and `runtime.xxx`, respectively), but now they both
+    end up as `runtime.xxx`, which causes lsym collisions (notably
+    inittask and funcsyms).
+    
+    2. test/codegen tests need to be updated to expect symbols to be named
+    `command-line-arguments.xxx` rather than `"".foo`.
+    
+    3. The issue20014 test case is sensitive to the sort order of field
+    tracking symbols. In particular, the local package now sorts to its
+    natural place in the list, rather than to the front.
+    
+    Thanks to David Chase for helping track down all of the fixes needed
+    for this CL.
+    
+    Updates #51734.
+    
+    Change-Id: Iba3041cf7ad967d18c6e17922fa06ba11798b565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393715
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Valentin Deleplace <deleplace@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/slices/slices.go      |  6 +++++-
- src/slices/slices_test.go | 14 ++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go                | 11 +++++--
+ src/cmd/compile/internal/gc/obj.go                 | 12 +++++++
+ .../compile/internal/importer/gcimporter_test.go   |  2 +-
+ src/cmd/compile/internal/noder/unified.go          |  1 -
+ src/cmd/compile/internal/noder/writer.go           |  1 +
+ src/cmd/compile/internal/reflectdata/reflect.go    |  8 +----
+ src/cmd/compile/internal/ssa/writebarrier.go       |  8 +++++
+ src/cmd/compile/internal/ssagen/abi.go             | 38 +++++++++-------------
+ src/cmd/compile/internal/staticdata/data.go        |  8 +++++
+ src/cmd/compile/internal/staticinit/sched.go       |  1 +
+ src/cmd/compile/internal/types/fmt.go              | 27 ++++-----------
+ src/cmd/internal/obj/dwarf.go                      | 10 +-----
+ src/cmd/internal/obj/link.go                       |  2 +-
+ src/cmd/internal/obj/plist.go                      |  4 +--
+ src/cmd/link/link_test.go                          |  5 +++
+ src/go/internal/gcimporter/gcimporter_test.go      |  2 +-
+ src/internal/reflectlite/all_test.go               |  4 +--
+ test/codegen/clobberdead.go                        | 12 +++----
+ test/codegen/comparisons.go                        | 16 ++++-----
+ test/codegen/memcombine.go                         |  2 +-
+ test/codegen/memops.go                             | 10 +++---
+ test/codegen/select.go                             |  2 +-
+ test/codegen/zerosize.go                           |  4 +--
+ test/fixedbugs/issue20014.out                      |  2 +-
+ test/fixedbugs/issue9355.go                        |  8 ++---
+ 25 files changed, 100 insertions(+), 100 deletions(-)

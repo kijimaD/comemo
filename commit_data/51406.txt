@@ -1,32 +1,32 @@
-commit 840b346c5d24a4a8ab5182b6f0711e3c5e65bafc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 26 17:01:24 2022 -0700
+commit 671e1150c680eb5f21833662362954cc1b155d2b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 21 09:05:51 2022 -0800
 
-    cmd/compile: reject anonymous interface cycles
+    go/types, types2: reorder object processing to avoid broken aliases
     
-    This CL changes cmd/compile to reject anonymous interface cycles like:
+    By processing non-alias type declarations before alias type declaration,
+    and those before everything else we can avoid some of the remaining
+    errors which are due to alias types not being available.
     
-            type I interface { m() interface { I } }
+    For #25838.
+    For #50259.
+    For #50276.
+    For #50729.
     
-    We don't anticipate any users to be affected by this change in
-    practice. Nonetheless, this CL also adds a `-d=interfacecycles`
-    compiler flag to suppress the error. And assuming no issue reports
-    from users, we'll move the check into go/types and types2 instead.
-    
-    Updates #56103.
-    
-    Change-Id: I1f1dce2d7aa19fb388312cc020e99cc354afddcb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445598
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I233da2899a6d4954c239638624dfa8c08662e6b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380056
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/base/debug.go         |   1 +
- src/cmd/compile/internal/noder/irgen.go        | 108 +++++++++++++++++++++++++
- src/cmd/compile/internal/types2/stdlib_test.go |   1 +
- src/go/types/stdlib_test.go                    |   1 +
- test/fixedbugs/bug398.go                       |   2 +-
- test/fixedbugs/issue16369.go                   |   2 +-
- test/fixedbugs/issue56103.go                   |  46 +++++++++++
- 7 files changed, 159 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/resolver.go        | 34 +++++++++++++---------
+ .../types2/testdata/fixedbugs/issue25838.go        | 26 +++++++++++++++++
+ .../types2/testdata/fixedbugs/issue50259.go2       |  4 +--
+ .../types2/testdata/fixedbugs/issue50276.go2       |  4 +--
+ src/go/types/resolver.go                           | 34 +++++++++++++---------
+ src/go/types/testdata/fixedbugs/issue25838.go      | 26 +++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue50259.go2     |  4 +--
+ src/go/types/testdata/fixedbugs/issue50276.go2     |  4 +--
+ test/typeparam/issue50259.go                       |  4 +--
+ 9 files changed, 102 insertions(+), 38 deletions(-)

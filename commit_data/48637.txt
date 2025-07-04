@@ -1,17 +1,17 @@
-commit bb2b16d15ead9c5b6b9e2b699aed8bdfcf7e9518
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Wed Nov 3 18:01:09 2021 +0800
+commit e32fab145b488cf8bd1fb4a2466cb9be33ac3770
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 3 09:52:05 2021 -0400
 
-    reflect, runtime: add reflect support for regabi on riscv64
+    [dev.typeparams] go/types: fix panic with nil package name
     
-    This CL adds regabi support needed for reflect and reimplement
-    of CL 360994, which is reverted.
+    This is a straightforward port of CL 320490 to go/types.
     
-    Change-Id: I140673f09109dd9f72eff70aad64c0aa00d6857a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396077
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: mzh <mzh@golangcn.org>
+    Change-Id: I763c806c777f926a563d8f9384764e5b3f7f083c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324732
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/reflect/asm_riscv64.s | 54 ++++++++++++++++++++++++++++++++++++++++-------
- src/runtime/stack.go      |  3 ++-
- 2 files changed, 48 insertions(+), 9 deletions(-)
+ src/go/types/resolver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

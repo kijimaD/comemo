@@ -1,24 +1,20 @@
-commit 80e9a7f0797c73b27471eb4b371baa1c7ccb427b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 27 22:04:49 2016 -0700
+commit c45c51534845121da77ed5e0fbe4e0ecfff8c4bf
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Mar 10 17:36:49 2016 +0100
 
-    cmd/compile: have all or no parameter named in exported signatures
+    fmt: handle %X like %x for byte type arrays and slices
     
-    Binary export format only.
+    Treat the verb %X in the same special way as %q, %s and %x
+    are for arrays and slices with byte type elements.
     
-    Make sure we don't accidentally export an unnamed parameter
-    in signatures which expect all named parameters; otherwise
-    we crash during import. Appears to happen for _ (blank)
-    parameter names, as observed in method signatures such as
-    the one at: x/tools/godoc/analysis/analysis.go:76.
+    Modify input for tests so the result of %x and %X is distinct.
     
-    Fixes #15470.
-    
-    TBR=mdempsky
-    
-    Change-Id: I1b1184bf08c4c09d8a46946539c4b8c341acdb84
-    Reviewed-on: https://go-review.googlesource.com/22543
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I38d227755e98c7fad5e4adc2f603c6873aa910fd
+    Reviewed-on: https://go-review.googlesource.com/20516
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 37 ++++++++++++++++++++++------------
- 1 file changed, 24 insertions(+), 13 deletions(-)
+ src/fmt/fmt_test.go | 33 +++++++++++++++++++--------------
+ src/fmt/print.go    | 10 ++++++----
+ 2 files changed, 25 insertions(+), 18 deletions(-)

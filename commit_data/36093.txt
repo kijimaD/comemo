@@ -1,17 +1,19 @@
-commit ecf8bac9596e6b8e1d00285afe1eee2ceb553c9c
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 19 13:19:54 2018 -0700
+commit 00fab20582abc614dcf31ca444b4275240de9ae6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 2 09:33:07 2018 -0700
 
-    cmd/compile: run fmt test only in long mode
+    runtime: improve StackCopy benchmarks
     
-    Update #26469
+    Make the StackCopyNoCache test easier to read.
     
-    Change-Id: Id8b8d1c0db48374d5d3dc663a77187a73f60c9a5
-    Reviewed-on: https://go-review.googlesource.com/125037
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Add a StackCopyPtr test that actually has some pointers
+    that need adjusting.
+    
+    Change-Id: I5b07c26f40cb485c9de97ed63fac89a9e6f36650
+    Reviewed-on: https://go-review.googlesource.com/104195
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/fmt_test.go | 59 ++++++++++++++++++++++++---------------------
- 1 file changed, 31 insertions(+), 28 deletions(-)
+ src/runtime/stack_test.go | 197 ++++++++++------------------------------------
+ 1 file changed, 43 insertions(+), 154 deletions(-)

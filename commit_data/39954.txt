@@ -1,12 +1,18 @@
-commit e13dd94c564e94de78e6e3e673eb5797d9be0f34
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Wed Sep 18 23:45:58 2019 +0300
+commit a8e83d2febe28a79e2906a9249ab2d79e0523c2a
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Apr 4 14:08:06 2019 -0700
 
-    cmd/go/internal/semver: remove duplicate words in Compare doc
+    syscall: don't use INODE64 for fdopendir on darwin/386
     
-    Change-Id: I1ab0b5f713581b5f497878f222fa4ba3998a0ccd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196179
+    The INODE64 variant only exists on 64-bit.
+    
+    Fixes #31262
+    
+    Change-Id: I528277c9b3312fdb15463ccbea0d537ff300f4ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170837
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/semver/semver.go | 2 +-
+ src/syscall/syscall_darwin_386.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

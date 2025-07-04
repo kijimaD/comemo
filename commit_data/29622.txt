@@ -1,14 +1,23 @@
-commit f88a33aeac427b57a9acb4ecf6e26d7191ab60cc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 22 07:24:07 2016 -0500
+commit a0d330f1ddeaa55cbd35191814546fd98e09a117
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 28 17:26:12 2016 +0900
 
-    doc: go1.8.html updates from Joe Tsai
+    runtime, runtime/cgo: revert CL 18814; don't drop signal stack in new thread on dragonfly
     
-    Updates #17929
+    This change reverts CL 18814 which is a workaroud for older DragonFly
+    BSD kernels, and fixes #13945 and #13947 in a more general way the
+    same as other platforms except NetBSD.
     
-    Change-Id: Ibc711d39d9ff83458d213778117493796b678aa7
-    Reviewed-on: https://go-review.googlesource.com/33437
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This is a followup to CL 29491.
+    
+    Updates #16329.
+    
+    Change-Id: I771670bc672c827f2b3dbc7fd7417c49897cb991
+    Reviewed-on: https://go-review.googlesource.com/29971
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.8.html | 80 ++++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 70 insertions(+), 10 deletions(-)
+ src/runtime/cgo/gcc_dragonfly_amd64.c | 12 ------------
+ src/runtime/sys_dragonfly_amd64.s     | 12 ------------
+ 2 files changed, 24 deletions(-)

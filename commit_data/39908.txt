@@ -1,19 +1,18 @@
-commit 531f1d50cc15c95822d189d039a9bfe47ff70099
-Author: Maya Rashish <maya@netbsd.org>
-Date:   Sun Apr 21 14:48:28 2019 +0000
+commit 637f34fee0dd3533e2d9eead6fd6e1dc25eb8d26
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Mar 30 10:49:09 2019 -0400
 
-    syscall: avoid zeroing unused syscall arguments
+    cmd/link: allow duplicated weak symbols on Mach-O
     
-    Zeroing unused registers is not required. Removing it makes the code
-    very slightly smaller and very slightly faster.
+    This fixes cgo test issue29563 on Darwin.
     
-    Change-Id: I1ec17b497db971ca8a3641e3e94c063571419f27
-    GitHub-Last-Rev: f721bb263637717e8ff9fd2c34148b5b2762e8c4
-    GitHub-Pull-Request: golang/go#31596
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173160
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #29563.
+    
+    Change-Id: If480078461247cd7c95931ae3ad4ca89736dd550
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170015
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/asm_darwin_amd64.s | 6 ------
- src/syscall/asm_linux_amd64.s  | 9 ---------
- src/syscall/asm_unix_amd64.s   | 6 ------
- 3 files changed, 21 deletions(-)
+ src/cmd/link/internal/loadmacho/ldmacho.go | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

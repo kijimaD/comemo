@@ -1,16 +1,19 @@
-commit 84a875caa6de1b404dad596b1b6949e436168c76
-Author: andrey mirtchovski <mirtchovski@gmail.com>
-Date:   Sun Dec 6 17:44:44 2015 -0700
+commit 0a486b8a06cbef96f04ec1294d2683232225da44
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Mon Oct 5 17:17:58 2015 -0700
 
-    go/doc, syscall: change 'more then' to 'more than'
+    cmd/go: print `go test -help` to stderr
     
-    This change modifies comments to use the more gramatically correct "more than"
-    instead of "more then".
+    Usage of all commands is printed to stderr, except go test, which is printed to
+    stdout. This is inconsistent.
     
-    Change-Id: Ie3bddcf25eb6b243a21da934f2f3c76a750c083a
-    Reviewed-on: https://go-review.googlesource.com/17488
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Print `go test -help` to stderr instead.
+    
+    R=rsc@golang.org
+    
+    Change-Id: I079f4788134bf9aedcccc26838879eedad1c925e
+    Reviewed-on: https://go-review.googlesource.com/15434
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/go/doc/reader.go       | 6 +++---
- src/syscall/dll_windows.go | 4 ++--
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/go/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

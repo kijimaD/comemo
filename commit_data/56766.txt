@@ -1,26 +1,27 @@
-commit 532cf270590da822a0803ebd1b5d40f454007ddf
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu May 23 13:43:45 2024 -0700
+commit e4d95d0de3c26d1cc5685e35cddb42657948057b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 22 11:14:48 2023 -0400
 
-    syscall: rm go:linkname from origRlimitNofile
+    cmd: go get golang.org/x/mod@fc83a8f
     
-    Since CL 588076 runc can do fine without the kludge. The code accessing the symbol is now guarded with `go:build !go1.23` in all supported runc branches (main: [1], release-1.1: [2]).
+    cd src/cmd
+    go get golang.org/x/mod@fc83a8f  # CL 497400
+    go mod vendor
+    go mod tidy
     
-    This reverts part of CL 587219.
+    For #57001.
     
-    Updates #67401.
-    
-    For #66797.
-    
-    [1]: https://github.com/opencontainers/runc/pull/4290
-    [2]: https://github.com/opencontainers/runc/pull/4299
-    
-    Change-Id: I204843a93c36857e21ab9b43bd7aaf046e8b9787
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587918
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I46b8584e493934883cc4148a16e287f667dcab7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497295
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/syscall/rlimit.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/cmd/go.mod                                    |  2 +-
+ src/cmd/go.sum                                    |  4 +-
+ src/cmd/go/testdata/script/mod_sum_issue56222.txt |  2 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/print.go  | 14 +++-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go   | 96 +++++++++++++++++++++--
+ src/cmd/vendor/golang.org/x/mod/modfile/work.go   | 61 ++++++++++++--
+ src/cmd/vendor/modules.txt                        |  2 +-
+ 7 files changed, 161 insertions(+), 20 deletions(-)

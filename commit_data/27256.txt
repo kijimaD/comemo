@@ -1,21 +1,20 @@
-commit 84e808043ff40992ea1e25beb58365fd8e4f2591
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 29 15:20:27 2016 -0700
+commit 16029babe24c516230399205a74becb2c215e11a
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Thu Mar 17 13:18:34 2016 +0200
 
-    runtime: use cgo traceback for SIGPROF
+    cmd/compile: deduplicate symbol references
     
-    If we collected a cgo traceback when entering the SIGPROF signal
-    handler, record it as part of the profiling stack trace.
+    Reduces size of archives in pkg/linux_amd64 by 1.4MB (3.2%),
+    slightly improving link time.
     
-    This serves as the promised test for https://golang.org/cl/21055 .
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.52 ± 3%  0.51 ± 2%  -0.65%  (p=0.000 n=98+99)
     
-    Change-Id: I5f60cd6cea1d9b7c3932211483a6bfab60ed21d2
-    Reviewed-on: https://go-review.googlesource.com/22650
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7e265f4d4dd08967c5c5d55c1045e533466bbbec
+    Reviewed-on: https://go-review.googlesource.com/20802
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/crash_cgo_test.go             | 30 ++++++++++
- src/runtime/proc.go                       | 20 +++++--
- src/runtime/testdata/testprogcgo/pprof.go | 96 +++++++++++++++++++++++++++++++
- 3 files changed, 142 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/objfile.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

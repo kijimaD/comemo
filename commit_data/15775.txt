@@ -1,37 +1,16 @@
-commit f28c8fba67008ae0b14517979e9b48ac38fa22b6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 14 15:01:45 2013 -0700
+commit 214c1784934ec6584a5039a757f1c892d0faded6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 17:53:01 2013 -0400
 
-    database/sql: associate a mutex with each driver interface
+    runtime: fix netbsd again after reorg
     
-    The database/sql/driver docs make this promise:
+    This time for sure.
+    That C file sure looked like a header file to me. :-)
     
-       "Conn is a connection to a database. It is not used
-       concurrently by multiple goroutines."
-    
-    That promises exists as part of database/sql's overall
-    goal of making drivers relatively easy to write.
-    
-    So far this promise has been kept without the use of locks by
-    being careful in the database/sql package, but sometimes too
-    careful. (cf. golang.org/issue/3857)
-    
-    The CL associates a Mutex with each driver.Conn, and with the
-    interface value progeny thereof. (e.g. each driver.Tx,
-    driver.Stmt, driver.Rows, driver.Result, etc) Then whenever
-    those interface values are used, the Locker is locked.
-    
-    This CL should be a no-op (aside from some new Lock/Unlock
-    pairs) and doesn't attempt to fix Issue 3857 or Issue 4459,
-    but should make it much easier in a subsequent CL.
-    
-    Update #3857
-    
-    R=golang-dev, adg
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7803043
+    https://golang.org/cl/7830043
 
- src/pkg/database/sql/convert.go  |  10 +-
- src/pkg/database/sql/sql.go      | 313 ++++++++++++++++++++++++++-------------
- src/pkg/database/sql/sql_test.go |   9 +-
- 3 files changed, 219 insertions(+), 113 deletions(-)
+ src/pkg/runtime/os_netbsd.c | 1 -
+ src/pkg/runtime/os_netbsd.h | 1 +
+ 2 files changed, 1 insertion(+), 1 deletion(-)

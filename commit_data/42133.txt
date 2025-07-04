@@ -1,26 +1,21 @@
-commit 8bcf2834afdf6a1f7937390903a41518715ef6f5
-Author: Pierre Carru <pierre.carru@eshard.com>
-Date:   Sun Apr 26 09:11:35 2020 +0000
+commit f07059d949057f414dd0f8303f93ca727d716c62
+Author: DQNEO <dqneoo@gmail.com>
+Date:   Sat Jun 8 21:40:20 2019 +0900
 
-    net/http/httputil: make Switching Protocol requests (e.g. Websockets) cancelable
+    cmd/compile: rename sizeof_Array and array_* to slice_*
     
-    Ensures that a canceled client request for Switching Protocols
-    (e.g. h2c, Websockets) will cause the underlying connection to
-    be terminated.
+    Renames variables sizeof_Array and other array_* variables
+    that were actually intended for slices and not arrays.
     
-    Adds a goroutine in handleUpgradeResponse in order to select on
-    the incoming client request's context and appropriately cancel it.
-    
-    Fixes #35559
-    
-    Change-Id: I1238e18fd4cce457f034f78d9cdce0e7f93b8bf6
-    GitHub-Last-Rev: 3629c78493f667703ea99f9f4db5e63ddaaa0e6b
-    GitHub-Pull-Request: golang/go#38021
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224897
+    Change-Id: I391b95880cc77cabb8472efe694b7dd19545f31a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180919
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/net/http/httputil/reverseproxy.go      |  15 +++-
- src/net/http/httputil/reverseproxy_test.go | 122 +++++++++++++++++++++++++++++
- 2 files changed, 136 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/align.go    |  2 +-
+ src/cmd/compile/internal/gc/go.go       | 12 ++++++------
+ src/cmd/compile/internal/gc/sinit.go    | 18 +++++++++---------
+ src/cmd/compile/internal/gc/ssa.go      |  4 ++--
+ src/cmd/compile/internal/gc/universe.go | 10 +++++-----
+ 5 files changed, 23 insertions(+), 23 deletions(-)

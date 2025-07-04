@@ -1,20 +1,32 @@
-commit ad00644434d5be7df0994f4f8a10c1be732d0c98
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 31 11:50:04 2011 -0500
+commit 7400be87d84ba3cba736c0f12b3390f0adf7a386
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Jan 31 12:27:28 2011 +0100
 
-    unicode: build maketables during build, take 2
+    runtime: generate Go defs for C types.
     
-    The "all:" target is the default for running gomake
-    by hand, but it is not used during the build.
-    The build runs make install and make test.
-    
-    Save the build of maketables for the test phase
-    so that the packages it needs will have been
-    installed already.
-    
-    R=r, r2
+    R=rsc, mattn
     CC=golang-dev
-    https://golang.org/cl/4121043
+    https://golang.org/cl/4047047
 
- src/pkg/unicode/Makefile | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/cc/godefs.c                     | 101 ++++++++--------
+ src/cmd/ld/dwarf.c                      |  81 +++++++------
+ src/pkg/runtime/Makefile                |  11 +-
+ src/pkg/runtime/chan_defs.go            |  56 ---------
+ src/pkg/runtime/darwin/runtime_defs.go  |  23 ----
+ src/pkg/runtime/extern.go               |  13 +++
+ src/pkg/runtime/freebsd/runtime_defs.go |  14 ---
+ src/pkg/runtime/hashmap.c               |  28 ++---
+ src/pkg/runtime/hashmap.h               |   4 +-
+ src/pkg/runtime/hashmap_defs.go         |  51 --------
+ src/pkg/runtime/iface_defs.go           |  18 ---
+ src/pkg/runtime/linux/runtime_defs.go   |  14 ---
+ src/pkg/runtime/malloc_defs.go          | 129 --------------------
+ src/pkg/runtime/mkgodefs.sh             |  39 +++++++
+ src/pkg/runtime/plan9/runtime_defs.go   |  23 ----
+ src/pkg/runtime/runtime-gdb.py          |   8 +-
+ src/pkg/runtime/runtime.h               |   2 +-
+ src/pkg/runtime/runtime_defs.go         | 200 --------------------------------
+ src/pkg/runtime/type.go                 |  12 +-
+ src/pkg/runtime/type.h                  |   5 +
+ src/pkg/runtime/windows/runtime_defs.go |  22 ----
+ 21 files changed, 183 insertions(+), 671 deletions(-)

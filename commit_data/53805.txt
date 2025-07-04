@@ -1,23 +1,35 @@
-commit ad90eeffa5343a134c5898e3630ac90a362eaf9f
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Jul 21 13:49:06 2023 -0400
+commit 0fda8b19328edbfab880be6cb4033ff6c81eca6d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 2 10:24:53 2022 -0700
 
-    cmd/dist: handle -json flag in runPending (clean up)
+    go/types, types2: consistently write "x | y" rather than "x|y" for unions
     
-    Document work fields a bit more, and move code that
-    synthesizes JSON-encoded skip events to testjson.go.
+    Use the same spacing convention ("x | y") for union terms everythere,
+    matching the gofmt precedent.
     
-    For #37486.
-    For #61557.
+    Fixes #53279.
     
-    Change-Id: Iffc23cf990bc39696e1e3fce8ce5a6790fc44e78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512115
+    Change-Id: Ic3ccd7433b5f62402ba41cf05a75f9a1d99a8086
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410955
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/dist/test.go     | 77 ++++++++++++++++--------------------------------
- src/cmd/dist/testjson.go | 18 +++++++++++
- 2 files changed, 44 insertions(+), 51 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go        | 30 +++++++++++-----------
+ src/cmd/compile/internal/types2/termlist.go        |  5 +++-
+ src/cmd/compile/internal/types2/typestring.go      |  2 +-
+ src/cmd/compile/internal/types2/typestring_test.go |  4 +--
+ src/go/types/api_test.go                           | 30 +++++++++++-----------
+ src/go/types/termlist.go                           |  5 +++-
+ src/go/types/typestring.go                         |  2 +-
+ src/go/types/typestring_test.go                    |  4 +--
+ .../types/testdata/fixedbugs/issue45920.go         |  4 +--
+ .../types/testdata/fixedbugs/issue47411.go         |  6 ++---
+ .../types/testdata/fixedbugs/issue47818.go         |  2 +-
+ .../types/testdata/fixedbugs/issue49179.go         |  4 +--
+ .../types/testdata/fixedbugs/issue51472.go         |  2 +-
+ src/internal/types/testdata/spec/conversions.go    |  6 ++---
+ 14 files changed, 56 insertions(+), 50 deletions(-)

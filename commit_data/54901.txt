@@ -1,26 +1,62 @@
-commit 0ccbf6306c8cac2b6f68ea6e8b098bb72b53473f
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Mon Nov 6 22:33:25 2023 +0000
+commit 58a2db181b7cb2d51e462b6ea9c0026bba520055
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Oct 23 21:48:29 2022 +0200
 
-    runtime/internal/atomic: add arm/arm64 operators for And/Or
+    crypto/rsa: allocate nats on the stack for RSA 2048
     
-    This CL continues adding support for And/Or primitives to
-    more architectures, this time for arm/arm64.
+    With a small tweak and the help of the inliner, we preallocate enough
+    nat backing space to do RSA-2048 on the stack.
     
-    For #61395
+    We keep the length of the preallocated slices at zero so they don't
+    silently mask missing expandFor calls.
     
-    Change-Id: Icc44ea65884c825698a345299d8f9511392aceb6
-    GitHub-Last-Rev: 8267665a0348faa0a10ac63b18909a1b13f9971d
-    GitHub-Pull-Request: golang/go#62674
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528797
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Surprisingly enough, this doesn't move the CPU benchmark needle much,
+    but probably reduces GC pressure on larger applications.
+    
+    name                    old time/op    new time/op    delta
+    DecryptPKCS1v15/2048-8    1.25ms ± 0%    1.22ms ± 1%   -1.68%  (p=0.000 n=10+9)
+    DecryptPKCS1v15/3072-8    3.78ms ± 0%    3.73ms ± 1%   -1.33%  (p=0.000 n=9+10)
+    DecryptPKCS1v15/4096-8    8.62ms ± 0%    8.45ms ± 1%   -1.98%  (p=0.000 n=8+10)
+    EncryptPKCS1v15/2048-8     140µs ± 1%     136µs ± 0%   -2.43%  (p=0.000 n=9+9)
+    DecryptOAEP/2048-8        1.25ms ± 0%    1.24ms ± 0%   -0.83%  (p=0.000 n=8+10)
+    EncryptOAEP/2048-8         140µs ± 0%     137µs ± 0%   -1.82%  (p=0.000 n=8+10)
+    SignPKCS1v15/2048-8       1.29ms ± 0%    1.29ms ± 1%     ~     (p=0.574 n=8+8)
+    VerifyPKCS1v15/2048-8      139µs ± 0%     136µs ± 0%   -2.12%  (p=0.000 n=9+10)
+    SignPSS/2048-8            1.30ms ± 0%    1.28ms ± 0%   -0.96%  (p=0.000 n=8+10)
+    VerifyPSS/2048-8           140µs ± 0%     137µs ± 0%   -1.99%  (p=0.000 n=10+8)
+    
+    name                    old alloc/op   new alloc/op   delta
+    DecryptPKCS1v15/2048-8    15.0kB ± 0%     0.5kB ± 0%  -96.58%  (p=0.000 n=10+10)
+    DecryptPKCS1v15/3072-8    24.6kB ± 0%     3.3kB ± 0%  -86.74%  (p=0.000 n=10+10)
+    DecryptPKCS1v15/4096-8    38.9kB ± 0%     4.5kB ± 0%  -88.50%  (p=0.000 n=10+10)
+    EncryptPKCS1v15/2048-8    18.0kB ± 0%     1.2kB ± 0%  -93.48%  (p=0.000 n=10+10)
+    DecryptOAEP/2048-8        15.2kB ± 0%     0.7kB ± 0%  -95.10%  (p=0.000 n=10+10)
+    EncryptOAEP/2048-8        18.2kB ± 0%     1.4kB ± 0%  -92.29%  (p=0.000 n=10+10)
+    SignPKCS1v15/2048-8       21.9kB ± 0%     0.8kB ± 0%  -96.50%  (p=0.000 n=10+10)
+    VerifyPKCS1v15/2048-8     17.7kB ± 0%     0.9kB ± 0%  -94.85%  (p=0.000 n=10+10)
+    SignPSS/2048-8            22.3kB ± 0%     1.2kB ± 0%  -94.77%  (p=0.000 n=10+10)
+    VerifyPSS/2048-8          17.9kB ± 0%     1.1kB ± 0%  -93.75%  (p=0.000 n=10+10)
+    
+    name                    old allocs/op  new allocs/op  delta
+    DecryptPKCS1v15/2048-8       124 ± 0%         3 ± 0%  -97.58%  (p=0.000 n=10+10)
+    DecryptPKCS1v15/3072-8       140 ± 0%         9 ± 0%  -93.57%  (p=0.000 n=10+10)
+    DecryptPKCS1v15/4096-8       158 ± 0%         9 ± 0%  -94.30%  (p=0.000 n=10+10)
+    EncryptPKCS1v15/2048-8      80.0 ± 0%       7.0 ± 0%  -91.25%  (p=0.000 n=10+10)
+    DecryptOAEP/2048-8           130 ± 0%         9 ± 0%  -93.08%  (p=0.000 n=10+10)
+    EncryptOAEP/2048-8          86.0 ± 0%      13.0 ± 0%  -84.88%  (p=0.000 n=10+10)
+    SignPKCS1v15/2048-8          162 ± 0%         4 ± 0%  -97.53%  (p=0.000 n=10+10)
+    VerifyPKCS1v15/2048-8       79.0 ± 0%       6.0 ± 0%  -92.41%  (p=0.000 n=10+10)
+    SignPSS/2048-8               167 ± 0%         9 ± 0%  -94.61%  (p=0.000 n=10+10)
+    VerifyPSS/2048-8            84.0 ± 0%      11.0 ± 0%  -86.90%  (p=0.000 n=10+10)
+    
+    Change-Id: I511a2f5f6f596bbec68a0a411e83a9d04080d72a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445021
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/internal/atomic/atomic_andor_test.go |  2 +-
- src/runtime/internal/atomic/atomic_arm.go        | 60 ++++++++++++++++++
- src/runtime/internal/atomic/atomic_arm64.go      | 18 ++++++
- src/runtime/internal/atomic/atomic_arm64.s       | 78 ++++++++++++++++++++++++
- 4 files changed, 157 insertions(+), 1 deletion(-)
+ src/crypto/rsa/nat.go      | 102 +++++++++++++++++++++++++++------------------
+ src/crypto/rsa/nat_test.go |  34 +++++++--------
+ src/crypto/rsa/rsa.go      |  34 +++++++--------
+ 3 files changed, 95 insertions(+), 75 deletions(-)

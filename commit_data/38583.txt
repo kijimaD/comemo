@@ -1,21 +1,14 @@
-commit b2f19dad8bb2b942badcc1ea6f7147b11fed926e
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Thu Mar 28 13:25:21 2019 +0100
+commit d258bac41c05bfa320b1d124a8592772e235a48e
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Nov 7 19:56:30 2018 +0530
 
-    runtime/cgo: remove threadentry functions specialized for android
+    time: document that a marshaled time does not include location name
     
-    The specialized functions set up the g register using the pthread
-    API instead of setg_gcc, but the inittls functions have already
-    made sure setg_gcc works.
+    Fixes #28421
     
-    Updates #29674
-    
-    Change-Id: Ie67c068d638af8b5823978ee839f6b61b2228996
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169797
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I00878ec246d5249d910f2b57749f74cfc38dbec6
+    Reviewed-on: https://go-review.googlesource.com/c/148117
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/cgo/gcc_android_386.c   | 23 -----------------------
- src/runtime/cgo/gcc_android_amd64.c | 23 -----------------------
- src/runtime/cgo/gcc_linux_386.c     |  8 +-------
- src/runtime/cgo/gcc_linux_amd64.c   |  7 +------
- 4 files changed, 2 insertions(+), 59 deletions(-)
+ src/time/time.go | 4 ++++
+ 1 file changed, 4 insertions(+)

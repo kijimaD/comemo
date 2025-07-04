@@ -1,32 +1,13 @@
-commit 2c46cc8b8997f4f5cdb7766e4e2bdf8e57f67c76
-Author: Amarjeet Anand <amarjeetanandsingh@gmail.com>
-Date:   Sat Aug 13 22:00:33 2022 +0530
+commit 051df0d722fd2ec4473f2ac0ae868a3487927d68
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Wed Sep 22 09:50:32 2021 +0800
 
-    time: optimize GoString
+    io: fix spelling in documentation for writerFunc
     
-    Optimize Time.GoString by avoiding multiple calls to absDate.
-    
-            name        old time/op    new time/op    delta
-            GoString-8     313ns ± 2%     197ns ± 1%  -37.08%  (p=0.008 n=5+5)
-    
-            name        old alloc/op   new alloc/op   delta
-            GoString-8     80.0B ± 0%     80.0B ± 0%     ~     (all equal)
-    
-            name        old allocs/op  new allocs/op  delta
-            GoString-8      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    
-    Fixes #54436
-    
-    Change-Id: I8e6f8e7bbb9857b4bc0cdf6ed29a6b2415775db7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423634
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I9f55188859944e1b2b140d3547bcfcb335c5ff50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351370
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/time/format.go    | 21 ++++++++++++---------
- src/time/time_test.go |  7 +++++++
- 2 files changed, 19 insertions(+), 9 deletions(-)
+ src/io/multi_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

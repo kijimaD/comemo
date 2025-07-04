@@ -1,15 +1,34 @@
-commit 129bb1917b4914f0743ec9b4ef0dfb74df39c07d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 11 19:10:00 2020 -0800
+commit c9d5f60eaa4450ccf1ce878d55b4c6a12843f2f3
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Apr 27 21:52:38 2020 -0400
 
-    doc/go1.15: mention 1.15.3 cgo restriction on empty structs
+    math/big: add (*Int).FillBytes
     
-    For #40954
+    Replaced almost every use of Bytes with FillBytes.
     
-    Change-Id: I6a30aed31a16e820817f4ca5c7f591222e922946
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277432
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Note that the approved proposal was for
+    
+        func (*Int) FillBytes(buf []byte)
+    
+    while this implements
+    
+        func (*Int) FillBytes(buf []byte) []byte
+    
+    because the latter was far nicer to use in all callsites.
+    
+    Fixes #35833
+    
+    Change-Id: Ia912df123e5d79b763845312ea3d9a8051343c0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230397
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.15.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/crypto/elliptic/elliptic.go | 13 +++++-----
+ src/crypto/rsa/pkcs1v15.go      | 20 +++------------
+ src/crypto/rsa/pss.go           | 17 ++++++-------
+ src/crypto/rsa/rsa.go           | 32 ++++--------------------
+ src/crypto/tls/key_schedule.go  |  7 ++----
+ src/crypto/x509/sec1.go         |  7 ++----
+ src/math/big/int.go             | 15 ++++++++++++
+ src/math/big/int_test.go        | 54 +++++++++++++++++++++++++++++++++++++++++
+ src/math/big/nat.go             | 15 +++++++++---
+ 9 files changed, 106 insertions(+), 74 deletions(-)

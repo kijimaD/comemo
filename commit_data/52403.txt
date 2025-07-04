@@ -1,24 +1,28 @@
-commit 2716dfd99580b63dc3b0b2dba4a31e50649f4922
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Mar 23 13:19:02 2023 -0500
+commit 0537a74b76fcab1398da6699c3ff7411fef8fbe7
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Mon May 2 11:50:36 2022 +0000
 
-    cmd/internal/obj/ppc64: fix incorrect base reg causing segv
+    io: NopCloser forward WriterTo implementations if the reader supports it
     
-    This fixes a segv that was reported due to building minio. The
-    problem occurred because of an incorrect selection of the
-    base register, which was introduced by CL 306369.
+    This patch also include related fixes to net/http.
     
-    Fixes #59196
+    io_test.go don't test reading or WritingTo of the because the logic is simple.
+    NopCloser didn't even had direct tests before.
     
-    Change-Id: Ieb77b2afa8fb4e6f3943df5ce138679f6750d376
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478920
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Fixes #51566
+    
+    Change-Id: I1943ee2c20d0fe749f4d04177342ce6eca443efe
+    GitHub-Last-Rev: a6b9af4e945a6903735a74aa185e2d1c4c2e2cef
+    GitHub-Pull-Request: golang/go#52340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400236
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/obj/ppc64/asm9.go | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ src/io/io.go             | 15 +++++++++++++++
+ src/io/io_test.go        | 21 +++++++++++++++++++++
+ src/net/http/transfer.go | 23 +++++++++++++++++++----
+ 3 files changed, 55 insertions(+), 4 deletions(-)

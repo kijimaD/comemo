@@ -1,17 +1,12 @@
-commit 43b97ce69bdf417c64e639399921a655ca39baea
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Apr 26 10:47:49 2011 +1000
+commit 079a5cffb3f541920b28dabbe777a0dee5d6f32a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Apr 25 15:33:57 2011 -0700
 
-    websocket: include *http.Request in websocket.Conn
+    runtime: fix arm build
     
-    This permits the websocket handler to inspect http headers and such.
-    
-    Fixes #1726.
-    
-    R=ukai, bradfitz, bradfitzgo
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4439069
+    https://golang.org/cl/4438069
 
- src/pkg/websocket/server.go    | 1 +
- src/pkg/websocket/websocket.go | 3 +++
- 2 files changed, 4 insertions(+)
+ src/pkg/runtime/linux/arm/sys.s | 1 -
+ 1 file changed, 1 deletion(-)

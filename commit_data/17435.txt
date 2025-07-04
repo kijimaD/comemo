@@ -1,35 +1,19 @@
-commit 3c6558ad904debb65b554baaacb1cb23ea7839d4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Aug 30 09:09:45 2013 +0900
+commit 32b770b2c05d69c41f0ab6719dc028cf4c79e334
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 29 15:53:34 2013 -0700
 
-    net: add netaddr interface
+    runtime: jump to badmcall instead of calling it.
+    This replaces the mcall frame with the badmcall frame instead of
+    leaving the mcall frame on the stack and adding the badmcall frame.
+    Because mcall is no longer on the stack, traceback will now report what
+    called mcall, which is what we would like to see in this situation.
     
-    This CL adds the netaddr interface that will carry a single network
-    endpoint address or a short list of IP addresses to dial helper
-    functions in the upcoming CLs.
-    
-    This is in preparation for TCP connection setup with fast failover on
-    dual IP stack node as described in RFC 6555.
-    
-    Update #3610
-    Update #5267
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, cshapiro
     CC=golang-dev
-    https://golang.org/cl/13368044
+    https://golang.org/cl/13012044
 
- src/pkg/net/dial.go            |  6 ++--
- src/pkg/net/dial_gen.go        |  6 ++--
- src/pkg/net/fd_unix.go         |  2 +-
- src/pkg/net/fd_windows.go      |  2 +-
- src/pkg/net/iprawsock.go       |  9 +++++-
- src/pkg/net/iprawsock_posix.go |  7 ----
- src/pkg/net/ipsock.go          | 73 +++++++++++++++++++++++++-----------------
- src/pkg/net/sock_posix.go      |  7 ++--
- src/pkg/net/tcpsock.go         |  9 +++++-
- src/pkg/net/tcpsock_posix.go   |  7 ----
- src/pkg/net/udpsock.go         |  9 +++++-
- src/pkg/net/udpsock_posix.go   |  7 ----
- src/pkg/net/unixsock.go        |  7 ++++
- src/pkg/net/unixsock_posix.go  |  7 ----
- 14 files changed, 85 insertions(+), 73 deletions(-)
+ src/pkg/runtime/asm_386.s   | 8 +++++---
+ src/pkg/runtime/asm_amd64.s | 8 ++++----
+ src/pkg/runtime/asm_arm.s   | 5 +++--
+ src/pkg/runtime/proc.c      | 6 ++++--
+ 4 files changed, 16 insertions(+), 11 deletions(-)

@@ -1,13 +1,14 @@
-commit b979b192b25beab5d4f9666b0e4aa198fbb02bcc
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 11 12:02:07 2012 -0500
+commit 15353d211440e0fa422f8a45a0130354365d890b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Dec 11 11:49:02 2012 -0500
 
-    A+C: Brian Ketelsen and Miquel Sabaté Solà (individual CLA × 2)
+    encoding/base64: new example for NewEncoder with emphasis on Close
+    Fixes #4394.
     
-    R=golang-dev, bradfitz
+    R=iant, bradfitz, rsc, remigius.gieben
     CC=golang-dev
-    https://golang.org/cl/6923051
+    https://golang.org/cl/6847125
 
- AUTHORS      | 2 ++
- CONTRIBUTORS | 3 ++-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/encoding/base32/example_test.go | 15 +++++++++++++++
+ src/pkg/encoding/base64/example_test.go | 15 +++++++++++++++
+ 2 files changed, 30 insertions(+)

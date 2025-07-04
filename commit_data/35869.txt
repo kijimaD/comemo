@@ -1,20 +1,12 @@
-commit 3f54e8537aa31cf3dbcf27d0c3033b17756d093a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Jun 30 17:46:25 2018 -0400
+commit 7d4d2cb686d2068a9a07dbde9f2a72c237c1f4a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 14 11:19:42 2018 -0700
 
-    cmd/compile: run generic deadcode in -N mode
+    math/big: add comment about internal assumptions on nat values
     
-    Late opt pass may generate dead stores, which messes up store
-    chain calculation in later passes. Run generic deadcode even
-    in -N mode to remove them.
-    
-    Fixes #26163.
-    
-    Change-Id: I8276101717bb978d5980e6c7998f53fd8d0ae10f
-    Reviewed-on: https://go-review.googlesource.com/121856
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I7ed40507a019c0bf521ba748fc22c03d74bb17b7
+    Reviewed-on: https://go-review.googlesource.com/100719
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go |  2 +-
- test/fixedbugs/issue26163.go            | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/math/big/nat.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

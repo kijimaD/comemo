@@ -1,17 +1,13 @@
-commit 48eacd90a8ad54baf8c8037cb8d753e31e2d4bfd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 6 14:10:58 2012 -0800
+commit 97b13acb6704d5ae2b641d7d8343424ce9156931
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 7 08:15:47 2012 +1100
 
-    database/sql: fix typo bug resulting in double-Prepare
+    doc: update links
     
-    Bug reported by Blake Mizerany found while writing
-    his new Postgres driver.
-    
-    R=golang-dev, blake.mizerany
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5754057
+    https://golang.org/cl/5754051
 
- src/pkg/database/sql/fakedb_test.go |  2 ++
- src/pkg/database/sql/sql.go         |  2 +-
- src/pkg/database/sql/sql_test.go    | 15 ++++++++++++++-
- 3 files changed, 17 insertions(+), 2 deletions(-)
+ doc/codewalk/markov.xml |  2 +-
+ doc/go_faq.html         | 14 ++++++--------
+ 2 files changed, 7 insertions(+), 9 deletions(-)

@@ -1,19 +1,30 @@
-commit 76b4b8c72dc319454ff3ecb83bf49831e4e528c3
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Fri Feb 10 17:23:55 2017 -0800
+commit 7d14401bcbee4a8ff33ac869ef5ebb156a179ab6
+Author: unknown <daria.kolistratova@intel.com>
+Date:   Fri Oct 7 18:21:03 2016 +0300
 
-    cmd/trace: document the final step to use pprof-like profiles
+    runtime/pprof: write profiles in protobuf format.
     
-    The tutorial ends without mentioning how to use the generated
-    pprof-like profile with the pprof tool. This may be very trivial
-    for users who are already very familiar with the Go tools, but
-    for the newcomers, it saves a lot of time to finalize the tutorial
-    with an example of `go tool pprof` invocation.
-    
-    Change-Id: Idf034eb4bfb9672ef10190e66fcbf873e8f08f6a
-    Reviewed-on: https://go-review.googlesource.com/36803
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Added functions with suffix proto and stuff from pprof tool to translate
+    to protobuf. Done as the profile proto is more extensible than the legacy
+    pprof format and is pprof's preferred profile format. Large part was taken
+    from https://github.com/google/pprof tool. Tested by hand and compared the
+    result with translated by pprof tool, profiles are identical.
+    Fixes #16093
+    Change-Id: I5acdb2809cab0d16ed4694fdaa7b8ddfd68df11e
+    Reviewed-on: https://go-review.googlesource.com/30556
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/trace/doc.go  | 30 ++++++++++++++++++++++++++++++
- src/cmd/trace/main.go | 22 ----------------------
- 2 files changed, 30 insertions(+), 22 deletions(-)
+ src/go/build/deps_test.go                          |  14 +-
+ src/runtime/crash_cgo_test.go                      |   3 +-
+ src/runtime/pprof/decoder_for_test.go              | 807 +++++++++++++++++++++
+ src/runtime/pprof/internal/profile/encode.go       | 187 +++++
+ src/runtime/pprof/internal/profile/profile.go      | 112 +++
+ .../pprof/internal/profile/profile_memmap.go       | 302 ++++++++
+ src/runtime/pprof/internal/profile/proto.go        | 156 ++++
+ .../pprof/internal/protopprof/protopprof.go        | 295 ++++++++
+ src/runtime/pprof/mprof_test.go                    |  64 +-
+ src/runtime/pprof/pprof.go                         | 382 +++++-----
+ src/runtime/pprof/pprof_test.go                    | 227 ++----
+ 11 files changed, 2140 insertions(+), 409 deletions(-)

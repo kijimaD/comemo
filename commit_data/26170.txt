@@ -1,89 +1,12 @@
-commit 862b9ddda7d5163926ca0ab20f23f261a70cfe80
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Mar 7 23:45:04 2016 -0500
+commit 0f3c2290305ddd05aea472c49b43c7ba45da0f18
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Thu Dec 24 14:26:02 2015 -0400
 
-    cmd/link: prune unused methods
+    runtime: fix sigaltstack test Skipf format string
     
-    Today the linker keeps all methods of reachable types. This is
-    necessary if a program uses reflect.Value.Call. But while use of
-    reflection is widespread in Go for encoders and decoders, using
-    it to call a method is rare.
-    
-    This CL looks for the use of reflect.Value.Call in a program, and
-    if it is absent, adopts a (reasonably conservative) method pruning
-    strategy as part of dead code elimination. Any method that is
-    directly called is kept, and any method that matches a used
-    interface's method signature is kept.
-    
-    Whether or not a method body is kept is determined by the relocation
-    from its receiver's *rtype to its *rtype. A small change in the
-    compiler marks these relocations as R_METHOD so they can be easily
-    collected and manipulated by the linker.
-    
-    As a bonus, this technique removes the text segment of methods that
-    have been inlined. Looking at the output of building cmd/objdump with
-    -ldflags=-v=2 shows that inlined methods like
-    runtime.(*traceAllocBlockPtr).ptr are removed from the program.
-    
-    Relatively little work is necessary to do this. Linking two
-    examples, jujud and cmd/objdump show no more than +2% link time.
-    
-    Binaries that do not use reflect.Call.Value drop 4 - 20% in size:
-    
-            addr2line: -793KB (18%)
-            asm:       -346KB (8%)
-            cgo:       -490KB (10%)
-            compile:   -564KB (4%)
-            dist:      -736KB (17%)
-            fix:       -404KB (12%)
-            link:      -328KB (7%)
-            nm:        -827KB (19%)
-            objdump:   -712KB (16%)
-            pack:      -327KB (14%)
-            yacc:      -350KB (10%)
-    
-    Binaries that do use reflect.Call.Value see a modest size decrease
-    of 2 - 6% thanks to pruning of unexported methods:
-    
-            api:    -151KB (3%)
-            cover:  -222KB (4%)
-            doc:    -106KB (2.5%)
-            pprof:  -314KB (3%)
-            trace:  -357KB (4%)
-            vet:    -187KB (2.7%)
-            jujud:  -4.4MB (5.8%)
-            cmd/go: -384KB (3.4%)
-    
-    The trivial Hello example program goes from 2MB to 1.68MB:
-    
-            package main
-    
-            import "fmt"
-    
-            func main() {
-                    fmt.Println("Hello, 世界")
-            }
-    
-    Method pruning also helps when building small binaries with
-    "-ldflags=-s -w". The above program goes from 1.43MB to 1.2MB.
-    
-    Unfortunately the linker can only tell if reflect.Value.Call has been
-    statically linked, not if it is dynamically used. And while use is
-    rare, it is linked into a very common standard library package,
-    text/template. The result is programs like cmd/go, which don't use
-    reflect.Value.Call, see limited benefit from this CL. If binary size
-    is important enough it may be possible to address this in future work.
-    
-    For #6853.
-    
-    Change-Id: Iabe90e210e813b08c3f8fd605f841f0458973396
-    Reviewed-on: https://go-review.googlesource.com/20483
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I9485ecbd9d546893e4f0db846b08d835fa7515d7
+    Reviewed-on: https://go-review.googlesource.com/18140
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |  14 +-
- src/cmd/internal/obj/link.go           |   5 +
- src/cmd/link/internal/ld/deadcode.go   | 320 +++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/decodesym.go  | 119 +++++++++++-
- src/cmd/link/internal/ld/go.go         | 129 +------------
- src/cmd/link/internal/ld/pobj.go       |  11 +-
- 6 files changed, 458 insertions(+), 140 deletions(-)
+ misc/cgo/test/sigaltstack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

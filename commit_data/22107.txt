@@ -1,17 +1,14 @@
-commit fc28fd1eb8aa562e35174c2d5c1a6c20031ac546
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 16 15:31:32 2015 -0400
+commit d9859ad40438cc27415ec294e9a06bb58fa24e9a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 17:57:26 2015 -0800
 
-    cmd/internal/obj: shuffle link.go to put declarations in original order
+    math/big: fix several issues with string->Float conversion
     
-    I think the file ended up in the order of the typedefs instead of the
-    order of the actual struct definitions. You can see where some of
-    the declarations were because some of the comments didn't move.
-    Put things back in the original order.
-    
-    Change-Id: I0e3703008278b084b632c917cfb73bc81bdd4f23
-    Reviewed-on: https://go-review.googlesource.com/7743
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7bf7154e2d8d779fdf7f1d2bb561a06ad174f3b0
+    Reviewed-on: https://go-review.googlesource.com/4883
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/internal/obj/link.go | 501 +++++++++++++++++++++----------------------
- 1 file changed, 247 insertions(+), 254 deletions(-)
+ src/math/big/float.go          | 12 ++---
+ src/math/big/floatconv.go      | 99 ++++++++++++++++++++++++++++++------------
+ src/math/big/floatconv_test.go | 62 +++++++++++++++++++++-----
+ 3 files changed, 128 insertions(+), 45 deletions(-)

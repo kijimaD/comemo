@@ -1,39 +1,30 @@
-commit 003dccfac41c12bf6304f6c76aa5e2b38c197cda
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Dec 18 03:26:08 2014 -0500
+commit fb75f856df0c3ad5f4df861ab6ff3cab8a73a129
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 26 22:41:33 2015 +0100
 
-    runtime, syscall: use the new get_random_bytes syscall for NaCl
+    runtime: fix memory allocator on Plan 9
     
-    The SecureRandom named service was removed in
-    https://codereview.chromium.org/550523002. And the new syscall
-    was introduced in https://codereview.chromium.org/537543003.
+    Previously, the memory allocator on Plan 9 did
+    not free memory properly. It was only able to
+    free the last allocated block.
     
-    Accepting this will remove the support for older version of
-    sel_ldr. I've confirmed that both pepper_40 and current
-    pepper_canary have this syscall.
+    This change implements a variant of the
+    Kernighan & Ritchie memory allocator with
+    coalescing and splitting.
     
-    After this change, we need sel_ldr from pepper_39 or above to
-    work.
+    The most notable differences are:
     
-    Fixes #9261
+    - no header is prefixing the allocated blocks, since
+      the size is always specified when calling sysFree,
+    - the free list is nil-terminated instead of circular.
     
-    Change-Id: I096973593aa302ade61f259a3a71ebc7c1a57913
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/1755
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #9736.
+    Fixes #9803.
+    Fixes #9952.
+    
+    Change-Id: I00d533714e4144a0012f69820d31cbb0253031a3
+    Reviewed-on: https://go-review.googlesource.com/5524
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- misc/nacl/README                      | 19 +++++++++----------
- src/runtime/os1_nacl.go               |  7 ++-----
- src/runtime/sys_nacl_386.s            |  9 +++++++++
- src/runtime/sys_nacl_amd64p32.s       |  7 +++++++
- src/runtime/sys_nacl_arm.s            |  7 +++++++
- src/runtime/syscall_nacl.h            | 15 ++++++++++++++-
- src/syscall/fs_nacl.go                | 23 +++++++++--------------
- src/syscall/syscall_nacl.go           |  1 +
- src/syscall/tables_nacl.go            | 15 ++++++++++++++-
- src/syscall/zsyscall_nacl_386.go      | 16 ++++++++++++++++
- src/syscall/zsyscall_nacl_amd64p32.go | 16 ++++++++++++++++
- src/syscall/zsyscall_nacl_arm.go      | 16 ++++++++++++++++
- 12 files changed, 120 insertions(+), 31 deletions(-)
+ src/runtime/mem_plan9.go | 126 ++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 113 insertions(+), 13 deletions(-)

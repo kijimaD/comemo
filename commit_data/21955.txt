@@ -1,17 +1,15 @@
-commit 42c8be4414e98f44c4bdb6d6cab126c8b7ed29a3
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Mar 9 10:58:35 2015 +1100
+commit 7a77d8d1e9b006ae49fd456a8912a8ec03af8ec7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 10:12:25 2015 -0800
 
-    go/build: disable cgo by default for freebsd/arm
+    math/big: use internal validation more consistently
     
-    Updates #10119
+    TBR adonovan
     
-    Temporarily disable cgo by default to get the freebsd/arm
-    builder running again.
-    
-    Change-Id: I4de1f896fcac650184df77c692b102ea6fb73bba
-    Reviewed-on: https://go-review.googlesource.com/7125
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: If77afa6474af6cad6512f6866725e3ae5acf2e3f
+    Reviewed-on: https://go-review.googlesource.com/4840
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/build/build.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/math/big/float.go      | 79 +++++++++++++++++++++++++++++++---------------
+ src/math/big/float_test.go | 12 +++++++
+ 2 files changed, 65 insertions(+), 26 deletions(-)

@@ -1,27 +1,21 @@
-commit 5e4a958351222233fbc6f82ab621a7d15299eea5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 7 12:31:59 2017 -0800
+commit 90d536f3ca2d6456ee0ab45408e8499ea815ddb3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 15 01:36:34 2016 +0000
 
-    cmd/compile: refactor portable SSA Op handling
+    net/http: update bundled http2 for write scheduling order fix
     
-    Several SSA ops will always behave identically regardless of target
-    architecture, so handle those within gc/ssa.go instead.
+    Updates x/net/http2 to x/net git rev 00ed5e9 for:
     
-    Passes toolstash-check -all.
+        http2: schedule RSTStream writes onto its stream's queue
+        https://golang.org/cl/33238
     
-    Change-Id: I54d514e80ab86723e44332a5a38e3054cbca8c5d
-    Reviewed-on: https://go-review.googlesource.com/37931
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #17243
+    
+    Change-Id: I79cc5d15bf69ead28d549d4f798c12f4ee2a2201
+    Reviewed-on: https://go-review.googlesource.com/33241
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go  | 19 -------------------
- src/cmd/compile/internal/arm/ssa.go    | 19 -------------------
- src/cmd/compile/internal/arm64/ssa.go  | 19 -------------------
- src/cmd/compile/internal/gc/ssa.go     | 31 ++++++++++++++++++++++++++++++-
- src/cmd/compile/internal/mips/ssa.go   | 19 -------------------
- src/cmd/compile/internal/mips64/ssa.go | 19 -------------------
- src/cmd/compile/internal/ppc64/ssa.go  | 21 ---------------------
- src/cmd/compile/internal/s390x/ssa.go  | 19 -------------------
- src/cmd/compile/internal/x86/ssa.go    | 18 ------------------
- 9 files changed, 30 insertions(+), 154 deletions(-)
+ src/net/http/h2_bundle.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

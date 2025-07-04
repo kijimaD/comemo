@@ -1,14 +1,25 @@
-commit 3839447ac39b1c49cb14833f0832e5f934e5bf6b
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Oct 20 09:41:39 2023 -0400
+commit e6ebbefaf848604c8df3e2a58e146948b03e608b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 14 12:02:23 2022 -0800
 
-    doc: add missing space in godebug.md
+    net/url, net/http/httputil: accept invalid percent encodings
     
-    Change-Id: I941b6397e2f09a4abb30c0caf91cc2ff2212a445
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536675
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Per https://url.spec.whatwg.org/#percent-encoded-bytes an invalid
+    percent encoding should be handled as ordinary text.
+    
+    Fixes #56732
+    
+    Change-Id: Ib0259dfd704922905289eebaacbf722e28f6d636
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450375
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/godebug.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/httputil/reverseproxy.go      | 27 +--------------------
+ src/net/http/httputil/reverseproxy_test.go |  2 +-
+ src/net/url/url.go                         | 26 +++++++++++++-------
+ src/net/url/url_test.go                    | 39 ++++++++++++------------------
+ 4 files changed, 35 insertions(+), 59 deletions(-)

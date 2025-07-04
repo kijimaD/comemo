@@ -1,20 +1,12 @@
-commit a3876ac21ce4e8e5afbcee69df3cdd51e2919548
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Thu Jan 1 13:19:12 2015 +0100
+commit 2917ed40d0afdb7910b74c205d6498b6c173a5e0
+Author: Burcu Dogan <jbd@google.com>
+Date:   Mon Dec 8 16:15:22 2014 -0800
 
-    log: optimize itoa
+    doc: Fix the canonical location
     
-    Reduce buffer to maximally needed size for conversion of 64bit integers.
-    Reduce number of used integer divisions.
-    
-    benchmark            old ns/op     new ns/op     delta
-    BenchmarkItoa        144           119           -17.36%
-    BenchmarkPrintln     783           752           -3.96%
-    
-    Change-Id: I6d57a7feebf90f303be5952767107302eccf4631
-    Reviewed-on: https://go-review.googlesource.com/2215
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I3030d678c4eee85970826c86332a2b818cf7f5b6
+    Reviewed-on: https://go-review.googlesource.com/1217
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/log/log.go      | 21 +++++++++------------
- src/log/log_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 12 deletions(-)
+ CONTRIBUTING.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

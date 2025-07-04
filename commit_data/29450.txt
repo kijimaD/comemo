@@ -1,22 +1,19 @@
-commit 48c6048e554ff4f428aefd41b9345ed5ec634783
-Author: Quentin Smith <quentin@golang.org>
-Date:   Tue Nov 8 16:47:04 2016 -0500
+commit 3eb16c059d301bc7242461ac8480d95e433e0374
+Author: David Chase <drchase@google.com>
+Date:   Thu Sep 15 12:43:29 2016 -0400
 
-    encoding/xml: check type when unmarshaling innerxml field
+    cmd/compile: repair GOSSAFUNC functionality
     
-    We only support unmarshaling into a string or a []byte, but we
-    previously would try (and panic while) setting a slice of a different
-    type. The docs say ",innerxml" is ignored if the type is not string or
-    []byte, so do that for other slices as well.
+    GOSSAFUNC=foo had previously only done printing for the
+    single function foo, and didn't quite clean up after itself
+    properly. Changes ensures that Config.HTML != nil iff
+    GOSSAFUNC==name-of-current-function.
     
-    Fixes #15600.
-    
-    Change-Id: Ia64815945a14c3d04a0a45ccf413e38b58a69416
-    Reviewed-on: https://go-review.googlesource.com/32919
-    Run-TryBot: Quentin Smith <quentin@golang.org>
+    Change-Id: I255e2902dfc64f715d93225f0d29d9525c06f764
+    Reviewed-on: https://go-review.googlesource.com/29250
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/encoding/xml/read.go      |  4 +++-
- src/encoding/xml/read_test.go | 19 +++++++++++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

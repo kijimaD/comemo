@@ -1,22 +1,24 @@
-commit 2278a51fa0570b01f58a80d60589fcf8e33be9c8
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 28 21:18:49 2022 -0700
+commit e2e05af6e189131162b533184eb04de5d597d544
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Jun 21 02:11:25 2021 +0000
 
-    sync/atomic: use consistent first-store-in-progress marker
+    cmd/internal/obj/arm64: fix an encoding error of CMPW instruction
     
-    We need to use the same marker everywhere. My CL to rename the
-    marker (CL 241661) and the CL to add more uses of the marker
-    under the old name (CL 241678) weren't coordinated with each other.
+    For arm64 CMP, ADD and other similar extended register instructions,
+    if there is no extension, the default extion is LSL<<0, but the default
+    encoding value (the value of 'option' field) of 32-bit instruction and
+    64-bit instruction is different, 32-bit is 2 and 64-bit is 3. But the
+    current assembler incorrectly encodes the value of 32-bit instruction
+    to 3. This CL fixes this error.
     
-    Fixes #52612
-    
-    Change-Id: I97023c0769e518491924ef457fe03bf64a2cefa6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403094
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I0e09af2c9c5047a4ed2db7d1183290283db9c31c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329749
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/sync/atomic/value.go     |  8 ++++----
- test/fixedbugs/issue52612.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s | 3 ++-
+ src/cmd/internal/obj/arm64/asm7.go        | 4 +++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

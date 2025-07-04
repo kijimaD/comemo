@@ -1,25 +1,34 @@
-commit 9a571deed6f9bebcbb3fad864600936b55aeea22
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 10 09:39:17 2014 +1100
+commit 4073be88f426180030971d0b06a7598ec46a0583
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Oct 21 23:42:13 2014 +0000
 
-    undo CL 166380043 / 0b54a0927656
+    undo CL 156430044 / 5d69cad4faaf
     
-    This was a mistake; the cmd/api tool
-    depends on an old version of go/types.
+    Partial undo, changes to ldelf.c retained.
+    
+    Some platforms are still not working even with the integrated assembler disabled, will have to find another solution.
     
     ««« original CL description
-    cmd/api: bump go.tools golden CL hash
+    cmd/cgo: disable clang's integrated assembler
     
-    TBR=bradfitz
-    R=rsc
+    Fixes #8348.
+    
+    Clang's internal assembler (introduced by default in clang 3.4) understands the .arch directive, but doesn't change the default value of -march. This causes the build to fail when we use BLX (armv5 and above) when clang is compiled for the default armv4t architecture (which appears to be the default on all the distros I've used).
+    
+    This is probably a clang bug, so work around it for the time being by disabling the integrated assembler when compiling the cgo assembly shim.
+    
+    This CL also includes a small change to ldelf.c which was required as clang 3.4 and above generate more weird symtab entries.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/166380043
+    https://golang.org/cl/156430044
     »»»
     
-    TBR=bradfitz, rsc
-    R=bradfitz, rsc
+    LGTM=minux
+    R=iant, minux
     CC=golang-codereviews
-    https://golang.org/cl/167430043
+    https://golang.org/cl/162880044
 
- src/cmd/api/run.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/gcc.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

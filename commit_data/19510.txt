@@ -1,19 +1,14 @@
-commit a9035ede1b7f705f7cd73c7de51d54f6119b123b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 11 09:09:37 2014 -0700
+commit 3ad9df0422213468e22078bf5957fcc2fcafc391
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Jun 10 20:20:49 2014 -0400
 
-    math: implement Nextafter32
+    nacltest.bash, misc/nacl/README: update NaCl docs.
     
-    Provide Nextafter64 as alias to Nextafter.
-    For submission after the 1.3 release.
-    
-    Fixes #8117.
-    
-    LGTM=adonovan
-    R=adonovan
+    LGTM=rsc
+    R=dave, rsc
     CC=golang-codereviews
-    https://golang.org/cl/101750048
+    https://golang.org/cl/105030043
 
- src/pkg/math/all_test.go  | 79 ++++++++++++++++++++++++++++++++++++++++-------
- src/pkg/math/nextafter.go | 40 +++++++++++++++++++-----
- 2 files changed, 101 insertions(+), 18 deletions(-)
+ misc/nacl/README  | 10 ++++------
+ src/nacltest.bash |  8 +++++++-
+ 2 files changed, 11 insertions(+), 7 deletions(-)

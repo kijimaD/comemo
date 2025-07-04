@@ -1,22 +1,23 @@
-commit ecaa6816bfdbcef2ad749958a11a321de5c2ebd8
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Jul 24 18:34:16 2021 +0700
+commit ffa68716a0d50acd29a8eae7874c7e8d02f757ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 29 21:23:47 2020 -0500
 
-    doc: clarify non-nil zero length slice to array pointer conversion
+    [dev.regabi] cmd/compile: add custom statement Node implementations
     
-    There is an example for nil slice already, so adding example for non-nil
-    zero length slice, too, clarifying to the reader that the result is also
-    non-nil and different from nil slice case.
+    These are fairly rote implementations of structs appropriate to
+    each Op (or group of Ops).
     
-    Updates #395
+    The names of these are unknown except to ir.NodAt for now.
+    A later, automated change will introduce direct use of the types
+    throughout package gc.
     
-    Change-Id: I019db1b1a1c0c621161ecaaacab5a4d888764b1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336890
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Ie9835fcd2b214fda5b2149e187af369d76534487
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274108
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go_spec.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/node.go |  78 +++---
+ src/cmd/compile/internal/ir/stmt.go | 535 +++++++++++++++++++++++++++++++++++-
+ 2 files changed, 578 insertions(+), 35 deletions(-)

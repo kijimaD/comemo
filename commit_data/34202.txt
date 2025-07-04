@@ -1,66 +1,19 @@
-commit e7cbbbe9bb878b6ca4ce04fde645df1c8f1845bd
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Feb 12 16:34:48 2018 +0000
+commit d63de2871163dea94f3d5df83374f8b5e7e8677d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 5 10:11:38 2017 -0400
 
-    cmd/vendor/github.com/google/pprof: refresh from upstream
+    cmd/compile: intrinsify atomics on MIPS64
     
-    Updating to commit 0e0e5b7254e076a62326ab7305ba49e8515f0c91
-    from github.com/google/pprof
-    
-    Recent modifications to the vendored pprof, such as skipping
-    TestWebInterface to avoid starting a web browser, have all been fixed
-    upstream.
-    
-    Change-Id: I72e11108c438e1573bf2f9216e76d157378e8d45
-    Reviewed-on: https://go-review.googlesource.com/93375
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ica65b7a52af9558a05d0a0e1dff0f9ec838f4117
+    Reviewed-on: https://go-review.googlesource.com/68830
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/vendor/github.com/google/pprof/.gitignore  |    8 -
- .../vendor/github.com/google/pprof/CONTRIBUTING.md |   92 +-
- .../vendor/github.com/google/pprof/CONTRIBUTORS    |    3 +-
- .../google/pprof/internal/binutils/binutils.go     |   27 +-
- .../pprof/internal/binutils/binutils_test.go       |  147 +-
- .../google/pprof/internal/binutils/disasm.go       |   34 +-
- .../binutils/testdata/{hello => exe_linux_64}      |  Bin
- .../google/pprof/internal/driver/commands.go       |    3 +-
- .../google/pprof/internal/driver/driver.go         |    2 +-
- .../google/pprof/internal/driver/driver_test.go    |   10 +-
- .../google/pprof/internal/driver/fetch_test.go     |    9 +-
- .../google/pprof/internal/driver/flamegraph.go     |   99 +
- .../google/pprof/internal/driver/interactive.go    |   23 +
- .../pprof/internal/driver/interactive_test.go      |   58 +-
- .../{third_party/svg => internal/driver}/svg.go    |   19 +-
- .../testdata/pprof.cpu.flat.addresses.weblist      |    4 +-
- .../google/pprof/internal/driver/webhtml.go        | 1214 ++---
- .../google/pprof/internal/driver/webui.go          |   79 +-
- .../google/pprof/internal/driver/webui_test.go     |   77 +-
- .../google/pprof/internal/elfexec/elfexec.go       |   16 +
- .../google/pprof/internal/graph/dotgraph.go        |   21 +-
- .../pprof/internal/measurement/measurement.go      |   18 +
- .../google/pprof/internal/proftest/proftest.go     |   13 +-
- .../google/pprof/internal/report/report.go         |   42 +-
- .../google/pprof/internal/report/report_test.go    |    4 +-
- .../google/pprof/internal/report/source.go         |    7 +-
- .../google/pprof/internal/report/source_test.go    |    4 +-
- .../google/pprof/internal/symbolizer/symbolizer.go |    1 +
- .../google/pprof/internal/symbolz/symbolz.go       |   21 +-
- .../google/pprof/internal/symbolz/symbolz_test.go  |   11 +
- .../github.com/google/pprof/profile/encode.go      |    9 +-
- .../github.com/google/pprof/profile/merge.go       |   23 +-
- .../github.com/google/pprof/profile/profile.go     |   15 +-
- .../google/pprof/profile/profile_test.go           |  147 +-
- .../github.com/google/pprof/profile/proto_test.go  |   24 +-
- .../github.com/google/pprof/proto/profile.proto    |   13 +-
- src/cmd/vendor/github.com/google/pprof/test.sh     |    9 +-
- .../github.com/google/pprof/third_party/d3/LICENSE |   27 +
- .../google/pprof/third_party/d3/README.md          |  119 +
- .../github.com/google/pprof/third_party/d3/d3.go   | 4675 ++++++++++++++++++++
- .../google/pprof/third_party/d3flamegraph/LICENSE  |  201 +
- .../third_party/d3flamegraph/d3_flame_graph.go     |  711 +++
- .../google/pprof/third_party/d3tip/LICENSE         |    8 +
- .../google/pprof/third_party/d3tip/d3_tip.go       |  328 ++
- .../google/pprof/third_party/svgpan/LICENSE        |   27 +
- .../pprof/third_party/{svg => svgpan}/svgpan.go    |   90 +-
- 46 files changed, 7663 insertions(+), 829 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go            |  24 +-
+ src/cmd/compile/internal/mips64/ssa.go        | 205 +++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  22 ++
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  63 +++++-
+ src/cmd/compile/internal/ssa/opGen.go         | 216 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 314 ++++++++++++++++++++++++++
+ test/intrinsic_atomic.go                      |   2 +-
+ 7 files changed, 832 insertions(+), 14 deletions(-)

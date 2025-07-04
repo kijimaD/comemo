@@ -1,21 +1,18 @@
-commit f7e11723e527c1a12e76180e29d52e1fcefce57b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 12 16:38:24 2023 -0400
+commit 4a954fafa3bc294ac56d5aea19dc3b0b3124d4c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 10:40:31 2022 -0700
 
-    cmd/dist: do not use user build cache in versioned trees
+    cmd/compile/internal/types2: match go/types for "..." related error msg
     
-    There is no guarantee that the user build cache will have
-    correct data if we are using a versioned build (with a VERSION file),
-    because that overrides the use of tool build IDs for staleness.
-    An earlier build might have run with a buggy compiler, and we don't
-    want those files lying around.
+    For #54511.
     
-    Change-Id: I831956911162ccbd0b4d943c305b3537918fe119
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502699
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I571680dfc25d7b7198e84e11bd311ab8b24d72d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424818
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/build.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/call.go                          | 2 +-
+ src/cmd/compile/internal/types2/testdata/fixedbugs/issue43124.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

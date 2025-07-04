@@ -1,14 +1,15 @@
-commit 19d262ffdf94c986c47d15424da8d07326f0641c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 14 20:58:21 2015 -0700
+commit 7ebcf5eac7047b1eef2443eda1786672b5c70f51
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 13 10:55:49 2015 +1000
 
-    net: remove named parameters in Listener.Accept doc signature
+    syscall: warn not to use FormatMessage
     
-    They added no value.
+    Fixes #11147
     
-    Change-Id: I9e690379d2dfd983266de0ea5231f2b57c8b1517
-    Reviewed-on: https://go-review.googlesource.com/14568
+    Change-Id: Ib31160946a53f6f9b11daea211ff04d186b51b3f
+    Reviewed-on: https://go-review.googlesource.com/12067
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/net.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/syscall_windows.go  | 14 +++++++++++---
+ src/syscall/zsyscall_windows.go |  2 +-
+ 2 files changed, 12 insertions(+), 4 deletions(-)

@@ -1,17 +1,22 @@
-commit d472055a39d3def4989550b5c829a48d53fddc59
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 29 14:56:45 2018 +0000
+commit 867d07f3ac708556f406f75e08bc68c70567f907
+Author: jimmyfrasche <soapboxcicero@gmail.com>
+Date:   Sun Mar 11 17:15:44 2018 -0700
 
-    net/http: remove a flag accidentally submitted in CL 121419
+    go/token: add example for retrieving Position from Pos
     
-    I thought I removed this but failed to amend it to my commit before
-    submitting.
+    There are few uses for the majority of the API in go/token for the
+    average user. The exception to this is getting the filename, line, and
+    column information from a token.Pos (reported and absolute. This is
+    straightforward but figuring out how to do it requires combing through
+    a lot of documentation. This example makes it more easily discoverable.
     
-    Change-Id: I2d687d91f4de72251548faa700006af0fea503af
-    Reviewed-on: https://go-review.googlesource.com/121615
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #24352.
+    
+    Change-Id: I0a45da6173b3dabebf42484bbbed30d9e5e20e01
+    Reviewed-on: https://go-review.googlesource.com/100058
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/net/http/serve_test.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/go/token/example_test.go | 77 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)

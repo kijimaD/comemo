@@ -1,25 +1,32 @@
-commit 2d1bd1fe9d2c08ecc2ba710fe80e226e80db966f
-Author: Shawn Walker-Salas <shawn.walker@oracle.com>
-Date:   Wed Jun 28 10:58:44 2017 -0700
+commit 0b9607d1d648ae77d2db86a991db4a1fe921dbd8
+Author: Filip Gruszczyński <gruszczy@gmail.com>
+Date:   Wed Mar 15 20:11:30 2017 -0700
 
-    syscall: fix Exec on solaris
+    encoding/gob: Speedup map decoding by reducing the allocations.
     
-    The test added for issue #18146 exposed a long-existing bug in the
-    Solaris port; notably, that syscall.Exec uses RawSyscall -- which is not
-    actually functional for the Solaris port (intentionally) and only exists
-    as a placebo to satisfy build requirements.
+    The improvementis achieved in encoding/gob/decode.go decodeMap by
+    allocate keyInstr and elemInstr only once and pass it to
+    decodeIntoValue, instead of allocating a new instance on every loop
+    cycle.
     
-    Call syscall.execve instead for Solaris.
+    name                     old time/op  new time/op  delta
+    DecodeComplex128Slice-8  64.2µs ±10%  62.2µs ± 8%     ~     (p=0.686 n=4+4)
+    DecodeFloat64Slice-8     37.1µs ± 3%  36.5µs ± 5%     ~     (p=0.343 n=4+4)
+    DecodeInt32Slice-8       33.7µs ± 3%  32.7µs ± 4%     ~     (p=0.200 n=4+4)
+    DecodeStringSlice-8      59.7µs ± 5%  57.3µs ± 1%     ~     (p=0.114 n=4+4)
+    DecodeInterfaceSlice-8    543µs ± 7%   497µs ± 3%     ~     (p=0.057 n=4+4)
+    DecodeMap-8              3.78ms ± 8%  2.66ms ± 2%  -29.69%  (p=0.029 n=4+4)
     
-    Fixes #20832
+    Updates #19525
     
-    Change-Id: I327d863f4bbbbbb6e5ecf66b82152c4030825d09
-    Reviewed-on: https://go-review.googlesource.com/47032
-    Run-TryBot: Shawn Walker-Salas <shawn.walker@oracle.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iec5fa4530de76f0a70da5de8a129a567b4aa096e
+    Reviewed-on: https://go-review.googlesource.com/38317
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/exec_solaris.go |  5 +++++
- src/syscall/exec_unix.go    | 24 +++++++++++++++++++-----
- 2 files changed, 24 insertions(+), 5 deletions(-)
+ src/encoding/gob/codec_test.go  |  8 ++++++++
+ src/encoding/gob/decode.go      | 10 ++++++----
+ src/encoding/gob/timing_test.go | 25 +++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 4 deletions(-)

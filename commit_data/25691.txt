@@ -1,22 +1,22 @@
-commit b460d1d52ffe911828dee58352d3cebbe04d5f30
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 27 13:18:35 2016 -0800
+commit 97dc591534e580ede4c6145456dadf1e009f1bea
+Author: Austin Clements <austin@google.com>
+Date:   Sun Nov 15 23:09:16 2015 -0500
 
-    cmd/internal/obj/x86: skip test when GOHOSTARCH is set
+    runtime: avoid stat underflow crash
     
-    It's causing the darwin-386 builder to fail with:
+    If the area returned by sysReserve in mheap.sysAlloc is outside the
+    usable arena, we sysFree it. We pass a fake stat pointer to sysFree
+    because we haven't added the allocation to any stat at that point.
+    However, we pass a 0 stat, so sysFree panics when it decrements the
+    stat because the fake stat underflows.
     
-    --- FAIL: TestDynlink (0.07s)
-        obj6_test.go:118: error exit status 3 output go tool: no such tool "asm"
-    FAIL
-    FAIL    cmd/internal/obj/x86    0.073s
+    Fix this by setting the fake stat to the allocation size.
     
-    So skip it for now. It's tested in enough other places.
+    Updates #13143 (this is a prerequisite to fixing that bug).
     
-    Change-Id: I9a98ad7b8be807005750112d892ac6c676c17dd5
-    Reviewed-on: https://go-review.googlesource.com/18989
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I61a6c9be19ac1c95863cf6a8435e19790c8bfc9a
+    Reviewed-on: https://go-review.googlesource.com/16926
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/x86/obj6_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/runtime/malloc.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

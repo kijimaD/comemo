@@ -1,31 +1,27 @@
-commit 4a7cf960c38d72e9f0c6f00e46e013be2a35d56e
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jan 3 10:15:55 2017 -0700
+commit 35ea53dcc8d8350898250e87a0b5ffa03e14173e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 10 14:40:32 2016 -0800
 
-    runtime: make ReadMemStats STW for < 25µs
+    cmd/gofmt: don't overwrite read-only files
     
-    Currently ReadMemStats stops the world for ~1.7 ms/GB of heap because
-    it collects statistics from every single span. For large heaps, this
-    can be quite costly. This is particularly unfortunate because many
-    production infrastructures call this function regularly to collect and
-    report statistics.
+    This reverts the changes from https://golang.org/cl/33018: Instead
+    of writing the result of gofmt to a tmp file and then rename that
+    to the original (which doesn't preserve the original file's perm
+    bits, uid, gid, and possibly other properties because it is hard
+    to do in a platform-independent way - see #17869), use the original
+    code that simply overwrites the processed file if gofmt was able to
+    create a backup first. Upon success, the backup is removed, otherwise
+    it remains.
     
-    Fix this by tracking the necessary cumulative statistics in the
-    mcaches. ReadMemStats still has to stop the world to stabilize these
-    statistics, but there are only O(GOMAXPROCS) mcaches to collect
-    statistics from, so this pause is only 25µs even at GOMAXPROCS=100.
+    Fixes #17873.
+    For #8984.
     
-    Fixes #13613.
-    
-    Change-Id: I3c0a4e14833f4760dab675efc1916e73b4c0032a
-    Reviewed-on: https://go-review.googlesource.com/34937
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ifcf2bf1f84f730e6060f3517d63b45eb16215ae1
+    Reviewed-on: https://go-review.googlesource.com/33098
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/export_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/gc_test.go     | 51 ++++++++++++++++++++++++++++++++++++
- src/runtime/mcentral.go    | 12 +++++++++
- src/runtime/mheap.go       | 12 ++++++---
- src/runtime/mstats.go      | 46 ++++++++++++++++----------------
- 5 files changed, 159 insertions(+), 27 deletions(-)
+ src/cmd/gofmt/doc.go   |  5 ++++-
+ src/cmd/gofmt/gofmt.go | 50 +++++++++++++++++++++++++++++---------------------
+ 2 files changed, 33 insertions(+), 22 deletions(-)

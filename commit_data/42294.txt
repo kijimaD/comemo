@@ -1,15 +1,29 @@
-commit 5d9549debb313269a7adabdb271f3d67113fef1a
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Wed Dec 18 22:41:10 2019 +0800
+commit 28314cf12491181df3c06047826f419fd1716f89
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 22 13:26:58 2019 -0500
 
-    cmd/go: accept hash-style in LDFLAGS
+    cmd/go: add a 'buildmode' condition for script tests
     
-    Change-Id: I493bb7e5e9a9e1752236dea1e032b317da7f67f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211560
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    In CL 208233 I am fixing a panic that occurs only with a specific
+    build mode. I want that test to run on all platforms that support that
+    build mode, but the logic for determining support is somewhat
+    involved.
+    
+    For now, I am duplicating that logic into the cmd/internal/sys
+    package, which already reports platform support for other build flags.
+    
+    We can refactor cmd/go/internal/work to use the extracted function in
+    a followup CL.
+    
+    Updates #35759
+    
+    Change-Id: Ibbaedde4d1e8f683c650beedd10849bc27e7a6e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208457
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/work/security.go      | 1 +
- src/cmd/go/internal/work/security_test.go | 2 ++
- 2 files changed, 3 insertions(+)
+ src/cmd/go/script_test.go         |  6 ++++
+ src/cmd/go/testdata/script/README |  1 +
+ src/cmd/internal/sys/supported.go | 73 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 80 insertions(+)

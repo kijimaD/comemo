@@ -1,23 +1,21 @@
-commit a0df23888fb30c82d8c54c24212442bf56211769
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Sep 21 15:22:28 2023 -0400
+commit f5026496cfbe4701b62c6a6942c8a0df48f1053e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Nov 28 14:23:07 2022 +0100
 
-    cmd/compile/internal/inline: score call sites exposed by inlines
+    internal/coverage: use io.Seek* constants
     
-    After performing an inline of function A into function B, collect up
-    any call sites in the inlined-body-of-A and add them to B's callsite
-    table, and apply scoring to those new sites.
+    Use the io.Seek* constants instead of their deprecated os.SEEK_*
+    counterparts.
     
-    Change-Id: I4bf563db04e33ba31fb4210f1e484a3cc83f0ee7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530579
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie899f9cf286de7304a394d9a2a091a55937542ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453576
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/inline/inl.go             |  4 ++
- .../inline/inlheur/analyze_func_callsites.go       | 66 ++++++++++++++++++-
- .../compile/internal/inline/inlheur/callsite.go    |  8 +++
- .../internal/inline/inlheur/dumpscores_test.go     | 29 ++++++---
- .../inline/inlheur/score_callresult_uses.go        |  9 ++-
- src/cmd/compile/internal/inline/inlheur/scoring.go | 74 +++++++++++++++++-----
- .../inline/inlheur/testdata/props/calls.go         | 29 +++++----
- 7 files changed, 178 insertions(+), 41 deletions(-)
+ src/internal/coverage/decodecounter/decodecounterfile.go | 8 ++++----
+ src/internal/coverage/test/counter_test.go               | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,23 +1,12 @@
-commit 1dfe3d1f6e510e7c62cf74240a53d26131042049
+commit 0735e06cfd9b7e132589f555eca3ab72f26d6e91
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 20 15:41:37 2011 -0800
+Date:   Tue Dec 20 15:30:36 2011 -0800
 
-    os: don't trust O_CLOEXEC on OS X
+    build: fix the build with USE_GO_TOOL=false
     
-    OS X 10.6 doesn't do O_CLOEXEC.
-    OS X 10.7 does.
-    
-    For now, always fall back to using syscall.CloseOnExec on darwin.
-    
-    This can removed when 10.6 is old news, or if we find a
-    way to cheaply & reliably detect 10.6 vs 10.7 at runtime.
-    
-    Fixes #2587
-    
-    R=golang-dev, rsc, iant
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5500053
+    https://golang.org/cl/5502051
 
- src/pkg/os/exec/exec_test.go | 5 +++--
- src/pkg/os/file_unix.go      | 9 +++++++--
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

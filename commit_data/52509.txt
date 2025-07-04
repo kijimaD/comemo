@@ -1,30 +1,26 @@
-commit 23ed9f0f761ba1e6729fcb85c27ede93b10ad11e
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Mar 30 07:22:35 2023 +0000
+commit f495b36ccdfe93629cb83f8be79dca662ef68a64
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 24 11:44:42 2022 -0500
 
-    net: treat EAI_NODATA as errNoSuchHost
+    crypto/aes: rewrite ppc64le block crypting
     
-    man getaddrinfo:
-    EAI_NODATA
-                  The specified network host exists, but does not have any
-                  network addresses defined.
+    This unrolls the counter loop and simplifies the load/storing
+    of text/ciphertext and keys by using unaligned VSX memory
+    operations.
     
-    In the go resolver we treat this kind of error as nosuchhost.
+    Performance delta on POWER9:
     
-    Change-Id: I69fab6f8da8e3a86907e65104bca9f055968633a
-    GitHub-Last-Rev: b4891e2addaeccecb242d0485daa168bb55cf54e
-    GitHub-Pull-Request: golang/go#57507
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/459955
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    name     old time/op   new time/op    delta
+    Encrypt   19.9ns ± 0%    14.9ns ± 0%  -24.95%
+    Decrypt   19.8ns ± 0%    14.6ns ± 0%  -26.12%
+    
+    Change-Id: Iba98d5c1d88c6bead45bc04c97ae64bcb6fc9f21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404354
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/syscall/unix/net_darwin.go |  1 +
- src/net/cgo_unix.go                     |  2 +-
- src/net/cgo_unix_cgo.go                 |  7 ++++
- src/net/cgo_unix_syscall.go             |  1 +
- src/net/lookup_test.go                  | 64 +++++++++++++++++++++++++++++++++
- 5 files changed, 74 insertions(+), 1 deletion(-)
+ src/crypto/aes/asm_ppc64le.s | 302 ++++++++++++++++++++++++++-----------------
+ 1 file changed, 180 insertions(+), 122 deletions(-)

@@ -1,29 +1,33 @@
-commit 3eadbb02afa1494821de000ee280e00c3c398f1d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 29 18:07:24 2014 -0400
+commit e5624edc7e011b71237ba4713878b4b6ae0cab87
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 15 17:54:04 2014 -0700
 
-    cmd/objdump: use cmd/internal/objfile
+    crypto/tls: support TLS_FALLBACK_SCSV as a server.
     
-    This removes a bunch of ugly duplicate code.
-    The end goal is to factor the disassembly code
-    into cmd/internal/objfile too, so that pprof can use it,
-    but one step at a time.
+    A new attack on CBC padding in SSLv3 was released yesterday[1]. Go only
+    supports SSLv3 as a server, not as a client. An easy fix is to change
+    the default minimum version to TLS 1.0 but that seems a little much
+    this late in the 1.4 process as it may break some things.
     
-    LGTM=r, iant
-    R=r, alex.brainman, iant
+    Thus this patch adds server support for TLS_FALLBACK_SCSV[2] -- a
+    mechanism for solving the fallback problem overall. Chrome has
+    implemented this since February and Google has urged others to do so in
+    light of yesterday's news.
+    
+    With this change, clients can indicate that they are doing a fallback
+    connection and Go servers will be able to correctly reject them.
+    
+    [1] http://googleonlinesecurity.blogspot.com/2014/10/this-poodle-bites-exploiting-ssl-30.html
+    [2] https://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00
+    
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/149400043
+    https://golang.org/cl/157090043
 
- src/cmd/internal/objfile/elf.go      |  25 ++++
- src/cmd/internal/objfile/goobj.go    |  12 ++
- src/cmd/internal/objfile/macho.go    |  24 +++
- src/cmd/internal/objfile/objfile.go  |  10 ++
- src/cmd/internal/objfile/pe.go       |  31 ++++
- src/cmd/internal/objfile/plan9obj.go |  22 +++
- src/cmd/objdump/Makefile             |  10 --
- src/cmd/objdump/elf.go               |  65 --------
- src/cmd/objdump/macho.go             |  77 ----------
- src/cmd/objdump/main.go              | 277 ++++-------------------------------
- src/cmd/objdump/pe.go                |  99 -------------
- src/cmd/objdump/plan9obj.go          |  70 ---------
- 12 files changed, 154 insertions(+), 568 deletions(-)
+ src/crypto/tls/alert.go                            |  2 ++
+ src/crypto/tls/cipher_suites.go                    |  5 ++++
+ src/crypto/tls/handshake_server.go                 | 12 ++++++++++
+ src/crypto/tls/handshake_server_test.go            | 27 ++++++++++++++++++++--
+ src/crypto/tls/testdata/Server-TLSv11-FallbackSCSV | 17 ++++++++++++++
+ 5 files changed, 61 insertions(+), 2 deletions(-)

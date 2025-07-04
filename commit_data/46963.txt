@@ -1,18 +1,27 @@
-commit d2ec73c1bfb556c5736f900a8e4a07e281450eb2
-Author: andig <cpuidle@gmx.de>
-Date:   Wed Oct 20 07:46:23 2021 +0000
+commit 229695a2833ead7bbee53071f52f34e2ce1c2802
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 09:32:55 2021 -0500
 
-    math/big: remove stray whitespace in addMulVVW on amd64
+    runtime: clean up funcID assignment
     
-    Minor leftover from CL 74851.
+    Large enum sets should be sorted by name when the
+    values don't matter, as they don't here. Do that.
     
-    Change-Id: I1b56afcde3c505ba77a0f79e8ae9b01000362298
-    GitHub-Last-Rev: 87e97571a58d5eadd63a28226543aaf1510a7b02
-    GitHub-Pull-Request: golang/go#48942
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355629
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Alexander Rakoczy <alex@golang.org>
+    Also replace the large switch with a map lookup.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: Ibe727b5d8866bf4c40c96020e1f4632bde7efd59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288798
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/arith_amd64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/objabi/funcid.go | 113 ++++++++++++++++----------------------
+ src/runtime/symtab.go             |  26 ++++-----
+ 2 files changed, 61 insertions(+), 78 deletions(-)

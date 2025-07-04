@@ -1,21 +1,18 @@
-commit 14fbec49dce3b655fe667be98e8d3186f786eec1
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Mar 9 13:21:51 2015 +1300
+commit 09ce5d38d04da7e5f3b42ddfd2d6d669e017f4a9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 17 08:24:08 2015 -0800
 
-    cmd/internal/obj/x86: implement -shared computation of TLS base
+    [dev.cc] cmd/asm: fix build: handle g in register lists on ARM
     
-    Somehow, terribly embarrassingly, I lost part of the "re-enable
-    -shared on amd64" patch when rebasing before it got submitted.
-    This restores it and also fixes the addend to be the necessary -4.
+    Handle the special name of R10 on the ARM - it's g - when it appears
+    in a register list [R0, g, R3]. Also simplify the pseudo-register parsing
+    a little.
     
-    Now updated so that Git will not put the new case into the wrong
-    switch.
+    Should fix the ARM build.
     
-    Change-Id: I1d628232771a6d6ce6d085adf379f94a377822c5
-    Reviewed-on: https://go-review.googlesource.com/7126
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifcafc8195dcd3622653b43663ced6e4a144a3e51
+    Reviewed-on: https://go-review.googlesource.com/4965
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/cmd/asm/internal/asm/parse.go | 31 ++++++++++++++-----------------
+ 1 file changed, 14 insertions(+), 17 deletions(-)

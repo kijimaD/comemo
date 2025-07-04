@@ -1,17 +1,22 @@
-commit 1f71892610023243ea70abc3d60c2ac94b650cb5
-Author: ludweeg <mursalimovemeel@gmail.com>
-Date:   Mon Apr 23 16:20:32 2018 +0300
+commit 13bf4ada8075d9365c40b03ecf6641473b2af926
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 12 11:13:49 2017 -0800
 
-    crypto/md5: make receiver name consistent
+    cmd/compile: remove broken inlining accounting code
     
-    Fixes go lint warning.
+    We can't currently inline functions that contain closures anyway, so
+    just delete this budgeting code for now. Re-enable once we can (if
+    ever) inline functions with nested closures.
     
-    Change-Id: I2d73208c6841f35d7a21a1fb4cfafbbd4250228f
-    Reviewed-on: https://go-review.googlesource.com/108659
-    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Updates #15561.
+    Fixes #23093.
+    
+    Change-Id: Idc5f8e042ccfcc8921022e58d3843719d4ab821e
+    Reviewed-on: https://go-review.googlesource.com/83538
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/md5/md5.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 23 ++---------------------
+ test/fixedbugs/issue23093.go       |  9 +++++++++
+ 2 files changed, 11 insertions(+), 21 deletions(-)

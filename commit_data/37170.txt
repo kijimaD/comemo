@@ -1,27 +1,16 @@
-commit db82a1bc12c54f1b6d32a3d41c4422605b16b7e8
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Oct 5 18:11:02 2018 +0000
+commit be1dfb0e1acc676b1b2de4c1802e047a56e146ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 5 22:29:34 2018 -0400
 
-    runtime: sysUsed spans after trimming
+    doc: describe modules in Go 1.11 release notes and Go FAQ
     
-    Currently, we mark a whole span as sysUsed before trimming, but this
-    unnecessarily tells the OS that the trimmed section from the span is
-    used when it may have been scavenged, if s was scavenged. Overall,
-    this just makes invocations of sysUsed a little more fine-grained.
+    Fixes #25517.
     
-    It does come with the caveat that now heap_released needs to be managed
-    a little more carefully in allocSpanLocked. In this case, we choose to
-    (like before this change) negate any effect the span has on
-    heap_released before trimming, then add it back if the trimmed part is
-    scavengable.
-    
-    For #14045.
-    
-    Change-Id: Ifa384d989611398bfad3ca39d3bb595a5962a3ea
-    Reviewed-on: https://go-review.googlesource.com/c/140198
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I801eebe17eaed9be09f290e8f219a808dc98f837
+    Reviewed-on: https://go-review.googlesource.com/122408
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/mheap.go | 33 ++++++++++++++++++++-------------
- 1 file changed, 20 insertions(+), 13 deletions(-)
+ doc/go1.11.html | 51 +++++++++++++++++++++++++++++++++++++++++++++++----
+ doc/go_faq.html | 11 ++++++-----
+ 2 files changed, 53 insertions(+), 9 deletions(-)

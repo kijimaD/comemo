@@ -1,31 +1,32 @@
-commit 756fcd8fc2cbdf6575d8da454c5006c50220dafd
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Wed Nov 24 17:48:09 2021 +0800
+commit 12866bd8ea13e43bc5995f58cdeb67ffd64a1c8c
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Jul 21 16:23:17 2021 -0700
 
-    cmd/compile/internal/ssa: config functions used in lower pass for loong64
+    [dev.typeparams] Add CONVIFACE nodes in noder2, where possible
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    Changes to add CONVIFACE nodes where possible in noder2, even when the
+    args are typeparams. The transformation to insert a CONVIFACE node can
+    usually happen when there an obvious assignment/conversion to an
+    interface type from a non-interface type. So, we now do this
+    tranformation for:
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+     - direct conversions to an interface type
     
-    Updates #46229
+     - function arguments that are implicitly converted to an interface
+       based on the parameter types.
     
-    Change-Id: I50d20eb22f2108d245513de8ac95ebe0b7e1a1dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367037
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+     - EQ/NE comparison of an interface and a non-interface
+    
+    With this change, we can remove some special case checks for CONVIFACE
+    nodes after transformation in node(), and instead just have the one
+    check in the CONVIFACE check.
+    
+    Change-Id: I7cf2ef920aebf9e5553210aeaf19f344e128ca62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336992
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/config.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/noder/helpers.go   | 40 +++++++++++++++++++---------
+ src/cmd/compile/internal/noder/stencil.go   | 41 ++---------------------------
+ src/cmd/compile/internal/noder/transform.go | 21 ++++++++-------
+ 3 files changed, 41 insertions(+), 61 deletions(-)

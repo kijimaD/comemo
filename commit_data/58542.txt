@@ -1,15 +1,41 @@
-commit 11e08d9d96fa13346d50b5f728058f2f2647664a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 13 10:28:19 2025 -0800
+commit 128d96b3ca9c44bca5ab9bb1da8133aea18f74f5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 14 22:39:13 2023 +0100
 
-    strconv: adjust comment so that gofmt doesn't mung it
+    net/netip: optimize AddrPort.String for IPv6 addresses
     
-    Change-Id: I7fe5c6a0521d3c597eae0f3568942df1db9370b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642497
+    Inline the IPv6-case of joinHostPort and avoid the check for a colon in
+    the address. The address is already known to be an IPv6 address. Also
+    use iota.Uitoa to convert the uin16 port.
+    
+    name                          old time/op    new time/op    delta
+    AddrPortString/v4-8             45.7ns ± 0%    46.6ns ± 1%   +1.97%  (p=0.000 n=10+10)
+    AddrPortString/v6-8              106ns ± 3%      95ns ± 0%  -10.79%  (p=0.000 n=9+10)
+    AddrPortString/v6_ellipsis-8     110ns ± 0%      96ns ± 0%  -12.37%  (p=0.000 n=9+10)
+    AddrPortString/v6_v4-8          85.1ns ± 0%    70.8ns ± 0%  -16.80%  (p=0.000 n=9+10)
+    AddrPortString/v6_zone-8         110ns ± 0%      97ns ± 0%  -12.29%  (p=0.000 n=10+10)
+    
+    name                          old alloc/op   new alloc/op   delta
+    AddrPortString/v4-8              24.0B ± 0%     24.0B ± 0%     ~     (all equal)
+    AddrPortString/v6-8               101B ± 0%       96B ± 0%   -4.95%  (p=0.000 n=10+10)
+    AddrPortString/v6_ellipsis-8     61.0B ± 0%     56.0B ± 0%   -8.20%  (p=0.000 n=10+10)
+    AddrPortString/v6_v4-8           61.0B ± 0%     56.0B ± 0%   -8.20%  (p=0.000 n=10+10)
+    AddrPortString/v6_zone-8         61.0B ± 0%     56.0B ± 0%   -8.20%  (p=0.000 n=10+10)
+    
+    name                          old allocs/op  new allocs/op  delta
+    AddrPortString/v4-8               1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrPortString/v6-8               3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=10+10)
+    AddrPortString/v6_ellipsis-8      3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=10+10)
+    AddrPortString/v6_v4-8            3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=10+10)
+    AddrPortString/v6_zone-8          3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=10+10)
+    
+    Change-Id: I96a7f01c4e33bfa157a98558c62e2e0a8147726d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542395
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/strconv/quote.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/net/netip/netip.go      | 11 +----------
+ src/net/netip/netip_test.go |  1 +
+ 2 files changed, 2 insertions(+), 10 deletions(-)

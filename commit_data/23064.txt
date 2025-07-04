@@ -1,35 +1,18 @@
-commit a1da255aa0b962231d80e594abe300200e6b4c73
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 15 16:00:50 2015 -0400
+commit 5fa2d9915f8311d7996e93a3a42cf438278e3886
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 21 13:36:44 2015 -0700
 
-    runtime: factor stoptheworld/starttheworld pattern
+    net/http: make ServeContent errors return more specific HTTP status codes
     
-    There are several steps to stopping and starting the world and
-    currently they're open-coded in several places. The garbage collector
-    is the only thing that needs to stop and start the world in a
-    non-trivial pattern. Replace all other uses with calls to higher-level
-    functions that implement the entire pattern necessary to stop and
-    start the world.
+    Previously all errors were 404 errors, even if the real error had
+    nothing to do with a file being non-existent.
     
-    This is a pure refectoring and should not change any code semantics.
-    In the following commits, we'll make changes that are easier to do
-    with this abstraction in place.
+    Fixes #10283
     
-    This commit renames the old starttheworld to startTheWorldWithSema.
-    This is a slight misnomer right now because the callers release
-    worldsema just before calling this. However, a later commit will swap
-    these and I don't want to think of another name in the mean time.
-    
-    Change-Id: I5dc97f87b44fb98963c49c777d7053653974c911
-    Reviewed-on: https://go-review.googlesource.com/10154
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5b08b471a9064c347510cfcf8557373704eef7c0
+    Reviewed-on: https://go-review.googlesource.com/9200
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
 
- src/runtime/debug.go    | 11 ++-----
- src/runtime/heapdump.go | 13 +++------
- src/runtime/mgc.go      | 10 +++----
- src/runtime/mprof.go    | 18 +++---------
- src/runtime/mstats.go   | 17 +++--------
- src/runtime/proc.go     |  2 +-
- src/runtime/proc1.go    | 76 +++++++++++++++++++++++++++++++++++--------------
- src/runtime/trace.go    | 34 +++++++---------------
- 8 files changed, 86 insertions(+), 95 deletions(-)
+ src/net/http/fs.go      | 24 ++++++++++++++++++++----
+ src/net/http/fs_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 4 deletions(-)

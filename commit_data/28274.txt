@@ -1,21 +1,20 @@
-commit 0ab6bb42e197c4c766769bfc4a8807f93cc630b9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Sep 9 01:30:49 2016 +0000
+commit fdc4a964d24f0c975e2db2cf16a53327ad36b24d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 6 10:12:57 2016 -0700
 
-    doc: clarify that any C compiler works for cgo
+    [dev.ssa] cmd/compile/internal/gc, runtime: use 32-bit load for writeBarrier check
     
-    Currently the footnote says "gcc is required only if you plan to use cgo",
-    but the footnote was referenced from the text:
+    Use 32-bit load for writeBarrier check on all architectures.
+    Padding added to runtime structure.
     
-       "use the clang or gcc† that comes with Xcode‡ for cgo support"
+    Updates #15365, #15492.
     
-    That seems to imply that clang doesn't get you cgo support on OS X,
-    which isn't true. The update text matches what the install-source.html
-    page says.
-    
-    Change-Id: Ib88464a0d138227d357033123f6675a77d5d777f
-    Reviewed-on: https://go-review.googlesource.com/28786
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I5d3dadf8609923fe0fe4fcb384a418b7b9624998
+    Reviewed-on: https://go-review.googlesource.com/22855
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 10 ++++------
+ src/runtime/mgc.go                 |  9 +++++----
+ 2 files changed, 9 insertions(+), 10 deletions(-)

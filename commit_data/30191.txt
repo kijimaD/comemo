@@ -1,35 +1,14 @@
-commit ee60d39a21f459b07cbc1550606db7ed231799e2
-Author: Nathan Caza <mastercactapus@gmail.com>
-Date:   Wed Feb 8 18:42:52 2017 -0600
+commit aff37662d1f70f2bf9e47b4f962e85521e7c18d1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 4 10:06:14 2016 -0700
 
-    net/http: improve handling of errors in Dir.Open
+    spec: add new language for alias declarations
     
-    The current implementation fails to produce an "IsNotExist" error on some
-    platforms (unix) for certain situations where it would be expected. This causes
-    downstream consumers, like FileServer, to emit 500 errors instead of a 404 for
-    some non-existant paths on certain platforms but not others.
+    For #16339.
     
-    As an example, os.Open("/index.html/foo") on a unix-type system will return
-    syscall.ENOTDIR, which os.IsNotExist cannot return true for (because the
-    error code is ambiguous without context). On windows, this same example
-    would result in os.IsNotExist returning true -- since the returned error is
-    specific.
-    
-    This change alters Dir.Open to look up the tree for an "IsPermission" or
-    "IsNotExist" error to return, or a non-directory, returning os.ErrNotExist in
-    the last case. For all other error scenarios, the original error is returned.
-    This ensures that downstream code, like FileServer, receive errors that behave
-    the same across all platforms.
-    
-    Fixes #18984
-    
-    Change-Id: Id7d16591c24cd96afddb6d8ae135ac78da42ed37
-    Reviewed-on: https://go-review.googlesource.com/36635
-    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7d912ea634bbfacfc0217f97dccb270fde06f16b
+    Reviewed-on: https://go-review.googlesource.com/30601
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/fs.go      | 26 ++++++++++++++++++++++++--
- src/net/http/fs_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 75 +++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 69 insertions(+), 6 deletions(-)

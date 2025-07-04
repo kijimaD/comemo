@@ -1,24 +1,23 @@
-commit 7dd7d70c034a24ac98e52bd4e6dac3ce35c60271
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Mar 17 12:11:42 2025 +0000
+commit 20f4b6d8f910adb5a3739dce5f4ffcfd2eb491c4
+Author: Nicolas Hillegeer <aktau@google.com>
+Date:   Thu Feb 8 08:56:33 2024 -0800
 
-    runtime: skip TestCgoCallbackPprof on platforms with broken profiling
+    runtime: call traceAdvance before exiting
     
-    CL 658035 added TestCgoCallbackPprof, which is consistently failing on
-    solaris. runtime/pprof maintains a list of platforms where CPU profiling
-    does not work properly. Since this test requires CPU profiling, skip the
-    this test on those platforms.
+    This ensures the trace buffers are as up-to-date as possible right
+    before crashing. It increases the chance of finding the culprit for the
+    crash when looking at core dumps, e.g. if slowness is the cause for the
+    crash (monitor kills process).
     
-    For #72870.
-    Fixes #72876.
+    Fixes #65319.
     
-    Change-Id: I6a6a636cbf6b16abcbba8771178fe1d001be9d9b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658415
+    Change-Id: Iaf5551911b3b3b01ba65cb8749cf62a411e02d9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562616
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/internal/testenv/testenv.go | 23 +++++++++++++++++++++++
- src/runtime/crash_cgo_test.go   |  3 +++
- src/runtime/pprof/pprof_test.go | 23 +----------------------
- 3 files changed, 27 insertions(+), 22 deletions(-)
+ src/runtime/crash_test.go | 70 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/panic.go      | 10 +++++++
+ src/runtime/trace.go      |  3 ++
+ 3 files changed, 83 insertions(+)

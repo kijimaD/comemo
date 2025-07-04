@@ -1,14 +1,14 @@
-commit dd0b8e7975e6965008f377d1194c80bf33fc995a
+commit 987649e09b2ec5085a55c3bb6097107b8723f4d2
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 25 16:53:54 2011 -0400
+Date:   Thu Aug 25 16:29:56 2011 -0400
 
-    doc: emphasize that environment variables are optional
+    build: fix more unused parameters
     
-    Also update $GOARM description.
-    
-    R=golang-dev, gri
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4972041
+    https://golang.org/cl/4971042
 
- doc/install.html | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/5g/gsubr.c | 2 ++
+ src/cmd/8g/gobj.c  | 2 ++
+ src/cmd/8g/gsubr.c | 5 +++++
+ 3 files changed, 9 insertions(+)

@@ -1,21 +1,30 @@
-commit 09e791feb1dfbfc05578a17cd9c035ef82af4033
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Jun 1 10:24:46 2020 -0400
+commit cd1b9c1d5a7bb8ea6ebec223ce11e91897584ef4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Dec 19 17:44:58 2019 +0000
 
-    cmd/link: new DWARF line table test case
+    runtime: disable pageAlloc tests on OpenBSD in short mode
     
-    Add a test case for an issue with how Go emits DWARF line tables,
-    specifically relating to the line table "end sequence" operator.
+    This change disables pageAlloc tests on OpenBSD in short mode because
+    pageAlloc holds relatively large virtual memory reservations and we make
+    two during the pageAlloc tests. The runtime may also be carrying one
+    such reservation making the virtual memory requirement for testing the
+    Go runtime three times as much as just running a Go binary.
     
-    Updates #38192.
+    This causes problems for folks who just want to build and test Go
+    (all.bash) on OpenBSD but either don't have machines with at least 4ish
+    GiB of RAM (per-process virtual memory limits are capped at some
+    constant factor times the amount of physical memory) or their
+    per-process virtual memory limits are low for other reasons.
     
-    Change-Id: I878b262e6ca6c550c0e460c3d5a1969ac4a2c31b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235917
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Fixes #36210.
+    
+    Change-Id: I8d89cfde448d4cd2fefff4ad6ffed90de63dd527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212177
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/dwarf_test.go             | 111 +++++++++++++++++++++
- .../link/internal/ld/testdata/issue38192/main.go   |  11 ++
- .../link/internal/ld/testdata/issue38192/oneline.s |   8 ++
- 3 files changed, 130 insertions(+)
+ src/runtime/mgcscavenge_test.go |  3 +++
+ src/runtime/mpagealloc_test.go  | 15 +++++++++++++++
+ src/runtime/mpagecache_test.go  |  6 ++++++
+ 3 files changed, 24 insertions(+)

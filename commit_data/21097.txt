@@ -1,12 +1,13 @@
-commit 09d369f8dd51db09c4dfaa7635ecb4e71a30782a
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Dec 26 16:00:49 2014 -0500
+commit 59439f8ea343ad79f289910d71d98dd6e6af8661
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Nov 14 14:05:14 2014 +1100
 
-    doc: mention the crypto/cipher.Stream clarification in go1.5.txt
+    doc: fix small typo in doc
     
-    Change-Id: Ie95c86d222b230a2e69f4141e3372bf94dee3e91
-    Reviewed-on: https://go-review.googlesource.com/2129
-    Reviewed-by: Minux Ma <minux@golang.org>
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/170660043
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

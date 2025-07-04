@@ -1,13 +1,39 @@
-commit 2ca44fe2213b53ccaf6f555c11858c6e36490624
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jul 5 10:35:53 2021 +0200
+commit 65f4ec2faec54b7a3e70f2404132df9d83df11e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 27 23:52:37 2020 -0500
 
-    doc/go1.17: linkify time.UnixMilli and time.UnixMicro
+    [dev.regabi] cmd/compile: cleanup label handling
     
-    Change-Id: I8503c4649fc42670f13d981f98af480467d6a3e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/332829
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    - The use of a label's Name.Defn to point at the named for/select/switch
+      means that any rewrite of the for/select/switch must overwrite the original
+      or else the pointer will dangle. Remove that pointer by adding the label
+      name directly to the for/select/switch representation instead.
+    
+    - The only uses of a label's Sym.Label were ephemeral values during
+      markbreak and escape analysis. Use a map for each. Although in general
+      we are not going to replace all computed fields with maps (too slow),
+      the one in markbreak is only for labeled for/select/switch, and the one
+      in escape is for all labels, but even so, labels are fairly rare.
+    
+    In theory this cleanup should make it easy to allow labeled for/select/switch
+    in inlined bodies, but this CL does not attempt that. It's only concerned
+    with cleanup to enable a new Node representation.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I7e36ee98d2ea40dbae94e6722d585f007b7afcfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274086
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.17.html | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/escape.go         | 28 ++++++++++------
+ src/cmd/compile/internal/gc/inl.go            |  8 ++---
+ src/cmd/compile/internal/gc/noder.go          |  9 +++--
+ src/cmd/compile/internal/gc/ssa.go            | 21 +++++-------
+ src/cmd/compile/internal/gc/subr.go           | 17 ----------
+ src/cmd/compile/internal/gc/typecheck.go      | 47 ++++++++++++---------------
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/sym.go         |  5 ++-
+ 8 files changed, 60 insertions(+), 77 deletions(-)

@@ -1,19 +1,12 @@
-commit 1ad5f87635ee35b8b0053a1a4d2a05d0e892e4d0
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Sep 19 07:04:12 2012 +0900
+commit 7e525928d33bdd48142a2664dc03664c0034354b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 18 14:13:34 2012 -0700
 
-    cmd/api: fix signatures like func(x, y, z int)
+    go/doc: synthesize "package main" for examples
     
-    Fixes writing of function parameter, result lists which
-    consist of multiple named or unnamed items with same type.
-    
-    Fixes #4011.
-    
-    R=golang-dev, bsiegert, bradfitz, rsc
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/6475062
+    https://golang.org/cl/6525046
 
- src/cmd/api/goapi.go                       | 26 +++++++++++++++++++++++---
- src/cmd/api/testdata/src/pkg/p3/golden.txt |  3 +++
- src/cmd/api/testdata/src/pkg/p3/p3.go      |  6 ++++++
- 3 files changed, 32 insertions(+), 3 deletions(-)
+ src/pkg/go/doc/example.go | 92 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 92 insertions(+)

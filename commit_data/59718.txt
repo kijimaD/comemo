@@ -1,22 +1,30 @@
-commit ed08d2ad0928c0fc77cc2053863616ffb58c5aac
-Author: Damien Neil <dneil@google.com>
-Date:   Tue May 27 14:16:17 2025 -0700
+commit cf760ce29ce96be610d79a639eb930e85f78a149
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Apr 9 15:20:21 2024 -0400
 
-    os: don't follow symlinks on Windows when O_CREATE|O_EXCL and read-only
+    go/types: flip the default value of GODEBUG=gotypesalias=1
     
-    Fix a bug in CL 672396, where we add FILE_FLAG_OPEN_REPARSE_POINT to
-    the attributes passed to CreateFile, but then overwrite the attributes
-    with FILE_ATTRIBUTE_READONLY when opening a file with a read-only
-    permissions mode.
+    This CL changes the interpretation of the unset value
+    of gotypesalias to equal "1". The actual deletion of
+    all the transitional logic will happen in a follow-up.
     
-    For #73702
+    Note that the compiler still interprets unset as "0".
+    More work appears to be required within the compiler
+    before it is safe to flip its default.
     
-    Change-Id: I6c10bf470054592bafa031732585fc3155c61341
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/676655
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I854ab1fd856c7c361a757676b0670e2f23402816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577715
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/os/os_test.go              |  4 ++--
- src/syscall/syscall_windows.go | 30 +++++++++++++++---------------
- 2 files changed, 17 insertions(+), 17 deletions(-)
+ src/go/internal/gcimporter/ureader.go |  5 +++--
+ src/go/types/api_test.go              |  1 -
+ src/go/types/check.go                 | 12 ++++++++++--
+ src/go/types/check_test.go            | 11 -----------
+ src/go/types/decl.go                  |  2 +-
+ src/go/types/eval_test.go             |  7 +++++--
+ src/go/types/issues_test.go           |  2 +-
+ src/internal/godebugs/table.go        |  2 +-
+ 8 files changed, 21 insertions(+), 21 deletions(-)

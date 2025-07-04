@@ -1,14 +1,19 @@
-commit 90dca98d33055b8365d9e7e40ebb4ca478daf77e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 19 07:08:38 2018 -0800
+commit eae5fc88c13d6902a7fe9c595fb02155eb037cbe
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Aug 25 16:53:23 2018 +0200
 
-    doc: clarify change to File.Sync on macOS
+    internal/bytealg: replace use of runtime.support_sse2 with cpu.X86.HasSSE2
     
-    Updates #26650
+    This makes the runtime.support_sse2 variable unused
+    so it is removed in this CL too.
     
-    Change-Id: I0ec070127dcacc7fc68dd5baf125eb762e1ea846
-    Reviewed-on: https://go-review.googlesource.com/c/155038
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ia8b9ffee7ac97128179f74ef244b10315e44c234
+    Reviewed-on: https://go-review.googlesource.com/131455
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.12.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/internal/bytealg/compare_386.s | 2 +-
+ src/runtime/proc.go                | 1 -
+ src/runtime/runtime2.go            | 1 -
+ 3 files changed, 1 insertion(+), 3 deletions(-)

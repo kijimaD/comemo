@@ -1,34 +1,14 @@
-commit 306f8f11ad18452b61a8ba08aeaa488e48c3b40d
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jun 5 14:49:27 2015 -0400
+commit fe3446bda29ceadc5ffcd70874532484927b5ae7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 6 00:02:30 2015 +0900
 
-    runtime: unwind stack barriers when writing above the current frame
+    syscall: fix TestSCMCredentials
     
-    Stack barriers assume that writes through pointers to frames above the
-    current frame will get write barriers, and hence these frames do not
-    need to be re-scanned to pick up these changes. For normal writes,
-    this is true. However, there are places in the runtime that use
-    typedmemmove to potentially write through pointers to higher frames
-    (such as mapassign1). Currently, typedmemmove does not execute write
-    barriers if the destination is on the stack. If there's a stack
-    barrier between the current frame and the frame being modified with
-    typedmemmove, and the stack barrier is not otherwise hit, it's
-    possible that the garbage collector will never see the updated pointer
-    and incorrectly reclaim the object.
+    Fixes #10703.
     
-    Fix this by making heapBitsBulkBarrier (which lies behind typedmemmove
-    and its variants) detect when the destination is in the stack and
-    unwind stack barriers up to the point, forcing mark termination to
-    later rescan the effected frame and collect these pointers.
-    
-    Fixes #11084. Might be related to #10240, #10541, #10941, #11023,
-     #11027 and possibly others.
-    
-    Change-Id: I323d6cd0f1d29fa01f8fc946f4b90e04ef210efd
-    Reviewed-on: https://go-review.googlesource.com/10791
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I55c0f07625a0847fb27defa9891af6db6eb21f82
+    Reviewed-on: https://go-review.googlesource.com/9714
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mbitmap.go | 29 ++++++++++++++++++++++++++++-
- src/runtime/mgcmark.go | 18 ++++++++++++++----
- src/runtime/panic1.go  |  2 +-
- 3 files changed, 43 insertions(+), 6 deletions(-)
+ src/syscall/creds_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

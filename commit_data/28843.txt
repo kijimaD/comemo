@@ -1,18 +1,38 @@
-commit 05471e9ee64a300bd2dcc4582ee1043c055893bb
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Fri Oct 7 17:10:53 2016 +0900
+commit c069bc49963bd5c2c152fe600fdcb9a2b7b58f76
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 26 11:51:33 2016 -0700
 
-    crypto/x509: implement SystemCertPool on Windows
+    [dev.ssa] cmd/compile: implement GO386=387
     
-    Fixes #16736
+    Last part of the 386 SSA port.
     
-    Change-Id: I335d201e3f6738d838de3881087cb640fc7670e8
-    Reviewed-on: https://go-review.googlesource.com/30578
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Modify the x86 backend to simulate SSE registers and
+    instructions with 387 registers and instructions.
+    The simulation isn't terribly performant, but it works,
+    and the old implementation wasn't very performant either.
+    Leaving to people who care about 387 to optimize if they want.
+    
+    Turn on SSA backend for 386 by default.
+    
+    Fixes #16358
+    
+    Change-Id: I678fb59132620b2c47e993c1c10c4c21135f70c0
+    Reviewed-on: https://go-review.googlesource.com/25271
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/x509/cert_pool.go    |  5 -----
- src/crypto/x509/root_windows.go | 35 ++++++++++++++++++++++++++++++++++-
- src/crypto/x509/x509_test.go    |  7 +++++++
- 3 files changed, 41 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go         |  14 +-
+ src/cmd/compile/internal/ssa/config.go     |   5 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go |  11 +
+ src/cmd/compile/internal/ssa/regalloc.go   |  14 +
+ src/cmd/compile/internal/x86/387.go        | 395 +++++++++++++++++++++++++++++
+ src/cmd/compile/internal/x86/ssa.go        |  12 +
+ src/runtime/asm_386.s                      |  55 +---
+ src/runtime/vlrt.go                        |  14 +
+ test/live.go                               |   2 +-
+ test/live_ssa.go                           |   2 +-
+ test/nilptr3.go                            |   2 +-
+ test/nilptr3_ssa.go                        |   2 +-
+ test/sliceopt.go                           |   2 +-
+ 13 files changed, 482 insertions(+), 48 deletions(-)

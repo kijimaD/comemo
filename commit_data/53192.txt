@@ -1,17 +1,17 @@
-commit 53e0616c13ca6b4da472eb4e9b2cba397b51b253
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 19 16:01:02 2023 -0400
+commit f32519e5fbcf1b12f9654a6175e5e72b09ae8f3a
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Sat Jul 30 22:11:32 2022 +0800
 
-    cmd/go: add a test that reproduces an unstable 'go mod tidy'
+    runtime: fix typos
     
-    For #60313.
-    
-    Change-Id: I76e48f52341e9962de9b809741a677d61baae6a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496518
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I30c125be6cb321aa03ea827bd11c3169087e3d4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420314
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/testdata/script/mod_tidy_issue60313.txt | 76 ++++++++++++++++++++++
- 1 file changed, 76 insertions(+)
+ src/runtime/chan.go                   | 2 +-
+ src/runtime/testdata/testprog/vdso.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

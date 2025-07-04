@@ -1,12 +1,12 @@
-commit 1338347b9caee12b92d4693600df57683aeec2fc
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Dec 16 14:59:50 2011 +1100
+commit 0358c8957aa6d3de1ad855d95f3ab4334e63b77c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 15 19:32:47 2011 -0500
 
-    dashboard: improve key panic message
+    io/ioutil: remove another reference to _test
     
-    R=dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5495060
+    https://golang.org/cl/5492051
 
- misc/dashboard/app/build/key.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/io/ioutil/ioutil_test.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

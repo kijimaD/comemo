@@ -1,14 +1,16 @@
-commit 15ac56fd60a28879fd65f6d761cc30c4c57ec0f1
-Author: Author Name <aaronstein12@gmail.com>
-Date:   Sat May 5 10:47:38 2018 -0700
+commit 10d096fec2fe8f3e88f847fd0ac17c0601bf6442
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 30 21:16:09 2018 -0500
 
-    io: calculate buffer size only when needed
+    cmd/go: fix import config debugging flag
     
-    Change-Id: I930be9027fb972198b3d44816a5e4f53ff7eb5ea
-    Reviewed-on: https://go-review.googlesource.com/111642
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Was improperly bypassed in a couple places.
+    
+    Change-Id: I13426b3efe68b9e67324c283540d0ef7b81b3d41
+    Reviewed-on: https://go-review.googlesource.com/91636
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/io/io.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

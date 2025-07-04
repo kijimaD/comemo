@@ -1,12 +1,12 @@
-commit 1b9e36356be410adf3b0b80e99996f8f3476d8cf
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Apr 4 12:07:53 2013 +1100
+commit 72d99aec8836e3a44aff06dd787c051e9cf9eff2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Apr 3 17:03:42 2013 -0700
 
-    misc/dist: don't ship race-enabled commands
+    doc: fix typos in go1.1
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8350044
+    https://golang.org/cl/8342044
 
- misc/dist/bindist.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/go1.1.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

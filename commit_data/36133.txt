@@ -1,16 +1,18 @@
-commit 8450fd96779cc9e269f8a083a7f163bb1d7dbd39
-Author: Craig Citro <craigcitro@google.com>
-Date:   Fri Jul 27 13:39:49 2018 -0700
+commit 92c29ef94116f64263444a07748192b3857be9f1
+Author: chanxuehong <chanxuehong@gmail.com>
+Date:   Fri Apr 6 14:05:01 2018 +0000
 
-    net/http: document Transport.Proxy's https support
+    net/rpc: unlock client.mutex as early as possible
     
-    The net/http module added support for HTTPS proxies in CL 68550, but the
-    Transport.Proxy docstring was never updated to reflect this. This (doc-only)
-    update adds "https" to the list of supported schemes.
+    Although these changes have no essential influence, I think this is a better point.
     
-    Change-Id: I0570fcdae8232bb42d52c4dd739dd09ee8dfd612
-    Reviewed-on: https://go-review.googlesource.com/126495
+    Change-Id: I571d3a14c948d2fd7bc9561f47f33e9e4c90683f
+    GitHub-Last-Rev: d8c5d180069bb91b6eb1247769bd14f728922fc0
+    GitHub-Pull-Request: golang/go#24697
+    Reviewed-on: https://go-review.googlesource.com/104895
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/rpc/client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

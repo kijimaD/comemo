@@ -1,13 +1,14 @@
-commit 9be9861c91aa42fc8cea8a9c902af6873b96b3b9
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Oct 9 11:21:21 2014 +0200
+commit 12308d5a0bb424ef3ee9a664c77192b48e3df84c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Sep 30 19:34:33 2014 +0400
 
-    net/rpc: fix build
+    runtime: fix throwsplit check
+    Newstack runs on g0, g0->throwsplit is never set.
     
-    LGTM=adg
-    R=golang-codereviews, adg
-    CC=golang-codereviews
-    https://golang.org/cl/151620043
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/147370043
 
- src/net/rpc/client_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/stack.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

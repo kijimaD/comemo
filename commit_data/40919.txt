@@ -1,17 +1,25 @@
-commit 386b1a4280d4a32cd8b69a92ba91b6d98832b721
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 18 11:13:20 2019 -0800
+commit eee07a8e685e72c287ca4a0e7a049ce941ef6ab3
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 20 17:29:04 2019 -0400
 
-    runtime: treat call from runtime as transient in TestDebugCall
+    Revert "encoding/json: avoid work when unquoting strings"
     
-    Fixes #32985
+    This reverts CL 151157.
     
-    Change-Id: I5d504715dcc92d4f4f560ea2e843d9275f938685
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207620
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    CL 151157 introduced a crash when decoding into ",string" fields. It
+    came with a moderate speedup, so at this stage of the release cycle
+    let's just revert it, and reapply it in Go 1.14 with the fix in CL 190659.
+    
+    Also applied the test cases from CL 190659.
+    
+    Updates #33728
+    
+    Change-Id: Ie46e2bc15224b251888580daf6b79d5865f3878e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190909
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/export_debug_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/json/decode.go      | 68 ++++++++++++++++++++--------------------
+ src/encoding/json/decode_test.go |  2 ++
+ 2 files changed, 36 insertions(+), 34 deletions(-)

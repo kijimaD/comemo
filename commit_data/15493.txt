@@ -1,15 +1,19 @@
-commit 6ecb39fce66e2fb08dea2d798822c8f0a93e29d5
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Feb 28 16:07:26 2013 +0800
+commit e2f9e816b77b9c1b6625abb2dd32c7dc897cf25a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Feb 28 07:32:29 2013 +0100
 
-    cmd/go: fix "go run" cgo source when cgo is disabled
-    also move a cgo-depend test to appropriate source file in runtime.
+    runtime: fix racefuncenter argument corruption.
     
-    R=golang-dev, dave, adg, rsc
+    Revision 6a88e1893941 corrupts the argument to
+    racefuncenter by pushing the data block pointer
+    to the stack.
+    
+    Fixes #4885.
+    
+    R=dvyukov, rsc
     CC=golang-dev
-    https://golang.org/cl/7393063
+    https://golang.org/cl/7381053
 
- src/cmd/go/run.go                 | 10 +++++-
- src/pkg/runtime/crash_cgo_test.go | 73 +++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/crash_test.go     | 73 ---------------------------------------
- 3 files changed, 82 insertions(+), 74 deletions(-)
+ src/pkg/runtime/race.c       | 11 +++--------
+ src/pkg/runtime/race_amd64.s |  9 ++++++---
+ 2 files changed, 9 insertions(+), 11 deletions(-)

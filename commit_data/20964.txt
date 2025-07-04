@@ -1,14 +1,42 @@
-commit 3fa5d3a6dc96bf42a68afe69a65c05012b893284
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 9 15:36:10 2014 -0500
+commit b035e973158847801ce6193461159a3b9b66f4e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 30 10:16:03 2014 -0400
 
-    cmd/pprof: remove -show_bytes from command line help
+    [dev.garbage] cmd/gc, runtime: implement write barriers in terms of writebarrierptr
     
-    This flag no longer exists.  It has been replaced with -unit=byte.
+    This CL implements the many multiword write barriers by calling
+    writebarrierptr, so that only writebarrierptr needs the actual barrier.
+    In lieu of an actual barrier, writebarrierptr checks that the value
+    being copied is not a small non-zero integer. This is enough to
+    shake out bugs where the barrier is being called when it should not
+    (for non-pointer values). It also found a few tests in sync/atomic
+    that were being too clever.
     
-    Change-Id: Iff9fc501f2c666067c9b1948c4623c8e3adddb8d
-    Reviewed-on: https://go-review.googlesource.com/1287
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This CL adds a write barrier for the memory moved during the
+    builtin copy function, which I forgot when inserting barriers for Go 1.4.
+    
+    This CL re-enables some write barriers that were disabled for Go 1.4.
+    Those were disabled because it is possible to change the generated
+    code so that they are unnecessary most of the time, but we have not
+    changed the generated code yet. For safety they must be enabled.
+    
+    None of this is terribly efficient. We are aiming for correct first.
+    
+    LGTM=rlh
+    R=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/168770043
 
- src/cmd/pprof/internal/driver/driver.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/api/goapi.go           |   1 +
+ src/cmd/gc/builtin.c           |  29 ++++++-
+ src/cmd/gc/runtime.go          |  31 ++++++-
+ src/cmd/gc/typecheck.c         |   6 +-
+ src/cmd/gc/walk.c              |  46 +++++++---
+ src/run.bash                   |   3 +-
+ src/runtime/malloc.go          |  33 +++++++
+ src/runtime/mgc0.go            | 104 +++++++++++++++++-----
+ src/runtime/mgc0.h             |   2 +-
+ src/runtime/wbfat.go           | 190 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/wbfat_gen.go       |  41 +++++++++
+ src/sync/atomic/atomic_test.go |   8 +-
+ 12 files changed, 447 insertions(+), 47 deletions(-)

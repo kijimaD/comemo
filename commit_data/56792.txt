@@ -1,17 +1,21 @@
-commit 8219848c944c7603df349775de66093af64f0fd4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 12 14:28:30 2024 -0700
+commit 72bf8acee9a9bd913911d094fc636d2f0f3c446d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 24 16:43:47 2023 +0000
 
-    spec: allow range-over-func to omit iteration variables
+    runtime: ensure consistency of /gc/scan/*
     
-    For #65236.
+    Currently /gc/scan/total:bytes is computed as a separate sum. Compute it
+    using the same inputs so it's always consistent with the sum of
+    everything else in /gc/scan/*.
     
-    Change-Id: I5a11811cc52467ea4446db29c3f86b119f9b2409
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592295
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #56857.
+    
+    Change-Id: I43d9148a23b1d2eb948ae990193dca1da85df8a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497880
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go_spec.html | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/runtime/metrics.go      | 39 ++++++++++++++++++++++++++++++---------
+ src/runtime/metrics_test.go | 14 ++++++++++++++
+ 2 files changed, 44 insertions(+), 9 deletions(-)

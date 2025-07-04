@@ -1,13 +1,13 @@
-commit ff3ef8a9638236b1a8e05ca56832ae4d9480e903
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Sat Mar 5 17:55:53 2011 -0800
+commit e9135403cf04d334dbf739fe98405b01930d6ca4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 5 17:51:53 2011 -0800
 
-    fmt: trivial cleanup
+    A+C: Robert Hencke (individual CLA)
     
-    R=golang-dev, bradfitzgo
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/4235052
+    https://golang.org/cl/4256053
 
- src/pkg/fmt/format.go    |  4 ++--
- src/pkg/fmt/scan_test.go | 12 +-----------
- 2 files changed, 3 insertions(+), 13 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

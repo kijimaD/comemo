@@ -1,20 +1,18 @@
-commit 6abeffb18ea263b14cbe5936e8bdbbf08546e4b8
-Author: Quim Muntal <quimmuntal@gmail.com>
-Date:   Mon Feb 5 14:15:26 2024 +0000
+commit 9f834a559c9ed6cdf883e29b36e21e5f956df74f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 16 15:53:42 2023 -0800
 
-    Revert "runtime: make netpollBreak entries identifiable on Windows"
+    test: add regress test for #58572
     
-    This reverts commit 29746b4814bb76a3d5a36fc86967b358f11bbb93.
+    Fixes #58572.
     
-    Reason for revert: Windows builders are flaky since this CL. Needs investigation. See https://build.golang.org/log/70d5d039b57b505870c9cc4e61de320df06a6f3a.
-    
-    Change-Id: I8a5874bb057785497d03b9450819578de7faeb47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561276
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I75fa432afefc3e036ed9a6a9002a29d7b23105ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468880
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/poll/fd_windows_test.go | 22 ++++++---
- src/runtime/netpoll_windows.go       | 86 +++++++-----------------------------
- 2 files changed, 33 insertions(+), 75 deletions(-)
+ test/fixedbugs/issue58572.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

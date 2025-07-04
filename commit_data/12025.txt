@@ -1,13 +1,12 @@
-commit f228ed1a90ad22680a57df85c4796c83e636ef71
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 17 20:35:18 2012 -0800
+commit 130b29b6371443edd5ae9bc23e44bb9d97b78311
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Feb 18 15:09:01 2012 +1100
 
-    test: remove a couple of bad tests that duplicate declbad.go
+    image: add Decode example.
     
-    R=golang-dev, r
+    R=r, bradfitz, r, adg
     CC=golang-dev
-    https://golang.org/cl/5673089
+    https://golang.org/cl/5675076
 
- test/fixedbugs/bug036.go | 13 -------------
- test/fixedbugs/bug038.go | 13 -------------
- 2 files changed, 26 deletions(-)
+ src/pkg/image/decode_example_test.go | 79 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)

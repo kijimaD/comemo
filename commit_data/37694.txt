@@ -1,17 +1,20 @@
-commit 784d810976e6fce946d8202b19f3e3c33beb89a2
-Author: Evan Klitzke <evan@eklitzke.org>
-Date:   Mon Jun 25 20:27:58 2018 +0000
+commit 5ddecd150821713c53de15f439c7925b28c9f535
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Jun 6 16:23:44 2018 -0300
 
-    text/html: escape MIME type "application/ld+json" as JavaScript
+    strconv: use bytealg implementation of IndexByteString
     
-    Fixes #26053
+        benchmark                  old ns/op     new ns/op     delta
+        BenchmarkUnquoteEasy-4     188           79.5          -57.71%
+        BenchmarkUnquoteHard-4     653           622           -4.75%
     
-    Change-Id: Ic2052b1d0d4e0826a217a520c83d7bb0995ea72a
-    GitHub-Last-Rev: 5a3eea3dd22b0a194591ce2294b88cb340df1e8d
-    GitHub-Pull-Request: golang/go#26054
-    Reviewed-on: https://go-review.googlesource.com/c/120835
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Fixes #23821
+    
+    Change-Id: I1ebfab1b7f0248fd313de21396e0f8612076aa6d
+    Reviewed-on: https://go-review.googlesource.com/116755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/html/template/js.go      | 1 +
- src/html/template/js_test.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/strconv/quote.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

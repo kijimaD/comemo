@@ -1,22 +1,21 @@
-commit a3e90dc3775307e5f0de0e2c0726841c17363616
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 17 16:36:07 2023 +0000
+commit de8101d21bcf5f1097bcfaf3a1b55820ba70dce9
+Author: Jun10ng <zeonll@outlook.com>
+Date:   Sat Jul 16 14:31:14 2022 +0000
 
-    runtime: add eager scavenging details to GODEBUG=scavtrace=1
+    runtime: fix typos
     
-    Also, clean up atomics on released-per-cycle while we're here.
+    "finializer" =>  "finalizer"
     
-    For #57069.
-    
-    Change-Id: I14026e8281f01dea1e8c8de6aa8944712b7b24d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495916
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ia3c12bff8556b6a8d33b700c59357f47502757b1
+    GitHub-Last-Rev: c64cf47974020c8480039ba61d0890bdc07a3b0f
+    GitHub-Pull-Request: golang/go#53917
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417915
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/extern.go      | 10 ++++++----
- src/runtime/mgcscavenge.go |  9 +++++----
- src/runtime/mgcsweep.go    | 14 +++++++++++---
- src/runtime/mheap.go       |  6 ++++--
- src/runtime/mpagealloc.go  | 12 ++++++++----
- 5 files changed, 34 insertions(+), 17 deletions(-)
+ src/runtime/mprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

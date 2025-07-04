@@ -1,18 +1,26 @@
-commit a13cf8c104ada594e15fcb34ac3e41a36bc7f317
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Apr 19 21:00:48 2015 -0700
+commit ec2c7e6659c1ab3a10dc74df2c1303b749fbc364
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 26 12:14:26 2015 -0400
 
-    cmd/internal/obj: manual C->Go cleanups
+    runtime: use uintXX instead of *byte for si_addr on Darwin
     
-    Change-Id: I5964fc55157dc1df7be400dfa0df591d6163e25e
-    Reviewed-on: https://go-review.googlesource.com/9084
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Currently, Darwin's siginfo type uses *byte for the si_addr
+    field. This results in unwanted write barriers in set_sigaddr. It's
+    also pointless since it never points to anything real and the get/set
+    methods return/take uintXX and cast it from/to the pointer.
+    
+    All other arches use a uint type for this field. Change Darwin to
+    match. This simplifies the get/set methods and eliminates the unwanted
+    write barriers.
+    
+    Change-Id: Ifdb5646d35e1f2f6808b87a3d59745ec9718add1
+    Reviewed-on: https://go-review.googlesource.com/8086
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/internal/obj/libc.go     | 18 +++++-------------
- src/cmd/internal/obj/link.go     |  4 +---
- src/cmd/internal/obj/objfile.go  |  4 ----
- src/cmd/internal/obj/stack.go    | 10 ++++------
- src/cmd/internal/obj/sym.go      | 40 +++++++++++++---------------------------
- src/cmd/internal/obj/typekind.go |  6 +-----
- 6 files changed, 24 insertions(+), 58 deletions(-)
+ src/runtime/defs_darwin_386.go     | 2 +-
+ src/runtime/defs_darwin_amd64.go   | 2 +-
+ src/runtime/defs_darwin_arm.go     | 2 +-
+ src/runtime/signal_darwin_386.go   | 4 ++--
+ src/runtime/signal_darwin_amd64.go | 4 ++--
+ src/runtime/signal_darwin_arm.go   | 4 ++--
+ 6 files changed, 9 insertions(+), 9 deletions(-)

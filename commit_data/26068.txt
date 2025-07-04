@@ -1,16 +1,18 @@
-commit e3a9dca7cc61d956656d443753545d5ff03a575f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 4 22:02:27 2016 +0000
+commit 86f1944e86ae3e07651dcbfafee37f1e3b0a917d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Dec 6 17:35:12 2015 -0500
 
-    cmd/compile: don't allocate convX2X or assertX2X func names before syslook
+    cmd/dist, runtime: make runtime version available as runtime.buildVersion
     
-    Change-Id: Ib632ee7ac893750bec4cfe223745bca5f31900ab
-    Reviewed-on: https://go-review.googlesource.com/20234
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    So that there is a uniformed way to retrieve Go version from a Go
+    binary, starting from Go 1.4 (see https://golang.org/cl/117040043)
+    
+    Updates #13507.
+    
+    Change-Id: Iaa2b14fca2d8c4d883d3824e2efc82b3e6fe2624
+    Reviewed-on: https://go-review.googlesource.com/17459
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 12 +++---
- src/cmd/compile/internal/gc/walk.go | 79 ++++++++++++++++++++++++++++++-------
- 2 files changed, 71 insertions(+), 20 deletions(-)
+ src/cmd/dist/buildruntime.go | 6 ++----
+ src/runtime/proc.go          | 6 ++++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)

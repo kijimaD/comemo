@@ -1,12 +1,20 @@
-commit 1b19134c4f8f6d303f640948164dc6e7c691f756
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Jan 27 13:59:32 2012 +1100
+commit cdbed823bde062cf72f62437261ee9c84007269c
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Jan 27 00:58:24 2012 -0200
 
-    gc: remove extra paranoia from inlining unsafe.Pointer fix.
+    cmd/go: solve ambiguity of get lp.net/project/foo
+    
+    This solves the ambiguity for "lp.net/project/foo". In these URLs,
+    "foo" could be a series name registered in Launchpad with its own
+    branch, and it could also be the name of a directory within the
+    main project branch one level up.
+    
+    Solve it by testing if the series branch exists in Launchpad
+    and if it doesn't moving the root one level up.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5569075
+    https://golang.org/cl/5577058
 
- src/cmd/gc/subr.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/go/vcs.go | 28 ++++++++++++++++++++++++----
+ 1 file changed, 24 insertions(+), 4 deletions(-)

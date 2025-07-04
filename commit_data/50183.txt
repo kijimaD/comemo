@@ -1,33 +1,28 @@
-commit 629ae1cee673c66dd540b424c9e86a4ce3aaf9e3
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Aug 26 12:19:50 2022 +0700
+commit c8dd89ed3dde52933d981d7d7c4c200160f47ec3
+Author: John Kelly <jkelly@squarespace.com>
+Date:   Thu Jul 29 15:47:23 2021 -0400
 
-    cmd/compile: fix wrong position when rewriting to OpArg/OpArgXXX
+    net/http: add Cookie.Valid method
     
-    When spilling arg to stack or register, if it's a newly created value,
-    the arg position should be preserved. Otherwise, we may end up using
-    position information from deadcode lines.
+    The (*http.Cookie).String method used by SetCookie will silently discard
+    or sanitize any fields it deems invalid, making it difficult to tell
+    whether a cookie will be sent as expected.
     
-    This fixes the minimized test case in #54625 by mdempsky@, and make
-    building std successfully. However, the inline trees for these tests
-    still be corrupted:
+    This change introduces a new (*http.Cookie).Valid method which may be
+    used to check if any cookie fields will be discarded or sanitized prior
+    to calling (*http.Cookie).String.
     
-     - fixedbugs/issue53982.go
-     - typeparam/issue47775.go
-     - typeparam/issue47775b.go
-     - typeparam/issue49432.go
+    Fixes #46370
     
-    We probably still mess up the inline position somewhere else.
-    
-    Updates #54625
-    
-    Change-Id: I0d87e26b9ab451b85b6e79787da74a2b79a16209
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425785
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2db80078de190d267a9c675a9717c8be8acc8704
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338590
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ api/next.txt                |  1 +
+ src/net/http/cookie.go      | 33 +++++++++++++++++++++++++++++++++
+ src/net/http/cookie_test.go | 25 +++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+)

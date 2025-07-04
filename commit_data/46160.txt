@@ -1,42 +1,17 @@
-commit 5baf60d47245c792c50a349cd6b8586d23204895
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat May 29 19:11:37 2021 -0700
+commit 1fe891a937eae62ce396f3d7c7c6c472701acf0a
+Author: Tim King <taking@google.com>
+Date:   Tue Dec 1 17:55:35 2020 -0800
 
-    bytes, strings: optimize Trim for single byte cutsets
+    doc/go1.16: add vet release note for CL 235677
     
-    Using the latest version of all modules known by the module proxy,
-    we determine that for all Trim usages (and related functionality):
-    * 76.6% have cutsets of len=1, and
-    * 13.4% have cutsets of len=2.
+    For #40700
+    Fixes #42895
     
-    Given that a vast majority of usages only have a cutset of len=1,
-    we should more heavily optimize for that situation.
-    Previously, there was some optimization for cutsets of len=1,
-    but it's within the internal makeCutsetFunc function.
-    This is sub-optimal as it incurs an allocation in makeCutsetFunc
-    for the closure over that single byte.
-    
-    This CL removes special-casing of one-byte cutsets from makeCutsetFunc
-    and instead distributes it directly in Trim, TrimRight, and TrimLeft.
-    Whether we should distribute the entire ASCII cutset logic into Trim
-    is a future CL that should be discussed and handled separately.
-    The evidence for multibyte cutsets is not as obviously compelling.
-    
-    name                old time/op  new time/op  delta
-    bytes/TrimByte-4    84.1ns ± 2%   7.5ns ± 1%  -91.10%  (p=0.000 n=9+7)
-    strings/TrimByte-4  86.2ns ± 3%   8.3ns ± 1%  -90.33%  (p=0.000 n=9+10)
-    
-    Fixes #46446
-    
-    Change-Id: Ia0e31a8384c3ce111ae35465605bcec45df2ebec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323318
-    Trust: Joe Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I05b60f0d000512d5dddb3d61e0e695aa01943d6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274617
+    Trust: Tim King <taking@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/bytes/bytes.go          | 28 +++++++++++++++++++++++-----
- src/bytes/bytes_test.go     |  9 +++++++++
- src/strings/strings.go      | 28 +++++++++++++++++++++++-----
- src/strings/strings_test.go |  9 +++++++++
- 4 files changed, 64 insertions(+), 10 deletions(-)
+ doc/go1.16.html | 49 ++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 46 insertions(+), 3 deletions(-)

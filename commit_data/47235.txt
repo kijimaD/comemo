@@ -1,34 +1,35 @@
-commit 9e4e23c724bc2145c5aee6edf3ec60cc322047cc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 2 17:31:51 2021 -0700
+commit 302a400316319501748c0f034464fa70e7815272
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Mar 3 16:30:22 2021 -0500
 
-    cmd/compile/internal/types2: rename isX predicates to allX, add simple is_X (step 1 of 2)
+    cmd/go/internal/modfetch: detect and recover from missing ziphash file
     
-    Rename the isX predicates to allX to clearly identify that these
-    predicates are looking inside type parameters.
+    Previously, if an extracted module directory existed in the module
+    cache, but the corresponding ziphash file did not, if the sum was
+    missing from go.sum, we would not verify the sum. This caused 'go get'
+    not to write missing sums. 'go build' in readonly mode (now the
+    default) checks for missing sums and doesn't attempt to fetch modules
+    that can't be verified against go.sum.
     
-    Introduce is_X as predicates that do not look
-    inside type parameters so we can see all call sites.
-    The next CL will rename them all back to isX.
+    With this change, when requesting the module directory with
+    modfetch.DownloadDir, if the ziphash file is missing, the go command
+    will re-hash the zip without downloading or re-extracting it again.
     
-    Review all call sites and use correct predicate.
+    Note that the go command creates the ziphash file before the module
+    directory, but another program could remove it separately, and it
+    might not be present after a crash.
     
-    Replace the single helper function is with isBasic and allBasic.
+    Fixes #44749
     
-    Change-Id: I3430ccfc466fdedf4b58a6158f95d47b9020f7a5
-    
-    Change-Id: I81116b87cf8f2e17526723c7440676d133057aca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360955
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I64551e048a3ba17d069de1ec123d5b8b2757543c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298352
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/builtins.go    | 14 ++--
- src/cmd/compile/internal/types2/check.go       |  6 +-
- src/cmd/compile/internal/types2/conversions.go | 12 ++--
- src/cmd/compile/internal/types2/expr.go        | 90 +++++++++++++-------------
- src/cmd/compile/internal/types2/index.go       |  8 +--
- src/cmd/compile/internal/types2/predicates.go  | 66 ++++++++++++-------
- src/cmd/compile/internal/types2/sizes.go       |  2 +-
- src/cmd/compile/internal/types2/stmt.go        |  8 +--
- src/cmd/compile/internal/types2/typexpr.go     |  2 +-
- 9 files changed, 114 insertions(+), 94 deletions(-)
+ src/cmd/go/internal/modfetch/cache.go              | 17 +++++
+ src/cmd/go/internal/modfetch/fetch.go              | 77 ++++++++++++++--------
+ .../go/testdata/script/mod_get_missing_ziphash.txt | 55 ++++++++++++++++
+ src/cmd/go/testdata/script/mod_verify.txt          |  7 +-
+ 4 files changed, 125 insertions(+), 31 deletions(-)

@@ -1,21 +1,13 @@
-commit a384b5b9c38289cb2b912d8c38a201fee6500663
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 8 10:34:54 2012 -0600
+commit 148154b7e7bb026e91208344b3c9c27af7226272
+Author: Carl Mastrangelo <notcarl@google.com>
+Date:   Thu Nov 8 09:39:24 2012 -0500
 
-    cmd/api: bug fix for goapi's lame type checker
+    lib9: remove unreferenced externs and getuser()
     
-    This is blocking me submitting the net fd timeout
-    CL, since goapi chokes on my constant.
-    
-    The much more extensive fix to goapi's type checker
-    in pending review in https://golang.org/cl/6742050
-    
-    But I'd rather get this quick fix in first.
-    
-    R=golang-dev, mikioh.mikioh
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6818104
+    https://golang.org/cl/6820115
 
- src/cmd/api/goapi.go                  | 25 +++++--------------------
- src/cmd/api/testdata/src/pkg/p1/p1.go |  6 ++++++
- 2 files changed, 11 insertions(+), 20 deletions(-)
+ include/libc.h     |  4 ----
+ src/lib9/getuser.c | 43 -------------------------------------------
+ 2 files changed, 47 deletions(-)

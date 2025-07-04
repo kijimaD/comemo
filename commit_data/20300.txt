@@ -1,37 +1,35 @@
-commit db58ab96fa4767ca6144678d63203be5381709d6
+commit 3a7f6646cfdc19ca4f33efe48d33eb1731b49ca8
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 4 21:12:31 2014 -0400
+Date:   Fri Aug 29 16:20:48 2014 -0400
 
-    runtime: more C to Go conversion adjustments
+    runtime: convert lock*.c to Go
     
-    Mostly NOSPLIT additions.
-    Had to rewrite atomic_arm.c in Go because it calls lock,
-    and lock is too complex.
-    
-    With this CL, I find no Go -> C calls that can split the stack
-    on any system except Solaris and Windows.
-    
-    Solaris and Windows need more work and will be done separately.
-    
-    LGTM=iant, dave
-    R=golang-codereviews, bradfitz, iant, dave
-    CC=dvyukov, golang-codereviews, khr, r
-    https://golang.org/cl/137160043
+    LGTM=r, iant
+    R=golang-codereviews, r, iant
+    CC=dvyukov, golang-codereviews, khr
+    https://golang.org/cl/139930043
 
- src/cmd/api/goapi.go            |   1 +
- src/pkg/runtime/asm_arm.s       |  48 ++++++----
- src/pkg/runtime/atomic.go       |  51 +++++++++++
- src/pkg/runtime/atomic_arm.c    | 192 ----------------------------------------
- src/pkg/runtime/atomic_arm.go   | 155 ++++++++++++++++++++++++++++++++
- src/pkg/runtime/malloc.c        |   1 +
- src/pkg/runtime/os_dragonfly.c  |  25 ++++++
- src/pkg/runtime/os_freebsd.c    |  25 ++++++
- src/pkg/runtime/os_netbsd.c     |  70 +++++++++++++--
- src/pkg/runtime/os_openbsd.c    |  38 +++++++-
- src/pkg/runtime/os_plan9.c      |  23 +++++
- src/pkg/runtime/proc.c          |  14 ---
- src/pkg/runtime/proc.go         |   9 ++
- src/pkg/runtime/softfloat_arm.c |  29 +++++-
- src/pkg/runtime/stubs.go        |  44 +--------
- src/pkg/runtime/vlrt.c          |  33 +++++++
- 16 files changed, 478 insertions(+), 280 deletions(-)
+ src/pkg/runtime/alg.go               |   4 +-
+ src/pkg/runtime/asm_386.s            |   3 +
+ src/pkg/runtime/asm_amd64.s          |   3 +
+ src/pkg/runtime/asm_amd64p32.s       |   3 +
+ src/pkg/runtime/asm_arm.s            |   3 +
+ src/pkg/runtime/export_futex_test.go |   3 -
+ src/pkg/runtime/export_test.go       |   1 -
+ src/pkg/runtime/lock_futex.c         | 227 ---------------------------
+ src/pkg/runtime/lock_futex.go        | 205 ++++++++++++++++++++++++
+ src/pkg/runtime/lock_sema.c          | 295 -----------------------------------
+ src/pkg/runtime/lock_sema.go         | 264 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/os_darwin.go         |   2 +
+ src/pkg/runtime/os_dragonfly.go      |   2 +
+ src/pkg/runtime/os_freebsd.go        |   2 +
+ src/pkg/runtime/os_linux.go          |   2 +
+ src/pkg/runtime/os_nacl.go           |   2 +
+ src/pkg/runtime/os_netbsd.go         |   2 +
+ src/pkg/runtime/os_openbsd.go        |   2 +
+ src/pkg/runtime/os_plan9.go          |   4 +
+ src/pkg/runtime/os_solaris.go        |   2 +
+ src/pkg/runtime/os_windows.go        |   2 +
+ src/pkg/runtime/stack.go             | 105 +++++++++++++
+ src/pkg/runtime/stubs.go             |  23 ++-
+ 23 files changed, 620 insertions(+), 541 deletions(-)

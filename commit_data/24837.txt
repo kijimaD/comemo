@@ -1,16 +1,15 @@
-commit 58bc561d1a94b789eabefba278fb6587b391f03b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Nov 11 20:47:25 2015 -0800
+commit d9f2cafb5050fd264777f175ceb2576d734b7360
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 3 14:28:52 2015 -0700
 
-    runtime: fix vet warning about +build rule
+    [dev.ssa] cmd/compile/internal/ssa: fix fallthrough return
     
-    cgo_ppc64x.go:7: +build comment must appear before package clause and be followed by a blank line
+    Fallthrough return needs to be a return block before jumping
+    to the exit block.
     
-    Change-Id: Ib6dedddae70cc75dc3f137eb37ea338a64f8b595
-    Reviewed-on: https://go-review.googlesource.com/16835
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I994de2064da5c326c9cade2c33cbb15bdbce5acb
+    Reviewed-on: https://go-review.googlesource.com/14256
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/cgo_ppc64x.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 1 +
+ 1 file changed, 1 insertion(+)

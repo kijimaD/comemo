@@ -1,17 +1,18 @@
-commit 4973c16f3c041866fe80eea76983d0028f843a7b
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Sep 28 18:04:25 2022 +0800
+commit 755ede0c5b6a9398170e1da0dae94df1b98352aa
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Oct 19 14:05:29 2021 -0400
 
-    net: delete unused code
+    cmd/go: fix bugs in replacement path handling
     
-    Change-Id: Id4c3a140d9619796aee1ba3214f7d5fce040b4e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435935
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    These are tested in golang.org/cl/357169 and golang.org/cl/358540.
+    
+    Change-Id: I5add3f202db71731487f2688234c547abe1fd287
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361416
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/resolverdialfunc_test.go |  1 -
- src/net/timeout_test.go          | 14 --------------
- 2 files changed, 15 deletions(-)
+ src/cmd/go/internal/modload/init.go    | 2 +-
+ src/cmd/go/internal/modload/modfile.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

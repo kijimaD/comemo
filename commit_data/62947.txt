@@ -1,0 +1,38 @@
+commit d000963d045bb279d347dbd3551e9468422c17af
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Thu May 1 10:43:32 2025 +0200
+
+    cmd/internal/obj/riscv: reject invalid vadc/vsbc encodings
+    
+    The RISC-V Instruction Set Manual Volume states that "for vadc and
+    vsbc, the instruction encoding is reserved if the destination vector
+    register is v0". The assembler currently allows instructions like
+    
+    VADCVVM V1, V2, V0, V0
+    
+    to be assembled. It's not clear what the behaviour of such
+    instructions will be on target hardware so it's best to disallow
+    them.
+    
+    For reference, binutils (2.44-3.fc42) allows the instruction
+    
+    vadc.vvm v0, v4, v8, v0
+    
+    to be assembled and the instruction actually executes on a Banana PI
+    F3 without crashing. However, clang (20.1.2) refuses to assemble the
+    instruction, producing the following error.
+    
+    error: the destination vector register group cannot be V0
+            vadc.vvm v0, v4, v8, v0
+                     ^
+    Change-Id: Ia913cbd864ae8dbcf9227f69b963c93a99481cff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669315
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s      | 10 ++++++++++
+ src/cmd/asm/internal/asm/testdata/riscv64error.s |  5 +++++
+ src/cmd/internal/obj/riscv/obj.go                |  9 +++++++--
+ 3 files changed, 22 insertions(+), 2 deletions(-)

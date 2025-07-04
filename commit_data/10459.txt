@@ -1,14 +1,15 @@
-commit 6c864210fc726e2eb27a4ce3ec1ff47f8671378e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Nov 19 10:54:44 2011 +1100
+commit 5b9d7825edeca72eae2fe11bf3fccb314ba23ce6
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Nov 18 18:33:44 2011 -0500
 
-    html/template: fix documentation formatting
+    html/template, net/http, websocket: fix import paths in comments
     
-    See http://weekly.golang.org/pkg/html/template/
-    
-    R=golang-dev, r, rsc
-    CC=golang-dev
-    https://golang.org/cl/5413055
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/5411048
 
- src/pkg/html/template/doc.go | 68 ++++++++++++++++++++++----------------------
- 1 file changed, 34 insertions(+), 34 deletions(-)
+ src/pkg/html/template/doc.go | 2 +-
+ src/pkg/net/http/server.go   | 4 ++--
+ src/pkg/websocket/client.go  | 2 +-
+ src/pkg/websocket/server.go  | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

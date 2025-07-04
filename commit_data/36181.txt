@@ -1,17 +1,55 @@
-commit 27a9b1bbecc0b1aa02d88128ef36904e6f56ec43
-Author: as <as.utf8@gmail.com>
-Date:   Wed Aug 1 18:38:46 2018 +0000
+commit c3cb44fdef04d87d4c19b5114748e625a95b9b40
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Apr 7 17:22:43 2018 +0200
 
-    cmd/go: avoid panic on 'go mod' without arguments
+    misc/ios: make detect.go more robust
     
-    Fixes #26738
+    To enable the exec wrapper go_darwin_arm_exec.go to run binaries
+    on iOS devices, the GOIOS_DEV_ID variable needs to be set to a code
+    signing identity. The program detect.go attempts to detect suitable
+    values for GOIOS_DEV_ID (along with GOIOS_APP_ID and GOIOS_TEAM_ID).
     
-    Change-Id: Icede3f59acb5b0e388660653cefc24a195b5d43b
-    GitHub-Last-Rev: 9989b74c12e94163c1f18859485a4ac0d74c5453
-    GitHub-Pull-Request: golang/go#26739
-    Reviewed-on: https://go-review.googlesource.com/127160
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Before this change, detect.go would use "security find-identity
+    -p codesigning -v" to list all available identities for code signing
+    and pick the first one with "iPhone Developer" in its name. However,
+    that pick might be invalid since if it was replaced by an identity
+    issued later.
+    
+    For example, on the mobile builder:
+    
+    $ security find-identity -p codesigning -v
+      1) 0E251DE41FE4490574E475AC320B47F58D6D3635 "lldb_codesign"
+      2) 0358588D07AA6A19478981BA405F40A97F95F187 "iPhone Developer: xxx@xxx (2754T98W8E)"
+      3) FC6D96F24A3223C98BF7A2C2C5194D82E04CD23E "iPhone Developer: xxx@xxx (2754T98W8E)"
+         3 valid identities found
+    
+    In this case, the identity 0358588D07AA6A19478981BA405F40A97F95F187
+    is picked by detect.go even though it has been invalidated by
+    FC6D96F24A3223C98BF7A2C2C5194D82E04CD23E.
+    
+    Instead of attempting to find an identity from the "security
+    find-identity" list, use the identity from the CommonName in the
+    embedded certificate in the provisioning file. The CommonName only
+    lists the identity name (iPhone Developer: xxx@xxx (2754T98W8E)),
+    not the fingerprint (FC6D96F24A3223C98BF7A2C2C5194D82E04CD23E), but
+    fortunately the codesign tool accepts both.
+    
+    Identity names may not be unique, as demonstrated by the example,
+    but that will result in an ambiguity error at codesigning instead of
+    a more obscure error about an invalid identity when
+    go_darwin_arm_exec.go runs a binary.
+    The fix is then to delete the invalid identity from the system
+    keychain.
+    
+    While here, find all connected devices instead of the first connected
+    and only consider provision files that covers them all. This matters
+    for the mobile builder where two devices are connected.
+    
+    Change-Id: I6beb59ace3fc5e071ba76222a20a607765943989
+    Reviewed-on: https://go-review.googlesource.com/105436
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/go/main.go | 2 ++
- 1 file changed, 2 insertions(+)
+ misc/ios/detect.go | 71 ++++++++++++++++++++++--------------------------------
+ 1 file changed, 29 insertions(+), 42 deletions(-)

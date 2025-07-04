@@ -1,19 +1,17 @@
-commit af13cfc3a21a56e50f651dd9c1edcb6d30fc6e45
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 12 16:28:03 2019 -0400
+commit 536a7d6712933255a3bafe946f199aa809f4b1e0
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Oct 24 15:43:45 2018 +0200
 
-    ../test: set GOPATH in nosplit.go
+    internal/traceparser: skip test on iOS
     
-    This test invokes 'go build', so in module mode it needs a module
-    cache to guard edits to go.mod.
+    The iOS test harness only include files from the tested package or
+    below. Skip a test on iOS that required files outside the package.
     
-    Fixes #30776
-    
-    Change-Id: I89ebef1fad718247e7f972cd830e31d6f4a83e4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167085
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Iaee7e488eb783b443f2b2b84d8be2de01227ab62
+    Reviewed-on: https://go-review.googlesource.com/c/144110
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
 
- test/nosplit.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/internal/traceparser/parser_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

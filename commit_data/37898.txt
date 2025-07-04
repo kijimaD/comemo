@@ -1,16 +1,42 @@
-commit 1e49021f8936d1ed435ae7d314aeaf55dcc55001
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Fri Jan 18 14:45:25 2019 -0500
+commit 693875e3f2f814d65bfbb89271d9d880f0ea83a3
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Sep 6 13:19:11 2018 -0400
 
-    doc/go1.12: mention heap sampling change
+    [dev.boringcrypto] crypto/internal/boring: avoid an allocation in AES-GCM Seal and Open
     
-    This is about a minor change but worthy of note because this
-    may affect the profile results users will see.
+    name            old time/op    new time/op    delta
+    AESGCMSeal1K-8     668ns ± 1%     643ns ± 1%    -3.74%  (p=0.008 n=5+5)
+    AESGCMOpen1K-8     664ns ± 2%     640ns ± 2%    -3.59%  (p=0.016 n=5+5)
+    AESGCMSign8K-8    1.44µs ± 1%    1.41µs ± 2%      ~     (p=0.087 n=5+5)
+    AESGCMSeal8K-8    3.32µs ± 1%    3.31µs ± 2%      ~     (p=0.690 n=5+5)
+    AESGCMOpen8K-8    3.34µs ± 2%    3.27µs ± 2%    -2.07%  (p=0.032 n=5+5)
     
-    Change-Id: Ie2c4358b248f868662dbc71db587576481aa7238
-    Reviewed-on: https://go-review.googlesource.com/c/158577
-    Reviewed-by: Raul Silvera <rauls5382@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    name            old speed      new speed      delta
+    AESGCMSeal1K-8  1.53GB/s ± 1%  1.59GB/s ± 1%    +3.90%  (p=0.008 n=5+5)
+    AESGCMOpen1K-8  1.54GB/s ± 2%  1.60GB/s ± 2%    +3.71%  (p=0.016 n=5+5)
+    AESGCMSign8K-8  5.67GB/s ± 2%  5.79GB/s ± 2%      ~     (p=0.095 n=5+5)
+    AESGCMSeal8K-8  2.47GB/s ± 1%  2.47GB/s ± 2%      ~     (p=0.690 n=5+5)
+    AESGCMOpen8K-8  2.45GB/s ± 2%  2.50GB/s ± 2%    +2.11%  (p=0.032 n=5+5)
+    
+    name            old alloc/op   new alloc/op   delta
+    AESGCMSeal1K-8     8.00B ± 0%     0.00B       -100.00%  (p=0.008 n=5+5)
+    AESGCMOpen1K-8     8.00B ± 0%     0.00B       -100.00%  (p=0.008 n=5+5)
+    AESGCMSign8K-8     8.00B ± 0%     0.00B       -100.00%  (p=0.008 n=5+5)
+    AESGCMSeal8K-8     8.00B ± 0%     0.00B       -100.00%  (p=0.008 n=5+5)
+    AESGCMOpen8K-8     8.00B ± 0%     0.00B       -100.00%  (p=0.008 n=5+5)
+    
+    name            old allocs/op  new allocs/op  delta
+    AESGCMSeal1K-8      1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
+    AESGCMOpen1K-8      1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
+    AESGCMSign8K-8      1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
+    AESGCMSeal8K-8      1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
+    AESGCMOpen8K-8      1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
+    
+    Change-Id: Ie2de0ad6b2f59b33af267b4e04aa6dff97b4ab75
+    Reviewed-on: https://go-review.googlesource.com/133836
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.12.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/crypto/internal/boring/aes.go | 55 ++++++++++++++++++++++++++++++---------
+ 1 file changed, 42 insertions(+), 13 deletions(-)

@@ -1,24 +1,22 @@
-commit 8891b82332de4afa23f935b58263d08a3a5c6d95
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 5 22:35:18 2020 -0400
+commit 9d3d4461a5bca9f3df76873473eeccf5bc66fe4c
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 6 15:32:43 2020 +0000
 
-    cmd/go: remove a bogus assertion in mod_convert_dep
+    Revert "cmd/link: skip symbol references when looking for missing symbols"
     
-    The removed line assumed that the script's WORK directory is not a
-    child of any directory containing version-control metadata.
-    While that assumption does hold in most cases, it does not hold when,
-    for example, $TMPDIR is $HOME/tmp and $HOME/.git/config exists.
+    This reverts commit 8adc1e00aa1a92a85b9d6f3526419d49dd7859dd.
     
-    A similar situation may or may not arise when using
-    golang.org/x/build/cmd/release. Either way, the assertion is incorrect
-    and was interfering with local testing for #39385.
+    Reason for revert: The test added in this commit fails on several
+    builders.
     
-    Updates #39385
-    Fixes #39431
+    Fixes #36389. Re-opens #33979.
     
-    Change-Id: I67813d7ce455aa9b56a6eace6eddebf48d0f7fa6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236818
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I31191098c36af00f7688749b3376686673b3ac68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213417
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/go/testdata/script/mod_convert_dep.txt | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/link/internal/ld/link.go |  2 +-
+ src/cmd/link/link_test.go        | 79 ----------------------------------------
+ 2 files changed, 1 insertion(+), 80 deletions(-)

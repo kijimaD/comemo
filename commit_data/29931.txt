@@ -1,27 +1,18 @@
-commit d9a05791566aa8d54113ac88ae77b982872f9be7
-Author: David Chase <drchase@google.com>
-Date:   Tue Jan 10 08:29:34 2017 -0500
+commit 4a5b3ef9b90b2a724fbe9557b4cb15a65d2be87b
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Oct 16 14:31:18 2016 +0900
 
-    cmd/compile: disable flaky test
+    encoding/asn1: return error instead of dereferencing nil *big.Int in marshaling
     
-    The test is inherently racy and vulnerable to starvation,
-    and within all.bash on some platforms that means it flakes.
-    Test is kept because it can be useful standalone to verify
-    behavior of GOEXPERIMENT=preeemptibleloops, and there is
-    likely to be further development of this feature in the
-    future.
+    Fixes #17461
     
-    There's also some question as to why it is flaking, because
-    though technically this is permitted, it's very odd in this
-    simple case.
-    
-    Fixes #18589.
-    
-    Change-Id: Ia0dd9037285c4a03122da4012c96981c9cc43b60
-    Reviewed-on: https://go-review.googlesource.com/35051
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I9954f6ae46c7e15560d7460841be8f2bc37233a9
+    Reviewed-on: https://go-review.googlesource.com/31121
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- test/fixedbugs/issue10958.go | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ src/encoding/asn1/asn1_test.go    |  6 +++++-
+ src/encoding/asn1/marshal.go      | 18 +++++++++++-------
+ src/encoding/asn1/marshal_test.go | 24 ++++++++++++++++++++++++
+ 3 files changed, 40 insertions(+), 8 deletions(-)

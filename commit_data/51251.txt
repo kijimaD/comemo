@@ -1,34 +1,17 @@
-commit 0f0aa5d8a6a0253627d58b3aa083b24a1091933f
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue May 10 09:52:20 2022 +0200
+commit 3fb17cfd17108c0c49d8a58cf25610fe5c84755a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 21 13:13:01 2021 +0100
 
-    os,syscall: File.Stat to use file handle for directories on Windows
+    os: enable TestPipeThreads on FreeBSD
     
-    Updates syscall.Open to support opening directories via CreateFileW.
+    This test works on FreeBSD since CL 165801 was submitted.
     
-    CreateFileW handles are more versatile than FindFirstFile handles.
-    They can be used in Win32 APIs like GetFileInformationByHandle and
-    SetFilePointerEx, which are needed by some Go APIs.
+    Updates #19093
     
-    Fixes #52747
-    Fixes #36019
-    
-    Change-Id: I26a00cef9844fb4abeeb18d2f9d854162a146651
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405275
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Patrik Nyblom <pnyb@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I45ffeb403c1de4385cdb21b9647f21976061e1ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373358
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/fd_windows.go     | 16 +------
- src/os/dir_windows.go               | 17 +++++--
- src/os/file.go                      |  4 --
- src/os/file_windows.go              | 91 ++++++++++++++++++++-----------------
- src/os/os_test.go                   |  3 --
- src/os/os_windows_test.go           | 25 ++++++++++
- src/os/stat_windows.go              |  4 --
- src/syscall/syscall_windows.go      |  7 ++-
- src/syscall/syscall_windows_test.go | 22 +++++++++
- 9 files changed, 115 insertions(+), 74 deletions(-)
+ src/os/os_test.go | 2 --
+ 1 file changed, 2 deletions(-)

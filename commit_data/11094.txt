@@ -1,16 +1,13 @@
-commit 090049130e751718ee8100d673c6add9f98289b2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 10 18:30:06 2012 -0800
+commit b06514bb34486cb8b57305f065a4ec50c2bbbfa3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 10 18:27:09 2012 -0800
 
-    go/ast: predeclared objects have the Universe/Unsafe scope as Decl
+    syscall: fix windows build
     
-    Makes it possible to easily detect if an Object was predeclared
-    (as opposed to unresolved).
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5530072
+    https://golang.org/cl/5533063
 
- src/pkg/exp/types/universe.go | 1 +
- src/pkg/go/ast/scope.go       | 4 +++-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/syscall/syscall_windows.go | 16 ----------------
+ src/pkg/syscall/ztypes_windows.go  | 24 ++++++++++++++++--------
+ 2 files changed, 16 insertions(+), 24 deletions(-)

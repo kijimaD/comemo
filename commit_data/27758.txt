@@ -1,19 +1,20 @@
-commit e0c8af090ea1ccc32d06ae75b653446d2a9d6f87
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 29 17:01:10 2016 -0700
+commit 7f5a063d157c777d8e78a567fc9538929bfd38f5
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Apr 12 10:27:16 2016 -0400
 
-    net/http: update bundled http2
+    cmd/compile/internal/gc: minor Cgen_checknil cleanup
     
-    Updates x/net/http2 to git rev 8e573f40 for https://golang.org/cl/24600,
-    "http2: merge multiple GOAWAY frames' contents into error message"
+    Most architectures can only generate nil checks when the
+    the address to check is in a register. Currently only
+    amd64 and 386 can generate checks for addresses that
+    reside in memory. This is unlikely to change so the architecture
+    check has been inverted.
     
-    Fixes #14627 (more)
-    
-    Change-Id: I5231607c2c9e0d854ad6199ded43c59e59f62f52
-    Reviewed-on: https://go-review.googlesource.com/24612
+    Change-Id: I73697488a183406c79a9039c62823712b510bb6a
+    Reviewed-on: https://go-review.googlesource.com/21861
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/h2_bundle.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

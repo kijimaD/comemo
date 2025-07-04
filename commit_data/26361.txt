@@ -1,12 +1,16 @@
-commit 2d03b5b572c029a1612c89d76028ead20feed04b
-Author: Ingo Oeser <nightlyone@googlemail.com>
-Date:   Thu Mar 17 20:40:02 2016 +0100
+commit 00c0a3a677d8720123b646bb8efa3bfa1e36a8a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 13 10:41:37 2016 -0800
 
-    cmd/compile: fix comment
+    go/importer: revert incorrect change that slipped in prior CL
     
-    Change-Id: I32fd5c36f055fdb1dfe56524085676aa4111089a
-    Reviewed-on: https://go-review.googlesource.com/20830
-    Reviewed-by: David Chase <drchase@google.com>
+    The package of anonymous fields is the package in which they were
+    declared, not the package of the anonymous field's type. Was correct
+    before and incorrectly changed with https://golang.org/cl/18549.
+    
+    Change-Id: I9fd5bfbe9d0498c8733b6ca7b134a85defe16113
+    Reviewed-on: https://go-review.googlesource.com/18596
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/esc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/internal/gcimporter/gcimporter.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

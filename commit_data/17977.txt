@@ -1,12 +1,140 @@
-commit 1e6996ff2e4360db0b6f87f11688d7b23831be06
+commit 161a45afdf08d6f1217f726063d4f4c16fe168d3
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 12 17:25:02 2013 -0800
+Date:   Thu Dec 12 17:18:12 2013 -0800
 
-    .hgignore: remove merge markers
+    test: match gccgo error messages
     
-    R=golang-dev, dsymonds
+    const1.go:33: error: integer constant overflow
+    <similar errors omitted>
+    const1.go:64: error: division by zero
+    const1.go:67: error: floating point constant overflow
+    const1.go:68: error: floating point constant overflow
+    const1.go:69: error: floating point constant overflow
+    const1.go:70: error: division by zero
+    const1.go:71: error: expected integer type
+    const1.go:77: error: argument 1 has incompatible type (cannot use type int8 as type int)
+    const1.go:78: error: argument 1 has incompatible type (cannot use type int8 as type int)
+    const1.go:79: error: argument 1 has incompatible type (cannot use type uint8 as type int)
+    const1.go:81: error: argument 1 has incompatible type (cannot use type float32 as type int)
+    const1.go:82: error: argument 1 has incompatible type (cannot use type float64 as type int)
+    const1.go:83: error: floating point constant truncated to integer
+    const1.go:85: error: argument 1 has incompatible type (cannot use type float64 as type int)
+    const1.go:86: error: argument 1 has incompatible type (cannot use type string as type int)
+    const1.go:87: error: argument 1 has incompatible type (cannot use type bool as type int)
+    const1.go:90: error: const initializer cannot be nil
+    const1.go:91: error: expression is not constant
+    const1.go:92: error: expression is not constant
+    const1.go:93: error: invalid constant type
+    const1.go:94: error: invalid constant type
+    fixedbugs/bug462.go:17: error: unknown field 'os.File' in 'T'
+    fixedbugs/issue3705.go:9: error: cannot declare init - must be func
+    fixedbugs/issue4251.go:12: error: inverted slice range
+    fixedbugs/issue4251.go:16: error: inverted slice range
+    fixedbugs/issue4251.go:20: error: inverted slice range
+    fixedbugs/issue4405.go:11: error: invalid character 0x7 in identifier
+    fixedbugs/issue4405.go:12: error: invalid character 0x8 in identifier
+    fixedbugs/issue4405.go:13: error: invalid character 0xb in identifier
+    fixedbugs/issue4405.go:14: error: invalid character 0xc in identifier
+    fixedbugs/issue4429.go:15: error: expected pointer
+    fixedbugs/issue4517d.go:9: error: cannot import package as init
+    fixedbugs/issue4545.go:17: error: invalid context-determined non-integer type for left operand of shift
+    fixedbugs/issue4545.go:16: error: incompatible types in binary expression
+    fixedbugs/issue4610.go:15: error: expected ';' or '}' or newline
+    fixedbugs/issue4610.go:16: error: expected declaration
+    fixedbugs/issue4654.go:15: error: value computed is not used
+    <similar errors omitted>
+    fixedbugs/issue4776.go:9: error: program must start with package clause
+    fixedbugs/issue4776.go:9: error: expected ';' or newline after package clause
+    fixedbugs/issue4813.go:31: error: index must be integer
+    <similar errors omitted>
+    fixedbugs/issue4847.go:22: error: initialization expression for 'matchAny' depends upon itself
+    fixedbugs/issue5089.go:13: error: redefinition of 'bufio.Buffered': receiver name changed
+    fixedbugs/issue5089.go:11: note: previous definition of 'bufio.Buffered' was here
+    fixedbugs/issue5172.go:17: error: reference to undefined field or method 'bar'
+    fixedbugs/issue5172.go:18: error: reference to undefined field or method 'bar'
+    fixedbugs/issue5172.go:12: error: use of undefined type 'bar'
+    fixedbugs/issue5358.go:16: error: argument 2 has incompatible type
+    fixedbugs/issue5581.go:29: error: use of undefined type 'Blah'
+    funcdup.go:10: error: redefinition of 'i'
+    funcdup.go:10: note: previous definition of 'i' was here
+    <similar errors omitted>
+    funcdup2.go:10: error: redefinition of 'i'
+    funcdup2.go:10: note: previous definition of 'i' was here
+    <similar errors omitted>
+    slice3err.go:20: error: middle index required in 3-index slice
+    <similar errors omitted>
+    slice3err.go:20: error: final index required in 3-index slice
+    <similar errors omitted>
+    slice3err.go:21: error: final index required in 3-index slice
+    slice3err.go:46: error: invalid 3-index slice of string
+    <similar errors omitted>
+    slice3err.go:57: error: inverted slice range
+    <similar errors omitted>
+    slice3err.go:62: error: invalid slice index: capacity less than length
+    slice3err.go:64: error: invalid slice index: capacity less than start
+    slice3err.go:65: error: invalid slice index: capacity less than start
+    slice3err.go:66: error: invalid slice index: capacity less than start
+    slice3err.go:68: error: invalid slice index: capacity less than length
+    slice3err.go:70: error: invalid slice index: capacity less than start
+    slice3err.go:80: error: invalid slice index: capacity less than length
+    slice3err.go:82: error: invalid slice index: capacity less than start
+    slice3err.go:83: error: invalid slice index: capacity less than start
+    slice3err.go:84: error: invalid slice index: capacity less than start
+    slice3err.go:86: error: invalid slice index: capacity less than length
+    slice3err.go:88: error: invalid slice index: capacity less than start
+    slice3err.go:99: error: array index out of bounds
+    <similar errors omitted>
+    slice3err.go:106: error: invalid slice index: capacity less than length
+    slice3err.go:107: error: invalid slice index: capacity less than start
+    slice3err.go:118: error: invalid slice index: capacity less than length
+    slice3err.go:119: error: invalid slice index: capacity less than start
+    syntax/semi1.go:10: error: missing '{' after if clause
+    syntax/semi1.go:10: error: reference to undefined name 'x'
+    syntax/semi1.go:10: error: reference to undefined name 'y'
+    syntax/semi1.go:12: error: reference to undefined name 'z'
+    syntax/semi2.go:10: error: missing '{' after switch clause
+    syntax/semi2.go:10: error: reference to undefined name 'x'
+    syntax/semi3.go:10: error: missing '{' after for clause
+    syntax/semi3.go:10: error: reference to undefined name 'x'
+    syntax/semi3.go:10: error: reference to undefined name 'y'
+    syntax/semi3.go:10: error: reference to undefined name 'z'
+    syntax/semi3.go:12: error: reference to undefined name 'z'
+    syntax/semi4.go:11: error: missing '{' after for clause
+    syntax/semi4.go:10: error: reference to undefined name 'x'
+    syntax/semi4.go:12: error: reference to undefined name 'z'
+    typecheck.go:12: error: reference to undefined name 'b'
+    typecheck.go:17: error: reference to undefined name 'c'
+    typecheck.go:11: error: use of undefined type 'b'
+    typecheck.go:16: error: not enough arguments
+    typecheck.go:17: error: not enough arguments
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/40720049
+    https://golang.org/cl/41520044
 
- .hgignore | 3 ---
- 1 file changed, 3 deletions(-)
+ test/const1.go               |  8 +++----
+ test/fixedbugs/bug462.go     |  2 +-
+ test/fixedbugs/issue3705.go  |  2 +-
+ test/fixedbugs/issue4251.go  |  6 ++---
+ test/fixedbugs/issue4405.go  |  8 +++----
+ test/fixedbugs/issue4429.go  |  2 +-
+ test/fixedbugs/issue4517d.go |  2 +-
+ test/fixedbugs/issue4545.go  |  2 +-
+ test/fixedbugs/issue4610.go  |  4 ++--
+ test/fixedbugs/issue4654.go  | 44 +++++++++++++++++-----------------
+ test/fixedbugs/issue4776.go  |  2 +-
+ test/fixedbugs/issue4813.go  | 12 +++++-----
+ test/fixedbugs/issue4847.go  |  2 +-
+ test/fixedbugs/issue5089.go  |  4 ++--
+ test/fixedbugs/issue5172.go  |  4 ++--
+ test/fixedbugs/issue5358.go  |  2 +-
+ test/fixedbugs/issue5581.go  |  2 +-
+ test/funcdup.go              | 24 +++++++++----------
+ test/funcdup2.go             | 12 +++++-----
+ test/slice3err.go            | 56 ++++++++++++++++++++++----------------------
+ test/syntax/semi1.go         |  2 +-
+ test/syntax/semi2.go         |  2 +-
+ test/syntax/semi3.go         |  2 +-
+ test/syntax/semi4.go         |  2 +-
+ test/typecheck.go            |  4 ++--
+ 25 files changed, 106 insertions(+), 106 deletions(-)

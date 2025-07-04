@@ -1,20 +1,20 @@
-commit 81d424ee9a7ea39dd42292edceb52ec5ebb71d1b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 29 16:10:27 2024 +0000
+commit 0cd04724aaa180703244d7af1b67be906059206e
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 16 16:56:13 2023 -0400
 
-    internal/trace: fix off-by-one error in arguments for exp events
+    cmd/go: add some test skips for GOEXPERIMENT=nocoverageredesign
     
-    There's an off-by-one error in computing the Args field for experimental
-    events, resulting in confusing output. This wasn't caught because no
-    test actually checks to make sure the experimental arguments make sense
-    yet.
+    Couple of test need to be skipped for GOEXPERIMENT=nocoverageredesign,
+    since they use "go build -cover". [This is a test-only CL].
     
-    Change-Id: I339677a80bee6319407fced20d5e0f9c2fd235b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589055
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I48c0855e2d8f042f9bc293e4cf48f326682112c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495597
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/internal/trace/event.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/testdata/script/cover_build_cmdline_pkgs.txt | 1 +
+ src/cmd/go/testdata/script/cover_main_import_path.txt   | 1 +
+ src/cmd/go/testdata/script/cover_sync_atomic_import.txt | 1 +
+ src/cmd/internal/cov/read_test.go                       | 4 ++++
+ 4 files changed, 7 insertions(+)

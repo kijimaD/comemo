@@ -1,16 +1,16 @@
-commit 08e064135dfd6ec5cd09ac07134a9817425aac06
+commit 20498ed772ef5791a17248f1198b58265299574e
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 1 17:57:09 2013 -0400
+Date:   Mon Jul 1 17:27:19 2013 -0400
 
-    runtime: disable preemption
+    sync/atomic: remove test dependency on net/http
     
-    There are various problems, and both Dmitriy and I
-    will be away for the next week. Make the runtime a bit
-    more stable while we're gone.
+    Depending on net/http means depending on cgo.
+    When the tree is in a shaky state it's nice to see sync/atomic
+    pass even if cgo or net causes broken binaries.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/10848043
+    https://golang.org/cl/10753044
 
- src/pkg/runtime/proc.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/sync/example_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

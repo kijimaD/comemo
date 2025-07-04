@@ -1,14 +1,33 @@
-commit 6a3ad481cd495bc22aa4f892ad8f0c225acac1f3
+commit 3e3fa7b5f17fd57e9890cd823d39add271c77d9c
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Oct 20 17:25:13 2012 +0800
+Date:   Sat Oct 20 16:40:19 2012 +0800
 
-    cmd/go: make package list order predicable
-    also add a cleanup phase to cmd/go/test.bash.
+    runtime: ~3.7x speed up of div/mod on ARM
+    benchmark                      old ns/op    new ns/op    delta
+    BenchmarkUint32Div7                  281           75  -73.06%
+    BenchmarkUint32Div37                 281           75  -73.02%
+    BenchmarkUint32Div123                281           75  -73.02%
+    BenchmarkUint32Div763                280           75  -72.89%
+    BenchmarkUint32Div1247               280           75  -72.93%
+    BenchmarkUint32Div9305               281           75  -73.02%
+    BenchmarkUint32Div13307              281           75  -73.06%
+    BenchmarkUint32Div52513              281           75  -72.99%
+    BenchmarkUint32Div60978747           281           63  -77.33%
+    BenchmarkUint32Div106956295          280           63  -77.21%
+    BenchmarkUint32Mod7                  280           77  -72.21%
+    BenchmarkUint32Mod37                 280           77  -72.18%
+    BenchmarkUint32Mod123                280           77  -72.25%
+    BenchmarkUint32Mod763                280           77  -72.18%
+    BenchmarkUint32Mod1247               280           77  -72.21%
+    BenchmarkUint32Mod9305               280           77  -72.21%
+    BenchmarkUint32Mod13307              280           77  -72.25%
+    BenchmarkUint32Mod52513              280           77  -72.18%
+    BenchmarkUint32Mod60978747           280           63  -77.25%
+    BenchmarkUint32Mod106956295          280           63  -77.21%
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/6741050
+    R=dave, rsc
+    CC=dave, golang-dev, rsc
+    https://golang.org/cl/6717043
 
- src/cmd/go/pkg.go    |  9 ++++-----
- src/cmd/go/test.bash | 12 ++++++++++++
- 2 files changed, 16 insertions(+), 5 deletions(-)
+ src/pkg/runtime/vlop_arm.s | 307 +++++++++++++++++++++++++++------------------
+ 1 file changed, 185 insertions(+), 122 deletions(-)

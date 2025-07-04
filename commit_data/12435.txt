@@ -1,17 +1,13 @@
-commit 26dc17ce78f331852fb52c9a1f15aebe4e1155ad
-Author: Johan Euphrosine <proppy@google.com>
-Date:   Wed Mar 7 11:24:00 2012 +1100
+commit 7a3c6c950bddf21d4c39289abe1173dc52f757a7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 7 11:01:23 2012 +1100
 
-    doc: fix typos in laws_of_reflection article, add copyright notice.
+    os: fix SameFile to work for directories on windows
     
-    Update #2547.
-    
-    R=golang-dev, minux.ma, r, r, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5755051
+    https://golang.org/cl/5756064
 
- doc/articles/laws_of_reflection.html | 19 ++++++++-----------
- doc/articles/laws_of_reflection.tmpl | 14 +++++++-------
- doc/progs/interface.go               |  6 ++++++
- doc/progs/interface2.go              | 13 +++++++++++++
- 4 files changed, 34 insertions(+), 18 deletions(-)
+ src/pkg/os/stat_windows.go         | 2 +-
+ src/pkg/path/filepath/path_test.go | 4 ----
+ 2 files changed, 1 insertion(+), 5 deletions(-)

@@ -1,16 +1,14 @@
-commit f7248ba75321ace8e76f9723e9ef3badea2bdd4d
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Sat Jan 5 23:39:24 2019 +0700
+commit 1d15354fb931a81a66fdc4a6101df711bd738a4b
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Fri Aug 31 23:34:39 2018 +0200
 
-    archive/zip: fix casting overflow on 32-bit arch
+    os/exec: document how to do special args quoting on Windows
     
-    Fixes #29555
+    Updates #27199
     
-    Change-Id: Ia3c0dd65bcf94dea3f6e04c23c1fe5d6d0b2c1e9
-    Reviewed-on: https://go-review.googlesource.com/c/156399
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5cb6540266901697d3558ce75b8de63b1bfc2ce0
+    Reviewed-on: https://go-review.googlesource.com/132695
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/archive/zip/zip_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/os/exec/exec.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,20 +1,18 @@
-commit cbe777b2c70320f52f85c6c8f1242b35dd45b341
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Mar 14 10:07:51 2014 -0400
+commit 4c6d2d6aa8aff8876a511882dd2a1facf4965667
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 13 14:04:29 2014 -0700
 
-    cmd/gc: replace '·' as '.' in ELF/Mach-O symbol tables
+    debug/macho: handle missing __debug_str section
     
-    Old versions of DTrace (as those shipped in OS X and FreeBSD)
-    don't support unicode characters in symbol names.  Replace '·'
-    to '.' to make DTrace happy.
+    debug/elf does the same thing, use []byte{} for
+    any missing sections.
     
-    Fixes #7493
+    Fixes #7510
     
-    LGTM=aram, rsc
-    R=aram, rsc, gobot, iant
-    CC=golang-codereviews
-    https://golang.org/cl/72280043
+    LGTM=rsc
+    R=golang-codereviews, iant
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/75230043
 
- src/cmd/ld/macho.c  | 17 ++++++++++++++++-
- src/cmd/ld/symtab.c | 16 ++++++++++++++++
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ src/pkg/debug/macho/file.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

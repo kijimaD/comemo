@@ -1,19 +1,22 @@
-commit 2b9e7c1864c61c900b79deb9528fead33321a402
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Dec 4 10:59:39 2017 -0800
+commit 02deb77f6db19f5894d836790a64bd4dea86feb0
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 8 11:47:16 2017 -0700
 
-    test: disable broken test for 1.10
+    cmd/compile: fix println()
     
-    This test was added recently as a regress test for the spec relaxation
-    in #9060, but doesn't work correctly yet. Disable for now to fix noopt
-    builders.
+    println with no arguments accidentally doesn't print a newline.
     
-    Updates #22444.
+    Introduced at CL 55097
     
-    Change-Id: I45c521ae0da7ffb0c6859d6f7220c59828ac6149
-    Reviewed-on: https://go-review.googlesource.com/81775
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #21808
+    
+    Change-Id: I9fc7b4271b9b31e4c9b6078f055195dc3907b62c
+    Reviewed-on: https://go-review.googlesource.com/62390
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/method7.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/walk.go |  8 ++++----
+ test/fixedbugs/issue21808.go        | 17 +++++++++++++++++
+ test/fixedbugs/issue21808.out       |  3 +++
+ 3 files changed, 24 insertions(+), 4 deletions(-)

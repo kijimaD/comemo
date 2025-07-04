@@ -1,18 +1,22 @@
-commit 25da2ea72c18a63f5efdb7c506669aa733693bea
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Mar 3 03:41:43 2020 +1100
+commit f9226454b9830dd7fe6405bdb2953a6747dce41b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 17 13:16:15 2019 -0700
 
-    cmd/internal/obj/riscv: add NEG/NEGW pseudo-instructions
+    cmd/compile: fix -d=checkptr for named unsafe.Pointer types
     
-    Provide NEG/NEGW pseudo-instructions, which translate to SUB/SUBW with the
-    zero register as a source.
+    We need to explicitly convert pointers to unsafe.Pointer before
+    passing to the runtime checkptr instrumentation in case the user
+    declared their own type with underlying type unsafe.Pointer.
     
-    Change-Id: I2c1ec1e75611c234c5ee8e39390dd188f8e42bae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221689
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #22218.
+    Fixes #34966.
+    
+    Change-Id: I3baa2809d77f8257167cd78f57156f819130baa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201782
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscvenc.s |  8 +++++++-
- src/cmd/internal/obj/riscv/anames.go         |  2 ++
- src/cmd/internal/obj/riscv/cpu.go            |  2 ++
- src/cmd/internal/obj/riscv/obj.go            | 11 +++++++++++
- 4 files changed, 22 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go |  9 ++++++---
+ test/fixedbugs/issue34966.go        | 14 ++++++++++++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

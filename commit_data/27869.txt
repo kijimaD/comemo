@@ -1,16 +1,27 @@
-commit 1a7fc7b3a783031ec91844460a44ebffe34a6af1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jun 6 13:01:48 2016 -0700
+commit 2cdcb6f8296b6528bb7d256a45e339c4aefb9109
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 14 13:41:36 2016 -0400
 
-    cmd/compile: handle e == T comparison more efficiently
+    runtime: scavenge memory on physical page-aligned boundaries
     
-    Instead of making a runtime call, compare types and values.
+    Currently the scavenger marks memory unused in multiples of the
+    allocator page size (8K). This is safe as long as the true physical
+    page size is 4K (or 8K), as it is on many platforms. However, on
+    ARM64, PPC64x, and MIPS64, the physical page size is larger than 8K,
+    so if we attempt to mark memory unused, the kernel will round the
+    boundaries of the region *out* to all pages covered by the requested
+    region, and we'll release a larger region of memory than intended. As
+    a result, the scavenger is currently disabled on these platforms.
     
-    Change-Id: Id302083d5a6a5f18e04f36f304f3d290c46976ad
-    Reviewed-on: https://go-review.googlesource.com/26660
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fix this by first rounding the region to be marked unused *in* to
+    multiples of the physical page size, so that when we ask the kernel to
+    mark it unused, it releases exactly the requested region.
+    
+    Fixes #9993.
+    
+    Change-Id: I96d5fdc2f77f9d69abadcea29bcfe55e68288cb1
+    Reviewed-on: https://go-review.googlesource.com/22066
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 68 +++++++++++++++++--------------------
- 1 file changed, 32 insertions(+), 36 deletions(-)
+ src/runtime/mheap.go | 34 ++++++++++++++++++++++------------
+ 1 file changed, 22 insertions(+), 12 deletions(-)

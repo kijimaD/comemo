@@ -1,19 +1,17 @@
-commit 0dc513b65a3aaf25dfad134b7ef3ac5aaac95159
-Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
-Date:   Mon Aug 7 13:44:06 2023 +0000
+commit 866fbb67d0285240c3cf0c430ff018d20f99379c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:05:52 2022 +0800
 
-    sort: use the builtin min function
+    cmd/dist: use strings.Builder
     
-    Change-Id: I9603de9abff8d5c8fb9efdf688ff1a5f8c7d19b2
-    GitHub-Last-Rev: c6fe3acc41a3a9c7d07e3c291985867a704013b1
-    GitHub-Pull-Request: golang/go#61808
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516635
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I56bd5d6b1333a96339340e5af5e6470cc7fb11a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428287
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/sort/sort_test.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/dist/buildgo.go      | 11 +++++------
+ src/cmd/dist/buildruntime.go |  8 ++++----
+ 2 files changed, 9 insertions(+), 10 deletions(-)

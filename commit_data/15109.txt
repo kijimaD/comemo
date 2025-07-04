@@ -1,14 +1,15 @@
-commit 2ebfaa36b51e860d066799afa90de3efe092ae4a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Feb 4 00:40:11 2013 +0800
+commit 09a17ca1f113b7959391b0daf49ecfcd930cf30b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 11:19:22 2013 -0500
 
-    cmd/5l, cmd/ld: support generating ELF binaries for NetBSD/ARM
+    cmd/gc: make inlined labels distinct
     
-    R=golang-dev, dave
+    Fixes #4748.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7261043
+    https://golang.org/cl/7261044
 
- src/cmd/5l/asm.c |  5 +----
- src/cmd/5l/obj.c | 15 ++++-----------
- src/cmd/ld/elf.c | 25 +++++++++++++++----------
- 3 files changed, 20 insertions(+), 25 deletions(-)
+ src/cmd/gc/inl.c            | 14 ++++++++++++++
+ test/fixedbugs/issue4748.go | 20 ++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

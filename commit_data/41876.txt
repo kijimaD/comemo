@@ -1,17 +1,16 @@
-commit 52dc1f42b3e30efd0a81f9c0315f9b5ed9f6ec4e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 8 11:57:53 2020 -0400
+commit 01e7a152e353644caf26c741bc64f4ef6580752e
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Tue Oct 29 13:50:31 2019 +0800
 
-    cmd/compile/internal/ssa: skip TestNexting
+    cmd/compile: resolve TODO of Mpflt.SetString
     
-    This test is currently flaky in the builders.
-    Skip it while we investigate.
+    Number literal strings returned by the lexer (internal/syntax package) and other
+    arguments to SetString never contain leading whitespace. There's no need (anymore)
+    to trim the argument.
     
-    For #37404
-    
-    Change-Id: I53721d383a4cafbe8d031ed25a3b1be2ae8b4285
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227587
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ib060d109f46f79a364a5c8aa33c4f625fe849264
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203997
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/debug_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/mpfloat.go | 5 -----
+ 1 file changed, 5 deletions(-)

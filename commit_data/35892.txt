@@ -1,20 +1,17 @@
-commit 0268a63ffadb6f56ac25962276ccd7c7b6edca08
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Jul 5 09:54:50 2018 -0400
+commit 1814a0595cb62a1788e4af17c3ab71f223bbd51b
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Mar 7 13:54:40 2018 -0500
 
-    misc/cgo/testcarchive: increase timeout duration in TestOsSignal
+    cmd/trace: filter tasks by log text
     
-    This test is slightly flaky on the s390x builder and I suspect that
-    the 100ms timeout is a little too optimistic when the VM is starved.
-    Increase the timeout to 5s to match the other part of the test.
+    Add a search box to the top of the user task views that only displays
+    tasks containing a particular log message.
     
-    Fixes #26231.
-    
-    Change-Id: Ia6572035fb3efb98749f2c37527d250a4c779477
-    Reviewed-on: https://go-review.googlesource.com/122315
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I92f4aa113f930954e8811416901e37824f0eb884
+    Reviewed-on: https://go-review.googlesource.com/100843
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- misc/cgo/testcarchive/src/libgo3/libgo3.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/trace/annotations.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

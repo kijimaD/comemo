@@ -1,22 +1,13 @@
-commit e587a7691b8603a89f55a57f78dae5e20fdbf5d1
-Author: Kevin Parsons <kevpar@microsoft.com>
-Date:   Tue Jan 17 08:02:17 2023 +0000
+commit 768804dfdd81b04a1184c86e538634872b907149
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Mar 7 13:49:54 2022 -0500
 
-    cmd/link: fix incorrect DOS header on Windows binaries
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    The previous DOS header placed on Windows binaries was incorrect, as it had e_crlc (number of relocations) set to 4, instead of e_cparhdr (size of header in 16-bit words) set to 4. This resulted in execution starting at the beginning of the file, instead of where the DOS stub code actually exists.
-    
-    Fixes #57834
-    
-    Change-Id: I8c5966b65c72b2474b771b85aaadb61cad9f5be6
-    GitHub-Last-Rev: c715ad290a01218a1320834e519125e7a5f94384
-    GitHub-Pull-Request: golang/go#57835
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462054
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: I64d00d523092dc3cce6d2787c26bb7897ff0812e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390534
+    Trust: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

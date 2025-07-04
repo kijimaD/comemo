@@ -1,0 +1,22 @@
+commit e86982c515ba4a494fb1f8e1367f4238a2b59c2e
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Oct 1 03:15:08 2024 +0000
+
+    encoding/json: add omitzero option
+    
+    Fixes #45669
+    
+    Change-Id: Ic13523c0b3acdfc5b3e29a717bc62fde302ed8fd
+    GitHub-Last-Rev: 57030f26b0062fa8eda21b3a73b7665deab88c76
+    GitHub-Pull-Request: golang/go#69622
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615676
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/next/6-stdlib/99-minor/encoding/json/45669.md |   7 +
+ src/encoding/json/encode.go                       |  57 ++++++-
+ src/encoding/json/encode_test.go                  | 188 +++++++++++++++++++++-
+ 3 files changed, 248 insertions(+), 4 deletions(-)

@@ -1,22 +1,16 @@
-commit 595cebb055d327e52bd447985b53dcca869cea1d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 29 10:37:13 2016 -0700
+commit ac0ee77d630c4a692b02cad630a61e974b0c52ce
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 28 19:01:48 2016 +1000
 
-    cmd/compile: remove ignored bool from exported ODCL nodes
+    image/gif: be stricter on parsing graphic control extensions.
     
-    This shortens the export format by 1 byte for each exported ODCL
-    node in inlined function bodies.
+    See Section 23. Graphic Control Extension of the spec:
+    https://www.w3.org/Graphics/GIF/spec-gif89a.txt
     
-    Maintain backward compatibility by updating format version and
-    continue to accept older format.
-    
-    Change-Id: I549bb3ade90bc0f146decf8016d5c9c3f14eb293
-    Reviewed-on: https://go-review.googlesource.com/27999
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie78b4ff4aa97e1b332ade67ae4fa25f7c0770610
+    Reviewed-on: https://go-review.googlesource.com/22547
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 14 ++------------
- src/cmd/compile/internal/gc/bimport.go | 18 +++++++++---------
- src/cmd/compile/internal/gc/builtin.go |  4 ++--
- src/go/internal/gcimporter/bimport.go  |  4 ++--
- 4 files changed, 15 insertions(+), 25 deletions(-)
+ src/image/gif/reader.go      | 6 ++++++
+ src/image/gif/reader_test.go | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

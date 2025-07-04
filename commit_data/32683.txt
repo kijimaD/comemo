@@ -1,28 +1,30 @@
-commit f727fa793968623c0dc803a7542c266892c015a4
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sat Sep 9 14:17:05 2017 +0000
+commit b53acd89db5847b9ddcba076df89bef8788dd348
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 11 10:39:55 2017 -0400
 
-    cmd/internal/obj/arm: support more ARM VFP instructions
+    cmd/internal/obj/mips: add support of LLV, SCV, NOOP instructions
     
-    Add support of more ARM VFP instructions in the assembler.
-    They were introduced in ARM VFPv4.
+    LLV and SCV are 64-bit load-linked and store-conditional. They
+    were used in runtime as #define WORD. Change them to normal
+    instruction form.
     
-    "FMULAF/FMULAD   Fm, Fn, Fd": Fd = Fd + Fn*Fm
-    "FNMULAF/FNMULAD Fm, Fn, Fd": Fd = -(Fd + Fn*Fm)
-    "FMULSF/FMULSD   Fm, Fn, Fd": Fd = Fd - Fn*Fm
-    "FNMULSF/FNMULSD Fm, Fn, Fd": Fd = -(Fd - Fn*Fm)
+    NOOP is hardware no-op. It was written as WORD $0. Make a name
+    for it for better disassembly output.
     
-    The multiplication results are not rounded.
+    Fixes #12561.
+    Fixes #18238.
     
-    Change-Id: Id9cc52fd8e1b9a708103cd1e514c85a9e1cb3f47
-    Reviewed-on: https://go-review.googlesource.com/62550
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I82c667ce756fa83ef37b034b641e8c4366335e83
+    Reviewed-on: https://go-review.googlesource.com/40297
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/armerror.s |  8 ++++++++
- src/cmd/asm/internal/asm/testdata/armv6.s    |  8 ++++++++
- src/cmd/internal/obj/arm/a.out.go            |  8 ++++++++
- src/cmd/internal/obj/arm/anames.go           |  8 ++++++++
- src/cmd/internal/obj/arm/asm5.go             | 27 ++++++++++++++++++++++++++-
- 5 files changed, 58 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/mips64.s | 22 +++++++++++------
+ src/cmd/internal/obj/mips/a.out.go         |  3 +++
+ src/cmd/internal/obj/mips/anames.go        |  3 +++
+ src/cmd/internal/obj/mips/asm0.go          | 11 +++++++++
+ src/cmd/internal/obj/mips/obj0.go          | 10 +-------
+ src/runtime/internal/atomic/asm_mips64x.s  | 38 +++++++++++++-----------------
+ src/sync/atomic/asm_mips64x.s              | 30 ++++++++++-------------
+ 7 files changed, 61 insertions(+), 56 deletions(-)

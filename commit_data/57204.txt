@@ -1,16 +1,21 @@
-commit 6fb6ace3089edb868ceaefc2a804a794d6889574
-Author: Andy Pan <i@andypan.me>
-Date:   Mon Aug 19 14:06:40 2024 +0800
+commit d983be9cb54de1cde85ba7946bf30c8013cdf5f3
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Jul 11 15:54:48 2023 -0400
 
-    internal/poll: raise Linux's maxCopyFileRangeRound to MAX_RW_COUNT
+    go/types, types2: remove unnecessary assert on pointer size
     
-    Change-Id: I23c0c850ba57e7a49b78159d9293d1d25e1d2340
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606637
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    As described in #61249, uncommon pointer sizes do exist. Remove an
+    unnecessary assertion.
+    
+    Fixes #61249
+    
+    Change-Id: Ib15857bd6bcd42ec530817a132bb8db036236c3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508821
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/poll/copy_file_range_linux.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/const.go | 1 -
+ src/go/types/const.go                    | 1 -
+ 2 files changed, 2 deletions(-)

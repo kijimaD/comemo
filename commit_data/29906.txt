@@ -1,19 +1,22 @@
-commit 7d977e42797aa51a3867dee5a60031becb9a9d40
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 5 18:10:19 2017 +0000
+commit d26b0661c23dedc5c3e2c2ed2ca6250e440bf010
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Oct 11 09:26:40 2016 -0500
 
-    cmd/go: use ProxyFromEnvironment in -insecure mode also
+    cmd/link: add trampolines for too far calls in ppc64x
     
-    Be consistent on whether the http proxy environment variables are
-    respected regardless of whether -insecure is used.
+    This change adds support for trampolines on ppc64x when using
+    internal linking, in the case where the offset to the branch
+    target is larger than what fits in the field provided by the
+    branch instruction.
     
-    Updates #18519
+    Fixes #16665
     
-    Change-Id: Ib157eaacfd342dd3bfcd03e64da18c98c609cae3
-    Reviewed-on: https://go-review.googlesource.com/34818
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Icfee72910f38c94588d2adce517b64dee6176145
+    Reviewed-on: https://go-review.googlesource.com/30850
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/http.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/link/internal/ppc64/asm.go | 73 +++++++++++++++++++++++++++++++++++---
+ src/cmd/link/internal/ppc64/obj.go |  1 +
+ src/cmd/link/linkbig_test.go       | 22 ++++++++++--
+ 3 files changed, 88 insertions(+), 8 deletions(-)

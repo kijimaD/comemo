@@ -1,28 +1,16 @@
-commit a1dbfa6f09d2463f421eaa91ee06e15848df7ba0
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Nov 17 13:12:13 2011 +1100
+commit 0b1bcf8f94620b34396b3549ea959646e830c7c8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Nov 17 11:42:25 2011 +1100
 
-    html: parse <isindex>
+    http: fix serving from CWD with http.ServeFile
+    http: make Dir("") equivalent to Dir(".")
     
-    Pass tests2.dat, test 42:
-    <isindex test=x name=x>
+    Fixes #2471.
     
-    | <html>
-    |   <head>
-    |   <body>
-    |     <form>
-    |       <hr>
-    |       <label>
-    |         "This is a searchable index. Enter search keywords: "
-    |         <input>
-    |           name="isindex"
-    |           test="x"
-    |       <hr>
-    
-    R=nigeltao
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5399049
+    https://golang.org/cl/5370061
 
- src/pkg/html/parse.go      | 38 ++++++++++++++++++++++++++++++++++++++
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ src/pkg/net/http/fs.go      |  8 +++++++-
+ src/pkg/net/http/fs_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

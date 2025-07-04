@@ -1,86 +1,31 @@
-commit 84cfba17c2451f1a94ea7d812c1aba91e3606890
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Mon May 18 11:00:24 2015 +0200
+commit bff1417543c42af214837a87048b7bdb69e34df3
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Fri Apr 17 21:32:11 2015 -0400
 
-    runtime: don't always unblock all signals
+    crypto/tls: add support for session ticket key rotation
     
-    Ian proposed an improved way of handling signals masks in Go, motivated
-    by a problem where the Android java runtime expects certain signals to
-    be blocked for all JVM threads. Discussion here
+    This change adds a new method to tls.Config, SetSessionTicketKeys, that
+    changes the key used to encrypt session tickets while the server is
+    running. Additional keys may be provided that will be used to maintain
+    continuity while rotating keys. If a ticket encrypted with an old key is
+    provided by the client, the server will resume the session and provide
+    the client with a ticket encrypted using the new key.
     
-    https://groups.google.com/forum/#!topic/golang-dev/_TSCkQHJt6g
+    Fixes #9994
     
-    Ian's text is used in the following:
-    
-    A Go program always needs to have the synchronous signals enabled.
-    These are the signals for which _SigPanic is set in sigtable, namely
-    SIGSEGV, SIGBUS, SIGFPE.
-    
-    A Go program that uses the os/signal package, and calls signal.Notify,
-    needs to have at least one thread which is not blocking that signal,
-    but it doesn't matter much which one.
-    
-    Unix programs do not change signal mask across execve.  They inherit
-    signal masks across fork.  The shell uses this fact to some extent;
-    for example, the job control signals (SIGTTIN, SIGTTOU, SIGTSTP) are
-    blocked for commands run due to backquote quoting or $().
-    
-    Our current position on signal masks was not thought out.  We wandered
-    into step by step, e.g., http://golang.org/cl/7323067 .
-    
-    This CL does the following:
-    
-    Introduce a new platform hook, msigsave, that saves the signal mask of
-    the current thread to m.sigsave.
-    
-    Call msigsave from needm and newm.
-    
-    In minit grab set up the signal mask from m.sigsave and unblock the
-    essential synchronous signals, and SIGILL, SIGTRAP, SIGPROF, SIGSTKFLT
-    (for systems that have it).
-    
-    In unminit, restore the signal mask from m.sigsave.
-    
-    The first time that os/signal.Notify is called, start a new thread whose
-    only purpose is to update its signal mask to make sure signals for
-    signal.Notify are unblocked on at least one thread.
-    
-    The effect on Go programs will be that if they are invoked with some
-    non-synchronous signals blocked, those signals will normally be
-    ignored.  Previously, those signals would mostly be ignored.  A change
-    in behaviour will occur for programs started with any of these signals
-    blocked, if they receive the signal: SIGHUP, SIGINT, SIGQUIT, SIGABRT,
-    SIGTERM.  Previously those signals would always cause a crash (unless
-    using the os/signal package); with this change, they will be ignored
-    if the program is started with the signal blocked (and does not use
-    the os/signal package).
-    
-    ./all.bash completes successfully on linux/amd64.
-    
-    OpenBSD is missing the implementation.
-    
-    Change-Id: I188098ba7eb85eae4c14861269cc466f2aa40e8c
-    Reviewed-on: https://go-review.googlesource.com/10173
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idbc16b10ff39616109a51ed39a6fa208faad5b4e
+    Reviewed-on: https://go-review.googlesource.com/9072
+    Reviewed-by: Jonathan Rudenberg <jonathan@titanous.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- misc/cgo/test/cgo_linux_test.go    |  9 ++--
- misc/cgo/test/sigprocmask_linux.c  | 35 +++++++++++++++
- misc/cgo/test/sigprocmask_linux.go | 38 ++++++++++++++++
- src/runtime/os1_darwin.go          | 26 +++++++++--
- src/runtime/os1_dragonfly.go       | 28 ++++++++++--
- src/runtime/os1_freebsd.go         | 28 ++++++++++--
- src/runtime/os1_linux.go           | 28 ++++++++++--
- src/runtime/os1_nacl.go            |  3 ++
- src/runtime/os1_netbsd.go          | 29 ++++++++++--
- src/runtime/os1_openbsd.go         |  7 ++-
- src/runtime/os1_plan9.go           |  3 ++
- src/runtime/os1_windows.go         |  3 ++
- src/runtime/os3_solaris.go         | 29 ++++++++++--
- src/runtime/proc1.go               |  2 +
- src/runtime/runtime2.go            | 20 +++++----
- src/runtime/signal1_unix.go        | 92 +++++++++++++++++++++++++++++++++-----
- src/runtime/signal_darwin.go       | 14 +++---
- src/runtime/signal_linux.go        | 16 +++----
- src/runtime/signal_netbsd.go       | 14 +++---
- src/runtime/signal_solaris.go      | 14 +++---
- 20 files changed, 358 insertions(+), 80 deletions(-)
+ src/crypto/tls/common.go                           | 74 ++++++++++++++++-
+ src/crypto/tls/handshake_client_test.go            | 29 ++++++-
+ src/crypto/tls/handshake_server.go                 |  9 +++
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         | 92 +++++++++++-----------
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch | 92 +++++++++++-----------
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  | 69 ++++++++--------
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   | 69 ++++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-Resume       | 59 +++++++-------
+ .../tls/testdata/Server-TLSv12-ResumeDisabled      | 69 ++++++++--------
+ src/crypto/tls/ticket.go                           | 43 +++++++---
+ 10 files changed, 365 insertions(+), 240 deletions(-)

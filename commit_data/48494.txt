@@ -1,22 +1,17 @@
-commit 212bda066996d1ed06e738c8b408bb2b65896064
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Fri Mar 18 11:36:39 2022 -0700
+commit 155dc0e541368bbd208bfcf12985f58fb375dd5c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 21 19:46:45 2021 -0700
 
-    runtime/pprof: rerun magnitude test on failure
+    [dev.typeparams] cmd/compile/internal/types2: factor out constraint satisfaction check
     
-    Restructure TestCPUProfileMultithreadMagnitude so it will run again with
-    a longer duration on failure. Log the split between the user vs system
-    CPU time that rusage reports.
+    This is a simple move of a block of inlined code into a function
+    to make instantiation more manageable and easier to understand.
+    There is no change in functionality or behavior.
     
-    For #50232
-    
-    Change-Id: Ice5b38ee7594dbee1eaa5686d32b968c306e3e85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393934
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I46e7a9ea03527731e1f0219b3402eb03949627c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322070
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/pprof/pprof_test.go  | 66 ++++++++++++++++++++++++----------------
- src/runtime/pprof/rusage_test.go |  8 +++--
- 2 files changed, 44 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/types2/subst.go | 146 ++++++++++++++++---------------
+ 1 file changed, 77 insertions(+), 69 deletions(-)

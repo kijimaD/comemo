@@ -1,19 +1,55 @@
-commit 59bfc18e3441d9cd0b1b2f302935403bbf52ac8b
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Jan 8 16:12:46 2021 -0500
+commit 2cb10d42b762f5f47dd239a2c114d1840dc5cfbf
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 7 13:44:51 2020 -0700
 
-    cmd/go: add hint to read 'go help vcs' to GOVCS errors
+    cmd/compile: in prove, zero right shifts of positive int by #bits - 1
     
-    Fixes #43596
+    Taking over Zach's CL 212277. Just cleaned up and added a test.
     
-    Change-Id: Iff925d077b5de64161e88c9471402bc7e8885fcd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282713
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    For a positive, signed integer, an arithmetic right shift of count
+    (bit-width - 1) equals zero. e.g. int64(22) >> 63 -> 0. This CL makes
+    prove replace these right shifts with a zero-valued constant.
+    
+    These shifts may arise in source code explicitly, but can also be
+    created by the generic rewrite of signed division by a power of 2.
+    // Signed divide by power of 2.
+    // n / c =       n >> log(c) if n >= 0
+    //       = (n+c-1) >> log(c) if n < 0
+    // We conditionally add c-1 by adding n>>63>>(64-log(c))
+            (first shift signed, second shift unsigned).
+    (Div64 <t> n (Const64 [c])) && isPowerOfTwo(c) ->
+      (Rsh64x64
+        (Add64 <t> n (Rsh64Ux64 <t>
+            (Rsh64x64 <t> n (Const64 <typ.UInt64> [63]))
+            (Const64 <typ.UInt64> [64-log2(c)])))
+        (Const64 <typ.UInt64> [log2(c)]))
+    
+    If n is known to be positive, this rewrite includes an extra Add and 2
+    extra Rsh. This CL will allow prove to replace one of the extra Rsh with
+    a 0. That replacement then allows lateopt to remove all the unneccesary
+    fixups from the generic rewrite.
+    
+    There is a rewrite rule to handle this case directly:
+    (Div64 n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo(c) ->
+            (Rsh64Ux64 n (Const64 <typ.UInt64> [log2(c)]))
+    But this implementation of isNonNegative really only handles constants
+    and a few special operations like len/cap. The division could be
+    handled if the factsTable version of isNonNegative were available.
+    Unfortunately, the first opt pass happens before prove even has a
+    chance to deduce the numerator is non-negative, so the generic rewrite
+    has already fired and created the extra Ops discussed above.
+    
+    Fixes #36159
+    
+    By Printf count, this zeroes 137 right shifts when building std and cmd.
+    
+    Change-Id: Iab486910ac9d7cfb86ace2835456002732b384a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232857
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modget/query.go  |  4 +--
- src/cmd/go/internal/vcs/vcs.go       |  2 +-
- src/cmd/go/testdata/script/govcs.txt | 52 ++++++++++++++++++------------------
- 3 files changed, 29 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 33 +++++++++++++++---
+ test/codegen/arithmetic.go            | 11 ++++++
+ test/prove.go                         | 64 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 103 insertions(+), 5 deletions(-)

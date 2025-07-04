@@ -1,18 +1,14 @@
-commit a680a85ea7f3876c78d093fbb2690db6ca8eda8b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 6 13:04:34 2017 -0700
+commit 39e31d5ec009037f359ba0ba8ada154ffbbb52d5
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Jan 11 22:48:34 2017 -0500
 
-    cmd/compile/internal/gc: simplify export info
+    doc/go1.8: update timezone database version
     
-    Followup to previous typenod CL. Changes export data format, but only
-    the compiler-specific section, so no version bump.
+    Fixes #18623.
     
-    Change-Id: I0c21737141f3d257366b29b2a9211bc7217c39ee
-    Reviewed-on: https://go-review.googlesource.com/39797
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic965f5f7088c3270adbca7162226be486d1b9b4e
+    Reviewed-on: https://go-review.googlesource.com/35130
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 11 +----------
- src/cmd/compile/internal/gc/bimport.go | 10 +---------
- 2 files changed, 2 insertions(+), 19 deletions(-)
+ doc/go1.8.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

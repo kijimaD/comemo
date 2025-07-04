@@ -1,16 +1,21 @@
-commit acdd111e320363c77eb04a761f0b7d4a9dd64c22
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 4 18:14:06 2020 -0400
+commit 9df93e4d6d31674ee9ca7725bcf9dea2423d4aea
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 13 13:18:03 2019 +0100
 
-    doc/go1.15: document toolchain changes
+    doc: document atexit_sleep_ms flag in race_detector
     
-    Updates #37419.
+    It was pointed out to me that the thread sanitizer library has many more
+    flags than the ones documented in this doc page. In particular, I was
+    able to make use of GORACE=atexit_sleep_ms=10 to reduce the amount that
+    'go test -race' will sleep before finishing.
     
-    Change-Id: I403cb12083d37359187b45c392046f307054a5b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236618
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    I'm sure that this flag will be useful to others in the future, so add
+    it here. This is still not a complete list, but we can simply add useful
+    flags that work when we think they deserve a mention.
+    
+    Change-Id: If199d36fd80a0945af90055d110519e5dba27361
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200863
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- doc/go1.15.html | 37 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 37 insertions(+)
+ doc/articles/race_detector.html | 5 +++++
+ 1 file changed, 5 insertions(+)

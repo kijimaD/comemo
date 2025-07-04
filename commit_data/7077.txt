@@ -1,14 +1,15 @@
-commit 17d50d8664837c10a23560ed53a297b493dda26e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 11 09:36:44 2011 -0800
+commit 5b8bcf2324fab8a5b7c32886dda828b934645ecc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 11 11:12:15 2011 -0500
 
-    runtime/cgo: Add callbacks to support SWIG.
+    godefs: better handling of enums
     
-    R=rsc, iant2, r
+    Fixes #432.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/3886041
+    https://golang.org/cl/3869043
 
- src/pkg/runtime/cgo/Makefile    |  1 +
- src/pkg/runtime/cgo/callbacks.c | 73 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/cgo/cgo.go      |  7 ++++
- 3 files changed, 81 insertions(+)
+ src/cmd/godefs/main.c  |  2 ++
+ src/cmd/godefs/stabs.c | 13 +++++++++++--
+ 2 files changed, 13 insertions(+), 2 deletions(-)

@@ -1,21 +1,18 @@
-commit f55bb135d28bc95131a8c987d50350e5c6d7f633
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 6 12:54:27 2025 -0800
+commit 3e789713132be993e74b81e821a4485e83533d61
+Author: Quan Tong <quantonganh@gmail.com>
+Date:   Mon Nov 6 09:17:02 2023 +0700
 
-    cmd/cgo/internal/testsanitizers: for "leak", use -fsanitize=address
+    cmd/go: ensure the correct line number is displayed when using TB.Helper
     
-    We currently test the leak detector by running "go build -asan",
-    which will pass -fsanitize=address to the C compiler.
-    So use that when testing whether the option works.
+    Fixes #26995
     
-    Fixes #72128
-    
-    Change-Id: I4efc0b689bfda04c80dbac30a5c757215f297d2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655535
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-race,gotip-linux-386-longtest,gotip-windows-amd64-longtest
+    Change-Id: If3b68002d205fe985a692b69f5d7e0d2f20a7bd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540016
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/cgo/internal/testsanitizers/cc_test.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ .../go/testdata/script/test_race_issue26995.txt    | 42 ++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

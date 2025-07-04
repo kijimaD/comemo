@@ -1,19 +1,28 @@
-commit 9112511725e37312a95c9d2c33ff94fe2f4da6af
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sat Jan 25 16:45:12 2025 +0800
+commit d4395ebc0c90a11a5f31fab0808baf3cb25d6ba8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 8 23:17:23 2024 +0000
 
-    hash: add XOF interface
+    runtime: remove overlap in the GC CPU pause time metrics
     
-    For #69518
+    Currently the GC CPU pause time metrics start measuring before the STW
+    is complete. This results in a slightly less accurate measurement and
+    creates some overlap with other timings (for example, the idle time of
+    idle Ps) that will cause double-counting.
     
-    Change-Id: I68c7057c776522514eed37cf4dc0cfddec034d3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644235
-    Reviewed-by: Austin Clements <austin@google.com>
+    This CL adds a field to worldStop to track the point at which the world
+    actually stopped and uses that as the basis for the GC CPU pause time
+    metrics, basically eliminating this overlap.
+    
+    Note that this will cause Ps in _Pgcstop before the world is fully
+    stopped to be counted as user time. A follow-up CL will fix this
+    discrepancy.
+    
+    Change-Id: I287731f08415ffd97d327f582ddf7e5d2248a6f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570258
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
 
- api/next/69518.txt                       |  5 +++++
- doc/next/6-stdlib/99-minor/hash/69518.md |  3 +++
- src/hash/hash.go                         | 20 ++++++++++++++++++++
- 3 files changed, 28 insertions(+)
+ src/runtime/mgc.go  | 10 +++++-----
+ src/runtime/proc.go | 12 +++++++-----
+ 2 files changed, 12 insertions(+), 10 deletions(-)

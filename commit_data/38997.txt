@@ -1,29 +1,31 @@
-commit e56c73f17b49793f9c57c0706344afafbec726d1
-Author: David Chase <drchase@google.com>
-Date:   Thu Nov 1 17:31:20 2018 -0400
+commit 38e7177c949016c3d74411fa7ea1c300ae85c0fa
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu Dec 13 17:55:52 2018 +0100
 
-    runtime: look for idle p to run current goroutine when switching to GC or traceReader
+    cmd/compile: fix length overflow when appending elements to a slice
     
-    This repairs one of the several causes of pauses uncovered
-    by a GC microbenchmark.  A pause can occur when a goroutine's
-    quantum expires "at the same time" a GC is needed.  The
-    current M switches to running a GC worker, which means that
-    the amount of available work has expanded by one.  The GC
-    worker, however, does not call ready, and does not itself
-    conditionally wake a P (a "normal" thread would do this).
+    Instead of testing len(slice)+numNewElements > cap(slice) use
+    uint(len(slice)+numNewElements) > uint(cap(slice)) to test
+    if a slice needs to be grown in an append operation.
     
-    This is also true if M switches to a traceReader.
+    This prevents a possible overflow when len(slice) is near the maximum
+    int value and the addition of a constant number of new elements
+    makes it overflow and wrap around to a negative number which is
+    smaller than the capacity of the slice.
     
-    This is problem 4 in this list:
-    https://github.com/golang/go/issues/27732#issuecomment-423301252
+    Appending a slice to a slice with append(s1, s2...) already used
+    a uint comparison to test slice capacity and therefore was not
+    vulnerable to the same overflow issue.
     
-    Updates #27732.
+    Fixes: #29190
     
-    Change-Id: I6905365cac8504cde6faab2420f4421536551f0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/146817
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I41733895838b4f80a44f827bf900ce931d8be5ca
+    Reviewed-on: https://go-review.googlesource.com/c/154037
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/proc.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go |  4 ++--
+ test/fixedbugs/issue29190.go       | 37 +++++++++++++++++++++++++++++++++++++
+ test/prove.go                      |  2 +-
+ 3 files changed, 40 insertions(+), 3 deletions(-)

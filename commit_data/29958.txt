@@ -1,26 +1,20 @@
-commit 48d8edb5b21db190f717e035b4d9ab61a077f9d7
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Mon Jan 16 23:54:45 2017 +0000
+commit 2b687a7df854f3c88b266b6cec59a207a45c2353
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 17 16:03:27 2016 -0700
 
-    crypto/tls: disable CBC cipher suites with SHA-256 by default
+    cmd/compile: stop treating interface methods like actual functions
     
-    As is, they were fully vulnerable to the Lucky13 attack. The SHA1
-    variants implement limited countermeasures (see f28cf8346c4) but the
-    SHA256 ones are apparently used rarely enough (see 8741504888b) that
-    it's not worth the extra code.
+    Interface methods can't have function bodies, so there's no need to
+    process their parameter lists as variable declarations. The only
+    possible reason would be to check for duplicate parameter names and/or
+    invalid types, but we do that anyway, and have regression tests for it
+    (test/funcdup.go).
     
-    Instead, disable them by default and update the warning.
-    
-    Updates #13385
-    Updates #15487
-    
-    Change-Id: I45b8b716001e2fa0811b17e25be76e2512e5abb2
-    Reviewed-on: https://go-review.googlesource.com/35290
-    Reviewed-by: Adam Langley <alangley@gmail.com>
+    Change-Id: Iedb15335467caa5d872dbab829bf32ab8cf6204d
+    Reviewed-on: https://go-review.googlesource.com/31430
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matt Layher <mdlayher@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/cipher_suites.go | 6 +++---
- src/crypto/tls/tls.go           | 4 ++--
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

@@ -1,16 +1,19 @@
-commit c6293d2106515b1150b4765fa61b12cea76442ae
+commit 915784e11a58189524c9797ad5e1c1fc43eb632b
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed May 15 23:50:32 2013 +0400
+Date:   Wed May 15 21:22:32 2013 +0400
 
-    runtime: fix GC scanning of slices
-    If a slice points to an array embedded in a struct,
-    the whole struct can be incorrectly scanned as the slice buffer.
-    Fixes #5443.
+    runtime: add simple malloc benchmarks
+    Allocs of size 16 can bypass atomic set of the allocated bit, while allocs of size 8 can not.
+    Allocs with and w/o type info hit different paths inside of malloc.
+    Current results on linux/amd64:
+    BenchmarkMalloc8        50000000                43.6 ns/op
+    BenchmarkMalloc16       50000000                46.7 ns/op
+    BenchmarkMallocTypeInfo8        50000000                61.3 ns/op
+    BenchmarkMallocTypeInfo16       50000000                63.5 ns/op
     
-    R=cshapiro, iant, r, cshapiro, minux.ma
-    CC=bradfitz, gobot, golang-dev
-    https://golang.org/cl/9372044
+    R=golang-dev, remyoudompheng, minux.ma, bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/9090045
 
- src/pkg/runtime/gc_test.go | 24 ++++++++++++++++++++++++
- src/pkg/runtime/mgc0.c     |  6 +++++-
- 2 files changed, 29 insertions(+), 1 deletion(-)
+ src/pkg/runtime/malloc_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)

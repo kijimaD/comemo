@@ -1,37 +1,34 @@
-commit 0f64a49460974fa65292d8d5bf6c8a9ceca4b780
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 5 14:04:55 2022 -0400
+commit bfbe5ac9ce58fb59aa38ef69dee4933f20aac039
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 22:31:59 2021 -0500
 
-    os/exec: remove protection against a duplicate Close on StdinPipe
+    go/types: deduplicate signatures with the context
     
-    As of CL 438347, multiple concurrents calls to Close should be safe.
+    Extend the type checking context to allow de-duplicating *Signature
+    instances, in addition to *Named instances.
     
-    This removes some indirection and may also make some programs that use
-    type-assertions marginally more efficient. For example, if a program
-    calls (*exec.Cmd).StdinPipe to obtain a pipe and then sets that as the
-    Stdout of another command, that program will now allow the second
-    command to inherit the file descriptor directly instead of copying
-    everything through a goroutine.
+    Naively we would deduplicate instances of different-but-identical origin
+    *Signature types. That may be OK, but it seems a bit strange to get the
+    same signature when instantiating two different functions. For now,
+    differentiate *Signature types by prepending a unique identifier for the
+    origin pointer, thus guaranteeing that instances de-duplicated if they
+    come from the exact same (pointer identical) origin type.
     
-    This will also cause calls to Close after the first to return an error
-    wrapping os.ErrClosed instead of nil. However, it seems unlikely that
-    programs will depend on that error behavior: if a program is calling
-    Write in a loop followed by Close, then if a racing Close occurs it is
-    likely that the Write would have already reported an error. (The only
-    programs likely to notice a change are those that call Close — without
-    Write! — after a call to Wait.)
+    Updates #47103
     
-    Updates #56043.
-    Updates #9307.
-    Updates #6270.
-    
-    Change-Id: Iec734b23acefcc7e7ad0c8bc720085bc45988efb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439195
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I93cc3cacad195267fe0a5801f9c5a3b1e61eb907
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362801
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/exec/exec.go      | 22 ++--------------------
- src/os/exec/exec_test.go | 25 +++++++++++++++++++++++--
- 2 files changed, 25 insertions(+), 22 deletions(-)
+ src/go/types/api_test.go         |  14 +++--
+ src/go/types/context.go          |  39 +++++++------
+ src/go/types/instantiate.go      |  43 +++++++-------
+ src/go/types/instantiate_test.go | 118 ++++++++++++++++++++++++++++++---------
+ src/go/types/named.go            |   2 +-
+ src/go/types/subst.go            |   2 +-
+ src/go/types/typestring.go       |   2 +-
+ src/go/types/typexpr.go          |   2 +-
+ 8 files changed, 150 insertions(+), 72 deletions(-)

@@ -1,13 +1,16 @@
-commit 176041e4c6184358bd73d1535335f3cdf5f0852d
-Author: Péter Surányi <speter.go1@gmail.com>
-Date:   Sun May 11 22:06:00 2014 -0700
+commit 82ca3087439399737f66395a568ba9f5642b295b
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Sun May 11 14:46:44 2014 -0700
 
-    unicode: fix doc typo
+    net/rpc: do not leak client socket on closed connection
     
-    LGTM=robert.hencke, iant
-    R=golang-codereviews, robert.hencke, iant
+    Fixes #6897.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, r, rsc
     CC=golang-codereviews
-    https://golang.org/cl/96230043
+    https://golang.org/cl/91230045
 
- src/pkg/unicode/letter.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/rpc/client.go      | 14 ++++++++------
+ src/pkg/net/rpc/client_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 6 deletions(-)

@@ -1,22 +1,15 @@
-commit f7a39a54e9c75207bdf2f54fbb5e41d947e058f1
-Author: David Chase <drchase@google.com>
-Date:   Wed Sep 30 14:41:00 2015 -0400
+commit 6c08213dc050269cee3d4c2bc93d8dec907326e2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jul 28 10:58:27 2015 -0700
 
-    cmd/compile: escape analysis, don't always escape variadic args
+    cmd/dist: cleanup message about building go_bootstrap
     
-    Turns out the summary information for the ... args was
-    already correctly computed, all that lacked was to make
-    use of it and correct tests that documented our prior
-    deficiencies.
+    At this stage, dist is only building go_bootstrap as cmd/compile and
+    the rest of the Go toolchain has already been built.
     
-    Fixes #12006
-    
-    Change-Id: Ie8adfab7547f179391d470679598f0904aabf9f7
-    Reviewed-on: https://go-review.googlesource.com/15200
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I6f99fa00ff1d3585e215f4ce84d49344c4fcb8a5
+    Reviewed-on: https://go-review.googlesource.com/12779
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/esc.go |  23 +++--
- test/escape2.go                    |  34 ++++----
- test/escape2n.go                   |  34 ++++----
- test/fixedbugs/issue12006.go       | 174 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 221 insertions(+), 44 deletions(-)
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

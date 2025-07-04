@@ -1,17 +1,18 @@
-commit 041787280976d0bad15c646fc7c7bbfef76d7ee5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 20 13:53:18 2015 -0800
+commit f9e404c1c56065cc2140a06fc5f9d1fc640cfe0f
+Author: Spencer Nelson <s@spenczar.com>
+Date:   Fri Sep 11 13:41:45 2015 -0400
 
-    cmd/cgo: ignore vars with no name or type if they have a AttrSpecification
+    math/rand: make Rand fulfill the Reader interface
     
-    Fixes #13344.
+    Add a Read function to Rand which reads random bytes into a buffer.
     
-    Change-Id: I33c6721fd33d144c85c87840ddf27ce15aa72328
-    Reviewed-on: https://go-review.googlesource.com/17151
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #8330
+    
+    Change-Id: I85b90277b8be9287c6697def8dbefe0029b6ee06
+    Reviewed-on: https://go-review.googlesource.com/14522
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/test/issue1635.go | 5 +++++
- src/cmd/cgo/gcc.go         | 5 +++++
- 2 files changed, 10 insertions(+)
+ src/math/rand/rand.go         | 17 +++++++++
+ src/math/rand/rand_test.go    | 80 +++++++++++++++++++++++++++++++++++++++++++
+ src/math/rand/regress_test.go | 77 ++++++++++++++++++++++++++++-------------
+ 3 files changed, 150 insertions(+), 24 deletions(-)

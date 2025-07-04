@@ -1,24 +1,19 @@
-commit 7a8ce5e3de6a2eeb108dae67cc005e8b998bcbfa
-Author: Mohammed Al Sahaf <msaa1990@gmail.com>
-Date:   Fri Dec 6 20:22:56 2024 +0300
+commit 2b58355ef624239dbe32185dc8dfc9d1074615c6
+Author: codesoap <codesoap@mailbox.org>
+Date:   Thu Feb 8 22:18:27 2024 +0000
 
-    cmd/go: point tidy errors to correct URL
+    net/http: remove superfluous newline on redirects
     
-    The `go mod tidy` errors have been pointing to an older URL. This CL
-    fixes the URL by pointing to the correct URL: https://go.dev/ref/mod.
-    
-    Fixes #49394
-    
-    Change-Id: I707dda407ba032db8a55083998002a5ab72033e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633421
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I30d3ae9d540f9cc85ea5a6875ee8884d3e646d6f
+    GitHub-Last-Rev: 29cabdcb3a8746ef51953617f4ec47deac3608da
+    GitHub-Pull-Request: golang/go#65623
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562356
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modload/load.go                         | 3 +--
- src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt    | 4 ++--
- src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt      | 4 ++--
- src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt     | 4 ++--
- src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt | 4 ++--
- 5 files changed, 9 insertions(+), 10 deletions(-)
+ src/net/http/serve_test.go | 2 +-
+ src/net/http/server.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

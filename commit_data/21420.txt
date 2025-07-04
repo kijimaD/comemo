@@ -1,17 +1,19 @@
-commit a0c5d2840336b74db781757a7d40472ef204a7b9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 30 14:25:55 2015 -0800
+commit 19f2bd8c2e0030a807a45d9539569481f5edbda4
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Dec 18 22:27:26 2014 +1300
 
-    math/big: split int conversion routines and tests into separate files
+    cmd/go: be more careful when linking a test exe with gccgo
     
-    No other functional changes.
+    Previously, we ended up passing two compiled objects for the package
+    being tested when linking the test executable.  Somewhat by luck, this
+    worked most of the time but occasionally it did not.  This changes the
+    linking code to not pass two objects for the same ImportPath and to
+    always pass the object for the test version of the package and removes
+    some unecessary nil checks.
     
-    Change-Id: If0d9e6208d53478e70d991b6926ea196b2cccf2e
-    Reviewed-on: https://go-review.googlesource.com/3672
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I7bbd3fc708f14672ee2cc6aed3397421fceb8a38
+    Reviewed-on: https://go-review.googlesource.com/1840
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/int.go          | 215 ---------------------------
- src/math/big/int_test.go     | 331 -----------------------------------------
- src/math/big/intconv.go      | 228 +++++++++++++++++++++++++++++
- src/math/big/intconv_test.go | 342 +++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 570 insertions(+), 546 deletions(-)
+ src/cmd/go/build.go | 59 +++++++++++++++++++++++++++--------------------------
+ 1 file changed, 30 insertions(+), 29 deletions(-)

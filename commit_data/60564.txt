@@ -1,0 +1,20 @@
+commit 0a4215c234fedb3c888dd184416fa1ef08dfe9ae
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jun 26 14:58:12 2024 -0400
+
+    cmd/compile: keep internal/runtime packages sorted
+    
+    This is a minor cleanup from CL 600436.
+    
+    For #65355.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-darwin-amd64-longtest
+    Change-Id: I8e27f0c6ba6bd35f4aa2b9d53c394fb5f1eb433d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595116
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/test/inl_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

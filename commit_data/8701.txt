@@ -1,28 +1,16 @@
-commit b96c3477f8edd414b9be5670f3912f7cb15eab1e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 13 09:20:23 2011 -0400
+commit b4bb970e1852e9f5340b846379ce4a434a1b9d26
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Mon Jun 13 22:50:51 2011 +1000
 
-    exp/regexp/syntax: syntax data structures, parser
+    gc: handle go print() and go println()
     
-    Parser is a work in progress but can populate most of the
-    interesting parts of the data structure, so a good checkpoint.
-    All the complicated Perl syntax is missing, as are various
-    important optimizations made during parsing to the
-    syntax tree.
+    Fixes #1952.
     
-    The plan is that exp/regexp's API will mimic regexp,
-    and exp/regexp/syntax provides the parser directly
-    for programs that need it (and for implementing exp/regexp).
-    
-    Once finished, exp/regexp will replace regexp.
-    
-    R=r, sam.thorogood, kevlar, edsrzf
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4538123
+    https://golang.org/cl/4611041
 
- src/pkg/Makefile                        |   1 +
- src/pkg/exp/regexp/syntax/Makefile      |  12 +
- src/pkg/exp/regexp/syntax/parse.go      | 561 ++++++++++++++++++++++++++++++++
- src/pkg/exp/regexp/syntax/parse_test.go | 266 +++++++++++++++
- src/pkg/exp/regexp/syntax/regexp.go     | 210 ++++++++++++
- 5 files changed, 1050 insertions(+)
+ src/cmd/gc/walk.c | 11 ++++++++++-
+ test/golden.out   |  3 +++
+ test/goprint.go   | 14 ++++++++++++++
+ 3 files changed, 27 insertions(+), 1 deletion(-)

@@ -1,27 +1,45 @@
-commit 25c3bb377ac455184cc9870e690df45fe3f6e1ab
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 9 23:00:35 2018 -0400
+commit a3d8326993f25869ffb01f27a085abcfabbb42ef
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Feb 13 02:51:23 2018 +0100
 
-    cmd/go: add ImportMap to go list package struct
+    doc: first version of new contribute guide
     
-    Also populate Imports for test main with go list -test.
+    I've reorganized the guide and rewritten large sections.
     
-    Update comment in internal/load/test.go about
-    p.Imports, p.Internal.RawImports, and p.Imports
-    being perfectly aligned. The first two are,
-    but the third is not, as evidenced by CL 111175.
+    The structure is now more clear and logical, and can
+    be understood and navigated using the summary displayed at
+    the top of the page (before, the summary was confusing because
+    the guide contained H1s that were being ignored by the summary).
     
-    Since p.Imports is not aligned, don't assume that anymore.
+    Both the initial onboarding process and the Gerrit
+    change submission process have been reworked to
+    include a concise checklist of steps that can be
+    read and understood in a few seconds, for people
+    that don't want or need to bother with details.
+    More in-depth descriptions have been moved into
+    separate sections, one per each checklist step.
+    This is by far the biggest improvement, as the previous
+    approach of having to read several pages just to understand
+    the requires steps was very scaring for beginners, in
+    addition of being harder to navigate.
     
-    Fixes #25949.
+    GitHub pull requests have been integrated as a different
+    way to submit a change, suggested for first time contributors.
     
-    Change-Id: Icbfbc881bc01d1e195a759648fbd1c978ddbc161
-    Reviewed-on: https://go-review.googlesource.com/122878
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    The review process has been described in more details,
+    documenting the workflow and the used conventions.
+    
+    Most miscellanea have been moved into an "advanced
+    topics" chapter.
+    
+    Paragraphs describing how to use git have been removed
+    to simplify reading. This guide should focus on Go contribution,
+    and not help users getting familiar with git, for which many
+    guides are available.
+    
+    Change-Id: I6f4b76583c9878b230ba1d0225745a1708fad2e8
+    Reviewed-on: https://go-review.googlesource.com/93495
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/go_test.go            | 15 +++++++++++++
- src/cmd/go/internal/list/list.go | 46 +++++++++++++++++++++++++++++-----------
- src/cmd/go/internal/load/pkg.go  |  5 +++--
- src/cmd/go/internal/load/test.go | 25 ++++++++++++++++++----
- 4 files changed, 73 insertions(+), 18 deletions(-)
+ doc/contribute.html | 1142 +++++++++++++++++++++++++++++----------------------
+ 1 file changed, 655 insertions(+), 487 deletions(-)

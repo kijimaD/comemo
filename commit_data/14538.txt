@@ -1,21 +1,27 @@
-commit d7b0f2a524743fef990c6905e628304a0065116f
-Author: Johan Euphrosine <proppy@google.com>
-Date:   Sat Dec 1 14:11:46 2012 -0800
+commit b18a7c7caeca314f71326cfa9b59ea3bbcbf0850
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Dec 1 09:26:07 2012 +0100
 
-    math/rand: remove noop iteration in Perm
+    net: remove unnecessary Close contention.
     
-    The first iteration always do `m[0], m[0] = m[0], m[0]`, because
-    `rand.Intn(1)` is 0.
+    Contention profile in BenchmarkTCPOneShot (Core 2 Quad):
     
-    fun note: IIRC in TAOCP version of this algorithm, `i` goes
-    backward (n-1->1), meaning that the "already" shuffled part of the
-    array is never altered betweens iterations, while in the current
-    implementation the "not-yet" shuffled part of the array is
-    conserved between iterations.
+    Before
+    Total: 80.285 seconds
+    44.743  55.7%  55.7%   44.743  55.7% runtime.chanrecv1
+    31.995  39.9%  95.6%   31.995  39.9% sync.(*Mutex).Lock
+     3.547   4.4% 100.0%    3.547   4.4% runtime.chansend1
     
-    R=golang-dev
+    After
+    Total: 48.341 seconds
+    45.810  94.8%  94.8%   45.810  94.8% runtime.chanrecv1
+     2.530   5.2% 100.0%    2.530   5.2% runtime.chansend1
+     0.001   0.0% 100.0%    0.001   0.0% sync.(*Mutex).Lock
+    
+    R=golang-dev, dave, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6845121
+    https://golang.org/cl/6845119
 
- src/pkg/math/rand/rand.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/fd_unix.go    | 3 ++-
+ src/pkg/net/sock_posix.go | 1 -
+ 2 files changed, 2 insertions(+), 2 deletions(-)

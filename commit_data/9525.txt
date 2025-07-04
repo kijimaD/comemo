@@ -1,12 +1,13 @@
-commit 1d6ae53cc2c71ba189c0c2b06a1cd7db18081933
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Mon Aug 29 16:17:08 2011 +1000
+commit 361c5ace0597d57480837f4c610c47e7bf20bd18
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 29 15:56:52 2011 +1000
 
-    fix windows/amd64 build with newest mingw-w64
+    template: range over channel
     
-    R=alex.brainman, golang-dev
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4968048
+    https://golang.org/cl/4951046
 
- include/libc.h | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/template/exec.go      | 50 +++++++++++++++++++++++++------------------
+ src/pkg/template/exec_test.go | 24 ++++++++++++++++++++-
+ 2 files changed, 52 insertions(+), 22 deletions(-)

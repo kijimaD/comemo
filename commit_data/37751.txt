@@ -1,12 +1,33 @@
-commit 9ded8b0e97588895e00e93299e4a4a748cfa3a4b
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Tue Dec 18 21:32:48 2018 +0100
+commit 05c02444eb2d8b8d3ecd949c4308d8e2323ae087
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Aug 24 11:02:00 2018 +0200
 
-    doc/go1.12: note that syscall.Getdirentries is no longer supported on iOS
+    all: align cpu feature variable offset naming
     
-    Change-Id: I4277f4130b460b42c5b51fd5a5e07f6c0e62163b
-    Reviewed-on: https://go-review.googlesource.com/c/154720
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Add an "offset_" prefix to all cpu feature variable offset constants to
+    signify that they are not boolean cpu feature variables.
+    
+    Remove _ from offset constant names.
+    
+    Change-Id: I6e22a79ebcbe6e2ae54c4ac8764f9260bb3223ff
+    Reviewed-on: https://go-review.googlesource.com/131215
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.12.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/internal/bytealg/bytealg.go        | 11 ++++++-----
+ src/internal/bytealg/compare_amd64.s   |  2 +-
+ src/internal/bytealg/count_amd64.s     |  6 +++---
+ src/internal/bytealg/equal_386.s       |  2 +-
+ src/internal/bytealg/equal_amd64.s     |  2 +-
+ src/internal/bytealg/index_amd64.s     |  2 +-
+ src/internal/bytealg/indexbyte_amd64.s |  2 +-
+ src/internal/bytealg/indexbyte_s390x.s |  2 +-
+ src/runtime/asm_386.s                  |  2 +-
+ src/runtime/cpuflags.go                |  8 ++++----
+ src/runtime/memclr_386.s               |  2 +-
+ src/runtime/memclr_amd64.s             |  2 +-
+ src/runtime/memmove_386.s              |  4 ++--
+ src/runtime/memmove_amd64.s            |  2 +-
+ src/runtime/vlop_arm.s                 |  2 +-
+ 15 files changed, 26 insertions(+), 25 deletions(-)

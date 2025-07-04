@@ -1,18 +1,29 @@
-commit c70f069902c8dc4c76003eb494e549bafdd3313e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Feb 26 10:08:30 2020 -0500
+commit e13a4d9586917edb657a869736953b30a32c31d4
+Author: Tai <letientai299@gmail.com>
+Date:   Wed Jun 12 04:57:02 2019 +0800
 
-    cmd/link: reenable internal linking PIE on linux/amd64 and linux/arm64
+    cmd/cgo: build unique C type cache keys from parent names
     
-    It was enabled in CL 207877, but then accidentally disabled in
-    CL 207299 due to a bad rebase. Reenable.
+    When translating C types, cache the in-progress type under its parent
+    names, so that anonymous structs can also be translated for multiple
+    typedefs, without clashing.
     
-    Change-Id: I147bf724a4263d4aae54576a36cc7e1cad5e8a2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221098
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Standalone types are not affected by this change.
+    
+    Also updated the test for issue 9026 because the C struct name
+    generation algorithm has changed.
+    
+    Fixes #31891
+    
+    Change-Id: I00cc64852a2617ce33da13f74caec886af05b9f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181857
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <mail@eliasnaur.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/config.go | 12 +++---------
- 1 file changed, 3 insertions(+), 9 deletions(-)
+ misc/cgo/test/cgo_test.go                     |  1 +
+ misc/cgo/test/issue31891.c                    | 13 +++++++++++++
+ misc/cgo/test/testdata/issue9026/issue9026.go |  2 +-
+ misc/cgo/test/testx.go                        | 23 +++++++++++++++++++++++
+ src/cmd/cgo/gcc.go                            | 15 +++++++++++----
+ 5 files changed, 49 insertions(+), 5 deletions(-)

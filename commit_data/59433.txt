@@ -1,26 +1,31 @@
-commit d13da63929df73ab506314f35524ebb9b0f8a216
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Tue May 6 10:10:30 2025 +0800
+commit 74a0e3160d969fac27a65cd79a76214f6d1abbf5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 10 23:41:33 2024 -0400
 
-    cmd/internal/obj/loong64: add [X]VFRINT[{RNE/RZ/RP/RM}].{S/D} instructions
+    time: clean up benchmarks
     
-    Go asm syntax:
-             VFRINT[{RNE/RZ/RP/RM}]{F/D}    VJ, VD
-            XVFRINT[{RNE/RZ/RP/RM}]{F/D}    XJ, XD
+    Comparing BenchmarkStop against very old commits like
+    CL 13094043, I was very confused about how timers had
+    gotten almost 10X slower since 2013.
     
-    Equivalent platform assembler syntax:
-             vfrint[{rne/rz/rp/rm}].{s/d}   vd, vj
-            xvfrint[{rne/rz/rp/rm}].{s/d}   xd, xj
+    It turns out that CL 68060043 introduced a factor of 1000
+    in the benchmark cost, by counting batches of 1000 as 1 op
+    instead of 1000 ops, and timers have actually gotten
+    dramatically faster since 2013, with the addition of per-P
+    timer heaps and other optimizations.
     
-    Change-Id: I4ed8782289ae3329d675239f799d5f75b1adc4ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670235
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This CL rewrites the benchmarks to use testing.PB directly,
+    so that the factor of 1000 disappears, and "/op" really means "/op".
+    In the few tests that need to run in batches for one reason or
+    another, add "1000" to the name to make clear that batches
+    are being run.
+    
+    Change-Id: I27ed74d1e420934982e4205aad4f218cdfc42509
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570495
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 22 +++++++++
- src/cmd/internal/obj/loong64/a.out.go           | 22 +++++++++
- src/cmd/internal/obj/loong64/anames.go          | 20 +++++++++
- src/cmd/internal/obj/loong64/asm.go             | 60 +++++++++++++++++++++++++
- 4 files changed, 124 insertions(+)
+ src/time/sleep_test.go | 116 ++++++++++++++++++++++++++-----------------------
+ src/time/tick_test.go  |  12 ++---
+ 2 files changed, 67 insertions(+), 61 deletions(-)

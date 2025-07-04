@@ -1,51 +1,23 @@
-commit 7a218942be57765f842786abff85d3a813592d70
-Author: Lubomir I. Ivanov (VMware) <neolit123@gmail.com>
-Date:   Sat Feb 24 12:06:06 2018 +0000
+commit d790ea3ef1152cd8aded824ffca50a8c56577469
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 17 21:48:47 2017 -0400
 
-    os/user: obtain a user home path on Windows
+    cmd/go: skip updateBuildID on binaries we will run
     
-    newUserFromSid() is extended so that the retriaval of the user home
-    path based on a user SID becomes possible.
+    On modern Unix systems it is basically impossible for a multithreaded
+    program to open a binary for write, close it, and then fork+exec that
+    same binary. So don't write the binary if we're going to fork+exec it.
     
-    (1) The primary method it uses is to lookup the Windows registry for
-    the following key:
-      HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\[SID]
+    This fixes the ETXTBSY flakes.
     
-    If the key does not exist the user might not have logged in yet.
-    If (1) fails it falls back to (2)
+    Fixes #22220.
+    See also #22315.
     
-    (2) The second method the function uses is to look at the default home
-    path for users (e.g. WINAPI's GetProfilesDirectory()) and append
-    the username to that. The procedure is in the lines of:
-      c:\Users + \ + <username>
-    
-    The function newUser() now requires the following arguments:
-      uid, gid, dir, username, domain
-    This is done to avoid multiple calls to usid.String() and
-    usid.LookupAccount("") in the case of a newUserFromSid()
-    call stack.
-    
-    The functions current() and newUserFromSid() both call newUser()
-    supplying the arguments in question. The helpers
-    lookupUsernameAndDomain() and findHomeDirInRegistry() are
-    added.
-    
-    This commit also updates:
-    - go/build/deps_test.go, so that the test now includes the
-    "internal/syscall/windows/registry" import.
-    - os/user/user_test.go, so that User.HomeDir is tested on Windows.
-    
-    GitHub-Last-Rev: 25423e2a3820121f4c42321e7a77a3977f409724
-    GitHub-Pull-Request: golang/go#23822
-    Change-Id: I6c3ad1c4ce3e7bc0d1add024951711f615b84ee5
-    Reviewed-on: https://go-review.googlesource.com/93935
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I6be4802fa174726ef2a93d5b2f09f708da897cdb
+    Reviewed-on: https://go-review.googlesource.com/71570
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/deps_test.go                        |  2 +-
- src/internal/syscall/windows/security_windows.go |  2 +
- src/internal/syscall/windows/zsyscall_windows.go | 14 ++++
- src/os/user/lookup_windows.go                    | 94 +++++++++++++++++++++---
- src/os/user/user_test.go                         | 10 +--
- 5 files changed, 104 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/work/build.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

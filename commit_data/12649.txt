@@ -1,12 +1,17 @@
-commit 20760e43356472f7c596ab2632fc069231af3ba0
+commit b4e0aeac3222e9d18837c564bba6d72a76b3dbf7
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 15 15:08:57 2012 -0400
+Date:   Thu Mar 15 14:50:51 2012 -0400
 
-    go/build: do not report Target for local imports
+    lib/godoc: removing leading / from search links
+    
+    srcLink includes the / now; adding another yields //,
+    which means something else entirely in URLs.
+    
+    Fixes #3327.
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5820064
+    https://golang.org/cl/5823060
 
- src/pkg/go/build/build.go | 1 +
- 1 file changed, 1 insertion(+)
+ lib/godoc/search.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

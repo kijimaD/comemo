@@ -1,19 +1,14 @@
-commit ee3c272611ab59ee68399596e5fb764b81a9dd8d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 6 15:08:00 2012 -0400
+commit 81368d9bb9cc503df33d470785edc816a9086cd3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jun 6 20:19:16 2012 +0800
 
-    fmt: fix inadvertent change to %#v
+    build: restore PATH before "dist banner"
+            Fixes #3699.
     
-    The reordering speedup in CL 6245068 changed the semantics
-    of %#v by delaying the clearing of some flags.  Restore the old
-    semantics and add a test.
-    
-    Fixes #3706.
-    
-    R=golang-dev, r
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/6302048
+    https://golang.org/cl/6272048
 
- src/pkg/fmt/fmt_test.go |  1 +
- src/pkg/fmt/print.go    | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+)
+ src/all.bash | 2 ++
+ src/all.bat  | 2 ++
+ 2 files changed, 4 insertions(+)

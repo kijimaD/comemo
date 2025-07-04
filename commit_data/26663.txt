@@ -1,17 +1,16 @@
-commit 59fc42b230671d083feb68925d9cadc1da1d2616
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 1 15:06:25 2016 -0700
+commit 11e51ed4bc3d901c4272ba57bde4771bb7d8f6f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Feb 20 11:06:35 2016 -0800
 
-    runtime: allocate mp.cgocallers earlier
+    cmd/compile: remove gratuituous copying of lexer token data
     
-    Fixes #15061.
+    Rename yySymType to lexer; should eventually capture all lexer state.
+    Embed lexer in parser and access lexer token data directly.
     
-    Change-Id: I71f69f398d1c5f3a884bbd044786f1a5600d0fae
-    Reviewed-on: https://go-review.googlesource.com/21398
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I246194705d594f80426f3ba77d8580af9185daf7
+    Reviewed-on: https://go-review.googlesource.com/19759
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/cgocall.go | 5 -----
- src/runtime/proc.go    | 5 +++++
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/lex.go    | 29 +++++++++++++++++------------
+ src/cmd/compile/internal/gc/parser.go | 19 ++++---------------
+ 2 files changed, 21 insertions(+), 27 deletions(-)

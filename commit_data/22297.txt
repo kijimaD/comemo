@@ -1,34 +1,17 @@
-commit 4f2a73011f2d076d97a2b46492ab21f26a33222b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 2 17:01:14 2015 -0700
+commit d934d10a0b6dcc4a0f4a90a5250b059d3b2a7073
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 3 11:37:06 2015 -0800
 
-    cmd/internal/gc, cmd/yacc: restore remaining custom error messages
+    math/big: introduce Undef Accuracy, use for NaN operands/results
     
-    This CL extends cmd/yacc to expose a yyErrorVerbose variable that
-    changes the error messages from just "syntax error" to "syntax error:
-    unexpected ${tokname}".
+    This change represents Accuracy as a bit pattern rather than
+    an ordered value; with a new value Undef which is both Below
+    and Above.
     
-    It also moves the yyToknames table generation to after rules have been
-    processed so that entries can be generated for tokens that aren't
-    mentioned in the preamble (e.g., '.' in the case of go.y).
-    
-    Lastly, it restores gc's old code for applying yytfix to yyToknames,
-    except that substituting "LLITERAL" with litbuf happens in Yyerror.
-    
-    Fixes #9968.
-    
-    Change-Id: Icec188d11fdabc1dae31b8a471c35b5c7f6deec7
-    Reviewed-on: https://go-review.googlesource.com/8432
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibb96294c1417fb3cf2c3cf2374c993b0a4e106b3
+    Reviewed-on: https://go-review.googlesource.com/6650
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/internal/gc/lex.go   | 22 ++++++++++++++-
- src/cmd/internal/gc/subr.go  | 55 +++++++++++++++++--------------------
- src/cmd/internal/gc/y.go     | 35 +++++++++++++++++++-----
- src/cmd/internal/gc/yymsg.go |  2 +-
- src/cmd/yacc/yacc.go         | 64 ++++++++++++++++++++++++--------------------
- test/fixedbugs/bug349.go     |  3 ---
- test/fixedbugs/bug388.go     |  3 ---
- test/fixedbugs/bug435.go     |  3 ---
- 8 files changed, 110 insertions(+), 77 deletions(-)
+ src/math/big/float.go      | 62 ++++++++++++++++++++++------------------------
+ src/math/big/float_test.go | 49 ++++++++++++++++++++----------------
+ 2 files changed, 57 insertions(+), 54 deletions(-)

@@ -1,18 +1,16 @@
-commit 43c4287b25da53b2e8cb0de64d40689c56eb42bd
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 24 16:53:34 2014 -0400
+commit c3dbf56a14e8d9dffab7330c203a82a66cf9722e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Sep 15 18:16:45 2014 -0700
 
-    cmd/gc: fix import of package with var func returning _
+    cmd/ld: document that -X overwrites initialized variables
     
-    Fixes #8280.
+    Fixes #7626.
     
     LGTM=iant
-    R=golang-codereviews, iant
-    CC=golang-codereviews, r
-    https://golang.org/cl/146240043
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/144870045
 
- src/cmd/gc/fmt.c                  | 15 +++++----------
- test/fixedbugs/issue8280.dir/a.go |  3 +++
- test/fixedbugs/issue8280.dir/b.go |  5 +++++
- test/fixedbugs/issue8280.go       |  9 +++++++++
- 4 files changed, 22 insertions(+), 10 deletions(-)
+ src/cmd/ld/doc.go | 6 +++---
+ test/linkx.go     | 8 ++++++--
+ 2 files changed, 9 insertions(+), 5 deletions(-)

@@ -1,20 +1,21 @@
-commit d4dbad53ca080d767798ee4267999868d7f2c22d
-Author: Bryan Mills <bcmills@google.com>
-Date:   Tue Apr 12 02:53:29 2022 +0000
+commit 3249b645c986849bbf72c1dc71efc4f90df465ec
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jun 13 22:26:21 2021 +0700
 
-    Revert "cmd/compile/internal: fix test error on loong64"
+    cmd/compile: factor out rewrite multi-valued f()
     
-    This reverts CL 367043.
+    So next CL can reuse code to rewrite OAS2FUNC.
     
-    Reason for revert: auto-submitted prematurely, breaking tests on most builders.
+    Passes toolstash -cmp.
     
-    Change-Id: I6da319fb042b629bcd6f549be638497a357e7d28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399795
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #46725
+    
+    Change-Id: I1113ed615b6d6b9494dd87000ce342d7a46d9e7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327650
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
- src/cmd/compile/internal/test/inl_test.go      | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/typecheck/typecheck.go | 31 +++++++++++++++----------
+ 1 file changed, 19 insertions(+), 12 deletions(-)

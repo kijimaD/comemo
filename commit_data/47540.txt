@@ -1,20 +1,34 @@
-commit d8f7a64519695f037cce8696c5c3b7216fd4a680
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Nov 17 16:12:43 2021 -0800
+commit 7ce361737fad30a78e47f2d12bd797efcc056b1c
+Author: Josh Rickmar <jrick@companyzero.com>
+Date:   Thu Mar 25 14:37:48 2021 +0000
 
-    test: make issue8606b test more robust
+    net: only perform IPv4 map check for AF_INET6 sockets
     
-    Use actual unmapped memory instead of small integers to make
-    pointers that will fault when accessed.
+    This change avoids executing syscalls testing if IPv4 address mapping
+    is possible unless the socket being opened belongs to the AF_INET6
+    family.
     
-    Fixes #49562
+    In a pledged OpenBSD process, this test is only allowed when the
+    "inet" pledge is granted; however this check was also being performed
+    for AF_UNIX sockets (separately permitted under the "unix" pledge),
+    and would cause the process to be killed by the kernel.  By avoiding
+    the IPv4 address mapping check until the socket is checked to be
+    AF_INET6, a pledged OpenBSD process using AF_UNIX sockets without the
+    "inet" pledge won't be killed for this misbehavior.
     
-    Change-Id: I2c60c97cf80494dd962a07d10cfeaff6a00f4f8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364914
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    The OpenBSD kernel is not currently ready to support using UNIX domain
+    sockets with only the "unix" pledge (and without "inet"), but this is
+    one change necessary to support this.
+    
+    Change-Id: If6962a7ad999b71bcfc9fd8e10d9c4067fa3f338
+    GitHub-Last-Rev: 3c5541b334fad54606a3d14dfe1b63b28b33a0d1
+    GitHub-Pull-Request: golang/go#45155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303276
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Aaron Bieber <deftly@gmail.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue8606b.go | 37 ++++++++++++++++++++++---------------
- 1 file changed, 22 insertions(+), 15 deletions(-)
+ src/net/sockopt_bsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

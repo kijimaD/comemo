@@ -1,20 +1,20 @@
-commit 9f3b00579eca946337d486776797b78aaf3bc55b
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Aug 1 09:35:02 2012 +1000
+commit b6ea905ed9cb1f0db828c0d58609c853eb82b89d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Aug 1 00:45:26 2012 +0200
 
-    exp/html: tokenize attributes of end tags
+    cmd/gc: fix inlining bug with receive operator.
     
-    If an end tag has an attribute that is a quoted string containing '>',
-    the tokenizer would end the tag prematurely. Now it reads the attributes
-    on end tags just as it does on start tags, but the high-level interface
-    still doesn't return them, because their presence is a parse error.
+    The receive operator was given incorrect precedence
+    resulting in incorrect deletion of parentheses.
     
-    Pass 1 additional test.
+    Fixes #3843.
     
-    R=nigeltao
-    CC=golang-dev
-    https://golang.org/cl/6457060
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6442049
 
- src/pkg/exp/html/testlogs/scriptdata01.dat.log |  2 +-
- src/pkg/exp/html/token.go                      | 71 +++++++++++---------------
- 2 files changed, 32 insertions(+), 41 deletions(-)
+ src/cmd/gc/fmt.c                  |  2 +-
+ test/fixedbugs/bug448.dir/pkg1.go | 11 +++++++++++
+ test/fixedbugs/bug448.dir/pkg2.go | 14 ++++++++++++++
+ test/fixedbugs/bug448.go          |  7 +++++++
+ 4 files changed, 33 insertions(+), 1 deletion(-)

@@ -1,21 +1,25 @@
-commit e2103adb6cf4e7d7d0905e513852407355967638
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 7 14:14:47 2016 -0700
+commit d32229b3b1edd3d3b1e2dbb61bd6ae7cd8400d56
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 22 12:15:08 2016 -0400
 
-    crypto/*, runtime: nacl asm fixes
+    cmd/compile: in a Tarjan algorithm, DFS should really be DFS
     
-    Found by vet.
+    Replaced incorrect recursion-free rendering of DFS with
+    something that was correct.  Enhanced test with all
+    permutations of IF successors to ensure that all possible
+    DFS traversals are exercised.
     
-    Updates #11041
+    Test is improved version of
+    https://go-review.googlesource.com/#/c/22334
     
-    Change-Id: I5217b3e20c6af435d7500d6bb487b9895efe6605
-    Reviewed-on: https://go-review.googlesource.com/27493
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Update 15084.
+    
+    Change-Id: I6e944c41244e47fe5f568dfc2b360ff93b94079e
+    Reviewed-on: https://go-review.googlesource.com/22347
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/crypto/md5/md5block_amd64p32.s   |  2 +-
- src/crypto/sha1/sha1block_amd64p32.s |  2 +-
- src/runtime/asm_amd64p32.s           | 28 ++++++++++++++--------------
- src/runtime/sys_nacl_amd64p32.s      |  4 ++--
- src/runtime/sys_nacl_arm.s           |  4 ++--
- 5 files changed, 20 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/ssa/dom.go      | 39 +++++++++++++++------------
+ src/cmd/compile/internal/ssa/dom_test.go | 45 ++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/id.go       |  2 +-
+ 3 files changed, 68 insertions(+), 18 deletions(-)

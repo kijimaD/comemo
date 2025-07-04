@@ -1,29 +1,23 @@
-commit 5abae02d273d586b13975bca0e5fda67f4f51e2f
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Tue Nov 21 19:34:36 2023 +0000
+commit 9088c691dac424540f562d6271c5ee479e9f9d80
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 17 09:35:21 2023 -0800
 
-    runtime/internal/atomic: deduplicate And/Or code on wasm
+    cmd/compile: ensure temp register mask isn't empty
     
-    When I initially added the wasm code for these ops I did not saw that
-    wasm actually has the Cas operations implemented, although they are
-    merely pointer assignments since wasm is single threaded.
+    We need to avoid nospill registers at this point in regalloc.
+    Make sure that we don't restrict our register set to avoid registers
+    desired by other instructions, if the resulting set includes only
+    nospill registers.
     
-    Now with a generic implementation for And/Or we can add wasm to the
-    build tags.
+    Fixes #57846
     
-    For #61395
-    
-    Change-Id: I997dc90477c772882d6703df1b795dfc0d90a699
-    GitHub-Last-Rev: 92736a6e34104a9d234c791673fe0bb79fc97b0b
-    GitHub-Pull-Request: golang/go#64300
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544116
-    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Change-Id: I05478e4513c484755dc2e8621d73dac868e45a27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461685
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- .../internal/atomic/atomic_andor_generic.go        |  2 +-
- src/runtime/internal/atomic/atomic_wasm.go         | 48 ----------------------
- 2 files changed, 1 insertion(+), 49 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go |  2 +-
+ test/fixedbugs/issue57846.go             | 33 ++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

@@ -1,82 +1,16 @@
-commit 78ea9a71291d61d40a3ad57a801da46bd502c9a8
-Author: Ben Shi <powerman1st@163.com>
-Date:   Fri Oct 20 03:50:15 2017 +0000
+commit 6b53dd4f2b3a30b010f3c0cc5dabc8a7ad896c15
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jul 29 07:25:39 2017 -0700
 
-    cmd/compile: optimize MOVBS/MOVBU/MOVHS/MOVHU on ARMv6 and ARMv7
+    math/rand: use t.Helper in tests
     
-    MOVBS/MOVBU/MOVHS/MOVHU can be optimized with a single instruction
-    on ARMv6 and ARMv7, instead of a pair of left/right shifts.
-    
-    The benchmark tests show big improvement in special cases and a little
-    improvement in total.
-    
-    1. A special case gets about 29% improvement.
-    name                     old time/op    new time/op    delta
-    TypePro-4                  3.81ms ± 1%    2.71ms ± 1%  -28.97%  (p=0.000 n=26+25)
-    The source code of this case can be found at
-    https://github.com/benshi001/ugo1/blob/master/typepromotion_test.go
-    
-    2. There is a little improvement in the go1 benchmark, excluding the noise.
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              42.1s ± 3%     42.1s ± 2%    ~     (p=0.883 n=28+30)
-    Fannkuch11-4                24.3s ± 4%     24.7s ± 7%  +1.64%  (p=0.026 n=30+30)
-    FmtFprintfEmpty-4           833ns ± 2%     835ns ± 2%    ~     (p=0.371 n=26+28)
-    FmtFprintfString-4         1.36µs ± 3%    1.35µs ± 1%    ~     (p=0.202 n=26+23)
-    FmtFprintfInt-4            1.42µs ± 3%    1.43µs ± 1%  +0.66%  (p=0.000 n=26+27)
-    FmtFprintfIntInt-4         2.10µs ± 1%    2.10µs ± 2%    ~     (p=0.104 n=25+26)
-    FmtFprintfPrefixedInt-4    2.37µs ± 2%    2.33µs ± 1%  -1.75%  (p=0.000 n=25+28)
-    FmtFprintfFloat-4          4.50µs ± 0%    4.37µs ± 1%  -2.81%  (p=0.000 n=23+25)
-    FmtManyArgs-4              8.08µs ± 0%    8.13µs ± 3%    ~     (p=0.160 n=23+26)
-    GobDecode-4                 102ms ± 4%     103ms ± 4%  +1.08%  (p=0.001 n=28+26)
-    GobEncode-4                96.0ms ± 2%    95.2ms ± 3%  -0.81%  (p=0.000 n=24+25)
-    Gzip-4                      4.17s ± 3%     4.11s ± 2%  -1.45%  (p=0.000 n=25+25)
-    Gunzip-4                    597ms ± 2%     594ms ± 2%  -0.57%  (p=0.000 n=24+26)
-    HTTPClientServer-4          708µs ± 4%     708µs ± 4%    ~     (p=0.852 n=28+28)
-    JSONEncode-4                241ms ± 1%     245ms ± 3%  +1.62%  (p=0.000 n=27+28)
-    JSONDecode-4                906ms ± 3%     889ms ± 3%  -1.85%  (p=0.000 n=23+24)
-    Mandelbrot200-4            41.8ms ± 1%    41.8ms ± 1%    ~     (p=0.929 n=25+24)
-    GoParse-4                  47.1ms ± 2%    45.3ms ± 4%  -3.80%  (p=0.000 n=28+24)
-    RegexpMatchEasy0_32-4      1.27µs ± 2%    1.28µs ± 1%  +0.77%  (p=0.000 n=26+28)
-    RegexpMatchEasy0_1K-4      8.08µs ± 9%    7.83µs ±10%  -3.10%  (p=0.012 n=26+26)
-    RegexpMatchEasy1_32-4      1.29µs ± 5%    1.29µs ± 2%    ~     (p=0.301 n=26+29)
-    RegexpMatchEasy1_1K-4      10.5µs ± 4%    10.3µs ± 5%  -1.95%  (p=0.003 n=26+26)
-    RegexpMatchMedium_32-4     1.94µs ± 1%    1.95µs ± 1%    ~     (p=0.251 n=24+27)
-    RegexpMatchMedium_1K-4      502µs ± 2%     502µs ± 2%    ~     (p=0.336 n=25+28)
-    RegexpMatchHard_32-4       26.7µs ± 1%    26.6µs ± 3%    ~     (p=0.454 n=27+26)
-    RegexpMatchHard_1K-4        801µs ± 3%     799µs ± 2%    ~     (p=0.097 n=24+26)
-    Revcomp-4                  73.5ms ± 5%    73.2ms ± 3%    ~     (p=0.240 n=26+26)
-    Template-4                  1.07s ± 2%     1.05s ± 1%  -2.39%  (p=0.000 n=26+24)
-    TimeParse-4                6.87µs ± 1%    6.85µs ± 1%    ~     (p=0.094 n=28+23)
-    TimeFormat-4               13.4µs ± 1%    13.4µs ± 1%    ~     (p=0.664 n=25+29)
-    [Geo mean]                  717µs          713µs       -0.54%
-    
-    name                     old speed      new speed      delta
-    GobDecode-4              7.52MB/s ± 4%  7.44MB/s ± 4%  -1.10%  (p=0.001 n=28+26)
-    GobEncode-4              7.99MB/s ± 2%  8.06MB/s ± 3%  +0.81%  (p=0.000 n=24+25)
-    Gzip-4                   4.66MB/s ± 3%  4.72MB/s ± 2%  +1.43%  (p=0.000 n=25+25)
-    Gunzip-4                 32.5MB/s ± 2%  32.7MB/s ± 2%  +0.56%  (p=0.001 n=24+26)
-    JSONEncode-4             8.04MB/s ± 1%  7.92MB/s ± 3%  -1.59%  (p=0.000 n=27+28)
-    JSONDecode-4             2.14MB/s ± 3%  2.18MB/s ± 3%  +1.90%  (p=0.000 n=23+24)
-    GoParse-4                1.23MB/s ± 3%  1.28MB/s ± 4%  +4.23%  (p=0.000 n=30+24)
-    RegexpMatchEasy0_32-4    25.2MB/s ± 2%  25.0MB/s ± 1%  -0.76%  (p=0.000 n=26+28)
-    RegexpMatchEasy0_1K-4     127MB/s ± 8%   131MB/s ± 9%  +3.29%  (p=0.012 n=26+26)
-    RegexpMatchEasy1_32-4    24.8MB/s ± 5%  24.8MB/s ± 2%    ~     (p=0.339 n=26+29)
-    RegexpMatchEasy1_1K-4    97.9MB/s ± 4%  99.8MB/s ± 5%  +1.98%  (p=0.004 n=26+26)
-    RegexpMatchMedium_32-4    514kB/s ± 3%   515kB/s ± 3%    ~     (p=0.391 n=28+28)
-    RegexpMatchMedium_1K-4   2.04MB/s ± 2%  2.04MB/s ± 2%    ~     (p=0.517 n=25+28)
-    RegexpMatchHard_32-4     1.20MB/s ± 3%  1.20MB/s ± 3%    ~     (p=0.203 n=28+28)
-    RegexpMatchHard_1K-4     1.28MB/s ± 3%  1.28MB/s ± 2%    ~     (p=0.499 n=24+26)
-    Revcomp-4                34.6MB/s ± 4%  34.7MB/s ± 3%    ~     (p=0.245 n=26+26)
-    Template-4               1.81MB/s ± 2%  1.85MB/s ± 3%  +2.30%  (p=0.000 n=26+25)
-    [Geo mean]               6.82MB/s       6.88MB/s       +0.84%
-    
-    fixes #20653
-    
-    Change-Id: Ief0d6e726e517e51ae511325b21ee72598e759ff
-    Reviewed-on: https://go-review.googlesource.com/71992
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iece39e6412c0f6c63f563eed1621b8cca02de835
+    Reviewed-on: https://go-review.googlesource.com/51890
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/arm/ssa.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/math/rand/rand_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

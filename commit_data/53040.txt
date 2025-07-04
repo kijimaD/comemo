@@ -1,29 +1,22 @@
-commit 268d2f7cf2217447e0995597384a0bcd29e0b638
+commit b2cc0fecc2ccd80e6d5d16542cc684f97b3a9c8a
 Author: Damien Neil <dneil@google.com>
-Date:   Tue Apr 18 08:50:02 2023 -0700
+Date:   Fri Jun 17 10:09:45 2022 -0700
 
-    net/http: handle WriteHeader(101) as a non-informational header
+    net/http: preserve nil values in Header.Clone
     
-    Prior to Go 1.19 adding support for sending 1xx informational headers
-    with ResponseWriter.WriteHeader, WriteHeader(101) would send a 101
-    status and disable further writes to the response. This behavior
-    was not documented, but is intentional: Writing to the response
-    body explicitly checks to see if a 101 status has been sent before
-    writing.
+    ReverseProxy makes a distinction between nil and zero-length header values.
+    Avoid losing nil-ness when cloning a request.
     
-    Restore the pre-1.19 behavior when writing a 101 Switching Protocols
-    header: The header is sent, no subsequent headers are sent, and
-    subsequent writes to the response body fail.
+    Thanks to Christian Mehlmauer for discovering this.
     
-    For #59564
+    Fixes #53423
+    Fixes CVE-2022-32148
     
-    Change-Id: I72c116f88405b1ef5067b510f8c7cff0b36951ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485775
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ice369cdb4712e2d62e25bb881b080847aa4801f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412857
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/serve_test.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     |  7 +++--
- 2 files changed, 74 insertions(+), 2 deletions(-)
+ src/net/http/header.go      | 6 ++++++
+ src/net/http/header_test.go | 5 +++++
+ 2 files changed, 11 insertions(+)

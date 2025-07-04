@@ -1,18 +1,23 @@
-commit c7543e5db95d80205d1a0be3b4e946fac244601c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 20 17:56:35 2021 -0700
+commit 7cee66d4cb6e726c6c37798583ac0b86c8743f82
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 6 22:13:45 2021 -0500
 
-    go/types: fixes for pointer receivers of instantiated methods
+    cmd/go: add documentation for Embed fields in go list output
     
-    Backported changes from CL 349998 that were not already in go/types.
+    This change the struct fields for EmbedPatterns and EmbedFiles
+    to the Package struct listed in the go list documentation that
+    specifies the fields available to the go list template.
     
-    Change-Id: I0341f76c080b4e73567b3e917a4cbbe2e82d3703
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351149
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Fixes #43081
+    
+    Change-Id: I89c325a9d6292a6ce484ee588b172d2f84e2333a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282195
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/types/instantiate_test.go |  4 ++--
- src/go/types/named.go            | 22 ++++++++++++++--------
- 2 files changed, 16 insertions(+), 10 deletions(-)
+ src/cmd/go/alldocs.go            | 4 ++++
+ src/cmd/go/internal/list/list.go | 4 ++++
+ 2 files changed, 8 insertions(+)

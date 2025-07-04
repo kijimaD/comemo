@@ -1,47 +1,18 @@
-commit e0db8ab6e0d26fe1e05f6824cff670c61f38a3a4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 23 15:50:13 2023 -0700
+commit 6e9925c4f71fd862685859e9116f165cff5118c1
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jul 15 16:56:03 2022 -0400
 
-    cmd/compile: report an error URL with error messages
+    runtime: convert gcController.heapScan to atomic type
     
-    In the type checkers, add Config.ErrorURL (or Config._ErrorURL for
-    go/types) to configure whether and how an error message should report
-    a URL for errors that have an error code.
+    For #53821.
     
-    In the compiler, configure types2 to report an error URL of the form
-    " [go.dev/e/XXX]", where XXX stands for the error code, with the URL
-    appended to the first line of an error.
-    
-    Rename the compiler flag -url to -errorurl. At the moment this flag
-    is disabled by default.
-    
-    Example for a one-line error message:
-    
-    <pos>: undefined: f [go.dev/e/UndeclaredName]
-    
-    Example for a multi-line error message:
-    
-    <pos>: not enough arguments in call to min [go.dev/e/WrongArgCount]
-            have ()
-            want (P, P)
-    
-    Change-Id: I26651ce2c92ad32fddd641f003db37fe12fdb1cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497715
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I64d3f53c89a579d93056906304e4c05fc35cd9b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417776
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/base/flag.go       |  2 +-
- src/cmd/compile/internal/base/print.go      |  6 +-----
- src/cmd/compile/internal/noder/irgen.go     |  3 +++
- src/cmd/compile/internal/types2/api.go      |  6 ++++++
- src/cmd/compile/internal/types2/api_test.go | 25 +++++++++++++++++++++++++
- src/cmd/compile/internal/types2/errors.go   | 10 ++++++++++
- src/go/types/api.go                         |  6 ++++++
- src/go/types/api_test.go                    | 26 ++++++++++++++++++++++++++
- src/go/types/check_test.go                  |  7 +++++++
- src/go/types/errors.go                      | 10 ++++++++++
- 10 files changed, 95 insertions(+), 6 deletions(-)
+ src/runtime/align_runtime_test.go |  1 -
+ src/runtime/export_test.go        |  4 ++--
+ src/runtime/mgcpacer.go           | 21 ++++++++++-----------
+ 3 files changed, 12 insertions(+), 14 deletions(-)

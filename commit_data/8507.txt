@@ -1,16 +1,12 @@
-commit 1b5d04c5ae694c50b3b3b882ec4d4d999823967b
-Author: Ivan Krasin <krasin@golang.org>
-Date:   Thu May 26 17:02:11 2011 -0400
+commit e8c87a7dddb7a93ebb16a3f4cf0f70b54632da0c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 26 11:54:10 2011 -0700
 
-    compress/flate: fix Huffman tree bug
-    Incorporate refactoring and a regression test from https://golang.org/cl/4538090/
+    fix build: temporarily disable the use of strings.Reader UnreadRune in fmt
     
-    R=rsc, go.peter.90, imkrasin
-    CC=golang-dev, mirtchovski
-    https://golang.org/cl/4524070
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4532090
 
- src/pkg/compress/flate/huffman_bit_writer.go | 90 ++++++++++++----------------
- src/pkg/compress/flate/huffman_code.go       |  7 ++-
- src/pkg/compress/flate/inflate.go            |  2 -
- src/pkg/compress/zlib/writer_test.go         | 77 ++++++++++++------------
- 4 files changed, 85 insertions(+), 91 deletions(-)
+ src/pkg/fmt/scan.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

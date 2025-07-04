@@ -1,18 +1,20 @@
-commit 1b5cfc6ca62c421f12b0ef70daeb1efd03327636
-Author: mstmdev <mstmdev@gmail.com>
-Date:   Mon Sep 25 08:43:18 2023 +0000
+commit 7abc8a2e3370bd013d9aa12b5d443e21537dfb26
+Author: Alexander Scheel <alex.scheel@hashicorp.com>
+Date:   Thu Nov 3 13:09:31 2022 +0000
 
-    database/sql: use the built-in min function
+    crypto/x509: switch test to ParseRevocationList
     
-    Change-Id: Ib6a0e1e1583e45e3d239455e8b131c81602b2d5d
-    GitHub-Last-Rev: dc82635562a7fb4488f374d7a9ed26b29310e918
-    GitHub-Pull-Request: golang/go#63200
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530875
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    In following with Roland's TODO, switch TestDisableSHA1ForCertOnly to ParseRevocationList(...) over ParseCRL(...).
+    
+    Change-Id: I8cdaf04ad0a1c8b94303415ae41933657067041e
+    GitHub-Last-Rev: bb2ef760e4fdd8c0c9228004674d4e1f581c4271
+    GitHub-Pull-Request: golang/go#56541
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447036
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/database/sql/sql.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/crypto/x509/x509_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

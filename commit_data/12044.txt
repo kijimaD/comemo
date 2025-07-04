@@ -1,44 +1,14 @@
-commit 83976e3ac8a4b6da1782ca850ba9806b63b65c38
+commit c3ef1980209ff152dec97203bb987d2d74a79bba
 Author: Rob Pike <r@golang.org>
-Date:   Sun Feb 19 14:28:53 2012 +1100
+Date:   Sun Feb 19 14:15:26 2012 +1100
 
-    test: explanatory comments [c-g]*
+    go 1: add a description of the os error changes.
+    I'm sure I wrote these before but they've disappeared.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5656103
+    https://golang.org/cl/5673100
 
- test/ddd.go        | 2 ++
- test/ddd1.go       | 3 +++
- test/ddd2.go       | 2 ++
- test/ddd3.go       | 2 ++
- test/decl.go       | 2 +-
- test/declbad.go    | 3 ++-
- test/defer.go      | 2 ++
- test/deferprint.go | 5 ++++-
- test/divide.go     | 2 +-
- test/empty.go      | 3 +++
- test/env.go        | 3 +++
- test/eof.go        | 3 +++
- test/eof1.go       | 3 +++
- test/escape.go     | 4 ++--
- test/escape2.go    | 3 +++
- test/escape3.go    | 2 +-
- test/float_lit.go  | 2 ++
- test/floatcmp.go   | 2 ++
- test/for.go        | 2 ++
- test/func.go       | 1 +
- test/func1.go      | 5 +++--
- test/func2.go      | 5 ++++-
- test/func3.go      | 3 +++
- test/func4.go      | 3 +++
- test/func5.go      | 2 ++
- test/func6.go      | 4 +++-
- test/func7.go      | 2 ++
- test/func8.go      | 2 ++
- test/gc.go         | 2 ++
- test/gc1.go        | 2 ++
- test/gc2.go        | 2 +-
- test/goprint.go    | 2 ++
- test/goto.go       | 3 +++
- 33 files changed, 76 insertions(+), 12 deletions(-)
+ doc/go1.html | 44 ++++++++++++++++++++++++++++++++------------
+ doc/go1.tmpl | 42 +++++++++++++++++++++++++++++++-----------
+ 2 files changed, 63 insertions(+), 23 deletions(-)

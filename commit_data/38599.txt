@@ -1,22 +1,38 @@
-commit 70ea70ecfda68abbc5b3c7703dc671f75adde645
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 27 14:59:10 2019 -0700
+commit fcd1ec0c822b31b0849e98941b54a12a3431bedd
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Oct 25 11:13:16 2018 -0400
 
-    runtime: rename p racectx field to raceprocctx
+    crypto/md5: fix md5block asm to work on big endian ppc64
     
-    Both g and p had a racectx field, but they held different kinds of values.
-    The g field held ThreadState values while the p field held Processor values
-    (to use the names used in the C++ code in the compiler_rt support library).
-    Rename the p field to raceprocctx to reduce potential confusion.
+    This handles a TODO in the md5block_ppc64le.s file to
+    make use of byte reverse loads so the function works for
+    big endian as well as little endian. File name is now
+    md5block_ppc64x.s.
     
-    Change-Id: Iefba0e259d240171e973054c452c3c15bf3f8f8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169960
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    name                 old time/op    new time/op    delta
+    Hash8Bytes              537ns ± 0%     299ns ± 0%  -44.32%  (p=0.000 n=8+1)
+    Hash1K                 4.74µs ± 0%    3.24µs ± 0%  -31.64%  (p=0.250 n=7+1)
+    Hash8K                 34.4µs ± 0%    23.6µs ± 0%  -31.56%  (p=0.222 n=8+1)
+    Hash8BytesUnaligned     537ns ± 0%     298ns ± 0%  -44.51%  (p=0.000 n=8+1)
+    Hash1KUnaligned        4.74µs ± 0%    3.24µs ± 0%  -31.48%  (p=0.222 n=8+1)
+    Hash8KUnaligned        34.4µs ± 0%    23.6µs ± 0%  -31.39%  (p=0.222 n=8+1)
+    
+    name                 old speed      new speed      delta
+    Hash8Bytes           14.9MB/s ± 0%  26.8MB/s ± 0%  +79.76%  (p=0.222 n=8+1)
+    Hash1K                216MB/s ± 0%   316MB/s ± 0%  +46.29%  (p=0.250 n=7+1)
+    Hash8K                238MB/s ± 0%   348MB/s ± 0%  +46.11%  (p=0.222 n=8+1)
+    Hash8BytesUnaligned  14.9MB/s ± 0%  26.8MB/s ± 0%  +79.76%  (p=0.222 n=8+1)
+    Hash1KUnaligned       216MB/s ± 0%   316MB/s ± 0%  +45.95%  (p=0.222 n=8+1)
+    Hash8KUnaligned       238MB/s ± 0%   347MB/s ± 0%  +45.75%  (p=0.222 n=8+1)
+    
+    Change-Id: I2e226bf7e69e0acd49db1af42e4fd8b87b155606
+    Reviewed-on: https://go-review.googlesource.com/c/144599
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/runtime/proc.go        | 10 +++++-----
- src/runtime/race_amd64.s   |  2 +-
- src/runtime/race_ppc64le.s |  2 +-
- src/runtime/runtime2.go    |  2 +-
- 4 files changed, 8 insertions(+), 8 deletions(-)
+ src/crypto/md5/md5block_decl.go                    |  2 +-
+ src/crypto/md5/md5block_generic.go                 |  2 +-
+ .../md5/{md5block_ppc64le.s => md5block_ppc64x.s}  | 37 ++++++++++++++--------
+ 3 files changed, 25 insertions(+), 16 deletions(-)

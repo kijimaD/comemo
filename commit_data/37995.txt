@@ -1,16 +1,21 @@
-commit 165a8d93cde73208487d854b71fc4142f2c39c6b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 19 14:43:52 2019 -0500
+commit ce536837d8e53f1bf0c7ef450d4580d19f7d6f52
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Fri Aug 24 12:10:01 2018 +0100
 
-    cmd/vet: do not write test vet binary to GOROOT
+    net/http: ensure null body in Fetch response is not read
     
-    Updates #28387
+    The Fetch API returns a null body if there is no response body,
+    on browsers that support streaming the response body. This
+    change ensures we check for both undefined and null bodies
+    before attempting to read the body.
     
-    Change-Id: Ie5a5f1f798eb5900f9c7bdef165abcca02dd0dde
-    Reviewed-on: https://go-review.googlesource.com/c/163037
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Fixes #27196
+    
+    Change-Id: I0da86b61284fe394418b4b431495e715a037f335
+    Reviewed-on: https://go-review.googlesource.com/131236
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/vet_test.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/net/http/roundtrip_js.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

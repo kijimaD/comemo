@@ -1,37 +1,19 @@
-commit 89044b6d423a07bea3b6f80210f780e859dd2700
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Apr 4 12:48:58 2019 -0400
+commit 27e3b797bb6f3bc88b83897ae337aa83904c2a1a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jun 26 15:28:16 2021 +0700
 
-    math/big: add comprehensive aliasing tests (and minor fixes to Exp, Rand)
+    [dev.typeparams] cmd/compile: remove OCALLMETH Fatals in SSA generation
     
-    TestAlias checks systematically for aliasing issues, where passing the
-    same value for an argument and the receiver leads to incorrect results.
+    CL 330831 moved rewrite method calls to typecheck pass, then add Fatalf
+    check for mis-used of OCALLMETH in all frontend passes. The check in SSA
+    generation pass is now redundant.
     
-    We had a number of issues like that over the years:
-    
-        - #31084: Lsh on arm64
-        - #30217: GCD
-        - #22830: Exp due to divLarge
-        - #22265: ModSqrt
-        - #20490: Add and Sub
-        - #11284: GCD
-    
-    This CL also fixes two new minor bugs that the test found. A wrong
-    result would be returned by
-    
-        - Exp when the modulo and the receiver alias
-        - Rand when the limit is negative and it aliases the receiver
-    
-    The test runs in ~0.05s with the default -quickchecks value.
-    
-    Change-Id: I8354069ec9886e40c60f2642342ee08e604befb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168257
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: If959b774ab3c3aeefabf32333f77b9a93c156ce3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330834
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/math/big/alias_test.go | 312 +++++++++++++++++++++++++++++++++++++++++++++
- src/math/big/int.go        |  11 +-
- 2 files changed, 320 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 9 ---------
+ 1 file changed, 9 deletions(-)

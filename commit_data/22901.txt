@@ -1,24 +1,27 @@
-commit 072a26331ae4d7d6f7cbcd76465dd79c0e22ab79
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 6 08:26:51 2015 -0700
+commit 3b22ffc07ec0f4114362425ca004081fcdd708df
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 13 19:31:39 2015 -0400
 
-    os: rewrite LookupEnv's test
+    runtime: make cgocallback wait on package init
     
-    GOROOT is not dependably set.
+    With the new buildmodes c-archive and c-shared, it is possible for a
+    cgo call to come in early in the lifecycle of a Go program. Calls
+    before the runtime has been initialized are caught by
+    _cgo_wait_runtime_init_done. However a call can come in after the
+    runtime has initialized, but before the program's package init
+    functions have finished running.
     
-    When I first wrote this test, I thought it was a waste of time
-    because the function can't fail if the other environment functions
-    work, but I didn't want to add functionality without testing it.
-    Of course, the test broke, and I learned something: GOROOT is not
-    set on iOS or, to put it more broadly, the world continues to
-    surprise me with its complexity and horror, such as a version of
-    cat with syntax coloring.
+    To avoid this cgocallback checks m.ncgo to see if we are on a thread
+    running Go. If not, we may be a foreign thread and it blocks until
+    main_init is complete.
     
-    In that vein, I built this test around smallpox.
-    
-    Change-Id: Ifa6c218a927399d05c47954fdcaea1015e558fb6
-    Reviewed-on: https://go-review.googlesource.com/9791
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I7a9f137fa2a40c322a0b93764261f9aa17fcf5b8
+    Reviewed-on: https://go-review.googlesource.com/8897
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
 
- src/os/env_test.go | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ misc/cgo/testcarchive/main.c             |  8 ++++----
+ misc/cgo/testcarchive/src/libgo/libgo.go | 32 +++++++++++++++++++++++++-------
+ src/runtime/cgocall.go                   |  8 ++++++++
+ src/runtime/proc.go                      |  8 ++++++++
+ 4 files changed, 45 insertions(+), 11 deletions(-)

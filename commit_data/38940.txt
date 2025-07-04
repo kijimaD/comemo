@@ -1,28 +1,17 @@
-commit a27ede0ba9cd038582ea459f3c0e8419af4a2b88
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Apr 28 23:03:35 2019 +0700
+commit 353ebe721019ac833646bea829d7840e55f3da30
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 10 14:58:08 2018 -0500
 
-    all: remove a few unused parameters
+    cmd/go/internal/modfetch/codehost: return VCSError for unimplemented functions and malformed responses
     
-    I recently modified tabwriter to reduce the number of defers due to
-    flush calls. However, I forgot to notice that the new function
-    flushNoDefers can no longer return an error, due to the lack of the
-    defer.
+    Updates #28943
+    Updates #26092
     
-    In crypto/tls, hashForServerKeyExchange never returned a non-nil error,
-    so simplify the code.
-    
-    Finally, in go/types and net we can find a few trivially unused
-    parameters, so remove them.
-    
-    Change-Id: I54c8de83fbc944df432453b55c93008d7e810e61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174131
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: I07af2731ef5af046b9f7c7280ccb3976cdf41ca4
+    Reviewed-on: https://go-review.googlesource.com/c/153458
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/crypto/tls/key_agreement.go | 18 ++++++------------
- src/go/types/call.go            |  4 ++--
- src/net/dnsclient_unix.go       |  8 ++++----
- src/text/tabwriter/tabwriter.go | 10 ++++------
- 4 files changed, 16 insertions(+), 24 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/vcs.go | 39 ++++++++++++++++++----------
+ src/cmd/go/testdata/script/mod_get_svn.txt   | 21 +++++++++++++++
+ 2 files changed, 46 insertions(+), 14 deletions(-)

@@ -1,21 +1,20 @@
-commit 76c70282538bf4cccd6f98b5b26df7f5a7f2cebd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 25 21:35:32 2025 -0800
+commit d1674cb4c6531df6573bc3be136b302d2b362c56
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Wed Jan 10 21:15:55 2024 +0000
 
-    runtime/cgo: avoid errors from -Wdeclaration-after-statement
+    cmd/compile: document go:wasmimport directive
     
-    It's used by the SWIG CI build, at least, and it's an easy fix.
+    Fixes #64972
     
-    Fixes #71961
-    
-    Change-Id: Id21071a5aef216b35ecf0e9cd3e05d08972d92fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652181
+    Change-Id: I784a8728afbdef9736681d56f0a79c82a00609d6
+    GitHub-Last-Rev: bf158dbeaaa495dc258c590c7a21cf9e25e76ee7
+    GitHub-Pull-Request: golang/go#64991
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554455
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/cgo/cgo.go                | 3 ++-
- src/runtime/cgo/gcc_libinit.c         | 7 +++++--
- src/runtime/cgo/gcc_libinit_windows.c | 4 +++-
- 3 files changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/compile/doc.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

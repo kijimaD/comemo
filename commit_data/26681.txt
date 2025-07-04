@@ -1,14 +1,37 @@
-commit 1934a77f5a1680397481d5bc6ed85b017d1e8b38
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Sun Apr 3 19:32:31 2016 +1200
+commit f28bbb776a050cc3edca2bbe1241d81217a7a251
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 2 10:46:58 2015 -0800
 
-    cmd/link: define a variable for the target platform's elf relocation type
+    cmd/compile: move hiter, hmap, and scase definitions into builtin.go
     
-    Rather than having half a dozen switch statements. Also remove some c2go dregs.
+    Also eliminates per-maptype hiter and hmap types, since they're not
+    really needed anyway.  Update packages reflect and runtime
+    accordingly.
     
-    Change-Id: I19af5b64f73369126020e15421c34cad5bbcfbf8
-    Reviewed-on: https://go-review.googlesource.com/21442
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reduces golang.org/x/tools/cmd/godoc's text segment by ~170kB:
+    
+       text    data     bss     dec     hex filename
+    13085702         140640  151520 13377862         cc2146 godoc.before
+    12915382         140640  151520 13207542         c987f6 godoc.after
+    
+    Updates #6853.
+    
+    Change-Id: I948b2bc1f22d477c1756204996b4e3e1fb568d81
+    Reviewed-on: https://go-review.googlesource.com/16610
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/elf.go | 136 ++++++++++++++--------------------------
- 1 file changed, 47 insertions(+), 89 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 10 ++-
+ src/cmd/compile/internal/gc/builtin/runtime.go | 49 +++++++++++++-
+ src/cmd/compile/internal/gc/fmt.go             |  8 ---
+ src/cmd/compile/internal/gc/go.go              |  4 +-
+ src/cmd/compile/internal/gc/range.go           | 22 +++---
+ src/cmd/compile/internal/gc/reflect.go         | 94 ++------------------------
+ src/cmd/compile/internal/gc/select.go          | 30 +-------
+ src/cmd/compile/internal/gc/subr.go            | 13 ++--
+ src/cmd/compile/internal/gc/walk.go            |  4 +-
+ src/reflect/type.go                            |  1 -
+ src/runtime/hashmap.go                         | 15 ++--
+ src/runtime/runtime2.go                        |  2 -
+ src/runtime/select.go                          |  4 +-
+ src/runtime/type.go                            |  1 -
+ 14 files changed, 94 insertions(+), 163 deletions(-)

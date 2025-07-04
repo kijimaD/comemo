@@ -1,13 +1,12 @@
-commit 84a5a9b558fbe1a4d20d1be822eefa1fd504d8df
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 22 14:36:23 2012 -0700
+commit c27a7dbf78e976a4655478711da03537a38a206d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 22 09:01:30 2012 -0700
 
-    time: avoid data race in abs
-    Fixes #3967.
+    CONTRIBUTORS: Add Dave Borowitz (Google CLA)
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6460115
+    https://golang.org/cl/6484046
 
- src/pkg/time/time.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

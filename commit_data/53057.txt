@@ -1,21 +1,20 @@
-commit 298ff30958c32620b624da186cf32b362c0b0685
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue May 16 20:53:53 2023 +0000
+commit af725f42864c8fb56afcf3ba76d2df7d372534e4
+Author: AndreasHGK <andreaselbergs@outlook.com>
+Date:   Thu Jun 30 15:59:30 2022 +0000
 
-    Revert "cmd/compile: build compiler with PGO"
+    os: fix a typo in path_windows.go
     
-    This reverts CL 451292.
+    I believe the path_windows.go file has a typo, which is fixed in this PR
     
-    Reason for revert: causes the racecompile builder failure.
-    https://build.golang.org/log/32d2fc21bd6e3bd415495d04befe806c0f10ea8b
-    
-    Change-Id: I5863437d4b814712b1280a1c21ba86009c332645
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495475
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ibf1a7189a6312dbb3b1e6b512beeb6d99da5b5bc
+    GitHub-Last-Rev: cedac7eaa07d26667e6800c5ac96239d5ccf6ba8
+    GitHub-Pull-Request: golang/go#53629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415434
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/default.pgo | Bin 355761 -> 0 bytes
- src/cmd/compile/profile.sh  |  21 ---------------------
- src/cmd/dist/buildtool.go   |   4 ----
- 3 files changed, 25 deletions(-)
+ src/os/path_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

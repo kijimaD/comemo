@@ -1,21 +1,69 @@
-commit 95547aee8c6377e73919d6f0b99484152fb3de04
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Jun 2 05:09:09 2022 +1000
+commit 742dcba7bb953a96c9f3fcdeb32b1c03cbbd8d5e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 14 16:57:24 2021 -0700
 
-    cmd/compile: cast riscv64 rewrite shifts to unsigned int
+    cmd: support space and quotes in CC and CXX
     
-    This appeases Go 1.4, making it possible to bootstrap GOARCH=riscv64 with
-    a Go 1.4 compiler.
+    The CC and CXX environment variables now support spaces and quotes
+    (both double and single). This fixes two issues: first, if CC is a
+    single path that contains spaces (like 'c:\Program
+    Files\gcc\bin\gcc.exe'), that should now work if the space is quoted
+    or escaped (#41400). Second, if CC or CXX has multiple arguments (like
+    'gcc -O2'), they are now split correctly, and the arguments are passed
+    before other arguments when invoking the C compiler. Previously,
+    strings.Fields was used to split arguments, and the arguments were
+    placed later in the command line. (#43078).
     
-    Fixes #52583
+    Fixes golang/go#41400
+    Fixes golang/go#43078
     
-    Change-Id: Ib13c2afeb095b2bb1464dcd7f1502574209bc7ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409974
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    NOTE: This change also includes a fix (CL 341929) for a test that was
+    broken by the original CL. Commit message for the fix is below.
+    
+    [dev.cmdgo] cmd/link: fix TestBuildForTvOS
+    
+    This test was broken in CL 334732 on darwin.
+    
+    The test invokes 'go build' with a CC containing the arguments
+    -framework CoreFoundation. Previously, the go command split CC on
+    whitespace, and inserted the arguments after the command line when
+    running CC directly. Those arguments weren't passed to cgo though,
+    so cgo ran CC without -framework CoreFoundation (or any of the other
+    flags).
+    
+    In CL 334732, we pass CC through to cgo, and cgo splits arguments
+    using str.SplitQuotedFields. So -framework CoreFoundation actually
+    gets passed to the C compiler. It appears that -framework flags are
+    only meant to be used in linking operations, so when cgo invokes clang
+    with -E (run preprocessor only), clang emits an error that -framework
+    is unused.
+    
+    This change fixes the test by moving -framework CoreFoundation out of
+    CC and into CGO_LDFLAGS.
+    
+    Change-Id: I2d5d89ddb19c94adef65982a8137b01f037d5c11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334732
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341936
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++---
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 16 ++++++++--------
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/cgo/gcc.go                                 | 46 +++++++++++++-----
+ src/cmd/cgo/main.go                                |  8 ++--
+ src/cmd/compile/internal/ssa/stmtlines_test.go     |  7 ++-
+ src/cmd/dist/buildtool.go                          |  1 +
+ src/cmd/go/internal/envcmd/env.go                  | 34 +++++++++----
+ src/cmd/go/internal/work/exec.go                   | 43 ++++++-----------
+ src/cmd/go/internal/work/gc.go                     | 37 ++++++--------
+ src/cmd/go/internal/work/init.go                   | 16 +++++--
+ src/cmd/go/script_test.go                          |  1 +
+ .../go/testdata/script/cgo_path_space_quote.txt    | 56 ++++++++++++++++++++++
+ src/cmd/internal/dwarf/dwarf.go                    |  6 ++-
+ src/cmd/link/dwarf_test.go                         |  8 +++-
+ src/cmd/link/internal/ld/lib.go                    | 39 +++++++++------
+ src/cmd/link/internal/ld/main.go                   |  7 ++-
+ src/cmd/link/link_test.go                          |  4 +-
+ 15 files changed, 209 insertions(+), 104 deletions(-)

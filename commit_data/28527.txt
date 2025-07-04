@@ -1,16 +1,16 @@
-commit 5bbb854cee2df329e031e50181ccc022c9d93a85
-Author: Gyu-Ho Lee <gyuhox@gmail.com>
-Date:   Sat Jun 4 23:26:12 2016 -0700
+commit bd2dc2d819b85beb8887466a165242e2d540e4b9
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Wed Jun 1 09:44:38 2016 -0300
 
-    net/http/httputil: preallocate trailerKeys slice
+    doc: rename Unshare to Unshareflags in go1.7 release notes
     
-    To prevent slice growths with append operations.
+    Implementation changed in https://golang.org/cl/23612.
     
-    Change-Id: Icdb745b23cc44dfaf3e16746b94c06997f814e15
-    Reviewed-on: https://go-review.googlesource.com/23784
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #15810
+    
+    Change-Id: I8fff9e3aa3e54162546bb9ec1cc2ebba2b6d9fed
+    Reviewed-on: https://go-review.googlesource.com/23614
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/httputil/reverseproxy.go | 2 +-
+ doc/go1.7.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

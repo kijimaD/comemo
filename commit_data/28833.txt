@@ -1,12 +1,21 @@
-commit 4d898776ff973056aa906d90be0f23af772631c6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Oct 16 11:27:43 2016 +0100
+commit 01ae4b1da4fd38c0cc5f370c958aa67735fdcd40
+Author: David Chase <drchase@google.com>
+Date:   Thu Aug 4 11:34:43 2016 -0700
 
-    doc: update go1.8.txt
+    [dev.ssa] cmd/compile: PPC64, load/store by type, shifts, divisions, bools
     
-    Change-Id: Ibae0be046c6a6596d3a98b094ec5f089bb68be7a
-    Reviewed-on: https://go-review.googlesource.com/31182
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #16010.
+    
+    Change-Id: Ie520d64fd1c4f881f45623303ed0b7cbdf0e4764
+    Reviewed-on: https://go-review.googlesource.com/25493
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.8.txt | 48 ++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 46 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ppc64/prog.go       |    4 +
+ src/cmd/compile/internal/ppc64/ssa.go        |   75 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |   97 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   53 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  125 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 1995 ++++++++++++++++++++++----
+ 6 files changed, 2019 insertions(+), 330 deletions(-)

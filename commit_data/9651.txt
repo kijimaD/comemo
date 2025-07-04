@@ -1,15 +1,14 @@
-commit 73fd9e7d9389579b5a2ea401df18b7316fa66323
-Author: Tarmigan Casebolt <tarmigan@gmail.com>
-Date:   Mon Sep 12 13:48:56 2011 -0400
+commit 3e42de29c98016ce277f7382cc3434f5e4a8f57f
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Sep 12 10:21:35 2011 +0200
 
-    websocket: Fix infinite recursion in WebSockAddr String()
+    exp/norm: fixed typo. Bug exposed by gomake testtables. Changes did not affect other tests
+    as this part of Hangul is handled algorithmically.
     
-    String() is already inherited from the embedded *url.URL
-    
-    R=ukai, adg, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4992049
+    https://golang.org/cl/4951074
 
- src/pkg/websocket/websocket.go      |  3 ---
- src/pkg/websocket/websocket_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 25 insertions(+), 3 deletions(-)
+ src/pkg/exp/norm/maketables.go |  2 +-
+ src/pkg/exp/norm/tables.go     | 20 ++++++--------------
+ 2 files changed, 7 insertions(+), 15 deletions(-)

@@ -1,25 +1,23 @@
-commit db428ad7b61ed757671162054252b4326045e96c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 17 15:02:26 2020 -0400
+commit 6412750f32224f6820f781d09b2092c5c358dddc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 17 15:17:22 2020 -0400
 
-    all: enable more tests on macOS/ARM64
+    cmd/go: add a missing curly-brace in the 'stale' command format string
     
-    Updates #38485.
+    The missing brace made the 'stale' command a no-op in the non-error case.
     
-    Change-Id: Iac96f5ffe88521fcb11eab306d0df6463bdce046
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256920
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Fix the 'short' skip in install_cross_gobin (it was backward) and
+    update it to no longer check staleness of a not-necessarily-stale
+    target and to no longer expect to be able to install into GOROOT/pkg.
+    (This was missed in #30316 because that part of the test was
+    erroneously skipped in non-short mode.)
+    
+    Change-Id: I6a276fec5fa5e5da3fe0daf0c2b5086116ed7c1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223747
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 2 +-
- src/cmd/doc/doc_test.go                | 2 +-
- src/cmd/go/internal/work/build_test.go | 6 ++----
- src/go/build/build_test.go             | 4 ++--
- src/log/syslog/syslog_test.go          | 7 +------
- src/net/dial_test.go                   | 2 +-
- src/net/platform_test.go               | 2 +-
- src/path/filepath/path_test.go         | 4 ++--
- src/runtime/debug/panic_test.go        | 4 ++--
- src/syscall/syscall_unix_test.go       | 2 +-
- 10 files changed, 14 insertions(+), 21 deletions(-)
+ src/cmd/go/script_test.go                          | 2 +-
+ src/cmd/go/testdata/script/install_cross_gobin.txt | 9 ++++-----
+ 2 files changed, 5 insertions(+), 6 deletions(-)

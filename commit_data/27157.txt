@@ -1,17 +1,14 @@
-commit 217be5b35d8fb0f812ca59bf7dec3aa0fb850c46
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 27 12:49:27 2016 -0400
+commit 5a50e003067672ff13bc2ea0464f0cf83a943b2d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Feb 17 13:43:19 2016 -0500
 
-    reflect: unnamed interface types have no name
+    runtime: improve comment on selectgo
     
-    Fixes #15468
+    In particular, document that *sel is on the stack no matter what.
     
-    Change-Id: I8723171f87774a98d5e80e7832ebb96dd1fbea74
-    Reviewed-on: https://go-review.googlesource.com/22524
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I1c264215e026c27721b13eedae73ec845066cdec
+    Reviewed-on: https://go-review.googlesource.com/20032
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/reflect/all_test.go | 25 +++++++++++++++----------
- src/reflect/type.go     |  3 +++
- src/runtime/type.go     |  3 +++
- 3 files changed, 21 insertions(+), 10 deletions(-)
+ src/runtime/select.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

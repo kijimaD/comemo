@@ -1,26 +1,22 @@
-commit 0a37002367502fc24d7753e360954da290ffb71a
+commit 8f9844348fc66b560e5193cb402085d91f466788
 Author: Joel Sing <jsing@google.com>
-Date:   Tue Jan 7 23:16:46 2014 +1100
+Date:   Tue Jan 7 23:04:17 2014 +1100
 
-    crypto/sha512: block implementation in amd64 assembly
+    syscall: include mmap constants in netbsd zerror* files
     
-    Benchmark on Intel(R) Xeon(R) CPU X5650  @ 2.67GHz
+    Include the <sys/mman.h> header for NetBSD mkerrors.sh. This brings
+    in constants used with mmap(2), msync(2) and mlockall(2).
     
-    benchmark              old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes         1779         1114  -37.38%
-    BenchmarkHash1K             9848         4894  -50.30%
-    BenchmarkHash8K            68513        32187  -53.02%
+    The regeneration of the NetBSD zerror* files also picks clone(2)
+    related constants.
     
-    benchmark               old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes         4.50         7.18    1.60x
-    BenchmarkHash1K           103.97       209.19    2.01x
-    BenchmarkHash8K           119.57       254.51    2.13x
+    Update #4929.
     
-    R=agl
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/37150044
+    https://golang.org/cl/45510044
 
- src/pkg/crypto/sha512/sha512block.go      |   2 +
- src/pkg/crypto/sha512/sha512block_amd64.s | 273 ++++++++++++++++++++++++++++++
- src/pkg/crypto/sha512/sha512block_decl.go |  11 ++
- 3 files changed, 286 insertions(+)
+ src/pkg/syscall/mkerrors.sh             |  1 +
+ src/pkg/syscall/zerrors_netbsd_386.go   | 51 ++++++++++++++++++++++++++++++++-
+ src/pkg/syscall/zerrors_netbsd_amd64.go | 51 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 101 insertions(+), 2 deletions(-)

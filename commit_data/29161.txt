@@ -1,32 +1,21 @@
-commit ca922b6d363b6ca47822188dcbc5b92d912c7a4b
-Author: Peter Weinberger <pjw@google.com>
-Date:   Thu Sep 22 09:48:30 2016 -0400
+commit db1fef7b2afd12625e3edd90f879e5d05511d1d6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 10 17:51:27 2016 -0700
 
-    runtime: Profile goroutines holding contended mutexes.
+    cmd/go: for -msan build runtime/cgo with -fsanitize=memory
     
-    runtime.SetMutexProfileFraction(n int) will capture 1/n-th of stack
-    traces of goroutines holding contended mutexes if n > 0. From runtime/pprof,
-    pprot.Lookup("mutex").WriteTo writes the accumulated
-    stack traces to w (in essentially the same format that blocking
-    profiling uses).
+    The go tool used to avoid passing -fsanitize=memory when building
+    runtime/cgo. That was originally to avoid an msan error, but that error
+    was fixed anyhow for issue #13815. And building runtime/cgo with
+    -fsanitize=memory corrects the handling of the context traceback
+    function when the traceback function itself is built with
+    -fsanitize=memory.
     
-    Change-Id: Ie0b54fa4226853d99aa42c14cb529ae586a8335a
-    Reviewed-on: https://go-review.googlesource.com/29650
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I4bf5c3d21de6b2eb540600435ae47f5820d17464
+    Reviewed-on: https://go-review.googlesource.com/24855
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/test.go                               |  9 +++
- src/cmd/go/testflag.go                           |  4 +-
- src/cmd/internal/pprof/profile/legacy_profile.go | 28 ++++++--
- src/runtime/mgc.go                               |  6 +-
- src/runtime/mprof.go                             | 84 ++++++++++++++++++++++--
- src/runtime/pprof/pprof.go                       | 59 +++++++++++++++++
- src/runtime/pprof/pprof_test.go                  | 36 ++++++++++
- src/runtime/proc.go                              |  4 +-
- src/runtime/runtime2.go                          |  1 +
- src/runtime/sema.go                              | 40 +++++++++--
- src/runtime/trace.go                             |  2 +-
- src/sync/mutex.go                                |  2 +-
- src/sync/mutex_test.go                           |  4 ++
- src/sync/runtime.go                              |  3 +
- src/testing/testing.go                           | 43 ++++++++----
- 15 files changed, 286 insertions(+), 39 deletions(-)
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

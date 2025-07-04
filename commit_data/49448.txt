@@ -1,25 +1,23 @@
-commit c7ccabf3fea67f002bef190a5ffc7417f4371a23
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jun 3 16:22:58 2022 -0400
+commit 700743137462471189f58ee85fe64754cd340322
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 19 16:36:38 2021 +0200
 
-    runtime/cgo: retry _beginthread on EACCES
+    crypto/rand, internal/syscall/unix: don't use getentropy on iOS
     
-    We occassionally see _beginthread failing with EACCES, meaning
-    "insufficient resources" according to the Microsoft documentation.
-    Exactly which resources is unclear.
+    CL 302489 switched crypto/rand to use getentropy on darwin, however this
+    function is not available on iOS. Enable getentropy only on macOS and
+    disable it on iOS.
     
-    Similar to pthread_create on unix systems, we can wait a bit and retry
-    to try to get success. The alternative is to abort, so we may as well
-    give it a try.
+    Fixes #47812
     
-    Fixes #52572.
-    
-    Change-Id: I6e05add53b4ae36c61e53b1ee3fed6bc74e17dfa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410355
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ib7ba5d77346aee87904bb93d60cacc845f5c0089
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343609
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/cgo/gcc_libinit_windows.c | 20 ++++++++++++++++----
- 1 file changed, 16 insertions(+), 4 deletions(-)
+ src/crypto/rand/rand_getentropy.go             | 4 ++--
+ src/internal/syscall/unix/getentropy_darwin.go | 3 +++
+ 2 files changed, 5 insertions(+), 2 deletions(-)

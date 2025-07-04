@@ -1,17 +1,19 @@
-commit 134cd34c07862aa8618e25d1d1279b4fd127c512
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat Aug 27 11:11:08 2022 +0800
+commit 53260943eac49dde51e0ce28e50e9b4bc90661b8
+Author: Forest Johnson <forest.n.johnson@gmail.com>
+Date:   Fri Oct 8 19:03:35 2021 +0000
 
-    hash: convert haveCastagnoli to atomic type
+    os: explain ProccessState.Exited()  SIGKILL interaction
     
-    Change-Id: I313fff5684d89ee737572d11b1b697c5575866a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426083
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    When a process is forcefully killed (for example, with SIGKILL on unix), its ProccessState.Exited() will return false.
+    
+    Change-Id: I8cebc8d28f2ba1b687c145f6d941647fc3a10665
+    GitHub-Last-Rev: 414ae1980fe61dd530c46cc2c7f4de3a5bc83ed5
+    GitHub-Pull-Request: golang/go#48871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354698
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/hash/crc32/crc32.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/os/exec.go | 2 ++
+ 1 file changed, 2 insertions(+)

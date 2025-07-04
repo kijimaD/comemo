@@ -1,24 +1,21 @@
-commit 73d57bf80f42eda964768e1761b02ce9257638dc
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 7 14:09:23 2019 +0000
+commit 5587e05eac5274fc08915c8a64d446bfa3e4855b
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Jun 1 18:14:04 2019 +0200
 
-    Revert "sync: yield to the waiter when unlocking a starving mutex"
+    cmd/go: fix error messages for go mod download in GOPATH mode
     
-    This reverts CL 200577.
+    Checks if modules are enabled in GOPATH mode.
+    Error message returned when no version is provided. Relevant tests
+    updated. Test for GO111MODULE=off added.
     
-    Reason for revert: broke linux-arm64-packet and solaris-amd64-oraclerel builders
+    Fixes #27783
     
-    Fixes #35424
-    Updates #33747
-    
-    Change-Id: I2575fd84d37995d458183caae54704f15d8b8426
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205817
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I12cdaced5fa38a9c49c0ecfed4c479eb86ed061f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179998
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/export_test.go |  8 -----
- src/runtime/proc.go        | 15 ---------
- src/runtime/sema.go        | 21 +-----------
- src/runtime/sema_test.go   | 80 ----------------------------------------------
- src/sync/mutex.go          |  3 +-
- 5 files changed, 2 insertions(+), 125 deletions(-)
+ src/cmd/go/internal/modcmd/download.go | 8 ++++++++
+ src/cmd/go/testdata/script/mod_off.txt | 4 ++++
+ 2 files changed, 12 insertions(+)

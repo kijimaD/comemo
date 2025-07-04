@@ -1,13 +1,12 @@
-commit 3611553c3b08d615a34581274b553da6c94f193c
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 1 14:57:05 2013 -0500
+commit be6e82e30bd49e7cb00fff693e7e02cb0b331af9
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Mar 1 13:17:13 2013 -0500
 
-    runtime: add atomics to fix arm
+    exp/ssa/interp: disable interp_test on non-POSIX.
     
-    R=golang-dev, minux.ma
+    R=gri, rsc
     CC=golang-dev
-    https://golang.org/cl/7429046
+    https://golang.org/cl/7422051
 
- src/pkg/runtime/proc.c    | 34 +++++++++++++++++-----------------
- src/pkg/runtime/runtime.h |  2 +-
- 2 files changed, 18 insertions(+), 18 deletions(-)
+ src/pkg/exp/ssa/interp/interp_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

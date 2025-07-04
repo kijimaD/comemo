@@ -1,13 +1,14 @@
-commit ba593757508b3f748d4e33e4bbd86d7418d81578
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Apr 18 10:50:06 2014 +0200
+commit c7d864c4d004799ad8c59da311913966c93ac98c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 17 23:16:11 2014 -0400
 
-    doc/go1.3.html: new package debug/plan9obj
+    cmd/go: support -ccflags in 'go test'
+    Fixes #7810.
     
-    LGTM=r
-    R=r
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/86180046
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/89050043
 
- doc/go1.3.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/testflag.go | 1 +
+ 1 file changed, 1 insertion(+)

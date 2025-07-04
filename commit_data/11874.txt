@@ -1,66 +1,17 @@
-commit bf2838334c76312bb65c95e6cbdfa1d40c8e4074
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 14 14:53:30 2012 +1100
+commit 5ab935f68a43a503b791e4513a6e76ee615929ff
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 14 14:52:00 2012 +1100
 
-    testing: let runtime catch the panic.
-    It's not as pretty, but it deletes some irrelevant information from the
-    printout and avoids a dependency.
-    It also means the test binary will stop if a test panics. That's a feature,
-    not a bug.
-    Any output printed by the test appears before the panic traceback.
+    godoc: list examples in index
     
-    before:
+    Fixes #2897.
     
-    --- FAIL: TestPanic (0.00 seconds)
-            fmt_test.go:19: HI
-            testing.go:257: runtime error: index out of range
-                    /Users/r/go/src/pkg/testing/testing.go:257 (0x23998)
-                            _func_003: t.Logf("%s\n%s", err, debug.Stack())
-                    /Users/r/go/src/pkg/runtime/proc.c:1388 (0x10d2d)
-                            panic: reflect·call(d->fn, d->args, d->siz);
-                    /Users/r/go/src/pkg/runtime/runtime.c:128 (0x119b0)
-                            panicstring: runtime·panic(err);
-                    /Users/r/go/src/pkg/runtime/runtime.c:85 (0x11857)
-                            panicindex: runtime·panicstring("index out of range");
-                    /Users/r/go/src/pkg/fmt/fmt_test.go:21 (0x23d72)
-                            TestPanic: a[10]=1
-                    /Users/r/go/src/pkg/testing/testing.go:264 (0x21b75)
-                            tRunner: test.F(t)
-                    /Users/r/go/src/pkg/runtime/proc.c:258 (0xee9e)
-                            goexit: runtime·goexit(void)
-    FAIL
-    
-    after:
-    
-    --- FAIL: TestPanic (0.00 seconds)
-            fmt_test.go:19: HI
-    panic: runtime error: index out of range [recovered]
-            panic: (*testing.T) (0xec3b0,0xf8400001c0)
-    
-    goroutine 2 [running]:
-    testing._func_003(0x21f5fa8, 0x21f5100, 0x21f5fb8, 0x21f5e88)
-            /Users/r/go/src/pkg/testing/testing.go:259 +0x108
-    ----- stack segment boundary -----
-    fmt_test.TestPanic(0xf8400001c0, 0x27603728)
-            /Users/r/go/src/pkg/fmt/fmt_test.go:21 +0x6b
-    testing.tRunner(0xf8400001c0, 0x18edb8, 0x0, 0x0)
-            /Users/r/go/src/pkg/testing/testing.go:264 +0x6f
-    created by testing.RunTests
-            /Users/r/go/src/pkg/testing/testing.go:343 +0x76e
-    
-    goroutine 1 [chan receive]:
-    testing.RunTests(0x2000, 0x18edb8, 0x2400000024, 0x100000001, 0x200000001, ...)
-            /Users/r/go/src/pkg/testing/testing.go:344 +0x791
-    testing.Main(0x2000, 0x18edb8, 0x2400000024, 0x188a58, 0x800000008, ...)
-            /Users/r/go/src/pkg/testing/testing.go:275 +0x62
-    main.main()
-            /var/folders/++/+++Fn+++6+0++4RjPqRgNE++2Qk/-Tmp-/go-build743922747/fmt/_test/_testmain.go:129 +0x91
-    exit status 2
-    
-    R=rsc, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5658048
+    https://golang.org/cl/5658047
 
- src/pkg/runtime/debug/stack_test.go |  2 +-
- src/pkg/testing/testing.go          | 10 ++++------
- 2 files changed, 5 insertions(+), 7 deletions(-)
+ doc/godocs.js          | 22 ++++++++++++++++++----
+ lib/godoc/example.html |  2 +-
+ lib/godoc/package.html |  9 +++++++++
+ src/cmd/godoc/godoc.go |  4 ++--
+ 4 files changed, 30 insertions(+), 7 deletions(-)

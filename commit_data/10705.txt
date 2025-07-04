@@ -1,12 +1,14 @@
-commit 4068e3fc7049e70f734b80d9efb8f0b4551dc360
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Dec 12 16:14:38 2011 +1100
+commit b78a7b7dabd367722affa7188adb26d503b39109
+Author: Rob Pike <r@golang.org>
+Date:   Sun Dec 11 21:03:49 2011 -0800
 
-    doc: remove file.go from run (fix windows build)
+    doc/go_tutorial: make clear the file example is Unix-specific
+    Fixes #2553.
     
-    R=golang-dev, r, alex.brainman, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5479069
+    https://golang.org/cl/5472074
 
- doc/progs/run | 1 -
- 1 file changed, 1 deletion(-)
+ doc/go_tutorial.html | 10 ++++++++--
+ doc/go_tutorial.tmpl | 10 ++++++++--
+ 2 files changed, 16 insertions(+), 4 deletions(-)

@@ -1,28 +1,20 @@
-commit 85bbabd9c49253846f10d08876f9e15338cfe6b4
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sat Mar 19 00:44:17 2016 -0400
+commit 9278a04a8fca27cdfb556313c82c052f28504b9f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 2 11:13:50 2016 -0800
 
-    cmd/asm: add s390x support
+    [dev.ssa] cmd/compile: more combining of ops into instructions
     
-    s390x doesn't introduce any new assembly syntax. There are a few
-    instructions which require the operands to be reordered, notably
-    the storage-storage instructions that put the length into From3 so
-    that the memory operands can be put into From and To.
+    Mostly indexed loads.  A few more LEA cases.
     
-    The assembly test currently covers a subset of instructions but
-    tries to hit edge cases as much as possible. Unlike the other ports
-    it can be linked as an executable to make disassembling it easy.
-    It would be nice to autogenerate it at some point in the future.
-    
-    Change-Id: I7615ac6ecf239e3f347fad9ae1f8eede91742859
-    Reviewed-on: https://go-review.googlesource.com/20934
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Idc1d447ed0dd6e906cd48e70307a95e77f61cf5f
+    Reviewed-on: https://go-review.googlesource.com/19172
+    Reviewed-by: Todd Neal <todd@tneal.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/arch/arch.go         |  58 ++++++++
- src/cmd/asm/internal/arch/s390x.go        | 139 +++++++++++++++++++
- src/cmd/asm/internal/asm/asm.go           |  30 +++++
- src/cmd/asm/internal/asm/endtoend_test.go |   4 +
- src/cmd/asm/internal/asm/operand_test.go  | 103 ++++++++++++++
- src/cmd/asm/internal/asm/testdata/s390x.s | 215 ++++++++++++++++++++++++++++++
- 6 files changed, 549 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go           |   20 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   79 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   42 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  107 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1176 +++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/value.go        |    2 +-
+ 6 files changed, 1260 insertions(+), 166 deletions(-)

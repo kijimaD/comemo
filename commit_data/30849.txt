@@ -1,34 +1,22 @@
-commit 34975095d0fbf61e1c22c0adf71ca1568106862f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 22 20:27:54 2017 -0700
+commit f3b56de4d2a9ad5a3ed538455158b8e003b2e25e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 9 11:14:26 2016 -0800
 
-    cmd/compile: provide pos and curfn to temp
+    [dev.inline] cmd/compile/internal/syntax: report byte offset rather then rune count for column value
     
-    Concurrent compilation requires providing an
-    explicit position and curfn to temp.
-    This implementation of tempAt temporarily
-    continues to use the globals lineno and Curfn,
-    so as not to collide with mdempsky's
-    work for #19683 eliminating the Curfn dependency
-    from func nod.
+    This will only become user-visible if error messages show column information.
+    Per the discussion in #10324.
     
-    Updates #15756
-    Updates #19683
+    For #10324.
     
-    Change-Id: Ib3149ca4b0740e9f6eea44babc6f34cdd63028a9
-    Reviewed-on: https://go-review.googlesource.com/38592
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5959c1655aba74bb1a22fdc261cd728ffcfa6912
+    Reviewed-on: https://go-review.googlesource.com/34244
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/gen.go            |  8 ++++++++
- src/cmd/compile/internal/gc/pgen.go           |  3 ++-
- src/cmd/compile/internal/gc/ssa.go            | 10 +++++++---
- src/cmd/compile/internal/ssa/config.go        |  2 +-
- src/cmd/compile/internal/ssa/export_test.go   |  2 +-
- src/cmd/compile/internal/ssa/loop_test.go     |  3 ++-
- src/cmd/compile/internal/ssa/regalloc.go      | 13 ++++++-------
- src/cmd/compile/internal/ssa/regalloc_test.go |  9 ++++++---
- src/cmd/compile/internal/ssa/stackalloc.go    |  2 +-
- src/cmd/compile/internal/ssa/writebarrier.go  |  2 +-
- 10 files changed, 35 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/syntax/pos.go          |   7 +-
+ src/cmd/compile/internal/syntax/pos_test.go     |  12 +--
+ src/cmd/compile/internal/syntax/scanner_test.go | 123 ++++++++++++------------
+ src/cmd/compile/internal/syntax/source.go       |  11 ++-
+ 4 files changed, 81 insertions(+), 72 deletions(-)

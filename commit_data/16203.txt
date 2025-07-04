@@ -1,14 +1,16 @@
-commit 41451dd92b03be8fe51db16903a634b9b224c20b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Apr 20 09:04:20 2013 +0900
+commit 0c2b980c49649635d502d9dd98f277f8480fbada
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Apr 20 02:44:16 2013 +0800
 
-    net: enable test for runtime.PollDesc leak
+    cmd/ld: don't show cursym in gcc invocation failure message
+    before:
+    fmt.statictmp_0731:/usr/local/go/pkg/tool/linux_amd64/6l: running gcc failed: unsuccessful exit status 0x100
+    now:
+    /usr/local/go/pkg/tool/linux_amd64/6l: running gcc failed: unsuccessful exit status 0x100
     
-    Update #5219.
-    
-    R=golang-dev, dvyukov, r
+    R=golang-dev, iant, r
     CC=golang-dev
-    https://golang.org/cl/8602047
+    https://golang.org/cl/8827045
 
- src/pkg/net/dial_test.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/ld/lib.c | 3 +++
+ 1 file changed, 3 insertions(+)

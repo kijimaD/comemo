@@ -1,0 +1,19 @@
+commit 6722c008c139a8abfe841275d12a601d7ea513a1
+Author: Mark Freeman <mark@golang.org>
+Date:   Wed Mar 26 20:13:16 2025 +0000
+
+    cmd/compile: rename some test packages in codegen
+    
+    All other files here use the codegen package.
+    
+    Change-Id: I714162941b9fa9051dacc29643e905fe60b9304b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661135
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ test/codegen/issue56440.go | 2 +-
+ test/codegen/issue58166.go | 2 +-
+ test/codegen/issue66585.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

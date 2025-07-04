@@ -1,12 +1,15 @@
-commit b0cd458605fc79481461172e0a751cb9524e2c3b
-Author: Jonathan Rudenberg <jonathan@titanous.com>
-Date:   Sun Apr 21 13:10:19 2013 +0200
+commit 4b091c533e2486b6d27e8f0754f0f2755f7931ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 20 17:20:41 2013 -0700
 
-    doc: add missing <code> to go1.1.html
+    sort: don't depend on math
     
-    R=golang-dev, adg
+    No reason to pull in math just for x != x.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8880043
+    https://golang.org/cl/8886043
 
- doc/go1.1.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/build/deps_test.go | 2 +-
+ src/pkg/sort/sort.go          | 9 ++++++---
+ 2 files changed, 7 insertions(+), 4 deletions(-)

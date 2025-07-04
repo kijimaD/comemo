@@ -1,18 +1,22 @@
-commit d53251d4aba2820eb8f788be75a1832c6f14213b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 11 22:55:15 2014 -0700
+commit d5887c5aaca74080c4b167e11559305c7154901c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 11 23:58:24 2014 -0400
 
-    net/http/cgi: serve 500, not 200, on invalid responses from child processes
+    test/run: make errorcheck tests faster
     
-    Per RFC 3875 section 6 rules.
+    Some of the errorcheck tests have many many identical regexps.
+    Use a map to avoid storing the compiled form many many times
+    in memory. Change the filterRe to a simple string to avoid
+    the expense of those regexps as well.
     
-    Fixes #7198
+    Cuts the time for run.go on index2.go by almost 50x.
     
-    LGTM=adg
-    R=adg
+    Noticed during debugging of issue 7344.
+    
+    LGTM=bradfitz
+    R=bradfitz, josharian
     CC=golang-codereviews
-    https://golang.org/cl/68960049
+    https://golang.org/cl/74380043
 
- src/pkg/net/http/cgi/host.go            | 15 +++++++++++++++
- src/pkg/net/http/cgi/matryoshka_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+)
+ test/run.go | 45 ++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 36 insertions(+), 9 deletions(-)

@@ -1,24 +1,18 @@
-commit d7691d055a7ab39a0d437eb5e20751dc1e339c2a
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jan 1 21:51:47 2018 -0500
+commit 624630b8247ca8150e10417f0da3e2fb2ce19eac
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 11 09:28:47 2017 -0700
 
-    runtime: replace _MaxMem with maxAlloc
+    cmd/compile: fold constant comparisions into SETxxmem ops.
     
-    Now that we have memLimit, also having _MaxMem is a bit confusing.
+    Fixes #22198
     
-    Replace it with maxAlloc, which better conveys what it limits. We also
-    define maxAlloc slightly differently: since it's now clear that it
-    limits allocation size, we can account for a subtle difference between
-    32-bit and 64-bit.
-    
-    Change-Id: Iac39048018cc0dae7f0919e25185fee4b3eed529
-    Reviewed-on: https://go-review.googlesource.com/85890
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I5cb91c73069af8b16a2580d28756efd58c84b690
+    Reviewed-on: https://go-review.googlesource.com/69990
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/chan.go   |  2 +-
- src/runtime/malloc.go |  8 +++++++-
- src/runtime/slice.go  | 24 ++++++++++++------------
- src/runtime/string.go |  8 ++++----
- 4 files changed, 24 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   60 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1180 +++++++++++++++++++++++++-
+ test/fixedbugs/issue22198.go                 |   18 +
+ 3 files changed, 1256 insertions(+), 2 deletions(-)

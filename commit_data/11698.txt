@@ -1,12 +1,13 @@
-commit 3f6a517db6f5e63844c4bd7b8e1871314df8b10d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 8 00:22:38 2012 -0500
+commit 1a761fd002ccdfb2bb0a24362247895052c105f5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 8 16:12:21 2012 +1100
 
-    cmd/dist: respect $CC, as quietgcc.bash used to
+    A+C: add Andrew Pritchard (Individual CLA)
     
-    R=golang-dev, r, iant
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5641051
+    https://golang.org/cl/5646049
 
- src/cmd/dist/build.c | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

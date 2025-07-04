@@ -1,31 +1,19 @@
-commit 152119990f62e9a791493f52933b7a113aaa4234
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Nov 21 17:17:06 2022 -0800
+commit 5b1b80beb1a2a9a353738e80777d1e25cfdfa095
+Author: Ethan Anderson <eanderson@atlassian.com>
+Date:   Tue Dec 14 10:59:06 2021 -0600
 
-    cmd/compile: add -d=inlstaticinit debug flag
+    cmd/go: remove mercurial from bitbucket vcs options
     
-    This CL adds -d=inlstaticinit to control whether static initialization
-    of inlined function calls (added in CL 450136) is allowed.
+    Mercurial was deprecated as of July 1, 2020 as per https://bitbucket.org/blog/sunsetting-mercurial-support-in-bitbucket
     
-    We've needed to fix it once already (CL 451555) and Google-internal
-    testing is hitting additional failure cases, so putting this
-    optimization behind a feature flag seems appropriate regardless.
+    Fixes #50810.
     
-    Also, while we diagnose and fix the remaining cases, this CL also
-    disables the optimization to avoid miscompilations.
-    
-    Updates #56894.
-    
-    Change-Id: If52a358ad1e9d6aad1c74fac5a81ff9cfa5a3793
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452676
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0d40f84aaa393905cae7c4bed8919b15de9a5f6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371720
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/base/debug.go       | 1 +
- src/cmd/compile/internal/base/flag.go        | 1 +
- src/cmd/compile/internal/staticinit/sched.go | 4 ++++
- test/fixedbugs/issue56778.go                 | 2 +-
- test/inline.go                               | 2 +-
- test/noinit.go                               | 2 +-
- 6 files changed, 9 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go      | 54 ++-----------------------------------
+ src/cmd/go/internal/vcs/vcs_test.go |  7 +++++
+ 2 files changed, 9 insertions(+), 52 deletions(-)

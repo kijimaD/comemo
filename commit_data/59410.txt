@@ -1,46 +1,17 @@
-commit 35b4fd9f373cbe13778eb259a19c496c9c613a1f
-Author: tdakkota <tanc13ya.ru@gmail.com>
-Date:   Sat May 3 19:45:02 2025 +0300
+commit 3e1a6925a1a635ceb29139d2d9268584fae88173
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Mon Mar 11 05:03:53 2024 +0000
 
-    bytes, strings: reduce Split{,After}Seq heap allocations
+    os: close pipe in test
     
-    This CL slightly changes flow of splitSeq to help compiler to inline the iterator closure.
-    
-    goos: linux
-    goarch: amd64
-    pkg: strings
-    cpu: AMD Ryzen 9 5950X 16-Core Processor
-                                        │   sec/op    │   sec/op     vs base                │
-    SplitSeqEmptySeparator-32             3.590m ± 0%   3.430m ± 2%   -4.46% (p=0.000 n=30)
-    SplitSeqSingleByteSeparator-32        647.0µ ± 0%   656.1µ ± 0%   +1.41% (p=0.000 n=30)
-    SplitSeqMultiByteSeparator-32         423.9µ ± 1%   384.5µ ± 0%   -9.31% (p=0.000 n=30)
-    SplitAfterSeqEmptySeparator-32        3.372m ± 4%   3.514m ± 0%   +4.20% (p=0.000 n=30)
-    SplitAfterSeqSingleByteSeparator-32   648.5µ ± 2%   537.6µ ± 0%  -17.10% (p=0.000 n=30)
-    SplitAfterSeqMultiByteSeparator-32    423.3µ ± 2%   364.4µ ± 2%  -13.91% (p=0.000 n=30)
-    geomean                               984.7µ        917.3µ        -6.85%
-    
-                                        │    B/op    │   B/op     vs base                     │
-    SplitSeqEmptySeparator-32             24.00 ± 0%   0.00 ± 0%  -100.00% (p=0.000 n=30)
-    SplitSeqSingleByteSeparator-32        24.00 ± 0%   0.00 ± 0%  -100.00% (p=0.000 n=30)
-    SplitSeqMultiByteSeparator-32         24.00 ± 0%   0.00 ± 0%  -100.00% (p=0.000 n=30)
-    SplitAfterSeqEmptySeparator-32        24.00 ± 0%   0.00 ± 0%  -100.00% (p=0.000 n=30)
-    SplitAfterSeqSingleByteSeparator-32   24.00 ± 0%   0.00 ± 0%  -100.00% (p=0.000 n=30)
-    SplitAfterSeqMultiByteSeparator-32    24.00 ± 0%   0.00 ± 0%  -100.00% (p=0.000 n=30)
-    geomean                               24.00                   ?
-    
-    For #73524
-    
-    Change-Id: Ic83c5751a41c65030356a208e4ad1f500723e695
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/669735
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Change-Id: Ic8b06c6fd9fc6a30b26f4e4614aa40b5cad3a5e7
+    GitHub-Last-Rev: 8397a8b30cf11c00e53b35e528f82a8534a00e01
+    GitHub-Pull-Request: golang/go#66240
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570515
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
 
- src/bytes/iter.go        | 21 +++++++++---------
- src/bytes/iter_test.go   | 56 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/strings/iter.go      | 21 +++++++++---------
- src/strings/iter_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 128 insertions(+), 22 deletions(-)
+ src/os/fifo_test.go | 1 +
+ 1 file changed, 1 insertion(+)

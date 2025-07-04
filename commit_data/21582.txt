@@ -1,13 +1,14 @@
-commit 9e9ddb004f6d33305765b446b0425f19ea6e12bf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 11 11:22:45 2015 -0800
+commit e12b1ddc9908602c7307d27a40c5b11529db6200
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Jan 18 20:05:44 2015 -0500
 
-    math/big: implemented Float.Int64, simplified Float.Uint64
+    fmt: reword the document for [n].
     
-    Change-Id: Ic270ffa7ec6f6dd4b0a951c64ad965447cce1417
-    Reviewed-on: https://go-review.googlesource.com/4571
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #9632.
+    
+    Change-Id: Ic4d7cad8ff62023c1beecd2d62e48eb9258f5306
+    Reviewed-on: https://go-review.googlesource.com/3013
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/float.go      | 165 +++++++++++++++++++++++++++------------------
- src/math/big/float_test.go |  66 +++++++++++++++---
- 2 files changed, 156 insertions(+), 75 deletions(-)
+ src/fmt/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,23 +1,29 @@
-commit 688667716ede8b133d361db0a1d47eab24ced7f7
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Jan 3 12:13:53 2019 -0800
+commit 5ac247674884a93f3a7630649ee00923724e7961
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Aug 30 15:47:04 2018 -0600
 
-    runtime: don't scan go'd function args past length of ptr bitmap
+    cmd/compile: make math/bits.RotateLeft* an intrinsic on amd64
     
-    Use the length of the bitmap to decide how much to pass to the
-    write barrier, not the total length of the arguments.
+    Previously, pattern matching was good enough to achieve good performance
+    for the RotateLeft* functions, but the inlining cost for them was much
+    too high. Make RotateLeft* intrinsic on amd64 as a stop-gap for now to
+    reduce inlining costs.
     
-    The test needs enough arguments so that two distinct bitmaps
-    get interpreted as a single longer bitmap.
+    This should be done (or at least looked at) for other architectures
+    as well.
     
-    Update #29362
+    Updates golang/go#17566
     
-    Change-Id: I78f3f7f9ec89c2ad4678f0c52d3d3def9cac8e72
-    Reviewed-on: https://go-review.googlesource.com/c/156123
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I6a106ff00b6c4e3f490650af3e083ed2be00c819
+    Reviewed-on: https://go-review.googlesource.com/132435
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/proc.go           |  2 +-
- test/fixedbugs/issue29362b.go | 53 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             | 22 +++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  5 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 12 +++--
+ src/cmd/compile/internal/ssa/opGen.go          | 24 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 64 ++++++++++++++++++++++++++
+ test/inline_math_bits_rotate.go                | 28 +++++++++++
+ 6 files changed, 151 insertions(+), 4 deletions(-)

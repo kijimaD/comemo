@@ -1,0 +1,20 @@
+commit 00034fa796ed7d47895601ee5d7fef30dbd4c65c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Oct 8 17:46:22 2024 -0400
+
+    cmd/internal/buildid: skip over GNU build ID from buildid computation
+    
+    This is similar to CL 618597, but for GNU build ID on ELF. This
+    makes it possible to enable "-B gobuildid" by default on ELF.
+    
+    Updates #41004.
+    For #63934.
+    
+    Change-Id: I4e663a27a2f7824bce994c783fe6d9ce8d1a395a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618600
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/buildid/rewrite.go | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)

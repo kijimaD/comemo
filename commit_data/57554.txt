@@ -1,34 +1,18 @@
-commit 80316510d3b97c6dc7b6a380e18e9f41467b3c10
+commit 0e9bf41e1dce5c75f80f255cc11b8076b6203994
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 27 10:24:16 2024 -0700
+Date:   Tue Aug 15 17:08:44 2023 -0700
 
-    go/types, types2: remove non-test uses of Scope.LookupParent
+    go/types: update generate_test.go (cleanup)
     
-    This moves the implementation of Scope.LookupParent into
-    environment.lookupScope where it encapsulates the use of
-    the current environment's position. At least in types2,
-    that position can be removed, because it is never set.
+    Adjust some rewrite code to match current code base.
     
-    With this, the type checker doesn't rely on position
-    information anymore for looking up objects during type
-    checking.
-    
-    LookupParent is still called from tests and some go/types
-    code.
-    
-    Updates #69673.
-    
-    Change-Id: I7159ba95b71cf33cc3b16058aa19327e166224b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616337
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I7d3b79b764b95d664dd95e1057725f15a94973d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519856
+    Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/check.go   | 21 +++++++++++++++++++--
- src/cmd/compile/internal/types2/scope.go   |  7 ++++++-
- src/cmd/compile/internal/types2/typexpr.go |  4 +---
- src/go/types/check.go                      | 21 +++++++++++++++++++--
- src/go/types/scope.go                      |  7 ++++++-
- src/go/types/typexpr.go                    |  4 +---
- 6 files changed, 52 insertions(+), 12 deletions(-)
+ src/go/types/generate_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

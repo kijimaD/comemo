@@ -1,22 +1,20 @@
-commit 0a1a65c9ce2a55a41ccce8e681faabb719c827db
-Author: James Hartig <fastest963@gmail.com>
-Date:   Fri Apr 14 00:53:09 2017 -0400
+commit 33c34770398af5b4de54f5a0922763bd10dc2915
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 18 05:08:35 2017 +0900
 
-    crypto/x509: add MarshalPKCS8PrivateKey
+    net, internal/poll, net/internal/socktest: use accept4 and SOCK_{CLOEXEC,NONBLOCK} on dragonfly
     
-    asn1.NullRawValue was used according to RFC 3279 2.2.1. Without this tag,
-    the output didn't match openssl.
+    Fixes #14222
     
-    Fixes #19972
-    
-    Change-Id: Ia52ddb810888837f913dbd65c4e1328f6c8084bb
-    Reviewed-on: https://go-review.googlesource.com/40730
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I026fc9499fdefc33b8bb58b5963e2290adacbf63
+    Reviewed-on: https://go-review.googlesource.com/40895
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/x509/pkcs8.go      | 47 +++++++++++++++++++++
- src/crypto/x509/pkcs8_test.go | 95 +++++++++++++++++++++++++++++++++++++++----
- src/crypto/x509/sec1.go       |  6 +++
- 3 files changed, 141 insertions(+), 7 deletions(-)
+ src/internal/poll/hook_cloexec.go        | 2 +-
+ src/internal/poll/sock_cloexec.go        | 2 +-
+ src/internal/poll/sys_cloexec.go         | 2 +-
+ src/net/internal/socktest/sys_cloexec.go | 2 +-
+ src/net/main_cloexec_test.go             | 2 +-
+ src/net/sock_cloexec.go                  | 2 +-
+ src/net/sys_cloexec.go                   | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

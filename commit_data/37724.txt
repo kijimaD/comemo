@@ -1,26 +1,38 @@
-commit 3c255e8bc6964ebee580b44835ddbe95c893e29f
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 17 14:17:20 2018 -0500
+commit a3381faf81e5e9ec0b207d74f29f6c442b2abb73
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Mon Sep 18 22:02:55 2017 -0700
 
-    runtime: record extra information in throwOnGCWork crashes
+    math/big: streamline divLarge initialization
     
-    Currently we only know the slot address and the value being written in
-    the throwOnGCWork crash tracebacks, and we have to infer the old value
-    from what's dumped by gcWork.checkPut. Sometimes these old values
-    don't make sense, like when we see a write of a nil pointer to a
-    freshly-allocated object, yet we observe marking a value (where did
-    that pointer come from?).
+    The divLarge code contained "todo"s about avoiding alias
+    and clear calls in the initialization of variables.  By
+    rearranging the order of initialization and always using
+    an auxiliary variable for the shifted divisor, all of these
+    calls can be safely avoided.  On average, normalizing
+    the divisor (shift>0) is required 31/32 or 63/64 of the
+    time.  If one always performs the shift into an auxiliary
+    variable first, this avoids the need to check for aliasing of
+    vIn in the output variables u and z.  The remainder u is
+    initialized via a left shift of uIn and thus needs no
+    alias check against uIn.  Since uIn and vIn were both used,
+    z needs no alias checks except against u which is used for
+    storage of the remainder. This change has a minimal impact
+    on performance (see below), but cleans up the initialization
+    code and eliminates the "todo"s.
     
-    This CL adds the old value of the slot and the first two pointers in
-    the buffer to the traceback.
+    name                 old time/op  new time/op  delta
+    Div/20/10-4          86.7ns ± 6%  85.7ns ± 5%    ~     (p=0.841 n=5+5)
+    Div/200/100-4         523ns ± 5%   502ns ± 3%  -4.13%  (p=0.024 n=5+5)
+    Div/2000/1000-4      2.55µs ± 3%  2.59µs ± 5%    ~     (p=0.548 n=5+5)
+    Div/20000/10000-4    80.4µs ± 4%  80.0µs ± 2%    ~     (p=1.000 n=5+5)
+    Div/200000/100000-4  6.43ms ± 6%  6.35ms ± 4%    ~     (p=0.548 n=5+5)
     
-    For #27993.
+    Fixes #22928
     
-    Change-Id: Ib70eead1afb9c06e8099e520172c3a2acaa45f80
-    Reviewed-on: https://go-review.googlesource.com/c/154597
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I30d8498ef1cf8b69b0f827165c517bc25a5c32d7
+    Reviewed-on: https://go-review.googlesource.com/130775
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mwbbuf.go | 24 +++++++++++++++++++++++-
- 1 file changed, 23 insertions(+), 1 deletion(-)
+ src/math/big/int_test.go | 26 ++++++++++++++++++++++++
+ src/math/big/nat.go      | 52 ++++++++++++++++++++----------------------------
+ 2 files changed, 48 insertions(+), 30 deletions(-)

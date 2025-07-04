@@ -1,12 +1,13 @@
-commit 4c268b335f0676497c43e020eaaad73d613c18c7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Aug 6 12:30:54 2011 -0700
+commit 7d87f3d2338817fee1fac0332417fce5b95f563c
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 6 11:21:59 2011 +1000
 
-    gofmt: update test script so 'make test' succeeds
+    FAQ: variant types, unions
+    Fixes #1935.
     
-    R=r, rsc
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4832055
+    https://golang.org/cl/4850044
 
- src/cmd/gofmt/test.sh | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_faq.html | 90 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 90 insertions(+)

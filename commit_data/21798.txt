@@ -1,29 +1,15 @@
-commit 05ca0f3370ce335fc69a85a837655b821a68a706
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Feb 28 20:31:32 2015 +0000
+commit ef664199cba3dccb8816aa484e3ff6bc44c28d1e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 4 10:06:06 2015 -0800
 
-    cmd/internal/gc, cmd/internal/obj: remove pointless fmt.Sprintf calls
+    [dev.cc] cmd/asm: make 386 work
     
-    This is a follow-up to CL 6265. No behavior changes.
-    The diff was generated with eg, using template:
+    An editing error prevented the tables from being set up correctly.
+    With that fixed, asm is now compatible with 8a.
     
-    package p
-    
-    import "fmt"
-    
-    func before(a string) string { return fmt.Sprintf(a) }
-    func after(a string) string  { return a }
-    
-    Change-Id: I7b3bebf31be5cd1ae2233da06cb4502a3d73f092
-    Reviewed-on: https://go-review.googlesource.com/6269
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ieb20e6dcaf4c05bd448ea748a010ee1f58ef4807
+    Reviewed-on: https://go-review.googlesource.com/3867
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/gc/bits.go     |  2 +-
- src/cmd/internal/gc/fmt.go      | 30 +++++++++++++++---------------
- src/cmd/internal/gc/init.go     |  4 ++--
- src/cmd/internal/gc/mparith1.go |  8 ++++----
- src/cmd/internal/gc/plive.go    |  4 ++--
- src/cmd/internal/gc/subr.go     |  4 ++--
- src/cmd/internal/gc/walk.go     |  8 ++++----
- src/cmd/internal/obj/util.go    |  2 +-
- 8 files changed, 31 insertions(+), 31 deletions(-)
+ src/cmd/asm/internal/arch/arch.go | 154 +++++++++++++++++++-------------------
+ 1 file changed, 77 insertions(+), 77 deletions(-)

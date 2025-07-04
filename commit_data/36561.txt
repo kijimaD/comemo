@@ -1,14 +1,14 @@
-commit 4d01f9243c6dfcd82993483063421fc8aceeb353
-Author: Venil Noronha <veniln@vmware.com>
-Date:   Fri Aug 31 10:11:22 2018 -0700
+commit 15ac56fd60a28879fd65f6d761cc30c4c57ec0f1
+Author: Author Name <aaronstein12@gmail.com>
+Date:   Sat May 5 10:47:38 2018 -0700
 
-    fmt: add example for Fscanf
+    io: calculate buffer size only when needed
     
-    Change-Id: Ia3dcb3a82e452fdcf0d087e8cd01ac01ca831c84
-    Reviewed-on: https://go-review.googlesource.com/132597
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Kevin Burke <kev@inburke.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I930be9027fb972198b3d44816a5e4f53ff7eb5ea
+    Reviewed-on: https://go-review.googlesource.com/111642
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/fmt/example_test.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/io/io.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

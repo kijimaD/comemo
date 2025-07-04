@@ -1,17 +1,15 @@
-commit 31896332b39fcad70d0b451e2bff291d490cb4ca
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 11 14:17:57 2017 -0400
+commit 7e4d1a05e577d630f9b7f51ce31d2a5d7f52568e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 29 08:06:22 2017 -0700
 
-    cmd/dist: reenable TestDeps
+    reflect: document that value.NumMethod counts exported methods
     
-    It looks like I forgot to reenable this test when I fixed #21522.
-    Update deps.go and reenable.
+    Updates #17686
+    Fixes #20848
     
-    Change-Id: I68a45df09b418f48d93d2e7ab1d274e056c192e6
-    Reviewed-on: https://go-review.googlesource.com/70050
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I35d58c7d1aa74d3e7867124070e27c787d444b04
+    Reviewed-on: https://go-review.googlesource.com/47210
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/deps.go      | 1 +
- src/cmd/dist/deps_test.go | 1 -
- 2 files changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

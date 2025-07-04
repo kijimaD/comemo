@@ -1,12 +1,16 @@
-commit 5db0a8b9ef6c050323fa398374cf56617e21358d
-Author: Petar Maymounkov <petarm@gmail.com>
-Date:   Sat Mar 5 14:44:05 2011 -0500
+commit 7bc90eda690debde8dce18c8370904beefff5960
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 5 14:35:15 2011 -0500
 
-    http: fixed race condition in persist.go
+    http: fix, use WriteProxy
     
-    R=rsc, bradfitzgo, bradfitzwork
+    Fixes #53.
+    
+    R=bradfitzgo, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4266042
+    https://golang.org/cl/4240075
 
- src/pkg/http/persist.go | 94 ++++++++++++++++++++++++++++---------------------
- 1 file changed, 54 insertions(+), 40 deletions(-)
+ src/pkg/http/request.go           | 13 +++++----
+ src/pkg/http/requestwrite_test.go | 59 ++++++++++++++++++++++++++++++++++++---
+ src/pkg/http/transport.go         |  5 +++-
+ 3 files changed, 66 insertions(+), 11 deletions(-)

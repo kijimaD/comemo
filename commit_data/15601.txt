@@ -1,26 +1,12 @@
-commit 36b414f6397cadffab1a945eed645a3213f39d8a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 6 15:03:04 2013 -0500
+commit 1ca529c62cb478fff1aab4465dc467b72b57ee8c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 6 11:16:58 2013 -0800
 
-    runtime: change amd64 startup convention
+    api: update next.txt
     
-    Now the default startup is that the program begins at _rt0_amd64_$GOOS,
-    which sets DI = argc, SI = argv and jumps to _rt0_amd64.
-    
-    This makes the _rt0_amd64 entry match the expected semantics for
-    the standard C "main" function, which we can now provide for use when
-    linking against a standard C library.
-    
-    R=golang-dev, devon.odell, minux.ma
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7525043
+    https://golang.org/cl/7518044
 
- src/pkg/runtime/asm_amd64.s         |  4 ++--
- src/pkg/runtime/rt0_darwin_amd64.s  |  9 ++++++---
- src/pkg/runtime/rt0_freebsd_amd64.s | 12 ++++++++----
- src/pkg/runtime/rt0_linux_amd64.s   |  9 ++++++---
- src/pkg/runtime/rt0_netbsd_amd64.s  | 13 +++++++++----
- src/pkg/runtime/rt0_openbsd_amd64.s | 11 ++++++++---
- src/pkg/runtime/rt0_plan9_amd64.s   |  5 +++--
- src/pkg/runtime/rt0_windows_amd64.s |  9 +++++++--
- 8 files changed, 49 insertions(+), 23 deletions(-)
+ api/next.txt | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

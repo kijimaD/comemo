@@ -1,16 +1,16 @@
-commit bdb2f976d369112f68a1288eea1a8c1f54366fba
-Author: Evan Kroske <evankroske@google.com>
-Date:   Mon Aug 18 20:40:12 2014 -0700
+commit 9aa1e9afda4921fa1bb37e2733b4b84b5c468d48
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 12 19:51:20 2014 -0400
 
-    net/http: correct error message for incorrect Body length
+    runtime: avoid using address as constant in amd64 assembly
     
-    Fixes #8140.
+    This allows changing the addressing mode for constant
+    global addresses to use pc-relative addressing.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=rminnich, iant
+    R=golang-codereviews, rminnich, iant
     CC=golang-codereviews
-    https://golang.org/cl/131900044
+    https://golang.org/cl/129830043
 
- src/pkg/net/http/requestwrite_test.go | 4 ++--
- src/pkg/net/http/transfer.go          | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/runtime/asm_amd64.s | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

@@ -1,24 +1,12 @@
-commit 4667571619fbbb7bf01699388432685dbec8fc9f
+commit a28a10e1a2352736fa8bbf6def02517f42260e34
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Apr 5 18:47:43 2012 +0400
+Date:   Thu Apr 5 18:37:46 2012 +0400
 
-    runtime: add 64-bit atomics
-    This is factored out part of:
-    https://golang.org/cl/5279048/
-    (Parallel GC)
+    runtime: remove redundant code
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5985047
+    https://golang.org/cl/5987046
 
- src/pkg/runtime/arch_386.h     |  4 +++
- src/pkg/runtime/arch_amd64.h   |  4 +++
- src/pkg/runtime/arch_arm.h     |  2 ++
- src/pkg/runtime/asm_386.s      | 64 ++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/asm_amd64.s    | 45 +++++++++++++++++++++++++++++
- src/pkg/runtime/atomic_386.c   | 13 +++++++++
- src/pkg/runtime/atomic_amd64.c |  7 +++++
- src/pkg/runtime/atomic_arm.c   | 62 +++++++++++++++++++++++++++++++++++++++-
- src/pkg/runtime/runtime.c      | 30 ++++++++++++++++++++
- src/pkg/runtime/runtime.h      |  4 +++
- 10 files changed, 234 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mcache.c | 5 -----
+ 1 file changed, 5 deletions(-)

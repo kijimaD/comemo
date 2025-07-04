@@ -1,14 +1,23 @@
-commit 34aad1686ecf8b209c4a36f926026876558a8221
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Wed Nov 23 16:29:51 2016 -0700
+commit 8e69d43b32be578cd36eebe491b6e1205dbf32a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 27 20:50:57 2016 +0000
 
-    net/http: fix receiver for Server.Shutdown and Server.Close
+    net: add Buffers type, do writev on unix
     
-    Change-Id: Ia27ca728bafcf20d001b477787b21d16ae12960d
-    Reviewed-on: https://go-review.googlesource.com/33552
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    No fast path currently for solaris, windows, nacl, plan9.
+    
+    Fixes #13451
+    
+    Change-Id: I24b3233a2e3a57fc6445e276a5c0d7b097884007
+    Reviewed-on: https://go-review.googlesource.com/29951
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 30 +++++++++++++++---------------
- 1 file changed, 15 insertions(+), 15 deletions(-)
+ src/net/fd_unix.go          |   3 +
+ src/net/net.go              |  63 ++++++++++++++++
+ src/net/net_test.go         |  35 +++++++++
+ src/net/writev_test.go      | 171 ++++++++++++++++++++++++++++++++++++++++++++
+ src/net/writev_unix.go      |  91 +++++++++++++++++++++++
+ src/syscall/syscall_nacl.go |   2 +
+ 6 files changed, 365 insertions(+)

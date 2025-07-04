@@ -1,26 +1,85 @@
-commit 061181621641856a90bf555e702a70cac59cb584
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Tue Jan 16 00:16:25 2024 +0100
+commit 369d7119de19751f3adf751eba26d24371f1c799
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 4 14:20:26 2023 -0700
 
-    regexp/syntax: cleanup code generation in perl_groups.go
+    misc/cgo: remove +build lines, add go:build where needed
     
-    Cleanup code generation of perl_groups.go:
-    * Fix the generated code header to follow the standard https://go.dev/s/generatedcode
-    * Apply gofmt as last step of code generation
-    * Add //go:generate lines in parse.go to trigger code generation
-    * Adapt make_perl_groups.pl to handle writing directly to the output
-      file (as we can't use shell redirection in go:generate lines)
-    * use strict; use warnings;
-    
-    Change-Id: I675241da03dd3f6facc9eb9de00999bd9203ad70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/555995
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iae6ac32db5c2aacb323793a7e0dc34e09648d035
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482295
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/regexp/syntax/make_perl_groups.pl | 27 +++++++++++++++++++++------
- src/regexp/syntax/parse.go            |  2 ++
- src/regexp/syntax/perl_groups.go      |  3 +--
- 3 files changed, 24 insertions(+), 8 deletions(-)
+ misc/cgo/gmp/fib.go                                 | 1 -
+ misc/cgo/gmp/pi.go                                  | 1 -
+ misc/cgo/test/callback_c_gc.c                       | 2 +-
+ misc/cgo/test/callback_c_gccgo.c                    | 2 +-
+ misc/cgo/test/cgo_thread_lock.go                    | 1 -
+ misc/cgo/test/cgo_unix_test.go                      | 1 -
+ misc/cgo/test/cthread_unix.c                        | 2 +-
+ misc/cgo/test/issue1435.go                          | 1 -
+ misc/cgo/test/issue18146.go                         | 1 -
+ misc/cgo/test/issue21897.go                         | 1 -
+ misc/cgo/test/issue21897b.go                        | 1 -
+ misc/cgo/test/issue24161arg/def.go                  | 1 -
+ misc/cgo/test/issue24161arg/use.go                  | 1 -
+ misc/cgo/test/issue24161e0/main.go                  | 1 -
+ misc/cgo/test/issue24161e1/main.go                  | 1 -
+ misc/cgo/test/issue24161e2/main.go                  | 1 -
+ misc/cgo/test/issue24161res/restype.go              | 1 -
+ misc/cgo/test/issue29563.go                         | 1 -
+ misc/cgo/test/issue4029.c                           | 3 +--
+ misc/cgo/test/issue4029.go                          | 3 ---
+ misc/cgo/test/issue4029w.go                         | 1 -
+ misc/cgo/test/issue42018.go                         | 1 -
+ misc/cgo/test/issue6997_linux.c                     | 2 +-
+ misc/cgo/test/issue6997_linux.go                    | 1 -
+ misc/cgo/test/issue8517.go                          | 1 -
+ misc/cgo/test/issue8694.go                          | 1 -
+ misc/cgo/test/issue9400/asm_386.s                   | 2 +-
+ misc/cgo/test/issue9400/asm_amd64x.s                | 3 +--
+ misc/cgo/test/issue9400/asm_arm.s                   | 2 +-
+ misc/cgo/test/issue9400/asm_arm64.s                 | 2 +-
+ misc/cgo/test/issue9400/asm_mips64x.s               | 3 +--
+ misc/cgo/test/issue9400/asm_mipsx.s                 | 3 +--
+ misc/cgo/test/issue9400/asm_ppc64x.s                | 3 +--
+ misc/cgo/test/issue9400/asm_riscv64.s               | 3 +--
+ misc/cgo/test/issue9400/asm_s390x.s                 | 2 +-
+ misc/cgo/test/issue9400/gccgo.go                    | 1 -
+ misc/cgo/test/issue9400/stubs.go                    | 1 -
+ misc/cgo/test/sigaltstack.go                        | 1 -
+ misc/cgo/test/sigprocmask.c                         | 2 +-
+ misc/cgo/test/sigprocmask.go                        | 1 -
+ misc/cgo/test/test_unix.go                          | 1 -
+ misc/cgo/testcshared/testdata/libgo2/dup2.go        | 1 -
+ misc/cgo/testcshared/testdata/libgo2/dup3.go        | 1 -
+ misc/cgo/testcshared/testdata/libgo2/libgo2.go      | 1 -
+ misc/cgo/testgodefs/testdata/anonunion.go           | 3 +--
+ misc/cgo/testgodefs/testdata/bitfields.go           | 3 +--
+ misc/cgo/testgodefs/testdata/fieldtypedef.go        | 3 +--
+ misc/cgo/testgodefs/testdata/issue37479.go          | 3 +--
+ misc/cgo/testgodefs/testdata/issue37621.go          | 3 +--
+ misc/cgo/testgodefs/testdata/issue38649.go          | 3 +--
+ misc/cgo/testgodefs/testdata/issue39534.go          | 3 +--
+ misc/cgo/testgodefs/testdata/issue48396.go          | 3 +--
+ misc/cgo/testgodefs/testdata/issue8478.go           | 3 +--
+ misc/cgo/testplugin/testdata/issue22295.pkg/main.go | 1 -
+ misc/cgo/testplugin/testdata/unnamed1/main.go       | 1 -
+ misc/cgo/testplugin/testdata/unnamed2/main.go       | 1 -
+ misc/cgo/testshared/testdata/depBase/asm.s          | 2 +-
+ misc/cgo/testshared/testdata/depBase/gccgo.go       | 1 -
+ misc/cgo/testshared/testdata/depBase/stubs.go       | 1 -
+ misc/cgo/testso/noso_test.go                        | 1 -
+ misc/cgo/testso/so_test.go                          | 1 -
+ misc/cgo/testso/testdata/cgoso_c.c                  | 2 +-
+ misc/cgo/testso/testdata/cgoso_unix.go              | 1 -
+ misc/cgo/testso/testdata/main.go                    | 1 -
+ misc/cgo/testsovar/noso_test.go                     | 1 -
+ misc/cgo/testsovar/so_test.go                       | 1 -
+ misc/cgo/testsovar/testdata/cgoso_c.c               | 2 +-
+ misc/cgo/testsovar/testdata/cgoso_c.h               | 2 +-
+ misc/cgo/testsovar/testdata/main.go                 | 1 -
+ misc/cgo/testtls/tls_test.go                        | 1 -
+ 70 files changed, 28 insertions(+), 87 deletions(-)

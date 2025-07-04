@@ -1,29 +1,18 @@
-commit a0963164e86356092074473049cca7bff52afbce
-Author: David Chase <drchase@google.com>
-Date:   Tue Nov 9 11:47:49 2021 -0500
+commit d0d38f0f707e69965a5f5a637fa568c646899d39
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 14 14:27:06 2021 -0700
 
-    cmd/compile: add line number test for #49436
+    cmd/compile: fix whitespace in comment
     
-    This enhances the existing line number test
-    to allow a specific -gcflags (e.g., -G=3)
-    and to permit ignoring duplicate line numbers
-    (which is arguably a bug, but not THIS bug,
-    and it lowers the risk of a flaky test).
+    The whitespace was there to align with the following comment,
+    but the extra whitespace was unnecessary; it wasn't gofmt'd.
+    Then the file got gofmt'd, but the whitespace didn't get fixed.
     
-    Limited to Linux/Darwin and amd64/arm64,
-    also tests with "unified" mangling.
-    
-    And, using these new powers, adds a test.
-    
-    Updates #49436.
-    
-    Change-Id: I09c82e6a08d53edd5a752522a827e872d3e16e0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362714
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I45aad9605b99d83545e4e611ae3ea1b2ff9e6bf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301649
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/ssa/debug_lines_test.go  | 49 ++++++++++++++++++-----
- src/cmd/compile/internal/ssa/testdata/pushback.go | 30 ++++++++++++++
- 2 files changed, 70 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

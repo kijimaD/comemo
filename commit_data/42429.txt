@@ -1,12 +1,17 @@
-commit ff795a8af0357eb7b8ae9aa98aad6f8be3894864
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Mon Jun 1 11:58:54 2020 +0200
+commit a197c7bbf2bee9c7078e821736e81f9642548443
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 19 09:33:16 2019 -0500
 
-    doc: document new Android default linker
+    cmd/go/internal/clean: make 'go clean -testcache' a no-op if the cache directory is gone
     
-    Change-Id: I3557f6726afe325db79b2c972d107b3bcc103b8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235819
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #29100
+    
+    Change-Id: I195191aad825266ab55d38addef9d662cfc72dff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212099
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.15.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/go/internal/clean/clean.go             | 4 +++-
+ src/cmd/go/testdata/script/clean_testcache.txt | 9 ++++++++-
+ 2 files changed, 11 insertions(+), 2 deletions(-)

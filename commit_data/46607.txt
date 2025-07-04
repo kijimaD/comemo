@@ -1,13 +1,22 @@
-commit b88a6882a5411d705e4f05d300668f157f476749
-Author: DQNEO <dqneoo@gmail.com>
-Date:   Sat Sep 18 23:24:07 2021 +0900
+commit cc7f8c305501399c78d894b7ba7bd3ea428b250e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jan 14 18:22:41 2021 -0500
 
-    cmd/internal/obj: fix wording in a comment
+    [dev.fuzz] internal/fuzz: add sharedMem.setValueLen
     
-    Change-Id: I9921ba5c29ada6ff06d147f6d9b46a29101c449c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350694
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: David Chase <drchase@google.com>
+    This method sets the len of the slice returned by valueRef. The worker
+    now uses this instead of setting the length in the header directly.
+    
+    Unfortunately, we can't store the whole slice header in the shared
+    memory header because the pointer won't be valid across processes.
+    
+    Change-Id: Icef24acfcd85e098cd8c23810568f04b13649a19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284012
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/internal/obj/link.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/fuzz/mem.go    | 14 ++++++++++++++
+ src/internal/fuzz/worker.go |  6 ++----
+ 2 files changed, 16 insertions(+), 4 deletions(-)

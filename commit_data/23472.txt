@@ -1,17 +1,28 @@
-commit eb30fda83e0e1cb30ad8ac1fb46c9606da84bc76
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 23 14:01:45 2015 -0700
+commit 4cfff271c2aacd4ef23f7eacd9adf61605c45e74
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue May 12 15:59:15 2015 +1200
 
-    go/types: in string(x) conversions, x must be of integer type
+    cmd/5l, etc, cmd/internal/ld: consolidate implementations of adddynsym
     
-    Port of https://go-review.googlesource.com/11365
+    The only essential difference is elf32 vs elf64, I assume the other differences
+    are bugs in one version or another...
     
-    Fixes #11357.
-    
-    Change-Id: Icd20fa038696a8853d1d14477e1c1132938b3e2e
-    Reviewed-on: https://go-review.googlesource.com/11368
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ie6ff33d5574a6592b543df9983eff8fdf88c97a1
+    Reviewed-on: https://go-review.googlesource.com/10001
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/conversions.go           | 2 +-
- src/go/types/testdata/conversions.src | 5 +++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/5l/asm.go          | 54 ++--------------------------
+ src/cmd/5l/obj.go          |  1 -
+ src/cmd/6l/asm.go          | 64 +++-------------------------------
+ src/cmd/6l/obj.go          |  1 -
+ src/cmd/7l/asm.go          |  4 ---
+ src/cmd/7l/obj.go          |  1 -
+ src/cmd/8l/asm.go          | 60 +++-----------------------------
+ src/cmd/8l/obj.go          |  1 -
+ src/cmd/9l/asm.go          | 52 ++-------------------------
+ src/cmd/9l/obj.go          |  1 -
+ src/cmd/internal/ld/elf.go | 87 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/ld/go.go  | 24 ++++++++++---
+ src/cmd/internal/ld/lib.go |  1 -
+ 13 files changed, 120 insertions(+), 231 deletions(-)

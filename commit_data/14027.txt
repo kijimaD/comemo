@@ -1,33 +1,13 @@
-commit b459afe843d7350822276fc8db50e7b04f1458e9
-Author: Dmitry Chestnykh <dchest@gmail.com>
-Date:   Fri Oct 5 17:04:48 2012 -0400
+commit 4077819f558bd7020bc6d66da6827ce97ce63b99
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Oct 5 23:51:40 2012 +0800
 
-    crypto/sha256, crypto/sha512: 1.3x speedup
+    doc/codewalk: make it work with jQuery 1.8.2
+        so that it could work with the bundled jQuery.
     
-    SHA-256:
-    
-    benchmark          old ns/op    new ns/op    delta
-    BenchmarkHash1K        21686        16912  -22.01%
-    BenchmarkHash8K       173216       135020  -22.05%
-    
-    benchmark           old MB/s     new MB/s  speedup
-    BenchmarkHash1K        47.22        60.55    1.28x
-    BenchmarkHash8K        47.29        60.67    1.28x
-    
-    SHA-512:
-    
-    benchmark          old ns/op    new ns/op    delta
-    BenchmarkHash1K        14323        11163  -22.06%
-    BenchmarkHash8K       114120        88693  -22.28%
-    
-    benchmark           old MB/s     new MB/s  speedup
-    BenchmarkHash1K        71.49        91.73    1.28x
-    BenchmarkHash8K        71.78        92.36    1.29x
-    
-    R=golang-dev, agl
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/6584071
+    https://golang.org/cl/6592073
 
- src/pkg/crypto/sha256/sha256block.go | 8 ++++----
- src/pkg/crypto/sha512/sha512block.go | 7 ++++---
- 2 files changed, 8 insertions(+), 7 deletions(-)
+ doc/codewalk/codewalk.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

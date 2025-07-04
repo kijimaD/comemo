@@ -1,21 +1,14 @@
-commit c433c374b53fc6484b571a606581f3f067a6f97a
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Tue Apr 25 20:21:50 2017 -0600
+commit a0645fcaf9a1a6b76483806f66eedb09ed7c71b5
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Tue Feb 14 08:11:07 2017 -0800
 
-    net: defer file.close() + minor style cleanup
+    net/http: document ErrServerClosed
     
-    Moved the relevant file.close() usages close to after the
-    file opens and put them in defer statements, so that readers
-    don't have to think too much as to where the file is
-    being closed.
+    Fixes #19085
     
-    Change-Id: Ic4190b02ea2f5ac281b9ba104e0023e9f87ca8c7
-    Reviewed-on: https://go-review.googlesource.com/41796
+    Change-Id: Ib11b9a22ea8092aca9e1c9c36b1fb015dd555c4b
+    Reviewed-on: https://go-review.googlesource.com/36943
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/ipsock_plan9.go |  2 +-
- src/net/lookup_unix.go  | 39 +++++++++++++++++++++------------------
- src/net/port_unix.go    |  3 ++-
- 3 files changed, 24 insertions(+), 20 deletions(-)
+ src/net/http/server.go | 2 ++
+ 1 file changed, 2 insertions(+)

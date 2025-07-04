@@ -1,26 +1,31 @@
-commit 2c67c8c3038ec7dddecb6c1b29f0610f3262134d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 1 15:44:12 2016 -0800
+commit dfc8649854eeb569598cabfbc8e408c3ef07a539
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Fri Oct 16 14:04:29 2015 -0400
 
-    runtime: fix exit status when killed by signal
+    runtime, cmd: TLS setup for android/amd64.
     
-    Previously, when a program died because of a SIGHUP, SIGINT, or SIGTERM
-    signal it would exit with status 2.  This CL fixes the runtime to exit
-    with a status indicating that the program was killed by a signal.
+    Android linker does not handle TLS for us. We set up the TLS slot
+    for g, as darwin/386,amd64 handle instead. This is disgusting and
+    fragile. We will eventually fix this ugly hack by taking advantage
+    of the recent TLS IE model implementation. (Instead of referencing
+    an GOT entry, make the code sequence look into the TLS variable that
+    holds the offset.)
     
-    Change-Id: Ic2982a2562857edfdccaf68856e0e4df532af136
-    Reviewed-on: https://go-review.googlesource.com/18156
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The TLS slot for g in android/amd64 assumes a fixed offset from %fs.
+    See runtime/cgo/gcc_android_amd64.c for details.
+    
+    For golang/go#10743
+    
+    Change-Id: I1a3fc207946c665515f79026a56ea19134ede2dd
+    Reviewed-on: https://go-review.googlesource.com/15991
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/crash_unix_test.go          | 18 ++++++++++++++++++
- src/runtime/os_nacl.go                  |  4 ++++
- src/runtime/signal1_unix.go             | 18 +++++++++++++-----
- src/runtime/signal_386.go               |  2 +-
- src/runtime/signal_amd64x.go            |  2 +-
- src/runtime/signal_arm.go               |  2 +-
- src/runtime/signal_arm64.go             |  2 +-
- src/runtime/signal_mips64x.go           |  2 +-
- src/runtime/signal_ppc64x.go            |  2 +-
- src/runtime/testdata/testprog/signal.go | 17 +++++++++++++++++
- 10 files changed, 58 insertions(+), 11 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go    |  6 +++
+ src/cmd/internal/obj/x86/obj6.go    | 10 ++++
+ src/cmd/link/internal/ld/data.go    | 10 ++--
+ src/cmd/link/internal/ld/sym.go     | 10 +++-
+ src/runtime/cgo/gcc_android_amd64.c | 92 +++++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_linux_amd64.c   | 12 +++++
+ src/runtime/rt0_android_amd64.s     | 33 +++++++++++++
+ src/runtime/sys_linux_amd64.s       |  8 +++-
+ 8 files changed, 175 insertions(+), 6 deletions(-)

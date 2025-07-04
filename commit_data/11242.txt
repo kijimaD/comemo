@@ -1,37 +1,17 @@
-commit af08cfa494452b53d4b520f6ad862abf6f81f3ca
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Jan 19 12:59:39 2012 +1100
+commit 98af38807e9bc240b83d1a0aa6985a2b4a9f9778
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 18 16:49:59 2012 -0800
 
-    image: add PixOffset methods; use them in image/draw and image/tiff.
+    net: use NewTimer, not NewTicker, in fd_windows.go
     
-    image/draw benchmarks show <1% change for the fast paths.
-    The slow paths got worse by 1-4%, but they're the slow paths.
-    I don't care so much about them, and presumably compiler improvements
-    could claw it back.
+    It works with NewTicker too, but is potentially a bit less efficient,
+    and reads wrong.
     
-    IIUC 6g's inlining is enabled by default now.
+    This is what happens when you TBR Windows changes, I guess.
     
-    benchmark                        old ns/op    new ns/op    delta
-    draw.BenchmarkFillOver             2988384      2999624   +0.38%
-    draw.BenchmarkFillSrc               153141       153262   +0.08%
-    draw.BenchmarkCopyOver             2155756      2170831   +0.70%
-    draw.BenchmarkCopySrc                72591        72646   +0.08%
-    draw.BenchmarkNRGBAOver            2487372      2491576   +0.17%
-    draw.BenchmarkNRGBASrc             1361306      1409180   +3.52%
-    draw.BenchmarkYCbCr                2540712      2562359   +0.85%
-    draw.BenchmarkGlyphOver            1004879      1023308   +1.83%
-    draw.BenchmarkRGBA                 8746670      8844455   +1.12%
-    draw.BenchmarkGenericOver         31860960     32512960   +2.05%
-    draw.BenchmarkGenericMaskOver     16369060     16435720   +0.41%
-    draw.BenchmarkGenericSrc          13128540     13127810   -0.01%
-    draw.BenchmarkGenericMaskSrc      30059300     28883210   -3.91%
-    
-    R=r, gri
-    CC=golang-dev, rsc
-    https://golang.org/cl/5536059
+    R=golang-dev, gri, iant
+    CC=golang-dev
+    https://golang.org/cl/5536060
 
- src/pkg/image/draw/draw.go   |  22 ++++----
- src/pkg/image/image.go       | 128 ++++++++++++++++++++++++++++++-------------
- src/pkg/image/tiff/reader.go |  12 ++--
- src/pkg/image/ycbcr.go       |  38 +++++++------
- 4 files changed, 128 insertions(+), 72 deletions(-)
+ src/pkg/net/fd_windows.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

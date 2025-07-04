@@ -1,19 +1,41 @@
-commit c1e9760d4ca102539b2d52a7c4021205c29070bf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 15 11:33:10 2016 -0800
+commit 375092bdcbc5b095e1591558952ce537b9fa5fa3
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat May 7 21:34:04 2016 +0200
 
-    archive/zip: avoid overflow in record count and byte offset fields
+    cmd/compile: fix bogus "fallthrough statement out of place"
     
-    This is Quentin's https://golang.org/cl/33012 with updated tests.
+    When processing a fallthrough, the casebody function in swt.go
+    checks that the last statement has indeed Op == OXFALL (not-processed
+    fallthrough) before setting it to OFALL (processed fallthrough).
     
-    Fixes #14186
+    Unfortunately, sometimes the fallthrough statement won't be in the
+    last node. For example, in
     
-    Change-Id: Ib51deaab0368c6bad32ce9d6345119ff44f3c2d6
-    Reviewed-on: https://go-review.googlesource.com/33291
-    Reviewed-by: Quentin Smith <quentin@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    case 0:
+             return func() int {return 1}()
+             fallthrough
+    
+    the compiler generates
+    
+    autotmp_0 = (func literal)(); return autotmp_0; fallthrough; <node VARKILL>
+    
+    with an OVARKILL node in the last position. casebody will find that
+    last.Op != OXFALL, won't mark the fallthrough as processed, and the
+    fallthrough line will cause a "fallthrough statement out of place" error.
+    
+    To fix this, we change casebody so that it searches for the fallthrough
+    statement backwards in the statements list, without assuming that it'll
+    be in the last position.
+    
+    Fixes #13262
+    
+    Change-Id: I366c6caa7fd7442d365bd7a08cc66a552212d9b2
+    Reviewed-on: https://go-review.googlesource.com/22921
+    Run-TryBot: Quentin Smith <quentin@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/archive/zip/writer.go   |  10 +-
- src/archive/zip/zip_test.go | 317 ++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 302 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/swt.go  | 12 +++++++++++-
+ src/cmd/compile/internal/gc/walk.go |  2 +-
+ test/fixedbugs/issue13262.go        | 21 +++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 2 deletions(-)

@@ -1,18 +1,17 @@
-commit 466547014769bbdf7d5a62ca1019bf52d809dfcd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 10 21:38:16 2019 -0700
+commit 5a2da5624a9403a61cdd8df529e2b71129ef7898
+Author: JT Olio <hello@jtolio.com>
+Date:   Mon May 6 17:38:23 2019 -0600
 
-    runtime: add new cleantimers function
+    math/big: stack allocate scaleDenom return value
     
-    Also add a skeleton of the runOneTimer function.
+    benchmark             old ns/op     new ns/op     delta
+    BenchmarkRatCmp-4     154           77.9          -49.42%
     
-    Updates #27707
-    
-    Change-Id: Ic6a0279354a57295f823093704b7e152ce5d769d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171835
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I932710ad8b6905879e232168b1777927f86ba22a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175460
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/time.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 52 insertions(+), 3 deletions(-)
+ src/math/big/rat.go      | 35 ++++++++++++++++++++---------------
+ src/math/big/rat_test.go |  7 +++++++
+ 2 files changed, 27 insertions(+), 15 deletions(-)

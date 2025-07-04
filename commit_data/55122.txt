@@ -1,22 +1,21 @@
-commit ef7b713fefdcfef83101eda880015dded5fadb98
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Thu Oct 26 22:18:33 2023 +0200
+commit 18625d9becc559e65ab5b39aa5d27ae6eb7b00aa
+Author: zhengchaopu <zhengchaopu@gmail.com>
+Date:   Wed Jan 11 08:31:27 2023 +0000
 
-    errors: clarify references to Unwrap in doc
+    runtime: fix incorrect comment
     
-    CL 535080 incorrectly links the unclear mention of Unwrap to the func
-    Unwrap in doc for errors.Is and errors.As
+    Fix incorrect comment for the runtime package.
     
-    Instead we clarify that "Unwrap" is a reference
-    to the "Unwrap() error" or "Unwrap() []error" methods, not to the
-    "Unwrap(error) error" function which is also available in the package.
-    
-    Change-Id: I8314993932e1e7a2dc77400f74d81f3a8aa891de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538155
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Change-Id: Iab889eff0e9c622afbed959d32b8b5f0ed0bfebf
+    GitHub-Last-Rev: e9587868db36d9dd466f52f7ffc5de09947a6b2f
+    GitHub-Pull-Request: golang/go#57731
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461498
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/errors/wrap.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/mpagecache.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,19 +1,25 @@
-commit 27c5dcffef590ac9dbc31f3d513f1b7d058907f6
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jun 7 08:33:00 2016 +1000
+commit ff7ba773f43bf04c34ffb6ed67da464072e476f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 6 10:49:12 2016 -0700
 
-    cmd/dist: use "set" instead of "export" in diagnostic message
+    cmd/gofmt: make gofmt -s simplify slices in presence of dot-imports
     
-    On Windows, "export" doesn't mean anything, but Windows users are the
-    most likely to see this message.
+    A dot-import cannot possibly introduce a `len` function since that
+    function would not be exported (it's lowercase). Furthermore, the
+    existing code already (incorrectly) assumed that there was no other
+    `len` function in another file of the package. Since this has been
+    an ok assumption for years, let's leave it, but remove the dot-import
+    restriction.
     
-    Fixes #15977
+    Fixes #15153.
     
-    Change-Id: Ib09ca08a7580713cacb65d0cdc43730765c377a8
-    Reviewed-on: https://go-review.googlesource.com/23840
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I18fbb27acc5a5668833b4b4aead0cca540862b52
+    Reviewed-on: https://go-review.googlesource.com/21613
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/build.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gofmt/simplify.go             | 28 ++++++----------
+ src/cmd/gofmt/testdata/slices2.golden | 63 -----------------------------------
+ src/cmd/gofmt/testdata/slices2.input  | 63 -----------------------------------
+ 3 files changed, 10 insertions(+), 144 deletions(-)

@@ -1,27 +1,15 @@
-commit 5f5cae7200b544bfc250ad0676a98db1f7e7df31
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jul 12 10:48:47 2022 -0400
+commit 592ee433f5378e4b08f1fd8860be61b9bf20ca19
+Author: seifchen <chenxuefeng1207@gmail.com>
+Date:   Tue Aug 17 23:54:33 2021 +0000
 
-    cmd/go: avoid indexing GOROOT packages when the compiler is 'gccgo'
+    spec: adjust example for consistency
     
-    The gccgo compiler does not load standard-library packages from
-    GOROOT/src, so we cannot load those packages from the GOROOT/src
-    index when using that compiler.
-    
-    This fixes TestScript/gccgo_link_c (and perhaps other gccgo tests)
-    when a 'gccgo' executable is present. Unfortunately, only a few
-    builders caught the broken test because 'gccgo' is not installed
-    on most Go project builders (see #35786).
-    
-    For #53577.
-    Fixes #53815.
-    
-    Change-Id: I11a5cf6dbf4ac9893c4d02bd6ab7ef60f67b1e87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417094
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5ff9078907b78f31aec42abf749a193b15bc5109
+    GitHub-Last-Rev: 1f96d84f203275a6012c19ec387bce091889d77d
+    GitHub-Pull-Request: golang/go#47732
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342789
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/modindex/read.go | 3 +++
- src/go/build/build.go                | 3 +++
- 2 files changed, 6 insertions(+)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,40 @@
-commit b0df92703c89e42592659ae99cded0d5b68382b7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jan 4 13:34:29 2021 -0800
+commit 9bdaf99966e4bacb0dd268d773a617a3a3b93f3a
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Jul 29 11:06:02 2020 -0400
 
-    math/big: add shrVU and shlVU benchmarks
+    [dev.link] use per package filenames to build pclntab
     
-    Change-Id: Id67d6ac856bd9271de99c3381bde910aa0c166e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296011
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    In order to prevent renumbering of filenames in pclntab generation, use
+    the per-package file list (previously only used for DWARF generation) as
+    file-indices. This is the largest step to eliminate renumbering of
+    filenames in pclntab.
+    
+    Note, this is probably not the final state of the file table within the
+    object file. In this form, the linker loads all filenames for all
+    objects. I'll move to storing the filenames as regular string
+    symbols,and defaulting all string symbols to using the larger hash value
+    to make generation of pcln simplest, and most memory friendly.
+    
+    Change-Id: I23daafa3f4b4535076e23100200ae0e7163aafe0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245485
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/math/big/arith_test.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/cmd/internal/goobj/read.go                | 46 +++++++++++++--------------
+ src/cmd/internal/goobj/readnew.go             | 15 ++++++---
+ src/cmd/internal/goobj2/funcinfo.go           | 31 +++++++++---------
+ src/cmd/internal/goobj2/objfile.go            | 12 +++----
+ src/cmd/internal/obj/dwarf.go                 | 12 -------
+ src/cmd/internal/obj/line.go                  |  6 ++++
+ src/cmd/internal/obj/link.go                  |  6 ++--
+ src/cmd/internal/obj/objfile2.go              | 39 +++++++++--------------
+ src/cmd/internal/obj/pcln.go                  | 23 +++-----------
+ src/cmd/internal/obj/sym.go                   |  5 +--
+ src/cmd/internal/objfile/goobj.go             |  2 +-
+ src/cmd/internal/src/xpos.go                  |  4 +--
+ src/cmd/link/internal/ld/dwarf.go             |  2 +-
+ src/cmd/link/internal/ld/pcln.go              | 37 +++++++++++++--------
+ src/cmd/link/internal/loader/loader.go        | 17 +++++-----
+ src/cmd/link/internal/sym/compilation_unit.go | 12 +++----
+ 16 files changed, 126 insertions(+), 143 deletions(-)

@@ -1,15 +1,13 @@
-commit c91c564e8396399fce5400c176298eff0b92b8b2
+commit 560471fbabc3a493e0271a27eb1b16dee6546c7b
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Apr 16 01:19:26 2014 -0400
+Date:   Tue Apr 15 23:54:04 2014 -0400
 
-    doc/debugging_with_gdb: use -w to strip debug info.
-    Don't advertise -s anymore.
-    Fixes #7793.
+    run.bash: fix build on netbsd builders.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, dave
     CC=golang-codereviews
-    https://golang.org/cl/88030045
+    https://golang.org/cl/88000044
 
- doc/debugging_with_gdb.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

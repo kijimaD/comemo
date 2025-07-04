@@ -1,12 +1,12 @@
-commit 23f541aa54a1835ba7c851e476f3bc040cd9c103
-Author: Anthony Starks <ajstarks@gmail.com>
-Date:   Mon Nov 14 11:18:00 2011 -0800
+commit 39b255768265ef93496755c968647f68ddb6d985
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Nov 14 11:16:06 2011 -0800
 
-    misc/bbedit: error and rune support
+    kate: add error and rune
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5369057
+    https://golang.org/cl/5370078
 
- misc/bbedit/Go.plist | 2 ++
+ misc/kate/go.xml | 2 ++
  1 file changed, 2 insertions(+)

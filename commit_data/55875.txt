@@ -1,21 +1,21 @@
-commit 40cc3eb27869b2cbad5bf139191d02a1bc7b84b7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 7 21:17:04 2024 -0500
+commit 70d836debbaf660d41604761a839e28fa349a8f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 20 11:47:28 2023 -0700
 
-    runtime: fix mishandling of timer zombie count
+    go.types, types2: factor out checking of LHS in variable assignment
     
-    The timer zombie count was fundamentally racy and worked around
-    in CL 569995. We worked around that by ignoring underflow.
-    The fundamnental race was because t.ts was set before t was
-    inserted into ts. CL 564997 corrected that fundamental problem,
-    so now we can account for zombies completely accurately,
-    never seeing values less than zero. Do that.
+    Step towards disentangling assignment checking functionality.
+    In preparation for reverse inference of function type arguments,
+    but independently helpful in better separating concerns in the code.
     
-    Change-Id: Idfbccc6662af5935f29f2a06a35e8ea93929bed7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569996
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I9bac9d8005090c00d9ae6c5cfa13765aacce6b12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477855
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/runtime/time.go | 151 +++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 101 insertions(+), 50 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go | 62 ++++++++++++++++----------
+ src/go/types/assignments.go                    | 62 ++++++++++++++++----------
+ 2 files changed, 78 insertions(+), 46 deletions(-)

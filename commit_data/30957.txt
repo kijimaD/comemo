@@ -1,23 +1,25 @@
-commit 3237af2da88c82d4938b392d2644d65637a11526
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 31 10:28:54 2017 -0700
+commit 9def857072bb708a79c291bb88c4b2830f0a8376
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Dec 26 11:33:46 2016 -0800
 
-    cmd/compile: don't use lookupN for statictmps
+    database/sql: prevent Tx.rollback from racing Tx.close
     
-    The names never occur more than once,
-    so interning the results is counterproductive.
+    Previously Tx.done was being set in close, but in a Tx
+    rollback and Commit are the real closing methods,
+    and Tx.close is just a helper common to both. Prior to this
+    change a multiple rollback statements could be called, one
+    would enter close and begin closing it while the other was
+    still in rollback breaking it. Fix that by setting done
+    in rollback and Commit, not in Tx.close.
     
-    The impact is not very big, but neither is the fix.
+    Fixes #18429
     
-    name     old time/op     new time/op     delta
-    Unicode     90.2ms ± 3%     88.3ms ± 5%  -2.10%  (p=0.000 n=94+98)
-    
-    
-    Change-Id: I1e3a24433db4ae0c9a6e98166568941824ff0779
-    Reviewed-on: https://go-review.googlesource.com/39193
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie274f60c2aa6a4a5aa38e55109c05ea9d4fe0223
+    Reviewed-on: https://go-review.googlesource.com/34716
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/database/sql/sql.go      |  9 ++++-----
+ src/database/sql/sql_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 5 deletions(-)

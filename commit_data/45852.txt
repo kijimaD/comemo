@@ -1,23 +1,33 @@
-commit 1bd5a20e3c8a3a82e87487c381b76c97b720cd52
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 18 17:28:29 2021 -0400
+commit 015423a15bcfae148d5121bcf4ba5b50d0847cd0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 23 21:48:38 2020 -0800
 
-    cmd/go: add a -go flag to 'go mod graph'
+    [dev.regabi] strconv: add to bootstrap packages
     
-    For #46366
+    go/constant relies on strconv for parsing Go literals, while older
+    versions of strconv either lack recent Go language features (e.g., Go
+    1.13's new numeric literals) or have errors (e.g., mishandling of
+    carriage returns in raw string literals prior to Go 1.8).
     
-    Change-Id: I8417e6e4dbb8cb56ff7afc16893a01b7bb938217
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329529
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    This requires two changes:
+    
+    1. Splitting out the internal/bytealg dependency into a separate file,
+    which can be easily substituted with a simple loop for bootstrap
+    builds.
+    
+    2. Updating eisel_lemire.go to not utilize Go 1.13 functionality
+    (underscores in numeric literals and signed shift counts).
+    
+    Change-Id: Ib48a858a03b155eebdcd08d577aec2254337e70e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272749
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.17.html                                  |   7 ++
- src/cmd/go/alldocs.go                            |   6 +-
- src/cmd/go/internal/modcmd/graph.go              |  13 ++-
- src/cmd/go/internal/modcmd/verify.go             |   3 +-
- src/cmd/go/internal/modget/get.go                |   6 +-
- src/cmd/go/internal/modload/buildlist.go         |  26 +++++-
- src/cmd/go/testdata/script/mod_graph_version.txt | 101 +++++++++++++++++++++++
- 7 files changed, 154 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/dep_test.go |  2 +-
+ src/cmd/dist/buildtool.go               |  2 ++
+ src/strconv/bytealg.go                  | 14 ++++++++++++++
+ src/strconv/bytealg_bootstrap.go        | 17 +++++++++++++++++
+ src/strconv/eisel_lemire.go             | 16 ++++++++--------
+ src/strconv/quote.go                    |  6 ------
+ 6 files changed, 42 insertions(+), 15 deletions(-)

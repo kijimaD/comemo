@@ -1,23 +1,15 @@
-commit bb98331555a177f0e1256cebcfbc8a7b454bccd2
-Author: Paul Querna <paul@querna.org>
-Date:   Wed Nov 1 15:11:52 2017 -0700
+commit 58f84fdf29ca2f014a813991cf35e52de91a43cb
+Author: Blain Smith <rebelgeek@blainsmith.com>
+Date:   Mon Jul 17 09:42:25 2017 -0600
 
-    syscall: add Token to Windows SysProcAttr
+    fmt: add Stringer example
     
-    Fixes #21105
-    
-    Change-Id: Ia2dea9b82a356795f581ce75616198b46e97abb6
-    Reviewed-on: https://go-review.googlesource.com/75253
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I901f995f8aedee47c48252745816e53192d4b7e4
+    Reviewed-on: https://go-review.googlesource.com/49090
+    Reviewed-by: Sam Whited <sam@samwhited.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Sam Whited <sam@samwhited.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/syscall/windows/exec_windows_test.go | 153 ++++++++++++++++++++++
- src/internal/syscall/windows/security_windows.go  |  26 ++++
- src/internal/syscall/windows/zsyscall_windows.go  |  26 ++++
- src/syscall/exec_windows.go                       |   7 +-
- src/syscall/syscall_windows.go                    |   1 +
- src/syscall/zsyscall_windows.go                   |  19 +++
- 6 files changed, 231 insertions(+), 1 deletion(-)
+ src/fmt/example_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

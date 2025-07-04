@@ -1,18 +1,12 @@
-commit cc99e6e949a6fd1e72ee1111ba1a8c50711f0ca4
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jun 13 14:32:05 2013 +0400
+commit e59a09fb1aa386aa7e9258cd1bf8a7c7ed03d6fe
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 13 12:52:02 2013 +1000
 
-    runtime/race: update runtime to r183644
-    This revision properly handles memory range accesses.
-    Fixes #4453.
-    Fixes #5654.
+    tag go1.1.1
     
-    R=golang-dev, iant, remyoudompheng
+    R=golang-dev, dave, iant
     CC=golang-dev
-    https://golang.org/cl/10082043
+    https://golang.org/cl/10254043
 
- src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 146952 -> 176596 bytes
- src/pkg/runtime/race/race_linux_amd64.syso   | Bin 142848 -> 178904 bytes
- src/pkg/runtime/race/race_windows_amd64.syso | Bin 121376 -> 153779 bytes
- src/pkg/runtime/race/testdata/mop_test.go    |  42 +++++++++++++++++++++++++--
- 4 files changed, 39 insertions(+), 3 deletions(-)
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

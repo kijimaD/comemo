@@ -1,21 +1,39 @@
-commit 0c89487b1d9bac744091a5ff2a09541c71b66b85
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Apr 6 18:40:51 2023 +0000
+commit 30a2750a91616f8120266b79ea52d293a2398b86
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Apr 22 09:13:48 2022 -0400
 
-    cmd/go/internal/modfetch/codehost: set core.longpaths in Git repos on Windows
+    go/doc: move example tests into files
     
-    This setting appears to be needed to avoid “Filename too long” errors
-    when downloading modules from repos with long branch names,
-    particularly if the path to the module cache is already fairly long
-    (as may be the case in CI systems and in tests of cmd/go itself).
+    Move the test cases for doc.Examples from example_test.go into
+    their own files under testdata/examples.
     
-    Change-Id: I3aa89ea872b29eb0460c8a8afc94f182a68982fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482819
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    This makes example_test.go easier to read and collapses several
+    similar test functions into one.
+    
+    It will also make it less cumbersome to add large examples later.
+    
+    Change-Id: Id220c1205e94027d14291898e541b69344842686
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401756
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/modfetch/codehost/git.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/go/doc/example_test.go                         | 555 +++------------------
+ src/go/doc/testdata/examples/README.md             |  12 +
+ src/go/doc/testdata/examples/empty.go              |   8 +
+ src/go/doc/testdata/examples/empty.golden          |   6 +
+ src/go/doc/testdata/examples/import_groups.go      |  23 +
+ src/go/doc/testdata/examples/import_groups.golden  |  27 +
+ .../doc/testdata/examples/import_groups_named.go   |  23 +
+ .../testdata/examples/import_groups_named.golden   |  27 +
+ src/go/doc/testdata/examples/inspect_signature.go  |  23 +
+ .../doc/testdata/examples/inspect_signature.golden |  24 +
+ src/go/doc/testdata/examples/multiple.go           |  98 ++++
+ src/go/doc/testdata/examples/multiple.golden       | 129 +++++
+ src/go/doc/testdata/examples/whole_file.go         |  23 +
+ src/go/doc/testdata/examples/whole_file.golden     |  21 +
+ src/go/doc/testdata/examples/whole_function.go     |  13 +
+ src/go/doc/testdata/examples/whole_function.golden |  11 +
+ .../testdata/examples/whole_function_external.go   |  12 +
+ .../examples/whole_function_external.golden        |   8 +
+ 18 files changed, 549 insertions(+), 494 deletions(-)

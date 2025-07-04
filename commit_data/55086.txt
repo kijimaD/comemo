@@ -1,23 +1,21 @@
-commit ebca52eeb77f24f44c9b556b99508a9a6fada743
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Aug 15 19:54:51 2023 +0800
+commit fadd77c05b0f6633d753da61c74a7ed81959b252
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 21 11:03:16 2022 -0500
 
-    cmd/compile/internal: add register info for loong64 regABI
+    runtime/coverage: add missing file close in test support helper
     
-    Update #40724
+    The processPod() helper (invoked by processCoverTestDir, which is in
+    turn called by _testmain.go) was opening and reading counter data
+    files, but never closing them. Add a call to close the files after
+    they have been read.
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: Ifd7d94147b01e4fc83978b53dca2bcc0ad1ac4e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521779
+    Fixes #57407.
+    
+    Change-Id: If9a489f92e4bab72c5b2df8697e14420a6f7b8f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458835
     Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
 
- src/cmd/compile/internal/loong64/ssa.go         | 2 ++
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 4 ++--
- src/cmd/compile/internal/ssa/config.go          | 2 ++
- src/cmd/compile/internal/ssa/opGen.go           | 4 ++--
- 4 files changed, 8 insertions(+), 4 deletions(-)
+ src/runtime/coverage/testsupport.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

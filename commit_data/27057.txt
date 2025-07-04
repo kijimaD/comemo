@@ -1,17 +1,19 @@
-commit 5213cd700062917bc98f949479dfc0865751f2e8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 21 12:47:24 2016 -0700
+commit 6b59d618226259801fea6eb820587a449690261a
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Mar 9 16:16:05 2016 +0000
 
-    spec: fix incorrect comment in shift example
+    runtime: Plan 9 - prevent preemption by GC while exiting
     
-    - adjusted example code
-    - fixed comments
+    On Plan 9, there's no "kill all threads" system call, so exit is done
+    by sending a "go: exit" note to each OS process.  If concurrent GC
+    occurs during this loop, deadlock sometimes results.  Prevent this by
+    incrementing m.locks before sending notes.
     
-    Fixes #14785.
-    
-    Change-Id: Ia757dc93b0a69b8408559885ece7f3685a37daaa
-    Reviewed-on: https://go-review.googlesource.com/22353
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I31aa15134ff6e42d9a82f9f8a308620b3ad1b1b1
+    Reviewed-on: https://go-review.googlesource.com/20477
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/os1_plan9.go | 2 ++
+ 1 file changed, 2 insertions(+)

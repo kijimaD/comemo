@@ -1,36 +1,27 @@
-commit 2d2bcdd2ad83ba93e61747417d6865cdd88b32fe
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Mar 5 15:17:20 2025 -0500
+commit e1e466f80c96020ced38830d848f9f568e69ab1a
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Fri Feb 16 23:24:12 2024 +0000
 
-    cmd/go: upgrade go install pkg@version's go using local mod, work
+    internal/msan: add new package
     
-    This CL changes the toolchain selection behavior for go install pkg@v
-    and go run pkg@v to also take into account the go and toolchain version
-    lines in the containing go.mod and go.work file.
+    The internal/msan package contains helper functions for manually
+    instrumenting code for the memory sanitizer. It exports the private
+    msan routines in runtime unconditionally, making the functions a
+    no-op if the build flag "msan" is not present.
     
-    Before this change, the go command would detect that go install
-    pkg@version or go run pkg@version was being run and skip the standard
-    behavior that would select the toolchain based on the go version in the
-    go.mod or go.work file. It would instead check the go line of the module
-    being downloaded and switch to that version if necessary.
+    For #64611
     
-    With this change, the go command does not skip the standard behavior. It
-    proceeds to determine if an upgrade is required based on the containing
-    go.mod or go.work file's go and toolchain lines. Then, it checks the
-    module being installed to see if it would require a higher version than
-    the determined upgrade (or the local version if no upgrade was
-    determined). If it does require a higher version, then a switch happens
-    to that version, and if not the upgrade logic proceeds as usual doing
-    the upgrade if one was determined.
-    
-    Fixes #66518
-    
-    Change-Id: I00d96170e8713c451cc0fd2203be521585418842
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660035
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Change-Id: If43f29e112ac79a47083c9dbdf2c61a0641e80b1
+    GitHub-Last-Rev: 0a644bd6f10a9052c33992f1c56b1f0037ca98c7
+    GitHub-Pull-Request: golang/go#64637
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548676
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/go/internal/toolchain/select.go          | 33 ++++++++++----------
- src/cmd/go/testdata/script/gotoolchain_local.txt | 38 ++++++++++++++++++++++--
- src/cmd/go/testdata/script/gotoolchain_path.txt  |  4 +--
- 3 files changed, 53 insertions(+), 22 deletions(-)
+ src/go/build/deps_test.go   |  1 +
+ src/internal/msan/doc.go    |  9 +++++++++
+ src/internal/msan/msan.go   | 28 ++++++++++++++++++++++++++++
+ src/internal/msan/nomsan.go | 28 ++++++++++++++++++++++++++++
+ src/runtime/msan.go         |  5 +++++
+ 5 files changed, 71 insertions(+)

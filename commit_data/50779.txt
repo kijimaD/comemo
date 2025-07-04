@@ -1,29 +1,30 @@
-commit cbd931c9c2705e0e3a44c3b299ac2bd3369f5eb5
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Sep 22 13:35:08 2022 +0100
+commit f5f94340910421baea624ca08e5f51343515cae8
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 16:41:01 2021 -0500
 
-    encoding/gob: prevent a decoder state overflow
+    go/types: remove most asX converters (cleanup)
     
-    When decoding a struct, if a positive delta is large enough to overflow
-    when added to fieldnum, we would panic due to the resulting negative index.
+    This is a port of CL 362118 to go/types, which is itself a roll-forward
+    of CL 362254, containing a bugfix.
     
-    Instead, catch this problem and produce an error like we do with
-    negative delta integers. If fieldnum ends up being negative or smaller
-    than state.fieldnum, the addition overflowed.
-    
-    While here, remove an unnecessary break after an error call,
-    since those error functions cause a panic.
-    
-    Fixes #55337.
-    
-    Change-Id: I7a0e4f43e5c81a703e79c1597e3bb3714cc832c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432715
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I20067c7adf56bf64fe9ad080d998a7aefbdc1053
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362617
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/encoding/gob/decode.go       |  5 ++---
- src/encoding/gob/encoder_test.go | 13 +++++++++++++
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ src/go/types/assignments.go |  2 +-
+ src/go/types/builtins.go    |  8 ++++----
+ src/go/types/call.go        |  2 +-
+ src/go/types/context.go     |  3 +++
+ src/go/types/conversions.go | 21 +++++++++++----------
+ src/go/types/expr.go        |  6 +++---
+ src/go/types/index.go       |  8 ++++----
+ src/go/types/lookup.go      |  9 ++++-----
+ src/go/types/predicates.go  |  5 +++--
+ src/go/types/sizes.go       |  2 +-
+ src/go/types/type.go        | 39 +--------------------------------------
+ src/go/types/typestring.go  |  2 +-
+ src/go/types/typexpr.go     |  2 +-
+ 13 files changed, 38 insertions(+), 71 deletions(-)

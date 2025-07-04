@@ -1,20 +1,16 @@
-commit 80e5b5256679ec1a8d4082a216a171a60e71ca3c
+commit 68c6aad58b5062e3dd2bc97a124871dd767168cc
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 4 14:29:24 2016 -0800
+Date:   Tue Dec 15 15:46:48 2015 -0800
 
-    cmd/compile: change order.go to use nodeSeq
+    runtime: change SIGEMT on linux/mips64 to throw
     
-    Passes toolstash -cmp
+    This matches SIGEMT on other systems that use it (SIGEMT is not used
+    for most linux systems).
     
-    Update #14473.
-    
-    Change-Id: I15b35d40a5ec1f4355ee38bc6d131920933ac95c
-    Reviewed-on: https://go-review.googlesource.com/20237
+    Change-Id: If394c06c9ed1cb3ea2564385a8edfbed8b5566d1
+    Reviewed-on: https://go-review.googlesource.com/17874
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/order.go  | 198 ++++++++++++++++------------------
- src/cmd/compile/internal/gc/subr.go   |  16 +--
- src/cmd/compile/internal/gc/syntax.go |  12 ++-
- 3 files changed, 105 insertions(+), 121 deletions(-)
+ src/runtime/sigtab_linux_mips64x.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,18 @@
-commit fc128403dcfc596da7c77251bab2ca5623a406a1
+commit ef1c5357277f66d71e127e954991d4342da8c5c7
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 9 08:03:51 2011 -0500
+Date:   Fri Dec 9 00:13:19 2011 -0500
 
-    gc: minor changes for inlining
+    spec: examples of untyped boolean, string constants
     
-    Copied from 5400043 since they stand alone from inlining.
+    This is a spec correction, not a language change.
+    The implementations have behaved like this for years
+    (and there are tests to that effect), and elsewhere in
+    the spec true and false are defined to be untyped
+    boolean constants.
     
-    R=lvd
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5479046
+    https://golang.org/cl/5477047
 
- src/cmd/gc/dcl.c                |  8 +++++---
- src/cmd/gc/typecheck.c          |  3 ++-
- src/cmd/gc/walk.c               | 12 +++++++++---
- src/pkg/exp/types/gcimporter.go | 16 ++++++----------
- 4 files changed, 22 insertions(+), 17 deletions(-)
+ doc/go_spec.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

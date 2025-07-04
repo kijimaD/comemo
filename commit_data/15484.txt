@@ -1,12 +1,17 @@
-commit 062a239046974229a03d13d7e1a7bdedbb247292
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 27 20:55:01 2013 -0800
+commit 1069d25e37e741a70977a42e60395923f9662778
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Feb 28 11:18:39 2013 +1100
 
-    cmd/cgo: add implementation comment
+    exp/cookiejar: add some more tests
     
-    R=golang-dev, r, bradfitz, iant
+    New tests added for port handling and IDNA domains.
+    A new test case contains several redundant
+    tests but provides a nice documentation of the
+    implemented rules for domain handling.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/7407050
+    https://golang.org/cl/7393070
 
- src/cmd/cgo/doc.go | 263 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 263 insertions(+)
+ src/pkg/exp/cookiejar/jar_test.go | 202 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 202 insertions(+)

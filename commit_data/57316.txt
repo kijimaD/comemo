@@ -1,17 +1,28 @@
-commit 1ae6b9e31b952ad7090406475b2b0eb0e8804fcd
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Aug 29 23:22:21 2024 -0700
+commit 2ad666dea0490305bb7fd2dd6e7beb767acfd2c3
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jul 27 19:36:55 2023 -0400
 
-    syscall: use t.TempDir in tests
+    syscall, cmd/cgo: skip tests that shouldn't run under 'unshare -n -r'
     
-    Change-Id: Ibeb00306ee8f038c11f261abd99c05324bf2ab51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609837
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    A small number of tests in the main tree are currently skipped in LUCI
+    because our builders there run tests without root. Unfortunately, these
+    tests begin to run when run under 'unshare -n -r' as implemented in
+    the current iteration of a no-network check. Add targeted builder-only
+    skips so that they don't begin to run and fail with a false positive.
+    
+    Updates #10719.
+    For #30612.
+    
+    Change-Id: I6dd320714a279c395882c1b2ebfbb2fce58f913b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513779
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/syscall/exec_pdeathsig_test.go | 6 +-----
- src/syscall/syscall_linux_test.go  | 8 ++------
- 2 files changed, 3 insertions(+), 11 deletions(-)
+ src/cmd/cgo/internal/test/issue1435.go |  8 ++++++++
+ src/syscall/exec_linux_test.go         | 16 ++++++++++++++++
+ src/syscall/exec_pdeathsig_test.go     |  8 ++++++++
+ src/syscall/syscall_linux_test.go      | 15 +++++++++++++++
+ 4 files changed, 47 insertions(+)

@@ -1,13 +1,31 @@
-commit 33cfcf6afac867f4fbf94237b9219778e5fd51c7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 28 13:49:40 2018 -0700
+commit 7a1347a1a1f6e99627a8e9bf098351c13162e5d6
+Author: Mansour Rahimi <rahimi.mnr@gmail.com>
+Date:   Sun Jan 28 22:19:13 2018 +0100
 
-    cmd/compile: fix trivial typos in comments
+    os: make MkdirAll support path in extended-length form
     
-    Change-Id: I04880d87e317a1140ec12da6ec5e788991719760
-    Reviewed-on: https://go-review.googlesource.com/114936
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Calling MkdirAll on paths in extended-length form (\\?\-prefixed)
+    failed.
+    
+    MkdirAll calls itself recursively with parent directory of given path in
+    its parameter. It finds parent directory by looking for delimiter in
+    the path, and taking the left part. When path is in extended-length form,
+    it finds empty path at the end.
+    
+    Here is a sample of path in extended-length form:
+    \\?\c:\foo\bar
+    
+    This change fixes that by passing trailing path separator to MkdirAll (so
+    it works for path like \\?\c:\).
+    
+    Fixes #22230
+    
+    Change-Id: I363660b262588c5382ea829773d3b6005ab8df3c
+    Reviewed-on: https://go-review.googlesource.com/86295
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/branchelim.go     | 2 +-
- src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/os/path.go              |  6 ++++--
+ src/os/path_windows_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)

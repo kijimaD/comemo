@@ -1,15 +1,14 @@
-commit 068c745e1e44875c411de5d5aea3f96574fbee12
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jun 2 08:53:11 2016 +0900
+commit b9531d31ac8a0078b437f778caf09727e218f492
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 5 16:04:03 2016 +0000
 
-    vendor: update vendored route
+    doc: add httptest.ResponseRecorder note to go1.7.txt notes
     
-    Updates golang.org/x/net/route to rev fac978c for:
-    - route: fix typos in test
+    Fixes #14928
     
-    Change-Id: I35de1d3f8e887c6bb5fe50e7299f2fc12e4426de
-    Reviewed-on: https://go-review.googlesource.com/23660
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id772eb623815cb2bb3e49de68a916762345a9dc1
+    Reviewed-on: https://go-review.googlesource.com/21531
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/vendor/golang.org/x/net/route/message_freebsd_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.7.txt | 1 +
+ 1 file changed, 1 insertion(+)

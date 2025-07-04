@@ -1,17 +1,17 @@
-commit 122a558f4701efc1841f7a5bc2d7c65ed4606fc1
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Aug 21 10:41:31 2012 +1000
+commit b1532344ef58fe644c85bbc6e268102528d39c61
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Aug 21 00:34:06 2012 +0800
 
-    os: fix data race on Process.done
+    cmd/ld: skip R_*_NONE relocations, fix Linux/386 build again
+    The last fix was wrong w.r.t C's operator precedence,
+    and it also failed to really skip the NONE relocation.
     
-    Fixes #3969.
+    The offending R_386_NONE relocation is a absolute
+    relocation in section .eh_frame.
     
-    R=dvyukov, r, alex.brainman, minux.ma
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6462081
+    https://golang.org/cl/6463058
 
- src/pkg/os/exec.go         | 11 ++++++++++-
- src/pkg/os/exec_plan9.go   |  4 ++--
- src/pkg/os/exec_unix.go    |  4 ++--
- src/pkg/os/exec_windows.go |  4 ++--
- 4 files changed, 16 insertions(+), 7 deletions(-)
+ src/cmd/ld/ldelf.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,21 +1,26 @@
-commit e666f1dabf5174710919ab7cff3e8afefd9ac049
-Author: ArsenySamoylov <samoylov.arseny@gmail.com>
-Date:   Fri Apr 25 14:28:52 2025 +0300
+commit c7065bb9db1981b32d2f1c9ca1de7aae1f7d4a38
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 7 15:37:14 2024 -0600
 
-    runtime: add goschedIfBusy to bgsweep to prevent livelock after inlining
+    cmd/compile/internal: generate ADDZE on PPC64
     
-    gcMarkTermination() ensures that all caches are flushed before continuing the GC cycle, thus preempting all goroutines.
-    However, inlining calls to lock() in bgsweep makes it non-preemptible for most of the time, leading to livelock.
-    This change adds explicit preemption to avoid this.
+    This usage shows up in quite a few places, and helps reduce
+    register pressure in several complex cryto functions by
+    removing a MOVD $0,... instruction.
     
-    Fixes #73499.
-    
-    Change-Id: I4abf0d658f3d7a03ad588469cd013a0639de0c8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668795
+    Change-Id: I9444ea8f9d19bfd68fb71ea8dc34e109681b3802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571055
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
 
- src/runtime/mgcsweep.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/ppc64/ssa.go         |  7 +++++++
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go         | 17 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 15 +++++++++++++++
+ test/codegen/mathbits.go                      | 10 ++++++++++
+ 6 files changed, 52 insertions(+)

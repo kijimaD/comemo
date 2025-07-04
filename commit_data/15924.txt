@@ -1,12 +1,13 @@
-commit 4ad1a87f8573b355b814589c63b75a7657df4069
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Mon Mar 25 08:58:13 2013 -0700
+commit 77e7e4c329f44353d6d11eb0adee2d83437ce5ea
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 25 08:20:22 2013 +0100
 
-    misc/emacs: Derive mode from prog-mode if possible
+    cmd/cc, cmd/ld: do not overflow strings in symbol lookup.
     
-    R=golang-dev, bradfitz
-    CC=adonovan, cw, golang-dev, patrick.allen.higgins
-    https://golang.org/cl/7956044
+    R=golang-dev, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7876044
 
- misc/emacs/go-mode.el | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/cc/lexbody | 2 +-
+ src/cmd/ld/lib.c   | 5 ++---
+ 2 files changed, 3 insertions(+), 4 deletions(-)

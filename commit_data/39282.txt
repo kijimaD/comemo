@@ -1,16 +1,19 @@
-commit d53f380e620c59cb3f30736584879c3c104ee488
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 30 18:32:27 2019 -0400
+commit dca707b2a040642bb46aa4da4fb4eb6188cc2502
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 15 15:01:29 2019 -0500
 
-    misc/cgo/errors: limit number of parallel executions
+    cmd/compile: guard against loads with negative offset from readonly constants
     
-    Fixes #32328
+    CL 154057 adds guards agaist out-of-bound reads from readonly
+    constants. It turns out that in dead code, the offset can also
+    be negative. Guard against negative offset as well.
     
-    Change-Id: Iee71ecb247f2c439804c2ff03a6ed7b7f5a8b562
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179603
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #30257.
+    
+    Change-Id: I47c2a2e434dd466c08ae6f50f213999a358c796e
+    Reviewed-on: https://go-review.googlesource.com/c/162819
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/errors/ptr_test.go | 25 ++++++++++++++-----------
- 1 file changed, 14 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go |  8 ++++----
+ test/fixedbugs/issue29215.go            | 17 +++++++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

@@ -1,26 +1,22 @@
-commit 42e09dc1ba1e820af44b2cbd4db0d60abb5559a2
-Author: Rob Findley <rfindley@google.com>
-Date:   Sun Jul 12 22:36:34 2020 -0400
+commit 531b6d3126bb810dcdfcce14983cea32236c322d
+Author: Tamir Duberstein <tamird@google.com>
+Date:   Fri Feb 7 20:27:55 2020 +0000
 
-    go/types: factor out usage of implicit type
+    cmd/link: code cleanup in macho_combine_dwarf.go
     
-    There was some duplication of logic interpreting the implicit type of
-    an operand in assignableTo and convertUntyped. Factor out this logic to
-    a new 'implicitType' function, which returns the implicit type of an
-    untyped operand when used in a context where a target type is expected.
-    I believe this resolves some comments about code duplication. There is
-    other similar code in assignable, assignableTo, and convertUntypes, but
-    I found it to to be sufficiently semantically distinct to not warrant
-    factoring out.
+    - remove global variables
+    - add missing error checks
+    - add missing (*os.File).Close calls
+    - null-check text section correctly
+    - reduce some variable scopes
+    - use bytes.Buffer instead of appended slice
+    - reduce integer casting
     
-    Change-Id: I199298a2e58fcf05344318fca0226b460c57867d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/242084
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Ib9ad41adefed4d61047f53e27046389182eef786
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218501
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/types/api_test.go    |  20 +++----
- src/go/types/assignments.go |   4 +-
- src/go/types/expr.go        | 125 ++++++++++++++++++++++++--------------------
- src/go/types/operand.go     |  43 ++++-----------
- 4 files changed, 88 insertions(+), 104 deletions(-)
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 135 +++++++++++-------------
+ 1 file changed, 62 insertions(+), 73 deletions(-)

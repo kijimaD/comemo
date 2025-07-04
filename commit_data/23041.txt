@@ -1,17 +1,30 @@
-commit 5726af54eb3a52b9446a834991110b945e780e99
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Wed Apr 29 10:51:42 2015 +0100
+commit af060c3086941299c399604fe0dc29388f4a6302
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 23 18:15:14 2015 -0400
 
-    cmd/internal/gc: ignore declarations of types for goto validation
+    runtime: generally allow preemption during concurrent GC phases
     
-    Fixes #8042.
+    Currently, the entire GC process runs with g.m.preemptoff set. In the
+    concurrent phases, the parts that actually need preemption disabled
+    are run on a system stack and there's no overall need to stay on the
+    same M or P during the concurrent phases. Hence, move the setting of
+    g.m.preemptoff to when we start mark termination, at which point we
+    really do need preemption disabled.
     
-    Change-Id: I75080f24104256065fd73b07a13c5b8e7d6da94c
-    Reviewed-on: https://go-review.googlesource.com/9442
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This dramatically changes the scheduling behavior of the concurrent
+    mark phase. Currently, since this is non-preemptible, concurrent mark
+    gets one dedicated P (so 1/GOMAXPROCS utilization). With this change,
+    the GC goroutine is scheduled like any other goroutine during
+    concurrent mark, so it gets 1/<runnable goroutines> utilization.
+    
+    You might think it's not even necessary to set g.m.preemptoff at that
+    point since the world is stopped, but stackalloc/stackfree use this as
+    a signal that the per-P pools are not safe to access without
+    synchronization.
+    
+    Change-Id: I08aebe8179a7d304650fb8449ff36262b3771099
+    Reviewed-on: https://go-review.googlesource.com/8839
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/gc/dcl.go |  3 +++
- src/cmd/internal/gc/gen.go | 21 ++++++++++++++++++---
- src/cmd/internal/gc/go.go  |  1 +
- test/goto.go               | 16 ++++++++++++++++
- 4 files changed, 38 insertions(+), 3 deletions(-)
+ src/runtime/mgc.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

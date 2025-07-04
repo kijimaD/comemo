@@ -1,14 +1,20 @@
-commit 86b7721ce3203ae002294f2c6027dfe48a968744
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 1 13:38:05 2017 -0700
+commit 02ad116bf1fa7c324390f03974f5879a2f06495e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 11 08:48:10 2017 -0700
 
-    os: rearrange OpenFile Flags doc
+    runtime: unify cases in mapiternext
     
-    Updates #21322
+    The preceding cleanup made it clear that two cases
+    (have golden data, unreachable key) are handled identically.
+    Simplify the control flow to reflect that.
     
-    Change-Id: Ib03ee9dbe1b44c2fecd51f2f2c23a88482158e7e
-    Reviewed-on: https://go-review.googlesource.com/75250
-    Reviewed-by: Rob Pike <r@golang.org>
+    Simplifies the code and generates shorter machine code.
+    
+    Change-Id: Id612e0da6679813e855506f47222c58ea6497d70
+    Reviewed-on: https://go-review.googlesource.com/55093
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/file.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/hashmap.go | 40 ++++++++++++++++------------------------
+ 1 file changed, 16 insertions(+), 24 deletions(-)

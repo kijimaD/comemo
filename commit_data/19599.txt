@@ -1,49 +1,22 @@
-commit a12cc7198072f2f02599d3c640807b97f748ddc6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jun 24 08:39:30 2014 -0700
+commit fbd5ad585d03ee750b7d58a85cf0d40079b28833
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 24 09:20:42 2014 +0900
 
-    testing: make benchmarking faster
+    syscall: regenerate z-files for darwin
     
-    The number of estimated iterations required to reach the benchtime is multiplied by a safety margin (to avoid falling just short) and then rounded up to a readable number. With an accurate estimate, in the worse case, the resulting number of iterations could be 3.75x more than necessary: 1.5x for safety * 2.5x to round up (e.g. from 2eX+1 to 5eX).
+    Updates z-files from 10.7 kernel-based to 10.9 kernel-based.
     
-    This CL reduces the safety margin to 1.2x. Experimentation showed a diminishing margin of return past 1.2x, although the average case continued to show improvements down to 1.05x.
-    
-    This CL also reduces the maximum round-up multiplier from 2.5x (from 2eX+1 to 5eX) to 2x, by allowing the number of iterations to be of the form 3eX.
-    
-    Both changes improve benchmark wall clock times, and the effects are cumulative.
-    
-    From 1.5x to 1.2x safety margin:
-    
-    package         old s   new s   delta
-    bytes           163     125     -23%
-    encoding/json   27      21      -22%
-    net/http        42      36      -14%
-    runtime         463     418     -10%
-    strings         82      65      -21%
-    
-    Allowing 3eX iterations:
-    
-    package         old s   new s   delta
-    bytes           163     134     -18%
-    encoding/json   27      23      -15%
-    net/http        42      36      -14%
-    runtime         463     422     -9%
-    strings         82      72      -12%
-    
-    Combined:
-    
-    package         old s   new s   delta
-    bytes           163     112     -31%
-    encoding/json   27      20      -26%
-    net/http        42      30      -29%
-    runtime         463     346     -25%
-    strings         82      60      -27%
-    
-    LGTM=crawshaw, r, rsc
-    R=golang-codereviews, crawshaw, r, rsc
+    LGTM=iant
+    R=golang-codereviews, bradfitz, iant
     CC=golang-codereviews
-    https://golang.org/cl/105990045
+    https://golang.org/cl/102610045
 
- src/pkg/testing/benchmark.go      | 16 +++++++++-------
- src/pkg/testing/benchmark_test.go |  2 ++
- 2 files changed, 11 insertions(+), 7 deletions(-)
+ api/except.txt                          |  24 +++++
+ src/pkg/syscall/mkerrors.sh             |  30 ++++++
+ src/pkg/syscall/mksysnum_darwin.pl      |  28 +++++-
+ src/pkg/syscall/types_darwin.go         |   9 +-
+ src/pkg/syscall/zerrors_darwin_386.go   | 173 +++++++++++++++++++++++++++++++-
+ src/pkg/syscall/zerrors_darwin_amd64.go | 173 +++++++++++++++++++++++++++++++-
+ src/pkg/syscall/zsysnum_darwin_386.go   |  21 +++-
+ src/pkg/syscall/zsysnum_darwin_amd64.go |  21 +++-
+ 8 files changed, 464 insertions(+), 15 deletions(-)

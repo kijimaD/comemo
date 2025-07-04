@@ -1,27 +1,22 @@
-commit 0a6c4c87404ecb018faf002919e5d5db04c69ee2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Oct 31 11:14:35 2022 -0400
+commit 37a5d720d4c4ebf3fd0c8a089a3bde347d72c01a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 28 14:17:11 2021 -0800
 
-    cmd/compile/internal/types2: fix tests on js/wasm
+    spec: corrections to various sections
     
-    The js/wasm builder started failing as of CL 432535 due to needing
-    'go build' to import standard-library packages that are no longer
-    installed to GOROOT/pkg. Since js/wasm can't exec subprocesses,
-    it cannot run 'go build' to generate the export data needed for
-    these tests.
+    - fix definition of "specific types" and add more examples
+    - state that a parameterized function must be instantiated
+      when used as a function value
+    - remove duplicate word ("can can" -> "can")
     
-    For #47257.
+    Thanks to @danscales for finding these.
     
-    Change-Id: I804235fd725faf00b27cbed79ee1f43dea8ab734
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446635
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Ideb41efc35a3e67694d3bc97e462454feae37c44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367394
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/types2/example_test.go    | 2 +-
- src/cmd/compile/internal/types2/issues_test.go     | 2 ++
- src/cmd/compile/internal/types2/self_test.go       | 5 +++++
- src/cmd/compile/internal/types2/sizes_test.go      | 3 +++
- src/cmd/compile/internal/types2/typestring_test.go | 1 +
- 5 files changed, 12 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 36 +++++++++++++++++++-----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)

@@ -1,17 +1,31 @@
-commit 6298bbec7068ff6ad013782d2a5b8a2f7e50ad81
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 28 09:57:57 2015 -0700
+commit 0fb5475bdf0e5352d7aac67d2ec97c0513ee0af3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Apr 29 20:45:55 2015 +0300
 
-    cmd/go: convert one test from test.bash to Go
+    bytes, strings: add LastIndexByte
     
-    Sending out the conversion of a single test to get comments on the
-    overall approach.  Converting more tests will follow.
+    Currently the packages have the following index functions:
     
-    Change-Id: I4755442d08aeb6f74c46856ae406fec41cf8d5dc
-    Reviewed-on: https://go-review.googlesource.com/10464
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    func Index(s, sep []byte) int
+    func IndexAny(s []byte, chars string) int
+    func IndexByte(s []byte, c byte) int
+    func IndexFunc(s []byte, f func(r rune) bool) int
+    func IndexRune(s []byte, r rune) int
+    
+    func LastIndex(s, sep []byte) int
+    func LastIndexAny(s []byte, chars string) int
+    func LastIndexFunc(s []byte, f func(r rune) bool) int
+    
+    Searching for the last occurrence of a byte is quite common
+    for string parsing algorithms (e.g. find the last paren on a line).
+    Also addition of LastIndexByte makes the set more orthogonal.
+    
+    Change-Id: Ida168849acacf8e78dd70c1354bef9eac5effafe
+    Reviewed-on: https://go-review.googlesource.com/9500
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/go_test.go | 156 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/test.bash  |  15 -----
- 2 files changed, 156 insertions(+), 15 deletions(-)
+ src/bytes/bytes.go          | 10 ++++++++++
+ src/bytes/bytes_test.go     | 17 +++++++++++++++++
+ src/strings/strings.go      | 10 ++++++++++
+ src/strings/strings_test.go | 17 +++++++++++++++++
+ 4 files changed, 54 insertions(+)

@@ -1,19 +1,16 @@
-commit 379a49c593ce3c2e8e57039e05e90aa466363092
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 12 11:15:45 2022 -0400
+commit fdd67930a0f2fec891e4be9c2b62996eb8b06ce5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 13 14:36:35 2021 -0800
 
-    os/exec: set traceback to "system" in TestContextCancel
+    sync: in TryLock try to acquire mutex even if state is not 0
     
-    This will dump more goroutines if the test happens to fail.
+    For #45435
     
-    For #50138.
-    
-    Change-Id: Ifae30b5ba8bddcdaa9250dd90be8d8ba7d5604d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442476
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I728accd9a53c1826243f52aa04dc2a0a1dfdaadf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363672
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/os/exec/exec_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/sync/mutex.go | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

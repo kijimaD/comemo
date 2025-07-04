@@ -1,33 +1,62 @@
-commit 08bf6d14053fe861811e244156d451098c34c13f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Aug 26 16:37:24 2023 -0700
+commit 4a49af5755564b5412acea2cfc3ac8556a7af453
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 30 18:43:25 2022 +0000
 
-    cmd/compile/internal/ir: drop Inl.Body
+    Revert "runtime: move epoll syscalls to runtime/internal/syscall"
     
-    We don't actually depend on Inl.Body anywhere, except it implicitly
-    serves to indicate whether Inl.Dcl has been populated. So replace it
-    with a boolean so we don't need to keep a useless copy of every
-    inlinable function body in memory.
+    This reverts CL 421994.
     
-    While here, also add some Fatalfs to make sure there are no unused
-    local variables. The unified frontend now omits unreachable code
-    during export data writing, so there shouldn't be unused local
-    variables.
+    Reason for revert: breaks runtime.TestCheckPtr2
     
-    Also, since unified IR uses the same code/data to construct the
-    original function as inlined and/or imported functions, the Dcl list
-    should always be the same, which addresses the real root issue (i.e.,
-    that export/import could skew the Dcl lists).
+    For #53824
+    For #51087
     
-    Change-Id: I6e3435f3a0352f6efbae787344006efac1891e84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523315
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I044ea4d6efdffe0a4b7fb0d2bb3717d9f391fc59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437295
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/inline/inl.go   | 53 +++++---------------------------
- src/cmd/compile/internal/ir/func.go      | 12 ++++----
- src/cmd/compile/internal/noder/linker.go |  2 +-
- src/cmd/compile/internal/noder/reader.go | 10 ++++--
- 4 files changed, 22 insertions(+), 55 deletions(-)
+ src/runtime/defs2_linux.go                         | 11 +++
+ src/runtime/defs_linux.go                          | 12 ++++
+ src/runtime/defs_linux_386.go                      | 16 +++++
+ src/runtime/defs_linux_amd64.go                    | 16 +++++
+ src/runtime/defs_linux_arm.go                      | 17 +++++
+ src/runtime/defs_linux_arm64.go                    | 17 +++++
+ src/runtime/defs_linux_loong64.go                  | 17 +++++
+ src/runtime/defs_linux_mips64x.go                  | 17 +++++
+ src/runtime/defs_linux_mipsx.go                    | 17 +++++
+ src/runtime/defs_linux_ppc64.go                    | 17 +++++
+ src/runtime/defs_linux_ppc64le.go                  | 17 +++++
+ src/runtime/defs_linux_riscv64.go                  | 17 +++++
+ src/runtime/defs_linux_s390x.go                    | 17 +++++
+ src/runtime/export_linux_test.go                   | 10 +--
+ src/runtime/export_unix2_test.go                   | 10 ---
+ src/runtime/export_unix_test.go                    |  1 +
+ src/runtime/internal/syscall/defs_linux.go         | 10 ---
+ src/runtime/internal/syscall/defs_linux_386.go     | 29 --------
+ src/runtime/internal/syscall/defs_linux_amd64.go   | 29 --------
+ src/runtime/internal/syscall/defs_linux_arm.go     | 30 --------
+ src/runtime/internal/syscall/defs_linux_arm64.go   | 30 --------
+ src/runtime/internal/syscall/defs_linux_loong64.go | 30 --------
+ src/runtime/internal/syscall/defs_linux_mips64x.go | 32 ---------
+ src/runtime/internal/syscall/defs_linux_mipsx.go   | 32 ---------
+ src/runtime/internal/syscall/defs_linux_ppc64x.go  | 32 ---------
+ src/runtime/internal/syscall/defs_linux_riscv64.go | 30 --------
+ src/runtime/internal/syscall/defs_linux_s390x.go   | 30 --------
+ src/runtime/internal/syscall/syscall_linux.go      | 29 +-------
+ src/runtime/internal/syscall/syscall_linux_test.go | 19 -----
+ src/runtime/netpoll_epoll.go                       | 84 ++++++++++++----------
+ src/runtime/runtime_linux_test.go                  |  9 +++
+ src/runtime/sys_linux_386.s                        | 52 ++++++++++++++
+ src/runtime/sys_linux_amd64.s                      | 54 ++++++++++++++
+ src/runtime/sys_linux_arm.s                        | 52 ++++++++++++++
+ src/runtime/sys_linux_arm64.s                      | 52 ++++++++++++++
+ src/runtime/sys_linux_loong64.s                    | 52 ++++++++++++++
+ src/runtime/sys_linux_mips64x.s                    | 61 ++++++++++++++++
+ src/runtime/sys_linux_mipsx.s                      | 59 +++++++++++++++
+ src/runtime/sys_linux_ppc64x.s                     | 54 ++++++++++++++
+ src/runtime/sys_linux_riscv64.s                    | 52 ++++++++++++++
+ src/runtime/sys_linux_s390x.s                      | 52 ++++++++++++++
+ 41 files changed, 813 insertions(+), 411 deletions(-)

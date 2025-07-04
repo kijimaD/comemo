@@ -1,13 +1,16 @@
-commit 99645db9268cfe93f561ef2de013ea5f58304c79
+commit f3eaaa62a1969161a4d580db0532cb8a771259f0
 Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 27 16:31:14 2013 -0700
+Date:   Wed Mar 27 16:29:12 2013 -0700
 
-    text/template: fix bug in evaluating a chain starting with a function.
+    cmd/vet: fix assembly test files
+    They should be build-tagged for vet_test not ignore,
+    and not have a Go package clause.
     
-    R=golang-dev, alberto.garcia.hierro
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7861046
+    https://golang.org/cl/8016047
 
- src/pkg/text/template/exec.go      |  2 ++
- src/pkg/text/template/exec_test.go | 27 +++++++++++++++++----------
- 2 files changed, 19 insertions(+), 10 deletions(-)
+ src/cmd/vet/test_asm1.s | 4 +---
+ src/cmd/vet/test_asm2.s | 4 +---
+ src/cmd/vet/test_asm3.s | 4 +---
+ 3 files changed, 3 insertions(+), 9 deletions(-)

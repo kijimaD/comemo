@@ -1,18 +1,14 @@
-commit 27923482fa0b9684a2b672b3f88267d9858e3e79
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 4 17:12:28 2017 -0400
+commit 4100996676835778c1bf9c2a5fb6deb90897f52b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 12 19:40:39 2017 +0000
 
-    runtime: separate GC background utilization from goal utilization
+    doc: note the StripPrefix change in Go 1.9 release notes
     
-    Currently these are the same constant, but are separate concepts.
-    Split them into two constants for easier experimentation and better
-    documentation.
+    Fixes #20948
     
-    Change-Id: I121854d4fd1a4a827f727c8e5153160c24aacda7
-    Reviewed-on: https://go-review.googlesource.com/68570
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I222bf101a5c1bdc5cbb0970949070c4b58b9b83b
+    Reviewed-on: https://go-review.googlesource.com/48190
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go | 20 +++++++++++++-------
- 1 file changed, 13 insertions(+), 7 deletions(-)
+ doc/go1.9.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

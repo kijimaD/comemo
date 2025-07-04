@@ -1,22 +1,27 @@
-commit 04c40c97c3a76368f878126259fb5d33e0515aaa
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Sep 14 09:30:36 2013 +0200
+commit 439f9397fc3ef260a74a64e0b0efb071a066b321
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 13 14:19:23 2013 -0400
 
-    cmd/gc: don't generate algs for internal map types.
+    runtime: avoid inconsistent goroutine state in profiler
     
-    Fake types describing the internal structure of hashmaps are
-    generated for use by precise GC.
+    Because profiling signals can arrive at any time, we must
+    handle the case where a profiling signal arrives halfway
+    through a goroutine switch. Luckily, although there is much
+    to think through, very little needs to change.
     
-    Generating hash and eq functions for these fake types slows down
-    the build and wastes space: the go tool binary size is 13MB
-    instead of 12MB, and the package size on amd64 is 48.7MB instead
-    of 45.3MB.
+    Fixes #6000.
+    Fixes #6015.
     
-    R=golang-dev, daniel.morsing, r, khr, rsc, iant
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/13698043
+    https://golang.org/cl/13421048
 
- src/cmd/gc/go.h      | 1 +
- src/cmd/gc/reflect.c | 2 ++
- src/cmd/gc/subr.c    | 3 +++
- 3 files changed, 6 insertions(+)
+ src/pkg/runtime/arch_386.h          |   1 +
+ src/pkg/runtime/arch_amd64.h        |   1 +
+ src/pkg/runtime/arch_arm.h          |   1 +
+ src/pkg/runtime/export_test.c       |  13 ++++
+ src/pkg/runtime/export_test.go      |   2 +
+ src/pkg/runtime/pprof/pprof_test.go | 116 +++++++++++++++++++++++++++---------
+ src/pkg/runtime/proc.c              |  77 +++++++++++++++++++++++-
+ src/pkg/runtime/runtime_test.go     |  43 +++++++++++++
+ 8 files changed, 225 insertions(+), 29 deletions(-)

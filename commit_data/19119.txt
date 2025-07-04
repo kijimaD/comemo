@@ -1,30 +1,13 @@
-commit c48db9a47388bfbcec97d33b03ee81ffe7eb50af
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 14 09:48:11 2014 -0400
+commit e9ad3bf0ff0ccfe8f766cca286ff9446b534b2ac
+Author: Rob Pike <r@golang.org>
+Date:   Sat Apr 12 14:56:17 2014 +1000
 
-    undo CL 66510044 / 6c0339d94123
+    doc/go1.3.html: windows NewCallbackCDecl
     
-    Broke other things - see issue 7522.
-    
-    Fixes #7522.
-    Reopens issue 7363.
-    
-    ««« original CL description
-    cmd/gc: make embedded, unexported fields read-only.
-    
-    Fixes #7363.
-    
-    LGTM=gri
-    R=gri, rsc, bradfitz
+    LGTM=alex.brainman
+    R=alex.brainman
     CC=golang-codereviews
-    https://golang.org/cl/66510044
-    »»»
-    
-    LGTM=r, mpvl
-    R=golang-codereviews, r
-    CC=golang-codereviews, iant, mpvl
-    https://golang.org/cl/85580046
+    https://golang.org/cl/87250043
 
- src/cmd/gc/reflect.c        |  3 +--
- test/fixedbugs/issue7363.go | 26 --------------------------
- 2 files changed, 1 insertion(+), 28 deletions(-)
+ doc/go1.3.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

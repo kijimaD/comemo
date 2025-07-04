@@ -1,23 +1,12 @@
-commit e82c925f5e3af26ded71e85dec1eea3464e4fa19
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 29 21:04:00 2017 -0700
+commit 4d02833c2e79ee8dce06e108e1ae7a8e62611f1f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Dec 19 20:27:12 2016 -0800
 
-    cmd/compile: remove Type haspointers caches
+    cmd/cover: fix spelling mistake
     
-    Even very large Types are not very big.
-    The haspointer cache looks like premature optimization.
-    Removing them has no detectable compiler performance impact,
-    and it removes mutable shared state used by the backend.
-    
-    Updates #15756
-    
-    Change-Id: I2d2cf03f470f5eef5bcd50ff693ef6a01d481700
-    Reviewed-on: https://go-review.googlesource.com/38912
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iac7c4f22dc55c970940af33e0f0470694da5c4a6
+    Reviewed-on: https://go-review.googlesource.com/34654
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/pgen_test.go   | 10 ++++++--
- src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
- src/cmd/compile/internal/gc/type.go        | 37 +++++++-----------------------
- 3 files changed, 17 insertions(+), 32 deletions(-)
+ src/cmd/cover/cover.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

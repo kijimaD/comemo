@@ -1,20 +1,24 @@
-commit 866e260f92546e5bec910aa526756078eb1a6a0d
-Author: Andy Pan <i@andypan.me>
-Date:   Wed Aug 14 09:41:28 2024 +0800
+commit 449ef3795d8054faf4a601d8d1aab1f624b822f5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 3 05:05:55 2023 -0700
 
-    os: only employ sendfile(3ext) on illumos when target is regular file
+    net: only build cgo_stub.go on unix or wasip1
     
-    Fixes #68863
+    We were building it for Windows, although Windows code never calls
+    any of these functions. When using -tags netgo that cause a multiple
+    definition of cgoAvailable.
     
-    Change-Id: I0ca324137d1f7510bd0b245791fef07d3b5b401a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605355
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #61153
+    
+    Change-Id: Ib9e1de7720a8c0dacd6f12002917bf305dfa5405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507655
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/os/readfrom_unix_test.go |  4 ++--
- src/os/zero_copy_solaris.go  | 19 +++++++++++++++++++
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ src/net/cgo_stub.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

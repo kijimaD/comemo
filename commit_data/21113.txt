@@ -1,20 +1,15 @@
-commit 4b96409aacfb569ac2564240d8aadd668b7c25fa
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 29 19:32:07 2014 -0800
+commit 7904e951d4efd3dd82afcebf5856eeb78217d86d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 14 15:53:15 2014 -0500
 
-    net/http: support for setting trailers from a server Handler
+    [dev.power64] liblink: fix Solaris build
     
-    We already had client support for trailers, but no way for a server to
-    set them short of hijacking the connection.
+    a->class is a char.  Boo hoo.
     
-    Fixes #7759
-    
-    Change-Id: Ic83976437739ec6c1acad5f209ed45e501dbb93a
-    Reviewed-on: https://go-review.googlesource.com/2157
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    LGTM=minux
+    R=rsc, minux
+    CC=golang-codereviews
+    https://golang.org/cl/169630043
 
- src/net/http/client_test.go | 24 ++++-----------
- src/net/http/http_test.go   | 41 +++++++++++++++++++++++++
- src/net/http/server.go      | 73 ++++++++++++++++++++++++++++++++++++++++-----
- src/net/http/transfer.go    |  1 -
- 4 files changed, 112 insertions(+), 27 deletions(-)
+ src/liblink/list6.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

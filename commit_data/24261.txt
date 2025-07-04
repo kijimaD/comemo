@@ -1,20 +1,12 @@
-commit 739f13383791847fd4b0a1eab7e333b5780be039
-Author: Austin Clements <austin@google.com>
-Date:   Wed Aug 12 23:39:10 2015 -0400
+commit f421735bb4a139ecd59afc78b2b98df6327464cf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 17 10:45:48 2015 -0600
 
-    runtime: fix hashing of trace stacks
+    [dev.ssa] cmd/compile: handle OpCopy loops in rewrite
     
-    The call to hash the trace stack reversed the "seed" and "size"
-    arguments to memhash and, hence, always called memhash with a 0 size,
-    which dutifully returned a hash value that depended only on the number
-    of PCs in the stack and not their values. As a result, all stacks were
-    put in to a very subset of the 8,192 buckets.
-    
-    Fix this by passing these arguments in the correct order.
-    
-    Change-Id: I67cd29312f5615c7ffa23e205008dd72c6b8af62
-    Reviewed-on: https://go-review.googlesource.com/13613
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Icbaad6e5cbfc5430a651538fe90c0a9ee664faf4
+    Reviewed-on: https://go-review.googlesource.com/12360
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/trace.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

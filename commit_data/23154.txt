@@ -1,17 +1,51 @@
-commit 4e4c1f9c4d101d5578656c06a42784856fec9f0d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 27 16:33:03 2015 -0700
+commit 32d6fbcb4fa9200462545d3a56658d939eb55679
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 24 14:00:55 2015 -0400
 
-    cmd/dist: don't run go list when running a specific test
+    runtime: replace needwb() with writeBarrierEnabled
     
-    This speeds up sharded builds notably, by 1 second * the number of
-    tests.
+    Reduce the write barrier check to a single load and compare
+    so that it can be inlined into write barrier use sites.
+    Makes the standard write barrier a little faster too.
     
-    Change-Id: Ib0295c31e4974f3003f72cb16c48949812b6f22b
-    Reviewed-on: https://go-review.googlesource.com/10460
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    name                                       old                     new          delta
+    BenchmarkBinaryTree17              17.9s × (0.99,1.01)     17.9s × (1.00,1.01)  ~
+    BenchmarkFannkuch11                4.35s × (1.00,1.00)     4.43s × (1.00,1.00)  +1.81%
+    BenchmarkFmtFprintfEmpty           120ns × (0.93,1.06)     110ns × (1.00,1.06)  -7.92%
+    BenchmarkFmtFprintfString          479ns × (0.99,1.00)     487ns × (0.99,1.00)  +1.67%
+    BenchmarkFmtFprintfInt             452ns × (0.99,1.02)     450ns × (0.99,1.00)  ~
+    BenchmarkFmtFprintfIntInt          766ns × (0.99,1.01)     762ns × (1.00,1.00)  ~
+    BenchmarkFmtFprintfPrefixedInt     576ns × (0.98,1.01)     584ns × (0.99,1.01)  ~
+    BenchmarkFmtFprintfFloat           730ns × (1.00,1.01)     738ns × (1.00,1.00)  +1.16%
+    BenchmarkFmtManyArgs              2.84µs × (0.99,1.00)    2.80µs × (1.00,1.01)  -1.22%
+    BenchmarkGobDecode                39.3ms × (0.98,1.01)    39.0ms × (0.99,1.00)  ~
+    BenchmarkGobEncode                39.5ms × (0.99,1.01)    37.8ms × (0.98,1.01)  -4.33%
+    BenchmarkGzip                      663ms × (1.00,1.01)     661ms × (0.99,1.01)  ~
+    BenchmarkGunzip                    143ms × (1.00,1.00)     142ms × (1.00,1.00)  ~
+    BenchmarkHTTPClientServer          132µs × (0.99,1.01)     132µs × (0.99,1.01)  ~
+    BenchmarkJSONEncode               57.4ms × (0.99,1.01)    56.3ms × (0.99,1.01)  -1.96%
+    BenchmarkJSONDecode                139ms × (0.99,1.00)     138ms × (0.99,1.01)  ~
+    BenchmarkMandelbrot200            6.03ms × (1.00,1.00)    6.01ms × (1.00,1.00)  ~
+    BenchmarkGoParse                  10.3ms × (0.89,1.14)    10.2ms × (0.87,1.05)  ~
+    BenchmarkRegexpMatchEasy0_32       209ns × (1.00,1.00)     208ns × (1.00,1.00)  ~
+    BenchmarkRegexpMatchEasy0_1K       591ns × (0.99,1.00)     588ns × (1.00,1.00)  ~
+    BenchmarkRegexpMatchEasy1_32       184ns × (0.99,1.02)     182ns × (0.99,1.01)  ~
+    BenchmarkRegexpMatchEasy1_1K      1.01µs × (1.00,1.00)    0.99µs × (1.00,1.01)  -2.33%
+    BenchmarkRegexpMatchMedium_32      330ns × (1.00,1.00)     323ns × (1.00,1.01)  -2.12%
+    BenchmarkRegexpMatchMedium_1K     92.6µs × (1.00,1.00)    89.9µs × (1.00,1.00)  -2.92%
+    BenchmarkRegexpMatchHard_32       4.80µs × (0.95,1.00)    4.72µs × (0.95,1.01)  ~
+    BenchmarkRegexpMatchHard_1K        136µs × (1.00,1.00)     133µs × (1.00,1.01)  -1.86%
+    BenchmarkRevcomp                   900ms × (0.99,1.04)     900ms × (1.00,1.05)  ~
+    BenchmarkTemplate                  172ms × (1.00,1.00)     168ms × (0.99,1.01)  -2.07%
+    BenchmarkTimeParse                 637ns × (1.00,1.00)     637ns × (1.00,1.00)  ~
+    BenchmarkTimeFormat                744ns × (1.00,1.01)     738ns × (1.00,1.00)  -0.67%
+    
+    Change-Id: I4ecc925805da1f5ee264377f1f7574f54ee575e7
+    Reviewed-on: https://go-review.googlesource.com/9321
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go | 138 +++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 101 insertions(+), 37 deletions(-)
+ src/runtime/mbarrier.go | 20 +++++++-------------
+ src/runtime/mgc.go      | 38 ++++++++++++++++++++++++++++++++------
+ src/runtime/runtime2.go | 18 ------------------
+ src/runtime/slice.go    |  2 +-
+ 4 files changed, 40 insertions(+), 38 deletions(-)

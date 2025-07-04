@@ -1,25 +1,16 @@
-commit 0fd7de4971c89e782434a402dbb69c5fd17457f9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 16 17:41:42 2017 -0700
+commit 0ee9c46cb19f04e713a5db30c8ae0e719c6d228b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 1 21:46:08 2017 -0800
 
-    os: fix handling of ErrShortWrite in (*File).Write
+    cmd/compile: add missing WBs for reflect.{Slice,String}Header.Data
     
-    Restore the handling of io.ErrShortWrite in (*File).Write:
-    if we write less than the requested amount, and there is no error from
-    the syscall, then return io.ErrShortWrite.
+    Fixes #19168.
     
-    I can't figure out how to write a test for this. It would require a
-    non-pollable file (not a pipe) on a device that is almost but not
-    quite entirely full. The original code (https://golang.org/cl/36800043,
-    committed as part of https://golang.org/cl/36930044) does not have a test.
-    
-    Fixes #20386.
-    
-    Change-Id: Ied7b411e621e1eaf49f864f8db90069f276256f5
-    Reviewed-on: https://go-review.googlesource.com/43558
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3f4fcc0b189c53819ac29ef8de86fdad76a17488
+    Reviewed-on: https://go-review.googlesource.com/37663
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/file.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go  |  5 ++++
+ src/cmd/compile/internal/gc/walk.go | 41 ++++++++++++++++++++++----
+ test/fixedbugs/issue19168.go        | 58 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 98 insertions(+), 6 deletions(-)

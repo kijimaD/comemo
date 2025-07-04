@@ -1,14 +1,16 @@
-commit 735289ff76df92c9ff1178c1417c1ad640962d8b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 17 15:30:48 2014 -0400
+commit c93f74d34bf45bcbfa1cfda5ccd198ed5682ddf4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 8 17:47:12 2014 -0700
 
-    sync/atomic: add more missing Go prototype
+    syscall: keep Windows syscall pointers live too
     
-    Should fix nacl/arm build.
+    Like https://golang.org/cl/139360044
     
-    TBR=minux
+    LGTM=rsc, alex.brainman
+    R=alex.brainman, rsc
     CC=golang-codereviews
-    https://golang.org/cl/145070043
+    https://golang.org/cl/138250043
 
- src/sync/atomic/64bit_arm.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/syscall/mksyscall_windows.go | 24 ++++++++++++++++++++++--
+ src/syscall/zsyscall_windows.go  | 15 +++++++++++----
+ 2 files changed, 33 insertions(+), 6 deletions(-)

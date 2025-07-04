@@ -1,15 +1,17 @@
-commit bc1152a32e2bfc5e80819034930998e44b62f0fe
-Author: Kyle Lemons <kyle@kylelemons.net>
-Date:   Mon Jan 14 16:07:11 2013 +1100
+commit be2596471f352c41b02a57e96c963d16ecb56183
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 14 09:35:04 2013 +1100
 
-    encoding/gob: handle encoding of different indirects of GobEncoder
+    cmd/godoc: support m=text parameter for text files
     
-    Fixes #4647.
+    It's possible to view the package docs in plain text, eg:
+            http://golang.org/pkg/time/?m=text
+    and this CL introduces the ability to do the same for files:
+            http://golang.org/src/pkg/time/time.go?m=text
     
-    R=r, golang-dev
+    R=golang-dev, dave, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7085051
+    https://golang.org/cl/7085054
 
- src/pkg/encoding/gob/encoder.go        |  4 +-
- src/pkg/encoding/gob/gobencdec_test.go | 67 ++++++++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+), 2 deletions(-)
+ src/cmd/godoc/godoc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

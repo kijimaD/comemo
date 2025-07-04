@@ -1,23 +1,35 @@
-commit 7c2718b12a33180b3f6099e321c25af35c67f6fd
-Author: Rob Pike <r@golang.org>
-Date:   Mon Oct 22 14:04:18 2018 +1100
+commit 24fb2e015af156c032a6598b0773785d766a8aad
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Thu Jun 21 19:11:34 2018 +0200
 
-    doc: tweak example in Effective Go
+    internal/poll: use more fine-grained locking in Splice
     
-    A prior attempt at addressing the issue got bogged down in an
-    endless conversation around the subtleties of Read semantics.
-    Let's not go there.
+    The previous code acquired a read lock on src and a write lock on
+    dst for the entire duration of Splice. This resulted in deadlock,
+    in a situation akin to the following:
     
-    Instead, we put the issue to bed, perhaps not in perfect comfort
-    but well enough, by moving a line of the example so that even
-    if there is a "benign" error as the issue suggests, the loop
-    terminates with n and err correctly set.
+    Splice is blocking, waiting to read from src.
     
-    Fixes #27818
+    The caller tries to close dst from another goroutine, but Close on
+    dst blocks in runtime.semacquire, because Splice is still holding a
+    write lock on it, and the Close didn't unblock any I/O.
     
-    Change-Id: I4a32d56c9e782f17578565d90b22ce531e3d8667
-    Reviewed-on: https://go-review.googlesource.com/c/143677
+    The caller cannot unblock the read side of Splice through other means,
+    because they are stuck waiting in dst.Close().
+    
+    Use more fine-grained locking instead: acquire the read lock on src
+    just before trying to splice from the source socket to the pipe,
+    and acquire the write lock on dst just before trying to splice from
+    the pipe to the destination socket.
+    
+    Fixes #25985
+    
+    Change-Id: I264c91c7a69bb6c5e28610e2bd801244804cf86d
+    Reviewed-on: https://go-review.googlesource.com/120317
+    Run-TryBot: Aram Hăvărneanu <aram@mgk.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/poll/splice_linux.go | 28 ++++++++---------
+ src/net/splice_test.go            | 63 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 14 deletions(-)

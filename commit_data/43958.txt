@@ -1,15 +1,31 @@
-commit ac0ba6707c1655ea4316b41d06571a0303cc60eb
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Dec 7 11:33:00 2020 +0100
+commit 516c29a79f6aee3fe8c9109c36a4475efa748dcb
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 30 01:32:48 2020 -0400
 
-    doc/go1.16: add missing </a> tag
+    [dev.link] cmd/link: pass reloc by value to Adddynrel2
     
-    For #40700
+    Adddynrel2 is a function pointer. In dynrelocsym we pass &r to
+    it, which will cause r to escape. Pass it by value instead.
     
-    Change-Id: Ic4e16106cbbe18d0c9efffee81c5234ddeedfd32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275674
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Linking cmd/compile,
+    
+    name           old alloc/op   new alloc/op   delta
+    Dodata_GC        15.8MB ± 0%     5.9MB ± 0%  -62.55%  (p=0.008 n=5+5)
+    
+    Change-Id: Ib86005d1026ebaca57777b27ead037e613585f44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231045
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.16.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go | 4 ++--
+ src/cmd/link/internal/arm/asm.go   | 4 ++--
+ src/cmd/link/internal/arm64/asm.go | 4 ++--
+ src/cmd/link/internal/ld/data.go   | 4 ++--
+ src/cmd/link/internal/ld/lib.go    | 2 +-
+ src/cmd/link/internal/ld/xcoff.go  | 2 +-
+ src/cmd/link/internal/ppc64/asm.go | 4 ++--
+ src/cmd/link/internal/s390x/asm.go | 2 +-
+ src/cmd/link/internal/x86/asm.go   | 4 ++--
+ 9 files changed, 15 insertions(+), 15 deletions(-)

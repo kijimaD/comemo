@@ -1,31 +1,19 @@
-commit 22344e11f27d9667e7bbb6209df59e9a9e976d91
-Author: David Chase <drchase@google.com>
-Date:   Thu Apr 11 17:22:53 2024 -0400
+commit 470c6f6418efb9d720d5a86423c396b58c4b8f07
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon May 15 14:11:30 2023 -0500
 
-    cmd/compile: add structs.HostLayout
+    runtime: improve ppc64x memclr for tail bytes
     
-    This is for the proposal, plus a few bug fixes
-    that would/will be necessary when this is put into
-    actual use.
+    This improves memclr for the last few bytes when
+    compiling for power9 or earlier.
     
-    Fixes #66408.
-    Updates #63131.
-    
-    Change-Id: I3a66e09d707dd579c59f155e7f53367f41214c30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578355
-    Reviewed-by: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: David Chase <drchase@google.com>
+    Change-Id: I46940ebc7e98e27a2e48d4b319acb7d2106a6f29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495035
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- api/next/66408.txt                                 |  1 +
- doc/next/6-stdlib/3-structs.md                     | 12 +++++++++
- doc/next/6-stdlib/99-minor/structs/66408.md        |  1 +
- src/cmd/compile/internal/abi/abiutils.go           | 13 +++++++---
- src/cmd/compile/internal/compare/compare_test.go   |  2 +-
- src/cmd/compile/internal/devirtualize/pgo_test.go  |  3 ++-
- .../internal/inline/inlheur/texpr_classify_test.go |  5 ++++
- src/cmd/compile/internal/ssa/export_test.go        |  3 +++
- src/go/doc/comment/std.go                          |  1 +
- src/structs/doc.go                                 | 10 ++++++++
- src/structs/hostlayout.go                          | 30 ++++++++++++++++++++++
- 11 files changed, 75 insertions(+), 6 deletions(-)
+ src/runtime/memclr_ppc64x.s | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

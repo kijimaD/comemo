@@ -1,16 +1,17 @@
-commit 4cf95fda64d76ca044319fd0a292ad3a77c1da0b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Sep 10 14:05:51 2016 -0700
+commit eb9062b7bf77a5051b3db6f3e944739a486ca1e4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 11 15:01:28 2016 -0700
 
-    encoding/hex: fix example function name
+    net/http: keep HTTP/1.0 keep-alive conns open if response can't have a body
     
-    Found by vet.
+    Fixes #15647
     
-    Change-Id: I556d87f853a734002f779b04ba5a3588a3117106
-    Reviewed-on: https://go-review.googlesource.com/28958
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I588bfa4eb336d1da1fcda8d06e32ed13c0b51c70
+    Reviewed-on: https://go-review.googlesource.com/23061
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/hex/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/serve_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  2 +-
+ 2 files changed, 44 insertions(+), 1 deletion(-)

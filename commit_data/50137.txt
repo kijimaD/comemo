@@ -1,23 +1,31 @@
-commit f1f9e45143bd01a55ff81313fb3dfde72c448cc9
-Author: ianwoolf <btw515wolf2@gmail.com>
-Date:   Sun Jul 24 18:25:18 2022 +0800
+commit c1a0aa300a1003ab823d5633e521e064a063271c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 4 15:51:22 2021 -0700
 
-    cmd/test2json: add signal handler
+    cmd/compile: make stkobj symbols content-addressable
     
-    Updates #53563
+    Shrinks binaries a little bit.
     
-    Change-Id: I35a3fd56718e198f68cbf73075a78b2fbc66bd7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419295
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ryan Schuster <shuey19831@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    size    before    after     Δ       %
+    api     4892370   4875858   -16512  -0.338%
+    asm     4711218   4694706   -16512  -0.350%
+    cgo     4164770   4148258   -16512  -0.396%
+    compile 21875922  21826386  -49536  -0.226%
+    cover   4358370   4341858   -16512  -0.379%
+    doc     3532562   3516050   -16512  -0.467%
+    link    6110786   6094274   -16512  -0.270%
+    objdump 3982914   3966402   -16512  -0.415%
+    pprof   12869986  12836962  -33024  -0.257%
+    trace   9614626   9598114   -16512  -0.172%
+    vet     6580322   6563810   -16512  -0.251%
+    total   102897284 102666116 -231168 -0.225%
+    
+    Change-Id: Idf4ba3c05e35ec1d1ae957d6ded00ae79cc0fd2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172198
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/testdata/script/test2json_interrupt.txt | 55 ++++++++++++++++++++++
- src/cmd/test2json/main.go                          |  7 +++
- src/cmd/test2json/signal_notunix.go                | 13 +++++
- src/cmd/test2json/signal_unix.go                   | 14 ++++++
- 4 files changed, 89 insertions(+)
+ src/cmd/compile/internal/liveness/plive.go | 1 +
+ 1 file changed, 1 insertion(+)

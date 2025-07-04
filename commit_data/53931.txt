@@ -1,31 +1,18 @@
-commit 5f674f64e4e3f79adf45d301bcbc16a8a3a82b1d
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 7 18:11:17 2023 -0400
+commit 530a2369746555ce099870e88714a54c4f4473d1
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 19:04:44 2022 +0800
 
-    Revert "runtime: drop stack-allocated pcvalueCaches"
+    runtime/pprof: use strings.Builder
     
-    This reverts CL 515277
-    
-    Change-Id: Ie10378eed4993cb69f4a9b43a38af32b9d743155
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516855
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0407d96e2ba1376cc33fe91b52b6a8d7e81f59ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428277
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/debugcall.go      |  2 +-
- src/runtime/heapdump.go       |  2 +-
- src/runtime/mbitmap.go        |  2 +-
- src/runtime/mgcmark.go        |  2 +-
- src/runtime/mgcstack.go       |  2 ++
- src/runtime/preempt.go        |  4 ++--
- src/runtime/race.go           |  2 +-
- src/runtime/stack.go          |  3 ++-
- src/runtime/stkframe.go       |  4 ++--
- src/runtime/symtab.go         | 30 ++++++++++++++++--------------
- src/runtime/symtabinl.go      |  7 ++++---
- src/runtime/symtabinl_test.go |  3 ++-
- src/runtime/trace.go          |  3 ++-
- src/runtime/traceback.go      | 17 ++++++++++-------
- 14 files changed, 47 insertions(+), 36 deletions(-)
+ src/runtime/pprof/pprof.go      |  3 +--
+ src/runtime/pprof/pprof_test.go | 24 ++++++++++++------------
+ src/runtime/pprof/proto_test.go |  2 +-
+ 3 files changed, 14 insertions(+), 15 deletions(-)

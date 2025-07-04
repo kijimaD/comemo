@@ -1,21 +1,26 @@
-commit 5411953df50ce83ee8e23ca33a8a16335ad95cf2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 29 14:31:40 2019 -0700
+commit 356f5a117641711e8ef6df731dfeefefbe2fe3e3
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Mar 5 14:53:03 2019 -0500
 
-    cmd/compile: avoid follow-on errors for literals with syntax errors
+    cmd/go: list directories in module cache replacements
     
-    - only convert literal strings if there were no syntax errors
-      (some of the conversion routines exit if there is an error)
-    - mark nodes for literals with syntax errors to avoid follow-on
-      errors
-    - don't attempt to import packages whose path had syntax errors
+    "go list" has allowed listing directory paths to packages in the
+    module cache since CL 126715. This is sometimes necessary for tools
+    gathering package information about source files in imported packages.
     
-    Fixes #32133.
+    With this change, we only allow directories in the module cache for
+    modules in the build list after replacements are applied. Previously,
+    we ignored replacements when expanding file system path patterns while
+    constructing the build list.
     
-    Change-Id: I1803ad48c65abfecf6f48ddff1e27eded5e282c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192437
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #29548
+    
+    Change-Id: Ic7f89122c4656c8967c14545cb7117f98e89e721
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165381
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/noder.go | 57 +++++++++++++++++++++---------------
- test/fixedbugs/issue32133.go         | 43 +++++++++++++++++++++++++++
- 2 files changed, 77 insertions(+), 23 deletions(-)
+ src/cmd/go/internal/modload/load.go                 | 13 ++++++++++++-
+ src/cmd/go/testdata/script/mod_list_replace_dir.txt | 19 +++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

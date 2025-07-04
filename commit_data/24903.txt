@@ -1,19 +1,22 @@
-commit 52393ad036e795f2da1e2692f17f76ccb00fb410
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Nov 14 15:31:32 2015 -0800
+commit 14f919578d671a3e34431e1834c2820f9c6e3d0d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Sep 5 20:32:40 2015 -0400
 
-    runtime: remove go:nosplit comment from reflect.typelinks
+    cmd/compile/internal/mips64: copy cmd/compile/internal/ppc64
     
-    A nosplit comment was added to reflect.typelinks accidentally in
-    https://golang.org/cl/98510044.  There is only one caller of
-    reflect.typelinks, reflect.typesByString, and that function is not
-    nosplit.  There is no reason for reflect.typelinks to be nosplit.
+    Just a mechanical copy, no code changes.
+    This is to reduce code difference when adding the mips64 port.
     
-    Change-Id: I0fd3cc66fafcd92643e38e53fa586d6b2f868a0a
-    Reviewed-on: https://go-review.googlesource.com/16932
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Id06e975f414a7b09f4827167b30813b228a3bfaf
+    Reviewed-on: https://go-review.googlesource.com/14324
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/runtime1.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/mips64/cgen.go   |  149 ++++
+ src/cmd/compile/internal/mips64/galign.go |  100 +++
+ src/cmd/compile/internal/mips64/ggen.go   |  564 ++++++++++++++++
+ src/cmd/compile/internal/mips64/gsubr.go  | 1031 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/mips64/opt.go    |   12 +
+ src/cmd/compile/internal/mips64/peep.go   | 1051 +++++++++++++++++++++++++++++
+ src/cmd/compile/internal/mips64/prog.go   |  314 +++++++++
+ src/cmd/compile/internal/mips64/reg.go    |  162 +++++
+ 8 files changed, 3383 insertions(+)

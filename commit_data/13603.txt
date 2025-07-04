@@ -1,14 +1,12 @@
-commit 0bc952c8ccc7ad58f8a44d3c3c5fe9a3b3e5e69f
+commit 4939b7b065d2eee1c37201c0d42ed4dd06d22265
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 9 08:50:13 2012 +1000
+Date:   Wed Aug 8 15:41:47 2012 +1000
 
-          doc: add 'Get Started with Go' video, remove some older videos
+    io: amend ReaderFrom doc as per r's comment
     
-    (I also updated the wiki's GoTalks page with all the latest videos.)
-    
-    R=golang-dev, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6441113
+    https://golang.org/cl/6458097
 
- doc/docs.html | 30 +++++++-----------------------
- 1 file changed, 7 insertions(+), 23 deletions(-)
+ src/pkg/io/io.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

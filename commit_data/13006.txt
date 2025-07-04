@@ -1,12 +1,22 @@
-commit ce30769ce3d5b9ac02f2a5e6dc36e42eddd66bd2
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 2 13:48:49 2012 +1000
+commit d472d3faf17490e1c9b1c38d78ebe65baead30fa
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed May 2 12:10:24 2012 +1000
 
-    misc/dashboard/codereview: LGTM favicon
+    bytes: add assembly version of Equal for ARM
     
-    R=dsymonds
+    BenchmarkEqual32                       662          159  -75.98%
+    BenchmarkEqual4K                     76545        13719  -82.08%
+    BenchmarkEqual4M                  90136700     23588870  -73.83%
+    BenchmarkEqual64M               2147483647   1419616000  -42.63%
+    
+    BenchmarkEqual32                     48.32       201.15    4.16x
+    BenchmarkEqual4K                     53.51       298.56    5.58x
+    BenchmarkEqual4M                     46.53       177.81    3.82x
+    BenchmarkEqual64M                    27.12        47.27    1.74x
+    
+    R=golang-dev, qyzhai, minux.ma, rsc, iant, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6158043
+    https://golang.org/cl/6118049
 
- misc/dashboard/codereview/static/icon.png | Bin 4347 -> 412 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/pkg/bytes/asm_arm.s | 28 +++++++++++++++++++++++++++-
+ 1 file changed, 27 insertions(+), 1 deletion(-)

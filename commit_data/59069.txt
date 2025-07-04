@@ -1,27 +1,34 @@
-commit 3c3b8dd4f0590881f7010014985d05cce1c9e943
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Fri Mar 14 09:36:06 2025 -0700
+commit 643d816c8b4348850a8a2a622d73256beea104cd
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Feb 5 16:38:41 2024 -0500
 
-    internal/runtime/atomic: add Xchg8 for s390x and wasm
+    runtime: traceback: include pc=0x%x for inline frames
     
-    This makes the single-byte atomic.Xchg8 operation available on all
-    GOARCHes, including those without direct / single-instruction support.
+    Crash monitoring tools may parse the PC values and feed them
+    to CallersFrames, which does not run the inline unwinder, since
+    Callers already did so. So, the GOTRACEBACK=system output
+    must also include PC values even for inlined frames.
+    (The actual values are just marker NOP instructions,
+    but that isn't important.)
     
-    Fixes #69735
+    This CL also includes a test that the PC values can be
+    parsed out of the crash report and fed to CallersFrames
+    to yield a sensible result. (The logic is a distillation
+    of the x/telemetry crashmonitor.)
     
-    Change-Id: Icb6aff8f907257db81ea440dc4d29f96b3cff6c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657936
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    The previously printed PCs were in fact slightly wrong
+    for frames containing inlined calls: instead of the
+    virtual CALL instruction (a NOP) to the first
+    inlined call, it would display the PC of the
+    CALL in the innermost inlined function.
+    
+    Change-Id: I64a06771fc191ba16c1383b8139b714f4f299703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561635
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/internal/runtime/atomic/atomic_arm.go   | 18 ----------------
- src/internal/runtime/atomic/atomic_s390x.go |  5 +++++
- src/internal/runtime/atomic/atomic_wasm.go  |  5 +++++
- src/internal/runtime/atomic/xchg8.go        | 32 +++++++++++++++++++++++++++++
- src/internal/runtime/atomic/xchg8_test.go   |  2 --
- 5 files changed, 42 insertions(+), 20 deletions(-)
+ src/runtime/crash_test.go            |  13 ++
+ src/runtime/traceback.go             |  24 +++-
+ src/runtime/traceback_system_test.go | 235 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 266 insertions(+), 6 deletions(-)

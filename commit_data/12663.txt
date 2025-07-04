@@ -1,12 +1,13 @@
-commit e5cc09a75db2536c836ab4aeedf33a88794a79b9
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Mar 16 14:27:11 2012 +1100
+commit e57a6167b6c4ac4e3d3d34ab8f9f6471be6f2703
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 15 23:15:38 2012 -0400
 
-    doc: use time.Duration in Effective Go.
+    A+C: Christopher Redden (individual CLA)
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5841044
+    https://golang.org/cl/5845043
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

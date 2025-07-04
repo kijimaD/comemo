@@ -1,15 +1,11 @@
-commit bc64c078259b97392c2a9d5ee6bda75ae3971579
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Aug 22 09:53:44 2014 +1000
+commit 937f0d59fcdeec593640c4b14725aa85ea50c59b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 13 14:56:58 2014 -0700
 
-    sync: be more explicit in WaitGroup docs
+    doc/go1.4.txt: cmd/go changes, syscall
     
-    Fixes #8543.
-    
-    LGTM=dvyukov, r
-    R=rsc, r
-    CC=dvyukov, golang-codereviews
-    https://golang.org/cl/123580043
+    CC=golang-codereviews
+    https://golang.org/cl/129130043
 
- src/pkg/sync/waitgroup.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ doc/go1.4.txt | 5 +++++
+ 1 file changed, 5 insertions(+)

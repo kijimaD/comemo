@@ -1,19 +1,22 @@
-commit 7194caf11b5b62778618ddb87e5adea5b04654bf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 24 14:47:30 2025 -0800
+commit 2184a394777ccc9ce9625932b2ad773e6e626be0
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Dec 14 18:25:21 2023 +0100
 
-    go/types, types2: remove another coreType call in type checking range clause
+    runtime/metrics: godoc link fixes
     
-    For #70128.
+    Fix rendering of link to runtime/debug.ReadGCStats in package overview:
+    as the package is not imported we must specify the absolute package
+    name.
     
-    Change-Id: I5949bccbfaaebc435ae8ac7c70580d9740de6f00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652136
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I123db49eee05e6812427e19873e628b4e4feb203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549735
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
 
- src/cmd/compile/internal/types2/stmt.go   | 9 +++++++--
- src/go/types/stmt.go                      | 9 +++++++--
- src/internal/types/testdata/spec/range.go | 5 +++++
- 3 files changed, 19 insertions(+), 4 deletions(-)
+ src/runtime/metrics/doc.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

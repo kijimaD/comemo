@@ -1,16 +1,28 @@
-commit 5b32a6f1793bbac820bc70066cb8f569edcaa982
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Apr 19 16:27:57 2022 -0400
+commit 44f9a3566ce564f9a21b1b92940a520ea241e065
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Jun 21 11:11:20 2021 -0500
 
-    runtime/internal/syscall: use ABIInternal for Syscall6 on amd64
+    database/sql: fix deadlock test in prepare statement
     
-    For #51087.
+    The issue go#46783 correctly diagnosed the context timeout
+    caused an intermittent failure when the context was canceled
+    prior to the BeginTx call. However due to the asynchronous nature
+    of canceling a Tx through a context on fast systems, the tx.Prepare
+    also succeeded. On slower systems or if a time.Sleep was inserted
+    between the BeginTx and Prepare, the Prepare would fail.
     
-    Change-Id: I25971760b63ec0d23d0f011521dd197d81a38976
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401096
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Resolve this by moving the context cancel after the Prepare.
+    This will still trigger the deadlock which I tested locally.
+    In addition, I interspersed multiple time.Sleep calls and the
+    test still functioned.
+    
+    Fixes #46852
+    
+    Change-Id: I9cbf90d3c12b2555493a37799738772b615ae39d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329830
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/internal/syscall/asm_linux_amd64.s | 44 +++++++++++++++++---------
- 1 file changed, 29 insertions(+), 15 deletions(-)
+ src/database/sql/sql_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

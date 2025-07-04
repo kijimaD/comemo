@@ -1,26 +1,27 @@
-commit f10e03770c9702b3ee3bcc2ccdb78691f389c1a3
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Feb 13 18:09:21 2015 +1100
+commit 67e7ded029034cc3cd510303f7b06faf690d4bc3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 21 21:45:29 2015 -0500
 
-    image/jpeg: support decoding CMYK and YCbCrK images.
+    [dev.cc] cmd/internal/obj, cmd/new9a: use ctxt.NewProg
     
-    The new testdata was created by:
+    cmd/internal/obj reconverted using rsc.io/c2go rev 40275b8.
     
-    convert video-001.png -colorspace cmyk video-001.cmyk.jpeg
+    All Prog*s need Ctxt field set so that the printer can tell
+    which architecture the Prog belongs to.
+    Use ctxt.NewProg consistently for this.
     
-    video-001.cmyk.jpeg was then converted back to video-001.cmyk.png via
-    the GIMP. ImageMagick (convert) wasn't used for this second conversion
-    because IM's default color profiles complicates things.
-    
-    Fixes #4500.
-    
-    Change-Id: Ibf533f6a6c7e76883acc493ce3a4289d7875df3f
-    Reviewed-on: https://go-review.googlesource.com/4801
+    Change-Id: Ic981b3d68f24931ffae74a772e83a3dc2fdf518a
+    Reviewed-on: https://go-review.googlesource.com/3152
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/image/decode_test.go               |   1 +
- src/image/jpeg/reader.go               | 259 ++++++++++++++++++++++++++-------
- src/image/jpeg/scan.go                 |  19 ++-
- src/image/testdata/video-001.cmyk.jpeg | Bin 0 -> 19477 bytes
- src/image/testdata/video-001.cmyk.png  | Bin 0 -> 25439 bytes
- 5 files changed, 221 insertions(+), 58 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go   | 12 ++++++------
+ src/cmd/internal/obj/arm/obj5.go   | 15 ++++++---------
+ src/cmd/internal/obj/i386/obj8.go  | 11 ++++-------
+ src/cmd/internal/obj/ld.go         |  4 ++--
+ src/cmd/internal/obj/link.go       |  2 +-
+ src/cmd/internal/obj/ppc64/asm9.go |  4 ++--
+ src/cmd/internal/obj/ppc64/obj9.go | 23 ++++++++++-------------
+ src/cmd/internal/obj/util.go       |  6 ++++++
+ src/cmd/internal/obj/x86/obj6.go   | 11 ++++-------
+ src/cmd/new9a/lex.go               |  4 ++--
+ 10 files changed, 43 insertions(+), 49 deletions(-)

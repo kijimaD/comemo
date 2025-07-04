@@ -1,39 +1,24 @@
-commit 91f07c57d891e3ac1450bd4295de462c23bffb69
-Author: Dmitri Shuralyov <dmitri@shuralyov.com>
-Date:   Fri Apr 13 17:59:16 2018 -0400
+commit 5158aab7d662e274aed870ae6bf9cf8ae0786f5b
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Jan 23 22:11:51 2018 -0800
 
-    path/filepath: make Abs("") return working directory on Windows
+    all: use HTTPS for iana.org links
     
-    The current Abs docs say:
+    iana.org, www.iana.org and data.iana.org all present a valid TLS
+    certificate, so let's use it when fetching data or linking to
+    resources to avoid errors in transit.
     
-            // If the path is not absolute it will be joined with the current
-            // working directory to turn it into an absolute path.
-    
-    The empty string is not an absolute path, so the docs suggest that the
-    empty string should be joined with the current working directory to
-    turn it into an absolute path. This was already the case on all
-    platforms other than Windows. Per the decision in issue #24441,
-    this change makes it work on Windows too.
-    
-    Since the empty string is not a valid path for the purposes of calling
-    os.Stat on it, we can't simply add the empty string test case to
-    absTests, which TestAbs uses. It would error when trying to do:
-    
-            info, err := os.Stat(path)
-    
-    I didn't find a good way to modify TestAbs to handle this situation
-    without significantly complicating its code and compromising the test.
-    So, a separate test is created for testing Abs on empty string input.
-    
-    Fixes #24441.
-    
-    Change-Id: I11d8ae2f6e6e358f3e996372ee2a0449093898d2
-    Reviewed-on: https://go-review.googlesource.com/112935
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib3ce7c19789c4e9d982a776b61d8380ddc63194d
+    Reviewed-on: https://go-review.googlesource.com/89416
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/path/filepath/path_test.go    | 41 +++++++++++++++++++++++++++++++++++++++
- src/path/filepath/path_windows.go |  6 ++++++
- 2 files changed, 47 insertions(+)
+ lib/time/README                 | 2 +-
+ lib/time/update.bash            | 9 ++++-----
+ misc/nacl/testdata/mime.types   | 2 +-
+ src/crypto/tls/cipher_suites.go | 2 +-
+ src/crypto/tls/common.go        | 4 ++--
+ src/net/http/status.go          | 2 +-
+ src/net/lookup.go               | 2 +-
+ src/net/lookup_test.go          | 4 ++--
+ src/time/zoneinfo.go            | 2 +-
+ 9 files changed, 14 insertions(+), 15 deletions(-)

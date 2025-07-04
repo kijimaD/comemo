@@ -1,36 +1,33 @@
-commit 72521319c733e5de62bb837508ea9fa2b1f3a0a2
+commit 02f89331c2ec09923806611bc1a8fbb2ffcbcca5
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 29 12:26:21 2015 -0500
+Date:   Mon Jan 5 15:02:09 2015 -0500
 
-    liblink: use same TEXT $frame-arg encoding for all architectures
+    runtime: fix two garbage collector bugs
     
-    Change-Id: I3417a8c5ddd7f405939edc9fdef086e4741495a1
-    Reviewed-on: https://go-review.googlesource.com/3571
-    Reviewed-by: Austin Clements <austin@google.com>
+    First, call clearcheckmarks immediately after changing checkmark,
+    so that there is less time when the checkmark flag and the bitmap
+    are inconsistent. The tiny gap between the two lines is fine, because
+    the world is stopped. Before, the gap was much larger and included
+    such code as "go bgsweep()", which allocated.
+    
+    Second, modify gcphase only when the world is stopped.
+    As written, gcscan_m was changing gcphase from 0 to GCscan
+    and back to 0 while other goroutines were running.
+    Another goroutine running at the same time might decide to
+    sleep, see GCscan, call gcphasework, and start "helping" by
+    scanning its stack. That's fine, except that if gcphase flips back
+    to 0 as the goroutine calls scanblock, it will start draining the
+    work buffers prematurely.
+    
+    Both of these were found wbshadow=2 (and a lot of hard work).
+    Eventually that will run automatically, but right now it still
+    doesn't quite work for all.bash, due to mmap conflicts with
+    pthread-created threads.
+    
+    Change-Id: I99aa8210cff9c6e7d0a1b62c75be32a23321897b
+    Reviewed-on: https://go-review.googlesource.com/2340
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/5a/a.y      |   47 ++-
- src/cmd/5a/y.tab.c  | 1049 +++++++++++++++++++++++++-------------------------
- src/cmd/5g/ggen.c   |    6 +-
- src/cmd/5l/5.out.h  |    1 +
- src/cmd/6a/a.y      |   41 +-
- src/cmd/6a/y.tab.c  |  728 ++++++++++++++++++-----------------
- src/cmd/6g/ggen.c   |   10 +-
- src/cmd/8a/a.y      |   46 +--
- src/cmd/8a/y.tab.c  |  864 +++++++++++++++++++++---------------------
- src/cmd/8a/y.tab.h  |    6 +-
- src/cmd/8g/ggen.c   |    7 +-
- src/cmd/9a/a.y      |   45 ++-
- src/cmd/9a/y.tab.c  | 1052 +++++++++++++++++++++++++++------------------------
- src/cmd/9g/ggen.c   |   10 +-
- src/cmd/9l/9.out.h  |    1 +
- src/liblink/asm5.c  |    8 +-
- src/liblink/asm6.c  |    6 +-
- src/liblink/asm8.c  |    7 +-
- src/liblink/asm9.c  |   21 +-
- src/liblink/list5.c |    6 +-
- src/liblink/list6.c |   17 +-
- src/liblink/list8.c |   10 +-
- src/liblink/list9.c |   24 +-
- src/liblink/obj6.c  |   26 +-
- src/liblink/obj9.c  |   21 +-
- 25 files changed, 2055 insertions(+), 2004 deletions(-)
+ src/runtime/malloc.go |  1 +
+ src/runtime/mgc.go    | 21 ++++++++++++---------
+ 2 files changed, 13 insertions(+), 9 deletions(-)

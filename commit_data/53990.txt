@@ -1,27 +1,28 @@
-commit 98bacdeafe089f917d98d2151694568e4a25a4c3
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Aug 9 08:50:41 2023 -0400
+commit 7c3284401fcd3c6cb4cb747e3332217105d007c0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 14 17:08:15 2022 +0200
 
-    internal/coverage: separate out cmd defs to separate package
+    cmd, syscall: use syscall.Mmap on solaris for Go ≥ 1.20
     
-    Relocate the definitions in cmddefs.go (used by the compiler and
-    the cover tool) to a separate package "covcmd". No change
-    in functionality, this is a pure refactoring, in preparation
-    for a subsequent change that will require updating the
-    imports for the package.
+    CL 413374 added syscall.Mmap on solaris. Use it in cmd/compile and
+    cmd/link if the bootstrap toolchain is Go ≥ 1.20.
     
-    Change-Id: Ic1d277c94d9a574de0a11ec5ed77e892302b9a47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517696
+    For #52875
+    For #54265
+    
+    Change-Id: I9a0534bf97926eecf0c6f1f9218e855344ba158f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430496
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/base/flag.go         | 14 +++++++-------
- src/cmd/cover/cfg_test.go                     |  4 ++--
- src/cmd/cover/cover.go                        |  7 ++++---
- src/cmd/dist/buildtool.go                     |  1 +
- src/cmd/go/internal/work/exec.go              |  4 ++--
- src/internal/coverage/{ => covcmd}/cmddefs.go | 16 +---------------
- src/internal/coverage/defs.go                 | 14 ++++++++++++++
- 7 files changed, 31 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/base/mapfile_mmap.go |  4 ++--
+ src/cmd/compile/internal/base/mapfile_read.go | 10 ++++++++--
+ src/cmd/internal/bio/buf_mmap.go              |  4 ++--
+ src/cmd/internal/bio/buf_nommap.go            | 10 ++++++++--
+ src/cmd/link/internal/ld/outbuf_mmap.go       |  4 ++--
+ src/cmd/link/internal/ld/outbuf_nommap.go     | 12 ++++++++++--
+ src/syscall/zerrors_solaris_amd64.go          |  1 +
+ 7 files changed, 33 insertions(+), 12 deletions(-)

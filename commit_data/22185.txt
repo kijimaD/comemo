@@ -1,12 +1,16 @@
-commit c5c6c3ab5728ecbecac69788eefa5fb185c0b72f
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 25 17:29:33 2015 -0700
+commit d68f52aa43d7f22df7f68052915fc3d386120c9f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 27 17:40:34 2015 +0900
 
-    doc/go1.5.txt: add $DOLLAR to generate
+    cmd/internal/gc: restore mkbuiltin
     
-    Change-Id: I6d129ef56baa2c0c5e0b278cfa67fc22f3bf18ac
-    Reviewed-on: https://go-review.googlesource.com/8052
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I6cc4061fef9d3c3530406ab3d4811192b7175e89
+    Reviewed-on: https://go-review.googlesource.com/6233
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/gc/builtin.go          | 166 ++++++++++++++++++++++++++-
+ src/cmd/internal/gc/builtins/runtime.go | 191 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/gc/builtins/unsafe.go  |  18 +++
+ src/cmd/internal/gc/lex.go              |   1 +
+ src/cmd/internal/gc/mkbuiltin.go        | 104 +++++++++++++++++
+ 5 files changed, 477 insertions(+), 3 deletions(-)

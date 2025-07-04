@@ -1,26 +1,18 @@
-commit aa4299735b78189eeac1e2c4edafb9d014cc62d7
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 16 12:35:36 2022 -0700
+commit c129af90eb20a5723fc7ed19b19afe054036fe71
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 1 12:32:41 2021 -0700
 
-    runtime/pprof: remove round-to-file-start adjustment
+    text/template: undo reflect.Value wrapping for short-circuit and/or
     
-    This causes a problem in the test sometimes. With a mapping like:
+    For #31103
     
-    00400000-00411000 r--p 00000000 fe:01 4459044                            /tmp/go-build1710804385/b001/pprof.test
-    00411000-00645000 r-xp 00011000 fe:01 4459044                            /tmp/go-build1710804385/b001/pprof.test
-    
-    The removed code would make the first mapping 0x400000-0x645000. Tests
-    then grab the first few addresses to use as PCs, thinking they are in
-    an executable range. But those addresses are really not in an
-    executable range, causing the tests to fail.
-    
-    Change-Id: I5a69d0259d1fd70ff9745df1cbad4d54c5898e7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424295
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I9c0aa64f95f564de31a4c178e3930584d41316bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353610
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/profile/legacy_profile.go | 8 --------
- src/runtime/pprof/proto.go             | 9 ++++-----
- 2 files changed, 4 insertions(+), 13 deletions(-)
+ src/text/template/exec.go      | 16 ++++++++++------
+ src/text/template/exec_test.go |  1 +
+ 2 files changed, 11 insertions(+), 6 deletions(-)

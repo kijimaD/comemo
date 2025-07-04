@@ -1,19 +1,19 @@
-commit 497d24178fdc321a037150656d51bec40f93e6d6
-Author: Plekhanov Maxim <kishtatix@gmail.com>
-Date:   Thu Dec 21 02:14:55 2017 +0300
+commit d6c3b0a56d8c81c221b0adf69ae351f7cd467854
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 1 10:16:08 2018 -0700
 
-    math: use Abs in Mod rather than if x < 0 { x = -x}
+    runtime: don't crash holding locks on racy timer access
     
-    goos: linux
-    goarch: amd64
-    pkg: math
+    If we run into data corruption due to the program accessing timers in
+    a racy way, do a normal panic rather than a hard crash with "panic
+    holding locks". The hope is to make the problem less confusing for users.
     
-    name  old time/op  new time/op  delta
-    Mod   64.7ns ± 2%  63.7ns ± 2%  -1.52%  (p=0.003 n=8+10)
+    Fixes #25686
     
-    Change-Id: I851bec0fd6c223dab73e4a680b7393d49e81a0e8
-    Reviewed-on: https://go-review.googlesource.com/c/85095
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I863417adf21f7f8c088675b67a3acf49a0cdef41
+    Reviewed-on: https://go-review.googlesource.com/115815
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/math/mod.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/runtime/time.go   | 74 +++++++++++++++++++++++++++++++++++++++++++--------
+ src/time/time_test.go | 37 ++++++++++++++++++++++++++
+ 2 files changed, 100 insertions(+), 11 deletions(-)

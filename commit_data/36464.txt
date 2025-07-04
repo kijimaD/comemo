@@ -1,17 +1,21 @@
-commit d8cf1514cadb512de6972e760ccef76452e3a67c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Aug 22 14:01:52 2018 +0200
+commit 4154727e1b125a7d3398c9cc143eb36343c82bcc
+Author: Kevin Burke <kev@inburke.com>
+Date:   Fri Oct 20 12:56:38 2017 -0700
 
-    internal/syscall/unix: don't use linkname to refer to syscall.fcntl
+    crypto/tls: add examples for [Load]X509KeyPair
     
-    Just open-code the fcntl syscall instead of relying on the obscurity of
-    go:linkname.
+    I was confused about how to start an HTTP server if the server
+    cert/key are in memory, not on disk. I thought it would be good to
+    show an example of how to use these two functions to accomplish that.
     
-    Change-Id: I3e4ec9db6539e016f56667d7b8b87aa37671d0e7
-    Reviewed-on: https://go-review.googlesource.com/130736
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    example-cert.pem and example-key.pem were generated using
+    crypto/tls/generate_cert.go.
+    
+    Change-Id: I850e1282fb1c38aff8bd9aeb51988d21fe307584
+    Reviewed-on: https://go-review.googlesource.com/72252
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/syscall/unix/nonblocking.go | 14 ++++----------
- 1 file changed, 4 insertions(+), 10 deletions(-)
+ src/crypto/tls/example_test.go           | 73 ++++++++++++++++++++++++++++++++
+ src/crypto/tls/testdata/example-cert.pem | 11 +++++
+ src/crypto/tls/testdata/example-key.pem  |  5 +++
+ 3 files changed, 89 insertions(+)

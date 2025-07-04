@@ -1,18 +1,22 @@
-commit 20e9b7f1b53d49fd66e0344b1d0d42d3cf5e47b6
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Mar 3 01:24:06 2023 +1100
+commit 68b655f2b91c4407ccd781271039857e0d332989
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 26 16:32:07 2022 -0700
 
-    debug/dwarf: return ErrUnknownPC rather than nil on unknown PC
+    runtime: disable windowed Smhasher test on 32-bit systems
     
-    Currently, on e == nil or e.Tag == 0, SeekPC returns with a nil error.
-    Instead, indicate that the PC is unknown.
+    This test tends to be flaky on 32-bit systems.
+    There's not enough bits in the hash output, so we
+    expect a nontrivial number of collisions, and it is
+    often quite a bit higher than expected.
     
-    Change-Id: I9594296034e2df872e399bd800b00cb565c413c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473695
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Fixes #43130
+    
+    Change-Id: If35413b7c45eed778a08b834dacf98009ceca840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402456
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/debug/dwarf/entry.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/hash_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,16 +1,25 @@
-commit 3672a09a48464d18d0c669cc3590d13091a2e77a
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Thu Apr 24 16:38:58 2025 +0200
+commit ef4f2a05972f9b729f5edb897d581f496675f588
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Mar 7 21:36:47 2024 +0800
 
-    runtime/debug: update SetCrashOutput example to not pass parent env vars
+    unicode/utf16: add func RuneLen
     
-    Fixes #73490
+    This CL adds func RuneLen, while here, also uses RuneLen to simplify
+    code in Encode.
     
-    Change-Id: I500fa73f4215c7f490779f53c1c2c0d775f51a95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667775
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #44940
+    
+    Change-Id: Ifd3b537f69880dfd32a69a6733d8d3c2b5d4ecba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569755
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/debug/example_monitor_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ api/next/44940.txt                                |  1 +
+ doc/next/6-stdlib/99-minor/unicode/utf16/44940.md |  3 +++
+ src/unicode/utf16/export_test.go                  |  3 +++
+ src/unicode/utf16/utf16.go                        | 21 ++++++++++++++++-----
+ src/unicode/utf16/utf16_test.go                   | 20 ++++++++++++++++++++
+ 5 files changed, 43 insertions(+), 5 deletions(-)

@@ -1,17 +1,23 @@
-commit 3b8b550a35965245657ea204865baa6ee727297d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Dec 4 15:43:41 2023 -0500
+commit b08d5ee5e9c700a1267f0b883702766a19d89b2d
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 20 10:36:19 2023 -0800
 
-    doc: document runtimecontentionstacks
+    cmd/compile: ensure register args come before on-stack args in schedule
     
-    For #57071.
+    The register allocator doesn't like OpArg coming in between other
+    OpIntArg operations, as it doesn't put the spills in the right place
+    in that situation.
     
-    Change-Id: Ic1645af57aa589917c67154a5e4ad0b4edd7ba90
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547058
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    This is just a bug in the new scheduler, I didn't copy over the
+    proper score from the old scheduler correctly.
+    
+    Change-Id: I3b4ee1754982fb360e99c5864b19e7408d60b5bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462858
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/godebug.md | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/ssa/schedule.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,51 +1,20 @@
-commit 50f4896b72d16b6538178c8ca851b20655075b7f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 5 15:53:12 2019 -0700
+commit 9f513254ae92e2a62c3197cf16f7f22a8ca2879a
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu May 2 03:12:12 2019 -0400
 
-    runtime: add netpollBreak
+    net: skip DNS tests on self-hosted Android
     
-    The new netpollBreak function can be used to interrupt a blocking netpoll.
-    This function is not currently used; it will be used by later CLs.
+    They were already skipped on tethered Android builders because
+    the tests are gated on GO_BUILDER_NAME being set and the Android
+    exec wrapper does not propagate GO_BUILDER_NAME.
     
-    Updates #27707
+    Updates #31722
     
-    Change-Id: I5cb936609ba13c3c127ea1368a49194fc58c9f4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171824
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ifd2c7daecc19a4e540d86d1f38083f43cc3e6b15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175177
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/defs1_netbsd_386.go    |  1 +
- src/runtime/defs1_netbsd_amd64.go  |  1 +
- src/runtime/defs1_netbsd_arm.go    |  1 +
- src/runtime/defs1_netbsd_arm64.go  |  1 +
- src/runtime/defs1_solaris_amd64.go |  5 ++-
- src/runtime/defs_darwin.go         |  1 +
- src/runtime/defs_darwin_386.go     |  1 +
- src/runtime/defs_darwin_amd64.go   |  1 +
- src/runtime/defs_darwin_arm.go     |  1 +
- src/runtime/defs_darwin_arm64.go   |  1 +
- src/runtime/defs_freebsd.go        |  1 +
- src/runtime/defs_freebsd_386.go    |  1 +
- src/runtime/defs_freebsd_amd64.go  |  1 +
- src/runtime/defs_freebsd_arm.go    |  1 +
- src/runtime/defs_netbsd.go         |  1 +
- src/runtime/defs_openbsd.go        |  1 +
- src/runtime/defs_openbsd_386.go    |  1 +
- src/runtime/defs_openbsd_amd64.go  |  1 +
- src/runtime/defs_openbsd_arm.go    |  1 +
- src/runtime/defs_openbsd_arm64.go  |  1 +
- src/runtime/defs_solaris.go        |  5 ++-
- src/runtime/export_test.go         |  3 ++
- src/runtime/netpoll.go             | 44 ++++++++++++++---------
- src/runtime/netpoll_aix.go         | 22 +++++++-----
- src/runtime/netpoll_epoll.go       | 71 ++++++++++++++++++++++++++++++++------
- src/runtime/netpoll_fake.go        |  7 ++--
- src/runtime/netpoll_kqueue.go      | 55 +++++++++++++++++++++++++++--
- src/runtime/netpoll_solaris.go     | 46 ++++++++++++++++++++++--
- src/runtime/netpoll_stub.go        | 17 +++++++++
- src/runtime/netpoll_windows.go     | 37 ++++++++++++++++----
- src/runtime/os_netbsd.go           |  2 --
- src/runtime/os_openbsd.go          |  1 -
- src/runtime/os_windows.go          |  2 ++
- src/runtime/proc_test.go           | 39 +++++++++++++++++++++
- 34 files changed, 322 insertions(+), 53 deletions(-)
+ src/net/dial_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

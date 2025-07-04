@@ -1,25 +1,25 @@
-commit eeff8fa4536abcc2ad717aeea58c126ad23fce3f
-Author: David Chase <drchase@google.com>
-Date:   Mon May 14 16:12:59 2018 -0400
+commit 25d22d9abae4345c24cd2ae7f26de1846888faa4
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat Feb 10 20:10:26 2018 -0800
 
-    cmd/compile: remove now-irrelevant test
+    cmd/compile: report the struct type in invalid number of initializer values
     
-    This test measures "line churn" which was minimized to help
-    improve the debugger experience.  With proper is_stmt markers,
-    this is no longer necessary, and it is more accurate (for
-    profiling) to allow line numbers to vary willy-nilly.
+    Fixes #23732
     
-    "Debugger experience" is now better measured by
-    cmd/compile/internal/ssa/debug_test.go
+    Disambiguate "too few" or "too many" values in struct
+    initializer messages by reporting the name of the literal.
     
-    This CL made the obsoleting change:
-    https://go-review.googlesource.com/c/go/+/102435
+    After:
+    issue23732.go:27:3: too few values in Foo literal
+    issue23732.go:34:12: too many values in Bar literal
+    issue23732.go:40:6: too few values in Foo literal
+    issue23732.go:40:12: too many values in Bar literal
     
-    Change-Id: I874ab89f3b243b905aaeba7836118f632225a667
-    Reviewed-on: https://go-review.googlesource.com/113155
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ieca37298441d907ac78ffe960c5ab55741a362ef
+    Reviewed-on: https://go-review.googlesource.com/93277
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/fixedbugs/issue18902.go  | 141 ------------------------------------
- test/fixedbugs/issue18902b.go | 161 ------------------------------------------
- 2 files changed, 302 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  4 +--
+ test/fixedbugs/issue23732.go             | 42 ++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 2 deletions(-)

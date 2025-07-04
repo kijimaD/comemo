@@ -1,22 +1,32 @@
-commit 8b859be9c3fd1068b659afa1db76dadb210c63de
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 12 10:02:37 2021 -0700
+commit 2f6e7f0ed16004e1ac40e7108878fd4ec99bb15d
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Sep 30 00:47:48 2020 -0700
 
-    internal/poll: ensure that newPoolPipe doesn't return a nil pointer
+    src/go.mod, net/http: update bundled and latest golang.org/x/net
     
-    The function could occasionally return a nil pointer as a non-nil
-    interface, confusing the calling code.
+    Updates x/net/http2 to git rev 5d4f7005572804eaf7f5ecdd2473a62557f733ba
     
-    Fixes #45520
+        http2: send WINDOW_UPDATE on a body's write failure
+        https://golang.org/cl/245158 (fixes #40423)
     
-    Change-Id: Ifd35613728efa2cee9903177e85d369155074804
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309429
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Andy Pan <panjf2000@gmail.com>
+    also updates the vendored version of golang.org/x/net as per
+    
+    $ go get golang.org/x/net@5d4f700557
+    $ go mod tidy
+    $ go mod vendor
+    $ go generate -run bundle std
+    
+    For #40423.
+    
+    Change-Id: I3270d0fb6f28889266596f7365d36d30ef2bb368
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258359
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/internal/poll/splice_linux.go      |  5 +++--
- src/internal/poll/splice_linux_test.go | 16 ++++++++++++++--
- 2 files changed, 17 insertions(+), 4 deletions(-)
+ src/go.mod                | 2 +-
+ src/go.sum                | 4 ++--
+ src/net/http/h2_bundle.go | 1 +
+ src/vendor/modules.txt    | 2 +-
+ 4 files changed, 5 insertions(+), 4 deletions(-)

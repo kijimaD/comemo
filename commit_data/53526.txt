@@ -1,24 +1,27 @@
-commit 1db23771afc7b9b259e926db35602ecf5047ae23
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 8 17:55:55 2023 -0400
+commit 108021c195c6f43b07c437242bf39614e06b3df4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 16 10:59:05 2022 +0700
 
-    cmd/go: omit checksums for go.mod files needed for go version lines more often in pre-1.21 modules
+    strings: reduce allocation for byteReplacer
     
-    This updates the logic from CL 489075 to avoid trying to save extra
-    sums if they aren't already expected to be present
-    and cfg.BuildMod != "mod" (as in the case of "go list -m -u all" with
-    a go.mod file that specifies go < 1.21).
+    Though it increases the execution time, the function is already quite
+    fast for most users, the allocation is much more important.
     
-    Fixes #60667.
-    Updates #56222.
+    name                       old time/op    new time/op    delta
+    ByteReplacerWriteString-8    1.23µs ± 0%    2.16µs ± 1%   +75.31%  (p=0.000 n=10+10)
     
-    Change-Id: Ied6ed3e80a62f9cd9a328b43a415a42d14481056
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502015
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    name                       old alloc/op   new alloc/op   delta
+    ByteReplacerWriteString-8    2.69kB ± 0%    0.00kB       -100.00%  (p=0.000 n=10+10)
+    
+    name                       old allocs/op  new allocs/op  delta
+    ByteReplacerWriteString-8      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
+    
+    Change-Id: I6a36df5fcb8e11ef27e6c7b252aa88e869592f3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424136
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/cmd/go/internal/modload/init.go               | 17 ++++++++++++++---
- src/cmd/go/testdata/script/mod_sum_issue56222.txt |  4 ++++
- 2 files changed, 18 insertions(+), 3 deletions(-)
+ src/strings/replace.go | 37 +++++++++++++++++++++++--------------
+ 1 file changed, 23 insertions(+), 14 deletions(-)

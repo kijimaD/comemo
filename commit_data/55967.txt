@@ -1,23 +1,25 @@
-commit fcfd824e31fa0160b9490496fdddd90f4b61f924
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 14 17:39:01 2024 -0700
+commit f521077b018c833453fcef947da72fe70a877300
+Author: Daniel Frederick Crisman <daniel@crisman.org>
+Date:   Sat Mar 25 15:53:55 2023 +0000
 
-    cmd/compile: compute type eq/hash algorithm in CalcSize instead of on demand
+    doc: normalize proposal-process links
     
-    For #65540
+    The docs in .github & CONTRIBUTING.md have three different links to the same place. I have picked the one from "10-proposal.md" as the canonical url as it uses the normal go website shortener service (thus centralizing any future maintenance of this location), uses the new public domain (go.dev over golang.org), and also picks up the readme URI fragment from the shortener redirect which allows the doc links to be cleaner, but also the convenience for the reader starting directly at the human readable parsed README.md.
     
-    Actually more correct in some very weird, and probably impossible to
-    trigger currently, cases. For instance, a struct with a NOEQ
-    and a NOALG field (the old code would not report the noalg bit).
+    Should also cut down on confusion like I had reading documentation about why there were multiple proposal sites, which turned out all to be the same place.
     
-    Change-Id: I36c473b59aa5775d8a520ac746b114d16a22699d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571542
+    Update all proposal-process links to the same URL.
+    
+    Change-Id: I2f2ea3a6ca34a445268285520e1b19570946afb8
+    GitHub-Last-Rev: eb769089e612e6c00c29baf3c6cd2e0875e46364
+    GitHub-Pull-Request: golang/go#59238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479415
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types/alg.go            | 122 +++++------------------
- src/cmd/compile/internal/types/algkind_string.go |  53 ++++------
- src/cmd/compile/internal/types/size.go           |  62 +++++++++++-
- src/cmd/compile/internal/types/type.go           |   4 +
- 4 files changed, 111 insertions(+), 130 deletions(-)
+ .github/SUPPORT.md | 2 +-
+ CONTRIBUTING.md    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

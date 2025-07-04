@@ -1,12 +1,14 @@
-commit 2481481ff798636907376bfdf7e8c7558b8b930e
-Author: Alexander Morozov <lk4d4math@gmail.com>
-Date:   Tue Oct 25 14:37:54 2016 -0700
+commit 5bddca64a84edae33a8ffaa74abcd3a8c966ea0c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jun 20 08:34:39 2016 -0700
 
-    runtime: fix comments in time.go
+    cmd/compile: minor cleanup in mapinit
     
-    Change-Id: I5c501f598f41241e6d7b21d98a126827a3c3ad9a
-    Reviewed-on: https://go-review.googlesource.com/32018
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7d58d200f7e8b2c0a6e35371da0dafd9b44e9057
+    Reviewed-on: https://go-review.googlesource.com/26757
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/time.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

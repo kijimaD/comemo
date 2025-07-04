@@ -1,17 +1,20 @@
-commit 53efbdb12e056c5fd4e967f07c7e660377f7aba9
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Fri Oct 16 19:06:18 2020 +0800
+commit 75f499e3a0e8830efb861c9ba6ca61bc03583962
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 13 15:04:20 2020 -0700
 
-    cmd/asm: sort test cases in the arm64.s file
+    os/exec: create extra threads when starting a subprocess
     
-    This patch sorts the test cases in the arm64.s file by instruction
-    category and deletes comments related to the old parser.
+    TestExtraFiles seems to be flaky on GNU/Linux systems when using cgo
+    because creating a new thread will call malloc which can create a new
+    arena which can open a file to see how many processors there are.
+    Try to avoid the flake by creating several new threads at process
+    startup time.
     
-    Change-Id: I9bbf56281e247a4fd8d5e670e8ad67c923aef1ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263458
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    For #25628
+    
+    Change-Id: Ie781acdbba475d993c39782fe172cf7f29a05b24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228099
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64.s | 702 ++++++++++++------------------
- 1 file changed, 272 insertions(+), 430 deletions(-)
+ src/os/exec/exec_linux_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

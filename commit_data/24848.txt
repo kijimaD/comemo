@@ -1,27 +1,15 @@
-commit 80d0b98d809361c862670bd7293fbca22055581f
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Nov 12 12:09:29 2015 -0500
+commit 220b5f7b548101b892232da8ad80a75dfecd7046
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Aug 23 13:09:02 2015 +0000
 
-    runtime/internal/atomic: delete arch1_*.go files
+    image/gif: map/slice literals janitoring
     
-    I made a copy of the per-arch _CacheLineSize definitons when checking in
-    runtime/internal/atomic. Now that runtime/internal/sys is checked in,
-    we can use the definition there.
+    Simplify slice/map literal expressions.
+    Caught with gofmt -d -s, fixed with gofmt -w -s
     
-    Change-Id: I7242f6b633e4164f033b67ff471416b9d71c64d2
-    Reviewed-on: https://go-review.googlesource.com/16847
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iefd5f263c4f89a81da9427a7b9d97f13c35ab64f
+    Reviewed-on: https://go-review.googlesource.com/13838
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/dist/deps.go                          |  2 +-
- src/go/build/deps_test.go                     |  2 +-
- src/runtime/internal/atomic/arch1_386.go      |  9 ---------
- src/runtime/internal/atomic/arch1_amd64.go    |  9 ---------
- src/runtime/internal/atomic/arch1_amd64p32.go | 14 --------------
- src/runtime/internal/atomic/arch1_arm.go      |  9 ---------
- src/runtime/internal/atomic/arch1_arm64.go    |  9 ---------
- src/runtime/internal/atomic/arch1_mips64.go   |  9 ---------
- src/runtime/internal/atomic/arch1_mips64le.go |  9 ---------
- src/runtime/internal/atomic/arch1_ppc64.go    |  9 ---------
- src/runtime/internal/atomic/arch1_ppc64le.go  |  9 ---------
- src/runtime/internal/atomic/atomic_arm.go     |  7 +++++--
- 12 files changed, 7 insertions(+), 90 deletions(-)
+ src/image/gif/writer_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

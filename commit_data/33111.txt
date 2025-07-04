@@ -1,16 +1,12 @@
-commit c996d07feed18fdebaadf2c61e62cd8b14fe1aa7
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Oct 13 16:50:45 2017 -0400
+commit 4c98ecbf05d1baba49607a6e168a408787cf77d6
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Jul 13 11:48:51 2017 -0600
 
-    cmd/link: use the correct module data on ppc64le
+    doc: add missing article
     
-    Fixes #22250
-    
-    Change-Id: I0e39d10ff6f0785cd22b0105de2d839e569db4b7
-    Reviewed-on: https://go-review.googlesource.com/70810
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I73fdc793bbc3ffe9ace1bfa78799f84c31630d61
+    Reviewed-on: https://go-review.googlesource.com/48391
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ppc64/asm.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ doc/go1.9.html | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

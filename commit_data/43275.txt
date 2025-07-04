@@ -1,15 +1,21 @@
-commit e69f6e839315b1df4e6273c38ae1a49e340b8a91
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Oct 12 11:19:41 2020 +0200
+commit 3adbdb6d9931276894c5e2524f5ca8ca26bfeab5
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Mar 22 13:27:02 2020 -0700
 
-    internal/bytealg: fix typo in IndexRabinKarp{,Bytes} godoc
+    cmd/compile: disable mem+op operations on 386
     
-    Change-Id: I09ba19e19b195e345a0fe29d542e0d86529b0d31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261359
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Rolling back portions of CL 222782 to see if that helps
+    issue #37881 any.
+    
+    Update #37881
+    
+    Change-Id: I9cc3ff8c469fa5e4b22daec715d04148033f46f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224837
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/bytealg/bytealg.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/addressingmodes.go | 37 +++++++++++------------
+ test/codegen/arithmetic.go                      |  4 ---
+ test/codegen/memops.go                          | 39 -------------------------
+ 3 files changed, 19 insertions(+), 61 deletions(-)

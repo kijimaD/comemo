@@ -1,18 +1,12 @@
-commit e4890e57e1bf24bd6e2671cfb133bdc49ce0da71
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 20 07:31:44 2013 +0900
+commit 5c3fb96be957c6bf3199d6d460de11b2ba5093eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 19 11:21:18 2013 -0800
 
-    net: return correct point-to-point interface address on linux
+    exp/README: update README
     
-    On Linux point-to-point interface an IFA_ADDRESS attribute
-    represents a peer address. For a correct interface address
-    we should take an IFA_LOCAL attribute instead.
-    
-    Fixes #4839.
-    
-    R=golang-dev, dave, rsc
+    R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7352045
+    https://golang.org/cl/7323073
 
- src/pkg/net/interface_linux.go | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ src/pkg/exp/README | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

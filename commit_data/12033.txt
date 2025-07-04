@@ -1,12 +1,13 @@
-commit 6154f146af47d8e9dcf717b3dc59120b1997d36e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Feb 18 16:15:12 2012 -0500
+commit 68b35b0852eaa90fb61ac4b28c0a3700efc7f762
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 19 07:45:12 2012 +1100
 
-    test/run: honor $TMPDIR
+    templates: minor edits to the documentation
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5676094
+    https://golang.org/cl/5677084
 
- test/run | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/text/template/doc.go         | 24 +++++++++++++++++++++++-
+ src/pkg/text/template/parse/parse.go |  6 ++++--
+ 2 files changed, 27 insertions(+), 3 deletions(-)

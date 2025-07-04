@@ -1,24 +1,30 @@
-commit 397453f6adc1e352b866d3dd14899da3b2cb7547
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Nov 3 21:29:21 2023 +0800
+commit 171c794002bac46a22c74a846ef3328628ed5d49
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Sat Mar 25 10:35:11 2023 -0700
 
-    strconv: add available godoc link
+    crypto: add wasip1 support
     
-    Change-Id: Iad58155f29a101fb72768b170c0c2c9d76b6041a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539357
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Adds crypto/dsa, crypto/rand, x509 files and changes for the new
+    wasip1 port.
+    
+    For #58141
+    
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: I9609e3d021cd7e06b813eedf5912febc52cc0f2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479624
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/strconv/atoc.go  |  4 ++--
- src/strconv/atoi.go  |  8 ++++----
- src/strconv/ctoa.go  |  2 +-
- src/strconv/doc.go   |  2 +-
- src/strconv/ftoa.go  |  2 +-
- src/strconv/itoa.go  |  6 +++---
- src/strconv/quote.go | 28 ++++++++++++++--------------
- 7 files changed, 26 insertions(+), 26 deletions(-)
+ src/crypto/rand/rand.go                      |  3 ++-
+ src/crypto/rand/rand_wasip1.go               | 27 +++++++++++++++++++++++++++
+ src/crypto/x509/root_unix.go                 |  2 +-
+ src/crypto/x509/{root_js.go => root_wasm.go} |  2 +-
+ 4 files changed, 31 insertions(+), 3 deletions(-)

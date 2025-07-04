@@ -1,14 +1,12 @@
-commit f04b5a3bac0206d507a4984897c60a362a3bdab7
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Feb 16 14:06:50 2011 -0500
+commit be560e040175a654b98c45910dd4e174821574b2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 16 11:01:21 2011 -0800
 
-    http: add proxy support
-    Fixes #53.
+    reflect: add a couple of sentences explaining how Methods operate.
     
-    R=agl1, jacek.masiulaniec, adg, rsc, agl
+    R=rsc, gri, rsc1, bsiegert
     CC=golang-dev
-    https://golang.org/cl/3794041
+    https://golang.org/cl/4183053
 
- src/pkg/http/client.go     | 109 +++++++++++++++++++++++++++++++++++++++++----
- src/pkg/http/proxy_test.go |  45 +++++++++++++++++++
- 2 files changed, 146 insertions(+), 8 deletions(-)
+ src/pkg/reflect/type.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

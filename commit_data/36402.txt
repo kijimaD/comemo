@@ -1,78 +1,95 @@
-commit a0a7e9fc0c9139053c9ae02b85f03e78fb9cd550
-Author: Ben Shi <powerman1st@163.com>
-Date:   Tue Jun 26 02:58:54 2018 +0000
+commit 1d321ada73cdea05eb90bf3ccd884b844bc42d67
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 23 14:54:45 2018 -0700
 
-    cmd/compile: implement "OPC $imm, (mem)" for 386
+    cmd/compile: optimize LeadingZeros(16|32) on amd64
     
-    New read-modify-write operations are introduced in this CL for 386.
+    Introduce Len8 and Len16 ops and provide optimized lowerings for them.
+    amd64 only for this CL, although it wouldn't surprise me
+    if other architectures also admit of optimized lowerings.
     
-    1. The total size of pkg/linux_386 decreases about 10KB (excluding
-    cmd/compile).
+    Also use and optimize the Len32 lowering, along the same lines.
     
-    2. The go1 benchmark shows little regression.
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              3.32s ± 4%     3.29s ± 2%    ~     (p=0.059 n=30+30)
-    Fannkuch11-4                3.49s ± 1%     3.46s ± 1%  -0.92%  (p=0.001 n=30+30)
-    FmtFprintfEmpty-4          47.7ns ± 2%    46.8ns ± 5%  -1.93%  (p=0.011 n=25+30)
-    FmtFprintfString-4         79.5ns ± 7%    80.2ns ± 3%  +0.89%  (p=0.001 n=28+29)
-    FmtFprintfInt-4            90.5ns ± 2%    92.1ns ± 2%  +1.82%  (p=0.014 n=22+30)
-    FmtFprintfIntInt-4          141ns ± 1%     144ns ± 3%  +2.23%  (p=0.013 n=22+30)
-    FmtFprintfPrefixedInt-4     183ns ± 2%     184ns ± 3%    ~     (p=0.080 n=21+30)
-    FmtFprintfFloat-4           409ns ± 3%     412ns ± 3%  +0.83%  (p=0.040 n=30+30)
-    FmtManyArgs-4               597ns ± 6%     607ns ± 4%  +1.71%  (p=0.006 n=30+30)
-    GobDecode-4                7.21ms ± 5%    7.18ms ± 6%    ~     (p=0.665 n=30+30)
-    GobEncode-4                7.17ms ± 6%    7.09ms ± 7%    ~     (p=0.117 n=29+30)
-    Gzip-4                      413ms ± 4%     399ms ± 4%  -3.48%  (p=0.000 n=30+30)
-    Gunzip-4                   41.3ms ± 4%    41.7ms ± 3%  +1.05%  (p=0.011 n=30+30)
-    HTTPClientServer-4         63.5µs ± 3%    62.9µs ± 2%  -0.97%  (p=0.017 n=30+27)
-    JSONEncode-4               20.3ms ± 5%    20.1ms ± 5%  -1.16%  (p=0.004 n=30+30)
-    JSONDecode-4               66.2ms ± 4%    67.7ms ± 4%  +2.21%  (p=0.000 n=30+30)
-    Mandelbrot200-4            5.16ms ± 3%    5.18ms ± 3%    ~     (p=0.123 n=30+30)
-    GoParse-4                  3.23ms ± 2%    3.27ms ± 2%  +1.08%  (p=0.006 n=30+30)
-    RegexpMatchEasy0_32-4      98.9ns ± 5%    97.1ns ± 4%  -1.83%  (p=0.006 n=30+30)
-    RegexpMatchEasy0_1K-4       842ns ± 3%     842ns ± 3%    ~     (p=0.550 n=30+30)
-    RegexpMatchEasy1_32-4       107ns ± 4%     105ns ± 4%  -1.93%  (p=0.012 n=30+30)
-    RegexpMatchEasy1_1K-4      1.03µs ± 4%    1.04µs ± 4%    ~     (p=0.304 n=30+30)
-    RegexpMatchMedium_32-4      132ns ± 2%     129ns ± 4%  -2.02%  (p=0.000 n=21+30)
-    RegexpMatchMedium_1K-4     44.1µs ± 4%    43.8µs ± 3%    ~     (p=0.641 n=30+30)
-    RegexpMatchHard_32-4       2.26µs ± 4%    2.23µs ± 4%  -1.28%  (p=0.023 n=30+30)
-    RegexpMatchHard_1K-4       68.1µs ± 3%    68.6µs ± 4%    ~     (p=0.089 n=30+30)
-    Revcomp-4                   1.85s ± 2%     1.84s ± 2%    ~     (p=0.072 n=30+30)
-    Template-4                 69.2ms ± 3%    68.5ms ± 3%  -1.04%  (p=0.012 n=30+30)
-    TimeParse-4                 441ns ± 3%     446ns ± 4%  +1.21%  (p=0.001 n=30+30)
-    TimeFormat-4                415ns ± 3%     415ns ± 3%    ~     (p=0.436 n=30+30)
-    [Geo mean]                 67.0µs         66.9µs       -0.17%
+    Leave Len8 unused for the moment; a subsequent CL will enable it.
     
-    name                     old speed      new speed      delta
-    GobDecode-4               107MB/s ± 5%   107MB/s ± 6%    ~     (p=0.663 n=30+30)
-    GobEncode-4               107MB/s ± 6%   108MB/s ± 7%    ~     (p=0.117 n=29+30)
-    Gzip-4                   47.0MB/s ± 4%  48.7MB/s ± 4%  +3.61%  (p=0.000 n=30+30)
-    Gunzip-4                  470MB/s ± 4%   466MB/s ± 4%  -1.05%  (p=0.011 n=30+30)
-    JSONEncode-4             95.6MB/s ± 5%  96.7MB/s ± 5%  +1.16%  (p=0.005 n=30+30)
-    JSONDecode-4             29.3MB/s ± 4%  28.7MB/s ± 4%  -2.17%  (p=0.000 n=30+30)
-    GoParse-4                17.9MB/s ± 2%  17.7MB/s ± 2%  -1.06%  (p=0.007 n=30+30)
-    RegexpMatchEasy0_32-4     323MB/s ± 5%   329MB/s ± 4%  +1.93%  (p=0.006 n=30+30)
-    RegexpMatchEasy0_1K-4    1.22GB/s ± 3%  1.22GB/s ± 3%    ~     (p=0.496 n=30+30)
-    RegexpMatchEasy1_32-4     298MB/s ± 4%   303MB/s ± 4%  +1.84%  (p=0.017 n=30+30)
-    RegexpMatchEasy1_1K-4     995MB/s ± 4%   989MB/s ± 4%    ~     (p=0.307 n=30+30)
-    RegexpMatchMedium_32-4   7.56MB/s ± 4%  7.74MB/s ± 4%  +2.46%  (p=0.000 n=22+30)
-    RegexpMatchMedium_1K-4   23.2MB/s ± 4%  23.4MB/s ± 3%    ~     (p=0.651 n=30+30)
-    RegexpMatchHard_32-4     14.2MB/s ± 4%  14.3MB/s ± 4%  +1.29%  (p=0.021 n=30+30)
-    RegexpMatchHard_1K-4     15.0MB/s ± 3%  14.9MB/s ± 4%    ~     (p=0.069 n=30+29)
-    Revcomp-4                 138MB/s ± 2%   138MB/s ± 2%    ~     (p=0.072 n=30+30)
-    Template-4               28.1MB/s ± 3%  28.4MB/s ± 3%  +1.05%  (p=0.012 n=30+30)
-    [Geo mean]               79.7MB/s       80.2MB/s       +0.60%
+    For 16 and 32 bits, this leads to a speed-up.
     
-    Change-Id: I44a1dfc942c9a385904553c4fe1fa8e509c8aa31
-    Reviewed-on: https://go-review.googlesource.com/120916
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    name              old time/op  new time/op  delta
+    LeadingZeros16-8  1.42ns ± 5%  1.23ns ± 5%  -13.42%  (p=0.000 n=20+20)
+    LeadingZeros32-8  1.25ns ± 5%  1.03ns ± 5%  -17.63%  (p=0.000 n=20+16)
+    
+    Code:
+    
+    func f16(x uint16) { z = bits.LeadingZeros16(x) }
+    func f32(x uint32) { z = bits.LeadingZeros32(x) }
+    
+    Before:
+    
+    "".f16 STEXT nosplit size=38 args=0x8 locals=0x0
+            0x0000 00000 (x.go:8)   TEXT    "".f16(SB), NOSPLIT, $0-8
+            0x0000 00000 (x.go:8)   FUNCDATA        $0, gclocals·2a5305abe05176240e61b8620e19a815(SB)
+            0x0000 00000 (x.go:8)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:8)   MOVWLZX "".x+8(SP), AX
+            0x0005 00005 (x.go:8)   MOVWLZX AX, AX
+            0x0008 00008 (x.go:8)   BSRQ    AX, AX
+            0x000c 00012 (x.go:8)   MOVQ    $-1, CX
+            0x0013 00019 (x.go:8)   CMOVQEQ CX, AX
+            0x0017 00023 (x.go:8)   ADDQ    $-15, AX
+            0x001b 00027 (x.go:8)   NEGQ    AX
+            0x001e 00030 (x.go:8)   MOVQ    AX, "".z(SB)
+            0x0025 00037 (x.go:8)   RET
+    
+    "".f32 STEXT nosplit size=34 args=0x8 locals=0x0
+            0x0000 00000 (x.go:9)   TEXT    "".f32(SB), NOSPLIT, $0-8
+            0x0000 00000 (x.go:9)   FUNCDATA        $0, gclocals·2a5305abe05176240e61b8620e19a815(SB)
+            0x0000 00000 (x.go:9)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:9)   MOVL    "".x+8(SP), AX
+            0x0004 00004 (x.go:9)   BSRQ    AX, AX
+            0x0008 00008 (x.go:9)   MOVQ    $-1, CX
+            0x000f 00015 (x.go:9)   CMOVQEQ CX, AX
+            0x0013 00019 (x.go:9)   ADDQ    $-31, AX
+            0x0017 00023 (x.go:9)   NEGQ    AX
+            0x001a 00026 (x.go:9)   MOVQ    AX, "".z(SB)
+            0x0021 00033 (x.go:9)   RET
+    
+    After:
+    
+    "".f16 STEXT nosplit size=30 args=0x8 locals=0x0
+            0x0000 00000 (x.go:8)   TEXT    "".f16(SB), NOSPLIT, $0-8
+            0x0000 00000 (x.go:8)   FUNCDATA        $0, gclocals·2a5305abe05176240e61b8620e19a815(SB)
+            0x0000 00000 (x.go:8)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:8)   MOVWLZX "".x+8(SP), AX
+            0x0005 00005 (x.go:8)   MOVWLZX AX, AX
+            0x0008 00008 (x.go:8)   LEAL    1(AX)(AX*1), AX
+            0x000c 00012 (x.go:8)   BSRL    AX, AX
+            0x000f 00015 (x.go:8)   ADDQ    $-16, AX
+            0x0013 00019 (x.go:8)   NEGQ    AX
+            0x0016 00022 (x.go:8)   MOVQ    AX, "".z(SB)
+            0x001d 00029 (x.go:8)   RET
+    
+    "".f32 STEXT nosplit size=28 args=0x8 locals=0x0
+            0x0000 00000 (x.go:9)   TEXT    "".f32(SB), NOSPLIT, $0-8
+            0x0000 00000 (x.go:9)   FUNCDATA        $0, gclocals·2a5305abe05176240e61b8620e19a815(SB)
+            0x0000 00000 (x.go:9)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:9)   MOVL    "".x+8(SP), AX
+            0x0004 00004 (x.go:9)   LEAQ    1(AX)(AX*1), AX
+            0x0009 00009 (x.go:9)   BSRQ    AX, AX
+            0x000d 00013 (x.go:9)   ADDQ    $-32, AX
+            0x0011 00017 (x.go:9)   NEGQ    AX
+            0x0014 00020 (x.go:9)   MOVQ    AX, "".z(SB)
+            0x001b 00027 (x.go:9)   RET
+    
+    Change-Id: I6c93c173752a7bfdeab8be30777ae05a736e1f4b
+    Reviewed-on: https://go-review.googlesource.com/108941
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules |   8 +
- src/cmd/compile/internal/ssa/gen/386Ops.go |   6 +
- src/cmd/compile/internal/ssa/opGen.go      |  60 +++++
- src/cmd/compile/internal/ssa/rewrite386.go | 401 ++++++++++++++++++++++++++++-
- src/cmd/compile/internal/x86/ssa.go        |  27 ++
- test/codegen/arithmetic.go                 |   4 +
- 6 files changed, 505 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             | 22 ++++++--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  8 ++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 +
+ src/cmd/compile/internal/ssa/opGen.go          | 12 +++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 70 ++++++++++++++++++++++++--
+ test/codegen/mathbits.go                       |  8 +--
+ 6 files changed, 109 insertions(+), 13 deletions(-)

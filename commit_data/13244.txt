@@ -1,15 +1,12 @@
-commit 0e45890c8bafbaeed18c22f462d5435e43705264
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jun 1 18:34:14 2012 -0700
+commit c9e698bdfb77bd74bc6faab88e39203ae0571eb0
+Author: Ryan Barrett <ryanb@google.com>
+Date:   Fri Jun 1 16:55:03 2012 -0400
 
-    text/template/parse: restore the goroutine
-    To avoid goroutines during init, the nextItem function was a
-    clever workaround. Now that init goroutines are permitted,
-    restore the original, simpler design.
+    misc/emacs: stop go-mode from spuriously marking the buffer modified when it loads
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/6282043
+    R=golang-dev, sameer, bradfitz
+    CC=golang-dev, jba
+    https://golang.org/cl/6213056
 
- src/pkg/text/template/parse/lex.go | 23 +++++++++++------------
- 1 file changed, 11 insertions(+), 12 deletions(-)
+ misc/emacs/go-mode.el | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

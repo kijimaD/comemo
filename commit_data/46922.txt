@@ -1,18 +1,21 @@
-commit 417100ec1b08bb1046e207fd08de105944668d27
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Oct 18 10:24:00 2021 -0400
+commit ed55da46ab994abb4ea1b20aaab3cff6b650959f
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 11 10:51:52 2021 -0500
 
-    cmd/go: fix broken fuzz test
+    [dev.regabi] go/types: overlapping embedded interfaces requires go1.14
     
-    Fixes test breakage caused by CL 355691.
+    This is an exact port of CL 290911 to go/types.
     
-    Change-Id: I85fcb1491dc39c45342f4cae91fdfda6aedecd1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356530
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    For #31793
+    
+    Change-Id: I28c42727735f467a5984594b455ca58ab3375591
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291319
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/testdata/script/test_fuzz_minimize.txt  | 52 --------------------
- .../script/test_fuzz_minimize_interesting.txt      | 56 ++++++++++++++++++++--
- 2 files changed, 53 insertions(+), 55 deletions(-)
+ src/go/types/stdlib_test.go      |  1 -
+ src/go/types/testdata/go1_13.src | 22 ++++++++++++++++++++++
+ src/go/types/typexpr.go          |  8 ++++++--
+ 3 files changed, 28 insertions(+), 3 deletions(-)

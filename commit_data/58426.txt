@@ -1,22 +1,17 @@
-commit cb72406c36e5c39c049fd150d65be67372ba60e2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 18 15:42:48 2024 -0500
+commit 3f700ce4d2f9674e9091f5a33fa8860f9106d5c8
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 8 09:55:54 2023 -0500
 
-    cmd/go: fix two-step toolchain upgrade through go install, GOTOOLCHAIN
+    cmd/link/internal/loader: remove some dead code
     
-    If we do one upgrade because of a go install target's go.mod file,
-    we still might need a second upgrade to implement the GOTOOLCHAIN
-    minimum. Instead of allowing a two-step switch (which we were
-    cutting off anyway), skip the first step and go straight to the
-    GOTOOLCHAIN min upgrade.
+    Get rid of a couple of unused methods in the loader and symbol
+    builder.
     
-    Fixes #69051.
-    
-    Change-Id: I16f060f473574d8b8f84c55fae2fd0cdabc8aa19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637496
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I3822891757dc56356295a9bc99545b725d485eac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540260
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/go/internal/toolchain/select.go          | 10 +++++++---
- src/cmd/go/testdata/script/gotoolchain_local.txt | 11 +++++++++++
- 2 files changed, 18 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/loader/loader.go        | 8 --------
+ src/cmd/link/internal/loader/symbolbuilder.go | 4 ----
+ 2 files changed, 12 deletions(-)

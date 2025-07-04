@@ -1,20 +1,15 @@
-commit e70fae8a649ebc35867cc4ba937d4ffd4488fe05
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Wed Jul 19 19:52:29 2017 -0700
+commit fb28f5ba3aa1ca704295b9960c332b0178335788
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Apr 19 13:48:33 2017 -0400
 
-    cmd/link: fix bad dwarf for sudog<T>
+    runtime: avoid restricting GOARCH values in documentation
     
-    The DWARF entries for type-specific sudog entries used the
-    channel value type instead of a pointer-to-value type for the elem field.
+    Changes the text to match GOOS which appends 'and so on' at the
+    end to avoid restricting the set of possible values.
     
-    Fixes #21094
-    
-    R=go1.10
-    
-    Change-Id: I3f63a5664f42b571f729931309f2c9f6f38ab031
-    Reviewed-on: https://go-review.googlesource.com/50170
+    Change-Id: I54bcde71334202cf701662cdc2582c974ba8bf53
+    Reviewed-on: https://go-review.googlesource.com/41074
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go      | 10 ++-----
- src/cmd/link/internal/ld/dwarf_test.go | 55 ++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 8 deletions(-)
+ src/runtime/extern.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

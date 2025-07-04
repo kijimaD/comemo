@@ -1,22 +1,12 @@
-commit 649b89377e91ad6dbe710784f9e662082d31a1ff
-Author: David Heuschmann <heuschmann.d@gmail.com>
-Date:   Tue Nov 20 12:30:14 2018 +0100
+commit 2f46dfb271414581b048ee54f728c55dbdd85bf0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 2 20:17:21 2018 +0000
 
-    os: return an error from UserHomeDir to match UserCacheDir
+    encoding/xml: remove some primordial semicolons
     
-    UserHomeDir used to return an empty string if the corresponding
-    environment variable was not set. Changed it to return an error if the
-    variable is not set, to have the same signature and behaviour as UserCacheDir.
-    
-    Fixes #28562
-    
-    Change-Id: I42c497e8011ecfbbadebe7de1751575273be221c
-    Reviewed-on: https://go-review.googlesource.com/c/150418
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I23e5d87648a4091fb4f6616bf80aa6c800974900
+    Reviewed-on: https://go-review.googlesource.com/127662
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/crypto/x509/root_darwin.go |  6 +++---
- src/os/file.go                 | 18 ++++++++++--------
- src/os/os_test.go              |  9 ++++++---
- 3 files changed, 19 insertions(+), 14 deletions(-)
+ src/encoding/xml/xml.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

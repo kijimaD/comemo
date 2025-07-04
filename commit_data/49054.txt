@@ -1,22 +1,19 @@
-commit 0b4f2416a22aadb0e6df2be1a5cef34680e472de
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Mar 28 20:28:23 2022 +0200
+commit 5f0ea40c67839ae82b6018fe881f173f9b09d306
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 9 18:26:57 2021 -0700
 
-    crypto/elliptic: clean up and document P-256 assembly interface
+    [dev.typeparams] cmd/compile/internal/types2: implement close(ch) where ch is of type parameter type
     
-    For #52182
-    
-    Change-Id: I8a68fda3e54bdea48b0dfe528fe293d47bdcd145
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396255
-    Reviewed-by: Fernando Lobato Meeser <felobato@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I45189468553e83390fd2640b5708c60a7852fbb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333713
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/elliptic/internal/nistec/nistec_test.go |  32 +-
- src/crypto/elliptic/internal/nistec/p256_asm.go    | 578 +++++++++++----------
- .../elliptic/internal/nistec/p256_asm_amd64.s      | 105 ++--
- .../elliptic/internal/nistec/p256_asm_arm64.s      | 106 ++--
- .../internal/nistec/p256_asm_table_test.go         |  67 +--
- .../elliptic/internal/nistec/p256_asm_test.go      |  94 ++++
- 6 files changed, 568 insertions(+), 414 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        | 22 +++++----
+ .../internal/types2/testdata/check/builtins.go2    | 55 ++++++++++++++++++----
+ .../internal/types2/testdata/check/builtins.src    |  2 +-
+ src/cmd/compile/internal/types2/type.go            |  7 ---
+ test/chan/perm.go                                  |  2 +-
+ 5 files changed, 62 insertions(+), 26 deletions(-)

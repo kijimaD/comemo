@@ -1,32 +1,21 @@
-commit dfc1437580ed230c57892e895c3d7d46b712fdec
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Sun Aug 6 23:34:18 2023 +0000
+commit b53471a655f3928d2d0a851b1fb5f7ebb02adc76
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 7 01:14:31 2022 +0000
 
-    internal/bytealg: optimize Index/IndexString in amd64
+    Revert "sync: convert Once.done to atomic type"
     
-    Now with PCALIGN available on amd64 we can start optimizing some routines that benefit from instruction alignment.
+    This reverts commit CL 427140.
     
-    ```
-                             │    sec/op     │    sec/op     vs base               │
-    IndexByte/4K-16             69.89n ± ∞ ¹   45.88n ± ∞ ¹  -34.35% (p=0.008 n=5)
-    IndexByte/4M-16             65.36µ ± ∞ ¹   47.32µ ± ∞ ¹  -27.60% (p=0.008 n=5)
-    IndexByte/64M-16            1.435m ± ∞ ¹   1.140m ± ∞ ¹  -20.57% (p=0.008 n=5)
-                             │      B/s      │      B/s       vs base               │
-    IndexByte/4K-16            54.58Gi ± ∞ ¹   83.14Gi ± ∞ ¹  +52.32% (p=0.008 n=5)
-    IndexByte/4M-16            59.76Gi ± ∞ ¹   82.54Gi ± ∞ ¹  +38.12% (p=0.008 n=5)
-    IndexByte/64M-16           43.56Gi ± ∞ ¹   54.84Gi ± ∞ ¹  +25.89% (p=0.008 n=5)
-    ```
+    Reason for revert: Comments say that done should be the first field.
     
-    Change-Id: Iff3dfd542c55e7569242be81f38b2887b9e04e87
-    GitHub-Last-Rev: f309f898b13ad8fdf88a21f2f105382db9ada2f5
-    GitHub-Pull-Request: golang/go#61792
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516435
+    Change-Id: Id131da064146b44e1182289546aeb877867e63cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428638
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/internal/bytealg/index_amd64.s | 2 ++
- 1 file changed, 2 insertions(+)
+ src/sync/once.go    | 14 +++++++-------
+ test/inline_sync.go |  2 +-
+ 2 files changed, 8 insertions(+), 8 deletions(-)

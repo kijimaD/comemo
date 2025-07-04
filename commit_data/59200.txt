@@ -1,16 +1,35 @@
-commit c6a1dc47297a47e6111e3a00911393c355800023
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Mar 31 15:03:14 2025 -0700
+commit 5225da7001e95d70771c054c40a4877911ab9f2b
+Author: Matteo Vaccari <matteo.vaccari@gmail.com>
+Date:   Thu Feb 22 16:11:20 2024 +0000
 
-    cmd/link: close file in tempdir so Windows can delete it
+    expvar: avoid conflict with user-defined "GET /" route.
     
-    Fixes #73098
+    With the new routing style in go 1.22, declaring
     
-    Change-Id: I9f5570903071b15df9e4f8a1820414f305db9d35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661915
+        http.Handle("GET /", h)
+    
+    generates a conflict with route "/debug/vars" declared in the expvar
+    package. You get an error such as:
+    
+    panic: pattern "GET /" (registered at ...) conflicts with pattern
+    "/debug/vars" (registered at ...expvar.go:384): GET / matches fewer
+    methods than /debug/vars, but has a more general path pattern
+    
+    This patch prevents that error.  Adding GET is correct because no other
+    method makes sense with /debug/vars.
+    
+    We preserve the traditional behaviour when GODEBUG=httpmuxgo121=1 is
+    specified.
+    
+    Fixes #65723
+    
+    Change-Id: Id2b963ebad41a1ebdcceb73baf3436d59aac73a0
+    GitHub-Last-Rev: 9c2b9f74a7c8a3c756e9948814231b8f4e60b216
+    GitHub-Pull-Request: golang/go#65745
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564735
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/cmd/link/link_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/expvar/expvar.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

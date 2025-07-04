@@ -1,12 +1,16 @@
-commit 2c2b17237748ebeb348f93f3c81b1b3a3691d583
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Jun 2 16:53:22 2017 +1000
+commit 08fe56386ba117a44b52b28e5ab8dd4321af49f9
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Apr 18 21:01:20 2017 -0500
 
-    cmd/link: add peSection
+    .gitignore: change path to zbootstrap.go
     
-    Change-Id: Id3aeeaeaacf5f079fb2ddad579f2f209b7fc0e06
-    Reviewed-on: https://go-review.googlesource.com/55258
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    zbootstrap.go was moved in 1e3570a. This updates .gitignore to match.
+    
+    Change-Id: I7500e0abc8e60b6c36c6ae056b2f68b9d021fc6f
+    Reviewed-on: https://go-review.googlesource.com/40993
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 54 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 54 insertions(+)
+ .gitignore | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,15 @@
-commit ec8ed5bd026a79d661cc9f9c42dc044fd1c440ad
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 17 16:19:55 2022 +0700
+commit 74ba70be680a9eb9740638b80f36f68baec5b35c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Sep 21 18:05:28 2021 -0400
 
-    runtime: convert solaris netpollWakeSig to atomic type
+    cmd/link: use keyed literal for AbiSymKindToSymKind
     
-    Updates #53821
+    The correspondence is clearer. Also avoid accidental mismatch.
     
-    Change-Id: Ic2799c125267dc5b13b265db41fbe8bf7c08b8a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423878
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ibd9a31cfcd7c2301614f3496cac67cbae99972a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351334
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/netpoll_solaris.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/sym/symkind.go | 38 +++++++++++++++++++-----------------
+ 1 file changed, 20 insertions(+), 18 deletions(-)

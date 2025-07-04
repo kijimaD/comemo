@@ -1,22 +1,22 @@
-commit ccc42b0f91a7fc44b0353dea3f302f79fb28b300
+commit 7367aedfd2b787cff5ea0f883ed7805ead4d4ba6
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 26 14:04:37 2023 -0700
+Date:   Sat May 28 19:23:11 2022 -0700
 
-    doc/go1.21: document clear builtin and init order changes
+    debug/elf: use saferio to read section data
     
-    Also move all the language changes to the same part of the release notes.
+    For #47653
+    Fixes #45599
+    Fixes #52522
     
-    For #56351
-    For #57411
-    
-    Change-Id: Id1c51b5eb8f7d85e61a2ae44ee7d73bb13036631
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498755
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Id6a80186434080cb0a205978ad7f224252674604
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408679
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- doc/go1.21.html | 68 ++++++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 46 insertions(+), 22 deletions(-)
+ src/debug/elf/file.go | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)

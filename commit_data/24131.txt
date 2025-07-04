@@ -1,23 +1,21 @@
-commit 3578bdf3c3c5832d3590d355add707b97485a6ab
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Aug 31 21:15:29 2015 +1000
+commit e81671115c0857d3286e9331870ec9993e81a1a7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 10 12:58:53 2015 -0600
 
-    internal/obj/arm64: remove CASE and BCASE
+    [dev.ssa] cmd/compile: OANDAND, OOROR
     
-    Fixes #10994
+    Joint hacking with josharian. Hints from matloob and Todd Neal.
     
-    CASE and BCASE were used by 7c in switch statements, cmd/compile
-    does not use them, cmd/assemble couldn't assemble them, and the arm64
-    peephole optimiser didn't know about them.
+    Now with tests, and OROR.
     
-    Change-Id: Id04835fcb37e207f76d211ce54a4db9c057d6112
-    Reviewed-on: https://go-review.googlesource.com/14100
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Run-TryBot: Aram Hăvărneanu <aram@mgk.ro>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iff8826fde475691fb72a3eea7396a640b6274af9
+    Reviewed-on: https://go-review.googlesource.com/12041
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/arm64/a.out.go  |  2 --
- src/cmd/internal/obj/arm64/anames.go |  2 --
- src/cmd/internal/obj/arm64/asm7.go   | 27 ---------------------------
- src/cmd/internal/obj/arm64/obj7.go   |  3 +--
- 4 files changed, 1 insertion(+), 33 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                | 40 +++++++++++++++
+ src/cmd/compile/internal/gc/ssa_test.go           | 30 ++++++++++++
+ src/cmd/compile/internal/gc/testdata/short_ssa.go | 60 +++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |  1 +
+ src/cmd/compile/internal/ssa/print.go             |  9 +++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 20 ++++++++
+ 6 files changed, 159 insertions(+), 1 deletion(-)

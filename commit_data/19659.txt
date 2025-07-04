@@ -1,32 +1,19 @@
-commit 61ccc1f05fe6e79ec79e59166e1a3fa3454ab406
-Author: Cristian Staretu <unclejacksons@gmail.com>
-Date:   Thu Jul 3 09:41:19 2014 +1000
+commit 372f399e00693b1d49bc1243feb66f2c9bf0dd5c
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jul 2 15:28:57 2014 -0700
 
-    archive/tar: reuse temporary buffer in readHeader
+    crypto/rsa: fix out-of-bound access with short session keys.
     
-    A temporary 512 bytes buffer is allocated for every call to
-    readHeader. This buffer isn't returned to the caller and it could
-    be reused to lower the number of memory allocations.
+    Thanks to Cedric Staub for noting that a short session key would lead
+    to an out-of-bounds access when conditionally copying the too short
+    buffer over the random session key.
     
-    This CL improves it by using a pool and zeroing out the buffer before
-    putting it back into the pool.
-    
-    benchmark                  old ns/op     new ns/op     delta
-    BenchmarkListFiles100k     545249903     538832687     -1.18%
-    
-    benchmark                  old allocs    new allocs    delta
-    BenchmarkListFiles100k     2105167       2005692       -4.73%
-    
-    benchmark                  old bytes     new bytes     delta
-    BenchmarkListFiles100k     105903472     54831527      -48.22%
-    
-    This improvement is very important if your code has to deal with a lot
-    of tarballs which contain a lot of files.
-    
-    LGTM=dsymonds
-    R=golang-codereviews, dave, dsymonds, bradfitz
+    LGTM=davidben, bradfitz
+    R=davidben, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/108240044
+    https://golang.org/cl/102670044
 
- src/pkg/archive/tar/reader.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/pkg/crypto/rsa/pkcs1v15.go         | 43 ++++++++++++++++++++++------------
+ src/pkg/crypto/rsa/pkcs1v15_test.go    | 20 ++++++++++++++++
+ src/pkg/crypto/subtle/constant_time.go |  9 +++++--
+ 3 files changed, 55 insertions(+), 17 deletions(-)

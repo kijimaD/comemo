@@ -1,24 +1,21 @@
-commit a84ef500213ef6c2a0e4bfd82253e9fcd28f1f62
-Author: John Anthony <johnanthony.contrib@gmail.com>
-Date:   Thu Mar 17 15:36:52 2022 +0000
+commit 026480d06bd0b72e147953281b328c0283128e52
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 3 13:05:22 2021 -0700
 
-    cmd/go: prevent go work use panic when given a file
+    [dev.typeparams] cmd/compile: allow nil Syms in Sym.Less
     
-    The current implementation fails to identify that an argument to go work
-    use is a file when expecting a directory, and panics when attempting to
-    access it as a directory. This change checks arguments are directories
-    and generates an error otherwise.
+    Allows sorting interfaces that contain embedded anonymous types.
     
-    Fixes #51749
+    Fixes #46556.
     
-    Change-Id: If8f69d233409e93fcf391a8774bace74c031c986
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393615
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If19afa1d62432323b2e98957087867afbf3f9097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324812
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/go/internal/workcmd/use.go           | 13 +++++++++----
- src/cmd/go/testdata/script/work_use_file.txt | 12 ++++++++++++
- 2 files changed, 21 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types/sym.go |  8 ++++++++
+ test/fixedbugs/issue46556.go          | 16 ++++++++++++++++
+ 2 files changed, 24 insertions(+)

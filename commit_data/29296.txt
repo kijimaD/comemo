@@ -1,15 +1,32 @@
-commit 84803f3da1b3921a6eacec435d97d5b9e40fe947
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 1 10:24:06 2016 -0700
+commit 252093f1203da13e1face4f71141ac75482ccf11
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Tue Sep 6 10:38:16 2016 +0200
 
-    runtime: treat SIGSTOP on Solaris as we do on other systems
+    runtime: remove maxstring
     
-    This makes no practical difference, as SIGSTOP can not be caught, but
-    may as well be consistent.
+    Before this CL the runtime prevented printing of overlong strings with the print
+    function when the length of the string was determined to be corrupted.
+    Corruption was checked by comparing the string size against the limit
+    which was stored in maxstring.
     
-    Change-Id: I3efbbf092388bb3f6dccc94cf703c5d94d35f6a1
-    Reviewed-on: https://go-review.googlesource.com/32533
+    However maxstring was not updated everywhere were go strings were created
+    e.g. for string constants during compile time. Thereby the check for maximum
+    string length prevented the printing of some valid strings.
+    
+    The protection maxstring provided did not warrant the bookkeeping
+    and global synchronization needed to keep maxstring updated to the
+    correct limit everywhere.
+    
+    Fixes #16999
+    
+    Change-Id: I62cc2f4362f333f75b77f199ce1a71aac0ff7aeb
+    Reviewed-on: https://go-review.googlesource.com/28813
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/signal_solaris.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/export_test.go |  3 ---
+ src/runtime/print.go       |  4 ----
+ src/runtime/string.go      | 20 ++------------------
+ src/runtime/string_test.go | 13 -------------
+ 4 files changed, 2 insertions(+), 38 deletions(-)

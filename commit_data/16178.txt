@@ -1,18 +1,12 @@
-commit b3809cae5e89af31d618b07843267a17cff28999
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 15 11:50:14 2013 -0700
+commit 804ef381db6bef62a44ccbbb6a417728ad3bf01d
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Apr 15 10:20:24 2013 -0700
 
-    test/stress: start of a runtime stress program
+    runtime: fix build on openbsd/386
     
-    Runs forever, stressing the runtime in various ways.
-    
-    It should never terminate.
-    
-    R=golang-dev, r, minux.ma
+    R=golang-dev, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/8583047
+    https://golang.org/cl/8569043
 
- test/stress/maps.go      | 111 ++++++++++++++++++++++++
- test/stress/parsego.go   | 220 +++++++++++++++++++++++++++++++++++++++++++++++
- test/stress/runstress.go | 164 +++++++++++++++++++++++++++++++++++
- 3 files changed, 495 insertions(+)
+ src/pkg/runtime/signal_openbsd_386.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,38 +1,30 @@
-commit 7879e9193b39e6455ae03f2baace9c41f6393ee4
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Thu Apr 21 10:11:33 2016 +0200
+commit dbe54d23fe2b2751872aaf41d1ef3179729b9960
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Mar 5 14:44:11 2016 +1100
 
-    cmd/compile: reenable phielim during rewrite
+    cmd/compile/internal: peep.go cleanups
     
-    Remove the "optimization" that was causing the issue.
+    More cleanups after CL 20089
     
-    For the following code the "optimization" was
-    converting v to (OpCopy x) which is wrong because
-    x doesn't dominate v.
+    - copysub, take a bool rather than an int for the f (force) parameter.
+    - copysub returns a bool rather than an int.
+    - prevl, reg is now int16, which reduces type conversion in its callers.
+    - copy1, reduce the scope of t and p variables.
+    - small simplifications in copyau1, copyas, etc.
+    - {mips64,ppc64}/regzer returns a bool.
+    - apply CL 20181 to x86/peep.go which was missed in the last CL.
+    - various comment fixes.
     
-    b1:
-        y = ...
-        First .. b3
-    b2:
-       x = ...
-       Goto b3
-    b3:
-       v = phi x y
-       ... use v ...
-    
-    That "optimization" is likely no longer needed because
-    we now have a second opt pass with a dce in between
-    which removes blocks of type First.
-    
-    For pkg/tools/linux_amd64/* the binary size drops
-    from 82142886 to 82060034.
-    
-    Change-Id: I10428abbd8b32c5ca66fec3da2e6f3686dddbe31
-    Reviewed-on: https://go-review.googlesource.com/22312
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    Change-Id: Ib73ffb768c979ce86f1614e5366fd576dea50986
+    Reviewed-on: https://go-review.googlesource.com/20281
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/phielim.go | 6 +-----
- src/cmd/compile/internal/ssa/rewrite.go | 2 ++
- 2 files changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/amd64/peep.go  |  98 ++++++++++------------
+ src/cmd/compile/internal/arm/peep.go    | 137 ++++++++++++++----------------
+ src/cmd/compile/internal/arm64/peep.go  | 123 ++++++++++++---------------
+ src/cmd/compile/internal/mips64/peep.go | 124 +++++++++++++---------------
+ src/cmd/compile/internal/ppc64/peep.go  | 142 ++++++++++++++------------------
+ src/cmd/compile/internal/x86/peep.go    | 103 +++++++++++------------
+ 6 files changed, 324 insertions(+), 403 deletions(-)

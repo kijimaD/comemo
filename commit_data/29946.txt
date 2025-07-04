@@ -1,16 +1,15 @@
-commit 4601eae6baed9c4bc6e38f035d1b6a20bb7ebbf7
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Jan 9 19:11:58 2017 +0100
+commit 427674fa0e2fd8c44a2fe7002add00cafcc5894b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 22:14:32 2016 -0400
 
-    doc/gdb: mention GOTRACEBACK=crash
+    io: clarify Pipe docs
     
-    Also fix a couple of other errors.
+    Fixes #14139.
     
-    Fixes #6877
-    
-    Change-Id: I94c81c5847cc7b0adab19418e71687bc2ee7fe94
-    Reviewed-on: https://go-review.googlesource.com/34960
+    Change-Id: I6d2181720c38582b3d2160e94c7593a6cb4fc60f
+    Reviewed-on: https://go-review.googlesource.com/31321
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/debugging_with_gdb.html | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ src/io/pipe.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

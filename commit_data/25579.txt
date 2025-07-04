@@ -1,31 +1,21 @@
-commit 535741a69a1300d1fe2800778b99c8a1b75d7fdd
+commit f32f2954fbabbb29ce1f7d25c223a9ce25e1e317
 Author: Austin Clements <austin@google.com>
-Date:   Fri Jan 8 16:25:29 2016 -0500
+Date:   Tue Nov 10 15:24:59 2015 -0500
 
-    debug/dwarf: fix nil pointer dereference in cyclic type structures
+    runtime: never allocate new M when jumping time forward
     
-    Currently readType simultaneously constructs a type graph and resolves
-    the sizes of the types. However, these two operations are
-    fundamentally at odds: the order we parse a cyclic structure in may be
-    different than the order we need to resolve type sizes in. As a
-    result, it's possible that when readType attempts to resolve the size
-    of a typedef, it may dereference a nil Type field of another typedef
-    retrieved from the type cache that's only partially constructed.
+    When we're jumping time forward, it means everyone is asleep, so there
+    should always be an M available. Furthermore, this causes both
+    allocation and write barriers in contexts that may be running without
+    a P (such as in sysmon).
     
-    To fix this, we delay resolving typedef sizes until the end of the
-    readType recursion, when the full type graph is constructed.
+    Hence, replace this allocation with a throw.
     
-    Fixes #13039.
+    Updates #10600.
     
-    Change-Id: I9889af37fb3be5437995030fdd61e45871319d07
-    Reviewed-on: https://go-review.googlesource.com/18459
+    Change-Id: I2cee70d5db828d0044082878995949edb25dda5f
+    Reviewed-on: https://go-review.googlesource.com/16815
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/debug/dwarf/testdata/cycle.c   |   7 +++++++
- src/debug/dwarf/testdata/cycle.elf | Bin 0 -> 2624 bytes
- src/debug/dwarf/type.go            |  34 +++++++++++++++++++++++++++-------
- src/debug/dwarf/type_test.go       |  34 ++++++++++++++++++++++++++++++++++
- src/debug/dwarf/typeunit.go        |   2 +-
- 5 files changed, 69 insertions(+), 8 deletions(-)
+ src/runtime/proc.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

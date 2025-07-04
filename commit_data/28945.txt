@@ -1,26 +1,18 @@
-commit 2be3ab441578413972d93fc1048decc422640b09
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 16 21:22:02 2016 -0400
+commit 17eee31020b982c10a2bf21f446743137968240b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 15:56:29 2016 -0700
 
-    runtime: keep gcMarkRootCheck happy with spare Gs
+    go/types: enable disabled test for comma-ok expressions
     
-    oneNewExtraM creates a spare M and G for use with cgo callbacks. The G
-    doesn't run right away, but goes directly into syscall status. For the
-    garbage collector, it's marked as "scan valid" and not on the rescan
-    list, but I forgot to also mark it as "scan done". As a result,
-    gcMarkRootCheck thinks that the goroutine hasn't been scanned and
-    panics.
+    This was fixed long ago but the test was not enabled.
     
-    This only affects GODEBUG=gccheckmark=1 mode, since we otherwise skip
-    the gcMarkRootCheck.
+    For #8189.
     
-    Fixes #17473.
-    
-    Change-Id: I94f5671c42eb44bd5ea7dc68fbf85f0c19e2e52c
-    Reviewed-on: https://go-review.googlesource.com/31139
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ia44ef752b6bf076f3e243d2d0db326a392a20193
+    Reviewed-on: https://go-review.googlesource.com/27310
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/go/types/api_test.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

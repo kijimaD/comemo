@@ -1,15 +1,16 @@
-commit 5a5279e128e29edcbeec8fc3e36d1ec110ecb558
-Author: Rob Pike <r@golang.org>
-Date:   Thu Mar 1 11:24:13 2012 +1100
+commit c50074e5104563d23455a27ece2430bef2d4c844
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Wed Feb 29 15:07:52 2012 -0800
 
-    io: Pipes and ReadAt are safe to use concurrently.
+    doc: add a bunch of missing <p> tags
     
-    Updates #1599.
-    
-    R=golang-dev, bradfitz, rsc, r
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5708056
+    https://golang.org/cl/5707065
 
- src/pkg/io/io.go   | 3 +++
- src/pkg/io/pipe.go | 4 ++++
- 2 files changed, 7 insertions(+)
+ doc/code.html         | 2 +-
+ doc/effective_go.html | 9 +++++++++
+ doc/effective_go.tmpl | 9 +++++++++
+ doc/go_faq.html       | 2 ++
+ doc/go_spec.html      | 3 ++-
+ 5 files changed, 23 insertions(+), 2 deletions(-)

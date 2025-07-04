@@ -1,15 +1,13 @@
-commit d89cd2485784a4b458cc5ac12aba11994fd379c7
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 18 21:06:42 2014 -0400
+commit fb57459b48ea6bae22a270339aabe5c48a51b063
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 19:50:03 2014 -0400
 
-    runtime: avoid $sym(SB) as constant
+    [dev.power64] runtime: move noasm_arm.goc to noasm.goc
     
-    The change to pc-relative addressing will make this illegal.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=golang-codereviews, r
-    https://golang.org/cl/129890043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/121590043
 
- src/pkg/runtime/race_amd64.s | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/runtime/{noasm_arm.goc => noasm.goc} | 2 ++
+ 1 file changed, 2 insertions(+)

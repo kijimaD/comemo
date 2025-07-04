@@ -1,34 +1,27 @@
-commit 904f046e2ba812e04230c6e5252b3ca87c41e0e1
-Author: Yuichi Nishiwaki <yuichi.nishiwaki@gmail.com>
-Date:   Wed Sep 11 02:26:02 2019 +0000
+commit f24e1099cb28d5ab793e5259c6ee2733227eb2f2
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Wed Mar 27 07:36:27 2019 -0400
 
-    runtime: fix crash during VDSO calls on arm
+    bytes: make TrimSpace return nil on all-space input
     
-    As discussed in #32912, a crash occurs when go runtime calls a VDSO function (say
-    __vdso_clock_gettime) and a signal arrives to that thread.
-    Since VDSO functions temporarily destroy the G register (R10),
-    Go functions asynchronously executed in that thread (i.e. Go's signal
-    handler) can try to load data from the destroyed G, which causes
-    segmentation fault.
+    Issue #29122 introduced a subtle regression due to the way that
+    TrimFuncLeft is written: previously TrimSpace returned nil when given
+    an input of all whitespace, but with the #29122 changes it returned an
+    empty slice on all-space input.
     
-    To fix the issue a guard is inserted in front of sigtrampgo, so that the control escapes from
-    signal handlers without touching G in case the signal occurred in the VDSO context.
-    The test case included in the patch is take from discussion in a relevant thread on github:
-    https://github.com/golang/go/issues/32912#issuecomment-517874531.
-    This patch not only fixes the issue on AArch64 but also that on 32bit ARM.
+    This change adds a special case to the new, optimized TrimSpace to go
+    back to that behavior. While it is odd behavior and people shouldn't be
+    relying on these functions returning a nil slice in practice, it's not
+    worth the breakage of code that does.
     
-    Fixes #32912
+    This tweak doesn't change the TrimSpace benchmarks significantly.
     
-    Change-Id: I657472e54b7aa3c617fabc5019ce63aa4105624a
-    GitHub-Last-Rev: 28ce42c4a02a060f08c1b0dd1c9a392123fd2ee9
-    GitHub-Pull-Request: golang/go#34030
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192937
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #31038
+    
+    Change-Id: Idb495d02b474054d2b2f593c2e318a7a6625688a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169518
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/crash_test.go             |  9 ++++++
- src/runtime/signal_unix.go            | 27 +++++++++++++----
- src/runtime/testdata/testprog/vdso.go | 55 +++++++++++++++++++++++++++++++++++
- src/runtime/vdso_linux.go             |  1 +
- 4 files changed, 86 insertions(+), 6 deletions(-)
+ src/bytes/bytes.go      |  5 ++++
+ src/bytes/bytes_test.go | 71 ++++++++++++++++++++++++++++---------------------
+ 2 files changed, 46 insertions(+), 30 deletions(-)

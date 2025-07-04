@@ -1,21 +1,14 @@
-commit fb3f152c196269d7a0fc9246226de478866073c1
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Oct 10 14:21:42 2015 +1100
+commit 4e0be154f7ac474f0768e0ca65612b5b111c2716
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 31 09:03:58 2015 +1000
 
-    net/url: make *url.Error implement net.Error
+    doc: solaris info added to go1.5.html
     
-    Fixes #12866
+    Fixes #11952.
     
-    net/http.Client returns some errors wrapped in a *url.Error. To avoid
-    the requirement to unwrap these errors to determine if the cause was
-    temporary or a timeout, make *url.Error implement net.Error directly.
-    
-    Change-Id: I1ba84ecc7ad5147a40f056ff1254e60290152408
-    Reviewed-on: https://go-review.googlesource.com/15672
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I548f9d75c6223bf79bdf654ef733f1568e3d5804
+    Reviewed-on: https://go-review.googlesource.com/12990
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/client_test.go |  7 ++--
- src/net/url/url.go          | 18 ++++++++++
- src/net/url/url_test.go     | 83 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 104 insertions(+), 4 deletions(-)
+ doc/go1.5.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

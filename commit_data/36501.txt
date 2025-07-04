@@ -1,22 +1,25 @@
-commit 7334904e43005f930a776c793d54e03d13e62b30
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Mon Aug 27 13:16:38 2018 +0000
+commit 548e1f89363fd3054a0bd8961c6c6b8b8ecbcfaf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 25 13:17:17 2018 -0700
 
-    cmd/dist: do not run race detector tests on netbsd
+    cmd/compile: recognize some OpRsh64Ux64 Values as non-negative
     
-    The race detector is not fully functional on NetBSD yet. Without
-    this change, all.bash fails in TestOutput.
+    Proves IsSliceInBounds one additional time building std+cmd,
+    at encoding/hex/hex.go:187:8.
     
-    This unbreaks the netbsd-amd64 builder.
+    The code is:
     
-    Update #26403
-    Fixes #27268
+            if numAvail := len(d.in) / 2; len(p) > numAvail {
+                    p = p[:numAvail]
+            }
     
-    Change-Id: I2c7015692d3632aa1037f40155d4fc5c7bb1d8c3
-    Reviewed-on: https://go-review.googlesource.com/131555
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Previously we were unable to prove that numAvail >= 0.
+    
+    Change-Id: Ie74e0aef809f9194c45e129ee3dae60bc3eae02f
+    Reviewed-on: https://go-review.googlesource.com/109415
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/dist/test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/ssa/prove.go | 4 ++++
+ 1 file changed, 4 insertions(+)

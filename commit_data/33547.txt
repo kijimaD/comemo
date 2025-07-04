@@ -1,29 +1,22 @@
-commit fcee1897767c0cfa6e13a843fe5ee5d1deb8081b
-Author: Michael Stapelberg <stapelberg@google.com>
-Date:   Tue Nov 14 04:46:03 2017 -0800
+commit 8bca7ef607d84820eb7b378fd5223b832c1ac33b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Aug 17 21:20:25 2017 +0200
 
-    net/mail: treat comment in address as display name
+    cmd/compile: support placeholder name '$' in code generation tests
     
-    I verified this change on a corpus of > 200 GB of emails since the mid-90s. With
-    this change, more addresses parse than before, and anything which parsed before
-    still parses.
+    This change adds to the code-generation harness in asm_test.go support
+    for the use of a '$' placeholder name for test functions.
     
-    In said corpus, I came across the edge case of comments preceding an
-    addr-spec (with angle brackets!), e.g. “(John Doe) <john@example.com>”, which
-    does not satisfy the conditions to be treated as a fallback, as per my reading
-    of RFC2822.
+    A few of uninformative function names are also changed to use the
+    placeholder, to confirm that the change works as expected.
     
-    This change does not parse quoted-strings within comments (a corresponding TODO
-    is in the code), but I have not seen that in the wild.
+    Fixes #21500
     
-    Fixes #22670
-    
-    Change-Id: I526fcf7c6390aa1c219fdec1852f26c514506f76
-    Reviewed-on: https://go-review.googlesource.com/77474
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iba168bd85efc9822253305d003b06682cf8a6c5c
+    Reviewed-on: https://go-review.googlesource.com/57292
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/mail/message.go      | 44 +++++++++++++++++++++++++++---
- src/net/mail/message_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 103 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 67 ++++++++++++++++++++++++++++-----
+ 1 file changed, 58 insertions(+), 9 deletions(-)

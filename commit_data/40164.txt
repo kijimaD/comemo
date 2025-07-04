@@ -1,25 +1,27 @@
-commit 30521d5126c47c9db0dd4cafc3de5bcf3c6348dd
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Oct 6 00:49:52 2019 +0200
+commit fd788a86b6427ef7ec1f25d4d4f0412bc883ccaf
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Mon Apr 22 18:21:37 2019 -0700
 
-    cmd/link: produce valid binaries with large data section on wasm
+    cmd/compile: always mark atColumn1 results as statements
     
-    CL 170950 had a regression that makes the compiler produce
-    an invalid wasm binary if the data section is too large.
-    Loading such a binary gives the following error:
-    "LinkError: WebAssembly.instantiate(): data segment is out of bounds"
+    In 31618, we end up comparing the is-stmt-ness of positions
+    to repurpose real instructions as inline marks. If the is-stmt-ness
+    doesn't match, we end up not being able to remove the inline mark.
     
-    This change fixes the issue by ensuring that the minimum size of the
-    linear memory is larger than the end of the data section.
+    Always use statement-full positions to do the matching, so we
+    always find a match if there is one.
     
-    Fixes #34395.
+    Also always use positions that are statements for inline marks.
     
-    Change-Id: I0c8629de7ffd0d85895ad31bf8c9d45fef197a57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199358
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #31618
+    
+    Change-Id: Idaf39bdb32fa45238d5cd52973cadf4504f947d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173324
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/link/internal/wasm/asm.go |  9 +++++----
- test/fixedbugs/issue34395.go      | 17 +++++++++++++++++
- 2 files changed, 22 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/inl.go |  2 +-
+ src/cmd/compile/internal/gc/ssa.go |  1 +
+ src/cmd/internal/src/pos.go        |  2 +-
+ test/codegen/issue31618.go         | 22 ++++++++++++++++++++++
+ 4 files changed, 25 insertions(+), 2 deletions(-)

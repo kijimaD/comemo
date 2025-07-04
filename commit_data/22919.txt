@@ -1,16 +1,33 @@
-commit 76d67eaccc4aa613bb794e53abef906551cc8f55
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 6 10:41:01 2015 +0900
+commit 049b89dc6f6b6f1001672dd5456197b74a97cbec
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 9 16:30:48 2015 -0700
 
-    net: align temporary file, directory names in tests
+    fmt: treat reflect.Value specially - as the value it holds
     
-    Also adds missing temporary file deletion.
+    When a reflect.Value is passed to Printf (etc.), fmt called the
+    String method, which does not disclose its contents. To get the
+    contents, one could call Value.Interface(), but that is illegal
+    if the Value is not exported or otherwise forbidden.
     
-    Change-Id: Ia644b0898022e05d2f5232af38f51d55e40c6fb5
-    Reviewed-on: https://go-review.googlesource.com/9772
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This CL improves the situation with a trivial change to the
+    fmt package: when we see a reflect.Value as an argument,
+    we treat it exactly as we treat a reflect.Value we make inside
+    the package. This means that we always print the
+    contents of the Value as if _that_ was the argument to Printf.
+    
+    This is arguably a breaking change but I think it is a genuine
+    improvement and no greater a break than many other tweaks
+    we have made to formatted output from this package.
+    
+    Fixes #8965.
+    
+    Change-Id: Ifc2a4ce3c1134ad5160e101d2196c22f1542faab
+    Reviewed-on: https://go-review.googlesource.com/8731
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/dnsclient_unix_test.go | 2 +-
- src/net/error_test.go          | 3 ++-
- src/net/mockserver_test.go     | 2 +-
- 3 files changed, 4 insertions(+), 3 deletions(-)
+ src/fmt/doc.go       | 11 +++++++----
+ src/fmt/fmt_test.go  |  7 +++++++
+ src/fmt/print.go     |  2 ++
+ src/reflect/value.go |  2 ++
+ 4 files changed, 18 insertions(+), 4 deletions(-)

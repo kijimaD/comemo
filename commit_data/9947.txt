@@ -1,28 +1,12 @@
-commit c64e8e327ec706c4ac9ac767273e08a5175b5ec8
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Oct 13 12:40:48 2011 +1100
+commit 85368292a3fef14303cffb9f422fd723f44a7cd6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 13 11:53:15 2011 +1100
 
-    html: insert implied <p> and </p> tags
+    html: when a parse test fails, don't bother testing rendering.
     
-    (test # 25 in tests1.dat)
-    #data
-    <p><b><div></p></b></div>X
-    #document
-    | <html>
-    |   <head>
-    |   <body>
-    |     <p>
-    |       <b>
-    |     <div>
-    |       <b>
-    |
-    |           <p>
-    |           "X"
-    
-    R=nigeltao
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/5254060
+    https://golang.org/cl/5248061
 
- src/pkg/html/parse.go      | 60 ++++++++++++++++++++++++++++------------------
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 38 insertions(+), 24 deletions(-)
+ src/pkg/html/parse_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

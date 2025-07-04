@@ -1,22 +1,19 @@
-commit 2b8b06ebbf0198d3c7a9b4d839bc05d9b13ecbe7
-Author: Austin Clements <austin@google.com>
-Date:   Tue Sep 1 11:16:33 2020 -0400
+commit 0d6b317ee6f232191eadee7ec8c1d4fe98458752
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 25 05:57:22 2020 +0000
 
-    cmd/internal/objabi: add regabi GOEXPERIMENT
+    Revert "reflect: when Converting between float32s, don't lose signal NaNs"
     
-    This is the "feature flag" for the register calling convention work
-    (though since this work is expected to extend over a few releases,
-    it's not version-prefixed). This will let us develop the register
-    calling convention on the main branch while maintaining an easy toggle
-    between the old and new ABIs.
+    This reverts commit 7485050c0f55492c0fdfc41f7564f3da37a1a308.
     
-    Updates #40724.
+    Reason for revert: Breaking some builders (387, mips, mips64)
     
-    Change-Id: I129c8d87d34e6fa0910b6fa43efb35b706021637
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252257
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I33e5125b7a9a96b55bc5e71880fca4ee30d226a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220695
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/objabi/util.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/reflect/all_test.go | 11 -----------
+ src/reflect/value.go    | 14 --------------
+ 2 files changed, 25 deletions(-)

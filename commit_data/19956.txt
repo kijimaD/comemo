@@ -1,16 +1,16 @@
-commit 6fb2a05ac9f6b4063f1c952df069871e9e6796d9
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Aug 8 10:09:31 2014 +1000
+commit cc063592b0307552af9fd80f03be6276838e52f9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 7 21:39:32 2014 +0400
 
-    os: simplify windows Getwd (fixes build)
+    encoding/gob: make benchmarks parallel
+    There are lots of internal synchronization in gob,
+    so it makes sense to have parallel benchmarks.
+    Also add a benchmark with slices and interfaces.
     
-    Current version of Getwd calls Stat that
-    calls Getwd therefore infinite recursion.
-    
-    LGTM=minux
-    R=golang-codereviews, minux
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/119600043
+    https://golang.org/cl/115960043
 
- src/pkg/os/getwd.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/encoding/gob/timing_test.go | 57 ++++++++++++++++++++++++-------------
+ 1 file changed, 38 insertions(+), 19 deletions(-)

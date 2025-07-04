@@ -1,35 +1,17 @@
-commit 6e592c2b6d3d32f0eb1211a3795e852627c7a086
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 30 20:13:02 2020 -0800
+commit 942886137879015032a9671c7effc9dd77ef4150
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Aug 19 12:52:06 2019 -0400
 
-    go/types: unexport Checker.LookupFieldOrMethod
+    cmd/go: document <module>/@latest endpoint in 'go help goproxy'
     
-    Implementation changes in go/types for #6977 required that internal
-    LookupFieldOrMethod calls had access to the current *Checker. In
-    order to make quick progress, I added a *Checker receiver to the
-    function LookupFieldOrMethod (thus making it a method), and added
-    a new function LookupFieldOrMethod. The plan was always to rename
-    that function (Checker.LookupFieldOrMethod) such that it wouldn't
-    be exported; with the obvious name being Checker.lookupFieldOrMethod.
-    But that name was already in use which is why I postponed the rename.
-    Eventually I forgot to clean it up. This CL fixes that with the
-    following renames:
+    Updates #32789
     
-    Checker.lookupFieldOrMethod => Checker.rawLookupFieldOrMethod
-    Checker.LookupFieldOrMethod => Checker.lookupFieldOrMethod
-    
-    Updates #6977.
-    Fixes #36916.
-    
-    Change-Id: Icfafd0de9a19841ba5bd87142730fe7323204491
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217134
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie5e8e3b7b6a923aa9068c8af3ac8f081bd92c830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190838
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/go1.14.txt           |  1 -
- src/go/types/builtins.go |  2 +-
- src/go/types/call.go     |  2 +-
- src/go/types/lookup.go   | 20 ++++++++++----------
- 4 files changed, 12 insertions(+), 13 deletions(-)
+ src/cmd/go/alldocs.go                 | 19 +++++++++++++++++--
+ src/cmd/go/internal/modfetch/proxy.go | 19 +++++++++++++++++--
+ 2 files changed, 34 insertions(+), 4 deletions(-)

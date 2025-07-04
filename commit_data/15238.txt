@@ -1,14 +1,17 @@
-commit 158a0353f76d2c6bc282fe5fb67f584e6c8de0bd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 14 09:29:34 2013 -0800
+commit 691455f780c12e2a7994413d6133d5e512c70b53
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Feb 14 12:37:55 2013 +0400
 
-    net: document OpError
+    runtime: move stack management related code to stack.c
+    No code changes.
+    This is mainly in preparation to scheduler changes,
+    oldstack/newstack are not related to scheduling.
     
-    Fixes #4797
-    
-    R=adg, rsc
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/7300099
+    https://golang.org/cl/7311085
 
- src/pkg/net/net.go | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+ src/pkg/runtime/malloc.goc | 119 -------------------
+ src/pkg/runtime/proc.c     | 156 -------------------------
+ src/pkg/runtime/stack.c    | 279 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 279 insertions(+), 275 deletions(-)

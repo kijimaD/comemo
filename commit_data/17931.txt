@@ -1,18 +1,13 @@
-commit 66c32384dda82752deb3db8ba45acb073e9c4c1e
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Dec 9 18:39:58 2013 -0500
+commit 9a53fb571d3ce9846252b38ad8991e48a48ebc15
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 9 13:02:56 2013 -0500
 
-    build: do not use the host's libbio on Plan 9
+    cmd/gc: fix windows build, probably
     
-    R=jas, lucio.dere, rsc
+    TBR=iant
     CC=golang-dev
-    https://golang.org/cl/14604047
+    https://golang.org/cl/39540043
 
- include/bio.h         |  2 --
- include/plan9/bio.h   |  8 ++++++++
- src/cmd/dist/build.c  | 29 +++++------------------------
- src/libbio/bgetrune.c |  1 -
- src/libbio/bprint.c   |  2 ++
- src/libbio/bputrune.c |  1 -
- src/libbio/bseek.c    |  2 +-
- 7 files changed, 16 insertions(+), 29 deletions(-)
+ src/cmd/gc/go.h  | 1 -
+ src/cmd/gc/lex.c | 5 ++---
+ 2 files changed, 2 insertions(+), 4 deletions(-)

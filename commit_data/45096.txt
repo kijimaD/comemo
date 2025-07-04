@@ -1,18 +1,44 @@
-commit 4b00eb7af4f0dffbb0825e225dbcffd2e3e52865
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Apr 12 19:42:28 2021 -0400
+commit 5756b3560141d0c09c4a27d2025f5438f49f59f2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Sep 10 21:20:46 2020 +0000
 
-    cmd/compile: allow OpArgXXXReg comes before LoweredGetClosurePtr
+    runtime: align 12-byte objects to 8 bytes on 32-bit systems
     
-    Both OpArgXXXReg and LoweredGetClosurePtr must come very early,
-    because they carry registers that are technically live on entry.
-    But no need to impose ordering requirement between them.
+    Currently on 32-bit systems 8-byte fields in a struct have an alignment
+    of 4 bytes, which means that atomic instructions may fault. This issue
+    is tracked in #36606.
     
-    Change-Id: Iee1db6239a75e5b381e0ad25ba5503169333217b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309629
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Our current workaround is to allocate memory and put any such atomically
+    accessed fields at the beginning of the object. This workaround fails
+    because the tiny allocator might not align the object right. This case
+    specifically only happens with 12-byte objects because a type's size is
+    rounded up to its alignment. So if e.g. we have a type like:
+    
+    type obj struct {
+        a uint64
+        b byte
+    }
+    
+    then its size will be 12 bytes, because "a" will require a 4 byte
+    alignment. This argument may be extended to all objects of size 9-15
+    bytes.
+    
+    So, make this workaround work by specifically aligning such objects to 8
+    bytes on 32-bit systems. This change leaves a TODO to remove the code
+    once #36606 gets resolved. It also adds a test which will presumably no
+    longer be necessary (the compiler should enforce the right alignment)
+    when it gets resolved as well.
+    
+    Fixes #37262.
+    
+    Change-Id: I3a34e5b014b3c37ed2e5e75e62d71d8640aa42bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254057
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ src/runtime/malloc.go      |  8 +++++++
+ src/runtime/malloc_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+)

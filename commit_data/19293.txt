@@ -1,18 +1,18 @@
-commit ce6b75dab634e272e0449f85853fca7f1850da8b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 7 11:54:29 2014 -0700
+commit dbe5f88804ad974a8c98d67421c9aac302873359
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 7 08:50:52 2014 -0700
 
-    database/sql: fix accounting of open connections
+    spec: remove evaluation order inconsistency
     
-    Existing test TestMaxOpenConns was failing occasionally, especially
-    with higher values of GOMAXPROCS.
+    This is a clarification of what happens already.
+    Not a language change.
     
-    Fixes #7532
+    Fixes #7137.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=iant, r, rsc
+    R=r, rsc, iant, ken
     CC=golang-codereviews
-    https://golang.org/cl/95130043
+    https://golang.org/cl/96000044
 
- src/pkg/database/sql/sql.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 37 +++++++++++++++++++++++++++++++------
+ 1 file changed, 31 insertions(+), 6 deletions(-)

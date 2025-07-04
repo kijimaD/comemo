@@ -1,19 +1,30 @@
-commit 49988bc2e92afd1efdd166c31df49652008ee7da
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Oct 4 20:11:04 2019 +0000
+commit f8f265b9cfd57970b2bc8b3dd8531cedaf57ccc1
+Author: erifan01 <eric.fang@arm.com>
+Date:   Wed Mar 20 12:46:20 2019 +0000
 
-    doc: remove docs.html
+    cmd/compile: intrinsify math/bits.Sub64 for arm64
     
-    This page has moved to x/website in https://golang.org/cl/197638.
+    This CL instrinsifies Sub64 with arm64 instruction sequence NEGS, SBCS,
+    NGC and NEG, and optimzes the case of borrowing chains.
     
-    Updates golang/go#33637
-    Updates golang/go#29206
+    Benchmarks:
+    name              old time/op       new time/op       delta
+    Sub-64            2.500000ns +- 0%  2.048000ns +- 1%  -18.08%  (p=0.000 n=10+10)
+    Sub32-64          2.500000ns +- 0%  2.500000ns +- 0%     ~     (all equal)
+    Sub64-64          2.500000ns +- 0%  2.080000ns +- 0%  -16.80%  (p=0.000 n=10+7)
+    Sub64multiple-64  7.090000ns +- 0%  2.090000ns +- 0%  -70.52%  (p=0.000 n=10+10)
     
-    Change-Id: I4f5f7822a2bf540a3911470548d38ccc7a66b74c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199117
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Jean de Klerk <deklerk@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I3d2664e009a9635e13b55d2c4567c7b34c2c0655
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/159018
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/docs.html | 232 ----------------------------------------------------------
- 1 file changed, 232 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        |  17 +++-
+ src/cmd/compile/internal/gc/ssa.go           |   4 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   8 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  34 +++----
+ src/cmd/compile/internal/ssa/opGen.go        |  58 ++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 128 +++++++++++++++++++++++++++
+ test/codegen/mathbits.go                     |  10 +++
+ 7 files changed, 240 insertions(+), 19 deletions(-)

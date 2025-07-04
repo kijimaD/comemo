@@ -1,28 +1,16 @@
-commit ae4c13afc51d81e9aefdfb101e895bc7318c05cd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 7 11:26:38 2025 -0800
+commit 600225f83f7846b1129af94253f5172a359c308e
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Jan 31 10:36:52 2024 -0500
 
-    go/types, types2: report better error messages for slice expressions
+    api/README: refer to doc/README.md
     
-    Explicitly compute the common underlying type and while doing
-    so report better slice-expression relevant error messages.
-    Streamline message format for index and slice errors.
+    For #64169.
     
-    This removes the last uses of the coreString and match functions.
-    Delete them.
-    
-    Change-Id: I4b50dda1ef7e2ab5e296021458f7f0b6f6e229cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655935
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I0fc6d6a041ad48957f4aecd18b85c9098fc9b403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559755
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/types2/index.go        | 50 ++++++++++++++++--
- src/cmd/compile/internal/types2/under.go        | 67 -------------------------
- src/go/types/index.go                           | 50 ++++++++++++++++--
- src/go/types/under.go                           | 67 -------------------------
- src/internal/types/testdata/check/typeparams.go |  4 +-
- test/complit1.go                                |  6 +--
- test/fixedbugs/bug022.go                        |  2 +-
- 7 files changed, 96 insertions(+), 150 deletions(-)
+ api/README | 3 +++
+ 1 file changed, 3 insertions(+)

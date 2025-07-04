@@ -1,13 +1,13 @@
-commit 17d12d6cb648d57b3a2094004e6eacc5473bc8f1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 1 11:22:13 2013 +1100
+commit 2145cd51e330ea39c150615339166df298eb2202
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 28 15:52:58 2013 -0800
 
-    doc: fix root.html styles
+    doc/articles/image_package.html: fix x/y mistake
+    Fixes #4942.
     
-    R=r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7442045
+    https://golang.org/cl/7444047
 
- doc/root.html | 6 +++---
- doc/style.css | 2 ++
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ doc/articles/image_package.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

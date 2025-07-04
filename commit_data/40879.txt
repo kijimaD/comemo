@@ -1,21 +1,19 @@
-commit c931f1b6e69492a19b935dc0812499a55d634403
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 21 15:03:24 2019 -0500
+commit 6c74db40247737da2d3c3ffe1871d9cf67afd0a5
+Author: Mark Glines <mark@glines.org>
+Date:   Wed Jul 31 03:46:15 2019 +0000
 
-    misc/cgo/testshared: make -v output less verbose
+    cmd/go: look for .go.buildinfo section when looking for ELF version
     
-    Previously, 'go test -v' in this directory would result in a massive
-    dump of go command output, because the test plumbed -v to 'build -x'.
-    This change separates them into distinct flags, so that '-v' only
-    implies the display of default 'go' command output.
+    Based on original fix from Mark Glines in golang.org/cl/186737
     
-    Updates #30316
+    Fixes #31861
     
-    Change-Id: Ifb125f35ec6a0bebe7e8286e7c546d132fb213df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208232
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ibd583a3aa8f8b8eefade998aa2ac757b55140937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188957
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testshared/shared_test.go | 24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/version/exe.go     | 5 +++++
+ src/cmd/go/testdata/script/version.txt | 7 +++++++
+ 2 files changed, 12 insertions(+)

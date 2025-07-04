@@ -1,20 +1,16 @@
-commit 00d2f916adf2fb025406f0558ab8cac122fdf060
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 24 15:20:03 2014 -0400
+commit 7e62316b849aea96e65c9bb2293a788cd9722b37
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 15 15:09:17 2014 -0700
 
-    cmd/gc: run escape analysis always (even in -N mode)
+    runtime: test Goexit/defer iteraction.
     
-    Fixes #8585.
-    Removes some little-used code paths.
+    Make sure Goexit runs defers.
+    Make sure recover() during a Goexit defer returns nil.
     
-    LGTM=josharian
-    R=golang-codereviews, minux, josharian
-    CC=golang-codereviews, iant, r
-    https://golang.org/cl/132970043
+    LGTM=dvyukov, bradfitz
+    R=golang-codereviews, dvyukov, bradfitz, khr
+    CC=golang-codereviews
+    https://golang.org/cl/140650043
 
- src/cmd/gc/gen.c       |    6 +-
- src/cmd/gc/lex.c       |    8 +-
- src/cmd/gc/typecheck.c |    6 -
- test/escape2.go        |    2 +
- test/escape2n.go       | 1494 ++++++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 1503 insertions(+), 13 deletions(-)
+ src/runtime/crash_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

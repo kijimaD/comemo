@@ -1,24 +1,15 @@
-commit b3946dc119cb89fe9f3cd55daa8d8c7a708274a8
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 14 16:05:51 2013 -0700
+commit d73452b30f777152895002792cfd5751df642ea4
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 14 15:49:58 2013 -0700
 
-    runtime/bytes: fast Compare for byte arrays and strings.
+    cmd/vet: fix for changes to go/types package
+    Need to use (or stub) exact.Value.
     
-    Uses SSE instructions to process 16 bytes at a time.
-    
-    fixes #5354
-    
-    R=bradfitz, google
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/8853048
+    https://golang.org/cl/9126043
 
- src/cmd/dist/goc2c.c          |  18 +++-
- src/pkg/bytes/bytes.go        |  26 ------
- src/pkg/bytes/bytes_decl.go   |   7 ++
- src/pkg/bytes/bytes_test.go   |  10 +--
- src/pkg/bytes/compare_test.go | 204 ++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/asm_386.s     | 135 ++++++++++++++++++++++++++++
- src/pkg/runtime/asm_amd64.s   | 131 +++++++++++++++++++++++++++
- src/pkg/runtime/noasm_arm.goc |  73 +++++++++++++++
- src/pkg/runtime/string.goc    |  28 ------
- 9 files changed, 568 insertions(+), 64 deletions(-)
+ src/cmd/vet/main.go     |  2 +-
+ src/cmd/vet/types.go    | 22 ++++++++++++++--------
+ src/cmd/vet/typestub.go |  7 ++++++-
+ 3 files changed, 21 insertions(+), 10 deletions(-)

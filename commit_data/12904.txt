@@ -1,15 +1,83 @@
-commit d3889ff322ab82ccf0231ab1e04accb557c26e38
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Apr 17 15:51:05 2012 -0700
+commit 9a6cef8bbf1d62cbeb786f7a3eb9c009ab190ec9
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Apr 17 17:17:22 2012 +1000
 
-    codereview: restore help messages
+    exp/html: more comprehensive tests
     
-    Docstrings were not being set for the wrapper
-    functions returned by the hgcommand decorator.
+    Currently, the html package only runs a limited subset of the tests
+    in the testdata directory. This tends to limit development of the
+    parser to fixing the bug that causes the first failing test.
     
-    R=golang-dev, minux.ma, rsc
+    This CL gives it the ability to run all the tests and produce a
+    log showing the status of each test. (It does it when tests are run with
+    'go test --update-logs') The status is listed as PASS, FAIL, or PARSE
+    (PARSE means that parsing produced the correct tree, but rendering and
+    re-parsing does not produce the same tree).
+    
+    When 'go test' is run without --update-logs, it runs the tests marked
+    'PASS' in the logs (and the parsing portion of the tests marked 'PARSE').
+    Thus it will fail if there has been a regression since the last
+    time the logs were updated.
+    
+    My goal for this CL is to allow develoment of the html package to
+    be less test-driven, while still having the advantages of regression
+    tests. In other words, one can work on any portion of the parser
+    and quickly see whether he is breaking things or improving them.
+    
+    Current statistics of the tests:
+    $ grep ^PASS *.log|wc -l
+            1017
+    $ grep ^PARSE *.log|wc -l
+              46
+    $ grep ^FAIL *.log|wc -l
+             181
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6059043
+    https://golang.org/cl/6031049
 
- lib/codereview/codereview.py | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/exp/html/parse_test.go                     | 225 +++++++++++++++------
+ src/pkg/exp/html/testlogs/adoption01.dat.log       |  13 ++
+ src/pkg/exp/html/testlogs/adoption02.dat.log       |   2 +
+ src/pkg/exp/html/testlogs/comments01.dat.log       |  13 ++
+ src/pkg/exp/html/testlogs/doctype01.dat.log        |  37 ++++
+ src/pkg/exp/html/testlogs/entities01.dat.log       |  67 ++++++
+ src/pkg/exp/html/testlogs/entities02.dat.log       |  25 +++
+ src/pkg/exp/html/testlogs/html5test-com.dat.log    |  24 +++
+ src/pkg/exp/html/testlogs/inbody01.dat.log         |   4 +
+ src/pkg/exp/html/testlogs/isindex.dat.log          |   3 +
+ .../pending-spec-changes-plain-text-unsafe.dat.log |   1 +
+ .../exp/html/testlogs/pending-spec-changes.dat.log |   2 +
+ .../exp/html/testlogs/plain-text-unsafe.dat.log    |   1 +
+ src/pkg/exp/html/testlogs/scriptdata01.dat.log     |  26 +++
+ src/pkg/exp/html/testlogs/tables01.dat.log         |  16 ++
+ src/pkg/exp/html/testlogs/tests1.dat.log           | 114 +++++++++++
+ src/pkg/exp/html/testlogs/tests10.dat.log          |  54 +++++
+ src/pkg/exp/html/testlogs/tests11.dat.log          |   9 +
+ src/pkg/exp/html/testlogs/tests12.dat.log          |   2 +
+ src/pkg/exp/html/testlogs/tests14.dat.log          |   7 +
+ src/pkg/exp/html/testlogs/tests15.dat.log          |  14 ++
+ src/pkg/exp/html/testlogs/tests16.dat.log          | 189 +++++++++++++++++
+ src/pkg/exp/html/testlogs/tests17.dat.log          |  13 ++
+ src/pkg/exp/html/testlogs/tests18.dat.log          |  20 ++
+ src/pkg/exp/html/testlogs/tests19.dat.log          | 103 ++++++++++
+ src/pkg/exp/html/testlogs/tests2.dat.log           |  61 ++++++
+ src/pkg/exp/html/testlogs/tests20.dat.log          |  39 ++++
+ src/pkg/exp/html/testlogs/tests21.dat.log          |  22 ++
+ src/pkg/exp/html/testlogs/tests22.dat.log          |   5 +
+ src/pkg/exp/html/testlogs/tests23.dat.log          |   5 +
+ src/pkg/exp/html/testlogs/tests24.dat.log          |   8 +
+ src/pkg/exp/html/testlogs/tests25.dat.log          |  20 ++
+ src/pkg/exp/html/testlogs/tests26.dat.log          |   9 +
+ src/pkg/exp/html/testlogs/tests3.dat.log           |  24 +++
+ src/pkg/exp/html/testlogs/tests4.dat.log           |   7 +
+ src/pkg/exp/html/testlogs/tests5.dat.log           |  16 ++
+ src/pkg/exp/html/testlogs/tests6.dat.log           |  52 +++++
+ src/pkg/exp/html/testlogs/tests7.dat.log           |  30 +++
+ src/pkg/exp/html/testlogs/tests8.dat.log           |   9 +
+ src/pkg/exp/html/testlogs/tests9.dat.log           |  27 +++
+ .../exp/html/testlogs/tests_innerHTML_1.dat.log    |  84 ++++++++
+ src/pkg/exp/html/testlogs/tricky01.dat.log         |   9 +
+ src/pkg/exp/html/testlogs/webkit01.dat.log         |  49 +++++
+ src/pkg/exp/html/testlogs/webkit02.dat.log         |   9 +
+ 44 files changed, 1406 insertions(+), 63 deletions(-)

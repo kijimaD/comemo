@@ -1,23 +1,17 @@
-commit 863424beb2ef735c273af87801bf56f252285889
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Apr 28 01:20:36 2020 +0000
+commit 99957b6930c76b683dbca1ff4bcdd56e59b1e035
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 7 21:08:48 2019 -0800
 
-    internal/goversion: update to 1.15
+    runtime: use pipe rather than note in TestSignalM
     
-    This is a second attempt at CL 230024, with
-    cmd/go/testdata/script/mod_retention.txt updated to perform a
-    version-independent comparison on the 'go' version added to a go.mod
-    file that lacks one.
+    At least on Darwin notewakeup is not async-signal-safe.
     
-    Fixes #38708
+    Fixes #35276
     
-    Change-Id: I15dcd83b51ed5ec57946b419bcbaec41e85a46f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230382
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I1d7523715e8e77dbd7f21d9b1ed131e52d46cc41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206078
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/testdata/script/mod_retention.txt | 12 +++++++++++-
- src/go/build/doc.go                          |  1 +
- src/internal/goversion/goversion.go          |  2 +-
- 3 files changed, 13 insertions(+), 2 deletions(-)
+ src/runtime/crash_unix_test.go  | 30 ++++++++++++++++++++++++++++--
+ src/runtime/export_unix_test.go | 35 +++++++++++++++++++++++++----------
+ 2 files changed, 53 insertions(+), 12 deletions(-)

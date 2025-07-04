@@ -1,33 +1,14 @@
-commit 7a4a64e8f3dc14717695e53c7560992789f8bc9e
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Dec 10 14:20:17 2014 -0800
+commit bfe459adc98724354ffefa624b73815adaa711d8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 29 15:35:48 2014 -0700
 
-    runtime: faster aeshash implementation
+    doc/go1.4.html: final library changes
+    First draft now complete.
     
-    The aesenc instruction has high latency.  For hashing large objects,
-    hash several streams in parallel.
-    
-    benchmark                         old ns/op     new ns/op     delta
-    BenchmarkHash5                    7.02          7.45          +6.13%
-    BenchmarkHash16                   6.53          6.94          +6.28%
-    BenchmarkHash32                   8.38          8.26          -1.43%
-    BenchmarkHash64                   12.6          12.0          -4.76%
-    BenchmarkHash1024                 247           62.9          -74.53%
-    BenchmarkHash65536                17335         2966          -82.89%
-    BenchmarkHashInt32Speed           14.7          14.9          +1.36%
-    BenchmarkHashInt64Speed           14.6          14.9          +2.05%
-    BenchmarkHashBytesSpeed           35.4          28.6          -19.21%
-    BenchmarkHashStringSpeed          22.0          20.4          -7.27%
-    BenchmarkHashStringArraySpeed     65.8          56.3          -14.44%
-    
-    Change-Id: Ia8ba03063acc64a9066b8ab2d79f2c9aaac1770f
-    Reviewed-on: https://go-review.googlesource.com/1330
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/170750043
 
- src/cmd/8a/lex.c        |   3 +
- src/cmd/8l/8.out.h      |   3 +
- src/liblink/asm8.c      |  10 ++
- src/runtime/alg.go      |   2 +-
- src/runtime/asm_386.s   | 189 ++++++++++++++++++++++++++--------
- src/runtime/asm_amd64.s | 269 ++++++++++++++++++++++++++++++++++++++++--------
- 6 files changed, 390 insertions(+), 86 deletions(-)
+ doc/go1.4.html | 150 +++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 129 insertions(+), 21 deletions(-)

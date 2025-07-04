@@ -1,14 +1,26 @@
-commit b5c3a9e572a1257c0db47d74b45f8e03f2f91f27
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Feb 13 18:12:48 2015 +1100
+commit 98d914201b98a854c7d172837d19ff7d0096b405
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jan 22 00:25:08 2015 +0100
 
-    image: add image.CMYK and color.CMYK types.
+    lib9: build tokenize on Plan 9
     
-    Change-Id: Icf212a4b890725c803b16e76e1a88294b8b62cb8
-    Reviewed-on: https://go-review.googlesource.com/4800
-    Reviewed-by: Rob Pike <r@golang.org>
+    The build was broken on Plan 9 after the
+    CL 2994, because of the use of getfields
+    in src/liblink/go.c.
+    
+    This happened when building 8l, because
+    getfield was part of lib9 and tokenize
+    was part of the Plan 9 libc. However,
+    both getfields and tokenize depend on
+    utfrune, causing an incompatibility.
+    
+    This change enables the build of tokenize
+    as part of lib9, so it doesn't use
+    tokenize from the Plan 9 libc anymore.
+    
+    Change-Id: I2a76903b508bd92771c4754cd53dfc64df350892
+    Reviewed-on: https://go-review.googlesource.com/3121
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/image/color/ycbcr.go      | 55 +++++++++++++++++++++++++++
- src/image/color/ycbcr_test.go | 23 ++++++++++--
- src/image/image.go            | 86 +++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 161 insertions(+), 3 deletions(-)
+ src/lib9/tokenize.c | 2 --
+ 1 file changed, 2 deletions(-)

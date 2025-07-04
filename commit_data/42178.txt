@@ -1,32 +1,16 @@
-commit 0ddde4ada2b1aa61310db06b20c936160d3e4567
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Apr 28 16:40:38 2020 +0000
+commit 8c5dbba01c9e661ca33a0cb1783c10c71d34da8d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 12 12:10:03 2019 -0500
 
-    runtime: flush mcaches to mcentral before reading memstats
+    crypto/tls: retry ETIMEDOUT flakes in localPipe on dragonfly
     
-    Currently mcaches are flushed to mcentral after a bunch of memstats have
-    already been read. This is not safe (in the sense that it doesn't ensure
-    consisent memstats) since memstats may in general change when mcentral
-    data structures are manipulated.
+    Fixes #29583
     
-    Note that prior to the new mcentral implementation this was not a
-    problem because mcentral operations happened to never modify certain
-    memstats. As of the new mcentral implementation, we might for example
-    persistentalloc when uncaching a span, which would change memstats. This
-    can cause a skew between the value of sys (which currently is calculated
-    before mcaches are flushed) and the value of gc_sys and other_sys.
-    
-    Fix this by moving mcache flushing to the very top of updatememstats.
-    Also leave a comment explaining that this must be done first, in
-    general, because mcentrals make no guarantee that they will not
-    influence memstats (and doing so would be unnecessarily restrictive).
-    
-    Fixes #38712.
-    
-    Change-Id: I15bacb313c54a46e380a945a71bb75db67169c1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230498
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia89433bddd4c9f67ec1f0150b730cde8a7e973ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206759
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mstats.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/crypto/tls/handshake_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

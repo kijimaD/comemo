@@ -1,15 +1,12 @@
-commit 180fbb16c46e32cc49220946cdfa29520017f4a6
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Mar 27 11:28:33 2015 +1100
+commit 87a0d395c3d454c6efa560c406b5b3d8ad71c8f6
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Feb 27 19:54:09 2015 -0500
 
-    image/draw: fix golden test for YCbCr.RGBA change.
+    os: set TMPDIR on darwin/arm
     
-    The previous change was
-    https://go-review.googlesource.com/#/c/8073/
-    
-    Change-Id: I0c48502d1ba90fb5d41c5e66346a8e7f4ee87ce7
-    Reviewed-on: https://go-review.googlesource.com/8151
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: Iee25f4b0a31ece0aae79c68aec809e1e4308f865
+    Reviewed-on: https://go-review.googlesource.com/6311
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/image/draw/draw_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/os/file_darwin_arm.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

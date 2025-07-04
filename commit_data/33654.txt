@@ -1,17 +1,14 @@
-commit 1e679ae2aafc3bc16417da4851c36c4a0722a3aa
-Author: Florin Patan <florinpatan@gmail.com>
-Date:   Wed Nov 22 01:10:59 2017 +0000
+commit 75d7a02e86353272e40eb31c923f15d5e5ccdb6b
+Author: Tom Bergan <tombergan@google.com>
+Date:   Mon Aug 28 11:09:37 2017 -0700
 
-    doc: rename Gogland to GoLand
+    doc/1.9: add mention of net/http.LocalAddrContextKey
     
-    This updates the name of the IDE and the capability it has.
+    Fixes #21603
     
-    Fixes #22784
-    
-    Change-Id: Ief261324c86bc77a03071629f496f4d4d9df1b44
-    Reviewed-on: https://go-review.googlesource.com/79255
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I42fb7ea2dd7f6d6a201171055beaeda68c26b823
+    Reviewed-on: https://go-review.googlesource.com/59530
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/editors.html                        |   8 ++++----
- doc/editors/{gogland.png => goland.png} | Bin
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ doc/go1.9.html | 5 +++++
+ 1 file changed, 5 insertions(+)

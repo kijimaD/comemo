@@ -1,18 +1,16 @@
-commit d072a7082390760c1c00f25b8340deef8d9c408b
+commit 5d5d7f12290d2beaf1f3fe78cc3807f4dbc6dd23
 Author: Jeff Hodges <jeff@somethingsimilar.com>
-Date:   Mon Sep 19 10:29:02 2011 -0400
+Date:   Mon Sep 19 10:21:34 2011 -0400
 
-        crypto/bcrypt: new package
+        crypto/blowfish: exposing the blowfish key schedule
     
-    A port of Provos and Mazières's adapative hashing algorithm. See http://www.usenix.org/events/usenix99/provos/provos_html/node1.html
+    Mostly useful for the coming crypto/bcrypt package
     
-    R=bradfitz, agl, rsc, dchest
+    R=bradfitz, agl, rsc, agl
     CC=golang-dev
-    https://golang.org/cl/4964078
+    https://golang.org/cl/5013043
 
- src/pkg/Makefile                     |   1 +
- src/pkg/crypto/bcrypt/Makefile       |  12 ++
- src/pkg/crypto/bcrypt/base64.go      |  38 +++++
- src/pkg/crypto/bcrypt/bcrypt.go      | 282 +++++++++++++++++++++++++++++++++++
- src/pkg/crypto/bcrypt/bcrypt_test.go | 195 ++++++++++++++++++++++++
- 5 files changed, 528 insertions(+)
+ src/pkg/crypto/blowfish/block.go         | 105 ++++++++++++++++++++++++++++---
+ src/pkg/crypto/blowfish/blowfish_test.go |  18 ++++++
+ src/pkg/crypto/blowfish/cipher.go        |  26 +++++++-
+ 3 files changed, 141 insertions(+), 8 deletions(-)

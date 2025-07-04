@@ -1,47 +1,23 @@
-commit 3a067b288ef235fdbc88220ea5bb384e0474f09b
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Fri May 21 11:26:01 2021 -0500
+commit d0751b1ad8d7a68586dc7567cee44e0ce323f26f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 28 15:57:45 2021 -0400
 
-    cmd/internal/obj/ppc64: add ISA 3.1 instructions
+    cmd/go: test with SIGTERM in test_fuzz_non_crash_signal
     
-    Use ppc64map (from x/arch) to generate ISA 3.1 support for the
-    assembler. A new file asm9_gtables.go is added which contains
-    generated code to encode ISA 3.1 instructions, a function to assist
-    filling out the oprange structure, a lookup table for the fixed
-    bits of each instructions, and a slice of string name. Generated
-    functions are shared if their bitwise encoding match, and the
-    translation from an obj.Prog structure matches.
+    The test currently uses only SIGKILL (which cannot be trapped by the
+    worker process) and SIGILL (which is handled by the Go runtime, and
+    does pretty unambiguously indicate a crash). It is missing a third
+    (and perhaps more likely) case: a signal like SIGTERM that is handled
+    by the Go runtime and causes the test to terminate, but nonetheless
+    does not indicate a crash.
     
-    The generated file is entirely self-contained, and does not require
-    regenerating any other files for changes within it. If opcodes in
-    a.out.go are reordered or changed, anames.go must be updated in
-    the same way as before.
-    
-    Future improvements could shrink the generated opcode table
-    to 32 bit entries as there is much less variation of the
-    encoding of the prefix word, but it is not always identical
-    for instructions which share a similar encoding of arguments
-    (e.g PLWA and PLWZ).
-    
-    Updates #44549
-    
-    Change-Id: Ie83fa02497c9ad2280678d68391043d3aae63175
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419535
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Change-Id: I0595a0917e977e8eb2c24ae8b706d734ce3b2f4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359482
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/asm/internal/arch/arch.go             |    5 +
- src/cmd/asm/internal/asm/endtoend_test.go     |    3 +
- src/cmd/asm/internal/asm/testdata/ppc64_p10.s |  266 ++++
- src/cmd/internal/obj/ppc64/a.out.go           |   11 +-
- src/cmd/internal/obj/ppc64/anames.go          |    3 +-
- src/cmd/internal/obj/ppc64/asm9.go            |   59 +-
- src/cmd/internal/obj/ppc64/asm9_gtables.go    | 1616 +++++++++++++++++++++++++
- src/cmd/internal/obj/ppc64/list9.go           |    4 +-
- src/cmd/internal/obj/ppc64/obj9.go            |   12 +
- 9 files changed, 1934 insertions(+), 45 deletions(-)
+ .../testdata/script/test_fuzz_non_crash_signal.txt   | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

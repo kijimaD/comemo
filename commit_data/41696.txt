@@ -1,18 +1,12 @@
-commit 776a9d0958973bff6a66e61baa6a9a240ada4255
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Mar 20 09:03:39 2020 -0400
+commit 3b2eb699a06eb2eb9afdf5fbf2326f87e9deca97
+Author: harsimran1 <kaur.harsimran301@gmail.com>
+Date:   Sat Mar 23 14:51:05 2019 +0100
 
-    test: fix -test.v trace output for cgo/testshared
+    net/http/pprof: explicitly mention DefaultServeMux for default handlers
     
-    Trace output showing how dummy GOROOT was being set up was incorrect
-    (sense of the "cp -r" trace messages was inverted). This patch fixes
-    the problem.
-    
-    Change-Id: Ib0ee649e305bfa1bc0c49e0d5ba2ea31e0a4f67e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224377
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I224db88f3809001802e004077ce856f0e3347c67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169017
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testshared/shared_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/pprof/pprof.go | 3 +++
+ 1 file changed, 3 insertions(+)

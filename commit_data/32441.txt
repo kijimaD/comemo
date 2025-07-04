@@ -1,25 +1,32 @@
-commit 0b0cc4154e1defed07e73ca1304b9a68c7134577
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Aug 23 07:49:25 2017 -0700
+commit db6f3bbc9a2d35a9b310f4d9ded1f1d63ef48234
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Apr 11 14:30:18 2017 -0400
 
-    runtime: refactor walking of bucket overflows
+    cmd: fix the order that s390x operands are printed in
     
-    This eliminates a nil check of b while evaluating b.tophash,
-    which is in the inner loop of many hot map functions.
-    It also makes the code a bit clearer.
+    The assembler reordered the operands of some instructions to put the
+    first operand into From3. Unfortunately this meant that when the
+    instructions were printed the operands were in a different order than
+    the assembler would expect as input. For example, 'MVC $8, (R1), (R2)'
+    would be printed as 'MVC (R1), $8, (R2)'.
     
-    Also remove some gotos in favor of labeled breaks.
+    Originally this was done to ensure that From contained the source
+    memory operand. The current compiler no longer requires this and so
+    this CL simply makes all instructions use the standard order for
+    operands: From, Reg, From3 and finally To.
     
-    On non-x86 architectures, this change introduces a pointless reg-reg move,
-    although the cause is well-understood (#21572).
+    Fixes #18295
     
-    Change-Id: Ib7ee58b59ea5463b92e1590c8b8f5c0ef87d410a
-    Reviewed-on: https://go-review.googlesource.com/58372
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ib2b5ec29c647ca7a995eb03dc78f82d99618b092
+    Reviewed-on: https://go-review.googlesource.com/40299
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/hashmap.go      | 31 ++++++-------------
- src/runtime/hashmap_fast.go | 72 +++++++++++++--------------------------------
- 2 files changed, 30 insertions(+), 73 deletions(-)
+ src/cmd/asm/internal/arch/s390x.go        |  32 -------
+ src/cmd/asm/internal/asm/asm.go           |  19 +++--
+ src/cmd/asm/internal/asm/testdata/s390x.s | 133 +++++++++++++++---------------
+ src/cmd/compile/internal/s390x/ggen.go    |  12 +--
+ src/cmd/compile/internal/s390x/ssa.go     |  32 +++----
+ src/cmd/internal/obj/s390x/asmz.go        | 127 ++++++++++++++--------------
+ 6 files changed, 158 insertions(+), 197 deletions(-)

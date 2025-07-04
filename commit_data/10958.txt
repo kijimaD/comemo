@@ -1,14 +1,12 @@
-commit 1cf45e388d723d02b073a5ea7d27abf8b45f02a1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 22 09:53:52 2011 +1100
+commit fa02bac80953660924a2b00f1f9f8eea8569d717
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 17:49:29 2011 -0500
 
-    dashboard: delete old build dashboard code
+    os/exec: put the print where it will help
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5502063
+    https://golang.org/cl/5501058
 
- misc/dashboard/godashboard/app.yaml   |   7 +-
- misc/dashboard/godashboard/gobuild.py | 576 ----------------------------------
- misc/dashboard/godashboard/main.html  |  42 ---
- 3 files changed, 4 insertions(+), 621 deletions(-)
+ src/pkg/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

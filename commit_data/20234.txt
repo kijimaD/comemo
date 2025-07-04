@@ -1,27 +1,15 @@
-commit 4dba769b7352b10fa95070f5095b93c4f5908f4d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 1 00:06:26 2014 -0400
+commit e5a06ccd3789aba38d5255be32cec1ff740f306b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 26 12:38:18 2014 -0700
 
-    runtime: paste mprof.goc into mprof.go as comments
+    runtime: name hi and lo parts of ret in assembly
     
-    NO CODE CHANGES HERE
-    
-    The first conversion was not complete.
-    This CL doesn't make any actual changes,
-    but it inserts the missing mprof.goc code
-    as comments so that the next CL will have
-    useful diffs.
-    
-    To make the diffs a bit more useful, removed
-    all semicolons, ->, and runtime· prefixes as well.
-    
-    Also corrected order of a few functions in mprof.go
-    to match original order in mprof.goc.
+    Makes vet happy.
     
     LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews, iant, khr, r
-    https://golang.org/cl/134200043
+    R=dvyukov, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/131320043
 
- src/pkg/runtime/mprof.go | 424 ++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 384 insertions(+), 40 deletions(-)
+ src/pkg/runtime/asm_386.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

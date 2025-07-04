@@ -1,17 +1,22 @@
-commit bd9aa9811d63c121a84ef92bc9b6a4101af46235
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Wed Jun 22 20:16:41 2016 +0300
+commit 694846a548f23cebb9b913999fa4fa6756e2c545
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 28 15:19:11 2016 +1000
 
-    cmd/vet: check for copying of array of locks
+    debug/pe: .bss section must contain only zeros
     
-    Updates #14664
+    .bss section has no data stored in PE file. But when .bss section data
+    is used by the linker it is assumed that its every byte is set to zero.
+    (*Section).Data returns garbage at this moment. Change (*Section).Data
+    so it returns slice filled with 0s.
     
-    Change-Id: I1f7b1116cfe91466816c760f136ce566da3e80a9
-    Reviewed-on: https://go-review.googlesource.com/24340
-    Run-TryBot: Rob Pike <r@golang.org>
+    Updates #15345
+    
+    Change-Id: I1fa5138244a9447e1d59dec24178b1dd0fd4c5d7
+    Reviewed-on: https://go-review.googlesource.com/22544
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/copylock.go          |  8 ++++++++
- src/cmd/vet/testdata/copylock.go | 18 ++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ src/debug/pe/file.go      | 17 ++++++++++-
+ src/debug/pe/file_test.go | 73 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 89 insertions(+), 1 deletion(-)

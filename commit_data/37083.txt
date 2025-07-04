@@ -1,24 +1,19 @@
-commit 9a7e70e34f98a8eea5d18083634b6e908b23e619
+commit a12c1f26e4cc602dae62ec065a237172a5b8f926
 Author: David Chase <drchase@google.com>
-Date:   Thu Oct 18 14:43:51 2018 -0400
+Date:   Tue Jun 26 12:00:25 2018 -0400
 
-    cmd/compile: schedule OpArg earlier in blocks for better debugging
+    cmd/compile: improve escape analysis explanation
     
-    The location list for OpArg starts where the OpArg appears;
-    this is not necessarily as soon as the OpArg coulde be
-    observed, and it is reasonable for a user to expect that
-    if a breakpoint is set "on f" then the arguments to f will
-    be observable where that breakpoint happens to be set (this
-    may also require setting the breakpoint after the prologue,
-    but that is another issue).
+    No code changes, only revised comments in an attempt to make
+    escape analysis slightly less confusing.
     
-    Change-Id: I0a1b848e50f475e5d8a5fad781241126872a0400
-    Reviewed-on: https://go-review.googlesource.com/c/142819
+    Updates #23109.
+    
+    Change-Id: I5ee6cea0946ced63f6210ac4484a088bcdd862fb
+    Reviewed-on: https://go-review.googlesource.com/121001
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/schedule.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/esc.go | 91 +++++++++++++++++++++++---------------
+ 1 file changed, 56 insertions(+), 35 deletions(-)

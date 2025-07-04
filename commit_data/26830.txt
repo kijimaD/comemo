@@ -1,26 +1,50 @@
-commit 2a4158207edb499f8b210aaa7a9af103b93b5ac7
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Apr 10 21:58:37 2016 -0400
+commit 5fc4decd10aa5583f4485164e572720d0d564cac
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Oct 31 11:22:42 2015 -0700
 
-    cmd/compile/internal/gc: refactor cgen_div
+    compress/flate: extract LZ77 dictionary logic into seperate struct
     
-    This commit adds two new functions to cgen.go: hasHMUL64 and
-    hasRROTC64. These are used to determine whether or not an
-    architecture supports the instructions needed to perform an
-    optimization in cgen_div.
+    The LZ77 portion of DEFLATE is relatively self-contained. For the
+    decompression side of things, we extract this logic out for the
+    following reasons:
+    * It is easier to test just the LZ77 portion of the logic.
+    * It reduces the noise in the inflate.go
     
-    This commit should not affect existing architectures (although it
-    does add s390x to the new functions). However, since most
-    architectures support HMUL the hasHMUL64 function could be
-    modified to enable most of the optimizations in cgen_div on those
-    platforms.
+    Also, we adjust the way that callbacks are handled in the inflate.
+    Instead of using functions to abstract the logical componets of
+    huffmanBlock(), use goto statements to jump between the necessary
+    sections. This is faster since it avoids a function call and is
+    arguably more readable.
     
-    Change-Id: I33bf329ddeb6cf2954bd17b7c161012de352fb62
-    Reviewed-on: https://go-review.googlesource.com/21775
+    benchmark                              old MB/s     new MB/s     speedup
+    BenchmarkDecodeDigitsSpeed1e4-4        53.62        60.11        1.12x
+    BenchmarkDecodeDigitsSpeed1e5-4        61.90        69.07        1.12x
+    BenchmarkDecodeDigitsSpeed1e6-4        63.24        70.58        1.12x
+    BenchmarkDecodeDigitsDefault1e4-4      54.10        59.00        1.09x
+    BenchmarkDecodeDigitsDefault1e5-4      69.50        74.07        1.07x
+    BenchmarkDecodeDigitsDefault1e6-4      71.54        75.85        1.06x
+    BenchmarkDecodeDigitsCompress1e4-4     54.39        58.94        1.08x
+    BenchmarkDecodeDigitsCompress1e5-4     69.21        73.96        1.07x
+    BenchmarkDecodeDigitsCompress1e6-4     71.14        75.75        1.06x
+    BenchmarkDecodeTwainSpeed1e4-4         53.15        58.13        1.09x
+    BenchmarkDecodeTwainSpeed1e5-4         66.56        72.29        1.09x
+    BenchmarkDecodeTwainSpeed1e6-4         69.13        75.11        1.09x
+    BenchmarkDecodeTwainDefault1e4-4       56.00        60.23        1.08x
+    BenchmarkDecodeTwainDefault1e5-4       77.84        82.27        1.06x
+    BenchmarkDecodeTwainDefault1e6-4       82.07        86.85        1.06x
+    BenchmarkDecodeTwainCompress1e4-4      56.13        60.38        1.08x
+    BenchmarkDecodeTwainCompress1e5-4      78.23        82.62        1.06x
+    BenchmarkDecodeTwainCompress1e6-4      82.38        86.73        1.05x
+    
+    Change-Id: I8c6ae0e6bed652dd0570fc113c999977f5e71636
+    Reviewed-on: https://go-review.googlesource.com/16528
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/cgen.go | 68 ++++++++++++++++++++++++++-----------
- 1 file changed, 49 insertions(+), 19 deletions(-)
+ src/compress/flate/copy.go              |  32 ------
+ src/compress/flate/copy_test.go         |  54 ---------
+ src/compress/flate/dict_decoder.go      | 184 ++++++++++++++++++++++++++++++
+ src/compress/flate/dict_decoder_test.go | 139 +++++++++++++++++++++++
+ src/compress/flate/inflate.go           | 193 ++++++++++++--------------------
+ 5 files changed, 397 insertions(+), 205 deletions(-)

@@ -1,21 +1,22 @@
-commit b2819d13dbe19343426e688da4ddfeb57c8589fc
-Author: abemotion <abemotion323@gmail.com>
-Date:   Fri Apr 4 18:40:06 2025 -0700
+commit ff8a2c0ad982ed96aeac42f0c825219752e5d2f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 21 15:33:28 2024 -0800
 
-    net/http: add link to types
+    go/types: generate mono.go from types2 source
     
-    Some types are not linked.
-    This change adds a link to each type.
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 340 LOC.
     
-    Change-Id: Id46fb64a74efb851ed76e4136f15e8fd9e445bb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663075
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    Change-Id: If7b96c30e5a2f1ff28ebf4ca2f3ac3f73d6a8865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565839
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/http/client.go             | 4 ++--
- src/net/http/request.go            | 2 +-
- src/net/http/responsecontroller.go | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/mono.go |  6 +++---
+ src/cmd/compile/internal/types2/util.go |  3 +++
+ src/go/types/generate_test.go           | 13 +++++++++----
+ src/go/types/mono.go                    |  4 +++-
+ src/go/types/util.go                    |  3 +++
+ 5 files changed, 21 insertions(+), 8 deletions(-)

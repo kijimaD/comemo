@@ -1,14 +1,15 @@
-commit 462860bd8db134859809ea2cd6b063a0f767ea38
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 12 14:25:40 2012 -0800
+commit f85b94aa85e6dffca51979538a9b4f0d96a3a645
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 12 12:23:01 2012 -0800
 
-    spec: more explicit comments for constant expression examples
+    net/http: return nicer error when Client request Host is blank
     
-    Fixes #3814.
+    Update #4271
     
-    R=rsc, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6920057
+    https://golang.org/cl/6931052
 
- doc/go_spec.html | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/net/http/transport.go      |  3 +++
+ src/pkg/net/http/transport_test.go | 14 ++++++++++++++
+ 2 files changed, 17 insertions(+)

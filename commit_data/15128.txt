@@ -1,20 +1,13 @@
-commit c06a5335baf80308c0765700378826ff929db86d
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Feb 4 12:22:35 2013 -0500
+commit 94064548c66b76ae111c68e67729c3bd11ad3faf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Feb 4 16:03:41 2013 +1100
 
-    exp/ssa: (#4 of 5): the SSA builder.
+    net: use windows sysSocket everywhere
     
-    R=iant, gri, iant, rogpeppe
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/7196053
+    https://golang.org/cl/7273046
 
- src/pkg/exp/ssa/builder.go  | 2682 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/exp/ssa/emit.go     |  261 +++++
- src/pkg/exp/ssa/func.go     |   73 +-
- src/pkg/exp/ssa/importer.go |  110 ++
- src/pkg/exp/ssa/lvalue.go   |   86 ++
- src/pkg/exp/ssa/print.go    |   54 +-
- src/pkg/exp/ssa/promote.go  |  450 ++++++++
- src/pkg/exp/ssa/ssa.go      |   35 +-
- src/pkg/exp/ssa/util.go     |   38 +
- 9 files changed, 3720 insertions(+), 69 deletions(-)
+ src/pkg/net/fd_windows.go        | 7 +------
+ src/pkg/net/interface_windows.go | 2 +-
+ 2 files changed, 2 insertions(+), 7 deletions(-)

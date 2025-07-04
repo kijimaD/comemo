@@ -1,21 +1,20 @@
-commit 61ce82a3601955a39ef26f51654fa2abc2049c11
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 18 14:17:43 2020 -0400
+commit 6a24de92a21f1762a61fbff171d26957b6dcee53
+Author: Umang Parmar <umangjparmar@gmail.com>
+Date:   Sun Oct 20 11:34:23 2019 +0000
 
-    cmd/go: skip the cmd/cgo staleness check on darwin builders
+    cmd/go: allow passing -U flag in cgo CFLAGS
     
-    Some of the darwin-amd64 builders are providing a stale environment.
-    Let's un-break them while we investigate.
+    Fixes #34730
     
-    Updates #37573
-    Updates #33598
-    
-    Change-Id: I8b79778fe4d5aa916557c1ba89fa9c776d130b01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223925
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2a16bbbd7af386e0abf59e1cc4b7d6e4ca3047c6
+    GitHub-Last-Rev: 096ff5a59ace36ac6ed5a0c87b4eef061be6b937
+    GitHub-Pull-Request: golang/go#34899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201039
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/test_race_install_cgo.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/doc.go                        | 2 +-
+ src/cmd/go/internal/work/security.go      | 3 +++
+ src/cmd/go/internal/work/security_test.go | 2 ++
+ 3 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,24 +1,12 @@
-commit 18227bb7b6ce14c2736543777f1d5cebeff11abd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 19:36:43 2015 +0000
+commit a42f668654103ebfb56e64ebc9b6ba131d5b3831
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 19 13:57:04 2015 -0400
 
-    net/http: be more consistent about Request.Method "" vs "GET"
+    runtime: eliminate unused _GCstw phase
     
-    Patch from Russ.
-    
-    No bug identified, but I didn't search exhaustively. The new code is
-    easier to read.
-    
-    Fixes #13621
-    
-    Change-Id: Ifda936e4101116fa254ead950b5fe06adb14e977
-    Reviewed-on: https://go-review.googlesource.com/17981
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie94cd17e1975fdaaa418fa6a7b2d3b164fedc135
+    Reviewed-on: https://go-review.googlesource.com/16057
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/client.go   |  5 +++--
- src/net/http/request.go  | 12 +++++++-----
- src/net/http/transfer.go |  2 +-
- 3 files changed, 11 insertions(+), 8 deletions(-)
+ src/runtime/mgc.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,14 +1,14 @@
-commit 44b7d5b41a0dd9e559ea191e79e85c310f8f0716
-Author: Robert Obryk <robryk@gmail.com>
-Date:   Mon Jun 3 07:07:31 2013 -0700
+commit 354ec5166668cae9be899c82e20c38b32ae3b867
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 3 13:20:17 2013 +0400
 
-    test/stress: fix a goroutine leak in threadRing stresstest
+    runtime: introduce preemption function (not used for now)
+    This is part of preemptive scheduler.
     
-    Fixes #5527
-    
-    R=golang-dev, dvyukov
+    R=golang-dev, cshapiro, iant
     CC=golang-dev
-    https://golang.org/cl/9955043
+    https://golang.org/cl/9843046
 
- test/stress/runstress.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/pkg/runtime/proc.c  | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/stack.h |  5 +++++
+ 2 files changed, 46 insertions(+)

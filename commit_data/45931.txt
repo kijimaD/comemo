@@ -1,18 +1,18 @@
-commit c8f4e6152d5f0b767a8177b7d09884cf2279d8e6
-Author: Piers <helloPiers@users.noreply.github.com>
-Date:   Mon Jul 19 20:11:29 2021 +0000
+commit a45e12fd4bd2cc4d5970f374499b603bfb793891
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 28 18:14:38 2020 -0800
 
-    spec: correct example comment in Conversions from slice to array
+    test: recognize gofrontend error messages
     
-    Fixes #47280
+    shift1.go:76:16: error: shift of non-integer operand
+    shift1.go:77:16: error: shift of non-integer operand
     
-    Change-Id: I78a8d235949b4878c7f075ac4ca37700e7e6c31c
-    GitHub-Last-Rev: 067f96eeb2c918eb4f775c428edc945c75af44d8
-    GitHub-Pull-Request: golang/go#47282
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/335470
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
+    Change-Id: I48584c0b01f9f6912a93b5f9bba55b5803fbeced
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273888
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/shift1.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,17 +1,12 @@
-commit da8f037b57241b0b84fab9d4c9e69b53e7118850
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Feb 15 14:41:47 2012 +1100
+commit 6fae34db94fe02f60edb207c95037a9bf8611e71
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Feb 15 14:25:27 2012 +1100
 
-    fix: add fix for bufio, gzip, zlib NewWriterXxx changes.
+    cmd/dist: xprintf() can't output whole of 'dist env'.
     
-    Fixes #2979.
-    
-    R=rsc, r
+    R=golang-dev, mpimenov, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5664046
+    https://golang.org/cl/5667045
 
- doc/go1.html                  | 22 ++++++-----
- doc/go1.tmpl                  | 22 ++++++-----
- src/cmd/fix/newwriter.go      | 90 +++++++++++++++++++++++++++++++++++++++++++
- src/cmd/fix/newwriter_test.go | 83 +++++++++++++++++++++++++++++++++++++++
- 4 files changed, 199 insertions(+), 18 deletions(-)
+ src/cmd/dist/windows.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

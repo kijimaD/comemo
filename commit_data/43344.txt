@@ -1,24 +1,35 @@
-commit c8f6135d4fd0be14bfc63c2bbb911cc9647e00a6
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Oct 16 17:48:29 2020 +0200
+commit 4a8b9bd2646a5b297197ffd1c412ef6afebe5c0d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Mar 26 15:10:21 2020 -0400
 
-    test: add regression test from #41474
+    runtime/pprof: increment fake overflow record PC
     
-    This issue was fixed with multiple individual compiler optimizations,
-    each of which had their own respective test cases. This CL just adds
-    the capstone test case to demonstrate that the issue has been fixed
-    and doesn't regress again.
+    gentraceback generates PCs which are usually following the CALL
+    instruction. For those that aren't, it fixes up the PCs so that
+    functions processing the output can unconditionally decrement the PC.
     
-    Updates #41474.
+    runtime_expandInlineFrames does this unconditional decrement when
+    looking up the function. However, the fake stack frame generated for
+    overflow records fails to meet the contract, and decrementing the PC
+    results in a PC in the previous function. If that function contains
+    inlined call, runtime_expandInlineFrames will not short-circuit and will
+    panic trying to look up a PC that doesn't exist.
     
-    Change-Id: Iae752d4b0e7b83ee356b946843340a4fbc254058
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263097
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Note that the added test does not fail at HEAD. It will only fail (with
+    a panic) if the function preceeding lostProfileEvent contains inlined
+    function calls. At the moment (on linux/amd64), that is
+    runtime/pprof.addMaxRSS, which does not.
+    
+    Fixes #38096
+    
+    Change-Id: Iad0819f23c566011c920fd9a5b1254719228da0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225661
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/os_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/runtime/pprof/pprof_test.go | 12 ++++++++++++
+ src/runtime/pprof/proto.go      |  5 ++++-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

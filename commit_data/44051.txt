@@ -1,26 +1,30 @@
-commit 9b6147120a30a8bc30a41c1651f369e8bcb80948
+commit 75ca90e309117b132bf2c95c691b55502bf2eaca
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Dec 21 14:11:02 2020 -0500
+Date:   Wed May 6 12:33:36 2020 -0400
 
-    cmd/pack: treat compiler's -linkobj output as "compiler object"
+    [dev.link] cmd/link: convert asmb2 pass to new style on darwin
     
-    Treat the compiler's -linkobj output as "compiler object, which
-    means "pack c" will "see through" the file and add individual
-    entry to the new archive, instead of the object as a whole.
+    Now we no longer do loadlibfull on darwin.
     
-    This is somewhat peculiar. But Go 1.15's cmd/pack does this,
-    although seemingly accidental. We just do the same. FWIW, it
-    does make things more consistent with/without -linkobj flag.
+    While here, remove residual darwin/386 and darwin/arm code.
     
-    Fixes #43271.
-    
-    Change-Id: I6b2d99256db7ebf0fa430f85afa7464e334f6bcb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279483
-    Trust: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I6efdcd81baeeca29d1fe91c4fab0cc8241a58e2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232597
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/pack/pack.go      | 31 ++++++++++++----------
- src/cmd/pack/pack_test.go | 66 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 84 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/amd64/asm.go   |  19 ++--
+ src/cmd/link/internal/arm/asm.go     |   2 +-
+ src/cmd/link/internal/arm64/asm.go   |  24 +++--
+ src/cmd/link/internal/ld/lib.go      |  18 +++-
+ src/cmd/link/internal/ld/macho.go    | 194 ++++++++++++++++-------------------
+ src/cmd/link/internal/ld/main.go     |  21 ++--
+ src/cmd/link/internal/mips/asm.go    |   2 +-
+ src/cmd/link/internal/mips64/asm.go  |   2 +-
+ src/cmd/link/internal/ppc64/asm.go   |   2 +-
+ src/cmd/link/internal/riscv64/asm.go |   2 +-
+ src/cmd/link/internal/s390x/asm.go   |   2 +-
+ src/cmd/link/internal/x86/asm.go     |   2 +-
+ 12 files changed, 148 insertions(+), 142 deletions(-)

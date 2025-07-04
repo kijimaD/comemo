@@ -1,14 +1,14 @@
-commit 452f3bc7599afcee9a5bda0caee4f7859c8d170a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 22 13:05:31 2013 -0700
+commit dbee8ad0f9eff310e1d3c696b334e9a596cab42b
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed May 22 21:13:30 2013 +0200
 
-    doc: GCC 4.8.1 is not updated to Go 1.1
+    cmd/cc: reject unions containing pointers
     
-    I will try again for 4.8.2.
+    If a union contains a pointer, it will mess up the garbage collector, causing memory corruption.
     
-    R=golang-dev, minux.ma
+    R=golang-dev, dave, nightlyone, adg, dvyukov, bradfitz, minux.ma, r, iant
     CC=golang-dev
-    https://golang.org/cl/9663045
+    https://golang.org/cl/8469043
 
- doc/go1.1.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cc/dcl.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

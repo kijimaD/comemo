@@ -1,24 +1,15 @@
-commit 2814906df029aea2130c7065d12be85634229861
-Author: Adam Langley <agl@golang.org>
-Date:   Sat Jun 27 14:50:39 2015 -0700
+commit b2f95a167aacc11177d66d1a3235d84a2b1f3538
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 26 13:49:59 2015 -0700
 
-    crypto/rsa: check for primes ≤ 1 in Validate
+    cmd/link/internal/amd64: -buildmode=c-archive forces external link mode
     
-    Change 7c7126cfeb82894229b9c3d5109e4b04e6cfde0c removed the primality
-    checking in Validate to save CPU time. That check happened to be
-    filtering out private keys with primes that were zero or one. Without
-    that filtering, such primes cause a panic when trying to use such a
-    private key.
+    At some point this code should probably move to cmd/link/internal/ld,
+    but at least for now just handle c-archive like c-shared.
     
-    This change specifically checks for and rejects primes ≤ 1 in Validate.
-    
-    Fixes #11233.
-    
-    Change-Id: Ie6537edb8250c07a45aaf50dab43227002ee7386
-    Reviewed-on: https://go-review.googlesource.com/11611
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic17656529cb0fe189a37f15e670350ab13bb5276
+    Reviewed-on: https://go-review.googlesource.com/10385
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/crypto/rsa/rsa.go        | 4 ++++
- src/crypto/x509/x509_test.go | 7 +++++++
- 2 files changed, 11 insertions(+)
+ src/cmd/link/internal/amd64/obj.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

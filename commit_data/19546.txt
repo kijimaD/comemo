@@ -1,14 +1,19 @@
-commit 60c0b3b5cf89c8054328e27d7ee58da79a12999e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 16 16:32:47 2014 -0700
+commit 311e28636ab1b41a10510a46fe1c8728e8713057
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 16 10:45:05 2014 -0700
 
-    text/scanner: provide facility for custom identifiers
+    fmt: don't put 0x on every byte of a compact hex-encoded string
+    Printf("%x", "abc") was "0x610x620x63"; is now "0x616263", which
+    is surely better.
+    Printf("% #x", "abc") is still "0x61 0x62 0x63".
     
-    LGTM=r
-    R=golang-codereviews, r
+    Fixes #8080.
+    
+    LGTM=bradfitz, gri
+    R=golang-codereviews, bradfitz, gri
     CC=golang-codereviews
-    https://golang.org/cl/108030044
+    https://golang.org/cl/106990043
 
- src/pkg/text/scanner/scanner.go      | 25 +++++++++++++++++++------
- src/pkg/text/scanner/scanner_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 41 insertions(+), 6 deletions(-)
+ src/pkg/fmt/fmt_test.go | 10 +++++++---
+ src/pkg/fmt/format.go   |  2 +-
+ 2 files changed, 8 insertions(+), 4 deletions(-)

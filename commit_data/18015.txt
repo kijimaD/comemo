@@ -1,12 +1,15 @@
-commit 2784a3ea8527083a3d819272f879fa508dcca3b5
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Dec 17 08:46:07 2013 -0800
+commit d35b22d128ef72387ffb5d7e66ac40ba58d9ce8e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Dec 17 07:36:01 2013 -0500
 
-    ld: fix Plan 9 build
+    cmd/ld: maintain correct headstring needed by windows port.
+    Fixes build for go_bootstrap.
+    Fixes #6971.
     
-    R=golang-dev, jas, bradfitz
+    R=alex.brainman, mattn.jp, rsc
     CC=golang-dev
-    https://golang.org/cl/43420043
+    https://golang.org/cl/43130043
 
- src/cmd/ld/pobj.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/ld/lib.c  | 1 +
+ src/cmd/ld/pobj.c | 2 ++
+ 2 files changed, 3 insertions(+)

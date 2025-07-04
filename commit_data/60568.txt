@@ -1,0 +1,16 @@
+commit ecadbe9faa1752fb949471b95743a48e89a65ee2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 31 13:12:50 2024 -0700
+
+    go/types: generate recording.go
+    
+    Change-Id: I530df137bcb5094a828f97ecbe204265b50c8546
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602118
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+
+ src/go/types/generate_test.go | 12 +++++++++---
+ src/go/types/recording.go     |  5 ++++-
+ 2 files changed, 13 insertions(+), 4 deletions(-)

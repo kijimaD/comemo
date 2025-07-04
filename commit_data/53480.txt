@@ -1,30 +1,25 @@
-commit 96d8d3eb3294e85972aed190aec1806ef3c30712
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 5 11:19:03 2023 -0400
+commit a2c2f06cad8aa722120cb73e965d168bfcb4d977
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 17 22:21:23 2022 +0200
 
-    cmd/go: handle -C properly during toolchain switches
+    internal/poll: remove detection of buggy splice on old Linux versions
     
-    The -C dir flag was added in Go 1.20.
-    This CL adds a new restriction: the -C must appear as the first flag on the command line.
-    This restriction makes finding the -C flag robust and matches the general way
-    people tend to think about and use the -C flag anyway.
-    It may break a few scripts that have been written since Go 1.20
-    but hopefully they will not be hard to find and fix.
-    (There is no strict compatibility guarantee for the command line.)
+    The splice syscall is buggy prior to Linux 2.6.29. CL 113999 added a
+    workaround to detect buggy versions and disable use of splice for these.
+    As of Go 1.18 the minumum Linux version is 2.6.32. Thus, a non-buggy
+    implementation of the splice syscall can be assumed.
     
-    For #57001.
+    For #45964
+    Fixes #54505
     
-    Change-Id: Ice2e5982c58d41eabdaef42a80d3624cde2c9873
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500915
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ied3a3334da7a3f7fa1280b7c5b1dfb9030219336
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422979
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/alldocs.go                              |   9 +-
- src/cmd/go/internal/base/base.go                   |  14 +++
- src/cmd/go/internal/base/flag.go                   |  10 +-
- src/cmd/go/internal/vet/vet.go                     |   8 +-
- src/cmd/go/internal/work/build.go                  |   1 +
- src/cmd/go/main.go                                 | 119 ++++++++++++++++-----
- src/cmd/go/testdata/script/chdir.txt               |  10 +-
- .../go/testdata/script/mod_get_exec_toolchain.txt  |  15 +++
- 8 files changed, 140 insertions(+), 46 deletions(-)
+ src/internal/poll/splice_linux.go | 35 +++--------------------------------
+ 1 file changed, 3 insertions(+), 32 deletions(-)

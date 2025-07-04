@@ -1,16 +1,14 @@
-commit 007aaa474ebaa0c638033dbf3f503844958bc07c
+commit ecbcd816dcf01177c62377f71a6f9da15a1e164f
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 20 12:51:02 2011 -0500
+Date:   Thu Jan 20 12:50:50 2011 -0500
 
-    A+C: Miek Gieben (individual CLA)
+    unsafe: add missing case to doc for Pointer
     
-    Also remove second email address from AUTHORS file
-    in a few cases.  It only has a meaning in the CONTRIBUTORS file.
+    Fixes #1433.
     
     R=r, gri
     CC=golang-dev
-    https://golang.org/cl/4022042
+    https://golang.org/cl/3999047
 
- AUTHORS      | 9 +++++----
- CONTRIBUTORS | 1 +
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/pkg/unsafe/unsafe.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

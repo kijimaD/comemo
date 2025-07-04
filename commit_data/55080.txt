@@ -1,20 +1,21 @@
-commit 08b9640333af248316e168d5a8d3331200fec9e9
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Tue Dec 13 16:51:02 2022 +0800
+commit a5a47442502e8e42b390f458f8f91dea3de872eb
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Dec 19 14:41:09 2022 +0100
 
-    cmd/compile: teach regalloc to rightly do nothing on loong64 in case of dynlinking
+    os: reenable TestReaddirSmallSeek on windows
     
-    This is needed before actual support for buildmode=plugin is added.
-    Should not affect current behavior.
+    TestReaddirSmallSeek should have been reenabled as part of
+    CL 405275, but didn't. Do it now.
     
-    Change-Id: I86371d7e373fd529cb8710850d7b0fbbf1eb52ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480877
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    Updates #36019
+    
+    Change-Id: I5676eee4e63675d30e9d48ac708e72bd036b6aee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458336
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/regalloc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/os/os_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

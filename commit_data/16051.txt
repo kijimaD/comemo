@@ -1,19 +1,12 @@
-commit 9115e411f596df35c0b1ba5a2335bd4bbfbdc1fa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 2 13:18:32 2013 -0700
+commit 5be0dad1169ce56e9a21fa6beb9a1109f6d6aeb0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 2 12:12:16 2013 -0700
 
-    cmd/gofmt: handle ... in rewrite of calls
+    net/http: remove useless named result arguments in type
     
-    Fixes #5059.
-    
-    R=golang-dev, r
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/8284043
+    https://golang.org/cl/8276043
 
- src/cmd/gofmt/gofmt_test.go            |  2 ++
- src/cmd/gofmt/rewrite.go               | 12 +++++++++++-
- src/cmd/gofmt/testdata/rewrite6.golden | 15 +++++++++++++++
- src/cmd/gofmt/testdata/rewrite6.input  | 15 +++++++++++++++
- src/cmd/gofmt/testdata/rewrite7.golden | 15 +++++++++++++++
- src/cmd/gofmt/testdata/rewrite7.input  | 15 +++++++++++++++
- 6 files changed, 73 insertions(+), 1 deletion(-)
+ src/pkg/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

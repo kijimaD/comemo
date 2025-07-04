@@ -1,15 +1,19 @@
-commit a78b0e67211034743a1f03645312aed35e5c5ba2
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu Nov 19 17:30:27 2020 +0800
+commit ef9e8fbfbc904b2c49cdf4fc7524aaf0f059f2da
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 10 09:57:10 2020 -0400
 
-    internal/poll: fix the verbose condition in splice
+    [dev.link] cmd/link: remove dwarf2.go
     
-    Change-Id: I0b433ea1a78632de20ea58c48c9be0f1fb6eb083
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271499
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Relocate the last few functions in dwarf2.go to dwarf.go,
+    and remove dwarf2.go. No change in functionality.
+    
+    Change-Id: Id1b5f0d1c496d5912b955b8ba942e33bc43aa93b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237425
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/internal/poll/splice_linux.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf.go  | 160 +++++++++++++++++++++++++++++++++----
+ src/cmd/link/internal/ld/dwarf2.go | 149 ----------------------------------
+ 2 files changed, 144 insertions(+), 165 deletions(-)

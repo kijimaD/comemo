@@ -1,27 +1,18 @@
-commit cb6bb4062f6a36d0e76f6fe15f78e0bbcd4b71c0
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Sep 27 19:51:47 2016 +0900
+commit 22d1318e7b6e9eba747bd90939703fff7660add1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 15 15:26:47 2016 -0700
 
-    vendor: import golang.org/x/net/lif
+    [dev.ssa] cmd/compile: refactor out CheckLoweredPhi
     
-    golang.org/x/net/lif becomes vendor/golang_org/x/net/lif.
+    This will be used verbatim in other architectures.
     
-    At git rev 9f0e377 (golang.org/cl/29893)
-    
-    Updates #7177.
-    
-    Change-Id: Id838fcc234e71f735bb2609073f4c2214b48a970
-    Reviewed-on: https://go-review.googlesource.com/29891
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I307891ae597d797fd45f296b6a38ffe9fac6b975
+    Reviewed-on: https://go-review.googlesource.com/24155
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/vendor/golang_org/x/net/lif/address.go         | 105 ++++++++++++++++++
- src/vendor/golang_org/x/net/lif/address_test.go    | 121 ++++++++++++++++++++
- src/vendor/golang_org/x/net/lif/binary.go          |  68 ++++++++++++
- src/vendor/golang_org/x/net/lif/defs_solaris.go    |  90 +++++++++++++++
- src/vendor/golang_org/x/net/lif/lif.go             |  43 ++++++++
- src/vendor/golang_org/x/net/lif/link.go            | 122 +++++++++++++++++++++
- src/vendor/golang_org/x/net/lif/link_test.go       |  61 +++++++++++
- .../golang_org/x/net/lif/sys_solaris_amd64.s       |  11 ++
- src/vendor/golang_org/x/net/lif/syscall.go         |  33 ++++++
- .../golang_org/x/net/lif/zsys_solaris_amd64.go     | 103 +++++++++++++++++
- 10 files changed, 757 insertions(+)
+ src/cmd/compile/internal/amd64/ssa.go | 12 +-----------
+ src/cmd/compile/internal/arm/ssa.go   | 12 +-----------
+ src/cmd/compile/internal/gc/ssa.go    | 18 ++++++++++++++++++
+ 3 files changed, 20 insertions(+), 22 deletions(-)

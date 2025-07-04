@@ -1,18 +1,25 @@
-commit a73af5d91c4c335fb44ae99517d4c41d5f3960e0
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Tue Mar 19 07:04:15 2024 +0000
+commit c0fd7f79fe445ad49e11bf42c8c785cb71b3bedf
+Author: Daniel Nephin <dnephin@gmail.com>
+Date:   Thu Mar 30 16:00:15 2023 +0000
 
-    cmd/compile: fix typo in comment
+    errors: improve the godoc for Join and Unwrap
     
-    Change-Id: I0bbc74fdab9bc295d42ae7e346d33db8df52c797
-    GitHub-Last-Rev: fe2b7d1efeeb8cf6ccffe5419da5a55a4cbdbb43
-    GitHub-Pull-Request: golang/go#66397
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572616
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Document that errors returned by Join always implement Unwrap []error.
+    
+    Explicitly state that Unwrap does not unwrap errors
+    with an Unwrap() []error method.
+    
+    Change-Id: Id610345dcf43ca54a9dde157e56c5815c5112073
+    GitHub-Last-Rev: 7a0ec450bd0b2b38eecb5b94eaec485f4a6debbd
+    GitHub-Pull-Request: golang/go#59301
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480021
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/errors/join.go | 2 ++
+ src/errors/wrap.go | 3 ++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

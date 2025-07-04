@@ -1,0 +1,23 @@
+commit 5eaeb7b455d0bb6a39dacb4317ea177cbe0358de
+Author: Mark Freeman <markfreeman@google.com>
+Date:   Thu Apr 3 14:26:55 2025 -0700
+
+    go/types, types2: better error messages for invalid qualified identifiers
+    
+    This change borrows code from CL 631356 by Emmanuel Odeke (thanks!).
+    
+    Fixes #70549.
+    
+    Change-Id: Id6f794ea2a95b4297999456f22c6e02890fce13b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+
+ src/cmd/compile/internal/types2/call.go             |  9 ++++++++-
+ src/cmd/compile/internal/types2/scope.go            | 13 +++++++++++++
+ src/go/types/call.go                                |  9 ++++++++-
+ src/go/types/scope.go                               | 13 +++++++++++++
+ src/internal/types/testdata/fixedbugs/issue70549.go | 15 +++++++++++++++
+ 5 files changed, 57 insertions(+), 2 deletions(-)

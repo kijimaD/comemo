@@ -1,14 +1,20 @@
-commit c5a94ba24fd0392bab2c5b2404a820dbf6bc7346
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 4 23:16:50 2015 -0500
+commit 9dd81d62275a963e3d9c37453fcde42ab929bd96
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Sep 1 14:56:37 2015 +0300
 
-    runtime: document that NumCPU does not change
+    cmd/internal/obj/x86: Add initial VEX support.
     
-    Fixes #11609.
+    Support VZEROUPPER, VMOVNTDQ, VMOVDQU, VMOVDQA.
+    Use MOVHD* for names, where HD stands for HexaDeca (16).
     
-    Change-Id: I3cf64164fde28ebf739706728b84d8ef5b6dc90e
-    Reviewed-on: https://go-review.googlesource.com/17456
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9b1ea52e7ef0714a3d2aeb31ec1823fe509a047e
+    Reviewed-on: https://go-review.googlesource.com/14127
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/debug.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/internal/obj/link.go       |   1 +
+ src/cmd/internal/obj/x86/a.out.go  |   5 ++
+ src/cmd/internal/obj/x86/anames.go |   4 ++
+ src/cmd/internal/obj/x86/asm6.go   | 108 +++++++++++++++++++++++++++++++------
+ 4 files changed, 102 insertions(+), 16 deletions(-)

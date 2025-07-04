@@ -1,17 +1,16 @@
-commit f7b2f58cda83634ccbe043b011f4899f859756cb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 24 02:21:20 2016 +0000
+commit 6dc356a76a405ff12c884ab0a4acb2296d1618b7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 15:08:37 2016 -0700
 
-    database/sql: force users of NamedParam to name struct literals fields
+    cmd/compile/internal/ssa: erase register copies deterministically
     
-    Or they can use sql.Param instead.
+    Fixes #17288.
     
-    Change-Id: Icf21dbcc87170635c3f5d3f49736429a37abe9da
-    Reviewed-on: https://go-review.googlesource.com/33576
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2ddd01d14667d5c6a2e19bd70489da8d9869d308
+    Reviewed-on: https://go-review.googlesource.com/30072
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/database/sql/sql.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/ssa/regalloc.go | 24 +++++++++++++++++-------
+ 1 file changed, 17 insertions(+), 7 deletions(-)

@@ -1,23 +1,18 @@
-commit dfe4591fc4d2d66da7740de18b32761e7a20691c
-Author: Shengyu Zhang <zhangshengyu.0@bytedance.com>
-Date:   Tue Feb 28 16:58:07 2023 +0000
+commit 5a90270d7f5b384de31399133c7336d007fbd93d
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Mon Apr 4 23:01:16 2022 +0800
 
-    io/ioutil: add doc links for deprecated function
+    cmd/compile: fix deadlock on syntax error
     
-    Go 1.19 introduced doc links (https://go.dev/doc/comment#doclinks).
-    It will be convenient when we can directly jump to the suggested
-    function when the original function is deprecated.
+    Fixes #52127
     
-    Change-Id: I6172a5265f3b47aefec53179bca60f9904606b3f
-    GitHub-Last-Rev: b2aa85bf1bb67a39b5b26a047ba90a4b6a61dba4
-    GitHub-Pull-Request: golang/go#58779
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471915
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I6523c83350cb9263d23e3e8b472fe63a5cc99c2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398014
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/io/ioutil/ioutil.go   | 18 +++++++++---------
- src/io/ioutil/tempfile.go |  4 ++--
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/noder/noder.go | 37 +++++++++++++++++++--------------
+ 1 file changed, 21 insertions(+), 16 deletions(-)

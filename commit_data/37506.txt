@@ -1,26 +1,26 @@
-commit ff9481ec0d684b4f00670d40e869b5d40c54f162
-Author: Keith Randall <khr@google.com>
-Date:   Tue Nov 27 14:15:51 2018 -0800
+commit c116265eb3f2b1a8549e7ceef73b780439404030
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jul 20 21:55:07 2018 +0100
 
-    cmd/compile: order nil checks by source position
+    go/printer: make empty lines break table alignment
     
-    There's nothing enforcing ordering between redundant nil checks when
-    they may occur during the same memory state. Commit to using the
-    earliest one in source order.
+    In previous versions of Go including 1.10, an empty line would break the
+    alignment of elements within an expression list.
     
-    Otherwise the choice of which to remove depends on the ordering of
-    values in a block (before scheduling). That's unfortunate when trying
-    to ensure that the compiler doesn't depend on that ordering for
-    anything.
+    golang.org/cl/104755 changed the heuristic, with the side effect that
+    empty lines no longer broke the table alignment.
     
-    Update #20178
+    Reintroduce the behavior and add a regression test for it.
     
-    Change-Id: I2cdd5be10618accd9d91fa07406c90cbd023ffba
-    Reviewed-on: https://go-review.googlesource.com/c/151517
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #26352.
+    
+    Change-Id: I410bcff4cba25c7f8497d46bd7890a2c7ee11d46
+    Reviewed-on: https://go-review.googlesource.com/125260
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/schedule.go | 33 +++++++++++++++++++++++++++++++-
- 1 file changed, 32 insertions(+), 1 deletion(-)
+ src/go/printer/nodes.go                  | 17 +++++++++++++----
+ src/go/printer/testdata/alignment.golden |  9 +++++++++
+ src/go/printer/testdata/alignment.input  |  9 +++++++++
+ 3 files changed, 31 insertions(+), 4 deletions(-)

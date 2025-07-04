@@ -1,14 +1,37 @@
-commit b6e251b264869fac4ddc158fb9a5c8d5b4ac086f
-Author: Mark Freeman <mark@golang.org>
-Date:   Wed May 21 15:13:45 2025 -0400
+commit 58c5db3169c801737cb0e0ed4886554763c861eb
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Apr 5 15:25:55 2024 -0400
 
-    internal/pkgbits: mark element / section ends as delta encoding candidates
+    all: update vendored golang.org/x/net
     
-    Change-Id: I165c98a0a5800515bfa33c60b95b534900d0ea59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675215
+    Pull in CL 576756:
+    
+            b67a0f05 http2: send correct LastStreamID in stream-caused GOAWAY
+    
+    It comes with newer x/crypto and x/sys requirements via CL 576516.
+    
+    For #65051.
+    Fixes #66668.
+    
+    Change-Id: Ib6df49b779ff5ea56966ae3de443e87ac7f4ec4f
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576679
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Mark Freeman <mark@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/internal/pkgbits/encoder.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../vendor/golang.org/x/sys/unix/mmap_nomremap.go  |   2 +-
+ .../golang.org/x/sys/unix/syscall_zos_s390x.go     |   8 ++
+ .../golang.org/x/sys/windows/syscall_windows.go    |  82 ++++++++++++++
+ .../golang.org/x/sys/windows/types_windows.go      |  24 ++++
+ .../golang.org/x/sys/windows/zsyscall_windows.go   | 126 +++++++++++++++++++--
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/go.mod                                         |   6 +-
+ src/go.sum                                         |  12 +-
+ src/net/http/h2_bundle.go                          |  18 ++-
+ .../golang.org/x/crypto/chacha20/chacha_ppc64le.s  | 110 +++++++++---------
+ src/vendor/modules.txt                             |   6 +-
+ 13 files changed, 313 insertions(+), 89 deletions(-)

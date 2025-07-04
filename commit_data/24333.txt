@@ -1,27 +1,17 @@
-commit 7454f53604b9953b5b7a3897c6b855957f911e66
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 21 10:30:04 2015 -0700
+commit 37a097519facb21c29af821cbdfffbf9d48c045b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 29 17:36:26 2015 -0700
 
-    cmd/vet: copy changes from golang.org/x/tools to cmd/vet
+    spec: be precise about rune/string literals and comments
     
-    This means bringing over the examples flag and sorting doc.go.
+    See #10248 for details.
     
-    Subsequent changes will generalize the examples flag to a general
-    test naming flag, but let's start with the original code.
+    Fixes #10248.
     
-    No more changes to golang.org/x/tools please. This should not have
-    happened (and letting it happen was partly my fault).
-    
-    Change-Id: Ia879ea1d15d82372df14853f919263125dfb7b96
-    Reviewed-on: https://go-review.googlesource.com/14821
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I373545b2dca5d1da1c7149eb0a8f6c6dd8071a4c
+    Reviewed-on: https://go-review.googlesource.com/10503
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/doc.go                               | 119 ++++++++++++----------
- src/cmd/vet/example.go                           | 124 +++++++++++++++++++++++
- src/cmd/vet/main.go                              |  21 ++--
- src/cmd/vet/testdata/divergent/buf.go            |  17 ++++
- src/cmd/vet/testdata/divergent/buf_test.go       |  35 +++++++
- src/cmd/vet/testdata/examples_test.go            |  48 +++++++++
- src/cmd/vet/testdata/incomplete/examples_test.go |  33 ++++++
- src/cmd/vet/vet_test.go                          |  80 ++++++++++-----
- 8 files changed, 392 insertions(+), 85 deletions(-)
+ doc/go_spec.html | 48 ++++++++++++++++++++++++------------------------
+ 1 file changed, 24 insertions(+), 24 deletions(-)

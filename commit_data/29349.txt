@@ -1,16 +1,15 @@
-commit ced137fad48ad18518cdd4ed3a77e75d5e58c78c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 2 16:33:33 2016 -0400
+commit 8e84a5dd47d5c27e83f40439a4240a7504134039
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 10 15:24:28 2016 -0700
 
-    misc/cgo/testsanitizers: skip tests when vm.overcommit_memory=2
+    cmd/vet/all/whitelist: add readme.txt
     
-    Fixes #17689.
+    This was written for CL 27811,
+    but it got lost in the sea of new files.
     
-    Change-Id: I45a14e6bf4b2647431105f3e0b63b7076b6655d2
-    Reviewed-on: https://go-review.googlesource.com/32635
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5c52cb23dda499b21a6bb32ed5c586779ccbc2f1
+    Reviewed-on: https://go-review.googlesource.com/28960
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/testsanitizers/test.bash | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/vet/all/whitelist/readme.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

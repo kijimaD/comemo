@@ -1,23 +1,34 @@
-commit eec8dd08362dc985a91bfead02107727b4643dcc
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Apr 2 01:37:30 2025 +0000
+commit d4cc35c4fdbc37ad3bbc42ff6d6dcba6007b169b
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Mar 27 20:44:18 2024 +0800
 
-    runtime: add scan trace for checkfinalizers>1
+    all: make use of builtin clear
     
-    This change dumps a scan trace (each pointer marked and where it came
-    from) for the partial GC cycle performed by checkfinalizers mode when
-    checkfinalizers>1. This is useful for quickly understanding why certain
-    values are reachable without having to pull out tools like viewcore.
-    
-    For #72949.
-    
-    Change-Id: Ic583f80e9558cdfe1c667d27a1d975008dd39a9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662038
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I1df0685c75fc1044ba46003a69ecc7dfc53bbc2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574675
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/mcheckmark.go | 6 ++++++
- src/runtime/mgcmark.go    | 3 +++
- 2 files changed, 9 insertions(+)
+ src/archive/zip/reader_test.go      | 4 +---
+ src/archive/zip/zip_test.go         | 4 +---
+ src/crypto/aes/aes_gcm.go           | 4 +---
+ src/crypto/aes/gcm_ppc64x.go        | 4 +---
+ src/crypto/aes/gcm_s390x.go         | 8 ++------
+ src/crypto/cipher/gcm.go            | 4 +---
+ src/crypto/ecdh/ecdh_test.go        | 4 +---
+ src/crypto/ecdsa/ecdsa.go           | 4 +---
+ src/crypto/ed25519/ed25519_test.go  | 4 +---
+ src/crypto/internal/bigmod/nat.go   | 8 ++------
+ src/crypto/tls/example_test.go      | 5 +----
+ src/crypto/tls/handshake_test.go    | 5 +----
+ src/hash/maphash/smhasher_test.go   | 4 +---
+ src/internal/fuzz/coverage.go       | 4 +---
+ src/internal/poll/writev.go         | 4 +---
+ src/runtime/debug/garbage.go        | 4 +---
+ src/runtime/mbitmap_allocheaders.go | 4 +---
+ src/runtime/memmove_test.go         | 4 +---
+ src/runtime/netpoll_wasip1.go       | 4 +---
+ src/runtime/write_err_android.go    | 4 +---
+ 20 files changed, 22 insertions(+), 68 deletions(-)

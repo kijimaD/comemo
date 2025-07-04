@@ -1,39 +1,28 @@
-commit 434cdd0337b9e6c7e0c369c9293cc14fd38dc80d
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Sep 30 10:25:49 2021 -0700
+commit baa6c75dcef23aa51e95bf7818b7ded5262fbaa8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 22 16:02:14 2020 +0000
 
-    debug/buildinfo: new package with Read and ReadFile
+    [dev.regabi] internal/abi: add new internal/abi package for ABI constants
     
-    These functions provide access to module information stamped into Go
-    binaries. In the future, they'll provide access to other information
-    (like VCS info).
+    This change creates a new internal std package internal/abi which is
+    intended to hold constants with platform-specific values related to
+    our ABI that is useful to different std packages, such as runtime and
+    reflect.
     
-    These functions are added in a new package instead of runtime/debug
-    since they use binary parsing packages like debug/elf, which would
-    make runtime/debug an unacceptably heavy dependency. The types in
-    runtime/debug are still used; debug/buildinfo uses them via type
-    aliases.
+    For #40724.
     
-    This information is already available for the running binary through
-    debug.ReadBuildInfo and for other binaries with 'go version -m', but
-    until now, there hasn't been a way to get it for other binaries
-    without installing cmd/go.
-    
-    This change copies most of the code in cmd/go/internal/version. A
-    later CL will migrate 'go version -m' to use this package.
-    
-    For #37475
-    Fixes #39301
-    
-    Change-Id: I0fbe0896e04f12ef81c6d79fb61b20daede86159
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353887
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie7ae7f687629cd3d613ba603e9371f0887601fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272567
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- api/next.txt                          |   4 +
- src/debug/buildinfo/buildinfo.go      | 374 ++++++++++++++++++++++++++++++++++
- src/debug/buildinfo/buildinfo_test.go | 206 +++++++++++++++++++
- src/go/build/deps_test.go             |   5 +-
- src/runtime/debug/mod.go              | 104 +++++-----
- 5 files changed, 645 insertions(+), 48 deletions(-)
+ src/go/build/deps_test.go       |  4 ++--
+ src/internal/abi/abi.go         | 12 ++++++++++++
+ src/internal/abi/abi_amd64.go   | 20 ++++++++++++++++++++
+ src/internal/abi/abi_generic.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 72 insertions(+), 2 deletions(-)

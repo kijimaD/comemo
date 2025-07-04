@@ -1,24 +1,53 @@
-commit ee788dbae0fc8e074fc66fc76f0597200b443950
-Author: Kirill Che <g4s8.public@gmail.com>
-Date:   Fri Sep 8 07:45:12 2023 +0000
+commit ddd8bc1b074f51aa6fc73a94053f394e4bf25525
+Author: Robert Findley <rfindley@google.com>
+Date:   Sat Aug 13 12:35:57 2022 -0400
 
-    cmd/go/internal/generate: error if failed to find a package
+    go/types, types2: optimize instance lookup in LookupFieldOrMethod
     
-    Add check for package loader to print error and fail `go generate` command,
-    if package can not be found.
+    LookupFieldOrMethod appears as a hotspot when benchmarking gopls'
+    auto-completion. In particular, instanceLookup.add was allocating in the
+    common case of structs with no embedding.
     
-    Fixes #60079
+    This is easily fixed, by using a small array in front of the map inside
+    of instanceLookup. Do this, and additionally add a microbenchmark.
     
-    Change-Id: Ib9e730c2b69df6e5ac307c7bdfea0ee993ab6ed8
-    GitHub-Last-Rev: d93332425a980d0298c74f33f1d154e0afbf5373
-    GitHub-Pull-Request: golang/go#60178
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494836
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    The benchmark improvement is significant:
+    
+    name                    old time/op    new time/op    delta
+    LookupFieldOrMethod-12     388µs ± 6%     154µs ± 3%  -60.36%  (p=0.000 n=10+10)
+    
+    name                    old alloc/op   new alloc/op   delta
+    LookupFieldOrMethod-12     152kB ± 0%       2kB ± 0%  -98.77%  (p=0.000 n=9+10)
+    
+    name                    old allocs/op  new allocs/op  delta
+    LookupFieldOrMethod-12     1.41k ± 0%     0.07k ± 0%  -95.38%  (p=0.000 n=10+10)
+    
+    It should also be noted that instanceLookup is used elsewhere, in
+    particular by validType. In those contexts, the scope is not just the
+    current type but the entire package, and so the newly added buffer is
+    likely to simply cause extra Identical checks. Nevertheless, those
+    checks are cheap, and on balance the improved LookupFieldOrMethod
+    performance leads overall to improved type-checking performance.
+    Standard library benchmark results varied by package, but type checking
+    speed for many packages improved by ~5%, with allocations improved by
+    ~10%. If this weren't the case we could let the caller control the
+    buffer size, but that optimization doesn't seem necessary at this time.
+    
+    For example:
+    
+    Check/http/funcbodies/noinfo-12            71.5ms ± 4%    67.3ms ± 2%   -5.90%  (p=0.000 n=20+20)
+    Check/http/funcbodies/noinfo-12              244k ± 0%      219k ± 0%  -10.36%  (p=0.000 n=19+19)
+    
+    Updates golang/go#53992
+    
+    Change-Id: I10b6deb3819ab562dbbe1913f12b977cf956dd50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423935
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/go/internal/generate/generate.go        | 8 ++++++++
- src/cmd/go/testdata/script/generate_invalid.txt | 7 ++++++-
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/lookup.go      | 16 ++++++-
+ src/cmd/compile/internal/types2/lookup_test.go | 55 ++++++++++++++++++++++++
+ src/go/types/lookup.go                         | 16 ++++++-
+ src/go/types/lookup_test.go                    | 58 ++++++++++++++++++++++++++
+ 4 files changed, 143 insertions(+), 2 deletions(-)

@@ -1,22 +1,25 @@
-commit 458ac1b01590506891b2ad2b300ead76aaa4e119
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Thu Feb 20 15:10:06 2025 +0000
+commit 6aa482681ca72aa3b18d4491e6db1694ef1be6bc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 5 09:13:15 2023 -0400
 
-    context: replace newAfterFuncContext with a global declaration using blank identifier
+    cmd/go/internal/vcweb: set GIT_PROTOCOL in the git CGI handler
     
-    newAfterFuncContext has never been used, the only reason I can imagine
-    for its existence is to guarantee that the implementation is correct.
+    This works around a bug in 'git http-backend' that was fixed in
+    Git 2.34.0,¹ and will hopefully allow the tests in
+    cmd/go/internal/modfetch/codehost to pass reliably using older
+    Git releases (I tested with 2.30.2).
     
-    It is a small cleanup and make code more idiomatic.
+    ¹https://github.com/git/git/commit/ff6a37c99e3343633c53f56789afcc8f8165d276
     
-    Change-Id: I61ee213a9284f3c3bda7f91196f3a1604babd0f6
-    GitHub-Last-Rev: c08bd69ef3f0dbc2f573f54095fea35dad2b1145
-    GitHub-Pull-Request: golang/go#71856
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651015
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Fixes #56881.
+    
+    Change-Id: Icd2e4d252d5f712685d146f34e11922dd0c41ff0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549795
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/context/afterfunc_test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git_test.go |  6 ----
+ src/cmd/go/internal/vcweb/git.go                  | 39 +++++++++++++++++------
+ 2 files changed, 29 insertions(+), 16 deletions(-)

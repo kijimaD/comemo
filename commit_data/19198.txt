@@ -1,19 +1,14 @@
-commit c45392bae0332e1407c4468ee35a5176651b03fa
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 17 13:28:40 2014 -0700
+commit 6524310770649b6aa9786711edd2f6eeab4ba61a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 17 11:47:12 2014 -0700
 
-    net: fix probabilities in DNS SRV shuffleByWeight
+    cmd/pack: handle very long lines in pkgdef
     
-    Patch from msolo. Just moving it to a CL.
-    The test fails before and passes with the fix.
-    
-    Fixes #7098
-    
-    LGTM=msolo, rsc
-    R=rsc, iant, msolo
+    LGTM=rsc, bradfitz
+    R=golang-codereviews, rsc, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/88900044
+    https://golang.org/cl/88170049
 
- src/pkg/net/dnsclient.go      |  4 +--
- src/pkg/net/dnsclient_test.go | 69 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+), 2 deletions(-)
+ src/cmd/pack/pack.go      |  20 +++++----
+ src/cmd/pack/pack_test.go | 102 +++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 98 insertions(+), 24 deletions(-)

@@ -1,15 +1,24 @@
-commit 592ee433f5378e4b08f1fd8860be61b9bf20ca19
-Author: seifchen <chenxuefeng1207@gmail.com>
-Date:   Tue Aug 17 23:54:33 2021 +0000
+commit 0328c3b660bda2c4e72d0bc0f7b8058b780c9e19
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Dec 7 03:24:04 2020 +0700
 
-    spec: adjust example for consistency
+    [dev.regabi] cmd/compile: use OSELRECV2 for all <-c variants
     
-    Change-Id: I5ff9078907b78f31aec42abf749a193b15bc5109
-    GitHub-Last-Rev: 1f96d84f203275a6012c19ec387bce091889d77d
-    GitHub-Pull-Request: golang/go#47732
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342789
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    OSELRECV2 can represent all possible receive clauses that can appear
+    in a select statement, and it simplifies later code, so use it instead.
+    
+    Follow up CL will remove OSELRECV.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Ibbdae45287ffd888acd8dc89ca8d99e454277cd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275458
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/escape.go |   3 -
+ src/cmd/compile/internal/gc/order.go  | 115 ++++++++++++----------------------
+ src/cmd/compile/internal/gc/select.go |  78 +++++++----------------
+ 3 files changed, 62 insertions(+), 134 deletions(-)

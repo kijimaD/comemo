@@ -1,19 +1,19 @@
-commit 7b0b6c2f7e9d925763a2e1d2ba10682019827a9b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 2 13:51:20 2020 -0800
+commit 426bfbe9a375aebf5df2fbc5eb340fccc0466382
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 11 09:52:11 2019 -0700
 
-    cmd/compile: simplify converted SSA form for 'if false'
+    runtime: move sighandler into signal_unix.go
     
-    The goal here is to make it easier for a human to
-    examine the SSA when a function contains lots of dead code.
+    We couldn't do this before because sighandler was compiled for nacl.
     
-    No significant compiler metric or generated code differences.
+    Updates #30439
     
-    Change-Id: I81915fa4639bc8820cc9a5e45e526687d0d1f57a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221791
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ieec9938b6a1796c48d251cd8b1db1a42c25f3943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200739
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/runtime/signal_sighandler.go | 154 ---------------------------------------
+ src/runtime/signal_unix.go       | 143 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 143 insertions(+), 154 deletions(-)

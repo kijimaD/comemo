@@ -1,12 +1,14 @@
-commit 5d53aab4a25d315ef94b31c70d85cb805a8acc2e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jun 23 10:56:53 2011 +1000
+commit 96731619ce11de5ad51de2409cf9bd58990f77ba
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 23 10:19:29 2011 +1000
 
-    exec: LookPath should not search %PATH% for files like c:cmd.exe
+    exp/template: make -0 be an unsigned int.
+    Fix (inconsequential) type error in list initializer.
     
-    R=golang-dev
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4632055
+    https://golang.org/cl/4638058
 
- src/pkg/exec/lp_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/template/parse.go      | 12 ++++++++----
+ src/pkg/exp/template/parse_test.go |  3 ++-
+ 2 files changed, 10 insertions(+), 5 deletions(-)

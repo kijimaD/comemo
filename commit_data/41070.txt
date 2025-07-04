@@ -1,14 +1,20 @@
-commit 6b1a3f73ed6fb1ea2a65cf9eb78cbe972bda43a7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 6 16:30:48 2020 +0000
+commit d15dfdc023f888b97ce0bc101d97c4631e575d94
+Author: jsign <jsign.uy@gmail.com>
+Date:   Sat Aug 31 22:32:11 2019 +0000
 
-    os: document that File.Seek works on directories, but not portably
+    io/ioutil: don't check for short write in WriteFile
     
-    Updates #36019
+    *os.File already does it.
     
-    Change-Id: I9fea2c3c5138e2233290979e4724f6e7b91da652
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213439
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #33064
+    
+    Change-Id: I3edf0a31bf6d6e5023f47f01ebc92ed057357278
+    GitHub-Last-Rev: e6a5ba45d7e74def668adf145f46387ef27f5d28
+    GitHub-Pull-Request: golang/go#33065
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185857
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/file.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/io/ioutil/ioutil.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

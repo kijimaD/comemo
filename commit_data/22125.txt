@@ -1,22 +1,20 @@
-commit 11dba2ec2d8fcedc1da0103925c254586ef51120
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 20 10:47:52 2015 -0700
+commit 1c82e236f5eed548ffc889ea4d7035a6ddc7b25c
+Author: Jan Kratochvil <jan.kratochvil@redhat.com>
+Date:   Sat Feb 21 18:18:33 2015 +0100
 
-    html/template: fix crash when escaping incomplete template
+    gdb: fix map prettyprinter
     
-    text/template turned this into an error but html/template crashed.
-    Refactor text/template.Execute to export a new function,
-    text/template.DefinedTemplates, so html/template can get the same
-    helpful error message in this case, and invoke it when there is no
-    definition for a template being escaped.
+    (gdb) p x
+    Python Exception <class 'gdb.error'> There is no member named b.:
+    $2 = map[string]string
+    ->
+    (gdb) p x
+    $1 = map[string]string = {["shane"] = "hansen"}
     
-    Fixes #10204.
-    
-    Change-Id: I1d04e9e7ebca829bc08509caeb65e75da969711f
-    Reviewed-on: https://go-review.googlesource.com/7855
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I874d02a029f2ac9afc5ab666afb65760ec2c3177
+    Reviewed-on: https://go-review.googlesource.com/5522
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/html/template/escape_test.go | 15 +++++++++++++++
- src/html/template/template.go    |  3 +++
- src/text/template/exec.go        | 39 +++++++++++++++++++++++++--------------
- 3 files changed, 43 insertions(+), 14 deletions(-)
+ src/runtime/runtime-gdb.py      |  2 +-
+ src/runtime/runtime-gdb_test.go | 19 +++++++++++++++++--
+ 2 files changed, 18 insertions(+), 3 deletions(-)

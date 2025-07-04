@@ -1,12 +1,28 @@
-commit 5e7bae5082dcc2cd241b40c2bf50db6b28943827
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Sep 28 20:15:57 2016 +1000
+commit adf261b7d6ed17bdefadc29ff71ddaba667b1a99
+Author: Stephen McQuay (smcquay) <stephen@mcquay.me>
+Date:   Fri Jun 3 02:12:17 2016 -0700
 
-    doc: add testing Name method to go1.8.txt
+    cmd/go: match go-import package prefixes by slash
     
-    Change-Id: I6d413f747e6a6c30c5e0e9afdffd5ec18dce7e08
-    Reviewed-on: https://go-review.googlesource.com/29974
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The existing implementation for path collision resolution would
+    incorrectly determine that:
+    
+        example.org/aa
+    
+    collides with:
+    
+        example.org/a
+    
+    This change splits by slash rather than comparing on a byte-by-byte
+    basis.
+    
+    Fixes: #15947
+    
+    Change-Id: I18b3aaafbc787c81253203cf1328bb3c4420a0c4
+    Reviewed-on: https://go-review.googlesource.com/23732
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.8.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/vcs.go      | 18 +++++++++-
+ src/cmd/go/vcs_test.go | 94 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 111 insertions(+), 1 deletion(-)

@@ -1,12 +1,12 @@
-commit 893e02ab595042efa5a7b5230ca73626dd20a8de
+commit eedfc445a3a3f4a5fb26e167a1eba717a883ea7c
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 18 20:55:21 2011 -0400
+Date:   Fri Mar 18 18:23:00 2011 -0400
 
-    gopprof: update list of memory allocation functions
+    build: diagnose Ubuntu's buggy copy of gold
     
-    R=r, r2
+    R=iant, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4275057
+    https://golang.org/cl/4300041
 
- src/cmd/prof/gopprof | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/make.bash | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

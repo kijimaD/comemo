@@ -1,12 +1,14 @@
-commit dc6ec74f07e380f7414359acd8e2463fbbf7f0c2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 7 10:14:50 2012 -0700
+commit 9d063816ef42f90ae0af001f3348fc535fdef753
+Author: Jean-Marc Eurin <jmeurin@google.com>
+Date:   Mon May 7 11:46:01 2012 -0400
 
-    test/bench/shootout: fix gccgo binary-list-freelist test
+    misc/emacs: Restore the window position after a successful gofmt.
     
-    R=r
+    This adds restoring the window position so that the buffer doesn't jump around after the erase/copy.
+    
+    R=sameer
     CC=golang-dev
-    https://golang.org/cl/6202046
+    https://golang.org/cl/5981055
 
- test/bench/shootout/timing.sh | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/emacs/go-mode.el | 59 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 31 insertions(+), 28 deletions(-)

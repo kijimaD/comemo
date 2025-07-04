@@ -1,19 +1,85 @@
-commit ea52c78a66562b70eeb180610922b3077e2ce1e4
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Apr 20 11:09:16 2020 +0700
+commit bbae923d2032780851ba396147e9862d95ea4061
+Merge: 7e71c9c3ed 9cf6c65ca3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Nov 5 14:57:48 2019 -0500
 
-    cmd/compile: remove useless nil check in symfmt
+    cmd: merge branch 'dev.link' into master
     
-    This is followup of CL 228861, which remove another un-necessary nil
-    check for s.Pkg.
+    In the dev.link branch we implemented the new object file format
+    and (part of) the linker improvements described in
+    https://golang.org/s/better-linker
     
-    Passes toolstash-check.
+    The new object file is index-based and provides random access.
+    The linker maps the object files into read-only memory, and
+    access symbols on-demand using indices, as opposed to reading
+    all object files sequentially into the heap with the old format.
     
-    Change-Id: Ide750beddd2594199af21b56ec6af734dfa55b9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228862
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    The linker carries symbol informations using indices (as opposed
+    to Symbol data structure). Symbols are created after the
+    reachability analysis, and only created for reachable symbols.
+    This reduces the linker's memory usage.
+    
+    Linking cmd/compile, it creates ~25% fewer Symbols, and reduces
+    memory usage (inuse_space) by ~15%. (More results from Than.)
+    
+    Currently, both the old and new object file formats are supported.
+    The old format is used by default. The new format can be turned
+    on by using the compiler/assembler/linker's -newobj flag. Note
+    that the flag needs to be specified consistently to all
+    compilations, i.e.
+    
+    go build -gcflags=all=-newobj -asmflags=all=-newobj -ldflags=-newobj
+    
+    Change-Id: Ia0e35306b5b9b5b19fdc7fa7c602d4ce36fa6abd
 
- src/cmd/compile/internal/gc/fmt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/flags/flags.go         |    1 +
+ src/cmd/asm/main.go                         |   10 +-
+ src/cmd/compile/internal/gc/iexport.go      |   19 +
+ src/cmd/compile/internal/gc/iimport.go      |   17 +
+ src/cmd/compile/internal/gc/main.go         |    7 +-
+ src/cmd/compile/internal/gc/obj.go          |   34 +-
+ src/cmd/compile/internal/types/sym.go       |   11 +-
+ src/cmd/dist/buildtool.go                   |    2 +
+ src/cmd/dist/test.go                        |    2 +-
+ src/cmd/go/alldocs.go                       |    4 +-
+ src/cmd/go/internal/work/build.go           |    4 +-
+ src/cmd/go/internal/work/init.go            |    1 +
+ src/cmd/internal/dwarf/dwarf.go             |    8 +-
+ src/cmd/internal/goobj/read.go              |    8 +
+ src/cmd/internal/goobj/readnew.go           |  187 ++++
+ src/cmd/internal/goobj2/builtin.go          |   45 +
+ src/cmd/internal/goobj2/builtinlist.go      |  194 ++++
+ src/cmd/internal/goobj2/funcinfo.go         |  147 +++
+ src/cmd/internal/goobj2/mkbuiltin.go        |  124 +++
+ src/cmd/internal/goobj2/objfile.go          |  587 ++++++++++++
+ src/cmd/internal/obj/link.go                |   24 +-
+ src/cmd/internal/obj/objfile.go             |   14 +-
+ src/cmd/internal/obj/objfile2.go            |  429 +++++++++
+ src/cmd/internal/obj/sizeof_test.go         |    2 +-
+ src/cmd/internal/obj/sym.go                 |  176 ++++
+ src/cmd/link/internal/ld/data.go            |    6 +-
+ src/cmd/link/internal/ld/deadcode.go        |   75 +-
+ src/cmd/link/internal/ld/deadcode2.go       |  441 +++++++++
+ src/cmd/link/internal/ld/decodesym.go       |   56 +-
+ src/cmd/link/internal/ld/dwarf.go           |   14 +-
+ src/cmd/link/internal/ld/go.go              |   45 +-
+ src/cmd/link/internal/ld/lib.go             |  563 +++++++-----
+ src/cmd/link/internal/ld/link.go            |   13 +
+ src/cmd/link/internal/ld/main.go            |    8 +-
+ src/cmd/link/internal/ld/pcln.go            |    4 +-
+ src/cmd/link/internal/ld/symtab.go          |    2 +-
+ src/cmd/link/internal/ld/util.go            |    7 +
+ src/cmd/link/internal/loadelf/ldelf.go      |   35 +-
+ src/cmd/link/internal/loader/loader.go      | 1308 +++++++++++++++++++++++++++
+ src/cmd/link/internal/loadmacho/ldmacho.go  |   21 +-
+ src/cmd/link/internal/loadpe/ldpe.go        |   30 +-
+ src/cmd/link/internal/loadxcoff/ldxcoff.go  |   25 +-
+ src/cmd/link/internal/objfile/objfile.go    |    2 +-
+ src/cmd/link/internal/ppc64/asm.go          |    2 +-
+ src/cmd/link/internal/sym/symbol.go         |    2 +-
+ src/cmd/link/internal/sym/symbols.go        |   11 +
+ src/cmd/link/internal/sym/symkind.go        |    5 +
+ src/cmd/link/link_test.go                   |   65 ++
+ src/runtime/internal/atomic/sys_linux_arm.s |    4 +-
+ test/linkx.go                               |    6 +
+ 50 files changed, 4471 insertions(+), 336 deletions(-)

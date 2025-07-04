@@ -1,17 +1,18 @@
-commit f32519e5fbcf1b12f9654a6175e5e72b09ae8f3a
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Sat Jul 30 22:11:32 2022 +0800
+commit 5ec298d7b07c4a51149f57dece41f0e9c0d701c4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Mar 19 14:09:59 2021 +0000
 
-    runtime: fix typos
+    cmd/internal/obj/riscv: avoid obj.Prog rewriting for memory loads
     
-    Change-Id: I30c125be6cb321aa03ea827bd11c3169087e3d4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420314
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Rather than rewriting the obj.Prog for a MOV pseudo-instruction targeting
+    a memory to register load, generate the appropriate machine instruction
+    sequence directly.
+    
+    Change-Id: I4c7292ba00f576ec71d4842b6ff27a8ce6db0650
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344454
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/chan.go                   | 2 +-
- src/runtime/testdata/testprog/vdso.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscv64.s |  4 +-
+ src/cmd/internal/obj/riscv/obj.go           | 67 ++++++++++++++++-------------
+ 2 files changed, 39 insertions(+), 32 deletions(-)

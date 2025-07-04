@@ -1,19 +1,25 @@
-commit 356c8c54521efb02cc2a103ac2b80c77f54b4bcd
-Author: Kale Blankenship <kale@lemnisys.com>
-Date:   Tue May 3 09:32:19 2022 -0700
+commit b994cc69e05d7821a08f75619f356ecfe5ca9b43
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Jul 2 12:32:38 2021 -0700
 
-    archive/zip: remove unused File.descErr field
+    [dev.typeparams] cmd/compile:  separate out creating instantiations from creating dictionaries
     
-    Found via staticcheck. Unused as of CL 357489.
+    We often need to create a function/method instantiation, but not a
+    dictionary, because the call to the instantiation will be using a
+    sub-dictionary. Also, main dictionaries are only need for concrete,
+    non-gcshape types, whereas instantiations will be for gcshape types (or
+    concrete types, for strict stenciling).
     
-    Change-Id: I3aa409994ba4388912ac7e7809168529a5b6e31c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403814
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Kale B <kale@lemnisys.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Created a helper function getDictOrSubdict() to reduce duplicated code.
+    Also, moved gfGetGfInfo() call in getDictionarySym() inside conditional
+    where it is needed, to avoid extra work when dictionary has already been
+    created.
+    
+    Change-Id: I06587cb2ddc77de2f991e9f9eaf462d2c5a5d45e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332550
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/archive/zip/reader.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go   |   5 --
+ src/cmd/compile/internal/noder/stencil.go | 117 ++++++++++++++++--------------
+ 2 files changed, 62 insertions(+), 60 deletions(-)

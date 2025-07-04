@@ -1,22 +1,14 @@
-commit daed1fee8b8fb7e899fa137e5df62df01bd1c18d
-Author: Shivakumar GN <shivakumar.gn@gmail.com>
-Date:   Tue Aug 27 10:35:06 2013 -0700
+commit 2f81dfd53f5f0b422b038793f514cbf4ce58e573
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Tue Aug 27 08:41:43 2013 -0700
 
-    misc/pprof: pprof http used with net/http/pprof not working on windows/amd64
+    sort: harden limit in stable test
     
-    Removed posix assumptions in temporary file generation
-    Removed curl dependence
-    Changed opening of svg file
+    Reduce the number of allowed swap operations during stable sort. 
     
-    These must now work including symbol resolution.
-    [1] go tool pprof <prog_name> http://.../debug/pprof/profile
-    [2] go tool pprof http://.../debug/pprof/profile
-    
-    Fixes 6177.
-    
-    R=golang-dev, alex.brainman, bradfitz, kamil.kisiel
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13085043
+    https://golang.org/cl/12907045
 
- misc/pprof | 97 ++++++++++++++++++++++++++++++++------------------------------
- 1 file changed, 50 insertions(+), 47 deletions(-)
+ src/pkg/sort/sort_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

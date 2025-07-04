@@ -1,27 +1,20 @@
-commit e6504ce671afcf0a165be02f9e04f6a99ca08020
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Thu May 23 20:57:32 2024 +0000
+commit 5322e66a121abd65a5c19f4bdada12851e7f5857
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu May 11 16:09:38 2023 -0400
 
-    cmd/go: add compatibility tests for go mod tidy -diff
+    internal/coverage: implement conforming Seek method in slicereader
     
-    For #27005
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I90ab8c21222ac2189abb40e8c8e7549e2d940dd2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587941
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Implement a real Seek() method in the slicereader helper (prior to
+    this it had a simplified SeekTo function), so that slicereader's will
+    satisfy the ReadSeeker interface (needed in a subsequent patch).
+    
+    Change-Id: I832e3ec1e34d0f8c6b5edf390470f6f943c6ece0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495438
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/alldocs.go                              |  6 +-
- src/cmd/go/internal/modcmd/tidy.go                 |  6 +-
- src/cmd/go/internal/modfetch/fetch.go              |  2 +-
- src/cmd/go/internal/modload/load.go                | 10 +--
- src/cmd/go/testdata/script/mod_tidy_compat.txt     | 22 ++++++
- .../go/testdata/script/mod_tidy_compat_added.txt   | 20 +++++
- .../testdata/script/mod_tidy_compat_ambiguous.txt  | 34 +++++++++
- .../go/testdata/script/mod_tidy_compat_deleted.txt | 25 ++++++
- .../testdata/script/mod_tidy_compat_implicit.txt   | 20 +++++
- .../script/mod_tidy_compat_incompatible.txt        | 19 +++++
- .../testdata/script/mod_tidy_compat_irrelevant.txt | 18 +++++
- src/cmd/go/testdata/script/mod_tidy_diff.txt       | 55 ++++++++------
- .../go/testdata/script/mod_tidy_diff_compat.txt    | 88 ----------------------
- 13 files changed, 204 insertions(+), 121 deletions(-)
+ src/internal/coverage/decodemeta/decode.go       | 14 +++++++++---
+ src/internal/coverage/slicereader/slicereader.go | 29 ++++++++++++++++++++++--
+ src/internal/coverage/slicereader/slr_test.go    |  7 ++++--
+ 3 files changed, 43 insertions(+), 7 deletions(-)

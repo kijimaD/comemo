@@ -1,27 +1,33 @@
-commit b546f5071604db359caab7ae62ed66af308c27f4
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Tue Jul 19 11:04:33 2011 -0400
+commit 025abd530e2c5a010b295efbcbcef94aff0cd396
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 19 11:01:17 2011 -0400
 
-    runtime: make goc2c build on Plan 9
+    runtime: faster entersyscall, exitsyscall
     
-    pkg/runtime/Makefile:
-    . Adjusted so "goc2c.c" is built using the Plan 9 libraries.
+    Uses atomic memory accesses to avoid the need to acquire
+    and release schedlock on fast paths.
     
-    pkg/runtime/goc2c.c:
-    . Added/subtracted #include headers to correspond to Plan 9
-      toolkit.
-    . Changed fprintf(stderr,...)/exit() combinations to
-      sysfatal() calls, adjusted the "%u" format to "%ud".
-    . Added exits(0) at the end of main().
-    . Made main() a void-returning function and removed the
-      "return 0" at the end of it.
+    benchmark                            old ns/op    new ns/op    delta
+    runtime_test.BenchmarkSyscall               73           31  -56.63%
+    runtime_test.BenchmarkSyscall-2            538           74  -86.23%
+    runtime_test.BenchmarkSyscall-3            508          103  -79.72%
+    runtime_test.BenchmarkSyscall-4            721           97  -86.52%
+    runtime_test.BenchmarkSyscallWork          920          873   -5.11%
+    runtime_test.BenchmarkSyscallWork-2        516          481   -6.78%
+    runtime_test.BenchmarkSyscallWork-3        550          343  -37.64%
+    runtime_test.BenchmarkSyscallWork-4        632          263  -58.39%
     
-    Tested on UBUNTU and Plan 9 only.
+    (Intel Core i7 L640 2.13 GHz-based Lenovo X201s)
     
-    R=r, rsc
+    Reduced a less artificial server benchmark
+    from 11.5r 12.0u 8.0s to 8.3r 9.1u 1.0s.
+    
+    R=dvyukov, r, bradfitz, r, iant, iant
     CC=golang-dev
-    https://golang.org/cl/4626093
+    https://golang.org/cl/4723042
 
- src/pkg/runtime/Makefile |  2 +-
- src/pkg/runtime/goc2c.c  | 96 +++++++++++++++++++++++++-----------------------
- 2 files changed, 51 insertions(+), 47 deletions(-)
+ src/pkg/runtime/export_test.go |   6 +
+ src/pkg/runtime/proc.c         | 395 ++++++++++++++++++++++++--------
+ src/pkg/runtime/proc.p         | 506 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/proc_test.go   |  50 ++++
+ 4 files changed, 857 insertions(+), 100 deletions(-)

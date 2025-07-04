@@ -1,23 +1,14 @@
-commit ef24fd739bcf94e3f703af324afdeefa6577dc74
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed May 9 12:30:43 2018 +0530
+commit 24cdb0f9657a6b69c823e6e9386d48e5ab6bd221
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Tue Feb 13 01:15:38 2018 +0000
 
-    net/http/pprof: update the /debug/pprof endpoint
+    doc: fix typo in OverflowInt godoc
     
-    - Documented the duration parameter in Profile() to match with Trace().
-    
-    - Properly handling the error from strconv.ParseInt to match with Trace().
-    
-    - Updated the profiles tables to include additional handlers exposed from
-    net/http/pprof. Added a separate section at the bottom to explain what
-    the profiles are and how to use them.
-    
-    Fixes #24380
-    
-    Change-Id: I8b7e100d6826a4feec81f29f918e7a7f7ccc71a0
-    Reviewed-on: https://go-review.googlesource.com/112495
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I426310e0c05c2b4a0123299ade0fe11721d40b10
+    GitHub-Last-Rev: 651c0291d6f2561e3e179a0b97e0e73ac6d21e2f
+    GitHub-Pull-Request: golang/go#23801
+    Reviewed-on: https://go-review.googlesource.com/93475
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/pprof/pprof.go      | 75 +++++++++++++++++++++++++++++++++++-----
- src/net/http/pprof/pprof_test.go | 12 +++++++
- 2 files changed, 79 insertions(+), 8 deletions(-)
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

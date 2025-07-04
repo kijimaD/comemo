@@ -1,18 +1,31 @@
-commit da0a6f4b57fc9eb4779c295bc9620c5ed271a641
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 12 13:25:01 2022 -0700
+commit 3cd15e02ed26d86556cb59ff509a1f5a08bca29e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Apr 30 18:09:01 2021 -0400
 
-    spec: fix prose about promoted methods of embedded fields
+    [dev.cmdgo] cmd: pull in x/mod on the dev.cmdgo branch
     
-    The types of embedded fields must be named, but they don't
-    need to be defined types (e.g. if the type name is an alias).
+    This change changes the requirement on golang.org/x/mod to require the
+    top of the dev.cmdgo branch of that repository. This allows the code
+    on this branch to use the changes on the branch on that repo for parsing
+    go.work files. It also vendors in those changes using go mod vendor.
     
-    Fixes #41687.
+    Generated using:
+      go get -d golang.org/x/mod@dev.cmdgo
+      go mod tidy
+      go mod vendor
     
-    Change-Id: Ib9de65dfab0e23c27d8303875fa45c217aa03331
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406054
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    For #45713
+    
+    Change-Id: I7a20835937c13f90d17c0f39d96b435daec89fba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334933
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go.mod                                  |   2 +-
+ src/cmd/go.sum                                  |   4 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 250 ++++++++++++++++--------
+ src/cmd/vendor/golang.org/x/mod/modfile/work.go | 234 ++++++++++++++++++++++
+ src/cmd/vendor/modules.txt                      |   2 +-
+ 5 files changed, 407 insertions(+), 85 deletions(-)

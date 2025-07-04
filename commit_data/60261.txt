@@ -1,0 +1,18 @@
+commit 1831437f197d43608c8086dc42530a89d975aba2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 4 15:14:39 2024 -0700
+
+    math/big: better doc string for Float.Copy, add example test
+    
+    Fixes #66358.
+    
+    Change-Id: Ic9bde88eabfb2a446d32e1dc5ac404a51ef49f11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590635
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/math/big/float.go             |  5 ++---
+ src/math/big/floatexample_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 3 deletions(-)

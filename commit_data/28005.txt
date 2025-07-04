@@ -1,14 +1,16 @@
-commit fe251d2581420811891741b49f38737c9fa4e1cc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 7 21:01:21 2016 -0700
+commit 2bf7034d87c051ff3d3fcce9f62d7ef2d2f4108d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 10:48:45 2016 -0400
 
-    runtime: remove unused function in test
+    cmd/go: disable failing TestGoGetInsecure
     
-    Change-Id: I43f14cdd9eb4a1d5471fc88c1b4759ceb2c674cf
-    Reviewed-on: https://go-review.googlesource.com/24817
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Update #15410
+    
+    Change-Id: Iad3f2639aa7a67b11efc35a629e1893f7d87b957
+    Reviewed-on: https://go-review.googlesource.com/22430
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/testdata/testprogcgo/threadpprof.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/cmd/go/go_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

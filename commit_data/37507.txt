@@ -1,25 +1,17 @@
-commit 2b4f24a2d2cbdefe3cb578ef37804cf05c1f5b00
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 5 15:41:04 2016 -0800
+commit 79fe6f98545219d14f92c8c87159133c4c1b1a78
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 31 18:32:25 2018 -0400
 
-    cmd/compile: randomize value order in block for testing
+    cmd/go: fetch history as needed to resolve recent tags
     
-    A little bit of compiler stress testing. Randomize the order
-    of the values in a block before every phase. This randomization
-    makes sure that we're not implicitly depending on that order.
+    Fixes #26713.
     
-    Currently the random seed is a hash of the function name.
-    It provides determinism, but sacrifices some coverage.
-    Other arrangements are possible (env var, ...) but require
-    more setup.
+    Tested with Git 2.7.4. Older Gits may or may not work.
     
-    Fixes #20178
-    
-    Change-Id: Idae792a23264bd9a3507db6ba49b6d591a608e83
-    Reviewed-on: https://go-review.googlesource.com/c/33909
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib72d751388dfbb50030191ae40f788d1402834b2
+    Reviewed-on: https://go-review.googlesource.com/126956
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go  | 18 ++++++++++++++++++
- src/cmd/compile/internal/ssa/nilcheck.go |  2 +-
- test/run.go                              | 13 +++++++++++++
- 3 files changed, 32 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/codehost/git.go  | 99 +++++++++++++++++++++++----
+ src/cmd/go/testdata/script/mod_get_pseudo.txt | 68 ++++++++++--------
+ 2 files changed, 122 insertions(+), 45 deletions(-)

@@ -1,55 +1,32 @@
-commit 0d7dc6842b3de170fcc8c72aa4380269b8f21f80
-Author: Mark Ryan <markdryan@rivosinc.com>
-Date:   Tue May 6 14:07:09 2025 +0200
+commit 0bf6071066cb075b8076962f590932e0caa526a7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Mar 29 23:44:59 2024 +0000
 
-    cmd/internal/obj/riscv: fix vector integer multiply add
+    Revert "cmd/compile/internal: merge stack slots for selected local auto vars"
     
-    The RISC-V integer vector multiply add instructions are not encoded
-    correctly; the first and second arguments are swapped. For example,
-    the instruction
+    This reverts CL 553055.
     
-    VMACCVV V1, V2, V3
+    Reason for revert: causes crypto/ecdsa failures on linux ppc64/s390x builders
     
-    encodes to
-    
-    b620a1d7 or vmacc.vv v3,v1,v2
-    
-    and not
-    
-    b61121d7 or vmacc.vv v3,v2,v1
-    
-    as expected.
-    
-    This is inconsistent with the argument ordering we use for 3
-    argument vector instructions, in which the argument order, as given
-    in the RISC-V specifications, is reversed, and also with the vector
-    FMA instructions which have the same argument ordering as the vector
-    integer multiply add instructions in the "The RISC-V Instruction Set
-    Manual Volume I". For example, in the ISA manual we have the
-    following instruction definitions
-    
-    ; Integer multiply-add, overwrite addend
-    vmacc.vv vd, vs1, vs2, vm    # vd[i] = +(vs1[i] * vs2[i]) + vd[i]
-    
-    ; FP multiply-accumulate, overwrites addend
-    vfmacc.vv vd, vs1, vs2, vm    # vd[i] = +(vs1[i] * vs2[i]) + vd[i]
-    
-    It's reasonable to expect that the Go assembler would use the same
-    argument ordering for both of these instructions. It currently does
-    not.
-    
-    We fix the issue by switching the argument ordering for the vector
-    integer multiply add instructions to match those of the vector FMA
-    instructions.
-    
-    Change-Id: Ib98e9999617f991969e5c831734b3bb3324439f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670335
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I9266b030693a5b6b1e667a009de89d613755b048
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575236
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s        | 60 +++++++++++-----------
- .../asm/internal/asm/testdata/riscv64validation.s  | 14 ++---
- src/cmd/internal/obj/riscv/obj.go                  |  6 +--
- 3 files changed, 40 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/base/debug.go             |   4 -
+ src/cmd/compile/internal/base/flag.go              |   4 -
+ src/cmd/compile/internal/base/hashdebug.go         |   7 +-
+ src/cmd/compile/internal/ir/name.go                |   3 -
+ src/cmd/compile/internal/liveness/mergelocals.go   | 691 ---------------------
+ src/cmd/compile/internal/liveness/plive.go         |  24 +-
+ src/cmd/compile/internal/ssa/check.go              |   5 +-
+ src/cmd/compile/internal/ssa/func.go               |  22 +-
+ src/cmd/compile/internal/ssagen/pgen.go            |  69 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |   9 +-
+ src/cmd/compile/internal/test/mergelocals_test.go  | 184 ------
+ .../test/testdata/mergelocals/integration.go       |  83 ---
+ src/cmd/compile/internal/walk/temp.go              |   4 +-
+ test/fixedbugs/bug385_64.go                        | 625 +++++++------------
+ 14 files changed, 222 insertions(+), 1512 deletions(-)

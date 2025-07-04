@@ -1,24 +1,24 @@
-commit a6c8fac78194bf84eb75c845f2a80646211877c5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 6 16:20:50 2019 +0000
+commit cd33d271b47bf3b56c67bf9ab73176ed4504efe9
+Author: Javier Revillas <jrevillas@massivedynamic.io>
+Date:   Sun Aug 25 16:05:41 2019 +0000
 
-    os: skip a new failing test on Windows
+    net/http: fix a typo in comments
     
-    This test was recently added in CL 209961.
+    HTTP is an initialism, not an acronym, where you pronounce each letter as a
+    word. It's "an H", not "a H".
     
-    Apparently Windows can't seek a directory filehandle?
+    Running `find src/net/http -type f | xargs grep -n 'an HTTP' | wc -l` shows
+    that the "an HTTP" form is used 67 times across the `net/http` package.
+    Furthermore, `find src/net/http -type f | xargs grep -n 'a HTTP' | wc -l`
+    yields only 4 results.
     
-    And move the test from test/fixedbugs (which is mostly for compiler bugs) to
-    an os package test.
-    
-    Updates #36019
-    
-    Change-Id: I626b69b0294471014901d0ccfeefe5e2c7651788
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210283
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I219c292a9e2c9bf7a009dbfe82ea8b15874685e9
+    GitHub-Last-Rev: 6ebd095023af47444b6b0fc5b6d7b26d85f4c7b7
+    GitHub-Pull-Request: golang/go#33810
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191700
+    Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/os_test.go            | 42 ++++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue35767.go | 51 --------------------------------------------
- 2 files changed, 42 insertions(+), 51 deletions(-)
+ src/net/http/httptrace/trace.go | 4 ++--
+ src/net/http/request.go         | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

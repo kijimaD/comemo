@@ -1,23 +1,43 @@
-commit c2bd9ee2dbec88d4fd1b21aefa21cd988d01b880
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 18 13:10:04 2021 -0700
+commit 02820d61a9d0027140e6da567323e0822d513358
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 3 18:15:50 2020 -0800
 
-    cmd/compile: only sort methods/interfaces during export for -d=unifiedquirks
+    [dev.typeparams] test: enable some more errorcheck tests
     
-    These sorts are only important for 'toolstash -cmp' testing of unified
-    IR against -G=0 mode, but they were added before I added
-    -d=unifiedquirks to allow altering small "don't care" output details
-    like this.
-    
-    This CL should help mitigate issues with #44195 until package
-    objectpath is updated and deployed.
-    
-    Change-Id: Ia3dcf359481ff7abad5ddfca8e673fd2bb30ae01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343390
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I103e3eeacd5b11efd63c965482a626878ba5ac81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275216
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/typecheck/iexport.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ test/copy1.go                |  8 ++---
+ test/fixedbugs/issue10975.go |  2 +-
+ test/fixedbugs/issue11361.go |  4 +--
+ test/fixedbugs/issue11371.go | 12 +++----
+ test/fixedbugs/issue8385.go  |  8 ++---
+ test/fixedbugs/issue8438.go  |  6 ++--
+ test/fixedbugs/issue8440.go  |  2 +-
+ test/fixedbugs/issue8745.go  |  2 +-
+ test/fixedbugs/issue9083.go  |  1 +
+ test/fixedbugs/issue9370.go  | 12 +++----
+ test/fixedbugs/issue9432.go  |  2 +-
+ test/fixedbugs/issue9521.go  |  4 +--
+ test/fixedbugs/issue9634.go  |  2 +-
+ test/func1.go                |  2 +-
+ test/funcdup.go              | 24 +++++++-------
+ test/funcdup2.go             | 12 +++----
+ test/init.go                 |  2 +-
+ test/initloop.go             |  2 +-
+ test/makenew.go              |  8 ++---
+ test/map1.go                 |  6 ++--
+ test/method2.go              |  6 ++--
+ test/method6.go              |  2 +-
+ test/named1.go               |  2 +-
+ test/rename1.go              |  2 +-
+ test/run.go                  | 77 +++++++++++++++-----------------------------
+ test/runtime.go              |  2 +-
+ test/typecheckloop.go        |  4 +--
+ test/typeswitch3.go          |  6 ++--
+ test/varerr.go               |  2 +-
+ 29 files changed, 100 insertions(+), 124 deletions(-)

@@ -1,0 +1,23 @@
+commit 91d7ab2cefcc653f8b438fbfaa48d504dbfa4f00
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 26 11:40:28 2024 -0500
+
+    cmd/internal/obj: handle static assembly symbols correctly in FIPS check
+    
+    Static symbols don't have the package prefix, so we need to identify
+    them specially.
+    
+    Change-Id: Iaa0456de802478f6a257164e9703f18f8dc7eb50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631975
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/obj/fips140.go                    | 76 ++++++++++++----------
+ .../internal/fips140/check/checktest/asm_386.s     | 23 +++++++
+ .../internal/fips140/check/checktest/asm_amd64.s   | 23 +++++++
+ .../internal/fips140/check/checktest/asm_arm.s     | 23 +++++++
+ .../internal/fips140/check/checktest/asm_arm64.s   | 23 +++++++
+ .../internal/fips140/check/checktest/asm_none.go   | 12 ++++
+ .../internal/fips140/check/checktest/asm_stub.go   | 12 ++++
+ src/crypto/internal/fips140test/check_test.go      |  9 +++
+ 8 files changed, 167 insertions(+), 34 deletions(-)

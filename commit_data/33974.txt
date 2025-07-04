@@ -1,19 +1,13 @@
-commit 484586c81a0196e42ac52f651bc56017ca454280
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 9 18:08:43 2018 +0000
+commit cc6e26b2e1ecfa4c756c4e3d09fd75e8d8d8ec2e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 22 13:17:14 2017 -0400
 
-    strings: prevent copyCheck from forcing Builder to escape and allocate
+    [dev.boringcrypto] api: add crypto/x509.VerifyOptions.IsBoring to make release builder happy
     
-    All credit and blame goes to Ian for this suggestion, copied from the
-    runtime.
-    
-    Fixes #23382
-    Updates #7921
-    
-    Change-Id: I3d5a9ee4ab730c87e0f3feff3e7fceff9bcf9e18
-    Reviewed-on: https://go-review.googlesource.com/86976
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5ee574a04c1ec9b8f60c0b74ecd0301809671cb3
+    Reviewed-on: https://go-review.googlesource.com/65430
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/strings/builder.go      | 19 ++++++++++++++++++-
- src/strings/builder_test.go | 12 ++++++++++++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ api/go1.9.txt | 1 +
+ 1 file changed, 1 insertion(+)

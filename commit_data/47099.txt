@@ -1,57 +1,20 @@
-commit e741e2fe0e51840b16bfc84d8daaba7670e7aac9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 28 15:00:33 2021 -0400
+commit 07c658316b411a4b0e71a3a7e78b970b091795ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 16:59:29 2021 -0800
 
-    cmd/go: consolidate fuzz-support checks
+    io/ioutil: forward TempFile and TempDir to os package
     
-    We had been repeating conditions for specific platforms and
-    architectures to gate fuzzing tests, but the more of those tests we
-    add the more we will have to update if the set of supported platforms
-    and archictures expands over time.
+    For #42026
+    Fixes #44311
     
-    We also ought to provide a friendlier error message when
-    'go test -fuzz' is used on non-supported platforms.
-    
-    This change adds predicates in cmd/internal/sys, which already
-    contains similar predicates for related functionality (such as the
-    race detector), and uses those predicates in 'go test' and TestScript.
-    
-    For #48495
-    
-    Change-Id: If24c3997aeb4d201258e21e5b6cf4f7c08fbadd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359481
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I3dabcf902d155f95800b4adf1d7578906a194ce6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285378
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/go/go_test.go                              | 12 +++++++----
- src/cmd/go/internal/test/test.go                   | 12 ++++++++---
- src/cmd/go/internal/work/init.go                   | 15 +-------------
- src/cmd/go/script_test.go                          |  4 ++++
- src/cmd/go/testdata/script/README                  |  2 ++
- src/cmd/go/testdata/script/test_fuzz.txt           |  5 ++---
- src/cmd/go/testdata/script/test_fuzz_cache.txt     |  7 +------
- src/cmd/go/testdata/script/test_fuzz_chatty.txt    |  4 +---
- src/cmd/go/testdata/script/test_fuzz_cleanup.txt   |  3 +--
- src/cmd/go/testdata/script/test_fuzz_deadline.txt  |  4 +---
- src/cmd/go/testdata/script/test_fuzz_fuzztime.txt  |  4 +---
- src/cmd/go/testdata/script/test_fuzz_io_error.txt  |  2 +-
- src/cmd/go/testdata/script/test_fuzz_match.txt     |  3 +--
- src/cmd/go/testdata/script/test_fuzz_minimize.txt  |  4 +---
- .../script/test_fuzz_minimize_interesting.txt      |  6 +-----
- src/cmd/go/testdata/script/test_fuzz_multiple.txt  |  4 +---
- .../go/testdata/script/test_fuzz_mutate_crash.txt  |  3 +--
- .../go/testdata/script/test_fuzz_mutate_fail.txt   |  3 +--
- src/cmd/go/testdata/script/test_fuzz_mutator.txt   |  3 +--
- .../testdata/script/test_fuzz_non_crash_signal.txt |  4 ++--
- src/cmd/go/testdata/script/test_fuzz_parallel.txt  |  4 +---
- src/cmd/go/testdata/script/test_fuzz_run.txt       |  6 ++----
- .../go/testdata/script/test_fuzz_seed_corpus.txt   | 10 ++--------
- src/cmd/go/testdata/script/test_fuzz_setenv.txt    |  2 +-
- .../go/testdata/script/test_fuzz_unsupported.txt   | 18 +++++++++++++++++
- src/cmd/internal/sys/supported.go                  | 23 ++++++++++++++++++++++
- src/internal/fuzz/counters_unsupported.go          |  6 ++++++
- src/internal/fuzz/sys_unimplemented.go             |  3 ++-
- 28 files changed, 96 insertions(+), 80 deletions(-)
+ src/io/ioutil/export_test.go   |   7 ---
+ src/io/ioutil/tempfile.go      | 108 +++--------------------------------------
+ src/io/ioutil/tempfile_test.go |  13 ++---
+ 3 files changed, 13 insertions(+), 115 deletions(-)

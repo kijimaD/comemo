@@ -1,18 +1,25 @@
-commit 44ab8bab1ce14eba5486b288a4930c832ea5342e
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Sep 24 01:48:03 2015 +0200
+commit 9c55792cf1bfa3cd26f9df99f8a251fa1cf3c3b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 12:20:18 2015 -0400
 
-    compile/internal/gc,internal/obj: remove some usages of obj.Bool2int
+    go/build: update deps list
     
-    Passes go build -toolexec 'toolstash -cmp' -a std.
+    A while back we discovered that the dependencies test allowed
+    arbitrary dependencies for packages we forgot to list.
+    To stop the damage we added a grandfathered list and fixed
+    the code to expect unlisted packages to have no dependencies.
     
-    Change-Id: Iea8c7bba2401f61ddf2caffc4bece2c293d10f74
-    Reviewed-on: https://go-review.googlesource.com/14951
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This CL replaces the grandfathered list with some more
+    careful placement of dependency rules.
+    
+    Thankfully, there were no terrible inversions.
+    
+    Fixes #10487.
+    
+    Change-Id: I5a6f92435bd2c66c47ec8ab629edbd88b189f028
+    Reviewed-on: https://go-review.googlesource.com/12575
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/gsubr.go     |  4 +++-
- src/cmd/compile/internal/gc/typecheck.go |  8 +++----
- src/cmd/internal/obj/arm64/asm7.go       | 36 ++++++++++++++++----------------
- 3 files changed, 25 insertions(+), 23 deletions(-)
+ src/go/build/deps_test.go | 146 +++++++++++++++++++++++-----------------------
+ 1 file changed, 72 insertions(+), 74 deletions(-)

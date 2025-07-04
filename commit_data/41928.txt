@@ -1,36 +1,27 @@
-commit 28a55d01236d27390e20bb35093c2a590ca42e47
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Fri Apr 10 14:56:59 2020 -0400
+commit 48a0b979022d604771767cd03634986669c064ab
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Nov 1 10:58:27 2019 -0400
 
-    cmd/trace: use the focustask mode for user task/region trace views
+    [dev.link] cmd/link: set cgo attributes early when internal cgo linking
     
-    The taskid mode is based on the goroutine-oriented trace view,
-    which displays each goroutine as a separate row. This is good when
-    inspecting the interaction and timeline among related goroutines,
-    and the user region information (associated with each goroutine)
-    in detail, but when many goroutines are involved, this mode does
-    not scale.
+    In newobj mode, cgo attributes are typically set later, as we
+    create sym.Symbols later. But when internal cgo linking, the
+    host object loaders still work with sym.Symbols, and the cgo
+    attributes need to be set for them to work properly. Therefore,
+    set them early. This will cause creating some Symbols eagerly,
+    but they are mostly host object symbols and will need to be
+    created anyway.
     
-    The focustask mode is based on the default trace view with the
-    user task hierarchy at the top. Each row is a P and there are only
-    a handful number of Ps in most cases, so browsers can handle
-    this mode more gracefully. But, I had difficulty in displaying
-    the user region information (because a goroutine can start/stop/
-    migrate across Ps, and visualizing the stack of regions nicely
-    was complicated). It may be doable, but it's a work.
+    Now all cgo internal linking tests pass on ELF systems.
     
-    This CL surfaces the hidden focustask mode. Moreover, use it
-    as the default user task view mode. The taskid mode can be still
-    accessible through 'goroutine view' links.
-    
-    Unlike taskid-based user annotation view that extends goroutine-based
-    trace view, the focustask view
-    
-    Change-Id: Ib691a5e1dd14695fa70a0ae67bff62817025e8c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227921
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I023a4df4429acc8ebf5e185f62e6809198497a78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204857
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/trace/annotations.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/go.go             | 12 ++++++------
+ src/cmd/link/internal/ld/lib.go            | 15 ++++++++++++++-
+ src/cmd/link/internal/loadelf/ldelf.go     | 19 +------------------
+ src/cmd/link/internal/loader/loader.go     | 25 ++++++++++++++++++++++++-
+ src/cmd/link/internal/loadmacho/ldmacho.go | 11 +----------
+ src/cmd/link/internal/loadxcoff/ldxcoff.go | 11 +----------
+ 6 files changed, 47 insertions(+), 46 deletions(-)

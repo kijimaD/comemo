@@ -1,6 +1,6 @@
-commit 4abbdc0399e401151ea4d4abdab018dc457b8275
+commit 58a92bd1ef8bace0c8b97516b2a97fb876249ff1
 Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Aug 12 18:00:31 2011 +0200
+Date:   Fri Aug 12 17:44:14 2011 +0200
 
     exp/norm: generate trie struct in triegen.go for better encapsulation.
     
@@ -8,5 +8,8 @@ Date:   Fri Aug 12 18:00:31 2011 +0200
     CC=golang-dev
     https://golang.org/cl/4837071
 
- src/pkg/exp/norm/trie_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/norm/tables.go        | 914 +++++++++++++++++++-------------------
+ src/pkg/exp/norm/trie_test.go     |   2 +-
+ src/pkg/exp/norm/triedata_test.go |   2 +
+ src/pkg/exp/norm/triegen.go       |   1 +
+ 4 files changed, 464 insertions(+), 455 deletions(-)

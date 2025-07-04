@@ -1,33 +1,13 @@
-commit b4109f801a2b51978e1ddc1918a4558a8d8ba36c
-Author: Péter Surányi <speter.go1@gmail.com>
-Date:   Wed Feb 20 16:19:52 2013 +1100
+commit 7f9c02a10d736d8d4c39717c82b69ec50e9677f1
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue Feb 19 18:05:44 2013 -0800
 
-    path/filepath, os/exec: unquote PATH elements on Windows
+    runtime: add conversion specifier to printf for char values
     
-    On Windows, directory names in PATH can be fully or partially quoted
-    in double quotes ('"'), but the path names as used by most APIs must
-    be unquoted. In addition, quoted names can contain the semicolon
-    (';') character, which is otherwise used as ListSeparator.
-    
-    This CL changes SplitList in path/filepath and LookPath in os/exec
-    to only treat unquoted semicolons as separators, and to unquote the
-    separated elements.
-    
-    (In addition, fix harmless test bug I introduced for LookPath on Unix.)
-    
-    Related discussion thread:
-    https://groups.google.com/d/msg/golang-nuts/PXCr10DsRb4/sawZBM7scYgJ
-    
-    R=rsc, minux.ma, mccoyst, alex.brainman, iant
+    R=r, golang-dev
     CC=golang-dev
-    https://golang.org/cl/7181047
+    https://golang.org/cl/7327053
 
- src/pkg/os/exec/lp_unix_test.go            |  5 +-
- src/pkg/os/exec/lp_windows.go              | 35 +++++++++++-
- src/pkg/path/filepath/path.go              |  5 +-
- src/pkg/path/filepath/path_plan9.go        |  7 +++
- src/pkg/path/filepath/path_test.go         | 30 +++++++++-
- src/pkg/path/filepath/path_unix.go         |  7 +++
- src/pkg/path/filepath/path_windows.go      | 33 +++++++++++
- src/pkg/path/filepath/path_windows_test.go | 89 ++++++++++++++++++++++++++++++
- 8 files changed, 203 insertions(+), 8 deletions(-)
+ src/pkg/runtime/print.c   | 10 ++++++++++
+ src/pkg/runtime/runtime.h |  1 +
+ 2 files changed, 11 insertions(+)

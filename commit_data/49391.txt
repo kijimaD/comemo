@@ -1,23 +1,20 @@
-commit 1b8ca75eaaff2985709ad61cc33c77a673c75a8c
-Author: Alejandro Sáez <asm@redhat.com>
-Date:   Mon May 23 12:07:47 2022 +0000
+commit ddffe30a21c909314a7bab8815505b709e921c3c
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 13:37:45 2021 -0400
 
-    runtime: fix breakpoint in ppc64x
+    go/types: rename TypeParams to TParamList
     
-    Currently runtime.Breakpoint generates a SIGSEGV in ppc64.
-    The solution is an unconditional trap similar to what clang and gcc do. It is documented in the section C.6 of the ABI Book 3.
+    This is a straightforward port of CL 341861 to go/types.
     
-    Fixes #52101
-    
-    Change-Id: I071d2f2679b695ef268445b04c9222bd74e1f9af
-    GitHub-Last-Rev: fff4e5e8ffe23bf0cef135b22abd2cc0a3838613
-    GitHub-Pull-Request: golang/go#52102
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397554
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I4f21170eb2ea1e5395a6eba5132f34aa1d53bb20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342481
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/asm_ppc64x.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/decl.go      |  2 +-
+ src/go/types/named.go     |  6 +++---
+ src/go/types/signature.go |  8 ++++----
+ src/go/types/typeparam.go | 14 +++++++-------
+ 4 files changed, 15 insertions(+), 15 deletions(-)

@@ -1,18 +1,12 @@
-commit e7f4df73320b5bea5d38191a9e3afc1ead43b91a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Aug 7 10:52:18 2015 +1000
+commit dbd83c4464ed37b350deae313eddf7babc3e4c41
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Jun 28 06:08:50 2015 -0700
 
-    doc: NaCl requires pepper 41
+    [dev.ssa] cmd/compile/internal/gc: Fix constant shift generation
     
-    Fixes #12062
-    Updates #11961
-    
-    The sRPC nameservice was removed in pepper 42. For Go 1.5 stipulate
-    that NaCl requires pepper 41 only.
-    
-    Change-Id: Ic88ba342d41f673391efaa96fb581712fa10a0fd
-    Reviewed-on: https://go-review.googlesource.com/13341
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ib142185de3f6e4d2f4983511c063492529d8fb8a
+    Reviewed-on: https://go-review.googlesource.com/11656
+    Reviewed-by: Michael Matloob <michaelmatloob@gmail.com>
 
- doc/go1.5.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 1 +
+ 1 file changed, 1 insertion(+)

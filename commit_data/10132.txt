@@ -1,12 +1,24 @@
-commit 785baa86f12f9f9a2746f66e59bae7c4cf032424
+commit 6808da0163a353f7c4d871a215417e0da4db71f8
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 18:04:29 2011 -0700
+Date:   Thu Oct 27 18:04:12 2011 -0700
 
-    html: fix print argument in test
+    runtime: lock the main goroutine to the main OS thread during init
     
-    R=nigeltao
+    We only guarantee that the main goroutine runs on the
+    main OS thread for initialization.  Programs that wish to
+    preserve that property for main.main can call runtime.LockOSThread.
+    This is what programs used to do before we unleashed
+    goroutines during init, so it is both a simple fix and keeps
+    existing programs working.
+    
+    R=iant, r, dave, dvyukov
     CC=golang-dev
-    https://golang.org/cl/5302069
+    https://golang.org/cl/5309070
 
- src/pkg/html/token_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/386/asm.s   | 11 +--------
+ src/pkg/runtime/amd64/asm.s | 11 +--------
+ src/pkg/runtime/arm/asm.s   | 16 +------------
+ src/pkg/runtime/debug.go    |  1 -
+ src/pkg/runtime/proc.c      | 57 +++++++++++++++++++++++++++++++++++----------
+ src/pkg/runtime/runtime.h   |  2 ++
+ 6 files changed, 50 insertions(+), 48 deletions(-)

@@ -1,17 +1,12 @@
-commit 510eea2dfcabbc8916c7c59aa37046269ad29497
-Author: Mikio Hara <mikioh.public.networking@gmail.com>
-Date:   Tue Nov 6 12:48:17 2018 +0900
+commit f4b8a5194eccb6865c7dcadc79430d9af930c48a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 16 17:05:59 2018 +0000
 
-    net/http: update bundled SOCKS client
+    doc: flesh out go1.11 notes
     
-    Updates socks_bundle.go to git rev 26e67e7 for:
-    - 26e67e7 internal/socks: fix socket descriptor leakage in Dialer.Dial
-    
-    Change-Id: I9ab27a85504d77f1ca2e97cb005f5e37fd3c3ff4
-    Reviewed-on: https://go-review.googlesource.com/c/147717
-    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    Change-Id: I0152d3c1d980e271fbcdb9d5def094d3c837a4f4
+    Reviewed-on: https://go-review.googlesource.com/124055
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/socks_bundle.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.11.html | 39 ++++++++++++++++++++++++++++-----------
+ 1 file changed, 28 insertions(+), 11 deletions(-)

@@ -1,28 +1,39 @@
-commit bf2aa6c233b0a1edca796fd78a02fef0f0251d5e
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Sep 23 11:43:19 2024 -0700
+commit eaae2d45c76d2d27e1b4c39ba57dd1582ab26491
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 26 19:06:33 2023 -0700
 
-    net/http: limit 1xx based on size, do not limit when delivered
+    cmd: simplify some handling of package paths
     
-    Replace Transport's limit of 5 1xx responses with a limit based
-    on MaxResponseHeaderBytes: The total number of responses
-    (including 1xx reponses and the final response) must not exceed
-    this value.
+    We have obj.Link.Pkgpath, so we don't need to pass it redundantly in
+    places where we already have an *obj.Link.
     
-    When the user is reading 1xx responses using a Got1xxResponse
-    client trace hook, disable the limit: Each 1xx response is
-    individually limited by MaxResponseHeaderBytes, but there
-    is no limit on the total number of responses. The user is
-    responsible for imposing a limit if they want one.
+    Also, renaming the parser's "compilingRuntime" field to "allowABI", to
+    match the "AllowAsmABI" name used by objabi.LookupPkgSpecial.
     
-    For #65035
+    Finally, push the handling of GOEXPERIMENT_* flags up to cmd/asm's
+    main entry point, by simply appending them to flags.D.
     
-    Change-Id: If4bbbbb0b808cb5016701d50963c89f0ce1229f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615255
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6ada134522b0cbc90d35bcb145fbe045338fefb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523297
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/transport.go      | 15 +++++-----
- src/net/http/transport_test.go | 66 +++++++++++++++++++++++++++++++++---------
- 2 files changed, 60 insertions(+), 21 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go  | 12 +++---
+ src/cmd/asm/internal/asm/expr_test.go      |  4 +-
+ src/cmd/asm/internal/asm/line_test.go      |  2 +-
+ src/cmd/asm/internal/asm/operand_test.go   |  6 +--
+ src/cmd/asm/internal/asm/parse.go          | 59 +++++++++++++++---------------
+ src/cmd/asm/internal/asm/pseudo_test.go    | 14 +++----
+ src/cmd/asm/internal/lex/input.go          | 22 ++---------
+ src/cmd/asm/internal/lex/lex.go            |  4 +-
+ src/cmd/asm/internal/lex/lex_test.go       |  4 +-
+ src/cmd/asm/main.go                        | 17 ++++++---
+ src/cmd/compile/internal/dwarfgen/dwinl.go |  2 +-
+ src/cmd/compile/internal/gc/obj.go         |  4 +-
+ src/cmd/compile/internal/objw/prog.go      |  2 +-
+ src/cmd/internal/dwarf/dwarf.go            |  1 -
+ src/cmd/internal/obj/dwarf.go              | 17 ++++++---
+ src/cmd/internal/obj/plist.go              |  6 +--
+ 16 files changed, 85 insertions(+), 91 deletions(-)

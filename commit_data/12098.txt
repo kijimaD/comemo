@@ -1,13 +1,14 @@
-commit c9bb042287c1e751865f6fa79503e800213d3514
+commit 3970d2fd5840f2361bb3398254d52ec45ae34660
 Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 21 15:49:08 2012 +1100
+Date:   Tue Feb 21 15:21:34 2012 +1100
 
-    net: more selfConnect debugging: panic if ra == nil in internetSocket
+    net: panic if sockaddrToTCP returns nil incorrectly
+    Part of diagnosing the selfConnect bug
     TBR=dsymonds
     
-    R=dsymonds
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5687058
+    https://golang.org/cl/5687057
 
- src/pkg/net/ipsock_posix.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/net/tcpsock_posix.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

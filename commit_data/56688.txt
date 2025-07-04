@@ -1,20 +1,19 @@
-commit 5c7d7745387f240dbbd31940dce8be2b3000c53d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri May 24 13:19:35 2024 -0400
+commit 10fbd925d6cd6b63acead9fbbfba8963f70a410e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 22 11:18:30 2023 -0400
 
-    cmd/link: propagate FromAssembly attribute when cloning symbols to external
+    net: skip TestFileFdBlocks if the "unix" network is not supported
     
-    When a symbol is cloned to external (in order to edit it),
-    propagate the FromAssembly attribute, so the linker knows it is
-    (originally) an assembly symbol, and can treat it specially (e.g.
-    for stack maps).
+    This may fix the android failures observed starting at CL 496080, such
+    as the one in
+    https://build.golang.org/log/7bfc4bd192e21c02a167d2d6a5649f1a2b63a8f1.
     
-    This should fix the Linux/RISCV64 builder.
-    
-    Change-Id: Icc956bcc43b79f328983a60835b05fd50f22326a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587926
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I4e8eaf9890da269bd1758f59a29fa2a8131d8ae6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496955
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/internal/loader/loader.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/net/file_unix_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

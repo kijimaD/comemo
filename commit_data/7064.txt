@@ -1,17 +1,17 @@
-commit 2d393034290661f5e78cf9b481aa8255b39eb488
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jan 8 10:22:37 2011 -0800
+commit 66a45b486b21f367e506bc7ef1b995a7649ab899
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Jan 8 10:29:37 2011 -0500
 
-    runtime: Restore scheduler stack position if cgo callback panics.
+    encoding/line: add
     
-    If we don't do this, then when C code calls back to Go code
-    which panics, we lose space on the scheduler stack.  If that
-    happens a lot, eventually there is no space left on the
-    scheduler stack.
+    I needed a way to read lines without worrying about \n and \r\n.
     
-    R=rsc
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/3898042
+    https://golang.org/cl/2859041
 
- src/pkg/runtime/proc.c | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ src/pkg/Makefile                   |  1 +
+ src/pkg/encoding/line/Makefile     | 11 +++++
+ src/pkg/encoding/line/line.go      | 95 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/encoding/line/line_test.go | 89 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 196 insertions(+)

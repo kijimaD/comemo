@@ -1,32 +1,16 @@
-commit 0c12bdf73b1cf60ceb45f2a302cddba17e86a503
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Oct 18 15:21:46 2016 +0200
+commit c7b9bd745642677c8d4b3b76803a39b4e50b4d81
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 15 16:46:50 2016 -0700
 
-    net: always wake up the readers on close on Plan 9
+    cmd/compile: don't crash when exporting self-recursive interfaces
     
-    Previously, in acceptPlan9 we set netFD.ctl to the listener's
-    /net/tcp/*/listen file instead of the accepted connection's
-    /net/tcp/*/ctl file.
+    For #16369.
     
-    In netFD.Read, we write "close" to netFD.ctl to close the
-    connection and wake up the readers. However, in the
-    case of an accepted connection, we got the error
-    "write /net/tcp/*/listen: inappropriate use of fd"
-    because the /net/tcp/*/listen doesn't handle the "close" message.
-    
-    In this case, the connection wasn't closed and the readers
-    weren't awake.
-    
-    We modified the netFD structure so that netFD.ctl represents
-    the accepted connection and netFD.listen represents the
-    listener.
-    
-    Change-Id: Ie38c7dbaeaf77fe9ff7da293f09e86d1a01b3e1e
-    Reviewed-on: https://go-review.googlesource.com/31390
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4c9f5a66b95558adcc1bcface164b9b2b4382d2f
+    Reviewed-on: https://go-review.googlesource.com/24979
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/fd_plan9.go     | 43 +++++++++++++++++++++++++++++++------------
- src/net/file_plan9.go   |  2 +-
- src/net/ipsock_plan9.go | 25 ++++++++++++++++---------
- 3 files changed, 48 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 33 ++++++++++++++++++++++++++++++++-
+ src/go/types/stdlib_test.go            |  1 +
+ test/fixedbugs/issue16369.go           | 13 +++++++++++++
+ 3 files changed, 46 insertions(+), 1 deletion(-)

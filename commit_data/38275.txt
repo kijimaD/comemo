@@ -1,22 +1,25 @@
-commit edf8539fad89c22a7846196ae2f8920a480c1230
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 6 13:34:47 2019 -0500
+commit 4b36e129f865f802eb87f7aa2b25e3297c5d8cfd
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Oct 11 14:43:47 2018 +0100
 
-    cmd/go: run the 'go build' command in TestACL in the temp directory
+    encoding/json: always verify we can get a field's value
     
-    Otherwise, when the 'cmd' module is added the test will run as if in module 'cmd'.
+    Calling .Interface on a struct field's reflect.Value isn't always safe.
+    For example, if that field is an unexported anonymous struct.
     
-    While we're here, remove an unnecessary os.Chdir in TestAbsolutePath:
-    we can instead set the Dir on the 'go build' command instead. Then we
-    can run the tests in this file in parallel with everything else.
+    We only descended into this branch if the struct type had any methods,
+    so this bug had gone unnoticed for a few release cycles.
     
-    Updates #30228
+    Add the check, and add a simple test case.
     
-    Change-Id: I13ecd7ec93bc1041010daec14d76bac10e0c89be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165744
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #28145.
+    
+    Change-Id: I02f7e0ab9a4a0c18a5e2164211922fe9c3d30f64
+    Reviewed-on: https://go-review.googlesource.com/c/141537
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_windows_test.go | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+ src/encoding/json/decode.go      |  2 +-
+ src/encoding/json/decode_test.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

@@ -1,22 +1,19 @@
-commit 0304d035cd1a35762b0d1e394f13345e29107b63
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Apr 22 15:24:42 2024 +0000
+commit a5297f59a73aef5e965cd29b3e666836d6863243
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 21 15:28:19 2023 -0700
 
-    runtime: switch to systemstack before throw in casgstatus
+    runtime: use platform.RaceDetectorSupported for -race tests
     
-    CL 580255 increased the frame size of entersyscall and reentersyscall,
-    which is causing the x/sys repository to fail to build for
-    windows/arm64 because of an overflow of the nosplit stack reservation.
+    Don't try to duplicate the list of targets that support -race.
     
-    Fix this by wrapping the other call to throw in casgstatus in a system
-    stack switch. This is a fatal throw anyway indicating a core runtime
-    invariant is broken, so this path is basically never taken. This cuts
-    off the nosplit frame chain and allows x/sys to build.
-    
-    Change-Id: I00b16c9db3a7467413ed48953c7f8a9a750f000a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580775
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I889d5c2f4884de89d88f8efdc89608aa73584a8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487575
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/proc.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/runtime/crash_cgo_test.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

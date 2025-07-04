@@ -1,32 +1,12 @@
-commit eea18d959e962571af177e24df125e0e8cae5c56
+commit 6a13175f7decb03555476a3811abe67ac1ee8db0
 Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 1 12:47:35 2011 -0800
+Date:   Tue Feb 1 12:47:09 2011 -0800
 
-    log: rename Exit* to Fatal*
-    This aligns the naming scheme with the testing package and
-    also lets govet work on more logging calls.
+    govet: add Panic to the list of functions
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4001048
+    https://golang.org/cl/4119049
 
- doc/codelab/wiki/get.go             |  8 +++---
- doc/codelab/wiki/srcextract.go      |  2 +-
- doc/effective_go.html               |  4 +--
- doc/htmlgen.go                      |  2 +-
- misc/dashboard/builder/main.go      | 10 ++++----
- misc/goplay/goplay.go               |  4 +--
- src/cmd/godoc/godoc.go              |  6 ++---
- src/cmd/godoc/main.go               | 10 ++++----
- src/pkg/exec/lp_test.go             |  2 +-
- src/pkg/http/server.go              |  4 +--
- src/pkg/log/log.go                  | 28 ++++++++++-----------
- src/pkg/netchan/export.go           |  2 +-
- src/pkg/netchan/import.go           |  4 +--
- src/pkg/rpc/server.go               | 10 ++++----
- src/pkg/rpc/server_test.go          |  2 +-
- src/pkg/syslog/syslog_test.go       |  2 +-
- src/pkg/unicode/maketables.go       | 50 ++++++++++++++++++-------------------
- src/pkg/websocket/websocket_test.go |  2 +-
- test/garbage/parser.go              |  2 +-
- 19 files changed, 77 insertions(+), 77 deletions(-)
+ src/cmd/govet/govet.go | 2 ++
+ 1 file changed, 2 insertions(+)

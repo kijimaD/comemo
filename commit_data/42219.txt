@@ -1,34 +1,22 @@
-commit 1d31f9b1e05d3766ed2132b5856d364d00c5fdf9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 28 16:54:44 2020 -0700
+commit 9af8794353d2c19621c0264f9a3f78d671fc86ef
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 15 13:13:16 2019 -0500
 
-    strconv: implement parseFloatPrefix returning no. of bytes consumed
+    test: avoid writing temporary files to GOROOT
     
-    parseFloatPrefix will make it easier to implement ParseComplex.
+    Updates #28387
+    Fixes #35619
     
-    Verified that there's no relevant performance impact:
-    Benchmarks run on a "quiet" MacBook Pro, 3.3GHz Dual-Core Intel Core i7,
-    with 16GB 2133MHz LPDDR3 RAM running macOS 10.15.4.
-    
-    name                  old time/op  new time/op  delta
-    Atof64Decimal-4       38.2ns ± 4%  38.4ns ± 3%    ~     (p=0.802 n=5+5)
-    Atof64Float-4         41.1ns ± 3%  43.0ns ± 1%  +4.77%  (p=0.008 n=5+5)
-    Atof64FloatExp-4      71.9ns ± 3%  70.1ns ± 1%    ~     (p=0.063 n=5+5)
-    Atof64Big-4            124ns ± 5%   119ns ± 0%    ~     (p=0.143 n=5+4)
-    Atof64RandomBits-4    57.2ns ± 1%  55.7ns ± 2%  -2.66%  (p=0.016 n=4+5)
-    Atof64RandomFloats-4  56.8ns ± 1%  56.9ns ± 4%    ~     (p=0.556 n=4+5)
-    Atof32Decimal-4       35.4ns ± 5%  35.9ns ± 0%    ~     (p=0.127 n=5+5)
-    Atof32Float-4         39.6ns ± 7%  40.3ns ± 1%    ~     (p=0.135 n=5+5)
-    Atof32FloatExp-4      73.7ns ± 7%  71.9ns ± 0%    ~     (p=0.175 n=5+4)
-    Atof32Random-4         103ns ± 6%    98ns ± 2%  -5.03%  (p=0.008 n=5+5)
-    
-    Updates #36771.
-    
-    Change-Id: I8ff66b582ae8b468d89c9ffc35c569c735cf0341
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230737
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I162f3427b7901c117e3f3e403df7edec7c529bd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207352
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strconv/atof.go          | 146 +++++++++++++++++++++++--------------------
- src/strconv/atof_test.go     |  21 +++++++
- src/strconv/internal_test.go |   4 ++
- 3 files changed, 104 insertions(+), 67 deletions(-)
+ src/cmd/dist/test.go        | 14 +++++++++-----
+ test/fixedbugs/bug302.go    | 24 ++++++++++++++++++------
+ test/fixedbugs/bug369.go    | 22 +++++++++++++---------
+ test/fixedbugs/issue9355.go |  3 +--
+ test/linkmain_run.go        | 44 +++++++++++++++++++++++++++-----------------
+ test/sinit_run.go           |  7 +++++--
+ 6 files changed, 73 insertions(+), 41 deletions(-)

@@ -1,19 +1,18 @@
-commit dfde9e8361264e9f551fc3836050e05de141b697
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Aug 4 04:58:40 2023 +0000
+commit 7ebaa6587bb0d0454c87796fd894c751f91f2bff
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 6 18:03:30 2022 -0400
 
-    os: replace "used to used" with "used to use" in description text
+    runtime: rename _func.entryoff to entryOff
     
-    Change-Id: I5445f3393373423592dfdd88b91d267c2c98d113
-    GitHub-Last-Rev: f554da58f49deb38101fd9ffba744bf4bf35ab55
-    GitHub-Pull-Request: golang/go#61749
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515798
+    To match _func.nameOff.
+    
+    Change-Id: I75e71cadaa0f7ca8844d1b49950673797b227074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428658
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/os/wait_waitid.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/runtime2.go | 2 +-
+ src/runtime/symtab.go   | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

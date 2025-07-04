@@ -1,19 +1,16 @@
-commit 2f2cd557a642b96a697b09cc84c0a5e342d41d3b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 21 22:06:39 2017 -0700
+commit 93726522ef2c403b7df8945892b641098ef9f803
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 2 23:27:02 2016 +0000
 
-    cmd/internal/obj: clean up brloop
+    runtime: skip GDB tests on mips64
     
-    Add docs.
-    Reduce indentation.
+    Updates #18173
     
-    Passes toolstash-check -all.
-    
-    Change-Id: I968d1af25989886ae9945052e05e211a107dde9c
-    Reviewed-on: https://go-review.googlesource.com/38443
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I4c667c89ba3bf16433a4cef7cb01054f1798667d
+    Reviewed-on: https://go-review.googlesource.com/33892
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/pass.go | 36 +++++++++++++++++++-----------------
- 1 file changed, 19 insertions(+), 17 deletions(-)
+ src/runtime/runtime-gdb_test.go | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

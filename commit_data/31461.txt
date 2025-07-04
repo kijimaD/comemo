@@ -1,31 +1,18 @@
-commit 00db0cbf8648ca5b856aa3bd0179d205e6626473
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 25 15:55:52 2017 -0700
+commit ffb3b3698c695b2ada052b803f11a2ffa12e5537
+Author: Alexander Döring <email@alexd.ch>
+Date:   Mon Feb 20 20:34:36 2017 +0100
 
-    cmd/compile: add minor bit twiddling optimizations
+    math: add more tests for special cases of Bessel functions Y0, Y1, Yn
     
-    Noticed while adding to the bitset implementation
-    in cmd/compile/internal/gc.
+    Test finite negative x with Y0(-1), Y1(-1), Yn(2,-1), Yn(-3,-1).
     
-    The (Com (Const)) optimizations were already present
-    in the AMD64 lowered optimizations.
-    They trigger 118, 44, 262, and 108 times
-    respectively for int sizes 8, 16, 32, and 64
-    in a run of make.bash.
+    Also test the special case Yn(0,0).
     
-    The (Or (And)) optimization is new.
-    It triggers 3 times for int size 8
-    and once for int size 64 during make.bash,
-    in packages internal/poll, reflect,
-    encoding/asn1, and go/types,
-    so there is a bit of natural test coverage.
+    Fixes #19130.
     
-    Change-Id: I44072864ff88831d5ec7dce37c516d29df056e98
-    Reviewed-on: https://go-review.googlesource.com/41758
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I95f05a72e1c455ed8ddf202c56f4266f03f370fd
+    Reviewed-on: https://go-review.googlesource.com/37310
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  16 +
- src/cmd/compile/internal/ssa/rewritegeneric.go | 560 ++++++++++++++++++++++++-
- 2 files changed, 572 insertions(+), 4 deletions(-)
+ src/math/all_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

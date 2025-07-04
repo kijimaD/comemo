@@ -1,16 +1,13 @@
-commit ede6718cd78853d409b8a7dccf8e7f4cedb6dd51
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Wed Jun 6 17:20:02 2012 -0400
+commit c53450a0722ad34437dbfffdd41a6dbe9e18aff9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 6 16:52:38 2012 -0400
 
-    runtime: move type kinds into a separate file
+    A+C: Daniel Morsing (individual CLA)
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6285047
+    https://golang.org/cl/6307048
 
- src/pkg/runtime/iface.c    |  1 +
- src/pkg/runtime/malloc.goc |  1 +
- src/pkg/runtime/slice.c    |  1 +
- src/pkg/runtime/type.h     | 32 +-------------------------------
- src/pkg/runtime/typekind.h | 38 ++++++++++++++++++++++++++++++++++++++
- 5 files changed, 42 insertions(+), 31 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

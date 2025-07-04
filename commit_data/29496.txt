@@ -1,26 +1,19 @@
-commit 238247eb59cdddeedaa5c5db67734df2cd1049ab
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 11 17:14:02 2016 +0000
+commit 5c0fbf052b8ab98c0a1dd74365912d33572be4f3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 16 15:08:17 2016 -0400
 
-    net/http: deflake new TestInterruptWithPanic_h2
+    plugin: cast dlerror return value for android
     
-    TestInterruptWithPanic_h2 was added yesterday in
-    https://golang.org/cl/33099 and https://golang.org/cl/33103
+    Until a few weeks ago, bionic, the Andoid libc, incorrectly
+    returned const char* (instead of char*) from dlerror(3).
     
-    Deflake it. The http2 server sends an error before logging.
+    https://android.googlesource.com/platform/bionic/+/5e071a18ce88d93fcffaebb9e0f62524ae504908
     
-    Rather than reorder the http2 code to log before writing the RSTStream
-    frame, just loop for a bit waiting for the condition we're
-    expecting.
-    
-    This goes from 2 in 500 flakes for me to unreproducible.
-    
-    Change-Id: I062866a5977f50c820965aaf83882ddd7bf98f91
-    Reviewed-on: https://go-review.googlesource.com/33140
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I30d33240c63a9f35b6c20ca7e3928ad33bc5e33f
+    Reviewed-on: https://go-review.googlesource.com/29352
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/clientserver_test.go | 33 +++++++++++++++++++++------------
- src/net/http/main_test.go         | 13 +++++++++++++
- 2 files changed, 34 insertions(+), 12 deletions(-)
+ src/plugin/plugin_dlopen.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

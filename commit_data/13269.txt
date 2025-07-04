@@ -1,15 +1,12 @@
-commit afeaf554aa5dd34b0def3f18a37dd500aebd0695
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 4 08:04:40 2012 -0700
+commit 9723de5d8b57263e1bf8e62a82e09a1c637d7a49
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 4 10:41:30 2012 -0400
 
-    net/http: add new Server benchmark
+    doc/install: we don't print 'The compiler is 6g' anymore
     
-    The new BenchmarkServer avoids profiling the client code
-    by running it in a child process.
-    
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6260053
+    https://golang.org/cl/6273050
 
- src/pkg/net/http/serve_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 55 insertions(+)
+ doc/install-source.html | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,18 +1,19 @@
-commit 7cda7dbe9aa688c105ae9ed55a2e39e7dff3d0ac
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 18 22:04:07 2012 -0700
+commit 1ad5f87635ee35b8b0053a1a4d2a05d0e892e4d0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 19 07:04:12 2012 +0900
 
-    api: fix build; regenerate api.txt with fixed signatures
+    cmd/api: fix signatures like func(x, y, z int)
     
-    Update to tip (to get 6475062 and 6525047)
-    Rebuild cmd/api.
-    Switch to a go1 release branch.
-    Run go tool api > api/go1.txt.new in release branch.
-    Back to tip.
+    Fixes writing of function parameter, result lists which
+    consist of multiple named or unnamed items with same type.
     
-    R=golang-dev, mikioh.mikioh
+    Fixes #4011.
+    
+    R=golang-dev, bsiegert, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6528047
+    https://golang.org/cl/6475062
 
- api/go1.txt | 1340 +++++++++++++++++++++++++++++------------------------------
- 1 file changed, 664 insertions(+), 676 deletions(-)
+ src/cmd/api/goapi.go                       | 26 +++++++++++++++++++++++---
+ src/cmd/api/testdata/src/pkg/p3/golden.txt |  3 +++
+ src/cmd/api/testdata/src/pkg/p3/p3.go      |  6 ++++++
+ 3 files changed, 32 insertions(+), 3 deletions(-)

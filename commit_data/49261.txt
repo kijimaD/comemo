@@ -1,22 +1,19 @@
-commit 2c3cb19a983cacd47c2b6134597d10de69010c42
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed May 18 12:50:49 2022 -0400
+commit e5fe769be15e60a1f4626cf30fb1f560cb9f317f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 3 20:43:39 2021 -0700
 
-    cmd/compile/internal/test: make TestIntendedInlining faster
+    [dev.typeparams] cmd/compile/internal/types2: implement term lists
     
-    There is no need to build with -a. The go command should do the
-    right thing to pass the flags. Also, we only care packages
-    mentioned on the command line, so no need to add -gcflags=all=....
+    Prerequisite for clean implementation of type sets
+    on top of term lists.
     
-    May fix #52081.
-    
-    Change-Id: Idabcfe285c90ed5d25ea6d42abd7617078d3283a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407015
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ice87f2f47327aa6b1f3eaad7f9af20ad7c548155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339596
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/test/inl_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/termlist.go      | 167 ++++++++++++++
+ src/cmd/compile/internal/types2/termlist_test.go | 278 +++++++++++++++++++++++
+ 2 files changed, 445 insertions(+)

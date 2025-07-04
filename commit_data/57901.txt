@@ -1,56 +1,23 @@
-commit 751a817ccc3cb515b723c84278f96c57e3705576
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Thu Sep 26 17:39:04 2024 +0800
+commit 267323ef2d22da4b2a5ed1ed6f220421aa580a6c
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Sep 7 11:07:30 2023 +0000
 
-    cmd/internal/obj/loong64: add {V,XV}LD/{V,XV}LDX/{V,XV}ST/{V,XV}STX instructions support
+    all: calculate the median uniformly
     
-    This CL adding primitive asm support of Loong64 LSX [1] and LASX [2], by introducing new
-    sets of register V0-V31 (C_VREG), X0-X31 (C_XREG) and 8 new instructions.
+    Like sort.Search, use "h := int(uint(i+j) >> 1)" style code to calculate
+    the median.
     
-    On Loong64, VLD,XVLD,VST,XVST implement vector memory access operations using immediate
-    values offset. VLDX, XVLDX, VSTX, XVSTX implement vector memory access operations using
-    register offset.
-    
-    Go asm syntax:
-            VMOVQ           n(RJ), RV      (128bit vector load)
-            XVMOVQ          n(RJ), RX      (256bit vector load)
-            VMOVQ           RV, n(RJ)      (128bit vector store)
-            XVMOVQ          RX, n(RJ)      (256bit vector store)
-    
-            VMOVQ           (RJ)(RK), RV   (128bit vector load)
-            XVMOVQ          (RJ)(RK), RX   (256bit vector load)
-            VMOVQ           RV, (RJ)(RK)   (128bit vector store)
-            XVMOVQ          RX, (RJ)(RK)   (256bit vector store)
-    
-    Equivalent platform assembler syntax:
-             vld            vd, rj, si12
-            xvld            xd, rj, si12
-             vst            vd, rj, si12
-            xvst            xd, rj, si12
-             vldx           vd, rj, rk
-            xvldx           xd, rj, rk
-             vstx           vd, rj, rk
-            xvstx           xd, rj, rk
-    
-    [1]: LSX: Loongson SIMD Extension, 128bit
-    [2]: LASX: Loongson Advanced SIMD Extension, 256bit
-    
-    Change-Id: Ibaf5ddfd29b77670c3c44cc32bead36b2c8b8003
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616075
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Change-Id: Ifb1a19dde1c6ed6c1654bc642fc9565a8b6c5fc4
+    GitHub-Last-Rev: e2213b738832f1674948d6507f40e2c0b98cb972
+    GitHub-Pull-Request: golang/go#62503
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526496
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/arch/arch.go               | 14 ++++
- src/cmd/asm/internal/arch/loong64.go            |  8 +++
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 32 +++++++++
- src/cmd/internal/obj/loong64/a.out.go           | 87 ++++++++++++++++++++++++-
- src/cmd/internal/obj/loong64/anames.go          |  2 +
- src/cmd/internal/obj/loong64/asm.go             | 35 +++++++++-
- src/cmd/internal/obj/loong64/cnames.go          |  2 +
- src/cmd/internal/obj/loong64/doc.go             | 18 ++++-
- src/cmd/internal/obj/loong64/list.go            | 13 ++++
- 9 files changed, 208 insertions(+), 3 deletions(-)
+ src/regexp/syntax/prog.go  | 2 +-
+ src/time/zoneinfo.go       | 2 +-
+ src/unicode/letter.go      | 8 ++++----
+ src/unicode/letter_test.go | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

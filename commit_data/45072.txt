@@ -1,27 +1,20 @@
-commit 585b52261c1b4e26b029616581ee0e891ad49183
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Apr 10 23:02:04 2021 -0400
+commit 27280d8c14331c1c46cd90206be9f3c924f6b4c4
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Wed Sep 2 13:44:36 2020 +0300
 
-    runtime: remove deferreturn dummy argument
+    crypto/x509: return errors instead of panicking
     
-    deferreturn has a dummy argument, that is only used for getting
-    the caller's SP. When generating deferreturn calls, the compiler
-    does not pass an actual argument or reserve its stack space.
-    Also, the current code is written with the assumption about where
-    the argument's address is on the stack. Currently this is correct
-    for both ABI0 and the register ABI, but it may change in the
-    future (e.g. if we remove dedicated spill slots). Remove the
-    argument.
+    Eliminate a panic in x509.CreateCertificate when passing templates with unknown ExtKeyUsage; return an error instead.
     
-    Also remove the argument for getargp.
+    Fixes #41169
     
-    Change-Id: I96d07efa79a9c1a53ef3fc5adbecc11877e99dc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309329
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia229d3b0d4a1bdeef05928439d97dab228687b3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252557
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/panic.go | 22 ++++++++++------------
- 1 file changed, 10 insertions(+), 12 deletions(-)
+ src/crypto/x509/x509.go      |  3 ++-
+ src/crypto/x509/x509_test.go | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

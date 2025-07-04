@@ -1,65 +1,38 @@
-commit ed936a3f22bcc8165390545471633141088eca26
+commit b5777571b3ab20ca124fa60c34cd5094098fbb2f
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 23 15:16:51 2012 -0500
+Date:   Mon Jan 23 15:16:38 2012 -0500
 
-    cmd/go: implement go get + bug fixes
+    go/build: add BuildTags to Context, allow !tag
     
-    Move error information into Package struct, so that
-    a package can be returned even if a dependency failed
-    to load or did not exist.  This makes it possible to run
-    'go fix' or 'go fmt' on packages with broken dependencies
-    or missing imports.  It also enables go get -fix.
-    The new go list -e flag lets go list process those package
-    errors as normal data.
+    This lets the client of go/build specify additional tags that
+    can be recognized in a // +build directive.  For example,
+    a build for a custom environment like App Engine might
+    include "appengine" in the BuildTags list, so that packages
+    can be written with some files saying
     
-    Change p.Doc to be first sentence of package doc, not
-    entire package doc.  Makes go list -json or
-    go list -f '{{.ImportPath}} {{.Doc}}' much more reasonable.
+            // +build appengine   (build only on app engine)
     
-    The go tool now depends on http, which means also
-    net and crypto/tls, both of which use cgo.  Trying to
-    make the build scripts that build the go tool understand
-    and handle cgo is too much work.  Instead, we build
-    a stripped down version of the go tool, compiled as go_bootstrap,
-    that substitutes an error stub for the usual HTTP code.
-    The buildscript builds go_bootstrap, go_bootstrap builds
-    the standard packages and commands, including the full
-    including-HTTP-support go tool, and then go_bootstrap
-    gets deleted.
+    or
     
-    Also handle the case where the buildscript needs updating
-    during all.bash: if it fails but a go command can be found on
-    the current $PATH, try to regenerate it.  This gracefully
-    handles situations like adding a new file to a package
-    used by the go tool.
+            // +build !appengine  (build only when NOT on app engine)
+    
+    App Engine here is just a hypothetical context.  I plan to use
+    this in the cmd/go sources to distinguish the bootstrap version
+    of cmd/go (which will not use networking) from the full version
+    using a custom tag.  It might also be useful in App Engine.
+    
+    Also, delete Build and Script, which we did not end up using for
+    cmd/go and which never got turned on for real in goinstall.
     
     R=r, adg
     CC=golang-dev
-    https://golang.org/cl/5553059
+    https://golang.org/cl/5554079
 
- src/buildscript.sh               |   9 +-
- src/buildscript/darwin_386.sh    |  46 ++---
- src/buildscript/darwin_amd64.sh  |  46 ++---
- src/buildscript/freebsd_386.sh   |  46 ++---
- src/buildscript/freebsd_amd64.sh |  46 ++---
- src/buildscript/linux_386.sh     |  46 ++---
- src/buildscript/linux_amd64.sh   |  46 ++---
- src/buildscript/linux_arm.sh     |  46 ++---
- src/buildscript/netbsd_386.sh    |  46 ++---
- src/buildscript/netbsd_amd64.sh  |  46 ++---
- src/buildscript/openbsd_386.sh   |  46 ++---
- src/buildscript/openbsd_amd64.sh |  46 ++---
- src/buildscript/plan9_386.sh     |  46 ++---
- src/buildscript/windows_386.sh   |  46 ++---
- src/buildscript/windows_amd64.sh |  46 ++---
- src/cmd/go/Makefile              |   2 +
- src/cmd/go/build.go              |  54 ++++--
- src/cmd/go/get.go                | 254 ++++++++++++++++++++++--
- src/cmd/go/list.go               |  33 +++-
- src/cmd/go/main.go               |   8 +-
- src/cmd/go/pkg.go                | 294 +++++++++++++++++++++-------
- src/cmd/go/run.go                |  30 +--
- src/cmd/go/test.go               |  40 ++--
- src/cmd/go/vcs.go                | 404 +++++++++++++++++++++++++++++++++++++++
- src/make.bash                    |  16 +-
- 25 files changed, 1309 insertions(+), 479 deletions(-)
+ src/cmd/goinstall/main.go       |  29 +--
+ src/pkg/crypto/tls/root_stub.go |   2 +-
+ src/pkg/go/build/build.go       | 425 +---------------------------------------
+ src/pkg/go/build/build_test.go  |  56 +++---
+ src/pkg/go/build/dir.go         | 128 ++++++++++--
+ src/pkg/net/cgo_stub.go         |   2 +-
+ src/pkg/os/user/lookup_stubs.go |   2 +-
+ 7 files changed, 137 insertions(+), 507 deletions(-)

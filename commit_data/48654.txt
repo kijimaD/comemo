@@ -1,19 +1,13 @@
-commit 01c83be7932e7f51333c813460752f09f78ec2c4
-Author: Zach Collier <zamicol@gmail.com>
-Date:   Fri Apr 1 23:42:12 2022 +0000
+commit 95939e8de71d9e8d8deea3d1605bd34130588292
+Author: sryoya <ryoyasekino1993@gmail.com>
+Date:   Sat Jun 5 03:12:03 2021 +0900
 
-    doc: add illegal octal over 255 example
+    cmd/compile/internal/abi: fix typo in comment
     
-    Octal values over 255, like \400 or \777, are illegal.  It wasn't clear if the expected behavior was a compile error, encoding the value as two characters, or if the value would be capped at 255.
-    
-    This example explicitly shows that octal values over 255 are illegal.
-    
-    Change-Id: I45d94680107029c5f083e5d434e6270cc5b258c1
-    GitHub-Last-Rev: f6bef0379f547ca6204c837279d67ad87c2b69c7
-    GitHub-Pull-Request: golang/go#52111
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397555
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I196045314b2b0e908d7b31ac0cea5b25404f3ee0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325249
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- doc/go_spec.html | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/abi/abiutils.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

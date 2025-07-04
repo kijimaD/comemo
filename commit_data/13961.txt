@@ -1,19 +1,21 @@
-commit e039c405c8d587632fee6c18ddc1f2b8fe171ffd
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Sep 27 01:53:08 2012 +0800
+commit 60a6ae8c3c278c3e0fcb832f2e5c085825d867cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 26 10:31:57 2012 -0700
 
-    cmd/6a, cmd/6l: add support for AES-NI instrutions and PSHUFD
-    This CL adds support for the these 7 new instructions to 6a/6l in
-    preparation of the upcoming CL for AES-NI accelerated crypto/aes:
-    AESENC, AESENCLAST, AESDEC, AESDECLAST, AESIMC, AESKEYGENASSIST,
-    and PSHUFD.
+    spec: permit trailing comma in conversions
     
-    R=golang-dev, rsc
+    Also: Adjust prose in Conversions section
+    to be consistent.
+    
+    This is a backward-compatible syntax change.
+    For a discussion see issue 2568.
+    
+    Fixes #2568.
+    Fixes #4123.
+    
+    R=golang-dev, r, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/5970055
+    https://golang.org/cl/6572049
 
- src/cmd/6a/lex.c   |  7 +++++++
- src/cmd/6l/6.out.h |  9 +++++++++
- src/cmd/6l/optab.c | 45 ++++++++++++++++++++++++++++++++-------------
- src/cmd/6l/span.c  |  3 ++-
- 4 files changed, 50 insertions(+), 14 deletions(-)
+ doc/go_spec.html | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

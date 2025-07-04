@@ -1,15 +1,12 @@
-commit d0e6c7e134395a9ca1deb10955231b8da8b903a4
-Author: David Anderson <danderson@google.com>
-Date:   Tue Jan 25 10:52:36 2011 -0500
+commit 507a753c4b1cc92775a80e54571c78ea6c2671f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 25 10:48:44 2011 -0500
 
-    crypto/rsa: correct docstring for SignPKCS1v15.
+    CONTRIBUTORS: add David Anderson (Google CLA)
     
-    The docstring claims the function uses PSS message encoding,
-    when the function actually implements PKCS1-v1_5 encoding.
-    
-    R=agl1, rsc
-    CC=danderson, golang-dev
-    https://golang.org/cl/4097042
+    R=agl1, danderson
+    CC=golang-dev
+    https://golang.org/cl/4029044
 
- src/pkg/crypto/rsa/pkcs1v15.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

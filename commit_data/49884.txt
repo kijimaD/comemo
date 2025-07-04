@@ -1,15 +1,24 @@
-commit 2f6783c098696790223eae6986700868e9da0472
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat Aug 13 03:56:02 2022 +0800
+commit 6f35430faa622bad63a527c97e87b9291e480688
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 19 13:51:37 2021 -0700
 
-    runtime: fix a comment typo in runqget()
+    cmd/compile: allow rotates to be merged with logical ops on arm64
     
-    Change-Id: I79695e1cfda3b4cd911673f6e14dc316c451e2ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423436
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Fixes #48002
+    
+    Change-Id: Ie3a157d55b291f5ac2ef4845e6ce4fefd84fc642
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350912
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/arm64/ssa.go        |  11 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  26 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   8 +
+ src/cmd/compile/internal/ssa/opGen.go        | 124 +++++++
+ src/cmd/compile/internal/ssa/rewrite.go      |   4 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 502 +++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm64/a.out.go          |   7 +-
+ test/codegen/rotate.go                       |  23 ++
+ 8 files changed, 702 insertions(+), 3 deletions(-)

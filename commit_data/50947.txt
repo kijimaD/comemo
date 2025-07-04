@@ -1,17 +1,18 @@
-commit 4b5558ef01adc0916729499c3d5ce96b82bedb86
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Oct 4 15:03:26 2022 +0100
+commit c4aae23d6426442402b3de0e5f7de1ef8da3842a
+Author: Mikhail Faraponov <11322032+moredure@users.noreply.github.com>
+Date:   Tue Nov 16 19:41:43 2021 +0000
 
-    go/build: remove stale reference to ioutil.ReadDir
+    net: optimize ctxDone usage
     
-    The package moved away from the deprecated ioutil API some time ago.
-    
-    Change-Id: Iecb1baa9285af1f721a04eb40f8dafdd72474c4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438515
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6db6fcf0ebe36da77af062114b5264405f15fee8
+    GitHub-Last-Rev: 80a97262bb220bb3958c94016eadf385cdf915e8
+    GitHub-Pull-Request: golang/go#49620
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364514
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
 
- src/go/build/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/fd_unix.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

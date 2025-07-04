@@ -1,22 +1,29 @@
-commit 41fd8d6401b6702b801678a493001ec9e08d6f2d
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Mar 28 15:10:20 2017 -0400
+commit 29cb72154d3bb3530d8092cc89d35b3ed4f7e9c5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 15 14:21:13 2016 -0800
 
-    cmd/internal/obj: make morestack cutoff the same on all architectures
+    runtime: preserve callee-saved C registers in sigtramp
     
-    There is always 128 bytes available below the stackguard. Allow functions
-    with medium-sized stack frames to use this, potentially allowing them to
-    avoid growing the stack.
+    This fixes Linux and the *BSD platforms on 386/amd64.
     
-    This change makes all architectures use the same calculation as x86.
+    A few OS/arch combinations were already saving registers and/or doing
+    something that doesn't clearly resemble the SysV C ABI; those have
+    been left alone.
     
-    Change-Id: I2afb1a7c686ae5a933e50903b31ea4106e4cd0a0
-    Reviewed-on: https://go-review.googlesource.com/38734
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #18328.
+    
+    Change-Id: I6398f6c71020de108fc8b26ca5946f0ba0258667
+    Reviewed-on: https://go-review.googlesource.com/34501
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go   | 4 ++--
- src/cmd/internal/obj/arm64/obj7.go | 4 ++--
- src/cmd/internal/obj/mips/obj0.go  | 4 ++--
- src/cmd/internal/obj/ppc64/obj9.go | 4 ++--
- src/cmd/internal/obj/s390x/objz.go | 4 ++--
- 5 files changed, 10 insertions(+), 10 deletions(-)
+ misc/cgo/testsanitizers/tsan9.go  | 11 +++++++++--
+ src/runtime/sys_dragonfly_amd64.s | 25 +++++++++++++++++++++----
+ src/runtime/sys_freebsd_amd64.s   | 25 +++++++++++++++++++++----
+ src/runtime/sys_linux_386.s       | 15 ++++++++++++++-
+ src/runtime/sys_linux_amd64.s     | 25 +++++++++++++++++++++----
+ src/runtime/sys_netbsd_386.s      | 15 ++++++++++++++-
+ src/runtime/sys_netbsd_amd64.s    | 27 +++++++++++++++++++++------
+ src/runtime/sys_openbsd_386.s     | 15 ++++++++++++++-
+ src/runtime/sys_openbsd_amd64.s   | 25 +++++++++++++++++++++----
+ 9 files changed, 156 insertions(+), 27 deletions(-)

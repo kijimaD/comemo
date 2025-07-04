@@ -1,14 +1,19 @@
-commit 7340e5a1e86311302c6fcc3a86afe7ff9cbf5e49
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Thu Feb 27 12:26:36 2020 -0600
+commit 77f5adba554c80dc536f3076b2fa882d2cf0e992
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 28 23:30:08 2019 +0700
 
-    net/textproto: close channel to signal pipeline event completion
+    cmd/compile: don't use statictmps for small object in slice literal
     
-    Change-Id: I7e4827b3428b48c67060789a528586a8907ca3db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221418
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #21561
+    
+    Change-Id: I89c59752060dd9570d17d73acbbaceaefce5d8ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197560
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/textproto/pipeline.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/go.go    |  6 +++++
+ src/cmd/compile/internal/gc/sinit.go | 12 ++++++++-
+ test/codegen/slices.go               | 51 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 68 insertions(+), 1 deletion(-)

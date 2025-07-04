@@ -1,18 +1,14 @@
-commit 624630b8247ca8150e10417f0da3e2fb2ce19eac
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Oct 11 09:28:47 2017 -0700
+commit f081266e4af4bdce22756aa58489225dfbe6bb23
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 28 23:12:41 2017 +0000
 
-    cmd/compile: fold constant comparisions into SETxxmem ops.
+    encoding/binary: clarify the repercussions for not following the docs
     
-    Fixes #22198
+    Fixes #19794
     
-    Change-Id: I5cb91c73069af8b16a2580d28756efd58c84b690
-    Reviewed-on: https://go-review.googlesource.com/69990
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I462cbc432fe9d4a9e6e79a9833b0013d82a0780e
+    Reviewed-on: https://go-review.googlesource.com/47093
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |   60 ++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 1180 +++++++++++++++++++++++++-
- test/fixedbugs/issue22198.go                 |   18 +
- 3 files changed, 1256 insertions(+), 2 deletions(-)
+ src/encoding/binary/binary.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

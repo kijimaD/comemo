@@ -1,32 +1,22 @@
-commit 632217aae47f8abd2fe8487068367a5bb5f9ea0a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 4 16:33:28 2015 -0800
+commit cf964e1653489d99b68a0668d293b6b521e5ab62
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 15:05:55 2015 -0500
 
-    cmd/internal/gc: statically initialize function pointers
+    runtime: replace scanblock(0, 0, nil, nil) with drainworkbuf
     
-    Previously, gc would compile code like
+    scanblock(0, 0, nil, nil) was just a confusing way of saying
     
-        func foo() { ... }
-        var bar = foo
+      wbuf = getpartialorempty()
+      drainworkbuf(wbuf, true)
     
-    by emitting a static closure to wrap "foo", but then emitting runtime
-    initialization code to assign the closure to "bar".  This CL changes
-    gc to instead statically initialize "bar".
+    Make drainworkbuf accept a nil workbuf and perform the
+    getpartialorempty itself and replace all uses of scanblock(0, 0, nil,
+    nil) with direct calls to drainworkbuf(nil, true).
     
-    Notably, this change shrinks the "go" tool's text segment by ~7.4kB on
-    linux/amd64 while only increasing the data segment by ~100B:
-    
-       text    data     bss     dec     hex filename
-    7237819  122412  215616 7575847  739927 go.before
-    7230398  122540  215232 7568170  737b2a go.after
-    
-    Fixes issue #10081.
-    
-    Change-Id: If5e26cf46b323393ba6f2199a82a06e9e4baf411
-    Reviewed-on: https://go-review.googlesource.com/6880
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I7002a2f8f3eaf6aa85bbf17ccc81d7288acfef1c
+    Reviewed-on: https://go-review.googlesource.com/4781
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/gc/sinit.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/runtime/mgc.go | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)

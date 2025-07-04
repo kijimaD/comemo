@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8077: a2e286828be99c658b30ecb3daccd1b3dbcedb0e
+# Index 8077: 179f0b8a0717567a7d57e65ec83e69371e12ea97
 
 echo "🚀 Generating explanation for commit 8077..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 8077
-- **コミットハッシュ**: a2e286828be99c658b30ecb3daccd1b3dbcedb0e
-- **GitHub URL**: https://github.com/golang/go/commit/a2e286828be99c658b30ecb3daccd1b3dbcedb0e
+- **コミットハッシュ**: 179f0b8a0717567a7d57e65ec83e69371e12ea97
+- **GitHub URL**: https://github.com/golang/go/commit/179f0b8a0717567a7d57e65ec83e69371e12ea97
 
 ### 章構成
 

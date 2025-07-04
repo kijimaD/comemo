@@ -1,24 +1,44 @@
-commit 70c3bf27de465099de114dae15b78d9dd56dac7e
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Jun 13 20:48:26 2018 +0200
+commit 1dfa380e3dd9c46aa945205d9e142bf503c1e198
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 2 16:44:27 2018 -0800
 
-    runtime/pprof: use testenv.GoToolPath in TestMapping
+    internal/bytealg: move equal functions to bytealg
     
-    The TestMapping test invokes the go tool in an exec.Command by
-    directly hard-coding a "go" string for the command. This can cause
-    test failures on systems where the "go" command points to an old
-    toolchain where the test is not supposed to work.
+    Move bytes.Equal, runtime.memequal, and runtime.memequal_varlen
+    to the bytealg package.
     
-    Use testenv.GoToolPath instead.
+    Update #19792
     
-    Also call 'go run' directly on the mappingtest/main.go file instead of
-    go-running the directory.
-    
-    Change-Id: Ib91877c021209cbf4da50a561737d7a9d42c6adc
-    Reviewed-on: https://go-review.googlesource.com/118662
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Ic4175e952936016ea0bda6c7c3dbb33afdc8e4ac
+    Reviewed-on: https://go-review.googlesource.com/98355
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/proto_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/vet/all/whitelist/386.txt           |   1 -
+ src/cmd/vet/all/whitelist/all.txt           |   4 +-
+ src/cmd/vet/all/whitelist/amd64.txt         |   1 -
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt |   1 -
+ src/cmd/vet/all/whitelist/ppc64x.txt        |   1 -
+ src/cmd/vet/all/whitelist/s390x.txt         |   2 -
+ src/internal/bytealg/equal_386.s            | 165 ++++++++++++++++++++++++
+ src/internal/bytealg/equal_amd64.s          | 190 ++++++++++++++++++++++++++++
+ src/internal/bytealg/equal_amd64p32.s       | 170 +++++++++++++++++++++++++
+ src/internal/bytealg/equal_arm.s            |  80 ++++++++++++
+ src/internal/bytealg/equal_arm64.s          | 164 ++++++++++++++++++++++++
+ src/internal/bytealg/equal_mips64x.s        |  83 ++++++++++++
+ src/internal/bytealg/equal_mipsx.s          |  91 +++++++++++++
+ src/internal/bytealg/equal_native.go        |  27 ++++
+ src/internal/bytealg/equal_ppc64x.s         | 152 ++++++++++++++++++++++
+ src/internal/bytealg/equal_s390x.s          | 116 +++++++++++++++++
+ src/internal/bytealg/indexbyte_native.go    |  10 --
+ src/runtime/asm_386.s                       | 136 --------------------
+ src/runtime/asm_amd64.s                     | 161 -----------------------
+ src/runtime/asm_amd64p32.s                  | 139 --------------------
+ src/runtime/asm_arm.s                       |  71 -----------
+ src/runtime/asm_arm64.s                     | 143 ---------------------
+ src/runtime/asm_mips64x.s                   |  71 -----------
+ src/runtime/asm_mipsx.s                     |  79 ------------
+ src/runtime/asm_ppc64x.s                    | 121 ------------------
+ src/runtime/asm_s390x.s                     |  98 --------------
+ 26 files changed, 1241 insertions(+), 1036 deletions(-)

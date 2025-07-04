@@ -1,18 +1,14 @@
-commit 2d32d3675ab88d6a3481b866afca4e2aea55210e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue May 7 23:34:13 2019 -0400
+commit 90dca98d33055b8365d9e7e40ebb4ca478daf77e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 19 07:08:38 2018 -0800
 
-    reflect: add a test for Calling a Method of a direct interface type
+    doc: clarify change to File.Sync on macOS
     
-    Gccgo's implementation of direct interface types has bugs that
-    causes reflect Call of method from Type.Method fail. CL 175837
-    and CL 175798 fix the bug. This CL adds a test.
+    Updates #26650
     
-    Change-Id: I4e5f2cb96304c1ac7be04ca6d2851bac52b8eb24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175880
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0ec070127dcacc7fc68dd5baf125eb762e1ea846
+    Reviewed-on: https://go-review.googlesource.com/c/155038
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/reflect/all_test.go | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ doc/go1.12.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

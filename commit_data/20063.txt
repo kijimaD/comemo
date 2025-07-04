@@ -1,15 +1,25 @@
-commit ae875e040c6200c9bfae0df9f17d4620abc9e707
+commit 187d0f672029e0fa0106024dd2f554b247aa7aff
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 21 21:10:45 2014 +0400
+Date:   Wed Aug 13 20:42:55 2014 +0400
 
-    runtime: convert lfstack to Go
-    It is called from Go only in tests.
+    runtime: keep objects in free lists marked as allocated.
+    Restore https://golang.org/cl/41040043 after GC rewrite.
+    Original description:
+    On the plus side, we don't need to change the bits on malloc and free.
+    On the downside, we need to mark objects in the free lists during GC.
+    But the free lists are small at GC time, so it should be a net win.
+    
+    benchmark             old ns/op     new ns/op     delta
+    BenchmarkMalloc8      21.9          20.4          -6.85%
+    BenchmarkMalloc16     31.1          29.6          -4.82%
     
     LGTM=khr
-    R=golang-codereviews, khr
+    R=khr
     CC=golang-codereviews, rlh, rsc
-    https://golang.org/cl/125610043
+    https://golang.org/cl/122280043
 
- src/pkg/runtime/export_test.go             | 27 +++++++++++++++++++++++----
- src/pkg/runtime/{lfstack.goc => lfstack.c} | 16 +++++++++++-----
- 2 files changed, 34 insertions(+), 9 deletions(-)
+ src/pkg/runtime/heapdump.c |  22 ++++--
+ src/pkg/runtime/malloc.go  | 180 ++++++++++++++++++++++-----------------------
+ src/pkg/runtime/mgc0.c     |  53 ++++++-------
+ src/pkg/runtime/mgc0.h     |   8 +-
+ 4 files changed, 133 insertions(+), 130 deletions(-)

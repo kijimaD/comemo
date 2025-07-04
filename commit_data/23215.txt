@@ -1,21 +1,12 @@
-commit ac2bda1b004dd805199f73a38d044a89731c35c6
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 26 23:18:27 2015 -0400
+commit a593a36b532dad34a557527fc344e0f886d00376
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 30 08:34:21 2015 -0700
 
-    cmd/compile: move Node.Pkg to Node.Name.Pkg
+    doc/go1.5.txt: add Jacobi and Int.ModSqrt to math/big
     
-    $ sizeof -p cmd/compile/internal/gc Node
-    Node 224
-    $
-    
-    Change-Id: Id0969e8df99c43a5f6f8d77a38f20a71a467e7c6
-    Reviewed-on: https://go-review.googlesource.com/10527
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I187e97592cd0403d84ca25c4acb1a4b25495041b
+    Reviewed-on: https://go-review.googlesource.com/9534
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/go.y      | 8 ++++----
- src/cmd/compile/internal/gc/lex.go    | 4 ++--
- src/cmd/compile/internal/gc/subr.go   | 2 +-
- src/cmd/compile/internal/gc/syntax.go | 6 ++----
- src/cmd/compile/internal/gc/y.go      | 8 ++++----
- 5 files changed, 13 insertions(+), 15 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

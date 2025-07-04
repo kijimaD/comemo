@@ -1,18 +1,14 @@
-commit 49d0b239cb83e62c7b67e68ef9440ddc055a9c53
-Author: Andrey Bokhanko <andreybokhanko@gmail.com>
-Date:   Mon Dec 21 16:33:55 2020 +0000
+commit cb14bd8306b7d5fb7b23afadb347dfb697b252af
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed May 6 19:06:29 2020 -0400
 
-    doc: fix a typo in contribute.html
+    crypto/tls: fix sessionState marshaling
     
-    A fix for a trivial (yet still confusing for neophytes like me!) typo in
-    contribute.html.
-    
-    Change-Id: Ic68673fb2a3855c2b9e8042047087450e8793e6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279452
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I2910f322256c521dd03b1dc23d117defdcd0aa54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232662
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/ticket.go | 32 +++++++++++++++-----------------
+ 1 file changed, 15 insertions(+), 17 deletions(-)

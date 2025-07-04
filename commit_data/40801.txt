@@ -1,22 +1,12 @@
-commit 498eaee461adefd5e578e62c134382ece94198da
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Nov 13 15:05:17 2019 -0500
+commit c893ea8f8b5fc824b1fdd0b2e56d0cda5eacb02b
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Mon Jul 8 14:19:07 2019 -0400
 
-    cmd/internal/obj/x86: mark 2-instruction TLS access nonpreemptible
+    doc: document Go 1.12.7
     
-    The 2-instruction TLS access sequence
-            MOVQ TLS, BX
-            MOVQ 0(BX)(TLS*1), BX
-    is not async preemptible, as if it is preempted and resumed on a
-    different thread, the TLS address may become invalid.
-    
-    May fix #35349. (This is a rare failure and I haven't been able
-    to reproduce it.)
-    
-    Change-Id: Ie1a366fd0d7d73627dc62ee2de01c0aa09365f2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206903
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Id5d2f4cc6bc310bed2516ce0f50c395802475f66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185258
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

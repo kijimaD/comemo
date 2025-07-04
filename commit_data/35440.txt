@@ -1,18 +1,21 @@
-commit 8a85bce215eda0fa56bf67186d0fd487954185f2
-Author: Ben Shi <powerman1st@163.com>
-Date:   Fri May 18 07:19:17 2018 +0000
+commit 7ac756f74b1a7dfc984152d863b3e3c86f90b2c7
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Jan 29 16:09:11 2018 -0500
 
-    test/codegen: improve test cases for arm64
+    cmd/compile/internal/ssa: use math/bits for register sets
     
-    1. Some incorrect test cases are disabled.
-    2. Some wrong test cases are corrected.
-    3. Some new test cases are added.
+    Using bits.TrailingZeroes instead of iterating over each bit is a small
+    but easy win for the common case of only one or two registers being set.
     
-    Change-Id: Ib5d0473d55159f233ddab79f96967eaec7b08597
-    Reviewed-on: https://go-review.googlesource.com/113736
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    I copied in the implementation for use with pre-1.9 bootstraps.
+    
+    Change-Id: Ieaa768554d7d5239a5617fbf34f1ee0b32ce1de5
+    Reviewed-on: https://go-review.googlesource.com/92395
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- test/codegen/memcombine.go | 116 ++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 103 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/bits_bootstrap.go | 24 ++++++++
+ src/cmd/compile/internal/ssa/bits_go19.go      | 13 ++++
+ src/cmd/compile/internal/ssa/debug.go          | 82 +++++++++++++++-----------
+ 3 files changed, 85 insertions(+), 34 deletions(-)

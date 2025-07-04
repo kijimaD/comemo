@@ -1,26 +1,17 @@
-commit 18431a1c8f7d19410fcd3fe6638cfe1cd4bd7179
-Author: Spike Curtis <spike@coder.com>
-Date:   Thu Apr 17 06:55:10 2025 +0000
+commit bedda245740d766bfad36b2d91a22781575fe463
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri Mar 15 07:33:32 2024 +0000
 
-    net: fix deadlock in lookupProtocol on Windows
+    cmd/internal/obj: replace bytes.Index call with bytes.Contains
     
-    If the context expires before acquireThread(ctx) succeeds, then the goroutine can block like:
-    
-    net.lookupProtocol.func1()
-            src/net/lookup_windows.go:58 +0x105
-    created by net.lookupProtocol in goroutine 2834
-            src/net/lookup_windows.go:56 +0xda
-    
-    We saw this in our UTs with a leak detector, confirmed by inspection of the source code.
-    
-    Change-Id: I9b927f0345a2fa7336b23d95c506a8a0976e28d0
-    GitHub-Last-Rev: 27af7477a99bdbee0c32697837f1ff261ee70d83
-    GitHub-Pull-Request: golang/go#73364
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664956
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Zxilly Chou <zhouxinyu1001@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I6b30ac3e9d15c29197426fb16dc4031056f6bb10
+    GitHub-Last-Rev: e2dda286f26587726870a5779d6caa0c5abd6750
+    GitHub-Pull-Request: golang/go#66331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571915
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/lookup_windows.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/x86/pcrelative_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

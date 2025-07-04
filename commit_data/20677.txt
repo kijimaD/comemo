@@ -1,19 +1,22 @@
-commit b02450da0227c757205fd16b6648bddceb980d83
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Oct 8 17:22:34 2014 -0700
+commit 5368e63b57f742495fcbbb82bb15772b761004bf
+Author: Tom Linford <tomlinford@gmail.com>
+Date:   Tue Sep 30 09:51:49 2014 +1000
 
-    runtime: zero a few more dead pointers.
+    x509: add root certs for android.
     
-    In channels, zeroing of gp.waiting is missed on a closed channel panic.
-    m.morebuf.g is not zeroed.
+    On android, root certificates appear to be stored in the folder
+    /system/etc/security/cacerts, which has many certs in several
+    different files. This change adds a new array of directories in
+    which certs can be found.
     
-    I don't expect the latter causes any problems, but just in case.
+    To test this, I simply tried making a request with the http
+    library to an HTTPS URL on an android emulator and manually
+    verified that it worked.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=crawshaw
+    R=golang-codereviews, gobot, crawshaw
     CC=golang-codereviews
-    https://golang.org/cl/151610043
+    https://golang.org/cl/151800043
 
- src/runtime/chan.go | 11 +++++++----
- src/runtime/stack.c |  1 +
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/crypto/x509/root_unix.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

@@ -1,16 +1,33 @@
-commit 1a37095062c5a1520a1cd79650852ef85ceda816
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Feb 7 16:47:23 2020 +0000
+commit 2fc6366fb56aa77efa3cecd44ce941472786a418
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 17 18:32:04 2019 -0700
 
-    Revert "cmd/link: code cleanup in macho_combine_dwarf.go"
+    cmd/compile: remove OCASE and rename OXCASE to OCASE
     
-    This reverts commit 494dd1dddceb2df533feddd483b7cb05310f1085.
+    We used to use OXCASE to represent general, possibly multi-valued
+    cases, and then desugar these during walk into single-value cases
+    represented by OCASE.
     
-    Reason for revert: Not suitable for Go 1.14, will send to Go 1.15 instead.
+    In CL 194660, we switched to eliminated the desugaring step and
+    instead handle the multi-valued cases directly, which eliminates the
+    need for an OCASE Op. Instead, we can simply remove OCASE, and rename
+    OXCASE to just OCASE.
     
-    Change-Id: Iedc04fe6a9ace29a16498046eef9420afbaf4636
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218482
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Passes toolstash-check.
+    
+    Change-Id: I3cc184340f9081d37453927cca1c059267fdbc12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196117
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/macho_combine_dwarf.go | 135 +++++++++++++-----------
- 1 file changed, 73 insertions(+), 62 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go       | 19 +------------------
+ src/cmd/compile/internal/gc/iexport.go   |  4 ++--
+ src/cmd/compile/internal/gc/iimport.go   | 10 ++--------
+ src/cmd/compile/internal/gc/noder.go     |  4 ++--
+ src/cmd/compile/internal/gc/op_string.go | 24 +++++++++++++++++-------
+ src/cmd/compile/internal/gc/order.go     |  4 ++--
+ src/cmd/compile/internal/gc/select.go    |  2 +-
+ src/cmd/compile/internal/gc/swt.go       |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    |  8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go      |  7 +------
+ 11 files changed, 34 insertions(+), 52 deletions(-)

@@ -1,18 +1,21 @@
-commit 6a167c73977384f3646f4651901fe38347711b10
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 2 12:32:13 2020 -0700
+commit 82a2f825b7163eafebbf9b8640ef6406e4dda9a9
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jan 23 03:42:07 2020 +1100
 
-    cmd/go: display test binary output if invoked with -help
+    runtime: add missing code for linux/riscv64
     
-    Fixes #39997
+    Makes linux/riscv64 runtime buildable.
     
-    Change-Id: I87ea616bac809b96fcd40f3bbdbbf1c603b9d00e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240878
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #27532
+    
+    Change-Id: I91bcadaaecb8ff3ffd70fcb437b2b6e4bbe11eda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215839
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/test/test.go          |  4 +++-
- src/cmd/go/internal/test/testflag.go      | 17 +++++++++++++++++
- src/cmd/go/testdata/script/test_flags.txt |  6 ++++++
- 3 files changed, 26 insertions(+), 1 deletion(-)
+ src/runtime/mkpreempt.go        | 6 ++++++
+ src/runtime/mpagealloc_64bit.go | 2 +-
+ src/runtime/os_linux_riscv64.go | 7 +++++++
+ src/runtime/preempt_riscv64.s   | 8 ++++++++
+ 4 files changed, 22 insertions(+), 1 deletion(-)

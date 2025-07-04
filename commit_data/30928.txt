@@ -1,23 +1,15 @@
-commit ac99ade5a09a685f20df3b0d62c98cd3de7a575e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 30 13:19:18 2017 -0700
+commit 8df54c92c0d442d8de2887aa0e508c9072cce131
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 20 17:35:27 2016 +0000
 
-    cmd/compile: remove Pkglookup in favor of Lookup
+    net: mark TestDialerDualStackFDLeak as flaky on OpenBSD
     
-    Remove one of the many lookup variants.
+    Updates #15157
     
-    Change-Id: I4095aa030da4227540badd6724bbf50b728fbe93
-    Reviewed-on: https://go-review.googlesource.com/38990
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: Id280705f4382c3b2323f0eed786a400a184614de
+    Reviewed-on: https://go-review.googlesource.com/34656
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/alg.go      | 14 +++++++-------
- src/cmd/compile/internal/gc/closure.go  |  2 +-
- src/cmd/compile/internal/gc/dcl.go      | 12 ++++++------
- src/cmd/compile/internal/gc/gen.go      |  2 +-
- src/cmd/compile/internal/gc/main.go     |  2 +-
- src/cmd/compile/internal/gc/obj.go      |  4 ++--
- src/cmd/compile/internal/gc/reflect.go  | 26 +++++++++++++-------------
- src/cmd/compile/internal/gc/subr.go     | 10 +++-------
- src/cmd/compile/internal/gc/universe.go | 26 +++++++++++++-------------
- src/cmd/compile/internal/gc/walk.go     |  4 ++--
- 10 files changed, 49 insertions(+), 53 deletions(-)
+ src/net/dial_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

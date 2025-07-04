@@ -1,0 +1,21 @@
+commit b2819d13dbe19343426e688da4ddfeb57c8589fc
+Author: abemotion <abemotion323@gmail.com>
+Date:   Fri Apr 4 18:40:06 2025 -0700
+
+    net/http: add link to types
+    
+    Some types are not linked.
+    This change adds a link to each type.
+    
+    Change-Id: Id46fb64a74efb851ed76e4136f15e8fd9e445bb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663075
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/client.go             | 4 ++--
+ src/net/http/request.go            | 2 +-
+ src/net/http/responsecontroller.go | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

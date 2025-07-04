@@ -1,12 +1,13 @@
-commit c7fdbeb6c1acc842dcbe756950e2773eb2419efc
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Jan 11 09:47:08 2012 -0800
+commit a30b172ca0cd34b8f06952e175ac6bc3d0f1f35b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 11 08:32:03 2012 -0800
 
-    cmd/go: fix test documentation
+    go/printer: don't crash if AST contains BadXXX nodes
     
-    R=golang-dev, gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5529067
+    https://golang.org/cl/5535048
 
- src/cmd/go/test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/go/printer/printer.go      |  7 ++++++-
+ src/pkg/go/printer/printer_test.go | 15 +++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

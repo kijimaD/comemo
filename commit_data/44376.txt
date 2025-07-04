@@ -1,17 +1,18 @@
-commit fa40c0232c79f1e8eb6bda6c63604958bdf1102f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Feb 22 15:04:25 2021 -0500
+commit 27a0012bd65a44429e78c19ec18ecf87640d8f45
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri Jun 19 11:19:22 2020 +0800
 
-    cmd/go: reproduce issue #44497 in TestScript/mod_edit
+    cmd/dist: don't copy arm64 specific files for bootstap build
     
-    For #44497
+    This patch avoids copying cmd/compile/internal/ssa/flags_arm64_test.s.
     
-    Change-Id: Ie5285b9c526506b6b1280a590a5dcbee4074f57b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295149
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #39701
+    
+    Change-Id: I35d0567e2d3455faf28828c55a0b6d66a5be49e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238679
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/testdata/script/mod_edit.txt | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/cmd/dist/buildtool.go | 1 +
+ 1 file changed, 1 insertion(+)

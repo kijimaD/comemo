@@ -1,18 +1,62 @@
-commit 8fe75a28fbd7dcbdaf41f904fca5065a54a89998
+commit 3dd1e5be54417819c3c5e3024c9efbc8f8344195
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 2 19:42:02 2012 -0500
+Date:   Thu Feb 2 19:41:39 2012 -0500
 
-    syscall: fix // +build comments in types_*.go
+    cmd/dist: new command
     
-    I fixed types_linux.go yesterday but missed the others.
+    dist is short for distribution.  This is the new Go distribution tool.
     
-    R=golang-dev, bradfitz
+    The plan is to replace the Makefiles with what amounts to
+    'go tool dist bootstrap', although it cannot be invoked like
+    that since it is in charge of getting us to the point where we
+    can build the go command.
+    
+    It will also add additional commands to replace bash scripts
+    like test/run (go tool dist testrun), eventually eliminating our
+    dependence on not just bash but all the Unix tools and all
+    of cygwin.
+    
+    This is strong enough to build (cc *.c) and run (a.out bootstrap)
+    to build not just the C libraries and tools but also the basic
+    Go packages up to the bootstrap form of the go command
+    (go_bootstrap).  I've run it successfully on both Linux and Windows.
+    This means that once we've switched to this tool in the build,
+    we can delete the buildscripts.
+    
+    This tool is not nearly as nice as the go tool.  There are many
+    special cases that turn into simple if statements or tables in
+    the code.  Please forgive that.  C does not enjoy the benefits
+    that we designed into Go.
+    
+    I was planning to wait to do this until after Go 1, but the
+    Windows builders are both broken due to a bug in either
+    make or bash or both involving the parsing of quoted command
+    arguments.  Make thinks it is invoking
+    
+            quietgcc -fno-common -I"c:/go/include" -ggdb -O2 -c foo.c
+    
+    but bash (quietgcc is a bash script) thinks it is being invoked as
+    
+            quietgcc -fno-common '-Ic:/go/include -ggdb' -O2 -c foo.c
+    
+    which obviously does not have the desired effect.  Rather than fight
+    these clumsy ports, I accelerated the schedule for the new tool.
+    We should be completely off cygwin (using just the mingw gcc port,
+    which is much more standalone) before Go 1.
+    
+    It is big for a single CL, and for that I apologize.  I can cut it into
+    separate CLs along file boundaries if people would prefer that.
+    
+    R=golang-dev, adg, gri, bradfitz, alex.brainman, dsymonds, iant, ality, hcwfrichter
     CC=golang-dev
-    https://golang.org/cl/5620054
+    https://golang.org/cl/5620045
 
- src/pkg/syscall/types_darwin.go  | 4 ++--
- src/pkg/syscall/types_freebsd.go | 4 ++--
- src/pkg/syscall/types_linux.go   | 6 ++++--
- src/pkg/syscall/types_netbsd.go  | 4 ++--
- src/pkg/syscall/types_openbsd.go | 4 ++--
- 5 files changed, 12 insertions(+), 10 deletions(-)
+ src/cmd/dist/README    |  45 +++
+ src/cmd/dist/a.h       | 125 +++++++
+ src/cmd/dist/buf.c     | 250 ++++++++++++++
+ src/cmd/dist/build.c   | 916 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/buildgc.c | 106 ++++++
+ src/cmd/dist/main.c    |  38 ++
+ src/cmd/dist/unix.c    | 596 ++++++++++++++++++++++++++++++++
+ src/cmd/dist/windows.c | 774 +++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 2850 insertions(+)

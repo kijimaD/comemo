@@ -1,14 +1,13 @@
-commit fa33fdbc7dc29f5c24c9a82868cbaf076ba59214
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 28 10:15:23 2012 +1100
+commit ce51e1074995cf7f1369b26d059d5a86e7b82e98
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 28 09:41:30 2012 +1100
 
-    encoding/binary: better example
+    archive/zip: use encoding/binary again, add readBuf helper
     
-    leave that joke to Java.
-    
-    R=golang-dev, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5695080
+    https://golang.org/cl/5699097
 
- src/pkg/encoding/binary/example_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/archive/zip/reader.go | 136 ++++++++++++++++++++++++------------------
+ src/pkg/archive/zip/writer.go |  12 +---
+ 2 files changed, 81 insertions(+), 67 deletions(-)

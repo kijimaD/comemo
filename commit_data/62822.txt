@@ -1,0 +1,18 @@
+commit 9d7de0483861b3f882f79797939566fe8f6f9e24
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 14 09:52:31 2025 -0700
+
+    runtime: fix 9-arg syscall on darwin/amd64
+    
+    The last 3 arguments need to be passed on the stack, not registers.
+    
+    Fixes #71302
+    
+    Change-Id: Ib1155ad1a805957fad3d9594c93981a558755591
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665435
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/sys_darwin_amd64.s | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

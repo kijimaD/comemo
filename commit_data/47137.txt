@@ -1,18 +1,21 @@
-commit 243c5ae019bab96caf55dd443a0ecd128f079d9c
-Author: Robert Findley <rfindley@google.com>
-Date:   Sat Oct 30 20:54:39 2021 -0400
+commit 9a7fe196e468c687ad7239b9447c584826331771
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 21:32:29 2021 +0000
 
-    go/parser: simplify parsing of array or slice constraint types
+    Revert "cmd/compile: fix mishandling of unsafe-uintptr arguments with call method in go/defer"
     
-    Simplify the parsing of array or slice constraint types added in CL
-    359134, following the port in CL 360135.
+    This reverts commit CL 294849.
     
-    Change-Id: Ia86d4b0149a222423d3b19623dd39d4aeb23857d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360115
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reason for revert: this doesn't actually fix the issue, as revealed
+    by the noopt builder's failures.
+    
+    Change-Id: Ib4ea9ceb4d75e46b3b91ec348b365fd8c83316ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296629
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/parser/parser.go | 98 +++++++++++++++++++++++--------------------------
- 1 file changed, 46 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/walk/expr.go | 32 ++++++++++++++------------------
+ src/cmd/compile/internal/walk/stmt.go |  3 ---
+ test/fixedbugs/issue24491a.go         | 30 ------------------------------
+ test/fixedbugs/issue44415.go          | 21 ---------------------
+ 4 files changed, 14 insertions(+), 72 deletions(-)

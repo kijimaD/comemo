@@ -1,12 +1,14 @@
-commit 584a66b785af8c99b4bba3cb31c2b5e22f689438
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 27 13:35:41 2013 -0700
+commit 23482db9f1d6cc4ad7a74c9f6f807954c39ab701
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Mar 27 21:15:05 2013 +0100
 
-    net/http: new server-only, single-connection keep-alive benchmark
+    runtime/race: mark failing test as such.
     
-    R=golang-dev, r
+    Fixes race builder.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8046043
+    https://golang.org/cl/8055045
 
- src/pkg/net/http/serve_test.go | 97 +++++++++++++++++++++++++++++++++---------
- 1 file changed, 77 insertions(+), 20 deletions(-)
+ src/pkg/runtime/race/testdata/mop_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

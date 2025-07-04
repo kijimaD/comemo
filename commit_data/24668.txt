@@ -1,18 +1,12 @@
-commit 2dedb971e3432e530701a9e1d08c8c26658c1e49
-Author: Taru Karttunen <taruti@taruti.net>
-Date:   Fri Oct 16 13:26:20 2015 +0300
+commit ae4dc8facb0e22508c4fbd27fe380e1ad86100e7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 20 11:46:05 2015 +1000
 
-    net/http: extra documentation for Redirect and RedirectHandler
+    doc: fix typo in release notes
     
-    Errors with http.Redirect and http.StatusOk seem
-    to occur from time to time on the irc channel.
-    This change adds documentation suggesting
-    to use one of the 3xx codes and not StatusOk
-    with Redirect.
-    
-    Change-Id: I6b900a8eb868265fbbb846ee6a53e426d90a727d
-    Reviewed-on: https://go-review.googlesource.com/15980
+    Change-Id: I5310cef72e714b22bcf2ae9e6fd85dbb7e8a15a2
+    Reviewed-on: https://go-review.googlesource.com/13787
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/server.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

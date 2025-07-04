@@ -1,13 +1,20 @@
-commit 44e86bef06397cb64f158c3561544100b70d525a
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Mon Feb 27 18:15:02 2017 +0530
+commit ec0ee7d35737ef137175e92d563c8c4315820204
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 4 02:49:23 2017 +0000
 
-    crypto/cipher: extend the docs of BlockMode and Stream
+    crypto: revise wording about cryptographically broken algorithms
     
-    Change-Id: Iebb5b67c8defec22edd482d587edaf399a7ba82a
-    Reviewed-on: https://go-review.googlesource.com/37418
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates text from https://golang.org/cl/42511
+    
+    Updates #14395
+    
+    Change-Id: I711100525e074ab360e577520280c37645db1c95
+    Reviewed-on: https://go-review.googlesource.com/42614
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/cipher/cipher.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/crypto/des/const.go | 3 ++-
+ src/crypto/md5/md5.go   | 3 ++-
+ src/crypto/rc4/rc4.go   | 3 ++-
+ src/crypto/sha1/sha1.go | 3 ++-
+ 4 files changed, 8 insertions(+), 4 deletions(-)

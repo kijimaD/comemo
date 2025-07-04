@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 22310: debe12cfcf9e0672bce0972cc22ff093f215ac59
+# Index 22310: 494e317fbf47eac5edfc0664506d5e1f1f3eafed
 
 echo "🚀 Generating explanation for commit 22310..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 22310
-- **コミットハッシュ**: debe12cfcf9e0672bce0972cc22ff093f215ac59
-- **GitHub URL**: https://github.com/golang/go/commit/debe12cfcf9e0672bce0972cc22ff093f215ac59
+- **コミットハッシュ**: 494e317fbf47eac5edfc0664506d5e1f1f3eafed
+- **GitHub URL**: https://github.com/golang/go/commit/494e317fbf47eac5edfc0664506d5e1f1f3eafed
 
 ### 章構成
 

@@ -1,24 +1,24 @@
-commit e6dfdbd11d5dcc9f918150552f50ca6cd524b89b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Apr 22 03:30:42 2022 +1000
+commit 73496e0df0ba4284f460d1955ddf6bb096957c9f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 22 21:24:57 2021 -0400
 
-    os: use a lower file count for TestOpenFileLimit on openbsd
+    net: use absDomainName in the Windows lookupPTR test helper
     
-    OpenBSD has a default soft limit of 512 and hard limit of 1024 - as such,
-    attempting to open 1200 files is always going to fail unless the defaults
-    have been changed. On this platform use 768 instead such that it passes
-    without requiring customisation.
+    The real net code uses subtle heuristics to transform a domain name
+    to its absolute form. Since lookupPTR isn't checking that
+    transformation specifically, it should use the real code instead of
+    using a different heuristic.
     
-    Fixes #51713
+    Fixes #46882
     
-    Change-Id: I7679c8fd73d4b263145129e9308afdb29d67bb54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401594
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: 谢致邦 <xiezhibang@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Change-Id: I503357e0f62059c37c359cd54b44d343c7d5ab2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330249
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/rlimit_test.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/net/lookup_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

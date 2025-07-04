@@ -1,15 +1,16 @@
-commit 3811c4d84aabc544f3431bf7fb59e9c57b183628
+commit ab724f928fa8dd95e3fccbf112e7a87a5f37d408
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 20 11:10:00 2014 -0400
+Date:   Mon Oct 6 19:22:48 2014 -0400
 
-    debug/pe: remove use of unsafe
+    os, syscall: test Chtimes on directories, fix on Windows
     
-    Helps in environments with restricted support for unsafe.
+    Fixes #8090.
     
-    LGTM=bradfitz
-    R=r, bradfitz
-    CC=dsymonds, golang-codereviews
-    https://golang.org/cl/156410044
+    LGTM=alex.brainman
+    R=alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/154020043
 
- src/debug/pe/file.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/os/os_test.go              | 47 ++++++++++++++++++++++++++++++++++--------
+ src/syscall/syscall_windows.go |  4 ++--
+ 2 files changed, 40 insertions(+), 11 deletions(-)

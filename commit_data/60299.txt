@@ -1,0 +1,30 @@
+commit ee4a42bd583b8594e97f1833c4b4c6e6428d9227
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 11 09:36:49 2024 -0700
+
+    net: add GODEBUG=netedns0=0 to disable sending EDNS0 header
+    
+    It reportedly breaks the DNS server on some modems.
+    
+    For #6464
+    For #21160
+    For #44135
+    For #51127
+    For #51153
+    Fixes #67925
+    
+    Change-Id: I54a11906159f00246d08a54cc8be7327e9ebfd2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591995
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/godebug.md                          |  7 ++++++
+ doc/next/6-stdlib/99-minor/net/67925.md |  3 +++
+ src/internal/godebugs/table.go          |  1 +
+ src/net/dnsclient_unix.go               | 28 ++++++++++++++---------
+ src/net/dnsclient_unix_test.go          | 39 ++++++++++++++++++++++++---------
+ src/net/net.go                          |  6 +++++
+ src/runtime/metrics/doc.go              |  4 ++++
+ 7 files changed, 68 insertions(+), 20 deletions(-)

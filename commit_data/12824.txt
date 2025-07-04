@@ -1,13 +1,15 @@
-commit 49397fe14557af2fc9e5becf03b543009a5b73a2
+commit 0fd53d8be91e4f48666fce2e6ba98a39c285b84b
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 3 13:38:57 2012 -0700
+Date:   Tue Apr 3 12:33:22 2012 -0700
 
-    A+C: add Michael Lewis (Individual CLA)
+    misc/dist: check return value from filepath.Walk
     
-    R=golang-dev, rsc
+    Doesn't fix any known issue. This bit me in some unrelated
+    code and I thought of this tool.
+    
+    R=golang-dev, krautz, mikkel
     CC=golang-dev
-    https://golang.org/cl/5970077
+    https://golang.org/cl/5976067
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ misc/dist/bindist.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

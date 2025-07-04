@@ -1,22 +1,24 @@
-commit 700b73975e9a925584773e6df85b175371cf9d95
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Jan 25 17:13:51 2021 -0500
+commit 8aa036e9135f6f24ab6a5f250a4fba47a5d3a083
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 30 10:22:13 2020 -0400
 
-    runtime: use entersyscall in syscall_syscallX on Darwin
+    [dev.link] cmd/link: skip symtab entries for selected file local symbols
     
-    CL 197938 changed syscall* functions to call entersyscall, instead
-    of entersyscallblock. It missed syscall_syscallX, probably because
-    it was in sys_darwin_64.go, not sys_darwin.go like others. Change
-    that one as well.
+    Don't emit symbol table entries for compiler-generated file-local
+    symbols (this category includes .stmp_* temporaries and *.stkobj
+    symbols). Note that user-written static symbols within assembler
+    sources will still be added to the symbol table. Apply the same test
+    when emitting DWARF for global variables.
     
-    Found during the review of CL 270380 (thanks Joel).
-    
-    Change-Id: I0884fc766703f555a3895be332dccfa7d2431374
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/286435
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4db77a2750a0b575e051dfea895c4742cf6709a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240539
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/sys_darwin.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/goobj2/objfile.go     |  2 ++
+ src/cmd/internal/obj/objfile2.go       |  3 +++
+ src/cmd/link/internal/ld/dwarf.go      |  7 ++++---
+ src/cmd/link/internal/ld/symtab.go     | 19 +++++++++----------
+ src/cmd/link/internal/loader/loader.go | 14 +++++++++++++-
+ 5 files changed, 31 insertions(+), 14 deletions(-)

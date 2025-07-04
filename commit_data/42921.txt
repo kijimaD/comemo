@@ -1,20 +1,21 @@
-commit ae3680b30b81162da3ae0ea248eea502e8ca2195
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Sep 4 13:01:08 2020 -0400
+commit f0ee49b5bcde39ac6c36d3837666aa9a36383066
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 14 18:15:25 2020 +0000
 
-    cmd/link: rewrite some code without using reflection
+    mime: fix ExtensionsByType bug when there are duplicates
     
-    In Mach-O DWARF combining, some code was written using reflection,
-    so it could support both 32-bit and 64-bit Mach-O files without
-    duplicating code. We no longer support 32-bit darwin platforms
-    now. 32-bit support can go. Rewrite it with direct field access,
-    for 64-bit only.
+    Also, sort them so the results aren't random.
     
-    Change-Id: If1338c3cd37cecf603f4df0c6eb0c890eaebfe5f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253557
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Thanks to @junedev for the bug report & repro.
+    
+    Fixes #36524
+    
+    Change-Id: Ic9197ebeceddfb3d0aee895d8fc12ce4d205b164
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214680
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/internal/ld/macho_combine_dwarf.go | 95 ++++++++++---------------
- 1 file changed, 38 insertions(+), 57 deletions(-)
+ src/mime/type.go      |  7 +++++--
+ src/mime/type_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

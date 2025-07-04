@@ -1,15 +1,17 @@
-commit fee0ab8b5ecab3c1170a80300c8c41f09486ca66
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Oct 18 08:25:51 2022 -0400
+commit 24239120bfbff9ebee8e8c344d9d3a8ce460b686
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 12 16:27:14 2022 -0800
 
-    go/types: mention FakeImportC in Package.Import doc comment
+    doc: mention that GOAMD64 is a compile-time setting
     
-    Change-Id: If4a82893f855d86de3311247424b1a3740c1f212
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443615
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Fixes #50589
+    
+    Change-Id: Ic260a6edd9af5c9c6dd8b40f0830f88644c907f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378179
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/package.go | 3 +++
- src/go/types/package.go                    | 3 +++
- 2 files changed, 6 insertions(+)
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

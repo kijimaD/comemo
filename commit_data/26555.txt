@@ -1,22 +1,16 @@
-commit 621aa713d46c3eebbc03e352436d109f28779e47
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 28 14:12:10 2016 -0700
+commit a6fb514bf8dd43cff37185eb02b448d8244af9da
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 4 15:53:33 2016 -0800
 
-    cmd/compile: avoid allocation in Nodes.Set in common case
+    [dev.ssa] cmd/compile: add store constant indexed operations
     
-    When building make.bash, calling Nodes.Set(s) where len(s) == 0 occurs
-    4738678 times vs 1465415 calls where len(s) > 0; i.e., it is over 3x
-    more common to set Nodes.slice to nil rather than to s.
-    
-    Make a copy of slice (header) and take address of that copy instead
-    to avoid allocating the argument slice on the heap always even when
-    not needed.
-    
-    Saves 4738678 slice header allocations and slice header value copies.
-    
-    Change-Id: I88e8e919ea9868ceb2df46173d187af4109bd947
-    Reviewed-on: https://go-review.googlesource.com/21241
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ifb8eba1929c79ee7a8cae2191613c55a3b8f74e5
+    Reviewed-on: https://go-review.googlesource.com/19236
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/cmd/compile/internal/gc/syntax.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go           |  22 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  28 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  12 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  48 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 316 +++++++++++++++++++++++++++
+ 5 files changed, 423 insertions(+), 3 deletions(-)

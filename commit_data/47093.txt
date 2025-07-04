@@ -1,31 +1,15 @@
-commit 266626211e40d1f2c3a34fa4cd2023f5310cbd7d
-Author: Neil Alexander <neilalexander@users.noreply.github.com>
-Date:   Fri Sep 3 21:07:22 2021 +0000
+commit eb863240dcc857b4207b06eb33385446696b7b1c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 23 15:35:43 2021 +0100
 
-    net/http: guarantee that the Transport dial functions are respected in js/wasm
+    runtime: remove unused const stackSystem on dragonfly
     
-    The net/http package has a documented contract that if DialContext, DialDLSContext, Dial or DialTLS are specified in an instance of Transport, that they will be used to set up the connection. If they are not specified, then a reasonable fallback is made (e.g. using the net package).
-    
-    This is ordinarily true, except for when compiling for the js/wasm target, where the browser's Fetch API is preferred in all cases (except for when it is undefined/unavailable) and therefore the dial functions are all ignored. As a result, the http.Transport implementation under js/wasm doesn't meet that contract.
-    
-    This PR updates the RoundTrip behaviour of http.Transport so that if DialContext, DialTLSContext, Dial or DialTLS are specified, they are used as expected. The Fetch API will be used as a fallback if they are not specified.
-    
-    Fixes #27495
-    
-    Change-Id: I88c6eb6ffdd077827b421d606f3e60ebdafd538f
-    GitHub-Last-Rev: 948a0ed97ec4661f03cd346335f1d3d180f4c1ae
-    GitHub-Pull-Request: golang/go#46923
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330852
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Damien Neil <dneil@google.com>
-    Trust: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I778c2bd7cf0b12275bae344cb2130a7959500481
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295470
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- AUTHORS                                 |  1 +
- CONTRIBUTORS                            |  1 +
- src/net/http/roundtrip_js.go            | 12 ++++++++++--
- src/net/http/transport.go               |  4 ++--
- src/net/http/transport_default_js.go    | 17 +++++++++++++++++
- src/net/http/transport_default_other.go | 17 +++++++++++++++++
- 6 files changed, 48 insertions(+), 4 deletions(-)
+ src/runtime/os_dragonfly.go | 2 --
+ 1 file changed, 2 deletions(-)

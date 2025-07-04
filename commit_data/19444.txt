@@ -1,23 +1,17 @@
-commit 7f638e90231e56c523ae51ba18dbbf084db8b86e
-Author: Rob Pike <r@golang.org>
-Date:   Tue May 27 14:37:36 2014 -0700
+commit 8a2fb87b996a3c4198aa8d9505fd77e560df0bbc
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun May 25 08:38:59 2014 +1000
 
-    cmd/go: improve error message when import path contains http://
-    Common mistake (at least for me) because hg etc. require the prefix
-    while the go command forbids it.
+    runtime: skip stack growth test on 32bit platforms
     
-    Before:
-    % go get http://code.google.com/p/go.text/unicode/norm
-    package http:/code.google.com/p/go.text/unicode/norm: unrecognized import path "http:/code.google.com/p/go.text/unicode/norm"
+    Update #8083
     
-    After:
-    % go get http://code.google.com/p/go.text/unicode/norm
-    package http:/code.google.com/p/go.text/unicode/norm: "http://" not allowed in import path
+    See discussion in https://groups.google.com/forum/#!topic/golang-dev/dh6Ra_xJomc
     
-    LGTM=ruiu, rsc
-    R=rsc, ruiu
+    LGTM=khr
+    R=golang-codereviews, gobot, khr
     CC=golang-codereviews
-    https://golang.org/cl/97630046
+    https://golang.org/cl/99440048
 
- src/cmd/go/vcs.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/pkg/runtime/stack_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,39 +1,19 @@
-commit bdde10137b3e67383f38329b02b329a906b78d5d
-Author: Radu Berinde <radu@cockroachlabs.com>
-Date:   Sun Aug 28 14:36:06 2016 -0400
+commit 0ab78df9ea602d6bc9cf45dbd610c3d6f534cb58
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 30 21:27:04 2016 -0500
 
-    hash/crc32: cleanup code and improve tests
+    net/http: fix a few crashes with a ClientTrace with nil funcs
     
-    Major reorganization of the crc32 code:
+    And add a test.
     
-     - The arch-specific files now implement a well-defined interface
-       (documented in crc32.go). They no longer have the responsibility of
-       initializing and falling back to a non-accelerated implementation;
-       instead, that happens in the higher level code.
+    Updates #12580
     
-     - The non-accelerated algorithms are moved to a separate file with no
-       dependencies on other code.
-    
-     - The "cutoff" optimization for slicing-by-8 is moved inside the
-       algorithm itself (as opposed to every callsite).
-    
-    Tests are significantly improved:
-     - direct tests for the non-accelerated algorithms.
-     - "cross-check" tests for arch-specific implementations (all archs).
-     - tests for misaligned buffers for both IEEE and Castagnoli.
-    
-    Fixes #16909.
-    
-    Change-Id: I9b6dd83b7a57cd615eae901c0a6d61c6b8091c74
-    Reviewed-on: https://go-review.googlesource.com/27935
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia7eaba09b8e7fd0eddbcaefb948d01ab10af876e
+    Reviewed-on: https://go-review.googlesource.com/22659
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/hash/crc32/crc32.go            | 167 +++++++++++++++++++------------------
- src/hash/crc32/crc32_amd64.go      |  60 +++++++------
- src/hash/crc32/crc32_amd64_test.go |  44 ----------
- src/hash/crc32/crc32_amd64p32.go   |  36 ++++----
- src/hash/crc32/crc32_generic.go    |  92 ++++++++++++++++----
- src/hash/crc32/crc32_otherarch.go  |  15 ++++
- src/hash/crc32/crc32_s390x.go      |  83 +++++++++---------
- src/hash/crc32/crc32_test.go       | 164 +++++++++++++++++++++++++++++-------
- 8 files changed, 407 insertions(+), 254 deletions(-)
+ src/net/http/transport.go      |  6 +++---
+ src/net/http/transport_test.go | 23 ++++++++++++++++++++---
+ 2 files changed, 23 insertions(+), 6 deletions(-)

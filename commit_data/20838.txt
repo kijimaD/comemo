@@ -1,13 +1,15 @@
-commit 692ad844b632074d9e71b6e59fab227c82da77b5
-Author: Nathan P Finch <nate.finch@gmail.com>
-Date:   Thu Oct 30 13:20:43 2014 -0700
+commit 58e357ef160da1d89c68130c83e7a383d8480b16
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 17 11:03:55 2014 -0400
 
-    cmd/go: fix minor typo
+    runtime: remove comment that leaked into CL 153710043
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    This doesn't actually do anything. Maybe it will some day,
+    but maybe not.
+    
+    TBR=r
     CC=golang-codereviews
-    https://golang.org/cl/170770043
+    https://golang.org/cl/155490043
 
- src/cmd/go/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/malloc.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,35 +1,23 @@
-commit f27a1ff2c8ba1dce874e76d0b82c059b38a731d3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 18 17:45:58 2018 -0800
+commit 197f9ba11d4559cbd19350ca652da7881f4b273f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 27 14:26:20 2017 +0200
 
-    go/types: more robust behavior in the presence errors (due to import "C")
+    syscall: correct TCGETS/TCSETS values on ppc64/ppc64le
     
-    - Don't complain about invalid constant type if the type is
-      invalid already (we do this in other places as well). This
-      is useful to do in general, and even more so if we have
-      invalid types due to import "C".
+    Correcting values is allowed per the syscall package rules, so update
+    these constants to their correct value on ppc64/ppc64le. The values now
+    match the corresponding constants in x/sys/unix.
     
-    - Type-check the lhs of an assignment even if we bail out early
-      due to an error on the rhs. This was simply an oversight. We
-      already have machinery in place to "use" expressions; in this
-      case we just have to also make sure we don't overcount "uses"
-      of variables on the lhs.
+    Update #19560
+    Fixes #22000
     
-    - Fix overcount uses correction in assignments: Only do it if
-      the variable in question is declared inside the same package
-      to avoid possible race conditions when type-checking exported
-      variables concurrently.
-    
-    Fixes #22090.
-    
-    Change-Id: I4c1b59f9ce38970e7129fedc5f6023908386e4f1
-    Reviewed-on: https://go-review.googlesource.com/88375
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I1d358de345766ec96e15dfcc8911fe2f39fb0ddb
+    Reviewed-on: https://go-review.googlesource.com/66510
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/assignments.go       |  8 ++++++--
- src/go/types/call.go              | 39 ++++++++++++++++++++++++++++++++++++++-
- src/go/types/decl.go              |  6 +++++-
- src/go/types/stmt.go              |  3 +++
- src/go/types/testdata/importC.src | 25 +++++++++++++++++++++++++
- src/go/types/typexpr.go           |  3 +++
- 6 files changed, 80 insertions(+), 4 deletions(-)
+ src/syscall/ztypes_linux_ppc64.go   | 4 ++--
+ src/syscall/ztypes_linux_ppc64le.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

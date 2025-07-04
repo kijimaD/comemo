@@ -1,25 +1,24 @@
-commit 767c0fb9fd1e7d7210276be45b0abb5d14d34484
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Feb 25 15:25:56 2025 -0500
+commit aba18d5b6785d501996b475d58a05cc26707d370
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 8 13:28:59 2024 -0800
 
-    go/scanner: report specific error for UCS-2 encoded files
+    math/big: fix uint64 overflow in nat.mulRange
     
-    Windows text files may be encoded as UCS-2 (i.e. 2-byte UTF-16).
-    This CL causes the scanner to emit a better error when it reads
-    a file in this encoding.
+    Compute median as a + (b-a)/2 instead of (a + b)/2.
+    Add additional test cases.
     
-    + test
+    Fixes #65025.
     
-    Fixes #71950
-    
-    Change-Id: Ia65bbf9a60e36984b0f3e4865591aa6978d2bde2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652515
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib716a1036c17f8f33f51e33cedab13512eb7e0be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554617
     Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/go/scanner/scanner.go      | 12 +++++++++++-
- src/go/scanner/scanner_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 1 deletion(-)
+ src/math/big/int_test.go | 10 ++++++++++
+ src/math/big/nat.go      |  2 +-
+ src/math/big/nat_test.go |  5 +++++
+ 3 files changed, 16 insertions(+), 1 deletion(-)

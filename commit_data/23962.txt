@@ -1,54 +1,16 @@
-commit fc9ca85f4c4d38ee60b92f79544274c6019e8c5b
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 3 09:46:50 2015 -0400
+commit 7b858018b396b9a4d491ba112122605c0122a2e0
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jun 25 20:01:45 2015 -0700
 
-    runtime: make sweep proportional to spans bytes allocated
+    [dev.ssa] cmd/compile/internal/gc: Interpret init list of OFOR conditions
     
-    Proportional concurrent sweep is currently based on a ratio of spans
-    to be swept per bytes of object allocation. However, proportional
-    sweeping is performed during span allocation, not object allocation,
-    in order to minimize contention and overhead. Since objects are
-    allocated from spans after those spans are allocated, the system tends
-    to operate in debt, which means when the next GC cycle starts, there
-    is often sweep debt remaining, so GC has to finish the sweep, which
-    delays the start of the cycle and delays enabling mutator assists.
+    Fixes build.  Some variables are initialized in this list.
     
-    For example, it's quite likely that many Ps will simultaneously refill
-    their span caches immediately after a GC cycle (because GC flushes the
-    span caches), but at this point, there has been very little object
-    allocation since the end of GC, so very little sweeping is done. The
-    Ps then allocate objects from these cached spans, which drives up the
-    bytes of object allocation, but since these allocations are coming
-    from cached spans, nothing considers whether more sweeping has to
-    happen. If the sweep ratio is high enough (which can happen if the
-    next GC trigger is very close to the retained heap size), this can
-    easily represent a sweep debt of thousands of pages.
+    Q: How do we tell that we've included all the required Ninit lists?
     
-    Fix this by making proportional sweep proportional to the number of
-    bytes of spans allocated, rather than the number of bytes of objects
-    allocated. Prior to allocating a span, both the small object path and
-    the large object path ensure credit for allocating that span, so the
-    system operates in the black, rather than in the red.
-    
-    Combined with the previous commit, this should eliminate all sweeping
-    from GC start up. On the stress test in issue #11911, this reduces the
-    time spent sweeping during GC (and delaying start up) by several
-    orders of magnitude:
-    
-                    mean    99%ile     max
-        pre fix      1 ms    11 ms   144 ms
-        post fix   270 ns   735 ns   916 ns
-    
-    Updates #11911.
-    
-    Change-Id: I89223712883954c9d6ec2a7a51ecb97172097df3
-    Reviewed-on: https://go-review.googlesource.com/13044
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I96b3f03c291440130303a2b95a651e97e4d8113c
+    Reviewed-on: https://go-review.googlesource.com/11542
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/malloc.go   |  6 ++++++
- src/runtime/mcentral.go | 19 ++-----------------
- src/runtime/mgc.go      |  1 +
- src/runtime/mgcsweep.go | 32 ++++++++++++++++++++++++++++++++
- src/runtime/mheap.go    |  1 +
- 5 files changed, 42 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 1 +
+ 1 file changed, 1 insertion(+)

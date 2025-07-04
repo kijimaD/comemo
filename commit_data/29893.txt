@@ -1,27 +1,22 @@
-commit d698e614a21cd50055c7c5e7100069d2bcdb9b83
-Author: Rob Pike <r@golang.org>
-Date:   Sun Dec 25 08:51:21 2016 +1100
+commit 99df54f19696e26bea8d6a052d8d91ddb1e4ea65
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Tue Sep 6 13:42:49 2016 +0200
 
-    cmd/vet: include function name or value in copylock message
+    bytes: encode size of rune read by ReadRune into lastRead to speed up UnreadRune
     
-    Given
-            var t struct{ lock sync.Mutex }
-            var fntab []func(t)
-            f(a(), b(&t), c(), fntab[0](t))
+    In ReadRune store the size of the rune that was read into lastRead
+    to avoid the need to call DecodeRuneLast in UnreadRune.
     
-    Before:
-            function call copies lock value: struct{lock sync.Mutex} contains sync.Mutex
+    fmt:
+    name        old time/op  new time/op  delta
+    ScanInts-4   481µs ± 4%   458µs ± 3%  -4.64%  (p=0.000 n=20+20)
     
-    After:
-            call of fntab[0] copies lock value: struct{lock sync.Mutex} contains sync.Mutex
-    
-    This will make diagnosis easier when there are multiple function calls per line.
-    
-    Change-Id: I9881713c5671b847b84a0df0115f57e7cba17d72
-    Reviewed-on: https://go-review.googlesource.com/34730
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I500848e663a975f426402a4b3d27a541e5cac06c
+    Reviewed-on: https://go-review.googlesource.com/28817
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/copylock.go               | 2 +-
- src/cmd/vet/testdata/copylock.go      | 6 +++---
- src/cmd/vet/testdata/copylock_func.go | 6 ++++--
- 3 files changed, 8 insertions(+), 6 deletions(-)
+ src/bytes/buffer.go | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)

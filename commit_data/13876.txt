@@ -1,48 +1,14 @@
-commit 83601807af568eb0131ebe300965cd6418da1dc5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 19 14:14:21 2012 -0700
+commit 2e7aaeddc4498788fe98bb9052af67894566ee5d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Sep 20 00:58:34 2012 +0800
 
-    gofmt: added testcase for files containing \r\n line endings
-    (see also issue 3961).
+    src/all.bat: fix banner
+    we need to restore %PATH% before calling "dist banner", so that
+    it could suggest the user to add %GOROOT%/bin to %PATH% if necessary.
     
-    hexdump -c testdata/crlf.input
-    0000000   /   *  \r  \n  \t   S   o   u   r   c   e       c   o   n   t
-    0000010   a   i   n   i   n   g       C   R   /   L   F       l   i   n
-    0000020   e       e   n   d   i   n   g   s   .  \r  \n  \t   T   h   e
-    0000030       g   o   f   m   t   '   e   d       o   u   t   p   u   t
-    0000040       m   u   s   t       o   n   l   y       h   a   v   e
-    0000050   L   F  \r  \n  \t   l   i   n   e       e   n   d   i   n   g
-    0000060   s   .  \r  \n   *   /  \r  \n   p   a   c   k   a   g   e
-    0000070   m   a   i   n  \r  \n  \r  \n   f   u   n   c       m   a   i
-    0000080   n   (   )       {  \r  \n  \t   /   /       l   i   n   e
-    0000090   c   o   m   m   e   n   t  \r  \n  \t   p   r   i   n   t   l
-    00000a0   n   (   "   h   e   l   l   o   ,       w   o   r   l   d   !
-    00000b0   "   )       /   /       a   n   o   t   h   e   r       l   i
-    00000c0   n   e       c   o   m   m   e   n   t  \r  \n  \t   p   r   i
-    00000d0   n   t   l   n   (   )  \r  \n   }  \r  \n
-    00000db
-    
-    hexdump -c testdata/crlf.golden
-    0000000   /   *  \n  \t   S   o   u   r   c   e       c   o   n   t   a
-    0000010   i   n   i   n   g       C   R   /   L   F       l   i   n   e
-    0000020       e   n   d   i   n   g   s   .  \n  \t   T   h   e       g
-    0000030   o   f   m   t   '   e   d       o   u   t   p   u   t       m
-    0000040   u   s   t       o   n   l   y       h   a   v   e       L   F
-    0000050  \n  \t   l   i   n   e       e   n   d   i   n   g   s   .  \n
-    0000060   *   /  \n   p   a   c   k   a   g   e       m   a   i   n  \n
-    0000070  \n   f   u   n   c       m   a   i   n   (   )       {  \n  \t
-    0000080   /   /       l   i   n   e       c   o   m   m   e   n   t  \n
-    0000090  \t   p   r   i   n   t   l   n   (   "   h   e   l   l   o   ,
-    00000a0       w   o   r   l   d   !   "   )       /   /       a   n   o
-    00000b0   t   h   e   r       l   i   n   e       c   o   m   m   e   n
-    00000c0   t  \n  \t   p   r   i   n   t   l   n   (   )  \n   }  \n
-    00000cf
-    
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6526052
+    https://golang.org/cl/6525049
 
- src/cmd/gofmt/gofmt_test.go        | 22 ++++++++++++++++++++++
- src/cmd/gofmt/testdata/crlf.golden | 12 ++++++++++++
- src/cmd/gofmt/testdata/crlf.input  | 12 ++++++++++++
- 3 files changed, 46 insertions(+)
+ src/all.bat | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

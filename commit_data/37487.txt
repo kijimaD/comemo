@@ -1,26 +1,15 @@
-commit ead5d1e316873a63471de31f3d70f97aeb7969f5
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Tue Oct 23 20:20:44 2018 -0600
+commit 0bad63437ec0262c309efd4262b86352a25a73e3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 3 09:55:44 2018 -0700
 
-    math/bits: panic when y<=hi in Div
+    os: document that Remove removes only empty directories
     
-    Explicitly check for divide-by-zero/overflow and panic with the appropriate
-    runtime error.  The additional checks have basically no effect on performance
-    since the branch is easily predicted.
+    Fixes #26507
     
-    name     old time/op  new time/op  delta
-    Div-4    53.9ns ± 1%  53.0ns ± 1%  -1.59%  (p=0.016 n=4+5)
-    Div32-4  17.9ns ± 0%  18.4ns ± 0%  +2.56%  (p=0.008 n=5+5)
-    Div64-4  53.5ns ± 0%  53.3ns ± 0%    ~     (p=0.095 n=5+5)
-    
-    Updates #28316
-    
-    Change-Id: I36297ee9946cbbc57fefb44d1730283b049ecf57
-    Reviewed-on: https://go-review.googlesource.com/c/144377
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I967e4f897ca891c70ca8bb0e66b984530c240815
+    Reviewed-on: https://go-review.googlesource.com/127835
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/build/deps_test.go  |  2 +-
- src/math/bits/bits.go      | 18 ++++++++--
- src/math/bits/bits_test.go | 84 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 101 insertions(+), 3 deletions(-)
+ src/os/file_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

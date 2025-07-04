@@ -1,20 +1,32 @@
-commit 36454187dbd9d543c4ff2f4c9c41e513fcae54ab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 3 10:09:35 2018 -0800
+commit 7582494e063e12dddc5c99a831d0c28cda2df635
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Sep 14 20:00:02 2017 +0100
 
-    net: report connect error as coming from "connect"
+    cmd/compile: add s390x intrinsics for Ceil, Floor, Round and Trunc
     
-    We retrieve an error using getsockopt with SO_ERROR. We were reporting
-    the error as coming from "getsockopt", but really it is coming from
-    "connect". It is not getsockopt that failed.
+    Ceil, Floor and Trunc are pre-existing intrinsics. Round is a new
+    function and has been added as an intrinsic in this CL. All of the
+    functions can be implemented as a single 'LOAD FP INTEGER'
+    instruction, FIDBR, on s390x.
     
-    Fixes #19302
+    name   old time/op  new time/op  delta
+    Ceil   2.34ns ± 0%  0.85ns ± 0%  -63.74%  (p=0.000 n=5+4)
+    Floor  2.33ns ± 0%  0.85ns ± 1%  -63.35%  (p=0.008 n=5+5)
+    Round  4.23ns ± 0%  0.85ns ± 0%  -79.89%  (p=0.000 n=5+4)
+    Trunc  2.35ns ± 0%  0.85ns ± 0%  -63.83%  (p=0.029 n=4+4)
     
-    Change-Id: I510ab76e4b04c70cd9dfdfc46d9a410bf653d017
-    Reviewed-on: https://go-review.googlesource.com/85997
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idee7ba24a2899d12bf9afee4eedd6b4aaad3c510
+    Reviewed-on: https://go-review.googlesource.com/63890
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/fd_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go        | 33 +++++++++++++++
+ src/cmd/compile/internal/gc/ssa.go             | 11 +++--
+ src/cmd/compile/internal/s390x/ssa.go          |  7 ++++
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  7 +++-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   | 11 +++++
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 21 ++++++++--
+ src/cmd/compile/internal/ssa/opGen.go          | 21 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 56 ++++++++++++++++++++++++++
+ 8 files changed, 159 insertions(+), 8 deletions(-)

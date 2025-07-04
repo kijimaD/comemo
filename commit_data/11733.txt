@@ -1,16 +1,15 @@
-commit 1c1ecd7473770521b8e9e599220c038819736d7b
+commit c0e74b63cf3ef73191f8908609c2c22b75a50be6
 Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 9 14:40:56 2012 +1100
+Date:   Thu Feb 9 14:12:55 2012 +1100
 
-    log/syslog: fix documentation for NewLogger
-    Fixes #2798.
+    fmt: scan FALSE correctly
     
-    R=golang-dev, bradfitz, r, rsc, rsc
+    Fixes bug 2922.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5642071
+    https://golang.org/cl/5642072
 
- doc/go1.html                      | 18 ++++++++++++++++--
- doc/go1.tmpl                      | 12 ++++++++++++
- src/pkg/log/syslog/syslog.go      | 14 +++++++-------
- src/pkg/log/syslog/syslog_test.go |  4 ++--
- 4 files changed, 37 insertions(+), 11 deletions(-)
+ src/pkg/fmt/scan.go      | 2 +-
+ src/pkg/fmt/scan_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

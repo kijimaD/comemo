@@ -1,19 +1,17 @@
-commit 34655223ef9b26e40cc22a0ab355a991ed177cf4
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 21 17:38:30 2014 -0400
+commit 4676e260e3b0f285037bf357e1b91ffb6135273c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 21 12:06:30 2014 -0700
 
-    runtime: round gohash stack frame to multiple of 8 on amd64p32
+    cmd/api: ignore internal packages
     
-    Even though pointers are 4 bytes the stack frame should be kept
-    a multiple of 8 bytes so that return addresses pushed on the stack
-    are properly aligned.
+    We might want to add a go/build.IsInternal(pkg string) bool
+    later, but this works for now.
     
-    Fixes #8379.
-    
-    LGTM=dvyukov, minux
-    R=minux, bradfitz, dvyukov, dave
+    LGTM=dave, rsc
+    R=rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/115840048
+    https://golang.org/cl/113300044
 
- src/pkg/runtime/asm_amd64p32.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/api/goapi.go      |  8 +++++++-
+ src/cmd/api/goapi_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

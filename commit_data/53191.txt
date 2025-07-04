@@ -1,34 +1,20 @@
-commit 5abfdc8c75b13edbe3ccc918df47dd2da85454d8
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 22 15:19:49 2023 -0400
+commit 994ff78ba01b921870866f9ce9db7563bd89494f
+Author: David Chase <drchase@google.com>
+Date:   Fri Jul 29 12:06:50 2022 -0400
 
-    cmd/cgo/internal: skip in tests, not in TestMain
+    [dev.unified] go/internal: set underlying types in proper order
     
-    Many cgo integration tests do a lot of common setup in TestMain, and
-    that means they require a lot from the test environment to even get
-    off the ground. If something is missing, right now they print a "SKIP"
-    message to stderr and exit without running any tests.
+    This problem appeared in google-internal testing.
+    If the run-later functions are run in the wrong order,
+    type definitions won't resolve properly.
     
-    Make these behave more like normal tests by instead setting a global
-    skip function if some precondition isn't satisfied, and having every
-    test call that. This way we run the tests and see them skip.
-    
-    I would prefer something much more structured. For example, if we
-    replaced the global state set up by TestMain in these tests by instead
-    calling a function that returned that state (after setting it up on
-    the first call), that function could do the appropriate skips and
-    there would be no way to accidentally access this state without
-    checking the preconditions. But that's substantially more work and may
-    be much easier after we do further cleanup of these tests.
-    
-    Change-Id: I92de569fd27596798c5e478402449cd735ec53a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497096
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I9da0775976282e92ca036d20fd9fd6650900daf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419996
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/cgo/internal/testcarchive/carchive_test.go | 36 ++++++++++++++-----
- src/cmd/cgo/internal/testcshared/cshared_test.go   | 24 +++++++++----
- src/cmd/cgo/internal/testplugin/plugin_test.go     | 41 ++++++++++++++++------
- src/cmd/cgo/internal/testshared/shared_test.go     | 41 ++++++++++++++++++----
- 4 files changed, 111 insertions(+), 31 deletions(-)
+ src/go/internal/gcimporter/gcimporter_test.go | 24 ++++++++++++++++++++++++
+ src/go/internal/gcimporter/testdata/g.go      | 23 +++++++++++++++++++++++
+ src/go/internal/gcimporter/ureader.go         | 21 ++++++++++++++++++++-
+ 3 files changed, 67 insertions(+), 1 deletion(-)

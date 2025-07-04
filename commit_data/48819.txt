@@ -1,52 +1,39 @@
-commit e858c14f916d424b33ad7e2450895b3117a5f727
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Mon Apr 18 17:46:43 2022 +0000
+commit 7b0e9cae66fc706bb390ba08fb4801015359f17b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 21:52:24 2021 +0000
 
-    cmd/compile: more negation related generic SSA rewrite rules
+    [dev.typeparams] runtime: replace Goos* constants with internal/goos versions [generated]
     
-    The x + (-y) => x - y rule is hitted 75 times while building stage 3 and tools
-    and make the linux-amd64 go binary 0.007% smaller.
-    It transform:
-      NEG AX
-      ADD BX, AX
-    Into:
-      SUB BX, AX
-    Which is 2X faster (assuming this assembly in a vacum).
+    [git-generate]
+    cd src/runtime
+    gofmt -w -r "sys.GoosAix       -> goos.IsAix" .
+    gofmt -w -r "sys.GoosAndroid   -> goos.IsAndroid" .
+    gofmt -w -r "sys.GoosDarwin    -> goos.IsDarwin" .
+    gofmt -w -r "sys.GoosDragonfly -> goos.IsDragonfly" .
+    gofmt -w -r "sys.GoosFreebsd   -> goos.IsFreebsd" .
+    gofmt -w -r "sys.GoosHurd      -> goos.IsHurd" .
+    gofmt -w -r "sys.GoosIllumos   -> goos.IsIllumos" .
+    gofmt -w -r "sys.GoosIos       -> goos.IsIos" .
+    gofmt -w -r "sys.GoosJs        -> goos.IsJs" .
+    gofmt -w -r "sys.GoosLinux     -> goos.IsLinux" .
+    gofmt -w -r "sys.GoosNacl      -> goos.IsNacl" .
+    gofmt -w -r "sys.GoosNetbsd    -> goos.IsNetbsd" .
+    gofmt -w -r "sys.GoosOpenbsd   -> goos.IsOpenbsd" .
+    gofmt -w -r "sys.GoosPlan9     -> goos.IsPlan9" .
+    gofmt -w -r "sys.GoosSolaris   -> goos.IsSolaris" .
+    gofmt -w -r "sys.GoosWindows   -> goos.IsWindows" .
+    gofmt -w -r "sys.GoosZos       -> goos.IsZos" .
+    goimports -w *.go
     
-    The x ^ (-1) => ^x rule is not hitted in the toolchain.
-    It transforms:
-      XOR $-1, AX
-    Into:
-      NOT AX
-    Which is more compact as it doesn't encode the immediate.
-    Cache usage aside, this does not affect performance
-    (assuming this assembly in a vacum).
-    On my ryzen 3600, with some surrouding code, this randomly might be 2X faster,
-    I guess this has to do with loading the immediate into a temporary register.
-    Combined to an other rule that already exists it also rewrite manual two's
-    complement negation from:
-      XOR $-1, AX
-      INC AX
-    Into:
-      NEG AX
-    Which is 2X faster.
-    
-    The other rules just eliminates similar trivial cases and help constants
-    folding.
-    
-    This should generalise to other architectures.
-    
-    Change-Id: Ia1e51b340622e7ed88e5d856f3b1aa424aa039de
-    GitHub-Last-Rev: ce35ff2efdd8911f1e812806ec41a41e8cabc4c7
-    GitHub-Pull-Request: golang/go#52395
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400714
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I42bed2907317ed409812e5a3e2897c88a5d36f24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328344
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  14 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 500 +++++++++++++++++++++++++
- 2 files changed, 512 insertions(+), 2 deletions(-)
+ src/runtime/export_test.go |  3 ++-
+ src/runtime/malloc.go      | 11 ++++++-----
+ src/runtime/mgcscavenge.go |  3 ++-
+ src/runtime/stack.go       |  3 ++-
+ 4 files changed, 12 insertions(+), 8 deletions(-)

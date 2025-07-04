@@ -1,15 +1,31 @@
-commit aa0a6ad1db9ea2e338e755720c91e1b10376c4de
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Jan 3 11:21:49 2024 -0500
+commit d75a867395e983c0a420ef3fecf30c98897560d7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 22 11:40:42 2022 -0500
 
-    doc/go1.22: add links to go/types symbols
+    cmd/dist: skip rebuilding packages during builder testing
     
-    Also, join three paragraphs that should have been one.
+    Since packages in "std" no longer have install targets, checking them
+    for staleness is somewhat meaningless: if they are not cached they
+    will be rebuilt anyway, and without installed archives against which
+    we can compare them the staleness check will not detect builder skew.
     
-    Change-Id: Ib1c252f88a1e98afe157d477caa5323c0c8365e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/553715
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    It would still be meaningful to check "cmd" for staleness, but
+    (especially on sharded VM-based builders) that is a fairly expensive
+    operation relative to its benefit. If we are really interested in
+    detecting builder skew and/or build reproducibility, we could instead
+    add a "misc" test (similar to "misc/reboot", or perhaps even a part of
+    that test) that verifies that bootstrapped binaries are reproducible.
+    
+    For #57734.
+    Updates #47257.
+    Updates #56896.
+    
+    Change-Id: I8683ee81aefe8fb59cce9484453df9729bdc587c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452775
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.22.html | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/dist/test.go | 42 ++++++++++--------------------------------
+ 1 file changed, 10 insertions(+), 32 deletions(-)

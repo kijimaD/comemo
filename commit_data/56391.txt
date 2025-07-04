@@ -1,33 +1,47 @@
-commit 328aa9e39f3a5da785daa015d673f19ded9e13ae
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed May 8 11:13:10 2024 -0400
+commit fc106b016cc4ba5dc5a1a44eda7524fdce4463bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 3 22:05:27 2023 -0700
 
-    all: vendor golang.org/x/telemetry@2790727
+    go/types, types2: remove Config.EnableReverseTypeInference flag
     
-    Commands run (in both src/ and src/cmd/)
-        go get golang.org/x/telemetry@2790727
-        go mod tidy
-        go mod vendor
+    Proposal #59338 has been accepted and we expect this feature to
+    be available starting with Go 1.21. Remove the flag to explicitly
+    enable it through the API and enable by default.
     
-    Change-Id: Idbabcc4a3069afac08d2735fac264577846ea1d7
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584236
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    For now keep an internal constant enableReverseTypeInference to
+    guard and mark the respective code, so we can disable it for
+    debugging purposes.
+    
+    For #59338.
+    
+    Change-Id: Ia1bf3032483ae603017a0f459417ec73837e2891
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491798
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../x/telemetry/counter/countertest/countertest.go |   5 +-
- .../x/telemetry/internal/configstore/download.go   |  38 ++--
- .../x/telemetry/internal/counter/file.go           |  12 +-
- .../internal/telemetry/{mode.go => dir.go}         | 105 ++++++----
- .../golang.org/x/telemetry/internal/upload/date.go |  12 +-
- .../x/telemetry/internal/upload/findwork.go        |  16 +-
- .../x/telemetry/internal/upload/reports.go         |  66 +++----
- .../golang.org/x/telemetry/internal/upload/run.go  | 217 +++++++++++++--------
- .../x/telemetry/internal/upload/upload.go          |  28 +--
- src/cmd/vendor/golang.org/x/telemetry/mode.go      |   8 +-
- src/cmd/vendor/golang.org/x/telemetry/start.go     | 104 ++++++++--
- .../vendor/golang.org/x/telemetry/upload/upload.go |  33 ++--
- src/cmd/vendor/modules.txt                         |   2 +-
- 15 files changed, 387 insertions(+), 265 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go              |  5 ++---
+ src/cmd/compile/internal/types2/api.go               |  7 -------
+ src/cmd/compile/internal/types2/api_test.go          |  5 +----
+ src/cmd/compile/internal/types2/call.go              |  2 +-
+ src/cmd/compile/internal/types2/check_test.go        |  1 -
+ src/cmd/compile/internal/types2/expr.go              |  4 ++--
+ src/cmd/compile/internal/types2/infer.go             |  7 +++++++
+ src/cmd/compile/internal/types2/stdlib_test.go       | 10 ++++------
+ src/go/types/api.go                                  |  7 -------
+ src/go/types/api_test.go                             |  7 +------
+ src/go/types/call.go                                 |  2 +-
+ src/go/types/check_test.go                           |  1 -
+ src/go/types/expr.go                                 |  4 ++--
+ src/go/types/infer.go                                |  7 +++++++
+ src/go/types/stdlib_test.go                          |  2 --
+ src/internal/types/testdata/examples/inference.go    |  4 +++-
+ src/internal/types/testdata/examples/inference2.go   |  2 --
+ src/internal/types/testdata/fixedbugs/issue59338a.go |  2 +-
+ src/internal/types/testdata/fixedbugs/issue59338b.go |  2 --
+ src/internal/types/testdata/fixedbugs/issue59639.go  |  2 +-
+ src/internal/types/testdata/fixedbugs/issue59953.go  |  2 --
+ src/internal/types/testdata/fixedbugs/issue59956.go  |  2 --
+ 22 files changed, 33 insertions(+), 54 deletions(-)

@@ -1,29 +1,16 @@
-commit 78cee8b3bbf4173af79a4d02a26bbe8bea1cd175
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Feb 14 15:04:22 2013 +1100
+commit e5dae3baaa34c8cd596eb34d6619272921122f4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 13 22:31:45 2013 -0500
 
-    sort: use fewer comparisons when choosing pivot.
+    runtime: tweak addfinroots to preserve original pointer
     
-    This is based on rsc's code posted to issue 2585.
+    Use local variable so that stack trace will show value of v.
     
-    Benchmark results are greatly improved:
-            benchmark                old ns/op    new ns/op    delta
-            BenchmarkSortString1K       564397       445897  -21.00%
-            BenchmarkSortInt1K          270889       221249  -18.32%
-            BenchmarkSortInt64K       26850765     21351967  -20.48%
+    Fixes #4790.
     
-    Eyeballing a sampling of the raw number of comparisons shows a drop
-    on the order of 20-30% almost everywhere. The test input data that
-    doesn't match that are some of sawtooth/rand/plateau distributions,
-    where there is no change in the number of comparisons; that is,
-    there are no situations where this makes *more* comparisons.
-    
-    Fixes #2585.
-    
-    R=iant, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7306098
+    https://golang.org/cl/7300106
 
- src/pkg/sort/sort.go      | 41 +++++++++++++++++++++++------------------
- src/pkg/sort/sort_test.go | 24 ++++++++++++++----------
- 2 files changed, 37 insertions(+), 28 deletions(-)
+ src/pkg/runtime/mgc0.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,22 +1,31 @@
-commit 2278ffcb2664b13ad2a2309cb1aba24260b9fab3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 28 09:43:52 2024 -0800
+commit b6f29d23654eba09209db00704ccef1f01a60c71
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Feb 24 18:15:32 2023 +0100
 
-    cmd/compile/internal/syntax: rename test file to match issue
+    runtime: implement high resolution timer on windows arm/arm64
     
-    Follow-up on CL 565518 which addressed issue #65790 but added
-    testdata/issue65970.go instead of testdata/issue65790.go.
-    Rename that file to match the issue.
+    This CL moves the usleep2HighRes from assembly to good old Go.
+    This is safe because since CL 288793 usleep is always called with
+    a g, else one wold have to call usleep_no_g. This condition was
+    not enforced when high resolution timers were first implemented
+    on Windows (CL 248699), so the implementation was done in assembly.
     
-    For #65790.
+    Other than removing a bunch of obscure assembly code, this CL makes
+    high resolution timers work on windows arm/arm64 by free, as the
+    system calls are the same in all windows platforms.
     
-    Change-Id: I647c297286355137fa950fb6722e31ae4340393b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567875
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I41ecf78026fd7e11e85258a411ae074a77e8c7fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471142
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/cmd/compile/internal/syntax/testdata/{issue65970.go => issue65790.go} | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/runtime/os_windows.go       | 15 +++++----------
+ src/runtime/sys_windows_386.s   | 37 -------------------------------------
+ src/runtime/sys_windows_amd64.s | 33 ---------------------------------
+ src/runtime/sys_windows_arm.s   |  7 -------
+ src/runtime/sys_windows_arm64.s |  7 -------
+ 5 files changed, 5 insertions(+), 94 deletions(-)

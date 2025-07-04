@@ -1,26 +1,13 @@
-commit 7419921bf3acebd462b48cbf1f4dfb14233f8872
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Jan 15 14:19:44 2012 +0900
+commit 2374edc6401401fcaa0d328bab38c9e3cffc9274
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 14 11:57:32 2012 -0800
 
-    net: platform-dependent default socket options
+    go/doc: print only one newline between paragraphs
+    Fixes #2595.
     
-    This CL revises existing platform-dependent default socket
-    options to make it possible to accomodate multiple multicast
-    datagram listeners on a single service port.
-    
-    Also removes unnecessary SO_REUSEADDR, SO_REUSEPORT socket
-    options from unicast datagram sockets by default.
-    
-    Fixes #1692.
-    
-    R=devon.odell, alex.brainman, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5538052
+    https://golang.org/cl/5544068
 
- src/pkg/net/multicast_test.go  | 43 ++++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/sock.go            |  2 +-
- src/pkg/net/sockopt_bsd.go     | 37 +++++++++++++++++++++++-------------
- src/pkg/net/sockopt_linux.go   | 27 ++++++++++++++++++--------
- src/pkg/net/sockopt_windows.go | 21 +++++++++++++++------
- src/pkg/net/udpsock_posix.go   |  1 +
- 6 files changed, 103 insertions(+), 28 deletions(-)
+ src/pkg/go/doc/comment.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

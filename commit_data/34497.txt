@@ -1,24 +1,17 @@
-commit 083f3957b8266d591db4147bd03dd16874635189
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Wed Mar 7 15:07:31 2018 +0200
+commit 67a7d5d88503646a7e411cf5ae9c38e485b9be1b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 27 20:36:14 2017 -0400
 
-    runtime: add missing build constraints to os_linux_{be64,noauxv,novdso,ppc64x}.go files
+    misc/cgo/testshared: don't assume mtimes trigger rebuilds
     
-    They do not match the file name patterns of
-      *_GOOS
-      *_GOARCH
-      *_GOOS_GOARCH
-    therefore the implicit linux constraint was not being added.
+    The upcoming CL 73212 will see through mtime modifications.
+    Change the underlying file too.
     
-    Change-Id: Ie506c51cee6818db445516f96fffaa351df62cf5
-    Reviewed-on: https://go-review.googlesource.com/99116
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ib23b4136a62ee87bce408b76bb0385451ae7dcd2
+    Reviewed-on: https://go-review.googlesource.com/74130
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_linux_be64.go   | 1 +
- src/runtime/os_linux_noauxv.go | 1 +
- src/runtime/os_linux_novdso.go | 1 +
- src/runtime/os_linux_ppc64x.go | 1 +
- 4 files changed, 4 insertions(+)
+ misc/cgo/testshared/shared_test.go | 103 ++++++++++++++++++++++++++++---------
+ 1 file changed, 78 insertions(+), 25 deletions(-)

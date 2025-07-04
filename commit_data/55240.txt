@@ -1,26 +1,32 @@
-commit dca2ef236151e5606a5863d82f1a10289ce77105
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 7 11:11:01 2023 -0500
+commit bb5ff5342d31723ecf245e8e53b79bce23b88839
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Mon Oct 3 18:08:29 2022 +0200
 
-    runtime: put runtime.fastrand back temporarily
+    cmd/compile: make loopbce handle 8, 16 and 32 bit induction variables
     
-    Callers should be using math/rand/v2.Uint64 instead,
-    but there are lots of linkname references to runtime.fastrand
-    in public code. If we break it all now, that will require people
-    to use //go:build tags to use rand/v2.Uint64 with Go 1.22
-    and keep using the linkname for earlier versions.
-    Instead, leave the linkname working and then we can remove
-    it in Go 1.24, at which point everyone should be able to use
-    math/rand/v2.Uint64 unconditionally.
+    Compute limits and increment values for all integer widths.
+    Resolves 2 TODO's in loopbce.go
     
-    Change-Id: I7287ca4f67c270b009562313661cc28a4c2219a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548235
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    compilecmp linux/amd64:
+    
+    compress/flate
+    compress/flate.(*huffmanEncoder).bitCounts 1235 -> 1207  (-2.27%)
+    
+    cmd/internal/obj/wasm
+    cmd/internal/obj/wasm.assemble 7443 -> 7303  (-1.88%)
+    cmd/internal/obj/wasm.assemble.func1 165 -> 138  (-16.36%)
+    
+    cmd/link/internal/ld
+    cmd/link/internal/ld.(*Link).findfunctab.func1 1646 -> 1627  (-1.15%)
+    
+    Change-Id: I2d79b7376eb67d6bcc8fdaf0c197c11e631562d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435258
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/rand.go      | 22 ++++++++++++++++++++++
- src/runtime/rand_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+)
+ src/cmd/compile/internal/ssa/loopbce.go | 49 ++++++++++++++++++---------------
+ test/loopbce.go                         | 24 ++++++++++++++++
+ 2 files changed, 51 insertions(+), 22 deletions(-)

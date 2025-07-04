@@ -1,45 +1,20 @@
-commit 6cac100eefbe07ffd2c9bf64c9a782bf93d79081
-Author: David Chase <drchase@google.com>
-Date:   Mon Oct 24 10:25:05 2016 -0400
+commit 1f26e77e5901fb198599f12f615d0222dd7e7984
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 5 10:23:42 2017 -0400
 
-    cmd/compile: add intrinsic for reading caller's pc
+    cmd/go: include Fortran files in build ID computation
     
-    First step towards removing the mandatory argument for
-    getcallerpc, which solves certain problems for the runtime.
-    This might also slightly improve performance.
+    Otherwise removing a .f file won't trigger a rebuild.
+    Noticed by inspection while working on the code.
+    I don't have a good way to write a test for this,
+    and I expect the code to change significantly in the next
+    release, but might as well get it right for Go 1.9.
     
-    Intrinsic enabled on 386, amd64, amd64p32,
-    runtime asm implementation removed on those architectures.
-    
-    Now-superfluous argument remains in getcallerpc signature
-    (for a future CL; non-386/amd64 asm funcs ignore it).
-    
-    Added getcallerpc to the "not a real function" test
-    in dcl.go, that story is a little odd with respect to
-    unexported functions but that is not this CL.
-    
-    Fixes #17327.
-    
-    Change-Id: I5df1ad91f27ee9ac1f0dd88fa48f1329d6306c3e
-    Reviewed-on: https://go-review.googlesource.com/31851
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I3f6f9f71b3a7d4f0be49a47419dac59899959e7c
+    Reviewed-on: https://go-review.googlesource.com/44855
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go          |  9 +++++++++
- src/cmd/compile/internal/gc/dcl.go             |  6 +++---
- src/cmd/compile/internal/gc/ssa.go             |  6 +++++-
- src/cmd/compile/internal/ssa/gen/386.rules     |  1 +
- src/cmd/compile/internal/ssa/gen/386Ops.go     |  5 +++++
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  1 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  5 +++++
- src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
- src/cmd/compile/internal/ssa/opGen.go          | 26 ++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewrite386.go     | 11 +++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 11 +++++++++++
- src/cmd/compile/internal/x86/ssa.go            |  9 +++++++++
- src/runtime/asm_386.s                          |  6 ------
- src/runtime/asm_amd64.s                        |  6 ------
- src/runtime/asm_amd64p32.s                     |  6 ------
- src/runtime/stubs.go                           |  4 +++-
- 16 files changed, 90 insertions(+), 23 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 1 +
+ 1 file changed, 1 insertion(+)

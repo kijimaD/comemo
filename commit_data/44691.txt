@@ -1,21 +1,24 @@
-commit d206ca5cac60ddff222a25e1dc96d6b0e96c21b5
-Author: David Chase <drchase@google.com>
-Date:   Tue Mar 16 12:03:08 2021 -0400
+commit 46ca7b5ee2a8582736f1ddac27d8660e1104c345
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 15 08:08:37 2020 -0700
 
-    cmd/compile: fix open defer of method call
+    cmd/internal/obj: stop removing NOPs from instruction stream
     
-    Code generation for open defers failed to account for
-    presence of method receiver and thus was OFF BY ONE.
+    This has already been done for s390x, ppc64. This CL is for
+    all the other architectures.
     
-    Fixes #45062.
-    Updates #44816.
-    Updates #40724.
+    Fixes #40796
     
-    Change-Id: Ia90ea8fd0f7d823e1f757c406f9127136c2ffdd2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302249
-    Trust: David Chase <drchase@google.com>
+    Change-Id: Idd1816e057df63022d47e99fa06617811d8c8489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248684
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go |  6 ++++--
- test/abi/open_defer_1.go               | 36 ++++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go   |  3 ++
+ src/cmd/internal/obj/arm/obj5.go   | 46 -------------------------------
+ src/cmd/internal/obj/arm64/asm7.go |  3 ++
+ src/cmd/internal/obj/arm64/obj7.go | 56 ++------------------------------------
+ src/cmd/internal/obj/mips/asm0.go  |  3 ++
+ src/cmd/internal/obj/mips/obj0.go  | 26 ++----------------
+ 6 files changed, 14 insertions(+), 123 deletions(-)

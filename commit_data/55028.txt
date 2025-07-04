@@ -1,23 +1,22 @@
-commit 4988a65f2a4d53c93a9dd19e6d70181529a115a4
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Nov 12 10:04:15 2023 +0000
+commit dfd13ce59d74638baff4f94d64851cda53e63bdc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 5 16:17:56 2022 -0800
 
-    all: make more use of the new atomic integer types
+    go/types, types2: better error message for invalid method expression
     
-    Slightly simplifies the code and avoids human error.
+    Fixes #53358.
     
-    Change-Id: Ib76575e8bc5b3a699ba6cc3870d63cd7a55e6416
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541476
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I38528da1596b6e1aaedcab89b1513fb8acac596c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455335
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/typeparam.go |  4 ++--
- src/cmd/go/internal/trace/trace.go           |  8 ++++----
- src/expvar/expvar.go                         | 10 +++++-----
- src/go/types/typeparam.go                    |  4 ++--
- src/internal/fuzz/pcg.go                     |  4 ++--
- src/sync/export_test.go                      |  2 +-
- src/sync/poolqueue.go                        | 14 +++++++-------
- src/testing/benchmark.go                     | 14 +++++++-------
- 8 files changed, 30 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/types2/call.go             |  6 +++++-
+ src/go/types/call.go                                |  6 +++++-
+ src/internal/types/testdata/check/expr3.go          |  4 ++--
+ src/internal/types/testdata/check/methodsets.go     |  4 ++--
+ src/internal/types/testdata/fixedbugs/issue53358.go | 19 +++++++++++++++++++
+ 5 files changed, 33 insertions(+), 6 deletions(-)

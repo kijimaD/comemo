@@ -1,14 +1,27 @@
-commit ed8b7dedd35c479bd56ab4dd2dd2671727db464c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 29 21:15:31 2017 +0000
+commit 074547a5ce60c70f450e5e624c9f5d8f9a3e1295
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Aug 30 08:20:43 2017 +0000
 
-    bytes: mention strings.Builder in Buffer.String docs
+    cmd/internal/obj/arm: support more ARM VFP instructions
     
-    Fixes #22778
+    Add support of more ARM VFP instructions in the assembler.
+    They were introduced in ARM VFPv2.
     
-    Change-Id: I37f7a59c15828aa720fe787fff42fb3ef17729c7
-    Reviewed-on: https://go-review.googlesource.com/80815
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    "NMULF/NMULD   Fm, Fn, Fd": Fd = -Fn*Fm
+    "MULAF/MULAD   Fm, Fn, Fd": Fd = Fd + Fn*Fm
+    "NMULAF/NMULAD Fm, Fn, Fd": Fd = -(Fd + Fn*Fm)
+    "MULSF/MULSD   Fm, Fn, Fd": Fd = Fd - Fn*Fm
+    "NMULSF/NMULSD Fm, Fn, Fd": Fd = -(Fd - Fn*Fm)
+    
+    Change-Id: Icd302676ca44a9f5f153fce734225299403c4163
+    Reviewed-on: https://go-review.googlesource.com/60170
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bytes/buffer.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/asm/internal/asm/testdata/armerror.s |  8 ++++++
+ src/cmd/asm/internal/asm/testdata/armv6.s    | 12 +++++++++
+ src/cmd/internal/obj/arm/a.out.go            | 10 ++++++++
+ src/cmd/internal/obj/arm/anames.go           | 10 ++++++++
+ src/cmd/internal/obj/arm/asm5.go             | 37 +++++++++++++++++++++++++++-
+ 5 files changed, 76 insertions(+), 1 deletion(-)

@@ -1,26 +1,17 @@
-commit 46410b78a53a5dff4f0fb1bc181103db4029384a
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Nov 27 17:21:08 2023 -0800
+commit 2f5718a80bdbc3d09a03a2bd21181945df040e24
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 11 16:43:11 2023 -0800
 
-    cmd/compile: use correct type for slice pointer
+    go/types: generate unify.go
     
-    The type of the data pointer field of a slice should be a pointer
-    to the element type, not a *uint8.
-    
-    This ensures that the SSA value representing the slice's data pointer
-    can be spilled to the stack slot for the corresponding argument.
-    Before this change the types didn't match so we ended up spilling the
-    argument to an autotmp instead of to the dedicated argument slot.
-    
-    Fixes #64414
-    
-    Change-Id: I09ee39e93f05aee07e3eceb14e39736d7fd70a33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545357
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If94a4c18e954ff403892d0a70e424ab58e997451
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461603
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go |  6 +++---
- src/cmd/compile/internal/ssagen/ssa.go       |  2 +-
- src/runtime/traceback_test.go                | 24 ++++++++++++++++++++++++
- 3 files changed, 28 insertions(+), 4 deletions(-)
+ src/go/types/generator.go | 30 ++++++++++++++++++++++++++++++
+ src/go/types/unify.go     |  2 ++
+ 2 files changed, 32 insertions(+)

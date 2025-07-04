@@ -1,16 +1,22 @@
-commit 12126752cce71b7d44a07bdb17ba5ff8e99e9229
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 13 16:28:46 2015 -0800
+commit 74288f09dc0c29f8ce86a4ca44cb78828c0118ee
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 2 15:08:24 2015 -0700
 
-    cmd/compile: associate tracking issue numbers with TODOs
+    strconv: add QuoteToGraphic and friends
     
-    Comment changes only.
+    This version of quoting allows runes in category Zs, such as the
+    ideographic space characters, to be passed through unquoted.
     
-    Change-Id: Ib365b3cd16af9995cb0a2cce48fbe35d73899438
-    Reviewed-on: https://go-review.googlesource.com/16898
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Still to do (maybe): A way to access this from Printf.
+    
+    Updates #11511.
+    
+    Change-Id: I3bae84b1aa0bc1b885318d3f67c5f451099a2a5a
+    Reviewed-on: https://go-review.googlesource.com/14184
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/cmd/compile/internal/gc/lex.go    |  6 +++---
- src/cmd/compile/internal/gc/parser.go | 24 ++++++++++++++++++------
- 2 files changed, 21 insertions(+), 9 deletions(-)
+ src/strconv/isprint.go     | 20 +++++++++++
+ src/strconv/makeisprint.go | 17 +++++++++
+ src/strconv/quote.go       | 67 ++++++++++++++++++++++++++++++-----
+ src/strconv/quote_test.go  | 88 ++++++++++++++++++++++++++++++++++------------
+ 4 files changed, 162 insertions(+), 30 deletions(-)

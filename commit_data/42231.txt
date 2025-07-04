@@ -1,42 +1,29 @@
-commit c7915376ce3cdd172bf71ca4127c67f196b8e43e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Apr 24 14:46:28 2020 +0000
+commit afac2c0508208ce0baf0cf2f0ba9b86ee7b60469
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 13:58:58 2019 +0000
 
-    runtime: make the scavenger's pacing logic more defensive
+    test: avoid writing temporary files to GOROOT
     
-    This change adds two bits of logic to the scavenger's pacing. Firstly,
-    it checks to make sure we scavenged at least one physical page, if we
-    released a non-zero amount of memory. If we try to release less than one
-    physical page, most systems will release the whole page, which could
-    lead to memory corruption down the road, and this is a signal we're in
-    this situation.
+    This reverts CL 207477, restoring CL 207352 with a fix for the
+    regression observed in the Windows builders.
     
-    Secondly, the scavenger's pacing logic now checks to see if the time a
-    scavenging operation takes is measured to be exactly zero or negative.
-    The exact zero case can happen if time update granularity is too large
-    to effectively capture the time the scavenging operation took, like on
-    Windows where the OS timer frequency is generally 1ms. The negative case
-    should not happen, but we're being defensive (against kernel bugs, bugs
-    in the runtime, etc.). If either of these cases happen, we fall back to
-    Go 1.13 behavior: assume the scavenge operation took around 10µs per
-    physical page. We ignore huge pages in this case because we're in
-    unknown territory, so we choose to be conservative about pacing (huge
-    pages could only increase the rate of scavenging).
+    cmd/compile evidently does not fully support NUL as an output on
+    Windows, so this time we write ignored 'compile' outputs
+    to temporary files (instead of os.DevNull as in CL 207352).
     
-    Currently, the scavenger is broken on Windows because the granularity of
-    time measurement is around 1 ms, which is too coarse to measure how fast
-    we're scavenging, so we often end up with a scavenging time of zero,
-    followed by NaNs and garbage values in the pacing logic, which usually
-    leads to the scavenger sleeping forever.
+    Updates #28387
+    Fixes #35619
     
-    Fixes #38617.
-    
-    Change-Id: Iaaa2a4cbb21338e1258d010f7362ed58b7db1af7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229997
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I2edc5727c3738fa1bccb4b74e50d114cf2a7fcff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207602
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mgcscavenge.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/cmd/dist/test.go        | 14 +++++++++-----
+ test/fixedbugs/bug302.go    | 24 ++++++++++++++++++------
+ test/fixedbugs/bug369.go    | 22 +++++++++++++---------
+ test/fixedbugs/issue9355.go | 12 ++++++++++--
+ test/linkmain_run.go        | 44 +++++++++++++++++++++++++++-----------------
+ test/sinit_run.go           | 16 ++++++++++++++--
+ 6 files changed, 91 insertions(+), 41 deletions(-)

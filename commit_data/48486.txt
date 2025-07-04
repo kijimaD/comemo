@@ -1,23 +1,29 @@
-commit eca0d44cec58951fb716e540dcc21c0f527686d5
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Wed Feb 9 20:20:06 2022 +0800
+commit dcaf785add683fdda9bd0e53395c17c55779a8ac
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 20 18:03:49 2021 -0400
 
-    net/http: fix nil body causing ParseMultipartForm to panic
+    [dev.typeparams] internal/buildcfg: enable defer/go wrapping everywhere
     
-    ParseMultipartForm relies on a valid multipartReader, if the request body is nil,
-    the multipartReader should return an error. This way ParseMultipartForm can return
-    an error instead of causing mr.ReadForm(maxMemory) to panic
+    For register ABI, we wrap deferred/go'd function with arguments
+    or results in an argumentless closure, so the runtime can call the
+    function without knowing how to marshal the arguments, or
+    reserving frame for arguments and results.
     
-    Fixes #48206
+    The wrapping mechanism works everywhere, regardless of whether the
+    register ABI is used. And wrapping will simplify the compiler and
+    runtime's implementation for defer and go calls. For example, the
+    compiler will not need to marshal arguments for defer/go calls,
+    the opendefer metadata will not need to contain argument
+    information, and _defer record will be fixed-sized.
     
-    Change-Id: Ief906f2340c7ab29cacbd5f56892117202a0b911
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384454
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Enable wrapping everywhere.
+    
+    Change-Id: I2032ba87249ceb686310dc640fb00696669ae912
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321958
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/http/request.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/internal/buildcfg/exp.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,22 +1,16 @@
-commit 0a27a458960ffb0adff2f9491eca68c72b79967c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jan 30 17:51:32 2023 +0000
+commit 12eca21f1c1c0f048b985a2a8545fb304b4383f6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 18 11:49:40 2022 +0100
 
-    doc: move Go 1.20 release notes to x/website
+    syscall: use bytealg.IndexByte in clen
     
-    Now that the development of the Go 1.20 release is almost done, its
-    release notes are moved to their eventual long-term home in x/website
-    in CL 464075. Delete the initial development copy here.
-    
-    For golang/go#54202.
-    
-    Change-Id: Ia402d1abd4539fbce415e2a7dffd6709186f08a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464055
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ib3f92ea8371a13471acf9304dc9db66c0aae9bf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393756
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/go1.20.html | 1246 -------------------------------------------------------
- 1 file changed, 1246 deletions(-)
+ src/syscall/syscall_unix.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

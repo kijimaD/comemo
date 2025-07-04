@@ -1,17 +1,15 @@
-commit 967fa427fde2f7a22adc04399d0de3090d34f883
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 31 06:58:33 2016 -0700
+commit 3cb090f93c4b0d9ebdf111efb0c5383d8ca97bd2
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Apr 29 08:43:53 2016 +1000
 
-    database/sql: don't hang if the driver Exec method panics
+    lib/time: update to IANA release 2016d (Apr 2016).
     
-    Fixes #13677.
-    Fixes #15901.
-    
-    Change-Id: Idffb82cdcba4985954d061bdb021217f47ff4984
-    Reviewed-on: https://go-review.googlesource.com/23576
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I46d9ea31cf5836d054a9ce22af4dd1742a418a07
+    Reviewed-on: https://go-review.googlesource.com/22588
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/database/sql/sql.go      | 116 ++++++++++++++++++++++++-------------------
- src/database/sql/sql_test.go |  47 ++++++++++++++++++
- 2 files changed, 112 insertions(+), 51 deletions(-)
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 360703 -> 364413 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

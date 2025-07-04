@@ -1,20 +1,35 @@
-commit 3d33532d1cb25955d2bb236394a0afa99899a35c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 10 12:47:06 2023 -0700
+commit 530511bacccdea0bb8a0fec644887c2613535c50
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 16 18:02:11 2022 -0400
 
-    net/http: let ErrNotSupported match errors.ErrUnsupported
+    cmd/go/internal/modindex: avoid walking modules when not needed
     
-    For #41198
+    Due to a missed condition in CL 412394, we were walking all modules
+    (instead of just the ones contained in GOROOT) at each invocation of a
+    devel version of cmd/go.
     
-    Change-Id: Ibb030e94618a1f594cfd98ddea214ad7a88d2e73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494122
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Moreover, while we were running cmd/go tests, we were re-walking
+    GOROOT at each 'go' invocation in the test even though we expect
+    GOROOT to be stable within a test run.
+    
+    This change always avoids walking non-GOROOT modules, and also adds a
+    salt (configurable via GODEBUG) and uses it to avoid walking GOROOT
+    modules when GOROOT is known to be stable (such as over the course of
+    a 'cmd/go' test run).
+    
+    This should fix the cmd/go test timeouts that are currently occurring
+    on the dragonfly-amd64 builder, such as this one:
+    https://build.golang.org/log/21c01c3ae5490d387d84abeaf872b3a0a76ab8e5
+    
+    Updates #53290.
+    
+    Change-Id: Ic807d215831a3cd21c63e0bccd3d7acd10d8f2b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412779
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- api/next/41198.txt           | 1 +
- src/net/http/request.go      | 5 +++++
- src/net/http/request_test.go | 7 +++++++
- 3 files changed, 13 insertions(+)
+ src/cmd/go/go_test.go                | 14 ++++++++++++
+ src/cmd/go/internal/modindex/read.go | 44 ++++++++++++++++++------------------
+ 2 files changed, 36 insertions(+), 22 deletions(-)

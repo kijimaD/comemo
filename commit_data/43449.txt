@@ -1,37 +1,18 @@
-commit ad61343f886cc5ce677e7bd62385144b2ba7b8f5
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Oct 8 14:38:39 2020 -0400
+commit 5f3354d1bf2e6a61e4b9e1e31ee04b99dfe7de35
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 3 12:52:17 2020 -0700
 
-    runtime/internal/atomic: add 32-bit And/Or
+    time, runtime: only call resetTimer from (*Timer).Reset
     
-    These will be used in a following CL to perform larger bit clear and bit
-    set than And8/Or8.
+    Previously we stopped the timer and then reset it. With the current
+    timer implementation that is no longer required.
     
-    Change-Id: I60f7b1099e29b69eb64add77564faee862880a8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260977
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
+    Change-Id: Ie7aba61ad53ce835f6fcd0b6bce7fe0a15b10e24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227180
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/internal/atomic/asm_386.s         |  16 ++++
- src/runtime/internal/atomic/asm_amd64.s       |  16 ++++
- src/runtime/internal/atomic/asm_mips64x.s     |  26 ++++++
- src/runtime/internal/atomic/asm_mipsx.s       |  26 ++++++
- src/runtime/internal/atomic/asm_ppc64x.s      |  30 ++++++-
- src/runtime/internal/atomic/asm_s390x.s       |  22 ++++-
- src/runtime/internal/atomic/atomic_386.go     |   6 ++
- src/runtime/internal/atomic/atomic_amd64.go   |   6 ++
- src/runtime/internal/atomic/atomic_arm.go     |  20 +++++
- src/runtime/internal/atomic/atomic_arm64.go   |   6 ++
- src/runtime/internal/atomic/atomic_arm64.s    |  19 ++++
- src/runtime/internal/atomic/atomic_mips64x.go |   6 ++
- src/runtime/internal/atomic/atomic_mipsx.go   |   6 ++
- src/runtime/internal/atomic/atomic_ppc64x.go  |   6 ++
- src/runtime/internal/atomic/atomic_riscv64.go |   6 ++
- src/runtime/internal/atomic/atomic_riscv64.s  |  14 +++
- src/runtime/internal/atomic/atomic_s390x.go   |   6 ++
- src/runtime/internal/atomic/atomic_test.go    | 119 +++++++++++++++++++++++++-
- src/runtime/internal/atomic/atomic_wasm.go    |  12 +++
- src/runtime/internal/atomic/bench_test.go     |  40 +++++++++
- 20 files changed, 400 insertions(+), 8 deletions(-)
+ src/runtime/time.go | 19 ++++++++++++++-----
+ src/time/sleep.go   |  6 ++----
+ 2 files changed, 16 insertions(+), 9 deletions(-)

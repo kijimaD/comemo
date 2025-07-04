@@ -1,32 +1,22 @@
-commit 2db1a7f929892695696eebf685fc484841c08cb4
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Wed Sep 12 12:16:50 2018 +0100
+commit d2c68bb65f7093235bd9a43629c41d4403950e27
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu May 17 18:20:53 2018 +0300
 
-    cmd/compile: avoid more float32 <-> float64 conversions in compiler
+    cmd/internal/obj/x86: fix VPERMQ and VPERMPD ytab
     
-    Use the new custom truncate/extension code when storing or extracting
-    float32 values from AuxInts to avoid the value being changed by the
-    host platform's floating point conversion instructions (e.g. sNaN ->
-    qNaN).
+    Fixes invalid encoding of VPERMQ and VPERMPD that use
+    negative immediate argument.
     
-    Updates #27516.
+    Fixes #25418
+    Updates #25420
     
-    Change-Id: Id39650f1431ef74af088c895cf4738ea5fa87974
-    Reviewed-on: https://go-review.googlesource.com/134855
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Idd8180c4c632a76b76f3a68efd5f930d94431994
+    Reviewed-on: https://go-review.googlesource.com/113615
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/cmd/compile/internal/ssa/gen/386.rules     |   4 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   4 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |  10 +-
- src/cmd/compile/internal/ssa/gen/Wasm.rules    |   4 +-
- src/cmd/compile/internal/ssa/gen/generic.rules |  79 ++++----
- src/cmd/compile/internal/ssa/rewrite.go        |  23 ++-
- src/cmd/compile/internal/ssa/rewrite386.go     |   8 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go   |   8 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go   |  20 +--
- src/cmd/compile/internal/ssa/rewriteWasm.go    |   8 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 240 ++++++++++++-------------
- src/cmd/compile/internal/ssa/softfloat.go      |   2 +-
- 12 files changed, 209 insertions(+), 201 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 5 ++++-
+ src/cmd/internal/obj/x86/asm6.go                   | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

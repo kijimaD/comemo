@@ -1,12 +1,19 @@
-commit 95c6c5f36bb04e66d6a9523b3ad590faa6d563dd
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 15 13:34:15 2016 -0700
+commit d75acd67eccbfe6f03b6474baea3b569cd0135d6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 21 16:16:06 2015 +1100
 
-    math/big: fix comment typos
+    internal/syscall/windows: correct GetACP and MultiByteToWideChar
     
-    Change-Id: I34cdc9cb3d32e86ff3a57db0012326c39cd55670
-    Reviewed-on: https://go-review.googlesource.com/20718
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    CL 4310 introduced these functions, but their
+    implementation does not match with their published
+    documentation. Correct the implementation.
+    
+    Change-Id: I285e41f9c7c5fc4e550ff59b0adb8b2bcbf6737a
+    Reviewed-on: https://go-review.googlesource.com/17997
+    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/ftoa.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go  |  4 ++--
+ src/internal/syscall/windows/zsyscall_windows.go | 21 +++++++--------------
+ src/os/file_windows.go                           |  5 +----
+ 3 files changed, 10 insertions(+), 20 deletions(-)

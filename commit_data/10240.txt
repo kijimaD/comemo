@@ -1,14 +1,13 @@
-commit 88cf76a9b37992c65b916060ca44c87f3a9bde5e
-Author: Rob Pike <r@golang.org>
-Date:   Thu Nov 3 18:05:14 2011 -0700
+commit a494c2003257edcb5e9177a4c8c0dc2240ae0d24
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 3 17:21:58 2011 -0700
 
-    gob: fix bug when registering the same type multiple times
-    Need to compare user type, not base type.
+    http: only recognize application/x-www-form-urlencoded in ParseForm
     
-    R=golang-dev, dsymonds, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5340041
+    https://golang.org/cl/5322070
 
- src/pkg/encoding/gob/type.go      | 15 ++++++++-------
- src/pkg/encoding/gob/type_test.go |  8 ++++++++
- 2 files changed, 16 insertions(+), 7 deletions(-)
+ src/pkg/net/http/request.go      |  2 +-
+ src/pkg/net/http/request_test.go | 19 ++++++-------------
+ 2 files changed, 7 insertions(+), 14 deletions(-)

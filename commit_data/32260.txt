@@ -1,22 +1,14 @@
-commit fcf445dce22f96f874932b37962acba40d51e000
-Author: Keith Randall <khr@golang.org>
-Date:   Wed May 31 11:57:07 2017 -0700
+commit 87065a3c13f373072c1db81dbf3832f0b9e17492
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 06:14:27 2017 -0700
 
-    runtime: initialize itab.hash always
+    cmd/go: don't generate DWARF in the compiler if the linker will discard it
     
-    We weren't initializing this field for dynamically-generated itabs.
-    Turns out it doesn't matter, as any time we use this field we also
-    generate a static itab for the interface type / concrete type pair.
-    But we should initialize it anyway, just to be safe.
-    
-    Performance on the benchmarks in CL 44339:
-    benchmark               old ns/op     new ns/op     delta
-    BenchmarkItabFew-12     1040585       26466         -97.46%
-    BenchmarkItabAll-12     228873499     4287696       -98.13%
-    
-    Change-Id: I58ed2b31e6c98b584122bdaf844fee7268b58295
-    Reviewed-on: https://go-review.googlesource.com/44475
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7610f968f5c22b51a6a8813d6f31ccb772a12ba9
+    Reviewed-on: https://go-review.googlesource.com/40858
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/iface.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/work/build.go | 3 +++
+ 1 file changed, 3 insertions(+)

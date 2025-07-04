@@ -1,39 +1,16 @@
-commit 1e28dce80ad2ec195d55269266c5cca7ebd845a5
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Oct 13 12:59:07 2016 -0500
+commit 133d231a89c2d9f8bbceeb42cf47d8cd68fde357
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 10 10:36:42 2016 -0700
 
-    bytes: improve performance for bytes.Compare on ppc64x
+    cmd/compile/internal/gc: get rid of useless autopkg variable
     
-    This improves the performance for byte.Compare by rewriting
-    the cmpbody function in runtime/asm_ppc64x.s.  The previous code
-    had a simple loop which loaded a pair of bytes and compared them,
-    which is inefficient for long buffers.  The updated function checks
-    for 8 or 32 byte chunks and then loads and compares double words where
-    possible.
+    autopkg == localpkg, so it appears to be a remnant of earlier code.
     
-    Because the byte.Compare result indicates greater or less than,
-    the doubleword loads must take endianness into account, using a
-    byte reversed load in the little endian case.
-    
-    Fixes #17433
-    
-    benchmark                                   old ns/op     new ns/op     delta
-    BenchmarkBytesCompare/8-16                  13.6          7.16          -47.35%
-    BenchmarkBytesCompare/16-16                 25.7          7.83          -69.53%
-    BenchmarkBytesCompare/32-16                 38.1          7.78          -79.58%
-    BenchmarkBytesCompare/64-16                 63.0          10.6          -83.17%
-    BenchmarkBytesCompare/128-16                112           13.0          -88.39%
-    BenchmarkBytesCompare/256-16                211           28.1          -86.68%
-    BenchmarkBytesCompare/512-16                410           38.6          -90.59%
-    BenchmarkBytesCompare/1024-16               807           60.2          -92.54%
-    BenchmarkBytesCompare/2048-16               1601          103           -93.57%
-    
-    Change-Id: I121acc74fcd27c430797647b8d682eb0607c63eb
-    Reviewed-on: https://go-review.googlesource.com/30949
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I65b6c074535e877317cbf9f1f35e94890f0ebf14
+    Reviewed-on: https://go-review.googlesource.com/26662
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/ppc64/a.out.go  |   1 +
- src/cmd/internal/obj/ppc64/anames.go |   1 +
- src/cmd/internal/obj/ppc64/asm9.go   |   3 +
- src/runtime/asm_ppc64x.s             | 268 ++++++++++++++++++++++++++++-------
- 4 files changed, 225 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/gc/go.go   | 2 --
+ src/cmd/compile/internal/gc/main.go | 2 --
+ src/cmd/compile/internal/gc/ssa.go  | 2 +-
+ 3 files changed, 1 insertion(+), 5 deletions(-)

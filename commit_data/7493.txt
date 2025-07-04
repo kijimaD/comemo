@@ -1,12 +1,17 @@
-commit 712888910b2fd458c5e2ca50313f473476abe321
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Thu Feb 17 15:14:41 2011 -0500
+commit 00d8d0052a9be4979bbfa929bc343530a980cd76
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 18 03:34:22 2011 +1100
 
-    crypto/rand: Added read buffer to speed up requests for small amounts of bytes.
+    misc/dashboard: notify golang-dev on build failure
     
-    R=agl1, rsc
+    Fixes #1229.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4170056
+    https://golang.org/cl/4178048
 
- src/pkg/crypto/rand/rand_unix.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ misc/dashboard/godashboard/const.py        | 12 ++++++
+ misc/dashboard/godashboard/fail-notify.txt |  6 +++
+ misc/dashboard/godashboard/gobuild.py      | 62 ++++++++++++++++++++++++------
+ misc/dashboard/godashboard/package.py      |  9 ++---
+ 4 files changed, 72 insertions(+), 17 deletions(-)

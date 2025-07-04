@@ -1,12 +1,13 @@
-commit 047b023119fe6f60e08676697e52bfcb3e33fb04
-Author: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
-Date:   Fri Feb 11 08:30:34 2011 -0500
+commit 37b178739279d2ab17b836de64375401abdda8ae
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Feb 11 12:23:54 2011 +0100
 
-    fix example in inotify
+    flag: allow hexadecimal and octal input for integer flags.
     
-    R=golang-dev, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4174045
+    https://golang.org/cl/4182043
 
- src/pkg/os/inotify/inotify_linux.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/flag/flag.go      | 8 ++++----
+ src/pkg/flag/flag_test.go | 6 +++---
+ 2 files changed, 7 insertions(+), 7 deletions(-)

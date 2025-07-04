@@ -1,32 +1,53 @@
-commit 4ebfa8319914e1ed9727592d1fa360ce339b7597
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 25 13:22:19 2014 -0700
+commit f61f18d694028e5dd466dde11aa1c84bb3a434ed
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 25 10:58:35 2014 -0700
 
-    runtime: accurately record whether heap memory is reserved
+    crypto/tls: make Conn.Read return (n, io.EOF) when EOF is next in buffer
     
-    The existing code did not have a clear notion of whether
-    memory has been actually reserved.  It checked based on
-    whether in 32-bit mode or 64-bit mode and (on GNU/Linux) the
-    requested address, but it confused the requested address and
-    the returned address.
+    Update #3514
     
-    LGTM=rsc
-    R=rsc, dvyukov
-    CC=golang-codereviews, michael.hudson
-    https://golang.org/cl/79610043
+    An io.Reader is permitted to return either (n, nil)
+    or (n, io.EOF) on EOF or other error.
+    
+    The tls package previously always returned (n, nil) for a read
+    of size n if n bytes were available, not surfacing errors at
+    the same time.
+    
+    Amazon's HTTPS frontends like to hang up on clients without
+    sending the appropriate HTTP headers. (In their defense,
+    they're allowed to hang up any time, but generally a server
+    hangs up after a bit of inactivity, not immediately.) In any
+    case, the Go HTTP client tries to re-use connections by
+    looking at whether the response headers say to keep the
+    connection open, and because the connection looks okay, under
+    heavy load it's possible we'll reuse it immediately, writing
+    the next request, just as the Transport's always-reading
+    goroutine returns from tls.Conn.Read and sees (0, io.EOF).
+    
+    But because Amazon does send an AlertCloseNotify record before
+    it hangs up on us, and the tls package does its own internal
+    buffering (up to 1024 bytes) of pending data, we have the
+    AlertCloseNotify in an unread buffer when our Conn.Read (to
+    the HTTP Transport code) reads its final bit of data in the
+    HTTP response body.
+    
+    This change makes that final Read return (n, io.EOF) when
+    an AlertCloseNotify record is buffered right after, if we'd
+    otherwise return (n, nil).
+    
+    A dependent change in the HTTP code then notes whether a
+    client connection has seen an io.EOF and uses that as an
+    additional signal to not reuse a HTTPS connection. With both
+    changes, the majority of Amazon request failures go
+    away. Without either one, 10-20 goroutines hitting the S3 API
+    leads to such an error rate that empirically up to 5 retries
+    are needed to complete an API call.
+    
+    LGTM=agl, rsc
+    R=agl, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/76400046
 
- src/pkg/runtime/malloc.goc      | 21 +++++++++++++++------
- src/pkg/runtime/malloc.h        | 13 ++++++++++---
- src/pkg/runtime/mem_darwin.c    |  7 +++++--
- src/pkg/runtime/mem_dragonfly.c | 13 ++++++++-----
- src/pkg/runtime/mem_freebsd.c   | 13 ++++++++-----
- src/pkg/runtime/mem_linux.c     | 10 ++++++----
- src/pkg/runtime/mem_nacl.c      | 11 +++++++----
- src/pkg/runtime/mem_netbsd.c    | 11 +++++++----
- src/pkg/runtime/mem_openbsd.c   | 11 +++++++----
- src/pkg/runtime/mem_plan9.c     |  7 ++++---
- src/pkg/runtime/mem_solaris.c   | 11 +++++++----
- src/pkg/runtime/mem_windows.c   |  7 +++++--
- src/pkg/runtime/mgc0.c          |  2 +-
- src/pkg/runtime/mheap.c         |  2 +-
- 14 files changed, 91 insertions(+), 48 deletions(-)
+ src/pkg/crypto/tls/conn.go     | 21 ++++++++++++
+ src/pkg/crypto/tls/tls_test.go | 76 ++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 90 insertions(+), 7 deletions(-)

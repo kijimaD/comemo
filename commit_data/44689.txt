@@ -1,23 +1,14 @@
-commit 832a01aad409dc0e41eabb53bfdb64d1a41b2c83
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Mar 15 10:27:06 2021 -0700
+commit 2d34f3d023586fc001d64b372bd709efaab54a18
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 19 14:42:11 2020 -0700
 
-    cmd/compile:  deal with comparable embedded in a constraint
+    cmd/dist: fix tipo in comment
     
-    Ignore an embedded type in an interface which is the predeclared
-    interface "comparable" (which currently can only be in a type
-    constraint), since the name doesn't resolve and the "comparable" type
-    doesn't have any relevant methods (for the purposes of the compiler).
-    
-    Added new test case graph.go that needs this fix.
-    
-    Change-Id: I2443d2c3dfeb9d0a78aaaaf91a2808ae2759d247
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301831
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I98fbf0dc94cf182adec5d414a56b9cc5126c38f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249437
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/types.go |  11 +-
- src/cmd/compile/internal/types2/type.go |   1 +
- test/typeparam/graph.go                 | 231 ++++++++++++++++++++++++++++++++
- 3 files changed, 242 insertions(+), 1 deletion(-)
+ src/cmd/dist/buildtool.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

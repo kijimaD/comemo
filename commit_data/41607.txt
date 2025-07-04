@@ -1,28 +1,27 @@
-commit 801a9d9a0c32f0a8db43f145e71b53f11a02b7e2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 10 13:31:15 2020 -0400
+commit 27111e5fec1d0e7d9c1ba4e5cf6d01ddb06b8905
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 7 21:10:41 2019 -0400
 
-    test/codegen: mention in README that tests only run on Linux without -all_codegen
+    [dev.link] cmd/internal/obj, cmd/link: use aux symbol for DWARF symbols
     
-    This took me a while to figure out. The relevant code is in
-    test/run.go (note the "linux" hard-coded strings):
+    Use the auxiliary symbol mechanism to connect the text symbol and
+    its associated DWARF symbols. This way, the linker can track the
+    DWARF symbols from the text symbol, without looking up special
+    names.
     
-            var arch, subarch, os string
-            switch {
-            case archspec[2] != "": // 3 components: "linux/386/sse2"
-                    os, arch, subarch = archspec[0], archspec[1][1:], archspec[2][1:]
-            case archspec[1] != "": // 2 components: "386/sse2"
-                    os, arch, subarch = "linux", archspec[0], archspec[1][1:]
-            default: // 1 component: "386"
-                    os, arch, subarch = "linux", archspec[0], ""
-                    if arch == "wasm" {
-                            os = "js"
-                    }
-            }
+    Currently, in the linker this is only used in the deadcode pass
+    to track which DWARF symbols are used and need to load. Later
+    passes still use name lookup for now.
     
-    Change-Id: I92ba280025d2072e17532a5e43cf1d676789c167
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222819
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I2fe49f3b1f0ecc1472ae8aa93907cff740022d8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199801
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- test/codegen/README | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/internal/goobj/readnew.go         |  2 +
+ src/cmd/internal/goobj2/objfile.go        |  6 ++-
+ src/cmd/internal/obj/objfile2.go          | 62 +++++++++++++++++++++++++++----
+ src/cmd/link/internal/ld/deadcode2.go     |  6 +++
+ src/cmd/link/internal/objfile/objfile2.go | 11 +++---
+ 5 files changed, 74 insertions(+), 13 deletions(-)

@@ -1,28 +1,33 @@
-commit ed915ad421e61c3158ccae4bfbbcfbc796514ee2
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Sep 23 00:02:38 2016 -0400
+commit 4223294eab3dee0f6c03fd57fc24be3dc3e2d53a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 27 16:03:44 2016 -0700
 
-    runtime: use sched_yield instead of pthread_yield
+    runtime/pprof, cmd/pprof: fix profiling for PIE
     
-    Attempt to fix the linux-amd64-clang builder, which broke
-    with CL 29472.
+    In order to support pprof for position independent executables, pprof
+    needs to adjust the PC addresses stored in the profile by the address at
+    which the program is loaded. The legacy profiling support which we use
+    already supports recording the GNU/Linux /proc/self/maps data
+    immediately after the CPU samples, so do that. Also change the pprof
+    symbolizer to use the information, if available, when looking up
+    addresses in the Go pcline data.
     
-    Turns out pthread_yield is a non-portable Linux function, and
-    should have #define _GNU_SOURCE before #include <pthread.h>.
-    GCC doesn't complain about this, but Clang does:
+    Fixes #15714.
     
-            ./raceprof.go:44:3: warning: implicit declaration of function 'pthread_yield' is invalid in C99 [-Wimplicit-function-declaration]
-    
-    (Though the error, while explicable, certainly could be clearer.)
-    
-    There is a portable POSIX equivalent, sched_yield, so this
-    CL uses it instead.
-    
-    Change-Id: I58ca7a3f73a2b3697712fdb02e72a8027c391169
-    Reviewed-on: https://go-review.googlesource.com/29675
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4bf679210ef7c51d85cf873c968ce82db8898e3e
+    Reviewed-on: https://go-review.googlesource.com/23525
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/runtime/testdata/testprogcgo/raceprof.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/internal/objfile/elf.go      |  9 +++++++++
+ src/cmd/internal/objfile/goobj.go    |  4 ++++
+ src/cmd/internal/objfile/macho.go    |  4 ++++
+ src/cmd/internal/objfile/objfile.go  |  8 ++++++++
+ src/cmd/internal/objfile/pe.go       |  4 ++++
+ src/cmd/internal/objfile/plan9obj.go |  4 ++++
+ src/cmd/pprof/pprof.go               | 13 +++++++++----
+ src/go/build/deps_test.go            |  2 +-
+ src/runtime/crash_cgo_test.go        | 30 +++++++++++++++++++++++++++++
+ src/runtime/crash_test.go            | 18 +++++++++++-------
+ src/runtime/pprof/pprof.go           | 37 ++++++++++++++++++++++++++++++++++++
+ src/runtime/pprof/pprof_test.go      | 10 +++++++---
+ 12 files changed, 128 insertions(+), 15 deletions(-)

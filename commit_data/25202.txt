@@ -1,14 +1,16 @@
-commit 1092257f7e88e623da5528aef8dfbf51efc2835b
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Tue Dec 8 03:10:45 2015 -0700
+commit 1ef9b5a5b90e6ea4dd5d9495cfe0d3d24446ff22
+Author: Charlie Dorian <cldorian@gmail.com>
+Date:   Tue Oct 6 23:16:47 2015 -0400
 
-    net/http: zeroLengthPostAndResponse test now in http2 mode
+    math/cmplx: make error tolerance test function of expected value
     
-    Change-Id: I282a399657c71f7b6406fcdde8afc82a13bdfe5f
-    Reviewed-on: https://go-review.googlesource.com/17530
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Copy math package CL 12230 to cmplx package.
+    
+    Change-Id: I3345b782b84b5b98e2b6a60d8774c7e7cede2891
+    Reviewed-on: https://go-review.googlesource.com/15500
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/serve_test.go | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
+ src/math/cmplx/cmath_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

@@ -1,20 +1,28 @@
-commit 5197fa80405a470eef7cd2540380172aea6d60af
-Author: Alexey Borzenkov <snaury@gmail.com>
-Date:   Mon Jul 30 09:02:24 2012 +1000
+commit 32944049007e1ddaac2138a9e6a018ee412c84be
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 30 08:48:51 2012 +1000
 
-    syscall: workaround accept() bug on Darwin
+    misc/vim: fix :Import insertion heuristic.
     
-    Darwin kernels have a bug in accept() where error result from
-    an internal call is not checked and socket is accepted instead
-    of ECONNABORTED error. However, such sockets have no sockaddr,
-    which results in EAFNOSUPPORT error from anyToSockaddr, making
-    Go http servers running on Mac OS X easily susceptible to
-    denial of service from simple port scans with nmap.
-    Fixes #3849.
+    If a factored import group has a blank line, assume it is dividing
+    separate groups of imports (e.g. standard library vs. site-specific).
+            import (
+                    "bytes"
+                    "io"
     
-    R=golang-dev, adg, mikioh.mikioh
+                    "mycorp/package"
+            )
+    
+    The most common case is inserting new standard library imports,
+    which are usually (stylistically) the first group, so we should drop
+    "net" in the above example immediately after "io".
+    
+    Since this logic is getting non-trivial, add a test.
+    
+    R=golang-dev, minux.ma, franciscossouza
     CC=golang-dev
-    https://golang.org/cl/6456045
+    https://golang.org/cl/6445043
 
- src/pkg/syscall/syscall_bsd.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ misc/vim/ftplugin/go/import.vim | 34 +++++++++++++++++++++--
+ misc/vim/ftplugin/go/test.sh    | 61 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+), 2 deletions(-)

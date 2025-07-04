@@ -1,15 +1,14 @@
-commit 37aa65357007411d121fbdbaa5a340aba21ab40a
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Jul 24 03:38:38 2020 +1000
+commit 4980c6b317ddb173ca110e31c26d722d80e36991
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 26 15:44:07 2020 -0500
 
-    cmd/link: make it easier to debug an elfrelocsect size mismatch
+    [dev.boringcrypto] misc/boring: x/build/cmd/release doesn't take subrepo flags anymore
     
-    Change-Id: I54976b004b4db006509f5e0781b1c2e46cfa09ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244577
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Joel Sing <joel@sing.id.au>
+    According to CL 221097 they only mattered for now-unsupported Go 1.12.
+    
+    Change-Id: I73afb6d976699ca0d84f628f2347a7f628558bee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221278
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/link/internal/ld/elf.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ misc/boring/build.release | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

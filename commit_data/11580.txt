@@ -1,18 +1,12 @@
-commit b80c7e5dfd71508ed754ec2a02caa51f4444ba10
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 2 19:21:55 2012 -0800
+commit aa716e36a6c0656730eeab753eaba9d07aab72e0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 3 14:03:46 2012 +1100
 
-    math/big: API, documentation cleanup
+    dashboard: don't send failing Go commits as todos for subrepos
     
-    Fixes #2863.
-    
-    R=golang-dev, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5620058
+    https://golang.org/cl/5608044
 
- src/pkg/crypto/dsa/dsa.go    |  4 ++--
- src/pkg/crypto/rand/util.go  |  2 +-
- src/pkg/crypto/rsa/rsa.go    |  8 ++++----
- src/pkg/math/big/int.go      | 23 +++++++++++++----------
- src/pkg/math/big/int_test.go |  8 ++++----
- 5 files changed, 24 insertions(+), 21 deletions(-)
+ misc/dashboard/app/build/handler.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

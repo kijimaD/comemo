@@ -1,21 +1,20 @@
-commit 8ee0261865bea69f1a39e04a539e1152b7ba578d
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Aug 30 09:45:26 2015 -0700
+commit c9a38ce758e3de93e73842bf42a6e84f182d183a
+Author: Todd Neal <todd@tneal.org>
+Date:   Sun Jul 26 09:48:20 2015 -0500
 
-    crypto/x509: make verification of an empty certificate consistent across platforms.
+    [dev.ssa] cmd/compile: don't flush a value derived from the current value
     
-    Platform-specific verification needs the ASN.1 contents of a certificate
-    but that might not be provided if the Certificate was not created by
-    ParseCertificate. In order to avoid a panic on Windows, and to make
-    behaviour consistent across platforms, this change causes verification
-    to fail when the ASN.1 contents of a certificate are not available.
+    If flushing a value from a register that might be used by the current
+    old-schedule value, save it to the home location.
     
-    Fixes #12184
+    This resolves the error that was changed from panic to unimplemented in
+    CL 12655.
     
-    Change-Id: I4395d74934e675c179eaf4cded1094a756e478bb
-    Reviewed-on: https://go-review.googlesource.com/14053
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If864be34abcd6e11d6117a061376e048a3e29b3a
+    Reviewed-on: https://go-review.googlesource.com/12682
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/crypto/x509/verify.go    | 18 ++++++++++++++++++
- src/crypto/x509/x509_test.go |  6 ++++++
- 2 files changed, 24 insertions(+)
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 20 ++++++++++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go          |  4 ++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

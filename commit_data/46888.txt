@@ -1,34 +1,56 @@
-commit 765c9116be44641854f580c19e3589d7b86a3d28
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Sep 30 14:37:30 2021 -0700
+commit d1fd9a8863df6e8dc24dd1756550d341a26ed76c
+Merge: 59703d53e2 ff0e93ea31
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 12 16:30:51 2021 -0500
 
-    cmd/go: move module build info formatting into runtime/debug
+    [dev.regabi] all: merge master (ff0e93e) into dev.regabi
     
-    Previously, modload.PackageBuildInfo returned a string containing
-    information about modules used to build an executable. This string is
-    embedded in the binary and can be read with debug.ReadBuildInfo or
-    'go version -m'.
+    Conflicts:
     
-    With this change, debug.BuildInfo now has a MarshalText method that
-    returns a string in the same format as modload.PackageBuildInfo.
+    - src/cmd/compile/internal/gc/walk.go
     
-    Package.load now calls Package.setBuildInfo, which constructs a
-    debug.BuildInfo, formats it with MarshalText, then sets
-    Package.Internal.BuildInfo. This is equivalent to what
-    modload.PackageBuildInfo did.
+      gc/walk.go is changed in CL 290950 on the master branch but
+      deleted in the dev.regabi branch and moved over to the walk
+      package. This CL includes porting CL 290950 over to the new
+      walk.
     
-    modload.PackageBuildInfo is deleted, since it's no longer used.
+    Merge List:
     
-    For #37475
+    + 2021-02-12 ff0e93ea31 doc/go1.16: note that package path elements beginning with '.' are disallowed
+    + 2021-02-11 249da7ec02 CONTRIBUTORS: update for the Go 1.16 release
+    + 2021-02-11 864d4f1c6b cmd/go: multiple small 'go help' fixes
+    + 2021-02-11 26ceae85a8 spec: More precise wording in section on function calls.
+    + 2021-02-11 930c2c9a68 cmd/go: reject embedded files that can't be packed into modules
+    + 2021-02-11 e5b08e6d5c io/fs: allow backslash in ValidPath, reject in os.DirFS.Open
+    + 2021-02-10 ed8079096f cmd/compile: mark concrete call of reflect.(*rtype).Method as REFLECTMETHOD
+    + 2021-02-09 e9c9683597 cmd/go: suppress errors from 'go get -d' for packages that only conditionally exist
+    + 2021-02-09 e0ac989cf3 archive/tar: detect out of bounds accesses in PAX records resulting from padded lengths
+    + 2021-02-09 c9d6f45fec runtime/metrics: fix a couple of documentation typpos
+    + 2021-02-09 cea4e21b52 io/fs: backslash is always a glob meta character
+    + 2021-02-08 dc725bfb3c doc/go1.16: mention new vet check for asn1.Unmarshal
     
-    Change-Id: I5875a98cb64737637fec2a450ab2ffa7f1805707
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353886
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib28fffa7dfbff7f6cdbfaf4a304757fead7bbf19
 
- api/next.txt                         |  1 +
- src/cmd/go/internal/load/pkg.go      | 83 ++++++++++++++++++++++++++++++++++--
- src/cmd/go/internal/modload/build.go | 48 ---------------------
- src/runtime/debug/mod.go             | 37 ++++++++++++++++
- 4 files changed, 118 insertions(+), 51 deletions(-)
+ CONTRIBUTORS                                   | 158 +++++++++++++++++++++++++
+ doc/go1.16.html                                |  20 +++-
+ doc/go_spec.html                               |   4 +-
+ src/archive/tar/strconv.go                     |  21 +++-
+ src/archive/tar/strconv_test.go                |   7 ++
+ src/cmd/compile/internal/walk/expr.go          |  16 ++-
+ src/cmd/go/alldocs.go                          |  30 +++--
+ src/cmd/go/internal/help/helpdoc.go            |   2 +-
+ src/cmd/go/internal/load/pkg.go                |   5 +
+ src/cmd/go/internal/modget/get.go              |  37 ++++--
+ src/cmd/go/internal/modload/help.go            |  13 +-
+ src/cmd/go/testdata/script/mod_get_pkgtags.txt | 116 ++++++++++++++++++
+ src/io/fs/fs.go                                |  23 ++--
+ src/io/fs/fs_test.go                           |   7 +-
+ src/io/fs/glob.go                              |   5 +-
+ src/io/fs/glob_test.go                         |   3 +-
+ src/os/file.go                                 |  13 +-
+ src/os/os_test.go                              |  34 ++++++
+ src/runtime/metrics/doc.go                     |   7 +-
+ src/runtime/metrics/sample.go                  |   6 +-
+ src/runtime/metrics/value.go                   |   2 +-
+ test/reflectmethod7.go                         |  24 ++++
+ 22 files changed, 498 insertions(+), 55 deletions(-)

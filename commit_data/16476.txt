@@ -1,15 +1,14 @@
-commit 59fb90ac85be4c2c024d84287e03c200ef4fa24e
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jun 3 16:39:42 2013 -0400
+commit 022818c142ebc62da9a0e3a86c728ab36c047027
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 4 01:40:53 2013 +0800
 
-    cmd/go: document flag passing for tests
-    Fixes #5566.
+    doc/articles: use C90 standard functions in the cgo article.
     
-    R=rsc
-    CC=gobot, golang-dev
-    https://golang.org/cl/9882043
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/9953043
 
- src/cmd/go/doc.go  | 8 +++++++-
- src/cmd/go/run.go  | 1 +
- src/cmd/go/test.go | 7 ++++++-
- 3 files changed, 14 insertions(+), 2 deletions(-)
+ doc/articles/c_go_cgo.html | 12 ++++++------
+ doc/progs/cgo1.go          |  4 ++--
+ doc/progs/cgo2.go          |  4 ++--
+ 3 files changed, 10 insertions(+), 10 deletions(-)

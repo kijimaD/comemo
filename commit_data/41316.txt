@@ -1,19 +1,23 @@
-commit 3457359b90c1b4ef0c9143d2d2e9575b3e72cf4b
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jan 13 11:24:06 2020 -0500
+commit d979ac33a210d548971eac3a0ba64449dcce886f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Sep 16 16:59:38 2019 -0400
 
-    cmd/go: convert TestRelativeGOBINFail to script framework
+    crypto/cipher: improve xorBytesVSX asm for ppc64x
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    This improves the performance of xorBytesVSX in crypto/cipher by
+    unrolling the loop that does the stores. Improvement on power9:
     
-    Updates #36320
-    Updates #17751
+    name                 old time/op    new time/op    delta
+    XORBytes/8Bytes        17.9ns ± 0%    18.2ns ± 0%   +1.53%  (p=0.029 n=4+4)
+    XORBytes/128Bytes      24.4ns ± 0%    22.5ns ± 0%   -7.79%  (p=0.029 n=4+4)
+    XORBytes/2048Bytes      131ns ± 0%     109ns ± 0%  -16.79%  (p=0.029 n=4+4)
+    XORBytes/32768Bytes    1.74µs ± 0%    1.43µs ± 8%  -18.04%  (p=0.029 n=4+4)
     
-    Change-Id: I1cb3e2e28700b05b08933f4e24cd996268c1f163
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214428
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I75bd625d3ae9daa7bda54c523028671ab036b13d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197058
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
 
- src/cmd/go/go_test.go                                      | 10 ----------
- src/cmd/go/testdata/script/install_relative_gobin_fail.txt |  8 ++++++++
- 2 files changed, 8 insertions(+), 10 deletions(-)
+ src/crypto/cipher/xor_ppc64x.s | 77 +++++++++++++++++++++++++++---------------
+ 1 file changed, 49 insertions(+), 28 deletions(-)

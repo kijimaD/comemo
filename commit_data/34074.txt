@@ -1,21 +1,16 @@
-commit ea012d100bad48e5659637fde2f4d9737a087815
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 22 15:04:20 2017 -0800
+commit 60aa2cabbf027c57d3bde0797096116ae5f5e0f2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Oct 2 11:48:51 2017 +0200
 
-    go/importer: use named receiver types for methods of named interfaces
+    cmd/objdump: fix and re-enable arm test
     
-    R=go1.11
+    Fixes #9021
     
-    Once approved, this change must be ported to golang.org/x/tools/go/gcimporter15.
-    
-    Fixes #13829.
-    
-    Change-Id: I26a0094d2bfd38b97f2b64bae84b9f428fc9cdf1
-    Reviewed-on: https://go-review.googlesource.com/85318
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Id4465857c765342aa8c4b5bc2fdc06754a290025
+    Reviewed-on: https://go-review.googlesource.com/67530
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/internal/gcimporter/bimport.go           | 64 +++++++++++++++----------
- src/go/internal/gcimporter/gcimporter_test.go   | 53 +++++++++++++++++++-
- src/go/internal/srcimporter/srcimporter_test.go | 38 +++++++++++++++
- src/go/types/type.go                            | 11 +++--
- 4 files changed, 134 insertions(+), 32 deletions(-)
+ src/cmd/objdump/objdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

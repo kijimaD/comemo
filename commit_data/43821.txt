@@ -1,18 +1,15 @@
-commit 64ef84881f607c2d3a0c35762853af8f3bc4ac26
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Nov 16 18:31:22 2020 -0500
+commit 7ef28cbd12d1777748affe9dccf20679665c06f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 25 07:01:45 2020 -0700
 
-    cmd/go: fix retract interval syntax in 'go help mod edit'
+    testing: give short package variable a longer name
     
-    For #24031
+    (Update to CL 229837)
     
-    Change-Id: I70461431aac24c9465b9bdab082bcc34343a53a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270557
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ieab46bd384f76f678ef0d6a38dc043bc4b0c458a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230157
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go              | 2 +-
- src/cmd/go/internal/modcmd/edit.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/testing/testing.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

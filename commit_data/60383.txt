@@ -1,0 +1,19 @@
+commit b43d6c57dee2e02a173796c1bc11840de3681dcf
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri May 24 23:41:22 2024 +0700
+
+    io: add test for Pipe constructor allocations
+    
+    Updates #67633
+    
+    Change-Id: If3da9317ba36cb8a7868db94b45c402e1793e018
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588219
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/io/pipe_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

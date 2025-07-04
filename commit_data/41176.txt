@@ -1,12 +1,28 @@
-commit 22f09ced523d907177670293061be678f42608e0
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Jan 27 15:37:11 2020 -0500
+commit f6c691e0e1b1434a02301c39e6d66e21699a98a8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 5 14:27:27 2019 -0400
 
-    doc/go1.14: remove TODO from Tools section of release notes
+    cmd/go/internal/modfetch/codehost: treat nonexistent repositories as “not found”
     
-    Change-Id: I682193eb06b55eb3e9392146579f57a928c728d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216598
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    If a go-import directive refers to a nonexistent repository, today we
+    treat that as an error fetching a module that actually exists.
+    That makes the HTTP server responsible for determining which
+    repositories do or do not exist, which may in general depend on
+    the user's separately-stored credentials, and imposes significant
+    complexity on such a server, which can otherwise be very simple.
+    
+    Instead, check the repository URL and/or error message to try to
+    determine whether the repository exists at all. If the repo does not
+    exist, treat its absence as a “not found” error — as if the server had
+    not returned it in the first place.
+    
+    Updates #34094
+    
+    Change-Id: I142619ff43b96d0de428cdd0b01cca828c9ba234
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194561
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.14.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git.go    | 40 ++++++++++++++++++++-----
+ src/cmd/go/internal/modfetch/proxy.go           | 17 ++++++++++-
+ src/cmd/go/testdata/script/mod_missing_repo.txt | 15 ++++++++++
+ 3 files changed, 63 insertions(+), 9 deletions(-)

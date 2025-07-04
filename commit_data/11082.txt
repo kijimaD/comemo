@@ -1,17 +1,12 @@
-commit bc1f4c18230119db04139ea3ac74457a6df6ae48
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Jan 10 09:48:10 2012 -0800
+commit 800c49820aa5ecd83506276070bd8e9439e2eb5a
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Jan 10 07:43:48 2012 -0800
 
-    runtime: regenerate defs_darwin_{386,amd64}.h
+    go: fix typo in comment
     
-    Regenerated under Lion 10.7.2 amd64.
-    Also tested on Snow Leopart 10.6.8 386.
-    
-    R=golang-dev, dsymonds, minux.ma
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5533058
+    https://golang.org/cl/5531060
 
- src/pkg/runtime/defs_darwin.go      |  5 ++---
- src/pkg/runtime/defs_darwin_386.h   | 13 +++++++------
- src/pkg/runtime/defs_darwin_amd64.h | 19 ++++++++++---------
- 3 files changed, 19 insertions(+), 18 deletions(-)
+ src/cmd/go/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

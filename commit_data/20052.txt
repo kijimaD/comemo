@@ -1,13 +1,15 @@
-commit ddce7c35f46ad4644d6f6e48817daf7a92804144
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 20 12:58:01 2014 +0400
+commit 893f28ca16948530651394b83337e60f36bdc559
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 23:57:02 2014 -0400
 
-    runtime: add atomicor8 for amd64p32
+    [dev.power64] cmd/9g: introduce ginscon2 for CMP/CMPU, use ginscon to ADD constants
     
-    LGTM=khr
-    R=golang-codereviews, daniel.morsing, khr, rsc
-    CC=golang-codereviews, khr, rlh
-    https://golang.org/cl/131950043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/125170043
 
- src/pkg/runtime/asm_amd64p32.s | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/9g/cgen.c  |  6 ++----
+ src/cmd/9g/gg.h    |  1 +
+ src/cmd/9g/gsubr.c | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 4 deletions(-)

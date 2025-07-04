@@ -1,21 +1,23 @@
-commit 2e51f6f25cfc37f1e1d6fd3a90f0570979939a21
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Mar 11 12:03:28 2023 -0800
+commit 575fd8817ae9817303a69065def80c574718169e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 19 10:32:54 2022 -0700
 
-    encoding/json: make use of Buffer.AvailableBuffer
+    regexp: change ErrInvalidDepth message to match proposal
     
-    Use the explicit API for acquiring an empty available buffer,
-    rather than the hack that's implemented in terms of Bytes and Len.
+    Also update the file in $GOROOT/api/next to use proposal number.
     
-    Change-Id: If286ed42693acd61ffe28dc849ed4b76c3ae4434
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476337
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #51684
+    
+    Change-Id: I28bfa6bc1cee98a17b13da196d41cda34d968bb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401076
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/encoding/json/encode.go |  8 ++------
- src/encoding/json/indent.go | 11 +++--------
- 2 files changed, 5 insertions(+), 14 deletions(-)
+ api/next/51684.txt         | 2 ++
+ api/next/regexpdepth.txt   | 3 ---
+ src/regexp/syntax/parse.go | 2 +-
+ 3 files changed, 3 insertions(+), 4 deletions(-)

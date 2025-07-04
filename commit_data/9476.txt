@@ -1,18 +1,15 @@
-commit f78e7d36a6808b1f45b05186f2d82805bdf72e77
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Wed Aug 24 13:59:52 2011 -0400
+commit 80f79ad3056d244983ad42bdfeff6a24b2c30b5c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 24 13:59:33 2011 -0400
 
-    math: fix Pow10 loop
+    net: make use of IPv4len, IPv6len
     
-    Pow10 failed for MinInt32 (endless loop until out of
-    memory).  Fix by returning 0 and +Inf for all arguments
-    where the result is not representable in a float64.
-    Fixes #2159.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4930041
+    https://golang.org/cl/4926046
 
- src/pkg/math/all_test.go | 34 ++++++++++++++++++++++++++++++++++
- src/pkg/math/pow10.go    |  6 ++++++
- 2 files changed, 40 insertions(+)
+ src/pkg/net/dnsclient_unix.go  | 2 +-
+ src/pkg/net/iprawsock_posix.go | 4 ++--
+ src/pkg/net/tcpsock_posix.go   | 2 +-
+ src/pkg/net/udpsock_posix.go   | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

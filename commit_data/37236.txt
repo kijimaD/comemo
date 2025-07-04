@@ -1,17 +1,14 @@
-commit ef21689a68c64cdd57a06722152848e63eeac6fe
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Oct 27 12:50:25 2018 -0400
+commit 10d977d76b3a15a009ba039b2360d9c2580ac9ea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 11 22:55:16 2018 +0000
 
-    crypto/tls: implement TLS 1.3 record layer and cipher suites
+    net/http: add tests to validate that Client.Timeout closes connections
     
-    Updates #9671
+    For #23399
     
-    Change-Id: I1ea7b724975c0841d01f4536eebb23956b30d5ea
-    Reviewed-on: https://go-review.googlesource.com/c/145297
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I9bc7c21fda6bfa89af2e7656e5c85aa9edd4f29e
+    Reviewed-on: https://go-review.googlesource.com/123435
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/cipher_suites.go |  92 +++++++++++++++++------
- src/crypto/tls/common.go        |  51 +++++++++----
- src/crypto/tls/conn.go          | 162 ++++++++++++++++++++++++++++++++--------
- src/crypto/tls/tls_test.go      |   4 +-
- 4 files changed, 238 insertions(+), 71 deletions(-)
+ src/net/http/transport_test.go | 119 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 119 insertions(+)

@@ -1,24 +1,28 @@
-commit b941a10e384e6772792bc9e05e7ebe58e98bc20e
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Apr 19 12:05:10 2022 -0700
+commit 86743e7d8652c316b5f77a84ffc83244ee10a41b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Apr 18 13:38:34 2021 +1000
 
-    crypto/x509: use SAN when comparing certs during path building
+    image: add RGBA64Image interface
     
-    Per RFC 4158 Section 2.4.2, when we are discarding candidate
-    certificates during path building, use the SANs as well as subject and
-    public key when checking whether a certificate is already present in
-    the built path. This supports the case where a certificate in the chain
-    (typically a leaf) has the exact same subject and public key as another
-    certificate in the chain (typically its parent) but has SANs which don't
-    match.
+    The new RGBA64At method is equivalent to the existing At method (and the
+    new SetRGBA64 method is equivalent to the existing Set method in the
+    image/draw package), but they can avoid allocations from converting
+    concrete color types to the color.Color interface type.
     
-    Change-Id: I212c234e94a1f6afbe9691e4a3ba257461db3a7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401115
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Also update api/go1.17.txt and doc/go1.17.html
+    
+    Fixes #44808
+    
+    Change-Id: I8671f3144512b1200fa373840ed6729a5d61bc35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311129
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/x509/verify.go      | 58 ++++++++++++++++++++++++++++++++++--------
- src/crypto/x509/verify_test.go | 23 +++++++++++++++++
- 2 files changed, 70 insertions(+), 11 deletions(-)
+ api/go1.17.txt          |  34 ++++++++-
+ doc/go1.17.html         |  13 ++++
+ src/image/draw/draw.go  |  10 +++
+ src/image/image.go      | 197 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/image/image_test.go |  75 ++++++++++++++++++
+ src/image/ycbcr.go      |  10 +++
+ 6 files changed, 338 insertions(+), 1 deletion(-)

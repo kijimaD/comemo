@@ -1,18 +1,19 @@
-commit a58a8d2e97d605f9f115a0e77ba09cd36bb82ba6
-Author: zdjones <zachj1@gmail.com>
-Date:   Thu Jul 16 12:33:25 2020 +0100
+commit 90c71cec5bca21e8c7e984fffbd0ad62d7067f5d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jan 20 10:23:41 2020 +0100
 
-    test: document specifying individual test files as operands
+    runtime: remove unused _F_SETFL const on linux
     
-    The current command will run this entire set of tests, which takes a
-    noticeable amount of time. Contributors may wish to run only a subset of
-    these tests to save time/compute (e.g. when iterating on a CL that
-    failed tests in that subset). Listing file(s) as operands to the command
-    will run only those tests.
+    This constant is only used on libc-based platforms (aix, darwin,
+    solaris).
     
-    Change-Id: I1874c43681a594190bc40b61cee0b8d321be73f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/242997
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ic57d1fe3b1501c5b552eddb9aba11f1e02510082
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220421
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/README.md | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/defs_linux_386.go   | 1 -
+ src/runtime/defs_linux_amd64.go | 1 -
+ src/runtime/defs_linux_arm.go   | 1 -
+ src/runtime/defs_linux_arm64.go | 1 -
+ 4 files changed, 4 deletions(-)

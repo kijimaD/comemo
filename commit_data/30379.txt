@@ -1,19 +1,20 @@
-commit a1261b8b0a38814df453defb2fc2cae3ba0c956a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 17 10:17:42 2017 -0500
+commit 827f2accc1a25b77003303d3c35db5fc054bf8f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 3 00:44:16 2016 +0000
 
-    runtime: do not allocate on every time.Sleep
+    net/http: update bundled http2 to fix test flake
     
-    It's common for some goroutines to loop calling time.Sleep.
-    Allocate once per goroutine, not every time.
-    This comes up in runtime/pprof's background reader.
+    Updates http2 to x/net/http2 git rev 569280fa for:
     
-    Change-Id: I89d17dc7379dca266d2c9cd3aefc2382f5bdbade
-    Reviewed-on: https://go-review.googlesource.com/37162
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+       http2: fix over-aggressive ignoring of frames while in "go away" mode
+       https://golang.org/cl/32583
+    
+    Fixes #17733
+    
+    Change-Id: I4008d2e14ce89782ce7e18b441b1181f98623b9d
+    Reviewed-on: https://go-review.googlesource.com/32584
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/proc.go     | 1 +
- src/runtime/runtime2.go | 1 +
- src/runtime/time.go     | 7 ++++++-
- 3 files changed, 8 insertions(+), 1 deletion(-)
+ src/net/http/h2_bundle.go | 13 ++-----------
+ 1 file changed, 2 insertions(+), 11 deletions(-)

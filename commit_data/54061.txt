@@ -1,19 +1,15 @@
-commit f278ae61d551ebd12956a1ed21ad6131495a2513
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Aug 16 10:53:49 2023 +0000
+commit 7db923fe565465f292d3e62d6c7ded86e724062d
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Sep 6 22:07:08 2022 +0800
 
-    fmt: amend comment for getField
+    net/http: convert Server.disableKeepAlives to atomic type
     
-    Change-Id: I52c9ed0c1a178f3ae3eb4f135d8f11018075fe3b
-    GitHub-Last-Rev: 407aa89c88fc7bb3e4ad9ef55c2a0c5c2f92642c
-    GitHub-Pull-Request: golang/go#62061
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519935
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I87526520b519554ea344288cc0f0940d7b182e21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428815
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/fmt/print.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/server.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

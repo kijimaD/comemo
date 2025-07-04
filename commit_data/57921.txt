@@ -1,18 +1,28 @@
-commit 5123f38e050c5ee7130d459ea247d998a838b5a1
-Author: Youlin Feng <fengyoulin@live.com>
-Date:   Mon Nov 4 07:43:43 2024 +0800
+commit 8221f90f1347bd96548d48b178c8bcb0607cde8f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 12 00:07:55 2023 +0000
 
-    cmd/compile: update comment for initLimit in prove pass
+    Revert "os/exec: avoid calling LookPath in cmd.Start for resolved paths"
     
-    For: #70156
+    This reverts CL 512155.
     
-    Change-Id: Ie39a88130f27b4b210ddbcf396cc0ddd2713d58b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624855
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reason for revert: CL 512155 introduced a race in that it caused
+    cmd.Start to set cmd.Path. Previously it was fine if code looked
+    at cmd.Path in one goroutine while calling cmd.Start in a different
+    goroutine.
+    
+    A test case for this race is in CL 527495.
+    
+    Change-Id: Ic18fdadf6763727f8ea748280d5f0e601b9bf374
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527337
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/os/exec/exec.go       | 36 ++++++++++++++++++++++++++++++++----
+ src/os/exec/lp_plan9.go   |  6 ------
+ src/os/exec/lp_unix.go    |  6 ------
+ src/os/exec/lp_wasm.go    |  6 ------
+ src/os/exec/lp_windows.go | 43 -------------------------------------------
+ 5 files changed, 32 insertions(+), 65 deletions(-)

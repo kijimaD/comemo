@@ -1,41 +1,21 @@
-commit 5df59a4fc98991fc16872c384bd1e9f830a369c5
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Dec 19 17:18:45 2016 -0800
+commit daa121167b6ce630aba00195f1c3872cda39a50c
+Author: Allan Simon <allan.simon@supinfo.com>
+Date:   Sun Oct 11 04:16:58 2015 +0800
 
-    Revert: "archive/zip: handle mtime in NTFS/UNIX/ExtendedTS extra fields"
+    encoding/xml: prevent omitempty from omitting non-nil pointers to empty values
     
-    This change reverts the following CLs:
-            CL/18274: handle mtime in NTFS/UNIX/ExtendedTS extra fields
-            CL/30811: only use Extended Timestamp on non-zero MS-DOS timestamps
+    There was an inconsistency between the (json encoding + documentation)
+    and the xml encoding implementation. Pointer to an empty value was
+    not being serialized (i.e simply ignored). Which had the effect of making
+    impossible to have a struct with a string field for which we wanted to
+    serialize the value ""
     
-    We are reverting support for extended timestamps since the support was not
-    not complete. CL/18274 added full support for reading extended timestamp fields
-    and minimal support for writing them. CL/18274 is incomplete because it made
-    no changes to the FileHeader struct, so timezone information was lost when
-    reading and/or writing.
+    Fixes #5452
     
-    While CL/18274 was a step in the right direction, we should provide full
-    support for high precision timestamps in both the reader and writer.
-    This will probably require that we add a new field of type time.Time.
-    The complete fix is too involved to add in the time remaining for Go 1.8
-    and will be completed in Go 1.9.
-    
-    Updates #10242
-    Updates #17403
-    Updates #18359
-    Fixes #18378
-    
-    Change-Id: Icf6d028047f69379f7979a29bfcb319a02f4783e
-    Reviewed-on: https://go-review.googlesource.com/34651
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id858701801158409be01e962d2cda843424bd22a
+    Reviewed-on: https://go-review.googlesource.com/15684
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/archive/zip/reader.go                    |  49 ++-------------------------
- src/archive/zip/reader_test.go               |  31 ++++++-----------
- src/archive/zip/struct.go                    |   3 --
- src/archive/zip/testdata/extra-timestamp.zip | Bin 152 -> 0 bytes
- src/archive/zip/writer.go                    |  17 ----------
- src/archive/zip/writer_test.go               |  27 ---------------
- src/archive/zip/zip_test.go                  |  39 ---------------------
- 7 files changed, 12 insertions(+), 154 deletions(-)
+ src/encoding/xml/marshal.go      | 18 ++++++++++--------
+ src/encoding/xml/marshal_test.go |  8 +++++++-
+ 2 files changed, 17 insertions(+), 9 deletions(-)

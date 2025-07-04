@@ -1,26 +1,14 @@
-commit 13cd0061390af0621516ec22b1a3987712b4da3b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 30 22:54:00 2018 -0700
+commit 91f99852f638c249007a5a80277f75aa7cc9e0e8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 5 21:31:57 2018 +0000
 
-    runtime: add fast version of getArgInfo
+    net/http: document cloning of Server.TLSConfig
     
-    getArgInfo is called a lot during stack copying.
-    In the common case it doesn't do much work,
-    but it cannot be inlined.
+    Updates #22018
     
-    This change works around that.
-    
-    name                old time/op  new time/op  delta
-    StackCopyPtr-8       108ms ± 5%    96ms ± 4%  -10.40%  (p=0.000 n=20+20)
-    StackCopy-8         82.6ms ± 3%  78.4ms ± 6%   -5.15%  (p=0.000 n=19+20)
-    StackCopyNoCache-8   130ms ± 3%   122ms ± 3%   -6.44%  (p=0.000 n=20+20)
-    
-    Change-Id: If7d8a08c50a4e2e76e4331b399396c5dbe88c2ce
-    Reviewed-on: https://go-review.googlesource.com/108945
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I8a85324e9d53dd4d279ed05cdb93f50d55cf767b
+    Reviewed-on: https://go-review.googlesource.com/86415
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go |  1 +
- src/runtime/traceback.go                | 21 +++++++++++++++++++--
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/net/http/server.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

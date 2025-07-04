@@ -1,37 +1,42 @@
-commit 2a9636dc2bdbb2865dde686352de528c6953c7bf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jul 21 16:50:59 2020 -0400
+commit 75ea964b3f6073076e1a86a0de2be9a2f159da24
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue Feb 18 22:41:20 2020 -0500
 
-    cmd/go/internal/modload: cache the Go language version for each module globally
+    cmd/trace: update to use WebComponents V0 polyfill
     
-    Previously, this cache was a member of the (ephemeral) modload.loader
-    struct. However, the Go language version for a given module version
-    does not vary based on the build list, the set of loaded packages, the
-    build tags in use, the meaning of the "all" pattern, or anything else
-    that can be configured for an instance of the package loader. The map
-    containing that information is therefore not appropriate as a field of
-    the (configurable, package-list-dependent) loader struct.
+    Old trace viewer stopped working with Chrome M80+ because the
+    old trace viewer heavily depended on WebComponents V0 which are deprecated.
+    Trace viewer recently migrated to use WebComponents V0 polyfill
+    (crbug.com/1036492). This CL brings in the newly updated trace_viewer_full.html
+    (sync'd @ 9508452e)
+    and updates the javascript snippet included in the /trace endpoint
+    to use the polyfill.
     
-    The Go language version mapping could, in theory, be read from the
-    go.mod file in the module cache (or replacement directory) every time
-    it is needed: this map is just a cache, and as such it belongs
-    alongside the other caches and indexes in the modload package, which
-    are currently found in modfile.go.
+    This brings in webcomponents.min.js copied from
+    https://chromium.googlesource.com/catapult/+/9508452e18f130c98499cb4c4f1e1efaedee8962/third_party/polymer/components/webcomponentsjs/webcomponents.min.js
     
-    We may want to do the same sort of global caching for the mapping from
-    each module.Version to its list of direct requirements (which are
-    similarly idempotent), but for now that is left for a future change.
+    That is necessary because the /trace endpoint needs to import
+    the vulcanized trace_viewer_full.html.
     
-    For #36460
-    For #36876
+    It's possible that some features are not working correctly with
+    this polyfill. In that case, report the issue to crbug.com/1036492.
+    There will be a warning message in the UI (yellow banner above the timeline)
+    which can be hidden by clicking the 'hide' button.
     
-    Change-Id: I90ac176ffea97f30c47d6540c3dfb874dc9cfa4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244078
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    This allows to render the trace in browsers other than chrome in theory,
+    but I observed some buttons and functions still don't work outside
+    chrome.
+    
+    Fixes #34374.
+    
+    Change-Id: Ib575f756f5e6b22ad904ede6e4d224a995ebe259
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219997
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/modload/build.go   | 15 ++++++++++-----
- src/cmd/go/internal/modload/load.go    | 10 +---------
- src/cmd/go/internal/modload/modfile.go |  7 +++++++
- src/cmd/go/internal/modload/mvs.go     |  8 +++-----
- 4 files changed, 21 insertions(+), 19 deletions(-)
+ misc/trace/README.md              |   77 +-
+ misc/trace/trace_viewer_full.html | 1994 ++++++++++++++++++++++++++-----------
+ misc/trace/webcomponents.min.js   |   14 +
+ src/cmd/trace/trace.go            |   39 +-
+ 4 files changed, 1533 insertions(+), 591 deletions(-)

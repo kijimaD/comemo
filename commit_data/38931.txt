@@ -1,22 +1,17 @@
-commit 4fdeb73fedd99233c04564677a775637930e8b64
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sat Apr 27 12:15:42 2019 +0200
+commit 9b95035654d620e1aafebd461fd976fe34adb72b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 10 15:47:10 2018 -0800
 
-    cmd/link/internal/ld,syscall: replace getfsstat64 with getfsstat
+    cmd/nm: run tests in parallel, don't use Scanner on []byte
     
-    getfsstat64 is deprecated but not yet caught by the App Store checks.
-    Use the supported getfsstat$INODE64 form instead to ensure forward
-    compatibility.
+    Saves about 35% on total test time on my laptop.
     
-    Change-Id: I0d97e8a8b254debb3de1cfcb3778dbed3702c249
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174200
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #26471
+    
+    Change-Id: I15b28b1bc00f889934d577dc7996864bbab10105
+    Reviewed-on: https://go-review.googlesource.com/c/153499
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/macho.go   | 2 +-
- src/syscall/syscall_darwin.go       | 8 ++++----
- src/syscall/zsyscall_darwin_386.s   | 4 ++--
- src/syscall/zsyscall_darwin_amd64.s | 4 ++--
- src/syscall/zsyscall_darwin_arm.s   | 4 ++--
- src/syscall/zsyscall_darwin_arm64.s | 4 ++--
- 6 files changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/nm/nm_test.go | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)

@@ -1,21 +1,17 @@
-commit 133e0bca0be23980604ee98589ddcacdb1262afd
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Feb 22 08:42:37 2023 -0800
+commit be8ee5a58f8c30e95e425779fb31b2ae4e35cb8c
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Dec 30 16:46:21 2021 +0800
 
-    net/http: remove warning when parsing a query containing a semicolon
+    cmd/dist: enable msan/asan
     
-    It's been years since the behavior here was changed, and there's
-    little point in continuing to warn users of it.
+    Supporting memory sanitizer and address sanitizer in toolchains
     
-    Fixes #49399
-    
-    Change-Id: I95f64ca14cacb64ebe78296593b1cc3d837e6b77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470315
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: Ie292657b78954d65bd72e64e063b1c4f18d4f0d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374974
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/http/serve_test.go | 28 +++++++++-------------------
- src/net/http/server.go     | 17 -----------------
- 2 files changed, 9 insertions(+), 36 deletions(-)
+ src/cmd/dist/test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

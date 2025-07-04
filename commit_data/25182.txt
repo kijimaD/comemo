@@ -1,12 +1,22 @@
-commit b2963a545c78ddca5ea59c5e290f3c46f0a04773
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Dec 6 17:14:50 2015 +1100
+commit f23c37f67ac1388b7d073f78d9061bfe806a1b2f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 5 11:05:10 2015 -0700
 
-    doc: go1.6.txt: note windows path/filepath.Join behaviour change
+    net: remove imports of strconv
     
-    Change-Id: I321eba716319bf88695ac49580837b6254f1279e
-    Reviewed-on: https://go-review.googlesource.com/17474
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    The net package already has support for limited uses of the strconv
+    package.  Despite this, a few uses of strconv have crept in over time.
+    Remove them and use the existing net support instead.
+    
+    Change-Id: Icdb4bdaa8e1197f1119a96cddcf548ed4a551b74
+    Reviewed-on: https://go-review.googlesource.com/15400
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.6.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/go/build/deps_test.go      | 4 ++--
+ src/net/conf.go                | 3 +--
+ src/net/dnsclient_unix.go      | 3 +--
+ src/net/lookup_windows_test.go | 5 ++---
+ src/net/tcpsockopt_plan9.go    | 3 +--
+ 5 files changed, 7 insertions(+), 11 deletions(-)

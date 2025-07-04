@@ -1,20 +1,18 @@
-commit 446614182202a57b84c2742c8992c552e5fc7d3b
-Author: 180909 <734461790@qq.com>
-Date:   Mon Aug 16 06:07:39 2021 +0000
+commit 73580645087b84c3470943155e5e94eacf83bb86
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Dec 3 17:29:39 2020 -0500
 
-    cmd/go: add document -json in testflag
+    doc/go1.16: preannounce dropping macOS 10.12 support
     
-    Fixes #47628
+    Go 1.16 will be the last to support macOS 10.12 Sierra.
+    Go 1.17 will require macOS 10.13 High Sierra.
     
-    Change-Id: I2776fbc22d8a73ca7adc2cf7ad85669d57cc7eae
-    GitHub-Last-Rev: 826907b0797cdc25f921117e2ee44fc0dc2d21c3
-    GitHub-Pull-Request: golang/go#47683
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341991
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    For #23011.
+    
+    Change-Id: I80052bdde4d9f1c5d71b67b85f65fb0b40856750
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275299
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go            | 4 ++++
- src/cmd/go/internal/test/test.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ doc/go1.16.html | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,18 +1,17 @@
-commit 92568bcb6a374aecf2ece6607829b26f5e57ac28
-Author: Kevin Burke <kev@inburke.com>
-Date:   Mon Oct 31 07:32:19 2016 -0700
+commit 199b17cca8daf5bac6210e5719b1e85a51bd311d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Aug 26 13:50:34 2016 +0900
 
-    database/sql: correctly spell constants
+    path/filepath: handle "C:." correctly in EvalSymlinks on Windows
     
-    Also add a link to more information about isolation levels as defined by the
-    SQL standard. Fixes #17682.
+    Fixes #16886
     
-    Change-Id: I94c53b713f4c882af40cf15fe5f1e5dbc53ea741
-    Reviewed-on: https://go-review.googlesource.com/32418
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idfacb0cf44d9994559c8e09032b4595887e76433
+    Reviewed-on: https://go-review.googlesource.com/28214
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/sql.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/path/filepath/path_test.go | 34 ++++++++++++++++++++++++++++++++++
+ src/path/filepath/symlink.go   |  5 +++--
+ 2 files changed, 37 insertions(+), 2 deletions(-)

@@ -1,19 +1,21 @@
-commit e8cc083ede9120c70b9d38b603ba07b3e62bd95d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 3 16:00:04 2015 -0500
+commit 745cdc3ad7556ba073d2a55fa7cebb3fc683b94f
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 28 16:13:57 2015 -0400
 
-    net/mail: do not parse RFC 2047 tokens in quoted strings
+    cmd/compile: repair escape analysis of range &fixedArray
     
-    RFC 2047 tokens like =?utf-8?B?whatever?= can only appear
-    unquoted, but this code was trying to decode them even when
-    they came out of quoted strings. Quoted strings must be left alone.
+    The existing test did not take into account the implicit
+    dereference of &fixedArray and thus heap-escaped when it
+    was not necessary.
     
-    Fixes #11294.
+    Also added a detailed test for this and related cases.
     
-    Change-Id: I41b371f5b1611f1e56d93623888413d07d4ec878
-    Reviewed-on: https://go-review.googlesource.com/17381
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #12588
+    
+    Change-Id: I951e9684a093082ccdca47710f69f4366bd6b3cf
+    Reviewed-on: https://go-review.googlesource.com/15130
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/net/mail/message.go      |  7 +++----
- src/net/mail/message_test.go | 27 ++++++++++++++++++++++++++-
- 2 files changed, 29 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  9 +++-
+ test/fixedbugs/issue12588.go       | 88 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 2 deletions(-)

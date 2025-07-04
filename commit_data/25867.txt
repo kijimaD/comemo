@@ -1,29 +1,16 @@
-commit a8589312004157de09677e182c3c77399f2d628d
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Feb 16 22:23:14 2016 -0500
+commit afc2c45f05ad1091f1176f37ba90fb813b2776be
+Author: Burcu Dogan <jbd@google.com>
+Date:   Sat Nov 28 11:47:07 2015 -0600
 
-    cmd/compile: embed type string header in rtype
+    net/http: define File as an io.Seeker
     
-    Reduces binary size of cmd/go by 1%.
+    Fixes #13421.
     
-    For #6853.
-    
-    Change-Id: I6f2992a4dd3699db1b532ab08683e82741b9c2e4
-    Reviewed-on: https://go-review.googlesource.com/19692
+    Change-Id: Ic0fc0d0a8e86d2be23db12ddd1a8a8105e26ee56
+    Reviewed-on: https://go-review.googlesource.com/17250
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Burcu Dogan <jbd@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |  8 ++++--
- src/cmd/link/internal/ld/decodesym.go  |  2 +-
- src/reflect/export_test.go             |  2 +-
- src/reflect/type.go                    | 50 +++++++++++++++++-----------------
- src/runtime/alg.go                     |  8 +++---
- src/runtime/error.go                   |  2 +-
- src/runtime/heapdump.go                |  2 +-
- src/runtime/iface.go                   | 24 ++++++++--------
- src/runtime/mbitmap.go                 | 10 +++----
- src/runtime/mfinal.go                  |  8 +++---
- src/runtime/mprof.go                   |  2 +-
- src/runtime/type.go                    |  2 +-
- 12 files changed, 61 insertions(+), 59 deletions(-)
+ src/net/http/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,25 +1,21 @@
-commit 97aa90d251f6f2a951d01b7d1033bc7a42bf6f69
+commit 6f3b84a7575c65aa2f4fd9753c03d0cc03a7638e
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 7 10:40:39 2014 -0700
+Date:   Wed May 7 08:42:08 2014 -0700
 
-    spec: several clarifications to language on channels
+    spec: clarify type properties
     
-    - A channel may be used between any number of goroutines,
-      not just two.
-    - Replace "passing a value" (which is not further defined)
-      by "sending and receiving a value".
-    - Made syntax production more symmetric.
-    - Talk about unbuffered channels before buffered channels.
-    - Clarify what the comma,ok receive values mean (issue 7785).
+    If the underlying type of a type T is a boolean, numeric,
+    or string type, then T is also a boolean, numeric, or
+    string type, respectively.
     
     Not a language change.
     
-    Fixes #7785.
+    Fixes #7551.
     
-    LGTM=rsc, r, iant
-    R=r, rsc, iant, ken
+    LGTM=iant, rsc, robert.hencke, r
+    R=r, rsc, iant, ken, robert.hencke
     CC=golang-codereviews
-    https://golang.org/cl/94030045
+    https://golang.org/cl/100130044
 
- doc/go_spec.html | 72 ++++++++++++++++++++++++++++++--------------------------
- 1 file changed, 38 insertions(+), 34 deletions(-)
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

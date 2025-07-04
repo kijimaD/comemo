@@ -1,24 +1,19 @@
-commit 55bb3d1c105131f93dbe9abd03445e1f07d02303
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 21 13:51:28 2024 -0800
+commit 70efe9f721d70f57eba8896ffd3939723e0f0b4a
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 1 11:50:10 2023 -0800
 
-    go/types: : generate assignments.go from types2 source
+    crypto/x509: make TestIssue51759 builder only
     
-    This CL reduces the amount of code that needs to be maintained
-    manually by about 600 LOC.
+    Since we can't gate tests on the macOS version on normal machines,
+    restrict TestIssue51759 to only run on builders, where we have a way to
+    do this.
     
-    Change-Id: I7107c8050075281bf6840a9f5234d70e09734ce6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565836
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I70fc83c587689b499b6a38864973a77bb3e52596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472619
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/types2/assignments.go | 37 ++++++++++++++++++--------
- src/cmd/compile/internal/types2/operand.go     |  4 +--
- src/cmd/compile/internal/types2/util.go        |  7 ++---
- src/go/types/assignments.go                    | 33 +++++++++++++++++------
- src/go/types/generate_test.go                  |  7 ++++-
- src/go/types/operand.go                        |  2 ++
- src/go/types/util.go                           | 11 ++++----
- 7 files changed, 70 insertions(+), 31 deletions(-)
+ src/crypto/x509/verify_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,29 +1,22 @@
-commit ba42120723a8bb4161c4f54c93f7ab3234923473
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Thu Sep 26 01:14:18 2024 +0200
+commit 850b6ce33ced3d20d036cb41317f783469f3ea86
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Aug 16 02:04:19 2023 +0000
 
-    runtime: properly compute whether PC is inside vDSO pages
+    bufio: clarify the maximum token size
     
-    The old calculation just looked whether PC was within a page of a vDSO
-    symbol. This doesn't work because the vDSO .text might span two whole
-    pages, with trampolines and such redirecting PC around between them.
+    Fixes #43183.
     
-    This manifests itself with the new vDSO getrandom() function, where on
-    PowerPC, the trampoline is quite far away from the actual C function it
-    jumps into. The effect is that the signal handler doesn't know it's
-    interrupting a vDSO call and forgets to restore g to R30, resulting in a
-    crash.
-    
-    Fix this by storing the start and end of the LOAD section from the
-    program headers. We could be more specific and parse out the .text
-    section, but PT_LOAD is good enough and appears to work well.
-    
-    Change-Id: I3cf16955177eedb51e28b3b1a0191b32c3327a42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616015
-    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I50d99ef8ed513bba47166a25ea5c7c80cd8bd799
+    GitHub-Last-Rev: 684d70e9a3dbc0ce280e1112105d666cd5754e9f
+    GitHub-Pull-Request: golang/go#61979
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518860
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/vdso_linux.go | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ src/bufio/scan.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

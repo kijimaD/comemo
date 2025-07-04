@@ -1,12 +1,14 @@
-commit e7095851518b7a9796ad532860412cefb43a6ae1
+commit 3b7feb7001a3d7a99a4340b2fe3cf75b6ad5ceb1
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 2 12:59:02 2012 -0400
+Date:   Mon Apr 2 12:55:23 2012 -0400
 
-    C: add Peter Weinberger (Google CLA)
+    codereview: give advice on 'cannot create CL outside default branch'
+    
+    Fixes #3430.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5976059
+    https://golang.org/cl/5981047
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

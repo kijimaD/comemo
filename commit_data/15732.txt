@@ -1,12 +1,15 @@
-commit e1a5aa8105bba0be8d1fd064824983c3c685d953
-Author: Robert Figueiredo <robfig@gmail.com>
-Date:   Tue Mar 12 14:35:14 2013 -0700
+commit c34050fd535113b6e1ed6fc00c9228bbd7e112db
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 12 14:28:16 2013 -0700
 
-    html/template: Ensure release of namespace mutex in Template.Execute()
+    spec: rewrite the description of panic and recover.
+    The old description was misleading and inaccurate.
     
-    R=golang-dev, r
+    Fixes #4774.
+    
+    R=iant, rsc, gri
     CC=golang-dev
-    https://golang.org/cl/6727046
+    https://golang.org/cl/7761044
 
- src/pkg/html/template/template.go | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+ doc/go_spec.html | 51 +++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 35 insertions(+), 16 deletions(-)

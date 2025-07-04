@@ -1,12 +1,12 @@
-commit e489ab8ecc36c8b2caeeda662e6d7b57b64e8475
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Feb 2 23:52:30 2012 +0100
+commit 25787acb3ca692d951395f1d5b9b67a64d5becdc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 2 14:43:55 2012 -0800
 
-    cmd/go: fix error message on non-existing tools.
+    math/big: document Word type
     
     R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5617053
+    CC=golang-dev
+    https://golang.org/cl/5615050
 
- src/cmd/go/tool.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/math/big/arith.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

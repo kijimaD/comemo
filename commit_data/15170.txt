@@ -1,15 +1,17 @@
-commit 0a9f1ab8bb68835bf66faf9c7a925003c6087c4e
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Feb 8 19:24:50 2013 +0400
+commit 6dfd3860050282fb440d9ae9f6dbe49ece6af5a0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 8 21:53:10 2013 +0900
 
-    runtime/race: deflake tests
-    With the new scheduler races in the tests are reported during execution of other tests.
-    The change joins goroutines started during the tests.
+    net: simplify Dial, Listen, ListenPacket and those helpers
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7310066
+    https://golang.org/cl/7300065
 
- src/pkg/runtime/race/testdata/mop_test.go        | 7 ++++++-
- src/pkg/runtime/race/testdata/regression_test.go | 3 +++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/pkg/net/dial.go            | 86 +++++++++++++-----------------------------
+ src/pkg/net/fd_unix.go         |  4 +-
+ src/pkg/net/fd_windows.go      |  4 +-
+ src/pkg/net/ipraw_test.go      |  2 +-
+ src/pkg/net/iprawsock.go       |  2 +-
+ src/pkg/net/iprawsock_posix.go |  4 +-
+ 6 files changed, 35 insertions(+), 67 deletions(-)

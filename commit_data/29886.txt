@@ -1,26 +1,18 @@
-commit e776975ae61e8db6ff5db33b039513c9d8524794
+commit 1bcfca0563ce21dce69b2652859d6f0f800c39af
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Dec 31 18:35:15 2016 +0000
+Date:   Sat Oct 15 15:52:57 2016 +0100
 
-    net/http: update bundled http2 for Server WriteTimeout change
+    net: enable a test on nacl
     
-    Updates http2 to x/net/http2 git rev 8fd7f25 for:
+    No need to skip it. It passes.
     
-        http2: clear WriteTimeout in Server
-        https://golang.org/cl/34724
+    Maybe it was fixed at some point.
     
-    And un-skip the new test. (The new test is a slow test, anyway, so
-    won't affect builders or all.bash, but I verified it now passes.)
-    
-    Updates #18437
-    
-    Change-Id: Ia91ae702edfd23747a9d6b61da284a5a957bfed3
-    Reviewed-on: https://go-review.googlesource.com/34729
+    Change-Id: I9848924aefda44f9b3a574a8705fa549d657f28d
+    Reviewed-on: https://go-review.googlesource.com/31177
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Kale B <kale@lemnisys.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/net/http/h2_bundle.go  | 4 ++++
- src/net/http/serve_test.go | 1 -
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/net/net_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

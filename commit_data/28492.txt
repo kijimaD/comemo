@@ -1,14 +1,24 @@
-commit 404ae84aa220943c85fe04e9d7499087aedb0677
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 21 15:03:52 2016 -0400
+commit 42da35c699853002b7695052a8eeb3f10019cfd5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 27 14:07:37 2016 -0700
 
-    cmd/link: add time stamp to hostlink print in -v mode
+    cmd/compile: SSA, don't let write barrier clobber return values
     
-    Change-Id: I128b142aee5e1b917e7ba63b48512972f053ea0b
-    Reviewed-on: https://go-review.googlesource.com/29531
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    When we do *p = f(), we might need to copy the return value from
+    f to p with a write barrier.  The write barrier itself is a call,
+    so we need to copy the return value of f to a temporary location
+    before we call the write barrier function.  Otherwise, the call
+    itself (specifically, marshalling the args to typedmemmove) will
+    clobber the value we're trying to write.
+    
+    Fixes #15854
+    
+    Change-Id: I5703da87634d91a9884e3ec098d7b3af713462e7
+    Reviewed-on: https://go-review.googlesource.com/23522
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fixedbugs_test.go |  50 ++++++++++
+ src/cmd/compile/internal/gc/ssa.go            | 131 ++++++++++++++++----------
+ 2 files changed, 130 insertions(+), 51 deletions(-)

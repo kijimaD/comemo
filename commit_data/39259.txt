@@ -1,18 +1,25 @@
-commit bd61fc3da337dc23dd4d87ea36ffd5c129486c33
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue May 28 11:37:12 2019 -0400
+commit 85c1798ac60917857fe33dd2722cc56fa323313a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 14 13:34:42 2019 -0800
 
-    testing/internal/testdeps: delete didSetLogger variable
+    text/scanner: don't crash when calling TokenText in error handler
     
-    It was added in CL 83956 but never used.
+    Make sure Scanner.tokEnd is set before we call Scanner.Error
+    and update documentation accordingly.
+    (Until now tokEnd was only set before returning from Scan,
+    so a call to TokenText during error handling may have crashed.)
     
-    Updates #23129
+    While at it, tighten a check in Scanner.TokenText to ensure
+    Scanner.tokEnd >= Scanner.tokPos if we have a token.
     
-    Change-Id: I70b50e974a56620069a77658386722af314cc857
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179138
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Also, silence error messages to Stderr in unrelated TestIllegalExponent.
+    
+    Fixes #29723.
+    
+    Change-Id: Ia97beeae91eaf9e0ed3dada0a806f1f7122461cc
+    Reviewed-on: https://go-review.googlesource.com/c/157819
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/testing/internal/testdeps/deps.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/text/scanner/scanner.go      |  6 ++++--
+ src/text/scanner/scanner_test.go | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)

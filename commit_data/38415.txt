@@ -1,18 +1,29 @@
-commit b130764043f2106929a2e6f75ced8edfd2a542ea
-Author: Patrick Barker <barkerp@vmware.com>
-Date:   Thu Mar 14 02:51:02 2019 +0000
+commit 2dda040f19aa6a7551f090d8c5a3941e416b21df
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 26 20:10:23 2018 -0700
 
-    printer: check if specs exist before accessing them in genDecl printer
+    cmd/compile/internal/gc: represent labels as bare Syms
     
-    Checks that specs exist before attempting to access the first element in genDecl printer.
+    Avoids allocating an ONAME for OLABEL, OGOTO, and named OBREAK and
+    OCONTINUE nodes.
     
-    Change-Id: I3619bcabf6fec64c88b7a10cdb7be355e9e40559
-    GitHub-Last-Rev: 54cf699c969cb88cfd269f847a2bb4f25916be94
-    GitHub-Pull-Request: golang/go#30823
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167390
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I359142cd48e8987b5bf29ac100752f8c497261c1
+    Reviewed-on: https://go-review.googlesource.com/c/145200
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/printer/nodes.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/esc.go       | 17 +++++++++--------
+ src/cmd/compile/internal/gc/fmt.go       |  6 +++---
+ src/cmd/compile/internal/gc/iexport.go   |  3 ++-
+ src/cmd/compile/internal/gc/iimport.go   |  7 ++++++-
+ src/cmd/compile/internal/gc/inl.go       | 10 +++++-----
+ src/cmd/compile/internal/gc/noder.go     |  4 ++--
+ src/cmd/compile/internal/gc/ssa.go       |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/swt.go       |  9 +++++----
+ src/cmd/compile/internal/gc/syntax.go    |  8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
+ 11 files changed, 47 insertions(+), 39 deletions(-)

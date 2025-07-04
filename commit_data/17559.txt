@@ -1,23 +1,23 @@
-commit 89a6a8fdb3d63c828e9ee710a9beedc2a7bbe48c
+commit 611b182190e759879b3988077daf7d52eb831b5e
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 14:34:11 2013 -0400
+Date:   Wed Sep 11 13:25:30 2013 -0400
 
-    cmd/api: break the builds
+    go/build: reject directory with only cgo files if cgo not in use
     
-    There is some question about whether the api tool is
-    running on Windows (see issue 6124), and now I'm
-    starting to question whether it runs on any of the builders,
-    since both darwin/amd64 and linux/amd64 are crashing for me
-    in the api tool due to a recent cgo-related change, and yet
-    the dashboard is happy.
+    The old test for "no Go files" was p.Name == "", meaning we never
+    saw a Go package statement. That test fails if there are cgo files
+    that we parsed (and recorded the package name) but then chose
+    not to use (because cgo is not available).
     
-    If the dashboard is still happy after this CL, we have a problem.
+    Test the actual file lists instead.
     
-    Update #6124
+    Fixes #6078.
     
-    TBR=golang-dev
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13632053
+    https://golang.org/cl/13661043
 
- src/cmd/api/goapi.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/test.bash                 | 13 +++++++++++++
+ src/cmd/go/testdata/src/cgotest/m.go |  5 +++++
+ src/pkg/go/build/build.go            |  4 +++-
+ 3 files changed, 21 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 5856162487a3f380a271afac84ab19d5020679d2
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Feb 5 13:12:51 2024 -0800
+
+    crypto/x509: properly reject invalid DNS names when checking constraints
+    
+    A DNS name prefixed with an empty label should be considered invalid
+    when checking constraints (i.e. ".example.com" does not satisfy a
+    constraint of "example.com").
+    
+    Updates #65085
+    
+    Change-Id: I42919dc06abedc0e242ff36b2a42b583b14857b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561615
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/x509/name_constraints_test.go | 8 ++++++++
+ src/crypto/x509/verify.go                | 5 +++++
+ 2 files changed, 13 insertions(+)

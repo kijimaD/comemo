@@ -1,34 +1,25 @@
-commit 304f769ffc68e64244266b3aadbf91e6738c0064
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jan 7 14:57:53 2021 -0800
+commit 7cbee1244437bafa1e52ca761d7c32d7587a9fdd
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Oct 16 23:13:25 2019 -0700
 
-    cmd/compile: don't short-circuit copies whose source is volatile
+    cmd/compile: improve error when setting unexported fields
     
-    Current optimization: When we copy a->b and then b->c, we might as well
-    copy a->c instead of b->c (then b might be dead and go away).
+    Improve the error user experience when users try to set/refer
+    to unexported fields and methods of struct literals, by directly saying
     
-    *Except* if a is a volatile location (might be clobbered by a call).
-    In that case, we really do want to copy a immediately, because there
-    might be a call before we can do the a->c copy.
+        "cannot refer to unexported field or method"
     
-    User calls can't happen in between, because the rule matches up the
-    memory states. But calls inserted for memory barriers, particularly
-    runtime.typedmemmove, can.
+    Fixes #31053
     
-    (I guess we could introduce a register-calling-convention version
-    of runtime.typedmemmove, but that seems a bigger change than this one.)
-    
-    Fixes #43570
-    
-    Change-Id: Ifa518bb1a6f3a8dd46c352d4fd54ea9713b3eb1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282492
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I6fd3caf64b7ca9f9d8ea60b7756875e340792d59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201657
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  4 +--
- src/cmd/compile/internal/ssa/rewritegeneric.go |  8 +++---
- test/fixedbugs/issue43570.go                   | 40 ++++++++++++++++++++++++++
- 3 files changed, 46 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  7 ++++++
+ test/fixedbugs/issue25727.go             |  8 +++---
+ test/fixedbugs/issue31053.dir/f1.go      | 18 ++++++++++++++
+ test/fixedbugs/issue31053.dir/main.go    | 42 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue31053.go             |  7 ++++++
+ 5 files changed, 78 insertions(+), 4 deletions(-)

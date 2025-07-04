@@ -1,24 +1,35 @@
-commit 7c680974c66ca23f837cb4bee5587df8b05418c7
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 21 17:04:34 2022 -0700
+commit ee4fc0c1bc300f181388ef6dd187ca8b8737efd2
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Jun 18 14:09:21 2021 -0700
 
-    runtime/race: add s390x .syso file
+    [dev.typeparams] Fix issues related to dictionaries and method calls with embedded fields
     
-    Built using racebuild.
+     - Fix handling of method expressions with embedded fields. Fix an
+       incorrect lookup for method expressions, which have only the
+       top-level type (and don't have DOT operations for the embedded
+       fields). Add the embedded field dot operations into the closure.
     
-    Note that racebuild fails when trying to test the .syso, because the
-    Go runtime doesn't think we support s390x race yet. But it builds the
-    .syso as a side effect which I grabbed. There's something of a
-    chicken-and-egg bootstrapping problem here, unfortunately.
+     - Don't need a dictionary and so don't build a closure if the last
+       embedded field reached in a method expression is an interface value.
     
-    Change-Id: Ibc6d04fd3a9bfb3224d08e8b78dcf09bb139a59d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401714
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Jonathan Albrecht <jonathan.albrecht@ibm.com>
+     - Fix methodWrapper() to use the computed 'dot' node in the
+       generic-only part of the code.
+    
+     - For a method expression, don't create a generic wrapper if the last
+       embedded field reached before the method lookup is an interface.
+    
+    Copied cmd/compile/internal/types2/testdata/fixedbugs/issue44688.go2 to
+    test/typeparam/issue44688.go, made it fully runnable (rather than just
+    for compilation), and added a bunch more tests.
+    
+    Change-Id: I90c1aa569e1c7272e986c9d2ae683e553c3a38a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329550
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/race/README                |   1 +
- src/runtime/race/race_linux_s390x.syso | Bin 0 -> 565472 bytes
- 2 files changed, 1 insertion(+)
+ src/cmd/compile/internal/noder/stencil.go       |  30 +++--
+ src/cmd/compile/internal/reflectdata/reflect.go |  13 +-
+ test/typeparam/issue44688.go                    | 150 ++++++++++++++++++++++++
+ 3 files changed, 184 insertions(+), 9 deletions(-)

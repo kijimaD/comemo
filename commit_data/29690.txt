@@ -1,17 +1,16 @@
-commit 5dd4d6edb8c935ce313782ec6ce838c03c73ea9b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 30 17:16:32 2016 -0500
+commit 7d0642d9d6a7a9c06d422904632ab61668e24a9e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 4 05:21:58 2016 +0000
 
-    cmd/go: document GOPATH default exception
+    regexp: remove dead code
     
-    Doesn't get defaulted if $HOME/go is a GOROOT.
+    Wasn't convenient enough.
     
-    Change-Id: I6ac8211a74029e4ad70a50f6e7884a039a27ab05
-    Reviewed-on: https://go-review.googlesource.com/33720
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I78270dc22cdb2e264641148e50029a9e4de953cd
+    Reviewed-on: https://go-review.googlesource.com/30251
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go | 3 ++-
- src/cmd/go/help.go    | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/regexp/onepass.go | 5 -----
+ 1 file changed, 5 deletions(-)

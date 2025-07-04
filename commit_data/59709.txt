@@ -1,22 +1,17 @@
-commit ae0824883e7f851173ff1855ad1c638bec87a426
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon May 19 14:11:51 2025 -0400
+commit 8e987fadb57fa1fc98975ca2fcb3a4751f7f55ff
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Mon Apr 15 02:11:58 2024 +0000
 
-    go/ast: deprecate FilterPackage, PackageExports, MergePackageFiles
+    cmd/pprof: close resp body after the profile.Parse is called
     
-    (More symbols that belong to the ast.Object deprecation.)
-    
-    Fixes #73088
-    Fixes #7124
-    Updates #52463
-    Updates #71122
-    
-    Change-Id: I10e3ef35b587da2f3f0a65e9154e33bd53e7a093
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674176
+    Change-Id: I5bccef3c46072e388bfe9985e70745853f673a42
+    GitHub-Last-Rev: adee7b9f7fa21c3ee5561b8233bbfe94168e45ed
+    GitHub-Pull-Request: golang/go#66829
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578875
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- api/next/73088.txt                         |  7 +++++++
- doc/next/6-stdlib/99-minor/go/ast/73088.md |  4 ++++
- src/go/ast/filter.go                       | 14 ++++++++++++++
- 3 files changed, 25 insertions(+)
+ src/cmd/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

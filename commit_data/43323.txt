@@ -1,27 +1,23 @@
-commit 20819440fc65d28fabe8f7410ea8fe193cdc53c6
+commit ca18c37ee81500c922f7d3d6375d7ea7bab550b2
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Oct 15 18:04:08 2020 -0400
+Date:   Wed Mar 25 17:10:16 2020 -0400
 
-    cmd/internal/objfile: correct file table reading for Go object file
+    [dev.link] cmd/link: define _etext, etc. in the linker on Solaris
     
-    Apparently I never actually understood the new file table in Go
-    object files. The PC value stream actually encodes the file index
-    in the per-CU table. I thought it was indexing into a per-function
-    table, which then contains index to the per-CU table. Remove the
-    extra indirection.
+    On Solaris, in the runtime it defines the external name of
+    runtime.etext as _etext (runtime/os3_solaris.go:13). In CL 224939
+    we changed to put external names in the ELF symbol table more
+    consistently. In this case it will contain _etext but not
+    runtime.etext.
     
-    Change-Id: I0aea5629f7b3888ebe3a04fea437aa15ce89519e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262779
-    Trust: Cherry Zhang <cherryyz@google.com>
+    To be conservative, this CL defines both runtime.etext and _text
+    in the linker.
+    
+    Change-Id: I79f196e87b655042be97b0fbbab02d0ebc8db2fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225537
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/internal/objfile/goobj.go           |  4 +--
- src/cmd/objdump/objdump_test.go             | 38 +++++++++++++++++++++++++++++
- src/cmd/objdump/testdata/testfilenum/a.go   |  7 ++++++
- src/cmd/objdump/testdata/testfilenum/b.go   |  7 ++++++
- src/cmd/objdump/testdata/testfilenum/c.go   |  7 ++++++
- src/cmd/objdump/testdata/testfilenum/go.mod |  3 +++
- 6 files changed, 63 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/data.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

@@ -1,27 +1,19 @@
-commit 546761aff45111490b21a045e3d989104182bcd9
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon May 19 15:31:37 2025 -0400
+commit 8f618c1f5329bd81912f8f776cb8bf028c750687
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 28 08:47:52 2024 -0700
 
-    cmd/doc: use go list to determine import path if it's missing
+    cmd/compile: put constants before variables in initialization order
     
-    cmd/doc uses go/build to get information about the packages it's
-    documenting. In some cases, go/build can return a build.Package that it
-    couldn't determine an import path for, in which case it sets the import
-    path to ".". This can happen for relative package paths in in a module:
-    for relative package paths we don't use the go command to get
-    information about the module and just open the source files directly
-    instead, and will be missing the import path. This is usually okay
-    because go doc doesn't need to print the import path of the package it's
-    documenting, but for go doc -http, we want to know the import path so we
-    can open the right page in the browser.
+    Fixes #66575
     
-    For #68106
-    
-    Change-Id: Ifba92862ad01d8d63f531c2451f18db2b0d7a3e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674556
+    Change-Id: I03f4d4577b88ad0a92b260b2efd0cb9fe5082b2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575075
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Michael Matloob <matloob@google.com>
 
- src/cmd/doc/main.go | 27 ++++++++++++++++++++++++---
- 1 file changed, 24 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/initorder.go |  8 +++++++
+ src/go/types/initorder.go                    |  8 +++++++
+ test/fixedbugs/issue66575.go                 | 31 ++++++++++++++++++++++++++++
+ test/fixedbugs/issue66575.out                |  2 ++
+ 4 files changed, 49 insertions(+)

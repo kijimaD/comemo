@@ -1,14 +1,16 @@
-commit 5ce3e6a1efd834189057002e6b28180dee5657d4
-Author: Michael Gehring <mg@ebfe.org>
-Date:   Mon Jan 13 13:57:38 2014 -0800
+commit 9c4303397756b2217971465c6b2f54bbefeed37a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 13 13:52:06 2014 -0800
 
-    syscall: add syscall.Termios on freebsd/{386,amd64}
+    net/http: clarify semantics of File methods
     
-    R=golang-codereviews, bradfitz, mg
+    There were no docs explaining the meaning of Readdir's count
+    argument, for instance. Clarify that these mean the same as
+    the methods on *os.File.
+    
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/51580044
+    https://golang.org/cl/51630043
 
- src/pkg/syscall/types_freebsd.go        |  5 +++++
- src/pkg/syscall/ztypes_freebsd_386.go   | 10 ++++++++++
- src/pkg/syscall/ztypes_freebsd_amd64.go | 10 ++++++++++
- 3 files changed, 25 insertions(+)
+ src/pkg/net/http/fs.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

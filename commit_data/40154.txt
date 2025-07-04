@@ -1,14 +1,21 @@
-commit 1cb61b80bd286e322acf62344496bb71147df4d0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 27 16:42:46 2019 +0700
+commit 980a57a84b932b43fc2d3ab699f7c235472009ab
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 22 17:04:59 2019 -0700
 
-    runtime: add doc to remind adopting changes to reflectlite
+    cmd/compile: clean up string/bytes/runes conversion code
     
-    Updates #34486
+    Combine the OBYTES2STR and ORUNES2STR cases, as they are identical.
     
-    Change-Id: Iec9a5d120013aaa287eccf2999b3f2b831be070e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197558
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Clean up the construction, commenting, and spacing of the other cases,
+    and make them all match.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I1be8a528927caeb15e49cb12ca0f11c0827dadd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173322
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/type.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/walk.go | 46 +++++++++++--------------------------
+ 1 file changed, 13 insertions(+), 33 deletions(-)

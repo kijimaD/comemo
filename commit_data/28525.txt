@@ -1,14 +1,19 @@
-commit 5df7f5220f42cb283147ab271cd965720e233759
-Author: Sam Whited <sam@samwhited.com>
-Date:   Thu Sep 1 09:19:32 2016 -0500
+commit 88ae6495d086ed5b0acb94d5adc49434ec47a675
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Tue May 31 19:44:48 2016 -0700
 
-    net/rpc: Add documentation for client.Close
+    syscall: rename SysProcAttr.Unshare to Unshareflags
     
-    Fixes #16678
+    For symmetry with Cloneflags and it looks slightly weird because there
+    is syscall.Unshare method.
     
-    Change-Id: I48c2825d4fef55a75d2f99640a7079c56fce39db
-    Reviewed-on: https://go-review.googlesource.com/28370
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3d710177ca8f27c05b344407f212cbbe3435094b
+    Reviewed-on: https://go-review.googlesource.com/23612
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/rpc/client.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/syscall/exec_linux.go      | 34 +++++++++++++++++-----------------
+ src/syscall/exec_linux_test.go |  2 +-
+ 2 files changed, 18 insertions(+), 18 deletions(-)

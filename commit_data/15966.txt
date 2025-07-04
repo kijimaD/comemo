@@ -1,14 +1,12 @@
-commit 23482db9f1d6cc4ad7a74c9f6f807954c39ab701
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Mar 27 21:15:05 2013 +0100
+commit 0657e7df9fcd703f02332cb5495584ad869c0e01
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Wed Mar 27 11:09:14 2013 -0700
 
-    runtime/race: mark failing test as such.
-    
-    Fixes race builder.
+    doc: fix go1.1.html typos
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8055045
+    https://golang.org/cl/7635049
 
- src/pkg/runtime/race/testdata/mop_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.1.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

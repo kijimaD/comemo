@@ -1,15 +1,45 @@
-commit 6298cfe6724e3ca24dedd3f62b2b358aafe17276
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Sun Jul 11 11:46:26 2021 +0800
+commit 4e7685ef1afbf8b1cc692f2a1bd3b02e444d5901
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 26 07:02:13 2020 -0500
 
-    cmd/compile: fix typo in fatal message of builtinCall
+    [dev.regabi] cmd/compile: add custom type syntax Node implementations
     
-    Change-Id: I523d5fd810b82154a204670d46fc250a0fc66791
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/333849
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The type syntax is reused to stand in for the actual type once typechecked,
+    to avoid updating all the possible references to the original type syntax.
+    So all these implementations allow changing their Op from the raw syntax
+    like OTMAP to the finished form OTYPE, even though obviously the
+    representation does not change.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I4acca1a5b35fa2f48ee08e8f1e5a330a004c284b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274103
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/typecheck/iimport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/fmtmap_test.go           |   1 +
+ src/cmd/compile/internal/gc/alg.go       |  21 +-
+ src/cmd/compile/internal/gc/builtin.go   | 182 +++++++--------
+ src/cmd/compile/internal/gc/closure.go   |  10 +-
+ src/cmd/compile/internal/gc/dcl.go       | 134 +++++------
+ src/cmd/compile/internal/gc/embed.go     |   8 +-
+ src/cmd/compile/internal/gc/iexport.go   |   3 -
+ src/cmd/compile/internal/gc/iimport.go   |   3 -
+ src/cmd/compile/internal/gc/init.go      |   2 +-
+ src/cmd/compile/internal/gc/mkbuiltin.go |   2 +-
+ src/cmd/compile/internal/gc/noder.go     | 102 ++++-----
+ src/cmd/compile/internal/gc/reflect.go   |   8 +-
+ src/cmd/compile/internal/gc/select.go    |   2 +-
+ src/cmd/compile/internal/gc/subr.go      |  22 +-
+ src/cmd/compile/internal/gc/typecheck.go | 170 +++++++-------
+ src/cmd/compile/internal/gc/universe.go  |   5 +-
+ src/cmd/compile/internal/gc/walk.go      |  11 +-
+ src/cmd/compile/internal/ir/expr.go      |  44 ++++
+ src/cmd/compile/internal/ir/fmt.go       |  48 ++--
+ src/cmd/compile/internal/ir/mini.go      |   9 +
+ src/cmd/compile/internal/ir/name.go      |   6 +-
+ src/cmd/compile/internal/ir/node.go      |  45 +---
+ src/cmd/compile/internal/ir/type.go      | 376 ++++++++++++++++++++++++++++++-
+ 23 files changed, 787 insertions(+), 427 deletions(-)

@@ -1,30 +1,23 @@
-commit 3e2dc457a1b8cecd9554c64ee0d54800d5937fc9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 8 22:01:18 2017 -0500
+commit fbf7e1f2952fba64af0fae32c760cf5011eca53e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 18 12:58:08 2017 -0700
 
-    cmd/test2json: go tool test2json converts test output to JSON
+    [release-branch.go1.9] testing: don't fail all tests after racy test failure
     
-    Also add cmd/internal/test2json, the actual implementation,
-    which will be called directly from cmd/go in addition to being
-    a standalone command (like cmd/buildid and cmd/internal/buildid).
+    The code was adding race.Errors to t.raceErrors before checking
+    Failed, but Failed was using t.raceErrors+race.Errors. We don't want
+    to change Failed, since that would affect tests themselves, so modify
+    the harness to not unnecessarily change t.raceErrors.
     
-    For #2981.
+    Updates #19851
+    Fixes #21338
     
-    Change-Id: I244ce36d665f424bbf13f5ae00ece10b705d367d
-    Reviewed-on: https://go-review.googlesource.com/76872
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I483f27c68c340928f1cbdef160abc0a5716efb5d
+    Reviewed-on: https://go-review.googlesource.com/57151
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/test2json/test2json.go          | 398 +++++++++++++++++++++++
- src/cmd/internal/test2json/test2json_test.go     | 277 ++++++++++++++++
- src/cmd/internal/test2json/testdata/ascii.json   |  10 +
- src/cmd/internal/test2json/testdata/ascii.test   |   7 +
- src/cmd/internal/test2json/testdata/smiley.json  | 182 +++++++++++
- src/cmd/internal/test2json/testdata/smiley.test  |  97 ++++++
- src/cmd/internal/test2json/testdata/unicode.json |  10 +
- src/cmd/internal/test2json/testdata/unicode.test |   7 +
- src/cmd/internal/test2json/testdata/vet.json     | 182 +++++++++++
- src/cmd/internal/test2json/testdata/vet.test     |  97 ++++++
- src/cmd/test2json/main.go                        | 101 ++++++
- 11 files changed, 1368 insertions(+)
+ src/runtime/race/output_test.go | 21 +++++++++++++++++++++
+ src/testing/testing.go          |  3 +--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

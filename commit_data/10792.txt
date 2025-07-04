@@ -1,17 +1,14 @@
-commit 1402d1a68615d037365158578b0c4861e0fb4157
-Author: Rob Pike <r@golang.org>
-Date:   Wed Dec 14 11:22:17 2011 -0800
+commit 78821616d69c068bcab85e96ab97f0f157700840
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Wed Dec 14 11:21:30 2011 -0800
 
-    html/template: define the FuncMap type locally
-    This redefinition means that the public signature of html/template
-    does not refer to text/template.
+    gotest: use build.DefaultContext.GOARCH
     
-    Fixes #2546.
+    Fixes https://golang.org/cl/5480060/#msg4
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5487083
+    https://golang.org/cl/5485051
 
- src/pkg/html/template/escape_test.go |  4 ++--
- src/pkg/html/template/template.go    | 12 ++++++++++--
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/cmd/gotest/gotest.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

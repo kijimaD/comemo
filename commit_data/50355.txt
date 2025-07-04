@@ -1,16 +1,16 @@
-commit 86f8b8d3f20129dce7a220d4ce32d13e766ba86a
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Mon Sep 5 15:06:38 2022 +0800
+commit 4cc6a919077f27d9255536d6539118e65c1650a2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 14 10:04:10 2021 -0700
 
-    cmd/compile/internal/syntax: use strings.Builder
+    cmd/compile/internal/types2: implement generic conversions
     
-    Change-Id: Ic18d12b3d1c2f4819f2656371537df797e9970ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428361
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #47150.
+    
+    Change-Id: I7531ca5917d4e52ca0b9211d6f2114495b19ba09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356010
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/syntax/printer.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/conversions.go     |  33 ++++++
+ .../types2/testdata/examples/conversions.go2       | 130 +++++++++++++++++++++
+ 2 files changed, 163 insertions(+)

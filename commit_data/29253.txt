@@ -1,17 +1,26 @@
-commit 61ffec4b52f64793ad450d1a2d8c4144fa3d5f18
-Author: Quentin Renard <contact@asticode.com>
-Date:   Sat Oct 8 15:52:25 2016 +0200
+commit 460b76aef98490b3cf8d374c589db631eab85957
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Sep 4 09:34:03 2016 -0700
 
-    net/http: returned typed error on Transport proxy dial
+    cmd/compile: clean up ctxt params in sinit
     
-    Fixes #16997
+    The ctxt parameter is always set to 0 on entry into anylit so make this
+    parameter a literal constant, and where possibly remove ctxt as a parameter
+    where it is known to be a constant zero.
     
-    Change-Id: I9ca27d8cff1905584862997d0e8a11ce3c4c21cb
-    Reviewed-on: https://go-review.googlesource.com/30750
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Passes toolstash -cmp.
+    
+    This is a re-creation of CL 28221 by Dave Cheney.
+    That CL was graciously reverted in CL 28480
+    to make merging other CLs easier.
+    
+    Change-Id: If7a57bf0e27774d9890adbc30af9fabb4aff1058
+    Reviewed-on: https://go-review.googlesource.com/28483
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/net/http/transport.go      |  3 ++-
- src/net/http/transport_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/sinit.go | 65 ++++++++++++++++--------------------
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 2 files changed, 30 insertions(+), 37 deletions(-)

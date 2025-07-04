@@ -1,18 +1,38 @@
-commit 38723f2b3881ea71039c1d475cab001113adc83d
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Mar 9 13:41:24 2024 -0500
+commit 5f882d82661db9f2d3d04924f67defe1732f24e2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Mar 23 13:52:36 2023 -0400
 
-    runtime: add minimal debug tracing of runtime timers
+    runtime: add GODEBUG=dontfreezetheworld=1
     
-    Toggled by a compile-time const, so there should be no
-    runtime footprint in ordinary builds.
+    This GODEBUG flag disables the freezetheworld call during fatal panic.
+    freezetheworld asks the scheduler to stop running goroutines on all Ms.
+    This is normally useful, as it ensures we can collect a traceback from
+    every goroutine. However, it can be frustrating when debugging the
+    scheduler itself, as it significantly changes the scheduler state from
+    when the panic started.
     
-    Change-Id: I7751847524f4fda3853388d3e5a18188bd737c27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570336
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Setting this flag has some disadvantages. Most notably, running
+    goroutines will not traceback in the standard output (though they may be
+    included in the final SIGQUIT loop). Additionally, we may missing
+    concurrently created goroutines when looping over allgs (CL 270861 made
+    this safe, but still racy). The final state of all goroutines will also
+    be further removed from the time of panic, as they continued to run for
+    a while.
+    
+    One unfortunate part of this flag is the final SIGQUIT loop in the
+    runtime leaves every thread in the signal handler at exit. This is a bit
+    frustrating in gdb, which doesn't understand how to step beyond
+    sigtramp. The data is still there, but you must manually walk.
+    
+    Change-Id: Ie6bd3ac521fcababea668196b60cf225a0be1a00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478975
     Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/runtime/time.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 48 insertions(+), 1 deletion(-)
+ src/runtime/extern.go   | 9 +++++++++
+ src/runtime/panic.go    | 3 +++
+ src/runtime/runtime1.go | 2 ++
+ 3 files changed, 14 insertions(+)

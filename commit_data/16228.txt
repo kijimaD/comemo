@@ -1,17 +1,15 @@
-commit 13cbf41a7f22f16354b06b159f087d8f64abfb37
+commit e9bbe3a8da9043e13b74ec4427608364b068bed7
 Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Thu Apr 25 18:47:12 2013 +0200
+Date:   Thu Apr 25 13:39:09 2013 +0200
 
-    cmd/gc: initialize t->width in dgcsym() if required
+    runtime: prevent the GC from seeing the content of a frame in runfinq()
     
-    Update #5291.
+    Fixes #5348.
     
-    R=golang-dev, daniel.morsing, iant, r
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/8663052
+    https://golang.org/cl/8954044
 
- src/cmd/gc/reflect.c                 |  8 ++++++++
- test/fixedbugs/issue5291.dir/pkg1.go | 34 ++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue5291.dir/prog.go | 17 +++++++++++++++++
- test/fixedbugs/issue5291.go          |  9 +++++++++
- 4 files changed, 68 insertions(+)
+ src/pkg/runtime/mgc0.c      |  2 +-
+ test/fixedbugs/issue5348.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)

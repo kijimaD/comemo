@@ -1,12 +1,21 @@
-commit 87a04c0bcf52c02598a4f20f1190fd89d591c824
-Author: Maxim Pimenov <mpimenov@google.com>
-Date:   Tue Feb 14 16:27:35 2012 -0500
+commit 2a6e6999a45a88999930cd879c919f6b93aaa868
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Feb 14 22:13:19 2012 +0100
 
-    gc: fix comment in mkbuiltin
+    runtime, time: accelerate tests in short mode.
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/5669046
+                                       before   after
+    go test -short time                4.144s  1.215s
+    go test -short runtime             1.315s  0.351s
+    go test -short -cpu=1,2,4 runtime  4.376s  1.266s
+    
+    Partially solves issue 3015.
+    
+    R=golang-dev, r
+    CC=golang-dev, remy
+    https://golang.org/cl/5673045
 
- src/cmd/gc/mkbuiltin | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/gc_test.go |  6 +++++-
+ src/pkg/time/sleep_test.go | 16 +++++++++-------
+ src/pkg/time/tick_test.go  | 15 ++++++++++-----
+ 3 files changed, 24 insertions(+), 13 deletions(-)

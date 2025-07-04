@@ -1,16 +1,17 @@
-commit e4e1d089bea9afa1c97a9613d1f820a2e896954e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 31 10:09:27 2017 -0700
+commit ecac827573ab1500551f2d7ffb98c06422abda9a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 4 21:03:24 2017 +0000
 
-    go/types: use std "DO NOT EDIT" comment for generated hilbert test
+    net/http: make Server cancel its ReadTimeout between requests
     
-    For #13560.
+    Fixes #18447
     
-    Change-Id: I884e63f89d0756ca87b8c2092b4fd8360f791a2f
-    Reviewed-on: https://go-review.googlesource.com/39171
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5d60c3632a5ce625d3bac9d85533ce689e301707
+    Reviewed-on: https://go-review.googlesource.com/34813
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/hilbert_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/net/http/serve_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  1 +
+ 2 files changed, 38 insertions(+)

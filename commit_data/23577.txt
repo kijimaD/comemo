@@ -1,17 +1,25 @@
-commit 9462bcedc612eb8b735ad7f3417c88be37f387b4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 29 18:10:43 2015 -0700
+commit 0f27b915228ff661aeaf823fa90db023765cbe5d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu May 21 17:51:34 2015 -0400
 
-    net/http: harden, document func SetCookie and type Cookie
+    cmd/internal/obj: make arm64 use RegTo2 instead of a full fledged Addr To2
     
-    Fixes #9758
+    It shrinks Prog type from 448 bytes down to 376 bytes on amd64.
     
-    Change-Id: I3089ec06cddd74b547d8b10834d7478a04b02069
-    Reviewed-on: https://go-review.googlesource.com/11701
+    It also makes sense, because I don't know of any modern architecture
+    that have instructions which can write to two destinations, none of
+    which is a register (even x86 doesn't have such instructions).
+    
+    Change-Id: I3061f1c9ac93d79ee2b92ecb9049641d0e0f6300
+    Reviewed-on: https://go-review.googlesource.com/10330
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/cookie.go      | 32 +++++++++++++++++++++-----------
- src/net/http/cookie_test.go | 12 ++++++++++++
- 2 files changed, 33 insertions(+), 11 deletions(-)
+ src/cmd/asm/internal/asm/asm.go        | 5 ++++-
+ src/cmd/compile/internal/arm64/peep.go | 4 ++--
+ src/cmd/internal/obj/arm64/asm7.go     | 4 ++--
+ src/cmd/internal/obj/link.go           | 2 +-
+ src/cmd/internal/obj/util.go           | 4 ++--
+ src/cmd/internal/obj/x86/obj6.go       | 3 ---
+ 6 files changed, 11 insertions(+), 11 deletions(-)

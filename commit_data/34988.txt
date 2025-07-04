@@ -1,17 +1,22 @@
-commit eef79b6712b306379f5b98259820b1a9736ecbbd
-Author: tengufromsky <nick27surgut@gmail.com>
-Date:   Sun Apr 15 19:08:56 2018 +0300
+commit 496688b3cf81f92ee55c359cfbd8cd2c9d71c813
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 11:57:57 2017 -0500
 
-    encoding/xml: remove unnecessary if conditions
+    cmd/go: honor -timeout=0 to mean no timeout
     
-    Fixes gosimple warning "if err != nil { return err };
-    return nil' can be simplified to 'return err"
+    The test binaries accept -timeout=0 to mean no timeout,
+    but then the backup timer in cmd/go kills the test after 1 minute.
+    Make cmd/go understand this special case and change
+    behavior accordingly.
     
-    Change-Id: Ibbc717fb066ff41ab35c481b6d44980ac809ae09
-    Reviewed-on: https://go-review.googlesource.com/107018
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #14780.
+    
+    Change-Id: I66bf517173a4ad21d53a5ee88d163f04b8929fb6
+    Reviewed-on: https://go-review.googlesource.com/81499
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/xml/xml.go | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ src/cmd/go/alldocs.go            | 7 ++++---
+ src/cmd/go/internal/test/test.go | 5 +++++
+ src/testing/testing.go           | 2 +-
+ 3 files changed, 10 insertions(+), 4 deletions(-)

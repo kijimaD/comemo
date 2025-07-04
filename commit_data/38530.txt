@@ -1,18 +1,30 @@
-commit fb9b818bbd2273579ea09f71017ee42bbc91a3b3
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 24 18:21:11 2019 +0100
+commit c0281afd870f15f117ad1bcb2c46a3a3c3fffb0b
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 29 18:27:51 2018 -0400
 
-    cmd/link/internal/wasm: do not generate more than 100000 data segments
+    cmd/internal/obj: don't dedup symbols in WriteObjFile
     
-    Some WebAssembly runtimes (e.g. Node.js) fail to load a wasm binary if
-    it has more than 100000 data segments. Do not skip zero regions any more
-    if the limit was reached.
+    Currently, WriteObjFile deduplicates symbols by name. This is a
+    strange and unexpected place to do this. But, worse, there's no
+    checking that it's reasonable to deduplicate two symbols, so this
+    makes it incredibly easy to mask errors involving duplicate symbols.
+    Dealing with duplicate symbols is better left to the linker. We're
+    also about to introduce multiple symbols with the same name but
+    different ABIs/versions, which would make this deduplication more
+    complicated. We just removed the only part of the compiler that
+    actually depended on this behavior.
     
-    Change-Id: I14c4c2aba142d1d2b887bce6d03b8c1c1746c5ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168884
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    This CL removes symbol deduplication from WriteObjFile, since it is no
+    longer needed.
+    
+    For #27539.
+    
+    Change-Id: I650c550e46e83f95c67cb6c6646f9b2f7f10df30
+    Reviewed-on: https://go-review.googlesource.com/c/146558
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/wasm/asm.go | 38 +++++++++++++++++++++++---------------
- 1 file changed, 23 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/obj.go |  4 ----
+ src/cmd/internal/obj/objfile.go    | 24 ++----------------------
+ 2 files changed, 2 insertions(+), 26 deletions(-)

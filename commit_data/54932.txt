@@ -1,21 +1,14 @@
-commit 1b03ec8a25412342ca072c0860bdf046d58e82ac
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 9 08:52:17 2023 -0500
+commit 86ede1727201c267497e984d623f6e859de8a3f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 21 17:34:16 2022 -0500
 
-    os/signal: remove some arbitrary timeouts in tests
+    doc/go1.20: document math/rand autoseed and deprecation of Seed
     
-    This should fix the test flake found in
-    https://build.golang.org/log/48ffb18e85dda480b7a67e8305dd03ee8337f170.
-    
-    For #58901.
-    
-    Change-Id: I1fcdd713a78e6b7c81e38133ce5f42f7f448a1a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541115
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ie557f3841781ac47f4044a395106a2e5b13e9695
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452561
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/os/signal/example_unix_test.go |  7 ++++---
- src/os/signal/signal_test.go       | 41 +++++++++++---------------------------
- 2 files changed, 16 insertions(+), 32 deletions(-)
+ doc/go1.20.html | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

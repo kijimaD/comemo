@@ -1,37 +1,23 @@
-commit d49017a7c347e57830b87ebbbdbec087bfc1ca92
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 22 16:40:46 2023 -0700
+commit ba5deb408f50f31a872f114c5ef7b52090e4b753
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Aug 14 14:41:19 2022 +0800
 
-    go/types, types2: fix interface unification
+    go/types,types2: add support for unsafe.{String,StringData,SliceData}
     
-    When unification of two types succeeds and at least one of them
-    is an interface, we must be more cautious about when to accept
-    the unification, to avoid order dependencies and unexpected
-    inference results.
-    
-    The changes are localized and only affect matching against
-    interfaces; they further restrict what are valid unifications
-    (rather than allowing more code to pass). We may be able to
-    remove some of the restriotions in a future release.
-    
-    See comments in code for a detailed description of the changes.
-    
-    Also, factored out "asInterface" functionality into a function
-    to avoid needless repetition in the code.
-    
-    Fixes #60933.
-    Fixes #60946.
-    
-    Change-Id: I923f7a7c1a22e0f4fd29e441e016e7154429fc5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505396
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #53003
+    Change-Id: Id3125268523fed855ffac20cde6128010e3513f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423754
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/unify.go           | 60 +++++++++++++++----
- src/go/types/unify.go                              | 60 +++++++++++++++----
- .../types/testdata/fixedbugs/issue60933.go         | 67 ++++++++++++++++++++++
- .../types/testdata/fixedbugs/issue60946.go         | 38 ++++++++++++
- 4 files changed, 203 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go      | 70 ++++++++++++++++++++++--
+ src/cmd/compile/internal/types2/builtins_test.go |  9 +++
+ src/cmd/compile/internal/types2/universe.go      | 16 ++++--
+ src/go/types/builtins.go                         | 70 ++++++++++++++++++++++--
+ src/go/types/builtins_test.go                    |  9 +++
+ src/go/types/errorcodes.go                       | 35 ++++++++++++
+ src/go/types/universe.go                         | 16 ++++--
+ 7 files changed, 207 insertions(+), 18 deletions(-)

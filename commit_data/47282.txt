@@ -1,21 +1,23 @@
-commit 37951d888152c6f3a2e4c11c609bfb0fbad6b15d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Nov 5 10:07:11 2021 -0700
+commit 5eb99120844c0494d655678262e1fb41949a2b99
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 5 19:56:13 2021 -0500
 
-    net/netip: optimize As4 and As16
+    cmd/compile: fix OpArg decomposer for registers in expandCalls
     
-    name    old time/op  new time/op  delta
-    As16-8  2.88ns ± 3%  2.16ns ± 3%  -25.19%  (p=0.000 n=15+15)
+    Includes test taken from
+    https://github.com/golang/go/issues/44816#issuecomment-791618179
+    and improved debugging output.
     
-    Fixes #49379
-    Updates #20859
+    Updates #44816
     
-    Change-Id: If4cf58d19ed0e2ac0f179da5c132ed37061e4cb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361674
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I94aeb9c5255f175fe80727be29d218bad54bf7ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299389
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/netip/netip.go      | 16 +++++++---------
- src/net/netip/netip_test.go |  9 +++++++++
- 2 files changed, 16 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 162 +++++++++++++++++++++------
+ test/abi/double_nested_struct.go             |   9 +-
+ test/abi/struct_lower_1.go                   |  30 +++++
+ test/abi/struct_lower_1.out                  |   1 +
+ test/abi/too_big_to_ssa.go                   |   7 +-
+ 5 files changed, 166 insertions(+), 43 deletions(-)

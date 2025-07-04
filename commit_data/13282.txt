@@ -1,12 +1,14 @@
-commit 2176869e4e5219aecd6a862d14f5092e701c3e2b
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jun 4 18:37:31 2012 -0700
+commit 787adb6eb3cbb7a8d07700739f008f0b250be55f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 4 14:24:10 2012 -0700
 
-    net/http/httputil: fix typo in comment.
+    go spec: clarify promotion rules for methods/fields of anonymous fields
     
-    R=golang-dev, bradfitz
+    Fixes #3635.
+    
+    R=rsc, r, iant, kevlar, iant
     CC=golang-dev
-    https://golang.org/cl/6272050
+    https://golang.org/cl/6217045
 
- src/pkg/net/http/httputil/dump.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 49 +++++++++++++++++++++++++++++++------------------
+ 1 file changed, 31 insertions(+), 18 deletions(-)

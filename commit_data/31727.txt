@@ -1,22 +1,23 @@
-commit a836254d08181418757b0d5c159acd3f9488fb91
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jun 6 13:23:59 2017 -0700
+commit fe3458550bfee0c842393e44e096fd64c666d909
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 10 17:03:52 2017 -0800
 
-    cmd/compile: reject unknown //go: comments in std library
+    cmd/go: if we get a C compiler dwarf2 warning, try without -g
     
-    Fixes #18331
+    This avoids a problem that occurs on FreeBSD 11, in which the clang
+    3.8 assembler issues a pointless warning when invoked with -g on a
+    file that contains an empty .note.GNU-stack section.
     
-    Change-Id: Ie5c6685be3002533b84604ff1f13f2f0850f29e2
-    Reviewed-on: https://go-review.googlesource.com/45010
-    Run-TryBot: Keith Randall <khr@golang.org>
+    No test because there is no reasonable way to write one, but should
+    fix the build on FreeBSD 11.
+    
+    Fixes #14705.
+    
+    Change-Id: I8c49bbf79a2c715c0e75495da19045fc92280e81
+    Reviewed-on: https://go-review.googlesource.com/38072
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/go.go    |  3 +++
- src/cmd/compile/internal/gc/main.go  |  1 +
- src/cmd/compile/internal/gc/noder.go | 15 +++++++++++++++
- src/cmd/go/internal/work/build.go    |  3 +++
- src/go/types/stdlib_test.go          |  6 +++---
- test/fixedbugs/issue18331.go         | 20 ++++++++++++++++++++
- 6 files changed, 45 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/work/build.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

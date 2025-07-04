@@ -1,21 +1,33 @@
-commit 0a04641871d8a035da0f088899f414d21067f342
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Fri Feb 16 01:51:54 2024 +0000
+commit 676794f73e6ca8fbd7ec14f4185625efda4e2ca8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 15 16:45:14 2023 -0500
 
-    hash/maphash: parallel run test
+    cmd/go: convert mkalldocs.sh to a Go program
     
-    This reduces the go test hash/maphash time
-    by more than half.
+    mkalldocs.sh required a Unix shell, making it less accessible for
+    contributors on Windows. It also used a substantially different
+    codepath to regenerate the file than the one used to check the file
+    for staleness, making failures in TestDocsUpToDate more complex to
+    diagnose.
     
-    Change-Id: If184ca99544809c86b4c1baeb45d3afede91b41a
-    GitHub-Last-Rev: 440c35f8b544a16cc733e3291f963f738dd59a47
-    GitHub-Pull-Request: golang/go#65739
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564576
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    We can solve both of those problems by using the same technique as in
+    checkScriptReadme: use the test itself as the generator to update the
+    file. The test is already written in Go, the test binary already knows
+    how to mimic the 'go' command, and this approach brings the difference
+    between the test and the generator down to a single flag check.
+    
+    Updates #26735.
+    
+    Change-Id: I7c6f65cb0e0c29e334e38a45412e0a73c4d31d42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468636
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/hash/maphash/smhasher_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/go/alldocs.go            |  2 +-
+ src/cmd/go/help_test.go          | 59 +++++++++++++++++++++++++++-------------
+ src/cmd/go/internal/help/help.go |  2 +-
+ src/cmd/go/main.go               |  2 +-
+ src/cmd/go/mkalldocs.sh          | 13 ---------
+ 5 files changed, 43 insertions(+), 35 deletions(-)

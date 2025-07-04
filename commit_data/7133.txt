@@ -1,12 +1,12 @@
-commit f49889d0c21767d7285fcfbba92f6659fbe4cb19
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 18 11:24:13 2011 -0500
+commit 2862d003cb052a672f34cca5125ff12628909fc2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 18 08:10:22 2011 -0800
 
-    C: add Jos Visser (Google CLA)
+    syscall: Correct length of GNU/Linux abstract Unix domain sockaddr.
     
-    R=josv, r
+    R=rsc, iant2
     CC=golang-dev
-    https://golang.org/cl/4065041
+    https://golang.org/cl/3974044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/syscall/syscall_linux.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

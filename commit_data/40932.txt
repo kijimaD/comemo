@@ -1,15 +1,20 @@
-commit 7bdef2dfa4fe7d4d424d5601973b07d42ffc869b
-Author: taisa <g5.taisa831@gmail.com>
-Date:   Wed Dec 4 17:31:59 2019 +0900
+commit 78f6856ddf855a457bd33af27089cb3f6e1b2a2d
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Aug 26 01:25:41 2019 +0000
 
-    testing: fix testing docs
+    Revert "errors: add example showing a custom error with Unwrap"
     
-    The Perm function return 0 or 1 or 2 or 3. 4 is not returned,
-    so that changed the argument to 5.
+    This reverts commit 739123c3a36f30af06c294741f74a26e54ee21ad.
     
-    Change-Id: Ic980c71a9f29f522bdeef4fce70a6c2dd136d791
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209777
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reason for revert: broke Windows and Plan 9 builders
+    
+    Fixes #33828
+    
+    Change-Id: I1d85c81549b1b34924fdd0ade8bf9406e5cf6555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191742
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/errors/example_unwrap_test.go | 56 ---------------------------------------
+ 1 file changed, 56 deletions(-)

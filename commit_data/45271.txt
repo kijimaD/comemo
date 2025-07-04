@@ -1,15 +1,18 @@
-commit 1d2101116f50ab828b165ffebc9d379824cf7266
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Apr 21 20:23:50 2021 +0200
+commit 570b49d6fc8d66e5bcb7645dfe2a3f9a118dbf0f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 16 14:01:04 2020 -0400
 
-    net: don't check nil err twice in interfaceMessages on freebsd
+    cmd/go: normalize paths in TestScript/build_overlay
     
-    Change-Id: Ie614e49d07b24c5b3dde469561893643bc858d1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312389
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #42008
+    
+    Change-Id: I1652e8cc4e72b4b7e52571ab12da29e717218a0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263145
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/interface_freebsd.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/testdata/script/build_overlay.txt | 33 ++++++++++++++++------------
+ 1 file changed, 19 insertions(+), 14 deletions(-)

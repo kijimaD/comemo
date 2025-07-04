@@ -1,22 +1,22 @@
-commit 01c6a19e041f6b316c17a065f7a42b8dab57c9da
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 6 17:42:42 2016 -0500
+commit 15937ccb8915ef941e08feb2500f5acf61bd5427
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 6 15:14:58 2016 -0700
 
-    runtime: add number of forced GCs to MemStats
+    runtime: fix sigset type for ppc64 big-endian GNU/Linux
     
-    This adds a counter for the number of times the application forced a
-    GC by, e.g., calling runtime.GC(). This is useful for detecting
-    applications that are overusing/abusing runtime.GC() or
-    debug.FreeOSMemory().
+    On 64-bit big-endian GNU/Linux machines we need to treat sigset as a
+    single uint64, not as a pair of uint32 values. This fix was already made
+    for s390x, but not for ppc64 (which is big-endian--the little endian
+    version is known as ppc64le). So copy os_linux_390.x to
+    os_linux_be64.go, and use build constraints as needed.
     
-    Fixes #18217.
+    Fixes #17361
     
-    Change-Id: I990ab7a313c1b3b7a50a3d44535c460d7c54f47d
-    Reviewed-on: https://go-review.googlesource.com/34067
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia0eb18221a8f5056bf17675fcfeb010407a13fb0
+    Reviewed-on: https://go-review.googlesource.com/30602
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/go1.8.txt              |  1 +
- src/runtime/malloc_test.go | 11 +++++++++--
- src/runtime/mgc.go         |  9 ++++++++-
- src/runtime/mstats.go      |  7 +++++--
- 4 files changed, 23 insertions(+), 5 deletions(-)
+ src/runtime/{os_linux_s390x.go => os_linux_be64.go} | 4 ++++
+ src/runtime/os_linux_generic.go                     | 1 +
+ 2 files changed, 5 insertions(+)

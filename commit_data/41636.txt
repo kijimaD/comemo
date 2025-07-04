@@ -1,32 +1,18 @@
-commit fc8a6336d1ad29acf2c7728ce669df9059169132
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 17 13:54:30 2020 -0500
+commit e5acb58c394c7d900d9aa948a9b601c49c97ab09
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 16 12:31:33 2019 -0400
 
-    cmd/asm, cmd/compile, runtime: add -spectre=ret mode
+    [dev.link] cmd/objdump: switch to using NewReaderFromBytes
     
-    This commit extends the -spectre flag to cmd/asm and adds
-    a new Spectre mitigation mode "ret", which enables the use
-    of retpolines.
+    Convert the object file dumper to use NewReaderFromBytes when
+    reading new object files, as opposed to NewReader.
     
-    Retpolines prevent speculation about the target of an indirect
-    jump or call and are described in more detail here:
-    https://support.google.com/faqs/answer/7625886
-    
-    Change-Id: I4f2cb982fa94e44d91e49bd98974fd125619c93a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222661
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9f5e0356bd21c16f545cdd70262e983a2ed38bfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201441
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/flags/flags.go |  2 ++
- src/cmd/asm/main.go                 | 13 +++++++++++++
- src/cmd/compile/internal/gc/main.go |  3 +++
- src/cmd/internal/obj/arm/asm5.go    |  5 +++++
- src/cmd/internal/obj/arm64/asm7.go  |  5 +++++
- src/cmd/internal/obj/link.go        |  1 +
- src/cmd/internal/obj/mips/asm0.go   |  5 +++++
- src/cmd/internal/obj/riscv/obj.go   |  5 +++++
- src/cmd/internal/obj/s390x/asmz.go  |  5 +++++
- src/cmd/internal/obj/x86/asm6.go    | 11 +++++++++++
- src/runtime/asm_amd64.s             | 34 +++++++++++++++++++++++++++++++++-
- src/runtime/stubs_amd64.go          | 17 +++++++++++++++++
- test/codegen/retpoline.go           | 14 ++++++++++++++
- 13 files changed, 119 insertions(+), 1 deletion(-)
+ src/cmd/internal/goobj/read.go    | 9 ++++++---
+ src/cmd/internal/goobj/readnew.go | 6 +++++-
+ 2 files changed, 11 insertions(+), 4 deletions(-)

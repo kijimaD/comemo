@@ -1,23 +1,51 @@
-commit a6a69227f6b4905a9bd9fe1755a28c7a9e36df7e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 27 11:05:09 2018 -0700
+commit 99c30211b1e0b3ac4e5d32f3ae5eaf759c23195f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 1 14:23:46 2018 -0800
 
-    os: when looping in RemoveAll, close and re-open directory
+    go/scanner: recognize //line and /*line directives incl. columns
     
-    On some systems removing files can cause a directory to be re-shuffled,
-    so simply continuing to read files can cause us to miss some.
-    Close and re-open the directory when looping, to avoid that.
+    This change updates go/scanner to recognize the extended line
+    directives that are now also handled by cmd/compile:
     
-    Read more files each time through the loop, to reduce the chance of
-    having to re-open.
+    //line filename:line
+    //line filename:line:column
+    /*line filename:line*/
+    /*line filename:line:column*/
     
-    Fixes #20841
+    As before, //-style line directives must start in column 1.
+    /*-style line directives may be placed anywhere in the code.
+    In both cases, the specified position applies to the character
+    immediately following the comment; for line comments that is
+    the first character on the next line (after the newline of the
+    comment).
     
-    Change-Id: I98a14774ca63786ad05ba5000cbdb01ad2884332
-    Reviewed-on: https://go-review.googlesource.com/121255
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The go/token API is extended by a new method
+    
+    File.AddLineColumnInfo(offset int, filename string, line, column int)
+    
+    which extends the existing
+    
+    File.AddLineInfo(offset int, filename string, line int)
+    
+    by adding a column parameter.
+    
+    Adjusted token.Position computation is changed to take into account
+    column information if provided via a line directive: A (line-directive)
+    relative position will have a non-zero column iff the line directive
+    specified a column; if the position is on the same line as the line
+    directive, the column is relative to the specified column (otherwise
+    it is relative to the line beginning). See also #24183.
+    
+    Finally, Position.String() has been adjusted to not print a column
+    value if the column is unknown (== 0).
+    
+    Fixes #24143.
+    
+    Change-Id: I5518c825ad94443365c049a95677407b46ba55a1
+    Reviewed-on: https://go-review.googlesource.com/97795
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/path.go | 61 +++++++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 41 insertions(+), 20 deletions(-)
+ src/go/scanner/scanner.go      | 144 ++++++++++++++++++++++++++++++++---------
+ src/go/scanner/scanner_test.go |  61 ++++++++++-------
+ src/go/token/position.go       |  60 ++++++++++++-----
+ 3 files changed, 194 insertions(+), 71 deletions(-)

@@ -1,68 +1,27 @@
-commit 014a9048d4f25b4afd090c9d5e7efe0b7c7b6dda
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 16 07:15:59 2018 -0700
+commit f4f6018d382f7360114d376f70b5d220d4f10716
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Nov 14 21:54:06 2017 -0400
 
-    cmd/compile: prefer to evict a rematerializable register
+    encoding/pem: add Encode, EncodeToMemory docs
     
-    This resolves a long-standing regalloc TODO:
-    If you must evict a register, choose to evict a register
-    containing a rematerializable value, since that value
-    won't need to be spilled.
+    Included in a warning that EncodeToMemory may return an incomplete PEM
+    encoded structure if invalid headers are supplied. Example:
     
-    Provides very minor performance and size improvements.
+            pem.EncodeToMemory(&pem.Block{
+                    Headers: map[string]string{
+                            "a":   "test1",
+                            "b:c": "test2",
+                    },
+            })
     
-    name                     old time/op    new time/op    delta
-    BinaryTree17-8              2.20s ± 3%     2.18s ± 2%  -0.77%  (p=0.000 n=45+49)
-    Fannkuch11-8                2.14s ± 2%     2.15s ± 2%  +0.73%  (p=0.000 n=43+44)
-    FmtFprintfEmpty-8          30.6ns ± 4%    30.2ns ± 3%  -1.14%  (p=0.000 n=50+48)
-    FmtFprintfString-8         54.5ns ± 6%    53.6ns ± 5%  -1.64%  (p=0.001 n=50+48)
-    FmtFprintfInt-8            58.0ns ± 7%    57.6ns ± 4%    ~     (p=0.220 n=50+50)
-    FmtFprintfIntInt-8         85.3ns ± 2%    84.8ns ± 3%  -0.62%  (p=0.001 n=44+47)
-    FmtFprintfPrefixedInt-8    93.9ns ± 6%    93.6ns ± 5%    ~     (p=0.706 n=50+48)
-    FmtFprintfFloat-8           178ns ± 4%     177ns ± 4%    ~     (p=0.107 n=49+50)
-    FmtManyArgs-8               376ns ± 4%     374ns ± 3%  -0.58%  (p=0.013 n=45+50)
-    GobDecode-8                4.77ms ± 2%    4.76ms ± 3%    ~     (p=0.059 n=47+46)
-    GobEncode-8                4.04ms ± 2%    3.99ms ± 3%  -1.13%  (p=0.000 n=49+49)
-    Gzip-8                      177ms ± 2%     180ms ± 3%  +1.43%  (p=0.000 n=48+48)
-    Gunzip-8                   28.5ms ± 6%    28.3ms ± 5%    ~     (p=0.104 n=50+49)
-    HTTPClientServer-8         72.1µs ± 1%    72.0µs ± 1%  -0.15%  (p=0.042 n=48+42)
-    JSONEncode-8               9.81ms ± 5%   10.03ms ± 6%  +2.29%  (p=0.000 n=50+49)
-    JSONDecode-8               39.2ms ± 3%    39.3ms ± 2%    ~     (p=0.095 n=49+49)
-    Mandelbrot200-8            3.48ms ± 2%    3.46ms ± 2%  -0.80%  (p=0.000 n=47+48)
-    GoParse-8                  2.54ms ± 3%    2.51ms ± 3%  -1.35%  (p=0.000 n=49+49)
-    RegexpMatchEasy0_32-8      66.0ns ± 7%    65.7ns ± 8%    ~     (p=0.331 n=50+50)
-    RegexpMatchEasy0_1K-8       155ns ± 4%     154ns ± 4%    ~     (p=0.986 n=49+50)
-    RegexpMatchEasy1_32-8      62.6ns ± 8%    62.2ns ± 5%    ~     (p=0.395 n=50+49)
-    RegexpMatchEasy1_1K-8       260ns ± 5%     255ns ± 3%  -1.92%  (p=0.000 n=49+49)
-    RegexpMatchMedium_32-8     92.9ns ± 2%    91.8ns ± 2%  -1.25%  (p=0.000 n=46+48)
-    RegexpMatchMedium_1K-8     27.7µs ± 3%    27.0µs ± 2%  -2.59%  (p=0.000 n=49+49)
-    RegexpMatchHard_32-8       1.23µs ± 4%    1.21µs ± 2%  -2.16%  (p=0.000 n=49+44)
-    RegexpMatchHard_1K-8       36.4µs ± 2%    35.7µs ± 2%  -1.87%  (p=0.000 n=48+49)
-    Revcomp-8                   274ms ± 2%     276ms ± 3%  +0.70%  (p=0.034 n=45+48)
-    Template-8                 45.1ms ± 8%    45.1ms ± 8%    ~     (p=0.643 n=50+50)
-    TimeParse-8                 223ns ± 2%     223ns ± 2%    ~     (p=0.401 n=47+47)
-    TimeFormat-8                245ns ± 2%     246ns ± 3%    ~     (p=0.758 n=49+50)
-    [Geo mean]                 36.5µs         36.3µs       -0.54%
+    Returns:
     
+            -----BEGIN -----
+            a: test1
     
-    name        old object-bytes  new object-bytes  delta
-    Template          480kB ± 0%        480kB ± 0%    ~     (all equal)
-    Unicode           214kB ± 0%        214kB ± 0%    ~     (all equal)
-    GoTypes          1.54MB ± 0%       1.54MB ± 0%  -0.03%  (p=0.008 n=5+5)
-    Compiler         5.75MB ± 0%       5.75MB ± 0%    ~     (all equal)
-    SSA              14.6MB ± 0%       14.6MB ± 0%  -0.01%  (p=0.008 n=5+5)
-    Flate             300kB ± 0%        300kB ± 0%  -0.01%  (p=0.008 n=5+5)
-    GoParser          366kB ± 0%        366kB ± 0%    ~     (all equal)
-    Reflect          1.20MB ± 0%       1.20MB ± 0%    ~     (all equal)
-    Tar               413kB ± 0%        413kB ± 0%    ~     (all equal)
-    XML               529kB ± 0%        528kB ± 0%  -0.13%  (p=0.008 n=5+5)
-    [Geo mean]        909kB             909kB       -0.02%
-    
-    
-    Change-Id: I46d37a55197683a98913f35801dc2b0d609653c8
-    Reviewed-on: https://go-review.googlesource.com/103240
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia9cf0202f985e3cf210aabb6f07667e581ff081f
+    Reviewed-on: https://go-review.googlesource.com/77790
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 20 +++++++++++++++-----
- 1 file changed, 15 insertions(+), 5 deletions(-)
+ src/encoding/pem/pem.go | 5 +++++
+ 1 file changed, 5 insertions(+)

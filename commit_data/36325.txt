@@ -1,17 +1,22 @@
-commit 09ec523049e3f26cba9b431dcc8ea4820b5dcc89
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 20 19:11:33 2018 +0000
+commit 60e3ebb9cba900f7b2f559b472726cee47e823c0
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu Apr 19 17:54:29 2018 -0400
 
-    Revert "cmd/dist: support windows/arm"
+    net: calling File leaves the socket in nonblocking mode
     
-    This reverts commit def3280eb4e4bc7fb058f98fa2993cb077db3f95.
+    On Unix systems, the underlying socket is no longer forced into blocking
+    mode.
     
-    Reason for revert: broke the vetall builder and I (Brad) forgot to run the trybots first. :(
+    Fixes #24942
     
-    Change-Id: I255bedeb28d13e265f357060e57561e593145275
-    Reviewed-on: https://go-review.googlesource.com/130015
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3e0c503c72df0844e30a63af298691dedacd1f46
+    Reviewed-on: https://go-review.googlesource.com/108297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go       | 1 -
- src/cmd/dist/sys_windows.go | 3 ---
- 2 files changed, 4 deletions(-)
+ src/net/fd_unix.go  | 8 --------
+ src/net/net.go      | 4 +---
+ src/net/tcpsock.go  | 4 ++--
+ src/net/unixsock.go | 4 ++--
+ 4 files changed, 5 insertions(+), 15 deletions(-)

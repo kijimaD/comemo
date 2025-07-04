@@ -1,14 +1,17 @@
-commit dfbd42e4f881717a58309d59e40671a29572dd12
-Author: Michael Stapelberg <michael@stapelberg.de>
-Date:   Mon Jun 25 17:32:39 2012 -0400
+commit baaa08eab072aee3e00203aab6b91e5e49a76929
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Mon Jun 25 17:20:48 2012 -0400
 
-    net: fix lookup of AAAA-only hosts without cgo
+    go/build: fix doc typo
     
-    Fixes #3762.
+    go/build section "Build Constraints", first paragraph said:
+      "... they must be appear near the top of the file ..."
+    fixed to:
+      "... they must appear near the top of the file ..."
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6303106
+    https://golang.org/cl/6329060
 
- src/pkg/net/dnsclient_unix.go | 28 +++++++++++++++++-----------
- 1 file changed, 17 insertions(+), 11 deletions(-)
+ src/pkg/go/build/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

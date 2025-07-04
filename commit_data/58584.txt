@@ -1,20 +1,22 @@
-commit 26c59d3153a7662875e1dd7c02c6ae36b9bc269b
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Dec 17 10:51:36 2024 +0100
+commit 8eecf26e3f13192be66e908cc55646b7f71c568c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Nov 21 16:37:07 2023 +0100
 
-    crypto/internal/fips140/sha3/_asm: remove unnecessary x/crypto dependency
+    crypto/tls: disable ExportKeyingMaterial without EMS
     
-    There is no need to blank-import golang.org/x/crypto/sha3, as we are not
-    using any crypto.SHA3 variant in the code.
+    Fixes #43922
     
-    Change-Id: Ia5455647f737371fc4ec0972bf9a90d5ee854495
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637055
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Idaad7daa6784807ae3a5e4d944e88e13d01fd0b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544155
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/internal/fips140/sha3/_asm/go.mod               | 6 +-----
- src/crypto/internal/fips140/sha3/_asm/go.sum               | 4 ----
- src/crypto/internal/fips140/sha3/_asm/keccakf_amd64_asm.go | 1 -
- 3 files changed, 1 insertion(+), 10 deletions(-)
+ doc/godebug.md                 |  6 ++++++
+ src/crypto/tls/common.go       | 10 ++++++----
+ src/crypto/tls/conn.go         | 13 ++++++++++++-
+ src/crypto/tls/prf.go          | 11 +++++++++--
+ src/internal/godebugs/table.go |  1 +
+ src/runtime/metrics/doc.go     |  4 ++++
+ 6 files changed, 38 insertions(+), 7 deletions(-)

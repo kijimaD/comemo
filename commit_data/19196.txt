@@ -1,14 +1,15 @@
-commit 6524310770649b6aa9786711edd2f6eeab4ba61a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 17 11:47:12 2014 -0700
+commit f8f34c330c651b16ef8c54e60f4862b4a66b4a41
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 17 01:40:04 2014 -0400
 
-    cmd/pack: handle very long lines in pkgdef
+    doc/effective_go: mention that b.Write is a shorthand for (&b).Write when b is addressable.
     
-    LGTM=rsc, bradfitz
-    R=golang-codereviews, rsc, bradfitz
+    The rewrite is due to Rob.
+    
+    LGTM=r, bradfitz, josharian
+    R=golang-codereviews, bradfitz, r, josharian
     CC=golang-codereviews
-    https://golang.org/cl/88170049
+    https://golang.org/cl/87410043
 
- src/cmd/pack/pack.go      |  20 +++++----
- src/cmd/pack/pack_test.go | 102 +++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 98 insertions(+), 24 deletions(-)
+ doc/effective_go.html | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

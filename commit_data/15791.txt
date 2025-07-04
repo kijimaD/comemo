@@ -1,14 +1,16 @@
-commit a5b2623dab33d4e54b9995d0f0cfd4b95b439683
+commit 0f1b4880935a4eddef135d4d32d2240196184e9f
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 15 12:39:14 2013 -0400
+Date:   Fri Mar 15 12:30:14 2013 -0400
 
-    build: skip benchmarks on OpenBSD
+    build: fix for 32-bit windows builds on 64-bit windows system
     
-    They are making the build die. I want to be able to see that everything else is okay.
+    Thanks to jon.forums@ for the fix.
     
-    R=golang-dev, bradfitz
+    Fixes #5051.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7546049
+    https://golang.org/cl/7813045
 
- src/run.bash | 3 +++
- 1 file changed, 3 insertions(+)
+ include/libc.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

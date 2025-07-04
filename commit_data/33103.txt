@@ -1,32 +1,29 @@
-commit 897080d5cbb1793f8ad3ef5fb7c6fafba2e97d42
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Sat Sep 23 15:30:46 2017 -0700
+commit 286599f27026f5c4001f1da25b35aa1243f51d08
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 11 09:26:01 2017 -0400
 
-    database/sql: prevent race in driver by locking dc in Next
+    runtime: make TestStackGrowth a serial test
     
-    Database drivers should be called from a single goroutine to ease
-    driver's design. If a driver chooses to handle context
-    cancels internally it may do so.
+    TestStackGrowth is currently a parallel test. However, it depends on a
+    20 second timeout, which is already dubious in a parallel test, and
+    became really problematic on slow builders when runtime.GC switched to
+    triggering concurrent GC instead of STW GC. Before that change, the
+    test spent much of its time in STW GC, so it wasn't *really* parallel.
+    After that change, it was competing with all of the other parallel
+    tests and GC likely started taking ~4 times longer. On most builders
+    the whole test runs in well under a second, but on the slow builders
+    that was enough to push it over the 20 second timeout.
     
-    The sql package violated this agreement when calling Next or
-    NextResultSet. It was possible for a concurrent rollback
-    triggered from a context cancel to call a Tx.Rollback (which
-    takes a driver connection lock) while a Rows.Next is in progress
-    (which does not tack the driver connection lock).
+    Fix this by making the test serial.
     
-    The current internal design of the sql package is each call takes
-    roughly two locks: a closemu lock which prevents an disposing of
-    internal resources (assigning nil or removing from lists)
-    and a driver connection lock that prevents calling driver code from
-    multiple goroutines.
+    Updates #19381 (probably fixes it, but we'll have to wait and see).
     
-    Fixes #21117
-    
-    Change-Id: Ie340dc752a503089c27f57ffd43e191534829360
-    Reviewed-on: https://go-review.googlesource.com/65731
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I21af7cf543ab07f1ec1c930bfcb355b0df75672d
+    Reviewed-on: https://go-review.googlesource.com/48110
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/fakedb_test.go |  1 +
- src/database/sql/sql.go         | 12 ++++++++++++
- src/database/sql/sql_test.go    |  8 +++++++-
- 3 files changed, 20 insertions(+), 1 deletion(-)
+ src/runtime/stack_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

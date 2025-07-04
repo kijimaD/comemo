@@ -1,24 +1,26 @@
-commit c906608406f22087e9bc3ee7616c3f1fbba2503b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 9 09:25:05 2020 -0500
+commit 3d1007d28e92316b08974dc65cde44a6aa31bf21
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 22 15:16:06 2020 -0400
 
-    io/fs: fix reference to WalkFunc
+    [dev.link] cmd/link: move more error handling into loader
     
-    The comment explains differences between WalkDirFunc and WalkFunc,
-    but when this code moved out of path/filepath, we forgot to change
-    the reference to be filepath.WalkFunc. Fix that.
+    Move the guts of ctxt.Errorf into loader.Loader, so that we can make
+    calls to it from functions that have a "*loader.Loader" available but
+    not a "ctxt *Link". This is needed to start converting hooks like
+    "adddynrel" in the arch-specific portions of the linker to use loader
+    APIs.
     
-    (The text should not be deleted, because path/filepath does not
-    contain this type - WalkDirFunc - nor this text anymore.)
-    
-    Pointed out by Carl Johnson on CL 243916 post-submit.
-    
-    For #41190.
-    
-    Change-Id: I44c64d0b7e60cd6d3694cfd6d0b95468ec4612fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268417
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ieedd4583b66504be0e77d7f3fbadafe0d2307a69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229497
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/io/fs/walk.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/errors.go          | 23 +--------------
+ src/cmd/link/internal/ld/lib.go             |  2 +-
+ src/cmd/link/internal/ld/sym.go             | 15 ++++++----
+ src/cmd/link/internal/ld/util.go            | 10 +++----
+ src/cmd/link/internal/loader/loader.go      | 45 +++++++++++++++++++++++++++--
+ src/cmd/link/internal/loader/loader_test.go | 17 +++++++----
+ 6 files changed, 70 insertions(+), 42 deletions(-)

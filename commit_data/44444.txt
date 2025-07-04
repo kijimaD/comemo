@@ -1,19 +1,20 @@
-commit cda8ee095e487951eab5a53a097e2b8f400f237d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Feb 17 19:14:03 2021 +0000
+commit 130ede0d9e01ef53e734371faea080f5301d9c55
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jul 6 09:38:17 2020 -0400
 
-    reflect: fix register ABI spill space calculation
+    [dev.link] cmd/link: remove some unneeded code from writeBlock()
     
-    Currently this does things the old way by computing the number of
-    registers, but we're going to be using their ABI0 layout for the spill
-    space for now.
+    The loader writeBlock() function has code that tries to skip the
+    initial portion of the input symbols list depending on the address of
+    the section being written-- this code is dead (skipping is never
+    triggered) due to similar skipping in the callers; remove this
+    preamble.
     
-    Change-Id: Ibcef1ee48fd834af7cbdaabe704bcabe066ed358
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293011
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I9769694a3194faf73ebebbbc10ceba4928c3087c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241067
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/reflect/abi.go | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/data.go | 6 ------
+ 1 file changed, 6 deletions(-)

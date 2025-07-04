@@ -1,12 +1,17 @@
-commit f3a45d4695d332b5964e11f648c330b2f11980b8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 3 10:45:02 2012 -0700
+commit bbb5f1bffbcb03b442ea953dfbe41169530e450f
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Aug 3 10:37:30 2012 -0400
 
-    go/build: tiny cleanup
+    crypto/x509: support ECDSA keys when generating certificates.
     
-    R=rsc
+    We already support reading ECDSA certificates and this change adds
+    write support.
+    
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6453083
+    https://golang.org/cl/6422046
 
- src/pkg/go/build/build.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/crypto/x509/pkcs8.go     |   2 +-
+ src/pkg/crypto/x509/x509.go      | 123 +++++++++++++++++++++++++++++----------
+ src/pkg/crypto/x509/x509_test.go | 117 +++++++++++++++++++++----------------
+ 3 files changed, 161 insertions(+), 81 deletions(-)

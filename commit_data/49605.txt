@@ -1,24 +1,33 @@
-commit c1a4e0fe014568501b194eb8b04309f54eee6b4c
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jul 8 14:52:23 2022 -0700
+commit b93581e47d358da9fc2d08032cd73797c2cb28a5
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 14:41:29 2021 -0400
 
-    cmd/compile: fix libfuzzer instrumentation line number
+    go/types: add error reporting for 1.18 syntax if GoVersion is below 1.18
     
-    Set a reasonable starting line number before processing the body of
-    the function in the order pass.
+    This is a port of CL 344871 to go/types. Unlike the compiler, go/parser
+    is already always producing 1.18 syntax, so the effect of this CL is to
+    add some additional errors when Config.GoVersion is below 1.18.
     
-    We update base.Pos each time we process a node, but some of the
-    libfuzzer instrumentation is added before we process any node, so the
-    base.Pos used is junk.
+    This is a non-trivial port, both due to different error reporting APIs
+    and due to interacting with declaration syntax nodes, which differ
+    between go/ast and cmd/compile/internal/syntax.
     
-    Fixes #53688
-    
-    Change-Id: I3654b805eabb8866a9a1574845ef4ff062797319
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416654
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8003a014e6eec5e554c24e9a6cfc0548ec534834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346433
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/walk/order.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/go/types/call.go                           | 13 ++++++
+ src/go/types/decl.go                           | 23 ++++++++--
+ src/go/types/resolver.go                       | 14 ++++--
+ src/go/types/subst.go                          |  2 +-
+ src/go/types/testdata/check/decls0.src         |  2 +-
+ src/go/types/testdata/check/issues.src         |  6 +--
+ src/go/types/testdata/check/main.go2           |  2 +-
+ src/go/types/testdata/check/typeparams.go2     |  4 +-
+ src/go/types/testdata/fixedbugs/issue47818.go2 | 59 ++++++++++++++++++++++++++
+ src/go/types/typeset.go                        | 11 ++++-
+ src/go/types/typexpr.go                        | 15 ++++---
+ 11 files changed, 129 insertions(+), 22 deletions(-)

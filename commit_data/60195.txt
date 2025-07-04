@@ -1,0 +1,23 @@
+commit a7f6da78d2c022b44b8d91f3ce7699ab1643968f
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu May 23 19:17:21 2024 +0000
+
+    cmd/go: env changed flag respects $GOROOT/go.env
+    
+    From $GOROOT/go.env file got GOPROXY and GOSUMDB and GOTOOLCHAIN default value.
+    
+    Fixes #67542
+    
+    Change-Id: I0cb2e1ab6a32963288ae463a9b0bd92ac6719447
+    GitHub-Last-Rev: fda9be48b9e3bd3b124648eec1ef4ecfccac6d50
+    GitHub-Pull-Request: golang/go#67564
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587160
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go             | 17 +++++++++++++----
+ src/cmd/go/internal/envcmd/env.go          |  6 ++----
+ src/cmd/go/testdata/script/env_changed.txt | 11 +++++++++++
+ 3 files changed, 26 insertions(+), 8 deletions(-)

@@ -1,32 +1,26 @@
-commit dbfa3cacc7a4178ff3b81c79f7678ac9d61c54ab
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jun 25 14:01:09 2024 -0700
+commit 7dc8509c693c6e6dfa7bdcebdb9d62058b14b509
+Author: Christian Banse <christian.banse@me.com>
+Date:   Fri Apr 21 15:13:17 2023 +0000
 
-    cmd/compile: fix typing of atomic logical operations
+    cmd/link/internal/ld: pass correct offset to codesign.Sign
     
-    For atomic AND and OR operations on memory, we currently have two
-    views of the op. One just does the operation on the memory and returns
-    just a memory. The other does the operation on the memory and returns
-    the old value (before having the logical operation done to it) and
-    memory.
+    Previously, codesign.Sign was called with Segtext.Fileoff and
+    Segtext.Filelen. However, both variables do not contain the
+    complete __TEXT segment, as it excludes padding and header.
+    Therefore, we now store a reference to the complete segment
+    in mstext when it is created and pass its offset (which should
+    always be 0) and filesize to codesign.Sign.
     
-    Update #61395
+    Fixes #59555
     
-    These two type differently, and there's currently some confusion in
-    our rules about which is which. Use different names for the two
-    different flavors so we don't get them confused.
-    
-    Change-Id: I07b4542db672b2cee98169ac42b67db73c482093
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594976
+    Change-Id: Iad88f142705949dcc0b192b811337df9b4be08cf
+    GitHub-Last-Rev: 37a048d58e01a3befa4db574e5fb48ab8d6013a1
+    GitHub-Pull-Request: golang/go#59581
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484015
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules   |  8 ++--
- src/cmd/compile/internal/ssa/_gen/genericOps.go | 32 ++++++++-----
- src/cmd/compile/internal/ssa/opGen.go           | 64 ++++++++++++++++++-------
- src/cmd/compile/internal/ssa/rewriteARM64.go    | 24 +++++-----
- src/cmd/compile/internal/ssagen/ssa.go          | 52 ++++++++++++--------
- 5 files changed, 113 insertions(+), 67 deletions(-)
+ src/cmd/link/internal/ld/macho.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

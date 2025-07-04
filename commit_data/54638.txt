@@ -1,21 +1,17 @@
-commit ad76a98d5e4bb0632333dafaf850094b15a357a1
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Oct 4 18:07:37 2023 +0200
+commit a9767ea59d8b321bafc5e899889ff1d047a2b217
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Sat Nov 5 23:49:36 2022 +0900
 
-    internal/syscall/unix: implement Eaccess on dragonfly
+    cmd/vet: remove unused const
     
-    Like on other BSDs, use faccessat(AT_FDCWD, path, mode, AT_EACCESS)
-    
-    Change-Id: I5b7649815651725ab9245aed3c8c1941ff9b7606
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532675
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1f713bbb35917ab50b0cde24a81340aa16c2ed03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448195
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/syscall/unix/at_sysnum_dragonfly.go | 10 +++++++---
- src/internal/syscall/unix/eaccess_bsd.go         |  2 +-
- src/internal/syscall/unix/eaccess_other.go       |  2 +-
- 3 files changed, 9 insertions(+), 5 deletions(-)
+ src/cmd/vet/vet_test.go | 2 --
+ 1 file changed, 2 deletions(-)

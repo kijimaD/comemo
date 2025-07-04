@@ -1,19 +1,16 @@
-commit df73945fd2fa0b7c168a042e87e648fdfdfc2c70
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 17 07:54:01 2020 +0700
+commit 4f989323a5571e29c27f5ef86154676bd889fe15
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 2 13:57:17 2020 -0800
 
-    cmd/compile: make error message involving variadic calls clearer
+    cmd/compile: regenerate rules
     
-    Fixes #41440
+    CL 210897 went in concurrently with some rulegen.go changes.
+    Regenerate.
     
-    Change-Id: I2fbac72ae3b76bca32cdeaee678a19af3595d116
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255241
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I39ffa8bdffdfcc7f60cc8158d188fb1a3e70fcb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221787
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/typecheck.go | 20 ++++++++++++--------
- test/fixedbugs/issue41440.go             | 14 ++++++++++++++
- test/fixedbugs/issue6750.go              |  2 +-
- 3 files changed, 27 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

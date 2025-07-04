@@ -1,17 +1,19 @@
-commit 538537a28dc956f069b83e3f1966683901205331
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 18 13:19:24 2016 -0700
+commit 390d1ce686729dea40cee796ce391f9fd8466942
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 28 09:32:10 2016 -0700
 
-    runtime: check only up to ptrdata bytes for pointers
+    cmd/compile: simplify substAny's TSTRUCT case
     
-    Fixes #14508.
+    Now that structs use a slice to store their fields, this code can be
+    simplified somewhat.
     
-    Change-Id: I237d0c5a79a73e6c97bdb2077d8ede613128b978
-    Reviewed-on: https://go-review.googlesource.com/23224
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: If17b1c89871fa06f34938fa67df0f8c6bcf1a86b
+    Reviewed-on: https://go-review.googlesource.com/21219
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/cgo/errors/ptr.go  | 24 ++++++++++++++++++++++++
- src/runtime/cgocheck.go | 19 ++++++++++++++++++-
- 2 files changed, 42 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/subr.go | 36 ++++++++++--------------------------
+ 1 file changed, 10 insertions(+), 26 deletions(-)

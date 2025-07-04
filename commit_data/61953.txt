@@ -1,0 +1,21 @@
+commit 7c03fe70b897581aacc0092315f75abd08ebeeee
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 27 10:48:22 2024 -0500
+
+    cmd/compile: improve compiler directive docs
+    
+    This section has gotten long enough that it deserves to be multiple
+    sections. This also allows us to better structure information shared
+    by subsets of directives. In particular, this enables a self-contained
+    section on the wasm directives.
+    
+    Updates #66984.
+    
+    Change-Id: I062081d46c6b0aef7887fdaf9efae80f32ad4b21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638881
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/doc.go | 69 +++++++++++++++++++++++++++++---------------------
+ 1 file changed, 40 insertions(+), 29 deletions(-)

@@ -1,19 +1,15 @@
-commit 8a3d167f5b4b482a230cd9800df9969af60561af
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat Aug 27 10:35:31 2022 +0800
+commit 4607ebc7d897c36687ae4ede3cfd4939c6dd0a54
+Author: Pedro Lopez Mareque <pedro.lopez.mareque@gmail.com>
+Date:   Sat Oct 2 11:59:08 2021 +0200
 
-    testing: increment tempDirSeq non-atomically
+    math: add Remainder example
     
-    It's unnecessary to to call atomic.AddInt32 since there is a mutex lock.
-    
-    Change-Id: I31fcece17c34f99a95772d744aebd3f6a8cf1d23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426081
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I4b0fa69a36b04103473aa08e246fa193315ac5aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353689
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/testing/testing.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/math/example_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

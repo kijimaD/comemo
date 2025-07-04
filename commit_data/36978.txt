@@ -1,17 +1,17 @@
-commit 93e27e01af8bd6ac76c9784165d63b7cafe10a16
-Author: Ben Shi <powerman1st@163.com>
-Date:   Mon Oct 15 05:39:23 2018 +0000
+commit 67d276c57cda9e05faa84c332ba52791d4713f65
+Author: Sabin Mihai Rapan <sabin.rapan@gmail.com>
+Date:   Sun Jan 28 14:08:14 2018 +0200
 
-    test/codegen: add tests of FMA for arm/arm64
+    cgo: update documentation on calling C variadic functions
     
-    This CL adds tests of fused multiplication-accumulation
-    on arm/arm64.
+    The current implementation does not support calling C variadic
+    functions (as discussed in #975). Document that.
     
-    Change-Id: Ic85d5277c0d6acb7e1e723653372dfaf96824a39
-    Reviewed-on: https://go-review.googlesource.com/c/141652
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #23537
+    
+    Change-Id: If4c684a3d135f3c2782a720374dc4c07ea66dcbb
+    Reviewed-on: https://go-review.googlesource.com/90415
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/codegen/floats.go | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/cgo/doc.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

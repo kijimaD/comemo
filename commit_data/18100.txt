@@ -1,45 +1,14 @@
-commit 0e97f4187e4326e6d323ce07610efdae13e7fcc8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 20 14:24:48 2013 -0500
+commit dc8572c3fe1d77378a6deff2f05a4e04ae5061a8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 20 11:15:50 2013 -0800
 
-    cmd/gc: address 1½ liveness bottlenecks
+    sync: explain Pool's intentions
+    Expand the type's doc comment to make its purpose clear
+    and discourage misuse.
     
-    As much as 7x speedup on some programs, cuts all.bash time by 20%.
-    
-    Change splicebefore function from O(n) to O(1).
-    The approach was suggested by Carl during the code's review
-    but apparently did not make it into the tree.
-    It makes a huge difference on huge programs.
-    
-    Make twobitwalktype1 slightly faster by using & instead of %.
-    Really it needs to be cached; left a note to that effect.
-    (Not a complete fix, hence the ½.)
-    
-    big.go (output of test/chan/select5.go)
-     47.53u   0.50s  48.14r before this CL
-      7.09u   0.47s   7.59r with splicebefore change (6.7x speedup)
-      6.15u   0.42s   6.59r with twobitwalktype1 change (1.15x speedup; total 7.7x)
-    
-    slow.go (variant of program in go.text, by mpvl)
-     77.75u   2.11s  80.03r before this CL
-     24.40u   1.97s  26.44r with splicebefore change (3.2x speedup)
-     18.12u   2.19s  20.38r with twobitwalktype1 change (1.35x speedup; total 4.3x)
-    
-    test/run
-    150.63u  49.57s  81.08r before this CL
-     88.01u  45.60s  46.65r after this CL (1.7x speedup)
-    
-    all.bash
-    369.70u 115.64s 256.21r before this CL
-    298.52u 110.35s 214.67r after this CL (1.24x speedup)
-    
-    The test programs are at
-    https://rsc.googlecode.com/hg/testdata/big.go (36k lines, 276kB)
-    https://rsc.googlecode.com/hg/testdata/slow.go (7k lines, 352kB)
-    
-    R=golang-codereviews, gobot, r
-    CC=cshapiro, golang-codereviews
-    https://golang.org/cl/43210045
+    R=golang-codereviews, gobot, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/44680043
 
- src/cmd/gc/plive.c | 67 +++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 43 insertions(+), 24 deletions(-)
+ src/pkg/sync/pool.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

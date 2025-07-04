@@ -1,22 +1,21 @@
-commit 60066754fd6d080e6f0b08d88369beea4b54b801
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 26 14:33:24 2013 -0800
+commit c8c16cfbb98b717dc6807228e8a6e3553ab63b64
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Feb 26 14:07:03 2013 -0500
 
-    go/types: be more robust in presence of multiple errors
+    exp/ssa: support multiple labels on same statement.
     
-    - better documentation of Check
-    - better handling of (explicit) internal panics
-    - gotype: don't stop after 1st error
+    Actually it already worked since the spec only requires that
+    the one immediately preceding a for/switch/... be usable as
+    the target of a break or continue statement.
     
-    R=adonovan, r
+    Added a test.
+    Also: allocate Function.lblocks on first use.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/7406052
+    https://golang.org/cl/7365058
 
- src/pkg/exp/gotype/gotype.go      | 33 +++++++++++++++++++++++++++------
- src/pkg/exp/gotype/gotype_test.go |  6 +++---
- src/pkg/go/types/api.go           |  9 ++++++---
- src/pkg/go/types/check.go         | 24 ++++++++++++++++++++----
- src/pkg/go/types/errors.go        |  2 +-
- src/pkg/go/types/objects.go       |  6 ++++--
- src/pkg/go/types/stmt.go          |  3 +++
- 7 files changed, 64 insertions(+), 19 deletions(-)
+ src/pkg/exp/ssa/builder.go                  |  1 -
+ src/pkg/exp/ssa/func.go                     |  4 +++-
+ src/pkg/exp/ssa/interp/testdata/coverage.go | 27 +++++++++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 2 deletions(-)

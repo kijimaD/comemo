@@ -1,25 +1,22 @@
-commit eee07a8e685e72c287ca4a0e7a049ce941ef6ab3
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Aug 20 17:29:04 2019 -0400
+commit 361a01983f01790694d5c7773d56a560c01b96cb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 5 16:52:48 2019 -0500
 
-    Revert "encoding/json: avoid work when unquoting strings"
+    cmd/api: use 'go list' to locate transitive dependencies of std
     
-    This reverts CL 151157.
+    With standard-library modules and vendoring, the mapping from import
+    path to directory within the standard library is no longer entirely
+    trivial. Fortunately, 'go list' makes that mapping straightforward to
+    compute.
     
-    CL 151157 introduced a crash when decoding into ",string" fields. It
-    came with a moderate speedup, so at this stage of the release cycle
-    let's just revert it, and reapply it in Go 1.14 with the fix in CL 190659.
+    Updates #30241
+    Updates #30228
     
-    Also applied the test cases from CL 190659.
-    
-    Updates #33728
-    
-    Change-Id: Ie46e2bc15224b251888580daf6b79d5865f3878e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190909
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Iddd77c21a527b7acdb30c17bec8b4bbd43e23756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165497
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/encoding/json/decode.go      | 68 ++++++++++++++++++++--------------------
- src/encoding/json/decode_test.go |  2 ++
- 2 files changed, 36 insertions(+), 34 deletions(-)
+ src/cmd/api/goapi.go | 84 +++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 77 insertions(+), 7 deletions(-)

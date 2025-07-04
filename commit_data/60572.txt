@@ -1,0 +1,53 @@
+commit 3214129a835d7ab5b857c77b8389a9aba4f9d5df
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Apr 23 17:01:28 2024 +0800
+
+    cmd/compiler,internal/runtime/atomic: optimize Load{64,32,8} on loong64
+    
+    The LoadAcquire barrier on Loong64 is "dbar 0x14", using the correct
+    barrier in Load{8,32,64} implementation can improve performance.
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A6000-HV @ 2500.00MHz
+                    |  bench.old   | bench.new                           |
+                    |  sec/op      |  sec/op        vs base              |
+    AtomicLoad64      17.210n ± 0%   4.402n ± 0%   -74.42% (p=0.000 n=20)
+    AtomicLoad64-2    17.210n ± 0%   4.402n ± 0%   -74.42% (p=0.000 n=20)
+    AtomicLoad64-4    17.210n ± 0%   4.402n ± 0%   -74.42% (p=0.000 n=20)
+    AtomicLoad        17.220n ± 0%   4.402n ± 0%   -74.44% (p=0.000 n=20)
+    AtomicLoad-2      17.210n ± 0%   4.402n ± 0%   -74.42% (p=0.000 n=20)
+    AtomicLoad-4      17.210n ± 0%   4.402n ± 0%   -74.42% (p=0.000 n=20)
+    AtomicLoad8       17.210n ± 0%   4.402n ± 0%   -74.42% (p=0.000 n=20)
+    AtomicLoad8-2     17.210n ± 0%   4.402n ± 0%   -74.42% (p=0.000 n=20)
+    AtomicLoad8-4     17.210n ± 0%   4.402n ± 0%   -74.42% (p=0.000 n=20)
+    geomean           17.21n         4.402n        -74.42%
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                    |  bench.old   | bench.new                           |
+                    |  sec/op      |  sec/op        vs base              |
+    AtomicLoad64      18.82n ± 0%    10.41n ± 0%   -44.69% (p=0.000 n=20)
+    AtomicLoad64-2    18.81n ± 0%    10.41n ± 0%   -44.66% (p=0.000 n=20)
+    AtomicLoad64-4    18.82n ± 0%    10.41n ± 0%   -44.69% (p=0.000 n=20)
+    AtomicLoad        18.81n ± 0%    10.41n ± 0%   -44.66% (p=0.000 n=20)
+    AtomicLoad-2      18.82n ± 0%    10.41n ± 0%   -44.69% (p=0.000 n=20)
+    AtomicLoad-4      18.81n ± 0%    10.42n ± 0%   -44.63% (p=0.000 n=20)
+    AtomicLoad8       18.82n ± 0%    10.41n ± 0%   -44.69% (p=0.000 n=20)
+    AtomicLoad8-2     18.82n ± 0%    10.41n ± 0%   -44.70% (p=0.000 n=20)
+    AtomicLoad8-4     18.82n ± 0%    10.41n ± 0%   -44.69% (p=0.000 n=20)
+    geomean           18.82n         10.41n        -44.68%
+    
+    Change-Id: I9d47c9d6f359c4f2e41035ca656429aade2e7847
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581357
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/loong64/ssa.go      |  8 ++++++--
+ src/internal/runtime/atomic/atomic_loong64.s | 16 ++++------------
+ src/internal/runtime/atomic/bench_test.go    |  8 ++++++++
+ 3 files changed, 18 insertions(+), 14 deletions(-)

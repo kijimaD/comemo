@@ -1,13 +1,26 @@
-commit d573ad26719fa6100970dc291ae83ad8ea33bff1
-Author: Joel Sing <jsing@google.com>
-Date:   Sat Oct 1 11:58:36 2011 -0700
+commit e7e5c5adb3d30cd096cdce11987abe92b79d24ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 1 13:00:53 2011 -0400
 
-    runtime: implement runtime usleep for openbsd
+    runtime: fix map memory leak
     
-    R=golang-dev, mikioh.mikioh, hectorchu
+    The map implementation was using the C idiom of using
+    a pointer just past the end of its table as a limit pointer.
+    Unfortunately, the garbage collector sees that pointer as
+    pointing at the block adjacent to the map table, pinning
+    in memory a block that would otherwise be freed.
+    
+    Fix by making limit pointer point at last valid entry, not
+    just past it.
+    
+    Reviewed by Mike Burrows.
+    
+    R=golang-dev, bradfitz, lvd, r
     CC=golang-dev
-    https://golang.org/cl/5173043
+    https://golang.org/cl/5158045
 
- src/pkg/runtime/openbsd/386/sys.s   | 18 ++++++++++++++++++
- src/pkg/runtime/openbsd/amd64/sys.s | 16 ++++++++++++++++
- 2 files changed, 34 insertions(+)
+ src/cmd/ld/dwarf.c             |  2 +-
+ src/pkg/runtime/hashmap.c      | 58 +++++++++++++++++++++---------------------
+ src/pkg/runtime/hashmap.h      |  2 +-
+ src/pkg/runtime/runtime-gdb.py |  4 +--
+ 4 files changed, 33 insertions(+), 33 deletions(-)

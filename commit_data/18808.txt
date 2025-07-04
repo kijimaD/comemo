@@ -1,15 +1,13 @@
-commit a35b9e496073682cefdc0a533217683204ecb667
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 7 14:44:31 2014 -0800
+commit e09ac3cf2a93e7db6950a9fc2926d2846f7fb1c9
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 7 23:18:07 2014 +0100
 
-    os: document that Process.Wait only works on child processes
+    cmd/gc: correct GOARCH in object files for amd64p32.
     
-    Fixes #7072
-    
-    LGTM=iant
-    R=iant
+    LGTM=dave
+    R=rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/71900045
+    https://golang.org/cl/72260045
 
- src/pkg/os/doc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/gc/obj.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

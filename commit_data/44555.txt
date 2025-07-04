@@ -1,35 +1,20 @@
-commit fee3cd4250843a0a7c056fed3d3e6e1a423f3120
-Author: Cuong Manh Le <cuong@orijtech.com>
-Date:   Tue Mar 9 01:52:10 2021 +0700
+commit 5c7748dc9de9c9e0a6844bf72faaf5b484004ba9
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Aug 10 19:04:56 2020 +0200
 
-    cmd/compile: fix width not calculated for imported type
+    doc/go1.15: encoding/json's CL 191783 was reverted
     
-    The compiler currently has problem that some imported type is missing
-    size calculation. The problem is not triggered until CL 283313 merged,
-    due to the compiler can compile the functions immediately when it sees
-    them, so during SSA generation, size calculation is still ok.
+    See golang.org/cl/240657, which reverted the original change to fix the
+    regression reported in golang.org/issue/39427.
     
-    CL 283313 makes the compiler always push functions to compile queue,
-    then drain from it for compiling function. During this process, the
-    types calculation size is disabled, so calculating size during SSA now
-    make the compiler crashes.
+    Updates #37419.
     
-    To fix this, we can just always calculate type size during typechecking,
-    when importing type from other packages.
-    
-    Fixes #44732
-    
-    Change-Id: I8d00ea0b5aadd432154908280e55d85c75f3ce92
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299689
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I39fbaa0b028ee00856cffea38879a631f540f057
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247718
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/typecheck/iimport.go |  6 ++++++
- test/fixedbugs/issue44732.dir/bar/bar.go      | 11 +++++++++++
- test/fixedbugs/issue44732.dir/foo/foo.go      | 13 +++++++++++++
- test/fixedbugs/issue44732.dir/main.go         | 15 +++++++++++++++
- test/fixedbugs/issue44732.go                  |  7 +++++++
- 5 files changed, 52 insertions(+)
+ doc/go1.15.html | 5 -----
+ 1 file changed, 5 deletions(-)

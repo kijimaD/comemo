@@ -1,18 +1,155 @@
-commit 60d3276a944c3a6a65a8e462bc432d1e9cb040ee
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 8 22:00:30 2022 -0700
+commit a0c409cbc82ea9999a03fa0bfe6d9a8953e780e0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 7 18:39:36 2021 -0700
 
-    test: test method expressions promoted to derived types
+    reflect: add fast paths for common, simple Kinds to DeepEqual
     
-    This CL adds a test that method expressions where the receiver type is
-    a derived type and embeds a promoted method work correctly.
+    Though the normal equality check suffices, it allocates.
+    Handle common, simple kinds without allocating.
     
-    Change-Id: I2e7c96007b6d9e6f942dc14228970ac508ff5c15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422199
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For some real world types compared with DeepEqual
+    in the Tailscale code base, the impact of these changes:
+    
+    name             old time/op    new time/op    delta
+    HostInfoEqual-8    25.9µs ± 0%    14.4µs ± 0%  -44.32%  (p=0.008 n=5+5)
+    
+    name             old alloc/op   new alloc/op   delta
+    HostInfoEqual-8    18.8kB ± 0%    12.6kB ± 0%  -32.58%  (p=0.008 n=5+5)
+    
+    name             old allocs/op  new allocs/op  delta
+    HostInfoEqual-8       548 ± 0%        90 ± 0%  -83.58%  (p=0.008 n=5+5)
+    
+    For the benchmarks added in this commit:
+    
+    name                      old time/op    new time/op    delta
+    DeepEqual/int8-8            40.1ns ± 4%    31.3ns ± 4%   -21.79%  (p=0.000 n=19+20)
+    DeepEqual/[]int8-8           169ns ± 1%     123ns ± 1%   -27.05%  (p=0.000 n=17+18)
+    DeepEqual/int16-8           39.9ns ± 2%    30.8ns ± 4%   -22.81%  (p=0.000 n=17+20)
+    DeepEqual/[]int16-8          172ns ± 0%     122ns ± 1%   -28.91%  (p=0.000 n=17+18)
+    DeepEqual/int32-8           40.4ns ± 3%    31.1ns ± 4%   -23.07%  (p=0.000 n=20+20)
+    DeepEqual/[]int32-8          180ns ± 1%     124ns ± 1%   -31.06%  (p=0.000 n=20+18)
+    DeepEqual/int64-8           40.1ns ± 2%    31.4ns ± 4%   -21.82%  (p=0.000 n=20+20)
+    DeepEqual/[]int64-8          180ns ± 1%     124ns ± 1%   -31.47%  (p=0.000 n=16+19)
+    DeepEqual/int-8             40.1ns ± 4%    30.9ns ± 3%   -22.88%  (p=0.000 n=20+18)
+    DeepEqual/[]int-8            180ns ± 0%     123ns ± 2%   -31.59%  (p=0.000 n=19+20)
+    DeepEqual/uint8-8           39.8ns ± 3%    31.9ns ± 5%   -19.72%  (p=0.000 n=20+20)
+    DeepEqual/[]uint8-8          168ns ± 1%     114ns ± 1%   -32.48%  (p=0.000 n=18+19)
+    DeepEqual/uint16-8          40.3ns ± 4%    31.4ns ± 6%   -22.14%  (p=0.000 n=20+20)
+    DeepEqual/[]uint16-8         173ns ± 1%     124ns ± 1%   -28.20%  (p=0.000 n=20+16)
+    DeepEqual/uint32-8          40.1ns ± 3%    30.7ns ± 3%   -23.48%  (p=0.000 n=20+20)
+    DeepEqual/[]uint32-8         180ns ± 1%     123ns ± 1%   -31.56%  (p=0.000 n=20+18)
+    DeepEqual/uint64-8          40.0ns ± 4%    31.3ns ± 4%   -21.80%  (p=0.000 n=19+19)
+    DeepEqual/[]uint64-8         180ns ± 1%     124ns ± 0%   -31.45%  (p=0.000 n=18+18)
+    DeepEqual/uint-8            39.8ns ± 3%    31.1ns ± 4%   -21.95%  (p=0.000 n=19+20)
+    DeepEqual/[]uint-8           181ns ± 1%     122ns ± 1%   -32.33%  (p=0.000 n=17+20)
+    DeepEqual/uintptr-8         40.3ns ± 3%    31.2ns ± 3%   -22.66%  (p=0.000 n=20+18)
+    DeepEqual/[]uintptr-8        181ns ± 1%     124ns ± 1%   -31.46%  (p=0.000 n=19+16)
+    DeepEqual/float32-8         40.3ns ± 2%    31.2ns ± 3%   -22.52%  (p=0.000 n=16+20)
+    DeepEqual/[]float32-8        180ns ± 1%     122ns ± 1%   -32.18%  (p=0.000 n=17+17)
+    DeepEqual/float64-8         40.6ns ± 3%    30.9ns ± 5%   -23.91%  (p=0.000 n=19+20)
+    DeepEqual/[]float64-8        182ns ± 2%     121ns ± 1%   -33.33%  (p=0.000 n=18+20)
+    DeepEqual/complex64-8       43.0ns ±11%    32.1ns ± 5%   -25.33%  (p=0.000 n=20+18)
+    DeepEqual/[]complex64-8      182ns ± 1%     122ns ± 2%   -32.60%  (p=0.000 n=18+19)
+    DeepEqual/complex128-8      42.4ns ± 4%    34.2ns ± 3%   -19.35%  (p=0.000 n=20+19)
+    DeepEqual/[]complex128-8     197ns ± 1%     122ns ± 1%   -38.01%  (p=0.000 n=19+19)
+    DeepEqual/bool-8            40.3ns ± 3%    32.9ns ± 5%   -18.33%  (p=0.000 n=20+20)
+    DeepEqual/[]bool-8           169ns ± 1%     124ns ± 1%   -26.90%  (p=0.000 n=18+19)
+    DeepEqual/string-8          41.4ns ± 3%    33.7ns ± 5%   -18.50%  (p=0.000 n=19+20)
+    DeepEqual/[]string-8         216ns ± 0%     128ns ± 1%   -41.05%  (p=0.000 n=19+17)
+    DeepEqual/[]uint8#01-8       507ns ± 1%     112ns ± 2%   -77.92%  (p=0.000 n=20+20)
+    DeepEqual/[][]uint8-8        613ns ± 1%     210ns ± 1%   -65.76%  (p=0.000 n=18+19)
+    DeepEqual/[6]uint8-8         228ns ± 1%     162ns ± 1%   -29.00%  (p=0.000 n=20+19)
+    DeepEqual/[][6]uint8-8       546ns ± 2%     269ns ± 1%   -50.72%  (p=0.000 n=20+19)
+    
+    name                      old alloc/op   new alloc/op   delta
+    DeepEqual/int8-8             0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]int8-8           2.00B ± 0%     0.00B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/int16-8            0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]int16-8          4.00B ± 0%     0.00B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/int32-8            0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]int32-8          8.00B ± 0%     0.00B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/int64-8            0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]int64-8          16.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/int-8              0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]int-8            16.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uint8-8            0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]uint8-8          2.00B ± 0%     0.00B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uint16-8           0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]uint16-8         4.00B ± 0%     0.00B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uint32-8           0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]uint32-8         8.00B ± 0%     0.00B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uint64-8           0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]uint64-8         16.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uint-8             0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]uint-8           16.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uintptr-8          0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]uintptr-8        16.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/float32-8          0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]float32-8        8.00B ± 0%     0.00B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/float64-8          0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]float64-8        16.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/complex64-8        0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]complex64-8      16.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/complex128-8       0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]complex128-8     32.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/bool-8             0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]bool-8           2.00B ± 0%     0.00B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/string-8           0.00B          0.00B           ~     (all equal)
+    DeepEqual/[]string-8         32.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/[]uint8#01-8       12.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/[][]uint8-8        12.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/[6]uint8-8         0.00B          0.00B           ~     (all equal)
+    DeepEqual/[][6]uint8-8       12.0B ± 0%      0.0B       -100.00%  (p=0.000 n=20+20)
+    
+    name                      old allocs/op  new allocs/op  delta
+    DeepEqual/int8-8              0.00           0.00           ~     (all equal)
+    DeepEqual/[]int8-8            2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/int16-8             0.00           0.00           ~     (all equal)
+    DeepEqual/[]int16-8           2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/int32-8             0.00           0.00           ~     (all equal)
+    DeepEqual/[]int32-8           2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/int64-8             0.00           0.00           ~     (all equal)
+    DeepEqual/[]int64-8           2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/int-8               0.00           0.00           ~     (all equal)
+    DeepEqual/[]int-8             2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uint8-8             0.00           0.00           ~     (all equal)
+    DeepEqual/[]uint8-8           2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uint16-8            0.00           0.00           ~     (all equal)
+    DeepEqual/[]uint16-8          2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uint32-8            0.00           0.00           ~     (all equal)
+    DeepEqual/[]uint32-8          2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uint64-8            0.00           0.00           ~     (all equal)
+    DeepEqual/[]uint64-8          2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uint-8              0.00           0.00           ~     (all equal)
+    DeepEqual/[]uint-8            2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/uintptr-8           0.00           0.00           ~     (all equal)
+    DeepEqual/[]uintptr-8         2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/float32-8           0.00           0.00           ~     (all equal)
+    DeepEqual/[]float32-8         2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/float64-8           0.00           0.00           ~     (all equal)
+    DeepEqual/[]float64-8         2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/complex64-8         0.00           0.00           ~     (all equal)
+    DeepEqual/[]complex64-8       2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/complex128-8        0.00           0.00           ~     (all equal)
+    DeepEqual/[]complex128-8      2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/bool-8              0.00           0.00           ~     (all equal)
+    DeepEqual/[]bool-8            2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/string-8            0.00           0.00           ~     (all equal)
+    DeepEqual/[]string-8          2.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/[]uint8#01-8        12.0 ± 0%       0.0       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/[][]uint8-8         12.0 ± 0%       0.0       -100.00%  (p=0.000 n=20+20)
+    DeepEqual/[6]uint8-8          0.00           0.00           ~     (all equal)
+    DeepEqual/[][6]uint8-8        12.0 ± 0%       0.0       -100.00%  (p=0.000 n=20+20)
+    
+    Change-Id: Ic21f0e2305f2cf5e6674c81b9ca609120b3006d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318169
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
 
- test/run.go                   |  1 +
- test/typeparam/mdempsky/20.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/reflect/all_test.go  | 82 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/deepequal.go | 21 ++++++++++++-
+ 2 files changed, 102 insertions(+), 1 deletion(-)

@@ -1,24 +1,23 @@
-commit e875fe42eee942c35cdecc7b4b5d4e762f47bade
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Oct 11 14:59:55 2016 -0700
+commit d8181d5d75821ad5b78ea7f4163dd86ac29f740a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jul 15 14:07:15 2016 -0400
 
-    vendor/golang_org/x/crypto/curve25519: new package
+    [dev.ssa] cmd/compile: simplify MOVWreg on ARM
     
-    This change imports the curve25519 package from x/crypto at revision
-    594708b89f21ece706681be23d04a6513a22de6e.
+    For register-register move, if there is only one use, allocate it in
+    the same register so we don't need to emit an instruction.
     
-    Change-Id: I379eaa71492959e404259fc1273d0057573bc243
-    Reviewed-on: https://go-review.googlesource.com/30822
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #15365.
+    
+    Change-Id: Iad41843854a506c521d577ad93fcbe73e8de8065
+    Reviewed-on: https://go-review.googlesource.com/25059
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- .../golang_org/x/crypto/curve25519/const_amd64.s   |   20 +
- .../golang_org/x/crypto/curve25519/cswap_amd64.s   |   88 ++
- .../golang_org/x/crypto/curve25519/curve25519.go   |  841 ++++++++++++
- .../x/crypto/curve25519/curve25519_test.go         |   29 +
- src/vendor/golang_org/x/crypto/curve25519/doc.go   |   23 +
- .../golang_org/x/crypto/curve25519/freeze_amd64.s  |   94 ++
- .../x/crypto/curve25519/ladderstep_amd64.s         | 1398 ++++++++++++++++++++
- .../x/crypto/curve25519/mont25519_amd64.go         |  240 ++++
- .../golang_org/x/crypto/curve25519/mul_amd64.s     |  191 +++
- .../golang_org/x/crypto/curve25519/square_amd64.s  |  153 +++
- 10 files changed, 3077 insertions(+)
+ src/cmd/compile/internal/arm/ssa.go        |  7 ++++++-
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  4 ++++
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go      | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go | 12 ++++++++++++
+ 5 files changed, 38 insertions(+), 1 deletion(-)

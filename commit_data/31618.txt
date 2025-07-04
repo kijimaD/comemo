@@ -1,26 +1,20 @@
-commit 4dcba023c62d7f7968abc54fa5d38d2bf11412ba
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 18 16:56:48 2017 -0400
+commit 0824ae6dc1e867c327bdcae54be51a8a179c0f7d
+Author: David Lazar <lazard@golang.org>
+Date:   Fri Feb 17 16:55:40 2017 -0500
 
-    runtime: use pselect6 for usleep on linux/amd64 and linux/arm
+    cmd/compile: add flag for debugging PC-value tables
     
-    Android O black-lists the select system call because its libc, Bionic,
-    does not use this system call. Replace our use of select with pselect6
-    (which is allowed) on the platforms that support targeting Android.
-    linux/arm64 already uses pselect6 because there is no select on arm64,
-    so only linux/amd64 and linux/arm need changing. pselect6 has been
-    available since Linux 2.6.16, which is before Go's minimum
-    requirement.
+    For example, `-d pctab=pctoinline` prints the PC-inline table and
+    inlining tree for every function.
     
-    Fixes #20409.
-    
-    Change-Id: Ic526b5b259a9e01d2f145a1f4d2e76e8c49ce809
-    Reviewed-on: https://go-review.googlesource.com/43641
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ia6b9ce4d83eed0b494318d40ffe06481ec5d58ab
+    Reviewed-on: https://go-review.googlesource.com/37235
+    Run-TryBot: David Lazar <lazard@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/sys_linux_amd64.s | 9 ++++++---
- src/runtime/sys_linux_arm.s   | 7 +++++--
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/main.go |  5 +++++
+ src/cmd/internal/obj/inl.go         |  7 +++++++
+ src/cmd/internal/obj/link.go        |  2 +-
+ src/cmd/internal/obj/pcln.go        | 31 +++++++++++++------------------
+ 4 files changed, 26 insertions(+), 19 deletions(-)

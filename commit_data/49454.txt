@@ -1,17 +1,14 @@
-commit d27128b065010ac6bae8dd648f85302240417294
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Jun 10 13:21:14 2022 -0700
+commit 5045477be8961af1a5855d89e60483f4ccb624ac
+Author: HuanCheng <xiqingongzi@gmail.com>
+Date:   Sat Aug 21 00:26:26 2021 +0800
 
-    doc/go1.19: fix crypto tags
+    net/http: fix typo in header.go
     
-    Closes an unclosed <code> tag, and tags a type that was untagged.
-    
-    Change-Id: I9a1efda07f783f0ca7a93ffefbda4e29f5fc8d41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411694
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ia6df881badf9a704c7f56967404d37e230b88a09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343969
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Damien Neil <dneil@google.com>
 
- doc/go1.19.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/header.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

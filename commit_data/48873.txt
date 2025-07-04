@@ -1,33 +1,22 @@
-commit bf19163a545c3117ab3c309a691f32a42cf29efd
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 2 09:39:22 2021 -0500
+commit 493e177639140d83807ae72b6ea840ce025416ce
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 22 18:15:21 2021 -0700
 
-    runtime/cgo: remove stdlib.h warning workaround on darwin
+    [dev.typeparams] cmd/compile: allow typecheck of OCHECKNIL
     
-    CL 205457 added the flag -Wno-nullability-completeness to work
-    around a user-reported build breakage on macOS Catalina.
+    This CL makes OCHECKNIL typecheckable. Simplifies IR construction code
+    slightly, and gives one convenient place to check for misuse.
     
-    However, according to
-    https://golang.org/issue/35247#issuecomment-589115489 the root cause
-    of the breakage may be a toolchain misconfiguration on the host
-    (perhaps compiling the XCode stdlib using a Homebrew build of the
-    "clang" compiler?).
-    
-    Adding an obscure warning flag to enable building stdlib.h with an
-    otherwise-broken toolchain seems clearly inappropriate to me.
-    If need be we can instead provide guidance to users on how to unbreak
-    their toolchain.
-    
-    Updates #35247
-    Fixes #49913
-    
-    Change-Id: I84def34e101bed7911d8d78a991a29095b8791fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368634
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I280b8e47eddcac12947a41d6f911b25bc12a66bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330194
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/cgo/cgo.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/compile/internal/typecheck/stmt.go      |  9 +++++++++
+ src/cmd/compile/internal/typecheck/typecheck.go |  4 ++++
+ src/cmd/compile/internal/walk/builtin.go        |  5 ++---
+ src/cmd/compile/internal/walk/closure.go        |  8 +++-----
+ src/cmd/compile/internal/walk/order.go          | 12 +-----------
+ 5 files changed, 19 insertions(+), 19 deletions(-)

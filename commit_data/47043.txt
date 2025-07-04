@@ -1,22 +1,20 @@
-commit 3a0cd1121413ad02172784114318ac6b0c2801c1
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 9 09:13:34 2020 -0700
+commit 1901e2647f5724df38e9a9a3756dad01704bc783
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 17 01:14:19 2021 +0700
 
-    sync/atomic: use a better first-store-in-progress marker
+    test: add test for findTypeLoop with symbols from other packages
     
-    Unlike what the comment says, the GC can see this pointer.
-    Might as well make it a real pointer, even though ^uintptr(0)
-    isn't currently causing problems.
+    CL 274294 improved findTypeLoop but also fixed a new found bug on master
+    branch. This Cl adds test cases for this.
     
-    Removed the comment about GC not seeing the pointer.
+    Updates #44266
     
-    Change-Id: I04bc1fd4848698bec6afb79bd5fda671dfc9a073
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241661
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Colin Arnott <colin@urandom.co.uk>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ie4a07a3487758a1e4ad2f2847dcde975b10d2a77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292889
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/sync/atomic/value.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ test/fixedbugs/issue44266.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

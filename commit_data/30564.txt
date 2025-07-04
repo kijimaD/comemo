@@ -1,36 +1,51 @@
-commit a6bd42f2630aa8907009a1ec0c35048c20a7afae
-Author: philhofer <phofer@umich.edu>
-Date:   Sat Mar 4 16:17:12 2017 -0800
+commit adb384ad2cfbd742fb106b7ec2a65d4ad844c35e
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Nov 11 20:49:11 2016 +0100
 
-    cmd/compile: emit OffPtr for first field in SSA'd structs
+    net: implement asynchonous cancelable I/O on Plan 9
     
-    Given
+    This change is an experimental implementation of asynchronous
+    cancelable I/O operations on Plan 9, which are required to
+    implement deadlines.
     
-      (Store [c] (OffPtr <T1> [0] (Addr <T> _)) _
-        (Store [c] (Addr <T> _) _ _))
+    There are no asynchronous syscalls on Plan 9. I/O operations
+    are performed with blocking pread and pwrite syscalls.
     
-    dead store elimination doesn't eliminate the inner
-    Store, because it addresses a type of a different width
-    than the first store.
+    Implementing deadlines in Go requires a way to interrupt
+    I/O operations.
     
-    When decomposing StructMake operations, always generate
-    an OffPtr to address struct fields so that dead stores to
-    the first field of the struct can be optimized away.
+    It is possible to interrupt reads and writes on a TCP connection
+    by forcing the closure of the TCP connection. This approach
+    has been used successfully in CL 31390.
     
-    benchmarks affected on darwin/amd64:
-    HTTPClientServer-8        73.2µs ± 1%    72.7µs ± 1%  -0.69%  (p=0.022 n=9+10)
-    TimeParse-8                304ns ± 1%     300ns ± 0%  -1.61%  (p=0.000 n=9+9)
-    RegexpMatchEasy1_32-8     80.1ns ± 0%    79.5ns ± 1%  -0.84%  (p=0.000 n=8+9)
-    GobDecode-8               6.78ms ± 0%    6.81ms ± 1%  +0.46%  (p=0.000 n=9+10)
-    Gunzip-8                  36.1ms ± 1%    36.2ms ± 0%  +0.37%  (p=0.019 n=10+10)
-    JSONEncode-8              15.6ms ± 0%    15.7ms ± 0%  +0.69%  (p=0.000 n=9+10)
+    However, we can't implement deadlines with this method, since
+    we require to be able to reuse the connection after the timeout.
     
-    Change-Id: Ia80d73fd047f9400c616ca64fdee4f438a0e7f21
-    Reviewed-on: https://go-review.googlesource.com/37769
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    On Plan 9, I/O operations are interrupted when the process
+    receives a note. We can rely on this behavior to implement
+    a more generic approach.
+    
+    When doing an I/O operation (read or write), we start the I/O in
+    its own process, then wait for the result asynchronously. The
+    process is able to handle the "hangup" note. When receiving the
+    "hangup" note, the currently running I/O operation is canceled
+    and the process returns.
+    
+    This way, deadlines can be implemented by sending an "hangup"
+    note to the process running the blocking I/O operation, after
+    the expiration of a timer.
+    
+    Fixes #11932.
+    Fixes #17498.
+    
+    Change-Id: I414f72c7a9a4f9b8f9c09ed3b6c269f899d9b430
+    Reviewed-on: https://go-review.googlesource.com/31521
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  22 ++--
- src/cmd/compile/internal/ssa/rewritegeneric.go | 140 +++++++++++++++----------
- 2 files changed, 96 insertions(+), 66 deletions(-)
+ src/net/fd_io_plan9.go   |  93 +++++++++++++++++++++++++++++++++++++++++
+ src/net/fd_plan9.go      | 105 ++++++++++++++++++++++++++++++++++++++++++++---
+ src/net/tcpsock_test.go  |   5 +++
+ src/runtime/net_plan9.go |  29 +++++++++++++
+ src/runtime/os3_plan9.go |   3 ++
+ src/runtime/os_plan9.go  |   1 +
+ 6 files changed, 231 insertions(+), 5 deletions(-)

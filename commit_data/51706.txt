@@ -1,24 +1,32 @@
-commit 399ad79fa6606c9754e2345a23536ccb15502083
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Dec 19 16:50:24 2022 -0500
+commit 0e2f1abf5b764a4a3928a2f4f050144063c46a93
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 6 23:47:27 2022 -0800
 
-    cmd/dist: add map of broken ports and -force flag
+    cmd/compile: represent derived types with ir.DynamicType in unified IR
     
-    It's empty so far. The next CL adds linux/sparc64.
+    This CL switches unified IR to using ir.DynamicType for derived
+    types. This has an immediate effect of fixing compilation of generic
+    code that when fully stenciled results in statically invalid type
+    assertions. This does require updating typecheck to expect
+    ODYNAMICTYPE in type switches, but this is straightforward to
+    implement.
     
-    Also add -force flag to the bootstrap.bash script
-    so that it's possible to use it with broken ports.
+    For now, we still statically resolve the runtime type (or itab)
+    pointer. However, a subsequent CL will allow reading these pointers
+    from the runtime dictionary.
     
-    For #56679.
-    
-    Change-Id: I09c733d0df0a68df34fb808eae29be010a6da461
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458515
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I1666678fcc588bc9cb8b97871bd02b9059848e6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390336
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/bootstrap.bash    | 10 ++++++++--
- src/cmd/dist/build.go | 20 +++++++++++++++++---
- 2 files changed, 25 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/noder/reader.go        | 89 ++++++++++++++++++++-----
+ src/cmd/compile/internal/noder/writer.go        | 45 +++++++++++--
+ src/cmd/compile/internal/reflectdata/reflect.go |  9 +--
+ src/cmd/compile/internal/typecheck/stmt.go      |  5 +-
+ src/internal/pkgbits/sync.go                    |  1 +
+ src/internal/pkgbits/syncmarker_string.go       | 61 ++++++++---------
+ test/run.go                                     |  5 --
+ 7 files changed, 155 insertions(+), 60 deletions(-)

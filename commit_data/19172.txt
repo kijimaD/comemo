@@ -1,16 +1,14 @@
-commit 6ddd995af536b348f1cf39abba6db1ef158925bd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 16 11:32:16 2014 -0700
+commit 59f6c81f98addb4fcc28810b4f4eff2990377f87
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 16 10:40:41 2014 -0700
 
-    net/http: fix data race in TestTransportResponseHeaderTimeout
+    doc/go1.3.html: document the state of FreeBSD
+    Update #7056
     
-    Fixes #7264
-    
-    LGTM=dvyukov
-    R=dvyukov
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/87970045
+    https://golang.org/cl/88070045
 
- src/pkg/net/http/httptest/server_test.go | 12 +++++-------
- src/pkg/net/http/transport_test.go       | 12 +++++++++++-
- 2 files changed, 16 insertions(+), 8 deletions(-)
+ doc/go1.3.html | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

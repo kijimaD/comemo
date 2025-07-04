@@ -1,17 +1,19 @@
-commit 1b8d4caddb8852829ce7e53d0fe6b153051716aa
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Mar 10 15:12:19 2016 -0800
+commit 66f1f89dc058e98d4b118041cd8d571a505b43db
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 30 15:19:54 2015 -0800
 
-    crypto/x509: correct default X.509 version.
+    cmd/internal/obj: fix PCSP table at runtime.morestack calls
     
-    The default version of an X.509 certificate is v1, which is encoded on
-    the wire as a zero.
+    Fixes #13346.
     
-    Fixes #13382.
-    
-    Change-Id: I5fd725c3fc8b08fd978ab694a3e2d6d2a495918b
-    Reviewed-on: https://go-review.googlesource.com/20548
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic903ee90575e8dbe23905d0678d3295745d1d47f
+    Reviewed-on: https://go-review.googlesource.com/18154
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/x509/x509.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/arm/obj5.go   | 7 ++++++-
+ src/cmd/internal/obj/arm64/obj7.go | 7 ++++++-
+ src/cmd/internal/obj/x86/obj6.go   | 7 ++++++-
+ 3 files changed, 18 insertions(+), 3 deletions(-)

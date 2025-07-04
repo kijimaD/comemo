@@ -1,16 +1,16 @@
-commit 124eccd5f732f532103b1d332a140419966d60c2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 24 13:31:03 2018 -0700
+commit f2354d0aacdd5ce1952c5441c6a489378ccb7656
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 14 18:04:54 2018 -0800
 
-    cmd/compile: improve fncall docs
+    doc: add note about invalid flag errors to 1.10 release notes
     
-    Comment changes only.
+    Updates #23672
+    Updates #23749
     
-    Change-Id: I3f9c1c38ae6b4989f02b62fff09265e4bcb934f7
-    Reviewed-on: https://go-review.googlesource.com/114519
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I85b6493bd1e4095398508b7ef395c35463dfbde1
+    Reviewed-on: https://go-review.googlesource.com/94158
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ doc/go1.10.html | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

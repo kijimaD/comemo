@@ -1,31 +1,22 @@
-commit 1d07ed15798b1228a2777c8ad80353b17a9ad8bd
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 15 15:08:39 2017 -0400
+commit 724fd131861946a7329ce59070bd6fd1e3309fa1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 3 12:24:04 2017 +0000
 
-    io/ioutil: don't cap buffer size in ReadFile
+    net/http: update bundled http2
     
-    When we added a Stat call to determine the initial buffer size in
-    https://golang.org/cl/163069, we included an arbitrary 1e9-byte limit
-    "just in case". That interacts badly with power-of-2 resizing in
-    *bytes.Buffer: it causes buffers reading from very large files to
-    consume up to twice the necessary space.
+    Updates bundled http2 to x/net/http2 git rev feeb485 for:
     
-    The documentation for (os.FileInfo).Size says that it reports "length
-    in bytes for regular files; system-dependent for others", but the
-    "system dependent" cases overwhelmingly return either a small number
-    (e.g., the length of the target path for a symlink) or a non-positive
-    number (e.g., for a file in /proc under Linux). It should be
-    appropriate to use the number reported by Size as an approximate lower
-    bound, even if it is large.
+        http2: add all bad ciphers, use package constants
+        https://golang.org/cl/42510
     
-    fixes #21455
+    Updates #20213
     
-    Change-Id: I609c72519b7b87428c24d0b22db46eede30e0e54
-    Reviewed-on: https://go-review.googlesource.com/55870
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I851453e3785e6b126db7a5c5eec2ebbbf61358ae
+    Reviewed-on: https://go-review.googlesource.com/42494
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Savintsev <dsavints@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/io/ioutil/ioutil.go | 23 +++++++++++++----------
- 1 file changed, 13 insertions(+), 10 deletions(-)
+ src/net/http/h2_bundle.go | 656 ++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 633 insertions(+), 23 deletions(-)

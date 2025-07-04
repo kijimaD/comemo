@@ -1,22 +1,23 @@
-commit aa4fc0e73654c0a8741d970bfca47c25125633cf
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Sep 10 15:07:09 2018 -0400
+commit 47be3d49c7d7ff77e675b0d0fb78c05fdb43dee2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 10 15:17:58 2018 -0700
 
-    cmd/link,compress/zip,image/png: use binary.{Big,Little}Endian methods
+    reflect: use 'defined' rather than 'named', use 'embedded' rather than 'anonymous'
     
-    Use the binary.{Big,Little}Endian integer encoding methods rather than
-    variations found in local implementations. The functions in
-    the binary package have been tested to ensure they inline correctly and
-    don't add unnecessary bounds checking.
+    On the API level this is just an update of the documentation to match
+    the current spec more closely.
     
-    Change-Id: Ie10111ca6edb7c11e8e5e21c58a5748ae99b7f87
-    Reviewed-on: https://go-review.googlesource.com/134375
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    On the implementation side, this is a rename of various unexported names.
+    
+    For #22005.
+    
+    Change-Id: Ie5ae32f3b10f003805240efcceab3d0fd373cd51
+    Reviewed-on: https://go-review.googlesource.com/112717
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go    | 20 --------------------
- src/cmd/link/internal/ppc64/asm.go | 12 ++++++------
- src/compress/zlib/writer.go        | 12 +++---------
- src/image/png/writer.go            | 17 +++++------------
- 4 files changed, 14 insertions(+), 47 deletions(-)
+ src/reflect/all_test.go | 10 +++----
+ src/reflect/type.go     | 71 +++++++++++++++++++++++++------------------------
+ src/reflect/value.go    |  4 +--
+ 3 files changed, 43 insertions(+), 42 deletions(-)

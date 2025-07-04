@@ -1,25 +1,40 @@
-commit c5edd5f616b4ee4bbaefdb1579c6078e7ed7e84e
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Apr 16 20:23:28 2022 -0700
+commit 804ecc2581caf33ae347d6a1ce67436d1f74e93b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 16 21:41:28 2021 -0700
 
-    reflect: make Value.MapRange inlineable
+    [dev.typeparams] all: add GOEXPERIMENT=unified knob
     
-    This allows the caller to decide whether MapIter should be
-    stack allocated or heap allocated based on whether it escapes.
-    In most cases, it does not escape and thus removes the utility
-    of MapIter.Reset (#46293). In fact, use of sync.Pool with MapIter
-    and calling MapIter.Reset is likely to be slower.
+    Setting `-gcflags=all=-d=unified` works for normal builds/tests, but
+    seems to have trouble with the test/run.go regress tests. So add a
+    GOEXPERIMENT knob to allow another way to turn on unified IR
+    construction, which plays better with all.bash.
     
-    Change-Id: Ic93e7d39e5dd4c83e7fca9e0bdfbbcd70777f0e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400675
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    While here, update two existing test expectations that currently fail
+    during GOEXPERIMENT=unified ./all.bash:
+    
+    1. misc/cgo/errors/testdata/err2.go is testing column positions, and
+    types2 gets one case slightly better, and another case slightly
+    worse. For now, the test case is updated to accept both.
+    
+    2. fixedbugs/issue42284.go is added to the list of known failures,
+    because it fails for unified IR. (It's an escape analysis test, and
+    escape analysis is working as expected; but unified is formatting an
+    imported constant value differently than the test's regexp expects.)
+    
+    Updates #46786.
+    
+    Change-Id: I40a4a70fa1b85ac87fcc85a43687f5d81e011ec0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328215
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/test/inl_test.go |  1 +
- src/reflect/all_test.go                   |  8 +++++---
- src/reflect/value.go                      | 12 +++++++++++-
- 3 files changed, 17 insertions(+), 4 deletions(-)
+ misc/cgo/errors/testdata/err2.go             | 12 ++++-
+ src/cmd/compile/internal/base/flag.go        |  4 ++
+ src/internal/goexperiment/exp_unified_off.go |  9 ++++
+ src/internal/goexperiment/exp_unified_on.go  |  9 ++++
+ src/internal/goexperiment/flags.go           |  4 ++
+ test/run.go                                  | 66 +++++++++++++++++++++-------
+ 6 files changed, 86 insertions(+), 18 deletions(-)

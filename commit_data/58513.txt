@@ -1,21 +1,17 @@
-commit c83f2ca4b3964917adc3b06f661785cc6b53792d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 14 06:58:32 2025 -0800
+commit c5e812234c099d6c2749783541830d6272e1af12
+Author: David Chase <drchase@google.com>
+Date:   Wed Nov 15 19:21:41 2023 -0500
 
-    cmd/dist: ignore packages with no Go files in BenchmarkAll
+    cmd/compile: minor change to simplify addition of experimental CLs
     
-    This case recently started happening on the builders.
-    The synctest experiment was recently enabled for some targets (CL 642422).
-    This caused the list of standard packages to include testing/synctest.
-    However, BenchmarkAll tests for all configurations;
-    some did not include testing/synctest. That caused the test to crash.
+    Two different experimental CLs need this change, this makes them
+    more focused and easier to apply or combine.
     
-    Change-Id: Icade10af147c2e2bcbac25bf744919083db3e70f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642397
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic7b5536394af20d9038bf3cc0cf22891555c7fa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542775
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/api/api_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

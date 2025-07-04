@@ -1,22 +1,31 @@
-commit 079dfdcac0448168e22a72baa61b9ab5de8ce54e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 23 16:32:46 2023 -0400
+commit f1d281fe4d6177349032776c22ab6dfb8533f0eb
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Sep 2 11:13:43 2022 -0400
 
-    cmd/go: error out of linking package main if cgo is required but not enabled
+    go/ast: record start and end of file in File.File{Start,End}
     
-    Fixes #46330.
-    Fixes #62123.
-    Updates #31544.
+    This change causes the parser to record the positions of the first
+    and last character in the file in new ast.File fields FileStart
+    and FileEnd.
     
-    Change-Id: I023aa2bdb5a24e126a0de5192a077e8cf1a0a67c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522239
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The behavior of the existing Pos() and End() methods,
+    which record the span of declarations, must remain unchanged
+    for compatibility.
+    
+    Fixes golang/go#53202
+    
+    Change-Id: I250b19e69f41e3590292c3fe6dea1943ec98f629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427955
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/load/pkg.go                    | 49 ++++++++++++----------
- src/cmd/go/internal/load/test.go                   |  6 ++-
- src/cmd/go/internal/work/action.go                 |  6 ++-
- .../go/testdata/script/test_android_issue62123.txt | 19 +++++++++
- 4 files changed, 57 insertions(+), 23 deletions(-)
+ api/next/53202.txt           |  2 ++
+ src/go/ast/ast.go            | 23 +++++++++++++++--------
+ src/go/ast/example_test.go   | 20 +++++++++++---------
+ src/go/ast/filter.go         |  9 ++++++++-
+ src/go/parser/parser.go      | 14 ++++++++------
+ src/go/parser/parser_test.go | 28 ++++++++++++++++++++++++++++
+ 6 files changed, 72 insertions(+), 24 deletions(-)

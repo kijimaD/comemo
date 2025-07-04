@@ -1,31 +1,42 @@
-commit 250a9610a41aa0fec6f020d2c31efe8fcd1f2941
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jul 24 16:06:10 2017 -0400
+commit 174707869544b246c055b9a5f53ca7d4ea860b67
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 18 10:18:34 2017 -0700
 
-    runtime: make STW duration more accurate
+    cmd/internal/obj: un-embed FuncInfo field in LSym
     
-    Currently, GC captures the start-the-world time stamp after
-    startTheWorldWithSema returns. This is problematic for two reasons:
+    Automated refactoring using github.com/mdempsky/unbed (to rewrite
+    s.Foo to s.FuncInfo.Foo) and then gorename (to rename the FuncInfo
+    field to just Func).
     
-    1. It's possible to get preempted between startTheWorldWithSema
-    starting the world and calling nanotime.
+    Passes toolstash-check -all.
     
-    2. startTheWorldWithSema does several clean-up tasks after the world
-    is up and running that on rare occasions can take upwards of 10ms.
-    
-    Since the runtime uses the start-the-world time stamp to compute the
-    STW duration, both of these can significantly inflate the reported STW
-    duration.
-    
-    Fix this by having startTheWorldWithSema itself call nanotime once the
-    world is started.
-    
-    Change-Id: I114630234fb73c9dabae50a2ef1884661f2459db
-    Reviewed-on: https://go-review.googlesource.com/55410
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I802c07a1239e0efea058a91a87c5efe12170083a
+    Reviewed-on: https://go-review.googlesource.com/40670
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mgc.go  | 7 ++++---
- src/runtime/proc.go | 9 +++++++--
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ src/cmd/asm/internal/asm/asm.go      |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go |  6 +++---
+ src/cmd/compile/internal/gc/obj.go   |  4 ++--
+ src/cmd/compile/internal/gc/pgen.go  |  2 +-
+ src/cmd/compile/internal/gc/plive.go |  2 +-
+ src/cmd/internal/obj/arm/asm5.go     |  8 +++----
+ src/cmd/internal/obj/arm/obj5.go     | 42 ++++++++++++++++++------------------
+ src/cmd/internal/obj/arm64/asm7.go   |  6 +++---
+ src/cmd/internal/obj/arm64/obj7.go   | 40 +++++++++++++++++-----------------
+ src/cmd/internal/obj/ld.go           |  2 +-
+ src/cmd/internal/obj/link.go         |  3 +--
+ src/cmd/internal/obj/mips/asm0.go    |  8 +++----
+ src/cmd/internal/obj/mips/obj0.go    | 42 ++++++++++++++++++------------------
+ src/cmd/internal/obj/objfile.go      | 30 +++++++++++++-------------
+ src/cmd/internal/obj/pass.go         |  6 +++---
+ src/cmd/internal/obj/pcln.go         | 18 ++++++++--------
+ src/cmd/internal/obj/plist.go        | 14 ++++++------
+ src/cmd/internal/obj/ppc64/asm9.go   |  6 +++---
+ src/cmd/internal/obj/ppc64/obj9.go   | 30 +++++++++++++-------------
+ src/cmd/internal/obj/s390x/asmz.go   |  4 ++--
+ src/cmd/internal/obj/s390x/objz.go   | 30 +++++++++++++-------------
+ src/cmd/internal/obj/x86/asm6.go     |  6 +++---
+ src/cmd/internal/obj/x86/obj6.go     | 26 +++++++++++-----------
+ 23 files changed, 168 insertions(+), 169 deletions(-)

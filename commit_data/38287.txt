@@ -1,17 +1,15 @@
-commit c7f69a2897b8fdc16c07aaa0a152060e60449f89
-Author: alkesh26 <alkesh26@gmail.com>
-Date:   Thu Mar 7 07:29:34 2019 +0000
+commit de31f637a9edec8a94c8fb6124bb30ff1d6ee1ee
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Wed Oct 17 10:40:44 2018 +0300
 
-    misc: fix typos in various docs
+    cmd/compile: make tabs narrow in src column of ssa.html
     
-    Change-Id: Ib03d7e5686e510152042e403b00fb2d65572f393
-    GitHub-Last-Rev: 57aeedf077cb4f82af68cc5cb2de5d53a447565e
-    GitHub-Pull-Request: golang/go#30156
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/161723
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Too deeply nested code is hard to fit in ssa.html.
+    This CL reduces the tab size to 4 characters.
+    
+    Change-Id: I08643b0868bce3439567084c7d701654655f23d7
+    Reviewed-on: https://go-review.googlesource.com/c/142857
+    Reviewed-by: David Chase <drchase@google.com>
 
- misc/cgo/test/env.go                   | 4 ++--
- misc/cgo/testcarchive/testdata/main4.c | 4 ++--
- misc/cgo/testcarchive/testdata/main5.c | 2 +-
- misc/nacl/testdata/mime.types          | 2 +-
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/html.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

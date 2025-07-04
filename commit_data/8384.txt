@@ -1,12 +1,19 @@
-commit ac65eaa5b976e07829f8a7cd3388be5ba984f7d9
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 13 12:14:31 2011 -0400
+commit 1a7d09c847b27390c304a34a80ae4dfebc104662
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri May 13 08:29:44 2011 -0700
 
-    dashboard: delay hg pull until needed
+    misc/vim: new Vim indentation script.
     
-    R=adg
-    CC=golang-dev
-    https://golang.org/cl/4526052
+    This uses a fully custom function for indenting Go code in Vim.
+    It provides a lot more flexibility than a cindent-based approach,
+    so this version gets the := operator correct, as well as switch
+    labels and jump labels.
+    
+    One outstanding TODO is to handle lines immediately after jump labels.
+    
+    R=adg, n13m3y3r, jnwhiteh, dchest, rsc, rlight2
+    CC=golang-dev, rivercheng
+    https://golang.org/cl/4534047
 
- misc/dashboard/builder/main.go | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ misc/vim/indent/go.vim | 77 ++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 59 insertions(+), 18 deletions(-)

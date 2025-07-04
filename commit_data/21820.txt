@@ -1,15 +1,16 @@
-commit cf14e0e333c854c9ee4730c7e868ffd8424b95f4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Mar 1 09:30:15 2015 -0800
+commit f5f00be2ece8425ad6e47e55fbaf296779b8e56b
+Author: Andrew Ekstedt <andrew.ekstedt@gmail.com>
+Date:   Mon Jan 26 00:39:49 2015 -0800
 
-    net: disable TestTCPReadWriteAllocs on dragonfly
+    image: fix obsolete reference in PalettedImage doc comment
     
-    Update #8859
-    Update #10042
+    PalettedColorModel was renamed to color.Palette
+    over three years ago by https://golang.org/cl/5132048.
     
-    Change-Id: Idc7eadb447b73563ce9085e50c2042652442c2d9
-    Reviewed-on: https://go-review.googlesource.com/6412
+    Change-Id: I0204ade10eabff45620fda2990fed428c65d871e
+    Reviewed-on: https://go-review.googlesource.com/3305
     Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/net/tcp_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/image/image.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

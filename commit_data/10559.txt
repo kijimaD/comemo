@@ -1,12 +1,16 @@
-commit 68e30a9765ca2fc596af32e75935b33c27c3d59b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Dec 1 15:26:28 2011 +1100
+commit 9a86e244bf9041926e03610319474a149356fa2d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 30 20:11:57 2011 -0800
 
-    time: fix windows build
+    html/template: make execution thread-safe
+    The problem is that execution can modify the template, so it needs
+    interlocking to have the same thread-safe guarantee as text/template.
+    Fixes #2439.
     
-    R=rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5440071
+    https://golang.org/cl/5450056
 
- src/pkg/time/zoneinfo_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/html/template/escape.go   |  4 +-
+ src/pkg/html/template/template.go | 84 ++++++++++++++++++++++++++-------------
+ 2 files changed, 58 insertions(+), 30 deletions(-)

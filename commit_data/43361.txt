@@ -1,17 +1,24 @@
-commit 0040adfd0f98e1012837b0317fabf69cf1f8855b
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 16 21:39:36 2020 -0400
+commit 7bfac4c3ddde3dd906b344f141a9d09a5f855c77
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Mar 28 23:25:18 2020 -0400
 
-    runtime: define ios/arm64 entry points
+    net/http: use DOMException.message property in error text
     
-    Updates #38485.
+    Previously, details about the underlying fetch error
+    were not visible in the net/http error text:
     
-    Change-Id: I030346c7f0c3ce89209588525b210284fdea4efd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263638
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+            net/http: fetch() failed: <object>
+    
+    When using the message property, they are:
+    
+            net/http: fetch() failed: Failed to fetch
+            net/http: fetch() failed: The user aborted a request.
+    
+    Reference: https://developer.mozilla.org/en-US/docs/Web/API/DOMException/message.
+    
+    Change-Id: Iecf7c6bac01abb164731a4d5c9af6582c250a1a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226205
+    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
 
- src/runtime/rt0_ios_arm64.s | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/net/http/roundtrip_js.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

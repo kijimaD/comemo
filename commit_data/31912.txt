@@ -1,15 +1,18 @@
-commit b4dd1d965dfbbde6a46bddaf6f446f4426a04b2e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jun 24 20:54:47 2017 -0700
+commit ff80d8ba4b4c374da80dd2393a5cf0cba336cf3e
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Mar 23 12:21:43 2017 -0400
 
-    os/signal: check MustHaveExec in TestAtomicStop
+    cmd/compile: remove redundant checks in s390x SSA rules
     
-    Change-Id: I284ecfab574b3058ba66b75f8f8d2ccdb90a8a0c
-    Reviewed-on: https://go-review.googlesource.com/46650
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    CL 38337 modified canMergeLoad to reject loads with multiple uses
+    so it is no longer necessary to check this in the SSA rules.
+    
+    Change-Id: I03498390e778da1be8cb59ae0948e99289008315
+    Reviewed-on: https://go-review.googlesource.com/38473
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/signal/signal_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  66 +++++++-------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 132 +++++++++++++--------------
+ 2 files changed, 99 insertions(+), 99 deletions(-)

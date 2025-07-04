@@ -1,28 +1,30 @@
-commit 14521198679e2c600fd9b5a2da51ff2685f314c1
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Sep 3 14:01:57 2019 -0400
+commit 277609f844ed9254d25e975f7cf202d042beecc6
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Mar 19 13:19:48 2019 +0200
 
-    crypto/x509: remove IsCA exception for broken Entrust root
+    cmd/link/internal/ld: copy Mach-O platform version commands to go.o
     
-    The exception allowed a specific intermediate [1] to chain up to a
-    broken root that lacked the CA:TRUE X509v3 Basic Constraint.
+    To build for watchOS and tvOS the Apple toolchain requires a Mach-O
+    load command that matches the platform for all object files in a build.
+    The go.o object file produced by the Go linker contains no such command.
     
-    The broken root [2] is expiring at the end of 2019, so we can remove the
-    exception in Go 1.14.
+    The loader commands are mutually exclusive so we need to pick the
+    right one. Fortunately, cgo must be enabled for watchOS and tvOS to
+    be useful, so we can copy the first loader command we find in the object
+    files produced by the host compiler.
     
-    Moreover, there is a reissued version of that root [3] (same Subject and
-    SPKI, valid CA) which expires in 2029, so root stores should have
-    migrated to it already, making the exception unnecessary.
+    Add a test that builds a small program for tvOS to test both this CL
+    and the previous CL that added bitcode support.
     
-    [1]: https://crt.sh/?caid=57
-    [2]: https://crt.sh/?id=1616049
-    [3]: https://crt.sh/?id=55
+    Updates #22395
     
-    Change-Id: I43f51100982791b0e8bac90d143b60851cd46dfc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193038
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I7a47d19be9d80f0459dc358c600cddd9f236c444
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168321
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/x509/x509.go | 55 ++-----------------------------------------------
- 1 file changed, 2 insertions(+), 53 deletions(-)
+ src/cmd/link/dwarf_test.go        | 51 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/macho.go | 39 ++++++++++++++++++++++++++++--
+ src/cmd/link/testdata/lib.go      |  8 ++++++
+ src/cmd/link/testdata/main.m      |  5 ++++
+ 4 files changed, 101 insertions(+), 2 deletions(-)

@@ -1,12 +1,18 @@
-commit 0b9b152ee3c9a2ff079569d8d5a3a6982b1ae91d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jul 25 12:46:57 2019 -0700
+commit 1024b25d0c044484ed9288ac8f78bd9f5ebb5287
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 13 09:48:33 2019 -0700
 
-    cmd/compile: remove unused code from esc.go
+    spec: clarify wording on passing slice arguments to variadic functions
     
-    Change-Id: Idb7b97ced559c40d4e3beae5c661c71825200af7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187598
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Per discussion on #30769.
+    
+    Fixes #30769.
+    
+    Change-Id: I620dbac936de1a0b5deec03926dd11d690a918e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167380
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 1843 +-----------------------------------
- 1 file changed, 29 insertions(+), 1814 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

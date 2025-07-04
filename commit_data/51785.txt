@@ -1,43 +1,26 @@
-commit da9761303c439041251931c32b6e86bdbe739183
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Dec 1 16:27:34 2022 -0800
+commit b7041c7ad1c9d42078cfc376320e5b307e617a80
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 14 11:03:23 2022 -0400
 
-    cmd/compile: remove GOEXPERIMENT=nounified frontend
+    cmd/api: require proposal # for new API features
     
-    This CL removes most of the code specific to the nounified
-    frontend. To simplify review, it's a strict remove-only CL.
+    Having the proposal numbers recorded in the API files
+    should help significantly when it comes time to audit
+    the new API additions at the end of each release cycle.
     
-    Updates #57410.
-    
-    Change-Id: Ic3196570aa4286618c1d5e7fd0d0e6601a18195b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458620
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Id18e8cbdf892228a10ac17e4e21c7e17de5d4ff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392414
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/inline/inl.go             |  589 -----
- src/cmd/compile/internal/noder/decl.go             |  334 ---
- src/cmd/compile/internal/noder/expr.go             |  419 ----
- src/cmd/compile/internal/noder/func.go             |   73 -
- src/cmd/compile/internal/noder/irgen.go            |  306 ---
- src/cmd/compile/internal/noder/object.go           |  205 --
- src/cmd/compile/internal/noder/scopes.go           |   64 -
- src/cmd/compile/internal/noder/stencil.go          | 2318 --------------------
- src/cmd/compile/internal/noder/stmt.go             |  299 ---
- src/cmd/compile/internal/noder/transform.go        | 1085 ---------
- src/cmd/compile/internal/noder/types.go            |  461 ----
- src/cmd/compile/internal/noder/validate.go         |  132 --
- src/cmd/compile/internal/reflectdata/reflect.go    |   47 -
- src/cmd/compile/internal/typecheck/bexport.go      |   92 -
- src/cmd/compile/internal/typecheck/crawler.go      |  378 ----
- src/cmd/compile/internal/typecheck/func.go         |   48 -
- src/cmd/compile/internal/typecheck/iexport.go      | 1840 ----------------
- src/cmd/compile/internal/typecheck/iimport.go      | 1840 ----------------
- src/cmd/compile/internal/typecheck/subr.go         |  692 ------
- src/cmd/compile/internal/typecheck/typecheck.go    |   10 -
- src/cmd/compile/internal/types/structuraltype.go   |  191 --
- .../compile/internal/types/structuraltype_test.go  |  138 --
- src/cmd/compile/internal/types/type.go             |   14 -
- 23 files changed, 11575 deletions(-)
+ api/README           | 16 ++++++++++---
+ api/next.txt         |  9 -------
+ api/next/45754.txt   |  2 ++
+ api/next/46059.txt   |  2 ++
+ api/next/47005.txt   |  2 ++
+ api/next/50601.txt   |  5 ++++
+ src/cmd/api/goapi.go | 58 ++++++++++++++++++++++++++++++++-------------
+ src/cmd/api/run.go   | 66 ++++++++++++++++++++++++++++++++--------------------
+ 8 files changed, 107 insertions(+), 53 deletions(-)

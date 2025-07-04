@@ -1,26 +1,16 @@
-commit 2b9b2720b89d493dbf8725d0ae6664ac7835b3af
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 7 11:33:11 2020 -0700
+commit ef5c59d47b7f4376ea8ff54fb0a882528c0f5588
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Apr 17 12:21:24 2020 -0400
 
-    spec: split shift examples into groups for 32- and 64-bit ints
+    crypto/x509: clarify MarshalPKIXPublicKey and ParsePKIXPublicKey docs
     
-    In the current (pre-CL) version of the spec, the 2nd last shift
-    example appears to be using the array declared in the last example.
-    On a 32-bit platform, that array would have length 0, which would
-    lead to a panic in the 2nd last example. Also, if this code were
-    inside a function, it wouldn't compile (array declared after use).
+    Fixes #35313
     
-    Use an explicitly declared array for that specific shift example.
-    Also, split out all cases that produce different results for 32-
-    vs 64-bit ints.
-    
-    Fixes #41835.
-    
-    Change-Id: Ie45114224509e4999197226f91f7f6f934449abb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260398
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7be3c40f338de6b1808358ea01e729db8b533ce5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228778
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- doc/go_spec.html | 42 ++++++++++++++++++++++++++----------------
- 1 file changed, 26 insertions(+), 16 deletions(-)
+ src/crypto/x509/x509.go | 4 ++++
+ 1 file changed, 4 insertions(+)

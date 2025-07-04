@@ -1,17 +1,14 @@
-commit f6f02a69aeb37ad193b107375be184bbf8999866
+commit d0206101c87301fa4ac45d7f0bc7c2dc39a7bc47
 Author: Joel Sing <jsing@google.com>
-Date:   Sat Aug 31 09:29:38 2013 -0700
+Date:   Sat Aug 31 22:02:21 2013 +1000
 
-    syscall: z* files for dragonfly/386
+    cmd/5l,cmd/6l,cmd/8l: fix dragonflydynld path
     
-    Add generated z* files for dragonfly/386.
-    
-    R=golang-dev, iant
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/13303046
+    https://golang.org/cl/13225043
 
- src/pkg/syscall/zerrors_dragonfly_386.go  | 1523 +++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_dragonfly_386.go | 1303 ++++++++++++++++++++++++
- src/pkg/syscall/zsysnum_dragonfly_386.go  |  303 ++++++
- src/pkg/syscall/ztypes_dragonfly_386.go   |  429 ++++++++
- 4 files changed, 3558 insertions(+)
+ src/cmd/5l/asm.c | 2 +-
+ src/cmd/6l/asm.c | 2 +-
+ src/cmd/8l/asm.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

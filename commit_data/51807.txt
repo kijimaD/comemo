@@ -1,27 +1,39 @@
-commit 15405317460b57ff9ef605d0ca63795477c79b05
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Jan 24 11:38:29 2023 -0600
+commit a3fcc755db54b89855519a5b3e3fb66ed9912497
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 29 15:58:19 2022 -0500
 
-    test/codegen: merge identical ppc64 and ppc64le tests
+    internal/txtar: bring back to main repo, for tests in std
     
-    Manually consolidate the remaining ppc64/ppc64le test which
-    are not so trivial to automatically merge.
+    This used to be cmd/go/internal/txtar,
+    and then it was moved to golang.org/x/tools/txtar
+    and revendored from there into cmd/vendor/golang.org/x/tools/txtar.
     
-    The remaining ppc64le tests are limited to cases where load/stores are
-    merged (this only happens on ppc64le) and the race detector (only
-    supported on ppc64le).
+    We have a use for txtar in a new test in the standard library,
+    which cannot access cmd/vendor. But we also don't really want
+    to vendor it into the standard library as is, because that would
+    be the first vendoring of x/tools in std, and it would be better
+    to keep std separate from x/tools, even for testing.
     
-    Change-Id: I1f9c0f3d3ddbb7fbbd8c81fbbd6537394fba63ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463217
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Instead, since a little copying is better than a little dependency,
+    just make a copy in internal/txtar. The package does not change.
+    
+    Having done that, replace the uses in cmd/go so that there's
+    only one copy in the main repo.
+    
+    Change-Id: I70b5cc05da3f6ebcc0fd9052ebcb3d369fb57956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384254
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- test/codegen/arithmetic.go |  4 ++--
- test/codegen/bool.go       | 18 ++++++++----------
- test/codegen/copy.go       | 20 ++++++++++----------
- test/codegen/mathbits.go   |  4 ++--
- test/codegen/shift.go      | 21 ++++++++++-----------
- 5 files changed, 32 insertions(+), 35 deletions(-)
+ src/cmd/go/internal/fsys/fsys_test.go                            | 3 +--
+ src/cmd/go/proxy_test.go                                         | 2 +-
+ src/cmd/go/script_test.go                                        | 3 +--
+ src/cmd/go/testdata/addmod.go                                    | 3 +--
+ src/cmd/go/testdata/savedir.go                                   | 3 +--
+ src/cmd/go/testdata/script/README                                | 2 +-
+ src/cmd/vendor/modules.txt                                       | 1 -
+ src/go/build/deps_test.go                                        | 3 +++
+ src/{cmd/vendor/golang.org/x/tools => internal}/txtar/archive.go | 0
+ 9 files changed, 9 insertions(+), 11 deletions(-)

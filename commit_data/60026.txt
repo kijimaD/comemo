@@ -1,0 +1,20 @@
+commit 6ed31e3c3e80999e3d1ab62dd49a680ef7ec3384
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu May 16 15:44:57 2024 +0200
+
+    net: fix typo in ctrlCtxFn parameter name
+    
+    context.Context parameters are commonly named ctx, not cxt.
+    
+    Change-Id: Icaadbcd38b054694959e5e8a058552a3e54be6d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586016
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/iprawsock_posix.go |  6 +++---
+ src/net/tcpsock_posix.go   |  6 +++---
+ src/net/udpsock_posix.go   | 10 +++++-----
+ src/net/unixsock_posix.go  | 10 +++++-----
+ 4 files changed, 16 insertions(+), 16 deletions(-)

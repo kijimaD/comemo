@@ -1,16 +1,32 @@
-commit b68624464dc41ffb09b9ee5314d3455904acd2a8
-Author: Dmitry Mottl <dmitry.mottl@gmail.com>
-Date:   Fri Feb 22 16:50:54 2019 +0000
+commit edc2d17086a6d21039f45506459cf1b9f40eb95c
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 15 16:19:21 2018 -0400
 
-    net/http: add godoc for Dir.Open function
+    runtime: remove GODEBUG=gctrace=2 mode
     
-    This commit adds godoc for Dir.Open function.
+    It turns out if you set GODEBUG=gctrace=2, it enables an obscure
+    debugging mode that, in addition to printing gctrace statistics, also
+    does a second STW GC following each regular GC. This debugging mode
+    has long since lost its value (you could maybe use it to analyze
+    floating garbage, except that we don't print the gctrace line on the
+    second GC), and it interferes substantially with the operation of the
+    GC by messing up the statistics used to schedule GCs.
     
-    Change-Id: Ibc3b22f38660a082802e1f868c5cf9d880fc2801
-    GitHub-Last-Rev: 774cfd7d8cc61989179956e47d51451135b6c203
-    GitHub-Pull-Request: golang/go#30353
-    Reviewed-on: https://go-review.googlesource.com/c/163437
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    It's also a source of mark termination GC work when we're in
+    concurrent GC mode, so it's going to interfere with eliminating mark
+    2. And it's going to get in the way of unifying STW and concurrent GC.
+    
+    This CL removes this debugging mode.
+    
+    Updates #26903. This is preparation for eliminating mark 2 and
+    unifying STW GC and concurrent GC.
+    
+    Change-Id: Ib5bce05d8c4d5b6559c89a65165d49532165df07
+    Reviewed-on: https://go-review.googlesource.com/c/134316
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/fs.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/extern.go |  3 +--
+ src/runtime/mgc.go    | 17 -----------------
+ 2 files changed, 1 insertion(+), 19 deletions(-)

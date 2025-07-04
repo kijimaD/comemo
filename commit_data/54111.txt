@@ -1,19 +1,22 @@
-commit 0b6ea6bb04e49e5eba614d39bb1334c87fff4f62
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Aug 19 07:52:34 2023 +0000
+commit a3434b71a349b396bef43921732709c3a5f54f23
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Feb 14 15:00:38 2022 -0500
 
-    net: return "cannot unmarshal" error while parsing DNS messages
+    cmd: add a new goexperiment for redesigned code coverage
     
-    Change-Id: I407f5d3d3a3e8b3d43ff154f731d885e831971e9
-    GitHub-Last-Rev: d6a400d1ba6a09e726c9b4e4774a7e8a611611e8
-    GitHub-Pull-Request: golang/go#62155
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520980
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Add a new "coverageredesign" GOEXPERIMENT (currently off by default),
+    for gating the use of the new code coverage design/implementation.
+    
+    Updates #51430.
+    
+    Change-Id: Ia61da869fcd0d61c6163f734e2fe5e3705f37a91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395894
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/dnsclient_unix.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/internal/goexperiment/exp_coverageredesign_off.go | 9 +++++++++
+ src/internal/goexperiment/exp_coverageredesign_on.go  | 9 +++++++++
+ src/internal/goexperiment/flags.go                    | 4 ++++
+ 3 files changed, 22 insertions(+)

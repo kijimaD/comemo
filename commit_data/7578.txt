@@ -1,22 +1,24 @@
-commit 9ad9742157f8668c26879dce12bde94e3ad075ab
+commit 12b7875bf2c534c7ec1659a733ec2d82a3f85076
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 25 14:29:55 2011 -0500
+Date:   Fri Feb 25 14:29:47 2011 -0500
 
-    runtime: use kernel-supplied cas on linux/arm
+    sync: use sync/atomic
     
-    Using the kernel-supplied compare-and-swap code
-    on linux/arm means that runtime doesn't have to care
-    whether this is GOARM=5 or GOARM=6 anymore.
-    
-    Fixes #1494.
+    Remove references to custom assembly routines.
     
     R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4245043
+    https://golang.org/cl/4241043
 
- src/pkg/runtime/Makefile        |  3 --
- src/pkg/runtime/arm/asm.s       | 31 +++++++++++++++++
- src/pkg/runtime/arm/cas5.s      | 74 -----------------------------------------
- src/pkg/runtime/arm/cas6.s      | 52 -----------------------------
- src/pkg/runtime/linux/arm/sys.s | 18 ++++++++++
- 5 files changed, 49 insertions(+), 129 deletions(-)
+ src/pkg/sync/Makefile               | 17 ----------
+ src/pkg/sync/asm_386.s              | 23 -------------
+ src/pkg/sync/asm_amd64.s            | 23 -------------
+ src/pkg/sync/asm_arm5.s             | 40 ----------------------
+ src/pkg/sync/asm_arm6.s             | 30 ----------------
+ src/pkg/sync/atomic/asm_linux_arm.s | 68 +++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/cond_test.go           |  2 +-
+ src/pkg/sync/mutex.go               | 29 +++++-----------
+ src/pkg/sync/rwmutex.go             | 12 ++++---
+ src/pkg/sync/rwmutex_test.go        | 15 ++++----
+ src/pkg/sync/xadd_test.go           |  9 -----
+ 11 files changed, 92 insertions(+), 176 deletions(-)

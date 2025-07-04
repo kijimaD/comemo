@@ -1,15 +1,22 @@
-commit 5d2c3a687c1bab80eff325fa544ee62f4c826479
+commit 5dc8c4dbfb6a04d9eb7a11c9c3fe698d33d0c0ee
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 9 19:11:05 2013 -0400
+Date:   Mon Sep 9 16:42:18 2013 -0400
 
-    encoding/json: document actual behavior for Unmarshal into interface{}
+    path/filepath: fix race with other tests
     
-    Fixes #4900.
+    Bug3486 tried to walk the entire file tree, but other tests might
+    be creating and removing files in that tree. In particular, package os
+    creates and removes files in the os directory, and issue 5863
+    reports failures due to seeing those files appear and then disappear.
+    
+    Change the test to walk just the test tree, which should not be
+    changing.
+    
+    Fixes #5863.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13400044
+    https://golang.org/cl/13467045
 
- src/pkg/encoding/json/decode.go      |  4 +---
- src/pkg/encoding/json/decode_test.go | 41 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 3 deletions(-)
+ src/pkg/path/filepath/path_test.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

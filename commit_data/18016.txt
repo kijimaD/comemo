@@ -1,19 +1,28 @@
-commit a075fdbaa647879c37b1969437366b9c94acd010
-Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 17 10:49:45 2013 -0800
+commit 64379b854f9e575bc88312225aab25cc7c244a4d
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Tue Dec 17 06:52:32 2013 -0800
 
-    image: roll back 13239051 (add RGB and RGB48)
+    all: add missing copyright
     
-    They cause too much bloat in the internals as we find ourselves adding
-    special case code for all the cross-connections. It's better to use RGBA
-    and just max out the alpha. We lose a little memory but reduce the number
-    of special cases the encoders, decoders, and drawers need to provide.
-    
-    R=golang-dev, nigeltao
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/42910045
+    https://golang.org/cl/43290043
 
- src/pkg/image/color/color.go |  45 ------------
- src/pkg/image/image.go       | 170 -------------------------------------------
- src/pkg/image/image_test.go  |   3 -
- 3 files changed, 218 deletions(-)
+ src/pkg/bytes/compare_test.go              | 4 ++++
+ src/pkg/compress/flate/fixedhuff.go        | 4 ++++
+ src/pkg/crypto/md5/gen.go                  | 5 ++++-
+ src/pkg/crypto/md5/md5block.go             | 4 ++++
+ src/pkg/image/color/palette/gen.go         | 4 ++++
+ src/pkg/image/color/palette/palette.go     | 4 ++++
+ src/pkg/image/gif/reader_test.go           | 4 ++++
+ src/pkg/os/signal/example_test.go          | 4 ++++
+ src/pkg/path/filepath/path_windows_test.go | 4 ++++
+ src/pkg/regexp/example_test.go             | 4 ++++
+ src/pkg/regexp/syntax/make_perl_groups.pl  | 4 ++++
+ src/pkg/regexp/syntax/perl_groups.go       | 4 ++++
+ src/pkg/strconv/isprint.go                 | 4 ++++
+ src/pkg/strconv/makeisprint.go             | 3 +++
+ src/pkg/unicode/maketables.go              | 6 +++++-
+ src/pkg/unicode/tables.go                  | 4 ++++
+ src/pkg/unicode/utf8/example_test.go       | 4 ++++
+ 17 files changed, 68 insertions(+), 2 deletions(-)

@@ -1,18 +1,18 @@
-commit 3b7277d3651b5c5856c5b0879ba3fb7a5f279508
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 4 10:59:17 2021 -0500
+commit f98b9ae07c512f824fc0327eb8b0aca0847ecdb8
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 3 17:07:09 2020 +0000
 
-    cmd/go: add a script test for artifacts resulting from 'go get -u'
+    Revert "cmd/compile: improve equality algs for arrays of interfaces"
     
-    For #36460
+    This reverts commit 7eab9506c92562fe49861597e7bf1fcb28f2fd40.
     
-    Change-Id: I4f8bf0fb8dfa508b346acb3868302452409ee9da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/289696
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reason for revert: Undoing to get back to semantics discussed in #8606.
+    
+    Change-Id: If0cd7518c10c37a81fdbb4ae112239e04c0b1448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236278
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .../go/testdata/script/mod_get_downup_artifact.txt | 165 +++++++++++++++++++++
- 1 file changed, 165 insertions(+)
+ src/cmd/compile/internal/gc/alg.go | 18 ------------------
+ 1 file changed, 18 deletions(-)

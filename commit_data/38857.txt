@@ -1,26 +1,22 @@
-commit fac3b5d05ecf31a2491949cc905312a34e272ae8
-Author: Shubham Sharma <shubham.sha12@gmail.com>
-Date:   Thu Mar 21 21:10:12 2019 +0530
+commit a48a15cd502395627293f85cdbe23aebc3e7e95f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Dec 3 21:03:02 2018 +0000
 
-    net: add IsNotFound field to DNSError
+    cmd/vendor: update to golang.org/x/tools@e5f3ab76
     
-    This adds the ability to determine if a lookup error was
-    due to a non-existent hostname. Previously users needed
-    to do string matching on the DNSError.Err value.
+    To pull in the fix for #28858, which we want to include for Go 1.12.
     
-    Fixes #28635
+    Fixes #28858.
     
-    Change-Id: If4bd3ad32cbc2db5614f2c6b72e0a9161d813efa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168597
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id4964cfd38e3d44d6317a2ee124fe2d35038b5fd
+    Reviewed-on: https://go-review.googlesource.com/c/152277
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/cgo_unix.go            |  5 ++++-
- src/net/dnsclient_unix.go      | 15 ++++++---------
- src/net/dnsclient_unix_test.go | 38 ++++++++++++++++++++++++++++++++++----
- src/net/lookup.go              |  4 ++--
- src/net/lookup_test.go         |  3 +++
- src/net/lookup_windows.go      | 21 ++++++++++++++++++---
- src/net/net.go                 |  1 +
- 7 files changed, 68 insertions(+), 19 deletions(-)
+ .../go/analysis/internal/analysisflags/help.go     |  2 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    |  4 +-
+ .../x/tools/go/analysis/passes/printf/types.go     | 13 +++--
+ .../x/tools/go/analysis/unitchecker/main.go        | 64 ++++++++++++++++++++++
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |  2 +-
+ 5 files changed, 76 insertions(+), 9 deletions(-)

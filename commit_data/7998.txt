@@ -1,20 +1,13 @@
-commit 5ee13c0d59de2f26dacc53046ce265232eeb6f2b
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 6 11:48:03 2011 -0700
+commit 41971434d1ac17d3a978a651e619d43e266ddbba
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Apr 6 14:11:56 2011 -0400
 
-    log: generalize getting and setting flags and prefix.
-    - used to be only for standard log, not for user-built.
-    - there were no getters.
-    Also rearrange the code a little so we can avoid allocating
-    a buffer on every call.  Logging is expensive but we should
-    avoid unnecessary cost.
+    crypto/rsa: add 3-prime support.
     
-    This should have no effect on existing code.
-    
-    R=rsc
+    R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4363045
+    https://golang.org/cl/4365041
 
- src/pkg/log/log.go      | 101 +++++++++++++++++++++++++++++++++---------------
- src/pkg/log/log_test.go |  33 ++++++++++++++++
- 2 files changed, 102 insertions(+), 32 deletions(-)
+ src/pkg/crypto/rsa/rsa.go      | 124 +++++++++++++++++++++++++++++++++++++----
+ src/pkg/crypto/rsa/rsa_test.go |  47 +++++++++++++++-
+ 2 files changed, 160 insertions(+), 11 deletions(-)

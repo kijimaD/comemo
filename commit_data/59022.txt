@@ -1,16 +1,17 @@
-commit bcd0ebbd2abcd3e2e876862f287c46a2de56eaab
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Thu Mar 6 20:07:24 2025 +0800
+commit 149db960e432101c8d9d292f6086ad355d856095
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Jan 8 21:55:30 2024 +0800
 
-    internal/cpu: use correct variable when parsing CPU features lamcas and lam_bh on loong64
+    cmd/link/internal/dwtest: fix inconsistent receiver name
     
-    Change-Id: I5019f4e32243911f735f775bcb3c0dba5adb4162
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655395
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The DIEs method of Examiner is the only one with a receiver declared 'e'; all the rest have 'ex'. Fix it to be consistent.
+    
+    Change-Id: I494a53cf3db5575d45831cab3cf612c20962f8fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554575
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/cpu/cpu_loong64.go | 4 ++--
+ src/cmd/link/internal/dwtest/dwtest.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

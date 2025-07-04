@@ -1,14 +1,20 @@
-commit 123e89fef1aceac1c8fa5a0201c851734beb577d
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Wed Apr 20 10:07:56 2011 -0700
+commit aaa6ce230191c53c6a91f06349aa128e0fff2c56
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 20 12:02:29 2011 +1000
 
-    gofmt: add -diff
+    goinstall: support building executable commands
     
-    Some code duplication with gofix.
+    This CL gives goinstall the ability to build commands,
+    not just packages.
     
-    R=rsc, gri, bradfitzgo, r2, adg, peterGo, r, brainman
+    "goinstall foo.googlecode.com/hg/bar" will build the command named
+    "bar" and install it to GOBIN. "goinstall ." will use the name of the
+    local directory as the command name.
+    
+    R=rsc, niemeyer
     CC=golang-dev
-    https://golang.org/cl/4430054
+    https://golang.org/cl/4426045
 
- src/cmd/gofmt/gofmt.go | 46 +++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 45 insertions(+), 1 deletion(-)
+ src/cmd/goinstall/main.go | 11 ++---------
+ src/cmd/goinstall/make.go | 39 ++++++++++++++++++++++++++++++---------
+ 2 files changed, 32 insertions(+), 18 deletions(-)

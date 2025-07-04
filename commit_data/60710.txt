@@ -1,0 +1,18 @@
+commit 5164f6169725bb88a29482f497e1bbf099a5dd29
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 19 13:23:09 2024 -0700
+
+    os: simplify TestRemoveAllLongPath
+    
+    Simplify the test logic by using t.TempDir, t.Chdir, and Chdir to
+    startPath parent.
+    
+    Change-Id: Ibe71a8c26b8e54c22eb93510037605b69c67bc7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606896
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/os/removeall_test.go | 35 ++++++++++-------------------------
+ 1 file changed, 10 insertions(+), 25 deletions(-)

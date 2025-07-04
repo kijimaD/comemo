@@ -1,30 +1,39 @@
-commit dc77dc2b9bd0f232631f683638bd7a23fab3598c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 23 16:10:55 2019 -0400
+commit 49f62af790c02c389d34a24227a17ddd4b4db94a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 13:59:48 2019 -0400
 
-    cmd/go/internal/list: ensure that cfg.BuildMod is initialized before reading it in 'go list -m'
+    runtime: fix vet complaints for linux/arm64, linux/mips*, linux/ppc64*, linux/s390x
     
-    The default value of cfg.BuildMod depends on the 'go' version in the
-    go.mod file. The go.mod file is read and parsed, and its settings are
-    applied, in modload.InitMod.
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
     
-    As it turns out, modload.Enabled does not invoke InitMod, so
-    cfg.BuildMod is not necessarily set even if modload.Enabled returns
-    true.
+    This CL makes "go vet -unsafeptr=false runtime" happy for these GOOS/GOARCHes,
+    except for an unresolved complaint on mips/mipsle that is a bug in vet,
+    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
     
-    Updates #33848
+    For #31916.
     
-    Change-Id: I13a4dd80730528e6f1a5acc492fcfe07cb59d94e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202917
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I6ef7e982a2fdbbfbc22cee876ca37ac54d8109e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176102
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/list/list.go                           | 10 +++++++++-
- src/cmd/go/internal/modload/init.go                        |  3 +++
- src/cmd/go/testdata/script/mod_convert_vendor_json.txt     |  2 +-
- src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt |  2 +-
- src/cmd/go/testdata/script/mod_getmode_vendor.txt          |  2 +-
- src/cmd/go/testdata/script/mod_vendor.txt                  |  2 +-
- src/cmd/go/testdata/script/mod_vendor_auto.txt             | 13 +++++++++++--
- 7 files changed, 27 insertions(+), 7 deletions(-)
+ src/cmd/vet/all/whitelist/aix_ppc64.txt    |  5 -----
+ src/cmd/vet/all/whitelist/arm64.txt        |  5 -----
+ src/cmd/vet/all/whitelist/linux_ppc64x.txt |  4 ----
+ src/cmd/vet/all/whitelist/mips.txt         |  7 -------
+ src/cmd/vet/all/whitelist/mipsle.txt       |  7 -------
+ src/runtime/asm_ppc64x.s                   |  3 ---
+ src/runtime/asm_s390x.s                    |  3 ---
+ src/runtime/memclr_s390x.s                 |  4 ++--
+ src/runtime/memmove_s390x.s                |  4 ++--
+ src/runtime/stubs_arm64.go                 |  9 +++++++++
+ src/runtime/stubs_mips64x.go               | 11 +++++++++++
+ src/runtime/stubs_mipsx.go                 | 11 +++++++++++
+ src/runtime/stubs_ppc64x.go                | 12 ++++++++++++
+ src/runtime/stubs_s390x.go                 |  9 +++++++++
+ src/runtime/sys_aix_ppc64.s                | 18 +++++++++---------
+ src/runtime/sys_linux_mipsx.s              | 19 +++++++++++--------
+ src/runtime/sys_linux_ppc64x.s             | 13 ++++++++-----
+ src/runtime/sys_linux_s390x.s              |  3 +++
+ 18 files changed, 87 insertions(+), 60 deletions(-)

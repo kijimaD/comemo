@@ -1,22 +1,26 @@
-commit de69401b7513bd94d01061c01d9c5c8c8dfdfae2
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Mon Feb 11 11:47:31 2013 +1100
+commit 106827990466b9246f9395233882b1e816df398a
+Author: Shane Hansen <shanemhansen@gmail.com>
+Date:   Mon Feb 11 11:36:29 2013 +1100
 
-    exp/cookiejar: implementation of SetCookies
+    archive/tar: read/write extended pax/gnu tar archives
     
-    This CL provides the rest of the SetCookies code as well as
-    some test infrastructure which will be used to test also
-    the Cookies method. This test infrastructure is optimized
-    for readability and tries to make it easy to review table
-    driven test cases.
+    Support reading pax archives and applying extended attributes
+    like long names, subsecond mtime resolutions, etc. Default to
+    writing pax archives for long file and link names.
+    Support reading gnu archives using the ././@LongLink extended
+    header for file name and link target.
     
-    Tests for all the different corner cases of SetCookies
-    will be provided in a separate CL.
+    Fixes #3300
     
-    R=nigeltao, rsc, bradfitz
+    R=dsymonds, dave, rogpeppe, remyoudompheng, chressie, rsc
     CC=golang-dev
-    https://golang.org/cl/7306054
+    https://golang.org/cl/6700047
 
- src/pkg/exp/cookiejar/jar.go      | 181 ++++++++++++++++++++-
- src/pkg/exp/cookiejar/jar_test.go | 333 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 508 insertions(+), 6 deletions(-)
+ src/pkg/archive/tar/common.go          |   9 ++
+ src/pkg/archive/tar/reader.go          | 179 ++++++++++++++++++++++++++++++++-
+ src/pkg/archive/tar/reader_test.go     | 106 ++++++++++++++++++-
+ src/pkg/archive/tar/testdata/pax.tar   | Bin 0 -> 10240 bytes
+ src/pkg/archive/tar/testdata/ustar.tar | Bin 0 -> 2048 bytes
+ src/pkg/archive/tar/writer.go          | 107 +++++++++++++++++++-
+ src/pkg/archive/tar/writer_test.go     |  80 +++++++++++++++
+ 7 files changed, 472 insertions(+), 9 deletions(-)

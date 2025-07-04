@@ -1,20 +1,19 @@
-commit d76b1ac3e1919bd863e7e906202ae085cb20f595
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Nov 11 07:06:24 2021 -0500
+commit 18246672593fd59c2671bc6407c06fd020716708
+Author: cui <cuiweixie@gmail.com>
+Date:   Sun Mar 14 18:55:59 2021 +0000
 
-    net: skip new testpoint TestUDPIPVersionReadMsg on plan9
+    cmd/compile/internal/ssa: delete unused files
     
-    Skip TestUDPIPVersionReadMsg on plan9, since it does things
-    not supported on that OS.
-    
-    Change-Id: Icd1716fb5ed4e8877e57acb8c851ec3be72e83e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363354
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I5d640091375feb873517368ce05f0ba46c35714f
+    GitHub-Last-Rev: cdaf6ba33664f3602e563aa93009e0f4f4865b32
+    GitHub-Pull-Request: golang/go#44997
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301630
+    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/udpsock_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/ssa/redblack32.go      | 429 ------------------------
+ src/cmd/compile/internal/ssa/redblack32_test.go | 274 ---------------
+ src/cmd/compile/internal/ssa/sparsetreemap.go   | 189 -----------
+ 3 files changed, 892 deletions(-)

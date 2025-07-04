@@ -1,20 +1,15 @@
-commit efa67b2c55b1a61ff780c04486ba9f901d8fb0a6
+commit 0b7bcb84e394755664562fb70cd48c033e61669c
 Author: Joel Sing <jsing@google.com>
-Date:   Wed May 16 04:32:49 2012 +1000
+Date:   Wed May 16 03:33:37 2012 +1000
 
-    runtime: implement getcontext and sigprocmask for netbsd
+    runtime: fix netbsd syscalls
     
-    Implement getcontext and sigprocmask for NetBSD - these will soon be
-    used by the thread handling code.
+    Use correct system calls/syscall numbers for NetBSD.
     
-    Also fix netbsd/386 signal handling - there is no sigreturn, just
-    return so that we hit the trampoline.
-    
-    R=golang-dev, rsc
+    R=golang-dev, for.go.yong, rsc
     CC=golang-dev
-    https://golang.org/cl/6215049
+    https://golang.org/cl/6200070
 
- src/pkg/runtime/os_netbsd.h        | 15 ++++++++++-----
- src/pkg/runtime/sys_netbsd_386.s   | 28 +++++++++++++++++-----------
- src/pkg/runtime/sys_netbsd_amd64.s | 26 ++++++++++++++++++++++----
- 3 files changed, 49 insertions(+), 20 deletions(-)
+ src/pkg/runtime/sys_netbsd_386.s   | 28 ++++++++++++++--------------
+ src/pkg/runtime/sys_netbsd_amd64.s | 26 +++++++++++++-------------
+ 2 files changed, 27 insertions(+), 27 deletions(-)

@@ -1,16 +1,22 @@
-commit c761409e01307592fc3f4e4a73dc82fe1a39c807
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 17:21:08 2022 +0800
+commit 425db64811285fd0b35ed12eaed7568ec547da78
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Aug 6 13:23:13 2021 -0700
 
-    misc: use strings.Builder
+    bufio: use underlying ReadFrom even when data is buffered
     
-    Change-Id: Icb53d32f2de13287b1b4f4f67dab90fe5ee7a3df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428254
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    When (*bufio.Writer).ReadFrom is called with a partially filled buffer,
+    fill out and flush the buffer and then call the underlying writer's
+    ReadFrom method if present.
+    
+    Fixes #44815.
+    
+    Change-Id: I15b3ef0746d0d60fd62041189a9b9df11254dd29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340530
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/android/go_android_exec.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/bufio/bufio.go      | 19 ++++++++++---------
+ src/bufio/bufio_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 9 deletions(-)

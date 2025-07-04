@@ -1,35 +1,19 @@
-commit 746f7e17449c82e58e33ea8f9b61107cff0317f2
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jul 18 16:17:12 2023 -0400
+commit 1a7f08cf408ff4c4f05be25839a0d7c5ec28ed05
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 11 15:09:02 2022 -0700
 
-    cmd/compile/internal/inline/inlheur: assign scores to callsites
+    os/signal: document behavior of SIGPIPE on non-Go thread
     
-    Assign scores to callsites based on previously computed function
-    properties and callsite properties. This currently works by taking the
-    size score for the function (as computed by CanInline) and then making
-    a series of adjustments, positive or negative based on various
-    function and callsite properties.
+    Fixes #56150
     
-    NB: much work also remaining on deciding what are the best score
-    adjustment values for specific heuristics. I've picked a bunch of
-    arbitrary constants, but they will almost certainly need tuning and
-    tweaking to arrive at something that has good performance.
-    
-    Updates #61502.
-    
-    Change-Id: I887403f95e76d7aa2708494b8686c6026861a6ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511566
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id990783562950ba8be7ce9526b7a811625f2190a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442415
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/inline/inl.go             |  18 +-
- src/cmd/compile/internal/inline/inlheur/analyze.go |  35 +++-
- .../inline/inlheur/analyze_func_callsites.go       |  84 +++++++-
- .../compile/internal/inline/inlheur/callsite.go    |  42 ++--
- .../internal/inline/inlheur/funcprops_test.go      |  40 ++--
- .../inline/inlheur/scoreadjusttyp_string.go        |  74 +++++++
- src/cmd/compile/internal/inline/inlheur/scoring.go | 232 +++++++++++++++++++++
- .../inline/inlheur/testdata/props/acrosscall.go    |  30 +--
- .../inline/inlheur/testdata/props/calls.go         |  88 ++++++--
- .../inline/inlheur/testdata/props/funcflags.go     |   4 +-
- 10 files changed, 574 insertions(+), 73 deletions(-)
+ src/os/signal/doc.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

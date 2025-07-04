@@ -1,16 +1,22 @@
-commit 39da81da5e35e50da74ebb8c4fe12fd363bf41b9
-Author: David Chase <drchase@google.com>
-Date:   Wed Jun 24 17:00:48 2020 -0400
+commit 91bc75b4870308b668d497ff22eada75219c3c2e
+Author: Shuo <openset.wang@gmail.com>
+Date:   Sun Mar 1 02:32:32 2020 +0000
 
-    cmd/compile: populate AuxCall fields for OpClosureCall
+    time: optimize Time.ISOWeek
     
-    Change-Id: Ib5f62826d5249c1727b57d9f8ff2f3a1d6dc5032
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240185
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    name       old time/op  new time/op  delta
+    ISOWeek-4  57.7ns ± 5%  27.9ns ±10%  -51.54%  (p=0.000 n=48+49)
+    
+    Fixes #37534
+    
+    Change-Id: Ic4673ced44a4b0190018e87207743ed9500fb1e0
+    GitHub-Last-Rev: a376c57e83a99f8e8fde297335caa85215e7aead
+    GitHub-Pull-Request: golang/go#36316
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212837
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 4 ++--
- src/cmd/compile/internal/ssa/op.go | 8 ++++++--
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/time/time.go      | 70 ++++++++++++++-------------------------------------
+ src/time/time_test.go |  7 ++++++
+ 2 files changed, 26 insertions(+), 51 deletions(-)

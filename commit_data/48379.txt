@@ -1,22 +1,18 @@
-commit 49f16625c82483ab26929a2761031c93dd5d2c83
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Mar 14 02:40:25 2022 +0000
+commit 3a0453514a80b001e6135f98ec4e0da5a78ab267
+Author: John Bampton <jbampton@gmail.com>
+Date:   Fri May 7 10:47:28 2021 +0000
 
-    cmd/internal/obj/arm64: add TRN1 and TRN2 instructions support
+    all: fix spelling
     
-    Add test cases.
-    
-    Fixes #51628
-    
-    Change-Id: I433367d87e6bb5da5579c4be540079b92701c1fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392294
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Fannie Zhang <Fannie.Zhang@arm.com>
+    Change-Id: Id991d8e81e04835cabfb02d07a2199bfb553726c
+    GitHub-Last-Rev: 5d0b55d49127a2e2ba3148d20a58c52debcae12b
+    GitHub-Pull-Request: golang/go#44802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299069
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64.s | 4 ++++
- src/cmd/internal/obj/arm64/a.out.go       | 2 ++
- src/cmd/internal/obj/arm64/anames.go      | 2 ++
- src/cmd/internal/obj/arm64/asm7.go        | 8 ++++++++
- 4 files changed, 16 insertions(+)
+ src/net/http/httputil/reverseproxy_test.go | 2 +-
+ src/net/http/socks_bundle.go               | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

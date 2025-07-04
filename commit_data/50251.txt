@@ -1,22 +1,28 @@
-commit cb357835d9c62232e70f7bf0eb7b105a2901bd1a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 29 16:40:31 2022 -0700
+commit f8bfdc9eda4a065b88e5d7ab968957d9c84694bf
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Oct 11 15:51:10 2021 -0700
 
-    cmd/compile/internal/types2: match go/types error for invalid instantiations
+    cmd/go: adjust documentation mentioning 'go get'
     
-    Also: add a missing test.
+    In module-aware mode, 'go get' no longer builds or installs packages.
     
-    For #54511.
+    - 'go generate' explains build commands do not run generate
+      commands. 'go get' is no longer a build command, so this CL removes
+      mention of it.
+    - 'go get' will continue to accept build flags, but they're
+      ignored. The documentation no longer mentions them, though it does
+      mention -x for printing VCS commands.
     
-    Change-Id: Ie9828c6ba5186feb5a79db0d58beb2cda2beae56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426478
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #43684
+    
+    Change-Id: I1eea7241eecf72ba9f98238b729d91cc77ec7665
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355209
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/signature.go          |  2 +-
- .../internal/types2/testdata/fixedbugs/issue48827.go  | 19 +++++++++++++++++++
- src/cmd/compile/internal/types2/typexpr.go            | 16 +++++++++++-----
- 3 files changed, 31 insertions(+), 6 deletions(-)
+ src/cmd/go/alldocs.go                    | 9 ++++++---
+ src/cmd/go/internal/generate/generate.go | 2 +-
+ src/cmd/go/internal/modget/get.go        | 7 +++++--
+ 3 files changed, 12 insertions(+), 6 deletions(-)

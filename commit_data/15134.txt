@@ -1,24 +1,17 @@
-commit 572d984eaa64e6e3a1a67ecde9f6a1038d76becc
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 4 22:48:31 2013 -0500
+commit 92e4645f31c6a766207ce5095b9629f5e77adad5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 4 13:55:38 2013 -0800
 
-    cmd/gc: fix escape analysis
+    net/http: add Next Protocol Negotation upgrade support to the Server
     
-    If the analysis reached a node twice, then the analysis was cut off.
-    However, if the second arrival is at a lower depth (closer to escaping)
-    then it is important to repeat the traversal.
+    This provides the mechanism to connect SPDY support to the http
+    package, without pulling SPDY into the standard library.
     
-    The repeating must be cut off at some point to avoid the occasional
-    infinite recursion. This CL cuts it off as soon as possible while still
-    passing all tests.
-    
-    Fixes #4751.
-    
-    R=ken2
-    CC=golang-dev, lvd
-    https://golang.org/cl/7303043
+    R=rsc, agl, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/7287045
 
- src/cmd/gc/esc.c | 28 ++++++++++++++++++++++++----
- src/cmd/gc/go.h  |  1 +
- test/escape2.go  | 16 ++++++++++++++++
- 3 files changed, 41 insertions(+), 4 deletions(-)
+ src/pkg/net/http/httptest/server.go |  19 ++++--
+ src/pkg/net/http/npn_test.go        | 118 ++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go          |  80 +++++++++++++++++++++---
+ 3 files changed, 204 insertions(+), 13 deletions(-)

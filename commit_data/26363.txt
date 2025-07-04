@@ -1,23 +1,20 @@
-commit 15ed37d7b79721ad2077290f844d25e3e42a7821
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 16 21:51:17 2016 -0700
+commit 66a7097ca9283bd98fd3fbb507634e444081d215
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 13 10:52:56 2016 -0800
 
-    cmd/compile: enforce nowritebarrier in SSA compiler
+    go/importer: fix field/method package for binary importer
     
-    Make sure we don't generate write barriers in runtime
-    code that is marked to forbid write barriers.
+    This is the equivalent of https://golang.org/cl/18549 for
+    the binary importer (which is usually not used because by
+    default the gc compiler produces the traditional textual
+    export format).
     
-    Implement the optimization that if we're writing a sliced
-    slice back to the location it came from, we don't need a
-    write barrier.
+    For #13898.
     
-    Fixes #14784
-    
-    Change-Id: I04b6a3b2ac303c19817e932a36a3b006de103aaa
-    Reviewed-on: https://go-review.googlesource.com/20791
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Idb6b515f2ee49e6d0362c71846994b0bd4dae8f7
+    Reviewed-on: https://go-review.googlesource.com/18598
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go  | 23 +++++++++++++++++++++++
- src/cmd/compile/internal/gc/walk.go |  7 +++++++
- test/writebarrier.go                | 13 +++++++++++++
- 3 files changed, 43 insertions(+)
+ src/go/internal/gcimporter/bimport.go | 67 ++++++++++++++++++++---------------
+ 1 file changed, 38 insertions(+), 29 deletions(-)

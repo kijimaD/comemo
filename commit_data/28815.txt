@@ -1,16 +1,20 @@
-commit 1da1da3d6ab9ac8287e6b4185afcd1c3396178f5
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon May 9 09:40:27 2016 -0400
+commit 28ee17965703c4ef81cc97e5088539fe3e8e541f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 28 13:42:11 2016 +0200
 
-    go/internal/gcimporter: set Pos attribute of decoded types.Objects
+    net: prevent cancelation goroutine from adjusting fd timeout after connect
     
-    This change is a copy of CL 22788 in x/tools.
-    It has no observable effect yet, but brings the two packages in synch.
+    This was previously fixed in https://golang.org/cl/21497 but not enough.
     
-    Change-Id: I266c77547cb46deb69b1a36e1674dfebc430e3a5
-    Reviewed-on: https://go-review.googlesource.com/22936
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #16523
+    
+    Change-Id: I678543a656304c82d654e25e12fb094cd6cc87e8
+    Reviewed-on: https://go-review.googlesource.com/25330
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/internal/gcimporter/bimport.go    | 74 ++++++++++++++++++++++++--------
- src/go/internal/gcimporter/gcimporter.go |  6 ++-
- 2 files changed, 61 insertions(+), 19 deletions(-)
+ src/net/dial_unix_test.go | 108 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/fd_unix.go        |  55 ++++++++++++++++-------
+ src/net/hook_unix.go      |   3 +-
+ 3 files changed, 149 insertions(+), 17 deletions(-)

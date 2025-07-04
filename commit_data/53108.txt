@@ -1,26 +1,24 @@
-commit 308ca75edbe152d515d8aeab439c995bfeed5534
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 19 15:59:19 2023 -0400
+commit b2b8872c876201eac2d0707276c6999ff3eb185e
+Author: Tatiana Bradley <tatiana@golang.org>
+Date:   Fri May 6 11:25:06 2022 -0400
 
-    cmd/go: make TestScript/gotoolchain more realistic
+    compress/gzip: fix stack exhaustion bug in Reader.Read
     
-    - Build the fake go1.999testpath binary from Go source instead of
-      special-casing a fake command on Windows.
+    Replace recursion with iteration in Reader.Read to avoid stack
+    exhaustion when there are a large number of files.
     
-    - Skip the part of the test that uses shell scripts served from the
-      test GOPROXY if /bin/sh is not present.
+    Fixes CVE-2022-30631
+    Fixes #53168
     
-    This makes the test more expensive, but also more realistic: notably,
-    it does not require test hooks to determine whether to run a real or
-    fake binary.
-    
-    Change-Id: If14fec52186631d7833eba653c91ec5198dede58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486400
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I47d8afe3f2d40b0213ab61431df9b221794dbfe0
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1455673
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417067
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/gotoolchain.go                  |  4 ---
- src/cmd/go/testdata/script/gotoolchain.txt | 46 ++++++++++++------------------
- 2 files changed, 18 insertions(+), 32 deletions(-)
+ src/compress/gzip/gunzip.go      | 60 +++++++++++++++++++---------------------
+ src/compress/gzip/gunzip_test.go | 16 +++++++++++
+ 2 files changed, 45 insertions(+), 31 deletions(-)

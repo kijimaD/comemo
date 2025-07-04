@@ -1,31 +1,39 @@
-commit 1b86bdbdc3991c13c6ed156100a5f4918fdd9c6b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Aug 14 17:44:22 2020 -0400
+commit ab1253b59ae7bfe5a064bf299bc896a65cc5a027
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 7 11:02:42 2020 -0500
 
-    cmd/test2json: do not emit a final Action if the result is not known
+    [dev.link] cmd/link: don't read symbol name if not needed
     
-    If we are parsing a test output, and the test does not end in the
-    usual PASS or FAIL line (say, because it panicked), then we need the
-    exit status of the test binary in order to determine whether the test
-    passed or failed. If we don't have that status available, we shouldn't
-    guess arbitrarily — instead, we should omit the final "pass" or "fail"
-    action entirely.
+    Most of the time of goobj2.Sym.Read is spent in reading the
+    symbol name. Sometimes the name is not needed, so don't read
+    it.
     
-    (In practice, we nearly always DO have the final status, such as when
-    running 'go test' or 'go tool test2json some.exe'.)
+    This brings the linking time pretty much back to the old linker.
+    On my Mac,
     
-    Fixes #40132
+    $ time go build cmd/compile     # (new)
     
-    Change-Id: Iae482577361a6033395fe4a05d746b980e18c3de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248624
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    real    0m1.016s
+    user    0m1.164s
+    sys     0m0.297s
+    
+    $ time go-tip build cmd/compile # (old)
+    
+    real    0m0.980s
+    user    0m1.229s
+    sys     0m0.309s
+    
+    Again, this is a bit ugly. Maybe we want to consider moving
+    symbol names out of Sym, to a separate section of the object
+    file?
+    
+    Change-Id: Ia9085c15aa4d614b7eae126e71a79d6806c75055
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218480
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/test/test.go                   |   8 +-
- src/cmd/go/testdata/script/test_json_exit.txt      | 102 +++++++++++++++++++++
- src/cmd/internal/test2json/test2json.go            |  44 +++++----
- .../internal/test2json/testdata/benchshort.json    |   1 -
- src/cmd/internal/test2json/testdata/empty.json     |   1 -
- src/cmd/test2json/main.go                          |   6 +-
- 6 files changed, 139 insertions(+), 23 deletions(-)
+ src/cmd/internal/goobj2/objfile.go     | 10 ++++++++++
+ src/cmd/link/internal/loader/loader.go | 20 ++++----------------
+ 2 files changed, 14 insertions(+), 16 deletions(-)

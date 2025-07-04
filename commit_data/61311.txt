@@ -1,0 +1,24 @@
+commit 808da68c1c66e05a04a7d4bc046f27811711d7ff
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Aug 19 17:45:41 2024 -0400
+
+    internal/runtime/maps: linear scan of small map
+    
+    We still use the hash and control word, but loop over all 8 bytes
+    instead of doing the match operation, which ends up being slightly
+    faster when there is only one group.
+    
+    Note that specialized variants added later will avoid hashing at all.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I3bb353b023dd6120b6585e87d3efe2f18ac9e1ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611189
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/runtime/maps/map.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

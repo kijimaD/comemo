@@ -1,14 +1,17 @@
-commit a9afa4e933f3eff131f12e24bb0f5b9f3168ca14
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Tue Oct 17 23:11:54 2017 -0300
+commit 0d482b382481734b430621c08cad58e20faf8aa8
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Mon Jul 17 13:51:37 2017 -0400
 
-    database/sql: fix example usage of Out
+    syscall: update check for UserNS support for centos 7
     
-    Fixes #22292
+    Fixes #20796
+    Fixes #16283
     
-    Change-Id: I016e5f2b8624a6ebaf11a693a0f6d94d7b0d3f92
-    Reviewed-on: https://go-review.googlesource.com/71550
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: Ib11992fbd2bc1fbb3b14ae5a6bf0da2e4c12f641
+    Reviewed-on: https://go-review.googlesource.com/49311
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/sql.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/exec_linux_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

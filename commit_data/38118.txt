@@ -1,19 +1,18 @@
-commit c81b830023d33b51384f14245bee195c65c1f7b8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 27 12:14:59 2019 -0500
+commit f6fea0f31de094f43a4e7f659342de02585964ac
+Author: Austin Clements <austin@google.com>
+Date:   Sun Aug 26 21:30:19 2018 -0400
 
-    cmd/dist: execute misc/cgo/testso{,var} as regular tests, not host tests
+    runtime: skip debug call injection tests under a debugger
     
-    These tests use runtime.GOOS and runtime.GOARCH to determine whether
-    to run, so must be built and run using the destination's — not the
-    host's — GOOS and GOARCH.
+    The debug call injection tests will freeze when run under a debugger
+    because they depend on catching SIGTRAP, which is usually swallowed by
+    a debugger.
     
-    Updates #30228
-    
-    Change-Id: I6774dacd01c68b395fca8ca61f70d5879270af8a
-    Reviewed-on: https://go-review.googlesource.com/c/164117
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: If6b86ca279b0489182990dd513444ca3062973f1
+    Reviewed-on: https://go-review.googlesource.com/c/139437
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/debug_test.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

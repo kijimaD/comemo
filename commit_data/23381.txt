@@ -1,15 +1,27 @@
-commit d3e8a3614c4aad86a48100a196a7ff4a6e2164ca
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 16 15:21:39 2015 -0700
+commit 516f0d1c906b841d33ecd185cda0257dfa7e2210
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Mon May 11 10:31:24 2015 +0100
 
-    go/types: don't export gcCompatibilityMode flag
+    net/http: silence race detector on client header timeout test
     
-    This flag is not needed in the std repo because we don't have
-    tests requiring it. Remove it before it's frozen into the API.
+    When running the client header timeout test, there is a race between
+    us timing out and waiting on the remaining requests to be serviced. If
+    the client times out before the server blocks on the channel in the
+    handler, we will be simultaneously adding to a waitgroup with the
+    value 0 and waiting on it when we call TestServer.Close().
     
-    Change-Id: I18b861eea146ad67e7a3c26ee8be681d8065ef12
-    Reviewed-on: https://go-review.googlesource.com/11150
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    This is largely a theoretical race. We have to time out before we
+    enter the handler and the only reason we would time out if we're
+    blocked on the channel. Nevertheless, make the race detector happy
+    by turning the close into a channel send. This turns the defer call
+    into a synchronization point and we can be sure that we've entered
+    the handler before we close the server.
+    
+    Fixes #10780
+    
+    Change-Id: Id73b017d1eb7503e446aa51538712ef49f2f5c9e
+    Reviewed-on: https://go-review.googlesource.com/9905
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/typestring.go | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ src/net/http/client_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

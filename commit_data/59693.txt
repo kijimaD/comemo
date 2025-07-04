@@ -1,19 +1,30 @@
-commit c684dfcb8a8fe38a8414bfd07b94e9995e5cd308
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu May 22 00:29:14 2025 +0000
+commit 1843464f014c946c1663de76249267486887626f
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Apr 1 13:13:50 2024 -0700
 
-    runtime: don't spin looking for a tiny alloc address with asan or race
+    all: consistently use "IEEE 754" over "IEEE-754"
     
-    CL 674655 modified the checkfinalizers test to spin looking for an
-    appropriate address to trip the detector, but this doesn't work with
-    ASAN or in race mode, which both disable the tiny allocator.
+    There is no hyphen between the organization and the number.
     
-    Fixes #73834.
+    For example, https://standards.ieee.org/ieee/754/6210/
+    shows the string "IEEE 754-2019" and not "IEEE-754-2019".
     
-    Change-Id: I27416da1f29cd953271698551e9ce9724484c683
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675395
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    This assists in searching for "IEEE 754" in documentation
+    and not missing those using "IEEE-754".
+    
+    Change-Id: I9a50ede807984ff1e2f17390bc1039f6a5d162e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575438
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/testdata/testprog/checkfinalizers.go | 31 +++++++++++++++---------
- 1 file changed, 19 insertions(+), 12 deletions(-)
+ doc/go1.17_spec.html       | 12 ++++++------
+ doc/go_spec.html           | 12 ++++++------
+ src/builtin/builtin.go     |  4 ++--
+ src/encoding/gob/doc.go    |  2 +-
+ src/math/big/float.go      |  6 +++---
+ src/math/big/float_test.go |  2 +-
+ 6 files changed, 19 insertions(+), 19 deletions(-)

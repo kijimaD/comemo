@@ -1,19 +1,16 @@
-commit 01360a64c5895a9ec8b8c34140415fe34c3de201
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 6 20:19:47 2016 -0700
+commit 8d94b9b820b093a32b7eb83d6481bc3da7ca276e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 25 21:16:45 2016 -0800
 
-    io: change the name of ReadAtSizer to SizedReaderAt
+    runtime: more deflaking of TestCgoCheckBytes
     
-    This is a proposal. The old name is pretty poor. The new one describes
-    it better and may be easier to remember. It does not start with Read,
-    though I think that inconsistency is worthwhile.
+    Fixes #14519.
     
-    Reworded the comment a bit for clarity.
-    
-    Change-Id: Icb4f9c663cc68958e0363d7ff78a0b29cc521f98
-    Reviewed-on: https://go-review.googlesource.com/21629
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I8f78f67a463e6467e09df90446f7ebd28789d6c9
+    Reviewed-on: https://go-review.googlesource.com/19933
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/io/io.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/runtime/crash_cgo_test.go           | 36 +++++++++++++++++++++++----------
+ src/runtime/testdata/testprogcgo/cgo.go | 14 +++++++++++--
+ 2 files changed, 37 insertions(+), 13 deletions(-)

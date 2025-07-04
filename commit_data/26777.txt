@@ -1,16 +1,23 @@
-commit 7da42d75975044df37aa3aa2499623e2084a12df
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Mar 20 21:34:48 2016 -0400
+commit 687abca1ea828dd4745d50c351f3b73ccd4d09be
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 15 18:17:09 2016 -0800
 
-    sync/atomic: add s390x implementations of atomic functions
+    runtime: avoid using REP prefix for IndexByte
     
-    Load and store instructions are atomic on s390x.
+    REP-prefixed instructions have a large startup cost.
+    Avoid them like the plague.
     
-    Change-Id: I33c641a75954f4fbd301b11a467cb57872038880
-    Reviewed-on: https://go-review.googlesource.com/20947
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkIndexByte10-8     22.4          5.34          -76.16%
+    
+    Fixes #13983
+    
+    Change-Id: I857e956e240fc9681d053f2584ccf24c1b272bb3
+    Reviewed-on: https://go-review.googlesource.com/18703
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sync/atomic/asm_s390x.s | 143 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 143 insertions(+)
+ src/bytes/bytes_test.go |  37 +++++++++++++
+ src/runtime/asm_amd64.s | 144 ++++++++++++++++++++++++------------------------
+ 2 files changed, 110 insertions(+), 71 deletions(-)

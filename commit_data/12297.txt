@@ -1,12 +1,15 @@
-commit 532c1b451b0b3e0ca05a29d2d297438b6dc2cf87
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 29 21:51:21 2012 -0800
+commit 1f0f459a163eb3a1f15b2ad50a6a80c49e8f87e0
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Mar 1 15:57:54 2012 +1100
 
-    test: add bug426.go: a gccgo crash on valid code
+    encoding/gob: more hardening for lengths of input strings.
     
-    R=golang-dev, r
+    Fixes #3160.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5715044
+    https://golang.org/cl/5716046
 
- test/fixedbugs/bug426.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/pkg/encoding/gob/codec_test.go |  5 ++++-
+ src/pkg/encoding/gob/decode.go     | 23 +++++++++++++++++------
+ 2 files changed, 21 insertions(+), 7 deletions(-)

@@ -1,15 +1,12 @@
-commit b1c4a8efa998e0d6b6eb423ad441b349968233be
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Dec 3 14:04:18 2012 +0100
+commit 19d793a32771ab8f9e64c67b792cd4cddacb679c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Dec 3 20:00:50 2012 +0900
 
-    bytes: avoid duplicate malloc/copy in Buffer.ReadString
+    net: simplify ListenTCP
     
-    Twice faster and twice less garbage.
-    
-    R=golang-dev, dave, daniel.morsing, bradfitz
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/6849128
+    https://golang.org/cl/6875044
 
- src/pkg/bytes/buffer.go      | 24 ++++++++++++++++--------
- src/pkg/bytes/buffer_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 8 deletions(-)
+ src/pkg/net/tcpsock_posix.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

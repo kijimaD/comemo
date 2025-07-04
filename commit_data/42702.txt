@@ -1,27 +1,31 @@
-commit 7bbd5ca5a6a94f58d33de6b1244248a32dc8cd9c
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 22 11:21:36 2020 -0400
+commit ee3a3717aa16dabede5dc0385b05423e8fbce985
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Feb 5 19:24:55 2020 -0500
 
-    runtime: replace index and contains with bytealg calls
+    doc/go1.14: disable text/template processing in HTML page
     
-    The runtime has its own implementation of string indexing. To reduce
-    code duplication and cognitive load, replace this with calls to the
-    internal/bytealg package. We can't do this on Plan 9 because it needs
-    string indexing in a note handler (which isn't allowed to use the
-    optimized bytealg version because it uses SSE), so we can't just
-    eliminate the index function, but this CL does down-scope it so make
-    it clear it's only for note handlers on Plan 9.
+    HTML pages served by the website have the option to opt-in to template
+    processing, by including "Template: true" in the page metadata.
+    This functionality is documented at
+    https://github.com/golang/tools/blob/403f1254bdfd3da27c92a0e9e37dd180a9a82b3c/godoc/template.go#L5-L30.
     
-    Change-Id: Ie1a142678262048515c481e8c26313b80c5875df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244537
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Historically, the Go 1 release notes have used template processing
+    to a great extent, but release notes for all subsequent major Go
+    releases have not.
+    
+    Since this feature is generally not used and not very well known,
+    it tends to do more harm than good by making it possible for errors
+    in the template to prevent the release notes from showing up at all.
+    
+    Disable this feature for Go 1.14 release notes and onwards.
+    We can consider enabling it when there's a stronger need for it.
+    
+    Fixes #37072
+    Updates #37070
+    
+    Change-Id: If93553d52df12544b46c4edcf3aa5eddc2a155ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218058
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_plan9.go  | 18 ++++++++++++++++--
- src/runtime/proc.go      |  3 ++-
- src/runtime/runtime1.go  |  5 +++--
- src/runtime/string.go    | 16 ----------------
- src/runtime/traceback.go |  3 ++-
- 5 files changed, 23 insertions(+), 22 deletions(-)
+ doc/go1.14.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

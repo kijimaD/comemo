@@ -1,17 +1,13 @@
-commit b211d0601420dbd26ef98f2c7de8167e3fdea865
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed May 7 10:16:55 2014 +1000
+commit d3764dd43511e6e9ca9fbca42506e097132a2f9a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 6 09:01:38 2014 -0400
 
-    cmd/addr2line: works with windows pe executables now
+    test: add test that gccgo compiled incorrectly
     
-    Update #7406
-    Fixes #7899
-    
-    LGTM=bradfitz
-    R=golang-codereviews, rsc, bradfitz
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/96960043
+    https://golang.org/cl/94100045
 
- src/cmd/addr2line/addr2line_test.go | 104 ++++++++++++++++++++++++++++++++++++
- src/cmd/addr2line/main.go           |  48 ++++++++++++++---
- 2 files changed, 144 insertions(+), 8 deletions(-)
+ test/fixedbugs/bug485.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

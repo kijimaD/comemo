@@ -1,43 +1,14 @@
-commit 4bdaf59cc9aab1f4bf6919460a2e9b50c023d3eb
+commit dd916be3d8b2361e6d60e6615f80db7b3143b85c
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 10 15:34:29 2011 -0800
+Date:   Mon Jan 10 14:25:17 2011 -0800
 
-    godoc: support for regular expression full text search
+    go spec: remove Maxalign from spec
     
-    Regular expressions may now be used in conjuction with full text
-    search. Godoc will show the first 10000 occurences in the source
-    code and highlight the respective text segments.
+    Fixes #1285.
     
-    - added new flag -testDir to specify a small directory for testing
-      (fast index creation; default = "")
-    
-    - use new FormatText function to format text and Go source
-      code in HTML, supporting multiple kinds of text selections
-      simulatenously); this replaces the uses of go/printer
-      Stylers
-    
-    - for now removed currently unused mechanism for identifier-
-      specific JS popups (will come back in some form once we
-      have type or other useful information)
-    
-    - various typo fixes and minor cleanups throughout
-    
-    Missing:
-    - indexing of non-.go files
-    
-    R=r, r2
-    CC=golang-dev, rsc
-    https://golang.org/cl/3699041
+    R=r, rsc, iant, ken2, r2
+    CC=golang-dev
+    https://golang.org/cl/3918041
 
- doc/all.css              |  23 ++-
- lib/godoc/search.html    |  21 +--
- lib/godoc/search.txt     |   5 +-
- lib/godoc/source.html    |  20 ---
- src/cmd/godoc/Makefile   |   1 +
- src/cmd/godoc/doc.go     |   2 +-
- src/cmd/godoc/format.go  | 342 ++++++++++++++++++++++++++++++++++++++++
- src/cmd/godoc/godoc.go   | 396 +++++++++++------------------------------------
- src/cmd/godoc/index.go   | 128 +++++++++------
- src/cmd/godoc/main.go    |  27 ++--
- src/cmd/godoc/snippet.go |  32 +---
- 11 files changed, 574 insertions(+), 423 deletions(-)
+ doc/go_spec.html | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

@@ -1,22 +1,24 @@
-commit 1865a56e8de5b0ffd80a6894ed49eac8132b8b5f
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Sun May 21 19:51:46 2017 -0700
+commit 3399fd254dcdf4e8a9be8c327076de5f9efe1b3a
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 22 17:45:55 2016 -0700
 
-    database/sql: allow Stmt Query and Exec methods to open a new conn
+    runtime: remove unused gcstats
     
-    Query and Exec functions on DB first attempt to get a cached
-    connection before requesting the connection pool to ignore
-    the cache and get a new connection. This change aligns Stmt to
-    that behavior as well.
+    The gcstats structure is no longer consumed by anything and no longer
+    tracks statistics that are particularly relevant to the concurrent
+    garbage collector. Remove it. (Having statistics is probably a good
+    idea, but these aren't the stats we need these days and we don't have
+    a way to get them out of the runtime.)
     
-    Fixes #20433
+    In preparation for #13613.
     
-    Change-Id: Idda5f61927289d7ad0882effa3a50ffc9efd88e6
-    Reviewed-on: https://go-review.googlesource.com/43790
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib63e2f9067850668f9dcbfd4ed89aab4a6622c3f
+    Reviewed-on: https://go-review.googlesource.com/34936
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/database/sql/sql.go      | 20 ++++++++++++++------
- src/database/sql/sql_test.go | 41 ++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 54 insertions(+), 7 deletions(-)
+ src/runtime/heapdump.go |  2 +-
+ src/runtime/mgcwork.go  |  7 -------
+ src/runtime/mstats.go   | 18 ++----------------
+ src/runtime/runtime2.go | 11 -----------
+ 4 files changed, 3 insertions(+), 35 deletions(-)

@@ -1,46 +1,18 @@
-commit 12b990ba7d9969987e79d5d1e5e71e50d2cc2c06
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Thu Jul 3 16:14:34 2014 -0400
+commit 2ec3a0a72fbe2cdd4affc67383ae67c503e7469b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jul 3 12:08:24 2014 +0400
 
-    cmd/go, cmd/ld, runtime, os/user: TLS emulation for android
+    crypto/x509: fix format strings in test
+    Currently it says:
+    --- PASS: TestDecrypt-2 (0.11s)
+    pem_decrypt_test.go:17: test 0. %!s(x509.PEMCipher=1)
+    --- PASS: TestEncrypt-2 (0.00s)
+    pem_decrypt_test.go:42: test 0. %!s(x509.PEMCipher=1)
     
-    Based on cl/69170045 by Elias Naur.
-    
-    There are currently several schemes for acquiring a TLS
-    slot to save the g register. None of them appear to work
-    for android. The closest are linux and darwin.
-    
-    Linux uses a linker TLS relocation. This is not supported
-    by the android linker.
-    
-    Darwin uses a fixed offset, and calls pthread_key_create
-    until it gets the slot it wants. As the runtime loads
-    late in the android process lifecycle, after an
-    arbitrary number of other libraries, we cannot rely on
-    any particular slot being available.
-    
-    So we call pthread_key_create, take the first slot we are
-    given, and put it in runtime.tlsg, which we turn into a
-    regular variable in cmd/ld.
-    
-    Makes android/arm cgo binaries work.
-    
-    LGTM=minux
-    R=elias.naur, minux, dave, josharian
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman
     CC=golang-codereviews
-    https://golang.org/cl/106380043
+    https://golang.org/cl/108400044
 
- src/cmd/go/build.go                   |  5 ++--
- src/cmd/ld/data.c                     |  4 +++
- src/cmd/ld/elf.c                      |  3 +-
- src/cmd/ld/lib.c                      |  4 +++
- src/cmd/ld/pobj.c                     |  2 +-
- src/cmd/ld/symtab.c                   |  7 ++++-
- src/pkg/os/user/lookup_stubs.go       |  2 +-
- src/pkg/os/user/lookup_unix.go        |  2 +-
- src/pkg/runtime/asm_arm.s             | 46 ++++-------------------------
- src/pkg/runtime/cgo/cgo.go            |  3 +-
- src/pkg/runtime/cgo/gcc_android_arm.c | 48 +++++++++++++++++++++++++++++++
- src/pkg/runtime/cgo/gcc_linux_arm.c   | 38 +++++++++++++-----------
- src/pkg/runtime/tls_arm.s             | 54 +++++++++++++++++++++++++++++++++++
- 13 files changed, 153 insertions(+), 65 deletions(-)
+ src/pkg/crypto/x509/pem_decrypt_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

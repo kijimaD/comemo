@@ -1,21 +1,27 @@
-commit 9133245be7365c23fcd60e3bb60ebb614970cdab
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 2 16:43:29 2021 -0700
+commit 572f168ed26bb32e83562cffb336f2df3a651d9c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 02:08:34 2020 -0500
 
-    cmd/compile/internal/types2: detect constraint type inference cycles
+    [dev.regabi] cmd/compile: separate various from Main
     
-    See the detailed explanations in the code.
+    Move various code out of Main itself and into helper functions
+    that can be moved into other packages as package gc splits up.
     
-    Fixes #48136.
+    Similarly, move order and instrument inside walk to reduce the amount
+    of API surface needed from the eventual package walk.
     
-    Change-Id: I1667aabfbbff97967913b080c77e7ec04ea82feb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347300
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I7849258038c6e39625a0385af9c0edd6a3b654a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279304
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/infer.go           | 124 +++++++++++++++++++++
- .../types2/testdata/fixedbugs/issue48136.go2       |  36 ++++++
- 2 files changed, 160 insertions(+)
+ src/cmd/compile/internal/gc/abiutils_test.go |   8 +-
+ src/cmd/compile/internal/gc/dcl.go           |   6 +
+ src/cmd/compile/internal/gc/go.go            |   2 -
+ src/cmd/compile/internal/gc/inl.go           |  20 +++
+ src/cmd/compile/internal/gc/main.go          | 203 +++++----------------------
+ src/cmd/compile/internal/gc/pgen.go          |  10 +-
+ src/cmd/compile/internal/gc/ssa.go           |  19 ++-
+ src/cmd/compile/internal/gc/typecheck.go     | 114 +++++++++++++++
+ src/cmd/compile/internal/gc/walk.go          |   8 ++
+ 9 files changed, 211 insertions(+), 179 deletions(-)

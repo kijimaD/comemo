@@ -1,26 +1,17 @@
-commit fc1d4c11dfff3cad0389b32e9fa698a389807e3a
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Apr 11 17:52:55 2022 -0700
+commit 033d885315dd67c509d6f7f12f3e3a26bb1ca127
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jun 10 17:02:44 2021 -0400
 
-    cmd/go: fix TestScript/test_fuzz_minimize_interesting flake
+    doc/go1.17: document go run pkg@version
     
-    check_testdata/check_testdata.go used the encoding of the corpus entry
-    file, rather than the input string itself, when checking the expected
-    size of the minimized value. Instead, use the actual byte length, which
-    should bypass flakiness.
+    Fixes #46687
     
-    While we are here, use somewhat simpler fuzz targets, that use byte
-    slices rather than strings, and only execute the targets when fuzzing (
-    skipping the 'run' phase.)
-    
-    Fixes #52285
-    
-    Change-Id: I48c3780934891eec4a9e38d93abb4666091cb580
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399814
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I6c311f15d3871a9824306b901fa0b81818ed2df8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326870
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- .../script/test_fuzz_minimize_interesting.txt      | 104 ++++++++++-----------
- 1 file changed, 47 insertions(+), 57 deletions(-)
+ doc/go1.17.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

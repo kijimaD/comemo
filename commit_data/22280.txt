@@ -1,20 +1,20 @@
-commit 28f33b4a7071870e5ee8b3f87170bbdf9c08981e
-Author: Jacob H. Haven <jacob@cloudflare.com>
-Date:   Thu Mar 19 04:01:57 2015 -0700
+commit 9a420f4cf324736f77550e81176eb7363ec6788d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 3 09:30:07 2015 -0800
 
-    crypto/tls: make use of crypto.Signer and crypto.Decrypter
+    cmd/asm: LOOP is a branch instruction on x86
     
-    This change replaces all direct ECDSA/RSA sign and decrypt operations
-    with calls through the crypto.Signer and crypto.Decrypter interfaces.
+    Just a missed case in in the handling of branches.
     
-    This is a follow-up to https://go-review.googlesource.com/#/c/3900/
-    which added crypto.Decrypter and implemented it for RSA.
+    Fixes #10065
     
-    Change-Id: Ie0f3928448b285f329efcd3a93ca3fd5e3b3e42d
-    Reviewed-on: https://go-review.googlesource.com/7804
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I6be054d30bf1f383c12b4c7626abd5f8ae22b22e
+    Reviewed-on: https://go-review.googlesource.com/6631
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/crypto/tls/common.go           |  8 ++---
- src/crypto/tls/handshake_server.go | 60 +++++++++++++++++++++++++++++---------
- src/crypto/tls/key_agreement.go    | 40 ++++++++++++-------------
- 3 files changed, 69 insertions(+), 39 deletions(-)
+ src/cmd/asm/internal/arch/arch.go           | 3 ++-
+ src/cmd/asm/internal/asm/testdata/386.out   | 3 ++-
+ src/cmd/asm/internal/asm/testdata/386.s     | 4 ++++
+ src/cmd/asm/internal/asm/testdata/amd64.out | 3 ++-
+ src/cmd/asm/internal/asm/testdata/amd64.s   | 4 ++++
+ 5 files changed, 14 insertions(+), 3 deletions(-)

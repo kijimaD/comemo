@@ -1,13 +1,14 @@
-commit 76a078332173ab49e0a9d3fad4854960ee0b1c50
+commit 96a5780db882b4bd4a1f4b69e185833e5bedffcb
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Dec 17 13:14:59 2011 +1100
+Date:   Sat Dec 17 13:14:18 2011 +1100
 
-    goinstall: only suggest -fix for bad imports when appropriate
+    go/build: remove 'go/build' from error messages
+    
+    This leads to really confusing messages in goinstall.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5495073
+    https://golang.org/cl/5495074
 
- src/cmd/goinstall/download.go | 14 +++++++++-----
- src/cmd/goinstall/main.go     |  4 ++++
- 2 files changed, 13 insertions(+), 5 deletions(-)
+ src/pkg/go/build/path.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

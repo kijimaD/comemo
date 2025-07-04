@@ -1,18 +1,41 @@
-commit 9d36ab222d838f0e493653e2f31d77adb15ab9b5
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Oct 12 14:57:19 2016 +0200
+commit 25e0a367da6254d89b497f392ea9d1679455d000
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 13 16:15:54 2016 -0700
 
-    cmd/link: use HEADR to define FlagTextAddr (cosmetic change)
+    [dev.ssa] cmd/compile: clean up tuple types and selects
     
-    This cosmetic change defines ld.FlagTextAddr using ld.HEADR in
-    the Plan 9 cases, like it is done for other operating systems.
+    Make tuple types and their SelectX ops fully generic.
+    These ops no longer need to be lowered.
+    Regalloc understands them and their tuple-generating arguments.
+    We can now have opcodes returning arbitrary pairs of results.
+    (And it would be easy to move to >2 results if needed.)
     
-    Change-Id: Ic929c1c437f25661058682cf3e159f0b16cdc538
-    Reviewed-on: https://go-review.googlesource.com/30912
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Update arm implementation to the new standard.
+    Implement just enough in 386 port to do 64-bit add.
+    
+    Change-Id: I370ed5aacce219c82e1954c61d1f63af76c16f79
+    Reviewed-on: https://go-review.googlesource.com/24976
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/arm64/obj.go | 2 +-
- src/cmd/link/internal/x86/obj.go   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go        |   26 +-
+ src/cmd/compile/internal/gc/ssa.go         |   28 +
+ src/cmd/compile/internal/ssa/cse.go        |    4 +-
+ src/cmd/compile/internal/ssa/gen/386.rules |    3 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go |    5 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules |    4 -
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |   70 +-
+ src/cmd/compile/internal/ssa/gen/main.go   |   30 +-
+ src/cmd/compile/internal/ssa/html.go       |    2 +-
+ src/cmd/compile/internal/ssa/location.go   |   13 +
+ src/cmd/compile/internal/ssa/lower.go      |    2 +-
+ src/cmd/compile/internal/ssa/op.go         |   34 +-
+ src/cmd/compile/internal/ssa/opGen.go      | 2362 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/regalloc.go   |  144 +-
+ src/cmd/compile/internal/ssa/rewrite386.go |   36 +
+ src/cmd/compile/internal/ssa/rewriteARM.go |   48 -
+ src/cmd/compile/internal/ssa/schedule.go   |   21 +-
+ src/cmd/compile/internal/ssa/tighten.go    |    2 +-
+ src/cmd/compile/internal/x86/ssa.go        |   14 +-
+ 19 files changed, 1448 insertions(+), 1400 deletions(-)

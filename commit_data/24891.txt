@@ -1,20 +1,20 @@
-commit c8bc7f1abd74fe0fda3be763d8cbdba371cb3820
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 13 14:04:40 2015 -0800
+commit 259466452dfb5ab84cfb3d0425b5137406e564ed
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Mon Sep 7 22:19:30 2015 +0200
 
-    cmd/compile: better syntax error handling for new parser
+    cmd/compile/internal/gc: unexport and make Hasdefer a bool
     
-    - better error messages
-    - better error recovery by advancing to "follow" token after error
-    - make sure that we make progress after all errors
-    - minor cleanups
+    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
     
-    Change-Id: Ie43b8b02799618d70dc8fc227fab3e4e9e0d8e3a
-    Reviewed-on: https://go-review.googlesource.com/16892
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: I804ee4252fa9be78cb277faf7f467e6c9cfdd4a6
+    Reviewed-on: https://go-review.googlesource.com/14319
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/go.go     |   3 +-
- src/cmd/compile/internal/gc/parser.go | 231 +++++++++++++++++-----------------
- 2 files changed, 120 insertions(+), 114 deletions(-)
+ src/cmd/compile/internal/gc/cgen.go | 4 ++--
+ src/cmd/compile/internal/gc/go.go   | 2 +-
+ src/cmd/compile/internal/gc/pgen.go | 4 ++--
+ src/cmd/compile/internal/gc/reg.go  | 2 +-
+ src/cmd/compile/internal/gc/walk.go | 2 +-
+ 5 files changed, 7 insertions(+), 7 deletions(-)

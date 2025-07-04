@@ -1,19 +1,15 @@
-commit b602daea1b94a8a578bafdc6ef6336c07fe63300
-Author: korzhao <korzhao95@gmail.com>
-Date:   Mon Aug 30 17:09:51 2021 +0800
+commit 5046cb8a6e8496f70e47f648ed368ffe87bc5e4e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 15 10:36:10 2020 +0100
 
-    cmd/compile: fix error when revcType is ptr in selectorExpr
+    doc/go1.16: fix formatting in net, net/http and net/http/httputil sections
     
-    Fixes #48056
+    For #40700.
     
-    Change-Id: I13ca4caadbabf02084f66ab28b4cf0c4a3705370
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346049
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I83d9ef9f79d59a0165a47ccc938fc2bf40e90703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278212
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/noder/expr.go |  2 +-
- test/typeparam/issue48056.go           | 27 +++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ doc/go1.16.html | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

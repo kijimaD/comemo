@@ -1,15 +1,13 @@
-commit 192bccbf33b7493b36989921c8a81ece41904aa5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 7 12:55:28 2014 +0400
+commit 7bcaff70ed92156eb98841ecac3fb5e234822ea3
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 6 14:43:50 2014 -0700
 
-    runtime: shrink stacks in parallel
-    Shrinkstack does not touch normal heap anymore,
-    so we can shink stacks concurrently with marking.
+    debug/dwarf: fix typos in comment for UnspecifiedType
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, khr, rlh, rsc
-    https://golang.org/cl/122130043
+    LGTM=iant, bradfitz
+    R=bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/120700043
 
- src/pkg/runtime/mgc0.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/pkg/debug/dwarf/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

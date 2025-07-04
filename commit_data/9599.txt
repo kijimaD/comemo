@@ -1,17 +1,15 @@
-commit 919cb2ec7cb06e09d0a42c2aba54625cf4d951cb
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 5 15:31:22 2011 -0400
+commit d5e24b697521617f83b686656385a1ceb8844961
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Sep 5 19:09:20 2011 +0200
 
-    gc: fix zero-length struct eval
+    exp/norm: performance improvements of quickSpan
+    - fixed performance bug that could lead to O(n^2) behavior
+    - performance improvement for ASCII case
     
-    Fixes #2232.
-    
-    R=ken2
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/4960054
+    https://golang.org/cl/4956060
 
- src/cmd/5g/cgen.c | 11 +++++++++--
- src/cmd/6g/cgen.c | 15 +++++++++++----
- src/cmd/8g/cgen.c | 13 +++++++++----
- test/struct0.go   | 34 ++++++++++++++++++++++++++++++++++
- 4 files changed, 63 insertions(+), 10 deletions(-)
+ src/pkg/exp/norm/normalize.go      | 27 ++++++++++++++++++++-------
+ src/pkg/exp/norm/normalize_test.go |  5 +++++
+ 2 files changed, 25 insertions(+), 7 deletions(-)

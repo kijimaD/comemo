@@ -1,14 +1,24 @@
-commit 7a062432059e0a7f6217424733d3a01030897741
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 4 15:41:08 2022 -0400
+commit 671954e72e8e3e569e659d29e22c6b2a23cea206
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 21:15:19 2021 +0000
 
-    test/nosplit: add more complicated recursion tests
+    [dev.typeparams] runtime/internal/sys: replace GOOS with goos.GOOS
     
-    Change-Id: I301ed8bcc93f31147d247e60a7aab8ed42421bbd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398175
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Refactoring done by rf tool:
+    
+        rf 'ex . {
+            import "internal/goos"
+            import "runtime/internal/sys"
+            sys.GOOS -> goos.GOOS
+        }'
+    
+    Change-Id: I4b4aadff8640731ce4cb9bdad9954c267eb484c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328339
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/nosplit.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/runtime/extern.go              | 4 ++--
+ src/runtime/internal/sys/consts.go | 2 --
+ 2 files changed, 2 insertions(+), 4 deletions(-)

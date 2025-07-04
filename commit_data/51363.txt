@@ -1,20 +1,72 @@
-commit 205f636e0ab491b7a06e7b7879abb897cdaaf1b4
-Author: eric fang <eric.fang@arm.com>
-Date:   Mon Aug 8 07:42:43 2022 +0000
+commit cf5d73e8a2ba8d382278c7f490db61e513768159
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 18 10:31:59 2022 -0500
 
-    cmd/internal/obj/arm64: tidy literal pool
+    cmd/compile, go/types: restore 'too many return values' error for func with no results
     
-    This CL cleans up the literal pool implementation and inserts an UNDEF
-    instruction before the literal pool if the last instruction of the
-    function is not an unconditional jump instruction, RET or ERET
-    instruction.
+    Currently the code handles the case of returning values from
+    a function with no result parameters as a special case.
+    Consider this input:
     
-    Change-Id: Ifecb9e3372478362dde246c1bc9bc8d527a469d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424134
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
+            package p
+    
+            func f0_2()            { return 1, 2 }
+            func f0_1()            { return 1 }
+            func f1_0() int        { return }
+            func f1_2() int        { return 1, 2 }
+            func f2_0() (int, int) { return }
+            func f2_1() (int, int) { return 1 }
+    
+    The errors are:
+    
+            x.go:3:33: no result values expected   <<<
+            x.go:4:33: no result values expected   <<<
+            x.go:5:26: not enough return values
+                    have ()
+                    want (int)
+            x.go:6:36: too many return values
+                    have (number, number)
+                    want (int)
+            x.go:7:26: not enough return values
+                    have ()
+                    want (int, int)
+            x.go:8:33: not enough return values
+                    have (number)
+                    want (int, int)
+    
+    There are two problems with the current special case emitting the
+    errors on the marked line:
+    
+    1. It calls them 'result values' instead of 'return values'.
+    2. It doesn't show the type being returned, which can be useful to programmers.
+    
+    Using the general case solves both these problems,
+    so this CL removes the special case and calls the general case instead.
+    
+    Now those two errors read:
+    
+            x.go:3:33: too many return values
+                    have (number, number)
+                    want ()
+            x.go:4:33: too many return values
+                    have (number)
+                    want ()
+    
+    Fixes #50653.
+    
+    Change-Id: If6b47dcece14ed4febb3a2d3d78270d5be1cb24d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379116
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 89 +++++++++++++++++++-------------------
- 1 file changed, 45 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/types2/stmt.go            | 40 ++++++++++------------
+ .../internal/types2/testdata/check/stmt0.src       |  2 +-
+ .../internal/types2/testdata/check/vardecl.src     |  4 +--
+ src/go/types/stmt.go                               | 36 +++++++++----------
+ src/go/types/testdata/check/stmt0.src              |  2 +-
+ src/go/types/testdata/check/vardecl.src            |  4 +--
+ test/fixedbugs/issue4215.go                        |  2 +-
+ test/fixedbugs/issue48834.go                       |  2 +-
+ 8 files changed, 44 insertions(+), 48 deletions(-)

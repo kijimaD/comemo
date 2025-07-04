@@ -1,39 +1,31 @@
-commit 09ea3c08e8fd1915515383f8cb4c0bb237d2b87d
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Fri Aug 31 02:15:26 2018 +0200
+commit b9a59d9f2e78ce497b38a984f62094a53e7dfce7
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Apr 24 15:13:08 2018 +0200
 
-    cmd/compile: in prove, fix fence-post implications for unsigned domain
+    cmd/compile: optimize len([]rune(string))
     
-    Fence-post implications of the form "x-1 >= w && x > min ⇒ x > w"
-    were not correctly handling unsigned domain, by always checking signed
-    limits.
+    Adds a new runtime function to count runes in a string.
+    Modifies the compiler to detect the pattern len([]rune(string))
+    and replaces it with the new rune counting runtime function.
     
-    This bug was uncovered once we taught prove that len(x) is always
-    >= 0 in the signed domain.
+    RuneCount/lenruneslice/ASCII                  27.8ns ± 2%  14.5ns ± 3%  -47.70%  (p=0.000 n=10+10)
+    RuneCount/lenruneslice/Japanese                126ns ± 2%    60ns ± 2%  -52.03%  (p=0.000 n=10+10)
+    RuneCount/lenruneslice/MixedLength             104ns ± 2%    50ns ± 1%  -51.71%  (p=0.000 n=10+9)
     
-    In the code being miscompiled (s[len(s)-1]), prove checks
-    whether len(s)-1 >= len(s) in the unsigned domain; if it proves
-    that this is always false, it can remove the bound check.
+    Fixes #24923
     
-    Notice that len(s)-1 >= len(s) can be true for len(s) = 0 because
-    of the wrap-around, so this is something prove should not be
-    able to deduce.
-    
-    But because of the bug, the gate condition for the fence-post
-    implication was len(s) > MinInt64 instead of len(s) > 0; that
-    condition would be good in the signed domain but not in the
-    unsigned domain. And since in CL105635 we taught prove that
-    len(s) >= 0, the condition incorrectly triggered
-    (len(s) >= 0 > MinInt64) and things were going downfall.
-    
-    Fixes #27251
-    Fixes #27289
-    
-    Change-Id: I3dbcb1955ac5a66a0dcbee500f41e8d219409be5
-    Reviewed-on: https://go-review.googlesource.com/132495
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie9c7e7391a4e2cca675c5cdcc1e5ce7d523948b9
+    Reviewed-on: https://go-review.googlesource.com/108985
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/ssa/prove.go |  9 +++++++--
- test/fixedbugs/issue27289.go          | 24 ++++++++++++++++++++++++
- test/prove.go                         |  4 +++-
- 3 files changed, 34 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 326 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
+ src/cmd/compile/internal/gc/order.go           |   9 +-
+ src/cmd/compile/internal/gc/walk.go            |  12 +
+ src/runtime/string_test.go                     |  38 +++
+ src/runtime/utf8.go                            |   9 +
+ src/unicode/utf8/utf8_test.go                  |  21 +-
+ test/codegen/strings.go                        |  15 ++
+ 8 files changed, 265 insertions(+), 169 deletions(-)

@@ -1,17 +1,21 @@
-commit b0d437f866eb8987cde7e6550cacd77876f36d4b
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu Apr 5 14:15:56 2018 -0500
+commit a2a1c173d7917e86e2f0a3323676ae29f188593c
+Author: Tim Wright <tenortim@gmail.com>
+Date:   Tue Nov 21 19:11:56 2017 -0800
 
-    cmd/compile/internal/gc: use bool in racewalk
+    syscall: add missing fs locking in Link, Rename on nacl
     
-    Replace int variables with 0/1 as only possible values with bools,
-    where possible.
+    Per the comments at the head of fs_nacl.go, unexported methods expect
+    the fs mutex to have been taken by the caller.
+    This change brings Link and Rename into line with the other exported
+    functions wrt fs locking.
     
-    Change-Id: I958c082e703bbc1540309da3e17612fc8e247932
-    Reviewed-on: https://go-review.googlesource.com/105036
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #22690
+    
+    Change-Id: I46d08f7d227f23ff49bb0099d218214364a45e1a
+    Reviewed-on: https://go-review.googlesource.com/79295
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/racewalk.go | 93 ++++++++++++++++++---------------
- 1 file changed, 50 insertions(+), 43 deletions(-)
+ src/syscall/fs_nacl.go | 4 ++++
+ 1 file changed, 4 insertions(+)

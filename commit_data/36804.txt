@@ -1,24 +1,25 @@
-commit d398dbdfc38838b63e39cd8ee2c9d30a09b5989f
-Author: Austin Clements <austin@google.com>
-Date:   Thu Aug 9 15:25:10 2018 -0400
+commit 210a9e0c7dbe9bc16522387e7a0c902d29a5f85c
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Oct 4 19:28:59 2017 +0100
 
-    runtime: eliminate gcBlackenPromptly mode
+    net/http: vendor x/net/http/httpproxy, use it in net/http
     
-    Now that there is no mark 2 phase, gcBlackenPromptly is no longer
-    used.
+    From x/net git rev c7086645de2.
     
-    Updates #26903. This is a follow-up to eliminating mark 2.
+    Updates #16704
     
-    Change-Id: Ib9c534f21b36b8416fcf3cab667f186167b827f8
-    Reviewed-on: https://go-review.googlesource.com/c/134319
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I4d642478fc69a52c973964845fca2fd402716e57
+    Reviewed-on: https://go-review.googlesource.com/68091
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgc.go     | 26 --------------------------
- src/runtime/mgcmark.go | 20 +++-----------------
- src/runtime/mgcwork.go |  3 ---
- src/runtime/mheap.go   |  3 ---
- src/runtime/mwbbuf.go  |  4 ++--
- src/runtime/stack.go   |  3 ---
- 6 files changed, 5 insertions(+), 54 deletions(-)
+ src/go/build/deps_test.go                          |   1 +
+ src/net/http/export_test.go                        |   4 +-
+ src/net/http/proxy_test.go                         |  39 +--
+ src/net/http/transport.go                          | 141 ++--------
+ src/net/http/transport_test.go                     |  60 +++--
+ .../golang_org/x/net/http/httpproxy/export_test.go |   7 +
+ .../golang_org/x/net/http/httpproxy/proxy.go       | 239 +++++++++++++++++
+ .../golang_org/x/net/http/httpproxy/proxy_test.go  | 298 +++++++++++++++++++++
+ 8 files changed, 605 insertions(+), 184 deletions(-)

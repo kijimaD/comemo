@@ -1,23 +1,12 @@
-commit a2f77e9ef8ba2e956453ad0dda1ebdf4ae7c4fdb
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 19 13:13:31 2016 -0700
+commit 0889d2d04a0ab8c4a0d6c437c857f3f721818577
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Aug 23 08:17:58 2016 -0400
 
-    cmd/compile: cleanup gdata slightly
+    debug/macho: fix comment on Section64
     
-    In sinit.go, gdata can already handle strings and complex, so no
-    reason to handle them separately.
-    
-    In obj.go, inline gdatastring and gdatacomplex into gdata, since it's
-    the only caller. Allows extracting out the common Linksym calls.
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: I3cb18d9b4206a8a269c36e0d30a345d8e6caba1f
-    Reviewed-on: https://go-review.googlesource.com/31498
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7c809ec385b56ebb2ec784a1479d466df6ab4d1a
+    Reviewed-on: https://go-review.googlesource.com/27565
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/obj.go   | 56 ++++++++++++++----------------------
- src/cmd/compile/internal/gc/sinit.go | 25 ++--------------
- 2 files changed, 24 insertions(+), 57 deletions(-)
+ src/debug/macho/macho.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

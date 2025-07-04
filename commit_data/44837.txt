@@ -1,27 +1,22 @@
-commit 6f90ee36e90cb6a6adfd29ee51f0ef8f7e507003
-Author: smasher164 <aindurti@gmail.com>
-Date:   Thu Aug 6 18:37:10 2020 -0400
+commit 5cc030aa1996762e48ce446001078ce6447f105e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jul 27 14:42:06 2020 +0200
 
-    math: simplify comparison in FMA when swapping p and z
+    go/ast: note that in BasicLit CHARs and STRINGs are quoted
     
-    Discovered by Junchen Li on CL 246858, the comparison before p and z are
-    swapped can be simplified from
+    The Value field of ast.BasicLit is a string field holding the literal
+    string. For CHARs and STRINGs, the BasicLit.Value literal includes
+    quotes, so to use the value in practise one will often need to Unquote
+    it.
     
-        pe < ze || (pe == ze && (pm1 < zm1 || (pm1 == zm1 && pm2 < zm2)))
+    Since this is a common gotcha (I've been bitten by this a few times),
+    document it, and suggest the use of the strconv.Unquote functions.
     
-    to
+    Fixes #39590
     
-        pe < ze || pe == ze && pm1 < zm1
-    
-    because zm2 is initialized to 0 before the branch.
-    
-    Change-Id: Iee92d570038df2b0f8941ef6e422a022654ab2d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247241
-    Run-TryBot: Akhil Indurti <aindurti@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie3e13f5a2a71bb1b59e03bc5b3a16d8e2e7c01d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244960
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/math/fma.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/ast/ast.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

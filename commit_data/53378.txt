@@ -1,43 +1,21 @@
-commit 77bdf6d0e0d7c99e76fa69a5a6419eedcbcc8d84
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 25 11:59:50 2023 -0400
+commit 1eeef5d5b4d5fafa96fb0d4aab033fc0c3947e51
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jul 25 15:20:22 2022 -0400
 
-    cmd/go: lock in new toolchain semantics
+    runtime: convert schedt.nmspinning to atomic type
     
-    The design doc says 'toolchain' lines apply even if the default
-    toolchain is older than the one specified in the toolchain line.
-    However, that leads to various confusing behavior and security issues.
-    Instead, treat toolchain as a min go version that only applies
-    in the current module (not in dependencies).
+    Note that this converts nmspinning from uint32 to int32 for consistency
+    with the other count fields in schedt.
     
-    As an example of confusing behavior / security issue, if I install
-    Go 1.30 and then run 'go build' in a module I've checked out,
-    I expect to use Go 1.30 or newer, not to silently use an older toolchain
-    that may have security problems fixed in Go 1.30.
-    Making toolchain a min establishes that guarantee.
+    For #53821.
     
-    Also clean up the tests quite a bit.
-    
-    Finally drop + from the acceptable version suffixes; we use + for +auto and +path.
-    
-    For #57001.
-    
-    Change-Id: Ia92c66be75d6d0e31cb4e2c0aa936fa4ec5c0a8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498260
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ia6ca7a2b476128eda3b68e9f0c7775ae66c0c744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419446
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/gover/toolchain.go           |  13 +-
- src/cmd/go/internal/gover/toolchain_test.go      |  19 ++
- src/cmd/go/internal/modload/init.go              |   2 +-
- src/cmd/go/internal/modload/modfile.go           |   2 +-
- src/cmd/go/internal/toolchain/toolchain.go       |  44 ++--
- src/cmd/go/testdata/script/gotoolchain.txt       | 301 -----------------------
- src/cmd/go/testdata/script/gotoolchain_local.txt | 267 ++++++++++++++++++++
- src/cmd/go/testdata/script/gotoolchain_net.txt   |  29 +++
- src/cmd/go/testdata/script/gotoolchain_path.txt  |  64 +++++
- src/cmd/go/testdata/script/mod_get_future.txt    |   2 +-
- src/cmd/go/testdata/script/mod_go_version.txt    |   4 +-
- 11 files changed, 417 insertions(+), 330 deletions(-)
+ src/runtime/mgcpacer.go |  2 +-
+ src/runtime/proc.go     | 32 ++++++++++++++++----------------
+ src/runtime/runtime2.go |  2 +-
+ 3 files changed, 18 insertions(+), 18 deletions(-)

@@ -1,21 +1,20 @@
-commit aae7734658e5f302c0e3a10f6c5c596fd384dbd7
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Nov 28 17:10:46 2023 +0000
+commit d45df06663c88984b75052fd0631974916b1bddb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 12 11:44:48 2023 -0800
 
-    internal/trace/v2: tolerate having a P in GoCreateSyscall
+    go/types, types2: more uses of factored functions; generate object_test.go
     
-    On non-pthread platforms, it's totally possible for the same M to
-    GoCreateSyscall/GoDestroySyscall on the same thread multiple times. That
-    same thread may hold onto its P through all those calls.
-    
-    For #64060.
-    
-    Change-Id: Ib968bfd439ecd5bc24fc98d78c06145b0d4b7802
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545515
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I7a8366f7dcbd68770b723247ce3e7e81716a8e49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461680
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/trace/v2/order.go                     |  2 +-
- .../generators/go122-create-syscall-with-p.go      | 54 ++++++++++++++++++++++
- .../tests/go122-create-syscall-with-p.test         | 22 +++++++++
- 3 files changed, 77 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/issues_test.go | 13 +++-------
+ src/cmd/compile/internal/types2/object_test.go | 10 +------
+ src/go/types/generator.go                      |  1 +
+ src/go/types/issues_test.go                    | 13 +++-------
+ src/go/types/object_test.go                    | 36 ++++++++++----------------
+ 5 files changed, 22 insertions(+), 51 deletions(-)

@@ -1,14 +1,14 @@
-commit 9b8d4e0977073b28a9094213358dd808f66e88a4
+commit e806565626019c1e9fad60014a337d0568cd29ae
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 15 08:14:34 2011 -0700
+Date:   Fri Apr 15 08:13:52 2011 -0700
 
-    json: keep track of error offset in SyntaxError
+    http: reverse proxy handler
     
-    R=rsc
+    R=rsc, petar-m
     CC=golang-dev
-    https://golang.org/cl/4430043
+    https://golang.org/cl/4428041
 
- src/pkg/json/decode_test.go |  6 +++---
- src/pkg/json/scanner.go     | 16 +++++++++++-----
- src/pkg/json/stream.go      |  5 +++--
- 3 files changed, 17 insertions(+), 10 deletions(-)
+ src/pkg/http/Makefile             |   1 +
+ src/pkg/http/reverseproxy.go      | 100 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/reverseproxy_test.go |  50 +++++++++++++++++++
+ 3 files changed, 151 insertions(+)

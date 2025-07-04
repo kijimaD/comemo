@@ -1,19 +1,17 @@
-commit b72a4a07c257f394f5a96dff29a4fc862601a41f
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Sep 30 13:35:03 2015 -0700
+commit c15b0e83d2e5d00d9b19a5ba191aff26831458d8
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Tue Jul 21 18:06:15 2015 +0200
 
-    encoding/binary: document that Read returns io.EOF iff zero bytes are read
+    [dev.ssa] cmd/compile/internal/ssa/gen: implement all bit sizes for Eq and Neq
     
-    Also add a unit test to lock this behavior into the API.
-    
-    Fixes #12016
-    
-    Change-Id: Ib6ec6e7948f0705f3504ede9143b5dc4e790fc44
-    Reviewed-on: https://go-review.googlesource.com/15171
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2c5c75153493b5dd3f1a743e5edf04403e83b31b
+    Reviewed-on: https://go-review.googlesource.com/12474
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/encoding/binary/binary.go      |  4 ++++
- src/encoding/binary/binary_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go           |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   8 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   8 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  42 +++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 126 +++++++++++++++++++++++++++
+ 5 files changed, 183 insertions(+), 3 deletions(-)

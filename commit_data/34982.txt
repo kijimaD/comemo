@@ -1,22 +1,22 @@
-commit 11309ba0e651bbbec0ff9d7200bb51b56a5c0f49
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Apr 14 14:14:28 2018 +1000
+commit 8bb51a73e9a09c1a501c9d12f425aeb293e7d0ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 29 15:22:13 2017 -0500
 
-    cmd/internal/obj/arm64: do not clear environment in TestLarge and TestNoRet
+    reflect: audit and explain safety of all unsafe.Pointer additions
     
-    Windows process cannot run properly, if it only has
-    GOOS and GOARCH environment variables set. It needs
-    other environment variables. So adjust TestLarge and
-    TestNoRet to add GOOS and GOARCH to the existing
-    variables set instead of clearing environment.
+    It's not safe to do p+x with unsafe if that would point past the
+    end of the object. (Valid in C, not safe in Go.)
+    Pass a "whySafe" reason (compiled away) to explain at each
+    call site why it's safe.
     
-    Fixes #24855
+    Fixes #21733.
     
-    Change-Id: I9fd9430d89031c3bacdbc6283450efaa4819e616
-    Reviewed-on: https://go-review.googlesource.com/107035
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5da8c25bde66f5c9beac232f2135dcab8e8bf3b1
+    Reviewed-on: https://go-review.googlesource.com/80738
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/internal/obj/arm64/asm_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/export_test.go |  2 +-
+ src/reflect/swapper.go     |  4 +--
+ src/reflect/type.go        | 56 +++++++++++++++++++++++++++--------------
+ src/reflect/value.go       | 63 ++++++++++++++++++++++++++++++----------------
+ 4 files changed, 81 insertions(+), 44 deletions(-)

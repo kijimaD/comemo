@@ -1,21 +1,27 @@
-commit 268eaf9acbbef7555db02bd3f15bdad9a47d13fa
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Oct 1 15:29:36 2024 -0400
+commit b65e34f03814889f0edd3ddd9778864762511443
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Aug 18 11:10:23 2023 -0400
 
-    cmd/go/internal/security: add -ftls-model to valid compiler flags
+    cmd/link: don't mangle string symbol names
     
-    Allow -ftls-model to be passed in to a system compiler. It does not
-    allow arbitrary code execution. See
-    https://gcc.gnu.org/onlinedocs/gcc/Code-Gen-Options.html#index-ftls-model
-    for documentation for the -ftls-model flag.
+    String symbol names could contain weird characters as we put the
+    string literal into the symbol name. So it may appear to need
+    mangling. However, as string symbols are grouped into a single
+    "go:string.*" symbol, the individual symbol names actually don't
+    matter. So don't mangle them.
     
-    Fixes #69711
+    Also make the mangling code more defensive in case of weird
+    symbol names.
     
-    Change-Id: I842a96832e6858e62c171401d13baa3391d6d00a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617136
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #62098.
+    
+    Change-Id: I533012567a9fffab69debda934f426421c7abb04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520856
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/work/security.go      | 1 +
- src/cmd/go/internal/work/security_test.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/cgo/internal/testplugin/plugin_test.go     |  6 +++--
+ .../testdata/{generic => mangle}/plugin.go         | 26 +++++++++++++++++-----
+ src/cmd/link/internal/ld/lib.go                    |  7 +++++-
+ 3 files changed, 31 insertions(+), 8 deletions(-)

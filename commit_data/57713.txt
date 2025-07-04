@@ -1,22 +1,20 @@
-commit 205ab8a3fe8d7feaedea67d44f09d8ac6af59fd8
-Author: 1911860538 <alxps1911@gmail.com>
-Date:   Mon Oct 21 16:27:03 2024 +0000
+commit a5ab4a9471d6745b604a0dc480524229106b0728
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 23 15:57:48 2023 -0700
 
-    html: use sync.OnceValues instead of var once sync.Once
+    net/http: use reflect.TypeFor for known types
     
-    Simplify populateMaps with sync.OnceValues.
+    For #60088
     
-    Change-Id: Id52e6e1623c621b8d51e11fecbe3f1fab1e74eb4
-    GitHub-Last-Rev: 3cf736ae299f14ece401d218d68c3c8870e0cf5a
-    GitHub-Pull-Request: golang/go#69946
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621255
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9e4044d9c2694fe86aab1f5220622c8d952b1a90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522338
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/html/entity.go      | 20 ++++++++------------
- src/html/entity_test.go |  6 ++----
- src/html/escape.go      |  8 ++++----
- 3 files changed, 14 insertions(+), 20 deletions(-)
+ src/net/http/transfer_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

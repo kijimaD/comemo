@@ -1,15 +1,22 @@
-commit 9e56156ade484d806cdd3aceb38f100b66d490bf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 29 22:08:32 2018 +0000
+commit 2e78f2afdb6714f2eb902d16039f4c475c2282f3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Feb 20 10:02:10 2018 +0000
 
-    net/http/httputil: pass through any "TE: trailers" header to backend
+    html/template: make more use of stringer
     
-    Fixes #21096
+    The code was maintaining manual versions of it in multiple places -
+    replace all of them.
     
-    Change-Id: I2a4688a79bdaa25b4e8ef38e3390d93d3d0bce04
-    Reviewed-on: https://go-review.googlesource.com/115135
+    Change-Id: I04c3063877b05ba914de9f5dddb33ffe09f308fe
+    Reviewed-on: https://go-review.googlesource.com/95356
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 15 +++++++++++++--
- src/net/http/httputil/reverseproxy_test.go |  4 ++++
- 2 files changed, 17 insertions(+), 2 deletions(-)
+ src/html/template/context.go        | 100 ++++--------------------------------
+ src/html/template/delim_string.go   |  16 ++++++
+ src/html/template/element_string.go |  16 ++++++
+ src/html/template/jsctx_string.go   |  16 ++++++
+ src/html/template/state_string.go   |  16 ++++++
+ src/html/template/urlpart_string.go |  16 ++++++
+ 6 files changed, 90 insertions(+), 90 deletions(-)

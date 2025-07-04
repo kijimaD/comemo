@@ -1,14 +1,14 @@
-commit 161cd34f788ee9c6b61565eb6f865434bc135306
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Jan 3 12:41:18 2017 -0500
+commit 1e775fe4a30c78cf6e8e995efe5a0f469b8d9a4d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 16 10:27:29 2016 +0100
 
-    cmd/dist: enable extLink tests for s390x
+    net/http: add more docs on ErrHijacked
     
-    Change-Id: Ia97d770cd942a49a34c733643ced7490fc31c736
-    Reviewed-on: https://go-review.googlesource.com/34795
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #16456
+    
+    Change-Id: Ifea651ea3ece2267a6f0c1638181d6ddd9248a9f
+    Reviewed-on: https://go-review.googlesource.com/31181
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/server.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

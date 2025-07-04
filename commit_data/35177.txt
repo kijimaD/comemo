@@ -1,34 +1,21 @@
-commit 5af0b28a7308ed40af8e315b2a50ac6401bb24c9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 1 11:01:36 2018 -0700
+commit 24df1d06bc1544f096c484b30d50914f9d1d7c81
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 5 21:35:51 2018 +0000
 
-    runtime: iterate over set bits in adjustpointers
+    Revert "net/http/httputil: allow ReverseProxy to call ModifyResponse on failed requests"
     
-    There are several things combined in this change.
+    This reverts commit https://golang.org/cl/54030
     
-    First, eliminate the gobitvector type in favor
-    of adding a ptrbit method to bitvector.
-    In non-performance-critical code, use that method.
-    In performance critical code, though, load the bitvector data
-    one byte at a time and iterate only over set bits.
-    To support that, add and use sys.Ctz8.
+    Reason for revert: to not paint ourselves into a corner.
+    See https://github.com/golang/go/issues/23009
     
-    name                old time/op  new time/op  delta
-    StackCopyPtr-8      81.8ms ± 5%  78.9ms ± 3%   -3.58%  (p=0.000 n=97+96)
-    StackCopy-8         65.9ms ± 3%  62.8ms ± 3%   -4.67%  (p=0.000 n=96+92)
-    StackCopyNoCache-8   105ms ± 3%   102ms ± 3%   -3.38%  (p=0.000 n=96+95)
+    Fixes #23009
+    Updates #21255
     
-    Change-Id: I00b80f45612708bd440b1a411a57fa6dfa24aa74
-    Reviewed-on: https://go-review.googlesource.com/109716
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I68caab078839b9d2bf645a7bbed8405a5a30cd22
+    Reviewed-on: https://go-review.googlesource.com/86435
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go           |  2 +
- src/runtime/heapdump.go                      |  5 +-
- src/runtime/internal/sys/intrinsics.go       | 24 +++++++++
- src/runtime/internal/sys/intrinsics_386.s    |  8 +++
- src/runtime/internal/sys/intrinsics_stubs.go |  1 +
- src/runtime/mbitmap.go                       |  3 +-
- src/runtime/stack.go                         | 78 +++++++++++++---------------
- 7 files changed, 75 insertions(+), 46 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 21 ++++++++-------------
+ src/net/http/httputil/reverseproxy_test.go | 29 -----------------------------
+ 2 files changed, 8 insertions(+), 42 deletions(-)

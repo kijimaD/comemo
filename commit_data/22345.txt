@@ -1,13 +1,23 @@
-commit 0def13ac3f5a5e9f8e5540d3f5469cd469bddfad
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Mar 27 18:05:13 2015 +1100
+commit 7885de55dcfbdeed19fa197cf3c55ad322293b98
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 5 18:20:54 2015 +1100
 
-    image/color: have CMYK.RGBA work in 16-bit color, per the Color interface.
+    cmd/internal/gc: make Addrtaken a bool
     
-    Change-Id: I3621527c924a43724032f80a072505c60d929ab3
-    Reviewed-on: https://go-review.googlesource.com/8180
-    Reviewed-by: Rob Pike <r@golang.org>
+    Node.Addrtaken is treated as a bool, so make it a bool.
+    
+    I'll start to batch these changes if they are simple.
+    
+    Change-Id: I02a3d1131efc4e12b78b83372c1b50f8b160c194
+    Reviewed-on: https://go-review.googlesource.com/6911
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/image/color/ycbcr.go      | 20 +++++++++------
- src/image/color/ycbcr_test.go | 58 +++++++++++++++++++++++++++++++++++++------
- 2 files changed, 63 insertions(+), 15 deletions(-)
+ src/cmd/internal/gc/closure.go   |  4 ++--
+ src/cmd/internal/gc/fmt.go       |  2 +-
+ src/cmd/internal/gc/plive.go     | 10 +++++-----
+ src/cmd/internal/gc/reg.go       |  2 +-
+ src/cmd/internal/gc/subr.go      |  2 +-
+ src/cmd/internal/gc/syntax.go    |  2 +-
+ src/cmd/internal/gc/typecheck.go |  8 ++++----
+ src/cmd/internal/gc/walk.go      |  6 +++---
+ 8 files changed, 18 insertions(+), 18 deletions(-)

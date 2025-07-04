@@ -1,17 +1,17 @@
-commit 92408107dccbf4627ba8c88c62f84a7261c55ce3
-Author: Justin Nuß <nuss.justin@gmail.com>
-Date:   Sun Feb 28 17:48:49 2016 +0100
+commit 025e9b0ca32dd8a2ed5792eeecd8b8aa2ea068a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 22:50:23 2015 -0500
 
-    mime: Fix BenchmarkQDecodeHeader to call DecodeHeader
+    mime: fix parsing of empty string attribute value
     
-    Found this while reading through the code. The benchmark
-    accidently called the wrong function.
+    Fixes #11290.
     
-    Change-Id: Idb88aa71e7098a4e29e7f5f39e64f8c5f8936a2a
-    Reviewed-on: https://go-review.googlesource.com/19977
+    Change-Id: I312f0731077b78a4bed47062eb7fd1ab52bc3dd1
+    Reviewed-on: https://go-review.googlesource.com/17453
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/mime/encodedword_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/mime/mediatype.go      | 5 +++--
+ src/mime/mediatype_test.go | 4 ++++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

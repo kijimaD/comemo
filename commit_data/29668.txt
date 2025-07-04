@@ -1,21 +1,24 @@
-commit 4bd95702dd1e81f383ee67c14945620d30247908
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Wed Nov 23 11:35:17 2016 -0700
+commit 998419575fb34dd5228cfdb353a73184e29db8da
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Sep 30 14:48:11 2016 -0700
 
-    net: expand nss myhostname fallback detection
+    crypto/ecdsa: correct code comment.
     
-    Expand myhostname fallback detection to properly detect the local
-    hostname in addition to other supported special names and suffixes.
+    The code comment mixed up max and min. In this case, min is correct
+    because this entropy is only used to make the signature scheme
+    probabilistic. (I.e. if it were fixed then the scheme would still be
+    secure except that key.Sign(foo) would always give the same result for a
+    fixed key and foo.)
     
-    Fixes #17967
+    For this purpose, 256-bits is plenty.
     
-    Change-Id: I1fe141fd9838b25886c08b6f2fd325e58be60457
-    Reviewed-on: https://go-review.googlesource.com/33550
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #16819.
+    
+    Change-Id: I309bb312b775cf0c4b7463c980ba4b19ad412c36
+    Reviewed-on: https://go-review.googlesource.com/30153
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/conf.go      |  24 ++++++++---
- src/net/conf_test.go | 114 ++++++++++++++++++++++++++++++---------------------
- src/net/parse.go     |  22 ++++++----
- 3 files changed, 101 insertions(+), 59 deletions(-)
+ src/crypto/ecdsa/ecdsa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,27 +1,29 @@
-commit 0206eb9679dd3819c44912e6ebdba3b0fbf959a3
-Author: Davis Goodin <dagood@microsoft.com>
-Date:   Mon Sep 30 10:08:24 2024 -0700
+commit d63652b7c69d106a6bab787fbdf7726d39e42406
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Mar 23 01:01:46 2023 -0700
 
-    README.vendor: add note about GOROOT, recommend fresh go
+    log/slog: simplify and optimize RFC3339 handling
     
-    Using a different build of Go (specifically, a different GOROOT) to
-    maintain the vendor directory doesn't always reproduce the same results.
-    This can result in unknowingly creating a vendor directory that isn't
-    able to build Go.
+    In CL 421877 and CL 444278, time.Time.AppendFormat has been
+    specially optimized for the time.RFC3339Nano representation.
+    Relying on that optimization and modify the output to obtain the
+    fixed-width millisecond resolution that slog uses.
     
-    Add a note to README.vendor to point this out. Specifically, mention
-    that a mismatched GOROOT is an issue, and recommend using a fresh build
-    of Go to maintain the vendor directory.
+    This both removes a lot of code and also improves performance:
     
-    Updates #69235
+            name       old time/op  new time/op  delta
+            WriteTime  93.0ns ± 1%  80.8ns ± 0%  -13.17%  (p=0.000 n=8+9)
     
-    Change-Id: Id80c7607bf28bd76e43e1fdc672811c50f2bffb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616815
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: I61e8f4476c111443e3e2098a45b2c21a76137345
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478757
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
 
- src/README.vendor | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/log/slog/handler.go                     | 46 ++++++++---------------------
+ src/log/slog/handler_test.go                | 12 ++------
+ src/log/slog/internal/buffer/buffer.go      | 29 ------------------
+ src/log/slog/internal/buffer/buffer_test.go |  3 +-
+ 4 files changed, 16 insertions(+), 74 deletions(-)

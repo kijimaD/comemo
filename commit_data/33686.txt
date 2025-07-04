@@ -1,14 +1,18 @@
-commit 7da2f8278f10ed389e0d96cb43e5445d80d21f9b
-Author: Adam Langley <agl@golang.org>
-Date:   Sat Nov 25 10:54:18 2017 -0800
+commit b79337212585a473238a37421cefa9931b2fca4c
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Thu Aug 17 19:30:34 2017 -0400
 
-    crypto/x509: document specifically that only v3 certificates are created.
+    time: fix documentation of Round, Truncate behavior for d <= 0
     
-    Fixes #21593
+    Saying that they return t unchanged is misleading, because they return
+    a modified t, stripped of any monotonic clock reading, as of Go 1.9.
     
-    Change-Id: I5d6c644ed1d60ae4610712155bae5cf13ee1f886
-    Reviewed-on: https://go-review.googlesource.com/79876
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #21485.
+    
+    Change-Id: Icddf8813aed3d687fcefcd2fe542829438be6a0a
+    Reviewed-on: https://go-review.googlesource.com/56690
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/x509.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/time/time.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

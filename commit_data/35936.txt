@@ -1,27 +1,17 @@
-commit fa71076d242d0f9da48080dd9ddfd9c0f8a469cb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 10 07:19:17 2018 -0700
+commit fc6280d4b01923dd377fa92a2b5dcaef5b253ef3
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 22 15:00:12 2018 +0100
 
-    cmd/go, cmd/cgo: only set TERM=dumb when running the compiler
+    test/codegen: port direct comparisons with memory tests
     
-    The clang compiler on some terminals will issue colored error
-    messages, which can confuse tools like cgo. To avoid this we used to
-    set TERM=dumb for all programs started by the go tool. However, that
-    confuses the pprof tool, which doesn't know whether to support fancy
-    editing and colors itself.
+    And remove them from asm_test.
     
-    Instead, change the go tool and the cgo tool to set TERM=dumb where it
-    matters--when invoking the C compiler--rather than in all cases.
-    
-    Updates #26254
-    
-    Change-Id: I95174f961ac269a50a83f5f9d268219043cba968
-    Reviewed-on: https://go-review.googlesource.com/122975
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1ca29b40546d6de06f20bfd550ed8ff87f495454
+    Reviewed-on: https://go-review.googlesource.com/102115
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/cgo/util.go               |  2 ++
- src/cmd/go/internal/envcmd/env.go |  3 ---
- src/cmd/go/internal/work/exec.go  | 17 ++++++++++++-----
- 3 files changed, 14 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 49 ---------------------------------
+ test/codegen/comparisons.go             | 39 ++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 49 deletions(-)

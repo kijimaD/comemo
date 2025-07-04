@@ -1,0 +1,21 @@
+commit 472d2859066d98961b5a7f09556f6bd7ca216701
+Author: Pasha Radchenko <ep4sh2k@gmail.com>
+Date:   Thu Feb 6 18:42:28 2025 +0000
+
+    crypto/aes: more precise description for AES keys requirements
+    
+    The existing documentation is not certain in the place regarding requirements about AES key.
+    Added some notes for precise description.
+    
+    Change-Id: I190562ab7c1566cce8e7771f9927d738c72880ce
+    GitHub-Last-Rev: 6565a8f4e5b37220fd14d55e876b809b2d763b7c
+    GitHub-Pull-Request: golang/go#71589
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647336
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/aes/aes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,35 +1,19 @@
-commit ffd7eba20a0b21e2af038ed4bedfe4a052aa22b7
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 8 18:46:04 2019 -0400
+commit 3e89272f9c87f69dc687b96687b1e3d29e9f5d84
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Sat Dec 29 16:19:16 2018 -0800
 
-    cmd/internal/bio: rename Reader.Seek to MustSeek
+    runtime: use EnumTimeFormatsEx instead of EnumWindows in callback tests
     
-    Renaming the method makes clear, both to readers and to vet,
-    that this method is not the implementation of io.Seeker:
-    it cannot fail.
+    Use EnumTimeFormatsEx() to test panics across callback boundaries
+    instead of EnumWindows(). EnumWindows() is incompatible with Go's panic
+    unwinding mechanism. See the associated issue for more information.
     
-    Working toward making the tree vet-safe instead of having
-    so many exceptions in cmd/vet/all/whitelist.
+    Updates #26148
     
-    For #31916.
-    
-    Change-Id: I3e6ad7264cb0121b4b76935450cccb71d533e96b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176108
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If1dd70885d9c418b980b6827942cb1fd16c73803
+    Reviewed-on: https://go-review.googlesource.com/c/155923
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/gc/iimport.go     |  2 +-
- src/cmd/compile/internal/gc/obj.go         |  4 ++--
- src/cmd/internal/bio/buf.go                |  4 ++--
- src/cmd/internal/bio/buf_mmap.go           |  2 +-
- src/cmd/link/internal/ld/ar.go             |  2 +-
- src/cmd/link/internal/ld/lib.go            | 14 +++++++-------
- src/cmd/link/internal/loadelf/ldelf.go     |  8 ++------
- src/cmd/link/internal/loadmacho/ldmacho.go | 22 ++++++----------------
- src/cmd/link/internal/loadpe/ldpe.go       |  2 +-
- src/cmd/link/internal/loadxcoff/ldxcoff.go |  2 +-
- src/cmd/link/internal/objfile/objfile.go   |  4 ++--
- src/cmd/vet/all/whitelist/all.txt          |  2 --
- 12 files changed, 26 insertions(+), 42 deletions(-)
+ src/runtime/syscall_windows_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

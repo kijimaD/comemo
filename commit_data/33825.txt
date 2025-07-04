@@ -1,18 +1,25 @@
-commit 8b13988e40e468995360802a2dc7de9b32a34fea
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Dec 6 16:47:52 2017 -0500
+commit 098126103e861264bc746e8de1dae2063ad7ba71
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Sep 10 19:36:38 2017 +0200
 
-    api: promote next to go1.10
+    cmd/compile: preserve escape information for map literals
     
-    Change-Id: I2a4347540ecb94a9f124a228dc31452620ab0645
-    Reviewed-on: https://go-review.googlesource.com/82335
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    While some map literals were marked non-escaping that information
+    was lost when creating the corresponding OMAKE node which made map
+    literals always heap allocated.
+    
+    Copying the escape information to the corresponding OMAKE node allows
+    stack allocation of hmap and a map bucket for non escaping map literals.
+    
+    Fixes #21830
+    
+    Change-Id: Ife0b020fffbc513f1ac009352f2ecb110d6889c9
+    Reviewed-on: https://go-review.googlesource.com/62790
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/go1.10.txt     | 645 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next.txt       | 641 ----------------------------------------------------
- src/cmd/api/run.go |   2 +-
- 3 files changed, 646 insertions(+), 642 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go | 1 +
+ src/runtime/map_test.go              | 7 +++++++
+ 2 files changed, 8 insertions(+)

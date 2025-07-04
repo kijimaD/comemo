@@ -1,27 +1,23 @@
-commit c519b156fcc5e53a2a91690303cc7502261dc57b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 3 10:03:22 2020 -0500
+commit b3863fbbc2fe1dbf516111992854aa9178d01410
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 15 13:56:05 2020 -0400
 
-    doc/go1.16: more release notes
+    runtime: make newproc1 not start the goroutine
     
-    Fixes #42899 (flag).
-    Fixes #42900 (io).
-    Fixes #42901 (log).
-    Fixes #42902 (log/syslog).
-    Fixes #42903 (mime/multipart).
-    Fixes #42904 (net).
-    Fixes #42905 (net/http).
-    Fixes #42906 (net/http/httputil).
-    Fixes #42907 (net/smtp).
-    Fixes #42909 (os/signal).
-    Fixes #42913 (syscall).
+    Currently, newproc1 allocates, initializes, and schedules a new
+    goroutine. We're about to change debug call injection in a way that
+    will need to create a new goroutine without immediately scheduling it.
+    To prepare for that, make scheduling the responsibility of newproc1's
+    caller. Currently, there's exactly one caller (newproc), so this
+    simply shifts that responsibility.
     
-    Change-Id: Id09f038751d61fe0f1ff57b525e49473dd75c95f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275113
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    For #36365.
+    
+    Change-Id: Idacd06b63e738982e840fe995d891bfd377ce23b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229298
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.16.html | 56 ++++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 44 insertions(+), 12 deletions(-)
+ src/runtime/proc.go | 44 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 31 insertions(+), 13 deletions(-)

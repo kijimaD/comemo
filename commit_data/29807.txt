@@ -1,14 +1,17 @@
-commit 232991e8a75011a7ae6afd41c62a1f556749ebd6
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Tue Dec 13 23:01:15 2016 -0500
+commit f64c67018103c200c9e150ac5f1199a3175f54a6
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Tue May 24 12:50:38 2016 +0100
 
-    net: change "mask" to "prefix length" in ParseCIDR comment
+    cmd/trace: add option to output pprof files
     
-    Fixes #18175
+    The trace tool can generate some interesting profiles, but it was only
+    exposing them as svg through the web UI.  This adds command line options
+    to generate the raw pprof file.
     
-    Change-Id: I0074109fa885976b22c2be9fa39641d4d0657dee
-    Reviewed-on: https://go-review.googlesource.com/34375
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I52e4f909fdca6f65c3616add444e3892783640f4
+    Reviewed-on: https://go-review.googlesource.com/23324
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/ip.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/trace/main.go  |  44 ++++++++++++++++++-
+ src/cmd/trace/pprof.go | 113 +++++++++++++++++++++++--------------------------
+ 2 files changed, 97 insertions(+), 60 deletions(-)

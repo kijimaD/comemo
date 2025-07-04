@@ -1,0 +1,23 @@
+commit 1635aed9413233ba8f974447ca3359b7a9159985
+Author: Vladislav Yarmak <vladislav@vm-0.com>
+Date:   Sat May 10 17:58:48 2025 +0000
+
+    hash/maphash: hash channels in purego version of maphash.Comparable
+    
+    This change makes purego implementation of maphash.Comparable consistent
+    with the one in runtime and fixes hashing of channels.
+    
+    Fixes #73657
+    
+    Change-Id: If78a21d996f0c20c0224d4014e4a4177b09c3aa3
+    GitHub-Last-Rev: 2537216a1e4e62791c7e417441ee770ca149f38a
+    GitHub-Pull-Request: golang/go#73660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671655
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+
+ src/hash/maphash/maphash_purego.go | 2 +-
+ src/hash/maphash/maphash_test.go   | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

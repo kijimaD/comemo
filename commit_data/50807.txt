@@ -1,34 +1,28 @@
-commit 0bf7ee9977c0218562c50a0b0f0d9cbdf33f65e6
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Sep 2 20:45:18 2022 -0700
+commit c49627e81b05f23f97544fc6bfae3347296b4a06
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 10 15:36:25 2021 -0500
 
-    archive/tar: limit size of headers
+    cmd/compile: use canonical stringslice/ representations in abiutils
     
-    Set a 1MiB limit on special file blocks (PAX headers, GNU long names,
-    GNU link names), to avoid reading arbitrarily large amounts of data
-    into memory.
+    A chunk of code in abiutils was synthesizing the internals of a Go
+    string type as "struct { unsafe.Pointer, uintptr }" instead of the
+    more canonical representation "struct { *uint8, int }" used elsewhere
+    in the compiler. The abiutils type was being pulled into the code
+    during late call expansion, which resulted in two different entries in
+    the SSA named value table for the same variable piece, each with
+    different types; this then confused DWARF location list generation.
+    This patch changes the abiutils synthesized type to be consistent with
+    other parts of the back end, and makes a similar change for
+    synthesized slice types (use "struct { *uint8, int, int }").
     
-    Thanks to Adam Korczynski (ADA Logics) and OSS-Fuzz for reporting
-    this issue.
+    Fixes #47354.
     
-    Fixes CVE-2022-2879
-    For #54853
-    
-    Change-Id: I85136d6ff1e0af101a112190e027987ab4335680
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1565555
-    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
-    Run-TryBot: Roland Shoemaker <bracewell@google.com>
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439355
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: If789031cdc7abaf215bc75ee6eb863defbe530be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362715
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/archive/tar/format.go                          |   4 +++
- src/archive/tar/reader.go                          |  14 +++++++++--
- src/archive/tar/reader_test.go                     |  11 ++++++++-
- src/archive/tar/testdata/pax-bad-hdr-large.tar.bz2 | Bin 0 -> 156 bytes
- src/archive/tar/writer.go                          |   3 +++
- src/archive/tar/writer_test.go                     |  27 +++++++++++++++++++++
- 6 files changed, 56 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

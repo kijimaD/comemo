@@ -1,13 +1,17 @@
-commit b57bb9282e0ba47bfecc3de8a2ab72754a2d8185
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Nov 28 12:29:19 2011 -0500
+commit 60e4a61d307c0e6c32d1933fbf14cf59193349ab
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Nov 28 12:22:15 2011 -0500
 
-    exp/ssh: add safeString error sanitiser
+    gc: don't inherit orig from subnodes in constant expression nodes.
     
-    R=huin, agl, gustav.paul, cw
-    CC=golang-dev
-    https://golang.org/cl/5399044
+    The wrong value made Nconv() show "1" for node "-1", and "2" from
+    node "2+3".
+    Fixes #2452.
+    
+    R=gri, lvd, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5435064
 
- src/pkg/exp/ssh/common.go      | 13 +++++++++++++
- src/pkg/exp/ssh/common_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/cmd/gc/const.c       |  5 ++++-
+ test/fixedbugs/bug379.go | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

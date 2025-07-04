@@ -1,27 +1,16 @@
-commit 0acecb7164133ee235809d642711b46b340221cb
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 22 14:59:56 2015 -0400
+commit 3a0df1f82a8f16c3ffca51bd0b6fbee9dfc62961
+Author: Michael Matloob <matloob@google.com>
+Date:   Sat Jun 13 11:01:16 2015 -0700
 
-    cmd/link: elide individual gcbits symbols
+    [dev.ssa] cmd/compile/internal/ssa: set Line in NewValue funcs
     
-    Same as we do for string symbols.
+    In the previous line number CL the NewValue\d? functions took
+    a line number argument but neglected to set the Line field on
+    the value struct. Fix that.
     
-    Fixes #11583.
-    
-    Change-Id: Ia9264f6faf486697d987051b7f9851d37d8ad381
-    Reviewed-on: https://go-review.googlesource.com/12531
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I53c79ff93703f66f5f0266178c94803719ae2074
+    Reviewed-on: https://go-review.googlesource.com/11054
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/link.go           |   1 +
- src/cmd/link/internal/ld/dwarf.go      |   3 +++
- src/cmd/link/internal/ld/lib.go        |   1 +
- src/cmd/link/internal/ld/symtab.go     |  13 +++++++++++++
- src/cmd/newlink/testdata/Makefile      |   2 +-
- src/cmd/newlink/testdata/autosection.6 | Bin 937 -> 897 bytes
- src/cmd/newlink/testdata/autoweak.6    | Bin 386 -> 346 bytes
- src/cmd/newlink/testdata/dead.6        | Bin 849 -> 809 bytes
- src/cmd/newlink/testdata/hello.6       | Bin 229 -> 189 bytes
- src/cmd/newlink/testdata/layout.6      | Bin 396 -> 356 bytes
- src/cmd/newlink/testdata/pclntab.6     | Bin 3804 -> 3764 bytes
- 11 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/func.go | 4 ++++
+ 1 file changed, 4 insertions(+)

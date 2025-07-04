@@ -1,13 +1,18 @@
-commit 22bc710fe4dbd3e4c0e1ac07c97e30942f722664
+commit ebe5f203bfdf4dce75fff47189892d5f594d6133
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Apr 4 09:55:19 2014 +0900
+Date:   Fri Apr 4 09:07:44 2014 +0900
 
-    cmd/gc: fix build
+    net: don't export netFD closeRead and closeWrite methods
     
-    LGTM=minux.ma
-    R=rsc, minux.ma
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/84260043
+    https://golang.org/cl/83910043
 
- src/cmd/gc/plive.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/fd_plan9.go       | 4 ++--
+ src/pkg/net/fd_unix.go        | 4 ++--
+ src/pkg/net/fd_windows.go     | 4 ++--
+ src/pkg/net/tcpsock_plan9.go  | 4 ++--
+ src/pkg/net/tcpsock_posix.go  | 4 ++--
+ src/pkg/net/unixsock_posix.go | 4 ++--
+ 6 files changed, 12 insertions(+), 12 deletions(-)

@@ -1,19 +1,21 @@
-commit 34778e58b30a3d615502a9f75bb603d6a13e0504
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jul 18 08:18:58 2019 -0400
+commit ab0c9510a988027f305d213213ed2eaaabbffe77
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 4 18:28:51 2019 -0800
 
-    test: new testcase for gccgo bug
+    syscall: on ARM GNU/Linux let Pipe fall back to pipe
     
-    Updates #33158.
+    Android O seems to require Pipe to call the pipe2 system call.
+    But kernel version 2.6.23 only supports pipe, not pipe2.
+    So try pipe2 first, then fall back to pipe.
     
-    Change-Id: Id87eb00ddcb104ba8e7a0d2f6cf324a77a84f4a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186717
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #30549
+    
+    Change-Id: I3c5d86e8e945a5ec8a0ecea7853302952c0476c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165217
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue33158.dir/a.go | 25 +++++++++++++++++++++++++
- test/fixedbugs/issue33158.dir/b.go | 11 +++++++++++
- test/fixedbugs/issue33158.go       |  9 +++++++++
- 3 files changed, 45 insertions(+)
+ src/syscall/syscall_linux_arm.go  |  6 ++++++
+ src/syscall/zsyscall_linux_arm.go | 10 ++++++++++
+ 2 files changed, 16 insertions(+)

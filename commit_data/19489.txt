@@ -1,22 +1,15 @@
-commit 4e65f18cae1b4ee6074e3e544c322af030d04288
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 2 12:55:43 2014 -0700
+commit bb824b6a0f345c41a83f3a50a3708f785c9166d0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 2 16:26:08 2014 +1000
 
-    cmd/cgo: use same Go type for typedef to anonymous struct
+    misc/makerelease: fix secret
     
-    If we see a typedef to an anonymous struct more than once,
-    presumably in two different Go files that import "C", use the
-    same Go type name.
+    Not sure how this snuck in undetected.
     
-    Fixes #8133.
-    
-    LGTM=rsc
-    R=rsc
+    TBR=bradfitz
+    R=golang-codereviews
     CC=golang-codereviews
-    https://golang.org/cl/102080043
+    https://golang.org/cl/106760043
 
- misc/cgo/test/issue8331.h   |  7 +++++++
- misc/cgo/test/issue8331a.go | 15 +++++++++++++++
- misc/cgo/test/issue8331b.go | 13 +++++++++++++
- src/cmd/cgo/gcc.go          | 12 +++++++++++-
- 4 files changed, 46 insertions(+), 1 deletion(-)
+ misc/makerelease/makerelease.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

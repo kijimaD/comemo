@@ -1,0 +1,35 @@
+commit b89f946c8814b3d984f06cd836c74ef95bc0b868
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 24 20:45:27 2024 +0000
+
+    internal/trace: remove last references to internal/trace/v2
+    
+    This change removes the last few references to internal/trace/v2.
+    Notably, it shows up in the generators' imports, so they'll fail to run
+    currently.
+    
+    Change-Id: Ibc5a9c1844634ea7620558e270ca3db9921ba56e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587930
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/internal/oldtrace/parser.go                      | 2 +-
+ .../testdata/generators/go122-confuse-seq-across-generations.go     | 6 +++---
+ .../testdata/generators/go122-create-syscall-reuse-thread-id.go     | 6 +++---
+ .../trace/testdata/generators/go122-create-syscall-with-p.go        | 6 +++---
+ .../trace/testdata/generators/go122-fail-first-gen-first.go         | 4 ++--
+ .../trace/testdata/generators/go122-go-create-without-running-g.go  | 6 +++---
+ .../trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go | 6 +++---
+ .../generators/go122-syscall-steal-proc-gen-boundary-bare-m.go      | 6 +++---
+ ...122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go | 6 +++---
+ .../go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go     | 6 +++---
+ .../testdata/generators/go122-syscall-steal-proc-gen-boundary.go    | 6 +++---
+ .../go122-syscall-steal-proc-reacquire-new-proc-bare-m.go           | 6 +++---
+ .../generators/go122-syscall-steal-proc-reacquire-new-proc.go       | 6 +++---
+ .../trace/testdata/generators/go122-syscall-steal-proc-self.go      | 6 +++---
+ .../testdata/generators/go122-syscall-steal-proc-simple-bare-m.go   | 6 +++---
+ .../trace/testdata/generators/go122-syscall-steal-proc-simple.go    | 6 +++---
+ .../generators/go122-syscall-steal-proc-sitting-in-syscall.go       | 6 +++---
+ .../trace/testdata/generators/go122-task-across-generations.go      | 6 +++---
+ 18 files changed, 51 insertions(+), 51 deletions(-)

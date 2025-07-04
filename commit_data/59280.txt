@@ -1,17 +1,22 @@
-commit bbf4d57c220e4acf2599bda8b1a32e0dd8095697
-Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
-Date:   Thu Apr 10 21:52:15 2025 +0000
+commit 2278ffcb2664b13ad2a2309cb1aba24260b9fab3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 28 09:43:52 2024 -0800
 
-    cmd/compile/internal/ssa: use built-in min, max function
+    cmd/compile/internal/syntax: rename test file to match issue
     
-    Change-Id: I6dd6e3f8a581931fcea3c3e0ac30ce450253e1d8
-    GitHub-Last-Rev: c476f8b9a3741a682340d3a37d6d5a9a44a56e5f
-    GitHub-Pull-Request: golang/go#73318
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664615
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Follow-up on CL 565518 which addressed issue #65790 but added
+    testdata/issue65970.go instead of testdata/issue65790.go.
+    Rename that file to match the issue.
+    
+    For #65790.
+    
+    Change-Id: I647c297286355137fa950fb6722e31ae4340393b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567875
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/ssa/prove.go | 52 ++++++++++-------------------------
- 1 file changed, 14 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/syntax/testdata/{issue65970.go => issue65790.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

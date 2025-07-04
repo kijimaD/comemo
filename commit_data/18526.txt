@@ -1,18 +1,18 @@
-commit be9c514f84ed45872f8ed89046dc600a1408eb1c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Feb 15 00:47:28 2014 +0900
+commit e71d147750dc4dce115c5614fc96877aa08da596
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Feb 14 13:20:41 2014 +0400
 
-    syscall: make use of include/linux when generating system constants
+    runtime: fix mem profile when both large and small objects are allocated at the same stack
+    Currently small and large (size>rate) objects are merged into a single entry.
+    But rate adjusting is required only for small objects.
+    As a result pprof either incorrectly adjusts large objects
+    or does not adjust small objects.
+    With this change objects of different sizes are stored in different buckets.
     
-    On Linux include/net directory is just to help porting applications
-    from BSDs and files under net keep less information than include/linux.
-    Making use of files under include/linux instead of include/net prevents
-    lack of information.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=rsc
+    R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
-    https://golang.org/cl/63930043
+    https://golang.org/cl/59220049
 
- src/pkg/syscall/mkerrors.sh | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/runtime/mprof.goc | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

@@ -1,21 +1,25 @@
-commit fa62ea6927d81202342289b2b15398886ea4f3bb
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 5 19:36:35 2017 -0500
+commit b5dab2b9d9ef44eee709e4b6704fee1092afcdd5
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Tue Aug 15 20:31:45 2017 +0300
 
-    cmd/dist: do not reinstall runtime/cgo with -tags lldb on ios builders
+    cmd/asm: uncomment tests for PCMPESTRI, PHMINPOSUW
     
-    The cache will take care of keeping go test -tags lldb fast.
-    Installing runtime/cgo this way just makes all the checkNotStale
-    tests think runtime/cgo is out of date.
+    Instructions are implemented in the following revisions:
+    PCMPESTRI - https://golang.org/cl/22337
+    PHMINPOSUW - https://golang.org/cl/18853
     
-    Should fix ios builders.
+    It is unknown when x86test will be updated/re-run, but tests are useful
+    to check which x86 instructions are not yet supported.
+    As an example of tool that uses this information, there is Damien
+    Lespiau x86db.
     
-    Fixes #22509.
+    Part of the mission to add missing amd64 SSE4 instructions to Go asm.
     
-    Change-Id: If092cc4feb189eb848b6a22f6d22b89b70df219c
-    Reviewed-on: https://go-review.googlesource.com/76020
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I512ff26040f47a0976b3e37000fb1f37eac5b762
+    Reviewed-on: https://go-review.googlesource.com/55830
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/cmd/dist/test.go | 23 -----------------------
- 1 file changed, 23 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 32 ++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

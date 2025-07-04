@@ -1,19 +1,24 @@
-commit d044674a0dbca127307bf37f32348874110f3ec6
+commit 11695596588172331984de8a443eedbd44c56bd5
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Mar 5 14:35:03 2011 -0500
+Date:   Sat Mar 5 14:24:44 2011 -0500
 
-    compress/flate: fix test
+    cgo: use correct frame size for 0 arguments
     
-    The test was checking for a buffer to be empty but
-    actually racing with the background goroutine that
-    was emptying it.  Left a comment so that the check
-    is not reintroduced later.
+    Passing a frame size of 1 was causing the cgo callback
+    to push 1 byte of arguments onto the stack, making
+    the stack pointer misaligned, which had the effect of
+    hiding all the pointers on the stack from the garbage
+    collector.
     
-    Fixes #1557.
+    SWIG only wraps calls to C++ virtual methods, so it
+    always has at least 1 argument, so SWIG does not need
+    to be fixed too.
     
-    R=golang-dev, dsymonds
+    Fixes #1328.
+    
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/4248063
+    https://golang.org/cl/4261046
 
- src/pkg/compress/flate/deflate_test.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/cmd/cgo/out.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

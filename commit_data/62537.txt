@@ -1,0 +1,18 @@
+commit c00647b49b7e538506af31c67eb0411e8ea64176
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sun Mar 9 14:38:44 2025 +0100
+
+    cmd/compile: set bits.OnesCount's limits to [0, 64]
+    
+    Change-Id: I2f60de836f58ef91baae856f44d8f73c190326f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656158
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go |  8 ++++----
+ test/prove_popcount.go                | 37 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 4 deletions(-)

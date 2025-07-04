@@ -1,12 +1,12 @@
-commit ddddd70cd2ea6f85612fef5f2d2ab3ad0ef47033
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 19 12:49:46 2013 -0700
+commit ab08eac5b78c05672a1bcdc5012f9f9384f86fba
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue Mar 19 19:57:15 2013 +0100
 
-    misc/dashboard: show correct dir name in README
+    runtime: optimize calls to addroot()
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/7909043
+    R=golang-dev, rsc
+    CC=dvyukov, golang-dev
+    https://golang.org/cl/7879043
 
- misc/dashboard/README | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/mgc0.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

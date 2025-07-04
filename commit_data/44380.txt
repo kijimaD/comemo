@@ -1,24 +1,14 @@
-commit aaed6cbced238030053df4e54f676a1d59df89d7
-Author: Daniel S. Fava <danielsfava@gmail.com>
-Date:   Fri Feb 12 09:54:50 2021 +0100
+commit b486bd896720cd5a40bc39771a8dbe332fce7ffe
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Tue Jun 9 13:53:39 2020 +0800
 
-    testing/race: fixing intermittent test failure
+    runtime: fix comment about memequal implementation locations
     
-    Test NoRaceMutexPureHappensBefore in runtime/race/testdata/mutex_test.go
-    expects the second spawned goroutine to run after the first.  The test
-    attempts to force this scheduling with a 10 millisecond wait.  Following
-    a suggestion by Bryan Mills, we force this scheduling using a shared
-    variable whose access take place within the existing mutex.
-    
-    Fixes #35745.
-    
-    Change-Id: Ib23ec51492ecfeed4752e020401dd25755a669ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291292
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I9ae3f462a6a6b3809de14b0d08f369524b636d57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237097
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/race/testdata/mutex_test.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/runtime/stubs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

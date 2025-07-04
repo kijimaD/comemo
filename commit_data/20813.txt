@@ -1,20 +1,15 @@
-commit 8fcdc70c5ebf9c8d160b85e9402e7db5f4bf0793
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 28 21:53:31 2014 -0400
+commit a681749ab5b0f7dcb8aff4123e6e8a002e2b5d91
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 15 06:20:55 2014 -0700
 
-    runtime: add GODEBUG invalidptr setting
+    crypto/x509: correct field name in comment
     
-    Fixes #8861.
-    Fixes #8911.
+    Fixes #8936.
     
-    LGTM=r
-    R=r
+    LGTM=bradfitz
+    R=agl, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/165780043
+    https://golang.org/cl/152590043
 
- src/runtime/extern.go | 6 ++++++
- src/runtime/mgc0.c    | 4 ++--
- src/runtime/runtime.c | 4 ++++
- src/runtime/runtime.h | 2 ++
- src/runtime/stack.c   | 4 ++--
- 5 files changed, 16 insertions(+), 4 deletions(-)
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

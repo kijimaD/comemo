@@ -1,28 +1,18 @@
-commit e610c25df05246efa807e4724a9b2b0d00847604
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 20 15:29:53 2015 -0400
+commit 2385f692e861d3eebb6487353d62c9d6d38d424a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 28 19:59:07 2015 +0900
 
-    runtime: decouple stack bounds and stack allocation size
+    net: consolidate listener test files
     
-    Currently the runtime assumes that the allocation for the stack is
-    exactly [stack.lo, stack.hi). We're about to steal a small part of
-    this allocation for per-stack GC metadata. To prepare for this, this
-    commit adds a field to the G for the allocated size of the stack.
-    With this change, stack.lo and stack.hi continue to act as the true
-    bounds on the stack, but are no longer also used as the bounds on the
-    stack allocation.
+    This change merges unicast_posix_test.go and multicast_test.go into
+    listen_test.go before deflaking tests for Listen functions.
     
-    (I also tried this the other way around, where stack.lo and stack.hi
-    remained the allocation bounds and I introduced a new top of stack.
-    However, there are far more places that assume stack.hi is the true
-    top of the stack than there are places that assume it's the top of the
-    allocation.)
+    No code changes.
     
-    Change-Id: Ifa9d956753be53d286d09cbc73d47fb34a18c0c6
-    Reviewed-on: https://go-review.googlesource.com/10312
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic4cd6531b95dfb5b6e6e254241692eca61a71e94
+    Reviewed-on: https://go-review.googlesource.com/9460
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc1.go    |  8 +++++---
- src/runtime/runtime2.go |  1 +
- src/runtime/stack1.go   | 22 ++++++++++++++--------
- 3 files changed, 20 insertions(+), 11 deletions(-)
+ src/net/{unicast_posix_test.go => listen_test.go} | 178 ++++++++++++++++++++
+ src/net/multicast_test.go                         | 188 ----------------------
+ 2 files changed, 178 insertions(+), 188 deletions(-)

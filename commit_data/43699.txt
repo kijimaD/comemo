@@ -1,34 +1,26 @@
-commit 3a1d84b393e4192c413a45824304381625c09fbc
-Author: Curtis La Graff <curtis@lagraff.me>
-Date:   Tue Nov 3 20:26:17 2020 +0000
+commit 17fbc818ff0f528d60d1abec2087af714de6e050
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Apr 19 10:45:04 2020 +0200
 
-    cmd/go/internal/modfetch/codehost: add support for new fossil info hash prefix
+    cmd/compile: switch to typed aux for 386 optimization rules
     
-    A recent update of the Fossil SCM application changes
-    the line prefix when the fossil info command is used.
-    Instead of the revision hash starting with "uuid:", it has been
-    changed to "hash:".
+    Convert first section of 386 optimization rules to the typed aux form.
     
-    Fossil check-in introducing this change:
+    Adds addOffset{32,64} functions that returns ValAndOffs and a
+    ValAndOff.canAdd32 function that takes an int32.
     
-    https://fossil-scm.org/home/info/8ad5e4690854a81a
+    Passes
     
-    To support older and new versions, fossilParseStat will
-    now check for either version of the prefix when attempting
-    to find the line containing the hash of the desired revision.
+      GOARCH=386 gotip build -toolexec 'toolstash -cmp' -a std
     
-    Fixes #42323
-    
-    Change-Id: I6eff49f9989b37b295322a8569e222a1fd02f6e3
-    GitHub-Last-Rev: f4e6652307732fd3213684f13e42d17528271d88
-    GitHub-Pull-Request: golang/go#42324
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267080
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I69d2a8ace6936d5e8ba6ba047183002bf07dd5be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228825
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/vcs.go  |  2 +-
- src/cmd/go/testdata/script/mod_get_fossil.txt | 26 ++++++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/386.rules |  509 +++---
+ src/cmd/compile/internal/ssa/op.go         |   19 +
+ src/cmd/compile/internal/ssa/rewrite.go    |    2 +
+ src/cmd/compile/internal/ssa/rewrite386.go | 2674 ++++++++++++++--------------
+ 4 files changed, 1615 insertions(+), 1589 deletions(-)

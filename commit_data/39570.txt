@@ -1,15 +1,24 @@
-commit fc821667dd73987d1e579a813b50e403f8ff3c22
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 30 06:28:57 2019 -0700
+commit 05b3db24c1a48e995ac1f3103a2be9463fac0f96
+Author: Keith Randall <khr@google.com>
+Date:   Wed Mar 6 10:39:08 2019 -0800
 
-    os: change Readdirnames doc to follow that of Readdir
+    reflect: fix StructOf GC programs
     
-    The two methods act the same, so make their documentation similar so
-    that people don't think they act differently.
+    They are missing a stop byte at the end.
     
-    Change-Id: If224692ef50870faf855d789380a614d1e724132
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188137
-    Reviewed-by: Rob Pike <r@golang.org>
+    Normally this doesn't matter, but when including a GC program
+    in another GC program, we strip the last byte. If that last byte
+    wasn't a stop byte, then we've thrown away part of the program
+    we actually need.
+    
+    Fixes #30606
+    
+    Change-Id: Ie9604beeb84f7f9442e77d31fe64c374ca132cce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165857
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/dir.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/reflect/type.go          |  1 +
+ test/fixedbugs/issue30606.go | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+)

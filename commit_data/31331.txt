@@ -1,29 +1,34 @@
-commit 9f98e49825e38267dc5e91b827cb1db3291ff3bb
-Author: Evgeniy Polyakov <zbr@ioremap.net>
-Date:   Thu Apr 20 16:51:36 2017 +0300
+commit 5a75d6a08ebb727c0e2bf5c8fbcbc104d260d302
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 3 16:15:38 2017 -0800
 
-    runtime: make time correctly update on Wine
+    cmd/compile: optimize non-empty-interface type conversions
     
-    Implemented low-level time system for windows on hardware (software),
-    which does not support memory mapped _KSYSTEM_TIME page update.
+    When doing i.(T) for non-empty-interface i and concrete type T,
+    there's no need to read the type out of the itab. Just compare the
+    itab to the itab we expect for that interface/type pair.
     
-    In particular this problem exists on Wine where _KSYSTEM_TIME
-    only contains time at the start, and is never modified.
+    Also optimize type switches by putting the type hash of the
+    concrete type in the itab. That way we don't need to load the
+    type pointer out of the itab.
     
-    On start we try to detect Wine and if it's so we fallback to
-    GetSystemTimeAsFileTime() for current time and a monotonic
-    timer based on QueryPerformanceCounter family of syscalls:
-    https://msdn.microsoft.com/en-us/library/windows/desktop/dn553408(v=vs.85).aspx
+    Update #18492
     
-    Fixes #18537
-    
-    Change-Id: I269d22467ed9b0afb62056974d23e731b80c83ed
-    Reviewed-on: https://go-review.googlesource.com/35710
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I49e280a21e5687e771db5b8a56b685291ac168ce
+    Reviewed-on: https://go-review.googlesource.com/34810
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/os_windows.go       | 83 ++++++++++++++++++++++++++++++++++++++++-
- src/runtime/sys_windows_386.s   | 12 +++++-
- src/runtime/sys_windows_amd64.s | 10 +++++
- 3 files changed, 102 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         |  3 +-
+ src/cmd/compile/internal/gc/builtin/runtime.go |  3 +-
+ src/cmd/compile/internal/gc/go.go              |  3 +-
+ src/cmd/compile/internal/gc/pgen.go            |  3 +-
+ src/cmd/compile/internal/gc/reflect.go         | 10 ++--
+ src/cmd/compile/internal/gc/ssa.go             | 63 ++++++--------------------
+ src/cmd/compile/internal/gc/swt.go             | 22 +++++----
+ src/runtime/iface.go                           | 24 +++++++---
+ src/runtime/plugin.go                          |  2 +-
+ src/runtime/runtime2.go                        |  6 ++-
+ 10 files changed, 64 insertions(+), 75 deletions(-)

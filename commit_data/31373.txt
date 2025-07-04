@@ -1,20 +1,39 @@
-commit 6910e1085b191d6b202a93fafb019ff95dcc6f11
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Apr 25 17:13:52 2017 -0400
+commit 5267ac2732edd1ba4a13773987dff08e8b4a2dde
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 13 16:00:53 2017 -0800
 
-    cmd/internal/obj/ppc64: use MOVDU to update stack reg for leaf functions where possible
+    cmd/compile/internal/syntax: establish principled position information
     
-    When the stack register is decremented to acquire stack space at
-    the beginning of a function, a MOVDU should be used so it is done
-    atomically, unless the size of the stack frame is too large for
-    that instruction.  The code to determine whether to use MOVDU
-    or MOVD was checking if the function was a leaf and always generating MOVD
-    when it was.  The choice of MOVD vs. MOVDU should only depend on the stack
-    frame size.  This fixes that problem.
+    Until now, the parser set the position for each Node to the position of
+    the first token belonging to that node. For compatibility with the now
+    defunct gc parser, in many places that position information was modified
+    when the gcCompat flag was set (which it was, by default). Furthermore,
+    in some places, position information was not set at all.
     
-    Change-Id: I0e49c79036f1e8f7584179e1442b938fc6da085f
-    Reviewed-on: https://go-review.googlesource.com/41813
-    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    This change removes the gcCompat flag and all associated code, and sets
+    position information for all nodes in a more principled way, as proposed
+    by mdempsky (see #16943 for details). Specifically, the position of a
+    node may not be at the very beginning of the respective production. For
+    instance for an Operation `a + b`, the position associated with the node
+    is the position of the `+`. Thus, for `a + b + c` we now get different
+    positions for the two additions.
+    
+    This change does not pass toolstash -cmp because position information
+    recorded in export data and pcline tables is different. There are no
+    other functional changes.
+    
+    Added test suite testing the position of all nodes.
+    
+    Fixes #16943.
+    
+    Change-Id: I3fc02bf096bc3b3d7d2fa655dfd4714a1a0eb90c
+    Reviewed-on: https://go-review.googlesource.com/37017
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/ppc64/obj9.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/syntax/nodes.go      |  14 +-
+ src/cmd/compile/internal/syntax/nodes_test.go | 321 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/syntax/parser.go     | 295 +++++++++++------------
+ test/escape_closure.go                        |   8 +-
+ 4 files changed, 466 insertions(+), 172 deletions(-)

@@ -1,20 +1,17 @@
-commit 8c5c2b71f4124eb5e72cde327d740a8dbdd4eeb8
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Wed Nov 21 19:06:28 2018 +0200
+commit de0e72610ba545b00543145d1f5d5d83ecb78f80
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Jul 10 10:32:04 2018 +0000
 
-    cmd/compile: fix TestFormats by using valid formats
+    test/codegen: add more combined store tests for arm64
     
-    CL 142517 has used some formats incorrectly. This change fixes it
-    by using %v for errors and invoking Block.Kind.String().
-    Format map stays intact.
+    Some combined store optimization was already implemented
+    in go-1.11, but there is no corresponding test cases.
     
-    Updates #28177
-    
-    Change-Id: If53b6cc54ba3c1ffc17b005225787e3b546de404
-    Reviewed-on: https://go-review.googlesource.com/c/150798
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    Change-Id: Iebdad186e92047942e53a74f2c20b390922e1e9c
+    Reviewed-on: https://go-review.googlesource.com/122915
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/html.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ test/codegen/memcombine.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)

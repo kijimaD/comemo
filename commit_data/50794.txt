@@ -1,19 +1,27 @@
-commit d1187438694d68d1d761355cd1268057a6521619
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 4 14:03:01 2022 -0700
+commit f410786c5f12d0cc4f44ce9daf8d0883df39a2f6
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Wed Jul 28 17:03:21 2021 +0300
 
-    cmd/compile/internal/types2: remove "unimplemented" function (cleanup)
+    cmd/go: add 'go mod vendor -o' flag
     
-    Change-Id: I72fed206df1a4e36d5e519378599e8d952423d53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438346
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Adds a new flag to 'go mod vendor' which overrides the default
+    'vendor' destination directory. This can be helpful for writing the
+    vendor tree to a temporary location for use by other tools.
+    The argument can be a relative or an absolute path.
+    This flag has no other influence on how the command behaves.
+    
+    Fixes #47327
+    
+    Change-Id: I4502931127616b181dc90a2066d2fb57bfe48f96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338149
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/errors.go | 4 ----
- src/cmd/compile/internal/types2/expr.go   | 2 +-
- src/cmd/compile/internal/types2/subst.go  | 6 ++++--
- src/go/types/subst.go                     | 6 ++++--
- 4 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/go/alldocs.go                     |  7 +++++-
+ src/cmd/go/internal/modcmd/vendor.go      | 21 +++++++++++++---
+ src/cmd/go/testdata/script/mod_vendor.txt | 42 +++++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 4 deletions(-)

@@ -1,16 +1,13 @@
-commit 7ac67b55680eee8f16c477301726007bc15fcd5f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 8 08:44:08 2015 -0700
+commit 29ad1ae420c6f8942d885e85a51382437ba2dc65
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 4 11:04:26 2015 -0500
 
-    cmd/internal/ld: change elf64 from int to bool
+    debug/elf: load .debug_line section and pass to dwarf.New
     
-    Change-Id: Iaf2dba7d699a8d52f91ce10222ab0d1a0f1f21fc
-    Reviewed-on: https://go-review.googlesource.com/8625
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia6f9bd77a3d4250339dcb054edc76942864dd358
+    Reviewed-on: https://go-review.googlesource.com/6781
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/ld/elf.go    | 22 +++++++++++-----------
- src/cmd/internal/ld/symtab.go |  2 +-
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ src/debug/elf/file.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,14 +1,16 @@
-commit 001fe1d57a357225316d67f1516fde9e2c378bb0
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Mon Oct 16 14:40:10 2017 +0900
+commit 4f299f93f60a6b195a9951a69c9b3af7a56a9959
+Author: Taro Aoki <aizu.s1230022@gmail.com>
+Date:   Sat Jul 1 19:13:03 2017 +0900
 
-    net/http/httputil: extract duplicate code as removeConnectionHeaders
+    os: use Fstat instead of Stat in FileMode example
     
-    Change-Id: I50389752dcbf5d058ce11256a414be7955cdb77f
-    Reviewed-on: https://go-review.googlesource.com/71070
-    Run-TryBot: Tom Bergan <tombergan@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    The existing example for FileMode using Stat to get FileInfo.
+    But, Stat cannot get symlink info, it need to use Fstat instead.
+    
+    Change-Id: I5cc38cd10caaa5912946abe2a2b90995a91ee10f
+    Reviewed-on: https://go-review.googlesource.com/47370
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httputil/reverseproxy.go | 32 ++++++++++++++------------------
- 1 file changed, 14 insertions(+), 18 deletions(-)
+ src/os/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

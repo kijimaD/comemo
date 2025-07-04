@@ -1,17 +1,104 @@
-commit 960fa9bf66139e535d89934f56ae20a0e679e203
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 28 14:53:57 2023 -0400
+commit 33c06ee12a53e293f4a787c1dfde7eb7ddb0be63
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 3 14:48:10 2023 +0000
 
-    sync: add examples for OnceValue and OnceValues
+    cmd/go: declare net hosts in script tests
     
-    Updates #56102.
+    Although we aren't precise about enforcing the hosts just yet,
+    we can eventually use the declared hostnames to selectively skip
+    tests (for example, if an external service has an outage while
+    a Go release is being tested).
     
-    Change-Id: I2ee2dbc43b4333511d9d23752fdc574dfbf5f5bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481062
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Auto-Submit: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Joedian Reid <joedian@google.com>
+    Also relax the constraint to [short] in tests that require only
+    vcs-test.golang.org, which has redirected to an in-process server
+    since around CL 427914.
+    
+    Also enforce that tests that use the network actually use the [net]
+    constraint, by setting TESTGONETWORK=panic in the test environment
+    until the condition is evaluated.
+    
+    For #52545.
+    For #54503.
+    Updates #27494.
+    
+    Change-Id: I13be6b42a9beee97657eb45424882e787ac164c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473276
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/sync/example_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 54 insertions(+)
+ src/cmd/go/internal/web/http.go                        |  2 +-
+ src/cmd/go/script_test.go                              |  8 ++++++--
+ src/cmd/go/scriptconds_test.go                         | 18 ++++++++++++++++--
+ src/cmd/go/testdata/script/README                      |  4 ++--
+ src/cmd/go/testdata/script/get_404_meta.txt            |  2 +-
+ .../go/testdata/script/get_custom_domain_wildcard.txt  |  2 +-
+ src/cmd/go/testdata/script/get_dash_t.txt              |  2 +-
+ src/cmd/go/testdata/script/get_domain_root.txt         |  2 +-
+ src/cmd/go/testdata/script/get_dot_slash_download.txt  |  2 +-
+ src/cmd/go/testdata/script/get_goroot.txt              |  2 +-
+ src/cmd/go/testdata/script/get_insecure.txt            |  2 +-
+ .../go/testdata/script/get_insecure_custom_domain.txt  |  2 +-
+ src/cmd/go/testdata/script/get_insecure_env.txt        |  2 +-
+ src/cmd/go/testdata/script/get_insecure_redirect.txt   |  1 -
+ src/cmd/go/testdata/script/get_insecure_update.txt     |  2 +-
+ src/cmd/go/testdata/script/get_internal_wildcard.txt   |  2 +-
+ src/cmd/go/testdata/script/get_issue11307.txt          |  2 +-
+ src/cmd/go/testdata/script/get_issue16471.txt          |  3 ++-
+ src/cmd/go/testdata/script/get_issue22125.txt          |  2 +-
+ src/cmd/go/testdata/script/get_non_pkg.txt             |  4 ++--
+ src/cmd/go/testdata/script/get_race.txt                |  2 +-
+ src/cmd/go/testdata/script/get_test_only.txt           |  2 +-
+ src/cmd/go/testdata/script/get_tilde.txt               | 15 ++++++++-------
+ src/cmd/go/testdata/script/get_update.txt              |  2 +-
+ src/cmd/go/testdata/script/get_update_all.txt          |  2 --
+ .../go/testdata/script/get_update_unknown_protocol.txt |  2 +-
+ src/cmd/go/testdata/script/get_update_wildcard.txt     |  2 +-
+ src/cmd/go/testdata/script/get_vendor.txt              |  2 +-
+ src/cmd/go/testdata/script/get_with_git_trace.txt      |  2 +-
+ src/cmd/go/testdata/script/gopath_moved_repo.txt       |  2 +-
+ src/cmd/go/testdata/script/gopath_vendor_dup_err.txt   |  1 -
+ src/cmd/go/testdata/script/govcs.txt                   |  8 ++++----
+ src/cmd/go/testdata/script/install_shadow_gopath.txt   |  2 --
+ src/cmd/go/testdata/script/list_std_vendor.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_auth.txt                |  2 +-
+ src/cmd/go/testdata/script/mod_convert.txt             |  8 ++++++--
+ .../go/testdata/script/mod_convert_tsv_insecure.txt    |  2 +-
+ .../testdata/script/mod_download_git_decorate_full.txt |  4 ++--
+ src/cmd/go/testdata/script/mod_download_hash.txt       |  2 +-
+ .../testdata/script/mod_download_insecure_redirect.txt |  2 +-
+ src/cmd/go/testdata/script/mod_download_issue51114.txt |  3 +--
+ .../go/testdata/script/mod_download_private_vcs.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_download_svn.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_get_direct.txt          |  3 +--
+ src/cmd/go/testdata/script/mod_get_fallback.txt        |  3 ++-
+ src/cmd/go/testdata/script/mod_get_fossil.txt          |  2 +-
+ src/cmd/go/testdata/script/mod_get_hash.txt            |  2 +-
+ src/cmd/go/testdata/script/mod_get_major.txt           |  2 +-
+ src/cmd/go/testdata/script/mod_get_pseudo.txt          |  2 +-
+ .../go/testdata/script/mod_get_pseudo_other_branch.txt |  2 +-
+ src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt   |  2 +-
+ src/cmd/go/testdata/script/mod_getx.txt                |  3 +--
+ src/cmd/go/testdata/script/mod_git_export_subst.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_gonoproxy.txt           |  3 ++-
+ src/cmd/go/testdata/script/mod_gopkg_unstable.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_init_glide.txt          |  2 +-
+ src/cmd/go/testdata/script/mod_invalid_version.txt     |  4 +++-
+ src/cmd/go/testdata/script/mod_list_direct.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_list_odd_tags.txt       |  1 -
+ src/cmd/go/testdata/script/mod_missing_repo.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_prefer_compatible.txt   |  3 ++-
+ src/cmd/go/testdata/script/mod_proxy_errors.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_proxy_https.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_pseudo_cache.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_replace_gopkgin.txt     |  3 +--
+ src/cmd/go/testdata/script/mod_retract_pseudo_base.txt |  2 +-
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt     |  2 +-
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt        |  3 ++-
+ src/cmd/go/testdata/script/mod_vcs_missing.txt         |  2 +-
+ src/cmd/go/testdata/script/reuse_git.txt               |  1 -
+ src/cmd/go/testdata/script/vendor_list_issue11977.txt  |  2 +-
+ src/cmd/go/testdata/script/vendor_test_issue11864.txt  |  2 +-
+ src/cmd/go/testdata/script/vendor_test_issue14613.txt  |  2 +-
+ 73 files changed, 112 insertions(+), 94 deletions(-)

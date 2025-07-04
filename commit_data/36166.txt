@@ -1,25 +1,26 @@
-commit 6bea321ba27a4c0c9424c11c6424697deee7cce2
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Mon Jul 30 17:05:49 2018 +0300
+commit fe77a5413e64049af456b14ae911102681bee006
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Apr 7 03:08:46 2018 -0700
 
-    cmd/cgo: add column number to line directives
+    cmd/compile: fix constant pointer comparison failure
     
-    Due to a new specification of //line: directives, missing
-    column info is now treated as column 0, aka "unknown column"
-    (see https://github.com/golang/go/issues/24183 for details).
+    Previously, constant pointer-typed expressions could use either Mpint
+    or NilVal as their Val depending on their construction, but const.go
+    expects each type to have a single corresponding Val kind.
     
-    As cgo does not add column number to generated //line: directive,
-    resulting files parsed do not have column info.
+    This CL changes pointer-typed expressions to exclusively use Mpint.
     
-    Fix by adding column of 1 to generated line directives.
+    Fixes #21221.
     
-    Fixes #26692
-    
-    Change-Id: Ie9263c0cf666b92d19c34240e745e8f32ffe7174
-    Reviewed-on: https://go-review.googlesource.com/126675
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6ba36c9b11eb19a68306f0b296acb11a8c254c41
+    Reviewed-on: https://go-review.googlesource.com/105315
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/cgo/out.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bimport.go | 22 ++++++++--------------
+ src/cmd/compile/internal/gc/const.go   | 23 ++++-------------------
+ src/cmd/compile/internal/gc/export.go  |  2 +-
+ test/const1.go                         |  4 ++--
+ test/fixedbugs/issue21221.go           | 18 ++++++++++++++++++
+ 5 files changed, 33 insertions(+), 36 deletions(-)

@@ -1,14 +1,15 @@
-commit 7a7d3453917c92bdd27d2b0e3fbb7d027597dcfb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 12 13:15:40 2012 -0800
+commit 37cd1658386bcc1d4f4ffddb30dd863df2e2ce7b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jan 12 11:34:06 2012 -0800
 
-    net/http: don't ignore Request.Write's Flush error
+    strconv: implement fast path for rounding already short numbers.
     
-    Pointed out by nekotaroh in issue 2645
+    benchmark                   old ns/op   new ns/op   delta
+    BenchmarkFormatFloatDecimal      3765        1386    -63%
     
-    R=golang-dev, gri
-    CC=golang-dev
-    https://golang.org/cl/5539045
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5494060
 
- src/pkg/net/http/request.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/strconv/ftoa.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

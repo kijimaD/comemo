@@ -1,21 +1,19 @@
-commit 782fcb44b96753e6e763be91a72bcbfc3dff7ab9
-Author: Sylvain Zimmer <sylvain@sylvainzimmer.com>
-Date:   Mon Jul 29 03:15:36 2019 +0200
+commit ce49f9506ab9f9f8133aec8c423ba5a159e9b20f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Oct 31 15:33:25 2019 -0700
 
-    regexp: add (*Regexp).SubexpIndex
+    cmd/compile: remove amd64p32 rules
     
-    SubexpIndex returns the index of the first subexpression with the given name,
-    or -1 if there is no subexpression with that name.
+    And simplify the remaining rules.
     
-    Fixes #32420
+    Updates #30439
     
-    Change-Id: Ie1f9d22d50fb84e18added80a9d9a9f6dca8ffc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187919
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib89dce16b17ae881824178346ed6ab895b79627e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204600
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/regexp/all_test.go     | 42 ++++++++++++++++++++++++++++--------------
- src/regexp/example_test.go | 13 +++++++++++++
- src/regexp/regexp.go       | 18 ++++++++++++++++++
- 3 files changed, 59 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  45 ++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 291 +--------------------------
+ 2 files changed, 22 insertions(+), 314 deletions(-)

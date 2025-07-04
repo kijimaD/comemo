@@ -1,28 +1,38 @@
-commit 6fc5e7d4b52986f82ec25d5993ff7f8bde8b61f5
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Tue May 9 20:56:09 2023 -0400
+commit 3635b07d16c9fe3f344b3271fb3bf7029d8b4001
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 28 16:31:29 2022 -0700
 
-    log/slog: create prefix buffer earlier
+    [dev.unified] cmd/compile/internal/noder: implicit conversions for multi-valued expressions
     
-    It's possible that the replacement for a built-in attribute is a Group.
-    That would cause a nil pointer exception because the handleState.prefix
-    field isn't set until later, in appendNonBuiltIns.
+    This CL changes GOEXPERIMENT=unified to insert implicit conversions
+    for multi-valued expressions.
     
-    So create the prefix field earlier, at the start of commonHandler.handle.
+    Unfortunately, IR doesn't have strong, first-class support for
+    multi-valued expressions, so this CL takes the approach of spilling
+    them to temporary variables, which can then be implicitly converted.
+    This is the same approach taken by walk, but doing it this early does
+    introduce some minor complications:
     
-    Once we do this, we can simplify the code by creating and freeing the
-    prefix in newHandleState.
+    1. For select case clauses with comma-ok assignments (e.g., `case x,
+    ok := <-ch:`), the compiler middle end wants to see the OAS2RECV
+    assignment is the CommClause.Comm statement. So when constructing
+    select statements, we need to massage this around a little.
     
-    Along the way I discovered a line that wasn't being tested:
-            state.prefix.WriteString(h.groupPrefix)
-    so I modified an existing test case to cover it.
+    2. The extra temporary variables and assignments skew the existing
+    inlining heuristics. As mentioned, the temporaries/assignments will
+    eventually be added (and often optimized away again) anyway, but now
+    they're visible to the inliner. So this CL also kludges the inlining
+    heuristics in this case to keep things comparable.
     
-    Change-Id: Ib385e3c13451017cb093389fd5a1647d53e610bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494037
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I3e3ea756ad92472ebe28bae3963be61ed7684a75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415244
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/log/slog/handler.go      | 31 ++++++++++++++++---------------
- src/log/slog/handler_test.go | 21 ++++++++++++++++++---
- 2 files changed, 34 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/inline/inl.go   | 30 +++++++++++++++++++++
+ src/cmd/compile/internal/noder/reader.go | 45 ++++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/noder/writer.go | 26 +++++++++++++++---
+ test/escape_iface_unified.go             |  5 ++--
+ 4 files changed, 97 insertions(+), 9 deletions(-)

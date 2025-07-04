@@ -1,21 +1,29 @@
-commit dd2d00f9d57ba6aafb084d83ffc7fb35f97b8c84
-Author: Dmitri Goutnik <dgoutnik@gmail.com>
-Date:   Fri Jun 17 12:10:09 2022 -0500
+commit be1a6934776a3c7f636932918e756b44b6510214
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Aug 22 11:50:58 2021 -0700
 
-    net: fix flaky *TimeoutMustNotReturn tests
+    cmd/compile: fixes for non-constant Sizeof/Alignof/Offsetof
     
-    The tester goroutine doesn't always gets a chance to run before the
-    timeout expires. Wait for the goroutine to start and set deadlines
-    before staring the timer.
+    Includes Robert's suggested fix in validate.go to not fail on
+    non-constant alignof/offsetof/sizeof calls. Further changes to wait on
+    transforming these calls until stenciling time, when we can call
+    EvalConst() to evaluate them once all the relevant types are known.
     
-    Fixes #36796
+    Added a bunch of new tests for non-constant Sizeof/Alignof/Offsetof.
     
-    Change-Id: Iffed6259de31340c3f66e34da473826a1d09fcde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412858
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #47716
+    
+    Change-Id: I469af888eb9ce3a853124d919eda753971009b3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344250
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/net/timeout_test.go | 21 +++++++++++++++------
- 1 file changed, 15 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/helpers.go   | 10 ++++-
+ src/cmd/compile/internal/noder/stencil.go   |  2 +-
+ src/cmd/compile/internal/noder/transform.go |  5 ++-
+ src/cmd/compile/internal/noder/validate.go  | 11 ++++-
+ src/cmd/compile/internal/typecheck/const.go |  4 +-
+ test/typeparam/issue47716.go                | 68 +++++++++++++++++++++++++++++
+ 6 files changed, 95 insertions(+), 5 deletions(-)

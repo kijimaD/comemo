@@ -1,14 +1,19 @@
-commit e224787fef3227587aceddbe21a792e3102d3cfb
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Fri Apr 9 23:56:44 2021 +0800
+commit 694025e74f861bf48a737a8b42612d6397f1879b
+Author: David Chase <drchase@google.com>
+Date:   Mon Oct 5 12:07:00 2020 -0400
 
-    runtime: fix formatting of gcMark
+    cmd/compile: avoid applying ARM CMP->CMN rewrite in unsigned context
     
-    Change-Id: I08aed75f3aab0da705544665e532f332adfb075e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308949
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #41780.
+    
+    Change-Id: I1dc7c19a9f057650905da3a96214c2ff4abb51be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259450
     Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/mgc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules |   4 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go | 243 +++++++++++++++++++++++++----
+ test/fixedbugs/issue41780.go               |  39 +++++
+ 3 files changed, 257 insertions(+), 29 deletions(-)

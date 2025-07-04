@@ -1,14 +1,15 @@
-commit c42a1d4906ac22226dd36140984bdb6f578025bf
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jun 25 14:54:26 2012 -0700
+commit 910959084d01bddc07f1f976d7ba9ad138a64077
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 25 17:36:02 2012 -0400
 
-          doc: drop video title from homepage
+    A+C: Jonathan Gold (individual CLA)
     
-    It's just stutter.
+    This is my last one for today, I hope!
     
-    R=golang-dev, dsymonds, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6334053
+    https://golang.org/cl/6339052
 
- doc/root.html | 1 -
- 1 file changed, 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,14 +1,12 @@
-commit 9e5f62ac0c7259988fb616d6a91625befa1db62f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 19 08:52:53 2012 -0800
+commit 2a6b4e120a6f67d532f698f238547690bc18efba
+Author: Christoph Hack <christoph@tux21b.org>
+Date:   Thu Jan 19 06:11:02 2012 -0800
 
-    go/doc, godoc: don't shadow receiver
+    net/http: the documentation should call NewRequest with the right signature.
     
-    Fixes #2737.
-    
-    R=bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5553062
+    https://golang.org/cl/5554063
 
- src/pkg/go/doc/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

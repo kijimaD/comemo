@@ -1,15 +1,22 @@
-commit 607493bed678cbf3a456e9de8e7e74622ec83da8
-Author: smileeye <franksnolf@gmail.com>
-Date:   Tue Apr 9 22:47:38 2019 +0800
+commit 41660d0086b302654fce0c948b84e464095398a1
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 16 09:23:46 2018 -0500
 
-    cmd/asm/internal/arch: improve the comment of function IsMIPSMUL
+    cmd/vet: fix two failing test cases
     
-    The check of MADD&MSUB was added to the function IsMIPSMUL in
-    a previous commit, and the comments should also be updated.
+    Select linux/arm64 for the asm test.
     
-    Change-Id: I2d3da055d55b459b908714c542dff99ab5c6cf99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171102
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Disable the cgo test for now.
+    Will fix properly in a follow-up.
+    Filed Issue 28829 to track it.
+    
+    Updates #28829
+    
+    Change-Id: Ic05f619700b06e91c43f8c150b089b8e77d92c85
+    Reviewed-on: https://go-review.googlesource.com/c/149937
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/arch/mips.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/vet/vet_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,37 +1,20 @@
-commit 4347baac7d7e99a9cf1500545860cc42ae217702
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 1 14:55:15 2017 -0700
+commit 74e3be8f38ffd376996946ca7d6736b1e0036cfb
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 20 14:24:00 2017 -0400
 
-    cmd/compile: eliminate OXFALL
+    cmd/dist: ensure android-implies-linux for file names in dist
     
-    Previously, we used OXFALL vs OFALL to distinguish fallthrough
-    statements that had been validated. Because in the Node AST we flatten
-    statement blocks, OXCASE and OXFALL needed to keep track of their
-    block scopes for this purpose.
+    This is one hurdle to building Go on Android; the runtime does
+    not build properly because *_linux.go files are excluded from
+    the "Building go_bootstrap" step when GOOS=android.
     
-    Now that we have an AST that keeps these separate, we can just perform
-    the validation earlier.
+    There are other hurdles; this is the first one.
     
-    Passes toolstash-check.
-    
-    Fixes #14540.
-    
-    Change-Id: I8421eaba16c2b3b72c9c5483b5cf20b14261385e
-    Reviewed-on: https://go-review.googlesource.com/61130
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I766e4bbf6ffc0d273888913f2516cf3e995a1786
+    Reviewed-on: https://go-review.googlesource.com/38308
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go   |  4 +--
- src/cmd/compile/internal/gc/bimport.go   |  6 ++--
- src/cmd/compile/internal/gc/fmt.go       |  8 +----
- src/cmd/compile/internal/gc/noder.go     | 54 ++++++++++++++++++++++++--------
- src/cmd/compile/internal/gc/opnames.go   |  1 -
- src/cmd/compile/internal/gc/order.go     |  1 -
- src/cmd/compile/internal/gc/racewalk.go  |  1 -
- src/cmd/compile/internal/gc/swt.go       | 18 ++---------
- src/cmd/compile/internal/gc/syntax.go    |  5 ++-
- src/cmd/compile/internal/gc/typecheck.go |  4 +--
- src/cmd/compile/internal/gc/walk.go      |  4 ---
- test/fixedbugs/issue14540.go             | 20 ++++++++++++
- 12 files changed, 72 insertions(+), 54 deletions(-)
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

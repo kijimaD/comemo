@@ -1,24 +1,35 @@
-commit 31a9c139419dadf35df1b162115da69a0b4cb917
-Author: Manuel Sabin <msabin27@gmail.com>
-Date:   Mon Jul 1 10:49:11 2024 -0400
+commit 1e576efb6b7e683ac8331ff798bf9dfc075363d0
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Jul 4 15:25:07 2023 +0100
 
-    crypto/internal/cryptotest: add tests for the cipher.AEAD interface
+    strings: add benchmark for Builder.WriteString
     
-    This CL creates tests for the cipher.AEAD interface in the new
-    cryptotest package.  This set of tests is called from the tests of
-    implementations of the AEAD interface, such as the GCM blockmode.
+    This is in preparation for an optimization.
     
-    Updates #25309
+    ```
+    name                                     time/op
+    BuildString_WriteString/1Write_NoGrow-8  30.8ns ± 0%
+    BuildString_WriteString/3Write_NoGrow-8   111ns ± 0%
+    BuildString_WriteString/3Write_Grow-8    44.1ns ± 4%
     
-    Change-Id: I7612fa6fb6c1505bdf1a2cd71180dd43dc50bf4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601778
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    name                                     alloc/op
+    BuildString_WriteString/1Write_NoGrow-8   48.0B ± 0%
+    BuildString_WriteString/3Write_NoGrow-8    336B ± 0%
+    BuildString_WriteString/3Write_Grow-8      112B ± 0%
+    
+    name                                     allocs/op
+    BuildString_WriteString/1Write_NoGrow-8    1.00 ± 0%
+    BuildString_WriteString/3Write_NoGrow-8    3.00 ± 0%
+    BuildString_WriteString/3Write_Grow-8      1.00 ± 0%
+    ```
+    
+    Signed-off-by: Roger Peppe <rogpeppe@gmail.com>
+    Change-Id: I0e2c82edcdc72f381c5160f315401678ff76f3d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507777
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/cipher/gcm_test.go          |  39 ++++
- src/crypto/internal/cryptotest/aead.go | 387 +++++++++++++++++++++++++++++++++
- 2 files changed, 426 insertions(+)
+ src/strings/builder_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

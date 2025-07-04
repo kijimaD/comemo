@@ -1,18 +1,17 @@
-commit 7c7966a4260b9f6c7c8e13586a04ec23f433670a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 6 23:35:31 2012 -0500
+commit 0130a31366734fe0dd82a5c574437a3b6d2e1b28
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 7 15:29:26 2012 +1100
 
-    net: disable use of external listen along with other external network uses
+    go_faq: a simple binary is a little smaller now
+    About 10% for hello, world.
+    Maybe more reductions will come.
+    Also clarify that we're comparing printf against Printf
+    (gcc can optimize aggressively, making this a different
+    sort of comparison).
     
-    By default the all.bash tests must not ever announce
-    on an external address.  It's not just an OS X issue.
-    
-    R=golang-dev, mikioh.mikioh
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5753067
+    https://golang.org/cl/5756070
 
- src/pkg/net/dial_test.go    |  2 +-
- src/pkg/net/net_test.go     |  8 --------
- src/pkg/net/server_test.go  |  2 +-
- src/pkg/net/unicast_test.go | 14 +++++++-------
- 4 files changed, 9 insertions(+), 17 deletions(-)
+ doc/go_faq.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

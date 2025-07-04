@@ -1,20 +1,37 @@
-commit 39e335ac0618044bbd8ed2fca5e5b3583d8c444e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jul 31 21:32:26 2020 +0000
+commit 7c0ee1127bf41bf274b08170de3e42b171a903c0
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 13 11:09:05 2020 -0400
 
-    runtime: copy in MemStats fields explicitly
+    test: deflaking measures for runtime gdb test
     
-    Currently MemStats is populated via an unsafe memmove from memstats, but
-    this places unnecessary structural restrictions on memstats, is annoying
-    to reason about, and tightly couples the two. Instead, just populate the
-    fields of MemStats explicitly.
+    Tweak the runtime's GDB python test to try to reduce flake failures.
     
-    Change-Id: I96f6a64326b1a91d4084e7b30169a4bbe6a331f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246972
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Background: the intent of the testpoint in question is to make sure
+    that python-supported commands like "info goroutines" or "goroutine 1
+    backtrace" work properly. The Go code being run under the debugger as
+    part of the test is single-threaded, but the test is written assuming
+    that in addition to the primary goroutine there will be other
+    background goroutines available (owned by the runtime). The flakiness
+    seems to crop up the most when requesting a backtrace for one of these
+    background goroutines; the speculation is that if we catch a
+    runtime-owned goroutine in an odd state, this could interfere with the
+    test.
+    
+    The change in this patch is to explicitly start an additional
+    goroutine from the main thread, so that when the debugger stops the
+    main thread we can be sure that there is some other non-main goroutine
+    in a known state.
+    
+    This change authored by Josh Bleecher Snyder <josharian@gmail.com>.
+    
+    Updates #24616.
+    
+    Change-Id: I45682323d5898e5187c0adada7c5d117e92f403b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226558
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/mstats.go | 70 ++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 47 insertions(+), 23 deletions(-)
+ src/runtime/runtime-gdb_test.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

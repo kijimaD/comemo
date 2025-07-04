@@ -1,22 +1,24 @@
-commit 335e72bcb6a5f670e2b3c65170c4287ca7265934
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Sep 23 11:46:28 2021 +0100
+commit 099599662d15598fc2690e60bd36bc087a3bdec5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 8 23:44:31 2021 -0800
 
-    cmd/go: fix indentation of -workfile help text
+    [dev.typeparams] cmd/compile: refactor import logic
     
-    While reading the help text for #48576,
-    I noticed that the output was misaligned.
+    This CL refactors noder's package import logic so it's easier to reuse
+    with types2 and gcimports. In particular, this allows the types2
+    integration to now support vendored packages.
     
-    Turns out it's because two lines have space indentation,
-    while the rest use tab indentation. Fix that.
-    
-    Change-Id: Ie7c473d892ca13852fa2134f3cdef21e9210e02e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351750
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I1fd98ad612b4683d2e1ac640839e64de1fa7324b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282919
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go             | 4 ++--
- src/cmd/go/internal/work/build.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/import.go | 260 ++++++++++++++++---------------
+ src/cmd/compile/internal/noder/noder.go  |  33 +---
+ src/cmd/compile/internal/types/pkg.go    |   3 +-
+ test/fixedbugs/issue11362.go             |   3 +-
+ test/run.go                              |   1 -
+ 5 files changed, 138 insertions(+), 162 deletions(-)

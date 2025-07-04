@@ -1,36 +1,13 @@
-commit a43669843b155ddb575d95acdb72dc62a1434efd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 20 13:51:39 2014 -0700
+commit 87ef6e91568507e53b902c558f0cc4d8447e5dd7
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 20 11:57:21 2014 -0700
 
-    spec: clarify section on package initialization
+    doc/install.html: fix duplicate id= tag
     
-    - split description of package initialization and
-      program execution
-    - better grouping of concerns in section on package
-      initialization
-    - more explicit definition of what constitues a
-      dependency
-    - removed language about constant dependencies -
-      they are computed at compile-time and not
-      initialized at run-time
-    - clarified that independent variables are initialized
-      in declaration order (rather than reference order)
-    
-    Note that the last clarification is what distinguishes
-    gc and gccgo at the moment: gc uses reference order
-    (i.e., order in which variables are referenced in
-    initialization expressions), while gccgo uses declaration
-    order for independent variables.
-    
-    Not a language change. But adopting this CL will
-    clarify what constitutes a dependency.
-    
-    Fixes #6703.
-    
-    LGTM=adonovan, r, iant, rsc
-    R=r, rsc, iant, ken, adonovan
+    LGTM=minux.ma
+    R=adg, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/99020043
+    https://golang.org/cl/95540045
 
- doc/go_spec.html | 162 ++++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 108 insertions(+), 54 deletions(-)
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

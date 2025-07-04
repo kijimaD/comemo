@@ -1,16 +1,24 @@
-commit f26f227f66ff4113cad0cd51c0780e5849e9accc
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Dec 1 13:02:44 2020 -0800
+commit 5a550b695117f07a4f2454039a4871250cd3ed09
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 21 08:23:13 2020 -0400
 
-    doc/go1.16: add crypto/tls Config.Clone note
+    go/ast: drop //directive comments from doc.Text
     
-    For #40700
-    Fixes #42896
+    This allows writing
     
-    Change-Id: I842c9d60b18abe2ee061c6705a5c7ba62b224d77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274613
-    Trust: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+            // F does a thing.
+            //go:noinline
+            func F()
+    
+    without the //go:noinline or other directive (such as //line)
+    ending up looking like extra words in the doc comment.
+    
+    Fixes #37974.
+    
+    Change-Id: Ic738d72802cc2fa448f7633915e7126d2f76d8ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224737
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.16.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/go/ast/ast.go      | 47 +++++++++++++++++++++++++++++++++++++++++------
+ src/go/ast/ast_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 6 deletions(-)

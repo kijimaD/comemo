@@ -1,42 +1,27 @@
-commit 643d240a11b2d00e1718b02719707af0708e7519
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu Nov 19 19:09:14 2020 +0800
+commit 5387cdcb24a07f5d0d49d5105ced2b69e6aafde9
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Fri Aug 7 11:31:20 2020 -0400
 
-    internal/poll: implement a pipe pool for splice() call
+    [dev.link] cmd/link, cmd/compile: create content addressable pcdata syms
     
-    In scenarios where splice() is called, splice() is usually called not just once, but many times,
-    which means that a lot of pipes will be created and destroyed frequently, costing an amount of system resources
-    and slowing down performance, thus I suggest that we add a pipe pool for reusing pipes.
+    Switch pcdata over to content addressable symbols. This is the last
+    step before removing these from pclntab_old.
     
-    Benchmark tests:
+    No meaningful benchmarks changes come from this work.
     
-    goos: linux
-    goarch: amd64
-    pkg: internal/poll
-    cpu: AMD EPYC 7K62 48-Core Processor
-    
-    name                  old time/op    new time/op    delta
-    SplicePipe-8            1.36µs ± 1%    0.02µs ± 0%   -98.57%  (p=0.001 n=7+7)
-    SplicePipeParallel-8     747ns ± 4%       4ns ± 0%   -99.41%  (p=0.001 n=7+7)
-    
-    name                  old alloc/op   new alloc/op   delta
-    SplicePipe-8             24.0B ± 0%      0.0B       -100.00%  (p=0.001 n=7+7)
-    SplicePipeParallel-8     24.0B ± 0%      0.0B       -100.00%  (p=0.001 n=7+7)
-    
-    name                  old allocs/op  new allocs/op  delta
-    SplicePipe-8              1.00 ± 0%      0.00       -100.00%  (p=0.001 n=7+7)
-    SplicePipeParallel-8      1.00 ± 0%      0.00       -100.00%  (p=0.001 n=7+7)
-    
-    Fixes #42740
-    
-    Change-Id: Idff654b7264342084e089b5ba796c87c380c471b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271537
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3f74f3d6026a278babe437c8010e22992c92bd89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247399
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/internal/poll/export_linux_test.go | 22 ++++++++
- src/internal/poll/splice_linux.go      | 87 +++++++++++++++++++++++-------
- src/internal/poll/splice_linux_test.go | 96 ++++++++++++++++++++++++++++++++++
- 3 files changed, 185 insertions(+), 20 deletions(-)
+ src/cmd/internal/goobj/funcinfo.go     | 82 ++++++++++++++++++----------------
+ src/cmd/internal/goobj/objfile.go      | 12 +++--
+ src/cmd/internal/obj/link.go           | 15 +++----
+ src/cmd/internal/obj/objfile.go        | 71 ++++++++++++++++++++++-------
+ src/cmd/internal/obj/pcln.go           | 55 ++++++++++++++---------
+ src/cmd/internal/objfile/goobj.go      | 16 ++++---
+ src/cmd/link/internal/ld/dwarf.go      |  2 +-
+ src/cmd/link/internal/ld/lib.go        |  2 +-
+ src/cmd/link/internal/ld/pcln.go       | 13 +++---
+ src/cmd/link/internal/loader/loader.go | 46 +++++++++----------
+ 10 files changed, 182 insertions(+), 132 deletions(-)

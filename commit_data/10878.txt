@@ -1,31 +1,21 @@
-commit 2368b003e0d663e07079f1f250e954a51a64144b
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Dec 19 16:45:51 2011 -0500
+commit c99f4f5bf648217987859d8afa0bd6eac8f74ae4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 19 13:23:27 2011 -0800
 
-    strconv: implement faster parsing of decimal numbers.
+    doc: delete go course notes
+    They're out of date, a pain to maintain, and most of the material
+    is better served by the Go Tour.
     
-    The algorithm is the same as in the double-conversion library
-    which also implements Florian Loitsch's fast printing algorithm.
-    It uses extended floats with a 64-bit mantissa, but cannot give
-    an answer for all cases.
+    Fixes #2101.
     
-                               old ns/op  new ns/op  speedup
-    BenchmarkAtof64Decimal         332        322      1.0x
-    BenchmarkAtof64Float           385        373      1.0x
-    BenchmarkAtof64FloatExp       9777        419     23.3x
-    BenchmarkAtof64Big            3934        691      5.7x
-    BenchmarkAtof64RandomBits    34060        899     37.9x
-    BenchmarkAtof64RandomFloats   1329        680      2.0x
-    
-    See F. Loitsch, ``Printing Floating-Point Numbers Quickly and
-    Accurately with Integers'', Proceedings of the ACM, 2010.
-    
-    R=ality, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5494068
+    R=golang-dev, rsc, r, adg
+    CC=golang-dev
+    https://golang.org/cl/5489053
 
- src/pkg/strconv/Makefile     |   1 +
- src/pkg/strconv/atof.go      |  23 ++++
- src/pkg/strconv/atof_test.go |  64 +++++++++
- src/pkg/strconv/extfloat.go  | 311 +++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 399 insertions(+)
+ doc/GoCourseDay1.pdf | Bin 287552 -> 0 bytes
+ doc/GoCourseDay2.pdf | Bin 268707 -> 0 bytes
+ doc/GoCourseDay3.pdf | Bin 178003 -> 0 bytes
+ doc/docs.html        |  11 -----------
+ doc/go_tutorial.html |   7 ++-----
+ doc/go_tutorial.tmpl |   7 ++-----
+ 6 files changed, 4 insertions(+), 21 deletions(-)

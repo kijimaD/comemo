@@ -1,16 +1,16 @@
-commit 989a63eb0b1f692c7d2aa0a4d3deed97b4505d15
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Mon Oct 7 13:08:26 2013 -0400
+commit fba015ecb415ecd84b2d2e2c98f1a6efc09fbd5b
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Oct 7 09:12:17 2013 -0700
 
-    misc/emacs: find unused imports where path and package name differ
+    os/user: enable tests on all supported platforms
     
-    The Go compiler emits extra information for this case:
+    All of the currently supported platforms have a working user
+    implementation and do not use stubs. As a result, enable the tests
+    on all platforms rather than whitelisting.
     
-    imported and not used: "sandbox/foo_bar" as bar
-    
-    R=adonovan
+    R=golang-dev, dave, iant
     CC=golang-dev
-    https://golang.org/cl/14111043
+    https://golang.org/cl/14454044
 
- misc/emacs/go-mode.el | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/os/user/user_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

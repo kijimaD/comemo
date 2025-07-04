@@ -1,16 +1,20 @@
-commit 2fa64c41828f746d917cf7b7b6c3a39f33bd1161
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Nov 20 12:03:07 2015 -0500
+commit cde977c23cbf5fb29f12bcbca5164530d0256019
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 15 09:02:07 2015 -0700
 
-    runtime/pprof: check if test can fork
+    [dev.ssa] cmd/compile/internal/ssa: fix sign extension + load combo
     
-    (TestStackBarrierProfiling is failing on darwin/arm.)
+    Load-and-sign-extend opcodes were being generated in the
+    wrong block, leading to having more than one memory variable
+    live at once.  Fix the rules + add a test.
     
-    Change-Id: I8006d6222ccafc213821e02105896440079caa37
-    Reviewed-on: https://go-review.googlesource.com/17091
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iadf80e55ea901549c15c628ae295c2d0f1f64525
+    Reviewed-on: https://go-review.googlesource.com/14591
+    Reviewed-by: Todd Neal <todd@tneal.org>
+    Run-TryBot: Todd Neal <todd@tneal.org>
 
- src/runtime/pprof/pprof_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ .../compile/internal/gc/testdata/loadstore_ssa.go  | 21 ++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       | 10 ++++++--
+ src/cmd/compile/internal/ssa/regalloc.go           | 28 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 22 ++++++++++-------
+ 4 files changed, 71 insertions(+), 10 deletions(-)

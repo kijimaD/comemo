@@ -1,17 +1,18 @@
-commit 251fb8e4112c4728bf46da15a3875c455136ed8d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Sep 16 17:15:09 2023 -0700
+commit f9bd1d0f113db5a92e59592f0108dad45a9308ad
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Oct 18 10:22:17 2022 -0500
 
-    doc/go1.22: correct tipo languague => language
+    runtime/internal/syscall: convert PPC64 Syscall6 to ABIInternal
     
-    Change-Id: I11d0947d6d2ffa91745c8e36a3984ffee85abbd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528896
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    This avoids a lot of stacking.
+    
+    Change-Id: If5c5cf33335ffdcb7eecbd3f2db7858a415d817d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443736
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- doc/go1.22.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/internal/syscall/asm_linux_ppc64x.s | 31 +++++++++++--------------
+ 1 file changed, 13 insertions(+), 18 deletions(-)

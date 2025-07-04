@@ -1,18 +1,14 @@
-commit e7d46cee2f67667982c091dc7c6e872b829b754e
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Tue Jul 4 19:46:59 2017 +0100
+commit 22538477a3cceb4f03b7c44cad6fe19e9e9e06b3
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri May 12 13:45:55 2017 +0900
 
-    crypto/tls: fix and expand TestVerifyPeerCertificate and TestGetClientCertificate
+    cmd/go: use filepath.Base for getting $CC name in TestCgoContainsSpace
     
-    TestGetClientCertificate had disabled verification, and was only passing
-    because it was mistakenly checking for empty verifiedChains.
-    
-    Change-Id: Iea0ddbdbbdf8ac34b499569820a2e4ce543a69c7
-    Reviewed-on: https://go-review.googlesource.com/47430
-    Run-TryBot: Filippo Valsorda <hi@filippo.io>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If7329b81073d7c98fdcb8a2c0b35f8708000606e
+    Reviewed-on: https://go-review.googlesource.com/43332
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/handshake_client_test.go | 35 +++++++++++++++++++++++----------
- 1 file changed, 25 insertions(+), 10 deletions(-)
+ src/cmd/go/go_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

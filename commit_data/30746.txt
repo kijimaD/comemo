@@ -1,17 +1,14 @@
-commit 5dc14af6824ed31eab5a8a16e8e08082c5ddcb14
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 17 13:48:56 2017 -0700
+commit f1a8a63daba8e3ed75e912599d8bb38eed6b745c
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Nov 30 18:37:18 2016 -0800
 
-    runtime: clear signal stack on main thread
+    api: update next.txt (remove database/sql.NamedParam)
     
-    This is a workaround for a FreeBSD kernel bug. It can be removed when
-    we are confident that all people are using the fixed kernel. See #15658.
+    Updates #18099
     
-    Updates #15658.
-    
-    Change-Id: I0ecdccb77ddd0c270bdeac4d3a5c8abaf0449075
-    Reviewed-on: https://go-review.googlesource.com/38325
+    Change-Id: I16b4b2dd881d63cbb406d14a4fd960f0a777a452
+    Reviewed-on: https://go-review.googlesource.com/33760
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os_freebsd.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ api/next.txt | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

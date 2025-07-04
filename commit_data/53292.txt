@@ -1,19 +1,25 @@
-commit eea26e8e685af0270b10c41c7d8f8de22a520373
-Author: fangguizhen <1297394526@qq.com>
-Date:   Tue Jan 3 18:18:35 2023 +0000
+commit 365ca6947287d2b8fd9ca49fef74a1297786e8b1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Aug 7 19:21:15 2022 -0700
 
-    net/http: check for nil, nil return from DialContext as well as Dial
+    runtime/cgo: add -fno-stack-protector to CFLAGS
     
-    Change-Id: I3b6dd9c40b3c10db2eda6a25b9d556c9c3733bbc
-    GitHub-Last-Rev: fd9b0c4193511a75b4a0073f37aa3116db23a46f
-    GitHub-Pull-Request: golang/go#57448
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458876
-    Reviewed-by: Javad Rajabzadeh <ja7ad@live.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Some compilers default to having -fstack-protector on, which breaks
+    when using internal linking because the linker doesn't know how to
+    find the support functions.
+    
+    Fixes #52919
+    Fixes #54313
+    
+    Change-Id: I6f51d5e906503f61fc768ad8e30c163bad135087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421935
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/net/http/transport.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/cgo/cgo.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

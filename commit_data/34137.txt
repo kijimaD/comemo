@@ -1,14 +1,46 @@
-commit 0ed5bec951e3068df3201254f615b5ad1d429ee0
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue Feb 13 09:06:59 2018 -0800
+commit 0ed1c380172e7074cec885f371f4d46892279f6c
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Sep 25 06:48:50 2017 +0000
 
-    time: add example for FixedZone
+    cmd/internal/obj/arm: support more ARMv6 instructions
     
-    Change-Id: I8a6c3e225038cbeb315433fabf8835f582836d3e
-    Reviewed-on: https://go-review.googlesource.com/93657
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    The following instructions were introduced in ARMv6, and the compiler
+    can do more optimization with them.
+    
+    1. "MOVBS Rm@>i, Rd": rotates Rm 0/8/16/24 bits, does signed
+    byte extension to word, and writes the result to Rd.
+    
+    2. "MOVHS Rm@>i, Rd": rotates Rm 0/8/16/24 bits, does signed
+    halfword extension to word, and writes the result to Rd.
+    
+    3. "MOVBU Rm@>i, Rd": rotates Rm 0/8/16/24 bits, does unsigned
+    byte extension to word, and writes the result to Rd.
+    
+    4. "MOVHU Rm@>i, Rd": rotates Rm 0/8/16/24 bits, does unsigned
+    half-word extension to word, and writes the result to Rd.
+    
+    5. "XTAB Rm@>i, Rn, Rd": rotates Rm 0/8/16/24 bits, does signed
+    byte extension to word, adds Rn, and writes the result to Rd.
+    
+    6. "XTAH Rm@>i, Rn, Rd": rotates Rm 0/8/16/24 bits, does signed
+    half-word extension to word, adds Rn, and writes the result to Rd.
+    
+    7. "XTABU Rm@>i, Rn, Rd": rotates Rm 0/8/16/24 bits, does unsigned
+    byte extension to word, adds Rn, and writes the result to Rd.
+    
+    8. "XTAHU Rm@>i, Rn, Rd": rotates Rm 0/8/16/24 bits, does unsigned
+    half-word extension to word, adds Rn, and writes the result to Rd.
+    
+    Change-Id: I4306d7ebac93015d7e2e40d307f2c4271c03f466
+    Reviewed-on: https://go-review.googlesource.com/65790
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/example_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/asm/internal/asm/testdata/arm.s      |  62 +++++++++++++
+ src/cmd/asm/internal/asm/testdata/armerror.s |  14 +++
+ src/cmd/internal/obj/arm/a.out.go            |   8 +-
+ src/cmd/internal/obj/arm/anames.go           |   4 +
+ src/cmd/internal/obj/arm/anames5.go          |   1 +
+ src/cmd/internal/obj/arm/asm5.go             | 134 +++++++++++++++++++++------
+ 6 files changed, 192 insertions(+), 31 deletions(-)

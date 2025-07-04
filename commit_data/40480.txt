@@ -1,23 +1,20 @@
-commit b6bdf4587f7b58b78982553b7d10b73d0a381152
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 28 22:14:04 2019 -0400
+commit 48b7bdd0d74f6a06cd095cc8b15fe6ec5c4a2aee
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 15 10:12:07 2019 -0400
 
-    runtime: unblock SIGUSR1 for TestPreemptM
+    cmd/go: always add 'go' directive to the go.mod file if missing
     
-    TestPreemptM tests signal delivery using SIGUSR1, but (for unknown
-    reasons) SIGUSR1 is blocked by default on android/arm and
-    android/arm64, causing the test to fail.
+    Updates #30790
+    Fixes #31960
     
-    This fixes the test by ensuring that SIGUSR1 is unblocked for this
-    test.
-    
-    Updates #10958, #24543.
-    
-    Change-Id: I9f81fbab53f96c74622aabcb6f5276f79e2b6d33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203957
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib3ac074cf1f98fe69f53af82d2a0441582116570
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176925
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/export_unix_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/go/internal/modcmd/tidy.go               | 1 -
+ src/cmd/go/internal/modload/init.go              | 9 +++++----
+ src/cmd/go/testdata/script/mod_file_proxy.txt    | 3 ++-
+ src/cmd/go/testdata/script/mod_init_empty.txt    | 2 ++
+ src/cmd/go/testdata/script/mod_load_badchain.txt | 2 ++
+ 5 files changed, 11 insertions(+), 6 deletions(-)

@@ -1,14 +1,20 @@
-commit f396fa4285dd5def6d28ebedb4261cf89133bae1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 1 16:05:17 2017 -0700
+commit fc327a14c490db9d2e14c4c44ba8791dc54be02a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 4 15:26:04 2017 -0700
 
-    internal/poll: don't add non-sockets to runtime poller
+    cmd/compile: remove order canonicalization rules from mips
     
-    Updates #21172
+    CL 38801 introduced automatic commutative rule generation.
+    Manual order canonicalization rules thus lead to infinite loops.
     
-    Change-Id: I0fec6e645328bbc85f3e47f4f71dd8d1d68c75ab
-    Reviewed-on: https://go-review.googlesource.com/52551
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Fixes #19842
+    
+    Change-Id: I877c476152f4d207fdc67bc6f3018265aa9bc5ac
+    Reviewed-on: https://go-review.googlesource.com/39533
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/poll/fd_windows.go | 21 +++++++++++++++++++--
- 1 file changed, 19 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/MIPS.rules |   3 -
+ src/cmd/compile/internal/ssa/rewriteMIPS.go | 104 ----------------------------
+ 2 files changed, 107 deletions(-)

@@ -1,20 +1,29 @@
-commit adf9b30e55943feb44669ebf773964fd32d4ee94
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Aug 28 09:33:51 2015 +0200
+commit e97ab0a0acec9281dbca086d99d965100a196100
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 13 12:25:19 2015 -0700
 
-    reflect: adjust access to unexported embedded structs
+    cmd/compile: remove stale register use array
     
-    This CL changes reflect to allow access to exported fields and
-    methods in unexported embedded structs for gccgo and after gc
-    has been adjusted to disallow access to embedded unexported structs.
+    The reg[] array in .../gc is where truth lies.  The copy in .../ARCH
+    is incorrect as it is mostly not updated to reflect regalloc decisions.
     
-    Adresses #12367, #7363, #11007, and #7247.
+    This bug was introduced in the rewrite
+    https://go-review.googlesource.com/#/c/7853/.  The new reg[] array was
+    introduced in .../gc but not all of the uses were removed in the
+    .../ARCH directories.
     
-    Change-Id: If80536eab35abcd25300d8ddc2d27d5c42d7e78e
-    Reviewed-on: https://go-review.googlesource.com/14010
+    Fixes #12133
+    
+    Change-Id: I6364fc403cdab92d802d17f2913ba1607734037c
+    Reviewed-on: https://go-review.googlesource.com/13630
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/reflect/export_test.go |  4 ++--
- src/reflect/type.go        |  2 +-
- src/reflect/value.go       | 27 +++++++++++++++++----------
- 3 files changed, 20 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go |  8 ++++----
+ src/cmd/compile/internal/amd64/reg.go  |  2 --
+ src/cmd/compile/internal/arm64/ggen.go |  6 +++---
+ src/cmd/compile/internal/arm64/reg.go  |  2 --
+ src/cmd/compile/internal/gc/gsubr.go   |  7 +++++++
+ src/cmd/compile/internal/x86/ggen.go   |  4 ++--
+ src/cmd/compile/internal/x86/reg.go    |  2 --
+ test/fixedbugs/issue12133.go           | 26 ++++++++++++++++++++++++++
+ 8 files changed, 42 insertions(+), 15 deletions(-)

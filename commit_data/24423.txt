@@ -1,18 +1,24 @@
-commit fbd2660af3042217a4c831e9d4e24a4e97c296cb
-Author: Austin Clements <austin@google.com>
-Date:   Thu Sep 24 14:30:09 2015 -0400
+commit 9ca24fcda88398cc39e9b6e43bc1de51610a3b01
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 27 13:17:45 2015 -0700
 
-    runtime: introduce gcMode type for GC modes
+    [dev.ssa] cmd/compile: implement non-numeric comparisons
     
-    Currently, the GC modes constants are untyped and functions pass them
-    around as ints. Clean this up by introducing a proper type for these
-    constant.
+    The only slice/interface comparisons that reach
+    the backend are comparisons to nil.
     
-    Change-Id: Ibc022447bdfa203644921fbb548312d7e2272e8d
-    Reviewed-on: https://go-review.googlesource.com/14981
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Funcs, maps, and channels are references types,
+    so pointer equality is enough.
+    
+    Change-Id: I60a71da46a36202e9bd62ed370ab7d7f2e2800e7
+    Reviewed-on: https://go-review.googlesource.com/12715
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             |  52 ++++++++-----
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   2 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |   9 +++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   4 +
+ src/cmd/compile/internal/ssa/opGen.go          |  20 +++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  42 ++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 104 +++++++++++++++++++++++++
+ 7 files changed, 214 insertions(+), 19 deletions(-)

@@ -1,24 +1,25 @@
-commit 170862d68377ac04a35223521ce9e450007a6032
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat Mar 30 10:32:20 2024 +0800
+commit 6e8eec7328d8526f377c69076d3c84ffb7bf89be
+Author: Daniel Frederick Crisman <daniel@crisman.org>
+Date:   Mon Apr 10 23:14:56 2023 +0000
 
-    slices: simplify slice expression for Replace
+    doc: add missing oxford comma in Constants
     
-    A slice expression of the form:
-            s[a:len(s)]
-    will be simplified to:
-            s[a:]
-    This is one of the simplifications that "gofmt -s" applies.
+    In the language specification under "Constants" the lists matching default
+    types to untyped contstant types is missing an Oxford comma in the first
+    list. I found a number of other places in the spec and #23442 that use the
+    Oxford comma to support its use.
     
-    See https://pkg.go.dev/golang.org/x/tools/gopls/internal/analysis/simplifyslice
+    Add missing Oxford comma in Constants default type list.
     
-    Change-Id: Ib3c01ecf24b84333fd1993a343450fc57fb8ac84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/575335
+    Change-Id: I4562d692610334bc82452db076145d2414617a04
+    GitHub-Last-Rev: 8acdb60d6e255f73fdeb908d2540d4ee35db3fd7
+    GitHub-Pull-Request: golang/go#59528
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Valentin Deleplace <deleplace@google.com>
 
- src/slices/slices.go | 2 +-
+ doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

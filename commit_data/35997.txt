@@ -1,38 +1,24 @@
-commit ba02264446fa1863c0a4c8339bbcf2bec57b620a
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Fri Jul 13 16:11:24 2018 -0400
+commit 0a5be12f5c1288a090329d9f540d6a0aad90b6e6
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Feb 16 15:54:55 2018 +0200
 
-    runtime/pprof: add a fake mapping when /proc/self/maps is unavailable
+    cmd/internal/obj/arm: add DMB instruction
     
-    Profile's Mapping field is currently populated by reading /proc/self/maps.
-    On systems where /proc/self/maps is not available, the profile generated
-    by Go's runtime will not have any Mapping entry. Pprof command then adds
-    a fake entry and links all Location entries in the profile with the fake
-    entry to be used during symbolization.
-    https://github.com/google/pprof/blob/a8644067d5a3c9a6386e7c88fa4a3d9d37877ca3/internal/driver/fetch.go#L437
-    
-    The fake entry is not enough to suppress the error or warning messages
-    pprof command produces. We need to tell pprof that Location entries are
-    symbolized already by Go runtime and pprof does not have to attempt to
-    perform further symbolization.
-    
-    In #25743, we made Go runtime mark Mapping entries with HasFunctions=true
-    when all Location entries from the Mapping entries are successfully
-    symbolized. This change makes the Go runtime add a fake mapping entry,
-    otherwise the pprof command tool would add, and set the HasFunctions=true
-    following the same logic taken when the real mapping information is
-    available.
-    
-    Updates #19790.
-    Fixes #26255. Tested pprof doesn't report the error message any more
-    for pure Go program.
-    
-    Change-Id: Ib12b62e15073f5d6c80967e44b3e8709277c11bd
-    Reviewed-on: https://go-review.googlesource.com/123779
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: Ib67a61d5b37af210ff15d60d72bd5238b9c2d0ca
+    Reviewed-on: https://go-review.googlesource.com/94815
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/pprof/proto.go      | 14 ++++++++++++-
- src/runtime/pprof/proto_test.go | 45 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arch.go     | 10 +++++++
+ src/cmd/internal/obj/arm/a.out.go     | 20 +++++++++++++-
+ src/cmd/internal/obj/arm/anames.go    |  1 +
+ src/cmd/internal/obj/arm/anames5.go   |  1 +
+ src/cmd/internal/obj/arm/asm5.go      | 50 +++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm/list5.go     | 17 ++++++++++++
+ src/runtime/asm_arm.s                 |  2 +-
+ src/runtime/internal/atomic/asm_arm.s |  4 +--
+ src/sync/atomic/asm_arm.s             |  4 +--
+ src/sync/atomic/asm_darwin_arm.s      | 14 +++-------
+ src/sync/atomic/asm_plan9_arm.s       |  2 +-
+ 11 files changed, 108 insertions(+), 17 deletions(-)

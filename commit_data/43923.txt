@@ -1,25 +1,18 @@
-commit 48838c35dc7c8e938a83db66faabf3a51f4adc3d
-Author: Carlos Alexandro Becker <caarlos0@gmail.com>
-Date:   Wed Dec 2 21:04:13 2020 +0000
+commit b13ce66d1b3ce01064fd1912055d71447ab62384
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Apr 29 11:20:28 2020 +0100
 
-    go/parser: ignore subdirectories in ParseDir
+    cmd/go/internal/modload: use lockedfile to read path-replacement go.mod files
     
-    Issue and PR on GoReleaser:
-    - https://github.com/goreleaser/goreleaser/issues/1897
-    - https://github.com/goreleaser/goreleaser/pull/1899
+    When parsing go.mod files found via file-path replacements, it's safer to
+    use lockedfile.Read instead of ioutil.ReadFile, in case of overwriting by
+    other concurrent go commands.
     
-    Fixes #42951.
-    
-    Change-Id: Ia0d6018e0bad59cd60cd600188c368c431032a4b
-    GitHub-Last-Rev: be59d85fe2d473f4dfd828a244023c4064d6e31f
-    GitHub-Pull-Request: golang/go#42581
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269897
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7dcac3bb5ada84bee1eb634b39f813c461ef103a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230838
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
 
- src/go/parser/interface.go                                 | 2 +-
- src/go/parser/parser_test.go                               | 8 ++++++++
- src/go/parser/testdata/issue42951/not_a_file.go/invalid.go | 1 +
- 3 files changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/mvs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

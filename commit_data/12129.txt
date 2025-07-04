@@ -1,19 +1,17 @@
-commit fe5b4a2f9be7f87b1b44cd172b4403e95c5bf00d
-Author: Joe Poirier <jdpoirier@gmail.com>
-Date:   Tue Feb 21 22:15:03 2012 -0600
+commit 433e47dc030c19402af1f62f78789ff2ccbb66ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 21 23:04:38 2012 -0500
 
-    misc/dist/windows: fix broken icon, other misc
+    ld: only set SNOPTRBSS during load
     
-    fix, and shrink, the gopher icon, txt extensions
-    for license and readme files, minor format changes
-    in the wxs file
+    dodata will convert to SNOPTRDATA if appropriate.
+    Should fix arm build (hope springs eternal).
     
-    R=golang-dev, rsc
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5683054
+    https://golang.org/cl/5687074
 
- misc/dist/windows/{LICENSE => LICENSE.rtf} | Bin
- misc/dist/windows/{README => README.txt}   |   8 +++-----
- misc/dist/windows/images/gopher.ico        | Bin 42929 -> 22486 bytes
- misc/dist/windows/installer.wxs            |  21 ++++++++++-----------
- 4 files changed, 13 insertions(+), 16 deletions(-)
+ src/cmd/5l/obj.c | 8 ++------
+ src/cmd/6l/obj.c | 8 ++------
+ src/cmd/8l/obj.c | 4 ++--
+ 3 files changed, 6 insertions(+), 14 deletions(-)

@@ -1,14 +1,24 @@
-commit 0bbf0ec0ed5c17a76942d9ae8a6e6b9559dacb9e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 14 16:35:31 2013 -0700
+commit b3946dc119cb89fe9f3cd55daa8d8c7a708274a8
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 14 16:05:51 2013 -0700
 
-    database/sql: use method values instead of generating closures
+    runtime/bytes: fast Compare for byte arrays and strings.
     
-    Reduces garbage.
+    Uses SSE instructions to process 16 bytes at a time.
     
-    R=adg, r
-    CC=dsymonds, gobot, golang-dev
-    https://golang.org/cl/9088045
+    fixes #5354
+    
+    R=bradfitz, google
+    CC=golang-dev
+    https://golang.org/cl/8853048
 
- src/pkg/database/sql/sql.go | 16 +++++++---------
- 1 file changed, 7 insertions(+), 9 deletions(-)
+ src/cmd/dist/goc2c.c          |  18 +++-
+ src/pkg/bytes/bytes.go        |  26 ------
+ src/pkg/bytes/bytes_decl.go   |   7 ++
+ src/pkg/bytes/bytes_test.go   |  10 +--
+ src/pkg/bytes/compare_test.go | 204 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/asm_386.s     | 135 ++++++++++++++++++++++++++++
+ src/pkg/runtime/asm_amd64.s   | 131 +++++++++++++++++++++++++++
+ src/pkg/runtime/noasm_arm.goc |  73 +++++++++++++++
+ src/pkg/runtime/string.goc    |  28 ------
+ 9 files changed, 568 insertions(+), 64 deletions(-)

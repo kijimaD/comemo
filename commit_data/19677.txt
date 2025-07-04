@@ -1,13 +1,14 @@
-commit 8543ed3df5595e584e9b06ae937c7ba72dea9bfe
+commit 9416fb8c81e25c0900d06f3f04a7508671ad4c09
 Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Tue Jul 8 13:43:22 2014 -0400
+Date:   Tue Jul 8 13:42:14 2014 -0400
 
-    cmd/objdump: skip test on android (no Go tool)
+    net: no AI_ALL on android
     
-    LGTM=minux, iant
-    R=golang-codereviews, minux, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/109570043
+    https://golang.org/cl/112800043
 
- src/cmd/objdump/objdump_test.go | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ src/pkg/net/cgo_android.go | 14 ++++++++++++++
+ src/pkg/net/cgo_linux.go   |  2 +-
+ 2 files changed, 15 insertions(+), 1 deletion(-)

@@ -1,14 +1,12 @@
-commit d1bd332a6730b8246177a9213ea11bbeebcf38c4
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Mar 2 16:35:42 2012 +1100
+commit 718de6f4c64a439a867dd0b8aad05f7da630bf76
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 2 15:35:36 2012 +1100
 
-    os: sleep 5ms after process has exited on windows
+    doc: expand code.html to discuss the go tool in more depth
     
-    Fixes #2866.
-    
-    R=golang-dev, rsc
+    R=golang-dev, balasanjay, r
     CC=golang-dev
-    https://golang.org/cl/5719047
+    https://golang.org/cl/5640045
 
- src/pkg/os/exec_windows.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/code.html | 549 +++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 354 insertions(+), 195 deletions(-)

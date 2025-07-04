@@ -1,17 +1,20 @@
-commit f4f1b30749be167b7c5ecb7c775c2acd8d32ae9e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 20 16:41:43 2016 -0700
+commit 4720f49e189fcfd52d8bc61cbf0fc913f3336542
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 8 14:31:22 2016 -0800
 
-    cmd/compile: accept old and new import format for builtin declarations
+    cmd/compile: relocate a bunch of Type-related code
     
-    Test with forceNewExport set to true (but continues to be disabled by
-    default for now).
+    Some cleaned up documentation, but no code changes.
     
-    Fixes #15322.
-    
-    Change-Id: I3b893db2206cbb79e66339284f22f4a0b20bf137
-    Reviewed-on: https://go-review.googlesource.com/22328
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I145398bb6d118c626ab3873ef75dbb64ebc286e9
+    Reviewed-on: https://go-review.googlesource.com/20404
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 23 ++++++++++++++++++-----
- 1 file changed, 18 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go |   7 -
+ src/cmd/compile/internal/gc/go.go      | 135 ----------------
+ src/cmd/compile/internal/gc/lex.go     |   6 -
+ src/cmd/compile/internal/gc/subr.go    | 122 --------------
+ src/cmd/compile/internal/gc/type.go    | 280 +++++++++++++++++++++++++++++++++
+ 5 files changed, 280 insertions(+), 270 deletions(-)

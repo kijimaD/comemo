@@ -1,25 +1,21 @@
-commit efb0ac4ce6a95435f8fba8c7f77becf083e8eaad
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Mar 16 02:51:54 2020 +1100
+commit 9093b1def0b5e6f3ac30d5f9c18b375e8f5964e9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 21:23:55 2019 -0700
 
-    cmd/compile: provide Add/Cas/Exchange atomic intrinsics on riscv64
+    runtime: add new dodeltimer and dodeltimer0 functions
     
-    Provide Add32, Add64, Cas32, Cas64, Exchange32 and Exchange64 atomic
-    intrinsics on riscv64.
+    The dodeltimer function removes a timer from a heap. The dodeltimer0
+    function removes the first timer from a heap; in the old timer code
+    this common special case was inlined in the timerproc function.
     
-    Updates #36765
+    Updates #27707
     
-    Change-Id: I9a3b7d2ce3d49f699171fd76a0fed891d149a6bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223559
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: I1b7c0af46866abb4bffa8aa4d8e7143f9ae8f402
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171834
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/gc/ssa.go             |  14 ++--
- src/cmd/compile/internal/riscv64/ssa.go        |  92 +++++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |   9 +++
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  42 +++++++++-
- src/cmd/compile/internal/ssa/opGen.go          | 108 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go |  18 +++++
- 6 files changed, 273 insertions(+), 10 deletions(-)
+ src/runtime/time.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)

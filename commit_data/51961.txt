@@ -1,20 +1,23 @@
-commit e0504bcd72a1ee477e29fb429c86f3af37197293
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Wed Feb 8 08:44:32 2023 +0000
+commit 0a69c98214839a07cb4ac16466fa7961e537881f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 18 18:49:39 2022 -0400
 
-    net: remove unused cname return from cgoLookupIPCNAME
+    all: delete PPC64 non-register ABI fallback path
     
-    Change-Id: I4f9b84696f55c6b381de60682f8b242098b95b75
-    GitHub-Last-Rev: 74a6013a9e668119a0895c1250c3d4592bfd4072
-    GitHub-Pull-Request: golang/go#58402
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466335
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ie058c0549167b256ad943a0134907df3aca4a69f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394215
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/cgo_unix.go         | 22 ++++++----------------
- src/net/cgo_unix_cgo.go     |  1 -
- src/net/cgo_unix_syscall.go |  1 -
- 3 files changed, 6 insertions(+), 18 deletions(-)
+ src/internal/bytealg/compare_ppc64x.s   | 98 ++++++++-------------------------
+ src/internal/bytealg/count_ppc64x.s     | 37 +++----------
+ src/internal/bytealg/equal_ppc64x.s     | 29 +++-------
+ src/internal/bytealg/index_ppc64x.s     | 69 +++++------------------
+ src/internal/bytealg/indexbyte_ppc64x.s | 34 ++++--------
+ src/runtime/asm_ppc64x.s                | 92 -------------------------------
+ src/runtime/memclr_ppc64x.s             |  6 +-
+ src/runtime/memmove_ppc64x.s            |  8 +--
+ src/runtime/race_ppc64le.s              | 30 ++--------
+ 9 files changed, 76 insertions(+), 327 deletions(-)

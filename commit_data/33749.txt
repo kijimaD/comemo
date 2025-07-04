@@ -1,18 +1,19 @@
-commit f3b24b9f0766351fc8b3d43c4ea03f948a460e75
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 29 16:31:47 2017 -0500
+commit fb165eaffd1949aa7e0af75af5e3cc27c6e50508
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Thu Aug 17 15:06:42 2017 +0800
 
-    testing: remove claim that b.Run is safe for concurrent use
+    cmd/compile: combine x*n - y*n into (x-y)*n
     
-    It's not safe (it crashes), and it's also useless: if you run
-    multiple benchmarks in parallel you will not get reliable
-    timing results from any of them.
+    Do the similar thing to CL 55143 to reduce IMUL.
     
-    Fixes #18603.
-    
-    Change-Id: I00e5a72f7c98151543cf7d5573c38383276e391a
-    Reviewed-on: https://go-review.googlesource.com/80841
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1bd38f618058e3cd74fac181f003610ea13f2294
+    Reviewed-on: https://go-review.googlesource.com/56252
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/testing/benchmark.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go        |  28 ++
+ src/cmd/compile/internal/ssa/gen/generic.rules |   6 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 520 ++++++++++++++++++++++++-
+ test/mergemul.go                               |  48 ++-
+ 4 files changed, 576 insertions(+), 26 deletions(-)

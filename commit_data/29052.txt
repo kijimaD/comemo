@@ -1,18 +1,22 @@
-commit d8f7e4fadb785d90444245159f4c5a32653263d6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Oct 25 06:44:58 2016 -0700
+commit d92a3606f57d3a400eea6e98ddc8db7a09625f44
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 16 12:59:09 2016 -0700
 
-    runtime, syscall: appease vet
+    cmd/go, cmd/link: build c-archive as position independent on ELF
     
-    No functional changes.
+    This permits people to use -buildmode=c-archive to produce an archive
+    file that can be included in a PIE or shared library.
     
-    Change-Id: I0842b2560f4296abfc453410fdd79514132cab83
-    Reviewed-on: https://go-review.googlesource.com/31935
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ie340ee2f08bcff4f6fd1415f7d96d51ee3a7c9a1
+    Reviewed-on: https://go-review.googlesource.com/24180
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/os_plan9.go      |  2 +-
- src/runtime/sys_plan9_arm.s  |  4 ++--
- src/syscall/asm_darwin_arm.s | 28 ++++++++++++++--------------
- 3 files changed, 17 insertions(+), 17 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go | 78 +++++++++++++++++++++++++++++++++-
+ src/cmd/go/build.go                    |  7 +++
+ src/cmd/link/internal/ld/lib.go        |  4 +-
+ src/cmd/link/internal/ld/symtab.go     |  4 +-
+ src/cmd/link/internal/x86/asm.go       | 15 ++++++-
+ src/cmd/link/internal/x86/obj.go       |  2 +-
+ 6 files changed, 101 insertions(+), 9 deletions(-)

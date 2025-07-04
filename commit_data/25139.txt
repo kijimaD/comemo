@@ -1,12 +1,18 @@
-commit 65b31e14f572957d78689cc36d4532544355ecf1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 3 13:20:49 2015 -0800
+commit 829cc349c5990ecba52141bd978a99ee1571bc08
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 29 17:34:32 2015 -0700
 
-    doc: add note about cgo pointer passing rules to go1.6.txt
+    go/format: handle whitespace-only input correctly
     
-    Change-Id: I988d1b230ce516bf2997ec0932a854323b2bab7c
-    Reviewed-on: https://go-review.googlesource.com/17395
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Applied identical change to cmd/gofmt/internal.go.
+    
+    Fixes #11275.
+    
+    Change-Id: Icb4bf0460c94c9e2830dd0d62c69376774cbda30
+    Reviewed-on: https://go-review.googlesource.com/15154
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/go1.6.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gofmt/internal.go    | 12 +++++++++++-
+ src/go/format/format_test.go | 23 ++++++++++++++++++-----
+ src/go/format/internal.go    | 12 +++++++++++-
+ 3 files changed, 40 insertions(+), 7 deletions(-)

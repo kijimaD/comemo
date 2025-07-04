@@ -1,36 +1,22 @@
-commit c21ba224ec88c2a5cb01dad54f06819ed29d4ba4
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Aug 25 16:29:01 2018 +0100
+commit 5d9c78201f0f226b0b8c7ece63f6731e168efb09
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Apr 30 16:55:13 2018 +0100
 
-    encoding/json: remove a branch in the structEncoder loop
+    cmd/compile: allow R11 to be allocated on s390x
     
-    Encoders like map and array can use the much cheaper "i > 0" check to
-    see if we're not writing the first element. However, since struct fields
-    support omitempty, we need to keep track of that separately.
+    R11 is only used as a temporary by a very small set of instructions
+    (DIV, MOD, MULH and extended MVC/XC instructions). By marking these
+    instructions as clobbering R11 we can allocate R11 in the general
+    case.
     
-    This is much more expensive - after calling the field encoder itself,
-    and retrieving the field via reflection, this branch was the third most
-    expensive piece of this field loop.
-    
-    Instead, hoist the branch logic outside of the loop. The code doesn't
-    get much more complex, since we just delay the writing of each byte
-    until the next iteration. Yet the performance improvement is noticeable,
-    even when the struct types in CodeEncoder only have 2 and 7 fields,
-    respectively.
-    
-    name           old time/op    new time/op    delta
-    CodeEncoder-4    5.39ms ± 0%    5.31ms ± 0%  -1.37%  (p=0.010 n=4+6)
-    
-    name           old speed      new speed      delta
-    CodeEncoder-4   360MB/s ± 0%   365MB/s ± 0%  +1.39%  (p=0.010 n=4+6)
-    
-    Updates #5683.
-    
-    Change-Id: I2662cf459e0dfd68e56fa52bc898a417e84266c2
-    Reviewed-on: https://go-review.googlesource.com/131401
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0d4ffe80e57c164d42a5ea5ef6308756a5b0f742
+    Reviewed-on: https://go-review.googlesource.com/110255
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/encode.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  42 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 722 ++++++++++++++-------------
+ src/cmd/compile/internal/ssa/regalloc.go     |   2 +-
+ src/runtime/asm_s390x.s                      |  48 +-
+ 4 files changed, 406 insertions(+), 408 deletions(-)

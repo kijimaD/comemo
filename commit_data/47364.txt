@@ -1,17 +1,19 @@
-commit f48115c6502a3fb791dc4b37f5817024c9731ee3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 8 18:30:30 2021 -0800
+commit 7936efecc8981fab11b445d96cdb1480d9d8208b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Mar 13 19:43:12 2021 +0100
 
-    os: clarify that File.{Read,Write} use the buffer
+    net/http: revert change from CL 299109 breaking TestAllDependencies
     
-    Fixes #49470
+    This code is generated from golang.org/x/net/http2 and thus any changes
+    first have to occur there. Otherwise TestAllDependencies fails on the
+    longtest builders.
     
-    Change-Id: I81fd4b0e2eef1d8d430b5d1d10c4f824e803a75c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362335
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I918afdd9388dd28bb3c8e55438be764c4f32c7c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301491
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/file.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/h2_bundle.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

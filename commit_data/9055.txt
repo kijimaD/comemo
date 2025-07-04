@@ -1,18 +1,16 @@
-commit 350504559e12272824d31e4d942d66929ba027c5
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Wed Jul 13 12:44:21 2011 -0700
+commit 932db13e93ddeff6ce1ff9809e6513b62449f8b3
+Author: Matthew Horsnell <matthew.horsnell@gmail.com>
+Date:   Wed Jul 13 12:34:29 2011 -0700
 
-    net: windows/amd64 port
+    debug/elf: Read ELF Program headers.
     
-    R=rsc, alex.brainman
+    NewFile has been fixed to read ELF Program headers into the structs.
+    Added test coverage.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/3790044
+    https://golang.org/cl/4628062
 
- src/pkg/net/fd_windows.go                 |  2 +-
- src/pkg/syscall/syscall_windows.go        |  2 +-
- src/pkg/syscall/zsyscall_windows_386.go   |  2 +-
- src/pkg/syscall/zsyscall_windows_amd64.go |  2 +-
- src/pkg/syscall/ztypes_windows.go         | 21 ++-------------------
- src/pkg/syscall/ztypes_windows_386.go     | 17 +++++++++++++++++
- src/pkg/syscall/ztypes_windows_amd64.go   | 17 +++++++++++++++++
- 7 files changed, 40 insertions(+), 23 deletions(-)
+ src/pkg/debug/elf/file.go      | 51 +++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/debug/elf/file_test.go | 32 ++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 1 deletion(-)

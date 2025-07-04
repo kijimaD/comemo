@@ -1,12 +1,12 @@
-commit c0946afb9c6281987692da33679d021ca2487339
+commit 1e6996ff2e4360db0b6f87f11688d7b23831be06
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 12 18:54:48 2013 -0800
+Date:   Thu Dec 12 17:25:02 2013 -0800
 
-    reflect: correct function name in panic string
+    .hgignore: remove merge markers
     
-    R=golang-dev, minux.ma, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/36840045
+    https://golang.org/cl/40720049
 
- src/pkg/reflect/makefunc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgignore | 3 ---
+ 1 file changed, 3 deletions(-)

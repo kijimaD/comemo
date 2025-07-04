@@ -1,14 +1,45 @@
-commit fb49655d7b3a319dfbf48ad55dd7951a91668949
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Mar 24 19:55:40 2016 +0100
+commit 3a21f0a9c1d3b57608eca4950b77adaf834f250c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 16:27:03 2016 -0500
 
-    os: skip TestStatStdin on Android
+    runtime/cgo: more +build cgo tags
     
-    Android doesn't (generally) have /bin/sh.
+    Followup to CL 19001.
     
-    Change-Id: I343817c342e3473d09c85155761682b5ddb043e4
-    Reviewed-on: https://go-review.googlesource.com/21075
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7fa838b1ee8df53229e9dd29a231c2f9b2aa3f69
+    Reviewed-on: https://go-review.googlesource.com/19003
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/os_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/cgo/gcc_android.c              | 2 ++
+ src/runtime/cgo/gcc_android_386.c          | 2 ++
+ src/runtime/cgo/gcc_android_amd64.c        | 2 ++
+ src/runtime/cgo/gcc_android_arm.c          | 2 ++
+ src/runtime/cgo/gcc_android_arm64.c        | 2 ++
+ src/runtime/cgo/gcc_darwin_386.c           | 2 ++
+ src/runtime/cgo/gcc_darwin_arm.c           | 2 ++
+ src/runtime/cgo/gcc_darwin_arm64.c         | 2 ++
+ src/runtime/cgo/gcc_dragonfly_amd64.c      | 2 ++
+ src/runtime/cgo/gcc_fatalf.c               | 2 ++
+ src/runtime/cgo/gcc_freebsd_386.c          | 2 ++
+ src/runtime/cgo/gcc_freebsd_amd64.c        | 2 ++
+ src/runtime/cgo/gcc_freebsd_arm.c          | 2 ++
+ src/runtime/cgo/gcc_libinit_linux_ppc64x.c | 2 ++
+ src/runtime/cgo/gcc_libinit_openbsd.c      | 2 ++
+ src/runtime/cgo/gcc_libinit_windows.c      | 2 ++
+ src/runtime/cgo/gcc_linux_386.c            | 2 ++
+ src/runtime/cgo/gcc_linux_amd64.c          | 2 ++
+ src/runtime/cgo/gcc_linux_arm.c            | 2 ++
+ src/runtime/cgo/gcc_linux_arm64.c          | 2 ++
+ src/runtime/cgo/gcc_linux_ppc64x.c         | 2 ++
+ src/runtime/cgo/gcc_mmap.c                 | 2 ++
+ src/runtime/cgo/gcc_netbsd_386.c           | 2 ++
+ src/runtime/cgo/gcc_netbsd_amd64.c         | 2 ++
+ src/runtime/cgo/gcc_netbsd_arm.c           | 2 ++
+ src/runtime/cgo/gcc_openbsd_386.c          | 2 ++
+ src/runtime/cgo/gcc_openbsd_amd64.c        | 2 ++
+ src/runtime/cgo/gcc_signal_darwin_armx.c   | 2 ++
+ src/runtime/cgo/gcc_signal_darwin_lldb.c   | 2 ++
+ src/runtime/cgo/gcc_solaris_amd64.c        | 2 ++
+ src/runtime/cgo/gcc_windows_386.c          | 2 ++
+ src/runtime/cgo/gcc_windows_amd64.c        | 2 ++
+ 32 files changed, 64 insertions(+)

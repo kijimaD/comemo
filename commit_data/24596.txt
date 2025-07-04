@@ -1,12 +1,17 @@
-commit 03b0065204df9cd141919890b23de6291ab52885
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 21 13:41:30 2015 -0700
+commit e98edc88c9d8453a22bfe3753d0f49510de0cf83
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 10 11:10:53 2015 -0700
 
-    doc: go1.6.txt: -msan option for cmd/{go,compile,link}
+    [dev.ssa] cmd/compile/internal/ssa: enforce load-store ordering in scheduler
     
-    Change-Id: I8b41de496e4b58214b98267b529f3525ff6d9745
-    Reviewed-on: https://go-review.googlesource.com/16171
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    We must make sure that all loads that use a store are scheduled
+    before the next store.  Add additional dependency edges to the
+    value graph to enforce this constraint.
+    
+    Change-Id: Iab83644f68bc4c30637085b82ca7467b9d5513a5
+    Reviewed-on: https://go-review.googlesource.com/13470
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/go1.6.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ .../compile/internal/gc/testdata/loadstore_ssa.go  | 39 ++++++++++++++
+ src/cmd/compile/internal/ssa/schedule.go           | 62 +++++++++++++++++-----
+ 2 files changed, 87 insertions(+), 14 deletions(-)

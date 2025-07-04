@@ -1,20 +1,15 @@
-commit 5c7748dc9de9c9e0a6844bf72faaf5b484004ba9
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Aug 10 19:04:56 2020 +0200
+commit 4fda21bce194966b2ba018fbacb7045cb50c67db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 19:10:53 2020 -0800
 
-    doc/go1.15: encoding/json's CL 191783 was reverted
+    doc/go1.14: mention new field Transport.DialTLSContext
     
-    See golang.org/cl/240657, which reverted the original change to fix the
-    regression reported in golang.org/issue/39427.
+    Updates #21526
+    Updates #36878
     
-    Updates #37419.
-    
-    Change-Id: I39fbaa0b028ee00856cffea38879a631f540f057
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247718
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic3ae18d31eddb9df01241cbddcc3b7b750cfaa44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217130
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.15.html | 5 -----
- 1 file changed, 5 deletions(-)
+ doc/go1.14.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

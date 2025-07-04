@@ -1,21 +1,27 @@
-commit 16d31dcc838e87d34f670ffd00e123f7a0d00d30
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 5 17:12:42 2025 -0400
+commit 386dcf4c93bfc8af232a12086d73da4bb3558af9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 15:30:13 2024 -0400
 
-    hash: use testhash.TestHash in all hash functions
+    runtime: revert "traceback: include pc=0x%x for inline frames"
     
-    For #69521
+    This reverts commit 643d816c8b43 (CL 561635).
     
-    Change-Id: I4e056253f94ad421fcef12d21edaaaf2517b64c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670179
+    Reason for revert: This works for telemetry but broke various other
+    properties of the tracebacks as well as some programs that read
+    tracebacks. We should figure out a solution that works for all uses,
+    and in the interim we should not be making telemetry work at the
+    cost of breaking other, existing valid uses.
+    
+    See #65761 for details.
+    
+    Change-Id: I467993ae778887e5bd3cca4c0fb54e9d44802ee1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571797
+    Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/hash/adler32/adler32_test.go |  6 ++++++
- src/hash/crc32/crc32_test.go     |  5 +++++
- src/hash/crc64/crc64_test.go     |  6 ++++++
- src/hash/fnv/fnv_test.go         | 27 +++++++++++++++++++++++++++
- src/hash/maphash/maphash_test.go |  5 +++++
- 5 files changed, 49 insertions(+)
+ src/runtime/crash_test.go            |  13 --
+ src/runtime/traceback.go             |  24 +---
+ src/runtime/traceback_system_test.go | 238 -----------------------------------
+ 3 files changed, 6 insertions(+), 269 deletions(-)

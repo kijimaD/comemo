@@ -1,0 +1,26 @@
+commit 4ce116a884bd55d7046dbc999f329fa417414c00
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Dec 10 09:49:45 2024 -0800
+
+    runtime: avoid panic in expired synctest timer chan read
+    
+    When reading from time.Timer.C for an expired timer using
+    a fake clock (in a synctest bubble), the timer will not
+    be in a heap. Avoid a spurious panic claiming the timer
+    moved between synctest bubbles.
+    
+    Drop the panic when a bubbled goroutine reads from a
+    non-bubbled timer channel: We allow bubbled goroutines
+    to access non-bubbled channels in general.
+    
+    Fixes #70741
+    
+    Change-Id: I27005e46f4d0067cc6846d234d22766d2e05d163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634955
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/synctest/synctest_test.go | 41 ++++++++++++++++++++++++++++++++--
+ src/runtime/time.go                    | 10 ++++++---
+ 2 files changed, 46 insertions(+), 5 deletions(-)

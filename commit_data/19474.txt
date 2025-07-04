@@ -1,41 +1,25 @@
-commit 14d2ee1d00b4fcaef569a84cb84888603405ca31
+commit 19c8f67e25dc25abdca34b1ebbfa6ed8439a7071
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat May 31 10:10:12 2014 -0400
+Date:   Sat May 31 09:35:37 2014 -0400
 
-    runtime: make continuation pc available to stack walk
+    runtime: fix error check in freebsd/386 i386_set_ldt
     
-    The 'continuation pc' is where the frame will continue
-    execution, if anywhere. For a frame that stopped execution
-    due to a CALL instruction, the continuation pc is immediately
-    after the CALL. But for a frame that stopped execution due to
-    a fault, the continuation pc is the pc after the most recent CALL
-    to deferproc in that frame, or else 0. That is where execution
-    will continue, if anywhere.
+    Update #2675
     
-    The liveness information is only recorded for CALL instructions.
-    This change makes sure that we never look for liveness information
-    except for CALL instructions.
+    The code here was using the error check for Linux/386,
+    not the one for FreeBSD/386. Most of the time it worked.
     
-    Using a valid PC fixes crashes when a garbage collection or
-    stack copying tries to process a stack frame that has faulted.
+    Thanks to Neel Natu (FreeBSD developer) for finding this.
     
-    Record continuation pc in heapdump (format change).
+    The s/JCC/JAE/ a few lines later is a no-op but makes the
+    test match the rest of the file. Why we write JAE instead of JCC
+    I don't know, but the two are equivalent and the file might
+    as well be consistent.
     
-    Fixes #8048.
-    
-    LGTM=iant, khr
-    R=khr, iant, dvyukov
-    CC=golang-codereviews, r
-    https://golang.org/cl/100870044
+    LGTM=bradfitz, minux
+    R=golang-codereviews, bradfitz, minux
+    CC=golang-codereviews
+    https://golang.org/cl/99680044
 
- src/pkg/runtime/cgocall.c       |   4 +-
- src/pkg/runtime/heapdump.c      |   1 +
- src/pkg/runtime/mgc0.c          |   6 ++-
- src/pkg/runtime/panic.c         |   2 +-
- src/pkg/runtime/proc.c          |   2 +-
- src/pkg/runtime/runtime.h       |   6 +++
- src/pkg/runtime/stack.c         |   8 ++-
- src/pkg/runtime/traceback_arm.c |  71 ++++++++++++++++++++++++--
- src/pkg/runtime/traceback_x86.c |  66 +++++++++++++++++++++++--
- test/fixedbugs/issue8048.go     | 107 ++++++++++++++++++++++++++++++++++++++++
- 10 files changed, 257 insertions(+), 16 deletions(-)
+ src/pkg/runtime/sys_freebsd_386.s | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

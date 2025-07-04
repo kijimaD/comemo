@@ -1,23 +1,18 @@
-commit c79b2009ef0b82e9c50ced139b2fd752018da0dd
-Author: Dmitri Goutnik <dgoutnik@gmail.com>
-Date:   Wed Jun 15 14:50:19 2022 -0500
+commit 313cae3861841e9c64bebe2c1aed8126cf6cc117
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 15 15:21:42 2021 -0800
 
-    cmd/link: define ELF .note section on FreeBSD
+    cmd/compile/internal/types2: refactor the Context type map to accept arbitrary types
     
-    Write .note signature section when targeting FreeBSD, similar to NetBSD
-    and OpenBSD. This allows binaries to declare the ABI version they were
-    compiled for and opt out of ASLR when compiled with -race.
+    This CL is a clean port of CL 362799 from go/types to types2.
     
-    Fixes #48164
-    
-    Change-Id: Ie54dd5c70697a3f42a75fd640540350fd8a4dc71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412494
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
+    Change-Id: Id670aa4b1ca0b568a79bb6e4855747807dcf00f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364154
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/link/elf_test.go           |  4 +-
- src/cmd/link/internal/ld/elf.go    | 84 ++++++++++++++++++++++++++++++++++++--
- src/cmd/link/internal/ld/target.go |  5 +++
- 3 files changed, 87 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/context.go     | 42 ++++++++++++++++----------
+ src/cmd/compile/internal/types2/instantiate.go | 25 ++++++++-------
+ src/cmd/compile/internal/types2/named.go       |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go     |  4 +--
+ 4 files changed, 41 insertions(+), 32 deletions(-)

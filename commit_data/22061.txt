@@ -1,16 +1,17 @@
-commit 00b3b40b0773b59d556bcd90b78575694d42f769
+commit c11dadc503dede91677cbaef67fb4a0ce2dc6fa8
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 13 11:58:13 2015 -0400
+Date:   Fri Feb 20 13:40:12 2015 -0500
 
-    cmd/internal/obj/x86: minor optimization
+    [dev.cc] crypto/md5, crypto/sha1: restore a few SP references
     
-    - avoid copy in range ytab
-    - add fast path to prefixof
+    Applying my post-submit comments from CL 5120.
+    The rewrite there changed the code from writing to the stack
+    frame to writing below the stack frame.
     
-    Change-Id: I88aa9d91a0abe80d253f7c3bca950b4613297499
-    Reviewed-on: https://go-review.googlesource.com/7628
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ie7e0563c0c1731fede2bcefeaf3c9d88a0cf4063
+    Reviewed-on: https://go-review.googlesource.com/5470
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/crypto/md5/md5block_arm.s   | 18 +++++++++---------
+ src/crypto/sha1/sha1block_arm.s | 14 +++++++-------
+ 2 files changed, 16 insertions(+), 16 deletions(-)

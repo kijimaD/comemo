@@ -1,17 +1,23 @@
-commit 189b4a2f428be7264db76e5275c96d98b847383b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 22 14:01:26 2021 -0500
+commit 33945869c12ce92933714426471ce4f5c4ec7b6b
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 24 14:20:12 2021 -0400
 
-    cmd/go: forward the MallocNanoZone variable to script tests
+    cmd/compile: update default ABI choices for calls and bodyless fn stack maps
     
-    For #49138
-    Fixes #49723
+    After recent discussion about bodyless functions, their wrappers,
+    their stack maps, nosplit, and callbacks, I was inspired to go and
+    be sure that more defaults were sensible.  This may not be all --
+    currently rtcall is "ABIDefault" which I think is correct, but I
+    am not 100% certain.
     
-    Change-Id: Ia93130fdc042a1e2107be95cccd7e7eeaa909a87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366254
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #40724.
+    
+    Change-Id: I95b14ee0e5952fa53e7fea9f6f5192358aa24f23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304549
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/script_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/compile.go |  2 +-
+ src/cmd/compile/internal/ssagen/ssa.go | 37 ++++++++++++++++++----------------
+ 2 files changed, 21 insertions(+), 18 deletions(-)

@@ -1,12 +1,24 @@
-commit 834830d2bbf5a213e1222c1505e898f2c360b672
-Author: Peter Mundy <go.peter.90@gmail.com>
-Date:   Mon Jan 9 10:47:28 2012 -0800
+commit 70ed0ac5889000fb712dac16e9dea8ef2fa4030f
+Author: Florian Weimer <fw@deneb.enyo.de>
+Date:   Mon Jan 9 12:58:29 2012 -0500
 
-    doc: use 2012 for year in model standard copyright header
+    go-mode.el: fix syntax highlighting of backticks
     
-    R=golang-dev, r
+    Instead of syntax-tables, an extended go-mode-cs is used for
+    from a font-lock callback.
+    
+    Cache invalidation must happen in a before-change-function
+    because font-lock runs in an after-change-function, potentially
+    before the cache invalidation takes place.
+    
+    Performance is reasonable, even with src/pkg/html/entity.go
+    and test/fixedbugs/bug257.go.
+    
+    Fixes #2330.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5531048
+    https://golang.org/cl/5529045
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/emacs/go-mode.el | 179 +++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 119 insertions(+), 60 deletions(-)

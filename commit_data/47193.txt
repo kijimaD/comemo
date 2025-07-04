@@ -1,34 +1,24 @@
-commit b29182b54ac343bbc58a30357d9df908f1c3b727
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Nov 1 15:27:13 2021 -0400
+commit 726d704c32acf99a9ed44d81c99adb22d4759241
+Author: eric fang <eric.fang@arm.com>
+Date:   Thu Nov 19 07:18:41 2020 +0000
 
-    go/types: clean up asT converters (step 1 of 2)
+    cmd/asm: add arm64 instructions VUMAX and VUMIN
     
-    This is a port of CL 358597 to go/types. A comment was missing in the
-    base of applyTypeFunc, which had been there since the initial check-in
-    of types2; somehow it was not in go/types.
+    This CL adds support for arm64 fp&simd instructions VUMAX and VUMIN.
+    Fixes #42326
     
-    Change-Id: If08efd92d782dd3099b26254ae6e311c6cea8c3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360477
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I3757ba165dc31ce1ce70f3b06a9e5b94c14d2ab9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271497
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/assignments.go            |  2 +-
- src/go/types/builtins.go               | 24 ++++++----
- src/go/types/call.go                   |  8 ++--
- src/go/types/conversions.go            | 24 ++++++----
- src/go/types/expr.go                   |  8 ++--
- src/go/types/index.go                  |  6 +--
- src/go/types/infer.go                  |  4 +-
- src/go/types/lookup.go                 |  8 ++--
- src/go/types/predicates.go             | 10 ++--
- src/go/types/sizeof_test.go            |  1 -
- src/go/types/sizes.go                  |  2 +-
- src/go/types/subst.go                  |  2 +-
- src/go/types/testdata/check/issues.go2 |  7 +++
- src/go/types/type.go                   | 83 ++++++++--------------------------
- src/go/types/typestring.go             |  5 +-
- src/go/types/typexpr.go                |  4 +-
- 16 files changed, 82 insertions(+), 116 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s      | 12 ++++++++++++
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  4 ++++
+ src/cmd/internal/obj/arm64/a.out.go            |  2 ++
+ src/cmd/internal/obj/arm64/anames.go           |  2 ++
+ src/cmd/internal/obj/arm64/asm7.go             | 12 ++++++++++++
+ 5 files changed, 32 insertions(+)

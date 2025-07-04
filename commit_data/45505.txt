@@ -1,32 +1,13 @@
-commit 90ec25773523ac2c5e075f1e5d7519ee08201b8c
-Author: David Chase <drchase@google.com>
-Date:   Fri Apr 23 21:49:08 2021 -0400
+commit c515852732a490bab64f35d001ddc444b0f0f553
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Tue Sep 8 14:31:39 2020 +0800
 
-    cmd/compile: make the stack allocator more careful about register args.
+    runtime: add 2-byte and 8-byte sub-benchmarks for memmove load/store
     
-    Assignment between input parameters causes them to have more than
-    one "Name", and running this backwards from names to values can end
-    up confusing (conflating) parameter spill slots.
-    
-    Around 105a6e9518, this cases a stack overflow running
-    go test -race encoding/pem
-    because two slice parameters spill (incorrectly) into the same
-    stack slots (in the AB?I-defined parameter spill area).
-    
-    This also tickles a failure in cue, which turned out to be
-    easier to isolate.
-    
-    Fixes #45851.
-    Updates #40724.
-    
-    Change-Id: I39c56815bd6abb652f1ccbe83c47f4f373a125c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313212
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I6389d7efe90836b6ece44d2e75053d1ad9f35d08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253417
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go |  6 ++-
- src/cmd/compile/internal/ssa/stackalloc.go   | 39 ++++++++++++++++
- test/fixedbugs/issue45851.go                 | 68 ++++++++++++++++++++++++++++
- 3 files changed, 112 insertions(+), 1 deletion(-)
+ src/runtime/memmove_test.go | 39 ++++++++++++++++++++++++---------------
+ 1 file changed, 24 insertions(+), 15 deletions(-)

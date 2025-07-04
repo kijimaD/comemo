@@ -1,46 +1,27 @@
-commit ef2ebbebf976fba17bb97ed285e9c3d10b192d74
-Author: Katie Hockman <katie@golang.org>
-Date:   Wed Oct 6 14:13:23 2021 -0400
+commit 3d5c715bf299fb662104d70d612f3f0303e542d9
+Author: Dan Scales <danscales@google.com>
+Date:   Sat Jan 30 21:15:40 2021 -0800
 
-    internal/fuzz: log that minimization is occurring
+    [dev.typeparams] Handling multiple type arguments for call via new node OLIST
     
-    Previously, when fuzzing for a period of time, the
-    command line output would look something like this:
+    Will now run "go tool compile -G=2 -W=2" on a simple generic function
+    with multiple type parameters and a call to that function with multiple
+    explicit type arguments.
     
-       fuzz: minimizing 34995-byte crash input...
-       fuzz: elapsed: 3s, execs: 13821 (4604/sec), new interesting: 0 (total: 1)
-       fuzz: elapsed: 6s, execs: 13821 (2303/sec), new interesting: 0 (total: 1)
-       fuzz: elapsed: 9s, execs: 13821 (1535/sec), new interesting: 0 (total: 1)
-       --- FAIL: FuzzFoo (9.05s)
+    We will likely move to have a separate function/type instantiation node,
+    in order distinguish these cases from normal index expressions.
     
-    This is the same output it has while fuzzing, so if
-    minimization runs for a long time (default allows 1
-    minute), then it looks like minimization is hanging.
-    It's also confusing that the execs/sec would continually
-    decrease.
-    
-    Now, when minimization is running, the command line
-    output will look something like this:
-    
-       fuzz: minimizing 34995-byte crash input...
-       fuzz: elapsed: 3s, minimizing
-       fuzz: elapsed: 6s, minimizing
-       fuzz: elapsed: 9s, minimizing
-       fuzz: elapsed: 9s, minimizing
-       --- FAIL: FuzzFoo (9.05s)
-    
-    The final "fuzz: elapsed: 6s, minimizing" could be
-    printed twice because we always print one final log
-    to the command line before we exit.
-    
-    Updates #48820
-    
-    Change-Id: Ie5b9fde48b8d4e36e13a81ae50a6d69bf4d0dbe3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354371
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I0a571902d63785cc06240ed4ba0495923403b511
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288433
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/testdata/script/test_fuzz_minimize.txt | 17 +++++++++++++++++
- src/internal/fuzz/fuzz.go                         | 20 ++++++++++++--------
- 2 files changed, 29 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ir/expr.go       |  14 +++
+ src/cmd/compile/internal/ir/node.go       |   1 +
+ src/cmd/compile/internal/ir/node_gen.go   |  26 +++++
+ src/cmd/compile/internal/ir/op_string.go  | 177 +++++++++++++++---------------
+ src/cmd/compile/internal/noder/expr.go    |  17 ++-
+ src/cmd/compile/internal/noder/helpers.go |   9 +-
+ 6 files changed, 149 insertions(+), 95 deletions(-)

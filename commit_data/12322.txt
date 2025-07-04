@@ -1,13 +1,20 @@
-commit 47d614e667d15aa324ec1909ae2422202947ff20
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 2 11:52:46 2012 +1100
+commit d49475e07858e0ab8e81279d0c5a73e3e0440007
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 1 19:42:39 2012 -0500
 
-    doc: update go1 for html changes
+    go/build: fix build
     
-    R=golang-dev, rsc, r
+    Presumably something about the very large go/build
+    doc comment breaks the build constraint parser in
+    cmd/dist.  I don't feel like debugging C code right now,
+    so move it into its own file.  If cmd/dist decides doc.go
+    is not part of the package, it will still build correctly.
+    
+    R=golang-dev
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5713054
+    https://golang.org/cl/5722043
 
- doc/go1.html | 6 ++++++
- doc/go1.tmpl | 6 ++++++
- 2 files changed, 12 insertions(+)
+ src/pkg/go/build/build.go | 104 -------------------------------------------
+ src/pkg/go/build/doc.go   | 109 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 109 insertions(+), 104 deletions(-)

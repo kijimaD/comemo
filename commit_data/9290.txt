@@ -1,14 +1,13 @@
-commit 62d4b8ebd2c00e3c3d54d05dc7fe56d829b5aa01
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Aug 4 08:20:53 2011 -0400
+commit 4143491c4ad17021b062c9fbabdc2d9d6aed11ef
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Aug 4 22:10:17 2011 +1000
 
-    http: correct path to serve index.html.
-    calling filepath.FromSlash(x) make invalid character to serve file.
-    Fixes #2128
+    http: add more MPEG-4 MIME types to sniffer, and disable MP4 sniffing.
     
-    R=golang-dev, alex.brainman, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4810064
+    https://golang.org/cl/4808056
 
- src/pkg/http/fs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/sniff.go      | 15 +++++++++++++--
+ src/pkg/http/sniff_test.go |  4 +++-
+ 2 files changed, 16 insertions(+), 3 deletions(-)

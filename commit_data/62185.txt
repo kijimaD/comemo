@@ -1,0 +1,20 @@
+commit 6fd3ce52bbc628225e67f8811ff2f6db17a7bec6
+Author: Tom Thorogood <me+google@tomthorogood.co.uk>
+Date:   Sun Feb 9 12:42:25 2025 +1030
+
+    net/http: use standard time formatting methods
+    
+    time.Time has had an AppendFormat method since go1.5 so there's no
+    need to carry around a custom implementation.
+    
+    Change-Id: I8e7e5a9ac34e8bf251f5d70555405777ce4e22a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647955
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/export_test.go |  1 -
+ src/net/http/serve_test.go  | 13 -------------
+ src/net/http/server.go      | 24 +-----------------------
+ 3 files changed, 1 insertion(+), 37 deletions(-)

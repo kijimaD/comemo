@@ -1,31 +1,19 @@
-commit 545e4f38e0c177484ffa409c2fa1265423a5855f
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Wed Sep 13 12:02:38 2023 -0400
+commit 8265683dda363d00f94e86ce8c5aa86c7b2bd2a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 19 14:29:26 2022 -0700
 
-    net/http: ServeMux handles extended patterns
+    go/types: remove special handling for .go1 files in tests
     
-    Modify ServeMux to handle patterns with methods and wildcards.
+    All but local tests are now shared and reside in internal/types;
+    and there are no .go1 files anymore.
     
-    Remove the map and list of patterns. Instead patterns
-    are registered and matched using a routing tree.
-    
-    We also reorganize the code around "trailing-slash redirection,"
-    the feature whereby a trailing slash is added to a path
-    if it doesn't match an existing one. The existing code
-    checked the map of paths twice, but searching the tree
-    twice would be needlessly expensive. The rewrite
-    searches the tree once, and then again only if a
-    trailing-slash redirection is possible.
-    
-    There are a few omitted features in this CL, indicated
-    with TODOs.
-    
-    Change-Id: Ifaef59f6c8c7b7131dc4a5d0f101cc22887bdc74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528039
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I3f8374e85639348de3cb8b568a7a05df5f9c2a38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444276
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/net/http/server.go      | 333 ++++++++++++++++++++++++--------------------
- src/net/http/server_test.go |  86 +++++++++++-
- 2 files changed, 268 insertions(+), 151 deletions(-)
+ src/go/types/check_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

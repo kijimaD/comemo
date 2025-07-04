@@ -1,16 +1,27 @@
-commit 336c998291b2aaf78fac65b98cca00086db61266
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Dec 4 14:44:27 2015 -0800
+commit f12b6208f66c746741439af28671b7aed30d1f01
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat Oct 3 17:42:52 2015 +0000
 
-    cmd/compile: reject slice/map/func comparisons against converted nil
+    cmd/cgo: remove support for CGOPKGPATH
     
-    Fixes #13480.
+    CGOPKGPATH variable was undocumented, but it is not needed anymore.
     
-    Change-Id: Icbf4f83e965e84f7020f56c3f346193f8b91e7bf
-    Reviewed-on: https://go-review.googlesource.com/17461
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    It was used before the existence of the go tool to tell cgo the full
+    path of the package that it was building, which in turn set the name
+    of the shared library that cgo expected to load back when cgo used
+    shared libraries. CGOPKGPATH no longer does anything useful;
+    it just affects the comments in the generated header file.
+    
+    Remove it to avoid any future confusion.
+    
+    Fixes #11852
+    
+    Change-Id: Ieb452e5bbcfd05b87a4a3618b5b8f44423341858
+    Reviewed-on: https://go-review.googlesource.com/15266
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 14 ++++----------
- src/cmd/compile/internal/gc/swt.go  |  2 +-
- test/fixedbugs/issue13480.go        | 38 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 43 insertions(+), 11 deletions(-)
+ src/cmd/cgo/main.go | 6 +-----
+ src/cmd/go/build.go | 2 +-
+ 2 files changed, 2 insertions(+), 6 deletions(-)

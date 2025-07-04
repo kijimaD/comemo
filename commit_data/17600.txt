@@ -1,16 +1,14 @@
-commit 6d68fc8eeaf32375eda7208b62cedf6ee5d241d0
+commit 1385e394cf919e53a02ed4ecaef331a603128329
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 15 12:05:24 2013 -0400
+Date:   Sun Sep 15 11:29:06 2013 -0400
 
-    runtime: fix CPU profiling on Windows
+    encoding/xml: document behavior for undefined name space prefixes
     
-    The test 'gp == m->curg' is not valid on Windows,
-    because the goroutine being profiled is not from the
-    current m.
+    Fixes #5626.
     
-    TBR=golang-dev
+    R=golang-dev, dominik.honnef
     CC=golang-dev
-    https://golang.org/cl/13718043
+    https://golang.org/cl/13702043
 
- src/pkg/runtime/proc.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/encoding/xml/xml.go | 4 ++++
+ 1 file changed, 4 insertions(+)

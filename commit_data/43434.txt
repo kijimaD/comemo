@@ -1,13 +1,21 @@
-commit 5d9b66cdc67332be3323e13b3e33713d496d6a56
+commit 5dde10c3044f75fbcc29193608a7b7156a3c9ef6
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 21 21:06:44 2020 -0400
+Date:   Thu Apr 2 22:12:38 2020 -0400
 
-    cmd/compile: remove go115makeslicecopy
+    cmd/internal/obj/mips: don't emit spurious CALLIND relocations
     
-    Change-Id: I6fd65fe7c1046c3ba7d7ed0e67282f879c13e9e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264340
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Generate a CALLIND relocation only for indirect calls, not for
+    indirect jumps. In particular, the RET instruction is lowered to
+    JMP (LR), an indirect jump, and occurs frequently. The large
+    amount of spurious relocations causes the linker to do a lot of
+    extra work.
+    
+    Change-Id: Ie0edc04609788f5a687fd00c22558c3f83867697
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227079
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/order.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/internal/obj/mips/asm0.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

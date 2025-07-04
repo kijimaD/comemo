@@ -1,17 +1,90 @@
-commit 382738af513a5390620b55a84b9e14f3afd0128e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 11:38:56 2013 -0400
+commit 89b26760d7dfe4ae8ee65e4b2c21fec8a15f449b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 11 10:48:53 2013 -0400
 
-    net: defend against broken getaddrinfo on Linux
+    net: implement TCP connection setup with fast failover
     
-    getaddrinfo is supposed to set errno when it returns
-    EAI_SYSTEM, but sometimes it does not.
+    This CL adds minimal support of Happy Eyeballs-like TCP connection
+    setup to Dialer API. Happy Eyeballs and derivation techniques are
+    described in the following:
     
-    Fixes #6232.
+    - Happy Eyeballs: Success with Dual-Stack Hosts
+      http://tools.ietf.org/html/rfc6555
     
-    R=golang-dev, iant
+    - Analysing Dual Stack Behaviour and IPv6 Quality
+      http://www.potaroo.net/presentations/2012-04-17-dual-stack-quality.pdf
+    
+    Usually, the techniques consist of three components below.
+    
+    - DNS query racers, that run A and AAAA queries in parallel or series
+    - A short list of destination addresses
+    - TCP SYN racers, that run IPv4 and IPv6 transport in parallel or series
+    
+    This CL implements only the latter two. The existing DNS query
+    component gathers together A and AAAA records in series, so we don't
+    touch it here. This CL just uses extended resolveInternetAddr and makes
+    it possible to run multiple Dial racers in parallel.
+    
+    For example, when the given destination is a DNS name and the name has
+    multiple address family A and AAAA records, and it happens on the TCP
+    wildcard network "tcp" with DualStack=true like the following:
+    
+    (&net.Dialer{DualStack: true}).Dial("tcp", "www.example.com:80")
+    
+    The function will return a first established connection either TCP over
+    IPv4 or TCP over IPv6, and close the other connection internally.
+    
+    Fixes #3610.
+    Fixes #5267.
+    
+    Benchmark results on freebsd/amd64 virtual machine, tip vs. tip+12416043:
+    
+    benchmark                           old ns/op    new ns/op    delta
+    BenchmarkTCP4OneShot                    50696        52141   +2.85%
+    BenchmarkTCP4OneShotTimeout             65775        66426   +0.99%
+    BenchmarkTCP4Persistent                 10986        10457   -4.82%
+    BenchmarkTCP4PersistentTimeout          11207        10445   -6.80%
+    BenchmarkTCP6OneShot                    62009        63718   +2.76%
+    BenchmarkTCP6OneShotTimeout             78351        79138   +1.00%
+    BenchmarkTCP6Persistent                 14695        14659   -0.24%
+    BenchmarkTCP6PersistentTimeout          15032        14646   -2.57%
+    BenchmarkTCP4ConcurrentReadWrite         7215         6217  -13.83%
+    BenchmarkTCP6ConcurrentReadWrite         7528         7493   -0.46%
+    
+    benchmark                          old allocs   new allocs    delta
+    BenchmarkTCP4OneShot                       36           36    0.00%
+    BenchmarkTCP4OneShotTimeout                36           36    0.00%
+    BenchmarkTCP4Persistent                     0            0     n/a%
+    BenchmarkTCP4PersistentTimeout              0            0     n/a%
+    BenchmarkTCP6OneShot                       37           37    0.00%
+    BenchmarkTCP6OneShotTimeout                37           37    0.00%
+    BenchmarkTCP6Persistent                     0            0     n/a%
+    BenchmarkTCP6PersistentTimeout              0            0     n/a%
+    BenchmarkTCP4ConcurrentReadWrite            0            0     n/a%
+    BenchmarkTCP6ConcurrentReadWrite            0            0     n/a%
+    
+    benchmark                           old bytes    new bytes    delta
+    BenchmarkTCP4OneShot                     2500         2503    0.12%
+    BenchmarkTCP4OneShotTimeout              2508         2505   -0.12%
+    BenchmarkTCP4Persistent                     0            0     n/a%
+    BenchmarkTCP4PersistentTimeout              0            0     n/a%
+    BenchmarkTCP6OneShot                     2713         2707   -0.22%
+    BenchmarkTCP6OneShotTimeout              2722         2720   -0.07%
+    BenchmarkTCP6Persistent                     0            0     n/a%
+    BenchmarkTCP6PersistentTimeout              0            0     n/a%
+    BenchmarkTCP4ConcurrentReadWrite            0            0     n/a%
+    BenchmarkTCP6ConcurrentReadWrite            0            0     n/a%
+    
+    R=golang-dev, bradfitz, nightlyone, rsc
     CC=golang-dev
-    https://golang.org/cl/13532045
+    https://golang.org/cl/12416043
 
- src/pkg/net/cgo_unix.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/pkg/net/dial.go            |  80 +++++++++++++++++++++---
+ src/pkg/net/dial_gen.go        |  51 ++++-----------
+ src/pkg/net/dial_test.go       | 137 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/dialgoogle_test.go |  28 +++++++++
+ src/pkg/net/fd_plan9.go        |   4 +-
+ src/pkg/net/fd_unix.go         |   8 +--
+ src/pkg/net/fd_windows.go      |  10 +--
+ src/pkg/net/mockserver_test.go |  82 ++++++++++++++++++++++++
+ 8 files changed, 337 insertions(+), 63 deletions(-)

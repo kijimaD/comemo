@@ -1,15 +1,17 @@
-commit 0914646ab91a3157666d845d74d8d9a4a2831e1e
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Jul 23 18:45:41 2021 +0200
+commit 5fc192af56dd1a9977bf73175ab9e32232b4a14d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 29 11:16:20 2020 -0500
 
-    doc/1.17: fix two dead rfc links
+    [dev.regabi] cmd/compile: clean up Order.copyExpr TODO
     
-    Updates #44513
+    Just a little cleaner to read.
     
-    Change-Id: Ia0c6b48bde2719f3a99cb216b6166d82159198d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336930
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I27b9f09bf6756f74f1c01794444518ded1a7d625
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274106
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.17.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 65 +++++++++++++++++++-----------------
+ 1 file changed, 35 insertions(+), 30 deletions(-)

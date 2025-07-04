@@ -1,15 +1,15 @@
-commit 5b097e79511abb83ef04401140d7dab2b42c41a3
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Jun 2 22:46:53 2013 +0800
+commit 57d89fb6598046a41b1690dec1222257a3c21bf6
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jun 2 15:39:47 2013 +0200
 
-    cmd/cgo: using __typeof__(a->r) instead of putting invalid TYPE in "a->r = (const TYPE)"
-    Thanks kballard for the hint.
-    Fixes #4857.
+    cmd/fix: check type assertion in netipv6zone rule.
     
-    R=golang-dev, iant
+    Fixes #5461.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9649045
+    https://golang.org/cl/9947043
 
- misc/cgo/test/issue4857.go | 15 +++++++++++++++
- src/cmd/cgo/out.go         |  2 +-
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/fix/netipv6zone.go      | 2 +-
+ src/cmd/fix/netipv6zone_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

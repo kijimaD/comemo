@@ -1,44 +1,29 @@
-commit f81e4986733bc18ec2bef16549534b9029756444
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 31 15:02:31 2024 -0800
+commit cd77738198ffe0c4a1db58352c89f9b2d2a4e85e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 15 14:05:22 2023 -0800
 
-    go/types, types2: better errors for non-existing fields or methods
+    cmd/link: don't switch to gold on ARM Linux
     
-    This CL improves the error messages reported when a field or method
-    name is used that doesn't exist. It brings the error messges on par
-    (or better) with the respective errors reported before Go 1.18 (i.e.
-    before switching to the new type checker):
+    The bug in GNU ld appears to have been fixed in GNU binutils 2.28 by
+    GNU binutils revision 5522f910cb539905d6adfdceab208ddfa5e84557.
+    (This may have been accidental as the ChangeLog for the fix makes
+    no reference to it; the fix is from
+    https://sourceware.org/bugzilla/show_bug.cgi?id=19962).
     
-    Make case distinctions based on whether a field/method is exported
-    and how it is spelled. Factor out that logic into a new function
-    (lookupError) in a new file (errsupport.go), which is generated for
-    go/types. Use lookupError when reporting selector lookup errors
-    and missing struct field keys.
+    Continue using gold on arm64, at least for now, because as reported in
+    issue #22040 GNU ld still fails there.
     
-    Add a comprehensive set of tests (lookup2.go) and spot tests for
-    the two cases brought up by the issue at hand.
+    For #15696
+    For #22040
     
-    Adjusted existing tests as needed.
-    
-    Fixes #49736.
-    
-    Change-Id: I2f439948dcd12f9bd1a258367862d8ff96e32305
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560055
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I5534bb8b5680daf536a7941aba5c701e8a4138ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468655
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/call.go            |  18 +---
- src/cmd/compile/internal/types2/errsupport.go      | 113 ++++++++++++++++++++
- src/cmd/compile/internal/types2/expr.go            |   9 +-
- src/go/types/call.go                               |  18 +---
- src/go/types/errsupport.go                         | 115 +++++++++++++++++++++
- src/go/types/expr.go                               |   7 +-
- src/go/types/generate_test.go                      |   1 +
- .../types/testdata/check/{lookup.go => lookup1.go} |   6 +-
- src/internal/types/testdata/check/lookup2.go       |  94 +++++++++++++++++
- .../types/testdata/fixedbugs/issue49736.go         |  17 +++
- test/fixedbugs/issue22794.go                       |   2 +-
- test/fixedbugs/issue25727.go                       |   4 +-
- 12 files changed, 363 insertions(+), 41 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)

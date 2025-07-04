@@ -1,16 +1,30 @@
-commit 9c54f878d26e106f8e375c31aabceb1e36ff4050
-Author: LeonardWang <wangdeyu0907@gmail.com>
-Date:   Thu Jan 7 00:36:34 2021 +0800
+commit 4b3cfcee5877b55049948c8e2c393d5a3ae39466
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jul 24 01:33:15 2020 -0400
 
-    runtime: remove GODEBUG=scavenge mode
+    [dev.link] cmd/link: remove non-streaming external relocation code
     
-    Change-Id: Ic4c7b5086303c7faa49f4cbf6738e66d5de35c7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282012
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Now we support streaming external relocations everywhere.
+    
+    Change-Id: I8d107c8239fe979bd5410e6a7f3fe471ac3e8b35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244764
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/extern.go   | 2 --
- src/runtime/runtime1.go | 2 --
- 2 files changed, 4 deletions(-)
+ src/cmd/link/internal/amd64/asm.go     |   2 +-
+ src/cmd/link/internal/arm/asm.go       |   2 +-
+ src/cmd/link/internal/arm64/asm.go     |   2 +-
+ src/cmd/link/internal/ld/asmb.go       |   4 -
+ src/cmd/link/internal/ld/data.go       | 169 +++++----------------------------
+ src/cmd/link/internal/ld/elf.go        |  65 +++++--------
+ src/cmd/link/internal/ld/lib.go        |   4 +-
+ src/cmd/link/internal/ld/target.go     |   5 -
+ src/cmd/link/internal/loader/loader.go |  30 ------
+ src/cmd/link/internal/mips/asm.go      |   2 +-
+ src/cmd/link/internal/mips64/asm.go    |   2 +-
+ src/cmd/link/internal/ppc64/asm.go     |   2 +-
+ src/cmd/link/internal/riscv64/asm.go   |   2 +-
+ src/cmd/link/internal/s390x/asm.go     |   2 +-
+ src/cmd/link/internal/x86/asm.go       |   2 +-
+ 15 files changed, 59 insertions(+), 236 deletions(-)

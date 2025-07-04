@@ -1,20 +1,23 @@
-commit 98abf2937e42d560f0a8ba3c9e5bd5351c5316e6
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Nov 26 17:45:09 2015 -0500
+commit 66c25fa9beda429a1e32b6dc65e48f071569d841
+Author: Nathan Otterness <otternes@cs.unc.edu>
+Date:   Fri Sep 18 20:08:47 2015 -0400
 
-    cmd/cover: allow part selection to be retained across page refreshes
+    image/png: integer underflow when decoding
     
-    Usually, you are primarily interested to see the coverage of a particular
-    file (e.g. when you're changing tests that affects a given source file),
-    it is very valuable if you can just refresh the page and immediately see
-    changes to the part you're already looking at (without selecting from the
-    selector again.)
+    This change addresses an integer underflow appearing only on systems
+    using a 32-bit int type. The patch addresses the problem by limiting the
+    length of unknown chunks to 0x7fffffff. This value appears to already be
+    checked for when parsing other chunk types, so the bug shouldn't appear
+    elsewhere in the package. The PNG spec recommends the maximum size for
+    any chunk to remain under 2^31, so this shouldn't cause errors with
+    valid images.
     
-    Change-Id: I615207c9be6713f436e444771134fceaf4600ff3
-    Reviewed-on: https://go-review.googlesource.com/17238
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #12687
+    
+    Change-Id: I17f0e1683515532c661cf2b0b2bc65309d1b7bb7
+    Reviewed-on: https://go-review.googlesource.com/14766
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/cover/html.go | 24 +++++++++++++++++++-----
- 1 file changed, 19 insertions(+), 5 deletions(-)
+ src/image/png/reader.go      |  3 +++
+ src/image/png/reader_test.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

@@ -1,24 +1,16 @@
-commit 1be8fcdcdce01ca7cffb1fd90c1cd706c3ea4ee4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 15:54:28 2022 -0700
+commit 3283d1a2f29496d882b6edc57543446967dc8233
+Author: Tamir Duberstein <tamird@google.com>
+Date:   Tue Oct 12 16:00:23 2021 -0400
 
-    cmd/compile/internal/syntax: more strict parsing of type instances
+    os: Simplify size using io.Discard.
     
-    Report a syntax error if the first element of a type instance is
-    not actually a type (but some other expression), rather then relying
-    on the type checker error in this case. This matches the behavior of
-    go/parser. Adjust the corresponding types2 test case.
-    
-    For #54511.
-    
-    Change-Id: Ia82b3a7d444738c56955ce6c15609470b3431fd1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426657
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib7cc86643a3dcae788a94472e54de171e0d655fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355449
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/syntax/parser.go            | 20 ++++++++++++--------
- .../internal/types2/testdata/fixedbugs/issue48827.go |  2 +-
- 2 files changed, 13 insertions(+), 9 deletions(-)
+ src/os/os_test.go | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

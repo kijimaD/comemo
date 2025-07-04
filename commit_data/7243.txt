@@ -1,13 +1,30 @@
-commit 549d7f49d567b0ab33733b3eb4a7b7cc182d102e
+commit add4e167e3e32ca050a1986a877924d14e52fdc7
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 26 17:25:37 2011 +1000
+Date:   Wed Jan 26 14:56:52 2011 +1000
 
-    doc/codelab/wiki: rename textarea name from Body to body
+    doc/codelab/wiki: update to work with template changes, add to run.bash
     
-    R=mattn
+    Fixes #1444.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4034046
+    https://golang.org/cl/3979045
 
- doc/codelab/wiki/edit.html  | 2 +-
- doc/codelab/wiki/index.html | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/codelab/wiki/edit.html              |   6 +-
+ doc/codelab/wiki/final-noclosure.go     |  22 +++---
+ doc/codelab/wiki/final-noerror.go       |  18 ++---
+ doc/codelab/wiki/final-parsetemplate.go |  22 +++---
+ doc/codelab/wiki/final-template.go      |  22 +++---
+ doc/codelab/wiki/final.go               |  22 +++---
+ doc/codelab/wiki/htmlify.go             |   2 +-
+ doc/codelab/wiki/index.html             | 117 ++++++++++++++++----------------
+ doc/codelab/wiki/notemplate.go          |  22 +++---
+ doc/codelab/wiki/part1-noerror.go       |  20 +++---
+ doc/codelab/wiki/part1.go               |  20 +++---
+ doc/codelab/wiki/part2.go               |  18 ++---
+ doc/codelab/wiki/srcextract.go          |   6 +-
+ doc/codelab/wiki/test_edit.good         |   2 +-
+ doc/codelab/wiki/view.html              |   6 +-
+ doc/codelab/wiki/wiki.html              |  56 +++++++--------
+ src/run.bash                            |   3 +
+ 17 files changed, 194 insertions(+), 190 deletions(-)

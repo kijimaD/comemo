@@ -1,23 +1,30 @@
-commit f249fa27a9117dd5986f35463fc6a1467ecc72bb
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Nov 5 20:30:38 2021 +0700
+commit f251d1fbb69156627379df28a150343c08a29474
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Feb 26 10:54:11 2021 -0500
 
-    cmd/compile: only update source type when processing struct/array
+    [dev.fuzz] testing, internal/fuzz: multiple small fixes
     
-    CL 360057 fixed missing update source type in storeArgOrLoad. However,
-    we should only update the type when processing struct/array. If we
-    update the type right before calling storeArgOrLoad, we may generate a
-    value with invalid type, e.g, OpStructSelect with non-struct type.
+    * Run gofmt with go1.17 build constraint changes.
+    * Tighten regular expressions used in tests. "ok" got some false
+      positives with verbose output, so make sure it appears at the start
+      of a line.
+    * Return err in deps.RunFuzzWorker instead of nil.
+    * Call common.Helper from F methods. This prevents F methods from
+      appearing in stack traces.
     
-    Fixes #49378
-    
-    Change-Id: Ib7e10f72f818880f550aae5c9f653db463ce29b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361594
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I839c70ec8a9f313c1a4ea68e6bb34a4d801dd36f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297032
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go |  4 ++--
- test/fixedbugs/issue49378.go                 | 25 +++++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/test/genflags.go             |  1 +
+ src/cmd/go/testdata/script/test_fuzz_match.txt   |  2 +-
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt |  2 +-
+ src/internal/fuzz/sys_posix.go                   |  1 +
+ src/internal/fuzz/sys_unimplemented.go           |  1 +
+ src/testing/fuzz.go                              | 31 +++++++++++++++++++++++-
+ src/testing/internal/testdeps/deps.go            |  2 +-
+ 7 files changed, 36 insertions(+), 4 deletions(-)

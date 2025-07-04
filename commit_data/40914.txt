@@ -1,17 +1,14 @@
-commit 3edd1d8d993386098cd9e3603e65bbb588e0f52b
-Author: Xudong Zhang <zxdvd_zhang@163.com>
-Date:   Mon Dec 2 09:32:04 2019 +0000
+commit d6ffc1d8394d6f6420bb92d79d320da88720fbe0
+Author: Wagner Riffel <wgrriffel@gmail.com>
+Date:   Mon Aug 19 00:41:12 2019 -0300
 
-    time: fix comment in test
+    doc: rewrite reference to plan9.bell-labs.com to 9p.io
     
-    The commit de36d1 (CL 4635083) changed the test time
-    from 2009 to 2010 but forgot to update the comment.
-    
-    Change-Id: Ia2928773dd184f168fddde126d0bb936de8cfc29
-    GitHub-Last-Rev: bf8eb57140dc531d1af449308b79c646d3b64d02
-    GitHub-Pull-Request: golang/go#35930
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209517
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I75619feced842b8ca509ee08e01b63258c5e87ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190757
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/format_test.go | 2 +-
+ doc/go1.3.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

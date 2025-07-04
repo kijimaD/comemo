@@ -1,17 +1,18 @@
-commit 0eb26fa8ba531b21d183fd3a4d3fb8abf57db7aa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 18 09:27:18 2016 -0800
+commit f67c9de65621a46905a2f923b35634f74fa8635b
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 9 21:43:50 2016 -0400
 
-    spec: remove => (alias) operator from Operators and Delimiters section
+    runtime: document MemStats
     
-    (Revert of https://go-review.googlesource.com/#/c/32310/)
+    This documents all fields in MemStats and more clearly documents where
+    mstats differs from MemStats.
     
-    For #16339.
-    Fixes #17975.
+    Fixes #15849.
     
-    Change-Id: I36062703c423a81ea1c5b00f4429a4faf00b3782
-    Reviewed-on: https://go-review.googlesource.com/33365
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie09374bcdb3a5fdd2d25fe4bba836aaae92cb1dd
+    Reviewed-on: https://go-review.googlesource.com/28972
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mstats.go | 337 ++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 288 insertions(+), 49 deletions(-)

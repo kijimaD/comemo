@@ -1,24 +1,17 @@
-commit 5158aab7d662e274aed870ae6bf9cf8ae0786f5b
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue Jan 23 22:11:51 2018 -0800
+commit 3a35e0253c8344ae4efb975e4bdc0cc53b841e0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 4 12:28:20 2017 -0400
 
-    all: use HTTPS for iana.org links
+    runtime: deflake TestPeriodicGC
     
-    iana.org, www.iana.org and data.iana.org all present a valid TLS
-    certificate, so let's use it when fetching data or linking to
-    resources to avoid errors in transit.
+    It was only waiting 0.1 seconds for the two GCs it wanted.
+    Let it wait 1 second.
     
-    Change-Id: Ib3ce7c19789c4e9d982a776b61d8380ddc63194d
-    Reviewed-on: https://go-review.googlesource.com/89416
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib3cdc8127cbf95694a9f173643c02529a85063af
+    Reviewed-on: https://go-review.googlesource.com/68151
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- lib/time/README                 | 2 +-
- lib/time/update.bash            | 9 ++++-----
- misc/nacl/testdata/mime.types   | 2 +-
- src/crypto/tls/cipher_suites.go | 2 +-
- src/crypto/tls/common.go        | 4 ++--
- src/net/http/status.go          | 2 +-
- src/net/lookup.go               | 2 +-
- src/net/lookup_test.go          | 4 ++--
- src/time/zoneinfo.go            | 2 +-
- 9 files changed, 14 insertions(+), 15 deletions(-)
+ src/runtime/gc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

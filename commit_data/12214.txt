@@ -1,12 +1,12 @@
-commit d7816039314d46701e99e52d0e1485a158a5fc06
-Author: Rob Pike <r@golang.org>
-Date:   Sun Feb 26 22:24:51 2012 +1100
+commit f7ad1834ea2db813914314d14cfdf94d197d204e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 26 01:40:29 2012 +0800
 
-    time: add a comment about how to use the Duration constants
+    doc/install: fix FreeBSD/Linux install command
     
-    R=golang-dev, bradfitz, r, dsymonds
+    R=adg, golang-dev, go.peter.90, rsc
     CC=golang-dev
-    https://golang.org/cl/5696078
+    https://golang.org/cl/5700062
 
- src/pkg/time/time.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

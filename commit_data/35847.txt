@@ -1,21 +1,30 @@
-commit a5f8128e39d081c972e7bf3182122bac79bb6f8c
-Author: bill_ofarrell <billo@ca.ibm.com>
-Date:   Thu Jun 28 18:39:37 2018 -0400
+commit 6cb064c9c44fcd07bced22d2952a4856e5febc3e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 13 15:20:33 2018 +0000
 
-    bytes, strings: fix comparison of long byte slices on s390x
+    Revert "runtime: convert g.waitreason from string to uint8"
     
-    The existing implementation of bytes.Compare on s390x doesn't work properly for slices longer
-    than 256 elements. This change fixes that. Added tests for long strings and slices of bytes.
+    This reverts commit 4eea887fd477368653f6fcf8ad766030167936e5.
     
-    Fixes #26114
+    Reason for revert: broke s390x build
     
-    Change-Id: If6d8b68ee6dbcf99a24f867a1d3438b1f208954f
-    Reviewed-on: https://go-review.googlesource.com/121495
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id6c2b6a7319273c4d21f613d4cdd38b00d49f847
+    Reviewed-on: https://go-review.googlesource.com/100375
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/bytes/compare_test.go            | 15 +++++++++++++--
- src/internal/bytealg/compare_s390x.s |  2 ++
- src/strings/compare_test.go          | 15 +++++++++++++--
- 3 files changed, 28 insertions(+), 4 deletions(-)
+ src/runtime/chan.go        |  8 ++---
+ src/runtime/heapdump.go    |  4 +--
+ src/runtime/mfinal.go      |  2 +-
+ src/runtime/mgc.go         | 10 +++---
+ src/runtime/mgcmark.go     |  6 ++--
+ src/runtime/mgcsweep.go    |  4 +--
+ src/runtime/netpoll.go     |  2 +-
+ src/runtime/proc.go        | 16 ++++-----
+ src/runtime/runtime2.go    | 89 +++++++---------------------------------------
+ src/runtime/select.go      |  4 +--
+ src/runtime/sema.go        |  4 +--
+ src/runtime/sizeof_test.go |  2 +-
+ src/runtime/time.go        |  4 +--
+ src/runtime/trace.go       |  2 +-
+ src/runtime/traceback.go   |  4 +--
+ 15 files changed, 47 insertions(+), 114 deletions(-)

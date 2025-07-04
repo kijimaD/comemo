@@ -1,22 +1,14 @@
-commit a9c69e0a657cbbdd4df3a77bd202b7f03a104094
-Author: Shulhan <m.shulhan@gmail.com>
-Date:   Thu Sep 13 01:46:39 2018 +0700
+commit 99695bd90b70ae562349a15b3a0b00d78c51e23f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 29 09:08:42 2018 +0200
 
-    runtime: fix runtime gdb test with gdb v8.2
+    runtime: fix typo in comment for cpuinit
     
-    Previously, some of output from gdb matched with literal string, while
-    gdb v8.2 print the address of variable (e.g. map key and value) in
-    output.
-    
-    This commit fix the regex in testing the output.
-    
-    Fixes #27608
-    
-    Change-Id: Ic3fe8280b9f93fda2799116804822616caa66beb
-    Reviewed-on: https://go-review.googlesource.com/135055
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie19e0354f813b042c995c0221072568eaa473bea
+    Reviewed-on: https://go-review.googlesource.com/114995
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/runtime-gdb_test.go | 23 +++++++++++++----------
- 1 file changed, 13 insertions(+), 10 deletions(-)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

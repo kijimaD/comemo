@@ -1,18 +1,18 @@
-commit f63ee8b2c79e1941161bf1b49f800100c9e34415
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Tue Feb 7 08:21:05 2023 +0000
+commit 0652274c10f8f2a520c30bf43bb968dac91bf9f5
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Nov 3 16:17:45 2021 +0800
 
-    doc: fix spec typo
+    internal/abi: define riscv64 register ABI constants
     
-    Change-Id: I5e3aca2b8fc78f38c9e2cdc67adf86d57ac85b1c
-    GitHub-Last-Rev: 0e5ddffe33f5677449d24e09bdb332e3d5c08aa3
-    GitHub-Pull-Request: golang/go#58353
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465615
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Add the riscv64 register ABI constants and allow regabi
+    value to be set for riscv64
+    
+    Change-Id: I3ce98bf9a29d2acc00f92650b27bc59884ed62ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359336
+    Trust: mzh <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/internal/abi/abi_riscv64.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

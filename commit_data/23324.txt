@@ -1,16 +1,24 @@
-commit 9850886fe97ee28b976807f9bec76217662db896
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 11 10:40:20 2015 -0700
+commit 3be3cbd5480187d279118b71633ee99a1996c5a2
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 4 16:10:49 2015 -0400
 
-    cmd/go: in testsuite, sleep for less than one second if possible
+    runtime: track "scannable" bytes of heap
     
-    Examine the mtime of an existing file to guess a length of time to
-    sleep to ensure a different mtime.
+    This tracks the number of scannable bytes in the allocated heap. That
+    is, bytes that the garbage collector must scan before reaching the
+    last pointer field in each object.
     
-    Change-Id: I9e8b5c9486f5c3c8bd63125e3ed4763ce1ba767d
-    Reviewed-on: https://go-review.googlesource.com/10932
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This will be used to compute a more robust estimate of the GC scan
+    work.
+    
+    Change-Id: I1eecd45ef9cdd65b69d2afb5db5da885c80086bb
+    Reviewed-on: https://go-review.googlesource.com/9695
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/go_test.go | 42 +++++++++++++++++++++++++++++++++++-------
- 1 file changed, 35 insertions(+), 7 deletions(-)
+ src/runtime/malloc.go  | 10 ++++++++++
+ src/runtime/mcache.go  |  1 +
+ src/runtime/mgc.go     |  1 +
+ src/runtime/mgcmark.go |  6 ++++--
+ src/runtime/mheap.go   |  4 ++++
+ src/runtime/mstats.go  |  7 +++++++
+ 6 files changed, 27 insertions(+), 2 deletions(-)

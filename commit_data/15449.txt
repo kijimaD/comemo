@@ -1,15 +1,31 @@
-commit 98d44d140d7abde9fdfbdbf7adec5be7bb0892ce
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Feb 27 09:13:15 2013 +1100
+commit b302d68ebcc2500e6e013ff5fed9c70b0e1ff3a4
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Feb 26 13:48:32 2013 -0500
 
-    syscall: fix FD passing on FreeBSD and NetBSD
+    misc/emacs: Greatly improve go-mode for Emacs.
     
-    Fixes #3348.
+    The original go-mode is plagued with odd behaviour, lack of
+    behaviour typical to modes in Emacs and bugs.
     
-    R=devon.odell, minux.ma, bradfitz, mdempsky
+    This change rewrites great parts of go-mode (basically only
+    keeping the gofmt and godoc functions).
+    
+    Additionally it adds new features such as manipulating package
+    imports.
+    
+    For more information please see
+    https://groups.google.com/group/golang-nuts/browse_frm/thread/3a9d6dae3369c0b5/1efe65e2f7afb190
+    
+    Fixes #3618.
+    Fixes #4240.
+    Fixes #4322.
+    Fixes #4671.
+    Fixes #4726.
+    
+    R=golang-dev, fullung, sameer, cw, arthur, proppy, adonovan, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7406050
+    https://golang.org/cl/7314113
 
- src/pkg/syscall/passfd_test.go   | 2 +-
- src/pkg/syscall/sockcmsg_unix.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ misc/emacs/go-mode-load.el |   88 ++-
+ misc/emacs/go-mode.el      | 1293 +++++++++++++++++++-------------------------
+ 2 files changed, 626 insertions(+), 755 deletions(-)

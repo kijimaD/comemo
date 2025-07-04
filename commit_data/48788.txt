@@ -1,25 +1,26 @@
-commit 78bea702cd38ac5004a97f110e7f659336a04d57
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 14 15:04:34 2022 -0700
+commit 1ba2074440a9b82b6e39c42f40b9d04858aa6c75
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 11 01:09:47 2021 -0700
 
-    cmd/compile: turn jump tables off with -N
+    [dev.typeparams] cmd/compile/internal/types2: support local defined types
     
-    The noopt builder is broken, because with -N we get two OpSB opcodes
-    (one for the function as a whole, one introduced by the jumptable
-    rewrite rule), and they fight each other for a register.
+    This CL changes types2's instance hashing logic to include position
+    information for function-scope defined types as disambiguation. This
+    isn't ideal, but it worked for getting nested.go passing.
     
-    Without -N, the two OpSB get CSEd, so optimized builds are ok.
+    Updates #46592.
     
-    Maybe we fix regalloc to deal with this case, but it's simpler
-    (and maybe more correct?) to disable jump tables with -N.
-    
-    Change-Id: I75c87f12de6262955d1df787f47c53de976f8a5f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400455
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id83ba0001f44af69b81260306cc8b05e44fc4f09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327170
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/walk/switch.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/subst.go      |   5 +
+ src/cmd/compile/internal/types2/typestring.go |  34 +++++--
+ test/typeparam/nested.go                      | 134 ++++++++++++++++++++++++++
+ test/typeparam/nested.out                     |   4 +
+ 4 files changed, 168 insertions(+), 9 deletions(-)

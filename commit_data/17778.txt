@@ -1,16 +1,16 @@
-commit beca0e124d113fa004b8f559c725c704bab2a89a
-Author: Rob Pike <r@golang.org>
-Date:   Thu Oct 10 17:26:03 2013 -0700
+commit 50d4dae80b9afc34dc931caef180161dba9b1530
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Thu Oct 10 16:30:47 2013 -0700
 
-    doc/effective_go.html: fix a couple of cosmetic issues
-    At the moment, godoc expands the example in the link, but in
-    the past it has not. Add a waffle word to allow either possibility.
-    Also change the order of cases in the switch in Compare to
-    be consistent with the other switch in the function.
+    codereview: fix hg sync closing of CLs for subrepositories
     
-    R=golang-dev, iant
+    The regexp for closing CLs that were sent by you but committed by
+    someone else only matched messages for the main repository,
+    because of the added &repo=... for subrepositories.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14439055
+    https://golang.org/cl/14512045
 
- doc/effective_go.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

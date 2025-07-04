@@ -1,22 +1,14 @@
-commit 57933b86b1a09a44d1350437f42a3305a30ad2b3
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 30 22:52:10 2013 -0400
+commit 3abaf5cae0557452264272331c7a7e308e14258f
+Author: Shivakumar GN <shivakumar.gn@gmail.com>
+Date:   Tue Jul 30 18:25:08 2013 -0700
 
-    cmd/go: send timed out test SIGQUIT before SIGKILL
+    net/http: skip TestDirJoin on Windows, even if /etc/hosts exists
     
-    There is a chance that the SIGQUIT will make the test process
-    dump its stacks as part of exiting, which would be nice for
-    finding out what it is doing.
+    Fixes #5460.
     
-    Right now the builders are occasionally timing out running
-    the runtime test. I hope this will give us some information
-    about the state of the runtime.
-    
-    R=golang-dev, dave
+    R=golang-dev, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12041051
+    https://golang.org/cl/12123043
 
- src/cmd/go/signal_notunix.go |  4 ++++
- src/cmd/go/signal_unix.go    |  4 ++++
- src/cmd/go/test.go           | 13 +++++++++++++
- 3 files changed, 21 insertions(+)
+ src/pkg/net/http/fs_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

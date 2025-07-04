@@ -1,14 +1,27 @@
-commit d960de0b6f61a486576dbd5a49151bc6125c7010
-Author: Joshua M. Clulow <josh@sysmgr.org>
-Date:   Mon Oct 21 01:45:43 2019 -0700
+commit fe837316519854c7efe2975d75787261ac9fce88
+Author: Keith Randall <khr@google.com>
+Date:   Tue Apr 30 16:10:43 2019 -0700
 
-    runtime: temporarily skip gdb python-related tests on illumos
+    reflect: MakeFunc: allow assignment conversions on values returned from the wrapped function
     
-    Updates golang/go#20821
+    Instead of requiring exact type match, allow assignment conversions
+    (those conversions allowed in the language spec without a cast) on the
+    returned values.
     
-    Change-Id: I186356a78ac385a15b4604e0ea6110c4c212ebc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202357
+    Particularly useful when the type being returned is an interface type,
+    but the Value actually returned is a concrete value implementing that
+    type (as it is tricky to return a Value which has interface type).
+    
+    RELNOTE=y
+    
+    Fixes #28761
+    
+    Change-Id: I69eef07ca51690b2086dfa1eb549db5e4724c657
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174531
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime-gdb_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/all_test.go | 85 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 11 ++++---
+ 2 files changed, 91 insertions(+), 5 deletions(-)

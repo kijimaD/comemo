@@ -1,36 +1,18 @@
-commit e57cdd81e25a8351a868679d0d7252928b6e5be4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 24 15:39:21 2018 -0700
+commit ebeea20a49c7f75ede9cdd403d474ed8c667dbf3
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Feb 21 18:19:52 2018 +0100
 
-    go/types: initial framework for marking-based cycle detection
+    cmd/compile: use | in the most repetitive ppc64 rules
     
-    The existing code explicitly passes a (type name) path around
-    to determine cycles; it also restarts the path for types that
-    "break" a cycle (such as a pointer, function, etc.). This does
-    not work for alias types (whose cycles are broken in a different
-    way). Furthermore, because the path is not passed through all
-    type checker functions that need it, we can't see the path or
-    use it for detection of some cycles (e.g. cycles involving array
-    lengths), which required ad-hoc solutions in those cases.
+    For now, limited to the most repetitive rules that are also short and
+    simple, so that we can have a substantial conciseness win without
+    compromising rules readability.
     
-    This change introduces an explicit marking scheme for any kind
-    of object; an object is painted in various colors indicating
-    its state. It also introduces an object path (a stack) main-
-    tained with the Checker state, which is available in all type
-    checker functions that need access to it.
+    Ran rulegen, no changes in the rewrite files.
     
-    The change only introduces these mechanisms and exercises the
-    basic functionality, with no effect on the existing code for
-    now.
-    
-    For #25141.
-    
-    Change-Id: I7c28714bdafe6c8d9afedf12a8a887554237337c
-    Reviewed-on: https://go-review.googlesource.com/114517
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I8d8cc67d02faca4756cc02402b763f1645ee31de
+    Reviewed-on: https://go-review.googlesource.com/95935
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/check.go    | 16 ++++++++++
- src/go/types/decl.go     | 78 ++++++++++++++++++++++++++++++++++++++++++++++--
- src/go/types/object.go   | 58 +++++++++++++++++++++++++++++------
- src/go/types/universe.go |  3 +-
- 4 files changed, 143 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 102 +++++++--------------------
+ 1 file changed, 25 insertions(+), 77 deletions(-)

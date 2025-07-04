@@ -1,18 +1,14 @@
-commit b354f914174f971b26ac813236627b7cccaf3382
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 10 22:01:41 2016 -0800
+commit ddc25081d24d62ebf37e737b73b8bad8fd4b50ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 4 09:12:31 2016 -0800
 
-    runtime: limit TestCgoCCodeSIGPROF test to 1 second
+    log/syslog: document that syslog is frozen
     
-    Still fails about 20% of the time on my laptop.
+    Try to reduce feature request bug reports.
     
-    Fixes #14766.
-    
-    Change-Id: I169ab728c6022dceeb91188f5ad466ed6413c062
-    Reviewed-on: https://go-review.googlesource.com/20590
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I713bb715d25d23e084b054aea8e1c3197dde90d4
+    Reviewed-on: https://go-review.googlesource.com/18222
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/testdata/testprogcgo/aprof.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/log/syslog/doc.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

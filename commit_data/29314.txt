@@ -1,39 +1,12 @@
-commit d5b97f614eb02399f7b4ed6615fae094362d151d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 31 12:09:03 2016 -0400
+commit daf61797330a340c1341bd5428df8f623135b81b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 16:07:49 2016 -0700
 
-    cmd/pprof: move cmd/internal/pprof back to cmd/pprof/internal
+    cmd/compile: use fmt.State in nodedump
     
-    CL 21870 moved the entire cmd/pprof/internal directory to cmd/internal/pprof
-    for use by cmd/trace, but really cmd/trace only needed cmd/pprof/internal/profile,
-    which became cmd/internal/pprof/profile, and then internal/pprof/profile.
-    
-    Move the rest back under cmd/pprof so that it is clear that no other code
-    is reaching into the guts of cmd/pprof. Just like functions should not be
-    exported unless necessary, internals should not be made visible to more
-    code than necessary.
-    
-    Raúl Silvera noted after the commit of CL 21870 that only the profile package
-    should have moved, but there was no followup fix (until now).
-    
-    Change-Id: I603f4dcb0616df1e5d5eb7372e6fccda57e05079
-    Reviewed-on: https://go-review.googlesource.com/32453
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icd83e88fc879b30b34f8697d540619efeb25c25b
+    Reviewed-on: https://go-review.googlesource.com/28338
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .../{internal/pprof => pprof/internal}/commands/commands.go  |  8 ++++----
- src/cmd/{internal/pprof => pprof/internal}/driver/driver.go  |  8 ++++----
- .../{internal/pprof => pprof/internal}/driver/interactive.go |  4 ++--
- src/cmd/{internal/pprof => pprof/internal}/fetch/fetch.go    |  2 +-
- src/cmd/{internal/pprof => pprof/internal}/plugin/plugin.go  |  0
- src/cmd/{internal/pprof => pprof/internal}/report/report.go  |  2 +-
- src/cmd/{internal/pprof => pprof/internal}/report/source.go  |  2 +-
- .../{internal/pprof => pprof/internal}/report/source_html.go |  0
- src/cmd/{internal/pprof => pprof/internal}/svg/svg.go        |  0
- src/cmd/{internal/pprof => pprof/internal}/svg/svgpan.go     |  0
- .../pprof => pprof/internal}/symbolizer/symbolizer.go        |  2 +-
- .../{internal/pprof => pprof/internal}/symbolz/symbolz.go    |  0
- .../{internal/pprof => pprof/internal}/tempfile/tempfile.go  |  0
- src/cmd/pprof/pprof.go                                       | 12 ++++++------
- 14 files changed, 20 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 65 +++++++++++++++++++-------------------
+ 1 file changed, 32 insertions(+), 33 deletions(-)

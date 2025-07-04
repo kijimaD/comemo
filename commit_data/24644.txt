@@ -1,12 +1,15 @@
-commit e243d242d750f19cd1c3aefa7da1ad238f21502e
-Author: kargakis <mkargaki@redhat.com>
-Date:   Tue Oct 27 16:25:08 2015 +0100
+commit 92c984e0647ddf9e821449d42e7620797b9a5c73
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 18 10:59:30 2015 -0400
 
-    reflect: Comment fix
+    cmd/go: disable TestNoteReading on solaris, linux/ppc64le
     
-    Change-Id: I86cdd5c1d7b6f76d3474d180e75ea0c732241080
-    Reviewed-on: https://go-review.googlesource.com/16309
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Update #11184 (linux/ppc64).
+    Filed #12178 (solaris) for Go 1.6.
+    
+    Change-Id: I9e3a456aaccb49590ad4e14b53ddfefca5b0801c
+    Reviewed-on: https://go-review.googlesource.com/13679
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/reflect/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/note_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

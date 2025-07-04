@@ -1,26 +1,24 @@
-commit 0750107074c39f7b846515de47c2857cbdb7e3d6
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Jun 29 13:08:11 2022 -0400
+commit ef4cb2f776f1c7e861604d1b46ab8fcf2672f10d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 27 17:57:04 2021 -0700
 
-    go/token: use atomics not Mutex for last file cache
+    cmd/compile/internal/types: change NewNamed to use TypeObject
     
-    Previously, FileSet would cache the last *File found by a lookup,
-    using a full (exclusive) mutex within FileSet.File, turning a logical
-    read operation into an update. This was one of the largest sources
-    of contention in gopls.  This change uses atomic load/store on the
-    'last' field without a mutex.
+    Semantically, TypeObject is the interface that go/types.TypeName would
+    implement, so we might as well use that instead of the more generic
+    Object (analog to go/types.Object) for NewNamed. In practice, this
+    doesn't really matter though, because we use *ir.Name for almost all
+    Objects anyway.
     
-    Also, in FileSet.AddFile, allocate the File outside the critical
-    section; all the other operations are typically cheap.
+    Also, remove VarObject: its last use was removed in CL 302071 (March
+    2021).
     
-    Fixes #53507
-    
-    Change-Id: Ice8641650d8495b25b0428e9b9320837ff2ca7e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411909
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6e987ecd419105e09f74fc8d60cadb61bcbc751f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345810
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/token/position.go  | 34 +++++++++++++++++++---------------
- src/go/token/serialize.go |  2 +-
- 2 files changed, 20 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/types/type.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

@@ -1,29 +1,18 @@
-commit 291254414b2adcea8e36374c6dbcdb3d9ede06c5
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Dec 7 22:25:41 2016 -0800
+commit 93d5f43a29dea00a5dffd1fa8faed911a31b55fb
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 7 09:35:04 2016 -0700
 
-    io: fix MultiReader panic on nil reader.
+    cmd/compile: do regalloc check only when checkEnabled
     
-    The combination of two prior CLs can cause panics:
-    * CL/17873: make chained multiReader Read more efficient
-    * CL/28533: make MultiReader nil exhausted Readers for earlier GC
+    No point doing this check all the time.
     
-    The first CL allows MultiReader to "inherit" another MultiReader's list of Readers
-    for efficiency reasons. This is problematic when combined with the
-    later CL since that can set prior Readers in that list to nil for GC reasons.
-    This causes panics when two MultiReaders are used together (even synchronously).
+    Fixes #15621
     
-    To fix this, rather than setting consumed Readers as nil, we set them with
-    a special eofReader that always returns EOF.
-    
-    Fixes #18232
-    
-    Change-Id: I2a9357ab217e3d54d38ea9022d18e4d14f4182d3
-    Reviewed-on: https://go-review.googlesource.com/34140
+    Change-Id: I1966c061986fe98fe9ebe146d6b9738c13cef724
+    Reviewed-on: https://go-review.googlesource.com/30670
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/multi.go      | 12 ++++++++++--
- src/io/multi_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,14 +1,18 @@
-commit fe2ce5285e379703c28d7f9efae02c63321854db
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 30 15:31:14 2012 +1000
+commit d5b299eda2cc8388bbf8acd9fa03c05a5b76aa2c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Apr 29 20:41:13 2012 +1000
 
-    syscall: add a test for passing an fd over a unix socket
+    compress/flate: add Encoder/Decoder benchmarks
     
-    Re-submitting previously reverted change 160ec5506cb7.
+    In CL 6127051, nigeltao suggested that further gains
+    were possible by improving the performance of flate.
+    This CL adds a set of benchmarks (based on compress/lzw)
+    that can be used to judge any future improvements.
     
-    R=golang-dev, r, r
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6129052
+    https://golang.org/cl/6128049
 
- src/pkg/syscall/passfd_test.go | 151 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 151 insertions(+)
+ src/pkg/compress/flate/reader_test.go | 75 +++++++++++++++++++++++++++++++++++
+ src/pkg/compress/flate/writer_test.go | 72 +++++++++++++++++++++++++++++++++
+ 2 files changed, 147 insertions(+)

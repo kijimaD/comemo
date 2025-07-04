@@ -1,32 +1,19 @@
-commit 6b772462e420d15f5e1669a5f03e4f1cb7d8f2af
-Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 20 10:36:25 2011 -0800
+commit b9697d4a58bfd6dd99e03123c3d53e4f1b035787
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 20 09:59:09 2011 -0800
 
-    panics: use the new facilities of testing.B instead
+    go/ast, parser: remember short variable decls. w/ correspoding ident objects
     
-    Lots of panics go away.
-    Also fix a name error in html/template.
+    The ast.Object's Decl field pointed back to the corresponding declaration for
+    all but short variable declarations. Now remember corresponding assignment
+    statement in the Decl field.
     
-    R=golang-dev, rsc
+    Also: simplified some code for parsing select statements.
+    
+    R=golang-dev, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5498045
+    https://golang.org/cl/5492072
 
- src/pkg/bytes/bytes_test.go            | 17 ++++++-----------
- src/pkg/crypto/aes/aes_test.go         |  2 +-
- src/pkg/encoding/binary/binary_test.go |  4 ++--
- src/pkg/encoding/gob/timing_test.go    |  2 +-
- src/pkg/encoding/json/bench_test.go    | 10 +++++-----
- src/pkg/html/template/error.go         |  6 +++---
- src/pkg/html/template/escape_test.go   | 10 +++++-----
- src/pkg/image/draw/bench_test.go       |  6 +++---
- src/pkg/image/jpeg/writer_test.go      |  2 +-
- src/pkg/image/png/writer_test.go       |  4 ++--
- src/pkg/image/tiff/reader_test.go      |  2 +-
- src/pkg/math/big/nat_test.go           |  3 +--
- src/pkg/net/http/serve_test.go         |  6 +++---
- src/pkg/net/rpc/server_test.go         | 20 ++++++++------------
- src/pkg/old/regexp/all_test.go         | 12 ++++--------
- src/pkg/regexp/all_test.go             | 12 ++++--------
- src/pkg/regexp/exec_test.go            |  2 +-
- src/pkg/strings/strings_test.go        |  7 +++----
- 18 files changed, 54 insertions(+), 73 deletions(-)
+ src/pkg/go/ast/scope.go     |  8 +++++-
+ src/pkg/go/parser/parser.go | 62 ++++++++++++++++++++++-----------------------
+ 2 files changed, 37 insertions(+), 33 deletions(-)

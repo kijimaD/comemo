@@ -1,22 +1,18 @@
-commit 6e82febaf0ca737e82cc3f53de7245101821821c
+commit 751b8798dd3a0b099ec403bafae0d48d5c5fae8c
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jan 25 11:53:03 2023 -0500
+Date:   Thu Mar 10 23:30:07 2022 -0500
 
-    os: eliminate arbitrary timeout in testClosewithBlockingRead
+    cmd/compile/internal/amd64: fix "missing objdump" skip in TestGoAMD64v1
     
-    The 1-second timeout on execution of this test is empirically too
-    short on some platforms. Rather than trying to tune the timeout, allow
-    the test to time out on its own (and dump goroutines) if it deadlocks.
+    The skip was erroneously applied to errors from the call to StdoutPipe
+    instead of Start, and even then was a bit too broad.
     
-    Fixes #57993.
-    Fixes #57994.
-    
-    Change-Id: I69ee86c75034469e4b4cd391b8dc5616b93468b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463180
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I417c9a74692383230fc6d99ebb4149fdc532533e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391800
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/pipe_test.go | 72 ++++++++++++++++-------------------------------------
- 1 file changed, 22 insertions(+), 50 deletions(-)
+ src/cmd/compile/internal/amd64/versions_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

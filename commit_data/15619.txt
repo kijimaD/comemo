@@ -1,25 +1,14 @@
-commit b8db56ad2e91f984eef4e08b85fefcd088f2def9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 6 16:14:07 2013 -0800
+commit 45a3b3714ff78fe1c81a5b3680822859a9fa35ff
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 6 15:47:49 2013 -0800
 
-    go/types: cleanup of assignment checks
+    doc/effective_go.html: unify and expand the discussion of Sprintf and String
+    It's a common mistake to build a recursive String method; explain it well and
+    show how to avoid it.
     
-    Also:
-    - cleaner handling of constants w/ unknown value
-    - removed several TODOs
-    
-    R=adonovan
+    R=golang-dev, bradfitz, adg
     CC=golang-dev
-    https://golang.org/cl/7473043
+    https://golang.org/cl/7486049
 
- src/pkg/go/types/check.go              |  22 ++--
- src/pkg/go/types/const.go              |  24 +++++
- src/pkg/go/types/expr.go               |  12 ++-
- src/pkg/go/types/objects.go            |   5 +-
- src/pkg/go/types/stmt.go               | 177 ++++++++++++++-------------------
- src/pkg/go/types/testdata/builtins.src |   1 -
- src/pkg/go/types/testdata/const0.src   |   6 +-
- src/pkg/go/types/testdata/decls2a.src  |   3 +-
- src/pkg/go/types/testdata/expr3.src    |   3 +-
- src/pkg/go/types/universe.go           |   8 +-
- 10 files changed, 133 insertions(+), 128 deletions(-)
+ doc/effective_go.html | 59 +++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 46 insertions(+), 13 deletions(-)

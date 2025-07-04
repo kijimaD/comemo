@@ -1,31 +1,41 @@
-commit 900ae5b35a75e1f7bc7c8573d9480cbbfd0eee47
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu Nov 25 11:59:37 2021 +0800
+commit 02c01725002a73739cefbc9fcf2575469be6da13
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Jul 12 19:34:15 2021 -0700
 
-    cmd/compile/internal/ssagen: enable intrinsic operation on loong64
+    [dev.typeparams] cmd/compile: add dictionary entries for itab conversion
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    This fix the case where a type param or derived type is converted to a
+    non-empty interface. Previously, we were converting to an empty
+    interface and then using DOTTYPE to convert to the correct non-empty
+    interface. In that case, we can get the needed itab directly from the
+    dictionary. This is needed for correctness from shapes, if the
+    destination interface is parameterized, else we will incorrectly convert
+    to the shape version of the interface.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    Creating/writing an itab can involve generating wrappers for a bunch of
+    methods, which may use dictionaries. So, all the
+    dictionaries/instantiations are being generated on the fly and have
+    recursive relationships, it is simplest to finish creating/writing the
+    itabs at the end of the stenciling phase. So, we create a list of the
+    dictionaries which need to be completed by writing out their itab
+    entries.
     
-    Updates #46229
+    The existing tests ordered.go, ifaceconv.go, and issue44688.go make use
+    of this optimization.
     
-    Change-Id: If28fe03297e1de62f348373f2779dce07f54611c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367042
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Got itab conversions for bound calls working, except for 13.go.
+    Also, want to get rid of the concretify, but I think we need more info
+    on the Bound from types2.
+    
+    Change-Id: If552958a7b8a435500d6cc42c401572c367b30d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336993
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go | 36 +++++++++++++++++-----------------
- 1 file changed, 18 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go         |  19 +++-
+ src/cmd/compile/internal/noder/stencil.go       | 127 ++++++++++++++++++------
+ src/cmd/compile/internal/reflectdata/reflect.go |  18 ++++
+ test/run.go                                     |   3 +-
+ 4 files changed, 134 insertions(+), 33 deletions(-)

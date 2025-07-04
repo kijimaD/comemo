@@ -1,36 +1,23 @@
-commit 34b87b4a1ab7562858baf74f2320ab881214229e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Apr 2 18:58:56 2021 +0000
+commit 3ab825de9d50b24e2b97267a5d66dadb66399180
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 10 09:34:15 2020 -0400
 
-    reflect: remove short-circuits for zero-sized types in ABI algorithm
+    cmd/go/internal/modget: warn about unmatched packages exactly once
     
-    This change removes two short-circuits for zero-sized types (zero-sized
-    structs and zero-sized struct fields) in the recursive cases of the ABI
-    algorithm, because this does not match the spec's algorithm, nor the
-    compiler's algorithm.
+    Due to an inverted condition, we were emitting a "matched no packages"
+    warning twice in some cases and not at all in others.
     
-    The failing case here is a struct with a field that is an array of
-    non-zero length but whose element type is zero-sized. This struct must
-    be stack-assigned because of the array, according to the algorithm.
-    The reflect package was register-assigning it.
+    For #41315
     
-    Because there were two short-circuits, this can also appear if a struct
-    has a field that is a zero-sized struct but contains such an array,
-    also.
-    
-    This change adds regression tests for both of these cases.
-    
-    For #44816.
-    For #40724.
-    
-    Change-Id: I956804170962448197a1c9853826e3436fc8b1ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306929
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I472cd2d4f75811c8734852f2bdd7346f4c612816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254819
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/reflect/abi.go      | 10 ----------
- src/reflect/abi_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/modget/get.go             |  9 ++++--
+ src/cmd/go/testdata/script/mod_get_nopkgs.txt | 40 +++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 3 deletions(-)

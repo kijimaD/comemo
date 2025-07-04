@@ -1,14 +1,16 @@
-commit 34ace1043ea17eccc48777144ad6b62d31a00690
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Apr 4 23:14:54 2012 +0800
+commit a8197456b1ac5802ff6c73e54e52aefd9e28a387
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 4 07:24:13 2012 -0700
 
-    build: unset GOROOT_FINAL before tests
-            Fix the builders.
+    cmd/go: in go get, don't try to perform discovery on non-hosts
+    
+    Before, "go get -v foo/bar" was assuming "foo" was a hostname
+    and trying to perform discovery on it. Now, require a dot in
+    the first path component (the hostname).
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5976068
+    https://golang.org/cl/5981057
 
- src/run.bash | 5 +++++
- src/run.bat  | 5 +++++
- 2 files changed, 10 insertions(+)
+ src/cmd/go/vcs.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

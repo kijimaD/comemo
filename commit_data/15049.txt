@@ -1,34 +1,16 @@
-commit eea0f19990c2bcb2a5f92e60307428fc7e18e153
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Wed Jan 30 17:53:48 2013 -0800
+commit 19bb42d637eb57d24ff905047ce468c034a9a0cf
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jan 30 18:19:58 2013 -0500
 
-    encoding/json: improve performance of Unmarshal on primitive types
+    math/big: make tests faster by reducing coverage in --test.short mode.
     
-    Attempt 2. The first fix was much faster but ignored syntax errors.
-    
-    benchmark                      old ns/op    new ns/op    delta
-    BenchmarkCodeEncoder            74993543     72982390   -2.68%
-    BenchmarkCodeMarshal            77811181     75610637   -2.83%
-    BenchmarkCodeDecoder           213337123    190144982  -10.87%
-    BenchmarkCodeUnmarshal         212180972    190394852  -10.27%
-    BenchmarkCodeUnmarshalReuse    202113428    182106660   -9.90%
-    BenchmarkUnmarshalString            1343          919  -31.57%
-    BenchmarkUnmarshalFloat64           1149          908  -20.97%
-    BenchmarkUnmarshalInt64              967          778  -19.54%
-    BenchmarkSkipValue              28851581     28414125   -1.52%
-    
-    benchmark                       old MB/s     new MB/s  speedup
-    BenchmarkCodeEncoder               25.88        26.59    1.03x
-    BenchmarkCodeMarshal               24.94        25.66    1.03x
-    BenchmarkCodeDecoder                9.10        10.21    1.12x
-    BenchmarkCodeUnmarshal              9.15        10.19    1.11x
-    BenchmarkSkipValue                 69.05        70.11    1.02x
-    
-    Fixes #3949.
+    The time to test all of math/big is now:
+     default      => ~3min
+     --test.short => 150ms
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/7231058
+    https://golang.org/cl/7223054
 
- src/pkg/encoding/json/decode.go | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ src/pkg/math/big/rat_test.go | 33 +++++++++++++++++++--------------
+ 1 file changed, 19 insertions(+), 14 deletions(-)

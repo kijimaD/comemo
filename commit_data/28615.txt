@@ -1,22 +1,19 @@
-commit 49aa1d791be26de71ba7ed02d6c6cd1dd0092b71
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Sep 30 14:16:12 2016 -0700
+commit 5d876e3e2eb3a30a8c66888912cf41785fa65a96
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jun 11 19:55:34 2016 +0900
 
-    crypto/x509: return better error when a certificate contains no names.
+    os: use wait6 to avoid wait/kill race on freebsd
     
-    Currently, if a certificate contains no names (that we parsed),
-    verification will return the confusing error:
-        x509: certificate is valid for , not example.com.
+    This change is a followup to https://go-review.googlesource.com/23967
+    for FreeBSD.
     
-    This change improves the error for that situation.
+    Updates #13987.
+    Updates #16028.
     
-    Fixes #16834.
-    
-    Change-Id: I2ed9ed08298d7d50df758e503bdb55277449bf55
-    Reviewed-on: https://go-review.googlesource.com/30152
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0f0737372fce6df89d090fe9847305749b79eb4c
+    Reviewed-on: https://go-review.googlesource.com/24021
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/verify.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/os/wait_unimp.go |  2 +-
+ src/os/wait_wait6.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 1 deletion(-)

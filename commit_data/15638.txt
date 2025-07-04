@@ -1,29 +1,19 @@
-commit b6e0d39a343128759988c12e7560d21cd35472ca
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 7 17:56:00 2013 -0800
+commit 2ac799cfbcf212675d64ea0df835ca6c2e2aa368
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 8 06:51:06 2013 +0900
 
-    net/http: Transport socket late binding
+    net: fix multicast listener tests
     
-    Implement what Chrome calls socket "late binding". See:
-    https://insouciant.org/tech/connection-management-in-chromium/
+    This CL splits multicast listener tests into two; for IPv4 and
+    for IPv6. It also removes redundant test inputs and makes sure
+    that assignment of multicast interface to stablize the tests.
     
-    In a nutshell, if our HTTP client needs a TCP connection to a
-    remote host and there's not an idle one available, rather than
-    kick off a dial and wait for that specific dial, we instead
-    kick off a dial and wait for either our own dial to finish, or
-    any other TCP connection to that same host to become
-    available.
+    Fixes #4059.
     
-    The implementation looks like a classic "Learning Go
-    Concurrency" slide.
-    
-    Chrome's commit and numbers:
-    http://src.chromium.org/viewvc/chrome?view=rev&revision=36230
-    
-    R=golang-dev, daniel.morsing, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7587043
+    https://golang.org/cl/7565043
 
- src/pkg/net/http/transport.go      | 78 ++++++++++++++++++++++++++++++++++----
- src/pkg/net/http/transport_test.go | 58 ++++++++++++++++++++++++++++
- 2 files changed, 128 insertions(+), 8 deletions(-)
+ src/pkg/net/multicast_posix_test.go | 180 -----------------------------------
+ src/pkg/net/multicast_test.go       | 184 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 184 insertions(+), 180 deletions(-)

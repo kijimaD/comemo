@@ -1,0 +1,17 @@
+commit 59493f32edb33181ededfe707e28190a095fe5a6
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Wed May 8 20:43:00 2024 +0300
+
+    internal/fuzz: fix names of noCopy methods
+    
+    Must be Lock/Unlock to be flagged by vet.
+    
+    Change-Id: I792ebd68b168621a660b9595b5d06a465d0d7bf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584355
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/fuzz/pcg.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

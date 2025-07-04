@@ -1,21 +1,28 @@
-commit ccf89bef43f3580526019e0804e91352e62047d5
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 7 11:32:43 2020 -0400
+commit 02057906f7272a4787b8a0b5b7cafff8ad3024f0
+Author: Kyle Nusbaum <kyle@datadog.com>
+Date:   Wed Mar 18 19:17:50 2020 +0000
 
-    cmd/compile: store call args in the call block
+    context: prevent creation of invalid contexts
     
-    We already do this for OpStore, but we didn't do this for OpMove.
-    Do the same, to ensure that no two memories are live at the same
-    time.
+    This commit makes it impossible to create derived contexts with nil parents.
+    Previously it was possible to create derived contexts with nil parents, and
+    invalid contexts could propogate through the program. Eventually this can
+    cause a panic downstream, which is difficult to trace back to the source
+    of the error.
     
-    Fixes #41846.
+    Although `WithCancel` and `WithDeadline` already panic if `parent` is `nil`, this adds explicit checks to give a useful message in the panic.
     
-    Change-Id: Iad77ff031b3c4459d1217e0b04aeb0e692eb474d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260237
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #37908
+    
+    Change-Id: I70fd01f6539c1b0da0e775fc5457e32e7075e52c
+    GitHub-Last-Rev: 1b7dadd7db9ba42952644ad5e9a49591d6a5191f
+    GitHub-Pull-Request: golang/go#37898
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223777
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/context/context.go      |  9 +++++++++
+ src/context/context_test.go | 15 +++++++++++++++
+ src/context/x_test.go       |  1 +
+ 3 files changed, 25 insertions(+)

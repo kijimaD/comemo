@@ -1,15 +1,25 @@
-commit a05c13206450322844dd67cdf2acac430338c7cd
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jul 9 17:33:58 2019 -0400
+commit 3de2fb21b7b4d472637f83031ec48e9bf539a4ee
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat Mar 2 13:07:54 2019 +0100
 
-    cmd/go/internal/modload: remove unused warnPattern function
+    misc/android: use adb exec-out instead of adb shell to avoid buffering
     
-    Change-Id: I6cf66870952d4c652912dd50a0b9af41bdc79dce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185346
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    According to
+    
+    https://stackoverflow.com/questions/46233200/stop-buffering-of-adb-shell-output
+    
+    the adb exec-out commands avoids the buffering inherent to adb shell.
+    
+    Let's see if using exec-out will fix the android builder flakyness where
+    exitcodes or output were sometimes missing.
+    
+    Updates #30512 (perhaps fixes it).
+    
+    Change-Id: Ib953ef0262b20730e0d4c332058d29c5066bfeb2
+    Reviewed-on: https://go-review.googlesource.com/c/164661
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/load.go | 10 ----------
- 1 file changed, 10 deletions(-)
+ misc/android/go_android_exec.go | 25 +++++++++++--------------
+ 1 file changed, 11 insertions(+), 14 deletions(-)

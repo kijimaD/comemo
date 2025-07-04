@@ -1,15 +1,22 @@
-commit ea1b90f855fe2891ff0f39d3a3f4b0a5f72a04ed
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 30 15:48:33 2016 -0500
+commit c28f55c50219f0191e453ea02d57c1f20434b561
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 4 13:00:21 2016 -0700
 
-    runtime: fix incorrect comment about bitvector layout
+    cmd/compile/internal/ssa: add Op.UsesScratch method
     
-    Commit 303b69fe packed bitvectors more tightly, but missed a comment
-    describing their old layout. Update that comment.
+    Passes toolstash/buildall.
     
-    Change-Id: I095ccb01f245197054252545f37b40605a550dec
-    Reviewed-on: https://go-review.googlesource.com/33718
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I928a2ef39fb10091957f35bb3f1564498f6f1b83
+    Reviewed-on: https://go-review.googlesource.com/30312
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/symtab.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go          | 10 +---
+ src/cmd/compile/internal/gc/ssa.go           |  3 ++
+ src/cmd/compile/internal/ssa/gen/386Ops.go   | 32 ++++++-------
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  4 +-
+ src/cmd/compile/internal/ssa/gen/main.go     |  6 +++
+ src/cmd/compile/internal/ssa/op.go           |  1 +
+ src/cmd/compile/internal/ssa/opGen.go        | 68 +++++++++++++++++-----------
+ 7 files changed, 71 insertions(+), 53 deletions(-)

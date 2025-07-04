@@ -1,20 +1,235 @@
-commit d97d37188a7e58250b2a655dc86dbf644637d034
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 25 14:43:53 2014 -0800
+commit 4a000b9d51b88346e01464f2cf8b8ab7eaa66063
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 25 17:00:08 2014 -0500
 
-    5g, 8g: remove dead code
+    all: nacl import round 2
     
-    maxstksize is superfluous and appears to be vestigial. 6g does not use it.
+    These previously reviewed CLs are present in this CL.
     
-    c >= 4 cannot occur; c = w % 4.
+    ---
+    changeset:   18445:436bb084caed
+    user:        Russ Cox <rsc@golang.org>
+    date:        Mon Nov 11 09:50:34 2013 -0500
+    description:
+    runtime: assembly and system calls for Native Client x86-64
     
-    LGTM=rsc
-    R=rsc
+    See golang.org/s/go13nacl for design overview.
+    
+    This CL is publicly visible but not CC'ed to golang-dev,
+    to avoid distracting from the preparation of the Go 1.2
+    release.
+    
+    This CL and the others will be checked into my rsc-go13nacl
+    clone repo for now, and I will send CLs against the main
+    repo early in the Go 1.3 development.
+    
+    R≡adg
+    https://golang.org/cl/15760044
+    
+    ---
+    changeset:   18448:90bd871b5994
+    user:        Russ Cox <rsc@golang.org>
+    date:        Mon Nov 11 09:51:36 2013 -0500
+    description:
+    runtime: amd64p32 and Native Client assembly bootstrap
+    
+    See golang.org/s/go13nacl for design overview.
+    
+    This CL is publicly visible but not CC'ed to golang-dev,
+    to avoid distracting from the preparation of the Go 1.2
+    release.
+    
+    This CL and the others will be checked into my rsc-go13nacl
+    clone repo for now, and I will send CLs against the main
+    repo early in the Go 1.3 development.
+    
+    R≡khr
+    https://golang.org/cl/15820043
+    
+    ---
+    changeset:   18449:b011c3dc687e
+    user:        Russ Cox <rsc@golang.org>
+    date:        Mon Nov 11 09:51:58 2013 -0500
+    description:
+    math: amd64p32 assembly routines
+    
+    These routines only manipulate float64 values,
+    so the amd64 and amd64p32 can share assembly.
+    
+    The large number of files is symptomatic of a problem
+    with package path: it is a Go package structured like a C library.
+    But that will need to wait for another day.
+    
+    See golang.org/s/go13nacl for design overview.
+    
+    This CL is publicly visible but not CC'ed to golang-dev,
+    to avoid distracting from the preparation of the Go 1.2
+    release.
+    
+    This CL and the others will be checked into my rsc-go13nacl
+    clone repo for now, and I will send CLs against the main
+    repo early in the Go 1.3 development.
+    
+    R≡bradfitz
+    https://golang.org/cl/15870043
+    
+    ---
+    changeset:   18450:43234f082eec
+    user:        Russ Cox <rsc@golang.org>
+    date:        Mon Nov 11 10:03:19 2013 -0500
+    description:
+    syscall: networking for Native Client
+    
+    See golang.org/s/go13nacl for design overview.
+    
+    This CL is publicly visible but not CC'ed to golang-dev,
+    to avoid distracting from the preparation of the Go 1.2
+    release.
+    
+    This CL and the others will be checked into my rsc-go13nacl
+    clone repo for now, and I will send CLs against the main
+    repo early in the Go 1.3 development.
+    
+    R≡rsc
+    https://golang.org/cl/15780043
+    
+    ---
+    changeset:   18451:9c8d1d890aaa
+    user:        Russ Cox <rsc@golang.org>
+    date:        Mon Nov 11 10:03:34 2013 -0500
+    description:
+    runtime: assembly and system calls for Native Client x86-32
+    
+    See golang.org/s/go13nacl for design overview.
+    
+    This CL is publicly visible but not CC'ed to golang-dev,
+    to avoid distracting from the preparation of the Go 1.2
+    release.
+    
+    This CL and the others will be checked into my rsc-go13nacl
+    clone repo for now, and I will send CLs against the main
+    repo early in the Go 1.3 development.
+    
+    R≡rsc
+    https://golang.org/cl/15800043
+    
+    ---
+    changeset:   18452:f90b1dd9228f
+    user:        Russ Cox <rsc@golang.org>
+    date:        Mon Nov 11 11:04:09 2013 -0500
+    description:
+    runtime: fix frame size for linux/amd64 runtime.raise
+    
+    R≡rsc
+    https://golang.org/cl/24480043
+    
+    ---
+    changeset:   18445:436bb084caed
+    user:        Russ Cox <rsc@golang.org>
+    date:        Mon Nov 11 09:50:34 2013 -0500
+    description:
+    runtime: assembly and system calls for Native Client x86-64
+    
+    See golang.org/s/go13nacl for design overview.
+    
+    This CL is publicly visible but not CC'ed to golang-dev,
+    to avoid distracting from the preparation of the Go 1.2
+    release.
+    
+    This CL and the others will be checked into my rsc-go13nacl
+    clone repo for now, and I will send CLs against the main
+    repo early in the Go 1.3 development.
+    
+    R≡adg
+    https://golang.org/cl/15760044
+    
+    ---
+    changeset:   18455:53b06799a938
+    user:        Russ Cox <rsc@golang.org>
+    date:        Mon Nov 11 23:29:52 2013 -0500
+    description:
+    cmd/gc: add -nolocalimports flag
+    
+    R≡dsymonds
+    https://golang.org/cl/24990043
+    
+    ---
+    changeset:   18456:24f64e1eaa8a
+    user:        Russ Cox <rsc@golang.org>
+    date:        Tue Nov 12 22:06:29 2013 -0500
+    description:
+    runtime: add comments for playback write
+    
+    R≡adg
+    https://golang.org/cl/25190043
+    
+    ---
+    changeset:   18457:d1f615bbb6e4
+    user:        Russ Cox <rsc@golang.org>
+    date:        Wed Nov 13 17:03:52 2013 -0500
+    description:
+    runtime: write only to NaCl stdout, never to NaCl stderr
+    
+    NaCl writes some other messages on standard error
+    that we would like to be able to squelch.
+    
+    R≡adg
+    https://golang.org/cl/26240044
+    
+    ---
+    changeset:   18458:1f01be1a1dc2
+    tag:         tip
+    user:        Russ Cox <rsc@golang.org>
+    date:        Wed Nov 13 19:45:16 2013 -0500
+    description:
+    runtime: remove apparent debugging dreg
+    
+    Setting timens to 0 turns off fake time.
+    
+    TBR≡adg
+    https://golang.org/cl/26400043
+    
+    LGTM=bradfitz
+    R=dave, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/68750043
+    https://golang.org/cl/68730043
 
- src/cmd/5g/gg.h   |  1 -
- src/cmd/5g/ggen.c |  5 +----
- src/cmd/8g/gg.h   |  1 -
- src/cmd/8g/ggen.c | 10 +---------
- 4 files changed, 2 insertions(+), 15 deletions(-)
+ src/cmd/gc/go.h                                    |    1 +
+ src/cmd/gc/lex.c                                   |    3 +-
+ src/pkg/math/abs_amd64p32.s                        |    5 +
+ src/pkg/math/asin_amd64p32.s                       |    5 +
+ src/pkg/math/atan2_amd64p32.s                      |    5 +
+ src/pkg/math/atan_amd64p32.s                       |    5 +
+ src/pkg/math/big/arith_amd64p32.s                  |   41 +
+ src/pkg/math/dim_amd64p32.s                        |    5 +
+ src/pkg/math/exp2_amd64p32.s                       |    5 +
+ src/pkg/math/exp_amd64p32.s                        |    5 +
+ src/pkg/math/expm1_amd64p32.s                      |    5 +
+ src/pkg/math/floor_amd64p32.s                      |    5 +
+ src/pkg/math/frexp_amd64p32.s                      |    5 +
+ src/pkg/math/hypot_amd64p32.s                      |    5 +
+ src/pkg/math/ldexp_amd64p32.s                      |    5 +
+ src/pkg/math/log10_amd64p32.s                      |    5 +
+ src/pkg/math/log1p_amd64p32.s                      |    5 +
+ src/pkg/math/log_amd64p32.s                        |    5 +
+ src/pkg/math/mod_amd64p32.s                        |    5 +
+ src/pkg/math/modf_amd64p32.s                       |    5 +
+ src/pkg/math/remainder_amd64p32.s                  |    5 +
+ src/pkg/math/sin_amd64p32.s                        |    5 +
+ src/pkg/math/sincos_amd64p32.s                     |    5 +
+ src/pkg/math/sqrt_amd64p32.s                       |    5 +
+ src/pkg/math/tan_amd64p32.s                        |    5 +
+ src/pkg/runtime/asm_386.s                          |    5 +-
+ src/pkg/runtime/asm_amd64p32.s                     | 1026 ++++++++++++++++++++
+ .../runtime/{atomic_amd64.c => atomic_amd64x.c}    |    2 +
+ src/pkg/runtime/cgo/asm_nacl_amd64p32.s            |   13 +
+ src/pkg/runtime/defs_nacl_386.h                    |   63 ++
+ src/pkg/runtime/defs_nacl_amd64p32.h               |   90 ++
+ src/pkg/runtime/memmove_nacl_amd64p32.s            |   46 +
+ src/pkg/runtime/rt0_nacl_386.s                     |   22 +
+ src/pkg/runtime/rt0_nacl_amd64p32.s                |   30 +
+ src/pkg/runtime/sys_linux_amd64.s                  |    2 +-
+ src/pkg/runtime/sys_nacl_386.s                     |  232 +++++
+ src/pkg/runtime/sys_nacl_amd64p32.s                |  413 ++++++++
+ src/pkg/syscall/net_nacl.go                        |  888 +++++++++++++++++
+ 38 files changed, 2983 insertions(+), 4 deletions(-)

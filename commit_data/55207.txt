@@ -1,17 +1,37 @@
-commit ba519019d2f39df29060eec104b47c7c9ea720b2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 4 11:38:50 2023 -0800
+commit 5c67ebbb31a296ca1593d0229b1d51d5ac73aa6d
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sun Nov 6 06:37:13 2022 +0100
 
-    doc: add release note for changes to go/types/SizesFor
+    cmd/compile: AMD64v3 remove unnecessary TEST comparision in isPowerOfTwo
     
-    For #61035.
+    With GOAMD64=V3 the canonical isPowerOfTwo function:
+      func isPowerOfTwo(x uintptr) bool {
+        return x&(x-1) == 0
+      }
     
-    Change-Id: I27e2c44f9275b508d9dccc50da80896384a4c8fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546837
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Used to compile to:
+      temp := BLSR(x) // x&(x-1)
+      flags = TEST(temp, temp)
+      return flags.zf
+    
+    However the blsr instruction already set ZF according to the result.
+    So we can remove the TEST instruction if we are just checking ZF.
+    Such as in multiple pieces of code around memory allocations.
+    
+    This make the code smaller and faster.
+    
+    Change-Id: Ia12d5a73aa3cb49188c0b647b1eff7b56c5a7b58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448255
+    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/go1.22.html | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go         |   7 +-
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules |  17 +-
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go |  16 +-
+ src/cmd/compile/internal/ssa/opGen.go         |  16 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 452 +++++++++++++++++++++++++-
+ test/codegen/bmi.go                           | 104 ++++++
+ 6 files changed, 583 insertions(+), 29 deletions(-)

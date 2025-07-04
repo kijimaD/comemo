@@ -1,26 +1,15 @@
-commit c02b8911d84662ff6d0745acba6f2fcb79cc5cd1
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 21 14:12:29 2015 -0400
+commit 4f38ef811f0aedb7d61932caff43695ddc4f9c89
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 29 17:16:21 2015 +0900
 
-    runtime: clean up signalstack API
+    net: add missing Close tests
     
-    Currently signalstack takes a lower limit and a length and all calls
-    hard-code the passed length. Change the API to take a *stack and
-    compute the lower limit and length from the passed stack.
+    This change adds missing CloseRead test and Close tests on Conn,
+    Listener and PacketConn with various networks.
     
-    This will make it easier for the runtime to steal some space from the
-    top of the stack since it eliminates the hard-coded stack sizes.
-    
-    Change-Id: I7d2a9f45894b221f4e521628c2165530bbc57d53
-    Reviewed-on: https://go-review.googlesource.com/10311
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iadf99eaf526a323f853d203edc7c8d0577f67972
+    Reviewed-on: https://go-review.googlesource.com/9469
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os1_darwin.go    | 15 ++++++++-------
- src/runtime/os1_dragonfly.go | 15 ++++++++-------
- src/runtime/os1_freebsd.go   | 15 ++++++++-------
- src/runtime/os1_linux.go     | 15 ++++++++-------
- src/runtime/os1_netbsd.go    | 16 ++++++++--------
- src/runtime/os1_openbsd.go   | 16 ++++++++--------
- src/runtime/os3_solaris.go   | 15 ++++++++-------
- 7 files changed, 56 insertions(+), 51 deletions(-)
+ src/net/net_test.go | 380 +++++++++++++++++++++++++++-------------------------
+ 1 file changed, 201 insertions(+), 179 deletions(-)

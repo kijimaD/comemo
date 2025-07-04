@@ -1,23 +1,43 @@
-commit e66f895667cd51d0d28c42d369a803c12db8bb35
-Author: Alex Brachet <abrachet@google.com>
-Date:   Thu May 19 16:58:46 2022 +0000
+commit e4cfa2f6dad8c73e98a4149948ded424df9c8501
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 9 10:53:43 2021 -0700
 
-    cmd/cgo: allow DW_TAG_variable's with no name
+    [dev.typeparams] cmd/compile/internal/types2: parameterized functions must have a body
     
-    https://reviews.llvm.org/D123534 is emitting DW_TAG_variable's
-    that don't have a DW_AT_name. This is allowed in the DWARF
-    standard. It is adding DIE's for string literals for better
-    symbolization on buffer overlows etc on these strings. They
-    no associated name because they are not user provided variables.
+    Add the respective check and add missing bodies to tests.
+    Use {} as body for functions that don't return a result.
+    Use { panic(0) } as body for functions that return a result.
     
-    Fixes #53000
+    For #47069.
     
-    Change-Id: I2cf063160508687067c7672cef0517bccd707d7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406816
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia5d7525c9c036baf8a955d13bff448401e08235e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340911
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/cgo/gcc.go | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/api_test.go        | 44 +++++++++++-----------
+ src/cmd/compile/internal/types2/decl.go            |  4 ++
+ .../internal/types2/testdata/check/issues.go2      |  6 +--
+ .../internal/types2/testdata/check/map2.go2        |  2 +-
+ .../internal/types2/testdata/check/mtypeparams.go2 |  2 +-
+ .../internal/types2/testdata/check/tinference.go2  |  8 ++--
+ .../internal/types2/testdata/check/typeinst2.go2   | 14 +++----
+ .../internal/types2/testdata/check/typeparams.go2  | 42 ++++++++++-----------
+ .../types2/testdata/examples/functions.go2         | 28 ++++++++------
+ .../types2/testdata/examples/inference.go2         |  8 ++--
+ .../internal/types2/testdata/examples/types.go2    | 14 +++----
+ .../types2/testdata/fixedbugs/issue39634.go2       |  6 +--
+ .../types2/testdata/fixedbugs/issue39723.go2       |  2 +-
+ .../types2/testdata/fixedbugs/issue39725.go2       |  4 +-
+ .../types2/testdata/fixedbugs/issue39976.go2       |  2 +-
+ .../types2/testdata/fixedbugs/issue40038.go2       |  2 +-
+ .../types2/testdata/fixedbugs/issue40056.go2       |  2 +-
+ .../types2/testdata/fixedbugs/issue40684.go2       |  4 +-
+ .../types2/testdata/fixedbugs/issue41124.go2       |  4 +-
+ .../types2/testdata/fixedbugs/issue47127.go2       | 10 ++---
+ .../types2/testdata/fixedbugs/issue47411.go2       |  4 +-
+ test/typeparam/smoketest.go                        |  6 +--
+ test/typeparam/tparam1.go                          | 14 +++----
+ test/typeparam/typelist.go                         |  8 ++--
+ 24 files changed, 124 insertions(+), 116 deletions(-)

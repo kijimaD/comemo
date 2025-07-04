@@ -1,42 +1,26 @@
-commit f6591839727e09cc5cb11d08b333fd2386e8aa1b
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Nov 15 13:50:39 2021 -0500
+commit 4357f71ca7ecd3869e2e0805ee4d6cd275a71a7c
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 23 15:51:29 2021 -0400
 
-    os/exec: avoid NewFile on unknown FDs
+    cmd/compile: remove more dead code and data structures
     
-    exec_test.go's init function uses os.NewFile(fd) + f.Stat as a portable
-    mechanism to determine if an FD is in use.
+    Remove more now-redundant code, methods, and types
+    associated with transition to register ABI.
+    Repaired some broken comments.
     
-    Unfortunately, the current use is racy: if an unused FD becomes used
-    between NewFile and f.Close, then we will unintentionally close an FD we
-    do not use.
+    Tested on link-register architectures (arm64, ppc64le)
     
-    We cannot simply drop Close, as the finalizer will close the FD. We
-    could hold all of the os.Files in a global for the lifetime of the
-    process, but the need for such a hack is indicative of the larger
-    problem: we should not create an os.File for an FD that we do not own.
+    Updates #40724.
     
-    Instead, the new fdtest.Exists provides a helper that performs the
-    equivalent of fstat(2) on each OS to determine if the FD is valid,
-    without using os.File.
-    
-    We also reuse this helper on a variety of other tests that look at open
-    FDs.
-    
-    Fixes #49533
-    
-    Change-Id: I36e2bdb15f271ab01e55c18db6564271995a15af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364035
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie8433f6d38ec4a1d9705f22dcb596f267d81f203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304189
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/build/deps_test.go                     |   3 +
- src/os/exec/exec_test.go                      | 132 ++++----------------------
- src/os/exec/internal/fdtest/exists_js.go      |  18 ++++
- src/os/exec/internal/fdtest/exists_plan9.go   |  20 ++++
- src/os/exec/internal/fdtest/exists_test.go    |  21 ++++
- src/os/exec/internal/fdtest/exists_unix.go    |  19 ++++
- src/os/exec/internal/fdtest/exists_windows.go |  12 +++
- src/os/exec/read3.go                          |  92 ++++++++----------
- 8 files changed, 154 insertions(+), 163 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go     | 15 ++----------
+ src/cmd/compile/internal/ssa/op.go           | 19 +--------------
+ src/cmd/compile/internal/ssa/writebarrier.go |  4 ----
+ src/cmd/compile/internal/ssagen/ssa.go       | 36 +---------------------------
+ 4 files changed, 4 insertions(+), 70 deletions(-)

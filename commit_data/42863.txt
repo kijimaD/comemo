@@ -1,19 +1,15 @@
-commit 3b6c812f3defa90bfd7dbddf24bc6135adc5a7eb
-Author: Santiago De la Cruz <51337247+xhit@users.noreply.github.com>
-Date:   Thu Aug 27 04:00:59 2020 +0000
+commit ec4c9db21015cf53661661b95b19110ed71dd49d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Feb 21 11:48:13 2020 +0100
 
-    doc: add linux/riscv64 valid combination
+    hash/maphash: add package-level example
     
-    Mention valid combination GOOS=linux and GOARCH=riscv64
-    in the "Installing Go from source" document.
-    
-    Updates #27532
-    
-    Change-Id: I8c1406087132f5c82a2eee5dbcda95d53c64d263
-    GitHub-Last-Rev: ee74ff9517bd428b75400956d5b7f774ff800ae5
-    GitHub-Pull-Request: golang/go#41063
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250997
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I05c7ca644410822a527e94a7a8b883a0f8b0a4ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220420
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- doc/install-source.html | 3 +++
- 1 file changed, 3 insertions(+)
+ src/hash/maphash/example_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

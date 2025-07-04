@@ -1,17 +1,24 @@
-commit fda1dc2939a245cae354fbac68a5c47d7b152c87
-Author: Shubham Sharma <shubham.sha12@gmail.com>
-Date:   Mon Mar 11 11:39:25 2019 +0530
+commit 75a0b9dbf37117d6bfcc9dacf89f817954f3aeb7
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 16:44:30 2018 +0200
 
-    cmd/go: document GOGCCFLAGS
+    cmd: add DWARF64 support for aix port
     
-    Fixes #30123
+    This commit adds support for DWARF 64bits which is needed for AIX
+    operating system.
     
-    Change-Id: I310b89a344a262bb758d39dfdd485ed2940cc6aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166577
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    It also adds the save of each compilation unit's size which will be
+    used during XCOFF generation in a following patch.
+    
+    Updates: #25893
+    
+    Change-Id: Icdd0a4dd02bc0a9f0df319c351fb1db944610015
+    Reviewed-on: https://go-review.googlesource.com/c/138729
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go               | 2 ++
- src/cmd/go/internal/help/helpdoc.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/internal/dwarf/dwarf.go   |   6 +-
+ src/cmd/internal/obj/objfile.go   |  11 +++-
+ src/cmd/link/internal/ld/dwarf.go | 131 ++++++++++++++++++++++++++++++++------
+ 3 files changed, 123 insertions(+), 25 deletions(-)

@@ -1,25 +1,33 @@
-commit 5be33e95437d72f5ece5f7d5cc6f9773030e024e
+commit db33959797ad8ef1e86725db62aafb40297ea725
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 22:20:20 2011 -0700
+Date:   Tue Oct 25 22:20:02 2011 -0700
 
-    godoc, exp/ebnf, exp/types, go/scanner, scanner: use rune
+    cgo, goyacc, go/build, html, http, path, path/filepath, testing/quick, test: use rune
     
-    API question: is a scanner token an int or a rune?
+    Nothing terribly interesting here.
     
-    Since the rune is the common case and the token values
-    are the special (negative) case, I chose rune.  But it could
-    easily go the other way.
-    
-    R=gri
+    R=golang-dev, bradfitz, gri, r
     CC=golang-dev
-    https://golang.org/cl/5301049
+    https://golang.org/cl/5300043
 
- src/cmd/godoc/dirtrees.go       |  2 +-
- src/cmd/godoc/spec.go           |  4 ++--
- src/pkg/exp/ebnf/ebnf.go        |  2 +-
- src/pkg/exp/ebnf/parser.go      |  4 ++--
- src/pkg/exp/types/gcimporter.go | 10 ++++-----
- src/pkg/go/scanner/scanner.go   | 22 ++++++++++----------
- src/pkg/scanner/scanner.go      | 46 ++++++++++++++++++++---------------------
- src/pkg/scanner/scanner_test.go | 12 +++++------
- 8 files changed, 51 insertions(+), 51 deletions(-)
+ src/cmd/cgo/gcc.go                 | 20 +++++++++---------
+ src/cmd/cgo/util.go                |  2 +-
+ src/cmd/goyacc/goyacc.go           | 43 +++++++++++++++++++-------------------
+ src/pkg/go/build/dir.go            |  4 ++--
+ src/pkg/html/entity.go             |  4 ++--
+ src/pkg/html/escape.go             | 12 +++++------
+ src/pkg/http/cgi/host.go           | 12 +++++------
+ src/pkg/path/filepath/match.go     |  4 ++--
+ src/pkg/path/match.go              |  4 ++--
+ src/pkg/syscall/exec_windows.go    |  4 ++--
+ src/pkg/syscall/syscall_windows.go |  2 +-
+ src/pkg/testing/quick/quick.go     |  4 ++--
+ test/convlit.go                    | 12 +++++------
+ test/fixedbugs/bug204.go           | 16 +++++++-------
+ test/ken/string.go                 |  2 +-
+ test/range.go                      |  4 ++--
+ test/solitaire.go                  |  7 +------
+ test/string_lit.go                 | 22 +++++++++----------
+ test/stringrange.go                | 13 ++++++------
+ test/utf.go                        | 30 +++++++++++++++++---------
+ 20 files changed, 114 insertions(+), 107 deletions(-)

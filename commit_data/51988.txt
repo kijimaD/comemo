@@ -1,40 +1,24 @@
-commit 712c009cf90ad9365f70356fff7bc41323b6fdf0
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Mon Feb 13 01:48:57 2023 +0100
+commit 2d34af0fd6c6cb214c3a5a8f11ef95854667dd92
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 30 08:55:22 2022 +0700
 
-    crypto/internal/edwards25519: reduce Point size by reordering fields
+    cmd/compile/internal/walk: fix wrong soleComponent implementation
     
-    Updates #58483
+    CL 367755 added soleComponent for handling 1-byte type interface conversion.
+    This implementation must be kept in sync with Type.SoleComponent, but it
+    does not. When seeing a blank field in struct, we must continue looking
+    at the field type to find sole component, if any. The current code just
+    terminate immediately, which causes wrong sole component type returned.
     
-    Tested on Linux amd64:
-      type Element struct {
-        l0, l1, l2, l3, l4 uint64
-      }
+    Fixes #52020
     
-      type PointAfter struct {
-        x, y, z, t Element
-        _          incomparable
-      }
-    
-      type PointBefore struct {
-        _          incomparable
-        x, y, z, t Element
-      }
-    
-      type incomparable [0]func()
-    
-      func main() {
-        fmt.Println(unsafe.Sizeof(PointAfter{})) // 168
-        fmt.Println(unsafe.Sizeof(PointBefore{})) // 160
-      }
-    
-    Change-Id: I6c4fcb586bbf3febf62b6e54608496ff81685e43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467616
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I4f506fe094fa7c5532de23467a4f9139476bb0a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396614
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/internal/edwards25519/edwards25519.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/walk/convert.go |  2 +-
+ test/fixedbugs/issue52020.go             | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

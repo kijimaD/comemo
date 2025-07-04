@@ -1,26 +1,19 @@
-commit bd8a88729c7ff12725834c4411ffe5d4b337d5de
-Author: Wei Xiao <wei.xiao@arm.com>
-Date:   Wed Apr 25 08:38:09 2018 +0000
+commit 484586c81a0196e42ac52f651bc56017ca454280
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 9 18:08:43 2018 +0000
 
-    cmd/compile: intrinsify runtime.getcallerpc on arm64
+    strings: prevent copyCheck from forcing Builder to escape and allocate
     
-    Add a compiler intrinsic for getcallerpc on arm64 for better code generation.
+    All credit and blame goes to Ian for this suggestion, copied from the
+    runtime.
     
-    Change-Id: I897e670a2b8ffa1a8c2fdc638f5b2c44bda26318
-    Reviewed-on: https://go-review.googlesource.com/109276
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #23382
+    Updates #7921
+    
+    Change-Id: I3d5a9ee4ab730c87e0f3feff3e7fceff9bcf9e18
+    Reviewed-on: https://go-review.googlesource.com/86976
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/asm.go              |  2 +-
- src/cmd/compile/internal/arm64/ssa.go        |  4 ++++
- src/cmd/compile/internal/gc/ssa.go           |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  1 +
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  6 ++++++
- src/cmd/compile/internal/ssa/opGen.go        | 11 +++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 11 +++++++++++
- src/cmd/internal/obj/arm64/obj7.go           | 13 +++++++++++++
- src/cmd/internal/obj/link.go                 |  1 +
- src/cmd/internal/obj/util.go                 |  1 +
- src/runtime/asm_arm64.s                      |  5 -----
- 11 files changed, 50 insertions(+), 7 deletions(-)
+ src/strings/builder.go      | 19 ++++++++++++++++++-
+ src/strings/builder_test.go | 12 ++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

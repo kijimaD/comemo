@@ -1,31 +1,23 @@
-commit 49d24d469eb4ecbbf5a77d905ca2bd1da0e18bbd
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Nov 12 17:16:10 2024 +0100
+commit eb832afb2310b71db420943d91625552748ae5e6
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 11 17:28:02 2023 -0400
 
-    os: add Root.Remove
+    cmd/compiler: make decompose shortcuts apply for PtrShaped, not just Ptr
     
-    For #67002
+    The immediate-data interface shortcuts also apply to pointer-shaped
+    things like maps, channels, and functions.
     
-    Change-Id: Ibbf44c0bf62f53695a7399ba0dae5b84d5efd374
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627076
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #63505.
+    
+    Change-Id: I43982441bf523f53e9e5d183e95aea7c6655dd6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534657
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- api/next/67002.txt                               |  1 +
- src/internal/syscall/unix/at_wasip1.go           | 26 +++++++
- src/internal/syscall/windows/at_windows.go       | 70 ++++++++++++++++++
- src/internal/syscall/windows/syscall_windows.go  |  4 ++
- src/internal/syscall/windows/types_windows.go    | 20 ++++++
- src/internal/syscall/windows/zsyscall_windows.go | 18 +++++
- src/os/os_test.go                                | 20 ++++++
- src/os/root.go                                   |  6 ++
- src/os/root_js.go                                | 21 ++++++
- src/os/root_noopenat.go                          | 10 +++
- src/os/root_openat.go                            | 10 +++
- src/os/root_plan9.go                             |  4 ++
- src/os/root_test.go                              | 92 ++++++++++++++++++++++--
- src/os/root_unix.go                              | 22 ++++++
- src/os/root_windows.go                           |  4 ++
- src/os/root_windows_test.go                      |  7 ++
- 16 files changed, 331 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/dec.rules |  8 ++---
+ src/cmd/compile/internal/ssa/rewritedec.go  | 16 +++++-----
+ test/fixedbugs/issue63505.go                | 45 +++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+), 12 deletions(-)

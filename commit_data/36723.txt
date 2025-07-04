@@ -1,52 +1,46 @@
-commit 4039be00a9e77bd4080ac657a940472341fa088f
-Author: Ian Davis <nospam@iandavis.com>
-Date:   Sat Sep 22 14:23:38 2018 +0100
+commit f045ddc624dea292257249a618e4ad1bd2bd5c6e
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Jan 26 12:14:27 2018 +0100
 
-    image: add benchmarks for At and Set methods
+    internal/cpu: add experiment to disable CPU features with GODEBUGCPU
     
-    Added in preparation for looking at some optimizations around bounds
-    checks.
+    Needs the go compiler to be build with GOEXPERIMENT=debugcpu to be active.
     
-    BenchmarkAt/rgba-8            100000000     18.5 ns/op      4 B/op   1 allocs/op
-    BenchmarkAt/rgba64-8          100000000     22.9 ns/op      8 B/op   1 allocs/op
-    BenchmarkAt/nrgba-8           100000000     18.8 ns/op      4 B/op   1 allocs/op
-    BenchmarkAt/nrgba64-8         100000000     22.1 ns/op      8 B/op   1 allocs/op
-    BenchmarkAt/alpha-8           100000000     14.6 ns/op      1 B/op   1 allocs/op
-    BenchmarkAt/alpha16-8         200000000     6.46 ns/op      0 B/op   0 allocs/op
-    BenchmarkAt/gray-8            100000000     14.3 ns/op      1 B/op   1 allocs/op
-    BenchmarkAt/gray16-8          200000000     6.45 ns/op      0 B/op   0 allocs/op
-    BenchmarkAt/paletted-8        300000000     4.28 ns/op      0 B/op   0 allocs/op
-    BenchmarkSet/rgba-8           50000000      39.2 ns/op      8 B/op   2 allocs/op
-    BenchmarkSet/rgba64-8         30000000      45.8 ns/op     16 B/op   2 allocs/op
-    BenchmarkSet/nrgba-8          50000000      39.3 ns/op      8 B/op   2 allocs/op
-    BenchmarkSet/nrgba64-8        30000000      45.6 ns/op     16 B/op   2 allocs/op
-    BenchmarkSet/alpha-8          50000000      34.5 ns/op      2 B/op   2 allocs/op
-    BenchmarkSet/alpha16-8        50000000      34.9 ns/op      4 B/op   2 allocs/op
-    BenchmarkSet/gray-8           100000000     20.3 ns/op      1 B/op   1 allocs/op
-    BenchmarkSet/gray16-8         50000000      36.2 ns/op      4 B/op   2 allocs/op
-    BenchmarkSet/paletted-8       50000000      39.5 ns/op      1 B/op   1 allocs/op
-    BenchmarkRGBAAt-8             500000000     3.74 ns/op
-    BenchmarkRGBASetRGBA-8        300000000     4.33 ns/op
-    BenchmarkRGBA64At-8           300000000     5.06 ns/op
-    BenchmarkRGBA64SetRGBA64-8    200000000     6.61 ns/op
-    BenchmarkNRGBAAt-8            500000000     3.69 ns/op
-    BenchmarkNRGBASetNRGBA-8      300000000     4.06 ns/op
-    BenchmarkNRGBA64At-8          300000000     4.98 ns/op
-    BenchmarkNRGBA64SetNRGBA64-8  200000000     6.62 ns/op
-    BenchmarkAlphaAt-8            2000000000    1.43 ns/op
-    BenchmarkAlphaSetAlpha-8      2000000000    1.55 ns/op
-    BenchmarkAlpha16At-8          1000000000    2.87 ns/op
-    BenchmarkAlphaSetAlpha16-8    500000000     3.27 ns/op
-    BenchmarkGrayAt-8             2000000000    1.43 ns/op
-    BenchmarkGraySetGray-8        2000000000    1.55 ns/op
-    BenchmarkGray16At-8           1000000000    2.87 ns/op
-    BenchmarkGraySetGray16-8      500000000     3.14 ns/op
+    The GODEBUGCPU environment variable can be used to disable usage of
+    specific processor features in the Go standard library.
+    This is useful for testing and benchmarking different code paths that
+    are guarded by internal/cpu variable checks.
     
-    Updates #14884
+    Use of processor features can not be enabled through GODEBUGCPU.
     
-    Change-Id: I349fb214ee75f13ecbc62ac22a40e3b337648f60
-    Reviewed-on: https://go-review.googlesource.com/136796
+    To disable usage of AVX and SSE41 cpu features on GOARCH amd64 use:
+    GODEBUGCPU=avx=0,sse41=0
+    
+    The special "all" option can be used to disable all options:
+    GODEBUGCPU=all=0
+    
+    Updates #12805
+    Updates #15403
+    
+    Change-Id: I699c2e6f74d98472b6fb4b1e5ffbf29b15697aab
+    Reviewed-on: https://go-review.googlesource.com/91737
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/image/image_test.go | 210 ++++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 195 insertions(+), 15 deletions(-)
+ src/cmd/internal/objabi/util.go     |  2 +
+ src/internal/cpu/cpu.go             | 78 ++++++++++++++++++++++++++++++++++--
+ src/internal/cpu/cpu_386.go         |  7 ++++
+ src/internal/cpu/cpu_amd64.go       |  7 ++++
+ src/internal/cpu/cpu_amd64p32.go    |  7 ++++
+ src/internal/cpu/cpu_arm64.go       | 29 ++++++++++++++
+ src/internal/cpu/cpu_arm64_test.go  | 26 ++++++++++++
+ src/internal/cpu/cpu_no_init.go     |  2 +
+ src/internal/cpu/cpu_ppc64x.go      | 16 +++++++-
+ src/internal/cpu/cpu_ppc64x_test.go | 34 ++++++++++++++++
+ src/internal/cpu/cpu_test.go        | 80 +++++++++++++++----------------------
+ src/internal/cpu/cpu_x86.go         | 25 ++++++++++++
+ src/internal/cpu/cpu_x86_test.go    | 47 ++++++++++++++++++++++
+ src/internal/cpu/export_test.go     | 10 +++++
+ src/runtime/proc.go                 | 46 ++++++++++++++++++---
+ 15 files changed, 358 insertions(+), 58 deletions(-)

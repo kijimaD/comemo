@@ -1,134 +1,50 @@
-commit 1c0d1f4e975eb864e36b18e63bcb8cdedbdfc51b
-Author: erifan01 <eric.fang@arm.com>
-Date:   Mon Oct 19 11:20:24 2020 +0800
+commit 1dbcbcfca4692f67db7de2c1ff6a5ee59511cfa4
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu Dec 19 08:15:06 2019 +0000
 
-    cmd/compile: optimize regalloc for phi value
+    cmd/asm: align an instruction or a function's address
     
-    When allocating registers for phi value, only the primary predecessor is considered.
-    Taking into account the allocation status of other predecessors can help reduce
-    unnecessary copy or spill operations. Many such cases can be found in the standard
-    library, such as runtime.wirep, moveByType, etc. The test results from benchstat
-    also show that this change helps reduce the file size.
+    Recently, the gVisor project needs an instruction's address
+    with 128 bytes alignment to fit the architecture requirement
+    for interrupt table.
     
-    name                      old time/op       new time/op       delta
-    Template                        328ms ± 5%        326ms ± 4%    ~     (p=0.254 n=50+47)
-    Unicode                         156ms ± 7%        158ms ±10%    ~     (p=0.412 n=49+49)
-    GoTypes                         1.07s ± 3%        1.07s ± 2%    ~     (p=0.664 n=48+49)
-    Compiler                        4.43s ± 3%        4.44s ± 3%    ~     (p=0.758 n=48+50)
-    SSA                             10.3s ± 2%        10.4s ± 2%  +0.43%  (p=0.017 n=50+46)
-    Flate                           208ms ± 9%        209ms ± 7%    ~     (p=0.920 n=49+46)
-    GoParser                        260ms ± 5%        262ms ± 4%    ~     (p=0.063 n=50+48)
-    Reflect                         687ms ± 3%        685ms ± 2%    ~     (p=0.459 n=50+48)
-    Tar                             293ms ± 4%        293ms ± 5%    ~     (p=0.695 n=49+48)
-    XML                             391ms ± 4%        389ms ± 3%    ~     (p=0.109 n=49+46)
-    LinkCompiler                    570ms ± 5%        563ms ± 5%  -1.10%  (p=0.006 n=46+47)
-    ExternalLinkCompiler            1.57s ± 3%        1.56s ± 3%    ~     (p=0.118 n=47+46)
-    LinkWithoutDebugCompiler        349ms ± 6%        349ms ± 5%    ~     (p=0.726 n=49+47)
-    [Geo mean]                      645ms             645ms       -0.05%
+    This patch allows aligning an instruction's address to be
+    aligned to a specific value (2^n and in the range [8, 2048])
     
-    name                      old user-time/op  new user-time/op  delta
-    Template                        507ms ±14%        513ms ±14%    ~     (p=0.398 n=48+49)
-    Unicode                         345ms ±29%        345ms ±38%    ~     (p=0.521 n=47+49)
-    GoTypes                         1.95s ±16%        1.94s ±19%    ~     (p=0.324 n=50+50)
-    Compiler                        8.26s ±16%        8.22s ±14%    ~     (p=0.834 n=50+50)
-    SSA                             19.6s ± 8%        19.2s ±15%    ~     (p=0.056 n=50+50)
-    Flate                           293ms ± 9%        299ms ±12%    ~     (p=0.057 n=47+50)
-    GoParser                        388ms ± 9%        387ms ±14%    ~     (p=0.660 n=46+50)
-    Reflect                         1.15s ±28%        1.12s ±18%    ~     (p=0.648 n=49+48)
-    Tar                             456ms ±10%        476ms ±15%  +4.48%  (p=0.001 n=46+48)
-    XML                             648ms ±27%        634ms ±16%    ~     (p=0.685 n=50+46)
-    LinkCompiler                    1.00s ± 8%        1.00s ± 8%    ~     (p=0.638 n=50+50)
-    ExternalLinkCompiler            1.96s ± 5%        1.96s ± 5%    ~     (p=0.792 n=50+50)
-    LinkWithoutDebugCompiler        443ms ±10%        442ms ±11%    ~     (p=0.813 n=50+50)
-    [Geo mean]                      1.05s             1.05s       -0.09%
+    The main changes include:
     
-    name                      old alloc/op      new alloc/op      delta
-    Template                       36.0MB ± 0%       36.0MB ± 0%    ~     (p=0.599 n=49+50)
-    Unicode                        29.8MB ± 0%       29.8MB ± 0%    ~     (p=0.739 n=50+50)
-    GoTypes                         118MB ± 0%        118MB ± 0%    ~     (p=0.436 n=50+50)
-    Compiler                        562MB ± 0%        562MB ± 0%    ~     (p=0.693 n=50+50)
-    SSA                            1.42GB ± 0%       1.42GB ± 0%  -0.10%  (p=0.000 n=50+49)
-    Flate                          22.5MB ± 0%       22.5MB ± 0%    ~     (p=0.429 n=48+49)
-    GoParser                       27.7MB ± 0%       27.7MB ± 0%    ~     (p=0.705 n=49+48)
-    Reflect                        77.7MB ± 0%       77.7MB ± 0%  -0.01%  (p=0.043 n=50+50)
-    Tar                            33.8MB ± 0%       33.8MB ± 0%    ~     (p=0.241 n=49+50)
-    XML                            42.8MB ± 0%       42.8MB ± 0%    ~     (p=0.677 n=47+49)
-    LinkCompiler                   98.3MB ± 0%       98.3MB ± 0%    ~     (p=0.157 n=50+50)
-    ExternalLinkCompiler           89.4MB ± 0%       89.4MB ± 0%    ~     (p=0.683 n=50+50)
-    LinkWithoutDebugCompiler       56.7MB ± 0%       56.7MB ± 0%    ~     (p=0.155 n=49+49)
-    [Geo mean]                     77.3MB            77.3MB       -0.01%
+    1. Adds a new element in the FuncInfo structure defined in
+    cmd/internal/obj/link.go file to record the alignment
+    information.
     
-    name                      old allocs/op     new allocs/op     delta
-    Template                         367k ± 0%         367k ± 0%    ~     (p=0.863 n=50+50)
-    Unicode                          345k ± 0%         345k ± 0%    ~     (p=0.744 n=49+49)
-    GoTypes                         1.28M ± 0%        1.28M ± 0%    ~     (p=0.957 n=48+50)
-    Compiler                        5.39M ± 0%        5.39M ± 0%  +0.00%  (p=0.012 n=50+49)
-    SSA                             13.9M ± 0%        13.9M ± 0%  +0.02%  (p=0.000 n=47+49)
-    Flate                            230k ± 0%         230k ± 0%  -0.01%  (p=0.007 n=47+49)
-    GoParser                         292k ± 0%         292k ± 0%    ~     (p=0.891 n=50+49)
-    Reflect                          977k ± 0%         977k ± 0%    ~     (p=0.274 n=50+50)
-    Tar                              343k ± 0%         343k ± 0%    ~     (p=0.942 n=50+50)
-    XML                              418k ± 0%         418k ± 0%    ~     (p=0.374 n=50+49)
-    LinkCompiler                     516k ± 0%         516k ± 0%    ~     (p=0.205 n=49+47)
-    ExternalLinkCompiler             570k ± 0%         570k ± 0%    ~     (p=0.783 n=49+47)
-    LinkWithoutDebugCompiler         169k ± 0%         169k ± 0%    ~     (p=0.233 n=50+46)
-    [Geo mean]                       672k              672k       +0.00%
+    2. Adds a new element in the Func structure defined in
+    cmd/internal/goobj/read.go file to read the alignment
+    information.
     
-    name                      old maxRSS/op     new maxRSS/op     delta
-    Template                        34.5M ± 3%        34.4M ± 3%    ~     (p=0.566 n=49+48)
-    Unicode                         36.0M ± 6%        35.9M ± 6%    ~     (p=0.736 n=50+50)
-    GoTypes                         75.7M ± 7%        75.4M ± 5%    ~     (p=0.412 n=50+50)
-    Compiler                         314M ±10%         313M ± 8%    ~     (p=0.708 n=50+50)
-    SSA                              730M ± 6%         735M ± 6%    ~     (p=0.324 n=50+50)
-    Flate                           25.8M ± 5%        25.6M ± 6%    ~     (p=0.415 n=49+50)
-    GoParser                        28.5M ± 3%        28.5M ± 4%    ~     (p=0.977 n=46+50)
-    Reflect                         57.4M ± 4%        57.2M ± 3%    ~     (p=0.173 n=50+50)
-    Tar                             33.3M ± 3%        33.2M ± 4%    ~     (p=0.621 n=48+50)
-    XML                             39.6M ± 5%        39.6M ± 4%    ~     (p=0.997 n=50+50)
-    LinkCompiler                     168M ± 2%         167M ± 1%    ~     (p=0.072 n=49+45)
-    ExternalLinkCompiler             179M ± 1%         179M ± 1%    ~     (p=0.147 n=48+50)
-    LinkWithoutDebugCompiler         136M ± 1%         136M ± 1%    ~     (p=0.789 n=47+49)
-    [Geo mean]                      79.2M             79.1M       -0.12%
+    3. Adds the assembler support to align an intruction's offset
+    with a specific value (2^n and in the range [8, 2048]).
+    e.g. "PCALIGN $256" indicates that the next instruction should
+    be aligned to 256 bytes.
     
-    name                      old text-bytes    new text-bytes    delta
-    HelloSize                       812kB ± 0%        811kB ± 0%  -0.06%  (p=0.000 n=50+50)
+    4. An instruction's alignment is relative to the start of the
+    function where this instruction is located, so the function's
+    address must be aligned to the same or coarser boundary.
     
-    name                      old data-bytes    new data-bytes    delta
-    HelloSize                      13.3kB ± 0%       13.3kB ± 0%    ~     (all equal)
+    This CL also adds a test.
     
-    name                      old bss-bytes     new bss-bytes     delta
-    HelloSize                       206kB ± 0%        206kB ± 0%    ~     (all equal)
-    
-    name                      old exe-bytes     new exe-bytes     delta
-    HelloSize                      1.21MB ± 0%       1.21MB ± 0%  -0.03%  (p=0.000 n=50+50)
-    
-    file      before    after     Δ       %
-    addr2line 4057421   4056237   -1184   -0.029%
-    api       4952451   4946715   -5736   -0.116%
-    asm       4888993   4888185   -808    -0.017%
-    buildid   2617705   2616441   -1264   -0.048%
-    cgo       4521849   4520681   -1168   -0.026%
-    compile   19143451  19141243  -2208   -0.012%
-    cover     4847391   4837151   -10240  -0.211%
-    dist      3473877   3472565   -1312   -0.038%
-    doc       3821496   3820432   -1064   -0.028%
-    fix       3220587   3220659   +72     +0.002%
-    link      6587504   6582576   -4928   -0.075%
-    nm        4000154   3998690   -1464   -0.037%
-    objdump   4409449   4407625   -1824   -0.041%
-    pack      2398086   2393110   -4976   -0.207%
-    pprof     13599060  13606111  +7051   +0.052%
-    test2json 2645148   2645692   +544    +0.021%
-    trace     10355281  10355862  +581    +0.006%
-    vet       6780026   6779666   -360    -0.005%
-    total     106319929 106289641 -30288  -0.028%
-    
-    Change-Id: Ia5399286958c187c8664c769bbddf7bc4c1cae99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263600
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: eric fang <eric.fang@arm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9b365c111b3a12f767728f1b45aa0c00f073c37d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226997
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 36 +++++++++++++++++++++++++++++---
- 1 file changed, 33 insertions(+), 3 deletions(-)
+ src/cmd/internal/goobj/read.go           |  2 +
+ src/cmd/internal/obj/arm64/asm7.go       | 33 +++++----------
+ src/cmd/internal/obj/arm64/asm_test.go   | 27 ++++++++++--
+ src/cmd/internal/obj/link.go             |  1 +
+ src/cmd/internal/obj/objfile.go          |  1 +
+ src/cmd/link/internal/ld/data.go         |  4 ++
+ src/cmd/link/internal/objfile/objfile.go |  1 +
+ src/cmd/link/link_test.go                | 70 ++++++++++++++++++++++++++++++++
+ 8 files changed, 114 insertions(+), 25 deletions(-)

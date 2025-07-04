@@ -1,19 +1,14 @@
-commit 2fc2f8ddc2b7b8cdbd9fb00adb662a3847a0b859
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 28 08:33:24 2015 -0700
+commit 2e7831a1d192ef0cbcb0caf9331b6cf3fa05e3d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 18 11:55:19 2015 -0700
 
-    test: don't run fixedbugs/issue11656.go on netbsd/386
+    go/parser: document that parser accepts a wider language than specified
     
-    The netbsd/386 builder reports a failure at
-    http://build.golang.org/log/c21c45a4fc6f4845868aa3ebde0f5bb3f167f3a3
+    See also issue #11271.
     
-    I'm assuming that this is similar to the unknown openbsd failure.
-    
-    Update #11910.
-    
-    Change-Id: I9cdfefa23dc7cda3849f14814b3ce531f1d39e93
-    Reviewed-on: https://go-review.googlesource.com/12777
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I34175f46ce137b14ca483500f673b0f8ee1f2108
+    Reviewed-on: https://go-review.googlesource.com/11262
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- test/fixedbugs/issue11656.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/go/parser/parser.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

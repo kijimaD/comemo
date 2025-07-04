@@ -1,19 +1,24 @@
-commit c85695a117f1ec3b800ba14570876cfcd2075c1f
+commit 6c5967e528f1efc9dfed107c33dccf2d305f2a25
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 18 14:36:45 2021 -0700
+Date:   Sat Dec 5 15:49:03 2020 -0800
 
-    cmd/compile: add support for //go:nointerface for -G=3
+    [dev.regabi] cmd/compile: change NodeSet to NameSet
     
-    This is used within Google's internal code repo, so getting it working
-    is a pre-req for enabling -G=3 by default.
+    The only user of NodeSet (computing initialization dependencies) only
+    needs to store *Names in this structure. So change its definition to
+    match that need, and update the code in initorder.go accordingly.
     
-    Change-Id: Icbc570948c852ca09cdb2a59f778140f620244b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343429
+    Passes buildall w/ toolstash -cmp.
+    
+    Updates #42982.
+    
+    Change-Id: I181a8aaf9bc71e88f4ac009c4f381a718080e48f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275752
     Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/decl.go | 11 +++++++++++
- test/run.go                            |  2 --
- 2 files changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/initorder.go | 22 +++++++++++-----------
+ src/cmd/compile/internal/ir/node.go      | 14 +++++++-------
+ 2 files changed, 18 insertions(+), 18 deletions(-)

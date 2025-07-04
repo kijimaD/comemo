@@ -1,21 +1,16 @@
-commit 795a88d0c383fae04242632449518a5985d50973
-Author: Justin Traglia <jtraglia@pm.me>
-Date:   Wed Jul 20 14:20:41 2022 +0000
+commit a8aa6cfa6d41a1be17bf8d35c490f693935f81ac
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jul 30 13:12:27 2021 -0400
 
-    cmd/go: add space after comma in 'go help test'
+    cmd/compile: correct a comment in uint64Tofloat
     
-    This PR fixes a simple typo. It adds a space after a comma. Noticed while looking at `go help test` output.
+    We only do z>>1 once (as it should be). Remove the extra one
+    in the comment.
     
-    Change-Id: I5b54f4da0d08a056bffc04899983d858dfa91043
-    GitHub-Last-Rev: da9cab5eb946523b8783aafe4f05f516e4a77437
-    GitHub-Pull-Request: golang/go#53931
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418034
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6fea05fe697de07e160bd686697377babcb3e4c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347400
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/alldocs.go            | 2 +-
- src/cmd/go/internal/test/test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 1 -
+ 1 file changed, 1 deletion(-)

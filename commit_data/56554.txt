@@ -1,21 +1,14 @@
-commit d51fc260e46a29edbd918d678554d319dd9ccd6d
-Author: aimuz <mr.imuz@gmail.com>
-Date:   Fri May 17 04:15:53 2024 +0000
+commit ff3aefbad4bed0cdd25688329e5cc4f908276a46
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri May 12 11:33:20 2023 -0400
 
-    internal/fmtsort: use cmp.Compare for value comparisons
+    log/slog: document that NewRecord should be used to create a record
     
-    Refactor compare function to use cmp.Compare for various types.
-    Remove redundant floatCompare and isNaN functions.
-    
-    Change-Id: I146a7af9158538499d07daee930aad8cf89b7e8f
-    GitHub-Last-Rev: d98365c0444c0467d8b4213674f6cf166906e900
-    GitHub-Pull-Request: golang/go#67454
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586239
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I5ce32a94660bdf12c577fd7f41a7627469f6467b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494618
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/internal/fmtsort/sort.go      | 76 +++++----------------------------------
- src/internal/fmtsort/sort_test.go |  4 ---
- 2 files changed, 9 insertions(+), 71 deletions(-)
+ src/log/slog/record.go | 1 +
+ 1 file changed, 1 insertion(+)

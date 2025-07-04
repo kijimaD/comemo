@@ -1,19 +1,16 @@
-commit 62f18d07ba8a7ee8e480cb723fb9b969ca17f822
-Author: Cuong Manh Le <cuong@orijtech.com>
-Date:   Tue Oct 20 09:51:23 2020 +0700
+commit a4129a1d205f9078e70822ff00c4d267cfa948e5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 31 22:31:25 2020 -0400
 
-    doc/go1.16: document net TCP listener's backlog size update
+    [dev.link] cmd/internal/goobj: use new style accessors
     
-    Updates #41470
+    We already move to new style accessors in the linker. This will
+    allow us to get rid of the read side of old style ones.
     
-    Change-Id: Iebd3a339504aa7f8834853d6a740557fb3bce3ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262938
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Id0c171c5634a5977fe8a6f764cb0d48203993ab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226799
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.16.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/internal/goobj/readnew.go | 54 ++++++++++++++++++---------------------
+ 1 file changed, 25 insertions(+), 29 deletions(-)

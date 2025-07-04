@@ -1,18 +1,22 @@
-commit 8bc32785b99eccf27cede237c974172988bb0c81
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Jan 17 09:49:38 2014 +1100
+commit 055b588e554ecf6bbf3aff3cdb5e663417ed4df4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 16 14:08:32 2014 -0800
 
-    net: skip TestDualStackTCPListener in short mode
+    syscall: add Flock_t on Linux
     
-    Update #5001
+    Matches Darwin and the BSDs. This means leveldb-go, kv,
+    Camlistore, etc can stop defining these structs on Linux by
+    hand.
     
-    This test is flakey on linux servers and fails otherwise good builds. Mikio has some proposals to fix the test, but they require additional plumbing.
+    Update #7059
     
-    In the meantime, disable this test in -short mode so it will run during the full net test suite, but not during builder ci.
-    
-    R=golang-codereviews, iant
+    R=golang-codereviews, dave, iant
     CC=golang-codereviews
-    https://golang.org/cl/53410043
+    https://golang.org/cl/53350043
 
- src/pkg/net/unicast_posix_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/pkg/syscall/consistency_unix_test.go | 10 ++++++++++
+ src/pkg/syscall/types_linux.go           |  2 ++
+ src/pkg/syscall/ztypes_linux_386.go      |  8 ++++++++
+ src/pkg/syscall/ztypes_linux_amd64.go    | 10 ++++++++++
+ src/pkg/syscall/ztypes_linux_arm.go      |  8 ++++++++
+ 5 files changed, 38 insertions(+)

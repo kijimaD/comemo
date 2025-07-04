@@ -1,12 +1,31 @@
-commit 048323aa1289a4e59f11ada50d95da61aa978b91
+commit 98133ac03a2552081a625d6b21d1a1dcc6f8b237
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 1 16:27:43 2012 -0700
+Date:   Thu Nov 1 15:25:51 2012 -0700
 
-    go/ast: document use of Data field for method objects
+    exp/types, exp/gotype: remove exp/types
+    
+    The only code change is in exp/gotype/gotype.go.
+    The latest reviewed version of exp/types is now
+    exp/types/staging.
+    
+    First step toward replacing exp/types with
+    exp/types/staging.
     
     R=iant
     CC=golang-dev
-    https://golang.org/cl/6775093
+    https://golang.org/cl/6819071
 
- src/pkg/go/ast/scope.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/exp/gotype/gotype.go          |   5 +-
+ src/pkg/exp/types/check.go            | 252 ----------
+ src/pkg/exp/types/check_test.go       | 217 ---------
+ src/pkg/exp/types/const.go            | 332 -------------
+ src/pkg/exp/types/exportdata.go       | 111 -----
+ src/pkg/exp/types/gcimporter.go       | 881 ----------------------------------
+ src/pkg/exp/types/gcimporter_test.go  | 153 ------
+ src/pkg/exp/types/resolver_test.go    | 130 -----
+ src/pkg/exp/types/testdata/exports.go |  89 ----
+ src/pkg/exp/types/testdata/test0.src  | 163 -------
+ src/pkg/exp/types/types.go            | 377 ---------------
+ src/pkg/exp/types/types_test.go       | 128 -----
+ src/pkg/exp/types/universe.go         | 107 -----
+ 13 files changed, 2 insertions(+), 2943 deletions(-)

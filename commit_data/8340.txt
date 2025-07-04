@@ -1,16 +1,13 @@
-commit 447db23c4acde6a5c63a30e30273584b9182b8f9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 9 14:48:05 2011 -0700
+commit 45ea58746bf7010d7d993e942d136394b780325c
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 9 06:38:04 2011 -0700
 
-    go/parser: always introduce an ast.Object when declaring an identifier
+    gif: fix build
+    Had bit test wrong on transparency; no excuses.
     
-    When traversing parameter lists (e.g. for type checking), we want the
-    invariant that all identifers have associated objects (even _ idents),
-    so that we can associate a type with each object.
-    
-    R=rsc
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/4490042
+    https://golang.org/cl/4526044
 
- src/pkg/go/parser/parser.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/pkg/image/gif/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

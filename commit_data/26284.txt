@@ -1,35 +1,28 @@
-commit ea4b785ae03a067f4a26adac78213ff6caac5128
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sat Mar 12 12:13:11 2016 +0100
+commit 0421e78f0556f98d782cdcbad6eaa2612603acf9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 8 01:06:00 2016 +0000
 
-    runtime: preserve darwin/arm{,64} callee-save registers
+    net/http: fix too-strict validation of server header values
     
-    CL 14603 attempted to preserve the callee-save registers for
-    the darwin/arm runtime initialization routine, but I believe it
-    wasn't sufficient and resulted in the crash reported in issue
+    As Andy Balholm noted in #11207:
     
-    Saving and restoring the registers on the stack the same way
-    linux/arm does seems more obvious and fixes #14778, so do that.
+    "RFC2616 §4.2 says that a header's field-content can consist of *TEXT,
+    and RFC2616 §2.2 says that TEXT is <any OCTET except CTLs, but
+    including LWS>, so that would mean that bytes greater than 128 are
+    allowed."
     
-    Even though #14778 is not reproducible on darwin/arm64, I applied
-    a similar change there, and to linux/arm64 which obeys the same
-    calling convention.
+    This is a partial rollback of the strictness from
+    https://golang.org/cl/11207 (added in the Go 1.6 dev cycle, only
+    released in Go 1.6beta1)
     
-    Finally, this CL is a candidate for a 1.6 minor release for the same
-    reason CL 14603 was in a 1.5 minor release (as CL 16968). It is
-    small and only touches the iOS platforms and gomobile on darwin/arm
-    is currently useless without it.
+    Fixes #11207
     
-    Fixes #14778
-    Fixes #12590 (again)
-    
-    Change-Id: I7401daf0bbd7c579a7e84761384a7b763651752a
-    Reviewed-on: https://go-review.googlesource.com/20621
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3a752a7941de100e4803ff16a5d626d5cfec4f03
+    Reviewed-on: https://go-review.googlesource.com/18374
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/rt0_darwin_arm.s   | 28 +++++++++++++++++++---------
- src/runtime/rt0_darwin_arm64.s | 28 +++++++++++++++++++++-------
- src/runtime/rt0_linux_arm64.s  | 27 +++++++++++++++++++++------
- 3 files changed, 61 insertions(+), 22 deletions(-)
+ src/net/http/request.go    | 8 ++------
+ src/net/http/serve_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 8 deletions(-)

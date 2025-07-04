@@ -1,12 +1,14 @@
-commit d6ea81e0b9f078253151dbca0341f44ba7e9d466
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 14 08:24:11 2012 -0700
+commit 5c8e88d6d29569e90cc9abcb9a1677d935b2e8c0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 14 23:47:34 2012 +1100
 
-    misc/dist: don't lose mode bits when setting tar permissions
+    misc/dist: remove exp and old before building
     
-    R=golang-dev, bsiegert, rsc
+    Fixes #3317.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5822046
+    https://golang.org/cl/5784074
 
- misc/dist/bindist.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ misc/dist/bindist.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

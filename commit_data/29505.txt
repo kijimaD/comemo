@@ -1,18 +1,12 @@
-commit a18b4b3fb9b1b98f6eefa038b723f99fd6d13efd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 11 20:54:07 2016 +0000
+commit faf611a07a7630a075fba3a555db7831e002122a
+Author: Brady Sullivan <brady@bsull.com>
+Date:   Fri Sep 16 15:25:07 2016 -0700
 
-    time: don't panic stringifying the zero Month
+    net/http: rename Post's parameter from bodyType to contentType
     
-    Fixes #17720
-    
-    Change-Id: Ib95c230deef3934db729856c17908f8e5a1e2b7f
-    Reviewed-on: https://go-review.googlesource.com/33145
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ie1b08215c02ce3ec72a4752f4b800f23345ff99d
+    Reviewed-on: https://go-review.googlesource.com/29362
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/time.go      | 13 ++++++++++++-
- src/time/time_test.go | 11 +++++++++--
- 2 files changed, 21 insertions(+), 3 deletions(-)
+ src/net/http/client.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

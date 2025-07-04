@@ -1,14 +1,20 @@
-commit ea020ff3de9482726ce7019ac43c1d301ce5e3de
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Feb 21 14:30:17 2017 +0100
+commit 3f1ed245510d21ad021ea96da7bbd37ec2aca9ed
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Nov 1 12:27:26 2016 -0700
 
-    fmt: add short note about %g precision
+    cmd/compile/internal/syntax: avoid deadlock
     
-    Fixes #18772
+    When the err from ReadFile is non-nil, we call t.Fatal(err).
+    Switch t.Fatal to t.Error + return.
+    ensure that close(results) happens on that code path as well.
     
-    Change-Id: Ib5d9ffa0abd35b9d3ca83bac139aece0f3c9702d
-    Reviewed-on: https://go-review.googlesource.com/37313
-    Reviewed-by: Rob Pike <r@golang.org>
+    Updates #17697.
+    
+    Change-Id: Ifaacf27a76c175446d642086ff32f4386428080d
+    Reviewed-on: https://go-review.googlesource.com/32486
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/fmt/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/parser_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

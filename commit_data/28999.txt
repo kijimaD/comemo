@@ -1,18 +1,21 @@
-commit 19adf8aeaae7c898e8efeab18e3162c3807a8756
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 20 20:05:41 2016 -0400
+commit 8e90b9026b64a47d68c80a079564b8c17611db0d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Aug 22 10:27:20 2016 +1200
 
-    reflect: fix DeepEqual for some cyclic corner cases
+    cmd/link: remove references to LSym (now Symbol)
     
-    Fixes #15610.
+    Mostly comments but some derived names too.
     
-    Change-Id: Idbc8a9b328b92034d53b8009471678a166d5cf3f
-    Reviewed-on: https://go-review.googlesource.com/31588
+    Change-Id: I1e01dccca98de6688e1426c7a9309f6fd6a1e368
+    Reviewed-on: https://go-review.googlesource.com/27415
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/reflect/all_test.go  | 20 ++++++++++++++++++++
- src/reflect/deepequal.go |  6 +++++-
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go    | 12 ++++++------
+ src/cmd/link/internal/ld/elf.go     |  2 +-
+ src/cmd/link/internal/ld/link.go    | 12 ++++++------
+ src/cmd/link/internal/ld/objfile.go |  4 ++--
+ src/cmd/link/internal/ld/sym.go     |  4 ++--
+ src/cmd/link/internal/ld/symtab.go  |  4 ++--
+ 6 files changed, 19 insertions(+), 19 deletions(-)

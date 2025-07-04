@@ -1,18 +1,74 @@
-commit bb2a96b79df71c4b021c8611b916a2f402166d3b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Oct 8 11:17:47 2022 -0700
+commit 39bc666430b3340c3de0e815cfc1fbfc7b2f7e99
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 26 10:06:55 2021 -0700
 
-    test: add test case that caused a bogus error from gofrontend
+    cmd/compile/internal/types2: underlying type of a type parameter is its constraint interface
     
-    For #56109
+    Until now, the type checker operated with the definition that the
+    underlying type of a type parameter is itself. This leads to some
+    inconcistencies and caused us to disallow type declarations where
+    the RHS is a stand-alone type parameter.
     
-    Change-Id: I999763e463fac57732a92f5e396f8fa8c35bd2e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/440297
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    This change implements an alernative definition: the underlying
+    type of a type parameter is the underlying type of its constraint;
+    i.e., the underlying type of a type parameter is always an interface
+    (because constraints must be interfaces). This matches the theory
+    closely and also resolves some inconsistencies. For example, we
+    don't need to prohibit stand-alone type parameters on the RHS of
+    a type declaration (though, for the sake of keeping the tests the
+    same, we still do in this CL). We also get a clear understanding of
+    what it would mean to use a type assertion or type switch on a type
+    parameter (still disabled with this CL). Finally, the declaration
+    of a type parameter now very closely matches the definition of an
+    ordinary type.
+    
+    The main consequence is that the rules for assignment need to be
+    slightly modified: even though a type parameter is an interface,
+    we cannot simply assign to it per the rules for interfaces: the
+    type parameter's type is fixed for the instantiation and we need
+    to reflect that accordingly when checking for assignability.
+    
+    This CL does not enable the new mode, it implements it in parallel
+    to the existing mode; the internal flag tparamIsIface is used to
+    switch between the modes.
+    
+    The changes to the code are numerous, but straight-forward: when-
+    ever we deal with an underlying type that might be a type parameter
+    (or newly, an interface), we need to act slightly differently. For
+    the time being this leads to some code duplication because the code
+    supports both modes.
+    
+    While some of the code for the new mode seems more complicated
+    (e.g., when we have an interface, the code checks that it is not
+    the underlying type of a type parameter), in reality many of the
+    extra checks are redundant and only present because of an abundance
+    of caution: interfaces with specific type sets are not permitted as
+    types for ordinary variables, and so even if we were to hit those
+    cases w/o excluding type parameters the behavior would be the same.
+    
+    Runs all tests with tparamIsIface enabled and disabled.
+    Current setting: disabled.
+    
+    Change-Id: I7bb6453f4fe2569d92face222058fb4e17b12f25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359016
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- test/fixedbugs/issue56109.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/compile/internal/types2/assignments.go |  2 +-
+ src/cmd/compile/internal/types2/builtins.go    | 30 ++++++++-
+ src/cmd/compile/internal/types2/call.go        |  2 +-
+ src/cmd/compile/internal/types2/conversions.go | 16 ++---
+ src/cmd/compile/internal/types2/expr.go        | 30 ++++++++-
+ src/cmd/compile/internal/types2/index.go       | 86 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/lookup.go      |  6 +-
+ src/cmd/compile/internal/types2/operand.go     |  9 +--
+ src/cmd/compile/internal/types2/predicates.go  | 27 +++++---
+ src/cmd/compile/internal/types2/sizes.go       |  1 +
+ src/cmd/compile/internal/types2/struct.go      |  9 ++-
+ src/cmd/compile/internal/types2/type.go        |  9 ++-
+ src/cmd/compile/internal/types2/typeparam.go   | 23 ++++++-
+ src/cmd/compile/internal/types2/typeset.go     |  4 ++
+ src/cmd/compile/internal/types2/typexpr.go     | 11 +++-
+ 15 files changed, 226 insertions(+), 39 deletions(-)

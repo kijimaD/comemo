@@ -1,18 +1,19 @@
-commit 213ee3d20ed35bf1bce8bb3e93fd7b0fca562536
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 25 08:39:19 2016 -0700
+commit d98de0c3d027815bc05f049a528687b436ce984c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 16 13:56:15 2016 -0700
 
-    go/types: match cmd/compile's alignment for complex64
+    cmd/compile: use two tables for table-driven map inserts
     
-    Fixes #17584.
+    This enables better packing when key and value
+    types have different alignments.
     
-    Change-Id: I3af31cc1f2e9c906f3b73e77f3b092624ba78fbe
-    Reviewed-on: https://go-review.googlesource.com/31939
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Cuts 57k off cmd/go.
+    
+    Change-Id: Ifdd125264caccd7852d622382c94e4689e757978
+    Reviewed-on: https://go-review.googlesource.com/26669
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/vet/testdata/asm.go | 1 +
- src/cmd/vet/testdata/asm1.s | 7 +++++++
- src/go/types/sizes.go       | 4 ++++
- 3 files changed, 12 insertions(+)
+ src/cmd/compile/internal/gc/sinit.go | 117 ++++++++++++++---------------------
+ 1 file changed, 46 insertions(+), 71 deletions(-)

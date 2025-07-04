@@ -1,12 +1,25 @@
-commit 67894aa7e20cc57bfe0acb289efc1671263f439d
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Thu May 17 13:58:46 2018 +0000
+commit 5114a7daa2f128d2de82cddb29a076d2a8e4def8
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Feb 13 22:11:20 2018 +0100
 
-    cmd/asm/internal/asm/testdata: convert CRLF to LF line ending
+    runtime/trace: fix TestTraceSymbolize when GOMAXPROCS=1
     
-    Change-Id: Icbff14b52e040826bc6de704942ff2f8e0164e3e
-    Reviewed-on: https://go-review.googlesource.com/113596
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    CL 92916 added the GOMAXPROCS test in TestTraceSymbolize.
+    
+    This test only succeeds when the value of GOMAXPROCS changes.
+    
+    Since the test calls runtime.GOMAXPROCS(1), it will fails
+    on machines where GOMAXPROCS=1.
+    
+    This change fixes the test by calling runtime.GOMAXPROCS(oldGoMaxProcs+1).
+    
+    Fixes #23816.
+    
+    Change-Id: I1183dbbd7db6077cbd7fa0754032ff32793b2195
+    Reviewed-on: https://go-review.googlesource.com/93735
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/386enc.s | 74 +++++++++++++++---------------
- 1 file changed, 37 insertions(+), 37 deletions(-)
+ src/runtime/trace/trace_stack_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

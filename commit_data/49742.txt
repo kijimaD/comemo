@@ -1,19 +1,16 @@
-commit 02fb9b8ca90874085173d6bd900038573ef4a4c3
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 15 14:27:48 2022 -0400
+commit ccc927b8f6550cb638e78fd63eebf422fc3c3d8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 8 13:37:34 2021 -0700
 
-    runtime: convert gcController.maxStackScan to atomic type
+    cmd/compile/internal/types2: move typeHash to environment.go
     
-    For #53821.
+    This is a clean port of CL 347560.
     
-    Change-Id: I1bd23cdbc371011ec2331fb0a37482ecf99a063b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417778
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0d56f5a818df1a66e603415d5198d909b0aef228
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348573
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/align_runtime_test.go |  1 -
- src/runtime/export_test.go        |  2 +-
- src/runtime/mgc.go                |  2 +-
- src/runtime/mgcpacer.go           | 10 ++++------
- 4 files changed, 6 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/types2/environment.go | 37 ++++++++++++++++++++++++--
+ src/cmd/compile/internal/types2/subst.go       | 36 +------------------------
+ 2 files changed, 36 insertions(+), 37 deletions(-)

@@ -1,18 +1,26 @@
-commit 65a54aef5bedbf8035a465d12ad54783fb81e957
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Mar 11 10:41:50 2019 -0400
+commit cc558fedfbe71222c85ba0ed24dcf873f934bbdb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 22 12:56:01 2018 -0700
 
-    cmd/go: set GO111MODULE=off explicitly in TestScript/list_test_err
+    cmd/go: update private copy of goosList
     
-    This test was added after CL 162697.
+    This copies the change to goosList in CL 138115 to the private copy in
+    cmd/go.
     
-    Updates #30228
+    The change introducing the private copy was apparently not made with
+    Gerrit, but can be seen at
+    https://github.com/golang/vgo/commit/08359e782fb601567c57f56beb540841c2416d92.
+    That change says "This is adapted from code in go/build and the rest
+    of cmd/go. At some point, we should deduplicate them."
     
-    Change-Id: Ia33ad3adc99e53b0b03e68906dc1f2e39234e2cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166697
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Doing another copy for now, rather than something more complex
+    involving cmd/dist, pending that deduplication.
+    
+    Change-Id: I9b6e1f63a3a68c002b60a9a97aa367c5cc7801c9
+    Reviewed-on: https://go-review.googlesource.com/c/143759
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/testdata/script/list_test_err.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/internal/imports/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,24 +1,27 @@
-commit c0693f648a2fd98aae126ef4f68cd7b6ebff40cd
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Dec 21 08:21:59 2023 -0500
+commit 709b6578722b0b1cb074f819e5cb22960fa31180
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 14 13:57:08 2023 -0500
 
-    cmd/go: run cover tool before swig
+    cmd/vet: add directive analyzer
     
-    When building a package, run the cover tool on the collected go/cgo
-    source files before invoking swig (if swig files are present), as
-    opposed to running swig and then cover. Running swig adds new Go files
-    to the "cgo" list, and we want to avoid running those newly generated
-    files through the cover tool.
+    For #56986, add the new directive analyzer that catches
+    misplaced //go:debug lines.
     
-    Fixes #64661.
+    Ran 'go mod vendor' after adding the import in vet
+    to bring in the vendored files.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Change-Id: I32b6dad5c39fcf5e656c40fb3b44220c69320889
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/552095
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    A followup CL will enable it by default in 'go test'.
+    
+    Change-Id: I12c46e292b31bdbf5ceb86ba4474545e78a83a47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462201
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/work/exec.go          | 29 +++++++------
- src/cmd/go/testdata/script/cover_swig.txt | 72 +++++++++++++++++++++++++++++++
- 2 files changed, 88 insertions(+), 13 deletions(-)
+ .../go/analysis/passes/directive/directive.go      | 216 +++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   1 +
+ src/cmd/vet/main.go                                |   2 +
+ src/cmd/vet/testdata/directive/directive.go        |   4 +
+ src/cmd/vet/vet_test.go                            |   1 +
+ 5 files changed, 224 insertions(+)

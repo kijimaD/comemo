@@ -1,18 +1,23 @@
-commit a86ef0409b76f430912f9ebbe1c0d2e5e834fd6d
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Sep 11 12:27:17 2023 -0400
+commit c79b2009ef0b82e9c50ced139b2fd752018da0dd
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Wed Jun 15 14:50:19 2022 -0500
 
-    cmd/compile/internal/inline/inlheur: fixup tests for NewBasicLit change
+    cmd/link: define ELF .note section on FreeBSD
     
-    Fix a regression test to use the correct new signature for
-    ir.NewBasicLit.
+    Write .note signature section when targeting FreeBSD, similar to NetBSD
+    and OpenBSD. This allows binaries to declare the ABI version they were
+    compiled for and opt out of ASLR when compiled with -race.
     
-    Change-Id: I06c849e83a5edfce784c780b5490f461f6c3b129
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527318
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #48164
+    
+    Change-Id: Ie54dd5c70697a3f42a75fd640540350fd8a4dc71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412494
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
 
- src/cmd/compile/internal/inline/inlheur/texpr_classify_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/elf_test.go           |  4 +-
+ src/cmd/link/internal/ld/elf.go    | 84 ++++++++++++++++++++++++++++++++++++--
+ src/cmd/link/internal/ld/target.go |  5 +++
+ 3 files changed, 87 insertions(+), 6 deletions(-)

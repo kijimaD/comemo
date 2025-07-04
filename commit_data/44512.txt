@@ -1,28 +1,29 @@
-commit b87e9b9f68f1eb0d685fd250b3b47495710e0059
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Mar 4 10:35:17 2021 -0500
+commit 54e75e8f9db09868db61f97edb98ace3aab7234f
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Jul 29 14:02:56 2020 +0100
 
-    cmd/go: clarify errors for commands run outside a module
+    crypto/ed25519: remove s390x KDSA implementation
     
-    The new error message tells the user what was wrong (no go.mod found)
-    and directs them to 'go help modules', which links to tutorials.
+    This reverts CL 202578 and CL 230677 which added an optimization
+    to use KDSA when available on s390x.
     
-    Fixes #44745
+    Inconsistencies have been found between the two implementations
+    in their handling of certain edge cases. Since the Go 1.15 release
+    is extremely soon it seems prudent to remove this optimization
+    for now and revisit it in a future release.
     
-    Change-Id: I98f31fec4a8757eb1792b45491519da4c552cb0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298650
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #40475.
+    
+    Change-Id: Ifb2ed9b9e573784df57383671f1c29d8abae90d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245497
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/go/internal/modget/query.go            |  2 +-
- src/cmd/go/internal/modload/import.go          | 18 +++++----
- src/cmd/go/internal/modload/init.go            |  6 ++-
- src/cmd/go/internal/modload/list.go            |  2 +-
- src/cmd/go/internal/run/run.go                 | 20 +---------
- src/cmd/go/testdata/script/mod_convert_dep.txt |  2 +-
- src/cmd/go/testdata/script/mod_find.txt        |  2 +-
- src/cmd/go/testdata/script/mod_outside.txt     | 52 +++++++++++++-------------
- src/go/build/build_test.go                     |  2 +-
- 9 files changed, 47 insertions(+), 59 deletions(-)
+ src/crypto/ed25519/ed25519.go       |   6 +-
+ src/crypto/ed25519/ed25519_noasm.go |  15 ----
+ src/crypto/ed25519/ed25519_s390x.go |  51 ------------
+ src/crypto/ed25519/ed25519_s390x.s  | 161 ------------------------------------
+ src/crypto/ed25519/ed25519_test.go  |  44 ++--------
+ 5 files changed, 8 insertions(+), 269 deletions(-)

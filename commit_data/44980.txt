@@ -1,19 +1,15 @@
-commit 0a510478b0294744894385c6c6f5ded6829b6524
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Apr 5 20:26:11 2021 -0400
+commit 7e9369a517d9ebf867748719948d8cbccec3bc57
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Sep 21 12:10:16 2020 -0400
 
-    runtime: use register ABI for race detector functions
+    cmd/link: add go.mod to TestFuncAlign
     
-    runtime.raceread/racewrite/racewriterange are functions that are
-    called from compiler instrumented code, follwoing ABIInternal.
-    They are assembly functions defined as ABIInternal in the runtime,
-    in order to avoid wrappers because they need to get the caller's
-    PC. This CL makes them to use the actual internal ABI.
+    Fixes #41531
     
-    Change-Id: Id91d73cf257f7b11a858958d85c38c4aa904d9c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307812
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I8b4f0d5b7094e56787998d244d8a4c03becb8452
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256302
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/race_amd64.s | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/link/link_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

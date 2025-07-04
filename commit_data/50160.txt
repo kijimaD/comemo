@@ -1,22 +1,27 @@
-commit 846c378b8c0cebd2d8522a5693b45ca95b018a78
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Aug 7 18:41:42 2022 +0700
+commit aecf4b12e100dbf1ced36f981fbf00ae64d32af8
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Oct 5 16:25:06 2021 -0400
 
-    cmd/cgo: add and use runtime/cgo.Incomplete instead of //go:notinheap
+    internal/fuzz: log average execs/sec since last log
     
-    Updates #46731
+    This change also fixes a bug with calculating the
+    total interesting count. When fuzzing with an empty
+    corpus, the fuzzing engine adds an starting corpus
+    value in that run in order to start fuzzing. That
+    meant that the interesting total count was off by one:
+    it would start at 1, even though the cache was empty.
+    Added some tests for this as well.
     
-    Change-Id: Ia83f27c177cc2f57e240cb5c6708d4552423f5be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421879
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #48787
+    
+    Change-Id: I47acf96f0a0797214ebb24a95366d8460bf303bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354150
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- api/next/46731.txt     | 14 ++++++++++++++
- src/cmd/cgo/gcc.go     | 48 ++++++++++++++++++++----------------------------
- src/cmd/cgo/main.go    |  1 -
- src/cmd/cgo/out.go     | 13 ++++++-------
- src/runtime/cgo/cgo.go |  7 +++++++
- 5 files changed, 47 insertions(+), 36 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt | 14 ++++++++++++++
+ src/internal/fuzz/fuzz.go                | 27 +++++++++++++++++++--------
+ 2 files changed, 33 insertions(+), 8 deletions(-)

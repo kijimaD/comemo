@@ -1,22 +1,19 @@
-commit 3fbcf05d40ed870d8b7a08c7fff9623a201c1567
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu Aug 25 03:27:02 2022 +0800
+commit ed1c8db308029bd82e6de4d547196f7f841236bb
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Oct 15 12:31:39 2021 -0700
 
-    runtime: convert g.atomicstatus to internal atomic type
+    cmd/compile: cleanup code in getInstInfo to use switch statement
     
-    Note that this changes some unsynchronized operations of g.atomicstatus to synchronized operations.
+    Simple cleanup: convert a bunch of if's to a switch statement in
+    getInstInfo. Also, use a few extra variables to avoid repeated node
+    conversions (such as n.(*ir.CallExpr))
     
-    Updates #53821
-    
-    Change-Id: If249d62420ea09fbec39b570942f96c63669c333
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425363
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I7a2a4efb569415256a8bc9350fb100bd2d8cfb39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356311
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/runtime/export_debug_test.go |  2 +-
- src/runtime/proc.go              | 18 +++++++++---------
- src/runtime/runtime-gdb.py       |  8 ++++----
- src/runtime/runtime2.go          |  2 +-
- 4 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 115 ++++++++++++++++--------------
+ 1 file changed, 62 insertions(+), 53 deletions(-)

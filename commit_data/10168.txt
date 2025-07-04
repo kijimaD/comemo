@@ -1,13 +1,13 @@
-commit b4df33a6eafea21afb7c85dafc7550f5fc339c7c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 1 11:02:43 2011 -0400
+commit 1fe22d2d24e150ba6b6d54c1b1909a15e209c6ad
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 1 16:09:29 2011 +0900
 
-    gc: test + fix escape analysis bug
+    doc: refer to tour.golang.org instead of go-tour.appspot.com
     
-    R=lvd
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5333049
+    https://golang.org/cl/5331055
 
- src/cmd/gc/esc.c |   1 +
- test/escape2.go  | 158 +++++++++++++++++++++++++++++++------------------------
- 2 files changed, 89 insertions(+), 70 deletions(-)
+ doc/docs.html | 4 ++--
+ doc/root.html | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

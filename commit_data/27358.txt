@@ -1,21 +1,22 @@
-commit 0efc16284bc4fd5b8b31d3f6b6763f98700c5664
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed May 11 15:19:32 2016 +1000
+commit bac0005ec77994b093c51e29f630125130c99b98
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 22 18:17:43 2016 -0700
 
-    syscall: remove mksyscall_windows.go -xsys flag
+    misc/cgo/testcarchive: rewrite test from bash to Go
     
-    Also run "go generate" in
-    internal/syscall/windows and internal/syscall/windows/registry
+    This is to support https://golang.org/cl/18057, which is going to add
+    Windows support to this directory.  Better to write the test in Go then
+    to have both test.bash and test.bat.
     
-    Updates #15167
+    Update #13494.
     
-    Change-Id: I0109226962f81857fe11d308b869d561ea8ed9f9
-    Reviewed-on: https://go-review.googlesource.com/23021
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I4af7004416309e885049ee60b9470926282f210d
+    Reviewed-on: https://go-review.googlesource.com/20892
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../syscall/windows/registry/zsyscall_windows.go   |  8 ++++---
- src/internal/syscall/windows/zsyscall_windows.go   |  8 ++++---
- src/syscall/mksyscall_windows.go                   | 28 +++++++++++++++++++---
- 3 files changed, 35 insertions(+), 9 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go | 334 +++++++++++++++++++++++++++++++++
+ misc/cgo/testcarchive/test.bash        | 106 -----------
+ src/cmd/dist/test.go                   |   2 +-
+ 3 files changed, 335 insertions(+), 107 deletions(-)

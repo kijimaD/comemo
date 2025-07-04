@@ -1,17 +1,12 @@
-commit e2d95c1f24cd32607458ba5d5bef689f2ee7b00e
+commit 2ffaefd1618efda434e3176f9bff658fbe70b003
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jun 13 16:38:44 2013 +0400
+Date:   Thu Jun 13 16:02:50 2013 +0400
 
-    runtime/race: remove now unused step parameter from range access functions
+    runtime: use ROUND macro for rounding
     
-    R=golang-dev, dave
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/10259043
+    https://golang.org/cl/10256043
 
- src/pkg/runtime/race.c       | 22 +++++++++++-----------
- src/pkg/runtime/race.h       |  4 ++--
- src/pkg/runtime/race/race.go |  8 ++++----
- src/pkg/runtime/race0.c      |  6 ++----
- src/pkg/runtime/slice.c      | 18 +++++++++---------
- src/pkg/runtime/string.goc   |  4 ++--
- 6 files changed, 30 insertions(+), 32 deletions(-)
+ src/pkg/runtime/malloc.goc | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

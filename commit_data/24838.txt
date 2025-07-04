@@ -1,16 +1,22 @@
-commit 3073797c37e168f3671880c683a228f9f8f942e3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Nov 11 20:49:37 2015 -0800
+commit e16d80362d9a6270e5c28160828a241f775c18e1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Sep 3 15:24:53 2015 -0700
 
-    runtime: fix vet warning about println
+    hash: update documentation for MakeTable in crc32 and crc64
     
-    lfstack.go:19: println call ends with newline
+    Explicitly say that *Table returned by MakeTable may not be
+    modified. Otherwise, this leads to very subtle bugs that may
+    or may not manifest themselves.
     
-    Change-Id: I2a903eef80a5300e9014999c2f0bc5d40ed5c735
-    Reviewed-on: https://go-review.googlesource.com/16836
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Same comment was made on package crc64, to keep the future
+    open to the caching tables that crc32 effectively does.
+    
+    Fixes: #12487.
+    
+    Change-Id: I2881bebb8b16f6f8564412172774c79c2593c6c1
+    Reviewed-on: https://go-review.googlesource.com/14258
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/lfstack.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/hash/crc32/crc32.go | 3 ++-
+ src/hash/crc64/crc64.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

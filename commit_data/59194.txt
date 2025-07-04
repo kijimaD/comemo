@@ -1,35 +1,15 @@
-commit 5fb9e5dc19c48c8de09720bd4cb64eccd933153d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Mar 25 15:09:31 2025 -0400
+commit e80385781397dc68894d4e8f2ae6741059eb9d9c
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Feb 16 13:53:05 2024 +0800
 
-    cmd/link: handle Mach-O X86_64_RELOC_SUBTRACTOR in internal linking
+    path/filepath: delete the deprecated joinNonEmpty and isUNC
     
-    With recent LLVM toolchain, on macOS/AMD64, the race detector syso
-    file built from it contains X86_64_RELOC_SUBTRACTOR relocations,
-    which the Go linker currently doesn't handle in internal linking
-    mode. To ensure internal linking mode continue to work with the
-    race detector syso, this CL adds support of X86_64_RELOC_SUBTRACTOR
-    relocations.
-    
-    X86_64_RELOC_SUBTRACTOR is actually a pair of relocations that
-    resolves to the difference between two symbol addresses (each
-    relocation specifies a symbol). For the cases we care (the race
-    syso), the symbol being subtracted out is always in the current
-    section, so we can just convert it to a PC-relative relocation,
-    with the addend adjusted. If later we need the more general form,
-    we can introduce a new mechanism (say, objabi.R_DIFF) that works
-    as a pair of relocations like the Mach-O one.
-    
-    As we expect the pair of relocations be consecutive, don't reorder
-    (sort) relocation records when loading Mach-O objects.
-    
-    Change-Id: I757456b07270fb4b2a41fd0fef67a2b39dd6b238
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660715
+    Change-Id: I4ce88b2e8e8d24afb63ca7246ce0c418fcb02c9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564715
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/link/internal/amd64/asm.go            | 32 +++++++++++++++++++++++++++
- src/cmd/link/internal/loader/symbolbuilder.go |  5 +++++
- src/cmd/link/internal/loadmacho/ldmacho.go    |  2 --
- 3 files changed, 37 insertions(+), 2 deletions(-)
+ src/path/filepath/path_windows.go | 40 ---------------------------------------
+ 1 file changed, 40 deletions(-)

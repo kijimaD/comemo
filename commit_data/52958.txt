@@ -1,27 +1,32 @@
-commit d9a61be73f73d4c7a49a5432ccb15cf8443fe279
-Author: David Chase <drchase@google.com>
-Date:   Mon Jan 23 17:34:18 2023 -0500
+commit ab422f2749bc21514cb22d444bae460f5fa22376
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Tue Jun 21 12:28:48 2022 -0700
 
-    internal/abi: common up Method, Imethod, UncommonType types
+    runtime/trace: ignore fallback stacks in test
     
-    was two commits, the first contained a lot of intermediate work,
-    better this way.
+    When runtime.sigprof encounters a stack that gentraceback is unable to
+    process, it synthesizes a call stack with a sentinel function (such as
+    runtime._System) at the leaf.
     
-    Change-Id: I7c5b79ef78b21a85828c8aaf9baeae86bb144db7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463118
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    The test to confirm that runtime/trace and runtime/pprof have similar
+    views of CPU profile samples has trouble with those stacks. The test
+    confirms that the samples match by confirming that their symbolized
+    forms match, and the symbolization procedure is very different for the
+    two packages.
+    
+    Skip the samples that the CPU profiler's view symbolizes to include one
+    of runtime.sigprof's sentinel functions at the leaf. (The test design
+    expects the CPU profiler to under-report samples relative to the
+    execution tracer.)
+    
+    Fixes #53378
+    
+    Change-Id: I60c27de4c69b454057d28a3b6e12d70369de4c4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413457
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/link/internal/ld/dwarf.go       |   2 +-
- src/cmd/link/internal/ld/dwarf_test.go  |   1 -
- src/internal/reflectlite/export_test.go |   4 +-
- src/internal/reflectlite/type.go        |  64 ++++---------
- src/reflect/export_test.go              |   4 +-
- src/reflect/type.go                     | 154 +++++++++++++-------------------
- src/reflect/value.go                    |  14 +--
- src/runtime/heapdump.go                 |   4 +-
- src/runtime/iface.go                    |  18 ++--
- src/runtime/type.go                     |  36 ++------
- 10 files changed, 107 insertions(+), 194 deletions(-)
+ src/runtime/trace/trace_test.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

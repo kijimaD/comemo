@@ -1,12 +1,16 @@
-commit e6a322b0b9a018ff3b63905ec0b5aca7ab836370
+commit 5a65cbacd3112f017d224196027e1ac1b358fa7a
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Dec 23 16:04:01 2011 +1100
+Date:   Fri Dec 23 14:44:56 2011 +1100
 
-    dashboard: fix todo caching nil
+    dashboard: cache packages, introduce caching helpers
     
-    R=golang-dev, bradfitz
+    R=rsc, gary.burd, adg
     CC=golang-dev
-    https://golang.org/cl/5504082
+    https://golang.org/cl/5498067
 
- misc/dashboard/app/build/handler.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ misc/dashboard/app/build/build.go   |   5 +-
+ misc/dashboard/app/build/cache.go   | 122 ------------------------------------
+ misc/dashboard/app/build/handler.go |  41 +++++++-----
+ misc/dashboard/app/build/ui.go      |  31 ++++-----
+ misc/dashboard/app/cache/cache.go   |  82 ++++++++++++++++++++++++
+ 5 files changed, 124 insertions(+), 157 deletions(-)

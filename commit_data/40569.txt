@@ -1,38 +1,16 @@
-commit b6245cef3c5046e143ba9360b839db63c29b8696
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Oct 7 13:14:57 2019 -0700
+commit cd24849e8b6c8a8079613cdb8a61fcc3e24f2154
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed May 29 14:30:23 2019 -0700
 
-    internal/bytealg: add SIMD byte count implementation for s390x
+    cmd/compile: fix fmt_test.go after CL 170062
     
-    Add a 'single lane' SIMD implemementation of the single byte count
-    function for use on machines that support the vector facility. This
-    allows up to 16 bytes to be counted per loop iteration.
+    Updates #22326.
     
-    We can probably improve performance further by adding more 'lanes'
-    (i.e. counting more bytes in parallel) however this will increase
-    the complexity of the function so I'm not sure it is worth doing
-    yet.
-    
-    name                old speed      new speed       delta
-    pkg:strings goos:linux goarch:s390x
-    CountByte/10         789MB/s ± 0%   1131MB/s ± 0%    +43.44%  (p=0.000 n=9+9)
-    CountByte/32         936MB/s ± 0%   3236MB/s ± 0%   +245.87%  (p=0.000 n=8+9)
-    CountByte/4096      1.06GB/s ± 0%  21.26GB/s ± 0%  +1907.07%  (p=0.000 n=10+10)
-    CountByte/4194304   1.06GB/s ± 0%  20.54GB/s ± 0%  +1838.50%  (p=0.000 n=10+10)
-    CountByte/67108864  1.06GB/s ± 0%  18.31GB/s ± 0%  +1629.51%  (p=0.000 n=10+10)
-    pkg:bytes goos:linux goarch:s390x
-    CountSingle/10       800MB/s ± 0%    986MB/s ± 0%    +23.21%  (p=0.000 n=9+10)
-    CountSingle/32       925MB/s ± 0%   2744MB/s ± 0%   +196.55%  (p=0.000 n=9+10)
-    CountSingle/4K      1.26GB/s ± 0%  19.44GB/s ± 0%  +1445.59%  (p=0.000 n=10+10)
-    CountSingle/4M      1.26GB/s ± 0%  20.28GB/s ± 0%  +1510.26%  (p=0.000 n=8+10)
-    CountSingle/64M     1.23GB/s ± 0%  17.78GB/s ± 0%  +1350.67%  (p=0.000 n=9+10)
-    
-    Change-Id: I230d57905db92a8fdfc50b1d5be338941ae3a7a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199979
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia9173b6eb29b2a4f90f4ba39bf53b6e9b7a6d6bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179398
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/bytealg/count_generic.go |   2 +-
- src/internal/bytealg/count_native.go  |   2 +-
- src/internal/bytealg/count_s390x.s    | 169 ++++++++++++++++++++++++++++++++++
- 3 files changed, 171 insertions(+), 2 deletions(-)
+ src/cmd/compile/fmtmap_test.go | 65 +++++++++++++++++++++---------------------
+ 1 file changed, 33 insertions(+), 32 deletions(-)

@@ -1,25 +1,21 @@
-commit 8a984e8e3f2cf4101f448ea9b9d9880b9e83c11e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Jul 27 14:47:47 2020 -0700
+commit b15fd6b39e29edfe7f4b332458ddc71cffdaacc4
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Dec 26 18:19:58 2019 -0500
 
-    runtime: omit nil-channel cases from selectgo's orders
+    cmd/go: convert TestCgoConsistentResults to the script framework
     
-    Currently, selectgo does an initial pass over the cases array to look
-    for entries with nil channels, so they can be easily recognized and
-    skipped later on. But this still involves actually visiting the cases.
+    The call to tooSlow is rewritten into a check for [short].
     
-    This commit changes selectgo to omit cases with nil channels when
-    constructing pollorder, so that they'll be skipped over entirely later
-    on. It also checks for caseDefault up front, which will facilitate
-    changing it to use a "block bool" parameter instead.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Updates #40410.
+    Updates #36320
+    Updates #17751
     
-    Change-Id: Icaebcb8f08df03cc33b6d8087616fb5585f7fedd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/245123
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1f3e7664d575219b6fc525bd88babed15d1bd3b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212622
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/select.go | 66 +++++++++++++++++++++------------------------------
- 1 file changed, 27 insertions(+), 39 deletions(-)
+ src/cmd/go/go_test.go                              | 32 ----------------------
+ .../script/build_cgo_consistent_results.txt        | 19 +++++++++++++
+ 2 files changed, 19 insertions(+), 32 deletions(-)

@@ -1,15 +1,15 @@
-commit 6dc0e977d007216f1525f4dd1f73abf881e9b12c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 30 18:50:50 2020 -0800
+commit 48e482ef0c23032affce7998e985dee6fcda14bc
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 12 23:23:10 2019 +0700
 
-    doc/go1.14: mention new math/bits functions Rem, Rem32, Rem64
+    cmd/compile: do not mark export for send only chan
     
-    Updates #28970
-    Updates #36878
+    No changes in compilebench, pass toolstash-check.
     
-    Change-Id: I9676f50516dd5b32bd4e44be136fcb9f43776edd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217127
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2688f7b45af0eaa0cf3b38e726bce6e68c20f69c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195077
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.14.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/compile/internal/gc/bexport.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

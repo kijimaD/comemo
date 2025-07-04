@@ -1,24 +1,20 @@
-commit d168ad18e15c4e052260bb8c3446c90ab46fdde0
+commit 865cf5c5f626d2546b3023217f0a0fb2e5ad9304
 Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Sat Jun 28 02:20:22 2025 +0200
+Date:   Thu May 2 18:38:35 2024 +0200
 
-    slices: update TestIssue68488 to avoid false positives
+    testing: improve the documentation around b.N
     
-    Fixes #74387
+    Fixes #67137
     
-    Even tho we are abusing unsafe.SliceData a bit here it's probably fine;
-    in case this test fail, it means some memory alias is happening
-    which is not good for GC purposes.
+    - Make it clear the benchmark function is called multiple times.
+    - Demonstrate range over int.
     
-    We don't care about false keep alives for stack locations tho.
-    
-    Change-Id: I9434bad8c6d9fbc39c738690617dc7cf91d82aef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/684755
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I7e993d938b0351012cdd4aed8528951e0ad406ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582835
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/slices/slices_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/testing/testing.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,36 +1,12 @@
-commit 852ce7c2125ef7d59a24facc2b6c3df30d7f730d
-Author: Rob Pike <r@golang.org>
-Date:   Sun Feb 14 13:22:15 2021 +1100
+commit ff795a8af0357eb7b8ae9aa98aad6f8be3894864
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Jun 1 11:58:54 2020 +0200
 
-    cmd/go: provide a more helpful suggestion for "go vet -?"
+    doc: document new Android default linker
     
-    For the command
-    
-            go vet -?
-    
-    the output was,
-    
-            usage: go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
-            Run 'go help vet' for details.
-            Run 'go tool vet -help' for the vet tool's flags.
-    
-    but "go help vet" is perfunctory at best. (That's another issue I'm
-    working on—see https://go-review.googlesource.com/c/tools/+/291909—
-    but vendoring is required to sort that out.) Add another line and rewrite
-    a bit to make it actually helpful:
-    
-            usage: go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
-            Run 'go help vet' for details.
-            Run 'go tool vet help' for a full list of flags and analyzers.
-            Run 'go tool vet -help' for an overview.
-    
-    Change-Id: I9d8580f0573321a57d55875ac3185988ce3eaf64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291929
-    Trust: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I3557f6726afe325db79b2c972d107b3bcc103b8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235819
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/vet/vetflag.go  | 3 ++-
- src/cmd/go/testdata/script/help.txt | 7 ++++---
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ doc/go1.15.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

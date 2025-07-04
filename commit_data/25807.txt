@@ -1,14 +1,31 @@
-commit 1dbba1a2b7c5d04bc7ad560010a887b441feb0f4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 4 14:56:52 2015 -0700
+commit ecf388f3a4dda0ffb1b11f65d2f5d703e7e4133f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 23 15:03:38 2015 -0500
 
-    encoding/hex: minor cleanup
+    runtime: take stack barrier lock during copystack
     
-    Change-Id: I404fd946dd0607fa41e2abe0d1d8081d4433ff0a
-    Reviewed-on: https://go-review.googlesource.com/19762
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Commit bbd1a1c prevented SIGPROF from scanning stacks that were being
+    copied, but it didn't prevent a stack copy (specifically a stack
+    shrink) from happening while SIGPROF is scanning the stack. As a
+    result, a stack copy may adjust stack barriers while SIGPROF is in the
+    middle of scanning a stack, causing SIGPROF to panic when it detects
+    an inconsistent stack barrier.
+    
+    Fix this by taking the stack barrier lock while adjusting the stack.
+    In addition to preventing SIGPROF from scanning this stack, this will
+    block until any in-progress SIGPROF is done scanning the stack.
+    
+    For 1.5.2.
+    
+    Fixes #13362.
+    Updates #12932.
+    
+    Change-Id: I422219c363054410dfa56381f7b917e04690e5dd
+    Reviewed-on: https://go-review.googlesource.com/17191
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/hex/hex.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/stack.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

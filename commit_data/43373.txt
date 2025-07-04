@@ -1,18 +1,21 @@
-commit a505312c89a0468081173da3042de6ac8582a3ba
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 15 23:34:41 2020 -0400
+commit 84111acd35a33eb02508e2b014f612e9862c480b
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Mar 30 10:06:54 2020 -0400
 
-    api: update next.txt
+    [dev.link] cmd/link: move the wavefront past addexport()
     
-    A bunch of new API hasn't been added yet and is cluttering all.bash output.
+    Reorganize the linker phase ordering so that addexport() runs before
+    loadlibfull. In previous CLs addexport() was changed to use loader
+    APIs but then copy back its work into sym.Symbol, so this change
+    removes the copying/shim code in question.
     
-    Change-Id: Ic7f255cce8c162716b9a1144f78b5f9ce6220b33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262878
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Rob Pike <r@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I17314a90007909e6242ee00e26393f3e4a02cf25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226362
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- api/next.txt | 246 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 241 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/elf.go  | 2 --
+ src/cmd/link/internal/ld/go.go   | 7 -------
+ src/cmd/link/internal/ld/main.go | 8 ++++----
+ 3 files changed, 4 insertions(+), 13 deletions(-)

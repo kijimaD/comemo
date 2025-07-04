@@ -1,21 +1,19 @@
-commit 1d5298d46a695219ab4622ae5aa59898459fd0f5
-Author: Damien Neil <dneil@google.com>
-Date:   Wed May 26 11:28:01 2021 -0700
+commit 7307e86afda3c5c7f6158d2469c39606fd1dba65
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Nov 8 09:44:33 2020 +0100
 
-    doc/go1.17: document net/... changes
+    test/codegen: go fmt
     
-    For #44513.
-    Fixes #46014.
-    Fixes #46015.
-    Fixes #46016.
-    Fixes #46017.
+    Fixes #42445
     
-    Change-Id: I356483d68d07159281dfe2ea1e49430ddf200973
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322891
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9653ef094dba2a1ac2e3daaa98279d10df17a2a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268257
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- doc/go1.17.html     | 23 +++++++++++++++++------
- src/os/pipe_test.go |  2 +-
- 2 files changed, 18 insertions(+), 7 deletions(-)
+ test/codegen/bits.go               |  4 +--
+ test/codegen/compare_and_branch.go | 72 +++++++++++++++++++-------------------
+ 2 files changed, 38 insertions(+), 38 deletions(-)

@@ -1,31 +1,29 @@
-commit 3651476075bad3d21d4dbaddc9a7d298d3d97e24
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 26 23:56:35 2018 +0000
+commit 4b439e41e2cdd78e0eeed05942c93364c5d99b6b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jun 1 12:17:41 2018 +0100
 
-    runtime: add iterator abstraction for mTreap
+    cmd/vet: check embedded field tags too
     
-    This change adds the treapIter type which provides an iterator
-    abstraction for walking over an mTreap. In particular, the mTreap type
-    now has iter() and rev() for iterating both forwards (smallest to
-    largest) and backwards (largest to smallest). It also has an erase()
-    method for erasing elements at the iterator's current position.
+    We can no longer use the field's position for the duplicate field tag
+    warning - since we now check embedded tags, the positions may belong to
+    copmletely different packages.
     
-    For #28479.
+    Instead, keep track of the lowest field that's still part of the
+    top-level struct type that we are checking.
     
-    While the expectation is that this change will slow down Go programs,
-    the impact on Go1 and Garbage is negligible.
+    Finally, be careful to not repeat the independent struct field warnings
+    when checking fields again because they are embedded into another
+    struct. To do this, separate the duplicate tag value logic into a func
+    that recurses into embedded fields on a per-encoding basis.
     
-    Go1:     https://perf.golang.org/search?q=upload:20181214.6
-    Garbage: https://perf.golang.org/search?q=upload:20181214.11
+    Fixes #25593.
     
-    Change-Id: I60dbebbbe73cbbe7b78d45d2093cec12cc0bc649
-    Reviewed-on: https://go-review.googlesource.com/c/151537
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I3bd6e01306d8ec63c0314d25e3136d5e067a9517
+    Reviewed-on: https://go-review.googlesource.com/115677
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/export_test.go |  6 ++--
- src/runtime/mgclarge.go    | 74 ++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/mheap.go       | 48 +++++++-----------------------
- 3 files changed, 88 insertions(+), 40 deletions(-)
+ src/cmd/vet/structtag.go          | 110 +++++++++++++++++++++++---------------
+ src/cmd/vet/testdata/structtag.go |  29 ++++++----
+ 2 files changed, 87 insertions(+), 52 deletions(-)

@@ -1,26 +1,36 @@
-commit 2a8df4488ee893353b1200794bde758e9726e7c7
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Jan 31 19:51:45 2021 +0100
+commit 3b6b86d1fe4275c0d5f89019a0170fa203c0d105
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 08:54:12 2020 -0400
 
-    os: mark pipes returned by os.Pipe() as inheritable by default
+    go/build: rewrite TestDependencies to be cleaner, more correct
     
-    Now that we don't automatically pass all inheritable handles to new
-    processes, we can make pipes returned by os.Pipe() inheritable, just
-    like they are on Unix. This then allows them to be passed through the
-    SysProcAttr.AdditionalInheritedHandles parameter simply.
+    TestDependencies defines the dependency policy
+    (what can depend on what) for the standard library.
     
-    Updates #44011.
-    Fixes #21085.
+    The standard library has outgrown the idea of writing
+    the policy as a plain map literal. Also, the checker was
+    ignoring vendored packages, which makes it miss real
+    problems.
     
-    Change-Id: I8eae329fbc74f9dc7962136fa9aae8fb66879751
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288299
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    This commit adds a little language for describing
+    partial orders and rewrites the policy in that language.
+    
+    It also changes the checker to look inside vendored
+    packages and adds those to the policy as well.
+    
+    This turned up one important problem: net is depending
+    on fmt, unicode via golang.org/x/net/dns/dnsmessage,
+    filed as #40070.
+    
+    This is a test-only change, so it should be appropriate
+    even for the release freeze, especially since it identified
+    a real bug.
+    
+    Change-Id: I9b79f30761f167b8587204c959baa973583e39f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241078
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec/exec_test.go         | 10 ++++++++++
- src/os/exec/exec_windows_test.go | 43 ++++++++++++++++++++++++++++++++++++++++
- src/os/file_windows.go           |  5 +++--
- 3 files changed, 56 insertions(+), 2 deletions(-)
+ src/go/build/deps_test.go | 1130 ++++++++++++++++++++++++++-------------------
+ 1 file changed, 650 insertions(+), 480 deletions(-)

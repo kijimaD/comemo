@@ -1,45 +1,40 @@
-commit 379567aad19e97eb2145d7bbe45a7a2febccd3e4
-Author: philhofer <phofer@umich.edu>
-Date:   Mon Feb 20 08:43:54 2017 -0800
+commit cd670a61c193e6717400c6cc130484d6ad97c96b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 4 03:23:37 2016 +0000
 
-    cmd/compile/ssa: more aggressive constant folding
+    net/http: speed up tests, use t.Parallel when it's safe
     
-    Add rewrite rules that canonicalize the location
-    of constants in expressions, and fold conststants
-    that appear in operations that can be trivially
-    reassociated.
+    Before: 8.9 seconds for go test -short
+     After: 2.8 seconds
     
-    After this change, the compiler constant-folds
-    expressions like "4 + x - 1" and "4 & x & 1"
+    There are still 250 tests without t.Parallel, but I got the important
+    onces using a script:
     
-    Benchmarks affected on darwin/amd64:
+        $ go test -short -v 2>&1 | go run ~/slowtests.go
     
-    name                     old time/op    new time/op    delta
-    FmtFprintfInt-8            82.1ns ± 1%    81.7ns ± 1%  -0.46%  (p=0.023 n=8+9)
-    FmtFprintfIntInt-8          122ns ± 2%     120ns ± 2%  -1.48%  (p=0.047 n=10+10)
-    FmtManyArgs-8               493ns ± 0%     486ns ± 1%  -1.37%  (p=0.000 n=8+10)
-    Gzip-8                      230ms ± 0%     229ms ± 1%  -0.46%  (p=0.001 n=10+9)
-    HTTPClientServer-8         74.5µs ± 1%    73.7µs ± 1%  -1.11%  (p=0.000 n=10+10)
-    JSONDecode-8               51.7ms ± 0%    51.9ms ± 1%  +0.42%  (p=0.017 n=10+9)
-    RegexpMatchEasy0_32-8      82.6ns ± 1%    81.7ns ± 0%  -1.02%  (p=0.000 n=9+8)
-    RegexpMatchMedium_32-8      121ns ± 1%     120ns ± 1%  -1.48%  (p=0.001 n=10+10)
-    Revcomp-8                   426ms ± 1%     400ms ± 1%  -6.16%  (p=0.000 n=10+10)
-    TimeFormat-8                330ns ± 1%     327ns ± 0%  -0.82%  (p=0.000 n=10+10)
+    Where slowtests.go is https://play.golang.org/p/9mh5Wg1nLN
     
-    name                     old speed      new speed      delta
-    Gzip-8                   84.4MB/s ± 0%  84.8MB/s ± 1%  +0.47%  (p=0.001 n=10+9)
-    JSONDecode-8             37.6MB/s ± 0%  37.4MB/s ± 1%  -0.42%  (p=0.016 n=10+9)
-    RegexpMatchEasy0_32-8     387MB/s ± 1%   392MB/s ± 0%  +1.06%  (p=0.000 n=9+8)
-    RegexpMatchMedium_32-8   8.21MB/s ± 1%  8.34MB/s ± 1%  +1.58%  (p=0.000 n=10+9)
-    Revcomp-8                 597MB/s ± 1%   636MB/s ± 1%  +6.57%  (p=0.000 n=10+10)
+    The remaining 250 (the output lines from slowtests.go) all have a
+    reported duration of 0ms, except one 50ms test which has to be serial.
     
-    Change-Id: Ie37ff91605b76a984a8400dfd1e34f50bf61c864
-    Reviewed-on: https://go-review.googlesource.com/37290
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Where tests can't be parallel, I left a comment at the top saying why,
+    so people don't add t.Parallel later and get surprised at failures.
+    
+    Updates #17751
+    
+    Change-Id: Icbe32cbe2b996e23c89f1af6339287fa22af5115
+    Reviewed-on: https://go-review.googlesource.com/32684
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  161 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 3114 ++++++++++++++++++++++--
- test/loopbce.go                                |    2 +-
- 3 files changed, 3097 insertions(+), 180 deletions(-)
+ src/net/http/client_test.go       |   6 ++
+ src/net/http/clientserver_test.go |   5 ++
+ src/net/http/fs_test.go           |   2 +
+ src/net/http/http_test.go         |   1 +
+ src/net/http/npn_test.go          |   1 +
+ src/net/http/response_test.go     |   1 +
+ src/net/http/serve_test.go        | 122 ++++++++++++++++++++++++++++----------
+ src/net/http/sniff_test.go        |   2 +
+ src/net/http/transport_test.go    |  20 ++++++-
+ 9 files changed, 127 insertions(+), 33 deletions(-)

@@ -1,19 +1,14 @@
-commit d83688165aabfe31f3501a302f6a8b94393439f3
+commit b8734748b6b151a7fd724fc41e2555e6cd34385f
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jul 29 22:58:26 2013 +0400
+Date:   Mon Jul 29 20:01:13 2013 +0400
 
-    runtime: fix freebsd build
-    notetsleep: nosplit stack overflow
-            120     assumed on entry to notetsleep
-            80      after notetsleep uses 40
-            72      on entry to runtime.futexsleep
-            16      after runtime.futexsleep uses 56
-            8       on entry to runtime.printf
-            -16     after runtime.printf uses 24
+    net: fix memory leaks on windows
+    Close netpoll descriptor along with socket.
+    Ensure that error paths close the descriptor as well.
     
-    R=golang-dev, rsc
+    R=golang-dev, mikioh.mikioh, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/12047043
+    https://golang.org/cl/11987043
 
- src/pkg/runtime/os_freebsd.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_windows.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

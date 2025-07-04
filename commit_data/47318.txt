@@ -1,16 +1,24 @@
-commit e83a2047e0332e45c20fb1bcdb984e9cc74ffb1f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Nov 5 14:55:52 2021 -0700
+commit 79e3ee52f48411eb7c4edfe3daa55e2ecf7a6c61
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 10 10:06:11 2021 +0100
 
-    net/netip: document the zero Addr
+    internal/syscall/unix: unify GetRandom implementation
     
-    Fixes #49364
+    The implementation of GetRandom for Linux, FreeBSD and DragonflyBSD can
+    be shared.
     
-    Change-Id: I3372f80723a4deae48ef106f88b0ad880cdd0e45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361914
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also remove GRND_INSECURE on DragonflyBSD as pointed out by Ian in the
+    review of CL 269999.
+    
+    Change-Id: I5bf4c1bd51ddb2ad600652a57e0bc1bafa1cf40d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299133
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/netip/netip.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/internal/syscall/unix/getrandom.go           | 40 ++++++++++++++++++++++++
+ src/internal/syscall/unix/getrandom_dragonfly.go | 37 +---------------------
+ src/internal/syscall/unix/getrandom_freebsd.go   | 34 +-------------------
+ src/internal/syscall/unix/getrandom_linux.go     | 33 -------------------
+ 4 files changed, 42 insertions(+), 102 deletions(-)

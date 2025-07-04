@@ -1,16 +1,16 @@
-commit fb5e1e1fa181f658431ef2c12fa2ccef5f728bdf
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Mar 6 20:56:22 2014 +0100
+commit 5db255fa3c8b3f5d5aa1560d1e5be4688dfb7925
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 6 11:24:28 2014 -0800
 
-    runtime: fix warnings on Plan 9
+    net/http/cgi: kill child CGI process on copy error
     
-    warning: pkg/runtime/mgc0.c:2352 format mismatch p UVLONG, arg 2
-    warning: pkg/runtime/mgc0.c:2352 format mismatch p UVLONG, arg 3
+    Fixes #7196
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/71950044
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, iant
+    https://golang.org/cl/69970052
 
- src/pkg/runtime/mgc0.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/cgi/host.go            | 12 +++++
+ src/pkg/net/http/cgi/matryoshka_test.go | 93 ++++++++++++++++++++++++++++++++-
+ 2 files changed, 104 insertions(+), 1 deletion(-)

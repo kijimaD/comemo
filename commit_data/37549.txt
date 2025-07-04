@@ -1,17 +1,31 @@
-commit d029058b5912312963225c40ae4bf44e3cb4be76
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Nov 28 18:52:35 2018 +0000
+commit 2482451f76f47707e29b19cafdcaf754badd024b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 16 14:39:13 2018 +0100
 
-    runtime: fix heap pointer invariant rules in HACKING.md
+    cmd/vet: don't suggest ... if it breaks a program
     
-    This change fixes an error in HACKING.md which claims all pointers
-    which live in unmanaged memory but point to the heap must be marked
-    as GC roots explicitly by runtime.markroot. This isn't technically
-    necessary if the pointer is accessible through a global variable.
+    It is possible to write a function that seems to wrap a print/printf
+    call, but then doesn't. For example, if the string parameter we thought
+    was the format is used as another argument.
     
-    Change-Id: I632b25272fdb2f789c5259dd1685d517f45fd435
-    Reviewed-on: https://go-review.googlesource.com/c/151539
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    One option would be to make vet's print analysis smarter, to detect when
+    format strings are indeed used like we initially suspected.
+    
+    However, I've opted for a simpler solution - check if the print/printf
+    call is already using more than one variadic argument, in which case
+    using an ellipsis in the last one would break the program:
+    
+            // too many arguments in call to fmt.Printf
+            fmt.Printf(format, arg0, args...)
+    
+    Fixes #26979.
+    
+    Change-Id: I39371f1cec8483cfd2770a91670c1e80cbb9efdf
+    Reviewed-on: https://go-review.googlesource.com/129575
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/HACKING.md | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/vet/print.go          | 14 ++++++++++++++
+ src/cmd/vet/testdata/print.go |  4 ++++
+ 2 files changed, 18 insertions(+)

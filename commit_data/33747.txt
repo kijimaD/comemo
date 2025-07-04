@@ -1,21 +1,31 @@
-commit 9cc9f1085561400425cc9705d041d37398666156
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 29 11:40:52 2017 -0500
+commit dbe3522c7f45771bbd12228b7f17a3fc5ac9d7c7
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 1 12:32:38 2017 -0700
 
-    archive/zip: add test for Modified vs ModTime behavior
+    runtime: fix hashmap load factor computation
     
-    Lock in fix for #22738, submitted in CL 78031.
+    overLoadFactor wasn't really doing what it says it does.
+    It was reporting overOrEqualToLoadFactor.  That's actually what we
+    want when adding an entry to a map, but it isn't what we want when
+    constructing a map in the first place.
     
-    Fixes #22738.
+    The impetus for this change is that if you make a map with a hint
+    of exactly 8 (which happens, for example, with the unitMap in
+    time/format.go), we allocate 2 buckets for it instead of 1.
     
-    Change-Id: I6896feb158569e3f12fa7055387cbd7caad29ef4
-    Reviewed-on: https://go-review.googlesource.com/80635
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Instead, make overLoadFactor really report when it is > the max
+    allowed load factor, not >=.  Adjust the callers who want to ensure
+    that the map is no more than the max load factor after an insertion
+    by adding a +1 to the current (pre-addition) size.
+    
+    Change-Id: Ie8d85344800a9a870036b637b1031ddd9e4b93f9
+    Reviewed-on: https://go-review.googlesource.com/61053
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/archive/zip/reader_test.go          | 371 +++++++++++++++++---------------
- src/archive/zip/testdata/time-22738.zip | Bin 0 -> 140 bytes
- src/archive/zip/writer_test.go          |   2 +-
- 3 files changed, 197 insertions(+), 176 deletions(-)
+ src/runtime/export_test.go  |  5 +++++
+ src/runtime/hashmap.go      |  6 +++---
+ src/runtime/hashmap_fast.go |  6 +++---
+ src/runtime/map_test.go     | 29 +++++++++++++++++++++++++++++
+ 4 files changed, 40 insertions(+), 6 deletions(-)

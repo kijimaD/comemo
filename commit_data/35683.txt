@@ -1,32 +1,33 @@
-commit 59be2261078ebf98907317d3a9a2507eba5d015c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 12 17:32:50 2018 -0700
+commit 879a1ff1e494188a7aec8f094fac9bd71850d392
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Thu Mar 1 01:39:01 2018 +0100
 
-    go/importer: better error message when importer is out of date
+    test: improve asmcheck syntax
     
-    Separated out panic handling for bimporter and importer so that
-    the handler can consider the current version and report a better
-    error.
+    asmcheck comments now support a compact form of specifying
+    multiple checks for each platform, using the following syntax:
     
-    Added new export data test for export data version 999 (created
-    by changing the compiler temporarily) and verifying expected
-    error message.
+       amd64:"SHL\t[$]4","SHR\t[$]4"
     
-    Fixes #25856.
+    Negative checks are also parsed using the following syntax:
     
-    Change-Id: Iaafec07b79499154ef7c007341783fa07c57f24d
-    Reviewed-on: https://go-review.googlesource.com/118496
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+       amd64:-"ROR"
+    
+    though they are still not working.
+    
+    Moreover, out-of-line comments have been implemented. This
+    allows to specify asmchecks on comment-only lines, that will
+    be matched on the first subsequent non-comment non-empty line.
+    
+        // amd64:"XOR"
+        // arm:"EOR"
+    
+        x ^= 1
+    
+    Change-Id: I110c7462fc6a5c70fd4af0d42f516016ae7f2760
+    Reviewed-on: https://go-review.googlesource.com/97816
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/internal/gcimporter/bimport.go              |  27 +++++++++++----------
- src/go/internal/gcimporter/gcimporter.go           |  21 ++++++++++++----
- src/go/internal/gcimporter/gcimporter_test.go      |  12 +++++++++
- src/go/internal/gcimporter/iimport.go              |  19 ++++++++++++---
- .../internal/gcimporter/testdata/versions/test.go  |   5 +++-
- .../gcimporter/testdata/versions/test_go1.11_0i.a  | Bin 0 -> 2420 bytes
- .../gcimporter/testdata/versions/test_go1.11_6b.a  | Bin 0 -> 2426 bytes
- .../testdata/versions/test_go1.11_999b.a           | Bin 0 -> 2600 bytes
- .../testdata/versions/test_go1.11_999i.a           | Bin 0 -> 2420 bytes
- 9 files changed, 62 insertions(+), 22 deletions(-)
+ test/codegen/rotate.go |  2 ++
+ test/run.go            | 74 ++++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 56 insertions(+), 20 deletions(-)

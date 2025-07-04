@@ -1,0 +1,16 @@
+commit ff627d28dbc5fc3ef156c36f74b5dd026b41d21b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 23 11:44:42 2024 -0800
+
+    os: improve comments for process support, minor code cleanup
+    
+    Change-Id: I97ecbc6fc0c73c6d8469144f86a7ad8c2655a658
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638581
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/os/exec.go        | 14 ++++++++++++++
+ src/os/pidfd_linux.go |  6 ++++++
+ 2 files changed, 20 insertions(+)

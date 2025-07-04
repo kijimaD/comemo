@@ -1,16 +1,29 @@
-commit 82a0188c88bd7bb0fbf31f10157b77beb2195594
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 20 11:10:03 2014 -0700
+commit 18172c42ff48611df564e5af8bf00515bbac612a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 11:06:51 2014 -0400
 
-    reflect: fix TestAllocations now that interfaces hold only pointers
+    runtime: remove type-punning for Type.gc[0], gc[1]
     
-    This test was failing but did not break the build because it
-    was not run when -test.short was used.
+    Depending on flags&KindGCProg,
+    gc[0] and gc[1] are either pointers or inlined bitmap bits.
+    That's not compatible with a precise garbage collector:
+    it needs to be always pointers or never pointers.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/157150043
+    Change the inlined bitmap case to store a pointer to an
+    out-of-line bitmap in gc[0]. The out-of-line bitmaps are
+    dedup'ed, so that for example all pointer types share the
+    same out-of-line bitmap.
+    
+    Fixes #8864.
+    
+    LGTM=r
+    R=golang-codereviews, dvyukov, r
+    CC=golang-codereviews, iant, khr, rlh
+    https://golang.org/cl/155820043
 
- src/reflect/all_test.go | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/gc/reflect.c   | 25 ++++++++++++++++++++++---
+ src/cmd/ld/decodesym.c |  5 ++++-
+ src/reflect/type.go    |  4 ++--
+ src/runtime/malloc.go  |  2 +-
+ src/runtime/type.h     |  2 +-
+ 5 files changed, 30 insertions(+), 8 deletions(-)

@@ -1,17 +1,20 @@
-commit 0f2a1574b02de3fec6937e65b1bdc21106bef15c
-Author: Masahiro Furudate <178inaba.git@gmail.com>
-Date:   Fri Feb 21 03:29:43 2020 +0900
+commit 2d1c0332598c77097d53a1c2d564b12dcd644810
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Jan 2 09:43:41 2018 -0800
 
-    testing: change benchmark example function
+    reflect: let StructOf define unexported fields
     
-    Change to rand.Int, a function that the compiler cannot reliably eliminate.
-    Fix output to actual benchmark values.
+    This was missing from the original StructOf CL because I couldn't
+    think of a use for it. Now I can: even with types used entirely
+    by reflect, unexported fields can be set using UnsafeAddr.
     
-    Fixes #37341
-    
-    Change-Id: Ifb5bf49b826ae0bdb4bf9de5a472ad0eaa54569c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220397
+    Change-Id: I5e7e3d81d16e8817cdd69d85796ce33930ef523b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/85661
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/testing/testing.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/go1.14.html         | 13 +++++++++++++
+ src/reflect/all_test.go | 23 ++++++++---------------
+ src/reflect/type.go     | 19 +++++++++++--------
+ 3 files changed, 32 insertions(+), 23 deletions(-)

@@ -1,17 +1,24 @@
-commit 0c8480acfe39a2ce093487ee3f6c614d6875a2bc
-Author: David Chase <drchase@google.com>
-Date:   Mon Jan 23 13:29:32 2023 -0500
+commit e030833880b4ed20a7c153e6e58190c5649284ac
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 4 17:17:56 2022 -0500
 
-    internal/abi: repair broken self-bootstrap
+    cmd/compile/internal/syntax: don't try to parse files in GOROOT/.git
     
-    Fixes bug caused by https://go.dev/cl/462115
+    This test was failing locally in my clone of the go repo due to a Git
+    branch ending in ".go", which the test found and was attempting to
+    parse as a file. It's fragile to try to parse .go files in
+    GOROOT/.git, and wasteful to scan GOROOT/pkg and other non-source
+    directories; instead, let's only parse the directories we actually
+    expect to contain source files.
     
-    Change-Id: Id91a139db827f2962be837b8fd218e7b895ce8b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463175
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    (I was running the test for #51461.)
+    
+    Change-Id: I5d4e31ec2bcd9b4b6840ec32ad9b12bf44f349a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390023
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/internal/abi/funcpc.go | 10 ++--------
- src/internal/abi/stub.s    |  7 +++++++
- 2 files changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/syntax/parser_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

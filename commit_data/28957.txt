@@ -1,17 +1,18 @@
-commit f6f3aef53f7ef6085ea14b6147b2478848778709
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Oct 20 15:22:46 2016 -0400
+commit 604efe128195c1fbb1d14cbd36bf681fcff723a3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 17 16:22:24 2016 -0700
 
-    go/build: reserve GOOS=zos for IBM z/OS
+    runtime: disable TestCgoCallbackGC on FreeBSD
     
-    Closes #17528.
+    The trybot flakes are a nuisance.
     
-    Change-Id: I2ba55ad4e41077808f882ed67a0549f0a00e25d0
-    Reviewed-on: https://go-review.googlesource.com/31596
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Updates #16396
+    
+    Change-Id: I8202adb554391676ba82bca44d784c6a81bf2085
+    Reviewed-on: https://go-review.googlesource.com/27313
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/build/syslist.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/crash_cgo_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

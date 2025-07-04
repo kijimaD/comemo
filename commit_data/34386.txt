@@ -1,20 +1,18 @@
-commit c2ccc48165255454e27d0fccbb7b3cb84aee638f
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Mon Feb 26 14:45:58 2018 -0600
+commit 8c58900aeb9241e856515c23519455bf39c808df
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 23 19:13:32 2017 -0400
 
-    cmd/compile/internal/ssa: refactor zeroUpper32Bits
+    cmd/compile: fix problem with non-decomposed vars
     
-    Explicitly whitelist args of OpSelect{1|2} that zero upper 32 bits.
-    Use better values in corresponding test.
-    This should have been a part of  CL 96815, but it was submitted, before
-    relevant comments.
+    Fix a bug introduced in patch 2 of
+    https://go-review.googlesource.com/72630 (sense of a map
+    lookup test was accidentally flipped).
     
-    Change-Id: Ic85d90a4471a17f6d64f8f5c405f21378bf3a30d
-    Reviewed-on: https://go-review.googlesource.com/97295
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: Icc6096ee50be4605fa7542b9fd855c13b8aff090
+    Reviewed-on: https://go-review.googlesource.com/72850
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/compile/internal/ssa/rewrite.go            |  4 ++--
- src/cmd/compile/internal/ssa/zeroextension_test.go | 10 +++++-----
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

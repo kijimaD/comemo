@@ -1,16 +1,14 @@
-commit 488350ac423094a3cd252696c8e841168f1705a8
+commit cbc9ab75cb0da5c5848fd495ef2a2ff87f345735
 Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 7 10:28:24 2012 -0700
+Date:   Fri Sep 7 09:31:51 2012 -0700
 
-    spec: an initial BOM can be ignored
-    After further deliberation, let's back down to the Unicode proposal.
-    Ignoring aBOMinations anywhere means that things like
-            grep unsafe *.go
-    might fail because there's a BOM in the middle: unBOMsafe.
+    cmd/yacc: allow leading underscore in token name
+    Fixes #4037.
     
-    R=golang-dev, rsc, 0xjnml, gri, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6490091
+    https://golang.org/cl/6488093
 
- doc/go_spec.html | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/yacc/units.y | 10 +++++-----
+ src/cmd/yacc/yacc.go |  6 +++---
+ 2 files changed, 8 insertions(+), 8 deletions(-)

@@ -1,15 +1,20 @@
-commit b8be100d35109e8cd0abac91edec206df37b07c1
+commit 7dbbb53f3743aa1a654d75dd43ed4affc3ddc23d
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 29 11:50:18 2013 -0400
+Date:   Tue Oct 29 10:36:51 2013 -0400
 
-    cmd/gc: silence clang warning
+    debug/dwarf: add DWARF 4 form constants
     
-    This code is only built when you run 'make' in cmd/gc,
-    not in all.bash.
+    Some versions of clang generate DWARF 4-format attributes
+    even when using -gdwarf-2. We don't care much about the
+    values, but we do need to be able to parse past them.
     
-    R=golang-dev, jsing, iant
+    This fixes a bug in Go 1.2 rc2 reported via private mail using
+    a near-tip version of clang.
+    
+    R=golang-dev, iant, dvyukov
     CC=golang-dev
-    https://golang.org/cl/19160043
+    https://golang.org/cl/18460043
 
- src/cmd/gc/mkbuiltin1.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/debug/dwarf/const.go |  3 +++
+ src/pkg/debug/dwarf/entry.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

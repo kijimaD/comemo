@@ -1,17 +1,27 @@
-commit 23fee06a140ea6e5ac184e255786900479ca52ca
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Wed Dec 13 09:23:18 2023 +0800
+commit a7de684e1b6f460aae7d4dbf2568cb21130ec520
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 1 17:24:23 2022 -0800
 
-    doc/go1.22: correct the system call name used for zero-copy from net.TCPConn to net.UnixConn
+    cmd/compile/internal/noder: stop creating TUNION types
     
-    For #58808
+    In the types1 universe under the unified frontend, we never need to
+    worry about type parameter constraints, so we only see pure
+    interfaces. However, we might still see interfaces that contain union
+    types, because of interfaces like "interface{ any | int }" (equivalent
+    to just "any").
     
-    Change-Id: I9b27af30888aaaa9659387a32c57aaea136b1c3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549335
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    We can handle these without needing to actually represent type unions
+    within types1 by simply mapping any union to "any".
+    
+    Updates #57410.
+    
+    Change-Id: I5e4efcf0339edbb01f4035c54fb6fb1f9ddc0c65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458619
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.22.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/reader.go | 32 ++++++++++++++++++++++++++------
+ test/typeparam/issue52124.go             |  4 +++-
+ 2 files changed, 29 insertions(+), 7 deletions(-)

@@ -1,21 +1,27 @@
-commit fdf1d768f287e8024a5628612d25b9ea885a8198
-Author: Ludi Rehak <ludi317@gmail.com>
-Date:   Mon Apr 18 16:39:24 2022 -0700
+commit f503740ccf6302ed13c7722ea50c6880a17703fb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jun 28 22:41:50 2021 -0700
 
-    all: rename type *testing.B variable to 'b'
+    [dev.typeparams] cmd/compile: add derived-type dictionaries to unified IR
     
-    Reserve 't' for type *testing.T variables.
+    This CL updates the unified IR export data serialization to explicitly
+    and separately record the derived types used by a declaration. The
+    readers currently just use this data to construct types/IR the same as
+    before, but eventually we can use it for emitting GC-shape
+    dictionaries.
     
-    Change-Id: I037328df59d3af1aa28714f9efe15695b6fd62a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400826
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I7d67ad9b3f1fbe69664bf19e056bc94f73507220
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331829
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/ecdsa/ecdsa_test.go                              |  6 +++---
- src/crypto/ed25519/internal/edwards25519/scalarmult_test.go | 12 ++++++------
- src/crypto/elliptic/elliptic_test.go                        |  6 +++---
- 3 files changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/noder/linker.go  |  32 ++--
+ src/cmd/compile/internal/noder/reader.go  | 184 +++++++++++++----------
+ src/cmd/compile/internal/noder/reader2.go | 142 ++++++++++++------
+ src/cmd/compile/internal/noder/reloc.go   |   1 +
+ src/cmd/compile/internal/noder/unified.go |   2 +-
+ src/cmd/compile/internal/noder/writer.go  | 237 +++++++++++++++++++-----------
+ 6 files changed, 378 insertions(+), 220 deletions(-)

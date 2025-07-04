@@ -1,20 +1,27 @@
-commit 4de468621a54bc7816ae978a55cb347b6f60352d
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 4 11:02:59 2017 -0500
+commit 8f7f46f5a6d9fe821494aca3c689ca2572a42b41
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 5 16:57:25 2017 -0400
 
-    runtime: use spanOf* more widely
+    cmd/go: replace a.Package.Internal.Pkgfile with a.built
     
-    The logic in the spanOf* functions is open-coded in a lot of places
-    right now. Replace these with calls to the spanOf* functions.
+    Logically the build needs to start treating a.Package as immutable,
+    since we might want to build a.Package multiple ways.
+    Record the built target in a.built instead.
     
-    Change-Id: I3cc996aceb9a529b60fea7ec6fef22008c012978
-    Reviewed-on: https://go-review.googlesource.com/85880
-    Run-TryBot: Austin Clements <austin@google.com>
+    Right now a.built is predictable ahead of time, but we want to
+    move toward satisfying some builds from a cache directory,
+    in which case a.built will point into the cache directory
+    and not be determined until action execution time.
+    
+    There is probably more to do with shared libraries, but this
+    does not break what's there.
+    
+    Change-Id: I941988b520bee2f664fd8cabccf389e1dc29628b
+    Reviewed-on: https://go-review.googlesource.com/69050
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/cgocheck.go |  4 +---
- src/runtime/mbitmap.go  | 13 +++----------
- src/runtime/mgcmark.go  |  7 ++-----
- src/runtime/mheap.go    | 31 ++++++++++++++-----------------
- 4 files changed, 20 insertions(+), 35 deletions(-)
+ src/cmd/go/internal/load/pkg.go   | 24 ------------------------
+ src/cmd/go/internal/work/build.go | 34 +++++++++++++++++++---------------
+ 2 files changed, 19 insertions(+), 39 deletions(-)

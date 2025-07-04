@@ -1,14 +1,13 @@
-commit b69fa69a8bf53fb4714d96b4daf80fd6de597111
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 28 16:49:57 2012 -0800
+commit 9e7e6d9ea41b20e176985c1daf9a24a30b74871b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 29 11:29:33 2012 +1100
 
-    doc: update Go For C++ Programmers
+    doc/go1: tweaks to address rsc's comments
     
-    Minor cleanups to look more like current Go.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5707053
+    https://golang.org/cl/5706054
 
- doc/go_for_cpp_programmers.html | 205 +++++++++++++++++++++++++++++-----------
- 1 file changed, 151 insertions(+), 54 deletions(-)
+ doc/go1.html | 7 +++----
+ doc/go1.tmpl | 7 +++----
+ 2 files changed, 6 insertions(+), 8 deletions(-)

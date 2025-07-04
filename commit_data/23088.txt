@@ -1,16 +1,23 @@
-commit f763da3d3404673484bcc9d0d911c75a40e326c2
-Author: Austin Clements <austin@google.com>
-Date:   Tue May 19 16:58:14 2015 -0400
+commit 04829a413850eddc81191837bee79ef5699d406e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 16:36:52 2015 -0700
 
-    cmd/internal/gc: remove incorrect "write barrier prohibited" error
+    cmd/9g, etc: remove // fallthrough comments
     
-    Commit 9c9e36b pushed these errors down to where the write barriers
-    are actually emitted, but forgot to remove the original error that was
-    being pushed down.
+    They are vestiges of the c2go transition.
     
-    Change-Id: I751752a896e78fb9e63d69f88e7fb8d1ff5d344c
-    Reviewed-on: https://go-review.googlesource.com/10264
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I22672e40373ef77d7a0bf69cfff8017e46353055
+    Reviewed-on: https://go-review.googlesource.com/9265
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/internal/gc/walk.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/9g/gsubr.go           | 3 +--
+ src/cmd/internal/gc/dcl.go    | 1 -
+ src/cmd/internal/gc/esc.go    | 2 --
+ src/cmd/internal/gc/export.go | 2 --
+ src/cmd/internal/gc/fmt.go    | 4 ----
+ src/cmd/internal/gc/gen.go    | 2 --
+ src/cmd/internal/gc/inl.go    | 2 --
+ src/cmd/internal/gc/walk.go   | 1 -
+ src/cmd/internal/ld/dwarf.go  | 1 -
+ src/cmd/internal/ld/elf.go    | 1 -
+ 10 files changed, 1 insertion(+), 18 deletions(-)

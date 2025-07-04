@@ -1,62 +1,38 @@
-commit 8f70e1f8a91db6c8a1bcc292766af95e52e8512b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 3 01:24:19 2017 -0400
+commit 12465661421f3598cb76a787fba75da8cabc220d
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Wed Jul 12 22:02:39 2017 -0700
 
-    cmd/go: do not install dependencies during "go install"
+    math: eliminate overflow in Pow(x,y) for large y
     
-    This CL makes "go install" behave the way many users expect:
-    install only the things named on the command line.
-    Future builds still run as fast, thanks to the new build cache (CL 75473).
-    To install dependencies as well (the old behavior), use "go install -i".
+    The current implementation uses a shift and add
+    loop to compute the product of x's exponent xe and
+    the integer part of y (yi) for yi up to 1<<63.
+    Since xe is an 11-bit exponent, this product can be
+    up to 74-bits and overflow both 32 and 64-bit int.
     
-    Actual definitions aside, what most users know and expect of "go install"
-    is that (1) it installs what you asked, and (2) it's fast, unlike "go build".
-    It was fast because it installed dependencies, but installing dependencies
-    confused users repeatedly (see for example #5065, #6424, #10998, #12329,
-    "go build" and "go test" so that they could be "fast" too, but that only
-    created new opportunities for confusion. We also had to add -installsuffix
-    and then -pkgdir, to allow "fast" even when dependencies could not be
-    installed in the usual place.
+    This change checks whether the accumulated exponent
+    will fit in the 11-bit float exponent of the output
+    and breaks out of the loop early if overflow is detected.
     
-    The recent introduction of precise content-based staleness logic means that
-    the go command detects the need for rebuilding packages more often than it
-    used to, with the consequence that "go install" rebuilds and reinstalls
-    dependencies more than it used to. This will create more new opportunities
-    for confusion and will certainly lead to more issues filed like the ones
-    listed above.
+    The current handling of yi >= 1<<63 uses Exp(y * Log(x))
+    which incorrectly returns Nan for x<0.  In addition,
+    for y this large, Exp(y * Log(x)) can be enumerated
+    to only overflow except when x == -1 since the
+    boundary cases computed exactly:
     
-    CL 75743 introduced a build cache, separate from the install locations.
-    That cache makes all operations equally incremental and fast, whether or
-    not the operation is "install" or "build", and whether or not "-i" is used.
+    Pow(NextAfter(1.0, Inf(1)), 1<<63)  == 2.72332... * 10^889
+    Pow(NextAfter(1.0, Inf(-1)), 1<<63) == 1.91624... * 10^-445
     
-    Installing dependencies is no longer necessary for speed, it has confused
-    users in the past, and the more accurate rebuilds mean that it will confuse
-    users even more often in the future. This CL aims to end all that confusion
-    by not installing dependencies by default.
+    exceed the range of float64. So, the call can be
+    replaced with a simple case statement analgous to
+    y == Inf that correctly handles x < 0 as well.
     
-    By analogy with "go build -i" and "go test -i", which still install
-    dependencies, this CL introduces "go install -i", which installs
-    dependencies in addition to the things named on the command line.
+    Fixes #7394
     
-    Fixes #5065.
-    Fixes #6424.
-    Fixes #10998.
-    Fixes #12329.
-    Fixes #18981.
-    Fixes #22469.
-    
-    Another step toward #4719.
-    
-    Change-Id: I3d7bc145c3a680e2f26416e182fa0dcf1e2a15e5
-    Reviewed-on: https://go-review.googlesource.com/75850
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I6f50dc951f3693697f9669697599860604323102
+    Reviewed-on: https://go-review.googlesource.com/48290
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go |  4 +--
- misc/cgo/testcshared/cshared_test.go   |  2 +-
- src/cmd/dist/build.go                  |  4 +--
- src/cmd/dist/test.go                   | 23 +++++++++++++---
- src/cmd/go/go_test.go                  | 49 +++++++++++++++++++++++++++++----
- src/cmd/go/internal/work/action.go     | 50 ++++++++++++++++++++++------------
- src/cmd/go/internal/work/build.go      | 15 +++++++---
- 7 files changed, 110 insertions(+), 37 deletions(-)
+ src/math/all_test.go | 22 ++++++++++++++++++++++
+ src/math/pow.go      | 20 +++++++++++++++++++-
+ 2 files changed, 41 insertions(+), 1 deletion(-)

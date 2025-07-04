@@ -1,12 +1,14 @@
-commit cee920225ddaec164c0026480e072e0ea568db40
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Feb 6 14:00:23 2012 +1100
+commit e066db3acbd65f12349d0dff36332e2c7648711d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Feb 6 13:24:45 2012 +1100
 
-    testing: capture panics, present them, and mark the test as a failure.
+    html: add package doc.
     
-    R=r
+    Fixes #2857.
+    
+    R=r, adg
     CC=golang-dev
-    https://golang.org/cl/5633044
+    https://golang.org/cl/5635046
 
- src/pkg/testing/testing.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/pkg/html/escape.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,12 +1,36 @@
-commit 94fab3cad33b7d5eb7422d319fd88b2db9896a75
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Feb 21 21:59:46 2013 +0400
+commit aa5aaabb0d18d21d97e9c98d7dfde4899a498335
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Feb 21 12:48:38 2013 -0500
 
-    runtime: fix heap corruption
+    exp/ssa/interp: (#6 of 5): test interpretation of SSA form of $GOROOT/test/*.go.
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/7397049
+    The interpreter's os.Exit now triggers a special panic rather
+    than kill the test process.  (It's semantically dubious, since
+    it will run deferred routines.)  Interpret now returns its
+    exit code rather than calling os.Exit.
+    
+    Also:
+    - disabled parts of a few $GOROOT/tests via os.Getenv("GOSSAINTERP").
+    - remove unnecessary 'slots' param to external functions; they
+      are never closures.
+    
+    Most of the tests are disabled until go/types supports shifts.
+    They can be reenabled if you patch this workaround:
+    https://golang.org/cl/7312068
+    
+    R=iant, bradfitz
+    CC=golang-dev, gri
+    https://golang.org/cl/7313062
 
- src/pkg/runtime/proc.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/exp/ssa/interp/external.go          |  49 +++--
+ src/pkg/exp/ssa/interp/external_unix.go     |   4 +-
+ src/pkg/exp/ssa/interp/external_windows.go  |   4 +-
+ src/pkg/exp/ssa/interp/interp.go            |  46 +++--
+ src/pkg/exp/ssa/interp/interp_test.go       | 222 +++++++++++++++++++++
+ src/pkg/exp/ssa/interp/reflect.go           |  89 ++++-----
+ src/pkg/exp/ssa/interp/testdata/coverage.go | 294 ++++++++++++++++++++++++++++
+ test/blank.go                               |  19 +-
+ test/cmp.go                                 |  18 +-
+ test/const.go                               |  41 ++--
+ test/recover.go                             |  12 +-
+ 11 files changed, 674 insertions(+), 124 deletions(-)

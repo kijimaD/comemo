@@ -1,47 +1,15 @@
-commit e09bbaec69a8ff960110e13eabb3bef5331ecb0c
-Author: erifan01 <eric.fang@arm.com>
-Date:   Tue Oct 25 12:08:05 2022 +0800
+commit a59ab29bf2164730e3e6d5439c6ec4b1e46adcc4
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Nov 29 11:05:41 2021 -0500
 
-    cmd/compile: enable address folding for global symbols of shared library
+    doc/go1.18: use <code> instead of <pre> for target specification
     
-    Address folding is disabled in CL42172, the commit message of which
-    said that "In shared library, load/store of global is rewritten to
-    using GOT and temp register, which conflicts with the use of temp
-    register for assembling large offset.". Actually this doesn't happen
-    because the sequence of instructions when rewritten to use Got looks
-    like this:
-      MOVD $sym, Rx becomes
-      MOVD sym@GOT, Rx
-    If there is an offset off, there will be one more instruction:
-      ADD $off, Rx, Rx
+    For #47694.
     
-    And MOVD sym, Rx becomes
-      MOVD sym@GOT, REGTMP
-      MOVx (REGTMP), Ry
-    
-    If there is a small offset off, it becomes:
-      MOVD sym@GOT, REGTMP
-      MOVx (REGTMP)off, Ry
-    
-    If off is very large, it becomes:
-      MOVD sym@GOT, REGTMP
-      MOVD $off, Rt
-      ADD  Rt, REGTMP
-      MOVx (REGTMP), Ry
-    
-    We can see that the address can be calculated correctly, and testing
-    on darwin/arm64 confirms this.
-    
-    Removing this restriction is beneficial to further optimize the sequence
-    of "ADRP+ADD+LD/ST" to "ADRP+LD/ST(offset), so this CL removes it.
-    
-    Change-Id: I0e9f7bc1723e0a027f32cf0ae2c41cd6df49defe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445535
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Signed-off-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I38c2fd9b57fbbacf220a2bc679f67e2dfdcc7cb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367514
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules | 132 ++++++----------
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 209 +++++++++++---------------
- 2 files changed, 132 insertions(+), 209 deletions(-)
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

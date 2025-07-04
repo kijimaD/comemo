@@ -1,13 +1,12 @@
-commit 142008c325da1bb6e23f051fddd69c1f0de1dd35
+commit a005617c5a5ac53aa68d302653f0bf1e65a08a5a
 Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Thu May 12 22:00:50 2011 -0700
+Date:   Thu May 12 22:00:14 2011 -0700
 
-    strconv: document and test True and False for Atob
+    gotest: document unit of time for elapsed()
     
     R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/4535057
+    https://golang.org/cl/4543044
 
- src/pkg/strconv/atob.go      | 4 ++--
- src/pkg/strconv/atob_test.go | 2 ++
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/gotest/gotest.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

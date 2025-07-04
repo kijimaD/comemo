@@ -1,19 +1,21 @@
-commit 35cb497d6e65ae5355cd8f34db94a29669f2e544
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 4 23:43:23 2025 -0500
+commit 468f56b10a90176aead2443dc1b6e883a0a41ab8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 2 13:30:15 2024 -0500
 
-    cmd/compile: remove useSSE
+    cmd/compile: consistently use s.pp in genssa
     
-    Every OS uses SSE now.
+    In genssa, s.pp == pp, so using either is equivalent, but use is
+    inconsistent. About half of the uses use s.pp and the other half use pp.
     
-    Change-Id: I4df7e2fbc8e5ccb1fc84a884d4c922b7a2a628e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655876
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    This gets confusing, especially when two different uses are right next
+    to each other, because it implies that these might be different.
+    
+    Pick one and use it consistently.
+    
+    Change-Id: Ifb1bb9332138d8cb62a45c212fcd7139f8511901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560780
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/AMD64.rules |  60 ++-----
- src/cmd/compile/internal/ssa/config.go        |   2 -
- src/cmd/compile/internal/ssa/rewriteAMD64.go  | 217 ++------------------------
- 3 files changed, 27 insertions(+), 252 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 36 +++++++++++++++++-----------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

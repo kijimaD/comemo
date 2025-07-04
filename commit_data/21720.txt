@@ -1,21 +1,29 @@
-commit 9f926e81c262f11e2980a25f06ac17f3bbeb378a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 23 17:05:30 2015 +0900
+commit 0d599909e9a38ca925c9eaf916eba3fcbea22203
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 15:15:05 2015 -0500
 
-    runtime: simplify OpenBSD semaphores
+    cmd/5a, cmd/5g, cmd/5l, liblink: update for portable Prog, Addr
     
-    OpenBSD's thrsleep system call includes an "abort" parameter, which
-    specifies a memory address to be tested after being registered on the
-    sleep channel (i.e., capable of being woken up by thrwakeup).  By
-    passing a pointer to waitsemacount for this parameter, we avoid race
-    conditions without needing a lock.  Instead we just need to use
-    atomicload, cas, and xadd to mutate the semaphore count.
-    
-    Change-Id: If9f2ab7cfd682da217f9912783cadea7e72283a8
-    Reviewed-on: https://go-review.googlesource.com/5563
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Joel Sing <jsing@google.com>
+    Change-Id: I06762d4fb3bb2616087339b6ae1eb5267a39c46a
+    Reviewed-on: https://go-review.googlesource.com/3516
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/os1_openbsd.go | 40 ++++++++++++++--------------------------
- src/runtime/os_openbsd.go  |  2 +-
- 2 files changed, 15 insertions(+), 27 deletions(-)
+ src/cmd/5a/a.y      | 147 ++++-----
+ src/cmd/5a/lex.c    |  98 +++---
+ src/cmd/5a/y.tab.c  | 914 +++++++++++++++++++++++++---------------------------
+ src/cmd/5g/cgen.c   |  16 +-
+ src/cmd/5g/cgen64.c |  12 +-
+ src/cmd/5g/galign.c |  10 -
+ src/cmd/5g/gg.h     |   6 +-
+ src/cmd/5g/ggen.c   |  74 +++--
+ src/cmd/5g/gobj.c   |  54 ++--
+ src/cmd/5g/gsubr.c  | 141 ++++----
+ src/cmd/5g/opt.h    |  11 +-
+ src/cmd/5g/peep.c   | 255 ++++++---------
+ src/cmd/5g/prog.c   |   4 +-
+ src/cmd/5g/reg.c    | 166 ++++------
+ src/cmd/5l/5.out.h  |  95 +++---
+ src/liblink/asm5.c  | 443 ++++++++++++-------------
+ src/liblink/list5.c | 103 +++---
+ src/liblink/obj5.c  | 300 ++++++++---------
+ 18 files changed, 1339 insertions(+), 1510 deletions(-)

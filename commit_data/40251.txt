@@ -1,29 +1,13 @@
-commit 90888ed97b5b3c0d104b2e9f28e5b74c1b0d07dd
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Oct 13 01:30:51 2019 +0200
+commit ccbc9a3f9f6479070f5a45a8583d14d158b8bcb0
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Apr 29 16:41:20 2019 +0200
 
-    cmd/compile: in poset, change the way inequality is recorded
+    cmd/go: add XCOFF format handler for go version
     
-    Before this CL, inequality was recorded in a bit matrix using
-    SSA IDs. This allowed to record inequality for SSA values that
-    we didn't know any relation in the partial order of. Unfortunately,
-    this also means that inequality is harder to use within the poset
-    itself as there is not fast way to map from internal poset indices
-    and SSA values.
-    
-    Since we will need to check for inequality in following CLs within
-    code that lost track of SSA values, switch to use a bit matrix
-    of poset indices instead. This requires always allocate a poset
-    node (as a new root) for values that are first seen in a SetNonEqual
-    call, but it doesn't sound like a big problem. The other solution
-    (creating and maintaining a reverse map from poset indices to SSA
-    values) seem more complicated and memory hungry.
-    
-    Change-Id: Ic917485abbe70aef7ad6fa98408e5430328b6cd9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196782
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ib102ae95acfd89fc3c9942a4ec82c74362f62045
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174299
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/poset.go | 150 ++++++++++++++++++++++------------
- 1 file changed, 96 insertions(+), 54 deletions(-)
+ src/cmd/go/internal/version/exe.go | 44 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 43 insertions(+), 1 deletion(-)

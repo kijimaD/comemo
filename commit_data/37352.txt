@@ -1,46 +1,74 @@
-commit 106db71f3779b0ae3e6dc83b22df0cf04bc36629
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Nov 5 19:23:25 2018 -0500
+commit 9430c1a669b6d4a832f740ba0c9f67c4267d9170
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 17 10:16:38 2018 -0400
 
-    crypto/tls: implement TLS 1.3 client authentication
+    cmd/go/internal/modfetch: move to new pseudo-version design
     
-    Note that the SignatureSchemes passed to GetClientCertificate in TLS 1.2
-    are now filtered by the requested certificate type. This feels like an
-    improvement anyway, and the full list can be surfaced as well when
-    support for signature_algorithms_cert is added, which actually matches
-    the semantics of the CertificateRequest signature_algorithms in TLS 1.2.
+    The original pseudo-version design used versions of the form
     
-    Also, note a subtle behavior change in server side resumption: if a
-    certificate is requested but not required, and the resumed session did
-    not include one, it used not to invoke VerifyPeerCertificate. However,
-    if the resumed session did include a certificate, it would. (If a
-    certificate was required but not in the session, the session is rejected
-    in checkForResumption.) This inconsistency could be unexpected, even
-    dangerous, so now VerifyPeerCertificate is always invoked. Still not
-    consistent with the client behavior, which does not ever invoke
-    VerifyPeerCertificate on resumption, but it felt too surprising to
-    entirely change either.
+            v0.0.0-yyyymmddhhmmss-abcdef123456
     
-    Updates #9671
+    These were intentionally chosen to be valid semantic versions
+    that sort below any explicitly-chosen semantic version (even v0.0.0),
+    so that they could be used before anything was tagged but after
+    that would essentially only be useful in replace statements
+    (because the max operation during MVS would always prefer
+    a tagged version).
     
-    Change-Id: Ib2b0dbc30e659208dca3ac07d6c687a407d7aaaf
-    Reviewed-on: https://go-review.googlesource.com/c/147599
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Then we changed the go command to accept hashes on the
+    command line, so that you can say
+    
+            go get github.com/my/proj@abcdef
+    
+    and it will download and use v0.0.0-yyyymmddhhmmss-abcdef123456.
+    
+    If you were using v1.10.1 before and this commit is just little bit
+    newer than that commit, calling it v0.0.0-xxx is confusing but
+    also harmful: the go command sees the change from v1.10.1 to
+    the v0.0.0 pseudoversion as a downgrade, and it downgrades other
+    modules in the build. In particular if some other module has
+    a requirement of github.com/my/proj v1.9.0 (or later), the
+    pseudo-version appears to be before that, so go get would
+    downgrade that module too. It might even remove it entirely,
+    if every available version needs a post-v0.0.0 version of my/proj.
+    
+    This CL introduces new pseudo-version forms that can be used
+    to slot in after the most recent explicit tag before the commit.
+    If the most recent tagged commit before abcdef is v1.10.1,
+    then now we will use
+    
+            v1.10.2-0.yyyymmddhhmmss-abcdef123456
+    
+    This has the right properties for downgrades and the like,
+    since it is after v1.10.1 but before almost any possible
+    successor, such as v1.10.2, v1.10.2-1, or v1.10.2-pre.
+    
+    This CL also uses those pseudo-version forms as appropriate
+    when mapping a hash to a pseudo-version. This fixes the
+    downgrade problem.
+    
+    Overall, this CL reflects our growing recognition of pseudo-versions
+    as being like "untagged prereleases".
+    
+    Issue #26150 was about documenting best practices for how
+    to work around this kind of accidental downgrade problem
+    with additional steps. Now there are no additional steps:
+    the problem is avoided by default.
+    
+    Fixes #26150.
+    
+    Change-Id: I402feeccb93e8e937bafcaa26402d88572e9b14c
+    Reviewed-on: https://go-review.googlesource.com/124515
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/crypto/tls/common.go                           |   1 +
- src/crypto/tls/conn.go                             |   4 +-
- src/crypto/tls/handshake_client.go                 | 129 +++++------
- src/crypto/tls/handshake_client_test.go            |  52 +++--
- src/crypto/tls/handshake_client_tls13.go           |  76 ++++++-
- src/crypto/tls/handshake_messages.go               |  25 +++
- src/crypto/tls/handshake_messages_test.go          |   6 +
- src/crypto/tls/handshake_server.go                 |  92 ++++----
- src/crypto/tls/handshake_server_test.go            |   3 +
- src/crypto/tls/handshake_server_tls13.go           | 197 +++++++++++++----
- .../testdata/Client-TLSv13-ClientCert-ECDSA-RSA    | 236 +++++++++++++++++++++
- .../testdata/Client-TLSv13-ClientCert-RSA-ECDSA    | 228 ++++++++++++++++++++
- .../testdata/Client-TLSv13-ClientCert-RSA-RSAPSS   | 230 ++++++++++++++++++++
- .../Server-TLSv13-ClientAuthRequestedAndECDSAGiven | 184 ++++++++++++++++
- .../Server-TLSv13-ClientAuthRequestedAndGiven      | 180 ++++++++++++++++
- .../Server-TLSv13-ClientAuthRequestedNotGiven      | 109 ++++++++++
- 16 files changed, 1581 insertions(+), 171 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/codehost.go |   9 ++
+ src/cmd/go/internal/modfetch/codehost/git.go      |  12 ++
+ src/cmd/go/internal/modfetch/codehost/vcs.go      |   4 +
+ src/cmd/go/internal/modfetch/coderepo.go          |  88 ++-------------
+ src/cmd/go/internal/modfetch/coderepo_test.go     |   5 +-
+ src/cmd/go/internal/modfetch/pseudo.go            | 128 ++++++++++++++++++++++
+ src/cmd/go/internal/modfetch/pseudo_test.go       |  74 +++++++++++++
+ src/cmd/go/internal/modload/help.go               |  58 +++++++---
+ src/cmd/go/internal/modload/query_test.go         |   2 +-
+ src/cmd/go/testdata/script/mod_get_pseudo.txt     |  72 ++++++++++++
+ 10 files changed, 356 insertions(+), 96 deletions(-)

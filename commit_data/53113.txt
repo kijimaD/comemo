@@ -1,22 +1,18 @@
-commit 78203ac5369b90e115be5d34272450994b0e4544
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 17 17:59:49 2023 -0400
+commit c2edb2c841149f2e56963071065d52247e24092a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 7 14:17:51 2022 -0500
 
-    cmd/dist: tweaks to -json mode
+    cmd/go: port TestIssue16471 to a script test and add verbose logging
     
-    These are some follow-up tweaks to CL 494958. This CL drops a stale
-    and unnecessary check and passes through trailing non-JSON output.
+    For #50471
     
-    Updates #37486.
-    
-    Change-Id: I7cdb73a103f9cd49767d5491812d5ad011ee5c14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496297
+    Change-Id: I082c1f96113a3228f2ef423a04eaa9fbaa6c7522
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376359
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go          | 4 +---
- src/cmd/dist/testjson.go      | 5 ++++-
- src/cmd/dist/testjson_test.go | 4 +---
- 3 files changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/go/go_test.go                         | 15 ---------------
+ src/cmd/go/testdata/script/get_issue16471.txt | 22 ++++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 15 deletions(-)

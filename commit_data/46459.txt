@@ -1,23 +1,34 @@
-commit 04f5116c987082a834a29e81c81ece8537d87219
-Author: gerrard <gyc_ssdut@163.com>
-Date:   Thu Sep 16 07:10:58 2021 +0000
+commit 68e6fa4f6852b4ef0fe61789618c093f4e2185c9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 31 23:45:36 2020 -0800
 
-    cmd/go: clean paths before checking same directory
+    [dev.regabi] cmd/compile: fix package-initialization order
     
-    Replace `filepath.Split`  with `filepath.Dir`. Clean paths before checking whether command line files are in same directory.
+    This CL fixes package initialization order by creating the init task
+    before the general deadcode-removal pass.
     
-    Fixes #47392
+    It also changes noder to emit zero-initialization assignments (i.e.,
+    OAS with nil RHS) for package-block variables, so that initOrder can
+    tell the variables still need initialization. To allow this, we need
+    to also extend the static-init code to recognize zero-initialization
+    assignments.
     
-    Change-Id: I259c3024e7670e78833622b02af4710bc4b68b31
-    GitHub-Last-Rev: c7c4905bb9c62737e95a4663813f076ee540046b
-    GitHub-Pull-Request: golang/go#47412
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337629
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    This doesn't pass toolstash -cmp, because it reorders some package
+    initialization routines.
+    
+    Fixes #43444.
+    
+    Change-Id: I0da7996a62c85e15e97ce965298127e075390a7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280976
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/internal/load/pkg.go         |  5 +----
- src/cmd/go/testdata/script/run_dirs.txt | 14 ++++++++++++--
- 2 files changed, 13 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/main.go          | 10 +++---
+ src/cmd/compile/internal/noder/noder.go      | 52 ++++++++++------------------
+ src/cmd/compile/internal/pkginit/init.go     |  4 +++
+ src/cmd/compile/internal/staticinit/sched.go | 16 +++++++--
+ test/fixedbugs/issue43444.go                 | 28 +++++++++++++++
+ test/fixedbugs/issue43444.out                |  1 +
+ 6 files changed, 70 insertions(+), 41 deletions(-)

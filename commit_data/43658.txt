@@ -1,32 +1,20 @@
-commit 64a9a75ce9a353ef3d488b8e3ca977bf6df204f8
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jul 20 18:19:56 2020 +0000
+commit 7711bad100df2cbf744b14dfb587d605738e3de4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Apr 20 10:55:02 2020 +0700
 
-    runtime: release worldsema with a direct G handoff
+    cmd/compile: remove nil check for p in isReflectPkg
     
-    Currently worldsema is not released with direct handoff, so the
-    semaphore is an unfair synchronization mechanism. If, for example,
-    ReadMemStats is called in a loop, it can continuously stomp on attempts
-    by the GC to stop the world.
+    CL 228859 refactored detecting reflect package logic in to isReflectPkg
+    function. The function has un-necessary nil check for p, so remove that
+    check.
     
-    Note that it's specifically possible for ReadMemStats to delay a STW to
-    end GC since ReadMemStats is able to STW during a GC since #19112 was
-    fixed.
+    Passes toolstash-check.
     
-    While this particular case is unlikely and the right answer in most
-    applications is to simply not call such an expensive operation in a
-    loop, this pattern is used often in tests.
-    
-    Fixes #40459.
-    
-    Change-Id: Ia4a54f0fd956ea145a319f9f06c4cd37dd52fd8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243977
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I2f3f1ac967fe8d176dda3f3b4698ded08602e2fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228861
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/proc.go | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/go.go | 4 ----
+ 1 file changed, 4 deletions(-)

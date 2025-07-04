@@ -1,19 +1,12 @@
-commit e8188c160762f654369cdba535324a97df6aed22
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 11 16:59:47 2011 -0800
+commit 3f2d787c2b4eb7a1dd75c2613be6d76dfa0dba5a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 11 14:30:27 2011 -0800
 
-    godoc: fix remote search (use correct URL)
+    runtime: remove declarations of nonexistent functions
     
-    Also works now together with -html, as in:
-    godoc -html -q Sin
-    for an html result.
-    
-    Fixes #2435.
-    
-    R=iant
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5375074
+    https://golang.org/cl/5369089
 
- src/cmd/godoc/godoc.go | 14 ++++++++++++++
- src/cmd/godoc/main.go  |  4 +---
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ src/pkg/runtime/proc.c | 2 --
+ 1 file changed, 2 deletions(-)

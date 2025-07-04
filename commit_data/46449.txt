@@ -1,23 +1,27 @@
-commit 4847c47cb8a93b56e1df8c249700e25f527d4ba3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 14 17:13:32 2021 -0700
+commit 20d0991b86f533a734cad96b2002678d9750e6d8
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Dec 30 17:18:55 2020 +0100
 
-    cmd/compile/internal/types2: eliminate Named.instPos
+    lib/time, time/tzdata: update tzdata to 2020f
     
-    This is a clean port of CL 349411 from go/types to types2.
+    Changelog
     
-    Change-Id: Id5fa04c53f286dad263d7ba7911cb49eebf47b0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350030
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+     'make rearguard_tarballs' no longer generates a bad rearguard.zi,
+     fixing a 2020e bug.
+    
+    No actual changes to timezones data. See
+    
+      http://mm.icann.org/pipermail/tz-announce/2020-December/000064.html
+    
+    Updates #22487
+    
+    Change-Id: I78f7adba1c3c1d3489b0da870601117b9b8cb0d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280455
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/types2/environment.go |  7 -------
- src/cmd/compile/internal/types2/errors.go      |  2 +-
- src/cmd/compile/internal/types2/errors_test.go |  1 -
- src/cmd/compile/internal/types2/instantiate.go |  5 +++--
- src/cmd/compile/internal/types2/named.go       |  8 +++-----
- src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
- src/cmd/compile/internal/types2/typestring.go  | 10 ----------
- 7 files changed, 8 insertions(+), 27 deletions(-)
+ lib/time/update.bash       |    4 +-
+ lib/time/zoneinfo.zip      |  Bin 424205 -> 424205 bytes
+ src/time/tzdata/zipdata.go | 3878 ++++++++++++++++++++++----------------------
+ 3 files changed, 1941 insertions(+), 1941 deletions(-)

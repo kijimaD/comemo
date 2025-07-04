@@ -1,21 +1,27 @@
-commit 9bce7b70fde8572880e7a47bc2a4df8fb7b2c286
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 1 18:01:46 2021 +0000
+commit 72ee5bad9f9bd8979e14fab02fb07e39c5e9fd8c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 2 16:03:37 2020 -0700
 
-    runtime: create initializer for gcControllerState
+    cmd/cgo: split gofrontend mangling checks into cmd/internal/pkgpath
     
-    Now that gcControllerState contains almost all of the pacer state,
-    create an initializer for it instead of haphazardly setting some fields.
+    This is a step toward porting https://golang.org/cl/219817 from the
+    gofrontend repo to the main repo.
     
-    For #44167.
+    Note that this also corrects the implementation of the v2 mangling
+    scheme to use ..u and ..U where appropriate.
     
-    Change-Id: I4ce1d5dd82003cb7c263fa46697851bb22a32544
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306601
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    For #37272
+    
+    Change-Id: I64a1e7ca1c84348efcbf1cf62049eeb05c830ed8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259298
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/mgc.go      | 16 +++-------------
- src/runtime/mgcpacer.go | 15 +++++++++++++++
- 2 files changed, 18 insertions(+), 13 deletions(-)
+ src/cmd/cgo/main.go                      |   3 +-
+ src/cmd/cgo/out.go                       | 118 ++++--------------------------
+ src/cmd/dist/buildtool.go                |   1 +
+ src/cmd/internal/pkgpath/pkgpath.go      | 114 +++++++++++++++++++++++++++++
+ src/cmd/internal/pkgpath/pkgpath_test.go | 121 +++++++++++++++++++++++++++++++
+ 5 files changed, 252 insertions(+), 105 deletions(-)

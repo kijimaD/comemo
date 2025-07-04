@@ -1,28 +1,26 @@
-commit 764d0bb0314c327a5149160ca77de9873dafb0fc
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 18 15:05:17 2018 -0400
+commit ef9bdd11e8e5d93d268f13b54feedbed7e3fa595
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Fri Mar 16 03:19:01 2018 +0000
 
-    cmd/go: diagnose 'go mod' in GOPATH/src better
+    cmd/asm: add essential instructions for AES-GCM on ARM64
     
-    People are (understandably) confused by creating go.mod files in GOPATH/src
-    and then having the go command not use modules in those directories.
-    We can't change that behavior (or we'll break non-module users of GOPATH)
-    but we can force 'go mod' (including 'go mod -init') to fail loudly in that case.
+    This change adds VLD1, VST1, VPMULL{2}, VEXT, VRBIT, VUSHR and VSHL instructions
+    for supporting AES-GCM implementation later.
     
-    If this is not enough, the next step would be to print a warning every time
-    the go command is run in a GOPATH/src directory with a go.mod but
-    module mode hasn't triggered. But that will annoy all the non-module users.
-    Hopefully anyone confused will eventually run a 'go mod' command of
-    some kind, which will fail loudly.
+    Fixes #24400
     
-    Fixes #26365.
-    
-    Change-Id: I8c5fe987fbc3f8d2eceb1138e6862a391ade150c
-    Reviewed-on: https://go-review.googlesource.com/124708
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I556feb88067f195cbe25629ec2b7a817acc58709
+    Reviewed-on: https://go-review.googlesource.com/101095
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modcmd/mod.go       |  2 +-
- src/cmd/go/internal/modload/init.go     | 55 +++++++++++--------------
- src/cmd/go/internal/search/search.go    | 71 +++++++++++++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_find.txt | 10 +++--
- 4 files changed, 102 insertions(+), 36 deletions(-)
+ src/cmd/asm/internal/arch/arm64.go             |  10 +
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  36 ++-
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  14 ++
+ src/cmd/internal/obj/arm64/a.out.go            |   7 +
+ src/cmd/internal/obj/arm64/anames.go           |   6 +
+ src/cmd/internal/obj/arm64/asm7.go             | 335 ++++++++++++++++++++++++-
+ src/cmd/internal/obj/arm64/doc.go              |  44 +++-
+ src/cmd/internal/obj/arm64/list7.go            |   2 +
+ 8 files changed, 446 insertions(+), 8 deletions(-)

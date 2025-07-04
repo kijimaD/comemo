@@ -1,21 +1,13 @@
-commit 097a82f54d20cb722b8712025caac44c357c1b13
-Author: nimelehin <nimelehin@gmail.com>
-Date:   Wed Sep 15 10:31:05 2021 +0300
+commit 3432d24bab848a4fbae182e7d4399aa34ff6e302
+Merge: 493eb6e6ec 6d8d118762
+Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
+Date:   Mon Jan 25 17:08:05 2021 +0000
 
-    cmd/compile: don't emit unnecessary amd64 extension checks
-    
-    In case of amd64 the compiler issues checks if extensions are
-    available on a platform. With GOAMD64 microarchitecture levels
-    provided, some of the checks could be eliminated.
-    
-    Change-Id: If15c178bcae273b2ce7d3673415cb8849292e087
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352010
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Merge "[dev.typeparams] all: merge dev.regabi (063c72f) into dev.typeparams" into dev.typeparams
 
- src/cmd/compile/internal/ssagen/ssa.go | 13 +++++++++++++
- test/codegen/math.go                   |  9 +++++++++
- test/codegen/mathbits.go               |  6 +++++-
- 3 files changed, 27 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/escape/escape.go | 10 ++++++++++
+ src/cmd/compile/internal/inline/inl.go    | 10 ++++++++--
+ src/cmd/compile/internal/noder/import.go  |  5 +++++
+ src/cmd/compile/internal/ssa/deadstore.go |  8 ++++----
+ test/closure6.go                          | 18 ++++++++++++++++++
+ 5 files changed, 45 insertions(+), 6 deletions(-)

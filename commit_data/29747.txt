@@ -1,12 +1,94 @@
-commit 10f43a1f4f889795ab2ed2916199ee96459ff6a3
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Dec 5 23:47:54 2016 -0500
+commit d7507e9d1109da424dd375365dc923257ebd0c23
+Author: Denis Nagorny <denis.nagorny@intel.com>
+Date:   Thu Sep 22 04:05:39 2016 +0300
 
-    doc/go1.8: remove mention of #16396
+        runtime: improve memmove for amd64
     
-    Change-Id: I811e76c9f42505e974bea634d4ded2499e4893db
-    Reviewed-on: https://go-review.googlesource.com/33926
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+        Use AVX if available on 4th generation of Intel(TM) Core(TM) processors.
+    
+        (collected on E5 2609v3 @1.9GHz)
+        name                        old speed      new speed       delta
+        Memmove/1-6                  158MB/s ± 0%    172MB/s ± 0%    +9.09% (p=0.000 n=16+16)
+        Memmove/2-6                  316MB/s ± 0%    345MB/s ± 0%    +9.09% (p=0.000 n=18+16)
+        Memmove/3-6                  517MB/s ± 0%    517MB/s ± 0%      ~ (p=0.445 n=16+16)
+        Memmove/4-6                  687MB/s ± 1%    690MB/s ± 0%    +0.35% (p=0.000 n=20+17)
+        Memmove/5-6                  729MB/s ± 0%    729MB/s ± 0%    +0.01% (p=0.000 n=16+18)
+        Memmove/6-6                  875MB/s ± 0%    875MB/s ± 0%    +0.01% (p=0.000 n=18+18)
+        Memmove/7-6                 1.02GB/s ± 0%   1.02GB/s ± 1%      ~ (p=0.139 n=19+20)
+        Memmove/8-6                 1.26GB/s ± 0%   1.26GB/s ± 0%    +0.00% (p=0.000 n=18+18)
+        Memmove/9-6                 1.42GB/s ± 0%   1.42GB/s ± 0%    +0.00% (p=0.000 n=17+18)
+        Memmove/10-6                1.58GB/s ± 0%   1.58GB/s ± 0%    +0.00% (p=0.000 n=19+19)
+        Memmove/11-6                1.74GB/s ± 0%   1.74GB/s ± 0%    +0.00% (p=0.001 n=18+17)
+        Memmove/12-6                1.90GB/s ± 0%   1.90GB/s ± 0%    +0.00% (p=0.000 n=19+19)
+        Memmove/13-6                2.05GB/s ± 0%   2.05GB/s ± 0%    +0.00% (p=0.000 n=18+19)
+        Memmove/14-6                2.21GB/s ± 0%   2.21GB/s ± 0%    +0.00% (p=0.000 n=16+20)
+        Memmove/15-6                2.37GB/s ± 0%   2.37GB/s ± 0%    +0.00% (p=0.004 n=19+20)
+        Memmove/16-6                2.53GB/s ± 0%   2.53GB/s ± 0%    +0.00% (p=0.000 n=16+16)
+        Memmove/32-6                4.67GB/s ± 0%   4.67GB/s ± 0%    +0.00% (p=0.000 n=17+17)
+        Memmove/64-6                8.67GB/s ± 0%   8.64GB/s ± 0%    -0.33% (p=0.000 n=18+17)
+        Memmove/128-6               12.6GB/s ± 0%   11.6GB/s ± 0%    -8.05% (p=0.000 n=16+19)
+        Memmove/256-6               16.3GB/s ± 0%   16.6GB/s ± 0%    +1.66% (p=0.000 n=20+18)
+        Memmove/512-6               21.5GB/s ± 0%   24.4GB/s ± 0%   +13.35% (p=0.000 n=18+17)
+        Memmove/1024-6              24.7GB/s ± 0%   33.7GB/s ± 0%   +36.12% (p=0.000 n=18+18)
+        Memmove/2048-6              27.3GB/s ± 0%   43.3GB/s ± 0%   +58.77% (p=0.000 n=19+17)
+        Memmove/4096-6              37.5GB/s ± 0%   50.5GB/s ± 0%   +34.56% (p=0.000 n=19+19)
+        MemmoveUnalignedDst/1-6      135MB/s ± 0%    146MB/s ± 0%    +7.69% (p=0.000 n=16+14)
+        MemmoveUnalignedDst/2-6      271MB/s ± 0%    292MB/s ± 0%    +7.69% (p=0.000 n=18+18)
+        MemmoveUnalignedDst/3-6      438MB/s ± 0%    438MB/s ± 0%      ~ (p=0.352 n=16+19)
+        MemmoveUnalignedDst/4-6      584MB/s ± 0%    584MB/s ± 0%      ~ (p=0.876 n=17+17)
+        MemmoveUnalignedDst/5-6      631MB/s ± 1%    632MB/s ± 0%    +0.25% (p=0.000 n=20+17)
+        MemmoveUnalignedDst/6-6      759MB/s ± 0%    759MB/s ± 0%    +0.00% (p=0.000 n=19+16)
+        MemmoveUnalignedDst/7-6      885MB/s ± 0%    883MB/s ± 1%      ~ (p=0.647 n=18+20)
+        MemmoveUnalignedDst/8-6     1.08GB/s ± 0%   1.08GB/s ± 0%    +0.00% (p=0.035 n=19+18)
+        MemmoveUnalignedDst/9-6     1.22GB/s ± 0%   1.22GB/s ± 0%      ~ (p=0.251 n=18+17)
+        MemmoveUnalignedDst/10-6    1.35GB/s ± 0%   1.35GB/s ± 0%      ~ (p=0.327 n=17+18)
+        MemmoveUnalignedDst/11-6    1.49GB/s ± 0%   1.49GB/s ± 0%      ~ (p=0.531 n=18+19)
+        MemmoveUnalignedDst/12-6    1.63GB/s ± 0%   1.63GB/s ± 0%      ~ (p=0.886 n=19+18)
+        MemmoveUnalignedDst/13-6    1.76GB/s ± 0%   1.76GB/s ± 1%    -0.24% (p=0.006 n=18+20)
+        MemmoveUnalignedDst/14-6    1.90GB/s ± 0%   1.90GB/s ± 0%      ~ (p=0.818 n=20+19)
+        MemmoveUnalignedDst/15-6    2.03GB/s ± 0%   2.03GB/s ± 0%      ~ (p=0.294 n=17+16)
+        MemmoveUnalignedDst/16-6    2.17GB/s ± 0%   2.17GB/s ± 0%      ~ (p=0.602 n=16+18)
+        MemmoveUnalignedDst/32-6    4.05GB/s ± 0%   4.05GB/s ± 0%    +0.00% (p=0.010 n=18+17)
+        MemmoveUnalignedDst/64-6    7.59GB/s ± 0%   7.59GB/s ± 0%    +0.00% (p=0.022 n=18+16)
+        MemmoveUnalignedDst/128-6   11.1GB/s ± 0%   11.4GB/s ± 0%    +2.79% (p=0.000 n=18+17)
+        MemmoveUnalignedDst/256-6   16.4GB/s ± 0%   16.7GB/s ± 0%    +1.59% (p=0.000 n=20+17)
+        MemmoveUnalignedDst/512-6   15.7GB/s ± 0%   21.3GB/s ± 0%   +35.87% (p=0.000 n=18+20)
+        MemmoveUnalignedDst/1024-6  16.0GB/s ±20%   31.5GB/s ± 0%   +96.93% (p=0.000 n=20+14)
+        MemmoveUnalignedDst/2048-6  19.6GB/s ± 0%   42.1GB/s ± 0%  +115.16% (p=0.000 n=17+18)
+        MemmoveUnalignedDst/4096-6  6.41GB/s ± 0%  33.18GB/s ± 0%  +417.56% (p=0.000 n=17+18)
+        MemmoveUnalignedSrc/1-6      171MB/s ± 0%    166MB/s ± 0%    -3.33% (p=0.000 n=19+16)
+        MemmoveUnalignedSrc/2-6      343MB/s ± 0%    342MB/s ± 1%    -0.41% (p=0.000 n=17+20)
+        MemmoveUnalignedSrc/3-6      508MB/s ± 0%    493MB/s ± 1%    -2.90% (p=0.000 n=17+17)
+        MemmoveUnalignedSrc/4-6      677MB/s ± 0%    660MB/s ± 2%    -2.55% (p=0.000 n=17+20)
+        MemmoveUnalignedSrc/5-6      790MB/s ± 0%    790MB/s ± 0%      ~ (p=0.139 n=17+17)
+        MemmoveUnalignedSrc/6-6      948MB/s ± 0%    946MB/s ± 1%      ~ (p=0.330 n=17+19)
+        MemmoveUnalignedSrc/7-6     1.11GB/s ± 0%   1.11GB/s ± 0%    -0.05% (p=0.026 n=17+17)
+        MemmoveUnalignedSrc/8-6     1.38GB/s ± 0%   1.38GB/s ± 0%      ~ (p=0.091 n=18+16)
+        MemmoveUnalignedSrc/9-6     1.42GB/s ± 0%   1.40GB/s ± 1%    -1.04% (p=0.000 n=19+20)
+        MemmoveUnalignedSrc/10-6    1.58GB/s ± 0%   1.56GB/s ± 1%    -1.15% (p=0.000 n=18+19)
+        MemmoveUnalignedSrc/11-6    1.73GB/s ± 0%   1.71GB/s ± 1%    -1.30% (p=0.000 n=20+20)
+        MemmoveUnalignedSrc/12-6    1.89GB/s ± 0%   1.87GB/s ± 1%    -1.18% (p=0.000 n=17+20)
+        MemmoveUnalignedSrc/13-6    2.05GB/s ± 0%   2.02GB/s ± 1%    -1.18% (p=0.000 n=17+20)
+        MemmoveUnalignedSrc/14-6    2.21GB/s ± 0%   2.18GB/s ± 1%    -1.14% (p=0.000 n=17+20)
+        MemmoveUnalignedSrc/15-6    2.36GB/s ± 0%   2.34GB/s ± 1%    -1.04% (p=0.000 n=17+20)
+        MemmoveUnalignedSrc/16-6    2.52GB/s ± 0%   2.49GB/s ± 1%    -1.26% (p=0.000 n=19+20)
+        MemmoveUnalignedSrc/32-6    4.82GB/s ± 0%   4.61GB/s ± 0%    -4.40% (p=0.000 n=19+20)
+        MemmoveUnalignedSrc/64-6    5.03GB/s ± 4%   7.97GB/s ± 0%   +58.55% (p=0.000 n=20+16)
+        MemmoveUnalignedSrc/128-6   11.1GB/s ± 0%   11.2GB/s ± 0%    +0.52% (p=0.000 n=17+18)
+        MemmoveUnalignedSrc/256-6   16.5GB/s ± 0%   16.4GB/s ± 0%    -0.10% (p=0.000 n=20+18)
+        MemmoveUnalignedSrc/512-6   21.0GB/s ± 0%   22.1GB/s ± 0%    +5.48% (p=0.000 n=14+17)
+        MemmoveUnalignedSrc/1024-6  24.9GB/s ± 0%   31.9GB/s ± 0%   +28.20% (p=0.000 n=19+20)
+        MemmoveUnalignedSrc/2048-6  23.3GB/s ± 0%   33.8GB/s ± 0%   +45.22% (p=0.000 n=17+19)
+        MemmoveUnalignedSrc/4096-6  37.3GB/s ± 0%   42.7GB/s ± 0%   +14.30% (p=0.000 n=17+17)
+    
+    Change-Id: Id66aa3e499ccfb117cb99d623ef326b50d057b64
+    Reviewed-on: https://go-review.googlesource.com/29590
+    Run-TryBot: Denis Nagorny <denis.nagorny@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.8.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/runtime/cpuflags_amd64.go |  75 +++++++++++++
+ src/runtime/cpuidlow_amd64.s  |  22 ++++
+ src/runtime/memmove_amd64.s   | 243 +++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/memmove_test.go   | 104 ++++++++++++++++++
+ 4 files changed, 443 insertions(+), 1 deletion(-)

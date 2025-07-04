@@ -1,16 +1,19 @@
-commit 598950ca7f69ad70adc99c7cca6c570aaaf3afad
-Author: adrienpetel <peteladrien@gmail.com>
-Date:   Fri Mar 30 14:15:24 2018 +0400
+commit d9fb9e7cf5ee0e0e31007a8544a2730e20535494
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Nov 15 10:49:35 2017 -0800
 
-    net: deflake TestLookupCNAME
+    archive/tar: change error prefix
     
-    Apply the same approach as in CL 102397.
+    Change error message prefix from "tar:" to "archive/tar:" to maintain
+    backwards compatibility with Go1.9 and earlier in the unfortunate event
+    that someone is relying on string parsing of errors.
     
-    Updates #24580
+    Fixes #22740
     
-    Change-Id: I65955f62a70807c87216519d03f3643a8f214dee
-    Reviewed-on: https://go-review.googlesource.com/103655
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I59039c59818a0599e9d3b06bb5a531aa22a389b8
+    Reviewed-on: https://go-review.googlesource.com/77933
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
 
- src/net/lookup_test.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/archive/tar/common.go | 24 ++++++++++++------------
+ src/archive/tar/writer.go |  2 +-
+ 2 files changed, 13 insertions(+), 13 deletions(-)

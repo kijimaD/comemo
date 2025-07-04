@@ -1,19 +1,19 @@
-commit a31e0a4aacf14be0708aea1f60f25e3607813d2c
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Oct 20 20:46:04 2017 -0400
+commit 59fe2fbfe549f3dffec940581a71b42644ee5320
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon May 22 20:17:31 2017 -0400
 
-    misc/cgo/testplugin: speed up tests
+    [dev.debug] cmd/link: let the linker combine .debug_ranges, remove globals
     
-    Running test.bash goes from 30s to 10s on a linux workstation.
+    The linker is pretty good at combining a bunch of symbols into a
+    section, so let it do .debug_ranges the normal way. Along the way,
+    remove a bunch of globals that were only used by one function that would
+    only be called once per invocation.
     
-    (The coming pkg cache work in cmd/go would presumably do the same thing,
-    but this makes all.bash faster today.)
-    
-    Change-Id: I8c9b0400071a412fce55b386e939906bb1c1d84d
-    Reviewed-on: https://go-review.googlesource.com/72330
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1a528a438b193c41e7c444e8830516b07f11affc
+    Reviewed-on: https://go-review.googlesource.com/43890
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testplugin/test.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go  | 41 ++++++++++---------
+ src/cmd/link/internal/ld/dwarf.go | 83 ++++++++++++++-------------------------
+ 2 files changed, 52 insertions(+), 72 deletions(-)

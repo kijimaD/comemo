@@ -1,12 +1,16 @@
-commit c9e698bdfb77bd74bc6faab88e39203ae0571eb0
-Author: Ryan Barrett <ryanb@google.com>
-Date:   Fri Jun 1 16:55:03 2012 -0400
+commit 96b0594833f183ef41b393af3ddced8457f9e6ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 1 10:10:59 2012 -0400
 
-    misc/emacs: stop go-mode from spuriously marking the buffer modified when it loads
+    cmd/5g, cmd/6g, cmd/8g: delete clearstk
     
-    R=golang-dev, sameer, bradfitz
-    CC=golang-dev, jba
-    https://golang.org/cl/6213056
+    Dreg from https://golang.org/cl/4629042
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6259057
 
- misc/emacs/go-mode.el | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/5g/gsubr.c | 58 ------------------------------------------------------
+ src/cmd/6g/gsubr.c | 38 -----------------------------------
+ src/cmd/8g/gsubr.c | 38 -----------------------------------
+ 3 files changed, 134 deletions(-)

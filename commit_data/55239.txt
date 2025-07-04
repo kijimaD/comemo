@@ -1,58 +1,17 @@
-commit e1c0349a7c607cdfcfa8f7c0c6b70aceff9d3752
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Dec 6 13:29:03 2023 -0500
+commit 9411075748e305d0b31372cab48bc4ca2dd745fb
+Author: j2gg0s <j2gg0s@gmail.com>
+Date:   Wed Jan 18 15:08:29 2023 +0000
 
-    internal/profile: fully decode proto even if there are no samples
+    runtime: remove duplicate check of work.full in gcMark.
     
-    This is a partial revert of CL 483137.
-    
-    CL 483137 started checking errors in postDecode, which is good. Now we
-    can catch more malformed pprof protos. However this made
-    TestEmptyProfile fail, so an early return was added when the profile was
-    "empty" (no samples).
-    
-    Unfortunately, this was problematic. Profiles with no samples can still
-    be valid, but skipping postDecode meant that the resulting Profile was
-    missing values from the string table. In particular, net/http/pprof
-    needs to parse empty profiles in order to pass through the sample and
-    period types to a final output proto. CL 483137 broke this behavior.
-    
-    internal/profile.Parse is only used in two places: in cmd/compile to
-    parse PGO pprof profiles, and in net/http/pprof to parse before/after
-    pprof profiles for delta profiles. In both cases, the input is never
-    literally empty (0 bytes). Even a pprof proto with no samples still
-    contains some header fields, such as sample and period type. Upstream
-    github.com/google/pprof/profile even has an explicit error on 0 byte
-    input, so `go tool pprof` will not support such an input.
-    
-    Thus TestEmptyProfile was misleading; this profile doesn't need to
-    support empty input at all.
-    
-    Resolve this by removing TestEmptyProfile and replacing it with an
-    explicit error on empty input, as upstream
-    github.com/google/pprof/profile has. For non-empty input, always run
-    postDecode to ensure the string table is processed.
-    
-    TestConvertCPUProfileEmpty is reverted back to assert the values from
-    before CL 483137. Note that in this case "Empty" means no samples, not a
-    0 byte input.
-    
-    Continue to allow empty files for PGO in order to minimize the chance of
-    last minute breakage if some users have empty files.
-    
-    Fixes #64566.
-    
-    Change-Id: I83a1f0200ae225ac6da0009d4b2431fe215b283f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547996
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I659669d7259e7cf73f730232cda11d8525a4aabc
+    GitHub-Last-Rev: 5d183e81285aba64f1f76e5bddbe2f0ae012b138
+    GitHub-Pull-Request: golang/go#57901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462281
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/pgo/irgraph.go    | 15 ++++---
- src/internal/profile/encode.go             |  3 --
- src/internal/profile/profile.go            | 17 ++++++--
- src/internal/profile/profile_test.go       | 15 -------
- src/net/http/pprof/pprof_test.go           | 63 ++++++++++++++++++++++++++++++
- src/net/http/pprof/testdata/delta_mutex.go | 43 ++++++++++++++++++++
- src/runtime/pprof/proto_test.go            | 10 +++--
- 7 files changed, 136 insertions(+), 30 deletions(-)
+ src/runtime/mgc.go | 3 ---
+ 1 file changed, 3 deletions(-)

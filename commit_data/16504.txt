@@ -1,22 +1,14 @@
-commit 07ea243d50e5e4c27e0212d45fa4e80d649d179f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jun 6 16:30:25 2013 +1000
+commit 6bf6cae28ee008a47cb23d6b80167cb6f45a8973
+Author: Patrick Higgins <patrick.allen.higgins@gmail.com>
+Date:   Wed Jun 5 21:09:43 2013 -0700
 
-    time: provide timezone abbreviations on windows
+    doc/contribute: add "Understanding the extension" section
     
-    Use http://unicode.org/cldr/data/common/supplemental/windowsZones.xml
-    to generate the map.
+    Fixes #4996
     
-    Fixes #4838.
-    
-    R=golang-dev, rsc
+    R=golang-dev, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/9997043
+    https://golang.org/cl/7547043
 
- src/pkg/time/Makefile                  |   9 ++
- src/pkg/time/export_windows_test.go    |  10 +++
- src/pkg/time/genzabbrs.go              | 145 +++++++++++++++++++++++++++++++++
- src/pkg/time/zoneinfo_abbrs_windows.go | 115 ++++++++++++++++++++++++++
- src/pkg/time/zoneinfo_windows.go       |  53 ++++++++----
- src/pkg/time/zoneinfo_windows_test.go  |  35 ++++++++
- 6 files changed, 351 insertions(+), 16 deletions(-)
+ doc/contribute.html | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)

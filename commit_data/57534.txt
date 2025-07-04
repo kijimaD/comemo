@@ -1,39 +1,24 @@
-commit 6d856a804c5d9cfc72104b0e7578da5b38509909
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 5 14:56:43 2024 +0700
+commit 3be2176d92ad318b9085980b0b7f09f30541afb3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 11 18:21:22 2023 -0700
 
-    cmd/compile: generalize struct load/store
+    cmd/compile: improve ir.StaticValue and extract ir.StaticCalleeName
     
-    The SSA backend currently only handle struct with up to 4 fields. Thus,
-    there are different operations corresponding to number fields of the
-    struct.
+    This CL extends ir.StaticValue to also work on closure variables.
     
-    This CL generalizes these with just one OpStructMake, allow struct types
-    with arbitrary number of fields.
+    Also, it extracts the code from escape analysis that's responsible for
+    determining the static callee of a function. This will be useful when
+    go/defer statement normalization is moved to typecheck.
     
-    However, the ssa.MaxStruct is still kept as-is, and future CL will
-    increase this value to optimize large structs.
-    
-    Updates #24416
-    
-    Change-Id: I192ffbea881186693584476b5639394e79be45c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611075
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I69e1f7fb185658dc9fbfdc69d0f511c84df1d3ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518959
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/dec.rules     |  51 +---
- src/cmd/compile/internal/ssa/_gen/generic.rules |  70 +----
- src/cmd/compile/internal/ssa/_gen/genericOps.go |   6 +-
- src/cmd/compile/internal/ssa/copyelim.go        |   2 +-
- src/cmd/compile/internal/ssa/decompose.go       |  23 +-
- src/cmd/compile/internal/ssa/expand_calls.go    |   6 +-
- src/cmd/compile/internal/ssa/numberlines.go     |   2 +-
- src/cmd/compile/internal/ssa/opGen.go           |  30 +--
- src/cmd/compile/internal/ssa/rewrite.go         |  38 +++
- src/cmd/compile/internal/ssa/rewritedec.go      | 232 ++--------------
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 342 ++----------------------
- src/cmd/compile/internal/ssagen/ssa.go          |   4 +-
- 12 files changed, 97 insertions(+), 709 deletions(-)
+ src/cmd/compile/internal/escape/call.go  | 12 ++-------
+ src/cmd/compile/internal/inline/inl.go   | 11 ++++++---
+ src/cmd/compile/internal/ir/expr.go      | 42 ++++++++++++++++++++++++++++----
+ src/cmd/compile/internal/noder/reader.go |  5 ++++
+ 4 files changed, 51 insertions(+), 19 deletions(-)

@@ -1,24 +1,25 @@
-commit a14537816eb960ae24ce13364390ded124f5ebc8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 18 11:16:35 2016 -0700
+commit 863d9b66f812844e4bf6d3abc3a8161b25bd242c
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 23 22:50:58 2016 -0500
 
-    math/big: fix rounding to smallest denormal for Float.Float32/64
+    cmd/asm: add requested amd64 instructions
     
-    Converting a big.Float value x to a float32/64 value did not correctly
-    round x up to the smallest denormal float32/64 if x was smaller than the
-    smallest denormal float32/64, but larger than 0.5 of a smallest denormal
-    float32/64.
+    Add amd64 instructions I promised to add for Go 1.6
+    at the beginning of January.
     
-    Handle this case explicitly and simplify some code in the turn.
+    These may be the last instructions added by hand.
+    I intend to generate the whole set mechanically for Go 1.7.
     
-    For #14651.
+    Fixes #13822.
     
-    Change-Id: I025e24bf8f0e671581a7de0abf7c1cd7e6403a6c
-    Reviewed-on: https://go-review.googlesource.com/20816
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I8c6bae2efd25f717f9ec750402e50f408a911d2b
+    Reviewed-on: https://go-review.googlesource.com/18853
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/float.go      | 134 ++++++++++++++++++++++++++-------------------
- src/math/big/float_test.go |  61 ++++++++++++++-------
- 2 files changed, 120 insertions(+), 75 deletions(-)
+ src/cmd/asm/internal/arch/arch.go            |   2 +-
+ src/cmd/asm/internal/asm/testdata/amd64.s    |   6 +
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 264 +++++++++++++--------------
+ src/cmd/internal/obj/x86/a.out.go            |  37 +++-
+ src/cmd/internal/obj/x86/anames.go           |  37 +++-
+ src/cmd/internal/obj/x86/asm6.go             |  42 +++++
+ 6 files changed, 239 insertions(+), 149 deletions(-)

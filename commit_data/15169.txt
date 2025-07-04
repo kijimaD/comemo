@@ -1,14 +1,16 @@
-commit 45636db01bdf4bd50426067af72afbde3900ceb9
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Feb 8 19:05:19 2013 +0400
+commit dc6e51cfd22336654f5a3ab5b3dcbbe45d998f1a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 8 17:02:08 2013 +0900
 
-    runtime: fix integer overflow
-    The problem happens when end=0, then end-1 is very big number.
-    Observed with the new scheduler.
+    net: delete duplicate listenerSockaddr
     
-    R=golang-dev, iant
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7307073
+    https://golang.org/cl/7299067
 
- src/pkg/runtime/parfor.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/sock_bsd.go     | 31 -------------------------------
+ src/pkg/net/sock_linux.go   | 31 -------------------------------
+ src/pkg/net/sock_posix.go   |  4 +---
+ src/pkg/net/sock_unix.go    | 36 ++++++++++++++++++++++++++++++++++++
+ src/pkg/net/sock_windows.go | 18 +++++++-----------
+ 5 files changed, 44 insertions(+), 76 deletions(-)

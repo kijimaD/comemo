@@ -1,16 +1,32 @@
-commit ac0f890c578a0e44f5e39b952bc888093897e449
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Nov 23 10:16:02 2017 +0100
+commit c3189cee717a47dd7936d9f82904db72b28293f6
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Aug 19 16:59:19 2017 +0200
 
-    cmd/dist: omit dragonfly/386 GOOS/GOARCH pair
+    runtime: forward crashing signals to late handlers
     
-    dragonfly/386 isn't a valid GOOS/GOARCH pair.
+    CL 49590 made it possible for external signal handlers to catch
+    signals from a crashing Go process. This CL extends that support
+    to handlers registered after the Go runtime has initialized.
     
-    Change-Id: I44374a932b20f0d49b2e509484143970eb5464c2
-    Reviewed-on: https://go-review.googlesource.com/79656
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Updates #20392 (and possibly fix it).
+    
+    Change-Id: I18eccd5e958a505f4d1782a7fc51c16bd3a4ff9c
+    Reviewed-on: https://go-review.googlesource.com/57291
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/crash_cgo_test.go                  | 18 ++++++++-----
+ src/runtime/runtime2.go                        |  1 +
+ src/runtime/signal_darwin.go                   | 18 ++++++-------
+ src/runtime/signal_dragonfly.go                | 18 ++++++-------
+ src/runtime/signal_freebsd.go                  | 18 ++++++-------
+ src/runtime/signal_nacl.go                     | 12 ++++-----
+ src/runtime/signal_netbsd.go                   | 18 ++++++-------
+ src/runtime/signal_openbsd.go                  | 12 ++++-----
+ src/runtime/signal_solaris.go                  | 14 +++++-----
+ src/runtime/signal_unix.go                     | 37 +++++++++-----------------
+ src/runtime/sigtab_linux_generic.go            | 14 +++++-----
+ src/runtime/sigtab_linux_mipsx.go              | 14 +++++-----
+ src/runtime/testdata/testprogcgo/catchpanic.go | 15 ++++++++---
+ 13 files changed, 105 insertions(+), 104 deletions(-)

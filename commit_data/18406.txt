@@ -1,36 +1,13 @@
-commit 1dd4da14591a25748f90a42ef35fa360ff8edde2
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Mon Feb 3 14:07:54 2014 -0800
+commit 4723308ff5ab437d2b0892e7cdac86d490495a9b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 3 16:01:58 2014 -0500
 
-    liblink, cmd/5a, cmd/5l: restore cgo on older ARM processors
+    net/http: make a test fail harder, earlier
     
-    CL 56120043 fixed TLS handling on ARM after the introduction of
-    liblink but left older ARM processors broken.
-    
-    Before liblink, the MRC instruction was replaced with a fallback
-    on older ARMs. CL 56120043 removed that, because the rewrite matched
-    bit patterns on the AWORD pseudo-instruction and could therefore change
-    unrelated AWORDs that happened to match.
-    
-    This CL adds an AMRC instruction to encode both MRC and MCR previously
-    encoded as AWORDs. Then, in liblink, the AMRC instructions are either
-    rewritten to AWORD, or, on goarm < 7, replaced with a branch to the
-    fallback.
-    
-    ./all.bash completes successfully on an ARMv7 with either GOARM=7 or
-    GOARM=5. I have verified that the fallback is indeed present in both
-    runtime.save_gm and runtime.load_gm when GOARM=5 but not when GOARM=7.
-    
-    If all goes well, this should fix the armv5 builders.
-    
-    LGTM=iant
-    R=iant, rsc
+    LGTM=dave
+    R==r, r, dave
     CC=golang-codereviews
-    https://golang.org/cl/55540044
+    https://golang.org/cl/59810043
 
- src/cmd/5a/a.y     |   2 +-
- src/cmd/5a/y.tab.c | 957 ++++++++++++++++++++++++++++++-----------------------
- src/cmd/5a/y.tab.h |  68 ++--
- src/cmd/5l/5.out.h |   2 +
- src/liblink/obj5.c |  20 ++
- 5 files changed, 619 insertions(+), 430 deletions(-)
+ src/pkg/net/http/transport_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,13 +1,12 @@
-commit 10a4696fb8d080b334a31f0cf43a7ffe3c588ad7
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Feb 16 15:10:50 2015 +1100
+commit afe6668216516b012a09f6c7166009761e965f5b
+Author: Michael Matloob <matloob@google.com>
+Date:   Wed Jan 21 23:05:42 2015 -0800
 
-    image/jpeg: remove the (temporary) dependency on image/draw.
+    cmd/ld: s/specificaly/specifically/ in comment
     
-    Change-Id: Idd66f9c3c9eaa4ff1f950fb90e4800dc625dec08
-    Reviewed-on: https://go-review.googlesource.com/4916
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I849b8046daaec97ae631d59f1870cd5f1cd72f22
+    Reviewed-on: https://go-review.googlesource.com/3176
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/image/draw/draw.go   |  2 ++
- src/image/jpeg/reader.go | 82 +++++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 79 insertions(+), 5 deletions(-)
+ src/cmd/ld/decodesym.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

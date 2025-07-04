@@ -1,22 +1,31 @@
-commit 58963354c4d56379cb95115a1d094c8ebfcad297
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Nov 8 10:43:40 2018 -0500
+commit 5760ffc7ef4c292acf0f85a04e2496a4af504ddb
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 15 23:42:16 2018 -0400
 
-    cmd/go: vet: revert $GOVETTOOL env var, restore -vettool flag
+    cmd/go/internal/modfetch: do not rely on file system for case sensitivity
     
-    The environment variable is no longer necessary as we now plan to
-    transition to the new vet by replacing it in a single step,
-    and we really don't want to add more environment variables.
+    Over time there may exist two modules with names that differ only in case.
+    On systems with case-insensitive file systems, we need to make sure those
+    modules do not collide in the download cache.
     
-    Fixes #28636
+    Do this by using the new "safe encoding" for file system paths as well as
+    proxy paths.
     
-    Change-Id: Ib85e5c0d61213b7b9f6a53d9376fec29525df971
-    Reviewed-on: https://go-review.googlesource.com/c/148497
-    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Fixes #25992.
+    
+    Change-Id: I717a9987a87ad5c6927d063bf30d10d9229498c9
+    Reviewed-on: https://go-review.googlesource.com/124379
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/vet/vetflag.go  | 46 +++++++++++++++++++++++++++----------
- src/cmd/go/internal/work/buildid.go |  3 ++-
- src/cmd/vet/vet_test.go             |  3 +--
- 3 files changed, 37 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/modcmd/verify.go               | 13 ++--
+ src/cmd/go/internal/modfetch/cache.go              | 53 ++++++++++++-
+ src/cmd/go/internal/modfetch/fetch.go              | 26 +++++--
+ src/cmd/go/internal/modfetch/proxy.go              | 11 ++-
+ src/cmd/go/internal/modfetch/repo.go               |  2 +-
+ src/cmd/go/internal/modload/build.go               |  8 +-
+ src/cmd/go/mod_test.go                             | 21 ++++++
+ src/cmd/go/proxy_test.go                           | 25 +++++-
+ .../go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt   | 88 ++++++++++++++++++++++
+ 9 files changed, 220 insertions(+), 27 deletions(-)

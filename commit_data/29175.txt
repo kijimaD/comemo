@@ -1,16 +1,19 @@
-commit 54f691d69d39bc19c2069384cd702c6fdec0b92d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 26 23:18:53 2016 -0400
+commit 0d7a2241cb684236f2728bb08514e7f256ac4a43
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 30 09:29:16 2016 -0700
 
-    runtime: skip TestMemmoveOverflow if mmap of needed page fails
+    runtime: update a few comments
     
-    Fixes #16731.
+    noescape is now 0 instructions with the SSA backend.
+    fast atomics are no longer a TODO (at least for amd64).
     
-    Change-Id: I6d393357973d008ab7cf5fb264acb7d38c9354eb
-    Reviewed-on: https://go-review.googlesource.com/32104
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib6e06f7471bef282a47ba236d8ce95404bb60a42
+    Reviewed-on: https://go-review.googlesource.com/28087
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/memmove_linux_amd64_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc.go  | 10 +++++-----
+ src/runtime/stubs.go |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,26 +1,15 @@
-commit 099498db0e47ba01ec405ca27662d9a87ef921e2
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Aug 4 12:04:52 2018 +0200
+commit 24d5c871aa8c2107965e35e838514af8488e4bad
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 18 08:52:40 2018 -0700
 
-    time: always run ZoneAbbr test
+    cmd/compile: alphabetize sysfunc lists
     
-    CL 52430 added logic to skip the testZoneAbbr test in locales where
-    the timezone does not have a three-letter name, because the following
-    line
-    
-      Parse(RFC1123, t1.Format(RFC1123))
-    
-    failed for timezones with only numeric names (like -07).
-    
-    Since Go 1.11, Parse supports the parsing of timezones with numeric
-    names (this was implemented in CL 98157), so we can now run the test
-    unconditionally.
-    
-    Change-Id: I8ed40e1ba325c0c0dc79c4184a9e71209e2e9a02
-    Reviewed-on: https://go-review.googlesource.com/127757
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Ia95643752d743d208363e3434497ffcf0af7b2d7
+    Reviewed-on: https://go-review.googlesource.com/107816
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/zoneinfo_windows_test.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/compile/internal/gc/go.go  | 36 ++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/ssa.go | 34 +++++++++++++++++-----------------
+ 2 files changed, 35 insertions(+), 35 deletions(-)

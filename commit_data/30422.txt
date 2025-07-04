@@ -1,19 +1,12 @@
-commit 417f49a363e7dbd01e91c79fc4f13c03681c2cc8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Feb 18 13:58:59 2017 -0800
+commit 1a07257777ba49231fbf8b81bc6efe34b8422fec
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:57 2016 +0200
 
-    cmd/compile: fold (NegNN (ConstNN ...))
+    reflect: add support for GOARCH=mips{,le}
     
-    Fix up and enable a few rules.
-    They trigger a handful of times in std,
-    despite the frontend handling.
-    
-    Change-Id: I83378c057cbbc95a4f2b58cd8c36aec0e9dc547f
-    Reviewed-on: https://go-review.googlesource.com/37227
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I8b0c4bfe1e4c401d5c36a51b937671e6362c73a4
+    Reviewed-on: https://go-review.googlesource.com/31485
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 13 ++--
- src/cmd/compile/internal/ssa/rewritegeneric.go | 98 ++++++++++++++++++++++++++
- 2 files changed, 104 insertions(+), 7 deletions(-)
+ src/reflect/asm_mipsx.s | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

@@ -1,20 +1,36 @@
-commit 60736733ec988864c7cd91115e2761d6f6635df2
-Author: smasher164 <aindurti@gmail.com>
-Date:   Thu Feb 7 03:38:21 2019 -0500
+commit 16e6cd9a4dc499db164624a048f25e2f382ac016
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 1 12:20:28 2018 -0400
 
-    cmd/compile: return assignment mismatch error in var declarations
+    cmd/compile: mark function Syms
     
-    Some var declarations return "extra expression" or "missing expression"
-    errors when they should return “assignment mismatch” instead. Change
-    the returned error messages to exhibit the desired behavior.
+    In order to mark the obj.LSyms produced by the compiler with the
+    correct ABI, we need to know which types.Syms refer to function
+    symbols. This CL adds a flag to types.Syms to mark symbols for
+    functions, and sets this flag everywhere we create a PFUNC-class node,
+    and in the one place where we directly create function symbols without
+    always wrapping them in a PFUNC node (methodSym).
     
-    Fixes #30085.
+    We'll use this information to construct obj.LSyms with correct ABI
+    information.
     
-    Change-Id: I7189355fbb0f976d70100779db4f81a9ae64fb11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/161558
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    For #27539.
+    
+    Change-Id: Ie3ac8bf3da013e449e78f6ca85546a055f275463
+    Reviewed-on: https://go-review.googlesource.com/c/147158
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go |  5 +++--
- test/fixedbugs/issue30085.go       | 12 ++++++++++++
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/alg.go       | 1 +
+ src/cmd/compile/internal/gc/dcl.go       | 9 ++++++++-
+ src/cmd/compile/internal/gc/export.go    | 3 +++
+ src/cmd/compile/internal/gc/iimport.go   | 1 +
+ src/cmd/compile/internal/gc/main.go      | 5 +++++
+ src/cmd/compile/internal/gc/ssa.go       | 1 +
+ src/cmd/compile/internal/gc/subr.go      | 1 +
+ src/cmd/compile/internal/gc/typecheck.go | 1 +
+ src/cmd/compile/internal/gc/walk.go      | 1 +
+ src/cmd/compile/internal/types/sym.go    | 3 +++
+ 10 files changed, 25 insertions(+), 1 deletion(-)

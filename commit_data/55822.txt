@@ -1,17 +1,27 @@
-commit f1722e9a6e57e4e7b926c4204707f7a15091b5c0
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jan 15 13:04:36 2024 -0800
+commit 785ab2fa65bec7fc8d244277c8962009d3a83271
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Tue Mar 14 13:06:20 2023 +0000
 
-    slices: simplify rotate code
+    flag: add BoolFunc; FlagSet.BoolFunc
     
-    The rotate-by-reverse code in fact does only 2 writes per entry, so
-    it is fine and simpler.
+    Fixes #53747
     
-    Change-Id: I5feea9698b5575f1f0ae9069cc1d074643529262
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562321
+    Based on CL 416514
+    
+    Change-Id: I1ff79c6290b06dfa8672a473045e8fe80c22afcf
+    GitHub-Last-Rev: 74fba9b3096487c04c8dc1f2237f67f3558212f1
+    GitHub-Pull-Request: golang/go#59013
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476015
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/slices/slices.go | 54 +++++-----------------------------------------------
- 1 file changed, 5 insertions(+), 49 deletions(-)
+ api/next/53747.txt            |  2 ++
+ src/flag/example_func_test.go | 16 ++++++++++++++
+ src/flag/flag.go              | 23 +++++++++++++++++++
+ src/flag/flag_test.go         | 51 +++++++++++++++++++++++++++++++++++++++++--
+ 4 files changed, 90 insertions(+), 2 deletions(-)

@@ -1,12 +1,21 @@
-commit 16eb2c0b7ae66dae708b4ca59f68a13652a95d6a
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Feb 26 09:59:17 2013 -0800
+commit fa625fb39a7547b295ac148bc000bb5884d01776
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Tue Feb 26 09:40:55 2013 -0800
 
-    runtime: fix stack cache typos
+    os/exec: Pass tests on Plan 9
     
-    R=golang-dev, bradfitz
+    Adjust the exit status string for Plan 9.
+    
+    Upon allocating >100 file descriptors, Plan 9
+    raises a warning. Moreover, the Go runtime for
+    32-bit version of Plan 9 keeps /dev/bintime
+    open for its implementation of runtime.nanotime().
+    This change accounts for these things in
+    TestExtraFiles.
+    
+    R=rsc, rminnich, ality, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7370050
+    https://golang.org/cl/7363056
 
- src/pkg/runtime/stack.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/os/exec/exec_test.go | 44 ++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 34 insertions(+), 10 deletions(-)

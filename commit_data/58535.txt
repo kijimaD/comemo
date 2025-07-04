@@ -1,31 +1,47 @@
-commit 608acff8479640b00c85371d91280b64f5ec9594
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Jan 22 10:43:44 2025 -0500
+commit 7bd08a49c2e5145936d8d487379c67c2b4a78a2d
+Author: Max Riveiro <kavu13@gmail.com>
+Date:   Sun Nov 5 22:13:30 2023 +0300
 
-    go/types: avoid importer.Default
+    runtime: optimize aeshashbody with PCALIGN in amd64
     
-    It uses a throwaway FileSet, so all position info is
-    wrong, and potentially misleading.
+    For #63678
     
-    (Various other helpers in go/types testing also use a
-    throwaway FileSet, and should really accept it as a parameter.)
+    goos: linux
+    goarch: amd64
+    pkg: runtime
+    cpu: AMD EPYC Processor
+                           │  base.txt   │               16.txt                │
+                           │   sec/op    │   sec/op     vs base                │
+    Hash5-2                  4.969n ± 1%   4.583n ± 1%  -7.75% (n=100)
+    Hash16-2                 4.966n ± 1%   4.536n ± 1%  -8.65% (n=100)
+    Hash64-2                 5.687n ± 1%   5.726n ± 1%       ~ (p=0.181 n=100)
+    Hash1024-2               26.73n ± 1%   25.72n ± 1%  -3.76% (n=100)
+    Hash65536-2              1.345µ ± 0%   1.331µ ± 0%  -1.04% (p=0.000 n=100)
+    HashStringSpeed-2        12.76n ± 1%   12.53n ± 1%  -1.76% (p=0.000 n=100)
+    HashBytesSpeed-2         20.13n ± 1%   19.96n ± 1%       ~ (p=0.176 n=100)
+    HashInt32Speed-2         9.065n ± 1%   9.007n ± 1%       ~ (p=0.247 n=100)
+    HashInt64Speed-2         9.076n ± 1%   9.027n ± 1%       ~ (p=0.179 n=100)
+    HashStringArraySpeed-2   33.33n ± 1%   32.94n ± 3%  -1.19% (p=0.028 n=100)
+    FastrandHashiter-2       16.47n ± 0%   16.54n ± 1%  +0.39% (p=0.013 n=100)
+    geomean                  17.85n        17.43n       -2.33%
     
-    Fixes #71272
+                │   base.txt   │                16.txt                 │
+                │     B/s      │      B/s       vs base                │
+    Hash5-2       959.7Mi ± 1%   1040.4Mi ± 1%  +8.41% (p=0.000 n=100)
+    Hash16-2      3.001Gi ± 1%    3.285Gi ± 1%  +9.48% (p=0.000 n=100)
+    Hash64-2      10.48Gi ± 1%    10.41Gi ± 1%       ~ (p=0.179 n=100)
+    Hash1024-2    35.68Gi ± 1%    37.08Gi ± 1%  +3.92% (p=0.000 n=100)
+    Hash65536-2   45.41Gi ± 0%    45.86Gi ± 0%  +1.01% (p=0.000 n=100)
+    geomean       8.626Gi         9.001Gi       +4.35%
     
-    Change-Id: I9d899b987837b4041a299aad5ec266cb4f5d125c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643777
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Change-Id: Icf98dc935181ea5d30f7cbd5dcf284ec7aef8e9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539976
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/types/api_test.go      | 10 ++++++++--
- src/go/types/check_test.go    |  3 +--
- src/go/types/eval_test.go     |  5 ++---
- src/go/types/example_test.go  |  5 ++---
- src/go/types/issues_test.go   |  9 ++++++---
- src/go/types/lookup_test.go   |  3 +--
- src/go/types/mono_test.go     |  3 +--
- src/go/types/resolver_test.go |  6 +++---
- src/go/types/self_test.go     |  5 ++---
- src/go/types/sizes_test.go    | 14 ++++++++++----
- 10 files changed, 36 insertions(+), 27 deletions(-)
+ src/runtime/asm_amd64.s | 1 +
+ 1 file changed, 1 insertion(+)

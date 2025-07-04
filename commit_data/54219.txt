@@ -1,32 +1,16 @@
-commit e92c0f846c54d88f479b1c48f0dbc001d2ff53e9
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Aug 24 09:57:58 2023 -0700
+commit 45c2421dc643f9e0274cb8630459d65942838f2d
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:13:41 2022 +0800
 
-    crypto/tls: QUIC: fix panics when processing post-handshake messages
+    archive/zip: use strings.TrimPrefix
     
-    The check for fragmentary post-handshake messages in QUICConn.HandleData
-    was reversed, resulting in a potential panic when HandleData receives
-    a partial message.
-    
-    In addition, HandleData wasn't checking the size of buffered
-    post-handshake messages. Produce an error when a post-handshake
-    message is larger than maxHandshake.
-    
-    TestQUICConnectionState was using an onHandleCryptoData hook
-    in runTestQUICConnection that was never being called.
-    (I think it was inadvertently removed at some point while
-    the CL was in review.) Fix this test while making the hook
-    more general.
-    
-    Fixes #62266
-    
-    Change-Id: I210b70634e50beb456ab3977eb11272b8724c241
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522595
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I2854b5e7b48c4c189df84cb7281b7b7de780eebd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435938
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/crypto/tls/quic.go      | 10 ++++--
- src/crypto/tls/quic_test.go | 80 +++++++++++++++++++++++++++++++++++++--------
- 2 files changed, 74 insertions(+), 16 deletions(-)
+ src/archive/zip/reader.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

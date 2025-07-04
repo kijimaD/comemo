@@ -1,19 +1,15 @@
-commit 180da80e9004cd6e1bbfc026890a12e86d0f9f5d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Aug 23 19:31:24 2013 +0900
+commit ec9e3e62a1282fb7c9afc0dfd2339511e384b277
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 23 15:07:42 2013 +1000
 
-    net: fix dial to raw IP networks on Windows
+    net: wait longer before failing TestVariousDeadlines4Proc on windows
     
-    Also avoids platform-dependent datagram truncation in raw IP tests.
-    At least it's different between Windows and others.
+    This is an attempt to make our slow
+    windows-386 builder more reliable.
     
-    Fixes #6122.
-    
-    R=alex.brainman
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/12843043
+    https://golang.org/cl/12798045
 
- src/pkg/net/fd_windows.go     |  3 ++-
- src/pkg/net/ipraw_test.go     | 61 ++++++++++++++++++++++++++++++-------------
- src/pkg/net/protoconn_test.go | 10 ++++---
- 3 files changed, 51 insertions(+), 23 deletions(-)
+ src/pkg/net/timeout_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

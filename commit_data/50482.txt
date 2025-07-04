@@ -1,24 +1,24 @@
-commit a29739145d8a46786d503bfc8a8ecf47a7381710
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Sep 12 10:15:37 2022 -0700
+commit 278b9b3a4c7c01929133737e960335afa18eeec3
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Oct 27 12:06:46 2021 -0400
 
-    compress/flate: update NewReader documentation
+    go/types: implement generic conversions
     
-    Calling close is no longer necessary.
-    It was was originally necessary to cleanup goroutines
-    spawned to decompress the stream.
-    This has not been the case since CL 4548079.
+    This is a port of 4 CLs from types2: CL 356010, CL 357333, CL 357410,
+    and CL 357249. These 4 CLs are all related to implementing conversions,
+    and porting them together saved time (particularly because go/types was
+    already threading a *reason argument in some places).
     
-    Update the documentation to mention how it handles trailing data
-    after the end of the DEFLATE stream.
-    
-    Change-Id: Ieacba264230560713b7b8d604665223fd096f4ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430377
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ic89b608d7096b61bfb9f7d71fdae2cc50b0ed70e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359137
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/compress/flate/inflate.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/api.go         |   2 +-
+ src/cmd/compile/internal/types2/conversions.go |   4 +-
+ src/go/types/conversions.go                    |  86 ++++++++++++---
+ src/go/types/operand.go                        |   6 +-
+ src/go/types/testdata/examples/conversions.go2 | 144 +++++++++++++++++++++++++
+ 5 files changed, 218 insertions(+), 24 deletions(-)

@@ -1,14 +1,19 @@
-commit 19e27c731b0e2fa97d049f5e6400698bc36ae3e4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 15:23:47 2016 -0500
+commit ce3045858ae8d37cfc4fade21c0818b408af1c74
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 28 18:55:30 2015 -0700
 
-    doc: discuss copyright changes in contribute.html
+    go/types: fix TypeString(nil, nil)
     
-    Fixes #12542.
+    The code is meant to return "<nil>", but because of a make([]Type, 8)
+    call that should be make([]Type, 0, 8), the nil Type happens to
+    already appear in the array.
     
-    Change-Id: Icd0fa84d891d6b1feab9b4d4dd319cdf1e6d6c48
-    Reviewed-on: https://go-review.googlesource.com/18336
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2db140046e52f27db1b0ac84bde2b6680677dd95
+    Reviewed-on: https://go-review.googlesource.com/16464
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/contribute.html | 37 ++++++++++++++++++++++---------------
- 1 file changed, 22 insertions(+), 15 deletions(-)
+ src/go/types/typestring.go      | 4 ++--
+ src/go/types/typestring_test.go | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)

@@ -1,21 +1,17 @@
-commit c9551f9c198aac4ffbc7470755a0f66f071c30b8
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Fri Apr 24 07:17:33 2020 +0200
+commit 1d90e1a0ac46274e6c0bfe36c410768263b79eaf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 6 14:32:26 2020 -0500
 
-    cmd/compile: enforce strongly typed rules for ARM (1)
+    cmd/dist: forward stderr if 'go env CGO_ENABLED' fails
     
-    Remove type casting in:
-    L731 - L764, L772, L780 - L781, L1014 - L1054, L1057 - L1068, L1195, L1199
+    The default error string for a command failure is just its status code,
+    and "exit status 1" is not at all helpful for debugging.
     
-    Toolstack-check successful.
-    
-    Change-Id: I80f90716477f269a227be28b14bf913b78ef375d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228824
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I822c89bcc9e73283b33e01792bf9c40b1add3c35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222308
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules | 184 ++++----
- src/cmd/compile/internal/ssa/rewriteARM.go | 722 ++++++++++++++---------------
- 2 files changed, 453 insertions(+), 453 deletions(-)
+ src/cmd/dist/test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,169 +1,29 @@
-commit 9c2e7e8bed3368fd2b3903b47d686b5a900ebe04
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Aug 12 20:19:58 2019 +0100
+commit e92853523d11d1e50d89a3c017c5d902aed0596a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 17 11:37:54 2019 -0700
 
-    cmd/compile: allow multiple SSA block control values
+    cmd/compile: use named fields in nodl
     
-    Control values are used to choose which successor of a block is
-    jumped to. Typically a control value takes the form of a 'flags'
-    value that represents the result of a comparison. Some
-    architectures however use a variable in a register as a control
-    value.
+    We use a struct to allocate two structs simultaneously.
+    Because we embed structs rather than using named fields,
+    the compiler generates forwarding method stubs for the
+    anonymous type.
     
-    Up until now we have managed with a single control value per block.
-    However some architectures (e.g. s390x and riscv64) have combined
-    compare-and-branch instructions that take two variables in registers
-    as parameters. To generate these instructions we need to support 2
-    control values per block.
+    In theory, the compiler could detect that these stubs are unnecessary:
+    The value in question has a very limited scope, the methods are not
+    called, and there are operations where an interface would need
+    to be satisfied.
     
-    This CL allows up to 2 control values to be used in a block in
-    order to support the addition of compare-and-branch instructions.
-    I have implemented s390x compare-and-branch instructions in a
-    different CL.
+    This compiler optimization is unlikely to happen, though;
+    the ROI is likely to be low.
     
-    Passes toolstash-check -all.
+    Instead, just give the fields names. Cuts 64k off the cmd/compile binary.
     
-    Results of compilebench:
-    
-    name                      old time/op       new time/op       delta
-    Template                        208ms ± 1%        209ms ± 1%    ~     (p=0.289 n=20+20)
-    Unicode                        83.7ms ± 1%       83.3ms ± 3%  -0.49%  (p=0.017 n=18+18)
-    GoTypes                         748ms ± 1%        748ms ± 0%    ~     (p=0.460 n=20+18)
-    Compiler                        3.47s ± 1%        3.48s ± 1%    ~     (p=0.070 n=19+18)
-    SSA                             11.5s ± 1%        11.7s ± 1%  +1.64%  (p=0.000 n=19+18)
-    Flate                           130ms ± 1%        130ms ± 1%    ~     (p=0.588 n=19+20)
-    GoParser                        160ms ± 1%        161ms ± 1%    ~     (p=0.211 n=20+20)
-    Reflect                         465ms ± 1%        467ms ± 1%  +0.42%  (p=0.007 n=20+20)
-    Tar                             184ms ± 1%        185ms ± 2%    ~     (p=0.087 n=18+20)
-    XML                             253ms ± 1%        253ms ± 1%    ~     (p=0.377 n=20+18)
-    LinkCompiler                    769ms ± 2%        774ms ± 2%    ~     (p=0.070 n=19+19)
-    ExternalLinkCompiler            3.59s ±11%        3.68s ± 6%    ~     (p=0.072 n=20+20)
-    LinkWithoutDebugCompiler        446ms ± 5%        454ms ± 3%  +1.79%  (p=0.002 n=19+20)
-    StdCmd                          26.0s ± 2%        26.0s ± 2%    ~     (p=0.799 n=20+20)
-    
-    name                      old user-time/op  new user-time/op  delta
-    Template                        238ms ± 5%        240ms ± 5%    ~     (p=0.142 n=20+20)
-    Unicode                         105ms ±11%        106ms ±10%    ~     (p=0.512 n=20+20)
-    GoTypes                         876ms ± 2%        873ms ± 4%    ~     (p=0.647 n=20+19)
-    Compiler                        4.17s ± 2%        4.19s ± 1%    ~     (p=0.093 n=20+18)
-    SSA                             13.9s ± 1%        14.1s ± 1%  +1.45%  (p=0.000 n=18+18)
-    Flate                           145ms ±13%        146ms ± 5%    ~     (p=0.851 n=20+18)
-    GoParser                        185ms ± 5%        188ms ± 7%    ~     (p=0.174 n=20+20)
-    Reflect                         534ms ± 3%        538ms ± 2%    ~     (p=0.105 n=20+18)
-    Tar                             215ms ± 4%        211ms ± 9%    ~     (p=0.079 n=19+20)
-    XML                             295ms ± 6%        295ms ± 5%    ~     (p=0.968 n=20+20)
-    LinkCompiler                    832ms ± 4%        837ms ± 7%    ~     (p=0.707 n=17+20)
-    ExternalLinkCompiler            1.58s ± 8%        1.60s ± 4%    ~     (p=0.296 n=20+19)
-    LinkWithoutDebugCompiler        478ms ±12%        489ms ±10%    ~     (p=0.429 n=20+20)
-    
-    name                      old object-bytes  new object-bytes  delta
-    Template                        559kB ± 0%        559kB ± 0%    ~     (all equal)
-    Unicode                         216kB ± 0%        216kB ± 0%    ~     (all equal)
-    GoTypes                        2.03MB ± 0%       2.03MB ± 0%    ~     (all equal)
-    Compiler                       8.07MB ± 0%       8.07MB ± 0%  -0.06%  (p=0.000 n=20+20)
-    SSA                            27.1MB ± 0%       27.3MB ± 0%  +0.89%  (p=0.000 n=20+20)
-    Flate                           343kB ± 0%        343kB ± 0%    ~     (all equal)
-    GoParser                        441kB ± 0%        441kB ± 0%    ~     (all equal)
-    Reflect                        1.36MB ± 0%       1.36MB ± 0%    ~     (all equal)
-    Tar                             487kB ± 0%        487kB ± 0%    ~     (all equal)
-    XML                             632kB ± 0%        632kB ± 0%    ~     (all equal)
-    
-    name                      old export-bytes  new export-bytes  delta
-    Template                       18.5kB ± 0%       18.5kB ± 0%    ~     (all equal)
-    Unicode                        7.92kB ± 0%       7.92kB ± 0%    ~     (all equal)
-    GoTypes                        35.0kB ± 0%       35.0kB ± 0%    ~     (all equal)
-    Compiler                        109kB ± 0%        110kB ± 0%  +0.72%  (p=0.000 n=20+20)
-    SSA                             137kB ± 0%        138kB ± 0%  +0.58%  (p=0.000 n=20+20)
-    Flate                          4.89kB ± 0%       4.89kB ± 0%    ~     (all equal)
-    GoParser                       8.49kB ± 0%       8.49kB ± 0%    ~     (all equal)
-    Reflect                        11.4kB ± 0%       11.4kB ± 0%    ~     (all equal)
-    Tar                            10.5kB ± 0%       10.5kB ± 0%    ~     (all equal)
-    XML                            16.7kB ± 0%       16.7kB ± 0%    ~     (all equal)
-    
-    name                      old text-bytes    new text-bytes    delta
-    HelloSize                       761kB ± 0%        761kB ± 0%    ~     (all equal)
-    CmdGoSize                      10.8MB ± 0%       10.8MB ± 0%    ~     (all equal)
-    
-    name                      old data-bytes    new data-bytes    delta
-    HelloSize                      10.7kB ± 0%       10.7kB ± 0%    ~     (all equal)
-    CmdGoSize                       312kB ± 0%        312kB ± 0%    ~     (all equal)
-    
-    name                      old bss-bytes     new bss-bytes     delta
-    HelloSize                       122kB ± 0%        122kB ± 0%    ~     (all equal)
-    CmdGoSize                       146kB ± 0%        146kB ± 0%    ~     (all equal)
-    
-    name                      old exe-bytes     new exe-bytes     delta
-    HelloSize                      1.13MB ± 0%       1.13MB ± 0%    ~     (all equal)
-    CmdGoSize                      15.1MB ± 0%       15.1MB ± 0%    ~     (all equal)
-    
-    Change-Id: I3cc2f9829a109543d9a68be4a21775d2d3e9801f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196557
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Id10ec69c23cd2dd33306f4c1bc75724e3c571b56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172579
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go          |    6 +-
- src/cmd/compile/internal/arm/ssa.go            |    2 +-
- src/cmd/compile/internal/arm64/ssa.go          |    8 +-
- src/cmd/compile/internal/gc/plive.go           |    2 +-
- src/cmd/compile/internal/mips/ssa.go           |    6 +-
- src/cmd/compile/internal/mips64/ssa.go         |    6 +-
- src/cmd/compile/internal/ppc64/ssa.go          |    2 +-
- src/cmd/compile/internal/s390x/ssa.go          |    6 +-
- src/cmd/compile/internal/ssa/README.md         |    8 +-
- src/cmd/compile/internal/ssa/block.go          |  104 +-
- src/cmd/compile/internal/ssa/branchelim.go     |   10 +-
- src/cmd/compile/internal/ssa/check.go          |   52 +-
- src/cmd/compile/internal/ssa/copyelim.go       |    6 +-
- src/cmd/compile/internal/ssa/cse.go            |    4 +-
- src/cmd/compile/internal/ssa/deadcode.go       |   14 +-
- src/cmd/compile/internal/ssa/deadstore.go      |   11 +-
- src/cmd/compile/internal/ssa/flagalloc.go      |   42 +-
- src/cmd/compile/internal/ssa/fuse.go           |    2 +-
- src/cmd/compile/internal/ssa/gen/386.rules     |  118 +-
- src/cmd/compile/internal/ssa/gen/386Ops.go     |   32 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   20 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   32 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules     |  118 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  136 +-
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |   40 +-
- src/cmd/compile/internal/ssa/gen/ARMOps.go     |   20 +-
- src/cmd/compile/internal/ssa/gen/MIPS.rules    |   24 +-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |   24 +-
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |   16 +-
- src/cmd/compile/internal/ssa/gen/MIPSOps.go    |   16 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |   36 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |   20 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules   |   18 +-
- src/cmd/compile/internal/ssa/gen/S390XOps.go   |    2 +-
- src/cmd/compile/internal/ssa/gen/generic.rules |    4 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go |   28 +-
- src/cmd/compile/internal/ssa/gen/main.go       |    3 +-
- src/cmd/compile/internal/ssa/gen/rulegen.go    |   95 +-
- src/cmd/compile/internal/ssa/html.go           |    4 +-
- src/cmd/compile/internal/ssa/loopbce.go        |    9 +-
- src/cmd/compile/internal/ssa/nilcheck.go       |    5 +-
- src/cmd/compile/internal/ssa/nilcheck_test.go  |    2 +-
- src/cmd/compile/internal/ssa/phiopt.go         |    8 +-
- src/cmd/compile/internal/ssa/prove.go          |   21 +-
- src/cmd/compile/internal/ssa/regalloc.go       |   47 +-
- src/cmd/compile/internal/ssa/rewrite.go        |    7 +-
- src/cmd/compile/internal/ssa/rewrite386.go     | 1048 ++++----
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 1644 +++++++------
- src/cmd/compile/internal/ssa/rewriteARM.go     | 3080 ++++++++++++++----------
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 1954 ++++++++-------
- src/cmd/compile/internal/ssa/rewriteMIPS.go    |  338 +--
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  322 +--
- src/cmd/compile/internal/ssa/rewritePPC64.go   |  888 ++++---
- src/cmd/compile/internal/ssa/rewriteS390X.go   |  118 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go |   27 +-
- src/cmd/compile/internal/ssa/schedule.go       |   18 +-
- src/cmd/compile/internal/ssa/shortcircuit.go   |    4 +-
- src/cmd/compile/internal/ssa/sizeof_test.go    |    2 +-
- src/cmd/compile/internal/ssa/tighten.go        |    2 +-
- src/cmd/compile/internal/ssa/value.go          |    2 +-
- src/cmd/compile/internal/ssa/writebarrier.go   |    2 +-
- src/cmd/compile/internal/wasm/ssa.go           |    6 +-
- src/cmd/compile/internal/x86/ssa.go            |    6 +-
- 63 files changed, 6052 insertions(+), 4605 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,16 +1,12 @@
-commit 19bb42d637eb57d24ff905047ce468c034a9a0cf
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Jan 30 18:19:58 2013 -0500
+commit 6d2d2ae4d9af028ff13819497baeecfd984dc3e6
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Jan 30 15:09:34 2013 -0800
 
-    math/big: make tests faster by reducing coverage in --test.short mode.
+    cmd/go: fix build -n for cgo enabled packages
     
-    The time to test all of math/big is now:
-     default      => ~3min
-     --test.short => 150ms
-    
-    R=rsc
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/7223054
+    https://golang.org/cl/7095067
 
- src/pkg/math/big/rat_test.go | 33 +++++++++++++++++++--------------
- 1 file changed, 19 insertions(+), 14 deletions(-)
+ src/cmd/go/build.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

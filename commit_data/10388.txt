@@ -1,14 +1,13 @@
-commit 53523f6a7d6ca6aa6ec4a1d20af773f333284371
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 14 16:03:23 2011 -0500
+commit 11fe7cd6e32bdd41dcf9ff9b5fb82048b1340509
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Nov 14 15:59:27 2011 -0500
 
-    encoding/json: decode [] as empty slice, not nil slice
+    6l, 8l: add missing space in error message
     
-    Test was already present, but bug in reflect.DeepEqual hid this bug.
-    
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/5375090
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/5374085
 
- src/pkg/encoding/json/decode.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/6l/obj.c | 2 +-
+ src/cmd/8l/obj.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

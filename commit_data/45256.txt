@@ -1,30 +1,18 @@
-commit 69c94ad55f9bf3072a5ad466b779e1427a3a07e0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Apr 15 16:54:41 2021 -0400
+commit 59202c4204205ee019cf25efcb814b72c8703f4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 12 21:09:18 2020 -0400
 
-    cmd/go/internal/modload: split updateRoots into separate functions for updating and tidying
+    net/http: deflake TestServerEmptyBodyRace_h1, or at least try
     
-    In CL 293689, I fused the mvs.Reqs calls that were formerly in MinReqs
-    and TidyBuildList into a single function, updateRoots, in the hope
-    that it expressed a fundamental operation. As I have been working on
-    the lazy equivalents, I have come to realize that these functions are
-    deeply related but fundamentally different.
+    Fixes #22540.
+    For #33585.
     
-    In order to help me reason about the two different roles, I am making
-    the two functions separate once more, but leaving them colocated in
-    the code.
-    
-    For #36460
-    
-    Change-Id: I851d6d81fbfd84f39411e0d076ee72a9909c60ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310629
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I504b5a91ce1a39cd4ffd2380178a1b8f82f49dd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261698
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modload/buildlist.go | 170 +++++++++++++++++--------------
- src/cmd/go/internal/modload/init.go      |   2 +-
- src/cmd/go/internal/modload/load.go      |  14 ++-
- 3 files changed, 106 insertions(+), 80 deletions(-)
+ src/net/http/serve_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

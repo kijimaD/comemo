@@ -1,23 +1,18 @@
-commit f069a8299876f9987a01a8d4a664d2a887bd5efc
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Jun 24 16:33:10 2025 -0400
+commit 0e7f5cf30ba43f4d388803642b4173e5af20e761
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Apr 26 14:47:37 2024 -0400
 
-    runtime: note custom GOMAXPROCS even if value doesn't change
+    doc/README.md: discourage RELNOTE in CLs
     
-    When an application calls runtime.GOMAXPROCS(runtime.GOMAXPROCS(0)), the
-    runtime does not need to change the actual GOMAXPROCS value (via STW).
-    However, this call must still transition from "automatic" to "custom"
-    GOMAXPROCS state, thus disabling background updates.
+    Release notes should always be files under doc/next. Make it clear that
+    this is the only way to add them: RELNOTE markers in CLs are no longer
+    supported.
     
-    Thus this case shouldn't return quite as early as it currently does.
-    
-    Change-Id: I6a6a636c42f73996532bd9f7beb95e933256c9e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/683815
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I34d77eb876f57b84ecdc7e5ecbf3eb5c91e6fed8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582075
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/debug.go                        |  8 +++++++-
- src/runtime/testdata/testprog/gomaxprocs.go | 14 ++++++++++++++
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ doc/README.md | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

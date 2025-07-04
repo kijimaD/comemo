@@ -1,17 +1,13 @@
-commit 9fa6cb2f2bb77c23043dc38dbb26a3ab1aad51f2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 17 15:32:38 2011 -0700
+commit 9ea0bd39862eb2a54778bd4c48d9c82f3a5efdea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 17 15:07:44 2011 -0700
 
-    big: better support for string conversions
+    http: add http.SetCookie(ResponseWriter, *Cookie)
     
-    Fixes #1842.
-    
-    R=r
+    R=golang-dev, gary.burd, rsc
     CC=golang-dev
-    https://golang.org/cl/4517081
+    https://golang.org/cl/4526062
 
- src/pkg/big/int.go      | 22 ++++++++++++----------
- src/pkg/big/nat.go      | 35 +++++++++++++++++++++++++----------
- src/pkg/big/nat_test.go | 32 ++++++++++++++++++--------------
- src/pkg/big/rat.go      |  6 +++---
- 4 files changed, 58 insertions(+), 37 deletions(-)
+ src/pkg/http/cookie.go      | 53 +++++++++++++++++++++++++++------------------
+ src/pkg/http/cookie_test.go | 30 +++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 21 deletions(-)

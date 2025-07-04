@@ -1,31 +1,15 @@
-commit d9eba71a643f31e509dd08884509c5b2c1ab26a4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 2 16:31:26 2022 -0800
+commit c249491572db67acd226210dbcfb4f349614a632
+Author: lixianyang <lee1300394324@gmail.com>
+Date:   Tue Apr 27 02:29:59 2021 +0000
 
-    go/types, types2: fix bug in types2.MissingMethod
+    doc: change <a/> to </a> in spec
     
-    Because Checker.missingMethod also looks up methods matching
-    matching case-folded names, when Checker.missingMethod returns
-    an alternative method, that method does not automatically have
-    the wrong type. It may be a method with a different name.
-    
-    Adjust types2.MissingMethod to check the alternative method
-    name before reporting a wrong type.
-    
-    Add API test that verifies (now correct) behavior for this
-    case.
-    
-    Ported the code also to go/types, though it was not a bug
-    there yet because looking up with case-folding is not yet
-    enabled.
-    
-    Change-Id: Iaa48808535c9265a9879338ea666c6c021e93a2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382634
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I21d0ee83c9204d51c587bd944209df2232b460ad
+    GitHub-Last-Rev: 47fab8dc582baaab5f5cd58a1d53f1c24604c769
+    GitHub-Pull-Request: golang/go#45771
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313449
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go | 58 +++++++++++++++++++++++++++++
- src/cmd/compile/internal/types2/lookup.go   |  5 ++-
- src/go/types/api_test.go                    | 58 +++++++++++++++++++++++++++++
- src/go/types/lookup.go                      |  5 ++-
- 4 files changed, 122 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

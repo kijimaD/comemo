@@ -1,13 +1,23 @@
-commit be96e52cce0723dac8288f8ef7ea5565492dc679
+commit 83f6aadf16cde7a602b4f40a59038e2f8c4d11c8
 Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Aug 7 21:48:34 2014 -0400
+Date:   Thu Aug 7 14:36:34 2014 -0400
 
-    misc/nacl/testzip.proto: include cmd/internal/* to fix build
+    [dev.power64] cmd/9c: use liblink, use Go argument passing rules, support both endians
     
-    LGTM=adg, dave
-    R=golang-codereviews, adg, dave
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/123050043
+    https://golang.org/cl/126800043
 
- misc/nacl/testzip.proto | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/9c/cgen.c    |  26 ++--
+ src/cmd/9c/doc.go    |  17 +++
+ src/cmd/9c/gc.h      | 167 ++++++++++--------------
+ src/cmd/9c/list.c    | 225 +-------------------------------
+ src/cmd/9c/machcap.c |   2 -
+ src/cmd/9c/mul.c     |  18 ++-
+ src/cmd/9c/peep.c    |  47 +++----
+ src/cmd/9c/reg.c     |  84 ++++++------
+ src/cmd/9c/sgen.c    |  16 ++-
+ src/cmd/9c/swt.c     | 361 +++++++--------------------------------------------
+ src/cmd/9c/txt.c     | 132 +++++++++++++------
+ 11 files changed, 332 insertions(+), 763 deletions(-)

@@ -1,17 +1,21 @@
-commit 9038c244983e66294781f83e30239623a08672f5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 28 15:30:37 2022 -0700
+commit 2580e9a16049c12fbd0b058c4dc08cb7b0fdd08f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 27 02:47:25 2021 -0700
 
-    go/types, types2: better index-out-of-bounds error message (cleanup)
+    [dev.typeparams] cmd/compile: refactor noder/irgen helpers
     
-    Use the 1.17 compiler error message, sans "array" prefix.
+    This CL refactors the code for invoking the types2 checker and for
+    validating //go:embed directives to be easier to reuse separately.
+    No functional change.
     
-    Change-Id: I0e70781c5ff02dca30a2004ab4d0ea82b0849eae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396296
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I706f4ea4a26b1f1d2f4064befcc0777a1067383d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323310
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/index.go | 6 +-----
- src/go/types/index.go                    | 2 +-
- test/fixedbugs/issue13365.go             | 2 +-
- 3 files changed, 3 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go | 33 +++++++++++++-------
+ src/cmd/compile/internal/noder/noder.go | 47 ++++++++++++++--------------
+ src/cmd/compile/internal/noder/types.go | 55 +++++++++++++++++----------------
+ 3 files changed, 74 insertions(+), 61 deletions(-)

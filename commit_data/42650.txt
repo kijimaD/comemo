@@ -1,23 +1,15 @@
-commit b3de3e52c28b87b7849ef5c030cb280763b549ef
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Aug 12 10:34:15 2020 -0400
+commit 400a5af19bb5af842342757864f3fb303867adc3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 18:55:11 2020 -0800
 
-    doc/go1.16: start draft release notes
+    doc/go1.14: mention new method mime/multipart.(*Reader).NextRawPart
     
-    This template is based on CL 220278 and previous ones like it.
-    Include Compiler and Linker sections proactively, they can be
-    removed if they don't end up being needed for Go 1.16.
+    Updates #29090
+    Updates #36878
     
-    Use two spaces of indentation for TODOs to set a better precedent
-    for the final text that will take its place.
-    
-    'relnote -html' does not report any changes at this time.
-    
-    For #40700.
-    
-    Change-Id: I096b0ce0d33aaaa6fae9c91c0d2dfb89b9c5e94c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248198
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I63f0eb583285d5c12f591cb704097cdf6a67b64f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217128
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.16.html | 84 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 84 insertions(+)
+ doc/go1.14.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

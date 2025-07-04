@@ -1,25 +1,18 @@
-commit 0f86d1edfb87fddb2c7f50d177b67f48219151f3
-Author: Shinji Tanaka <shinji.tanaka@gmail.com>
-Date:   Sat Mar 26 07:14:15 2016 -0400
+commit 2df4b9c265f4d2552141ad42cd537b28495a9c81
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Thu Feb 4 17:21:57 2016 +0100
 
-    runtime: use set_thread_area instead of modify_ldt on linux/386
+    [dev.ssa] cmd/compile/internal/ssa/gen: move variable reset code into a function
     
-    linux/386 depends on modify_ldt system call, but recent Linux kernels
-    can disable this system call. Any Go programs built as linux/386
-    crash with the message 'Trace/breakpoint trap'.
+    Shaves about 3 lines per generated rule.
     
-    The kernel config CONFIG_MODIFY_LDT_SYSCALL, which control
-    enable/disable modify_ldt, is disabled on Amazon Linux 2016.03.
-    
-    This fixes this problem by using set_thread_area instead of modify_ldt
-    on linux/386.
-    
-    Fixes #14795.
-    
-    Change-Id: I0cc5139e40e9e5591945164156a77b6bdff2c7f1
-    Reviewed-on: https://go-review.googlesource.com/21190
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I94adc94ab79f90ac5fd033f896ece3b1eddf0f3d
+    Reviewed-on: https://go-review.googlesource.com/19197
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/sys_linux_386.s | 42 ++++++++++++++++++++++++++++++------------
- 1 file changed, 30 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/decompose.go      |   25 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   15 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 3330 +++++-------------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1340 ++--------
+ src/cmd/compile/internal/ssa/value.go          |    7 +
+ 5 files changed, 949 insertions(+), 3768 deletions(-)

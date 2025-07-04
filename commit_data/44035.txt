@@ -1,35 +1,19 @@
-commit 520f3b72db7befab2028d9a47376267cf2d274a9
-Author: Johan Brandhorst <johan.brandhorst@gmail.com>
-Date:   Thu Nov 12 20:34:51 2020 +0000
+commit 0e617d3d5c7e89b1ad1b0285fc77314b8d056211
+Author: smasher164 <aindurti@gmail.com>
+Date:   Tue May 5 15:30:22 2020 -0400
 
-    crypto/tls: revert "add HandshakeContext method to Conn"
+    net/http: update link to chrome documentation on connection management
     
-    This reverts CL 246338.
+    The previous link at
+    https://insouciant.org/tech/connection-management-in-chromium/ is no
+    longer accessible. This CL changes it to
+    https://www.chromium.org/developers/design-documents/network-stack#TOC-Connection-Management.
     
-    Reason for revert: waiting for 1.17 release cycle
+    Fixes #38885.
     
-    Updates #32406
-    
-    Change-Id: I074379039041e086c62271d689b4b7f442281663
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269697
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
+    Change-Id: I0881e72fe0c099294ab137b5e2d0c3f5763978f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.16.html                          | 17 ---------
- src/crypto/tls/common.go                 | 21 -----------
- src/crypto/tls/conn.go                   | 62 +++-----------------------------
- src/crypto/tls/handshake_client.go       | 11 ++----
- src/crypto/tls/handshake_client_test.go  | 36 -------------------
- src/crypto/tls/handshake_client_tls13.go |  3 --
- src/crypto/tls/handshake_server.go       | 17 ++++-----
- src/crypto/tls/handshake_server_test.go  | 50 ++------------------------
- src/crypto/tls/handshake_server_tls13.go |  4 +--
- src/crypto/tls/tls.go                    | 55 +++++++++++++++++++++++-----
- src/net/http/server.go                   |  2 +-
- src/net/http/transport.go                | 10 +++---
- src/net/http/transport_test.go           |  2 +-
- 13 files changed, 69 insertions(+), 221 deletions(-)
+ src/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

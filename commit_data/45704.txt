@@ -1,17 +1,17 @@
-commit 6ff0ae2aa4fdb9c6c267efb30927e87563387c49
+commit feccfb8adaf5a0ce93a0dafa31336ccb6f41c618
 Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu May 13 13:45:55 2021 -0400
+Date:   Mon Nov 9 14:00:09 2020 +0100
 
-    crypto/elliptic: fix typo in p521Point type name
+    crypto/x509: use fingerprint map for (*CertPool).contains
     
-    Change-Id: I6cab3624c875d9a70441a560e84f91c9b2df17b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320070
+    This fell through the cracks from the CL 229917 comments.
+    
+    Change-Id: I22584107f1e8111f9c523f45307dd50e1e5f4b8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268339
     Trust: Filippo Valsorda <filippo@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/elliptic/p521.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/crypto/x509/cert_pool.go | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)

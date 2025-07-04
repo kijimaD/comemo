@@ -1,18 +1,14 @@
-commit f5eb8712f802463ec9b2356e3a9d95186163c7ac
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jul 20 13:47:57 2017 -0400
+commit bfeda6ccc7098c177f351670e3c102974a847377
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 31 16:04:52 2017 -0700
 
-    misc/cgo/testsanitizers: add regression test for change 50251
+    cmd/compile: add comment to statictmp name generation
     
-    http://golang.org/cl/50251 fixed a regression under TSAN.
-    This change adds a minimal reproducer for the observed symptom.
+    Follow-up to review comments on CL 39193.
     
-    Change-Id: Ib9ad01b458b7fdec14d6c2fe3c243f9c64b3dcf2
-    Reviewed-on: https://go-review.googlesource.com/50371
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7649af9d70ad73e039061a7a66fea416a7476192
+    Reviewed-on: https://go-review.googlesource.com/39199
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/cgo/testsanitizers/test.bash |  1 +
- misc/cgo/testsanitizers/tsan12.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+)
+ src/cmd/compile/internal/gc/sinit.go | 1 +
+ 1 file changed, 1 insertion(+)

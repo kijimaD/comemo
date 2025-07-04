@@ -1,13 +1,12 @@
-commit ae933b04e6da9b72ec1affd9375edfa728b79d20
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 17 16:39:42 2014 +0200
+commit 0a6f8b042d168986cc2c07a62c05c769310a6c3e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Oct 4 12:02:04 2014 +0400
 
-    CONTRIBUTORS: add James Robinson (Google CLA)
+    doc/go1.4: document memory consumption reduction
     
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=dvyukov, golang-codereviews, jamesr, nigeltao
-    https://golang.org/cl/155530043
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/149370043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.4.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,44 +1,19 @@
-commit d96b7fbf98bfac4861cda1b5c17a002ce8d62aa5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Dec 12 11:15:37 2018 -0800
+commit 6d51dd1e85bbed9f59023a468c4cbbeed598608f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 4 16:43:34 2018 -0700
 
-    cmd/compile: rewrite f(g()) for multi-value g() during typecheck
+    go/types: remove work-around for issue #26124
     
-    This CL moves order.go's copyRet logic for rewriting f(g()) into t1,
-    t2, ... = g(); f(t1, t2, ...) earlier into typecheck. This allows the
-    rest of the compiler to stop worrying about multi-value functions
-    appearing outside of OAS2FUNC nodes.
+    This work-around is not needed anymore now that method
+    signatures are type-checked separately from their receiver
+    base types: no artificial cycles are introduced anymore
+    and so there is no need to artificially cut them.
     
-    This changes compiler behavior in a few observable ways:
+    Updates #26124.
     
-    1. Typechecking error messages for builtin functions now use general
-    case error messages rather than unnecessarily differing ones.
-    
-    2. Because f(g()) is rewritten before inlining, saved inline bodies
-    now see the rewritten form too. This could be addressed, but doesn't
-    seem worthwhile.
-    
-    3. Most notably, this simplifies escape analysis and fixes a memory
-    corruption issue in esc.go. See #29197 for details.
-    
-    Fixes #15992.
-    Fixes #29197.
-    
-    Change-Id: I86a70668301efeec8fbd11fe2d242e359a3ad0af
-    Reviewed-on: https://go-review.googlesource.com/c/153841
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I9d50171f12dd8977116a5d3f63ac39a06b1cd492
+    Reviewed-on: https://go-review.googlesource.com/c/139899
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/esc.go       |   7 -
- src/cmd/compile/internal/gc/fmt.go       |  13 +-
- src/cmd/compile/internal/gc/iexport.go   |   3 +-
- src/cmd/compile/internal/gc/init.go      |   9 ++
- src/cmd/compile/internal/gc/inl.go       |  18 +--
- src/cmd/compile/internal/gc/order.go     |  60 +------
- src/cmd/compile/internal/gc/typecheck.go | 258 +++++++++++--------------------
- test/cmplx.go                            |   6 +-
- test/copy1.go                            |   2 +-
- test/fixedbugs/issue15992.go             |  38 +++++
- test/fixedbugs/issue15992.out            |   4 +
- test/fixedbugs/issue17038.go             |   2 +-
- test/fixedbugs/issue9521.go              |   4 +-
- 13 files changed, 157 insertions(+), 267 deletions(-)
+ src/go/types/decl.go | 26 ++------------------------
+ 1 file changed, 2 insertions(+), 24 deletions(-)

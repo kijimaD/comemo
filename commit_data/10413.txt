@@ -1,28 +1,17 @@
-commit 28546ed56a37c7d4a384c1e9ae69c61d16e4ea94
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Nov 16 12:18:11 2011 +1100
+commit 5e5c5c2789cb585122ed5975dbe11d7bf761b7a0
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Nov 15 16:29:43 2011 -0800
 
-    html: parse <caption> elements
+    exp/sql: NumInput() allow -1 to ignore checking.
+    Some database driver can't get number of parameters.
+    For example:
+            http://support.microsoft.com/kb/240205/en-us
+    So, added way to ignore checking number of parameters with return -1.
     
-    Pass tests2.dat, test 33:
-    <!DOCTYPE html><table><caption>test TEST</caption><td>test
-    
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |   <body>
-    |     <table>
-    |       <caption>
-    |         "test TEST"
-    |       <tbody>
-    |         <tr>
-    |           <td>
-    |             "test"
-    
-    R=nigeltao
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5371099
+    https://golang.org/cl/5376091
 
- src/pkg/html/parse.go      | 48 +++++++++++++++++++++++++++++++++++++++++++++-
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 48 insertions(+), 2 deletions(-)
+ src/pkg/exp/sql/driver/driver.go |  3 +++
+ src/pkg/exp/sql/sql.go           | 11 +++++++++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit aae088b16a327cc4b1a81928c307d5bd6e54849b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 18 19:26:38 2024 -0800
+
+    doc/godebug: fix tipo
+    
+    Change-Id: Ib67d81d8e3aa33c6a506813194cc5710b3d5cdd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629575
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/godebug.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

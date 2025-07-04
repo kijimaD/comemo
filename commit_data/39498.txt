@@ -1,25 +1,14 @@
-commit 06ef108cec98b3dfc0fba3f49e733a18eb9badd5
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Sun Jul 7 23:08:20 2019 +0700
+commit 37b84e2782e5c19c3053316853a6fba923b0f06b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 2 11:14:29 2019 -0800
 
-    cmd/compile: fix unsafeValue handles OLSH/ORSH wrong
+    os/exec: add BenchmarkExecEcho
     
-    For OLSH/ORSH, the right node is not a uintptr-typed. However,
-    unsafeValue still be called recursively for it, causing the
-    compiler crashes.
-    
-    To fixing, the right node only needs to be evaluated
-    for side-effects, so just discard its value.
-    
-    Fixes #32959
-    
-    Change-Id: I34d5aa0823a0545f6dad1ec34774235ecf11addc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185039
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ie955cdc505766447f70b8f262160fe05b60a5b0c
+    Reviewed-on: https://go-review.googlesource.com/c/164959
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/escape.go |  7 ++++++-
- test/fixedbugs/issue32959.go          | 17 +++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/os/exec/bench_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

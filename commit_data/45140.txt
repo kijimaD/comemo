@@ -1,27 +1,31 @@
-commit 283f9fdbd340a5f3c1b27fd10730986b35e57c89
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Apr 14 10:52:30 2021 -0400
+commit 04b8a9fea57e37589d82410281f22ebde0027808
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 6 14:42:15 2020 -0700
 
-    cmd/dist: add tests using the typeparams build tag
+    all: implement GO386=softfloat
     
-    Now that go/ast changes have been guarded behind the typeparams build
-    tag, we no longer have coverage for tests involving generic code.
+    Backstop support for non-sse2 chips now that 387 is gone.
     
-    Add a new testing step to cmd/dist to run go/... and cmd/gofmt tests
-    using -tags=typeparams.
+    RELNOTE=yes
     
-    Comment out parser object resolution assertions that currently fail, and
-    which will be fixed by CL 304456.
-    
-    Fixes #44933
-    
-    Change-Id: I481dd4246a016f410307865b6c6c2bb3c8e6e3bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310071
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Ib10e69c4a3654c15a03568f93393437e1939e013
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260017
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go                             | 13 +++++++++++++
- src/go/parser/testdata/resolution/typeparams.go2 |  9 +++++----
- 2 files changed, 18 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/x86/galign.go | 15 +++++++++++++++
+ src/cmd/dist/build.go                  | 11 +++++++++++
+ src/cmd/dist/buildruntime.go           |  2 ++
+ src/cmd/go/alldocs.go                  |  3 +++
+ src/cmd/go/internal/cfg/cfg.go         |  3 +++
+ src/cmd/go/internal/help/helpdoc.go    |  3 +++
+ src/cmd/internal/objabi/util.go        |  9 +--------
+ src/internal/cfg/cfg.go                |  1 +
+ test/codegen/arithmetic.go             |  6 +++---
+ test/codegen/floats.go                 |  8 ++++----
+ test/codegen/math.go                   |  2 +-
+ test/codegen/memops.go                 | 32 ++++++++++++++++----------------
+ test/run.go                            | 12 ++++++------
+ 13 files changed, 69 insertions(+), 38 deletions(-)

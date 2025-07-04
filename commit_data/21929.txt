@@ -1,16 +1,18 @@
-commit d970bea88500b21c85d51199d6b0deb1e764950a
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 5 10:45:56 2015 -0500
+commit 15c9a2ef4e2ba914c330eca8e86c6b6166986d27
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 15:22:49 2015 -0500
 
-    cmd/internal/gc: start syntax.go for syntax tree definitions
+    runtime: eliminate drainworkbufs from scanblock
     
-    Minor comments added. More to come.
+    scanblock is only called during _GCscan and _GCmarktermination.
+    During _GCscan, scanblock didn't call drainworkbufs anyway.  During
+    _GCmarktermination, there's really no point in draining some (largely
+    arbitrary) amount of work during the scanblock, since the GC is about
+    to drain everything anyway, so simply eliminate this case.
     
-    Change-Id: I97511db54d59e1009ef934da38f306a2dc83a6e9
-    Reviewed-on: https://go-review.googlesource.com/6898
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I7f3c59ce9186a83037c6f9e9b143181acd04c597
+    Reviewed-on: https://go-review.googlesource.com/4783
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/gc/go.go     | 362 -------------------------------------
- src/cmd/internal/gc/subr.go   | 112 ------------
- src/cmd/internal/gc/syntax.go | 403 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 403 insertions(+), 474 deletions(-)
+ src/runtime/mgc.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

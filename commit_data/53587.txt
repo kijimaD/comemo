@@ -1,19 +1,21 @@
-commit dbf9bf2c39116f1330002ebba8f8870b96645d87
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 16 15:58:03 2023 -0400
+commit 7d1cab12c77a5fed788829b0566db9dfd7866ac9
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Aug 19 09:20:02 2022 -0500
 
-    cmd/internal/moddeps: allow the "misc" module to be missing from GOROOT
+    runtime: fix ppc64 startup on newer linux kernels
     
-    cmd/distpack deletes that module from its distribution.
+    R0 needs to be cleared at startup as it may not always be cleared
+    by the kernel on newer kernels.
     
-    For #24904.
+    Fixes #54547
     
-    Change-Id: I69dd328d0f790a49db7a053d703ae985d9ebe9e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504060
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id7055699aaa8d8b193b7e3e784f075ce29ac3f1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424927
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
 
- src/cmd/internal/moddeps/moddeps_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/rt0_linux_ppc64.s | 1 +
+ 1 file changed, 1 insertion(+)

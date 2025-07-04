@@ -1,26 +1,28 @@
-commit 80f068928fd957935df3d61da319331e76a73b49
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Mon Dec 16 10:53:00 2024 +0800
+commit 4e91c5697a77d9f83a34cbd32704254a9b1bde9f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Feb 5 12:20:45 2024 -0500
 
-    cmd/internal/obj/loong64: add {V,XV}{FSQRT/FRECIP/FRSQRT}.{S/D} instructions support
+    internal/goroot: in IsStandardPackage check for go source files
     
-    Go asm syntax:
-             V{FSQRT/FRECIP/FRSQRT}{F/D}    VJ, VD
-            XV{FSQRT/FRECIP/FRSQRT}{F/D}    XJ, XD
+    Be more strict in IsStandardPackage: before this change we'd just
+    check for the existence of the directory, but now we check to see that
+    there's at least one .go file in the directory.
     
-    Equivalent platform assembler syntax:
-             v{fsqrt/frecip/frsqrt}.{s/d}   vd, vj
-            xv{fsqrt/frecip/frsqrt}.{s/d}   xd, xj
+    Also update some comments in the modindex package to reflect the fact
+    that an IndexPackage might represent a directory that does not contain
+    any source files.
     
-    Change-Id: I3fdbe3193659d7532164451b087ccf725053172f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636395
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Fixes #65406
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    
+    Change-Id: I82f0c0e7bfcd5bb4df0195c4c8c7fc7c67fae53e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561338
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 14 ++++++++++
- src/cmd/internal/obj/loong64/a.out.go           | 14 ++++++++++
- src/cmd/internal/obj/loong64/anames.go          | 12 +++++++++
- src/cmd/internal/obj/loong64/asm.go             | 36 +++++++++++++++++++++++++
- 4 files changed, 76 insertions(+)
+ src/cmd/go/internal/modindex/read.go         | 14 ++++++--------
+ src/cmd/go/testdata/script/list_testdata.txt | 11 +++++++++++
+ src/cmd/go/testdata/script/mod_list.txt      |  4 ++--
+ src/internal/goroot/gc.go                    | 12 ++++++++++--
+ src/internal/goroot/gccgo.go                 | 13 +++++++++++--
+ 5 files changed, 40 insertions(+), 14 deletions(-)

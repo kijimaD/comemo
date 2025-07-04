@@ -1,23 +1,27 @@
-commit c9031a44b2cf734e6d1f64c31d6ee3a34ca1a9cc
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Apr 21 00:00:38 2022 +0200
+commit c4e0c652fbf3b17cc89f72c6569fe255fe5e1047
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 22 18:10:59 2021 -0700
 
-    net/netip: fix Addr.Unmap reference in Addr.Is4 godoc comment
+    [dev.typeparams] cmd/compile: refactor CaptureName
     
-    In CL 339309 this was probably copied from the respective godoc comment
-    in package inet.af/netaddr, also see
-    https://pkg.go.dev/inet.af/netaddr#IP.Is4
+    CaptureName currently does a few things: checks if a variable needs to
+    be captured at all; checks if the variable has already been captured;
+    and creates and saves a new variable. This full suite of functionality
+    is useful for noder and irgen, but unified IR and other backend code
+    only has a need for the last feature.
     
-    In net/netip the type is named Addr, so adjust the godoc comment
-    accordingly.
+    This CL refactors CaptureName a little bit and extracts out
+    NewClosureVar as a function usable for callers that don't need the
+    extra features of CaptureName.
     
-    Change-Id: Ib5ab8054067f8b74119efa4732192a8407189f9b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401394
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I8a67c6375e44babe53344bf78e335535c57f9607
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330193
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/net/netip/netip.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/name.go      | 47 ++++++++++++++++++++------------
+ src/cmd/compile/internal/noder/reader.go | 13 ++-------
+ 2 files changed, 33 insertions(+), 27 deletions(-)

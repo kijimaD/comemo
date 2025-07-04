@@ -1,16 +1,12 @@
-commit a347fdb035898f6c3344e112416a3eb9d0fb9cff
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Mon Mar 5 10:02:30 2012 -0500
+commit 06e18ca5a3ecca411e4b31d3bdc9f36356ed99c2
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Mar 5 22:19:51 2012 +1100
 
-    encoding/binary: improve package comment.
+    strings: Rename example to match function name.
     
-    The current package comment doesn't mention varints and
-    protocol buffers. Also, the first sentence is incomprehensible
-    without further context as "fixed-size values" is undefined.
-    
-    R=rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5715048
+    https://golang.org/cl/5729065
 
- src/pkg/encoding/binary/binary.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/pkg/strings/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,25 +1,26 @@
-commit cdad4080695f09d79c403fd3827ef0ba50c399a8
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Nov 2 09:12:08 2018 +0100
+commit 5e70b132c22d10e556b3840626a50ecf1dcad35f
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue Jul 10 00:44:21 2018 -0400
 
-    os: add support for long path names on aix RemoveAll
+    cmd/pprof: disable readline UI support for TERM=dumb
     
-    Follow CL 146020 and enable RemoveAll based on Unlinkat and Openat on
-    aix.
+    In general, dumb terminal indicates terminal with limited capability.
+    It may provide no support for special character sequences, e.g., no
+    handling of ANSI escape sequences. Its input/output handling behavior
+    may deviate from what's described in termios or terminfo. E.g., in
+    the shell in emacs, even after successfully setting the terminal to
+    raw mode, the terminal behaves as if it's still operating in canonical
+    mode since emacs is doing input processing first.
     
-    Updates #27029
+    Readline support can be broken in various ways in dumb terminal mode,
+    so we want to disable readline or advanced UI features. The easiest
+    way to detect dumb terminal is to check the environment variable "TERM".
     
-    Change-Id: I78b34ed671166ee6fa651d5f2025b88548ee6c68
-    Reviewed-on: https://go-review.googlesource.com/c/146937
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Clément Chigot <clement.chigot@atos.net>
+    Fixes #26254
+    
+    Change-Id: I6b652eb555bc03b84405aae08b0b25d111fbb8b0
+    Reviewed-on: https://go-review.googlesource.com/122879
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/syscall/unix/asm_solaris.s |  2 +-
- src/internal/syscall/unix/at_aix.go     | 14 +++++++
- src/internal/syscall/unix/at_libc.go    | 64 +++++++++++++++++++++++++++++++
- src/internal/syscall/unix/at_solaris.go | 68 +++------------------------------
- src/os/removeall_at.go                  |  2 +-
- src/os/removeall_noat.go                |  2 +-
- src/os/removeall_test.go                |  4 +-
- 7 files changed, 89 insertions(+), 67 deletions(-)
+ src/cmd/pprof/readlineui.go | 4 ++++
+ 1 file changed, 4 insertions(+)

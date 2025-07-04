@@ -1,28 +1,15 @@
-commit 67a782b8cc5b073041a7b5ab14144c922737d44f
-Author: Keith Randall <khr@golang.org>
-Date:   Wed May 24 11:16:42 2017 -0700
+commit cd6f18779fd0c8be723d6eb1f1891796bfe98aa3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Mar 6 10:54:27 2017 +0100
 
-    cmd/compile: test for moving spills
+    net/http: remove unused ResponseWriter params
     
-    Test that we really do move spills down to the dominator of
-    all the uses.
+    Found by github.com/mvdan/unparam.
     
-    Also add a test where go1.8 would have moved the spill out of
-    the loop into two exit points, but go1.9 doesn't move the spill.
-    This is a case where the 1.9 spill moving code does not subsume
-    the 1.8 spill moving code.
-    
-    Maybe we resurrect moving-spills-out-of-loops CL to fix this one.
-    (I suspect it wouldn't be worth the effort, but would be happy
-    to hear evidence otherwise.)
-    
-    Update #20472
-    
-    Change-Id: I7dbf8d65e7f4d675d14e5ecf502887cebda35d2a
-    Reviewed-on: https://go-review.googlesource.com/44038
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I66f5a191cf9c9a11a7c3c4d7ee0a02e2c185f019
+    Reviewed-on: https://go-review.googlesource.com/37841
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc_test.go | 109 ++++++++++++++++++++++++++
- 1 file changed, 109 insertions(+)
+ src/net/http/fs.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

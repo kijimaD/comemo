@@ -1,13 +1,17 @@
-commit 17f6e5396b5ca6fbac11a660df1fcc0ee8d0821d
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 29 10:11:09 2016 -0400
+commit 6d40c62732ac76333426bdd6a67f8c1457ac8334
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 4 18:02:03 2016 -0800
 
-    runtime: print sweep ratio if gcpacertrace>0
+    [dev.ssa] cmd/compile: remove redundant compare ops
     
-    Change-Id: I5217bf4b75e110ca2946e1abecac6310ed84dad5
-    Reviewed-on: https://go-review.googlesource.com/21205
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Flagalloc was recalculating flags is some situations
+    when it didn't need to.  Fixed by using the same name
+    for the original flag calculation instruction throughout.
+    
+    Change-Id: Ic0bf58f728a8d87748434dd25a67b0708755e1f8
+    Reviewed-on: https://go-review.googlesource.com/19237
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/mgcsweep.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/flagalloc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

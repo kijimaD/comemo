@@ -1,27 +1,21 @@
-commit 52fcff3ec147ea8ae48c023f3d5000a8bf42fe8c
-Author: Jan Mercl <0xjnml@gmail.com>
-Date:   Tue Aug 2 13:00:46 2016 +0200
+commit 045411e6f28c64e6448a2432fa652cc80ca18f31
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 12 17:58:46 2016 -0700
 
-    go/token: Fix race in FileSet.PositionFor.
+    cmd/internal/obj: remove use of package bio
     
-    Methods of FileSet are documented to be safe for concurrent use by
-    multiple goroutines, so FileSet is protected by a mutex and all its
-    methods use it to prevent concurrent mutations. All methods of File that
-    mutate the respective FileSet, including AddLine, do also lock its
-    mutex, but that does not help when PositionFor is invoked concurrently
-    and reads without synchronization what AddLine mutates.
+    Also add MustClose and MustWriter to cmd/internal/bio, and use them in
+    cmd/asm.
     
-    The change adds acquiring a RLock around the racy call of File.position
-    and the respective test.
-    
-    Fixes #16548
-    
-    Change-Id: Iecaaa02630b2532cb29ab555376633ee862315dd
-    Reviewed-on: https://go-review.googlesource.com/25345
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I07f5df3b66c17bc5b2e6ec9c4357d9b653e354e0
+    Reviewed-on: https://go-review.googlesource.com/21938
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/token/position.go      |  2 ++
- src/go/token/position_test.go | 31 ++++++++++++++++++++++++++++++-
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ src/cmd/asm/main.go                | 13 +++++++-----
+ src/cmd/compile/internal/gc/obj.go |  2 +-
+ src/cmd/internal/bio/buf.go        |  2 +-
+ src/cmd/internal/bio/must.go       | 43 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/objfile.go    |  9 ++++----
+ 5 files changed, 57 insertions(+), 12 deletions(-)

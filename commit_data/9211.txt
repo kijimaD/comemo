@@ -1,19 +1,16 @@
-commit 12a5774cde429d8db8c499cbb818c76ec28a28c5
+commit cce10dacc6489078837521d34ef317ca17b77d97
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 26 00:52:46 2011 -0400
+Date:   Tue Jul 26 00:52:17 2011 -0400
 
-    gc, runtime: fix range+panic line number bugs
+    gc: fix select line number
     
-    Fixes #1856.
+    Fixes #1393.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4810054
+    https://golang.org/cl/4811054
 
- src/cmd/gc/range.c                |  4 ++++
- src/pkg/runtime/amd64/traceback.c |  7 +++++-
- src/pkg/runtime/arm/traceback.c   |  7 +++++-
- src/pkg/runtime/plan9/thread.c    | 11 ++++++++++
- src/pkg/runtime/runtime.c         | 28 +++++++++++++++++++-----
- test/fixedbugs/bug348.go          | 46 +++++++++++++++++++++++++++++++++++++++
- 6 files changed, 96 insertions(+), 7 deletions(-)
+ src/cmd/gc/go.y          |  1 +
+ src/cmd/gc/select.c      |  6 ++++++
+ test/fixedbugs/bug347.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 56 insertions(+)

@@ -1,0 +1,18 @@
+commit 82791889ccfbcf7656b31211619a213b7f3109c5
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Thu Feb 27 03:43:43 2025 +0200
+
+    crypto/internal/fips140/bigmod/_asm: update avo to v0.6.0
+    
+    avo v0.4.0 x/tools dependency crashes while parsing with Go 1.25.
+    
+    Change-Id: Ic951066b0b39b477887ad0e32be44f4d88d4c2f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653175
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fips140/bigmod/_asm/go.mod | 10 +++----
+ src/crypto/internal/fips140/bigmod/_asm/go.sum | 40 ++++++--------------------
+ 2 files changed, 12 insertions(+), 38 deletions(-)

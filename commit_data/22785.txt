@@ -1,16 +1,13 @@
-commit e64764c8d03cbc4bd01d6df5c2c833cb6792f6cd
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 28 17:08:28 2015 -0700
+commit 3cfae34943bf1f12276b4816c86450adc3d5fec9
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Apr 8 01:57:37 2015 -0400
 
-    cmd/internal/gc: cache commonly used Ptrto types
+    go/types/internal/gcimporter: update for 7g and 9g
     
-    Reduces allocations in the compiler by ~1.5%.
-    
-    No functional changes. Passes toolstash -cmp.
-    
-    Change-Id: I2416f7fb0aaf9b7d6783c79e840039ad8fa7b5a3
-    Reviewed-on: https://go-review.googlesource.com/9419
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ied1582d8aabee2eb346e1c23bfd7781e4a091264
+    Reviewed-on: https://go-review.googlesource.com/8621
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/gc/subr.go | 49 +++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 45 insertions(+), 4 deletions(-)
+ src/go/types/internal/gcimporter/gcimporter.go      |  2 +-
+ src/go/types/internal/gcimporter/gcimporter_test.go | 15 +++------------
+ 2 files changed, 4 insertions(+), 13 deletions(-)

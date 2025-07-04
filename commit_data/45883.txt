@@ -1,15 +1,19 @@
-commit e294b8a49e5ff157041b4ac6c3c3413dafd13673
-Author: Levi（リーバイ） <19405788+lescoggi@users.noreply.github.com>
-Date:   Tue Jun 29 12:45:52 2021 +0000
+commit eb3086e5a8958723ae696ea48d4cc7981c6779fa
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 16 01:44:47 2020 -0500
 
-    doc/go1.17: fix typo "MacOS" -> "macOS"
+    [dev.regabi] cmd/compile: finish cleanup of Debug parsing
     
-    Change-Id: Ie2ada2bf875a93b1cc9e86a81c8a25de39ce4752
-    GitHub-Last-Rev: 462753db015949eb88c6c4e64b6aae1a49ac89b4
-    GitHub-Pull-Request: golang/go#46962
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331589
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Now that the debug settings are in a struct, use struct tags to set
+    the usage messages and use reflection to populate debugtab,
+    much like we did for the Flag struct.
+    
+    Change-Id: Id2ba30c30a9158c062527715a68bf4dd94679457
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272247
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.17.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/debug.go | 261 +++++++++++++++++++----------------
+ src/cmd/compile/internal/gc/flag.go  |  33 +++--
+ src/cmd/compile/internal/gc/main.go  |   3 +-
+ 3 files changed, 162 insertions(+), 135 deletions(-)

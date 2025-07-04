@@ -1,13 +1,12 @@
-commit 36d7830591952a510870d4296cfe5b192b348284
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Jul 16 09:35:14 2012 -0400
+commit e726197858759794d245da0f1d57e0699b1f227f
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Sun Jul 15 09:48:31 2012 -0700
 
-    A+C: Peter Armitage (individual CLA)
+    os: add missing full stop in comment
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6392065
+    https://golang.org/cl/6399047
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/os/types.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

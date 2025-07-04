@@ -1,23 +1,16 @@
-commit 3dec253783e1211989102ac6abd34cddbf8ba0e6
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jun 18 12:51:35 2020 -0700
+commit 79ccbe1b67b9c481c73bd6b310849bbcf13954a5
+Author: bxq2011hust <bxq2011hust@qq.com>
+Date:   Fri Jan 10 07:03:21 2020 +0000
 
-    reflect: zero stack slots before writing to them with write barriers
+    crypto/x509: this change modifies C.CopyPEMRoots to static function
     
-    reflect.assignTo writes to the target using write barriers. Make sure
-    that the memory it is writing to is zeroed, so the write barrier does
-    not read pointers from uninitialized memory.
-    
-    Fixes #39541
-    
-    Change-Id: Ia64b2cacc193bffd0c1396bbce1dfb8182d4905b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238760
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ic7997d1f747152afec78e8e439770166029f34ec
+    GitHub-Last-Rev: 6a07f25056c960dc8684cd6eac22cd3405a936c8
+    GitHub-Pull-Request: golang/go#36491
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214298
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/type.go          |  1 +
- src/reflect/value.go         |  8 ++++++++
- src/runtime/stack.go         |  1 +
- test/fixedbugs/issue39541.go | 33 +++++++++++++++++++++++++++++++++
- 4 files changed, 43 insertions(+)
+ src/crypto/x509/root_cgo_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

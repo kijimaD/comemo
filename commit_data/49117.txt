@@ -1,21 +1,17 @@
-commit 2226952b8a9564a83b29cb281238c5adac6c71b3
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Apr 22 09:50:26 2022 -0400
+commit 1d91551b7326383343c7c143a8ac299d0a685289
+Author: helloPiers <git@hellopiers.io>
+Date:   Mon Jul 19 20:08:50 2021 +0000
 
-    go/doc: move code from playExample to a separate function
+    time: correct typo in documentation for UnixMicro
     
-    The playExample function is very long. Move the code that finds
-    top-level declarations and unresolved identifiers to a separate
-    function.
+    Fixes #47283.
     
-    In a future CL, we will be improving that function by removing
-    unused declarations.
-    
-    Change-Id: I5632012674687f23094b2bc90615daaecb2cf525
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401757
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Ibdc35433d22be3caa70197b6a95c66999812a16a
+    GitHub-Last-Rev: 75962b029467a5e26e1ee78a38bf01c954445ea1
+    GitHub-Pull-Request: golang/go#47284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335549
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/go/doc/example.go | 145 ++++++++++++++++++++++++++------------------------
- 1 file changed, 75 insertions(+), 70 deletions(-)
+ src/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

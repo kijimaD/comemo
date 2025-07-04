@@ -1,12 +1,13 @@
-commit 414da2e4a3806a33c1a245ce7a4b6403461e5c30
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Jun 15 11:50:21 2011 +1000
+commit 812b2b6405643f1c8cec44d63e81e09e80d84a25
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jun 15 09:10:59 2011 +1000
 
-    syscall: mksyscall_windows.pl should output unix newline.
+    mail: cosmetic fixes.
     
-    R=golang-dev, bradfitz, alex.brainman
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/4601058
+    https://golang.org/cl/4602062
 
- src/pkg/syscall/mksyscall_windows.pl | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/mail/message.go      | 6 +++---
+ src/pkg/mail/message_test.go | 3 +--
+ 2 files changed, 4 insertions(+), 5 deletions(-)

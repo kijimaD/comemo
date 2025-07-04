@@ -1,15 +1,31 @@
-commit 812a33dc7df6a4f7b8b0bd2e6ea6500f312b3fed
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Oct 6 13:42:17 2021 -0700
+commit 68058edc39edae96e34225ca163002233b623c97
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jan 28 14:57:55 2021 -0500
 
-    test: skip endian inlining test on noopt builder
+    runtime: document pointer write atomicity for memclrNoHeapPointers
     
-    Change-Id: I73b1ac23f322bcaff36eff7a5829654f299c1fdd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354353
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    memclrNoHeapPointers is the underlying implementation of
+    typedmemclr and memclrHasPointers, so it still needs to write
+    pointer-aligned words atomically. Document this requirement.
+    
+    Updates #41428.
+    
+    Change-Id: Ice00dee5de7a96a50e51ff019fcef069e8a8406a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287692
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- test/inline_endian.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/memclr_386.s         | 2 ++
+ src/runtime/memclr_amd64.s       | 2 ++
+ src/runtime/memclr_arm.s         | 2 ++
+ src/runtime/memclr_arm64.s       | 2 ++
+ src/runtime/memclr_mips64x.s     | 2 ++
+ src/runtime/memclr_mipsx.s       | 2 ++
+ src/runtime/memclr_plan9_386.s   | 2 ++
+ src/runtime/memclr_plan9_amd64.s | 2 ++
+ src/runtime/memclr_ppc64x.s      | 2 ++
+ src/runtime/memclr_riscv64.s     | 2 ++
+ src/runtime/memclr_s390x.s       | 2 ++
+ src/runtime/memclr_wasm.s        | 2 ++
+ src/runtime/stubs.go             | 8 ++++++++
+ 13 files changed, 32 insertions(+)

@@ -1,17 +1,16 @@
-commit 6ee8c6a7ce30a3c0613617dcc182874d36b2ea94
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Feb 3 14:45:26 2017 -0800
+commit b4ce38ec5769a270f0545dce43b2e926230609c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 24 10:19:04 2016 -0700
 
-    cmd/compile/internal/gc: simplify generating static data
+    cmd/cgo: throw if C.malloc returns nil
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I4a72e3e130c38868ee8ecef32cad58748aa5be52
-    Reviewed-on: https://go-review.googlesource.com/36353
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If7740ac7b6c4190db5a1ab4100d12cf16dc79c84
+    Reviewed-on: https://go-review.googlesource.com/31768
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 39 +++++++++---------------------------
- src/cmd/compile/internal/gc/ssa.go   |  7 ++++---
- 2 files changed, 14 insertions(+), 32 deletions(-)
+ misc/cgo/errors/malloc.go | 23 +++++++++++++++++++++++
+ misc/cgo/errors/test.bash | 10 ++++++++++
+ src/cmd/cgo/out.go        |  6 ++++++
+ 3 files changed, 39 insertions(+)

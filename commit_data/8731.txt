@@ -1,12 +1,13 @@
-commit 7c248ae077c3f8f12cb9a3977ce26bcdd93d914d
+commit 4a8de67058742b2df9bee046859efb0d7e6a321f
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jun 15 14:56:12 2011 +1000
+Date:   Wed Jun 15 14:29:26 2011 +1000
 
-    go/build: fix build and clean ups
+    go/build: record all cgo intermediate files (fix build)
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4620045
+    https://golang.org/cl/4613045
 
- src/pkg/go/build/build.go | 19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+ src/pkg/go/build/build.go      | 32 ++++++++++++++++++++------------
+ src/pkg/go/build/build_test.go |  4 ++++
+ 2 files changed, 24 insertions(+), 12 deletions(-)

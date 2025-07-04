@@ -1,18 +1,22 @@
-commit d8c7230c97ca5639389917cc235175bfe2dc50ab
-Author: HeGaoYuan <hegaoyuan@163.com>
-Date:   Thu Jul 25 22:21:52 2024 +0000
+commit 05293d6b499afe9f37c11582c4a9a41fd92ba258
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 25 16:35:17 2023 -0700
 
-    cmd/compile/internal/types: fix typo in comment
+    go/types, types2: fix incorrect logic in assignability check
     
-    Change-Id: Iacf22578338c8aa99587826a8342e1da6dc166a6
-    GitHub-Last-Rev: cdb3235e8ca932776ddf803621ac203c493bc873
-    GitHub-Pull-Request: golang/go#46598
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325510
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Do not return prematurely in assignableTo.
+    
+    Fixes #54424.
+    
+    Change-Id: I769b3b4ad9d79b7bce60b92cc59c3564117e36db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498400
+    Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/operand.go          | 16 ++++++++++++----
+ src/go/types/operand.go                             | 16 ++++++++++++----
+ src/internal/types/testdata/fixedbugs/issue54424.go | 12 ++++++++++++
+ 3 files changed, 36 insertions(+), 8 deletions(-)

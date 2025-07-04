@@ -1,22 +1,22 @@
-commit 645e984f39a6cf0ffdf965dc04130d9c7f57e8a4
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 26 15:37:15 2016 +1100
+commit bee42067649390557c772c561e02d46b3f066fe3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Aug 25 22:19:16 2016 -0400
 
-    doc: s/race/ethnicity/ in the Code of Conduct
+    runtime: have typelinksinit work forwards
     
-    As agreed upon by the Code of Conduct working group, "race" may refer to
-    an attempt to classify people based on "defining characteristics",
-    regardless of how this people view themselves, while "ethnicity" refers
-    to how people identify themselves.
+    For reasons I have forgotten typelinksinit processed modules backwards.
+    (I suspect this was an attempt to process types in the executing
+    binary first.)
     
-    The Code of Conduct working group believes that the term "ethnicity"
-    will be more comprehensive and inclusive, and will better serve the Go
-    community.
+    It does not appear to be necessary, and it is not the order we want
+    when a module can be loaded at an arbitrary point during a program's
+    execution as a plugin. So reverse the order.
     
-    Change-Id: I724b72cadb8cf29b4bac8f83017b0303feae3c94
-    Reviewed-on: https://go-review.googlesource.com/32133
+    While here, make it safe to call typelinksinit multiple times.
+    
+    Change-Id: Ie10587c55c8e5efa0542981efb6eb3c12dd59e8c
+    Reviewed-on: https://go-review.googlesource.com/27822
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/conduct.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/type.go | 39 +++++++++++++++++++--------------------
+ 1 file changed, 19 insertions(+), 20 deletions(-)

@@ -1,29 +1,16 @@
-commit 882a640421c5ac480d40ae02736c95046fec11aa
-Author: Samuel Tan <samueltan@google.com>
-Date:   Thu May 11 16:56:14 2017 -0700
+commit d83af90a894cc6edaed97cea0edac62dfe8ba69a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 17 23:53:19 2017 +0000
 
-    html/template: only search identifier nodes for predefined escapers
+    Revert "go/types: enforce Check path restrictions via panics"
     
-    Predefined escapers (i.e. "html" and "urlquery") should only occur in
-    Identifier nodes, and never in Field or Chain nodes, since these are
-    global functions that return string values (see inline comments for more
-    details). Therefore, skip Chain and Field nodes when searching for
-    predefined escapers in template pipelines.
+    This reverts commit b744a11a966ad3999c190fea9909ec8df0570b87.
     
-    Also, make a non-functional change two existing test cases to avoid
-    giving the impression that it is valid to reference a field of a
-    predefined escaper.
+    Reason for revert: Broke trybots. (misc-vetall builder is busted)
     
-    Fixes #20323
-    
-    Change-Id: I34f722f443c778699fcdd575dc3e0fd1fd6f2eb3
-    Reviewed-on: https://go-review.googlesource.com/43296
-    Reviewed-by: Samuel Tan <samueltan@google.com>
-    Reviewed-by: Mike Samuel <mikesamuel@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I651d1c18db2fb3cb6ec12c2ae62024627baf8d77
+    Reviewed-on: https://go-review.googlesource.com/38332
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/html/template/escape.go      | 40 +++++++++++++++++---------------------
- src/html/template/escape_test.go | 42 ++++++++++++++++++++++++++++++++++++----
- 2 files changed, 56 insertions(+), 26 deletions(-)
+ src/go/types/api.go | 3 ---
+ 1 file changed, 3 deletions(-)

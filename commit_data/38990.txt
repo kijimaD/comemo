@@ -1,18 +1,24 @@
-commit 7ee22139796f8f4a7b588c444c6477a96acbc1ba
-Author: Michael Vogt <mvo@ubuntu.com>
-Date:   Wed May 1 07:52:44 2019 +0000
+commit bc82d7c7db83487e05d7a88e06549d4ae2a688c3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 30 15:06:40 2018 -0500
 
-    net: set DNSError.IsTemporary from addrinfoErrno errors
+    cmd/go: reject 'get' of paths containing leading dots or unsupported characters
     
-    Today it is not possible (AFAICT) to detect if a DNSError if of type EAI_AGAIN, i.e. if it is something temporary that should be retried. This information is available inside addrinfoErrno but when the DNSError is created this information is lost.
+    On some platforms, directories beginning with dot are treated as
+    hidden files, and filenames containing unusual characters can be
+    confusing for users to manipulate (and delete).
     
-    This PR fixes this so that the addinfoErrno.Temporary information is added to DNSError as well. With that a user who gets a DNSError can check now is its a temporary error (for errors that resulted from a addrinfoErrno this is EAI_AGAIN).
+    Fixes #29230
+    Fixes #29231
     
-    Change-Id: I64badb2ebd904e41fc2e0755416f7f32560534d8
-    GitHub-Last-Rev: ced7238a6597039fb23f36f372bd1cf33d60d4a6
-    GitHub-Pull-Request: golang/go#31676
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174557
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic6f97f577d8fafa83ef62438095a5c7ae022881a
+    Reviewed-on: https://team-review.git.corp.google.com/c/368507
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/154101
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/cgo_unix.go | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/get/get.go              |   4 +
+ src/cmd/go/internal/get/path.go             | 172 ++++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/get_brace.txt    |  45 ++++++++
+ src/cmd/go/testdata/script/get_dotfiles.txt |  57 +++++++++
+ 4 files changed, 278 insertions(+)

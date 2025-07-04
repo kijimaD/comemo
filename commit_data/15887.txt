@@ -1,14 +1,12 @@
-commit f308efd869af3cd7cbf74af8ef6558cf4245048b
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Mar 22 14:42:02 2013 +1100
+commit c7ad7a1af4ed8cb832f429eb57da182daf8427dd
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Thu Mar 21 20:03:27 2013 -0700
 
-    image/gif: tighten the checks for when the amount of an image's pixel
-    data does not agree with its bounds.
+    misc/emacs: Kill gofmt error buffer if the buffer was formatted correctly already.
     
-    R=r, jeff.allen
+    R=adonovan, cw, patrick.allen.higgins, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7938043
+    https://golang.org/cl/7844045
 
- src/pkg/image/gif/reader.go      | 92 +++++++++++++++++++++++-----------------
- src/pkg/image/gif/reader_test.go | 86 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 139 insertions(+), 39 deletions(-)
+ misc/emacs/go-mode.el | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,25 +1,26 @@
-commit 74e78df107f9e6642ecfc6808f542e2625f7cfb2
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 13 12:59:39 2013 -0700
+commit ba14974e070734b3eb1a2b58097675c13978c1af
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 13 23:33:49 2013 +0400
 
-    undo CL 12840043 / 3b9f54db72a1
+    undo CL 12787044 / ed695cdf962b
     
-    Breaks the build.  Old bucket arrays kept by iterators
-    still need to be scanned.
+    The NetBSD and OpenBSD failures are apparently real,
+    not due to the test bug fixed in 100b9fc0c46f.
     
     ««« original CL description
-    runtime: tell GC not to scan internal hashmap structures.
-    We'll do it ourselves via hash_gciter, thanks.
-    Fixes bug 6119.
+    runtime/pprof: test netbsd and openbsd again
     
-    R=golang-dev, dvyukov, cookieo9, rsc
+    Maybe these will work now.
+    
+    R=golang-dev, dvyukov, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12840043
+    https://golang.org/cl/12787044
     »»»
     
-    R=golang-dev
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12884043
+    https://golang.org/cl/12873043
 
- src/pkg/runtime/hashmap.c | 15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
+ src/pkg/runtime/pprof/pprof.go      | 2 +-
+ src/pkg/runtime/pprof/pprof_test.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,21 +1,15 @@
-commit 9785a3962ddd4528ee1d31838a645087d0cc82f9
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Jan 5 16:08:40 2015 +1100
+commit 082a2374fbe0d41e500158270e1ddc321c09a9e4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 12 15:54:24 2014 +1100
 
-    image/draw: fold TestClipWithNilMP into TestClip.
+    cmd/api: update the API checker to Go 1.4 and git
     
-    https://go-review.googlesource.com/#/c/1876/ introduced a new
-    TestClipWithNilMP test, along with a code change that fixed a panic,
-    but the existing TestClip test already contained almost enough machinery
-    to cover that bug.
+    Still using the ancient go/types API. Updating that to the modern API
+    should be a separate effort in a separate change.
     
-    There is a small code change in this CL, but it is a no-op: (*x).y is
-    equivalent to x.y for a pointer-typed x, but the latter is cleaner.
-    
-    Change-Id: I79cf6952a4999bc4b91f0a8ec500acb108106e56
-    Reviewed-on: https://go-review.googlesource.com/2304
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: Ic1c5ae3c13711d34fe757507ecfc00ee883810bf
+    Reviewed-on: https://go-review.googlesource.com/1404
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/image/draw/clip_test.go | 34 ++++++++++++++++++----------------
- src/image/draw/draw.go      |  8 ++++----
- 2 files changed, 22 insertions(+), 20 deletions(-)
+ src/cmd/api/run.go | 33 ++++++++++++++++++---------------
+ 1 file changed, 18 insertions(+), 15 deletions(-)

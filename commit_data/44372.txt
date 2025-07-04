@@ -1,21 +1,24 @@
-commit d434c2338b11b9ecf19865e8ec3f2721706f29cf
-Author: zhengjianxun <zhuimengshaonian04@gmail.com>
-Date:   Tue Feb 23 03:12:56 2021 +0000
+commit a07e28194a05800215efe192d2ff840f339924f0
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 15 22:52:56 2020 -0700
 
-    runtime: clarify GC fractional mode description
+    cmd/compile: redo flag constant ops for arm64
     
-    nowdays, in runtime/mgc.go,we can see the comment descrition : The fractional worker is necessary when GOMAXPROCS*gcBackgroundUtilization is not an integer.
-    but it not true such as GOMAXPROCS=5.
-    in the implemet of startCycle() , Fractional Mode happend only when
-    GOMAXPROCS<=3 or GOMAXPROCS=6. so utilization can closest to 25%.
-    Fixes #44380
+    Fixes the *noov opcodes so they handle a constant argument properly.
     
-    Change-Id: Id0dd6d9f37759c2c9231f164a013a014216dd442
-    GitHub-Last-Rev: 5910e76324b2fa908235c325c8b1edafca496256
-    GitHub-Pull-Request: golang/go#44381
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293630
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
+    Most of the infrastructure for this CL is in CL 238077 (the arm32 one).
+    
+    Fixes #39505
+    
+    Change-Id: Id424a4e18964b848f05aa42f4d78e5f2e2cdf43b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237999
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/mgc.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        |    8 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |    8 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  216 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   14 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   33 +-
+ src/cmd/compile/internal/ssa/rewrite.go      |   74 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 1482 +++++++-------------------
+ 7 files changed, 514 insertions(+), 1321 deletions(-)

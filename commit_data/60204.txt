@@ -1,0 +1,17 @@
+commit a2eae66c3010efc507afca9f1f53fb7cf4d5671c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 24 18:46:48 2024 +0000
+
+    doc: add release notes for a couple minor tracing features
+    
+    For #65614.
+    
+    Change-Id: I759bf671b8f84c5224798b0dfaee6b158fdcc95a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587927
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/3-tools.md                               | 9 +++++++++
+ doc/next/6-stdlib/99-minor/runtime/trace/65319.md | 4 ++++
+ 2 files changed, 13 insertions(+)

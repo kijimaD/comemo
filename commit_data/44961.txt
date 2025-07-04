@@ -1,26 +1,18 @@
-commit 298975c634758ee464dc0629402107bfc33c4b41
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Apr 5 19:13:34 2021 +0000
+commit bf9800c7931da96e2ddc8363955f43581265b95c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Sep 18 08:33:44 2020 -0400
 
-    runtime: use funcID to identify abort in isAbortPC
+    cmd/go: fix review comments in load, modload
     
-    This change eliminates the use of funcPC to determine if an PC is in
-    abort. Using funcPC for this purpose is problematic when using plugins
-    because symbols no longer have unique PCs. funcPC also grabs the wrapper
-    for runtime.abort which isn't what we want for the new register ABI, so
-    rather than mark runtime.abort as ABIInternal, use funcID.
+    Follow-up to CL 255719, fixing review comments.
     
-    For #40724.
-    
-    Change-Id: I2730e99fe6f326d22d64a10384828b94f04d101a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307391
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I26d3cc622496c3902c6924cf2b746c50705c4d50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255937
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/internal/objabi/funcid.go |  2 ++
- src/runtime/panic.go              |  6 +++++-
- src/runtime/symtab.go             | 13 +++++++++++++
- 3 files changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/load/pkg.go     | 9 ++++++---
+ src/cmd/go/internal/modload/init.go | 1 -
+ 2 files changed, 6 insertions(+), 4 deletions(-)

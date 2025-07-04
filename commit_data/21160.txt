@@ -1,42 +1,12 @@
-commit 7b4df8f018ec01df3ecbd9961c769e7199853363
+commit ce3e8e4edcb2288ae06cd3892c88a4afe2a0a746
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 22 22:50:42 2014 -0500
+Date:   Fri Nov 21 00:21:49 2014 -0500
 
-    runtime, sync/atomic: add write barrier for atomic write of pointer
+    [dev.cc] build: skip API checks on Windows too (not just Unix)
     
-    Add write barrier to atomic operations manipulating pointers.
-    
-    In general an atomic write of a pointer word may indicate racy accesses,
-    so there is no strictly safe way to attempt to keep the shadow copy
-    in sync with the real one. Instead, mark the shadow copy as not used.
-    
-    Redirect sync/atomic pointer routines back to the runtime ones,
-    so that there is only one copy of the write barrier and shadow logic.
-    In time we might consider doing this for most of the sync/atomic
-    functions, but for now only the pointer routines need that treatment.
-    
-    Found with GODEBUG=wbshadow=1 mode.
-    Eventually that will run automatically, but right now
-    it still detects other missing write barriers.
-    
-    Change-Id: I852936b9a111a6cb9079cfaf6bd78b43016c0242
-    Reviewed-on: https://go-review.googlesource.com/2066
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    TBR=brainman
+    CC=golang-codereviews
+    https://golang.org/cl/175490043
 
- src/runtime/atomic_386.go         | 22 +--------
- src/runtime/atomic_amd64x.go      | 22 +--------
- src/runtime/atomic_arm.go         |  8 ++--
- src/runtime/atomic_pointer.go     | 96 +++++++++++++++++++++++++++++++++++++++
- src/runtime/atomic_ppc64x.go      | 22 +--------
- src/runtime/race_amd64.s          | 15 ------
- src/runtime/stubs.go              | 13 +-----
- src/sync/atomic/asm_386.s         |  9 ----
- src/sync/atomic/asm_amd64.s       | 14 +-----
- src/sync/atomic/asm_amd64p32.s    | 14 +-----
- src/sync/atomic/asm_freebsd_arm.s |  9 ----
- src/sync/atomic/asm_linux_arm.s   |  9 ----
- src/sync/atomic/asm_nacl_arm.s    |  9 ----
- src/sync/atomic/asm_netbsd_arm.s  |  9 ----
- src/sync/atomic/asm_ppc64x.s      |  9 ----
- 15 files changed, 109 insertions(+), 171 deletions(-)
+ src/run.bat | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

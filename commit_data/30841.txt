@@ -1,31 +1,15 @@
-commit 26be4b9113e9c4f14399388652e961137658b6cb
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 24 13:30:19 2017 -0700
+commit 3c0466136d635fc4845484f0a98f52e66d61168b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 9 04:08:32 2016 +0000
 
-    cmd/compile: avoid an assignment of n.Type in walk
+    go/build: clarify Context.HasSubdir docs
     
-    In the future, walk will probably run concurrently
-    with SSA construction. It is possible for walk
-    to be walking a function node that is referred
-    to by another function undergoing SSA construction.
-    In that case, this particular assignment to n.Type
-    is race-y.
+    Fixes #17888
     
-    This assignment is also not necessary;
-    evconst does not change the type of n.
-    Both arguments to evconst must have the same type,
-    and at the end of evconst, n is replaced with n.Left.
-    
-    Remove the assignment, and add a check to ensure
-    that its removal remains correct.
-    
-    Updates #15756
-    
-    Change-Id: Id95faaff42d5abd76be56445d1d3e285775de8bf
-    Reviewed-on: https://go-review.googlesource.com/38609
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7490b95a03b810a0f7ed1f07f37d7c7b3ac036be
+    Reviewed-on: https://go-review.googlesource.com/34240
+    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/gc/walk.go | 5 +++--
+ src/go/build/build.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)

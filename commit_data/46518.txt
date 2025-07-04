@@ -1,42 +1,23 @@
-commit 39e08c6cd75da72059a58f05eb500b48124d563e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Sep 10 10:47:03 2021 -0400
+commit 9b55088d6b49fd4bb4832589a1b7e8629de2800c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 6 21:59:10 2021 -0500
 
-    io: relax documented Seeker invariants that do not hold in practice
+    doc/go1.16: add release note for disallowing non-ASCII import paths
     
-    Use “or” instead of “and” to describe error behavior.
-    On error, nearly all Seeker implementations in the Go repo return
-    0 instead of “the new offset”. (Arguably on error “the new offset”
-    is the same as the previous offset, but some Seeker implementations
-    don't have that offset readily available.)
+    golang.org/cl/251878 disallowed non-ASCII characters in import paths,
+    in module mode. They were already disallowed in module paths, so this
+    change just extended the restriction to the package subdirectory of
+    the module. Update the release notes to alert users of this change.
     
-    Don't claim that “any positive offsite is legal”.
-    In practice, most of the Seeker implementations within the Go standard
-    library do not allow “[s]eeking to any [arbitrary] positive offset”:
-    some reject all out-of-bounds offsets, and some reject only a subset
-    that happen to overflow some underlying representation. Since some
-    positive offsets may be rejected, we cannot claim that seeking to
-    those offsets “is legal”. However, to avoid invalidating existing
-    Seeker implemetations we must not require an implementation to reject
-    invalid positive offsets either.
+    Fixes #43052
     
-    This is technically a breaking change, since callers of Seek are no
-    longer allowed to assume that a Seek resulting in an arbitrary
-    positive offset will succeed. However, since basically none of the
-    existing implementations actually conformed to the documented behavior
-    I believe this falls under the “specification errors” exception to the
-    Go 1 compatibility policy.
-    
-    Fixes #48316
-    
-    Change-Id: Ib1b478599b20ad5361bcc97fe8ceb84f74e6d971
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349054
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I1caf9ef978dd3ac599a3f82c5c376ad62e6fc436
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282194
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/io/io.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ doc/go1.16.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

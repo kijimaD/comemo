@@ -1,37 +1,52 @@
-commit b00222fcdd9f2aeb426887b005865eca1aec3631
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Sep 13 16:48:53 2021 -0700
+commit ef5285fbd0636965d916c81dbf87834731f337b2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 9 00:57:55 2021 -0800
 
-    cmd/go: refactor {Allow,Disallow}WriteGoMod to ExplicitWriteGoMod
+    [dev.typeparams] cmd/compile: add types2-based noder
     
-    Subcommands may now set the global flag modload.ExplicitWriteGoMod
-    instead of calling {Allow,Disallow}WriteGoMod.
+    This CL adds "irgen", a new noding implementation that utilizes types2
+    to guide IR construction. Notably, it completely skips dealing with
+    constant and type expressions (aside from using ir.TypeNode to
+    interoperate with the types1 typechecker), because types2 already
+    handled those. It also omits any syntax checking, trusting that types2
+    already rejected any errors.
     
-    When ExplicitWriteGoMod is false (default), modload.LoadPackages and
-    ListModules will either update go.mod and go.sum or report an error if
-    they need to be updated, depending on cfg.BuildMod.
+    It currently still utilizes the types1 typechecker for the desugaring
+    operations it handles (e.g., turning OAS2 into OAS2FUNC/etc, inserting
+    implicit conversions, rewriting f(g()) functions, and so on). However,
+    the IR is constructed in a fully incremental fashion, so it should be
+    easy to now piecemeal replace those dependencies as needed.
     
-    When ExplicitWriteGoMod is true, commands must explicitly call
-    modload.WriteGoMod to update go.mod and go.sum or report an
-    error. Commands that perform some operation after loading the build
-    list (like downloading zips or building packages) and commands that
-    load packages multiple times should set this. For now, only 'go get'
-    and 'go mod download' set this.
+    Nearly all of "go test std cmd" passes with -G=3 enabled by
+    default. The main remaining blocker is the number of test/run.go
+    failures. There also appear to be cases where types2 does not provide
+    us with position information. These will be iterated upon.
     
-    This CL is a pure refactor: no change in behavior is expected.
-    There are some other minor changes in here, too: commitRequirements no
-    longer sets the global requirements: that should be done separately first.
+    Portions and ideas from Dan Scales's CL 276653.
     
-    Change-Id: I69942a808bb177faf7904a53aaf2d4ac68500e82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349600
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic99e8f2d0267b0312d30c10d5d043f5817a59c9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281932
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modcmd/download.go   |  22 ++++--
- src/cmd/go/internal/modcmd/why.go        |   1 +
- src/cmd/go/internal/modget/get.go        |   8 +-
- src/cmd/go/internal/modload/buildlist.go |   5 +-
- src/cmd/go/internal/modload/init.go      | 130 +++++++++++++------------------
- src/cmd/go/internal/modload/list.go      |   5 +-
- src/cmd/go/internal/modload/load.go      |  18 ++++-
- 7 files changed, 96 insertions(+), 93 deletions(-)
+ src/cmd/compile/internal/noder/decl.go          | 222 +++++++++++++++++++
+ src/cmd/compile/internal/noder/expr.go          | 204 +++++++++++++++++
+ src/cmd/compile/internal/noder/func.go          |  74 +++++++
+ src/cmd/compile/internal/noder/helpers.go       | 130 +++++++++++
+ src/cmd/compile/internal/noder/irgen.go         | 176 +++++++++++++++
+ src/cmd/compile/internal/noder/noder.go         | 178 +++------------
+ src/cmd/compile/internal/noder/object.go        | 169 ++++++++++++++
+ src/cmd/compile/internal/noder/posmap.go        |   6 +-
+ src/cmd/compile/internal/noder/scopes.go        |  64 ++++++
+ src/cmd/compile/internal/noder/stmt.go          | 280 ++++++++++++++++++++++++
+ src/cmd/compile/internal/noder/types.go         | 208 ++++++++++++++++++
+ src/cmd/compile/internal/noder/validate.go      | 113 ++++++++++
+ src/cmd/compile/internal/typecheck/dcl.go       |   5 +-
+ src/cmd/compile/internal/typecheck/func.go      |   4 +-
+ src/cmd/compile/internal/typecheck/typecheck.go |   8 +-
+ src/cmd/compile/internal/types/scope.go         |   2 +-
+ 16 files changed, 1685 insertions(+), 158 deletions(-)

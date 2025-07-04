@@ -1,23 +1,36 @@
-commit 67fe8b5677c8dca1503550ca72d1e460bca0375c
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Tue May 22 19:13:44 2018 +0300
+commit d50bb8dbb9d13858319db0914068126ed78e5144
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 14 05:33:15 2018 +0900
 
-    cmd/internal/obj/x86: add missing Yi8 for VEX ytabs
+    all: drop support for Windows Vista or below (Windows XP)
     
-    This change adds Yi8 forms for every ytab that had them before AVX-512 patch.
-    The rationale is backwards-compatibility.
+    Per the notice in the Go 1.10 release notes, this change drops the
+    support for Windows Vista or below (including Windows XP) and
+    simplifies the code for the sake of maintenance.
     
-    EVEX forms remain strict and unchanged as they're not bound to any
-    backwards-compatibility issues.
+    There is one exception to the above. The code related to DLL and
+    system calls still remains in the runtime package. The remaining code
+    will be refined and used for supporting upcoming Windows versions in
+    future.
     
-    Fixes #25510
+    Updates #17245
+    Fixes #23072
     
-    Change-Id: Icd692266010ed64c9fe47cc837afc2edf2ad2d1d
-    Reviewed-on: https://go-review.googlesource.com/114136
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: I9e2821721f25ef9b83dfbf85be2b7ee5d9023aa5
+    Reviewed-on: https://go-review.googlesource.com/94255
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 54 ++++++++++++++++++++++
- src/cmd/internal/obj/x86/avx_optabs.go             | 54 ++++++++++++++--------
- 2 files changed, 90 insertions(+), 18 deletions(-)
+ src/cmd/go/go_windows_test.go                     |  14 ---
+ src/internal/syscall/windows/exec_windows_test.go |  13 ---
+ src/internal/testenv/testenv_notwin.go            |   4 -
+ src/internal/testenv/testenv_windows.go           |   9 --
+ src/net/interface_windows.go                      |  91 +--------------
+ src/net/interface_windows_test.go                 | 132 ----------------------
+ src/net/net_windows_test.go                       |  18 ---
+ src/net/protoconn_test.go                         |  15 +--
+ src/net/udpsock_test.go                           |  10 --
+ src/os/exec/exec_test.go                          |   3 -
+ src/os/file_windows.go                            |   5 -
+ 11 files changed, 7 insertions(+), 307 deletions(-)

@@ -1,36 +1,31 @@
-commit a1c1a763bc7c8d10ec30a7fa60ecf7d5f9a6f1c8
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Thu May 14 22:36:59 2015 +0000
+commit 5c8fbc6f1e4ba78133c53ce73f82ad10e81b42f8
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Thu Apr 9 11:12:12 2015 -0700
 
-    html/template: fix string iteration in replacement operations
+    runtime: signal forwarding
     
-    In css, js, and html, the replacement operations are implemented
-    by iterating on strings (rune by rune). The for/range
-    statement is used. The length of the rune is required
-    and added to the index to properly slice the string.
+    Forward signals to signal handlers installed before Go installs its own,
+    under certain circumstances.  In particular, as iant@ suggests, signals are
+    forwarded iff:
+       (1) a non-SIG_DFL signal handler existed before Go, and
+       (2) signal is synchronous (i.e., one of SIGSEGV, SIGBUS, SIGFPE), and
+            (3a) signal occured on a non-Go thread, or
+            (3b) signal occurred on a Go thread but in CGo code.
     
-    This is potentially wrong because there is a discrepancy between
-    the result of utf8.RuneLen and the increment of the index
-    (set by the for/range statement). For invalid strings,
-    utf8.RuneLen('\ufffd') == 3, while the index is incremented
-    only by 1 byte.
+    Supported only on Linux, for now.
     
-    htmlReplacer triggers a panic at slicing time for some
-    invalid strings.
-    
-    Use a more robust iteration mechanism based on
-    utf8.DecodeRuneInString, and make sure the same
-    pattern is used for all similar functions in this
-    package.
-    
-    Fixes #10799
-    
-    Change-Id: Ibad3857b2819435d9fa564f06fc2ca8774102841
-    Reviewed-on: https://go-review.googlesource.com/10105
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I403219ee47b26cf65da819fb86cf1ec04d3e25f5
+    Reviewed-on: https://go-review.googlesource.com/8712
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/html/template/css.go       | 76 ++++++++++++++++++------------------------
- src/html/template/html.go      | 13 +++++---
- src/html/template/html_test.go |  9 +++--
- src/html/template/js.go        |  8 +++--
- 4 files changed, 51 insertions(+), 55 deletions(-)
+ misc/cgo/testsigfwd/main.go    | 58 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/test.go           |  3 +++
+ src/runtime/os_linux.go        |  3 +++
+ src/runtime/signal1_unix.go    | 10 +++++++-
+ src/runtime/signal_linux.go    | 52 +++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_linux_386.s    | 38 ++++++++-------------------
+ src/runtime/sys_linux_amd64.s  | 39 ++++++++--------------------
+ src/runtime/sys_linux_arm.s    | 36 ++++++++------------------
+ src/runtime/sys_linux_arm64.s  | 35 ++++++++-----------------
+ src/runtime/sys_linux_ppc64x.s | 36 +++++++++-----------------
+ 10 files changed, 180 insertions(+), 130 deletions(-)

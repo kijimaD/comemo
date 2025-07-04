@@ -1,43 +1,12 @@
-commit adef06c7a53c16cdf8dfccbd8476417ec9b9ff9a
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Mar 20 09:30:27 2019 -0400
+commit 42e353245cfc530fb26df8b7703c0d300cdb9e08
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue May 14 18:00:30 2019 -0400
 
-    crypto/elliptic: add asm implementation for p256 on ppc64le
+    [dev.boringcrypto] misc/boring: add go1.12.5b4 release
     
-    This adds an asm implementation of the p256 functions used
-    in crypto/elliptic, utilizing VMX, VSX to improve performance.
-    On a power9 the improvement is:
-    
-    elliptic benchmarks:
-    name            old time/op    new time/op    delta
-    BaseMult          1.40ms ± 0%    1.44ms ± 0%   +2.66%  (p=0.029 n=4+4)
-    BaseMultP256       317µs ± 0%      50µs ± 0%  -84.14%  (p=0.029 n=4+4)
-    ScalarMultP256     854µs ± 2%     214µs ± 0%  -74.91%  (p=0.029 n=4+4)
-    
-    ecdsa benchmarks:
-    name           old time/op    new time/op    delta
-    SignP256          377µs ± 0%     111µs ± 0%  -70.57%  (p=0.029 n=4+4)
-    SignP384         6.55ms ± 0%    6.48ms ± 0%   -1.03%  (p=0.029 n=4+4)
-    VerifyP256       1.19ms ± 0%    0.26ms ± 0%  -78.54%  (p=0.029 n=4+4)
-    KeyGeneration     319µs ± 0%      52µs ± 0%  -83.56%  (p=0.029 n=4+4)
-    
-    This implemenation is based on the s390x implementation, using
-    comparable instructions for most with some minor changes where the
-    instructions are not quite the same.
-    
-    Some changes were also needed since s390x is big endian and ppc64le
-    is little endian.
-    
-    This also enables the fuzz_test for ppc64le.
-    
-    Change-Id: I59a69515703b82ad2929f68ba2f11208fa833181
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168478
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Iacd67c1623807d4ce900039fad521743ee2be4a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177199
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/crypto/elliptic/fuzz_test.go       |    2 +-
- src/crypto/elliptic/p256_asm_ppc64le.s | 2517 ++++++++++++++++++++++++++++++++
- src/crypto/elliptic/p256_generic.go    |    2 +-
- src/crypto/elliptic/p256_ppc64le.go    |  505 +++++++
- 4 files changed, 3024 insertions(+), 2 deletions(-)
+ misc/boring/RELEASES | 2 ++
+ 1 file changed, 2 insertions(+)

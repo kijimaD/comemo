@@ -1,19 +1,30 @@
-commit bb222cde10f8a1fc4033f91399f830bd4a4bcb50
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Jun 11 11:56:45 2018 +0200
+commit 0f2ef0ad449a76d03eec18219eb133cb39000486
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Feb 20 10:59:19 2018 -0600
 
-    lib/time: update vendored tzdata to release 2018e
+    cmd/compile/internal/ssa: combine byte stores on amd64
     
-    It has been a long time since the last time the vendored zoneinfo in
-    lib/time was updated, and we're well into the freeze. Update it to the
-    lastest release from IANA.
+    On amd64 we optimize  encoding/binary.BigEndian.PutUint{16,32,64}
+    into bswap + single store, but strangely enough not LittleEndian.PutUint{16,32}.
+    We have similar rules, but they use 64-bit shifts everywhere,
+    and fail for 16/32-bit case. Add rules that matchLittleEndian.PutUint,
+    and relevant tests. Performance results:
     
-    Updates #22487
+    LittleEndianPutUint16-6    1.43ns ± 0%    1.07ns ± 0%   -25.17%  (p=0.000 n=9+9)
+    LittleEndianPutUint32-6    2.14ns ± 0%    0.94ns ± 0%   -56.07%  (p=0.019 n=6+8)
     
-    Change-Id: Ib9a8eb409554848285fc88363dbb04ed9d6d9eb0
-    Reviewed-on: https://go-review.googlesource.com/117855
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LittleEndianPutUint16-6  1.40GB/s ± 0%  1.87GB/s ± 0%   +33.24%  (p=0.000 n=9+9)
+    LittleEndianPutUint32-6  1.87GB/s ± 0%  4.26GB/s ± 0%  +128.54%  (p=0.000 n=8+8)
+    
+    Discovered, while looking at ethereum_ethash from community benchmarks
+    
+    Change-Id: Id86d5443687ecddd2803edf3203dbdd1246f61fe
+    Reviewed-on: https://go-review.googlesource.com/95475
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 364985 -> 365101 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go      |  48 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  18 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 752 +++++++++++++++++++++++----
+ 3 files changed, 707 insertions(+), 111 deletions(-)

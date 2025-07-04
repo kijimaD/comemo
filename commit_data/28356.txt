@@ -1,18 +1,24 @@
-commit 6488201b9b980277b41de540a88f4289aee64e1c
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Sep 13 19:04:25 2016 -0400
+commit d35a4158ab66aef99d9204c65cc2e2fa74b57a73
+Author: David Chase <drchase@google.com>
+Date:   Mon May 9 14:59:25 2016 -0400
 
-    cmd/internal/obj: regenerate stringer values
+    cmd/compile: reduce element size of arrays in sparse{map,set}
     
-    Created by running 'go generate'.
+    sparseSet and sparseMap only need 32 bit integers in their
+    arrays, since a sparseEntry key is also limited to 32 bits.
+    This appears to reduce the space allocated for at least
+    one pathological compilation by 1%, perhaps more.
     
-    That made debugging fun today.
+    Not necessarily for 1.7, but it saves a little and is very
+    low-risk.
     
-    Change-Id: I9ffe00877851f2b198275220ad6058b9005daa72
-    Reviewed-on: https://go-review.googlesource.com/29117
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icf1185859e9f5fe1261a206b441e02c34f7d02fd
+    Reviewed-on: https://go-review.googlesource.com/22972
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/symkind_string.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/sparsemap.go | 18 +++++++++---------
+ src/cmd/compile/internal/ssa/sparseset.go | 12 ++++++------
+ 2 files changed, 15 insertions(+), 15 deletions(-)

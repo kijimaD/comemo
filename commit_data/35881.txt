@@ -1,19 +1,22 @@
-commit ad4e6370fe801c7d7b97e893b87c7f3d5b05f955
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 3 10:16:03 2018 -0700
+commit 5fcfe6b6ae53ed5e5cf43250c96cc40c2790fb3a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 15 10:21:57 2018 +0100
 
-    cmd/link: remove -rdynamic if -static appears in cgo LDFLAGS
+    runtime: use Android O friendly faccessat syscall on linux/amd64
     
-    We already remove -rdynamic if -static appears in -extldflags.
-    Extend that to apply to CGO_LDFLAGS and #cgo LDFLAGS as well.
+    The Android O seccomp policy disallows the access syscall on amd64, see
+    https://android.googlesource.com/platform/bionic/+/android-4.2.2_r1.2/libc/SYSCALLS.TXT
     
-    Updates #26197
+    Use the faccessat syscall with AT_FDCWD instead to achieve the same
+    behavior.
     
-    Change-Id: Ibb62d1b20726916a12fd889acb05c1c559a5ace2
-    Reviewed-on: https://go-review.googlesource.com/122135
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #24403
+    
+    Change-Id: I9db847c1c0f33987a3479b3f96e721fb9588cde2
+    Reviewed-on: https://go-review.googlesource.com/100877
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 36 +++++++++++++++++++++---------------
- 1 file changed, 21 insertions(+), 15 deletions(-)
+ src/runtime/sys_linux_amd64.s | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

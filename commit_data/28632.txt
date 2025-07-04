@@ -1,28 +1,17 @@
-commit 89c4cbd7acc36cf627746f379f0cc002b5b60383
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Oct 1 19:20:32 2016 +0900
+commit a2beee000b8e175489284abda4b82453d08af758
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 15 10:07:16 2016 -0700
 
-    syscall: fix Send{msg,msgN}, Recvmsg and control message handling on solaris
+    [dev.ssa] cmd/compile: improve special register error checking
     
-    This change switches the use of socket implementation from the
-    conventional SUS-based one to the latest POSIX-based one to make
-    socket control message work correctly on Solaris.
+    Provide better diagnostic messages.
     
-    It looks like those two implementations, Socket over TLI/XTI and
-    Socket, have different semantics in details but it wouldn't hurt
-    the existing applications because the exposed syscall API doesn't
-    support socket properties related to such a protocol independent
-    application framework.
+    Use an int for numRegs comparisons,
+    to avoid asking whether a uint8 is > 255.
     
-    Fixes #7402.
-    
-    Change-Id: I45a4e782d606bfbebe1404086c50a8c69af53461
-    Reviewed-on: https://go-review.googlesource.com/30171
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I33ae193ce292b24b369865abda3902c3207d7d3f
+    Reviewed-on: https://go-review.googlesource.com/24135
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/sockcmsg_unix.go          |  7 ++--
- src/syscall/syscall_solaris.go        | 20 +++++-----
- src/syscall/syscall_unix.go           |  1 +
- src/syscall/syscall_unix_test.go      |  6 ---
- src/syscall/zsyscall_solaris_amd64.go | 72 +++++++++++++++++------------------
- 5 files changed, 52 insertions(+), 54 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 31 +++++++++++++++++++++++--------
+ 1 file changed, 23 insertions(+), 8 deletions(-)

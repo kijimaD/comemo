@@ -1,14 +1,19 @@
-commit c757020b555fa4f2233eea2d06d544373077d2c4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 17 15:22:42 2013 -0700
+commit eef7035ec860a2a8eac39ed3f4c0cb2a384599a2
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Sep 17 13:30:36 2013 -0400
 
-    reflect: test method calls on pointers to pointers
+    crypto/tls: don't select ECDSA ciphersuites with only an RSA certificate.
     
-    Gccgo got this wrong, and evidently nothing else tests it.
+    47ec7a68b1a2 added support for ECDSA ciphersuites but didn't alter the
+    cipher suite selection to take that into account. Thus Go servers could
+    try and select an ECDSA cipher suite while only having an RSA
+    certificate, leading to connection failures.
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/13709045
+    https://golang.org/cl/13239053
 
- src/pkg/reflect/all_test.go | 31 +++++++++++++++++++++++++------
- 1 file changed, 25 insertions(+), 6 deletions(-)
+ src/pkg/crypto/tls/cipher_suites.go         | 51 ++++++++++++++++++-----------
+ src/pkg/crypto/tls/handshake_server.go      | 41 +++++++++++++----------
+ src/pkg/crypto/tls/handshake_server_test.go | 22 +++++++++++++
+ 3 files changed, 77 insertions(+), 37 deletions(-)

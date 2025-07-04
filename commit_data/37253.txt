@@ -1,23 +1,26 @@
-commit efd229238aceefdee6a00ea28b61c924c2b5f1a5
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sun Nov 4 09:36:25 2018 +0100
+commit a2419221fd3c5977bd5de0e7a390c779ab3fa1d3
+Author: Keith Randall <khr@google.com>
+Date:   Thu Jul 12 16:51:27 2018 -0700
 
-    runtime: avoid arm64 8.1 atomics on Android
+    misc/cgo/test: fix issue 24161 test for 1.11 and earlier
     
-    The kernel on some Samsung S9+ models reports support for arm64 8.1
-    atomics, but in reality only some of the cores support them. Go
-    programs scheduled to cores without support will crash with SIGILL.
+    The test uses functions from C that were introduced in OSX 1.12.
+    Include stubs for those functions when compiling for 1.11 and earlier.
+    This test really a compile-time test, it doesn't matter much what the
+    executed code actually does.
+    Use a nasty #define hack to work around the fact that cgo doesn't
+    support static global variables.
     
-    This change unconditionally disables the optimization on Android.
-    A better fix is to precisely detect the offending chipset.
+    Update #24161
+    Fixes #26355
     
-    Fixes #28431
-    
-    Change-Id: I35a1273e5660603824d30ebef2ce7e429241bf1f
-    Reviewed-on: https://go-review.googlesource.com/c/147377
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Icf6f7bc9b6b36cacc81d5d0e033a2ebaff7e0298
+    Reviewed-on: https://go-review.googlesource.com/123715
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/os_linux_arm64.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ misc/cgo/test/issue24161e0/main.go | 6 ++++++
+ misc/cgo/test/issue24161e1/main.go | 6 ++++++
+ misc/cgo/test/issue24161e2/main.go | 6 ++++++
+ 3 files changed, 18 insertions(+)

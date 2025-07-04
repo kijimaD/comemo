@@ -1,24 +1,45 @@
-commit ac29f4d01ce6891cad6865eda5b16efed8ef231f
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Aug 9 15:43:25 2017 -0500
+commit 1e72bf62183ea21b9affffd4450d44d994393899
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 8 22:02:08 2016 -0700
 
-    cmd/compile/internal/amd64: add ADD[Q|L]constmem
+    cmd/compile: experiment which clobbers all dead pointer fields
     
-    We can add a constant to loaction in memory with 1 instruction,
-    as opposed to load+add+store, so add a new op and relevent ssa rules.
-    Triggers in e. g. encoding/json isValidNumber:
-    NumberIsValid-6          36.4ns ± 0%    35.2ns ± 1%  -3.32%  (p=0.000 n=6+10)
-    Shaves ~2.5 kb from go tool.
+    The experiment "clobberdead" clobbers all pointer fields that the
+    compiler thinks are dead, just before and after every safepoint.
+    Useful for debugging the generation of live pointer bitmaps.
     
-    Change-Id: I7ba576676c2522432360f77b290cecb9574a93c3
-    Reviewed-on: https://go-review.googlesource.com/54431
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Helped find the following issues:
+    Update #15936
+    Update #16026
+    Update #16095
+    Update #18860
+    
+    Change-Id: Id1d12f86845e3d93bae903d968b1eac61fc461f9
+    Reviewed-on: https://go-review.googlesource.com/23924
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go        | 23 ++++++++
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 +++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 10 ++--
- src/cmd/compile/internal/ssa/opGen.go        | 30 +++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 78 ++++++++++++++++++++++++++++
- 5 files changed, 144 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  14 +++
+ src/cmd/compile/internal/arm/ssa.go            |   2 +
+ src/cmd/compile/internal/arm64/ssa.go          |   2 +
+ src/cmd/compile/internal/gc/plive.go           | 167 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/mips/ssa.go           |   2 +
+ src/cmd/compile/internal/mips64/ssa.go         |   2 +
+ src/cmd/compile/internal/ppc64/ssa.go          |   3 +-
+ src/cmd/compile/internal/s390x/ssa.go          |   2 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |   2 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |   2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |   2 +-
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go    |   2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |   2 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |   2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   5 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   8 ++
+ src/cmd/compile/internal/x86/ssa.go            |   7 ++
+ src/cmd/internal/objabi/util.go                |   2 +
+ src/runtime/mbarrier.go                        |   1 +
+ src/runtime/runtime-gdb_test.go                |   6 +-
+ 22 files changed, 225 insertions(+), 14 deletions(-)

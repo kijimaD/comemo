@@ -1,12 +1,33 @@
-commit a00ad5f47ea9c950dd041b33476c2bb4568496e1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Apr 11 14:54:54 2016 +1000
+commit 3cb870d47b5611465c46c6a6512b7f059584c66f
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Fri Feb 26 16:36:50 2016 -0300
 
-    doc: document Go 1.6.1 and Go 1.5.4
+    testing: make failure in benchmark cause non-zero exit status
     
-    Change-Id: Icb9e947a43fb87fbfe0655b09e0d7e8f61825aeb
-    Reviewed-on: https://go-review.googlesource.com/21825
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Moves the implementation of RunBenchmarks to a non-exported function
+    that returns whether the execution was OK, and uses that to identify
+    failure in benchmarks.The exported function is kept for compatibility.
+    
+    Like before, benchmarks will only be executed if tests and examples
+    pass. The PASS message will not be printed if there was a failure in
+    a benchmark.
+    
+    Example output
+    
+            BenchmarkThatCallsFatal-8       --- FAIL: BenchmarkThatCallsFatal-8
+                    x_test.go:6: called by benchmark
+            FAIL
+            exit status 1
+            FAIL    _/.../src/cmd/go/testdata/src/benchfatal        0.009s
+    
+    Fixes #14307.
+    
+    Change-Id: I6f3ddadc7da8a250763168cc099ae8b325a79602
+    Reviewed-on: https://go-review.googlesource.com/19889
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/devel/release.html | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/go/go_test.go                        | 8 ++++++++
+ src/cmd/go/testdata/src/benchfatal/x_test.go | 7 +++++++
+ src/testing/benchmark.go                     | 9 ++++++++-
+ src/testing/testing.go                       | 3 +--
+ 4 files changed, 24 insertions(+), 3 deletions(-)

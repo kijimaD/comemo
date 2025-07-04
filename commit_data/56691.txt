@@ -1,32 +1,31 @@
-commit c506f035d99153accf7a9b322c6596fc7652aea6
-Author: Zxilly <zhouxinyu1001@gmail.com>
-Date:   Tue Mar 12 10:36:15 2024 +0000
+commit 1dad7ef572d725ac1c4349d3dbb15bdc9e30618d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 22 09:44:42 2023 -0700
 
-    text/template: add detailed info for goodFunc check
+    go/types, types2: remove unnecessary pkg argument from verifyVersion
     
-    goodFunc now returns a error describe the exact error it met.
-    builtin call function can print the name of the callee function
-    if the goodFunc check failed.
-    
-    For input {{call .InvalidReturnCountFunc}}
-    
-    before:
-      can't evaluate field InvalidReturnTypeFunc in type *template.T
-    after:
-      invalid function signature for .InvalidReturnTypeFunc: second argument should be error; is bool
-    
-    Change-Id: I9aa53424ac9a2bffbdbeac889390f41218817575
-    GitHub-Last-Rev: 7c1e0dbd08884a38d92a42530104884a9ca52b44
-    GitHub-Pull-Request: golang/go#65509
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561115
-    Reviewed-by: Rob Pike <r@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I802a9b8039740e71463694eb5503a81b2b75971d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496919
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/text/template/exec.go      | 14 +++++--
- src/text/template/exec_test.go | 84 +++++++++++++++++++++++++++++++++++++++---
- src/text/template/funcs.go     | 40 ++++++++++++--------
- 3 files changed, 114 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go | 14 +++++++-------
+ src/cmd/compile/internal/types2/call.go     |  6 +++---
+ src/cmd/compile/internal/types2/decl.go     |  4 ++--
+ src/cmd/compile/internal/types2/expr.go     |  2 +-
+ src/cmd/compile/internal/types2/resolver.go |  6 +++---
+ src/cmd/compile/internal/types2/typeset.go  |  6 +++---
+ src/cmd/compile/internal/types2/typexpr.go  |  4 ++--
+ src/cmd/compile/internal/types2/version.go  |  7 ++++---
+ src/go/types/builtins.go                    | 14 +++++++-------
+ src/go/types/call.go                        |  6 +++---
+ src/go/types/decl.go                        |  4 ++--
+ src/go/types/expr.go                        |  2 +-
+ src/go/types/resolver.go                    |  6 +++---
+ src/go/types/typeset.go                     |  6 +++---
+ src/go/types/typexpr.go                     |  4 ++--
+ src/go/types/version.go                     |  7 ++++---
+ 16 files changed, 50 insertions(+), 48 deletions(-)

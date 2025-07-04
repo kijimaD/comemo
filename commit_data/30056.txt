@@ -1,19 +1,17 @@
-commit f69a6defd1da6509b8f0f54f9ae60e4bf740891d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Feb 2 16:00:26 2017 -0500
+commit 86324f29c6892e56ea756e7a5d81a26c86ce2e12
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 15:45:51 2016 -0400
 
-    runtime: skip flaky TestGdbPythonCgo on MIPS
+    go/build: do not record go:binary-only-package if build tags not satisfied
     
-    It seems the problem is on gdb and the dynamic linker. Skip the
-    test for now until we figure out what's going on with the system.
+    This is the documented (and now implemented) behavior.
     
-    Updates #18784.
+    Fixes #16841.
     
-    Change-Id: Ic9320ffd463f6c231b2c4192652263b1cf7f4231
-    Reviewed-on: https://go-review.googlesource.com/36250
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic75adc5ba18303ed9578e04284f32933f905d6a3
+    Reviewed-on: https://go-review.googlesource.com/31577
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/runtime/runtime-gdb_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/go_test.go | 10 ++++++++++
+ src/go/build/build.go | 11 +++++++----
+ 2 files changed, 17 insertions(+), 4 deletions(-)

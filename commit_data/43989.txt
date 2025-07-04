@@ -1,26 +1,19 @@
-commit 6d3d3fb37fc51473f04ffb304cfab41c96a361a4
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Dec 10 17:43:09 2020 -0500
+commit e3b0e3d64638cc3d55aaae7b0c3fb6387f5193e3
+Author: Michał Łowicki <mlowicki@gmail.com>
+Date:   Sat Apr 11 22:24:37 2020 +0100
 
-    doc/go1.16: address some remaining high-level TODOs
+    cmd/go: add 'go help buildconstraint'
     
-    The tools section TODO can be removed since the tools section looks
-    complete by now.
+    Fixes #37018
     
-    All TODOs in the minor changes to the library section have been done,
-    so the top-level TODO is resolved. Delete it.
-    
-    The currently highlighted entries under Core library section look
-    good. It's worth reviewing this further based on feedback from Go
-    1.16 pre-releases, so keep the TODO but make it non-user-visible
-    to unblock Go 1.16 Beta 1.
-    
-    For #40700.
-    
-    Change-Id: Ie72661bd457b0a93ef92e1bfc0844072f3b618a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277212
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1d32c1cb432bc2d7a4d8d6b5c3a54fee558141ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228017
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.16.html | 16 ++++------------
- 1 file changed, 4 insertions(+), 12 deletions(-)
+ src/cmd/go/alldocs.go               | 89 ++++++++++++++++++++++++++++++-------
+ src/cmd/go/internal/help/help.go    |  2 +-
+ src/cmd/go/internal/help/helpdoc.go | 57 ++++++++++++++++++++++++
+ src/cmd/go/main.go                  |  1 +
+ 4 files changed, 131 insertions(+), 18 deletions(-)

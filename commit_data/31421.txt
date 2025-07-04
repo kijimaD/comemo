@@ -1,21 +1,35 @@
-commit 585be4639b927430189fa8197985816aec3e88cd
-Author: Justin Nuß <nuss.justin@gmail.com>
-Date:   Fri Apr 28 12:04:45 2017 +0200
+commit 497b608faba2a9c450d03e2bca2ef005ea32b933
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sun Dec 18 07:24:58 2016 +0000
 
-    os/exec: document that non-comparable writers may race
+    go/doc: allow : in godoc links
     
-    The comment for Cmd.Stdout and Cmd.Stderr says that it's safe to
-    set both to the same writer, but it doesn't say that this only
-    works when both writers are comparable.
+    The emphasize function used a complex regexp to find URLs, which
+    truncated some types of URL and did not match others.
+    This has been simplified and adjusted to allow valid punctuation
+    like :: or ! in the path part and :[] in the host part.
+    Comments were added to clarify what this regexp allows.
+    The path part matches query and fragment also so document this.
+    Removed news, telnet, wais, and prospero protocols.
     
-    This change updates the comment to explain that using a
-    non-comparable writer may still lead to a race.
+    Tests were added for:
+     IPV6 URLs
+     URLs surrounded by brackets
+     URLs containing ::
+     URLs containing :;!- in the path
     
-    Fixes #19804
+    In order to allow punctuation and yet preserve current behaviour,
+    URLs are not permitted to end in .,:;?! to allow the use of
+    normal punctuation surrounding URLs in comments.
     
-    Change-Id: I63b420034666209a2b6fab48b9047c9d07b825e2
-    Reviewed-on: https://go-review.googlesource.com/42052
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #18139
+    
+    Change-Id: I38b2d7a85fe0d171e4bf4aac420f8c2d3ced8a2f
+    Reviewed-on: https://go-review.googlesource.com/37192
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/exec/exec.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/doc/comment.go      | 19 +++++++++++++------
+ src/go/doc/comment_test.go |  6 ++++++
+ 2 files changed, 19 insertions(+), 6 deletions(-)

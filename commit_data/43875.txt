@@ -1,16 +1,27 @@
-commit 9dc2350d8cb10f8af5f3551aeb5e3e8bf820c071
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Nov 25 12:57:38 2020 +0100
+commit c2e0f01598fbc17d2f960fe93c5bcb057203b75d
+Author: Alex Gaynor <alex.gaynor@gmail.com>
+Date:   Mon Apr 27 23:10:23 2020 +0000
 
-    doc/go1.16: add time/tzdata release note for CL 261877
+    bufio: optimize bufio.Reader.ReadString to avoid an allocation and copy
     
-    For #40700
+    name                old time/op    new time/op    delta
+    ReaderReadString-4     226ns ±12%     161ns ±11%  -28.76%  (p=0.008 n=5+5)
     
-    Change-Id: I056cef20a5f071977d0ae589c7a50d5f69af3283
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273166
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    name                old alloc/op   new alloc/op   delta
+    ReaderReadString-4      288B ± 0%      144B ± 0%  -50.00%  (p=0.008 n=5+5)
+    
+    name                old allocs/op  new allocs/op  delta
+    ReaderReadString-4      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.008 n=5+5)
+    
+    Change-Id: I77f330b8340c2bfbfff1f6f1000170b65953a200
+    GitHub-Last-Rev: 65d65302a7b80504b4d37b81a3843fe1439e638a
+    GitHub-Pull-Request: golang/go#34706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/go1.16.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/bufio/bufio.go        | 52 +++++++++++++++++++++++++++++++----------------
+ src/bufio/bufio_test.go   | 32 +++++++++++++++++++++++++++++
+ src/go/build/deps_test.go |  2 +-
+ 3 files changed, 67 insertions(+), 19 deletions(-)

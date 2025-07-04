@@ -1,21 +1,18 @@
-commit 7af6a31b48c5cb4d8cc9ca346949d1143ece76ca
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Mar 18 18:46:04 2020 +0000
+commit 9979366e07fa8aa6fac81702a70f6eacf427c431
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 19 16:14:51 2019 +0700
 
-    runtime: add countAlloc benchmark
+    cmd/compile: disable checkptr for //go:nosplit functions
     
-    This change adds a small microbenchmark for (*mspan).countAlloc, which
-    we're about to replace. Admittedly this isn't a critical piece of code,
-    but the benchmark was useful in understanding the performance change.
+    Make go test -a -short -gcflags=all=-d=checkptr passes on darwin.
     
-    Change-Id: Iea93c00f571ee95534a42f2ef2ab026b382242b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224438
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Update #34972
+    
+    Change-Id: I71cf14ec1faccd4837713aa30c90ed665899b908
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202158
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/export_test.go |  8 ++++++++
- src/runtime/gc_test.go     | 19 +++++++++++++++++++
- 2 files changed, 27 insertions(+)
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

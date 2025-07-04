@@ -1,18 +1,15 @@
-commit d399b681a4d307fa5a09dd15c8cf96adeccb6db4
-Author: Andrew Wilkins <axwalk@gmail.com>
-Date:   Thu Jul 26 11:47:46 2012 -0700
+commit 899be50991b71b0eb32fcbff5a7eb151dcb995f6
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Jul 26 10:32:24 2012 +1000
 
-    exp/types: process ast.Fun in checkObj; fix variadic function building
+    exp/html: don't insert empty text nodes
     
-    Fixed creation of Func's, taking IsVariadic from parameter list rather
-    than results.
+    Pass 1 additional test.
     
-    Updated checkObj to process ast.Fun objects.
-    
-    R=gri
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6402046
+    https://golang.org/cl/6443048
 
- src/pkg/exp/types/check.go      | 20 ++++++++++--
- src/pkg/exp/types/types_test.go | 67 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 84 insertions(+), 3 deletions(-)
+ src/pkg/exp/html/parse.go                           | 3 +++
+ src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

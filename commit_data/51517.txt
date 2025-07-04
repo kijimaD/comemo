@@ -1,23 +1,26 @@
-commit 03bf6f4917c1c8cd883dfa1618b90a95b9192f9a
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Dec 2 13:30:06 2022 -0500
+commit 5442f4d51b01fea94159b035ce5b5ca5834487e5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 7 17:07:44 2022 -0800
 
-    run.bash, cmd/dist: document GO_TEST_SHORT and GO_TEST_TIMEOUT_SCALE
+    runtime: restore old mp.fastrand initialization
     
-    These environment variables affect cmd/dist, and in turn run.bash.
-    They exist primarily for the Go build system, but are still needed
-    sometimes when investigating problems. Document them in one place.
+    CL 337350 changed mp.fastrand from a [2]uint32 to a uint64 and changed
+    the initialization to a single call of int64Hash. However, int64Hash
+    returns uintptr, so 32-bit systems this always left the most
+    significant 32 bits of mp.fastrand initialized to 0. The new code also
+    did not protect against initializing mp.fastrand to 0, which on a
+    system that does not implement math.Mul64 (most 32-bit systems) would
+    lead fastrand to always return 0.
     
-    Fixes #46054.
+    This CL restores the mp.fastrand initialization to what it was before
+    CL 337350, adjusted for the change from [2]uint32 to uint64.
     
-    Change-Id: I5dea2ac79b0d203d2f3c9ec2980382f62bead5cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455517
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I663b415d9424d967e8e665ce2d017604dcd5b204
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383916
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/dist/test.go | 6 ------
- src/run.bash         | 9 +++++++++
- 2 files changed, 9 insertions(+), 6 deletions(-)
+ src/runtime/proc.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

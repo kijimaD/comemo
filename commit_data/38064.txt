@@ -1,110 +1,86 @@
-commit c97e57657643de69bf1dc58f3ffde75d31eda0c8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Dec 28 09:32:09 2018 -1000
+commit ef5037398385ff52b17af325a0ad82017bd65820
+Author: Keith Randall <khr@google.com>
+Date:   Tue Sep 25 15:54:11 2018 -0700
 
-    html/template: use strings.Builder
+    reflect: ensure correct scanning of return values
     
-    ...and size initial buffers more accurately.
+    During a call to a reflect-generated function or method (via
+    makeFuncStub or methodValueCall), when should we scan the return
+    values?
     
-    Easy pickings only. More might remain.
+    When we're starting a reflect call, the space on the stack for the
+    return values is not initialized yet, as it contains whatever junk was
+    on the stack of the caller at the time. The return space must not be
+    scanned during a GC.
     
-    name                             old time/op    new time/op    delta
-    CSSEscaper-8                       1.17µs ± 1%    0.80µs ± 2%  -31.55%  (p=0.000 n=44+48)
-    CSSEscaperNoSpecials-8              205ns ± 2%     204ns ± 3%   -0.73%  (p=0.014 n=46+49)
-    DecodeCSS-8                         438ns ± 2%     436ns ± 2%     ~     (p=0.099 n=48+47)
-    DecodeCSSNoSpecials-8              6.11ns ± 3%    5.93ns ± 3%   -2.85%  (p=0.000 n=50+48)
-    CSSValueFilter-8                    149ns ± 0%     145ns ± 0%   -2.68%  (p=0.000 n=32+35)
-    CSSValueFilterOk-8                  238ns ± 2%     234ns ± 2%   -1.40%  (p=0.000 n=49+47)
-    EscapedExecute-8                   2.53µs ± 2%    2.55µs ± 1%   +0.87%  (p=0.000 n=48+49)
-    HTMLNospaceEscaper-8               1.35µs ± 2%    0.92µs ± 1%  -31.74%  (p=0.000 n=48+48)
-    HTMLNospaceEscaperNoSpecials-8      278ns ± 2%     263ns ± 2%   -5.17%  (p=0.000 n=47+49)
-    StripTags-8                         778ns ± 2%     786ns ± 1%   +0.96%  (p=0.000 n=46+47)
-    StripTagsNoSpecials-8              84.2ns ± 1%    84.1ns ± 1%     ~     (p=0.300 n=48+48)
-    JSValEscaperWithNum-8               506ns ± 2%     486ns ± 3%   -3.82%  (p=0.000 n=47+45)
-    JSValEscaperWithStr-8              1.61µs ± 1%    1.64µs ± 1%   +1.75%  (p=0.000 n=44+49)
-    JSValEscaperWithStrNoSpecials-8     548ns ± 2%     552ns ± 2%   +0.78%  (p=0.000 n=48+46)
-    JSValEscaperWithObj-8              1.91µs ± 2%    1.87µs ± 1%   -2.08%  (p=0.000 n=49+47)
-    JSValEscaperWithObjNoSpecials-8     735ns ± 2%     742ns ± 2%   +1.01%  (p=0.000 n=47+49)
-    JSStrEscaperNoSpecials-8            228ns ± 4%     211ns ± 3%   -7.53%  (p=0.000 n=50+49)
-    JSStrEscaper-8                     1.11µs ± 1%    0.78µs ± 1%  -29.94%  (p=0.000 n=48+48)
-    JSRegexpEscaperNoSpecials-8         214ns ± 2%     212ns ± 3%   -1.12%  (p=0.000 n=50+49)
-    JSRegexpEscaper-8                  1.17µs ± 0%    0.79µs ± 1%  -31.92%  (p=0.000 n=48+47)
-    TemplateSpecialTags-8               172µs ± 1%     172µs ± 1%     ~     (p=0.976 n=48+47)
-    URLEscaper-8                       1.88µs ± 2%    1.87µs ± 2%   -0.56%  (p=0.001 n=49+49)
-    URLEscaperNoSpecials-8              162ns ± 1%     169ns ± 1%   +3.76%  (p=0.000 n=49+50)
-    URLNormalizer-8                    1.29µs ± 3%    1.29µs ± 2%   -0.37%  (p=0.041 n=48+48)
-    URLNormalizerNoSpecials-8           185ns ± 1%     186ns ± 1%   +0.15%  (p=0.013 n=49+49)
-    SrcsetFilter-8                      616ns ± 1%     618ns ± 1%   +0.36%  (p=0.000 n=46+46)
-    SrcsetFilterNoSpecials-8            359ns ± 0%     352ns ± 0%   -1.93%  (p=0.000 n=40+43)
-    [Geo mean]                          560ns          525ns        -6.17%
+    When we're finishing a reflect call, the return values are
+    initialized, and must be scanned during a GC to make sure that any
+    pointers in the return values are found and their referents retained.
     
-    name                             old alloc/op   new alloc/op   delta
-    CSSEscaper-8                         672B ± 0%      336B ± 0%  -50.00%  (p=0.000 n=50+50)
-    CSSEscaperNoSpecials-8              0.00B          0.00B          ~     (all equal)
-    DecodeCSS-8                          160B ± 0%      160B ± 0%     ~     (all equal)
-    DecodeCSSNoSpecials-8               0.00B          0.00B          ~     (all equal)
-    CSSValueFilter-8                    96.0B ± 0%     96.0B ± 0%     ~     (all equal)
-    CSSValueFilterOk-8                  48.0B ± 0%     48.0B ± 0%     ~     (all equal)
-    EscapedExecute-8                     688B ± 0%      624B ± 0%   -9.30%  (p=0.000 n=50+50)
-    HTMLNospaceEscaper-8                 752B ± 0%      368B ± 0%  -51.06%  (p=0.000 n=50+50)
-    HTMLNospaceEscaperNoSpecials-8      48.0B ± 0%     32.0B ± 0%  -33.33%  (p=0.000 n=50+50)
-    StripTags-8                          224B ± 0%      224B ± 0%     ~     (all equal)
-    StripTagsNoSpecials-8                112B ± 0%      112B ± 0%     ~     (all equal)
-    JSValEscaperWithNum-8               96.0B ± 0%     40.0B ± 0%  -58.33%  (p=0.000 n=50+50)
-    JSValEscaperWithStr-8                384B ± 0%      384B ± 0%     ~     (all equal)
-    JSValEscaperWithStrNoSpecials-8     96.0B ± 0%     96.0B ± 0%     ~     (all equal)
-    JSValEscaperWithObj-8                448B ± 0%      448B ± 0%     ~     (all equal)
-    JSValEscaperWithObjNoSpecials-8      160B ± 0%      160B ± 0%     ~     (all equal)
-    JSStrEscaperNoSpecials-8            0.00B          0.00B          ~     (all equal)
-    JSStrEscaper-8                       672B ± 0%      336B ± 0%  -50.00%  (p=0.000 n=50+50)
-    JSRegexpEscaperNoSpecials-8         0.00B          0.00B          ~     (all equal)
-    JSRegexpEscaper-8                    672B ± 0%      336B ± 0%  -50.00%  (p=0.000 n=50+50)
-    TemplateSpecialTags-8              48.0kB ± 0%    47.9kB ± 0%   -0.13%  (p=0.000 n=50+48)
-    URLEscaper-8                         336B ± 0%      336B ± 0%     ~     (all equal)
-    URLEscaperNoSpecials-8               112B ± 0%      112B ± 0%     ~     (all equal)
-    URLNormalizer-8                      176B ± 0%      176B ± 0%     ~     (all equal)
-    URLNormalizerNoSpecials-8            112B ± 0%      112B ± 0%     ~     (all equal)
-    SrcsetFilter-8                       160B ± 0%      160B ± 0%     ~     (all equal)
-    SrcsetFilterNoSpecials-8             160B ± 0%      160B ± 0%     ~     (all equal)
-    [Geo mean]                           259B           216B       -16.60%
+    When the GC stack walk comes across a reflect call in progress on the
+    stack, it needs to know whether to scan the results or not. It doesn't
+    know the progress of the reflect call, so it can't decide by
+    itself. The reflect package needs to tell it.
     
-    name                             old allocs/op  new allocs/op  delta
-    CSSEscaper-8                         4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=50+50)
-    CSSEscaperNoSpecials-8               0.00           0.00          ~     (all equal)
-    DecodeCSS-8                          1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    DecodeCSSNoSpecials-8                0.00           0.00          ~     (all equal)
-    CSSValueFilter-8                     2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    CSSValueFilterOk-8                   3.00 ± 0%      3.00 ± 0%     ~     (all equal)
-    EscapedExecute-8                     18.0 ± 0%      18.0 ± 0%     ~     (all equal)
-    HTMLNospaceEscaper-8                 5.00 ± 0%      3.00 ± 0%  -40.00%  (p=0.000 n=50+50)
-    HTMLNospaceEscaperNoSpecials-8       1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    StripTags-8                          3.00 ± 0%      3.00 ± 0%     ~     (all equal)
-    StripTagsNoSpecials-8                2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    JSValEscaperWithNum-8                3.00 ± 0%      3.00 ± 0%     ~     (all equal)
-    JSValEscaperWithStr-8                2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    JSValEscaperWithStrNoSpecials-8      2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    JSValEscaperWithObj-8                3.00 ± 0%      3.00 ± 0%     ~     (all equal)
-    JSValEscaperWithObjNoSpecials-8      3.00 ± 0%      3.00 ± 0%     ~     (all equal)
-    JSStrEscaperNoSpecials-8             0.00           0.00          ~     (all equal)
-    JSStrEscaper-8                       4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=50+50)
-    JSRegexpEscaperNoSpecials-8          0.00           0.00          ~     (all equal)
-    JSRegexpEscaper-8                    4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=50+50)
-    TemplateSpecialTags-8                 185 ± 0%       185 ± 0%     ~     (all equal)
-    URLEscaper-8                         4.00 ± 0%      4.00 ± 0%     ~     (all equal)
-    URLEscaperNoSpecials-8               2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    URLNormalizer-8                      3.00 ± 0%      3.00 ± 0%     ~     (all equal)
-    URLNormalizerNoSpecials-8            2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    SrcsetFilter-8                       3.00 ± 0%      3.00 ± 0%     ~     (all equal)
-    SrcsetFilterNoSpecials-8             3.00 ± 0%      3.00 ± 0%     ~     (all equal)
-    [Geo mean]                           3.41           3.05       -10.65%
+    This CL adds another slot in the frame of makeFuncStub and
+    methodValueCall so we can put a boolean in there which tells the
+    runtime whether to scan the results or not.
     
-    Change-Id: I809ea56495ce1881656af7e24621448ab64b449a
-    Reviewed-on: https://go-review.googlesource.com/c/155919
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    This CL also adds the args length to reflectMethodValue so the
+    runtime can restrict its scanning to only the args section (not the
+    results) if the reflect package says the results aren't ready yet.
+    
+    Do a delicate dance in the reflect package to set the "results are
+    valid" bit. We need to make sure we set the bit only after we've
+    copied the results back to the stack. But we must set the bit before
+    we drop reflect's copy of the results. Otherwise, we might have a
+    state where (temporarily) no one has a live copy of the results.
+    That's the state we were observing in issue #27695 before this CL.
+    
+    The bitmap used by the runtime currently contains only the args.
+    (Actually, it contains all the bits, but the size is set so we use
+    only the args portion.) This is safe for early in a reflect call, but
+    unsafe late in a reflect call. The test issue27695.go demonstrates
+    this unsafety. We change the bitmap to always include both args
+    and results, and decide at runtime which portion to use.
+    
+    issue27695.go only has a test for method calls. Function calls were ok
+    because there wasn't a safepoint between when reflect dropped its copy
+    of the return values and when the caller is resumed. This may change
+    when we introduce safepoints everywhere.
+    
+    This truncate-to-only-the-args was part of CL 9888 (in 2015). That
+    part of the CL fixed the problem demonstrated in issue27695b.go but
+    introduced the problem demonstrated in issue27695.go.
+    
+    TODO, in another CL: simplify FuncLayout and its test. stack return
+    value is now identical to frametype.ptrdata + frametype.gcdata.
+    
+    Fixes #27695
+    
+    Change-Id: I2d49b34e34a82c6328b34f02610587a291b25c5f
+    Reviewed-on: https://go-review.googlesource.com/137440
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/html/template/css.go  | 6 +++++-
- src/html/template/html.go | 8 +++++++-
- src/html/template/js.go   | 9 ++++++---
- 3 files changed, 18 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types/type.go |  2 +-
+ src/reflect/all_test.go                |  4 +--
+ src/reflect/asm_386.s                  | 10 ++++--
+ src/reflect/asm_amd64.s                | 10 ++++--
+ src/reflect/asm_amd64p32.s             | 10 ++++--
+ src/reflect/asm_arm.s                  | 12 +++++--
+ src/reflect/asm_arm64.s                | 10 ++++--
+ src/reflect/asm_mips64x.s              | 10 ++++--
+ src/reflect/asm_mipsx.s                | 10 ++++--
+ src/reflect/asm_ppc64x.s               | 10 ++++--
+ src/reflect/asm_s390x.s                | 10 ++++--
+ src/reflect/asm_wasm.s                 | 10 ++++--
+ src/reflect/export_test.go             |  4 +--
+ src/reflect/makefunc.go                | 27 +++++++-------
+ src/reflect/type.go                    | 14 +++-----
+ src/reflect/value.go                   | 61 +++++++++++++++++++++++---------
+ src/runtime/traceback.go               | 13 +++++--
+ test/fixedbugs/issue27695.go           | 62 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue27695b.go          | 64 ++++++++++++++++++++++++++++++++++
+ 19 files changed, 288 insertions(+), 65 deletions(-)

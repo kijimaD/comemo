@@ -1,12 +1,19 @@
-commit d26d5e6403613f989e123ee492bd8d63c113e725
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Jul 29 00:57:19 2013 +0200
+commit a64bea5c99a7d6b471655cdef44b8daec6fce1dc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jul 28 16:15:07 2013 +0900
 
-    effective_go.html: make snippets look formatted.
+    net: make UnixAddr implement sockaddr interface
     
-    R=golang-dev, bradfitz
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/11991043
+    https://golang.org/cl/11932044
 
- doc/effective_go.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/net/sock_posix.go     |  4 ++--
+ src/pkg/net/unixsock.go       |  7 -------
+ src/pkg/net/unixsock_posix.go | 34 +++++++++++++++++++++++++---------
+ 3 files changed, 27 insertions(+), 18 deletions(-)

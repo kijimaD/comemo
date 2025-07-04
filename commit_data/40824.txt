@@ -1,27 +1,26 @@
-commit 9665be3a48aa3bc7a905e77760403d3751646ba9
+commit 6bf2767cc87f9f6a1b85cdc18c656fade735f27f
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 18 11:18:12 2019 -0500
+Date:   Tue Jul 2 17:03:27 2019 -0400
 
-    cmd/go: convert Test{Local,Bad}Imports* to script tests
+    cmd/go: tighten the check for pseudo-version base tags
     
-    These tests were all attempting to write to their working directory,
-    which may fail if GOROOT is read-only.
+    Do not allow a pseudo-version derived from a canonical tag to refer to
+    the same revision as the tag itself. It's unnecessary (because
+    canonical tags already have a total ordering) and confusing (the
+    pseudo-version appears to come after the tag, but actually refers to
+    the exact same revision).
     
-    Updates #28387
-    Updates #30316
+    Updates #32879
+    Updates #27173
     
-    Change-Id: Ib85234cdcf5ef4d554d8c99cf0942981bbd394ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207604
+    Change-Id: I02befedbe89c8819bdd93e470783ce63fc813193
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184720
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/go_test.go                        | 122 ---------------------------
- src/cmd/go/testdata/local/easy.go            |   7 --
- src/cmd/go/testdata/local/easysub/easysub.go |   7 --
- src/cmd/go/testdata/local/easysub/main.go    |   9 --
- src/cmd/go/testdata/local/hard.go            |   7 --
- src/cmd/go/testdata/local/sub/sub.go         |  12 ---
- src/cmd/go/testdata/local/sub/sub/subsub.go  |   7 --
- src/cmd/go/testdata/script/gopath_local.txt  | 117 +++++++++++++++++++++++++
- 8 files changed, 117 insertions(+), 171 deletions(-)
+ doc/go1.13.html                                    |  6 +++--
+ src/cmd/go/internal/modfetch/coderepo.go           | 30 ++++++++++++++++++----
+ src/cmd/go/internal/modfetch/coderepo_test.go      | 22 +++++++++++++++-
+ src/cmd/go/testdata/script/mod_invalid_version.txt | 18 ++++++++++---
+ 4 files changed, 64 insertions(+), 12 deletions(-)

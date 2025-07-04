@@ -1,28 +1,20 @@
-commit ca017a6fb9b46860ab0b5054ca07feea3d711a36
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 10 22:11:51 2020 -0400
+commit 40b74558771ba9db493728dcaabe43318daf9b97
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 13 11:27:47 2019 -0400
 
-    cmd/link: don't split container symbols when write blocks
+    runtime: add GODEBUG=asyncpreemptoff=1
     
-    We split the output into blocks and write them in parallel. The
-    block boundary is placed at symbol boundary. In the case of outer
-    symbols and sub symbols, currently we may split an outer symbol
-    into two blocks. This will be bad, as the two blocks will have
-    overlapping address range, since outer symbol and its sub symbols
-    occupies the same address range.
+    This doesn't do anything yet, but it will provide a way to disable
+    non-cooperative preemption.
     
-    Make sure we place block boundary only at top-level symbol
-    boundaries.
+    For #10958, #24543.
     
-    Fix boringcrypto build.
-    
-    Change-Id: I56811d3969c65c6be97672d8e1f1ea36b2447465
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227957
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ifdef303f103eabd0922ced8d9bebbd5f0aa2cda4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201757
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    (cherry picked from commit 636fa3148fe149923839a86e648dd87dc4d1537a)
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228138
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/data.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/runtime/extern.go   | 7 +++++++
+ src/runtime/runtime1.go | 2 ++
+ 2 files changed, 9 insertions(+)

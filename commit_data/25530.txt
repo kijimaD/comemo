@@ -1,16 +1,16 @@
-commit 2747ca351efc2b9b0f1d0a7988c752f859feebb7
-Author: Harshavardhana <hrshvardhana@gmail.com>
-Date:   Sat Jan 9 11:55:32 2016 -0800
+commit 525d4bd5203ce0bc6d36add058041dcdfb979161
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Nov 7 16:51:20 2015 +0100
 
-    net/http: don't remove Expect Request header in Server.
+    net/http: update http2 bundle
     
-    Fixes #13893
+    To rev a179abb (handle Transport PING frames).
     
-    Change-Id: I2577b38fdb19299227dc146f707cf9df663dcdfc
-    Reviewed-on: https://go-review.googlesource.com/18471
+    Change-Id: I6e1eef2c9586c23f231803d9364d921248722f12
+    Reviewed-on: https://go-review.googlesource.com/16732
+    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/serve_test.go | 27 +++++++++++++++++++++++++++
- src/net/http/server.go     |  1 -
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/net/http/h2_bundle.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

@@ -1,17 +1,14 @@
-commit b18a5600c2f0b32a0997553b512b1c747a040cd4
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Wed Oct 28 08:10:46 2015 +0100
+commit 9654873a76f3234e55951b80f085e86b1ba9d754
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 28 13:35:32 2015 -0700
 
-    html/template, encoding/asn1: fix test errors
+    [dev.ssa] cmd/compile: implement PPARAMREF
     
-    Change-Id: I1da1d718609eb6a7b78d29b173ec780bde22c687
-    Reviewed-on: https://go-review.googlesource.com/16422
-    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    This also fixes the encoding/gob TestTopLevelNilPointer failure.
+    
+    Change-Id: I9b29a6fddffd51af305c685f3a8e2a0594bfeeab
+    Reviewed-on: https://go-review.googlesource.com/14032
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/asn1/asn1_test.go  | 2 +-
- src/html/template/clone_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

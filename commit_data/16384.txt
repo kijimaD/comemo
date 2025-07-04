@@ -1,20 +1,12 @@
-commit e3a72b05f8d7ee2fa235e5592ca85b747f1bb310
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 22 14:22:50 2013 -0700
+commit 3577398f82980a1c47689b932e728497839abf84
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed May 22 22:45:38 2013 +0200
 
-    go/doc: fix build
+    test: add test for issue 3888.
     
-    1) go/doc:
-       - create correct ast.FuncType
-       - use more commonly used variable names in a test case
-    
-    2) make ast.FuncType.Pos robust in case of incorrect ASTs
-    
-    R=golang-dev
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/9651044
+    https://golang.org/cl/9676043
 
- src/pkg/go/ast/ast.go          |  2 +-
- src/pkg/go/doc/example.go      |  2 +-
- src/pkg/go/doc/example_test.go | 10 +++++-----
- 3 files changed, 7 insertions(+), 7 deletions(-)
+ test/escape2.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

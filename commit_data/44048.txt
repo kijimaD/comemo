@@ -1,31 +1,19 @@
-commit 8438a5779b76620237d608282a99d17467b91f4c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Nov 11 21:27:56 2020 -0500
+commit e538b7e931c209706c3e8c1b0c2d53dab651b965
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue May 5 00:11:00 2020 -0400
 
-    runtime: use _exit on darwin
+    net/http/cgi: reject invalid header names
     
-    On darwin, where we use libc for syscalls, when the runtime exits,
-    it calls libc exit function, which may call back into user code,
-    e.g. invoking functions registered with atexit. In particular, it
-    may call back into Go. But at this point, the Go runtime is
-    already exiting, so this wouldn't work.
+    Being lenient on those has caused enough security issues.
     
-    On non-libc platforms we use exit syscall directly, which doesn't
-    invoke any callbacks. Use _exit on darwin to achieve the same
-    behavior.
+    Spun out of CL 231419.
     
-    No test for now, as it doesn't pass on all platforms (see trybot
-    run of PS2).
+    Fixes #38889
     
-    May fix #42465.
-    May fix #43294.
-    
-    Change-Id: Ia1ada22b5da8cb64fdd598d0541eb90e195367eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269378
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idd3bc6adc22e08a30b3dabb146ce78d4105684cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232277
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/sys_darwin.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/deps_test.go | 2 +-
+ src/net/http/cgi/host.go  | 7 ++++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

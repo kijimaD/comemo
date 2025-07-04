@@ -1,12 +1,15 @@
-commit bbd173fc3dce58d6eacee750001952371e1c1d23
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Nov 7 09:38:40 2011 +1100
+commit ea9e93862d9b6fc0c5b53cdb204204923d653b8a
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Sun Nov 6 22:14:15 2011 +0100
 
-    html: be able to test more than one testdata file.
+    gc: Better error message for range over non-receive channel.
     
-    R=andybalholm
+    Fixes #2354
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5351041
+    https://golang.org/cl/5346044
 
- src/pkg/html/parse_test.go | 37 +++++++++++++++++++++++++++----------
- 1 file changed, 27 insertions(+), 10 deletions(-)
+ src/cmd/gc/range.c | 4 ++++
+ test/chan/perm.go  | 5 ++++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

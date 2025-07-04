@@ -1,13 +1,13 @@
-commit 63c16b1878497e807d0045064214e0e546c7be26
-Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
-Date:   Sun Apr 12 12:08:06 2015 -0400
+commit 2a0833da5083eac7cec15dcb7142a54bf2d806ce
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:26:18 2015 +0100
 
-    cmd/go: fix a typo.
+    sync/atomic: add support for GOARCH=arm64
     
-    Change-Id: Ic453da17817f66e1073f6ba740b830b8daf2fc38
-    Reviewed-on: https://go-review.googlesource.com/8829
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I11cd4b5e8daf3805af0eaa83b55b20da889702f4
+    Reviewed-on: https://go-review.googlesource.com/7145
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/build.go | 2 +-
- src/cmd/go/doc.go   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/sync/atomic/asm_arm64.s | 149 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 149 insertions(+)

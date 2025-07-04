@@ -1,16 +1,12 @@
-commit a0cff2989ae15cd2cc29bf1d956c833d1b28593c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Apr 29 13:15:22 2015 +0900
+commit 35599e281b1c07f0a1cd9f334a7939bd28ec537c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 7 21:03:00 2015 -0700
 
-    net: remove dead code in Write
+    go/types: enable disabled test
     
-    Also, please be informed that the Write method on both connected and
-    unconnected-mode sockets may return a positive number of bytes written
-    with timeout or use of closed network connection error.
-    
-    Change-Id: I2e2e6192e29cef4e9389eb0422c605c6d12e6a3c
-    Reviewed-on: https://go-review.googlesource.com/9466
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I58de76c49de6e43befb30b2bf677934e7952b5ab
+    Reviewed-on: https://go-review.googlesource.com/8610
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/fd_unix.go | 1 -
+ src/go/types/stdlib_test.go | 1 -
  1 file changed, 1 deletion(-)

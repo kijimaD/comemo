@@ -1,23 +1,16 @@
-commit 2e3bd890c5942a00f6271ffe419c1e62ef5e2a73
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 7 14:45:45 2011 -0800
+commit bab4dec14214b27837b2c9c8c3d0f4a08df809b5
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 7 14:33:37 2011 -0800
 
-    strconv: fix documentation
-    
-    Also: minor performance fix for large precision results.
-    
-    benchmark                                   old ns/op    new ns/op    delta
-    strconv_test.BenchmarkFormatFloatDecimal         2734         2734   +0.00%
-    strconv_test.BenchmarkFormatFloat                3141         3139   -0.06%
-    strconv_test.BenchmarkFormatFloatExp             8970         8989   +0.21%
-    strconv_test.BenchmarkFormatFloatBig             3228         3208   -0.62%
-    
-    Fixes #2535.
+    doc: skeleton for release note document
+    No content yet other than titles and an introductory paragraph.
+    Once this is in, content can arise as separate manageable CLs.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5435089
+    https://golang.org/cl/5435090
 
- src/pkg/strconv/atoi.go | 8 ++++----
- src/pkg/strconv/ftoa.go | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ doc/Makefile |  9 +++----
+ doc/go1.html | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.tmpl | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 165 insertions(+), 6 deletions(-)

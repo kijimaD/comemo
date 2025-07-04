@@ -1,12 +1,21 @@
-commit e8b7def7f41c0cee643e0222adc296be85022318
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Dec 21 12:52:53 2013 +1100
+commit 145edc283fab61d732457ddd431e45a10da0f4d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 20 19:14:42 2013 -0500
 
-    doc/go1.3.txt: mention windows syscall.NewCallbackCDecl
+    cmd/gc: do not compute dead value maps if they will not be used
     
-    R=golang-codereviews, r
+    Reduces 6g big.go memory usage from 251 MB to 242 MB.
+    Reduces 6g slow.go memory usage from 529 MB to 453 MB.
+    
+    Mostly a memory savings; 6g slow.go is only about 5% faster.
+    
+    The test programs are at
+    https://rsc.googlecode.com/hg/testdata/big.go (36k lines, 276kB)
+    https://rsc.googlecode.com/hg/testdata/slow.go (7k lines, 352kB)
+    
+    R=golang-codereviews, bradfitz, iant
     CC=golang-codereviews
-    https://golang.org/cl/44160044
+    https://golang.org/cl/42280045
 
- doc/go1.3.txt | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/gc/plive.c | 47 +++++++++++++++++++++++++++++------------------
+ 1 file changed, 29 insertions(+), 18 deletions(-)

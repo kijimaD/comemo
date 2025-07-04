@@ -1,27 +1,21 @@
-commit 7dc1ee81f9be4bf3397646afcd3170e896389342
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 20 10:35:23 2024 -0700
+commit 700727151fe3772ecc2315af101d2e5d93269c0c
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Jul 4 13:03:58 2023 +0800
 
-    cmd/compile/internal/noder: reduce clutter a bit (cosmetic changes)
+    doc/go1.21: add release notes for linux/loong64
     
-    - introduce index alias
-    - inline the two short tables in stmt.go (removes a TODO)
-    - move assert out of stencil.go and remove that file
-      (we can always re-introduce it)
+    Fixes #53301
     
-    Also, replace two if's with a simpler switch.
-    
-    Change-Id: I25c3104164574999dd9826dee6166dd8a8488908
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607236
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Tim King <taking@google.com>
+    Change-Id: Id447d57d43b12c3748267295928d45a089549340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507815
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/noder/linker.go  | 18 +++----
- src/cmd/compile/internal/noder/reader.go  | 22 ++++-----
- src/cmd/compile/internal/noder/stencil.go | 16 -------
- src/cmd/compile/internal/noder/stmt.go    | 24 ----------
- src/cmd/compile/internal/noder/unified.go | 12 ++---
- src/cmd/compile/internal/noder/writer.go  | 80 ++++++++++++++++++++-----------
- 6 files changed, 77 insertions(+), 95 deletions(-)
+ doc/go1.21.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

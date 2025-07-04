@@ -1,16 +1,18 @@
-commit 495a287f0bd9d3294b9ef7533dc8165527b29c0e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Apr 28 11:58:33 2020 -0400
+commit fc7ee0ba2c9f284ea2d4a37a0c133524e94d88cd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 12 10:18:06 2019 -0500
 
-    doc/go1.15: add notes for GOMODCACHE, modcacheunzipinplace
+    cmd/dist: save and restore original permissions in makeGOROOTUnwritable
     
-    For #36568
-    For #34527
+    Also log a message and skip the Chmods if running as root.
     
-    Change-Id: Ieea4b4a7644e9c957f48d08d2e172e39b571502f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230537
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Updates #30316
+    
+    Change-Id: Ifb68d06ce845275a72d64c808407e8609df270bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206757
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.15.html | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/dist/test.go | 59 +++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 40 insertions(+), 19 deletions(-)

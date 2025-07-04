@@ -1,18 +1,43 @@
-commit 73d213708e3186b48d5147b8eb939fdfd51f1f8d
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jan 25 02:55:01 2020 +1100
+commit 4dc11ae26b3a092bbcd1b4d0ae8cdaeb1cf1cef9
+Author: Huan Du <i@huandu.me>
+Date:   Thu Aug 29 17:18:53 2019 +0800
 
-    cmd/vendor: provide riscv64 support in tools/go/analysis/passes/asmdecl
+    reflect: fix panic in DeepEqual when checking a cycle
     
-    Manually add riscv64 support.
+    Before this change, when DeepEqual checks values with cycle, it may
+    panic due to stack overflow.
     
-    Currently being added via https://go-review.googlesource.com/c/tools/+/216337.
+    Here is a sample to reproduce the issue.
     
-    Updates #27532
+        makeCycleMap := func() interface{} {
+            cycleMap := map[string]interface{}{}
+            cycleMap["foo"] = cycleMap
+            return cycleMap
+        }
     
-    Change-Id: I0e1f7c0eeca4e85ae588f427eff818bb7946a851
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216262
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+        m1 := makeCycleMap()
+        m2 := makeCycleMap()
+        reflect.DeepEqual(m1, m2) // stack overflow
+    
+    The root cause is that DeepEqual fails to cache interface values
+    in visited map, which is used to detect cycle. DeepEqual calls
+    CanAddr to check whether a value should be cached or not. However,
+    all values referenced by interface don't have flagAddr thus all these
+    values are not cached.
+    
+    THe fix is to remove CanAddr calls and use underlying ptr in value
+    directly. As ptr is only read-only in DeepEqual for caching, it's
+    safe to do so. We don't use UnsafeAddr this time, because this method
+    panics when CanAddr returns false.
+    
+    Fixes #33907
+    
+    Change-Id: I2aa88cc060a2c2192b1d34c129c0aad4bd5597e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191940
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/reflect/all_test.go  | 12 +++++++++++-
+ src/reflect/deepequal.go | 16 +++++++++-------
+ 2 files changed, 20 insertions(+), 8 deletions(-)

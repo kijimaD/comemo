@@ -1,14 +1,20 @@
-commit 45a3b3714ff78fe1c81a5b3680822859a9fa35ff
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 6 15:47:49 2013 -0800
+commit a30bede5ef81fd90b4792e97707d264cc6a3cf1a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 6 14:10:47 2013 -0800
 
-    doc/effective_go.html: unify and expand the discussion of Sprintf and String
-    It's a common mistake to build a recursive String method; explain it well and
-    show how to avoid it.
+    net/http: remove allocations in HeaderWriteSubset
     
-    R=golang-dev, bradfitz, adg
+    Before:
+    BenchmarkHeaderWriteSubset  500000  2354 ns/op  197 B/op  2 allocs/op
+    After:
+    BenchmarkHeaderWriteSubset 1000000  2085 ns/op    0 B/op  0 allocs/op
+    
+    Fixes #3761
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7486049
+    https://golang.org/cl/7508043
 
- doc/effective_go.html | 59 +++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 46 insertions(+), 13 deletions(-)
+ src/pkg/net/http/header.go      | 47 +++++++++++++++++++++++++++++++----------
+ src/pkg/net/http/header_test.go |  6 ++----
+ 2 files changed, 38 insertions(+), 15 deletions(-)

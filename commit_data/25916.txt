@@ -1,18 +1,17 @@
-commit e1035c5e878c0aae938f4ee933055d4333c5cbe5
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Feb 26 16:14:31 2016 +0100
+commit a778ac5d76c47f6cc88846d58263c63ae8eaec86
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 3 18:58:05 2015 +0000
 
-    sync/atomic: reduce test in short mode
+    net/http: make Client follow redirects even if Request.Method is empty
     
-    In normal mode the test runs for 9+ seconds on my machine (48 cores).
-    But the real problem is race mode, in race mode it hits 10m test timeout.
-    Reduce test size in short mode. Now it runs for 100ms without race.
+    Fixes #12705
     
-    Change-Id: I9493a0e84f630b930af8f958e2920025df37c268
-    Reviewed-on: https://go-review.googlesource.com/19956
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I69639d2b03777835b2697ff349a00ccab410aa49
+    Reviewed-on: https://go-review.googlesource.com/17318
+    Reviewed-by: Burcu Dogan <jbd@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sync/atomic/value_test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/net/http/client.go      | 5 ++++-
+ src/net/http/client_test.go | 7 +++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

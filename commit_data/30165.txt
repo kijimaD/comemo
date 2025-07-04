@@ -1,24 +1,37 @@
-commit 4f6d4bb3f4461e7e25eff24254115b689495e834
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Wed Feb 8 10:32:22 2017 -0800
+commit 4b2665786ec13c82ab751cd2d4312772b80cef12
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Oct 26 14:18:37 2016 -0700
 
-    database/sql: do not exhaust connection pool on conn request timeout
+    bytes, strings: fix regression in IndexRune
     
-    Previously if a context was canceled while it was waiting for a
-    connection request, that connection request would leak.
+    In all previous versions of Go, the behavior of IndexRune(s, r)
+    where r was utf.RuneError was that it would effectively return the
+    index of any invalid UTF-8 byte sequence (include RuneError).
+    Optimizations made in http://golang.org/cl/28537 and
+    http://golang.org/cl/28546 altered this undocumented behavior such
+    that RuneError would only match on the RuneError rune itself.
     
-    To prevent this remove the pending connection request if the
-    context is canceled and ensure no connection has been sent on the channel.
-    This requires a change to how the connection requests are represented in the DB.
+    Although, the new behavior is arguably reasonable, it did break code
+    that depended on the previous behavior. Thus, we add special checks
+    to ensure that we preserve the old behavior.
     
-    Fixes #18995
+    There is a slight performance hit for correctness:
+            benchmark                   old ns/op     new ns/op     delta
+            BenchmarkIndexRune/10-4     19.3          21.6          +11.92%
+            BenchmarkIndexRune/32-4     33.6          35.2          +4.76%
+    This only occurs on small strings. The performance hit for larger strings
+    is neglible and not shown.
     
-    Change-Id: I9a274b48b8f4f7ca46cdee166faa38f56d030852
-    Reviewed-on: https://go-review.googlesource.com/36563
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #17611
+    
+    Change-Id: I1d863a741213d46c40b2e1724c41245df52502a5
+    Reviewed-on: https://go-review.googlesource.com/32123
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/sql.go      | 49 +++++++++++++++++++++++++++----------
- src/database/sql/sql_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 93 insertions(+), 13 deletions(-)
+ src/bytes/bytes.go          | 23 +++++++++++++++++----
+ src/bytes/bytes_test.go     | 50 ++++++++++++++++++++++++++++++---------------
+ src/strings/strings.go      | 18 +++++++++++++---
+ src/strings/strings_test.go | 49 +++++++++++++++++++++++++++++---------------
+ 4 files changed, 100 insertions(+), 40 deletions(-)

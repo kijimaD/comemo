@@ -1,20 +1,19 @@
-commit 03305a9e0c786dab67a373106a81df56dda21e25
-Author: Yasha Bubnov <girokompass@gmail.com>
-Date:   Mon Nov 28 23:16:16 2016 +0300
+commit 9ecfd177cfe9783919175780fe8f29a0e4a99f4e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 23 10:07:25 2017 -0700
 
-    net/http/httptest: close client connections in separate goroutines
+    math/big: fix TestFloatSetFloat64String
     
-    The existing implementation sequentially closes connection in the loop
-    and until the previous client connections is not closed the next one
-    would not be processed. Instead, the algorithm modified to spawn the
-    function that closes single connection in a standalone goroutine, thus
-    making at least a try to close it.
+    A -0 constant is the same as 0. Use explicit negative zero
+    for float64 -0.0. Also, fix two test cases that were wrong.
     
-    Change-Id: Ib96b5b477f841926450d122b67f14f1a2da36ee1
-    Reviewed-on: https://go-review.googlesource.com/33614
+    Fixes #19673.
+    
+    Change-Id: Ic09775f29d9bc2ee7814172e59c4a693441ea730
+    Reviewed-on: https://go-review.googlesource.com/38463
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/httptest/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/big/floatconv_test.go | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

@@ -1,15 +1,22 @@
-commit 55875977eb7e4f5b926127ec76217f37c7fd3713
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 30 14:48:01 2016 -0700
+commit 4e0cd1eeef419b221fda3dd3966be71095f0b4ce
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sat Apr 23 11:00:05 2016 -0700
 
-    cmd/compile: dedup Pragma switch
+    database/sql: clone data for named []byte types
     
-    Change-Id: I2d01f692ae30a166079976b86bf0b7a439f05d5c
-    Reviewed-on: https://go-review.googlesource.com/28178
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Previously named byte types like json.RawMessage could get dirty
+    database memory from a call to Scan. These types would activate a
+    code path that didn't clone the byte data coming from the database
+    before assigning it. Another thread could then overwrite the byte
+    array in src, which has unexpected consequences.
+    
+    Originally reported by Jason Moiron; the patch and test are his
+    suggestions. Fixes #13905.
+    
+    Change-Id: Iacfef61cbc9dd51c8fccef9b2b9d9544c77dd0e0
+    Reviewed-on: https://go-review.googlesource.com/22393
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/lex.go   | 92 ++++++++++++++++++++----------------
- src/cmd/compile/internal/gc/noder.go | 46 +-----------------
- 2 files changed, 51 insertions(+), 87 deletions(-)
+ src/database/sql/convert.go      |  7 ++++++-
+ src/database/sql/convert_test.go | 12 ++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

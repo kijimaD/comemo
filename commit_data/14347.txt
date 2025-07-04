@@ -1,14 +1,16 @@
-commit 64b3e590c00b9c1e532dd0014b16174c9397664c
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Nov 8 10:36:29 2012 +1100
+commit 0ac317817bfdde4de178893b9489aac007210280
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Nov 8 08:22:40 2012 +1100
 
-    image/jpeg: handle fill bytes.
+    archive/tar: avoid writing ModTime that is out of range.
     
-    Fixes #4337.
+    Update #4358
+    Still to do: support binary numeric format in Reader.
     
-    R=r, minux.ma
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6814098
+    https://golang.org/cl/6818101
 
- src/pkg/image/jpeg/reader.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/archive/tar/tar_test.go | 43 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/archive/tar/writer.go   | 39 ++++++++++++++++++++++++-------------
+ 2 files changed, 69 insertions(+), 13 deletions(-)

@@ -1,12 +1,12 @@
-commit e8c970e5f7d5fa720a38da00a31870fc0b1c2b0f
+commit 04450d8a26406f46f2fc6659469b872ce0b85579
 Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu Mar 1 20:14:21 2012 -0300
+Date:   Thu Mar 1 20:13:04 2012 -0300
 
-    cmd/go: fix verbose command displaying
+    cmd/go: fix -I flag for gc command
     
-    R=golang-dev, rsc
+    R=rsc, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/5715050
+    https://golang.org/cl/5711056
 
- src/cmd/go/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/build.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

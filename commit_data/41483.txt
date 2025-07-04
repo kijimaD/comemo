@@ -1,19 +1,21 @@
-commit bec91cecef72265835b6227593c28d517cad211c
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jan 10 18:15:38 2020 -0500
+commit fc2915fabdda25912058b4e51b385e73e8ed2b4b
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Mon Oct 7 11:30:01 2019 +0800
 
-    cmd/go: convert TestPackageNotStaleWithTrailingSlash to script framework
+    bytes: add endian base compare test
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    The current bytes test suit didn't come with endian based test
+    which causing #34549 can passed the try-bot.
+    This test will failed when little endian architecture simply using
+    load and compare uint.
     
-    Updates #36320
-    Updates #17751
+    Update #34549
     
-    Change-Id: I1020feaa4ddb40ff52c46728bc4973cea4c7b066
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214391
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I0973c2cd505ce21c2bed1deeb7d526f1e872118d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198358
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                                 | 19 -------------------
- .../script/build_package_not_stale_trailing_slash.txt | 13 +++++++++++++
- 2 files changed, 13 insertions(+), 19 deletions(-)
+ src/bytes/compare_test.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

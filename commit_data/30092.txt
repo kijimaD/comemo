@@ -1,15 +1,28 @@
-commit 769be04feb724e03c1f2b757fc19326a1486896c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Feb 4 17:33:14 2017 +1100
+commit 001743813971e0870144443399f2fb396b3781b7
+Author: shaharko <skohanim@gmail.com>
+Date:   Thu Oct 13 22:56:38 2016 +0300
 
-    cmd/nm: skip TestInternalLinkerCgoFile if no internal linking is supported
+    cmd/compile: only generate ·f symbols when necessary
     
-    Fixes build.
+    Before go supported buildmode=shared ·f symbols used to be defined
+    only when they were used. In order to solve #11480 the strategy
+    was changed to have these symbols defined on declaration which is
+    less efficient and generates many unneeded symbols.
+    With this change the best strategy is chosen for each situation,
+    improving static linking time:
     
-    Change-Id: I2fee624c8a4b228bb9f2889e241ea016a317bb11
-    Reviewed-on: https://go-review.googlesource.com/36373
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    name            old s/op    new s/op    delta
+    LinkCmdCompile   0.27 ± 5%   0.25 ± 6%  -8.22%   (p=0.000 n=98+96)
+    LinkCmdGo        0.30 ± 6%   0.29 ± 8%  -5.03%   (p=0.000 n=95+99)
+    
+    name            old MaxRSS  new MaxRSS  delta
+    LinkCmdCompile   107k ± 2%    98k ± 3%  -8.32%  (p=0.000 n=99+100)
+    LinkCmdGo        106k ± 3%   104k ± 3%  -1.94%  (p=0.000 n=99+100)
+    
+    Change-Id: I965eeee30541e724fd363804adcd6fda10f965a4
+    Reviewed-on: https://go-review.googlesource.com/31031
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/cmd/nm/nm_cgo_test.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/compile/internal/gc/closure.go | 4 +++-
+ src/cmd/compile/internal/gc/dcl.go     | 7 ++++++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

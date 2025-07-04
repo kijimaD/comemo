@@ -1,23 +1,17 @@
-commit 2ca0f5a1e2e637cd15b50f3c625cbb8d169575ab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 26 18:29:34 2020 +0000
+commit 02816a2cad23a9399a6ad18033db0586c110de70
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 20 02:00:44 2020 +1100
 
-    Revert "encoding/xml: fix reserved namespace check to be case-insensitive"
+    reflect: correct riscv64 assembly
     
-    This reverts CL 203417.
+    R0 is not a thing in riscv64 assembly - use ZERO (rather than X0) since
+    the rest of this currently uses ABI names.
     
-    Reason for revert: This change changes uses of tags like "XMLSchema-instance" without any recourse.
+    Updates #27532
     
-    For #35151
-    Fixes #39876
-    
-    Change-Id: I4c85c8267a46b3748664b5078794dafffb42aa26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240179
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I28fb68e9f80d05231a07c5921e7062777234e2c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215437
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/xml/marshal.go      |  7 ++-----
- src/encoding/xml/marshal_test.go | 24 ------------------------
- 2 files changed, 2 insertions(+), 29 deletions(-)
+ src/reflect/asm_riscv64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

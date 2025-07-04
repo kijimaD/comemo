@@ -1,29 +1,12 @@
-commit 8642cbd660cd8f62f77a37227c640b234fcf9c30
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Dec 8 22:48:11 2013 -0500
+commit d4f68f2892f4ebcdec57f07e32178b15612f8a73
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Dec 6 15:36:54 2013 -0800
 
-    cmd/dist: add liblink build information
+    cmd/gc: clarify a TODO regarding variables used in liveness analysis
     
-    In addition to adding the library, change the way the anames array is created.
-    Previously, it was written to src/cmd/6l/enam.c (and similarly for 5l and 8l)
-    and each of the other tools (6g, 6c, 6a) compiled the 6l/enam.c file in addition
-    to their own sources.
-    
-    Now that there is a library shared by all these programs, move the anames
-    array into that library. To eliminate name conflicts, name the array after
-    the architecture letter: anames5, anames6, anames8.
-    
-    First step to linker cleanup (golang.org/s/go13linker).
-    
-    This CL does not build by itself. It depends on the CLs introducing
-    liblink and changing commands to use it.
-    
-    R=iant
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/35740044
+    https://golang.org/cl/38640043
 
- .hgignore              |  2 +-
- src/cmd/dist/a.h       |  2 +-
- src/cmd/dist/build.c   | 33 +++++++++++++++++++++++----------
- src/cmd/dist/buildgc.c | 10 +++++-----
- 4 files changed, 30 insertions(+), 17 deletions(-)
+ src/cmd/gc/plive.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

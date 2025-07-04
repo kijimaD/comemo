@@ -1,24 +1,31 @@
-commit 4e9874f86e24381fa4305f939d78ed857fe416ca
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 9 14:34:38 2017 -0500
+commit 07a31bc3da1115775c6607fa400e2d147f6c17c3
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 26 13:57:08 2016 -0700
 
-    net/rpc: fix aliasing in TestAcceptExitAfterListenerClose
+    crypto/x509: don't accept a root that already appears in a chain.
     
-    TestRPC writes to newServer and newServerAddr guarded with a
-    sync.Once.
-    TestAcceptExitAfterListenerClose was overwriting those variables,
-    which caused the second invocation of TestRPC within a single process
-    to fail.
+    Since a root certificate is self-signed, it's a valid child of itself.
+    If a root certificate appeared both in the pool of intermediates and
+    roots the verification code could find a chain which included it twice:
+    first as an intermediate and then as a root. (Existing checks prevented
+    the code from looping any more.)
     
-    A second invocation can occur as a result of running the test with
-    multiple values for the -cpu flag.
+    This change stops the exact same certificate from appearing twice in a
+    chain. This simplifies the results in the face of the common
+    configuration error of a TLS server returning a root certificate.
     
-    fixes #19001.
+    (This should also stop two different versions of the “same” root
+    appearing in a chain because the self-signature on one will not validate
+    for the other.)
     
-    Change-Id: I291bacf44aefb49c2264ca0290a28248c026f80e
-    Reviewed-on: https://go-review.googlesource.com/36624
+    Fixes #16800.
+    
+    Change-Id: I004853baa0eea27b44d47b9b34f96113a92ebac8
+    Reviewed-on: https://go-review.googlesource.com/32121
+    Run-TryBot: Adam Langley <agl@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/rpc/server_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/x509/verify.go      | 10 +++++++++-
+ src/crypto/x509/verify_test.go |  8 --------
+ 2 files changed, 9 insertions(+), 9 deletions(-)

@@ -1,20 +1,13 @@
-commit bc9691c465acb1c7bf9df9848c848408e876bb57
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Mon Dec 9 14:45:10 2013 -0800
+commit 1eac128d648da34431850e9393c2404921105073
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 9 09:58:35 2013 -0800
 
-    cmd/gc, runtime: correct a misnomer regarding dead value maps
+    cmd/6l: fix linux/amd64
     
-    The funcdata symbol incorrectly named the dead value map the
-    dead pointer map.  The dead value map identifies all dead
-    values, including pointers and non-pointers, in a stack frame.
-    The purpose of this map is to allow the runtime to poison
-    locations of dead data to catch lost invariants.
-    
-    R=golang-dev, iant
+    TBR=iant
     CC=golang-dev
-    https://golang.org/cl/38670043
+    https://golang.org/cl/39530043
 
- src/cmd/gc/pgen.c          | 2 +-
- src/cmd/gc/plive.c         | 4 +++-
- src/pkg/runtime/funcdata.h | 2 +-
- 3 files changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/ld/pobj.c  |  2 +-
+ src/liblink/obj6.c | 16 +++++++---------
+ 2 files changed, 8 insertions(+), 10 deletions(-)

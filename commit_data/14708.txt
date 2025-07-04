@@ -1,12 +1,13 @@
-commit 4f79cef7f2d58f6d08e07a94d5214b2f61f4d3df
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 21 11:52:21 2012 -0800
+commit 64eb7749bca304a858638222849c5765e6427c79
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Dec 21 20:39:30 2012 +0100
 
-    go/ast: ast.DeclStmt.Decl must be an *ast.GenDecl node (documentation)
+    cmd/gc: mapassign2 doesn't exist anymore.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6996046
+    https://golang.org/cl/6997043
 
- src/pkg/go/ast/ast.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/builtin.c  | 1 -
+ src/cmd/gc/runtime.go | 1 -
+ 2 files changed, 2 deletions(-)

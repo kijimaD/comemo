@@ -1,48 +1,29 @@
-commit 317afdc3fbb477f310d9f3e9b2d8e3a381399826
-Author: Phil Pearl <philip.j.r.pearl@gmail.com>
-Date:   Sun Sep 2 17:03:34 2018 +0100
+commit 9b16b9c7f95562bb290f5015324a345be855894d
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon May 7 13:05:27 2018 +0200
 
-    strings: simplify Join using Builder
+    misc/ios: uninstall app before installing it
     
-    The existing implementation has a bunch of special cases and
-    suffers an additional allocation for longer arrays. We can replace
-    this code with a simple implementation using Builder, improve
-    performance and reduce complexity.
+    Tests can fail because there is leftover data from a previous run.
+    For example:
     
-    name      old time/op    new time/op    delta
-    Join/0-8    3.53ns ± 3%    3.72ns ± 2%   +5.56%  (p=0.000 n=10+10)
-    Join/1-8    3.94ns ± 4%    3.40ns ± 4%  -13.57%  (p=0.000 n=10+10)
-    Join/2-8    57.0ns ± 3%    51.0ns ± 1%  -10.48%  (p=0.000 n=10+9)
-    Join/3-8    74.9ns ± 2%    65.5ns ± 4%  -12.60%  (p=0.000 n=10+10)
-    Join/4-8     105ns ± 0%      79ns ± 4%  -24.63%  (p=0.000 n=6+10)
-    Join/5-8     116ns ± 2%      91ns ± 4%  -21.95%  (p=0.000 n=10+10)
-    Join/6-8     131ns ± 1%     104ns ± 1%  -20.66%  (p=0.000 n=10+10)
-    Join/7-8     141ns ± 0%     114ns ± 4%  -18.82%  (p=0.000 n=9+10)
+    --- FAIL: TestRemoveAll (0.00s)
+            path_test.go:96: RemoveAll "/private/var/mobile/Containers/Data/Application/66247524-5ED7-45A4-82AA-6BF15D6078B2/tmp//_TestRemoveAll_" (first): open /private/var/mobile/Containers/Data/Application/66247524-5ED7-45A4-82AA-6BF15D6078B2/tmp//_TestRemoveAll_/dir: permission denied
+    FAIL
+    FAIL    os      31.275s
     
-    name      old alloc/op   new alloc/op   delta
-    Join/0-8     0.00B          0.00B          ~     (all equal)
-    Join/1-8     0.00B          0.00B          ~     (all equal)
-    Join/2-8     16.0B ± 0%     16.0B ± 0%     ~     (all equal)
-    Join/3-8     32.0B ± 0%     32.0B ± 0%     ~     (all equal)
-    Join/4-8     96.0B ± 0%     48.0B ± 0%  -50.00%  (p=0.000 n=10+10)
-    Join/5-8     96.0B ± 0%     48.0B ± 0%  -50.00%  (p=0.000 n=10+10)
-    Join/6-8      128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=10+10)
-    Join/7-8      128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=10+10)
+    There seem to be no way to simply clear the app data for an app
+    short of uninstalling it, so do that.
     
-    name      old allocs/op  new allocs/op  delta
-    Join/0-8      0.00           0.00          ~     (all equal)
-    Join/1-8      0.00           0.00          ~     (all equal)
-    Join/2-8      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    Join/3-8      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    Join/4-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
-    Join/5-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
-    Join/6-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
-    Join/7-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    This change in effect undoes CL 106676, which means that running iOS
+    is a little slower again, and that another app from the same
+    apple developer account must be present on the device for our app
+    install to succeed.
     
-    Change-Id: I866a50e809c398512cb87648c955eaa4bf4d8606
-    Reviewed-on: https://go-review.googlesource.com/132895
+    Change-Id: Iacc3a6f95c93568f4418db45e1098c7c7fdb88e0
+    Reviewed-on: https://go-review.googlesource.com/111795
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strings/strings.go      | 19 ++++++-------------
- src/strings/strings_test.go | 14 ++++++++++++++
- 2 files changed, 20 insertions(+), 13 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

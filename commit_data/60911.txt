@@ -1,0 +1,15 @@
+commit 46bccdebfaea94157b743beeb207aa5afd70e7a8
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 21:56:06 2024 -0700
+
+    cmd/internal/testdir: use os.ReadDir
+    
+    Change-Id: I9828c7c4f9c27efabf072ec1d83b3ce94c14cc0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610817
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/internal/testdir/testdir_test.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

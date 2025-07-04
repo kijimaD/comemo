@@ -1,17 +1,12 @@
-commit 519a9e8e9bdfa9b8a1b5c0c1c5be7a16718f7992
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Aug 26 18:36:58 2013 +0900
+commit b2e937970b27386951fac2e8d03015c62276a19c
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Aug 26 19:11:43 2013 -0400
 
-    net: enable PacketConn test for raw IP network on Windows
+    C: add JP Sugarbroad (Google CLA)
     
-    Just forgot to include this in CL 12843043.
-    Also consolidates the code dealing with test environment.
-    
-    Update #6122
-    
-    R=alex.brainman
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13184043
+    https://golang.org/cl/13232043
 
- src/pkg/net/packetconn_test.go | 112 +++++++++++++++++++----------------------
- 1 file changed, 53 insertions(+), 59 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

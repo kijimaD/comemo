@@ -1,13 +1,25 @@
-commit 159926236c922ad2f19464552068003db9208e62
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 18 22:21:55 2014 +0400
+commit 5f691cfaf1a6a4e2365fad423c1fe1f9b7975efb
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 19:48:49 2014 -0400
 
-    runtime: add more cases to GC info test
+    [dev.power64] runtime: manually written parts for linux/power64 and linux/power64le, checkpoint
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews, khr, rlh, rsc
-    https://golang.org/cl/125420043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/122430043
 
- src/pkg/runtime/gcinfo_test.go | 24 +++++++++++++++++++++++-
- 1 file changed, 23 insertions(+), 1 deletion(-)
+ src/pkg/runtime/arch_power64.h           |  14 +
+ src/pkg/runtime/arch_power64le.h         |  14 +
+ src/pkg/runtime/asm_power64x.s           | 997 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/atomic_power64x.s        |  37 ++
+ src/pkg/runtime/memclr_power64x.s        |  20 +
+ src/pkg/runtime/memmove_power64x.s       |  40 ++
+ src/pkg/runtime/rt0_linux_power64.s      |  17 +
+ src/pkg/runtime/rt0_linux_power64le.s    |  14 +
+ src/pkg/runtime/signal_linux_power64.h   |  49 ++
+ src/pkg/runtime/signal_linux_power64le.h |  49 ++
+ src/pkg/runtime/signal_power64x.c        | 137 +++++
+ src/pkg/runtime/sys_linux_power64x.s     | 369 ++++++++++++
+ src/pkg/runtime/sys_power64x.c           |  38 ++
+ 13 files changed, 1795 insertions(+)

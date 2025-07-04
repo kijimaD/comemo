@@ -1,26 +1,25 @@
-commit 4350c4a13196fabd7cef04eab2f8783f6c518804
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Fri Sep 9 11:22:55 2022 -0500
+commit 35c7234601c409a1d1595e4eb9fe72e8ba4e6464
+Author: Austin Clements <austin@google.com>
+Date:   Wed Sep 15 17:14:21 2021 -0400
 
-    cmd/internal/obj/ppc64: remove unnecessary opcodes
+    runtime: add always-preempt maymorestack hook
     
-    This CL removes some opcode placeholders that do not correspond
-    to any existing instructions and hence create confusion. Some
-    instructions that are no longer valid like LDMX are also removed.
-    Any references to this instruction in ISA 3.0 are considered
-    as documentation errata.
+    This adds a maymorestack hook that forces a preemption at every
+    possible cooperative preemption point. This would have helped us catch
+    several recent preemption-related bugs earlier, including #47302,
+     #47304, and #47441.
     
-    Change-Id: Ib71a657099723bbe1db88873233ee573b5c42fe7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429860
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    For #48297.
+    
+    Change-Id: Ib82c973589c8a7223900e1842913b8591938fb9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359796
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/internal/obj/ppc64/a.out.go  |  8 --------
- src/cmd/internal/obj/ppc64/anames.go |  8 --------
- src/cmd/internal/obj/ppc64/asm9.go   | 28 +++++++---------------------
- src/cmd/internal/obj/ppc64/obj9.go   |  2 --
- 4 files changed, 7 insertions(+), 39 deletions(-)
+ src/runtime/debug.go | 34 ++++++++++++++++++++++++++++++++++
+ src/runtime/stack.go |  3 +++
+ 2 files changed, 37 insertions(+)

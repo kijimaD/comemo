@@ -1,25 +1,20 @@
-commit 256d729c0b272021a44f61f47cd2c9c6d9fb1722
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Oct 13 18:11:26 2020 -0400
+commit 80e5c3b8b556c9c8010c0efd4e8d40f595743ee6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 16 22:05:35 2020 -0700
 
-    runtime: simplify gcBgMarkWorker preemption
+    cmd/compile: remove superfluous SetBounded call
     
-    gcBgMarkWorker G's are primarily scheduled by findRunnableGCWorker, but
-    that no longer needs to be strictly enforced. Temporary preemption to a
-    runq is fine when the P is not in use.
+    The call does nothing when applied to an OLSH node.
+    It would be unnecessary anyway, since we're shifting by a small constant.
     
-    We still releasem in gopark in the normal case for efficiency: if
-    gcDrain stops because gp.preempt is set, then gopark would always
-    preempt. That is fine, but inefficient, since it will reschedule simply
-    to park again. Thus, we keep releasem in unlockf to skip this extra
-    cycle.
+    Passes toolstash-check.
     
-    Change-Id: I6d1a42e3ca41b76227142a6b5bfb376c9213e3c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262349
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
+    Change-Id: If858711f1704f44637fa0f6a4c66cbaad6db24b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228699
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/mgc.go | 67 ++++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 45 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 1 -
+ 1 file changed, 1 deletion(-)

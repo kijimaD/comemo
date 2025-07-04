@@ -1,20 +1,14 @@
-commit a28609d66f74383ad23015aa810e3c76444057f5
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Jun 2 09:13:12 2013 +1000
+commit b40d98562fe11dad2309aae940dbfcd97e466a26
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat Jun 1 12:03:21 2013 -0700
 
-    testing: fix rounding error in roundDown10
+    build: remove special definition of Runemax on Plan 9
     
-    Fixes #5599.
+    The Bell Labs distribution now supports 21-bit runes.
     
-    Thanks to minux.ma for the suggested fix.
-    
-    As we now have a harness to test testing internal functions I added some coverage for testing.roundUp, as it is the main consumer of roundDown10.
-    
-    R=minux.ma, kr, r
+    R=golang-dev, akumar
     CC=golang-dev
-    https://golang.org/cl/9926043
+    https://golang.org/cl/9249045
 
- src/pkg/testing/benchmark.go      | 13 ++++++++-----
- src/pkg/testing/benchmark_test.go | 39 +++++++++++++++++++++++++++++++++------
- src/pkg/testing/export_test.go    |  5 ++++-
- 3 files changed, 45 insertions(+), 12 deletions(-)
+ include/plan9/libc.h | 7 -------
+ 1 file changed, 7 deletions(-)

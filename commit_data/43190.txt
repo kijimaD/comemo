@@ -1,17 +1,26 @@
-commit a65bc048bf388e399af9bcfd726cd0f11bba7c8e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 2 16:17:30 2020 -0700
+commit 3382411d932fb401b88a3b0ce33b74f9a26c8f4d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 13 16:56:00 2020 -0400
 
-    cmd/go: use cmd/internal/pkgpath for gccgo pkgpath symbol
+    [dev.link] cmd/link: don't set unreachable string variables in addstrdata
     
-    Fixes #37272
+    If the variable is not reachable, don't bother setting it.
     
-    Change-Id: I6554fd5e5400acb20c5a7e96b1d6cb1a1afb9871
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259299
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The old behavior was to set it but not mark it reachable, nor the
+    string data it points to. This was changed in CL 219226, which
+    changed the variable and the string data to always reachable.
+    Typically it shouldn't matter much besides some waste of binary
+    size. But it does matter on AIX (crash in make.bash). I haven't
+    looked into why.
+    
+    Fix AIX build.
+    
+    Change-Id: I546a0c94ad77b10485ceb66e1288a408e2a2a3e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223380
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/work/gccgo.go | 29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/ld/data.go | 3 +++
+ 1 file changed, 3 insertions(+)

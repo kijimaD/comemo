@@ -1,34 +1,15 @@
-commit 6d7cb594b358b9b22709fb7a7940abc4c9778074
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Feb 14 18:39:29 2025 +0000
+commit cc5ccd71ef6df461fed01a91c18c5adde10ae2c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 13 11:12:44 2023 -0800
 
-    weak: accept linker-allocated objects to Make
+    doc: in pre-generic spec, be explicit that it is not the current spec
     
-    Currently Make panics when passed a linker-allocated object. This is
-    inconsistent with both runtime.AddCleanup and runtime.SetFinalizer. Not
-    panicking in this case is important so that all pointers can be treated
-    equally by these APIs. Libraries should not have to worry where a
-    pointer came from to still make weak pointers.
-    
-    Supporting this behavior is a bit complex for weak pointers versus
-    finalizers and cleanups. For the latter two, it means a function is
-    never called, so we can just drop everything on the floor. For weak
-    pointers, we still need to produce pointers that compare as per the API.
-    To do this, copy the tiny lock-free trace map implementation and use it
-    to store weak handles for "immortal" objects. These paths in the
-    runtime should be rare, so it's OK if it's not incredibly fast, but we
-    should keep the memory footprint relatively low (at least not have it be
-    any worse than specials), so this change tweaks the map implementation a
-    little bit to ensure that's the case.
-    
-    Fixes #71726.
-    
-    Change-Id: I0c87c9d90656d81659ac8d70f511773d0093ce27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649460
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4cf7efc8e704d41ee2e3743f6aa712cc46dd1fe9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549515
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mheap.go     | 92 +++++++++++++++++++++++++++++++++++++++++++++++-
- src/weak/pointer_test.go | 39 ++++++++++++++++++++
- 2 files changed, 130 insertions(+), 1 deletion(-)
+ doc/go1.17_spec.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

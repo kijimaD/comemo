@@ -1,13 +1,17 @@
-commit 9e7e6d9ea41b20e176985c1daf9a24a30b74871b
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 29 11:29:33 2012 +1100
+commit 1b1039a1c1fba650023431696dc02d3f8343ad27
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 28 16:03:32 2012 -0800
 
-    doc/go1: tweaks to address rsc's comments
+    net/http/httputil: fix DumpRequestOut on https URLs
     
-    R=golang-dev, bradfitz
+    Don't try to do an SSL negotiation with a *bytes.Buffer.
+    
+    Fixes #3135
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5706054
+    https://golang.org/cl/5709050
 
- doc/go1.html | 7 +++----
- doc/go1.tmpl | 7 +++----
- 2 files changed, 6 insertions(+), 8 deletions(-)
+ src/pkg/net/http/httputil/dump.go      |  9 +++++++++
+ src/pkg/net/http/httputil/dump_test.go | 12 ++++++++++++
+ 2 files changed, 21 insertions(+)

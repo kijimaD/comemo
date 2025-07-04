@@ -1,17 +1,14 @@
-commit ea51dd23b4029649427d3bcb681879808923805b
+commit f89b5746fb809bef08eec46760ce429f420435fa
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 15 10:14:57 2011 -0800
+Date:   Thu Dec 15 10:02:47 2011 -0800
 
-    sql: add Rows.Columns
+    json: some tests to demonstrate bad error messages
     
-    Also, fix package name in error messages.
-    
-    Fixes #2453
+    Not a fix yet (help wanted), but part of Issue 2331
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5483088
+    https://golang.org/cl/5490043
 
- src/pkg/exp/sql/sql.go      | 41 +++++++++++++++++++++++++++--------------
- src/pkg/exp/sql/sql_test.go | 25 +++++++++++++++++++++----
- 2 files changed, 48 insertions(+), 18 deletions(-)
+ src/pkg/encoding/json/decode_test.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

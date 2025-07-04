@@ -1,23 +1,27 @@
-commit 7c3fa418bf662d0499dfb5d6b7367090a76e797f
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Apr 12 12:40:07 2017 +0900
+commit b48c419c4109a1c0e1e7a60a7a28659f6a92e827
+Author: Blake Mizerany <blake.mizerany@gmail.com>
+Date:   Mon Jan 23 11:03:03 2017 -0800
 
-    internal/poll: rename RecvFrom to ReadFrom for consistency
+    net/http/httputil: eliminate duplicate alloc/copy in ReverseProxy
     
-    Also adds missing docs.
+    This commit elimates the request allocation and shallow copy duplication
+    already done by req.WithContext.
     
-    Change-Id: Ibd8dbe8441bc7a41f01ed2e2033db98e479a5176
-    Reviewed-on: https://go-review.googlesource.com/40412
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    name         old time/op    new time/op    delta
+    ServeHTTP-4     216µs ±36%     212µs ±15%     ~     (p=0.853 n=10+10)
+    
+    name         old alloc/op   new alloc/op   delta
+    ServeHTTP-4     917kB ±36%    1137kB ± 0%     ~     (p=0.352 n=10+10)
+    
+    name         old allocs/op  new allocs/op  delta
+    ServeHTTP-4      5.00 ± 0%      4.00 ± 0%  -20.00%  (p=0.000 n=10+10)
+    
+    Change-Id: I514a59c30b037c7a65c355b06fd82c2d6ff17bb0
+    Reviewed-on: https://go-review.googlesource.com/35569
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/fd_plan9.go        |  2 ++
- src/internal/poll/fd_unix.go         |  6 +++---
- src/internal/poll/fd_windows.go      | 15 ++++++++++++++-
- src/internal/poll/sockopt_linux.go   |  2 +-
- src/internal/poll/sockopt_windows.go |  4 ++--
- src/internal/poll/sockoptip.go       |  4 ++--
- src/net/fd_unix.go                   |  2 +-
- src/net/fd_windows.go                |  2 +-
- 8 files changed, 26 insertions(+), 11 deletions(-)
+ src/net/http/httputil/reverseproxy.go      |  4 +---
+ src/net/http/httputil/reverseproxy_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 3 deletions(-)

@@ -1,25 +1,29 @@
-commit 31496cfde50a490639ce0723f75de0f16a8291dd
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Dec 8 14:07:19 2020 -0800
+commit ca290169ab219a414dbae8124f442559c907ea4d
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 30 10:19:28 2020 -0400
 
-    cmd/vet: vendor in x/tools, enable framepointer vet check
+    [dev.link] cmd/link: performance changes for relocsym
     
-    Vendor in latest x/tools.
-    Add framepointer vet check to vet.
+    Revise the signature for "relocsym" to reflect the fact that many of
+    its arguments are invariant: push the invariant args into a struct and
+    pass the struct by reference.
     
-    Fixes #43014
+    Add a facility for doing batch allocation of external relocations in
+    relocsym, so that we don't wind up with wasted space due to the
+    default "append" behavior.
     
-    Change-Id: Ife72f85b1261aa60c0028041c58040d60a40918a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276372
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This produces a small speedup in linking kubelet:
+    
+    $ benchstat out.devlink.txt out.dodata.txt
+    name                        old time/op  new time/op  delta
+    RelinkKubelet                14.2s ± 2%   13.8s ± 2%  -3.11%  (p=0.000 n=19+19)
+    RelinkKubelet-WithoutDebug   8.02s ± 3%   7.73s ± 3%  -3.67%  (p=0.000 n=20+20)
+    
+    Change-Id: I8bc94c366ae792a5b0f23697b8e0108443a7a748
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231138
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +-
- .../analysis/passes/framepointer/framepointer.go   | 91 ++++++++++++++++++++++
- .../go/analysis/passes/ifaceassert/ifaceassert.go  |  4 +
- src/cmd/vendor/modules.txt                         |  3 +-
- src/cmd/vet/main.go                                |  2 +
- 6 files changed, 102 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/data.go | 121 +++++++++++++++++++++++++++++----------
+ 1 file changed, 92 insertions(+), 29 deletions(-)

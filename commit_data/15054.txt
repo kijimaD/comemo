@@ -1,12 +1,24 @@
-commit 73b83a228e61045b76b758f6948df80f7e7e32cd
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Jan 31 08:40:59 2013 +0100
+commit bd75468a089c8ad38bcb1130c4ed7d2703ef85c1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jan 31 17:17:37 2013 +1100
 
-    cmd/gc: inlining of variadic functions.
+    os: provide access to file LastAccessTime and CreationTime on windows
     
-    R=rsc, lvd, golang-dev, kardianos
+    Fixes #4569.
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/7093050
+    https://golang.org/cl/6972047
 
- src/cmd/gc/inl.c | 146 ++++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 128 insertions(+), 18 deletions(-)
+ src/pkg/os/file_windows.go  |  15 +++--
+ src/pkg/os/stat_darwin.go   |   6 +-
+ src/pkg/os/stat_freebsd.go  |   6 +-
+ src/pkg/os/stat_linux.go    |   6 +-
+ src/pkg/os/stat_netbsd.go   |   6 +-
+ src/pkg/os/stat_openbsd.go  |   6 +-
+ src/pkg/os/stat_plan9.go    |   6 +-
+ src/pkg/os/stat_windows.go  | 149 ++++++--------------------------------------
+ src/pkg/os/types.go         |  19 +-----
+ src/pkg/os/types_notwin.go  |  25 ++++++++
+ src/pkg/os/types_windows.go | 104 +++++++++++++++++++++++++++++++
+ 11 files changed, 180 insertions(+), 168 deletions(-)

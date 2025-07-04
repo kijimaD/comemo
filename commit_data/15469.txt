@@ -1,12 +1,16 @@
-commit d1d38c535d848775c06b19d753773936441d90da
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 27 12:42:26 2013 -0800
+commit 6cdfb00f4ed2abcbe4dd58dd640a584c17484a61
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Feb 27 21:17:53 2013 +0200
 
-    net: fix windows build
+    runtime: more changes in preparation to the new scheduler
+    add per-P cache of dead G's
+    add global runnable queue (not used for now)
+    add list of idle P's (not used for now)
     
-    R=golang-dev, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7392054
+    https://golang.org/cl/7397061
 
- src/pkg/net/fd_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/proc.c    | 158 ++++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/runtime/runtime.h |   8 +++
+ 2 files changed, 152 insertions(+), 14 deletions(-)

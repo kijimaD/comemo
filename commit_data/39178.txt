@@ -1,30 +1,14 @@
-commit 822a9f537fb49f56d405f265fa4d1d3e9ddc0531
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Sun May 5 03:35:37 2019 +0000
+commit 5fae09b7386de26db59a1184f62fc7b22ec7667b
+Author: GuilhermeCaruso <gui.martinscaruso@gmail.com>
+Date:   Tue Jan 15 23:24:52 2019 +0000
 
-    cmd/compile: fix the error of absorbing boolean tests into block(FGE, FGT)
+    encoding/json: add comment for mashalererror struct
     
-    The CL 164718 mistyped the comparison flags. The rules for floating
-    point comparison should be GreaterThanF and GreaterEqualF. Fortunately,
-    the wrong optimizations were overwritten by other integer rules, so the
-    issue won't cause failure but just some performance impact.
-    
-    The fixed CL optimizes the floating point test as follows.
-    
-    source code: func foo(f float64) bool { return f > 4 || f < -4}
-    previous version: "FCMPD", "CSET\tGT", "CBZ"
-    fixed version: "FCMPD", BLE"
-    
-    Add the test case.
-    
-    Change-Id: Iea954fdbb8272b2d642dae0f816dc77286e6e1fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177121
-    Reviewed-by: Ben Shi <powerman1st@163.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iaabbfe5a4c1bbedd19d4087f1b79e5a38bdd3878
+    GitHub-Last-Rev: 55c91fc19074dacc66623aa7ff2286b11ccd5340
+    GitHub-Pull-Request: golang/go#29752
+    Reviewed-on: https://go-review.googlesource.com/c/157958
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 4 ++--
- src/cmd/compile/internal/ssa/rewriteARM64.go | 8 ++++----
- test/codegen/floats.go                       | 5 +++++
- 3 files changed, 11 insertions(+), 6 deletions(-)
+ src/encoding/json/encode.go | 1 +
+ 1 file changed, 1 insertion(+)

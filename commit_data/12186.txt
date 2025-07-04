@@ -1,21 +1,16 @@
-commit e014cf0e545ca16abfd2a80d541750c6a3809082
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 24 13:17:26 2012 +1100
+commit 5cff0299931d9f114ca3b3f40aa1e5bb62e2ad08
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 24 13:08:11 2012 +1100
 
-    test: add cmpout to testlib
+    doc/go1: document ProcessState
+    Also reformat the "go fix" references to make them look better by using the non-CW space.
     
-    R=golang-dev, r
+    Fixes #3087.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5699060
+    https://golang.org/cl/5695057
 
- test/deferprint.go       | 2 +-
- test/fixedbugs/bug328.go | 2 +-
- test/fixedbugs/bug409.go | 2 +-
- test/goprint.go          | 2 +-
- test/helloworld.go       | 2 +-
- test/ken/cplx0.go        | 2 +-
- test/ken/string.go       | 2 +-
- test/printbig.go         | 2 +-
- test/run.go              | 3 +++
- test/testlib             | 4 ++++
- 10 files changed, 15 insertions(+), 8 deletions(-)
+ doc/go1.html | 60 +++++++++++++++++++++++++++++++++++++++---------------------
+ doc/go1.tmpl | 60 +++++++++++++++++++++++++++++++++++++++---------------------
+ 2 files changed, 78 insertions(+), 42 deletions(-)

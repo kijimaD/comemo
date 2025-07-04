@@ -1,23 +1,22 @@
-commit ad03af66ebfb368fe0f87262092094e1793a9ef5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Feb 21 12:50:35 2016 -0800
+commit 9bad99574ad90f877ee4d8aa36ca503f4167fab6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 1 19:19:55 2015 +0000
 
-    runtime, runtime/pprof: add Frames to get file/line for Callers
+    net/http: enable HTTP/2 on all Transports, not just the DefaultTransport
     
-    This indirectly implements a small fix for runtime/pprof: it used to
-    look for runtime.gopanic when it should have been looking for
-    runtime.sigpanic.
+    This mirrors the same behavior and API from the server code to the
+    client side: if TLSNextProto is nil, HTTP/2 is on by default for
+    both. If it's non-nil, the user was trying to do something fancy and
+    step out of their way.
     
-    Update #11432.
+    Updates #6891
     
-    Change-Id: I5e3f5203b2ac5463efd85adf6636e64174aacb1d
-    Reviewed-on: https://go-review.googlesource.com/19869
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia31808b71f336a8d5b44b985591d72113429e1d4
+    Reviewed-on: https://go-review.googlesource.com/17300
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/callers_test.go | 83 +++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/extern.go       |  7 ++--
- src/runtime/pprof/pprof.go  | 29 ++++++----------
- src/runtime/symtab.go       | 78 ++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 173 insertions(+), 24 deletions(-)
+ src/net/http/transport.go      | 28 +++++++++++++++++++---------
+ src/net/http/transport_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 9 deletions(-)

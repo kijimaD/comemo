@@ -1,14 +1,13 @@
-commit 3cab4760d5ce8108c88984cb6c9849e598882b9b
-Author: Rob Pike <r@golang.org>
-Date:   Sun Jun 21 09:10:39 2015 +1000
+commit 3b214175bcf1e1441f0411f4691ca9a0963c4564
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri May 15 15:37:40 2015 +1000
 
-    cmd/asm: remove pointless check for negative uint
+    cmd/go: fix count of number of reserved names (doc change).
     
-    Fixes #11278.
-    
-    Change-Id: Ic46fda0f42cefedc3f6085c0e77e67616ce4955e
-    Reviewed-on: https://go-review.googlesource.com/11297
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2784f831453d929df64c66febb4982cdf1f08e06
+    Reviewed-on: https://go-review.googlesource.com/10133
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/asm/internal/asm/parse.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/go/alldocs.go | 3 ++-
+ src/cmd/go/help.go    | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

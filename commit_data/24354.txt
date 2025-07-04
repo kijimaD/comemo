@@ -1,17 +1,15 @@
-commit 53c92f95a888837571eda1cf356425010f92edde
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Sep 23 11:49:44 2015 -0400
+commit 52d76f7a6a02cf5834251a4ceadc686a9f83ac81
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Jul 23 18:44:09 2015 -0500
 
-    os: document that behavior of Seek on O_APPEND files is not specified
+    [dev.ssa] cmd/compile: rewrite if not
     
-    The actual behavior varies across platforms, and due to the inherent
-    race, we can't do anything better (other than to always return 0).
+    Rewrite if !cond by swapping the branches and removing the not.
     
-    Fixes #12710.
-    
-    Change-Id: Icb52f0f1f0a267e0f9f70767cae427f3f0239965
-    Reviewed-on: https://go-review.googlesource.com/14881
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If3af1bac02bfc566faba872a8c7f7e5ce38e9f58
+    Reviewed-on: https://go-review.googlesource.com/12610
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/os/file.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+)

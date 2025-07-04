@@ -1,14 +1,12 @@
-commit 36675daa0f417622ce94b14ccb8de169fa51f295
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 7 16:45:34 2012 -0400
+commit dc6ec74f07e380f7414359acd8e2463fbbf7f0c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 7 10:14:50 2012 -0700
 
-    crypto/aes: fix comment
+    test/bench/shootout: fix gccgo binary-list-freelist test
     
-    Fixes #3589.
-    
-    R=golang-dev, iant
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6190044
+    https://golang.org/cl/6202046
 
- src/pkg/crypto/aes/const.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ test/bench/shootout/timing.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

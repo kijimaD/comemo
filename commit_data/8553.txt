@@ -1,15 +1,18 @@
-commit fd0cf087481d476db91b4a43f6a547a6c2e443b5
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue May 31 10:46:11 2011 -0700
+commit 67b4db9e9eb669fee1716e2f4b2bbbe08fe2e04e
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue May 31 13:41:32 2011 -0400
 
-    runtime: use HOST_CC to compile mkversion
+    gc: check parameter declarations in interface fields
     
-    HOST_CC is set in Make.inc, so use that rather
-    than hardcoding quietgcc
+    Fixes #1663.
+    Fixes #1871.
     
-    R=golang-dev, iant
+    R=rsc, lstoakes
     CC=golang-dev
-    https://golang.org/cl/4515163
+    https://golang.org/cl/4530084
 
- src/pkg/runtime/Makefile | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/dcl.c         | 24 ++++++++++++++++++++++++
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/go.y          |  1 +
+ test/fixedbugs/bug342.go | 24 ++++++++++++++++++++++++
+ 4 files changed, 50 insertions(+)

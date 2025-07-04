@@ -1,32 +1,43 @@
-commit fbc6a972226f889d2ab1150468755615098ee80f
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Wed Apr 24 12:06:43 2019 -0700
+commit d70b0ece2f208ff99efce87c07f5171617c29a13
+Author: Leigh McCulloch <leighmcc@gmail.com>
+Date:   Tue Dec 11 05:32:50 2018 +0000
 
-    testing: delay flag registration; move to an Init function
+    encoding/xml, encoding/json: docs and examples using custom marshalers
     
-    Any code that imports the testing package forces the testing flags to be
-    defined, even in non-test binaries. People work around this today by
-    defining a copy of the testing.TB interface just to avoid importing
-    testing.
+    Both the encoding/xml and encoding/json packages support custom
+    marshalers for JSON and XML, as well as the basic encoding.TextMarshaler
+    and encoding.TextUnmarshaler interfaces, but the docs and examples for
+    these are missing.
     
-    Fix this by moving flag registration into a new function, testing.Init.
-    Delay calling Init until the testing binary begins to run, in
-    testing.MainStart.
+    There are docs for how to use encoding.TextMarshaler and
+    encoding.TextUnmarshaler in encoding/json, but not encoding/xml. There
+    are no examples for how to use them with either json or xml. This commit
+    includes docs for encoding/xml and examples for both encoding/json and
+    encoding/xml.
     
-    Init is exported for cases where users need the testing flags to be
-    defined outside of a "go test" context. In particular, this may be
-    needed where testing.Benchmark is called outside of a test.
+    There is an example using custom marshalers MarshalJSON and
+    UnmarshalJSON in encoding/json, but not MarshalXML and UnmarshalXML in
+    encoding/json. These docs are more so necessary for encoding/xml because
+    the complexities of XML documents is significantly greater than JSON
+    documents which more often leads to the need for custom marshaling. The
+    encoding/json package includes an example of how to write a custom
+    marshaler, and this commit includes the same example for the xml
+    package.
     
-    Fixes #21051
+    All examples are mirrored off the existing custom marshaler example in
+    encoding/json.
     
-    Change-Id: Ib7e02459e693c26ae1ba71bbae7d455a91118ee3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173722
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #6859
+    
+    Change-Id: Ic93abc27c0b4d5e48dea6ede4e20b1bedca4ab39
+    Reviewed-on: https://go-review.googlesource.com/c/76350
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                              |  6 ++
- .../go/testdata/standalone_testmain_flag_test.go   | 29 +++++++
- src/testing/benchmark.go                           | 18 +++--
- src/testing/sub_test.go                            |  2 +-
- src/testing/testing.go                             | 88 +++++++++++++++++-----
- test/fixedbugs/bug369.dir/main.go                  |  1 +
- 6 files changed, 118 insertions(+), 26 deletions(-)
+ src/encoding/json/example_text_marshaling_test.go | 67 ++++++++++++++++++
+ src/encoding/xml/example_marshaling_test.go       | 84 +++++++++++++++++++++++
+ src/encoding/xml/example_text_marshaling_test.go  | 79 +++++++++++++++++++++
+ src/encoding/xml/marshal.go                       |  4 ++
+ src/encoding/xml/read.go                          |  5 ++
+ 5 files changed, 239 insertions(+)

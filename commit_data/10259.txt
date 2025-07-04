@@ -1,13 +1,12 @@
-commit c29cd8abb9e17c468843b097cb0d944ace6b2625
-Author: David Symonds <dsymonds@golang.org>
-Date:   Sat Nov 5 11:28:23 2011 +1100
+commit 7f0622e66d5618acc7d2b9ab6e1cb96fd7c1e190
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 4 14:12:35 2011 -0700
 
-    gofix: avoid panic on body-less functions in netudpgroup.
+    test: make closedchan.go exit with failure if something fails
     
-    R=rsc, r
+    R=golang-dev, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/5347041
+    https://golang.org/cl/5356042
 
- src/cmd/gofix/netudpgroup.go      |  2 +-
- src/cmd/gofix/netudpgroup_test.go | 20 ++++++++++++++++++++
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ test/closedchan.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

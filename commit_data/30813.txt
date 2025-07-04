@@ -1,40 +1,28 @@
-commit d8ed449d8eae5b39ffe227ef7f56785e978dd5e2
-Author: Ronald G. Minnich <rminnich@gmail.com>
-Date:   Wed Mar 22 14:40:55 2017 -0700
+commit 6623988eb73da429f41cfef85d481a5b93446ccd
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Dec 7 07:55:21 2016 -0600
 
-    os/exec: handle Unshareflags with CLONE_NEWNS
+    cmd/link: fix sym sect when splitting text on ppc64le
     
-    In some newer Linux distros, systemd forces
-    all mount namespaces to be shared, starting
-    at /. This disables the CLONE_NEWNS
-    flag in unshare(2) and clone(2).
-    While this problem is most commonly seen
-    on systems with systemd, it can happen anywhere,
-    due to how Linux namespaces now work.
+    While processing a symbol for a function, if it is determined
+    that a function would make the text section too large then
+    a new text section is created and the address of the function
+    is in the new text section.  But the symbol for the function
+    is marked as being in the previous text section, causing
+    incorrect codegen for the function and leading to a segv if
+    that function is called.  This adds code to set the sym.Sect
+    field to the new section if a new one is created.  Note that
+    this problem only happens at the point where a new section is
+    created.
     
-    Hence, to create a private mount namespace,
-    it is not sufficient to just set
-    CLONE_NEWS; you have to call mount(2) to change
-    the behavior of namespaces, i.e.
-    mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL)
+    Fixes #18218
     
-    This is tested and working and we can now correctly
-    start child process with private namespaces on Linux
-    distros that use systemd.
-    
-    The new test works correctly on Ubuntu 16.04.2 LTS.
-    It fails if I comment out the new Mount, and
-    succeeds otherwise. In each case it correctly
-    cleans up after itself.
-    
-    Fixes #19661
-    
-    Change-Id: I52240b59628e3772b529d9bbef7166606b0c157d
-    Reviewed-on: https://go-review.googlesource.com/38471
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic21ae11368d9d88ff6d5d3977f9ea72fe6477ed1
+    Reviewed-on: https://go-review.googlesource.com/34069
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_linux.go      | 18 ++++++++++++
- src/syscall/exec_linux_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 80 insertions(+)
+ src/cmd/link/internal/ld/data.go | 1 +
+ 1 file changed, 1 insertion(+)

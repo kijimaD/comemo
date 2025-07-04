@@ -1,13 +1,12 @@
-commit 64ee6b64b5245c0f1250f696f7eb5adc092285f3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 5 22:48:27 2012 +0100
+commit 834028d5270794c02a2744bb778cde3c1c8effe8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Nov 4 18:07:59 2012 +0800
 
-    A+C: Péter Surányi (individual CLA)
+    net: fix timeout slack calculation
     
-    R=golang-dev, bradfitz, lvd
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/6819089
+    https://golang.org/cl/6816085
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 3 ++-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/net/timeout_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

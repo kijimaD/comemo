@@ -1,49 +1,23 @@
-commit c978f13a71fa7a23a896b34812bbfd6f2e0c1792
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 25 16:04:30 2015 -0700
+commit 7eeeae2a5cc5087347c2fcdfc9731c87143dab4a
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 21 11:38:14 2015 -0400
 
-    cmd/doc: rearrange the newlines to group better
+    runtime: always report starting heap size in gctrace
     
-    Main change is that the comment for an item no longer has a blank line
-    before it, so it looks bound to the item it's about.
+    Currently the gctrace output reports the trigger heap size, rather
+    than the actual heap size at the beginning of GC. Often these are the
+    same, or at least very close. However, it's possible for the heap to
+    already have exceeded this trigger when we first check the trigger and
+    start GC; in this case, this output is very misleading. We've
+    encountered this confusion a few times when debugging and this
+    behavior is difficult to document succinctly.
     
-    Motivating example: go doc.io.read changes from
+    Change the gctrace output to report the actual heap size when GC
+    starts, rather than the trigger.
     
-    <
-    func (l *LimitedReader) Read(p []byte) (n int, err error)
-    func (r *PipeReader) Read(data []byte) (n int, err error)
-    
-        Read implements the standard Read interface: it reads data from the pipe,
-        blocking until a writer arrives or the write end is closed. If the write end
-        is closed with an error, that error is returned as err; otherwise err is
-        EOF.
-    func (s *SectionReader) Read(p []byte) (n int, err error)
-    >
-    
-    to
-    
-    <
-    func (l *LimitedReader) Read(p []byte) (n int, err error)
-    func (r *PipeReader) Read(data []byte) (n int, err error)
-        Read implements the standard Read interface: it reads data from the pipe,
-        blocking until a writer arrives or the write end is closed. If the write end
-        is closed with an error, that error is returned as err; otherwise err is
-        EOF.
-    
-    func (s *SectionReader) Read(p []byte) (n int, err error)
-    >
-    
-    Now the comment about PipeReader.Read doesn't look like it's about
-    SectionReader.
-    
-    Based on a suggestion by dsnet@, a slight tweak from a CL he suggested
-    and abandoned.
-    
-    Fixes #12756,
-    
-    Change-Id: Iaf60ee9ae7f644c83c32d5e130acab0312b0c926
-    Reviewed-on: https://go-review.googlesource.com/14999
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I246b3ccae4c4c7ea44c012e70d24a46878d7601f
+    Reviewed-on: https://go-review.googlesource.com/12452
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/doc/pkg.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/runtime/mgc.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

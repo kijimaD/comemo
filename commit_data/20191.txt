@@ -1,26 +1,21 @@
-commit 597b266eafe7d63e9be8da1c1b4813bd2998a11c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 28 23:26:40 2014 -0400
+commit 7dc25960b470fa34845d2c1257a9113a9133d7a4
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 24 11:34:45 2014 -0700
 
-    runtime: convert print.c to Go
+    cmd/yacc: remove Makefile and build expr using go generate
+    It now serves as an example for go generate as well as for yacc.
     
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=dvyukov, golang-codereviews, khr, r
-    https://golang.org/cl/135930043
+    NOTE: Depends on go generate, which is not yet checked in.
+    This is a proof of concept of the approach.
+    That is https://golang.org/cl/125580044.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/125620044
 
- src/pkg/runtime/alg.goc         |   8 +-
- src/pkg/runtime/mprof.go        |   6 +-
- src/pkg/runtime/os_darwin.c     |  18 +-
- src/pkg/runtime/os_dragonfly.c  |   6 +-
- src/pkg/runtime/os_freebsd.c    |   6 +-
- src/pkg/runtime/panic.c         |   7 +-
- src/pkg/runtime/print.c         | 443 ----------------------------------------
- src/pkg/runtime/print.go        | 111 ----------
- src/pkg/runtime/print1.go       | 338 ++++++++++++++++++++++++++++++
- src/pkg/runtime/proc.c          |   5 +-
- src/pkg/runtime/runtime.h       |  30 +--
- src/pkg/runtime/stubs.go        |   4 +-
- src/pkg/runtime/traceback_arm.c |   2 +-
- src/pkg/runtime/traceback_x86.c |   2 +-
- 14 files changed, 387 insertions(+), 599 deletions(-)
+ src/cmd/yacc/Makefile          | 12 ------------
+ src/cmd/yacc/expr/README       | 20 ++++++++++++++++++++
+ src/cmd/yacc/{ => expr}/expr.y |  5 -----
+ src/cmd/yacc/expr/main.go      | 15 +++++++++++++++
+ 4 files changed, 35 insertions(+), 17 deletions(-)

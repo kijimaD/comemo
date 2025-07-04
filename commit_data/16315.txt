@@ -1,21 +1,22 @@
-commit ee66972dce0afc5a0cf86be17d6e79cab418f701
-Author: Keith Randall <khr@golang.org>
-Date:   Wed May 15 09:40:14 2013 -0700
+commit e85e67889931e10908e912622a6954943fb28ed5
+Author: Adam Langley <agl@golang.org>
+Date:   Wed May 15 10:27:34 2013 -0400
 
-    runtime: Optimize aeshash a bit.  Use a better predicted branch
-    for checking for page boundary.  Also avoid boundary check
-    when >=16 bytes are hashed.
+    crypto/rsa: check for minimal PKCS#1 v1.5 padding.
     
-    benchmark                        old ns/op    new ns/op    delta
-    BenchmarkHashStringSpeed                23           22   -0.43%
-    BenchmarkHashBytesSpeed                 44           42   -3.61%
-    BenchmarkHashStringArraySpeed           71           68   -4.05%
+    The PKCS#1 spec requires that the PS padding in an RSA message be at
+    least 8 bytes long. We were not previously checking this. This isn't
+    important in the most common situation (session key encryption), but
+    the impact is unclear in other cases.
     
-    R=iant, khr
-    CC=gobot, golang-dev, google
-    https://golang.org/cl/9123046
+    This change enforces the specified minimum size.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9222045
 
- src/pkg/runtime/asm_386.s        | 24 ++++++++++++++++--------
- src/pkg/runtime/asm_amd64.s      | 24 ++++++++++++++++--------
- src/pkg/runtime/mapspeed_test.go | 27 +++++++++++++++++++++++++++
- 3 files changed, 59 insertions(+), 16 deletions(-)
+ src/pkg/crypto/rsa/pkcs1v15.go              |  6 +++++-
+ src/pkg/crypto/rsa/pkcs1v15_test.go         |  8 ++++++++
+ src/pkg/crypto/subtle/constant_time.go      |  8 ++++++++
+ src/pkg/crypto/subtle/constant_time_test.go | 20 ++++++++++++++++++++
+ 4 files changed, 41 insertions(+), 1 deletion(-)

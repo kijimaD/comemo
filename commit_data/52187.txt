@@ -1,81 +1,19 @@
-commit c20d95916357acf141159d4efc8894bfc14a2cd6
-Author: David Chase <drchase@google.com>
-Date:   Sun Jun 12 15:33:57 2022 -0400
+commit b55a2fb3b0d67b346bac871737b862f16e5a6447
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat Nov 6 22:38:51 2021 +0800
 
-    cmd/compile: experimental loop iterator capture semantics change
+    runtime: port memmove, memclr to register ABI on riscv64
     
-    Adds:
-    GOEXPERIMENT=loopvar (expected way of invoking)
-    -d=loopvar={-1,0,1,2,11,12} (for per-package control and/or logging)
-    -d=loopvarhash=... (for hash debugging)
+    This allows memmove and memclr to be invoked using the new
+    register ABI on riscv64.
     
-    loopvar=11,12 are for testing, benchmarking, and debugging.
-    
-    If enabled,for loops of the form `for x,y := range thing`, if x and/or
-    y are addressed or captured by a closure, are transformed by renaming
-    x/y to a temporary and prepending an assignment to the body of the
-    loop x := tmp_x.  This changes the loop semantics by making each
-    iteration's instance of x be distinct from the others (currently they
-    are all aliased, and when this matters, it is almost always a bug).
-    
-    3-range with captured iteration variables are also transformed,
-    though it is a more complex transformation.
-    
-    "Optimized" to do a simpler transformation for
-    3-clause for where the increment is empty.
-    
-    (Prior optimization of address-taking under Return disabled, because
-    it was incorrect; returns can have loops for children.  Restored in
-    a later CL.)
-    
-    Includes support for -d=loopvarhash=<binary string> intended for use
-    with hash search and GOCOMPILEDEBUG=loopvarhash=<binary string>
-    (use `gossahash -e loopvarhash command-that-fails`).
-    
-    Minor feature upgrades to hash-triggered features; clients can specify
-    that file-position hashes use only the most-inline position, and/or that
-    they use only the basenames of source files (not the full directory path).
-    Most-inlined is the right choice for debugging loop-iteration change
-    once the semantics are linked to the package across inlining; basename-only
-    makes it tractable to write tests (which, otherwise, depend on the full
-    pathname of the source file and thus vary).
-    
-    Updates #57969.
-    
-    Change-Id: I180a51a3f8d4173f6210c861f10de23de8a1b1db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411904
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I3308d52e06547836cffcc533740fe535624e78d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361975
+    Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/base/debug.go             |   2 +
- src/cmd/compile/internal/base/flag.go              |  56 ++-
- src/cmd/compile/internal/base/hashdebug.go         |  58 ++-
- src/cmd/compile/internal/escape/stmt.go            |   2 +-
- src/cmd/compile/internal/gc/main.go                |  45 ++-
- src/cmd/compile/internal/ir/stmt.go                |   9 +
- src/cmd/compile/internal/loopvar/loopvar.go        | 449 +++++++++++++++++++++
- src/cmd/compile/internal/loopvar/loopvar_test.go   | 152 +++++++
- .../testdata/for_complicated_esc_address.go        | 115 ++++++
- .../internal/loopvar/testdata/for_esc_address.go   |  45 +++
- .../internal/loopvar/testdata/for_esc_closure.go   |  51 +++
- .../internal/loopvar/testdata/for_esc_method.go    |  51 +++
- .../loopvar/testdata/for_esc_minimal_closure.go    |  48 +++
- .../internal/loopvar/testdata/for_nested.go        |  47 +++
- .../internal/loopvar/testdata/inlines/a/a.go       |  20 +
- .../internal/loopvar/testdata/inlines/b/b.go       |  21 +
- .../internal/loopvar/testdata/inlines/c/c.go       |  14 +
- .../internal/loopvar/testdata/inlines/main.go      |  53 +++
- .../internal/loopvar/testdata/range_esc_address.go |  47 +++
- .../internal/loopvar/testdata/range_esc_closure.go |  53 +++
- .../internal/loopvar/testdata/range_esc_method.go  |  53 +++
- .../loopvar/testdata/range_esc_minimal_closure.go  |  50 +++
- src/cmd/compile/internal/noder/reader.go           |   2 +-
- src/internal/goexperiment/exp_loopvar_off.go       |   9 +
- src/internal/goexperiment/exp_loopvar_on.go        |   9 +
- src/internal/goexperiment/flags.go                 |   4 +
- src/runtime/race/testdata/mop_test.go              |   3 +-
- test/closure2.go                                   |   3 +-
- test/escape.go                                     |   6 +-
- test/fixedbugs/issue13799.go                       |   5 +-
- 30 files changed, 1462 insertions(+), 20 deletions(-)
+ src/runtime/memclr_riscv64.s  | 30 +++++++++++++-----------
+ src/runtime/memmove_riscv64.s | 54 ++++++++++++++++++++++---------------------
+ 2 files changed, 44 insertions(+), 40 deletions(-)

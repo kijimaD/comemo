@@ -1,20 +1,13 @@
-commit 52f099c4263f2ffd1cda777d7f6ed9689bb481a5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Feb 26 02:10:29 2016 -0800
+commit 2f2423c81da3764b5c8ba6a87506083468cc9926
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Dec 4 15:09:59 2015 -0700
 
-    cmd/compile: simplify lexinit and lexfini
+    net/http: TimeoutHandler test ported to HTTP/2
     
-    Split the syms array into separate basicTypes and builtinFuncs arrays.
-    
-    Also, in lexfini, instead of duplicating the code from lexinit to
-    declare the builtin identifiers in the user package, just import them
-    from builtinpkg like how importdot works.
-    
-    Change-Id: Ic3b3b454627a46f7bd5f290d0e31443e659d431f
-    Reviewed-on: https://go-review.googlesource.com/19936
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I69e62199140e5cf203696af17d4816f3a5f13bd1
+    Reviewed-on: https://go-review.googlesource.com/17434
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 209 ++++++++++++++-----------------------
- 1 file changed, 77 insertions(+), 132 deletions(-)
+ src/net/http/serve_test.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

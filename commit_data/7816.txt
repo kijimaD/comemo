@@ -1,12 +1,12 @@
-commit 19aecba1d5ae30411ddb1bc885da33d12d2eafd8
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Sun Mar 20 11:45:43 2011 -0700
+commit 893e02ab595042efa5a7b5230ca73626dd20a8de
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 18 20:55:21 2011 -0400
 
-    flag: document Nflag function
+    gopprof: update list of memory allocation functions
     
-    R=golang-dev, r
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4279065
+    https://golang.org/cl/4275057
 
- src/pkg/flag/flag.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/prof/gopprof | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

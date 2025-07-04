@@ -1,16 +1,14 @@
-commit fe1c92a203fdc60c76eaaef9030390219fbadd86
+commit 01479b6c4a5a7863b9712b16123d41fea6a3951f
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 3 13:53:16 2013 -0400
+Date:   Thu Oct 3 09:49:12 2013 -0400
 
-    doc: remove link to PackageVersioning wiki
+    go/doc: update ToHTML doc comment
     
-    That page may be fine for experienced Go programmers
-    but it's not really targeting new programmers.
-    There's too much we don't know yet.
+    Update #5429
     
-    R=golang-dev, r
+    R=golang-dev, r, dan.kortschak
     CC=golang-dev
-    https://golang.org/cl/14345043
+    https://golang.org/cl/14293043
 
- doc/go_faq.html | 5 -----
- 1 file changed, 5 deletions(-)
+ src/pkg/go/doc/comment.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

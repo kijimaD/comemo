@@ -1,0 +1,14 @@
+commit 490f6a79332dbd702801e240cc7d4bb250674e17
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 25 13:58:44 2024 -0700
+
+    internal/runtime/maps: simplify emptyOrDeleted condition
+    
+    Change-Id: I37e5bba9cd62b2d970754ac24da7e1397ef12fd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622076
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/runtime/maps/group.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

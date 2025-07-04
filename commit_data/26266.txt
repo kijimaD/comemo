@@ -1,36 +1,14 @@
-commit a4e31d42ee294c95a1c76cb73d2141485a635886
-Author: Michael Pratt <mpratt@google.com>
-Date:   Sat Mar 12 14:07:40 2016 -0800
+commit b00105d87867f7205dd13d9ec251981ed840992b
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Jan 7 12:50:13 2016 +1300
 
-    cmd/compile: remove amd64 code from package gc and the core gen tool
+    doc: update 1.6 release notes with buildmode progress
     
-    Parts of the SSA compiler in package gc contain amd64-specific code,
-    most notably Prog generation. Move this code into package amd64, so that
-    other architectures can be added more easily.
+    Fixes #13358
     
-    In package gc, this change is just moving code. There are no functional
-    changes or even any larger structural changes beyond changing function
-    names (mostly for export).
-    
-    In the cmd/compile/internal/ssa/gen tool, more information is included
-    in arch to remove the AMD64-specific behavior in the main portion of the
-    tool. The generated opGen.go is identical.
-    
-    Change-Id: I8eb37c6e6df6de1b65fa7dab6f3bc32c29daf643
-    Reviewed-on: https://go-review.googlesource.com/20609
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I57ed50c2610cab11fb3d9749f9e7d4a37daa7977
+    Reviewed-on: https://go-review.googlesource.com/18276
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/amd64/galign.go       |    5 +
- src/cmd/compile/internal/amd64/ssa.go          | 1208 ++++++++++++++++++++++
- src/cmd/compile/internal/gc/gen.go             |    4 +-
- src/cmd/compile/internal/gc/go.go              |   14 +
- src/cmd/compile/internal/gc/pgen.go            |    4 +-
- src/cmd/compile/internal/gc/ssa.go             | 1283 +-----------------------
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |    9 +-
- src/cmd/compile/internal/ssa/gen/decOps.go     |    6 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go |    6 +-
- src/cmd/compile/internal/ssa/gen/main.go       |   31 +-
- 10 files changed, 1319 insertions(+), 1251 deletions(-)
+ doc/go1.6.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

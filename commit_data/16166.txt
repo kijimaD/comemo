@@ -1,16 +1,16 @@
-commit 696901204f2e7a5180ed4beb4046fbfea05841b2
+commit 709e03f43dce8e6fde3398e01255c08d22cb1ee2
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 12 13:21:17 2013 -0700
+Date:   Fri Apr 12 05:23:38 2013 -0700
 
-    cmd/ld: always do external link for -linkmode=external
+    runtime: add a hook to disable precise GC
     
-    There are tests in run.bash for -linkmode=external.
+    This will let us ask people to rebuild the Go system without
+    precise GC, and then rebuild and retest their program, to see
+    if precise GC is causing whatever problem they are having.
     
-    Fixes #5238.
-    
-    R=golang-dev, bradfitz, remyoudompheng, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8716044
+    https://golang.org/cl/8700043
 
- src/cmd/ld/lib.c | 32 +++++++++++++++++++++++---------
- 1 file changed, 23 insertions(+), 9 deletions(-)
+ src/pkg/runtime/mgc0.c | 4 ++++
+ 1 file changed, 4 insertions(+)

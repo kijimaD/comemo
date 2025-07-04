@@ -1,16 +1,24 @@
-commit 09c672d50a704a712b64df87796fba4c80a9db8d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 29 10:00:54 2016 -0700
+commit e136cac48c14aa85795625169379eeeddce35e4f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 11 10:15:58 2016 +1100
 
-    cmd/compile: add typChan
+    net: make TestInterfaceAddrsWithNetsh more robust
     
-    Passes toolstash -cmp.
+    TestInterfaceAddrsWithNetsh invokes Windows netsh command passing
+    it a particular interface name. This approach somehow does not work
+    on some computers (see issue for details). Change that to call netsh
+    without specifying any interface name. This provides output for all
+    interfaces available. So we can achieve same goal parsing this output.
+    Also makes test faster because we only need to invoke netsh once.
     
-    Change-Id: I2c71882f957c44047c7ac83c78236dcc3dfa15a1
-    Reviewed-on: https://go-review.googlesource.com/21304
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #14130.
+    
+    Change-Id: I7911692ca64e372af1e1f9d6acb718c67071de67
+    Reviewed-on: https://go-review.googlesource.com/19441
+    Reviewed-by: Volker Dobler <dr.volker.dobler@gmail.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/parser.go    | 16 ++++------------
- src/cmd/compile/internal/gc/type.go      |  8 ++++++++
- src/cmd/compile/internal/gc/typecheck.go |  5 +----
- 3 files changed, 13 insertions(+), 16 deletions(-)
+ src/net/net_windows_test.go | 105 ++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 82 insertions(+), 23 deletions(-)

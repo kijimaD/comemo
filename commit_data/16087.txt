@@ -1,16 +1,12 @@
-commit 2a99f2fb2a736a9a4575f937cf7af57589beba9b
-Author: Jonathan Rudenberg <jonathan@titanous.com>
-Date:   Thu Apr 4 12:04:35 2013 +1100
+commit 5977e34741212f80a87370b5a89f4f373405b187
+Author: Alexei Sholik <alcosholik@gmail.com>
+Date:   Wed Apr 3 16:44:03 2013 -0700
 
-    cmd/go: run main package when no files are listed
+    doc: fix typos and trailing spaces
     
-    Fixes 5164.
-    
-    R=golang-dev, iant, adg
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/8119049
+    https://golang.org/cl/8285044
 
- doc/go1.1.html    |  9 +++++++++
- src/cmd/go/doc.go |  3 ++-
- src/cmd/go/run.go | 17 +++++++++++++++--
- 3 files changed, 26 insertions(+), 3 deletions(-)
+ doc/code.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

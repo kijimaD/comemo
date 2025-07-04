@@ -1,33 +1,16 @@
-commit 431d58da69e8c36d654876e7808f971c5667649c
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Tue Oct 20 11:01:46 2020 +0200
+commit d78639519df17bf7fb5a7facef007e90d6c0283c
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Fri Apr 3 20:01:25 2020 +0300
 
-    all: add GOOS=ios GOARCH=amd64 target for the ios simulator
+    run.bat: check go.exe instead of go
     
-    The Go toolchain has supported the simulator for years, but always in
-    buildmode=c-archive which is intrinsically externally linked and PIE.
+    Windows requires checking with the .exe extension.
     
-    This CL moves that support from GOOS=darwin GOARCH=amd64 -tags=ios to
-    just GOOS=ios GOARCH=amd64 to match the change for iOS devices.
-    
-    This change also forces external linking and defaults to buildmode=pie
-    to support Go binaries in the default buildmode to run on the simulator.
-    
-    CL 255257 added the necessary support to the exec wrapper.
-    
-    Updates #38485
-    Fixes #42100
-    
-    Change-Id: I6e6ee0e8d421be53b31e3d403880e5b9b880d031
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263798
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Elias Naur <mail@eliasnaur.com>
+    Change-Id: I8e2fe83df81b92f04967bafb28f8effde999f597
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227157
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/build.go              |  1 +
- src/cmd/go/internal/load/pkg.go    |  4 +++-
- src/cmd/go/internal/work/init.go   |  5 ++++-
- src/cmd/internal/sys/supported.go  |  1 +
- src/cmd/link/internal/ld/config.go |  8 +-------
- src/runtime/rt0_ios_amd64.s        | 14 ++++++++++++++
- 6 files changed, 24 insertions(+), 9 deletions(-)
+ src/run.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

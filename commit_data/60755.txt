@@ -1,0 +1,49 @@
+commit 6d55a017fa066be53beded94e09c1c2e23253a6a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Aug 16 01:03:51 2023 +1000
+
+    crypto/sha256: provide optimised assembly for riscv64
+    
+    Provide an optimised assembly implementation of sha256 for riscv64.
+    This results in considerable performance gains.
+    
+    On a StarFive VisionFive 2:
+    
+                        │   sha256.1   │              sha256.2               │
+                        │    sec/op    │   sec/op     vs base                │
+    Hash8Bytes/New-4       7.820µ ± 0%   5.193µ ± 0%  -33.59% (p=0.000 n=10)
+    Hash8Bytes/Sum224-4    7.918µ ± 0%   5.294µ ± 0%  -33.15% (p=0.000 n=10)
+    Hash8Bytes/Sum256-4    7.950µ ± 0%   5.320µ ± 0%  -33.08% (p=0.000 n=10)
+    Hash1K/New-4          108.03µ ± 0%   66.12µ ± 0%  -38.79% (p=0.000 n=10)
+    Hash1K/Sum224-4       108.12µ ± 0%   66.22µ ± 0%  -38.76% (p=0.000 n=10)
+    Hash1K/Sum256-4       108.15µ ± 0%   66.24µ ± 0%  -38.75% (p=0.000 n=10)
+    Hash8K/New-4           808.5µ ± 0%   493.0µ ± 0%  -39.02% (p=0.000 n=10)
+    Hash8K/Sum224-4        808.6µ ± 0%   493.1µ ± 0%  -39.02% (p=0.000 n=10)
+    Hash8K/Sum256-4        808.6µ ± 0%   493.1µ ± 0%  -39.02% (p=0.000 n=10)
+    geomean                88.37µ        55.61µ       -37.08%
+    
+                        │   sha256.1   │               sha256.2                │
+                        │     B/s      │      B/s       vs base                │
+    Hash8Bytes/New-4      996.1Ki ± 0%   1503.9Ki ± 0%  +50.98% (p=0.000 n=10)
+    Hash8Bytes/Sum224-4   986.3Ki ± 0%   1474.6Ki ± 0%  +49.50% (p=0.000 n=10)
+    Hash8Bytes/Sum256-4   986.3Ki ± 0%   1464.8Ki ± 0%  +48.51% (p=0.000 n=10)
+    Hash1K/New-4          9.041Mi ± 0%   14.772Mi ± 0%  +63.40% (p=0.000 n=10)
+    Hash1K/Sum224-4       9.031Mi ± 0%   14.744Mi ± 0%  +63.25% (p=0.000 n=10)
+    Hash1K/Sum256-4       9.031Mi ± 0%   14.744Mi ± 0%  +63.25% (p=0.000 n=10)
+    Hash8K/New-4          9.661Mi ± 0%   15.850Mi ± 0%  +64.07% (p=0.000 n=10)
+    Hash8K/Sum224-4       9.661Mi ± 0%   15.841Mi ± 0%  +63.97% (p=0.000 n=10)
+    Hash8K/Sum256-4       9.661Mi ± 0%   15.841Mi ± 0%  +63.97% (p=0.000 n=10)
+    geomean               4.386Mi         6.966Mi       +58.85%
+    
+    Change-Id: Ieead7b7c02291d70ddc472a7a8cf3c044c1da4b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519695
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/crypto/sha256/sha256block_decl.go    |   2 +-
+ src/crypto/sha256/sha256block_generic.go |   2 +-
+ src/crypto/sha256/sha256block_riscv64.s  | 263 +++++++++++++++++++++++++++++++
+ 3 files changed, 265 insertions(+), 2 deletions(-)

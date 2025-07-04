@@ -1,19 +1,17 @@
-commit ed333353a02721dc002c0b7a7c3ef5eb99166dfb
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Thu Jun 28 01:41:22 2018 +0000
+commit 32409a2dfca955b9a28bb7f581512da8a5beaedc
+Author: Adam Woodbeck <adam@woodbeck.net>
+Date:   Mon Feb 12 11:46:56 2018 -0500
 
-    Revert "crypto/elliptic: implement P256 for arm64"
+    text/scanner: add examples
     
-    This reverts commit 0246915fbfcc41870173b7f016dc7fa9437bbc13.
+    Added examples for use of Mode, Whitespace, and IsIdentRune properties.
     
-    Reason for revert: Broke darwin/arm64 builds.
+    Fixes #23768
     
-    Change-Id: Iead935d345c4776c0f823f4c152e02bdda308401
-    Reviewed-on: https://go-review.googlesource.com/121375
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I2528e14fde63a4476f3c25510bf0c5b73f38ba5d
+    Reviewed-on: https://go-review.googlesource.com/93199
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/elliptic/p256.go                        |    2 +-
- src/crypto/elliptic/{p256_asm.go => p256_amd64.go} |    2 +-
- src/crypto/elliptic/p256_asm_arm64.s               | 1522 --------------------
- src/crypto/elliptic/p256_generic.go                |    2 +-
- 4 files changed, 3 insertions(+), 1525 deletions(-)
+ src/text/scanner/example_test.go | 106 ++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 105 insertions(+), 1 deletion(-)

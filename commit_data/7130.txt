@@ -1,13 +1,12 @@
-commit 3537b79329b09c231f54160243f10343fea068d6
+commit 3965519ae5fd7f51403669208deddcd103ebcdfc
 Author: Ken Thompson <ken@golang.org>
-Date:   Mon Jan 17 13:27:05 2011 -0800
+Date:   Sun Jan 16 15:25:13 2011 -0800
 
-    arm bug address of a string
+    arm reg bug with address(variable)
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4004042
+    https://golang.org/cl/4047041
 
- src/cmd/5g/peep.c |  4 +++-
- src/cmd/5g/reg.c  | 34 +++++++++++++++++++++++-----------
- 2 files changed, 26 insertions(+), 12 deletions(-)
+ src/cmd/5g/reg.c | 34 +++++++---------------------------
+ 1 file changed, 7 insertions(+), 27 deletions(-)

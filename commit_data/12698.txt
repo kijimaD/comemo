@@ -1,13 +1,17 @@
-commit 4b1933dfb2a332a6a9744c7d5b05ea08f9909658
+commit 23322ab841c2d6192557a9a0cae3ace40bff8c9d
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Mar 21 00:49:45 2012 +0800
+Date:   Wed Mar 21 00:47:27 2012 +0800
 
-    runtime: remove unused goc2c.c
-            Its functionality has been moved into cmd/dist.
+    build: unset GOPATH before tests
+    This is because we disallow local import for non-local packages, if
+    GOROOT happens to be under one of GOPATH, then some tests will fail
+    to build.
+    Fixes #3337.
     
-    R=golang-dev, r, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5843062
+    https://golang.org/cl/5852043
 
- src/pkg/runtime/goc2c.c | 750 ------------------------------------------------
- 1 file changed, 750 deletions(-)
+ src/run.bash | 2 ++
+ src/run.bat  | 4 ++++
+ 2 files changed, 6 insertions(+)

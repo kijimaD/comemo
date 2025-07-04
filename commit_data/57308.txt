@@ -1,19 +1,36 @@
-commit 7303a283c4e8aa734463ec85d90dd0732b826c71
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sun Sep 1 00:55:35 2024 +0000
+commit 737a5b0eaaff9098a41c04bcee5585678766bfae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 26 11:58:44 2023 -0700
 
-    testing: skip TestChdir/relative when on Windows when GOROOT and TMPDIR are on different drives
+    runtime: call miniterrno on m0 on AIX and Solaris
     
-    Fixes #69159
+    AIX and Solaris call into libc for syscalls, and expect M.mOS.perrno
+    to point to the thread-local errno value for the current M.
+    We initialize that field in miniterrno called from mstart.
+    However, this means that any libc calls before mstart will not
+    return the correct errno value.
     
-    Change-Id: I0bbcf7075bdcf7a277a5053bcb543563a3074784
-    GitHub-Last-Rev: 86052a9ce32a871d6ad62f772f22852b2c6139a6
-    GitHub-Pull-Request: golang/go#69160
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609304
-    Reviewed-by: Damien Neil <dneil@google.com>
+    This caused trouble in checkfds, which runs very early, before mstart.
+    We worked around that in 513215. This CL reverts 513215 in favor
+    of a better workaround: call miniterrno for m0 earlier (we will
+    still wind up calling miniterrno again from mstart, which does
+    no harm).
+    
+    This is a better workaround because it means that if we add future
+    syscalls before mstart, they will behave as expected.
+    
+    Fixes #61584
+    
+    Change-Id: Ib6a0d3c53d2c8214cc339a5019f9d4f71a746f0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513535
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/testing/testing_test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/runtime/fds_unix.go    | 9 ---------
+ src/runtime/os3_solaris.go | 4 ++++
+ src/runtime/os_aix.go      | 4 ++++
+ 3 files changed, 8 insertions(+), 9 deletions(-)

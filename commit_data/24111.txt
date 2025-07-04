@@ -1,14 +1,14 @@
-commit 68f4f96c1ecd69e0aee166969729923f9ca73486
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 28 15:38:20 2015 -0700
+commit 9201c86b57b9dcbf3da09028a17be00263762967
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 10 09:31:28 2015 -0600
 
-    cmd/compiler/internal/gc: fix argument for Sprintf
+    [dev.ssa] cmd/compile/ssa: print lazily
     
-    Val.Ctype used to be struct field, it's now a method.
+    Reduces 'go run run.go 64bit.go' from 23s to 8s on my machine.
     
-    Change-Id: I08f0b32b66dba15b2a392e84a557efb905b530cb
-    Reviewed-on: https://go-review.googlesource.com/14031
+    Change-Id: Ie5b642d0abb56e8eb3899d69472bc88a85a1c985
+    Reviewed-on: https://go-review.googlesource.com/12023
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 2 +-
+ src/cmd/compile/internal/ssa/print.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

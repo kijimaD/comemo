@@ -1,63 +1,22 @@
-commit 66b776b0250dd980d8f6aac264b5e3443ec465dc
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Tue Nov 28 18:42:43 2023 +0000
+commit b1fd277318fbc0d90b2befee915f2f542c143a6d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 30 11:51:48 2022 +0700
 
-    runtime: short path for equal pointers in arm64 memequal
+    cmd/compile: use memhash from package runtime
     
-    If memequal is invoked with the same pointers as arguments it ends up
-    comparing the whole memory contents, instead of just comparing the pointers.
+    Simplify the code, and prevent creating ONAME node with nil Func.
     
-    This effectively makes an operation that could be O(1) into O(n). All the
-    other architectures already have this optimization in place. For
-    instance, arm64 also have it, in memequal_varlen.
+    Passes toolstash-check.
     
-    Such optimization is very specific, one case that it will probably benefit is
-    programs that rely heavily on interning of strings.
-    
-    goos: darwin
-    goarch: arm64
-    pkg: bytes
-                     │      old.txt       │               new.txt                │
-                     │       sec/op       │    sec/op     vs base                │
-    Equal/same/1-8           2.678n ± ∞ ¹   2.400n ± ∞ ¹   -10.38% (p=0.008 n=5)
-    Equal/same/6-8           3.267n ± ∞ ¹   2.431n ± ∞ ¹   -25.59% (p=0.008 n=5)
-    Equal/same/9-8           2.981n ± ∞ ¹   2.385n ± ∞ ¹   -19.99% (p=0.008 n=5)
-    Equal/same/15-8          2.974n ± ∞ ¹   2.390n ± ∞ ¹   -19.64% (p=0.008 n=5)
-    Equal/same/16-8          2.983n ± ∞ ¹   2.380n ± ∞ ¹   -20.21% (p=0.008 n=5)
-    Equal/same/20-8          3.567n ± ∞ ¹   2.384n ± ∞ ¹   -33.17% (p=0.008 n=5)
-    Equal/same/32-8          3.568n ± ∞ ¹   2.385n ± ∞ ¹   -33.16% (p=0.008 n=5)
-    Equal/same/4K-8         78.040n ± ∞ ¹   2.378n ± ∞ ¹   -96.95% (p=0.008 n=5)
-    Equal/same/4M-8      78713.000n ± ∞ ¹   2.385n ± ∞ ¹  -100.00% (p=0.008 n=5)
-    Equal/same/64M-8   1348095.000n ± ∞ ¹   2.381n ± ∞ ¹  -100.00% (p=0.008 n=5)
-    geomean                  43.52n         2.390n         -94.51%
-    ¹ need >= 6 samples for confidence interval at level 0.95
-    
-                     │    old.txt    │                     new.txt                      │
-                     │      B/s      │         B/s          vs base                     │
-    Equal/same/1-8     356.1Mi ± ∞ ¹         397.3Mi ± ∞ ¹        +11.57% (p=0.008 n=5)
-    Equal/same/6-8     1.711Gi ± ∞ ¹         2.298Gi ± ∞ ¹        +34.35% (p=0.008 n=5)
-    Equal/same/9-8     2.812Gi ± ∞ ¹         3.515Gi ± ∞ ¹        +24.99% (p=0.008 n=5)
-    Equal/same/15-8    4.698Gi ± ∞ ¹         5.844Gi ± ∞ ¹        +24.41% (p=0.008 n=5)
-    Equal/same/16-8    4.995Gi ± ∞ ¹         6.260Gi ± ∞ ¹        +25.34% (p=0.008 n=5)
-    Equal/same/20-8    5.222Gi ± ∞ ¹         7.814Gi ± ∞ ¹        +49.63% (p=0.008 n=5)
-    Equal/same/32-8    8.353Gi ± ∞ ¹        12.496Gi ± ∞ ¹        +49.59% (p=0.008 n=5)
-    Equal/same/4K-8    48.88Gi ± ∞ ¹       1603.96Gi ± ∞ ¹      +3181.17% (p=0.008 n=5)
-    Equal/same/4M-8    49.63Gi ± ∞ ¹    1637911.85Gi ± ∞ ¹   +3300381.91% (p=0.008 n=5)
-    Equal/same/64M-8   46.36Gi ± ∞ ¹   26253069.97Gi ± ∞ ¹  +56626517.99% (p=0.008 n=5)
-    geomean            6.737Gi               122.7Gi            +1721.01%
-    ¹ need >= 6 samples for confidence interval at level 0.95
-    
-    Fixes #64381
-    
-    Change-Id: I7d423930a688edd88c4ba60d45e097296d9be852
-    GitHub-Last-Rev: ae8189fafb1cba87b5394f09f971746ae9299273
-    GitHub-Pull-Request: golang/go#64419
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545416
+    Change-Id: I5e5be660510dc0ef5521d278c6b9214a80b994eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436958
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/bytes/bytes_test.go            | 5 +++++
- src/internal/bytealg/equal_arm64.s | 3 +++
- 2 files changed, 8 insertions(+)
+ src/cmd/compile/internal/reflectdata/alg.go            | 14 ++------------
+ src/cmd/compile/internal/typecheck/_builtin/runtime.go |  2 +-
+ src/cmd/compile/internal/typecheck/builtin.go          |  2 +-
+ 3 files changed, 4 insertions(+), 14 deletions(-)

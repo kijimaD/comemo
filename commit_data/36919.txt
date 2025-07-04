@@ -1,38 +1,42 @@
-commit 8f9902da269c08ad9a741d828d7f6781f56a7a42
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 15:29:58 2018 +0200
+commit 7ba0c6235f9968eb453e759105366bcaa0903326
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu May 24 13:20:21 2018 +0100
 
-    syscall: add AIX operating system
+    crypto, internal/cpu: fix s390x AES feature detection and update SHA implementations
     
-    This commit adds AIX operating system to syscall package for ppc64
-    architecture.
-    It also adds the file syscall_aix.go in the runtime package for
-    syscalls needed during fork and exec.
+    Hardware AES support in Go on s390x currently requires ECB, CBC
+    and CTR modes be available. It also requires that either the
+    GHASH or GCM facilities are available. The existing checks missed
+    some of these constraints.
     
-    Updates: #25893
+    While we're here simplify the cpu package on s390x, moving masking
+    code out of assembly and into Go code. Also, update SHA-{1,256,512}
+    implementations to use the cpu package since that is now trivial.
     
-    Change-Id: I301b1051b178a3efb7bbc39cdbd8e00b594d65ef
-    Reviewed-on: https://go-review.googlesource.com/c/138720
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Finally I also added a test for internal/cpu on s390x which loads
+    /proc/cpuinfo and checks it against the flags set by internal/cpu.
+    
+    Updates #25822 for changes to vet whitelist.
+    
+    Change-Id: Iac4183f571643209e027f730989c60a811c928eb
+    Reviewed-on: https://go-review.googlesource.com/114397
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/syscall_aix.go        |  212 +++++++
- src/syscall/dirent.go             |    2 +-
- src/syscall/env_unix.go           |    2 +-
- src/syscall/exec_aix_test.go      |   37 ++
- src/syscall/exec_unix_test.go     |    2 +-
- src/syscall/flock_aix.go          |   41 ++
- src/syscall/forkpipe.go           |    2 +-
- src/syscall/mkerrors.sh           |   10 +
- src/syscall/mmap_unix_test.go     |    2 +-
- src/syscall/sockcmsg_unix.go      |    2 +-
- src/syscall/syscall_aix.go        |  651 +++++++++++++++++++
- src/syscall/syscall_aix_ppc64.go  |   17 +
- src/syscall/syscall_unix.go       |    2 +-
- src/syscall/timestruct.go         |    2 +-
- src/syscall/types_aix.go          |  172 +++++
- src/syscall/zerrors_aix_ppc64.go  | 1248 +++++++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_aix_ppc64.go | 1167 ++++++++++++++++++++++++++++++++++
- src/syscall/ztypes_aix_ppc64.go   |  272 ++++++++
- 18 files changed, 3835 insertions(+), 8 deletions(-)
+ src/cmd/vet/all/whitelist/s390x.txt    |   7 ++
+ src/crypto/aes/cipher_s390x.go         |  11 ++-
+ src/crypto/aes/gcm_s390x.go            |   2 +-
+ src/crypto/sha1/sha1block_s390x.go     |   7 +-
+ src/crypto/sha1/sha1block_s390x.s      |  34 +++----
+ src/crypto/sha256/sha256block_s390x.go |   7 +-
+ src/crypto/sha256/sha256block_s390x.s  |  34 +++----
+ src/crypto/sha512/sha512block_s390x.go |   7 +-
+ src/crypto/sha512/sha512block_s390x.s  |  34 +++----
+ src/crypto/tls/common.go               |   3 +-
+ src/internal/cpu/cpu.go                |  26 ++++--
+ src/internal/cpu/cpu_no_init.go        |   1 +
+ src/internal/cpu/cpu_s390x.go          | 157 ++++++++++++++++++++++++++++++---
+ src/internal/cpu/cpu_s390x.s           | 122 ++++++++-----------------
+ src/internal/cpu/cpu_s390x_test.go     |  63 +++++++++++++
+ 15 files changed, 315 insertions(+), 200 deletions(-)

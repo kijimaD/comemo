@@ -1,24 +1,23 @@
-commit c7f5b3595be77dc86ff99aa170bd40e55961e05f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 20 12:53:22 2023 -0700
+commit 0b5218cf4e3e5c17344ea113af346e8e0836f6c4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Mar 8 05:11:17 2022 -0500
 
-    cmd/go: import runtime/cgo when externally linking
+    crypto/elliptic: split up P-256 field and group ops
     
-    Restore CL 477195, which was reverted in CL 477795.
-    This version includes CL 477397, which fixes the test problems
-    with CL 477195. CL 477397 was not submitted because it had an
-    unrelated failure on darwin-amd64. That failure is fixed by CL 477736.
+    This makes Gerrit recognize the rename of the field implementation and
+    facilitates the review. No code changes.
     
-    Fixes #31544
+    For #52182
     
-    Change-Id: I3a2258cd0ca295cede3511ab212e56fd0114f94a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477839
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I827004e175db1ae2fcdf17d0f586ff21503d27e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390754
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/load/pkg.go             | 29 ++++++++++++++++---
- src/cmd/go/testdata/script/build_static.txt | 44 +++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+), 4 deletions(-)
+ src/crypto/elliptic/p256_generic.go       | 696 -----------------------------
+ src/crypto/elliptic/p256_generic_field.go | 705 ++++++++++++++++++++++++++++++
+ 2 files changed, 705 insertions(+), 696 deletions(-)

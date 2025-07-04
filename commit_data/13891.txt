@@ -1,16 +1,33 @@
-commit b151af1f36b0e2274bbf4b816a80c940126f6b32
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Sep 21 13:50:02 2012 +0800
+commit 4591cd631dad588c8fb40097021d1c63860aa4ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 21 00:35:25 2012 -0400
 
-    runtime: fix mmap comments
-    We only pass lower 32 bits of file offset to asm routine.
+    unicode: performance improvements (API change)
     
-    R=r, dave, rsc
-    CC=golang-dev
-    https://golang.org/cl/6499118
+    *** There is an API change here: the introduction of the
+    LatinOffset int in the RangeTable struct. ***
+    
+    * Avoid checking Latin range multiple times for non-Latin runes.
+    * Use linear search when it is faster than binary search.
+    
+    go test -calibrate runs the calibration for where the linear/binary
+    crossover should be.
+    
+    benchmark                       old MB/s     new MB/s  speedup
+    BenchmarkFields            36.27        41.43    1.14x
+    BenchmarkFieldsFunc        36.23        41.38    1.14x
+    
+    The speedup here is evenly split between the linear scans
+    and the LatinOffset change. Both are about 1.07x.
+    
+    R=r
+    CC=bradfitz, gobot, golang-dev
+    https://golang.org/cl/6526048
 
- src/pkg/runtime/runtime.h         | 3 +++
- src/pkg/runtime/sys_freebsd_386.s | 2 +-
- src/pkg/runtime/sys_netbsd_386.s  | 2 +-
- src/pkg/runtime/sys_openbsd_386.s | 2 +-
- 4 files changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/unicode/digit.go       |   2 +-
+ src/pkg/unicode/graphic.go     |  10 ++--
+ src/pkg/unicode/letter.go      |  74 ++++++++++++++++++--------
+ src/pkg/unicode/letter_test.go | 118 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/unicode/maketables.go  |  20 ++++++-
+ src/pkg/unicode/tables.go      |  38 +++++++++++++
+ 6 files changed, 232 insertions(+), 30 deletions(-)

@@ -1,12 +1,29 @@
-commit 1b205857a46d0241a980c1c8e548ad2e225bcbb8
-Author: Austin Clements <austin@google.com>
-Date:   Wed Feb 18 21:59:41 2015 -0500
+commit 85e7bee19f9f26dfca414b1e9054e429c448b14f
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jan 26 21:04:41 2015 +0300
 
-    runtime: drop unused workbufhdr.id field
+    runtime: do not scan maps when k/v do not contain pointers
     
-    Change-Id: If7729b3c7df6dc7fcd41f293e2ef2472c769fe8b
-    Reviewed-on: https://go-review.googlesource.com/5261
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Currently we scan maps even if k/v does not contain pointers.
+    This is required because overflow buckets are hanging off the main table.
+    This change introduces a separate array that contains pointers to all
+    overflow buckets and keeps them alive. Buckets themselves are marked
+    as containing no pointers and are not scanned by GC (if k/v does not
+    contain pointers).
+    
+    This brings maps in line with slices and chans -- GC does not scan
+    their contents if elements do not contain pointers.
+    
+    Currently scanning of a map[int]int with 2e8 entries (~8GB heap)
+    takes ~8 seconds. With this change scanning takes negligible time.
+    
+    Update #9477.
+    
+    Change-Id: Id8a04066a53d2f743474cad406afb9f30f00eaae
+    Reviewed-on: https://go-review.googlesource.com/3288
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgcwork.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/gc/reflect.c   | 58 ++++++++++++++++++++++++++------------
+ src/reflect/type.go    | 12 ++++++--
+ src/runtime/hashmap.go | 75 ++++++++++++++++++++++++++++++++++++++++----------
+ 3 files changed, 110 insertions(+), 35 deletions(-)

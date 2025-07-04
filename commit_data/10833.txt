@@ -1,14 +1,15 @@
-commit 6699aa4aeea17acb4751f1bdbf259e16f9ad0033
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 15 18:37:31 2011 -0500
+commit 2da651f11537e05fa394df605570f1429cd084db
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 16 10:32:14 2011 +1100
 
-    crypto/tls: quiet build
+    ld: allow for IMAGE_REL_AMD64_ADDR32NB relocation type
     
-    On a Mac, all the useful functions are deprecated.
+    enable cgo again on windows/amd64
     
-    R=golang-dev, adg
+    R=rsc, vcc.163
     CC=golang-dev
-    https://golang.org/cl/5493054
+    https://golang.org/cl/5488074
 
- src/pkg/crypto/tls/root_darwin.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/Make.inc      | 3 ---
+ src/cmd/ld/ldpe.c | 6 ++----
+ 2 files changed, 2 insertions(+), 7 deletions(-)

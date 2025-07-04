@@ -1,25 +1,24 @@
-commit a5b693b431d0612b97a8978fdfa7d12310d95b6f
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Apr 24 12:47:46 2015 -0400
+commit 21ed40c8cb4795433bda0cfb7754db5603a916f0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 1 22:18:33 2015 +0900
 
-    runtime: signal forwarding for darwin/amd64
+    net: deflake TestDialGoogle, TestResolveDialGoogle
     
-    Follows the linux signal forwarding semantics from
-    http://golang.org/cl/8712, sharing the implementation of sigfwdgo.
-    Forwarding for 386, arm, and arm64 will follow.
+    This change makes use of the socktest package instead of the non-thread
+    safe variable syscall.SocketDisableIPv6 for simulating unreachable
+    external networks.
     
-    Change-Id: I6bf30d563d19da39b6aec6900c7fe12d82ed4f62
-    Reviewed-on: https://go-review.googlesource.com/9302
+    Also adds -ipv4 flag, -ipv6 flag already exists, as a control knob for
+    testing on each of IPv4-only, IPv6-only and dual IP stack kernels.
+    
+    Fixes #7687.
+    
+    Change-Id: I82002007fd526e8cf4de207f935e721df049a22f
+    Reviewed-on: https://go-review.googlesource.com/8390
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_dragonfly.go    |  3 ++
- src/runtime/os_freebsd.go      |  3 ++
- src/runtime/os_nacl.go         |  4 +++
- src/runtime/os_netbsd.go       |  5 ++++
- src/runtime/os_openbsd.go      |  5 ++++
- src/runtime/os_solaris.go      |  3 ++
- src/runtime/signal_darwin.go   | 26 +++++++++++++++++
- src/runtime/signal_linux.go    | 34 -----------------------
- src/runtime/signal_unix.go     | 36 +++++++++++++++++++++++-
- src/runtime/sys_darwin_amd64.s | 63 +++++++++++++++---------------------------
- 10 files changed, 106 insertions(+), 76 deletions(-)
+ src/net/dialgoogle_test.go | 289 ++++++++++++++++++++++-----------------------
+ src/net/main_plan9_test.go |   4 +
+ src/net/main_posix_test.go |  34 ++++++
+ src/net/main_test.go       |   8 +-
+ 4 files changed, 184 insertions(+), 151 deletions(-)

@@ -1,18 +1,16 @@
-commit ca2a66431e4e6f95b5c69a8dde0222d5d2b346ef
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 23 02:04:01 2015 -0400
+commit 8e723109de27ad6ad64655f336456786e8f5d899
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jun 17 10:22:03 2015 +1000
 
-    cmd/go: fix custom import path wildcards (go get rsc.io/pdf/...)
+    cmd/go: vary executable names in tests
     
-    Fixes TestGoGetWorksWithVanityWildcards,
-    but that test uses the network and is not run
-    on the builders.
+    So the tests don't interfere with each other on windows.
     
-    For #11806.
+    Fixes #11217
     
-    Change-Id: I35c6677deaf84e2fa9bdb98b62d80d388b5248ae
-    Reviewed-on: https://go-review.googlesource.com/12557
+    Change-Id: I4b3936bc64c95c7274298d6f137b24a28876b625
+    Reviewed-on: https://go-review.googlesource.com/11138
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/get.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/go/go_test.go | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)

@@ -1,23 +1,20 @@
-commit 1d66144bfd4b6aad915a8b62e43e3cab5460e9bc
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 12 12:16:47 2022 -0400
+commit b0fa2f5b09acfa5604e78cafc2183f3e1eac061b
+Author: Amelia Downs <adowns@vmware.com>
+Date:   Mon Sep 20 13:04:49 2021 -0400
 
-    build: update comments about Go 1.4 in make.bash, make.bat, make.rc
+    cmd/compile: fix ExampleInfo output
     
-    A few lingering references to Go 1.4 remain.
-    Fix them, and document the ones that should stay.
+    Move the "TODO" to outside of the function so that the "Output" comment
+    block is the last comment block. Output is only checked when it is the
+    last comment block. See golang/go#48362 for this issue.
     
-    For #44505.
-    Fixes #54301.
+    Fixes: golang/go#48494
     
-    Change-Id: Ieb9c0f08e4d1890ea3fdfd9c8df5493934ae7493
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423354
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I7a31d7c13710e58fa876c96240a927a9bb8273ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350995
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: David Chase <drchase@google.com>
 
- src/make.bash | 13 ++++++++-----
- src/make.bat  |  4 ++--
- src/make.rc   |  6 +++---
- 3 files changed, 13 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/example_test.go | 56 ++++++++++++-------------
+ 1 file changed, 28 insertions(+), 28 deletions(-)

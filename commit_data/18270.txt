@@ -1,26 +1,12 @@
-commit 873aaa59b77aaaa35612413f8144176dc1958569
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jan 16 13:35:29 2014 -0800
+commit 18d644111ea18b2c778d67f0507f9b2a21a47dfd
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Thu Jan 16 10:49:58 2014 -0800
 
-    reflect: Remove imprecise techniques from channel/select operations.
+    net/smtp: add examples
     
-    Reflect used to communicate to the runtime using interface words,
-    which is bad for precise GC because sometimes iwords hold a pointer
-    and sometimes they don't.  This change rewrites channel and select
-    operations to always pass pointers to the runtime.
-    
-    reflect.Select gets somewhat more expensive, as we now do an allocation
-    per receive case instead of one allocation whose size is the max of
-    all the received types.  This seems unavoidable to get preciseness
-    (unless we move the allocation into selectgo, which is a much bigger
-    change).
-    
-    Fixes #6490
-    
-    R=golang-codereviews, dvyukov, rsc
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/52900043
+    https://golang.org/cl/8274046
 
- src/pkg/reflect/value.go | 129 ++++++++++++++++++++++++-----------------------
- src/pkg/runtime/chan.c   |  68 +++++--------------------
- 2 files changed, 79 insertions(+), 118 deletions(-)
+ src/pkg/net/smtp/example_test.go | 61 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

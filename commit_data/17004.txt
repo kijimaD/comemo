@@ -1,14 +1,12 @@
-commit 7acf9e93de930c6eebfa94e9304fa802471f67a5
+commit 869774cbf9025b8553b490c9add568d459cd4d63
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Aug 2 14:28:52 2013 -0700
+Date:   Fri Aug 2 13:15:49 2013 -0700
 
-    cmd/go: fix build
+    api: update next.txt
     
-    This was missed in c3b45d0dc5c0
-    
-    R=golang-dev
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12379043
+    https://golang.org/cl/12360043
 
- src/cmd/go/bootstrap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next.txt | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)

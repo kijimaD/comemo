@@ -1,38 +1,18 @@
-commit 6e3df749b1058ecfaf5f6601f6f8678c0971da8e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Sep 9 16:35:56 2020 -0400
+commit c70f069902c8dc4c76003eb494e549bafdd3313e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 26 10:08:30 2020 -0500
 
-    cmd/go: refactor -mod flag parsing
+    cmd/link: reenable internal linking PIE on linux/amd64 and linux/arm64
     
-    Keep track of whether the -mod flag was set explicitly. When
-    -mod=readonly is the default, we'll want to adjust our error messages
-    if it's set explicitly.
+    It was enabled in CL 207877, but then accidentally disabled in
+    CL 207299 due to a bad rebase. Reenable.
     
-    Also, register the -mod, -modcacherw, and -modfile flags in functions
-    in internal/base instead of internal/work. 'go mod' commands that
-    don't load packages shouldn't depend on internal/work.
-    
-    For #40728
-    
-    Change-Id: I272aea9e19908ba37e151baac4ea8630e90f241f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253744
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I147bf724a4263d4aae54576a36cc7e1cad5e8a2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221098
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/base/flag.go       | 35 +++++++++++++++++++++++++++++++---
- src/cmd/go/internal/cfg/cfg.go         |  3 ++-
- src/cmd/go/internal/fmtcmd/fmt.go      |  3 ++-
- src/cmd/go/internal/modcmd/download.go |  3 +--
- src/cmd/go/internal/modcmd/edit.go     |  3 +--
- src/cmd/go/internal/modcmd/graph.go    |  3 +--
- src/cmd/go/internal/modcmd/init.go     |  3 +--
- src/cmd/go/internal/modcmd/tidy.go     |  3 +--
- src/cmd/go/internal/modcmd/vendor.go   |  3 +--
- src/cmd/go/internal/modcmd/verify.go   |  3 +--
- src/cmd/go/internal/modcmd/why.go      |  3 +--
- src/cmd/go/internal/modload/init.go    | 23 ++++++++++++----------
- src/cmd/go/internal/work/build.go      | 14 +++-----------
- src/cmd/go/internal/work/init.go       |  2 +-
- 14 files changed, 61 insertions(+), 43 deletions(-)
+ src/cmd/link/internal/ld/config.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

@@ -1,24 +1,23 @@
-commit 9e85dc5f183d688f5297203dd76f281a6d87d94f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Dec 13 16:12:50 2021 -0500
+commit 4638545d85d7e10e49132ee94ff9a6778db1c893
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 5 19:10:22 2021 -0700
 
-    net/http: revert h2_bundle.go formatting change from CL 368254
+    cmd/compile/internal/syntax: accept "~" and "|" interface elements
     
-    h2_bundle.go is automatically generated from x/net/http2. Any
-    formatting changes within that file need to be first made upstream.
+    Type lists continue to be accepted as before.
     
-    This brings the contents of h2_bundle.go back in line with the
-    upstream generator, fixing the cmd/internal/moddeps test that is
-    currently failing on the longtest builders.
+    While at it, print missing filenames in error tests
+    (which uses an ad-hoc position representation).
     
-    For #49884
-    
-    Change-Id: I5757240b77e250e0026b8a52a0e867e1578ec2d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371297
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I933b3acbc9cf1985ad8f70f6b206e3a1dbd64d1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307371
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/http/h2_bundle.go | 52 +++++++++++++++++++++++------------------------
- 1 file changed, 26 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/syntax/error_test.go      |  4 +-
+ src/cmd/compile/internal/syntax/parser.go          | 92 ++++++++++++++++++----
+ src/cmd/compile/internal/syntax/printer_test.go    |  9 +++
+ .../compile/internal/syntax/testdata/interface.go2 | 36 +++++++++
+ 4 files changed, 125 insertions(+), 16 deletions(-)

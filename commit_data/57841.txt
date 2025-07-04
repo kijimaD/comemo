@@ -1,18 +1,22 @@
-commit 325ee1ce3dae4879b00fb06059e8d33d49d6ba11
-Author: George Adams <georgeadams1995@gmail.com>
-Date:   Wed Oct 30 11:07:27 2024 +0000
+commit fbaf71f36bda00fc9eba71720a3c903d15988046
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Thu Aug 31 10:16:01 2023 -0400
 
-    os: fix findOneDriveDir to expand REG_SZ registry values
+    cmd/compile/internal/dwarfgen: make scope test less sensitive to changes in escape analysis
     
-    On some Windows systems the SOFTWARE\Microsoft\OneDrive registry key is REG_SZ rather than REG_EXPAND_SZ.
+    The test function fi is used in TestEscape, and the intent of fi
+    seems to be to leak its argument, but fi is currently
+    sensitive to changes in escape analysis regarding interface receivers.
     
-    Change-Id: I3ccb8771377a73456f48da1b5cfae668130b3f7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623515
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Make fi less sensitive by directly leaking its argument.
+    
+    Change-Id: I16cc3d3a6bd7b08a08c8fc292b0b99c9a54d68d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524943
+    Run-TryBot: t hepudds <thepudds1460@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/os_windows_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/dwarfgen/scope_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

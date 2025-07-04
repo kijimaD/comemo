@@ -1,15 +1,14 @@
-commit c12e38aa043ba95fa4dc212f7755e5e03b316238
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Sep 3 00:39:53 2015 +0200
+commit 19916e453e293b4d37e481f2b13246682d1667c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 15 22:08:27 2015 -0400
 
-    time: fixed handling of "5" in Format's layout string
+    test/fixedbugs: disable issue11656.go on arm64
     
-    Fixes #12440
+    For #11656.
     
-    Change-Id: Iead77fe34d986cfd5c16bac671fe13c8d012a754
-    Reviewed-on: https://go-review.googlesource.com/14178
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8365d33a15419bd0e54f71182ad0994e41650264
+    Reviewed-on: https://go-review.googlesource.com/12248
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/time/format.go      |  2 +-
- src/time/format_test.go | 10 ++++++++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ test/fixedbugs/issue11656.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

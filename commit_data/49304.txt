@@ -1,37 +1,42 @@
-commit 2b0e457b42a64455ca2d3eebb5c6d4e6acfc5db2
-Author: Khaled Yakdan <yakdan@code-intelligence.com>
-Date:   Fri May 20 22:09:58 2022 +0000
+commit 2e250cc95760e75a3f1fa082920eecd9f88fd096
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Aug 10 11:02:34 2021 -0400
 
-    cmd/compile: intercept string compares in libFuzzer mode
+    [dev.typeparams] cmd: update vendored golang.org/x/tools to 337cebd2c151
     
-    IR string compares as well as calls to string comparison functions such
-    as `strings.EqualFold` are intercepted and the corresponding libFuzzer
-    callbacks are invoked with the corresponding arguments. As a result, the
-    compared strings will be added to libFuzzer’s table of recent compares,
-    which feeds future mutations performed by the fuzzer and thus allow it
-    to reach into branches guarded by string comparisons.
+    Update vendored golang.org/x/tools repo to pick up CL 339250 for
+    assembly function check for register ABI.
     
-    The list of methods to intercept is maintained in
-    `cmd/compile/internal/walk/expr.go` and can easily be extended to cover
-    more standard library functions in the future.
+    This is done with
     
-    Change-Id: I5c8b89499c4e19459406795dea923bf777779c51
-    GitHub-Last-Rev: 6b8529b55561faf57ea59cb7cff1caf8c9c94ecd
-    GitHub-Pull-Request: golang/go#51319
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387335
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+            cd GOROOT/cmd
+            go get golang.org/x/tools@master
+            go mod tidy
+            go mod vendor
+    
+    Update cmd/vet tests as the error ouput changes in CL 301949.
+    The error message now includes full package-qualified name.
+    
+    Change-Id: I52dc7223aee9e011214254488bacf02dc5b4c2ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341149
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/typecheck/builtin.go      |  5 +++-
- .../compile/internal/typecheck/builtin/runtime.go  |  2 ++
- src/cmd/compile/internal/walk/compare.go           | 29 ++++++++++++++++++++
- src/cmd/compile/internal/walk/expr.go              | 24 ++++++++++++++++
- src/cmd/internal/goobj/builtinlist.go              |  2 ++
- src/internal/fuzz/trace.go                         |  6 ++++
- src/runtime/libfuzzer.go                           | 30 ++++++++++++++++++++
- src/runtime/libfuzzer_amd64.s                      | 31 ++++++++++++++++++++-
- src/runtime/libfuzzer_arm64.s                      | 32 ++++++++++++++++++++--
- 9 files changed, 157 insertions(+), 4 deletions(-)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |  37 +++-
+ .../x/tools/go/analysis/passes/printf/printf.go    |  28 +--
+ .../golang.org/x/tools/go/ast/astutil/rewrite.go   |  10 +-
+ .../x/tools/go/types/objectpath/objectpath.go      |   2 +-
+ .../golang.org/x/tools/internal/lsp/fuzzy/input.go |  37 +++-
+ .../x/tools/internal/lsp/fuzzy/matcher.go          |  23 ++-
+ .../x/tools/internal/lsp/fuzzy/symbol.go           | 224 +++++++++++++++++++++
+ .../x/tools/internal/typeparams/common.go          |  25 +++
+ .../x/tools/internal/typeparams/notypeparams.go    |  93 +++++++++
+ .../x/tools/internal/typeparams/typeparams.go      | 115 +++++++++++
+ src/cmd/vendor/modules.txt                         |   3 +-
+ src/cmd/vet/testdata/print/print.go                |   8 +-
+ 14 files changed, 563 insertions(+), 48 deletions(-)

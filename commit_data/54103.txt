@@ -1,21 +1,22 @@
-commit a9859a7df72a8ca9686b4fb939989c04b42804fe
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Aug 17 18:13:01 2023 -0700
+commit deaec39323aced382a12ed0360fad03ad1dbb906
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Sep 25 20:15:12 2022 +0200
 
-    time: make Duration.String inlineable
+    cmd/go/internal/mmap: fix build for js/wasm
     
-    Perform the [32]byte to string conversion in an inlinable method.
-    Thus, if the result does not escape in the context of the caller,
-    we can entirely avoid a call to runtime.slicebytetostring.
+    Even though there isn't much point in building cmd/go for js/wasm given
+    it relies on executing sub-processes, this change is trivial enough and
+    makes cmd/go build for js/wasm again.
     
-    Change-Id: Iae8ec2a532776ed6cf99597f19e3f7f21c694c3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520602
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #54219
+    
+    Change-Id: I91e3adec0f31a4e261af89b4cc829711828ac2ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433480
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/time/time.go | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/mmap/{mmap_plan9.go => mmap_other.go} | 2 ++
+ 1 file changed, 2 insertions(+)

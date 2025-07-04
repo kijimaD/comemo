@@ -1,14 +1,15 @@
-commit 505f0bb3ce55871b7c79cfcd34fa468f5cee73ef
+commit b7582852f63fd8bedba53ab415c1b3cc5ac2ae9c
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun May 29 11:59:35 2011 +1000
+Date:   Sat May 28 21:26:03 2011 +1000
 
-    os: fix windows version of Readdir(0)
+    gotest, pkg/exec: use bash instead of sh to execute shell scripts on windows
     
-    Fixes #1893.
+    As suggested by dho, iant2.
     
-    R=golang-dev
-    CC=bradfitz, golang-dev
-    https://golang.org/cl/4528106
+    R=golang-dev, rsc
+    CC=devon.odell, golang-dev, iant
+    https://golang.org/cl/4515147
 
- src/pkg/os/file_windows.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/gotest/gotest.go  | 4 ++--
+ src/pkg/exec/exec_test.go | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

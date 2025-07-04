@@ -1,16 +1,27 @@
-commit 2e4edf46977994c9d26df9327f0e41c1b60f3435
-Author: Iskander Sharipov <quasilyte@gmail.com>
-Date:   Sun May 5 12:55:47 2019 +0300
+commit 95a6f112c6db064d3394f9f66aa569e9bbeb3617
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 3 14:48:30 2019 -0500
 
-    cmd/internal/obj/x86: add oclass function tests
+    runtime: work around "P has cached GC work" failures
     
-    To make refactoring/optimizations easier in future.
+    We still don't understand what's causing there to be remaining GC work
+    when we enter mark termination, but in order to move forward on this
+    issue, this CL implements a work-around for the problem.
     
-    Change-Id: I158f52af7c72849df1d6bd9334b3ce9dd199318f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175357
-    Run-TryBot: Iskander Sharipov <quasilyte@gmail.com>
+    If debugCachedWork is false, this CL does a second check for remaining
+    GC work as soon as it stops the world for mark termination. If it
+    finds any work, it starts the world again and re-enters concurrent
+    mark. This will increase STW time by a small amount proportional to
+    GOMAXPROCS, but fixes a serious correctness issue.
+    
+    This works-around #27993.
+    
+    Change-Id: Ia23b85dd6c792ee8d623428bd1a3115631e387b8
+    Reviewed-on: https://go-review.googlesource.com/c/156140
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/obj/x86/asm_test.go | 203 +++++++++++++++++++++++++++++++++++
- 1 file changed, 203 insertions(+)
+ src/runtime/mgc.go | 29 ++++++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)

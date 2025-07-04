@@ -1,13 +1,12 @@
-commit 6f682de3c041ff0f94c881a9f8e503753a1afdd9
-Author: Adam Langley <agl@golang.org>
-Date:   Fri May 18 11:04:32 2012 -0400
+commit 54c9fe88f57b78e13b420c0c583d1466eb51457d
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Thu May 17 11:19:19 2012 -0700
 
-    A+C: b@b3k.us
+    go/build: fix some comments
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6220050
+    https://golang.org/cl/6217044
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/go/build/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

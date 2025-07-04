@@ -1,16 +1,19 @@
-commit 8efc020d7ca00e402ff9fb2b7eaf3e441d0979d4
+commit d665ea98f37ce556690f14a58b2f90032bd3a9d0
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 25 10:45:16 2012 -0800
+Date:   Wed Jan 25 10:21:13 2012 -0800
 
-    go/printer: factor some frequently used code
+    go/printer, gofmt: respect line breaks in signatures
     
-    Added a cache to compensate for extra call overhead.
-    go test -bench=Print marginally faster (in the noise).
+    No changes when applying gofmt to src, misc.
+    
+    Fixes #2597.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/5574061
+    https://golang.org/cl/5564056
 
- src/pkg/go/printer/nodes.go   | 54 +++++++++++++++++++++----------------------
- src/pkg/go/printer/printer.go | 30 +++++++++++++++++++-----
- 2 files changed, 51 insertions(+), 33 deletions(-)
+ src/pkg/go/printer/nodes.go                     | 44 ++++++++++++++-------
+ src/pkg/go/printer/testdata/declarations.golden | 50 ++++++++++++++++--------
+ src/pkg/go/printer/testdata/linebreaks.golden   | 52 +++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/linebreaks.input    | 48 +++++++++++++++++++++++
+ 4 files changed, 164 insertions(+), 30 deletions(-)

@@ -1,19 +1,21 @@
-commit 618fb4ab068272cc87b137d9fc527210be4b8ad2
+commit 0c6d8bb109adfa188190b2e6de59b88853ded378
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 7 20:27:59 2023 -0800
+Date:   Thu Apr 14 16:25:43 2022 -0700
 
-    runtime/cgo: add tsan sync for traceback function
+    debug/pe: read string table in 10M chunks
     
-    Change-Id: Ifb8d64f18b67c8b712feec29ffb6719c6e9718ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474198
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    No separate test because this makes no difference for valid PE files.
+    
+    Fixes #52350
+    
+    Change-Id: I2aa011a4e8b34cb08052222e94c52627ebe99fbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400378
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- misc/cgo/testsanitizers/testdata/tsan13.go | 90 ++++++++++++++++++++++++++++++
- misc/cgo/testsanitizers/tsan_test.go       |  4 ++
- src/runtime/cgo/gcc_traceback.c            |  2 +
- 3 files changed, 96 insertions(+)
+ src/debug/pe/string.go | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)

@@ -1,23 +1,16 @@
-commit b6ad2880323191713a5525bae5eb27d62c1d1c35
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sat Jun 13 10:37:22 2020 +0530
+commit ffd4e32885c4fed50dd0420440b8e58bff32adce
+Author: David Chase <drchase@google.com>
+Date:   Wed Jan 15 17:19:17 2020 -0500
 
-    net/http: avoid setting body when NoBody is set for js/wasm
+    doc/go1.14: add remarks about range inference and check removal
     
-    When http.NoBody is set, it is equivalent to Body being zero bytes.
-    We therefore set the body only if it is of length greater than 0.
+    Mentions CLs 174704 and 196784.
     
-    Manually verified with wasmbrowsertest.
-    
-    Fixes #36339
-    
-    Change-Id: I9c108c38f99409f72ea101819af572429505a8ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237758
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Change-Id: Ia8f821a3d90a4e08c895a6f091dbf07311e885ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214946
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/roundtrip_js.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ doc/go1.14.html | 5 +++++
+ 1 file changed, 5 insertions(+)

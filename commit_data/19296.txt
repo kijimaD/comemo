@@ -1,14 +1,38 @@
-commit 5139293986cf202efe31d995e8dfb471b6f2038e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu May 8 01:25:56 2014 -0400
+commit 51b72d94debdab3e72ce4236e03d8933d217e9b3
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 7 13:17:10 2014 -0700
 
-    cmd/objdump: actually accept hex address without "0x" prefix.
-    Fixes #7936.
+    runtime: use duff zero and copy to initialize memory
     
-    LGTM=alex.brainman, bradfitz, iant
-    R=golang-codereviews, alex.brainman, bradfitz, iant
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkCopyFat512       1307          329           -74.83%
+    BenchmarkCopyFat256       666           169           -74.62%
+    BenchmarkCopyFat1024      2617          671           -74.36%
+    BenchmarkCopyFat128       343           89.0          -74.05%
+    BenchmarkCopyFat64        182           48.9          -73.13%
+    BenchmarkCopyFat32        103           28.8          -72.04%
+    BenchmarkClearFat128      102           46.6          -54.31%
+    BenchmarkClearFat512      344           167           -51.45%
+    BenchmarkClearFat64       50.5          26.5          -47.52%
+    BenchmarkClearFat256      147           87.2          -40.68%
+    BenchmarkClearFat32       22.7          16.4          -27.75%
+    BenchmarkClearFat1024     511           662           +29.55%
+    
+    Fixes #7624
+    
+    LGTM=rsc
+    R=golang-codereviews, khr, bradfitz, josharian, dave, rsc
     CC=golang-codereviews
-    https://golang.org/cl/100060043
+    https://golang.org/cl/92760044
 
- src/cmd/objdump/main.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/5g/cgen.c               |  38 +++-
+ src/cmd/5g/ggen.c               | 101 +++++++---
+ src/cmd/5g/peep.c               |  22 ++-
+ src/cmd/5g/prog.c               |   6 +
+ src/cmd/5g/reg.c                |   4 +
+ src/cmd/5l/5.out.h              |   2 +
+ src/liblink/asm5.c              |   8 +-
+ src/liblink/obj5.c              |   4 +
+ src/pkg/runtime/asm_arm.s       | 408 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/memmove_test.go |  12 +-
+ 10 files changed, 568 insertions(+), 37 deletions(-)

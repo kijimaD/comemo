@@ -1,18 +1,34 @@
-commit 032e2bd1eb215cdeec605b33e42878ec7186cb53
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 12 23:28:36 2016 -0700
+commit 83208504fe2bbe91dae99111593de54cca1cdca0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jul 22 06:41:14 2016 -0400
 
-    cmd/compile: replace aindex with typArray
+    [dev.ssa] cmd/compile: add more on ARM64 SSA
     
-    aindex is overkill when it's only ever used with known integer
-    constants, so just use typArray directly instead.
+    Support the following:
+    - Shifts. ARM64 machine instructions only use lowest 6 bits of the
+      shift (i.e. mod 64). Use conditional selection instruction to
+      ensure Go semantics.
+    - Zero/Move. Alignment is ensured.
+    - Hmul, Avg64u, Sqrt.
+    - reserve R18 (platform register in ARM64 ABI) and R29 (frame pointer
+      in ARM64 ABI).
     
-    Change-Id: I43fc14e604172df859b3ad9d848d219bbe48e434
-    Reviewed-on: https://go-review.googlesource.com/30979
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Everything compiles, all.bash passed (with non-SSA test disabled).
+    
+    Change-Id: Ia8ed58dae5cbc001946f0b889357b258655078b1
+    Reviewed-on: https://go-review.googlesource.com/25290
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/subr.go | 24 ------------------------
- src/cmd/compile/internal/gc/walk.go | 14 +++++++-------
- 2 files changed, 7 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/arm64/prog.go         |   17 +-
+ src/cmd/compile/internal/arm64/ssa.go          |  124 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  244 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  128 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |    4 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  577 +++-
+ src/cmd/compile/internal/ssa/regalloc.go       |    2 +
+ src/cmd/compile/internal/ssa/rewrite.go        |   13 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 4314 ++++++++++++++++++++----
+ src/cmd/compile/internal/ssa/schedule.go       |    2 +-
+ 10 files changed, 4634 insertions(+), 791 deletions(-)

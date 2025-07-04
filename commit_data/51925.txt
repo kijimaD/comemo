@@ -1,21 +1,31 @@
-commit 677038f86625447de738831b4be9bca23929787a
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Mon Oct 24 15:46:18 2022 +0000
+commit 9058080319e5e3b8edbde8c5e2406b11bac163ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 23 13:29:43 2022 -0700
 
-    crypto/sha1: use math/bits.RotateLeft32
+    cmd/compile: clarify help message for -L flag
     
-    Updates #31456
+    The file names reported in error messages by the compiler are
+    printed unchanged from the file names provided to the compiler;
+    the -L flag has no impact on the file names themselves, contrary
+    to what the old flag description suggested.
     
-    Change-Id: I68e0abfb6771c9b1d1bfcbb642db9eb5540f9cab
-    GitHub-Last-Rev: 17ea697c5c0bbfdfb1ad91c2c60e22f6efc78b43
-    GitHub-Pull-Request: golang/go#49051
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356516
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    If an error is reported on a line that is affected by a //line
+    directive, an error message reports the file name and line as
+    controlled by the directive (i.e., the actual source position
+    is not known).
+    
+    If the -L flag is provided, the actual source position is also
+    reported in square brackets.
+    
+    This change documents this with an updated help string for the
+    flag.
+    
+    For #36988.
+    
+    Change-Id: I39ee35e6ff6cd5cfa44d87dabb05b8d78575d631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395115
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/crypto/sha1/sha1block.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/base/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

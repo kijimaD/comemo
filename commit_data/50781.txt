@@ -1,24 +1,17 @@
-commit fa463cc96d797c218be4e218723f83be47e814c8
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Oct 3 09:19:32 2022 -0700
+commit 318c024b498621932ace08736c38a51fe5519a63
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 8 20:17:22 2021 -0800
 
-    crypto/x509/internal/macos: handle unexpected null returns
+    cmd/compile/internal/types2: rename Checker.cycle to Checker.validCycle
     
-    SecCreatePolicySSL returns null when called from a binary that has a
-    strange path. This seems to be a weirdo macos bug, but we should be
-    properly handling those null returns anyway. Also add handling for
-    SecTrustGetCertificateAtIndex.
+    Also, invert the boolean result. This matches Checker.validType;
+    it's also easier to understand. Preparation for the next CL which
+    detects cycles through type parameter lists.
     
-    Fixes #54590
-    
-    Change-Id: I251e74f3b0bf65890a80b094b3e88718e13fd3db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438135
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: I00a75d2359ca20827c9bf406945508716c826fc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362336
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/x509/internal/macos/security.go | 22 ++++++++++------------
- src/crypto/x509/internal/macos/security.s  |  2 --
- src/crypto/x509/root_darwin.go             | 10 ++++++++--
- 3 files changed, 18 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/types2/decl.go | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)

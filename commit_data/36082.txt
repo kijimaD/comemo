@@ -1,17 +1,15 @@
-commit dada467fc688ef5970bf4af30c2644c0d2ccdb54
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 19 13:23:32 2018 -0400
+commit daa2d547734a3e5693b06d7d09e38ff1e617c89f
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Sat Mar 31 15:45:35 2018 +0200
 
-    cmd/go/internal/par: actually make par.Work run things in parallel
+    crypto/rsa: add PublicKey.Size accessor
     
-    This was an unfortunate debugging print introduced
-    while working on the unfortunately large CL 123576.
-    At least now we're done with that awfulness.
+    Provide the fixed size from the key pair.
     
-    Change-Id: Ib83db59382a799f649832d22d3c6f039d2ef9d2c
-    Reviewed-on: https://go-review.googlesource.com/125015
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I365c8d0f7d915229ef089e46458d4c83273fc648
+    Reviewed-on: https://go-review.googlesource.com/103876
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/par/work.go      |  1 -
- src/cmd/go/internal/par/work_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/crypto/rsa/pkcs1v15.go | 10 +++++-----
+ src/crypto/rsa/rsa.go      |  9 +++++++--
+ 2 files changed, 12 insertions(+), 7 deletions(-)

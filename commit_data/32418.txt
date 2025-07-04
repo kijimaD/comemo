@@ -1,27 +1,20 @@
-commit ea5e3bd2a18fc26fa9028865c8f391b18ed24786
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Tue Aug 22 15:41:50 2017 +0530
+commit 22f1b56dab29d397d2bdbdd603d85e60fb678089
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 24 14:31:22 2017 -0700
 
-    all: fix easy-to-miss typos
+    cmd/compile: add -c flag
     
-    Using the wonderful https://github.com/client9/misspell tool.
+    This will be used in the future to control backend concurrency.
+    See CL 40693.
     
-    Change-Id: Icdbc75a5559854f4a7a61b5271bcc7e3f99a1a24
-    Reviewed-on: https://go-review.googlesource.com/57851
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    In the meantime, make it a no-op.
+    This should fix the linux-amd64-racecompile builders.
+    
+    Change-Id: Ibf3b2a7fff6f8f8c94f5fafb26e0500a51c8a4a6
+    Reviewed-on: https://go-review.googlesource.com/41614
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/writer.go                   | 2 +-
- src/cmd/compile/internal/ssa/looprotate.go  | 2 +-
- src/cmd/compile/internal/syntax/branches.go | 2 +-
- src/cmd/internal/objabi/symkind.go          | 2 +-
- src/cmd/link/internal/ld/lib.go             | 2 +-
- src/cmd/link/internal/ld/link.go            | 2 +-
- src/database/sql/convert.go                 | 2 +-
- src/database/sql/sql_test.go                | 2 +-
- src/encoding/asn1/asn1_test.go              | 2 +-
- src/internal/cpu/cpu.go                     | 2 +-
- src/math/big/calibrate_test.go              | 2 +-
- src/testing/testing.go                      | 2 +-
- 12 files changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

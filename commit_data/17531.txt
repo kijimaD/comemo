@@ -1,12 +1,14 @@
-commit b1e81a54622280ea200b1b90b9d2c97913c11646
+commit 7c6db642b041f632b38687399a5bcad8229497e2
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 10 13:00:01 2013 -0400
+Date:   Tue Sep 10 12:47:52 2013 -0400
 
-    CONTRIBUTORS: add Alexis Imperial-Legrand (Google CLA)
+    cmd/go: implement -x correctly for 'go vet', 'go fmt', and so on
+    
+    Fixes #5676.
     
     R=golang-dev, bradfitz
-    CC=ail, golang-dev
-    https://golang.org/cl/13441050
+    CC=golang-dev
+    https://golang.org/cl/13250047
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

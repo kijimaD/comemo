@@ -1,12 +1,14 @@
-commit 7db4384354e43e41e34f17299ff33cd1a895d769
+commit 243ac1613e625d73fac19f45edea68b603a26346
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 7 13:34:01 2012 +1100
+Date:   Wed Mar 7 13:13:26 2012 +1100
 
-    misc/dist: fix glob pattern under windows
+    misc/dist: prepare source archives
     
-    R=bradfitz
+    Fixes #95.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5753066
+    https://golang.org/cl/5756066
 
- misc/dist/bindist.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dist/bindist.go | 103 ++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 77 insertions(+), 26 deletions(-)

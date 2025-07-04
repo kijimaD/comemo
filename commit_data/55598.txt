@@ -1,41 +1,138 @@
-commit daa58db486c3806b6767a8d87ee275ed4d7c2713
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Feb 1 23:58:54 2024 +1100
+commit af6bb3f9b2ebfe9a53c3de49ec880ca647dadccf
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Sep 3 10:41:03 2022 +0800
 
-    cmd/compile: improve rotations for riscv64
+    os: support zero-copy from TCP/Unix socket to file
     
-    Enable canRotate for riscv64, enable rotation intrinsics and provide
-    better rewrite implementations for rotations. By avoiding Lsh*x64
-    and Rsh*Ux64 we can produce better code, especially for 32 and 64
-    bit rotations. By enabling canRotate we also benefit from the generic
-    rotation rewrite rules.
+    Go currently supports the cases of zero-copy: from TCP/Unix socket to TCP socket, from file to TCP socket, from file to file.
     
-    Benchmark on a StarFive VisionFive 2:
+    Now implementing the new support of zero-copy: from TCP/Unix socket to file.
     
-                   │   rotate.1   │              rotate.2               │
-                   │    sec/op    │   sec/op     vs base                │
-    RotateLeft-4     14.700n ± 0%   8.016n ± 0%  -45.47% (p=0.000 n=10)
-    RotateLeft8-4     14.70n ± 0%   10.69n ± 0%  -27.28% (p=0.000 n=10)
-    RotateLeft16-4    14.70n ± 0%   12.02n ± 0%  -18.23% (p=0.000 n=10)
-    RotateLeft32-4   13.360n ± 0%   8.016n ± 0%  -40.00% (p=0.000 n=10)
-    RotateLeft64-4   13.360n ± 0%   8.016n ± 0%  -40.00% (p=0.000 n=10)
-    geomean           14.15n        9.208n       -34.92%
+    goos: linux
+    goarch: amd64
+    pkg: net
+    cpu: DO-Premium-Intel
+                                      │      old      │                 new                  │
+                                      │    sec/op     │    sec/op     vs base                │
+    SpliceFile/tcp-to-file/1024-4        5.910µ ±  9%   4.116µ ± 13%  -30.35% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/2048-4        6.150µ ± 10%   4.077µ ± 13%  -33.72% (p=0.002 n=10)
+    SpliceFile/tcp-to-file/4096-4        4.837µ ± 28%   4.447µ ± 23%        ~ (p=0.353 n=10)
+    SpliceFile/tcp-to-file/8192-4        9.309µ ±  7%   6.293µ ±  9%  -32.40% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/16384-4       19.43µ ± 12%   12.48µ ±  9%  -35.76% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/32768-4       42.73µ ± 10%   25.32µ ±  8%  -40.76% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/65536-4       70.37µ ± 11%   48.60µ ±  4%  -30.93% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/131072-4     141.91µ ±  6%   96.24µ ±  4%  -32.18% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/262144-4      329.7µ ±  8%   246.7µ ± 13%  -25.19% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/524288-4      653.5µ ±  7%   441.6µ ±  7%  -32.43% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/1048576-4    1184.4µ ±  9%   851.8µ ± 14%  -28.09% (p=0.000 n=10)
+    SpliceFile/unix-to-file/1024-4       1.734µ ± 10%   1.524µ ± 25%  -12.06% (p=0.035 n=10)
+    SpliceFile/unix-to-file/2048-4       2.614µ ±  7%   2.231µ ±  8%  -14.65% (p=0.000 n=10)
+    SpliceFile/unix-to-file/4096-4       5.081µ ±  7%   3.947µ ± 11%  -22.33% (p=0.000 n=10)
+    SpliceFile/unix-to-file/8192-4       8.560µ ±  5%   8.531µ ± 17%        ~ (p=0.796 n=10)
+    SpliceFile/unix-to-file/16384-4      18.09µ ± 12%   12.92µ ± 25%  -28.59% (p=0.000 n=10)
+    SpliceFile/unix-to-file/32768-4      35.50µ ±  5%   24.50µ ±  6%  -31.00% (p=0.000 n=10)
+    SpliceFile/unix-to-file/65536-4      69.99µ ±  7%   51.22µ ± 23%  -26.82% (p=0.000 n=10)
+    SpliceFile/unix-to-file/131072-4     133.7µ ± 17%   119.7µ ±  6%  -10.43% (p=0.000 n=10)
+    SpliceFile/unix-to-file/262144-4     246.5µ ±  5%   207.3µ ± 19%  -15.90% (p=0.007 n=10)
+    SpliceFile/unix-to-file/524288-4     484.8µ ± 20%   382.9µ ± 10%  -21.02% (p=0.000 n=10)
+    SpliceFile/unix-to-file/1048576-4   1188.4µ ± 27%   781.8µ ± 11%  -34.21% (p=0.000 n=10)
+    geomean                              42.24µ         31.45µ        -25.53%
     
-    Change-Id: I1a2036fdc57cf88ebb6617eb8d92e1d187e183b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560315
-    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+                                      │      old       │                  new                   │
+                                      │      B/s       │      B/s        vs base                │
+    SpliceFile/tcp-to-file/1024-4        165.4Mi ± 10%    237.3Mi ± 11%  +43.47% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/2048-4        317.6Mi ± 12%    479.7Mi ± 14%  +51.02% (p=0.002 n=10)
+    SpliceFile/tcp-to-file/4096-4        808.2Mi ± 22%    886.8Mi ± 19%        ~ (p=0.353 n=10)
+    SpliceFile/tcp-to-file/8192-4        839.3Mi ±  6%   1241.5Mi ±  8%  +47.91% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/16384-4       804.7Mi ± 13%   1252.2Mi ± 10%  +55.61% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/32768-4       731.3Mi ± 11%   1234.3Mi ±  7%  +68.78% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/65536-4       888.7Mi ± 10%   1286.2Mi ±  4%  +44.73% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/131072-4      880.9Mi ±  6%   1299.0Mi ±  4%  +47.47% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/262144-4      758.2Mi ±  7%   1014.4Mi ± 15%  +33.78% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/524288-4      765.3Mi ±  7%   1132.5Mi ±  7%  +47.99% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/1048576-4     845.0Mi ±  8%   1174.0Mi ± 16%  +38.94% (p=0.000 n=10)
+    SpliceFile/unix-to-file/1024-4       564.2Mi ± 11%    640.5Mi ± 20%  +13.53% (p=0.035 n=10)
+    SpliceFile/unix-to-file/2048-4       747.4Mi ±  7%    875.7Mi ±  8%  +17.17% (p=0.000 n=10)
+    SpliceFile/unix-to-file/4096-4       768.8Mi ±  6%    989.8Mi ± 10%  +28.74% (p=0.000 n=10)
+    SpliceFile/unix-to-file/8192-4       912.9Mi ±  5%    915.8Mi ± 15%        ~ (p=0.796 n=10)
+    SpliceFile/unix-to-file/16384-4      863.6Mi ± 10%   1209.7Mi ± 20%  +40.06% (p=0.000 n=10)
+    SpliceFile/unix-to-file/32768-4      880.2Mi ±  6%   1275.7Mi ±  6%  +44.93% (p=0.000 n=10)
+    SpliceFile/unix-to-file/65536-4      893.0Mi ±  7%   1220.3Mi ± 19%  +36.66% (p=0.000 n=10)
+    SpliceFile/unix-to-file/131072-4     935.1Mi ± 14%   1043.9Mi ±  7%  +11.64% (p=0.000 n=10)
+    SpliceFile/unix-to-file/262144-4    1014.2Mi ±  6%   1205.9Mi ± 16%  +18.91% (p=0.007 n=10)
+    SpliceFile/unix-to-file/524288-4     1.007Gi ± 17%    1.275Gi ±  9%  +26.61% (p=0.000 n=10)
+    SpliceFile/unix-to-file/1048576-4    841.8Mi ± 21%   1279.0Mi ± 10%  +51.94% (p=0.000 n=10)
+    geomean                              740.1Mi          994.2Mi        +34.33%
+    
+                                      │      old       │                   new                   │
+                                      │      B/op      │    B/op     vs base                     │
+    SpliceFile/tcp-to-file/1024-4       0.000 ±   0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/2048-4       0.000 ±   0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/4096-4       0.000 ±   0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/8192-4       0.000 ±   0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/16384-4      0.000 ±   0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/32768-4      1.000 ±   0%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/65536-4      1.000 ± 100%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/131072-4     3.000 ±  33%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/262144-4     8.500 ±  18%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/524288-4     16.50 ±  21%      0.00 ± 0%  -100.00% (p=0.000 n=10)
+    SpliceFile/tcp-to-file/1048576-4    30.50 ±  15%      0.00 ± 0%  -100.00% (p=0.000 n=10)
+    SpliceFile/unix-to-file/1024-4      0.000 ±   0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/2048-4      0.000 ±   0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/4096-4      0.000 ±   0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/8192-4      0.000 ±   0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/16384-4     0.000 ±   0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/32768-4     0.000 ±   0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/65536-4     1.000 ± 100%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+    SpliceFile/unix-to-file/131072-4    3.000 ±  33%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+    SpliceFile/unix-to-file/262144-4    6.000 ±  17%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+    SpliceFile/unix-to-file/524288-4    12.00 ±   8%      0.00 ± 0%  -100.00% (p=0.000 n=10)
+    SpliceFile/unix-to-file/1048576-4   33.50 ±  10%      0.00 ± 0%  -100.00% (p=0.000 n=10)
+    geomean                                          ²               ?                       ² ³
+    ¹ all samples are equal
+    ² summaries must be >0 to compute geomean
+    ³ ratios must be >0 to compute geomean
+    
+                                      │     old      │                 new                 │
+                                      │  allocs/op   │ allocs/op   vs base                 │
+    SpliceFile/tcp-to-file/1024-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/2048-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/4096-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/8192-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/16384-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/32768-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/65536-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/131072-4     0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/262144-4     0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/524288-4     0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/tcp-to-file/1048576-4    0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/1024-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/2048-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/4096-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/8192-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/16384-4     0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/32768-4     0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/65536-4     0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/131072-4    0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/262144-4    0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/524288-4    0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    SpliceFile/unix-to-file/1048576-4   0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    geomean                                        ²               +0.00%                ²
+    ¹ all samples are equal
+    ² summaries must be >0 to compute geomean
+    
+    Change-Id: Ie7f7d4d7b6b373d9ee7ce6da8f6a4cd157632486
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466015
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/riscv64/ssa.go         |   6 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules |   9 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  22 ++--
- src/cmd/compile/internal/ssa/opGen.go           |  30 +++++
- src/cmd/compile/internal/ssa/rewrite.go         |   2 +-
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 142 +++++++++++++-----------
- src/cmd/compile/internal/ssagen/ssa.go          |   8 +-
- test/codegen/rotate.go                          |  22 ++++
- 8 files changed, 153 insertions(+), 88 deletions(-)
+ src/net/rawconn.go            |  15 +++
+ src/net/splice_test.go        | 115 +++++++++++++++++
+ src/os/export_linux_test.go   |   6 +-
+ src/os/readfrom_linux.go      |  93 ++++++++++++--
+ src/os/readfrom_linux_test.go | 282 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 501 insertions(+), 10 deletions(-)

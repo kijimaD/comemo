@@ -1,36 +1,23 @@
-commit 2c50bffee1c49d71ec1ea2c6cad10570ad780a4b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 24 11:33:29 2017 -0700
+commit ad4efedc6ce317aa9eb1208950daee4c31b023cc
+Author: David Lazar <lazard@golang.org>
+Date:   Fri Dec 9 12:34:01 2016 -0500
 
-    cmd/compile: simplify funcsyms
+    [dev.inline] cmd/internal/obj: use src.Pos in obj.Prog
     
-    Sym.Fsym is used only to avoid adding duplicate
-    entries to funcsyms, but that is easily
-    accomplished by detecting the first lookup
-    vs subsequent lookups of the func sym name.
+    This will let us use the src.Pos struct to thread inlining
+    information through to obj.
     
-    This avoids creating an unnecessary ONAME node
-    during funcsym, which eliminates a dependency
-    in the backend on Curfn and lineno.
-    
-    It also makes the code a lot simpler and clearer.
-    
-    Updates #15756
-    
-    Passes toolstash-check -all.
-    No compiler performance changes.
-    funcsymname does generate garbage via string
-    concatenation, but it is not called very much,
-    and this CL also eliminates allocation of several
-    Nodes and Names.
-    
-    Change-Id: I7116c78fa39d975b7bd2c65a1d228749cf0dd46b
-    Reviewed-on: https://go-review.googlesource.com/38605
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I96a16d3531167396988df66ae70f0b729049cc82
+    Reviewed-on: https://go-review.googlesource.com/34195
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/dcl.go         | 46 ++++++++++++++++++------------
- src/cmd/compile/internal/gc/go.go          |  3 +-
- src/cmd/compile/internal/gc/obj.go         |  7 +++--
- src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
- src/cmd/compile/internal/gc/subr.go        | 12 ++++++--
- 5 files changed, 43 insertions(+), 27 deletions(-)
+ src/cmd/asm/internal/asm/asm.go      | 11 ++++++-----
+ src/cmd/compile/internal/gc/gsubr.go |  2 +-
+ src/cmd/compile/internal/gc/plive.go |  5 ++---
+ src/cmd/internal/obj/link.go         |  3 ++-
+ src/cmd/internal/obj/pcln.go         |  4 ++--
+ src/cmd/internal/obj/util.go         |  2 +-
+ 6 files changed, 14 insertions(+), 13 deletions(-)

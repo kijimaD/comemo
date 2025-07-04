@@ -1,26 +1,17 @@
-commit 7e767791b983d0260773b98135a37a86f5fc9712
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jul 2 19:58:56 2013 -0400
+commit e55517259217b29383d1a77e3c70e5cd19fa778b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jul 3 00:33:38 2013 +0800
 
-    crypto/tls: implement TLS 1.2.
+    runtime: fix runtime.sigreturn_tramp for NetBSD/ARM
+    using m->tls[0] to save ucontext pointer is not re-entry safe, and
+    the old code didn't set it before the early return when signal is
+    received on non-Go threads.
     
-    This does not include AES-GCM yet. Also, it assumes that the handshake and
-    certificate signature hash are always SHA-256, which is true of the ciphersuites
-    that we currently support.
+    so misc/cgo/test used to hang when testing issue 5337.
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/10762044
+    https://golang.org/cl/10076045
 
- src/pkg/crypto/tls/cipher_suites.go           |  10 +-
- src/pkg/crypto/tls/common.go                  |  41 +-
- src/pkg/crypto/tls/conn.go                    |   8 +-
- src/pkg/crypto/tls/handshake_client.go        |  21 +-
- src/pkg/crypto/tls/handshake_client_test.go   | 271 +++++++++++++
- src/pkg/crypto/tls/handshake_messages.go      | 148 ++++++-
- src/pkg/crypto/tls/handshake_messages_test.go |   3 +
- src/pkg/crypto/tls/handshake_server.go        |  13 +-
- src/pkg/crypto/tls/handshake_server_test.go   | 538 +++++++++++++++++++++++++-
- src/pkg/crypto/tls/key_agreement.go           |  48 ++-
- src/pkg/crypto/tls/prf.go                     | 133 ++++---
- 11 files changed, 1141 insertions(+), 93 deletions(-)
+ src/pkg/runtime/sys_netbsd_arm.s | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

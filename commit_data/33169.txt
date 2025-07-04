@@ -1,23 +1,22 @@
-commit d790ea3ef1152cd8aded824ffca50a8c56577469
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 17 21:48:47 2017 -0400
+commit 9311af79d5a9670d4ad2c9ab4f94d53563bc82d4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 9 16:12:57 2017 -0400
 
-    cmd/go: skip updateBuildID on binaries we will run
+    sync: release m.mu during (*RWMutexMap).Range callbacks in sync_test
     
-    On modern Unix systems it is basically impossible for a multithreaded
-    program to open a binary for write, close it, and then fork+exec that
-    same binary. So don't write the binary if we're going to fork+exec it.
+    The mainline sync.Map has allowed mutations within Range callbacks
+    since https://golang.org/cl/37342. The reference implementations need
+    to do the same.
     
-    This fixes the ETXTBSY flakes.
+    This change integrates https://go-review.googlesource.com/c/42956/
+    from x/sync.
     
-    Fixes #22220.
-    See also #22315.
-    
-    Change-Id: I6be4802fa174726ef2a93d5b2f09f708da897cdb
-    Reviewed-on: https://go-review.googlesource.com/71570
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I6b58cf874bb31cd4f6fdb8bfa8278888ed617a5a
+    Reviewed-on: https://go-review.googlesource.com/42957
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/build.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/sync/map_bench_test.go     |  4 +---
+ src/sync/map_reference_test.go | 13 +++++++++++--
+ 2 files changed, 12 insertions(+), 5 deletions(-)

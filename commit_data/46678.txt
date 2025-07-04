@@ -1,18 +1,25 @@
-commit bd8009d4392fae3ad148a0fe9adb4ea4ac5ab8d3
-Author: 180909 <734461790@qq.com>
-Date:   Tue Aug 31 17:57:33 2021 +0000
+commit 2427f6e6c07de20a00dd8b9ab464f0abe5ccd13a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 20 12:54:23 2021 -0800
 
-    README.md: update contribute URL
+    [dev.typeparams] cmd/compile: directly set some simple expression types
     
-    /doc/contribute.html now redirects to /doc/contribute.
+    This CL updates irgen to directly set the type for a bunch of basic
+    expressions that are easy to handle already. Trickier rewrites are
+    still handled with typecheck.Expr, but responsibility of calling that
+    is pushed down to the conversion of individual operations.
     
-    Change-Id: Ib342d515bf6e74bb5807ce21f8df3d985bc7e490
-    GitHub-Last-Rev: c491a060da22d1bb456283f5ed0ae2894f0365ca
-    GitHub-Pull-Request: golang/go#48005
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345590
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I774ac6ab4c72ad854860ab5c741867dd42a066b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285058
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- README.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/decl.go    |  4 +++
+ src/cmd/compile/internal/noder/expr.go    | 55 ++++++++++++++++++++-----------
+ src/cmd/compile/internal/noder/helpers.go | 52 +++++++++++++++++++----------
+ src/cmd/compile/internal/noder/irgen.go   |  5 +++
+ src/cmd/compile/internal/noder/types.go   |  7 ++++
+ 5 files changed, 87 insertions(+), 36 deletions(-)

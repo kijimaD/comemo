@@ -1,44 +1,25 @@
-commit 06751c455d89e09d29affc343ca9e38a02e2f5a2
-Author: Jake Bailey <jacob.b.bailey@gmail.com>
-Date:   Mon Mar 24 16:01:06 2025 -0700
+commit ccfcc30f3e3ce90bad0b7a40f79eee78da6adb47
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Feb 26 20:36:29 2024 +0000
 
-    syscall: cache Errno.Error() on Windows
+    runtime: clean up dead P trace state when disabling tracing too
     
-    Windows is unlike the other OSs and depends on a syscall for most
-    errors. This can be costly; cache the returned string for later reuse.
+    Right now, we're careful to clean up dead P state when we advance to
+    future trace generations. If we don't, then if that P comes back to
+    life, we might end up using its old stale trace state.
     
-    This helps test caching, since errors are written out as string to the
-    test ID, which are often PathErrors wrapping Errnos.
+    Unfortunately, we never handled this in the case when tracing stops,
+    only when advancing to new generations. As a result, stopping a trace,
+    starting it again, and then bringing a P back to life in the following
+    generation meant that the dead P could be using stale state.
     
-    For now, only cache ERROR_FILE_NOT_FOUND and ERROR_PATH_NOT_FOUND.
+    Fixes #65318.
     
-    goos: windows
-    goarch: amd64
-    pkg: syscall
-    cpu: Intel(R) Core(TM) i9-10900K CPU @ 3.70GHz
-                   │    old.txt    │               new.txt               │
-                   │    sec/op     │   sec/op     vs base                │
-    ErrnoString-20   1788.00n ± 1%   11.08n ± 1%  -99.38% (p=0.000 n=10)
-    
-                   │  old.txt   │              new.txt               │
-                   │    B/op    │   B/op     vs base                 │
-    ErrnoString-20   48.00 ± 0%   0.00 ± 0%  -100.00% (p=0.000 n=10)
-    
-                   │  old.txt   │               new.txt               │
-                   │ allocs/op  │ allocs/op   vs base                 │
-    ErrnoString-20   1.000 ± 0%   0.000 ± 0%  -100.00% (p=0.000 n=10)
-    
-    For #72992
-    
-    Change-Id: I9a0910fa6538772ffc64ef7670b44059a2c7d18c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667495
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I9297d9e58a254f2be933b8007a6ef7c5ec3ef4f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567077
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/syscall/syscall_windows.go      | 20 ++++++++++++++++++++
- src/syscall/syscall_windows_test.go |  7 +++++++
- 2 files changed, 27 insertions(+)
+ src/runtime/trace2.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

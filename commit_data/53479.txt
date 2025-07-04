@@ -1,23 +1,23 @@
-commit e23273ddd4145d41dd6a6b90b4ca5729aa200db8
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jun 4 22:49:28 2023 -0400
+commit b15c399a36a38509ae56dd69670974566f7b0d52
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Jul 30 20:41:58 2022 +0300
 
-    cmd/go: move switch-only code from select.go to switch.go
+    os: only add file descriptors which are set to non-blocking mode to the netpoller
     
-    Move NewerToolchain and related code from select.go to switch.go
-    because it is only used for the Switch operation, not for Select.
-    This is a separate CL containing only the code move, separate
-    from any other changes.
+    Either ones where kind == kindNonBlock or those we've successfully called syscall.SetNonblock() on.
+    Restore blocking behavior if we detect an error registering with the netpoller and our flow was
+    successful in setting the inital syscall.SetNonblock().
     
-    For #57001.
+    Update #54100
     
-    Change-Id: I41cf0629b41fd55c30a1e799d857c06039ee99b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500798
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I08934e4107c7fb36c15a7ca23ac880490b4df235
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420334
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Yuval Pavel Zholkover <paulzhol@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/toolchain/select.go | 120 -------------------------------
- src/cmd/go/internal/toolchain/switch.go | 124 ++++++++++++++++++++++++++++++++
- 2 files changed, 124 insertions(+), 120 deletions(-)
+ src/os/file_unix.go | 32 +++++++++++++++++++++-----------
+ 1 file changed, 21 insertions(+), 11 deletions(-)

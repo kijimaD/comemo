@@ -1,31 +1,22 @@
-commit f684f3dc434f9199ceee175c07d28e8b2b0f28dc
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Sat Feb 4 14:52:55 2023 +0000
+commit 85b5f86584686677c554b2538a7edee96d684aea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 30 17:26:21 2022 -0700
 
-    image/jpeg: return io.ErrUnexpectedEOF on truncated data
+    net: support error.Is of network errors and context errors
     
-    Decoder calls fill from readFull, ignore and readByte and
-    readByte did not check returned io.EOF.
+    Change timeouts to be Is(context.DeadlineExceeded) and cancelation to
+    be Is(context.Canceled).
     
-    This change moves io.EOF translation inside fill.
+    Fixes #51428
     
-    name                 old speed      new speed      delta
-    DecodeBaseline-8     67.4MB/s ± 0%  67.3MB/s ± 0%  -0.20%  (p=0.000 n=16+19)
-    DecodeProgressive-8  43.7MB/s ± 0%  43.6MB/s ± 0%  -0.06%  (p=0.013 n=17+19)
-    
-    Fixes #56724
-    
-    Change-Id: Ia0d5cc561f3c2050e25ec3f2b5e6866c3b4941c7
-    GitHub-Last-Rev: 470154373bc1452dffc5293d9a840e972749a76d
-    GitHub-Pull-Request: golang/go#56863
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452335
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
-    Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ic580bd9da0f338e993fb79138875a78d99cc1a1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396877
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/image/jpeg/huffman.go     |  2 +-
- src/image/jpeg/reader.go      | 11 ++++-------
- src/image/jpeg/reader_test.go | 14 ++++++++++++++
- 3 files changed, 19 insertions(+), 8 deletions(-)
+ doc/go1.19.html       | 12 ++++++++++++
+ src/net/error_test.go |  9 +++++++++
+ src/net/net.go        | 23 +++++++++++++++++------
+ 3 files changed, 38 insertions(+), 6 deletions(-)

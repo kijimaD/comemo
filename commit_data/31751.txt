@@ -1,25 +1,15 @@
-commit 24659717811075fb3b3bf012670229be1636c089
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 7 10:30:49 2017 -0400
+commit 8ee37c6a66fd71fa0204204719b0489085f85ca0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Nov 7 11:52:21 2016 -0800
 
-    runtime: fix GDB goroutine N command when N is running
+    cmd/compile: eliminate format string FmtUnsigned support
     
-    The current implementation of "goroutine N cmd" assumes it can get
-    goroutine N's state from the goroutine's sched buffer. But this only
-    works if the goroutine is blocked. Extend find_goroutine so that, if
-    there is no saved scheduler state for a goorutine, it tries to find
-    the thread the goroutine is running on and use the thread's current
-    register state. We also extend find_goroutine to understand saved
-    syscall register state.
+    Passes toolstash -cmp.
     
-    Fixes #13887.
-    
-    Change-Id: I739008a8987471deaa4a9da918655e4042cf969b
-    Reviewed-on: https://go-review.googlesource.com/45031
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I678fc40c0f2a6e9a434bcdd4ea17bb7f319a6063
+    Reviewed-on: https://go-review.googlesource.com/38144
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/runtime-gdb.py      | 33 +++++++++++++++++++++++++++++++--
- src/runtime/runtime-gdb_test.go | 12 ++++++++++--
- 2 files changed, 41 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

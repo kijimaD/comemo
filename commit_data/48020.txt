@@ -1,20 +1,22 @@
-commit db48840cfc5ea9f8067cd5238827965ea01cdde1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 26 14:01:52 2022 -0800
+commit d5b2d809b09b5a7404ad334a5e56b2210a06254c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 21 19:12:38 2021 -0400
 
-    Revert "spec: document the underlying type of comparable"
+    cmd/link: emit LC_BUILD_VERSION on Mach-O
     
-    This reverts CL 380854.
+    LC_VERSION_MIN_MACOSX seems deprecated. Emit LC_BUILD_VERSION
+    instead. Also emit it on darwin/arm64, where it was not emitted
+    before.
     
-    Per the conluding discussions on #50791. A follow-up will
-    document `comparable` more thoroughly.
+    Fixes #45091.
     
-    For #50791.
-    
-    Change-Id: I15db9051784a012f713e28d725c3b8bbfeb40569
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381076
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I18fb80d571f681da3bd258e53beb520e68f354bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312550
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go_spec.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/link/internal/ld/macho.go | 28 ++++++++++++----------------
+ src/cmd/link/link_test.go         | 18 +++++++++---------
+ 2 files changed, 21 insertions(+), 25 deletions(-)

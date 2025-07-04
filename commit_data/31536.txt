@@ -1,17 +1,14 @@
-commit 266a3b66ca1f49463a29f047d6fde62eb18025b8
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Apr 27 01:48:26 2017 +0200
+commit 9bc67bb4f4caba59443c504e09758812ac63a046
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 28 11:34:56 2017 -0800
 
-    cmd/compile/internal/gc: rename signatlist to signatset
+    cmd/internal/obj: remove unused Getcallerpc function
     
-    Also change type from map[*types.Type]bool to map[*types.Type]struct{}.
-    This is basically a clean-up.
-    
-    Change-Id: I167583eff0fa1070a7522647219476033b52b840
-    Reviewed-on: https://go-review.googlesource.com/41859
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I0c7b677657326f318e906e109cbda0cfa78c4973
+    Reviewed-on: https://go-review.googlesource.com/37537
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/cmd/compile/internal/gc/reflect.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/internal/obj/util.go | 4 ----
+ 1 file changed, 4 deletions(-)

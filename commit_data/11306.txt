@@ -1,14 +1,14 @@
-commit c4b16a3864102b45cc50188cee416133c165a460
-Author: Ivan Krasin <krasin@golang.org>
-Date:   Fri Jan 20 23:35:18 2012 -0500
+commit fb3b27329ef584d51f9cdb9a500cc45037439e3d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Jan 20 20:01:29 2012 -0800
 
-    compress/flate: make lazy matching work.
+    os: fix Plan 9 build after more FileMode changes
     
-    R=rsc, imkrasin
+    This should go in after Brad's CL 5553064.
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5554066
+    https://golang.org/cl/5555056
 
- src/pkg/compress/flate/deflate.go                  |   38 +-
- src/pkg/compress/flate/deflate_test.go             |   44 +-
- .../compress/testdata/Mark.Twain-Tom.Sawyer.txt    | 8858 ++++++++++++++++++++
- 3 files changed, 8916 insertions(+), 24 deletions(-)
+ src/pkg/os/file_plan9.go | 39 ++++++++++++++++++++++++++-------------
+ 1 file changed, 26 insertions(+), 13 deletions(-)

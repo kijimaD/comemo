@@ -1,0 +1,21 @@
+commit 370a6959e3edd9d901446661ee9fef3f72d150d4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jul 30 12:11:23 2024 -0400
+
+    cmd/dist, internal/platform: mark windows/arm (32-bit ARM) broken
+    
+    The port is reportedly broken, and there isn't a builder testing it.
+    
+    For #68552.
+    For #67308.
+    
+    Change-Id: Iababa17cdf855b675aaf85642a667e8081ef5dfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601777
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/build.go            | 1 +
+ src/internal/platform/zosarch.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

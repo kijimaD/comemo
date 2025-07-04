@@ -1,20 +1,19 @@
-commit 9e4638ad20181ba4c3b1985da48c56be121901fb
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Aug 6 05:42:25 2022 +0000
+commit 739a42c1993a3a6b607a8349fbed3188da3e56e9
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Sep 14 15:21:54 2021 -0400
 
-    net: discard unrooted 254 byte names, not rooted ones
+    [dev.fuzz] testing: adjust -fuzz multiple match stdout
     
-    Fixes #54285
+    Fixes golang/go#48131
     
-    Change-Id: I20d4d6b9d0532d8a344582b99d446352ae94edcf
-    GitHub-Last-Rev: ad1337450caeaab80755d2951dd01422a906eacc
-    GitHub-Pull-Request: golang/go#54293
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421674
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I40ff130c849dffe38363ddc0282e93ceb74ae140
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349969
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/dnsclient_unix.go      |   2 +-
- src/net/dnsclient_unix_test.go | 128 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 129 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/test_fuzz_match.txt |  5 ++---
+ src/testing/fuzz.go                            | 18 ++++++++++++------
+ src/testing/testing.go                         |  9 +--------
+ 3 files changed, 15 insertions(+), 17 deletions(-)

@@ -1,18 +1,19 @@
-commit 861af80458e846bc535f262cca23649e703b7885
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jul 29 12:55:19 2015 +0900
+commit 82020f865991ec352a401bd6d320044ab83e03cc
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed Jun 17 14:48:03 2015 +0200
 
-    cmd/internal/asm: delete
+    image/gif: return an error on missing palette
     
-    Updates #10510.
+    A frame that tries to use the global palette when it has
+    not been given should result in an error, not an image
+    with no palette at all.
     
-    Change-Id: Ib4d39943969d18517b373292b83d87650d5df12a
-    Reviewed-on: https://go-review.googlesource.com/12787
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #11150.
+    
+    Change-Id: If0c3a201a0ac977eee2b7a5dc68930c0c5787f40
+    Reviewed-on: https://go-review.googlesource.com/11064
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/internal/asm/asm.go     | 307 ---------------
- src/cmd/internal/asm/lexbody.go | 710 ---------------------------------
- src/cmd/internal/asm/macbody.go | 855 ----------------------------------------
- 3 files changed, 1872 deletions(-)
+ src/image/gif/reader.go      | 3 +++
+ src/image/gif/reader_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

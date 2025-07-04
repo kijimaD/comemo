@@ -1,13 +1,16 @@
-commit d1ab10b4ff5123e366e200d5205d7e62a3dd2847
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Apr 24 01:27:19 2012 +0200
+commit f14a5347e69b4bb95e4f1d62d0967b14734193f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 23 15:47:34 2012 -0700
 
-    net: fix typo in Listener.File() documentation
+    test: test handling of negative float constants
     
-    R=golang-dev, dave, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/6097044
+    This used to panic when compiled by gccgo.
+    
+    Updates #2876.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6100055
 
- src/pkg/net/tcpsock_posix.go  | 2 +-
- src/pkg/net/unixsock_posix.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ test/fixedbugs/bug434.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

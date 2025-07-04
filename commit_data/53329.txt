@@ -1,23 +1,24 @@
-commit f4086d36862d8fd41af90356c894d04d3ff58203
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 25 09:25:05 2023 -0400
+commit 7ba458d7d8461835255b6353c773731f47c16215
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Jun 16 03:02:38 2022 +0800
 
-    cmd/dist: drop wasitest from special list
+    net/http/cgi: remove port from the CGI environment of variable SERVER_NAME
     
-    CL 498255 made runtime/internal/wasitest compatible with all platforms
-    so that "go test std" works again. This means it no longer has to be
-    in the special dist test list.
+    The SERVER_NAME variable in the CGI environment should not
+    contain the port, according to the section 4.1.14 of the
+    RFC 3875.
     
-    While we're here explain the purpose of this list better and implore
-    people to please not expand it, since almost any addition is a sign
-    that "go test std cmd" no longer works.
+    Fixes #53368.
     
-    Change-Id: I31c7fb767787fa587f65c2697aed9ed43e95fb18
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498256
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ifeea70206878cf83bc0bda35cb514d0226bbcd8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412434
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: xie cui <523516579@qq.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/dist/test.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/net/http/cgi/host.go      | 7 ++++++-
+ src/net/http/cgi/host_test.go | 4 ++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)

@@ -1,12 +1,13 @@
-commit 29fb5d3e0f3ac82a3f6f9ac97e0b74f4dbf3b5f6
+commit 134d6e4fc4b6ef31f292f2f69c3af8f94dd9f987
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 19:40:41 2011 -0700
+Date:   Thu Oct 27 19:39:40 2011 -0700
 
-    xml: simplify test
+    go/build: avoid os.Error in tests
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5320051
+    https://golang.org/cl/5308061
 
- src/pkg/xml/marshal_test.go | 33 +++++++++++++++------------------
- 1 file changed, 15 insertions(+), 18 deletions(-)
+ src/pkg/go/build/build_test.go      | 2 +-
+ src/pkg/go/build/pkgtest/pkgtest.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

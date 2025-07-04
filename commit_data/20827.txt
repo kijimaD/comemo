@@ -1,14 +1,60 @@
-commit bfe459adc98724354ffefa624b73815adaa711d8
-Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 29 15:35:48 2014 -0700
+commit 1552e62d70374f86627d7b845ee6effb38a2aebc
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 16 12:43:17 2014 -0400
 
-    doc/go1.4.html: final library changes
-    First draft now complete.
+    cmd/gc: elide write barrier for x = x[0:y] and x = append(x, ...)
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/170750043
+    Both of these forms can avoid writing to the base pointer in x
+    (in the slice, always, and in the append, most of the time).
+    
+    For Go 1.5, will need to change the compilation of x = x[0:y]
+    to avoid writing to the base pointer, so that the elision is safe,
+    and will need to change the compilation of x = append(x, ...)
+    to write to the base pointer (through a barrier) only when
+    growing the underlying array, so that the general elision is safe.
+    
+    For Go 1.4, elide the write barrier always, a change that should
+    have equivalent performance characteristics but is much
+    simpler and therefore safer.
+    
+    benchmark                       old ns/op   new ns/op   delta
+    BenchmarkBinaryTree17           3910526122  3918802545  +0.21%
+    BenchmarkFannkuch11             3747650699  3732600693  -0.40%
+    BenchmarkFmtFprintfEmpty        106         98.7        -6.89%
+    BenchmarkFmtFprintfString       280         269         -3.93%
+    BenchmarkFmtFprintfInt          296         282         -4.73%
+    BenchmarkFmtFprintfIntInt       467         470         +0.64%
+    BenchmarkFmtFprintfPrefixedInt  418         398         -4.78%
+    BenchmarkFmtFprintfFloat        574         535         -6.79%
+    BenchmarkFmtManyArgs            1768        1818        +2.83%
+    BenchmarkGobDecode              14916799    14925182    +0.06%
+    BenchmarkGobEncode              14110076    13358298    -5.33%
+    BenchmarkGzip                   546609795   542630402   -0.73%
+    BenchmarkGunzip                 136270657   136496277   +0.17%
+    BenchmarkHTTPClientServer       126574      125245      -1.05%
+    BenchmarkJSONEncode             30006238    27862354    -7.14%
+    BenchmarkJSONDecode             106020889   102664600   -3.17%
+    BenchmarkMandelbrot200          5793550     5818320     +0.43%
+    BenchmarkGoParse                5437608     5463962     +0.48%
+    BenchmarkRegexpMatchEasy0_32    192         179         -6.77%
+    BenchmarkRegexpMatchEasy0_1K    462         460         -0.43%
+    BenchmarkRegexpMatchEasy1_32    168         153         -8.93%
+    BenchmarkRegexpMatchEasy1_1K    1420        1280        -9.86%
+    BenchmarkRegexpMatchMedium_32   338         286         -15.38%
+    BenchmarkRegexpMatchMedium_1K   107435      98027       -8.76%
+    BenchmarkRegexpMatchHard_32     5941        4846        -18.43%
+    BenchmarkRegexpMatchHard_1K     185965      153830      -17.28%
+    BenchmarkRevcomp                795497458   798447829   +0.37%
+    BenchmarkTemplate               132091559   134938425   +2.16%
+    BenchmarkTimeParse              604         608         +0.66%
+    BenchmarkTimeFormat             551         548         -0.54%
+    
+    LGTM=r
+    R=r, dave
+    CC=golang-codereviews, iant, khr, rlh
+    https://golang.org/cl/159960043
 
- doc/go1.4.html | 150 +++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 129 insertions(+), 21 deletions(-)
+ src/cmd/gc/go.h        |  1 +
+ src/cmd/gc/typecheck.c | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/walk.c      | 24 +++++++++++++++++++++++-
+ 3 files changed, 74 insertions(+), 1 deletion(-)

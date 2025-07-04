@@ -1,17 +1,22 @@
-commit 99d60c24e23d4d97ce51b1ee5660b60a5651693a
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jun 24 16:56:22 2024 -0400
+commit 729f214e3afd61afd924b946745798a8d144aad6
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Sep 5 17:12:24 2023 +0800
 
-    all: enable GOEXPERIMENT=swissmap by default
+    runtime: fix the miscalculation of memoryLimitGoal in gcPaceScavenger
     
-    For #54766.
+    The goal is supposed to be (100-reduceExtraPercent) / 100 * memoryLimit,
+    as stated in the original design.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race,gotip-linux-arm64-longtest,gotip-linux-386-longtest,gotip-darwin-amd64-longtest,gotip-darwin-arm64_13,gotip-linux-ppc64_power10,gotip-linux-arm
-    Change-Id: I5db0edcc156ed2e4bedc036b0baba2669e10c87a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594597
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #62449
+    
+    Change-Id: Ia33acadc3320aa3625814595a24b9631ae8896d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525555
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
 
- src/internal/buildcfg/exp.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/mgcscavenge.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

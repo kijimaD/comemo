@@ -1,12 +1,12 @@
-commit 490c3d4a426b197283bf3a02bedd84654a268f28
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Fri Feb 24 14:45:32 2012 -0500
+commit 04f110e5302f9846cb110d8fcab2666ce4220623
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Feb 25 01:16:17 2012 +0800
 
-    encoding/xml: fix anonymous field Unmarshal example
+    cmd/vet: don't give error for Printf("%+5.2e", x)
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5697043
+    https://golang.org/cl/5696048
 
- src/pkg/encoding/xml/example_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/vet/print.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

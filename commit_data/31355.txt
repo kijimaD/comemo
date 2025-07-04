@@ -1,49 +1,16 @@
-commit fb4b4342fe298fda640bfa74f24b7bd58519deba
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 7 15:53:19 2017 -0700
+commit c0165a38fd3cf00b3ab8ec8c283e44c0c2383d74
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Feb 14 12:51:50 2017 +1100
 
-    os, net, internal/poll: return consistent error for closed socket
+    internal/poll: only build str.go on plan9
     
-    In the past we returned "use of closed network connection" when using
-    a closed network descriptor in some way. In CL 36799 that was changed
-    to return "use of closed file or network connection". Because programs
-    have no access to a value of this error type (see issue #4373) they
-    resort to doing direct string comparisons (see issue #19252). This CL
-    restores the old error string so that we don't break programs
-    unnecessarily with the 1.9 release.
+    Alternatively the contents of str.go could be moved into fd_io_plan9.go
     
-    This adds a test to the net package for the expected string.
-    
-    For symmetry check that the os package returns the expected error,
-    which for os already exists as os.ErrClosed.
-    
-    Updates #4373.
-    Fixed #19252.
-    
-    Change-Id: I5b83fd12cfa03501a077cad9336499b819f4a38b
-    Reviewed-on: https://go-review.googlesource.com/39997
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9d7ec85bbb376f4244eeca732f25c0b77cadc6a6
+    Reviewed-on: https://go-review.googlesource.com/36971
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/poll/fd.go               | 19 +++++++++++--
- src/internal/poll/fd_mutex.go         |  6 ++---
- src/internal/poll/fd_plan9.go         |  8 +++++-
- src/internal/poll/fd_poll_nacl.go     | 16 +++++------
- src/internal/poll/fd_poll_runtime.go  | 28 ++++++++++----------
- src/internal/poll/fd_posix_test.go    |  8 +++---
- src/internal/poll/fd_unix.go          | 50 ++++++++++++++++++++++-------------
- src/internal/poll/fd_windows.go       |  8 +++---
- src/internal/poll/sendfile_bsd.go     |  2 +-
- src/internal/poll/sendfile_linux.go   |  2 +-
- src/internal/poll/sendfile_solaris.go |  2 +-
- src/internal/poll/writev.go           |  4 +--
- src/net/error_test.go                 | 35 +++++++++++++++---------
- src/net/fd_unix.go                    |  6 ++---
- src/net/file_test.go                  |  4 +--
- src/net/net_test.go                   | 14 +++++-----
- src/os/file.go                        |  2 +-
- src/os/file_unix.go                   | 26 +++++++++---------
- src/os/pipe_test.go                   |  2 ++
- 19 files changed, 143 insertions(+), 99 deletions(-)
+ src/internal/poll/str.go | 2 ++
+ 1 file changed, 2 insertions(+)

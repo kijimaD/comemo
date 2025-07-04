@@ -1,17 +1,18 @@
-commit 90796f44d5d10163196c6116ae667eddba8b06c0
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Fri Mar 1 03:09:39 2024 +0000
+commit 006b35c017f7896d2d4880566d991b2aceacb98c
+Author: Vasili Revelas <vasileios.revelas@sgdigital.com>
+Date:   Wed Mar 15 11:22:04 2023 +0000
 
-    net/http/cgi: close res.Body
+    errors: correct spelling
     
-    Change-Id: I4682442f4f9f3d112b78582c3b9fc2d24c2d58a7
-    GitHub-Last-Rev: 0823701905b8facdde7204aa6d90df6facd6dc51
-    GitHub-Pull-Request: golang/go#66049
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568316
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: Iba64f3d88b541c7fef15046720bfaba361291d94
+    GitHub-Last-Rev: 22cfd6382c42abfa7e1952cccf6e0ecb5990fdbf
+    GitHub-Pull-Request: golang/go#59047
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476395
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/http/cgi/host_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/internal/types/errors/codes.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

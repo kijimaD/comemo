@@ -1,21 +1,21 @@
-commit 864b54e2c3b7b2e6634cb22cd70fe1a8ec723ae9
+commit 515135f4c3f9c67d51d6d3d7b8fe82559ac2e9f2
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 28 12:30:46 2022 +0700
+Date:   Tue Mar 22 20:43:43 2022 +0700
 
-    cmd/compile: generate type equal func during walk
+    cmd/compile: remove types.Type.SetBroken
     
-    So we don't generate ONAME node with nil Func.
+    And use base.Fatalf in code that use t.SetBroke(true) instead.
     
-    Do not pass toolstash-check because the CL changes the order of
-    compiling functions.
+    Updates #51691
     
-    Change-Id: Ib967328f36b8c59a5525445667103c0c80ccdc82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436436
+    Change-Id: I9f3613379dd82d0dd069cdf7b61cbb281810e2e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394574
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/reflectdata/alg.go | 29 ++++++++++++++++++++++++-----
- src/cmd/compile/internal/walk/compare.go    |  8 ++++++--
- 2 files changed, 30 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/typecheck/typecheck.go | 23 ++++-------------------
+ src/cmd/compile/internal/types/size.go          | 11 +----------
+ src/cmd/compile/internal/types/type.go          |  7 +++----
+ 3 files changed, 8 insertions(+), 33 deletions(-)

@@ -1,61 +1,16 @@
-commit 855d823d2de359fb4fcd354f1704d36d340c659f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 19 19:06:08 2017 +0000
+commit ee80afe326bab0a4829bd39186c4f343ac680a40
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 21 13:14:35 2017 -0700
 
-    A+C: updated update
+    cmd/compile/internal/gc: remove unneeded effects cache fields
     
-    I updated my tool to deal with Github-only contributors without Gerrit
-    accounts. The "dep" repo is the main source of these, although there
-    are a few others.
+    Must have been lost when rebasing the SSA liveness CLs.
     
-    Add Alexander Kauer (individual CLA)
-    Add Anders Pearson (individual CLA)
-    Add Brad Whitaker (corporate CLA for Fastly, Inc.)
-    Add Daisuke Fujita (individual CLA)
-    Add Daniel Upton (individual CLA)
-    Add David Volquartz Lebech (individual CLA)
-    Add Emilien Kenler (individual CLA)
-    Add Fazal Majid (corporate CLA for Apsalar)
-    Add Gustav Westling (individual CLA)
-    Add Henry Chang (individual CLA)
-    Add Jianqiao Li (corporate CLA for Google Inc.)
-    Add Jin-wook Jeong (individual CLA)
-    Add Kaleb Elwert (individual CLA)
-    Add Kashav Madan (individual CLA)
-    Add Koki Ide (individual CLA)
-    Add Konstantin (individual CLA)
-    Add Kyle Jones (individual CLA)
-    Add Leon Klingele (individual CLA)
-    Add Martin Olsen (individual CLA)
-    Add Máximo Cuadros Ortiz (individual CLA)
-    Add Miguel Molina (individual CLA)
-    Add Nathaniel Cook (individual CLA)
-    Add Neil Lyons (individual CLA)
-    Add Nick Robinson (individual CLA)
-    Add Niranjan Godbole (individual CLA)
-    Add Oleg Bulatov (individual CLA)
-    Add Oliver Tonnhofer (individual CLA)
-    Add Paul Querna (individual CLA)
-    Add Peter Bourgon (individual CLA)
-    Add Quentin Renard (individual CLA)
-    Add Ray Tung (individual CLA)
-    Add Rob Phoenix (individual CLA)
-    Add Ryan Boehning (individual CLA)
-    Add Sakeven Jiang (individual CLA)
-    Add Stephen Searles (individual CLA)
-    Add Steven Wilkin (individual CLA)
-    Add Sunny (individual CLA)
-    Add Ted Kornish (individual CLA)
-    Add Victor Vrantchan (individual CLA)
-    Add Wander Lairson Costa (individual CLA)
-    Add Zakatell Kanda (individual CLA)
-    
-    Updates #12042
-    
-    Change-Id: I2e4828cce880965c77b374c1e115d0e437d108c7
-    Reviewed-on: https://go-review.googlesource.com/46090
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iaac33158cc7c92ea44a023c242eb914a7d6979c6
+    Reviewed-on: https://go-review.googlesource.com/38427
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- AUTHORS      | 39 +++++++++++++++++++++++++++++++++++++++
- CONTRIBUTORS | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 80 insertions(+)
+ src/cmd/compile/internal/gc/plive.go | 3 ---
+ 1 file changed, 3 deletions(-)

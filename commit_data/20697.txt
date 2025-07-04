@@ -1,13 +1,18 @@
-commit d83e43ccc6bd453cb1c85b83e37560c7bc420963
-Author: Chris Manghane <cmang@golang.org>
-Date:   Mon Oct 13 12:33:45 2014 -0700
+commit 74b8693c544abffbce69262b609410459d8796f8
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Sep 30 16:08:04 2014 -0400
 
-    test: add test for gccgo-specific issue 8079
+    cmd/cgo: add missing ast.SliceExpr.Max case to AST traversal.
     
-    LGTM=gri
-    R=gri
-    CC=golang-codereviews, iant
-    https://golang.org/cl/159850044
+    + static test
+    
+    NB: there's a preexisting (dynamic) failure of test issue7978.go.
+    
+    LGTM=iant
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/144650045
 
- test/fixedbugs/issue8079.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ misc/cgo/test/basic.go | 5 +++++
+ src/cmd/cgo/ast.go     | 3 +++
+ 2 files changed, 8 insertions(+)

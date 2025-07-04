@@ -1,22 +1,35 @@
-commit 903f313d8b6e85c031fc5918273ff4800fa9f952
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Oct 29 17:58:42 2021 +0000
+commit 3ee32439b5114c1fe5f04891b678613aa72e13c2
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Fri Nov 27 17:10:33 2020 +0200
 
-    runtime: fix unclosed GCSweepStart trace event
+    cmd/compile: ARM64 optimize []float64 and []float32 access
     
-    CL 333389 erroneously moved traceGCSweepDone inside the sl.valid block
-    that it introduced in mcentral.cacheSpan, when it should have left it
-    outside that scope, because the trace event is created unconditionally
-    at the top of the method.
+    Optimize load and store to []float64 and []float32.
+    Previously it used LSL instead of shifted register indexed load/store.
     
-    Fixes #49231.
+    Before:
     
-    Change-Id: If719c05063d4f4d330a320da6dc00d1e9d8102e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359775
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+        LSL   $3, R0, R0
+        FMOVD F0, (R1)(R0)
+    
+    After:
+    
+        FMOVD F0, (R1)(R0<<3)
+    
+    Fixes #42798
+    
+    Change-Id: I0c0912140c3dce5aa6abc27097c0eb93833cc589
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273706
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
 
- src/runtime/mcentral.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        |  14 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  18 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  20 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  56 +++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 294 +++++++++++++++++++++++++++
+ test/codegen/floats.go                       |   4 +-
+ test/codegen/memops.go                       |   4 +
+ 7 files changed, 396 insertions(+), 14 deletions(-)

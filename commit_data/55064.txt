@@ -1,33 +1,25 @@
-commit af1242932e121f510ad04282277740cceff2e550
-Author: Tim King <taking@google.com>
-Date:   Mon Nov 20 12:56:26 2023 -0800
+commit 61e2b8ec598e33b0d55a0652f86eeb075de3dc9d
+Author: Oleg Zaytsev <mail@olegzaytsev.com>
+Date:   Fri Dec 9 13:05:34 2022 +0100
 
-    cmd: go get golang.org/x/tools@8966034e and revendor
+    cmd/gc: test temp string comparison with all ops
     
-    go get golang.org/x/tools@8966034e # CL 542639
-    go mod tidy
-    go mod vendor
+    The comment on `slicebytetostringtmp` mention that `==` operator does
+    not allocate []byte to string conversion, but the test was testing only
+    `==` and `!=` and the compiler actually optimizes all comparison
+    operators.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Change-Id: Id2a7322006ff3985e3c97482cd78c8963c4df140
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543975
+    Also added a test for concatenation comparison, which also should not
+    allocate.
+    
+    Change-Id: I6f4c5c4f238808138fa901732e1fd5b6ab25f725
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456415
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go.mod                                     |   6 +-
- src/cmd/go.sum                                     |  12 +-
- .../tools/go/analysis/passes/errorsas/errorsas.go  |   3 -
- .../x/tools/go/analysis/passes/loopclosure/doc.go  |  13 +-
- .../go/analysis/passes/loopclosure/loopclosure.go  |  16 +-
- .../x/tools/go/analysis/unitchecker/unitchecker.go |   2 +
- .../golang.org/x/tools/go/analysis/validate.go     |   2 +
- .../golang.org/x/tools/internal/versions/gover.go  | 172 +++++++++++++++++++++
- .../golang.org/x/tools/internal/versions/types.go  |  19 +++
- .../x/tools/internal/versions/types_go121.go       |  20 +++
- .../x/tools/internal/versions/types_go122.go       |  24 +++
- .../x/tools/internal/versions/versions_go121.go    |  49 ++++++
- .../x/tools/internal/versions/versions_go122.go    |  38 +++++
- src/cmd/vendor/modules.txt                         |   7 +-
- 14 files changed, 363 insertions(+), 20 deletions(-)
+ src/runtime/string_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

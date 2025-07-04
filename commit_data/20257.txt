@@ -1,24 +1,17 @@
-commit 1d8fa7fa5db01cde6e764af29d4c2fb80bad9d8c
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 2 14:13:29 2014 -0700
+commit 948bb9150e962ee77475d2abc6585ecc7ac7f755
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 27 23:41:27 2014 -0400
 
-    runtime: convert select implementation to Go.
+    cmd/cc: translate C Eface type as Go interface{}
     
-    LGTM=rsc
-    R=golang-codereviews, bradfitz, iant, khr, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/139020043
+    This will allow structs containing Efaces in C to be
+    manipulated as structs containing real interfaces in Go.
+    The eface struct is still defined for use by Go code.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=dvyukov, golang-codereviews, khr, r
+    https://golang.org/cl/133980044
 
- src/cmd/api/goapi.go                |   1 +
- src/cmd/gc/select.c                 |   3 +-
- src/pkg/reflect/value.go            |   4 +-
- src/pkg/runtime/chan.go             |   3 +-
- src/pkg/runtime/chan.goc            | 664 ------------------------------------
- src/pkg/runtime/chan.h              |   5 +-
- src/pkg/runtime/pprof/pprof_test.go |   4 +-
- src/pkg/runtime/race.go             |  13 +
- src/pkg/runtime/race0.go            |   2 +
- src/pkg/runtime/select.go           | 645 ++++++++++++++++++++++++++++++++++
- src/pkg/runtime/stack.c             |   3 +
- src/pkg/runtime/thunk.s             |   3 +
- 12 files changed, 677 insertions(+), 673 deletions(-)
+ src/cmd/cc/godefs.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

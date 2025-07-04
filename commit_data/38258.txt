@@ -1,24 +1,17 @@
-commit 178a2c42254166cffed1b25fb1d3c7a5727cada6
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Mar 5 22:31:37 2019 +0000
+commit 93e27e01af8bd6ac76c9784165d63b7cafe10a16
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Oct 15 05:39:23 2018 +0000
 
-    net/mail: better error in ParseAddress when missing "@domain"
+    test/codegen: add tests of FMA for arm/arm64
     
-    If the input was "John Doe", we're definitely missing "<email>", as
-    "John Doe@domain" isn't a valid email address.
+    This CL adds tests of fused multiplication-accumulation
+    on arm/arm64.
     
-    However, if the input was "john.doe", it's possible that the user meant
-    "john.doe@domain", and not just "john.doe <email>". Make it clear in the
-    error that either could be the source of the problem.
-    
-    Fixes #27064.
-    
-    Change-Id: I1b8f1342775d711823dffc3db974898ee62d3a34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165517
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ic85d5277c0d6acb7e1e723653372dfaf96824a39
+    Reviewed-on: https://go-review.googlesource.com/c/141652
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/mail/message.go      | 15 +++++++++++++++
- src/net/mail/message_test.go |  3 +++
- 2 files changed, 18 insertions(+)
+ test/codegen/floats.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

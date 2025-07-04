@@ -1,28 +1,31 @@
-commit bd49b3d580731d8f391e40fb9e2f17301651cede
-Author: Andrei Tudor Călin <mail@acln.ro>
-Date:   Thu Aug 30 06:55:05 2018 +0200
+commit bcdbd58ce48d71cb912238caaa193d832901e227
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu May 3 15:38:37 2018 +0200
 
-    net: refactor readerAtEOF splice test
+    cmd/link/internal/ld: skip DWARF combining for iOS binaries
     
-    Refactor TestSplice/readerAtEOF to handle cases where we disable
-    splice on older kernels better.
+    The macOS and iOS external linker strips DWARF information from
+    binaries because it assumes the information will go into separate
+    DWARF information .dSYM files. To preserve the embedded debugging
+    information, the Go linker re-combines the separate DWARF
+    information into the unmapped __DWARF segment of the final
+    executable.
     
-    If splice is disabled, net.splice and poll.Splice do not get to
-    observe EOF on the reader, because poll.Splice returns immediately
-    with EINVAL. The test fails unexpectedly, because the splice operation
-    is reported as not handled.
+    However, the iOS dyld linker does not allow unmapped segments, so
+    use the presence of the LC_VERSION_MIN_IPHONEOS linker command to
+    skip DWARF combining. Note that we can't use GOARCH for detection
+    since the iOS emulator runs on  GOARCH=386 and GOARCH=amd64 and we
+    will run into https://golang.org/issues/25148.
     
-    This change refactors the test to handle the aforementioned case
-    correctly, by not calling net.splice directly, but using a higher
-    level check.
+    Updates #25148.
     
-    Fixes #27355.
-    
-    Change-Id: I0d5606b4775213f2dbbb84ef82ddfc3bab662a31
-    Reviewed-on: https://go-review.googlesource.com/132096
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I29a1bc468fdee74ab3b27c46931501a0a8120c66
+    Reviewed-on: https://go-review.googlesource.com/111275
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/splice_test.go | 57 +++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 50 insertions(+), 7 deletions(-)
+ src/cmd/link/dwarf_test.go                      | 36 ++++++++--
+ src/cmd/link/internal/ld/lib.go                 | 11 ++--
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 88 ++++++++++++++-----------
+ 3 files changed, 88 insertions(+), 47 deletions(-)

@@ -1,25 +1,32 @@
-commit 344d0e0bf78ce479310496e8c767fc5e7410b527
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 26 16:33:27 2018 -0700
+commit c3473c4f10c93189cf312576df2ce05202948e52
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 9 13:57:56 2018 -0700
 
-    cmd/cgo: make sure we FinishType everything
+    cmd/compile: refactor symbol sorting logic
     
-    Ensure that we call FinishType on all the types added to the ptrs map.
-    We only add a key to ptrKeys once. Once we FinishType for that key,
-    we'll never look at that key again. But we can add a new type under that
-    key later, and we'll never finish it.
+    This used to be duplicated in methcmp and siglt, because Sig used its
+    own representation for Syms. Instead, just use Syms, and add a
+    (*Sym).Less method that both methcmp and siglt can use.
     
-    Make sure we add the key to the ptrKeys list every time we make the list
-    of types for that key non-empty.
+    Also, prune some impossible cases purportedly related to blank
+    methods: the Go spec disallows blank methods in interface method sets,
+    and addmethod drops blank methods without actually recording them in
+    the type's method set.
     
-    This makes sure we FinishType each pointer type exactly once.
+    Passes toolstash-check.
     
-    Fixes #26517
+    Updates #24693.
     
-    Change-Id: Iad86150d516fcfac167591daf5a26c38bec7d143
-    Reviewed-on: https://go-review.googlesource.com/126275
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I24e981659b68504d71518160486989a82505f513
+    Reviewed-on: https://go-review.googlesource.com/105936
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/issue26517.go | 23 +++++++++++++++++++++++
- src/cmd/cgo/gcc.go          |  6 ++++--
- 2 files changed, 27 insertions(+), 2 deletions(-)
+ src/cmd/compile/fmt_test.go                 |  1 -
+ src/cmd/compile/internal/gc/reflect.go      | 89 +++++++++--------------------
+ src/cmd/compile/internal/gc/reflect_test.go | 51 -----------------
+ src/cmd/compile/internal/gc/subr.go         | 40 ++-----------
+ src/cmd/compile/internal/types/sym.go       | 26 +++++++++
+ src/cmd/compile/internal/types/sym_test.go  | 59 +++++++++++++++++++
+ 6 files changed, 117 insertions(+), 149 deletions(-)

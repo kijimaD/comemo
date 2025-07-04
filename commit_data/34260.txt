@@ -1,20 +1,30 @@
-commit 4313d7767d830e863e8f8b53a2b48ca8d0bf0a79
-Author: Keith Randall <khr@google.com>
-Date:   Mon Jan 22 09:43:27 2018 -0800
+commit 77c27c31026f758768c981c45704c7931e7046d1
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 11 11:05:58 2017 -0400
 
-    cmd/compile: reset branch prediction when deleting a branch
+    cmd/link: eliminate .debug_aranges
     
-    When we go from a branch block to a plain block, reset the
-    branch prediction bit. Downstream passes asssume that if the
-    branch prediction is set, then the block has 2 successors.
+    The .debug_aranges section is an odd vestige of DWARF, since its
+    contents are easy and efficient for a debugger to reconstruct from the
+    attributes of the top-level compilation unit DIEs. Neither GCC nor
+    clang emit it by default these days. GDB and Delve ignore it entirely.
+    LLDB will use it if present, but is happy to construct the index from
+    the compilation unit attributes (and, indeed, a remarkable variety of
+    other ways if those aren't available either).
     
-    Fixes #23504
+    We're about to split up the compilation units by package, which means
+    they'll have discontiguous PC ranges, which is going to make
+    .debug_aranges harder to construct (and larger).
     
-    Change-Id: I2898ec002228b2e34fe80ce420c6939201c0a5aa
-    Reviewed-on: https://go-review.googlesource.com/88955
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Rather than try to maintain this essentially unused code, let's
+    simplify things and remove it.
+    
+    Change-Id: I8e0ccc033b583b5b8908cbb2c879b2f2d5f9a50b
+    Reviewed-on: https://go-review.googlesource.com/69972
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/check.go |  2 +-
- src/cmd/compile/internal/ssa/fuse.go  |  1 +
- test/fixedbugs/issue23504.go          | 15 +++++++++++++++
- 3 files changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf.go | 52 -------------------------
+ src/runtime/runtime-lldb_test.go  | 82 ---------------------------------------
+ 2 files changed, 134 deletions(-)

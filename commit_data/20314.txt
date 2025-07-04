@@ -1,14 +1,16 @@
-commit 277ef8fa07411231761426298c8e489ddef8ef67
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 5 17:00:32 2014 -0400
+commit f4cbaa38aeda16bc37fa991132073a273d16cd43
+Author: Evan Kroske <evankroske@google.com>
+Date:   Sat Aug 30 10:27:36 2014 -0700
 
-    runtime: disable StackCopyAlways
+    go/doc/headscan: update script to count headings with an ID attribute
     
-    I forgot to clear this before submitting.
+    Fixes script used to sanity-check the heading-detection heuristic of go/doc.
+    Fixes #8467.
     
-    TBR=khr
+    LGTM=gri
+    R=golang-codereviews, gobot, gri
     CC=golang-codereviews
-    https://golang.org/cl/132640044
+    https://golang.org/cl/128720043
 
- src/pkg/runtime/stack.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/doc/headscan.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

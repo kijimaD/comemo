@@ -1,26 +1,32 @@
-commit 6b165577fee2e9313bfd1ae2a07c89e41c86426e
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 17 15:51:29 2023 -0700
+commit 2a5114f49af42c1df293e64841b28c22a84211f0
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
 
-    cmd/compile: remove memequal call from string compares in more cases
+    runtime: support memclr/memmove for linux/loong64
     
-    Add more rules to ensure that order doesn't matter.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Add memequal 0 rule.
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
     
-    Try to use a constant argument to memequal when one is available.
+    Updates #46229
     
-    Fixes #59684
-    
-    Change-Id: I36e85ffbd949396ed700ed6e8ec2bc3ae013f5d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485535
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I7c1f39670034db6714630d479bc41b6620ba2b1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368079
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/compare/compare.go     |  33 ++++-
- src/cmd/compile/internal/ssa/_gen/generic.rules |  27 ++++
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 161 ++++++++++++++++++++++--
- test/codegen/comparisons.go                     |  41 ++++++
- 4 files changed, 251 insertions(+), 11 deletions(-)
+ src/runtime/memclr_loong64.s  |  41 +++++++++++++++++
+ src/runtime/memmove_loong64.s | 105 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 146 insertions(+)

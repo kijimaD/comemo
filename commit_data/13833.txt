@@ -1,22 +1,13 @@
-commit 0aad3cdc59c245eb5a09159f43c0bf590893d9ab
-Author: Eric Eisner <eric.d.eisner@gmail.com>
-Date:   Mon Sep 17 11:50:15 2012 +1000
+commit 329b27a5666c469212a73626a278feb49b1b0e89
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Sep 17 01:11:28 2012 +0800
 
-    strings: implement a faster generic Replacer
+    run.bash: set appropriate ulimits
+        mainly for NetBSD/OpenBSD.
     
-    This also fixes the semantics of some corner cases with the empty
-    match. TODOs for genericReplacer in the tests are fixed.
-    
-    benchmark                  old ns/op    new ns/op    delta
-    BenchmarkGenericNoMatch        71395         3132  -95.61%
-    BenchmarkGenericMatch1         75610        20280  -73.18%
-    BenchmarkGenericMatch2        837995        86725  -89.65%
-    
-    R=nigeltao, rsc
+    R=bradfitz, r, rsc
     CC=golang-dev
-    https://golang.org/cl/6492076
+    https://golang.org/cl/6453154
 
- src/pkg/strings/export_test.go  |  27 ++++
- src/pkg/strings/replace.go      | 300 +++++++++++++++++++++++++++++++---------
- src/pkg/strings/replace_test.go |  96 +++++++++++--
- 3 files changed, 348 insertions(+), 75 deletions(-)
+ src/run.bash | 6 ++++++
+ 1 file changed, 6 insertions(+)

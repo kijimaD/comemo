@@ -1,15 +1,23 @@
-commit a8a050819bd4693ea7c6fdc1744038f172c2a439
+commit 23e8e197b0cd40312d96dd7576a44796f65dfb50
 Author: Keith Randall <khr@google.com>
-Date:   Mon May 7 13:42:28 2018 -0700
+Date:   Tue Feb 6 09:44:34 2018 -0800
 
-    cmd/compile: mention the AuxInt field for bounded shifts
+    cmd/compile: use unsigned loads for multi-element comparisons
     
-    This comment needs updating after moving the "bounded" mark from
-    Aux to AuxInt.
+    When loading multiple elements of an array into a single register,
+    make sure we treat them as unsigned.  When treated as signed, the
+    upper bits might all be set, causing the shift-or combo to clobber
+    the values higher in the register.
     
-    Change-Id: I924fb22a81fffcd6944b93f0e3357c3aa2c4c49e
-    Reviewed-on: https://go-review.googlesource.com/111880
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #23719.
+    
+    Change-Id: Ic87da03e9bd0fe2c60bb214b99f846e4e9446052
+    Reviewed-on: https://go-review.googlesource.com/92335
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go | 14 +++++++++++
+ src/cmd/compile/internal/gc/walk.go     |  7 +++++-
+ test/fixedbugs/issue23719.go            | 42 +++++++++++++++++++++++++++++++++
+ 3 files changed, 62 insertions(+), 1 deletion(-)

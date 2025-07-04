@@ -1,18 +1,31 @@
-commit 71239b4f491698397149868c88d2c851de2cd49b
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Fri Jan 17 17:59:59 2020 -0300
+commit 3a067f71e9737fc8ae1e49348155d92d52e66718
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Aug 29 23:07:43 2019 -0700
 
-    runtime: fix wrong offset when calling ppc64x nanotime syscall
+    net: handle >=2GiB files with sendfile on Windows
     
-    There is a wrong offset when getting the results of a clock_gettime
-    syscall. Although the syscall will never be called in native ppc64x,
-    QEMU doesn't implement VDSO, so it will return wrong values.
+    CL 187037 applied a fix to handle the case where
+    files larger than 2GiB were not being sendfile-d,
+    in one shot, rejecting any files whose size was
+    larger than the 2GiB.
     
-    Fixes #36592
+    This CL allows files that are larger than limit
+    by SendFile-ing in chunks of upto 2GiB per chunk.
     
-    Change-Id: Icf838075228dcdd62cf2c1279aa983e5993d66ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215397
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    The test has been excluded as testing with 3GB
+    requires creating a local file, flushing it
+    and then doing sendfile which takes a while
+    and could cause flakes on computers without capacity,
+    but the test can be retroactively accessed at:
+    https://go-review.googlesource.com/c/go/+/192518/8/src/net/sendfile_windows_test.go
+    
+    Fixes #33193.
+    
+    Change-Id: If57c25bc289aec82b748890ac1ac4f55798d6a5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192518
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/sys_linux_ppc64x.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/sendfile_windows.go | 51 +++++++++++++++++++++++++++++++++------------
+ 1 file changed, 38 insertions(+), 13 deletions(-)

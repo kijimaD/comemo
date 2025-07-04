@@ -1,21 +1,17 @@
-commit 20f99ffa3e5d58b5ed12289b1ed0e5107376209b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 18 15:56:07 2013 -0400
+commit f6329700aee750e3eaded14cf64b2971ace839f6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Oct 18 10:45:19 2013 +0400
 
-    cmd/gc: shorten name used for map bucket type
+    runtime: remove nomemprof
+    Nomemprof seems to be unneeded now, there is no recursion.
+    If the recursion will be re-introduced, it will break loudly by deadlocking.
+    Fixes #6566.
     
-    Before:
-    type.struct { buckets *struct { overflow *struct { overflow *struct { overflow *struct { overflow *struct { overflow *<...>; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; oldbuckets *struct { overflow *struct { overflow *struct { overflow *struct { overflow *struct { overflow *<...>; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable } }
-    
-    After:
-    type.map.bucket[string]*"".RangeTable
-    
-    This makes debugging maps a little nicer, and it takes up less space in the binary.
-    
-    R=golang-dev, r
-    CC=golang-dev, khr
-    https://golang.org/cl/15110044
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/14695044
 
- src/cmd/gc/fmt.c     | 7 +++++++
- src/cmd/gc/reflect.c | 1 +
- 2 files changed, 8 insertions(+)
+ src/pkg/runtime/mprof.goc | 10 ----------
+ src/pkg/runtime/proc.c    |  2 --
+ src/pkg/runtime/runtime.h |  1 -
+ 3 files changed, 13 deletions(-)

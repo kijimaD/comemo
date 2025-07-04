@@ -1,17 +1,26 @@
-commit 4a5d6916ede1a5547f78140c7594a9519bda90e7
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Apr 21 17:21:10 2020 -0400
+commit 4751db93ef23c87c0fa2f06433555b7084f339bd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 29 20:40:26 2019 -0400
 
-    cmd/compile: update PPC64.rules to use typed aux values
+    cmd/internal/obj/s390x: mark unsafe points
     
-    Passes toolstash-check.
+    For async preemption, we will be using REGTMP as a temporary
+    register in injected call on S390X, which will clobber it. So any
+    code that uses REGTMP is not safe for async preemption.
     
-    Change-Id: I874f8b834ef2f94daa971ecef2dbe4e14daf4213
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229305
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    In the assembler backend, we expand a Prog to multiple machine
+    instructions and use REGTMP as a temporary register if necessary.
+    These need to be marked unsafe. Unlike ARM64 and MIPS,
+    instructions on S390X are variable length so we don't use the
+    length as a condition. Instead, we set a bit on the Prog whenever
+    REGTMP is used.
+    
+    Change-Id: Ie5d14068a950f4c7cea51dff2c4a8bdc19ec9348
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204105
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules | 1614 ++++++------
- src/cmd/compile/internal/ssa/rewritePPC64.go | 3512 +++++++++++++-------------
- 2 files changed, 2612 insertions(+), 2514 deletions(-)
+ src/cmd/internal/obj/s390x/a.out.go |   1 +
+ src/cmd/internal/obj/s390x/asmz.go  | 177 +++++++++++++++++++++---------------
+ src/cmd/internal/obj/s390x/objz.go  |   8 +-
+ 3 files changed, 110 insertions(+), 76 deletions(-)

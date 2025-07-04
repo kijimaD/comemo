@@ -1,17 +1,54 @@
-commit 1d0f93b4be68263ec7e07255e8fe20e1168c9bba
+commit 55889409f8d44fab8f7715ec2d66286b857e25e7
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 19 15:52:15 2011 -0500
+Date:   Mon Dec 19 15:51:13 2011 -0500
 
-    gc: avoid unsafe in defn of package runtime
+    runtime: separate out auto-generated files, take 2
     
-    Keeps -u tracking simple.
+    This is like the ill-fated CL 5493063 except that
+    I have written a shell script (autogen.sh) instead of
+    thinking I could possibly write a correct Makefile.
     
-    R=ken2
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5495094
+    https://golang.org/cl/5496075
 
- src/cmd/gc/builtin.c.boot | 13 ++++++-------
- src/cmd/gc/runtime.go     | 14 ++++++--------
- src/cmd/gc/subr.c         | 21 +++++++++++++++------
- src/cmd/gc/walk.c         | 16 ++++++++++------
- 4 files changed, 37 insertions(+), 27 deletions(-)
+ src/Make.pkg                          |   2 +-
+ src/cmd/Makefile                      |   7 ++-
+ src/make.bash                         |   8 ++-
+ src/pkg/runtime/Makefile              |  81 +++++++-----------------
+ src/pkg/runtime/asm_386.s             |   2 +-
+ src/pkg/runtime/asm_amd64.s           |   2 +-
+ src/pkg/runtime/asm_arm.s             |   2 +-
+ src/pkg/runtime/autogen.sh            | 113 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/defs1_linux.go        |   2 +
+ src/pkg/runtime/defs2_linux.go        |   2 +
+ src/pkg/runtime/defs_arm_linux.go     |   2 +
+ src/pkg/runtime/defs_darwin.go        |   2 +
+ src/pkg/runtime/defs_freebsd.go       |   2 +
+ src/pkg/runtime/defs_linux.go         |   2 +
+ src/pkg/runtime/defs_netbsd.go        |   2 +
+ src/pkg/runtime/defs_openbsd.go       |   2 +
+ src/pkg/runtime/defs_windows.go       |   2 +
+ src/pkg/runtime/goc2c.c               |   3 +
+ src/pkg/runtime/lock_futex.c          |   2 +
+ src/pkg/runtime/lock_sema.c           |   2 +
+ src/pkg/runtime/mkasmh.sh             |  25 +++++++-
+ src/pkg/runtime/mkgodefs.sh           |  24 +++++++-
+ src/pkg/runtime/mkversion.c           |   8 ++-
+ src/pkg/runtime/rt0_windows_amd64.s   |   2 +-
+ src/pkg/runtime/signal_darwin_amd64.c |   2 +-
+ src/pkg/runtime/sys_darwin_386.s      |   2 +-
+ src/pkg/runtime/sys_darwin_amd64.s    |   2 +-
+ src/pkg/runtime/sys_freebsd_386.s     |   2 +-
+ src/pkg/runtime/sys_freebsd_amd64.s   |   2 +-
+ src/pkg/runtime/sys_linux_386.s       |   2 +-
+ src/pkg/runtime/sys_linux_amd64.s     |   2 +-
+ src/pkg/runtime/sys_linux_arm.s       |   2 +-
+ src/pkg/runtime/sys_netbsd_386.s      |   2 +-
+ src/pkg/runtime/sys_netbsd_amd64.s    |   2 +-
+ src/pkg/runtime/sys_openbsd_386.s     |   2 +-
+ src/pkg/runtime/sys_openbsd_amd64.s   |   2 +-
+ src/pkg/runtime/sys_plan9_386.s       |   2 +-
+ src/pkg/runtime/sys_windows_386.s     |   2 +-
+ src/pkg/runtime/sys_windows_amd64.s   |   2 +-
+ 39 files changed, 245 insertions(+), 86 deletions(-)

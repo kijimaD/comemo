@@ -1,15 +1,27 @@
-commit 4371e094578cdb463a09ca57777078f36feb3002
-Author: Pascal S. de Kloe <pascal@quies.net>
-Date:   Mon Mar 7 11:11:21 2011 -0500
+commit 70f08b47a00008fbe14946924437fa2b8612a5a2
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Mar 7 10:54:53 2011 -0500
 
-    hash: new FNV-1a implementation
+    goinstall: handle $(GOOS) and $(GOARCH) in filenames
     
-    R=agl1, rsc
+    This enables goinstall to handle .go and .c files (for cgo)
+    which are named after the following patterns:
+    
+        name_$(GOOS).*
+        name_$(GOARCH).*
+        name_$(GOOS)_$(GOARCH).*
+    
+    Files with those names are only included if the $(GOOS) and
+    $(GOARCH) match the current system.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4257042
+    https://golang.org/cl/4172055
 
- src/pkg/Makefile             |   1 +
- src/pkg/hash/fnv/Makefile    |  11 +++
- src/pkg/hash/fnv/fnv.go      | 133 ++++++++++++++++++++++++++++++++++
- src/pkg/hash/fnv/fnv_test.go | 167 +++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 312 insertions(+)
+ .hgignore                         |  1 +
+ src/Make.inc                      | 35 ++++++++++++++----------
+ src/cmd/goinstall/Makefile        | 12 +++++++++
+ src/cmd/goinstall/parse.go        | 48 +++++++++++++++++++++++++++++++++
+ src/cmd/goinstall/syslist_test.go | 56 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/Makefile                  |  1 -
+ 6 files changed, 138 insertions(+), 15 deletions(-)

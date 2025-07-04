@@ -1,22 +1,17 @@
-commit 94aba76639cf4d5e30975d846bb0368db8202269
-Author: Monis Khan <mkhan@redhat.com>
-Date:   Wed Apr 12 16:00:58 2017 -0400
+commit 8b11e0b42d6466726639ac702c073047d9fadedb
+Author: Anmol Sethi <anmol@aubble.com>
+Date:   Sun Jan 8 14:46:54 2017 -0500
 
-    encoding/asn1: support 31 bit identifiers with OID
+    net/http: remove check for null bytes in Dir.Open()
     
-    The current implementation uses a max of 28 bits when decoding an
-    ObjectIdentifier.  This change makes it so that an int64 is used to
-    accumulate up to 35 bits.  If the resulting data would not overflow
-    an int32, it is used as an int.  Thus up to 31 bits may be used to
-    represent each subidentifier of an ObjectIdentifier.
+    The syscall package checks for null bytes now.
+    This was added in https://codereview.appspot.com/6458050
     
-    Fixes #19933
-    
-    Change-Id: I95d74b64b24cdb1339ff13421055bce61c80243c
-    Reviewed-on: https://go-review.googlesource.com/40436
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I59a2fed3757a25b85e2668905ff5cf2ec8c3a0d3
+    Reviewed-on: https://go-review.googlesource.com/34978
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/asn1/asn1.go      | 15 ++++++++++++---
- src/encoding/asn1/asn1_test.go |  3 +++
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ src/net/http/fs.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

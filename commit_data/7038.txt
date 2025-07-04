@@ -1,15 +1,15 @@
-commit c0332fc93f36bfaf6a5fe681c73d743c36d9f301
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 5 10:11:34 2011 -0800
+commit d71d08af5ab15c7b166d92a31219c4c218438841
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Wed Jan 5 13:09:38 2011 -0500
 
-    fmt: normalize processing of format string
-    The old loop was a bit odd; change it to be more regular.
-    This also enables a diagnostic for Printf("%", 3): %!(NOVERB)
+    http: permit empty Reason-Phrase in response Status-Line
     
-    R=rsc, Kyle C
+    Fixes #1388.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3749044
+    https://golang.org/cl/3749043
 
- src/pkg/fmt/fmt_test.go |  8 +++++---
- src/pkg/fmt/print.go    | 20 +++++++++++---------
- 2 files changed, 16 insertions(+), 12 deletions(-)
+ src/pkg/http/response.go      |  8 ++++++--
+ src/pkg/http/response_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 2 deletions(-)

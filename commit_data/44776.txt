@@ -1,27 +1,39 @@
-commit 9b78c68a15eb2cd8075ceeaaaca9c1e63c3a894c
-Author: David Chase <drchase@google.com>
-Date:   Fri Mar 19 16:52:55 2021 -0400
+commit 7615b20d06500fe5c95c061f6ff32e0c97639a60
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Aug 20 15:06:23 2020 -0500
 
-    cmd/compile: remove AuxCall.results, cleanup ssagen/ssa.go
+    cmd/compile: generate subfic on ppc64
     
-    More cleanup to remove unnecessary parts of AuxCall.
-    Passed testing on arm64 (a link-register architecture)
-    in addition to amd64 so very likely okay.
+    This merges an lis + subf into subfic, and for 32b constants
+    lwa + subf into oris + ori + subf.
     
-    (Gratuitously updated commit message to see if it will
-    correctly this time.)
+    The carry bit is no longer used in code generation, therefore
+    I think we can clobber it as needed.  Note, lowered borrow/carry
+    arithmetic is self-contained and thus is not affected.
     
-    Updates #40724
+    A few extra rules are added to ensure early transformations to
+    SUBFCconst don't trip up earlier rules, fold constant operations,
+    or otherwise simplify lowering.  Likewise, tests are added to
+    ensure all rules are hit.  Generic constant folding catches
+    trivial cases, however some lowering rules insert arithmetic
+    which can introduce new opportunities (e.g BitLen or Slicemask).
     
-    Change-Id: Iaece952ceb5066149a5d32aaa14b36755f26bb8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303433
-    Trust: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    I couldn't find a specific benchmark to demonstrate noteworthy
+    improvements, but this is generating subfic in many of the default
+    bent test binaries, so we are at least saving a little code space.
+    
+    Change-Id: Iad7c6e5767eaa9dc24dc1c989bd1c8cfe1982012
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249461
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go      |  6 +--
- src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
- src/cmd/compile/internal/ssa/op.go                | 50 ++++++++----------
- src/cmd/compile/internal/ssa/rewrite.go           |  2 +-
- src/cmd/compile/internal/ssa/writebarrier.go      |  2 +-
- src/cmd/compile/internal/ssagen/ssa.go            | 63 ++++++++---------------
- 6 files changed, 49 insertions(+), 76 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        |   8 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  31 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   1 +
+ src/cmd/compile/internal/ssa/opGen.go        |  15 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 571 ++++++++++++++++++++++++++-
+ test/codegen/arithmetic.go                   |  42 ++
+ test/codegen/mathbits.go                     |  14 +
+ test/codegen/slices.go                       |  21 +
+ 8 files changed, 686 insertions(+), 17 deletions(-)

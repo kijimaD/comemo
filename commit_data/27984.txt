@@ -1,20 +1,14 @@
-commit cd5ab9798612a08fd39e29ccd6bc10112d1bef0a
-Author: Dhaivat Pandit <dhaivatpandit@gmail.com>
-Date:   Mon Aug 22 10:29:02 2016 -0700
+commit 3564ec52cda2a3c83aaf41159b26369ca4e7ecee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 22 22:13:50 2016 +0000
 
-    net/http/httptest: updated example to use Result()
+    cmd/api: ignore vendored packages
     
-    example for httptest.Recorder was inspecting Recoder directly.
-    Using Result() to convert Recorder into a http.Response yields a much
-    better user experience.
+    Fixes #15404
     
-    Closes #16837
-    
-    Change-Id: Id0e636c12cd6adb1ba11f89953ff2b0f43758cf3
-    Reviewed-on: https://go-review.googlesource.com/27495
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I16f2a34a1e4c3457053a1fc2141f21747cfb22b4
+    Reviewed-on: https://go-review.googlesource.com/22386
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/httptest/example_test.go | 16 +++++++++++++---
- src/net/http/httptest/recorder.go     |  3 +++
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ src/cmd/api/goapi.go | 5 +++++
+ 1 file changed, 5 insertions(+)

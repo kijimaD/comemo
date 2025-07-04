@@ -1,13 +1,19 @@
-commit dd91d83d2427e5a076aa92342b70dda63dd1cbb6
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 15 12:58:40 2012 +1100
+commit 7127b6fddcc07b960452aaba5dbbe84001e2e547
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 15 12:58:00 2012 +1100
 
-    doc: add App Engine docs to 'learn' and 'reference' pages
+    bytes,strings: make *Reader implement io.ReaderAt
     
-    R=golang-dev, dsymonds
+    R=golang-dev, adg, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5672048
+    https://golang.org/cl/5675053
 
- doc/docs.html      | 6 ++++++
- doc/reference.html | 6 ++++++
- 2 files changed, 12 insertions(+)
+ src/pkg/archive/zip/reader_test.go | 11 ++---------
+ src/pkg/archive/zip/writer_test.go |  2 +-
+ src/pkg/archive/zip/zip_test.go    | 16 +++-------------
+ src/pkg/bytes/reader.go            | 19 +++++++++++++++++--
+ src/pkg/bytes/reader_test.go       | 30 ++++++++++++++++++++++++++++++
+ src/pkg/mime/multipart/formdata.go | 12 +-----------
+ src/pkg/strings/reader.go          | 19 +++++++++++++++++--
+ src/pkg/strings/reader_test.go     | 30 ++++++++++++++++++++++++++++++
+ 8 files changed, 101 insertions(+), 38 deletions(-)

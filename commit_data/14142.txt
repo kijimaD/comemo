@@ -1,15 +1,12 @@
-commit f2045aadd9bd09b1d1371ee9bc2817f50d7587fd
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Oct 15 07:50:13 2012 +1100
+commit 422da762b7dd63c54de9b39a4f7f3283f5d0afeb
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Oct 12 14:09:24 2012 -0700
 
-    time: accept numbers larger than 2^32 in ParseDuration.
+    compress/bzip2: use io.ByteReader instead of internal interface
     
-    Fixes #3374.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6683047
+    https://golang.org/cl/6663044
 
- src/pkg/time/format.go    | 11 ++++++-----
- src/pkg/time/time_test.go |  2 ++
- 2 files changed, 8 insertions(+), 5 deletions(-)
+ src/pkg/compress/bzip2/bit_reader.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

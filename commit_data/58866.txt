@@ -1,22 +1,23 @@
-commit beb314c0dbcbe03b576123e99e1331348f858ecc
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Feb 25 11:46:15 2025 +0100
+commit b702e0438ae9577dcc642ba7696a89799c86c8b7
+Author: Mehdi Mostafavi <mehdi.mostafavi7900@gmail.com>
+Date:   Mon Jan 8 16:58:39 2024 +0000
 
-    os, syscall: use unix build tag where appropriate
+    cmd/doc: fix inconsistent receiver name
     
-    These newly added files may use the unix build tag instead of explitly
-    listing all unix-like GOOS values.
+    The ToText method of Package is the only one with a receiver declared
+    'p'; all the rest have 'pkg'. Fix it to be consistent.
     
-    For #51572
-    
-    Change-Id: I31c71d2b5533b39bbccd89bf616a99b8e33565d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651996
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I2b47c719f4f6f8d87336316b7f80deb1b49e17dc
+    GitHub-Last-Rev: 7d273b4ef0780b7ed8b651c117a28b25bab5bcb1
+    GitHub-Pull-Request: golang/go#64912
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553335
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/root_openat.go           | 2 +-
- src/os/root_unix.go             | 2 +-
- src/syscall/badlinkname_unix.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/doc/pkg.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

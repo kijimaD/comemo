@@ -1,17 +1,21 @@
-commit d6d5d8c8fbe574349422b444a8cf0ff0647a6dcf
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 5 00:38:06 2024 +0700
+commit be0e0b06ac53d3d02ea83b479790404057b6f19b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 29 08:59:20 2023 -0700
 
-    cmd/compile: remove NameSet.Sorted
+    sync: panic rather than throw on nil *Pool
     
-    The only usage of it was removed in CL 517617
+    Fixes #61651
     
-    Change-Id: If1898b7cde4f8c7ab906a2c27a01125415b463c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610600
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I27d581719e6bf38910f9d47dcf023bbff74ddf72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514037
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ir/node.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/sync/pool.go      |  7 +++++++
+ src/sync/pool_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

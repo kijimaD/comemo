@@ -1,0 +1,19 @@
+commit 1e9c5bbc8a428da5832137e84d08ff2b8e99dfaa
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Aug 22 09:50:08 2024 -0500
+
+    crypto/aes: add missing aes-gcm buffer overlap checks to PPC64
+    
+    The tests added by CL 601778 highlighted missing buffer overlap
+    checks in the ppc64 specific aes-gcm implementation.
+    
+    Fixes #69007
+    
+    Change-Id: I80c3b5628c5079cfed2c3dace7298512c16a8f46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607519
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/aes/gcm_ppc64x.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

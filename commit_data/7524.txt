@@ -1,14 +1,16 @@
-commit 556506e8692af033fba6411ba926733daf1fcd0a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 22 09:34:13 2011 -0800
+commit 795ff00df0f2e2eae44b50f33e2b63c23ec1a862
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 22 09:21:50 2011 -0800
 
-    go spec: fix local link
+    reflect: add a secret method to ArrayOrSliceType.
+    It was observed that the interface was generic enough
+    that several other types implemented it too.
     
-    Fixes #1543.
+    Fixes #1530.
     
-    R=rsc, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4169068
+    https://golang.org/cl/4169063
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/reflect/type.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

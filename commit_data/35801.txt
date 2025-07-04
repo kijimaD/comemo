@@ -1,26 +1,35 @@
-commit 7e9d55eeeb183ee95d26b3ed4ff171902605decf
-Author: David Chase <drchase@google.com>
-Date:   Mon Jun 25 15:26:45 2018 -0400
+commit 6436270dadb232e3ef1afc0d4cf714bcb9434910
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 11 16:32:02 2018 -0500
 
-    cmd/compile: avoid remainder in loopbce when increment=0
+    cmd/compile: add fence-post implications to prove
     
-    For non-unit increment, loopbce checks to see if the
-    increment evenly divides the difference between (constant)
-    loop start and end.  This test panics when the increment
-    is zero.
+    This adds four new deductions to the prove pass, all related to adding
+    or subtracting one from a value. This is the first hint of actual
+    arithmetic relations in the prove pass.
     
-    Fix: check for zero, if found, don't optimize the loop.
+    The most effective of these is
     
-    Also added missing copyright notice to loopbce.go.
+       x-1 >= w && x > min  ⇒  x > w
     
-    Fixes #26043.
+    This helps eliminate bounds checks in code like
     
-    Change-Id: I5f460104879cacc94481949234c9ce8c519d6380
-    Reviewed-on: https://go-review.googlesource.com/120759
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+      if x > 0 {
+        // do something with s[x-1]
+      }
+    
+    Altogether, these deductions prove an additional 260 branches in std
+    and cmd. Furthermore, they will let us eliminate some tricky
+    compiler-inserted panics in the runtime that are interfering with
+    static analysis.
+    
+    Fixes #23354.
+    
+    Change-Id: I7088223e0e0cd6ff062a75c127eb4bb60e6dce02
+    Reviewed-on: https://go-review.googlesource.com/87480
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
 
- src/cmd/compile/internal/ssa/loopbce.go |  6 +++++-
- test/fixedbugs/issue26043.go            | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/prove.go | 73 +++++++++++++++++++++++++++++++++++
+ test/prove.go                         | 54 ++++++++++++++++++++++++++
+ 2 files changed, 127 insertions(+)

@@ -1,22 +1,22 @@
-commit b66474e0217145570fbc38d66b3f11af64586225
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 22 11:38:46 2023 -0700
+commit c8d5ccf82ec24ff3855c1717d46df6a0c60684de
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 27 14:24:46 2022 -0700
 
-    runtime: treat TestRaceSignal as flaky on Darwin
+    [dev.unified] go/internal/gcimporter: flatten imports
     
-    It should be impossible for the program to exit with SIGCHLD,
-    but it happens occasionally. Skip the test on Darwin.
+    The current documentation for go/types.(*Packages).Imports requires
+    that the import graph be flattened when read from export data. I think
+    this is a documentation bug (incorrectly codifying the existing
+    behavior, rather than documenting it as a known bug), but until that's
+    decided, we can at least flatten imports ourselves.
     
-    For #60316
+    Updates #54096.
     
-    Change-Id: Idc9d89838e73f077afc42a9703554d61ac7a0069
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497055
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Idc054a2efc908b3e6651e6567d0ea0e89bb0c54d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419596
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/crash_cgo_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/go/internal/gcimporter/ureader.go | 32 +++++++++++++++++++++++++++++++-
+ 1 file changed, 31 insertions(+), 1 deletion(-)

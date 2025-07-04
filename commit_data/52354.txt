@@ -1,28 +1,20 @@
-commit 9eba17ff90963cdbbe47af887fb3152c0c4d1ebb
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 13 14:02:16 2023 -0400
+commit 96a1ad298ad9e6a308c3b05c07e1b3bf53ac9cfe
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Apr 29 01:20:38 2022 +0700
 
-    runtime: for deep stacks, print both the top 50 and bottom 50 frames
+    cmd/compile: remove inTypeCheckInl boolean
     
-    This is relatively easy using the new traceback iterator.
+    After CL 402974, we do not typecheck an inline body in ImportedBody
+    anymore, thus the inTypeCheckInl check is un-necessary.
     
-    Ancestor tracebacks are now limited to 50 frames. We could keep that
-    at 100, but the fact that it used 100 before seemed arbitrary and
-    unnecessary.
-    
-    Fixes #7181
-    Updates #54466
-    
-    Change-Id: If693045881d84848f17e568df275a5105b6f1cb0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475960
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ia6154a57db507c3e00b67333f1e3b910a6de7d05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402975
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- doc/go1.21.html               |   8 ++
- src/runtime/export_test.go    |   3 +
- src/runtime/proc.go           |   2 +-
- src/runtime/runtime2.go       |   3 -
- src/runtime/traceback.go      | 173 ++++++++++++++++++++++++++++++++++--------
- src/runtime/traceback_test.go | 146 ++++++++++++++++++++++++++++++++---
- 6 files changed, 291 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/typecheck/func.go | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)

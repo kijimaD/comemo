@@ -1,14 +1,23 @@
-commit 1c4cfb92d14de98614f8c7178f77e11bcd7ac0ee
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 14 14:03:03 2023 -0500
+commit 3d19e8da7997eaf4ba18bfdf489c3bdb373a0c4d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 18 00:01:24 2022 +0100
 
-    net/http: add section headers to package doc
+    syscall: unskip TestDirentRepeat on freebsd
     
-    Change-Id: I2379cceeb74cb8511058b24cdd100b21649505ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462197
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    TestDirentRepeat fails on FreeBSD 11, but seems to pass on newer
+    versions. Go 1.18 is the last release to support FreeBSD 11 per
+    https://golang.org/doc/go1.18#freebsd and there are no FreeBSD 11
+    builders anymore. Thus unskip TestDirentRepeat to verify the issue is
+    indeed fixed on FreeBSD 12 and later.
+    
+    For #31416
+    
+    Change-Id: I189ef06719ff830ffe2e402c74a75874c9e5b97b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393618
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/doc.go | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ src/syscall/dirent_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,20 +1,15 @@
-commit 7d574466a9bd001feea4717933adb6ab78acd05f
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Tue Aug 9 23:08:57 2022 +0800
+commit 812a33dc7df6a4f7b8b0bd2e6ea6500f312b3fed
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Oct 6 13:42:17 2021 -0700
 
-    cmd/internal/obj/loong64: add ROTR, ROTRV instructions support
+    test: skip endian inlining test on noopt builder
     
-    Reference: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
-    
-    Change-Id: I29adb84eb70bffd963c79ed6957a5197896fb2bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422316
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I73b1ac23f322bcaff36eff7a5829654f299c1fdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354353
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  8 ++++++++
- src/cmd/internal/obj/loong64/a.out.go           |  2 ++
- src/cmd/internal/obj/loong64/anames.go          |  2 ++
- src/cmd/internal/obj/loong64/asm.go             | 14 +++++++++++++-
- 4 files changed, 25 insertions(+), 1 deletion(-)
+ test/inline_endian.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,17 +1,18 @@
-commit 6f6942ef7afc34c6b7e1eea3031ed61acc458d2a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 7 13:02:35 2022 -0700
+commit c0a86c10f174dd1679974b48a085273d02803121
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 8 16:55:36 2021 -0400
 
-    doc/go1.19: use the right package error.Is arguments
+    [dev.typeparams] cmd/compile: simplify openDeferSave
     
-    They were swapped.
+    Now it is only used to save the deferred the function (closure),
+    which must be a function type. Simplify the code.
     
-    Fixes #52205
-    
-    Change-Id: Iea2626aa2204f3bc96d08c571a1aa669436a32ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398895
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Id4b8f2760fbf39a95883df2327f97378e7edab88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326060
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.19.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 78 +++++++++++++++-------------------
+ 1 file changed, 34 insertions(+), 44 deletions(-)

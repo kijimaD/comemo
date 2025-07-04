@@ -1,16 +1,19 @@
-commit 1f035d036c2a49c1b858af3260552ccaac80858d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 2 18:53:23 2019 +0000
+commit c99687f87aed84342cfe92ae78924f791237c6f6
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Thu Aug 30 11:33:19 2018 -0400
 
-    runtime: disable GDB tests on freebsd/arm for now
+    go/types: handle nil pointer when panic is written outside of a function
     
-    Updates #29508
-    Updates #28679
+    The current implementation crashes when someone writes a panic outside of
+    a function, which makes sense since that is broken code. This fix allows
+    one to type-check broken code.
     
-    Change-Id: I19bc9f88aeb2b1f3e69856173a00c5a4d5ed3613
-    Reviewed-on: https://go-review.googlesource.com/c/155932
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Updates #22467
+    
+    Change-Id: I81b90dbd918162a20c60a821340898eaf02e648d
+    Reviewed-on: https://go-review.googlesource.com/132235
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/runtime-gdb_test.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/go/types/api_test.go | 2 ++
+ src/go/types/builtins.go | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

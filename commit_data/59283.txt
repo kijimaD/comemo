@@ -1,23 +1,17 @@
-commit f9670787122a732fb7d81cf64856ab6c50904e17
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Apr 11 14:11:37 2025 +0200
+commit 88b2f25005f65343d9b73186e8f5c1e25554e233
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Tue Feb 27 01:15:10 2024 +0000
 
-    os: fix TestRootChtimes on illumos
+    database/sql: add error check
     
-    TestRootChtimes currently fails on illumos [1] because the times
-    returned by os.Stat have only microsecond precision on that builder.
-    Truncate them to make the test pass again.
-    
-    [1] https://build.golang.org/log/9780af24c3b3073dae1d827b2b9f9e3a48912c30
-    
-    Change-Id: I8cf895d0b60c854c27cb4faf57c3b44bd40bfdd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664915
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ib9f7a1a4bf23f76457dabf85610f4799502631dc
+    GitHub-Last-Rev: afbb86fde12d2eeaa8121c25787b0e9c290edbc7
+    GitHub-Pull-Request: golang/go#65947
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566857
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Bypass: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/os/root_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/database/sql/example_service_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

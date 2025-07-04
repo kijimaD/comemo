@@ -1,16 +1,13 @@
-commit b4bab6f8b351630211b0617ac91fb532d6aaf16d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jun 24 13:01:17 2011 +1000
+commit 73d741fd5b767f671dc3bb466ae28c51b0222f8c
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jun 23 10:11:33 2011 -0700
 
-    goinstall: build with make by default, add -make flag
+    mime/multipart: remove newline at top of the multipart.
     
-    This is a temporary measure until go/build can build cgo packages.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz, arctanofyourface
     CC=golang-dev
-    https://golang.org/cl/4627056
+    https://golang.org/cl/4635063
 
- src/cmd/goinstall/Makefile |   1 +
- src/cmd/goinstall/main.go  |  49 +++++++-----
- src/cmd/goinstall/make.go  | 180 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 210 insertions(+), 20 deletions(-)
+ src/pkg/mime/multipart/writer.go      | 6 +++++-
+ src/pkg/mime/multipart/writer_test.go | 7 +++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

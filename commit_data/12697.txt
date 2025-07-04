@@ -1,17 +1,12 @@
-commit 23322ab841c2d6192557a9a0cae3ace40bff8c9d
+commit 9dbfda5857ca5481135c960ead3e9bce153cc8b6
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Mar 21 00:47:27 2012 +0800
+Date:   Wed Mar 21 00:42:53 2012 +0800
 
-    build: unset GOPATH before tests
-    This is because we disallow local import for non-local packages, if
-    GOROOT happens to be under one of GOPATH, then some tests will fail
-    to build.
-    Fixes #3337.
+    doc/debugging_with_gdb: format & content update
     
-    R=golang-dev, r
+    R=adg, lvd
     CC=golang-dev
-    https://golang.org/cl/5852043
+    https://golang.org/cl/5845065
 
- src/run.bash | 2 ++
- src/run.bat  | 4 ++++
- 2 files changed, 6 insertions(+)
+ doc/debugging_with_gdb.html | 77 +++++++++++++++++++++++----------------------
+ 1 file changed, 39 insertions(+), 38 deletions(-)

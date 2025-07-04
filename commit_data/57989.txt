@@ -1,41 +1,22 @@
-commit 5c534ef546d55a2680d2bc2e88ea329e6a8b068c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 14 18:36:20 2024 -0500
+commit a278550c40ef3f01a5fcbef43414dc49009201f8
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Wed Sep 13 20:52:51 2023 -0400
 
-    crypto/internal/bigmod: apply wasm-specific implementation for only sized addMulVVW
+    .github: issue template for telemetry proposals
     
-    Restore generic addMulVVW for wasm (and therefore for all
-    architectures). Apply wasm-specific implementation for only the
-    explicitly sized functions (addMulVVW1024 etc.).
+    This uses the github's newer template syntax.
     
-    Also, for the sized functions, use unsafe pointer calculations
-    directly, without converting them back to slices. (This is what
-    the assembly code does on other architectures.) This results in a
-    bit more speedup for crypto/rsa benchmarks on Wasm:
+    https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms
     
-    pkg: crypto/rsa
-                         │   old.txt   │              new.txt                │
-                         │   sec/op    │   sec/op     vs base                │
-    DecryptPKCS1v15/2048   4.906m ± 0%   4.221m ± 1%  -13.96% (p=0.000 n=25)
-    DecryptPKCS1v15/3072   15.18m ± 0%   13.57m ± 0%  -10.64% (p=0.000 n=25)
-    DecryptPKCS1v15/4096   35.49m ± 0%   32.64m ± 1%   -8.04% (p=0.000 n=25)
-    EncryptPKCS1v15/2048   177.1µ ± 0%   162.3µ ± 0%   -8.35% (p=0.000 n=25)
-    DecryptOAEP/2048       4.900m ± 1%   4.233m ± 0%  -13.61% (p=0.000 n=25)
-    EncryptOAEP/2048       181.8µ ± 0%   166.8µ ± 0%   -8.24% (p=0.000 n=25)
-    SignPKCS1v15/2048      5.026m ± 1%   4.341m ± 0%  -13.63% (p=0.000 n=25)
-    VerifyPKCS1v15/2048    177.2µ ± 0%   161.3µ ± 1%   -8.97% (p=0.000 n=25)
-    SignPSS/2048           5.020m ± 0%   4.344m ± 1%  -13.47% (p=0.000 n=25)
-    VerifyPSS/2048         182.2µ ± 1%   166.6µ ± 0%   -8.52% (p=0.000 n=25)
-    geomean                1.791m        1.598m       -10.78%
+    See
+    https://github.com/hyangah/go/issues/new?assignees=&labels=Telemetry-Proposal&projects=hyangah%2F3&template=12-telemetry.yml&title=x%2Ftelemetryconfig%3A+
+    for demo.
     
-    Change-Id: I89775c46a0bbe29380889047ba393c6cfc093ff1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628255
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I13105711b1fe97680b505eefa1f0e7082e76e92c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528357
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/internal/bigmod/nat.go         | 19 ++++++++++++++++++
- src/crypto/internal/bigmod/nat_generic.go | 28 --------------------------
- src/crypto/internal/bigmod/nat_noasm.go   |  2 +-
- src/crypto/internal/bigmod/nat_wasm.go    | 33 +++++++++++++++++++++++--------
- 4 files changed, 45 insertions(+), 37 deletions(-)
+ .github/ISSUE_TEMPLATE/12-telemetry.yml | 68 +++++++++++++++++++++++++++++++++
+ 1 file changed, 68 insertions(+)

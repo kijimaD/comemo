@@ -1,21 +1,21 @@
-commit d5cfba087f4947ac25714f925e610d0d3575d05e
-Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
-Date:   Mon Sep 27 04:20:34 2021 +0000
+commit e125ccd10ea191101dbc31f0dd39a98f9d3ab929
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jan 14 13:28:37 2021 -0500
 
-    cmd/go: remove references to 'go help fuzz'
+    cmd/go: in 'go mod edit', validate versions given to -retract and -exclude
     
-    Fixes: #48623
+    Fixes #43280
     
-    Change-Id: Idab917b90ceb332cf49b6ca2a6b79be97ac56e18
-    GitHub-Last-Rev: 3143ce8b95e70a0466c836ce9be3e13a3e85c12e
-    GitHub-Pull-Request: golang/go#48640
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352313
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Icb6c6807fe32a89202a2709d4a1c8d8af967628f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283853
     Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go            | 2 --
- src/cmd/go/internal/test/test.go | 2 --
- 2 files changed, 4 deletions(-)
+ src/cmd/go.mod                                  |  2 +-
+ src/cmd/go.sum                                  |  4 ++--
+ src/cmd/go/testdata/script/mod_edit.txt         |  6 +++++
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 30 +++++++++++++++++++++++++
+ src/cmd/vendor/modules.txt                      |  2 +-
+ 5 files changed, 40 insertions(+), 4 deletions(-)

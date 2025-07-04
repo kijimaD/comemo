@@ -1,18 +1,37 @@
-commit 6f116508550d434d005ef9bc63fb027c70b5b39a
-Author: Yusuf Birader <yusuf.birader@hotmail.com>
-Date:   Tue Aug 29 23:45:52 2023 +0100
+commit 9a029a69157788d072147732fe2665c58bbbc02c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 30 11:08:54 2022 -0400
 
-    archive/zip: update link to zip specification
+    os/exec: make StdoutPipe and StderrPipe safe to Close concurrently
     
-    Change-Id: Iad902ec2a13b0c5c594c60ecac0b40f641574a1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524275
+    For #50436, I want to be able to close the pipes returned by
+    StdoutPipe and StderrPipe after the Context has been canceled
+    and the WaitDelay has subsequently expired.
+    
+    However, the fact that the exec.onceCloser wrapper for StdinPipe
+    (added in CL 13329043) was retained in CL 65490 suggests to me that
+    (*os.File).Close is still not safe to call concurrently.
+    
+    This may cause type assertions of these ReadClosers to *os.File that
+    once succeeded to no longer do so. However, the StdoutPipe and
+    StderrPipe methods return interfaces, not concrete *os.Files, so
+    callers already should not have been relying on that implementation
+    detail — and as far as I can tell the closeOnce wrapper does not mask
+    any (*os.File) methods, so assertions to any interface type that
+    previously succeeded will continue to do so.
+    
+    This change is logically part of CL 401835, but since it may expose
+    fragile type-assertions in callers I want to keep it separate for
+    clearer bisection of any new test failures.
+    
+    For #50436.
+    
+    Change-Id: I58de1d48fb6fd788502f13657d8d4484516271cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437176
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/archive/zip/struct.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/os/exec/exec.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

@@ -1,27 +1,32 @@
-commit 1af60b2f4990bffdd1b050ffd11e978578d1e38f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 2 16:44:35 2022 -0500
+commit 4c072c94dc2ffedd29d51d04aba2e1a6f2afd93f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 4 10:26:40 2021 -0700
 
-    regexp/syntax: add and use ErrInvalidDepth
+    [dev.typeparams] cmd/compile: refactor import reading
     
-    The fix for #51112 introduced a depth check but used
-    ErrInternalError to avoid introduce new API in a CL that
-    would be backported to earlier releases.
+    This CL restructures the gcimports importer to mmap the export data
+    into memory as a string, and then pass that same string to both the
+    typecheck and types2 importers.
     
-    New API accepted in proposal #51684.
+    This is primarily motivated by preparation for unified IR; but it
+    should also improve performance (fewer string copies) and reduces
+    divergance between the two importers.
     
-    This CL adds a distinct error for this case.
+    Passes toolstash -cmp.
     
-    For #51112.
-    Fixes #51684.
-    
-    Change-Id: I068fc70aafe4218386a06103d9b7c847fb7ffa65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384617
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I397f720693e9e6360bfcb5acb12609ab339d251f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325210
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- api/next/regexpdepth.txt   | 3 +++
- src/regexp/syntax/parse.go | 7 ++++---
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ .../internal/{typecheck => base}/mapfile_mmap.go   |   4 +-
+ .../internal/{typecheck => base}/mapfile_read.go   |   4 +-
+ src/cmd/compile/internal/importer/gcimporter.go    |   2 +-
+ src/cmd/compile/internal/importer/iimport.go       |  34 ++-
+ src/cmd/compile/internal/noder/decl.go             |  12 +-
+ src/cmd/compile/internal/noder/import.go           | 231 +++++++++++++--------
+ src/cmd/compile/internal/typecheck/iimport.go      |  39 +---
+ 7 files changed, 172 insertions(+), 154 deletions(-)

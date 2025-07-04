@@ -1,29 +1,27 @@
-commit aa5165d62cf623230dd820afe2bdba92bd15beeb
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Nov 25 23:22:11 2018 +0000
+commit c870d56f98eab5370726afd223fe0ab14d9e88ab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 9 16:01:20 2018 -0700
 
-    encoding/hex: simplify decoder arithmetic
+    net/http/httputil: fix race/crash in previous ReverseProxy change
     
-    Remove all multiplications and divisions from the main decoding loop.
+    The previous ReverseProxy change, CL 137335, introduced a bug which could cause
+    a race and/or a crash.
     
-    name            old time/op   new time/op   delta
-    Decode/256-8      323ns ± 0%    293ns ± 0%   -9.29%  (p=0.000 n=5+4)
-    Decode/1024-8    1.26µs ± 0%   1.14µs ± 0%   -9.48%  (p=0.000 n=6+5)
-    Decode/4096-8    4.99µs ± 0%   4.51µs ± 0%   -9.55%  (p=0.002 n=6+6)
-    Decode/16384-8   20.0µs ± 0%   18.1µs ± 0%   -9.54%  (p=0.002 n=6+6)
+    This reliably crashed before:
     
-    name            old speed     new speed     delta
-    Decode/256-8    791MB/s ± 0%  872MB/s ± 0%  +10.34%  (p=0.002 n=6+6)
-    Decode/1024-8   814MB/s ± 0%  899MB/s ± 0%  +10.48%  (p=0.004 n=6+5)
-    Decode/4096-8   821MB/s ± 0%  908MB/s ± 0%  +10.55%  (p=0.002 n=6+6)
-    Decode/16384-8  821MB/s ± 0%  908MB/s ± 0%  +10.54%  (p=0.002 n=6+6)
+    $ go test -short -race -v -run=TestReverseProxyFlushInterval -count=20 net/http/httputil
     
-    Change-Id: Ie9f91242ce04c130a77c1184379e3b9de38fe713
-    Reviewed-on: https://go-review.googlesource.com/c/151199
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    The problem was a goroutine was running http.ResponseWriter.Flush
+    after the http.Handler's ServeHTTP completed. There was code to
+    prevent that (a deferred stop call) but the stop call didn't consider
+    the case where time.AfterFunc had already fired off a new goroutine
+    but that goroutine hadn't yet scheduled.
+    
+    Change-Id: I06357908465a3b953efc33e63c70dec19a501adf
+    Reviewed-on: https://go-review.googlesource.com/c/140977
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/encoding/hex/hex.go      | 17 +++++++++--------
- src/encoding/hex/hex_test.go | 14 ++++++++++++++
- 2 files changed, 23 insertions(+), 8 deletions(-)
+ src/net/http/httputil/reverseproxy.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,22 +1,25 @@
-commit 7ce458726523ec8accb2f1ac2f1b21a60fb4bd6e
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Apr 6 11:01:05 2023 -0700
+commit dd7d9b773f0c1319955eee0857e07dd411628e00
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Apr 22 13:18:15 2022 -0400
 
-    net/http: add tests covering non-GET methods for file serving
+    go/doc: remove brackets from receiver in example identifier
     
-    ServeFile and FileServer will respond to methods such as DELETE by
-    serving the file contents. This is surprising, but we don't want to
-    change it without some consideration.
+    When constructing a string for a method that will match an example
+    function's name, remove brackets from the receiver. This makes it
+    possible to write an example associated with a method of a generic
+    type.
     
-    Add tests covering the current behavior.
+    Also, modify the test for classifying examples to check that all the
+    expected examples actually appear.
     
-    For #59470
+    Fixes golang/go#52496.
     
-    Change-Id: Ib6a2594c5b2b7f380149fc1628f7204b308161e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482876
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Change-Id: Iebc5768f6cb91df9671dd701b97958fb8081f986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401761
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/http/fs_test.go | 83 ++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 78 insertions(+), 5 deletions(-)
+ src/go/doc/example.go      | 21 +++++++++++++++++++--
+ src/go/doc/example_test.go | 19 +++++++++++++++++++
+ 2 files changed, 38 insertions(+), 2 deletions(-)

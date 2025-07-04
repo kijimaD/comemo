@@ -1,28 +1,16 @@
-commit f05c3aa24d815cd3869153750c9875e35fc48a6e
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Wed Apr 13 16:51:25 2016 -0700
+commit c16a61515fa725b81a6c461c80a32f2f0afad8db
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 22:00:06 2016 -0400
 
-    encoding/json: support maps with integer keys
+    misc/cgo/test: add RewindAndSetgid implementation for s390x
     
-    This change makes encoding and decoding support integer types in map
-    keys, converting to/from JSON string keys.
+    Required to pass the issue9400 test.
     
-    JSON object keys are still sorted lexically, even though the keys may be
-    integer strings.
-    
-    For backwards-compatibility, the existing Text(Un)Marshaler support for
-    map keys (added in CL 20356) does not take precedence over the default
-    encoding for string types. There is no such concern for integer types,
-    so integer map key encoding is only used as a fallback if the map key
-    type is not a Text(Un)Marshaler.
-    
-    Fixes #12529.
-    
-    Change-Id: I7e68c34f9cd19704b1d233a9862da15fabf0908a
-    Reviewed-on: https://go-review.googlesource.com/22060
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I595223c403b12faade54e2e46510f8537150af39
+    Reviewed-on: https://go-review.googlesource.com/20940
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/json/decode.go      | 52 +++++++++++++++++------
- src/encoding/json/decode_test.go | 91 +++++++++++++++++++++++++++++++++++++++-
- src/encoding/json/encode.go      | 37 ++++++++++++----
- 3 files changed, 158 insertions(+), 22 deletions(-)
+ misc/cgo/test/issue9400/asm_s390x.s | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

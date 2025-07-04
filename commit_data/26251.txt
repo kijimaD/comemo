@@ -1,20 +1,14 @@
-commit fdc04223c5ed16ba568f6ce1b4859bc06e43df5e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 13 11:54:14 2016 -0700
+commit fc1793dde99c51ee98349810d396467972b56e6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:41:37 2016 -0500
 
-    cmd/compile: clean up savedata
+    doc: document release support policy
     
-    Simplify function signature.
-    Remove unused Ctxt field Enforce_data_order.
+    Fixes #12790.
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I5caa270ca9ae725708fe415b2c978b5f40780255
-    Reviewed-on: https://go-review.googlesource.com/20644
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0f231d198c76632c23692fc1337b57cfeafaf4c7
+    Reviewed-on: https://go-review.googlesource.com/18338
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/internal/obj/data.go    |  8 ++--
- src/cmd/internal/obj/link.go    | 97 ++++++++++++++++++++---------------------
- src/cmd/internal/obj/objfile.go |  2 +-
- 3 files changed, 52 insertions(+), 55 deletions(-)
+ doc/devel/release.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

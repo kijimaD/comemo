@@ -1,13 +1,15 @@
-commit d62379eef5c0834e4fe70fb42bc9c87b7a1fd879
+commit d409e44cfb7b2a323658f4b6fd6d5bb3a9104889
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jan 28 22:45:14 2014 +0400
+Date:   Tue Jan 28 22:37:35 2014 +0400
 
-    runtime: more chan tests
+    runtime: fix buffer overflow in make(chan)
+    On 32-bits one can arrange make(chan) params so that
+    the chan buffer gives you access to whole memory.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/57390043
+    LGTM=r
+    R=golang-codereviews, r
+    CC=bradfitz, golang-codereviews, iant, khr
+    https://golang.org/cl/50250045
 
- src/pkg/runtime/chan_test.go | 366 ++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 343 insertions(+), 23 deletions(-)
+ src/pkg/runtime/chan.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

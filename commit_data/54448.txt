@@ -1,23 +1,21 @@
-commit bfa8a8586f6ba62265c31d4edc2027f5b15f7ed3
-Author: doujiang24 <doujiang24@gmail.com>
-Date:   Wed Sep 13 09:44:19 2023 +0000
+commit a8e4b8c2a793de420ebbe7120c132f0b090d068c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 18 13:00:26 2022 -0700
 
-    runtime: silently allow pinning of non-Go pointers in runtime.Pinner.Pin
+    go/types: remove pkgForMode in favor of pkgFor (cleanup)
     
-    People may not know the details of a pointer, this makes the
-    runtime.Pinner.Pin API easier to use.
+    The mode is always 0.
     
-    Fixes #62356
-    
-    Change-Id: I071df44e01320648a6df5e2a1e65afd6ea52e274
-    GitHub-Last-Rev: 560a581b63c6e7fe6c8829437e7ab3acd3b31514
-    GitHub-Pull-Request: golang/go#62549
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527156
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I6566383c7724b26f070729041bce203a5afa0989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443776
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/pinner.go      | 29 ++++++++++++++++-------------
- src/runtime/pinner_test.go | 16 ++++++++++++++++
- 2 files changed, 32 insertions(+), 13 deletions(-)
+ src/go/types/api_test.go         | 14 +++++---------
+ src/go/types/instantiate_test.go | 10 +++++-----
+ src/go/types/methodset_test.go   |  2 +-
+ src/go/types/named_test.go       |  2 +-
+ 4 files changed, 12 insertions(+), 16 deletions(-)

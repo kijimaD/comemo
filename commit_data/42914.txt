@@ -1,22 +1,25 @@
-commit 5cc030aa1996762e48ce446001078ce6447f105e
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Jul 27 14:42:06 2020 +0200
+commit 2783249068e415556e962c50d9427a21fdc9a875
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Tue Jan 7 11:09:33 2020 +0000
 
-    go/ast: note that in BasicLit CHARs and STRINGs are quoted
+    cmd/asm: add asimd instruction 'rev16' on arm64
     
-    The Value field of ast.BasicLit is a string field holding the literal
-    string. For CHARs and STRINGs, the BasicLit.Value literal includes
-    quotes, so to use the value in practise one will often need to Unquote
-    it.
+    Add support to the asimd instruction rev16 which reverses elements in
+    16-bit halfwords.
     
-    Since this is a common gotcha (I've been bitten by this a few times),
-    document it, and suggest the use of the strconv.Unquote functions.
+    syntax:
+            VREV16 <Vn>.<T>, <Vd>.<T>
+    <T> should be either B8 or B16.
     
-    Fixes #39590
-    
-    Change-Id: Ie3e13f5a2a71bb1b59e03bc5b3a16d8e2e7c01d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244960
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I7a7b8e772589c51ca9eb6dca98bab1aac863c6c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213738
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/ast/ast.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/asm/internal/asm/testdata/arm64enc.s   | 2 ++
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 3 +++
+ src/cmd/internal/obj/arm64/a.out.go            | 1 +
+ src/cmd/internal/obj/arm64/anames.go           | 1 +
+ src/cmd/internal/obj/arm64/asm7.go             | 8 ++++++++
+ 5 files changed, 15 insertions(+)

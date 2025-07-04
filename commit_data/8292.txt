@@ -1,17 +1,18 @@
-commit c783e68ff50f75347d3a0d06a30b690d460fc936
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 2 13:28:02 2011 -0700
+commit f279a939290eb527f60241d488029803d3d2ed19
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 13:01:36 2011 -0700
 
-    godoc: added -index flag to enable/disable search index
+    http: fix racy test with a simpler version
     
-    Fixes #1647.
+    This was seen breaking the slow arm5 builder:
+    http://godashboard.appspot.com/log/ec54ee302a70c07093e8f5c47454b3eb48768b77e1d8cc7943d8951f8b6696be
     
-    R=adg, rsc1, r2, rsc, r
+    The test was unnecessarily complex and didn't benefit from
+    using httptest.Server. That just got in the way.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4444083
+    https://golang.org/cl/4439088
 
- lib/godoc/godoc.html   |  2 ++
- src/cmd/godoc/doc.go   |  3 +++
- src/cmd/godoc/godoc.go | 35 ++++++++++++++++++++++-------------
- src/cmd/godoc/main.go  | 13 ++++++++++---
- 4 files changed, 37 insertions(+), 16 deletions(-)
+ src/pkg/http/serve_test.go | 62 ++++++++++++++++------------------------------
+ 1 file changed, 21 insertions(+), 41 deletions(-)

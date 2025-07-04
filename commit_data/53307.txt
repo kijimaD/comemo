@@ -1,28 +1,22 @@
-commit a965318ac051b112b61fcbbbfe4e0be00088abd7
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed May 24 14:16:38 2023 -0400
+commit 0d9ed0638be1aa5c68c1bef0713c338e206a6656
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Aug 9 10:32:59 2022 -0400
 
-    go/types: set correct Pos for T in struct{p.T}
+    test: skip -buildmode=pie tests on alpine
     
-    Previously, the field Var for T created for struct{p.T}
-    would use the Pos of the ast.Field, which coincides with p.
-    This change makes it use the Pos of T.
+    Skip a collection of -buildmode=pie tests on alpine, which are
+    currently failing on the linux-amd64-alpine builder. Once #54354 has
+    been investigated and resolved we can turn these tests back on.
     
-    Errors about the field type are still reported at the
-    position of the ast.Field (e.g. *p.T) not the field T.
+    Updates #54354.
     
-    Fixes #60372
-    
-    Change-Id: I06000874f2018d47159493626da3d16e6716f4c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497882
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Change-Id: I99d4016a40873ee6bb4eda571a64eddbe719c76a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422295
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/struct.go     | 4 ++--
- src/go/types/struct.go                        | 4 ++--
- src/internal/types/testdata/check/decls3.go   | 4 ++--
- src/internal/types/testdata/examples/types.go | 8 ++++----
- 4 files changed, 10 insertions(+), 10 deletions(-)
+ misc/cgo/testshared/shared_test.go |  3 +++
+ src/cmd/dist/test.go               | 17 +++++++++++++----
+ src/cmd/go/go_test.go              |  4 ++++
+ 3 files changed, 20 insertions(+), 4 deletions(-)

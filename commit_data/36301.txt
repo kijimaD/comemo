@@ -1,21 +1,23 @@
-commit 26d62b4ca9bb8f7342d337ba43b0cc1aedaf7852
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed Aug 8 04:10:19 2018 +0000
+commit 3042463d61a4a9165531aaf45833f1dcefb1e5f9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 17 16:28:13 2018 -0400
 
-    cmd/internal/obj/arm64: add SWPALD/SWPALW/SWPALH/SWPALB
+    cmd/compile: in escape analysis, use element type for OIND of slice
     
-    Those new instructions have acquire/release semantics, besides
-    normal atomic SWPD/SWPW/SWPH/SWPB.
+    The escape analysis models the flow of "content" of X with a
+    level of "indirection" (OIND node) of X. This content can be
+    pointer dereference, or slice/string element. For the latter
+    case, the type of the OIND node should be the element type of
+    the slice/string. This CL fixes this. In particular, this
+    matters when the element type is pointerless, where the data
+    flow should not cause any escape.
     
-    Change-Id: I24821a4d21aebc342897ae52903aef612c8d8a4a
-    Reviewed-on: https://go-review.googlesource.com/128476
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #15730.
+    
+    Change-Id: Iba9f92898681625e7e3ddef76ae65d7cd61c41e0
+    Reviewed-on: https://go-review.googlesource.com/107597
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/asm/internal/arch/arm64.go        |  1 +
- src/cmd/asm/internal/asm/testdata/arm64.s |  8 ++++++++
- src/cmd/internal/obj/arm64/a.out.go       |  4 ++++
- src/cmd/internal/obj/arm64/anames.go      |  4 ++++
- src/cmd/internal/obj/arm64/asm7.go        | 16 ++++++++++------
- 5 files changed, 27 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  8 +++++---
+ test/escape5.go                    | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 3 deletions(-)

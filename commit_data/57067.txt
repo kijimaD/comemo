@@ -1,34 +1,18 @@
-commit 2caf638e2f8abf3ed765d553164fc3e46e1bf407
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Jun 27 17:18:51 2024 -0400
+commit 711ef8bc725037e95ad78ce61b8679fdd2657897
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Jun 13 14:13:01 2023 +0000
 
-    runtime: don't use maps in js note implementation
+    internal/xcoff: remove blank lines after final return statements
     
-    notes are used in sensitive locations in the runtime, such as those with
-    write barriers forbidden. Maps aren't designed for this sort of internal
-    use.
-    
-    Notably, newm -> notewakeup doesn't allow write barriers, but mapaccess1
-    -> panic contains write barriers. The js runtime only builds right now
-    because the map access is optimized to mapaccess1_fast64, which happens
-    to not have a panic call.
-    
-    The initial swisstable map implementation doesn't have a fast64 variant.
-    While we could add one, it is a bad idea in general to use a map in such
-    a fragile location. Simplify the implementation by storing the metadata
-    directly in the note, and using a linked list for checkTimeouts.
-    
-    For #54766.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-js-wasm
-    Change-Id: Ib9d39f064ae4ad32dcc873f799428717eb6c2d5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595558
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I869ebcd9a134d0010e419dc51b6f91eddeaa0bbd
+    GitHub-Last-Rev: 0fc44edaeafcc2042e0fe57c8c41b4f60d4c478c
+    GitHub-Pull-Request: golang/go#60764
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502835
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/lock_js.go    | 72 ++++++++++++++++++++++-------------------------
- src/runtime/note_js.go    | 40 ++++++++++++++++++++++++++
- src/runtime/note_other.go | 33 ++++++++++++++++++++++
- src/runtime/runtime2.go   | 27 ------------------
- 4 files changed, 106 insertions(+), 66 deletions(-)
+ src/internal/xcoff/ar.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,29 +1,22 @@
-commit c74be77e63c0281abb45dbf9de31fa05a6824934
+commit a63ff398d541a1b3a3658e38693adebf370aadbb
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 6 18:02:30 2022 -0800
+Date:   Wed Apr 14 13:10:34 2021 -0700
 
-    cmd/compile: accept string|[]byte-constrained 2nd argument in append
+    cmd/compile/internal/syntax: fix error message for ... without type
     
-    Similarly to what we do for the built-in function `copy`,
-    where we allow a string as 2nd argument to append, also
-    permit a type parameter constrained by string|[]byte.
+    Only complain about missing type; leave it to type-checking
+    to decide whether "..." is permitted in the first place.
     
-    While at it, change date in the manual.go2 test files so
-    that we don't need to constantly correct it when copying
-    a test case from that file into a proper test file.
+    Fixes #43674.
     
-    Fixes #50281.
-    
-    Change-Id: I23fed66736aa07bb3c481fe97313e828425ac448
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/376214
+    Change-Id: Icbc8f084e364fe3ac16076406a134354219c08d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310209
     Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/builtins.go        |  2 +-
- .../types2/testdata/fixedbugs/issue50281.go2       | 26 ++++++++++++++++++++++
- .../compile/internal/types2/testdata/manual.go2    |  2 +-
- src/go/types/builtins.go                           |  2 +-
- src/go/types/testdata/fixedbugs/issue50281.go2     | 26 ++++++++++++++++++++++
- src/go/types/testdata/manual.go2                   |  2 +-
- test/typeparam/issue376214.go                      | 20 +++++++++++++++++
- 7 files changed, 76 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go               |  2 +-
+ src/cmd/compile/internal/syntax/testdata/issue43674.src | 13 +++++++++++++
+ test/fixedbugs/bug228.go                                |  2 +-
+ 3 files changed, 15 insertions(+), 2 deletions(-)

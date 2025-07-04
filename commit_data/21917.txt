@@ -1,20 +1,18 @@
-commit 818eff0367528dea7b0d05d601d6dbf7fc41c699
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 4 22:56:49 2015 -0500
+commit c1c3ce6b36bd4324f17b422d6127ae6d5dd7bae4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jan 9 13:03:55 2015 -0800
 
-    cmd/internal/obj/i386: delete
+    cmd/6g: allocate fewer new registers in sgen
     
-    Now unused.
+    When possible, generate nodl/nodr directly into DI/SI
+    rather than going through a temporary register.
     
-    Change-Id: I0ba27e58721ad66cc3068346d6d31ba0ac37ad64
-    Reviewed-on: https://go-review.googlesource.com/6893
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    CX has already been saved; use it during trailing bytes cleanup.
+    
+    Change-Id: I4ec6209bcc5d3bfdc927c5c132009bd8d791ada3
+    Reviewed-on: https://go-review.googlesource.com/2608
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/i386/8.out.go   |  594 ------
- src/cmd/internal/obj/i386/anames8.go |  507 -----
- src/cmd/internal/obj/i386/asm8.go    | 3462 ----------------------------------
- src/cmd/internal/obj/i386/list8.go   |  161 --
- src/cmd/internal/obj/i386/obj8.go    |  942 ---------
- src/cmd/internal/obj/i386/util.go    |   12 -
- 6 files changed, 5678 deletions(-)
+ src/cmd/6g/cgen.c | 30 +++++++++++++++++++-----------
+ 1 file changed, 19 insertions(+), 11 deletions(-)

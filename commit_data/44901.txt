@@ -1,26 +1,20 @@
-commit 5579ee169f12815660eb9ee66afd5f2abc77864f
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 1 14:21:12 2021 -0400
+commit 114719e16e9681bd1001326598ededa719c17944
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Sep 14 21:00:52 2020 +0000
 
-    cmd/compile: in expand calls, preserve pointer store type but decompose aggregate args
+    Revert "encoding/json: implement Is on all errors"
     
-    In CL 305672 we preserve the pointer type of a store by just not
-    decomposing it. But this can be problematic when the source of
-    the store is a direct interface aggregate type (e.g.
-    struct { x map[int]int }.
+    This reverts CL 254537.
     
-    In this CL we take a different approach: we preserve the store
-    type when generating the new store, but also decompose the source.
+    Reason for revert: Reason for revert: The recommended way to check for a type of error is errors.As. API changes should also start with a proposal.
     
-    Fixes #45344.
-    
-    Change-Id: If5dd496458dee95aa649c6d106b96a6cdcf3e60d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306669
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I07c37428575e99c80b17525833a61831d10963bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254857
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 11 ++++++++---
- test/fixedbugs/issue45344.go                 | 20 ++++++++++++++++++++
- 2 files changed, 28 insertions(+), 3 deletions(-)
+ src/encoding/json/decode.go      | 18 ------------------
+ src/encoding/json/decode_test.go | 31 -------------------------------
+ src/encoding/json/encode.go      | 12 ------------
+ src/encoding/json/encode_test.go | 24 +-----------------------
+ 4 files changed, 1 insertion(+), 84 deletions(-)

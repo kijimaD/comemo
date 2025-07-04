@@ -1,17 +1,18 @@
-commit 38d3f585288d9640d428fd9d6afd429815f01730
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Fri Sep 30 11:33:13 2011 -0700
+commit a7a7cc5a55690350eeee4d1aa26ca460f61c4b56
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 30 11:31:28 2011 -0700
 
-    runtime: fix windows build
+    index/suffixarray: 4.5x faster index serialization (to memory)
     
-    Add osyield and usleep as required by recent GC changes.
+    Benchmark results (best of 3 runs):
     
-    R=golang-dev, r, dsymonds, rsc, r
+    old: suffixarray.BenchmarkSaveRestore          1        1931909000 ns/op          28.21 MB/s
+    new: suffixarray.BenchmarkSaveRestore          5         429721800 ns/op         117.14 MB/s
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5156042
+    https://golang.org/cl/5161043
 
- src/pkg/runtime/windows/386/defs.h   | 14 ++++++++++++++
- src/pkg/runtime/windows/amd64/defs.h | 14 ++++++++++++++
- src/pkg/runtime/windows/defs.c       |  1 +
- src/pkg/runtime/windows/thread.c     | 29 +++++++++++++++++++++++++++++
- 4 files changed, 58 insertions(+)
+ src/pkg/index/suffixarray/suffixarray.go      | 133 ++++++++++++++++++--------
+ src/pkg/index/suffixarray/suffixarray_test.go |  12 ++-
+ 2 files changed, 101 insertions(+), 44 deletions(-)

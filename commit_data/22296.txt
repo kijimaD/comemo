@@ -1,17 +1,13 @@
-commit 0c9f3e4972ceaa71d82835c213b9b1617ee07bf1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 2 15:19:10 2015 -0700
+commit ea1fafbccdaee0632dbbdd610d24ab2e2ac25cb6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 27 17:52:12 2015 -0800
 
-    cmd/internal/gc: destutter array initializers
+    math/big: modified MantExp semantics to enable fast exponent access
     
-    Aside from removing the superfluous comment near syms, this diff is
-    entirely mechanically generated via Emacs's query-replace-regexp to
-    replace "^\tstruct {\n[^}]*}" with "\t".
-    
-    Change-Id: Ide7e4b5995f6a121b3f57415e033933ac5c7431a
-    Reviewed-on: https://go-review.googlesource.com/8427
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I9a6ebb747d5b9756c214bdeb19f60820602d7a24
+    Reviewed-on: https://go-review.googlesource.com/6340
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/internal/gc/lex.go | 882 ++++++++-------------------------------------
- 1 file changed, 152 insertions(+), 730 deletions(-)
+ src/math/big/float.go      | 40 ++++++++++++++++++++++------------------
+ src/math/big/float_test.go | 23 ++++++++++++-----------
+ 2 files changed, 34 insertions(+), 29 deletions(-)

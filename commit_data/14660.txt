@@ -1,15 +1,30 @@
-commit 8c86f1f3310047f7c7b3212cca38e5ef96ec9bfa
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Dec 17 02:34:49 2012 +0100
+commit 013fa63c901e4a08548821bcc46393584b8c701e
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Sun Dec 16 19:32:12 2012 -0500
 
-    encoding/json: cleanup leftover redundant variables.
+    runtime: struct Obj in mgc0.c and buffers in scanblock()
     
-    Those variables come from ancient times when reflect.Value was
-    an interface.
+    Details:
     
-    R=dave, rsc
-    CC=golang-dev
-    https://golang.org/cl/6946059
+    - This CL is the conceptual skeleton of code found in CL 6114046
+    
+    - The garbage collector uses struct Obj to specify memory blocks
+    
+    - scanblock() is putting found memory blocks into an intermediate buffer
+      (xbuf) before adding/flushing them to the main work buffer (wbuf)
+    
+    - The main loop in scanblock() is replaced with a skeleton code that
+      in the future will be able to recognize the type of objects and
+      thus will improve the garbage collector's precision.
+      For now, all objects are simply sequences of pointers so
+      the precision of the garbage collector remains unchanged.
+    
+    - The code plugs .gcdata and .gcbss sections into the garbage collector.
+      scanblock() in this CL is unable to make any use of this.
+    
+    R=rsc, dvyukov, remyoudompheng
+    CC=dave, golang-dev, minux.ma
+    https://golang.org/cl/6856121
 
- src/pkg/encoding/json/decode.go | 36 ++++++++++++++----------------------
- 1 file changed, 14 insertions(+), 22 deletions(-)
+ src/pkg/runtime/mgc0.c | 528 ++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 387 insertions(+), 141 deletions(-)

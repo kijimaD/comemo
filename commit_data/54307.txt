@@ -1,23 +1,21 @@
-commit 1d84b02b228cbd35660e168d26fd2801daed08fe
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Wed May 17 17:33:15 2023 +0300
+commit c591d82ea99b70b251a51cefd11ddc42ff004ce6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 4 10:24:05 2022 -0700
 
-    runtime: introduce nextslicecap
+    cmd/compile/internal/syntax: better error message for erroneous method declaration
     
-    This allows to reuse the slice cap computation across
-    specialized growslice funcs.
+    Also make error recovery slightly more robust in this case.
     
-    Updates #49480
+    Fixes #56022.
     
-    Change-Id: Ie075d9c3075659ea14c11d51a9cd4ed46aa0e961
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495876
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Egon Elbre <egonelbre@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1c01c1465adb48c71367d037b6f0e3fe56f68ec9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438540
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/test/inl_test.go |  1 +
- src/runtime/slice.go                      | 67 +++++++++++++++++--------------
- 2 files changed, 37 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go          | 22 +++++++++++-----------
+ .../compile/internal/syntax/testdata/issue56022.go | 10 ++++++++++
+ 2 files changed, 21 insertions(+), 11 deletions(-)

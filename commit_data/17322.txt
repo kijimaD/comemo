@@ -1,14 +1,13 @@
-commit 2f6e9a1e243c64f22d0f0542a05343bacf6d580b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Aug 19 16:22:33 2013 +1000
+commit a790388afb85f04ed65d3795eb22edee44df69af
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Aug 19 13:47:43 2013 +1000
 
-    cmd/go: only try to clean executables for package main
-    
-    Fixes #5665.
+    cmd/gc: regenerate y.tab.{c,h} with Bison 2.5.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12807044
+    https://golang.org/cl/12744048
 
- src/cmd/go/clean.go | 26 +++++++++++++++++++++-----
- 1 file changed, 21 insertions(+), 5 deletions(-)
+ src/cmd/gc/y.tab.c | 1256 ++++++++++++++++++++++++++++++++++++++--------------
+ src/cmd/gc/y.tab.h |   46 +-
+ 2 files changed, 953 insertions(+), 349 deletions(-)

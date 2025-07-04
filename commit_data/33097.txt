@@ -1,51 +1,28 @@
-commit 531e6c06c468badbb1ba180027a93b3f6c5b2615
-Author: Wei Xiao <wei.xiao@arm.com>
-Date:   Tue Apr 25 18:29:54 2017 +0800
+commit 093adeef4004fd029de1a8fd138802607265dc73
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 7 14:58:55 2017 -0400
 
-    cmd/asm: refine Go assembly for ARM64
+    runtime: use next timer to decide whether to relax
     
-    Some ARM64-specific instructions (such as SIMD instructions) are not supported.
-    This patch adds support for the following:
-    1. Extended register, e.g.:
-         ADD        Rm.<ext>[<<amount], Rn, Rd
-         <ext> can have the following values:
-           UXTB, UXTH, UXTW, UXTX, SXTB, SXTH, SXTW and SXTX
-    2. Arrangement for SIMD instructions, e.g.:
-         VADDP      Vm.<T>, Vn.<T>, Vd.<T>
-         <T> can have the following values:
-           B8, B16, H4, H8, S2, S4 and D2
-    3. Width specifier and element index for SIMD instructions, e.g.:
-         VMOV       Vn.<T>[index], Rd // MOV(to general register)
-         <T> can have the following values:
-           S and D
-    4. Register List, e.g.:
-         VLD1       (Rn), [Vt1.<T>, Vt2.<T>, Vt3.<T>]
-    5. Register offset variant, e.g.:
-         VLD1.P     (Rn)(Rm), [Vt1.<T>, Vt2.<T>] // Rm is the post-index register
-    6. Go assembly for ARM64 reference manual
-         new added instructions are required to have according explanation items in
-         the manual and items for existed instructions will be added incrementally
+    Currently, sysmon waits 60 ms during idle before relaxing. This is
+    primarily to avoid reducing the precision of short-duration timers. Of
+    course, if there are no short-duration timers, this wastes 60 ms
+    running the timer at high resolution.
     
-    For more information about the refinement background, please refer to the
-    discussion (https://groups.google.com/forum/#!topic/golang-dev/rWgDxCrL4GU)
+    Improve this by instead inspecting the time until the next timer fires
+    and relaxing the timer resolution immediately if the next timer won't
+    fire for a while.
     
-    This patch only adds syntax and doesn't break any assembly that already exists.
+    Updates #20937.
     
-    Change-Id: I34e90b7faae032820593a0e417022c354a882008
-    Reviewed-on: https://go-review.googlesource.com/41654
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: If4ad0a565b65a9b3e8c4cdc2eff1486968c79f24
+    Reviewed-on: https://go-review.googlesource.com/47833
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/arch/arm64.go        | 160 +++++++++++
- src/cmd/asm/internal/asm/parse.go         | 177 +++++++++++--
- src/cmd/asm/internal/asm/testdata/arm64.s |  46 +++-
- src/cmd/internal/obj/arm/list5.go         |  23 ++
- src/cmd/internal/obj/arm64/a.out.go       |  44 +++-
- src/cmd/internal/obj/arm64/anames.go      |  14 +
- src/cmd/internal/obj/arm64/anames7.go     |   3 +
- src/cmd/internal/obj/arm64/asm7.go        | 423 +++++++++++++++++++++++++++++-
- src/cmd/internal/obj/arm64/doc.go         | 143 ++++++++++
- src/cmd/internal/obj/arm64/list7.go       | 141 ++++++++++
- src/cmd/internal/obj/link.go              |  26 +-
- src/cmd/internal/obj/util.go              |  57 ++--
- 12 files changed, 1204 insertions(+), 53 deletions(-)
+ src/runtime/os_windows.go | 10 +++++-----
+ src/runtime/proc.go       | 27 ++++++++++++++-------------
+ src/runtime/relax_stub.go |  6 +++---
+ src/runtime/time.go       |  2 ++
+ 4 files changed, 24 insertions(+), 21 deletions(-)

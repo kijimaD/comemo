@@ -1,40 +1,23 @@
-commit 90b15211382ca10bd3256b17a6d9cc02da169d6a
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Apr 18 18:04:54 2024 -0400
+commit 6b2ad9ef50a279569e1146dcc8593badae2dbcd4
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon May 1 15:23:42 2023 -0400
 
-    cmd/go/internal/modload: compute direct in workspace mode
+    cmd/compile: remove debugging option InlineSCCOnePass from inliner
     
-    The Requirements structure, which represents the root level requirements
-    of the module graph also has a 'direct' field which contains the set of
-    direct dependencies of a module.
+    Delete the "InlineSCCOnePass" debugging flag and the inliner fallback
+    code that kicks in if it is used. The change it was intended to guard
+    has been working on tip for some time, no need for the fallback any
+    more.
     
-    Before this change, in workspace mode, the direct field was not set on
-    the Requirements structure. This change sets direct in the two places
-    it's needed: when initializing Requirements from the workspace's mod
-    files and when updating Requirements based on imports.
+    Updates #58905.
     
-    When initializing Requirements from the workspace's mod files, this
-    change will use the 'indirect' comments in those mod files to record the
-    set of direct modules passed to the Requirements.
-    
-    There is a loop in updateRequirements where we consider the imports of
-    the packages we loaded from the main module to make sure that all those
-    imported packages' modules are required.  The loop also updates direct
-    for each of those modules (which have at least one package directly
-    imported by the main modules).  Before this change, in the workspace
-    case we continued early from the loop and didn't proceed to the code
-    where direct is computed. This change fixes that.
-    
-    Fixes #66789
-    
-    Change-Id: I2b497fbf28c2197e8ba8e8ca5314c1a720f16364
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580256
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I2e1dbc7640902d9402213db5ad338be03deb96c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492015
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/modload/buildlist.go           |  6 +-
- src/cmd/go/internal/modload/init.go                | 13 ++++
- src/cmd/go/internal/modload/load.go                |  5 +-
- .../go/testdata/script/mod_list_direct_work.txt    | 76 ++++++++++++++++++++++
- 4 files changed, 93 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/base/debug.go |  1 -
+ src/cmd/compile/internal/inline/inl.go | 26 ++++++++------------------
+ 2 files changed, 8 insertions(+), 19 deletions(-)

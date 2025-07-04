@@ -1,21 +1,19 @@
-commit 5413abc44025f281f2a7ea37b3e0043591dbed3e
-Author: Weidi Deng <weidi_deng@icloud.com>
-Date:   Wed Nov 2 01:19:16 2022 +0000
+commit a5f8ae9f6566946529a51b69d2f3f0689abc00eb
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Feb 29 16:09:31 2024 +0800
 
-    net/http: set Request.TLS when net.Conn implements ConnectionState
+    bytes: add a colon after Output to make the Example in the document display correctly
     
-    Fixes #56104
+    The document address currently showing the problem is: https://pkg.go.dev/bytes#Buffer.ReadByte
     
-    Change-Id: I8fbbb00379e51323e2782144070cbcad650eb6f1
-    GitHub-Last-Rev: 62d7a8064e4f2173f0d8e02ed91a7e8de7f13fca
-    GitHub-Pull-Request: golang/go#56110
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/440795
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    Change-Id: Ib52747e38f72541f3ca2a595aa8eca5d91281c80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568135
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/http/serve_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     | 12 ++++++++++++
- 2 files changed, 59 insertions(+)
+ src/bytes/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

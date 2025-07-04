@@ -1,25 +1,17 @@
-commit 146713b67ac6628350abd74f76fd2955de66b3c6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 30 12:26:38 2014 -0700
+commit c486d4130d01f1034901d65c764b8e8ae329a01b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Sep 23 15:34:38 2014 +1000
 
-    go/format, cmd/gofmt: added missing comments, minor internal cleanup
+    runtime: fix runtime.Breakpoint on ARMv5
     
-    This is a minor cleanup following CL 142360043:
+    Fixes #8775.
     
-    The internal parse and format functions in both packages
-    were almost identical - made them identical by adding an
-    extra parameter, and documented them as identical.
+    Use the illegal instruction suggested by Ian in https://golang.org/cl/144180043/#msg4 on all arm arches.
     
-    Eventually we should find a nice way to factor these functions
-    out, but we cannot do this now while in prep for 1.4.
-    
-    No functionality change.
-    
-    LGTM=adonovan
-    R=adonovan
-    CC=golang-codereviews
-    https://golang.org/cl/146520043
+    LGTM=minux
+    R=golang-codereviews, gobot, rsc
+    CC=golang-codereviews, iant, minux
+    https://golang.org/cl/146130043
 
- src/cmd/gofmt/gofmt.go  | 29 +++++++++++++++++++++++------
- src/go/format/format.go | 36 +++++++++++++++++++++++++++++-------
- 2 files changed, 52 insertions(+), 13 deletions(-)
+ src/runtime/asm_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

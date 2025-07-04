@@ -1,15 +1,19 @@
-commit c53307c3fdf1126eb6cdb1f09f4f9b83759be705
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Fri Jan 10 17:00:24 2025 +0200
+commit 0011342590391655bd0cd732cf89c385c30c1278
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 15 21:05:02 2023 +0000
 
-    spec: fix grammar issue
+    test: ignore MemProfileRecords with no live objects in finprofiled.go
     
-    Change-Id: If4d3b3965762c8979d304a82493c9eb1068ee13c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642037
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    This test erroneously assumes that there will always be at least one
+    live object accounted for in a MemProfileRecord. This is not true; all
+    memory allocated from a particular location could be dead.
+    
+    Fixes #64153.
+    
+    Change-Id: Iadb783ea9b247823439ddc74b62a4c8b2ce8e33e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542736
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/finprofiled.go | 5 +++++
+ 1 file changed, 5 insertions(+)

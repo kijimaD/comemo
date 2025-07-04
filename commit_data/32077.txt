@@ -1,21 +1,18 @@
-commit 4f4e562cba963c0be5e57d970b811c702f92fa59
+commit 64f00fb150fff62a144e188e00f59f044ffb7d23
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jul 24 08:18:06 2017 -0700
+Date:   Sun Apr 2 19:12:19 2017 -0700
 
-    .github: add SUPPORT file
+    cmd/compile: len(n.List.Slice()) -> n.List.Len()
     
-    GitHub recently added support for a SUPPORT file:
+    Minor cleanup.
     
-    https://github.com/blog/2400-support-file-support
+    This is the only such instance in the compiler.
     
-    This SUPPORT file is a very lightly edited copy
-    of the wiki entry on asking questions:
-    
-    https://github.com/golang/go/wiki/Questions
-    
-    Change-Id: Ic1eb74d985ea30862defb99750fb42da84e492de
-    Reviewed-on: https://go-review.googlesource.com/50930
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4e8ecde57d71867c7e1ac4d17e2154a91dd262b0
+    Reviewed-on: https://go-review.googlesource.com/39209
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .github/SUPPORT | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/compile/internal/gc/sinit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

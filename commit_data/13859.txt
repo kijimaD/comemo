@@ -1,22 +1,15 @@
-commit 8c058b32d1838e67d67277564b6cb9b0bccd1e75
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 18 11:25:53 2012 -0700
+commit ccf2b8843e26731a2215d0d8b0ac04d7c2d42074
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 18 14:22:55 2012 -0400
 
-    spec: clarify expression statements
+    encoding/json: do not read beyond array literal
     
-    Function and method calls are valid expression statements,
-    but calling certain built-in functions is not permitted.
-    Enumerate the built-ins.
+    Fixes #3942.
     
-    Also: unsafe.Offsetof permits parenthesized selectors as
-    arguments.
-    
-    This is simply documenting existing compiler behavior
-    (both gc and gccgo agree).
-    
-    R=r, rsc, iant, ken
+    R=golang-dev, mike.rosset, r
     CC=golang-dev
-    https://golang.org/cl/6498138
+    https://golang.org/cl/6524043
 
- doc/go_spec.html | 20 ++++++++++++++++----
- 1 file changed, 16 insertions(+), 4 deletions(-)
+ src/pkg/encoding/json/stream.go      |  2 +-
+ src/pkg/encoding/json/stream_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

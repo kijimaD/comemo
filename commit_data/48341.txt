@@ -1,28 +1,14 @@
-commit 3a5e3d8173df547d8360a609097fc80f01182db1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 9 14:27:25 2022 -0800
+commit ad1b6f3ee00ce2592503efec7a9793c4786f6274
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon May 10 11:35:37 2021 -0400
 
-    go/types, types2: pointer base types cannot be type constraints
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    Pointer types may appear in expressions *P and we don't know if
-    we have an indirection (P is a pointer value) or a pointer type
-    (P is a type) until we type-check P. Don't forget to check that
-    a type P must be an ordinary (not a constraint) type in this
-    special case.
-    
-    Fixes #51578.
-    
-    Change-Id: If782cc6dd2a602a498574c78c99e40c3b72274a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391275
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If0c5d89cf730007d05918e60e56a0e1b5afaa118
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318389
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/types2/expr.go                 |  1 +
- .../internal/types2/testdata/fixedbugs/issue51578.go2   | 17 +++++++++++++++++
- src/cmd/compile/internal/types2/typexpr.go              | 10 +++++++---
- src/go/types/expr.go                                    |  1 +
- src/go/types/testdata/fixedbugs/issue51578.go2          | 17 +++++++++++++++++
- src/go/types/typexpr.go                                 | 10 +++++++---
- 6 files changed, 50 insertions(+), 6 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,30 +1,31 @@
-commit 51310d832027f0660098f5f809dc587f0a8b8f9c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Oct 8 00:21:53 2012 +0800
+commit 892fa3ae6c2d70fa1554ac2c817adfbe3c4c0c50
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 7 17:35:21 2012 +0200
 
-    testing: fix extra tabs when t.Log("string")
+    cmd/gc: replace "typechecking loop" by nicer errors in some cases.
     
-    t.Log("line 1\nline 2\nline 3")
+    For issue 3757:
+    BEFORE:  test/fixedbugs/bug463.go:12: typechecking loop involving a
+                 test/fixedbugs/bug463.go:12 a
+                 test/fixedbugs/bug463.go:12 <node DCLCONST>
+    AFTER:   test/fixedbugs/bug463.go:12: constant definition loop
+                 test/fixedbugs/bug463.go:12: a uses a
     
-    Old output:
-    === RUN TestLine3
-    --- PASS: TestLine3 (0.00 seconds)
-    testing_test.go:25:     line 1
-                    line 2
-                    line 3
-                    PASS
+    For issue 3937:
+    BEFORE: test/fixedbugs/bug464.go:12: typechecking loop involving foo
+                test/fixedbugs/bug464.go:12 <T>
+                test/fixedbugs/bug464.go:12 foo
+                test/fixedbugs/bug464.go:12 <node DCLFUNC>
+    AFTER:  test/fixedbugs/bug464.go:12: foo is not a type
     
-    New output:
-    === RUN TestLine3
-    --- PASS: TestLine3 (0.00 seconds)
-    testing_test.go:24:     line 1
-                    line 2
-                    line 3
-    PASS
+    Fixes #3757.
+    Fixes #3937.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6613069
+    https://golang.org/cl/6614058
 
- src/pkg/testing/testing.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/gc/typecheck.c   | 41 ++++++++++++++++++++++++++++++++++++++++-
+ test/fixedbugs/bug463.go | 22 ++++++++++++++++++++++
+ test/fixedbugs/bug464.go | 12 ++++++++++++
+ 3 files changed, 74 insertions(+), 1 deletion(-)

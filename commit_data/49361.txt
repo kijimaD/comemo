@@ -1,38 +1,20 @@
-commit b3b8d2bfeb0ad36426f8b308afda634442708c3c
-Author: Christian Stewart <christian@paral.in>
-Date:   Wed Jun 1 20:52:12 2022 +0000
+commit c88e3ff6483615f980c8e4ee4d807a84cbaf4515
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 19:47:08 2021 -0400
 
-    cmd/dist: use gohostarch for ssa rewrite check
+    cmd/compile/internal/types2: use the underlying TypeParam in
+    assignableTo
     
-    Fix a build failure when bootstrapping the Go compiler with go-bootstrap 1.4
-    while the environment contains GOARCH=riscv64.
+    In CL 338310, assignableTo was altered to walk the constituent types of
+    TypeParams rather than Unions, but was not also adjusted to use under
+    rather than optype. This manifested in the port to go/types.
     
-    Building Go toolchain1 using go-1.4-bootstrap-20171003.
-    src/cmd/compile/internal/ssa/rewriteRISCV64.go:4814
-    invalid operation: y << x (shift count type int64, must be unsigned integer)
-    
-    This is because:
-    
-     - buildtool.go:198: calls bootstrapRewriteFile(src)
-     - bootstrapRewriteFile: buildtool.go:283 calls:
-     - isUnneededSSARewriteFile: checks os.Getenv("GOARCH")
-     - isUnneededSSARewriteFile: returns "", false
-     - bootstrapRewriteFile: calls bootstrapFixImports
-     - boostrapFixImports: generates code go1.4 cannot compile
-    
-    Instead of checking "GOARCH" in the environment, use the gohostarch variable.
-    
-    Change-Id: Ie9c190498555c4068461fead6278a62e924062c6
-    GitHub-Last-Rev: 300d7a7fea0a67c696970fd271e2ce709674a658
-    GitHub-Pull-Request: golang/go#52362
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400376
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: Ie057b96ce93cef204af88b536ea49344c9bc8f12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342409
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/buildtool.go | 16 ++++++----------
- 1 file changed, 6 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/operand.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

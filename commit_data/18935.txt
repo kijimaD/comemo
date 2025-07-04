@@ -1,16 +1,48 @@
-commit 8de04c78b7cd27ff7aad787cb016314bc31365ba
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 25 05:18:08 2014 -0700
+commit 3750904a7efc36aa4f604497b53a9dc1ea67492b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 24 21:22:16 2014 -0400
 
-    runtime: change nproc local variable to uint32
+    runtime: use VEH, not SEH, for windows/386 exception handling
     
-    The nproc and ndone fields are uint32.  This makes the type
-    consistent.
+    Structured Exception Handling (SEH) was the first way to handle
+    exceptions (memory faults, divides by zero) on Windows.
+    The S might as well stand for "stack-based": the implementation
+    interprets stack addresses in a few different ways, and it gets
+    subtly confused by Go's management of stacks. It's also something
+    that requires active maintenance during cgo switches, and we've
+    had bugs in that maintenance in the past.
     
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
-    CC=golang-codereviews
-    https://golang.org/cl/79340044
+    We have recently come to believe that SEH cannot work with
+    Go's stack usage. See http://golang.org/issue/7325 for details.
+    
+    Vectored Exception Handling (VEH) is more like a Unix signal
+    handler: you set it once for the whole process and forget about it.
+    
+    This CL drops all the SEH code and replaces it with VEH code.
+    Many special cases and 7 #ifdefs disappear.
+    
+    VEH was introduced in Windows XP, so Go on windows/386 will
+    now require Windows XP or later. The previous requirement was
+    Windows 2000 or later. Windows 2000 immediately preceded
+    Windows XP, so Windows 2000 is the only affected version.
+    Microsoft stopped supporting Windows 2000 in 2010.
+    See http://golang.org/s/win2000-golang-nuts for details.
+    
+    Fixes #7325.
+    
+    LGTM=alex.brainman, r
+    R=golang-codereviews, alex.brainman, stephen.gutekanst, dave
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/74790043
 
- src/pkg/runtime/mgc0.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/asm_386.s               |   1 -
+ src/pkg/runtime/cgocall.c               |  12 ----
+ src/pkg/runtime/export_test.go          |   4 --
+ src/pkg/runtime/os_windows.c            |  42 +++++-------
+ src/pkg/runtime/os_windows_386.c        |  39 ++++++++---
+ src/pkg/runtime/proc.c                  |  22 ------
+ src/pkg/runtime/runtime.h               |  35 ----------
+ src/pkg/runtime/runtime1.goc            |   4 --
+ src/pkg/runtime/sys_windows_386.s       | 115 ++++++++++++++------------------
+ src/pkg/runtime/syscall_windows_test.go |  15 -----
+ 10 files changed, 97 insertions(+), 192 deletions(-)

@@ -1,18 +1,15 @@
-commit 29f061960d5008170541a886feab721bf754f0fd
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Feb 8 12:47:43 2017 +1100
+commit f9d406ebeaa0af42d2a88bab498a44a91c6c03ee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Nov 5 00:25:38 2016 +0000
 
-    cmd/link: write dwarf sections
+    net/http: deflake TestLinuxSendfile
     
-    Also stop skipping TestExternalLinkerDWARF and
-    TestDefaultLinkerDWARF.
+    Fixes #17805
     
-    Fixes #10776.
-    
-    Change-Id: Ia596a684132e3cdee59ce5539293eedc1752fe5a
-    Reviewed-on: https://go-review.googlesource.com/36983
+    Change-Id: I30d3e63a82b3690a76f2bb33d59ae34c62a7fa59
+    Reviewed-on: https://go-review.googlesource.com/32759
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 6 +++++-
- src/debug/pe/file_cgo_test.go     | 2 --
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ src/net/http/fs_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

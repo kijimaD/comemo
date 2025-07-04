@@ -1,17 +1,24 @@
-commit 108a4dcd75713a1a039db5bb5e21a8d840e50472
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 18 14:38:40 2014 +1100
+commit 088b9a3c3da1b759038050e1c1ce91e09d369f17
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 17 20:00:44 2014 -0700
 
-    cmd/go: make the default coverage mode -atomic if -race is set
-    Fixes #7013.
+    undo CL 77050045 / 073d79675aae
     
-    LGTM=adg
-    R=golang-codereviews, gobot, adg
+    Breaks all builds.
+    
+    ««« original CL description
+    cmd/gc: Add tests for self-referential array types.
+    
+    LGTM=gri, iant
+    R=gri, iant
     CC=golang-codereviews
-    https://golang.org/cl/76370043
+    https://golang.org/cl/77050045
+    »»»
+    
+    TBR=cmang
+    R=cmang
+    CC=golang-codereviews
+    https://golang.org/cl/77210043
 
- src/cmd/go/doc.go      |  3 ++-
- src/cmd/go/test.bash   | 31 +++++++++++++++++++++++++++++++
- src/cmd/go/test.go     |  3 ++-
- src/cmd/go/testflag.go |  9 ++++++++-
- 4 files changed, 43 insertions(+), 3 deletions(-)
+ test/fixedbugs/issue7525.go | 19 -------------------
+ 1 file changed, 19 deletions(-)

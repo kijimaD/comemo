@@ -1,42 +1,23 @@
-commit 27f7427995782bf60195ca65fd9b44aa34913b75
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 20 07:23:59 2013 -0700
+commit c5732c8526fa4fef697730a739631fd69cf4f965
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon May 20 19:25:32 2013 +0900
 
-    net/http: simplify transfer body; reduces allocations too
+    runtime: integrated network poller for freebsd/amd64,386, openbsd/amd64,386
     
-    benchmark                                   old ns/op    new ns/op    delta
-    BenchmarkServerFakeConnNoKeepAlive              14431        14247   -1.28%
-    BenchmarkServerFakeConnWithKeepAlive            11618        11357   -2.25%
-    BenchmarkServerFakeConnWithKeepAliveLite         6735         6427   -4.57%
-    BenchmarkServerHandlerTypeLen                    8842         8740   -1.15%
-    BenchmarkServerHandlerNoLen                      8001         7828   -2.16%
-    BenchmarkServerHandlerNoType                     8270         8227   -0.52%
-    BenchmarkServerHandlerNoHeader                   6148         5920   -3.71%
+    Update #5199
     
-    benchmark                                  old allocs   new allocs    delta
-    BenchmarkServerFakeConnNoKeepAlive                 30           29   -3.33%
-    BenchmarkServerFakeConnWithKeepAlive               25           24   -4.00%
-    BenchmarkServerFakeConnWithKeepAliveLite           10            9  -10.00%
-    BenchmarkServerHandlerTypeLen                      18           17   -5.56%
-    BenchmarkServerHandlerNoLen                        15           14   -6.67%
-    BenchmarkServerHandlerNoType                       16           15   -6.25%
-    BenchmarkServerHandlerNoHeader                     10            9  -10.00%
-    
-    benchmark                                   old bytes    new bytes    delta
-    BenchmarkServerFakeConnNoKeepAlive               2557         2492   -2.54%
-    BenchmarkServerFakeConnWithKeepAlive             2260         2194   -2.92%
-    BenchmarkServerFakeConnWithKeepAliveLite         1092         1026   -6.04%
-    BenchmarkServerHandlerTypeLen                    1941         1875   -3.40%
-    BenchmarkServerHandlerNoLen                      1898         1832   -3.48%
-    BenchmarkServerHandlerNoType                     1906         1840   -3.46%
-    BenchmarkServerHandlerNoHeader                   1092         1026   -6.04%
-    
-    Update #5195
-    
-    R=golang-dev, daniel.morsing
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/9492044
+    https://golang.org/cl/8825043
 
- src/pkg/net/http/server.go   | 10 +++++++++-
- src/pkg/net/http/transfer.go | 16 +++-------------
- 2 files changed, 12 insertions(+), 14 deletions(-)
+ src/pkg/runtime/defs_freebsd.go      | 16 ++++++++++++++--
+ src/pkg/runtime/defs_freebsd_386.h   | 29 +++++++++++++++++++++++++----
+ src/pkg/runtime/defs_freebsd_amd64.h | 27 ++++++++++++++++++++++++---
+ src/pkg/runtime/defs_openbsd.go      | 15 +++++++++++++--
+ src/pkg/runtime/defs_openbsd_386.h   | 22 ++++++++++++++++++++--
+ src/pkg/runtime/defs_openbsd_amd64.h | 22 ++++++++++++++++++++--
+ src/pkg/runtime/sys_freebsd_386.s    | 29 +++++++++++++++++++++++++++++
+ src/pkg/runtime/sys_freebsd_amd64.s  | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/sys_openbsd_386.s    | 29 +++++++++++++++++++++++++++++
+ src/pkg/runtime/sys_openbsd_amd64.s  | 33 +++++++++++++++++++++++++++++++++
+ 10 files changed, 241 insertions(+), 15 deletions(-)

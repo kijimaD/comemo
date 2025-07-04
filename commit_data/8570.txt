@@ -1,17 +1,17 @@
-commit 32e36448830003a1defea37e9cf162b4c327cb5b
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Jun 1 14:10:21 2011 +1000
+commit f74f50e046cbbb651586005c0ea73dfc8fe828c4
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Wed Jun 1 13:12:37 2011 +1000
 
-    mail: new package.
+    Make unix Readdir and windows Readdirnames return partially successful results on error.
+    Make plan 9 Readdir & Readdirnames return os.EOF at end.
+    Also fix typos in the unix and windows comments.
     
-    Basic parsing, plus date parsing.
-    
-    R=bradfitz, gary.burd, bsiegert, rsc
+    R=golang-dev, fshahriar, bradfitz, rsc, r
     CC=golang-dev
-    https://golang.org/cl/4530079
+    https://golang.org/cl/4557053
 
- src/pkg/Makefile             |   1 +
- src/pkg/mail/Makefile        |  11 ++++
- src/pkg/mail/message.go      |  95 +++++++++++++++++++++++++++++++
- src/pkg/mail/message_test.go | 129 +++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 236 insertions(+)
+ src/pkg/os/dir_plan9.go    | 68 ++++++++++++++++++++++++++++------------------
+ src/pkg/os/dir_windows.go  |  5 ----
+ src/pkg/os/file_unix.go    | 15 +++-------
+ src/pkg/os/file_windows.go |  6 ++--
+ 4 files changed, 49 insertions(+), 45 deletions(-)

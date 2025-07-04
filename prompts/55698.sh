@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 55698: cab90c84d12c630d3cf86caee6f686857485d483
+# Index 55698: dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
 
 echo "🚀 Generating explanation for commit 55698..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 55698
-- **コミットハッシュ**: cab90c84d12c630d3cf86caee6f686857485d483
-- **GitHub URL**: https://github.com/golang/go/commit/cab90c84d12c630d3cf86caee6f686857485d483
+- **コミットハッシュ**: dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
+- **GitHub URL**: https://github.com/golang/go/commit/dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
 
 ### 章構成
 

@@ -1,15 +1,16 @@
-commit 8362a8e127bed118a4ffec2d8844c3d3c271d243
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Jul 18 09:17:19 2018 +0200
+commit 598950ca7f69ad70adc99c7cca6c570aaaf3afad
+Author: adrienpetel <peteladrien@gmail.com>
+Date:   Fri Mar 30 14:15:24 2018 +0400
 
-    doc/go1.11: mention the libSystem.so change for iOS
+    net: deflake TestLookupCNAME
     
-    The change to make the runtime use libSystem.so macOS instead of
-    direct kernel calls applies to iOS as well.
+    Apply the same approach as in CL 102397.
     
-    Change-Id: I97ea86452ac5f7433aea58bbd3ff53a2eb2835e0
-    Reviewed-on: https://go-review.googlesource.com/124657
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #24580
+    
+    Change-Id: I65955f62a70807c87216519d03f3643a8f214dee
+    Reviewed-on: https://go-review.googlesource.com/103655
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/lookup_test.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

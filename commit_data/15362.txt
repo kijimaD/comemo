@@ -1,20 +1,14 @@
-commit 782cbb4f90dc873eced4248e100e69a6502d7aee
-Author: Robert Dinu <r@oktett.se>
-Date:   Thu Feb 21 14:17:43 2013 -0800
+commit 4335e69af64b96cd69fa876c5157d6caebde23a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 21 14:00:03 2013 -0800
 
-    testing: fix output formatting
+    archive/tar: make test pass on setgid dirs
     
-    Revision 5e7fd762f356 has changed the output formatting in a way that
-    is no longer in line with the format described by the revision
-    ff0ade0b937b which has introduced this functionality.
-    When decorating the first line, instead of indenting the whole line,
-    the current implementation adds indentation right after the "decorate"
-    part and  before the "log" message.
-    The fix addresses this issue.
+    Fixes #4867
     
-    R=golang-dev, iant, minux.ma, r, rsc, remyoudompheng
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/7304094
+    https://golang.org/cl/7382045
 
- src/pkg/testing/testing.go | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
+ src/pkg/archive/tar/tar_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,12 +1,12 @@
-commit c53450a0722ad34437dbfffdd41a6dbe9e18aff9
+commit fe80cf0f152ca0d975ef67d6c0f0807472796500
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 6 16:52:38 2012 -0400
+Date:   Wed Jun 6 16:05:27 2012 -0400
 
-    A+C: Daniel Morsing (individual CLA)
+    A+C: Markus Sonderegger (individual CLA)
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6307048
+    https://golang.org/cl/6303047
 
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +

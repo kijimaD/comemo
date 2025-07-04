@@ -1,19 +1,23 @@
-commit 0cd833d19823f84a1da7552c63d1be5b7dba332a
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Dec 16 11:07:02 2024 +0100
+commit dc74a3dd4f30c4a3df235aac8a9e84575767ba69
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Aug 26 04:19:40 2023 +1000
 
-    go/build: remove nonexistent package from TestDependencies
+    cmd/internal/obj/riscv: support subtraction with a constant
     
-    crypto/internal/boring/fips140tls is not a package in the Go standard
-    library, so it should not be listed in TestDependencies.
+    Allow SUB and SUBW to be specified with a constant, which are mapped
+    to ADDI and ADDIW with negated values.
     
-    Change-Id: I6476da397b0204fcbd0a11b27a29112fca4b6023
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636415
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I7dc55692febc81ea87393b0a3a7d23a43c30313b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538915
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Wang Yaduo <wangyaduo@linux.alibaba.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
 
- src/go/build/deps_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 5 +++++
+ src/cmd/internal/obj/riscv/obj.go           | 4 ++++
+ 2 files changed, 9 insertions(+)

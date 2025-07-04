@@ -1,23 +1,18 @@
-commit 662ab8be31d30e250716cc1abd63d6be68563543
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 16 13:25:48 2015 -0800
+commit 2a2957656270cf409d11eb2df1d316e97cef2b62
+Author: David Chase <drchase@google.com>
+Date:   Sun Sep 6 21:32:24 2015 -0400
 
-    cmd/compile/internal/gc: add dropped line correction again
+    [dev.ssa] cmd/compile: fix N^2 dominator queries in CSE
     
-    The line correction when reporting a missing package clause
-    was removed before since it wasn't clear that it was needed.
-    Added it again because of issue 13267.
+    Added tree numbering data structure.
+    Changed dominator query in CSE.
+    Removed skip-for-too-big patch in CSE.
+    Passes all.bash.
     
-    No explicit test case has been added to test/fixedbugs because
-    it would require a file that contains a single byte and such a
-    file doesn't fit the existing test harness. Instead documented
-    the problematic line in the parser for future reference.
-    
-    Fixes #13267.
-    
-    Change-Id: I590fe8f358042aab73acf16c2ed9567872b174f4
-    Reviewed-on: https://go-review.googlesource.com/16975
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: I98d7c61b6015c81f5edab553615db17bc7a58d68
+    Reviewed-on: https://go-review.googlesource.com/14326
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/cse.go        |  12 +--
+ src/cmd/compile/internal/ssa/sparsetree.go | 113 +++++++++++++++++++++++++++++
+ 2 files changed, 117 insertions(+), 8 deletions(-)

@@ -1,16 +1,20 @@
-commit cf263e9f772eeeac21df6fe8f51a8c93e8ad5a27
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 21 16:13:35 2021 -0800
+commit bcda68447b31b86bc3829fca80454ca1a2a572e0
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon May 25 15:27:05 2020 +0200
 
-    os: correct names in CreateTemp and MkdirTemp doc comments
+    cmd/link/internal/ld: consider alternative linkers in linkerFlagSupported
     
-    For #42026
+    CL 235017 is about to change the default Android linker to lld. lld doesn't
+    support the --compress-debug-sections=zlib-gnu flag, but linkerFlagSupported
+    doesn't take any alternative linkers specified with -fuse-ld into account.
     
-    Change-Id: I51e3ce9d3a4729cfac44bd3ff3f3ec80dcd5abb5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285376
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Updates #38838
+    
+    Change-Id: I5f7422c06d40dedde2e4b070fc48398e8f822190
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235157
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/tempfile.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

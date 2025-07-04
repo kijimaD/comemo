@@ -1,16 +1,24 @@
-commit 1e338a2fe3b1462e583d57ce8fa6c6cc36af0ac7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Oct 2 12:34:45 2024 +0200
+commit ab3332eea9cff20b465193a3ef3a8f6ce796da2f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 14 14:21:53 2023 -0700
 
-    syscall: gofmt after CL 592078
+    spec: fix unification rule for inexact interface unification
     
-    Change-Id: I328760f7752f1f5ec100f151c7e13e3f804c0e10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617355
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Irrespective of whether unification is exact or inexact, method
+    signatures of interfaces must always match exactly: a type never
+    satisfies/implements an interface if relevant method signatures
+    are different (i.e., not identical, possibly after substitution).
+    
+    This change matches the fix https://go.dev/cl/519435.
+    
+    For #61879.
+    
+    Change-Id: I28b0a32d32626d85afd32e107efce141235a923d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519455
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/syscall/exec_linux.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

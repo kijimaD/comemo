@@ -1,23 +1,18 @@
-commit 7785528c505f6ef9afdb3e089d23dadb860aee11
-Author: Josh Rickmar <jrick@zettaport.com>
-Date:   Thu May 1 15:09:40 2025 +0000
+commit a21b275a5b3e1d72e533b681406d88f6507f17bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 16:35:16 2024 -0500
 
-    os: fix Root.Mkdir permission bits on OpenBSD
+    runtime: gofmt
     
-    Pass missing mode bits in the mkdirat() syscall wrapper.
+    CL 565515 introduced these non-gofmt'ed lines. Gofmt them.
     
-    Fixes #73559
-    
-    Change-Id: I54b1985bd77b1fe5d1a48acab9f2597f8c931854
-    GitHub-Last-Rev: 669c17361d86bc9065bb6b47a2d60aa86bcfa12d
-    GitHub-Pull-Request: golang/go#73565
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/669375
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Id64244c204b2d6a0bd6377caa17869284eb34f45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570216
+    Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/syscall/unix/at_openbsd.go | 2 +-
- src/os/root_test.go                     | 6 ++++++
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/runtime/map_fast32.go  | 2 +-
+ src/runtime/map_fast64.go  | 2 +-
+ src/runtime/map_faststr.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

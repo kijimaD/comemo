@@ -1,14 +1,21 @@
-commit 705ebf1144b6326bd8298119dc1979e384c21c64
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 24 11:58:30 2012 +0900
+commit e014cf0e545ca16abfd2a80d541750c6a3809082
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 24 13:17:26 2012 +1100
 
-    net: reorganize test files
+    test: add cmpout to testlib
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5694063
+    https://golang.org/cl/5699060
 
- src/pkg/net/dial_test.go   |  81 +++++++++++++++++++++++++++++++
- src/pkg/net/lookup_test.go |  37 ++++++++++++++
- src/pkg/net/net_test.go    | 118 ---------------------------------------------
- 3 files changed, 118 insertions(+), 118 deletions(-)
+ test/deferprint.go       | 2 +-
+ test/fixedbugs/bug328.go | 2 +-
+ test/fixedbugs/bug409.go | 2 +-
+ test/goprint.go          | 2 +-
+ test/helloworld.go       | 2 +-
+ test/ken/cplx0.go        | 2 +-
+ test/ken/string.go       | 2 +-
+ test/printbig.go         | 2 +-
+ test/run.go              | 3 +++
+ test/testlib             | 4 ++++
+ 10 files changed, 15 insertions(+), 8 deletions(-)

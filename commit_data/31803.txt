@@ -1,22 +1,22 @@
-commit 0253299ab39c45f5694d35a233b83b23c69ec97f
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Jun 10 07:47:32 2017 +0900
+commit 42e97468a1fd4b9f08bccd076edb1598435c72fb
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Mar 16 22:34:38 2017 -0700
 
-    go/printer: handle associated comments for CommentedNode
+    cmd/compile: intrinsic for math/bits.Reverse on ARM64
     
-    Current CommentedNode cannot handle associated comments which satisfy
-        node.End() < comment.Pos()
+    I don't know that it exists for any other architectures.
     
-    This CL solves it.
+    Update #18616
     
-    Fixes #20635
-    
-    Change-Id: I58e2e3703999bb38a6ce37112e986c4b1b2eace0
-    Reviewed-on: https://go-review.googlesource.com/45292
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idfe5dee251764d32787915889ec0be4bebc5be24
+    Reviewed-on: https://go-review.googlesource.com/38323
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/printer/printer.go      | 27 ++++++++++++++++++++++
- src/go/printer/printer_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 78 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             | 28 +++++++++++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  5 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  5 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 24 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 66 ++++++++++++++++++++++++++
+ 5 files changed, 128 insertions(+)

@@ -1,26 +1,32 @@
-commit 1484270aec14b9d971b94832d0fac9d3db382cf9
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Wed Jul 18 13:05:29 2018 +0300
+commit 22f4280b9ac4194d48e0426f3b9743158724ae94
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 26 14:06:08 2018 -0400
 
-    test: restore tests for the reject unsafe code option
+    runtime: remove the dummy arg of getcallersp
     
-    Tests in test/safe were neglected after moving to the run.go
-    framework. This change restores them.
+    getcallersp is intrinsified, and so the dummy arg is no longer
+    needed. Remove it, as well as a few dummy args that are solely
+    to feed getcallersp.
     
-    These tests are skipped for go/types via -+ option.
-    
-    Fixes #25668
-    
-    Change-Id: I8fe26574a76fa7afa8664c467d7c2e6334f1bba9
-    Reviewed-on: https://go-review.googlesource.com/124660
+    Change-Id: Ibb6c948ff9c56537042b380ac3be3a91b247aaa6
+    Reviewed-on: https://go-review.googlesource.com/109596
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/safe/main.go      | 14 --------------
- test/safe/nousesafe.go |  8 --------
- test/safe/pkg.go       | 16 ----------------
- test/safe/usesafe.go   |  8 --------
- test/unsafereject1.go  | 16 ++++++++++++++++
- test/unsafereject2.go  | 15 +++++++++++++++
- 6 files changed, 31 insertions(+), 46 deletions(-)
+ src/runtime/cgocall.go         |  6 +++---
+ src/runtime/export_test.go     |  2 +-
+ src/runtime/futex_test.go      |  4 ++--
+ src/runtime/lock_futex.go      |  4 ++--
+ src/runtime/lock_sema.go       |  4 ++--
+ src/runtime/mprof.go           |  8 ++++----
+ src/runtime/norace_test.go     |  4 ++--
+ src/runtime/os_solaris.go      | 14 +++++++-------
+ src/runtime/os_windows.go      |  2 +-
+ src/runtime/panic.go           |  6 +++---
+ src/runtime/proc.go            | 20 ++++++++++----------
+ src/runtime/signal_unix.go     |  4 ++--
+ src/runtime/stubs.go           | 11 ++++-------
+ src/runtime/syscall_solaris.go | 20 ++++++++++----------
+ src/runtime/traceback.go       |  2 +-
+ 15 files changed, 54 insertions(+), 57 deletions(-)

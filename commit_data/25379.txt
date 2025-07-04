@@ -1,15 +1,17 @@
-commit 4e6750af81996424f26115be1b2d13665764db8a
-Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 22 12:46:23 2015 -0800
+commit 22d4c8bf13d5edf4670dbdaf0854d653d9c2b81a
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Oct 21 20:35:22 2015 -0700
 
-    crypto/cipher: improve documentation for AEAD
+    math: fix normalization bug in pure-Go sqrt
     
-    Give a link to the wikipedia page describing the mechanism and
-    explain better how to use the same buffer for input and output.
+    Fixes #13013
     
-    Change-Id: If6dfd6cf9c6dff0517cb715f60a11349dbdd91e0
-    Reviewed-on: https://go-review.googlesource.com/18103
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6cf500eacdce76e303fc1cd92dd1c80eef0986bc
+    Reviewed-on: https://go-review.googlesource.com/16158
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/cipher/gcm.go | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ src/math/all_test.go | 4 +++-
+ src/math/sqrt.go     | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

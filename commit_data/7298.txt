@@ -1,23 +1,20 @@
-commit 400d7772cc7f990f93330d3652545147f60ff3cb
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Feb 1 11:12:45 2011 +1100
+commit cb584707af2d8803adba88fd9692e665ecd2f059
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 31 18:52:16 2011 -0500
 
-    misc/vim: Document better syntax sync parameter
+    gc: remove non-blocking send, receive syntax
     
-    Forcing the synchronization of 500 lines is both slower and
-    less precise than searching for a known sync point.
-    Unfortunately, though, the way to synchronize correctly is
-    using the grouphere instruction, which has a bug.
-    
-    I've already proposed the fix to Vim, so future releases
-    should have this working.  We can continue using the 500 lines
-    syncing for now.
-    
-    This change just documents the proper way to sync.
-    
-    R=adg, dsymonds
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4029047
+    https://golang.org/cl/4126043
 
- misc/vim/syntax/go.vim | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/gc/builtin.c.boot |  2 --
+ src/cmd/gc/go.h           |  4 ++--
+ src/cmd/gc/go.y           |  1 +
+ src/cmd/gc/runtime.go     |  2 --
+ src/cmd/gc/sinit.c        |  1 -
+ src/cmd/gc/typecheck.c    | 11 +----------
+ src/cmd/gc/walk.c         | 18 ------------------
+ src/pkg/runtime/chan.c    | 41 -----------------------------------------
+ test/syntax/chan1.go      | 17 +++++++++++++++++
+ 9 files changed, 21 insertions(+), 76 deletions(-)

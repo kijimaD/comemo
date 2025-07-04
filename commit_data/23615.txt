@@ -1,30 +1,16 @@
-commit 91976aa676706d579331cb34090550e44f4505df
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 8 11:17:01 2015 +1000
+commit 26301b6cfda5888a625c546e57024ac28336ac18
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 2 13:21:37 2015 +1000
 
-    cmd/doc: suppress symbols for commands when showing package docs
+    cmd/cover: fix missing error check in test
     
-    Change the default behavior when showing the package docs
-    for a command to elide the symbols. This makes
+    Fix missing error check in test.
     
-            go doc somecommand
+    Spotted by Gordon Klass, https://groups.google.com/forum/#!topic/golang-nuts/MdDLbvOjb4o
     
-    show the top-level package docs only and hide the symbols,
-    which are probably irrelevant to the user. This has no effect
-    on explicit requests for internals, such as
-    
-            go doc somecommand.sometype
-    
-    The new -cmd flag restores the old behavior.
-    
-    Fixes #10733.
-    
-    Change-Id: I4d363081fe7dabf76ec8e5315770ac3609592f80
-    Reviewed-on: https://go-review.googlesource.com/11953
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I22f1a438cbb60a2fe1740fc2d43fbf8aa008b6de
+    Reviewed-on: https://go-review.googlesource.com/10605
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/doc/main.go   |  5 +++++
- src/cmd/doc/pkg.go    | 20 ++++++++++++++++++--
- src/cmd/go/alldocs.go | 12 +++++++++++-
- src/cmd/go/doc.go     | 12 +++++++++++-
- 4 files changed, 45 insertions(+), 4 deletions(-)
+ src/cmd/cover/cover_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

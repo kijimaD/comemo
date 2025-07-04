@@ -1,14 +1,28 @@
-commit 2202663a93bacb1cedf0f807f9b76333ac05e892
+commit e6a3e22c7569f7581f9a3dea3229ff6d0eda15e8
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 1 11:55:00 2013 -0500
+Date:   Fri Mar 1 11:44:43 2013 -0500
 
-    build: disable cgo on windows
+    runtime: start all threads with runtime.mstart
     
-    Update #4955.
+    Putting the M initialization in multiple places will not scale.
+    Various code assumes mstart is the start already. Make it so.
     
-    R=golang-dev
+    R=golang-dev, devon.odell
     CC=golang-dev
-    https://golang.org/cl/7435049
+    https://golang.org/cl/7420048
 
- src/run.bat | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/runtime/proc.c              | 43 ++++++++++++++++++++++++-------------
+ src/pkg/runtime/runtime.h           |  3 ++-
+ src/pkg/runtime/sys_freebsd_386.s   |  7 +-----
+ src/pkg/runtime/sys_freebsd_amd64.s |  9 ++------
+ src/pkg/runtime/sys_freebsd_arm.s   |  5 +----
+ src/pkg/runtime/sys_windows_386.s   |  7 +-----
+ src/pkg/runtime/sys_windows_amd64.s |  6 +-----
+ src/pkg/runtime/thread_darwin.c     |  8 +++----
+ src/pkg/runtime/thread_freebsd.c    | 19 ++++++++--------
+ src/pkg/runtime/thread_linux.c      |  8 +++----
+ src/pkg/runtime/thread_netbsd.c     |  8 +++----
+ src/pkg/runtime/thread_openbsd.c    |  6 +++---
+ src/pkg/runtime/thread_plan9.c      |  6 +++---
+ src/pkg/runtime/thread_windows.c    |  8 +------
+ 14 files changed, 64 insertions(+), 79 deletions(-)

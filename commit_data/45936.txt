@@ -1,24 +1,23 @@
-commit fdb45acd1f062884c77ea6961fb638e004af1b8e
-Author: David Chase <drchase@google.com>
-Date:   Wed Jul 21 18:38:05 2021 -0400
+commit c6de5d8d1f56465869a9271753796da35c60f3e6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 30 13:50:05 2020 -0800
 
-    runtime: move mem profile sampling into m-acquired section
+    [dev.regabi] cmd/compile: simplify export data representation of nil
     
-    It was not safe to do mcache profiling updates outside the critical
-    section, but we got lucky because the runtime was not preemptible.
-    Adding chunked memory clearing (CL 270943) created preemption
-    opportunities, which led to corruption of runtime data structures.
+    The handling of ONIL and Orig has been a mess for a while, and dates
+    back to how fmt.go used to print out typed nils. That hasn't applied
+    for a while, but we've kept dragging it along to appease toolstash
+    with the intention of someday finally removing it.
     
-    Fixes #47304.
-    Fixes #47302.
+    Today is that day.
     
-    Change-Id: I461615470d62328a83ccbac537fbdc6dcde81c85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336449
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I9a441628e53068ab1993cd2b67b977574d8117b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274212
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/malloc.go | 20 +++++++++-----------
- 1 file changed, 9 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/iexport.go |  6 +-----
+ src/cmd/compile/internal/gc/iimport.go | 17 ++++++++---------
+ 2 files changed, 9 insertions(+), 14 deletions(-)

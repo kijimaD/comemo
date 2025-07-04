@@ -1,22 +1,28 @@
-commit 41eabc0fc7cc9bc40a66dd0edd0ae676c8965ec9
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Oct 2 15:47:41 2017 -0700
+commit b067ad939d9ba242c5c3bdd8a24220632311c6be
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 14 11:07:24 2017 -0400
 
-    cmd/compile: fix merge rules for panic calls
+    runtime: record mutex event before readying
     
-    Use entire inlining call stack to decide whether two panic calls
-    can be merged. We used to merge panic calls when only the leaf
-    line numbers matched, but that leads to places higher up the call
-    stack being merged incorrectly.
+    Currently, semrelease1 readies the next waiter before recording a
+    mutex event. However, if the next waiter is expecting to look at the
+    mutex profile, as is the case in TestMutexProfile, this may delay
+    recording the event too much.
     
-    Fixes #22083
+    Swap the order of these operations so semrelease1 records the mutex
+    event before readying the next waiter. This also means readying the
+    next waiter is the very last thing semrelease1 does, which seems
+    appropriate.
     
-    Change-Id: Ia41400a80de4b6ecf3e5089abce0c42b65e9b38a
-    Reviewed-on: https://go-review.googlesource.com/67632
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Fixes #19139.
+    
+    Change-Id: I1a62063599fdb5d49bd86061a180c0a2d659474b
+    Reviewed-on: https://go-review.googlesource.com/45751
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go |  4 ++--
- test/fixedbugs/issue22083.go       | 41 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 2 deletions(-)
+ src/runtime/pprof/pprof_test.go | 5 ++++-
+ src/runtime/sema.go             | 6 +++---
+ 2 files changed, 7 insertions(+), 4 deletions(-)

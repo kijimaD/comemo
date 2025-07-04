@@ -1,31 +1,15 @@
-commit dd005f43f136790c18cbf278863aa531a579040d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 22 21:47:35 2024 -0700
+commit 26a90e4e36c01ae0d356d4e077b99c31cfcb4d1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 5 13:52:19 2023 -0400
 
-    go/types, types2: factor out list substitution code (cleanup)
+    doc/go1.21: document GOEXPERIMENT=loopvar and invite feedback
     
-    - Replace the various subst.XList methods with a generic function.
-    - Rename comparable function to comparableType to avoid shadowing
-      predeclared type comparable.
-    - Rename substFunc/Var to cloneFunc/Var which is more accurate.
+    For #60078.
     
-    Change-Id: I3243f2093e4c43a537766f47e3348402de517090
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587775
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I92ab1fc2f30e6bbaabd8e3e1b8834e6ddff2414d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500958
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types2/expr.go        |   2 +-
- src/cmd/compile/internal/types2/instantiate.go |   4 +-
- src/cmd/compile/internal/types2/named.go       |   4 +-
- src/cmd/compile/internal/types2/predicates.go  |   8 +-
- src/cmd/compile/internal/types2/subst.go       | 116 ++++++++-----------------
- src/cmd/compile/internal/types2/typeset.go     |   4 +-
- src/go/types/expr.go                           |   2 +-
- src/go/types/instantiate.go                    |   4 +-
- src/go/types/named.go                          |   4 +-
- src/go/types/predicates.go                     |   8 +-
- src/go/types/subst.go                          | 116 ++++++++-----------------
- src/go/types/typeset.go                        |   4 +-
- 12 files changed, 94 insertions(+), 182 deletions(-)
+ doc/go1.21.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

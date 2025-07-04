@@ -1,43 +1,13 @@
-commit a712e20a1d1587e115c1295df0850120cdfa3e44
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Mon Jun 23 12:06:26 2014 -0700
+commit 2ca1f7d588e67fe82f1ca375241059c61a6ded1c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jun 23 14:33:33 2014 +0900
 
-    runtime: speed up amd64 memmove
+    syscall: don't display syscall prototype lines on godoc
     
-    MOV with SSE registers seems faster than REP MOVSQ if the
-    size being copied is less than about 2K. Previously we
-    didn't use MOV if the memory region is larger than 256
-    byte. This patch improves the performance of 257 ~ 2048
-    byte non-overlapping copy by using MOV.
-    
-    Here is the benchmark result on Intel Xeon 3.5GHz (Nehalem).
-    
-    benchmark               old ns/op    new ns/op    delta
-    BenchmarkMemmove16              4            4   +0.42%
-    BenchmarkMemmove32              5            5   -0.20%
-    BenchmarkMemmove64              6            6   -0.81%
-    BenchmarkMemmove128             7            7   -0.82%
-    BenchmarkMemmove256            10           10   +1.92%
-    BenchmarkMemmove512            29           16  -44.90%
-    BenchmarkMemmove1024           37           25  -31.55%
-    BenchmarkMemmove2048           55           44  -19.46%
-    BenchmarkMemmove4096           92           91   -0.76%
-    
-    benchmark                old MB/s     new MB/s  speedup
-    BenchmarkMemmove16        3370.61      3356.88    1.00x
-    BenchmarkMemmove32        6368.68      6386.99    1.00x
-    BenchmarkMemmove64       10367.37     10462.62    1.01x
-    BenchmarkMemmove128      17551.16     17713.48    1.01x
-    BenchmarkMemmove256      24692.81     24142.99    0.98x
-    BenchmarkMemmove512      17428.70     31687.72    1.82x
-    BenchmarkMemmove1024     27401.82     40009.45    1.46x
-    BenchmarkMemmove2048     36884.86     45766.98    1.24x
-    BenchmarkMemmove4096     44295.91     44627.86    1.01x
-    
-    LGTM=khr
-    R=golang-codereviews, gobot, khr
+    LGTM=dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/90500043
+    https://golang.org/cl/110020050
 
- src/pkg/runtime/memmove_amd64.s | 52 +++++++++++++++++++++++++++++++++++++----
- 1 file changed, 48 insertions(+), 4 deletions(-)
+ src/pkg/syscall/syscall_bsd.go | 2 ++
+ 1 file changed, 2 insertions(+)

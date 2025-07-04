@@ -1,44 +1,29 @@
-commit ee58eccc565c0871d3f16fd702fd8649a3fb61ea
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Mar 4 09:47:47 2018 -0800
+commit 6355d6c7e2e8f4ea4cfd3fed8da6677106937f66
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Oct 21 07:29:46 2017 -0400
 
-    internal/bytealg: move short string Index implementations into bytealg
+    cmd/link, plugin: always encode path
     
-    Also move the arm64 CountByte implementation while we're here.
+    Both the linker and the plugin package were inconsistent
+    about when they applied the path encoding defined in
+    objabi.PathToPrefix. As a result, only some symbols from
+    a package path that required encoding were being found.
     
-    Fixes #19792
+    So always encoding the path.
     
-    Change-Id: I1e0fdf1e03e3135af84150a2703b58dad1b0d57e
-    Reviewed-on: https://go-review.googlesource.com/98518
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #22295
+    
+    Change-Id: Ife86c79ca20b2e9307008ed83885e193d32b7dc4
+    Reviewed-on: https://go-review.googlesource.com/72390
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bytes/bytes.go                                 |  86 +++++++
- src/bytes/bytes_amd64.go                           |  79 ------
- src/bytes/bytes_arm64.go                           |  72 ------
- src/bytes/bytes_generic.go                         |  59 -----
- src/bytes/bytes_s390x.go                           |  80 ------
- src/cmd/vet/all/whitelist/amd64.txt                |  11 +-
- src/cmd/vet/all/whitelist/s390x.txt                |   5 -
- src/internal/bytealg/bytealg.go                    |  22 ++
- src/internal/bytealg/count_arm64.s                 |  90 +++++++
- src/internal/bytealg/count_generic.go              |   2 +-
- src/internal/bytealg/count_native.go               |   2 +-
- src/internal/bytealg/equal_native.go               |  16 --
- src/internal/bytealg/index_amd64.go                |  26 ++
- src/internal/bytealg/index_amd64.s                 | 274 +++++++++++++++++++++
- src/internal/bytealg/index_arm64.go                |  23 ++
- .../bytealg/index_arm64.s}                         | 108 +++-----
- src/internal/bytealg/index_generic.go              |  29 +++
- src/internal/bytealg/index_native.go               |  19 ++
- src/internal/bytealg/index_s390x.go                |  31 +++
- src/internal/bytealg/index_s390x.s                 | 216 ++++++++++++++++
- src/runtime/asm_amd64.s                            | 268 --------------------
- src/runtime/asm_s390x.s                            | 224 -----------------
- src/runtime/os_linux_s390x.go                      |  20 +-
- src/strings/strings.go                             |  79 ++++++
- src/strings/strings_amd64.go                       |  79 ------
- src/strings/strings_generic.go                     |  55 -----
- src/strings/strings_s390x.go                       |  80 ------
- 27 files changed, 932 insertions(+), 1123 deletions(-)
+ misc/cgo/testplugin/src/issue22295.pkg/main.go   | 28 ++++++++++++++++++++
+ misc/cgo/testplugin/src/issue22295.pkg/plugin.go | 16 ++++++++++++
+ misc/cgo/testplugin/test.bash                    |  5 ++++
+ src/cmd/link/internal/ld/data.go                 |  3 ++-
+ src/cmd/link/internal/ld/deadcode.go             |  2 +-
+ src/cmd/link/internal/ld/symtab.go               |  2 +-
+ src/plugin/plugin_dlopen.go                      | 33 +-----------------------
+ 7 files changed, 54 insertions(+), 35 deletions(-)

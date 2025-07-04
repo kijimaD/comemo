@@ -1,20 +1,13 @@
-commit 3d3b4906f94a40b7dd2e66ad3ad48e86b5ce6f89
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 24 12:11:32 2012 -0400
+commit 34ad3995e06fb4a4e209adfbd11367cc3d22f8b8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri May 25 00:08:52 2012 +0800
 
-    cmd/6g: peephole fixes/additions
+    cmd/cc: fix uint right shift in constant evaluation
+            Fixes #3664.
     
-    * Shift/rotate by constant doesn't have to stop subprop. (also in 8g)
-    * Remove redundant MOVLQZX instructions.
-    * An attempt at issuing loads early.
-      Good for 0.5% on a good day, might not be worth keeping.
-      Need to understand more about whether the x86
-      looks ahead to what loads might be coming up.
-    
-    R=ken2, ken
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6203091
+    https://golang.org/cl/6249048
 
- src/cmd/6g/peep.c | 187 +++++++++++++++++++++++++++++++++++++++++++++++++-----
- src/cmd/8g/peep.c |  24 +++----
- 2 files changed, 185 insertions(+), 26 deletions(-)
+ src/cmd/cc/scon.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

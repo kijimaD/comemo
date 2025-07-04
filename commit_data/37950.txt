@@ -1,17 +1,15 @@
-commit d5a36531b2e0a904d616fec55e64575d6583dd80
-Author: Justin Li <git@justinli.net>
-Date:   Wed Jan 23 15:15:06 2019 +0000
+commit 83c605fb96b694455ca3c7c3d69bc6e4f526268e
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Sat Sep 15 18:31:49 2018 +0200
 
-    database/sql: document Stmt lifetime
+    internal/poll: improve Splice comments
     
-    When prepared on a DB, prepared statement code in database/sql handles everything to keep the prepared statement alive as it moves across the connection pool. Understanding this is an important part of using this API correctly, but it was only documented indirectly via `(*Tx) Prepare*`.
+    Clarify the behavior of splice on older kernels, merge comments so
+    control flow becomes more obvious, as discussed in CL 133575.
     
-    Change-Id: Ic8757e0150d59e675d9f0252f6c15aef2cc2e831
-    GitHub-Last-Rev: 55dba87458542cb631baac80aeea0c3607d8f421
-    GitHub-Pull-Request: golang/go#29890
-    Reviewed-on: https://go-review.googlesource.com/c/159077
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: I95855991bd0b1fa1c78a900b39c4382f65d83468
+    Reviewed-on: https://go-review.googlesource.com/135436
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/internal/poll/splice_linux.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

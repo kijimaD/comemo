@@ -1,14 +1,14 @@
-commit a308be5fa8e9ea4f0878cf4fe8ebcfc9ebc1a326
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jun 25 16:48:20 2012 -0700
+commit c42a1d4906ac22226dd36140984bdb6f578025bf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 25 14:54:26 2012 -0700
 
-    fmt: set p.field before nil check
-    Fixes #3752.
+          doc: drop video title from homepage
     
-    R=golang-dev, rsc
+    It's just stutter.
+    
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/6331062
+    https://golang.org/cl/6334053
 
- src/pkg/fmt/fmt_test.go | 12 ++++++++++++
- src/pkg/fmt/print.go    |  5 +++--
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ doc/root.html | 1 -
+ 1 file changed, 1 deletion(-)

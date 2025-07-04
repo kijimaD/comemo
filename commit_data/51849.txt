@@ -1,22 +1,22 @@
-commit 43115ff094be30b7a3c45eaf82ee6d257f3aa6c6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jan 28 20:05:53 2023 -0800
+commit fcf6afb82dc1e9f80a6260467026adc11d5c9529
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 18 10:46:15 2022 -0700
 
-    cmd/link, cmd/dist, internal/platform: consolidate c-archive support
+    cmd/compile: pointers to notinheap types need their own shape
     
-    Make all the tests for whether -buildmode=c-archive is supported consistent.
-    Base this on the historical code, on whether cmd/compile supports -shared,
-    and whether cmd/link permits the mode.
+    They should not share a shape with regular pointers. We could coalesce
+    multiple pointer-to-not-in-heap types, but doesn't seem worth it - just
+    make them fully stenciled.
     
-    Change-Id: Ib996546906f698ade4c32b8e6c705838e4ad4b90
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463984
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #51733
+    
+    Change-Id: Ie8158177226fbc46a798e71c51897a82f15153df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393895
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/dist/test.go               | 24 ++++++++++++++++++------
- src/cmd/link/internal/ld/config.go |  2 ++
- src/internal/platform/supported.go | 25 ++++++++++++++++++++++---
- 3 files changed, 42 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/typecheck/subr.go |  2 +-
+ test/typeparam/issue51733.go               | 32 ++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

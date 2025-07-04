@@ -1,14 +1,12 @@
-commit 5899cab03720acfb593f16dd89273ea2c5a2cc88
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 27 23:19:37 2011 +1000
+commit 90585bde3797b514b54dca8b7e71bfe458ff11a4
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jan 27 23:03:52 2011 +1000
 
-    doc/codelab/wiki: tests use available TCP port
+    misc/vim/syntax: set large value to 'syntax sync'.
     
-    R=bradfitz, dsymonds, r2, dangabrad, rsc
+    R=golang-dev, dsymonds, adg
     CC=golang-dev
-    https://golang.org/cl/4043043
+    https://golang.org/cl/4102044
 
- doc/codelab/wiki/Makefile |  4 ++--
- doc/codelab/wiki/get.go   | 16 +++++++++++++++-
- doc/codelab/wiki/test.sh  | 17 +++++++++++------
- 3 files changed, 28 insertions(+), 9 deletions(-)
+ misc/vim/syntax/go.vim | 2 ++
+ 1 file changed, 2 insertions(+)

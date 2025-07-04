@@ -1,16 +1,23 @@
-commit b7f9c640b7d4d1ba721dc158a12df0a2d2d69a2f
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Fri Sep 7 20:36:56 2018 +0300
+commit bf23a4e61ddceb26744da8f462ce6351fca66089
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Mon May 7 16:18:19 2018 +0200
 
-    test: extend noescape bytes.Buffer test suite
+    cmd/internal/obj/wasm: avoid invalid offsets for Load/Store
     
-    Added some more cases that should be guarded against regression.
+    Offsets for Load and Store instructions have type i32. Bad index
+    expression offsets can cause an offset to be larger than MaxUint32,
+    which is not allowed. One example for this is the test test/index0.go.
     
-    Change-Id: I9f1dda2fd0be9b6e167ef1cc018fc8cce55c066c
-    Reviewed-on: https://go-review.googlesource.com/134017
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Generate valid code by adding a guard to the responsible rewrite rule.
+    Also emit a proper error when using such a bad index in assembly code.
+    
+    Change-Id: Ie90adcbf3ae3861c26680eb81790f28692913ccf
+    Reviewed-on: https://go-review.googlesource.com/111955
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/fixedbugs/issue7921.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/compile/internal/ssa/gen/Wasm.rules | 19 +++++--------
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 44 ++++++++++++++---------------
+ src/cmd/internal/obj/wasm/wasmobj.go        |  6 ++++
+ 3 files changed, 35 insertions(+), 34 deletions(-)

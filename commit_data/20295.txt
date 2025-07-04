@@ -1,17 +1,47 @@
-commit 503bcd464e8974b3295177c1a0ed5a4ba5bc5a01
+commit 4af796fb6ee041d2c541f902ba2effbf23978d4a
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 4 14:19:50 2014 -0400
+Date:   Fri Aug 29 13:22:17 2014 -0400
 
-    runtime: use C for readgstatus, goroutine status values
+    cmd/gc: allow runtime to define a hex integer type for printing
     
-    When this code was written, there was no way for Go to
-    reuse the C function and enum values. Now there is.
+    As part of the translation of the runtime, we need to rewrite
+    C printf calls to Go print calls. Consider this C printf:
     
-    LGTM=bradfitz
-    R=rlh, bradfitz
-    CC=dvyukov, golang-codereviews, iant, khr, r
-    https://golang.org/cl/139150045
+            runtime·printf("[signal %x code=%p addr=%p pc=%p]\n",
+                    g->sig, g->sigcode0, g->sigcode1, g->sigpc);
+    
+    Today the only way to write that in Go is:
+    
+            print("[signal ")
+            printhex(uint64(g->sig))
+            print(" code=")
+            printhex(uint64(g->sigcode0))
+            print(" addr=")
+            printhex(uint64(g->sigcode1))
+            print(" pc=")
+            printhex(uint64(g->sigpc))
+            print("]\n")
+    
+    (That's nearly exactly what runtime code looked like in C before
+    I added runtime·printf.)
+    
+    This CL recognizes the unexported type runtime.hex as an integer
+    that should be printed in hexadecimal instead of decimal.
+    It's a little kludgy, but it's restricted to package runtime.
+    Other packages can define type hex with no effect at all.
+    
+    Now we can translate that original printf as the more compact:
+    
+            print("[signal ", hex(g->sig), " code=", hex(g->sigcode0),
+                    " addr=", hex(g->sigcode1), " pc=", hex(g->sigpc), "]\n")
+    
+    LGTM=r, iant
+    R=r, iant
+    CC=golang-codereviews
+    https://golang.org/cl/133220043
 
- src/pkg/runtime/proc.c  |  1 +
- src/pkg/runtime/proc.go | 30 ++----------------------------
- 2 files changed, 3 insertions(+), 28 deletions(-)
+ src/cmd/gc/builtin.c      | 13 +++++++------
+ src/cmd/gc/runtime.go     |  1 +
+ src/cmd/gc/walk.c         |  9 ++++++---
+ src/pkg/runtime/print1.go |  7 +++++--
+ 4 files changed, 19 insertions(+), 11 deletions(-)

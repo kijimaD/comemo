@@ -1,18 +1,16 @@
-commit 252e9def65cd6230447fc11046d7f4b176ae2d4b
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Mon Nov 4 11:45:05 2024 -0500
+commit a9cfbec17b12166c56aeb9808b5d1b7393e90f43
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Aug 16 11:15:08 2023 -0400
 
-    runtime: validate all calls to SetFinalizer
+    cmd/compile/internal/inlheur: minor debug trace changes
     
-    This change moves the check for a change in the memory management
-    system to after the SetFinalizer parameters have been validated.
-    Moving the check ensures that invalid parameters will never pass the
-    validation checks.
+    Minor changes to debug tracing and to the -d=dumpinlfuncprops
+    debug flag implementation.
     
-    Change-Id: I9f1d3454f891f7b147c0d86b6720297172e08ef9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625035
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ibaefd489c94675ac7f5a04ec0331b7f888c15a49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521818
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mfinal.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/inline/inlheur/analyze.go | 26 +++++++++++++++-------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

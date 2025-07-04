@@ -1,17 +1,23 @@
-commit 7616c9492166893c7470bab647be6afc3c18007e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Sep 24 00:17:08 2013 -0400
+commit 0f3ea75020cf7dda64805fe9aeef26be60cf16cd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 23 19:57:19 2013 -0700
 
-    cmd/dist, cmd/go: embed default C++ compiler into cmd/go
-    Fixes #6426.
+    encoding/json: don't cache value addressability when building first encoder
     
-    R=golang-dev, dave, rsc
+    newTypeEncoder (called once per type and then cached) was
+    looking at the first value seen of that type's addressability
+    and caching the encoder decision.  If the first value seen was
+    addressable and a future one wasn't, it would panic.
+    
+    Instead, introduce a new wrapper encoder type that checks
+    CanAddr at runtime.
+    
+    Fixes #6458
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/13704044
+    https://golang.org/cl/13839045
 
- src/cmd/dist/a.h       |  1 +
- src/cmd/dist/build.c   | 10 ++++++++++
- src/cmd/dist/buildgo.c |  6 ++++--
- src/cmd/go/build.go    |  3 ++-
- src/cmd/go/env.go      |  2 ++
- 5 files changed, 19 insertions(+), 3 deletions(-)
+ src/pkg/encoding/json/encode.go      | 117 ++++++++++++++++++++---------------
+ src/pkg/encoding/json/encode_test.go |  24 +++++++
+ 2 files changed, 90 insertions(+), 51 deletions(-)

@@ -1,18 +1,25 @@
-commit db3045b4be5b91cd42c3387dc550c89bbc2f7fb4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Feb 24 23:44:05 2022 -0500
+commit 0d1e293b2329a013f03ea3f742f1716098ee282c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 14 10:05:16 2021 -0700
 
-    cmd/asm: support -d=pctab flag
+    [dev.typeparams] cmd/compile/internal/types2: print "incomplete" for interfaces in debug mode only
     
-    To debug PC data generation.
+    The /* incomplete */ comment printed for interfaces that have not been
+    "completed" yet is not useful for end-users; it's here for type-checker
+    debugging. Rather than trying to pass through a debug flag through all
+    print routines (which may require new exported API), simply don't print
+    the comment unless we have the debug flag set inside the type-checker.
     
-    Change-Id: Id7ac8d607cc27ad52db490bd758c3a768c3e1df2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388015
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #46167.
+    
+    Change-Id: Ibd22edfe63001dfd2b814eeb94c2d54d35afd88c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320150
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/asm/internal/flags/flags.go | 1 +
- src/cmd/asm/main.go                 | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/compile/internal/types2/types_test.go      | 3 +++
+ src/cmd/compile/internal/types2/typestring.go      | 2 +-
+ src/cmd/compile/internal/types2/typestring_test.go | 4 ++++
+ 3 files changed, 8 insertions(+), 1 deletion(-)

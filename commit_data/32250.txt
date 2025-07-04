@@ -1,20 +1,23 @@
-commit 02ad116bf1fa7c324390f03974f5879a2f06495e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Aug 11 08:48:10 2017 -0700
+commit 619e37bdcc45c740c9c96aeaa10a6304781c6cec
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Sun Apr 16 00:10:19 2017 +0100
 
-    runtime: unify cases in mapiternext
+    cmd/compile: Budget for inlining is now 80 nodes, not 40
     
-    The preceding cleanup made it clear that two cases
-    (have golden data, unreachable key) are handled identically.
-    Simplify the control flow to reflect that.
+    This comment was out of date since the bump to 80 done as the same time
+    as inlining transitive functions in:
     
-    Simplifies the code and generates shorter machine code.
+      commit 77ccb16eb12f461eaea5fdf652a2e929dc154192
+      Author: Russ Cox <rsc@golang.org>
+      Date:   Tue Feb 24 12:19:01 2015 -0500
     
-    Change-Id: Id612e0da6679813e855506f47222c58ea6497d70
-    Reviewed-on: https://go-review.googlesource.com/55093
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+          cmd/internal/gc: transitive inlining
+    
+    Adjust the comment at the top of the file accordingly.
+    
+    Change-Id: Ia6d7397c874e3b85396e82dc9678e56aab9ad728
+    Reviewed-on: https://go-review.googlesource.com/40910
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/hashmap.go | 40 ++++++++++++++++------------------------
- 1 file changed, 16 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

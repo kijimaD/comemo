@@ -1,43 +1,16 @@
-commit d7812ab38031ae524a731b4d2f19adcecd22c2f4
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Nov 12 14:01:15 2022 +0100
+commit 48ec6df16c285cda50bd38970b82402e8c46919b
+Author: Robert Findley <rfindley@google.com>
+Date:   Sat Jan 22 12:24:41 2022 -0500
 
-    crypto/internal/bigmod: move nat implementation out of crypto/rsa
+    go/types: panic if named type instances are mutated
     
-    This will let us reuse it in crypto/ecdsa for the NIST scalar fields.
-    
-    The main change in API is around encoding and decoding. The SetBytes +
-    ExpandFor sequence was hacky: SetBytes could produce a bigger size than
-    the modulus if leading zeroes in the top byte overflowed the limb
-    boundary, so ExpandFor had to check for and tolerate that. Also, the
-    caller was responsible for checking that the overflow was actually all
-    zeroes (which we weren't doing, exposing a crasher in decryption and
-    signature verification) and then for checking that the result was less
-    than the modulus. Instead, make SetBytes take a modulus and return an
-    error if the value overflows. Same with Bytes: we were always allocating
-    based on Size before FillBytes anyway, so now Bytes takes a modulus.
-    Finally, SetBig was almost only used for moduli, so replaced
-    NewModulusFromNat and SetBig with NewModulusFromBig.
-    
-    Moved the constant-time bitLen to math/big.Int.BitLen. It's slower, but
-    BitLen is primarily used in cryptographic code, so it's safer this way.
-    
-    Change-Id: Ibaf7f36d80695578cb80484167d82ce1aa83832f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450055
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Idc4d561c7037f33aa9c844b411c38c6cb5bbfbcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380374
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/crypto/{rsa => internal/bigmod}/nat.go | 211 +++++++--------
- src/crypto/internal/bigmod/nat_test.go     | 412 +++++++++++++++++++++++++++++
- src/crypto/rsa/nat_test.go                 | 384 ---------------------------
- src/crypto/rsa/pkcs1v15.go                 |   7 +-
- src/crypto/rsa/pss.go                      |  11 +-
- src/crypto/rsa/rsa.go                      |  87 +++---
- src/crypto/rsa/rsa_test.go                 |  21 ++
- src/go/build/deps_test.go                  |   1 +
- src/math/big/int.go                        |  12 +
- src/math/big/nat.go                        |  15 +-
- 10 files changed, 616 insertions(+), 545 deletions(-)
+ src/cmd/compile/internal/types2/named.go | 10 +++++++++-
+ src/go/types/named.go                    | 10 +++++++++-
+ 2 files changed, 18 insertions(+), 2 deletions(-)

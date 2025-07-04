@@ -1,15 +1,24 @@
-commit e2071ecd08f8cb157e61f557a16502a907c21a02
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 25 16:15:45 2015 -0500
+commit ffe743945fedb43fd29cf578f06be5d5d0577f57
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 24 15:41:05 2015 +0200
 
-    testing: document that T and B are safe for concurrent calls
+    cmd/compile/internal/gc: move functions from util.go to lex.go
     
-    Fixes #13108.
+    Moves the functions:
+            isSpace(int) bool
+            isAlpha(int) bool
+            isDigit(int) bool
+            isAlnum(int) bool
+            plan9quote(string) string
     
-    Change-Id: I474cc2a3b7ced1c9eb978fc815f9c6bae9fb3ecc
-    Reviewed-on: https://go-review.googlesource.com/17235
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I6f946981abb6f29b047ad90d5c117847e826789f
+    Reviewed-on: https://go-review.googlesource.com/14952
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/benchmark.go | 11 +++++++++++
- src/testing/testing.go   |  8 ++++++++
- 2 files changed, 19 insertions(+)
+ src/cmd/compile/internal/gc/lex.go  | 27 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/util.go | 29 -----------------------------
+ 2 files changed, 27 insertions(+), 29 deletions(-)

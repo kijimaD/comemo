@@ -1,13 +1,18 @@
-commit 22f71cde6a366b2a2db928ab743bef50a856ee35
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jul 27 15:23:14 2011 -0700
+commit d7a0e0e6a2b20f945329feec2fcb1b5c559fcbc7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 27 15:14:12 2011 -0700
 
-    A+C: John Asmuth
+    godoc: app engine configuration and updated documentation
     
-    R=golang-dev, gri
+    Also: Fixed an error message in zip.go.
+    
+    R=r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4827045
+    https://golang.org/cl/4816053
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/godoc/appconfig.go | 19 ++++++++++
+ src/cmd/godoc/appinit.go   | 86 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/godoc/doc.go       | 25 +++++++++++---
+ src/cmd/godoc/main.go      |  8 ++---
+ src/cmd/godoc/zip.go       |  3 +-
+ 5 files changed, 132 insertions(+), 9 deletions(-)

@@ -1,14 +1,19 @@
-commit c403af83a67b42887bbe76800d66ce11de61e74e
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jul 25 15:12:45 2014 -0700
+commit 0f2cde8bdc9a6f31bc6a8ebbd0b078d9c49acb23
+Author: Bobby Powers <bobbypowers@gmail.com>
+Date:   Fri Jul 25 11:22:58 2014 +0400
 
-    runtime: convert complex128div to go.
+    cmd/gc: don't mark select descriptor as EscNone
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    selv is created with temp() which calls tempname, which marks
+    the new n with EscNever, so there is no need to explicitly set
+    EscNone on the select descriptor.
+    
+    Fixes #8396.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dave, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/116320043
+    https://golang.org/cl/112520043
 
- src/pkg/runtime/complex.go  | 52 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/complex.goc | 58 ---------------------------------------------
- 2 files changed, 52 insertions(+), 58 deletions(-)
+ src/cmd/gc/select.c | 1 -
+ 1 file changed, 1 deletion(-)

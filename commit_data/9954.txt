@@ -1,12 +1,14 @@
-commit f0e82dd493d2addfb13b6a08d0814f28f2183f75
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 13 12:17:08 2011 -0400
+commit 3ac7cae6e8c8626a48aeb1a1919b7af03a330a5c
+Author: Evan Martin <evan.martin@gmail.com>
+Date:   Thu Oct 13 09:07:42 2011 -0700
 
-    go/types: clean up after test
+    emacs: add a "godoc" command, like M-x man
     
-    R=golang-dev, r
+    This runs godoc and displays its output in a new buffer.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5245057
+    https://golang.org/cl/5268041
 
- src/pkg/go/types/Makefile | 2 ++
- 1 file changed, 2 insertions(+)
+ misc/emacs/go-mode.el | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

@@ -1,23 +1,177 @@
-commit 0bbd273e9714cce3813846802b4c8aeddbb65fe6
-Author: Pascal S. de Kloe <pascal@quies.net>
-Date:   Fri Jul 21 14:03:49 2023 +0200
+commit 213504e5431891e8421a92ab72ac08981ce07516
+Author: Motiejus Jakštys <motiejus@jakstys.lt>
+Date:   Sat Oct 8 05:00:42 2022 +0000
 
-    cmd/doc: print bugs with -all flag
+    cmd/cgo: use -O2 when testing compiler features
     
-    Includes cleanup and deduplication.
+    Add "-O2" to all compiler/linker tests. This makes compiler/linker
+    feature probing better resemble actual compiling later.
     
-    fixes: #33970
+    Why?
+    ----
     
-    Change-Id: I7e84b3e5c8fb9c560cf0a1f8b7cbb7a6977666aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511935
-    Reviewed-by: Rob Pike <r@golang.org>
+    zig c++ is a clang front-end[1] that accepts, among other things, the
+    target over the command line. This command:
+    
+        zig c++ -target x86_64-linux-gnu main.o -o main
+    
+    Will:
+    1. Pre-compile libc++.a.
+    2. Link the program with libc++.a from (1).
+    
+    Currently Go only is learning about one flag from the linker, that is,
+    "--no-gc-sections". The resulting command that tests for the flag
+    support is this:
+    
+        c++ -Wl,--no-gc-sections -x c - -o
+    
+    This causes Zig to pre-compile libc++.a in debug mode. Then the actual
+    compiler+linker command from CGo adds a few more flags, including "-O2":
+    
+        c++ <...> -Wl,--no-gc-sections -O2 <...>
+    
+    From Zig perspective, debug-mode libc++.a is different from the
+    optimized one; that causes Zig to compile a new libc++.a. Specifically,
+    Zig adds "-fno-omit-frame-pointer" for debug builds, and
+    "-fomit-frame-pointer" for optimized builds.
+    
+    As a result, we have to two sets of libc++.a for every arch/os tuple.
+    That takes CPU time and a bit of disk space.
+    
+    Zig performance impact
+    ----------------------
+    
+    First compilation of a simple CGo application is faster by ~2.5 seconds
+    or ~60%:
+    
+        $ CC="zig c++ -target x86_64-linux-gnu.2.28" hyperfine \
+            --warmup 3 --runs 10 \
+            --prepare 'rm -fr ~/.cache/zig ~/.cache/go-build /tmp/go-*' \
+            --parameter-list go go1.19,go1.19-O2 \
+            '/code/go/bin/{go} build .'
+        Benchmark 1: /code/go/bin/go1.19 build .
+          Time (mean ± σ):      6.168 s ±  0.059 s    [User: 7.465 s, System: 1.578 s]
+          Range (min … max):    6.111 s …  6.242 s    10 runs
+    
+        Benchmark 2: /code/go/bin/go1.19-O2 build .
+          Time (mean ± σ):      3.816 s ±  0.080 s    [User: 4.730 s, System: 1.130 s]
+          Range (min … max):    3.657 s …  3.958 s    10 runs
+    
+        Summary
+          '/code/go/bin/go1.19-O2 build .' ran
+            1.62 ± 0.04 times faster than '/code/go/bin/go1.19 build .'
+    
+    If we add C++ to the mix, the difference grows to almost ~23 seconds, or
+    almost 90%:
+    
+        $ CC="zig c++ -target x86_64-linux-gnu.2.28" hyperfine \
+            --warmup 1 --runs 3 \
+            --prepare 'rm -fr ~/.cache/zig ~/.cache/go-build /tmp/go-*' \
+            --parameter-list go go1.19,go1.19-O2 \
+            '/code/go/bin/{go} build .'
+    
+        Benchmark 1: CC="zig c++ -target x86_64-linux-gnu.2.28" /code/go/bin/go1.19 build .
+          Time (mean ± σ):     51.137 s ±  0.183 s    [User: 234.165 s, System: 15.005 s]
+          Range (min … max):   50.934 s … 51.288 s    3 runs
+    
+        Benchmark 2: CC="zig c++ -target x86_64-linux-gnu.2.28" /code/go/bin/go1.19-O2 build .
+          Time (mean ± σ):     27.102 s ±  0.068 s    [User: 119.816 s, System: 8.513 s]
+          Range (min … max):   27.038 s … 27.174 s    3 runs
+    
+        Summary
+          '/code/go/bin/go1.19-O2 build .' ran
+            1.89 ± 0.01 times faster than '/code/go/bin/go1.19 build .'
+    
+    The difference is just due to the fact that Zig will not be instructed
+    to compile libc++.a for debug builds; Go doesn't need that.
+    
+    Non-Zig performance impact
+    --------------------------
+    
+    A.k.a. does "-O2" for this check worsen performance?
+    
+    No statistically significant performance differences with both clang-15
+    and gcc-11. Also, it affects only the first compile of a CGo progam, as
+    the linker tests are cached across invocations. go1.19 binary is the
+    go1.19 tag; go1.19-O2 is go1.19 + this patch.
+    
+        $ hyperfine --warmup 3 --runs 20 \
+            --prepare 'rm -fr ~/.cache/go-build/ /tmp/go-*' \
+            --parameter-list go go1.19,go1.19-O2 \
+            --parameter-list cc gcc-11,clang-15 \
+            'CC={cc} /code/go/bin/{go} build .'
+        Benchmark 1: CC=gcc-11 /code/go/bin/go1.19 build .
+          Time (mean ± σ):     681.1 ms ±  13.7 ms    [User: 501.6 ms, System: 247.1 ms]
+          Range (min … max):   654.1 ms … 707.2 ms    20 runs
+    
+        Benchmark 2: CC=gcc-11 /code/go/bin/go1.19-O2 build .
+          Time (mean ± σ):     676.8 ms ±  10.2 ms    [User: 500.4 ms, System: 245.6 ms]
+          Range (min … max):   664.4 ms … 696.4 ms    20 runs
+    
+        Benchmark 3: CC=clang-15 /code/go/bin/go1.19 build .
+          Time (mean ± σ):     860.1 ms ±  17.1 ms    [User: 530.0 ms, System: 394.9 ms]
+          Range (min … max):   839.4 ms … 920.0 ms    20 runs
+    
+        Benchmark 4: CC=clang-15 /code/go/bin/go1.19-O2 build .
+          Time (mean ± σ):     864.5 ms ±  26.6 ms    [User: 537.8 ms, System: 390.1 ms]
+          Range (min … max):   841.9 ms … 955.5 ms    20 runs
+        Summary
+          'CC=gcc-11 /code/go/bin/go1.19-O2 build .' ran
+            1.01 ± 0.03 times faster than 'CC=gcc-11 /code/go/bin/go1.19 build .'
+            1.27 ± 0.03 times faster than 'CC=clang-15 /code/go/bin/go1.19 build .'
+            1.28 ± 0.04 times faster than 'CC=clang-15 /code/go/bin/go1.19-O2 build .'
+    
+    cgo.go
+    ------
+    
+        package main
+    
+        // #define _FILE_OFFSET_BITS 64
+        // #include <unistd.h>
+        // #include <fcntl.h>
+        // #include <stdio.h>
+        // char* hello() { return "hello, world"; }
+        // void phello() { printf("%s, your lucky number is %p\n", hello(), fcntl); }
+        import "C"
+    
+        func main() {
+                C.phello()
+        }
+    
+        func Chello() string {
+                return C.GoString(C.hello())
+        }
+    
+    Alternatives considered
+    -----------------------
+    
+    There are a few alternatives:
+    
+    1. Add "-O2" for linker-only tests. That looks like too much catering to
+       zig alone. If we can add it, then add for everything.
+    2. Add "-fomit-frame-pointer" instead of "-O2". This flag does not
+       universally imply debug mode, thus same argument applies as to (1).
+    3. Add "-O2" for this particular test (`--no-gc-sections`). This is
+       brittle and not future-proof: a future linker test may omit this
+       flag.
+    
+    Hardware
+    --------
+    
+    Tested on a 4-core (8 HT) Intel(R) Core(TM) i7-8665U CPU on Debian 11,
+    Linux 5.10.0-15-amd64.
+    
+    [1]: https://andrewkelley.me/post/zig-cc-powerful-drop-in-replacement-gcc-clang.html
+    
+    Change-Id: I5223a5cf53fc5d2b77ac94a6c5712c32c7fbdf36
+    GitHub-Last-Rev: 2e998b831afa4c1d29f033e9416ef556953c0533
+    GitHub-Pull-Request: golang/go#55966
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436884
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/doc/doc_test.go     |   1 +
- src/cmd/doc/main.go         |  17 ++-----
- src/cmd/doc/pkg.go          | 115 +++++++++++++++++++++++++-------------------
- src/cmd/doc/testdata/pkg.go |   1 +
- 4 files changed, 71 insertions(+), 63 deletions(-)
+ src/cmd/go/internal/work/exec.go | 34 ++++++++++++++++++++++++----------
+ 1 file changed, 24 insertions(+), 10 deletions(-)

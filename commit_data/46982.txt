@@ -1,16 +1,38 @@
-commit 392bb0677cfe6e6058d4f11953de80cdc20c52a8
-Author: Amelia Downs <adowns@vmware.com>
-Date:   Mon Oct 18 12:36:07 2021 -0400
+commit b6379f190b3820c2765c7589c1fd6292e5581407
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 11:39:48 2021 -0500
 
-    net/url: add testable examples for Values funcs
+    syscall: clean up windows a bit
     
-    Change-Id: Id71f3d8d7c1ef7910d5d9497167dc677f2f0a2ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356535
-    Trust: Damien Neil <dneil@google.com>
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    The files being deleted contain no code.
+    They exist because back when we used Makefiles
+    that listed all the Go sources to be compiled, we wrote
+    patterns like syscall_$GOOS_$GOARCH.go,
+    and it was easier to create dummy empty files
+    than introduce conditionals to not look for that
+    file on Windows.
+    
+    Now that we have the go command instead,
+    we don't need those dummy files.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: Ie0066d1dd2bf09802c74c6a496276e8c593e4bc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288815
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/net/url/example_test.go | 78 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 78 insertions(+)
+ src/syscall/syscall_windows.go       | 27 +++++++++++++++------------
+ src/syscall/syscall_windows_386.go   |  5 -----
+ src/syscall/syscall_windows_amd64.go |  5 -----
+ src/syscall/zerrors_windows_386.go   |  5 -----
+ src/syscall/zerrors_windows_amd64.go |  5 -----
+ src/syscall/zsysnum_windows_386.go   |  3 ---
+ src/syscall/zsysnum_windows_amd64.go |  3 ---
+ 7 files changed, 15 insertions(+), 38 deletions(-)

@@ -1,22 +1,28 @@
-commit 5e42658fc04c8f4ce15f3e2d75f4f5d045640738
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Sep 21 19:23:51 2017 +0200
+commit 0b77d3eb009335aaa72205c6642409a5e4a408d6
+Author: Niklas Schnelle <niklas.schnelle@gmail.com>
+Date:   Mon Mar 13 07:43:16 2017 +0530
 
-    all: prefer bytes.IndexByte over bytes.Index
+    net/http: add Server.ServeTLS method
     
-    bytes.IndexByte can be used wherever the second argument to
-    strings.Index is exactly one byte long, so we do that with this change.
+    Server.ServeTLS wraps Server.Serve with added TLS support. This is
+    particularly useful for serving on manually initialized listeners.
+    Example use-case includes ability to serve with TLS on listener
+    provided by systemd's socket activation.
     
-    This avoids generating unnecessary string symbols/converison and saves
-    a few calls to bytes.Index.
+    A matching test heavily based on TestAutomaticHTTP2_ListenAndServe
+    is also included.
     
-    Change-Id: If31c775790e01edfece1169e398ad6a754fb4428
-    Reviewed-on: https://go-review.googlesource.com/66373
+    Original code by Gurpartap Singh as
+    https://go-review.googlesource.com/c/38114/
+    
+    Fixes #13228
+    
+    Change-Id: I73bb703f501574a84d261c2d7b9243a89fa52d62
+    Reviewed-on: https://go-review.googlesource.com/44074
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/lib.go         | 2 +-
- src/crypto/tls/handshake_client_test.go | 2 +-
- src/encoding/json/decode_test.go        | 2 +-
- src/encoding/pem/pem.go                 | 4 ++--
- 4 files changed, 5 insertions(+), 5 deletions(-)
+ src/net/http/serve_test.go | 63 +++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 92 ++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 127 insertions(+), 28 deletions(-)

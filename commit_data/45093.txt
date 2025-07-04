@@ -1,44 +1,19 @@
-commit 3e5bba0a44b880541fb72220a883e259d0f34a83
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Mar 15 15:21:57 2021 -0500
+commit 8c84dcfe8c6a795ed6ae6be540ffc638841144ce
+Author: David Chase <drchase@google.com>
+Date:   Mon Aug 10 18:30:11 2020 -0400
 
-    cmd/link: support 32b TLS_LE offsets on PPC64
+    cmd/compile: enable late expansion for closure calls
     
-    When using the GCC thread sanitizer, it links in additional
-    code which uses TLS, which causes us to exceed the range of
-    the 16 bit TLS relocation used by statically compiled go
-    code.
+    This works for "normal" calls.
+    Defer func() and Go func() still pending.
+    RT calls still pending.
     
-    Rewrite objabi.R_POWER_TLS_LE to handle 32b offsets when
-    linking internally or externally into an ELF binary. The
-    elf relocation translation is changed to generate a pair
-    of R_PPC64_TPREL16_HA/LO relocations instead of a single
-    R_PPC64_TPREL16.
-    
-    Likewise, updating the above exposed some behavioral differences
-    in gnu ld which can rewrite TLS sequences. It expects the
-    sequence to generate a valid TLS address, not offset. This was
-    exposed when compiling PIC code. The proper fix is to generate
-    the full TLS address in the destination register of the
-    "MOVD tlsaddr, $Rx" pseudo-op. This removes the need to insert
-    special objabi.R_POWER_TLS relocations elsewhere.
-    
-    Unfortunately, XCOFF (used by aix) doesn't appear to support 32
-    bit offsets, so we rewrite this back into a 16b relocation when
-    externally linking a static binary.
-    
-    Fixes #45040
-    
-    Change-Id: I1ee9afd0b427cd79888032aa1f60d3e265073e1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302209
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I29cbdad8c877d12c08bbf7f3f0696611de877da9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247771
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/obj/ppc64/asm9.go   | 34 +++++++++----------------
- src/cmd/internal/objabi/reloctype.go | 14 ++++++-----
- src/cmd/link/internal/ppc64/asm.go   | 48 ++++++++++++++++++++++++++++++------
- src/runtime/race_ppc64le.s           | 28 ++++++++++-----------
- src/runtime/tls_ppc64x.s             |  4 +--
- 5 files changed, 76 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

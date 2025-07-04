@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8072: 3d4b55ad5b99def7f7e3f8694e590c1b44a1be97
+# Index 8072: 7b6ee1a5d4823c3fdf9d157774c90d0865c128be
 
 echo "🚀 Generating explanation for commit 8072..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 8072
-- **コミットハッシュ**: 3d4b55ad5b99def7f7e3f8694e590c1b44a1be97
-- **GitHub URL**: https://github.com/golang/go/commit/3d4b55ad5b99def7f7e3f8694e590c1b44a1be97
+- **コミットハッシュ**: 7b6ee1a5d4823c3fdf9d157774c90d0865c128be
+- **GitHub URL**: https://github.com/golang/go/commit/7b6ee1a5d4823c3fdf9d157774c90d0865c128be
 
 ### 章構成
 

@@ -1,33 +1,43 @@
-commit fab2b8b0fa569959243345dd4dcef651451d24fa
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Wed Nov 20 16:11:06 2024 -0500
+commit 80834af2063962bad87a56f0f45546cc18f30a9c
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Sep 27 12:15:04 2023 -0500
 
-    crypto/hkdf: init package
+    cmd/compile: avoid ANDCCconst on PPC64 if condition not needed
     
-    This commit imports the x/crypto/hkdf package as a public crypto package
-    based on the linked proposal. Since we've already implemented this
-    internal to the FIPS boundary (mod some small changes based on the
-    proposal discussion) this largely defers to that implementation.
+    In the PPC64 ISA, the instruction to do an 'and' operation
+    using an immediate constant is only available in the form that
+    also sets CR0 (i.e. clobbers the condition register.) This means
+    CR0 is being clobbered unnecessarily in many cases. That
+    affects some decisions made during some compiler passes
+    that check for it.
     
-    Updates #61477
+    In those cases when the constant used by the ANDCC is a right
+    justified consecutive set of bits, a shift instruction can
+    be used which has the same effect if CR0 does not need to be
+    set. The rule to do that has been added to the late rules file
+    after other rules using ANDCCconst have been processed in the
+    main rules file.
     
-    Change-Id: Ie3dcee75314dfbe22eec8b31c43c926fe80637bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630296
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Some codegen tests had to be updated since ANDCC is no
+    longer generated for some cases. A new test case was added to
+    verify the ANDCC is present if the results for both the AND
+    and CR0 are used.
+    
+    Change-Id: I304f607c039a458e2d67d25351dd00aea72ba542
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531435
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- api/next/61477.txt                                 |   3 +
- doc/next/6-stdlib/3-hkdf.md                        |   2 +
- doc/next/6-stdlib/99-minor/crypto/hkdf/61477.md    |   1 +
- src/crypto/hkdf/example_test.go                    |  53 +++++++++
- src/crypto/hkdf/hkdf.go                            |  49 +++++++++
- .../{internal/fips140test => hkdf}/hkdf_test.go    | 122 ++++++++++++---------
- src/crypto/internal/fips140/hkdf/cast.go           |   2 +-
- src/crypto/internal/fips140/hkdf/hkdf.go           |   7 +-
- src/crypto/internal/fips140/tls13/tls13.go         |   2 +-
- src/crypto/internal/hpke/hpke.go                   |   2 +-
- src/go/build/deps_test.go                          |   5 +-
- 11 files changed, 188 insertions(+), 60 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules      |   8 +-
+ .../compile/internal/ssa/_gen/PPC64latelower.rules |   3 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go       | 280 +++++----------------
+ .../compile/internal/ssa/rewritePPC64latelower.go  |  24 ++
+ test/codegen/arithmetic.go                         |  12 +-
+ test/codegen/bool.go                               |  24 +-
+ test/codegen/shift.go                              |  18 +-
+ 7 files changed, 120 insertions(+), 249 deletions(-)

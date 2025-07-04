@@ -1,28 +1,16 @@
-commit f742ddc349723667fc9af5d0f16233f7762aeaa0
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Apr 24 15:59:17 2023 -0500
+commit d151134851554aa0a3f05206019b9b8c1e1ad70f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 7 16:30:37 2022 -0400
 
-    cmd/link/internal/ppc64: support non-PIC PLT call stubs
+    doc/go1.19: document linker CL that switches DWARF compressed section format
     
-    Simplify the PLT stub generation code to minimize stub generation
-    knowing there is only ever a single TOC pointer when linking
-    internally.
+    For #51400.
+    Updates #50796.
     
-    The OpenBSD port requires Go make dynamic calls into its C library,
-    so the linker must create stubs which work without R2 being set up.
-    This new case is exactly case 3 described in the PPC64 ELFv2 1.5
-    section 4.2.5.3.
-    
-    Updates #56001
-    
-    Change-Id: I07ebd08442302e55b94b57db474dfd7e7a0c2ac9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/488316
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ica6c700a5b54e4712b09c43d1d7a9c3bba408b8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410823
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Fangrui Song <maskray@google.com>
 
- src/cmd/link/internal/ppc64/asm.go | 168 +++++++++++++++++++------------------
- 1 file changed, 88 insertions(+), 80 deletions(-)
+ doc/go1.19.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

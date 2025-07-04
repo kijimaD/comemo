@@ -1,24 +1,17 @@
-commit 549a88fa53c4d7d5ad702cdc90b3f0c763deb12e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 20 16:23:11 2025 -0800
+commit 9c01ecce48187d7109e9d9bc8be2921c5122ae18
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Wed Dec 20 21:02:10 2023 +0100
 
-    go/types, types2: better error messages for calls
+    doc: fix misspelling in go1.22 release notes
     
-    Provide the exact error cause instead of reporting a missing
-    core type.
+    Found by codespell.
     
-    For #70128.
-    
-    Change-Id: I34bd401115742883cb6aef7997477473b2464abb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651256
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I38254f75a8d342a48bbaf6421c681bef7a262dec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551955
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/call.go      | 12 ++++++++---
- src/cmd/compile/internal/types2/under.go     | 32 ++++++++++++++++++++++++++++
- src/go/types/call.go                         | 12 ++++++++---
- src/go/types/under.go                        | 32 ++++++++++++++++++++++++++++
- src/internal/types/testdata/check/lookup1.go | 12 +++++++++++
- 5 files changed, 94 insertions(+), 6 deletions(-)
+ doc/go1.22.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,14 +1,12 @@
-commit 9d634e50c7d9a132897805a8604e15ce7db3de7b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 7 13:33:29 2011 -0800
+commit ee58cc799e42d32e5991ba43390c8fc4778b0c7c
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Jan 7 16:17:47 2011 -0500
 
-    gofmt: rewriter matches apply to expressions only
-    
-    Fixes #1384.
+    crypto/block: mark as deprecated.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3912041
+    https://golang.org/cl/3909041
 
- src/cmd/gofmt/rewrite.go | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ src/pkg/crypto/block/cipher.go | 1 +
+ 1 file changed, 1 insertion(+)

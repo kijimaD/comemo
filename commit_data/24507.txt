@@ -1,12 +1,30 @@
-commit 2687db109d2b9f057f9e75503d4a9325e26e84a0
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Oct 13 13:19:09 2015 -0700
+commit c2db5f4ccc61ba7df96a747e268a277b802cbb87
+Author: Jed Denlea <jed@fastly.com>
+Date:   Wed Jul 29 18:10:32 2015 -0700
 
-    compress/gzip: fix go vet warning
+    net/http: close server conn after request body error
     
-    Change-Id: I2ac6b178e666e34e028001078faf62ce71e12e9d
-    Reviewed-on: https://go-review.googlesource.com/15834
+    HTTP servers attempt to entirely consume a request body before sending a
+    response.  However, when doing so, it previously would ignore any errors
+    encountered.
+    
+    Unfortunately, the errors triggered at this stage are indicative of at
+    least a couple problems: read timeouts and chunked encoding errors.
+    This means properly crafted and/or timed requests could lead to a
+    "smuggled" request.
+    
+    The fix is to inspect the errors created by the response body Reader,
+    and treat anything other than io.EOF or ErrBodyReadAfterClose as
+    fatal to the connection.
+    
+    Fixes #11930
+    
+    Change-Id: I0bf18006d7d8f6537529823fc450f2e2bdb7c18e
+    Reviewed-on: https://go-review.googlesource.com/12865
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/compress/gzip/gunzip_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/serve_test.go | 168 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  59 ++++++++++++----
+ 2 files changed, 214 insertions(+), 13 deletions(-)

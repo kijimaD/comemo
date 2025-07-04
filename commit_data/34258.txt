@@ -1,19 +1,20 @@
-commit bb355ed5ebb24179be4e1093c3dce12e23f21d56
-Author: Ahmet Soormally <ahmet@mangomm.co.uk>
-Date:   Mon Jan 15 12:12:46 2018 +0000
+commit 764a6ac29e4f720a0a33cb5ee02b9108821d8388
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Oct 12 18:41:06 2017 +0200
 
-    regexp: dont use builtin type as variable name
+    runtime: don't restore the alternate signal stack on ios
     
-    The existing implementation declares a variable error which collides
-    with builting type error.
+    The alternative signal stack doesn't work on ios, so the setup of
+    the alternative stack was skipped. The corresponding unminitSignals
+    was effectively a no-op on ios until CL 70130. Skip unminitSignals
+    on ios to restore the previous behaviour.
     
-    This change simply renames error variable to err.
+    For the ios builders.
     
-    Change-Id: Ib56c2530f37f53ec70fdebb825a432d4c550cd04
-    Reviewed-on: https://go-review.googlesource.com/87775
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I5692ca7f5997e6b9d10cc5f2383a5a37c42b133c
+    Reviewed-on: https://go-review.googlesource.com/70270
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/regexp/regexp.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/os_darwin.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,12 +1,12 @@
-commit 3bd076991bcb619f076dab99a17cdd620dada037
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed May 1 10:00:05 2013 -0400
+commit 2a1ca145cf0489160ca284e08eeca4673563c007
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 30 14:22:28 2013 -0700
 
-    doc: link to Go 1.1 release notes
+    cmd/ld: when linking externally, only generate dwarf info for ELF
     
-    R=golang-dev, r
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/9047045
+    https://golang.org/cl/9025047
 
- doc/docs.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/ld/dwarf.c | 3 +++
+ 1 file changed, 3 insertions(+)

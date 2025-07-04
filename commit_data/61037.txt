@@ -1,0 +1,17 @@
+commit 8c8948c375a97f8cc09b3b6c3a06c75c31d83aa0
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Sat Feb 10 21:51:12 2024 -0700
+
+    cmd/go: add support for go get -u tool
+    
+    Change-Id: I14d20c6c77d0d0a83cb547d954ba7f244166bc43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563176
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modget/get.go                    | 17 +++++++++++++++++
+ src/cmd/go/internal/modget/query.go                  |  3 +++
+ src/cmd/go/testdata/mod/example.com_tools_v1.1.0.txt | 12 ++++++++++++
+ src/cmd/go/testdata/script/mod_get_tool.txt          | 19 +++++++++++++++++--
+ 4 files changed, 49 insertions(+), 2 deletions(-)

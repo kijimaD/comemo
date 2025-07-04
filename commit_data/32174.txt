@@ -1,23 +1,23 @@
-commit 310ba828289f8c4924bc0f319b72e151f5f079f7
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Aug 9 11:08:55 2017 -0700
+commit 6c6f455f880ea560707348fcea9d4188782706e8
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 7 13:49:51 2017 -0400
 
-    archive/tar: ensure input fits in octal field
+    runtime: consolidate changes to arena_used
     
-    The prior logic would over-write the NUL-terminator if the octal value
-    was long enough. In order to prevent this, we add a fitsInOctal function
-    that does the proper check.
+    Changing mheap_.arena_used requires several steps that are currently
+    repeated multiple times in mheap_.sysAlloc. Consolidate these into a
+    single function.
     
-    The relevant USTAR specification about NUL-terminator is:
-    <<<
-    Each numeric field is terminated by one or more <space> or NUL characters.
-    >>>
+    In the future, this will also make it easier to add other auxiliary VM
+    structures.
     
-    Change-Id: I6fbc6e8fe71168727eea201925d0fe08d43116ac
-    Reviewed-on: https://go-review.googlesource.com/54432
+    Change-Id: Ie68837d2612e1f4ba4904acb1b6b832b15431d56
+    Reviewed-on: https://go-review.googlesource.com/40151
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/tar/strconv.go      | 15 ++++++++++-
- src/archive/tar/strconv_test.go | 58 +++++++++++++++++++++++++++++++++++++++++
- src/archive/tar/writer.go       | 25 +++++++-----------
- 3 files changed, 82 insertions(+), 16 deletions(-)
+ src/runtime/malloc.go  | 26 +++++++++++---------------
+ src/runtime/mbitmap.go | 10 +++-------
+ src/runtime/mheap.go   | 35 ++++++++++++++++++++++++++++-------
+ 3 files changed, 42 insertions(+), 29 deletions(-)

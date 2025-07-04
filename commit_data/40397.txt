@@ -1,19 +1,57 @@
-commit 68981bf309be6143dd4cd769ffa94e9347de1fbb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 23 20:54:05 2019 -0700
+commit 6ed2ec4aa5ea6c34b1e3d42b7995c81ab74a27c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 11:44:15 2019 -0400
 
-    syscall: make TestGetdirentries checkptr safe
+    runtime: fix vet complaints for linux/386
     
-    Fixes Darwin.
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
     
-    Updates #35092
+    This CL makes "GOOS=linux GOARCH=386 go vet -unsafeptr=false runtime" happy,
+    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
     
-    Change-Id: I045f070c8549d00610b459e3a82cac870d9ddb54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203077
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For #31916.
+    
+    Change-Id: I3e5586a7ff6e359357350d0602c2259493280ded
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176099
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/syscall/getdirentries_test.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/vet/all/whitelist/386.txt         | 18 ------------------
+ src/cmd/vet/all/whitelist/amd64.txt       |  3 ---
+ src/cmd/vet/all/whitelist/android_386.txt |  8 --------
+ src/cmd/vet/all/whitelist/arm.txt         |  3 ---
+ src/cmd/vet/all/whitelist/arm64.txt       |  1 -
+ src/cmd/vet/all/whitelist/darwin_386.txt  |  5 -----
+ src/cmd/vet/all/whitelist/freebsd_386.txt |  1 -
+ src/cmd/vet/all/whitelist/linux_386.txt   | 13 -------------
+ src/cmd/vet/all/whitelist/linux_amd64.txt |  5 -----
+ src/cmd/vet/all/whitelist/linux_arm.txt   |  6 ------
+ src/cmd/vet/all/whitelist/linux_arm64.txt |  5 -----
+ src/cmd/vet/all/whitelist/nacl_386.txt    |  1 -
+ src/cmd/vet/all/whitelist/netbsd_386.txt  |  2 --
+ src/cmd/vet/all/whitelist/openbsd_386.txt |  1 -
+ src/cmd/vet/all/whitelist/plan9_386.txt   |  3 ---
+ src/cmd/vet/all/whitelist/plan9_amd64.txt |  1 -
+ src/cmd/vet/all/whitelist/windows_386.txt |  1 -
+ src/runtime/asm_386.s                     | 13 +++++++------
+ src/runtime/asm_arm.s                     |  2 +-
+ src/runtime/duff_mips64x.s                |  3 +++
+ src/runtime/duff_ppc64x.s                 |  3 +++
+ src/runtime/stubs.go                      |  5 +++++
+ src/runtime/stubs_386.go                  |  6 ++++++
+ src/runtime/stubs_android.go              | 16 ----------------
+ src/runtime/stubs_linux.go                | 10 ++++++++++
+ src/runtime/sys_freebsd_386.s             |  2 +-
+ src/runtime/sys_linux_386.s               |  3 ++-
+ src/runtime/sys_linux_mips64x.s           | 15 +++++++++++++++
+ src/runtime/sys_linux_mipsx.s             | 15 +++++++++++++++
+ src/runtime/sys_linux_ppc64x.s            | 15 +++++++++++++++
+ src/runtime/sys_linux_s390x.s             | 15 +++++++++++++++
+ src/runtime/sys_nacl_386.s                |  2 +-
+ src/runtime/sys_netbsd_386.s              |  2 +-
+ src/runtime/sys_openbsd_386.s             |  2 +-
+ src/runtime/sys_plan9_amd64.s             |  4 ----
+ src/runtime/sys_windows_386.s             |  2 +-
+ 36 files changed, 102 insertions(+), 110 deletions(-)

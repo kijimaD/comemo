@@ -1,21 +1,16 @@
-commit d38d357c787f38eadd511b7dadda4fe3b1d7391b
-Author: Andreas Auernhammer <aead@mail.de>
-Date:   Fri May 26 11:33:49 2017 +0200
+commit c239fbb893b202e2fce141449215f802eefb6b9f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 18 06:09:15 2017 -0700
 
-    crypto/tls: don't check whether an ec point is on a curve twice
+    cmd/compile: remove stray blank assignment
     
-    The processClientKeyExchange and processServerKeyExchange functions unmarshal an
-    encoded EC point and explicitly check whether the point is on the curve. The explicit
-    check can be omitted because elliptic.Unmarshal fails if the point is not on the curve
-    and the returned error would always be the same.
+    Left over from CL 39855.
     
-    Fixes #20496
-    
-    Change-Id: I5231a655eace79acee2737dd036a0c255ed42dbb
-    Reviewed-on: https://go-review.googlesource.com/44311
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Avelino <t@avelino.xxx>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I9df8b5c631d5afbdbf2fb306876648d8541931d3
+    Reviewed-on: https://go-review.googlesource.com/40941
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/key_agreement.go | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/gen.go | 1 -
+ 1 file changed, 1 deletion(-)

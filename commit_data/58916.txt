@@ -1,38 +1,23 @@
-commit 26ba61dfad46f24a2a3138a40f738ecd22536edf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 26 15:14:30 2025 -0800
+commit b7ae16e04b93c771dca22f7a9b3d6f985027b101
+Author: Jin Lin <jinl@uber.com>
+Date:   Wed Sep 20 12:22:26 2023 -0700
 
-    go/types, types2: remove most remaining references to coreType in builtin.go
+    cmd/preprofile: Add preprocess tool to pre-parse the profile file.
     
-    For now, use commonUnder (formerly called sharedUnder) and update
-    error messages and comments. We can provide better error messages
-    in individual cases eventually.
+    The pgo compilation time is very long if the profile file is large.
+    We added a preprocess tool to pre-parse profile file in order to
+    expedite the compile time.
     
-    Kepp using coreType for make built-in for now because it must accept
-    different channel types with non-conflicting directions and identical
-    element types. Added extra test cases.
-    
-    While at it, rename sharedUnder, sharedUnderOrChan to commonUnder
-    and commonUnderOrChan, respectively (per suggestion from rfindley).
-    
-    For #70128.
-    
-    Change-Id: I11f3d5ce858746574f4302271d8cb763c2cdcf98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/653139
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I6f50bbd01f242448e2463607a9b63483c6ca9a12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529738
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/builtins.go    |  8 ++++----
- src/cmd/compile/internal/types2/call.go        |  4 ++--
- src/cmd/compile/internal/types2/lookup.go      |  4 ++--
- src/cmd/compile/internal/types2/stmt.go        |  4 ++--
- src/cmd/compile/internal/types2/under.go       | 18 +++++++++++-------
- src/go/types/builtins.go                       |  8 ++++----
- src/go/types/call.go                           |  4 ++--
- src/go/types/lookup.go                         |  4 ++--
- src/go/types/stmt.go                           |  4 ++--
- src/go/types/under.go                          | 18 +++++++++++-------
- src/internal/types/testdata/check/builtins1.go | 12 ++++++++----
- 11 files changed, 50 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/base/flag.go              |   2 +-
+ src/cmd/compile/internal/pgo/irgraph.go            | 207 +++++++++++++++----
+ src/cmd/compile/internal/test/pgo_inl_test.go      |  35 +++-
+ .../testdata/pgo/inline/inline_hot.pprof.node_map  |  13 ++
+ src/cmd/preprofile/main.go                         | 224 +++++++++++++++++++++
+ .../internal/graph => internal/profile}/graph.go   |  13 +-
+ 6 files changed, 450 insertions(+), 44 deletions(-)

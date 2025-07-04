@@ -1,29 +1,22 @@
-commit 04b5b4f740a34a95a10253a0e34779bb259ec9c4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Oct 30 12:24:51 2020 -0400
+commit 181153369534c6987306c47630f9e4fbf07b467f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 20 11:14:15 2020 -0700
 
-    cmd/go/internal/modload: return a module-only result from QueryPattern
+    cmd/compile: refactor Escape.tagHole
     
-    This allows a single QueryPattern call to resolve a path that could be
-    either a package or a module. It is important to be able to make a
-    single QueryPattern call — rather than a QueryPattern followed by a
-    Query for the specific module path — to provide appropriate fallback
-    behavior: if the proxy returns package results but does not contain a
-    module result, we don't want to fall back to the next proxy to look
-    for the (probably-nonexistent) module.
+    This CL refactors tagHole to handle all three call situations (unknown
+    function; known function in same analysis batch; known function in
+    previous analysis batch). This will make it somewhat easier to reuse
+    in a followup CL.
     
-    For #37438
+    Passes toolstash-check.
     
-    Change-Id: I419b8bb3ab4565f443bb5cee9a8b206f453b9801
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266657
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I764d047a333dfc593d721a881361683e94b485df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229059
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modget/get.go                  | 19 ++---
- src/cmd/go/internal/modload/import.go              |  2 +-
- src/cmd/go/internal/modload/query.go               | 86 +++++++++++++++-------
- src/cmd/go/internal/work/build.go                  |  2 +-
- .../testdata/script/mod_get_downgrade_missing.txt  | 16 +++-
- 5 files changed, 81 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/gc/escape.go | 66 +++++++++++++++++++----------------
+ 1 file changed, 35 insertions(+), 31 deletions(-)

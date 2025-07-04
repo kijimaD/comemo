@@ -1,22 +1,20 @@
-commit becd2a83c7a22c28bb24ac95364171b23a3d27d2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 11 23:25:38 2018 +0000
+commit d2dd2e15242a57f5bac04cdb70cb3736241b7973
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 26 19:28:51 2018 +1100
 
-    syscall: convert Windows AddrinfoW.Addr from uintptr to syscall.Pointer
+    os: do not test Lstat in TestDevNullFile
     
-    API compatibility violation, but it wasn't safe before and people
-    should be using golang.org/x/sys/windows instead.
+    CL 102456 added Lstat check to TestDevNullFile.
+    But some systems have /dev/null as a symlink,
+    so Lstat test is wrong. Remove the test.
     
-    Fixes #24820
+    Fixes #24521
     
-    Change-Id: I3b43493f56b3116924b9d848a294899279f314fd
-    Reviewed-on: https://go-review.googlesource.com/123455
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I149110b08dd05db6495ec4eccbcf943e444332f9
+    Reviewed-on: https://go-review.googlesource.com/102461
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/except.txt               | 6 ++++--
- api/go1.11.txt               | 2 ++
- src/syscall/types_windows.go | 2 +-
- 3 files changed, 7 insertions(+), 3 deletions(-)
+ src/os/os_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

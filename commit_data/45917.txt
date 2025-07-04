@@ -1,18 +1,21 @@
-commit d8f348a589b3df4bb48636023be4ccf9ac96d307
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jul 13 17:25:26 2021 -0400
+commit 420809ab08d28fbe8dbe0e8fa4159c7dc82d88ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 28 01:03:40 2020 -0500
 
-    cmd/go: remove a duplicated word from 'go help mod graph'
+    [dev.regabi] cmd/compile: move name code from node.go to name.go
     
-    For #46366
+    No code changes here, only copying of text.
+    This will make the diffs in a future CL readable.
     
-    Change-Id: Ie9735027a3c4c0f4a604df30ca4d64dcdc62b45a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334375
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I1b8d8b9ec9408859e36af5ff3bef7c6c10eac0d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274092
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go               | 2 +-
- src/cmd/go/internal/modcmd/graph.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/name.go | 376 ++++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ir/node.go | 364 ----------------------------------
+ 2 files changed, 376 insertions(+), 364 deletions(-)

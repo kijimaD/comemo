@@ -1,22 +1,15 @@
-commit 48c88f1b1bac1ef4fc81246a7f31933f8f922706
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 14 14:46:09 2021 -0700
+commit 4f42a9b76b2ca2c261a4afec986b9518a61626ee
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Nov 21 14:48:26 2020 +0800
 
-    reflect: add Value.CanConvert
+    net: add note about disabling loopback in ListenMulticastUDP()
     
-    For #395
-    For #46746
+    Fixes #41752
     
-    Change-Id: I4bfc094cf1cecd27ce48e31f92384cf470f371a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334669
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I83520d2303e5fd2e5f6329f092b40e73c13771a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271908
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- api/go1.17.txt          |  1 +
- doc/go1.17.html         | 12 ++++++++++++
- src/reflect/all_test.go |  9 +++++++++
- src/reflect/value.go    | 20 ++++++++++++++++++++
- 4 files changed, 42 insertions(+)
+ src/net/udpsock.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,18 +1,18 @@
-commit 6b3bb4ba3bcc190200af4f1eedf454658094097f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 5 16:53:13 2019 -0700
+commit b98cecff882e42c7f0842c7adae1deeca1b99002
+Author: Dong-hee Na <donghee.na92@gmail.com>
+Date:   Sun May 5 17:23:20 2019 +0900
 
-    runtime: handle timers on P's in procresize/(*pp).destroy
+    net: use same TCP Keep Alive interval between dial and accept
     
-    Updates #6239
-    Updates #27707
+    Fixes #31510
     
-    Change-Id: I52cab8bf3dc8c552463725fc1d9e4e6b12230b03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171828
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I601d114b617a055380bf3c805e2d9a9b0795b656
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175259
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/proc.go | 6 ++++++
- src/runtime/time.go | 8 ++++++++
- 2 files changed, 14 insertions(+)
+ src/net/dial.go          | 8 +++++++-
+ src/net/tcpsock_plan9.go | 3 +--
+ src/net/tcpsock_posix.go | 3 +--
+ 3 files changed, 9 insertions(+), 5 deletions(-)

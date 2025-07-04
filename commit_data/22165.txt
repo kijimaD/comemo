@@ -1,18 +1,14 @@
-commit 75447d0623e3e7614a9cf9cdd5ece23d18028cab
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Mar 24 02:56:07 2015 -0400
+commit 1e0e2ffb8d90d2c8a163d07d7dccf506891b7dac
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Feb 26 10:01:37 2015 -0500
 
-    cmd/7g: fix linux/arm64 build
+    runtime: skip test on darwin/arm
     
-    REGRT1 and REGRT2 are also reserved on arm64 for runtime (duffzero
-    and duffcopy).
+    Needs the Go tool, which we do not have on iOS. (No Fork.)
     
-    Change-Id: If098527a7f29d16f94bdcec05fd55950b9076e35
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/7977
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iedf69f5ca81d66515647746546c9b304c8ec10c4
+    Reviewed-on: https://go-review.googlesource.com/6102
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/7g/gsubr.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/runtime_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

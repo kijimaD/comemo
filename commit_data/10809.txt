@@ -1,17 +1,13 @@
-commit 9bf3478658a781d38ab0a71bb027d781b8ade14b
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Thu Dec 15 17:35:59 2011 +0100
+commit cebf55dc9b2bf6b298f60cf3bffb4ad7a4583f05
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Dec 15 11:23:01 2011 -0500
 
-    gc: better loopdepth analysis for labels
-    
-    This avoids degraded performance caused by extra labels
-    emitted by inlining (breaking strconv ftoa alloc count unittest) and is better in any case.
+    time: new AddDate method
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5483071
+    https://golang.org/cl/5465044
 
- src/cmd/gc/esc.c | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
- src/cmd/gc/fmt.c |  6 +++++
- test/escape2.go  | 21 +++++++++++++++++
- 3 files changed, 96 insertions(+), 3 deletions(-)
+ src/pkg/time/time.go      | 14 ++++++++++++++
+ src/pkg/time/time_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

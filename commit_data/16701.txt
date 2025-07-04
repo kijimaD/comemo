@@ -1,15 +1,14 @@
-commit a44009ca78b26ffc7ecda006131c424b3e7d9075
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Jul 3 11:56:02 2013 +1000
+commit 456f6df96a9f5ece7c064163c3d2e2d0b487714e
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Tue Jul 2 17:29:21 2013 -0700
 
-    cmd/go: git checkout the correct default branch.
+    net/rpc: remove unnecessary code
     
-    origin/master is always a remote branch, and it doesn't make sense to
-    switch to a remote branch. master is the default branch that tracks it.
+    Fixes #5760.
     
-    R=adg
-    CC=golang-dev, matt.jibson
-    https://golang.org/cl/10869046
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10871043
 
- src/cmd/go/vcs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/rpc/server.go | 1 -
+ 1 file changed, 1 deletion(-)

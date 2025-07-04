@@ -1,15 +1,20 @@
-commit 58e357ef160da1d89c68130c83e7a383d8480b16
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 17 11:03:55 2014 -0400
+commit ee8e28d328567b5f12a94b1156b5f6d20d1f67fe
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Oct 5 13:15:13 2014 +1100
 
-    runtime: remove comment that leaked into CL 153710043
+    syscall: another attempt to keep windows syscall pointers live
     
-    This doesn't actually do anything. Maybe it will some day,
-    but maybe not.
+    This approach was suggested in
+    https://golang.org/cl/138250043/#msg15.
+    Unlike current version of mksyscall_windows.go,
+    new code could be used in go.sys and other external
+    repos without help from asm.
     
-    TBR=r
+    LGTM=iant
+    R=golang-codereviews, iant, r
     CC=golang-codereviews
-    https://golang.org/cl/155490043
+    https://golang.org/cl/143160046
 
- src/runtime/malloc.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/syscall/mksyscall_windows.go | 79 +++++++++++++++++++++++++++++++++++-----
+ src/syscall/zsyscall_windows.go  | 36 +++++++++++++++---
+ 2 files changed, 100 insertions(+), 15 deletions(-)

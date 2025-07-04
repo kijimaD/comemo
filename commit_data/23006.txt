@@ -1,15 +1,17 @@
-commit fd5b8aa7999e6710e14f4798dcb9e9387247511d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 13 16:07:33 2015 -0700
+commit f06795d9b742cf3292a0f254646c23603fc6419b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 17 21:04:39 2015 -0700
 
-    text/scanner: avoid further reads after EOF
+    doc/progs: build test programs in temp directory
     
-    Fixes #10735.
+    This avoids a race condition with go1.go wanting to examine files in
+    the current directory with filepath.Walk(".", walkFn).
     
-    Change-Id: I5c6e424653657c89da176136ac56597c7565abe5
-    Reviewed-on: https://go-review.googlesource.com/10039
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #10497.
+    
+    Change-Id: I2159f40a08d1a768195dbb7ea3c27e38cf9740bb
+    Reviewed-on: https://go-review.googlesource.com/9110
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/text/scanner/scanner.go      |  6 +++++-
- src/text/scanner/scanner_test.go | 36 ++++++++++++++++++++++++++++--------
- 2 files changed, 33 insertions(+), 9 deletions(-)
+ doc/progs/run.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

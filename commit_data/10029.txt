@@ -1,21 +1,24 @@
-commit 9d99d52fcb898433d58c861bd942b2caec22c16f
+commit 7bc4f8de0fc91b209265f797fd20820914f5baaa
 Author: Adam Langley <agl@golang.org>
-Date:   Tue Oct 18 12:59:32 2011 -0400
+Date:   Tue Oct 18 12:58:57 2011 -0400
 
-    http, crypto/tls: fix read timeouts and closing.
+    exp/terminal: split terminal handling from exp/ssh
     
-    tls.Conn.Close() didn't close the underlying connection and tried to
-    do a handshake in order to send the close notify alert.
+    This change splits terminal handling from exp/ssh, as suggested
+    several times in the ssh code review.
     
-    http didn't look for errors from the TLS handshake.
+    shell.go and shell_test.go are copies from exp/ssh with minimal
+    changes, so don't need another full review. A future CL will remove
+    that code from exp/ssh.
     
-    Fixes #2281.
-    
-    R=bradfitz
+    R=bradfitz, r, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/5283045
+    https://golang.org/cl/5278049
 
- src/pkg/crypto/tls/conn.go | 20 ++++++++++++++++----
- src/pkg/http/serve_test.go |  4 ----
- src/pkg/http/server.go     |  5 ++++-
- 3 files changed, 20 insertions(+), 9 deletions(-)
+ src/pkg/exp/terminal/Makefile         |  15 ++
+ src/pkg/exp/terminal/shell.go         | 359 ++++++++++++++++++++++++++++++++++
+ src/pkg/exp/terminal/shell_test.go    | 110 +++++++++++
+ src/pkg/exp/terminal/terminal.go      | 103 ++++++++++
+ src/pkg/syscall/types_linux.c         | 107 ++++++++++
+ src/pkg/syscall/ztypes_linux_amd64.go | 111 +++++++++++
+ 6 files changed, 805 insertions(+)

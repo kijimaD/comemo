@@ -1,30 +1,23 @@
-commit 22664f33b7389f1b3df409a831c83213cfbbe6d3
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Oct 21 17:45:01 2024 -0400
+commit 52a5881beeb946363515777a48c8a229ad66dd7a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 29 01:15:55 2023 -0700
 
-    runtime: reserve fewer memory for aligned reservation on sbrk systems
+    cmd/compile: remove vestigial importpath symbol logic
     
-    Sometimes the runtime needs to reserve some memory with a large
-    alignment, which the OS usually won't directly satisfy. So, it
-    asks size+align bytes instead, and frees the unaligned portions.
-    On sbrk systems, this doesn't work that well, as freeing the tail
-    portion doesn't really free the memory to the OS. Instead, we
-    could simply round the current break up, then reserve the given
-    size, without wasting the tail portion.
+    The object file format now has an explicit section for tracking which
+    packages were imported, so we don't need to write out importpath
+    symbols for all directly imported packages anymore.
     
-    Also, don't create heap arena hints on sbrk systems. We can only
-    grow the break sequentially, and reserving specific addresses
-    would not succeed anyway.
+    However, keep the logic for writing out individual importpath symbols,
+    because it's still relevant to runtime type descriptor generation.
     
-    For #69018.
-    
-    Change-Id: Iadc2c54d62b00ad7befa5bbf71146523483a8c47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621715
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I184ff320e894ba43ca0f8a3d2678e4b2bbbe6da5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523875
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/malloc.go      | 11 ++++++++++-
- src/runtime/mem_nonsbrk.go | 15 +++++++++++++++
- src/runtime/mem_sbrk.go    | 42 +++++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 66 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/obj.go              |  1 -
+ src/cmd/compile/internal/reflectdata/reflect.go | 81 +++++++++----------------
+ src/cmd/compile/internal/types/pkg.go           | 20 ------
+ 3 files changed, 29 insertions(+), 73 deletions(-)

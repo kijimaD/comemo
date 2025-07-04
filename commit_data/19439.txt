@@ -1,47 +1,26 @@
-commit 2c83f1eaf93c3d1891588e82b4fd4e761d161fdd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 22 12:23:25 2014 -0700
+commit 5eb585f211385d28b36f3df66b5bd7bde72a8e43
+Author: Pietro Gagliardi <pietro10@mac.com>
+Date:   Wed May 21 16:01:54 2014 -0700
 
-    spec: explicitly disallow blank methods in interface types
+    cmd/cgo: explicitly state that #cgo directives across multiple files are concatenated
     
-    The spec was unclear about whether blank methods should be
-    permitted in interface types. gccgo permits at most one, gc
-    crashes if there are more than one, go/types permits at most
-    one.
+    This is a quick documentation change/clarification, as this
+    confused me before: in my own cgo-based projects, I currently have
+    identical #cgo directives in each relevant source file, and I notice
+    with go build -x that cgo is combining the directives, leading to
+    pkg-config invocations with the same package name (gtk+-3.0, in my
+    case) repeated several times, or on Mac OS X, LDFLAGS listing
+    -framework Foundation -framework AppKit multiple times. Since I am
+    about to add a CFLAGS as well, I checked the source to cmd/cgo and
+    go/build (where the work is actually done) to see if that still holds
+    true there. Hopefully other people who have made the same mistake I
+    have (I don't know if anyone has) can remove the excess declarations
+    now; this should make things slightly easier to manage as well.
     
-    Discussion:
-    
-    Since method sets of non-interface types never contain methods
-    with blank names (blank methods are never declared), it is impossible
-    to satisfy an interface with a blank method.
-    
-    It is possible to declare variables of assignable interface types
-    (but not necessarily identical types) containing blank methods, and
-    assign those variables to each other, but the values of those
-    variables can only be nil.
-    
-    There appear to be two "reasonable" alternatives:
-    
-    1) Permit at most one blank method (since method names must be unique),
-    and consider it part of the interface. This is what appears to happen
-    now, with corner-case bugs. Such interfaces can never be implemented.
-    
-    2) Permit arbitrary many blank methods but ignore them. This appears
-    to be closer to the handling of blank identifiers in declarations.
-    However, an interface type literal is not a declaration (it's a type
-    literal). Also, for struct types, blank identifiers are not ignored;
-    so the analogy with declarations is flawed.
-    
-    Both these alternatives don't seem to add any benefit and are likely
-    (if only slightly) more complicated to explain and implement than
-    disallowing blank methods in interfaces altogether.
-    
-    Fixes #6604.
-    
-    LGTM=r, rsc, iant
-    R=r, rsc, ken, iant
+    LGTM=iant
+    R=golang-codereviews, gobot, iant
     CC=golang-codereviews
-    https://golang.org/cl/99410046
+    https://golang.org/cl/91520046
 
- doc/go_spec.html | 23 ++++++++++++-----------
- 1 file changed, 12 insertions(+), 11 deletions(-)
+ src/cmd/cgo/doc.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

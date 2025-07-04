@@ -1,15 +1,14 @@
-commit 65c63dc4aabba3ecd320427fb20bc1cdbe0d2a3d
-Author: Keith Randall <khr@golang.org>
-Date:   Thu May 8 08:35:49 2014 -0700
+commit 5139293986cf202efe31d995e8dfb471b6f2038e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu May 8 01:25:56 2014 -0400
 
-    runtime: write memory profile statistics to the heap dump.
+    cmd/objdump: actually accept hex address without "0x" prefix.
+    Fixes #7936.
     
-    LGTM=rsc
-    R=rsc, khr
+    LGTM=alex.brainman, bradfitz, iant
+    R=golang-codereviews, alex.brainman, bradfitz, iant
     CC=golang-codereviews
-    https://golang.org/cl/97010043
+    https://golang.org/cl/100060043
 
- src/pkg/runtime/heapdump.c | 71 ++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/malloc.h   |  1 +
- src/pkg/runtime/mprof.goc  | 12 ++++++++
- 3 files changed, 84 insertions(+)
+ src/cmd/objdump/main.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

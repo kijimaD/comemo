@@ -1,18 +1,18 @@
-commit c5670f15488843ebd368f4f3fff417cc7acdd178
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Sat Sep 3 16:01:54 2011 -0300
+commit 9b011500c0b93951b0618c06be1b9d2d78ab374e
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Sat Sep 3 18:27:16 2011 +1000
 
-    gofix: do not convert url in field names
+    runtime: implement exception handling on windows/amd64
     
-    There's some ambiguity in the U{url: url} case as it could be
-    both a map or a struct literal, but given context it's more
-    likely a struct, so U{url: url_} rather than U{url_: url_}.
-    At least that was the case for me.
+    Fixes #2194.
     
-    R=golang-dev, rsc, adg
+    R=rsc, alex.brainman, vcc.163, jp
     CC=golang-dev
-    https://golang.org/cl/4972052
+    https://golang.org/cl/4977044
 
- src/cmd/gofix/url.go      | 13 ++++++++++++-
- src/cmd/gofix/url_test.go | 10 ++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/cmd/ld/pe.c                        | 57 ++++++++++++++++++++--
+ src/pkg/runtime/windows/amd64/defs.h   | 58 +++++++++++++++++++++-
+ src/pkg/runtime/windows/amd64/signal.c | 89 +++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/windows/amd64/sys.s    | 39 +++++++++++++++
+ src/pkg/runtime/windows/defs.c         |  5 ++
+ 5 files changed, 243 insertions(+), 5 deletions(-)

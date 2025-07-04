@@ -1,16 +1,23 @@
-commit c3c107f67c86e9e0bf03f831be4f9417c75463a4
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Nov 30 10:27:43 2012 +0400
+commit 9c2f410206221473a9773849ab9749c6602ce11a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 29 18:00:51 2012 -0800
 
-    cmd/gc: racewalk: collect stack traces in sync and sync/atomic
-    W/o this change stack traces do not show from where sync.Once()
-    or atomic.XXX was called.
-    This change add funcenter/exit instrumentation to sync/sync.atomic
-    packages.
+    net/http: don't send chunked encoding on 204 responses
+    
+    RFC 2616: "The 204 response MUST NOT include a message-body,
+    and thus is always terminated by the first empty line after
+    the header fields."
+    
+    Previously we'd trigger chunked encoding by default on
+    responses, and then when finishing the request we'd write the
+    chunk trailers, which counted as a message-body.
+    
+    Fixes #4454
     
     R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6854112
+    https://golang.org/cl/6782139
 
- src/cmd/gc/racewalk.c | 38 +++++++++++++++++++++++++++-----------
- 1 file changed, 27 insertions(+), 11 deletions(-)
+ src/pkg/net/http/server.go         |  2 ++
+ src/pkg/net/http/transport_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

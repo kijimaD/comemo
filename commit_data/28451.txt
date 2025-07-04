@@ -1,15 +1,31 @@
-commit 2679282da4e437ee086ec791ab73181c39ae3463
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 16 12:08:05 2016 -0700
+commit b9ec0024fbc18dd94eff7240afd82fac6b4d8fdc
+Author: Seth Vargo <sethvargo@gmail.com>
+Date:   Thu May 12 16:26:27 2016 -0400
 
-    cmd/compile: fold ADDconsts together for PPC
+    net/http: add missing HTTP status codes
     
-    Change-Id: I571f03af6f791e78e7e18addcc310eb25747cdcf
-    Reviewed-on: https://go-review.googlesource.com/29351
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    This commit adds missing status codes:
+    
+    * 102 - Processing
+    * 207 - Multi-Status
+    * 208 - Already Reported
+    * 226 - IM Used
+    * 308 - Permanent Redirect
+    * 422 - Unprocessable Entity
+    * 423 - Locked
+    * 424 - Failed Dependency
+    * 426 - Upgrade Required
+    * 506 - Variant Also Negotiates
+    * 507 - Insufficient Storage
+    * 508 - Loop Detected
+    * 510 - Not Extended
+    * 511 - Network Authentication Required
+    
+    Change-Id: Ife0e5b064f4b1e3542d2fd41abc9e7b1e410b644
+    Reviewed-on: https://go-review.googlesource.com/23090
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  5 ++--
- src/cmd/compile/internal/ssa/rewritePPC64.go | 34 ++++++++++++++++++++++++----
- 2 files changed, 33 insertions(+), 6 deletions(-)
+ src/net/http/status.go | 122 ++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 75 insertions(+), 47 deletions(-)

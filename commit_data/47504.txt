@@ -1,15 +1,16 @@
-commit 5e59d6ebd110a7c19770c7d996930ff379ba5726
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Wed Sep 22 07:59:11 2021 +0800
+commit 2e94401277128f9e08e3319903d1b78c09c4ab98
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 23 11:59:34 2021 +0100
 
-    sort: improve sort documentation
+    os/exec: use testenv.SkipFlaky in TestExtraFilesFDShuffle
     
-    Fixes #48527
-    
-    Change-Id: Ib5df0819cbcd5c2e4f03bda841871d237af96b19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351336
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Icc1980ea0f6363c667bf91371404a8df6ed6b8ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303950
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/sort/sort.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

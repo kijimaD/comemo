@@ -1,14 +1,25 @@
-commit c02d18ab3456a9ba95506d081bf9099693e5ea73
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Feb 16 12:55:39 2013 +0900
+commit 60526ca6d105ee5cf79ede6b964de30ceea79fd3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 17:54:46 2013 -0500
 
-    net: add IPConn through Conn test
+    undo CL 7310096 / 59da6744d66d
     
-    Also refactors mock ICMP stuff.
+    broke windows build
     
-    R=dave, rsc
+    ««« original CL description
+    runtime: ensure forward progress of runtime.Gosched() for locked goroutines
+    The removed code leads to the situation when M executes the same locked G again and again.
+    Fixes #4820.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7325043
+    https://golang.org/cl/7310096
+    »»»
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/7343050
 
- src/pkg/net/ipraw_test.go | 356 +++++++++++++++++++++++++++-------------------
- 1 file changed, 213 insertions(+), 143 deletions(-)
+ src/pkg/runtime/proc.c       |  8 ++++++++
+ src/pkg/runtime/proc_test.go | 30 ------------------------------
+ 2 files changed, 8 insertions(+), 30 deletions(-)

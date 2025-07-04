@@ -1,14 +1,63 @@
-commit 1a5cf867ce1b0c98e016ac4d4183ffd84c8fa291
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Sep 3 10:33:48 2012 +1000
+commit 5b7562dd6fe04aa3e827c66ee7ac7b57b6afa667
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Sep 3 03:49:03 2012 +0800
 
-    run.bat: do not run misc\cgo\stdio test on windows (fix build)
+    doc/progs: use test/run.go for testing on Windows
+            cgo[1-4].go, go1.go couldn't be tested now
+    (cgo[1-4].go can only be tested when cgo is enabled, go1.go
+    contain a list of filenames in the current directory)
     
-    It is enabled by mistake and should be part of CL 5847068 instead.
-    
-    R=golang-dev
-    CC=golang-dev, minux.ma
-    https://golang.org/cl/6488073
+    R=golang-dev, alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/6218048
 
- src/run.bat | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ doc/Makefile                 |  5 +++++
+ doc/effective_go.html        |  2 +-
+ doc/progs/cgo1.go            |  2 ++
+ doc/progs/cgo2.go            |  2 ++
+ doc/progs/cgo3.go            |  2 ++
+ doc/progs/cgo4.go            |  2 ++
+ doc/progs/defer.go           |  2 ++
+ doc/progs/defer.out          |  3 +++
+ doc/progs/defer2.go          |  2 ++
+ doc/progs/defer2.out         | 12 ++++++++++++
+ doc/progs/eff_bytesize.go    |  2 ++
+ doc/progs/eff_bytesize.out   |  1 +
+ doc/progs/eff_qr.go          |  6 ++++++
+ doc/progs/eff_sequence.go    |  2 ++
+ doc/progs/eff_sequence.out   |  1 +
+ doc/progs/error.go           |  2 ++
+ doc/progs/error2.go          |  2 ++
+ doc/progs/error3.go          |  2 ++
+ doc/progs/error4.go          |  2 ++
+ doc/progs/go1.go             |  3 +++
+ doc/progs/gobs1.go           |  2 ++
+ doc/progs/gobs2.go           |  2 ++
+ doc/progs/image_draw.go      |  2 ++
+ doc/progs/image_package1.go  |  2 ++
+ doc/progs/image_package1.out |  1 +
+ doc/progs/image_package2.go  |  2 ++
+ doc/progs/image_package2.out |  1 +
+ doc/progs/image_package3.go  |  2 ++
+ doc/progs/image_package3.out |  1 +
+ doc/progs/image_package4.go  |  2 ++
+ doc/progs/image_package4.out |  1 +
+ doc/progs/image_package5.go  |  2 ++
+ doc/progs/image_package5.out |  1 +
+ doc/progs/image_package6.go  |  2 ++
+ doc/progs/image_package6.out |  2 ++
+ doc/progs/interface.go       |  2 ++
+ doc/progs/interface2.go      |  2 ++
+ doc/progs/interface2.out     |  1 +
+ doc/progs/json1.go           |  2 ++
+ doc/progs/json2.go           |  2 ++
+ doc/progs/json2.out          |  2 ++
+ doc/progs/json3.go           |  2 ++
+ doc/progs/json4.go           |  2 ++
+ doc/progs/json5.go           |  2 ++
+ doc/progs/slices.go          |  2 ++
+ doc/progs/timeout1.go        |  2 ++
+ doc/progs/timeout2.go        |  2 ++
+ doc/progs/update.bash        | 15 +++++++++++++++
+ src/run.bat                  | 10 +++++++++-
+ 49 files changed, 128 insertions(+), 2 deletions(-)

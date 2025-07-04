@@ -1,18 +1,20 @@
-commit 0c47e24df8c7066bf92a4acf96ec90f89825f2de
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 14 13:38:15 2019 -0400
+commit 4e8aaf6b22557a485cd3af874bf5be2722b07835
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Jan 13 22:11:44 2019 +0100
 
-    cmd/go: rename renamed testing import
+    net: skip TestLookupGmailTXT on Plan 9
     
-    _go_testing is equally unlikely and much less concerning
-    than testing_xxxxxxxxxxxx if it appears in an error message
-    (as it does, for example, in https://storage.googleapis.com/go-build-log/0d543f89/linux-amd64_3467a10e.log).
+    CL 157638 updated TestLookupGmailTXT. However, this
+    test is failing on Plan 9, because the DNS resolver
+    (ndb/dns) only returns a single TXT record.
     
-    Change-Id: I45dc3ebe2d3b6c9e53273cd21782ee11a53f5edb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177197
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Updates #29722.
+    
+    Change-Id: I01cd94e6167902361c3f5d615868f6f763a31fb1
+    Reviewed-on: https://go-review.googlesource.com/c/157737
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/net/lookup_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

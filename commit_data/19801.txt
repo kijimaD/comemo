@@ -1,20 +1,19 @@
-commit d2d7187d31b46333112bab94c40308528dfa43a0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 22 22:56:35 2014 -0400
+commit 355c38d86a4d67bcff36ed961bccd0fff042c83b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jul 23 07:08:52 2014 +1000
 
-    testing: add Coverage function
+    runtime: rename throwgo to gothrow
     
-    I've found this very useful for generating
-    good test case lists for -short mode for
-    the disassemblers.
+    As pointed out by Elias Naur, the convention for Go runtime functions means this function should be named gothrow.
     
-    Fixes #7959.
+    Discussion: https://golang.org/cl/115860045/#msg6
     
-    LGTM=r
-    R=r
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/98150043
+    https://golang.org/cl/118120043
 
- doc/go1.4.txt            |  1 +
- src/pkg/testing/cover.go | 23 +++++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/pkg/runtime/hashmap.go | 26 +++++++++++++-------------
+ src/pkg/runtime/panic.c    |  2 +-
+ src/pkg/runtime/stubs.go   |  2 +-
+ 3 files changed, 15 insertions(+), 15 deletions(-)

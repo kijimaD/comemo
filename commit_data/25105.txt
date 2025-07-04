@@ -1,16 +1,15 @@
-commit e4e4942387018a528149f951da1a062d374d36da
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 25 11:58:06 2015 -0500
+commit 3f7c3e01db49067645053e4bd66533a8cde1d308
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 24 09:48:39 2015 -0700
 
-    encoding/base64: add package-level example
+    math/big: fix test for denormalized inputs and enable more test cases
     
-    Fixes #13011.
+    Also: removed unnecessary BUG comment (was fixed).
     
-    Change-Id: Ia4c67880fca83f4298ff6bb1b217ec26c8c83427
-    Reviewed-on: https://go-review.googlesource.com/17231
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8f11fbcb4e30a19ec5a25df742b3e25e2ee7f846
+    Reviewed-on: https://go-review.googlesource.com/14923
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/encoding/base64/example_test.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/math/big/floatconv_test.go | 26 ++++++++++++++++++++------
+ src/math/big/ftoa.go           |  7 ++-----
+ 2 files changed, 22 insertions(+), 11 deletions(-)

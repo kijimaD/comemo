@@ -1,21 +1,17 @@
-commit a35decf5a7a722acb32642b6a096271d10545376
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 2 23:18:54 2016 -0400
+commit f7fce1e2088ed888c5ced3f2649af84bc0a672b9
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 22 17:20:57 2016 -0400
 
-    cmd/go: fix TestIssue11457
+    mime/quotedprintable: accept trailing soft line-break at the end of message
     
-    The goal of the test is to provoke a custom import path check error,
-    which will contain the current repo path, to see that it says ssh:// in it.
+    Fixes #15486.
     
-    But the fix to #16471 made the test no longer provoke that error.
-    Provoke the error by checking out from rsc.io instead of github.com/rsc.
-    
-    Fixes #17701.
-    
-    Change-Id: I750ffda2ff59c2be8e111d26160997214a73fd9a
-    Reviewed-on: https://go-review.googlesource.com/32641
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id879dc9acef9232003df9a0f6f54312191374a60
+    Reviewed-on: https://go-review.googlesource.com/27530
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/mime/quotedprintable/reader.go      | 6 +++++-
+ src/mime/quotedprintable/reader_test.go | 3 +++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

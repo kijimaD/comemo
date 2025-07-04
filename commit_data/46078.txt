@@ -1,19 +1,17 @@
-commit eda3de0f79f3008aed21c04df546efa2ace65683
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Aug 13 13:15:15 2021 -0400
+commit 4de4480dc34fbe4f7b0ed97eada26aef7a7e2337
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Fri Dec 4 01:46:59 2020 +0100
 
-    cmd/compile/internal/types2: change Checker.verify to return an error
+    doc/go1.16: cleanup crypto release notes
     
-    In preparation for upcoming API changes, change the internal API for
-    verification of type arguments to return an error and argument index,
-    and use this to lift up error reporting into Instantiate.
+    For #40700
+    Fixes #42897
     
-    Change-Id: I88b1e64dd9055c4c20c0db49c96c79c5da894450
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342151
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Id3b87841a899818d6939dcc3edbaaa0bc183e913
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275313
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/compile/internal/types2/instantiate.go | 69 ++++++++++++++------------
- 1 file changed, 37 insertions(+), 32 deletions(-)
+ doc/go1.16.html | 108 +++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 53 insertions(+), 55 deletions(-)

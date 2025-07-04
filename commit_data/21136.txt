@@ -1,17 +1,25 @@
-commit 2cbe27a27202dca5a643b75c79e25d4cccc3ae67
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Jan 1 01:10:39 2015 -0500
+commit 1a68ac2538da55f1a130e30ad074fd074ef9e7de
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 18 15:18:42 2014 -0500
 
-    runtime: skip TestCgoExternalThreadSIGPROF on OS X 10.6
+    [dev.cc] cmd/9c: remove
     
-    The test program requires static constructor, which in turn needs
-    external linking to work, but external linking never works on 10.6.
-    
-    This should fix the darwin-{386,amd64} builders.
-    
-    Change-Id: I714fdd3e35f9a7e5f5659cf26367feec9412444f
-    Reviewed-on: https://go-review.googlesource.com/2235
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/175940043
 
- src/runtime/crash_cgo_test.go | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/9c/Makefile  |    5 -
+ src/cmd/9c/Notes     |   14 -
+ src/cmd/9c/cgen.c    | 1147 -------------------------------------
+ src/cmd/9c/doc.go    |   17 -
+ src/cmd/9c/gc.h      |  350 ------------
+ src/cmd/9c/list.c    |   37 --
+ src/cmd/9c/machcap.c |  105 ----
+ src/cmd/9c/mul.c     |  638 ---------------------
+ src/cmd/9c/peep.c    | 1076 -----------------------------------
+ src/cmd/9c/reg.c     | 1163 --------------------------------------
+ src/cmd/9c/sgen.c    |  291 ----------
+ src/cmd/9c/swt.c     |  407 -------------
+ src/cmd/9c/txt.c     | 1537 --------------------------------------------------
+ 13 files changed, 6787 deletions(-)

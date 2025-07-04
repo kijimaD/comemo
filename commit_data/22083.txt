@@ -1,12 +1,24 @@
-commit ecd630de6dd2e5285f18c650207b5c84649402db
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Wed Mar 18 08:14:07 2015 +1100
+commit 828129fdbc2d95ab8d8dfa637e0f7251924c8b8b
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Tue Dec 23 20:29:13 2014 +0100
 
-    bufio: fix incorrect comment on Scanner.Scan
+    net/mail: move RFC 2047 code to internal/mime
     
-    Change-Id: I216511a4bce431de0a468f618a7a7c4da79e2979
-    Reviewed-on: https://go-review.googlesource.com/7710
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The code concerning quoted-printable encoding (RFC 2045) and its
+    variant for MIME headers (RFC 2047) is currently spread in
+    mime/multipart and net/mail. It is also not exported.
+    
+    This commit is the second step to fix that issue. It moves the
+    RFC 2047 encoding and decoding functions from net/mail to
+    internal/mime. The exported API is unchanged.
+    
+    Updates #4943
+    
+    Change-Id: I5f58aa58e74bbe4ec91b2e9b8c81921338053b00
+    Reviewed-on: https://go-review.googlesource.com/2101
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bufio/scan.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/deps_test.go   |   2 +-
+ src/internal/mime/header.go | 122 ++++++++++++++++++++++++++++++++++++++++++++
+ src/net/mail/message.go     | 103 ++-----------------------------------
+ 3 files changed, 126 insertions(+), 101 deletions(-)

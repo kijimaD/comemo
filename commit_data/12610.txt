@@ -1,15 +1,12 @@
-commit 4ca59a010e42978d168a6c92335557a088284b99
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Mar 13 13:48:07 2012 +0800
+commit e24d99d0e1716da80a9777c5fa06deeed98ce481
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 13 16:45:08 2012 +1100
 
-    os: remove document duplication in error predicate functions
+    tag weekly.2012-03-13
     
-    R=golang-dev, r
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5783092
+    https://golang.org/cl/5795072
 
- src/pkg/os/error.go         | 18 ++++++++++++++++++
- src/pkg/os/error_plan9.go   |  9 +++------
- src/pkg/os/error_posix.go   | 12 +++---------
- src/pkg/os/error_windows.go | 12 +++---------
- 4 files changed, 27 insertions(+), 24 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

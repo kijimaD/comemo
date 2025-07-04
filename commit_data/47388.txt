@@ -1,28 +1,24 @@
-commit 8a3be150775f80850e179bd1860b286be27ca407
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 10 08:12:21 2021 -0800
+commit de2b27dee761143116b2ecb303b67e018c5e7473
+Author: Prajwal Koirala <16564273+Prajwal-Koirala@users.noreply.github.com>
+Date:   Mon Mar 15 06:13:23 2021 +0000
 
-    cmd/compile/internal/types2: rename structure to structuralType
+    all: run gofmt
     
-    And rename structureString to structuralString.
+    Fixes #44980
     
-    Now that we have an updated definition for structural types in
-    the (forthcoming) spec, name the corresponding function accordingly.
-    
-    No semantic changes.
-    
-    Change-Id: Iab838f01a37075bedf2d8bc4f166b0217672b85f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362994
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Icef35319d1582d8367c8911e15d11b0224957327
+    GitHub-Last-Rev: 2113e97e837c1ef5de9ba6a7bd62db92e644c500
+    GitHub-Pull-Request: golang/go#45005
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301632
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/types2/builtins.go   | 24 ++++++++++++------------
- src/cmd/compile/internal/types2/call.go       |  2 +-
- src/cmd/compile/internal/types2/expr.go       |  2 +-
- src/cmd/compile/internal/types2/index.go      |  2 +-
- src/cmd/compile/internal/types2/infer.go      |  2 +-
- src/cmd/compile/internal/types2/predicates.go |  4 ++--
- src/cmd/compile/internal/types2/stmt.go       |  2 +-
- 7 files changed, 19 insertions(+), 19 deletions(-)
+ misc/cgo/testplugin/testdata/method2/main.go       |  2 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go       |  2 +-
+ src/cmd/cover/testdata/toolexec.go                 |  2 +-
+ src/cmd/go/testdata/addmod.go                      |  2 +-
+ .../obj/riscv/testdata/testbranch/branch_test.go   |  8 ++---
+ src/cmd/link/internal/ld/elf.go                    | 39 +++++++++++-----------
+ .../internal/ld/testdata/deadcode/ifacemethod3.go  |  2 +-
+ src/runtime/testdata/testwinsignal/main.go         | 38 ++++++++++-----------
+ 8 files changed, 47 insertions(+), 48 deletions(-)

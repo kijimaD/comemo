@@ -1,24 +1,17 @@
-commit 122a22e0e9eba7fe712030d429fc4bcf6f447f5e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 11 12:42:51 2022 -0800
+commit 87b2a54827b5a845e9b29ede9414495e3e869f2e
+Author: clamyang <clamyang2018@gmail.com>
+Date:   Sun Dec 19 03:03:38 2021 +0000
 
-    internal/syscall/unix: use runtime.gostring for Gostring
+    runtime: mgc.go typo fix: becuse -> because
     
-    Under the race detector, checkptr flags uses of unsafe.Slice that
-    result in slices that straddle multiple Go allocations.
-    Avoid that scenario by calling existing runtime code.
-    
-    This fixes a failure on the darwin-.*-race builders introduced in
-    CL 446178.
-    
-    Change-Id: I6e0fdb37e3c3f38d97939a8799bb4d10f519c5b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449936
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I5019d5b9520e47a99a6136f615b6c9468073cc3c
+    GitHub-Last-Rev: 1a5392925a0c4e9b2915620fee3efa79ae14af20
+    GitHub-Pull-Request: golang/go#50239
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373055
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/syscall/unix/net_darwin.go | 14 ++++----------
- src/runtime/string.go                   |  7 +++++++
- 2 files changed, 11 insertions(+), 10 deletions(-)
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

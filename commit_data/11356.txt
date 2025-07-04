@@ -1,12 +1,12 @@
-commit 59ae15106a2ae0a409f710a16a8180ae81f81a3d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 24 14:15:37 2012 -0500
+commit 565e140a16cb26fb878ee7554ca62c90ac9fa351
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Tue Jan 24 13:52:45 2012 -0500
 
-    cmd/go: fix get github
+    compress/flate: increase the length of hash table from 1<<15 to 1<<17. 0%-16% speedup.
     
-    R=golang-dev, bradfitz
+    R=rsc, imkrasin
     CC=golang-dev
-    https://golang.org/cl/5569054
+    https://golang.org/cl/5569048
 
- src/cmd/go/vcs.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/compress/flate/deflate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

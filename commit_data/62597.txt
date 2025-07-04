@@ -1,0 +1,21 @@
+commit e41ec30c8a7369872d22113b022b2a31757ff72b
+Author: Ilya Priven <ilya.konstantinov@gmail.com>
+Date:   Sat Mar 15 22:58:18 2025 +0000
+
+    reflect: document Method(ByName) w.r.t dead code elimination
+    
+    The behavior is described in src/cmd/link/internal/ld/deadcode.go
+    but is not otherwise documented. Since the usage of those functions
+    could have significant caveats (longer builds, larger binaries),
+    we are informing the user.
+    
+    Change-Id: I87571dd14aa16d7aac59fe45dfc52cb7c5b956c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658255
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/type.go  | 7 +++++++
+ src/reflect/value.go | 7 +++++++
+ 2 files changed, 14 insertions(+)

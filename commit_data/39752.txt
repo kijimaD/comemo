@@ -1,26 +1,27 @@
-commit d47526ed777958aa4a2542382e931eb7b3c4c6a9
-Author: Eli Bendersky <eliben@google.com>
-Date:   Wed Aug 28 12:34:48 2019 -0700
+commit 7b916243d98e36a385da4086fd9dd57004f6e4ca
+Author: Keith Randall <khr@google.com>
+Date:   Mon Mar 18 13:17:35 2019 -0700
 
-    test2json: default to "pass" when the test doesn't report failures
+    cmd/compile: rename init function from init.ializers back to init
     
-    When a test has a TestMain that doesn't run any tests (doesn't invoke
-    m.Run), `go test` passes, but `go test -json` reports a "fail" event
-    though the exit code is still 0.
+    The name change init -> init.ializers was initially required for
+    initialization code.
     
-    This CL fixes test2json to behave similarly to `go test` in such cases -
-    no output from the test is taken as "pass" by default, not as "fail".
+    With CL 161337 there's no wrapper code any more, there's a data
+    structure instead (named .inittask). So we can go back to just
+    plain init appearing in tracebacks.
     
-    Fixes #31969
+    RELNOTE=yes
     
-    Change-Id: I1829d40fc30dc2879e73974fac416f6a34212ccd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192104
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Update #29919. Followon to CL 161337.
+    
+    Change-Id: I5a4a49d286df24b53b2baa193dfda482f3ea82a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167780
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/test2json/test2json.go             | 2 +-
- src/cmd/internal/test2json/testdata/benchshort.json | 2 +-
- src/cmd/internal/test2json/testdata/empty.json      | 1 +
- src/cmd/internal/test2json/testdata/empty.test      | 0
- 4 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/init.go |  2 +-
+ src/fmt/errors_test.go              |  2 +-
+ test/fixedbugs/issue29919.dir/a.go  | 10 +++++-----
+ 3 files changed, 7 insertions(+), 7 deletions(-)

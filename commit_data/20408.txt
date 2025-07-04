@@ -1,19 +1,14 @@
-commit 44753479c60f66ee3051ddc0bf5d420b2a1bf662
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 12 16:12:39 2014 -0400
+commit 0e19a3d6d073e70e8849011d673c68da8b5049b2
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 5 15:01:09 2014 -0700
 
-    runtime: remove a few untyped allocations
+    runtime: move gostringw and gogobytes test stubs to Go.
     
-    LGTM=iant, khr, rlh
-    R=khr, iant, bradfitz, rlh
-    CC=dvyukov, golang-codereviews
-    https://golang.org/cl/142030044
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/141150043
 
- src/cmd/api/goapi.go     |  9 +++++----
- src/runtime/os_windows.c |  6 ++----
- src/runtime/proc.c       | 52 +++++++++++-------------------------------------
- src/runtime/proc.go      | 16 +++++++++++++++
- src/runtime/runtime.c    | 12 ++++-------
- src/runtime/runtime.go   |  4 ++++
- src/runtime/runtime.h    |  2 ++
- 7 files changed, 45 insertions(+), 56 deletions(-)
+ src/pkg/runtime/export_test.go | 19 ++++++++++++++-----
+ src/pkg/runtime/stubs.goc      | 11 -----------
+ 2 files changed, 14 insertions(+), 16 deletions(-)

@@ -1,19 +1,15 @@
-commit 346d5883eb53d3e3a5bac7ee37beaa3db5c01fd8
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Mar 17 16:05:31 2017 +0000
+commit ea1b90f855fe2891ff0f39d3a3f4b0a5f72a04ed
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 30 15:48:33 2016 -0500
 
-    go/build: remove unused returnImports parameter
+    runtime: fix incorrect comment about bitvector layout
     
-    The code uses the filename suffix instead of the bool parameter to
-    determine what to do.
+    Commit 303b69fe packed bitvectors more tightly, but missed a comment
+    describing their old layout. Update that comment.
     
-    Fixes #19474.
-    
-    Change-Id: Ic552a54e50194592a4b4ae7f74d3109af54e6d36
-    Reviewed-on: https://go-review.googlesource.com/38265
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I095ccb01f245197054252545f37b40605a550dec
+    Reviewed-on: https://go-review.googlesource.com/33718
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/build/build.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

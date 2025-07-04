@@ -1,17 +1,24 @@
-commit e9c5e60cfd602f0d9aa257793a802b0180efadd9
-Author: David Chase <drchase@google.com>
-Date:   Tue Jan 24 16:28:04 2023 -0500
+commit 8419ec295cd86a3d26cd360ef5f919a51fe33ebb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Mar 13 00:04:46 2022 +0700
 
-    misc: update go.mod to 1.21
+    cmd/compile: fix wrong dict param when getting dict type
     
-    Doing this allows updates to swig so it can access slices
-    and strings in a somewhat less-unsafe way.
+    CL 338129 added getDictionaryType to get the dictionary type from the
+    specified dict param, but still using the one in info.dictParam, which
+    is wrong.
     
-    Change-Id: If2af8f8cf58d2287569dcd7c7ce09728e20b5ff0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463396
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #51413
+    
+    Change-Id: Ie13460c1e5751c4c5fc44479a44f6eed8b3b06e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391994
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/go.mod | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/stencil.go | 2 +-
+ test/typeparam/mdempsky/13.go             | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

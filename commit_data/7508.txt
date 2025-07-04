@@ -1,12 +1,12 @@
-commit 3173821a8cf20096532e9457213aef99bb307998
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Sat Feb 19 05:44:53 2011 +1100
+commit 7081e67565815156a92c56f8073c9b842c102f5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 18 13:30:29 2011 -0500
 
-    .hgignore: add doc/codelab/wiki/*.bin
+    runtime: handle non-standard call sequences in arm traceback
     
-    R=golang-dev, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4173063
+    https://golang.org/cl/4191048
 
- .hgignore | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/arm/traceback.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

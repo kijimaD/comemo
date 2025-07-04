@@ -1,25 +1,12 @@
-commit 9429aab9999e00958abd8b21d06fa4a2253437c2
-Author: Austin Clements <austin@google.com>
-Date:   Sun Sep 11 16:55:34 2016 -0400
+commit c2322b7ea60f85b4fd3d566b17ab3f7dcb865c1a
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Wed Aug 17 16:08:10 2016 -0700
 
-    runtime: remove gcWork flushes in mark termination
+    runtime: fix the absolute URL to pprof tools
     
-    The only reason these flushes are still necessary at all is that
-    gcmarknewobject doesn't flush its gcWork stats like it's supposed to.
-    By changing gcmarknewobject to follow the standard protocol, the
-    flushes become completely unnecessary because mark 2 ensures caches
-    are flushed (and stay flushed) before we ever enter mark termination.
-    
-    In the garbage benchmark, this takes roughly 50 µs, which is
-    surprisingly long for doing nothing. We still double-check after
-    draining that they are in fact empty.
-    
-    Change-Id: Ia1c7cf98a53f72baa513792eb33eca6a0b4a7128
-    Reviewed-on: https://go-review.googlesource.com/31134
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I82eaf5c14a5b8b9ec088409f946adf7b5fd5dbe3
+    Reviewed-on: https://go-review.googlesource.com/27311
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go     | 26 +++++---------------------
- src/runtime/mgcmark.go |  5 +++++
- 2 files changed, 10 insertions(+), 21 deletions(-)
+ src/runtime/cpuprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

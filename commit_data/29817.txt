@@ -1,14 +1,15 @@
-commit 49e5bdfe79cf779224e97096b592c4d45fda1184
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Dec 13 22:35:26 2016 +0100
+commit 456b7f5a974f229e0ef7ad5a1925fa72fc4182e2
+Author: Gyu-Ho Lee <gyuhox@gmail.com>
+Date:   Sat Jun 4 23:20:45 2016 -0700
 
-    test: enable fixedbugs/issue10607 test on GOARCH=mips{,le}
+    runtime/pprof: preallocate slice in pprof.go
     
-    Change-Id: I00c97c36e8fdc79582eaed21877e4c8f44568666
-    Reviewed-on: https://go-review.googlesource.com/34316
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    To prevent slice growth when appending.
+    
+    Change-Id: I2cdb9b09bc33f63188b19573c8b9a77601e63801
+    Reviewed-on: https://go-review.googlesource.com/23783
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- test/fixedbugs/issue10607.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/pprof/pprof.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,22 +1,12 @@
-commit 7bbe32067922643a30ac7adf8aa3da9785d89d13
+commit 478c871f02f3b1b9b5c768a5d19fe7450b760dfd
 Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 21 11:27:27 2013 +1000
+Date:   Wed Aug 21 08:37:32 2013 +1000
 
-    text/template: implement comparison of basic types
+    doc/go1.2.txt: archive/tar's fixed FileInfo
     
-    Add eq, lt, etc. to allow one to do simple comparisons.
-    It's basic types only (booleans, integers, unsigned integers,
-    floats, complex, string) because that's easy, easy to define,
-    and covers the great majority of useful cases, while leaving
-    open the possibility of a more sweeping definition later.
-    
-    {{if eq .X .Y}}X and Y are equal{{else}}X and Y are unequal{{end}}
-    
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/13091045
+    https://golang.org/cl/13140043
 
- src/pkg/text/template/doc.go       |  28 ++++++-
- src/pkg/text/template/exec_test.go | 107 ++++++++++++++++++++++++++
- src/pkg/text/template/funcs.go     | 154 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 287 insertions(+), 2 deletions(-)
+ doc/go1.2.txt | 3 +++
+ 1 file changed, 3 insertions(+)

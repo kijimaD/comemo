@@ -1,0 +1,15 @@
+commit dd281fd616f2dd762826669dd52af37b1bb7fb83
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 8 13:12:12 2024 +0200
+
+    encoding/asn1: use slices.Equal in ObjectIdentifier.Equal
+    
+    Change-Id: I5efe3b9dcee85dfa34b6072c6f85108b6fc7cf99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618515
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/encoding/asn1/asn1.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

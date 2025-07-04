@@ -1,17 +1,65 @@
-commit 0a72e8eefbdaa62bf782618d50851e4740408cba
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Nov 14 15:25:59 2018 +0100
+commit 5fc70b6fac0664f3f9d2c2948ba78db420ba70c5
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jul 23 13:09:48 2018 -0700
 
-    cmd/go: fix TestScript/vet_asm for OS without amd64
+    cmd/compile: set stricter inlining threshold in large functions
     
-    Add GOOS=linux to vet_asm script to avoid errors on OS not working on
-    amd64 architecture.
+    If we're compiling a large function, be more picky about how big
+    the function we're inlining is.  If the function is >5000 nodes,
+    we lower the inlining threshold from a cost of 80 to 20.
     
-    Change-Id: Ic3db43618008ae8e8bc08738c95c200dd4e916d7
-    Reviewed-on: https://go-review.googlesource.com/c/149577
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Turns out reflect.Value's cost is exactly 80.  That's the function
+    at issue in #26546.
+    
+    20 was chosen as a proxy for "inlined body is smaller than the call would be".
+    Simple functions still get inlined, like this one at cost 7:
+    
+    func ifaceIndir(t *rtype) bool {
+            return t.kind&kindDirectIface == 0
+    }
+    
+    5000 nodes was chosen as the big function size.  Here are all the
+    5000+ node (~~1000+ lines) functions in the stdlib:
+    
+    5187 cmd/internal/obj/arm (*ctxt5).asmout
+    6879 cmd/internal/obj/s390x (*ctxtz).asmout
+    6567 cmd/internal/obj/ppc64 (*ctxt9).asmout
+    9643 cmd/internal/obj/arm64 (*ctxt7).asmout
+    5042 cmd/internal/obj/x86 (*AsmBuf).doasm
+    8768 cmd/compile/internal/ssa rewriteBlockAMD64
+    8878 cmd/compile/internal/ssa rewriteBlockARM
+    8344 cmd/compile/internal/ssa rewriteValueARM64_OpARM64OR_20
+    7916 cmd/compile/internal/ssa rewriteValueARM64_OpARM64OR_30
+    5427 cmd/compile/internal/ssa rewriteBlockARM64
+    5126 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_50
+    6152 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_60
+    6412 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_70
+    6486 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_80
+    6534 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_90
+    6534 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_100
+    6534 cmd/compile/internal/ssa rewriteValuePPC64_OpPPC64OR_110
+    6675 cmd/compile/internal/gc typecheck1
+    5433 cmd/compile/internal/gc walkexpr
+    14070 cmd/vendor/golang.org/x/arch/arm64/arm64asm decodeArg
+    
+    There are a lot more smaller (~1000 node) functions in the stdlib.
+    The function in #26546 has 12477 nodes.
+    
+    At some point it might be nice to have a better heuristic for "inlined
+    body is smaller than the call", a non-cliff way to scale down the cost
+    as the function gets bigger, doing cheaper inlined calls first, etc.
+    All that can wait for another release. I'd like to do this CL for
+    1.11.
+    
+    Fixes #26546
+    Update #17566
+    
+    Change-Id: Idda13020e46ec2b28d79a17217f44b189f8139ac
+    Reviewed-on: https://go-review.googlesource.com/125516
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/testdata/script/vet_asm.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/inl.go |   72 ++-
+ test/inline_big.go                 | 1029 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 1082 insertions(+), 19 deletions(-)

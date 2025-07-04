@@ -1,24 +1,31 @@
-commit 3c4f12a7d6bc6839b3dd2f4b04aeca962745afb3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Sep 19 10:37:28 2023 -0400
+commit 069d1fc9e2085d93ea256b6c49b5d7c3026f79a3
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Oct 3 01:32:11 2022 +0000
 
-    net/http: buffer the testConn close channel in TestHandlerFinishSkipBigContentLengthRead
+    runtime: fix a few function names on comments
     
-    Previously the test used an unbuffered channel, but testConn.Close
-    sends to it with a select-with-default, so the send would be dropped
-    if the test goroutine happened not to have parked on the receive yet.
-    
-    To make this kind of bug less likely in future tests, use a
-    newTestConn helper function instead of constructing testConn channel
-    literals in each test individually.
-    
-    Fixes #62622.
-    
-    Change-Id: I016cd0a89cf8a2a748ed57a4cdbd01a178f04dab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529475
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I4be0b1e612dcc21ca6bb7d4395f1c0aa52480759
+    GitHub-Last-Rev: 032480c4c9ddb2bedea26b01bb80b8a079bfdcf3
+    GitHub-Pull-Request: golang/go#55993
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437518
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
 
- src/net/http/serve_test.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/runtime/env_plan9.go    |  8 ++++----
+ src/runtime/float.go        | 10 +++++-----
+ src/runtime/mbarrier.go     |  2 +-
+ src/runtime/mbitmap.go      |  4 ++--
+ src/runtime/mpagealloc.go   |  2 +-
+ src/runtime/os3_solaris.go  |  2 +-
+ src/runtime/os_aix.go       |  2 +-
+ src/runtime/os_darwin.go    |  2 +-
+ src/runtime/os_dragonfly.go |  2 +-
+ src/runtime/os_freebsd.go   |  2 +-
+ src/runtime/os_linux.go     |  2 +-
+ src/runtime/os_netbsd.go    |  2 +-
+ src/runtime/os_openbsd.go   |  2 +-
+ 13 files changed, 21 insertions(+), 21 deletions(-)

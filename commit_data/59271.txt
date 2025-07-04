@@ -1,30 +1,19 @@
-commit 9aad012a6e02d45b37757faeec20cc6923610baf
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Apr 9 11:15:38 2025 +0200
+commit d1e8dc25ff36694b5fdc8045325502e186b702f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:03 2024 -0500
 
-    net: reenable sendfile on Windows
+    runtime: use timer.lock in runtimer
     
-    Windows sendfile optimization is skipped since CL 472475, which started
-    passing an os.fileWithoutWriteTo instead of an os.File to sendfile,
-    and that function was only implemented for os.File.
+    Continue using timer.lock to simplify timer operations.
     
-    This CL fixes the issue by asserting against an interface rather than
-    a concrete type.
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
     
-    Some tests have been reenabled, triggering bugs in poll.SendFile which
-    have been fixed in this CL.
-    
-    Fixes #67042.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
-    Change-Id: Id6f7a0e1e0f34a72216fa9d00c5bf36f5a994219
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664055
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I504335a010d6eb4d7d627145b64a896582158406
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564129
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/poll/sendfile_windows.go | 80 ++++++++++++++++++-----------------
- src/net/sendfile_test.go              | 25 ++++-------
- src/net/sendfile_windows.go           | 42 +++++++++++-------
- 3 files changed, 77 insertions(+), 70 deletions(-)
+ src/runtime/time.go | 99 +++++++++++++++++++++++------------------------------
+ 1 file changed, 43 insertions(+), 56 deletions(-)

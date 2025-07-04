@@ -1,15 +1,15 @@
-commit cd0f5f39b7ae57d24b2e748d82ad667ce74fc190
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Fri May 24 15:04:28 2019 +0000
+commit c7026f9d14795c7e50839cbcc37b04be65c4f7d7
+Author: alkesh26 <alkesh26@gmail.com>
+Date:   Sat Feb 9 17:33:42 2019 +0000
 
-    image/draw: change argument type to be consistent with other args
+    doc: fix typos
     
-    Change-Id: Ic5b01c0a6912d87e812331d6525939df8f525cca
-    GitHub-Last-Rev: b6ffefcf8f2ec1ed7ee13f36e8fef6af965ba332
-    GitHub-Pull-Request: golang/go#29993
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/160417
+    Change-Id: I46046cddceff2d44a7b2517db1ebf7acdf5f2b90
+    GitHub-Last-Rev: 7fb9f26476d2764f07d068ce612bf79b1e7f44b4
+    GitHub-Pull-Request: golang/go#30144
+    Reviewed-on: https://go-review.googlesource.com/c/161718
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/image/draw/draw.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/debugging_with_gdb.html | 2 +-
+ doc/go1.3.html              | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

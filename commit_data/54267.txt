@@ -1,50 +1,20 @@
-commit 2fa7129836d65a3c44696747cc2cd9e9f391c66f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 24 09:07:03 2023 -0700
+commit 76c1a501a5bb1e511655d89195b3b94b7a621cf9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 30 22:34:42 2022 +0700
 
-    go/types, types2: use asNamed(t) instead of t.(*Named) type assertions
+    test: enable issue47631.go for Unified IR
     
-    Preparation for the introduction of alias types.
-    Because asNamed is not exported, existing external
-    tests continue to use t.(*Named).
+    Updates #53058
     
-    Change-Id: I4754b406dd6b23030d3703a486d6f6620b2464fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522876
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ieaa500bea11f26f9a039196592bea67405bdf0ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437215
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/alias.go      | 17 +++++++++++++++++
- src/cmd/compile/internal/types2/builtins.go   |  2 +-
- src/cmd/compile/internal/types2/decl.go       |  6 +++---
- src/cmd/compile/internal/types2/lookup.go     |  4 ++--
- src/cmd/compile/internal/types2/named.go      |  8 ++++----
- src/cmd/compile/internal/types2/predicates.go |  4 ++--
- src/cmd/compile/internal/types2/signature.go  |  2 +-
- src/cmd/compile/internal/types2/sizes.go      |  4 ++--
- src/cmd/compile/internal/types2/typeparam.go  |  2 +-
- src/cmd/compile/internal/types2/typestring.go |  2 +-
- src/cmd/compile/internal/types2/typexpr.go    |  4 ++--
- src/cmd/compile/internal/types2/under.go      |  2 +-
- src/cmd/compile/internal/types2/unify.go      | 10 +++++-----
- src/cmd/compile/internal/types2/universe.go   |  2 +-
- src/go/types/alias.go                         | 19 +++++++++++++++++++
- src/go/types/builtins.go                      |  2 +-
- src/go/types/decl.go                          |  6 +++---
- src/go/types/generate_test.go                 |  1 +
- src/go/types/interface.go                     |  2 +-
- src/go/types/lookup.go                        |  4 ++--
- src/go/types/methodset.go                     |  4 ++--
- src/go/types/named.go                         |  8 ++++----
- src/go/types/predicates.go                    |  4 ++--
- src/go/types/signature.go                     |  2 +-
- src/go/types/sizes.go                         |  4 ++--
- src/go/types/typeparam.go                     |  2 +-
- src/go/types/typestring.go                    |  2 +-
- src/go/types/typexpr.go                       |  4 ++--
- src/go/types/under.go                         |  2 +-
- src/go/types/unify.go                         | 10 +++++-----
- src/go/types/universe.go                      |  2 +-
- 31 files changed, 92 insertions(+), 55 deletions(-)
+ src/go/internal/gcimporter/gcimporter_test.go |  1 +
+ test/run.go                                   |  3 +--
+ test/typeparam/issue47631.go                  | 17 +++++++----------
+ 3 files changed, 9 insertions(+), 12 deletions(-)

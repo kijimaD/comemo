@@ -1,13 +1,20 @@
-commit f99b4128139fddf7a7a3dd05ddbb9c86d1b76694
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 15 18:21:29 2011 -0500
+commit 197eb8f7c3703e46d3fc351d277e03cd3b413fbc
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 15 15:17:52 2011 -0800
 
-    io/ioutil, old/template: do not assume _test exists for scratch space
+    govet: add checking for printf verbs
+    Also fix the errors it catches.
     
-    R=golang-dev, r
+    Fixes #1654.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5496052
+    https://golang.org/cl/5489060
 
- src/pkg/io/ioutil/ioutil_test.go      |  6 +++++-
- src/pkg/old/template/template_test.go | 14 ++++++++++----
- 2 files changed, 15 insertions(+), 5 deletions(-)
+ src/cmd/govet/Makefile               |  2 +-
+ src/cmd/govet/print.go               | 71 ++++++++++++++++++++++++++++++++++--
+ src/pkg/encoding/xml/marshal_test.go |  2 +-
+ src/pkg/net/http/readrequest_test.go |  2 +-
+ src/pkg/net/textproto/reader_test.go |  2 +-
+ src/pkg/os/os_test.go                |  2 +-
+ 6 files changed, 73 insertions(+), 8 deletions(-)

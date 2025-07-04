@@ -1,19 +1,18 @@
-commit c774e902083c677cffb9873e7d46346bcbf8cc21
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 9 10:35:46 2013 -0700
+commit 0965459bd908fdbd0ffc6a6cb82d58bd0091fc0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 9 11:08:22 2013 -0400
 
-    cmd/go: add any .c/.cc files to the SWIG shared library
+    debug/dwarf: handle surprising clang encoding
     
-    Also add the action's object directory to the list of
-    directories we use to find SWIG shared libraries.
+    Fixes a bug in cgo on OS X using clang.
+    See golang.org/issue/6472 for details.
     
-    Fixes #6521.
+    Fixes #6472.
     
-    R=golang-dev, minux.ma
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/14369043
+    https://golang.org/cl/14575043
 
- misc/swig/callback/callback.cc | 15 +++++++++++++++
- misc/swig/callback/callback.h  |  6 +-----
- src/cmd/go/build.go            | 41 ++++++++++++++++++++++++++++++++++-------
- 3 files changed, 50 insertions(+), 12 deletions(-)
+ misc/cgo/test/issue6472.go  | 22 ++++++++++++++++++++++
+ src/pkg/debug/dwarf/type.go | 43 +++++++++++++++++++++++++++++++------------
+ 2 files changed, 53 insertions(+), 12 deletions(-)

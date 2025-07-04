@@ -1,13 +1,14 @@
-commit 51b8d23e3b3fdb490e0cedd68efdb54b67f8a159
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 12 15:23:21 2011 -0800
+commit 6f6b7e3a33cf0fff8495d8caa2f858e330f1963f
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jan 12 10:45:24 2011 -0800
 
-    rpc: export names in debug service so it works with template changes
+    goinstall: Fix template to use exported fields
     
-    R=dsymonds
+    It's currently broken due to f6d5bac536c5.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/3760049
+    https://golang.org/cl/3967041
 
- src/pkg/rpc/debug.go  | 26 +++++++++++++-------------
- src/pkg/rpc/server.go | 17 ++++++++++++-----
- 2 files changed, 25 insertions(+), 18 deletions(-)
+ src/cmd/goinstall/make.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

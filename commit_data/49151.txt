@@ -1,34 +1,32 @@
-commit 83ee6c1d167a361b510e9bb449e4183e2fb583b1
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Wed Nov 24 17:53:07 2021 +0800
+commit a27e325c59691fba23c094ab07fd5735737ac8ba
+Merge: 5cb84f0604 798ec73519
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 22 12:50:30 2021 -0700
 
-    cmd/compile/internal/ssa: increase the bit width of BlockKind type
+    [dev.typeparams] all: merge master (798ec73) into dev.typeparams
     
-    After the BlockKind of loong64 is introduced, it exceeds the maximum
-    range that int8 can represent.
+    Merge List:
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    + 2021-07-22 798ec73519 runtime: don't clear timerModifiedEarliest if adjustTimers is 0
+    + 2021-07-22 fdb45acd1f runtime: move mem profile sampling into m-acquired section
+    + 2021-07-21 3e48c0381f reflect: add missing copyright header
+    + 2021-07-21 48c88f1b1b reflect: add Value.CanConvert
+    + 2021-07-20 9e26569293 cmd/go: don't add C compiler ID to hash for standard library
+    + 2021-07-20 d568e6e075 runtime/debug: skip TestPanicOnFault on netbsd/arm
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
-    
-    Updates #46229
-    
-    Change-Id: I246d9c22334d0ea9e1440d29df05c9ec2d472b30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367038
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I87e1cd4614bb3b00807f18dfdd02664dcaecaebd
 
- src/cmd/compile/internal/ssa/block.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/go1.17.txt                    |  1 +
+ doc/go1.17.html                   | 12 ++++++++++++
+ src/cmd/go/go_test.go             | 32 ++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go  | 11 +++++++++--
+ src/reflect/all_test.go           |  9 +++++++++
+ src/reflect/value.go              | 20 ++++++++++++++++++++
+ src/reflect/visiblefields.go      |  4 ++++
+ src/reflect/visiblefields_test.go |  4 ++++
+ src/runtime/debug/panic_test.go   |  3 +++
+ src/runtime/malloc.go             | 20 +++++++++-----------
+ src/runtime/runtime2.go           |  2 +-
+ src/runtime/time.go               |  5 -----
+ src/time/sleep_test.go            | 34 ++++++++++++++++++++++++++++++++++
+ 13 files changed, 138 insertions(+), 19 deletions(-)

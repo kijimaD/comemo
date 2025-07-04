@@ -1,39 +1,33 @@
-commit 69275eef5e6dfa837202323223f39bc24f2695ac
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Feb 10 12:24:11 2015 +0900
+commit 67f8a8131648346f6bf9b525cd989bd2f7293b3f
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Dec 22 22:31:55 2014 +0300
 
-    net, syscall: more accurate parsers for routing messages on BSD variants
+    reflect: cache call frames
     
-    This changes fixes two issues with regard to handling routing messages
-    as follows:
-    - Misparsing on platforms (such as FreeBSD) supporting multiple
-      architectures in the same kernel (kern.supported_archs="amd64 i386")
-    - Misparsing with unimplemented messages such as route, interface
-      address state notifications
+    Call frame allocations can account for significant portion
+    of all allocations in a program, if call is executed
+    in an inner loop (e.g. to process every line in a log).
+    On the other hand, the allocation is easy to remove
+    using sync.Pool since the allocation is strictly scoped.
     
-    To fix those issues, this change implements all the required socket
-    address parsers, adds a processor architecture identifying function to
-    FreeBSD and tests.
+    benchmark           old ns/op     new ns/op     delta
+    BenchmarkCall       634           338           -46.69%
+    BenchmarkCall-4     496           167           -66.33%
     
-    Fixes #9707.
-    Fixes #8203.
+    benchmark           old allocs     new allocs     delta
+    BenchmarkCall       1              0              -100.00%
+    BenchmarkCall-4     1              0              -100.00%
     
-    Change-Id: I7ed7b4a0b6f10f54b29edc681a2f35603f2d8d45
-    Reviewed-on: https://go-review.googlesource.com/4330
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Update #7818
+    
+    Change-Id: Icf60cce0a9be82e6171f0c0bd80dee2393db54a7
+    Reviewed-on: https://go-review.googlesource.com/1954
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/interface_bsd.go           |  81 +++++-----
- src/net/interface_darwin.go        |  37 +++--
- src/net/interface_freebsd.go       |  37 +++--
- src/syscall/route_bsd.go           | 303 +++++++++++++++++++++++++------------
- src/syscall/route_bsd_test.go      | 197 ++++++++++++++++++++++++
- src/syscall/route_darwin.go        |  46 +++---
- src/syscall/route_dragonfly.go     |  50 +++---
- src/syscall/route_freebsd.go       |  70 ++++++---
- src/syscall/route_freebsd_32bit.go |  13 +-
- src/syscall/route_freebsd_64bit.go |   7 +-
- src/syscall/route_ifma_test.go     |  74 +++++++++
- src/syscall/route_netbsd.go        |   6 +-
- src/syscall/route_noifma_test.go   |  63 ++++++++
- src/syscall/route_openbsd.go       |   6 +-
- 14 files changed, 740 insertions(+), 250 deletions(-)
+ src/reflect/all_test.go    | 11 ++++++++++
+ src/reflect/export_test.go |  4 ++--
+ src/reflect/makefunc.go    |  4 ++--
+ src/reflect/type.go        | 13 +++++++----
+ src/reflect/value.go       | 55 +++++++++++++++++++++++++++++++++-------------
+ src/runtime/stubs.go       |  5 +++++
+ 6 files changed, 69 insertions(+), 23 deletions(-)

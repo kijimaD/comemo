@@ -1,23 +1,29 @@
-commit b4cabaf8c094da8387ac6274706fe4850d77ebc6
+commit 9498b0155d4c38c018d00b83afaedaabbdbb9e85
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Apr 5 11:51:43 2022 -0400
+Date:   Mon Jun 7 23:04:16 2021 -0400
 
-    os/signal: run TestNotifyContextNotifications subtests in parallel
+    cmd/go: in Go 1.17+ modules, add indirect go.mod dependencies separately from direct ones
     
-    If we run out of time on the first subtest, we don't want to start the
-    second one with essentially no time remaining. (Moreover, there is no
-    compelling reason not to run these tests in parallel, since they send
-    signals to separate processes.)
+    Fixes #45965
     
-    For #51054.
-    
-    Change-Id: I0424e08c3a9d2db986568d5a5c004859b52f7c51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398454
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Henrique Vicente de Oliveira Pinto <henriquevicente@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If5c0d7b29e9f81be0763f3fa68051d4ef5419990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325922
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/os/signal/signal_test.go | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ doc/go1.17.html                                    |   8 +
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/internal/modload/init.go                |   6 +-
+ src/cmd/go/internal/modload/modfile.go             |   5 +
+ .../go/testdata/script/mod_go_version_missing.txt  |   7 +-
+ .../go/testdata/script/mod_lazy_import_allmod.txt  |   3 +-
+ src/cmd/go/testdata/script/mod_lazy_new_import.txt |  10 +-
+ .../testdata/script/mod_lazy_test_of_test_dep.txt  |   7 +-
+ src/cmd/go/testdata/script/mod_retention.txt       |   3 +-
+ .../go/testdata/script/mod_tidy_convergence.txt    |  18 +-
+ src/cmd/go/testdata/script/mod_tidy_version.txt    |  22 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/read.go    |   7 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 402 +++++++++++++++------
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 15 files changed, 372 insertions(+), 134 deletions(-)

@@ -1,15 +1,25 @@
-commit 4c36bc3dcd0af0b7a94089c049e5a08232c916d7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 9 17:56:59 2018 -0400
+commit 8bb391312c7c2c8cde57c083eeb4390f992e3d88
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu May 17 19:45:49 2018 +0300
 
-    cmd/go/testdata/script/mod_test: add missing test invocation for case e
+    cmd/link/internal/ld: don't call fieldtrack if it's not enabled
     
-    Change-Id: Ib0544adc1444a473f8edcb9dd92aefa9fcbc7330
-    Reviewed-on: https://go-review.googlesource.com/134656
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    If go toolchain is not built with GOEXPERIMENT=fieldtrack,
+    skip fieldtrack pass in the linker as it does full symtab traversal.
+    
+    For linking "hello world" example from net/http:
+    
+            name      old time/op  new time/op  delta
+            Linker-4   530ms ± 2%   525ms ± 2%  -1.03%  (p=0.028 n=17+19)
+    
+    Fixes #20318
+    Updates #14624
+    
+    Change-Id: I99336513db77d13f95f47d27339d76f01c42a5da
+    Reviewed-on: https://go-review.googlesource.com/113635
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/testdata/script/mod_test.txt | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/link/internal/ld/main.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

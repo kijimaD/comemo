@@ -1,30 +1,17 @@
-commit 8a23c0021edad5bbf117b71ee7db32406b0c9a67
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jul 16 16:29:51 2014 -0700
+commit 26d0f75f2b1cbc58d7d8e4f835a59f311cffb77e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 16 19:26:45 2014 -0400
 
-    src, misc: applied gofmt -s -w
+    time: change nsec back to int32
     
-    Pending CL 113120043.
+    The garbage collector and stack scans are good enough now.
     
-    LGTM=dave
-    R=golang-codereviews, dave
-    CC=golang-codereviews
-    https://golang.org/cl/112290043
+    Fixes #7446.
+    
+    LGTM=r
+    R=r, dvyukov
+    CC=golang-codereviews, mdempsky, mtj
+    https://golang.org/cl/112870046
 
- src/cmd/cgo/out.go                          |  2 +-
- src/pkg/bufio/bufio_test.go                 |  2 +-
- src/pkg/database/sql/sql.go                 |  2 +-
- src/pkg/database/sql/sql_test.go            |  4 ++--
- src/pkg/go/printer/printer_test.go          |  2 +-
- src/pkg/log/syslog/syslog_test.go           |  2 +-
- src/pkg/net/dial_test.go                    |  2 +-
- src/pkg/os/exec/exec.go                     |  2 +-
- src/pkg/runtime/malloc_test.go              |  2 +-
- src/pkg/runtime/map_test.go                 |  2 +-
- src/pkg/runtime/mapspeed_test.go            |  4 ++--
- src/pkg/runtime/race/testdata/chan_test.go  |  4 ++--
- src/pkg/runtime/race/testdata/map_test.go   |  8 ++++----
- src/pkg/runtime/race/testdata/slice_test.go | 10 +++++-----
- src/pkg/runtime/string_test.go              |  4 ++--
- src/pkg/unicode/utf8/utf8.go                |  2 +-
- 16 files changed, 27 insertions(+), 27 deletions(-)
+ src/pkg/time/time.go | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)

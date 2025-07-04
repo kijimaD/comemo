@@ -1,18 +1,13 @@
-commit 212ba8076eb7f1c2efb00b83046da63f8ac75aba
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 2 19:25:29 2012 -0800
+commit 44122ed06997f1355c6660efb302d867f13877c4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 3 12:22:40 2012 +0900
 
-    go/doc: don't lose factory functions of non-exported types
+    syscall: update bootstrap scripts to sync with new go command
     
-    Fixes #2824.
-    
-    R=rsc, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5615043
+    https://golang.org/cl/5615054
 
- src/pkg/go/doc/reader.go           | 15 +++++++++------
- src/pkg/go/doc/testdata/f.0.golden | 13 +++++++++++++
- src/pkg/go/doc/testdata/f.1.golden | 16 ++++++++++++++++
- src/pkg/go/doc/testdata/f.2.golden | 13 +++++++++++++
- src/pkg/go/doc/testdata/f.go       | 14 ++++++++++++++
- 5 files changed, 65 insertions(+), 6 deletions(-)
+ src/pkg/syscall/mkall.sh    | 22 +++++++++++-----------
+ src/pkg/syscall/mkerrors.sh |  4 ++--
+ 2 files changed, 13 insertions(+), 13 deletions(-)

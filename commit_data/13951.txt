@@ -1,17 +1,14 @@
-commit ebf56e086d9d5a357fb904bb5734fa047747a466
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 25 17:38:43 2012 -0700
+commit 1b6d4b5c0a33909c0f17328e6a45c53d939f5ace
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Tue Sep 25 09:22:13 2012 -0700
 
-    exp/types/staging: support for typechecking (most) builtins
+    net/http: use tls host instead of proxy, when checking against a certificate
     
-    This code relies on some functions that are not yet in staging,
-    but it get's harder to keep all this in sync in a piece-meal
-    fashion.
+    Fixes #4152.
     
-    R=rsc
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/6492124
+    https://golang.org/cl/6570045
 
- src/pkg/exp/types/staging/builtins.go           | 349 ++++++++++++++++++++++++
- src/pkg/exp/types/staging/testdata/builtins.src | 258 ++++++++++++++++++
- 2 files changed, 607 insertions(+)
+ src/pkg/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

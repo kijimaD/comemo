@@ -1,12 +1,16 @@
-commit a42ba23da231e6e163aa2e1537a52a1880f21ad8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 31 12:52:43 2016 -0700
+commit b926bf83b0d58d7cb177dae46c011847442498c2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 12:33:36 2016 -0400
 
-    go/types: implement missing String method for Alias object
+    cmd/link: remove outdated cast and comment
     
-    Change-Id: Iba5cfa033483b843dbd3681ffad50b117cced4a7
-    Reviewed-on: https://go-review.googlesource.com/32448
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    This program is written in Go now.
+    
+    Change-Id: Ieec21a1bcac7c7a59e88cd1e1359977659de1757
+    Reviewed-on: https://go-review.googlesource.com/28549
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/object.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/link/internal/ld/data.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

@@ -1,0 +1,26 @@
+commit f414dfe4f5049c2c8998b4e6b90dee7fca0c225b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Apr 10 16:03:46 2025 +0200
+
+    os,internal/poll: support I/O on overlapped files not added to the poller
+    
+    This fixes the support for I/O on overlapped files that are not added to
+    the poller. Note that CL 661795 already added support for that, but it
+    really only worked for pipes, not for plain files.
+    
+    Additionally, this CL also makes this kind of I/O operations to not
+    notify the external poller to avoid confusing it.
+    
+    Updates #15388.
+    
+    Change-Id: I15c6ea74f3a87960aef0986598077b6eab9b9c99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664415
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+
+ src/internal/poll/fd_windows.go | 36 ++++++++++++-----
+ src/os/os_windows_test.go       | 90 ++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 102 insertions(+), 24 deletions(-)

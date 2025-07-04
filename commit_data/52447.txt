@@ -1,42 +1,21 @@
-commit c2923971600a89db65daee86858f5fc054322129
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Wed Mar 29 17:04:54 2023 +0000
+commit c570f0eda2c6d250c58028eb9d1e45061f607b67
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue May 3 16:30:30 2022 -0500
 
-    encoding/asn1: improve memory efficiency of ObjectIdentifier.String
+    cmd/compile: combine OR + NOT into ORN on PPC64
     
-    name                      old time/op    new time/op    delta
-    ObjectIdentifierString-4     670ns ± 9%     157ns ±14%  -76.59%  (p=0.000 n=10+9)
+    This shows up in a few crypto functions, and other
+    assorted places.
     
-    name                      old alloc/op   new alloc/op   delta
-    ObjectIdentifierString-4      184B ± 0%       32B ± 0%  -82.61%  (p=0.000 n=10+10)
-    
-    name                      old allocs/op  new allocs/op  delta
-    ObjectIdentifierString-4      14.0 ± 0%       1.0 ± 0%  -92.86%  (p=0.000 n=10+10)
-    
-    This also improves the x509 certificate parser performance by ~12-15%
-    
-    name                           old time/op    new time/op    delta
-    ParseCertificate/ecdsa_leaf-4    24.5µs ± 8%    20.9µs ±11%  -14.66%  (p=0.000 n=10+10)
-    ParseCertificate/rsa_leaf-4      26.6µs ± 5%    23.5µs ± 7%  -11.83%  (p=0.000 n=8+10)
-    
-    name                           old alloc/op   new alloc/op   delta
-    ParseCertificate/ecdsa_leaf-4    12.5kB ± 0%    12.0kB ± 0%   -3.72%  (p=0.000 n=10+10)
-    ParseCertificate/rsa_leaf-4      13.9kB ± 0%    13.4kB ± 0%   -3.34%  (p=0.000 n=10+10)
-    
-    name                           old allocs/op  new allocs/op  delta
-    ParseCertificate/ecdsa_leaf-4       238 ± 0%       165 ± 0%  -30.67%  (p=0.000 n=10+10)
-    ParseCertificate/rsa_leaf-4         262 ± 0%       189 ± 0%  -27.86%  (p=0.000 n=10+10)
-    
-    Change-Id: I49905bbf8319b840e9211da73570db35d1445217
-    GitHub-Last-Rev: 361d68dc9b64c50e3b20e2cf91bffe54cfaf10d4
-    GitHub-Pull-Request: golang/go#59198
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478836
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Change-Id: I5a7f4c25ddd4a6499dc295ef693b9fe43d2448ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404057
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/encoding/asn1/asn1.go      | 11 +++++++----
- src/encoding/asn1/asn1_test.go |  7 +++++++
- 2 files changed, 14 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 ++-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 18 ++++++++++++++++++
+ test/codegen/logic.go                        |  8 ++++++++
+ 3 files changed, 28 insertions(+), 1 deletion(-)

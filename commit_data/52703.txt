@@ -1,50 +1,23 @@
-commit d5514013b6110850789d5397b9b972527e1641cd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 14 15:34:10 2023 -0700
+commit 0aa8a87b5d8f9425ed4c1b66b85e453bef8b7f29
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 18 16:42:30 2022 -0400
 
-    runtime: add and use pollDesc fd sequence field
+    syscall: make //sys lines not doc comments
     
-    It is possible for a netpoll file to be closed and for the pollDesc
-    to be reused while a netpoll is running. This normally only causes
-    spurious wakeups, but if there is an error on the old file then the
-    new file can be incorrectly marked as having an error.
+    If they are doc comments then gofmt will put a space between // and sys.
+    Most of syscall was already this way, following CL 7324056 (in 2013).
+    These were not.
     
-    Fix this problem on most systems by introducing an fd sequence field
-    and using that as a tag in a taggedPointer. The taggedPointer is
-    stored in epoll or kqueue or whatever is being used. If the taggedPointer
-    returned by the kernel has a tag that does not match the fd
-    sequence field, the notification is for a closed file, and we
-    can ignore it. We check the tag stored in the pollDesc, and we also
-    check the tag stored in the pollDesc.atomicInfo.
-    
-    This approach does not work on 32-bit systems where the kernel
-    only provides a 32-bit field to hold a user value. On those systems
-    we continue to use the older method without the sequence protection.
-    This is not ideal, but it is not an issue on Linux because the kernel
-    provides a 64-bit field, and it is not an issue on Windows because
-    there are no poller errors on Windows. It is potentially an issue
-    on *BSD systems, but on those systems we already call fstat in newFile
-    in os/file_unix.go to avoid adding non-pollable files to kqueue.
-    So we currently don't know of any cases that will fail.
-    
-    Fixes #59545
-    
-    Change-Id: I9a61e20dc39b4266a7a2978fc16446567fe683ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484837
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Orlando Labao <orlando.labao43@gmail.com>
+    Change-Id: Ie6ebf82809c199d0d06b87c86045bbb62b687d5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407136
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/os/fifo_test.go            | 96 ++++++++++++++++++++++++++++++++++++++++++
- src/runtime/netpoll.go         | 39 ++++++++++++++---
- src/runtime/netpoll_aix.go     |  5 ++-
- src/runtime/netpoll_epoll.go   | 13 ++++--
- src/runtime/netpoll_kqueue.go  | 31 ++++++++++++--
- src/runtime/netpoll_solaris.go | 20 +++++++--
- src/runtime/netpoll_windows.go |  1 +
- 7 files changed, 189 insertions(+), 16 deletions(-)
+ src/syscall/syscall_aix.go       |  9 +++++++++
+ src/syscall/syscall_dragonfly.go |  2 ++
+ src/syscall/syscall_netbsd.go    |  3 +++
+ src/syscall/syscall_openbsd.go   |  3 +++
+ src/syscall/syscall_plan9.go     | 10 ++++++++++
+ 5 files changed, 27 insertions(+)

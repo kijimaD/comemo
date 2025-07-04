@@ -1,16 +1,20 @@
-commit 94151eb2799809ece7e44ce3212aa3cbb9520849
+commit a62da2027bf0fb5e6cd242c8806c04af7161a6fa
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 5 21:33:07 2014 -0500
+Date:   Tue Oct 28 15:00:13 2014 -0400
 
-    encoding/xml: remove SyntaxError.Byte
+    os: do not assume syscall i/o funcs return n=0 on error
     
-    It is unused. It was introduced in the CL that added InputOffset.
-    I suspect it was an editing mistake.
+    Fixes #9007.
     
-    LGTM=bradfitz
-    R=bradfitz
+    LGTM=iant, r
+    R=r, iant
     CC=golang-codereviews
-    https://golang.org/cl/182580043
+    https://golang.org/cl/160670043
 
- src/encoding/xml/xml.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/os/dir_unix.go     |  2 +-
+ src/os/file.go         |  9 +++++++++
+ src/os/file_plan9.go   | 11 ++++-------
+ src/os/file_posix.go   |  2 +-
+ src/os/file_unix.go    | 10 +++++-----
+ src/os/file_windows.go |  4 ++--
+ 6 files changed, 22 insertions(+), 16 deletions(-)

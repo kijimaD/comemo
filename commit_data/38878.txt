@@ -1,20 +1,19 @@
-commit 8a20fde697c973962d978c1284fddf81a694141a
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Mar 27 17:52:25 2019 +0100
+commit 5e1727892bf36076ee45c417b56bba32801ffbd7
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Dec 5 08:01:07 2018 +0900
 
-    unicode: remove script test
+    cmd/cgo: reject names that are likely to be mangled C name
     
-    The script test requires a manual update on each new
-    Unicode release, which interupts the automated flow.
-    The test is removed in favor of one that fits within the
-    automated scripts.
-    See https://go-review.googlesource.com/c/text/+/169638.
+    Fixes #28721
     
-    Updates golang/go#27945
-    
-    Change-Id: I9c9f1e2a77f7baef17040ea09eec28d7cf55b5e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169619
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I00356f3a9b0c2fb21dc9c2237dd5296fcb3b319b
+    Reviewed-on: https://go-review.googlesource.com/c/152657
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/unicode/script_test.go | 180 ---------------------------------------------
- 1 file changed, 180 deletions(-)
+ misc/cgo/errors/errors_test.go    |  1 +
+ misc/cgo/errors/src/issue28721.go | 29 +++++++++++++++++++++++++++++
+ src/cmd/cgo/ast.go                |  9 +++++++++
+ src/cmd/cgo/gcc.go                | 13 +++++++++++++
+ src/cmd/cgo/main.go               |  4 +++-
+ 5 files changed, 55 insertions(+), 1 deletion(-)

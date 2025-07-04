@@ -1,12 +1,18 @@
-commit 9b9bc684e817bbc9c5ea76a6fa695afa2647480c
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Sun Apr 1 16:01:52 2018 +0000
+commit 3a181dc7bc8fd0c61d6090a85f87c934f1874802
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 15 11:47:31 2017 -0500
 
-    src/run.bash: remove some trailing whitespace
+    archive/zip: fix handling of replacement rune in UTF8 check
     
-    Change-Id: I56a4d25bdf886d0c0cc9723c197a014dfc9da3d3
-    Reviewed-on: https://go-review.googlesource.com/103995
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The replacement rune is a valid rune and can appear as itself in valid UTF8
+    (it encodes as three bytes). To check for invalid UTF8 it is necessary to
+    look for utf8.DecodeRune returning the replacement rune and size==1.
+    
+    Change-Id: I169be8d1fe61605c921ac13cc2fde94f80f3463c
+    Reviewed-on: https://go-review.googlesource.com/78126
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/run.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/archive/zip/writer.go      |  6 ++++--
+ src/archive/zip/writer_test.go | 26 +++++++++++++++-----------
+ 2 files changed, 19 insertions(+), 13 deletions(-)

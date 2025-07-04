@@ -1,15 +1,17 @@
-commit 063ce0f2f774563ff2143bd8b974ce7f89caa365
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jun 5 12:48:26 2020 -0400
+commit 72f92def89b4d417182bc008d2fa0f817746f3bf
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 3 16:26:07 2020 -0500
 
-    doc/go1.15: add release notes for crypto/x509
+    cmd/go/testdata: remove directory badmod
     
-    Updates #37419
+    It doesn't seem to be used anywhere.
     
-    Change-Id: Iedfd4b238980675be115c7e6e0a327d7745b5bed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236737
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: If979b6d69c9bf5261afd980d96f67991c417d46d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213218
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.15.html | 47 ++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 46 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/badmod/go.mod | 1 -
+ src/cmd/go/testdata/badmod/x.go   | 4 ----
+ 2 files changed, 5 deletions(-)

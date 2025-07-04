@@ -1,14 +1,15 @@
-commit bcf3e063cc332e4c75b99d0102c0f12dd307c0b5
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Tue Sep 4 17:35:55 2018 +0300
+commit 25858cce7044479f86f9ab4e03aa7b034aa53874
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 8 10:01:41 2018 -0700
 
-    test: remove go:noinline from escape_because.go
+    cmd/go: add -test to go list usage line
     
-    File is compiled with "-l" flag, so go:noinline is redundant.
-    
-    Change-Id: Ia269f3b9de9466857fc578ba5164613393e82369
-    Reviewed-on: https://go-review.googlesource.com/133295
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia57f0ef1a3bdeb06346e175d67979e2a4512622d
+    Reviewed-on: https://go-review.googlesource.com/112160
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/escape_because.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/go/alldocs.go            | 2 +-
+ src/cmd/go/internal/list/list.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

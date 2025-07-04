@@ -1,29 +1,36 @@
-commit 1f605175b0044d69ac2364c24f515344c9866fd6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 9 15:28:24 2016 -0500
+commit cddddbc6231177c87b72f95209ab51abb74bcbc5
+Author: David Chase <drchase@google.com>
+Date:   Fri Sep 16 15:02:47 2016 -0700
 
-    runtime/cgo: use libc for sigaction syscalls when possible
+    cmd/compile: use ISEL, cleanup use of zero & extensions
     
-    This ensures that runtime's signal handlers pass through the TSAN and
-    MSAN libc interceptors and subsequent calls to the intercepted
-    sigaction function from C will correctly see them.
+    Abandoned earlier efforts to expose zero register,
+    but left it in numbering to decrease squirrelyness of
+    register allocator.
     
-    Fixes #17753.
+    ISELrelOp used in code generation of bool := x relOp y.
+    Some patterns added to better elide zero case and
+    some sign extension.
     
-    Change-Id: I9798bb50291a4b8fa20caa39c02a4465ec40bb8d
-    Reviewed-on: https://go-review.googlesource.com/33142
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates: #17109
+    
+    Change-Id: Ida7839f0023ca8f0ffddc0545f0ac269e65b05d9
+    Reviewed-on: https://go-review.googlesource.com/29380
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/testsanitizers/test.bash |  1 +
- misc/cgo/testsanitizers/tsan8.go  | 60 ++++++++++++++++++++++++++
- src/runtime/cgo/gcc_sigaction.c   | 66 +++++++++++++++++++++++++++++
- src/runtime/cgo/sigaction.go      | 22 ++++++++++
- src/runtime/cgo_mmap.go           |  1 -
- src/runtime/cgo_sigaction.go      | 89 +++++++++++++++++++++++++++++++++++++++
- src/runtime/msan_amd64.s          |  6 ++-
- src/runtime/os_linux.go           |  3 --
- src/runtime/sigaction_linux.go    | 11 +++++
- src/runtime/sys_linux_amd64.s     | 15 ++++++-
- 10 files changed, 268 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/go.go            |   3 +
+ src/cmd/compile/internal/gc/plive.go         |  14 +
+ src/cmd/compile/internal/ppc64/prog.go       |   2 +
+ src/cmd/compile/internal/ppc64/ssa.go        | 136 ++++--
+ src/cmd/compile/internal/ssa/config.go       |   8 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  94 ++--
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 626 +++++++++++++--------------
+ src/cmd/compile/internal/ssa/regalloc.go     |  10 +-
+ src/cmd/compile/internal/ssa/rewrite.go      |   9 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 455 ++++++++++++++-----
+ src/cmd/internal/obj/ppc64/a.out.go          |   6 +-
+ 12 files changed, 825 insertions(+), 542 deletions(-)

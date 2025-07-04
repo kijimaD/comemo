@@ -1,28 +1,20 @@
-commit 24c6dd982323949d1a55f8d4e8b0674e45bcf3ce
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Mon Jun 24 14:23:38 2019 +0700
+commit 694012aa3b74d0c382c13737ba65b8d80b0f9d25
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 15 08:32:16 2019 -0400
 
-    cmd/compile: fix internal error on complex comparison
+    cmd/cover: add go.mod file in lineDupDir
     
-    Complex type is the only TIDEAL that lack of support for all comparison
-    operators. When rewriting constant comparison into literal node, that
-    missing cause compiler raise an internal error.
+    This fixes TestFuncWithDuplicateLines (introduced in CL 167257)
+    in module mode.
     
-    Checking the operator is available for complex type before that fix the
-    problem.
+    Updates #30746
+    Updates #30228
     
-    We can make this check works more generally if there's more type lack of
-    supporting all comparison operators added, but it does not seem to be
-    happened, so just check explicitly for complex only.
-    
-    Fixes #32723
-    
-    Change-Id: I4938b1bdcbcdae9a9d87436024984bd2ab12995e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183459
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I7b3e7192ae23f855c373e881389874ff6ffd49ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167740
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  7 +++++++
- test/fixedbugs/issue32723.go             | 22 ++++++++++++++++++++++
- 2 files changed, 29 insertions(+)
+ src/cmd/cover/cover_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

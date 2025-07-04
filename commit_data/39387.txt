@@ -1,16 +1,19 @@
-commit 2f387ac1f3d171357be97034826c93d1bd2e0fdc
-Author: Keith Randall <khr@google.com>
-Date:   Mon Jun 10 12:51:51 2019 -0700
+commit 98cbf45cfc6a5a50cc6ac2367f9572cb198b57c7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 22 07:40:19 2019 -0800
 
-    doc: update 1.13 release notes
+    go/types: add gccgo sizes information
     
-    Write release notes for a few reflect, runtime, and syscall changes.
+    This will need to be updated from time to time as new targets are
+    added to gccgo. But that is better than always returning nil.
     
-    The init randomization has been reverted.
-    
-    Change-Id: Idae481ca015e325eb7302abaa15b2792312f4c32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181577
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I04b8c4d0f8efa38e2a148eb2e38b16b09f0351c3
+    Reviewed-on: https://go-review.googlesource.com/c/158844
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.13.html | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/go/types/gccgosizes.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/go/types/sizes.go      | 10 ++++++++--
+ 2 files changed, 48 insertions(+), 2 deletions(-)

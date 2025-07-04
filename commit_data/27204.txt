@@ -1,21 +1,23 @@
-commit fa9435cdff443d12c526b0436435925dd52e8503
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 26 12:08:31 2016 -0700
+commit 790053b25ed384a81dba1af7c8c0646b48018af3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 15 10:00:12 2016 +0900
 
-    cmd/compile: clean up rewrite rules
+    net: filter destination addresses when source address is specified
     
-    Break really long lines.
-    Add spacing to line up columns.
+    This change filters out destination addresses by address family when
+    source address is specified to avoid running Dial operation with wrong
+    addressing scopes.
     
-    In AMD64, put all the optimization rules after all the
-    lowering rules.
+    Fixes #11837.
     
-    Change-Id: I45cc7368bf278416e67f89e74358db1bd4326a93
-    Reviewed-on: https://go-review.googlesource.com/22470
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I10b7a1fa325add2cd8ed58f105d527700a10d342
+    Reviewed-on: https://go-review.googlesource.com/20586
+    Reviewed-by: Paul Marks <pmarks@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  406 ++++----
- src/cmd/compile/internal/ssa/gen/generic.rules |  239 ++---
- src/cmd/compile/internal/ssa/rewriteAMD64.go   |  226 ++---
- src/cmd/compile/internal/ssa/rewritegeneric.go | 1170 ++++++++++--------------
- 4 files changed, 939 insertions(+), 1102 deletions(-)
+ src/net/dial.go       |  69 ++++++++++++++++++++++----
+ src/net/dial_test.go  | 135 +++++++++++++++++++++++++++++++++++++++-----------
+ src/net/error_test.go |   4 +-
+ src/net/ip.go         |   4 ++
+ src/net/ipsock.go     |   7 +--
+ src/net/net.go        |   3 ++
+ 6 files changed, 175 insertions(+), 47 deletions(-)

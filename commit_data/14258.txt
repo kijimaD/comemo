@@ -1,13 +1,19 @@
-commit a90b3a5528bd366995eb76acc8811a7a3caf45aa
-Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 31 10:11:04 2012 -0700
+commit b8b329451ca9f98388213627b8790d9e7900b5a0
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Oct 31 14:28:44 2012 +0100
 
-    strconv: update to unicode 6.2.0
-    Fixes build, too.
+    exp/locale/collate: implementation of tailorings and table generation.
+    Tailorings are represented by removing and reinserting entries from a linked list.
+    After all tailorings are done, missing weights are computed and verified.
+    This implementation assumes that entries that are used in expansions are not
+    reinserted at a later point.  This considerably simplifies the implementation.
     
-    R=golang-dev, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6775088
+    https://golang.org/cl/6739052
 
- src/pkg/strconv/isprint.go | 125 +++++++++++++++++++++++++++++----------------
- 1 file changed, 81 insertions(+), 44 deletions(-)
+ src/pkg/exp/locale/collate/build/builder.go    |   167 +-
+ src/pkg/exp/locale/collate/build/order.go      |   106 +-
+ src/pkg/exp/locale/collate/build/order_test.go |    31 +
+ src/pkg/exp/locale/collate/tables.go           | 52771 ++++++++++++++++++++---
+ 4 files changed, 46611 insertions(+), 6464 deletions(-)

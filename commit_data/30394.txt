@@ -1,28 +1,18 @@
-commit fb1f47a77c642f36fc7a80d468ad1cda8bb66361
-Author: Lorenzo Masini <rugginoso@develer.com>
-Date:   Mon Feb 20 17:17:28 2017 +0100
+commit e83911d6fc05c0ccb11bd95cf60694f8aec1698a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Nov 2 18:16:51 2016 -0700
 
-    cmd/compile: speed up TestAssembly
+    cmd/vet/all: add s390x support
     
-    TestAssembly was very slow, leading to it being skipped by default.
-    This is not surprising, it separately invoked the compiler and
-    parsed the result many times.
+    Some of these whitelist entries could be
+    eliminated, e.g. by the addition of Go
+    declarations, but this is a start.
     
-    Now the test assembles one source file for arch/os combination,
-    containing the relevant functions.
-    
-    Tests for each arch/os run in parallel.
-    
-    Now the test runs approximately 10x faster on my Intel(R) Core(TM)
-    i5-6600 CPU @ 3.30GHz.
-    
-    Fixes #18966
-    
-    Change-Id: I45ab97630b627a32e17900c109f790eb4c0e90d9
-    Reviewed-on: https://go-review.googlesource.com/37270
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2fb3234cf05ebc6b161aacac2d4c15d810d50527
+    Reviewed-on: https://go-review.googlesource.com/32671
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 997 ++++++++++++++++++--------------
- 1 file changed, 559 insertions(+), 438 deletions(-)
+ src/cmd/vet/all/main.go             |  7 ++-----
+ src/cmd/vet/all/whitelist/s390x.txt | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 5 deletions(-)

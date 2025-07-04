@@ -1,18 +1,22 @@
-commit 3ec5085eacf28129122a0315b388f1318a6dcdee
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Dec 7 11:24:49 2022 -0500
+commit 5d3476c3dbc5e16b680e4b5ceab49c032b1b0a83
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 8 10:41:27 2022 -0800
 
-    doc/go1.20: delete remaining TODO
+    spec: use "core type" rather than "structural type"
     
-    This section is complete.
+    This change in terminology prevents potential confusion
+    that migth be caused by associating "structural type"
+    with "structural typing"; the two are not connected.
     
-    For #54202.
+    Also, adjusted introductory paragraph of section on
+    constraint type inference: type inference goes in both
+    directions, from type parameter to core type and vice
+    versa. The previous description was not quite accurate.
     
-    Change-Id: I304cc55a5b8ed53e8b8dff73a5feb5ef39207846
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455895
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If4ca300f525eea660f68486302619aa6ad5dbc2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384238
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.20.html | 4 ----
- 1 file changed, 4 deletions(-)
+ doc/go_spec.html | 45 +++++++++++++++++++++++++--------------------
+ 1 file changed, 25 insertions(+), 20 deletions(-)

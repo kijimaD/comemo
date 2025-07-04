@@ -1,33 +1,19 @@
-commit 4c4476c297e0a43bf92e8303da369cdc18e5745c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 21 12:38:05 2016 -0800
+commit 75102afce77f1376b0aab3f1d5fee9b881d0f68a
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Nov 5 14:59:47 2015 -0800
 
-    runtime: on NetBSD and DragonFly drop signal stack in new thread
+    [dev.ssa] cmd/compile: better register allocation
     
-    On NetBSD and DragonFly a newly created thread inherits the signal stack
-    of the creating thread.  This breaks horribly if both threads get a
-    signal at the same time.  Fix this by dropping the signal stack in the
-    newly created thread.  The right signal stack will then get installed
-    later.
+    Use a more precise computation of next use.  It properly
+    detects lifetime holes and deallocates values during those holes.
+    It also uses a more precise version of distance to next use which
+    affects which values get spilled.
     
-    Note that cgo code that calls pthread_create will have the wrong,
-    duplicated, signal stack in the newly created thread.  I don't see any
-    way to fix that in Go.  People using cgo to call pthread_create will
-    have to be aware of the problem.
-    
-    Fixes #13945.
-    Fixes #13947.
-    
-    Change-Id: I0c7bd2cdf9ada575d57182ca5e9523060de34931
-    Reviewed-on: https://go-review.googlesource.com/18814
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I49eb3ebe2d2cb64842ecdaa7fb4f3792f8afb90b
+    Reviewed-on: https://go-review.googlesource.com/16760
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/cgo/gcc_dragonfly_amd64.c | 12 ++++++++++++
- src/runtime/cgo/gcc_netbsd_386.c      | 12 ++++++++++++
- src/runtime/cgo/gcc_netbsd_amd64.c    | 12 ++++++++++++
- src/runtime/cgo/gcc_netbsd_arm.c      | 12 ++++++++++++
- src/runtime/os1_netbsd.go             | 15 ++++++++++++++-
- src/runtime/sys_dragonfly_amd64.s     | 12 ++++++++++++
- 6 files changed, 74 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/regalloc.go  | 421 +++++++++++++++++-------------
+ src/cmd/compile/internal/ssa/sparsemap.go |  69 +++++
+ 2 files changed, 313 insertions(+), 177 deletions(-)

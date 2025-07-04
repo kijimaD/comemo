@@ -1,15 +1,26 @@
-commit 10694c81b0efce8221b6d083b43e43bbbea3d07a
-Author: Alexey Borzenkov <snaury@gmail.com>
-Date:   Thu Mar 31 15:16:18 2011 +1100
+commit 7d77e3117ca70a660aa86143c69e56addbcef580
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 30 21:14:49 2011 -0700
 
-    net, syscall: fix windows build
+    gotest: another try at flags.
+    doc.go contains the details. The short story:
+    - command line is passed to the binary
+    - a new flag, -file, is needed to name files
+    - known flags have the "test." prefix added for convenience.
+    - gotest-specific flags are trimmed from the command line.
     
-    Fix resolv_windows.go to support recent DNS-lookup changes
+    The effect should be that most existing uses are unaffected,
+    the ability to name files is still present, and it's nicer to use.
+    The downside is a lot more code in gotest.
     
-    R=brainman, rsc1, rsc
+    Also allow a test to be called just Test.
+    
+    R=rsc, niemeyer, rog, r2
     CC=golang-dev
-    https://golang.org/cl/4300045
+    https://golang.org/cl/4307049
 
- src/pkg/net/resolv_windows.go         | 41 ++++++++++++++++++++++++++++-------
- src/pkg/syscall/ztypes_windows_386.go |  4 ++++
- 2 files changed, 37 insertions(+), 8 deletions(-)
+ src/cmd/gotest/Makefile  |   1 +
+ src/cmd/gotest/doc.go    |  86 ++++++++++++++------------
+ src/cmd/gotest/flag.go   | 153 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gotest/gotest.go |  94 ++++++++---------------------
+ 4 files changed, 228 insertions(+), 106 deletions(-)

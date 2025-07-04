@@ -1,15 +1,26 @@
-commit fde4b9ed14e339b5064373c1d4a73e211ec32ac4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 29 13:44:44 2018 -0700
+commit a41d21695cad0e30d9c006198cd7edd8c38bf885
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 9 10:55:36 2018 -0400
 
-    cmd/compile: better documentation around checkwidth
+    regexp: revert "use sync.Pool to cache regexp.machine objects"
     
-    Change-Id: I5c7ec9676b5573c883c196459acea85aa9ff8130
-    Reviewed-on: https://go-review.googlesource.com/c/146021
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Revert CL 101715.
+    
+    The size of a sync.Pool scales linearly with GOMAXPROCS,
+    making it inappropriate to put a sync.Pool in any individually
+    allocated object, as the sync.Pool documentation explains.
+    The change also broke DeepEqual on regexps.
+    
+    I have a cleaner way to do this with global sync.Pools but it's
+    too late in the cycle. Will revisit in Go 1.12. For now, revert.
+    
+    Fixes #26219.
+    
+    Change-Id: Ie632e709eb3caf489d85efceac0e4b130ec2019f
+    Reviewed-on: https://go-review.googlesource.com/122596
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/align.go   | 16 ++++++++--------
- src/cmd/compile/internal/types/type.go | 12 ++++++------
- 2 files changed, 14 insertions(+), 14 deletions(-)
+ src/regexp/regexp.go | 62 +++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 37 insertions(+), 25 deletions(-)

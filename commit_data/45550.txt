@@ -1,21 +1,18 @@
-commit 3b304ce7fe35b9d1e8cf0b0518ed2550c361a010
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Fri Apr 23 21:25:06 2021 +0800
+commit 07d206f7698f4d45544a2f9b6051ede594ba04cc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 28 10:44:24 2020 -0400
 
-    runtime: implement runqdrain() for GC mark worker goroutines
+    cmd/go: use internal/testenv instead of computing canRun and skipExternal ad-hoc
     
-    Revive CL 310149
+    Fixes #42223
     
-    Change-Id: Ib4714ea5b2ade32c0f66edff841a79d8212bd79a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313009
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Icf9bb61d48f0a6c7fd6f74e80e333a4837aa52ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265781
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go      | 12 ++++--------
- src/runtime/proc.go     | 41 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/runtime2.go |  3 +++
- 3 files changed, 48 insertions(+), 8 deletions(-)
+ src/cmd/go/go_test.go           | 71 +++++++----------------------------------
+ src/cmd/go/script_test.go       |  4 +--
+ src/internal/testenv/testenv.go | 20 ++++++++++++
+ 3 files changed, 32 insertions(+), 63 deletions(-)

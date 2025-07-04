@@ -1,22 +1,22 @@
-commit 7836457ec3cc128efd9dd54197e8e5c25408c8b0
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Oct 1 19:58:01 2018 +0000
+commit 616da5da94aad1de2464e67e71d8eb1f4292f445
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 29 14:38:56 2018 -0700
 
-    runtime: add physical memory scavenging test
+    os: increase directory reading block size on Unix systems
     
-    This change introduces a test to malloc_test which checks for overuse
-    of physical memory in the large object treap. Due to fragmentation,
-    there may be many pages of physical memory that are sitting unused in
-    large-object space.
+    Reportedly CIFS on RHEL 7 can fail to report files if directories are
+    read in 4K increments. While this seems to be a CIFS or RHEL bug,
+    reportedly CIFS does not return more than 5760 bytes in a block, so
+    reading in 8K increments should hide the problem from users with
+    minimal cost.
     
-    For #14045.
+    Fixes #24015
     
-    Change-Id: I3722468f45063b11246dde6301c7ad02ae34be55
-    Reviewed-on: https://go-review.googlesource.com/c/138918
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Iaf9f00ffe338d379c819ed9edcd4cc9834e3b0f7
+    Reviewed-on: https://go-review.googlesource.com/121756
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc_test.go          |  8 ++++
- src/runtime/testdata/testprog/gc.go | 83 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 91 insertions(+)
+ src/os/dir_unix.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

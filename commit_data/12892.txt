@@ -1,12 +1,16 @@
-commit 0e596024c203b27e4940fba0844a58f4e3abc989
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Apr 14 13:27:11 2012 +1000
+commit 061061e77c255202d01087e72fc3c370d2e21bdb
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Apr 13 10:12:31 2012 +0200
 
-    doc: update Mercurial installation instructions
+    cmd/6g: restore magic multiply for /=, %=.
     
-    R=r
-    CC=golang-dev
-    https://golang.org/cl/6031046
+    Also enables turning /= 2 in a right shift.
+    
+    Part of issue 2230.
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6012049
 
- doc/install-source.html | 21 ++++-----------------
- 1 file changed, 4 insertions(+), 17 deletions(-)
+ src/cmd/6g/ggen.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

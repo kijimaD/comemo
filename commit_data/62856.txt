@@ -1,0 +1,21 @@
+commit 7ce45a014c52375d6a3da577828c9f035a72857a
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Tue Apr 8 11:34:56 2025 -0700
+
+    runtime: fix test of when a mutex is contended
+    
+    This is used only in tests that verify reports of runtime-internal mutex
+    contention.
+    
+    For #66999
+    For #70602
+    
+    Change-Id: I72cb1302d8ea0524f1182ec892f5c9a1923cddba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667095
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+
+ src/runtime/lock_spinbit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,22 @@
-commit 5a22637cf7014fe5c9722e130f27506466db7b84
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Nov 13 10:56:54 2017 -0800
+commit aea286b449c5ffe6d69fb7bb0c5b05e480ed3ad9
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Jun 14 06:44:43 2017 +0000
 
-    crypto/x509: don't fail to parse addition elements in GeneralSubtree.
+    cmd/internal/obj/arm64: fix assemble fcsels/fcseld bug
     
-    The GeneralSubtree structure can have additional elements after the name
-    (minimum and maximum, which are unused). Previously these fields, if
-    present, would cause a parse error. This change allows trailing data in
-    the GeneralSubtrees structure.
+    The current code treats the type of SIMD&FP register as C_REG incorrectly.
     
-    Change-Id: I6bfb11ec355fa6812810a090c092a5ee0fdeddc3
-    Reviewed-on: https://go-review.googlesource.com/77333
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The fix code converts C_REG type into C_FREG type.
+    
+    Uncomment fcsels/fcseld test cases.
+    
+    Fixes #21582
+    Change-Id: I754c51f72a0418bd352cbc0f7740f14cc599c72d
+    Reviewed-on: https://go-review.googlesource.com/58350
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/x509.go      |  3 +--
- src/crypto/x509/x509_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 4 ++--
+ src/cmd/internal/obj/arm64/asm7.go           | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,15 +1,36 @@
-commit a78b12aea7d18a402cecbaa4eca4c8ba09cc05ca
-Author: Tao Qingyun <qingyunha@gmail.com>
-Date:   Fri Apr 2 12:02:17 2021 +0000
+commit d20298e1c7d1df794a11ce7768e027c6759df2a4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Sep 14 10:38:45 2020 +0700
 
-    cmd/link: remove unnecessary attrReachable test
+    cmd/compile: make funccompile non-reentrant
     
-    Change-Id: I5a6fde3ce57be1760cc8c92910fe77beb8b9c655
-    GitHub-Last-Rev: 0b2f3cb3a81336d94d288afe7c324a5a54114ebb
-    GitHub-Pull-Request: golang/go#45259
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305169
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Trust: David Chase <drchase@google.com>
+    Currently, there's awkward reentrancy issue with funccompile:
+    
+        funccompile -> compile -> dtypesym -> geneq/genhash/genwrapper -> funccompile
+    
+    Though it's not a problem at this moment, some attempts by @mdempsky to
+    move order/walk/instrument into buildssa was failed, due to SSA cache
+    corruption.
+    
+    This commit fixes that reentrancy issue, by making generated functions
+    to be pumped through the same compile workqueue that normal functions
+    are compiled. We do this by adding them to xtop, instead of calling
+    funccompile directly in geneq/genhash/genwrapper. In dumpdata, we look
+    for uncompiled functions in xtop instead of compilequeue, then finish
+    compiling them.
+    
+    Updates #38463
+    Fixes #33485
+    
+    Change-Id: Ic9f0ce45b56ae2ff3862f17fd979253ddc144bb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254617
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/link/internal/loader/loader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/alg.go  |  4 ++--
+ src/cmd/compile/internal/gc/obj.go  | 26 +++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/subr.go |  2 +-
+ 3 files changed, 28 insertions(+), 4 deletions(-)

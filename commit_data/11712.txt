@@ -1,12 +1,14 @@
-commit 1127b229763811c5e90d4d96b2c9f150e816df1d
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Feb 8 14:36:38 2012 -0500
+commit 388816ae078ed93ec409dca8024638eb7ca774d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 14:35:00 2012 -0500
 
-    cmd/dist: pass correct -DGOARCH_$GOARCH flag to gcc.
+    spec: disallow recursive embedded interfaces
     
-    R=rsc
+    Fixes #1814.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5643061
+    https://golang.org/cl/5647054
 
- src/cmd/dist/build.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)

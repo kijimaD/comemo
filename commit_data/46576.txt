@@ -1,20 +1,18 @@
-commit 4e308d73ba3610838305997b6f4793c4f4dcfc4e
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Sep 22 14:59:42 2021 +0100
+commit 432f9ffb11231b00b67c8fa8047f21a8282fa914
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 12 11:39:10 2021 -0800
 
-    cmd/go: refer to the right package in a test
+    [dev.regabi] cmd/compile: unindent compileFunctions
     
-    The test checks that two packages aren't non-test dependencies.
-    There's a copy-paste typo, however.
-    When net/http is unexpectedly found as a dependendency,
-    we instead mention the other package in the error message.
+    No real code changes. Just splitting into a separate CL so the next
+    one is easier to review.
     
-    Change-Id: I3232c6252255c839e08efa048f2232c192d0fb85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351372
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I428dc986b76370d8d3afc12cf19585f6384389d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283314
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/imports/scan_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/compile.go | 76 +++++++++++++++++-----------------
+ 1 file changed, 39 insertions(+), 37 deletions(-)

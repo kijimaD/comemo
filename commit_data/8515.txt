@@ -1,13 +1,15 @@
-commit a1d2cbf6450871ad1b21f46f53c6b7a4e500e776
-Author: Rob Pike <r@golang.org>
-Date:   Fri May 27 21:06:50 2011 +1000
+commit cb96d98b0629ee7c5ab9a5d0865565972460bd1c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 27 17:02:24 2011 +1000
 
-    crypto/tls/generate_cert.go: fix misspelling of O_CREATE.
-    Fixes #1888.
+    os: another attempt to handle OpenFile flag parameter properly on Windows
     
-    R=ken
+    Fixes #1791.
+    
+    R=rsc, r, r, iant
     CC=golang-dev
-    https://golang.org/cl/4515148
+    https://golang.org/cl/4551046
 
- src/pkg/crypto/tls/generate_cert.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/os/os_test.go              | 10 +++++++++-
+ src/pkg/syscall/syscall_windows.go | 17 +++++++----------
+ 2 files changed, 16 insertions(+), 11 deletions(-)

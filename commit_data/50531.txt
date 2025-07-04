@@ -1,18 +1,22 @@
-commit c91b1009d52d91eb3a949945789ff235246c0075
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Fri Sep 16 09:21:59 2022 +0800
+commit 0bef30d28ac0b9654e5daef0fef731d7a9495214
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Oct 30 10:50:59 2021 -0700
 
-    misc/cgo: replace ioutil.ReadFile with os.ReadFile
+    cmd/compile/internal/syntax: fix parsing of array or slice constraint types
     
-    For #45557
+    This is a port of the idea used in CL 359134 from go/parser to syntax,
+    with adjustments due to the slightly different structure of the two
+    parsers, and some refactoring to simplify the logic.
     
-    Change-Id: I25be5b437fa1c9b0e0c46802a9b37efc2d47bca0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431097
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #49175.
+    
+    Change-Id: Ib4955bde708f2b08345f35523e6094c03ab3076c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360135
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- misc/cgo/errors/argposition_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go          | 82 +++++++++++++---------
+ .../compile/internal/syntax/testdata/typeset.go2   | 10 ++-
+ 2 files changed, 57 insertions(+), 35 deletions(-)

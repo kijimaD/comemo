@@ -1,31 +1,15 @@
-commit f6fe3271f738355f73ee79a9c5bc2a881eebd783
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 13 10:21:24 2013 -0800
+commit 96082a6953583b88b73cf45933325648b66c1654
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Wed Feb 13 19:23:28 2013 +1100
 
-    go/types: adjust gcimporter to actual gc export data
+    archive/tar: append a slash when deriving header info from a directory
     
-    Unexported field and method names that appear in the
-    export data (as part of some exported type) are fully
-    qualified with a package id (path). In some cases, a
-    package with that id was never exported for any other
-    use (i.e. only the path is of interest).
+    This behavior is identical to GNU tar 1.26.
     
-    We must not create a "real" package in those cases
-    because we don't have a package name. Entering an
-    unnamed package into the map of imported packages
-    makes that package accessible for other imports.
-    Such a subsequent import may find the unnamed
-    package in the map, and reuse it. That reused and
-    imported package is then entered into the importing
-    file scope, still w/o a name. References to that
-    package cannot resolved after that. Was bug.
-    
-    R=adonovan
+    R=dsymonds, dave
     CC=golang-dev
-    https://golang.org/cl/7307112
+    https://golang.org/cl/7307101
 
- src/pkg/exp/gotype/gotype_test.go |   2 +-
- src/pkg/go/types/gcimporter.go    | 135 +++++++++++++++++++++++++-------------
- src/pkg/go/types/scope.go         |  19 ++++++
- src/pkg/go/types/types.go         |   7 +-
- 4 files changed, 114 insertions(+), 49 deletions(-)
+ src/pkg/archive/tar/common.go   |  2 ++
+ src/pkg/archive/tar/tar_test.go | 27 +++++++++++++++++++++++++--
+ 2 files changed, 27 insertions(+), 2 deletions(-)

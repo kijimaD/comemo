@@ -1,19 +1,35 @@
-commit 3e732411e5e0679af5375a3cbd84c41ef5cd2430
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Apr 19 16:27:57 2022 -0400
+commit a72a499c24cfcfce2a16ac7c228c2c914c4f36c4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 23 00:49:03 2021 -0700
 
-    runtime/internal/syscall: use ABIInternal for Syscall6 on amd64
+    [dev.typeparams] cmd/compile: optimize wrapping of constant arguments
     
-    This is an exact copy of CL 401096 after fixing #52472 in CL 401654.
+    When wrapping a go/defer statement like:
     
-    For #51087
-    For #52472
+            go f(g(), "x", 42)
     
-    Change-Id: Ib3c914949a15517aacdca2d72e69e1c7b217e430
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401656
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    we were wrapping it like:
+    
+            _0, _1, _2, _3 := f, g(), "x", 42
+            go func() { _0(_1, _2, _3) }()
+    
+    This is simple and general (and often necessary), but suboptimal in
+    some cases, such as this. Instead of evaluating the constant arguments
+    at the go/defer statement, and storing them into the closure context,
+    we can just keep them in the wrapped call expression.
+    
+    This CL changes the code to instead generate (assuming f is a declared
+    function, not a function-typed variable):
+    
+            _0 := g()
+            go func() { f(_0, "x", 42) }()
+    
+    Change-Id: I2bdd4951e7ee93363e1656ecf9b5bd69a121c38a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330332
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/internal/syscall/asm_linux_amd64.s | 44 +++++++++++++++++---------
- 1 file changed, 29 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/escape/call.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

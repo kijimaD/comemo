@@ -1,13 +1,17 @@
-commit 9e56bcb9fe23bbd75d8896e845a9129251d4fca5
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 2 21:51:39 2020 -0400
+commit 24f08103d2dad591a77c2b716f9a13fc7bb234fc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 04:08:26 2019 +1100
 
-    doc/go1.15: runtime release notes
+    cmd/internal/obj/riscv: handle FEQ/FNEG/SEQZ/SNEZ
     
-    Change-Id: Ie37e993e840df2c063dee98fa3f6eca8e8713ca3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236177
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Based on riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I5e7f45955e1dfdb9d09cc6a4e6f3ce81216d411d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204628
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.15.html | 51 ++++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 46 insertions(+), 5 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 22 ++++++++++++
+ src/cmd/internal/obj/riscv/obj.go            | 52 ++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+)

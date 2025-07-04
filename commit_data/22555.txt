@@ -1,28 +1,23 @@
-commit 89b7c66d0d14462fd7893be4290bdfe5f9063ae1
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Apr 13 23:45:00 2015 +0900
+commit b2f29511dd1b8760de5c4a0db284e68e8e7dddcd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Mar 23 11:03:02 2015 +1100
 
-    net: fix inconsistent error values on Dial, Listen partially
+    image/internal/imageutil: new package, used by image/draw and image/jpeg.
     
-    This change makes TestDialError, TestListenError work without any
-    external dependency, enables them by default, and removes unnecessary
-    -run_error_test flag for fixing #4856.
+    The imageutil.DrawYCbCr function lives in an internal package because it
+    is needed by both the image/draw and image/jpeg packages, but it doesn't
+    seem right for one of those two to depend on the other.
     
-    Also fixes inconsistent error values on Dial, Listen partially as a
-    first stab.
+    It could eventually go into the image package, but that would require
+    committing to an API for the rest of Go 1.x.
     
-    Updates #4856.
-    
-    Change-Id: Ie10c151ae06759085f352c7db2ca45107a81914f
-    Reviewed-on: https://go-review.googlesource.com/8903
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7b12555c970d86409365e99eef9360702aaffa30
+    Reviewed-on: https://go-review.googlesource.com/7925
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/dial_test.go        | 104 -----------------------
- src/net/error_plan9_test.go |  14 ++++
- src/net/error_posix_test.go |  16 ++++
- src/net/error_test.go       | 199 ++++++++++++++++++++++++++++++++++++++++++++
- src/net/fd_windows.go       |  51 +++++++-----
- src/net/main_test.go        |   4 -
- src/net/timeout_test.go     |  47 +++++------
- src/net/udp_test.go         |   2 +-
- 8 files changed, 282 insertions(+), 155 deletions(-)
+ src/go/build/deps_test.go                 |  4 +-
+ src/image/draw/draw.go                    | 83 +++-----------------------
+ src/image/internal/imageutil/imageutil.go | 96 +++++++++++++++++++++++++++++++
+ src/image/jpeg/reader.go                  | 79 +------------------------
+ 4 files changed, 107 insertions(+), 155 deletions(-)

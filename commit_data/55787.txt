@@ -1,22 +1,24 @@
-commit 4e7bd20f8fdccdb2f0f30b051e3ea3fffb449367
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Jan 5 16:10:33 2024 -0800
+commit a54fe8a270aef105dc5fbdca4eb90227587361e9
+Author: David Chase <drchase@google.com>
+Date:   Sun Mar 12 18:19:57 2023 +0100
 
-    net/http: remove Content-Length header in http.Error
+    cmd/go: restore 'extend path shortening to all paths in messages'
     
-    Error replies to a request with an error message and HTTP code.
-    Delete any preexisting Content-Length header before writing the header;
-    if a Content-Length is present, it's probably for content that the
-    caller has given up on writing.
+    The problem requiring a revert was creation (somehow) of /-containing
+    paths in compiler messages on Windows.  The new code deals with this
+    existing-but-unexpected behavior.
     
-    For #50905
+    original was CL 465805
+    revert was CL 473795
     
-    Change-Id: Ia3d4ca008be46fa5d41afadf29ca5cacb1c47660
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/554216
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    this is the original, plus a correction for unexpected paths on Windows.
+    
+    Change-Id: I786e875e704c2d7018c8248960f2ff7188cac3ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474015
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/net/http/serve_test.go | 21 +++++++++++++++++++++
- src/net/http/server.go     |  1 +
- 2 files changed, 22 insertions(+)
+ src/cmd/go/internal/work/exec.go                 | 36 +++++++++--
+ src/cmd/go/testdata/script/build_shorten_pkg.txt | 81 ++++++++++++++++++++++++
+ 2 files changed, 112 insertions(+), 5 deletions(-)

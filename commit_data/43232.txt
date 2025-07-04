@@ -1,45 +1,31 @@
-commit 8f26b57f9afc238bdecb9b7030bc2f4364093885
-Author: Cuong Manh Le <cuong@orijtech.com>
-Date:   Sat Oct 3 01:23:47 2020 +0700
+commit a3a9901c1e82f69e41308f45448f4db618548366
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Mar 19 16:51:13 2020 -0700
 
-    cmd/compile: split exported/non-exported methods for interface type
+    net/http: update bundled x/net/http2
     
-    Currently, mhdr/methods is emitted with the same len/cap. There's no way
-    to distinguish between exported and non-exported methods statically.
+    Updates bundled http2 to x/net git rev 63522dbf7
     
-    This CL splits mhdr/methods into two parts, use "len" for number of
-    exported methods, and "cap" for all methods. This fixes the bug in
-    issue #22075, which intends to return the number of exported methods but
-    currently return all methods.
+        http2: reduce allocations of (*clientConnReadLoop).handleReponse
+        https://golang.org/cl/223783 (#37853)
     
-    Note that with this encoding, we still can access either
-    all/exported-only/non-exported-only methods:
+        http2: remove unused errors
+        https://golang.org/cl/220458
     
-            mhdr[:cap(mhdr)]          // all methods
-            mhdr                      // exported methods
-            mhdr[len(mhdr):cap(mhdr)] // non-exported methods
+        http2: remove unused stream struct fields
+        https://golang.org/cl/219857
     
-    Thank to Matthew Dempsky (@mdempsky) for suggesting this encoding.
+        http2: fix typo in comment
+        https://golang.org/cl/214602
     
-    Fixes #22075
+        http2: workaround TCPConn CloseWrite not being supported on Plan 9
+        https://golang.org/cl/209417 (#17906, #35904)
     
-    Change-Id: If662adb03ccff27407d55a5578a0ed05a15e7cdd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259237
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0e48f32247938c3858170bf419624367d4faef4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224217
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.16.html                        |  8 +++++
- src/cmd/compile/internal/gc/reflect.go |  3 +-
- src/internal/reflectlite/type.go       | 35 +++++++++++++++-------
- src/internal/reflectlite/value.go      |  4 +--
- src/reflect/all_test.go                | 18 +++++++----
- src/reflect/type.go                    | 55 ++++++++++++++++++++--------------
- src/reflect/value.go                   | 21 +++++++------
- src/runtime/alg.go                     |  2 +-
- src/runtime/iface.go                   | 12 ++++----
- src/runtime/mfinal.go                  |  4 +--
- src/runtime/type.go                    | 26 ++++++++++++----
- 11 files changed, 124 insertions(+), 64 deletions(-)
+ src/net/http/h2_bundle.go | 40 +++++++++++++++++++++-------------------
+ 1 file changed, 21 insertions(+), 19 deletions(-)

@@ -1,32 +1,32 @@
-commit cb5534c1c6d80727cb38a602f3ad5ba1a8b693d5
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Nov 12 12:27:33 2022 -0500
+commit f1596d76f488e4d82d217418df4191f34b71d117
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Jan 6 12:39:37 2022 -0800
 
-    cmd/compile: do not emit a few more basic types from every compilation
+    cmd/compile: fix conv of slice of user-define byte type to string
     
-    We already emit types for any and func(error) string in runtime.a
-    but unlike the other pre-emitted types, we don't then exclude them
-    from being emitted in other packages. Fix that.
+    types2 allows the conversion of a slice of a user-defined byte type B
+    (not builtin uint8 or byte) to string. But runtime.slicebytetostring
+    requires a []byte argument, so add in a CONVNOP from []B to []byte if
+    needed. Same for the conversion of a slice of user-defined rune types to
+    string.
     
-    Also add slices of non-func types that we already emit.
+    I made the same change in the transformations of the old typechecker, so
+    as to keep tcConv() and transformConv() in sync. That fixes the bug for
+    -G=0 mode as well.
     
-    Saves 0.3% of .a files in std cmd deps, computed by adding sizes from:
+    Fixes #23536
     
-            ls -l $(go list -export -f '{{.Export}}' -deps std cmd
-    
-    The effect is small and not worth doing on its own.
-    The real improvement is making “what to write always in runtime”
-    and “what not to write in other packages” more obviously aligned.
-    
-    Change-Id: Ie5cb5fd7e5a3025d2776d9b4cece775fdf92d3b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450135
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ic79364427f27489187f3f8015bdfbf0769a70d69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376056
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 64 +++++++++++++++++++------
- src/cmd/link/internal/ld/dwarf.go               |  3 ++
- 2 files changed, 52 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/noder/transform.go | 25 ++++++++++++++++++++++
+ src/cmd/compile/internal/typecheck/expr.go  | 21 +++++++++++++++++++
+ test/fixedbugs/issue23536.go                | 22 ++++++++++++++++++++
+ test/typeparam/issue23536.go                | 32 +++++++++++++++++++++++++++++
+ 4 files changed, 100 insertions(+)

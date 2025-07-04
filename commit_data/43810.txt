@@ -1,29 +1,16 @@
-commit 97700baf8bd5c0fdbfe38eedc80d3c612805cbda
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Nov 10 15:48:37 2020 -0500
+commit b0a87544754a41312aa454f69d4e820979f19ef0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 23:11:08 2020 -0700
 
-    cmd/go: in 'go get', only load retractions for resolved versions
+    cmd/compile: convert race cleanup rule to typed aux
     
-    Previously, 'go get' loaded retractions for every module in the build
-    list, which took a long time and usually wasn't helpful.
+    Passes toolstash-check.
     
-    Fixes #42185
-    
-    Change-Id: I64294585db141106b63ec74aafa0d266b7536ef2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269019
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Change-Id: I3005210cc156d01a6ac1ccaafb4311c607681bf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229691
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modget/get.go                  | 149 ++++++++++++---------
- src/cmd/go/internal/modload/build.go               |   8 +-
- src/cmd/go/internal/modload/modfile.go             |  20 +--
- ...ple.com_retract_ambiguous_nested_v1.9.0-bad.txt |  10 ++
- .../example.com_retract_ambiguous_other_v1.0.0.txt |  12 ++
- .../mod/example.com_retract_ambiguous_v1.0.0.txt   |   9 ++
- src/cmd/go/testdata/script/mod_get_retract.txt     |  19 ++-
- .../testdata/script/mod_get_retract_ambiguous.txt  |  10 ++
- .../go/testdata/script/mod_retract_rationale.txt   |  14 +-
- src/cmd/go/testdata/script/mod_retract_rename.txt  |   2 +-
- 10 files changed, 161 insertions(+), 92 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewrite.go        | 4 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

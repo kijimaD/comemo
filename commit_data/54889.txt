@@ -1,29 +1,34 @@
-commit f83bbaf3af8d938bd15429254bbbdcc6d4b42144
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Wed Nov 1 23:19:39 2023 +0000
+commit ea2c27fe8204225b4d76ed4a541c6b92afec8dde
+Author: David Chase <drchase@google.com>
+Date:   Thu Aug 11 09:58:23 2022 -0400
 
-    net/netip: allow only valid prefix digits in ParsePrefix
+    cmd/compile: package-annotate structs when error would be ambiguous
     
-    The prefix bits for a call to ParsePrefix are passed raw to
-    strconv.Atoi, this means that it can accept +- signs as well as leading
-    zeroes, which are not allowed prefix values following RFC 4632 Section
-    3.1 and RFC 4291 Section 2.3.
+    Before emitting a "wanted Foo but got Bar" message for an interface
+    type match failure, check that Foo and Bar are different.  If they
+    are not, add package paths to first unexported struct field seen,
+    because that is the cause (a cause, there could be more than one).
     
-    Validate non-digit characters as well as leading zeroes and return an
-    error accordingly.
+    Replicated in go/types.
     
-    Fixes #63850
+    Added tests to go/types and cmd/compile/internal/types2
     
-    Change-Id: I412a7e1cecc6ee9ea1582d4b04cb40d79ee714f1
-    GitHub-Last-Rev: 462d97fc5f412e18376356dbc10b63711c084144
-    GitHub-Pull-Request: golang/go#63859
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538860
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #54258.
+    
+    Change-Id: Ifc2b2067d62fe2138996972cdf3b6cb7ca0ed456
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422914
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/net/netip/netip.go      |  6 ++++++
- src/net/netip/netip_test.go | 18 +++++++++++++++++-
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/expr.go     |  16 +++-
+ src/cmd/compile/internal/typecheck/stmt.go     |   4 +-
+ src/cmd/compile/internal/typecheck/subr.go     |   3 +-
+ src/cmd/compile/internal/types2/issues_test.go | 121 ++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/lookup.go      |  15 ++-
+ src/cmd/compile/internal/types2/typestring.go  |  25 ++++-
+ src/go/types/issues_test.go                    | 122 +++++++++++++++++++++++++
+ src/go/types/lookup.go                         |  16 +++-
+ src/go/types/object.go                         |   7 ++
+ src/go/types/typestring.go                     |  25 ++++-
+ 10 files changed, 330 insertions(+), 24 deletions(-)

@@ -1,17 +1,14 @@
-commit be33e203edac1afa4a3bf1087f3589a82a7e3a86
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 27 16:28:52 2015 +1000
+commit bd45bce373db750580e1a0f9a45563f0c0991d46
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Wed Jul 8 10:05:39 2015 +1000
 
-    text/template: add ExecError type and return it from Execute on error
+    doc/go1.5: mention net/http.Request.Cancel
     
-    Useful to discriminate evaluation errors from write errors.
+    This was added in commit 8b4278ffb75e79c277bfa90c5e473bfad9f7c1bd.
     
-    Fixes #11898.
-    
-    Change-Id: I907d339a3820e887872d78e0e2d8fd011451fd19
-    Reviewed-on: https://go-review.googlesource.com/13957
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I95279f2779c2bab2767e34389fb4324900c01e6c
+    Reviewed-on: https://go-review.googlesource.com/11952
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/text/template/exec.go      | 50 +++++++++++++++++++++++++++++++++++++-----
- src/text/template/exec_test.go | 43 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 88 insertions(+), 5 deletions(-)
+ doc/go1.5.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

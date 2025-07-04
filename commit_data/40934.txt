@@ -1,28 +1,16 @@
-commit af0882247b06700c5d9af240dfa4a7e57dba65da
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Dec 4 19:30:06 2019 -0500
+commit 89f02eb8370e31907d33e88f3e25de5176fe84f0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 13 12:56:51 2019 -0700
 
-    src/go.mod: sync golang.org/x/net with h2_bundle.go
+    go/types: add -halt flag to ease debugging in test mode
     
-    CL 209077 updated bundled http2 to x/net git rev ef20fe5d7 without
-    bumping the go.mod version.
+    Specifying -halt in `go test -run Check$ -halt` causes a panic
+    upon encountering the first error. The stack trace is useful to
+    determine what code path issued the error.
     
-    Identified with the new go/packages based cmd/bundle from CL 189818.
-    
-    $ go get golang.org/x/net@ef20fe5d7
-    $ go mod tidy
-    $ go mod vendor
-    $ go generate -run bundle std # with CL 189818
-    
-    Updates #32031
-    
-    Change-Id: I581d35f33e2adafb588b2b0569648039187234a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209901
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2e17e0014ba87505b01786980b98565f468065bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190257
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go.mod             | 2 +-
- src/go.sum             | 4 ++--
- src/vendor/modules.txt | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/go/types/check_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

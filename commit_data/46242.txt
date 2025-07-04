@@ -1,30 +1,27 @@
-commit d15a75e070f3ba726645dc2857ba091f824ad2d2
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Aug 31 16:56:07 2021 -0400
+commit 578fbbe3aa5cada6e32b686d71a5832d6ca846dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 14:58:26 2020 -0500
 
-    go/types: address some TODOs (cleanup)
+    [dev.regabi] cmd/compile: rewrite some generic ir.Nod calls
     
-    This is a port of CL 345176 to go/types, though not all TODOs were
-    present in go/types.
+    An automated rewrite is going to remove the bulk of the calls
+    to ir.Nod and friends. This CL takes care of the ones that don't
+    have fixed opcodes and so aren't amenable to automatic rewriting.
     
-    A TODO that still needs to be resolved was added back to types2.
+    Passes buildall w/ toolstash -cmp.
     
-    Change-Id: Icf79483c92d0bc1248de772c7044620f0f0a5c58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346550
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Replay of CL 275886, lost to the bad-merge history rewrite.
+    
+    Change-Id: I5bf8d1d182f847f4ab44b7e278b752913e30e4c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277956
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/unify.go   |  3 +++
- src/go/types/check_test.go                 |  3 ---
- src/go/types/expr.go                       |  4 +--
- src/go/types/instantiate.go                | 43 +++++++++++-------------------
- src/go/types/named.go                      |  2 --
- src/go/types/self_test.go                  |  7 +----
- src/go/types/signature.go                  |  7 +----
- src/go/types/stmt.go                       |  5 ----
- src/go/types/testdata/check/tinference.go2 |  4 +--
- src/go/types/tuple.go                      |  2 --
- src/go/types/type.go                       |  1 -
- 11 files changed, 23 insertions(+), 58 deletions(-)
+ src/cmd/compile/internal/gc/iimport.go   | 50 +++++++++++++++++++++++---------
+ src/cmd/compile/internal/gc/noder.go     | 27 ++++++++++++-----
+ src/cmd/compile/internal/gc/order.go     |  7 ++---
+ src/cmd/compile/internal/gc/select.go    |  6 ++--
+ src/cmd/compile/internal/gc/subr.go      |  5 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 20 +++++--------
+ src/cmd/compile/internal/gc/walk.go      | 42 +++++++++++----------------
+ 7 files changed, 89 insertions(+), 68 deletions(-)

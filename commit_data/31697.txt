@@ -1,14 +1,53 @@
-commit cba4b416719f7019ecc01a02d8efbf0c9c0e5df9
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Jun 1 17:31:24 2017 -0700
+commit d71f36b5aa1eadc6cd86ada2c0d5dd621bd9fd82
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 2 11:53:41 2017 -0500
 
-    compress/gzip: clarify behavior of Writer.Close
+    cmd/compile: check loop rescheduling with stack bound, not counter
     
-    Fixes #20551
+    After benchmarking with a compiler modified to have better
+    spill location, it became clear that this method of checking
+    was actually faster on (at least) two different architectures
+    (ppc64 and amd64) and it also provides more timely interruption
+    of loops.
     
-    Change-Id: Ia47cae14a26fe5f278ad7209218d083cc50a3ff8
-    Reviewed-on: https://go-review.googlesource.com/44572
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change adds a modified FOR loop node "FORUNTIL" that
+    checks after executing the loop body instead of before (i.e.,
+    always at least once).  This ensures that a pointer past the
+    end of a slice or array is not made visible to the garbage
+    collector.
+    
+    Without the rescheduling checks inserted, the restructured
+    loop from this  change apparently provides a 1% geomean
+    improvement on PPC64 running the go1 benchmarks; the
+    improvement on AMD64 is only 0.12%.
+    
+    Inserting the rescheduling check exposed some peculiar bug
+    with the ssa test code for s390x; this was updated based on
+    initial code actually generated for GOARCH=s390x to use
+    appropriate OpArg, OpAddr, and OpVarDef.
+    
+    NaCl is disabled in testing.
+    
+    Change-Id: Ieafaa9a61d2a583ad00968110ef3e7a441abca50
+    Reviewed-on: https://go-review.googlesource.com/36206
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/compress/gzip/gzip.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/esc.go                |   4 +-
+ src/cmd/compile/internal/gc/fmt.go                |  14 ++-
+ src/cmd/compile/internal/gc/inl.go                |   3 +-
+ src/cmd/compile/internal/gc/opnames.go            |   1 +
+ src/cmd/compile/internal/gc/racewalk.go           |   2 +-
+ src/cmd/compile/internal/gc/range.go              |  39 ++++++-
+ src/cmd/compile/internal/gc/ssa.go                |  41 +++++--
+ src/cmd/compile/internal/gc/syntax.go             |   1 +
+ src/cmd/compile/internal/gc/typecheck.go          |   7 +-
+ src/cmd/compile/internal/gc/walk.go               |   4 +-
+ src/cmd/compile/internal/ssa/export_test.go       |  15 ++-
+ src/cmd/compile/internal/ssa/loop_test.go         |   8 +-
+ src/cmd/compile/internal/ssa/loopreschedchecks.go | 132 ++++++----------------
+ src/runtime/proc.go                               |  27 +++--
+ test/fixedbugs/issue10958.go                      |   2 +-
+ test/loopbce.go                                   |   2 +-
+ 16 files changed, 162 insertions(+), 140 deletions(-)

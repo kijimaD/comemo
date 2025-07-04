@@ -1,12 +1,14 @@
-commit 6500065543fa21a0918d78d528911012aabb1999
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Thu Aug 4 00:22:39 2011 -0400
+commit 6fe82e6b9667ad1129043d8c9ba8a218561a4277
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 4 11:29:20 2011 +1000
 
-    runtime: remove unnecessary locking
+    test/bench: note changes after recent improvements to locking and runtime
+    Some tests are significantly faster (50%), a few are slower (up to 30%).
+    Fannkuch is confusing: parallel code is a little slower for gc, non-parallel and all gccgo runs are faster.
     
-    R=rsc, dvyukov
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4819051
+    https://golang.org/cl/4830058
 
- src/pkg/runtime/proc.c | 3 ---
- 1 file changed, 3 deletions(-)
+ test/bench/timing.log | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

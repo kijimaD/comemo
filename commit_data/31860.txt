@@ -1,21 +1,23 @@
-commit 8d75558b766db3ee320297e97f021fbb615b13aa
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 16 20:37:21 2017 +0000
+commit 67a46cc1636362bea54ab68b521f77a778968ea2
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 20 20:24:26 2017 -0700
 
-    net/http: update bundled http2
+    encoding/gob: document the extra byte after a singleton
     
-    Updates http2 to x/net/http2 git rev 973f3f3 for:
+    This paragraph has been added, as the notion was missing from the
+    documentation.
     
-       http2: make Transport treat http.NoBody like it were nil
-       https://golang.org/cl/45993
+    If a value is passed to Encode and the type is not a struct (or pointer to struct,
+    etc.), for simplicity of processing it is represented as a struct of one field.
+    The only visible effect of this is to encode a zero byte after the value, just as
+    after the last field of an encoded struct, so that the decode algorithm knows when
+    the top-level value is complete.
     
-    Updates #18891
+    Fixes #16978
     
-    Change-Id: I846ccf286992ed2c6249014e51fdeb40b35e50ed
-    Reviewed-on: https://go-review.googlesource.com/46000
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5f008e792d1b6fe80d2e026a7ff716608889db32
+    Reviewed-on: https://go-review.googlesource.com/38414
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/h2_bundle.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/encoding/gob/doc.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,29 +1,20 @@
-commit d64c49098c626ea58f2265866dd576e138c15b29
-Author: Fatih Arslan <ftharsln@gmail.com>
-Date:   Sun May 28 02:42:34 2017 +0300
+commit 527f3518dac8554161fd0535ab2c35df507062ff
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 7 10:57:55 2017 -0800
 
-    cmd/vet: set exit status to non zero for all cases
+    cmd/compile/internal/gc: skip autotmp vars in gc again
     
-    Vet returns with a nonzero exit for all possible messages in the
-    buildtag check. However for this file:
+    Instead of skipping them based on string matching much later in the
+    compilation process, skip them up front using the proper API.
     
-        //+buildlinux
+    Passes toolstash-check.
     
-        package main
-    
-    vet returns a zero exit status:
-    
-        $ go vet main.go
-        demo.go:1: possible malformed +build comment
-        $ echo $?
-        0
-    
-    This CL sets the exit status to non zero for the remaining messages in
-    the buildtag check.
-    
-    Change-Id: Ia2c35ebc3ec5ac311d2a0295b5b9fdd997a85726
-    Reviewed-on: https://go-review.googlesource.com/44371
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ibd4c0448a0701ba0de3235d4689ef300235fa1d9
+    Reviewed-on: https://go-review.googlesource.com/37930
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/buildtag.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/pgen.go | 4 ++++
+ src/cmd/internal/dwarf/dwarf.go     | 8 +-------
+ 2 files changed, 5 insertions(+), 7 deletions(-)

@@ -1,14 +1,18 @@
-commit 5ccd571f3e2798e4afe8affa354351b5055cb20d
-Author: Scott Bell <scott@sctsm.com>
-Date:   Mon May 16 12:51:52 2016 -0700
+commit 562e38c0afedc32887eccb093fa710b36eb7588d
+Author: Joe Sylve <joe.sylve@gmail.com>
+Date:   Fri Mar 25 13:51:56 2016 -0500
 
-    crypto/tls: document certificate chains in LoadX509KeyPair
+    runtime: fix signal handling on Solaris
     
-    Fixes #15348
+    This fixes the problems with signal handling that were inadvertently
+    introduced in https://go-review.googlesource.com/21006.
     
-    Change-Id: I9e0e1e3a26fa4cd697d2c613e6b4952188b7c7e1
-    Reviewed-on: https://go-review.googlesource.com/23150
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #14899
+    
+    Change-Id: Ia746914dcb3146a52413d32c57b089af763f0810
+    Reviewed-on: https://go-review.googlesource.com/21145
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/tls.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/runtime/signal_solaris_amd64.go | 4 ----
+ src/runtime/sys_solaris_amd64.s     | 7 +++----
+ 2 files changed, 3 insertions(+), 8 deletions(-)

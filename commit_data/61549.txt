@@ -1,0 +1,34 @@
+commit 6c660052856feae2bf1f3fe44665b5da0002500d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 21 17:01:23 2024 +0000
+
+    internal/sync: move sync.Mutex implementation into new package
+    
+    This CL refactors sync.Mutex such that its implementation lives in the
+    new internal/sync package. The purpose of this change is to eventually
+    reverse the dependency edge between internal/concurrent and sync, such
+    that sync can depend on internal/concurrent (or really, its contents,
+    which will likely end up in internal/sync).
+    
+    The only change made to the sync.Mutex code is the frame skip count for
+    mutex profiling, so that the internal/sync frames are omitted in the
+    profile.
+    
+    Change-Id: Ib3603d30e8e71508c4ea883a584ae2e51ce40c3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594056
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/internal/objabi/pkgspecial.go |   2 +-
+ src/go/build/deps_test.go             |   1 +
+ src/internal/sync/mutex.go            | 234 ++++++++++++++++++++++++++++++++++
+ src/internal/sync/runtime.go          |  52 ++++++++
+ src/runtime/mprof.go                  |   2 +-
+ src/runtime/panic.go                  |  10 ++
+ src/runtime/proc.go                   |  40 ++++--
+ src/runtime/sema.go                   |  13 +-
+ src/sync/mutex.go                     | 207 +-----------------------------
+ src/sync/runtime.go                   |  11 +-
+ src/sync/rwmutex.go                   |  12 +-
+ 11 files changed, 348 insertions(+), 236 deletions(-)

@@ -1,18 +1,26 @@
-commit 9463638ca883f07467ad8e294cf3ba7f7b175eb2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 15 16:44:57 2022 -0400
+commit bff39cf6cb5bbe1575fdd95682c991ef35e97289
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 4 19:29:08 2021 -0700
 
-    runtime: convert gcController.dedicatedMarkTime to atomic type
+    cmd/compile: add automated rewrite cycle detection
     
-    For #53821.
+    A common bug during development is to introduce rewrite rule cycles.
+    This is annoying because it takes a while to notice that
+    make.bash is a bit too slow this time, and to remember why.
+    And then you have to manually arrange to debug.
     
-    Change-Id: I772b58b21392855af95ee5b932cdd7a0b507e4e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417781
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Make this all easier by automating it.
+    Detect cycles, and when we detect one, print the sequence
+    of rewrite rules that occur within a single cycle before crashing.
+    
+    Change-Id: I8dadda13990ab925a81940d4833c9e5243368435
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347829
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/align_runtime_test.go |  1 -
- src/runtime/mgc.go                |  4 ++--
- src/runtime/mgcpacer.go           | 12 ++++++------
- 3 files changed, 8 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/html.go    |  2 +-
+ src/cmd/compile/internal/ssa/print.go   | 32 +++++++++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/rewrite.go | 26 ++++++++++++++++++++++++++
+ 3 files changed, 52 insertions(+), 8 deletions(-)

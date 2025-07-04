@@ -1,84 +1,51 @@
-commit c4b65fa4cc4b799cad461779564af30dbf232f13
-Author: Hugues Bruant <hugues.bruant@gmail.com>
-Date:   Sat Oct 21 15:58:37 2017 -0700
+commit df709828255ba5a0e66c668b22bf555b35475d13
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Aug 9 14:50:58 2017 -0500
 
-    cmd/compile: inline closures with captures
+    cmd/compile/internal/ssa: use sse to zero on amd64
     
-    When inlining a closure with captured variables, walk up the
-    param chain to find the one that is defined inside the scope
-    into which the function is being inlined, and map occurrences
-    of the captures to temporary inlvars, similarly to what is
-    done for function parameters.
+    Use 16-byte stores instead of 8-byte stores to zero small blocks.
+    Also switch to duffzero for 65+ bytes only, because for each
+    duffzero call we also save/restore BP, so call requires 4 instructions
+    and replacing it with 4 sse stores doesn't cause code-bloat.
+    Also switch duffzero to use leaq, instead of addq to avoid clobbering flags.
     
-    No noticeable impact on compilation speed and binary size.
+    ClearFat8-6     0.54ns ± 0%  0.54ns ± 0%     ~     (all equal)
+    ClearFat12-6    1.07ns ± 0%  1.07ns ± 0%     ~     (all equal)
+    ClearFat16-6    1.07ns ± 0%  0.69ns ± 0%  -35.51%  (p=0.001 n=8+9)
+    ClearFat24-6    1.61ns ± 1%  1.07ns ± 0%  -33.33%  (p=0.000 n=10+10)
+    ClearFat32-6    2.14ns ± 0%  1.07ns ± 0%  -50.00%  (p=0.001 n=8+9)
+    ClearFat40-6    2.67ns ± 1%  1.61ns ± 0%  -39.72%  (p=0.000 n=10+8)
+    ClearFat48-6    3.75ns ± 0%  2.68ns ± 0%  -28.59%  (p=0.000 n=9+9)
+    ClearFat56-6    4.29ns ± 0%  3.22ns ± 0%  -25.10%  (p=0.000 n=9+9)
+    ClearFat64-6    4.30ns ± 0%  3.22ns ± 0%  -25.15%  (p=0.000 n=8+8)
+    ClearFat128-6   7.50ns ± 1%  7.51ns ± 0%     ~     (p=0.767 n=10+9)
+    ClearFat256-6   13.9ns ± 1%  13.9ns ± 1%     ~     (p=0.257 n=10+10)
+    ClearFat512-6   26.8ns ± 0%  26.8ns ± 0%     ~     (p=0.467 n=8+8)
+    ClearFat1024-6  52.5ns ± 0%  52.5ns ± 0%     ~     (p=1.000 n=8+8)
     
-    Minor improvements to go1 benchmarks on darwin/amd64
+    Also shaves ~20kb from go tool:
     
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              2.59s ± 3%     2.58s ± 1%    ~     (p=0.470 n=19+19)
-    Fannkuch11-4                3.15s ± 2%     3.15s ± 1%    ~     (p=0.647 n=20+19)
-    FmtFprintfEmpty-4          43.7ns ± 3%    43.4ns ± 4%    ~     (p=0.178 n=18+20)
-    FmtFprintfString-4         74.0ns ± 2%    77.1ns ± 7%  +4.13%  (p=0.000 n=20+20)
-    FmtFprintfInt-4            77.2ns ± 3%    79.2ns ± 6%  +2.53%  (p=0.000 n=20+20)
-    FmtFprintfIntInt-4          112ns ± 4%     112ns ± 2%    ~     (p=0.672 n=20+19)
-    FmtFprintfPrefixedInt-4     136ns ± 1%     135ns ± 2%    ~     (p=0.827 n=16+20)
-    FmtFprintfFloat-4           232ns ± 2%     233ns ± 1%    ~     (p=0.194 n=20+20)
-    FmtManyArgs-4               490ns ± 2%     484ns ± 2%  -1.28%  (p=0.001 n=20+20)
-    GobDecode-4                6.68ms ± 2%    6.72ms ± 2%    ~     (p=0.113 n=20+19)
-    GobEncode-4                5.62ms ± 2%    5.71ms ± 2%  +1.64%  (p=0.000 n=20+19)
-    Gzip-4                      235ms ± 3%     236ms ± 2%    ~     (p=0.607 n=20+19)
-    Gunzip-4                   37.1ms ± 2%    36.8ms ± 3%    ~     (p=0.060 n=20+20)
-    HTTPClientServer-4         61.9µs ± 2%    62.7µs ± 4%  +1.24%  (p=0.007 n=18+19)
-    JSONEncode-4               12.5ms ± 2%    12.4ms ± 3%    ~     (p=0.192 n=20+20)
-    JSONDecode-4               51.6ms ± 3%    51.0ms ± 3%  -1.19%  (p=0.008 n=20+19)
-    Mandelbrot200-4            4.12ms ± 6%    4.06ms ± 5%    ~     (p=0.063 n=20+20)
-    GoParse-4                  3.12ms ± 5%    3.10ms ± 2%    ~     (p=0.402 n=19+19)
-    RegexpMatchEasy0_32-4      80.7ns ± 2%    75.1ns ± 9%  -6.94%  (p=0.000 n=17+20)
-    RegexpMatchEasy0_1K-4       197ns ± 2%     186ns ± 2%  -5.43%  (p=0.000 n=20+20)
-    RegexpMatchEasy1_32-4      77.5ns ± 4%    71.9ns ± 7%  -7.25%  (p=0.000 n=20+18)
-    RegexpMatchEasy1_1K-4       341ns ± 3%     341ns ± 3%    ~     (p=0.732 n=20+20)
-    RegexpMatchMedium_32-4      113ns ± 2%     112ns ± 3%    ~     (p=0.102 n=20+20)
-    RegexpMatchMedium_1K-4     36.6µs ± 2%    35.8µs ± 2%  -2.26%  (p=0.000 n=18+20)
-    RegexpMatchHard_32-4       1.75µs ± 3%    1.74µs ± 2%    ~     (p=0.473 n=20+19)
-    RegexpMatchHard_1K-4       52.6µs ± 2%    52.0µs ± 3%  -1.15%  (p=0.005 n=20+20)
-    Revcomp-4                   381ms ± 4%     377ms ± 2%    ~     (p=0.067 n=20+18)
-    Template-4                 57.3ms ± 2%    57.7ms ± 2%    ~     (p=0.108 n=20+20)
-    TimeParse-4                 291ns ± 3%     292ns ± 2%    ~     (p=0.585 n=20+20)
-    TimeFormat-4                314ns ± 3%     315ns ± 1%    ~     (p=0.681 n=20+20)
-    [Geo mean]                 47.4µs         47.1µs       -0.73%
+    go_old 10384994
+    go_new 10364514 [-20480 bytes]
     
-    name                     old speed      new speed      delta
-    GobDecode-4               115MB/s ± 2%   114MB/s ± 2%    ~     (p=0.115 n=20+19)
-    GobEncode-4               137MB/s ± 2%   134MB/s ± 2%  -1.63%  (p=0.000 n=20+19)
-    Gzip-4                   82.5MB/s ± 3%  82.4MB/s ± 2%    ~     (p=0.612 n=20+19)
-    Gunzip-4                  523MB/s ± 2%   528MB/s ± 3%    ~     (p=0.060 n=20+20)
-    JSONEncode-4              155MB/s ± 2%   156MB/s ± 3%    ~     (p=0.192 n=20+20)
-    JSONDecode-4             37.6MB/s ± 3%  38.1MB/s ± 3%  +1.21%  (p=0.007 n=20+19)
-    GoParse-4                18.6MB/s ± 4%  18.7MB/s ± 2%    ~     (p=0.405 n=19+19)
-    RegexpMatchEasy0_32-4     396MB/s ± 2%   426MB/s ± 8%  +7.56%  (p=0.000 n=17+20)
-    RegexpMatchEasy0_1K-4    5.18GB/s ± 2%  5.48GB/s ± 2%  +5.79%  (p=0.000 n=20+20)
-    RegexpMatchEasy1_32-4     413MB/s ± 4%   444MB/s ± 6%  +7.46%  (p=0.000 n=20+19)
-    RegexpMatchEasy1_1K-4    3.00GB/s ± 3%  3.00GB/s ± 3%    ~     (p=0.678 n=20+20)
-    RegexpMatchMedium_32-4   8.82MB/s ± 2%  8.90MB/s ± 3%  +0.99%  (p=0.044 n=20+20)
-    RegexpMatchMedium_1K-4   28.0MB/s ± 2%  28.6MB/s ± 2%  +2.32%  (p=0.000 n=18+20)
-    RegexpMatchHard_32-4     18.3MB/s ± 3%  18.4MB/s ± 2%    ~     (p=0.482 n=20+19)
-    RegexpMatchHard_1K-4     19.5MB/s ± 2%  19.7MB/s ± 3%  +1.18%  (p=0.004 n=20+20)
-    Revcomp-4                 668MB/s ± 4%   674MB/s ± 2%    ~     (p=0.066 n=20+18)
-    Template-4               33.8MB/s ± 2%  33.6MB/s ± 2%    ~     (p=0.104 n=20+20)
-    [Geo mean]                124MB/s        126MB/s       +1.54%
+    section differences
+    global text (code) = -20585 bytes (-0.532047%)
+    read-only data = -302 bytes (-0.018101%)
+    Total difference -20887 bytes (-0.348731%)
     
-    Updates #15561
-    Updates #18270
-    
-    Change-Id: I980086efe28b36aa27f81577065e2a729ff03d4e
-    Reviewed-on: https://go-review.googlesource.com/72490
-    Reviewed-by: Hugues Bruant <hugues.bruant@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I15854e87544545c1af24775df895e38e16e12694
+    Reviewed-on: https://go-review.googlesource.com/54410
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/inl.go |  77 +++++++++++++++++++++-----
- test/closure3.dir/main.go          | 110 +++++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue20250.go       |   2 +-
- test/inline.go                     |  33 +++++++++++
- 4 files changed, 208 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go       |   6 +-
+ src/cmd/compile/internal/amd64/ssa.go        |   9 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  45 +++---
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   1 -
+ src/cmd/compile/internal/ssa/opGen.go        |   1 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 209 ++++++++++++++++++---------
+ src/runtime/duff_amd64.s                     |  32 ++--
+ src/runtime/mkduff.go                        |   2 +-
+ 8 files changed, 192 insertions(+), 113 deletions(-)

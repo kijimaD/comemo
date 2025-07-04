@@ -1,16 +1,25 @@
-commit 45861a64d311e05c43f18d58d53ae258222519c8
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Fri Mar 1 12:08:00 2019 +0100
+commit 26d22609c389cd9b5a21939183b6411e5861e16b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 2 15:55:38 2018 -0700
 
-    androidtest.bash: delete
+    spec: distinguish between explicit and implicit conversions (clarification)
     
-    Android now works with all.bash.
+    The spec used the term "conversion" somewhat indiscriminately for
+    explicit conversions that appear literally in the source, and implicit
+    conversions that are implied by the context of an expression.
+    Be clearer about it by defining the terms.
     
-    Change-Id: I1087308865d2eb31f02501b5798e14d11145b185
-    Reviewed-on: https://go-review.googlesource.com/c/164700
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also, state that integer to string conversions of the form string(x)
+    are never implicit. This clarifies situations where implicit conversions
+    might require an integer to change to a string (but don't and never have
+    done so). See line 3948.
+    
+    Fixes #26313.
+    
+    Change-Id: I8939466df6b5950933ae7c987662ef9f88827fda
+    Reviewed-on: https://go-review.googlesource.com/c/139099
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/android/go_android_exec.go |  5 ++---
- src/androidtest.bash            | 37 -------------------------------------
- 2 files changed, 2 insertions(+), 40 deletions(-)
+ doc/go_spec.html | 39 +++++++++++++++++++++++----------------
+ 1 file changed, 23 insertions(+), 16 deletions(-)

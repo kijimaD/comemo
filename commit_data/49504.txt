@@ -1,27 +1,35 @@
-commit 4b236b45d0bb659a447dcfc02ebd431587b52e2b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jun 17 19:56:27 2022 +0000
+commit 4a9f0cec2918c855a23d5581c0b1da95eb11dd17
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 24 00:32:30 2021 -0700
 
-    runtime: convert flaky semaphore linearity test into benchmark
+    cmd/compile: change irgen to generate exprs/stmts after decls processed
     
-    Also, add a benchmark for another case that was originally tested.
+    This CL changes irgen to wait until all top-level declarations have
+    been processed before constructing any expressions or statements that
+    reference them. This is the same approach that typecheck used.
     
-    Also also, remove all the dead code this now creates.
+    Mechanically, it splits varDecl and funcDecl (the two top-level
+    declarations that can generate/contain code) into a part that runs
+    immediately for constructing the ir.ONAME, and then a separate task
+    that runs later to handle the code.
     
-    Fixes #53428.
+    It also adds an exprStmtOK flag to indicate when it's actually safe to
+    start constructing (non-trivial) expressions and statements.
     
-    Change-Id: Idbba88d3d31d38a8854fd5ed99001e394da27300
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412878
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Fixes #47928.
+    
+    Change-Id: I51942af6823aa561d341e2ffc1142948da025fa2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344649
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/go/build/deps_test.go       |   5 +-
- src/internal/testenv/testenv.go |  65 ------------
- src/internal/testmath/bench.go  |  38 -------
- src/internal/testmath/ttest.go  | 213 ----------------------------------------
- src/runtime/sema.go             |   4 +-
- src/runtime/sema_test.go        |  87 ++++++++++------
- 6 files changed, 58 insertions(+), 354 deletions(-)
+ src/cmd/compile/internal/noder/decl.go  | 122 ++++++++++++++++++--------------
+ src/cmd/compile/internal/noder/expr.go  |   2 +
+ src/cmd/compile/internal/noder/irgen.go |  27 ++++++-
+ src/cmd/compile/internal/noder/stmt.go  |   6 +-
+ test/fixedbugs/issue47928.go            |  21 ++++++
+ 5 files changed, 120 insertions(+), 58 deletions(-)

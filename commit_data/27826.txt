@@ -1,17 +1,27 @@
-commit 77e68ea78abc08f827041384e0198576da44db9f
-Author: Gyu-Ho Lee <gyuhox@gmail.com>
-Date:   Sat Jun 4 23:08:19 2016 -0700
+commit 6b0b3f86d6b3c2cf01c7ed6080e038bda2c12997
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 13 13:30:03 2016 -0400
 
-    archive/tar: preallocate slice from paxHeaders
+    cmd/compile: fix use of original spill name after sinking
     
-    Preallocate keys slice with the length of paxHeaders map
-    to prevent slice growth with append operations.
+    This is a fix for the ssacheck builder
+    http://build.golang.org/log/baa00f70c34e41186051cfe90568de3d91f115d7
+    after CL 21307 for sinking spills down loop exits
+    https://go-review.googlesource.com/#/c/21037/
     
-    Change-Id: Ic9a927c4eaa775690a4ef912d61dd06f38e11510
-    Reviewed-on: https://go-review.googlesource.com/23782
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    The fix is to reuse (move) the original spill, thus preserving
+    the definition of the variable and its use count. Original and
+    copy both use the same stack slot, but ssacheck needs to see
+    a definition for the variable itself.
+    
+    Fixes #15279.
+    
+    Change-Id: I286285490193dc211b312d64dbc5a54867730bd6
+    Reviewed-on: https://go-review.googlesource.com/21995
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/writer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/check.go    | 10 +++++-----
+ src/cmd/compile/internal/ssa/regalloc.go | 32 ++++++++++++++++++++++++--------
+ 2 files changed, 29 insertions(+), 13 deletions(-)

@@ -1,25 +1,27 @@
-commit 430ae97a2599e840bdeb934d5be171efb4a41272
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Apr 21 14:06:20 2022 +0100
+commit ff6f2051d9151a03d012c3020c62f3574e1b2d1b
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Jun 17 11:54:10 2021 -0700
 
-    go/format: skip go/ast's object resolution
+    [dev.fuzz] internal/fuzz: refactor byte slice mutators
     
-    Just like https://golang.org/cl/401454 removed the work from gofmt for a
-    nice ~5% speed-up in the default case, we can also use the option in the
-    equivalent go/format for programs which use it rather than gofmt,
-    as go/format makes no use of objects either.
+    Move all byte slice mutators into their own functions and randomly pick
+    from a slice, rather than using a large switch statement. Additionally
+    tests are added for each mutator which, lightly, test that they are
+    working as intended.
     
-    No benchmark numbers as we already measured the ~5% speed-up with gofmt
-    in the other CL linked above.
+    Other type mutators are left as-is for a similar refactor in the future.
     
-    See #46485.
-    
-    Change-Id: Icbf98e6d46a616081314e2faa13f1dfade3bbaef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401474
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ifd4447b885885b3cc068748f33cc5d1ea25af62f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329089
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/format/format.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/fuzz/mutator.go                 | 296 +++-----------------------
+ src/internal/fuzz/mutators_byteslice.go      | 301 +++++++++++++++++++++++++++
+ src/internal/fuzz/mutators_byteslice_test.go | 171 +++++++++++++++
+ src/internal/fuzz/pcg.go                     |   8 +
+ 4 files changed, 510 insertions(+), 266 deletions(-)

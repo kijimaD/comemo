@@ -1,14 +1,12 @@
-commit 1feecdd633c1943e5c4a0ced3a14788ee00f343c
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Mar 2 11:31:13 2012 -0500
+commit 4d7d3f532896e70489bae7c9dc54ca88ccef91bc
+Author: Sanjay Menakuru <balasanjay@gmail.com>
+Date:   Fri Mar 2 11:29:09 2012 -0500
 
-    cmd/go: avoid repeated include dirs.
-    
-    Fixes #3171.
+    doc: fix some HTML errors in code.html
     
     R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5724045
+    CC=adg, golang-dev
+    https://golang.org/cl/5720050
 
- src/cmd/go/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/code.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

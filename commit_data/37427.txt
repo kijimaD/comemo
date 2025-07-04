@@ -1,24 +1,18 @@
-commit 92caeef8924ab0023719613f573b33d14cb3ef8e
-Author: marwan-at-work <marwan.sameer@gmail.com>
-Date:   Fri Nov 16 02:04:44 2018 +0000
+commit 682faae2e32b8b39ff812e8d1d31591125d31f3f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 25 14:55:42 2018 -0400
 
-    cmd/go: accept @hash/branch in mod download
+    cmd/go/internal/modload: inline doImport into doPkg
     
-    Go get in mod-enabled packages lets you do go get "pkg@<hash>" or "pkg@<branch>".
-    Go internally will switch the hash or branch into a pseudo version.
-    Go mod download should do the same. The bug lay in the fact that the disk cache
-    was not being written when Go converted the hash/branch into a pseudo version.
+    doImport is itself a thin wrapper around Import, and doPkg is its only call
+    site. I'm having trouble following what doPkg is doing due to the indirection,
+    so I'm removing it.
     
-    Fixes #27947
-    
-    Change-Id: I94c29a5c95f69ab18a9cd7a2ecade128047c5e36
-    GitHub-Last-Rev: 668634b3e70206c6eadabae5969fca1b03093b0d
-    GitHub-Pull-Request: golang/go#28042
-    Reviewed-on: https://go-review.googlesource.com/c/140257
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6167be68e869a36010a56a5869df50b1145ac813
+    Reviewed-on: https://go-review.googlesource.com/125837
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/modfetch/cache.go            |  8 +++++---
- src/cmd/go/testdata/script/mod_download_hash.txt | 23 +++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modload/load.go | 32 +++++++++++---------------------
+ 1 file changed, 11 insertions(+), 21 deletions(-)

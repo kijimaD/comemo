@@ -1,32 +1,20 @@
-commit 03da2690c9fefdbaff613f9ccc224b5f0abfbe16
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Nov 12 06:24:36 2016 -0500
+commit ea143c299040f8a270fb782c5efd3a3a5e6057a4
+Author: Thomas de Zeeuw <thomasdezeeuw@gmail.com>
+Date:   Thu Sep 1 14:54:08 2016 +0200
 
-    cmd/link, runtime, plugin: versioning
+    net/http/httptest: fill ContentLength in recorded Response
     
-    In plugins and every program that opens a plugin, include a hash of
-    every imported package.
+    This change fills the ContentLength field in the http.Response returned by
+    ResponseRecorder.Result.
     
-    There are two versions of each hash: one local and one exported.
-    As the program starts and plugins are loaded, the first exported
-    symbol for each package becomes the canonical version.
+    Fixes #16952.
     
-    Any subsequent plugin's local package hash symbol has to match the
-    canonical version.
-    
-    Fixes #17832
-    
-    Change-Id: I4e62c8e1729d322e14b1673bada40fa7a74ea8bc
-    Reviewed-on: https://go-review.googlesource.com/33161
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9c49b1bf83e3719b5275b03a43aff5033156637d
+    Reviewed-on: https://go-review.googlesource.com/28302
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testplugin/altpath/src/common/common.go   | 11 +++++++
- .../testplugin/altpath/src/plugin-mismatch/main.go | 17 +++++++++++
- misc/cgo/testplugin/src/host/host.go               |  9 ++++++
- misc/cgo/testplugin/test.bash                      |  1 +
- src/cmd/link/internal/ld/lib.go                    |  2 +-
- src/cmd/link/internal/ld/symtab.go                 | 35 ++++++++++++++++++++++
- src/plugin/plugin_dlopen.go                        |  8 +++--
- src/runtime/plugin.go                              |  9 ++++--
- src/runtime/symtab.go                              | 12 +++++++-
- 9 files changed, 98 insertions(+), 6 deletions(-)
+ src/net/http/httptest/recorder.go      | 20 ++++++++++++++++++++
+ src/net/http/httptest/recorder_test.go | 20 +++++++++++++++++++-
+ 2 files changed, 39 insertions(+), 1 deletion(-)

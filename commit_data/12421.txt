@@ -1,17 +1,16 @@
-commit eb2163ffbb9ce586ff01332c41549c8bb28462af
-Author: Maxim Pimenov <mpimenov@google.com>
-Date:   Tue Mar 6 09:33:35 2012 -0500
+commit 9eda2b997719c7c7fcb88d0d44cc92d5003887a2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Mar 6 08:02:39 2012 +0100
 
-    cmd/go: honour buildflags in go run
+    net: do not use reflect for DNS messages.
     
-    Either documentation or implementation
-    of go run's flags is wrong currently.
-    This change assumes the documentation
-    to be right.
+    Fixes #3201.
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/5752054
+    R=bradfitz, bradfitz, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5753045
 
- src/cmd/go/run.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/pkg/go/build/deps_test.go |   4 +-
+ src/pkg/net/dnsmsg.go         | 350 +++++++++++++++++++++++++++---------------
+ src/pkg/net/dnsmsg_test.go    |  11 ++
+ 3 files changed, 242 insertions(+), 123 deletions(-)

@@ -1,59 +1,12 @@
-commit a87382e7b3d569b57eda5af2973e2f73aabb7f56
+commit 70bf4215e9d9e6e4693e61657daaa52e6c4c3894
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 7 21:40:37 2011 -0700
+Date:   Thu Apr 7 19:41:55 2011 -0700
 
-    go/types: New Go type hierarchy implementation for AST.
+    scanner: better TokenString output
     
-    This CL defines a new, more Go-like representation of
-    Go types (different structs for different types as
-    opposed to a single Type node). It also implements
-    an ast.Importer for object/archive files generated
-    by the gc compiler tool chain. Besides the individual
-    type structs, the main difference is the handling of
-    named types: In the old world, a named type had a
-    non-nil *Object pointer but otherwise looked no
-    different from other types. In this new model, named
-    types have their own representation types.Name. As
-    a result, resolving cycles is a bit simpler during
-    construction, at the cost of having to deal with
-    types.Name nodes explicitly later. It remains to be
-    seen if this is a good approach. Nevertheless, code
-    involving types reads more nicely and benefits from
-    full type checking. Also, the representation seems
-    to more closely match the spec wording.
-    
-    Credits: The original version of the gc importer was
-    written by Evan Shaw (chickencha@gmail.com). The new
-    version in this CL is based largely on Evan's original
-    code but contains bug fixes, a few simplifications,
-    some restructuring, and was adjusted to use the
-    new type hierarchy. I have added a comprehensive test
-    that imports all packages found under $GOROOT/pkg (with
-    a 3s time-out to limit the run-time of the test). Run
-    gotest -v for details.
-    
-    The original version of ExportData (exportdata.go) was
-    written by Russ Cox (rsc@golang.org). The current version
-    is returning the internal buffer positioned at the beginning
-    of the export data instead of printing the export data to
-    stdout.
-    
-    With the new types package, the existing in-progress
-    typechecker package is deprecated. I will delete it
-    once all functionality has been brought over.
-    
-    R=eds, rog, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4314054
+    https://golang.org/cl/4373048
 
- src/pkg/Makefile                      |   1 +
- src/pkg/go/typechecker/typechecker.go |   2 +-
- src/pkg/go/types/Makefile             |  15 +
- src/pkg/go/types/const.go             | 347 +++++++++++++++
- src/pkg/go/types/exportdata.go        | 135 ++++++
- src/pkg/go/types/gcimporter.go        | 786 ++++++++++++++++++++++++++++++++++
- src/pkg/go/types/gcimporter_test.go   | 106 +++++
- src/pkg/go/types/testdata/exports.go  |  89 ++++
- src/pkg/go/types/types.go             | 122 ++++++
- src/pkg/go/types/universe.go          | 113 +++++
- 10 files changed, 1715 insertions(+), 1 deletion(-)
+ src/pkg/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

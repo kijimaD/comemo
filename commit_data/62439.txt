@@ -1,0 +1,24 @@
+commit bef2bb80a942a06bda2ff3aaedf46ff42d43aaf0
+Author: Than McIntosh <thanm@golang.org>
+Date:   Thu Dec 12 20:47:30 2024 -0500
+
+    cmd/compile,cmd/link: move to DWARF5-style location lists
+    
+    This patch updates the compiler to generate DWARF5-style location
+    lists (e.g. entries that feed into .debug_loclists) as opposed to
+    DWARF4-style location lists (which wind up in .debug_loc). The DWARF5
+    format is much more compact, and can make indirect references to text
+    addresses via the .debug_addr section for further space savings.
+    
+    Updates #26379.
+    
+    Change-Id: If2e6fce1136d9cba5125ea51a71419596d1d1691
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635836
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/ssa/debug.go | 61 ++++++++++++++++++++++++++++++++-
+ src/cmd/internal/dwarf/dwarf_defs.go  | 14 ++++++++
+ src/cmd/link/internal/ld/dwarf.go     | 64 +++++++++++++++++++++--------------
+ 3 files changed, 113 insertions(+), 26 deletions(-)

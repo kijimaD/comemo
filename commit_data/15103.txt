@@ -1,17 +1,24 @@
-commit b2e0c34cf32a82cf808bfc54134a2cf1d8042429
+commit ffc742b65803ac3ceee522b145380ad731317eed
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 3 01:25:47 2013 -0500
+Date:   Sun Feb 3 00:03:10 2013 -0500
 
-    cmd/gc: remove reference to ? and @ symbols in error message
+    cmd/gc: allow new conversion syntax
     
-    Those symbols are only allowed during imports;
-    the parser may expect them but saying that doesn't help users.
+    For consistency with conversions that look like function calls,
+    conversions that don't look like function calls now allow an
+    optional trailing comma.
     
-    Fixes #3434.
+    That is, int(x,) has always been syntactically valid.
+    Now []int(x,) is valid too.
+    
+    Fixes #4162.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/7277045
+    https://golang.org/cl/7288045
 
- src/cmd/gc/subr.c | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/gc/go.y             |    2 +-
+ src/cmd/gc/y.tab.c          | 1296 ++++++++++++++++++++++---------------------
+ src/cmd/gc/yerr.h           |    8 +-
+ test/fixedbugs/issue4162.go |   17 +
+ 4 files changed, 675 insertions(+), 648 deletions(-)

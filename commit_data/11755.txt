@@ -1,14 +1,14 @@
-commit 0a398c4057afeb13cd0c2bf61571dcf9c7ec2b1b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 10 10:29:57 2012 +1100
+commit 88a9e76e28d037d77aa1faef813c40189892e358
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 9 15:26:08 2012 -0800
 
-    net/http/fcgi: don't mention threads in docs
+    text/scanner: update comments
     
-    Fixes #2942
+    Fixes #2962.
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5650049
+    https://golang.org/cl/5652048
 
- src/pkg/net/http/fcgi/child.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/text/scanner/scanner.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

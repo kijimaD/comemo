@@ -1,16 +1,12 @@
-commit c2e26fad3ba0d6cd83366c15b9969272eb3004f4
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 10 14:50:03 2017 -0500
+commit 2b0e9e8e9ec26f9261b901cf67503ad2d16d3145
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 15:15:36 2017 +1000
 
-    cmd/go: more refined handling of cmd/compile magic environment variables
+    cmd/link: introduce and use peSection.checkOffset
     
-    Per discussion with David Chase, need to check GOSSAHASH$n
-    for increasing n until one is missing. Also if GSHS_LOGFILE is set,
-    the compiler writes to that file, so arrange never to cache in that case.
-    
-    Change-Id: I3931b4e296251b99abab9bbbbbdcf94ae8c1e2a6
-    Reviewed-on: https://go-review.googlesource.com/77111
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I093b79a8dd298bce8e8774c51a86a4873718978a
+    Reviewed-on: https://go-review.googlesource.com/56314
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/exec.go | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/pe.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

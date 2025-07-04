@@ -1,12 +1,20 @@
-commit bea9ae2f13812238773f08156c4b9eac4a73c72d
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Thu Jun 25 13:11:25 2015 -0400
+commit 2961cab965591dda932bdff6a0caf94560a5f108
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 12 16:01:51 2015 -0700
 
-    CONTRIBUTORS: add Arkadi Pyuro <arkadi@google.com>
+    runtime: remove _Kind constants
     
-    Change-Id: I88fea011e68a8f0d351d2a9dd81d6aa48bc7c7c7
-    Reviewed-on: https://go-review.googlesource.com/17731
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The duplication of _Kind and kind constants is a legacy of the
+    conversion from C.
+    
+    Change-Id: I368b35a41f215cf91ac4b09dac59699edb414a0e
+    Reviewed-on: https://go-review.googlesource.com/15800
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/export_test.go |  4 ++--
+ src/runtime/typekind.go    | 60 +++++++++++++++++++++++-----------------------
+ src/runtime/typekind1.go   | 39 ------------------------------
+ 3 files changed, 32 insertions(+), 71 deletions(-)

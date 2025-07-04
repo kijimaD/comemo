@@ -1,22 +1,55 @@
-commit 58447d757c233f2a9c3c5a73e2d96a6885f2759a
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Aug 7 17:03:43 2023 -0400
+commit 9a5574afe62b52836145fdf1423e1ac5bdad69d2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Aug 19 12:00:01 2022 +0100
 
-    cmd/go: fix missing case checking for empty slice
+    go/printer: reduce allocations to improve performance
     
-    When we were comparing the first element of import stacks when sorting
-    depserrors we checked if the first stack was non empty, but not the
-    second one. Do the check for both stacks.
+    First, we know that Go source files almost always weigh at least a few
+    kilobytes, so we can kickstart the output buffer to be a reasonable size
+    and reduce the initial number of incremental allocations and copies when
+    appending bytes or strings to output.
     
-    Fixes #61816
-    For #59905
+    Second, in nodeSize we use a nested printer, but we don't actually need
+    its printed bytes - we only need to know how many bytes it prints.
+    For that reason, use a throwaway buffer: the part of our output buffer
+    between length and capacity, as we haven't used it yet.
     
-    Change-Id: Id5c11c2b1104eec93196a08c53372ee2ba97c701
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516739
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Third, use a sync.Pool to reuse allocated printers.
+    The current API doesn't allow reusing printers,
+    and some programs like gofmt will print many files in sequence.
+    
+    Those changes combined result in a modest reduction in allocations and
+    CPU usage. The benchmark uses testdata/parser.go, which has just over
+    two thousand lines of code, which is pretty standard size-wise.
+    
+    We also split the Print benchmark to cover both a medium-sized ast.File
+    as well as a pretty small ast.Decl node. The latter is a somewhat common
+    scenario in gopls, which has code actions which alter small bits of the
+    AST and print them back out to rewrite only a few lines in a file.
+    
+            name          old time/op    new time/op     delta
+            PrintFile-16    5.43ms ± 1%     4.85ms ± 3%  -10.68%  (p=0.000 n=9+10)
+            PrintDecl-16    19.1µs ± 0%     18.5µs ± 1%   -3.04%  (p=0.000 n=10+10)
+    
+            name          old speed      new speed       delta
+            PrintFile-16  9.56MB/s ± 1%  10.69MB/s ± 3%  +11.81%  (p=0.000 n=8+10)
+            PrintDecl-16  1.67MB/s ± 0%   1.73MB/s ± 1%   +3.05%  (p=0.000 n=10+10)
+    
+            name          old alloc/op   new alloc/op    delta
+            PrintFile-16     332kB ± 0%      107kB ± 2%  -67.87%  (p=0.000 n=10+10)
+            PrintDecl-16    3.92kB ± 0%     3.28kB ± 0%  -16.38%  (p=0.000 n=10+10)
+    
+            name          old allocs/op  new allocs/op   delta
+            PrintFile-16     3.45k ± 0%      2.42k ± 0%  -29.90%  (p=0.000 n=10+10)
+            PrintDecl-16      56.0 ± 0%       46.0 ± 0%  -17.86%  (p=0.000 n=10+10)
+    
+    Change-Id: I475a3babca77532b2d51888f49710f74763d81d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424924
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/internal/list/list.go                |  3 +++
- src/cmd/go/testdata/script/list_issue_59905.txt | 26 +++++++++++++++++++++++--
- 2 files changed, 27 insertions(+), 2 deletions(-)
+ src/go/printer/performance_test.go | 47 +++++++++++++++++++++++++++--------
+ src/go/printer/printer.go          | 51 +++++++++++++++++++++++++++++---------
+ 2 files changed, 76 insertions(+), 22 deletions(-)

@@ -1,18 +1,18 @@
-commit 1e00cc1647916b705682f8721b8a9e9e095bf4ee
-Author: Brady Sullivan <brady@bsull.com>
-Date:   Mon Feb 22 15:19:18 2016 -0800
+commit 3f6b91b1136e25e75da71b727e536ba4f4066fd5
+Author: Charles Weill <weill@google.com>
+Date:   Fri Oct 23 16:08:20 2015 -0400
 
-    crypto/tls: Improve ambiguous comment in cipher_suites.go
+    encoding/xml: Add CDATA-wrapper output support to xml.Marshal.
     
-    A comment existed referencing RC4 coming before AES because of it's
-    vulnerability to the Lucky 13 attack. This clarifies that the Lucky 13 attack
-    only effects AES-CBC, and not AES-GCM.
+    Fixes #12963
     
-    Fixes #14474
-    
-    Change-Id: Idcb07b5e0cdb0f9257cf75abea60129ba495b5f5
-    Reviewed-on: https://go-review.googlesource.com/19845
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icc50dfb6130fe1e189d45f923c2f7408d3cf9401
+    Reviewed-on: https://go-review.googlesource.com/16047
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/tls/cipher_suites.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/xml/marshal.go      | 34 ++++++++++++++++++++--------
+ src/encoding/xml/marshal_test.go | 49 ++++++++++++++++++++++++++++++++++++++++
+ src/encoding/xml/read.go         |  2 +-
+ src/encoding/xml/typeinfo.go     |  7 ++++--
+ src/encoding/xml/xml.go          | 40 ++++++++++++++++++++++++++++++++
+ 5 files changed, 120 insertions(+), 12 deletions(-)

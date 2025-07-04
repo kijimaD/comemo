@@ -1,20 +1,19 @@
-commit 2ebc3d8157fedba633ce90c5454827512734a793
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Aug 26 16:18:24 2019 -0400
+commit 6c527aa58355b936fa173828139a3e245a3ddba6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 11 23:23:08 2019 -0400
 
-    crypto/tls: make SSLv3 again disabled by default
+    cmd/dist: revert mod=vendor change accidentally included in CL 164623
     
-    It was mistakenly re-enabled in CL 146217.
+    I thought I had removed all of the 'mod=vendor' hacks I had inserted
+    previously, but apparently missed this one in a bad merge or rebase.
     
-    Fixes #33837
+    Updates #30228
     
-    Change-Id: I8c0e1787114c6232df5888e51e355906622295bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191877
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ia5aea754bf986458373fefd08fa9dd3941e31e43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167077
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.13.html                         | 13 +++++++++----
- src/crypto/tls/common.go                |  4 ++++
- src/crypto/tls/handshake_server_test.go | 14 ++++++++++++++
- 3 files changed, 27 insertions(+), 4 deletions(-)
+ src/cmd/dist/build.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

@@ -1,25 +1,20 @@
-commit 923299a6b85d22160dfdacca18f24ac6517ec1de
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Oct 30 20:00:54 2017 +1100
+commit b3465646ff15e2226a451c8183d8e6b8fef4b479
+Author: Filippo Valsorda <filippo@cloudflare.com>
+Date:   Fri Jun 2 12:33:50 2017 -0700
 
-    cmd/link: restore windows stack commit size back to 4KB
+    crypto/tls: add BenchmarkHandshakeServer
     
-    CL 49331 increased windows stack commit size to 2MB by mistake.
-    Revert that change.
+    name                                       time/op
+    HandshakeServer/RSA-4                      1.10ms ± 0%
+    HandshakeServer/ECDHE-P256-RSA-4           1.23ms ± 1%
+    HandshakeServer/ECDHE-P256-ECDSA-P256-4     178µs ± 1%
+    HandshakeServer/ECDHE-X25519-ECDSA-P256-4   180µs ± 2%
+    HandshakeServer/ECDHE-P521-ECDSA-P521-4    19.8ms ± 1%
     
-    Fixes #22439
-    
-    Change-Id: I919e549e87da326f4ba45890b4d32f6d7046186f
-    Reviewed-on: https://go-review.googlesource.com/74490
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I6b2c79392995d259cfdfc5199be44cc7cc40e155
+    Reviewed-on: https://go-review.googlesource.com/44730
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/cmd/link/internal/ld/pe.go                    | 11 ++++-
- src/internal/syscall/windows/mksyscall.go         |  2 +-
- src/internal/syscall/windows/psapi_windows.go     | 20 +++++++++
- src/internal/syscall/windows/zsyscall_windows.go  | 14 ++++++
- src/runtime/crash_cgo_test.go                     | 18 ++++++++
- src/runtime/syscall_windows_test.go               |  4 ++
- src/runtime/testdata/testprog/syscall_windows.go  | 45 ++++++++++++++++++-
- src/runtime/testdata/testprogcgo/stack_windows.go | 54 +++++++++++++++++++++++
- 8 files changed, 164 insertions(+), 4 deletions(-)
+ src/crypto/tls/handshake_server_test.go | 87 +++++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)

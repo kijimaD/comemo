@@ -1,19 +1,20 @@
-commit e8f2eb43492df599efd65a2e01e9e8618fe46632
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 29 13:50:30 2015 -0400
+commit 4a1957d0aaad9c6700b4bdab19af611e68468bf3
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 26 15:21:18 2015 -0400
 
-    cmd/compile: allow linker to drop string headers when not needed
+    runtime: use stripped test environment for TestGdbPython
     
-    Compiling a simple file containing a slice of 100,000 strings,
-    the size of the resulting binary dropped from 5,896,224 bytes
-    to 3,495,968 bytes, which is the expected 2,400,000 bytes,
-    give or take.
+    Most runtime tests that invoke the compiler to build a sub-test binary
+    do so with a special environment constructed by testEnv that strips
+    out environment variables that should apply to the test but not to the
+    build.
     
-    Fixes #7384.
+    Fix TestGdbPython to use this test environment when invoking go build,
+    like other tests do.
     
-    Change-Id: I3e551b5a1395b523a41b33518d81a1bf28da0906
-    Reviewed-on: https://go-review.googlesource.com/11698
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Iafdf89d4765c587cbebc427a5d61cb8a7e71b326
+    Reviewed-on: https://go-review.googlesource.com/10455
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/obj.go | 52 ++++++++++++++++++++++----------------
- 1 file changed, 30 insertions(+), 22 deletions(-)
+ src/runtime/runtime-gdb_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

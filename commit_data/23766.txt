@@ -1,16 +1,14 @@
-commit e9fcd6ed2b0ec7320bed95907380f3c0966da2cb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 15 00:18:51 2015 -0700
+commit 637d59859d3f13a55eaab7d683b5061fcbfd616c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 11 13:21:46 2015 -0700
 
-    cmd/link: if -B option was used, pass it to the external linker
+    spec: clarify meaning of x op= y
     
-    Fixes #10607.
+    Suggested by mdempsky (see also issue #11161).
     
-    Change-Id: Ib294cf65b07103b60f62b86b21ff2d07b25136fe
-    Reviewed-on: https://go-review.googlesource.com/12242
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1ab28febe19b7a092029499015073ce8749b4d99
+    Reviewed-on: https://go-review.googlesource.com/10960
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go |  4 ++
- test/fixedbugs/issue10607.go    | 31 ++++++++++++++++
- test/fixedbugs/issue10607a.go   | 81 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 116 insertions(+)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

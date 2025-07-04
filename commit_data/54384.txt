@@ -1,27 +1,22 @@
-commit dc0548f92fa23fe61dbf165e29bcbad09d7fb499
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jul 18 11:45:42 2023 -0400
+commit 6a2a11fc2836f2b4f5be1f035822ad18856f848a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Sep 19 20:24:14 2022 +0000
 
-    cmd/compile/internal/inline: add call site flag generation
+    misc/cgo/test: add asan and msan arena tests
     
-    Add code to detect call sites that are nested in loops, call sites
-    that are on an unconditional path to panic/exit, and call sites within
-    "init" functions. The panic-path processing reuses some of the
-    logic+state already present for the function flag version of "calls
-    panic/exit".
+    While we're here, replace a couple uses of os.Environ with cmd.Environ.
     
-    Updates #61502.
+    For #51317.
     
-    Change-Id: I1d728e0763282d3616a9cbc0a07c5cda115660f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511565
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ic5cf4a887a7975a8281223eec0f94df230b6f095
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431955
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/inline/inlheur/analyze.go |   2 +-
- .../inline/inlheur/analyze_func_callsites.go       | 137 ++++++++++++++++++--
- .../internal/inline/inlheur/analyze_func_flags.go  |  16 ++-
- .../internal/inline/inlheur/funcprops_test.go      |   4 +-
- .../inline/inlheur/testdata/props/README.txt       |   6 +-
- .../inline/inlheur/testdata/props/calls.go         | 142 +++++++++++++++++++++
- .../inline/inlheur/testdata/props/funcflags.go     |  27 ++--
- 7 files changed, 305 insertions(+), 29 deletions(-)
+ misc/cgo/testsanitizers/asan_test.go           |  4 +++-
+ misc/cgo/testsanitizers/cc_test.go             | 25 +++++++++++++++++++++++-
+ misc/cgo/testsanitizers/msan_test.go           | 12 +++++++++---
+ misc/cgo/testsanitizers/testdata/arena_fail.go | 27 ++++++++++++++++++++++++++
+ 4 files changed, 63 insertions(+), 5 deletions(-)

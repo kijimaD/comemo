@@ -1,14 +1,15 @@
-commit db37050f21466d4890dbe31362b7090a63ad3d8c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Jan 22 12:19:11 2014 +1100
+commit abd556ab70c652f480936540ed6598a3048c0669
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 21 19:44:51 2014 -0500
 
-    cmd/go: do not require a valid archChar when using -compiler gccgo
+    misc/cgo/testtls: make test less flaky
     
-    Fixes #7152.
+    Now it should always fail on ARM.
+    (The fix is on its way too.)
     
-    R=iant, rsc, gobot
+    R=iant, r, dave
     CC=golang-codereviews
-    https://golang.org/cl/54790044
+    https://golang.org/cl/55140043
 
- src/cmd/go/build.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ misc/cgo/testtls/tls.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

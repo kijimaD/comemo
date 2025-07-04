@@ -1,18 +1,26 @@
-commit 4e61c516f4230df225172eb1bc409e2f0dd6edeb
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jun 28 23:04:05 2015 -0400
+commit 2df1ccdbc6aac9e570e985437d741d723cb3497c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 22 13:58:03 2015 -0700
 
-    cmd/cgo: fix a problem with 'go build -compiler gccgo'
+    math/big: Always print exponent sign when using 'p' exponent for Floats.
     
-    Port of https://golang.org/cl/154360045 to Git.
-    Original author is Xia Bin <snyh@snyh.org> (already a contributor).
+    Float.Format supports the 'b' and 'p' format, both of which print
+    a binary ('p') exponent. The 'b' format always printed a sign ('+'
+    or '-') for the exponent; the 'p' format only printed a negative
+    sign for the exponent. This change makes the two consistent. It
+    also makes the 'p' format easier to read if the exponent is >= 0.
     
-    Fixes #8945.
+    Also:
+    - Comments added elsewhere.
     
-    Change-Id: I28bcaf3348794202ca59fbc3466bd7b9670030e4
-    Reviewed-on: https://go-review.googlesource.com/11658
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifd2e01bdafb3043345972ca22a90248d055bd29b
+    Reviewed-on: https://go-review.googlesource.com/10359
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- misc/cgo/test/issue8945.go | 16 ++++++++++++++++
- src/cmd/cgo/out.go         |  4 ++--
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ src/math/big/bits_test.go         | 20 ++++++++++----------
+ src/math/big/float.go             |  2 ++
+ src/math/big/float_test.go        | 30 +++++++++++++++---------------
+ src/math/big/floatconv.go         |  6 ++++++
+ src/math/big/floatconv_test.go    | 24 ++++++++++++------------
+ src/math/big/floatexample_test.go |  6 +++---
+ 6 files changed, 48 insertions(+), 40 deletions(-)

@@ -1,28 +1,12 @@
-commit efbd79ce5a1f200c02bd18e59b4e2c11808e6ab4
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Mar 7 08:05:10 2012 +1100
+commit 2184137cf3569bd665f256d03aeee659244e2552
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 7 07:54:56 2012 +1100
 
-    doc: remove unsued progs and makehtml script, update progs/run
-            Due to removal of go_tutorial, unused programs are removed.
-            makehtml is unnecessary (it also gives wrong messages when
-            the destination file doesn't exist)
-            progs/run now compiles all remaining programs under doc/progs.
-            Fixes #3076 (again)
+    path/filepath/path_test.go: repair and enable TestAbs
     
-    R=golang-dev, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5755053
+    https://golang.org/cl/5759051
 
- doc/Makefile              |  5 +++-
- doc/makehtml              | 17 --------------
- doc/progs/helloworld.go   | 11 ---------
- doc/progs/helloworld3.go  | 21 -----------------
- doc/progs/print.go        | 23 ------------------
- doc/progs/print_string.go | 21 -----------------
- doc/progs/run             | 11 +++++++--
- doc/progs/server.go       | 51 ----------------------------------------
- doc/progs/server1.go      | 56 --------------------------------------------
- doc/progs/sort.go         | 59 -----------------------------------------------
- doc/progs/strings.go      | 17 --------------
- doc/progs/sum.go          | 21 -----------------
- 12 files changed, 13 insertions(+), 300 deletions(-)
+ src/pkg/path/filepath/path_test.go | 66 +++++++++++++++++++++++++++-----------
+ 1 file changed, 47 insertions(+), 19 deletions(-)

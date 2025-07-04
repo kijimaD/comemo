@@ -1,15 +1,14 @@
-commit 7a77d8d1e9b006ae49fd456a8912a8ec03af8ec7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 13 10:12:25 2015 -0800
+commit 01295d79124c05e14329e67ae61d976c1beed573
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Jan 14 14:39:41 2015 -0500
 
-    math/big: use internal validation more consistently
+    syscall: use name+(NN)FP on linux/386
     
-    TBR adonovan
+    Generated from go vet.
     
-    Change-Id: If77afa6474af6cad6512f6866725e3ae5acf2e3f
-    Reviewed-on: https://go-review.googlesource.com/4840
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I8fee4095e43034b868bfd2b07e21ac13d5beabbb
+    Reviewed-on: https://go-review.googlesource.com/2816
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/float.go      | 79 +++++++++++++++++++++++++++++++---------------
- src/math/big/float_test.go | 12 +++++++
- 2 files changed, 65 insertions(+), 26 deletions(-)
+ src/syscall/asm_linux_386.s | 143 ++++++++++++++++++++++----------------------
+ 1 file changed, 70 insertions(+), 73 deletions(-)

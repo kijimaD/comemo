@@ -1,12 +1,14 @@
-commit 77f2763a6336fc86ba8d9aae4cfc890e46bc6e26
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 16 16:53:57 2015 -0700
+commit 5201bf7ad184cac07466016a78b80aed5e472be4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 20 22:16:29 2015 -0400
 
-    go/types: enable disabled test
+    net: do not look up abc by default
     
-    Change-Id: I101e9bc722f5ba4fa9941cb544d9c276fd4c0b8c
-    Reviewed-on: https://go-review.googlesource.com/14651
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #11665.
+    
+    Change-Id: I0897e8cf695434e77d14dcb1d96f21747edfe37c
+    Reviewed-on: https://go-review.googlesource.com/12523
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/testdata/issues.src | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/net/ip_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

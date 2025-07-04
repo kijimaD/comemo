@@ -1,12 +1,14 @@
-commit 087d5c08f871df16d6149562115eb455a2e0dbaf
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun May 3 23:29:34 2015 +0900
+commit d5bb4380c89bf688145204e0bc0dd1c2e1a77a9b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:36:26 2015 -0400
 
-    net: enable unixpacket tests on openbsd
+    cmd/pack: skip fork test on darwin/arm64
     
-    Change-Id: I0e1519d429a295faa70013687d6faf2f5ce0be24
-    Reviewed-on: https://go-review.googlesource.com/9713
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Just like darwin/arm.
+    
+    Change-Id: I5ed26975670d4189a46b585a56c66c199905d168
+    Reviewed-on: https://go-review.googlesource.com/8823
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/platform_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/pack/pack_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

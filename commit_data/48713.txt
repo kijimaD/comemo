@@ -1,36 +1,20 @@
-commit 8d581f589eb9b9eac05c75f0dfe82a49c3afcd2f
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Mar 24 10:09:13 2022 -0500
+commit b20747334a4a3dee51759369a098ef2a0c9dbcff
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 8 18:07:16 2021 -0400
 
-    crypto/aes: simplify key expansion in ppc64le asm
+    [dev.typeparams] cmd/compile, runtime: simplify opendefer metadata
     
-    The ported cryptogam implementation uses a subtle and tricky mechanism
-    using lxv/vperm/lvsl to load unaligned vectors. This is difficult to
-    read, and may read and write unrelated bytes if reading from an
-    unaligned address.
+    Now that deferred functions are always argumentless, we don't
+    need the metadata for the frame size, number of arguments, and
+    the information about each argument.
     
-    Instead, POWER8 instructions can be used to load from unaligned memory
-    with much less overhead. Alignment interrupts only occur when reading
-    or writing cache-inhibited memory, which we assume isn't used in go
-    today, otherwise alignment penalties are usually marginal.
-    
-    Instead lxvd2x+xxpermdi and xxpermdi+stxvd2x can be used to emulate
-    unaligned LE bytewise loads, similar to lxv/stxv on POWER9 in
-    little-endian mode.
-    
-    Likewise, a custom permute vector is used to emulate BE bytewise
-    storage operations, lxvb16x/stxvb16x, on POWER9.
-    
-    This greatly simplifies the code, and it makes it much easier to store
-    the keys in reverse (which is exactly how the decrypt keys are expected
-    to be stored).
-    
-    Change-Id: I2334337e31a8fdf8d13ba96231142a039f237098
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395494
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Trust: Paul Murphy <murp@ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I99e75248a22bda6efbdf2012a2f35beca4c18fd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326061
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/crypto/aes/asm_ppc64le.s | 132 ++++++++++++++++++-------------------------
- 1 file changed, 54 insertions(+), 78 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 22 ----------------------
+ src/runtime/panic.go                   | 17 ++---------------
+ 2 files changed, 2 insertions(+), 37 deletions(-)

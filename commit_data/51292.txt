@@ -1,18 +1,18 @@
-commit ddf78189d47ff97afb76d3b4e47edbf3eb0ee11c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:47:46 2022 -0500
+commit c1e7c518ae74d3902a2e8fd1f8d8a37cabe2c1cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 6 16:50:49 2022 -0800
 
-    cmd/pprof: use testenv.Command instead of exec.Command in tests
+    test/typeparam: adjust test preamble (fix longtests)
     
-    testenv.Command sets a default timeout based on the test's deadline
-    and sends SIGQUIT (where supported) in case of a hang.
+    For #50417.
     
-    Change-Id: Iabd114dd23b85da524e7ea8415f2bbf2c54b380f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450709
+    Change-Id: Ic55727c454ec342354f7fbffd22aa350e0d392c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376174
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/pprof/pprof_test.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ test/typeparam/issue50417.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

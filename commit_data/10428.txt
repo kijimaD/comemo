@@ -1,39 +1,15 @@
-commit a479a455489bc3600c004367f16c4d452705d2c9
+commit 4d27f64863ab8518f4ac9f20539bd20c16e77433
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 16 19:18:25 2011 -0500
+Date:   Wed Nov 16 18:44:21 2011 -0500
 
-    reflect: make Value an opaque struct
+    gofmt: do not stop test.sh after 1 error
     
-    Making Value opaque means we can drop the interface kludges
-    in favor of a significantly simpler and faster representation.
-    v.Kind() will be a prime candidate for inlining too.
+    Fix bug377.go to be gofmt-compliant.
     
-    On a Thinkpad X201s using -benchtime 10:
-    
-    benchmark                           old ns/op    new ns/op    delta
-    json.BenchmarkCodeEncoder           284391780    157415960  -44.65%
-    json.BenchmarkCodeMarshal           286979140    158992020  -44.60%
-    json.BenchmarkCodeDecoder           717175800    388288220  -45.86%
-    json.BenchmarkCodeUnmarshal         734470500    404548520  -44.92%
-    json.BenchmarkCodeUnmarshalReuse    707172280    385258720  -45.52%
-    json.BenchmarkSkipValue              24630036     18557062  -24.66%
-    
-    benchmark                            old MB/s     new MB/s  speedup
-    json.BenchmarkCodeEncoder                6.82        12.33    1.81x
-    json.BenchmarkCodeMarshal                6.76        12.20    1.80x
-    json.BenchmarkCodeDecoder                2.71         5.00    1.85x
-    json.BenchmarkCodeUnmarshal              2.64         4.80    1.82x
-    json.BenchmarkCodeUnmarshalReuse         2.74         5.04    1.84x
-    json.BenchmarkSkipValue                 77.92       103.42    1.33x
-    
-    I cannot explain why BenchmarkSkipValue gets faster.
-    Maybe it is one of those code alignment things.
-    
-    R=iant, r, gri, r
+    R=gri, r, r
     CC=golang-dev
-    https://golang.org/cl/5373101
+    https://golang.org/cl/5400045
 
- src/pkg/reflect/all_test.go |   47 +-
- src/pkg/reflect/type.go     |   36 +-
- src/pkg/reflect/value.go    | 1392 +++++++++++++++++++++----------------------
- 3 files changed, 741 insertions(+), 734 deletions(-)
+ src/cmd/gofmt/test.sh    | 9 +++++++--
+ test/fixedbugs/bug377.go | 2 +-
+ 2 files changed, 8 insertions(+), 3 deletions(-)

@@ -1,12 +1,28 @@
-commit 56a0bafdb66c95f31de86d9a713fa819911d50a5
+commit 3d2dfc5a7b254295d41d9104d6a53ebad5125afc
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 22 16:38:44 2013 -0500
+Date:   Fri Feb 22 16:08:56 2013 -0500
 
-    runtime: fix arm build
+    runtime: add cgocallback_gofunc that can call Go func value
+    
+    For now, all the callbacks from C use top-level Go functions,
+    so they use the equivalent C function pointer, and will continue
+    to do so. But perhaps some day this will be useful for calling
+    a Go func value (at least if the type is already known).
+    
+    More importantly, the Windows callback code needs to be able
+    to use cgocallback_gofunc to call a Go func value.
+    Should fix the Windows build.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/7399050
+    https://golang.org/cl/7388049
 
- src/pkg/runtime/asm_arm.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/asm_386.s                | 16 +++++++++++++++-
+ src/pkg/runtime/asm_amd64.s              | 16 +++++++++++++++-
+ src/pkg/runtime/asm_arm.s                | 16 +++++++++++++++-
+ src/pkg/runtime/callback_windows_386.c   |  2 +-
+ src/pkg/runtime/callback_windows_amd64.c |  2 +-
+ src/pkg/runtime/cgocall.c                |  8 +++-----
+ src/pkg/runtime/sys_windows_386.s        |  2 +-
+ src/pkg/runtime/sys_windows_amd64.s      |  6 +++---
+ 8 files changed, 54 insertions(+), 14 deletions(-)

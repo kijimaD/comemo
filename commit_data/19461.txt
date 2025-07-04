@@ -1,15 +1,30 @@
-commit c038c38ac1240202cfaaec21f917483869df31a9
+commit 0782ee3ad57a21bd3566f20e76e4e453613e7a23
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 28 15:48:35 2014 -0400
+Date:   Wed May 28 14:04:31 2014 -0400
 
-    doc/go1.3.html: math/big's Int and Rat implement TextMarshaler, TextUnmarshaler
+    cmd/cgo: given typedef struct S T, make C.T and C.struct_S interchangeable
     
-    Update #8112
+    For incomplete struct S, C.T and C.struct_S were interchangeable in Go 1.2
+    and earlier, because all incomplete types were interchangeable
+    (even C.struct_S1 and C.struct_S2).
     
-    LGTM=r
-    R=r
+    CL 76450043, which fixed issue 7409, made different incomplete types
+    different from Go's point of view, so that they were no longer completely
+    interchangeable.
+    
+    However, imprecision about C.T and C.struct_S - really the same
+    underlying C type - is the one behavior enabled by the bug that
+    is most likely to be depended on by existing cgo code.
+    Explicitly allow it, to keep that code working.
+    
+    Fixes #7786.
+    
+    LGTM=iant, r
+    R=golang-codereviews, iant, r
     CC=golang-codereviews
-    https://golang.org/cl/95640043
+    https://golang.org/cl/98580046
 
- doc/go1.3.html | 23 ++++++++++++++++-------
- 1 file changed, 16 insertions(+), 7 deletions(-)
+ doc/go1.3.html             |  8 +++++++-
+ misc/cgo/test/issue7786.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go         | 51 +++++++++++++++++++++++++++++++++++++++-------
+ 3 files changed, 102 insertions(+), 8 deletions(-)

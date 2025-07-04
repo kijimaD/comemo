@@ -1,12 +1,12 @@
-commit dba96cf411bc06cc3d75be160d420fc457b4a598
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Wed Mar 30 09:45:51 2011 -0700
+commit 6b567d26b74e7b98c540a9779a798cd95334dc87
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 30 16:41:41 2011 +1100
 
-    go/parser: fix scoping for local type declarations
+    godoc: remove errant space in HTML tag
     
     R=gri
     CC=golang-dev
-    https://golang.org/cl/4332045
+    https://golang.org/cl/4277087
 
- src/pkg/go/parser/parser.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/godoc/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

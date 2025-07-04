@@ -1,16 +1,18 @@
-commit 0332b6cf589a51f421a88176f756f0315c9f1491
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Mar 5 14:04:56 2017 +0100
+commit 50fed64dd90ca6a58cfe8fa7c1061aa8666cc76f
+Author: Keegan Carruthers-Smith <keegan.csmith@gmail.com>
+Date:   Fri Nov 4 09:31:35 2016 +0200
 
-    encoding/gob: remove unused ut and atyp parameters
+    go/doc: don't panic if method is missing recv type
     
-    Found by github.com/mvdan/unparam.
+    Fixes #17788
     
-    Change-Id: Ic97f05a2ecb5b17caa36aafe403e2266abea3e0e
-    Reviewed-on: https://go-review.googlesource.com/37836
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I2f8a11321dc8f10bebbc8df90ba00ec65b9ee0fa
+    Reviewed-on: https://go-review.googlesource.com/32790
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/encoding/gob/decode.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/go/doc/reader.go                    | 5 +++++
+ src/go/doc/testdata/issue17788.0.golden | 8 ++++++++
+ src/go/doc/testdata/issue17788.1.golden | 8 ++++++++
+ src/go/doc/testdata/issue17788.2.golden | 8 ++++++++
+ src/go/doc/testdata/issue17788.go       | 8 ++++++++
+ 5 files changed, 37 insertions(+)

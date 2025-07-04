@@ -1,16 +1,11 @@
-commit 64df53ed7f46db4a404812e2ef347521dc95a039
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Sep 26 11:02:09 2014 +1000
+commit 6c7b82e336a768b5b17b99a555feb14e6e405b21
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 17 14:50:49 2014 -0400
 
-    crypto/tls: ensure that we don't resume when tickets are disabled.
+    doc/go1.4.txt: add tinyallocs change
     
-    LGTM=r
-    R=r, adg, rsc
-    https://golang.org/cl/148080043
+    CC=golang-codereviews
+    https://golang.org/cl/145050043
 
- src/crypto/tls/handshake_server.go                 |  4 +
- src/crypto/tls/handshake_server_test.go            | 26 +++++++
- .../testdata/Server-TLSv12-IssueTicketPreDisable   | 87 ++++++++++++++++++++++
- .../tls/testdata/Server-TLSv12-ResumeDisabled      | 87 ++++++++++++++++++++++
- src/crypto/tls/ticket.go                           |  3 +-
- 5 files changed, 206 insertions(+), 1 deletion(-)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

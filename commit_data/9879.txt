@@ -1,13 +1,16 @@
-commit e7042418c5c41cebb6453c5d807b89e2619e7b88
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Thu Oct 6 07:22:48 2011 +0100
+commit 9a8da9d4999f53fa4487cf3e36c3e5bc59fd6fee
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Oct 5 14:36:02 2011 -0700
 
-    cgo: support for mingw-w64 4.5.1 and newer
+    exp/norm: LastBoundary is used in preparation for an append operation. It seems
+    therefore unlikely that there is a good use for its string version
+    LastBoundaryInString. Yet, the implemenation of this method would complicate
+    things a bit as it would require the introduction for another interface and
+    some duplication of code. Removing it seems a better choice.
     
-    R=rsc, jp, hectorchu
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4962051
+    https://golang.org/cl/5182044
 
- src/cmd/ld/ldpe.c           | 18 ++++++++++--------
- src/pkg/runtime/cgo/amd64.S |  2 +-
- 2 files changed, 11 insertions(+), 9 deletions(-)
+ src/pkg/exp/norm/normalize.go | 6 ------
+ 1 file changed, 6 deletions(-)

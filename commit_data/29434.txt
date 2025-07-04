@@ -1,31 +1,75 @@
-commit 41eb9bb993b22979eebffe4eaeeca53db8e7b388
-Author: Volodymyr Paprotski <vpaprots@ca.ibm.com>
-Date:   Fri Oct 14 16:19:25 2016 -0400
+commit e7cc9c4f4dee2d6f8a77ce177172ef4ae4ff0c90
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 14 14:02:50 2016 -0700
 
-    crypto/elliptic: add s390x assembly implementation of NIST P-256 Curve
+    cmd/compile: delete lots of the legacy backend
     
-    A paranoid go at constant time implementation of P256 curve.
+    It's not everything, but it is a good start.
     
-    This code relies on z13 SIMD instruction set. For zEC12 and below,
-    the fallback is the existing P256 implementation. To facilitate this
-    fallback mode, I've refactored the code so that implementations can
-    be picked at run-time.
+    I tried to make the CL delete only.  goimports forced
+    a few exceptions to that rule.
     
-    Its 'slightly' difficult to grok, but there is ASCII art..
+    Update #16357
     
-    name            old time/op  new time/op  delta
-    BaseMultP256     419µs ± 3%    27µs ± 1%  -93.65% (p=0.000 n=10+8)
-    ScalarMultP256  1.05ms ±10%  0.09ms ± 1%  -90.94% (p=0.000 n=10+8)
-    
-    Change-Id: Ic1ded898a2ceab055b1c69570c03179c4b85b177
-    Reviewed-on: https://go-review.googlesource.com/31231
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Change-Id: I041925cb2fe68bb7ae1617af862b22c48da649c1
+    Reviewed-on: https://go-review.googlesource.com/29168
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
 
- src/crypto/elliptic/p256.go          |   28 +-
- src/crypto/elliptic/p256_asm_s390x.s | 2201 ++++++++++++++++++++++++++++++++++
- src/crypto/elliptic/p256_generic.go  |   16 +
- src/crypto/elliptic/p256_s390x.go    |  513 ++++++++
- 4 files changed, 2746 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/amd64/cgen.go     |  161 --
+ src/cmd/compile/internal/amd64/galign.go   |   37 -
+ src/cmd/compile/internal/amd64/ggen.go     |  624 -----
+ src/cmd/compile/internal/amd64/gsubr.go    | 1260 ----------
+ src/cmd/compile/internal/amd64/peep.go     | 1025 --------
+ src/cmd/compile/internal/amd64/reg.go      |  102 +-
+ src/cmd/compile/internal/arm/cgen.go       |  224 --
+ src/cmd/compile/internal/arm/cgen64.go     |  859 -------
+ src/cmd/compile/internal/arm/galign.go     |   29 -
+ src/cmd/compile/internal/arm/ggen.go       |  431 ----
+ src/cmd/compile/internal/arm/gsubr.go      | 1085 ---------
+ src/cmd/compile/internal/arm/peep.go       | 1734 --------------
+ src/cmd/compile/internal/arm/reg.go        |   71 -
+ src/cmd/compile/internal/arm64/cgen.go     |  151 --
+ src/cmd/compile/internal/arm64/galign.go   |   29 -
+ src/cmd/compile/internal/arm64/ggen.go     |  448 ----
+ src/cmd/compile/internal/arm64/gsubr.go    |  760 ------
+ src/cmd/compile/internal/arm64/peep.go     |  797 -------
+ src/cmd/compile/internal/arm64/reg.go      |  116 +-
+ src/cmd/compile/internal/gc/cgen.go        | 3559 +---------------------------
+ src/cmd/compile/internal/gc/cplx.go        |  474 ----
+ src/cmd/compile/internal/gc/gen.go         |  960 +-------
+ src/cmd/compile/internal/gc/go.go          |   67 +-
+ src/cmd/compile/internal/gc/gsubr.go       |   79 -
+ src/cmd/compile/internal/gc/pgen.go        |   28 -
+ src/cmd/compile/internal/gc/popt.go        | 1094 ---------
+ src/cmd/compile/internal/gc/reg.go         | 1532 ------------
+ src/cmd/compile/internal/gc/sizeof_test.go |    1 -
+ src/cmd/compile/internal/mips64/cgen.go    |  157 --
+ src/cmd/compile/internal/mips64/galign.go  |   27 -
+ src/cmd/compile/internal/mips64/ggen.go    |  368 ---
+ src/cmd/compile/internal/mips64/gsubr.go   |  886 +------
+ src/cmd/compile/internal/mips64/peep.go    |  772 ------
+ src/cmd/compile/internal/mips64/reg.go     |  103 -
+ src/cmd/compile/internal/ppc64/cgen.go     |  143 --
+ src/cmd/compile/internal/ppc64/galign.go   |   27 -
+ src/cmd/compile/internal/ppc64/ggen.go     |  438 ----
+ src/cmd/compile/internal/ppc64/gsubr.go    |  826 -------
+ src/cmd/compile/internal/ppc64/peep.go     | 1032 --------
+ src/cmd/compile/internal/ppc64/reg.go      |  110 -
+ src/cmd/compile/internal/s390x/cgen.go     |  178 --
+ src/cmd/compile/internal/s390x/galign.go   |   27 -
+ src/cmd/compile/internal/s390x/ggen.go     |  411 ----
+ src/cmd/compile/internal/s390x/gsubr.go    |  869 -------
+ src/cmd/compile/internal/s390x/peep.go     | 1664 -------------
+ src/cmd/compile/internal/s390x/reg.go      |   76 -
+ src/cmd/compile/internal/x86/cgen.go       |  159 --
+ src/cmd/compile/internal/x86/cgen64.go     |  598 -----
+ src/cmd/compile/internal/x86/galign.go     |   33 -
+ src/cmd/compile/internal/x86/ggen.go       |  818 -------
+ src/cmd/compile/internal/x86/gsubr.go      | 1703 -------------
+ src/cmd/compile/internal/x86/peep.go       |  807 -------
+ src/cmd/compile/internal/x86/reg.go        |   74 -
+ 53 files changed, 10 insertions(+), 30033 deletions(-)

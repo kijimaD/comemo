@@ -1,0 +1,20 @@
+commit adf21a9b56f3498385152d701ddd0e8679fe57ed
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Apr 7 10:12:06 2025 +0000
+
+    internal/cpu: add a detection for Neoverse(N3, V3, V3ae) cores
+    
+    The memmove implementation relies on the variable
+    runtime.arm64UseAlignedLoads to select fastest code
+    path. Considering Neoverse N3, V3 and V3ae cores
+    prefer aligned loads, this patch adds code to detect
+    them for memmove performance.
+    
+    Change-Id: I7266fc35d8b2c15ff516c592b987bafacb82b620
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664038
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/cpu/cpu_arm64_hwcap.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

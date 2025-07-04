@@ -1,17 +1,21 @@
-commit b65091c11d711ff3b01cd25393305410e1b0b377
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 26 17:21:21 2021 -0500
+commit 3a4322627e781c05418a8cc40ebb9f547a6c4ac8
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Wed Jul 8 16:57:10 2020 -0400
 
-    cmd/go: add a test case that reproduces #44296
+    net: hangup TCP connection after Dial timeout in Plan 9
     
-    For #44296
+    After Dial timeout, force close the TCP connection by writing "hangup"
+    to the control file. This unblocks the "connect" command if the
+    connection is taking too long to establish, and frees up the control
+    file FD.
     
-    Change-Id: I310f99ccd406622e39f3fbfa12f7a3bee39602db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297149
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Fixes #40118
+    
+    Change-Id: I1cef8539cd9fe0793e32b49c9d0ef636b4b26e1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241638
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/cmd/go/testdata/script/mod_retract_versions.txt | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/net/ipsock_plan9.go | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)

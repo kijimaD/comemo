@@ -1,18 +1,13 @@
-commit c9d0c812142be1c8f224012f24d111ba46ccdc10
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Dec 4 11:24:23 2014 -0500
+commit d39907e6491fe1bed48f89ef9717ccb2ad249102
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 27 20:35:34 2014 -0700
 
-    cmd/pprof/internal/commands: add command to open browser on windows
+    doc/go1.4.html: runtime and performance
     
-    While we're at there, also add a message to prompt the user to install
-    Graphviz if "dot" command is not found.
-    
-    Fixes #9178.
-    
-    LGTM=adg, alex.brainman, cookieo9, rsc
-    R=rsc, adg, bradfitz, alex.brainman, cookieo9, smyrman
+    LGTM=adg, rsc
+    R=golang-codereviews, adg, bradfitz, dave, rsc
     CC=golang-codereviews
-    https://golang.org/cl/180380043
+    https://golang.org/cl/164090044
 
- src/cmd/pprof/internal/commands/commands.go | 26 ++++++++++++++++++++++----
- 1 file changed, 22 insertions(+), 4 deletions(-)
+ doc/go1.4.html | 81 +++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 77 insertions(+), 4 deletions(-)

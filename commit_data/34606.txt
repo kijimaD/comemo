@@ -1,43 +1,23 @@
-commit eb3c44b2c44ee99c7e24b181ce6abbb7d63df946
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 8 06:25:04 2018 -0800
+commit af37332d160e096fe5bedc551f318c7b76d4e57a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Nov 2 15:03:28 2017 -0700
 
-    cmd/compile: cleanup closure.go
+    io: fix Pipe regression with differing error types
     
-    The main thing is we now eagerly create the ODCLFUNC node for
-    closures, immediately cross-link them, and assign fields (e.g., Nbody,
-    Dcl, Parents, Marks) directly on the ODCLFUNC (previously they were
-    assigned on the OCLOSURE and later moved to the ODCLFUNC).
+    Usage of atomic.Value has a subtle requirement that the
+    value be of the same concrete type. In prior usage, the intention
+    was to consistently store a value of the error type.
+    Since error is an interface, the underlying concrete can differ.
     
-    This allows us to set Curfn to the ODCLFUNC instead of the OCLOSURE,
-    which makes things more consistent with normal function declarations.
-    (Notably, this means Cvars now hang off the ODCLFUNC instead of the
-    OCLOSURE.)
+    Fix this by creating a type-safe abstraction over atomic.Value
+    that wraps errors in a struct{error} type to ensure consistent types.
     
-    Assignment of xfunc symbol names also now happens before typechecking
-    their body, which means debugging output now provides a more helpful
-    name than "<S>".
-    
-    In golang.org/cl/66810, we changed "x := y" statements to avoid
-    creating false closure variables for x, but we still create them for
-    struct literals like "s{f: x}". Update comment in capturevars
-    accordingly.
-    
-    More opportunity for cleanups still, but this makes some substantial
-    progress, IMO.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I65a4efc91886e3dcd1000561348af88297775cd7
-    Reviewed-on: https://go-review.googlesource.com/100197
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ica74f2daba15e4cff48d2b4f830d2cb51c608fb6
+    Reviewed-on: https://go-review.googlesource.com/75594
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/closure.go     | 331 ++++++++++-------------------
- src/cmd/compile/internal/gc/esc.go         |   2 +-
- src/cmd/compile/internal/gc/inl.go         |   2 +-
- src/cmd/compile/internal/gc/order.go       |   2 +-
- src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
- src/cmd/compile/internal/gc/syntax.go      |   7 +-
- 6 files changed, 122 insertions(+), 224 deletions(-)
+ src/io/pipe.go      | 24 ++++++++++++++++++------
+ src/io/pipe_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 6 deletions(-)

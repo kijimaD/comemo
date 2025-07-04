@@ -1,24 +1,15 @@
-commit f049d911e93b84577577e73108605627ed522409
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Apr 22 14:37:02 2020 -0700
+commit 953cc7490a58fa6b6e5086cc7ca2945b041c30ab
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 21 15:03:48 2019 -0700
 
-    cmd/compile: be stricter about recognizing safety rule #4
+    doc: document new math.Fma function
     
-    unsafe.Pointer safety rule #4 says "The compiler handles a Pointer
-    converted to a uintptr in the argument list of a call". Within escape
-    analysis, we've always required this be a single conversion
-    unsafe.Pointer->uintptr conversion, but the corresponding logic in
-    order is somewhat laxer, allowing arbitrary chains of OCONVNOPs from
-    unsafe.Pointer to uintptr.
+    This accidentally got committed - please review the whole paragraph
+    as if it was new.
     
-    This CL changes order to be stricter to match escape analysis.
-    
-    Passes toolstash-check.
-    
-    Change-Id: Iadd210d2123accb2020f5728ea2a47814f703352
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229578
+    Change-Id: I98e1db4670634c6e792d26201ce0cd329a6928b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202579
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.15.html                      | 12 ++++++++++++
- src/cmd/compile/internal/gc/order.go | 31 ++++++++++++-------------------
- 2 files changed, 24 insertions(+), 19 deletions(-)
+ doc/go1.14.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

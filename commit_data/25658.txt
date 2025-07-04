@@ -1,17 +1,16 @@
-commit 038b8139433054c70f17494f4cd96dd4f3ddd696
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 23 23:31:23 2016 -0500
+commit 2a031e6a2a4f7d83b80f9333bbd4f5d80a4873cf
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Nov 12 21:23:21 2015 -0500
 
-    net/url: allow spaces in IPv6 zone identifier for Windows
+    cmd/internal/obj/arm64: rewrite branches that are too far
     
-    Windows: putting spaces where they don't belong since Windows NT 3.1.
+    Fixes #12540.
     
-    Fixes #14002.
-    
-    Change-Id: I48ba8a7bfe3f27f83c8aa8355a8d355933d6c5df
-    Reviewed-on: https://go-review.googlesource.com/18855
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7893fdc023145b0aca4b4c7df7e08e47edcf5bba
+    Reviewed-on: https://go-review.googlesource.com/16902
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/url/url.go      |  3 ++-
- src/net/url/url_test.go | 11 +++++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/arm64/asm7.go | 62 +++++++++++++++++++-------------------
+ 1 file changed, 31 insertions(+), 31 deletions(-)

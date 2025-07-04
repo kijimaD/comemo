@@ -1,16 +1,35 @@
-commit 4bf6c566d31ab46c5a9123708fb3585e621b2557
-Author: Rob Phoenix <rob@robphoenix.com>
-Date:   Fri May 19 15:18:17 2017 +0100
+commit e646d07329e7edc56c8cf3284c729937979dae4a
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Fri Nov 11 20:49:41 2016 -0800
 
-    net: add examples for ParseIP, IP.DefaultMask & IP.Mask
+    go/build: fix lack of error for Import of nonexistent local import path
     
-    Further examples to support the net package.
+    When calling build.Import, normally, an error is returned if the
+    directory doesn't exist. However, that didn't happen for local
+    import paths when build.FindOnly ImportMode was used.
     
-    Updates #5757
+    This change fixes that, and adds tests. It also makes the error
+    value more consistent in all scenarios where it occurs.
     
-    Change-Id: I9b65521d211f6c404b9103c1eaf22b0772eb242e
-    Reviewed-on: https://go-review.googlesource.com/43711
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    When calling build.Import with a local import path, the package
+    can only exist in a single deterministic directory. That makes
+    it possible verify that directory exists earlier in the path,
+    and return a "cannot find package" error if it doesn't.
+    Previously, this occurred only when build.FindOnly ImportMode
+    was not set. It occurred quite late, after getting past Found
+    label, to line that calls ctxt.readDir. Doing so would return
+    an error like "no such file or directory" when the directory
+    does not exist.
+    
+    Fixes #17863.
+    Updates #17888 (relevant issue I ran into while working on this CL).
+    
+    Change-Id: If6a6996ac6176ac203a88bd31419748f88d89d7c
+    Reviewed-on: https://go-review.googlesource.com/33158
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/example_test.go | 35 +++++++++++++++++++++++++++++++++++
- 1 file changed, 35 insertions(+)
+ src/go/build/build.go      |  5 +++++
+ src/go/build/build_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

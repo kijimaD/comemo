@@ -1,20 +1,27 @@
-commit a866df26711c615dfe92ab1b00d256d3d1085f0e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 26 18:10:40 2016 -0400
+commit 00459f05e099d92b9ae4d50980b11767aca5e102
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Wed Aug 31 12:37:19 2016 +0200
 
-    cmd/internal/obj/arm64: materialize float constant 0 from zero register
+    cmd/compile: fold negation into comparison operators
     
-    Materialize float constant 0 from integer zero register, instead
-    of loading from constant pool.
+    This allows for example AMD64 ssa to generate
+    (SETNE x) instead of (XORLconst [1] SETE).
     
-    Also fix assembling FMOV from zero register to FP register.
+    make.bash trigger count on AMD64:
+    691 generic.rules:225
+      1 generic.rules:226
+      4 generic.rules:228
+      1 generic.rules:229
+      8 generic.rules:231
+      6 generic.rules:238
+      2 generic.rules:257
     
-    Change-Id: Ie413dd342cedebdb95ba8cfc220e23ed2a39e885
-    Reviewed-on: https://go-review.googlesource.com/32250
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I5b9827b2df63c8532675079e5a6026aa47bfd8dc
+    Reviewed-on: https://go-review.googlesource.com/28232
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/arm64/asm7.go |  6 ++++--
- src/cmd/internal/obj/arm64/obj7.go | 10 ++++++++++
- 2 files changed, 14 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  53 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 637 +++++++++++++++++++++++++
+ 2 files changed, 690 insertions(+)

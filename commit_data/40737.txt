@@ -1,32 +1,21 @@
-commit 70be4819a47263055040d6beb5c0b1b31487f52c
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Nov 8 13:05:56 2019 -0500
+commit df901bce5ed71132f5837b513663fec889d82731
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Jun 24 02:17:40 2019 +0000
 
-    cmd/go: fix windows test failures
+    runtime: fix a register save/restore bug in sigtramp of arm-darwin
     
-    search.CleanPatterns now preserves backslash separators in absolute
-    paths in Windows. These had resulted in inconsistent error messages.
+    In sigtramp of sys_darwin_arm.s, the callee-save register R4 is
+    saved to the stack, but later R2 is also saved to the save position.
     
-    search.MatchPackagesInFS is now more accepting of patterns with
-    backslashes. It was inconsistent before.
+    That CL fixes the unexpected lost of the value in R4.
     
-    Several tests are fixed to work with Windows (mostly to match slashes
-    or backslashes).
+    fixes #32744
     
-    Fixes #25300
-    
-    Change-Id: Ibbf9ccd145353f7e3d345205c6fcc01d7066d1c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206144
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ifaeb99f11e4abf0c79bec9da67e0db97c358010c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183517
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/git_test.go  |  11 ++-
- src/cmd/go/internal/search/search.go               |  64 ++++++++-----
- src/cmd/go/testdata/script/build_trimpath.txt      | 102 ++++++++++++++-------
- src/cmd/go/testdata/script/mod_getx.txt            |   1 +
- src/cmd/go/testdata/script/mod_list_dir.txt        |   4 +-
- .../go/testdata/script/mod_prefer_compatible.txt   |   1 +
- src/cmd/go/testdata/script/mod_sumdb_file_path.txt |   2 +-
- src/cmd/go/testdata/script/mod_vendor_auto.txt     |   6 +-
- src/cmd/go/testdata/script/version.txt             |   5 +
- 9 files changed, 130 insertions(+), 66 deletions(-)
+ src/runtime/sys_darwin_arm.s | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

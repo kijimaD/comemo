@@ -1,25 +1,19 @@
-commit 44f18706661db8b865719d15a5cfa0515d1a4fca
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Jun 17 14:44:42 2024 -0400
+commit d5a05a0510eba98565b04e383e825bb53a5bc637
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 24 09:19:15 2023 -0400
 
-    cmd/link: handle dynamic import variables on Darwin in plugin mode
+    cmd/go: clear HGRCPATH in script test
     
-    CL 501855 added support for cgo_dynamic_import variables on Darwin.
-    But it didn't support the plugin build mode on amd64, where the
-    assembler turns a direct load (R_PCREL) to a load via GOT
-    (R_GOTPCREL). This CL adds the support. We just need to handle
-    external linking mode, as this can only occur in plugin or shared
-    build mode, which requires external linking.
+    Invoking 'hg' in a nonexistant HOME can break extensions the user
+    may have installed; clear HGRCPATH in the script test to keep tests
+    working in that environment.
     
-    Fixes #67976.
-    Updates #50891.
-    
-    Change-Id: I0f56265d50bfcb36047fa5538ad7a5ec77e7ef96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592499
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4d21d024c6229ead38e5f24186883863511fd483
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497878
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/cgo/internal/testplugin/plugin_test.go           |  8 ++++++++
- .../internal/testplugin/testdata/issue67976/plugin.go    | 16 ++++++++++++++++
- src/cmd/link/internal/amd64/asm.go                       |  7 +++++++
- 3 files changed, 31 insertions(+)
+ src/cmd/go/script_test.go | 1 +
+ 1 file changed, 1 insertion(+)

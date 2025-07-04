@@ -1,14 +1,17 @@
-commit 253e605af4533fd9f1276291225c27e972417e97
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon May 1 09:37:46 2017 +1200
+commit 58ad0176ca280c07a966249a3208f707ee0b1989
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Fri Aug 4 12:59:55 2017 -0700
 
-    cmd/link: shrink SymKind down to a uint8
+    doc: use better wording to explain type-aware completion
     
-    Change-Id: I54c73afd4fb2ad4d5854d2568524f57542c64fe5
-    Reviewed-on: https://go-review.googlesource.com/42182
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Some editors can filter the autocompletion suggestions based on
+    whether the code will compile once autocompleted. Explain this
+    feature with better wording.
+    
+    Change-Id: I29e4b0396878f18c79208915402c0a209a813b04
+    Reviewed-on: https://go-review.googlesource.com/53355
+    Reviewed-by: Florin Patan <florinpatan@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/link/internal/sym/symkind.go | 2 +-
+ doc/editors.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

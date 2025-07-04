@@ -1,15 +1,12 @@
-commit 08a5d7394054a4cb08e99f6bea0c007aed999a67
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 9 12:57:38 2012 +1100
+commit 6a19ae74d4a2eb4d36fa401891053f3711d2746d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 8 17:30:45 2012 -0500
 
-    misc/dist: produce a zip file under windows
+    go/build: add NoGoError
     
-    Updates #3254.
-    
-    R=golang-dev, bradfitz, alex.brainman
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5783058
+    https://golang.org/cl/5781063
 
- misc/dist/bindist.go         | 52 +++++++++++++++++++++++++++++++++++++-------
- misc/dist/windows/README.txt |  1 +
- 2 files changed, 45 insertions(+), 8 deletions(-)
+ src/pkg/go/build/build.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

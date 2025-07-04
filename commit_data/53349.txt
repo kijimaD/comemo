@@ -1,22 +1,20 @@
-commit 76bb0caa5cf76bf631bb6cfd5c0853305087dc78
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 25 21:43:33 2023 -0400
+commit 9e4638ad20181ba4c3b1985da48c56be121901fb
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Aug 6 05:42:25 2022 +0000
 
-    runtime: delete a very stale comment
+    net: discard unrooted 254 byte names, not rooted ones
     
-    This comment claims mark termination re-scans stacks and uses the
-    write barrier to determine how much of the stack needs to be
-    rescanned. This hasn't been true since we introduced the hybrid write
-    barrier and deleted stack rescanning with CL 31766 in Go 1.8.
+    Fixes #54285
     
-    Updates #17503 I suppose.
-    
-    Change-Id: I5e90f25020c9fa6f146ec6ed0642ba2b4884c2a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498435
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I20d4d6b9d0532d8a344582b99d446352ae94edcf
+    GitHub-Last-Rev: ad1337450caeaab80755d2951dd01422a906eacc
+    GitHub-Pull-Request: golang/go#54293
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421674
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/mbarrier.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/net/dnsclient_unix.go      |   2 +-
+ src/net/dnsclient_unix_test.go | 128 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 129 insertions(+), 1 deletion(-)

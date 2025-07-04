@@ -1,15 +1,14 @@
-commit 6a005cb03f17a5ec544c45fc749cd4dc0227516b
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Mar 3 00:47:11 2012 +0800
+commit 1feecdd633c1943e5c4a0ced3a14788ee00f343c
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 2 11:31:13 2012 -0500
 
-    doc/go1: minor corrections
-            Set dagger looks very much like t in some fonts, so superscript it.
-            os/signal is no longer in exp.
+    cmd/go: avoid repeated include dirs.
     
-    R=golang-dev, adg
-    CC=golang-dev
-    https://golang.org/cl/5720049
+    Fixes #3171.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5724045
 
- doc/go1.html | 5 ++---
- doc/go1.tmpl | 5 ++---
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

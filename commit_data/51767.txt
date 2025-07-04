@@ -1,20 +1,29 @@
-commit 2bf0f54bbd6dfa57fc11444f9b8ba722689e6490
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jan 25 19:08:14 2023 +0000
+commit 9743e9b6d8e150639f509fc64e4bc5f24ecce562
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 10 23:41:56 2022 +0700
 
-    Revert "cmd/compile: improve register overwrite decision for resultInArg0 ops"
+    cmd/compile: fix re-export closure
     
-    This reverts CL 460656
-    Reason for revert: This breaks s390x.
+    For hidden closure built during stenciling to implement a function
+    instantiation, the function may come from other package, not local
+    package, which causes the ICE for code that re-export the hidden closure
+    after inlining.
     
-    Change-Id: I8fada14fabc90593b8033ed11188c04963d2da75
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463475
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    To fix it, use the closure package for export writer when writing out
+    the closure itself.
+    
+    Fixes #51423
+    
+    Change-Id: I23b067ba14e2d602a0fc3b2e99bd9317afbe53ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391574
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 14 --------------
- 1 file changed, 14 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go |  3 +++
+ src/cmd/compile/internal/typecheck/iimport.go |  2 ++
+ test/typeparam/issue51423.dir/a.go            | 17 +++++++++++++++++
+ test/typeparam/issue51423.dir/b.go            | 11 +++++++++++
+ test/typeparam/issue51423.go                  |  7 +++++++
+ 5 files changed, 40 insertions(+)

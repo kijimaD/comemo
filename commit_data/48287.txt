@@ -1,19 +1,22 @@
-commit 7d7b9bbc7a37d3b83936a8caea08e0be7240a125
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Mar 3 07:28:44 2022 -0600
+commit 69368cece5a50056fbfc58010dd6e6ec585611e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 10:47:24 2021 -0700
 
-    crypto/sha512: fix stack size for previous change
+    cmd/compile/internal/types2: make TestManual work for directories
     
-    In a recent change CL 388654 a function was updated so it
-    no longer needed stack space, but the TEXT statement was
-    not updated to reflect that change. This corrects that problem.
+    If no source argument is provided, test testdata/manual.go2
+    instead.
     
-    Change-Id: I9e60cebddae620788b1097ab7b39c47b323d1f62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/389674
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Remove testdata/check/tmp/go2 in favor of testdata/manual.go2.
+    
+    These changes affect testing only.
+    
+    Change-Id: I49aba4d8fc4cc5964911e38c55b4c5d013710aeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315769
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/sha512/sha512block_ppc64x.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/check_test.go      | 85 ++++++++++++++--------
+ .../compile/internal/types2/testdata/check/tmp.go2 | 17 -----
+ .../compile/internal/types2/testdata/manual.go2    |  8 ++
+ 3 files changed, 64 insertions(+), 46 deletions(-)

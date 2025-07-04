@@ -1,17 +1,18 @@
-commit ed52e552aa9f3debe0e743e9840219a42dbd1216
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 5 17:29:16 2016 +0000
+commit 2dedb971e3432e530701a9e1d08c8c26658c1e49
+Author: Taru Karttunen <taruti@taruti.net>
+Date:   Fri Oct 16 13:26:20 2015 +0300
 
-    doc: note the net/http CloseNotifier changes in go1.6.html
+    net/http: extra documentation for Redirect and RedirectHandler
     
-    Also reference the new Transport.ExpectContinueTimeout after the
-    mention of 100-continue.
+    Errors with http.Redirect and http.StatusOk seem
+    to occur from time to time on the irc channel.
+    This change adds documentation suggesting
+    to use one of the 3xx codes and not StatusOk
+    with Redirect.
     
-    Fixes #13721
-    
-    Change-Id: I3445c011ed20f29128092c801c7a4bb4dd2b8351
-    Reviewed-on: https://go-review.googlesource.com/18281
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I6b900a8eb868265fbbb846ee6a53e426d90a727d
+    Reviewed-on: https://go-review.googlesource.com/15980
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.6.html | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/net/http/server.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

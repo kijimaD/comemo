@@ -1,12 +1,16 @@
-commit 816ce1a23aa42ecc44edc0f19e656556fc2d09d2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jun 24 18:03:57 2019 -0400
+commit 61170f85e62f1326d42c4dbd8aa17ab4a1305a87
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 27 14:01:55 2019 +1100
 
-    doc/go1.13: describe 'go env -w'
+    time: move the explanation of u/micro to the ParseDuration example
     
-    Change-Id: I0c8c30b40a33763dc34f15d144346eb1a0997df2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183631
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fix a few missing capitalizations in drive-by.
+    
+    Change-Id: I7353c12f3ccddefc0f26a98590caf9e446129558
+    Reviewed-on: https://go-review.googlesource.com/c/163918
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.13.html | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ src/time/example_test.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

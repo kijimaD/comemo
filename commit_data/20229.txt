@@ -1,20 +1,19 @@
-commit a287567d3cd108513d337f647a3902d3b7fade34
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Aug 30 18:15:55 2014 -0700
+commit 32c0dce00ea2b641a6b2731aa2a149f4270ba663
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 25 21:50:42 2014 -0700
 
-    runtime: fix Linux build
+    net/http: fix data race in test
     
-    Make the definition of the EpollEvent data field consistent
-    across architectures, adapt the other use of it in
-    netpoll_epoll for the new definition, and use uint64 rather
-    than uintptr.
+    I can't reproduce the race, but this should fix it.
     
-    LGTM=dave
-    R=rsc, dave
+    Fixes #8483
+    
+    LGTM=dvyukov
+    R=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/137890043
+    https://golang.org/cl/126610043
 
- src/pkg/runtime/defs_linux_386.h | 2 +-
- src/pkg/runtime/defs_linux_arm.h | 2 +-
- src/pkg/runtime/netpoll_epoll.c  | 4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/net/http/export_test.go    |  6 ++++++
+ src/pkg/net/http/transport.go      | 19 +++++++++++++++----
+ src/pkg/net/http/transport_test.go | 24 +++++++++++-------------
+ 3 files changed, 32 insertions(+), 17 deletions(-)

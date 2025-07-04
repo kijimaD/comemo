@@ -1,16 +1,18 @@
-commit 6535eb3a6d318fa420b4ae471ac7af4ae9791701
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Dec 28 15:32:24 2012 +1100
+commit 5bcb9707b63c12bbd6ab6dd8f0913b2518b83531
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Thu Dec 27 11:45:03 2012 +1100
 
-    cmd/ld: fix valgrind warning in strnput
+    log/syslog: add stub for Plan 9
     
-    Fixes #4592.
+    Proper local system log semantics still need to be
+    created for Plan 9. In the meantime, the test suite
+    (viz., exp/gotype) expects there to be some Go
+    source for each import path. Thus, here is a stub,
+    equivalent to syslog_windows, for this purpose.
     
-    Thanks to minux for the suggestion.
-    
-    R=minux.ma, iant
+    R=golang-dev, rsc, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/7017048
+    https://golang.org/cl/7000062
 
- src/cmd/ld/data.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/log/syslog/syslog_plan9.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

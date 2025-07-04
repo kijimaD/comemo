@@ -1,22 +1,37 @@
-commit c2bb350d80fa6116094f819f48d83f1f34993295
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 26 14:25:45 2023 -0700
+commit 6c2e327e35b6fe838b496ec1e8fb2f597c5bd59a
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 21 15:43:11 2022 -0400
 
-    doc/go1.21: mention changes to the reflect package
+    runtime: only acquire trace.lock on the system stack
     
-    Added Value.Clear, deprecated SliceHeader and StringHeader.
+    Currently, trace.lock can be acquired while on a user G and stack
+    splits can happen while holding trace.lock. That means every lock used
+    by the stack allocator must be okay to acquire while holding
+    trace.lock, including various locks related to span allocation. In
+    turn, we cannot safely emit trace events while holding any
+    allocation-related locks because this would cause a cycle in the lock
+    rank graph.
     
-    For #55002
-    For #56906
+    To fix this, require that trace.lock only be acquired on the system
+    stack, like mheap.lock. This pushes it into the "bottom half" and
+    eliminates the lock rank relationship between tracing and stack
+    allocation, making it safe to emit trace events in many more places.
     
-    Change-Id: Ib7497aff830d56fad90c31ec28596e71a448e9ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498757
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    One subtlety is that the trace code has race annotations and uses
+    maps, which have race annotations. By default, we can't have race
+    annotations on the system stack, so we borrow the user race context
+    for these situations.
+    
+    We'll update the lock graph itself in the next CL.
+    
+    For #53979. This CL technically fixes the problem, but the lock rank
+    checker doesn't know that yet.
+    
+    Change-Id: I9f5187a9c52a67bee4f7064db124b1ad53e5178f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418956
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.21.html | 24 +++++++++++++++---------
- 1 file changed, 15 insertions(+), 9 deletions(-)
+ src/runtime/trace.go | 166 ++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 110 insertions(+), 56 deletions(-)

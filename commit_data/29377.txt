@@ -1,20 +1,25 @@
-commit 3797446150ecc7adbc4e6f9a6315214264ac11f9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Nov 3 15:58:55 2016 -0700
+commit cfea26026bc49be1710ed742465514e84bd31ab5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 9 05:26:20 2016 +0000
 
-    cmd/compile: prevent Noalg from breaking user types
+    doc: document minimum OS X version as 10.8
     
-    Use a separate symbol for reflect metadata for types with Noalg set.
+    The download page says "OS X 10.8 or later", but other pages said 10.7.
+    Say 10.8 everywhere.
     
-    Fixes #17752.
+    Turns out Go doesn't even compile on OS X 10.7 (details in bug) and we
+    only run builders for OS X 10.8+, which is likely why 10.7
+    regressed. Until recently we only had OS X 10.10 builders, even.
     
-    Change-Id: Icb6cade7e3004fc4108f67df61105dc4085cd7e2
-    Reviewed-on: https://go-review.googlesource.com/32679
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    We could run 10.7 builders, but there's basically no reason to do so,
+    especially with 10.12 coming out imminently.
+    
+    Fixes #16625
+    
+    Change-Id: Ida6e20fb6c54aea0a3757235b708ac1c053b8c04
+    Reviewed-on: https://go-review.googlesource.com/28870
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |  9 ++++++++-
- src/cmd/compile/internal/gc/walk.go    |  1 -
- test/fixedbugs/issue17752.go           | 20 ++++++++++++++++++++
- 3 files changed, 28 insertions(+), 2 deletions(-)
+ doc/install-source.html | 2 +-
+ doc/install.html        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

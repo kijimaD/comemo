@@ -1,0 +1,37 @@
+commit 8cecfad2a99987a35edfbcd875bef5e894abbce7
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 21 13:51:21 2024 +0100
+
+    crypto/rsa: port Validate to bigmod
+    
+    This is quite a bit slower (almost entirely in the e * d reductions,
+    which could be optimized), but the slowdown is only 12% of a signature
+    operation.
+    
+    Also, call Validate at the end of GenerateKey as a backstop. Key
+    generation is so incredibly slow that the extra time is negligible.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/rsa
+    cpu: Apple M2
+                                │  ec9643bbed  │           ec9643bbed-dirty            │
+                                │    sec/op    │    sec/op      vs base                │
+    SignPSS/2048-8                869.8µ ±  1%    870.2µ ±  0%         ~ (p=0.937 n=6)
+    GenerateKey/2048-8            104.2m ± 17%    106.9m ± 10%         ~ (p=0.589 n=6)
+    ParsePKCS8PrivateKey/2048-8   28.54µ ±  2%   136.78µ ±  8%  +379.23% (p=0.002 n=6)
+    
+    Fixes #57751
+    
+    Co-authored-by: Derek Parker <parkerderek86@gmail.com>
+    Change-Id: Ifb476859207925a018b433c16dd62fb767afd2d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630517
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fips140/bigmod/nat.go | 13 +++++
+ src/crypto/rsa/rsa.go                     | 82 ++++++++++++++++++++++---------
+ src/crypto/rsa/rsa_test.go                |  8 +--
+ 3 files changed, 76 insertions(+), 27 deletions(-)

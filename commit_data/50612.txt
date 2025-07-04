@@ -1,31 +1,26 @@
-commit 072c7d4969862c84430cc2daef20a8f7f3ba78a2
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Apr 19 19:41:40 2022 -0400
+commit d4e0e8e4a41e5e1e7d0359287a1015791ce778ed
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 3 09:40:32 2021 -0700
 
-    cmd/compile,cmd/link: hooks for identifying coverage counters
+    cmd/compile: make pointers to arrays their own shape
     
-    Add a new "coverage counter" classification for variables to be used
-    for storing code coverage counter values (somewhat in the same way
-    that we identify fuzzer counters). Tagging such variables allows us to
-    aggregate them in the linker, and to treat updates specially.
+    Pointers to arrays can be used to cast from a slice. We need
+    the shape of such type params to be different so we can compile
+    those casts correctly.
     
-    Updates #51430.
+    This is kind of a big hammer to fix #49295. It would be nice to
+    only do this when we know there's a []T->*[N]T conversion.
     
-    Change-Id: Ib49fb05736ffece98bcc2f7a7c37e991b7f67bbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401235
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #49295
+    
+    Change-Id: Ibda33057fab2dd28162537aab0f1244211d68e3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361135
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/gc/obj.go           |  6 ++++
- src/cmd/compile/internal/inline/inl.go       | 23 ++++++++++++++
- src/cmd/compile/internal/ir/name.go          |  6 ++++
- src/cmd/compile/internal/ssa/writebarrier.go |  3 +-
- src/cmd/internal/objabi/symkind.go           |  5 ++-
- src/cmd/internal/objabi/symkind_string.go    |  6 ++--
- src/cmd/link/internal/ld/data.go             | 13 ++++++++
- src/cmd/link/internal/ld/symtab.go           |  6 +++-
- src/cmd/link/internal/sym/symkind.go         |  4 +++
- src/cmd/link/internal/sym/symkind_string.go  | 46 +++++++++++++++-------------
- src/runtime/symtab.go                        |  1 +
- 11 files changed, 92 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/typecheck/subr.go |  4 +++-
+ test/typeparam/issue49295.go               | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

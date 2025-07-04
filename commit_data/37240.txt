@@ -1,43 +1,17 @@
-commit ee7e443389f7c8aabc58d49e42880b96f0955361
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Oct 31 12:14:51 2018 -0400
+commit 33c7f88eafde1a15b8c60e208d526b436cc6d02e
+Author: Keith Rarick <kr@xph.us>
+Date:   Wed Jul 11 23:08:21 2018 -0700
 
-    crypto/tls: advertise and accept rsa_pss_rsae signature algorithms
+    time: fix typo in Truncate example
     
-    crypto/x509 already supports PSS signatures (with rsaEncryption OID),
-    and crypto/tls support was added in CL 79736. Advertise support for the
-    algorithms and accept them as a peer.
+    The existing example code uses variable name d, but
+    prints t in its output. It's needlessly confusing.
     
-    Note that this is about PSS signatures from regular RSA public keys.
-    RSA-PSS only public keys (with RSASSA-PSS OID) are supported in neither
-    crypto/tls nor crypto/x509. See RFC 8446, Section 4.2.3.
-    
-    testdata/Server-TLSv12-ClientAuthRequested* got modified because the
-    CertificateRequest carries the supported signature algorithms.
-    
-    The net/smtp tests changed because 512 bits keys are too small for PSS.
-    
-    Based on Peter Wu's CL 79738, who did all the actual work in CL 79736.
-    
-    Updates #9671
-    
-    Change-Id: I4a31e9c6e152ff4c50a5c8a274edd610d5fff231
-    Reviewed-on: https://go-review.googlesource.com/c/146258
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I67bef3c732e84d2d89819f96b4b62663630fd69e
+    Reviewed-on: https://go-review.googlesource.com/123516
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/crypto/tls/common.go                           |   4 +
- src/crypto/tls/handshake_client_test.go            |  51 +++++++-
- src/crypto/tls/handshake_server_test.go            |  44 +++++--
- src/crypto/tls/handshake_test.go                   |   6 +-
- .../Client-TLSv12-ClientCert-RSA-RSAPKCS1v15       | 129 ++++++++++++++++++++
- .../testdata/Client-TLSv12-ClientCert-RSA-RSAPSS   | 130 +++++++++++++++++++++
- .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven |  88 +++++++-------
- .../Server-TLSv12-ClientAuthRequestedAndGiven      |  87 +++++++-------
- ...rver-TLSv12-ClientAuthRequestedAndPKCS1v15Given | 124 ++++++++++++++++++++
- .../Server-TLSv12-ClientAuthRequestedNotGiven      |  72 ++++++------
- .../tls/testdata/Server-TLSv12-RSA-RSAPKCS1v15     |  81 +++++++++++++
- src/crypto/tls/testdata/Server-TLSv12-RSA-RSAPSS   |  81 +++++++++++++
- src/net/smtp/smtp_test.go                          |  56 +++++----
- 13 files changed, 798 insertions(+), 155 deletions(-)
+ src/time/example_test.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

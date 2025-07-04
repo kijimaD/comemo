@@ -1,20 +1,20 @@
-commit 93bbf719a6d2c911674bbea3535ca1f0684aadc8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 5 09:19:19 2024 -0700
+commit a63afe4720e5eb4fbb76baf38a41cbf60e739fd4
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue May 23 12:35:48 2023 +0200
 
-    doc/next: mention new error on time.Parse timezone overflow
+    runtime/metrics: add /gc/scan/globals:bytes
     
-    For #65614
-    For #67470
+    For #56857
     
-    Change-Id: Iba2f263f8ca1fb10c383e12ff3455aa86b26421d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590795
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I748fd2a33ee76d9a83ea42f2ebf6d9edda243301
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497320
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/next/6-stdlib/99-minor/time/67470.md | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 5 +++++
+ src/runtime/metrics/doc.go         | 3 +++
+ 3 files changed, 14 insertions(+)

@@ -1,48 +1,17 @@
-commit f02a26bed0f21de7aeef7a60cf62dac2e3dab737
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Thu Mar 11 17:34:09 2021 -0800
+commit 84a62453e5c01df3f7d0c48d9aca32832c2052c1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 8 17:12:45 2020 -0400
 
-    time: support "," as separator for fractional seconds
+    cmd/compile: remove unnecessary error condition on reading fingerprint
     
-    Accepts comma "," as a separator for fractional seconds
-    hence we now accept:
-    * 2006-01-02 15:04:05,999999999 -0700 MST
-    * Mon Jan _2 15:04:05,120007 2006
-    * Mon Jan 2 15:04:05,120007 2006
+    io.ReadFull guarantees n == len(buf) if and only if err == nil,
+    so the length check is redundant.
     
-    This change follows the recommendations of ISO 8601 per
-    
-       https://en.wikipedia.org/wiki/ISO_8601#cite_note-26
-    
-    which states
-    
-       ISO 8601:2004(E), ISO, 2004-12-01, "4.2.2.4 ...
-       the decimal fraction shall be divided from the integer
-       part by the decimal sign specified in ISO 31-0, i.e.
-       the comma [,] or full stop [.]. Of these, the comma
-       is the preferred sign."
-    
-    Unfortunately, I couldn't directly access the ISO 8601 document
-    because suddenly it is behind a paywall on the ISO website,
-    charging CHF 158 (USD 179) for 38 pages :-(
-    
-    However, this follows publicly available cited literature, as well
-    as the recommendations from the proposal approval.
-    
-    Fixes #6189
-    Updates #27746
-    Updates #26002
-    Updates #36145
-    Updates #43813
-    Fixes #43823
-    
-    Change-Id: Ibe96064e8ee27c239be78c880fa561a1a41e190c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300996
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I15bff97868e27a65648acd791883cac8dab77630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232988
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/time/format.go      | 30 ++++++++++++++++++------------
- src/time/format_test.go | 18 +++++++++++++++---
- 2 files changed, 33 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/iimport.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

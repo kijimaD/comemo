@@ -1,16 +1,14 @@
-commit f18a4e9609aac3aa83d40920c12b9b45f9376aea
-Author: Vincent Vanackere <vincent.vanackere@gmail.com>
-Date:   Tue May 31 10:21:38 2011 -0400
+commit c4206cb231e02380b68f6e954014cdf3533196d5
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Tue May 31 10:11:47 2011 -0400
 
-    syscall : add ProcAttr field to pass an unescaped command line on windows
+    runtime: save cdecl registers in Windows SEH handler
     
-    On windows, the command line is passed as a single null-terminated string. While the automatic parameter escaping done by syscall.StartProcess works fine with most Windows programs, some applications do their own custom parsing of the command line, in which case the automatic escaping becomes harmful.
-    This CL adds a new extra CmdLine field to syscall.ProcAttr that will be used as the raw/unescaped command line if not empty.
-    Fixes #1849.
+    Fixes #1779
     
-    R=golang-dev, alex.brainman, bradfitz, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4548050
+    https://golang.org/cl/4566041
 
- src/pkg/syscall/exec_windows.go | 22 ++++++++++++++++------
- 1 file changed, 16 insertions(+), 6 deletions(-)
+ src/pkg/runtime/windows/386/sys.s | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

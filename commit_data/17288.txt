@@ -1,23 +1,12 @@
-commit ea6cfc57b3161c9658694c8d802b019ca1ac7be1
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Aug 16 14:36:06 2013 +1000
+commit c320cf85d97b3c5a57c120bd7d75a4259c7e24eb
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Fri Aug 16 00:06:19 2013 -0400
 
-    undo CL 12822043 / 96fefaa02ae3
+    misc/emacs: do not use any free variables
     
-    Fixes #6160.
-    
-    ««« original CL description
-    go/doc: permit a package synopsis to end with ":\n".
-    
-    R=gri, r
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/12822043
-    »»»
-    
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/13040043
+    https://golang.org/cl/12744046
 
- src/pkg/go/doc/synopsis.go      | 9 +++------
- src/pkg/go/doc/synopsis_test.go | 1 -
- 2 files changed, 3 insertions(+), 7 deletions(-)
+ misc/emacs/go-mode.el | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

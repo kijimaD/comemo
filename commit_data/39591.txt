@@ -1,21 +1,27 @@
-commit 9c1f14f3763dbbc0d8105fa88c0b7bdad5674ee7
-Author: K. "pestophagous" Heller <pestophagous@gmail.com>
-Date:   Sun Aug 4 22:46:29 2019 -0700
+commit 2dd066d4a7ab6eb7828cbba8cb29158dcaedcc78
+Author: Raul Silvera <rauls5382@gmail.com>
+Date:   Fri Jan 18 19:06:16 2019 +0000
 
-    doc/install-source: create distinction between steps that involve "git clone"
+    test: improve test coverage for heap sampling
     
-    Prior doc implied that "git clone" was one way to obtain a go1.4
-    bootstrap toochain, but it did not state this outright. Further,
-    the doc did not make it explicit in the "Fetch the repository"
-    section that one must necessarily "git clone" a second time in
-    the (presumed-to-be-uncommon) case where "git clone" had already
-    been perfomed in the "compiler binaries" section.
+    Update the test in test/heapsampling.go to more thoroughly validate heap sampling.
+    Lower the sampling rate on the test to ensure allocations both smaller and
+    larger than the sampling rate are tested.
     
-    Updates #33402
+    Tighten up the validation check to a 10% difference between the unsampled and correct value.
+    Because of the nature of random sampling, it is possible that the unsampled value fluctuates
+    over that range. To avoid flakes, run the experiment three times and only report an issue if the
+    same location consistently falls out of range on all experiments.
     
-    Change-Id: Id70a6587b6ee09aca13559d63868b75cb07dff1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188900
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This tests the sampling fix in cl/158337.
+    
+    Change-Id: I54a709e5c75827b8b1c2d87cdfb425ab09759677
+    GitHub-Last-Rev: 7c04f126034f9e323efc220c896d75e7984ffd39
+    GitHub-Pull-Request: golang/go#26944
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/129117
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/install-source.html | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ test/heapsampling.go | 228 ++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 182 insertions(+), 46 deletions(-)

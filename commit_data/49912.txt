@@ -1,29 +1,16 @@
-commit bd3c35e732ba3f4b6cbdf5d661120d11b59794bc
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 5 14:30:20 2022 -0400
+commit 9ab6af9837f924869cd2213ce028b3f4d49c487c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Sep 17 13:45:12 2021 -0700
 
-    testing: do not print 'root' benchName during test of package testing
+    runtime, cmd/link: fix comment typos
     
-            $ cd $GOROOT/src/testing
-            $ go test
-            root
-            root
-            root
-            root
-            PASS
-            $
-    
-    The root prints have been happening since Go 1.14.
-    There is a test in sub_test.go that calls b.Run directly
-    with a benchmark named "root", which triggers the print.
-    Silence them.
-    
-    Change-Id: I2f0c186f04c6139bc24fab0e91975fcf0a8e80fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421437
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I33a10417939bfcfec117d6ad49c42312731ac30f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350733
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/testing/benchmark.go | 9 ++++++++-
- src/testing/sub_test.go  | 4 ++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/pcln.go | 4 ++--
+ src/runtime/symtab.go            | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

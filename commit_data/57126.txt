@@ -1,20 +1,31 @@
-commit 1d925fcc7e0b4c2fb9e671f5c868e52c6a48db1f
-Author: limeidan <limeidan@loongson.cn>
-Date:   Wed Nov 1 17:25:20 2023 +0800
+commit 6dce882b3aad86b8c3e2928d3be6a87e425c1754
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jun 23 01:04:29 2023 +0700
 
-    cmd/link: add support for trampoline insertation on loong64
+    cmd/compile: scanning closures body when visiting wrapper function
     
-    Change-Id: I58c861d8403a77c1f3b55207d46076ba76eb1d45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540755
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    CL 410344 fixed missing method value wrapper, by visiting body of
+    wrapper function after applying inlining pass.
+    
+    CL 492017 allow more inlining of functions that construct closures,
+    which ends up making the wrapper function now inlineable, but can
+    contain closure nodes that couldn't be inlined. These closures body may
+    contain OMETHVALUE nodes that we never seen, thus we need to scan
+    closures body for finding them.
+    
+    Fixes #60945
+    
+    Change-Id: Ia1e31420bb172ff87d7321d2da2989ef23e6ebb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505255
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/link/internal/ld/data.go     |   8 ++-
- src/cmd/link/internal/loong64/asm.go | 125 +++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/loong64/obj.go |   2 +
- src/cmd/link/link_test.go            |   4 +-
- 4 files changed, 136 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ir/visit.go     | 11 +++++++++++
+ src/cmd/compile/internal/noder/reader.go |  6 +++++-
+ test/fixedbugs/issue60945.dir/a.go       | 22 ++++++++++++++++++++++
+ test/fixedbugs/issue60945.dir/b.go       |  9 +++++++++
+ test/fixedbugs/issue60945.go             |  7 +++++++
+ 5 files changed, 54 insertions(+), 1 deletion(-)

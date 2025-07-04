@@ -1,16 +1,15 @@
-commit 7a974a4c602252ca7db5b35c1236b45ead4c1d54
-Author: Carlos C <uldericofilho@gmail.com>
-Date:   Wed Aug 10 16:24:11 2016 +0200
+commit ae9804595879eb07efd23b9c98eab46693573447
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 13 16:57:23 2016 -0700
 
-    encoding/json: add example for RawMessage marshalling
+    cmd/compile: use correct export function (fix debugFormat)
     
-    Fixes #16648
+    Tested with debugFormat enabled and running
+    (export GO_GCFLAGS=-newexport; sh all.bash).
     
-    Change-Id: I3ab21ab33ca3f41219de9518ac6a39f49131e5e5
-    Reviewed-on: https://go-review.googlesource.com/26692
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If7d43e1e594ea43c644232b89e670f7abb6b003e
+    Reviewed-on: https://go-review.googlesource.com/22033
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/json/example_test.go | 26 +++++++++++++++++++++++++-
- 1 file changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

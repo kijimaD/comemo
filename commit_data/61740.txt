@@ -1,0 +1,25 @@
+commit efe0a86551c30ceaf71361645023cbea913249d3
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon Nov 18 16:15:36 2024 +0800
+
+    cmd/compile/internal/ssa: make _gen an actual submodule and skip it in TestStdlib
+    
+    After tools CL 612038, the package astutil stops being vendored, but
+    _gen/rulegen.go needs to import this package.
+    In particular, after update golang.org/x/tools, the package astutil
+    is deleted from the vendor directory, and got error when run TestStdlib
+    in longtest. So in this CL, we make _gen an actual submodule and
+    skip it in TestStdlib.
+    
+    Change-Id: I76f77b66427f6490b4746698711a6e307ad2ba79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629015
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/compile/internal/ssa/_gen/go.mod       | 5 +++++
+ src/cmd/compile/internal/ssa/_gen/go.sum       | 2 ++
+ src/cmd/compile/internal/types2/stdlib_test.go | 3 ++-
+ src/go/types/stdlib_test.go                    | 3 ++-
+ 4 files changed, 11 insertions(+), 2 deletions(-)

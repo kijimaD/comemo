@@ -1,13 +1,12 @@
-commit 721e19c24c84ef130528901ed8abedfcb49259b1
+commit 25c8014ed905a41a7f060efeea9a4c289c0aa0de
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 21 10:17:37 2011 -0500
+Date:   Wed Dec 21 09:04:34 2011 -0500
 
-    os/user: fix for arm (non-cgo)
+    cmd/go: respect $GCFLAGS
     
-    TBR=golang-dev
+    R=lvd
     CC=golang-dev
-    https://golang.org/cl/5504056
+    https://golang.org/cl/5500060
 
- src/pkg/os/user/lookup_stubs.go | 2 +-
- src/pkg/os/user/lookup_unix.go  | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/build.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

@@ -1,17 +1,19 @@
-commit 36b87f273cc43e21685179dc1664ebb5493d26ae
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Dec 1 09:24:06 2022 -0800
+commit 1ab827371858e02f864f91e7dc561ae48eb7bbd0
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 3 09:44:21 2022 -0800
 
-    crypto/x509: include more hints for verification failure
+    cmd/compile: ensure size is computed for shape types
     
-    Include hint from isValid, as well as CheckSignatureFrom.
+    Fixes #50993
     
-    Change-Id: I408f73fc5f12572f1937da50be7fa3e1109164b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454477
+    Change-Id: I5f1bf5a8375c3da3203083b11de26962523ccb36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382874
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/crypto/x509/verify.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/typecheck/subr.go |  1 +
+ test/typeparam/issue50993.go               | 35 ++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

@@ -1,16 +1,39 @@
-commit 79167bbd9c71017e18836a3e5e40261b57012358
-Author: Suyash <dextrous93@gmail.com>
-Date:   Wed Sep 14 22:36:58 2016 +0530
+commit ab4414773e27624abf4361e48a0ca0979e804970
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 24 02:45:11 2016 -0400
 
-    sort: add examples for sort.Search
+    math/big: write t*10 to multiply t by 10
     
-    This adds examples showing the different ways of using sort.Search.
+    The compiler has caught up.
+    In fact the compiler is ahead; it knows about a magic multiply-by-5 instruction:
     
-    Change-Id: Iaa08b4501691f37908317fdcf2e618fbe9f99ade
-    Reviewed-on: https://go-review.googlesource.com/29131
+            // compute '0' + byte(r - t*10) in AX
+            MOVQ    t, AX
+            LEAQ    (AX)(AX*4), AX
+            SHLQ    $1, AX
+            MOVQ    r, CX
+            SUBQ    AX, CX
+            LEAL    48(CX), AX
+    
+    For comparison, the shifty version compiles to:
+    
+            // compute '0' + byte(r - t*10) in AX
+            MOVQ    t, AX
+            MOVQ    AX, CX
+            SHLQ    $3, AX
+            MOVQ    r, DX
+            SUBQ    AX, DX
+            SUBQ    CX, DX
+            SUBQ    CX, DX
+            LEAL    48(DX), AX
+    
+    Fixes #2671.
+    
+    Change-Id: Ifbf23dbfeb19c0bb020fa44eb2f025943969fb6b
+    Reviewed-on: https://go-review.googlesource.com/23372
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sort/example_search_test.go | 42 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
+ src/math/big/natconv.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

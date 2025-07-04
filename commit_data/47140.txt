@@ -1,27 +1,34 @@
-commit 89c527007f75884a78ffede5d493ec021e7dfcdc
-Author: Martin Möhrmann <martin@golang.org>
-Date:   Sun Oct 31 17:58:07 2021 +0100
+commit 9a555fc24c318bf1b07bdc07d5c02e372681e401
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Feb 25 12:13:23 2021 -0800
 
-    reflect: avoid stack copies of hiter
+    cmd/compile:  fix missing descend in Addrtaken for closures.
     
-    Use a pointer reciever to avoid copying the hiter struct when
-    checking if it is intialized.
+    ComputeAddrtaken needs to descend into closures, now that imported
+    bodies can include closures. The bug was that we weren't properly
+    setting Addrtaken for a variable inside a closure inside a function that
+    we were importing.
     
-    Found through profiling that showed reflect map iteration spending
-    a good amount of time in duffcopy.
+    For now, still disable inlining of functions with closures for -G mode.
+    I'll enable it in a later change -- there are just a few fixes related
+    to the fact that we don't need to set Ntype for closure functions.
     
-    This change will also help other MapIter methods checking hiter struct
-    initialization like Value() and Key().
+    Added a test derived from the cilium repro in the issue.
     
-    name            old time/op  new time/op  delta
-    MapIterNext-12  97.9ns ± 4%  83.8ns ± 2%  -14.37%  (p=0.000 n=10+10)
+    Fixes #44370
     
-    Change-Id: I73ab964fa28061ee7e6d5c663a85048bd2e0274e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360254
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Martin Möhrmann <martin@golang.org>
+    Change-Id: Ida2a403636bf8740b471b3ad68b5474951811e19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296649
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/all_test.go | 10 ++++++++++
- src/reflect/value.go    |  2 +-
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/base/flag.go      |  1 +
+ src/cmd/compile/internal/inline/inl.go     |  4 +---
+ src/cmd/compile/internal/typecheck/subr.go |  9 +++++++--
+ test/fixedbugs/issue44370.dir/a.go         | 20 ++++++++++++++++++++
+ test/fixedbugs/issue44370.dir/b.go         | 11 +++++++++++
+ test/fixedbugs/issue44370.go               |  7 +++++++
+ 6 files changed, 47 insertions(+), 5 deletions(-)

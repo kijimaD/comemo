@@ -1,16 +1,15 @@
-commit 8969ab89b8b1c7b617b3418c5b122baa43bcd563
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 6 18:05:41 2016 -0800
+commit f474885f8a44d3c00e2f11315628fa80fda9404c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 01:00:14 2015 -0500
 
-    cmd/compile: add sizeof test for ssa types
+    cmd/go: document where get writes, and not vendor directories
     
-    Fix some test output while we're here.
+    Fixes #12260.
     
-    Change-Id: I265cedc222e078eff120f268b92451e12b0400b2
-    Reviewed-on: https://go-review.googlesource.com/20294
+    Change-Id: I95c27aad6de8064b9a205d4ee507bce75926f16d
+    Reviewed-on: https://go-review.googlesource.com/17948
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/sizeof_test.go  |  2 +-
- src/cmd/compile/internal/ssa/sizeof_test.go | 39 +++++++++++++++++++++++++++++
- src/cmd/internal/obj/sizeof_test.go         |  2 +-
- 3 files changed, 41 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go | 6 ++++++
+ src/cmd/go/get.go     | 6 ++++++
+ 2 files changed, 12 insertions(+)

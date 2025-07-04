@@ -1,18 +1,12 @@
-commit 26154f31ad6c801d8bad5ef58df1e9263c6beec7
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Mar 3 03:45:22 2020 +1100
+commit 988e4d832e44d6ba52560e24f869e63cb225940d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Oct 17 16:46:01 2019 -0400
 
-    cmd/compile: use NEG/NEGW pseudo-instructions on riscv64
+    [dev.boringcrypto] misc/boring: add go1.13.2b4 and go1.12.11b4 to RELEASES file
     
-    Also rewrite subtraction of zero to NEG/NEGW.
-    
-    Change-Id: I216e286d1860055f2a07fe2f772cd50f366ea097
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221691
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I3aed19564f217bbe23ddd6c351c789800b7e6d83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201768
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/riscv64/ssa.go        |   2 +-
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  17 +++-
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   2 +
- src/cmd/compile/internal/ssa/opGen.go          |  28 ++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 123 +++++++++++++------------
- 5 files changed, 107 insertions(+), 65 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

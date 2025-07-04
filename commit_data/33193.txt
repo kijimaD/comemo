@@ -1,17 +1,15 @@
-commit 1de2267bf1e7b867acf2137f15e61ba2b75d7d42
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sat Oct 21 18:12:40 2017 +1100
+commit cd702b171c90be4b410d19bd93d5ea2899eaa809
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Jul 24 13:37:04 2017 -0400
 
-    image/png: fix width * height * bpp overflow check.
+    [dev.debug] cmd/internal/dwarf: add DWARF abbrevs with location lists
     
-    Previously, the code would only check (w*h), not (w*h*bpp).
+    Location lists require new DWARF abbrev entries. Add them before
+    CL 41770 to enable binary comparison.
     
-    Fixes #22304
-    
-    Change-Id: Iaca26d916fe4b894d460448c416b1e0b9fd68e44
-    Reviewed-on: https://go-review.googlesource.com/72350
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: If99461f6896db902f2774e0718065eb3d3522026
+    Reviewed-on: https://go-review.googlesource.com/50881
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/image/png/reader.go      |  6 ++++++
- src/image/png/reader_test.go | 18 ++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/cmd/internal/dwarf/dwarf.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

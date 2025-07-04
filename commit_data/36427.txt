@@ -1,18 +1,19 @@
-commit cfbe3cfbeb6b2de561fc709b8644d4d7a4e182bb
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Aug 16 10:49:35 2018 -0400
+commit ae2a2d12f6d8cde35637a13f384f6de524112768
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 26 15:25:36 2018 -0700
 
-    runtime: fix implementation of cputicks for ppc64x
+    cmd/compile: cleaner solution for importing init functions
     
-    The implementation of cputicks has been wrong for ppc64x. The
-    previous code sequence is for 32 bit, not 64 bit.
+    Using oldname+resolve is how typecheck handles this anyway.
     
-    Change-Id: I308ae6cf9131f53a0100cd3f8ae4e16601f2d553
-    Reviewed-on: https://go-review.googlesource.com/129595
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Passes toolstash -cmp, with both -iexport enabled and disabled.
+    
+    Change-Id: I12b0f0333d6b86ce6bfc4d416c461b5f15c1110d
+    Reviewed-on: https://go-review.googlesource.com/109715
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/asm_ppc64x.s | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/init.go  | 16 +++++++++++-----
+ src/cmd/compile/internal/gc/noder.go | 11 -----------
+ 2 files changed, 11 insertions(+), 16 deletions(-)

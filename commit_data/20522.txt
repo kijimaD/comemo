@@ -1,20 +1,16 @@
-commit 54111a5893cf3a1de6f79729832c3ad9bb1a193b
-Author: Rob Pike <r@golang.org>
-Date:   Wed Sep 24 14:33:30 2014 -0700
+commit 8d61334dd5b08c8076e343aa33197bd219cdf922
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 10:21:54 2014 -0400
 
-    fmt: document and fix the handling of precision for strings and byte slices
-    Previous behavior was undocumented and inconsistent. Now it is documented
-    and consistent and measures the input size, since that makes more sense
-    when talking about %q and %x. For %s the change has no effect.
+    cmd/gc: say 'non-constant array bound' instead of 'invalid array bound'
     
-    Fixes #8151.
+    Fixes #8196.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=adonovan
+    R=adonovan
     CC=golang-codereviews
-    https://golang.org/cl/144540044
+    https://golang.org/cl/141510044
 
- src/fmt/doc.go      | 20 ++++++++++++--------
- src/fmt/fmt_test.go |  7 +++++++
- src/fmt/format.go   |  6 ++++++
- 3 files changed, 25 insertions(+), 8 deletions(-)
+ src/cmd/gc/typecheck.c   |  5 ++++-
+ test/fixedbugs/bug255.go | 19 ++++++++++++-------
+ 2 files changed, 16 insertions(+), 8 deletions(-)

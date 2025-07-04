@@ -1,14 +1,13 @@
-commit da291de5a2bb7a4c7b92133a3e1765d279ca6a32
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Mar 11 13:06:01 2014 -0400
+commit 38f6c3f59d590052b43ed71a2350485bdc76ef3e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Mar 11 17:33:03 2014 +0400
 
-    crypto/rsa: fix docs for PrecomputedValues.Qinv
-    Fixes #7507.
+    runtime: wipe out bitSpecial from GC code
     
-    LGTM=agl
-    R=agl
-    CC=golang-codereviews
-    https://golang.org/cl/74090043
+    LGTM=khr, rsc
+    R=golang-codereviews, bradfitz, khr
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/72480044
 
- src/pkg/crypto/rsa/rsa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

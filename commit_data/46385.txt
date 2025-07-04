@@ -1,23 +1,37 @@
-commit d2a77f1c76dcc960d8548fa47ec29fcb1b2e5833
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Sep 8 18:27:31 2021 -0400
+commit 1d9a1f67d537309f80740b16ef619500fb55db16
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Dec 25 00:12:15 2020 -0800
 
-    go/types: handle recursive type parameter constraints
+    [dev.regabi] cmd/compile: don't emit reflect data for method types
     
-    This is a port of CL 348090 to go/types. Notably, unlike in types2,
-    declareTypeParams was previously setting the default constraint to the
-    empty interface, not nil, because this was missed in CL 335034 (no
-    changes were made to declareTypeParams). This CL fixes this discrepancy.
+    Within the compiler, we represent the type of methods as a special
+    "method" type, where the receiver parameter type is kept separate from
+    the other parameters. This is convenient for operations like testing
+    whether a type implements an interface, where we want to ignore the
+    receiver type.
     
-    Change-Id: I0fa54a660ba14c6cbefa81a27ab7eb193df3be20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348690
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    These method types don't properly exist within the Go language though:
+    there are only "function" types. E.g., method expressions (expressions
+    of the form Type.Method) are simply functions with the receiver
+    parameter prepended to the regular parameter list.
+    
+    However, the compiler backend is currently a little sloppy in its
+    handling of these types, which results in temporary variables being
+    declared as having "method" type, which then end up in DWARF
+    data. This is probably harmless in practice, but it's still wrong.
+    
+    The proper solution is to fix the backend code so that we use correct
+    types everywhere, and the next CL does exactly this. But as it fixes
+    the DWARF output, so it fails toolstash -cmp. So this prelim CL
+    bandages over the issue in a way that generates the same output as
+    that proper fix.
+    
+    Change-Id: I37a127bc8365c3a79ce513bdb3cfccb945912762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280293
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/types/decl.go                           | 19 +++++++++++----
- src/go/types/signature.go                      |  2 +-
- src/go/types/testdata/fixedbugs/issue45550.go2 | 10 ++++++++
- src/go/types/testdata/fixedbugs/issue47796.go2 | 33 ++++++++++++++++++++++++++
- 4 files changed, 58 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 4 ++++
+ 1 file changed, 4 insertions(+)

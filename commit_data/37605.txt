@@ -1,17 +1,16 @@
-commit fcd6117e9809a889974b50dad32002d3424ef6b2
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Dec 5 16:23:52 2018 -0500
+commit c589b9ec4eaf47e9e4994113d88e073cb695181b
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Mon Aug 20 12:46:43 2018 -0700
 
-    cmd/internal/objfile: provide consistent output in objdump on ppc64x
+    cmd/vet: exclude windows/arm from cmd/vet
     
-    This makes a change to disasm.go so it provides consistent output
-    with the recent updates to arch/ppc64.
+    Updates #27103
     
-    Change-Id: I812e5da2423fd1a84406032fd91ddf9cc86b7c69
-    Reviewed-on: https://go-review.googlesource.com/c/152761
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1f7d198879e5912661e4156a86e13de2698a5473
+    Reviewed-on: https://go-review.googlesource.com/130055
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/objfile/disasm.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/vet/all/main.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

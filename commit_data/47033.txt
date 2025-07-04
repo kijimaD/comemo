@@ -1,22 +1,25 @@
-commit ec6c00418c83aa4f68a5afc9803831f43f8d794f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Oct 25 13:37:29 2021 +0200
+commit b2bdadfe88c205baed2f3dde6aa4709940ce4a7b
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Nov 2 15:05:40 2020 -0600
 
-    syscall: use fcntl F_DUP2FD_CLOEXEC in forkAndExecInChild on illumos
+    cmd/internal: cleanup ppc64 optab structure
     
-    Use fcntl(oldfd, F_DUP2FD_CLOEXEC, newfd) to duplicate the file
-    descriptor and mark is as close-on-exec instead of dup2 & fcntl.
+    This is no-functionality change to begin the process of supporting
+    more than 6 operands.
     
-    Illumos implements dup3 like this in libc.
+    This rewrites the table to use named arguments, and removes default
+    initialized argument values.  The following sed regexes rewrote the table:
     
-    Change-Id: I9782bce553ffb832e9b1a12bbf3c0a40c821f56e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358374
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+      s/{\([^,]*\),\([^,]*\),\([^,]*\),\([^,]*\),\([^,]*\),\([^,]*\),\([^,]*\),\([^,]*\)}/{as:\1,a1:\2,a2:\3,a3:\4,a4:\5,type_:\6,size:\7,param:\8}
+      s/a[1-4]: C_NONE, //g
+      s/, param: 0//
+    
+    Change-Id: I5f4de9da75f2fb3964d625d6b4e2f1ce1e29cc47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294189
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
 
- src/syscall/exec_libc.go       | 26 ++++++++++++++++++++------
- src/syscall/syscall_aix.go     |  2 ++
- src/syscall/syscall_solaris.go |  2 ++
- 3 files changed, 24 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go | 912 +++++++++++++++++++------------------
+ 1 file changed, 459 insertions(+), 453 deletions(-)

@@ -1,14 +1,12 @@
-commit b0ef0294d2b0080b1b9bfa073e61d1e7c509eb3b
+commit 034711ed763339e4a9bc068fba09d0441fde348f
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Aug 1 19:17:23 2011 -0700
+Date:   Mon Aug 1 14:20:02 2011 -0700
 
-    go/build: use GOBIN as binary path for GOROOT
+    tag release.r59
     
-    Fixes #2106.
-    
-    R=golang-dev, dsymonds, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4836047
+    https://golang.org/cl/4841044
 
- src/pkg/go/build/path.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,32 @@
+commit 1b4cf43e422031f94b55822447625772efd37ea8
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 29 15:08:33 2024 -0700
+
+    runtime: size maps.Clone destination bucket array safely
+    
+    In rare situations, like during same-sized grows, the source map for
+    maps.Clone may be overloaded (has more than 6.5 entries per
+    bucket). This causes the runtime to allocate a larger bucket array for
+    the destination map than for the source map. The maps.Clone code
+    walks off the end of the source array if it is smaller than the
+    destination array.
+    
+    This is a pretty simple fix, ensuring that the destination bucket
+    array is never longer than the source bucket array. Maybe a better fix
+    is to make the Clone code handle shorter source arrays correctly, but
+    this fix is deliberately simple to reduce the risk of backporting this
+    fix.
+    
+    Fixes #69110
+    
+    Change-Id: I824c93d1db690999f25a3c43b2816fc28ace7509
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609757
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/runtime/map_noswiss.go   | 16 ++++++++++++-
+ src/runtime/map_swiss.go     | 16 ++++++++++++-
+ test/fixedbugs/issue69110.go | 57 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 085cf0fcdc4faa2f473839f8cc1860ec5bcf97a3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 24 07:57:45 2024 -0700
+
+    net/netip: add test that Compare and reflect.DeepEqual match
+    
+    Updates #68113
+    
+    Change-Id: I1107686ef364f77f48f55534ea8ec68d1785e1e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594375
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/net/netip/netip_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

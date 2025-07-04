@@ -1,25 +1,40 @@
-commit b666f2860b2735eb61fe5a03dd90c3af8eed1ec3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 1 07:36:43 2017 -0700
+commit 19d2061d502d26086d6db75fa818dde668a888bf
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Feb 10 23:41:53 2017 -0700
 
-    runtime: use 64 bit calculation in overLoadFactor
+    cmd/compile: suppress callsite signatures if any type is unknown
     
-    overLoadFactor used a uintptr for its calculations.
-    When the number of potential buckets was large,
-    perhaps due to a coding error or corrupt/malicious user input
-    leading to a very large map size hint,
-    this led to overflow on 32 bit systems.
-    This overflow resulted in an infinite loop.
+    Fixes #19012.
     
-    Prevent it by always using a 64 bit calculation.
+    Fallback to return signatures without detailed types.
+    These error message will be of the form of issue:
+    * https://golang.org/issues/4215
+    * https://golang.org/issues/6750
     
-    Updates #20195
+    So:
+    func f(x int, y uint) {
+        return x > y
+    }
     
-    Change-Id: Iaabc710773cd5da6754f43b913478cc5562d89a2
-    Reviewed-on: https://go-review.googlesource.com/42185
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    f(10, "a" < 3)
+    
+    will give errors:
+    too many errors to return
+    too many arguments in call to f
+    
+    instead of:
+    
+    too many errors to return
+      have (<T>)
+      want ()
+    too many arguments in call to f
+      have (number, <T>)
+      want (number, number)
+    
+    Change-Id: I680abc7cdd8444400e234caddf3ff49c2d69f53d
+    Reviewed-on: https://go-review.googlesource.com/36806
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/hashmap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/typecheck.go | 27 ++++++++++++++++++++++-----
+ test/fixedbugs/issue19012.go             | 25 +++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 5 deletions(-)

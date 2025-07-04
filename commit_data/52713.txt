@@ -1,29 +1,43 @@
-commit d93f02010cbaa83916eecb4fb23dfc4153694dc0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 18 16:43:11 2023 -0700
+commit 9b89c380208ea2e85985ee6bf2b1d684274dfa1d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 22 23:57:06 2022 +0100
 
-    cmd/compile/internal/types2: only mark variables as used if they are
+    cmd/gofmt: use SkipObjectResolution with -s as well
     
-    Marking variables in erroneous variable declarations as used is
-    convenient for tests but doesn't necessarily hide follow-on errors
-    in real code: either the variable is not supposed to be declared in
-    the first place and then we should get an error if it is not used,
-    or it is there because it is intended to be used, and the we expect
-    an error it if is not used.
+    The "simplify" feature used go/ast's object tracking in only one place -
+    to replace s[a:len(s)] with s[a:].
+    Using go/ast.Object did allow us to not simplify code like:
     
-    This brings types2 closer to go/types.
+            len := func(s []int) int { ... }
+            s = s[a:len(s)]
     
-    Change-Id: If7ee1298fc770f7ad0cefe7e968533fd50ec2343
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486175
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    The existing code already noted the limitation with that approach,
+    such as "len" being redeclared in a different file in the same package.
+    Since go/ast's object tracking is file-based and very basic,
+    it wouldn't work with edge cases like those.
+    
+    The reasoning is that redeclaring len and abusing it that way is
+    extremely unlikely, and hasn't been a problem in about a decade now.
+    I reason that the same applies to len being redeclared in the same file,
+    so we should be able to safely remove the use of go/ast.Object here.
+    
+    Per https://go.dev/cl/401454, this makes "gofmt -s" about 5% faster.
+    If we ever wanted to truly get rid of false positive simplifications,
+    I imagine we'd want to reimplement the feature under go/analysis,
+    which is able to fully typecheck packages and suggest edits.
+    That seems unnecessary at this point, but we can always course correct
+    in the presumably unlikely scenario that users start reporting bugs.
+    
+    See #46485.
+    For #52463.
+    
+    Change-Id: I77fc97adceafde8f0fe6887ace83ae325bfa7416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401875
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/decl.go             | 14 --------------
- src/internal/types/testdata/fixedbugs/issue59371.go |  7 ++-----
- test/fixedbugs/issue30085.go                        |  2 +-
- test/fixedbugs/issue30087.go                        |  2 +-
- test/rename1.go                                     |  2 +-
- 5 files changed, 5 insertions(+), 22 deletions(-)
+ src/cmd/gofmt/gofmt.go    |  6 +++---
+ src/cmd/gofmt/simplify.go | 22 +++++++++++++---------
+ 2 files changed, 16 insertions(+), 12 deletions(-)

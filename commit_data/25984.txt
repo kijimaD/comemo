@@ -1,22 +1,14 @@
-commit 33c0ef2de3ba30a70b20433b14c45ccb06d02222
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sat Feb 27 20:55:50 2016 +0100
+commit 1092257f7e88e623da5528aef8dfbf51efc2835b
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Dec 8 03:10:45 2015 -0700
 
-    fmt: make identification of string arguments consistent
+    net/http: zeroLengthPostAndResponse test now in http2 mode
     
-    Use only reflect.TypeOf to detect if argument is a string.
-    
-    The wasString return is only needed in doPrint with the 'v' verb.
-    This type of string detection is handled correctly by reflect.TypeOf
-    which is used already in doPrint for identifying a string argument.
-    
-    Remove now obsolete wasString computations and return values.
-    
-    Change-Id: Iea2de7ac0f5c536a53eec63f7e679d628f5af8dc
-    Reviewed-on: https://go-review.googlesource.com/19976
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I282a399657c71f7b6406fcdde8afc82a13bdfe5f
+    Reviewed-on: https://go-review.googlesource.com/17530
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/fmt/print.go | 68 +++++++++++++++++++++++++++-----------------------------
- 1 file changed, 33 insertions(+), 35 deletions(-)
+ src/net/http/serve_test.go | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

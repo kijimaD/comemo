@@ -1,17 +1,21 @@
-commit 3f12d271335abc9d49d419247528cf286a04f9a6
-Author: areski <areski@gmail.com>
-Date:   Mon Dec 22 18:16:15 2014 +0100
+commit 9f926e81c262f11e2980a25f06ac17f3bbeb378a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 23 17:05:30 2015 +0900
 
-    bytes, os/exec, strings: fix a few BUG comments
+    runtime: simplify OpenBSD semaphores
     
-    Regular expression noteMarker requires the definition of a (who) section
-    when reading note from a sequence of comments.
+    OpenBSD's thrsleep system call includes an "abort" parameter, which
+    specifies a memory address to be tested after being registered on the
+    sleep channel (i.e., capable of being woken up by thrwakeup).  By
+    passing a pointer to waitsemacount for this parameter, we avoid race
+    conditions without needing a lock.  Instead we just need to use
+    atomicload, cas, and xadd to mutate the semaphore count.
     
-    Change-Id: I9635de9b86f00d20ec108097fee4d4a8f76237b2
-    Reviewed-on: https://go-review.googlesource.com/1952
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If9f2ab7cfd682da217f9912783cadea7e72283a8
+    Reviewed-on: https://go-review.googlesource.com/5563
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Joel Sing <jsing@google.com>
 
- src/bytes/bytes.go     | 2 +-
- src/os/exec/exec.go    | 2 +-
- src/strings/strings.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/os1_openbsd.go | 40 ++++++++++++++--------------------------
+ src/runtime/os_openbsd.go  |  2 +-
+ 2 files changed, 15 insertions(+), 27 deletions(-)

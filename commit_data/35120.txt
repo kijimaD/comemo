@@ -1,16 +1,17 @@
-commit 74f9432beadb7179169e08b6c910dd533c62b7c8
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue Apr 24 15:23:41 2018 +0200
+commit a4dfb2e55525d56e5e185dc0082ee70d9bf1c00a
+Author: David Chase <drchase@google.com>
+Date:   Fri Dec 15 15:56:51 2017 -0500
 
-    internal/cpu: remove redundant build tag
+    cmd/link: make inlining+locationlist test depend on GOARCH
     
-    The file name suffix arm64 already limits the file to be build only on arm64.
+    Location lists are only supported on x86 and amd64, so the
+    test expecting them failed everywhere else. Make that test
+    skip unless GOARCH is x86 or amd64.
     
-    Change-Id: I33db713041b6dec9eb00889bac3b54c727e90743
-    Reviewed-on: https://go-review.googlesource.com/108986
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: Id86b34d30c6a0b97e6fa0cd5aca31f51ed84f556
+    Reviewed-on: https://go-review.googlesource.com/84395
+    Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/cpu/cpu_arm64.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,41 +1,52 @@
-commit e8a767b609a32972aca848b806700b3f7ddd34d3
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Aug 17 18:36:00 2023 +0000
+commit c2ede92a0d461cca8ab5fba8840e15670710fbd9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 22 15:47:27 2022 -0400
 
-    runtime/pprof: increase contention upper bound in TestMutexProfile
+    runtime/pprof: force use of 4-column profiles in pprof memprofile output
     
-    Currently TestMutexProfile expects contention to reported as somewhere
-    between 0.9x and 2.0x the expected amount introduced. While bounding
-    from below is fine (especially since the goroutine holding the mutex
-    doesn't even start to sleep until the required number of goroutines are
-    blocked on a mutex), bounding from above can easily lead to flakiness.
-    Delays and non-determinism can come from anywhere in the system,
-    and nevertheless clocks keep ticking. The result is that goroutines
-    could easily appear to be blocked on a mutex much longer than just the
-    sleep time.
+    Pprof's converter from legacy text format to protobuf format
+    assumes that if the alloc and inuse stats are equal, then what's
+    really going on is that the program makes no distinction, and it
+    reads them as a two-column profile: objects and bytes.
     
-    However, the contention upper bound is still useful, especially for
-    identifying wildly incorrect values. Set the contention total to be
-    proportional to the total wall-time spent in the actual sampling mutex
-    block sampling portion of the code. This should be a generous
-    upper-bound on how much contention there could be, because it should in
-    theory capture any delays from the environment in it as well.
+    Most of the time, some sampled object has been freed, and alloc != inuse.
+    In that case, pprof reads the profile as a four-column profile, with
+    alloc_objects, alloc_bytes, inuse_objects, inuse_bytes.
     
-    Still, rounding errors could be an issue, and on Windows the time
-    granularity is quite low (~15ms, or 15% of what each goroutine is
-    supposed to add to the mutex profile), so getting unlucky with where
-    time measurements fall within each tick could also be a problem. Add an
-    extra 10%, which seems to make it much less likely to fail in a Windows
-    gomote.
+    The 2-column form causes problems in a few ways. One is that if
+    you are reading the proto form and expect samples with the 4-column
+    names, they're not there. Another is that pprof's profile merger insists
+    on having the same number of columns and same names. This means
+    that
     
-    Fixes #62094.
+            pprof *.memprofile
     
-    Change-Id: I59a10a73affd077185dada8474b91d0bc43b4a43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520635
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    works most of the time but fails if one of the memory profiles hit
+    the unlikely condition that alloc == inuse, since now its converted
+    form differs from the others.
+    
+    Most programs should simply not be using this output form at all,
+    but cmd/compile and cmd/link still do, because x/tools/cmd/compilebench
+    reads some extra values from the text form that we have not yet added
+    to the proto form.
+    
+    For the programs still writing this form, the easiest way to avoid the
+    column collapse issues is to ensure that the header never reports
+    alloc == inuse. The actual values in the header are ignored by pprof now,
+    except for the equality check (they should sum to the other values in the
+    file, so they are technically redundant). Because the actual values are not
+    used except for the equality check, we could hard-code different values
+    like 0 and 1, but just in case, to break as little as possible, this CL only
+    adjusts the values when they would otherwise be equal. In that case it
+    adds 1 to allocBytes. For most profiles, where alloc != inuse already, there
+    is no effect at all.
+    
+    Change-Id: Ia563e402573d0f6eb81ae496645db27c08f9fe31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432758
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/pprof/pprof_test.go | 19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+ src/runtime/pprof/pprof.go | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

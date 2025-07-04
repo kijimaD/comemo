@@ -1,28 +1,38 @@
-commit a671e33c6daded6639e0cd97b4791c4468475e71
-Author: Tamir Duberstein <tamird@google.com>
-Date:   Thu Nov 12 17:42:58 2020 -0500
+commit 40ef1faabc44ab8ea28a1cf282ecab723ecb0394
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 15 14:43:02 2020 -0700
 
-    all: use more precise build tags
+    cmd/compile: redo flag constant ops for arm
     
-    s/!gccgo/gc/ in files which use gc-syntax assembly.
+    Encode the flag results in an auxint field instead of having
+    one opcode per flag state. This helps us handle the new *noov
+    branches in a unified manner.
     
-    Change-Id: Ifdadb62edd1210ebc70e7cd415648b752afaf067
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269957
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Trust: David Chase <drchase@google.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    This is only for arm, arm64 is in a subsequent CL.
+    
+    We could extend to other architectures as well, athough it would
+    only be cleanup, no behavioral change.
+    
+    Update #39505
+    
+    Change-Id: Ia46cea596faad540d1496c5915ab1274571543f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238077
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/test/testdata/issue9400/asm_386.s     | 2 +-
- misc/cgo/test/testdata/issue9400/asm_amd64x.s  | 2 +-
- misc/cgo/test/testdata/issue9400/asm_arm.s     | 2 +-
- misc/cgo/test/testdata/issue9400/asm_arm64.s   | 2 +-
- misc/cgo/test/testdata/issue9400/asm_mips64x.s | 2 +-
- misc/cgo/test/testdata/issue9400/asm_mipsx.s   | 2 +-
- misc/cgo/test/testdata/issue9400/asm_ppc64x.s  | 2 +-
- misc/cgo/test/testdata/issue9400/asm_riscv64.s | 2 +-
- misc/cgo/test/testdata/issue9400/asm_s390x.s   | 2 +-
- misc/cgo/testshared/testdata/depBase/asm.s     | 2 +-
- misc/cgo/testshared/testdata/depBase/stubs.go  | 2 +-
- src/cmd/dist/util_gc.go                        | 4 ++--
- src/cmd/go/testdata/script/build_overlay.txt   | 2 +-
- 13 files changed, 14 insertions(+), 14 deletions(-)
+ src/cmd/compile/fmtmap_test.go                  |    1 +
+ src/cmd/compile/internal/arm/ssa.go             |    8 +-
+ src/cmd/compile/internal/ssa/check.go           |    5 +
+ src/cmd/compile/internal/ssa/flags_amd64_test.s |   31 +
+ src/cmd/compile/internal/ssa/flags_arm64_test.s |   32 +
+ src/cmd/compile/internal/ssa/flags_test.go      |  108 ++
+ src/cmd/compile/internal/ssa/gen/ARM.rules      |  220 +---
+ src/cmd/compile/internal/ssa/gen/ARMOps.go      |   14 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go     |    4 +-
+ src/cmd/compile/internal/ssa/op.go              |    1 +
+ src/cmd/compile/internal/ssa/opGen.go           |   33 +-
+ src/cmd/compile/internal/ssa/rewrite.go         |  181 +++
+ src/cmd/compile/internal/ssa/rewriteARM.go      | 1553 +++++++----------------
+ src/cmd/compile/internal/ssa/rewrite_test.go    |    9 +
+ src/cmd/compile/internal/ssa/value.go           |    2 +
+ 15 files changed, 915 insertions(+), 1287 deletions(-)

@@ -1,20 +1,35 @@
-commit 95773ab9b053edc43ba07a182f3d5e0e29775a45
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Apr 1 16:34:50 2020 -0700
+commit c3e8a20a65c731eac6434a129cdaf5ed02325612
+Author: nikita-vanyasin <nikita.vanyasin@gmail.com>
+Date:   Sat Apr 13 16:42:48 2019 +0300
 
-    sync/atomic: fix TestSwapPointer test
+    cmd/link/internal: eliminate all ld.Cputime() usages
     
-    It plays way too loose with unsafe.Pointer rules.
-    It runs afoul of the checkptr rules, so some race detector builds
-    were failing.
+    Also a similar 'elapsed' function and its usages were deleted.
     
-    Fixes #38210
+    Fixes #19865.
     
-    Change-Id: I5e1c78201d06295524fdedb3fe5b49d61446f443
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226880
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib125365e69cf2eda60de64fa74290c8c7d1fd65a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171730
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/sync/atomic/atomic_test.go | 68 +++++++++++++++++++++++++-----------------
- 1 file changed, 41 insertions(+), 27 deletions(-)
+ src/cmd/link/internal/amd64/asm.go   | 32 +-------------------------------
+ src/cmd/link/internal/arm/asm.go     | 27 +--------------------------
+ src/cmd/link/internal/arm64/asm.go   | 23 -----------------------
+ src/cmd/link/internal/ld/data.go     | 14 --------------
+ src/cmd/link/internal/ld/deadcode.go |  4 ----
+ src/cmd/link/internal/ld/dwarf.go    |  4 ----
+ src/cmd/link/internal/ld/ld.go       |  4 ++--
+ src/cmd/link/internal/ld/lib.go      | 12 ++++++------
+ src/cmd/link/internal/ld/main.go     |  1 -
+ src/cmd/link/internal/ld/pcln.go     |  2 +-
+ src/cmd/link/internal/ld/util.go     | 17 -----------------
+ src/cmd/link/internal/mips/asm.go    | 26 --------------------------
+ src/cmd/link/internal/mips64/asm.go  | 23 -----------------------
+ src/cmd/link/internal/ppc64/asm.go   | 23 -----------------------
+ src/cmd/link/internal/s390x/asm.go   | 27 ---------------------------
+ src/cmd/link/internal/wasm/asm.go    |  4 ----
+ src/cmd/link/internal/x86/asm.go     | 28 +---------------------------
+ 17 files changed, 12 insertions(+), 259 deletions(-)

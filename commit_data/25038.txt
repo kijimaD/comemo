@@ -1,12 +1,15 @@
-commit 0e771c72ede28220a26ac8bfe60d88f3a0a5072a
-Author: Carlos Cirello <uldericofilho@gmail.com>
-Date:   Wed Aug 26 22:57:52 2015 +0200
+commit 1fd78e1f600d10475b85381427bda9f14f86e0f0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Sep 11 00:26:50 2015 -0400
 
-    unicode: add function level examples
+    cmd/go: provide full path as os.Args[0] when invoking tools
     
-    Change-Id: I9e968c03c6615a539b18701c84f830898242441d
-    Reviewed-on: https://go-review.googlesource.com/13926
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    cmd/dist needs to re-exec or open itself to detect GOARM (CL 3973) and
+    detect host machine endianness (CL 14460).
+    
+    Change-Id: If6438831ab0715ba8e236d64bb2c7c1bde1470aa
+    Reviewed-on: https://go-review.googlesource.com/14476
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/unicode/example_test.go | 196 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 196 insertions(+)
+ src/cmd/go/tool.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,14 +1,12 @@
-commit 731786439cd0c36a8eee721cc44ec26795609e00
-Author: Anthony Starks <ajstarks@gmail.com>
-Date:   Fri Apr 1 14:44:57 2011 +1100
+commit 799be52b358c85b843c31f9aac7ed04d0349e501
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 1 13:38:33 2011 +1100
 
-    misc/notepadplus: add syntax and completion support for notepad++
+    gotest: another attempt to make it run on Windows
     
-    R=golang-dev, adg, peterGo
+    R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4274072
+    https://golang.org/cl/4347041
 
- misc/notepadplus/README             |  8 +++++
- misc/notepadplus/go.xml             | 66 +++++++++++++++++++++++++++++++++++++
- misc/notepadplus/userDefineLang.xml | 36 ++++++++++++++++++++
- 3 files changed, 110 insertions(+)
+ src/cmd/gotest/gotest.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

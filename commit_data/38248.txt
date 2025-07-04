@@ -1,21 +1,26 @@
-commit 4a7d5aa30bab454f546d8f3b6d4b4a27585f1433
-Author: Austin Clements <austin@google.com>
-Date:   Mon Sep 25 15:17:28 2017 -0400
+commit df459d5e6cc14532961875058f5d4ba3d04b5ed4
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 13 15:48:17 2018 -0700
 
-    runtime: don't use GOGC in minimum sweep distance
+    cmd/compile: emit symbol for constant string before parallel compiler phase
     
-    Currently, the minimum sweep distance is 1MB * GOGC/100. It's been
-    this way since it was introduced in CL 13043 with no justification.
+    This CL makes sure we walk the newly generated assignment. Part of
+    that walk makes sure that all symbols for strings are emitted before
+    we start referencing them during the parallel compilation
+    phase. Without this change, those references during the parallel phase
+    do a create-if-not-exist, which leads to a data race.
     
-    Since there seems to be no good reason to scale the minimum sweep
-    distance by GOGC, make the minimum sweep distance just 1MB.
+    I'm not 100% sure this is the fix for the issues below, but optimistically
+    assuming it is...
     
-    Change-Id: I5320574a23c0eec641e346282aab08a3bbb057da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/66091
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #28170
+    Fixes #28159
+    
+    Change-Id: Ic63d5160ad9be5cb23fa6bbb2183e4848776c0ff
+    Reviewed-on: https://go-review.googlesource.com/c/141648
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

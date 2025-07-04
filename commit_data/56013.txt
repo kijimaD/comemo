@@ -1,26 +1,24 @@
-commit 5e1e3a002528714f7c5954dd13068a89f41f747a
-Author: Audi P. R. Putra <doelaudi@gmail.com>
-Date:   Fri Sep 15 23:37:53 2023 +0700
+commit 4ac638f4b7c49370a62db4e6232f2895d7bbda0d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 31 19:56:26 2023 +0000
 
-    cmd/go: show deprecation message on go run/install
+    Revert "Revert "runtime: consolidate function descriptor definitions on PPC64""
     
-    Add check for deprecations in PackagesAndErrorsOutsideModule. This affects go run/install outside module when run in module-aware mode.
+    This reverts CL 481059, which in turn reverts CL 478917.
     
-    Fixes #59230
+    Reason for revert: reapply the original CL.
     
-    Change-Id: I106df36a856894fb1b634decfa812e31cf88fe74
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528775
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Icf6bb6a620313b44fadcc7f69a62fdbb943e34fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481075
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
 
- src/cmd/go/internal/load/pkg.go                            |  7 +++++++
- .../go/testdata/mod/example.com_deprecated_a_v1.0.0.txt    |  7 +++++++
- .../go/testdata/mod/example.com_deprecated_a_v1.9.0.txt    |  7 +++++++
- .../go/testdata/mod/example.com_undeprecated_v1.0.0.txt    |  7 +++++++
- .../go/testdata/mod/example.com_undeprecated_v1.0.1.txt    |  7 +++++++
- src/cmd/go/testdata/script/mod_install_pkg_version.txt     | 13 +++++++++++++
- src/cmd/go/testdata/script/mod_list_deprecated.txt         |  2 +-
- src/cmd/go/testdata/script/mod_run_pkg_version.txt         | 14 ++++++++++++++
- 8 files changed, 63 insertions(+), 1 deletion(-)
+ src/runtime/asm_ppc64x.h       | 20 ++++++++++++++++++--
+ src/runtime/asm_ppc64x.s       | 21 +++------------------
+ src/runtime/cgo/asm_ppc64x.s   | 25 ++++++++++++-------------
+ src/runtime/rt0_aix_ppc64.s    | 17 ++++-------------
+ src/runtime/rt0_linux_ppc64.s  | 13 +++----------
+ src/runtime/sys_linux_ppc64x.s | 23 ++++++-----------------
+ 6 files changed, 46 insertions(+), 73 deletions(-)

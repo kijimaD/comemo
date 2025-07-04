@@ -1,14 +1,23 @@
-commit ed07e16ffd899e6473cd7a4700d38a9054ecbcf9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 28 10:30:16 2024 -0500
+commit 4f132b7ef862d83390feb074be3e04109e43adaa
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 12 16:42:06 2022 -0400
 
-    cmd/go: fix TestScript/mod_vendor_goversion for CL 567476
+    runtime: don't track stack separately in gentraceback
     
-    Change-Id: I00b9934a4942a662a2eb14941c9d07e8750aa1b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567815
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Currently, gentraceback keeps a copy of the stack bounds of the stack
+    it's walking in the "stack" variable. Now that "gp" always refers to
+    the G whose stack it's walking, we can simply use gp.stack instead of
+    keeping a separate copy.
+    
+    For #54466.
+    
+    Change-Id: I68256e5dff6212cfcf14eda615487e66a92d4914
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458215
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/traceback.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

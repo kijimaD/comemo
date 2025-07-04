@@ -1,19 +1,22 @@
-commit c4efaac15daac5e15092532dcc7ca9c30a0e0fbc
+commit 5e6bd29c2c522bf55d12bdd2c63c7a06b761617e
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 28 21:53:09 2014 -0400
+Date:   Tue Oct 14 23:25:12 2014 -0400
 
-    runtime: fix unrecovered panic on external thread
+    liblink: require DATA lines to be ordered by offset, with no overlap
     
-    Fixes #8588.
+    The assembler could give a better error, but this one
+    is good enough for now.
     
-    LGTM=austin
-    R=austin
-    CC=golang-codereviews, khr
-    https://golang.org/cl/159700044
+    Fixes #8880.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/153610043
 
- src/runtime/asm_386.s         | 14 +++++++++++++
- src/runtime/asm_amd64.s       | 14 +++++++++++++
- src/runtime/asm_arm.s         | 15 +++++++++++++
- src/runtime/crash_cgo_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++
- src/runtime/crash_test.go     | 17 +++++++++++++--
- 5 files changed, 107 insertions(+), 2 deletions(-)
+ include/link.h     | 2 ++
+ src/cmd/5a/lex.c   | 1 +
+ src/cmd/6a/lex.c   | 1 +
+ src/cmd/8a/lex.c   | 1 +
+ src/liblink/data.c | 2 ++
+ 5 files changed, 7 insertions(+)

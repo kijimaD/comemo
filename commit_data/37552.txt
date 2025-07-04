@@ -1,32 +1,17 @@
-commit 6d6c8582dfffeec70d743bb9b03b5e3cc1b0a35e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Dec 1 00:21:29 2018 +0000
+commit 08d10f9af1429d19633722e36f7bfeda6c000aa5
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Aug 16 16:31:45 2018 -0400
 
-    net/http: update bundled x/net/http2
+    doc: describe golang.org/x/go/packages in go1.11 release notes
     
-    This updates x/net/http2 to x/net git rev 351d144f for:
+    Also, rename an HTML element ID to avoid duplicate.
     
-       http2: revert Transport's strict interpretation of MAX_CONCURRENT_STREAMS
-       https://golang.org/cl/151857
+    Fixes golang/go#27038
     
-       http2: don't leak streams on broken body
-       https://golang.org/cl/132715
-    
-       http2: remove support for Go 1.8 and earlier
-       https://golang.org/cl/145677
-    
-       http2: reduce init-time work & allocations
-       https://golang.org/cl/127664
-    
-    And some CLs fixing typos.
-    
-    Fixes #27044
-    Fixes #27208
-    
-    Change-Id: I11cc32576c690199ceb4c0bd1448d01e3cab3097
-    Reviewed-on: https://go-review.googlesource.com/c/152080
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Icc064a1cc86ddc794fc085d98b4cde3effff8ad0
+    Reviewed-on: https://go-review.googlesource.com/129635
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Ian Cottrell <iancottrell@google.com>
 
- src/net/http/h2_bundle.go | 522 ++++++++++++++++++++--------------------------
- 1 file changed, 228 insertions(+), 294 deletions(-)
+ doc/go1.11.html | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

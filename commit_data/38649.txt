@@ -1,45 +1,24 @@
-commit 964fe4b80ff7a9e5490f11de0e216ae34a019ebc
-Author: Neven Sajko <nsajko@gmail.com>
-Date:   Wed Apr 3 02:01:50 2019 +0000
+commit b52db19b983d9b92c013184f7699bba2d0166c10
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 12 16:31:47 2018 -0500
 
-    math/big: simplify shlVU_g and shrVU_g
+    cmd/compile: create "init" symbol earlier
     
-    Rewrote a few lines to be more idiomatic/less assembly-ish.
+    We create the "init" symbol and mark it as a function before compiling
+    to SSA because SSA can initialize this symbol, but it turns out we do
+    it slightly too late. peekitabs, at least, can also create the "init"
+    LSym. Move this initialization to just after type-checking.
     
-    Benchmarked with `go test -bench Float -tags math_big_pure_go`:
+    Fixes the linux-amd64-ssacheck and the android-arm64-wiko-fever
+    builders.
     
-    name                  old time/op    new time/op    delta
-    FloatString/100-8        751ns ± 0%     746ns ± 1%  -0.71%  (p=0.000 n=10+10)
-    FloatString/1000-8      22.9µs ± 0%    22.9µs ± 0%    ~     (p=0.271 n=10+10)
-    FloatString/10000-8     1.89ms ± 0%    1.89ms ± 0%    ~     (p=0.481 n=10+10)
-    FloatString/100000-8     184ms ± 0%     184ms ± 0%    ~     (p=0.094 n=9+9)
-    FloatAdd/10-8           56.4ns ± 1%    56.5ns ± 0%    ~     (p=0.170 n=9+9)
-    FloatAdd/100-8          59.7ns ± 0%    59.3ns ± 0%  -0.70%  (p=0.000 n=8+9)
-    FloatAdd/1000-8          101ns ± 0%      99ns ± 0%  -1.89%  (p=0.000 n=8+8)
-    FloatAdd/10000-8         553ns ± 0%     536ns ± 0%  -3.00%  (p=0.000 n=9+10)
-    FloatAdd/100000-8       4.94µs ± 0%    4.74µs ± 0%  -3.94%  (p=0.000 n=9+10)
-    FloatSub/10-8           50.3ns ± 0%    50.5ns ± 0%  +0.52%  (p=0.000 n=8+8)
-    FloatSub/100-8          52.0ns ± 0%    52.2ns ± 1%  +0.46%  (p=0.012 n=8+10)
-    FloatSub/1000-8         77.9ns ± 0%    77.3ns ± 0%  -0.80%  (p=0.000 n=7+8)
-    FloatSub/10000-8         371ns ± 0%     362ns ± 0%  -2.67%  (p=0.000 n=10+10)
-    FloatSub/100000-8       3.20µs ± 0%    3.10µs ± 0%  -3.16%  (p=0.000 n=10+10)
-    ParseFloatSmallExp-8    7.84µs ± 0%    7.82µs ± 0%  -0.17%  (p=0.037 n=9+9)
-    ParseFloatLargeExp-8    29.3µs ± 1%    29.5µs ± 0%    ~     (p=0.059 n=9+8)
-    FloatSqrt/64-8           516ns ± 0%     519ns ± 0%  +0.54%  (p=0.000 n=9+9)
-    FloatSqrt/128-8         1.07µs ± 0%    1.07µs ± 0%    ~     (p=0.109 n=8+9)
-    FloatSqrt/256-8         1.23µs ± 0%    1.23µs ± 0%  +0.50%  (p=0.000 n=9+9)
-    FloatSqrt/1000-8        3.43µs ± 0%    3.44µs ± 0%  +0.53%  (p=0.000 n=9+8)
-    FloatSqrt/10000-8       40.9µs ± 0%    40.7µs ± 0%  -0.39%  (p=0.000 n=9+8)
-    FloatSqrt/100000-8      1.07ms ± 0%    1.07ms ± 0%  -0.10%  (p=0.017 n=10+9)
-    FloatSqrt/1000000-8     89.3ms ± 0%    89.2ms ± 0%  -0.07%  (p=0.015 n=9+8)
+    Updates #27539.
     
-    Change-Id: Ibf07c6142719d11bc7f329246957d87a9f3ba3d2
-    GitHub-Last-Rev: 870a041ab7bb9c24be083114f53653a5f4eed611
-    GitHub-Pull-Request: golang/go#31220
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170449
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If145952c79d39f75c93b24e35e67fe026dd08329
+    Reviewed-on: https://go-review.googlesource.com/c/149137
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/big/arith.go | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

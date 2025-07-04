@@ -1,21 +1,16 @@
-commit d390283ff42c44230ac25800efca231b952fd3ed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 14 21:34:19 2017 -0800
+commit 9575c580648d20ded1b538d6e05a3032fff2aaed
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Oct 28 05:57:55 2016 +0900
 
-    cmd/compile/internal/syntax: compiler directives must start at beginning of line
+    net: use IPv4 reserved address blocks for documentation
     
-    - ignore them, if they don't.
-    - added tests
+    Updates #15228.
     
-    Fixes #18393.
-    
-    Change-Id: I13f87b81ac6b9138ab5031bb3dd6bebc4c548156
-    Reviewed-on: https://go-review.googlesource.com/37020
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Iefdffa146703ee1c04afc2b71d9de1f0a0811f86
+    Reviewed-on: https://go-review.googlesource.com/32146
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/syntax/parser_test.go |  2 +-
- src/cmd/compile/internal/syntax/scanner.go     | 18 ++++++++++--------
- test/fixedbugs/issue18393.go                   | 24 ++++++++++++++++++++++++
- 3 files changed, 35 insertions(+), 9 deletions(-)
+ src/net/net.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

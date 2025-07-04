@@ -1,50 +1,55 @@
-commit e1446d9cee91af263af15efe8291644b590bb9ff
-Author: Ben Schwartz <bemasc@google.com>
-Date:   Mon Jun 10 12:29:23 2019 -0400
+commit 58de7c6d4838729c6c133d9b2461dc6b1f766b76
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 5 09:26:24 2019 -0400
 
-    runtime: speed up receive on empty closed channel
+    cmd/go/internal/web: merge internal/web2 into web
     
-    Currently, nonblocking receive on an open channel is about
-    700 times faster than nonblocking receive on a closed channel.
-    This change makes closed channels equally fast.
+    The cmd/go/internal/web package was forked in order to support direct
+    HTTPS fetches from widely-used hosting providers,¹ but direct fetches
+    were subsequently dropped in CL 107657. The forked web2 package, with
+    its GitHub-specific diagnostics and .netrc support, remained in use
+    for module proxy support, but was not used for the initial '?go-get=1'
+    path resolution, so the .netrc file was only used to fetch from
+    already-resolved module protocol servers.
     
-    Fixes #32529
+    This CL moves the .netrc support into its own (new) package,
+    cmd/go/internal/auth, and consolidates the web and web2 packages back
+    into just web. As a result, fetches via the web package now support
+    .netrc, and fetches that previously used web2 now enforce the same
+    security policies as web (such as prohibiting HTTPS-to-HTTP
+    redirects).
     
-    relevant benchstat output:
-    name                       old time/op    new time/op    delta
-    MakeChan/Byte-40            140ns ± 4%     137ns ± 7%   -2.38%  (p=0.023 n=17+19)
-    MakeChan/Int-40             174ns ± 5%     173ns ± 6%     ~     (p=0.437 n=18+19)
-    MakeChan/Ptr-40             315ns ±15%     301ns ±15%     ~     (p=0.051 n=20+20)
-    MakeChan/Struct/0-40        123ns ± 8%      99ns ±11%  -19.18%  (p=0.000 n=20+17)
-    MakeChan/Struct/32-40       297ns ± 8%     241ns ±18%  -19.13%  (p=0.000 n=20+20)
-    MakeChan/Struct/40-40       344ns ± 5%     273ns ±23%  -20.49%  (p=0.000 n=20+20)
-    ChanNonblocking-40         0.32ns ± 2%    0.32ns ± 2%   -1.25%  (p=0.000 n=19+18)
-    SelectUncontended-40       5.72ns ± 1%    5.71ns ± 2%     ~     (p=0.326 n=19+19)
-    SelectSyncContended-40     10.9µs ±10%    10.6µs ± 3%   -2.77%  (p=0.009 n=20+16)
-    SelectAsyncContended-40    1.00µs ± 0%    1.10µs ± 0%  +10.75%  (p=0.000 n=18+19)
-    SelectNonblock-40          1.22ns ± 2%    1.21ns ± 4%     ~     (p=0.141 n=18+19)
-    ChanUncontended-40          240ns ± 4%     233ns ± 4%   -2.82%  (p=0.000 n=20+20)
-    ChanContended-40           86.7µs ± 0%    82.7µs ± 0%   -4.64%  (p=0.000 n=20+19)
-    ChanSync-40                 294ns ± 7%     284ns ± 9%   -3.44%  (p=0.006 n=20+20)
-    ChanSyncWork-40            38.4µs ±19%    34.0µs ± 4%  -11.33%  (p=0.000 n=20+18)
-    ChanProdCons0-40           1.50µs ± 1%    1.63µs ± 0%   +8.53%  (p=0.000 n=19+19)
-    ChanProdCons10-40          1.17µs ± 0%    1.18µs ± 1%   +0.44%  (p=0.000 n=19+20)
-    ChanProdCons100-40          985ns ± 0%     959ns ± 1%   -2.64%  (p=0.000 n=20+20)
-    ChanProdConsWork0-40       1.50µs ± 0%    1.60µs ± 2%   +6.54%  (p=0.000 n=18+20)
-    ChanProdConsWork10-40      1.26µs ± 0%    1.26µs ± 2%   +0.40%  (p=0.015 n=20+19)
-    ChanProdConsWork100-40     1.27µs ± 0%    1.22µs ± 0%   -4.15%  (p=0.000 n=20+19)
-    SelectProdCons-40          1.50µs ± 1%    1.53µs ± 1%   +1.95%  (p=0.000 n=20+20)
-    ChanCreation-40            82.1ns ± 5%    81.6ns ± 7%     ~     (p=0.483 n=19+19)
-    ChanSem-40                  877ns ± 0%     719ns ± 0%  -17.98%  (p=0.000 n=18+19)
-    ChanPopular-40             1.75ms ± 2%    1.78ms ± 3%   +1.76%  (p=0.002 n=20+19)
-    ChanClosed-40               215ns ± 1%       0ns ± 6%  -99.82%  (p=0.000 n=20+18)
+    ¹https://github.com/golang/vgo/commit/63138cb6ceed7d6d4e51a8cbd568c64bd3e2b132
     
-    Change-Id: I6d5ca4f1530cc9e1a9f3ef553bbda3504a036448
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181543
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #29591
+    Fixes #29888
+    Fixes #30610
+    Updates #26232
+    
+    Change-Id: Ia3a13526e443679cf14a72a1f3db96f336ce5e73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170879
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/chan.go      | 76 ++++++++++++++++++++++++++++++++++++------------
- src/runtime/chan_test.go | 14 +++++++++
- 2 files changed, 71 insertions(+), 19 deletions(-)
+ src/cmd/go/internal/auth/auth.go                   |  23 ++
+ src/cmd/go/internal/auth/netrc.go                  | 111 +++++++
+ .../{web2/web_test.go => auth/netrc_test.go}       |   4 +-
+ src/cmd/go/internal/bug/bug.go                     |  10 +-
+ src/cmd/go/internal/get/get.go                     |   2 +-
+ src/cmd/go/internal/get/vcs.go                     | 102 +++---
+ src/cmd/go/internal/get/vcs_test.go                |   2 +-
+ src/cmd/go/internal/modfetch/noweb.go              |  24 --
+ src/cmd/go/internal/modfetch/proxy.go              |  94 ++++--
+ src/cmd/go/internal/modfetch/repo.go               |   4 +-
+ src/cmd/go/internal/modfetch/web.go                |  31 --
+ src/cmd/go/internal/web/api.go                     | 102 ++++++
+ src/cmd/go/internal/web/bootstrap.go               |  26 +-
+ src/cmd/go/internal/web/http.go                    | 136 ++++----
+ src/cmd/go/internal/web/security.go                |  16 -
+ src/cmd/go/internal/web2/web.go                    | 345 ---------------------
+ src/cmd/go/internal/webtest/test.go                | 314 -------------------
+ src/cmd/go/testdata/script/get_404_meta.txt        |  10 +
+ .../go/testdata/script/get_insecure_redirect.txt   |   1 -
+ src/cmd/go/testdata/script/mod_auth.txt            |  31 ++
+ 20 files changed, 509 insertions(+), 879 deletions(-)

@@ -1,19 +1,22 @@
-commit 53647a1994184e471988b53f1a98c02bd6c609df
+commit a12ad271195d88ffa8f68ad01547560fb4d2ab49
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon May 2 17:20:10 2022 -0700
+Date:   Wed Jul 7 23:32:49 2021 -0700
 
-    cmd/compile: remove ir.TypeNodeAt
+    [dev.typeparams] cmd/compile: report functions declared in Go and assembly
     
-    It's deprecated and no longer needed.
+    This CL reuses the symabi wrapper information to warn when a function
+    is defined both in Go (i.e., has a function declaration with a body)
+    and in assembly (i.e., has a TEXT instruction).
     
-    Simplify underlying code while here.
+    This will eventually produce a linker error anyway, but we can provide
+    a slightly nicer error message earlier.
     
-    Change-Id: I2a6810867d76d8a82ac0d1e6e546a63e6f132736
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403836
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia107f813343c0b10f4cd1013e7c72e67149ee52e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333454
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ir/type.go | 17 +++--------------
- 1 file changed, 3 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssagen/abi.go | 3 +++
+ 1 file changed, 3 insertions(+)

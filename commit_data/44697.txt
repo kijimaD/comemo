@@ -1,31 +1,37 @@
-commit 7a1e963058460d4136603b86386f2bae6fe0d5f2
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Mar 12 23:21:09 2021 -0500
+commit e94544cf012535da6b3c9e735bc4026e2db1c99c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 19 21:39:12 2020 -0700
 
-    cmd/compile, cmd/link: dynamically export writable static tmps
+    cmd/compile: fix checkptr handling of &^
     
-    Static tmps are private to a package, but with plugins a package
-    can be shared among multiple DSOs. They need to have a consistent
-    view of the static tmps, especially for writable ones. So export
-    them. (Read-only static tmps have the same values anyway, so it
-    doesn't matter. Also Mach-O doesn't support dynamically exporting
-    read-only symbols anyway.)
+    checkptr has code to recognize &^ expressions, but it didn't take into
+    account that "p &^ x" gets rewritten to "p & ^x" during walk, which
+    resulted in false positive diagnostics.
     
-    Fixes #44956.
+    This CL changes walkexpr to mark OANDNOT expressions with Implicit
+    when they're rewritten to OAND, so that walkCheckPtrArithmetic can
+    still recognize them later.
     
-    Change-Id: I921e25b7ab73cd5d5347800eccdb7931e3448779
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301793
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    It would be slightly more idiomatic to instead mark the OBITNOT
+    expression as Implicit (as it's a compiler-generated Node), but the
+    OBITNOT expression might get constant folded. It's not worth the extra
+    complexity/subtlety of relying on n.Right.Orig, so we set Implicit on
+    the OAND node instead.
+    
+    To atone for this transgression, I add documentation for nodeImplicit.
+    
+    Fixes #40917.
+    
+    Change-Id: I386304171ad299c530e151e5924f179e9a5fd5b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249477
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- misc/cgo/testplugin/plugin_test.go                 |  7 ++++
- .../testplugin/testdata/issue44956/base/base.go    |  7 ++++
- misc/cgo/testplugin/testdata/issue44956/main.go    | 47 ++++++++++++++++++++++
- misc/cgo/testplugin/testdata/issue44956/plugin1.go |  9 +++++
- misc/cgo/testplugin/testdata/issue44956/plugin2.go | 11 +++++
- src/cmd/compile/internal/staticinit/sched.go       |  1 -
- src/cmd/compile/internal/walk/complit.go           |  3 +-
- src/cmd/link/internal/ld/symtab.go                 |  9 ++++-
- 8 files changed, 91 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/syntax.go     |  4 ++--
+ src/cmd/compile/internal/gc/walk.go       |  7 ++++++-
+ src/runtime/checkptr_test.go              |  1 +
+ src/runtime/testdata/testprog/checkptr.go |  8 ++++++++
+ test/fixedbugs/issue40917.go              | 23 +++++++++++++++++++++++
+ 5 files changed, 40 insertions(+), 3 deletions(-)

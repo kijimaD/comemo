@@ -1,18 +1,100 @@
-commit fa18f224c378f5831210077944e5df718efb8df5
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 19 05:42:20 2021 -0500
+commit e031318ca6da8db8a08ecff734ae72290dfb5f2d
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Mon Jun 1 11:01:14 2020 +0000
 
-    runtime/pprof: disable TestMorestack on macOS under race detector
+    cmd/compile: ARM comparisons with 0 incorrect on overflow
     
-    This is failing but only under the race detector.
-    It doesn't really seem fair to expect pprof to find
-    specific profile events with the race detector slowing
-    everything down anyway.
+    Some ARM rewriting rules convert 'comparing to zero' conditions of if
+    statements to a simplified version utilizing CMN and CMP instructions to
+    branch over condition flags, in order to save one Add or Sub caculation.
     
-    Change-Id: I4b353d3d63944c87884d117e07d119b2c7bf4684
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294071
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Such optimizations lead to wrong branching in case an overflow/underflow
+    occurs when executing CMN or CMP.
+    
+    Fix the issue by introducing new block opcodes that don't honor the
+    overflow/underflow flag:
+    
+      Block-Op         Meaning                   ARM condition codes
+      1. LTnoov        less than                 MI
+      2. GEnoov        greater than or equal     PL
+      3. LEnoov        less than or equal        MI || EQ
+      4. GTnoov        greater than              NEQ & PL
+    
+    The patch also adds a few test cases to cover scenarios that are specific
+    to ARM and fine-tunes the code generation tests for 'x-const'.
+    
+    For more details please refer to the previous fix on 64-bit ARM:
+      https://go-review.googlesource.com/c/go/+/233097
+    
+    Go1 perf, 'old' is the non-optimized version, that is removing all concerned
+    rewriting rules.
+    
+    name                     old time/op    new time/op     delta
+    BinaryTree17-8              7.73s ± 0%      7.81s ± 0%  +0.97%  (p=0.000 n=7+8)
+    Fannkuch11-8                7.06s ± 0%      7.00s ± 0%  -0.83%  (p=0.000 n=8+8)
+    FmtFprintfEmpty-8           181ns ± 1%      183ns ± 1%  +1.31%  (p=0.001 n=8+8)
+    FmtFprintfString-8          319ns ± 1%      325ns ± 2%  +1.71%  (p=0.009 n=7+8)
+    FmtFprintfInt-8             358ns ± 1%      359ns ± 1%    ~     (p=0.293 n=7+7)
+    FmtFprintfIntInt-8          459ns ± 3%      456ns ± 1%    ~     (p=0.869 n=8+8)
+    FmtFprintfPrefixedInt-8     535ns ± 4%      538ns ± 4%    ~     (p=0.572 n=8+8)
+    FmtFprintfFloat-8          1.01µs ± 2%     1.01µs ± 2%    ~     (p=0.625 n=8+8)
+    FmtManyArgs-8              1.93µs ± 2%     1.93µs ± 1%    ~     (p=0.979 n=8+7)
+    GobDecode-8                16.1ms ± 1%     16.5ms ± 1%  +2.32%  (p=0.000 n=8+8)
+    GobEncode-8                15.9ms ± 0%     15.8ms ± 1%  -1.00%  (p=0.000 n=8+7)
+    Gzip-8                      690ms ± 1%      670ms ± 0%  -2.90%  (p=0.000 n=8+8)
+    Gunzip-8                    109ms ± 1%      109ms ± 1%    ~     (p=0.694 n=7+8)
+    HTTPClientServer-8          149µs ± 3%      146µs ± 2%  -1.70%  (p=0.028 n=8+8)
+    JSONEncode-8               50.5ms ± 1%     49.2ms ± 0%  -2.60%  (p=0.001 n=7+7)
+    JSONDecode-8                135ms ± 2%      137ms ± 1%    ~     (p=0.054 n=8+7)
+    Mandelbrot200-8             951ms ± 0%      952ms ± 0%    ~     (p=0.852 n=6+8)
+    GoParse-8                  9.47ms ± 1%     9.66ms ± 1%  +2.01%  (p=0.000 n=8+8)
+    RegexpMatchEasy0_32-8       288ns ± 2%      277ns ± 2%  -3.61%  (p=0.000 n=8+8)
+    RegexpMatchEasy0_1K-8      1.66µs ± 1%     1.69µs ± 2%  +2.21%  (p=0.001 n=7+7)
+    RegexpMatchEasy1_32-8       334ns ± 1%      305ns ± 2%  -8.86%  (p=0.000 n=8+8)
+    RegexpMatchEasy1_1K-8      2.14µs ± 2%     2.15µs ± 0%    ~     (p=0.099 n=8+8)
+    RegexpMatchMedium_32-8     13.3ns ± 1%     13.3ns ± 0%    ~     (p=1.000 n=7+7)
+    RegexpMatchMedium_1K-8     81.1µs ± 3%     80.7µs ± 1%    ~     (p=0.955 n=7+8)
+    RegexpMatchHard_32-8       4.26µs ± 0%     4.26µs ± 0%    ~     (p=0.933 n=7+8)
+    RegexpMatchHard_1K-8        124µs ± 0%      124µs ± 0%  +0.31%  (p=0.000 n=8+8)
+    Revcomp-8                  14.7ms ± 2%     14.5ms ± 1%  -1.66%  (p=0.003 n=8+8)
+    Template-8                  197ms ± 2%      200ms ± 3%  +1.62%  (p=0.021 n=8+8)
+    TimeParse-8                1.33µs ± 1%     1.30µs ± 1%  -1.86%  (p=0.002 n=8+8)
+    TimeFormat-8               3.04µs ± 1%     3.02µs ± 0%  -0.60%  (p=0.000 n=8+8)
+    
+    name                     old speed      new speed       delta
+    GobDecode-8              47.6MB/s ± 1%   46.5MB/s ± 1%  -2.28%  (p=0.000 n=8+8)
+    GobEncode-8              48.1MB/s ± 0%   48.6MB/s ± 1%  +1.02%  (p=0.000 n=8+7)
+    Gzip-8                   28.1MB/s ± 1%   29.0MB/s ± 0%  +2.97%  (p=0.000 n=8+8)
+    Gunzip-8                  178MB/s ± 1%    179MB/s ± 2%    ~     (p=0.694 n=7+8)
+    JSONEncode-8             38.4MB/s ± 1%   39.4MB/s ± 0%  +2.67%  (p=0.001 n=7+7)
+    JSONDecode-8             14.3MB/s ± 2%   14.2MB/s ± 1%  -0.81%  (p=0.043 n=8+7)
+    GoParse-8                6.12MB/s ± 1%   5.99MB/s ± 1%  -2.00%  (p=0.000 n=8+8)
+    RegexpMatchEasy0_32-8     111MB/s ± 2%    115MB/s ± 2%  +3.77%  (p=0.000 n=8+8)
+    RegexpMatchEasy0_1K-8     618MB/s ± 1%    604MB/s ± 2%  -2.16%  (p=0.001 n=7+7)
+    RegexpMatchEasy1_32-8    95.7MB/s ± 1%  105.1MB/s ± 2%  +9.76%  (p=0.000 n=8+8)
+    RegexpMatchEasy1_1K-8     479MB/s ± 2%    477MB/s ± 0%    ~     (p=0.105 n=8+8)
+    RegexpMatchMedium_32-8   75.2MB/s ± 1%   75.2MB/s ± 0%    ~     (p=0.247 n=7+7)
+    RegexpMatchMedium_1K-8   12.6MB/s ± 3%   12.7MB/s ± 1%    ~     (p=0.538 n=7+8)
+    RegexpMatchHard_32-8     7.52MB/s ± 0%   7.52MB/s ± 0%    ~     (p=0.968 n=7+8)
+    RegexpMatchHard_1K-8     8.26MB/s ± 0%   8.24MB/s ± 0%  -0.30%  (p=0.001 n=8+8)
+    Revcomp-8                 173MB/s ± 2%    176MB/s ± 1%  +1.68%  (p=0.003 n=8+8)
+    Template-8               9.85MB/s ± 2%   9.69MB/s ± 3%  -1.59%  (p=0.021 n=8+8)
+    
+    Fixes   #39303
+    Updates #38740
+    
+    Change-Id: I0a5f87bfda679f66414c0041ace2ca2e28363f36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236637
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/pprof/pprof_test.go | 25 ++++++++++++++-----------
- 1 file changed, 14 insertions(+), 11 deletions(-)
+ src/cmd/compile/fmtmap_test.go                   |   2 +
+ src/cmd/compile/internal/arm/ssa.go              |  43 ++-
+ src/cmd/compile/internal/ssa/gen/ARM.rules       | 148 ++++++-----
+ src/cmd/compile/internal/ssa/gen/ARMOps.go       |   4 +
+ src/cmd/compile/internal/ssa/opGen.go            |  28 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go       | 324 +++++++++++++----------
+ src/cmd/compile/internal/ssa/rewriteCond_test.go |  95 +++++--
+ test/codegen/comparisons.go                      |  33 ++-
+ 8 files changed, 418 insertions(+), 259 deletions(-)

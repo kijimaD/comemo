@@ -1,20 +1,50 @@
-commit 8b51ee831518584ebe063ac972b3b2ab28637853
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Feb 16 16:05:56 2016 -0600
+commit 1fe3933920eda140a75f87268a6d75260ba41823
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 16 16:49:16 2015 +0000
 
-    crypto/cipher: xorBytes performance ppc64le/ppc64
+    net/http: fix Transport race returning bodyless responses and reusing conns
     
-    Update supportsUnaligned in xor.go to be true for
-    GOARCH values ppc64le and ppc64.  This allows the
-    xor of long buffers to be done on double words
-    (8 bytes) instead of a single byte at a time, which
-    significantly improves performance.
+    The Transport had a delicate protocol between its readLoop goroutine
+    and the goroutine calling RoundTrip. The basic concern is that the
+    caller's RoundTrip goroutine wants to wait for either a
+    connection-level error (the conn dying) or the response. But sometimes
+    both happen: there's a valid response (without a body), but the conn
+    is also going away. Both goroutines' logic dealing with this had grown
+    large and complicated with hard-to-follow comments over the years.
     
-    Fixes #14350
+    Simplify and document. Pull some bits into functions and do all
+    bodyless stuff in one place (it's special enough), rather than having
+    a bunch of conditionals scattered everywhere. One test is no longer
+    even applicable since the race it tested is no longer possible (the
+    code doesn't exist).
     
-    Change-Id: Iccc6b9d3df2e604a55f4c1e4890bdd3bb0d77ab0
-    Reviewed-on: https://go-review.googlesource.com/19519
-    Reviewed-by: Minux Ma <minux@golang.org>
+    The bug that this fixes is that when the Transport reads a bodyless
+    response from a server, it was returning that response before
+    returning the persistent connection to the idle pool. As a result,
+    ~1/1000 of serial requests would end up creating a new connection
+    rather than re-using the just-used connection due to goroutine
+    scheduling chance. Instead, this now adds bodyless responses'
+    connections back to the idle pool first, then sends the response to
+    the RoundTrip goroutine, but making sure that the RoundTrip goroutine
+    is outside of its select on the connection dying.
+    
+    There's a new buffered channel involved now, which is a minor
+    complication, but it's much more self-contained and well-documented
+    than the previous complexity. (The alternative of making the
+    responseAndError channel itself unbuffered is too invasive and risky
+    at this point; it would require a number of changes to avoid
+    deadlocked goroutines in error cases)
+    
+    In any case, flakes look to be gone now. We'll see if trybots agree.
+    
+    Fixes #13633
+    
+    Change-Id: I95a22942b2aa334ae7c87331fddd751d4cdfdffc
+    Reviewed-on: https://go-review.googlesource.com/17890
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/cipher/xor.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/export_test.go    |   7 +-
+ src/net/http/transport.go      | 285 ++++++++++++++++++++++-------------------
+ src/net/http/transport_test.go |  91 +++++--------
+ 3 files changed, 194 insertions(+), 189 deletions(-)

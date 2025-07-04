@@ -1,17 +1,28 @@
-commit f0099106254e288db62de3e3b030915af7decc25
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 4 15:13:33 2022 -0800
+commit cbf9caaf22da04805f1e07277860324c7d9052b6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 12 10:41:56 2021 -0400
 
-    cmd/compile/internal/types2: better error message for invalid range clause
+    cmd/go: add a Go source file in TestScript/mod_sumdb
     
-    Fixes #50372.
+    This test expects 'go mod tidy' to fail if the existing module graph
+    has a bad checksum. However, there is no intrinsic reason why 'go mod
+    tidy' should fail in that case: the module contains no packages, and
+    thus no imports, so 'go mod tidy' can justifiably remove all
+    requirements without regard to any errors that may have already been
+    present in the module graph.
     
-    Change-Id: I8e4c0020dae42744cce016433e398e0b884bb044
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375475
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Adding a source file that imports a package from the module with the
+    bad checksum should guarantee that 'go mod tidy' reports the checksum
+    eror.
+    
+    For #36460
+    
+    Change-Id: I59734ac524031288bc03a11f58eed5abe2db76b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309334
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/types2/stmt.go            | 30 ++++++++++++++--------
- .../types2/testdata/fixedbugs/issue50372.go        | 27 +++++++++++++++++++
- test/fixedbugs/issue50372.go                       | 29 +++++++++++++++++++++
- 3 files changed, 76 insertions(+), 10 deletions(-)
+ src/cmd/go/testdata/script/mod_sumdb.txt | 6 ++++++
+ 1 file changed, 6 insertions(+)

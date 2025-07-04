@@ -1,18 +1,15 @@
-commit ae5bed04c3b2d2bd752485794557021b6ce954b3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 11 09:26:34 2014 +1100
+commit 76dcb9b346ad4acba0a88e254fefccf75a13a36d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Feb 10 21:47:52 2014 +0100
 
-    doc: restore race detector manual
+    runtime: handle "sys: trap: divide error" note on Plan 9
     
-    This got deleted mistakenly during the content re-org.
+    Fixes #7286.
     
-    Fixes #7275.
-    
-    LGTM=dvyukov
-    R=golang-codereviews, minux.ma, dvyukov
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/60850043
+    https://golang.org/cl/61410044
 
- doc/articles/race_detector.html | 388 ++++++++++++++++++++++++++++++++++++++++
- doc/docs.html                   |   3 +-
- 2 files changed, 390 insertions(+), 1 deletion(-)
+ src/pkg/runtime/signals_plan9.h | 1 +
+ 1 file changed, 1 insertion(+)

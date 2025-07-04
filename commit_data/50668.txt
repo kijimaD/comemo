@@ -1,20 +1,22 @@
-commit d7e663d909693492e18b5d031e9ddd7e19642621
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Wed Sep 28 05:57:46 2022 +0000
+commit bd580a0d10729553a7905481d17eed0436198866
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 27 10:05:13 2021 -0400
 
-    os/signal: disable GNU readline to deflake TestTerminalSignal
+    runtime: add a maymorestack hook that moves the stack
     
-    Fixes #55903.
+    This adds a maymorestack hook that moves the stack at every
+    cooperative preemption point.
     
-    Change-Id: I992865277fb6526929d6c7db2b3b8d22ca0760f2
-    GitHub-Last-Rev: fc6f28e17c3d6c5f16f1cc047e42ac0ceb60e769
-    GitHub-Pull-Request: golang/go#55904
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435735
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #48297.
+    
+    Change-Id: Ic15f9bcbc163345e6422586302d57fda4744caec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359797
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/os/signal/signal_cgo_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/debug.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

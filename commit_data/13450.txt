@@ -1,12 +1,13 @@
-commit 106dd3c93f7a065238ad7151bda4c70b5313db79
-Author: David G. Andersen <dave.andersen@gmail.com>
-Date:   Mon Jul 9 09:37:56 2012 -0700
+commit 3f411994050115401c9fc85507478281be1fb431
+Author: Matt Jibson <matt.jibson@gmail.com>
+Date:   Sun Jul 8 12:09:15 2012 +1000
 
-    syscall/freebsd: remove Sendfile from unimplemented list
+    A+C: correct Matt Jibson
     
-    R=golang-dev, dave
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6343084
+    https://golang.org/cl/6344088
 
- src/pkg/syscall/syscall_freebsd.go | 1 -
- 1 file changed, 1 deletion(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

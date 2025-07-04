@@ -1,27 +1,18 @@
-commit 721c04ae4ef8406f169f7e32d131a8667fc75a33
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 18 02:38:45 2024 +0000
+commit 70a8a41e97246b82fa4a39cb27a7c47e7af55a57
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 00:57:27 2023 +1000
 
-    runtime: optimize 8-byte allocation pointer data writing
+    cmd/go/testdata/mod: add golang toolchain test data for openbsd/ppc64
     
-    This change brings back a minor optimization lost in the Go 1.22 cycle
-    wherein the 8-byte pointer-ful span class spans would have the pointer
-    bitmap written ahead of time in bulk, because there's only one possible
-    pattern.
+    Updates #56001
     
-                      │   before    │               after               │
-                      │   sec/op    │   sec/op     vs base              │
-    MallocTypeInfo8-4   25.13n ± 1%   23.59n ± 2%  -6.15% (p=0.002 n=6)
-    
-    Change-Id: I135b84bb1d5b7e678b841b56430930bc73c0a038
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614256
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ic7b4ecb2e471292894c54610e8acda8822c890fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518275
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/arena.go    |  2 +-
- src/runtime/mbitmap.go  | 23 ++++++++++++++---------
- src/runtime/mcache.go   |  2 +-
- src/runtime/mcentral.go |  2 +-
- 4 files changed, 17 insertions(+), 12 deletions(-)
+ ...g.org_toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

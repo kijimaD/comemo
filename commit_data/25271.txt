@@ -1,20 +1,24 @@
-commit ff5c94538292ca66543603fc78c02a96c823c6aa
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 14 15:07:40 2015 -0500
+commit 368f73bcd9651129c1753c3486cf5b0757d4707d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 16 16:28:42 2015 +0000
 
-    runtime: reset sweep stats before starting the world
+    net: unblock plan9 TCP Read calls after socket close
     
-    Currently we reset the sweep stats just after gcMarkTermination starts
-    the world and releases worldsema. However, background sweeping can
-    start the moment we start the world and, in fact, pause sweeping can
-    start the moment we release worldsema (because another GC cycle can
-    start up), so these need to be cleared before starting the world.
+    Fixes #7782
+    Fixes #9554
+    Updates #7237 (original metabug, before we switched to specific bugs)
+    Updates #11932 (plan9 still doesn't have net I/O deadline support)
     
-    Change-Id: I95701e3de6af76bb3fbf2ee65719985bf57d20b2
-    Reviewed-on: https://go-review.googlesource.com/17811
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I96f311b88b1501d884ebc008fd31ad2cf1e16d75
+    Reviewed-on: https://go-review.googlesource.com/15941
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/net/dial_test.go                       |  3 +++
+ src/net/fd_plan9.go                        |  8 ++++++++
+ src/net/http/httputil/reverseproxy_test.go |  4 ----
+ src/net/http/serve_test.go                 | 11 +++++++++--
+ src/net/http/transport_test.go             | 27 +++++++++++++++++----------
+ 5 files changed, 37 insertions(+), 16 deletions(-)

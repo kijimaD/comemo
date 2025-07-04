@@ -1,28 +1,17 @@
-commit 4a7334b7f2b30aa4b14f5c38fae561f9afffc076
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Jan 19 18:26:58 2018 +0100
+commit 951be1b58d4e8049b8a1f95ef99f6505cc4850b5
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Sep 27 13:26:47 2017 +0200
 
-    cmd/dist: only run swig tests when a go directory is present in swiglib
+    cmd/go/internal/work: skip TestRespectSetgidDir on iOS
     
-    When there is no go directory inside the swiglib directory then swig
-    was installed without Go support. Tests in misc/swig will fail when
-    swig is installed without Go support.
+    Attempting to set the SetGID bit on iOS 11 fails with a permission
+    error. Skip the test.
     
-    Add additional checks for the presence of a go directory in the directory
-    reported by 'swig -go -swiglib' to determine if misc/swig tests should
-    be run.
-    
-    This avoids all.bash failing when swig but not swig-go is installed
-    using macports.
-    
-    Tested on darwin with swig and with and without swig-go installed
-    using macports.
-    
-    Fixes #23469
-    
-    Change-Id: I173201221554982ea0d9f2bea70a3cb85b297cec
-    Reviewed-on: https://go-review.googlesource.com/88776
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Idac59750447d668091c44fe7cc5ee178014e0e1d
+    Reviewed-on: https://go-review.googlesource.com/66490
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/go/internal/work/build_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

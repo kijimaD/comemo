@@ -1,25 +1,20 @@
-commit d864eac249c6e8a10c47861b5820576887680f9b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 1 13:53:46 2024 -0500
+commit 0b922bfa9c43b0b1b957f3f6d62bb366bb2c9870
+Author: Ikko Eltociear Ashimine <eltociear@gmail.com>
+Date:   Sat Feb 11 12:45:01 2023 +0000
 
-    cmd/go: limit GOMAXPROCS in TestScript/test_fuzz_.*
+    cmd/internal/cov: fix typo in readcovdata.go
     
-    This limits the throughput and resource consumption of the fuzz
-    workers in the tests, which also reduces the likelihood of running out
-    of address space in the fuzz coordinator during the test.
+    hte -> the
     
-    (Ideally the coordinator should not be limited by address space;
-    this just works around the failure mode in the tests for now.)
-    
-    For #65434.
-    
-    Change-Id: I3086c6278d6803a3dbf17a46ed01b68cedc92ad9
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560515
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie81062997289d622756881acdd11af66611cd778
+    GitHub-Last-Rev: 5ef07542b47f243d5a66ef166c74db0348fd2c80
+    GitHub-Pull-Request: golang/go#58473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467518
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_deadline.txt | 10 ++++++++++
- src/cmd/go/testdata/script/test_fuzz_fuzztime.txt |  7 +++++++
- 2 files changed, 17 insertions(+)
+ src/cmd/internal/cov/readcovdata.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

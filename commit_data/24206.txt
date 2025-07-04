@@ -1,20 +1,17 @@
-commit fd50db2a66e2058d51569bb13ee46af15cde101d
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Sep 7 16:21:25 2015 +1000
+commit 2d25318f086fd7583c261f3b440a85dced2b63b4
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 15 12:41:08 2015 +1000
 
-    cmd/internal/obj: remove unused code
+    asm: fix error messages and comments for "register pair"
     
-    Following on from CL 14350, remove the remaining dead code from data.go.
+    The parser treats (R1+R2) on ppc64 the same as (R1,R2) on arm,
+    but it is not strictly a "register pair". Improve the text.
     
-    Also leave a TODO to be addressed later (with a unit test) to reduce
-    the overhead of SymGrow.
+    No semantic change.
     
-    Change-Id: Iebad775b1280b54b89e87a3a073ca8af19a8bfba
-    Reviewed-on: https://go-review.googlesource.com/14359
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib8b14881c6467add0d53150a901c01e962afb28b
+    Reviewed-on: https://go-review.googlesource.com/12212
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/data.go | 122 ++-----------------------------------------
- 1 file changed, 4 insertions(+), 118 deletions(-)
+ src/cmd/asm/internal/asm/parse.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

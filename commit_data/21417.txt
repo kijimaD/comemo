@@ -1,12 +1,12 @@
-commit da167b00d68e098677840b7a3becb4200c0e8371
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 30 16:01:14 2015 +0000
+commit 1ebfb082a7a5cc31efd572fd88549048a82a5c1c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jan 4 11:36:54 2015 -0800
 
-    doc: add log.SetOutput to go1.5.txt
+    runtime: remove unnecessary GOOS switch
     
-    Change-Id: I257211f10b334eb4828be96cd434d588bfb1a378
-    Reviewed-on: https://go-review.googlesource.com/3605
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8f518e273c02110042b08f7c50c3d38a648c8b6e
+    Reviewed-on: https://go-review.googlesource.com/2281
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- doc/go1.5.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/sigqueue.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

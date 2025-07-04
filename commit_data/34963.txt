@@ -1,14 +1,24 @@
-commit 3cb067d70dd3cd0e4eeb5395d9a8da8ebf199d1a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 12 11:23:33 2018 -0700
+commit bd983a6d2e8b6b0385724ef05872ba659111ec20
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 29 12:26:59 2017 -0800
 
-    os: add Expand benchmarks
+    cmd/compile: fix GOEXPERIMENT checks
     
-    Change-Id: I68e65591cc50433f97a97027e3ae3b452451adf2
-    Reviewed-on: https://go-review.googlesource.com/106696
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    GOEXPERIMENT is only set during make.bash, so checking the environment
+    variable isn't effectual. Instead, check the values exposed by objabi.
+    
+    These experiments look potentially safe, but it seems too late in the
+    release cycle to try to assuage that. The one exception is frame
+    pointer experiment, which is trivially safe: it just amounts to
+    incrementing some stack offsets by PtrSize.
+    
+    Fixes #22223.
+    
+    Change-Id: I46dc7c54b1347143d02d6b9635038230cda6d164
+    Reviewed-on: https://go-review.googlesource.com/80760
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/env_test.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/cmd/compile/internal/gc/main.go | 4 ++--
+ src/cmd/go/internal/work/exec.go    | 1 -
+ src/cmd/go/internal/work/gc.go      | 5 -----
+ 3 files changed, 2 insertions(+), 8 deletions(-)

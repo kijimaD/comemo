@@ -1,26 +1,18 @@
-commit ee69b09424f611d02d4b0f0da3eff875e075438f
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Sep 22 08:52:41 2021 -0700
+commit 9e746e4255c582eb025d64ec9b3631ec7f56550e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 9 17:34:17 2021 -0800
 
-    cmd/compile: break out constants for local and global dictionary prefixes
+    [dev.typeparams] cmd/compile: refactor varEmbed logic
     
-    Create constant LocalDictName for the pname/refix for dictionary
-    parameters or local variables, and constant GlobalDictPrefix for the
-    prefix for names of global dictionaries. I wanted to make sure these
-    constants were set up as we add more reference to dictionaries for
-    debugging, etc.
+    Simplify the code and make it easier to reuse with irgen.
     
-    Change-Id: Ide801f842383300a2699c96943ec06decaecc358
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351450
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: Id477c36e82c7598faa90025b1eed2606a3f82498
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282917
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go     | 11 ++++-------
- src/cmd/compile/internal/typecheck/iexport.go |  5 ++++-
- src/cmd/compile/internal/typecheck/subr.go    |  3 ++-
- src/cmd/internal/obj/objfile.go               |  2 +-
- src/cmd/internal/objabi/util.go               |  3 ++-
- 5 files changed, 13 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/noder/noder.go | 75 +++++++++++----------------------
+ 1 file changed, 24 insertions(+), 51 deletions(-)

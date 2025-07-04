@@ -1,15 +1,24 @@
-commit c08d8834ddf8d69daba989a4ee0b5e144fce973d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Sep 4 14:40:40 2014 -0400
+commit 1d0c89a454093801525f1750b1d54318b59b8a78
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 29 13:22:31 2014 -0400
 
-    runtime: convert cgocall to Go
+    runtime: run runtime.init
     
-    LGTM=khr, rsc
-    R=golang-codereviews, khr, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/131670043
+    Run it right before main.init.
+    There is still some runtime initialization that
+    happens before runtime.init, and some of that
+    may call into Go code (for example to acquire locks)
+    so this timing is not perfect, but I believe it is the
+    best we can do.
+    
+    This came up because global variables intialized
+    to func values are done in the generated init code,
+    not in the linker.
+    
+    LGTM=dvyukov
+    R=dvyukov
+    CC=golang-codereviews, iant, khr, r
+    https://golang.org/cl/135210043
 
- src/pkg/runtime/{cgocall.c => cgocall.go} | 305 ++++++++++++------------------
- src/pkg/runtime/proc.c                    |  18 ++
- src/pkg/runtime/stubs.go                  |   9 +
- 3 files changed, 150 insertions(+), 182 deletions(-)
+ src/pkg/runtime/proc.c | 2 ++
+ 1 file changed, 2 insertions(+)

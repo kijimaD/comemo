@@ -1,15 +1,19 @@
-commit 25858cce7044479f86f9ab4e03aa7b034aa53874
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 8 10:01:41 2018 -0700
+commit 973393c2930237649760be16e7132a42f4c93141
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 12 17:46:57 2017 -0800
 
-    cmd/go: add -test to go list usage line
+    go/types: accept iotas inside closures of const init expressions
     
-    Change-Id: Ia57f0ef1a3bdeb06346e175d67979e2a4512622d
-    Reviewed-on: https://go-review.googlesource.com/112160
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    R=go1.11
+    
+    Fixes #22345.
+    
+    Change-Id: I7cf22d17bdd0143efb6ee48981e649ffe797aed9
+    Reviewed-on: https://go-review.googlesource.com/83579
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/alldocs.go            | 2 +-
- src/cmd/go/internal/list/list.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/decl.go             |  9 +--------
+ src/go/types/expr.go             |  3 ++-
+ src/go/types/stmt.go             |  7 ++-----
+ src/go/types/testdata/const0.src | 41 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 46 insertions(+), 14 deletions(-)

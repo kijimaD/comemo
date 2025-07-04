@@ -1,14 +1,24 @@
-commit 50674532719cad7bbdbcce5027f3510633eeed73
-Author: nwidger <niels.widger@gmail.com>
-Date:   Sun Feb 28 08:51:06 2016 -0500
+commit 09ffa0c4c772ff119d42820a8d90aba8b481397c
+Author: Todd Neal <todd@tneal.org>
+Date:   Sun Dec 6 21:25:24 2015 -0600
 
-    doc: update release tag in source directions to go1.6
+    [dev.ssa] test: use new go:noinline feature
     
-    Fixes #14371
+    Replace old mechanisms for preventing inlining with go:noinline.
     
-    Change-Id: I8e9e4b2b89083f5a947e791c011912fdf365a11e
-    Reviewed-on: https://go-review.googlesource.com/19996
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I021a6450e6d644ec1042594730a9c64d695949a1
+    Reviewed-on: https://go-review.googlesource.com/17500
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/install-source.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/testdata/append_ssa.go |   7 +-
+ .../internal/gc/testdata/arithBoundary_ssa.go      | 159 ++++++++++-----------
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go  |  48 +++----
+ src/cmd/compile/internal/gc/testdata/array_ssa.go  |  15 +-
+ src/cmd/compile/internal/gc/testdata/chan_ssa.go   |   9 +-
+ .../compile/internal/gc/testdata/closure_ssa.go    |   3 +-
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go     |  57 +++-----
+ .../internal/gc/testdata/gen/arithBoundaryGen.go   |   4 +-
+ src/cmd/compile/internal/gc/testdata/map_ssa.go    |   4 +-
+ src/cmd/compile/internal/gc/testdata/short_ssa.go  |   2 +-
+ src/cmd/compile/internal/gc/testdata/string_ssa.go |  18 +--
+ 11 files changed, 138 insertions(+), 188 deletions(-)

@@ -1,75 +1,27 @@
-commit e55bf08d98b163e6f94d164fc650d2e427bc9c3b
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat Nov 18 18:59:51 2023 +0800
+commit 990501e725cebcd7c1d6e01013db312198d2babc
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Fri Feb 17 11:19:49 2023 -0500
 
-    net: support benchmark testing for sendfile on various platforms
+    cmd/api: add API checks for freebsd/arm64
     
-    When I introduced the benchmark test code for sendfile(2) in CL 425878,
-    I only did it on Linux while the sendfile system call is also available
-    on other Unix-like and Windows platforms, this CL will pick up where I left out.
+    The freebsd/arm64 port was added in go1.14, make cmd/api aware of it and
+    backfill API files.
     
-    goos: darwin
-    goarch: arm64
-    pkg: net
-    BenchmarkSendFile/file-to-tcp/1024-10            2240488               749.5 ns/op      1366.30 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/2048-10            1956669               850.4 ns/op      2408.38 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/4096-10             840103              1593 ns/op        2571.30 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/8192-10             449536              2881 ns/op        2843.35 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/16384-10            269974              6307 ns/op        2597.86 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/32768-10            137210             12646 ns/op        2591.09 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/65536-10             66642             24557 ns/op        2668.74 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/131072-10            37852             59550 ns/op        2201.03 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/262144-10            16288            107859 ns/op        2430.44 MB/s           2 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/524288-10            10540            249957 ns/op        2097.52 MB/s           3 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/1048576-10            4982            419750 ns/op        2498.09 MB/s           6 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/1024-10           1180185              1187 ns/op         862.66 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/2048-10            523159              2294 ns/op         892.78 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/4096-10            238792              5223 ns/op         784.29 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/8192-10            116611             10929 ns/op         749.58 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/16384-10            57568             19870 ns/op         824.57 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/32768-10            32280             33696 ns/op         972.47 MB/s           1 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/65536-10            17242             72122 ns/op         908.69 MB/s           1 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/131072-10            8350            159131 ns/op         823.67 MB/s           3 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/262144-10            3872            318000 ns/op         824.35 MB/s           8 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/524288-10            1766            600785 ns/op         872.67 MB/s          18 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/1048576-10            993           1138624 ns/op         920.92 MB/s          33 B/op          0 allocs/op
+    For #58582
     
-    goos: linux
-    goarch: amd64
-    pkg: net
-    cpu: DO-Premium-AMD
-    BenchmarkSendFile/file-to-tcp/1024-8             1796002               716.3 ns/op      1429.59 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/2048-8             1196700               896.6 ns/op      2284.23 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/4096-8              923604              2385 ns/op        1717.48 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/8192-8              638967              9722 ns/op         842.60 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/16384-8             357740             18710 ns/op         875.67 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/32768-8             147417             17489 ns/op        1873.66 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/65536-8             113054             58818 ns/op        1114.21 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/131072-8             57981            113202 ns/op        1157.86 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/262144-8             26362            253376 ns/op        1034.61 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/524288-8             13767            442053 ns/op        1186.03 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-tcp/1048576-8             4906            829984 ns/op        1263.37 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/1024-8            2031691               628.9 ns/op      1628.36 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/2048-8            1294472               965.0 ns/op      2122.30 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/4096-8            1005753              1203 ns/op        3404.27 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/8192-8             865448              6412 ns/op        1277.65 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/16384-8            268946             12801 ns/op        1279.89 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/32768-8            153398              6691 ns/op        4897.23 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/65536-8             88911             11969 ns/op        5475.36 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/131072-8            48639            107538 ns/op        1218.84 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/262144-8            22720            203199 ns/op        1290.09 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/524288-8            12034             97126 ns/op        5398.03 MB/s           0 B/op          0 allocs/op
-    BenchmarkSendFile/file-to-unix/1048576-8            5374            202308 ns/op        5183.06 MB/s           0 B/op          0 allocs/op
-    
-    Change-Id: Ib9507bd9837ecb38b1702afa89502da18806929c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543276
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I8b25c6cf5a66611d90d225762b257679a4abface
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469115
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Dmitri Goutnik <dgoutnik@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/mockserver_test.go     | 118 +++++++++++++++++++++++
- src/net/sendfile_linux_test.go |  86 -----------------
- src/net/sendfile_test.go       |  73 ++++++++++++++
- src/net/splice_linux_test.go   | 209 +++++++++--------------------------------
- 4 files changed, 236 insertions(+), 250 deletions(-)
+ api/except.txt     |   22 +
+ api/go1.14.txt     | 8717 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/go1.17.txt     |   10 +
+ api/go1.18.txt     |    2 +
+ api/go1.20.txt     |   15 +
+ src/cmd/api/api.go |    2 +
+ 6 files changed, 8768 insertions(+)

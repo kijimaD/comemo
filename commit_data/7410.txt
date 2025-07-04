@@ -1,22 +1,19 @@
-commit 56faae21d24eeb51afdbe8a32e3e4c5e68441ad1
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 9 14:28:47 2011 -0500
+commit d40ae949934344ccea67d52a6bf5c1cce8a35143
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Feb 9 10:57:59 2011 -0800
 
-    syscall: do not use NULL for zero-length read, write
+    rpc: make more tolerant of errors.
+    Add Error type to enable clients to distinguish
+    between local and remote errors.
+    Also return "connection shut down error" after
+    the first error return rather than returning the
+    same error each time.
     
-    Avoids problems running Linux binaries under QEMU.
-    
-    R=r, gri
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4151043
+    https://golang.org/cl/4080058
 
- src/pkg/syscall/mksyscall.sh              |  9 +++------
- src/pkg/syscall/syscall.go                |  4 ++++
- src/pkg/syscall/zsyscall_darwin_386.go    | 20 ++++++++++++++++++++
- src/pkg/syscall/zsyscall_darwin_amd64.go  | 20 ++++++++++++++++++++
- src/pkg/syscall/zsyscall_freebsd_386.go   | 20 ++++++++++++++++++++
- src/pkg/syscall/zsyscall_freebsd_amd64.go | 20 ++++++++++++++++++++
- src/pkg/syscall/zsyscall_linux_386.go     | 22 ++++++++++++++++++++++
- src/pkg/syscall/zsyscall_linux_amd64.go   | 26 ++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_linux_arm.go     | 22 ++++++++++++++++++++++
- 9 files changed, 157 insertions(+), 6 deletions(-)
+ src/pkg/rpc/client.go      |  55 ++++++++++++++++--------
+ src/pkg/rpc/server.go      |  85 +++++++++++++++++++++++--------------
+ src/pkg/rpc/server_test.go | 103 ++++++++++++++++-----------------------------
+ 3 files changed, 127 insertions(+), 116 deletions(-)

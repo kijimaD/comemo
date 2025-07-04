@@ -1,20 +1,16 @@
-commit 3cdc2a13b9cc84b74c6914df1a50907f9410e772
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Nov 15 23:18:20 2023 +0000
+commit a4a86c7b2441d2777beb2377acfa3d9d7b1fc4ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 6 18:54:11 2022 -0500
 
-    slices: add cases for TestInsertPanics when there are values
+    doc/go1.20: relnote and take care of TODOs
     
-    For #64152
+    The main change here is documenting the last-minute addition types.Satisfies.
     
-    Change-Id: I32531aa8d147f4f10f6498f5ea1474555e93b6de
-    GitHub-Last-Rev: 48bb3bb05c6acc3761680a8a0eac9df9dfd154d3
-    GitHub-Pull-Request: golang/go#64180
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542535
+    Change-Id: I8be2d2ad730ba108706bd849b68cbd1f4d68a4b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455698
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/slices/slices_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ doc/go1.20.html | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)

@@ -1,19 +1,26 @@
-commit ad3cef184e55ab53306a466bda100dc72c40fc3b
-Author: Michael Knyszek <mknyszek@google.com>
-Date:   Fri Jan 24 16:50:53 2020 +0000
+commit 0a3b65c4926479c6ea2b8439cf073a43bfc2b9b6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 9 19:22:46 2019 -0700
 
-    Revert "runtime: release worldsema before Gosched in STW GC mode"
+    go/internal/gccgoimporter: support embedded field in pointer loop
     
-    This reverts commit 05511a5c0ae238325c10b0e4e44c3f66f928e4cf, CL 208379.
+    If an embedded field refers to a type via a pointer, the parser needs
+    to know the name of the embedded field. It is possible that the
+    pointer type is not yet resolved. This CL fixes the parser to handle
+    that case by setting the pointer element type to the unresolved named
+    type while the pointer is being resolved.
     
-    Reason for revert: So that we can cleanly revert
-    https://golang.org/cl/182657.
+    Fixes #34182
     
-    Change-Id: I4fdf4f864a093db7866b3306f0f8f856b9f4d684
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216357
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I48435e0404362a85effd7463685c502290fa3c57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194440
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/mgc.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/go/internal/gccgoimporter/importer_test.go     |  1 +
+ src/go/internal/gccgoimporter/parser.go            | 68 ++++++++++++++--------
+ .../internal/gccgoimporter/testdata/issue34182.go  | 17 ++++++
+ .../internal/gccgoimporter/testdata/issue34182.gox | 13 +++++
+ 4 files changed, 74 insertions(+), 25 deletions(-)

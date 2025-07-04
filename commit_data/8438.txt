@@ -1,20 +1,22 @@
-commit 1d550bdedf4fe73de48a1d77897f651a1bf5b9f3
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 18 16:33:41 2011 -0700
+commit 0a2650f3988554674f1d0a160b1f057322db5240
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed May 18 14:39:37 2011 -0700
 
-    syscall: add netlink support for linux/386, linux/amd64, linux/arm
+    image/jpeg: small memory layout optimization for encoding.
     
-    R=golang-dev, bradfitz
+    Before:
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.29 MB/s
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.27 MB/s
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.17 MB/s
+    
+    After:
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.42 MB/s
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.34 MB/s
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.33 MB/s
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4535078
+    https://golang.org/cl/4538077
 
- src/pkg/syscall/mkerrors.sh            |  12 +-
- src/pkg/syscall/syscall_linux.go       |  27 +-
- src/pkg/syscall/types_linux.c          |  58 +++-
- src/pkg/syscall/zerrors_linux_386.go   | 126 ++++++++
- src/pkg/syscall/zerrors_linux_amd64.go | 126 ++++++++
- src/pkg/syscall/zerrors_linux_arm.go   | 532 ++++++++++++++++++++++++++-------
- src/pkg/syscall/ztypes_linux_386.go    | 102 +++++++
- src/pkg/syscall/ztypes_linux_amd64.go  | 102 +++++++
- src/pkg/syscall/ztypes_linux_arm.go    | 240 ++++++++++-----
- 9 files changed, 1140 insertions(+), 185 deletions(-)
+ src/pkg/image/jpeg/writer.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

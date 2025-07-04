@@ -1,15 +1,15 @@
-commit f8225bdb350f5c7d249f8ed090cf7543901612fa
+commit f8cd243669397bcc608a467bd4d2176ad9d887ac
 Author: Rob Pike <r@golang.org>
-Date:   Thu Jan 16 15:57:32 2014 -0800
+Date:   Thu Jan 16 14:30:01 2014 -0800
 
-    net/rpc: fix inconsistency in documentation of Service.Register
-    Falsely claimed an old, no longer true condition that the first argument
-    must be a pointer.
-    Fixes #6697
+    time: break parse and formatting tests into a separate source file
+    No changes, just rearrangement. The tests were in need of a little
+    housekeeping.
     
-    R=golang-codereviews, bradfitz
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/53480043
+    https://golang.org/cl/53400043
 
- src/pkg/net/rpc/server.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/time/format_test.go | 510 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/time/time_test.go   | 502 +------------------------------------------
+ 2 files changed, 512 insertions(+), 500 deletions(-)

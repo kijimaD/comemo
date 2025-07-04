@@ -1,21 +1,45 @@
-commit 557244cef70e508f0eeaaa23903e8859d39318be
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 24 19:51:37 2022 -0700
+commit 4c8ffb3baaabce1aa2139ce7739fec333ab80728
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 14 13:52:00 2021 -0700
 
-    go/printer: if comment gets formatted away, don't squash
+    cmd/internal/str: move package from cmd/go/internal/str
     
-    We were dropping the preceding whitespace.
+    This will let cmd/cgo and cmd/link use this package for argument parsing.
     
-    Fixes #53059
+    For golang/go#41400
     
-    Change-Id: Ide0d6a76c463a7481ec4883a8568f7f7b5e87e9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408394
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I12ee21151bf3f00f3e8d427faaaab2453c823117
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334730
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341934
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/printer/printer.go               | 12 ++++++++++++
- src/go/printer/testdata/comments.golden |  4 ++++
- src/go/printer/testdata/comments.input  |  5 +++++
- 3 files changed, 21 insertions(+)
+ src/cmd/go/internal/base/base.go                  | 2 +-
+ src/cmd/go/internal/base/flag.go                  | 2 +-
+ src/cmd/go/internal/fix/fix.go                    | 2 +-
+ src/cmd/go/internal/fmtcmd/fmt.go                 | 2 +-
+ src/cmd/go/internal/generate/generate.go          | 2 +-
+ src/cmd/go/internal/get/get.go                    | 2 +-
+ src/cmd/go/internal/list/list.go                  | 2 +-
+ src/cmd/go/internal/load/flag.go                  | 2 +-
+ src/cmd/go/internal/load/pkg.go                   | 2 +-
+ src/cmd/go/internal/load/test.go                  | 2 +-
+ src/cmd/go/internal/modcmd/vendor.go              | 2 +-
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 2 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go      | 2 +-
+ src/cmd/go/internal/modget/query.go               | 2 +-
+ src/cmd/go/internal/modload/load.go               | 2 +-
+ src/cmd/go/internal/modload/query.go              | 2 +-
+ src/cmd/go/internal/run/run.go                    | 2 +-
+ src/cmd/go/internal/test/test.go                  | 2 +-
+ src/cmd/go/internal/vcs/vcs.go                    | 2 +-
+ src/cmd/go/internal/work/buildid.go               | 2 +-
+ src/cmd/go/internal/work/exec.go                  | 2 +-
+ src/cmd/go/internal/work/gc.go                    | 2 +-
+ src/cmd/go/internal/work/gccgo.go                 | 2 +-
+ src/cmd/{go => }/internal/str/path.go             | 0
+ src/cmd/{go => }/internal/str/str.go              | 0
+ src/cmd/{go => }/internal/str/str_test.go         | 0
+ 26 files changed, 23 insertions(+), 23 deletions(-)

@@ -1,21 +1,15 @@
-commit 630e93ed2d8a13226903451a0e85e62efd78cdcd
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Feb 9 15:57:53 2017 -0800
+commit 50f66fbb66c2f3cdfc9f942c5e11cc1b9ec17a73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 27 12:53:25 2016 -0700
 
-    crypto/x509: ignore CN if SAN extension present.
+    cmd/compile: disallow "init" as alias
     
-    The code previously tested only whether DNS-name SANs were present in a
-    certificate which is only approximately correct. In fact, /any/ SAN
-    extension, including one with no DNS names, should cause the CN to be
-    ignored.
+    Fixes #17637.
     
-    Change-Id: I3d9824918975be6d4817e7cbb48ed1b0c5a2fc8b
-    Reviewed-on: https://go-review.googlesource.com/36696
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5af63b8277c0a0f9fef4880992bcb925ca088687
+    Reviewed-on: https://go-review.googlesource.com/32106
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/x509/verify.go      |  4 +--
- src/crypto/x509/verify_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++
- src/crypto/x509/x509.go        |  4 +++
- 3 files changed, 62 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/noder.go | 8 ++++++--
+ test/alias2.go                       | 7 +++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

@@ -1,22 +1,20 @@
-commit 7af3107632bbc761aef3ae453f174341f7a9184b
-Author: ch3nnn <chenyinren@vip.qq.com>
-Date:   Wed Aug 16 12:28:11 2023 +0000
+commit 83d94daec2636badf02ecda18f7a7c1f4eb1fd74
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 30 18:59:53 2022 +1000
 
-    fmt: fix receiver names are different
+    cmd/compile: avoid the use of XOR for boolean equality on riscv64
     
-    "buffer" call the receiver "b" in other method, don't call it "bp" in
-    another. Keep the same receiver names, as prescribed in Go Code Review
-    Comments (https://go.dev/s/style#receiver-names).
+    The use of SEQZ/SNEZ and SUB allows for other optimisations to be utilised,
+    particularly absorption into branch equality conditions.
     
-    Change-Id: I9fafc799a9e4102419ed743b941bca74e908f5c0
-    GitHub-Last-Rev: c8b851d372f3966e3c5eec7c331ad05aacb1ebda
-    GitHub-Pull-Request: golang/go#62066
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520016
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I74e7d6a07a8decc1bdb651660c322bcc6eb6a10a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428216
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/fmt/print.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 24 ++++++++++++++++++++----
+ 2 files changed, 22 insertions(+), 6 deletions(-)

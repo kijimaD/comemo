@@ -1,15 +1,14 @@
-commit ec9e3e62a1282fb7c9afc0dfd2339511e384b277
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Aug 23 15:07:42 2013 +1000
+commit d3043b7b4ac636fd1c2e43ff5e77e84a08b9a49f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 22 12:13:54 2013 +0900
 
-    net: wait longer before failing TestVariousDeadlines4Proc on windows
+    net: add test for protocol numbers lookup using internal information base
     
-    This is an attempt to make our slow
-    windows-386 builder more reliable.
+    Update #5344
     
-    R=golang-dev, dave
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/12798045
+    https://golang.org/cl/12966046
 
- src/pkg/net/timeout_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/net/ipraw_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

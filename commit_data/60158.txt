@@ -1,0 +1,19 @@
+commit 1849ce6a45640ec4a6e63138211eac4276473437
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun May 19 21:48:40 2024 -0700
+
+    time: check for time zone offset overflow
+    
+    Fixes #67470
+    
+    Change-Id: Idc5997859602ff6155aa9ae875b327fbcb53513d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586717
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/time/format.go      | 14 ++++++++++++++
+ src/time/format_test.go | 10 ++++++++++
+ 2 files changed, 24 insertions(+)

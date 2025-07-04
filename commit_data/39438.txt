@@ -1,25 +1,19 @@
-commit 599aa6dd6d2d3d35a596302d8c109d0c15b6e8be
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Mon Jun 17 11:07:39 2019 +0700
+commit d3631955d454a8cfc0b63065ef1cc4c8db64ae46
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 15:54:11 2019 +0100
 
-    cmd/go: validate path in mod init path
+    cmd/link: set correct sizes for XCOFF outer symbols
     
-    When mod init with given module path, validate that module path is a
-    valid import path.
+    This commit fixes the size of outer symbols like type.*.
+    Outer symbols cannot have a nil size on AIX or they will be
+    removed by ld as long as all their sub-symbols.
     
-    Note that module.CheckImportPath is used, because module.CheckPath
-    verifies that module path is something that "go get" can fetch, which is
-    strictly stronger condition than "a valid module path".
-    
-    Updates #28389
-    Fixes #32644
-    
-    Change-Id: Ia60f218dd7d79186f87be723c28a96d6cb63017e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182560
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I68ff3ce5a3a034e3c3eb23431aba31245073cf20
+    Reviewed-on: https://go-review.googlesource.com/c/163999
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/init.go          |  3 +++
- src/cmd/go/testdata/script/mod_init_path.txt | 20 ++++++++++++++++++++
- 2 files changed, 23 insertions(+)
+ src/cmd/link/internal/ld/data.go  | 21 ++++++++++++++++
+ src/cmd/link/internal/ld/xcoff.go | 51 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+)

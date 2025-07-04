@@ -1,29 +1,18 @@
-commit 2517f4946b42b8deedb864c884f1b41311d45850
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Oct 14 17:18:27 2020 -0400
+commit 242b38c1716066d6489b00007885302c1e42fb75
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Mar 19 08:17:54 2020 -0400
 
-    runtime: remove debugCachedWork
+    [dev.link] cmd/link: relocating Errorf() to ErrorReporter
     
-    debugCachedWork and all of its dependent fields and code were added to
-    aid in debugging issue #27993. Now that the source of the problem is
-    known and mitigated (via the extra work check after STW in gcMarkDone),
-    these extra checks are no longer required and simply make the code more
-    difficult to follow.
+    Add an Errorf method to ErrorReporter. The hope is that we can
+    consolidate error handling/reporting in this helper, and eventually
+    do away with Link.Errorf and the global Errorf function (which
+    can be removed once we've eliminated enough uses of *sym.Symbol).
     
-    Remove it all.
-    
-    Updates #27993
-    
-    Change-Id: I594beedd5ca61733ba9cc9eaad8f80ea92df1a0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262350
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ie1147020b8409b9c57acfd71c942b287b214afca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224380
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go |   2 +-
- src/runtime/mgc.go                      | 121 +++++++-------------------------
- src/runtime/mgcwork.go                  |  74 -------------------
- src/runtime/mwbbuf.go                   |  32 +--------
- src/runtime/panic.go                    |   9 ---
- 5 files changed, 27 insertions(+), 211 deletions(-)
+ src/cmd/link/internal/ld/errors.go | 25 +++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go    |  3 +++
+ 2 files changed, 28 insertions(+)

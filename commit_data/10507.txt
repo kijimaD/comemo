@@ -1,15 +1,13 @@
-commit e9025df7ad41d93c1c8943323db06bb49c8a16fe
-Author: Rob Pike <r@golang.org>
-Date:   Sat Nov 26 08:32:55 2011 -0800
+commit e38a1053a9a0be021d6d93ebbd3deeb81ed28115
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 26 11:01:49 2011 +1100
 
-    text/template: rename the method Template.Template to Template.Lookup
-    Calling it Template makes it clumsy to embed the type, which html/template
-    depends on.
+    os: fail if Open("") is called on windows
     
-    R=golang-dev, gri
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5432079
+    https://golang.org/cl/5432071
 
- src/pkg/text/template/exec_test.go | 2 +-
- src/pkg/text/template/template.go  | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/os/file_windows.go | 3 +++
+ src/pkg/os/os_test.go      | 8 ++++++++
+ 2 files changed, 11 insertions(+)

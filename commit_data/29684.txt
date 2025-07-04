@@ -1,13 +1,28 @@
-commit 3f0f24df7b0017739b415e75bc4375a1483bd1a1
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 30 10:43:14 2016 -0500
+commit 89c4cbd7acc36cf627746f379f0cc002b5b60383
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Oct 1 19:20:32 2016 +0900
 
-    runtime: use standard comment style in cgocall
+    syscall: fix Send{msg,msgN}, Recvmsg and control message handling on solaris
     
-    Change-Id: I9f2c2da4aa512729ae40562b06601da95ba50d6f
-    Reviewed-on: https://go-review.googlesource.com/33689
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This change switches the use of socket implementation from the
+    conventional SUS-based one to the latest POSIX-based one to make
+    socket control message work correctly on Solaris.
+    
+    It looks like those two implementations, Socket over TLI/XTI and
+    Socket, have different semantics in details but it wouldn't hurt
+    the existing applications because the exposed syscall API doesn't
+    support socket properties related to such a protocol independent
+    application framework.
+    
+    Fixes #7402.
+    
+    Change-Id: I45a4e782d606bfbebe1404086c50a8c69af53461
+    Reviewed-on: https://go-review.googlesource.com/30171
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cgocall.go | 26 +++++++++++---------------
- 1 file changed, 11 insertions(+), 15 deletions(-)
+ src/syscall/sockcmsg_unix.go          |  7 ++--
+ src/syscall/syscall_solaris.go        | 20 +++++-----
+ src/syscall/syscall_unix.go           |  1 +
+ src/syscall/syscall_unix_test.go      |  6 ---
+ src/syscall/zsyscall_solaris_amd64.go | 72 +++++++++++++++++------------------
+ 5 files changed, 52 insertions(+), 54 deletions(-)

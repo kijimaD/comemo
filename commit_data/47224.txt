@@ -1,18 +1,21 @@
-commit 604963052072d7895138c78751c477cf25625e7d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Nov 3 13:54:08 2021 -0700
+commit d6504b80973a22edbb5045e98c53901776101d18
+Author: David Chase <drchase@google.com>
+Date:   Sat Feb 27 17:11:36 2021 -0500
 
-    internal/poll: remove alloc sending IPv6 UDP on Windows
+    cmd/compile: tweak offset-generator to elide more +0 offsets
     
-    This was an oversight in CL 331511.
+    this caused a problem in write barrier code when a spurious
+    zero-offset prevented a write barrier elision.
     
-    Change-Id: Ibc20bf6ea80a8675d43d9691ed551dffab1d9215
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361254
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    removed cache after instrumenting it and discovering
+    zero safe hits (one value must dominate the other, else
+    unsafe).
+    
+    Change-Id: I42dfdb4d38ebfe158b13e766a7fabfc514d773f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297349
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/internal/poll/fd_windows.go | 42 +++++++++++++++++++++++++++++++++++++----
- 1 file changed, 38 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 42 +++++++++++-----------------
+ 1 file changed, 17 insertions(+), 25 deletions(-)

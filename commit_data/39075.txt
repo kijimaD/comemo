@@ -1,32 +1,20 @@
-commit 19966e9b533a85039458eabf08228e0b85f3bf4e
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Oct 25 16:44:44 2018 -0400
+commit 3a3b98fdf96a93191d6c14f3b3cd2b757b961ec0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Dec 15 21:39:00 2018 -0800
 
-    go/types: add CheckExpr function to type-check an expression
+    cmd/compile/internal/ssa/gen: set wasm genfile
     
-    In IDE-like applications (and also in tests), there is often a need to
-    type-check an expression as if it appeared at a particular position in
-    the source code of an already typed-checked package.
+    This appears to have been an oversight and/or
+    left over from development.
     
-    Eval was added to address this need, but did so only partially,
-    stopping short of exposing a type-annotated expression tree. This
-    makes it impossible to resolve an expression such as new(T).x and
-    discover what Object x refers to.  CheckExpr exposes that generality.
-    Eval is now implemented in terms of CheckExpr.
+    Setting the genfile means that extra sanity
+    checks are executed when regenerating SSA files.
+    They already pass.
     
-    This change includes a test that demonstrates the object resolution
-    functionality just described.
-    
-    Historical context:
-    - https://go-review.googlesource.com/c/tools/+/10800
-    - https://codereview.appspot.com/10748044/
-    
-    Change-Id: I715ba934b9fc0c9ceb61270e20c5f91f4eff20c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/144677
-    Run-TryBot: Alan Donovan <adonovan@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Icc01ecf85020d3d51355e8bccfbc521b52371747
+    Reviewed-on: https://go-review.googlesource.com/c/154459
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/eval.go      | 53 +++++++++++++++++---------
- src/go/types/eval_test.go | 96 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 131 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/ssa/gen/WasmOps.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

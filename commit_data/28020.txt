@@ -1,13 +1,25 @@
-commit 78fac02cfd6bca33e3b8a13a875c593bbbc353cc
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Jul 11 14:26:18 2016 -0400
+commit e4355aeedfdd6a68185c4551c889eb13823cd86d
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 20 11:17:41 2016 -0700
 
-    test: add test for gccgo issue #15722
+    cmd/compile: more sanity checks on rewrite rules
     
-    Change-Id: I4faf9a55414e217f0c48528efb13ab8fdcd9bb16
-    Reviewed-on: https://go-review.googlesource.com/24845
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Make sure ops have the right number of args, set
+    aux and auxint only if allowed, etc.
+    
+    Normalize error reporting format.
+    
+    Change-Id: Ie545fcc5990c8c7d62d40d9a0a55885f941eb645
+    Reviewed-on: https://go-review.googlesource.com/22320
+    Reviewed-by: David Chase <drchase@google.com>
 
- test/fixedbugs/issue15722.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/cmd/compile/internal/ssa/check.go          |   8 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  28 +++---
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   2 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |   6 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 122 +++++++++++++++++-------
+ src/cmd/compile/internal/ssa/op.go             |   3 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  17 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 126 ++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  42 ---------
+ 9 files changed, 236 insertions(+), 118 deletions(-)

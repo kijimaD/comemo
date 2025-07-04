@@ -1,21 +1,32 @@
-commit 5d59fa143ae1d0d8fdcc677297ce58bbfc592111
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Mon Oct 17 21:58:56 2022 +0800
+commit b38ab0ac5f78ac03a38052018ff629c03e36b864
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Nov 23 18:03:47 2021 -0500
 
-    all: delete riscv64 non-register ABI fallback path
+    cmd/internal/objfile, debug/gosym: use the address of runtime.text as textStart
     
-    Change-Id: I9e997b59ffb868575b780b9660df1f5ac322b79a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443556
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Tools like objdump uses the pcln table to find the line number of
+    a given PC. For a PIE binary, at least in some cases such as on
+    macOS 12 with ld64-711, the table contains unrelocated address,
+    which does not match the address in the symbol table, causing the
+    lookup to fail.
+    
+    In Go 1.18 the pcln table is essentually position independent,
+    except the start PC. Instead of reading the static content from
+    the table, use the PC of runtime.text from the symbol table.
+    
+    While here, change the type of textStart to uint64. What matters
+    here is the word size of the target program, not the host, so it
+    shouldn't be uintptr.
+    
+    Fixes #49700.
+    
+    Change-Id: I517d79be7ba02dd4dd0275e75a11a136b08d76cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366695
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/internal/bytealg/compare_riscv64.s   | 18 ------
- src/internal/bytealg/count_riscv64.s     | 19 -------
- src/internal/bytealg/equal_riscv64.s     | 20 -------
- src/internal/bytealg/indexbyte_riscv64.s | 22 --------
- src/runtime/asm_riscv64.s                | 97 --------------------------------
- src/runtime/memclr_riscv64.s             |  6 +-
- src/runtime/memmove_riscv64.s            |  8 +--
- 7 files changed, 5 insertions(+), 185 deletions(-)
+ src/cmd/internal/objfile/objfile.go | 9 +++++++++
+ src/debug/gosym/pclntab.go          | 8 ++++----
+ 2 files changed, 13 insertions(+), 4 deletions(-)

@@ -1,12 +1,19 @@
-commit a90cbd741a794b67a1c7b4932f40f7d40bd25702
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue May 15 08:38:05 2012 +1000
+commit bd13f6ff8eea412885d6a22a284a259edda57980
+Author: Jan Mercl <befelemepeseveze@gmail.com>
+Date:   Mon May 14 11:50:25 2012 -0700
 
-    misc/dashboard/codereview: add sameer.
+    regexp/syntax: replace internal error on unexpected ) w/ ErrUnexpectedParen
     
-    R=r
+    Unbalanced extra right parenthesis produced an internal error instead of
+    a more descriptive one.
+    
+    Fixes #3406.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/6203076
+    https://golang.org/cl/6201063
 
- misc/dashboard/codereview/dashboard/people.go | 1 +
- 1 file changed, 1 insertion(+)
+ api/go1.txt                         | 1 +
+ src/pkg/regexp/syntax/parse.go      | 5 +++--
+ src/pkg/regexp/syntax/parse_test.go | 8 ++++++++
+ 3 files changed, 12 insertions(+), 2 deletions(-)

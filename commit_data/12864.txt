@@ -1,12 +1,15 @@
-commit edf8b03fef1ab4bf8de7d1f01f3110996a6c9f9c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Apr 10 22:12:09 2012 +0800
+commit 3d462449f670e2c0a810a6ef3bfc732a117f3cf7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 10 10:09:27 2012 -0400
 
-    cmd/api: allow addition of API
+    8a, 8l: add PREFETCH instructions
     
-    R=bradfitz, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5991081
+    https://golang.org/cl/5992082
 
- src/cmd/api/goapi.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/8a/lex.c          |  4 ++++
+ src/cmd/8l/8.out.h        |  5 +++++
+ src/cmd/8l/optab.c        | 10 ++++++++++
+ src/pkg/runtime/asm_386.s |  3 +--
+ 4 files changed, 20 insertions(+), 2 deletions(-)

@@ -1,19 +1,14 @@
-commit 9525372e31f6bad979a5f472aecfc24af34f28d0
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 27 16:52:36 2012 -0400
+commit 809e06babc883bf756d62b1e1fa971beafcf2713
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 26 11:49:19 2012 -0700
 
-    path/filepath: avoid allocation in Clean of cleaned path
+    go spec: clean up use of QualifiedIdent production.
     
-    Alternative to https://golang.org/cl/6330044.
+    Fixes #3763.
     
-    Fixes #3681.
-    
-    R=golang-dev, r, hanwen, iant
+    R=r, rsc, iant, ken
     CC=golang-dev
-    https://golang.org/cl/6335056
+    https://golang.org/cl/6333066
 
- src/pkg/path/filepath/path.go      | 81 ++++++++++++++++++++++++++------------
- src/pkg/path/filepath/path_test.go | 18 +++++++++
- src/pkg/path/path.go               | 80 ++++++++++++++++++++++++++-----------
- src/pkg/path/path_test.go          | 19 +++++++++
- 4 files changed, 149 insertions(+), 49 deletions(-)
+ doc/go_spec.html | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)

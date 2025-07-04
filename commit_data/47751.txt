@@ -1,21 +1,30 @@
-commit bb9b20a15d637667614ec4a312f216bd4c67b76a
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Dec 8 15:29:12 2021 -0500
+commit d25c4fbe05e88580ce0a5cadc67e1c0ee27a2d1c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 8 18:32:00 2021 -0400
 
-    cmd/api: run half as many go list calls in parallel
+    test: do not run softfloat test with regabiargs
     
-    We currently run one 'go list' invocation per GOMAXPROC. Since the go
-    command uses memory and has its own internal parallelism, that's
-    unlikely to be an efficient use of resources. Run half as many. I
-    suspect that's still too many but this should fix our OOMs.
+    Softfloat mode with register ABI is not implemented yet. In
+    particular, we did not rewrite the float types in AuxCalls to
+    integer types, so arguments are still passed in floating point
+    registers, which do not exist in softfloat mode. To make it work
+    I think we may want to reorder softfloat pass with expand_calls
+    pass. We also need to rewrite the OpArgFloatRegs for the spilling
+    of non-SSA-able arguments, which may involve renumbering interger
+    arguments. Maybe in softfloat mode we want to just define the
+    ABI with 0 float registers. They are not fundamentally hard, but
+    may be not worth doing for the moment, as we don't use softfloat
+    mode on AMD64 anyway.
     
-    For #49957.
+    Run the test with noregabiargs. Also in the compiler reject
+    -d=softfloat if regabiargs is enabled.
     
-    Change-Id: Id06b6e0f0d96387a2a050e400f38bde6ba71aa60
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370376
-    Trust: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I8cc0c2cfa88a138bc1338ed8710670245f1bd2cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308710
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/api/goapi.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go | 3 +++
+ test/fixedbugs/issue28688.go        | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

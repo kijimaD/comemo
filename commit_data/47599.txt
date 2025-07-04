@@ -1,26 +1,17 @@
-commit 4da06e7b00ae9965ec7d2f6f131266e44f966754
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Nov 19 16:09:52 2021 -0500
+commit c93cd8614965c6c114671fabf82b69fbd952f52f
+Author: 徐志伟 <juwan.xu@qq.com>
+Date:   Tue Mar 30 23:25:56 2021 +0000
 
-    cmd/go: fix bug in using the workfile flag with tests
+    net/http: use consistent case in URL in names
     
-    Tests do custom flag processing so we must process the workfile flag
-    after that happens.
-    
-    Also fix an issue where errors weren't handled properly when the
-    workfile wasn't absolute (the go command should just exit), and where a
-    parse error was just dropped.
-    
-    Fixes #48576
-    
-    Change-Id: I3a94d8d3a515114b2c4cc0e73f63447df2fc6bc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366174
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: Iff5074713e1a4484c04b8628fb2611b6d4e154c7
+    GitHub-Last-Rev: bb0861bbbe31bc2bbda667c05402b5ef886a762b
+    GitHub-Pull-Request: golang/go#45294
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305772
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/init.go          |  5 ++---
- src/cmd/go/internal/test/test.go             |  2 +-
- src/cmd/go/testdata/script/work_workfile.txt | 21 +++++++++++++++++++++
- 3 files changed, 24 insertions(+), 4 deletions(-)
+ src/net/http/client_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

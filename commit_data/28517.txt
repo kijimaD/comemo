@@ -1,27 +1,19 @@
-commit 159a90b93a962cb942688f099b42d00d164e436f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 23 22:05:51 2016 -0700
+commit 1846c632ee37681eb92fb27f7071a58bdf6d7a3c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue May 31 20:48:42 2016 +1200
 
-    runtime: merge Unix sighandler functions
+    cmd/go: combine gccgo's ld and ldShared methods
     
-    Replace all the Unix sighandler functions with a single instance.
-    Push the relatively small amount of processor-specific code into five
-    methods on sigctxt: sigpc, sigsp, siglr, fault, preparePanic.
-    (Some processors already had a fault method.)
+    This fixes handling of cgo flags and makes sure packages that are only
+    implicitly included in the shared library are passed to the link.
     
-    Change-Id: Ib459412ff8f7e0f5ad06bfd43eb827c8b196fc32
-    Reviewed-on: https://go-review.googlesource.com/29752
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #15885
+    
+    Change-Id: I1e8a72b5314261973ca903c78834700fb113dde9
+    Reviewed-on: https://go-review.googlesource.com/23537
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/signal_386.go          | 178 ++++++++-------------------------
- src/runtime/signal_amd64x.go       | 199 ++++++++-----------------------------
- src/runtime/signal_arm.go          | 163 ++++++------------------------
- src/runtime/signal_arm64.go        | 163 ++++++------------------------
- src/runtime/signal_darwin_amd64.go |  20 ++++
- src/runtime/signal_linux_s390x.go  | 165 +++++++-----------------------
- src/runtime/signal_mips64x.go      | 163 ++++++------------------------
- src/runtime/signal_ppc64x.go       | 166 +++++++------------------------
- src/runtime/signal_sighandler.go   | 133 +++++++++++++++++++++++++
- 9 files changed, 398 insertions(+), 952 deletions(-)
+ src/cmd/go/build.go | 63 ++++++++++++++++++++++++-----------------------------
+ 1 file changed, 29 insertions(+), 34 deletions(-)

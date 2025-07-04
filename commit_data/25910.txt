@@ -1,18 +1,15 @@
-commit 49d1e307108c4a52e65112926ce5f1acb04fd8d7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Feb 25 17:16:42 2016 -0800
+commit 92b02e313193de9de9aaa3525f1908d8a26e9a68
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 12:06:06 2015 -0500
 
-    cmd/compile, go/parser: simpler binary expression parsing
+    encoding/xml: document new chardata tag
     
-    The existing nested loops are too tricky for me to grok and don't seem
-    necessary.
+    Followup to CL 16047.
+    For #12963.
     
-    Change-Id: I75c65c8470b799d6f4cfb05bb1b4796c5d7d32e7
-    Reviewed-on: https://go-review.googlesource.com/19927
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I596cd5109b25a4079b966427411860fde8b9b54a
+    Reviewed-on: https://go-review.googlesource.com/17232
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 15 ++++++---------
- src/go/parser/parser.go               | 26 +++++++++++---------------
- 2 files changed, 17 insertions(+), 24 deletions(-)
+ src/encoding/xml/marshal.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,69 +1,21 @@
-commit 27cce773d3338d282039fd250c0f9bff3ecab3b0
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Fri Feb 15 11:21:46 2019 +0000
+commit 4bea6c65947caf815ad4dde8bf50c43dcca539be
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 17 14:15:54 2018 -0700
 
-    cmd/compile: optimize arm64 comparison of x and 0.0 with "FCMP $(0.0), Fn"
+    go/internal/gccgoimporter: backport from x/tools to ensure identical code
     
-    Code:
-    func comp(x float64) bool {return x < 0}
+    This change backports a minor modification of the x/tools version of this
+    code back into the std library. It simply ensures that both versions of
+    the code are the same and will simplify keeping them in sync down the
+    road.
     
-    Previous version:
-      FMOVD "".x(FP), F0
-      FMOVD ZR, F1
-      FCMPD F1, F0
-      CSET  MI, R0
-      MOVB  R0, "".~r1+8(FP)
-      RET   (R30)
+    While this is an API change, this is an internal package, so we're ok.
     
-    Optimized version:
-      FMOVD "".x(FP), F0
-      FCMPD $(0.0), F0
-      CSET  MI, R0
-      MOVB  R0, "".~r1+8(FP)
-      RET   (R30)
+    Updates #27891.
     
-    Math package benchmark results:
-    name                   old time/op          new time/op          delta
-    Acos-8                   77.500000ns +- 0%    77.400000ns +- 0%   -0.13%  (p=0.000 n=9+10)
-    Acosh-8                  98.600000ns +- 0%    98.100000ns +- 0%   -0.51%  (p=0.000 n=10+9)
-    Asin-8                   67.600000ns +- 0%    66.600000ns +- 0%   -1.48%  (p=0.000 n=9+10)
-    Asinh-8                 108.000000ns +- 0%   109.000000ns +- 0%   +0.93%  (p=0.000 n=10+10)
-    Atan-8                   36.788889ns +- 0%    36.000000ns +- 0%   -2.14%  (p=0.000 n=9+10)
-    Atanh-8                 104.000000ns +- 0%   105.000000ns +- 0%   +0.96%  (p=0.000 n=10+10)
-    Atan2-8                  67.100000ns +- 0%    66.600000ns +- 0%   -0.75%  (p=0.000 n=10+10)
-    Cbrt-8                   89.100000ns +- 0%    82.000000ns +- 0%   -7.97%  (p=0.000 n=10+10)
-    Erf-8                    43.500000ns +- 0%    43.000000ns +- 0%   -1.15%  (p=0.000 n=10+10)
-    Erfc-8                   49.000000ns +- 0%    48.220000ns +- 0%   -1.59%  (p=0.000 n=9+10)
-    Erfinv-8                 59.100000ns +- 0%    58.600000ns +- 0%   -0.85%  (p=0.000 n=10+10)
-    Erfcinv-8                59.100000ns +- 0%    58.600000ns +- 0%   -0.85%  (p=0.000 n=10+10)
-    Expm1-8                  56.600000ns +- 0%    56.040000ns +- 0%   -0.99%  (p=0.000 n=8+10)
-    Exp2Go-8                 97.600000ns +- 0%    99.400000ns +- 0%   +1.84%  (p=0.000 n=10+10)
-    Dim-8                     2.500000ns +- 0%     2.250000ns +- 0%  -10.00%  (p=0.000 n=10+10)
-    Mod-8                   108.000000ns +- 0%   106.000000ns +- 0%   -1.85%  (p=0.000 n=8+8)
-    Frexp-8                  12.000000ns +- 0%    12.500000ns +- 0%   +4.17%  (p=0.000 n=10+10)
-    Gamma-8                  67.100000ns +- 0%    67.600000ns +- 0%   +0.75%  (p=0.000 n=10+10)
-    Hypot-8                  17.100000ns +- 0%    17.000000ns +- 0%   -0.58%  (p=0.002 n=8+10)
-    Ilogb-8                   9.010000ns +- 0%     8.510000ns +- 0%   -5.55%  (p=0.000 n=10+9)
-    J1-8                    288.000000ns +- 0%   287.000000ns +- 0%   -0.35%  (p=0.000 n=10+10)
-    Jn-8                    605.000000ns +- 0%   604.000000ns +- 0%   -0.17%  (p=0.001 n=8+9)
-    Logb-8                   10.600000ns +- 0%    10.500000ns +- 0%   -0.94%  (p=0.000 n=9+10)
-    Log2-8                   16.500000ns +- 0%    17.000000ns +- 0%   +3.03%  (p=0.000 n=10+10)
-    PowFrac-8               232.000000ns +- 0%   233.000000ns +- 0%   +0.43%  (p=0.000 n=10+10)
-    Remainder-8              70.600000ns +- 0%    69.600000ns +- 0%   -1.42%  (p=0.000 n=10+10)
-    SqrtGoLatency-8          77.600000ns +- 0%    76.600000ns +- 0%   -1.29%  (p=0.000 n=10+10)
-    Tanh-8                   97.600000ns +- 0%    94.100000ns +- 0%   -3.59%  (p=0.000 n=10+10)
-    Y1-8                    289.000000ns +- 0%   288.000000ns +- 0%   -0.35%  (p=0.000 n=10+10)
-    Yn-8                    603.000000ns +- 0%   589.000000ns +- 0%   -2.32%  (p=0.000 n=10+10)
-    
-    Change-Id: I6920734f8662b329aa58f5b8e4eeae73b409984d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164719
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib153141382f727a2692ca80179ae09c4a383ba4f
+    Reviewed-on: https://go-review.googlesource.com/c/142894
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/arm64/ssa.go        |   6 +
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  10 ++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   3 +
- src/cmd/compile/internal/ssa/opGen.go        |  22 ++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 158 +++++++++++++++++++++++++++
- 5 files changed, 199 insertions(+)
+ src/go/internal/gccgoimporter/gccgoinstallation.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

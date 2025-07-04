@@ -1,0 +1,19 @@
+commit a2eb643cbf5b68b50dd2dd5b62e605ca90ababe4
+Author: limeidan <limeidan@loongson.cn>
+Date:   Mon Oct 9 17:32:03 2023 +0800
+
+    cmd/dist, internal/platform: enable internal linking feature and test on loong64
+    
+    Change-Id: Ifea676e9eb44281465832fc4050f6286e50f4543
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533717
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+
+ src/cmd/dist/build.go              | 2 +-
+ src/cmd/dist/test.go               | 4 ++--
+ src/internal/platform/supported.go | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

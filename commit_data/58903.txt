@@ -1,24 +1,25 @@
-commit 2298215f5b02458e6578b6813cf2361924d64649
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Feb 25 21:56:29 2025 +0100
+commit 40fab294de5eb0ac7c071194a77b4ba2e5cfe5c1
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Jan 6 07:12:43 2024 +0000
 
-    cmd/link: use __got as the .got section name
+    cmd/link,runtime: merge minfunc const info internal/abi
     
-    The __nl_symbol_ptr is not a common section name anymore. LLVM prefers
-    __got for GOT symbols in the __DATA_CONST segment.
+    For #59670
     
-    Note that the Go linker used to place the GOT section in the __DATA
-    segment, but since CL 644055 we place it in the __DATA_CONST segment.
-    
-    Updates #71416.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64-longtest
-    Change-Id: Icb776e19855eaabb4777a9b1eb433497842413b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652555
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If2b05b1ba30b607b518577b0e11ba5a0b07999c5
+    GitHub-Last-Rev: a664aa18b5ef674dc2d05c1f7533e1974d265894
+    GitHub-Pull-Request: golang/go#64906
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553276
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/internal/ld/macho.go      | 4 ++--
- src/cmd/link/internal/ld/macho_test.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/data.go  | 7 ++++---
+ src/cmd/link/internal/ld/lib.go   | 4 ----
+ src/cmd/link/internal/ld/pcln.go  | 2 +-
+ src/cmd/link/internal/wasm/asm.go | 5 +++--
+ src/internal/abi/symtab.go        | 2 ++
+ src/runtime/symtab.go             | 3 +--
+ 6 files changed, 11 insertions(+), 12 deletions(-)

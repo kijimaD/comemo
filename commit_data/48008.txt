@@ -1,43 +1,26 @@
-commit 6eb58cdffa1ab334493776a25ccccfa89c2ca7ac
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Jan 25 17:31:52 2022 -0500
+commit 7bedd477980175aecda5feb782e88041e86c2756
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Apr 20 22:59:59 2021 -0400
 
-    all: update vendored golang.org/x/tools
+    go/types: combine all type inference in a single function
     
-    Update the vendored x/tools to pick up CL 380014, which updates the
-    ifaceassert vet analyzer to remove spurious errors for assertions
-    involving interfaces with type parameters.
+    This is a port of CL 306170 to go/types, adjusted for the different
+    positioning API.
     
-    This also picks up some superficial changes related to refactoring of
-    the x/tools/internal/typeparams API.
+    Some of the error positions in tests had to be adjusted, but I think the
+    new locations are better.
     
-    The following commands were used:
-    
-      go get -d golang.org/x/tools@master
-      go mod tidy
-      go mod vendor
-    
-    Fixes #50658
-    
-    Change-Id: I2f612fd186a1a260cab21860b192c9f6dc3f560f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380777
+    Change-Id: Ib157fbb47d7483e3c6302bd57f5070bd74602a36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312191
     Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tim King <taking@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../go/analysis/passes/ifaceassert/ifaceassert.go  |   6 ++
- .../analysis/passes/ifaceassert/parameterized.go   | 112 +++++++++++++++++++++
- .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |   3 +-
- .../passes/testinggoroutine/testinggoroutine.go    |   7 +-
- .../analysis/passes/unusedresult/unusedresult.go   |   6 +-
- .../golang.org/x/tools/go/types/typeutil/callee.go |   3 +-
- .../x/tools/internal/lsp/fuzzy/symbol.go           |  26 +++--
- .../x/tools/internal/typeparams/common.go          |  71 ++++++++++---
- .../tools/internal/typeparams/typeparams_go117.go  |  32 ------
- .../tools/internal/typeparams/typeparams_go118.go  |  50 ---------
- src/cmd/vendor/modules.txt                         |   2 +-
- 13 files changed, 208 insertions(+), 116 deletions(-)
+ .../internal/types2/fixedbugs/issue40056.go2       |   2 +-
+ src/go/types/call.go                               |  85 +++-------
+ src/go/types/fixedbugs/issue39634.go2              |   2 +-
+ src/go/types/fixedbugs/issue40056.go2              |   4 +-
+ src/go/types/infer.go                              | 172 +++++++++++++++++----
+ src/go/types/testdata/typeparams.go2               |  10 +-
+ 6 files changed, 176 insertions(+), 99 deletions(-)

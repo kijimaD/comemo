@@ -1,22 +1,18 @@
-commit fcf6afb82dc1e9f80a6260467026adc11d5c9529
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 18 10:46:15 2022 -0700
+commit 7c692cc7ea69ba4d8603fbada112289443a6f526
+Author: Vishal Dalwadi <dalwadivishal26@gmail.com>
+Date:   Fri May 7 10:05:36 2021 +0530
 
-    cmd/compile: pointers to notinheap types need their own shape
+    doc/go1.17: document changes to os package
     
-    They should not share a shape with regular pointers. We could coalesce
-    multiple pointer-to-not-in-heap types, but doesn't seem worth it - just
-    make them fully stenciled.
+    Documents the changes to File.WriteString method.
     
-    Fixes #51733
+    For #44513.
+    Fixes #46018.
     
-    Change-Id: Ie8158177226fbc46a798e71c51897a82f15153df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393895
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I3a8ef9df9f84662614d54802710bd705d626b995
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317910
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/typecheck/subr.go |  2 +-
- test/typeparam/issue51733.go               | 32 ++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+ doc/go1.17.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

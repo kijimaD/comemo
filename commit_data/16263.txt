@@ -1,14 +1,16 @@
-commit 48c4a87a94652898653c24f0b7a6e58f76fffa6b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri May 3 15:24:05 2013 -0400
+commit e0db7fae8728ef47b8cd020d7fe993069c3e61d0
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri May 3 16:33:21 2013 +0800
 
-    doc: fix formatting in effective go code snippet
+    cmd/ld: add .note.GNU-stack section for external linking
+    Fixes #5392.
     
-    Fixes #5403.
-    
-    R=golang-dev, minux.ma
+    R=iant, r
     CC=golang-dev
-    https://golang.org/cl/9100046
+    https://golang.org/cl/9119043
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/ld/elf.c                | 9 ++++++++-
+ src/pkg/runtime/cgo/gcc_386.S   | 3 +++
+ src/pkg/runtime/cgo/gcc_amd64.S | 4 ++++
+ src/pkg/runtime/cgo/gcc_arm.S   | 3 +++
+ 4 files changed, 18 insertions(+), 1 deletion(-)

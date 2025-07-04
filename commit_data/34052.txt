@@ -1,22 +1,16 @@
-commit 3b6abd8a4501d816e80b4d46e6fda4df486ccb66
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Feb 12 20:09:58 2018 +0000
+commit b3cae37464b6acb7a6676da667d292f353143954
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Sep 28 10:56:05 2017 +0530
 
-    Revert "[release-branch.go1.10] all: merge master into release-branch.go1.10"
+    doc: fix minor capitalization typo
     
-    This reverts commit b83d7f72537bdc0cec2e949d73ae40fbd42b7c63.
+    Updated page to Page to match with the sample code
     
-    Reason for revert: wrong branch
+    Fixes #21773
     
-    Change-Id: I28ebb121f7b3e331729e8a6a00961b876f3dd0f2
-    Reviewed-on: https://go-review.googlesource.com/93455
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Ia884a22fd587860c7a6148103b2b474425e45284
+    Reviewed-on: https://go-review.googlesource.com/66790
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .github/PULL_REQUEST_TEMPLATE |  7 +++++++
- CONTRIBUTING.md               |  5 +++++
- README.md                     |  7 ++++---
- doc/devel/release.html        | 13 -------------
- doc/diagnostics.html          |  2 +-
- doc/go1.10.html               |  3 +--
- src/cmd/fix/cftype.go         |  2 +-
- 7 files changed, 19 insertions(+), 20 deletions(-)
+ doc/articles/wiki/index.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

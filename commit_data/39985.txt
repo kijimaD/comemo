@@ -1,20 +1,25 @@
-commit 8b6fa668ee1aaf6c00073115cc09957195ee30e1
-Author: Andrei Tudor Călin <mail@acln.ro>
-Date:   Mon Sep 23 19:10:05 2019 +0300
+commit c46ebec322b4f61a219f73f3f0f590cf001a074d
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Tue Apr 2 15:00:54 2019 -0700
 
-    net: use case-insensitive host string comparison in TestLookupGmailNS
+    cmd/compile: get rid of unnecessary inline marks
     
-    Some nameservers alter the case of NS records they return, e.g.
-    ns2.google.COm. or ns2.google.coM. Change TestLookupGmailNS to account
-    for this possibility by comparing host names in lower case.
+    If no other instruction mentions an inline mark, we can get rid of it.
+    This normally happens when the inlined function is empty, or when all
+    of its code is folded into other instructions.
     
-    Fixes #34446
+    Also use consistent statement-ness for inline mark positions, so that
+    more of them can be removed in favor of existing instructions.
     
-    Change-Id: I6ccb5b87b42401e04c9b32cecb8b7b4267b654cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196801
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Update #29571
+    Fixes #31172
+    
+    Change-Id: I71f84d355101f37a27960d9e8528f42f92767496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170445
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/lookup_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/inl.go       |  2 +-
+ src/cmd/compile/internal/ssa/deadcode.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

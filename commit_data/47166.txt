@@ -1,17 +1,74 @@
-commit 088bb4bf4ad851a7f9a0d409e2f64c483cb7121a
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Sat Oct 30 22:26:56 2021 +0800
+commit a6eeb4add46eddb19ceba36bdd448738808e5ce2
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Feb 24 10:31:11 2021 -0500
 
-    A+C: add Leonard Wang (individual CLA)
+    go/parser,go/types: hide API changes related to type parameters
     
-    Change-Id: I9fa687804c7f0f1d5a987b95ab1c3110468d1b65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360054
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    While the dev.typeparams branch was merged, the type parameter API is
+    slated for go1.18. Hide these changes to the go/parser and go/types API.
+    
+    This was done as follows:
+     + For APIs that will probably not be needed for go1.18, simply unexport
+       them.
+     + For APIs that we expect to export in go1.18, prefix symbols with '_',
+       so that the planned (upper-cased) symbol name is apparent.
+     + For APIs that must be exported for testing, move both API and tests
+       to files guarded by the go1.18 build constraint.
+     + parser.ParseTypeParams is unexported and copied wherever it is
+       needed.
+     + The -G flag is removed from gofmt, replaced by enabling type
+       parameters if built with the go1.18 build constraint.
+    
+    Notably, changes related to type parameters in go/ast are currently left
+    exported. We're looking at the AST API separately.
+    
+    The new API diff from 1.16 is:
+    +pkg go/ast, method (*FuncDecl) IsMethod() bool
+    +pkg go/ast, method (*ListExpr) End() token.Pos
+    +pkg go/ast, method (*ListExpr) Pos() token.Pos
+    +pkg go/ast, type FuncType struct, TParams *FieldList
+    +pkg go/ast, type ListExpr struct
+    +pkg go/ast, type ListExpr struct, ElemList []Expr
+    +pkg go/ast, type TypeSpec struct, TParams *FieldList
+    +pkg go/types, type Config struct, GoVersion string
+    
+    Change-Id: I1baf67e26279b49092e774309a836c460979774a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295929
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/gofmt/gofmt.go          |  25 ++++---
+ src/cmd/gofmt/gofmt_go1.18.go   |  12 ++++
+ src/cmd/gofmt/gofmt_test.go     |   3 +-
+ src/go/parser/error_test.go     |   2 +-
+ src/go/parser/interface.go      |   8 ++-
+ src/go/parser/parser.go         |  22 +++----
+ src/go/parser/short_test.go     |  14 ++--
+ src/go/printer/printer_test.go  |  17 +++--
+ src/go/types/api.go             |  10 +--
+ src/go/types/api_go1.18.go      |  22 +++++++
+ src/go/types/api_go1.18_test.go | 138 ++++++++++++++++++++++++++++++++++++++
+ src/go/types/api_test.go        | 124 +---------------------------------
+ src/go/types/builtins.go        |   8 +--
+ src/go/types/call.go            |   2 +-
+ src/go/types/check.go           |   4 +-
+ src/go/types/check_test.go      |   6 +-
+ src/go/types/decl.go            |   4 +-
+ src/go/types/expr.go            |   8 +--
+ src/go/types/infer.go           |   8 +--
+ src/go/types/lookup.go          |   4 +-
+ src/go/types/operand.go         |   2 +-
+ src/go/types/predicates.go      |  22 +++----
+ src/go/types/sanitize.go        |   8 +--
+ src/go/types/scope.go           |   4 +-
+ src/go/types/sizes.go           |   2 +-
+ src/go/types/stmt.go            |   2 +-
+ src/go/types/subst.go           |  20 +++---
+ src/go/types/type.go            | 143 +++++++++++++++++++---------------------
+ src/go/types/typestring.go      |   8 +--
+ src/go/types/typexpr.go         |  14 ++--
+ src/go/types/unify.go           |   8 +--
+ 31 files changed, 370 insertions(+), 304 deletions(-)

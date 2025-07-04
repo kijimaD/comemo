@@ -1,20 +1,29 @@
-commit 410b73728f2cddb5e7bce3acd623e8a254af60db
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sun Sep 10 09:01:30 2017 +0900
+commit 1dc0f9696b743b10bf0b7b49780bee7f4756499b
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 8 22:31:41 2017 -0400
 
-    cmd/link: remove windows-specific kludges from Adddynrel
+    runtime/pprof: clean up call/return PCs in memory profiles
     
-    Adddynrel does nothing on windows. We can make code don't call Adddynrel
-    on windows in the first place.
+    Proto profile conversion is inconsistent about call vs return PCs in
+    profile locations. The proto defines locations to be call PCs. This is
+    what we do when proto-izing CPU profiles, but we fail to convert the
+    return PCs in memory and count profile stacks to call PCs when
+    converting them to proto locations.
     
-    Change-Id: I376cc36d44a5df18bda13be57e3916ca3062f181
-    Reviewed-on: https://go-review.googlesource.com/62611
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fix this in the heap and count profile conversion functions.
+    TestConvertMemProfile also hard-codes this failure to convert from
+    return PCs to call PCs, so fix up the addresses in the synthesized
+    profile to be return PCs while checking that we get call PCs out of
+    the conversion.
+    
+    Change-Id: If1fc028b86fceac6d71a2d9fa6c41ff442c89296
+    Reviewed-on: https://go-review.googlesource.com/42951
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/link/internal/amd64/asm.go | 20 +++++---------------
- src/cmd/link/internal/ld/data.go   |  6 ++++--
- src/cmd/link/internal/x86/asm.go   |  5 -----
- 3 files changed, 9 insertions(+), 22 deletions(-)
+ src/runtime/pprof/pprof.go         | 9 +++++----
+ src/runtime/pprof/proto.go         | 1 +
+ src/runtime/pprof/protomem.go      | 9 +++++----
+ src/runtime/pprof/protomem_test.go | 6 +++++-
+ 4 files changed, 16 insertions(+), 9 deletions(-)

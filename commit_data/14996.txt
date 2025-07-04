@@ -1,15 +1,22 @@
-commit a8e0a75726c07cdbb8ce5f2e72a1bc54e392ad13
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 28 12:49:26 2013 -0500
+commit 31f58dce67b449e5a268714dace703a1dcd24035
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 28 08:54:15 2013 -0800
 
-    go/build: undo CL 7129048
+    net, syscall: use accept4 and SOCK_CLOEXEC on Linux
     
-    This broke 'godoc net/http'.
-    
-    TBR=adg
+    R=golang-dev, bradfitz, mikioh.mikioh, dave, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7235052
+    https://golang.org/cl/7227043
 
- src/pkg/go/build/build.go      | 4 +++-
- src/pkg/go/build/build_test.go | 1 +
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_unix.go                  | 12 +-----
+ src/pkg/net/file_unix.go                |  4 ++
+ src/pkg/net/sock_cloexec.go             | 69 +++++++++++++++++++++++++++++++++
+ src/pkg/net/sock_posix.go               |  7 +---
+ src/pkg/net/sys_cloexec.go              | 54 ++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_linux.go        | 15 +++++++
+ src/pkg/syscall/syscall_linux_386.go    | 11 ++++++
+ src/pkg/syscall/syscall_linux_amd64.go  |  1 +
+ src/pkg/syscall/syscall_linux_arm.go    |  1 +
+ src/pkg/syscall/zsyscall_linux_amd64.go | 11 ++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 11 ++++++
+ 11 files changed, 179 insertions(+), 17 deletions(-)

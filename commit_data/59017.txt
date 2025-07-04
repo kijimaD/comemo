@@ -1,18 +1,29 @@
-commit 908af6529c1d3094da999fdafe79313c41826afa
-Author: Sean Liao <sean@liao.dev>
-Date:   Mon Mar 10 22:10:58 2025 +0000
+commit c9d88ea2aa628cae224335c49f256e13adfce337
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 1 05:32:03 2024 +0000
 
-    archive/zip: error on ReadDir if there are invalid file names
+    runtime: traceAcquire and traceRelease across all P steals
     
-    Fixes #50179
+    Currently there are a few places where a P can get stolen where the
+    runtime doesn't traceAcquire and traceRelease across the steal itself.
+    What can happen then is the following scenario:
+    - Thread 1 enters a syscall and writes an event about it.
+    - Thread 2 steals Thread 1's P.
+    - Thread 1 exits the syscall and writes one or more events about it.
+    - Tracing ends (trace.gen is set to 0).
+    - Thread 2 checks to see if it should write an event for the P it just
+      stole, sees that tracing is disabled, and doesn't.
     
-    Change-Id: I616a6d1279d025e345d2daa6d44b687c8a2d09e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656495
+    This results in broken traces, because there's a missing ProcSteal
+    event. The parser always waits for a ProcSteal to advance a
+    GoSyscallEndBlocked event, and in this case, it never comes.
+    
+    Fixes #65181.
+    
+    Change-Id: I437629499bb7669bf7fe2fc6fc4f64c53002916b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560235
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/archive/zip/reader.go      |  7 +++++++
- src/archive/zip/reader_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+)
+ src/runtime/proc.go | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

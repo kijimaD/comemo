@@ -1,20 +1,21 @@
-commit b93ebcfe4145e5b0592d7d2717fef090dbb1bc16
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 8 14:21:15 2020 -0500
+commit ecc7dd546998ad0b68e9055876db1ec82facca4b
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Sep 21 16:22:50 2019 +0530
 
-    cmd/go: convert TestFailFast to the script framework
+    test/codegen: fix wasm codegen breakage
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    i32.eqz instructions don't appear unless needed in if conditions anymore
+    after CL 195204. I forgot to run the codegen tests while submitting the CL.
     
-    Updates #36320
-    Updates #17751
+    Thanks to @martisch for catching it.
     
-    Change-Id: Ibe1b09490bea72d9143324eae7443e0cf5afe85d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213823
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #34442
+    
+    Change-Id: I177b064b389be48e39d564849714d7a8839be13e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196580
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/go/go_test.go                         |  48 -----------
- src/cmd/go/testdata/script/test_fail_fast.txt | 113 ++++++++++++++++++++++++++
- src/cmd/go/testdata/src/failfast_test.go      |  62 --------------
- 3 files changed, 113 insertions(+), 110 deletions(-)
+ test/codegen/comparisons.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

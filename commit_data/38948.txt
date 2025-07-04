@@ -1,20 +1,30 @@
-commit 6ee832438830678ed14d535f47bcef0403a35fb4
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sun Apr 28 09:05:16 2019 +0200
+commit 41d0dc49d2e6bfb96bd87c7a1ded9ed20b602281
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 11 17:23:14 2018 -0800
 
-    runtime/cgo: ignore missing Info.plist files on iOS
+    go/format: add simple benchmark framework and basic benchmark
     
-    When running Go programs on Corellium virtual iPhones, the Info.plist
-    files might not exist. Ignore the error.
+    For now, this CL adds as a first benchmark the formatting of
+    a 10,000 element array literal. It is easy to add additional
+    test cases as we see fit.
     
-    Updates #31722
+            name                   time/op
+            Format/array1-10000-4    26.7ms ± 7%
     
-    Change-Id: Id2e315c09346b69dda9e10cf29fb5dba6743aac4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174202
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+            name                   speed
+            Format/array1-10000-4  2.43MB/s ± 6%
+    
+            name                   alloc/op
+            Format/array1-10000-4    5.52MB ± 0%
+    
+            name                   allocs/op
+            Format/array1-10000-4      119k ± 0%
+    
+    Updates #26528.
+    
+    Change-Id: Ic8ec8f70160d122b877740412d4d4406f5f4b345
+    Reviewed-on: https://go-review.googlesource.com/c/153642
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cgo/gcc_darwin_arm.c   | 2 +-
- src/runtime/cgo/gcc_darwin_arm64.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/go/format/benchmark_test.go | 91 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)

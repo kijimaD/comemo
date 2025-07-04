@@ -1,12 +1,28 @@
-commit a70cbf1329e4ca7f3aaa62ab825dd33933c80e9e
+commit d9fdf88f34f7bfd80e16ed96637ac0b4106d59ed
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 16 14:22:24 2013 -0400
+Date:   Mon Sep 16 14:05:06 2013 -0400
 
-    runtime: fix freebsd build
+    net: make all.bat run for ordinary Windows users
     
-    TBR=golang-dev
+    This CL is required for all.bat to work out of the box on
+    my Windows 8 laptop.
+    
+    These tests either require the firewall to be turned off
+    or require the user to be in the Administrators group.
+    I don't know which.
+    
+    Alex may follow up with a refinement of the test to
+    allow them to run if the user is in the Administrators
+    group.
+    
+    Fixes #6392.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13720044
+    https://golang.org/cl/13421049
 
- src/pkg/runtime/sys_freebsd_amd64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/ipraw_test.go      | 6 ++++++
+ src/pkg/net/multicast_test.go  | 4 ++++
+ src/pkg/net/packetconn_test.go | 3 +++
+ src/pkg/net/protoconn_test.go  | 3 +++
+ 4 files changed, 16 insertions(+)

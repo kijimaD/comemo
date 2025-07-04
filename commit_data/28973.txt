@@ -1,22 +1,38 @@
-commit e64e858c51bc7739a308fa0749ded1123da2e89c
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Oct 20 09:35:19 2016 -0700
+commit 70544c91ffac19f5ffa66c59e3097f3f1fe900f8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jun 6 17:59:05 2016 -0700
 
-    vendor/golang_org/x/crypto/curve25519: update to f62085100e1abe3d5c9b3b8c9a38d50b71323f64
+    cmd/compile/internal/syntax: match old parser errors and line numbers
     
-    This change updates the vendored copy of x/crypto/curve25519,
-    specifically to include the following changes:
-      f620851 curve25519: eliminate unnecessary "callee save" prologues
-      722a7b7 curve25519: fix confusing SP adjustments
+    This makes a bunch of changes to package syntax to tweak line numbers
+    for AST nodes. For example, short variable declaration statements are
+    now associated with the location of the ":=" token, and function calls
+    are associated with the location of the final ")" token. These help
+    satisfy many unit tests that assume the old parser's behavior.
     
-    Change-Id: I1b16aba12c744ac32f925654a136a8f52cd40fc2
-    Reviewed-on: https://go-review.googlesource.com/31666
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Because many of these changes are questionable, they're guarded behind
+    a new "gcCompat" const to make them easy to identify and revisit in
+    the future.
+    
+    A handful of remaining tests are too difficult to make behave
+    identically. These have been updated to execute with -newparser=0 and
+    comments explaining why they need to be fixed.
+    
+    all.bash now passes with both the old and new parsers.
+    
+    Change-Id: Iab834b71ca8698d39269f261eb5c92a0d55a3bf4
+    Reviewed-on: https://go-review.googlesource.com/27199
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- .../golang_org/x/crypto/curve25519/freeze_amd64.s  |  25 +-
- .../x/crypto/curve25519/ladderstep_amd64.s         | 665 ++++++++++-----------
- .../golang_org/x/crypto/curve25519/mul_amd64.s     |  40 +-
- .../golang_org/x/crypto/curve25519/square_amd64.s  |  25 +-
- 4 files changed, 331 insertions(+), 424 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go       | 148 +++++++++++++++---------
+ src/cmd/compile/internal/syntax/scanner.go      |  54 ++++++---
+ src/cmd/compile/internal/syntax/scanner_test.go |  24 ++--
+ src/go/types/stdlib_test.go                     |   4 +-
+ test/fixedbugs/issue11610.go                    |   6 +-
+ test/nul1.go                                    |   7 +-
+ test/switch2.go                                 |   4 +-
+ test/syntax/chan1.go                            |   6 +-
+ test/syntax/semi4.go                            |   9 +-
+ 9 files changed, 172 insertions(+), 90 deletions(-)

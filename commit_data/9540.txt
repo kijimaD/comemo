@@ -1,13 +1,14 @@
-commit d06753876f5190ea3c4b0e981d3923dcc1463682
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 29 09:13:55 2011 -0700
+commit 1075af0cce1fc706a5c1c0bfa5471e0d063399ce
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Aug 29 11:07:19 2011 -0400
 
-    C+A: add Mike Rosset (individual CLA)
+    runtime: add openbsd 386 defs.h
+    
+    Missed in previous change (4951043).
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4963047
+    https://golang.org/cl/4967044
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/runtime/openbsd/386/defs.h | 140 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 140 insertions(+)

@@ -1,20 +1,17 @@
-commit c88e3ff6483615f980c8e4ee4d807a84cbaf4515
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Aug 15 19:47:08 2021 -0400
+commit da54dfb6a1f3bef827b9ec3780c98fde77a97d11
+Author: KimMachineGun <geon0250@gmail.com>
+Date:   Sun Nov 29 08:18:12 2020 +0000
 
-    cmd/compile/internal/types2: use the underlying TypeParam in
-    assignableTo
+    doc/go1.16: document new behavior of asn1.Unmarshal on invalid argument
     
-    In CL 338310, assignableTo was altered to walk the constituent types of
-    TypeParams rather than Unions, but was not also adjusted to use under
-    rather than optype. This manifested in the port to go/types.
+    For #41509
     
-    Change-Id: Ie057b96ce93cef204af88b536ea49344c9bc8f12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342409
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ie761c428710d15848cb80ffd2d85de747113f2d4
+    GitHub-Last-Rev: 05541624593d945d82b6f4cfae1461654eabea7b
+    GitHub-Pull-Request: golang/go#42315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267057
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/operand.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.16.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

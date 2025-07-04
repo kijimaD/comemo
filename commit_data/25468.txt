@@ -1,14 +1,50 @@
-commit bd7086996c4daef1dab56d18669625723662c555
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 6 14:58:54 2016 -0800
+commit 0e23ca41d99c82d301badf1b762888e2c69e6c57
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Oct 28 23:20:26 2015 +0300
 
-    doc: fix incorrect example in asm.html
+    bytes: speed up Compare() on amd64
     
-    Fixes #13845.
+    Use AVX2 if available.
+    Results (haswell), below:
     
-    Change-Id: Ie83179b2d20c47a0296645d9e2fdc43271be495a
-    Reviewed-on: https://go-review.googlesource.com/18307
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    name                           old time/op    new time/op     delta
+    BytesCompare1-6                  11.4ns ± 0%     11.4ns ± 0%     ~     (all samples are equal)
+    BytesCompare2-6                  11.4ns ± 0%     11.4ns ± 0%     ~     (all samples are equal)
+    BytesCompare4-6                  11.4ns ± 0%     11.4ns ± 0%     ~     (all samples are equal)
+    BytesCompare8-6                  9.29ns ± 2%     8.76ns ± 0%   -5.72%        (p=0.000 n=16+17)
+    BytesCompare16-6                 9.29ns ± 2%     9.20ns ± 0%   -1.02%        (p=0.000 n=20+16)
+    BytesCompare32-6                 11.4ns ± 1%     11.4ns ± 0%     ~           (p=0.191 n=20+20)
+    BytesCompare64-6                 14.4ns ± 0%     13.1ns ± 0%   -8.68%        (p=0.000 n=20+20)
+    BytesCompare128-6                20.2ns ± 0%     18.5ns ± 0%   -8.27%        (p=0.000 n=16+20)
+    BytesCompare256-6                29.3ns ± 0%     24.5ns ± 0%  -16.38%        (p=0.000 n=16+16)
+    BytesCompare512-6                46.8ns ± 0%     37.1ns ± 0%  -20.78%        (p=0.000 n=18+16)
+    BytesCompare1024-6               82.9ns ± 0%     62.3ns ± 0%  -24.86%        (p=0.000 n=20+14)
+    BytesCompare2048-6                155ns ± 0%      112ns ± 0%  -27.74%        (p=0.000 n=20+20)
+    CompareBytesEqual-6              10.1ns ± 1%     10.0ns ± 1%     ~           (p=0.527 n=20+20)
+    CompareBytesToNil-6              10.0ns ± 2%      9.4ns ± 0%   -6.57%        (p=0.000 n=20+17)
+    CompareBytesEmpty-6              8.76ns ± 0%     8.76ns ± 0%     ~     (all samples are equal)
+    CompareBytesIdentical-6          8.76ns ± 0%     8.76ns ± 0%     ~     (all samples are equal)
+    CompareBytesSameLength-6         10.6ns ± 1%     10.6ns ± 1%     ~           (p=0.240 n=20+20)
+    CompareBytesDifferentLength-6    10.6ns ± 0%     10.6ns ± 1%     ~           (p=1.000 n=20+20)
+    CompareBytesBigUnaligned-6        132±s ± 1%      105±s ± 1%  -20.61%        (p=0.000 n=20+18)
+    CompareBytesBig-6                 125±s ± 1%      105±s ± 1%  -16.31%        (p=0.000 n=20+20)
+    CompareBytesBigIdentical-6       8.13ns ± 0%     8.13ns ± 0%     ~     (all samples are equal)
+    
+    name                           old speed      new speed       delta
+    CompareBytesBigUnaligned-6     7.94GB/s ± 1%  10.01GB/s ± 1%  +25.96%        (p=0.000 n=20+18)
+    CompareBytesBig-6              8.38GB/s ± 1%  10.01GB/s ± 1%  +19.48%        (p=0.000 n=20+20)
+    CompareBytesBigIdentical-6      129TB/s ± 0%    129TB/s ± 0%   +0.01%        (p=0.003 n=17+19)
+    
+    Change-Id: I820f31bab4582dd4204b146bb077c0d2f24cd8f5
+    Reviewed-on: https://go-review.googlesource.com/16434
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Klaus Post <klauspost@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/asm.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/x86/a.out.go  |  2 ++
+ src/cmd/internal/obj/x86/anames.go |  2 ++
+ src/cmd/internal/obj/x86/asm6.go   | 58 +++++++++++++++++++++++++++----
+ src/runtime/asm_amd64.s            | 70 +++++++++++++++++++++++++++++++++++++-
+ src/runtime/runtime2.go            |  2 ++
+ 5 files changed, 126 insertions(+), 8 deletions(-)

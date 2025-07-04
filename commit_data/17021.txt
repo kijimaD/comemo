@@ -1,14 +1,15 @@
-commit 38a77ff03fb521eb086eaeb4082682b74a2fa44c
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 5 11:24:27 2013 +1000
+commit 49217cf5fd35e17b1e0b97a5eaad968402dc505d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Aug 4 23:32:40 2013 +0400
 
-    doc/effective_go.html: remove spurious word
-    
-    Fixes #6003.
+    runtime: remove unused scheduler knob
+    Blockingsyscall was used in net package on windows,
+    it's not used anymore.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12387045
+    https://golang.org/cl/12436043
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/cgocall.c | 15 +--------------
+ src/pkg/runtime/runtime.h |  2 --
+ 2 files changed, 1 insertion(+), 16 deletions(-)

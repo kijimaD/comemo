@@ -1,38 +1,23 @@
-commit c5f142fa9fb6e00b0877ba4b6e9ab77d22ac50cd
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Wed May 8 17:02:23 2019 +0700
+commit 9fedec79ed2da83fe33cad8e6cf6a28d23948f27
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 11 17:25:09 2019 -0400
 
-    cmd/compile: optimize bitset tests
+    go/build: bypass importGo if srcDir is in GOROOT/src
     
-    The assembly output for x & c == c, where c is power of 2:
+    This fixes the builder flake observed in
+    https://build.golang.org/log/84fe80f8f091b9cef639b3ae2422a673f1462810,
+    which could be replicated by running
     
-            MOVQ    "".set+8(SP), AX
-            ANDQ    $8, AX
-            CMPQ    AX, $8
-            SETEQ   "".~r2+24(SP)
+            GOPROXY=off GOPATH=$(mktemp -d) go test go/internal/srcimporter
     
-    With optimization using bitset:
+    Updates #30228
+    Fixes #30760
     
-            MOVQ    "".set+8(SP), AX
-            BTL     $3, AX
-            SETCS   "".~r2+24(SP)
-    
-    output less than 1 instruction.
-    
-    However, there is no speed improvement:
-    
-    name         old time/op  new time/op  delta
-    AllBitSet-8  0.35ns ± 0%  0.35ns ± 0%   ~     (all equal)
-    
-    Fixes #31904
-    
-    Change-Id: I5dca4e410bf45716ed2145e3473979ec997e35d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175957
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibf8b7a2e211611960b074b74af91acd4f0196edb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166977
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |    6 +
- src/cmd/compile/internal/ssa/rewritegeneric.go | 1455 +++++++++++++++++++++++-
- test/codegen/bits.go                           |   12 +
- 3 files changed, 1468 insertions(+), 5 deletions(-)
+ src/go/build/build.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

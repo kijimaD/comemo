@@ -1,14 +1,12 @@
-commit a25e40df4755cd05b8e142d2b4280c36756a9360
-Author: Michael MacInnis <michael.p.macinnis@gmail.com>
-Date:   Mon Feb 16 16:27:20 2015 -0500
+commit c242fbc903422b27af2b065e2b90751057349558
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jan 22 01:31:49 2015 -0500
 
-    doc: Add reminder to go1.5.txt for os/signal changes
+    runtime: fix incorrectly replaced "_type" in comments
     
-    Document addition of Ignore and Reset: https://golang.org/cl/3580
-    
-    Change-Id: I33aac149cd1921b87f887028c0365ba0ab9adb02
-    Reviewed-on: https://go-review.googlesource.com/4980
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I9d0b1bb68604c5a153bd5c05c7008db045c38d2a
+    Reviewed-on: https://go-review.googlesource.com/3180
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/type.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

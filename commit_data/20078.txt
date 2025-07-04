@@ -1,18 +1,15 @@
-commit 3d3d5390834629a73b745900eb1a0aeda94d927d
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Aug 22 22:21:41 2014 +1000
+commit 5f02073dedd5174db2e24ef1597f36606da9696b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Aug 14 11:59:58 2014 -0400
 
-    path, path/filepath: remove dead code
+    [dev.power64] runtime: fix time.now
     
-    Fixes #8503.
+    Was reading a uint64 field with a MOVW, which has endian issues.
     
-    Thanks to no.smile.face for the original report.
-    
-    LGTM=bradfitz, r, ruiu
-    R=bradfitz, ruiu, r
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/132730043
+    https://golang.org/cl/122550043
 
- src/pkg/path/filepath/path.go |  7 -------
- src/pkg/path/path.go          | 10 +---------
- 2 files changed, 1 insertion(+), 16 deletions(-)
+ src/pkg/runtime/sys_linux_power64x.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,19 +1,22 @@
-commit c7d352c9412de57ac5c9f5d7895540336ebaab5c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 13 14:48:08 2013 -0700
+commit c32a8830bd5d8bc203d21d0b921790737d767f4a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 14 07:03:18 2013 +1000
 
-    archive/zip: remove an allocation, speed up a test
+    cmd/go: nicer error diagnosis in go test
+    Before,
+            go test -bench .
+    would just dump the long generic "go help" message. Confusing and
+    unhelpful. Now the message is short and on point and also reminds the
+    user about the oft-forgotten "go help testflag".
     
-    Update #6138
+            % go test -bench
+            go test: missing argument for flag bench
+            run "go help test" or "go help testflag" for more information
+            %
     
-    TestOver65kFiles spends all its time garbage collecting.
-    Removing the 1.4 MB of allocations per each of the 65k
-    files brings this from 34 seconds to 0.23 seconds.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/12894043
+    https://golang.org/cl/12662046
 
- src/pkg/archive/zip/reader.go   | 3 +--
- src/pkg/archive/zip/zip_test.go | 8 ++++----
- 2 files changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/go/testflag.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

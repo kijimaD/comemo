@@ -1,14 +1,22 @@
-commit 1e88d91eb26fbbf17a1ac4d8b0967d17905a2aba
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Dec 19 09:36:11 2018 +0100
+commit ed21535a60162372ae80b5e4e34be1ffe673eeb8
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jul 31 14:20:22 2018 -0700
 
-    doc/go1.12: fix typos and code formatting
+    cmd/compile: move over more compiler tests to new test infrastructure
     
-    Fix two typos and don't indent the go vet example.
+    R=go1.12
     
-    Change-Id: Iccec56ca5decfbae45547a00115500ed13b703e1
-    Reviewed-on: https://go-review.googlesource.com/c/154721
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Update #26469
+    
+    Change-Id: Iad75edfc194f8391a8ead09bfa68d446155e84ac
+    Reviewed-on: https://go-review.googlesource.com/127055
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.12.html | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go            |  13 -
+ .../gc/testdata/{arith.go => arith_test.go}        | 384 +++++--------
+ src/cmd/compile/internal/gc/testdata/assert.go     | 147 -----
+ .../compile/internal/gc/testdata/assert_test.go    | 128 +++++
+ .../internal/gc/testdata/{fp.go => fp_test.go}     | 602 +++++++++------------
+ 5 files changed, 537 insertions(+), 737 deletions(-)

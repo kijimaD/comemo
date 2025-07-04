@@ -1,0 +1,34 @@
+commit 72801623cbe4cedcb3334d31fa44ff31914a26d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 30 19:23:47 2024 -0400
+
+    cmd/link/internal/ld: fix sort comparison
+    
+    Strictly speaking, the sort comparison was inconsistent
+    (and therefore invalid) for the sort-by-name case, if you had
+    
+            a size 0
+            b size 1
+            c size 0
+            zerobase
+    
+    That would result in the inconsistent comparison ordering:
+    
+            a < b (by name)
+            b < c (by name)
+            c < zerobase (by zerobase rule)
+            zerobase < b (by zerobase rule)
+    
+    This can't happen today because we only disable size-based
+    sort in a segment that has no zerobase symbol, but it's
+    confusing to reason through that, so clean up the code anyway.
+    
+    Passes golang.org/x/tools/cmd/toolstash/buildall.
+    
+    Change-Id: I21e4159cdedd2053952ba960530d1b0f28c6fb24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625615
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/data.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

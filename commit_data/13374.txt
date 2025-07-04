@@ -1,15 +1,17 @@
-commit 07826038c39afb5021134b2c403f773f3f9591aa
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Jun 25 07:59:50 2012 +1000
+commit 93b7d1bf1eefbc3ff33ec935b3c15601820bd4f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jun 24 10:41:12 2012 -0700
 
-    runtime: avoid r9/r10 during memset
+    net/http: fix doc inaccuracy and typo; tighten test
     
-    Partially fixes issue 3718.
+    Note url.Error wrapping, and s/issue/issuing/.
     
-    R=golang-dev, rsc, minux.ma
+    Fixes #3724
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6300043
+    https://golang.org/cl/6294093
 
- src/pkg/runtime/asm_arm.s    | 12 +++--------
- src/pkg/runtime/memset_arm.s | 47 +++++++++++++++++++++-----------------------
- 2 files changed, 25 insertions(+), 34 deletions(-)
+ src/pkg/net/http/client.go      | 3 ++-
+ src/pkg/net/http/client_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

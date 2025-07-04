@@ -1,35 +1,14 @@
-commit 0a7c7ac80e7c4ccd2b04b6b65100794adbd72ba5
-Author: Rick Hudson <rlh@golang.org>
-Date:   Wed Aug 27 11:15:47 2014 -0400
+commit e249b0ffeeb36957adfde2b3ec3ab0eabea8e3ba
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 21 11:43:58 2014 +0400
 
-    runtime: changes to g->atomicstatus (nee status) to support concurrent GC
+    cmd/api: add missing runtime struct
+    Fixes build.
     
-    Every change to g->atomicstatus is now done atomically so that we can
-    ensure that all gs pass through a gc safepoint on demand. This allows
-    the GC to move from one phase to the next safely. In some phases the
-    stack will be scanned. This CL only deals with the infrastructure that
-    allows g->atomicstatus to go from one state to another. Future CLs
-    will deal with scanning and monitoring what phase the GC is in.
-    
-    The major change was to moving to using a Gscan bit to indicate that
-    the status is in a scan state. The only bug fix was in oldstack where
-    I wasn't moving to a Gcopystack state in order to block scanning until
-    the new stack was in place. The proc.go file is waiting for an atomic
-    load instruction.
-    
-    LGTM=rsc
-    R=golang-codereviews, dvyukov, josharian, rsc
+    TBR=khr
+    R=golang-codereviews
     CC=golang-codereviews, khr
-    https://golang.org/cl/132960044
+    https://golang.org/cl/130390044
 
- src/pkg/runtime/heapdump.c      |  14 ++-
- src/pkg/runtime/mgc0.c          |  19 ++--
- src/pkg/runtime/mprof.goc       |   2 +-
- src/pkg/runtime/panic.c         |   4 +-
- src/pkg/runtime/proc.c          | 244 +++++++++++++++++++++++++++++++++-------
- src/pkg/runtime/proc.go         |  19 +++-
- src/pkg/runtime/runtime.h       |  33 ++++--
- src/pkg/runtime/stack.c         |  56 ++++++---
- src/pkg/runtime/traceback_arm.c |   2 +-
- src/pkg/runtime/traceback_x86.c |   2 +-
- 10 files changed, 308 insertions(+), 87 deletions(-)
+ src/cmd/api/goapi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

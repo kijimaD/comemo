@@ -1,18 +1,22 @@
-commit 805f174e5c948b4ba5d044fc816be0c23b1015c5
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Sep 13 12:19:37 2022 +0700
+commit 33c392f72d16163eb0795b3d61b2196ac21e1799
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 24 14:11:07 2021 +1100
 
-    reflect: allow conversion from slice to array
+    reflect: add FieldByIndexErr
     
-    Updates #46505
+    This new function, although different in signature from other
+    reflect functions, allows the caller to avoid the panic caused by
+    nil embedded fields in calls to FieldByIndex.
     
-    Change-Id: Ib8f52d6ae199338f278731267c966da85dd0acdd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430475
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #48218
+    
+    Change-Id: I447f135bb789148c27ae3f2f23dcf43094f4c1de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357962
+    Trust: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/all_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/value.go    | 33 +++++++++++++++++++++++++++++----
- 2 files changed, 78 insertions(+), 4 deletions(-)
+ src/reflect/value.go              | 27 ++++++++++++++++++++++++++-
+ src/reflect/visiblefields_test.go | 19 +++++++++++++++++++
+ 2 files changed, 45 insertions(+), 1 deletion(-)

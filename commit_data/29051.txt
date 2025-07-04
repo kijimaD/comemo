@@ -1,16 +1,23 @@
-commit eb6ae3ca7b0bb9f4bbeac03cc3cbd2362fc05342
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Oct 25 05:56:03 2016 -0700
+commit dc9755c2a2b561af6c990399938980ab044406ba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 6 15:30:33 2016 -0700
 
-    cmd/vet/all: remove cmd/compile/internal/big special case
+    runtime: add missing race and msan checks to reflect functions
     
-    It no longer exists as of CL 31010.
+    Add missing race and msan checks to reflect.typedmmemove and
+    reflect.typedslicecopy. Missing these checks caused the race detector
+    to miss races and caused msan to issue false positive errors.
     
-    Change-Id: Idd61f392544cad8b3f3f8d984dc5c953b473e2e5
-    Reviewed-on: https://go-review.googlesource.com/31934
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #16281.
+    
+    Change-Id: I500b5f92bd68dc99dd5d6f297827fd5d2609e88b
+    Reviewed-on: https://go-review.googlesource.com/24760
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/vet/all/main.go | 3 ---
- 1 file changed, 3 deletions(-)
+ misc/cgo/testsanitizers/msan5.go          | 57 +++++++++++++++++++++++++++++++
+ misc/cgo/testsanitizers/test.bash         |  5 +++
+ src/runtime/mbarrier.go                   | 26 +++++++++++++-
+ src/runtime/race/testdata/reflect_test.go | 46 +++++++++++++++++++++++++
+ 4 files changed, 133 insertions(+), 1 deletion(-)

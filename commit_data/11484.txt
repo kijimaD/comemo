@@ -1,14 +1,14 @@
-commit 1f7128e17b3982e530675df17f39c7f24a120ec3
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 30 15:34:34 2012 -0800
+commit 9c3d876db17f34d74b5a4c0b526cb7b956f026ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 30 15:31:33 2012 -0800
 
-    run.bash: s/make/gomake
-    attempt to fix freebsd build
-    TBR=rsc
+    go/spec: Update language on map types.
     
-    R=rsc
+    Fixes #2803.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5576077
+    https://golang.org/cl/5601053
 
- src/run.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

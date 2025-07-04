@@ -1,22 +1,24 @@
-commit a7c6d89166fd7bf6c9af6013cbfaa21971ba28f0
+commit 4b3906fec35b81e9bce7af5e1ce64c2a431c8301
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 12 07:36:23 2014 -0400
+Date:   Fri Sep 5 14:58:54 2014 -0400
 
-    runtime: tell the truth about BitVector type
+    runtime: handle nil ptr load/store in arm software floating point
     
-    Dmitriy changed all the execution to interpret the BitVector
-    as an array of bytes. Update the declaration and generation
-    of the bitmaps to match, to avoid problems on big-endian
-    machines.
+    We cannot let a real panic start there, because there is C code
+    on the stack, and worse, there is an assembly frame with a
+    saved copy of the registers and we have no idea which ones
+    are pointers.
     
-    LGTM=khr
-    R=khr
-    CC=dvyukov, golang-codereviews
-    https://golang.org/cl/140570044
+    Instead, detect the nil ptr load/store and return out of the C
+    and assembly into a stub that will start the call to sigpanic.
+    
+    Fixes GOARM=5 build.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=dave, golang-codereviews, minux, r
+    https://golang.org/cl/138130043
 
- src/cmd/gc/plive.c     |  6 +++++-
- src/runtime/heapdump.c | 10 +++++-----
- src/runtime/malloc.h   |  4 ++--
- src/runtime/mgc0.c     | 20 ++++++++++----------
- src/runtime/stack.c    |  6 +++---
- 5 files changed, 25 insertions(+), 21 deletions(-)
+ src/pkg/runtime/softfloat_arm.c | 69 ++++++++++++++++++++++++++++++++---------
+ src/pkg/runtime/vlop_arm.s      | 12 +++++++
+ 2 files changed, 66 insertions(+), 15 deletions(-)

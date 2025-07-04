@@ -1,12 +1,16 @@
-commit cf1f044251ea6e6c999566871a9f4b2a3d627d20
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Apr 6 04:19:35 2012 +0800
+commit 56024fa64ebe87d5b209fa5d126b71ab27f7cf3d
+Author: Stéphane Travostino <stephane.travostino@gmail.com>
+Date:   Thu Apr 5 13:23:08 2012 -0400
 
-    crypto/aes: add benchmarks for decryption and key expansion
+    net/url: Correctly escape URL as per RFC 3986
     
-    R=agl, rsc, fullung
+    The shouldEscape function did not correctly escape the reserved characters listed in RFC 3986 §2.2, breaking some strict web servers.
+    Fixes #3433.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5972056
+    https://golang.org/cl/5970050
 
- src/pkg/crypto/aes/aes_test.go | 28 ++++++++++++++++++++++++++--
- 1 file changed, 26 insertions(+), 2 deletions(-)
+ src/pkg/net/url/url.go      | 8 ++++----
+ src/pkg/net/url/url_test.go | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,21 +1,17 @@
-commit 0fb7b4cccd02df10f239ed77d6d85566b6388b83
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Apr 8 15:14:37 2016 +0200
+commit 5c613e9162aad2ea171d401754d97ea2be1442ce
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 27 16:18:34 2016 +0000
 
-    runtime: emit file:line info into traces
+    sync/atomic: new file for plan9_arm support
     
-    This makes traces self-contained and simplifies trace workflow
-    in modern cloud environments where it is simpler to reach
-    a service via HTTP than to obtain the binary.
+    Atomic load/store/add/swap routines, as for other ARM platforms, but with DMB inserted
+    for load/store (assuming that "atomic" also implies acquire/release memory ordering).
     
-    Change-Id: I6ff3ca694dc698270f1e29da37d5efaf4e843a0d
-    Reviewed-on: https://go-review.googlesource.com/21732
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I70a283d8f0ae61a66432998ce59eac76fd940c67
+    Reviewed-on: https://go-review.googlesource.com/18965
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/trace/main.go                 |   5 -
- src/internal/trace/parser.go          | 174 +++++++++++++---------------------
- src/runtime/trace.go                  |  98 ++++++++++++++++---
- src/runtime/trace/trace_stack_test.go |   7 +-
- 4 files changed, 156 insertions(+), 128 deletions(-)
+ src/sync/atomic/asm_plan9_arm.s | 108 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 108 insertions(+)

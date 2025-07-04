@@ -1,26 +1,22 @@
-commit 8aeec7c5b0c630bb68798bc4b5fc7531b4d26694
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Mar 22 14:33:50 2024 -0700
+commit 2afaa018550ceb42e7a89d1bb53e7fe2d3890377
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Mon May 14 13:50:56 2018 +0200
 
-    net/http: ensure server handler is done in TestServerNoWriteTimeout
+    encoding/binary: add word size to the error message of the failed constraint
     
-    Surprisingly, newClientServerTest doesn't ensure that server handlers
-    are done in its t.Cleanup function. This test's handler can outlive
-    the test and attempt to log after the test has completed, causing
-    race detector failures.
+    Test added.
     
-    Add an explicit call to Server.Shutdown to ensure the handler
-    has completed.
+    Fixes #22860
     
-    We should also probably add a Shutdown to clientServerTest.close,
-    but that's a larger change; this fixes the immediate problem.
-    
-    Change-Id: Ibe81b4b382c9c8a920b0ff5f76dea6afe69b10f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573895
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I08304834a2b7b10b4ac729bf36761692eb4731da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/113075
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/serve_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/encoding/binary/binary.go      |  2 +-
+ src/encoding/binary/binary_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

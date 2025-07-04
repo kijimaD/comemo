@@ -1,31 +1,20 @@
-commit c379c3d58d5482f4c8fe97466a99ce70e630ad44
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Jun 7 14:24:45 2021 +0800
+commit fc9e64cc98edda355471f0390da4d1d1de4100a0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 17 10:50:41 2021 -0700
 
-    cmd/compile: set conversions to unsafe.Pointer as an escaping operation when -asan is enabled
+    [dev.typeparams] cmd/compile/internal/types2: fix types2 panic
     
-    When ASan is enabled, treat conversions to unsafe.Pointer as
-    an escaping operation. In this way, all pointer operations on
-    the stack objects will become operations on the escaped heap
-    objects. As we've already supported ASan detection of error
-    memory accesses to heap objects. With this trick, we can use
-    -asan option to report errors on bad stack operations.
+    When reporting a "cannot import package as init" error, we can't rely
+    on s.LocalPkgName being non-nil, as the original package's name may
+    already be nil.
     
-    Add test cases.
-    
-    Updates #44853.
-    
-    Change-Id: I6281e77f6ba581d7008d610f0b24316078b6e746
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393315
-    Trust: Fannie Zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: Fannie Zhang <Fannie.Zhang@arm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Change-Id: Idec006780f12ee4398501d05a5b2ed13157f88ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320490
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/cgo/testsanitizers/asan_test.go               |  3 +++
- .../testsanitizers/testdata/asan_unsafe_fail1.go   | 27 +++++++++++++++++++++
- .../testsanitizers/testdata/asan_unsafe_fail2.go   | 28 ++++++++++++++++++++++
- .../testsanitizers/testdata/asan_unsafe_fail3.go   | 21 ++++++++++++++++
- src/cmd/compile/internal/escape/expr.go            |  6 ++---
- src/cmd/compile/internal/ir/expr.go                |  6 +++++
- 6 files changed, 88 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/resolver.go | 2 +-
+ test/run.go                                 | 1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)

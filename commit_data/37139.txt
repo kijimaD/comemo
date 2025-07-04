@@ -1,21 +1,22 @@
-commit a361ef36af4812815c02dd026c4672837442bf44
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Oct 28 15:37:13 2018 +0100
+commit 23ce272bb1154fb8085c8fc1e3c1f1e0e760f005
+Author: Peter Gonda <pgonda@google.com>
+Date:   Wed Jan 24 14:45:28 2018 -0800
 
-    runtime: support GODEBUGCPU for more Unix-like operating systems
+    cmd/cgo: permit missing dynamic symbol section
     
-    Adds AIX, DragonFly BSD, FreeBSD, NetBSD, OpenBSD and Solaris
-    to the list of operating systems where the GODEBUGCPU environment
-    variable will be parsed and interal/cpu features can be enabled
-    and disabled.
+    Allow static complication of cgo enabled libraries.
     
-    Updates #27218
+    Fixes #16651
     
-    Change-Id: I9cd99142e2a5147cb00ca57b581f049ea6ce8508
-    Reviewed-on: https://go-review.googlesource.com/c/145281
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    Change-Id: I0729ee4e6e5f9bd1cbdb1bc2dcbfe34463df547c
+    Reviewed-on: https://go-review.googlesource.com/89655
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ misc/cgo/test/issue4029.c   |  2 +-
+ misc/cgo/test/issue4029.go  |  2 +-
+ misc/cgo/test/issue4029w.go |  2 +-
+ src/cmd/cgo/out.go          | 25 +++++--------------------
+ src/cmd/dist/test.go        |  6 ++++++
+ 5 files changed, 14 insertions(+), 23 deletions(-)

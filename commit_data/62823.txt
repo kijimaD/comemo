@@ -1,0 +1,19 @@
+commit 786e62bcd3f03d73ddf0c999780ffe6f1a0319ea
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 15 09:19:36 2025 -0700
+
+    runtime: don't use cgo_unsafe_args for syscall9 wrapper
+    
+    It uses less stack space this way.
+    
+    Similar to CL 386719
+    Update #71302
+    
+    Change-Id: I585bde5f681a90a6900cbd326994ab8a122fd148
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665695
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/sys_darwin.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

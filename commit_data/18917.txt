@@ -1,19 +1,18 @@
-commit dc008af94df00e90be9a22bb7e321f9677f12639
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Mar 21 19:26:47 2014 +0100
+commit 050b60a36975a805921de71d6bfda310cd50e7ca
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Mar 21 11:14:38 2014 -0400
 
-    cmd/ld: fix warnings on Plan 9
+    encoding/asn1: use GeneralizedTime for times outside the range of UTCTime.
     
-    warning: src/cmd/ld/macho.c:595 sign-extended character constant
-    warning: src/cmd/ld/macho.c:595 sign-extended character constant
-    warning: src/cmd/ld/symtab.c:63 sign-extended character constant
-    warning: src/cmd/ld/symtab.c:63 sign-extended character constant
+    Fixes issue #6976.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/76580046
+    https://golang.org/cl/72080044
 
- src/cmd/ld/macho.c  | 2 +-
- src/cmd/ld/symtab.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/crypto/tls/generate_cert.go   |  6 -----
+ src/pkg/encoding/asn1/asn1.go         |  8 ++++--
+ src/pkg/encoding/asn1/marshal.go      | 49 ++++++++++++++++++++++++++++++++---
+ src/pkg/encoding/asn1/marshal_test.go |  9 +++++++
+ 4 files changed, 61 insertions(+), 11 deletions(-)

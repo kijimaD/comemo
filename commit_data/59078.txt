@@ -1,21 +1,17 @@
-commit e6ffe764cf1f35e96a116ca144733a5fba02578e
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Fri Mar 14 21:29:08 2025 +0100
+commit 09c62a86a96e51d535336de1c7b7e10cd3acd849
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 9 14:16:11 2024 -0500
 
-    strings: add FuzzReplace test
+    internal/trace: fix race condition in gc-stress
     
-    While reviewing CL 657935 I've notied there a
-    couple tricky reslices that depends on multiple
-    things being correct.
+    Multiple goroutines all writing to the same sink triggers the race detector,
+    rightfully so.
     
-    Might as well fuzz it.
-    
-    Change-Id: Id78921bcb252e73a8a06e6deb4c920445a87d525
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658075
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ia64836d0d88c0f587a6cb96ed747f656a3c1804a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562997
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/strings/strings_test.go | 46 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 46 insertions(+)
+ src/internal/trace/v2/testdata/testprog/gc-stress.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

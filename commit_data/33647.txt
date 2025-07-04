@@ -1,45 +1,20 @@
-commit b75b4d0ee61033ff0581d8a27d6589b824737a94
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Nov 20 11:01:00 2017 -0800
+commit 4cf7f909c670e9f6aa3b81aec74ee1cf14e2ca51
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 18 21:13:09 2017 -0700
 
-    runtime: skip netpoll check if there are no waiters
+    runtime: add specialized copies of growWork and evacuate
     
-    If there are no netpoll waiters then calling netpoll will never find any
-    goroutines. The later blocking netpoll in findrunnable already has this
-    optimization.
+    The newly added routines are exact copies of the generic routines,
+    except for the function names and that growWork_fastX calls evacuate_fastX.
     
-    With golang.org/cl/78538 also applied, this change has a small impact on
-    latency:
+    Actual optimization will happen in subsequent CLs.
+    This is intended to ease reviewing.
     
-    name                             old time/op  new time/op  delta
-    WakeupParallelSpinning/0s-12     13.6µs ± 1%  13.7µs ± 1%    ~     (p=0.873 n=19+20)
-    WakeupParallelSpinning/1µs-12    17.7µs ± 0%  17.6µs ± 0%  -0.31%  (p=0.000 n=20+20)
-    WakeupParallelSpinning/2µs-12    20.2µs ± 2%  19.9µs ± 1%  -1.59%  (p=0.000 n=20+19)
-    WakeupParallelSpinning/5µs-12    32.0µs ± 1%  32.1µs ± 1%    ~     (p=0.201 n=20+19)
-    WakeupParallelSpinning/10µs-12   51.7µs ± 0%  51.4µs ± 1%  -0.60%  (p=0.000 n=20+18)
-    WakeupParallelSpinning/20µs-12   92.2µs ± 0%  92.2µs ± 0%    ~     (p=0.474 n=19+19)
-    WakeupParallelSpinning/50µs-12    215µs ± 0%   215µs ± 0%    ~     (p=0.319 n=20+19)
-    WakeupParallelSpinning/100µs-12   330µs ± 2%   331µs ± 2%    ~     (p=0.296 n=20+19)
-    WakeupParallelSyscall/0s-12       127µs ± 0%   126µs ± 0%  -0.57%  (p=0.000 n=18+18)
-    WakeupParallelSyscall/1µs-12      129µs ± 0%   128µs ± 1%  -0.43%  (p=0.000 n=18+19)
-    WakeupParallelSyscall/2µs-12      131µs ± 1%   130µs ± 1%  -0.78%  (p=0.000 n=20+19)
-    WakeupParallelSyscall/5µs-12      137µs ± 1%   136µs ± 0%  -0.54%  (p=0.000 n=18+19)
-    WakeupParallelSyscall/10µs-12     147µs ± 1%   146µs ± 0%  -0.58%  (p=0.000 n=18+19)
-    WakeupParallelSyscall/20µs-12     168µs ± 0%   167µs ± 0%  -0.52%  (p=0.000 n=19+19)
-    WakeupParallelSyscall/50µs-12     228µs ± 0%   227µs ± 0%  -0.37%  (p=0.000 n=19+18)
-    WakeupParallelSyscall/100µs-12    329µs ± 0%   328µs ± 0%  -0.28%  (p=0.000 n=20+18)
-    
-    There is a bigger improvement in CPU utilization. Before this CL, these
-    benchmarks spent 12% of cycles in netpoll, which are gone after this CL.
-    
-    This also fixes the sched.lastpoll load, which should be atomic.
-    
-    Change-Id: I600961460608bd5ba3eeddc599493d2be62064c6
-    Reviewed-on: https://go-review.googlesource.com/78915
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I52ef7dd40b2bdfc9cba2496544c0604e6e71cf7f
+    Reviewed-on: https://go-review.googlesource.com/59130
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/runtime/hashmap_fast.go | 376 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 370 insertions(+), 6 deletions(-)

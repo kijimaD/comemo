@@ -1,20 +1,36 @@
-commit 1045faa38c660b8a0ac3fbf5b0a01dde26a3cf75
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Tue Oct 19 10:22:20 2021 +0800
+commit ea93e6885847b50bf4e6d3f263843f9c4e8d15f8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat May 1 01:28:16 2021 -0400
 
-    cmd/compile/internal: add ABI register information for riscv64
+    crypto/elliptic: make P-521 scalar multiplication constant time
     
-    This CL adds the defines for ABI registers on riscv64.
+    Like for P-224, we do the constant time selects to hide the
+    point-at-infinity special cases of addition, but not the P = Q case,
+    which presumably doesn't happen in normal operations.
     
-    Updates #40724
+    Runtime increases by about 50%, as expected, since on average we were
+    able to skip half the additions, and the additions reasonably amounted
+    to half the runtime. Still, the Fiat code is so much faster than big.Int
+    that we're still more than three time faster overall than pre-CL 315271.
     
-    Change-Id: I53a89d88b6feb1a88cf7008b8484d444791e8a55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356519
-    Trust: mzh <mzh@golangcn.org>
-    Run-TryBot: mzh <mzh@golangcn.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    name                   old time/op    new time/op    delta
+    pkg:crypto/elliptic goos:darwin goarch:arm64
+    ScalarBaseMult/P521-8    4.18ms ± 3%    1.35ms ± 1%  -67.64%  (p=0.000 n=10+10)
+    ScalarMult/P521-8        4.17ms ± 2%    1.36ms ± 1%  -67.45%  (p=0.000 n=10+10)
+    pkg:crypto/ecdsa goos:darwin goarch:arm64
+    Sign/P521-8              4.23ms ± 1%    1.44ms ± 1%  -66.02%  (p=0.000 n=9+10)
+    Verify/P521-8            8.31ms ± 2%    2.73ms ± 2%  -67.08%  (p=0.000 n=9+9)
+    GenerateKey/P521-8       4.15ms ± 2%    1.35ms ± 2%  -67.41%  (p=0.000 n=10+10)
+    
+    Updates #40171
+    
+    Change-Id: I782f2b7f33dd60af9b3b75e46d920d4cb47f719f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315274
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/abi-internal.md | 51 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 51 insertions(+)
+ src/crypto/elliptic/p521.go | 77 ++++++++++++++++++++++++---------------------
+ 1 file changed, 41 insertions(+), 36 deletions(-)

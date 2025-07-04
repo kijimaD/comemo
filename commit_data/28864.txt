@@ -1,28 +1,16 @@
-commit 395d36a67df8d25b35617ec8709f0164ae2f655e
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Oct 16 23:40:12 2016 -0700
+commit 7a974a4c602252ca7db5b35c1236b45ead4c1d54
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Wed Aug 10 16:24:11 2016 +0200
 
-    cmd/compile: inline convI2E
+    encoding/json: add example for RawMessage marshalling
     
-    It's pretty simple.  For:
-      e = (interface{})(i)
-    Do:
-      tmp = i.itab
-      if tmp != nil {
-        tmp = tmp.typ_ // load type from itab
-      }
-      e = eface{tmp, i.data}
+    Fixes #16648
     
-    It is smaller and faster than calling the runtime.
-    
-    Change-Id: I0ad27f62f4ec0b6cd53bc8530e4da0eae3e67a6c
-    Reviewed-on: https://go-review.googlesource.com/31260
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I3ab21ab33ca3f41219de9518ac6a39f49131e5e5
+    Reviewed-on: https://go-review.googlesource.com/26692
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         | 153 ++++++++++++-------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   1 -
- src/cmd/compile/internal/gc/walk.go            |  34 +++++-
- src/runtime/iface.go                           |  10 --
- 4 files changed, 106 insertions(+), 92 deletions(-)
+ src/encoding/json/example_test.go | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)

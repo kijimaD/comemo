@@ -1,27 +1,16 @@
-commit b48c419c4109a1c0e1e7a60a7a28659f6a92e827
-Author: Blake Mizerany <blake.mizerany@gmail.com>
-Date:   Mon Jan 23 11:03:03 2017 -0800
+commit c2425178669c0c6a26f58f90b59086d7e4313c64
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 19 16:01:02 2016 -0400
 
-    net/http/httputil: eliminate duplicate alloc/copy in ReverseProxy
+    runtime: replace *g with guintptr in trace
     
-    This commit elimates the request allocation and shallow copy duplication
-    already done by req.WithContext.
+    trace's reader *g is going to cause write barriers in unfortunate
+    places, so replace it with a guintptr.
     
-    name         old time/op    new time/op    delta
-    ServeHTTP-4     216µs ±36%     212µs ±15%     ~     (p=0.853 n=10+10)
-    
-    name         old alloc/op   new alloc/op   delta
-    ServeHTTP-4     917kB ±36%    1137kB ± 0%     ~     (p=0.352 n=10+10)
-    
-    name         old allocs/op  new allocs/op  delta
-    ServeHTTP-4      5.00 ± 0%      4.00 ± 0%  -20.00%  (p=0.000 n=10+10)
-    
-    Change-Id: I514a59c30b037c7a65c355b06fd82c2d6ff17bb0
-    Reviewed-on: https://go-review.googlesource.com/35569
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie8fb13bb89a78238f9d2a77ec77da703e96df8af
+    Reviewed-on: https://go-review.googlesource.com/31469
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/httputil/reverseproxy.go      |  4 +---
- src/net/http/httputil/reverseproxy_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 3 deletions(-)
+ src/runtime/trace.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,25 +1,15 @@
-commit e25a83d03e97edf0d8474ad41ed2edd0a63b19fc
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Dec 14 21:40:31 2011 +1100
+commit 3c638f2892471b55ded3982d2639e5c62f00d506
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Dec 14 08:22:36 2011 +0100
 
-    html: close <button> element before opening a new one
+    gc: Use %#F in error messages instead of %F.
     
-    Pass tests6.dat, test 13:
-    <button><button>
+    Fixes #2520
     
-    | <html>
-    |   <head>
-    |   <body>
-    |     <button>
-    |     <button>
-    
-    Also pass tests through test 25:
-    <table><colgroup>foo
-    
-    R=nigeltao
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5487072
+    https://golang.org/cl/5482056
 
- src/pkg/html/parse.go      | 5 +++++
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/gc/fmt.c         | 10 +++++++---
+ test/fixedbugs/bug383.go | 13 +++++++++++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

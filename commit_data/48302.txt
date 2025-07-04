@@ -1,24 +1,22 @@
-commit 63bd6f68e6cbb237b46a99775103758afaee370a
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Sat Mar 5 08:47:33 2022 -0800
+commit d2fd503f687ca686cb8fbee0b29e64ba529038fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 5 21:13:24 2021 -0400
 
-    internal/fuzz: fix TestUnmarshalMarshal on MIPS
+    text/template: fix type bug in eq
     
-    Previous value used in the float32 roundtrip used float32(math.NaN())-1
-    which caused the quiet/signal bit to flip, which seemed to break the
-    test on MIPS platforms. Instead switch to using float32(math.NaN())+1,
-    which preserves the bit and makes the test happy.
+    {{eq .x 0}} where .x is a nil interface{} should be false, not a type error.
     
-    Possibly related to #37455
-    Fixes #51258
+    Similarly, {{eq .x .x}} should succeed, not panic in reflect.
     
-    Change-Id: Ia85c649e89a5d02027c0ec197f0ff318aa819c19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390214
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #45982.
+    
+    Change-Id: I90aba82bb2f1a9e162bde1290c94f5028f56f412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317470
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/internal/fuzz/encoding_test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/text/template/exec_test.go | 19 +++++++++++--------
+ src/text/template/funcs.go     |  6 ++++--
+ 2 files changed, 15 insertions(+), 10 deletions(-)

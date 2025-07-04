@@ -1,19 +1,23 @@
-commit 199bc0003d3a2444da604f0d073efc550632bae6
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 9 12:44:52 2020 -0500
+commit a71967e4c5aa34f274b8b9aff915f14ac00e7ee8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 30 15:59:16 2019 -0700
 
-    doc/go1.14: -d=checkptr is not yet recommended on Windows
+    cmd/compile: replace copytype to setUnderlying
     
-    Hopefully we'll have the remaining safety violations in the standard
-    library ironed out by 1.15.
+    While here, change the params to be easier to understand: "t" is now
+    always the type being updated, and "underlying" is now used to
+    represent the underlying type.
     
-    We also fix a minor (but important) typo while we're here.
+    Updates #33658.
     
-    Updates #34964, #34972.
-    
-    Change-Id: Ic72fd4d9411b749f8c0cea87e95ab68347009893
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214118
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iabb64414ca3abaa8c780e4c9093e0c77b76fabf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192724
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.14.html | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/iimport.go   |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 36 +++++++++++++++-----------------
+ src/cmd/compile/internal/types/type.go   |  2 +-
+ 3 files changed, 19 insertions(+), 21 deletions(-)

@@ -1,17 +1,19 @@
-commit 537fb06c5dabfc5329bd8535c63d6a0f1ccbb1b4
-Author: Hana Kim <hakim@google.com>
-Date:   Wed Jun 13 13:37:33 2018 -0400
+commit 87736fc450c943ca3792406d7a47790091404255
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Feb 19 17:11:22 2018 +0100
 
-    runtime/pprof: skip TestMapping if CGO is not available
+    cmd/compile: fix dwarf ranges of inlined subroutine entries
     
-    The test requires cgo
+    DWARF ranges are half-open.
     
-    Change-Id: I1bffee5f187afcf4b7e27516451c56ddfc263a26
-    Reviewed-on: https://go-review.googlesource.com/118638
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #23928
+    
+    Change-Id: I71b3384d1bc2c65bd37ca8a02a0b7ff48fec3688
+    Reviewed-on: https://go-review.googlesource.com/94816
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/pprof/proto_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/dwinl.go      |  6 ++--
+ src/cmd/compile/internal/gc/scope_test.go | 57 +++++++++++++++++++++++++++++--
+ 2 files changed, 57 insertions(+), 6 deletions(-)

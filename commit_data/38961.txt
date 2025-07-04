@@ -1,20 +1,20 @@
-commit 858064fb01c52e2c8a703854333ea25dff26ee33
-Author: Romain Baugue <romain.baugue@elwinar.com>
-Date:   Tue Apr 30 15:41:26 2019 +0200
+commit 1ca84deeb048ac8ab850f68eb84ee7811d957676
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Wed Dec 12 11:28:46 2018 -0800
 
-    encoding/csv: add a Fuzz function
+    runtime: pass LR to sigprof on windows/arm
     
-    Adds a sample Fuzz test function to package encoding/csv based on
-    https://github.com/dvyukov/go-fuzz-corpus/blob/master/csv/main.go
+    TestCPUProfileLabel was failing on windows/arm because the link register
+    was not being passed to sigprof(). The link register is required to
+    generate a correct traceback. With this change, all tests in runtime.pprof
+    are now passing.
     
-    Updates #19109
-    Updates #31309
+    Updates #26148
     
-    Change-Id: Ieb0cb6caa1df72dbb7e29df4bdeed0bfa91187d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174302
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia693b34278dc08a98023751ff1a922d9eee8fdd6
+    Reviewed-on: https://go-review.googlesource.com/c/153839
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/csv/fuzz.go | 70 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 70 insertions(+)
+ src/runtime/os_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

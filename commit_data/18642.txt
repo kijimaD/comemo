@@ -1,16 +1,20 @@
-commit fd4b4b56c4a1fd3426fc9ab4c36ec1b270089d29
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 25 08:08:15 2014 -0800
+commit 280d46b03be642fbbb817332069d6b337774746e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 25 10:22:27 2014 -0500
 
-    net/http: add Transport.TLSHandshakeTimeout; set it by default
+    cmd/go: document new -exec flag on run/test
     
-    Update #3362
+    The new flag was added by CL 68150047 (part of the NaCl replay),
+    but the change, like the original, omitted documentation of the
+    new behavior.
     
-    LGTM=agl
-    R=agl
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/68150045
+    https://golang.org/cl/68580043
 
- src/pkg/net/http/transport.go      | 36 +++++++++++++++++---
- src/pkg/net/http/transport_test.go | 67 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 99 insertions(+), 4 deletions(-)
+ doc/go1.3.txt      |  1 +
+ src/cmd/go/doc.go  | 24 ++++++++++++++++++------
+ src/cmd/go/run.go  | 11 ++++++++++-
+ src/cmd/go/test.go |  4 ++++
+ 4 files changed, 33 insertions(+), 7 deletions(-)

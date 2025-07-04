@@ -1,22 +1,12 @@
-commit 926373ea79cb590352c9acae96288935ec2c8f47
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Oct 12 01:39:46 2017 +0200
+commit 6c4f3a0c16e5da3caa08cb8f368dc7db90bb211d
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Tue Jul 4 08:33:56 2017 -0700
 
-    runtime: fix crash on Plan 9
+    go/printer: fix typo
     
-    Since CL 46037, the runtime is crashing after calling
-    exitThread on Plan 9.
-    
-    The exitThread function shouldn't be called on
-    Plan 9, because the system manages thread stacks.
-    
-    Fixes #22221.
-    
-    Change-Id: I5d61c9660a87dc27e4cfcb3ca3ddcb4b752f2397
-    Reviewed-on: https://go-review.googlesource.com/70190
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Idf89559c9945c5a8743539658fe92e860fcc6a92
+    Reviewed-on: https://go-review.googlesource.com/47362
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
 
- src/runtime/proc.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/go/printer/printer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

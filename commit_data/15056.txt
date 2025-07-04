@@ -1,14 +1,12 @@
-commit 956cd0059c49870161a31ed7403199e3f0e19ad2
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 31 07:49:23 2013 -0800
+commit 73b83a228e61045b76b758f6948df80f7e7e32cd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jan 31 08:40:59 2013 +0100
 
-    encoding/json: document case-insensitive Unmarshal key matching
+    cmd/gc: inlining of variadic functions.
     
-    Fixes #4664.
-    
-    R=golang-dev, adg
+    R=rsc, lvd, golang-dev, kardianos
     CC=golang-dev
-    https://golang.org/cl/7237060
+    https://golang.org/cl/7093050
 
- src/pkg/encoding/json/decode.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/gc/inl.c | 146 ++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 128 insertions(+), 18 deletions(-)

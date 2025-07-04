@@ -1,16 +1,21 @@
-commit 7b07310a698bec952fa5f1b9ca64cc92c5de6f0e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 19 13:54:31 2012 -0800
+commit c837e612bd449cd7298ce925749b9f09b54fea48
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 19 13:51:37 2012 -0800
 
-    go/parser: expressions may have comments
+    text/template/parse: use human error prints
+    The previous version of all the node.String methods printed the parse
+    tree and was useful for developing the parse tree code. Now that that's done,
+    we might as well print the nodes using the standard template syntax.
+    It's much easier to read and makes error reporting look more natural.
     
-    Thanks to 0xE2.0x9A.0x9B for the patch suggestion.
+    Helps issue 2644.
     
-    Fixes #2739.
-    
-    R=r
+    R=rsc, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5536071
+    https://golang.org/cl/5553066
 
- src/pkg/go/parser/interface.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/html/template/escape_test.go      | 26 ++++++------
+ src/pkg/text/template/multi_test.go       |  4 +-
+ src/pkg/text/template/parse/node.go       | 67 +++++++++++++++++++++++--------
+ src/pkg/text/template/parse/parse_test.go | 56 +++++++++++++-------------
+ 4 files changed, 92 insertions(+), 61 deletions(-)

@@ -1,14 +1,17 @@
-commit eb79f21c48915454b372de7fee2c6b86d52ea0bc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 12 21:58:44 2016 -0700
+commit 97b2295f06174f7cd3e8ad121f13110a4e866f77
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 2 15:49:55 2016 -0500
 
-    cmd/compile, go/importer: minor cleanups
+    cmd/compile: trunc(and(x,K)) rewrite to trunc(x) for some K
     
-    Change-Id: Ic7a1fb0dbbf108052c970a4a830269a5673df7df
-    Reviewed-on: https://go-review.googlesource.com/21963
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    uint8(s.b & 0xff) ought to produce same code as uint8(s.b)
+    but it did not.  RLH found this one looking for moles to
+    whack in the GC code.
+    
+    Change-Id: I883d68ec7a5746d652712be84a274a11256b3b33
+    Reviewed-on: https://go-review.googlesource.com/20141
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |  5 ++--
- src/cmd/compile/internal/gc/bimport.go | 10 +++++---
- src/go/internal/gcimporter/bimport.go  | 46 ++++++++++++++--------------------
- 3 files changed, 27 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   7 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 114 +++++++++++++++++++++++++
+ 2 files changed, 121 insertions(+)

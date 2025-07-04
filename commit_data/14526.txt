@@ -1,15 +1,14 @@
-commit 902af974cbdf3af5ae435e3d34f2ac16beb207d1
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Nov 30 16:10:45 2012 +1100
+commit 85e451e2fe3aae0c5d066cd0ee5f178877139188
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 29 14:47:47 2012 -0800
 
-    os: check only user attributes in TestStatDirModeExec
+    go spec: receiver, parameter, and result names must always be unique
     
-    Some have their system setup in a particular way,
-    see http://golang.org/issue/4444#c3.
+    Fixes #4450.
     
-    R=golang-dev, bradfitz
+    R=rsc, iant
     CC=golang-dev
-    https://golang.org/cl/6851129
+    https://golang.org/cl/6845104
 
- src/pkg/os/os_test.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 30 +++++++++++++++++-------------
+ 1 file changed, 17 insertions(+), 13 deletions(-)

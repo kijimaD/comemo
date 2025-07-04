@@ -1,25 +1,18 @@
-commit 1b9049b554025142408cdf8aad294fb7041c847a
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Mar 4 10:28:18 2015 +1300
+commit d34ee29a52ac4c99cb2b88873b239cd2c8407c3b
+Author: Rajat Goel <rajat.goel2010@gmail.com>
+Date:   Mon Feb 9 17:12:12 2015 -0800
 
-    cmd/internal/ld: make ELF constants explicit
+    net/http: fix test to check that requests to 'localhost' are not proxied
     
-    c2go produced accurate but complex constant definitions like
-    "ElfSymBindLocal  = 0 + iota - 67" which break when any constants
-    are added above them in the list. Change them to explicit values
-    in separate blocks by class. I wrote a little program (using awk)
-    to dump the values of the constants:
+    I think the test was meant to test requests to 'localhost:80' instead
+    of 'localhost:80:80'. It passes even with 'localhost:80:80' because
+    net.SplitHostPort fails inside useProxy. Please comment if you want to
+    leave old 'localhost:80' is the list too to check old code path.
     
-        https://gist.github.com/mwhudson/82f82008279a38ce584e
-    
-    and confirmed that its output before and after this change is the
-    same.
-    
-    Change-Id: Ib4aea4a0d688a16cdcb76af4715d1a97ec0f013c
-    Reviewed-on: https://go-review.googlesource.com/6581
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic4cd21901563449e3d4e2f4c8caf723f4ca15bac
+    u
+    Reviewed-on: https://go-review.googlesource.com/4293
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/ld/ldelf.go | 190 +++++++++++++++++++++++++------------------
- 1 file changed, 110 insertions(+), 80 deletions(-)
+ src/net/http/proxy_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,26 +1,21 @@
-commit 2ac4bf3802f0786a0afb09488173507f40d5d885
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jun 24 15:58:47 2020 -0400
+commit 06e2339dfee52361f5890c445c409b3731b1b9d2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 5 16:52:12 2020 -0500
 
-    cmd/go: add span for modload.LoadBuildList
+    [dev.link] cmd/link: clean up some fields
     
-    This change adds context, and a span to modload.LoadBuildList and
-    propagates context into modload.BuildList. It's the start
-    of a run of CLs to add trace spans for module operations.
+    With the new index mapping , we can clean up some fields.
+    Loader.max should always be equal to len(loader.objSyms) now. And
+    for external symbols we now give its "local index" as its index
+    in the payload array, so Relocs.extIdx is no longer useful.
+    Delete those fields.
     
-    Updates #38714
-    
-    Change-Id: I0d58dd394051526338092dc9a5ec29a9e087e4e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248325
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If387ff9201ea0d347b954f651f5d4b4ae74937aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218478
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/list/list.go       |  4 ++--
- src/cmd/go/internal/modcmd/download.go |  2 +-
- src/cmd/go/internal/modcmd/graph.go    |  2 +-
- src/cmd/go/internal/modcmd/verify.go   |  2 +-
- src/cmd/go/internal/modcmd/why.go      |  2 +-
- src/cmd/go/internal/modget/get.go      |  8 ++++----
- src/cmd/go/internal/modload/list.go    |  9 +++++----
- src/cmd/go/internal/modload/load.go    | 23 ++++++++++++++---------
- 8 files changed, 29 insertions(+), 23 deletions(-)
+ src/cmd/link/internal/loader/loader.go      | 69 ++++++++++++++---------------
+ src/cmd/link/internal/loader/loader_test.go |  8 ++--
+ 2 files changed, 37 insertions(+), 40 deletions(-)

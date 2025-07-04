@@ -1,14 +1,13 @@
-commit dfc5bb5ff626b4d2baa81db0d91cc220cb4dd927
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 19 10:33:41 2011 -0800
+commit 36d658d7d638615b640ef55213fdefa86432d727
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 19 10:07:44 2011 -0500
 
-    go spec: adjust language for constant typing
+    A+C: Clement Skau (individual CLA)
     
-    Fixes #1421.
-    
-    R=r, rsc, iant, ken2
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4039042
+    https://golang.org/cl/3982045
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

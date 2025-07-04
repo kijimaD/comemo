@@ -1,12 +1,16 @@
-commit c7eb9663aa2cf71811fde079b83159ea09cbd106
-Author: Michael Matloob <matloob@google.com>
-Date:   Tue Dec 23 23:19:08 2014 -0800
+commit b2ec4cf50cf6cf492616b5bae93ffd710164dc41
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Nov 14 04:29:03 2014 +1100
 
-    regexp: fix typo in comment: s/onpass/onepass/
+    [dev.cc] runtime: make SIGSYS notifiable on freebsd (again)
     
-    Change-Id: Idff57050a34d09e7fa9b77e9b53d61bb5ea2a71c
-    Reviewed-on: https://go-review.googlesource.com/2095
-    Reviewed-by: Minux Ma <minux@golang.org>
+    This was originally done to the C port in rev 17d3b45534b5 and
+    seemingly got lost during the conversion.
+    
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/167700043
 
- src/regexp/regexp.go | 2 +-
+ src/runtime/signal_freebsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

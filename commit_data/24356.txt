@@ -1,13 +1,30 @@
-commit 0befa47ae8a32fcc42bca8d126f9420da27b9e4b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 23 09:52:21 2015 -0700
+commit e3ba0977beacc018fe9136284507298ce2d5e829
+Author: Austin Clements <austin@google.com>
+Date:   Sun Jul 26 16:03:13 2015 -0400
 
-    strconv: slightly simplified roundShortest; better comments
+    internal/singleflight: deflake TestDoDupSuppress
     
-    Change-Id: If886f15468680f7e1c589873066b4391eb9784b5
-    Reviewed-on: https://go-review.googlesource.com/14856
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Currently TestDoDupSuppress can fail if the goroutines created by its
+    loop run sequentially. This is rare, but it has caused failures on the
+    dashboard and in stress testing.
+    
+    While I think there's no way to eliminate all possible thread
+    schedules that could make this test fail because it depends on waiting
+    until a Group.Do blocks, it is possible to make it much more robust.
+    
+    This commit deflakes this test by forcing at least one invocation of
+    fn to start and all goroutines to reach the line just before the Do
+    call before allowing fn to proceed. fn then waits 10 milliseconds
+    before returning to allow the goroutines to pass through the Do.
+    
+    With this change, in 50,000 runs of the stress testing configuration,
+    the number of calls to fn never even exceeded 1.
+    
+    Fixes #11784.
+    
+    Change-Id: Ie5adf5764545050ec407619769a656251c4cff04
+    Reviewed-on: https://go-review.googlesource.com/12681
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strconv/ftoa.go      | 18 ++++++++----------
- src/strconv/ftoa_test.go |  6 +++---
- 2 files changed, 11 insertions(+), 13 deletions(-)
+ src/internal/singleflight/singleflight_test.go | 25 ++++++++++++++++++-------
+ 1 file changed, 18 insertions(+), 7 deletions(-)

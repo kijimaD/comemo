@@ -1,18 +1,15 @@
-commit 31c1f4a61136537c5b9ead371772853e772991bb
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Tue Sep 5 19:32:49 2023 +0800
+commit 67cd77b88f2fdf620556cd698752aa2ed53fee1b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 7 12:41:58 2022 -0400
 
-    log/slog: use the general regex expression of datetime in TestPanics
+    cmd/go/internal/modload: remove unused moduleHasRootPackage function
     
-    When I added this test in CL 514135, I missed the timeRE,
-    we should use it to make this test more precise.
-    
-    Change-Id: I486f8e8bbbc3a17166107ef361d242ddf4ea2928
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525556
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Iaf118150b8cf48aa42db3477bffdb92bd39f632a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440295
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/log/slog/logger_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/modload/query.go | 11 -----------
+ 1 file changed, 11 deletions(-)

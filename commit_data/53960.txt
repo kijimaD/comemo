@@ -1,30 +1,27 @@
-commit e34de96d588b93c3c4ee8c6a11f99a8f8f3390a6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 10 10:39:58 2023 -0400
+commit 9dd9174fa55b8078892f8a6d1863715f313d6880
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 9 20:38:18 2022 +0700
 
-    os: define TestIssue60181 only on Unix platforms
+    sync/atomic: reduce inlining cost for atomic types methods
     
-    In CL 517755 the test was added in the unconstrained os_test.go
-    because it appeared to be portable, but it turned out not to be
-    valid on plan9.
+    The "&x.v" cost us 2 inline cost budget, causing extra inline cost for
+    the caller. By taking the fact that "v" is laid out in memory as the
+    first field of all atomic types, we can accessing it without addressing.
     
-    (The build error was masked on the misc-compile TryBots by #61923.)
+    Discovering why attempting to convert sync.RWMutex.readerCount to atomic
+    type. RWMutex.RUnlock have the inline cost 75, with extra 7 inline cost
+    from Int32.Add causing it not inlinable anymore.
     
-    Although the test can also compile and run on Windows, the bug it
-    checks for is specific to Linux and only really needs to run there, so
-    I am moving it to os_unix_test.go instead of adding yet another test
-    file for “Unix and Windows but not Plan 9”.
+    With this change, Int32.Add only has 5 inline cost budget, RWMutex can
+    use it while still be inlinable.
     
-    Updates #60181.
-    
-    Change-Id: I41fd11b288217e95652b5daa72460c0d26bde606
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518255
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Iabe1d1bf53389b0b8b5f56b4611231b732fd9df5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429766
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/os/os_test.go      | 56 --------------------------------------------------
- src/os/os_unix_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 56 insertions(+), 56 deletions(-)
+ src/sync/atomic/type.go | 80 +++++++++++++++++++++++++++++--------------------
+ 1 file changed, 47 insertions(+), 33 deletions(-)

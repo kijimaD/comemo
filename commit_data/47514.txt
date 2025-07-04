@@ -1,21 +1,31 @@
-commit 1c13b58abaaeaaaa54a5471613c020fe78105016
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 16 11:27:56 2021 -0800
+commit dade83a588feace6af9882500f2282c8a83f54d0
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Mar 24 12:10:22 2021 -0400
 
-    cmd/compile/internal/types2: rename types.context to types.environment
+    cmd/internal/moddeps: fix false positive when $TMPDIR is symlinked
     
-    This CL is a clean port of CL 363176 from go/types to types2.
+    os.Getwd notes that if the current directory can be reached via
+    multiple paths (due to symbolic links), Getwd may return any one
+    of them. A way to ensure that the desired path is used is to set
+    the PWD environment variable pointing to it.
     
-    It also includes a minor adjustment to a field access in go/types
-    to match types2 in that respect.
+    The go generate command has started to update the PWD environment
+    variable as of CL 287152, which was the missing link previously
+    resulting in mkwinsyscall misunderstanding whether it's inside
+    the std lib when symbolic links are involved (issue 44079).
     
-    Change-Id: If33fc7e68372b12d61d06b75dd9f7c0715b57bc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364474
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Now all that's left is for us to also set the PWD environment
+    variable when invoking the go command in the test, so that it
+    too knows the intended working directory path to use.
+    
+    Fixes #44080.
+    Updates #44079.
+    Updates #43862.
+    
+    Change-Id: I65c9d19d0979f486800b9b328c9b45a1a3180e81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304449
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/check.go | 17 +++++++++--------
- src/cmd/compile/internal/types2/decl.go  | 14 +++++++-------
- src/cmd/compile/internal/types2/stmt.go  | 10 +++++-----
- src/go/types/decl.go                     |  2 +-
- 4 files changed, 22 insertions(+), 21 deletions(-)
+ src/cmd/internal/moddeps/moddeps_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

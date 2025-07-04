@@ -1,15 +1,15 @@
-commit dc7daa550af74277b10e8025d836fd5da48513f6
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Sun Apr 7 11:16:15 2013 -0700
+commit 0b5d55984fc939fdc35128342aa7cb34b0798de6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Apr 6 22:27:54 2013 -0700
 
-    lib9: handle empty TMPDIR more gracefully.
+    runtime: fix deadlock in network poller
+    The invariant is that there must be at least one running P or a thread polling network.
+    It was broken.
+    Fixes #5216.
     
-    Before, an empty TMPDIR would lead to:
-    cannot create <nil>/go.o: No such file or directory
-    
-    R=golang-dev, iant, dave, bradfitz
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/8355045
+    https://golang.org/cl/8459043
 
- src/lib9/tempdir_unix.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/proc.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

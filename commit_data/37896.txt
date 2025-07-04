@@ -1,27 +1,28 @@
-commit dc889025c714313fbe912ad1253f0ec748a6e58c
-Author: Raul Silvera <rauls5382@gmail.com>
-Date:   Fri Jan 18 00:14:29 2019 +0000
+commit 42257a262c94d839364113f2dbf4057731971fc1
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 5 14:36:20 2018 -0700
 
-    runtime: sample large heap allocations correctly
+    runtime: in semasleep, subtract time spent so far from timeout
     
-    Remove an unnecessary check on the heap sampling code that forced sampling
-    of all heap allocations larger than the sampling rate. This need to follow
-    a poisson process so that they can be correctly unsampled. Maintain a check
-    for MemProfileRate==1 to provide a mechanism for full sampling, as
-    documented in https://golang.org/pkg/runtime/#pkg-variables.
+    When pthread_cond_timedwait_relative_np gets a spurious wakeup
+    (due to a signal, typically), we used to retry with the same
+    relative timeout. That's incorrect, we should lower the timeout
+    by the time we've spent in this function so far.
     
-    Additional testing for this change is on cl/129117.
+    In the worst case, signals come in and cause spurious wakeups
+    faster than the timeout, causing semasleep to never time out.
     
-    Fixes #26618
+    Also fix nacl and netbsd while we're here. They have similar issues.
     
-    Change-Id: I7802bde2afc655cf42cffac34af9bafeb3361957
-    GitHub-Last-Rev: 471f747af845395d458096bea26daa93b91120be
-    GitHub-Pull-Request: golang/go#29791
-    Reviewed-on: https://go-review.googlesource.com/c/158337
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #27520
+    
+    Change-Id: I6601e120e44a4b8ef436eef75a1e7c8cf1d39e39
+    Reviewed-on: https://go-review.googlesource.com/133655
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/malloc.go                    | 2 +-
- src/runtime/testdata/testprog/memprof.go | 5 ++++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/runtime/os_darwin.go | 11 ++++++++++-
+ src/runtime/os_nacl.go   | 12 ++++++------
+ src/runtime/os_netbsd.go | 31 ++++++++++++++-----------------
+ 3 files changed, 30 insertions(+), 24 deletions(-)

@@ -1,12 +1,15 @@
-commit 399b3e32304928dded379c14d08b0da52ae8d3ed
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Apr 10 03:28:40 2015 -0400
+commit d6dfb0295b2c72cb65c1e03bcdb7fb2989fb1079
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 9 11:14:35 2015 -0700
 
-    test: add gccgo test case for #10407
+    cmd/internal/gc: remove unused fields
     
-    Change-Id: I8d17e2b0fbc529ca7958c75222964a5e419aa3db
-    Reviewed-on: https://go-review.googlesource.com/8717
+    Change-Id: I3096a7497955bc475739739ee23be387e9162867
+    Reviewed-on: https://go-review.googlesource.com/7210
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue10407.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/cmd/internal/gc/go.go     | 2 --
+ src/cmd/internal/gc/syntax.go | 1 -
+ 2 files changed, 3 deletions(-)

@@ -1,21 +1,18 @@
-commit 28aed4015ee7ba85b29007d685de9150e01a9acd
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 26 12:05:40 2024 -0400
+commit d6d0fec43d1770f460fdbc960996b2820ee11694
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Jun 6 14:19:45 2023 -0700
 
-    debug/buildinfo: add old-Go and not-Go tests
+    go1.21: document net/http.ResponseController.EnableFullDuplex
     
-    There is currently no coverage for the pre-1.18 buildinfo format, or for
-    parsing non-Go binaries. Add basic tests for each of these.
+    For #15527
+    For #57786
     
-    Updates #68592.
-    
-    Change-Id: Iec14d29ffc1392e46f592c0c7bebf2eb75f7d0d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601457
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I75ed0b4bac8e31fac2afef17dad708dc9a3d74e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501300
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/debug/buildinfo/buildinfo_test.go |  56 ++++++++++++++++++++++++++++++++++
- src/debug/buildinfo/testdata/go117    | Bin 0 -> 1166278 bytes
- src/debug/buildinfo/testdata/notgo    | Bin 0 -> 15832 bytes
- 3 files changed, 56 insertions(+)
+ doc/go1.21.html | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

@@ -1,22 +1,24 @@
-commit 4b0e086348c99eaa458f18e4b3e4498f0aaadc1a
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Feb 5 11:58:35 2024 -0500
+commit 1a9893a969e0a73dc4f1e48ed40ccaf29ec238a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 16 20:19:33 2022 -0800
 
-    dog/go1.22: tweak coverage testing notes
+    runtime: expose auxv for use by x/sys/cpu
     
-    Clarify the section in the "go" command notes that deals with the
-    changes to "go test -cover" for packages without tests, adding a note
-    that if a package has not tests and no executable code, you still get
-    a "package has no test files" diagnostic.
+    Updates #57336
     
-    Fixes #65262.
-    
-    Change-Id: Ie960871f9d5c1a1965090738644eace28fc3e156
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561337
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Chris Hines <chris.cs.guy@gmail.com>
+    Change-Id: I181885f59bac59360b855d3990326ea2b268bd28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458256
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.22.html | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/runtime/os3_solaris.go  | 11 +++++++----
+ src/runtime/os_dragonfly.go | 11 +++++++----
+ src/runtime/os_freebsd.go   | 11 +++++++----
+ src/runtime/os_linux.go     | 19 ++++++++++++-------
+ src/runtime/os_netbsd.go    | 11 +++++++----
+ src/runtime/runtime.go      |  9 +++++++++
+ 6 files changed, 49 insertions(+), 23 deletions(-)

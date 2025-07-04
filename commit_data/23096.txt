@@ -1,16 +1,44 @@
-commit ae3e3610d5ea9814fcc8bff5c4cea51795465565
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon May 18 13:03:22 2015 +1200
+commit e870f06c3f49ed63960a2575e330c2c75fc54a34
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 22 14:42:26 2015 -0400
 
-    cmd/go: change Package.Shlib to be the absolute path of the shared library
+    runtime: yield time slice to most recently readied G
     
-    Makes little difference internally but makes go list output more useful.
+    Currently, when the runtime ready()s a G, it adds it to the end of the
+    current P's run queue and continues running. If there are many other
+    things in the run queue, this can result in a significant delay before
+    the ready()d G actually runs and can hurt fairness when other Gs in
+    the run queue are CPU hogs. For example, if there are three Gs sharing
+    a P, one of which is a CPU hog that never voluntarily gives up the P
+    and the other two of which are doing small amounts of work and
+    communicating back and forth on an unbuffered channel, the two
+    communicating Gs will get very little CPU time.
     
-    Change-Id: I1fa1f839107de08818427382b2aef8dc4d765b36
-    Reviewed-on: https://go-review.googlesource.com/10192
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change this so that when G1 ready()s G2 and then blocks, the scheduler
+    immediately hands off the remainder of G1's time slice to G2. In the
+    above example, the two communicating Gs will now act as a unit and
+    together get half of the CPU time, while the CPU hog gets the other
+    half of the CPU time.
+    
+    This fixes the problem demonstrated by the ping-pong benchmark added
+    in the previous commit:
+    
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkPingPongHog     684287        825           -99.88%
+    
+    On the x/benchmarks suite, this change improves the performance of
+    garbage by ~6% (for GOMAXPROCS=1 and 4), and json by 28% and 36% for
+    GOMAXPROCS=1 and 4. It has negligible effect on heap size.
+    
+    This has no effect on the go1 benchmark suite since those benchmarks
+    are mostly single-threaded.
+    
+    Change-Id: I858a08eaa78f702ea98a5fac99d28a4ac91d339f
+    Reviewed-on: https://go-review.googlesource.com/9289
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/build.go | 4 ++--
- src/cmd/go/pkg.go   | 3 ++-
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/runtime/proc1.go     | 141 ++++++++++++++++++++++++++++++++---------------
+ src/runtime/proc_test.go |  51 +++++++++++++++++
+ src/runtime/runtime2.go  |  15 ++++-
+ 3 files changed, 162 insertions(+), 45 deletions(-)

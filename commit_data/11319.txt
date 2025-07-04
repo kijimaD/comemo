@@ -1,23 +1,12 @@
-commit 2eb9733fced097cd162868c4cc45daf86b63e47d
-Author: Olivier Duperray <duperray.olivier@gmail.com>
-Date:   Mon Jan 23 09:28:32 2012 +1100
+commit 191873981af38f04e57a41815c36daad3724afd6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 23 09:26:46 2012 +1100
 
-    doc/codelab/wiki: Add the usual Copyright notice.
+    go/build: silence all warnings
     
-    R=adg
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5554073
+    https://golang.org/cl/5529055
 
- doc/codelab/wiki/final-noclosure.go     | 4 ++++
- doc/codelab/wiki/final-noerror.go       | 4 ++++
- doc/codelab/wiki/final-parsetemplate.go | 4 ++++
- doc/codelab/wiki/final-template.go      | 4 ++++
- doc/codelab/wiki/final.go               | 4 ++++
- doc/codelab/wiki/get.go                 | 4 ++++
- doc/codelab/wiki/htmlify.go             | 4 ++++
- doc/codelab/wiki/notemplate.go          | 4 ++++
- doc/codelab/wiki/part1-noerror.go       | 4 ++++
- doc/codelab/wiki/part1.go               | 4 ++++
- doc/codelab/wiki/part2.go               | 4 ++++
- doc/codelab/wiki/srcextract.go          | 4 ++++
- 12 files changed, 48 insertions(+)
+ src/pkg/go/build/path.go | 22 +---------------------
+ 1 file changed, 1 insertion(+), 21 deletions(-)

@@ -1,26 +1,26 @@
-commit ed413f3fe018e2290b1ebd6cc0975b7e828e1a6c
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Oct 23 11:36:56 2024 +0200
+commit 6bcf1768291efaa1e6f72ff6159dced8746dc44e
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sat Sep 30 00:53:11 2023 +0000
 
-    crypto/internal/fips/mlkem: implement ML-KEM-1024
+    runtime/internal/atomic: add ppc64x operators for And/Or
     
-    Decided to automatically duplicate the high-level code to avoid growing
-    the ML-KEM-768 data structures.
+    These primitives will be used by the new And/Or sync/atomic apis.
     
-    For #70122
+    For #61395
     
-    Change-Id: I5c705b71ee1e23adba9113d5cf6b6e505c028967
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621983
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I9ad92634add0357092e49b5a4a40c177e242a0b6
+    GitHub-Last-Rev: cf3fb0dce6a462b5d63fe8fe974573ab86df0b66
+    GitHub-Pull-Request: golang/go#63294
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531716
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
 
- src/crypto/internal/fips/mlkem/field.go            |  97 +++++-
- src/crypto/internal/fips/mlkem/field_test.go       |  78 +++++
- src/crypto/internal/fips/mlkem/generate1024.go     | 123 ++++++++
- src/crypto/internal/fips/mlkem/mlkem1024.go        | 342 +++++++++++++++++++++
- src/crypto/internal/fips/mlkem/mlkem768.go         |  24 +-
- .../fips/mlkem/{mlkem768_test.go => mlkem_test.go} |  95 +++++-
- 6 files changed, 740 insertions(+), 19 deletions(-)
+ src/runtime/internal/atomic/atomic_andor_test.go |  7 +--
+ src/runtime/internal/atomic/atomic_ppc64x.go     | 18 +++++++
+ src/runtime/internal/atomic/atomic_ppc64x.s      | 60 ++++++++++++++++++++++++
+ 3 files changed, 82 insertions(+), 3 deletions(-)

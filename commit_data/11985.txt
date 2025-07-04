@@ -1,14 +1,13 @@
-commit 91672686da0af0d2e21b022c36b9977a78ec490f
-Author: Mike Rosset <mike.rosset@gmail.com>
-Date:   Fri Feb 17 12:45:55 2012 +1100
+commit 785ee50c558a81bd79892c8ba837192ed1a91ff1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 17 11:35:38 2012 +1100
 
-    doc: provide example filepath.Walk for go1
+    net/textproto: delete spurious quote
+    Sigh.
     
-    R=golang-dev, r, r
+    R=golang-dev, gri, nigeltao
     CC=golang-dev
-    https://golang.org/cl/5674067
+    https://golang.org/cl/5675071
 
- doc/go1.html     | 20 ++++++++++++++++----
- doc/go1.tmpl     |  6 ++----
- doc/progs/go1.go | 21 +++++++++++++++++++++
- 3 files changed, 39 insertions(+), 8 deletions(-)
+ src/pkg/net/textproto/textproto.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

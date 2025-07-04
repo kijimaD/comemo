@@ -1,23 +1,28 @@
-commit 972774c4448f41826577304da0b5fd7d6936df4c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 27 16:07:11 2023 -0700
+commit f8a53df314e4af8cd350eedb0dae77d4c4fc30d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 3 16:00:16 2022 -0400
 
-    go/types, types2: call mustParse when using mustTypecheck
+    io: revert: add an Err field to LimitedReader
     
-    Syntactically incorrect source files may produce valid (but
-    unexpected) syntax trees, leading to difficult to understand
-    test failures.
+    We are having a hard time deciding the exact semantics
+    of the Err field, and we need to ship the beta.
+    So revert the Err field change; it can wait for Go 1.20.
     
-    Make sure to call mustParse when we call mustTypecheck.
+    For #51115.
     
-    Change-Id: I9f5ba3fe57ad3bbc16caabf285d2e7aeb5b9de0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489995
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    This reverts CL 396215.
+    
+    Change-Id: I7719386567d3da10a614058a11f19dbccf304b4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410133
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go | 8 +++++++-
- src/go/types/api_test.go                    | 9 ++++++++-
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ api/next/51115.txt     |  1 -
+ src/io/example_test.go | 14 --------------
+ src/io/io.go           | 16 +++++-----------
+ 3 files changed, 5 insertions(+), 26 deletions(-)

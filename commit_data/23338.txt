@@ -1,17 +1,17 @@
-commit cb2d02c8032aee0e253eb1091556408cbf205f41
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 12 16:33:49 2015 -0700
+commit c3559f16211888477fc60e348d1dadde9623ba7f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 7 16:00:36 2015 +1000
 
-    go/parser: add ParseExprFrom function
+    net: do not skip TestAcceptIgnoreSomeErrors
     
-    This is needed for code that relies on having the correct file set
-    when parsing an expression only. There's currently no other way to
-    get to the file set otherwise or to invoke the parser correctly to
-    work on an expression only with a given file set.
+    No code changes, but the test passes here.
+    And TryBots are happy.
     
-    Change-Id: I325f174cb34b69284e627f59fe8334efa4eaa45c
-    Reviewed-on: https://go-review.googlesource.com/10998
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #8662 maybe
+    
+    Change-Id: Id37380f72a951c9ad7cf96c0db153c05167e62ed
+    Reviewed-on: https://go-review.googlesource.com/9778
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/go/parser/interface.go | 35 ++++++++++++++++++++++++++++++-----
- 1 file changed, 30 insertions(+), 5 deletions(-)
+ src/net/net_windows_test.go | 2 --
+ 1 file changed, 2 deletions(-)

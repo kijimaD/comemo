@@ -1,19 +1,27 @@
-commit 0a3bd045f50d7a9cfeb3ad1418588c3ab5de329f
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 3 23:33:27 2014 -0500
+commit 709b12ffe63b6f13a344286f9ff6afed7c283887
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 3 18:58:28 2014 -0800
 
-    runtime: fix traceback on Windows
+    net/http: fix location of StateHijacked and StateActive
     
-    The exception handler runs on the ordinary g stack,
-    and the stack copier is now trying to do a traceback
-    across it. That's never been needed before, so it was
-    unimplemented. Implement it, in all its ugliness.
+    1) Move StateHijacked callback earlier, to make it
+    panic-proof.  A Hijack followed by a panic didn't previously
+    result in ConnState getting fired for StateHijacked.  Move it
+    earlier, to the time of hijack.
     
-    Fixes windows/amd64 build.
+    2) Don't fire StateActive unless any bytes were read off the
+    wire while waiting for a request. This means we don't
+    transition from New or Idle to Active if the client
+    disconnects or times out. This was documented before, but not
+    implemented properly.
     
-    TBR=khr
+    This CL is required for an pending fix for Issue 7264
+    
+    LGTM=josharian
+    R=josharian
     CC=golang-codereviews
-    https://golang.org/cl/71030043
+    https://golang.org/cl/69860049
 
- src/pkg/runtime/traceback_x86.c | 49 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 49 insertions(+)
+ src/pkg/net/http/serve_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     | 16 ++++++++-----
+ 2 files changed, 63 insertions(+), 6 deletions(-)

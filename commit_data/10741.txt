@@ -1,15 +1,16 @@
-commit 7cf4825425be6098b95a313ebe8008ea59c23611
+commit e1b1a5fea2c5da007b3fd883a781071928e84164
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Tue Dec 13 09:15:46 2011 +0100
+Date:   Tue Dec 13 09:09:10 2011 +0100
 
-    gc: small fixes to fmt.c
+    gc: fix use of stackallocated AST node in generation of static initialisation code.
     
-    don't crash when printing error messages about symbols in a garbled state.
-    render OCOMPLIT in export mode.
+    Fixes #2529
     
-    R=rsc
+    R=rsc, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/5466045
+    https://golang.org/cl/5483048
 
- src/cmd/gc/fmt.c | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/gc/sinit.c               | 27 +++++++++++++--------------
+ test/fixedbugs/bug382.dir/pkg.go |  7 +++++++
+ test/fixedbugs/bug382.go         | 10 ++++++++++
+ 3 files changed, 30 insertions(+), 14 deletions(-)

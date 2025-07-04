@@ -1,26 +1,22 @@
-commit 126ee245c65d8942484c747c3c4d9b92d65f665c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 4 11:22:58 2012 +1100
+commit 99fed2be279934f0e4d806833f810a3ac78f0e60
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Jan 4 09:51:15 2012 +1100
 
-    dashboard: increase notification log to 200 lines
+    html: parse <frameset> inside body
     
-    The go command lists all packages that were built.
-    A recent breakage notification included this text:
+    Pass tests6.dat, test 47:
+    <param><frameset></frameset>
     
-    $ tail -100 < log
-    ok      errors
-    ok      exp/ebnf
-    ?       exp/ebnflint [no test files]
-    ok      exp/gotype
-    ok      exp/norm
-    ok      exp/spdy
+    | <html>
+    |   <head>
+    |   <frameset>
     
-    If the breakage occurred before this point it would
-    not be visible in the output.
+    Also pass remaining tests in tests6.dat.
     
-    R=golang-dev, gri, kevlar
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5504109
+    https://golang.org/cl/5489136
 
- misc/dashboard/app/build/notify.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/html/parse.go      | 13 +++++++++++++
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,24 +1,56 @@
-commit 892cd0b63638ec856e6fef1bdaaa20a177695fea
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Mon Apr 25 05:21:35 2022 +0000
+commit ddb09af1b85ee9ae278ef338df56c4d91c1acd0d
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Jun 7 18:13:15 2021 -0700
 
-    reflect: support Len and Cap on pointer-to-array Value
+    [dev.typeparams] cmd/compile:  add derived types and subdictionaries to dictionaries
     
-    Fixes #52411
+    This is code in progress to generate the two main other types of entries
+    in dictionaries:
+     - all types in the instantiated function derived from the type
+       arguments (which are currently concrete, but will eventually be
+       gcshapes)
+     - pointers (i.e. mainly the unique name) to all needed sub-dictionaries
     
-    Change-Id: I2fd13a453622992c52d49aade7cd058cfc8a77ca
-    GitHub-Last-Rev: d5987c2ec817ebd01d9e1adb3bd2e75274dbbabd
-    GitHub-Pull-Request: golang/go#52423
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400954
+    In order to generate these entries, we now generate cached information
+    gfInfo about generic functions/methods that can be used for creating the
+    instantiated dictionaries. We use the type substituter to compute the
+    right type args for instantiated sub-dictionaries.
+    
+    If infoPrintMode is changed to true, the code prints out all the
+    information gathered about generic functions, and also the entries in
+    all the dictionaries that are instantiated. The debug mode also prints
+    out the locations where we need main dictionaries in non-instantiated
+    functions.
+    
+    Other changes:
+     - Moved the dictionary generation back to stencil.go from reflect.go,
+       since we need to do extra analysis for the new dictionary entries. In
+       the process, made getInstantiation generate both the function
+       instantiation and the associated dictionary.
+    
+     - Put in small change for now in reflect.go, so that we don't try
+       generate separate dictionaries for Value[T].get and the
+       auto-generated (*Value[T]).get.  The auto-generated wrapper shouldn't really
+       need a dictionary.
+    
+     - Detected, but not handling yet, a new case which needs
+       dictionaries - closures that have function params or captured
+       variables whose types are derived from type arguments.
+    
+     - Added new tests in dictionaryCapture for use of method
+       value/expressions in generic functions and for mutually recursive
+       generic functions.
+    
+    Change-Id: If0cbde8805a9f673a23f5ec798769c85c9c5359b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327311
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/reflect/all_test.go | 66 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/value.go    | 14 +++++++++--
- 2 files changed, 78 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/expr.go             |   5 +
+ src/cmd/compile/internal/noder/irgen.go         |  13 +
+ src/cmd/compile/internal/noder/stencil.go       | 306 ++++++++++++++++++++++--
+ src/cmd/compile/internal/reflectdata/reflect.go |  63 +++--
+ test/typeparam/dictionaryCapture.go             |  66 +++++
+ 5 files changed, 398 insertions(+), 55 deletions(-)

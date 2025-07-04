@@ -1,18 +1,20 @@
-commit 3571ab58b8069fd945427ba49c4d8a702325bdb0
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Oct 29 17:47:32 2021 -0400
+commit 9fe8ebf9b49e632db54aa60809e2019a2a87e28b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 14 17:59:48 2021 -0800
 
-    go/types: make built-in to accept type sets with single underlying types
+    test: add test case that failed with gccgo
     
-    This is a straightforward port of CL 357776 to go/types.
+    bug511.dir/b.go:10:14: error: reference to undefined field or method 'M'
     
-    Change-Id: I64220840a01f57cd7955f7d956b9aa8227473b46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359874
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I9f96dc5c7254b310bc3e15b0bc588d62718cb4b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292009
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/builtins.go                 |  6 +++---
- src/go/types/testdata/check/builtins.go2 | 22 +++++++++++++---------
- 2 files changed, 16 insertions(+), 12 deletions(-)
+ test/fixedbugs/bug511.dir/a.go | 11 +++++++++++
+ test/fixedbugs/bug511.dir/b.go | 11 +++++++++++
+ test/fixedbugs/bug511.go       |  9 +++++++++
+ 3 files changed, 31 insertions(+)

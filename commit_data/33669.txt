@@ -1,20 +1,12 @@
-commit 09739d285085d0a8440bd521d04376c8acc31ecd
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 22 15:26:35 2017 -0500
+commit 6561e4b61c6852f74fe63620d89441a8ef6ccd57
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:32:19 2017 +1000
 
-    runtime: call throw on systemstack in exitsyscall
+    cmd/link: introduce and use peFile.mapToPESection
     
-    If exitsyscall tries to grow the stack it will panic, but throw calls
-    print, which can grow the stack. Move the two bare throws in
-    exitsyscall to the system stack.
-    
-    Updates #21431.
-    
-    Change-Id: I5b29da5d34ade908af648a12075ed327a864476c
-    Reviewed-on: https://go-review.googlesource.com/79517
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I598e9da5587908f39faa13c11d2b42054f5a632d
+    Reviewed-on: https://go-review.googlesource.com/59423
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/proc.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 49 +++++++++++++++++++++++++++---------------
+ 1 file changed, 32 insertions(+), 17 deletions(-)

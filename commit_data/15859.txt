@@ -1,22 +1,14 @@
-commit 0ad265d48fbdef6b8ce21cd6e067d43c19b4d2a4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 20 16:32:37 2013 -0700
+commit b636f192e2f2c9e7114379ed27a43654b86b1b3b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 20 15:05:28 2013 -0700
 
-    src/pkg: fixed various typos
+    spec: fix description of initialization
+    The analysis does not depend on the values of the items.
+    Fixes #4648.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, gri, rsc
     CC=golang-dev
-    https://golang.org/cl/7936043
+    https://golang.org/cl/7593050
 
- src/pkg/go/build/build.go           | 2 +-
- src/pkg/mime/multipart/multipart.go | 2 +-
- src/pkg/net/http/server.go          | 2 +-
- src/pkg/net/interface_darwin.go     | 2 +-
- src/pkg/net/interface_freebsd.go    | 2 +-
- src/pkg/net/iprawsock_plan9.go      | 2 +-
- src/pkg/net/iprawsock_posix.go      | 2 +-
- src/pkg/net/udpsock_plan9.go        | 2 +-
- src/pkg/net/udpsock_posix.go        | 2 +-
- src/pkg/os/file_windows.go          | 2 +-
- src/pkg/reflect/type.go             | 2 +-
- 11 files changed, 11 insertions(+), 11 deletions(-)
+ doc/go_spec.html | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

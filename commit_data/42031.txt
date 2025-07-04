@@ -1,25 +1,24 @@
-commit 7f8fda3c0bfcc832934aa75b4580b4c780e1cb52
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Apr 21 03:47:02 2020 +0700
+commit 61ef6a39dd75032a3ab7eff1f0cf1181e4ee98d0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 6 23:18:28 2019 +0000
 
-    cmd/compile: use proper magnitude for (x>>c) & uppermask = 0
+    runtime: remove MAP_FIXED in sysReserve for raceenabled on darwin
     
-    This is followup of CL 228860, which rewrite shift rules to use typed
-    aux. That CL introduced nlz* functions, to refactor left shift rules.
-    While at it, we realize there's a bug in old rules with both right/left
-    shift rules, but only fix for left shift rules only.
+    This change removes a hack which was added to deal with Darwin 10.10's
+    weird ignorance of mapping hints which would cause race mode to fail
+    since it requires the heap to live within a certain address range.
     
-    This CL fixes the bug for right shift rules.
+    We no longer support 10.10, and this is potentially causing problems
+    related to the page allocator, so drop this code.
     
-    Passes toolstash-check.
+    Updates #26475.
+    Updates #35112.
     
-    Change-Id: Id8f2158b1b66c9e87f3fdeaa7ae3e35dc0666f8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229137
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I0e1c6f8c924afe715a2aceb659a969d7c7b6f749
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205757
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  6 +++---
- src/cmd/compile/internal/ssa/rewritegeneric.go | 12 ++++++------
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ src/runtime/mem_darwin.go | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)

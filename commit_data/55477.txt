@@ -1,26 +1,23 @@
-commit f9c0423ec821e325d5a77e0f18dc1e44ee13503b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jan 25 15:51:22 2024 -0800
+commit 7d57a9ce82cc6841307bc1c3383808b36a884bc9
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Feb 9 09:08:44 2023 -0500
 
-    cmd/compile/internal/noder: preserve alias uses in export data
+    cmd/link: improve error for missing SDYNIMPORT support on mips/mips64
     
-    This CL changes the export data format to preserve alias uses.
-    Previously they were stripped away with types2.Unalias. For backwards
-    compatibility, we use pkgbits.TypeNamed, which is already used for the
-    predeclared aliases byte, rune, and any.
+    Issue an error (instead of crashing) when encountering a symbol that
+    requires dynamic relocations on mips/mips64. The dynimport support is
+    in progress, but is not done yet, so rather than crashing, print a
+    message indicating that the feature is not yet implemented and exit.
     
-    While here, remove unnecessary uses of types2.Unalias, and add a
-    missing one in recvBase to handle:
+    Fixes #58240.
     
-        type T int
-        type A = T
-        func (*A) m() {}
-    
-    Change-Id: I62ddb0426080a44436054964a90ab250bcd8df12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558577
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9ad64c89e4f7b4b180964b35ad1d72d375f2df7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/noder/writer.go | 52 ++++++++++++++++++++------------
- 1 file changed, 32 insertions(+), 20 deletions(-)
+ src/cmd/link/internal/mips/obj.go   | 8 ++++++++
+ src/cmd/link/internal/mips64/obj.go | 8 ++++++++
+ 2 files changed, 16 insertions(+)

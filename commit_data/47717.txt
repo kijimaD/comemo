@@ -1,23 +1,25 @@
-commit 6f65d470d8b688573891420f7a428191d8c6cd49
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Dec 6 17:53:35 2021 -0500
+commit fca51ba24a829233ca133455fd3f161ffc9d7c55
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:09 2021 -0600
 
-    runtime: clean up redundant calls to SetGCPercent in debug_test.go
+    cmd/internal/obj: remove ppc64 msr support from MOV* insns
     
-    SetGCPercent(-1) is called by several tests in debug_test.go (followed
-    by a call to runtime.GC) due to #49370. However, startDebugCallWorker
-    already actually has this, just without the runtime.GC call (allowing an
-    in-progress GC to still mess up the test).
+    These are privileged instructions, and thus will never work with
+    usermode code. I don't think there is a case where this isn't
+    true.  The motivation is to simplify handling of MOV* opcodes.
     
-    This CL consolidates SetGCPercent into startDebugDebugCallWorker where
-    applicable.
+    Assembler support for recognizing the MSR as a register is
+    retained.
     
-    Change-Id: Ifa12d6a911f1506e252d3ddf03004cf2ab3f4ee4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369751
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ic33f021a20057b64e69df8ea125e23dd8937e38d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307814
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
 
- src/runtime/debug_test.go | 35 +++++------------------------------
- 1 file changed, 5 insertions(+), 30 deletions(-)
+ src/cmd/internal/obj/ppc64/a.out.go   |  1 -
+ src/cmd/internal/obj/ppc64/anames9.go |  1 -
+ src/cmd/internal/obj/ppc64/asm9.go    | 20 --------------------
+ 3 files changed, 22 deletions(-)

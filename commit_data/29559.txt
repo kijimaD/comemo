@@ -1,19 +1,28 @@
-commit 1e3c57c2cc1500b12a35a859f3d6e8aa27aeebc5
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Nov 16 10:43:54 2016 -0500
+commit ed915ad421e61c3158ccae4bfbbcfbc796514ee2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 23 00:02:38 2016 -0400
 
-    cmd/internal/obj/arm64: fix branch too far for CBZ (and like)
+    runtime: use sched_yield instead of pthread_yield
     
-    The assembler backend fixes too-far conditional branches, but only
-    for BEQ and like. Add a case for CBZ and like.
+    Attempt to fix the linux-amd64-clang builder, which broke
+    with CL 29472.
     
-    Fixes #17925.
+    Turns out pthread_yield is a non-portable Linux function, and
+    should have #define _GNU_SOURCE before #include <pthread.h>.
+    GCC doesn't complain about this, but Clang does:
     
-    Change-Id: Ie516e6c5ca165b582367283a0110f7081e00c214
-    Reviewed-on: https://go-review.googlesource.com/33304
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+            ./raceprof.go:44:3: warning: implicit declaration of function 'pthread_yield' is invalid in C99 [-Wimplicit-function-declaration]
+    
+    (Though the error, while explicable, certainly could be clearer.)
+    
+    There is a portable POSIX equivalent, sched_yield, so this
+    CL uses it instead.
+    
+    Change-Id: I58ca7a3f73a2b3697712fdb02e72a8027c391169
+    Reviewed-on: https://go-review.googlesource.com/29675
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go     |  2 +-
- src/cmd/internal/obj/arm64/asm_test.go | 62 ++++++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+), 1 deletion(-)
+ src/runtime/testdata/testprogcgo/raceprof.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

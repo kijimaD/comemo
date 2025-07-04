@@ -1,16 +1,18 @@
-commit 87c4a04b80a2f81a06ce3c0b67e50053166766d8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 29 14:14:26 2017 -0700
+commit 4909ecc46266b5afa121ef5f29382172188dbc36
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 26 12:47:20 2017 -0700
 
-    cmd/vet/all: in case of vet panic, don't filter stacktrace
+    cmd/internal/obj/x86: change AsmBuf.Lock to bool
     
-    Fixes #20839.
+    Follow-up to CL 38668.
     
-    Change-Id: I125460c5da09b7fa0cf470ff5be436f8d650cde7
-    Reviewed-on: https://go-review.googlesource.com/47253
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Passes toolstash-check -all.
+    
+    Change-Id: I78a62509c610b5184b5e7ef2c4aa146fc8038840
+    Reviewed-on: https://go-review.googlesource.com/38670
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/vet/all/main.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/internal/obj/x86/asm6.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

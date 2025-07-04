@@ -1,28 +1,35 @@
-commit b2c54afe1451f93e1fbbad257a151d8425cd308d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 1 15:24:11 2016 +0000
+commit 42433e27b0467c862b97f3515185f8053807c648
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 2 15:12:49 2016 -0700
 
-    net/http, net/http/httptest: make http2's TrailerPrefix work for http1
+    cmd/compile: add format verification test
     
-    Go's http1 implementation originally had a mechanism to send HTTP
-    trailers based on pre-declaring the trailer keys whose values you'd
-    later let after the header was written.
+    TestFormats finds potential (Printf, etc.) format strings.
+    If they are used in a call, the format verbs are verified
+    based on the matching argument type against a precomputed
+    table of valid formats (formatMapping, below). The table
+    can be used to automatically rewrite format strings with
+    the -u flag.
     
-    http2 copied the same mechanism, but it was found to be unsufficient
-    for gRPC's wire protocol. A second trailer mechanism was added later
-    (but only to http2) for handlers that want to send a trailer without
-    knowing in advance they'd need to.
+    Run as: go test -run Formats [-u]
     
-    Copy the same mechanism back to http1 and document it.
+    A formatMapping based on the existing formats is printed
+    when the test is run in verbose mode (-v flag). The table
+    needs to be updated whenever a new (type, format) combination
+    is found and the format verb is not 'v' (as in "%v").
     
-    Fixes #15754
+    Known bugs:
+    - indexed format strings ("%[2]s", etc.) are not suported
+      (the test will fail)
+    - format strings that are not simple string literals cannot
+      be updated automatically
+      (the test will fail with respective warnings)
     
-    Change-Id: I8c40d55e28b0e5b7087d3d1a904a392c56ee1f9b
-    Reviewed-on: https://go-review.googlesource.com/32479
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1ca5bb6421d57ac78a00f1a80b9547a72837adc9
+    Reviewed-on: https://go-review.googlesource.com/28419
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/http/clientserver_test.go      | 31 +++++++++++++
- src/net/http/httptest/recorder.go      | 11 +++++
- src/net/http/httptest/recorder_test.go |  2 +
- src/net/http/server.go                 | 79 ++++++++++++++++++++++++++++------
- 4 files changed, 111 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/fmt_test.go | 573 ++++++++++++++++++++++++++++++++
+ 1 file changed, 573 insertions(+)

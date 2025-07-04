@@ -1,15 +1,15 @@
-commit 765b4a3f8651d7523f46f7e6f3839ae4b704b4f2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 21 08:53:47 2014 -0700
+commit 775719c6009289d76ee181150b5772cc0699ebb7
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Wed May 21 06:18:45 2014 -0700
 
-    test/float_lit2.go: compute test values from first principles
+    cmd/ld: correctly compute note size on NetBSD.
     
-    These constants pass go/types constant conversions as well.
+    Patch from http://gnats.NetBSD.org/48811.
     
-    LGTM=r
-    R=r
-    CC=golang-codereviews
-    https://golang.org/cl/91590047
+    LGTM=iant
+    R=golang-codereviews, minux.ma, iant
+    CC=golang-codereviews, tk
+    https://golang.org/cl/94670047
 
- test/float_lit2.go | 75 ++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 65 insertions(+), 10 deletions(-)
+ src/cmd/ld/elf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

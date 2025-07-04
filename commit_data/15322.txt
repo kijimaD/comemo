@@ -1,18 +1,33 @@
-commit a92e11a256d8a527d547a2772992d9d9870fa817
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Feb 20 12:13:04 2013 +0400
+commit b4109f801a2b51978e1ddc1918a4558a8d8ba36c
+Author: Péter Surányi <speter.go1@gmail.com>
+Date:   Wed Feb 20 16:19:52 2013 +1100
 
-    runtime: ensure forward progress of runtime.Gosched() for locked goroutines
-    The removed code leads to the situation when M executes the same locked G again
-    and again.
-    This is https://golang.org/cl/7310096 but with return instead of break
-    in the nested switch.
-    Fixes #4820.
+    path/filepath, os/exec: unquote PATH elements on Windows
     
-    R=golang-dev, alex.brainman, rsc
+    On Windows, directory names in PATH can be fully or partially quoted
+    in double quotes ('"'), but the path names as used by most APIs must
+    be unquoted. In addition, quoted names can contain the semicolon
+    (';') character, which is otherwise used as ListSeparator.
+    
+    This CL changes SplitList in path/filepath and LookPath in os/exec
+    to only treat unquoted semicolons as separators, and to unquote the
+    separated elements.
+    
+    (In addition, fix harmless test bug I introduced for LookPath on Unix.)
+    
+    Related discussion thread:
+    https://groups.google.com/d/msg/golang-nuts/PXCr10DsRb4/sawZBM7scYgJ
+    
+    R=rsc, minux.ma, mccoyst, alex.brainman, iant
     CC=golang-dev
-    https://golang.org/cl/7304102
+    https://golang.org/cl/7181047
 
- src/pkg/runtime/proc.c       |  8 --------
- src/pkg/runtime/proc_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 8 deletions(-)
+ src/pkg/os/exec/lp_unix_test.go            |  5 +-
+ src/pkg/os/exec/lp_windows.go              | 35 +++++++++++-
+ src/pkg/path/filepath/path.go              |  5 +-
+ src/pkg/path/filepath/path_plan9.go        |  7 +++
+ src/pkg/path/filepath/path_test.go         | 30 +++++++++-
+ src/pkg/path/filepath/path_unix.go         |  7 +++
+ src/pkg/path/filepath/path_windows.go      | 33 +++++++++++
+ src/pkg/path/filepath/path_windows_test.go | 89 ++++++++++++++++++++++++++++++
+ 8 files changed, 203 insertions(+), 8 deletions(-)

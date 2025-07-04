@@ -1,21 +1,12 @@
-commit 78aa4af239749106b8eadc9fcfe0ab4dac0b1315
-Author: Keith Randall <khr@golang.org>
-Date:   Thu May 7 16:09:33 2020 -0700
+commit 50ada481fb1899b736db65f04de53b1b915f2496
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 25 15:32:41 2019 -0500
 
-    cmd/compile: don't store NaN in ppc64 floating point constant ops
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    Missed in CL 221790
-    
-    This is the only remaining use of math.Float64frombits in the .rules
-    file that isn't already guarded.
-    
-    Fixes #38880
-    
-    Change-Id: I11f71e3a48516748d8d2701c6cf6920a7bc9e216
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232859
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I2649666b28a4f148e516b62ec7dd70fe20429762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208780
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules | 2 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go | 4 ++++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

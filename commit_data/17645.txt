@@ -1,14 +1,12 @@
-commit ba10318607fc131a0c53aded88fd3da681b294c9
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 19 11:19:11 2013 +1000
+commit 45e214fb62389214896700ded97b6585c103af9b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 18 15:47:50 2013 -0700
 
-    cmd/go: write the WORK=/tmp/... line to stderr
-    Unlike the other output from the -x flag, it was going to stdout.
-    Fixes #6362.
+    test: add a test that gccgo failed to compile
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/13746044
+    https://golang.org/cl/13451045
 
- src/cmd/go/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/bug477.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

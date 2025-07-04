@@ -1,18 +1,19 @@
-commit 58d177c63e9e9e50df4341d9aa5518c87a3309d8
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 23 06:23:04 2015 +1000
+commit 97494a45e21099c3a357785f31894a5e69e086c8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 15 16:35:43 2015 +0000
 
-    cmd/asm: fix handling of negative shifts.
+    Revert "cmd/internal/gc: ignore declarations of types for goto validation"
     
-    The change that "fixed" LSH was incorrect, and the fix for RSH was poor.
-    Make both use a correct, simple test: if the 64-bit value as a signed
-    integer is negative, it's an error.
+    This reverts commit 5726af54eb3a52b9446a834991110b945e780e99.
     
-    Really fixes #11278.
+    It broke all the builds.
     
-    Change-Id: I72cca03d7ad0d64fd649fa33a9ead2f31bd2977b
-    Reviewed-on: https://go-review.googlesource.com/11325
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I4b1dde86f9433717d303c1dabd6aa1a2bf97fab2
+    Reviewed-on: https://go-review.googlesource.com/10143
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/parse.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/internal/gc/dcl.go |  3 ---
+ src/cmd/internal/gc/gen.go | 21 +++------------------
+ src/cmd/internal/gc/go.go  |  1 -
+ test/goto.go               | 16 ----------------
+ 4 files changed, 3 insertions(+), 38 deletions(-)

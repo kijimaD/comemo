@@ -1,24 +1,30 @@
-commit 835ff47c1680de81b93480f5184ac4034c45e417
+commit fb17dfa43d1c8e08d08f380ea082195d1c4f89f4
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 20 15:20:10 2021 -0400
+Date:   Sat Dec 5 15:20:51 2020 -0500
 
-    cmd/internal/buildid: reject empty id
+    [dev.regabi] cmd/compile: narrow interface between ir and types
     
-    The loop that makes progress assumes that after matching an id
-    you should advance len(id) bytes in the file. If id is the empty string,
-    then it will match and advance 0 bytes repeatedly.
+    Narrow the interface between package ir and package types
+    to make it easier to clean up the type formatting code all in one place.
     
-    0-byte ids are not really build IDs, so just reject it outright.
+    Also introduce ir.BlankSym for use by OrigSym, so that later
+    OrigSym can move to package types without needing to reference
+    a variable of type ir.Node.
     
-    Fixes #47852.
+    Passes buildall w/ toolstash -cmp.
     
-    Change-Id: Ie44a3a51dec22e2f68fb72d54ead91be98000cfe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344049
+    Change-Id: I39fa419a1c8fb3318203e31cacc8d06399deeff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275776
     Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/buildid/buildid_test.go | 8 ++++++++
- src/cmd/internal/buildid/rewrite.go      | 3 +++
- 2 files changed, 11 insertions(+)
+ src/cmd/compile/internal/gc/main.go         |  5 ----
+ src/cmd/compile/internal/gc/universe.go     |  1 +
+ src/cmd/compile/internal/ir/fmt.go          | 25 ++++++++++++--------
+ src/cmd/compile/internal/ir/node.go         |  4 +++-
+ src/cmd/compile/internal/ssa/export_test.go | 15 +-----------
+ src/cmd/compile/internal/types/scope.go     |  7 ++++--
+ src/cmd/compile/internal/types/sym.go       |  5 ++--
+ src/cmd/compile/internal/types/type.go      | 28 +++++++++++-----------
+ src/cmd/compile/internal/types/utils.go     | 36 +++++++++++++----------------
+ 9 files changed, 59 insertions(+), 67 deletions(-)

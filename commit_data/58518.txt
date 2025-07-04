@@ -1,22 +1,28 @@
-commit 368a9ec99834652ca3f7d8fe24862a7581e12358
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Jan 14 12:43:27 2025 -0800
+commit 8d41d053e0886d1b67b8261330777222f7d96ac0
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 28 14:07:29 2023 -0400
 
-    encoding/json: cleanup tests
+    cmd/compile/internal/inline: debug flag to alter score adjustments
     
-    Perform minor cleanups in tests to improve printout of diffs
-    and/or follow modern coding style.
+    Add a debugging flag "-d=inlscoreadj" intended to support running
+    experiments in which the inliner uses different score adjustment
+    values for specific heuristics. The flag argument is a series of
+    clauses separated by the "/" char where each clause takes the form
+    "adjK:valK". For example, in this build
     
-    This reduces the amount of diffs between v1 and the v2 prototype.
+      go build -gcflags=-d=inlscoreadj=inLoopAdj:10/returnFeedsConstToIfAdj:-99
     
-    Change-Id: I019bb9642e2135f2fa3eac6abfa6df91c397aa82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642257
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    the "in loop" score adjustments would be reset to a value of 15 (effectively
+    penalizing calls in loops) adn the "return feeds constant to foldable if/switch"
+    score adjustment would be boosted from -15 to -99.
+    
+    Change-Id: Ibd1ee334684af5992466556a69baa6dfefb246b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532116
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/encoding/json/decode_test.go |  4 ++--
- src/encoding/json/stream_test.go | 10 +++++-----
- src/encoding/json/tags_test.go   |  4 +---
- 3 files changed, 8 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/base/debug.go             |  2 +
+ src/cmd/compile/internal/inline/inl.go             |  4 +-
+ .../internal/inline/inlheur/debugflags_test.go     | 65 +++++++++++++++++++
+ src/cmd/compile/internal/inline/inlheur/scoring.go | 75 ++++++++++++++++++++++
+ 4 files changed, 145 insertions(+), 1 deletion(-)

@@ -1,12 +1,18 @@
-commit 420a17e37181beaa7dfaa8279a9339ad5e60bbd3
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Apr 12 10:36:41 2011 +1000
+commit 0cc055e8f78d3e7c790fdcf4fb44f2d2c4eea396
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Apr 11 16:38:37 2011 -0400
 
-    net: fix laddr typo in test code.
+    ld: fix dwarf decoding of strings for struct's fieldnames
+    
+    Moved Sym printing to Yconv.
+    Fixed warning in data.c
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4381050
+    https://golang.org/cl/4378052
 
- src/pkg/net/ipraw_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/ld/data.c  |  2 +-
+ src/cmd/ld/dwarf.c | 29 ++++++++---------------------
+ src/cmd/ld/lib.c   | 42 +++++++++++++++++++++++++++++++++++++++---
+ src/cmd/ld/lib.h   |  3 +++
+ 4 files changed, 51 insertions(+), 25 deletions(-)

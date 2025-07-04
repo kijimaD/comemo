@@ -1,26 +1,15 @@
-commit e330cc16f477471c11f78a88c8a71a155a9ca8ec
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Oct 18 21:02:49 2014 -0700
+commit 8fd56bf8c49b7ffcae4f4fbebdc3bed9c7acb9ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 15:48:17 2014 -0400
 
-    runtime: dequeue the correct SudoG
+    encoding/json: document that embedded interfaces look like non-embedded ones
     
-    select {
-           case <- c:
-           case <- c:
-    }
+    Fixes #8386.
     
-    In this case, c.recvq lists two SudoGs which have the same G.
-    So we can't use the G as the key to dequeue the correct SudoG,
-    as that key is ambiguous.  Dequeueing the wrong SudoG ends up
-    freeing a SudoG that is still in c.recvq.
-    
-    The fix is to use the actual SudoG pointer as the key.
-    
-    LGTM=dvyukov
-    R=rsc, bradfitz, dvyukov, khr
-    CC=austin, golang-codereviews
-    https://golang.org/cl/159040043
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/149570043
 
- src/runtime/chan_test.go | 29 +++++++++++++++++++++++++++++
- src/runtime/select.go    |  8 ++++----
- 2 files changed, 33 insertions(+), 4 deletions(-)
+ src/encoding/json/encode.go | 2 ++
+ 1 file changed, 2 insertions(+)

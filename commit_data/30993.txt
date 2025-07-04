@@ -1,52 +1,14 @@
-commit bebfd4ba415cbfee578f64177fe1c59dab5a1df8
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Mar 6 09:34:39 2017 +0100
+commit 1ede11d13a2a4ed63e9a6cf8b6039225749fa6ea
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Dec 8 22:22:24 2016 -0800
 
-    strings: speed up Fields
+    os/user: document the difference between Username and Name
     
-    - use a string lookup to detect if a single byte is a space character
-    - determine the exact number of fields for ASCII and
-      a possibly underestimated number of fields for non ASCII strings
-      by doing a separate byte for byte scan of the input string
-      before collecting the fields in an extra pass
-    - provide a fast path for ASCII only strings when collecting the fields
-    - avoid utf8.DecodeRuneInString and unicode.IsSpace for ASCII characters
+    Fixes #18261.
     
-    Used golang.org/cl/33108 from Joe Tsai as starting point.
-    
-    name                      old time/op    new time/op     delta
-    Fields/ASCII/16              284ns ± 1%      116ns ± 2%   -59.30%  (p=0.000 n=9+10)
-    Fields/ASCII/256            3.81µs ± 1%     0.80µs ± 1%   -79.10%  (p=0.000 n=10+10)
-    Fields/ASCII/4096           61.4µs ± 1%     12.3µs ± 1%   -79.96%  (p=0.000 n=10+9)
-    Fields/ASCII/65536           982µs ± 1%      235µs ± 0%   -76.04%  (p=0.000 n=10+9)
-    Fields/ASCII/1048576        16.7ms ± 2%      5.4ms ± 1%   -67.52%  (p=0.000 n=10+10)
-    Fields/Mixed/16              314ns ± 1%      168ns ± 1%   -46.33%  (p=0.000 n=9+10)
-    Fields/Mixed/256            3.92µs ± 1%     1.17µs ± 1%   -70.19%  (p=0.000 n=10+10)
-    Fields/Mixed/4096           69.1µs ± 1%     19.0µs ± 1%   -72.53%  (p=0.000 n=10+10)
-    Fields/Mixed/65536          1.12ms ± 1%     0.39ms ± 0%   -65.37%  (p=0.000 n=10+9)
-    Fields/Mixed/1048576        19.0ms ± 2%      7.3ms ± 4%   -61.75%  (p=0.000 n=10+9)
-    
-    name                      old speed      new speed       delta
-    Fields/ASCII/16           56.3MB/s ± 1%  138.1MB/s ± 2%  +145.31%  (p=0.000 n=9+10)
-    Fields/ASCII/256          67.1MB/s ± 1%  321.0MB/s ± 1%  +378.26%  (p=0.000 n=10+10)
-    Fields/ASCII/4096         66.7MB/s ± 1%  333.0MB/s ± 1%  +398.97%  (p=0.000 n=10+9)
-    Fields/ASCII/65536        66.7MB/s ± 1%  278.4MB/s ± 0%  +317.39%  (p=0.000 n=10+9)
-    Fields/ASCII/1048576      62.7MB/s ± 2%  192.9MB/s ± 1%  +207.82%  (p=0.000 n=10+10)
-    Fields/Mixed/16           51.0MB/s ± 2%   94.9MB/s ± 1%   +85.87%  (p=0.000 n=10+10)
-    Fields/Mixed/256          65.4MB/s ± 1%  219.2MB/s ± 1%  +235.33%  (p=0.000 n=10+10)
-    Fields/Mixed/4096         59.3MB/s ± 1%  215.7MB/s ± 1%  +263.98%  (p=0.000 n=10+10)
-    Fields/Mixed/65536        58.6MB/s ± 1%  169.1MB/s ± 0%  +188.73%  (p=0.000 n=10+9)
-    Fields/Mixed/1048576      55.1MB/s ± 2%  144.0MB/s ± 4%  +161.44%  (p=0.000 n=10+9)
-    
-    Updates #19789
-    Updates #17856
-    
-    Change-Id: If2ce1479542702e9cd65a82a462ba55ac8eb3876
-    Reviewed-on: https://go-review.googlesource.com/37959
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I4bd7363aac4e62461f61fd95b3c7a18063412182
+    Reviewed-on: https://go-review.googlesource.com/34241
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strings/strings.go      | 109 +++++++++++++++++++++++++++++++++++++++++++-
- src/strings/strings_test.go |  54 +++++++++++++++++++---
- 2 files changed, 155 insertions(+), 8 deletions(-)
+ src/os/user/user.go | 36 ++++++++++++++++++++++--------------
+ 1 file changed, 22 insertions(+), 14 deletions(-)

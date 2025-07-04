@@ -1,45 +1,20 @@
-commit 74b9939ec4a9f41bffb4dda47205d55c28e25728
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Nov 9 13:49:45 2021 -0500
+commit a8b59fe3cdaeeb40c87d55122a45a2e390e60d88
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Sun Mar 14 18:12:59 2021 +0200
 
-    all: update vendored golang.org/x/crypto for Go 1.18 release
+    encoding/json: fix package shadowing in MarshalIndent example
     
-    The Go 1.18 code freeze has recently started. This is a time to update
-    all golang.org/x/... module versions that contribute packages to the
-    std and cmd modules in the standard library to latest master versions.
+    Prior to this CL, pasting the example from the website causes a
+    compilation error for some programs because it was shadowing the
+    "json" package.
     
-    This CL updates only the crypto module, as well as the TestDependencies
-    policy to accommodate the dependency order change done in CL 345649.
-    The next CL will update further modules.
-    
-    For #36905.
-    
-    Change-Id: If93160d8d72ca86e9995aaf5bdfc3d2c20b4695d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362736
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I39b68a66ca99468547f2027a7655cf1387b61e95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301492
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Joe Tsai <joetsai@google.com>
+    Run-TryBot: Joe Tsai <joetsai@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/go.mod                                                      | 2 +-
- src/cmd/go.sum                                                      | 4 ++--
- src/cmd/vendor/modules.txt                                          | 2 +-
- src/go.mod                                                          | 2 +-
- src/go.sum                                                          | 4 ++--
- src/go/build/deps_test.go                                           | 2 +-
- src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305.go | 6 +++++-
- .../x/crypto/chacha20poly1305/chacha20poly1305_generic.go           | 2 +-
- .../golang.org/x/crypto/chacha20poly1305/xchacha20poly1305.go       | 2 +-
- .../golang.org/x/crypto/{ => internal}/poly1305/bits_compat.go      | 0
- .../golang.org/x/crypto/{ => internal}/poly1305/bits_go1.13.go      | 0
- src/vendor/golang.org/x/crypto/{ => internal}/poly1305/mac_noasm.go | 0
- src/vendor/golang.org/x/crypto/{ => internal}/poly1305/poly1305.go  | 2 +-
- src/vendor/golang.org/x/crypto/{ => internal}/poly1305/sum_amd64.go | 0
- src/vendor/golang.org/x/crypto/{ => internal}/poly1305/sum_amd64.s  | 0
- .../golang.org/x/crypto/{ => internal}/poly1305/sum_generic.go      | 0
- .../golang.org/x/crypto/{ => internal}/poly1305/sum_ppc64le.go      | 0
- .../golang.org/x/crypto/{ => internal}/poly1305/sum_ppc64le.s       | 0
- src/vendor/golang.org/x/crypto/{ => internal}/poly1305/sum_s390x.go | 0
- src/vendor/golang.org/x/crypto/{ => internal}/poly1305/sum_s390x.s  | 2 +-
- src/vendor/modules.txt                                              | 4 ++--
- 21 files changed, 19 insertions(+), 15 deletions(-)
+ src/encoding/json/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

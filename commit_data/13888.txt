@@ -1,20 +1,13 @@
-commit 31758b2c1a4fef9c387d039190e55c640bda9408
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Sep 21 12:51:39 2012 +1000
+commit 801f6e6367e923ce320276adb279b5f0b1ec9bef
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 20 23:29:29 2012 +0400
 
-    cmd/{ld,5l,6l,8l}: add support for OpenBSD ELF signatures
+    sync: add Once test with panic
+    Tests behavior of Once when initialization function panics.
     
-    OpenBSD now requires ELF binaries to have a PT_NOTE that identifies
-    it as an OpenBSD binary. Refactor the existing NetBSD ELF signature
-    code and implement support for OpenBSD ELF signatures.
-    
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6489131
+    https://golang.org/cl/6554047
 
- src/cmd/5l/asm.c | 25 ++++++++++----
- src/cmd/6l/asm.c | 25 ++++++++++----
- src/cmd/8l/asm.c | 25 ++++++++++----
- src/cmd/ld/elf.c | 99 +++++++++++++++++++++++++++++++++++++++++++++-----------
- src/cmd/ld/elf.h |  2 ++
- 5 files changed, 136 insertions(+), 40 deletions(-)
+ src/pkg/sync/once_test.go | 29 ++++++++++++++++++++++++++---
+ 1 file changed, 26 insertions(+), 3 deletions(-)

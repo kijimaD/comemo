@@ -1,37 +1,22 @@
-commit 71a6c13164f2151c14ebaeccdfcb3633fc8b618e
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Mar 10 19:28:28 2021 -0800
+commit 7148abc1b900555199998aac25af11783a9eb41c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 5 16:44:29 2020 -0400
 
-    cmd/compile:  call types.CheckSize() in g.typ()
+    runtime: simplify heapBitsSetType doubleCheck
     
-    Restore code to call types.CheckSize() in g.typ(). There are certain
-    cases (involving maps) where we need to do CheckSize here. In general,
-    the old typechecker calls CheckSize() a lot, and we want to eliminate
-    calling it eventually, so should get do types.CheckSize() when we create
-    a new concrete type.
+    The heapBitsSetType function has a slow doubleCheck debugging mode
+    that checks the bitmap written out by the rest of the function using
+    far more obvious logic. But even this has some surprisingly complex
+    logic in it. Simplify it a bit. This also happens to fix the logic on
+    32-bit.
     
-    However, the test typeparams/cons.go does not work with just calling
-    types.CheckSize() in g.typ() (which is why I disabled the calls
-    originally). The reason is that g.typ() is called recursively within
-    types.go, so it can be called on a partially-created recursive type,
-    which leads to an error in CheckSize(). So, we need to call CheckSize()
-    only on fully-created top-level types. So, I divided typ() into typ()
-    and typ1(), where typ() is now the external entry point, and typ1() is
-    called within types.go. Now, typ() can call CheckSize() safely.
+    Fixes #40335.
     
-    I also added in an extra condition - we do not currently need to call
-    CheckSize() on non-fully-instantiated types, since they will not make it
-    to the backend.  That could change a bit with dictionaries.
-    
-    Fixes #44895
-    
-    Change-Id: I783aa7d2999dd882ddbd99a7c19a6ff6ee420102
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300989
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I5cee482ad8adbd01cf5b98e35a270fe941ba4940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244538
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/noder/types.go | 54 +++++++++++++++++++--------------
- 1 file changed, 31 insertions(+), 23 deletions(-)
+ src/runtime/mbitmap.go | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)

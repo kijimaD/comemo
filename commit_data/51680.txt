@@ -1,59 +1,25 @@
-commit f959fb3872a32d29c93f10deae31e4e6d79f2da9
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Nov 21 22:22:36 2022 -0800
+commit d3fe4e193e387f250ba53a80f669eac465b1641d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 2 18:38:55 2022 -0800
 
-    cmd/compile: add anchored version of SP
+    go/types, types2: fix scoping for iteration variables declared by range clause
     
-    The SPanchored opcode is identical to SP, except that it takes a memory
-    argument so that it (and more importantly, anything that uses it)
-    must be scheduled at or after that memory argument.
+    Also correct scope position for such variables.
+    Adjusted some comments.
     
-    This opcode ensures that a LEAQ of a variable gets scheduled after the
-    corresponding VARDEF for that variable.
+    Fixes #51437.
     
-    This may lead to less CSE of LEAQ operations. The effect is very small.
-    The go binary is only 80 bytes bigger after this CL. Usually LEAQs get
-    folded into load/store operations, so the effect is only for pointerful
-    types, large enough to need a duffzero, and have their address passed
-    somewhere. Even then, usually the CSEd LEAQs will be un-CSEd because
-    the two uses are on different sides of a function call and the LEAQ
-    ends up being rematerialized at the second use anyway.
-    
-    Change-Id: Ib893562cd05369b91dd563b48fb83f5250950293
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452916
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Martin Möhrmann <martin@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ic49a1459469c8b2c7bc24fe546795f7d56c67cb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389594
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/_gen/386.rules     |  3 ++-
- src/cmd/compile/internal/ssa/_gen/AMD64.rules   |  3 ++-
- src/cmd/compile/internal/ssa/_gen/ARM.rules     |  3 ++-
- src/cmd/compile/internal/ssa/_gen/ARM64.rules   |  3 ++-
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 ++-
- src/cmd/compile/internal/ssa/_gen/MIPS.rules    |  3 ++-
- src/cmd/compile/internal/ssa/_gen/MIPS64.rules  |  3 ++-
- src/cmd/compile/internal/ssa/_gen/PPC64.rules   |  3 ++-
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  3 ++-
- src/cmd/compile/internal/ssa/_gen/S390X.rules   |  3 ++-
- src/cmd/compile/internal/ssa/_gen/Wasm.rules    |  3 ++-
- src/cmd/compile/internal/ssa/_gen/genericOps.go |  7 +++---
- src/cmd/compile/internal/ssa/lower.go           |  2 +-
- src/cmd/compile/internal/ssa/opGen.go           |  7 ++++++
- src/cmd/compile/internal/ssa/rewrite.go         |  4 +---
- src/cmd/compile/internal/ssa/rewrite386.go      | 29 ++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go    | 29 ++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewriteARM.go      | 29 ++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewriteARM64.go    | 29 ++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 29 ++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewriteMIPS.go     | 29 ++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewriteMIPS64.go   | 29 ++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewritePPC64.go    | 29 ++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 29 ++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewriteS390X.go    | 29 ++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewriteWasm.go     | 29 ++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/schedule.go        | 29 +++++++++++++++++++++++++
- test/codegen/arithmetic.go                      | 18 +++++++++------
- test/codegen/logic.go                           |  6 +----
- 29 files changed, 384 insertions(+), 41 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go        |  2 +-
+ src/cmd/compile/internal/types2/stmt.go            | 22 ++++++++++------------
+ .../types2/testdata/fixedbugs/issue51437.go        | 17 +++++++++++++++++
+ src/go/types/api_test.go                           |  2 +-
+ src/go/types/stmt.go                               | 17 +++++++----------
+ src/go/types/testdata/fixedbugs/issue51437.go      | 17 +++++++++++++++++
+ test/fixedbugs/issue51437.go                       | 19 +++++++++++++++++++
+ 7 files changed, 72 insertions(+), 24 deletions(-)

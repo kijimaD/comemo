@@ -1,18 +1,21 @@
-commit 13ed4f42f03cac6d9ad701a3041dba06c84dc70d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Dec 21 13:27:04 2022 +0100
+commit 76bd8ea9e133293d2a8253f01f66c1ca9add64e6
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Feb 14 16:33:39 2022 -0500
 
-    doc/go1.20: fix typo
+    go/types, types2: add tests for literals in type parameter lists
     
-    Change-Id: Ia0ce728ca18eefd835220b2076c4aa8ba00cda6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458815
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Add tests that verify consistent behavior of go/types and types2 with
+    respect to potentially ambiguous type parameter lists.
+    
+    For #49482
+    
+    Change-Id: I3386d4fa3eb91f2a8ea0987372ca40a6962de886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385756
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.20.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../types2/testdata/fixedbugs/issue49482.go2       | 25 +++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue49482.go2     | 28 ++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

@@ -1,12 +1,14 @@
-commit ca15ac36ede807c53c5f1b8778061eb70cbff616
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Mar 15 22:23:35 2013 +0400
+commit a5b2623dab33d4e54b9995d0f0cfd4b95b439683
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 15 12:39:14 2013 -0400
 
-    net: fix build with CGO_ENABLED=0
+    build: skip benchmarks on OpenBSD
     
-    R=golang-dev, rsc, mikioh.mikioh
+    They are making the build die. I want to be able to see that everything else is okay.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7857044
+    https://golang.org/cl/7546049
 
- src/pkg/net/empty.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/run.bash | 3 +++
+ 1 file changed, 3 insertions(+)

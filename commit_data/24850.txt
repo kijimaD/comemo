@@ -1,23 +1,23 @@
-commit ab196aeff21bedd7acd0e38d74e77989255f1d3f
-Author: Alberto Bertogli <albertito@blitiri.com.ar>
-Date:   Fri Nov 6 01:40:56 2015 +0000
+commit 19447a66d663cf51f5c02c4d9d0c74894714067a
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Sep 4 06:33:56 2015 -0500
 
-    testing: only call flag.Parse if it has not been called before
+    [dev.ssa] cmd/compile: store floats in AuxInt
     
-    Calling flag.Parse twice can be problematic if other goroutines called
-    flag.Parsed in between: the race detector complains due to the
-    write after read from a different goroutine.
+    Store floats in AuxInt to reduce allocations.
     
-    This can happen if TestMain calls flag.Parse and launches goroutines
-    that call flag.Parsed, for example if it initializes a server which
-    checks flags.
-    
-    This patch makes testing.M.Run only parse the flags if they have not
-    been parsed already.
-    
-    Change-Id: Id9f8c31c5f90614e3f34c63d1a32cf7e9055d68e
-    Reviewed-on: https://go-review.googlesource.com/16739
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I101e6322530b4a0b2ea3591593ad022c992e8df8
+    Reviewed-on: https://go-review.googlesource.com/14320
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/testing/testing.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go           |  3 ++-
+ src/cmd/compile/internal/ssa/TODO            |  1 -
+ src/cmd/compile/internal/ssa/check.go        |  7 +++++
+ src/cmd/compile/internal/ssa/cse.go          | 22 +++++----------
+ src/cmd/compile/internal/ssa/func.go         | 11 ++++----
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  8 +++---
+ src/cmd/compile/internal/ssa/rewrite.go      | 10 ++++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 40 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/value.go        | 14 +++++++++-
+ 9 files changed, 67 insertions(+), 49 deletions(-)

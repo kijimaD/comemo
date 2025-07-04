@@ -1,14 +1,20 @@
-commit 4c1cc1c97f1858fc1bb4edda629097fcd8ecedfb
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Thu May 16 12:26:59 2024 -0400
+commit 711609d55f7d1254e0400fd870c97d5c5a259a99
+Author: Austin Clements <austin@google.com>
+Date:   Sat May 6 15:27:02 2023 -0400
 
-    doc/next/64910.md: reword release note
+    cmd/go: fix swigOne action with -n
     
-    Change-Id: I41a01dd2bcaf5716703946bad42830d4e8095c11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586136
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Currently, if cmd/go builds a swig file with the -n (dry run) flag, it
+    will print the swig command invocation without executing it, but then
+    attempt to actually rename one of swig's output files, which will
+    fail. Make this rename conditional on -n. While we're here, we fix the
+    missing logging of the rename command with -x, too.
+    
+    Change-Id: I1f6e6efc53dfe4ac5a42d26096679b97bc322827
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493255
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/next/6-stdlib/99-minor/net/http/64910.md | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/exec.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

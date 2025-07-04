@@ -1,20 +1,21 @@
-commit b414ba4c993e38b0c5241f9d36021423afeb05ed
-Author: Bryan Mills <bcmills@google.com>
-Date:   Mon Mar 20 14:31:59 2023 +0000
+commit 24b570354caee33d4fb3934ce7ef1cc97fb403fd
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Apr 26 23:55:11 2022 +0000
 
-    Revert "cmd/go: import runtime/cgo when externally linking"
+    time: document hhmmss formats
     
-    This reverts CL 477195.
+    Fixes #52516
     
-    Reason for revert: test fails on darwin and solaris builders.
-    
-    Change-Id: I68085f06bc84b0b8649804b8968626ed0e788931
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477795
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Bypass: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I173fdb09c245563e09be4e1aacfd374c3a764d74
+    GitHub-Last-Rev: 14a81e50616e0f268fee9323d0621de861885475
+    GitHub-Pull-Request: golang/go#52538
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402058
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/load/pkg.go             | 29 +++-------------------
- src/cmd/go/testdata/script/build_static.txt | 38 -----------------------------
- 2 files changed, 4 insertions(+), 63 deletions(-)
+ src/time/example_test.go | 11 +++++++++++
+ src/time/format.go       | 16 ++++++++++------
+ 2 files changed, 21 insertions(+), 6 deletions(-)

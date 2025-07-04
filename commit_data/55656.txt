@@ -1,22 +1,17 @@
-commit 806aeb1e7667958047ef744cac16319e662d1b1e
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Sat Feb 17 04:35:24 2024 +0000
+commit 65fa9ce8b51f86bf3c9c9ff4d7ae41b40a537e69
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 28 21:12:13 2023 +0000
 
-    cmd/go: fail fast across packages
+    runtime: use os.TempDir instead of hard-coding /tmp
     
-    Fixes #33038
+    On Android, /tmp does not exist.
     
-    Change-Id: I0b70c450be1c1cc59ddc1f3fddad227deccc7e14
-    GitHub-Last-Rev: 302ebd648afb4a5fc9ca0ae10cda5c58f2d64120
-    GitHub-Pull-Request: golang/go#62714
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-race,gotip-windows-amd64-race,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529198
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ib1797d79d89704a7a9466ad94efd57d2848b3b57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472255
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/test/test.go              | 18 ++++++++++++---
- src/cmd/go/internal/test/testflag.go          |  2 +-
- src/cmd/go/testdata/script/test_fail_fast.txt | 33 +++++++++++++++++++++++++++
- 3 files changed, 49 insertions(+), 4 deletions(-)
+ src/runtime/testdata/testprog/lockosthread.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

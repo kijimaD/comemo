@@ -1,18 +1,19 @@
-commit 40e1e2e93eaa7d42cc2a3c9ff813710d36cace51
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:14:41 2022 -0500
+commit ed84a8357c0107dedc42c9658ae9b020777b1bb7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 5 20:22:15 2022 -0800
 
-    cmd/internal/goobj: use testenv.Command instead of exec.Command in tests
+    test: add test of incorrect gofrontend error
     
-    testenv.Command sets a default timeout based on the test's deadline
-    and sends SIGQUIT (where supported) in case of a hang.
+    For #50439
     
-    Change-Id: I464dc34b50f3360123aca9e8666df9799c15e457
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450701
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Ifad6e6f8de42121c695b5a4dc56e0f6606e2917e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375796
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/goobj/objfile_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ test/fixedbugs/issue50439.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

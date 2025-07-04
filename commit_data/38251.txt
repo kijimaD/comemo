@@ -1,18 +1,34 @@
-commit c7408a87757f94ed72e3e2b7886880dcca946b28
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 6 11:56:06 2019 +1100
+commit 389e942745ddd7eef44b71571c463b0dfc3dcac2
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 5 08:54:50 2018 -0700
 
-    doc: sort map output in Effective Go
+    cmd/compile: reuse temporaries in order pass
     
-    And explain that it does this. A minor change probably worth mentioning,
-    although (#28782) I'd still like to freeze this document against any substantial
-    changes.
+    Instead of allocating a new temporary each time one
+    is needed, keep a list of temporaries which are free
+    (have already been VARKILLed on every path) and use
+    one of them.
     
-    Fix #30568.
+    Should save a lot of stack space. In a function like this:
     
-    Change-Id: I74c56744871cfaf00dc52a9b480ca61d3ed19a6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165597
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    func main() {
+         fmt.Printf("%d %d\n", 2, 3)
+         fmt.Printf("%d %d\n", 4, 5)
+         fmt.Printf("%d %d\n", 6, 7)
+    }
+    
+    The three [2]interface{} arrays used to hold the ... args
+    all use the same autotmp, instead of 3 different autotmps
+    as happened previous to this CL.
+    
+    Change-Id: I2d728e226f81e05ae68ca8247af62014a1b032d3
+    Reviewed-on: https://go-review.googlesource.com/c/140301
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/effective_go.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 60 +++++++++++++++++++++++++++---------
+ src/cmd/compile/internal/gc/sinit.go |  6 ++--
+ test/live.go                         | 48 ++++++++++++++---------------
+ test/uintptrescapes2.go              |  4 +--
+ 4 files changed, 75 insertions(+), 43 deletions(-)

@@ -1,14 +1,20 @@
-commit f7027b4b2dc9c822efd94f1d84189a60291ae152
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 30 14:04:54 2017 -0700
+commit 2f9dee9293e68fe588ffad445efae38e33be8d59
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 19 13:05:53 2016 -0800
 
-    cmd/compile: remove lookupBytes
+    net: make LookupCNAME's native behavior match its cgo behavior
     
-    Change-Id: I08c264f5f3744d835e407534c492ef8c43e1a700
-    Reviewed-on: https://go-review.googlesource.com/38991
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #18172.
+    
+    Change-Id: I4a21fb5c0753cced025a03d88a6dd1aa3ee01d05
+    Reviewed-on: https://go-review.googlesource.com/34650
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/subr.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/net/dnsclient_unix.go      | 44 +++++++++++------------
+ src/net/dnsclient_unix_test.go | 81 ++++++++++++++++++------------------------
+ src/net/lookup.go              | 24 +++++++++----
+ src/net/lookup_test.go         |  7 ++--
+ src/net/lookup_unix.go         |  3 +-
+ src/net/lookup_windows_test.go |  8 ++---
+ 6 files changed, 83 insertions(+), 84 deletions(-)

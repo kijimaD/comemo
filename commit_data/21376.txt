@@ -1,20 +1,12 @@
-commit 69cd91a5981c49eaaa59b33196bdb5586c18d289
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Jan 27 23:57:12 2015 +0300
+commit ddef2d27fec52c271ee72911e60b07f5f62cf3cb
+Author: Guobiao Mei <meiguobiao@gmail.com>
+Date:   Sat Dec 27 18:28:07 2014 -0500
 
-    cmd/gc: don't copy []byte during string comparison
+    net/http: use t.Fatalf rather than t.Fatal in cookie_test.go
     
-    Currently we allocate a new string during []byte->string conversion
-    in string comparison expressions. String allocation is unnecessary in
-    this case, because comparison does memorize the strings for later use.
-    This change uses slicebytetostringtmp to construct temp string directly
-    from []byte buffer and passes it to runtime.eqstring.
-    
-    Change-Id: If00f1faaee2076baa6f6724d245d5b5e0f59b563
-    Reviewed-on: https://go-review.googlesource.com/3410
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I60bbb7deb7462d1ca884677b4f86bd54b20b3f35
+    Reviewed-on: https://go-review.googlesource.com/2140
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/gc/order.c         | 12 ++++++++++++
- src/runtime/string.go      |  1 +
- src/runtime/string_test.go | 17 +++++++++++++++++
- 3 files changed, 30 insertions(+)
+ src/net/http/cookie_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

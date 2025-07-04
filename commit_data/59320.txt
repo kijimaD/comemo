@@ -1,26 +1,17 @@
-commit 05ed8a00e07e93fd40cf8269bdf16d6d2b34740d
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jan 6 21:53:22 2025 -0800
+commit 8e25f98ba29ae9f11729503d23dada0e24e9bcac
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Feb 29 06:58:29 2024 +0000
 
-    internal/runtime/maps: prune tombstones in maps before growing
+    cmd/internal/buildid: fix typo in comment
     
-    Before growing, if there are lots of tombstones try to remove them.
-    If we can remove enough, we can continue at the given size for a
-    while longer.
-    
-    Fixes #70886
-    
-    Change-Id: I71e0d873ae118bb35798314ec25e78eaa5340d73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640955
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: I271f25aefaace61935d55a1b6b7c026d022d92a7
+    GitHub-Last-Rev: 304e3ee979f4fde58184e7035cd5d0d6b50bca74
+    GitHub-Pull-Request: golang/go#66023
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567918
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/internal/runtime/maps/group.go                 |   6 ++
- src/internal/runtime/maps/map_test.go              |  55 +++++++++++
- src/internal/runtime/maps/runtime_fast32_swiss.go  |   5 +
- src/internal/runtime/maps/runtime_fast64_swiss.go  |   5 +
- src/internal/runtime/maps/runtime_faststr_swiss.go |   5 +
- src/internal/runtime/maps/table.go                 | 101 +++++++++++++++++++++
- 6 files changed, 177 insertions(+)
+ src/cmd/internal/buildid/buildid_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

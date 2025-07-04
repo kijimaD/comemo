@@ -1,18 +1,12 @@
-commit 84c7e83b4c5b71f7634f16c719577fa71ff6232f
-Author: Dmitry Chestnykh <dchest@gmail.com>
-Date:   Fri Apr 15 10:48:45 2011 -0700
+commit 07dc26f88df9d14d7caa58010ab5992e00a9f3a7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 15 08:31:32 2011 -0700
 
-    godoc: use "search" input type for search box.
+    6l: fix another "set and not used".
     
-    Uses placeholder attribute instead of changing the value of search
-    field on browsers that support it.  On other browsers, the fake
-    placeholder text is restored when the empty box loses focus.
-    
-    R=golang-dev, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4441041
+    https://golang.org/cl/4433042
 
- doc/all.css          |  2 +-
- doc/godocs.js        | 11 +++++++++++
- lib/godoc/godoc.html |  2 +-
- 3 files changed, 13 insertions(+), 2 deletions(-)
+ src/cmd/6l/asm.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

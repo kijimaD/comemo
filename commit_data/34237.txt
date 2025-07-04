@@ -1,23 +1,38 @@
-commit b1dbce31d7bbd7c3fdff1679d6f08c107d0be9a5
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Fri Feb 16 15:20:04 2018 +0000
+commit 371eda45582aea165131cc204e92bdbce3c95097
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Sep 21 17:43:00 2017 -0700
 
-    runtime: don't ignore address hint for sysReserve in Plan 9
+    io: simplify pipe implementation
     
-    On Plan 9, sysReserve was ignoring the address hint and allocating
-    memory wherever it is available.  This causes the new
-    TestArenaCollision test to fail on 32-bit Plan 9.  We now use the
-    address hint in the specific case where sysReserve is extending the
-    process address space at its end, and similarly we contract the
-    address space in the case where sysFree is releasing memory at
-    the end.
+    In the distant past, Pipe was implemented with channels and a
+    long running pipe.run goroutine (see CL 994043).
+    This approach of having all communication serialized through the
+    run method was error prone giving Pipe a history of deadlocks
+    and race conditions.
     
-    Fixes #23860
+    After the introduction of sync.Cond, the implementation was rewritten
+    (see CL 4252057) to use condition variables and avoid the
+    long running pipe.run goroutine. While this implementation is superior
+    to the previous one, this implementation is strange in that the
+    p.data field is always set immediately prior to signaling the other
+    goroutine with Cond.Signal, effectively making the combination of the
+    two a channel-like operation. Inferior to a channel, however, this still
+    requires explicit locking around the p.data field.
     
-    Change-Id: Ia5254779ba8f1698c999832720a88de400b5f91a
-    Reviewed-on: https://go-review.googlesource.com/94776
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    The data+rwait can be effectively be replaced by a "chan []byte" to
+    inform a reader that there is data available.
+    The data+wwait can be effectively be replaced by a "chan int" to
+    inform a writer of how many bytes were read.
+    
+    This implementation is a simplified from net.Pipe in CL 37402.
+    
+    Change-Id: Ia5b26320b0525934fd87a3b69a091c787167f5aa
+    Reviewed-on: https://go-review.googlesource.com/65330
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/mem_plan9.go | 23 +++++++++++++++++++----
- 1 file changed, 19 insertions(+), 4 deletions(-)
+ src/go/build/deps_test.go |   2 +-
+ src/io/pipe.go            | 165 +++++++++++++++++++++-------------------------
+ src/io/pipe_test.go       |  84 +++++++++++++++++++++++
+ 3 files changed, 159 insertions(+), 92 deletions(-)

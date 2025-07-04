@@ -1,22 +1,38 @@
-commit a08cb9f473405769f292bd2ff455764a690fe3e7
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Wed Sep 5 06:35:33 2018 +0200
+commit 8ef45cf60b347abb1a08416fca1b6d19d317b26e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 23 11:34:58 2019 -0400
 
-    net/mail: added support to trailing CFWS in date
+    cmd/link: reduce the size of Reloc struct
     
-    RFC 5322 date format allows CFWS after the timezone.
-    If CFWS is valid, it is discarded and parsing is done as before
-    using time.Parse().
-    Existing test is extended with limit cases and invalid strings.
+    For linking large binaries, the slice of Relocs consumes a large
+    amount of memory. We can reduce this memory consumption by
+    shrinking the size of the Reloc struct. This CL moves the fields
+    used only in external linking or only on PPC64 and S390X to a
+    lazily initialized side struct.
     
-    Fixes #22661
+    Linking k8s.io/kubernetes/cmd/kube-apiserver on Linux/AMD64,
+    before:
+    inuse_space 1240.25MB total
+    438.11MB 35.32% 35.32%   438.11MB 35.32%  cmd/link/internal/objfile.(*objReader).readSlices
     
-    Change-Id: I54b96d7bc384b751962a76690e7e4786217a7941
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/117596
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    after:
+    inuse_space 1123.39MB total
+    306.85MB 27.31% 55.03%   306.85MB 27.31%  cmd/link/internal/objfile.(*objReader).readSlices
+    
+    Under GOGC=5 (to simulate system under memory pressure), the max
+    RSS reduces from ~2.05G to ~1.83G. Even with external linking the
+    max RSS doesn't increase.
+    
+    Change-Id: I9bb8a8effaed24a8b3c4b1cfb93e6992b8740f91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173437
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/mail/message.go      |  25 +++++++-
- src/net/mail/message_test.go | 145 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 169 insertions(+), 1 deletion(-)
+ src/cmd/internal/objabi/reloctype.go |  2 +-
+ src/cmd/link/internal/ld/data.go     | 13 +++++++++++--
+ src/cmd/link/internal/ppc64/asm.go   |  1 +
+ src/cmd/link/internal/s390x/asm.go   |  1 +
+ src/cmd/link/internal/sym/reloc.go   | 30 +++++++++++++++++++++---------
+ src/cmd/link/internal/sym/symbol.go  |  3 +++
+ 6 files changed, 38 insertions(+), 12 deletions(-)

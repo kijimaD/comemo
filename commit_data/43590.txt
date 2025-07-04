@@ -1,27 +1,59 @@
-commit bc0d7fd9b7b2a8791441a07921b0c26b7b316b92
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Oct 27 11:30:14 2020 +0100
+commit cd42fa581ab860af32672fb1e0eb5de19b4986e1
+Merge: 2db4cc38a0 ce122624f0
+Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
+Date:   Tue Apr 14 17:35:25 2020 +0000
 
-    cmd/compile: delete log2, switch to log64
-    
-    rewrite.go has two identical functions log2 and log64; the former has
-    been there for a while, while the latter was added together with
-    log{8,16,32} for use in typed rules.
-    
-    This change deletes log2 and switches to using log64 everywhere.
-    
-    Change-Id: I759b878814e4c115a5fa470274f22477738d69ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265457
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Merge "cmd: merge branch 'dev.link' into master"
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules  |  12 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules  | 174 ++++++-------
- src/cmd/compile/internal/ssa/gen/MIPS64.rules |   4 +-
- src/cmd/compile/internal/ssa/lca.go           |   2 +-
- src/cmd/compile/internal/ssa/rewrite.go       |   6 -
- src/cmd/compile/internal/ssa/rewriteAMD64.go  |  44 ++--
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 344 +++++++++++++-------------
- src/cmd/compile/internal/ssa/rewriteMIPS64.go |   8 +-
- 8 files changed, 295 insertions(+), 299 deletions(-)
+ src/cmd/internal/goobj/readnew.go             |   8 +-
+ src/cmd/internal/goobj2/funcinfo.go           |  82 +++-
+ src/cmd/internal/goobj2/objfile.go            | 206 +++++-----
+ src/cmd/internal/goobj2/objfile_test.go       |  72 +++-
+ src/cmd/internal/obj/objfile2.go              |  77 ++--
+ src/cmd/link/internal/amd64/asm.go            |  44 +--
+ src/cmd/link/internal/amd64/obj.go            |   2 +-
+ src/cmd/link/internal/arm/asm.go              | 198 +++++-----
+ src/cmd/link/internal/arm/obj.go              |   2 +-
+ src/cmd/link/internal/arm64/asm.go            |  49 +--
+ src/cmd/link/internal/arm64/obj.go            |   2 +-
+ src/cmd/link/internal/ld/data.go              | 181 +++++----
+ src/cmd/link/internal/ld/deadcode.go          |  40 +-
+ src/cmd/link/internal/ld/decodesym2.go        |  11 +
+ src/cmd/link/internal/ld/dwarf.go             |   2 +-
+ src/cmd/link/internal/ld/dwarf2.go            |  12 +-
+ src/cmd/link/internal/ld/ld.go                |  44 +++
+ src/cmd/link/internal/ld/lib.go               |  74 ++--
+ src/cmd/link/internal/ld/link.go              |   8 +-
+ src/cmd/link/internal/ld/macho.go             |   2 +-
+ src/cmd/link/internal/ld/main.go              |  21 +-
+ src/cmd/link/internal/ld/pcln.go              | 528 +++++++++++++++----------
+ src/cmd/link/internal/ld/sym.go               |   1 +
+ src/cmd/link/internal/ld/symtab.go            |  43 +--
+ src/cmd/link/internal/ld/target.go            |   4 +
+ src/cmd/link/internal/ld/typelink.go          |  33 +-
+ src/cmd/link/internal/ld/xcoff.go             |   2 +-
+ src/cmd/link/internal/loadelf/ldelf.go        |  53 +--
+ src/cmd/link/internal/loader/loader.go        | 529 ++++++++++++++------------
+ src/cmd/link/internal/loader/symbolbuilder.go |  66 +++-
+ src/cmd/link/internal/loadmacho/ldmacho.go    | 146 ++-----
+ src/cmd/link/internal/loadpe/ldpe.go          |  51 +--
+ src/cmd/link/internal/loadxcoff/ldxcoff.go    |  33 +-
+ src/cmd/link/internal/mips/asm.go             |   2 +-
+ src/cmd/link/internal/mips/obj.go             |   2 +-
+ src/cmd/link/internal/mips64/asm.go           |   2 +-
+ src/cmd/link/internal/mips64/obj.go           |   2 +-
+ src/cmd/link/internal/ppc64/asm.go            | 334 ++++++++--------
+ src/cmd/link/internal/ppc64/obj.go            |   2 +-
+ src/cmd/link/internal/riscv64/asm.go          |   2 +-
+ src/cmd/link/internal/riscv64/obj.go          |   2 +-
+ src/cmd/link/internal/s390x/asm.go            |  49 +--
+ src/cmd/link/internal/s390x/obj.go            |   2 +-
+ src/cmd/link/internal/sym/library.go          |   2 -
+ src/cmd/link/internal/sym/sizeof_test.go      |   2 +-
+ src/cmd/link/internal/sym/symbol.go           |  24 --
+ src/cmd/link/internal/wasm/asm.go             |   9 +-
+ src/cmd/link/internal/wasm/obj.go             |   2 +-
+ src/cmd/link/internal/x86/asm.go              |  68 +---
+ src/cmd/link/internal/x86/obj.go              |   2 +-
+ src/cmd/oldlink/internal/ld/elf.go            |  33 ++
+ 51 files changed, 1671 insertions(+), 1496 deletions(-)

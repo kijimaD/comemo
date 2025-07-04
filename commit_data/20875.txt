@@ -1,15 +1,39 @@
-commit af3e02e4040f4ae62d62d4f23411e11fa96340be
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 9 20:20:06 2014 -0500
+commit d1b2913710f9f238f480a332cfc421f416bf8c23
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Oct 22 12:30:15 2014 +1100
 
-    cmd/pprof: install as go tool pprof
+    runtime/cgo: encode BLX directly, fixes one clang build error on arm
     
-    LGTM=bradfitz, r
-    R=r, bradfitz
+    Fixes #8348.
+    
+    Trying to work around clang's dodgy support for .arch by reverting to the external assembler didn't work out so well. Minux had a much better solution to encode the instructions we need as .word directives which avoids .arch altogether.
+    
+    I've confirmed with gdb that this form produces the expected machine code
+    
+    Dump of assembler code for function crosscall_arm1:
+       0x00000000 <+0>:     push    {r4, r5, r6, r7, r8, r9, r10, r11, r12, lr}
+       0x00000004 <+4>:     mov     r4, r0
+       0x00000008 <+8>:     mov     r5, r1
+       0x0000000c <+12>:    mov     r0, r2
+       0x00000010 <+16>:    blx     r5
+       0x00000014 <+20>:    blx     r4
+       0x00000018 <+24>:    pop     {r4, r5, r6, r7, r8, r9, r10, r11, r12, pc}
+    
+    There is another compilation failure that blocks building Go with clang on arm
+    
+    # ../misc/cgo/test
+    # _/home/dfc/go/misc/cgo/test
+    /tmp/--407b12.s: Assembler messages:
+    /tmp/--407b12.s:59: Error: selected processor does not support ARM mode `blx r0'
+    clang: error: assembler command failed with exit code 1 (use -v to see invocation)
+    FAIL    _/home/dfc/go/misc/cgo/test [build failed]
+    
+    I'll open a new issue for that
+    
+    LGTM=iant
+    R=iant, minux
     CC=golang-codereviews
-    https://golang.org/cl/168320043
+    https://golang.org/cl/158180047
 
- src/cmd/go/pkg.go    |  1 +
- src/cmd/pprof/README |  8 ++++++++
- src/cmd/pprof/doc.go | 12 ++++++++++++
- 3 files changed, 21 insertions(+)
+ src/runtime/cgo/gcc_arm.S | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)

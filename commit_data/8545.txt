@@ -1,21 +1,18 @@
-commit 463f478dbb2a502b265c08e0eff1b3334a1bfcf9
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon May 30 22:28:59 2011 -0300
+commit 0de328edd63d8e85588309982ce86948548db96b
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 31 09:58:07 2011 +1000
 
-    filepath: Abs must always return a clean path
+    unicode: make the tables smaller.
+    By splitting the ranges into 16-bit values and 32-bit values,
+    we can reduce about 3000 entries by 48 bits per entry, or about
+    16KB, at the cost of a little more complexity in the code.
     
-    When I was first coding Abs, I wondered if people wouldn't
-    expect the path to be consistently clean, even if the path
-    passed in was already absolute.
-    
-    CL 4524078 has a potential problem based on exactly that
-    assumption, so it feels like this behavior is indeed the
-    most useful and least surprising.
-    
-    R=golang-dev, adg
+    R=iant, bradfitz, rsc, r
     CC=golang-dev
-    https://golang.org/cl/4548074
+    https://golang.org/cl/4547066
 
- src/pkg/path/filepath/path.go      | 2 +-
- src/pkg/path/filepath/path_test.go | 4 ++++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/unicode/letter.go     |   94 +-
+ src/pkg/unicode/maketables.go |   97 +-
+ src/pkg/unicode/tables.go     | 7879 ++++++++++++++++++++++-------------------
+ src/pkg/xml/xml.go            |  612 ++--
+ 4 files changed, 4597 insertions(+), 4085 deletions(-)

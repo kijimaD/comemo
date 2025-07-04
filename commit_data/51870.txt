@@ -1,16 +1,24 @@
-commit 356647409d834d823f8ee7e57075b38556638e79
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Jan 27 14:05:36 2023 +0100
+commit 627d6d6d5542a1ccf956a16608b0bc820568c09b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 18 11:36:21 2022 -0400
 
-    net/netip: use IPv6Loopback in TestIPProperties
+    debug/dwarf: better error detection in parseUnits
     
-    Change-Id: I667bdaf52e9d32cd89e396616057bc57ecaffe09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463836
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Tweak the (*Data).parseUnits method to check a bit more carefully for
+    buffer read errors, so as to avoid infinite looping on malformed
+    inputs.
+    
+    Fixes #51758.
+    Updates #47653.
+    
+    Change-Id: I6d67fcb53392acf651ceec636789ab9e49ad5a5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393874
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/net/netip/netip_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/debug/dwarf/buf.go        |   2 +-
+ src/debug/dwarf/entry_test.go | 121 ++++++++++++++++++++++++++++++++++++++++++
+ src/debug/dwarf/unit.go       |   3 ++
+ 3 files changed, 125 insertions(+), 1 deletion(-)

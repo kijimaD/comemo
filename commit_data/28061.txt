@@ -1,20 +1,21 @@
-commit 7c3fc4b8e48f061e242e8d04803c7bb249ba6995
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Aug 26 12:15:00 2016 +1200
+commit 2ac8bdc52ae1ea0418df465de3f1ef36f49e2274
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu Feb 4 11:41:48 2016 -0500
 
-    cmd/link: hide funcsym symbols
+    [dev.garbage] runtime: bitmap allocation data structs
     
-    As far as I can tell, this check has been
-    non-functional since it was introduced.
+    The bitmap allocation data structure prototypes. Before
+    this is released these underlying data structures need
+    to be more performant but the signatures of helper
+    functions utilizing these structures will remain stable.
     
-    This cuts 57k off cmd/go and 70k off cmd/compile.
-    
-    Based on golang.org/cl/24710 by Josh Bleecher Snyder.
-    
-    Change-Id: I1162a066971df1a067b50afa1cfa0819a6913574
-    Reviewed-on: https://go-review.googlesource.com/27830
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I5ace12f2fb512a7038a52bbde2bfb7e98783bcbe
+    Reviewed-on: https://go-review.googlesource.com/19221
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/data.go   |  4 ++--
- src/cmd/link/internal/ld/symtab.go | 24 ++++++++++++++++++++----
- 2 files changed, 22 insertions(+), 6 deletions(-)
+ src/runtime/malloc.go |  3 +++
+ src/runtime/mheap.go  | 38 +++++++++++++++++++++++++++++++++++---
+ src/runtime/msize.go  | 28 ++++++++++++++++++----------
+ 3 files changed, 56 insertions(+), 13 deletions(-)

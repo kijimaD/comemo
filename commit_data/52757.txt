@@ -1,20 +1,21 @@
-commit f229787affbcaafb55dac2ceae65282b172e253a
-Author: Lucien Coffe <lucien.coffe@botify.com>
-Date:   Fri Apr 21 17:20:19 2023 +0200
+commit b6bcd0d1352578033eea0490790b6af3bf300b3f
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue May 24 17:05:05 2022 -0400
 
-    runtime: prevent double lock in checkdead by unlocking before throws
+    doc/go1.19: update Go 1.19 relese note TODOs using relnote
     
-    This change resolves an issue where checkdead could result in a double lock when shedtrace is enabled. This fix involves adding unlocks before all throws in the checkdead function to ensure the scheduler lock is properly released.
+    This updates the release notes with TODOs using relnote. It also
+    changes all refrences of golang.org to go.dev.
     
-    Fixes #59758
+    For #51400.
     
-    Change-Id: If3ddf9969f4582c3c88dee9b9ecc355a63958103
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487375
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I8a210140483aed7c41fe47242041e4b363e2eb10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408217
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/runtime/proc.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/go1.19.html | 160 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 158 insertions(+), 2 deletions(-)

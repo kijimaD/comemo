@@ -1,67 +1,28 @@
-commit 2075a9323d8d496e4738a6f4038c6dfb7c623130
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Thu Oct 26 15:40:17 2017 -0400
+commit 840f2c167f1d5196559d8a1e77c370960e66d34e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 5 15:37:13 2017 -0400
 
-    cmd/compile: reimplement location list generation
+    cmd/asm, cmd/cgo, cmd/compile, cmd/cover, cmd/link: use standard -V output
     
-    Completely redesign and reimplement location list generation to be more
-    efficient, and hopefully not too hard to understand.
+    Also add -V=full to print a unique identifier of the specific tool being invoked.
+    This will be used for content-based staleness.
     
-    RegKills are gone. Instead of using the regalloc's liveness
-    calculations, redo them using the Ops' clobber information. Besides
-    saving a lot of Values, this avoids adding RegKills to blocks that would
-    be empty otherwise, which was messing up optimizations. This does mean
-    that it's much harder to tell whether the generation process is buggy
-    (there's nothing to cross-check it with), and there may be disagreements
-    with GC liveness. But the performance gain is significant, and it's nice
-    not to be messing with earlier compiler phases.
+    Also sort and clean up a few of the flag doc comments.
     
-    The intermediate representations are gone. Instead of producing
-    ssa.BlockDebugs, then dwarf.LocationLists, and then finally real
-    location lists, go directly from the SSA to a (mostly) real location
-    list. Because the SSA analysis happens before assembly, it stores
-    encoded block/value IDs where PCs would normally go. It would be easier
-    to do the SSA analysis after assembly, but I didn't want to retain the
-    SSA just for that.
-    
-    Generation proceeds in two phases: first, it traverses the function in
-    CFG order, storing the state of the block at the beginning and end. End
-    states are used to produce the start states of the successor blocks. In
-    the second phase, it traverses in program text order and produces the
-    location lists. The processing in the second phase is redundant, but
-    much cheaper than storing the intermediate representation. It might be
-    possible to combine the two phases somewhat to take advantage of cases
-    where the CFG matches the block layout, but I haven't tried.
-    
-    Location lists are finalized by adding a base address selection entry,
-    translating each encoded block/value ID to a real PC, and adding the
-    terminating zero entry. This probably won't work on OSX, where dsymutil
-    will choke on the base address selection. I tried emitting CU-relative
-    relocations for each address, and it was *very* bad for performance --
-    it uses more memory storing all the relocations than it does for the
-    actual location list bytes. I think I'm going to end up synthesizing the
-    relocations in the linker only on OSX, but TBD.
-    
-    TestNexting needs updating: with more optimizations working, the
-    debugger doesn't stop on the continue (line 88) any more, and the test's
-    duplicate suppression kicks in. Also, dx and dy live a little longer
-    now, but they have the correct values.
-    
-    Change-Id: Ie772dfe23a4e389ca573624fac4d05401ae32307
-    Reviewed-on: https://go-review.googlesource.com/89356
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: I786fe50be0b8e5f77af809d8d2dab721185c2abd
+    Reviewed-on: https://go-review.googlesource.com/68590
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/fmt_test.go                        |  11 +-
- src/cmd/compile/internal/gc/pgen.go                | 299 +------
- src/cmd/compile/internal/gc/ssa.go                 |  55 +-
- src/cmd/compile/internal/ssa/cache.go              |  22 -
- src/cmd/compile/internal/ssa/check.go              |   4 -
- src/cmd/compile/internal/ssa/debug.go              | 970 ++++++++++++++-------
- src/cmd/compile/internal/ssa/gen/genericOps.go     |   1 -
- src/cmd/compile/internal/ssa/opGen.go              |   6 -
- src/cmd/compile/internal/ssa/regalloc.go           |  55 +-
- .../internal/ssa/testdata/hist.gdb-opt.nexts       |  13 +-
- src/cmd/internal/dwarf/dwarf.go                    |  82 +-
- 11 files changed, 698 insertions(+), 820 deletions(-)
+ src/cmd/asm/doc.go                  | 31 +++++++++++++-----------
+ src/cmd/asm/internal/flags/flags.go |  2 ++
+ src/cmd/cgo/doc.go                  | 48 ++++++++++++++++++-------------------
+ src/cmd/cgo/main.go                 |  3 +++
+ src/cmd/compile/internal/gc/main.go |  2 +-
+ src/cmd/cover/cover.go              |  3 +++
+ src/cmd/go/internal/work/build.go   |  8 +++++++
+ src/cmd/internal/objabi/flag.go     | 42 ++++++++++++++++++++++++++++----
+ src/cmd/link/doc.go                 |  2 +-
+ src/cmd/link/internal/ld/main.go    |  2 +-
+ 10 files changed, 98 insertions(+), 45 deletions(-)

@@ -1,12 +1,12 @@
-commit 6c7daca23618b97e9f07b05ac8bf072a636fb616
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 22 00:29:23 2012 -0500
+commit 818e3cdb096354dbe1a08581fd432392683529b2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 22 16:25:55 2012 +1100
 
-    gc: never crash during a debugging print
+    spec: refine the wording about variables in type switches
     
-    TBR=lvd
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5686063
+    https://golang.org/cl/5686064
 
- src/cmd/gc/fmt.c | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

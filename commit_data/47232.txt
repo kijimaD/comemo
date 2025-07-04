@@ -1,23 +1,22 @@
-commit d9bb5f6f109a4342c52958f30acfc3f3d633ee4f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Nov 3 18:18:18 2021 +0000
+commit 31df4e3fcd0c961684a027188a391f6db1ab3439
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Mon Nov 16 17:50:01 2020 +0800
 
-    syscall: fix and document uses of RegEnumKeyEx
+    cmd/link: add relocs type for mips64x
     
-    RegEnumKeyEx has an undocumented requirement that subsequent calls need
-    to be made from the same thread. This change documents that requirement
-    and fixes uses of it in std.
+    The race detector of llvm adds four reloc types even with -fPIC
     
-    Fixes #49320.
+    elf.R_MIPS_CALL16
+    elf.R_MIPS_GPREL32
+    elf.R_MIPS_64
+    elf.R_MIPS_GOT_DISP
     
-    Change-Id: I6d182227e22dd437996a878b3a978943f01b2d61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361154
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: If73119dcba14ef74395273eb680f52a0aa853217
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270297
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/syscall/windows/registry/key.go | 11 +++++++++-
- src/syscall/syscall_windows.go               | 30 +++++++++++++++++++++++++++-
- src/syscall/zsyscall_windows.go              |  2 +-
- 3 files changed, 40 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

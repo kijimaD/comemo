@@ -1,27 +1,17 @@
-commit b5f87b5407916c4049a3158cc944cebfd7a883a9
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Tue Oct 10 12:43:40 2023 +0000
+commit 56d18207823d6e1c18ca46409180c40ae800230c
+Author: Rob Stradling <rob@sectigo.com>
+Date:   Tue Sep 6 17:30:31 2022 +0100
 
-    runtime: use max/min func
+    crypto/x509: Reallow duplicate attributes in CSRs.
     
-    Change-Id: I3f0b7209621b39cee69566a5cc95e4343b4f1f20
-    GitHub-Last-Rev: af9dbbe69ad74e8c210254dafa260a886b690853
-    GitHub-Pull-Request: golang/go#63321
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531916
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3fb4331c2b1b6adafbac3e76eaf66c79cd5ef56f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428636
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/runtime/export_test.go   |  8 +++-----
- src/runtime/memmove_test.go  |  4 +---
- src/runtime/mfixalloc.go     |  4 +---
- src/runtime/mgcmark.go       |  4 +---
- src/runtime/mgcpacer.go      | 12 +++---------
- src/runtime/mgcscavenge.go   | 25 +++++++++++--------------
- src/runtime/mksizeclasses.go |  8 +++-----
- src/runtime/mpagealloc.go    | 13 ++++---------
- src/runtime/mpallocbits.go   | 21 +++++++++------------
- src/runtime/symtab.go        |  8 +++-----
- 10 files changed, 39 insertions(+), 68 deletions(-)
+ src/crypto/x509/x509.go      |  8 +-------
+ src/crypto/x509/x509_test.go | 26 ++++++++++++++++++++++++--
+ 2 files changed, 25 insertions(+), 9 deletions(-)

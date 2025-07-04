@@ -1,16 +1,20 @@
-commit 38044eca7c67981aa0c98847a35ec2daf0763d0e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jun 9 11:28:42 2017 -0700
+commit dec95d8fad2e1b3dea3fa1472cc21542c40236ce
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 7 12:21:50 2017 -0700
 
-    runtime: make map deletion benchmarks faster to run
+    database/sql: correctly guard the query Row preventing early release
     
-    This reduces the wall time to run these benchmarks by about 30%.
+    When a Tx starts a query, prevent returning the connection to the pool
+    until after the query finishes.
     
-    Change-Id: I494a93c93e5acb1514510d85f65796f62e1629a5
-    Reviewed-on: https://go-review.googlesource.com/54650
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #19058
+    
+    Change-Id: I2c0480d9cca9eeb173b5b3441a5aeed6f527e0ac
+    Reviewed-on: https://go-review.googlesource.com/40400
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/runtime/map_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/database/sql/sql.go      | 18 +++++++++++++-----
+ src/database/sql/sql_test.go |  1 -
+ 2 files changed, 13 insertions(+), 6 deletions(-)

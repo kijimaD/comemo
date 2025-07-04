@@ -1,25 +1,19 @@
-commit 313a4b2b7f6479f13c4d460aebe514aa86543e21
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 15 14:54:24 2017 -0800
+commit 273b657b4e970f510afb258aa73dc2e264a701e3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Oct 1 20:28:53 2017 -0400
 
-    runtime: buffered write barrier for mips
+    cmd/link: support -X values for main.* in plugins
     
-    Updates #22460.
+    Fixes #19418
     
-    Change-Id: Ieaca94385c3bb88dcc8351c3866b4b0e2a1412b5
-    Reviewed-on: https://go-review.googlesource.com/92701
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I98205f40c1915cd68a5d20438469ba06f1efb160
+    Reviewed-on: https://go-review.googlesource.com/67432
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/main.go         |   2 +-
- src/cmd/compile/internal/mips/ssa.go        |   5 ++
- src/cmd/compile/internal/ssa/gen/MIPS.rules |   3 +
- src/cmd/compile/internal/ssa/gen/MIPSOps.go |   6 ++
- src/cmd/compile/internal/ssa/opGen.go       |  15 +++++
- src/cmd/compile/internal/ssa/rewriteMIPS.go |  20 ++++++
- src/cmd/vet/all/whitelist/mips.txt          |   2 +-
- src/cmd/vet/all/whitelist/mipsle.txt        |   2 +-
- src/cmd/vet/all/whitelist/mipsx.txt         |   4 +-
- src/runtime/asm_mipsx.s                     | 101 ++++++++++++++++++++++++++++
- 10 files changed, 156 insertions(+), 4 deletions(-)
+ misc/cgo/testplugin/src/issue19418/main.go   | 29 ++++++++++++++++++++++++++++
+ misc/cgo/testplugin/src/issue19418/plugin.go |  7 +++++++
+ misc/cgo/testplugin/test.bash                |  5 +++++
+ src/cmd/link/internal/ld/data.go             |  6 +++++-
+ 4 files changed, 46 insertions(+), 1 deletion(-)

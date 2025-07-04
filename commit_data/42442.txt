@@ -1,18 +1,22 @@
-commit 9326d71874730901c159643703a16dc34646e5bd
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jun 2 13:56:26 2020 -0400
+commit 26f8b7074b314f45c2ccaab9dcc0f5730fe8bb68
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Dec 23 13:47:20 2019 +0100
 
-    doc/go1.15: add release notes for new linker
+    testing: document that benchmark logs are dumped to stdout
     
-    Add a blurb to the release notes describing improvements made to the
-    Go linker in the most recent development cycle.
+    The doc for testing.T and testing.B said that both test and benchmark
+    logs are printed to stderr, but in reality that wasn't the case.
     
-    Updates #37419.
+    CL 24311 fixed the doc for T, this change fixes it for B.
     
-    Change-Id: I3b870f0c00efc0b7b33aab2631d8c4e1c273922d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236159
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Fixes #36257
+    
+    Change-Id: I0ff77ff44608f60320a1565b371c81e96039e71c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212457
+    Reviewed-by: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.15.html | 30 ++++++++++++++++++++++++++++--
- 1 file changed, 28 insertions(+), 2 deletions(-)
+ src/testing/benchmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

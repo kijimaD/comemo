@@ -1,19 +1,13 @@
-commit 4e10ce45f5ea4f1328876c0defd7d8c8150fc397
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 28 16:47:17 2019 -0500
+commit 46cf91a75fc0a516eb76b66b1a61202f3546bd7e
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Sun Oct 7 00:58:08 2018 +0900
 
-    go/build: set GO111MODULE=off explicitly in TestImportVendor*
+    all: fix typos
     
-    These tests check for GOPATH-mode vendoring behavior, so make sure
-    they're in GOPATH mode.
-    
-    Updates #30228
-    
-    Change-Id: I646f59b67cb76dacd07adc3f6ed15ed63f4e22a4
-    Reviewed-on: https://go-review.googlesource.com/c/164620
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I775eb4b33422a95f4255799d551c9962d7e181d3
+    Reviewed-on: https://go-review.googlesource.com/c/140318
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/build/build_test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/go/types/typexpr.go        |  2 +-
+ src/os/user/cgo_lookup_unix.go | 10 ++++------
+ 2 files changed, 5 insertions(+), 7 deletions(-)

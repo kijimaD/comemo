@@ -1,17 +1,19 @@
-commit 47d2a4dafa6e84f834f677790449c3c5998a5b98
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Feb 4 21:20:23 2017 -0800
+commit a3faa80033ae2ffa3ee56439759f0ea0200a3a3e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 09:21:06 2016 -0400
 
-    cmd/compile: remove walkmul
+    cmd/go: bypass install to os.DevNull entirely, test mayberemovefile(os.DevNull)
     
-    Replace with generic rewrite rules.
+    Fixes #16811.
     
-    Change-Id: I3ee32076cfd9db5801f1a7bdbb73a994255884a9
-    Reviewed-on: https://go-review.googlesource.com/36323
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I7d018015f691838482ccf845d621209b96935ba4
+    Reviewed-on: https://go-review.googlesource.com/31657
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/cmd/compile/internal/gc/walk.go            |  88 ++----------
- src/cmd/compile/internal/ssa/gen/generic.rules |  10 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 180 +++++++++++++++++++++++++
- 3 files changed, 198 insertions(+), 80 deletions(-)
+ src/cmd/go/build.go      |  5 +++++
+ src/cmd/go/build_test.go | 25 +++++++++++++++++++++++++
+ src/cmd/go/go_test.go    |  3 ---
+ 3 files changed, 30 insertions(+), 3 deletions(-)

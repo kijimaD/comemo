@@ -1,17 +1,35 @@
-commit aeaa4c3c1da9e7a4afd4152913d6f2bfcf4fad2d
+commit 36c164ec9c8597ec3507bb4aa9390603e9d29f7a
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 22 01:43:38 2016 +0000
+Date:   Tue Sep 27 18:28:29 2016 +0000
 
-    net/http: skip TestLinuxSendfile on mips64 for now
+    vendor: add golang.org/x/text/unicode/norm + x/test/width for IDNA support
     
-    See issues for details. We can expand this test during the Go 1.9
-    cycle.
+    Add golang.org/x/text/unicode/norm from x/text git rev a7c02369.
     
-    Updates #18008
+    Needed by net/http for IDNA normalization.
     
-    Change-Id: I78b6b7e8dede414769be97898e29f969bc2a9651
-    Reviewed-on: https://go-review.googlesource.com/33430
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #13835
+    
+    Change-Id: I8b024e179d573f2b093c209a4b9e4f71f7d4a1f2
+    Reviewed-on: https://go-review.googlesource.com/29859
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/net/http/fs_test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ .../golang_org/x/text/transform/transform.go       |  705 ++
+ .../golang_org/x/text/unicode/norm/composition.go  |  514 ++
+ .../golang_org/x/text/unicode/norm/forminfo.go     |  256 +
+ src/vendor/golang_org/x/text/unicode/norm/input.go |  105 +
+ src/vendor/golang_org/x/text/unicode/norm/iter.go  |  450 ++
+ .../golang_org/x/text/unicode/norm/normalize.go    |  608 ++
+ .../golang_org/x/text/unicode/norm/readwriter.go   |  126 +
+ .../golang_org/x/text/unicode/norm/tables.go       | 7627 ++++++++++++++++++++
+ .../golang_org/x/text/unicode/norm/transform.go    |   88 +
+ src/vendor/golang_org/x/text/unicode/norm/trie.go  |   54 +
+ .../golang_org/x/text/unicode/norm/triegen.go      |  117 +
+ src/vendor/golang_org/x/text/width/kind_string.go  |   16 +
+ src/vendor/golang_org/x/text/width/tables.go       | 1284 ++++
+ src/vendor/golang_org/x/text/width/transform.go    |  239 +
+ src/vendor/golang_org/x/text/width/trieval.go      |   30 +
+ src/vendor/golang_org/x/text/width/width.go        |  206 +
+ 16 files changed, 12425 insertions(+)

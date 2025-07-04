@@ -1,12 +1,18 @@
-commit d691a31ec1f8cd7a38a781714a82d55dcaf8eb6c
-Author: Jeff Dupont <jeff.dupont@gmail.com>
-Date:   Wed Jul 26 20:27:53 2017 -0700
+commit a39bcecea6660d3c6d9770516df441c3f8fc47f5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 22 12:17:21 2017 -0400
 
-    path: add example for Match
+    [release-branch.go1.9] cmd/go: reject update of VCS inside VCS
     
-    Change-Id: I5ab475011e9200c5055809e658d14c04c0a07a8a
-    Reviewed-on: https://go-review.googlesource.com/51413
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Cherry-pick of CL 68110.
+    
+    Change-Id: Iae84c6404ab5eeb6950faa2364f97a017c67c506
+    Reviewed-on: https://go-review.googlesource.com/68022
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/path/example_test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/go/go_test.go          | 19 ++++++++++++++
+ src/cmd/go/internal/get/get.go |  5 ++++
+ src/cmd/go/internal/get/vcs.go | 58 +++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 81 insertions(+), 1 deletion(-)

@@ -1,89 +1,52 @@
-commit aa51c40b1cc62d53603d7b7aea3232969aa40afe
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 12 09:30:38 2023 -0500
+commit d82c294da778a789099f3b52cd9c34ef0d798465
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Feb 8 09:09:36 2022 -0600
 
-    runtime: replace panic(nil) with panic(new(runtime.PanicNilError))
+    runtime: fix 32B backward copy on ppc64x
     
-    Long ago we decided that panic(nil) was too unlikely to bother
-    making a special case for purposes of recover. Unfortunately,
-    it has turned out not to be a special case. There are many examples
-    of code in the Go ecosystem where an author has written panic(nil)
-    because they want to panic and don't care about the panic value.
+    The test to enter the 32b copy loop always fails, and execution
+    falls back to a single 8B/iteration copy loop for copies of more
+    than 7 bytes. Likewise, the 32B loop has SRC/DST args mixed,
+    and fails to truncate DWORDS after completing.
     
-    Using panic(nil) in this case has the unfortunate behavior of
-    making recover behave as though the goroutine isn't panicking.
-    As a result, code like:
+    Fix these, and unroll the 8B/iteration loop as it will only
+    execute 1-3 times if reached.
     
-            func f() {
-                    defer func() {
-                            if err := recover(); err != nil {
-                                    log.Fatalf("panicked! %v", err)
-                            }
-                    }()
-                    call1()
-                    call2()
-            }
+    POWER10 benchmarks:
     
-    looks like it guarantees that call2 has been run any time f returns,
-    but that turns out not to be strictly true. If call1 does panic(nil),
-    then f returns "successfully", having recovered the panic, but
-    without calling call2.
+    name                             old speed      new speed       delta
+    MemmoveOverlap/32                5.28GB/s ± 0%  10.37GB/s ± 0%   +96.22%
+    MemmoveOverlap/64                5.97GB/s ± 0%  18.15GB/s ± 0%  +203.95%
+    MemmoveOverlap/128               7.67GB/s ± 0%  24.35GB/s ± 0%  +217.41%
+    MemmoveOverlap/256               14.1GB/s ± 0%   25.0GB/s ± 0%   +77.48%
+    MemmoveOverlap/512               14.2GB/s ± 0%   30.9GB/s ± 0%  +118.19%
+    MemmoveOverlap/1024              12.3GB/s ± 0%   36.4GB/s ± 0%  +194.75%
+    MemmoveOverlap/2048              13.7GB/s ± 0%   48.8GB/s ± 0%  +255.24%
+    MemmoveOverlap/4096              14.1GB/s ± 0%   43.4GB/s ± 0%  +208.80%
+    MemmoveUnalignedDstOverlap/32    5.07GB/s ± 0%   3.78GB/s ± 0%   -25.33%
+    MemmoveUnalignedDstOverlap/64    6.00GB/s ± 0%   9.59GB/s ± 0%   +59.78%
+    MemmoveUnalignedDstOverlap/128   7.66GB/s ± 0%  13.51GB/s ± 0%   +76.42%
+    MemmoveUnalignedDstOverlap/256   13.4GB/s ± 0%   24.3GB/s ± 0%   +80.92%
+    MemmoveUnalignedDstOverlap/512   13.9GB/s ± 0%   30.3GB/s ± 0%  +118.29%
+    MemmoveUnalignedDstOverlap/1024  12.3GB/s ± 0%   37.3GB/s ± 0%  +203.07%
+    MemmoveUnalignedDstOverlap/2048  13.7GB/s ± 0%   45.9GB/s ± 0%  +235.39%
+    MemmoveUnalignedDstOverlap/4096  13.9GB/s ± 0%   41.2GB/s ± 0%  +196.34%
+    MemmoveUnalignedSrcOverlap/32    5.13GB/s ± 0%   5.18GB/s ± 0%    +0.98%
+    MemmoveUnalignedSrcOverlap/64    6.26GB/s ± 0%   9.53GB/s ± 0%   +52.29%
+    MemmoveUnalignedSrcOverlap/128   7.94GB/s ± 0%  18.40GB/s ± 0%  +131.76%
+    MemmoveUnalignedSrcOverlap/256   14.1GB/s ± 0%   25.5GB/s ± 0%   +81.40%
+    MemmoveUnalignedSrcOverlap/512   14.2GB/s ± 0%   30.9GB/s ± 0%  +116.76%
+    MemmoveUnalignedSrcOverlap/1024  12.4GB/s ± 0%   46.4GB/s ± 0%  +275.22%
+    MemmoveUnalignedSrcOverlap/2048  13.7GB/s ± 0%   48.7GB/s ± 0%  +255.16%
+    MemmoveUnalignedSrcOverlap/4096  14.0GB/s ± 0%   43.2GB/s ± 0%  +208.89%
     
-    Instead you have to write something like:
-    
-            func f() {
-                    done := false
-                    defer func() {
-                            if err := recover(); !done {
-                                    log.Fatalf("panicked! %v", err)
-                            }
-                    }()
-                    call1()
-                    call2()
-                    done = true
-            }
-    
-    which defeats nearly the whole point of recover. No one does this,
-    with the result that almost all uses of recover are subtly broken.
-    
-    One specific broken use along these lines is in net/http, which
-    recovers from panics in handlers and sends back an HTTP error.
-    Users discovered in the early days of Go that panic(nil) was a
-    convenient way to jump out of a handler up to the serving loop
-    without sending back an HTTP error. This was a bug, not a feature.
-    Go 1.8 added panic(http.ErrAbortHandler) as a better way to access the feature.
-    Any lingering code that uses panic(nil) to abort an HTTP handler
-    without a failure message should be changed to use http.ErrAbortHandler.
-    
-    Programs that need the old, unintended behavior from net/http
-    or other packages can set GODEBUG=panicnil=1 to stop the run-time error.
-    
-    Uses of recover that want to detect panic(nil) in new programs
-    can check for recover returning a value of type *runtime.PanicNilError.
-    
-    Because the new GODEBUG is used inside the runtime, we can't
-    import internal/godebug, so there is some new machinery to
-    cross-connect those in this CL, to allow a mutable GODEBUG setting.
-    That won't be necessary if we add any other mutable GODEBUG settings
-    in the future. The CL also corrects the handling of defaulted GODEBUG
-    values in the runtime, for #56986.
-    
-    Fixes #25448.
-    
-    Change-Id: I2b39c7e83e4f7aa308777dabf2edae54773e03f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461956
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I9fc6956ff454a2856d56077d1014388fb74c1f52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384074
+    Trust: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
 
- api/next/25448.txt                |   3 +
- doc/go_spec.html                  |  20 ++---
- src/builtin/builtin.go            |   4 +
- src/net/http/clientserver_test.go |   4 +-
- src/runtime/panic.go              |  21 +++++
- src/runtime/panicnil_test.go      |  36 +++++++++
- src/runtime/runtime.go            |  22 +++---
- src/runtime/runtime1.go           | 159 ++++++++++++++++++++++++++++----------
- test/fixedbugs/issue19658.go      |   5 +-
- 9 files changed, 207 insertions(+), 67 deletions(-)
+ src/runtime/memmove_ppc64x.s | 46 +++++++++++++++++++++++---------------------
+ 1 file changed, 24 insertions(+), 22 deletions(-)

@@ -1,21 +1,19 @@
-commit c837e612bd449cd7298ce925749b9f09b54fea48
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jan 19 13:51:37 2012 -0800
+commit c354f93b93294406f92fecdc9913b7c050472894
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jan 19 15:51:29 2012 -0500
 
-    text/template/parse: use human error prints
-    The previous version of all the node.String methods printed the parse
-    tree and was useful for developing the parse tree code. Now that that's done,
-    we might as well print the nodes using the standard template syntax.
-    It's much easier to read and makes error reporting look more natural.
+    runtime: madvise and SysUnused for Darwin
     
-    Helps issue 2644.
+    SysUnused is a direct call to madvise MADV_FREE.
     
-    R=rsc, n13m3y3r
+    R=sebastien.paolacci, rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5553066
+    https://golang.org/cl/5531073
 
- src/pkg/html/template/escape_test.go      | 26 ++++++------
- src/pkg/text/template/multi_test.go       |  4 +-
- src/pkg/text/template/parse/node.go       | 67 +++++++++++++++++++++++--------
- src/pkg/text/template/parse/parse_test.go | 56 +++++++++++++-------------
- 4 files changed, 92 insertions(+), 61 deletions(-)
+ src/pkg/runtime/defs_darwin.go      |  3 +++
+ src/pkg/runtime/defs_darwin_386.h   |  3 +++
+ src/pkg/runtime/defs_darwin_amd64.h |  3 +++
+ src/pkg/runtime/mem_darwin.c        |  5 ++---
+ src/pkg/runtime/sys_darwin_386.s    |  7 +++++++
+ src/pkg/runtime/sys_darwin_amd64.s  | 10 ++++++++++
+ 6 files changed, 28 insertions(+), 3 deletions(-)

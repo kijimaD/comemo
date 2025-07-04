@@ -1,29 +1,26 @@
-commit 0c02bc009a65763a5015e7efb95baec84bb79e8d
+commit 3a2fc06833a346a7c3b071a984b5265b7ea1da57
 Author: Austin Clements <austin@google.com>
-Date:   Fri Feb 12 10:33:51 2016 -0500
+Date:   Wed Nov 18 13:20:35 2015 -0500
 
-    runtime: show panics in traceback
+    runtime: handle sigprof in stackBarrier
     
-    We used to include panic calls in tracebacks; however, when
-    runtime.panic was renamed to runtime.gopanic in the conversion of the
-    runtime to Go, we missed the special case in showframe that includes
-    panic calls even though they're in package runtime.
+    Currently, if a profiling signal happens in the middle of
+    stackBarrier, gentraceback may see inconsistencies between stkbar and
+    the barriers on the stack and it will certainly get the wrong return
+    PC for stackBarrier. In most cases, the return PC won't be a PC at all
+    and this will immediately abort the traceback (which is considered
+    okay for a sigprof), but if it happens to be a valid PC this may sent
+    gentraceback down a rabbit hole.
     
-    Fix the function name check in showframe (and, while we're here, fix
-    the other check for "runtime.panic" in runtime/pprof). Since the
-    "runtime.gopanic" name doesn't match what users call panic and hence
-    isn't very user-friendly, make traceback rewrite it to just "panic".
+    Fix this by detecting when the gentraceback starts in stackBarrier and
+    simulating the completion of the barrier to get the correct initial
+    frame.
     
-    Updates #5832, #13857. Fixes #14315.
-    
-    Change-Id: I8059621b41ec043e63d5cfb4cbee479f47f64973
-    Reviewed-on: https://go-review.googlesource.com/19492
+    Change-Id: Ib11f705ac9194925f63fe5dfbfc84013a38333e6
+    Reviewed-on: https://go-review.googlesource.com/17035
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/crash_test.go                 | 19 +++++++++++++++++++
- src/runtime/pprof/pprof.go                |  2 +-
- src/runtime/testdata/testprog/deadlock.go | 20 +++++++++++++++++++-
- src/runtime/traceback.go                  | 10 +++++++---
- 4 files changed, 46 insertions(+), 5 deletions(-)
+ src/runtime/traceback.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

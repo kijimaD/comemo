@@ -1,27 +1,25 @@
-commit 05a3b1fce56a95e40512bae9f62656098f198834
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 24 13:35:49 2015 -0400
+commit 6c14059e65b180e3aaf34774b67ddffa461cf3c2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jul 4 09:07:54 2015 -0700
 
-    cmd/compile: fix uninitialized memory in compare of interface value
+    [dev.ssa] cmd/compile/ssa: handle loops that don't loop
     
-    A comparison of the form l == r where l is an interface and r is
-    concrete performs a type assertion on l to convert it to r's type.
-    However, the compiler fails to zero the temporary where the result of
-    the type assertion is written, so if the type is a pointer type and a
-    stack scan occurs while in the type assertion, it may see an invalid
-    pointer on the stack.
+    Loops such as
     
-    Fix this by zeroing the temporary. This is equivalent to the fix for
-    type switches from c4092ac.
+    func f(c chan int) int {
+            for x := range c {
+                    return x
+            }
+            return 0
+    }
     
-    Fixes #12253.
+    don't loop. Remove the assumption that they must.
     
-    Change-Id: Iaf205d456b856c056b317b4e888ce892f0c555b9
-    Reviewed-on: https://go-review.googlesource.com/13872
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Partly fixes the build.
+    
+    Change-Id: I766cebeec8e36d14512bea26f54c06c8eaf95e23
+    Reviewed-on: https://go-review.googlesource.com/11876
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/walk.go |  5 +++++
- src/runtime/export_test.go          |  1 +
- src/runtime/gc_test.go              | 17 +++++++++++++++++
- src/runtime/iface.go                |  5 +++++
- 4 files changed, 28 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

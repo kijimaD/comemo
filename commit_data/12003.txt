@@ -1,14 +1,14 @@
-commit 649f771b7b3538711bc8954c4a6f726d89c1226a
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Feb 17 11:42:02 2012 +0400
+commit b8f465644cc075b742b8af2eea1e7362e6c38497
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 17 17:05:41 2012 +1100
 
-    net/rpc: fix spurious panic in test
-    The panic happens if -benchtime flag is specified:
-    go test -bench=EndToEndAsyncHTTP -benchtime=120
+    runtime: silence warnings
     
-    R=golang-dev, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5677075
+    https://golang.org/cl/5656084
 
- src/pkg/net/rpc/server_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/signal_plan9_386.c     | 1 +
+ src/pkg/runtime/signal_windows_386.c   | 1 +
+ src/pkg/runtime/signal_windows_amd64.c | 1 +
+ 3 files changed, 3 insertions(+)

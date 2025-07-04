@@ -1,14 +1,17 @@
-commit 8be5e8a419d12185b410e881271875a2612dd2d5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Aug 4 16:11:53 2012 +0400
+commit dee5adcf74d249adf1d6ba83eb906dbb60e2ee4f
+Author: Michał Derkacz <ziutek@lnet.pl>
+Date:   Fri Aug 3 16:15:11 2012 -0400
 
-    cmd/cc: allow to call nested packages from within C code
-    E.g. sync/atomic.LoadInt32() can be called as sync»atomic·LoadInt32()
+    5a, 5l, math: Add support for ABSD, ABSF floating point instructions.
     
-    R=rsc
+    R=golang-dev, dave, rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6448057
+    https://golang.org/cl/6225051
 
- src/cmd/cc/lex.c   | 7 ++++++-
- src/cmd/cc/lexbody | 7 ++++++-
- 2 files changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/5a/lex.c                |  4 ++--
+ src/cmd/5l/5.out.h              |  2 ++
+ src/cmd/5l/asm.c                |  4 +++-
+ src/cmd/5l/softfloat.c          |  2 ++
+ src/cmd/5l/span.c               |  2 ++
+ src/pkg/runtime/softfloat_arm.c | 17 +++++++++++++++++
+ 6 files changed, 28 insertions(+), 3 deletions(-)

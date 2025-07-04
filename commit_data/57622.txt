@@ -1,21 +1,20 @@
-commit ef14ba3e68c166596963bc26187e118cf79375cf
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Aug 25 14:00:18 2024 +0200
+commit 69285cd778274a08469f1fe38157a22f2c29ce0b
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Aug 19 18:59:04 2023 -0400
 
-    crypto/rand: use runtime.getRandomData on js/wasm
+    cmd/compile/internal/gc: remove unused reflectdata import
     
-    This mechanism ultimately calls the same JavaScript method, but being
-    consistent between runtime and crypto/rand lets us reuse test coverage
-    across them. Also, no allocations.
+    CL 521036 was prepared and tested before the revert CL 521155,
+    and it so happens that the reflectdata import ended up unused.
+    Drop it to fix the build.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-js-wasm
-    Change-Id: I035da1ed603fbcdad61945f2b57f3fb527a959fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608396
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Change-Id: I230c8fee616fc58cc82f3e5da886bcee2e02a3d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521175
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
 
- src/crypto/rand/rand_js.go   | 43 +++++++++++++------------------------------
- src/crypto/rand/rand_test.go |  3 ---
- 2 files changed, 13 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 1 -
+ 1 file changed, 1 deletion(-)

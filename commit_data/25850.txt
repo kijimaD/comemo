@@ -1,19 +1,16 @@
-commit ef3c45adfcd91375765e662d875b71f65d455016
+commit 09e900eb334ec5f0f1cfffb063c4ebce046e892f
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 23 11:15:56 2016 -0800
+Date:   Wed Nov 25 13:18:49 2015 -0800
 
-    text/tabwriter: clarify documentation
+    spec: clarify that iota is incremented even if not used in a const spec
     
-    More clearly distinguish between tab-terminated cells
-    which are part of an (aligned) column, and non-tab terminated
-    cells which are not part of a column. Added additional examples.
+    Slightly modified an example.
     
-    For #14412.
+    Fixes #13371.
     
-    Change-Id: If72607385752e221eaa2518238b11f48fbcb8a90
-    Reviewed-on: https://go-review.googlesource.com/19855
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I25d260d4200086a0ef9725950132b760657610c5
+    Reviewed-on: https://go-review.googlesource.com/17209
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/text/tabwriter/example_test.go | 35 +++++++++++++++++++++++++++++++++
- src/text/tabwriter/tabwriter.go    | 40 +++++++++++++++++++++++++-------------
- 2 files changed, 62 insertions(+), 13 deletions(-)
+ doc/go_spec.html | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

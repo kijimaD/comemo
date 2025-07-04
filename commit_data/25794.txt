@@ -1,16 +1,19 @@
-commit 4e6e8e8c582bcd7d74378be31f070eecf0f1d5e4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Feb 19 18:39:25 2016 -0800
+commit 2221bc35cf5b133071feea7013b4c6509ae3b563
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Sat Nov 21 17:09:08 2015 -0800
 
-    cmd/compile: change two pushedio.bin tests to use importpkg instead
+    html/template: Add missing error check to package example.
     
-    pushedio.bin and importpkg are both non-nil iff we're parsing an
-    package's export data, so "pushedio.bin == nil" and "importpkg == nil"
-    are equivalent tests.
+    This appears to be an unintended omission. The check func is declared
+    just above, and the err value from template.Parse is captured rather
+    than discarded via blank identifier. All following calls that similarly
+    return err are checked, so it can't be that this example elides error
+    checking for brevity. Finally, if you look at Example_autoescaping,
+    it does check err from template.Parse and its code is very similar.
     
-    Change-Id: I571ee908fef867117ef72c5da1eb24fe9b3fd12d
-    Reviewed-on: https://go-review.googlesource.com/19751
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I076e1846302d5f2cdb1d027ed85ca0db85e33ace
+    Reviewed-on: https://go-review.googlesource.com/17170
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/html/template/example_test.go | 1 +
+ 1 file changed, 1 insertion(+)

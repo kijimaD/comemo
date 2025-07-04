@@ -1,22 +1,85 @@
-commit 7f907b9ceecfecb6dfe03878490bd3ae97ba8f2f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 16 11:28:05 2019 -0700
+commit 4091cf972a37418c847426bd15709cd0128fad81
+Author: Segev Finer <segev208@gmail.com>
+Date:   Fri Mar 29 09:35:06 2019 +0000
 
-    cmd/compile: require -lang=go1.14 for overlapping interfaces
+    cmd/doc: correctly indent pre-formatted blocks
     
-    Support for overlapping interfaces is a new (proposed) Go language
-    feature to be supported in Go 1.14, so it shouldn't be supported under
-    -lang=go1.13 or earlier.
+    They were previously indented at the same level as the normal text when
+    printing a single symbol or the description of a field.
     
-    Fixes #34329.
+    Running "go doc text/template Must":
+    Before:
+        func Must(t *Template, err error) *Template
+            Must is a helper that wraps a call to a function returning (*Template,
+            error) and panics if the error is non-nil. It is intended for use in
+            variable initializations such as
     
-    Change-Id: I5fea5716b7d135476980bc40b4f6e8c611b67735
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195678
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+            var t = template.Must(template.New("name").Parse("text"))
+    
+    After:
+        func Must(t *Template, err error) *Template
+            Must is a helper that wraps a call to a function returning (*Template,
+            error) and panics if the error is non-nil. It is intended for use in
+            variable initializations such as
+    
+                var t = template.Must(template.New("name").Parse("text"))
+    
+    Running "go doc http Request.Header":
+    Before:
+        type Request struct {
+            // Header contains the request header fields either received
+            // by the server or to be sent by the client.
+            //
+            // If a server received a request with header lines,
+            //
+            // Host: example.com
+            // accept-encoding: gzip, deflate
+            // Accept-Language: en-us
+            // fOO: Bar
+            // foo: two
+            //
+            // then
+            //
+            // Header = map[string][]string{
+            // "Accept-Encoding": {"gzip, deflate"},
+            // "Accept-Language": {"en-us"},
+            // "Foo": {"Bar", "two"},
+            // }
+            ...
+    
+    After:
+        type Request struct {
+            // Header contains the request header fields either received by the server or
+            // to be sent by the client.
+            //
+            // If a server received a request with header lines,
+            //
+            //     Host: example.com
+            //     accept-encoding: gzip, deflate
+            //     Accept-Language: en-us
+            //     fOO: Bar
+            //     foo: two
+            //
+            // then
+            //
+            //     Header = map[string][]string{
+            //          "Accept-Encoding": {"gzip, deflate"},
+            //          "Accept-Language": {"en-us"},
+            //          "Foo": {"Bar", "two"},
+            //     }
+            ...
+    
+    Fixes #29708
+    
+    Change-Id: Ibe1a6a7a76d6b19c5737ba6e8210e3ad0b88ce16
+    GitHub-Last-Rev: 439c0fe70a01490cbd9c3613eba3fe45a3ffd9be
+    GitHub-Pull-Request: golang/go#31120
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169957
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/align.go |  2 +-
- src/go/types/stdlib_test.go          |  1 +
- test/fixedbugs/issue34329.go         | 14 ++++++++++++++
- 3 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/doc/doc_test.go     | 31 +++++++++++++++++++++++++++++++
+ src/cmd/doc/pkg.go          | 12 +++++++++---
+ src/cmd/doc/testdata/pkg.go | 22 ++++++++++++++++++++++
+ 3 files changed, 62 insertions(+), 3 deletions(-)

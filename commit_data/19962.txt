@@ -1,19 +1,15 @@
-commit d6d7170de414c16a7ea0125b5a458272557227b6
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 8 20:13:57 2014 +0400
+commit 3d7e3691207fd9dabfe12a560ecac473e7e59737
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 7 12:33:20 2014 -0700
 
-    runtime: fix data race in stackalloc
-    Stack shrinking happens during mark phase,
-    and it assumes that it owns stackcache in mcache.
-    Stack cache flushing also happens during mark phase,
-    and it accesses stackcache's w/o any synchronization.
-    This leads to stackcache corruption:
-    http://goperfd.appspot.com/log/309af5571dfd7e1817259b9c9cf9bcf9b2c27610
+    runtime: test distribution of interface hashes.
     
-    LGTM=khr
-    R=khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/126870043
+    LGTM=dvyukov
+    R=dvyukov, khr
+    CC=golang-codereviews
+    https://golang.org/cl/121030043
 
- src/pkg/runtime/stack.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/runtime/alg.go         | 10 +++++++
+ src/pkg/runtime/export_test.go |  2 ++
+ src/pkg/runtime/hash_test.go   | 60 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+)

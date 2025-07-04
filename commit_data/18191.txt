@@ -1,18 +1,15 @@
-commit 89c5d178785bd7884dbb14d73f85f600196d6cb6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 8 12:36:31 2014 -0800
+commit e7c21703a86458121545b814c49383bc903acfc8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 8 11:28:40 2014 -0800
 
-    runtime: handle gdb breakpoint in x86 traceback
+    archive/zip: new test for earlier zip64 fix
     
-    This lets stack splits work correctly when running under gdb
-    when gdb has inserted a breakpoint somewhere on the call
-    stack.
+    Update #7069
     
-    Fixes #6834.
-    
-    R=golang-codereviews, minux.ma
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/48650043
+    https://golang.org/cl/49180043
 
- src/pkg/runtime/sys_x86.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/pkg/archive/zip/reader_test.go       |  14 +++++++++++++-
+ src/pkg/archive/zip/testdata/zip64-2.zip | Bin 0 -> 266 bytes
+ 2 files changed, 13 insertions(+), 1 deletion(-)

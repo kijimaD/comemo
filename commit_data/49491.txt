@@ -1,38 +1,61 @@
-commit 7bad61554ec6da4ba4cbad443074360408890603
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jun 16 20:33:35 2022 +0000
+commit 22540abf76a693bc9e4c550203d8ccbaa60c12e2
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Mon Aug 23 13:53:22 2021 +0200
 
-    runtime: write much more direct test for semaphore waiter scalability
+    runtime: use RDTSCP for instruction stream serialized read of TSC
     
-    This test originally existed as two tests in test/locklinear.go, but
-    this checked against actual locks and was flaky. The test was checking
-    a property of a deep part of the runtime but from a much higher level,
-    and it's easy for nondeterminism due to scheduling to completely mess
-    that up, especially on an oversubscribed system.
+    To measure all instructions having been completed before reading
+    the time stamp counter with RDTSC an instruction sequence that
+    has instruction stream serializing properties which guarantee
+    waiting until all previous instructions have been executed is
+    needed. This does not necessary mean to wait for all stores to
+    be globally visible.
     
-    That test was then moved to the sync package with a more rigorous
-    testing methodology, but it could still flake pretty easily.
+    This CL aims to remove vendor specific logic for determining the
+    instruction sequence with CPU feature flag checks that are
+    CPU vendor independent.
     
-    Finally, this CL makes semtable more testable, exports it in
-    export_test.go, then writes a very direct scalability test for exactly
-    the situation the original test described. As far as I can tell, this is
-    much, much more stable, because it's single-threaded and is just
-    checking exactly the algorithm we need to check.
+    For intel LFENCE has the wanted properties at least
+    since it was introduced together with SSE2 support.
     
-    Don't bother trying to bring in a test that checks for O(log n) behavior
-    on the other kind of iteration. It'll be perpetually flaky because the
-    underlying data structure is a treap, so it's only _expected_ to be
-    O(log n), but it's very easy for it to get unlucky without a large
-    number of iterations that's too much for a simple test.
+    On AMD instruction stream serializing LFENCE is supported by setting
+    an MSR C001_1029[1]=1 on AMD family 10h/12h/14h/15h/16h/17h processors.
+    AMD family 0Fh/11h processors support LFENCE as serializing always.
+    AMD plans support for this MSR and access to this bit for all future processors.
+    Source: https://developer.amd.com/wp-content/resources/Managing-Speculation-on-AMD-Processors.pdf
     
-    Fixes #53381.
+    Reading the MSR to determine LFENCE properties is not always possible
+    or reliable (hypervisors). The Linux kernel is relying on serializing
+    LFENCE on AMD CPUs since a commit in July 2019: https://lkml.org/lkml/2019/7/22/295
+    and the MSR C001_1029 to enable serialization has been set by default
+    with the Spectre v1 mitigations.
     
-    Change-Id: Ia1cd2d2b0e36d552d5a8ae137077260a16016602
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412875
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Using an MFENCE on AMD is waiting on previous instructions having been executed
+    but in addition also flushes store buffers.
+    
+    To align the serialization properties without runtime detection
+    of CPU manufacturers we can use the newer RDTSCP instruction which
+    waits until all previous instructions have been executed.
+    
+    RDTSCP is available on Intel since around 2008 and on AMD CPUs since
+    around 2006. Support for RDTSCP can be checked independently
+    of manufacturer by checking CPUID bits.
+    
+    Using RDTSCP is the default in Linux to read TSC in program order
+    when the instruction is available.
+    https://github.com/torvalds/linux/blob/e22ce8eb631bdc47a4a4ea7ecf4e4ba499db4f93/arch/x86/include/asm/msr.h#L231
+    
+    Change-Id: Ifa841843b9abb2816f8f0754a163ebf01385306d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344429
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/export_test.go |  30 +++++++++++-
- src/runtime/sema.go        |  18 ++++----
- src/runtime/sema_test.go   |  44 ++++++++++++++++++
- src/sync/mutex_test.go     | 112 ---------------------------------------------
- 4 files changed, 83 insertions(+), 121 deletions(-)
+ src/internal/cpu/cpu.go     |  1 +
+ src/internal/cpu/cpu_x86.go | 14 ++++++++++++++
+ src/runtime/asm_386.s       | 37 +++++++++++++++++++++++++------------
+ src/runtime/asm_amd64.s     | 30 +++++++++++++++++++-----------
+ src/runtime/cpuflags.go     |  9 +++++----
+ src/runtime/runtime2.go     |  1 -
+ 6 files changed, 64 insertions(+), 28 deletions(-)

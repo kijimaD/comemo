@@ -1,20 +1,17 @@
-commit 45e87cd3ecfe5e579a06493ef8cd43ce9947262c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Apr 4 12:20:35 2021 -0400
+commit e6426dfd6dbc47ba23b8a91003b8f947c5afa692
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 17 16:05:52 2020 +0200
 
-    cmd/compile: disable tail call for method wrappers when RegabiArgs is enabled
+    net: use IFF_* consts from package syscall on solaris
     
-    Currently, the IR of tailcall does not connect the arguments with
-    the OTAILCALL node, so the arguments are not marshaled correctly.
-    Disable tail call for now.
+    All necessary IFF_* consts are available in the syscall package. Use
+    them in linkFlags instead of duplicating them.
     
-    Updates #40724.
-    
-    Change-Id: I39de3ea8e19a23eb63768ab7282d2f870e9c266e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307234
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ibd2b0f6f39f98bfad2a0c8c55d1eb64167aeee03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255497
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/net/interface_solaris.go | 28 +++++-----------------------
+ 1 file changed, 5 insertions(+), 23 deletions(-)

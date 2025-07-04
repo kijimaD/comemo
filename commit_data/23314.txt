@@ -1,16 +1,15 @@
-commit 1f029fa6d35e5ab6322ffae6562c0c6a3c23a2f7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 10 11:19:14 2015 -0700
+commit f09a660eab357ce1030261682048bbe119589d84
+Author: Rick Hudson <rlh@golang.org>
+Date:   Wed May 6 09:10:27 2015 -0400
 
-    archive/zip: clarify that CreateHeader takes ownership of FileHeader
+    runtime: remove unused GC times from api.next
     
-    Fixes #11144
+    Updates api boilerplate in seperate CL see commit 1845314 for code changes.
+    Fixes #10462
     
-    Change-Id: I1da0b72ef00a84c9b5751be0e72ad07d664bc98b
-    Reviewed-on: https://go-review.googlesource.com/10883
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I4e28dbdcdd693688835bcd1d4b0224454aa7154d
+    Reviewed-on: https://go-review.googlesource.com/9784
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/archive/zip/writer.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ api/next.txt | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,12 +1,12 @@
-commit 97235a769f14db07eee47dbbd1abfacd440bfdbb
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Feb 13 14:32:45 2012 +1100
+commit 62fe6914cb7580fbe57086882f1f99a943695396
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Feb 13 01:21:39 2012 -0200
 
-    builder: really set $GOBUILDEXIT for Windows
+    os: clarify docs for link functions
     
-    R=golang-dev, rsc
+    R=golang-dev, bsiegert, r
     CC=golang-dev
-    https://golang.org/cl/5649074
+    https://golang.org/cl/5643068
 
- misc/dashboard/builder/main.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/os/file_posix.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

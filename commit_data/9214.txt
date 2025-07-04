@@ -1,12 +1,12 @@
-commit 2fc962697a3a363e9b79a672d7b999332a6d0b9e
+commit 7e1101d470a21b2023e4363cc277836b50d3763f
 Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 26 14:45:36 2011 -0700
+Date:   Tue Jul 26 14:44:51 2011 -0700
 
-    goinstall: generate makefiles using exp/template
+    rpc: convert /debug/rpc handler to exp/template
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4809052
+    https://golang.org/cl/4819048
 
- src/cmd/goinstall/make.go | 53 +++++++++++++++++++++--------------------------
- 1 file changed, 24 insertions(+), 29 deletions(-)
+ src/pkg/rpc/debug.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

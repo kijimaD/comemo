@@ -1,26 +1,27 @@
-commit d144dd785f06300492754d49fb353ab9d5068919
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Sun Nov 26 08:22:22 2017 -0500
+commit 0def0f2e993111308a114bb83604618f218b7c3d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 9 16:12:40 2018 -0500
 
-    net: parse IPv6 address with zone using DefaultResolver.Lookup{Host,IPAddr}
+    runtime: fix abort handling on arm64
     
-    Allow a zone to be included with the ip address that is parsed when
-    using DefaultResolver's LookupHost or LookupIPAddr
+    The implementation of runtime.abort on arm64 currently branches to
+    address 0, which results in a signal from PC 0, rather than from
+    runtime.abort, so the runtime fails to recognize it as an abort.
     
-    Fixes #20790
-    Fixes #20767
+    Fix runtime.abort on arm64 to read from address 0 like what other
+    architectures do and recognize this in the signal handler.
     
-    Change-Id: I4e0baf9ade6a095af10a1b85ca6216788ba680ae
-    Reviewed-on: https://go-review.googlesource.com/79935
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Should fix the linux/arm64 build.
+    
+    Change-Id: I960ab630daaeadc9190287604d4d8337b1ea3853
+    Reviewed-on: https://go-review.googlesource.com/99895
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/cgo_unix.go       |  2 +-
- src/net/dnsconfig_unix.go |  2 +-
- src/net/hosts.go          |  2 +-
- src/net/ip.go             | 60 +++++++++++++++++++++++++++++------------------
- src/net/ipsock.go         | 28 ++++++++--------------
- src/net/lookup.go         | 10 ++++----
- src/net/lookup_test.go    | 26 ++++++++++++++++++++
- 7 files changed, 81 insertions(+), 49 deletions(-)
+ src/runtime/asm_arm64.s          | 3 ++-
+ src/runtime/os3_plan9.go         | 2 +-
+ src/runtime/panic.go             | 6 ++++++
+ src/runtime/signal_sighandler.go | 2 +-
+ src/runtime/signal_windows.go    | 2 +-
+ 5 files changed, 11 insertions(+), 4 deletions(-)

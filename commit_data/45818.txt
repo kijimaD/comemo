@@ -1,19 +1,18 @@
-commit 4d2d89ff42ca07eac5e600a3f5bba8fb137b6e99
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Jun 2 14:39:53 2021 -0700
+commit 5e58ae43bedeae5964e668755049088938320740
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Nov 18 17:07:30 2020 -0500
 
-    cmd/go, go/build: update docs to use //go:build syntax
+    cmd/go: report changes and resolved versions in 'go get'
     
-    Fixes #46124.
+    Fixes #33284
     
-    Change-Id: I6b8179032102a14befc37719f64ddace98397c97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326931
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I33daa5eb518985bc7308f29655e04c57e244b479
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269018
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go               | 42 ++++++++++++++++---------------------
- src/cmd/go/internal/help/helpdoc.go | 42 ++++++++++++++++---------------------
- src/go/build/doc.go                 |  2 +-
- 3 files changed, 37 insertions(+), 49 deletions(-)
+ src/cmd/go/internal/modget/get.go              | 125 +++++++++++++++----------
+ src/cmd/go/testdata/script/mod_get_changes.txt |  70 ++++++++++++++
+ 2 files changed, 145 insertions(+), 50 deletions(-)

@@ -1,18 +1,22 @@
-commit 54049767ae43c0547b53f239164ac95f19a5db06
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 3 15:54:08 2011 -0700
+commit 46308d7d1191b75dc86f848dbc362616f5b0b0cb
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Nov 4 09:29:06 2011 +1100
 
-    httputil: move ReverseProxy out of http
+    html: move <link> element from after <head> into <head>
     
-    http diet plan, continued.
+    Pass tests1.dat, test 85:
+    <head><meta></head><link>
     
-    R=golang-dev, adg
+    | <html>
+    |   <head>
+    |     <meta>
+    |     <link>
+    |   <body>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5305090
+    https://golang.org/cl/5297079
 
- src/pkg/Makefile                                   |  1 -
- src/pkg/net/http/Makefile                          |  3 +--
- src/pkg/net/http/httputil/Makefile                 |  1 +
- src/pkg/net/http/{ => httputil}/reverseproxy.go    | 27 +++++++++++-----------
- .../net/http/{ => httputil}/reverseproxy_test.go   | 12 +++++-----
- 5 files changed, 22 insertions(+), 22 deletions(-)
+ src/pkg/html/parse.go      | 5 ++++-
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

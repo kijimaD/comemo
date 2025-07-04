@@ -1,13 +1,13 @@
-commit 3c831f6395dcda1742c6737e367cd804ea87fd82
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 19 16:10:45 2012 -0500
+commit fa9c44d831edf4f0208c16547e1195ef026f24db
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 20 08:08:30 2012 +1100
 
-    cmd/fix: add runtime renamings
+    doc/install.html: fix link
+    Fixes #3072.
     
-    R=golang-dev, dsymonds, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5685043
+    https://golang.org/cl/5684044
 
- src/cmd/fix/go1rename.go      | 12 ++++++++++++
- src/cmd/fix/go1rename_test.go |  6 ++++++
- 2 files changed, 18 insertions(+)
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

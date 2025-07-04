@@ -1,19 +1,17 @@
-commit e42788628aa787cac8d7c61d593f6a17b9c42d08
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Mon Sep 24 12:24:45 2012 -0400
+commit 2f0661558883e60e148d319d89401d56870a9756
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 10:30:37 2012 -0400
 
-    cmd/dist, pkg/runtime: Plan 9, 64-bit: Get PID from TLS; remove use of `_tos'.
+    encoding/asn1: prepare for 64-bit ints
     
-    Using offsets from Tos is cumbersome and we've had problems
-    in the past. Since it's only being used to grab the PID, we'll just
-    get that from the default TLS instead.
+    The code was assuming that int = 32 bits. Don't.
     
-    R=rsc, rminnich, npe
+    Update #2188.
+    
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/6543049
+    https://golang.org/cl/6543063
 
- src/cmd/dist/buildruntime.c        | 6 ++++++
- src/pkg/runtime/defs_plan9_amd64.h | 1 -
- src/pkg/runtime/rt0_plan9_amd64.s  | 2 --
- src/pkg/runtime/sys_plan9_amd64.s  | 5 ++---
- 4 files changed, 8 insertions(+), 6 deletions(-)
+ src/pkg/encoding/asn1/asn1.go      | 33 +++++++++++++++++----------------
+ src/pkg/encoding/asn1/asn1_test.go |  2 +-
+ 2 files changed, 18 insertions(+), 17 deletions(-)

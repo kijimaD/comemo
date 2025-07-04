@@ -1,18 +1,14 @@
-commit cbea724378e1586cd92f1fffddcad61af893ba1d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Aug 28 12:53:59 2013 +1000
+commit 2ede818ae0761fc57dc1b52b4c8673933a3ff3fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 27 16:13:21 2013 -0700
 
-    sync: improve once.Do documentation readability
+    net/http: document Request.Body more
     
-    The previous wording, though accurate, was hard to parse.
-    In particular, it was tempting to interpret "the method"
-    as referring to "the function f" instead of "Do", and
-    required effort to find the correct antecedent for
-    "this receiver".
+    Fixes #6221
     
-    R=golang-dev, bradfitz, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13307043
+    https://golang.org/cl/13289043
 
- src/pkg/sync/once.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/request.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

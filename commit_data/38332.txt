@@ -1,38 +1,19 @@
-commit 788e038e5d5fcdc1cc44ec9af1885db55a19977c
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Mar 9 18:09:10 2019 +0000
+commit dca769dca9bac81a242cb52654b3fe6b7819f759
+Author: Keith Randall <khr@google.com>
+Date:   Tue Oct 16 14:31:49 2018 -0700
 
-    reflect: make all flag.mustBe* methods inlinable
+    cmd/compile: in append(f()), type convert appended items
     
-    mustBe was barely over budget, so manually inlining the first flag.kind
-    call is enough. Add a TODO to reverse that in the future, once the
-    compiler gets better.
+    The second and subsequent return values from f() need to be
+    converted to the element type of the first return value from f()
+    (which must be a slice).
     
-    mustBeExported and mustBeAssignable were over budget by a larger amount,
-    so add slow path functions instead. This is the same strategy used in
-    the sync package for common methods like Once.Do, for example.
+    Fixes #22327
     
-    Lots of exported reflect.Value methods call these assert-like unexported
-    methods, so avoiding the function call overhead in the common case does
-    shave off a percent from most exported APIs.
-    
-    Finally, add the methods to TestIntendedInlining.
-    
-    While at it, replace a couple of uses of the 0 Kind with its descriptive
-    name, Invalid.
-    
-    name     old time/op    new time/op    delta
-    Call-8     68.0ns ± 1%    66.8ns ± 1%  -1.81%  (p=0.000 n=10+9)
-    PtrTo-8    8.00ns ± 2%    7.83ns ± 0%  -2.19%  (p=0.000 n=10+9)
-    
-    Updates #7818.
-    
-    Change-Id: Ic1603b640519393f6b50dd91ec3767753eb9e761
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166462
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5c0a424812c82c1b95b6d124c5626cfc4408bdb6
+    Reviewed-on: https://go-review.googlesource.com/c/142718
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/inl_test.go |  9 +++------
- src/reflect/value.go                    | 19 ++++++++++++++++---
- 2 files changed, 19 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 11 ++++++++---
+ test/fixedbugs/issue22327.go        | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)

@@ -1,15 +1,16 @@
-commit 96a609c2d7fcb8e1dc370e0cda9e4eb3bfb77412
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 25 13:58:28 2012 -0700
+commit 32a0cbb88187deecfcbcf62f11056ca09fe4a4a0
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Jun 25 16:00:35 2012 -0400
 
-    gofmt: handle comments correctly in rewrites
+    encoding/csv, encoding/xml: report write errors
     
-    R=rsc
+    Fixes #3773.
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6294076
+    https://golang.org/cl/6327053
 
- src/cmd/gofmt/gofmt_test.go            |  2 +-
- src/cmd/gofmt/rewrite.go               |  5 ++++-
- src/cmd/gofmt/testdata/rewrite5.golden | 15 +++++++++++++++
- src/cmd/gofmt/testdata/rewrite5.input  | 15 +++++++++++++++
- 4 files changed, 35 insertions(+), 2 deletions(-)
+ src/pkg/encoding/csv/writer.go       |  5 ++--
+ src/pkg/encoding/xml/marshal.go      | 26 +++++++++++-------
+ src/pkg/encoding/xml/marshal_test.go | 52 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 70 insertions(+), 13 deletions(-)

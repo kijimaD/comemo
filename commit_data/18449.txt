@@ -1,13 +1,17 @@
-commit c4b279ba5ac2226a36434a6d715f2d7713e987e1
+commit d908ae17b2dbd4a366b03b361efa6bcdb815edf8
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 11 16:27:14 2014 +1100
+Date:   Tue Feb 11 16:00:44 2014 +1100
 
-    archive/zip: use correct test, fix 32-bit build
+    doc: remove "Code that grows with grace" video from front page
     
-    LGTM=dsymonds
-    R=dsymonds
+    It was deleted from Vimeo. I will attempt to get a new version online.
+    
+    Fixes #7297.
+    
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/61070047
+    https://golang.org/cl/61740043
 
- src/pkg/archive/zip/reader_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/root.html | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,14 +1,13 @@
-commit 3c9f60c99a1212e6dd1233fea930d45ce9c32198
+commit a2c50ece2bcef85d130e2175971367b3b5e0c26d
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 16:28:28 2015 -0400
+Date:   Thu Jun 4 14:30:30 2015 -0400
 
-    database/sql: document closing requirements for Stmts
+    cmd/link: add -h flag, for debugging, same as cmd/compile
     
-    Fixes #8952.
-    
-    Change-Id: I678f9706eccb5a344eeb0244f45b7b7669830bdc
-    Reviewed-on: https://go-review.googlesource.com/12204
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I3c9b05879fe0b6e94b63e9b65e4411ba2a917134
+    Reviewed-on: https://go-review.googlesource.com/10705
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go  | 4 +++-
+ src/cmd/link/internal/ld/pobj.go | 1 +
+ 2 files changed, 4 insertions(+), 1 deletion(-)

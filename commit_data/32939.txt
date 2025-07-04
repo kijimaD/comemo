@@ -1,15 +1,12 @@
-commit 2e405bde03c7aec0e4fadcb9490e14f4dd8425b7
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Oct 4 00:02:37 2017 -0400
+commit 58ce43baaa9c6c41f16c7eabec022fcb2174f2dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 15 02:17:31 2017 +0000
 
-    doc: update contribute.html to clarify replying to reviews via email
+    doc: fix typo in Go 1.9 release notes
     
-    Update golang/go#22120
-    
-    Change-Id: Ie7dbd0e7b01b116c960243a8cd3fa9fd121f317d
-    Reviewed-on: https://go-review.googlesource.com/68021
+    Change-Id: I78443d5874a7667fbac78eac188d402227373da3
+    Reviewed-on: https://go-review.googlesource.com/45813
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- doc/contribute.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

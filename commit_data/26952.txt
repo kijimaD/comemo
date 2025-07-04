@@ -1,17 +1,22 @@
-commit 106b9d391518fe382162559e1520a8af72564130
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 14 19:44:55 2016 -0700
+commit 69285a8b46c1d7588d0542d4f9d00f03cbfcbca9
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Mar 4 14:53:26 2016 -0500
 
-    cmd/internal/obj, cmd/link: random style cleanups
+    reflect: recognize unnamed directional channels
     
-    Identified during review of golang.org/cl/22103.
+    go test github.com/onsi/gomega/gbytes now passes at tip, and tests
+    added to the reflect package.
     
-    Change-Id: I86bab4cc17204df1e45deefdb0d0f9a8f6e17073
-    Reviewed-on: https://go-review.googlesource.com/22106
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #14645
+    
+    Change-Id: I16216c1a86211a1103d913237fe6bca5000cf885
+    Reviewed-on: https://go-review.googlesource.com/20221
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/pcln.go      | 13 ++++++-------
- src/cmd/link/internal/ld/macho.go | 23 +++--------------------
- 2 files changed, 9 insertions(+), 27 deletions(-)
+ src/reflect/all_test.go | 2 ++
+ src/reflect/set_test.go | 2 ++
+ src/reflect/type.go     | 6 +++++-
+ src/runtime/type.go     | 6 +++++-
+ 4 files changed, 14 insertions(+), 2 deletions(-)

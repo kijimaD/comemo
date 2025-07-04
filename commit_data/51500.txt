@@ -1,30 +1,24 @@
-commit 5efa4dab917a65ba9b70553c9df8962dc3cac3ca
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 2 14:52:34 2022 -0500
+commit 867a3d55024b654347fcbc0782a39ecd57d94a27
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Feb 2 14:09:26 2022 -0500
 
-    cmd/go: skip TestScript/mod_replace_gopkgin
+    test: apply GO_TEST_TIMEOUT_SCALE scaling to test timeouts
     
-    (Until it can be made hermetic.)
+    Change run.go to apply the GO_TEST_TIMEOUT_SCALE scaling factor to
+    test timeouts (mentioned in "-t" clause in test header).
     
-    The gopkg.in service has had a lot of flakiness lately. Go users in
-    general are isolated from that flakiness by the Go module mirror
-    (proxy.golang.org), but this test intentionally bypasses the module
-    mirror because the mirror itself uses cmd/go to download the module.
+    Also with this patch, bump up the timeout for fixedbugs/issue46234.go
+    from 30 to 45 seconds, to avoid flakes on very slow builders.
     
-    In the long term, we can redirect the gopkg.in URL to the local
-    (in-process) vcweb server added for #27494.
+    Updates #50973.
     
-    In the meantime, let's skip the test to reduce the impact of upstream
-    outages.
-    
-    For #54503.
-    
-    Change-Id: Icf3de7ca416db548e53864a71776fe22b444fcea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454503
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Icbafa482860e24cc1e72fee53511bcc764d06bf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382774
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/go/testdata/script/mod_replace_gopkgin.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ test/fixedbugs/issue46234.go |  3 ++-
+ test/run.go                  | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

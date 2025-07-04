@@ -1,14 +1,18 @@
-commit 911f802b37dec543caf7646fdc8987d4be299c5c
+commit d186d07eda6cb043c4c75ef6ec3e161e7f6c5a3e
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Jun 3 06:49:57 2012 +0800
+Date:   Sun Jun 3 03:08:49 2012 +0800
 
-    syscall: fix 32-bit uid calls
-            16-bit uid calls are not always supported in newer kernels.
+    cmd/5a, cmd/5l, math: add CLZ instruction for ARM
+            Supported in ARMv5 and above.
     
-    R=dave, rsc, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6279047
+    https://golang.org/cl/6284043
 
- src/pkg/syscall/syscall_linux_arm.go  | 30 ++++++++++++++++--------------
- src/pkg/syscall/zsyscall_linux_arm.go | 28 ++++++++++++++--------------
- 2 files changed, 30 insertions(+), 28 deletions(-)
+ src/cmd/5a/lex.c             | 2 ++
+ src/cmd/5l/5.out.h           | 4 +++-
+ src/cmd/5l/asm.c             | 9 +++++++++
+ src/cmd/5l/optab.c           | 2 ++
+ src/cmd/5l/span.c            | 1 +
+ src/pkg/math/big/arith_arm.s | 2 +-
+ 6 files changed, 18 insertions(+), 2 deletions(-)

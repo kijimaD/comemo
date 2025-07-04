@@ -1,0 +1,18 @@
+commit eff328804253e40a2de9c5d89cf7a7c1e23aa11d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 28 17:39:14 2025 +0000
+
+    doc/next: tweak runtime release notes
+    
+    - Add section headings to make the section easier to read.
+    - Reorder features to better reflect their impact and importance.
+    - Tweak some awkward wording here and there.
+    
+    Change-Id: If72c526f4b3a26a7a4584d6c59857db02c0c1338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676818
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/4-runtime.md | 66 +++++++++++++++++++++++++++++----------------------
+ 1 file changed, 38 insertions(+), 28 deletions(-)

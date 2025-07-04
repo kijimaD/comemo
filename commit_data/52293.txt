@@ -1,30 +1,22 @@
-commit 491153a71ab2bae3fe9a586489320573448511ab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 13 15:20:11 2023 -0700
+commit be1d7388b349e86bc2fc1b8769902875e732918f
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Mar 30 18:19:48 2022 +0800
 
-    os, syscall: move rlimit code to syscall
+    internal/bytealg: port bytealg functions to reg ABI on riscv64
     
-    In CL 393354 the os package was changed to raise the open file rlimit
-    at program start. That code is not inherently tied to the os package.
-    This CL moves it into the syscall package.
+    This CL adds support for the reg ABI to the bytes functions for
+    riscv64. These are initially under control of the
+    GOEXPERIMENT macro until all changes are in.
     
-    This is in preparation for future changes to restore the original
-    soft rlimit when exec'ing a new program.
-    
-    For #46279
-    
-    Change-Id: I981401b0345d017fd39fdd3dfbb58069be36c272
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476096
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I026295ae38e2aba055f7a51c77f92c1921e5ec97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361916
+    Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/{os => syscall}/rlimit.go        | 10 ++++------
- src/{os => syscall}/rlimit_darwin.go |  8 +++-----
- src/{os => syscall}/rlimit_stub.go   |  6 ++----
- src/{os => syscall}/rlimit_test.go   |  8 ++++----
- 4 files changed, 13 insertions(+), 19 deletions(-)
+ src/internal/bytealg/compare_riscv64.s   | 228 +++++++++++++++++--------------
+ src/internal/bytealg/count_riscv64.s     |  69 ++++++----
+ src/internal/bytealg/equal_riscv64.s     | 177 +++++++++++++-----------
+ src/internal/bytealg/indexbyte_riscv64.s |  79 +++++++----
+ 4 files changed, 315 insertions(+), 238 deletions(-)

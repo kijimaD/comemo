@@ -1,0 +1,27 @@
+commit ad8b33002bb5cb0c910694339e1cc6c75f781c5a
+Author: Zxilly <zxilly@outlook.com>
+Date:   Tue Feb 18 15:21:23 2025 +0000
+
+    syscall: disable O_DIRECTORY on Windows for js/wasm
+    
+    O_DIRECTORY is not available on all platforms, as described at
+    
+    https://nodejs.org/docs/latest/api/fs.html#file-open-constants .
+    
+    On Windows, only O_APPEND, O_CREAT, O_EXCL, O_RDONLY, O_RDWR,
+    O_TRUNC, O_WRONLY, and UV_FS_O_FILEMAP are available.
+    
+    Fixes #71758
+    
+    Change-Id: Iacc890ba9a30dcd75eb746ec324fa0c3e368048e
+    GitHub-Last-Rev: a0160e8fc82583c4f903ae165fe9f204896cf56d
+    GitHub-Pull-Request: golang/go#71770
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650015
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/syscall/fs_js.go | 31 +++++++++++++++++++++++--------
+ 1 file changed, 23 insertions(+), 8 deletions(-)

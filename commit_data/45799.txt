@@ -1,34 +1,29 @@
-commit 9d46ee5ac4acd6602692f70c5149a3f6db058558
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jun 11 13:58:05 2021 +0000
+commit 4d048194cd0323e1deffce96e88e8a672a08732d
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Nov 18 21:38:57 2020 +0100
 
-    reflect: handle stack-to-register translation in callMethod
+    runtime: support new callbackasm1 calling convention on windows/arm
     
-    callMethod previously assumed erroneously that between the "value" and
-    "method" ABIs (that is, the ABI the caller is following to call this
-    method value and the actual ABI of the method), it could never happen
-    that an argument passed on the stack in the former could be passed in
-    registers in the latter. The cited reason was that the latter always
-    uses strictly more registers.
+    This updates the callbacks implementation on windows/arm for the
+    changes made in CL 258938. At the time, that was left as a TODO.
     
-    However, there are situations where the value ABI could pass a value on
-    the stack, but later is passed in a register. For instance, if the
-    receiver pushes a value passed in registers that uses multiple registers
-    to be passed on the stack, later arguments which were passed on the
-    stack may now be passed in registers.
+    At the same time, it also extends the previous support for only 4
+    arguments to also support additional arguments on the stack. This is
+    required for functions like SetWinEventHook, which take 7 arguments. It
+    does this by pushing r0-r3 onto the stack before the normal prologue,
+    and then pointing the args struct to that location.
     
-    This change fixes callMethod to no longer makes this assumption, and
-    handles the stack-to-register translation explicitly.
+    This is derived from CL 270077 and CL 270078.
     
-    Fixes #46696.
+    Updates #40724.
+    Fixes #42591.
     
-    Change-Id: I7100a664d97bbe401302cc893b3a98b28cdcdfc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/327089
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Icc199e7f2c24205e41be4e00015283c7e2a9b797
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271178
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/reflect/abi_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++-
- src/reflect/value.go    | 42 ++++++++++++++++++++++++++++++++----------
- 2 files changed, 74 insertions(+), 11 deletions(-)
+ src/runtime/sys_windows_arm.s  | 72 +++++++++++++++++++-----------------------
+ src/runtime/syscall_windows.go | 29 +++++++++++++----
+ 2 files changed, 56 insertions(+), 45 deletions(-)

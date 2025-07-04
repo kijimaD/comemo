@@ -1,33 +1,20 @@
-commit 5f7abeca5a584a847033bbd1bc1123872bb0925e
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 5 15:07:29 2022 -0700
+commit 9c6ecc49ca02c83f3081c30171ab40dd62557342
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 14 09:23:25 2022 -0500
 
-    cmd/compile: teach regalloc about temporary registers
+    runtime: skip known TestSegv failure mode on linux-mips64le-mengzhuo
     
-    Temporary registers are sometimes needed for an architecture backend
-    which needs to use several machine instructions to implement a single
-    SSA instruction.
+    Also adjust other skips to actually call t.Skip, so that the test
+    correctly shows as skipped instead of passing.
     
-    Mark such instructions so that regalloc can reserve the temporary register
-    for it. That way we don't have to reserve a fixed register like we do now.
+    For #50605
     
-    Convert the temp-register-using instructions on amd64 to use this
-    new mechanism. Other archs can follow as needed.
-    
-    Change-Id: I1d0c8588afdad5cd18b4398eb5a0f755be5dead7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398556
+    Change-Id: Ied482f231a879224c5a92e2c47a6b21c1593a7da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378554
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go         | 26 ++++++++++++-----------
- src/cmd/compile/internal/ssa/_gen/AMD64Ops.go | 16 +++++++-------
- src/cmd/compile/internal/ssa/_gen/main.go     |  4 ++++
- src/cmd/compile/internal/ssa/func.go          |  3 +++
- src/cmd/compile/internal/ssa/html.go          |  3 +++
- src/cmd/compile/internal/ssa/op.go            |  1 +
- src/cmd/compile/internal/ssa/opGen.go         | 26 +++++++++++------------
- src/cmd/compile/internal/ssa/regalloc.go      | 30 +++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/value.go         | 30 ++++++++++++++++++---------
- 9 files changed, 95 insertions(+), 44 deletions(-)
+ src/runtime/crash_cgo_test.go | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)

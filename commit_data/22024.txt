@@ -1,18 +1,24 @@
-commit be3133bfda9c71b70d7494588c01a86e437ea920
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Feb 16 02:03:53 2015 +1100
+commit e559c5cce2f5bc48ad3c7ff75dec6cfa002115f1
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 18 20:30:55 2015 -0800
 
-    runtime: add support for openbsd/arm
+    [dev.cc] cmd/asm: add ppc64
     
-    Change-Id: I2bc101aa19172e705ee4de5f3c73a8b4bbf4fa6f
-    Reviewed-on: https://go-review.googlesource.com/4912
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fairly straightforward. A couple of unusual addressing tricks.
+    Also added the ability to write R(10) to mean R10. PPC64 uses
+    this for a couple of large register spaces. It appears for ARM now
+    as well, since I saw some uses of that before, although I rewrote
+    them in our source. I could put it in for 386 and amd64 but it's
+    not worth it.
+    
+    Change-Id: I3ffd7ffa62d511b95b92c3c75b9f1d621f5393b6
+    Reviewed-on: https://go-review.googlesource.com/5282
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/defs_openbsd_arm.go   | 170 +++++++++++++++++
- src/runtime/os_openbsd_arm.go     |  17 ++
- src/runtime/rt0_freebsd_arm.s     |   6 +-
- src/runtime/rt0_netbsd_arm.s      |   4 +-
- src/runtime/rt0_openbsd_arm.s     |  11 ++
- src/runtime/signal_openbsd_arm.go |  53 ++++++
- src/runtime/sys_openbsd_arm.s     | 377 ++++++++++++++++++++++++++++++++++++++
- 7 files changed, 631 insertions(+), 7 deletions(-)
+ src/cmd/asm/internal/arch/arch.go        | 135 +++++++++++++++++++++++++------
+ src/cmd/asm/internal/arch/arm.go         |  13 +++
+ src/cmd/asm/internal/arch/ppc64.go       |  63 +++++++++++++++
+ src/cmd/asm/internal/asm/asm.go          |  70 ++++++++++++++--
+ src/cmd/asm/internal/asm/operand_test.go | 109 +++++++++++++++++++++++--
+ src/cmd/asm/internal/asm/parse.go        | 104 +++++++++++++++---------
+ 6 files changed, 418 insertions(+), 76 deletions(-)

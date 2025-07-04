@@ -1,17 +1,22 @@
-commit 7252e1e5b6c99189dadb525a0793344ad9d137d5
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Apr 15 15:50:41 2021 +1200
+commit e43ef8dda2d2baeca7f42a50cc92f527e6826b9f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 12 17:19:49 2020 -0700
 
-    cmd/link: convert -I foo to -Wl,--dynamic-linker,foo when externally linking
+    test: add test that fails with gofrontend
     
-    Fixes #22446
+    The gofrontend code doesn't correctly handle inlining a function that
+    refers to a constant with methods.
     
-    Change-Id: Id5b3fbc9cd3a7d6c4bf4e28428b8cb6d45a9ca92
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310349
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    For #35739
+    
+    Change-Id: I6bd0b5cd4272dbe9969634b4821e668acacfdcf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261662
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/ld/lib.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ test/fixedbugs/issue35739.dir/a.go | 15 +++++++++++++++
+ test/fixedbugs/issue35739.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue35739.go       |  9 +++++++++
+ 3 files changed, 35 insertions(+)

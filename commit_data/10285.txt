@@ -1,17 +1,14 @@
-commit 3e94e757eff3bfa4150b1e88fda8db98905290de
-Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 8 14:33:07 2011 -0800
+commit 0e5cd9d3f6ee8e0828cf29152d7180f70a00d6c7
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Nov 8 11:43:58 2011 -0500
 
-    text/template: make redefinition of a template in a set more consistent.
-    Also make it agree with the documentation. You get an error, unless you're
-    calling Add explicitly, in which case it panics since that's almost certainly
-    a bug. The discrepancy was caused by a panic that wasn't turned into
-    an error along one path; deleted the offending function for clarity.
+    runtime: add timespec definition for freebsd
     
-    R=r, rsc
+    R=golang-dev, devon.odell
     CC=golang-dev
-    https://golang.org/cl/5354045
+    https://golang.org/cl/5340058
 
- src/pkg/text/template/parse.go | 15 ++++-----------
- src/pkg/text/template/set.go   |  9 +++++----
- 2 files changed, 9 insertions(+), 15 deletions(-)
+ src/pkg/runtime/freebsd/386/defs.h   | 6 ++++++
+ src/pkg/runtime/freebsd/amd64/defs.h | 6 ++++++
+ src/pkg/runtime/freebsd/defs.c       | 2 ++
+ 3 files changed, 14 insertions(+)

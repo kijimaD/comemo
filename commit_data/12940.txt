@@ -1,16 +1,13 @@
-commit cc5cbee1b6a942d2f55c01697f464be9d2a56818
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Apr 23 22:00:16 2012 -0300
+commit d1ab10b4ff5123e366e200d5205d7e62a3dd2847
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Apr 24 01:27:19 2012 +0200
 
-    net/http: allow clients to disable keep-alive
+    net: fix typo in Listener.File() documentation
     
-    Fixes #3540.
-    
-    R=golang-dev, bradfitz, gustavo
-    CC=golang-dev
-    https://golang.org/cl/5996044
+    R=golang-dev, dave, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6097044
 
- src/pkg/net/http/request.go    | 16 ++++++++++++++--
- src/pkg/net/http/serve_test.go | 15 +++++++++++----
- src/pkg/net/http/server.go     |  3 +--
- 3 files changed, 26 insertions(+), 8 deletions(-)
+ src/pkg/net/tcpsock_posix.go  | 2 +-
+ src/pkg/net/unixsock_posix.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

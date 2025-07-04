@@ -1,114 +1,26 @@
-commit 3dd221a94d044cb4371ec20266817a703b2fe683
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Mon Mar 13 10:18:36 2023 +0100
+commit 025a9c343880f9dc98c7c7479ab481a061e60950
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 2 18:39:07 2022 -0700
 
-    runtime/trace: use regular unwinding for cgo callbacks
+    cmd/compile: remove ir.TypeAssertExpr.Ntype
     
-    Introduce a new m.incgocallback field that is true while C code calls
-    into Go code. Use it in the tracer in order to fallback to the default
-    unwinder instead of frame pointer unwinding for this scenario. The
-    existing fields (incgo, ncgo) were not sufficient to detect the case
-    where a thread created in C calls into Go code.
+    As with ir.CompLitExpr.Ntype, there's no need for
+    ir.TypeAssertExpr.Ntype in a pure-types2 world.
     
-    Motivation:
-    
-    1. Take advantage of a cgo symbolizer, if registered, to unwind through
-       C stacks without frame pointers.
-    2. Reduce the chance of crashes. It seems unsafe to follow frame
-       pointers when there could be C code that was compiled without frame
-       pointers.
-    
-    Removing the curgp.m.incgocallback check in traceStackID shows the
-    following minor differences between frame pointer unwinding and the
-    default unwinder when there is no cgo symbolizer involved.
-    
-        trace_test.go:60: "goCalledFromCThread": got stack:
-            main.goCalledFromCThread
-                    /src/runtime/testdata/testprogcgo/trace.go:58
-            _cgoexp_45c15a3efb3a_goCalledFromCThread
-                    _cgo_gotypes.go:694
-            runtime.cgocallbackg1
-                    /src/runtime/cgocall.go:318
-            runtime.cgocallbackg
-                    /src/runtime/cgocall.go:236
-            runtime.cgocallback
-                    /src/runtime/asm_amd64.s:998
-            crosscall2
-                    /src/runtime/cgo/asm_amd64.s:30
-    
-            want stack:
-            main.goCalledFromCThread
-                    /src/runtime/testdata/testprogcgo/trace.go:58
-            _cgoexp_45c15a3efb3a_goCalledFromCThread
-                    _cgo_gotypes.go:694
-            runtime.cgocallbackg1
-                    /src/runtime/cgocall.go:318
-            runtime.cgocallbackg
-                    /src/runtime/cgocall.go:236
-            runtime.cgocallback
-                    /src/runtime/asm_amd64.s:998
-    
-        trace_test.go:60: "goCalledFromC": got stack:
-            main.goCalledFromC
-                    /src/runtime/testdata/testprogcgo/trace.go:51
-            _cgoexp_45c15a3efb3a_goCalledFromC
-                    _cgo_gotypes.go:687
-            runtime.cgocallbackg1
-                    /src/runtime/cgocall.go:318
-            runtime.cgocallbackg
-                    /src/runtime/cgocall.go:236
-            runtime.cgocallback
-                    /src/runtime/asm_amd64.s:998
-            crosscall2
-                    /src/runtime/cgo/asm_amd64.s:30
-            runtime.asmcgocall
-                    /src/runtime/asm_amd64.s:848
-            main._Cfunc_cCalledFromGo
-                    _cgo_gotypes.go:263
-            main.goCalledFromGo
-                    /src/runtime/testdata/testprogcgo/trace.go:46
-            main.Trace
-                    /src/runtime/testdata/testprogcgo/trace.go:37
-            main.main
-                    /src/runtime/testdata/testprogcgo/main.go:34
-    
-            want stack:
-            main.goCalledFromC
-                    /src/runtime/testdata/testprogcgo/trace.go:51
-            _cgoexp_45c15a3efb3a_goCalledFromC
-                    _cgo_gotypes.go:687
-            runtime.cgocallbackg1
-                    /src/runtime/cgocall.go:318
-            runtime.cgocallbackg
-                    /src/runtime/cgocall.go:236
-            runtime.cgocallback
-                    /src/runtime/asm_amd64.s:998
-            runtime.systemstack_switch
-                    /src/runtime/asm_amd64.s:463
-            runtime.cgocall
-                    /src/runtime/cgocall.go:168
-            main._Cfunc_cCalledFromGo
-                    _cgo_gotypes.go:263
-            main.goCalledFromGo
-                    /src/runtime/testdata/testprogcgo/trace.go:46
-            main.Trace
-                    /src/runtime/testdata/testprogcgo/trace.go:37
-            main.main
-                    /src/runtime/testdata/testprogcgo/main.go:34
-    
-    For #16638
-    
-    Change-Id: I95fa27a3170c5abd923afc6eadab4eae777ced31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474916
+    Change-Id: Iff48c98330f072fd6b26099e13a19c56adecdc42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403842
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/proc.go                              |   4 +
- src/runtime/testdata/testprogcgo/trace.go        |  60 +++++++++++++
- src/runtime/testdata/testprogcgo/trace_unix.c    |  27 ++++++
- src/runtime/testdata/testprogcgo/trace_windows.c |  29 +++++++
- src/runtime/trace.go                             |   8 +-
- src/runtime/trace_cgo_test.go                    | 105 +++++++++++++++++++++++
- 6 files changed, 231 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/expr.go             | 10 ++++++----
+ src/cmd/compile/internal/ir/fmt.go              |  4 ----
+ src/cmd/compile/internal/ir/node_gen.go         |  6 ------
+ src/cmd/compile/internal/noder/reader.go        |  2 +-
+ src/cmd/compile/internal/noder/stencil.go       | 17 +++++++----------
+ src/cmd/compile/internal/typecheck/expr.go      |  9 +--------
+ src/cmd/compile/internal/typecheck/iimport.go   |  3 +--
+ src/cmd/compile/internal/typecheck/typecheck.go |  4 ----
+ src/cmd/compile/internal/walk/switch.go         |  3 +--
+ 9 files changed, 17 insertions(+), 41 deletions(-)

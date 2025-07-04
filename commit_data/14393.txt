@@ -1,14 +1,17 @@
-commit 0eb42fa6e45b09e650a0abca24da7916a3e23384
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 13 09:59:46 2012 -0800
+commit fc5e64cb8f790c559a6f6c8801a8e1f03aee21a5
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Nov 14 03:19:34 2012 +1100
 
-    cmd/api: use one token.FileSet for all contexts
+    syscall: regenerate z-files for openbsd/amd64
     
-    Prep for future CL.
+    Regenerate z-files for OpenBSD/amd64 on OpenBSD 5.2.
     
-    R=gri
+    R=golang-dev, bradfitz, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6843048
+    https://golang.org/cl/6843045
 
- src/cmd/api/goapi.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/syscall/zerrors_openbsd_amd64.go | 105 ++++++++++++++++++++++++++++---
+ src/pkg/syscall/zsysctl_openbsd.go       |   2 +
+ src/pkg/syscall/zsysnum_openbsd_amd64.go |   9 +--
+ src/pkg/syscall/ztypes_openbsd_amd64.go  |  50 ++++++++-------
+ 4 files changed, 128 insertions(+), 38 deletions(-)

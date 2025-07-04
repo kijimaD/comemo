@@ -1,16 +1,42 @@
-commit 2a46f55b359909ab0710f7952747811dfae07a50
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 24 16:37:31 2015 -0400
+commit 4e5ac45ec5c15dba0f57f80e923a0de6f9f4f511
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 3 13:10:47 2015 -0700
 
-    runtime: panic when idling a P with runnable Gs
+    text/template: provide a mechanism for options
     
-    This adds a check that we never put a P on the idle list when it has
-    work on its local run queue.
+    Add one option, which is the motivating example, a way to control
+    what happens when a map is indexed with a key that is not in the map.
+    Rather than do something specific for that case, we provide a simple
+    general option mechanism to avoid adding API if something else
+    comes up. This general approach also makes it easy for html/template
+    to track (and adapt, should that become important).
     
-    Change-Id: Ifcfab750de60c335148a7f513d4eef17be03b6a7
-    Reviewed-on: https://go-review.googlesource.com/9324
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    New method: Option(option string...). The option strings are key=value
+    pairs or just simple strings (no =).
+    
+    New option:
+    
+     missingkey: Control the behavior during execution if a map is
+     indexed with a key that is not present in the map.
+            "missingkey=default" or "missingkey=invalid"
+                    The default behavior: Do nothing and continue execution.
+                    If printed, the result of the index operation is the string
+                    "<no value>".
+            "missingkey=zero"
+                    The operation returns the zero value for the map type's element.
+            "missingkey=error"
+                    Execution stops immediately with an error.
+    
+    Fixes #6288.
+    
+    Change-Id: Id811e2b99dc05aff324d517faac113ef3c25293a
+    Reviewed-on: https://go-review.googlesource.com/8462
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/proc1.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/html/template/template.go  | 23 +++++++++++++
+ src/text/template/exec.go      | 13 +++++++-
+ src/text/template/exec_test.go | 51 +++++++++++++++++++++++++++++
+ src/text/template/funcs.go     |  2 +-
+ src/text/template/option.go    | 73 ++++++++++++++++++++++++++++++++++++++++++
+ src/text/template/template.go  |  1 +
+ 6 files changed, 161 insertions(+), 2 deletions(-)

@@ -1,26 +1,14 @@
-commit 9f90f31c3a3ac8fc306bb63c0fd80299afcddbc2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 29 12:49:25 2015 -0400
+commit ae38ef4cdf2e8cf843b9d3872e66586327d744ae
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 1 12:43:18 2015 -0700
 
-    cmd/compile: allow static init for unsafe.Pointer(&x) where x is global
+    regexp: suggest go doc, not godoc
     
-    This avoids both a write barrier and then dynamic initialization
-    globals of the form
+    In 1.6, go doc is more likely to be available.
     
-            var x something
-            var xp = unsafe.Pointer(&x)
-    
-    Using static initialization avoids emitting a relocation for &x,
-    which helps cgo.
-    
-    Fixes #9411.
-    
-    Change-Id: I0dbf480859cce6ab57ab805d1b8609c45b48f156
-    Reviewed-on: https://go-review.googlesource.com/11693
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I970ad1d3317b35273f5c8d830f75713d3570c473
+    Reviewed-on: https://go-review.googlesource.com/10518
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go |  8 ++++++++
- src/cmd/compile/internal/gc/walk.go  | 15 +++++++++++----
- test/sinit.go                        |  5 +++++
- 3 files changed, 24 insertions(+), 4 deletions(-)
+ src/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

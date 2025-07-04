@@ -1,23 +1,23 @@
-commit 72f333a14b071e7560c67abcaacec176aaa604cf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 15 22:10:44 2019 +0000
+commit 21f548400650e4e7047202ee1894ee6ddd44de82
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jul 12 11:31:29 2019 -0400
 
-    Revert "test: avoid writing temporary files to GOROOT"
+    cmd/go: improve module version query documentation
     
-    This reverts CL 207352
+    Add "upgrade" and "patch" to 'go help modules' section 'Module queries'.
+    Also explicitly call out the fact that @v2 will select the latest
+    version starting with v2, not the branch named v2, since this is a
+    common source of confusion.
     
-    Reason for revert: broke more builders than it fixed. 😞
+    Fixes #33010
     
-    Change-Id: Ic5adefe92edfa2230b9c7d750c922473a6a5ded4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207477
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2fe27543b81a160fb6f6b8e8444a7a35f3661433
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185979
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/dist/test.go        | 14 +++++---------
- test/fixedbugs/bug302.go    | 24 ++++++------------------
- test/fixedbugs/bug369.go    | 22 +++++++++-------------
- test/fixedbugs/issue9355.go |  3 ++-
- test/linkmain_run.go        | 44 +++++++++++++++++---------------------------
- test/sinit_run.go           |  7 ++-----
- 6 files changed, 41 insertions(+), 73 deletions(-)
+ src/cmd/go/alldocs.go               | 34 +++++++++++++++++++++++++++-------
+ src/cmd/go/internal/modget/get.go   |  9 ++++++++-
+ src/cmd/go/internal/modload/help.go | 25 +++++++++++++++++++------
+ 3 files changed, 54 insertions(+), 14 deletions(-)

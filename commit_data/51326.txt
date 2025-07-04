@@ -1,92 +1,24 @@
-commit 52d9e41ac303cfed4c4cfe86ec6d663a18c3448d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 15 22:30:45 2022 -0500
+commit 1ee70da3125cb6339c1bcb0c127cd97a9e1dbe90
+Author: Dan Scales <danscales@google.com>
+Date:   Sat Jan 8 10:33:35 2022 -0800
 
-    cmd/go: automatically disable cgo on systems with no C compiler
+    cmd/compile: fix the names of methods created during type substitution
     
-    The documentation for cgo has always said:
+    The names given to methods of types created during type substitution
+    were possible incorrect when the type parameters themselves were nested
+    types.
     
-    > The cgo tool is enabled by default for native builds
-    > on systems where it is expected to work.
+    Fixes #50485
     
-    Following the spirit of that rule, this CL disables cgo by default
-    on systems where $CC is unset and the default C compiler
-    (clang or gcc) is not found in $PATH.
-    
-    This CL makes builds of Go code on systems with no C compiler
-    installed automatically fall back to non-cgo mode.
-    For example, if building a Go program using package net
-    in a stripped down Linux container, that build will now run
-    with cgo disabled, instead of attempting the build with cgo enabled
-    and only succeeding if the right pre-compiled .a files happen to
-    be loaded into the container.
-    
-    This CL makes it safe to drop the pre-compiled .a files
-    from the Go distribution. Systems that don't have a C compiler
-    will simply disable cgo when building new .a files for that system.
-    
-    In general keeping the pre-compiled .a files working in cgo mode
-    on systems without C compilers has had only mixed success due
-    to the precise build cache. Today we have had to disable various
-    checks in the precise build cache so that distributed .a files look
-    up-to-date even if the current machine's C compiler is a different
-    version than the one used when packaging the distribution.
-    Each time we improve precision we have a decent chance of
-    re-invalidating the files. This CL, combined with dropping the .a files
-    entirely, will let us re-enable those checks and ensure that the
-    .a files used in a build actually match the C compiler being used.
-    
-    On macOS, the distributed .a files for cgo-dependent packages
-    have been stale (not actually used by the go command) since the
-    release of Go 1.14 in February 2020, due to CL 216304 setting
-    a CGO_CFLAGS environment variable that won't match the default
-    setting on users machines. (To keep the distributed .a files working,
-    that CL should have instead changed the default in the go command.)
-    The effect is that for the past six Go releases (!!!), the go command
-    has been unable to build basic programs like src/net/http/triv.go
-    on macOS without either disabling cgo or installing Xcode's C compiler.
-    This CL fixes that problem by disabling cgo when there's no C compiler.
-    Now it will once again be possible to build basic programs with just
-    a Go toolchain installed.
-    
-    In the past, disabling cgo on macOS would have resulted in subpar
-    implementations of crypto/x509, net, and os/user, but as of CL 449316
-    those packages have all been updated to use libc calls directly,
-    so they now provide the same implementation whether or not cgo is enabled.
-    In the past, disabling cgo on macOS would also have made the
-    race detector unusable, but CL 451055 makes the race detector
-    work on macOS even when cgo is disabled.
-    
-    On Windows, none of the standard library uses cgo today, so all
-    the necessary .a files can be rebuilt without a C toolchain,
-    and there is no loss of functionality in the standard library when
-    cgo is disabled. After this CL, the race detector won't work on
-    Windows without a C toolchain installed, but that turns out to be
-    true already: when linking race-enabled programs, even if the Go linker
-    does not invoke the host linker, it still attempts to read some of the
-    host C toolchain's .a files to resolve undefined references.
-    
-    On Unix systems, disabling cgo when a C compiler is not present
-    will mean that builds get the pure Go net resolver, which is used
-    by default even in cgo builds when /etc/resolv.conf is simple enough.
-    It will also mean they get the pure os/user code, which reads
-    /etc/passwd and /etc/group instead of using shared libraries,
-    and therefore it may miss out on other sources of user information
-    such as LDAP. The race detector also will not work without a C compiler.
-    This would be dire except that nearly all Unix systems have a C compiler
-    installed by default, and on those that don't it is trivial to add one.
-    In particular, the vast majority of Go developers running on Linux
-    and other Unix systems will already have a C compiler and will be
-    unaffected.
-    
-    Change-Id: I491e8a022fe3a64022e9dc593850d483a0d353fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450739
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I7e0043ed22c26406a5f9d8d51d9e928770a678f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377494
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/doc.go                     |  6 ++++--
- src/cmd/go/internal/cfg/cfg.go         | 17 ++++++++++++++++-
- src/cmd/go/testdata/script/autocgo.txt | 26 ++++++++++++++++++++++++++
- 3 files changed, 46 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/typecheck/subr.go |  24 ++-
+ test/typeparam/issue50485.dir/a.go         | 239 +++++++++++++++++++++++++++++
+ test/typeparam/issue50485.dir/main.go      |   9 ++
+ test/typeparam/issue50485.go               |   7 +
+ 4 files changed, 277 insertions(+), 2 deletions(-)

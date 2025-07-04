@@ -1,19 +1,15 @@
-commit fd8028dec92166545d080de99021c9c51f05c670
+commit 082f464823cdb47042a142802776fa7874e6c05b
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 17 15:35:15 2016 -0700
+Date:   Tue Apr 19 14:18:59 2016 -0700
 
-    go/types: fix scope extents for range and type switch variables
+    go/types: trailing semis are ok after valid fallthrough
     
-    The changes match the existing compilers, and assume an adjusted
-    spec (per issue #16794).
+    Fixes #15376.
     
-    Fixes #15686.
-    
-    Change-Id: I72677ce75888c41a8f3c2963117a2f2d5501c42b
-    Reviewed-on: https://go-review.googlesource.com/27290
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9ece80f26b83be129671c961120c157da2ac0079
+    Reviewed-on: https://go-review.googlesource.com/22270
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/go_spec.html         |  2 +-
- src/go/types/api_test.go | 47 +++++++++++++++++++++++++++++++++++++++--------
- src/go/types/stmt.go     |  8 ++++----
- 3 files changed, 44 insertions(+), 13 deletions(-)
+ src/go/types/stmt.go            | 10 ++++++++++
+ src/go/types/testdata/stmt0.src | 17 +++++++++++++----
+ 2 files changed, 23 insertions(+), 4 deletions(-)

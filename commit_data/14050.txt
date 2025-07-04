@@ -1,31 +1,17 @@
-commit 892fa3ae6c2d70fa1554ac2c817adfbe3c4c0c50
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Oct 7 17:35:21 2012 +0200
+commit d7b7957db16da1311ce1a8623d7c4c5a154cf815
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Oct 7 19:32:28 2012 +1100
 
-    cmd/gc: replace "typechecking loop" by nicer errors in some cases.
+    image/jpeg: move the huffman bit decoder state higher up in the
+    decoder struct, inside the unmappedzero limit, to eliminate some
+    TESTB instructions in the inner decoding loop.
     
-    For issue 3757:
-    BEFORE:  test/fixedbugs/bug463.go:12: typechecking loop involving a
-                 test/fixedbugs/bug463.go:12 a
-                 test/fixedbugs/bug463.go:12 <node DCLCONST>
-    AFTER:   test/fixedbugs/bug463.go:12: constant definition loop
-                 test/fixedbugs/bug463.go:12: a uses a
+    benchmark          old ns/op    new ns/op    delta
+    BenchmarkDecode      2943204      2746360   -6.69%
     
-    For issue 3937:
-    BEFORE: test/fixedbugs/bug464.go:12: typechecking loop involving foo
-                test/fixedbugs/bug464.go:12 <T>
-                test/fixedbugs/bug464.go:12 foo
-                test/fixedbugs/bug464.go:12 <node DCLFUNC>
-    AFTER:  test/fixedbugs/bug464.go:12: foo is not a type
-    
-    Fixes #3757.
-    Fixes #3937.
-    
-    R=golang-dev, rsc
+    R=r, dave
     CC=golang-dev
-    https://golang.org/cl/6614058
+    https://golang.org/cl/6625058
 
- src/cmd/gc/typecheck.c   | 41 ++++++++++++++++++++++++++++++++++++++++-
- test/fixedbugs/bug463.go | 22 ++++++++++++++++++++++
- test/fixedbugs/bug464.go | 12 ++++++++++++
- 3 files changed, 74 insertions(+), 1 deletion(-)
+ src/pkg/image/jpeg/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

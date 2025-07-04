@@ -1,18 +1,18 @@
-commit 644787c337f7fde20a0676f843bb12378c8f885e
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Fri Nov 17 10:01:06 2017 +0000
+commit 4d6da864696fd302aa62666eeed8b01918577f14
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 25 13:43:56 2017 -0700
 
-    cmd/compile: delete temporary files when test finishes
+    go/build: add go1.10 build tag
     
-    I noticed some files prefixed with ssa_fg_tmp in the /tmp folder of
-    the s390x builder. runGenTest (a helper for TestGenFlowGraph) wasn't
-    deleting its temporary files. The distinct prefix made this easy to
-    figure out.
+    Add this early in the cycle so that we can start regression testing
+    of the master toolchain.
     
-    Change-Id: If0d608aaad04a414e74e29f027ec9443c626e4eb
-    Reviewed-on: https://go-review.googlesource.com/78475
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ida3ccad6e9642648f489babd12877fc8a5eca07a
+    Reviewed-on: https://go-review.googlesource.com/59151
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/go/build/build.go | 5 ++++-
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 5 insertions(+), 1 deletion(-)

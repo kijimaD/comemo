@@ -1,16 +1,31 @@
-commit 6a2ff105f169ac3b607621d6b8cd5bd0a7c800e6
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 19:20:31 2022 +0800
+commit 6508fdad9d83d6792314639c9819a15894728682
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 8 21:07:02 2021 +0000
 
-    unicode/utf8: use strings.Builder
+    runtime: formalize and fix gcPercent synchronization
     
-    Change-Id: I88b55f61eccb5764cac2a9397fd99a62f8735a9a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428281
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Currently gcController.gcPercent is read non-atomically by
+    gcControllerState.revise and gcTrigger.test, but these users may
+    execute concurrently with an update to gcPercent.
+    
+    Although revise's results are best-effort, reading it directly in this
+    way is, generally speaking, unsafe.
+    
+    This change makes gcPercent atomically updated for concurrent readers
+    and documents the complete synchronization semantics.
+    
+    Because gcPercent otherwise only updated with the heap lock held or the
+    world stopped, all other reads can remain unsynchronized.
+    
+    For #44167.
+    
+    Change-Id: If09af103aae84a1e133e2d4fed8ab888d4b8f457
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308690
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/unicode/utf8/utf8_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go      | 2 +-
+ src/runtime/mgcpacer.go | 9 +++++++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)

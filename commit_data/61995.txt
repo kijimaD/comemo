@@ -1,0 +1,23 @@
+commit d62154db837fef880714f710bafbe0af94034b40
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jan 7 16:01:46 2025 +0000
+
+    weak: don't panic when calling Value on a zero Pointer
+    
+    Currently weak.Pointer.Value will panic if the weak.Pointer is
+    uninitialized (zero value) which goes against it's documentation. Fix
+    this and add a test. While we're here, also add a test to ensure
+    weak.Make[T](nil) is equivalent to the zero value of weak.Pointer[T].
+    
+    Fixes #71153.
+    
+    Change-Id: I4d9196026360bc42a5bfcb33ce449131ec251dba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641095
+    Reviewed-by: David Finkel <david.finkel@gmail.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/weak/pointer.go      |  3 +++
+ src/weak/pointer_test.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+)

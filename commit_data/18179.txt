@@ -1,24 +1,26 @@
-commit 901e7bfe53b4610ef9ff9eef5d2cbec7671b6f68
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Tue Jan 7 23:12:12 2014 +1100
+commit d227d680ece216603c31e36ee995b814259325dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 6 20:43:44 2014 -0500
 
-    lib9, libmach, cmd/dist, go/build: add support for GOOS=solaris
+    cmd/gc: use 100x less memory for []byte("string")
     
-    This change adds solaris to the list of supported operating
-    systems and allows cmd/dist to be built on Solaris.
+    []byte("string") was simplifying to
+    []byte{0: 0x73, 1: 0x74, 2: 0x72, 3: 0x69, 4: 0x6e, 5: 0x67},
+    but that latter form takes up much more memory in the compiler.
+    Preserve the string form and recognize it to turn global variables
+    initialized this way into linker-initialized data.
     
-    This CL has to come first because we want the tools to ignore
-    solaris-specific files until the whole port is integrated.
+    Reduces the compiler memory footprint for a large []byte initialized
+    this way from approximately 10 kB/B to under 100 B/B.
     
-    R=golang-codereviews, jsing, rsc, minux.ma
+    See also issue 6643.
+    
+    R=golang-codereviews, r, iant, oleku.konko, dave, gobot, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/35900045
+    https://golang.org/cl/15930045
 
- src/cmd/dist/build.c          |  1 +
- src/cmd/dist/unix.c           |  9 +++++++
- src/lib9/run_unix.c           |  2 +-
- src/lib9/tempdir_unix.c       |  2 +-
- src/libmach/solaris.c         | 56 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/go/build/deps_test.go |  2 +-
- src/pkg/go/build/syslist.go   |  2 +-
- 7 files changed, 70 insertions(+), 4 deletions(-)
+ src/cmd/gc/go.h        |  1 +
+ src/cmd/gc/obj.c       | 28 ++++++++++++++++++++++++++++
+ src/cmd/gc/sinit.c     |  9 +++++++++
+ src/cmd/gc/typecheck.c |  3 +++
+ 4 files changed, 41 insertions(+)

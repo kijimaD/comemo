@@ -1,0 +1,16 @@
+commit 57c44fdefc818f90b98fa1d5c0cd0fccdc35edf8
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Mar 15 00:14:14 2025 +0000
+
+    html/template: document comment stripping
+    
+    Fixes #28628
+    
+    Change-Id: I8b68f55f25e62f747d7cc48a490fec7f426f53d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658115
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/html/template/doc.go | 3 +++
+ 1 file changed, 3 insertions(+)

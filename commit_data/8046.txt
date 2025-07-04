@@ -1,14 +1,12 @@
-commit 8c1a703560a90e4286eb37571c6bdd001b82276c
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Mon Apr 11 12:39:53 2011 -0700
+commit e2348deeec9da2f0603bb6245c0dda0c721c9ec3
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Mon Apr 11 11:20:12 2011 -0400
 
-    syscall: fix StartProcess in Plan 9
+    crypto/x509: expose complete DER data
     
-    This makes os_test.TestStartProcess test from os package pass.
-    
-    R=paulzhol, r2, r
+    R=agl1
     CC=golang-dev
-    https://golang.org/cl/4385052
+    https://golang.org/cl/4376049
 
- src/pkg/syscall/exec_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/x509/x509.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

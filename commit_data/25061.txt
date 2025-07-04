@@ -1,19 +1,15 @@
-commit c7a34031400967328267df8bc54b20ce4124eb83
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 24 17:48:52 2015 -0800
+commit 7b5af511a51e5ca4ed751c8ce4c8eb40f5292e35
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 19 11:39:22 2015 -0700
 
-    cmd/compile: clearer error for invalid array/slice literal elements
+    bufio: fix overflow calculation in Scan
     
-    Fixes #13365.
+    I was being too clever, as usual. Write the obvious code to make sure
+    that when we grow the buffer we don't overflow.
     
-    Change-Id: I5a447ff806dbbb11c8c75e2b5cfa7fd4a845fb92
-    Reviewed-on: https://go-review.googlesource.com/17206
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1641831177b0bb8a89ab6e9bcabccf6c2fcfe1d2
+    Reviewed-on: https://go-review.googlesource.com/14781
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  7 +++----
- test/fixedbugs/issue13365.go             | 25 +++++++++++++++++++++++++
- test/fixedbugs/issue7150.go              | 10 +++++-----
- test/fixedbugs/issue7153.go              |  2 +-
- 4 files changed, 34 insertions(+), 10 deletions(-)
+ src/bufio/scan.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

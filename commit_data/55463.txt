@@ -1,20 +1,24 @@
-commit 653abefddf2c627d5d1805d35e55c5a01eb32c6e
-Author: sivchari <shibuuuu5@gmail.com>
-Date:   Tue Aug 1 05:00:52 2023 +0000
+commit 910f041ff0cdf90dbcd3bd22a272b9b7205a5add
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 8 14:36:47 2023 -0500
 
-    cmd/go/internal/load: improve comments
+    cmd/go/internal/test: refresh flagdefs.go and fix test
     
-    isTestFunc checked whether the parameter type is B, M or T before the version of Go1.17.
-    But, after Go1.18, isTestFunc checks F, too.
+    The tests for cmd/go/internal/test were not running at all due to a
+    missed call to m.Run in TestMain. That masked two missing vet
+    analyzers ("directive" and "timeformat") and a missed update to the
+    generator script in CL 355452.
     
-    Change-Id: I30bc97c2b8f2974bc9ae4df2f32dc8dce760d7d6
-    GitHub-Last-Rev: 507d5b1f74b2f2d0a75d61fe169cc0cc40d132c0
-    GitHub-Pull-Request: golang/go#56127
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/441835
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #58415.
+    
+    Change-Id: I7b0315952967ca07a866cdaa5903478b2873eb7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466635
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/load/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/test/flagdefs.go      | 2 ++
+ src/cmd/go/internal/test/flagdefs_test.go | 2 ++
+ src/cmd/go/internal/test/genflags.go      | 2 +-
+ 3 files changed, 5 insertions(+), 1 deletion(-)

@@ -1,18 +1,15 @@
-commit b9f0a6bf6833f2f70caf6451133919a2807d0943
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Tue Jan 22 17:23:36 2013 -0500
+commit 12e7397ebb4e8c5444f9b30b84a6b80059d073fb
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jan 23 07:11:22 2013 +0900
 
-    lib9: declare __fixargv0 before use in flag.c
+    net: don't return nil interface address on netbsd
     
-    The Plan 9 compilers complain about not
-    having type information for the function,
-    which sets off type signature problems
-    during the linking stage.
+    On NetBSD routing sockaddrs for interface address contain sockaddr_dl.
     
-    R=rsc, ality, iant
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7058054
+    https://golang.org/cl/7085064
 
- src/lib9/argv0.c | 35 -----------------------------------
- src/lib9/flag.c  |  9 ++++++++-
- 2 files changed, 8 insertions(+), 36 deletions(-)
+ src/pkg/net/interface_bsd.go  |  6 +++++-
+ src/pkg/net/interface_test.go | 16 ++++++++++++----
+ 2 files changed, 17 insertions(+), 5 deletions(-)

@@ -1,19 +1,33 @@
-commit 8336c311f848cb9adc76aeb8bd8172f67bda67e6
-Author: JulianChu <yulang.chu@gmail.com>
-Date:   Sat Mar 13 17:44:10 2021 +0000
+commit 4e5ed83e8d2fbbbc8f6524f40ab3b6733dc57a38
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 3 11:28:50 2020 -0700
 
-    io: add error check to WriteString Example test
+    runtime: use bit-parallel operations to compute heap bit summaries
     
-    Change-Id: I9ce1c79e5799f205aec3a4dc02645ed26bdc3581
-    GitHub-Last-Rev: 59b637db0154e55ddfdd55e54b9596dc3a0ad32d
-    GitHub-Pull-Request: golang/go#44533
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295389
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The new implementation is much faster in all cases.
+    
+    name                                             old time/op  new time/op  delta
+    PallocBitsSummarize/Unpacked00-16                 142ns ± 1%     7ns ± 2%  -94.75%  (p=0.000 n=10+9)
+    PallocBitsSummarize/UnpackedFFFFFFFFFFFFFFFF-16   172ns ± 0%    24ns ± 0%  -86.02%  (p=0.000 n=9+9)
+    PallocBitsSummarize/UnpackedAA-16                 145ns ± 0%    32ns ± 0%  -78.16%  (p=0.000 n=8+10)
+    PallocBitsSummarize/UnpackedAAAAAAAAAAAAAAAA-16   172ns ± 0%    33ns ± 0%  -80.95%  (p=0.000 n=9+9)
+    PallocBitsSummarize/Unpacked80000000AAAAAAAA-16   162ns ± 1%    60ns ± 0%  -62.69%  (p=0.000 n=10+9)
+    PallocBitsSummarize/UnpackedAAAAAAAA00000001-16   163ns ± 0%    68ns ± 1%  -58.47%  (p=0.000 n=8+10)
+    PallocBitsSummarize/UnpackedBBBBBBBBBBBBBBBB-16   172ns ± 0%    35ns ± 0%  -79.70%  (p=0.000 n=9+9)
+    PallocBitsSummarize/Unpacked80000000BBBBBBBB-16   161ns ± 0%    63ns ± 0%  -60.61%  (p=0.000 n=8+10)
+    PallocBitsSummarize/UnpackedBBBBBBBB00000001-16   163ns ± 0%    60ns ± 0%  -63.14%  (p=0.000 n=9+10)
+    PallocBitsSummarize/UnpackedCCCCCCCCCCCCCCCC-16   172ns ± 0%    39ns ± 0%  -77.41%  (p=0.000 n=7+10)
+    PallocBitsSummarize/Unpacked4444444444444444-16   172ns ± 0%    39ns ± 0%  -77.42%  (p=0.000 n=7+10)
+    PallocBitsSummarize/Unpacked4040404040404040-16   173ns ± 2%    51ns ± 1%  -70.55%  (p=0.000 n=10+10)
+    PallocBitsSummarize/Unpacked4000400040004000-16   160ns ± 1%    53ns ± 0%  -66.78%  (p=0.000 n=10+10)
+    PallocBitsSummarize/Unpacked1000404044CCAAFF-16   169ns ± 1%    59ns ± 1%  -65.28%  (p=0.000 n=10+10)
+    
+    Change-Id: I94daa645b76a9cf9c93edeb2058d7132216fcb72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240900
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/io/example_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/mpallocbits.go      | 147 +++++++++++++++++++++++-----------------
+ src/runtime/mpallocbits_test.go |  36 ++++++----
+ 2 files changed, 108 insertions(+), 75 deletions(-)

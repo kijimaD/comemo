@@ -1,25 +1,16 @@
-commit 523f2ea77b8845700d302fc69f6c34ac296af55d
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Mar 14 13:36:31 2018 +0100
+commit 2da1446bb11cdfaac1f86d7c2134c36487dd2d66
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Thu Nov 2 12:35:25 2017 +0000
 
-    runtime: don't use floating point in findnull on Plan 9
+    time: fix incorrect "zero padding" comments
     
-    In CL 98015, findnull was rewritten so it uses bytes.IndexByte.
+    The comment on invalid time values in Constants and example
+    refers to _ zero padding when it should refer to space padding.
     
-    This broke the build on plan9/amd64 because the implementation
-    of bytes.IndexByte on AMD64 relies on SSE instructions while
-    floating point instructions are not allowed in the note handler.
-    
-    This change fixes findnull by using the former implementation
-    on Plan 9, so it doesn't use bytes.IndexByte.
-    
-    Fixes #24387.
-    
-    Change-Id: I084d1a44d38d9f77a6c1ad492773f0a98226be16
-    Reviewed-on: https://go-review.googlesource.com/100577
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I5784356e389d324703e20eec6203f147db92880f
+    Reviewed-on: https://go-review.googlesource.com/75410
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/string.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/time/example_test.go | 2 +-
+ src/time/format.go       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

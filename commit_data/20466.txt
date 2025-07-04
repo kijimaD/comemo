@@ -1,17 +1,19 @@
-commit 73a82db1c8eec314700e2d0f92074a901fa112ed
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Sep 18 09:45:58 2014 -0700
+commit d33ee0c5e52cbdc66066f54b9b2e2c930268784a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 9 12:31:07 2014 -0700
 
-    fmt: fix allocation tests
+    testing: read coverage counters atomically
+    For -mode=atomic, we need to read the counters
+    using an atomic load to avoid a race. Not worth worrying
+    about when -mode=atomic is set during generation
+    of the profile, so we use atomic loads always.
     
-    Converting an integer to an interface{} allocates as of CL 130240043.
+    Fixes #8630.
     
-    Fixes #8617.
-    
-    LGTM=r
-    R=r
-    CC=golang-codereviews, khr
-    https://golang.org/cl/141700043
+    LGTM=rsc
+    R=dvyukov, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/141800043
 
- src/fmt/fmt_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/testing/cover.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

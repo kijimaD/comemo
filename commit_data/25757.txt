@@ -1,17 +1,18 @@
-commit 939a9424de5c3d0a0d2e1769778b5b0aa9c61954
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 17 10:39:13 2016 -0500
+commit 4d9f68028a0b3b481459b9d07d074f8272a013b1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 17 13:23:25 2015 -0800
 
-    doc: remove DRAFT tags from go1.6.html
+    cmd/asm: add doc.go
     
-    Go 1.6 is soon (but not yet).
+    There was no documentation produced by "go doc cmd/asm".
+    Follow the style set by cmd/compile.
     
-    Fixes #14301.
+    Fixes #13148.
     
-    Change-Id: I85e329b643adcb5d4fa680c5333fbc1f928d4d9d
-    Reviewed-on: https://go-review.googlesource.com/19550
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: I02e08ce2e7471f855bfafbbecee98ffdb7096995
+    Reviewed-on: https://go-review.googlesource.com/16997
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.6.html | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/cmd/asm/doc.go                  | 48 +++++++++++++++++++++++++++++++++++++
+ src/cmd/asm/internal/flags/flags.go |  3 +++
+ 2 files changed, 51 insertions(+)

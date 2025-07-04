@@ -1,19 +1,32 @@
-commit 5a687eeaf186dd109e53860db15f8465b0456fc0
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Aug 21 18:40:20 2021 +1000
+commit dd67b13d07e6324c2b6d3330515c1f1e49fe5a9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 18:47:32 2020 -0500
 
-    cmd/asm,cmd/internal/obj/riscv: add more error tests for riscv64 assembly
+    [dev.regabi] cmd/compile: cleanup for concrete types - range, select, swt
     
-    Add more error tests for riscv64 assembly. Also avoid a panic when one of
-    these error conditions is hit.
+    An automated rewrite will add concrete type assertions after
+    a test of n.Op(), when n can be safely type-asserted
+    (meaning, n is not reassigned a different type, n is not reassigned
+    and then used outside the scope of the type assertion,
+    and so on).
     
-    Change-Id: If5d913894facbd67f7d014eab745da77c8c66ab0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344228
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    This sequence of CLs handles the code that the automated
+    rewrite does not: adding specific types to function arguments,
+    adjusting code not to call n.Left() etc when n may have multiple
+    representations, and so on.
+    
+    This CL focuses on range.go, select.go, and swt.go: the big
+    control structures.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I033fe056a7b815edb6e8a06f45c12ffd990f4d45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277929
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64error.s | 12 ++++++++++++
- src/cmd/internal/obj/riscv/obj.go                |  3 ++-
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/range.go  | 35 +++++++--------
+ src/cmd/compile/internal/gc/select.go | 81 ++++++++++++++++++++---------------
+ src/cmd/compile/internal/gc/swt.go    | 65 +++++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go   |  3 ++
+ 4 files changed, 102 insertions(+), 82 deletions(-)

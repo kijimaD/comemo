@@ -1,27 +1,21 @@
-commit c58f58b9f8df0bde53bb5bc20b5ea97d34b1531d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 9 18:53:06 2025 +0000
+commit a16b4bf30c476aec397a9d63ca60c7f5a5776de1
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Mar 4 12:38:43 2024 -0500
 
-    runtime: mark and identify tiny blocks in checkfinalizers mode
+    cmd/preprofile: clean up error handling
     
-    This change adds support for identifying cleanups and finalizers
-    attached to tiny blocks to checkfinalizers mode. It also notes a subtle
-    pitfall, which is that the cleanup arg, if tiny-allocated, could end up
-    co-located with the object with the cleanup attached! Oops...
+    This CL adjusts error handling to be a bit more idiomatic. The
+    processing function returns errors, leaving main to log and exit on
+    error.
     
-    For #72949.
+    This CL contains no functional changes.
     
-    Change-Id: Icbe0112f7dcfc63f35c66cf713216796a70121ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662037
+    For #58102.
+    
+    Change-Id: I9074127cc675e177d046474b7f01fbc37d0bd4c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569335
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/runtime/gc_test.go                           | 16 ++++--
- src/runtime/malloc.go                            |  6 ++
- src/runtime/mcheckmark.go                        | 73 ++++++++++++++++++------
- src/runtime/mheap.go                             | 65 ++++++++++++++++++---
- src/runtime/runtime1.go                          | 10 ++--
- src/runtime/testdata/testprog/checkfinalizers.go | 19 ++++--
- 6 files changed, 151 insertions(+), 38 deletions(-)
+ src/cmd/preprofile/main.go | 54 ++++++++++++++++++++++------------------------
+ 1 file changed, 26 insertions(+), 28 deletions(-)

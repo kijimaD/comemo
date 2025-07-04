@@ -1,0 +1,17 @@
+commit 2b12bbcb4561a6f45e8036e71c8440b7bca50de6
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Jun 18 18:48:57 2024 +0000
+
+    doc/next: update release notes for go list -m -json
+    
+    For #65614
+    
+    Change-Id: I49921aefb79efbc012e745cc2abd9ff36c0a9149
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593495
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/next/3-tools.md | 1 -
+ 1 file changed, 1 deletion(-)

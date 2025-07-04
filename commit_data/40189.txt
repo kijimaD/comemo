@@ -1,18 +1,23 @@
-commit ff86ce13b69f427248203493d669a730988f882c
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Oct 7 14:37:44 2019 -0700
+commit 7596ad0b24436dcde6a370139fbac34a95f15923
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 24 15:31:24 2019 -0700
 
-    cmd/asm: fix element size encoding for VSUMQ instruction on s390x
+    unicode/utf8: remove some bounds checks from DecodeRune
     
-    The element size for VSUMQF and VSUMQG was off by one. Fix this
-    and add tests for VSUM* instruction encodings.
+    The compiler couldn't quite see that reading p[2] and p[3] was safe.
+    This change provides a few hints to help it.
+    First, make sz an int throughout, rather than just when checking the input length.
+    Second, use <= instead of == in later comparisons.
     
-    Change-Id: I6de2dabb383e5bc6f85eef1e0f106ba949c9030b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199978
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    name                  old time/op  new time/op  delta
+    DecodeASCIIRune-8     2.62ns ± 3%  2.60ns ± 5%     ~     (p=0.126 n=18+19)
+    DecodeJapaneseRune-8  4.46ns ±10%  4.01ns ± 5%  -10.00%  (p=0.000 n=19+20)
+    
+    Change-Id: I2f78a17e38156fbf8b0f5dd6c07c20d6a47e9209
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173662
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 6 ++++++
- src/cmd/internal/obj/s390x/vector.go      | 4 ++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/unicode/utf8/utf8.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

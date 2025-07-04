@@ -1,34 +1,19 @@
-commit d2eb72fcff90d1c01fb2336a4c6f0f7fd7e01cbc
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 12 15:00:08 2024 -0500
+commit e29dd78ffedb504ccad69a0791dd22b88cc6336e
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Aug 24 09:22:36 2022 +0800
 
-    cmd/internal/obj/ppc64: don't modify runtime.elf_* symbols
+    cmd/internal/obj: remove redundant cnames on loong64
     
-    The runtime.elf_* symbols are assembly functions which are used
-    to support the gcc/llvm -Os option when used with cgo.
-    
-    When compiling Go for shared code, we attempt to strip out the
-    TOC regenation code added by the go assembler for these symbols.
-    
-    This causes the symbol to no longer appear as an assembly
-    function which causes problems later on when handling other
-    implicit symbols.
-    
-    Avoid adding a TOC regeneration prologue to these functions
-    to avoid this issue.
-    
-    Fixes #66265
-    
-    Change-Id: Icbf8e4438d177082a57bb228e39b232e7a0d7ada
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571835
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I5aa6328a12e74b2801ab60b5a5bb8571d382d5ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425301
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .../go/testdata/script/test_ppc64_linker_funcs.txt    |  4 ++++
- src/cmd/internal/obj/ppc64/obj9.go                    | 19 ++++++++++++++++++-
- src/cmd/link/internal/ppc64/asm.go                    | 17 +----------------
- 3 files changed, 23 insertions(+), 17 deletions(-)
+ src/cmd/internal/obj/loong64/cnames.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,16 @@
-commit a6820b65cbc585f32697cac047f2260c069ec4b7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 7 15:04:41 2011 -0800
+commit f383062e014d44872e8bd450a538fc45b7bee5c8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 7 14:41:46 2011 -0800
 
-    gofmt: don't attempt certain illegal rewrites
+    time.NewTicker: panic for intervals <= 0.
+    Not absolutely certain it's right to do this, but since there's
+    no error value coming back, it seems reasonable.
     
-    (e.g.: echo 'package main' | gofmt -r 'x->7'
-    cannot change the package name to 7)
+    Fixes #1392.
     
-    R=rsc
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/3913041
+    https://golang.org/cl/3896042
 
- src/cmd/gofmt/rewrite.go | 36 ++++++++++++++++++++++++++----------
- 1 file changed, 26 insertions(+), 10 deletions(-)
+ src/pkg/time/tick.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

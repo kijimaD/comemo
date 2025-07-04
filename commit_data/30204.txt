@@ -1,17 +1,21 @@
-commit 39651bb50bc0e1038e77e63baa37729bc4676e8a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 9 18:39:16 2017 -0500
+commit f357091a6d48c3a87db14338b321eca52af30dd7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 30 14:59:34 2016 -0700
 
-    expvar: parallelize BenchmarkMapAdd{Same,Different}
+    cmd/compile: combine some extensions with loads
     
-    The other expvar tests are already parallelized, and this will help to
-    measure the impact of potential implementations for #18177.
+    For cases where we already have the ops, combine
+    sign or zero extension with the previous load
+    (even if the load is larger width).
     
-    updates #18177
+    Update #15105
     
-    Change-Id: I0f4f1a16a0285556cbcc8339855b6459af412675
-    Reviewed-on: https://go-review.googlesource.com/36717
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I76c5ddd69e1f900d2a17d35503083bd3b4978e48
+    Reviewed-on: https://go-review.googlesource.com/28190
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/expvar/expvar_test.go | 47 ++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 34 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  12 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 300 +++++++++++++++++++++++++++
+ 2 files changed, 312 insertions(+)

@@ -1,19 +1,24 @@
-commit 9958a7b563259c6ec6d185529f86bec8b62ace3d
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Nov 13 08:32:33 2015 +0000
+commit 6bf383c7b31c990231c2a6c148b98e035b3b1b53
+Author: Todd Neal <todd@tneal.org>
+Date:   Sun Sep 6 16:00:01 2015 -0400
 
-    Revert "cmd/internal/obj/arm64, cmd/link: use two instructions rather than three for loads from memory"
+    [dev.ssa] cmd/compile: clean up nilcheck logic
     
-    This reverts commit 3a9bc571b0b8c4ab4cf026d68ea3b71dec608da3.
+    Be more clear about the two conditions that we care about:
+    1) a block that performs a nil check (OpIsNonNil), which may be removed
+    2) a block that is the non-nil sucessor for an OpIsNonNil block
     
-    Breaks darwin/arm64.
+    Now we only care about removing nilchecks for two scenarios:
+    - a type 1 block is dominated by a type 2 block for the same value
+    - a block is both type 1 and type 2 for the same value
     
-    Change-Id: Ib958beacabca48020a6a47332fbdec99d994060b
-    Reviewed-on: https://go-review.googlesource.com/16906
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Fixes math/big.
+    
+    Change-Id: I50018a4014830461ddfe2a2daf588468e4a8f0b4
+    Reviewed-on: https://go-review.googlesource.com/14325
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go |  60 ++++++++------------
- src/cmd/internal/obj/link.go       |   5 --
- src/cmd/link/internal/arm64/asm.go | 113 +++++++++----------------------------
- src/cmd/link/internal/ld/elf.go    |   4 --
- 4 files changed, 50 insertions(+), 132 deletions(-)
+ src/cmd/compile/internal/ssa/nilcheck.go      | 122 ++++++++------------------
+ src/cmd/compile/internal/ssa/nilcheck_test.go |  45 ++++++++++
+ src/cmd/dist/test.go                          |   3 -
+ 3 files changed, 83 insertions(+), 87 deletions(-)

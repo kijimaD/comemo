@@ -1,17 +1,17 @@
-commit d3aedb72c687cc58e10755eff006a4dd45cb8e15
-Author: Chaoqun Han <hanssccv@gmail.com>
-Date:   Mon Nov 8 22:58:51 2021 +0800
+commit 4bd4dfe96a0e7cd252ff0d53ba46618b54618d15
+Author: cui <cuiweixie@gmail.com>
+Date:   Mon Jan 11 08:44:45 2021 +0000
 
-    cmd/compile: NewSelectorExpr use n.Pos instead of base.Pos
+    cmd/compile/internal/ssa: prealloc slice
     
-    Fixes #49436
-    
-    Change-Id: I4c8851e7aaee631d5eb22f2ef0aea5a25e936d87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361917
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I9943a4f931c251a69bc8244c0d7723a0a3552073
+    GitHub-Last-Rev: d9dd94ae4444cb0106756cdb98c1c5fa12fa5f79
+    GitHub-Pull-Request: golang/go#43622
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282992
     Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/typecheck/subr.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/lca.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

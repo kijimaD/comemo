@@ -1,27 +1,20 @@
-commit d2c7dec183f0da628abf16848e9e92987feebe32
-Author: Aman Gupta <aman@tmm1.net>
-Date:   Mon Nov 6 23:02:21 2017 -0800
+commit 2f8bcc89408274821e91be464f51b4e2a816cbae
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 11:47:06 2017 -0500
 
-    net: implement (*syscall.RawConn).Read/Write on Windows
+    cmd/go: accept more spaces in -gcflags arguments
     
-    RawRead assumes the callback will perform either (a) a blocking read
-    and always return true, (b) a blocking read with a SO_RCVTIMEO set
-    returning false on WSAETIMEDOUT, or (c) a non-blocking read
-    returning false on WSAEWOULDBLOCK. In the latter two cases, it uses
-    a 0-byte overlapped read for notifications from the IOCP runtime
-    when the socket becomes readable before trying again.
+    Earlier versions of Go were not very picky about leading spaces
+    in the -gcflags values. Make the new pattern-enhanced parser
+    equally lax.
     
-    RawWrite assumes the callback will perform blocking write and will
-    always return true, and makes no effort to tie into the runtime loop.
+    Fixes #22943.
     
-    Change-Id: Ib10074e9d502c040294f41a260e561e84208652f
-    Reviewed-on: https://go-review.googlesource.com/76391
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I5cf4d3e81412e895a4b52af325853ed48d0b73f4
+    Reviewed-on: https://go-review.googlesource.com/81498
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/fd_windows.go                 | 36 ++++++++++++++++++++++--
- src/internal/syscall/windows/syscall_windows.go |  1 +
- src/net/rawconn.go                              |  3 --
- src/net/rawconn_test.go                         |  2 +-
- src/net/rawconn_windows_test.go                 | 37 +++++++++++++++++++++++--
- 5 files changed, 71 insertions(+), 8 deletions(-)
+ src/cmd/go/go_test.go            | 4 ++--
+ src/cmd/go/internal/load/flag.go | 4 +++-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

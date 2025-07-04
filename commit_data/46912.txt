@@ -1,43 +1,49 @@
-commit 1b072b3ed56c18619587354f499fcda5279718a2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Oct 14 18:18:49 2021 -0400
+commit e0215315f51c62f6d2c5ea5ed7008b7e7963dd5d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 22 16:29:04 2020 +0000
 
-    runtime: consistently access pollDesc r/w Gs with atomics
+    [dev.regabi] reflect: support for register ABI on amd64 for reflect.(Value).Call
     
-    Both netpollblock and netpollunblock read gpp using a non-atomic load.
-    When consuming a ready event, netpollblock clears gpp using a non-atomic
-    store, thus skipping a barrier.
+    This change adds support for the new register ABI on amd64 to
+    reflect.(Value).Call. If internal/abi's register counts are non-zero,
+    reflect will try to set up arguments in registers on the Call path.
     
-    Thus on systems with weak memory ordering, a sequence like so this is
-    possible:
+    Note that because the register ABI becomes ABI0 with zero registers
+    available, this should keep working as it did before.
     
-                 T1                                T2
+    This change does not add any tests for the register ABI case because
+    there's no way to do so at the moment.
     
-    1. netpollblock: read gpp -> pdReady
-    2. netpollblock: store gpp -> 0
+    For #40724.
     
-                                     3. netpollunblock: read gpp -> pdReady
-                                     4. netpollunblock: return
-    
-    i.e., without a happens-before edge between (2) and (3), netpollunblock
-    may read the stale value of gpp.
-    
-    Switch these access to use atomic loads and stores in order to create
-    these edges.
-    
-    For ease of future maintainance, I've simply changed rg and wg to always
-    be accessed atomically, though I don't believe pollOpen or pollClose
-    require atomics today.
-    
-    Fixes #48925
-    
-    Change-Id: I903ea667eea320277610b4f969129935731520c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355952
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I8aa089a5aa5a31b72e56b3d9388dd3f82203985b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272568
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/netpoll.go | 43 ++++++++++++++++++++++++++-----------------
- 1 file changed, 26 insertions(+), 17 deletions(-)
+ src/go/build/deps_test.go      |   6 +-
+ src/internal/abi/abi.go        |  45 ++++-
+ src/reflect/abi.go             | 403 +++++++++++++++++++++++++++++++++++++++++
+ src/reflect/export_test.go     |  12 +-
+ src/reflect/makefunc.go        |  10 +-
+ src/reflect/type.go            |  61 ++-----
+ src/reflect/value.go           | 249 +++++++++++++++++++------
+ src/runtime/asm_386.s          |  23 +--
+ src/runtime/asm_amd64.s        | 100 ++++++++--
+ src/runtime/asm_arm.s          |  24 +--
+ src/runtime/asm_arm64.s        |  23 +--
+ src/runtime/asm_mips64x.s      |  23 +--
+ src/runtime/asm_mipsx.s        |  23 +--
+ src/runtime/asm_ppc64x.s       |  23 +--
+ src/runtime/asm_riscv64.s      |  27 +--
+ src/runtime/asm_s390x.s        |  23 +--
+ src/runtime/asm_wasm.s         |  23 +--
+ src/runtime/mbarrier.go        |  10 +-
+ src/runtime/mfinal.go          |   7 +-
+ src/runtime/panic.go           |  13 +-
+ src/runtime/stubs.go           |  56 ++++--
+ src/runtime/syscall_windows.go |   7 +-
+ 22 files changed, 950 insertions(+), 241 deletions(-)

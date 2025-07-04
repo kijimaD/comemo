@@ -1,25 +1,30 @@
-commit 6e738868a7a943d7d4fd6bb1963e7f6d78111726
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Aug 3 19:38:37 2021 -0700
+commit f2311462ab6f2359006f42b7febd19ce95a9bbcf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 01:01:59 2020 -0800
 
-    net/http: speed up and deflake TestCancelRequestWhenSharingConnection
+    [dev.regabi] cmd/compile: cleanup type-checking of defined types
     
-    This test made many requests over the same connection for 10
-    seconds, trusting that this will exercise the request cancelation
-    race from #41600.
+    The code for type-checking defined types was scattered between
+    typecheckdef, typecheckdeftype, and setUnderlying. There was redundant
+    work between them, and setUnderlying also needed to redo a lot of work
+    because of its brute-force solution of just copying all Type fields.
     
-    Change the test to exhibit the specific race in a targeted fashion
-    with only two requests.
+    This CL reorders things so as many of the defined type's fields are
+    set in advance (in typecheckdeftype), and then setUnderlying only
+    copies over the details actually needed from the underlying type.
     
-    Updates #41600.
-    Updates #47016.
+    Incidentally, this evidently improves our error handling for an
+    existing test case, by allowing us to report an additional error.
     
-    Change-Id: If99c9b9331ff645f6bb67fe9fb79b8aab8784710
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/339594
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Passes toolstash/buildall.
+    
+    Change-Id: Id59a24341e7e960edd1f7366c3e2356da91b9fe7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274432
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/transport_test.go | 77 ++++++++++++++++++++++++++++--------------
- 1 file changed, 51 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 78 +++++++++++++++-----------------
+ test/fixedbugs/issue28079b.go            |  2 +-
+ 2 files changed, 38 insertions(+), 42 deletions(-)

@@ -1,27 +1,17 @@
-commit 1eaeec10958bf41d082ef212ee689fd8c1284320
-Author: korzhao <korzhao95@gmail.com>
-Date:   Sun Jul 30 15:02:15 2023 +0800
+commit 4c1ca42aa295d68b6172b7f49e4fb4fd14d86475
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Sep 1 14:50:26 2022 -0700
 
-    encoding/json: optimize Unmarshal for maps
+    internal/syscall/unix: KernelVersion nitpicks
     
-    benchmark                    old ns/op     new ns/op     delta
-    BenchmarkUnmarshalMap-10     218           172           -21.28%
+    A few minor improvements for KernelVersion for the sake of readability.
     
-    benchmark                    old allocs     new allocs     delta
-    BenchmarkUnmarshalMap-10     15             12             -20.00%
-    
-    benchmark                    old bytes     new bytes     delta
-    BenchmarkUnmarshalMap-10     328           256           -21.95%
-    
-    Change-Id: Ie20ab62731c752eb0040c6d1591fedd7d12b1e0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514100
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I06d2df60ecee8ee0ae603952470fb73e7dcd5d74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427676
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/encoding/json/bench_test.go | 13 +++++++++++++
- src/encoding/json/decode.go     | 16 +++++++++-------
- 2 files changed, 22 insertions(+), 7 deletions(-)
+ src/internal/syscall/unix/kernel_version_linux.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

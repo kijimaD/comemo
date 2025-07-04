@@ -1,17 +1,23 @@
-commit 1d90e1a0ac46274e6c0bfe36c410768263b79eaf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 6 14:32:26 2020 -0500
+commit 7d6f79e61783a5ee86e39e47f2d85b3e21552c97
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 4 15:08:58 2019 -0400
 
-    cmd/dist: forward stderr if 'go env CGO_ENABLED' fails
+    [dev.link] cmd/link: implement live method tracking in deadcode2
     
-    The default error string for a command failure is just its status code,
-    and "exit status 1" is not at all helpful for debugging.
+    This essentially replicates the logic of live method tracking and
+    type symbol decoding, rewritten to operate on indices instead of
+    Symbols.
     
-    Change-Id: I822c89bcc9e73283b33e01792bf9c40b1add3c35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222308
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TODO: the special handling of reflect.Type.Method has not been
+    implemented.
+    
+    TODO: the symbol name is used too much. It ought to be a better
+    way to do it.
+    
+    Change-Id: I860ee7a506c00833902e4870d15aea698a705dd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199078
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/dist/test.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/deadcode2.go     | 252 +++++++++++++++++++++++++++++-
+ src/cmd/link/internal/objfile/objfile2.go |  32 ++--
+ 2 files changed, 268 insertions(+), 16 deletions(-)

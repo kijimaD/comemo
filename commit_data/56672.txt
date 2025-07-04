@@ -1,39 +1,25 @@
-commit acc93dac8360640f860cf25985aebe7039bc71a5
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu May 23 10:11:35 2024 -0400
+commit 697644070c6e335b9c3dffdd4e82feb8038c3f22
+Author: Sven Anderson <sven@anderson.de>
+Date:   Fri May 5 00:15:07 2023 +0200
 
-    doc/next: populate TODOs found with relnote todo
+    runtime: improve Pinner with gcBits
     
-    This is the first round of TODOs created based on relnote todo output.
-    There are many entries that need to be documented, expanded, reworded,
-    and this change makes progress on setting that up.
+    This change replaces the statically sized pinnerBits with gcBits
+    based ones, that are copied in each GC cycle if they exist.  The
+    pinnerBits now include a second bit per object, that indicates if a
+    pinner counter for multi-pins exists, in order to avoid unnecessary
+    specials iterations.
     
-    For this cycle, relnote todo implemented a simple heuristic of finding
-    CLs that mention accepted proposals (see issue 62376, or comment
-    https://go.dev/issue/62376#issuecomment-2101086794 specifically).
-    The "Items that don't need to be mentioned in Go 1.23 release notes but
-    are picked up by relnote todo." section in todo.md contains an attempt
-    at reviewing that list. The large number of items needed to be reviewed
-    made it impractical to spend much time on any individual one.
+    This is a follow-up to CL 367296.
     
-    For #65614.
-    
-    Change-Id: Id9d5f1795575a46df2ec4ed0088de07ee6075a90
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588015
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I82e38cecd535e18c3b3ae54b5cc67d3aeeaafcfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493275
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- doc/next/3-tools.md                               | 19 ++++++++
- doc/next/5-toolchain.md                           |  5 ++
- doc/next/6-stdlib/1-time.md                       |  2 +
- doc/next/6-stdlib/99-minor/crypto/tls/67061.md    |  2 +
- doc/next/6-stdlib/99-minor/crypto/tls/67065.md    |  3 ++
- doc/next/6-stdlib/99-minor/go/types/46477.md      | 13 +++++
- doc/next/6-stdlib/99-minor/net/http/66343.md      |  1 +
- doc/next/6-stdlib/99-minor/runtime/debug/42888.md |  1 -
- doc/next/6-stdlib/99-minor/text/template/57646.md |  1 +
- doc/next/7-ports.md                               |  6 +++
- doc/next/9-todo.md                                | 59 +++++++++++++++++++++++
- 11 files changed, 111 insertions(+), 1 deletion(-)
+ src/runtime/mgcsweep.go |   5 ++
+ src/runtime/mheap.go    |  12 +--
+ src/runtime/pinner.go   | 197 +++++++++++++++++++++++++++++++++---------------
+ 3 files changed, 144 insertions(+), 70 deletions(-)

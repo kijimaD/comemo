@@ -1,18 +1,33 @@
-commit 58fa8075f551287d8d155354417c571c4ff3941e
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sun Sep 20 11:57:20 2020 +0200
+commit 7e1028a9ffaf577bfa527385b96f9063ca9d2984
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 1 18:12:27 2019 +0700
 
-    cmd/compile: enforce strongly typed rules for ARM (mem)
+    cmd/compile: avoid range over copy of array
     
-    L274-L281, L293-L307, L312, L317, L319, L335, L341
+    Passes toostash-check.
     
-    Toolstash-check successful
+    Slightly reduce compiler binary size:
     
-    Change-Id: I69e8e9f964c1f35615e4e19401c3f661e1e64a3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256100
+    file    before    after     Δ       %
+    compile 21087288  21070776  -16512  -0.078%
+    total   131847020 131830508 -16512  -0.013%
+    
+    file                      before    after     Δ       %
+    cmd/compile/internal/gc.a 9007472   8999640   -7832   -0.087%
+    total                     127117794 127109962 -7832   -0.006%
+    
+    Change-Id: I4aadd68d0a7545770598bed9d3a4d05899b67b52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205777
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules |  40 ++++----
- src/cmd/compile/internal/ssa/rewriteARM.go | 152 ++++++++++++++---------------
- 2 files changed, 96 insertions(+), 96 deletions(-)
+ src/cmd/compile/internal/gc/escape.go   |  2 +-
+ src/cmd/compile/internal/gc/iexport.go  |  2 +-
+ src/cmd/compile/internal/gc/iimport.go  |  2 +-
+ src/cmd/compile/internal/gc/main.go     |  4 ++--
+ src/cmd/compile/internal/gc/noder.go    |  2 +-
+ src/cmd/compile/internal/gc/plive.go    |  2 +-
+ src/cmd/compile/internal/gc/ssa.go      |  2 +-
+ src/cmd/compile/internal/gc/universe.go | 10 +++++-----
+ 8 files changed, 13 insertions(+), 13 deletions(-)

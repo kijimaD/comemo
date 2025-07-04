@@ -1,34 +1,37 @@
-commit d924c3336c39a256c832512ecd24fcdeed0ca266
-Author: David Chase <drchase@google.com>
-Date:   Mon Dec 17 12:01:56 2018 -0500
+commit ad644d2e86bab85787879d41c2d2aebbd7c57db8
+Author: Kazuhiro Sera <seratch@gmail.com>
+Date:   Thu Aug 23 05:06:47 2018 +0000
 
-    cmd/compile: prevent double-walk of switch for OPRINT/OPRINTN
+    all: fix typos detected by github.com/client9/misspell
     
-    When a println arg contains a call to an inlineable function
-    that itself contains a switch, that switch statement will be
-    walked twice, once by the walkexprlist formerly in the
-    OPRINT/OPRINTN case, then by walkexprlistcheap in walkprint.
-    
-    Remove the first walkexprlist, it is not necessary.
-    walkexprlist =
-                    s[i] = walkexpr(s[i], init)
-    walkexprlistcheap = {
-                    s[i] = cheapexpr(n, init)
-                    s[i] = walkexpr(s[i], init)
-    }
-    
-    Seems like this might be possible in other places, i.e.,
-    calls to inlineable switch-containing functions.
-    
-    See also #25776.
-    Fixes #29220.
-    
-    Change-Id: I3781e86aad6688711597b8bee9bc7ebd3af93601
-    Reviewed-on: https://go-review.googlesource.com/c/154497
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Iadb3c5de8ae9ea45855013997ed70f7929a88661
+    GitHub-Last-Rev: ae85bcf82be8fee533e2b9901c6133921382c70a
+    GitHub-Pull-Request: golang/go#26920
+    Reviewed-on: https://go-review.googlesource.com/128955
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/walk.go |  1 -
- test/fixedbugs/issue29220.go        | 26 ++++++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ misc/cgo/test/issue9400_linux.go                   | 2 +-
+ misc/cgo/testshared/shared_test.go                 | 2 +-
+ src/bytes/buffer_test.go                           | 2 +-
+ src/cmd/asm/internal/asm/operand_test.go           | 2 +-
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 2 +-
+ src/cmd/compile/internal/gc/ssa.go                 | 2 +-
+ src/cmd/compile/internal/ssa/deadstore.go          | 2 +-
+ src/cmd/go/internal/cache/default_unix_test.go     | 2 +-
+ src/cmd/go/internal/modload/load.go                | 2 +-
+ src/cmd/go/internal/work/exec.go                   | 2 +-
+ src/cmd/trace/annotations.go                       | 1 +
+ src/crypto/aes/gcm_arm64.s                         | 6 +++---
+ src/crypto/x509/verify.go                          | 2 +-
+ src/internal/bytealg/index_arm64.s                 | 2 +-
+ src/internal/trace/goroutines.go                   | 2 +-
+ src/os/user/user.go                                | 2 +-
+ src/runtime/asm_amd64.s                            | 2 +-
+ src/runtime/sys_windows_amd64.s                    | 2 +-
+ src/time/time.go                                   | 2 +-
+ test/fixedbugs/issue22662b.go                      | 2 +-
+ test/live.go                                       | 2 +-
+ test/run.go                                        | 2 +-
+ 22 files changed, 24 insertions(+), 23 deletions(-)

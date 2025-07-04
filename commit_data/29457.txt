@@ -1,20 +1,17 @@
-commit 8d0c105407d235c85a163c0cda5bda86e5219c36
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Nov 4 18:22:06 2016 -0400
+commit e888b81a11df98d352580358e1ba524d05904d69
+Author: Vitor De Mario <vitordemario@gmail.com>
+Date:   Thu Sep 15 20:46:20 2016 -0300
 
-    reflect: unexported fields are tied to a package
+    doc: change variable name in Effective Go
     
-    An unexported field of a struct is not visible outside of the package
-    that defines it, so the package path is implicitly part of the
-    definition of any struct with an unexported field.
+    Effective Go has references to a function call f(c, req) made by ServeHTTP mixed with f(w,
+    req). c is dropped in favor of w to maintain consistency
     
-    Change-Id: I17c6aac822bd0c24188ab8ba1cc406d6b5d82771
-    Reviewed-on: https://go-review.googlesource.com/32820
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #17128
+    
+    Change-Id: I6746fd115ed5a58971fd24e54024d29d18ead1fa
+    Reviewed-on: https://go-review.googlesource.com/29311
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/reflect/all_test.go    | 12 ++++++++++++
- src/reflect/export_test.go |  4 ++++
- src/reflect/type.go        | 10 ++++++++++
- 3 files changed, 26 insertions(+)
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

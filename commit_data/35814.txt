@@ -1,16 +1,16 @@
-commit fbfd38c575b594eb49ba9c8c38e295b99b299561
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 26 17:52:34 2018 -0700
+commit ad466d8b87da200fa682f59eca79665addf75138
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 9 11:35:18 2018 +0100
 
-    misc/cgo/test: skip Test18146 in short mode
+    go/internal/gcimporter: simplify defer
     
-    Fixes #21219
+    Directly use rc.Close instead of wrapping it with a closure.
     
-    Change-Id: I1a2ec1afe06586ed33a3a855b77536490cac3a38
-    Reviewed-on: https://go-review.googlesource.com/121115
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3dc1c21ccbfe031c230b035126d5ea3bc62055c3
+    Reviewed-on: https://go-review.googlesource.com/99716
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/issue18146.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/go/internal/gcimporter/gcimporter.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

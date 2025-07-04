@@ -1,73 +1,36 @@
-commit cdf77c7209a497825b2956ec0360c6e7e4ae0acd
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Wed Feb 22 05:52:15 2023 -0600
+commit e845f572ec6163fd3bad0267b5bb4f24d369bd93
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 09:02:53 2022 -0400
 
-    runtime: improve memmove on ppc64x/power10
+    [dev.boringcrypto] crypto/ecdsa, crypto/rsa: use boring.Cache
     
-    Rewrite memmove asm function to use the new power10 instructions
-    lxvl and stxvl or the load and store vector with length which can
-    specify the number of bytes to be loaded/stored in a register,
-    thereby avoiding multiple instructions to process 8bytes, 4bytes,
-    2bytes and a single byte while storing the tail end bytes. On power9
-    and power8 the code remains unchanged.
-    The performance for all sizes<=16 improve on power10 with this change.
+    In the original BoringCrypto port, ecdsa and rsa's public and private
+    keys added a 'boring unsafe.Pointer' field to cache the BoringCrypto
+    form of the key. This led to problems with code that “knew” the layout
+    of those structs and in particular that they had no unexported fields.
     
-    name                          old time/op    new time/op    delta
-    Memmove/1                2.87ns ±  0%    2.64ns ±  1%    -8.11%
-    Memmove/2                2.85ns ±  0%    2.62ns ±  1%    -8.12%
-    Memmove/3                2.78ns ±  0%    2.63ns ±  1%    -5.33%
-    Memmove/4                2.83ns ±  0%    2.63ns ±  2%    -7.33%
-    Memmove/5                2.78ns ±  0%    2.63ns ±  1%    -5.40%
-    Memmove/6                2.61ns ±  3%    2.61ns ±  1%      ~
-    Memmove/7                2.82ns ±  0%    2.61ns ±  1%    -7.48%
-    Memmove/8                2.82ns ±  0%    2.65ns ±  1%    -6.11%
-    Memmove/9                6.41ns ±  0%    2.62ns ±  1%   -59.17%
-    Memmove/10               5.09ns ±  1%    2.60ns ±  1%   -48.90%
-    Memmove/11               4.68ns ±  7%    2.59ns ±  1%   -44.56%
-    Memmove/12               6.25ns ±  2%    2.60ns ±  1%   -58.46%
-    Memmove/13               4.15ns ± 25%    2.59ns ±  1%   -37.66%
-    Memmove/14               3.76ns ± 11%    2.59ns ±  1%   -30.94%
-    Memmove/15               3.82ns ±  1%    2.60ns ±  1%   -31.93%
-    Memmove/16               2.96ns ±  1%    2.59ns ±  1%   -12.63%
-    MemmoveUnalignedDst/1    3.07ns ±  0%    2.77ns ±  0%    -9.75%
-    MemmoveUnalignedDst/2    2.82ns ±  0%    2.77ns ±  0%    -1.73%
-    MemmoveUnalignedDst/3    3.03ns ±  0%    2.77ns ±  0%    -8.75%
-    MemmoveUnalignedDst/4    2.85ns ±  1%    2.77ns ±  0%    -2.90%
-    MemmoveUnalignedDst/5    3.03ns ±  0%    2.77ns ±  0%    -8.75%
-    MemmoveUnalignedDst/6    2.88ns ±  0%    2.77ns ±  0%    -4.04%
-    MemmoveUnalignedDst/7    3.11ns ±  0%    2.77ns ±  0%   -11.10%
-    MemmoveUnalignedDst/8    4.18ns ±  2%    2.77ns ±  0%   -33.90%
-    MemmoveUnalignedDst/9    6.36ns ±  1%    2.77ns ±  0%   -56.53%
-    MemmoveUnalignedDst/10   5.77ns ±  1%    2.77ns ±  0%   -52.09%
-    MemmoveUnalignedDst/11   4.68ns ±  1%    2.77ns ±  0%   -40.86%
-    MemmoveUnalignedDst/12   4.54ns ±  2%    2.77ns ±  0%   -39.05%
-    MemmoveUnalignedDst/13   6.16ns ±  5%    2.77ns ±  0%   -55.14%
-    MemmoveUnalignedDst/14   4.03ns ±  2%    2.77ns ±  0%   -31.41%
-    MemmoveUnalignedDst/15   4.11ns ±  0%    2.77ns ±  0%   -32.74%
-    MemmoveUnalignedDst/16   3.49ns ±  4%    2.79ns ±  1%   -20.04%
-    MemmoveUnalignedSrc/1    3.06ns ±  0%    2.77ns ±  0%    -9.68%
-    MemmoveUnalignedSrc/2    2.82ns ±  1%    2.77ns ±  0%    -1.93%
-    MemmoveUnalignedSrc/3    3.04ns ±  0%    2.77ns ±  0%    -8.95%
-    MemmoveUnalignedSrc/4    2.85ns ±  0%    2.77ns ±  0%    -2.86%
-    MemmoveUnalignedSrc/5    3.04ns ±  0%    2.77ns ±  0%    -8.97%
-    MemmoveUnalignedSrc/6    2.93ns ±  0%    2.77ns ±  0%    -5.43%
-    MemmoveUnalignedSrc/7    3.13ns ±  0%    2.77ns ±  0%   -11.56%
-    MemmoveUnalignedSrc/8    3.71ns ±  2%    2.77ns ±  0%   -25.46%
-    MemmoveUnalignedSrc/9    6.04ns ±  0%    2.77ns ±  0%   -54.16%
-    MemmoveUnalignedSrc/10   6.86ns ±  5%    2.77ns ±  0%   -59.69%
-    MemmoveUnalignedSrc/11   4.18ns ±  3%    2.77ns ±  0%   -33.81%
-    MemmoveUnalignedSrc/12   4.75ns ±  2%    2.77ns ±  0%   -41.81%
-    MemmoveUnalignedSrc/13   4.78ns ±  3%    2.77ns ±  0%   -42.15%
-    MemmoveUnalignedSrc/14   3.89ns ±  5%    2.77ns ±  0%   -28.80%
-    MemmoveUnalignedSrc/15   4.09ns ±  0%    2.77ns ±  0%   -32.30%
-    MemmoveUnalignedSrc/16   3.15ns ±  1%    2.77ns ±  0%   -12.05%
-    Change-Id: Ia3c09d968dada71a794e5ccab3300ea9c46d8374
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470135
-    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    In response, as an awful kludge, I changed the compiler to pretend
+    that field did not exist when laying out reflect data. Because we want
+    to merge BoringCrypto in the main tree, we need a different solution.
+    Using boring.Cache is that solution.
+    
+    For #51940.
+    
+    Change-Id: Ideb2b40b599a1dc223082eda35a5ea9abcc01e30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395883
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/runtime/memmove_ppc64x.s | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/crypto/ecdsa/boring.go               | 25 +++++++++--------
+ src/crypto/ecdsa/ecdsa.go                | 11 ++------
+ src/crypto/internal/boring/cache.go      | 16 ++++++-----
+ src/crypto/internal/boring/cache_test.go | 47 ++++++++++++++++++++++++++++----
+ src/crypto/rsa/boring.go                 | 25 +++++++++--------
+ src/crypto/rsa/boring_test.go            | 45 ++++++++++++++++--------------
+ src/crypto/rsa/rsa.go                    |  5 ----
+ src/internal/boringtest/boring.go        |  8 ------
+ src/internal/boringtest/boring_test.go   | 47 --------------------------------
+ src/runtime/mgc.go                       |  7 ++++-
+ src/runtime/mgc_boring.go                | 14 ----------
+ 11 files changed, 110 insertions(+), 140 deletions(-)

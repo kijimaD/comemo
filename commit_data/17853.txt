@@ -1,14 +1,13 @@
-commit 7307ffa7cd97bb6a290914efd856a8ae4076e6e5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 29 17:38:43 2013 -0700
+commit 2ee03b5e593ce1613150181e831d97e029122117
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Oct 30 09:27:02 2013 +1100
 
-    database/sql: document Result methods
+    A+C: Jakob Borg (individual CLA).
     
-    Fixes #5110
-    
-    R=golang-dev, r
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/19280046
+    https://golang.org/cl/19510043
 
- src/pkg/database/sql/sql.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

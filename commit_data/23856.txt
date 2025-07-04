@@ -1,34 +1,27 @@
-commit 510fd1350d039d9c70b2411f3873db9bb86ae0eb
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 24 18:11:36 2015 -0400
+commit f6ae5f96c7a1919d2d6f4d658737bc5082d9e996
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 16:28:57 2015 -0700
 
-    runtime: enable GC assists ASAP
+    go/internal/gccgoimporter: unmodified copy of x/tools/go/gccgoimporter
     
-    Currently the GC coordinator enables GC assists at the same time it
-    enables background mark workers, after the concurrent scan phase is
-    done. However, this means a rapidly allocating mutator has the entire
-    scan phase during which to allocate beyond the heap trigger and
-    potentially beyond the heap goal with no back-pressure from assists.
-    This prevents the feedback system that's supposed to keep the heap
-    size under the heap goal from doing its job.
+    This change will brake the build. The immediately following change
+    contains the necessary adjustments to make it work again. We're
+    doing this in two steps to expose the manual changes applied.
     
-    Fix this by enabling mutator assists during the scan phase. This is
-    safe because the write barrier is already enabled and globally
-    acknowledged at this point.
-    
-    There's still a very small window between when the heap size reaches
-    the heap trigger and when the GC coordinator is able to stop the world
-    during which the mutator can allocate unabated. This allows *very*
-    rapidly allocator mutators like TestTraceStress to still occasionally
-    exceed the heap goal by a small amount (~20 MB at most for
-    TestTraceStress). However, this seems like a corner case.
-    
-    Fixes #11677.
-    
-    Change-Id: I0f80d949ec82341cd31ca1604a626efb7295a819
-    Reviewed-on: https://go-review.googlesource.com/12674
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I225947da23e190b12e12cbd0c5e6e91628de7f53
+    Reviewed-on: https://go-review.googlesource.com/11151
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgc.go     | 20 ++++++++++++--------
- src/runtime/mgcmark.go |  2 --
- 2 files changed, 12 insertions(+), 10 deletions(-)
+ src/go/internal/gccgoimporter/gccgoinstallation.go |  95 +++
+ .../gccgoimporter/gccgoinstallation_test.go        | 194 +++++
+ src/go/internal/gccgoimporter/importer.go          | 199 +++++
+ src/go/internal/gccgoimporter/importer_test.go     | 167 ++++
+ src/go/internal/gccgoimporter/parser.go            | 856 +++++++++++++++++++++
+ src/go/internal/gccgoimporter/parser_test.go       |  73 ++
+ .../internal/gccgoimporter/testdata/complexnums.go |   6 +
+ .../gccgoimporter/testdata/complexnums.gox         |   8 +
+ src/go/internal/gccgoimporter/testdata/imports.go  |   5 +
+ src/go/internal/gccgoimporter/testdata/imports.gox |   7 +
+ src/go/internal/gccgoimporter/testdata/pointer.go  |   3 +
+ src/go/internal/gccgoimporter/testdata/pointer.gox |   4 +
+ 12 files changed, 1617 insertions(+)

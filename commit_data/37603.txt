@@ -1,22 +1,22 @@
-commit 9e0ec5ef5945696e90d7749d3569471c6f8b68c5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 5 17:08:27 2018 -0800
+commit 1ba74448f25fa9e69c4f9ed155dd43eb496cfa70
+Author: Shulhan <m.shulhan@gmail.com>
+Date:   Mon Aug 20 23:45:34 2018 +0700
 
-    go/types: better error messages for field lookup errors
+    runtime: document all possible values for GOOS and GOARCH
     
-    - follow wording of cmd/compile more closely
-    - only print base of a package path to avoid overly long error messages
+    The updated list is taken from "src/go/build/syslist.go".
     
-    Fixes #26234.
+    Reason: one should not do web search to know the possible values of GOOS
+    and GOARCH.  The search result point to stackoverflow page which
+    reference the above source and documentation on installation page [1].
+    It should available offline (as in local godoc), as part of package
+    documentation.
     
-    Change-Id: I47a8c64b3adcf73980cd296a24cf8ac721e5df06
-    Reviewed-on: https://go-review.googlesource.com/c/152764
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    [1] https://golang.org/doc/install/source#environment
+    
+    Change-Id: I736804b8ef4dc11e0260fa862999212ab3f7b3fd
+    Reviewed-on: https://go-review.googlesource.com/129935
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/call.go             | 11 +++++++----
- src/go/types/errors.go           |  3 ++-
- src/go/types/testdata/issues.src | 27 ++++++++++++++++++++++++++-
- 3 files changed, 35 insertions(+), 6 deletions(-)
+ src/runtime/extern.go | 1 +
+ 1 file changed, 1 insertion(+)

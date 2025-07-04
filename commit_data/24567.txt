@@ -1,13 +1,19 @@
-commit 27838f3990f345629b397f9f3902163392f08f9d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 20 10:52:41 2015 -0700
+commit 0fb87abddfea7576555e2a2bdd088e02640ca5da
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 5 12:09:05 2015 -0400
 
-    cmd/compile/internal/gc: remove atoi function (minor cleanup)
+    cmd/go: fix handling of vendored imports in foo_test.go files
     
-    Change-Id: I0ad7836c0e8d70ffdc458e125d97b01e85d8a608
-    Reviewed-on: https://go-review.googlesource.com/16130
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #11977.
+    Fixes #11988.
+    
+    Change-Id: I9f80006946d3752ee6d644ee51f2decfeaca1ff6
+    Reviewed-on: https://go-review.googlesource.com/13230
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/esc.go  | 4 +++-
- src/cmd/compile/internal/gc/util.go | 7 -------
- 2 files changed, 3 insertions(+), 8 deletions(-)
+ src/cmd/go/list.go        | 14 +++-----------
+ src/cmd/go/pkg.go         | 27 ++++++++++++++++++++++++++
+ src/cmd/go/test.go        | 14 +++++++-------
+ src/cmd/go/vendor_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 86 insertions(+), 18 deletions(-)

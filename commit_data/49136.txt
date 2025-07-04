@@ -1,27 +1,25 @@
-commit f12461cb0f3878b6d332f4be3a02fa44cc744df6
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Apr 22 10:10:23 2022 -0400
+commit 4e6836e82c981af7c041474f139b3de03906c3b0
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jul 20 19:18:15 2021 -0700
 
-    go/doc: remove unused top-level declarations from playable example
+    [dev.typeparams] Fix the types of the OFUNCINST nodes in noder2
     
-    When we synthesize a playable example, prune declarations that may be
-    in the original example file but aren't used by the example.
+    types2 doesn't actually give us the type of an instantiated
+    function/method after the type args have been applied. So, do a
+    substitution at the point that we create the OFUNCINST nodes.
     
-    This is ported from pkgsite, where it fixed #43658.
+    We also needed to add in translation of the typeparams of a function
+    signature in the type substituter. If the type params of the function
+    become all concrete after the substitution, then we just drop them,
+    since the whole signature must now be concrete.
     
-    Change-Id: I41e6d4c28afa993c77c8a82b47bd86ba15ed13b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401758
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I6116d2aa248be6924ec9e6d8516678db45aa65c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336370
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/doc/example.go                              | 135 +++++++++++--
- .../doc/testdata/examples/generic_constraints.go   |  38 ++++
- .../testdata/examples/generic_constraints.golden   |  39 ++++
- src/go/doc/testdata/examples/iota.go               |  34 ++++
- src/go/doc/testdata/examples/iota.golden           |  23 +++
- src/go/doc/testdata/examples/issue43658.go         | 223 +++++++++++++++++++++
- src/go/doc/testdata/examples/issue43658.golden     | 156 ++++++++++++++
- src/go/doc/testdata/examples/values.go             |  22 ++
- src/go/doc/testdata/examples/values.golden         |  21 ++
- 9 files changed, 676 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/noder/expr.go     | 44 ++++++++++++++++++++++++++----
+ src/cmd/compile/internal/typecheck/subr.go | 16 +++++++++--
+ 2 files changed, 52 insertions(+), 8 deletions(-)

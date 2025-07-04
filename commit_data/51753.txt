@@ -1,24 +1,25 @@
-commit 43f9b826c322d5541ca0260f8b0c9b71db0f7ec8
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Jan 20 21:53:34 2023 +0000
+commit 604140d93111f89911e17cb147dcf6a02d2700d0
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Fri Mar 4 14:49:52 2022 +0000
 
-    encoding/gob: slightly simplify init code
+    net/url: add JoinPath, URL.JoinPath
     
-    https://go.dev/cl/460543 stopped using the "expect" parameter in
-    bootstrapType, but we forgot to actually remove it.
+    Builds on CL 332209.
     
-    While here, staticcheck correctly points out that we can use the copy
-    builtin to fill builtinIdToTypeSlice, now that it and idToType are an
-    array and slice respectively.
+    Fixes #47005
     
-    Change-Id: I48078415ab9bdd5633cf41f33ab4dc78eb30b48a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462301
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I82708dede05d79a196ca63f5a4e7cb5ac9a041ea
+    GitHub-Last-Rev: 51b735066eef74f5e67c3e8899c58f44c0383c61
+    GitHub-Pull-Request: golang/go#50383
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374654
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/gob/type.go | 36 +++++++++++++++++-------------------
- 1 file changed, 17 insertions(+), 19 deletions(-)
+ api/next.txt            |  2 ++
+ src/net/url/url.go      | 23 ++++++++++++++++++++
+ src/net/url/url_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 81 insertions(+)

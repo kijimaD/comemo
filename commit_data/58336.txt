@@ -1,17 +1,23 @@
-commit adfd81d8cdd9eaca4a5775abd174bc90ce313fdd
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Wed Dec 4 23:36:17 2024 -0500
+commit e293c4b509de6e7ceaeabb0c8d9f2a4d3d3b4e6d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Oct 31 00:27:58 2023 +1100
 
-    weak: fix subheading syntax in package doc
+    runtime: allocate crash stack via stackalloc
     
-    Go doc comments only support one level of heading.
+    On some platforms (notably OpenBSD), stacks must be specifically allocated
+    and marked as being stack memory. Allocate the crash stack using stackalloc,
+    which ensures these requirements are met, rather than using a global Go
+    variable.
     
-    Change-Id: I458f211bc7547a0676a59fdcb72f52ca480bf184
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633881
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #63794
+    
+    Change-Id: I6513575797dd69ff0a36f3bfd4e5fc3bd95cbf50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538457
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/weak/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc.go | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

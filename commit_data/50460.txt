@@ -1,22 +1,16 @@
-commit 77420fa119643163f820be7752668a69100487d7
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Sep 13 19:28:58 2022 +1000
+commit 6a7eb56cd1837b961ea815105235a3fd96fda94b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 26 13:55:53 2021 -0700
 
-    cmd/link: generate an error if the entry symbol cannot be found
+    cmd/compile/internal/types2: remove unused position computation (cleanup)
     
-    If the entry symbol cannot be found (for example, a new port is being brought
-    up and no rt0 code has been provided), the linker will currently panic. Rather
-    than panicing, generate an error that aids in debugging:
+    The position computation was needed for type list support.
+    With that gone, we don't need this code anymore.
     
-            missing entry symbol "_rt0_arm64_openbsd"
-    
-    Change-Id: I9cc38eaab48f730d596ca7fa9e9e3d68250ae4d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430555
-    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I3f36b3d108a1fae9947fd259d4892e0287cb78ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358701
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/link/internal/ld/lib.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/types2/union.go | 20 ++++----------------
+ 1 file changed, 4 insertions(+), 16 deletions(-)

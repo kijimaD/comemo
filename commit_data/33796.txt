@@ -1,26 +1,32 @@
-commit 49fec9b488177f2f212c5f6746203c519ae02264
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 29 14:16:25 2017 -0500
+commit b57413d9ca3c6ff082758ab0e6aad484b824dc55
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Sun Sep 3 19:58:01 2017 +0200
 
-    cmd/dist: disable test caching during run.bash
+    cmd/dist: restore behavior of branchtag
     
-    Sometimes people use run.bash repeatedly
-    or run go tool dist test by hand for cgo tests.
-    Avoid test caching in that case, by request.
+    The behavior was changed unintentionally during the conversion from C to Go.
+    Reviewed-on: https://go-review.googlesource.com/2470
     
-    Refactor code so that all go test commands
-    share a common prefix.
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (2).
     
-    If not caching is problematic it will be a one-line
-    change to turn caching back on.
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
+    (10) remove doc.go
     
-    Fixes #22758.
-    
-    Change-Id: I17d721b832d97bffe26629d21f85b05dbbf2b3ec
-    Reviewed-on: https://go-review.googlesource.com/80735
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I53373c7211b35ed68da485c55e510871bfb81267
+    Reviewed-on: https://go-review.googlesource.com/61022
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 137 ++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 97 insertions(+), 40 deletions(-)
+ src/cmd/dist/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

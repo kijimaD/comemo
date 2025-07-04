@@ -1,14 +1,15 @@
-commit f011bd378f9ee595ffe177017077124519b2b926
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 16 00:04:24 2011 -0400
+commit 832e87500ebb2d20da00d2930283521f366e3b0e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jun 16 13:35:27 2011 +1000
 
-    build: use awk instead of giant egrep regexp
+    go/build: support building cgo packages on non intel platforms
     
-    Avoids buggy version of egrep on some Macs.
+    See https://golang.org/cl/4572045/
     
-    R=r, dsymonds
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/4603056
+    https://golang.org/cl/4627041
 
- src/pkg/deps.bash | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/pkg/go/build/build.go      | 11 +++++++----
+ src/pkg/go/build/build_test.go |  7 -------
+ 2 files changed, 7 insertions(+), 11 deletions(-)

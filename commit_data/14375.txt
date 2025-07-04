@@ -1,12 +1,12 @@
-commit 89ed40c44bf6818ec76108b95cf9268d88ca156b
-Author: Christian Himpel <chressie@googlemail.com>
-Date:   Mon Nov 12 07:25:54 2012 -0800
+commit 9876fd99d6e95ef2fc983ee3f2fc68a5e5b685a1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 12 12:20:54 2012 +0100
 
-    faq: mention go vet in "What happens with closures running as goroutines?"
+    C: add David McLeish (Google CLA)
     
-    R=r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6822111
+    https://golang.org/cl/6814120
 
- doc/go_faq.html | 2 ++
- 1 file changed, 2 insertions(+)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

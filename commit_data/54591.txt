@@ -1,21 +1,33 @@
-commit 765dfb00b2c5085e601158e0867803006ef59791
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Oct 2 15:42:15 2023 +0000
+commit fb4f7fdb26da9ed0fee6beab280c84b399edaa42
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Nov 1 11:40:29 2022 -0400
 
-    runtime: delete hugepage tracking dead code
+    cmd/compile: use edge weights to decide inlineability in PGO
     
-    After the previous CL, this is now all dead code. This change is
-    separated out to make the previous one easy to backport.
+    Currently, with PGO, the inliner uses node weights to decide if a
+    function is inlineable (with a larger budget). But the actual
+    inlining is determined by the weight of the call edge. There is a
+    discrepancy that, if a callee node is hot but the call edge is not,
+    it would not inlined, and marking the callee inlineable would of
+    no use.
     
-    For #63334.
-    Related to #61718 and #59960.
+    Instead of using two kinds of weights, we just use the edge
+    weights to decide inlineability. If a function is the callee of a
+    hot call edge, its inlineability is determined with a larger
+    threshold. For a function that exceeds the regular inlining budget,
+    it is still inlined only when the call edge is hot, as it would
+    exceed the regular inlining cost for non-hot call sites, even if
+    it is marked inlineable.
     
-    Change-Id: I109673ed97c62c472bbe2717dfeeb5aa4fc883ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532117
+    For #55022.
+    
+    Change-Id: I93fa9919fc6bcbb394e6cfe54ec96a96eede08f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447015
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/export_test.go |  4 ----
- src/runtime/mgcscavenge.go | 54 +++++-----------------------------------------
- 2 files changed, 5 insertions(+), 53 deletions(-)
+ src/cmd/compile/internal/base/debug.go  |  1 -
+ src/cmd/compile/internal/inline/inl.go  | 25 ++++++-------------------
+ src/cmd/compile/internal/pgo/irgraph.go |  7 ++-----
+ 3 files changed, 8 insertions(+), 25 deletions(-)

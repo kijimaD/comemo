@@ -1,19 +1,17 @@
-commit 73475ef0350e84b35a6aa1b593448a9497b62440
+commit bf0bc4122fd4b3a75c2f9c107895cd5e2f89b90e
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 23 17:53:01 2022 -0700
+Date:   Tue Aug 24 13:52:07 2021 -0700
 
-    go/types, types2: print qualified object names in cycle errors
+    go/types, types2: don't re-evaluate context string for each function argument (optimization)
     
-    Fixes #50788.
-    
-    Change-Id: Id1ed7d9c0687e3005e28598373fd5634178c78ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413895
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ie1b4d5b64350ea42484adea14df84cacd1d2653b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344576
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/types2/decl.go | 22 ++++++++++++++++++----
- src/go/types/decl.go                    | 22 ++++++++++++++++++----
- test/fixedbugs/issue50788.dir/a.go      |  9 +++++++++
- test/fixedbugs/issue50788.dir/b.go      |  9 +++++++++
- test/fixedbugs/issue50788.go            |  7 +++++++
- 5 files changed, 61 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/call.go | 7 +++++--
+ src/go/types/call.go                    | 7 +++++--
+ 2 files changed, 10 insertions(+), 4 deletions(-)

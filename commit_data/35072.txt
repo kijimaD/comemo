@@ -1,25 +1,12 @@
-commit 393f84a125bf42863e8698748cbbca893771c925
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Thu Apr 12 17:07:14 2018 -0400
+commit 8c227765f70b5677901692a71d8662f395186a83
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Mon Dec 11 11:17:34 2017 +0800
 
-    cmd/ld: link to runtime types from DWARF
+    internal/poll: fix error in increfAndClose documentation
     
-    Add a new DWARF attribute, DW_AT_go_runtime_type, that gives the offset
-    of the runtime type structure, if any, for a DWARF type. This should
-    allow debuggers to decode interface content without having to do awkward
-    name matching.
-    
-    Fixes #24814
-    
-    Change-Id: Ic7a66524d2be484154c584afa9697111618efea4
-    Reviewed-on: https://go-review.googlesource.com/106775
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I0c387b6286bc18fd00c6ac4e42bdf175cf89ccb1
+    Reviewed-on: https://go-review.googlesource.com/83155
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go        |  26 ++++++++-
- src/cmd/internal/dwarf/dwarf_defs.go   |   3 +
- src/cmd/internal/obj/objfile.go        |   3 +
- src/cmd/link/internal/ld/data.go       |   9 ++-
- src/cmd/link/internal/ld/dwarf.go      |  31 +++++++---
- src/cmd/link/internal/ld/dwarf_test.go | 101 +++++++++++++++++++++++++++++++--
- 6 files changed, 155 insertions(+), 18 deletions(-)
+ src/internal/poll/fd_mutex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

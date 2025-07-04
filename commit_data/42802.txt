@@ -1,26 +1,21 @@
-commit 5c76382762cfc34b7a7678668460f127fec4a35b
+commit a682cba19bdea85c1ee85fc0034232d3980b4112
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 13 16:46:51 2020 -0400
+Date:   Thu Feb 20 09:31:04 2020 -0500
 
-    cmd/go/internal/modload: add a "v" prefix to the indexed go version
+    doc/go1.15: create go1.15.html
     
-    This allows semver-based comparisons of the version without additional allocations.
+    Copied from go1.14.html, with changes redacted back to TODOs following
+    the model of CL 195058.
     
-    Also comment on the reason for the loops that iterate over modFile instead.
+    'relnote -html' does not report any changes at this time.
     
-    (I was reading the vendor code in order to add the lazy-loading version check,
-    and this section was a bit unclear to me.)
+    Updates #33738
     
-    For #36460
-    
-    Change-Id: I11559d81ffb4eba0e4e10e6fa3c01990b11f9180
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240622
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I580232805ab7db35935f3e1ba03b720be4796a7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220278
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/modload/init.go    |  6 +++---
- src/cmd/go/internal/modload/modfile.go | 14 ++++++++------
- src/cmd/go/internal/modload/vendor.go  |  4 +++-
- 3 files changed, 14 insertions(+), 10 deletions(-)
+ doc/go1.15.html | 73 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)

@@ -1,17 +1,33 @@
-commit a3a193c01855fc15429d5376f4dad11796b2b7bd
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Mar 24 11:45:29 2015 +1100
+commit e7a7352e527ca275a2b66cc3cafde09836345a8f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 25 14:52:17 2015 +1100
 
-    image/internal/imageutil: inline the color.YCbCrToRGB calls.
+    syscall: Reimplement linux syscalls in terms of their *at replacements.
     
-    The image/draw benchmark:
-    benchmark          old ns/op     new ns/op     delta
-    BenchmarkYCbCr     1198605       978647        -18.35%
+    Updates #9974
     
-    Change-Id: Iacfc21e6f641ecb05adc00b3aec0048f1f43d265
-    Reviewed-on: https://go-review.googlesource.com/7952
-    Reviewed-by: Rob Pike <r@golang.org>
+    This proposal tackles the body of syscalls which have been replaced,
+    and are now deprecated in linux. This is needed for the arm64 port as
+    arm64 is the first linux architecture to remove the "legacy" forms of
+    these syscalls.
+    
+    The *AT variants were added in kernel 2.6.16, so well before our 2.6.23
+    cutoff (hey, it'll even work on RHEL5).
+    
+    Discussion: https://groups.google.com/forum/#!topic/golang-dev/zpeFtN2z5Fc
+    
+    Change-Id: I473a7c9a295d6f776fcdc75dcce06cbe9e3564ee
+    Reviewed-on: https://go-review.googlesource.com/5837
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/image/internal/imageutil/gen.go  |  32 +++++++--
- src/image/internal/imageutil/impl.go | 121 ++++++++++++++++++++++++++++++-----
- 2 files changed, 131 insertions(+), 22 deletions(-)
+ src/syscall/syscall_linux.go          |  74 ++++++--
+ src/syscall/syscall_linux_386.go      |   1 -
+ src/syscall/syscall_linux_amd64.go    |   1 -
+ src/syscall/syscall_linux_arm.go      |   1 -
+ src/syscall/syscall_linux_ppc64x.go   |   1 -
+ src/syscall/zsyscall_linux_386.go     | 308 ++++++++--------------------------
+ src/syscall/zsyscall_linux_amd64.go   | 308 ++++++++--------------------------
+ src/syscall/zsyscall_linux_arm.go     | 308 ++++++++--------------------------
+ src/syscall/zsyscall_linux_ppc64.go   | 308 ++++++++--------------------------
+ src/syscall/zsyscall_linux_ppc64le.go | 308 ++++++++--------------------------
+ 10 files changed, 410 insertions(+), 1208 deletions(-)

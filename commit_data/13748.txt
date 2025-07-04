@@ -1,12 +1,16 @@
-commit 1c675ac89de6be3adff87047c62b4352b0da0310
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Sep 5 09:34:52 2012 +1000
+commit 2836c63459ac9619cc3c2cf894ece83f85ce5190
+Author: Sébastien Paolacci <sebastien.paolacci@gmail.com>
+Date:   Tue Sep 4 12:37:23 2012 -0700
 
-    cmd/gc: add commentary to the OXXX constants.
+    net: fix {FileConn, FileListener, FilePacketConn} fd leak to child process.
     
-    R=rsc, daniel.morsing
+    All of them call `newFileFD' which must properly restore close-on-exec on
+    duplicated fds.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6495074
+    https://golang.org/cl/6445081
 
- src/cmd/gc/go.h | 237 ++++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 153 insertions(+), 84 deletions(-)
+ src/pkg/net/file.go          |  4 ++++
+ src/pkg/os/exec/exec_test.go | 12 ++++++++++++
+ 2 files changed, 16 insertions(+)

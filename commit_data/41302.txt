@@ -1,19 +1,19 @@
-commit b44008fec7b55d474f454f67e196e8dec830b973
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jan 10 13:43:21 2020 -0500
+commit 55924135eed3b607ccbe4725900de797b51757f9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Sep 23 16:16:04 2019 -0400
 
-    cmd/go: convert TestCoverageRuns to the script framework
+    cmd/compile: fix register masks of ANDCC et al. on PPC64
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    PPC64's ANDCC, ORCC, XORCC SSA ops produce a flags value, which
+    should not have register mask of an integer register.
     
-    Updates #36320
-    Updates #17751
+    Fixes #34468.
     
-    Change-Id: Ie46118eddbd7c3ed0bb9ecee4bdc1cb6fdaf06a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214291
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ic762e423b20275fd9f8118dae7951c258d59738c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196960
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/go_test.go                     | 21 ---------------------
- src/cmd/go/testdata/script/cover_runs.txt | 13 +++++++++++++
- 2 files changed, 13 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        | 12 +++++++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 42 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/opGen.go        |  9 ------
+ 3 files changed, 32 insertions(+), 31 deletions(-)

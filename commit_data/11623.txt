@@ -1,13 +1,16 @@
-commit 2943ca6b35fe5355d2ce7210f8473f4dcd3f8c9f
+commit ebd9f236deb3bb8e076a4d59709f7cf729e6df14
 Author: David Symonds <dsymonds@golang.org>
-Date:   Sat Feb 4 21:55:38 2012 +1100
+Date:   Sat Feb 4 18:35:37 2012 +1100
 
-    doc/go1.html: style tweak for expvar notes.
+    unicode: document large var blocks and the SpecialCase vars.
     
-    R=r
+    Fixes #2772.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5608061
+    https://golang.org/cl/5631047
 
- doc/go1.html | 2 +-
- doc/go1.tmpl | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/unicode/casetables.go | 4 ++--
+ src/pkg/unicode/maketables.go | 2 ++
+ src/pkg/unicode/tables.go     | 3 +++
+ 3 files changed, 7 insertions(+), 2 deletions(-)

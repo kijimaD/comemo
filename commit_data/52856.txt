@@ -1,47 +1,15 @@
-commit fb4a306e3a3e5f5ae6e32ed796157e6e1fe0b6db
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 2 14:09:45 2023 -0700
+commit 835a94613703bb856ea4d16f05c116399c4b2fc9
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 6 15:07:16 2022 -0400
 
-    go/types, types2: combine version check with version error reporting
+    doc/go1.19: minor edits
     
-    This removes the duplicate (and possible error-prone) versions
-    (once for test and once for error message) and simplifies code.
+    For #51400
     
-    Adjusted multiple go/types call sites to match types2.
-    
-    Renamed posFor to atPos in types2, for closer match with go/types
-    and to keep automatic generation of instantiate.go working.
-    
-    Change-Id: Iff428fc742f305a65bb7d077b7e31b66df3b706d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491715
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I57565c1d79e0c5487d39d46f556b247d35f05d3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410674
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go        | 22 ++++++----------
- src/cmd/compile/internal/types2/call.go            | 26 +++++++------------
- src/cmd/compile/internal/types2/check.go           |  2 +-
- src/cmd/compile/internal/types2/conversions.go     |  4 +--
- src/cmd/compile/internal/types2/decl.go            |  9 ++-----
- src/cmd/compile/internal/types2/errors.go          |  8 +++---
- src/cmd/compile/internal/types2/expr.go            |  7 +++--
- src/cmd/compile/internal/types2/instantiate.go     |  2 +-
- src/cmd/compile/internal/types2/interface.go       |  2 +-
- src/cmd/compile/internal/types2/resolver.go        |  8 ++----
- src/cmd/compile/internal/types2/typeset.go         |  9 +++----
- src/cmd/compile/internal/types2/typexpr.go         |  7 ++---
- src/cmd/compile/internal/types2/version.go         | 15 +++++++++--
- src/go/types/builtins.go                           | 18 +++++--------
- src/go/types/call.go                               | 30 ++++++++--------------
- src/go/types/conversions.go                        |  4 +--
- src/go/types/decl.go                               |  9 ++-----
- src/go/types/expr.go                               |  3 +--
- src/go/types/instantiate.go                        |  2 +-
- src/go/types/resolver.go                           |  8 ++----
- src/go/types/typeset.go                            | 11 +++-----
- src/go/types/typexpr.go                            |  7 ++---
- src/go/types/version.go                            | 26 +++++++++++++------
- .../types/testdata/fixedbugs/issue59338a.go        |  4 +--
- 24 files changed, 102 insertions(+), 141 deletions(-)
+ doc/go1.19.html | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)

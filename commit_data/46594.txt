@@ -1,32 +1,23 @@
-commit 7e4fb8b3ef9774e58f90359f51e89ac5103d388d
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Sep 24 10:46:09 2021 -0700
+commit 06074108fab489d6bd7358e736bcd0cb38830c7c
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Jan 13 14:43:30 2021 -0500
 
-    cmd/go: make 'go mod why -m' work in inconsistent, pruned module
+    [dev.fuzz] internal/fuzz: fix context cancellation for coordinator
     
-    'go mod why -m' works by listing modules matching command line
-    arguments, then loading "all" packages and finding which of the listed
-    modules provide packages imported by the main module.
+    Previously, performing a SIGINT would cause the coordinator
+    to write a crash to testdata, and would continue to run
+    despite being interupted.
     
-    If go.mod is inconsistent (that is, a requirement has a lower version
-    than MVS would select when the module graph is loaded) and pruned
-    (that is, the module graph is only loaded when necessary), then
-    modload.ListModules may return modules with different versions than
-    would be selected in modload.LoadPackages.
+    Also includes a few small cleanups.
     
-    'go mod why -m' was too strict about this, mapping module paths and
-    versions to packages. With this fix, it maps module paths without
-    versions to packages.
-    
-    Fixes #48613
-    
-    Change-Id: I836c46289bb647d6c46ec65e7589531da532d5e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352115
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ia3cf7cd231c30ac9ad2a61f4935aa543e241f60d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283634
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modcmd/why.go             | 8 +++-----
- src/cmd/go/testdata/script/mod_skip_write.txt | 6 +-----
- 2 files changed, 4 insertions(+), 10 deletions(-)
+ src/internal/fuzz/fuzz.go             | 1 +
+ src/internal/fuzz/worker.go           | 2 +-
+ src/testing/internal/testdeps/deps.go | 3 +--
+ 3 files changed, 3 insertions(+), 3 deletions(-)

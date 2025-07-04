@@ -1,33 +1,16 @@
-commit e7f86341fed2a378ace0c81499844f6ac30c9d42
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 6 00:14:15 2017 -0400
+commit 95bfd927f5d05fd2fb82dba918ff8d36bbc6d400
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 28 11:17:52 2017 -0700
 
-    cmd/go: fix docs for -timeout
+    cmd/compile: fix two instances of { lineno = ...; yyerror }
     
-    The text before CL 45816 was:
+    Updates #19683
     
-            -timeout t
-                    If a test runs longer than t, panic.
-                    The default is 10 minutes (10m).
-    
-    CL 45816 was supposed to be about clarifying test vs test binary,
-    and it did add the clarification of referring to "duration d",
-    but it also introduced incorrect text about timeout 0.
-    
-    The new text in this CL preserves the good change and
-    eliminates the incorrect one:
-    
-            -timeout d
-                    If a test binary runs longer than duration d, panic.
-                    The default is 10 minutes (10m).
-    
-    For #14780.
-    
-    Change-Id: I4f79d6e48ed9295bc9f34a36aa90d3b03b40d7f5
-    Reviewed-on: https://go-review.googlesource.com/47571
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ic00d5a9807200791cf37553f4f802dbf27beea19
+    Reviewed-on: https://go-review.googlesource.com/38770
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go            | 3 +--
- src/cmd/go/internal/test/test.go | 3 +--
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

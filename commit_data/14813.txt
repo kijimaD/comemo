@@ -1,12 +1,14 @@
-commit 2e24a737c5d9106ab3c9834530f760cd5ebd8905
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Jan 6 22:44:04 2013 -0500
+commit a88bbbb771141598e492d123e15e1e9752c134ca
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 7 13:42:25 2013 +1100
 
-    bytes: Fix missing godoc punctuation.
+    go/doc: trim only first space or newline from example output comment
     
-    R=golang-dev, rsc
+    Fixes #4487.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7067047
+    https://golang.org/cl/7057048
 
- src/pkg/bytes/bytes.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/doc/example.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

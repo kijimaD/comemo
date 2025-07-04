@@ -1,14 +1,21 @@
-commit 7c94dc04a794119dd9488fb491a56faa4507bf7e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Dec 20 11:30:48 2011 +1100
+commit a0bd46e70fa09e8fe4749399440a2dc52e80f84a
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Dec 20 10:57:06 2011 +1100
 
-    dashboard: display correct package build state
+    html: ignore <caption>, <col>, <tbody> etc. when parsing table fragments
     
-    Includes some boring whitespace tweaks.
+    Pass tests6.dat, test 36:
+    <caption><col><colgroup><tbody><tfoot><thead><tr>
     
-    R=golang-dev, dsymonds
+    | <tr>
+    
+    Pass tests through test 44:
+    <body></body></html>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5492067
+    https://golang.org/cl/5494055
 
- misc/dashboard/app/build/ui.html | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
+ src/pkg/html/parse.go      | 7 +++++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

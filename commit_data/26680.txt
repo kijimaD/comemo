@@ -1,36 +1,25 @@
-commit af74dca49732d5953331d14dc06ec635838c357c
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Wed Mar 30 23:56:49 2016 -0400
+commit d0c11577b9c6d584959aceddf97266b9cbc336d0
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Feb 21 20:43:14 2016 -0800
 
-    syscall: add support for s390x
+    cmd/compile: inline {i,e}facethash
     
-    On s390x char is unsigned. We cannot force it to be signed using
-    -fsigned-char (see arm64) because the s390x gccgo API is already
-    public and we need to stick as closely as possible to it to avoid
-    breaking existing projects. In order to match the gccgo API we
-    also force the RawSockaddr.Data and RawSockaddrUnix.Path fields
-    to be signed.
+    These functions are really simple, the overhead of calling
+    them (in both time and code size) is larger than the inlined versions.
     
-    This CL adds a post-processing pass (mkpost.go) to mkall.sh in
-    order to export the types of fields in PtraceRegs on s390x
-    without affecting the API on other platforms. The types of these
-    fields match their counterparts in gccgo. mkpost.go also cleans
-    up the Pad_cgo* fields and X_* fields (these fields are not
-    exported by gccgo currently). It could be extended to add build
-    tags on platforms that need them.
+    Reorganize how the nil case in a type switch is handled, as we have
+    to check for nil explicitly now anyway.
     
-    Change-Id: I66bdf5b86ec98af70baf666989027bb354df9e3e
-    Reviewed-on: https://go-review.googlesource.com/20961
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Saves about 0.8% in the binary size of the go tool.
+    
+    Change-Id: I8501b62d72fde43650b79f52b5f699f1fbd0e7e7
+    Reviewed-on: https://go-review.googlesource.com/19814
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/syscall/mkall.sh                |    9 +-
- src/syscall/mkpost.go               |   63 ++
- src/syscall/syscall_linux_s390x.go  |  299 ++++++
- src/syscall/types_linux.go          |   23 +-
- src/syscall/zerrors_linux_s390x.go  | 1940 +++++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_linux_s390x.go | 1576 ++++++++++++++++++++++++++++
- src/syscall/zsysnum_linux_s390x.go  |  326 ++++++
- src/syscall/ztypes_linux_s390x.go   |  619 +++++++++++
- 8 files changed, 4852 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         |  2 -
+ src/cmd/compile/internal/gc/builtin/runtime.go |  2 -
+ src/cmd/compile/internal/gc/swt.go             | 76 ++++++++++++++++++--------
+ src/runtime/iface.go                           | 16 ------
+ 4 files changed, 53 insertions(+), 43 deletions(-)

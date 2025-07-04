@@ -1,28 +1,14 @@
-commit 093adeef4004fd029de1a8fd138802607265dc73
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 7 14:58:55 2017 -0400
+commit 7bf0adc6add500054ccbc37a868ab0fab120fa24
+Author: David Lazar <lazard@golang.org>
+Date:   Tue Mar 7 21:14:12 2017 -0500
 
-    runtime: use next timer to decide whether to relax
+    runtime: include inlined calls in result of CallersFrames
     
-    Currently, sysmon waits 60 ms during idle before relaxing. This is
-    primarily to avoid reducing the precision of short-duration timers. Of
-    course, if there are no short-duration timers, this wastes 60 ms
-    running the timer at high resolution.
-    
-    Improve this by instead inspecting the time until the next timer fires
-    and relaxing the timer resolution immediately if the next timer won't
-    fire for a while.
-    
-    Updates #20937.
-    
-    Change-Id: If4ad0a565b65a9b3e8c4cdc2eff1486968c79f24
-    Reviewed-on: https://go-review.googlesource.com/47833
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If1a3396175f2afa607d56efd1444181334a9ae3e
+    Reviewed-on: https://go-review.googlesource.com/37862
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/os_windows.go | 10 +++++-----
- src/runtime/proc.go       | 27 ++++++++++++++-------------
- src/runtime/relax_stub.go |  6 +++---
- src/runtime/time.go       |  2 ++
- 4 files changed, 24 insertions(+), 21 deletions(-)
+ src/runtime/symtab.go    | 136 ++++++++++++++++++++++++++++++++++-------------
+ src/runtime/traceback.go |   2 +
+ test/inline_callers.go   |  23 ++++++++
+ 3 files changed, 124 insertions(+), 37 deletions(-)

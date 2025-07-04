@@ -1,35 +1,24 @@
-commit a92ca515077e5cf54673eb8c5c2d9db4824330db
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Wed Mar 30 21:44:44 2022 +0800
+commit e3cb3817049ca5e9d96543500b72117f6ca659b8
+Author: Sergey Zagursky <gvozdoder@gmail.com>
+Date:   Fri Jun 4 12:25:51 2021 +0300
 
-    cmd/compile: use LZCNT instruction for GOAMD64>=3
+    go/internal/gcimporter: don't waste CPU copying bytes in `io.ReadAll`
     
-    LZCNT is similar to BSR, but BSR(x) is undefined when x == 0, so using
-    LZCNT can avoid a special case for zero input. Except that case,
-    LZCNTQ(x) == 63-BSRQ(x) and LZCNTL(x) == 31-BSRL(x).
+    `io.ReadAll` dynamically reallocates byte slice because it doesn't know
+    its size in advance. We don't need to read an entire file into memory
+    and therefore may use `bufio.Reader` to read its contents.
     
-    And according to https://www.agner.org/optimize/instruction_tables.pdf,
-    LZCNT instructions are much faster than BSR on AMD CPU.
+    Fixes #46564
     
-    name              old time/op  new time/op  delta
-    LeadingZeros-8    0.91ns ± 1%  0.80ns ± 7%  -11.68%  (p=0.000 n=9+9)
-    LeadingZeros8-8   0.98ns ±15%  0.91ns ± 1%   -7.34%  (p=0.000 n=9+9)
-    LeadingZeros16-8  0.94ns ± 3%  0.92ns ± 2%   -2.36%  (p=0.001 n=10+10)
-    LeadingZeros32-8  0.89ns ± 1%  0.78ns ± 2%  -12.49%  (p=0.000 n=10+10)
-    LeadingZeros64-8  0.92ns ± 1%  0.78ns ± 1%  -14.48%  (p=0.000 n=10+10)
-    
-    Change-Id: I125147fe3d6994a4cfe558432780408e9a27557a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396794
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Id504b1512662b6dea4775d523455896fa4162ab3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325429
+    Reviewed-by: Dominik Honnef <dominik@honnef.co>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dominik Honnef <dominik@honnef.co>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go           |  3 +-
- src/cmd/compile/internal/amd64/versions_test.go |  1 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules    | 12 ++--
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |  5 ++
- src/cmd/compile/internal/ssa/opGen.go           | 30 ++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go    | 92 +++++++++++++++++++++++++
- test/codegen/mathbits.go                        | 30 +++++---
- 7 files changed, 158 insertions(+), 15 deletions(-)
+ src/go/internal/gcimporter/gcimporter.go | 11 ++++-------
+ src/go/internal/gcimporter/iimport.go    | 21 +++++++++++----------
+ 2 files changed, 15 insertions(+), 17 deletions(-)

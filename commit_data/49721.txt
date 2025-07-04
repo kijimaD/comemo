@@ -1,25 +1,44 @@
-commit f42dc0de74f83d39e5ca1af72fc5334c73bd41f9
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 20 16:17:51 2022 -0400
+commit 9295723079f21d5ff6282e8bd59fd3175341ebc2
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 23 15:52:49 2021 -0500
 
-    runtime: make the lock rank DAG make more sense
+    cmd/link: rework .TOC. handling for ppc64le
     
-    This groups, comments, and generally reorganizes the lock rank graph
-    description by subsystem. It also introduces several pseudo-nodes that
-    more cleanly describe the inherent layering of lock ranks by
-    subsystem.
+    Setup .TOC. to point to the same place for all objects. Today, the linker
+    assumes all call relocations can use the local function entry point of
+    imported object files. This requires a consistent pointer across all
+    objects.
     
-    I believe this doesn't actually change the graph, but haven't verified
-    this.
+    This intentionally computes the .TOC. pointer in all linking configurations.
+    In some cases the .TOC. is not used today (e.g linking position-dependent go
+    only code). It is harmless and simple to compute in all cases, so just
+    do it for easier maintenance.
     
-    For #53789.
+    Notably, .TOC. is used in some cases when static linking is requested on
+    ppc64le/linux:
     
-    Change-Id: I72f332f5a23b8217c7dc1b21411631ad48cee4b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418718
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    * Position-independent C code using a PC-rel relocation against .TOC.. cgo
+      generated C object files are usually compiled PIC even if the go binary
+      itself is not.
+    
+    * Anything which causes PLT stub generation. The stubs always generate
+      a .TOC. relative relocation.
+    
+    * The race detector. Today, this links in an externally compiled archive which
+      contains position-independent object files.
+    
+    Similarly, position-independent linking is always punted to the external
+    linker on ppc64 today.
+    
+    Updates #21961
+    Fixes #15409
+    
+    Change-Id: Ifd8294b9249e16ba8b92eaf876d15d162f9c61fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304458
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/runtime/lockrank.go   | 140 ++++++++++++++++++++-------------------
- src/runtime/mklockrank.go | 165 +++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 214 insertions(+), 91 deletions(-)
+ src/cmd/link/internal/ld/data.go    | 34 ++++++++++++++++++++--------------
+ src/cmd/link/internal/ld/lib.go     | 11 ++---------
+ src/cmd/link/internal/sym/symbol.go |  1 +
+ 3 files changed, 23 insertions(+), 23 deletions(-)

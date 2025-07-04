@@ -1,19 +1,13 @@
-commit 0ca4488cc1b91caef2667b6b58ff1562d44a2c74
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 2 16:59:39 2015 -0500
+commit 220e70540445c26463238ff094b6254055ac2b31
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Aug 22 13:30:45 2015 -0700
 
-    runtime: change p.runq from []*g to []guintptr
+    [dev.ssa] cmd/compile: make "*Value".String more robust
     
-    This eliminates many write barriers in the scheduler code that are
-    unnecessary and will interfere with upcoming changes where the garbage
-    collector will have to invoke run queue functions in contexts that
-    must not have write barriers.
-    
-    Change-Id: I702d0ac99cfd00ffff406e7362917db6a43e7e55
-    Reviewed-on: https://go-review.googlesource.com/16556
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I4ae38440a33574421c9e3e350701e86e8a224b92
+    Reviewed-on: https://go-review.googlesource.com/13842
+    Reviewed-by: Todd Neal <todd@tneal.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go     | 14 +++++++-------
- src/runtime/runtime2.go |  2 +-
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/value.go | 3 +++
+ 1 file changed, 3 insertions(+)

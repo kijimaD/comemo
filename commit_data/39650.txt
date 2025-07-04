@@ -1,19 +1,18 @@
-commit 1a432f27d5da052d6e9bae1e0534fa2dc0c44059
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Fri Aug 2 15:24:54 2019 +0700
+commit 62bfa69e6e08fd7406dfa20f93303769456be42c
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Fri Mar 8 06:17:42 2019 +0000
 
-    cmd/compile: eliminate usage of global Fatalf in ssa.go
+    net/http: add missing error checks in tests
     
-    state and ssafn both have their own Fatalf, so use them instead of
-    global Fatalf.
-    
-    Updates #19683
-    
-    Change-Id: Ie02a961d4285ab0a3f3b8d889a5b498d926ed567
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188539
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I73441ba2eb349f0e0f25068e6b24c74dd33f1456
+    GitHub-Last-Rev: b9e6705962b94af3b1b720cc9ad6d33d7d3f1425
+    GitHub-Pull-Request: golang/go#30017
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160441
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ src/net/http/request_test.go   | 45 +++++++++++++++++++++---------------------
+ src/net/http/serve_test.go     |  4 ++++
+ src/net/http/transport_test.go |  4 ++++
+ 3 files changed, 31 insertions(+), 22 deletions(-)

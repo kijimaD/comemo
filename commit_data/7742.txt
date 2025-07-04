@@ -1,25 +1,26 @@
-commit 3f915f51a8d16e97ac631dfb4dd5946ca675a2b8
+commit 8bf34e335686816f7fe7e28614b2c7a3e04e9e7c
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 11 14:47:44 2011 -0500
+Date:   Fri Mar 11 14:47:26 2011 -0500
 
-    go code: replace closed(c) with x, ok := <-c
+    gc, runtime: replace closed(c) with x, ok := <-c
     
-    R=golang-dev, rog, bradfitzwork, r
+    R=ken2, ken3
     CC=golang-dev
-    https://golang.org/cl/4243072
+    https://golang.org/cl/4259064
 
- src/pkg/netchan/common.go                |   4 +-
- src/pkg/netchan/export.go                |   4 +-
- src/pkg/netchan/import.go                |   4 +-
- src/pkg/netchan/netchan_test.go          |  16 ++--
- src/pkg/os/inotify/inotify_linux_test.go |  16 ++--
- src/pkg/reflect/all_test.go              |  37 +++-----
- src/pkg/reflect/value.go                 |  58 ++++++------
- src/pkg/template/template.go             |   4 +-
- src/pkg/testing/script/script.go         |   4 +-
- test/chan/perm.go                        |  15 ++-
- test/chan/select3.go                     |  20 +++-
- test/closedchan.go                       | 157 +++++++++++++++++++++----------
- test/ddd1.go                             |   1 -
- test/named1.go                           |   9 +-
- 14 files changed, 202 insertions(+), 147 deletions(-)
+ src/cmd/gc/builtin.c.boot   |   4 +-
+ src/cmd/gc/go.h             |   4 +-
+ src/cmd/gc/go.y             |  17 ++-
+ src/cmd/gc/lex.c            |   1 -
+ src/cmd/gc/print.c          |   2 -
+ src/cmd/gc/range.c          |   4 +-
+ src/cmd/gc/runtime.go       |   4 +-
+ src/cmd/gc/select.c         |  70 +++++++++++-
+ src/cmd/gc/sinit.c          |   2 +-
+ src/cmd/gc/subr.c           |   4 +-
+ src/cmd/gc/typecheck.c      |  12 +--
+ src/cmd/gc/walk.c           |  15 +--
+ src/pkg/runtime/chan.c      | 257 ++++++++++++++++++++++++++------------------
+ src/pkg/runtime/reflect.goc |  12 +--
+ src/pkg/runtime/runtime.h   |   1 -
+ 15 files changed, 260 insertions(+), 149 deletions(-)

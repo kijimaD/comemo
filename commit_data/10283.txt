@@ -1,15 +1,31 @@
-commit cabe0e6ad38b1498098c7d9aba70dc218b0a23a7
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Nov 8 09:06:02 2011 -0500
+commit f2b602ed4252ca0f37cf1ff0494342b75f0b6bfc
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Nov 8 17:55:17 2011 +1100
 
-    os, syscall: fix Plan 9 build
+    html: parse <body>, <base>, <link>, <meta>, and <title> tags inside page body
     
-    R=rsc
+    Pass tests1.dat, test 87:
+    <body><body><base><link><meta><title><p></title><body><p></body>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <base>
+    |     <link>
+    |     <meta>
+    |     <title>
+    |       "<p>"
+    |     <p>
+    
+    Handling the last <body> tag requires correcting the original insertion mode in useTheRulesFor.
+    
+    Also pass test 88:
+    <textarea><p></textarea>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5330067
+    https://golang.org/cl/5364047
 
- src/pkg/os/env_plan9.go          | 2 +-
- src/pkg/os/error_plan9.go        | 2 +-
- src/pkg/os/exec_plan9.go         | 3 ++-
- src/pkg/syscall/syscall_plan9.go | 4 ++--
- 4 files changed, 6 insertions(+), 5 deletions(-)
+ src/pkg/html/parse.go      | 31 ++++++++++++++++++++++++++++++-
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 31 insertions(+), 2 deletions(-)

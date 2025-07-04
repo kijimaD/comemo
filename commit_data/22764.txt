@@ -1,16 +1,17 @@
-commit 7e49c8193c27e59935aafea4ebee0c2416831e4a
+commit 84b690fee17642d69eaac13f6a4f6c2cac13d5b4
 Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Apr 28 22:44:40 2015 -0400
+Date:   Wed Apr 8 01:32:45 2015 -0400
 
-    runtime: skip gdb goroutine backtrace test on non-x86
+    cmd/api: re-enable TestGolden on nacl
     
-    Gdb is not able to backtrace our non-standard stack frames on RISC
-    architectures without frame pointer.
+    Fixes #10369.
     
-    Change-Id: Id62a566ce2d743602ded2da22ff77b9ae34bc5ae
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/9456
+    Change-Id: If0a6d2b33c6862c9f7f862bdc997f2204072c6dc
+    Reviewed-on: https://go-review.googlesource.com/8620
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime-gdb_test.go | 27 ++++++++++++++++++++-------
- 1 file changed, 20 insertions(+), 7 deletions(-)
+ misc/nacl/testzip.proto   | 3 +++
+ src/cmd/api/goapi_test.go | 8 --------
+ 2 files changed, 3 insertions(+), 8 deletions(-)

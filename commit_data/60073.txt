@@ -1,0 +1,24 @@
+commit ecad164da79f2cea14c07b9a70dbc3df278ae8d7
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon May 20 16:54:23 2024 -0400
+
+    cmd/vendor: pull in golang.org/x/telemetry@bf80d56
+    
+    Commands run
+        go get golang.org/x/telemetry@bf80d56
+        go mod tidy
+        go mod vendor
+    
+    Pulls in CL 586195 and CL 586098
+    
+    Change-Id: I21ba2ddce0e9c355e9f1c06961ba6cba5475375c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586877
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go.mod                                 |  2 +-
+ src/cmd/go.sum                                 |  4 ++--
+ src/cmd/vendor/golang.org/x/telemetry/start.go | 31 ++++++++++++++------------
+ src/cmd/vendor/modules.txt                     |  2 +-
+ 4 files changed, 21 insertions(+), 18 deletions(-)

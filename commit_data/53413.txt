@@ -1,37 +1,23 @@
-commit 1079a5c08a8682c35c43cd75737ed94b5999d9ed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 31 15:15:13 2023 -0700
+commit f7e6986d6b9f230a6807383fc0e37d9042baa5bf
+Author: xiongwy12 <107687876+xiongwy12@users.noreply.github.com>
+Date:   Mon Aug 15 15:52:40 2022 +0000
 
-    go/types, types2: better error message for some inference failures
+    cmd/internal/obj: remove redundant code in genFuncInfoSyms
     
-    For a unification failure involving a constraint, rather than just
-    reporting (for instance)
+    The length of slice hashedsyms is always 0, because it's not used after defined
     
-            S does not match []E
-    
-    now report the inferred type for the type parameter, use spec
-    terminology when referring to the constraint, and print the
-    constraint in full:
-    
-            S (type func()) does not satisfy ~[]E
-    
-    There's more we can do, but this is better than what we had.
-    
-    For #60542.
-    
-    Change-Id: I033369fa0dfc475f0ec0da0582e8cbefb109f3cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499639
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: Iba8e263aedfa403d5688678a1b37c2be3119eb7f
+    GitHub-Last-Rev: c236c4a48268ef1cdd9daa1e62c7004a7bde1d27
+    GitHub-Pull-Request: golang/go#53450
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413234
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: guangyuan zhou <zhouguangyuan@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/infer.go            |  8 ++++++--
- src/go/types/infer.go                               |  8 ++++++--
- src/internal/types/testdata/examples/inference.go   | 18 +++++++++++-------
- src/internal/types/testdata/fixedbugs/issue45985.go |  2 +-
- src/internal/types/testdata/fixedbugs/issue49112.go |  8 ++++----
- src/internal/types/testdata/fixedbugs/issue51472.go |  2 +-
- src/internal/types/testdata/fixedbugs/issue60542.go | 12 ++++++++++++
- 7 files changed, 41 insertions(+), 17 deletions(-)
+ src/cmd/internal/obj/objfile.go | 2 --
+ 1 file changed, 2 deletions(-)

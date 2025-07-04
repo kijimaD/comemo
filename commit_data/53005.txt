@@ -1,33 +1,22 @@
-commit 689041160f553744de241c60a5634163fde9afe4
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 5 13:26:16 2023 -0400
+commit 6b309be7ab7c17beb77c6e40b258278e7454d919
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 24 15:55:30 2022 -0700
 
-    cmd/dist,internal/testdir: more cooperative host test mechanism
+    cmd/compile/internal/syntax: check fallthrough in CheckBranches mode
     
-    On cross-compiling builder machines, we run internal/testdir on the
-    host, where it can access the Go toolchain to build binaries for the
-    guest and run them through an exec wrapper. Currently this uses dist
-    test's existing host test mechanism, which is quite complicated and we
-    are planning to eliminate (#59999).
+    The parser CheckBranches mode checked correct use of break, continue,
+    and labels, but not of fallthrough statements.
     
-    Switch internal/testdir to use a more cooperative mechanism. With this
-    CL, dist still understands that it has to build and run the test using
-    the host GOOS/GOARCH, but rather than doing complicated manipulation
-    of environment variables itself, it passes the guest GOOS/GOARCH to
-    the test, which can easily inject it into its environment. This means
-    dist test can use "go test" directly, rather than having to split up
-    the build and run steps.
+    This CL adds checking of fallthrough statements as well.
     
-    For #37486.
+    For #51456.
     
-    Change-Id: I556938c0b641960bb778b88b13f2b26256edc7c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492985
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I5000388011973724f80c59a6aaf015e3bb70faea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414134
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/dist/test.go                 | 35 ++++++++++++++++++++++++++---------
- src/internal/testdir/testdir_test.go | 19 +++++++++++++++++--
- 2 files changed, 43 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/syntax/branches.go        | 54 ++++++++++++++++-----
+ src/cmd/compile/internal/syntax/error_test.go      |  2 +-
+ .../internal/syntax/testdata/fallthrough.go        | 55 ++++++++++++++++++++++
+ 3 files changed, 97 insertions(+), 14 deletions(-)

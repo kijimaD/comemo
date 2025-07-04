@@ -1,17 +1,35 @@
-commit f70d457a366a498ff91c4fb8dd03eca576b898bb
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Apr 8 09:54:33 2019 +0200
+commit 3169778c152c5afdef9c8859c4177c9fedecc734
+Merge: ab37582eb0 4caa1276a1
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Nov 14 15:30:03 2018 -0500
 
-    strings: unindent Fields
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    CL 56470 unindented bytes.Fields, but not strings.Fields. Do so now to
-    make it easier to diff the two functions for potential differences.
-    
-    Change-Id: Ifef81f50cee64e8277e91efa5ec5521d8d21d3bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170951
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If37221a68951890d817a85b68bd4a35903a36ceb
 
- src/strings/strings.go | 54 +++++++++++++++++++++++++-------------------------
- 1 file changed, 27 insertions(+), 27 deletions(-)
+ src/crypto/tls/alert.go                            |   4 +
+ src/crypto/tls/auth.go                             |  28 +-
+ src/crypto/tls/cipher_suites.go                    |  14 +
+ src/crypto/tls/common.go                           |  32 +-
+ src/crypto/tls/conn.go                             |  19 +-
+ src/crypto/tls/handshake_client.go                 | 349 +++++++++-------
+ src/crypto/tls/handshake_client_test.go            | 149 +++++--
+ src/crypto/tls/handshake_client_tls13.go           | 443 +++++++++++++++++++++
+ src/crypto/tls/handshake_messages.go               |   6 +-
+ src/crypto/tls/handshake_server_test.go            |  46 ++-
+ src/crypto/tls/key_agreement.go                    | 176 +++-----
+ src/crypto/tls/key_schedule.go                     | 104 +++++
+ src/crypto/tls/prf.go                              |   5 +-
+ src/crypto/tls/testdata/Client-TLSv12-P256-ECDHE   |  93 +++++
+ ...CDHE-RSA-AES-GCM => Client-TLSv12-X25519-ECDHE} |   0
+ .../tls/testdata/Client-TLSv13-AES128-SHA256       |  89 +++++
+ .../tls/testdata/Client-TLSv13-AES256-SHA384       |  91 +++++
+ src/crypto/tls/testdata/Client-TLSv13-ALPN         |  92 +++++
+ .../tls/testdata/Client-TLSv13-CHACHA20-SHA256     |  89 +++++
+ src/crypto/tls/testdata/Client-TLSv13-ECDSA        |  85 ++++
+ .../testdata/Client-TLSv13-ExportKeyingMaterial    |  89 +++++
+ .../tls/testdata/Client-TLSv13-HelloRetryRequest   | 118 ++++++
+ src/crypto/tls/testdata/Client-TLSv13-P256-ECDHE   |  93 +++++
+ .../testdata/Client-TLSv13-RenegotiationRejected   | 107 +++++
+ src/crypto/tls/testdata/Client-TLSv13-X25519-ECDHE |  89 +++++
+ 25 files changed, 2061 insertions(+), 349 deletions(-)

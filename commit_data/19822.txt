@@ -1,15 +1,13 @@
-commit 20a5de9eb6e363d22a7594146cf9b2d634ff24a0
+commit a57dda74d9ad6e48376a96d47ca92874a03c04d4
 Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Jul 26 17:46:51 2014 -0400
+Date:   Sat Jul 26 17:45:24 2014 -0400
 
-    liblink: warn about TLS base MRC instruction that does not write into R0.
+    cmd/5g: remove dead code.
     
-    While we're here, make it lookup the tlsfallback symbol only once.
-    
-    LGTM=crawshaw
-    R=golang-codereviews, crawshaw, dave
+    LGTM=bradfitz, dave
+    R=rsc, bradfitz, dave
     CC=golang-codereviews
-    https://golang.org/cl/107430044
+    https://golang.org/cl/115070043
 
- src/liblink/obj5.c | 34 +++++++++++++++++++++-------------
- 1 file changed, 21 insertions(+), 13 deletions(-)
+ src/cmd/5g/cgen.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

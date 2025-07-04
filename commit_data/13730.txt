@@ -1,17 +1,44 @@
-commit 508bfda6d3dd40e2906fb6538b5e4db0ba129645
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Sep 1 10:34:58 2012 -0400
+commit 5a78e5ea4c3cd4d6029882a9e45c0c5506c2babb
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sat Sep 1 14:15:00 2012 +0200
 
-    cmd/go: be clear that import loops are bad
+    exp/locale/collate: Added functionality to parse and process LDML files
+    for both locale-specific exemplar characters and tailorings to
+    the collation table.
+    Some specifices:
+    - Moved stringSet to the beginning of the file and added some functionality
+      to parse command line files.
+    - openReader now modifies the input URL for localFiles to guarantee that
+      any http source listed in the generated file is indeed this source.
+    - Note that the implementation of the Tailoring API used by maketables.go
+      is not yet checked in. So for now adding tailorings are simply no-ops.
+    - The generated file of exemplar characters will be used somewhere else.
+      Here is a snippet of how the body of the generated file looks like:
     
-    There was mail on golang-nuts a few weeks ago
-    from someone who understood the message perfectly
-    and knew he had a cyclic dependency but assumed
-    that Go, like Python or Java, was supposed to handle it.
+    type exemplarType int
+    const (
+            exCharacters exemplarType = iota
+            exContractions
+            exPunctuation
+            exAuxiliary
+            exCurrency
+            exIndex
+            exN
+    )
     
-    R=golang-dev, bradfitz, dave
+    var exemplarCharacters = map[string][exN]string{
+            "af": [exN]string{
+                    0: "a á â b c d e é è ê ë f g h i î ï j k l m n o ô ö p q r s t u û v w x y z",
+                    3: "á à â ä ã æ ç é è ê ë í ì î ï ó ò ô ö ú ù û ü ý",
+                    4: "a b c d e f g h i j k l m n o p q r s t u v w x y z",
+            },
+            ...
+    }
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6488069
+    https://golang.org/cl/6501070
 
- src/cmd/go/pkg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/locale/collate/maketables.go | 584 ++++++++++++++++++++++++++++---
+ src/pkg/exp/locale/collate/tables.go     |   2 +-
+ 2 files changed, 543 insertions(+), 43 deletions(-)

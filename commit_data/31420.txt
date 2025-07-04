@@ -1,20 +1,25 @@
-commit f105c917573dea3e94edf7c7a4e64e1c934a0db2
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Apr 5 13:50:52 2017 -0400
+commit a4a3d63dbeb57174ada4b2e5f0fa54c9ec83803b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 17 15:21:36 2017 -0800
 
-    runtime/pprof: propagate profile labels into profile proto
+    math/bits: added benchmarks for Leading/TrailingZeros
     
-    Profile labels added by the user using pprof.Do, if present will
-    be in a *labelMap stored in the unsafe.Pointer 'tag' field of
-    the profile map entry. This change extracts the labels from the tag
-    field and writes them to the profile proto.
+    BenchmarkLeadingZeros-8         200000000                8.80 ns/op
+    BenchmarkLeadingZeros8-8        200000000                8.21 ns/op
+    BenchmarkLeadingZeros16-8       200000000                7.49 ns/op
+    BenchmarkLeadingZeros32-8       200000000                7.80 ns/op
+    BenchmarkLeadingZeros64-8       200000000                8.67 ns/op
     
-    Change-Id: Ic40fdc58b66e993ca91d5d5effe0e04ffbb5bc46
-    Reviewed-on: https://go-review.googlesource.com/39613
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    BenchmarkTrailingZeros-8        1000000000               2.05 ns/op
+    BenchmarkTrailingZeros8-8       2000000000               1.94 ns/op
+    BenchmarkTrailingZeros16-8      2000000000               1.94 ns/op
+    BenchmarkTrailingZeros32-8      2000000000               1.92 ns/op
+    BenchmarkTrailingZeros64-8      2000000000               2.03 ns/op
+    
+    Change-Id: I45497bf2d6369ba6cfc88ded05aa735908af8908
+    Reviewed-on: https://go-review.googlesource.com/37220
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/pprof/pprof_test.go | 33 +++++++++++++++++++++++++++++----
- src/runtime/pprof/proto.go      | 11 ++++++++++-
- 2 files changed, 39 insertions(+), 5 deletions(-)
+ src/math/bits/bits_test.go | 148 ++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 114 insertions(+), 34 deletions(-)

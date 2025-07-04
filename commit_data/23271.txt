@@ -1,19 +1,18 @@
-commit bbc4351eca2ff435106566497cef0fa15566c42a
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 4 14:28:14 2015 -0700
+commit 3120adc21294829c230005a89e9bb0ad63de606b
+Author: Joel Sing <jsing@google.com>
+Date:   Fri May 1 04:19:34 2015 +1000
 
-    cmd/go: add -tags option to go vet
+    cmd/internal: disable OSQRT on GOARM=5
     
-    Actually add all build flags, so we also get things like -race.
+    OSQRT currently produces incorrect results when used on arm with softfloat.
+    Disable it on GOARM=5 until the actual problem is found and fixed.
     
-    Fixes #10228.
+    Updates #10641
     
-    Change-Id: I5f77dda9d1ee3208e1833702f12f68c2731c4b22
-    Reviewed-on: https://go-review.googlesource.com/10697
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia6f6879fbbb05cb24399c2feee93c1be21113e73
+    Reviewed-on: https://go-review.googlesource.com/9524
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/go/alldocs.go               |  4 +++-
- src/cmd/go/test.bash                | 16 ++++++++++++++++
- src/cmd/go/testdata/src/vetpkg/c.go |  9 +++++++++
- src/cmd/go/vet.go                   |  6 ++++--
- 4 files changed, 32 insertions(+), 3 deletions(-)
+ src/cmd/internal/gc/walk.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,39 +1,21 @@
-commit 9125e214a1d3341836d41ec3f297f42b9b141db1
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Fri Feb 7 11:29:34 2025 +0000
+commit f5bf9fb278c473104b0b987fc1dd165566cbec71
+Author: Marten Seemann <martenseemann@gmail.com>
+Date:   Wed Oct 25 11:04:24 2023 +0700
 
-    crypto/internal/fips140/edwards25519/field: speed up Element.Bytes
+    crypto/tls: check client's supported versions when using QUIC
     
-    Write bytes in 64-bit chunks made from adjacent limbs.
+    According to RFC 9001 Section 4.2, the client MUST NOT offer any TLS version
+    older than 1.3.
     
-    goos: linux
-    goarch: amd64
-    pkg: crypto/internal/fips140/edwards25519/field
-    cpu: Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz
-            │   HEAD~1    │                HEAD                 │
-            │   sec/op    │   sec/op     vs base                │
-    Bytes-8   76.14n ± 3%   13.61n ± 3%  -82.13% (p=0.000 n=10)
+    Fixes #63723.
     
-            │   HEAD~1   │              HEAD              │
-            │    B/op    │    B/op     vs base            │
-    Bytes-8   0.000 ± 0%   0.000 ± 0%  ~ (p=1.000 n=10) ¹
-    ¹ all samples are equal
-    
-            │   HEAD~1   │              HEAD              │
-            │ allocs/op  │ allocs/op   vs base            │
-    Bytes-8   0.000 ± 0%   0.000 ± 0%  ~ (p=1.000 n=10) ¹
-    ¹ all samples are equal
-    
-    Change-Id: Iaecc32da7fd8df96ff048e1e855a990f44dc9db5
-    GitHub-Last-Rev: d0e1583a4faf8cc3471af03437107cc0e5770d57
-    GitHub-Pull-Request: golang/go#71603
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/647595
+    Change-Id: Ia92f98274ca784e2bc151faf236380af51f699c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537576
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- .../internal/fips140/edwards25519/field/fe.go      | 28 ++++++++++++----------
- .../fips140/edwards25519/field/fe_bench_test.go    |  8 +++++++
- 2 files changed, 24 insertions(+), 12 deletions(-)
+ src/crypto/tls/handshake_server_tls13.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,18 +1,21 @@
-commit 64967ffe6d7e8a82c87db7c11f76117072e7aff7
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Tue Oct 23 15:15:37 2018 +0200
+commit a5f8128e39d081c972e7bf3182122bac79bb6f8c
+Author: bill_ofarrell <billo@ca.ibm.com>
+Date:   Thu Jun 28 18:39:37 2018 -0400
 
-    cmd/compile/internal/ssa: fix TestStmtLines for AIX
+    bytes, strings: fix comparison of long byte slices on s390x
     
-    This commit adapts TestStmtLines for AIX operating system.
+    The existing implementation of bytes.Compare on s390x doesn't work properly for slices longer
+    than 256 elements. This change fixes that. Added tests for long strings and slices of bytes.
     
-    Update #25893
+    Fixes #26114
     
-    Change-Id: I1c76bbd8fc679a66b65ecfbd1ed7745518064eae
-    Reviewed-on: https://go-review.googlesource.com/c/144958
+    Change-Id: If6d8b68ee6dbcf99a24f867a1d3438b1f208954f
+    Reviewed-on: https://go-review.googlesource.com/121495
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/stmtlines_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/bytes/compare_test.go            | 15 +++++++++++++--
+ src/internal/bytealg/compare_s390x.s |  2 ++
+ src/strings/compare_test.go          | 15 +++++++++++++--
+ 3 files changed, 28 insertions(+), 4 deletions(-)

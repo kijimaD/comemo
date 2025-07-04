@@ -1,24 +1,19 @@
-commit 6b742b2f84fc4ddea27076aa1e581197d17bd863
-Author: Quentin Smith <quentin@golang.org>
-Date:   Mon Feb 6 11:59:01 2017 -0500
+commit e24ccfc6fc6289073cdbe6f47f8a915e798578e9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 25 12:59:36 2016 -0700
 
-    testing: print extra labels on benchmarks
+    misc/cgo/errors: fix malloc test for dragonfly
     
-    When running benchmarks, print "goos", "goarch", and "pkg"
-    labels. This makes it easier to refer to benchmark logs and understand
-    how they were generated. "pkg" is printed only for benchmarks located
-    in GOPATH.
+    The Dragonfly libc returns a non-zero value for malloc(-1).
     
-    Change-Id: I397cbdd57b9fe8cbabbb354ec7bfba59f5625c42
-    Reviewed-on: https://go-review.googlesource.com/36356
-    Run-TryBot: Quentin Smith <quentin@golang.org>
+    Fixes #17585.
+    
+    Change-Id: Icfe68011ccbc75c676273ee3c3efdf24a520a004
+    Reviewed-on: https://go-review.googlesource.com/32050
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go                   | 22 ++++++++++++++++++++++
- src/cmd/go/internal/test/test.go        | 17 +++++++++++++++++
- src/cmd/go/testdata/src/bench/x_test.go |  6 ++++++
- src/testing/benchmark.go                | 22 +++++++++++++++++-----
- src/testing/internal/testdeps/deps.go   |  7 +++++++
- src/testing/testing.go                  |  4 +++-
- 6 files changed, 72 insertions(+), 6 deletions(-)
+ misc/cgo/errors/malloc.go | 13 ++++++++++++-
+ misc/cgo/errors/test.bash |  2 +-
+ 2 files changed, 13 insertions(+), 2 deletions(-)

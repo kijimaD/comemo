@@ -1,32 +1,18 @@
-commit 927fdb7843ce96b42791912b42d0d3e6735e8dde
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Feb 22 23:26:21 2025 +1100
+commit f2794207adabc3130e79aa6e701782b8aed69e25
+Author: lxl-renren <gnnu_d13@163.com>
+Date:   Fri Jan 12 15:09:17 2024 +0000
 
-    cmd/compile: simplify intrinsification of TrailingZeros16 and TrailingZeros8
+    cmp: add test case for uinitptr
     
-    Decompose Ctz16 and Ctz8 within the SSA rules for LOONG64, MIPS, PPC64
-    and S390X, rather than having a custom intrinsic. Note that for PPC64 this
-    actually allows the existing Ctz16 and Ctz8 rules to be used.
-    
-    Change-Id: I27a5e978f852b9d75396d2a80f5d7dfcb5ef7dd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651816
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iebe79be01eb5208e9b9dea9297c464fe2b2dd3dd
+    GitHub-Last-Rev: 875ab08627b1fb0db3dc2a14ac332fdbc9af8b4b
+    GitHub-Pull-Request: golang/go#65017
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554595
     Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  4 +-
- src/cmd/compile/internal/ssa/_gen/MIPS.rules       |  5 +-
- src/cmd/compile/internal/ssa/_gen/PPC64.rules      | 21 +++----
- src/cmd/compile/internal/ssa/_gen/S390X.rules      |  6 +-
- src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 46 +++++++++++++++-
- src/cmd/compile/internal/ssa/rewriteMIPS.go        | 44 +++++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go       | 64 +++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewriteS390X.go       | 46 +++++++++++++++-
- src/cmd/compile/internal/ssagen/intrinsics.go      | 36 +-----------
- src/cmd/compile/internal/ssagen/intrinsics_test.go |  6 +-
- test/codegen/mathbits.go                           |  4 +-
- 11 files changed, 225 insertions(+), 57 deletions(-)
+ src/cmp/cmp_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

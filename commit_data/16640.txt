@@ -1,26 +1,49 @@
-commit a14e143c2173e106b1155905a41f5144e1a864b7
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 25 17:23:33 2013 -0400
+commit 7590e28d24d2dd50200808d2514656b6a440412f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 25 10:44:25 2013 -0700
 
-    cmd/ld: fix line numbers when using fieldtrack
+    lib9: avoid all -Wconversion warnings
     
-    USEFIELD is a special kind of NOP, so treat it like a NOP
-    when generating the pc-ln table.
+    Built after adding -Wconversion to the list of compiler
+    arguments used when building.  I believe these are all OK
+    assuming we will not change the API.  There is no effort to
+    detect overflow due to very long strings.
     
-    There are more invasive fixes that could be applied here.
-    I am going for minimum number of lines changed.
-    
-    The smallest test case we know of is five distinct Go files
-    in four packages, and the bug only happens with
-    GOEXPERIMENT=fieldtrack enabled, which we don't
-    normally build with, so the test would never run
-    meaningfully anyway.
-    
-    Fixes #5762.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, dave, rsc, r
     CC=golang-dev
-    https://golang.org/cl/10495044
+    https://golang.org/cl/10195044
 
- src/cmd/ld/lib.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/lib9/_p9dir.c         | 12 +++----
+ src/lib9/atoi.c           |  2 +-
+ src/lib9/await.c          |  4 +--
+ src/lib9/dirfstat.c       |  4 +--
+ src/lib9/dirfwstat.c      |  6 ++--
+ src/lib9/dirstat.c        |  4 +--
+ src/lib9/dirwstat.c       |  4 +--
+ src/lib9/execl.c          |  2 +-
+ src/lib9/flag.c           | 22 ++++++------
+ src/lib9/fmt/dofmt.c      | 88 +++++++++++++++++++++++------------------------
+ src/lib9/fmt/dorfmt.c     |  6 ++--
+ src/lib9/fmt/fltfmt.c     | 26 +++++++-------
+ src/lib9/fmt/fmt.c        |  8 ++---
+ src/lib9/fmt/fmtdef.h     |  6 ++--
+ src/lib9/fmt/fmtfdflush.c |  4 +--
+ src/lib9/fmt/fmtquote.c   | 12 +++----
+ src/lib9/fmt/fmtrune.c    |  4 +--
+ src/lib9/fmt/sprint.c     |  4 +--
+ src/lib9/fmt/strtod.c     | 27 ++++++++-------
+ src/lib9/fmt/vsmprint.c   |  6 ++--
+ src/lib9/fmt/vsnprint.c   |  2 +-
+ src/lib9/getwd.c          |  2 +-
+ src/lib9/readn.c          |  2 +-
+ src/lib9/rfork.c          |  4 +--
+ src/lib9/strecpy.c        |  2 +-
+ src/lib9/tokenize.c       |  8 ++---
+ src/lib9/utf/rune.c       | 38 ++++++++++----------
+ src/lib9/utf/utfecpy.c    |  2 +-
+ src/lib9/utf/utflen.c     |  2 +-
+ src/lib9/utf/utfnlen.c    |  4 +--
+ src/lib9/utf/utfrrune.c   |  2 +-
+ src/lib9/utf/utfrune.c    |  2 +-
+ src/lib9/utf/utfutf.c     |  5 +--
+ 33 files changed, 165 insertions(+), 161 deletions(-)

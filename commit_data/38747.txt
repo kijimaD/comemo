@@ -1,47 +1,19 @@
-commit aafe257390cc9048e8b5df898fabd79a9e0d4c39
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Mar 28 12:51:30 2019 -0400
+commit 77807093692070801b66960b6918fb59c9b470cd
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Nov 18 17:18:37 2018 +0100
 
-    cmd/link, runtime: mark goexit as the top of the call stack
+    os: return PathError on RemoveAll with trailing dots
     
-    This CL adds a new attribute, TOPFRAME, which can be used to mark
-    functions that should be treated as being at the top of the call
-    stack. The function `runtime.goexit` has been marked this way on
-    architectures that use a link register.
+    Return a PathError instead of an unwrapped syscall.EINVAL if the path
+    ends with dots.
     
-    This will stop programs that use DWARF to unwind the call stack
-    from unwinding past `runtime.goexit` on architectures that use a
-    link register. For example, it eliminates "corrupt stack?"
-    warnings when generating a backtrace that hits `runtime.goexit`
-    in GDB on s390x.
+    As suggested by Roger Peppe in CL 150158.
     
-    Similar code should be added for non-link-register architectures
-    (i.e. amd64, 386). They mark the top of the call stack slightly
-    differently to link register architectures so I haven't added
-    that code (they need to mark "rip" as undefined).
-    
-    Fixes #24385.
-    
-    Change-Id: I15b4c69ac75b491daa0acf0d981cb80eb06488de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169726
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I4d82a6ff64a979b67a843a1cc4fea58ed9326aed
+    Reviewed-on: https://go-review.googlesource.com/c/150160
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/goobj/read.go           |  2 ++
- src/cmd/internal/obj/link.go             |  6 ++++++
- src/cmd/internal/obj/objfile.go          |  6 ++++++
- src/cmd/internal/obj/plist.go            |  1 +
- src/cmd/internal/obj/textflag.go         |  4 ++++
- src/cmd/link/internal/ld/dwarf.go        | 22 +++++++++++++++++-----
- src/cmd/link/internal/objfile/objfile.go |  3 +++
- src/cmd/link/internal/sym/attribute.go   |  6 +++++-
- src/runtime/asm_arm.s                    |  2 +-
- src/runtime/asm_arm64.s                  |  2 +-
- src/runtime/asm_mips64x.s                |  2 +-
- src/runtime/asm_mipsx.s                  |  2 +-
- src/runtime/asm_ppc64x.s                 |  2 +-
- src/runtime/asm_s390x.s                  |  2 +-
- src/runtime/runtime-gdb_test.go          | 22 ++++++++++++++++++++++
- src/runtime/textflag.h                   |  3 +++
- 16 files changed, 75 insertions(+), 12 deletions(-)
+ src/os/removeall_at.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

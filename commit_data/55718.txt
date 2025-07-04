@@ -1,18 +1,19 @@
-commit 320f1be51f90fd7432b24769257df6f4061142ae
-Author: guoguangwu <guoguangwu@magic-shield.com>
-Date:   Mon Feb 26 09:32:48 2024 +0000
+commit eaf593869ac42d0200146d1e666070cf97cf1dd6
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Mar 7 19:34:17 2023 +0800
 
-    reflect: fix typo in comment
+    net: document the Close blocking with SO_LINGER on some OS's
     
-    Change-Id: Ia8e666b128622391d72e42449c01c4e10f3c9e1e
-    GitHub-Last-Rev: c74cf13b70772a965a14630108544a89690d1383
-    GitHub-Pull-Request: golang/go#65938
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566855
+    Fixes #58882
+    
+    Change-Id: I65842a4aa3f808533e28128078e7e94a9b121404
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473915
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/reflect/value.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/tcpsock.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

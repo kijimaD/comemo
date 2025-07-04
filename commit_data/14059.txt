@@ -1,20 +1,16 @@
-commit 53390c8fc7b27bf1a14c709feae802c410ea2ae2
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Oct 7 22:07:03 2012 +0400
+commit f82c59b6cf4cc50964c6068a704647db5a73c4fa
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 8 01:56:27 2012 +0800
 
-    race: sync changes
-    This is a part of a bigger change that adds data race detection feature:
-    https://golang.org/cl/6456044
+    runtime: disable TestParForParallel for now on 32-bit hosts
+    Also add call to GC() to make it easier to re-enable the test.
     
-    R=rsc, minux.ma
-    CC=gobot, golang-dev
-    https://golang.org/cl/6529053
+    Update #4155.
+    When we have precise GC merged, re-enable this test.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6622058
 
- src/pkg/go/build/deps_test.go |  2 +-
- src/pkg/sync/cond.go          | 18 ++++++++++++++++++
- src/pkg/sync/mutex.go         | 16 +++++++++++++++-
- src/pkg/sync/race.go          | 34 ++++++++++++++++++++++++++++++++++
- src/pkg/sync/race0.go         | 28 ++++++++++++++++++++++++++++
- src/pkg/sync/rwmutex.go       | 36 +++++++++++++++++++++++++++++++++++-
- src/pkg/sync/waitgroup.go     | 29 ++++++++++++++++++++++++++++-
- 7 files changed, 159 insertions(+), 4 deletions(-)
+ src/pkg/runtime/parfor_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

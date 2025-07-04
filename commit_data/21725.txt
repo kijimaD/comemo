@@ -1,16 +1,16 @@
-commit 37b85971781c6474f17c6b99bf4d40765497afd3
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 24 22:05:26 2015 -0500
+commit dc3961cfdc636ed6526a452051d41e1a12bfa386
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 29 23:49:27 2015 -0500
 
-    runtime: remove unnecessary gcworkdone resetting loop
+    cmd/5l, cmd/8g: fix build failures
     
-    The loop in gcMark is redundant with the gcworkdone resetting
-    performed by markroot, which called a few lines later in gcMark.
+    REG_R0 etc are defined in <ucontext.h> on ARM systems.
+    Possible use of uninitialized n in 8g/reg.c.
     
-    Change-Id: Ie0a826a614ecfa79e6e6b866e8d1de40ba515856
-    Reviewed-on: https://go-review.googlesource.com/5880
+    Change-Id: I6e8ce83a6515ca2b779ed8a344a25432db629cc2
+    Reviewed-on: https://go-review.googlesource.com/3578
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgc.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/5l/5.out.h | 18 ++++++++++++++++++
+ src/cmd/8g/reg.c   |  2 ++
+ 2 files changed, 20 insertions(+)

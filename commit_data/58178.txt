@@ -1,21 +1,17 @@
-commit e1dc707f33b0cecae32e6e649fbd58a7274fc322
-Author: Brian Gabin <bpgabin@gmail.com>
-Date:   Sun Oct 20 21:58:08 2024 -0700
+commit aa8e4c5e610145af682d48b064fa0d28ed9a91e4
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Oct 9 16:41:24 2023 +0000
 
-    cmd/go/testdata/script: restrict test to check only exe name
+    runtime: fix some comments
     
-    Avoid test failures caused by 'v2' in user environment paths.
-    Modify the test to check only the output executable name and ensure it is not 'v2', rather than inspecting the entire path.
-    
-    Fixes #67989
-    
-    Change-Id: Ida2131f6c9b41724df1b6b5e31413252c5009d25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621315
+    Change-Id: I06403cf217a4d2645e13115e7ca358b7f3d3f2ef
+    GitHub-Last-Rev: e2b4e5326a6c68d066b637c6add86723e0cefd3b
+    GitHub-Pull-Request: golang/go#63474
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533875
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/testdata/script/mod_install_versioned.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

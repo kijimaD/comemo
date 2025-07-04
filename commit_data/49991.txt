@@ -1,20 +1,19 @@
-commit 1aa5730f4940b9e11c4461817493e47de1874d77
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Aug 18 22:53:19 2022 +0700
+commit aeea5bacbf79fb945edbeac6cd7630dd70c4d9ce
+Author: korzhao <korzhao95@gmail.com>
+Date:   Sat Sep 25 15:29:52 2021 +0800
 
-    runtime: remove p padding field for atomic fields alignment
+    test/typeparam: add a test case for issue48617
     
-    CL 424396 and CL 424397 changed timer0When/timerModifiedEarliest to
-    atomic.Uint64, just they're guaranted to have 64-bit alignment.
+    For #48617
     
-    Change-Id: Idaff1059da2aac84520b9b0e34f9721a74dbba5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424794
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6c00b7912c441ac323a0adede63b7d4a9ae6f92d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351858
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/align_runtime_test.go | 2 --
- src/runtime/runtime2.go           | 2 --
- 2 files changed, 4 deletions(-)
+ test/typeparam/issue48617.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

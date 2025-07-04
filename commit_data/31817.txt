@@ -1,19 +1,22 @@
-commit 03a4a5c98885245a99d67b684acacff4f7b2326e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 14 10:17:29 2017 -0700
+commit dc4434a0c0aff7cb709b519dafdb8176a862e3ea
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 17 09:19:56 2017 -0700
 
-    runtime: don't run TestCgoNumGoroutine on Windows or Plan 9
+    cmd/compile: make stkptrsize local
     
-    The test requires pthreads.
+    While we're here, also eliminate a few more Curfn uses.
     
-    Fixes #20666.
+    Passes toolstash -cmp. No compiler performance impact.
     
-    Change-Id: Icb2400250a80cdad6680cd1ef6c18ef7343d5e29
-    Reviewed-on: https://go-review.googlesource.com/45701
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #15756
+    
+    Change-Id: Ib8db9e23467bbaf16cc44bf62d604910f733d6b8
+    Reviewed-on: https://go-review.googlesource.com/38331
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/crash_cgo_test.go                    | 4 ++++
- src/runtime/testdata/testprogcgo/numgoroutine.go | 2 ++
- 2 files changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/go.go    |  2 --
+ src/cmd/compile/internal/gc/pgen.go  |  6 +++---
+ src/cmd/compile/internal/gc/plive.go | 42 +++++++++++++++++++-----------------
+ src/cmd/compile/internal/gc/ssa.go   |  9 ++++----
+ 4 files changed, 30 insertions(+), 29 deletions(-)

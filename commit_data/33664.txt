@@ -1,19 +1,12 @@
-commit 6ecd843e7ceaeff11ec2feb1709fdbb34a7c334b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 22 07:13:25 2017 -0800
+commit 04d410d6cda732a4ff9c31551a6a700c0e42137c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:04:27 2017 +1000
 
-    os/signal: make TestTerminalSignal more reliable
+    cmd/link: introduce and use peSection.emitRelocations
     
-    Look for program output and shell prompt to see when to continue.
-    
-    Updates #22845
-    
-    Change-Id: I44ed1908861f3b0dc098aee9a401324b77268921
-    Reviewed-on: https://go-review.googlesource.com/79395
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2bebee5566ee07786695f147c27661e69337a0f7
+    Reviewed-on: https://go-review.googlesource.com/59418
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/signal/signal_cgo_test.go | 101 ++++++++++++++++++++++++++++++++++-----
- 1 file changed, 90 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 62 +++++++++++++++++++++---------------------
+ 1 file changed, 31 insertions(+), 31 deletions(-)

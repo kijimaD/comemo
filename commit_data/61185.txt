@@ -1,0 +1,24 @@
+commit 2b664d586c217b8111bfeeb26c82244199ebc150
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Oct 16 21:00:17 2024 +0000
+
+    time: correct time.AppendText's error message
+    
+    "time.AppendText" returns error messages that start with the prefix
+    "time.MarshalText: " which seems confusion.
+    
+    Now correct the message prefix to "time.AppendText: " and add a test
+    to prevent regression.
+    
+    Change-Id: I5742c9c3ed802eb79c65d459910deae4f3652ffd
+    GitHub-Last-Rev: ce965595c1dafab4a3db3d3f9f9edc9e43c5dea2
+    GitHub-Pull-Request: golang/go#69914
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620597
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/time/time.go      | 16 ++++++++++------
+ src/time/time_test.go | 10 ++++++++++
+ 2 files changed, 20 insertions(+), 6 deletions(-)

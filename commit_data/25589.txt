@@ -1,16 +1,39 @@
-commit 383d817e02384d9504fb4fb661291df9a64ebcce
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 14 14:40:54 2016 -0500
+commit fa6a1ecd6327ffbedc7dd117e0fba819f6f4faf1
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:13:00 2015 -0400
 
-    cmd/go: fix vendor directory check on Windows
+    cmd/internal/obj/mips: added support for GOARCH=mips64{,le}
     
-    Fixes build.
+    MIPS64 has 32 general purpose 64-bit integer registers (R0-R31), 32
+    64-bit floating point registers (F0-F31). Instructions are fixed-width,
+    and are 32-bit wide. Instructions are all in standard 1-, 2-, 3-operand
+    forms.
     
-    Change-Id: Idd7d87f0bf3fe553b3ab00dd32eee4925a4fe3ff
-    Reviewed-on: https://go-review.googlesource.com/18647
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    MIPS64-specific relocations are added. For this reason, test data of
+    cmd/newlink are regenerated.
+    
+    No other changes are made to portable structures.
+    
+    Branch delay slots are current filled with NOP instructions. The function
+    for instruction scheduling (try to fill the delay slot with a useful
+    instruction) is implemented but disabled for now.
+    
+    Change-Id: Ic364999c7a33245260c1381fc26a2fa8972d38b3
+    Reviewed-on: https://go-review.googlesource.com/14442
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/go/pkg.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/link.go           |   10 +
+ src/cmd/internal/obj/mips/a.out.go     |  552 ++---
+ src/cmd/internal/obj/mips/anames.go    |  364 +---
+ src/cmd/internal/obj/mips/anames0.go   |   18 +-
+ src/cmd/internal/obj/mips/asm0.go      | 3447 +++++++++-----------------------
+ src/cmd/internal/obj/mips/list0.go     |   44 +-
+ src/cmd/internal/obj/mips/obj0.go      | 1229 ++++++++----
+ src/cmd/internal/obj/util.go           |   12 +-
+ src/cmd/newlink/testdata/autosection.6 |  Bin 937 -> 936 bytes
+ src/cmd/newlink/testdata/autoweak.6    |  Bin 386 -> 385 bytes
+ src/cmd/newlink/testdata/dead.6        |  Bin 849 -> 848 bytes
+ src/cmd/newlink/testdata/hello.6       |  Bin 229 -> 228 bytes
+ src/cmd/newlink/testdata/layout.6      |  Bin 396 -> 395 bytes
+ src/cmd/newlink/testdata/pclntab.6     |  Bin 3804 -> 3803 bytes
+ 14 files changed, 2167 insertions(+), 3509 deletions(-)

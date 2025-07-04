@@ -1,20 +1,26 @@
-commit bb6e685b7b7cc2a9ba7f81b98fa29bfdbf5cff7b
+commit 60b98d62087d582dafdda68c2af281c5e204fe03
 Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Tue Mar 13 09:08:04 2012 +1100
+Date:   Tue Mar 13 09:07:37 2012 +1100
 
-    godoc: fix codewalk handler
+    doc: add C? Go? Cgo! article
     
-    For URLs ending with /, the handler did not work, trying to append
-    ".xml" to the path.
+    Originally published on The Go Programming Language Blog, March 17, 2011.
     
-    For instance, the "Share Memory by Communicating" returned the
-    following error:
+    http://blog.golang.org/2011/03/c-go-cgo.html
     
-            open /Users/francisco.souza/lib/go/doc/codewalk/sharemem/.xml: no such file or directory
+    Update #2547.
     
-    R=adg, minux.ma
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5797065
+    https://golang.org/cl/5777054
 
- src/cmd/godoc/codewalk.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ doc/articles/c_go_cgo.html | 159 +++++++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html              |   2 +-
+ doc/progs/cgo1.go          |  23 +++++++
+ doc/progs/cgo2.go          |  21 ++++++
+ doc/progs/cgo3.go          |  17 +++++
+ doc/progs/cgo4.go          |  17 +++++
+ doc/progs/run              |   9 ++-
+ doc/reference.html         |   4 +-
+ src/cmd/cgo/doc.go         |   2 +-
+ 9 files changed, 249 insertions(+), 5 deletions(-)

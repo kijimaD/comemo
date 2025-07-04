@@ -1,19 +1,20 @@
-commit 392ff18b8fdcb1f116f81887ddedfd43b19fdb9c
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun May 20 21:33:52 2018 +0200
+commit 1ae22d8cfe3e5a22370d51fb75fe78ab99d8a269
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Feb 13 17:18:08 2018 -0500
 
-    syscall: partially revert "enable some nacl code to be shared with js/wasm"
+    internal/trace: link user span start and end events
     
-    This partially reverts commit 3bdbb5df7692142c13cf93f6d80b2a907e3f396b.
-    The latest CL of js/wasm's file system support does not use
-    file descriptor mapping any more.
+    Also add testdata for version 1.11 including UserTaskSpan test trace.
     
-    Change-Id: Iaec9c84b392366282cddc69acc75c8a3eb556824
-    Reviewed-on: https://go-review.googlesource.com/114195
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I673fb29bb3aee96a14fadc0ab860d4f5832143f5
+    Reviewed-on: https://go-review.googlesource.com/93795
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/syscall/fd_nacl.go   | 244 +++++++++++++++++++++++++++++++++++++++++++++
- src/syscall/fd_nacljs.go | 254 -----------------------------------------------
- 2 files changed, 244 insertions(+), 254 deletions(-)
+ src/internal/trace/mkcanned.bash                   |   3 +-
+ src/internal/trace/parser.go                       |  41 +++++++++++++++-
+ src/internal/trace/testdata/http_1_11_good         | Bin 0 -> 2779 bytes
+ src/internal/trace/testdata/stress_1_11_good       | Bin 0 -> 370129 bytes
+ .../trace/testdata/stress_start_stop_1_11_good     | Bin 0 -> 4882 bytes
+ .../trace/testdata/user_task_span_1_11_good        | Bin 0 -> 2000 bytes
+ src/runtime/trace/annotation_test.go               |  54 +++++++++++++++------
+ 7 files changed, 81 insertions(+), 17 deletions(-)

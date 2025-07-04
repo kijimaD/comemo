@@ -1,27 +1,15 @@
-commit fdbf3d901b3c6c91ba0e5efe496f1518b53fd885
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 15 09:13:52 2014 -0800
+commit 89c9d6b7f858cea20a4f564d88ff7831c4375403
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 14 19:08:40 2014 -0800
 
-    cmd/pack: rewrite in Go
-    Replace the pack command, a C program, with a clean reimplementation in Go.
-    It does not need to reproduce the full feature set and it is no longer used by
-    the build chain, but has a role in looking inside archives created by the build
-    chain directly.
+    net/http: return UnexpectedEOF instead of EOF on truncated resposne
     
-    Since it's not in C, it is no longer build by dist, so remove it from cmd/dist and
-    make it a "tool" in cmd/go terminology.
+    Fixes #6564
     
-    Fixes #2705
-    
-    R=rsc, dave, minux.ma, josharian
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/52310044
+    https://golang.org/cl/52420043
 
- src/cmd/dist/build.c      |    2 -
- src/cmd/go/pkg.go         |    1 +
- src/cmd/pack/Makefile     |    5 -
- src/cmd/pack/ar.c         | 1589 ---------------------------------------------
- src/cmd/pack/doc.go       |   39 +-
- src/cmd/pack/pack.go      |  397 +++++++++++
- src/cmd/pack/pack_test.go |  252 +++++++
- 7 files changed, 673 insertions(+), 1612 deletions(-)
+ src/pkg/net/http/response.go      | 3 +++
+ src/pkg/net/http/response_test.go | 9 +++++++++
+ 2 files changed, 12 insertions(+)

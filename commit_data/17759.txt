@@ -1,17 +1,16 @@
-commit 97958827048ae380ffa7ca26b49c60b6bbaa4ff5
-Author: Rob Pike <r@golang.org>
-Date:   Mon Oct 7 16:32:47 2013 -0700
+commit 989a63eb0b1f692c7d2aa0a4d3deed97b4505d15
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Mon Oct 7 13:08:26 2013 -0400
 
-    math: the trig functions work in radians; document that
-    Fixes #6543
-    6543 is also a fine NGC object.
+    misc/emacs: find unused imports where path and package name differ
     
-    R=golang-dev, dsymonds, kamil.kisiel, minux.ma
+    The Go compiler emits extra information for this case:
+    
+    imported and not used: "sandbox/foo_bar" as bar
+    
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/14515044
+    https://golang.org/cl/14111043
 
- src/pkg/math/asin.go | 4 ++--
- src/pkg/math/atan.go | 2 +-
- src/pkg/math/sin.go  | 4 ++--
- src/pkg/math/tan.go  | 2 +-
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ misc/emacs/go-mode.el | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,13 +1,18 @@
-commit b119ef154c1cc3bded16baff06143844bf1b28e1
-Author: Francisco Rojas <francisco.rojas.gallegos@gmail.com>
-Date:   Sat Jul 15 14:51:58 2017 -0600
+commit 42aa608f8acd50f963b0f1807a6c3ecbf651b6e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 30 16:40:52 2017 -0700
 
-    strings: add a example for TrimFunc
+    cmd/compile: remove confusing comment, fix comment for symExport
     
-    Change-Id: I9c0c601ec5957475e949dcc4a8c2116724d01215
-    Reviewed-on: https://go-review.googlesource.com/48961
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    The symExport flag tells whether a symbol is in the export list
+    already or not (and it's also used to avoid being added to that
+    list). Exporting is based on that export list - no need to check
+    again.
+    
+    Change-Id: I6056f97aa5c24a19376957da29199135c8da35f9
+    Reviewed-on: https://go-review.googlesource.com/39033
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/strings/example_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/gc/bexport.go | 10 ----------
+ src/cmd/compile/internal/gc/go.go      |  2 +-
+ 2 files changed, 1 insertion(+), 11 deletions(-)

@@ -1,30 +1,17 @@
-commit 3081f817da8c194982596ddddf5d3ec321c859af
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Aug 20 16:15:53 2021 -0700
+commit db6032dd0cbce3e4feff0160287cbe3d9234a540
+Author: Ikko Ashimine <eltociear@gmail.com>
+Date:   Wed Dec 9 14:17:56 2020 +0000
 
-    cmd/compile: always remove receiver type from instantiated method values
+    cmd/compile: fix message typo
     
-    If a type T has a method foo, then
+    occurences -> occurrences
     
-    var t T
-    var i interface{} = t.foo
-    
-    The type of foo is a method type, but the type of t.foo should be a
-    standard function type. Make sure we always do that conversion.
-    
-    Fixes #47775
-    
-    Change-Id: I464ec792196b050aba1914e070a4ede34bfd0bfa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343881
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: Ia81671f5de8a24ddd303a77b4580e8c726f29122
+    GitHub-Last-Rev: 11f9ab9f8c2c9acd70bcf170930426547d9b63eb
+    GitHub-Pull-Request: golang/go#43097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276612
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/noder/transform.go |  6 +-----
- src/cmd/compile/internal/typecheck/dcl.go   |  6 ++++++
- test/typeparam/issue47775.dir/b.go          | 19 +++++++++++++++++++
- test/typeparam/issue47775.dir/main.go       | 11 +++++++++++
- test/typeparam/issue47775.go                |  7 +++++++
- test/typeparam/issue47775b.go               | 28 ++++++++++++++++++++++++++++
- 6 files changed, 72 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

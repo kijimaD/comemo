@@ -1,18 +1,29 @@
-commit b191c6095ececd77881be0644b333fc44e35774c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 9 11:35:24 2020 -0400
+commit a9b37ae02604e03d2356b6143679d2a71bdd32a7
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 24 09:00:27 2019 -0400
 
-    cmd/oldlink: delete darwin/386 host object loading support
+    runtime: fully initialize span in alloc_m
     
-    In Go 1.15, the darwin/386 port is gone.
+    Currently, several important fields of a heap span are set by
+    heapBits.initSpan, which happens after the span has already been
+    published and returned from the locked region of alloc_m. In
+    particular, allocBits is set very late, which makes mspan.isFree
+    unsafe even if you were to lock the heap because it tries to access
+    allocBits.
     
-    Updates #37610.
+    This CL fixes this by populating these fields in alloc_m. The next CL
+    builds on this to only publish the span once it is fully initialized.
+    Together, they'll make it safe to check allocBits even if there is a
+    race with alloc_m.
     
-    Change-Id: I11627c03403d4d4a3e0950fdedd0d850ae24b439
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227766
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For #10958, #24543, but a good fix in general.
+    
+    Change-Id: I7fde90023af0f497e826b637efa4d19c32840c08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203285
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/oldlink/internal/loadmacho/ldmacho.go | 103 +-------------------------
- 1 file changed, 3 insertions(+), 100 deletions(-)
+ src/runtime/mbitmap.go | 16 +++-------------
+ src/runtime/mheap.go   | 27 +++++++++++++++++++++++++--
+ 2 files changed, 28 insertions(+), 15 deletions(-)

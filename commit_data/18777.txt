@@ -1,17 +1,16 @@
-commit aea99eda0f88987e06c4ce9e0cf5bdee23b12a98
+commit 130458470a11d1f16908d7db7fe683b621541a36
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 6 21:33:00 2014 +0400
+Date:   Thu Mar 6 13:16:14 2014 +0400
 
-    runtime: fix runaway memory usage
-    It was caused by mstats.heap_alloc skew.
-    Fixes #7430.
+    run.bash: explain why we set GOMAXPROCS for runtime test
+    Fixes #7459.
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/69870055
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/71060044
 
- src/pkg/runtime/malloc.goc | 1 +
- src/pkg/runtime/mcache.c   | 1 -
- src/pkg/runtime/mgc0.c     | 6 +++++-
- 3 files changed, 6 insertions(+), 2 deletions(-)
+ src/run.bash |  2 ++
+ src/run.bat  | 10 +++++++++-
+ src/run.rc   |  2 ++
+ 3 files changed, 13 insertions(+), 1 deletion(-)

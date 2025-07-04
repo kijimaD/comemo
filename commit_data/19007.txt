@@ -1,18 +1,17 @@
-commit 9f9c9abb7e4bcc10398e2264a33cfe9ed805439f
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Apr 2 21:33:50 2014 +0200
+commit 47acf167098639ce182417548669a4776507f7b7
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 2 09:17:42 2014 -0700
 
-    cmd/8g, cmd/gc: fix warnings on Plan 9
+    cmd/gc: Don't zero more than we need.
     
-    warning: src/cmd/8g/ggen.c:35 non-interruptable temporary
-    warning: src/cmd/gc/walk.c:656 set and not used: l
-    warning: src/cmd/gc/walk.c:658 set and not used: l
+    Don't merge with the zero range, we may
+    end up zeroing more than we need.
     
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/83660043
+    https://golang.org/cl/83430044
 
- src/cmd/8g/ggen.c | 3 ++-
- src/cmd/gc/walk.c | 2 --
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/6g/ggen.c | 2 +-
+ src/cmd/8g/ggen.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

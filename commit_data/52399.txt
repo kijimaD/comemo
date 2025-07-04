@@ -1,23 +1,18 @@
-commit a6c382eaa8eaa611d71232aa4d5391b56a5c2693
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Mar 23 16:10:05 2023 -0400
+commit 0668e3cb1a8407547f1b4e316748d3b898564f8e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon May 2 00:25:16 2022 +0700
 
-    cmd/link: add padding after runtime.etext
+    cmd/compile: support pointers to arrays in arrayClear
     
-    The runtime.etext symbol is a marker symbol that marks the end of
-    (Go's) text section. Currently it has 0 size on some platforms.
-    Especially in external linking mode, this may cause the next
-    symbol (e.g. a C function) to have the same address as
-    runtime.etext, which may confuse some symbolizer. Add some padding
-    bytes to avoid address collision.
+    Fixes #52635
     
-    Change-Id: Ic450bab72e4ac79a3b6b891729831d4148b89234
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479075
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
-    Run-TryBot: Nicolas Hillegeer <aktau@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I85f182931e30292983ef86c55a0ab6e01282395c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403337
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/link/internal/ld/data.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/walk/range.go |  8 +++++++-
+ test/codegen/issue52635.go             | 36 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

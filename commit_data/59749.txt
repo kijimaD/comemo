@@ -1,14 +1,18 @@
-commit 11660d537b3387ba380f3bc2e85b9b59dac0dff5
-Author: Mark Freeman <mark@golang.org>
-Date:   Thu May 29 15:43:47 2025 -0400
+commit a0205e650a2a802b82e7f924e43d4a9adfb3ac36
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Apr 17 21:02:31 2024 +0800
 
-    cmd/compile/internal/noder: fill in SectionName
+    doc: simplify symbol links for relnotes
     
-    Change-Id: Ib99d40a546cb095c1b6c2d33e0735f3b5c681539
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677237
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Mark Freeman <mark@golang.org>
+    This is a follow-up to CL 578195.
+    
+    Change-Id: Iab38ee008df8b06c300b0027019cc0464bdadca1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579796
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/noder/doc.go | 32 ++++++++++++++++++++++++++++----
- 1 file changed, 28 insertions(+), 4 deletions(-)
+ doc/next/6-stdlib/99-minor/net/63116.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

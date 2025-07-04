@@ -1,20 +1,20 @@
-commit 8826bdd143314895230776e582043d34ea635a33
-Author: Florian Zenker <floriank@google.com>
-Date:   Fri Oct 14 09:13:38 2022 +0000
+commit 29ec902efc0ae53c4435097efdb738667466756c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Nov 16 11:46:42 2021 -0500
 
-    debug/elf: fix inccorrect value in COMPRESS_ZLIB string name
+    runtime: get tracking time only when needed
     
-    LLVM recently introduced ZSTD compression for ELF sections. The error
-    message when failing to read the compressed section calls this
-    COMPRESS_ZLIB+2 while it should report it as COMPRESS_ZLIB+1.
+    casgstatus currently calls nanotime on every casgstatus when tracking,
+    even though the time is only used in some cases. For goroutines making
+    lots of transitions that aren't covered here, this can add a small
+    overhead. Switch to calling nanotime only when necessary.
     
-    Change-Id: I869aa69baf0c8c86665475b47343c790587cb39b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443035
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2617869332e8289ef33dd674d786e44dea09aaba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364375
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/debug/elf/elf.go      | 2 +-
- src/debug/elf/elf_test.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/proc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

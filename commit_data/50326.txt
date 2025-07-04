@@ -1,17 +1,20 @@
-commit 6fcd9b42e7c6f7e8be75b9d8af01181096b3f752
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 17:22:48 2022 +0800
+commit 3befaf0cdb18420f45acfa7cee725297aa550faf
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Sat Oct 16 23:19:57 2021 +0800
 
-    archive: use strings.Builder
+    net/url: fix stale RFC 3986 links
     
-    Change-Id: I07e022ffc022bca6aa12165871e723db3ed83141
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428255
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    The URLs for RFC 3986 have been changed from:
+      http://tools.ietf.org/html/rfc3986
+    to:
+      https://datatracker.ietf.org/doc/html/rfc3986
+    
+    Change-Id: I0662557d91bbb7de51d7ca4bc64e838741cd9074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356429
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/archive/tar/writer_test.go | 2 +-
- src/archive/zip/zip_test.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/net/url/url_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

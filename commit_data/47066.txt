@@ -1,38 +1,22 @@
-commit bbc059572d599a414653e4ac659b4738d434e1f1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 26 17:07:32 2021 -0700
+commit 55d7dcc3cd4b3ee6bca0ab7101866d785776ff51
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Nov 10 21:02:18 2020 +0800
 
-    cmd/compile/internal/types2: implement singleType and structure (type)
+    runtime: optimize the memory padding in p struct
     
-    Rename structuralType to singleType throughout. This reflects
-    more closely what the function does: if a type set consists of
-    exactly one type term, singleType returns the corresponding type.
+    Since allocation for p struct will be rounded up to the next size class,
+    the two relevant adjacent classes for this case are 9728 bytes and 10240 bytes.
     
-    Rename singleUnder to structure. The structure function returns
-    the "type structure" of a type, either its underlying type for
-    a non-type parameter, or the single underlying type (if it exists)
-    for a type parameter.
+    A p is currently 10072 bytes, so it gets rounded up to 10240 bytes when we allocate one,
+    So the pad in p struct is unnecessary, eliminate it and add comments for
+    warning the false sharing.
     
-    Change constraint type inference to use the structure type for
-    inference, unless the structure type is the underlying type of
-    a single defined type, in which case it uses the latter. This
-    preserves existing behavior while making constraint type inference
-    slightly more flexible.
-    
-    Change-Id: I38ee89ffdabd12bfeaa0be2ad6af8fb373c11fc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359015
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Iae8b32931d1beddbfff1f58044d8401703da6407
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268759
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go        | 26 +++++++++++-----------
- src/cmd/compile/internal/types2/call.go            |  2 +-
- src/cmd/compile/internal/types2/expr.go            |  2 +-
- src/cmd/compile/internal/types2/index.go           |  2 +-
- src/cmd/compile/internal/types2/infer.go           | 13 +++++++----
- src/cmd/compile/internal/types2/stmt.go            |  2 +-
- src/cmd/compile/internal/types2/termlist.go        |  4 ++--
- src/cmd/compile/internal/types2/termlist_test.go   |  6 ++---
- .../types2/testdata/examples/inference.go2         | 23 +++++++++++++++++++
- src/cmd/compile/internal/types2/typeparam.go       |  6 ++---
- src/cmd/compile/internal/types2/typeset.go         |  4 ++--
- 11 files changed, 59 insertions(+), 31 deletions(-)
+ src/runtime/runtime2.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

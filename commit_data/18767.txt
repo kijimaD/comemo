@@ -1,20 +1,20 @@
-commit 3b961ba3d2e442f3613d466c3a2c898132a65a16
+commit 6433bff205f24c0f527f87284b8c09c6476e5812
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 5 14:56:50 2014 -0800
+Date:   Wed Mar 5 12:40:13 2014 -0800
 
-    net/http: deflake a test
+    net/http: minor fixes and optimization for Response.TLS
     
-    I missed this one in codereview.appspot.com/70010050
-    Same thing, but different test.
+    Also add it to doc/go1.3.txt.
     
-    Fixes windows-amd64-race and likely other Windows
-    machines failing like:
-    http://build.golang.org/log/0382bf0048bf5835a51a8a902df5c6fc73cd7ff5
+    Update #7289
     
-    LGTM=adg
-    R=rsc, adg
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/71770043
+    https://golang.org/cl/71740043
 
- src/pkg/net/http/client_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.3.txt                   | 1 +
+ src/pkg/net/http/client_test.go | 7 +++----
+ src/pkg/net/http/response.go    | 8 ++++----
+ src/pkg/net/http/transport.go   | 8 +++++---
+ 4 files changed, 13 insertions(+), 11 deletions(-)

@@ -1,20 +1,20 @@
-commit 0286a0822b30b63e49be77384ca6f69bcc039b41
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Fri Dec 15 02:02:41 2023 +0000
+commit e7c7f3326335649d6fcae8cba297808fc60ed388
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 9 04:21:37 2023 +1100
 
-    runtime/cgo: mark fatalf as noreturn
+    cmd/internal/obj/arm64: factor out code generation for addition of 12 bit immediates
     
-    Fixes #64553
+    Factor out and simplify code that generates the addition of a 12 bit immediate
+    (the addition of a negative value is still handled via subtraction). This also
+    fixes the mishandling of the case where v is 0.
     
-    Change-Id: I7860cd9ba74d70a7d988538ea4df8e122f94cde6
-    GitHub-Last-Rev: 06164374734aef5b94566930426005ad66d0a5b6
-    GitHub-Pull-Request: golang/go#64727
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/550115
+    Change-Id: I6040f33d2fec87b772272531b3bf02390ae7f200
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461141
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/cgo/libcgo.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/arm64/asm7.go | 56 ++++++++++++++++----------------------
+ 1 file changed, 23 insertions(+), 33 deletions(-)

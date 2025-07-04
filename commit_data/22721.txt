@@ -1,13 +1,19 @@
-commit 33e0f3d853f871d849cd8e3b30a31b91d00bb209
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 27 15:42:45 2015 -0400
+commit c50a8416c851ab6897f9efcd932ac26b5862dcad
+Author: Paul Marks <pmarks@google.com>
+Date:   Thu Apr 2 19:13:17 2015 -0700
 
-    runtime: fix some out of date comments and typos
+    net: dialChannel should not treat an expired deadline as noDeadline.
     
-    Change-Id: I061057414c722c5a0f03c709528afc8554114db6
-    Reviewed-on: https://go-review.googlesource.com/9367
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Now, only a zero deadline is interpreted as noDeadline.  Any other time
+    in the past yields an immediate timeout.
+    
+    TestConnectDeadlineInThePast already covers this case.  We just need to
+    un-skip it for plan9, where dialChannel is used.
+    
+    Change-Id: I995fd1a632c31f8004dac772c3d7c43a2a5853b0
+    Reviewed-on: https://go-review.googlesource.com/8435
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/runtime/mgcmark.go | 3 +--
- src/runtime/proc1.go   | 2 +-
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ src/net/dial_gen.go     | 8 ++++----
+ src/net/timeout_test.go | 5 -----
+ 2 files changed, 4 insertions(+), 9 deletions(-)

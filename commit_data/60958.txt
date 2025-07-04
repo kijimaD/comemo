@@ -1,0 +1,26 @@
+commit 7a5fc9b34deb8d9fe22c9d060a5839827344fcc2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jun 11 16:34:38 2024 -0400
+
+    os: add clone(CLONE_PIDFD) check to pidfd feature check
+    
+    clone(CLONE_PIDFD) was added in Linux 5.2 and pidfd_open was added in
+    Linux 5.3. Thus our feature check for pidfd_open should be sufficient to
+    ensure that clone(CLONE_PIDFD) works.
+    
+    Unfortuantely, some alternative Linux implementations may not follow
+    this strict ordering. For example, QEMU 7.2 (Dec 2022) added pidfd_open,
+    but clone(CLONE_PIDFD) was only added in QEMU 8.0 (Apr 2023).
+    
+    Debian bookworm provides QEMU 7.2 by default.
+    
+    Fixes #69259.
+    
+    Change-Id: Ie3f3dc51f0cd76944871bf98690abf59f68fd7bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592078
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/os/pidfd_linux.go     | 24 ++++++++++++--
+ src/syscall/exec_linux.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+), 3 deletions(-)

@@ -1,15 +1,20 @@
-commit 316fd8cc4a7fab2e1bb45848bc30ea8b8a0b231a
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jan 14 09:50:43 2020 -0800
+commit b4924870f4b8302aba051a506bb499fad99b464e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 5 14:35:28 2019 -0700
 
-    cmd/compile: mark ... argument to checkptrArithmetic as not escaping
+    misc/cgo/test: use __atomic intrinsics instead of __sync
     
-    Fixes #36516
+    GCC has supported the __atomic intrinsics since 4.7, and clang
+    supports them as well. They are better than the __sync intrinsics in
+    that they specify a memory model and, more importantly for our purposes,
+    they are reliably implemented either in the compiler or in libatomic.
     
-    Change-Id: Ibf4f86fb3a25fa30e0cd54e2dd2e12c60ee75ddb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214679
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5e0036ea3300f65c28b1c3d1f3b93fb61c1cd646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193603
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/walk.go | 14 ++++++++++----
- test/fixedbugs/issue36516.go        | 27 +++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 4 deletions(-)
+ misc/cgo/test/testx.go | 28 +++++-----------------------
+ 1 file changed, 5 insertions(+), 23 deletions(-)

@@ -1,24 +1,31 @@
-commit 6d58aea5d412d135ec08463db515ee9453c508b5
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Nov 4 16:42:52 2022 -0400
+commit e07b02ff87af594a68484dcb1e3a78d1c39abc56
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 23 10:27:30 2021 -0500
 
-    cmd/go: use clean GOCACHE in TestNewReleaseRebuildsStalePackagesInGOPATH
+    net: in (*netFD).dial, use the passed in local address if getsockname fails
     
-    Now that most GOROOT packages do not have install targets, their
-    staleness depends on whether their builds have been cached. That means
-    that, from a clean cache, once
-    TestNewReleaseRebuildsStalePackagesInGOPATH builds certain targets, they
-    will stay non-stale for the second run of the test, becasue the will
-    still be in the cache. So the first run of the test from a clean cache
-    will pass and the second will fail. Set GOCACHE to a temporary directory
-    in the test to use a clean cache and avoid this.
+    'man getsockname' lists a number of possible failure modes, including
+    ENOBUFS (for resource exhaustion) and EBADF (which we could possibly
+    see in the event of a bug or race condition elsewhere in the program).
     
-    Change-Id: I91f954138a4723d81545134441148badbfc515f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448018
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    If getsockname fails for an explicit user-provided local address, the
+    user is probably not expecting LocalAddr on the returned net.Conn to
+    return nil. This may or may not fix #34611, but should at least help
+    us diagnose it more clearly.
+    
+    While we're add it, also add more nil-checking logic in the test based
+    on the stack traces posted to
+    https://golang.org/issue/34611#issuecomment-975923748.
+    
+    For #34611
+    
+    Change-Id: Iba870b96787811e4b9959b74ef648afce9316602
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366536
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/net/server_test.go | 10 +++++++++-
+ src/net/sock_posix.go  | 16 +++++++++++-----
+ 2 files changed, 20 insertions(+), 6 deletions(-)

@@ -1,21 +1,22 @@
-commit 735647d92e839f9ac3a91864a2c34263338a35e6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 8 15:36:28 2021 -0800
+commit 023d4973851a25e2a47b1ebaf96833c9209efd7c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 17 18:05:16 2020 -0400
 
-    runtime: add alignment info to sizeclasses.go comments
+    cmd/go: add trace events for each action
     
-    I was curious about the minimum possible alignment for each size class
-    and the minimum size to guarantee any particular alignment (e.g., to
-    know at what class size you can start assuming heap bits are byte- or
-    word-aligned).
+    This change adds a trace event for each action and also
+    annotates each of the action execution goroutines with trace.Goroutine
+    so that the actions eaxecuted by each goroutine appear on different threads in
+    the chrome trace viewer.
     
-    Change-Id: I205b750286e8914986533c4f60712c420c3e63e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299909
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Updates #38714
+    
+    Change-Id: I2e58dc5606b2e3f7f87076a61e1cc6a2014255c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248320
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/mksizeclasses.go |  26 +++++++-
- src/runtime/sizeclasses.go   | 145 +++++++++++++++++++++++--------------------
- 2 files changed, 101 insertions(+), 70 deletions(-)
+ src/cmd/go/internal/trace/trace.go |  4 ++--
+ src/cmd/go/internal/work/exec.go   | 13 +++++++++++--
+ 2 files changed, 13 insertions(+), 4 deletions(-)

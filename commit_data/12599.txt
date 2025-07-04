@@ -1,14 +1,23 @@
-commit cf46040784ad13ccd88aaea70e31f1dd89748cf9
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 13 15:02:14 2012 +1100
+commit 6033a48b775365714be86462f7e2480e881e978b
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Tue Mar 13 14:46:08 2012 +1100
 
-    doc: windows zip archive installation instructions
+    doc: add Go's declaration syntax article
     
-    Fixes #3254.
+    Originally published on The Go Programming Language Blog, July 7, 2010.
     
-    R=golang-dev, r
+    I did not put any go file in doc/progs. Shoul I include Go files
+    with those declarations?
+    
+    http://blog.golang.org/2010/07/gos-declaration-syntax.html
+    
+    Update #2547.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5794071
+    https://golang.org/cl/5795068
 
- doc/install.html | 42 +++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 41 insertions(+), 1 deletion(-)
+ doc/articles/gos_declaration_syntax.html | 348 +++++++++++++++++++++++++++++++
+ doc/docs.html                            |   2 +-
+ doc/go_faq.html                          |   2 +-
+ 3 files changed, 350 insertions(+), 2 deletions(-)

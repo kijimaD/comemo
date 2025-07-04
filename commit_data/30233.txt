@@ -1,33 +1,38 @@
-commit b548eee3d96fc0b6e962a243b28121e1f37ad792
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Feb 13 09:37:06 2017 -0800
+commit 20edeabc0fc73c6212769142f80e921c2e07ee08
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Oct 27 20:15:29 2016 -0700
 
-    cmd/compile: fix load-combining rules
+    cmd/compile: don't alloc Name/Param for unresolved syms
     
-    CL 33632 reorders args of commutative ops in order to make
-    CSE for commutative ops more robust.  Unfortunately, that
-    broke the load-combining rules which depend on a certain ordering
-    of OR ops' arguments.
+    ONONAME nodes generated from unresolved symbols don't need Params.
+    They only need Names to store Iota; move Iota to Node.Xoffset.
+    While we're here, change iota to int64 to reduce casting.
     
-    Introduce some additional rules that order OR ops' arguments
-    consistently so that the load-combining rules fire.
+    Passes toolstash -cmp.
     
-    Note: there's also something else wrong with the s390x rules.
-    I've filed #19059 for that.
+    name       old alloc/op     new alloc/op     delta
+    Template       39.9MB ± 0%      39.7MB ± 0%  -0.39%        (p=0.000 n=19+20)
+    Unicode        30.9MB ± 0%      30.7MB ± 0%  -0.35%        (p=0.000 n=20+20)
+    GoTypes         119MB ± 0%       118MB ± 0%  -0.42%        (p=0.000 n=20+20)
+    Compiler        464MB ± 0%       461MB ± 0%  -0.54%        (p=0.000 n=19+20)
     
-    Fixes #18946
+    name       old allocs/op    new allocs/op    delta
+    Template         386k ± 0%        383k ± 0%  -0.62%        (p=0.000 n=20+20)
+    Unicode          323k ± 0%        321k ± 0%  -0.49%        (p=0.000 n=20+20)
+    GoTypes         1.16M ± 0%       1.15M ± 0%  -0.67%        (p=0.000 n=20+20)
+    Compiler        4.09M ± 0%       4.05M ± 0%  -0.95%        (p=0.000 n=20+20)
     
-    Change-Id: I0a5447196bd88a55ccee683c69a57b943a9972e1
-    Reviewed-on: https://go-review.googlesource.com/36911
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib27219a0d0405def1b4dadacf64935ba12d10a94
+    Reviewed-on: https://go-review.googlesource.com/32237
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go      | 33 +++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/386.rules   |  3 +++
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++++
- src/cmd/compile/internal/ssa/gen/S390X.rules |  4 ++++
- src/cmd/compile/internal/ssa/rewrite386.go   | 17 ++++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 34 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go | 34 ++++++++++++++++++++++++++++
- 7 files changed, 129 insertions(+)
+ src/cmd/compile/internal/gc/dcl.go         | 20 +++++++++++++++-----
+ src/cmd/compile/internal/gc/go.go          |  2 +-
+ src/cmd/compile/internal/gc/noder.go       |  2 +-
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go        |  4 +---
+ src/cmd/compile/internal/gc/syntax.go      | 10 +++++++++-
+ src/cmd/compile/internal/gc/typecheck.go   |  4 ++--
+ 7 files changed, 30 insertions(+), 14 deletions(-)

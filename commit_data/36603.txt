@@ -1,16 +1,21 @@
-commit 262d4f321a885908def68adc4bed68428722b954
-Author: Warren Fernandes <warren.f.fernandes@gmail.com>
-Date:   Mon Sep 3 12:32:02 2018 -0600
+commit e0adc35c470d9bf7f462c9d26340b494cbe7ce43
+Author: Matt Juran <thepciet@gmail.com>
+Date:   Tue Feb 13 14:22:25 2018 -0600
 
-    fmt: add example for GoStringer interface
+    test: fast GC+concurrency+types verification
     
-    Updates golang/go#27376.
+    This test runs independent goroutines modifying a comprehensive variety
+    of local vars to look for garbage collector regressions. This test has
+    been verified to trigger issue 22781 on the go1.9.2 tag. This test
+    expands on test/fixedbugs/issue22781.go.
     
-    Change-Id: Ia8608561eb6a268aa7eae8c39c7098df100b643a
-    Reviewed-on: https://go-review.googlesource.com/133075
-    Reviewed-by: Kevin Burke <kev@inburke.com>
-    Run-TryBot: Kevin Burke <kev@inburke.com>
+    Tests #22781
+    
+    Change-Id: Id32f8dde7ef650aea1b1b4cf518e6d045537bfdc
+    Reviewed-on: https://go-review.googlesource.com/93715
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/fmt/gostringer_example_test.go | 59 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 59 insertions(+)
+ test/gcgort.go | 1850 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 1850 insertions(+)

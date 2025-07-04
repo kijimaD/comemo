@@ -1,22 +1,74 @@
-commit 5d22cebb1272b3761860c5fa9ee82ceb3d94c628
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 8 17:48:22 2018 -0500
+commit 8684534321b0ebbc7ee0c5bf3bc3a3c19a196621
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 27 15:36:59 2017 -0700
 
-    runtime: explain and enforce that _panic values live on the stack
+    cmd/compile: don't export unreachable inline method bodies
     
-    It's a bit mysterious that _defer.sp is a uintptr that gets
-    stack-adjusted explicitly while _panic.argp is an unsafe.Pointer that
-    doesn't, but turns out to be critically important when a deferred
-    function grows the stack before doing a recover.
+    Previously, anytime we exported a function or method declaration
+    (which includes methods for every type transitively exported), we
+    included the inline function bodies, if any. However, in many cases,
+    it's impossible (or at least very unlikely) for the importing package
+    to call the method.
     
-    Add a comment explaining that this works because _panic values live on
-    the stack. Enforce this by marking _panic go:notinheap.
+    For example:
     
-    Change-Id: I9ca49e84ee1f86d881552c55dccd0662b530836b
-    Reviewed-on: https://go-review.googlesource.com/99735
-    Run-TryBot: Austin Clements <austin@google.com>
+        package p
+        type T int
+        func (t T) M() { t.u() }
+        func (t T) u() {}
+        func (t T) v() {}
+    
+    T.M and T.u are inlineable, and they're both reachable through calls
+    to T.M, which is exported. However, t.v is also inlineable, but cannot
+    be reached.
+    
+    Exception: if p.T is embedded in another type q.U, p.T.v will be
+    promoted to q.U.v, and the generated wrapper function could have
+    inlined the call to p.T.v. However, in practice, this doesn't happen,
+    and a missed inlining opportunity doesn't affect correctness.
+    
+    To implement this, this CL introduces an extra flood fill pass before
+    exporting to mark inline bodies that are actually reachable, so the
+    exporter can skip over methods like t.v.
+    
+    This reduces Kubernetes build time (as measured by "time go build -a
+    k8s.io/kubernetes/cmd/...") on an HP Z620 measurably:
+    
+        == before ==
+        real    0m44.658s
+        user    11m19.136s
+        sys     0m53.844s
+    
+        == after ==
+        real    0m41.702s
+        user    10m29.732s
+        sys     0m50.908s
+    
+    It also significantly cuts down the cost of enabling mid-stack
+    inlining (-l=4):
+    
+        == before (-l=4) ==
+        real    1m19.236s
+        user    20m6.528s
+        sys     1m17.328s
+    
+        == after (-l=4) ==
+        real    0m59.100s
+        user    13m12.808s
+        sys     0m58.776s
+    
+    Updates #19348.
+    
+    Change-Id: Iade58233ca42af823a1630517a53848b5d3c7a7e
+    Reviewed-on: https://go-review.googlesource.com/74110
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/runtime2.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go | 115 +++++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/bimport.go |  21 +++---
+ src/cmd/compile/internal/gc/dcl.go     |  18 +++---
+ src/cmd/compile/internal/gc/esc.go     |   5 +-
+ src/cmd/compile/internal/gc/inl.go     |  37 +++++++++++
+ src/cmd/compile/internal/gc/syntax.go  |   3 +
+ 6 files changed, 173 insertions(+), 26 deletions(-)

@@ -1,17 +1,14 @@
-commit e4d4787581f0e00af743ae2eb41daf0e28003d23
-Author: Thiago Fransosi Farina <thiago.farina@gmail.com>
-Date:   Tue Aug 12 07:49:10 2014 -0700
+commit f7832df7695c1e5930b2c8ed5e02d529d00f21a4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 8 12:48:34 2014 +0400
 
-    dist: Make vaddn private to buf.c
+    encoding/gob: fix data races in benchmarks
+    All goroutines decode into the same value.
     
-    This function does not have a declaration/prototype in a.h, and it is used only
-    in buf.c, so it is local to it and thus can be marked as private by adding
-    'static' to it.
-    
-    LGTM=iant
-    R=rsc, iant
+    LGTM=r
+    R=r, abursavich
     CC=golang-codereviews
-    https://golang.org/cl/122300043
+    https://golang.org/cl/123930043
 
- src/cmd/dist/buf.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/gob/timing_test.go | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)

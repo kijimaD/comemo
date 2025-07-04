@@ -1,12 +1,17 @@
-commit 632be89407d862fb6f566e8c217d69a9cf24866d
+commit 02ff646fef25769c7ba756fcdf03f13b7afbf4f3
 Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Jan 11 10:17:54 2011 -0500
+Date:   Tue Jan 11 10:15:49 2011 -0500
 
-    cgo: output alignment fix
+    cgo: fix enum const conflict
+    
+    This change prevents enum consts from conflicting with themselves
+    when loaded twice in different go files.
+    
+    Fixes #1400.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3902044
+    https://golang.org/cl/3849044
 
- src/cmd/cgo/out.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/gcc.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

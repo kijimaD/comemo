@@ -1,17 +1,14 @@
-commit fadeafac9391942af19cfa5cc3fc9ccedcd87b47
-Author: Jonathan Rudenberg <jonathan@titanous.com>
-Date:   Mon Mar 11 07:43:57 2013 -0700
+commit 65ed3f10738ba30202442eb1854de2dff93d7afd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 10:20:33 2013 -0400
 
-    net/http: add additional status codes defined in RFC 6585
+    math/big: fix comment
     
-    428 Precondition Required
-    429 Too Many Requests
-    431 Request Header Fields Too Large
-    511 Network Authentication Required
+    The variable is named b not bit.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/7678043
+    https://golang.org/cl/7699043
 
- src/pkg/net/http/status.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/math/big/int.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

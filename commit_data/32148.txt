@@ -1,38 +1,47 @@
-commit f776b9d5fa3577fe2fdaa3d2ef9d48adee329f9c
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Tue Aug 8 15:38:21 2017 -0400
+commit c9446398e8d72263f75c11bb835d75421627b3a3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 9 22:41:32 2017 -0800
 
-    net/http: log Readdir error to Server.ErrorLog
+    cmd/compile: allow composite literal structs with _ fields
     
-    Now that issue #12438 is resolved, this TODO can be completed.
-    Create a logf helper, which is similar to Server.logf method,
-    but takes a *Request to infer the *Server and its ErrorLog from.
+    Given code such as
     
-    Update documentation of Server.ErrorLog to mention a new type
-    of errors that may be logged to it.
+    type T struct {
+      _ string
+    }
     
-    Also update a statement in documentation of Server.ErrorLog from:
+    func f() {
+      var x = T{"space"}
+      // ...
+    }
     
-            // If nil, logging goes to os.Stderr via the log package's
-            // standard logger.
+    the compiler rewrote the 'var x' line as
     
-    To:
+    var x T
+    x._ = "space"
     
-            // If nil, logging is done via the log package's standard logger.
+    The compiler then rejected the assignment to
+    a blank field, thus rejecting valid code.
     
-    The motivation for doing so is to avoid making inaccurate claims.
-    Logging may not go to os.Stderr if anyone overrides the log package's
-    default output via https://godoc.org/log#SetOutput. Saying that
-    the standard logger is used should be sufficient to explain the
-    behavior, and users can infer that os.Stderr is used by default,
-    unless it's changed.
+    It also failed to catch a number of invalid assignments.
+    And there were insufficient checks for validity
+    when emitting static data, leading to ICEs.
     
-    Updates #12438.
+    To fix, check earlier for explicit blanks field names,
+    explicitly handle legit blanks in sinit,
+    and don't try to emit static data for nodes
+    for which typechecking has failed.
     
-    Change-Id: I3a4b0db51d652fd25fb2065fbc2157a3dec4dd38
-    Reviewed-on: https://go-review.googlesource.com/53950
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #19482
+    
+    Change-Id: I594476171d15e6e8ecc6a1749e3859157fe2c929
+    Reviewed-on: https://go-review.googlesource.com/38006
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/fs.go     |  8 +++-----
- src/net/http/server.go | 18 +++++++++++++++---
- 2 files changed, 18 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go     |  9 ++++++++-
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/cmd/internal/obj/data.go             |  2 +-
+ test/fixedbugs/issue19482.go             | 34 ++++++++++++++++++++++++++++++++
+ 4 files changed, 44 insertions(+), 3 deletions(-)

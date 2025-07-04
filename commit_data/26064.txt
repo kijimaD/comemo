@@ -1,26 +1,14 @@
-commit 3375974e0d64f2d8105cb5f6ca4a44790506f8ad
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Thu Mar 3 22:37:14 2016 -0800
+commit 57c81ef2570ac896fa5d830effbf2494d5cde3e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 15 13:13:38 2015 -0800
 
-    cmd/link/internal/ld: don't panic on short buildid
+    spec: be clearer about which parameter section can be variadic
     
-    When the linker was written in C, command line arguments were passed
-    around as null-terminated byte arrays which encouraged checking
-    characters one at a time. In Go, that can easily lead to
-    out-of-bounds panics.
+    Fixes #13595.
     
-    Use the more idiomatic strings.HasPrefix when checking cmd/link's -B
-    argument to avoid the panic, and replace the manual hex decode with
-    use of the encoding/hex package.
-    
-    Fixes #14636
-    
-    Change-Id: I45f765bbd8cf796fee1a9a3496178bf76b117827
-    Reviewed-on: https://go-review.googlesource.com/20211
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I870ddc97ea25b7f6f7a1bb1a78e5e4874fba1ddc
+    Reviewed-on: https://go-review.googlesource.com/17871
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/ld/elf.go | 44 ++++++++++++++---------------------------
- test/fixedbugs/issue14636.go    | 43 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+), 29 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

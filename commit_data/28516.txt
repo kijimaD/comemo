@@ -1,16 +1,17 @@
-commit 890c09efb72f11b3e6fd95d859260bfee7de7f31
-Author: Kale Blankenship <kale@lemnisys.com>
-Date:   Sat Sep 24 16:39:36 2016 -0700
+commit 690de51ffac1473820212c88a11685b40f7bde3b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 31 14:07:38 2016 -0700
 
-    os: make IsExist report true on ERROR_DIR_NOT_EMPTY on Windows
+    runtime: fix restoring PC in ARM version of cgocallback_gofunc
     
-    Fixes #17164
+    Fixes #15856.
     
-    Change-Id: I3e626d92293c1379e2922276f033fdee6f48dda3
-    Reviewed-on: https://go-review.googlesource.com/29753
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia8def161642087e4bd92a87298c77a0f9f83dc86
+    Reviewed-on: https://go-review.googlesource.com/23586
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/error_windows.go       | 1 +
- src/os/error_windows_test.go  | 4 ++++
- src/syscall/ztypes_windows.go | 1 +
- 3 files changed, 6 insertions(+)
+ src/runtime/asm_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

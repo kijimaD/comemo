@@ -1,23 +1,12 @@
-commit 2b64e00f164e951f24221c0d4c5b3fb66a604531
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 8 08:32:38 2012 -0500
+commit 5ca13f6378e0ded516ce8a2e3fb748d64b4b51d6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 8 22:50:05 2012 +1100
 
-    cmd/go: rebuild external test package dependencies
+    doc: fix metadata in go_mem.html
     
-    Was missing recompilation of packages imported only
-    by external test packages (package foo_test), primarily
-    because Root was not set, so those packages looked like
-    they were from a different Go tree, so they were not
-    recompiled if they already existed.
-    
-    Also clean things up so that only one call to computeStale
-    is needed.
-    
-    Fixes #3238.
-    
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5786048
+    https://golang.org/cl/5781053
 
- src/cmd/go/test.go | 31 ++++++++++++++++++++-----------
- 1 file changed, 20 insertions(+), 11 deletions(-)
+ doc/go_mem.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

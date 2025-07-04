@@ -1,29 +1,17 @@
-commit e1cba47ee06d59751e09fc8777ee9c57211018a5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 7 21:08:17 2023 -0800
+commit 0c8480acfe39a2ce093487ee3f6c614d6875a2bc
+Author: David Chase <drchase@google.com>
+Date:   Mon Jan 23 13:29:32 2023 -0500
 
-    go/parser: fix panic in object resolution for invalid type parameter list
+    internal/abi: repair broken self-bootstrap
     
-    This change restores the original logic in parseParameterList to what
-    it was before CL 538858 (which caused the issue), not in exact wording
-    but in identical semantic meaning, and thus restores this function to
-    a state that we know was working fine.
+    Fixes bug caused by https://go.dev/cl/462115
     
-    However, the change keeps the improved error reporting introduced by
-    CL 538858. To keep the code changes somewhat minimal as we are close
-    to RC1, the improved error handling exists twice for now even though
-    it could be factored out.
-    
-    Fixes #64534.
-    
-    Change-Id: I0b7bbf74d28811e8aae74f838f2d424f78af1f38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548395
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: Id91a139db827f2962be837b8fd218e7b895ce8b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463175
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go/parser/parser.go               | 28 ++++++++++++++++++++++++++--
- src/go/parser/testdata/issue64534.src | 10 ++++++++++
- 2 files changed, 36 insertions(+), 2 deletions(-)
+ src/internal/abi/funcpc.go | 10 ++--------
+ src/internal/abi/stub.s    |  7 +++++++
+ 2 files changed, 9 insertions(+), 8 deletions(-)

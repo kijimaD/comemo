@@ -1,28 +1,14 @@
-commit 34c09695db93218217703362135c6fede35535e0
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Nov 5 10:08:11 2020 -0500
+commit 05db7de1c1a27b75df1f11990a6e3e00f7e991cd
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 21 13:57:41 2020 +0700
 
-    cmd/go: revert "add GOVCS setting to control version control usage"
+    cmd/compile: remove unused nlo function
     
-    This reverts CL 266420.
-    
-    Reason for revert: tests aren't passing on linux-{386,amd64}-longtest.
-    
-    Change-Id: Icec47cded795a51ef7569dfb2d93d9211b4fb578
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267799
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I858d666d491f649f78581a43437408ffab33863b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229139
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/cmd/go/alldocs.go                 | 177 ++++++++++------------------------
- src/cmd/go/internal/cfg/cfg.go        |   1 -
- src/cmd/go/internal/envcmd/env.go     |   1 -
- src/cmd/go/internal/help/helpdoc.go   |   2 +-
- src/cmd/go/internal/modfetch/fetch.go |  13 +--
- src/cmd/go/internal/modget/get.go     |  76 ---------------
- src/cmd/go/internal/modload/help.go   |   2 +-
- src/cmd/go/internal/vcs/vcs.go        | 144 ---------------------------
- src/cmd/go/internal/vcs/vcs_test.go   | 104 --------------------
- src/cmd/go/main.go                    |   3 +-
- src/cmd/go/testdata/script/govcs.txt  | 174 ---------------------------------
- src/internal/cfg/cfg.go               |   1 -
- 12 files changed, 56 insertions(+), 642 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 5 -----
+ 1 file changed, 5 deletions(-)

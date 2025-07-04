@@ -1,20 +1,12 @@
-commit e55fdff21030e4925086af90fa669b3e378f2dfc
+commit 90ad6a2d111d10b60fd5b7f5d46fd224635d5024
 Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Oct 19 16:32:00 2012 +1100
+Date:   Fri Oct 19 11:02:32 2012 +1100
 
-    bufio: make Writer.ReadFrom not flush prematurely. For example,
-    many small writes to a network may be less efficient that a few
-    large writes.
+    runtime: update comment for the "extern register" variables g and m.
     
-    This fixes net/http's TestClientWrites, broken by 6565056 that
-    introduced Writer.ReadFrom. That test implicitly assumed that
-    calling io.Copy on a *bufio.Writer wouldn't write to the
-    underlying network until the buffer was full.
-    
-    R=dsymonds
-    CC=bradfitz, golang-dev, mchaten, mikioh.mikioh
-    https://golang.org/cl/6743044
+    R=rsc, minux.ma, ality
+    CC=dave, golang-dev
+    https://golang.org/cl/6620050
 
- src/pkg/bufio/bufio.go      | 15 ++++++------
- src/pkg/bufio/bufio_test.go | 58 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 66 insertions(+), 7 deletions(-)
+ src/pkg/runtime/runtime.h | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)

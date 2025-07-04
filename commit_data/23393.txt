@@ -1,12 +1,19 @@
-commit 1fc114c7973930653ff445481c1e7f4df4b60bfd
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 15 14:25:13 2015 -0400
+commit 71bf182028c2c7dd70e6a391a6519eb17dd06b3c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue May 12 11:34:23 2015 +1000
 
-    cmd/addr2line: simplify windows test
+    net: relax error checking in TestAcceptIgnoreSomeErrors
     
-    Change-Id: I0fcc35f43bc6059e6203af6134319cfc060c4b9a
-    Reviewed-on: https://go-review.googlesource.com/11085
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TestAcceptIgnoreSomeErrors was created to test that network
+    accept function ignores some errors. But conditions created
+    by the test also affects network reads. Change the test to
+    ignore these read errors when acceptable.
+    
+    Fixes #10785
+    
+    Change-Id: I3da85cb55bd3e78c1980ad949e53e82391f9b41e
+    Reviewed-on: https://go-review.googlesource.com/9942
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/addr2line/addr2line_test.go | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+ src/net/net_windows_test.go | 43 +++++++++++++++++++++++++++++++------------
+ 1 file changed, 31 insertions(+), 12 deletions(-)

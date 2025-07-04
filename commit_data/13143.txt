@@ -1,15 +1,15 @@
-commit 1f46cb0ba26b392e19be34d74db51bc32b9b1b92
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 23 16:12:45 2012 -0700
+commit f430d0e6096093c9b21b05c48acabe4ab15f87cd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 23 13:45:53 2012 -0700
 
-    go/parser: resolve all parameter types
+    cmd/api: add flag to specify contexts
     
-    Fixes #3655.
+    I needed this to explore per-GOOS/GOARCH differences in pkg
+    syscall for a recent CL.  Others may find it useful too.
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6213065
+    https://golang.org/cl/6236046
 
- src/pkg/go/parser/parser.go      | 30 ++++++++++++--------
- src/pkg/go/parser/parser_test.go | 61 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 79 insertions(+), 12 deletions(-)
+ src/cmd/api/goapi.go | 42 ++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 36 insertions(+), 6 deletions(-)

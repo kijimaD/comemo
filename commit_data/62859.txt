@@ -1,0 +1,43 @@
+commit 8a85a2e70a97773ac96e899df7411eda4f5da2cb
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Apr 7 15:21:16 2025 +0200
+
+    runtime, internal/runtime/maps: speed-up empty/zero map lookups
+    
+    This lets the inliner do a better job optimizing the mapKeyError call.
+    
+    goos: linux
+    goarch: amd64
+    pkg: runtime
+    cpu: AMD Ryzen 5 4600G with Radeon Graphics
+                                     │ /tmp/before2 │             /tmp/after3             │
+                                     │    sec/op    │   sec/op     vs base                │
+    MapAccessZero/Key=int64-12          1.875n ± 0%   1.875n ± 0%        ~ (p=0.506 n=25)
+    MapAccessZero/Key=int32-12          1.875n ± 0%   1.875n ± 0%        ~ (p=0.082 n=25)
+    MapAccessZero/Key=string-12         1.902n ± 1%   1.902n ± 1%        ~ (p=0.256 n=25)
+    MapAccessZero/Key=mediumType-12     2.816n ± 0%   1.958n ± 0%  -30.47% (p=0.000 n=25)
+    MapAccessZero/Key=bigType-12        2.815n ± 0%   1.935n ± 0%  -31.26% (p=0.000 n=25)
+    MapAccessEmpty/Key=int64-12         1.942n ± 0%   2.109n ± 0%   +8.60% (p=0.000 n=25)
+    MapAccessEmpty/Key=int32-12         2.110n ± 0%   1.940n ± 0%   -8.06% (p=0.000 n=25)
+    MapAccessEmpty/Key=string-12        2.024n ± 0%   2.109n ± 0%   +4.20% (p=0.000 n=25)
+    MapAccessEmpty/Key=mediumType-12    3.157n ± 0%   2.344n ± 0%  -25.75% (p=0.000 n=25)
+    MapAccessEmpty/Key=bigType-12       3.054n ± 0%   2.115n ± 0%  -30.75% (p=0.000 n=25)
+    geomean                             2.305n        2.011n       -12.75%
+    
+    Change-Id: Iee83930884dc4c8a791a711aa189a1c93b68d536
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663495
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/link/internal/loader/loader.go       |  2 +-
+ src/internal/abi/iface.go                    |  6 ++
+ src/internal/runtime/maps/map.go             | 86 ++++++++++++++++++++++++++++
+ src/internal/runtime/maps/runtime_noswiss.go | 17 ------
+ src/internal/runtime/maps/runtime_swiss.go   |  3 -
+ src/runtime/alg.go                           | 68 ----------------------
+ src/runtime/map_benchmark_test.go            | 36 ++++++++++++
+ src/runtime/map_noswiss.go                   |  7 ++-
+ src/runtime/map_swiss.go                     |  5 --
+ src/runtime/type.go                          |  5 ++
+ 10 files changed, 138 insertions(+), 97 deletions(-)

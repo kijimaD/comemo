@@ -1,21 +1,21 @@
-commit ca471573958c12093b1e3b29bc17926105d80143
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Dec 30 12:13:21 2015 +1100
+commit 8993f79eaccbb27455e2280fa2275fe80b75bde6
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Oct 24 13:28:00 2015 +0200
 
-    os: change Open(`C:`) to open current directory on C:
+    syscall: define common notes on Plan 9
     
-    Open(`C:`) currently opens root directory on C:. Change that to open
-    current directory on C:. Just like cmd.exe's "dir C:" command does.
-    Just like FindFirstFile("C:*") Windows API does. It is also consistent
-    with what filepath.Join("C:", "a") currently does.
+    There is no signal list on Plan 9, since notes
+    are strings. However, some programs expect
+    signals to be defined in the syscall package.
+    Hence, we define a list of the most common notes.
     
-    Fixes #13763
+    Updates #11975.
     
-    Change-Id: I60b6e7d80215d110bbbb6265c9f32717401638c6
-    Reviewed-on: https://go-review.googlesource.com/18184
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I852e14fd98777c9595a406e04125be1cbebed0fb
+    Reviewed-on: https://go-review.googlesource.com/16301
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/file_windows.go    |  8 +++++++-
- src/os/os_windows_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 1 deletion(-)
+ src/syscall/errors_plan9.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

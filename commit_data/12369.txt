@@ -1,38 +1,45 @@
-commit b5dc8724cb1f13c4419641fd3b666ebd46408f21
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Mar 6 00:13:10 2012 +0900
+commit fae0d35043b7a3f8f3673d79cbf1d4798ee5e5aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 10:02:46 2012 -0500
 
-    net: make Dial and Listen behavior consistent across over platforms
+    godoc: support $GOPATH, simplify file system code
     
-    This CL changes the behavior of Dial and Listen API family.
+    The motivation for this CL is to support $GOPATH well.
+    Since we already have a FileSystem interface, implement a
+    Plan 9-style name space.  Bind each of the $GOPATH src
+    directories onto the $GOROOT src/pkg directory: now
+    everything is laid out exactly like a normal $GOROOT and
+    needs very little special case code.
     
-    Previous Dial and Listen allow a combo of "tcp6" and IPv4 or IPv6
-    IPv4-mapped address as its argument, but it also makes slightly
-    different behaviors between Linux and other platforms. This CL fixes
-    such differences across over platforms by tweaking IP-level socket
-    option IPV6_V6ONLY. Consequently new Dial and Listen API family will
-    reject arguments consists of "tcp6" and IPv4 or IPv6 IPv4-mapped
-    address.
+    The filter files are no longer used (by us), so I think they
+    can just be deleted.  Similarly, the Mapping code and the
+    FileSystem interface were two different ways to accomplish
+    the same end, so delete the Mapping code.
     
-    This CL also adds a bit clarified unicast listener tests.
+    Within the implementation, since FileSystem is defined to be
+    slash-separated, use package path consistently, leaving
+    path/filepath only for manipulating operating system paths.
     
-    Fixes #2581.
+    I kept the -path flag, but I think it can be deleted too.
     
-    R=rsc, minux.ma
+    Fixes #2234.
+    Fixes #3046.
+    
+    R=gri, r, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5677086
+    https://golang.org/cl/5711058
 
- src/pkg/net/file_test.go       |  11 +-
- src/pkg/net/iprawsock_posix.go |   7 +
- src/pkg/net/ipsock_posix.go    |  82 ++++---
- src/pkg/net/net_test.go        |   8 +
- src/pkg/net/server_test.go     |   9 +-
- src/pkg/net/sock.go            |   4 +-
- src/pkg/net/sockopt_bsd.go     |  13 +-
- src/pkg/net/sockopt_linux.go   |  13 +-
- src/pkg/net/sockopt_windows.go |  13 +-
- src/pkg/net/tcpsock_posix.go   |   7 +
- src/pkg/net/udpsock_posix.go   |   7 +
- src/pkg/net/unicast_test.go    | 527 +++++++++++++++++++++++++++++++++++++----
- src/pkg/net/unixsock_posix.go  |   2 +-
- 13 files changed, 593 insertions(+), 110 deletions(-)
+ lib/godoc/package.html      |   2 +-
+ src/cmd/godoc/appinit.go    |   6 +-
+ src/cmd/godoc/codewalk.go   |   6 +-
+ src/cmd/godoc/dirtrees.go   |  35 +--
+ src/cmd/godoc/filesystem.go | 502 ++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/godoc/godoc.go      | 308 +++++----------------------
+ src/cmd/godoc/httpzip.go    | 190 -----------------
+ src/cmd/godoc/index.go      |   8 +-
+ src/cmd/godoc/main.go       |  57 ++---
+ src/cmd/godoc/mapping.go    | 202 ------------------
+ src/cmd/godoc/parser.go     |   4 +-
+ src/cmd/godoc/utils.go      |  79 +------
+ src/cmd/godoc/zip.go        |  35 ++-
+ 13 files changed, 636 insertions(+), 798 deletions(-)

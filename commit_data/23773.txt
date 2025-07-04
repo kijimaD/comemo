@@ -1,17 +1,16 @@
-commit 6c7acdfbdbfd5c8a3b60d6b796041257360a19c3
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 21 14:05:13 2015 +1000
+commit ab89378cb73003058d1f9707535610af468752fc
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jun 3 16:04:01 2015 -0700
 
-    doc: add a clause about embedded methods to go1compat
+    encoding/csv: skip blank lines when FieldsPerRecord >= 0
     
-    This is a corner case but it is suggested we call it out.
+    Fixes #11050.
     
-    Fixes #11798.
-    
-    Change-Id: I2ddb5b363cd2921666dbf03bbf98107697ca40e5
-    Reviewed-on: https://go-review.googlesource.com/12460
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie5d16960a1f829af947d82a63fe414924cd02ff6
+    Reviewed-on: https://go-review.googlesource.com/10666
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1compat.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/encoding/csv/reader.go      | 11 +++++------
+ src/encoding/csv/reader_test.go |  9 +++++++++
+ 2 files changed, 14 insertions(+), 6 deletions(-)

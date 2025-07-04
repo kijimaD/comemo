@@ -1,18 +1,30 @@
-commit 919d9858bc77592e161eea9180e0d4a95759124e
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu May 8 10:27:34 2025 -0700
+commit a4440e3d236dc2ca65851c39a51958cc1b3c03fb
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue Apr 2 10:13:32 2024 +0200
 
-    crypto/internal/fips140/sha3: remove usages of WORD for s390x
+    net/http: speed up go test
     
-    We support KIMD and KLMD now, paves the way for banning usage of BYTE
-    and WORD instructions in crypto assembly.
+    Optimize the execution speed of go test ./net/http from ~38s to ~28s.
+    This is achieved by shortening the sleep interval utilized for
+    identifying goroutine leaks.
     
-    Change-Id: I0f93744663f23866b2269591db70389e0c77fa4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671095
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This optimization is motivated by noticing significant periods of
+    inactivity in the -trace output. Even after applying this CL, many
+    Off-CPU wait periods seem to remain:
+    
+    $ go test ./net/http
+    ok      net/http        27.744s
+    
+    real    0m28.204s
+    user    0m4.991s
+    sys     0m1.797s
+    
+    Change-Id: I6108ebbb715c33900f1506d810c0a8f8ed674d35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575975
+    Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/crypto/internal/fips140/sha3/sha3_s390x.s | 4 ++--
+ src/net/http/main_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

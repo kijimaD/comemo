@@ -1,16 +1,17 @@
-commit a6f69b31e0bdc625e1e026d8df6fc1f7c604067a
-Author: Katrina Owen <katrina.owen@gmail.com>
-Date:   Tue Oct 13 16:42:20 2015 -0600
+commit 384789e82be30c0fe8ba3c73721b658512423fcd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 31 10:49:01 2015 -0700
 
-    encoding/csv: indicate package of EOF in docs
+    cmd/objdump: don't run TestDisasmExtld if cgo is not enabled
     
-    The documentation listing err == EOF can be confusing to newcomers
-    to the language who are looking for the relevant documentation for
-    that error.
+    The test uses external linking mode, which is probably not available
+    if cgo does not work.
     
-    Change-Id: I301885950d0e1d0fbdf3a1892fca86eac7a0c616
-    Reviewed-on: https://go-review.googlesource.com/15806
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #11969.
+    
+    Change-Id: Id1c2828cd2540391e16b422bf51674ba6ff084b0
+    Reviewed-on: https://go-review.googlesource.com/13005
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/encoding/csv/reader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/objdump/objdump_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

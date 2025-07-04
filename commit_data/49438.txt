@@ -1,28 +1,28 @@
-commit 432158b69a50e292b625d08dcfacd0604acbabd3
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Jun 7 16:53:53 2022 -0700
+commit 740f7d73707fab5000791b71c2ab046e3e5544c7
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Aug 11 12:50:34 2021 +0100
 
-    net: fix testHookDialTCP race
+    archive/tar: unexport internal methods
     
-    CL 410754 introduces a race accessing the global testHookDialTCP hook.
-    Avoiding this race is difficult, since Dial can return while
-    goroutines it starts are still running. Add a version of this
-    hook to sysDialer, so it can be set on a per-test basis.
+    Many of the methods inside the archive/tar package don't need to be
+    exported. Doing so sets a bad precedent that it's OK to export methods
+    to indicate an internal public API.  That's not a good idea in general,
+    because exported methods increase cognitive load when reading code:
+    the reader needs to consider whether the exported method might be used
+    via some external interface or reflection.
     
-    (Perhaps other uses of this hook should be moved to use the
-    sysDialer-local hook, but this change fixes the immediate data race.)
+    This CL should have no externally visible behaviour changes at all.
     
-    For #52173.
-    
-    Change-Id: I8fb9be13957e91f92919cae7be213c38ad2af75a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410957
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I94a63de5e6a28e9ac8a283325217349ebce4f308
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341410
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/net/dial.go          |  1 +
- src/net/dial_test.go     | 11 +++++------
- src/net/tcpsock_plan9.go |  7 +++++--
- src/net/tcpsock_posix.go |  7 +++++--
- 4 files changed, 16 insertions(+), 10 deletions(-)
+ src/archive/tar/common.go      |  38 ++++++------
+ src/archive/tar/format.go      | 138 ++++++++++++++++++++---------------------
+ src/archive/tar/reader.go      | 102 +++++++++++++++---------------
+ src/archive/tar/reader_test.go |  26 ++++----
+ src/archive/tar/writer.go      |  89 +++++++++++++-------------
+ src/archive/tar/writer_test.go |  14 ++---
+ 6 files changed, 206 insertions(+), 201 deletions(-)

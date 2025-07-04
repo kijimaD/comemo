@@ -1,27 +1,18 @@
-commit 23e1d36a87f55b7e37d969ba3de3a8e1b8147f49
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Apr 1 11:01:19 2021 -0400
+commit aacbd7c3aab5c3bf5d5f6cbfaa63db9d9fc2e3d5
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Aug 29 11:10:50 2020 +0200
 
-    cmd/go: in 'go list -m', ignore "not found" errors loading updates
+    cmd/compile: enforce strongly typed rules for ARM (GOARM)
     
-    "Not found" and "no matching version" errors usually indicate the user
-    is offline or the proxy doesn't have a version of go.mod that could
-    provide retractions. 'go list -m -u' should still succeed.
+    Toolstash-check successful for remaining rules using GOARM value.
     
-    We should still report unclassified errors though. Previously, we
-    reported most errors loading retractions but did not report errors
-    loading updates. This change makes those operations more consistent.
-    
-    Fixes #45305
-    
-    Change-Id: I2f23a566c9481bc7ff229a177f39d78f6a8aae77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306572
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I254f80d17839ef4957c1b7afbdb4db363a3b9367
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240997
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/go/internal/modload/build.go               | 44 ++++++++++++++---
- src/cmd/go/testdata/script/mod_list_retract.txt    | 12 ++---
- .../testdata/script/mod_list_update_nolatest.txt   | 55 ++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_retract_replace.txt |  6 ++-
- 4 files changed, 103 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 50 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewriteARM.go | 58 +++++++++++++++---------------
+ 2 files changed, 54 insertions(+), 54 deletions(-)

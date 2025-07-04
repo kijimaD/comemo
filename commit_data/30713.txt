@@ -1,28 +1,27 @@
-commit 174b858f7855077839335a7e54ff7b18d7a59a8c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 17 08:55:40 2017 -0700
+commit 0d163ce1c95d03a173eba246de6d45db69e678ac
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Oct 28 10:10:46 2016 -0700
 
-    cmd/compile: pass frame size to defframe
+    database/sql: do not bypass the driver locks with Context methods
     
-    Preparation for de-globalizing Stksize and MaxArg.
+    When context methods were initially added it was attempted to unify
+    behavior between drivers without Context methods and those with
+    Context methods to always return right away when the Context expired.
+    However in doing so the driver call could be executed outside of the
+    scope of the driver connection lock and thus bypassing thread safety.
     
-    Passes toolstash -cmp. No compiler performance impact.
+    The new behavior waits until the driver operation is complete. It then
+    checks to see if the context has expired and if so returns that error.
     
-    Updates #15756
-    
-    Change-Id: I312f0bbd15587a6aebf472cd66c8e62b89e55c8a
-    Reviewed-on: https://go-review.googlesource.com/38328
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4a5c7c3263420c57778f36a5ed6fa0ef8cb32b20
+    Reviewed-on: https://go-review.googlesource.com/32422
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/ggen.go  | 4 ++--
- src/cmd/compile/internal/arm/ggen.go    | 4 ++--
- src/cmd/compile/internal/arm64/ggen.go  | 4 ++--
- src/cmd/compile/internal/gc/go.go       | 2 +-
- src/cmd/compile/internal/gc/ssa.go      | 2 +-
- src/cmd/compile/internal/mips/ggen.go   | 4 ++--
- src/cmd/compile/internal/mips64/ggen.go | 4 ++--
- src/cmd/compile/internal/ppc64/ggen.go  | 4 ++--
- src/cmd/compile/internal/s390x/ggen.go  | 4 ++--
- src/cmd/compile/internal/x86/ggen.go    | 4 ++--
- 10 files changed, 18 insertions(+), 18 deletions(-)
+ src/database/sql/ctxutil.go       | 232 ++++++++------------------------------
+ src/database/sql/driver/driver.go |  46 ++++++--
+ src/database/sql/fakedb_test.go   |  34 +++++-
+ src/database/sql/sql.go           |  67 ++++++++---
+ src/database/sql/sql_test.go      |  80 ++++++++++++-
+ 5 files changed, 242 insertions(+), 217 deletions(-)

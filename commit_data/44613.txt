@@ -1,22 +1,23 @@
-commit 86d66784297f83f67088cea768611621048160da
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Feb 25 11:10:57 2021 -0800
+commit 99f179f55a66f35dc7861fa411b42ed61bd0df31
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Jul 20 07:57:06 2020 +0200
 
-    testing/fstest: clarify TestFS docs
+    fmt: avoid badverb formatting for %q when used with integers
     
-    The sentence starts "fsys must only contain",
-    which leads the reader to believe that fsys must not contain others.
-    The rapid reversal leads to confusion.
-    I had to read it several times to be sure I'd parsed it correctly.
+    Instead of returning a bad verb error format for runes above
+    utf8.Maxrune return a quoted utf8.RuneError rune (\ufffd).
+    This makes the behaviour consistent with the "c" verb and
+    aligns behaviour to not return bad verb error format when
+    a verb is applied to the correct argument type.
     
-    Remove "only"; rely on the rest of the sentence to clarify.
+    Fixes #14569
     
-    Change-Id: I9fb7935aed4f9839344d3a00b761d20981fba864
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296529
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I679485f6bb90ebe408423ab68af16cce38816cd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248759
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/testing/fstest/testfs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/fmt/fmt_test.go | 8 ++++----
+ src/fmt/print.go    | 6 +-----
+ 2 files changed, 5 insertions(+), 9 deletions(-)

@@ -1,28 +1,23 @@
-commit 9ed9df6ca27850704133de1ceb94407c635beb82
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Dec 18 20:04:53 2018 +0000
+commit 4cc027fb55956c001ce486f48538835581bc5197
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Tue Jul 31 18:13:05 2018 +0300
 
-    runtime: avoid write barrier in startpanic_m
+    cmd/compile: display AST IR in ssa.html
     
-    startpanic_m could be called correctly in a context where there's a
-    valid G, a valid M, but no P, for example in a signal handler which
-    panics. Currently, startpanic_m has write barriers enabled because
-    write barriers are permitted if a G's M is dying. However, all the
-    current write barrier implementations assume the current G has a P.
+    This change adds a new column, AST IR. That column contains
+    nodes for a function specified in $GOSSAFUNC.
     
-    Therefore, in this change we disable write barriers in startpanic_m,
-    remove the only pointer write which clears g.writebuf, and fix up gwrite
-    to ignore the writebuf if the current G's M is dying, rather than
-    relying on it being nil in the dying case.
+    Also this CL enables horizontal scrolling of sources and AST columns.
     
-    Fixes #26575.
+    Fixes #26662
     
-    Change-Id: I9b29e6b9edf00d8e99ffc71770c287142ebae086
-    Reviewed-on: https://go-review.googlesource.com/c/154837
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I3fba39fd998bb05e9c93038e8ec2384c69613b24
+    Reviewed-on: https://go-review.googlesource.com/126858
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/panic.go | 11 +++++++----
- src/runtime/print.go |  7 ++++++-
- 2 files changed, 13 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go   |  5 ++++
+ src/cmd/compile/internal/gc/ssa.go   | 14 ++++++---
+ src/cmd/compile/internal/ssa/html.go | 55 ++++++++++++++++++++++++++++++++++--
+ 3 files changed, 68 insertions(+), 6 deletions(-)

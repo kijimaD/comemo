@@ -1,44 +1,23 @@
-commit 3255fca99395bb0c0dff491f92cc85c0a859dd25
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Oct 30 12:55:42 2023 -0400
+commit 3323dab1f45bbad1033cdd0c2fbfb9884c5d54cc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 15 17:09:00 2022 -0500
 
-    cmd/compile/internal/inline: fix bug in param flags heuristics
+    os/exec: retry ETXTBSY errors in TestFindExecutableVsNoexec
     
-    Fix a bug in the code that analyzes how function parameters are used,
-    which wasn't properly handling certain types of closures. The code
-    in question has support for deriving flags for a given parameter based
-    on whether it is passed to a call. Example:
+    I made this test parallel in CL 439196, which exposed it to the
+    fork/exec race condition described in #22315. The ETXTBSY errors from
+    that race should resolve on their own, so we can simply retry the call
+    to get past them.
     
-        func foo(f1 func(int)) {
-           bar(32, f1)
-        }
-        func bar(x int, f2 func()) {
-           f2(x)
-        }
+    Fixes #56811.
+    Updates #22315.
     
-    When analyzing "bar", we can derive the "FeedsIndirectCall" flag for
-    parameter "f1" by virtue of the fact that it is passed directly to
-    "bar", and bar's corresponding parameter "f2" has the flag set. For
-    a more complex example such as
-    
-        func foo(f1 func(int)) func() int {
-           return func(q int) int {            <<-- HERE
-             bar(99, f1)
-             return q
-           }
-        }
-        func bar(x int, f2 func()) {
-           f2(x)
-        }
-    
-    The heuristics code would panic when examining the closure marked above
-    due to the fact that the call to "bar" was passing an ir.Name with class
-    PPARAM, but no such param was present in the enclosing function.
-    
-    Change-Id: I30436ce716b51bfb03e42e7abe76a4514e6b9285
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539320
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2c6aa405bf3a1769d69cf08bf661a9e7f86440b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458016
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/inline/inlheur/analyze_func_params.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/os/exec/lp_linux_test.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

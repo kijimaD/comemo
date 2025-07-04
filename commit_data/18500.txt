@@ -1,58 +1,18 @@
-commit 174b8c95f5572e30835fa0bcc4aee6fc281e453e
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Feb 13 20:06:41 2014 +0100
+commit e0a55a6c9826f3b0548a2d78be82931ad73ac218
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Feb 13 19:04:43 2014 +0000
 
-    lib9: enable on Plan 9
+    cmd/gc: for loop init statement misanalyzed by escape analysis
     
-    This change depends on CL 57170052.
+    Logically, the init statement is in the enclosing scopes loopdepth, not inside the for loop.
+    
+    Fixes #7313.
     
     LGTM=rsc
-    R=rsc, bradfitz
+    R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
-    https://golang.org/cl/60840049
+    https://golang.org/cl/62430043
 
- .hgignore                |  1 +
- include/plan9/errno.h    |  7 ++++++
- include/plan9/fmt.h      | 64 ++++++++++++++++++++++++++++++++++++++++++++++++
- include/plan9/libc.h     |  7 +++++-
- include/plan9/mklibc.rc  | 13 ++++++++++
- include/plan9/stdarg.h   |  3 +++
- include/plan9/utf.h      |  5 ++++
- src/cmd/dist/build.c     | 19 +++-----------
- src/lib9/_exits.c        |  2 ++
- src/lib9/_p9dir.c        |  2 ++
- src/lib9/atoi.c          |  2 ++
- src/lib9/await.c         |  1 +
- src/lib9/cleanname.c     |  2 ++
- src/lib9/create.c        |  2 ++
- src/lib9/ctime.c         |  2 ++
- src/lib9/dirfstat.c      |  2 ++
- src/lib9/dirfwstat.c     |  2 ++
- src/lib9/dirstat.c       |  2 ++
- src/lib9/dirwstat.c      |  2 ++
- src/lib9/dup.c           |  2 ++
- src/lib9/exec.c          |  2 ++
- src/lib9/execl.c         |  2 ++
- src/lib9/exitcode.c      |  2 ++
- src/lib9/exits.c         |  2 ++
- src/lib9/fmtlock2.c      |  2 ++
- src/lib9/getenv.c        |  2 ++
- src/lib9/getwd.c         |  2 ++
- src/lib9/jmp.c           |  1 +
- src/lib9/main.c          |  2 ++
- src/lib9/nan.c           |  2 ++
- src/lib9/notify.c        |  1 +
- src/lib9/nulldir.c       |  2 ++
- src/lib9/open.c          |  2 ++
- src/lib9/readn.c         |  2 ++
- src/lib9/rfork.c         |  1 +
- src/lib9/run_plan9.c     |  2 ++
- src/lib9/seek.c          |  2 ++
- src/lib9/strecpy.c       |  2 ++
- src/lib9/sysfatal.c      |  2 ++
- src/lib9/tempdir_plan9.c |  2 ++
- src/lib9/time.c          |  2 ++
- src/lib9/tokenize.c      |  2 ++
- src/libbio/bprint.c      |  2 --
- src/make.rc              |  3 +++
- 44 files changed, 170 insertions(+), 18 deletions(-)
+ src/cmd/gc/esc.c |  4 +++-
+ test/escape2.go  | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

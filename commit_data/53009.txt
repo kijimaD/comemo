@@ -1,18 +1,24 @@
-commit c308e9b54c99d0d1fdc2bc317165aab6c36b1420
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 10 16:31:46 2023 -0400
+commit 8f9bfa9b7b7739324e73b4f19280caa2011e6ae8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 11 15:11:29 2022 -0400
 
-    cmd/dist: drop goTest.dir
+    crypto/internal/boring: factor Cache into crypto/internal/boring/bcache
     
-    At this point all tests are regular packages in std or cmd, so we no
-    longer need goTest.dir.
+    Requested by the maintainers of the OpenSSL-based fork of Go+BoringCrypto,
+    to make maintaining that fork easier.
     
-    Change-Id: I46a0c7b4464b0738e9959e41bf840ba1b73e3590
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494194
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I770e70ecc12b589034da31edecf59c73b2c6e1dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407135
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/test.go | 52 +++++++++++++++++++++++-----------------------------
- 1 file changed, 23 insertions(+), 29 deletions(-)
+ src/crypto/ecdsa/boring.go                            | 5 +++--
+ src/crypto/internal/boring/{ => bcache}/cache.go      | 3 ++-
+ src/crypto/internal/boring/{ => bcache}/cache_test.go | 2 +-
+ src/crypto/internal/boring/{ => bcache}/stub.s        | 0
+ src/crypto/rsa/boring.go                              | 5 +++--
+ src/go/build/deps_test.go                             | 7 +++++--
+ src/runtime/mgc.go                                    | 2 +-
+ 7 files changed, 15 insertions(+), 9 deletions(-)

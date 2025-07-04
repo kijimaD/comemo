@@ -1,17 +1,22 @@
-commit 27e444d5e6cce9f3f4c132ad964627bdb31a3651
-Author: bakape <bakape@gmail.com>
-Date:   Mon Mar 18 19:53:41 2019 +0000
+commit 7836457ec3cc128efd9dd54197e8e5c25408c8b0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 1 19:58:01 2018 +0000
 
-    net/http: Detect MIME type of v5 RAR archives
+    runtime: add physical memory scavenging test
     
-    Change-Id: Id9dedc861523e2dafe0e67f70862973124fa07b3
-    GitHub-Last-Rev: b662561f1980dff9861dd8a738c75a03baa72681
-    GitHub-Pull-Request: golang/go#30909
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168039
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This change introduces a test to malloc_test which checks for overuse
+    of physical memory in the large object treap. Due to fragmentation,
+    there may be many pages of physical memory that are sitting unused in
+    large-object space.
+    
+    For #14045.
+    
+    Change-Id: I3722468f45063b11246dde6301c7ad02ae34be55
+    Reviewed-on: https://go-review.googlesource.com/c/138918
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/sniff.go      | 3 ++-
- src/net/http/sniff_test.go | 4 ++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/runtime/malloc_test.go          |  8 ++++
+ src/runtime/testdata/testprog/gc.go | 83 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 91 insertions(+)

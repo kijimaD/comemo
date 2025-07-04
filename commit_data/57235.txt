@@ -1,19 +1,34 @@
-commit 400e6b68b55e20f49f10aaf69df5e3b298b02ad7
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Tue May 28 17:23:15 2024 -0700
+commit ac81156bce3ff4bfdcf983cf21acb6830a450a4b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 8 12:19:54 2023 -0400
 
-    os: openDir: add O_DIRECTORY flag for unix
+    cmd/link: handle dynamic import variables on Darwin
     
-    With this, ReadDir will fail a tad earlier (on open rather than on
-    readdir syscall). This should be the only effect of this change.
+    Currently, on darwin, we only support cgo_dynamic_import for
+    functions, but not variables, as we don't need it before.
+    mach_task_self_ is a variable defined in the system library, which
+    can be used to e.g. access the process's memory mappings via the
+    mach API. The C header defines a macro mach_task_self(), which
+    refers to the variable. To use mach_task_self_ (in pure-Go
+    programs) we need to access it in Go.
     
-    Change-Id: Icf2870f47ea6c19aad29670e78ba9bfcc13c0ac3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588915
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    This CL handles cgo_dynamic_import for variables in the linker,
+    loading its address via the GOT. (Currently only on Darwin, as
+    we only need it there.)
+    
+    For #50891.
+    
+    Change-Id: Idf64fa88ba2f2381443a1ed0b42b14b581843493
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501855
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/os/file_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go               | 23 ++++++++++++++++
+ src/cmd/link/internal/arm64/asm.go               | 34 ++++++++++++++++++++++++
+ src/cmd/link/link_test.go                        | 30 +++++++++++++++++++++
+ src/cmd/link/testdata/dynimportvar/asm/a.go      | 15 +++++++++++
+ src/cmd/link/testdata/dynimportvar/asm/a_amd64.s | 11 ++++++++
+ src/cmd/link/testdata/dynimportvar/asm/a_arm64.s | 11 ++++++++
+ src/cmd/link/testdata/dynimportvar/main.go       | 32 ++++++++++++++++++++++
+ 7 files changed, 156 insertions(+)

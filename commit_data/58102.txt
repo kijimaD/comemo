@@ -1,20 +1,21 @@
-commit 48d260cbd97c1c75900830d2124864d8a1af89f9
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Nov 8 13:43:07 2024 +0100
+commit 595deec3dda8e81d514389efdbb4ee2bc38dcabe
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Sep 29 19:16:38 2023 +0000
 
-    crypto/internal/fips/aes: add CAST
+    runtime: don't eagerly collapse hugepages
     
-    For #69536
+    This has caused performance issues in production environments.
     
-    Change-Id: I6ecbe8b05f9f01afe2aa32c59fc56c9e1c6ea6b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626437
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Disable it until further notice.
+    
+    Fixes #63334.
+    Related to #61718 and #59960.
+    
+    Change-Id: If84c5a8685825d43c912a71418f2597e44e867e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531816
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/crypto/internal/fips/aes/cast.go           | 46 ++++++++++++++++++++++++++
- src/crypto/internal/fips/aes/gcm/cast.go       | 42 +++++++++++++++++++++++
- src/crypto/internal/fips/cast_external_test.go |  2 ++
- 3 files changed, 90 insertions(+)
+ src/runtime/mgcscavenge.go | 20 +++++---------------
+ 1 file changed, 5 insertions(+), 15 deletions(-)

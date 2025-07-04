@@ -1,24 +1,23 @@
-commit cf2b32e71924140919562e6c221d6def24c2fd91
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 26 08:05:40 2017 -0700
+commit b9ffcf961e54419dc46f8338d86398665e719623
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 12 14:37:40 2016 -0800
 
-    cmd/internal/obj: eliminate Prog.Mode
+    cmd/go: don't assemble all .s files in a single cmd/asm run
     
-    Follow-up to CL 38446.
+    For the 1.8 release, go back to invoking the assembler once per .s
+    file, to avoid the problem in #18225. When the assembler is fixed, the
+    change to cmd/go/build.go can be rolled back, but the test in
+    cmd/go/go_test.go should remain.
     
-    Passes toolstash-check -all.
+    Fixes #18225.
+    Update #15680.
     
-    Change-Id: I04cadc058cbaa5f396136502c574e5a395a33276
-    Reviewed-on: https://go-review.googlesource.com/38669
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ibff8d0c638536efb50a2b2c280b41399332f4fe4
+    Reviewed-on: https://go-review.googlesource.com/34284
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go   |  1 -
- src/cmd/internal/obj/arm64/obj7.go |  1 -
- src/cmd/internal/obj/ld.go         |  1 -
- src/cmd/internal/obj/link.go       |  1 -
- src/cmd/internal/obj/s390x/objz.go |  1 -
- src/cmd/internal/obj/x86/asm6.go   | 80 +++++++++++++++++++-------------------
- src/cmd/internal/obj/x86/obj6.go   | 51 +++++++++++-------------
- 7 files changed, 63 insertions(+), 73 deletions(-)
+ src/cmd/go/build.go   | 16 +++++++++-------
+ src/cmd/go/go_test.go | 16 ++++++++++++++++
+ 2 files changed, 25 insertions(+), 7 deletions(-)

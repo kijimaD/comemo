@@ -1,22 +1,29 @@
-commit cfbd2e7b40fac7809a404c49c46106e259078a61
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Thu Sep 19 13:45:13 2024 +0000
+commit 610d47a584e780f4af7978904c4c162de7ceee0b
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Aug 10 20:56:27 2023 +0000
 
-    text/template: support range-over-func
+    net/http: disallow empty Content-Length header
     
-    For #66107
+    The Content-Length must be a valid numeric value, empty values should not be accepted.
     
-    Change-Id: I2fcd04bebe80346dbd244ab7ea09cbe6010b9d8e
-    GitHub-Last-Rev: 5ebf615db5889a04738c555c651e07c1fd287748
-    GitHub-Pull-Request: golang/go#68329
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596956
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    See: https://www.rfc-editor.org/rfc/rfc9110.html#name-content-length
+    
+    Fixes #61679
+    
+    Change-Id: Icbcd933087fe5e50199b62ff34c58bf92a09d3d4
+    GitHub-Last-Rev: 932e46b55b54d5f2050453bcaa50e9476c8559fd
+    GitHub-Pull-Request: golang/go#61865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517336
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/next/6-stdlib/99-minor/text/template/66107.md |  1 +
- src/text/template/doc.go                          |  6 ++--
- src/text/template/exec.go                         | 37 +++++++++++++++++++++++
- src/text/template/exec_test.go                    | 32 ++++++++++++++++++++
- 4 files changed, 74 insertions(+), 2 deletions(-)
+ doc/godebug.md                 |  4 ++++
+ src/internal/godebugs/table.go |  1 +
+ src/net/http/response_test.go  |  3 ++-
+ src/net/http/transfer.go       | 38 ++++++++++++++++++++++++--------------
+ src/net/http/transfer_test.go  |  6 +++++-
+ src/runtime/metrics/doc.go     |  5 +++++
+ 6 files changed, 41 insertions(+), 16 deletions(-)

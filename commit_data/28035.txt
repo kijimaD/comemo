@@ -1,27 +1,14 @@
-commit 873dca4c17437d07ae97ef4f9e9a8e8c93d88bd7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 23 17:47:11 2016 -0700
+commit c707d8385639dfda22dc06b112f5f7af78006a1f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 18 18:28:36 2016 -0400
 
-    net: use runtime.Keepalive for *netFD values
+    runtime: fix typos in comment about gcscanvalid
     
-    The net package sets a finalizer on *netFD. I looked through all the
-    uses of *netFD in the package, looking for each case where a *netFD
-    was passed as an argument and the final reference to the argument was
-    not a function or method call. I added a call to runtime.KeepAlive after
-    each such final reference (there were only three).
-    
-    The code is safe today without the KeepAlive calls because the compiler
-    keeps arguments alive for the duration of the function. However, that is
-    not a language requirement, so adding the KeepAlive calls ensures that
-    this code remains safe even if the compiler changes in the future.
-    
-    Change-Id: I4e2bd7c5a946035dc509ccefb4828f72335a9ee3
-    Reviewed-on: https://go-review.googlesource.com/27650
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id4ad7ebf88a21eba2bc5714b96570ed5cfaed757
+    Reviewed-on: https://go-review.googlesource.com/22210
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/fd_poll_nacl.go    | 2 ++
- src/net/fd_poll_runtime.go | 2 ++
- src/net/fd_windows.go      | 2 +-
- 3 files changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/proc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

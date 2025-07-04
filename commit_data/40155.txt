@@ -1,23 +1,53 @@
-commit ee3f768d3861e00dbc6a81392a711209f66e235c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 27 16:38:14 2019 +0700
+commit 7e08c7f43da876bc451b774808e323215a193abd
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Apr 22 23:36:43 2019 +0700
 
-    internal/reflectlite: updates reflectlite to match runtime rtype/mapType
+    encoding/json: index names for the struct decoder
     
-    CL 191198 updated runtime rtype and mapType without adopting the changes
-    to reflectlite, causing mismatch between them.
+    In the common case, structs have a handful of fields and most inputs
+    match struct field names exactly.
     
-    This CL updates those changes to reflectlite.
+    The previous code would do a linear search over the fields, stopping at
+    the first exact match, and otherwise using the first case insensitive
+    match.
     
-    Fixes #34486
+    This is unfortunate, because it means that for the common case, we'd do
+    a linear search with bytes.Equal. Even for structs with only two or
+    three fields, that is pretty wasteful.
     
-    Change-Id: I2bb043673d997f97bb0b12c4ad471474803b2160
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197559
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Worse even, up until the exact match was found via the linear search,
+    all previous fields would run their equalFold functions, which aren't
+    cheap even in the simple case.
+    
+    Instead, cache a map along with the field list that indexes the fields
+    by their name. This way, a case sensitive field search doesn't involve a
+    linear search, nor does it involve any equalFold func calls.
+    
+    This patch should also slightly speed up cases where there's a case
+    insensitive match but not a case sensitive one, as then we'd avoid
+    calling bytes.Equal on all the fields. Though that's not a common case,
+    and there are no benchmarks for it.
+    
+    name           old time/op    new time/op    delta
+    CodeDecoder-8    11.0ms ± 0%    10.6ms ± 1%  -4.42%  (p=0.000 n=9+10)
+    
+    name           old speed      new speed      delta
+    CodeDecoder-8   176MB/s ± 0%   184MB/s ± 1%  +4.62%  (p=0.000 n=9+10)
+    
+    name           old alloc/op   new alloc/op   delta
+    CodeDecoder-8    2.28MB ± 0%    2.28MB ± 0%    ~     (p=0.725 n=10+10)
+    
+    name           old allocs/op  new allocs/op  delta
+    CodeDecoder-8     76.9k ± 0%     76.9k ± 0%    ~     (all equal)
+    
+    Updates #28923.
+    
+    Change-Id: I9929c1f06c76505e5b96914199315dbdaae5dc76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172918
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/reflectlite/set_test.go |  9 ++++++++
- src/internal/reflectlite/type.go     | 41 ++++++++++++++++++------------------
- 2 files changed, 29 insertions(+), 21 deletions(-)
+ src/encoding/json/decode.go | 23 +++++++++++++----------
+ src/encoding/json/encode.go | 27 ++++++++++++++++++---------
+ 2 files changed, 31 insertions(+), 19 deletions(-)

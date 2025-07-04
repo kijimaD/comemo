@@ -1,20 +1,18 @@
-commit af3b8cf5026a9d74a53ac5d3fec2bba35a96ad91
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Dec 23 13:09:02 2021 -0500
+commit 82e4a6310b78290cb55be6e6e5d0e274aa004faf
+Author: Ruslan Andreev <ruslan.andreev@huawei.com>
+Date:   Tue Dec 22 19:22:14 2020 +0800
 
-    cmd/go: remove MallocNanoZone environment variable workaround
+    runtime: move roots' bases calculation to gcMarkRootPrepare
     
-    We added a workaround in runtime/race. This should not be
-    necessary now.
+    This patch provides changes according to Austin's TODO. It just moves
+    calculation of base indexes of each root type from markroot function
+    to gcMarkRootPrepare.
     
-    Updates #49138.
-    
-    Change-Id: Ia2010e4acc95c4ddf5f463ab2919401d893c0bac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/374314
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib231de34e7f81e922762fc3ee2b1830921c0c7cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279461
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/script_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/mgc.go     |  4 ++++
+ src/runtime/mgcmark.go | 37 ++++++++++++++++++-------------------
+ 2 files changed, 22 insertions(+), 19 deletions(-)

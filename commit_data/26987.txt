@@ -1,15 +1,22 @@
-commit 0db2bf2313cdd7711c2215fab2ae234a0f591fe8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 15 21:56:30 2016 +0000
+commit 0de0cafb9f5b20058741c68c8dddf79ffc8492d7
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 27 16:31:24 2016 +0000
 
-    net/http: document Hijacker and Flusher more
+    runtime: new files for plan9_arm support
     
-    Fixes #15312
+    Implementation more or less follows plan9_386 version.
+    Revised 7 March to correct a bug in runtime.seek and
+    tidy whitespace for 8-column tabs.
     
-    Change-Id: I4fabef3f21081bc4b020069851b5c2504bc6b4d8
-    Reviewed-on: https://go-review.googlesource.com/22122
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I2e921558b5816502e8aafe330530c5a48a6c7537
+    Reviewed-on: https://go-review.googlesource.com/18966
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/server.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/runtime/defs_plan9_arm.go               |  63 ++++++
+ src/runtime/internal/atomic/sys_plan9_arm.s |  11 +
+ src/runtime/os_plan9_arm.go                 |  17 ++
+ src/runtime/rt0_plan9_arm.s                 |  17 ++
+ src/runtime/sys_plan9_arm.s                 | 318 ++++++++++++++++++++++++++++
+ 5 files changed, 426 insertions(+)

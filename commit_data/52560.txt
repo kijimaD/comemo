@@ -1,30 +1,20 @@
-commit f1caf1aa1c45e014e35316da8e0d2edf48795bf6
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Apr 4 18:56:21 2023 -0400
+commit 526de61c67add8400d73b28bbed3f3680586c472
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sun May 8 11:04:34 2022 +0800
 
-    cmd/compile: deadcode unreferenced hidden closures during inlining
+    test: add test case for #51840
     
-    When a closure is inlined, it may contain other hidden closures, which
-    the inliner will duplicate, rendering the original nested closures as
-    unreachable. Because they are unreachable, they don't get processed in
-    escape analysis, meaning that go/defer statements don't get rewritten,
-    which can then in turn trigger errors in walk. This patch looks for
-    nested hidden closures and marks them as dead, so that they can be
-    skipped later on in the compilation flow.  NB: if during escape
-    analysis we rediscover a hidden closure (due to an explicit reference)
-    that was previously marked dead, revive it at that point.
+    This issue has been fixed in CL 403837.
     
-    Fixes #59404.
+    Fixes #51840.
     
-    Change-Id: I76db1e9cf1ee38bd1147aeae823f916dbbbf081b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482355
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I282062bb06278696fe25e9ede333c64539dc964e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404914
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 37 +++++++++++++++++++++
- test/fixedbugs/issue59404.go           | 61 ++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue59404part2.go      | 24 +++++++++++++
- 3 files changed, 122 insertions(+)
+ test/typeparam/issue51840.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

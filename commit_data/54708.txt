@@ -1,24 +1,21 @@
-commit cc47df017da343ee33eee0f4f59974633ca5a486
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 13 10:34:30 2023 -0700
+commit d3726f346925e8a6ef30b2db9de013fa314492e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 9 16:41:05 2022 -0800
 
-    runtime: use real type size in map keys and values functions
+    cmd/compile/internal/importer: turn off debugging output
     
-    We were using the size stored in the map, which is the smaller
-    of the real type size and 128.
+    Also, remove `debug` constant. Was not used.
+    Follow-up on CL 442303.
     
-    As of CL 61538 we don't use these functions, but we expect to
-    use them again in the future after #61626 is resolved.
+    Fixes #56681.
     
-    Change-Id: I7bfb4af5f0e3a56361d4019a8ed7c1ec59ff31fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535215
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ia1499511ba553670617bcb9b7c699412e8df0669
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449238
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/export_test.go |  3 +++
- src/runtime/map.go         |  4 ++--
- src/runtime/map_test.go    | 30 ++++++++++++++++++++++++++++++
- 3 files changed, 35 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/importer/gcimporter.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

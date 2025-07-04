@@ -1,24 +1,17 @@
-commit 5fcc6554d955c31e7a313ff7e1b3bc13de9d63a1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 28 10:54:55 2021 -0800
+commit 88583a2a6639c72f2cb0143b0135f50fa6b379c0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 27 02:42:15 2021 -0700
 
-    os: use syscall.Timespec.Unix
+    [dev.typeparams] test: trim list of expected -G=3 failures
     
-    Use the syscall method instead of repeating the type conversions for each OS.
+    15 more tests are passing from recent changes. 83 still to go.
     
-    Change-Id: I1db975b3aaa189cf724d7b1b7c5c41bc64dd964d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/374574
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I155b3e3db966d604ccec8bf3a7c182421f3d26c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323211
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/stat_darwin.go    | 8 ++------
- src/os/stat_dragonfly.go | 8 ++------
- src/os/stat_freebsd.go   | 8 ++------
- src/os/stat_js.go        | 8 ++------
- src/os/stat_linux.go     | 8 ++------
- src/os/stat_netbsd.go    | 8 ++------
- src/os/stat_openbsd.go   | 8 ++------
- src/os/stat_solaris.go   | 8 ++------
- 8 files changed, 16 insertions(+), 48 deletions(-)
+ test/run.go | 59 ++++++++++++++++++++++-------------------------------------
+ 1 file changed, 22 insertions(+), 37 deletions(-)

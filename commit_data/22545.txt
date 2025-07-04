@@ -1,12 +1,15 @@
-commit 9cde36be54cb106d00cc6446117a2f2999d9928a
+commit 5bf9249edafa26eb2b4d7768a48e5ace8656a01a
 Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Apr 16 13:39:16 2015 -0400
+Date:   Mon Mar 23 10:15:35 2015 -0400
 
-    runtime/cgo: enable arm64 EXC_BAD_ACCESS handler
+    net/http: enable segfaulting test on darwin/arm
     
-    Change-Id: I8e912ff9327a4163b63b8c628aa3546e86ddcc02
-    Reviewed-on: https://go-review.googlesource.com/8983
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Issue #10043 was resolved by https://golang.org/cl/7072.
+    This test now passes.
+    
+    Change-Id: I7bdef63d9ee4edcede23613a14a2ddce14018f34
+    Reviewed-on: https://go-review.googlesource.com/7931
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/cgo/gcc_darwin_arm64.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/net/http/transport_test.go | 7 -------
+ 1 file changed, 7 deletions(-)

@@ -1,12 +1,15 @@
-commit 8b9d6e38be40d509b91b67df5ddf99f86bb6b76d
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Feb 3 17:29:09 2011 -0800
+commit ea2c6a3e5938b9767e4291bdfb45357af920e7f1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 3 16:05:57 2011 -0800
 
-    gopack: unused variable.
+    godoc: minor internal fix
     
-    R=golang-dev, r
+    The value of the internal flag includeNonGoFile
+    really is the value of the fulltextIndex flag.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4121057
+    https://golang.org/cl/4044052
 
- src/cmd/gopack/ar.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/godoc/index.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

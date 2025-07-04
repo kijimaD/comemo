@@ -1,18 +1,18 @@
-commit 91fadbca17ac7e79bc60684c9f4d64c3892398e1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 15 15:15:54 2011 -0700
+commit 9f677f91d19321bb663f337f015b253794c338a8
+Author: Sugu Sougoumarane <ssougou@gmail.com>
+Date:   Tue Aug 16 08:06:22 2011 +1000
 
-    godoc: fix escaping in templates
+    rpc: implement ServeRequest to synchronously serve a single request.
     
-    - HTML-escape URL paths
-    - URL-escape URL parameters
+    This is useful for applications that want to micromanage the rpc service.
+    Moved part of ServeCodec into a new readRequest function.
+    Renamed existing readRequest to readRequestHeader, and reordered
+    its parameters to align with the new readRequest and service.call.
     
-    R=bradfitz
-    CC=golang-dev
-    https://golang.org/cl/4890041
+    R=golang-dev, r, rsc, sougou
+    CC=golang-dev, msolomon
+    https://golang.org/cl/4889043
 
- lib/godoc/codewalkdir.html |  7 ++++---
- lib/godoc/dirlist.html     |  3 ++-
- lib/godoc/search.html      | 25 +++++++++++++------------
- src/cmd/godoc/godoc.go     |  2 +-
- 4 files changed, 20 insertions(+), 17 deletions(-)
+ src/pkg/rpc/server.go      | 88 ++++++++++++++++++++++++++++++----------------
+ src/pkg/rpc/server_test.go | 87 +++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 142 insertions(+), 33 deletions(-)

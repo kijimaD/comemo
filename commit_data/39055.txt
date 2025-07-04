@@ -1,41 +1,23 @@
-commit ed7f323c8f4f6bc61a75146bf34f5b8f73063a17
-Author: Shulhan <m.shulhan@gmail.com>
-Date:   Sat Mar 9 11:36:37 2019 +0700
+commit 84066f1b0b68761a75ce9064f4c412f751ee2168
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Dec 18 16:41:57 2018 -0800
 
-    all: simplify code using "gofmt -s -w"
+    runtime: use QPC to implement cputicks() on windows/arm
     
-    Most changes are removing redundant declaration of type when direct
-    instantiating value of map or slice, e.g. []T{T{}} become []T{{}}.
+    Tracing uses cputicks() to generate trace event timestamps. cputicks()
+    is expected to be a high resolution clock source. On Windows/ARM,
+    call QueryPerformanceCounter() which is the highest resolution clock
+    source available.
     
-    Small changes are removing the high order of subslice if its value
-    is the length of slice itself, e.g. T[:len(T)] become T[:].
+    Updates #26148
     
-    The following file is excluded due to incompatibility with go1.4,
-    
-    - src/cmd/compile/internal/gc/ssa.go
-    
-    Change-Id: Id3abb09401795ce1e6da591a89749cba8502fb26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166437
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Change-Id: I987fa556060b3d60c02f07b87b9e6320b9b026e2
+    Reviewed-on: https://go-review.googlesource.com/c/154762
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go    |  20 +-
- src/cmd/go/internal/modfetch/pseudo.go   |   2 +-
- src/cmd/internal/obj/s390x/asmz.go       | 484 ++++++++++----------
- src/cmd/link/internal/ld/dwarf_test.go   |   6 +-
- src/cmd/link/internal/wasm/asm.go        |  34 +-
- src/cmd/trace/pprof.go                   |   2 +-
- src/crypto/md5/md5_test.go               |   4 +-
- src/crypto/sha1/sha1_test.go             |   4 +-
- src/crypto/sha256/sha256_test.go         |   6 +-
- src/crypto/sha512/sha512_test.go         |   4 +-
- src/crypto/x509/name_constraints_test.go | 758 +++++++++++++++----------------
- src/crypto/x509/verify.go                |   2 +-
- src/database/sql/convert_test.go         |  10 +-
- src/debug/macho/file_test.go             |   6 +-
- src/encoding/base32/base32_test.go       |  60 +--
- src/encoding/binary/example_test.go      |  30 +-
- src/internal/xcoff/ar_test.go            |   4 +-
- src/reflect/all_test.go                  |  38 +-
- 18 files changed, 717 insertions(+), 757 deletions(-)
+ src/runtime/os_windows.go     | 7 +++++++
+ src/runtime/os_windows_arm.go | 6 +++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

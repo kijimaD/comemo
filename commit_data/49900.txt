@@ -1,19 +1,15 @@
-commit 8ec1aa889f4ee2b0569c573b23efd21fa2c4329b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Aug 15 11:13:06 2022 +0200
+commit 113da92ab634b55b359674589d7f626703b75f4a
+Merge: c6c884be38 b0fa2f5b09
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Sep 20 18:11:54 2021 -0400
 
-    net: use testenv.SkipIfOptimizationOff in TestAllocs
+    [dev.fuzz] all: merge master (b0fa2f5) into dev.fuzz
     
-    Use the helper added by CL 422038 instead of manually detecting the
-    noopt builder.
+    Merge List:
     
-    Change-Id: I353f1a9d5f0184d73869520eb1ae8d0bdbbe2006
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423855
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    + 2021-09-20 b0fa2f5b09 cmd/compile: fix ExampleInfo output
+    
+    Change-Id: Iccc726a8925082688faa94d07b829a5705f58dda
 
- src/net/udpsock_test.go | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/example_test.go | 56 ++++++++++++-------------
+ 1 file changed, 28 insertions(+), 28 deletions(-)

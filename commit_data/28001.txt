@@ -1,12 +1,16 @@
-commit c8941bb85ce434eccf5066f22dd3c161e6afc4e2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 23 06:14:31 2016 -0700
+commit 3de87bc4d92d58446d5072d416a29366b83135c1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 24 13:31:55 2016 -0700
 
-    doc: add note about CL 24180 to go1.8.txt
+    test: add test that required algs get generated
     
-    Change-Id: Ie2bef1c181a49d7a02ed8068894d2bd81fc5bafa
-    Reviewed-on: https://go-review.googlesource.com/27566
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This is a follow-up to CLs 19769 and 19770.
+    
+    Change-Id: Ia9b71055613b80df4ce62b34fcc4f479f04f72fd
+    Reviewed-on: https://go-review.googlesource.com/22399
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- doc/go1.8.txt | 1 +
- 1 file changed, 1 insertion(+)
+ test/alg.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

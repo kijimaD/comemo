@@ -1,25 +1,25 @@
-commit 88076ebc92e793fa95db314c0defed5571d8ce99
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 11 15:51:28 2019 +0700
+commit c1e60b6e336dba3820cb27442cec33d15b2a5f7d
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 27 12:39:45 2019 +0700
 
-    go/types: fix iota undefined after ConstDecl inside function in ConstSpec
+    os/user: use os.UserHomeDir for user.HomeDir
     
-    When reaching const declaration, Checker override context iota to use
-    correct iota value, but does not restore the old value when exit, and
-    always set context iota to nil. It ends up with undefined iota after
-    const declaration.
+    Using os.UserHomeDir for user.HomeDir helps us deduplicate the
+    logic and keep the behavior consistent.
     
-    To fix it, preserve the original iota value and restore it after const
-    declaration.
+    Also make os.UserHomeDir return "/sdcard" in android.
     
-    Fixes #34228
+    See: https://go-review.googlesource.com/c/go/+/37960/1/src/os/user/lookup_stubs.go#48
     
-    Change-Id: I42d5efb55a57e5ddc369bb72d31f1f039c92361c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194737
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #31070
+    
+    Change-Id: I521bad050bc5761ecc5c0085501374d2cf8e6897
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169540
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/decl.go             |  2 +-
- src/go/types/testdata/const0.src | 14 ++++++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/os/file.go              |  4 +++-
+ src/os/user/lookup_stubs.go | 10 +++-------
+ 2 files changed, 6 insertions(+), 8 deletions(-)

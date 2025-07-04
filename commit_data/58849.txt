@@ -1,20 +1,21 @@
-commit bdef1778311c19c997d4fb14a4374bd712014d13
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue Jan 7 18:28:10 2025 +0000
+commit 3233542e8514f641883119e6afa3ae1256b7642b
+Author: RenJiangdu <38402095+renjiangdu@users.noreply.github.com>
+Date:   Thu Dec 28 09:49:45 2023 +0000
 
-    go/parser: require label after goto
+    reflect: fix typo in type.go
     
-    Fixes #70957
+    There is no 'of' relationships between float and string. This points to those interfaces with internal type float or string.
     
-    Change-Id: Ied7cf29ea3e02bb71ddce8a19ddd381ce5991ed1
-    GitHub-Last-Rev: 310bd1537b7a36758f3fbf8db476fa68e1a11599
-    GitHub-Pull-Request: golang/go#70958
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638395
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I14449f00c192e0d3f8270b433ff508978b7fdf17
+    GitHub-Last-Rev: f301a8aa5294e7669361627c82b2978652cfc14b
+    GitHub-Pull-Request: golang/go#64885
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552957
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
 
- src/cmd/compile/internal/syntax/testdata/issue70957.go | 9 +++++++++
- src/go/parser/parser.go                                | 2 +-
- src/go/parser/short_test.go                            | 4 ++++
- 3 files changed, 14 insertions(+), 1 deletion(-)
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

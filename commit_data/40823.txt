@@ -1,27 +1,31 @@
-commit 73d20f8186a091c8d7e81b621136770981cf8e44
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Nov 16 17:08:11 2019 -0500
+commit 0da58d076a98a0fa027ea547b2a1c35147fd6e6e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jul 12 17:31:59 2019 -0400
 
-    runtime: always use Go signal stack in non-cgo program
+    cmd/go: clarify error text for module path mismatch
     
-    When initializing an M, we set up its signal stack to the gsignal
-    stack if an alternate signal stack is not already set. On Android,
-    an alternate signal stack is always set, even cgo is not used.
-    This breaks the logic of saving/fetching G on the signal stack
-    during VDSO, which assumes the signal stack is allocated by Go if
-    cgo is not used (if cgo is used, we use TLS for saving G).
+    This error occurs when a module is loaded with one name (for example,
+    github.com/golang/lint) but declares a different path in its go.mod
+    (golang.org/x/lint). The current text "unexpected module path" is
+    confusing. It doesn't explain why the path was unexpected, and it's
+    not clear what was expected.
     
-    When cgo is not used, we can always use the Go signal stack, even
-    if an alternate signal stack is already set. Since cgo is not
-    used, no one other than the Go runtime will care.
+    With this change, the error text includes the module and version
+    containing the go.mod file with the error, the declared module path,
+    and the loaded module path. The paths are vertically aligned so
+    differences are visually obvious. As with other module version errors,
+    the shortest chain of requirements is printed.
     
-    Fixes #35554.
+    This change supercedes CL 158477.
     
-    Change-Id: Ia9d84cd55cb35097f3df46f37996589c86f10e0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207445
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Fixes #28489
+    
+    Change-Id: Ieb07d00bcae182376d7be6aad111c84fbf784354
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185985
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/signal_unix.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modload/load.go              |  4 +++-
+ src/cmd/go/testdata/script/mod_load_badchain.txt | 20 +++++++++++++++-----
+ 2 files changed, 18 insertions(+), 6 deletions(-)

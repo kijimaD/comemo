@@ -1,14 +1,37 @@
-commit 57af5429e690e093ca41b0def2338f0b422f6984
+commit 6d68be46dd37985d57eeec7d5191a6b9a719afa8
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 25 09:54:10 2012 -0800
+Date:   Wed Jan 25 09:53:26 2012 -0800
 
-    go/doc: test case for corner case (override of predecl. type)
+    go/doc: clean rewrite of go/doc internals
     
-    R=rsc
+    The implementation is divided into 4 phases:
+    1) export filtering of an incoming AST if necessary (exports.go)
+    2) reading of a possibly filtered AST (reader.go: type reader)
+    3) method set computation (reader.go)
+    4) sorting and creation of final documentation (reader.go)
+    
+    In contrast to the old implementation, the presentation data
+    (Names, Docs, Decls, etc.) are created immediately upon reading
+    the respective AST node. Also, all types are collected (embedded
+    or not) in a uniform way.
+    
+    Once the entire AST has been processed, all methods and types
+    have been collected and the method sets for each type can be
+    computed (phase 3).
+    
+    To produce the final documentation, the method sets and value
+    maps are sorted.
+    
+    There are no API changes. Passes the existing test suite unchanged.
+    
+    R=rsc, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/5575055
+    https://golang.org/cl/5554044
 
- src/pkg/go/doc/testdata/b.0.golden |  9 +++++++++
- src/pkg/go/doc/testdata/b.1.golden | 15 +++++++++++++++
- src/pkg/go/doc/testdata/b.go       | 17 +++++++++++++++++
- 3 files changed, 41 insertions(+)
+ src/pkg/go/doc/doc.go              |   48 +-
+ src/pkg/go/doc/exports.go          |  126 ++---
+ src/pkg/go/doc/reader.go           | 1057 +++++++++++++++++++-----------------
+ src/pkg/go/doc/testdata/e.0.golden |   31 ++
+ src/pkg/go/doc/testdata/e.1.golden |   61 +++
+ src/pkg/go/doc/testdata/e.go       |   58 ++
+ 6 files changed, 791 insertions(+), 590 deletions(-)

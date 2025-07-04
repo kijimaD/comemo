@@ -1,30 +1,48 @@
-commit f3758443424dd6e411e2ac0108efdefd2ad7b294
+commit 2440dd457a451084e4a23b1b0903953f331abea7
 Author: Dan Scales <danscales@google.com>
-Date:   Mon Oct 4 17:54:51 2021 -0700
+Date:   Wed Jan 27 12:55:57 2021 -0800
 
-    cmd/compile: fix -W=3 output after the # line
+    [dev.typeparams] cmd/compile:  start adding info needed for typeparams in types & ir
     
-    I've noticed for a while that there is some duplicated and some useful
-    information being put out in -W=3 mode after the comment marker (besides
-    the position).
+    We are focusing on generic functions first, and ignoring type lists for
+    now.
     
-    dumpNodeHeader puts out a comment marker '#' before putting out the
-    position of a node (which is for almost all nodes). Therefore, we shouldn't
-    print out anything on the same line after calling dumpNodeHeader().
+    The signatures of types.NewSignature() and ir.NewCallExpr() changed (with
+    addition of type args/params).
     
-    But we happen to be putting out a duplicate type of the node in some
-    cases. Also, we put out the Sym() associate with the node after
-    dumpNodeHeader(). So, I got rid of the duplicate type print-out, and moved
-    the print-out of n.Sym() to be inside dumpNodeHeader() before the
-    position information. Also, moved the tc flag to be right after the type
-    information, which seems like it makes more sense.
-    
-    Change-Id: I05210fbf9f3b2d8e3b73fc0ceab26a7bce5dc104
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354355
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I57480be3d1f65690b2946e15dd74929bf42873f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287416
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ir/fmt.go | 14 +++++---------
- 1 file changed, 5 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/inline/inl.go            |   2 +-
+ src/cmd/compile/internal/ir/class_string.go       |   7 +-
+ src/cmd/compile/internal/ir/expr.go               |   6 +-
+ src/cmd/compile/internal/ir/name.go               |  15 +-
+ src/cmd/compile/internal/noder/helpers.go         |   2 +-
+ src/cmd/compile/internal/noder/noder.go           |   2 +-
+ src/cmd/compile/internal/noder/types.go           |   2 +-
+ src/cmd/compile/internal/reflectdata/alg.go       |  16 +-
+ src/cmd/compile/internal/reflectdata/reflect.go   |   6 +-
+ src/cmd/compile/internal/ssagen/abi.go            |   2 +-
+ src/cmd/compile/internal/test/abiutilsaux_test.go |   2 +-
+ src/cmd/compile/internal/typecheck/builtin.go     | 184 +++++++++++-----------
+ src/cmd/compile/internal/typecheck/dcl.go         |   2 +-
+ src/cmd/compile/internal/typecheck/func.go        |   2 +-
+ src/cmd/compile/internal/typecheck/iimport.go     |   6 +-
+ src/cmd/compile/internal/typecheck/mkbuiltin.go   |   2 +-
+ src/cmd/compile/internal/typecheck/type.go        |   2 +-
+ src/cmd/compile/internal/typecheck/universe.go    |   2 +-
+ src/cmd/compile/internal/types/kind_string.go     |  23 +--
+ src/cmd/compile/internal/types/sizeof_test.go     |   2 +-
+ src/cmd/compile/internal/types/type.go            |   9 +-
+ src/cmd/compile/internal/walk/builtin.go          |   2 +-
+ src/cmd/compile/internal/walk/closure.go          |   2 +-
+ src/cmd/compile/internal/walk/compare.go          |   4 +-
+ src/cmd/compile/internal/walk/complit.go          |   2 +-
+ src/cmd/compile/internal/walk/convert.go          |   4 +-
+ src/cmd/compile/internal/walk/expr.go             |   2 +-
+ src/cmd/compile/internal/walk/stmt.go             |   4 +-
+ src/cmd/compile/internal/walk/walk.go             |   2 +-
+ 29 files changed, 164 insertions(+), 154 deletions(-)

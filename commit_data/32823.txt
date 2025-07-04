@@ -1,17 +1,28 @@
-commit 7537bb7b30fabd8fafd0b214b755d6dffa31bfe7
-Author: Hajime Hoshi <hajimehoshi@gmail.com>
-Date:   Sun May 28 23:38:59 2017 +0900
+commit 4d6b08de709f0914f640e0bc738e094443687bbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 11:19:54 2017 -0400
 
-    cmd/compile/internal/gc: unexport global constants
+    cmd/compile: add -importcfg to specify import resolution
     
-    Change-Id: Ib292ef3b0a31b2c7bdd77519324362667f30389c
-    Reviewed-on: https://go-review.googlesource.com/44393
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Allows reading -importmap options from a file instead of putting
+    them all on the command line, and adds the ability to specify the
+    file location of specific packages. In effect, -importcfg is a generalization
+    of and supersedes -importmap, -importsuffix, and -I.
+    Of course, those flags will continue to be supported,
+    for compatibility with other tools.
+    
+    Having this flag in Go 1.9 will let us try some experiments involving
+    package management without needing guinea pigs to build a
+    custom Go toolchain.
+    
+    This flag also helps with #14271 at some later point.
+    
+    For #20579.
+    
+    Change-Id: If005dbc2b01d8fd16cbfd3687dfbe82499f4bc56
+    Reviewed-on: https://go-review.googlesource.com/44850
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bv.go  | 40 +++++++++++++++++++-------------------
- src/cmd/compile/internal/gc/esc.go |  2 +-
- src/cmd/compile/internal/gc/go.go  |  2 +-
- 3 files changed, 22 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 67 +++++++++++++++++++++++++++++++++++--
+ 1 file changed, 64 insertions(+), 3 deletions(-)

@@ -1,12 +1,16 @@
-commit afe6668216516b012a09f6c7166009761e965f5b
-Author: Michael Matloob <matloob@google.com>
-Date:   Wed Jan 21 23:05:42 2015 -0800
+commit a824ffcc93724053d73c286b1176b2c709ce25a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 22 13:40:28 2014 -0800
 
-    cmd/ld: s/specificaly/specifically/ in comment
+    go/build: fix field mismatch in unkeyed struct literal
     
-    Change-Id: I849b8046daaec97ae631d59f1870cd5f1cd72f22
-    Reviewed-on: https://go-review.googlesource.com/3176
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #9409
+    
+    Change-Id: I2404cd8bf3ebb07f4b6a2b3e1d58ab69b9f1e8d8
+    Reviewed-on: https://go-review.googlesource.com/2040
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/ld/decodesym.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/build.go      |  6 +++++-
+ src/go/build/build_test.go | 11 ++++++++++-
+ 2 files changed, 15 insertions(+), 2 deletions(-)

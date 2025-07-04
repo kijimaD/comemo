@@ -1,18 +1,21 @@
-commit 2b57a87678caa3adebc3254b1a54d18ab2ada941
-Author: Jan Mercl <befelemepeseveze@gmail.com>
-Date:   Sat Jun 2 13:00:09 2012 -0400
+commit b7c2ade6964139b99d35f8f4d10d061e4443985f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 1 18:42:36 2012 -0700
 
-    path/filepath: implement documented SkipDir behavior
+    api: add FreeBSD to go1 API
     
-    Currently walk() doesn't check for err == SkipDir when iterating
-    a directory list, but such promise is made in the docs for WalkFunc.
+    Now that gri has made go/parser 15% faster, I offer this
+    change to slow back down cmd/api ~proportionately, adding
+    FreeBSD to the go1-checked set of platforms.
     
-    Fixes #3486.
+    Really we should have done this earlier. This will prevent us
+    from breaking FreeBSD compatibility accidentally in the
+    future.
     
-    R=rsc, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6257059
+    https://golang.org/cl/6279044
 
- src/pkg/path/filepath/path.go      |  7 +++++--
- src/pkg/path/filepath/path_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 2 deletions(-)
+ api/go1.txt          | 4069 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/api/goapi.go |    2 +
+ 2 files changed, 4064 insertions(+), 7 deletions(-)

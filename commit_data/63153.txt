@@ -1,0 +1,26 @@
+commit c5a1fc1f97b4b6b384a9852d96a77868e0f5e6a9
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed May 7 11:37:52 2025 -0700
+
+    crypto/tls: add GetEncryptedClientHelloKeys
+    
+    This allows servers to rotate their ECH keys without needing to restart
+    the server.
+    
+    Fixes #71920
+    
+    Change-Id: I55591ab3303d5fde639038541c50edcf1fafc9aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670655
+    TryBot-Bypass: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ api/next/71920.txt                             |  1 +
+ doc/next/6-stdlib/99-minor/crypto/tls/71920.md |  3 ++
+ src/crypto/tls/common.go                       | 18 ++++++++
+ src/crypto/tls/ech.go                          |  6 +--
+ src/crypto/tls/handshake_server.go             | 10 +++-
+ src/crypto/tls/handshake_server_tls13.go       | 12 ++++-
+ src/crypto/tls/tls_test.go                     | 63 ++++++++++++++++++--------
+ 7 files changed, 87 insertions(+), 26 deletions(-)

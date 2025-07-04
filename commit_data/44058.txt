@@ -1,24 +1,24 @@
-commit fd6ba1c8a23d8a3fffb6c475b21f78510152ef5c
-Author: Andrew G. Morgan <agm@google.com>
-Date:   Fri Dec 11 22:42:11 2020 -0800
+commit 176481990f39d8bf5330386c9468d1dd60d869ba
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Wed Apr 29 19:48:06 2020 +0000
 
-    os/signal: fix a deadlock with syscall.AllThreadsSyscall() use
+    encoding/asn1: only accept minimally encoded base 128 integers
     
-    The syscall.AllThreadsSyscall() fixup mechanism needs to cooperate
-    with signal handling to ensure a notetsleepg() thread can wake up
-    to run the mDoFixup() function.
+    Reject base 128 encoded integers that aren't using minimal encoding,
+    specifically if the leading octet of an encoded integer is 0x80. This
+    only affects parsing of tags and OIDs, both of which expect this
+    encoding (see X.690 8.1.2.4.2 and 8.19.2).
     
-    Fixes #43149
+    Fixes #36881
     
-    Change-Id: I6651b25bc44a4de47d3fb71d0293d51aef8b79c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277434
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I969cf48ac1fba7e56bac334672806a0784d3e123
+    GitHub-Last-Rev: fefc03d2022e10b318e532ef5a461bb46016cf12
+    GitHub-Pull-Request: golang/go#38281
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227320
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/signal/signal_linux_test.go | 42 ++++++++++++++++++++++++++++++++++++++
- src/runtime/proc.go                |  1 +
- src/runtime/sigqueue.go            | 34 ++++++++++++++++++++++++++++--
- src/runtime/sigqueue_plan9.go      |  7 +++++++
- 4 files changed, 82 insertions(+), 2 deletions(-)
+ src/encoding/asn1/asn1.go      |  6 ++++++
+ src/encoding/asn1/asn1_test.go | 12 ++++++++++++
+ 2 files changed, 18 insertions(+)

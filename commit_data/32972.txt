@@ -1,16 +1,69 @@
-commit 97d17fcfd19594afc03ee68e9d74b9db14798c7f
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Oct 4 15:32:40 2017 -0700
+commit 3d13b5e00c9bc065d83e27d787a64adc683cea02
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Jun 20 17:40:21 2017 +0200
 
-    runtime: force the type of specialfinalizer into DWARF
+    cmd/vendor/github.com/google/pprof: refresh from upstream
     
-    The core dump reader wants to know the layout of this type.
-    No variable has this type, so it wasn't previously dumped
-    to DWARF output.
+    Updating to commit fffc5831a499a958516664a34cb7ba2b9e228793
+    from github.com/google/pprof
     
-    Change-Id: I982040b81bff202976743edc7fe53247533a9d81
-    Reviewed-on: https://go-review.googlesource.com/68312
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #19380
+    
+    Change-Id: I7a0c64101f42b494c4a469c41628374272eccf95
+    Reviewed-on: https://go-review.googlesource.com/46155
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mheap.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/vendor/github.com/google/pprof/README.md   |   9 +-
+ .../github.com/google/pprof/driver/driver.go       |   8 +-
+ .../google/pprof/internal/binutils/disasm_test.go  |   4 +-
+ .../google/pprof/internal/driver/commands.go       |   5 +-
+ .../google/pprof/internal/driver/driver.go         |  13 +--
+ .../google/pprof/internal/driver/driver_focus.go   |   2 +-
+ .../google/pprof/internal/driver/driver_test.go    | 127 +++++++++++++--------
+ .../google/pprof/internal/driver/fetch.go          |  29 +++--
+ .../google/pprof/internal/driver/fetch_test.go     | 117 +++++++++++++++++++
+ .../driver/testdata/pprof.cpu.call_tree.callgrind  |  99 ++++++++++++++++
+ .../testdata/pprof.cpu.flat.addresses.disasm       |   6 +-
+ .../testdata/pprof.cpu.flat.addresses.weblist      |  11 +-
+ .../pprof.cpu.flat.functions.call_tree.dot         |  21 ++++
+ .../driver/testdata/pprof.cpu.flat.functions.dot   |  24 ++--
+ .../driver/testdata/pprof.cpu.flat.functions.text  |  12 +-
+ .../pprof/internal/driver/testdata/pprof.cpu.peek  |  16 +--
+ .../pprof/internal/driver/testdata/pprof.cpu.tags  |  20 ++--
+ .../driver/testdata/pprof.cpu.tags.focus.ignore    |   8 +-
+ .../internal/driver/testdata/pprof.cpu.traces      |  32 +++---
+ .../pprof.heap.cum.relative_percentages.tree.focus |  20 ++--
+ .../testdata/pprof.heap.flat.inuse_objects.text    |  12 +-
+ .../testdata/pprof.heap.flat.inuse_space.dot.focus |  14 +--
+ .../pprof.heap.flat.inuse_space.dot.focus.ignore   |  16 +--
+ .../pprof/internal/driver/testdata/pprof.heap.tags |  10 +-
+ .../internal/driver/testdata/pprof.heap.tags.unit  |  10 +-
+ .../pprof.heap_alloc.flat.alloc_objects.text       |  12 +-
+ .../pprof.heap_alloc.flat.alloc_space.dot.focus    |  20 ++--
+ .../pprof.heap_alloc.flat.alloc_space.dot.hide     |   6 +-
+ .../pprof.unknown.flat.functions.call_tree.text    |   8 ++
+ .../testdata/pprof.unknown.flat.functions.text     |   8 --
+ .../google/pprof/internal/elfexec/elfexec.go       |  25 ++--
+ .../google/pprof/internal/elfexec/elfexec_test.go  |   3 +-
+ .../google/pprof/internal/graph/dotgraph.go        |  12 +-
+ .../google/pprof/internal/graph/dotgraph_test.go   |  61 +++++++++-
+ .../google/pprof/internal/graph/graph.go           |  19 ++-
+ .../pprof/internal/measurement/measurement.go      |  20 +++-
+ .../pprof/internal/measurement/measurement_test.go |  43 +++++++
+ .../google/pprof/internal/proftest/proftest.go     |  16 ++-
+ .../google/pprof/internal/report/report.go         |  49 ++++----
+ .../google/pprof/internal/report/source.go         |  20 +++-
+ .../google/pprof/internal/report/source_html.go    |   1 +
+ .../google/pprof/internal/symbolizer/symbolizer.go |  22 +++-
+ .../pprof/internal/symbolizer/symbolizer_test.go   |  10 +-
+ .../google/pprof/profile/legacy_java_profile.go    |   2 +-
+ .../github.com/google/pprof/profile/profile.go     |   5 +-
+ .../google/pprof/profile/profile_test.go           |  28 ++---
+ .../github.com/google/pprof/profile/proto.go       |  14 +--
+ .../github.com/google/pprof/profile/proto_test.go  |  12 +-
+ .../github.com/google/pprof/profile/prune.go       |  47 ++++++--
+ .../github.com/google/pprof/profile/prune_test.go  |  91 +++++++++++++++
+ src/cmd/vendor/vendor.json                         |   4 +-
+ 51 files changed, 872 insertions(+), 331 deletions(-)

@@ -1,12 +1,12 @@
-commit b9fb6ddd501b7a37b5b38c91c57e9d6d84dbf054
+commit c37a0c541477de4dd98b09d6a672fe66b0a59871
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 14 10:12:24 2011 +1100
+Date:   Fri Jan 14 09:27:51 2011 +1100
 
-    CONTRIBUTORS: fix bradfitz entry
+    CONTRIBUTORS: add bradfitz@golang.org
     
-    R=rsc
+    R=bradfitz, dangabrad
     CC=golang-dev
-    https://golang.org/cl/3999041
+    https://golang.org/cl/3998041
 
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

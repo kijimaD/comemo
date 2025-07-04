@@ -1,16 +1,13 @@
-commit b143feb1431b58c02be6edca6bc5f6067b22a14d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 4 01:38:49 2014 -0400
+commit b930b433b0cedb9a5ddab9b1de3d30bfd5ddfa60
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 29 12:28:31 2014 +0900
 
-    runtime: fix int64 reconstruction in semasleep
+    net: add more cases to lookup API test
     
-    I had this right in one of my clients, but apparently not the one I submitted from.
-    
-    Fixes 386 builds.
-    
-    TBR=dfc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/138000045
+    https://golang.org/cl/126450043
 
- src/pkg/runtime/os_darwin.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/lookup_test.go | 164 +++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 129 insertions(+), 35 deletions(-)

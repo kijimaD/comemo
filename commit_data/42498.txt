@@ -1,14 +1,21 @@
-commit 281f0ed7bf671e6bb65ade4aa3146bc572d64560
-Author: Vee Zhang <veezhang@126.com>
-Date:   Tue Jun 9 08:03:13 2020 +0000
+commit d5967a710094b4e901175948727bbda7a197565c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 2 15:39:28 2020 -0500
 
-    internal/poll: correct function name in comment
+    cmd/go: convert TestGoTestWithoutTests to the script framework
     
-    Change-Id: I3b28a45e942a6d6032855758fcc41e4edd64aa32
-    GitHub-Last-Rev: 9c994bbee7420861b5dc83e71e50fc43d7f6650b
-    GitHub-Pull-Request: golang/go#39467
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237059
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ibc3cb3823bd1c1b80058076f2c9933dc729447a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213127
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/internal/poll/fd_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go                        | 10 ----------
+ src/cmd/go/testdata/script/test_no_tests.txt | 11 +++++++++++
+ src/cmd/go/testdata/src/testnorun/p.go       |  5 -----
+ 3 files changed, 11 insertions(+), 15 deletions(-)

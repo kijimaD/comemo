@@ -1,20 +1,15 @@
-commit d09943aeaf9469f567f1935eb641dc6c2e2dedaa
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 26 14:25:28 2012 -0400
+commit e5f2662c25dbdf2ed258867964e424f00f7a9cb8
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Apr 27 01:45:15 2012 +1000
 
-    cmd/go: new tag selection logic
+    syscall: remove sysctl workaround for openbsd
     
-    The new logic is "use go1 if it's there, otherwise no tag."
-    Nothing needs to say "I require go1.0.1", and I want to
-    preserve some flexibility in defining what tags mean.
+    Now that Go will no longer work on OpenBSD versions prior to 5.1,
+    remove the sysctl workaround that was needed for 5.0 and earlier.
     
-    Right now (before go1.0.1) there is only one possible tag,
-    "go1", and I'd like to keep it that way.
-    
-    R=golang-dev, bradfitz, r, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6112060
+    https://golang.org/cl/6116050
 
- src/cmd/go/get.go      | 64 ++++++++++++++-------------------------------
- src/cmd/go/tag_test.go | 71 ++++++++++++++++++++++++++------------------------
- 2 files changed, 57 insertions(+), 78 deletions(-)
+ src/pkg/syscall/syscall_bsd.go | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

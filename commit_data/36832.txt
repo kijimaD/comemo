@@ -1,21 +1,15 @@
-commit 433496615ff0ec5c2235279dddbe01adf1701fa2
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 3 11:06:55 2018 -0700
+commit 33cd4fba38b82693d7ffc62f50ea763694d4c8c3
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 22 17:33:23 2018 -0400
 
-    cmd/compile/internal/gc: remove binary package export format
+    Revert "cmd/compile: ignore g register in liveness analysis"
     
-    This CL removes all unused code from bimport.go and bexport.go.
+    This reverts commit ea200340702cf3ccfac7c5db1f11bb65c80971c7 now
+    that CL 114695 fixed the root cause of #25504.
     
-    In the interest of keeping this CL strictly delete-only and easier to
-    review, the task of consolidating the vestigial code elsewhere is left
-    to future CLs.
-    
-    Change-Id: Ib757cc27e3fe814cbf534776d026e4d4cddfc6db
-    Reviewed-on: https://go-review.googlesource.com/c/139338
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: If437fc832983bd8793bde28ce0e2e64436a0596c
+    Reviewed-on: https://go-review.googlesource.com/114087
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/bexport.go | 1744 --------------------------------
- src/cmd/compile/internal/gc/bimport.go | 1323 ------------------------
- 2 files changed, 3067 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 11 -----------
+ 1 file changed, 11 deletions(-)

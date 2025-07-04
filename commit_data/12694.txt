@@ -1,14 +1,16 @@
-commit 351213ce92d3e3ebf6546a332ae873a43da667a6
+commit 49be7f7d0d5c8be7db5a038ff10cece702796fa7
 Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 20 14:53:18 2012 +1100
+Date:   Tue Mar 20 14:38:07 2012 +1100
 
-    api: update go1.txt after adding functions to html/template
-    Fixes build, teaches lesson.
+    html/template: add Templates and *Escape functions
+    to bring it in line with text/template's interface.
+    Fixes #3296.
     
-    R=golang-dev, r
-    TBR=bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5853051
+    https://golang.org/cl/5843066
 
- api/go1.txt | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/html/template/clone_test.go | 26 +++++++++++++++++++++++
+ src/pkg/html/template/escape.go     | 42 +++++++++++++++++++++++++++++++++++++
+ src/pkg/html/template/template.go   | 14 +++++++++++++
+ 3 files changed, 82 insertions(+)

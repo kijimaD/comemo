@@ -1,26 +1,22 @@
-commit f053f4f921d3d481d3adb3e909e81f1b31a13f2e
-Author: Bobby Powers <bobbypowers@gmail.com>
-Date:   Sat Feb 25 16:24:54 2023 -0800
+commit ea927e560d80f34dfaaeee14418e55cc80220485
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 23 14:23:31 2023 -0700
 
-    crypto/tls: expose extensions presented by client to GetCertificate
+    slices: clarify MinFunc/MaxFunc result for equal elements
     
-    This enables JA3 and JA4 TLS fingerprinting to be implemented from
-    the GetCertificate callback, similar to what BoringSSL provides with
-    its SSL_CTX_set_dos_protection_cb hook.
+    They should return the first of equal elements. No such clarification
+    is required for Min/Max as for them equal elements are indistinguishable.
     
-    fixes #32936
+    For #60091
     
-    Change-Id: Idb54ebcb43075582fcef0ac6438727f494543424
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471396
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iad58115d482add852c811e993131702b5b3bec5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505796
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- api/next/32936.txt                             |  1 +
- doc/next/6-stdlib/99-minor/crypto/tls/32936.md |  1 +
- src/crypto/tls/common.go                       |  4 ++
- src/crypto/tls/handshake_messages.go           |  3 ++
- src/crypto/tls/handshake_messages_test.go      | 12 ++++++
- src/crypto/tls/handshake_server.go             |  1 +
- src/crypto/tls/handshake_server_test.go        | 60 ++++++++++++++++++++++++++
- 7 files changed, 82 insertions(+)
+ src/slices/sort.go      |  6 ++++--
+ src/slices/sort_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

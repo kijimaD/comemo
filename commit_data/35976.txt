@@ -1,20 +1,24 @@
-commit 489a2632f49fd20312e56001f6322ed5741c4bef
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 12 15:57:56 2018 +1000
+commit a934e34e875d6402da79d52a859434b60b6f6131
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 26 13:37:00 2018 -0400
 
-    doc: update Concurrency, Functions and Methods, and Control Flow sections
+    cmd/compile: invoke gdb more carefully in ssa/debug_test.go
     
-    Many parts of the FAQ are dusty and need cleaning up.
-    This is the first of a series of changes to bring it up to date.
-    Since it was first written at the time of release, some of the
-    ideas and background have changed, and some historical
-    remarks are largely irrelevant now.
+    Gdb can be sensitive to contents of .gdbinit, and to run
+    this test properly needs to have runtime/runtime-gdb.py
+    on the auto load safe path.  Therefore, turn off .gdbinit
+    loading and explicitly add $GOROOT/runtime to the safe
+    load path.
     
-    Update #26107.
+    This should make ssa/debug_test.go run more consistently.
     
-    Change-Id: I1f36df7d8ecc8a1a033d5ac4fa1edeece25ed6b4
-    Reviewed-on: https://go-review.googlesource.com/123496
+    Updates #24464.
+    
+    Change-Id: I63ed17c032cb3773048713ce51fca3a3f86e79b6
+    Reviewed-on: https://go-review.googlesource.com/102598
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_faq.html | 97 ++++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 69 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/ssa/debug_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

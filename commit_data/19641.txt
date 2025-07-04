@@ -1,11 +1,19 @@
-commit ed5b694721b96ebb69ba177b956b6364636eeeba
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 1 09:22:55 2014 -0700
+commit 1ec56062ef6b256f8269e2ca8c5477e3a917331a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jul 1 09:20:51 2014 +0200
 
-    doc/go1.4.txt: delete editor and shell support
+    cmd/8g: don't allocate a register early for cap(CHAN).
     
+    There is no reason to generate different code for cap and len.
+    
+    Fixes #8025.
+    Fixes #8026.
+    
+    LGTM=rsc
+    R=rsc, iant, khr
     CC=golang-codereviews
-    https://golang.org/cl/101590043
+    https://golang.org/cl/93570044
 
- doc/go1.4.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/8g/cgen.c | 5 ++++-
+ test/torture.go   | 7 +++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

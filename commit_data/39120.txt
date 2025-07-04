@@ -1,12 +1,24 @@
-commit 09267010ef66ec4b7cc1baaed690ca365a92baca
-Author: Tamir Duberstein <tamird@google.com>
-Date:   Sat May 11 14:08:52 2019 -0400
+commit af134b17da99344812344bba65247e45fa22d53b
+Author: Keith Randall <khr@google.com>
+Date:   Mon Dec 10 12:49:19 2018 -0800
 
-    net: comment duplicate constant
+    runtime: proper panic tracebacks with mid-stack inlining
     
-    Change-Id: If5a4d8eff4e51d72fb9dc1d5db2bfe674ec5753b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176717
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    As a followon to CL 152537, modify the panic-printing traceback
+    to also handle mid-stack inlining correctly.
+    
+    Also declare -fm functions (aka method functions) as wrappers, so that
+    they get elided during traceback. This fixes part 2 of #26839.
+    
+    Fixes #28640
+    Fixes #24488
+    Update #26839
+    
+    Change-Id: I1c535a9b87a9a1ea699621be1e6526877b696c21
+    Reviewed-on: https://go-review.googlesource.com/c/153477
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/tcpsockopt_darwin.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/objabi/funcid.go |   3 ++
+ src/runtime/traceback.go          | 102 ++++++++++++++++++--------------------
+ test/fixedbugs/issue24488.go      |  38 ++++++++++++++
+ 3 files changed, 89 insertions(+), 54 deletions(-)

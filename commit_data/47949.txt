@@ -1,27 +1,24 @@
-commit 07b995e5bba0c3fe04d6ba399c16abec485bcdaa
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jan 14 15:22:10 2022 -0500
+commit 5780ab4f605fdf0ca7f12ebc08e80d3ac170e98a
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Sun Mar 14 19:04:31 2021 +0200
 
-    Revert "cmd/dist: log OS version when testing"
+    text/template/parse: add a mode to skip func-check on parsing
     
-    Fails TestAllDependencies.
+    Following the discussion on #34652 and the proposal of #36911 (gopls),
+    this CL adds an option to skip the function declartion check on parsing,
+    in order to make it possible to parse arbitrary template text files and
+    get their AST.
     
-    This reverts CL 371475.
+    Fixed #38627
     
-    For #50146.
-    
-    Change-Id: I1feccd772d92d80e57c6327a4ac7b8af753a8c05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378586
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Id1e0360fc726b49dcdd49716ce25563ebaae6c10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301493
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/metadata.go              |  9 ---------
- src/cmd/internal/osinfo/doc.go        |  6 ------
- src/cmd/internal/osinfo/os_js.go      | 18 ------------------
- src/cmd/internal/osinfo/os_plan9.go   | 21 --------------------
- src/cmd/internal/osinfo/os_unix.go    | 36 -----------------------------------
- src/cmd/internal/osinfo/os_windows.go | 19 ------------------
- 6 files changed, 109 deletions(-)
+ src/text/template/parse/parse.go      |  6 ++++--
+ src/text/template/parse/parse_test.go | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)

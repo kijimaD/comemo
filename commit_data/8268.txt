@@ -1,13 +1,13 @@
-commit 0add1c3ed8005191fb1164c810e6c315ba574547
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Fri Apr 29 07:04:28 2011 -0700
+commit da9b8b8352da37256fa153b15151e4577cc04c14
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 28 17:06:34 2011 -0700
 
-    http/cgi: correctly set request Content-Type
+    go/printer: added simple performance benchmark
     
-    R=bradfitz
+    R=r, dfc, bradfitzwork, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4433087
+    https://golang.org/cl/4441078
 
- src/pkg/http/cgi/child.go      | 4 ++++
- src/pkg/http/cgi/child_test.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ src/pkg/go/printer/performance_test.go |   62 +
+ src/pkg/go/printer/testdata/parser.go  | 2252 ++++++++++++++++++++++++++++++++
+ 2 files changed, 2314 insertions(+)

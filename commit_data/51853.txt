@@ -1,32 +1,42 @@
-commit adc1db23ee17078590d81fb2201a12212d539628
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Jan 31 17:04:08 2023 +0100
+commit 9a932c5712bebb2620e0719a93773403f4fb563d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 15 16:31:02 2022 -0400
 
-    cmd/internal/obj/x86: use mov instead of lea to load the frame pointer
+    internal/buildcfg: initialize GOROOT to runtime.GOROOT
     
-    This CL instructs the Go x86 compiler to load the frame pointer address
-    using a MOV instead of a LEA instruction, being MOV 1 byte shorter:
+    In the beginning the Go compiler was in C, and C had a function
+    'getgoroot' that returned GOROOT from either the environment or a
+    generated constant. 'getgoroot' was mechanically converted to Go
+    (as obj.Getgoroot) in CL 3046.
     
-    Before
-      55            PUSHQ   BP
-      48 8d 2c 24   LEAQ    0(SP), BP
+    obj.Getgoroot begat obj.GOROOT. obj.GOROOT begat objabi.GOROOT,
+    which begat buildcfg.GOROOT.
     
-    After
-      55            PUSHQ   BP
-      48 89 e5      MOVQ    SP, BP
+    As far as I can tell, today's buildcfg.GOROOT is functionally
+    identical to runtime.GOROOT(). Let's reduce some complexity by
+    defining it in those terms.
     
-    This reduces the size of the Go toolchain ~0.06%.
+    While we're thinking about buildcfg.GOROOT, also check whether it is
+    non-empty: if the toolchain is built with -trimpath, the value of
+    GOROOT might not be valid or meaningful if the user invokes
+    cmd/compile or cmd/link directly, or via a build tool other than
+    cmd/go that doesn't care as much about GOROOT. (As of CL 390024,
+    runtime.GOROOT will return the empty string instead of a bogus one
+    when built with -trimpath.)
     
-    Updates #6853
+    For #51461.
     
-    Change-Id: I5557cf34c47e871d264ba0deda9b78338681a12c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463845
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I9fec020d5fa65d4aff0dd39b805f5ca93f86c36e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393155
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/obj/x86/obj6.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/logopt/log_opts.go | 2 +-
+ src/cmd/compile/internal/noder/reader.go    | 2 +-
+ src/cmd/internal/objabi/line.go             | 2 +-
+ src/cmd/link/internal/ld/lib.go             | 4 +++-
+ src/cmd/link/internal/ld/main.go            | 1 -
+ src/internal/buildcfg/cfg.go                | 5 ++---
+ 6 files changed, 8 insertions(+), 8 deletions(-)

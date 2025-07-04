@@ -1,13 +1,14 @@
-commit 65a643ba47726b690ab03e940ec7811979c8f377
+commit 0c0589ec42447e09a35bc0891a59402ee2d1c4fd
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 9 12:56:23 2013 -0500
+Date:   Mon Dec 9 07:42:55 2013 -0800
 
-    cmd/dist, cmd/go: pass -fmessage-length always
+    cmd/ld: fix linux/386 build
     
-    R=golang-dev, iant
+    TBR=iant
     CC=golang-dev
-    https://golang.org/cl/36300044
+    https://golang.org/cl/39400044
 
- src/cmd/dist/build.c | 4 ++--
- src/cmd/go/build.go  | 5 +++--
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/ld/data.c  | 2 +-
+ src/cmd/ld/ldelf.c | 3 +++
+ src/liblink/pass.c | 3 ++-
+ 3 files changed, 6 insertions(+), 2 deletions(-)

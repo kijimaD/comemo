@@ -1,19 +1,45 @@
-commit c6888d9264c481e61daa7ab0a8e603cdcb67b897
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 14 11:57:02 2024 -0500
+commit 2cbab4e98c6091f5fb6cb73bdebfe328793da388
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 9 16:21:22 2023 -0800
 
-    runtime: use timer.lock in moveTimers
+    cmd/compile: pass type checker error codes in the compiler
     
-    Continue using timer.lock to simplify timer operations.
+    Pass type checker error codes to base.ErrorfAt function calls
+    in the compiler (but don't do anything yet with the code).
     
-    [This is one CL in a refactoring stack making very small changes
-    in each step, so that any subtle bugs that we miss can be more
-    easily pinpointed to a small change.]
+    Also, provide error codes to base.ErrorfAt calls in the
+    compiler as needed.
     
-    Change-Id: Iaf371315308425d132217eacb20b1e120a6833c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564127
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This opens the door towards reporting the error code and/or
+    providing a link/reference to more detailed explanations
+    (see internal/types/errors/codes.go).
+    
+    Change-Id: I0ff9368d8163499ffdac6adfe8331fdc4a19b4b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475198
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/time.go | 95 ++++++++++++++++++++++++++---------------------------
- 1 file changed, 47 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/base/print.go          |  5 ++-
+ src/cmd/compile/internal/escape/escape.go       |  2 +-
+ src/cmd/compile/internal/escape/graph.go        |  2 +-
+ src/cmd/compile/internal/ir/func.go             |  2 +-
+ src/cmd/compile/internal/noder/irgen.go         |  7 ++--
+ src/cmd/compile/internal/noder/noder.go         |  2 +-
+ src/cmd/compile/internal/noder/writer.go        |  2 +-
+ src/cmd/compile/internal/pkginit/initorder.go   |  3 +-
+ src/cmd/compile/internal/ssagen/abi.go          |  4 +-
+ src/cmd/compile/internal/ssagen/nowb.go         |  4 +-
+ src/cmd/compile/internal/ssagen/pgen.go         |  4 +-
+ src/cmd/compile/internal/staticdata/data.go     |  2 +-
+ src/cmd/compile/internal/staticdata/embed.go    | 14 +++----
+ src/cmd/compile/internal/typecheck/const.go     |  3 +-
+ src/cmd/compile/internal/typecheck/dcl.go       |  9 ++--
+ src/cmd/compile/internal/typecheck/stmt.go      | 55 +++++++++++++------------
+ src/cmd/compile/internal/typecheck/typecheck.go |  5 ++-
+ src/cmd/compile/internal/types/size.go          |  7 ++--
+ src/cmd/compile/internal/types/type.go          |  3 +-
+ src/cmd/compile/internal/walk/expr.go           |  4 +-
+ 20 files changed, 74 insertions(+), 65 deletions(-)

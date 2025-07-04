@@ -1,21 +1,19 @@
-commit 1ae306a5be7ad6edb5f06bf25b38e9cbabcc3556
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Wed Mar 22 13:28:08 2023 +0800
+commit 356c8c54521efb02cc2a103ac2b80c77f54b4bcd
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Tue May 3 09:32:19 2022 -0700
 
-    cmd/internal/obj/loong64: clean up code for short conditional branches
+    archive/zip: remove unused File.descErr field
     
-    Untangle the logic so the preparation of operands and actual assembling
-    (branch range checking included) are properly separated, making future
-    changes easier to review and maintain. No functional change intended.
+    Found via staticcheck. Unused as of CL 357489.
     
-    Change-Id: I1f73282f9d92ff23d84846453d3597ba66d207d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478376
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I3aa409994ba4388912ac7e7809168529a5b6e31c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403814
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kale B <kale@lemnisys.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/internal/obj/loong64/asm.go | 30 +++++++++++++++---------------
- 1 file changed, 15 insertions(+), 15 deletions(-)
+ src/archive/zip/reader.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

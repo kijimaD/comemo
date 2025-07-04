@@ -1,20 +1,21 @@
-commit d816f85f787bfa5114787687b085194d1cd3b468
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Apr 25 16:41:51 2023 -0500
+commit 293d43e17eaae8ccb83364e401538d51c035b8a4
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 5 18:47:23 2022 -0400
 
-    cmd/link/internal/loadelf: set AttrExternal on text section symbols
+    cmd/go: add index creation methods
     
-    PPC64 processes external object relocations against the section
-    symbols. This needs to be set correctly to determine the type of
-    PLT stub to generate when both Go and External code make PLT calls.
+    This change functions to scan modules and packages into an intermediate
+    RawPackage struct and also functions to write them out to and index.
     
-    Change-Id: I5abdd5a0473866164083c33e80324dffcc1707f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/488895
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia1a3b58b992e9be52c5d1397e85c642f902011cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398415
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/internal/loadelf/ldelf.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/modindex/build.go         |   8 +-
+ src/cmd/go/internal/modindex/index_format.txt |  47 +++++
+ src/cmd/go/internal/modindex/scan.go          | 246 ++++++++++++++++++++++++++
+ src/cmd/go/internal/modindex/write.go         | 155 ++++++++++++++++
+ 4 files changed, 452 insertions(+), 4 deletions(-)

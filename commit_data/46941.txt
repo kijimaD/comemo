@@ -1,21 +1,20 @@
-commit 067d796549242bec2d33226c9da1e67f092a7be2
+commit 1c162b41c5a6233d20cf714cb46764c14c61db03
 Author: Katie Hockman <katie@golang.org>
-Date:   Thu Oct 14 12:32:58 2021 -0400
+Date:   Wed Feb 17 14:56:47 2021 -0500
 
-    testing: write output to buffer when fuzzing
+    [dev.fuzz] internal/fuzz: remove duplicate read from testdata
     
-    Fixes #48709
+    We already read the seed corpus from testdata for the
+    fuzz target, and pass that corpus to the coordinator.
+    The coordinator doesn't need to read from testdata
+    again.
     
-    Change-Id: Ia6376a2f792946498d6565a53605b3e6c985ea7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355909
+    Change-Id: Ia7822e3e02b35d56f6918c7082a7b19901b36644
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293189
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_minimize.txt  | 20 ++++++++++++++--
- .../script/test_fuzz_minimize_interesting.txt      |  2 +-
- src/testing/fuzz.go                                | 28 +++++++++++++++-------
- 3 files changed, 39 insertions(+), 11 deletions(-)
+ src/internal/fuzz/fuzz.go | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

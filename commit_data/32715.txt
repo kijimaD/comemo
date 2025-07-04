@@ -1,17 +1,13 @@
-commit 9593b74a3c993c4ba472163e4011c9feec97e7b9
-Author: Sam Whited <sam@samwhited.com>
-Date:   Wed Mar 29 13:19:29 2017 -0500
+commit 64f064cac6e3e89f75873b7fa05af16537d28ccf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 19 15:12:49 2017 +1000
 
-    encoding/xml: add decode wrapper
+    net: make syscall name consistent with others
     
-    Fixes #19480
-    
-    Change-Id: I5a621507279d5bb1f3991b7a412d9a63039d464b
-    Reviewed-on: https://go-review.googlesource.com/38791
-    Run-TryBot: Sam Whited <sam@samwhited.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic6d2de92e1f533a9f9a0cd6d7dab463bdafb0e11
+    Reviewed-on: https://go-review.googlesource.com/43691
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
 
- src/encoding/xml/xml.go      | 37 +++++++++++++++++++++++++
- src/encoding/xml/xml_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 101 insertions(+)
+ src/net/fd_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

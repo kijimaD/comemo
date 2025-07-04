@@ -1,16 +1,12 @@
-commit 0b09a56a64ecd761258dd7f2046d72a64f32b25b
+commit 92703ff6053992f6ce1630e562afaa8eda88ba4f
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 26 13:11:22 2011 -0400
+Date:   Mon Sep 26 13:10:16 2011 -0400
 
-    test: disable sigchld test on Windows
+    unicode: fix make tables
     
-    Alex Brainman reports that this is the only test
-    that keeps us from running test/run.
-    
-    R=alex.brainman, lucio.dere, bradfitz, hectorchu
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4777043
+    https://golang.org/cl/5131044
 
- src/run.bash    | 1 -
- test/sigchld.go | 1 +
- 2 files changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/unicode/maketables.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

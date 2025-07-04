@@ -1,16 +1,18 @@
-commit b3a508c03e2c31135dcb39fa288a6482b3607249
+commit 300d9a21583e7cf0149a778a0611e76ff7c6680f
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Aug 22 20:29:33 2015 +0900
+Date:   Tue Jun 30 14:21:15 2015 -0700
 
-    cmd/compile: in usage messages, name the binary "compile" instead of "Xg"
+    net/http: harden Server against request smuggling
     
-    Fixes #12227
+    See RFC 7230.
     
-    Change-Id: I7c1b93e50736185a641fb637000aae2f15bc04ed
-    Reviewed-on: https://go-review.googlesource.com/13820
+    Thanks to Régis Leroy for the report.
+    
+    Change-Id: Ic1779bc2180900430d4d7a4938cac04ed73c304c
+    Reviewed-on: https://go-review.googlesource.com/11810
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/lex.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/readrequest_test.go | 65 ++++++++++++++++++++++++++++++++++++----
+ src/net/http/transfer.go         | 50 ++++++++++++++++++++++++-------
+ 2 files changed, 99 insertions(+), 16 deletions(-)

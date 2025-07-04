@@ -1,28 +1,30 @@
-commit 3c3b1d39bee6d208ab437e24ba942fbae789eb7f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 4 10:38:58 2023 -0700
+commit c2c76c6f198480f3c9aece4aa5d9b8de044d8457
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 14 16:47:57 2022 -0400
 
-    go/types, types2: infer minimum default type for untyped arguments
+    cmd/link: set alignment for carrier symbols
     
-    This implements the proposal #58671.
-    Must be explicitly enabled and requires proposal approval.
+    For carrier symbols like type.*, currently we don't set its
+    alignment. Normally it doesn't actually matter as we still align
+    the inner symbols. But in some cases it does make the symbol table
+    a bit weird, e.g. on darwin/arm64,
     
-    For #58671.
+    0000000000070000 s _runtime.types
+    0000000000070001 s _type.*
     
-    Change-Id: I150e78f4f3282d6b7cf9d90feeb5f1c5a36d8c38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492835
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    The address of the symbol _type.* is a bit weird. And the new
+    darwin linker from Xcode 14 beta doesn't like that (see issue
+    53372).
+    
+    This CL aligns them.
+    
+    Fixes #53372.
+    
+    Change-Id: I1cb19dcf172e9a6bca248d85a7e54da76cbbc8a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411912
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/api.go             |  5 ++
- src/cmd/compile/internal/types2/check_test.go      |  1 +
- src/cmd/compile/internal/types2/infer.go           | 83 +++++++++++++++-------
- src/go/types/api.go                                |  5 ++
- src/go/types/check_test.go                         |  1 +
- src/go/types/generate_test.go                      |  6 +-
- src/go/types/infer.go                              | 83 +++++++++++++++-------
- .../types/testdata/fixedbugs/issue58671.go         | 22 ++++++
- 8 files changed, 157 insertions(+), 49 deletions(-)
+ src/cmd/link/internal/ld/symtab.go | 4 ++++
+ 1 file changed, 4 insertions(+)

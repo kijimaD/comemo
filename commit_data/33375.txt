@@ -1,18 +1,18 @@
-commit 2dd110f9a73b369bebc1f1d99576ab2170827652
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Nov 1 17:06:52 2017 +0100
+commit 04d6f982ae63c4026bf5f65891547b3353d3b63b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 31 10:08:51 2017 -0700
 
-    runtime/pprof: use switch for GOOS check in testCPUProfile
+    runtime: remove link field from itab
     
-    Since CL 33071, testCPUProfile is only one user of the badOS map.
-    Replace it by the corresponding switch, with the "plan9" case removed
-    because it is already checked earlier in the same function.
+    We don't use it any more, remove it.
     
-    Change-Id: Id647b8ee1fd37516bb702b35b3c9296a4f56b61b
-    Reviewed-on: https://go-review.googlesource.com/75110
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I76ce1a4c2e7048fdd13a37d3718b5abf39ed9d26
+    Reviewed-on: https://go-review.googlesource.com/44474
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/pprof/pprof_test.go | 12 ++----------
- 1 file changed, 2 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 4 +---
+ src/cmd/compile/internal/gc/ssa.go     | 2 +-
+ src/cmd/compile/internal/gc/swt.go     | 2 +-
+ src/reflect/value.go                   | 1 -
+ src/runtime/runtime2.go                | 1 -
+ 5 files changed, 3 insertions(+), 7 deletions(-)

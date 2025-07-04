@@ -1,16 +1,24 @@
-commit 9a13f8e11ce487fccef071303164b3d963e6ede6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 28 05:03:09 2017 +0000
+commit 0564e304a6ea394a42929060c588469dbd6f32af
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 28 16:25:56 2017 -0700
 
-    cmd/go/internal/get: consistently have trailing slashes in prefixes
+    archive/tar: populate uname/gname/devmajor/devminor in FileInfoHeader
     
-    Fixes #18122
+    We take a best-effort approach since information for these fields
+    are not well supported on all platforms.
     
-    Change-Id: Ib4067422c0c447ddb2c3068dc6217393abc4eed0
-    Reviewed-on: https://go-review.googlesource.com/80175
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    user.LookupId+user.LookupGroupId is currently 15x slower than os.Stat.
+    For performance reasons, we perpetually cache username and groupname
+    with a sync.Map. As a result, this function will not be updated whenever
+    the user or group names are renamed in the OS. However, this is a better
+    situation than before, where those fields were not populated at all.
+    
+    Change-Id: I3cec8291aed7675dea89ee1cbda92bd493c8831f
+    Reviewed-on: https://go-review.googlesource.com/59531
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/get/vcs.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/archive/tar/stat_unix.go | 45 ++++++++++++++++++++++++++++++++++++++++----
+ src/go/build/deps_test.go    |  2 +-
+ 2 files changed, 42 insertions(+), 5 deletions(-)

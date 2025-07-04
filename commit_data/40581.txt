@@ -1,19 +1,16 @@
-commit 376c4ceab76591838623086ce387230cab5d0d5d
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Oct 31 09:52:21 2019 -0700
+commit 3cee55057f57a38003d8ff5f8495dbf82f91d5ef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 30 18:08:08 2019 -0400
 
-    cmd/vet: add test for loading complex values with a single instruction
+    os: deflake TestNewFileNonBlock
     
-    Actual fix will be submitted to x/tools and vendored.
-    This is just an end-to-end test for vet after that is done.
+    Fixes #32325
     
-    Update #35264
-    
-    Change-Id: I1a63f607e7cfa7aafee23c2c081086c276d3c38c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204538
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ic06938c36a25ef1a6623e35e128b73729d02d955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179698
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/testdata/asm/asm.go |  2 ++
- src/cmd/vet/testdata/asm/asm1.s | 15 +++++++++++++++
- 2 files changed, 17 insertions(+)
+ src/os/os_unix_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

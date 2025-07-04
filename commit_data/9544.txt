@@ -1,13 +1,16 @@
-commit 2afc46f2b213336ca4ac1d518b9e9d4f6b5b0fbc
-Author: Jaroslavas Počepko <jp@webmaster.ms>
-Date:   Mon Aug 29 15:38:12 2011 -0400
+commit eae0a48cf505f5015d59640c9538570eb45ab1b5
+Author: Mateusz Czapliński <czapkofan@gmail.com>
+Date:   Mon Aug 29 14:25:43 2011 -0400
 
-    doc/progs: fix windows/amd64
+    libmach: support reading symbols from Windows .exe for nm
     
-    R=rsc
-    CC=alex.brainman, golang-dev, vcc.163
-    https://golang.org/cl/4965050
+    Fixes #979.
+    
+    R=rsc, alex.brainman
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/4894051
 
- doc/progs/file_windows.go | 2 +-
- doc/progs/run             | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ include/mach.h           |   1 +
+ src/cmd/ld/pe.c          |  32 ++++++---
+ src/libmach/executable.c | 168 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 193 insertions(+), 8 deletions(-)

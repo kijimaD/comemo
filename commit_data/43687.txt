@@ -1,26 +1,33 @@
-commit 45205bc47b88f49020edabed18f99153cadf718e
-Author: Alwin Doss <alwindoss84@gmail.com>
-Date:   Sun Nov 1 04:43:20 2020 +0000
+commit 1cca496c5e6b49de4fef26bb118b3a65e4cec72c
+Author: David Finkel <david.finkel@gmail.com>
+Date:   Mon Apr 20 18:15:50 2020 -0400
 
-    os: export ErrProcessDone variable in windows and plan9
+    Revert "Revert "cmd/compile: adjust RISCV64 rewrite rules to use typed aux fields""
     
-    Exposes ErrProcessDone variable in windows and plan9
-    also returns this error code instead of
-    errors.New("os: process already finished")
+    This reverts commit 98c32670fd454939794504225dca1d4ec55045d5.
     
-    Fixes #42311
+    Rolling-forward with trivial format-string fix
     
-    Change-Id: Ie807b6526e7b6c27636e6bffe5ff0c904b319be4
-    GitHub-Last-Rev: 2153e0d7020d8ee9e94087d02977ea049b7fd6a0
-    GitHub-Pull-Request: golang/go#42313
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266997
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    cmd/compile: adjust RISCV64 rewrite rules to use typed aux fields
+    
+    Also add a typed version of mergeSym to rewrite.go to assist with a few
+    rules that used mergeSym in the untyped-form.
+    
+    Remove a few extra int32 overflow checks that no longer make sense, as
+    adding two int8s or int16s should never overflow an int32.
+    
+    Passes toolstash-check -all.
+    
+    Original review: https://go-review.googlesource.com/c/go/+/228882
+    
+    Change-Id: Ib63db4ee1687446f0f3d9f11575a40dd85cbce55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229126
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/os/exec.go         | 4 ++++
- src/os/exec_plan9.go   | 3 +--
- src/os/exec_unix.go    | 3 ---
- src/os/exec_windows.go | 2 +-
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/fmtmap_test.go                 |    1 +
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  794 +++++++--------
+ src/cmd/compile/internal/ssa/rewrite.go        |    9 +
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 1293 ++++++++++++------------
+ 4 files changed, 1066 insertions(+), 1031 deletions(-)

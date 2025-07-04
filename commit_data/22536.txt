@@ -1,17 +1,27 @@
-commit 8262a8fbef54c67d63ec80317ea9a64b8fd0c7d1
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Wed Apr 8 15:39:25 2015 +0200
+commit 98182c86b1e5536ec617793e9127a76197e88ba0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 20 13:02:56 2015 -0700
 
-    cmd/7g: change CHECKNIL sequence
+    math/big: enable pure Go (no assembly) build with build tag
     
-    We can use CBNZ instruction and make it one instruction shorter.
+    To use a pure Go implementation of the low-level arithmetic
+    functions (when no platform-specific assembly implementations
+    are available), set the build tag math_big_pure_go.
     
-    Saves 66kB in godoc.
+    This will make it easy to vendor the math/big package where no
+    assembly is available (for instance for use with gc which relies
+    on 1.4 functionality for now).
     
-    Change-Id: Ie71fe7cf31e7f73644ee926f4f9624c009c3eb1a
-    Reviewed-on: https://go-review.googlesource.com/8634
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I91e17c0fdc568a20ec1512d7c64621241dc60c17
+    Reviewed-on: https://go-review.googlesource.com/7856
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/7g/ggen.go | 35 +++++++++++------------------------
- src/cmd/7g/prog.go |  2 ++
- 2 files changed, 13 insertions(+), 24 deletions(-)
+ src/math/big/arith_386.s        |  2 ++
+ src/math/big/arith_amd64.s      |  2 ++
+ src/math/big/arith_amd64p32.s   |  2 ++
+ src/math/big/arith_arm.s        |  2 ++
+ src/math/big/arith_arm64.s      |  2 ++
+ src/math/big/arith_decl.go      |  2 ++
+ src/math/big/arith_decl_pure.go | 55 +++++++++++++++++++++++++++++++++++++++++
+ src/math/big/arith_ppc64x.s     |  2 +-
+ 8 files changed, 68 insertions(+), 1 deletion(-)

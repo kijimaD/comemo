@@ -1,31 +1,29 @@
-commit 771b8ea4f4c56b3e27351807ade7ef72c3a15750
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Sep 18 23:46:47 2021 +0700
+commit e09783cbc0a7142719c6210b4eda7b21daad91d5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 5 03:27:46 2021 -0800
 
-    cmd/compile: fix missing markHiddenClosureDead in deadcode pass
+    [dev.regabi] cmd/compile: make ir.StaticValue safer
     
-    CL 342350 fixed panic with dead hidden closures, by marking discarded
-    hidden closure as dead, and won't compile them. However, the fix is
-    incomplete. In case the "if" or "else" block end with panic or return
-    statement:
+    ir.StaticValue currently relies on CaptureVars setting Addrtaken for
+    variables that are assigned within nested function literals. We want
+    to move that logic to escape analysis, but ir.StaticValue is used in
+    inlining and devirtualization, which happen before escape
+    analysis.
     
-            if true { return }
-            # All nodes starts from here are dead
+    The long-term solution here is to generalize escape analysis's precise
+    reassignment tracking for use by other optimization passes, but for
+    now we just generalize ir.StaticValue to not depend on Addrtaken
+    anymore. Instead, it now also pays attention to OADDR nodes as well as
+    recurses into OCLOSURE bodies.
     
-    the dead nodes must be processed with markHiddenClosureDead, but they
-    are not, causing the compiler crashes.
+    Passes toolstash -cmp.
     
-    This CL adds that missing part.
-    
-    Fixes #48459
-    
-    Change-Id: Ibdd10a61fc6459d139bbf4a66b0893b523ac6b67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350695
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I6114e3277fb70b235f4423d2983d0433c881f79f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281540
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/deadcode/deadcode.go |  1 +
- test/fixedbugs/issue48459.go                  | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+)
+ src/cmd/compile/internal/ir/expr.go | 38 ++++++++++++++++++++++++++++++++-----
+ 1 file changed, 33 insertions(+), 5 deletions(-)

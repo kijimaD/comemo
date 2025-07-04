@@ -1,25 +1,28 @@
-commit 5e9820245574bdf67f28156db4b00191b1b3696f
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Fri Mar 14 12:04:51 2025 -0700
+commit 628b1015b972eabcc0a678ab69a74601239c40a4
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 7 17:40:24 2024 +0100
 
-    internal/buildcfg: expand spinbitmutex platforms
+    os: add os.ModeSocket support to os.Stat on windows
     
-    Go 1.24 included the spinbitmutex GOEXPERIMENT for several popular
-    architectures, based on their native support an atomic primitive (8-bit
-    exchange) that aided its efficient implementation.
+    Unix sockets are identified by the IO_REPARSE_TAG_AF_UNIX reparse tag.
     
-    Move towards making the new mutex implementation permanent, so it fully
-    replaces the two previous (sema- and futex-based "tristate")
-    implementations.
+    Teach fileStat.Mode() to recognize this tag and set the os.ModeSocket
+    bit in such case.
     
-    For #68578
+    Note that there is a bug starting in Windows 19H1 until 20H1 that
+    makes the IO_REPARSE_TAG_AF_UNIX tag not being set for unix sockets.
+    This CL doesn't provide a workaround for this bug.
     
-    Change-Id: I888a73959df42eb0ec53875309c446675af8f09d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658455
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #33357.
+    
+    Change-Id: Iea8f24b20672c8d4b03f55ef298d128431dc3fac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561937
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/internal/buildcfg/exp.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/internal/syscall/windows/reparse_windows.go |  3 ++
+ src/net/unixsock_windows_test.go                | 20 +++++++++++++
+ src/os/types_windows.go                         | 39 ++++++++++++++-----------
+ 3 files changed, 45 insertions(+), 17 deletions(-)

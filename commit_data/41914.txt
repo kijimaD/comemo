@@ -1,22 +1,18 @@
-commit 64dcef3045161022d69f32b69d23f771b53c0922
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 11 14:49:37 2020 -0700
+commit a570fcf74bdf652f453ed5dc0d8a41b15f1af8de
+Author: empijei <robclap8@gmail.com>
+Date:   Wed Oct 16 06:56:10 2019 +0200
 
-    cmd/compile: guard against invalid phis in shortcircuit
+    net/http: clarify Header.WriteSubset behavior
     
-    In the review of CL 222923, Keith expressed concern
-    that we could end up with invalid phis.
+    The current implementation performs a plain map lookup,
+    but other header methods canonicalize header keys before
+    using them.
     
-    We have some code to handle this, but on further reflection,
-    I think it might not handle some cases in which phis get moved.
+    Fixes #34918
     
-    I can't create a failing case, but guard against it nevertheless.
-    
-    Change-Id: Ib3a07ac1d36a674c72dcb9cc9261ccfcb716b5a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227697
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Id4120488b8b39ecee97fa7a6ad8a34158687ffcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/shortcircuit.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/net/http/header.go | 1 +
+ 1 file changed, 1 insertion(+)

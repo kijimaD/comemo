@@ -1,25 +1,15 @@
-commit 72e83483a7d2594c9f5072e420a1c8cb9f88c409
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Aug 18 12:17:09 2011 -0400
+commit 4cf630da0feea55844ac26356bcefbd95ceb665b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 18 16:07:28 2011 +1000
 
-    runtime: speed up cgo calls
+    exp/template: remove else and end nodes from public view.
+    They are used internally and do not appear in the final parse tree.
     
-    Allocate Defer on stack during cgo calls, as suggested
-    by dvyukov. Also includes some comment corrections.
-    
-    benchmark                   old,ns/op   new,ns/op
-    BenchmarkCgoCall                  669         330
-    (Intel Xeon CPU 1.80GHz * 4, Linux 386)
-    
-    R=dvyukov, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4910041
+    https://golang.org/cl/4905052
 
- misc/cgo/test/basic.go      | 12 ++++++++++++
- misc/cgo/test/cgo_test.go   |  2 ++
- src/pkg/runtime/386/asm.s   |  8 ++++----
- src/pkg/runtime/amd64/asm.s |  8 ++++----
- src/pkg/runtime/cgocall.c   | 44 +++++++++++++++++++++-----------------------
- src/pkg/runtime/proc.c      | 12 ++++++++----
- src/pkg/runtime/runtime.h   |  1 +
- 7 files changed, 52 insertions(+), 35 deletions(-)
+ src/pkg/template/parse/node.go  | 31 ++++++++++++++++---------------
+ src/pkg/template/parse/parse.go |  8 ++++----
+ src/pkg/template/parse/set.go   |  2 +-
+ 3 files changed, 21 insertions(+), 20 deletions(-)

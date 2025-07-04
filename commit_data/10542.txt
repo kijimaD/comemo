@@ -1,26 +1,27 @@
-commit 3b3922771a1ace2e4781f7e53a16cf566f2c27bf
+commit e32f4ba77d920411e916cece41b3a40e0db0a074
 Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Nov 30 15:37:41 2011 +1100
+Date:   Wed Nov 30 11:44:54 2011 +1100
 
-    html: parse <xmp> tags
+    html: parse the contents of <iframe> elements as raw text
     
-    Pass tests5.dat, test 10:
-    <p><xmp></xmp>
+    Pass tests5.dat, test 4:
+    <iframe> <!---> </iframe>x
     
     | <html>
     |   <head>
     |   <body>
-    |     <p>
-    |     <xmp>
+    |     <iframe>
+    |       " <!---> "
+    |     "x"
     
-    Also pass the remaining tests in tests5.dat.
+    Also pass tests through test 9:
+    <style> <!</-- </style>x
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5440062
+    https://golang.org/cl/5450044
 
- src/pkg/html/parse.go      | 5 +++++
- src/pkg/html/parse_test.go | 2 +-
+ src/pkg/html/parse_test.go | 2 ++
  src/pkg/html/render.go     | 2 +-
- src/pkg/html/token.go      | 8 ++++----
- 4 files changed, 11 insertions(+), 6 deletions(-)
+ src/pkg/html/token.go      | 7 +++----
+ 3 files changed, 6 insertions(+), 5 deletions(-)

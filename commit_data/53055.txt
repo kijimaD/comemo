@@ -1,36 +1,49 @@
-commit b3d1cce3eb26a08420d803df872721bfd370e3ed
-Author: David Chase <drchase@google.com>
-Date:   Wed May 10 19:29:18 2023 -0400
+commit 993c387032fb569ca8fe1ff2b3c1822304c0ecca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 29 13:11:33 2022 -0700
 
-    cmd/compile: add more information to the bisect-verbose report
+    os: simplify deadline fluctuation tests
     
-    running on cmd/compile/internal/testdata/inlines now shows:
-    ```
-    --- change set #1 (enabling changes causes failure)
-    b/b.go:16:6: loop variable i now per-iteration (loop inlined into b/b.go:10)
-    b/b.go:16:6: loop variable i now per-iteration
-    ./b/b.go:16:6: loop variable b.i now per-iteration (loop inlined into a/a.go:18)
-    ./b/b.go:16:6: loop variable b.i now per-iteration (loop inlined into ./main.go:37)
-    ./b/b.go:16:6: loop variable b.i now per-iteration (loop inlined into ./main.go:38)
-    ---
-    ```
-    and
-    ```
-    --- change set #2 (enabling changes causes failure)
-    ./main.go:27:6: loop variable i now per-iteration
-    ./main.go:27:6: loop variable i now per-iteration (loop inlined into ./main.go:35)
-    ---
-    ```
+    This applies the net package CL 365334, CL 366176, CL 372215 to the os
+    package.
     
-    Still unsure about the utility of mentioning the inlined occurrence, but better
-    than mysteriously repeating the line over and over again.
+    CL 365334:
     
-    Change-Id: I357f5d419ab4928fa316f4612eec3b75e7f8ac34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494296
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+        These tests were checking for fairly narrow timing windows, but were
+        running in parallel and heavily dependent on timer and goroutine
+        scheduling. This change eliminates unnecessary goroutines, runs the
+        tests sequentially (dramatically shortening the timeouts to reduce the
+        penalty of doing so), and uses timestamp comparison instead of
+        background timers to hopefully gain some robustness from monotonic
+        timestamps.
+    
+        Many of the other tests from this package would benefit from similar
+        simplifications, which we can apply if and when we notice flaky
+        failures or want to improve the latency of running the test.
+    
+    CL 366176:
+    
+        It appears that at least the OpenBSD kernel gets sloppier the longer
+        the timeout we give it, up to an observed overhead of around 25%.
+        Let's give it a little more than that (33%) in the comparison, and
+        also increase the growth curve to match the actual observed times
+        instead of exponential initial growth.
+    
+    CL 372215:
+    
+        Decrease the slop everywhere else, since NetBSD and OpenBSD seem to be
+        the only ones that miss by that much.
+    
+    For #36108
+    For #50189
+    Fixes #50725 (we hope)
+    
+    Change-Id: I0854d27af67ca9fcf0f9d9e4ff67acff4c2effc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415234
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/loopvar/loopvar.go      | 20 ++++++++++++++++++--
- src/cmd/compile/internal/loopvar/loopvar_test.go | 11 ++++++++---
- 2 files changed, 26 insertions(+), 5 deletions(-)
+ src/net/timeout_test.go |  10 +++
+ src/os/timeout_test.go  | 206 +++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 154 insertions(+), 62 deletions(-)

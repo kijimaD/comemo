@@ -1,23 +1,22 @@
-commit 32304fc970177d18e3cf07ca7dfd217314f6a7e9
-Author: rubyist <scott.barron@github.com>
-Date:   Tue Feb 10 10:24:01 2015 -0500
+commit d1210acffd19482a0471f68d62baf10695fee8b9
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Wed Jan 7 19:56:06 2015 +0100
 
-    crypto/x509: allow matchHostnames to work with absolute domain names
+    time: correctly parse large input durations and avoid precision loss
     
-    If an absolute domain name (i.e. ends in a '.' like "example.com.") is used
-    with ssl/tls, the certificate will be reported as invalid. In matchHostnames,
-    the host and patterns are split on '.' and if the lengths of the resulting
-    slices do not match, the function returns false. When splitting an absolute
-    domain name on '.', the slice will have an extra empty string at the end. This
-    empty string should be discarded before comparison, if present.
+    Do not lose precision for durations specified without fractions
+    that can be represented by an int64 such as 1<<53+1 nanoseconds.
+    Previously there was some precision lost in floating point conversion.
     
-    Fixes #9828
+    Handle overflow for durations above 1<<63-1 nanoseconds but not earlier.
     
-    Change-Id: I0e39674b44a6f93b5024497e76cf1b550832a61d
-    Reviewed-on: https://go-review.googlesource.com/4380
-    Reviewed-by: Adam Langley <agl@golang.org>
-    TryBot: Adam Langley <agl@golang.org>
+    Add tests to cover the above cases.
+    
+    Change-Id: I4bcda93cee1673e501ecb6a9eef3914ee29aecd2
+    Reviewed-on: https://go-review.googlesource.com/2461
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/verify.go    | 2 ++
- src/crypto/x509/x509_test.go | 5 +++++
- 2 files changed, 7 insertions(+)
+ src/time/format.go    | 71 +++++++++++++++++++++++++++++++--------------------
+ src/time/time_test.go | 23 ++++++++++++++++-
+ 2 files changed, 66 insertions(+), 28 deletions(-)

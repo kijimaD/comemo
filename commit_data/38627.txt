@@ -1,16 +1,23 @@
-commit 20389553c7d287a4fffb9718e328a514640a915c
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Mar 20 03:58:42 2019 +1100
+commit ec4ae29f52cee3f6e448d8279708ea47d553f35f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 22 16:36:24 2018 -0400
 
-    crypto/tls: simplify intermediate certificate handling
+    cmd/link: abstract DWARF metadata symbol lookup
     
-    The certificates argument to verifyServerCertificate must contain
-    at least one certificate. Simplify the intermediate certificate
-    handling code accordingly.
+    The compiler passes a lot of DWARF metadata about functions to the
+    linker via symbols whose names are derived from the function's own
+    symbol name. We look up these symbols in several places. This is about
+    to get slightly more complex as we introduce ABIs as symbol versions,
+    so abstract this lookup pattern into a helper function.
     
-    Change-Id: I8292cdfb51f418e011d6d97f47d10b4e631aa932
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169657
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    For #27539.
+    
+    Change-Id: Ic71f6b5dc6608a5a5f5f515808981e6d6f5d728e
+    Reviewed-on: https://go-review.googlesource.com/c/146858
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/crypto/tls/handshake_client.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

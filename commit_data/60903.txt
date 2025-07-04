@@ -1,0 +1,20 @@
+commit ba2a16cb63ec81703198f05e9d7bf6f1c892f9df
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 15:42:26 2024 -0700
+
+    cmd/go/internal/auth: use sync.OnceValues
+    
+    Use sync.OnceValues (CL 451356, since Go 1.21) instead of sync.Once for
+    cleaner code and less global variables, preventing their potential
+    misuse.
+    
+    Change-Id: I9d7ccc42847fe77af1757672c31bb39e20007f92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611016
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/auth/auth.go  |  6 +++++-
+ src/cmd/go/internal/auth/netrc.go | 21 +++++++--------------
+ 2 files changed, 12 insertions(+), 15 deletions(-)

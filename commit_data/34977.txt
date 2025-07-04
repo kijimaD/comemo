@@ -1,21 +1,18 @@
-commit 70d83eda99d0687ba07348ca773ee8bf3e9bbfa9
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 4 13:41:30 2018 +0100
+commit aaccb3834c37a923659d1dc1004dcde94f04d871
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 30 15:47:04 2017 -0500
 
-    time: add wasm architecture
+    runtime: improve sigsend documentation
     
-    This commit adds the wasm architecture to the time package.
+    I think of "sending" a signal as calling kill, but sigsend is involved
+    in handling a signal and, specifically delivering it to the internal
+    signal queue. The term "delivery" is already used in
+    signalWaitUntilIdle, so this CL also uses it in the documentation for
+    sigsend.
     
-    Updates #18892
-    
-    Change-Id: I86841e096894eacf7f972add9a532491e4d00014
-    Reviewed-on: https://go-review.googlesource.com/106997
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I86e171f247f525ece884a680bace616fa9a3c7bd
+    Reviewed-on: https://go-review.googlesource.com/81235
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/time_js_wasm.s | 11 +++++++++++
- src/syscall/timestruct.go  |  2 +-
- src/time/sys_unix.go       |  2 +-
- src/time/zoneinfo_unix.go  |  2 +-
- 4 files changed, 14 insertions(+), 3 deletions(-)
+ src/runtime/sigqueue.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

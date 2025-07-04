@@ -1,27 +1,26 @@
-commit 56462d0f10f4d88f30e0b9a6763835c85c3cd632
-Author: Austin Clements <austin@google.com>
-Date:   Tue Sep 26 19:42:26 2017 -0400
+commit c52aca1c761f724c3192ee0ac4f4a19754fc5948
+Author: Jed Denlea <jed@fastly.com>
+Date:   Thu Jun 15 15:53:09 2017 -0700
 
-    runtime: normalize (*sigctxt).fault() type
+    image/gif: fix writeImageBlock with SubImages
     
-    (*sigctxt).fault() currently returns either uintptr, uint32, or uint64
-    depending on the platform. Make them all return uintptr.
+    If an image has been cropped horizontally, writeImageBlock detects that
+    its width and Stride differ and acts accordingly.
     
-    For #10958 (but a nice change on its own).
+    However, if an image has been cropped vertically, trimming from the
+    bottom, the whole original image will be written in place.  This results
+    in more data in the LZW stream than necessary, and many decoders
+    including image/gif's itself will fail to load.
     
-    Change-Id: I7813e779d0edcba112dd47fda776f4ce6e50e227
-    Reviewed-on: https://go-review.googlesource.com/68015
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #20692
+    
+    Change-Id: Id332877e31bcf3729c89d8a50c1be0464028d82e
+    Reviewed-on: https://go-review.googlesource.com/45972
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/runtime/signal_darwin_arm.go   | 2 +-
- src/runtime/signal_darwin_arm64.go | 2 +-
- src/runtime/signal_freebsd_arm.go  | 2 +-
- src/runtime/signal_linux_arm.go    | 2 +-
- src/runtime/signal_linux_arm64.go  | 2 +-
- src/runtime/signal_linux_ppc64x.go | 2 +-
- src/runtime/signal_nacl_arm.go     | 2 +-
- src/runtime/signal_netbsd_arm.go   | 2 +-
- src/runtime/signal_openbsd_arm.go  | 2 +-
- 9 files changed, 9 insertions(+), 9 deletions(-)
+ src/image/gif/writer.go      |  2 +-
+ src/image/gif/writer_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

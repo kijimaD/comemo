@@ -1,16 +1,13 @@
-commit 7a481178990eabdfc74f171463967341a34fd30f
-Author: mattn <mattn.jp@gmail.com>
-Date:   Tue Feb 10 11:06:02 2015 +0900
+commit 27838f3990f345629b397f9f3902163392f08f9d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 20 10:52:41 2015 -0700
 
-    os,internal/syscall/windows: use ReadFile/MultiByteToWideChar to read from console
+    cmd/compile/internal/gc: remove atoi function (minor cleanup)
     
-    Fixes #6303
-    
-    Change-Id: Ib2cd15ac6106ef8e6b975943db8efc8d8ab21052
-    Reviewed-on: https://go-review.googlesource.com/4310
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0ad7836c0e8d70ffdc458e125d97b01e85d8a608
+    Reviewed-on: https://go-review.googlesource.com/16130
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/syscall/windows/syscall_windows.go  |  3 ++
- src/internal/syscall/windows/zsyscall_windows.go | 28 +++++++++++++++++
- src/os/file_windows.go                           | 40 ++++++++++++++++--------
- 3 files changed, 58 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/esc.go  | 4 +++-
+ src/cmd/compile/internal/gc/util.go | 7 -------
+ 2 files changed, 3 insertions(+), 8 deletions(-)

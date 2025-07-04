@@ -1,39 +1,21 @@
-commit 5430203a1e7f3ba3af70b17bf2eeb61efda2ae58
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Nov 9 13:54:57 2021 -0500
+commit 3cdd5c3bcc53298dd7de39cb6e2bd600308988b8
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Thu Nov 12 16:02:55 2020 +0100
 
-    all: update vendored golang.org/x/tools for Go 1.18 release
+    cmd/link: regression test for issue #42484
     
-    The Go 1.18 code freeze has recently started. This is a time to update
-    all golang.org/x/... module versions that contribute packages to the
-    std and cmd modules in the standard library to latest master versions.
+    Adds test to check that the compiler does not emit duplicate debug_line
+    entries for the end of sequence address.
     
-    This CL updates only the tools module, keeping mod unchanged because
-    its lastest commit isn't ready to be vendored yet.
+    Updates #42484
     
-    For #36905.
-    Updates #49350.
-    
-    Change-Id: Ib39713d28a55fc9ec79058aab9919eba912def5f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361094
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I3c5d1d606fcfd758aa1fd83ecc51d8edc054398b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270197
     TryBot-Result: Go Bot <gobot@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go.mod                                     |   4 +-
- src/cmd/go.sum                                     |   8 +-
- .../x/tools/go/analysis/internal/facts/imports.go  |  33 +++-
- .../tools/go/analysis/passes/copylock/copylock.go  |  75 ++++++--
- .../tools/go/analysis/passes/ctrlflow/ctrlflow.go  |   6 +-
- .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |   6 +
- .../x/tools/go/analysis/passes/printf/printf.go    |  38 ++--
- .../x/tools/go/analysis/passes/printf/types.go     | 211 +++++++++++++--------
- .../x/tools/go/analysis/passes/shift/shift.go      |  26 ++-
- .../go/analysis/passes/stringintconv/string.go     | 132 ++++++++++---
- .../passes/testinggoroutine/testinggoroutine.go    |  23 ++-
- .../x/tools/go/analysis/passes/tests/tests.go      |  10 +
- .../analysis/passes/unusedresult/unusedresult.go   |   6 +
- .../golang.org/x/tools/go/types/typeutil/callee.go |  30 ++-
- src/cmd/vendor/modules.txt                         |   4 +-
- 15 files changed, 467 insertions(+), 145 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go             | 71 ++++++++++++++++++++++
+ .../link/internal/ld/testdata/issue42484/main.go   | 16 +++++
+ 2 files changed, 87 insertions(+)

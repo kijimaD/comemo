@@ -1,19 +1,19 @@
-commit 77e42fdeaf98d241dc09f4eb92e09225aea8f4c3
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Sep 9 16:26:41 2024 +0000
+commit 2d2662f8d0b50d123da2f6674308cf5e0c21e062
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Aug 2 16:38:12 2023 +0800
 
-    net/http: make use of maps.Clone for Transport.{Clone, RegisterProtocol}
+    cmd/fix: use reflect.TypeFor for known types
     
-    Not a big deal, maybe it's a bit clearer that it's cloning a map.
+    For #60088
     
-    Change-Id: I7c85382a01df97d1f58109b2483061e6decdf03a
-    GitHub-Last-Rev: 7a88af7f56ab7ad017081187e226e901752fa8bc
-    GitHub-Pull-Request: golang/go#69357
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612015
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: Id19435e864bcfd2adbb1492db3f8cdf2ee3c915e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515175
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/net/http/transport.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/fix/cftype.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

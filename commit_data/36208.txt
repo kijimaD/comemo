@@ -1,29 +1,21 @@
-commit b800f202dc4d4281edd56ec40ea58f09dac8b730
-Author: Austin Clements <austin@google.com>
-Date:   Fri Aug 3 11:34:11 2018 -0400
+commit 16f32a0726567ddba7627629b7557086058fbe70
+Author: Eric Rykwalder <e.rykwalder@gmail.com>
+Date:   Mon Apr 2 22:15:59 2018 -0700
 
-    runtime: document assumption about wbBufFlush argument slots
+    database/sql: return context errors from Rows.Scan
     
-    gcWriteBarrier and wbBufFlush assume that not writing to an argument
-    variable is sufficient to not clobber the corresponding argument slot.
-    This assumption lets us simplify the write barrier assembly code,
-    speed up the flush path, and reduce the stack usage of the write
-    barrier.
+    The previous implementation would return "sql: Rows are closed" for any
+    context errors, which can be confusing for context timeouts or
+    cancelations.
     
-    But it is an assumption, so this CL documents it to make this clear.
+    Fixes #24431
     
-    Alternatively, we could separate the register spill slots from the
-    argument slots in the write barrier, but that loses the advantages
-    above. On the other hand, it's extremely unlikely that we'll change
-    the behavior of the compiler to start clobbering argument slots (if
-    anything, we'd probably change it to *not* clobber argument slots even
-    if you wrote to the arguments).
-    
-    Fixes #25512.
-    
-    Change-Id: Ib2cf29c0d90956ca02b997ef6e7fa56fc8044efe
-    Reviewed-on: https://go-review.googlesource.com/127815
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I884904ec43204c43f4e94e2335b2802aab77a888
+    Reviewed-on: https://go-review.googlesource.com/104276
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mwbbuf.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/database/sql/sql.go      | 5 +++++
+ src/database/sql/sql_test.go | 4 ++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

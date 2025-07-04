@@ -1,14 +1,15 @@
-commit 9a8a20bdb831144a2e12c3d6f2ac32d7c94e7b21
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Jul 18 21:00:35 2014 -0400
+commit d2f322e9be85d4888a166a271f5a7fb2b2d8333c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 18 12:41:20 2014 -0700
 
-    codereview: revive the tests.
+    runtime: use uint32 arrays in BenchmarkClearFat*
     
-    LGTM=rsc
-    R=rsc
+    The CopyFat benchmarks were changed in CL 92760044. See CL 111350043 for discussion.
+    
+    LGTM=khr
+    R=khr
     CC=golang-codereviews
-    https://golang.org/cl/105500043
+    https://golang.org/cl/116000043
 
- lib/codereview/codereview.py | 24 ++++++++++++++++++++----
- lib/codereview/test.sh       | 21 +++++++++++----------
- 2 files changed, 31 insertions(+), 14 deletions(-)
+ src/pkg/runtime/memmove_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

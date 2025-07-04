@@ -1,39 +1,33 @@
-commit e85968670e35fc24987944c56277d80d7884e9cc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 23 13:21:19 2024 -0800
+commit a432d89137ae09c76717695064d8b1b13344b32b
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Fri Nov 11 06:10:59 2022 -0600
 
-    go/types, types2: better error msg when type inference fails in a call
+    cmd/compile: add rules to emit SETBC/R instructions on power10
     
-    In Checker.infer, report an error through an (incoming) *error_
-    so that the error can be reported as desired where infer is called.
-    Checker.infer is now a pure function.
+    This CL adds rules that replaces instances of ISEL that produce
+    a boolean result based on a condition register by SETBC/SETBCR
+    operations. On Power10 these are convereted to SETBC/SETBCR
+    instructions that use one register instead of 3 registers
+    conventionally used by ISEL and hence reduces register pressure.
+    On loops written specifically to exercise such instances of ISEL
+    extensively, a performance improvement of 2.5% is seen on Power10.
+    Also added verification tests to verify correct generation of
+    SETBC/SETBCR instructions on Power10.
     
-    Fixes #60543.
-    
-    At call sites of Checker.infer, pass in an *error_ and use it to
-    report inference errors, together with additional information as
-    desired.
-    
-    Fixes #60542.
-    
-    In go/types, in error_.errorf, pass in a positioner rather than
-    a token.Pos. Also, introduce noposn, the positioner equivalent
-    for nopos. Adjust call sites as needed.
-    
-    Change-Id: I462a7899a77a8bee2a21ba88299df237d74e0672
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558035
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ib719897f09d893de40324440a43052dca026e8fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449795
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/call.go            | 16 ++++++++++++----
- src/cmd/compile/internal/types2/infer.go           | 22 +++++++++++-----------
- src/go/types/assignments.go                        |  6 +++---
- src/go/types/call.go                               | 20 ++++++++++++++------
- src/go/types/check.go                              |  3 ++-
- src/go/types/errors.go                             | 12 ++++++------
- src/go/types/errors_test.go                        |  4 ++--
- src/go/types/infer.go                              | 22 +++++++++++-----------
- .../types/testdata/fixedbugs/issue60542.go         |  2 +-
- 9 files changed, 62 insertions(+), 45 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go              |    7 +
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules      |  105 +-
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      |    5 +
+ .../compile/internal/ssa/_gen/PPC64latelower.rules |    9 +
+ src/cmd/compile/internal/ssa/opGen.go              |   24 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go       | 3652 ++++++++++----------
+ .../compile/internal/ssa/rewritePPC64latelower.go  |  126 +
+ test/codegen/bool.go                               |  156 +
+ 8 files changed, 2242 insertions(+), 1842 deletions(-)

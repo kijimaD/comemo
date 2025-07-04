@@ -1,13 +1,12 @@
-commit b3309877114d1953f47f484101a9d2e317e5c6ec
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 8 18:57:19 2016 +0000
+commit 90a68935733ef37d41cb520ffeb56f196a356811
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Dec 17 18:07:01 2015 -0700
 
-    cmd/compile: fix old comment references to go.y
+    doc: fix typo in go1.6.html
     
-    Change-Id: Iec323998133ef20ff962f06a46d15dd342a82f5f
-    Reviewed-on: https://go-review.googlesource.com/20390
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7405cf6f65bccbb07a27f2dc2e3802cab591e296
+    Reviewed-on: https://go-review.googlesource.com/18030
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |  3 +--
- src/cmd/compile/internal/gc/bimport.go | 44 +++++++++++++++++-----------------
- 2 files changed, 23 insertions(+), 24 deletions(-)
+ doc/go1.6.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

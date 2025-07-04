@@ -1,35 +1,23 @@
-commit 1416cebdd54b4d96f6095db18002ae3f90f1f4c0
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Thu Aug 8 15:24:15 2024 -0700
+commit 6305d7fdd3a5c9d50010c04f4c418444517082ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 5 12:12:35 2023 -0400
 
-    runtime: record all sampled mutex profile events
+    cmd/go: pass GoVersion in vet config
     
-    The block and mutex profiles have slightly different behaviors when a
-    sampled event has a negative (or zero) duration. The block profile
-    enforces a minimum duration for each event of "1" in the cputicks unit.
-    It does so by clamping the duration to 1 if it was originally reported
-    as being smaller. The mutex profile for app-level contention enforces a
-    minimum duration of 0 in a similar way: by reporting any negative values
-    as 0 instead.
+    When invoking a vet tool with -vettool (or vet itself),
+    we need to pass the package's GoVersion to use when
+    analyzing the package.
     
-    The mutex profile for runtime-internal contention had a different
-    behavior: to enforce a minimum event duration of "1" by dropping any
-    non-conforming samples.
+    The test of this behavior is in the x/tools/go/analysis CL 507880.
     
-    Stop dropping samples, and use the same minimum (0) that's in place for
-    the other mutex profile events.
+    For #61176.
     
-    Fixes #64253
-    Fixes #68453
-    Fixes #68781
-    
-    Change-Id: I4c5d23a2675501226eef5b9bc1ada2efc1a55b9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604355
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Change-Id: I3b5a90fcd19a0adc7fb29366e106e18f722fc061
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507976
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/mprof.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/exec.go |  8 ++++++++
+ src/cmd/go/internal/work/gc.go   | 14 +-------------
+ 2 files changed, 9 insertions(+), 13 deletions(-)

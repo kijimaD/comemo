@@ -1,37 +1,94 @@
-commit 18705721807abd31888609920cce6a2b59e67ab7
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 2 09:51:12 2015 -0400
+commit 5844603f143a859902386a8d70ac6abb732f4ccd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 23 20:29:43 2015 -0700
 
-    runtime: enlarge GC work buffer size
+    [dev.ssa] cmd/compile: streamline unimplemented strings
     
-    Currently the GC work buffers are only 256 bytes and hence can record
-    only 24 64-bit pointer. They were reduced from 4K in commits db7fd1c
-    and a15818f as a way to minimize the amount of work the per-P workbuf
-    caches could "hide" from the mark phase and carry in to the mark
-    termination phase. However, this approach wasn't very robust and we
-    later added a "mark 2" phase to address this problem head-on.
+    This aids in making sense of the aggregate set of work outstanding.
+    Interest in the details of any particular implementation failure
+    is better handled locally anyway.
     
-    Because of mark 2, there's now no benefit to having very small work
-    buffers. But there are plenty of downsides: small work buffers
-    increase contention on the work lists, increase the frequency and
-    hence net overhead of acquiring and releasing work buffers, and
-    somewhat increase memory overhead of the GC.
+    In my local tree, running make.bash after this CL yields:
     
-    This commit expands work buffers back to 4K (504 64-bit pointers).
-    This reduces the rate of writes to work.full in the garbage benchmark
-    from a peak of ~780,000 writes/sec to a peak of ~32,000 writes/sec.
+     14.85%  1811 SSA unimplemented: unhandled expr SLICEARR
+     13.84%  1687 SSA unimplemented: unhandled expr CALLINTER
+     11.84%  1444 SSA unimplemented: unhandled stmt RETJMP
+     10.24%  1249 SSA unimplemented: unhandled expr EFACE
+      8.52%  1039 SSA unimplemented: unhandled expr SLICE
+      4.92%   600 SSA unimplemented: local variable with class PAUTO,heap unimplemented
+      4.90%   598 SSA unimplemented: unhandled expr SLICESTR
+      3.91%   477 SSA unimplemented: local variable with class PFUNC unimplemented
+      3.45%   421 SSA unimplemented: not lowered: IMake INTER PTR64 PTR64
+      3.42%   417 SSA unimplemented: unhandled expr APPEND
+      3.21%   391 SSA unimplemented: unhandled expr CLOSUREVAR
+      3.06%   373 SSA unimplemented: unhandled stmt DEFER
+      3.04%   371 SSA unimplemented: unhandled stmt AS2DOTTYPE
+      1.61%   196 SSA unimplemented: unhandled expr DOTTYPE
+      1.56%   190 SSA unimplemented: not lowered: Load STRUCT PTR64 mem
+      0.79%    96 SSA unimplemented: not lowered: StringMake STRING PTR64 UINTPTR
+      0.69%    84 SSA unimplemented: unhandled binary op NE FLOAT64
+      0.53%    65 SSA unimplemented: unhandled expr STRUCTLIT
+      0.50%    61 SSA unimplemented: not lowered: SliceMake ARRAY PTR64 UINTPTR UINTPTR
+      0.45%    55 SSA unimplemented: zero for type float64 not implemented
+      0.44%    54 SSA unimplemented: unhandled addr CLOSUREVAR
+      0.38%    46 SSA unimplemented: unhandled binary op EQ FLOAT64
+      0.35%    43 SSA unimplemented: unhandled binary op LT FLOAT64
+      0.34%    42 SSA unimplemented: unhandled len(map)
+      0.33%    40 SSA unimplemented: unhandled stmt FALL
+      0.23%    28 SSA unimplemented: CONVNOP closure
+      0.21%    25 SSA unimplemented: local variable with class PPARAM,heap unimplemented
+      0.21%    25 SSA unimplemented: unhandled binary op GT FLOAT64
+      0.18%    22 SSA unimplemented: unhandled OCONV FLOAT32 -> FLOAT64
+      0.18%    22 SSA unimplemented: unhandled expr REAL
+      0.16%    20 SSA unimplemented: unhandled stmt PROC
+      0.16%    19 SSA unimplemented: unhandled closure arg
+      0.15%    18 SSA unimplemented: unhandled OCONV INT64 -> FLOAT64
+      0.12%    15 SSA unimplemented: unhandled expr CFUNC
+      0.10%    12 SSA unimplemented: unhandled OCONV UINT64 -> FLOAT64
+      0.09%    11 SSA unimplemented: unhandled OLITERAL 4
+      0.09%    11 SSA unimplemented: unhandled expr IMAG
+      0.07%     9 SSA unimplemented: unhandled binary op GE FLOAT64
+      0.07%     9 SSA unimplemented: unhandled binary op MINUS FLOAT64
+      0.06%     7 SSA unimplemented: unhandled OCONV FLOAT64 -> FLOAT32
+      0.06%     7 SSA unimplemented: unhandled binary op NE FLOAT32
+      0.06%     7 SSA unimplemented: variable address class 5 not implemented
+      0.05%     6 SSA unimplemented: not lowered: Load COMPLEX128 PTR64 mem
+      0.05%     6 SSA unimplemented: unhandled expr SLICE3ARR
+      0.04%     5 SSA unimplemented: unhandled binary op LE FLOAT64
+      0.03%     4 SSA unimplemented: unhandled OCONV UINTPTR -> FLOAT64
+      0.03%     4 SSA unimplemented: unhandled binary op EQ COMPLEX128
+      0.03%     4 SSA unimplemented: unhandled binary op EQ FLOAT32
+      0.03%     4 SSA unimplemented: unhandled expr COMPLEX
+      0.02%     3 SSA unimplemented: local variable with class PPARAMOUT,heap unimplemented
+      0.02%     3 SSA unimplemented: not lowered: Load ARRAY PTR64 mem
+      0.02%     3 SSA unimplemented: unhandled OCONV INT32 -> FLOAT64
+      0.02%     3 SSA unimplemented: unhandled OCONV INT64 -> FLOAT32
+      0.02%     3 SSA unimplemented: unhandled expr SLICE3
+      0.02%     2 SSA unimplemented: unhandled OCONV COMPLEX64 -> COMPLEX128
+      0.02%     2 SSA unimplemented: unhandled OCONV FLOAT64 -> INT64
+      0.02%     2 SSA unimplemented: unhandled OCONV FLOAT64 -> UINT64
+      0.02%     2 SSA unimplemented: unhandled OCONV INT -> FLOAT64
+      0.02%     2 SSA unimplemented: unhandled OCONV UINT64 -> FLOAT32
+      0.02%     2 SSA unimplemented: unhandled binary op EQ COMPLEX64
+      0.02%     2 SSA unimplemented: unhandled binary op MINUS FLOAT32
+      0.02%     2 SSA unimplemented: zero for type complex128 not implemented
+      0.02%     2 SSA unimplemented: zero for type complex64 not implemented
+      0.02%     2 SSA unimplemented: zero for type float32 not implemented
+      0.01%     1 SSA unimplemented: not lowered: EqFat BOOL INTER INTER
+      0.01%     1 SSA unimplemented: not lowered: Store mem UINTPTR COMPLEX128 mem
+      0.01%     1 SSA unimplemented: unhandled OCONV UINT32 -> FLOAT64
+      0.01%     1 SSA unimplemented: unhandled cap(chan)
+      0.01%     1 SSA unimplemented: unhandled expr ARRAYLIT
+      0.01%     1 SSA unimplemented: unhandled expr PLUS
+      0.01%     1 SSA unimplemented: unhandled stmt CHECKNIL
     
-    This has negligible effect on the go1 benchmarks. It slightly slows
-    down the garbage benchmark.
-    
-    name              old time/op  new time/op  delta
-    XBenchGarbage-12  5.37ms ± 5%  5.60ms ± 2%  +4.37%  (p=0.000 n=20+20)
-    
-    Change-Id: Ic9cc28e7a125d23d9faf4f5e690fb8aa9bcdfb28
-    Reviewed-on: https://go-review.googlesource.com/15893
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I43474fe6d6ec22a9f57239090136f6e97eebfdf2
+    Reviewed-on: https://go-review.googlesource.com/13848
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgcwork.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go        | 14 +++++++-------
+ src/cmd/compile/internal/gc/type.go       |  4 ++++
+ src/cmd/compile/internal/ssa/lower.go     |  6 +++++-
+ src/cmd/compile/internal/ssa/type.go      | 32 ++++++++++++++++---------------
+ src/cmd/compile/internal/ssa/type_test.go | 31 +++++++++++++++---------------
+ 5 files changed, 49 insertions(+), 38 deletions(-)

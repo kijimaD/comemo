@@ -1,37 +1,16 @@
-commit 848a768ba76d7c386c2aa4f05bc2e9e51b5948b9
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Jun 5 14:21:47 2025 -0700
+commit ed2671aa150598e5bf23c1c69b200a1afbb577d3
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 22 16:00:18 2024 +0000
 
-    runtime: clarify stack traces for bubbled goroutines
+    cmd/link/internal/ld: temporarily add skip for new portion of TestElfBindNow
     
-    Use the synctest bubble ID to identify bubbles in traces,
-    rather than the goroutine ID of the bubble's root goroutine.
+    Skip newly added sections in TestElfBindNow from elf_test.go
+    temporarily pending resolution of failures on loong64 and ppc64le.
     
-    Some waitReasons include a "(synctest)" suffix to distinguish
-    a durably blocking state from a non-durable one. For example,
-    "chan send" vs. "chan send (synctest)". Change this suffix
-    to "(durable)".
-    
-    Always print a "(durable)" sufix for the state of durably
-    blocked bubbled goroutines. For example, print "sleep (durable)".
-    
-    Drop the "[not] durably blocked" text from goroutine states,
-    since this is now entirely redundant with the waitReason.
-    
-    Old:
-      goroutine 8 [chan receive (synctest), synctest bubble 7, durably blocked]:
-      goroutine 9 [select (no cases), synctest bubble 7, durably blocked]:
-    
-    New:
-      goroutine 8 [chan receive (durable), synctest bubble 1]:
-      goroutine 9 [select (no cases) (durable), synctest bubble 1]:
-    
-    Change-Id: I89112efb25150a98a2954f54d1910ccec52a5824
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/679376
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I22e0e52c9fbbcad88a4d0088f631ed7be15bf9da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580776
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/runtime2.go  | 28 ++++++++++++++--------------
- src/runtime/traceback.go | 13 ++++++++-----
- 2 files changed, 22 insertions(+), 19 deletions(-)
+ src/cmd/link/internal/ld/elf_test.go | 82 +++++++++++++++++++-----------------
+ 1 file changed, 43 insertions(+), 39 deletions(-)

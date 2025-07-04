@@ -1,13 +1,69 @@
-commit 2094807913b38b7cee59c31c4a95de49070292bf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 20 16:26:58 2017 -0700
+commit 438818d9f1b5b4ffae3ca63d5ce2a2f5cef97552
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Feb 7 16:00:39 2017 -0600
 
-    bufio: clarify that Flush returns a cached write error
+    bytes: use Index in Count
     
-    Change-Id: I377403fc0981d58aec5d84a1dd0d4e08532a575c
-    Reviewed-on: https://go-review.googlesource.com/41291
-    Reviewed-by: Dan Peterson <dpiddy@gmail.com>
+    Similar to https://go-review.googlesource.com/28586,
+    but for package bytes instead of strings.
+    This provides simpler code and some performance gain.
+    Also update strings.Count to use the same code.
+    
+    On AMD64 with heavily optimized Index I see:
+    
+    name             old time/op    new time/op     delta
+    Count/10-6         47.3ns ± 0%     36.8ns ± 0%    -22.35%  (p=0.000 n=10+10)
+    Count/32-6          286ns ± 0%       38ns ± 0%    -86.71%  (p=0.000 n=10+10)
+    Count/4K-6         50.1µs ± 0%      4.4µs ± 0%    -91.18%  (p=0.000 n=10+10)
+    Count/4M-6         48.1ms ± 1%      4.5ms ± 0%    -90.56%  (p=0.000 n=10+9)
+    Count/64M-6         784ms ± 0%       73ms ± 0%    -90.73%  (p=0.000 n=10+10)
+    CountEasy/10-6     28.4ns ± 0%     31.0ns ± 0%     +9.23%  (p=0.000 n=10+10)
+    CountEasy/32-6     30.6ns ± 0%     37.0ns ± 0%    +20.92%  (p=0.000 n=10+10)
+    CountEasy/4K-6      186ns ± 0%      198ns ± 0%     +6.45%  (p=0.000 n=9+10)
+    CountEasy/4M-6      233µs ± 2%      234µs ± 2%       ~     (p=0.912 n=10+10)
+    CountEasy/64M-6    6.70ms ± 0%     6.68ms ± 1%       ~     (p=0.762 n=8+10)
+    
+    name             old speed      new speed       delta
+    Count/10-6        211MB/s ± 0%    272MB/s ± 0%    +28.77%  (p=0.000 n=10+9)
+    Count/32-6        112MB/s ± 0%    842MB/s ± 0%   +652.84%  (p=0.000 n=10+10)
+    Count/4K-6       81.8MB/s ± 0%  927.6MB/s ± 0%  +1033.63%  (p=0.000 n=10+9)
+    Count/4M-6       87.2MB/s ± 1%  924.0MB/s ± 0%   +959.25%  (p=0.000 n=10+9)
+    Count/64M-6      85.6MB/s ± 0%  922.9MB/s ± 0%   +978.31%  (p=0.000 n=10+10)
+    CountEasy/10-6    352MB/s ± 0%    322MB/s ± 0%     -8.41%  (p=0.000 n=10+10)
+    CountEasy/32-6   1.05GB/s ± 0%   0.87GB/s ± 0%    -17.35%  (p=0.000 n=9+10)
+    CountEasy/4K-6   22.0GB/s ± 0%   20.6GB/s ± 0%     -6.33%  (p=0.000 n=10+10)
+    CountEasy/4M-6   18.0GB/s ± 2%   18.0GB/s ± 2%       ~     (p=0.912 n=10+10)
+    CountEasy/64M-6  10.0GB/s ± 0%   10.0GB/s ± 1%       ~     (p=0.762 n=8+10)
+    
+    On 386, without asm version of Index:
+    
+    Count/10-6         57.0ns ± 0%     56.9ns ± 0%   -0.11%  (p=0.006 n=10+9)
+    Count/32-6          340ns ± 0%      274ns ± 0%  -19.48%  (p=0.000 n=10+9)
+    Count/4K-6         49.5µs ± 0%     37.1µs ± 0%  -24.96%  (p=0.000 n=10+10)
+    Count/4M-6         51.1ms ± 0%     38.2ms ± 0%  -25.21%  (p=0.000 n=10+10)
+    Count/64M-6         818ms ± 0%      613ms ± 0%  -25.07%  (p=0.000 n=8+10)
+    CountEasy/10-6     60.0ns ± 0%     70.4ns ± 0%  +17.34%  (p=0.000 n=10+10)
+    CountEasy/32-6     81.1ns ± 0%     94.0ns ± 0%  +15.97%  (p=0.000 n=9+10)
+    CountEasy/4K-6     4.37µs ± 0%     4.39µs ± 0%   +0.30%  (p=0.000 n=10+9)
+    CountEasy/4M-6     4.43ms ± 0%     4.43ms ± 0%     ~     (p=0.579 n=10+10)
+    CountEasy/64M-6    70.9ms ± 0%     70.9ms ± 0%     ~     (p=0.912 n=10+10)
+    
+    name             old speed      new speed       delta
+    Count/10-6        176MB/s ± 0%    176MB/s ± 0%   +0.10%  (p=0.000 n=10+9)
+    Count/32-6       93.9MB/s ± 0%  116.5MB/s ± 0%  +24.06%  (p=0.000 n=10+9)
+    Count/4K-6       82.7MB/s ± 0%  110.3MB/s ± 0%  +33.26%  (p=0.000 n=10+10)
+    Count/4M-6       82.1MB/s ± 0%  109.7MB/s ± 0%  +33.70%  (p=0.000 n=10+10)
+    Count/64M-6      82.0MB/s ± 0%  109.5MB/s ± 0%  +33.46%  (p=0.000 n=8+10)
+    CountEasy/10-6    167MB/s ± 0%    142MB/s ± 0%  -14.75%  (p=0.000 n=9+10)
+    CountEasy/32-6    395MB/s ± 0%    340MB/s ± 0%  -13.77%  (p=0.000 n=10+10)
+    CountEasy/4K-6    936MB/s ± 0%    934MB/s ± 0%   -0.29%  (p=0.000 n=10+9)
+    CountEasy/4M-6    947MB/s ± 0%    946MB/s ± 0%     ~     (p=0.591 n=10+10)
+    CountEasy/64M-6   947MB/s ± 0%    947MB/s ± 0%     ~     (p=0.867 n=10+10)
+    
+    Change-Id: Ia76b247372b6f5b5d23a9f10253a86536a5153b3
+    Reviewed-on: https://go-review.googlesource.com/36489
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bufio/bufio.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/bytes/bytes.go     | 32 +++++++++-----------------------
+ src/strings/strings.go |  7 +++----
+ 2 files changed, 12 insertions(+), 27 deletions(-)

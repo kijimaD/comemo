@@ -1,20 +1,20 @@
-commit 592078ff3f7d938b2fbcd98ddcb72e0d2748fdb1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 1 15:55:56 2022 -0400
+commit e58bddde706c8814f82ec4ef404fc7ff36d88469
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 7 18:22:14 2021 -0400
 
-    cmd/go/internal/work: omit modinfo line from cache key when empty
+    [dev.typeparams] internal/goexperiment: regenerate generated files
     
-    Cache keys are dumped in case of mismatch; an empty modinfo string
-    adds noise to that dump without a corresponding benefit.
+    Rerun the generator. exp_regabi_{on,off}.go are gone, as "regabi"
+    itself is not a goexperiment that we test at run time (the
+    sub-experiments are).
     
-    For #52009.
-    
-    Change-Id: I1b4cd85fa5ff920973552fc94977954f93622a32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398059
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic1f31b4ef2769a143f768e1b3dc7221041aafca9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325912
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/work/exec.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/internal/goexperiment/exp_regabi_off.go | 9 ---------
+ src/internal/goexperiment/exp_regabi_on.go  | 9 ---------
+ 2 files changed, 18 deletions(-)

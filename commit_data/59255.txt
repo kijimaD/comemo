@@ -1,20 +1,25 @@
-commit 559b5d814f63bbeee626778c41ab4ee4fd48030a
-Author: Mark Freeman <mark@golang.org>
-Date:   Mon Apr 7 17:28:47 2025 -0400
+commit 33013e8ea821629858643f24c55805f5ddf316b5
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Feb 27 22:39:35 2024 +0000
 
-    go/types, types2: fix failing error message test for s390x
+    reflect: add Overflow methods to Type
     
-    Fixes #73206.
+    This CL adds new methods synonymous with the method of the same name
+    in reflect.Value to reflect.Type: OverflowComplex, OverflowFloat, OverflowInt, OverflowUint.
     
-    Change-Id: If27ce5fe7aa71415b6e2d525c78b1f04b88a308b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663635
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Mark Freeman <mark@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Fixes #60427
+    
+    Change-Id: I7a0bb35629e59a7429820f13fcd3a6f120194bc6
+    GitHub-Last-Rev: 26c11bcffe0f418e7d5c37e14587e738d5d939d6
+    GitHub-Pull-Request: golang/go#65955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567296
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/types/testdata/fixedbugs/issue70549.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ api/next/60427.txt                          |  4 ++
+ doc/next/6-stdlib/99-minor/reflect/60427.md |  6 +++
+ src/reflect/all_test.go                     | 41 ++++++++++++++++-
+ src/reflect/type.go                         | 68 +++++++++++++++++++++++++++++
+ 4 files changed, 118 insertions(+), 1 deletion(-)

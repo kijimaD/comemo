@@ -1,35 +1,17 @@
-commit 08a72c851c782a5a0190c1647283432a1bb09889
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Oct 25 18:23:35 2019 +0000
+commit 6f51082da77a1d4cafd5b7af0db69293943f4066
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed May 22 14:27:47 2019 +0200
 
-    runtime: turn off scavenger when there's <1 physical page of work
+    fmt: always clear wrapErrs
     
-    This change turns off the scavenger if there's less than one physical
-    page of work to do. If there's less than one phyiscal page of work
-    today, then the computed time for the work to be done will be zero,
-    resulting in a floating point division by zero.
+    Like panicking and erroring - wrapErrs should always be reset to
+    the default false. wrapErrs should only be true when set by Errorf.
     
-    This is bad on two accounts. On the one hand it could cause a fault on
-    some systems. On the other hand, it could cause the pacing computations
-    done by the scavenger to be nonsense. While this is generally harmless
-    in the case where there's a very small amount of work to do anyway (the
-    scavenger might just back off expontentially forever, or do some work
-    and immediately sleep, because there's not much of it to do), it causes
-    problems for the deadlock checker. On platforms with a larger physical
-    page size, such as 64 KiB, we might hit this path in a deadlock
-    scenario, in which case the deadlock checker will never fire and we'll
-    just hang.
-    
-    Specifically, this happens on ppc64 trybot tests, which is where the
-    issue was discovered.
-    
-    Fixes #34575.
-    
-    Change-Id: I8677db539447b2f0e75b8cfcbe33932244e1508c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203517
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I4d51cc2f0905109e232b0983dc5331bd34f138bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178517
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/mgcscavenge.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/fmt/print.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

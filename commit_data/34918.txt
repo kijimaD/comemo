@@ -1,20 +1,27 @@
-commit 8bb8eaff626796908938e7f0da102dc51a265237
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 10 18:40:01 2018 +0000
+commit a5b759aab8b9e866c0bf2dd91ffde68b6bc6766b
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 27 18:06:17 2017 -0500
 
-    Revert "runtime: use fixed TLS offsets on darwin/amd64 and darwin/386"
+    cmd/compile: adjust lineno during import to get Pos right
     
-    This reverts commit 76e92d1c9e2943de7093af14d58663fa2993e608.
+    Binary import sometimes constructs nodes using functions
+    that use the global lineno for the Position.  This causes
+    spurious numbers to appear in the assembly and the
+    debugging output.
     
-    Reason for revert: Seems to have broken the darwin/386 builder, the toolchain is barfing on the new inline assembly.
+    Fix (targeted, because late in the cycle): save and restore
+    lineno around bimport calls known to use lineno-sensitive
+    functions.
     
-    Change-Id: Ic83fa3c85148946529c5fd47d1e1669898031ace
-    Reviewed-on: https://go-review.googlesource.com/106155
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #22600.
+    (Comment: "This is a weird line to step through")
+    
+    Change-Id: I9c4094670380609fe4b6696443fb02579521c596
+    Reviewed-on: https://go-review.googlesource.com/80115
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/sym.go    | 20 +++------
- src/runtime/cgo/gcc_darwin_386.c   | 92 ++++++++++++++++++++++++++++++++++++--
- src/runtime/cgo/gcc_darwin_amd64.c | 63 ++++++++++++++++++++++++--
- src/runtime/sys_darwin_386.s       | 11 ++---
- src/runtime/sys_darwin_amd64.s     |  9 ++--
- 5 files changed, 167 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go             | 34 +++++++++++++++-------
+ .../internal/ssa/testdata/hist.opt-dlv.nexts       |  2 --
+ 2 files changed, 24 insertions(+), 12 deletions(-)

@@ -1,23 +1,22 @@
-commit 96e83664378918980bd8f60822c4bc39befcb668
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Jun 30 19:09:38 2020 +0000
+commit 71bbffbc48d03b447c73da1f54ac57350fc9b36a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jan 21 14:50:36 2020 -0800
 
-    Revert "cmd/link: fix GC data reading from shared library"
+    cmd/go: add -d flag to mod_get_test
     
-    This reverts CL 240462.
+    'go get all' was run in this test without -d. This caused some std
+    packages to be reinstalled if the test is run in a slightly different
+    configuration than make.bash was run. run.bash would fail in some
+    situations because of this. Nothing in the cmd/go tests should modify
+    installed std or cmd packages.
     
-    Reason for revert: test fails on PPC64LE.
+    Updates #35459
     
-    Updates #39927.
-    
-    Change-Id: I4f14fd0c36e604a80ae9f2f86d1e643e28945e93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240616
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Idd259a27d55502923b7fc54f361a77f0ac11eea2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215721
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- misc/cgo/testshared/shared_test.go               | 16 ----------
- misc/cgo/testshared/testdata/gcdata/main/main.go | 37 ------------------------
- misc/cgo/testshared/testdata/gcdata/p/p.go       |  7 -----
- src/cmd/link/internal/ld/decodesym.go            | 27 +++++------------
- src/cmd/link/internal/ld/lib.go                  |  4 +--
- 5 files changed, 9 insertions(+), 82 deletions(-)
+ src/cmd/go/testdata/script/mod_get_test.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

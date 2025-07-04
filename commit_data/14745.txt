@@ -1,12 +1,50 @@
-commit f296adf819b0c2d20b7b44d04f947602b43f226c
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Tue Dec 25 14:54:24 2012 -0800
+commit cfcc3ebfa4358c7c5d94c2a9b32481ab0fb3aeaf
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Dec 24 16:53:25 2012 +0100
 
-    fmt: update an old comment; fix a typo.
+    exp/norm: changed API of Iter.
+    Motivations:
+     - Simpler UI. Previous API proved a bit awkward for practical purposes.
+     - Iter is often used in cases where one want to be able to bail out early.
+       The old implementaton had too much look-ahead to be efficient.
+    Disadvantages:
+     - ASCII performance is bad. This is unavoidable for tiny iterations.
+       Example is included to show how to work around this.
     
-    R=golang-dev, iant
-    CC=golang-dev, minux.ma
-    https://golang.org/cl/6998055
+    Description:
+    Iter now iterates per boundary/segment. It returns a slice of bytes that
+    either points to the input bytes, the internal decomposition strings,
+    or the small internal buffer that each iterator has. In many cases, copying
+    bytes is avoided.
+    The method Seek was added to support jumping around the input without
+    having to reinitialize.
+    
+    Details:
+     - Table adjustments: some decompositions exist of multiple segments.
+       Decompositions that are of this type are now marked so that Iter can
+       handle them separately.
+     - The old iterator had a different next function for different normal forms
+       that was assigned to a function pointer called by Next.
+       The new iterator uses this mechanism to switch between different modes
+       for handling different type of input as well.  This greatly improves
+       performance for Hangul and ASCII. It is also used for multi-segment
+       decompositions.
+     - input is now a struct of sting and []byte, instead of an interface.
+       This simplifies optimizing the ASCII case.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6873072
 
- src/pkg/fmt/print.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/norm/composition.go       |   18 +-
+ src/pkg/exp/norm/composition_test.go  |    2 +-
+ src/pkg/exp/norm/example_iter_test.go |   81 +
+ src/pkg/exp/norm/forminfo.go          |    7 +
+ src/pkg/exp/norm/input.go             |  123 +-
+ src/pkg/exp/norm/iter.go              |  423 +-
+ src/pkg/exp/norm/iter_test.go         |  124 +-
+ src/pkg/exp/norm/maketables.go        |   33 +-
+ src/pkg/exp/norm/normalize_test.go    |   32 +-
+ src/pkg/exp/norm/normregtest.go       |    6 +-
+ src/pkg/exp/norm/tables.go            | 6776 +++++++++++++++++----------------
+ 11 files changed, 3941 insertions(+), 3684 deletions(-)

@@ -1,35 +1,13 @@
-commit 964f6d3ec4c6e2bed377878bd2862767bfae463d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 18 23:41:15 2014 -0500
+commit 0d9b9aafd575099fcbd05e0c8f05f087d8d2b922
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Feb 18 21:51:47 2014 -0500
 
-    cmd/ld: remove Plan 9 symbol table
+    misc/emacs: actually use point argument that is passed to godef--call
     
-    Update #6853
-    
-    Nothing reads the Plan 9 symbol table anymore.
-    The last holdout was 'go tool nm', but since being rewritten in Go
-    it uses the standard symbol table for the binary format
-    (ELF, Mach-O, PE) instead.
-    
-    Removing the Plan 9 symbol table saves ~15% disk space
-    on most binaries.
-    
-    Two supporting changes included in this CL:
-    
-    debug/gosym: use Go 1.2 pclntab to synthesize func-only
-    symbol table when there is no Plan 9 symbol table
-    
-    debug/elf, debug/macho, debug/pe: ignore final EOF from ReadAt
-    
-    LGTM=r
-    R=r, bradfitz
+    LGTM=adonovan
+    R=adonovan
     CC=golang-codereviews
-    https://golang.org/cl/65740045
+    https://golang.org/cl/62600043
 
- src/cmd/ld/symtab.c            | 170 -----------------------------------------
- src/pkg/debug/elf/file.go      |   3 +
- src/pkg/debug/gosym/pclntab.go |  27 +++++++
- src/pkg/debug/gosym/symtab.go  |   7 ++
- src/pkg/debug/macho/file.go    |   6 ++
- src/pkg/debug/pe/file.go       |   3 +
- 6 files changed, 46 insertions(+), 170 deletions(-)
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,27 @@
-commit 73e796cb007989449da95fb4adf936ee76b766ca
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 1 18:14:40 2020 -0800
+commit df2a46f85ad1e28076f639e3608ae9e2809f97a2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 29 10:07:07 2020 -0400
 
-    test: match gofrontend error messages
+    [dev.link] cmd/link: fix R_GOTOFF handling
     
-    The gofrontend code doesn't distinguish semicolon and newline,
-    and it doesn't have special treatment for EOF.
+    When applying relocations, we need to resolve ABI aliases.
+    relocsym does that. Architecture-specific archreloc also needs to
+    do that. The old code doesn't do that since ABI aliases are
+    resolved in loadlibfull, or, in the old linker, in a much earlier
+    stage. We don't do this in the new linker, as we want to avoid
+    mutating relocations.
     
-    syntax/semi6.go:9:47: error: unexpected semicolon or newline in type declaration
-    syntax/semi6.go:11:62: error: unexpected semicolon or newline in type declaration
+    While here, move R_CONST and R_GOTOFF handling to generic code.
+    They appear on several architectures and the handling are same.
     
-    Change-Id: I9996b59a4fc78ad1935e779f354ddf75c0fb44e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274692
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Should fix 386-clang and *bsd-386 builds.
+    
+    Change-Id: I6681c94f0327555d6cf329d0a518c88848773671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230857
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- test/syntax/semi6.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/data.go |  6 ++++++
+ src/cmd/link/internal/x86/asm.go | 23 -----------------------
+ src/cmd/link/internal/x86/obj.go |  1 -
+ 3 files changed, 6 insertions(+), 24 deletions(-)

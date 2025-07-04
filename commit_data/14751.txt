@@ -1,18 +1,17 @@
-commit 7c4183ac2439a48d42ae7491ef47a26dc469b5fd
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Dec 28 21:01:52 2012 +1100
+commit 90f9beca15c951ef2cefa9942f87b71ae125ccd2
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Dec 28 02:35:04 2012 +0800
 
-    net: consolidate fd_{free,net,open}bsd.go into fd_bsd.go
+    reflect: declare slice as *[]unsafe.Pointer instead of *[]byte
     
-    These files are identical, so probably pre date // +build.
+    The new garbage collector (CL 6114046) may find the fake *[]byte value
+    and interpret its contents as bytes rather than as potential pointers.
+    This may lead the garbage collector to free memory blocks that
+    shouldn't be freed.
     
-    With a little work, fd_darwin could be merged as well.
-    
-    R=mikioh.mikioh, jsing, devon.odell, lucio.dere, minux.ma
+    R=dvyukov, rsc, dave, minux.ma, remyoudompheng, iant
     CC=golang-dev
-    https://golang.org/cl/7004053
+    https://golang.org/cl/7000059
 
- src/pkg/net/{fd_freebsd.go => fd_bsd.go} |   2 +
- src/pkg/net/fd_netbsd.go                 | 116 -------------------------------
- src/pkg/net/fd_openbsd.go                | 116 -------------------------------
- 3 files changed, 2 insertions(+), 232 deletions(-)
+ src/pkg/reflect/value.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

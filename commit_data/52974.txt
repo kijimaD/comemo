@@ -1,21 +1,19 @@
-commit dc076eaf2e64f51cca986a4a340a51befd7b6250
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Tue May 9 20:32:19 2023 -0700
+commit ff17b7d0d42af12ca1ad766a135d9951029027ea
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Tue Jun 7 09:12:21 2022 +0800
 
-    misc/wasm: add wasmedge to wasip1 script
+    cmd/compile: don't use dictionary convert to shaped empty interface
     
-    The wasmedge runtime will be used to test our wasip1
-    implementation against the WASI runtime from wasmedge.org.
+    Fixes: #53254
     
-    For #60097
-    
-    Change-Id: Ib0e886de46240b4d43d02ec8a7bc7cea0730c162
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494120
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I3153d6ebb9f25957b09363f45c5cd4651ee84c2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410655
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- misc/wasm/go_wasip1_wasm_exec | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/noder/stencil.go |  4 ++--
+ test/typeparam/issue53254.go              | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

@@ -1,33 +1,12 @@
-commit 049b89dc6f6b6f1001672dd5456197b74a97cbec
-Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 9 16:30:48 2015 -0700
+commit fd2f8d458e862968d2f7c755e2b2a2a868a49c31
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 18 10:37:53 2015 -0700
 
-    fmt: treat reflect.Value specially - as the value it holds
+    cmd/internal/gc: remove duplicate copyright notice
     
-    When a reflect.Value is passed to Printf (etc.), fmt called the
-    String method, which does not disclose its contents. To get the
-    contents, one could call Value.Interface(), but that is illegal
-    if the Value is not exported or otherwise forbidden.
-    
-    This CL improves the situation with a trivial change to the
-    fmt package: when we see a reflect.Value as an argument,
-    we treat it exactly as we treat a reflect.Value we make inside
-    the package. This means that we always print the
-    contents of the Value as if _that_ was the argument to Printf.
-    
-    This is arguably a breaking change but I think it is a genuine
-    improvement and no greater a break than many other tweaks
-    we have made to formatted output from this package.
-    
-    Fixes #8965.
-    
-    Change-Id: Ifc2a4ce3c1134ad5160e101d2196c22f1542faab
-    Reviewed-on: https://go-review.googlesource.com/8731
-    Reviewed-by: roger peppe <rogpeppe@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ifa71fb443a66eb8d7732f3b0c1408947b583c1f1
+    Reviewed-on: https://go-review.googlesource.com/7800
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/fmt/doc.go       | 11 +++++++----
- src/fmt/fmt_test.go  |  7 +++++++
- src/fmt/print.go     |  2 ++
- src/reflect/value.go |  2 ++
- 4 files changed, 18 insertions(+), 4 deletions(-)
+ src/cmd/internal/gc/go.go | 4 ----
+ 1 file changed, 4 deletions(-)

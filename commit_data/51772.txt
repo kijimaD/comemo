@@ -1,20 +1,27 @@
-commit 2c7856087a7b3864284f908c0a091fd5af419d03
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Jan 25 08:56:17 2023 +0100
+commit c1f22134f22158ebeebf450357f711eb22fab202
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 10 09:28:09 2022 +0100
 
-    runtime: delete unused cbctxts variable on windows assembly
+    runtime/pprof, syscall: report MaxRSS on all unix platforms
     
-    runtime·cbctxts has been unused since CL 258938, but it was left over.
+    All unix platforms currently supported by Go provide the getrusage
+    syscall. On aix and solaris the Getrusage syscall wrapper is not
+    available yet, so add and use it to report MaxRSS in memory profiles.
     
-    Change-Id: I374ad26e668a36994e41f5d17593b33090bdc644
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463119
+    Change-Id: Ie880a3058171031fd2e12ccf9adfb85ce18858b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391434
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_windows_386.s   | 2 --
- src/runtime/sys_windows_amd64.s | 2 --
- src/runtime/sys_windows_arm.s   | 2 --
- src/runtime/sys_windows_arm64.s | 2 --
- 4 files changed, 8 deletions(-)
+ src/runtime/pprof/pprof_norusage.go   |  2 +-
+ src/runtime/pprof/pprof_rusage.go     |  6 ++++--
+ src/runtime/pprof/rusage_test.go      |  2 +-
+ src/syscall/syscall_aix.go            |  1 +
+ src/syscall/syscall_solaris.go        |  1 +
+ src/syscall/zsyscall_aix_ppc64.go     | 13 +++++++++++++
+ src/syscall/zsyscall_solaris_amd64.go | 13 +++++++++++++
+ 7 files changed, 34 insertions(+), 4 deletions(-)

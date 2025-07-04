@@ -1,15 +1,24 @@
-commit 3acb9fd98e41014b3958cd11ba599385c4eab9cc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 23 21:40:35 2015 -0800
+commit 7e424ecdc106be705ac9b114871bc6d34cecb622
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 16 15:59:05 2014 -0500
 
-    math/big: disable some tests on 32bit platforms (fix build)
+    cmd/5l,6l,8l: remove bogus dynsym section indexes
     
-    TBR: adonovan
+    Previously, this code generated bogus section indexes for dynamic
+    symbols.  It turns out this didn't matter, since we only emit these
+    when generating an executable and in an executable it only matters
+    whether a symbol is defined or undefined, but it leads to perplexing
+    code full of mysterious constants.
     
-    Change-Id: I59757b5b46a2c533fc5f888423c99d550d3c7648
-    Reviewed-on: https://go-review.googlesource.com/3264
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Unfortunately, this happens too early to put in real section indexes,
+    so just use section index 1 to distinguish the symbol from an
+    undefined symbol.
+    
+    Change-Id: I0e514604bf31f21683598ebd3e020b66acf767ef
+    Reviewed-on: https://go-review.googlesource.com/1720
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/float.go      | 14 ++++++++++----
- src/math/big/float_test.go | 20 ++++++++++++++++++++
- 2 files changed, 30 insertions(+), 4 deletions(-)
+ src/cmd/5l/asm.c | 20 ++------------------
+ src/cmd/6l/asm.c | 20 ++------------------
+ src/cmd/8l/asm.c | 20 ++------------------
+ 3 files changed, 6 insertions(+), 54 deletions(-)

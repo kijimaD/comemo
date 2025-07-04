@@ -1,16 +1,18 @@
-commit 1b8f51c91794e3fb90e582ba22ad06b6ad28e1d4
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Mar 9 00:41:03 2013 +0100
+commit 9e329a0d16a053a884ef02d4e17a50cafea61afc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 8 10:41:20 2013 -0800
 
-    runtime: fix integer overflow in amd64 memmove.
+    effective_go.html: move and rework the blank identifier section
+    Also rename the relevant examples and make sure the working one compiles.
     
-    Fixes #4981.
-    
-    R=bradfitz, fullung, rsc, minux.ma
+    R=golang-dev, bradfitz, adg, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/7474047
+    https://golang.org/cl/7597043
 
- src/pkg/runtime/memmove_amd64.s             |  5 ++-
- src/pkg/runtime/memmove_linux_amd64_test.go | 61 +++++++++++++++++++++++++++++
- src/pkg/runtime/runtime.h                   |  2 +-
- 3 files changed, 65 insertions(+), 3 deletions(-)
+ doc/effective_go.html    | 351 ++++++++++++++++++++++++++---------------------
+ doc/progs/eff_unused1.go |  18 +++
+ doc/progs/eff_unused2.go |  22 +++
+ doc/progs/run            |   1 +
+ doc/progs/unused1.go     |  12 --
+ doc/progs/unused2.go     |  16 ---
+ 6 files changed, 238 insertions(+), 182 deletions(-)

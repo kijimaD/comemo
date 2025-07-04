@@ -1,15 +1,14 @@
-commit 88b78b41c5c645ab0f19032e6e44c82557b8835e
+commit 1a116c76ae9918720279c3700df8120d9f30f809
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Jul 20 18:52:46 2014 +0400
+Date:   Sun Jul 20 14:59:19 2014 +0400
 
-    cmd/gc: do not mark PC as pointer on stack
-    GC thinks that it's an invalid pointer on plan9:
-    http://build.golang.org/log/f7da638a20544ef7f45e81f23fdbc4875044c296
+    sync/atomic: fix data races in tests
+    Fixes #8389.
     
-    LGTM=0intro
-    R=golang-codereviews, 0intro
-    CC=aram, golang-codereviews
-    https://golang.org/cl/113350043
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/111320044
 
- src/cmd/gc/select.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/sync/atomic/atomic_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

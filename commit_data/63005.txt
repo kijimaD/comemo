@@ -1,0 +1,66 @@
+commit a1c3e2f008267b976e69866b599b113399ad4724
+Author: limeidan <limeidan@loongson.cn>
+Date:   Wed May 7 17:04:54 2025 +0800
+
+    internal/bytealg: optimize the function compare using SIMD on loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: bytes
+    cpu: Loongson-3A6000-HV @ 2500.00MHz
+                      │      old      │                 new                  │
+                      │    sec/op     │    sec/op     vs base                │
+    BytesCompare/1       7.238n ± 25%    5.204n ± 0%  -28.10% (p=0.001 n=10)
+    BytesCompare/2       7.242n ±  6%    5.204n ± 0%  -28.14% (p=0.000 n=10)
+    BytesCompare/4       7.229n ±  5%    4.403n ± 0%  -39.10% (p=0.000 n=10)
+    BytesCompare/8       7.077n ± 36%    4.403n ± 0%  -37.78% (p=0.000 n=10)
+    BytesCompare/16      8.373n ±  6%    6.004n ± 0%  -28.30% (p=0.000 n=10)
+    BytesCompare/32      8.040n ±  3%    4.803n ± 0%  -40.26% (p=0.000 n=10)
+    BytesCompare/64      8.434n ± 24%   10.410n ± 0%  +23.42% (p=0.014 n=10)
+    BytesCompare/128    11.530n ± 23%    5.604n ± 0%  -51.40% (p=0.000 n=10)
+    BytesCompare/256    14.180n ±  0%    7.606n ± 0%  -46.36% (p=0.000 n=10)
+    BytesCompare/512     26.83n ±  0%    10.81n ± 0%  -59.71% (p=0.000 n=10)
+    BytesCompare/1024    52.60n ±  0%    17.21n ± 0%  -67.28% (p=0.000 n=10)
+    BytesCompare/2048   103.70n ±  0%    30.02n ± 0%  -71.05% (p=0.000 n=10)
+    geomean              13.49n          7.607n       -43.63%
+    
+    goos: linux
+    goarch: loong64
+    pkg: bytes
+    cpu: Loongson-3A6000-HV @ 2500.00MHz
+                                          │     old     │                 new                  │
+                                          │   sec/op    │    sec/op     vs base                │
+    CompareBytesEqual                       5.603n ± 0%   5.604n ±  0%        ~ (p=0.191 n=10)
+    CompareBytesToNil                       3.202n ± 0%   3.202n ±  0%        ~ (p=1.000 n=10)
+    CompareBytesEmpty                       2.802n ± 0%   2.802n ±  0%        ~ (p=1.000 n=10)
+    CompareBytesIdentical                   3.202n ± 0%   2.538n ±  1%  -20.72% (p=0.000 n=10)
+    CompareBytesSameLength                  8.805n ± 0%   4.803n ±  0%  -45.45% (p=0.000 n=10)
+    CompareBytesDifferentLength             9.206n ± 0%   4.403n ±  0%  -52.17% (p=0.000 n=10)
+    CompareBytesBigUnaligned/offset=1       82.04µ ± 0%   45.91µ ±  0%  -44.04% (p=0.000 n=10)
+    CompareBytesBigUnaligned/offset=2       82.04µ ± 0%   45.91µ ±  0%  -44.04% (p=0.000 n=10)
+    CompareBytesBigUnaligned/offset=3       82.04µ ± 0%   45.91µ ±  0%  -44.04% (p=0.000 n=10)
+    CompareBytesBigUnaligned/offset=4       82.04µ ± 0%   45.91µ ±  0%  -44.04% (p=0.000 n=10)
+    CompareBytesBigUnaligned/offset=5       82.04µ ± 0%   45.91µ ±  0%  -44.04% (p=0.000 n=10)
+    CompareBytesBigUnaligned/offset=6       82.03µ ± 0%   45.93µ ±  0%  -44.01% (p=0.000 n=10)
+    CompareBytesBigUnaligned/offset=7       82.04µ ± 0%   45.93µ ±  0%  -44.01% (p=0.000 n=10)
+    CompareBytesBigBothUnaligned/offset=0   78.76µ ± 0%   45.69µ ±  0%  -41.98% (p=0.000 n=10)
+    CompareBytesBigBothUnaligned/offset=1   85.32µ ± 0%   46.04µ ±  0%  -46.03% (p=0.000 n=10)
+    CompareBytesBigBothUnaligned/offset=2   85.31µ ± 0%   46.04µ ±  0%  -46.03% (p=0.000 n=10)
+    CompareBytesBigBothUnaligned/offset=3   85.32µ ± 0%   46.04µ ±  0%  -46.03% (p=0.000 n=10)
+    CompareBytesBigBothUnaligned/offset=4   85.32µ ± 0%   46.04µ ±  0%  -46.03% (p=0.000 n=10)
+    CompareBytesBigBothUnaligned/offset=5   85.32µ ± 0%   46.04µ ±  0%  -46.03% (p=0.000 n=10)
+    CompareBytesBigBothUnaligned/offset=6   85.31µ ± 0%   46.06µ ±  0%  -46.02% (p=0.000 n=10)
+    CompareBytesBigBothUnaligned/offset=7   85.32µ ± 0%   52.32µ ±  7%  -38.68% (p=0.000 n=10)
+    CompareBytesBig                         78.76µ ± 0%   50.20µ ±  6%  -36.26% (p=0.000 n=10)
+    CompareBytesBigIdentical                3.202n ± 0%   3.442n ± 24%        ~ (p=0.462 n=10)
+    geomean                                 4.197µ        2.630µ        -37.34%
+    
+    Change-Id: I621145aef3e6a2c68e7127152f26ed047c6b2ece
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/bytealg/compare_loong64.s | 407 ++++++++++++++++++++++++---------
+ 1 file changed, 302 insertions(+), 105 deletions(-)

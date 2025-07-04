@@ -1,17 +1,16 @@
-commit 97b2295f06174f7cd3e8ad121f13110a4e866f77
-Author: David Chase <drchase@google.com>
-Date:   Wed Mar 2 15:49:55 2016 -0500
+commit 0816432918ee0e4f1cf06b2a3100935e6293788b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 09:52:31 2015 -0500
 
-    cmd/compile: trunc(and(x,K)) rewrite to trunc(x) for some K
+    math/big: fix misuse of Unicode
     
-    uint8(s.b & 0xff) ought to produce same code as uint8(s.b)
-    but it did not.  RLH found this one looking for moles to
-    whack in the GC code.
+    ˆ (U+02C6) is a circumflex accent, not an exponentiation operator.
+    In the rest of the source code for this package, exponentation is
+    written as **, so do the same here.
     
-    Change-Id: I883d68ec7a5746d652712be84a274a11256b3b33
-    Reviewed-on: https://go-review.googlesource.com/20141
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I107b85be242ab79d152eb8a6fcf3ca2b197d7658
+    Reviewed-on: https://go-review.googlesource.com/17671
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |   7 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 114 +++++++++++++++++++++++++
- 2 files changed, 121 insertions(+)
+ src/math/big/nat.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,23 +1,24 @@
-commit 3d6173aa120e64a31438f9fb717afb1b9f6708dd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 24 20:41:28 2024 -0700
+commit b3c9db8934fe38d9bbac232f15089d77fdbe359d
+Author: Cian Ruane <CianLR@users.noreply.github.com>
+Date:   Tue Aug 15 14:34:18 2023 +0000
 
-    all: fix typos of possessive its
+    doc: fix broken x509sha1 setting link
     
-    (I noticed the one mistake in hashtriemap.go and figured I'd clean up
-    others.)
+    The link was missing the /pkg/ prefix.
     
-    Change-Id: I4ade424b400056f161bc6c9c2838ba1f96b1f6bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615675
-    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #62034.
+    
+    Change-Id: I96c43f06621e30241e140948129e90f0bd5f8d13
+    GitHub-Last-Rev: c1e7413f76a25ea18a460fb3af732532429d7ff9
+    GitHub-Pull-Request: golang/go#62040
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519575
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/escape/escape.go | 2 +-
- src/cmd/compile/internal/types2/infer.go  | 2 +-
- src/go/types/expr.go                      | 2 +-
- src/go/types/infer.go                     | 2 +-
- src/internal/concurrent/hashtriemap.go    | 2 +-
- src/internal/fuzz/worker.go               | 2 +-
- 6 files changed, 6 insertions(+), 6 deletions(-)
+ doc/godebug.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

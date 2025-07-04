@@ -1,16 +1,34 @@
-commit a92460fd2f5537bbd91a713ced00731d429563ac
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed May 26 12:18:32 2021 -0400
+commit e8379ab5964a920e59dbcc5bc4eaa1bbf5a88e90
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 24 08:04:16 2020 -0700
 
-    doc/go1.17: add release notes for runtime/metrics package
+    crypto/x509: add support for CertPool to load certs lazily
     
-    Updates #44513.
+    This will allow building CertPools that consume less memory. (Most
+    certs are never accessed. Different users/programs access different
+    ones, but not many.)
     
-    Change-Id: I571a791e9c76371be3b3f1a323f1ea8ff485cf0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322857
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    This CL only adds the new internal mechanism (and uses it for the
+    old AddCert) but does not modify any existing root pool behavior.
+    (That is, the default Unix roots are still all slurped into memory as
+    of this CL)
+    
+    Change-Id: Ib3a42e4050627b5e34413c595d8ced839c7bfa14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229917
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- doc/go1.17.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/crypto/x509/cert_pool.go             | 124 ++++++++++++++++++++++++-------
+ src/crypto/x509/name_constraints_test.go |  12 +--
+ src/crypto/x509/root_cgo_darwin.go       |   6 +-
+ src/crypto/x509/root_darwin_test.go      |  11 ++-
+ src/crypto/x509/root_unix.go             |   2 +-
+ src/crypto/x509/root_unix_test.go        |  15 ++--
+ src/crypto/x509/root_windows.go          |   6 +-
+ src/crypto/x509/verify.go                |  20 ++---
+ src/crypto/x509/x509_test.go             |  52 ++++++++++++-
+ 9 files changed, 192 insertions(+), 56 deletions(-)

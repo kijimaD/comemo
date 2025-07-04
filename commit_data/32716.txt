@@ -1,42 +1,20 @@
-commit d02477e994b443ef45851e266381800ea5031859
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Sep 12 18:28:02 2017 -0400
+commit de5c573baabf925ee7cb868285ed4f14de5f7fe9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 8 05:52:07 2017 +0900
 
-    misc/cgo/errors: port test.bash to Go
+    syscall: add Conn and RawConn interfaces
     
-    This makes the test easier to run in isolation and easier to change,
-    and simplifies the code to run the tests in parallel.
+    This change adds Conn and RawConn interfaces which can be used to
+    manipulate raw network connection end points typically represented as
+    socket descriptors.
     
-    updates #13467
+    Fixes #19435.
     
-    Change-Id: I5622b5cc98276970347da18e95d071dbca3c5cc1
-    Reviewed-on: https://go-review.googlesource.com/63276
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ide2d28eeab91bfd27473ab47a87bec69950b64c9
+    Reviewed-on: https://go-review.googlesource.com/37913
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/errors/errors_test.go           | 151 ++++++++++++++++++++++++
- misc/cgo/errors/issue13635.go            |  24 ----
- misc/cgo/errors/{ptr.go => ptr_test.go}  | 196 ++++++++++---------------------
- misc/cgo/errors/{ => src}/err1.go        |   0
- misc/cgo/errors/{ => src}/err2.go        |   0
- misc/cgo/errors/{ => src}/err3.go        |   0
- misc/cgo/errors/{ => src}/err4.go        |   0
- misc/cgo/errors/{ => src}/issue11097a.go |   0
- misc/cgo/errors/{ => src}/issue11097b.go |   0
- misc/cgo/errors/{ => src}/issue13129.go  |   2 +-
- misc/cgo/errors/{ => src}/issue13423.go  |   0
- misc/cgo/errors/src/issue13635.go        |  24 ++++
- misc/cgo/errors/{ => src}/issue13830.go  |   0
- misc/cgo/errors/{ => src}/issue14669.go  |   0
- misc/cgo/errors/{ => src}/issue16116.go  |   0
- misc/cgo/errors/{ => src}/issue16591.go  |   0
- misc/cgo/errors/{ => src}/issue18452.go  |   4 +-
- misc/cgo/errors/{ => src}/issue18889.go  |   0
- misc/cgo/errors/{ => src}/issue7757.go   |   0
- misc/cgo/errors/{ => src}/issue8442.go   |   0
- misc/cgo/errors/src/long_double_size.go  |  16 +++
- misc/cgo/errors/{ => src}/malloc.go      |   0
- misc/cgo/errors/test.bash                |  78 ------------
- src/cmd/dist/test.go                     |   2 +-
- 24 files changed, 255 insertions(+), 242 deletions(-)
+ src/syscall/net.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

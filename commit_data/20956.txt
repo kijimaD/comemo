@@ -1,15 +1,29 @@
-commit 69f24cfa14ba982e0118e240021f0e91f8efe937
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 11 09:44:54 2014 +1100
+commit 3eadbb02afa1494821de000ee280e00c3c398f1d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 18:07:24 2014 -0400
 
-    doc: update README.md and CONTRIBUTING.md in response to review comments
+    cmd/objdump: use cmd/internal/objfile
     
-    I didn't 'add' these files before my final mail.
+    This removes a bunch of ugly duplicate code.
+    The end goal is to factor the disassembly code
+    into cmd/internal/objfile too, so that pprof can use it,
+    but one step at a time.
     
-    Change-Id: Id6f25629638e58421a3dee7632aec38aad9b1970
-    Reviewed-on: https://go-review.googlesource.com/1340
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    LGTM=r, iant
+    R=r, alex.brainman, iant
+    CC=golang-codereviews
+    https://golang.org/cl/149400043
 
- CONTRIBUTING.md |  2 +-
- README.md       | 13 ++++++++-----
- 2 files changed, 9 insertions(+), 6 deletions(-)
+ src/cmd/internal/objfile/elf.go      |  25 ++++
+ src/cmd/internal/objfile/goobj.go    |  12 ++
+ src/cmd/internal/objfile/macho.go    |  24 +++
+ src/cmd/internal/objfile/objfile.go  |  10 ++
+ src/cmd/internal/objfile/pe.go       |  31 ++++
+ src/cmd/internal/objfile/plan9obj.go |  22 +++
+ src/cmd/objdump/Makefile             |  10 --
+ src/cmd/objdump/elf.go               |  65 --------
+ src/cmd/objdump/macho.go             |  77 ----------
+ src/cmd/objdump/main.go              | 277 ++++-------------------------------
+ src/cmd/objdump/pe.go                |  99 -------------
+ src/cmd/objdump/plan9obj.go          |  70 ---------
+ 12 files changed, 154 insertions(+), 568 deletions(-)

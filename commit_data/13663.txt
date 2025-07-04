@@ -1,17 +1,12 @@
-commit 2e6d0968e308b69b8be720f51a4177e90f41668f
-Author: Joakim Sernbrant <serbaut@gmail.com>
-Date:   Wed Aug 22 11:05:24 2012 +1000
+commit fa0e9cd2792dd81acc7ddec5bba271d778231ad4
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Aug 21 20:59:02 2012 +1000
 
-    archive/zip: zip64 support
+    exp/html: refactor the parser.read method.
     
-    R=golang-dev, r, adg
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/6463050
+    https://golang.org/cl/6463070
 
- src/pkg/archive/zip/reader.go          | 114 +++++++++++++++++++++++++---
- src/pkg/archive/zip/reader_test.go     |  11 +++
- src/pkg/archive/zip/struct.go          |  93 ++++++++++++++++-------
- src/pkg/archive/zip/testdata/zip64.zip | Bin 0 -> 242 bytes
- src/pkg/archive/zip/writer.go          | 134 +++++++++++++++++++++++++++------
- src/pkg/archive/zip/zip_test.go        | 114 +++++++++++++++++++++++++---
- 6 files changed, 394 insertions(+), 72 deletions(-)
+ src/pkg/exp/html/parse.go | 28 +++++++++++-----------------
+ 1 file changed, 11 insertions(+), 17 deletions(-)

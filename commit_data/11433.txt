@@ -1,113 +1,12 @@
-commit d5b7c5157efd3b3089213761d8222c0d4dd03ab3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 26 23:06:47 2012 -0800
+commit 9a2f460d4e8f7796643bf3cb7a6125f66da498cb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 27 17:53:11 2012 +1100
 
-    test: match gccgo error messages
+    tag weekly.2012-01-27
     
-    complit1.go:37:34: error: may only omit types within composite literals of slice, array, or map type
-    complit1.go:38:19: error: may only omit types within composite literals of slice, array, or map type
-    complit1.go:18:21: error: slice of unaddressable value
-    complit1.go:19:10: error: slice of unaddressable value
-    complit1.go:20:9: error: slice of unaddressable value
-    
-    convert1.go:28:13: error: invalid type conversion
-    convert1.go:32:12: error: invalid type conversion (cannot use type string as type Tint64)
-    convert1.go:36:12: error: invalid type conversion
-    convert1.go:37:13: error: invalid type conversion
-    convert1.go:40:11: error: invalid type conversion
-    convert1.go:41:12: error: invalid type conversion
-    convert1.go:44:12: error: invalid type conversion
-    convert1.go:46:13: error: invalid type conversion
-    convert1.go:48:11: error: invalid type conversion
-    convert1.go:50:12: error: invalid type conversion
-    convert1.go:52:6: error: invalid type conversion
-    convert1.go:53:12: error: invalid type conversion
-    convert1.go:54:12: error: invalid type conversion
-    convert1.go:56:13: error: invalid type conversion
-    convert1.go:57:11: error: invalid type conversion
-    convert1.go:58:11: error: invalid type conversion
-    convert1.go:64:13: error: invalid type conversion
-    convert1.go:68:12: error: invalid type conversion (cannot use type Tstring as type Tint64)
-    convert1.go:72:12: error: invalid type conversion
-    convert1.go:73:13: error: invalid type conversion
-    convert1.go:76:11: error: invalid type conversion (cannot use type Tbyte as type Trune)
-    convert1.go:77:12: error: invalid type conversion (cannot use type Tbyte as type Tint64)
-    convert1.go:80:12: error: invalid type conversion
-    convert1.go:82:13: error: invalid type conversion
-    convert1.go:84:11: error: invalid type conversion (cannot use type Trune as type Tbyte)
-    convert1.go:86:12: error: invalid type conversion (cannot use type Trune as type Tint64)
-    convert1.go:88:6: error: invalid type conversion (cannot use type Tint64 as type string)
-    convert1.go:89:12: error: invalid type conversion
-    convert1.go:90:12: error: invalid type conversion
-    convert1.go:92:13: error: invalid type conversion (cannot use type Tint64 as type Tstring)
-    convert1.go:93:11: error: invalid type conversion (cannot use type Tint64 as type Tbyte)
-    convert1.go:94:11: error: invalid type conversion (cannot use type Tint64 as type Trune)
-    
-    fixedbugs/bug195.go:9:21: error: interface contains embedded non-interface
-    fixedbugs/bug195.go:12:21: error: interface contains embedded non-interface
-    fixedbugs/bug195.go:15:15: error: interface contains embedded non-interface
-    fixedbugs/bug195.go:18:2: error: invalid recursive interface
-    fixedbugs/bug195.go:26:2: error: invalid recursive interface
-    fixedbugs/bug195.go:22:2: error: invalid recursive interface
-    
-    fixedbugs/bug251.go:15:2: error: invalid recursive interface
-    fixedbugs/bug251.go:11:2: error: invalid recursive interface
-    
-    fixedbugs/bug374.go:18:34: error: use of undefined type ‘xxxx’
-    fixedbugs/bug374.go:16:5: error: incompatible type in initialization (incompatible type for method ‘m’ (different number of parameters))
-    
-    fixedbugs/bug383.go:11:2: error: expected boolean expression
-    fixedbugs/bug383.go:12:2: error: expected boolean expression
-    
-    fixedbugs/bug386.go:10:25: error: incompatible type for return value 1 (type has no methods)
-    fixedbugs/bug386.go:12:25: error: incompatible type for return value 1 (type has no methods)
-    
-    fixedbugs/bug388.go:12:10: error: invalid named/anonymous mix
-    fixedbugs/bug388.go:17:19: error: non-name on left side of ‘:=’
-    fixedbugs/bug388.go:22:9: error: non-name on left side of ‘:=’
-    fixedbugs/bug388.go:27:10: error: expected type
-    fixedbugs/bug388.go:32:9: error: expected type
-    fixedbugs/bug388.go:23:14: error: reference to field ‘i’ in object which has no fields or methods
-    fixedbugs/bug388.go:18:18: error: invalid use of type
-    
-    fixedbugs/bug389.go:12:5: error: incompatible type in initialization (different parameter types)
-    
-    fixedbugs/bug390.go:15:24: error: expected integer, floating, or complex type
-    
-    fixedbugs/bug394.go:10:1: error: expected declaration
-    
-    fixedbugs/bug397.go:12:2: error: incompatible type for element 2 key in map construction
-    
-    switch3.go:18:2: error: incompatible types in binary expression
-    switch3.go:22:2: error: incompatible types in binary expression
-    switch3.go:28:2: error: map can only be compared to nil
-    switch3.go:35:2: error: slice can only be compared to nil
-    switch3.go:42:2: error: func can only be compared to nil
-    
-    syntax/else.go:11:9: error: expected ‘if’ or ‘{’
-    
-    typeswitch2.go:15:2: error: duplicate type in switch
-    typeswitch2.go:19:2: error: duplicate type in switch
-    typeswitch2.go:26:2: error: duplicate type in switch
-    typeswitch2.go:40:9: error: ‘t’ declared and not used
-    
-    R=golang-dev, r
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5573073
+    https://golang.org/cl/5576054
 
- test/complit1.go         |  4 +--
- test/convert1.go         | 64 ++++++++++++++++++++++++------------------------
- test/fixedbugs/bug195.go |  2 +-
- test/fixedbugs/bug251.go |  2 +-
- test/fixedbugs/bug374.go |  4 +--
- test/fixedbugs/bug383.go |  6 ++---
- test/fixedbugs/bug386.go |  4 +--
- test/fixedbugs/bug388.go | 14 +++++------
- test/fixedbugs/bug389.go |  2 +-
- test/fixedbugs/bug390.go |  2 +-
- test/fixedbugs/bug394.go |  2 +-
- test/fixedbugs/bug397.go |  2 +-
- test/switch3.go          | 10 ++++----
- test/syntax/else.go      |  2 +-
- test/typeswitch2.go      |  4 +--
- 15 files changed, 62 insertions(+), 62 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

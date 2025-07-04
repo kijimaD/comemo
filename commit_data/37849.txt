@@ -1,20 +1,16 @@
-commit e3eb2ff8270a3d0f542808136519a044f39c50d9
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Tue Jan 8 00:54:58 2019 +0200
+commit 5188c87c955a9caf64a0fb2efd8ea95ee9b30a41
+Author: Ivan Kutuzov <arbrix@gmail.com>
+Date:   Fri Aug 31 09:14:04 2018 -0600
 
-    runtime: disable GDB tests on freebsd on all GOARCH values
+    encoding/pem: fix for TestFuzz, PEM type should not contain a colon
     
-    The in-tree GDB is too old (6.1.1) on all the builders except the
-    FreeBSD 12.0 one, where it was removed from the base system.
+    Fixes #22238
     
-    Update #29508
-    
-    Change-Id: Ib6091cd86440ea005f3f903549a0223a96621a6f
-    Reviewed-on: https://go-review.googlesource.com/c/156717
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8184f789bd4120f3e71c9374c7c2fcbfa95935bf
+    Reviewed-on: https://go-review.googlesource.com/132635
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/runtime-gdb_test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/encoding/pem/pem_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

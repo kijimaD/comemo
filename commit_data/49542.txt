@@ -1,29 +1,47 @@
-commit c3bea70d9b3b80ceb7733cd7bde0cdf0a1bfd0d0
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Jun 24 15:31:35 2022 -0400
+commit 967a8017f7d41717335ee020e46e2c55c5c9e96e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 13:17:56 2021 -0700
 
-    cmd/link: link against libsynchronization.a for -race on windows
+    cmd/compile: move types init code into package types
     
-    As of LLVM rev 41cb504b7c4b18ac15830107431a0c1eec73a6b2, the
-    race detector runtime now refers to things in the windows
-    synchronization library, hence when doing windows internal
-    linking, at that library to the list of host archives that
-    we visit. The tsan code that makes the reference is here:
+    This moves the package types setup code from package typecheck into
+    package types itself. This is a prereq for making types.Type more
+    opaque, because some unit tests depend on being able to init the basic
+    universal types.
     
-    https://github.com/llvm/llvm-project/blob/41cb504b7c4b18ac15830107431a0c1eec73a6b2/compiler-rt/lib/sanitizer_common/sanitizer_win.cpp#L48
-    https://github.com/llvm/llvm-project/blob/41cb504b7c4b18ac15830107431a0c1eec73a6b2/compiler-rt/lib/sanitizer_common/sanitizer_win.cpp#L834
+    A few notable details of this CL:
     
-    Note that libsynchronization.a is not guaranteed to be available on
-    all windows systems, so in the external linking case, check for its
-    existence before adding "-lsynchronization" to the external linker
-    args.
+    1. Creating the builtin types requires being able to create the
+    ir.Name/ir.OTYPE that represents it, but package types can't depend on
+    package ir. So we add a callback function to handle creating the
+    ir.Name.
     
-    Updates #53539.
+    2. This CL moves ir.Pkgs.Unsafe to types.UnsafePkg. Package unsafe is
+    part of the language, not like the other ir.Pkgs packages that are
+    purely implementation details.
     
-    Change-Id: I433c95c869915693d59e9c1082d5b8a11da1fc8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413817
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    3. This CL also moves typecheck.FakeRecv to types.FakeRecv, addressing
+    an outstanding TODO.
+    
+    Change-Id: I64de04ce82fbcd1bb59f547e2eea3cda52d89429
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345474
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/compile/internal/gc/main.go             |   2 +-
+ src/cmd/compile/internal/ir/symtab.go           |   1 -
+ src/cmd/compile/internal/noder/import.go        |   4 +-
+ src/cmd/compile/internal/noder/noder.go         |   2 +-
+ src/cmd/compile/internal/noder/reader.go        |   4 +-
+ src/cmd/compile/internal/noder/types.go         |   4 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |   2 +-
+ src/cmd/compile/internal/typecheck/dcl.go       |   7 --
+ src/cmd/compile/internal/typecheck/iexport.go   |   6 +-
+ src/cmd/compile/internal/typecheck/iimport.go   |   4 +-
+ src/cmd/compile/internal/typecheck/universe.go  | 144 +-----------------------
+ src/cmd/compile/internal/types/fmt.go           |   3 +
+ src/cmd/compile/internal/types/type.go          |   4 +
+ src/cmd/compile/internal/types/universe.go      | 144 ++++++++++++++++++++++++
+ 14 files changed, 171 insertions(+), 160 deletions(-)

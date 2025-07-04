@@ -1,23 +1,20 @@
-commit 26dadbe32ce5b9d705ef38279e1f85fbbdf58287
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Fri Aug 18 14:13:33 2017 +0300
+commit bcf2d74ce835016d8dde28a64cbc4b49b5b449c9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 8 13:32:18 2017 -0700
 
-    cmd/asm: add amd64 PAB{SB,SD,SW}, PMADDUBSW, PMULHRSW, PSIG{NB,ND,NW}
+    cmd/compile: better errors for float constants with large exponents
     
-    instructions
+    Also: Removed misleading comment.
     
-    1st change out of 3 to cover AMD64 SSSE3 instruction set in Go asm.
-    This commit adds instructions that do not require new named ytab sets.
+    Fixes #20232.
     
-    Change-Id: I0c3dfd8d39c3daa8b7683ab163c63145626d042e
-    Reviewed-on: https://go-review.googlesource.com/56834
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I0b141b1360ac53267b7ebfcec7a2e2a238f3f46c
+    Reviewed-on: https://go-review.googlesource.com/42930
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 128 +++++++++++++--------------
- src/cmd/internal/obj/x86/a.out.go            |   8 ++
- src/cmd/internal/obj/x86/anames.go           |   8 ++
- src/cmd/internal/obj/x86/asm6.go             |   8 ++
- 4 files changed, 88 insertions(+), 64 deletions(-)
+ src/cmd/compile/internal/gc/mpfloat.go | 17 +++--------------
+ src/go/types/stdlib_test.go            |  1 +
+ test/fixedbugs/issue20232.go           | 11 +++++++++++
+ 3 files changed, 15 insertions(+), 14 deletions(-)

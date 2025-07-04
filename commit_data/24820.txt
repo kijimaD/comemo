@@ -1,18 +1,17 @@
-commit c1037aad4d10078b536625683364dcceed6c4e21
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Wed Sep 23 18:58:05 2015 -0400
+commit dc3540d982ade0d50569abd8d054c9c66e2d9d03
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sun Aug 30 23:56:40 2015 +0200
 
-    runtime: added mips64{,le} build tags and GOARCH cases
+    compile/internal/gc: make typecheckok a bool
     
-    Change-Id: I381c03d957a0dccae5f655f02e92760e5c0e9629
-    Reviewed-on: https://go-review.googlesource.com/14929
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ib3960321a4c8164f6b221bfd15977d2f34dbc65b
+    Reviewed-on: https://go-review.googlesource.com/14175
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cputicks.go         | 2 ++
- src/runtime/gcinfo_test.go      | 2 +-
- src/runtime/hash64.go           | 2 +-
- src/runtime/noasm.go            | 2 +-
- src/runtime/runtime-gdb_test.go | 2 +-
- src/runtime/unaligned2.go       | 2 +-
- 6 files changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go       | 2 +-
+ src/cmd/compile/internal/gc/go.go        | 2 +-
+ src/cmd/compile/internal/gc/lex.go       | 8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

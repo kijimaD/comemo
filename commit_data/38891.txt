@@ -1,20 +1,25 @@
-commit 2693b424662580c3f4fc65e43474e4db0f9c5cf5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 24 16:59:34 2019 -0700
+commit aa2415807781ba84bf917c62cb983dc1a44f2ad1
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Mon Aug 6 18:38:18 2018 -0400
 
-    cmd/compile: don't initialize blank struct fields
+    crypto/x509: fix root CA extraction on macOS (no-cgo path)
     
-    We already skipped blank field initialization in non-global contexts.
-    This change makes the global context treatment match.
+    Certificates without any trust settings might still be in the keychain
+    (for example if they used to have some, or if they are intermediates for
+    offline verification), but they are not to be trusted. The only ones we
+    can trust unconditionally are the ones in the system roots store.
     
-    Fixes #31546
+    Moreover, the verify-cert invocation was not specifying the ssl policy,
+    defaulting instead to the basic one. We have no way of communicating
+    different usages in a CertPool, so stick to the WebPKI use-case as the
+    primary one for crypto/x509.
     
-    Change-Id: I40acce49b0a9deb351ae0da098f4c114e425ec63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173723
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #24652
+    
+    Change-Id: Ife8b3d2f4026daa1223aa81fac44aeeb4f96528a
+    Reviewed-on: https://go-review.googlesource.com/c/128116
+    Reviewed-by: Adam Langley <agl@google.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go |  3 +++
- test/fixedbugs/issue31546.go         | 20 ++++++++++++++++++++
- 2 files changed, 23 insertions(+)
+ src/crypto/x509/root_darwin.go | 113 +++++++++++++++++++++++++----------------
+ 1 file changed, 69 insertions(+), 44 deletions(-)

@@ -1,18 +1,21 @@
-commit 7c7349c9e9217d7bb22f41eaa658bbba8716bad6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 1 13:04:56 2016 -0700
+commit daa7c607d269e4779b74174032639b552174868f
+Author: Sina Siadat <siadat@gmail.com>
+Date:   Thu Sep 8 11:39:12 2016 +0430
 
-    cmd/go: remove _cgo_flags from gccgo archive built using SWIG
+    net/http/httputil: remove custom hop-by-hop headers from response in ReverseProxy
     
-    Since SWIG uses cgo, when using SWIG with gccgo, the go tool will add a
-    _cgo_flags file to the package archive, just as it does with cgo. We
-    need to remove that file from the archive passed to the linker, just as
-    we do with cgo.
+    Hop-by-hop headers (explicitly mentioned in RFC 2616) were already
+    removed from the response. This removes the custom hop-by-hop
+    headers listed in the "Connection" header of the response.
     
-    Change-Id: I5ef4fea92eec419f870fbf6f678691d15901ee6c
-    Reviewed-on: https://go-review.googlesource.com/32535
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Updates #16875
+    
+    Change-Id: I6b8f261d38b8d72040722f3ded29755ef0303427
+    Reviewed-on: https://go-review.googlesource.com/28810
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/httputil/reverseproxy.go      | 12 +++++++++++-
+ src/net/http/httputil/reverseproxy_test.go |  9 +++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

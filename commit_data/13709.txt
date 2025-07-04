@@ -1,12 +1,13 @@
-commit d6c69dc602431828c5e5818b24bbf0593652480c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 30 16:10:33 2012 -0700
+commit b7627d3d1f238e484d08bb8abb770cbe91482bc4
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 30 11:16:41 2012 -0700
 
-    go/scanner: don't print garbage if there's no error
+    path: improve documentation for Dir
     
-    R=r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6489059
+    https://golang.org/cl/6495059
 
- src/pkg/go/scanner/errors.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/path/path.go      | 3 ++-
+ src/pkg/path/path_test.go | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

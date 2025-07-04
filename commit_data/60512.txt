@@ -1,0 +1,21 @@
+commit 28aed4015ee7ba85b29007d685de9150e01a9acd
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jul 26 12:05:40 2024 -0400
+
+    debug/buildinfo: add old-Go and not-Go tests
+    
+    There is currently no coverage for the pre-1.18 buildinfo format, or for
+    parsing non-Go binaries. Add basic tests for each of these.
+    
+    Updates #68592.
+    
+    Change-Id: Iec14d29ffc1392e46f592c0c7bebf2eb75f7d0d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601457
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/debug/buildinfo/buildinfo_test.go |  56 ++++++++++++++++++++++++++++++++++
+ src/debug/buildinfo/testdata/go117    | Bin 0 -> 1166278 bytes
+ src/debug/buildinfo/testdata/notgo    | Bin 0 -> 15832 bytes
+ 3 files changed, 56 insertions(+)

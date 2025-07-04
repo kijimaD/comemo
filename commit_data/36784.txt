@@ -1,20 +1,16 @@
-commit a0e7f12771c2e84e626dcf5e30da5d62a3b1adf6
-Author: Jake B <doogie1012@gmail.com>
-Date:   Sat Sep 29 04:06:00 2018 +0000
+commit 6070e432d2cbde0f04b7391069f5dbb27589b341
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 28 11:36:29 2018 -0700
 
-    misc/wasm: add polyfill for TextEncoder/TextDecoder for Edge support
+    cmd/dist: report correct CC name in error about missing CC
     
-    Edge supports WASM but not TextEncoder or TextDecoder.
-    This PR adds a polyfill to `misc/wasm/wasm_exec.js` to fix this.
+    Fixes #25611
     
-    Fixes #27295
-    
-    Change-Id: Ie35ee5604529b170a5dc380eb286f71bdd691d3e
-    GitHub-Last-Rev: a587edae2806e1ca9b6be1c5dfd8824568373bdb
-    GitHub-Pull-Request: golang/go#27296
-    Reviewed-on: https://go-review.googlesource.com/131718
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Change-Id: I487463584e4d9d99cf5d8db0c9a4b4e66464ecd8
+    Reviewed-on: https://go-review.googlesource.com/114935
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/wasm/wasm_exec.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

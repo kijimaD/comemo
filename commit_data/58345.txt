@@ -1,27 +1,22 @@
-commit 5213e1e56c17bde612398dac8a2996bf020fe542
-Author: Junyang Shao <shaojunyang@google.com>
-Date:   Wed Dec 4 20:11:18 2024 +0000
+commit b11defeaed46a56e2d8a32f16ce3e22a93c3a825
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 31 09:54:54 2023 -0700
 
-    testing: improve documentation, examples, release notes for
+    runtime: make select fairness test less picky
     
-    testing.b.Loop.
+    Allow up to 10 standard deviations from the mean, instead of
+    ~5 that the current test allows.
     
-    This CL added documentation of the no-inlining semantic of b.Loop, with
-    a concrete example. This CL also tries to improve the release note to be
-    more descriptive.
+    10 standard deviations allows up to a 4500/5500 split.
     
-    Fixes #61515
+    Fixes #52465
     
-    Change-Id: I1e13cc92d5d6bdbf40fb44f44475e249747b807f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633536
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Icb21c1d31fafbcf4723b75435ba5e98863e812c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538815
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- doc/next/6-stdlib/6-testing-bloop.md        |  5 +++++
- doc/next/6-stdlib/99-minor/testing/61515.md |  2 +-
- src/testing/benchmark.go                    | 16 +++++++++++++++
- src/testing/benchmark_test.go               | 30 +++++++++++++++++++++++++++++
- 4 files changed, 52 insertions(+), 1 deletion(-)
+ src/runtime/chan_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

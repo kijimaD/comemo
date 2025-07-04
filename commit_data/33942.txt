@@ -1,38 +1,29 @@
-commit 29208ce548f156d68269bf529dc7605d568a8f67
+commit 2ba76155cd0762375b8e19a500a5b1fb875ff73b
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 4 13:07:44 2018 -0500
+Date:   Tue Sep 19 23:50:50 2017 -0400
 
-    cmd/go: fix coverage rebuild corner case
+    [dev.boringcrypto] crypto/internal/boring: fix finalizer-induced crashes
     
-    If you have a package p1 with an xtest (package p1_test)
-    that imports p2, where p2 itself imports p1, then when
-    trying to do coverage for p1 we need to make sure to
-    recompile p2. The problem was that the overall package
-    import graph looked like:
+    All the finalizer-enabled C wrappers must be careful to use
+    runtime.KeepAlive to ensure the C wrapper object (a Go object)
+    lives through the end of every C call using state that the
+    wrapper's finalizer would free.
     
-        main -> p1_test -> p2 -> p1
+    This CL makes the wrappers appropriately careful.
     
-    Since we were recompiling p1 with coverage, we correctly
-    figured out that because p2 depends on a package being
-    recompiled due to coverage, p2 also needs to be split (forked) to
-    insert the dependency on the modified p1. But then we used
-    the same logic to split p1_test and main, with the effect that
-    the changes to p2 and p1_test and main were lost, since the
-    caller was still holding on to the original main, not the split version.
+    The test proves that this is the bug I was chasing in a
+    separate real program, and that the KeepAlives fix it.
+    I did not write a test of every possible operation.
     
-    Change the code to treat main and p1_test as "already split"
-    and just update them in place.
-    
-    Fixes #23314.
-    
-    Change-Id: If7edeca6e39cdaeb5b9380d00b0c7d8c5891f086
-    Reviewed-on: https://go-review.googlesource.com/86237
+    Change-Id: I627007e480f16adf8396e7f796b54e5525d9ea80
+    Reviewed-on: https://go-review.googlesource.com/64870
     Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                          | 11 +++++++++++
- src/cmd/go/internal/test/test.go               |  9 ++++++---
- src/cmd/go/testdata/src/coverdep2/p1/p.go      |  3 +++
- src/cmd/go/testdata/src/coverdep2/p1/p_test.go | 10 ++++++++++
- src/cmd/go/testdata/src/coverdep2/p2/p2.go     |  7 +++++++
- 5 files changed, 37 insertions(+), 3 deletions(-)
+ src/crypto/internal/boring/aes.go   |  6 ++++++
+ src/crypto/internal/boring/ecdsa.go | 13 +++++++++++-
+ src/crypto/internal/boring/hmac.go  |  6 ++++++
+ src/crypto/internal/boring/rsa.go   | 29 +++++++++++++++++++-------
+ src/crypto/rsa/boring_test.go       | 41 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 87 insertions(+), 8 deletions(-)

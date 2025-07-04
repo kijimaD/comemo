@@ -1,16 +1,20 @@
-commit 3c8101c7e4b80794c6c61acf7477fee136f8c79e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue May 28 14:29:28 2019 -0700
+commit 43d25a61c16bfe263c61d36237ee1b51a545b8cf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 30 18:07:55 2019 -0400
 
-    cmd/compile: use optimized slice zeroing in deadcode
+    [dev.link] cmd/link: ensure deterministic order in dynexp
     
-    Minor cleanup. Passes toolstash-check.
+    dynexp is used for generating the dynamic symbol table. It is
+    created from a map. Sort it to ensure deterministic order.
     
-    Change-Id: I97a027c4ca49ded593e9c7989e9e091ab9336fa3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227318
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Should fix solaris build.
+    
+    Change-Id: I561b9da3a4136a7ea41139073f76c98fb069d4fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204378
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/deadcode.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/lib.go  | 2 ++
+ src/cmd/link/internal/ld/util.go | 7 +++++++
+ 2 files changed, 9 insertions(+)

@@ -1,15 +1,30 @@
-commit 78b3ef261d3ea28aa387be464c8d2c9b1618290c
+commit 31444a796a70530238b23d7603f85bf8d524d5da
 Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 25 16:29:09 2013 -0800
+Date:   Mon Feb 25 16:25:34 2013 -0800
 
-    cmd/vet: silence error from type checker unless verbose is set.
-    Also restores the checking of _test.go files, which disappeared
-    as a result of the package-at-a-time change.
-    Fixes #4895.
+    cmd/vet: move the tests into separate files
+    Then mark them with a build tag so they're not compiled into the binary.
+    They are called test_*.go rather than *_test.go because they are not
+    for go test. Use make test to test the command.
     
-    R=golang-dev, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7399051
+    https://golang.org/cl/7377052
 
- src/cmd/vet/main.go | 31 ++++++++++++++++++++++---------
- 1 file changed, 22 insertions(+), 9 deletions(-)
+ src/cmd/vet/Makefile          |   2 +-
+ src/cmd/vet/atomic.go         |  31 ---------
+ src/cmd/vet/buildtag.go       |   5 --
+ src/cmd/vet/method.go         |   7 --
+ src/cmd/vet/print.go          | 135 -------------------------------------
+ src/cmd/vet/print_unsafe.go   |  19 ------
+ src/cmd/vet/rangeloop.go      |  52 --------------
+ src/cmd/vet/structtag.go      |   4 --
+ src/cmd/vet/taglit.go         |  17 -----
+ src/cmd/vet/test_atomic.go    |  43 ++++++++++++
+ src/cmd/vet/test_buildtag.go  |  15 +++++
+ src/cmd/vet/test_method.go    |  24 +++++++
+ src/cmd/vet/test_print.go     | 153 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/test_rangeloop.go |  61 +++++++++++++++++
+ src/cmd/vet/test_structtag.go |  15 +++++
+ src/cmd/vet/test_taglit.go    |  31 +++++++++
+ 16 files changed, 343 insertions(+), 271 deletions(-)

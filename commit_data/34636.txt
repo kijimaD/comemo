@@ -1,17 +1,16 @@
-commit b61b1d2c57131b4fad9269c07ef8429add208017
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Mar 16 12:05:18 2018 +0100
+commit 0ee4527ac7a4472c51c13948a3ac3e0c51a51838
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Fri Nov 3 20:17:08 2017 -0300
 
-    test/codegen: port structs test to codegen
+    hash: add marshaling, unmarshaling example
     
-    And delete them from asm_test.
+    Example usage of functionality implemented in CL 66710.
     
-    Change-Id: Ia286239a3d8f3915f2ca25dbcb39f3354a4f8aea
-    Reviewed-on: https://go-review.googlesource.com/101138
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I87d6e4d2fb7a60e4ba1e6ef02715480eb7e8f8bd
+    Reviewed-on: https://go-review.googlesource.com/76011
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 37 --------------------------
- test/codegen/structs.go                 | 46 +++++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 37 deletions(-)
+ src/hash/example_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

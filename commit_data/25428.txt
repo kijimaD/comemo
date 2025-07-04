@@ -1,19 +1,13 @@
-commit ace1738f9c1ad3d351c49cb9ca0811334a24585f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 5 14:19:10 2016 -0800
+commit 78c05b8657a2e044660da95e1f32c059daea67c1
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Oct 29 12:45:34 2015 +1300
 
-    A+C: automated update
+    cmd/compile, cmd/go: enable -buildmode=shared and related flags on linux/arm
     
-    These are the easy, automated cases. There were some more where we
-    need to fight Gerrit and the CLA system to extract the appropriate
-    metadata.
-    
-    Updates #12042
-    
-    Change-Id: Id63ae635ee7efeec4cd372c7d85bb5b1f557951b
-    Reviewed-on: https://go-review.googlesource.com/18264
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I20840632771a250fb279df64d394135994482af8
+    Reviewed-on: https://go-review.googlesource.com/14186
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- AUTHORS      |  5 +++++
- CONTRIBUTORS | 10 ++++++++++
- 2 files changed, 15 insertions(+)
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ src/cmd/go/build.go                | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

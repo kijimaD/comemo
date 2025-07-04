@@ -1,20 +1,18 @@
-commit ff3123d1f66992f51d326c844d8ecf1f5ab8e75d
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sat Sep 23 22:29:42 2017 +0530
+commit a027466e4b6d594fd8b562094fe63a9c4c6ec4f7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 6 15:25:29 2017 -0700
 
-    sort: update main example to use Slice along with Sort
+    cmd/compile: check that phis are always first after scheduling
     
-    This is to let sort.Slice get more prominence since
-    it's the most common use case.
+    Update #20178
     
-    Fixes #21989
-    
-    Change-Id: I0b180cc20256f5f09065b722e191c508c872f4f7
-    Reviewed-on: https://go-review.googlesource.com/65710
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I603f77268ed38afdd84228c775efe006f08f14a7
+    Reviewed-on: https://go-review.googlesource.com/45018
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/sort/example_interface_test.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/compile/internal/ssa/check.go     | 16 ++++++++++++++++
+ src/cmd/compile/internal/ssa/deadstore.go |  6 +++++-
+ src/cmd/compile/internal/ssa/rewrite.go   |  4 ++++
+ 3 files changed, 25 insertions(+), 1 deletion(-)

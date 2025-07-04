@@ -1,21 +1,15 @@
-commit ebd9f1bd4c39bc2fe3bcf6f0d3c81f70dae495d8
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Sun Mar 13 22:12:03 2016 +0100
+commit 608ddc38bdaed0791979145947d7c08738b5f2a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 13 22:14:40 2016 +0000
 
-    encoding/binary: remove bound checks from conversions.
+    net/http: update bundled http2
     
-    * This the simplest solution I could came up with
-    that doesn't required changing the compiler.
-    * The bound checks become constants now
-    so they are removed during opt phase.
+    Updates x/net/http2 to git rev 341cd08 for https://golang.org/cl/18576
     
-    Updates #14808
-    
-    Change-Id: If32c33d7ec08bb400321b465015d152f0a5d3001
-    Reviewed-on: https://go-review.googlesource.com/20654
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If5dcb60ac449b798c34fe332ede5ec74e66eb9db
+    Reviewed-on: https://go-review.googlesource.com/18579
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/binary/binary.go | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ src/net/http/h2_bundle.go | 35 +++++++++++++++++++++++++----------
+ 1 file changed, 25 insertions(+), 10 deletions(-)

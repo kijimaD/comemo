@@ -1,33 +1,25 @@
-commit ae3d890202b2356fc0936f84349bdf08083884ac
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 3 08:59:56 2022 -0400
+commit 4a735ce0680e5ea6088da8072ba4c2b0076e51cb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 11 01:45:24 2021 -0700
 
-    go/doc/comment: parse and print identifiers, automatic links
+    [dev.typeparams] cmd/compile: add "check" field to noder.gcimports
     
-    [This CL is part of a sequence implementing the proposal #51082.
-    The design doc is at https://go.dev/s/godocfmt-design.]
+    The unified IR importer needs access to the *types2.Checker instance
+    to lazily construct objects and types. Eventually, maybe the
+    types2.Importer API can be extended to add the Checker as another
+    parameter (or more likely something like an ImportConfig struct), but
+    right now we can handle this ourselves as long as we forgo the
+    types2.(*Config).Check convenience wrapper.
     
-    Implement parsing and printing of unmarked identifiers
-    and automatic URL links in plain text.
+    Updates #46449.
     
-    For #51082.
-    
-    Change-Id: Ib83ad482937501a6fc14fa788eab289533a68e3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397280
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I89c41d5d47c224a58841247cd236cd9f701a23a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327053
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/doc/comment/html.go            | 10 +++++
- src/go/doc/comment/markdown.go        | 10 +++++
- src/go/doc/comment/parse.go           | 75 ++++++++++++++++++++++++++++++++++-
- src/go/doc/comment/print.go           |  4 ++
- src/go/doc/comment/testdata/hello.txt |  6 +--
- src/go/doc/comment/testdata/link.txt  | 17 ++++++++
- src/go/doc/comment/testdata/para.txt  | 17 ++++++++
- src/go/doc/comment/testdata/text2.txt | 14 +++++++
- src/go/doc/comment/testdata/words.txt | 10 +++++
- src/go/doc/comment/testdata_test.go   | 13 +++++-
- src/go/doc/comment/text.go            | 16 +++++++-
- 11 files changed, 185 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/noder/import.go |  8 ++++----
+ src/cmd/compile/internal/noder/irgen.go  | 18 ++++++++++--------
+ 2 files changed, 14 insertions(+), 12 deletions(-)

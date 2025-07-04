@@ -1,13 +1,12 @@
-commit 148154b7e7bb026e91208344b3c9c27af7226272
-Author: Carl Mastrangelo <notcarl@google.com>
-Date:   Thu Nov 8 09:39:24 2012 -0500
+commit 122c154c605b83b3edd0324c1b038457bbc70784
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Nov 8 13:00:54 2012 +1100
 
-    lib9: remove unreferenced externs and getuser()
+    cmd/go: say that -race flag can be used on windows/amd64
     
-    R=golang-dev, dave, rsc
-    CC=golang-dev
-    https://golang.org/cl/6820115
+    R=golang-dev, r
+    CC=dvyukov, golang-dev
+    https://golang.org/cl/6810099
 
- include/libc.h     |  4 ----
- src/lib9/getuser.c | 43 -------------------------------------------
- 2 files changed, 47 deletions(-)
+ src/cmd/go/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

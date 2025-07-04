@@ -1,43 +1,26 @@
-commit cc258e6785060345a497d44b6073c91b81e32576
-Author: David Chase <drchase@google.com>
-Date:   Wed May 22 14:00:43 2024 -0700
+commit 1f11ea6c41e6ef323e9201649ad4863808342669
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jun 9 10:30:40 2023 +0200
 
-    cmd/compile: add "deadlocals" pass to remove unused locals
+    cmd/go: fix TestScript/gotoolchain* when go.env doesn't set GOTOOLCHAIN=auto
     
-    This CL adds a "deadlocals" pass, which runs after inlining and before
-    escape analysis, to prune any unneeded local variables and
-    assignments. In particular, this helps avoid unnecessary Addrtaken
-    markings from unreachable closures.
+    Some of the TestScript/gotoolchain* tests assume that go.env contains
+    GOTOOLCHAIN=auto, but that's not always the case, for example CI
+    environments may set it to `local` to avoid downloading a new toolchain.
     
-    Deadlocals is sensitive to "_ = ..." as a signal of explicit
-    use for testing.  This signal occurs only if the entire
-    left-hand-side is "_" targets; if it is
-      `_, ok := someInlinedFunc(args)`
-    then the first return value is eligible for dead code elimination.
+    This commit fixes the tests to work regardless of the value of
+    GOTOOLCHAIN in go.env.
     
-    Use this (`_ = x`) to fix tests broken by deadlocals elimination.
+    Fixes #60685
     
-    Includes a test, based on one of the tests that required modification.
-    
-    Matthew Dempsky wrote this, changing ownership to allow rebases, commits, tweaks.
-    
-    Fixes #65158.
-    
-    Old-Change-Id: I723fb69ccd7baadaae04d415702ce6c8901eaf4e
-    Change-Id: I1f25f4293b19527f305c18c3680b214237a7714c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600498
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: David Chase <drchase@google.com>
-    Commit-Queue: David Chase <drchase@google.com>
+    Change-Id: Ieda22574f8a028893762274cf9db721c9d69bf7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/base/debug.go            |   1 +
- src/cmd/compile/internal/deadlocals/deadlocals.go | 187 ++++++++++++++++++++++
- src/cmd/compile/internal/gc/main.go               |   3 +
- src/runtime/race/testdata/mop_test.go             |   8 +-
- test/closure3.dir/main.go                         |  23 +++
- test/fixedbugs/issue54159.go                      |   1 +
- test/inline.go                                    |   8 +-
- test/newinline.go                                 |   8 +-
- 8 files changed, 235 insertions(+), 4 deletions(-)
+ src/cmd/go/script_test.go                        | 1 +
+ src/cmd/go/testdata/script/gotoolchain_local.txt | 8 +-------
+ 2 files changed, 2 insertions(+), 7 deletions(-)

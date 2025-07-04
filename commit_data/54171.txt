@@ -1,25 +1,45 @@
-commit 4dc2564933146efc411efad16b662589306744d1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 22 17:33:50 2023 -0400
+commit 7a74829858bbc2fdf8b2d8902f7df46935cf6be9
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Oct 21 10:57:23 2021 -0400
 
-    cmd/go: retry ETXTBSY errors when running test binaries
+    cmd/covdata: add tools to read/manipulate coverage data files
     
-    An ETXTBSY error when starting a test binary is almost certainly
-    caused by the race reported in #22315. That race will resolve quickly
-    on its own, so we should just retry the command instead of reporting a
-    spurious failure.
+    Add a set of helper packages for reading collections of related
+    meta-data and counter-data files ("pods") produced by runs of
+    coverage-instrumented binaries, and a new tool program (cmd/covdata)
+    for dumping and/or manipulating coverage data files.
     
-    Fixes #62221.
+    Currently "go tool covdata" subcommands include 'merge', 'intersect',
+    'percent', 'pkglist', 'subtract', 'debugdump', and 'textfmt'
+    (conversion to the legacy "go tool cover" format).
     
-    Change-Id: I408f3eaa7ab5d7efbc7a2b1c8bea3dbc459fc794
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522015
+    Updates #51430.
+    
+    Change-Id: I44167c578f574b4636ab8726e726388531fd3258
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357609
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/test/test.go                   | 114 ++++++++++++---------
- src/cmd/go/internal/test/test_nonunix.go           |  12 +++
- src/cmd/go/internal/test/test_unix.go              |  16 +++
- .../go/testdata/script/test_compile_multi_pkg.txt  |   6 +-
- 4 files changed, 101 insertions(+), 47 deletions(-)
+ src/cmd/covdata/argsmerge.go                      |  64 ++
+ src/cmd/covdata/covdata.go                        | 224 ++++++
+ src/cmd/covdata/doc.go                            |  84 ++
+ src/cmd/covdata/dump.go                           | 348 +++++++++
+ src/cmd/covdata/merge.go                          | 109 +++
+ src/cmd/covdata/metamerge.go                      | 433 +++++++++++
+ src/cmd/covdata/subtractintersect.go              | 197 +++++
+ src/cmd/covdata/testdata/dep.go                   |  17 +
+ src/cmd/covdata/testdata/prog1.go                 |  48 ++
+ src/cmd/covdata/testdata/prog2.go                 |  29 +
+ src/cmd/covdata/tool_test.go                      | 885 ++++++++++++++++++++++
+ src/cmd/internal/cov/mreader.go                   |  85 +++
+ src/cmd/internal/cov/readcovdata.go               | 272 +++++++
+ src/go/build/deps_test.go                         |  15 +-
+ src/internal/coverage/calloc/batchcounteralloc.go |  29 +
+ src/internal/coverage/cformat/fmt_test.go         |  92 +++
+ src/internal/coverage/cformat/format.go           | 340 +++++++++
+ src/internal/coverage/cmerge/merge.go             | 104 +++
+ src/internal/coverage/cmerge/merge_test.go        | 105 +++
+ src/internal/coverage/pods/pods.go                | 194 +++++
+ src/internal/coverage/pods/pods_test.go           | 143 ++++
+ 21 files changed, 3815 insertions(+), 2 deletions(-)

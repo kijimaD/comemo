@@ -1,19 +1,44 @@
-commit 1a58fd0fdaf9678d56b587f30dc9281553f6ccb9
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Oct 29 03:14:32 2023 +1100
+commit 5bf9aeba1cfec8804425f3838b661fd6c2eb26ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 15 20:36:10 2022 -0500
 
-    syscall: regen zsyscall for openbsd/riscv64
+    runtime/race: do not use cgo on macOS
     
-    This removes the unused writelen function, which was cleaned up for other
-    platforms in CL#529035.
+    The use of an empty import "C" to trigger cgo in runtime/race
+    serves two purposes:
     
-    Change-Id: I1999dc81276763bdc73d8590c16729447c4e8538
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538119
+    1. Cause the runtime to use the C library to create system threads,
+       because the race syso implementation expects things like
+       thread-local storage to work correctly.
+    
+    2. Derive the right set of //go:cgo_import_dynamic comments
+       to pass to the Go linker, so that it doesn't diagnose them as
+       undefined references.
+    
+    On macOS, (1) is unnecessary because using the C library
+    (via DLL calls) is the only way the runtime ever creates threads.
+    
+    We can accomplish (2) by writing those comments ourselves.
+    
+    Having done that in this CL, cgo is no longer needed to run
+    the race detector on macOS, which means that having a
+    pre-compiled set of .a files is no longer necessary,
+    nor is having Xcode for use with cgo when rebuilding those .a files.
+    
+    Change-Id: Iee24cc67900eb542141b32beaadafb2c94f5fe26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451055
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/syscall/zsyscall_openbsd_riscv64.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/cmd/go/internal/work/init.go                   |   4 +-
+ .../install_msan_and_race_and_asan_require_cgo.txt |   8 +-
+ src/runtime/race.go                                |   4 +-
+ src/runtime/race/doc.go                            |   2 +
+ src/runtime/race/mkcgo.sh                          |  20 ++++
+ src/runtime/race/race.go                           |   7 +-
+ src/runtime/race/race_darwin_amd64.go              | 101 +++++++++++++++++++++
+ src/runtime/race/race_darwin_arm64.go              |  95 +++++++++++++++++++
+ 8 files changed, 234 insertions(+), 7 deletions(-)

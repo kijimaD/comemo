@@ -1,16 +1,13 @@
-commit 3072df5c1d04e44dbe388e966801a3913c53a720
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Apr 4 16:46:23 2014 +0200
+commit e25d73d7f90870aeae04d2a788479664adb0a56f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 4 17:36:01 2014 +1100
 
-    cmd/gc: check duplicate keys in maps with interface{} key type
+    net: fix format string in TestAcceptIgnoreSomeErrors
     
-    Fixes #7214
-    
-    LGTM=rsc
-    R=golang-codereviews, bradfitz, rsc
-    CC=golang-codereviews, minux.ma
-    https://golang.org/cl/82080044
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/84340043
 
- src/cmd/gc/typecheck.c      | 27 +++++++++++++++++++++------
- test/fixedbugs/issue7214.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 6 deletions(-)
+ src/pkg/net/net_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

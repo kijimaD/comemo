@@ -1,62 +1,14 @@
-commit 7d469179e6e3dafe16700b7fc1cf8683ad9453fa
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Mar 28 10:32:27 2016 -0400
+commit 053aef4f1bcaf118210fca7d72f141cb8d260aeb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 2 09:20:38 2016 -0800
 
-    cmd/compile, etc: store method tables as offsets
+    go/ast: fix typo in comment
     
-    This CL introduces the typeOff type and a lookup method of the same
-    name that can turn a typeOff offset into an *rtype.
-    
-    In a typical Go binary (built with buildmode=exe, pie, c-archive, or
-    c-shared), there is one moduledata and all typeOff values are offsets
-    relative to firstmoduledata.types. This makes computing the pointer
-    cheap in typical programs.
-    
-    With buildmode=shared (and one day, buildmode=plugin) there are
-    multiple modules whose relative offset is determined at runtime.
-    We identify a type in the general case by the pair of the original
-    *rtype that references it and its typeOff value. We determine
-    the module from the original pointer, and then use the typeOff from
-    there to compute the final *rtype.
-    
-    To ensure there is only one *rtype representing each type, the
-    runtime initializes a typemap for each module, using any identical
-    type from an earlier module when resolving that offset. This means
-    that types computed from an offset match the type mapped by the
-    pointer dynamic relocations.
-    
-    A series of followup CLs will replace other *rtype values with typeOff
-    (and name/*string with nameOff).
-    
-    For types created at runtime by reflect, type offsets are treated as
-    global IDs and reference into a reflect offset map kept by the runtime.
-    
-    darwin/amd64:
-            cmd/go:  -57KB (0.6%)
-            jujud:  -557KB (0.8%)
-    
-    linux/amd64 PIE:
-            cmd/go: -361KB (3.0%)
-            jujud:  -3.5MB (4.2%)
-    
-    For #6853.
-    
-    Change-Id: Icf096fd884a0a0cb9f280f46f7a26c70a9006c96
-    Reviewed-on: https://go-review.googlesource.com/21285
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I719231466286b3c0135314388a7c560ef44d7c35
+    Reviewed-on: https://go-review.googlesource.com/20130
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |  75 +++++---
- src/cmd/internal/obj/link.go           |  15 +-
- src/cmd/link/internal/ld/deadcode.go   |  14 +-
- src/cmd/link/internal/ld/decodesym.go  |  22 +--
- src/reflect/export_test.go             |   2 +-
- src/reflect/type.go                    | 267 +++++++++++++++++++++-------
- src/reflect/value.go                   |  15 +-
- src/runtime/iface.go                   |  10 +-
- src/runtime/proc.go                    |   3 +-
- src/runtime/runtime1.go                |  33 ++++
- src/runtime/symtab.go                  |   2 +
- src/runtime/type.go                    | 307 ++++++++++++++++++++++++++++++++-
- 12 files changed, 637 insertions(+), 128 deletions(-)
+ src/go/ast/commentmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

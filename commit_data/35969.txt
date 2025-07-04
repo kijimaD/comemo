@@ -1,24 +1,27 @@
-commit 85cfa4d55e177a70913ce8977ce847af7c4298e2
-Author: Keith Randall <khr@google.com>
-Date:   Thu Jul 12 11:44:05 2018 -0700
+commit 68a1c9c4004c77ad12ecdc8dd54b11f280797e0a
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Mar 14 22:22:31 2018 -0400
 
-    cmd/compile: handle degenerate write barrier case
+    internal/trace: compute span stats as computing goroutine stats
     
-    If both branches of a write barrier test go to the same block,
-    then there's no unsafe points.
+    Move part of UserSpan event processing from cmd/trace.analyzeAnnotations
+    to internal/trace.GoroutineStats that returns analyzed per-goroutine
+    execution information. Now the execution information includes list of
+    spans and their execution information.
     
-    This can only happen if the resulting memory state is somehow dead,
-    which can only occur in degenerate cases, like infinite loops. No
-    point in cleaning up the useless branch in these situations.
+    cmd/trace.analyzeAnnotations utilizes the span execution information
+    from internal/trace.GoroutineStats and connects them with task
+    information.
     
-    Fixes #26024.
-    
-    Change-Id: I93a7df9fdf2fc94c6c4b1fe61180dc4fd4a0871f
-    Reviewed-on: https://go-review.googlesource.com/123655
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib7f79a3ba652a4ae55cd81ea17565bcc7e241c5c
+    Reviewed-on: https://go-review.googlesource.com/101917
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
 
- src/cmd/compile/internal/gc/plive.go |  5 +++++
- test/fixedbugs/issue26024.go         | 28 ++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+)
+ src/cmd/trace/annotations.go      | 161 ++++++++++----------------------
+ src/cmd/trace/annotations_test.go |   9 +-
+ src/cmd/trace/trace.go            |  22 ++---
+ src/internal/trace/goroutines.go  | 188 +++++++++++++++++++++++++++++++++-----
+ 4 files changed, 227 insertions(+), 153 deletions(-)

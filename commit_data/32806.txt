@@ -1,12 +1,18 @@
-commit 5993a75869310212763b0055c2e68faa1349fb2d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Sep 22 10:42:12 2017 +0200
+commit c99483feb816856da1d8f3fc5a59467c0e359f3f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jun 3 08:25:15 2017 -0700
 
-    runtime: fix typo in the word "preceding"
+    cmd/compile: add valState to ssa sizeof tests
     
-    Change-Id: I6d8c8ca0dee972cabfcc95fda23aea25692633a5
-    Reviewed-on: https://go-review.googlesource.com/65350
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    I learned from CL 41770 that valState’s size
+    matters to compiler performance.
+    Encode that knowledge in a test.
+    
+    Change-Id: I7c0fde6a4cf460017619dbcce1c1ddaa7af10239
+    Reviewed-on: https://go-review.googlesource.com/44737
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/race.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/sizeof_test.go | 1 +
+ 1 file changed, 1 insertion(+)

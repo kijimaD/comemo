@@ -1,39 +1,17 @@
-commit 1399b52dc4a3cf5347603bf7011984cf28a34031
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Oct 28 16:23:00 2018 +0000
+commit 17e503f76ff528c227035407529d14a702273129
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 4 19:34:52 2017 +0000
 
-    text/template/parse: error on bad range variables
+    net/http: prevent Server reuse after a Shutdown
     
-    The package used to accept invalid range pipelines, such as:
+    Fixes #20239
     
-            {{range $k, .}}
-            {{range $k, 123 := .}}
-    
-    This is because the logic that allowed a range pipeline to declare
-    multiple variables was broken. When encountering a single comma inside a
-    range pipeline, it would happily continue parsing a second variable,
-    even if we didn't have a variable token at all.
-    
-    Then, the loop would immediately break, and we'd parse the pipeline we'd
-    be ranging over. That is, we'd parse {{range $k, .}} as if it were
-    {{range $k = .}}.
-    
-    To fix this, only allow the loop to continue if we know we're going to
-    parse another variable or a token that would end the pipeline. Also add
-    a few test cases for these error edge cases.
-    
-    While at it, make use of T.Run, which was useful in debugging
-    Tree.pipeline via print statements.
-    
-    Fixes #28437.
-    
-    Change-Id: Idc9966bf643f0f3bc1b052620357e5b0aa2022ea
-    Reviewed-on: https://go-review.googlesource.com/c/145282
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Icb021daad82e6905f536e4ef09ab219500b08167
+    Reviewed-on: https://go-review.googlesource.com/81778
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bjørn Erik Pedersen <bjorn.erik.pedersen@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/parse/parse.go      |  8 +++++++-
- src/text/template/parse/parse_test.go | 35 +++++++++++++++++++++++++++--------
- 2 files changed, 34 insertions(+), 9 deletions(-)
+ src/net/http/serve_test.go | 15 +++++++++++++++
+ src/net/http/server.go     | 37 +++++++++++++++++++++++++++++--------
+ 2 files changed, 44 insertions(+), 8 deletions(-)

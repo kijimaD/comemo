@@ -1,25 +1,24 @@
-commit 918396b3e11cbb65bf7ef2423a4379e7373828cb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 13 18:26:10 2017 -0700
+commit 15d5fa0291119f195d2d9b9827b650d0e98b85a3
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Aug 23 13:48:05 2017 +0200
 
-    cmd/cgo: permit passing string values directly between Go and C
+    runtime: fix makemap64 function signature
     
-    Permit the C preamble to use the _GoString_ type. Permit Go code to
-    pass string values directly to those C types. Add accessors for C
-    code to retrieve sizes and pointers.
+    During rebase of golang.org/cl/55152 the bucket argument
+    which was removed in golang.org/cl/56290 from makemap
+    was not removed from the argument list of makemap64.
     
-    Fixes #6907
+    This did lead to "pointer in unallocated span" errors
+    on 32bit platforms since the compiler did only generate
+    calls to makemap64 without the bucket argument.
     
-    Change-Id: I190c88319ec88a3ef0ddb99f342a843ba69fcaa3
-    Reviewed-on: https://go-review.googlesource.com/70890
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #21568
+    
+    Change-Id: Ia964a3c285837cd901297f4e16e40402148f8c1c
+    Reviewed-on: https://go-review.googlesource.com/57990
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/cgo_test.go         |  2 ++
- misc/cgo/test/issue6907.go        | 33 ++++++++++++++++++++++++++++
- misc/cgo/test/issue6907export.go  | 30 +++++++++++++++++++++++++
- misc/cgo/test/issue6907export_c.c | 11 ++++++++++
- src/cmd/cgo/doc.go                | 46 ++++++++++++++++++++++++++++++++-------
- src/cmd/cgo/gcc.go                |  6 ++---
- src/cmd/cgo/out.go                | 33 ++++++++++++++++++++++++++--
- 7 files changed, 148 insertions(+), 13 deletions(-)
+ src/runtime/hashmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

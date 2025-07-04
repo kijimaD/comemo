@@ -1,26 +1,15 @@
-commit 2b44b36487a341fc2a8a23f8b35113bd4958af92
-Author: Aulus Egnatius Varialus <varialus@gmail.com>
-Date:   Wed Sep 4 15:19:21 2013 -0700
+commit d011f0aa8945d2c72dc89e8229baf929efeaf8e3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 4 13:26:49 2013 -0700
 
-    cgo: enable cgo on dragonfly
+    cmd/ld: don't allocate unused garbage space in pclntab file table
     
-    Enable cgo for dragonfly/386 and dragonfly/amd64.
+    Fixes #6319.
     
-    R=golang-dev, jsing, iant, bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13247046
+    https://golang.org/cl/13539043
 
- misc/cgo/test/cthread_unix.c              |  2 +-
- misc/cgo/testso/cgoso.go                  |  1 +
- src/cmd/6l/obj.c                          |  1 +
- src/cmd/ld/lib.c                          | 10 ++++
- src/pkg/go/build/build.go                 | 32 +++++++------
- src/pkg/os/user/lookup_unix.go            |  2 +-
- src/pkg/runtime/cgo/cgo.go                |  1 +
- src/pkg/runtime/cgo/dragonfly.c           | 13 ++++++
- src/pkg/runtime/cgo/gcc_dragonfly_386.c   | 77 +++++++++++++++++++++++++++++++
- src/pkg/runtime/cgo/gcc_dragonfly_amd64.c | 77 +++++++++++++++++++++++++++++++
- src/pkg/runtime/cgo/gcc_setenv.c          |  2 +-
- src/pkg/runtime/cgo/setenv.c              |  2 +-
- src/run.bash                              |  5 +-
- 13 files changed, 204 insertions(+), 21 deletions(-)
+ src/cmd/ld/data.c | 6 ++++++
+ src/cmd/ld/lib.c  | 1 -
+ 2 files changed, 6 insertions(+), 1 deletion(-)

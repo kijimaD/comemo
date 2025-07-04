@@ -1,25 +1,38 @@
-commit c2360956389a30a27407fb857fd4916f20f8dc01
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Mar 14 20:13:05 2021 -0700
+commit 30a68bfb806b5217932e280f5a5f521237e69077
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 27 12:40:18 2020 -0700
 
-    cmd/compile: add support for generic maps
+    runtime: add "success" field to sudog
     
-    Add support for maps in subster.typ(). Add new test cases maps.go and set.go.
+    The current wakeup protocol for channel communications is that the
+    second goroutine sets gp.param to the sudog when a value is
+    successfully communicated over the channel, and to nil when the wakeup
+    is due to closing the channel.
     
-    Change substitution of a TFUNC in subster.typ() to always create new
-    param and result structs if any of the receiver, param, or result
-    structs get substituted. All these func structs must be copied, because
-    they have offset fields that are dependent, and so must have an
-    independent copy for each new signature (else there will be an error
-    later when frame offsets are calculated).
+    Setting nil to indicate channel closure works okay for chansend and
+    chanrecv, because they're only communicating with one channel, so they
+    know it must be the channel that was closed. However, it means
+    selectgo has to re-poll all of the channels to figure out which one
+    was closed.
     
-    Change-Id: I576942a62f06b46b6f005abc98f65533008de8dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301670
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This commit adds a "success" field to sudog, and changes the wakeup
+    protocol to always set gp.param to sg, and to use sg.success to
+    indicate successful communication vs channel closure.
+    
+    While here, this also reorganizes the chansend code slightly so that
+    the sudog is still released to the pool if the send blocks and then is
+    awoken because the channel closed.
+    
+    Updates #40410.
+    
+    Change-Id: I6cd9a20ebf9febe370a15af1b8afe24c5539efc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245019
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go |  41 ++++-
- test/typeparam/maps.go                    | 260 +++++++++++++++++++++++++++
- test/typeparam/sets.go                    | 280 ++++++++++++++++++++++++++++++
- 3 files changed, 572 insertions(+), 9 deletions(-)
+ src/runtime/chan.go     | 25 +++++++++++++++----------
+ src/runtime/runtime2.go |  6 ++++++
+ src/runtime/select.go   | 19 +++++++------------
+ 3 files changed, 28 insertions(+), 22 deletions(-)

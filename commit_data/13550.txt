@@ -1,16 +1,15 @@
-commit 8dbeb0ad072354e84463f38aef790cc1d69352e2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Jul 31 23:26:33 2012 -0400
+commit f2b8f6b451667a2c8d1b3553ac7fb06de28e8181
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 1 12:55:04 2012 +1000
 
-    test/run.go: fix compiledir test on windows
-        we can't import "./bug0" on windows, as it will trigger
-    "import path contains invalid character ':'" error.
-        instead, we pass "-D." and "-I." to gc to override this
-    behavior. this idea is due to remyoudompheng.
+    os: Rename error to fit IsExist
     
-    R=golang-dev, r, alex.brainman, remyoudompheng
+    Fixes #3828.
+    
+    R=golang-dev, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/6441074
+    https://golang.org/cl/6420056
 
- test/run.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/os/error_windows.go      |  3 +++
+ src/pkg/os/error_windows_test.go | 47 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)

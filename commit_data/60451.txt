@@ -1,0 +1,22 @@
+commit f66db499769002f1f804f52234b7c3e5917bbad6
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 12 18:25:55 2024 -0700
+
+    cmd/compile: store constant floats using integer constants
+    
+    x86 is better at storing constant ints than constant floats.
+    (It uses a constant directly in the instruction stream, instead of
+    loading it from a constant global memory.)
+    
+    Noticed as part of #67957
+    
+    Change-Id: I9b7b586ad8e0fe9ce245324f020e9526f82b209d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592596
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules |  3 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 50 +++++++++++++++++++++++++++
+ test/codegen/floats.go                        |  9 +++++
+ 3 files changed, 62 insertions(+)

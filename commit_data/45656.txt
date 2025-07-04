@@ -1,25 +1,17 @@
-commit 658b5e66ecbc41a49e6fb5aa63c5d9c804cf305f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue May 18 12:23:56 2021 -0400
+commit 594b4a3bfef24ed207e058fb522ed51e65cb93bf
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Nov 4 00:29:39 2020 +1100
 
-    net: return nil UDPAddr from ReadFromUDP
+    cmd/dist: enable additional cgo tests on openbsd architectures
     
-    In cases where the socket operation has no underlying address,
-    golang.org/cl/291509 unintentionally changed ReadFromUDP from return a
-    nil *UDPAddr to a non-nil (but zero value) *UDPAddr.
+    OpenBSD gained __thread support quite some time ago.
     
-    This may break callers that assume "no address" is always addr == nil,
-    so change it back to remain nil.
-    
-    Fixes #46238
-    
-    Change-Id: I8531e8fa16b853ed7560088eabda0b9e3e53f5be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320909
-    Trust: Michael Pratt <mpratt@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7de0a5c0c4de1a7ce59e48ac939fc2daf56be8f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267318
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/udpsock_posix.go |  3 +++
- src/net/udpsock_test.go  | 29 +++++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+)
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

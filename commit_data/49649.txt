@@ -1,27 +1,17 @@
-commit ae7340ab68bf57c5d1485bee2c6725a780212a9a
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Mon Jul 18 12:42:25 2022 -0400
+commit 69107e73cedb600187c5924247cdd0cf8f74070a
+Author: Xargin <buaa.cch@gmail.com>
+Date:   Wed Jul 28 20:40:07 2021 +0000
 
-    CONTRIBUTORS: update for the Go 1.19 release
+    runtime: change 0 to pollNoError in netpollblock
     
-    This update was created using the updatecontrib command:
-    
-            go install golang.org/x/build/cmd/updatecontrib@latest
-            cd gotip
-            updatecontrib
-    
-    With manual changes based on publicly available information
-    to canonicalize letter case and formatting for a few names.
-    
-    For #12042.
-    
-    Change-Id: I5e648b99004026513c5772b579a72b7add970db4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418016
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I95e91ff21420e396aef876e77bc4ccdc45ab40ca
+    GitHub-Last-Rev: 8e6bd3f002b1c29fed8ce1bd344f7727e8580555
+    GitHub-Pull-Request: golang/go#47372
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337249
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- CONTRIBUTORS | 103 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 101 insertions(+), 2 deletions(-)
+ src/runtime/netpoll.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

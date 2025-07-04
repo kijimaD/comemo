@@ -1,18 +1,17 @@
-commit 509ac2ca6dbda4fff7a0e4e25589bb8827c897c2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:51:11 2022 -0500
+commit ab4556a93d88a8ce8dbff1b5fcf7dea27c6c6587
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 6 18:23:01 2022 -0800
 
-    cmd/vet: use the test binary as 'vet' instead of rebuilding it
+    test/typeparam: adjust test preamble (fix longtests)
     
-    This not only reduces the latency of the test, but also respects
-    build flags like '-race' and '-cover' passed to the 'go test' command.
+    For #50317.
     
-    Change-Id: I4914870396f90097f45d00012e5601fe42655899
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450710
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I24ccf333c380283a36b573ef8fc3e7fcd71bd17f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376215
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/vet/vet_test.go | 65 +++++++++++++++++++------------------------------
- 1 file changed, 25 insertions(+), 40 deletions(-)
+ test/typeparam/issue50317.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

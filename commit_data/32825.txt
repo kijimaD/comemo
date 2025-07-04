@@ -1,26 +1,19 @@
-commit e6358c798b3001e98b6f7f4c3e2d906cf48533b2
-Author: James Lawrence <jljatone@gmail.com>
-Date:   Sat Aug 5 06:04:19 2017 -0400
+commit 3c1914fc46e67ee7628428b68ab3497ca5d44d89
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 1 14:26:55 2017 -0400
 
-    database/sql: add OpenDB to directly create a *DB without a DSN.
+    cmd/compile: use file content, not suffix, to distinguish .a and .o files
     
-    The current Open method limits the ability for driver maintainers
-    to expose options for their drivers by forcing all the configuration
-    to pass through the DSN in order to create a *DB.
+    This allows reading from package storage systems that may not
+    preserve the .a suffix (used with -importcfg).
     
-    This CL allows driver maintainers to write their own initialization
-    functions that return a *DB making configuration of the underlying
-    drivers easier.
+    Fixes #20579 (combined with CLs earlier in stack).
     
-    Fixes #20268
-    
-    Change-Id: Ib10b794f36a201bbb92c23999c8351815d38eedb
-    Reviewed-on: https://go-review.googlesource.com/53430
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: If2fc6a3d01bd0170a757e1f2ba9a22a4d9be7dbf
+    Reviewed-on: https://go-review.googlesource.com/44853
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/driver/driver.go | 23 +++++++++++++++
- src/database/sql/sql.go           | 62 ++++++++++++++++++++++++++++++---------
- src/database/sql/sql_test.go      | 19 ++++++++----
- 3 files changed, 84 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 41 +++++++++++++++----------------------
+ 1 file changed, 17 insertions(+), 24 deletions(-)

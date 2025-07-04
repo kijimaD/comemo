@@ -1,19 +1,14 @@
-commit 9fb24b944812fe555b09395ff341c9818d98e25b
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Feb 1 16:07:32 2012 -0200
+commit 4e77e0f294c38c1cc10cd48053a1d8c462d9bb42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 1 07:31:00 2012 -0800
 
-    cmd/go: fix including of _cgo_export.h
+    test: test that x := <-c accepts a general expression
     
-    This will add the temporary object directory into the lookup
-    path so that cgo-exported function declarations may be
-    included from C files.
+    The gccgo compiler used to fail to parse this.
     
-    This was previously applied by CL 5600043, and apparently
-    removed by mistake on CL 5598045.
-    
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5610054
+    https://golang.org/cl/5610051
 
- src/cmd/go/build.go | 3 +++
- 1 file changed, 3 insertions(+)
+ test/chan/select3.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,20 +1,14 @@
-commit 9e028b70ea3c1a81220a63c2ed3a2c1cd216c733
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 21 14:21:11 2016 -0700
+commit 24996832c68b9d0aa4cd0e51189d148aae7a2772
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat May 28 02:33:23 2016 -0600
 
-    runtime: merge signal[12]_unix.go into signal_unix.go
+    net/http/httputil: fix typos in deprecation comments
     
-    Requires adding a sigfwd function for Solaris, as previously
-    signal2_unix.go was not built for Solaris.
+    Fixes #15868
     
-    Change-Id: Iea3ff0ddfa15af573813eb075bead532b324a3fc
-    Reviewed-on: https://go-review.googlesource.com/29550
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4e4471e77091309c4ea1d546b2c4f20dfbb4314e
+    Reviewed-on: https://go-review.googlesource.com/23550
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/signal1_unix.go     | 350 ----------------------------------
- src/runtime/signal2_unix.go     |  69 -------
- src/runtime/signal_unix.go      | 403 +++++++++++++++++++++++++++++++++++++++-
- src/runtime/sys_solaris_amd64.s |   8 +
- 4 files changed, 410 insertions(+), 420 deletions(-)
+ src/net/http/httputil/persist.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

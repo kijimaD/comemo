@@ -1,26 +1,17 @@
-commit 4f51db24f4b80770000b28073a8bde57d021b4e4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 30 15:13:53 2023 -0700
+commit a13903562d612346507d9bacf481aaf0d9fa02fc
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Aug 14 15:08:59 2022 +0800
 
-    doc/go1.21: document type inference changes
+    cmd/compile/internal/ssagen: gofmt -w -s ssa.go
     
-    For #39661.
-    For #41176.
-    For #51593.
-    For #52397.
-    For #57192.
-    For #58645.
-    For #58650.
-    For #58671.
-    For #59338.
-    For #59750.
-    For #60353.
-    
-    Change-Id: Ib731c9f2879beb541f44cb10e40c36a8677d3ad4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499282
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ie169c226e8973c8b504412cc0ac1f14abcdfdb1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.21.html | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 51 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 644 ++++++++++++++++-----------------
+ 1 file changed, 322 insertions(+), 322 deletions(-)

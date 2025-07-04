@@ -1,17 +1,21 @@
-commit 2e107b43c7afd166c7ff98b254485bce102d4b46
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Oct 6 13:16:02 2021 -0700
+commit f7d1c5990b9aed6a402c3cbdae6f43638172918d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 27 18:04:46 2021 -0800
 
-    cmd/compile: simplify code in walkPrint
+    [dev.typeparams] cmd/compile/internal/types2: must not import a package called "init"
     
-    Use typecheck.Conv; it does the same thing.
+    Updates #43962.
     
-    Change-Id: I6bf27b8e929f8016ffc8350931c8320e36584a3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354350
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I070153c55baec62d13ca9284f02781b8c1276844
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287494
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/walk/builtin.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/resolver.go        | 25 +++++++++++-----------
+ .../types2/testdata/importdecl0/importdecl0a.src   |  2 +-
+ test/fixedbugs/issue43962.dir/a.go                 |  5 +++++
+ test/fixedbugs/issue43962.dir/b.go                 |  7 ++++++
+ test/fixedbugs/issue43962.go                       |  9 ++++++++
+ 5 files changed, 35 insertions(+), 13 deletions(-)

@@ -1,17 +1,17 @@
-commit d20b92e07a9462bf7eb43d25389b70528140f7d5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 9 19:32:10 2016 -0800
+commit baa928a7823c0f7edce5374b449fa9275f29411a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 16:08:57 2015 -0500
 
-    cmd/compile: replace more unnecessary **Type with *Type
+    cmd/dist: run various one-off tests in parallel
     
-    Also, more lazy variable declarations, and make Dijkstra happy by
-    replacing "goto loop" with a for loop.
+    Takes 15% off my all.bash run time
+    (after this and earlier CLs, now down to 3½ from 5½ minutes).
     
-    Change-Id: Idf2cd779a92eb3f33bd3394e12c9a0be72002ff4
-    Reviewed-on: https://go-review.googlesource.com/20496
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    For #10571.
+    
+    Change-Id: Iac316ffb730c9ff0a0faa7cc3b82ed4f7e6d4361
+    Reviewed-on: https://go-review.googlesource.com/18088
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/gen.go  |   4 +-
- src/cmd/compile/internal/gc/walk.go | 201 ++++++++++++++++--------------------
- 2 files changed, 92 insertions(+), 113 deletions(-)
+ src/cmd/dist/test.go | 315 +++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 190 insertions(+), 125 deletions(-)

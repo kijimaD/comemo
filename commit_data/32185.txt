@@ -1,17 +1,22 @@
-commit 98031d8cd0b8cfc731a9aaca058b1dd590e4ad86
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Aug 11 14:00:08 2017 +0200
+commit d6dd7ce1c5eb0df4694f9f8ad09dc47d8d689690
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Tue Apr 11 15:37:38 2017 -0300
 
-    test: reenable ... test
+    crypto/aes: fix wrong instruction on ppc64le implementation
     
-    The gofmt bug in question seems to be fixed (at least gofmt doesn't
-    complain), so reenable the commented-out ... test.
+    In the newest AES implementation in asm for ppc64le, this part
     
-    Change-Id: Icbfe0511160210557894ec8eb9b206aa6133d486
-    Reviewed-on: https://go-review.googlesource.com/55030
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    MOVW $·rcon(SB), PTR
+    
+    should be
+    
+    MOVD $·rcon(SB), PTR
+    
+    since it is loading a doubleword value into PTR.
+    
+    Change-Id: I7e3d6ad87a2237015aeeb30c68fb409a18f2801c
+    Reviewed-on: https://go-review.googlesource.com/40298
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- test/ddd1.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/crypto/aes/asm_ppc64le.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

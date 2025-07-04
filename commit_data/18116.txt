@@ -1,12 +1,14 @@
-commit 4133407061407816a66e209f88cff7407cf587e2
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Fri Dec 27 08:39:54 2013 -0800
+commit 1fa0206024e543b78e2ffea7997a0ac676cec708
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 26 12:16:11 2013 -0800
 
-    crypto/cipher: remove unused shift1 function
+    net/http: fix data race in benchmark
     
-    R=golang-codereviews, bradfitz
+    Fixes #7006
+    
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/38990045
+    https://golang.org/cl/44940044
 
- src/pkg/crypto/cipher/cipher.go | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/pkg/net/http/serve_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

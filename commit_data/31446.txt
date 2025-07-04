@@ -1,19 +1,19 @@
-commit cf1b323fc891664b2c72726db51933b6f75f5dac
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sat Apr 29 01:42:19 2017 -0600
+commit e51737aea14375ac72fb8c50241969d8972bb8fb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 20 22:57:10 2017 -0800
 
-    net/http: enable TestRequestDoesntBodyCloseDoesntBlock
+    crypto/aes: minor ppc64 assembly naming improvements
     
-    Fixes #7121.
+    doEncryptKeyAsm is tail-called from other assembly routines.
+    Give it a proper prototype so that vet can check it.
+    Adjust one assembly FP reference accordingly.
     
-    CL 31173 inadvertently fixed this issue in the Go1.8 cycle.
-    This CL enables the test for that issue.
-    
-    Change-Id: I8e73b41f646fa89c75bff833c1b07e1cdb2b1e62
-    Reviewed-on: https://go-review.googlesource.com/42149
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I263fcb0191529214b16e6bd67330fadee492eef4
+    Reviewed-on: https://go-review.googlesource.com/37305
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/serve_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/aes/asm_ppc64le.s     | 2 +-
+ src/crypto/aes/cipher_ppc64le.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

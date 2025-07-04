@@ -1,21 +1,35 @@
-commit b87c8c3523010be38c53e0c82e58016202be6a0d
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Feb 23 19:03:00 2023 +0000
+commit a92ca515077e5cf54673eb8c5c2d9db4824330db
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Wed Mar 30 21:44:44 2022 +0800
 
-    net/url: simplify values Get
+    cmd/compile: use LZCNT instruction for GOAMD64>=3
     
-    Checking if v == nil is unnecessary, nil map always return the zero value of the value type.
+    LZCNT is similar to BSR, but BSR(x) is undefined when x == 0, so using
+    LZCNT can avoid a special case for zero input. Except that case,
+    LZCNTQ(x) == 63-BSRQ(x) and LZCNTL(x) == 31-BSRL(x).
     
-    Change-Id: I9c5499bc7db72c4c62e02013ba7f9a6ee4795c09
-    GitHub-Last-Rev: 03fc2330e2ae568eafeb4d2e25e3f3535491062a
-    GitHub-Pull-Request: golang/go#58662
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470736
+    And according to https://www.agner.org/optimize/instruction_tables.pdf,
+    LZCNT instructions are much faster than BSR on AMD CPU.
+    
+    name              old time/op  new time/op  delta
+    LeadingZeros-8    0.91ns ± 1%  0.80ns ± 7%  -11.68%  (p=0.000 n=9+9)
+    LeadingZeros8-8   0.98ns ±15%  0.91ns ± 1%   -7.34%  (p=0.000 n=9+9)
+    LeadingZeros16-8  0.94ns ± 3%  0.92ns ± 2%   -2.36%  (p=0.001 n=10+10)
+    LeadingZeros32-8  0.89ns ± 1%  0.78ns ± 2%  -12.49%  (p=0.000 n=10+10)
+    LeadingZeros64-8  0.92ns ± 1%  0.78ns ± 1%  -14.48%  (p=0.000 n=10+10)
+    
+    Change-Id: I125147fe3d6994a4cfe558432780408e9a27557a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396794
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/net/url/url.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go           |  3 +-
+ src/cmd/compile/internal/amd64/versions_test.go |  1 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    | 12 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |  5 ++
+ src/cmd/compile/internal/ssa/opGen.go           | 30 ++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 92 +++++++++++++++++++++++++
+ test/codegen/mathbits.go                        | 30 +++++---
+ 7 files changed, 158 insertions(+), 15 deletions(-)

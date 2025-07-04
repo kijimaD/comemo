@@ -1,14 +1,14 @@
-commit 2eb7c6ec8a34c23466e40946d0e9ea1574b0006a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Aug 15 05:08:08 2013 +0900
+commit f5806a900712313d0e7fcb6b9846530a4500ae3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 15:37:23 2013 -0400
 
-    net: simplify non-cgo DNS exchange
+    doc: update go1.2.txt
     
-    Also does less buffer allocation in case of TCP fallback.
+    Will submit once I can fill in the CL XXX number.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12925043
+    https://golang.org/cl/12912044
 
- src/pkg/net/dnsclient_unix.go | 17 +++++++----------
- 1 file changed, 7 insertions(+), 10 deletions(-)
+ doc/go1.2.txt | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

@@ -1,0 +1,47 @@
+commit 47187a4f4f226c4b9e0e920c5ad1ec9ce83bdc35
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Sun May 19 15:21:53 2024 +0200
+
+    runtime: fix profile stack trace depth regression
+    
+    Previously it was possible for mutex and block profile stack traces to
+    contain up to 32 frames in Stack0 or the resulting pprof profiles.
+    CL 533258 changed this behavior by using some of the space to
+    record skipped frames that are discarded when performing delayed inline
+    expansion. This has lowered the effective maximum stack size from 32 to
+    27 (the max skip value is 5), which can be seen as a small regression.
+    
+    Add TestProfilerStackDepth to demonstrate the issue and protect all
+    profile types from similar regressions in the future. Fix the issue by
+    increasing the internal maxStack limit to take the maxSkip value into
+    account. Assert that the maxSkip value is never exceeded when recording
+    mutex and block profile stack traces.
+    
+    Three alternative solutions to the problem were considered and
+    discarded:
+    
+    1) Revert CL 533258 and give up on frame pointer unwinding. This seems
+       unappealing as we would lose the performance benefits of frame
+       pointer unwinding.
+    2) Discard skipped frames when recording the initial stack trace. This
+       would require eager inline expansion for up to maxSkip frames and
+       partially negate the performance benefits of frame pointer
+       unwinding.
+    3) Accept and document the new behavior. This would simplify the
+       implementation, but seems more confusing from a user perspective. It
+       also complicates the creation of test cases that make assertions
+       about the maximum profiling stack depth.
+    
+    The execution tracer still has the same issue due to CL 463835. This
+    should be addressed in a follow-up CL.
+    
+    Co-authored-by: Nick Ripley <nick.ripley@datadoghq.com>
+    Change-Id: Ibf4dbf08a5166c9cb32470068c69f58bc5f98d2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586657
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/mprof.go            |  28 +++++++-
+ src/runtime/pprof/pprof_test.go | 140 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 166 insertions(+), 2 deletions(-)

@@ -1,23 +1,21 @@
-commit 1fc3346275d0457cfc154b1001b25bd0cb0c1751
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Mar 31 07:47:19 2022 -0400
+commit 542e8c74e7051690539889a1dd0197517603e473
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Jun 3 18:04:53 2021 -0700
 
-    debug/dwarf: better error handling in SeekPC
+    [dev.fuzz] internal/fuzz: stablize mutator benchmark and add additional benchmarks
     
-    The dwarf.Reader "SeekPC" method was not properly handling the case
-    of a truncated/empty unit (something that has header information
-    but an empty abbrev table and no DIEs). Add some guards to handle
-    this case.
+    Adds a few new benchmarks, and attempts to reduce the variability of the
+    existing BenchmarkMutatorBytes benchmark. These should help provide some
+    insight when we're working on performance issues.
     
-    Fixes #52045.
-    
-    Change-Id: I978163eca3b610f7528058693b840931e90d3f63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397054
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I45b68ae36da99ec2eb4a610b7a3fc6fbf3d9494a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324969
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/debug/dwarf/entry.go      |  2 +-
- src/debug/dwarf/entry_test.go | 15 +++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/internal/fuzz/mutator_test.go | 76 +++++++++++++++++++++++++++++++++++++--
+ src/internal/fuzz/worker_test.go  | 42 ++++++++++++++++++++++
+ 2 files changed, 115 insertions(+), 3 deletions(-)

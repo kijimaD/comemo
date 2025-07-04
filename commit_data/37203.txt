@@ -1,12 +1,22 @@
-commit 02aa1aeeb1baf9bcfb8b9eeff9c92e93426ae512
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Oct 31 12:03:15 2018 -0400
+commit 5a8b652c6e93311fb6f336e7075aee46ef560213
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 9 10:46:28 2018 -0400
 
-    doc/go1.12: initial add of release notes for Go 1.12
+    cmd/go: add test for tests with no tests
     
-    Change-Id: I9cb3c80ea397d964fe745b74d595df3fd8982a47
-    Reviewed-on: https://go-review.googlesource.com/c/146257
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    CL 122518 rolled back an earlier CL that made "go test"
+    start running test binaries for packages with no *_test.go files.
+    Add a test as another roadblock to reintroducing that behavior
+    in the future.
+    
+    For #26462.
+    
+    Change-Id: I898103064efee8d6ae65bcf74f4dffc830eae7e9
+    Reviewed-on: https://go-review.googlesource.com/122595
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.12.html | 282 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 282 insertions(+)
+ src/cmd/go/go_test.go                  | 10 ++++++++++
+ src/cmd/go/testdata/src/testnorun/p.go |  5 +++++
+ 2 files changed, 15 insertions(+)

@@ -1,0 +1,17 @@
+commit 0751f3af923af6ab5330b88a8c00ac2ddeddedb6
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Nov 26 15:31:36 2024 -0500
+
+    doc/next: add release note for vet on Printf(s) with non-const s
+    
+    Fixes #60529
+    Updates #68545
+    
+    Change-Id: Ica048e4861f4de22deb7f42a1d76eb3151fee986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631682
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/3-tools.md | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

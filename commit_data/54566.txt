@@ -1,41 +1,21 @@
-commit a2ff3acb0dbb3d4d3628f359f0e1b091a4f0ee9b
-Author: Adam Cmiel <acmiel1@gmail.com>
-Date:   Tue Sep 19 07:22:26 2023 +0000
+commit 02cffcde177bf3fbb36e75d749d0cb338b4f7566
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 28 13:46:32 2022 -0400
 
-    cmd/go: make malformed go.sum a fatal error
+    cmd/cover: fix buglet causing differences in -m output
     
-    In CL 197062, many errors related to go.sum were changed from base.Fatal
-    to error returns. The malformed go.sum error was lost in the process.
-    Currently, when go encounters a malformed go.sum file, go will read the
-    well-formed part of the file and then silently ignore the rest.
+    Use a slightly different line number pragma when emitting instrumented
+    code, so as to ensure that we don't get any changes in the
+    "-gcflags=-m" output for coverage vs non-coverage.
     
-    The motivation behind moving away from base.Fatal was to make the errors
-    show up in -json output. Simply propagating the malformed go.sum error
-    would not achieve this:
+    Fixes #56475.
     
-    - For an argument-less 'go mod download -json' with a go>=1.17 module,
-      a malformed go.sum causes an error during LoadModGraph already, before
-      go ever starts downloading modules and printing their JSON.
-    - In other cases, a malformed go.sum would be reported as Error for one
-      of the modules (presumably the one which gets downloaded first) but
-      none of the others.
-    - In either case, 'go mod download' manages to download enough data to
-      succeed on a re-run, making the error look intermittent.
-    
-    Switch the error back to a Fatal one, but give 'go mod tidy' an
-    exception to let it fix broken go.sum files.
-    
-    Fixes #62345
-    
-    Change-Id: I066482b242165bcc6cbba0b2dab64901fad8619f
-    GitHub-Last-Rev: feae7696d6206cf60b2989e9f431b976d3cddf13
-    GitHub-Pull-Request: golang/go#62588
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527575
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I3079171fdf83c0434ed6ea0ce3eb2797c2280c55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446259
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/modfetch/fetch.go              | 10 +++--
- .../testdata/script/malformed_gosum_issue62345.txt | 51 ++++++++++++++++++++++
- 2 files changed, 58 insertions(+), 3 deletions(-)
+ src/cmd/cover/cover.go                     |  2 +-
+ src/cmd/go/testdata/script/cover_error.txt | 33 ++----------------------------
+ 2 files changed, 3 insertions(+), 32 deletions(-)

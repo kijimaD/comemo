@@ -1,0 +1,52 @@
+commit 5715d735590cf545f03b34e58ade83b919e53fba
+Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
+Date:   Mon Apr 14 15:34:30 2025 +0000
+
+    all: use strings.ReplaceAll where applicable
+    
+    ```
+    find . \
+    -not -path './.git/*' \
+    -not -path './test/*' \
+    -not -path './src/cmd/vendor/*' \
+    -not -wholename './src/strings/example_test.go' \
+    -type f \
+    -exec \
+    sed -i -E 's/strings\.Replace\((.+), -1\)/strings\.ReplaceAll\(\1\)/g' {} \;
+    ```
+    
+    Change-Id: I59e2e91b3654c41a32f17dd91ec56f250198f0d6
+    GitHub-Last-Rev: 0868b1eccc945ca62a5ed0e56a4054994d4bd659
+    GitHub-Pull-Request: golang/go#73370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665395
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/cgo/gcc.go                                           |  2 +-
+ src/cmd/cgo/internal/testplugin/plugin_test.go               |  4 ++--
+ src/cmd/cgo/out.go                                           |  6 +++---
+ src/cmd/compile/internal/dwarfgen/scope_test.go              |  2 +-
+ src/cmd/compile/internal/logopt/log_opts.go                  |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/main.go                    |  2 +-
+ src/cmd/compile/internal/ssa/_gen/rulegen.go                 | 10 +++++-----
+ src/cmd/compile/internal/ssa/compile.go                      | 10 +++++-----
+ src/cmd/compile/internal/ssa/debug_test.go                   |  6 +++---
+ src/cmd/compile/internal/ssa/func.go                         |  2 +-
+ src/cmd/compile/internal/ssa/html.go                         |  8 ++++----
+ src/cmd/compile/internal/ssa/op.go                           |  6 +++---
+ .../compile/internal/test/testdata/flowgraph_generator1.go   |  2 +-
+ src/cmd/compile/internal/test/testdata/gen/arithConstGen.go  |  8 ++++----
+ src/cmd/compile/internal/types2/assignments.go               |  2 +-
+ src/cmd/dist/build.go                                        |  2 +-
+ src/cmd/internal/objabi/flag.go                              |  4 ++--
+ src/cmd/internal/testdir/testdir_test.go                     | 12 ++++++------
+ src/cmd/link/internal/ld/macho.go                            |  4 ++--
+ src/cmd/link/internal/ld/symtab.go                           |  2 +-
+ src/cmd/link/internal/loader/loader.go                       |  2 +-
+ src/debug/dwarf/line.go                                      |  2 +-
+ src/debug/dwarf/line_test.go                                 |  4 ++--
+ src/go/types/assignments.go                                  |  2 +-
+ 24 files changed, 54 insertions(+), 54 deletions(-)

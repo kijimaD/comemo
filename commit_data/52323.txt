@@ -1,18 +1,41 @@
-commit 231806c83debbb4feec288f6c4729c0b131823a4
-Author: ezzno <ezzno@ezzno.site>
-Date:   Thu Mar 16 10:20:23 2023 +0000
+commit 09ada1af8f54584e46deb0d643713393a9d83b10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 25 16:26:10 2022 -0700
 
-    cmd/compile: reorder BlankNode assignment to make SetType more clear
+    cmd/compile/internal/syntax: parser to accept ~x as unary expression
     
-    Change-Id: I9e6bf9ed100de2039961a6f6558daaa09c176861
-    GitHub-Last-Rev: 594331fa10cfe22cc34801a09a642d31156bfdab
-    GitHub-Pull-Request: golang/go#59072
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476895
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Accept ~x as ordinary unary expression in the parser but recognize
+    such expressions as invalid in the type checker.
+    
+    This change opens the door to recognizing complex type constraint
+    literals such as `*E|~int` in `[P *E|~int]` and parse them correctly
+    instead of reporting a parse error because `P*E|~int` syntactically
+    looks like an incorrect array length expression (binary expression
+    where the RHS of | is an invalid unary expression ~int).
+    
+    As a result, the parser is more forgiving with expressions but the
+    type checker will reject invalid uses as before.
+    
+    We could pass extra information into the binary/unary expression
+    parse functions to prevent the use of ~ in invalid situations but
+    it doesn't seem worth the trouble. In fact it may be advantageous
+    to allow a more liberal expression syntax especially in the presence
+    of errors (better parser synchronization after an error).
+    
+    Preparation for fixing #49482.
+    
+    Change-Id: I119e8bd9445dfa6460fcd7e0658e3554a34b2769
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402255
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/typecheck/universe.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/parser.go                  |  2 +-
+ src/cmd/compile/internal/syntax/testdata/typeset.go        | 14 ++++++++------
+ src/cmd/compile/internal/types2/expr.go                    |  6 ++++++
+ src/cmd/compile/internal/types2/testdata/check/expr0.go    |  7 +++++++
+ .../internal/types2/testdata/fixedbugs/issue49482.go       |  2 +-
+ test/fixedbugs/issue23587.go                               |  2 +-
+ 6 files changed, 24 insertions(+), 9 deletions(-)

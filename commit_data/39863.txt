@@ -1,28 +1,28 @@
-commit f6c691e0e1b1434a02301c39e6d66e21699a98a8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 5 14:27:27 2019 -0400
+commit 53c9c068115168ebcc1e649fa7a15a804a99d92f
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Mar 26 15:00:00 2019 +0100
 
-    cmd/go/internal/modfetch/codehost: treat nonexistent repositories as “not found”
+    misc/cgo: enable testso and testsovar on aix/ppc64
     
-    If a go-import directive refers to a nonexistent repository, today we
-    treat that as an error fetching a module that actually exists.
-    That makes the HTTP server responsible for determining which
-    repositories do or do not exist, which may in general depend on
-    the user's separately-stored credentials, and imposes significant
-    complexity on such a server, which can otherwise be very simple.
+    On AIX, shared objects must be wrapped under an archive file.
     
-    Instead, check the repository URL and/or error message to try to
-    determine whether the repository exists at all. If the repo does not
-    exist, treat its absence as a “not found” error — as if the server had
-    not returned it in the first place.
+    For testso, creating libcgosotest with an extern symbol isn't
+    AIX-friendly. By default, ld will block such behavior. Rather than
+    forcing ld to work as on Linux and using the run-time linking,
+    goCallback became a function pointer which is set by setCallback().
     
-    Updates #34094
+    Updates #30565
     
-    Change-Id: I142619ff43b96d0de428cdd0b01cca828c9ba234
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194561
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I455ab32faddd41f1b0c84cc9e503788044ad49b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169020
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/git.go    | 40 ++++++++++++++++++++-----
- src/cmd/go/internal/modfetch/proxy.go           | 17 ++++++++++-
- src/cmd/go/testdata/script/mod_missing_repo.txt | 15 ++++++++++
- 3 files changed, 63 insertions(+), 9 deletions(-)
+ misc/cgo/testso/so_test.go             | 15 ++++++++++++---
+ misc/cgo/testso/testdata/cgoso.c       |  2 +-
+ misc/cgo/testso/testdata/cgoso.go      |  1 +
+ misc/cgo/testso/testdata/cgoso_c.c     |  9 +++++++++
+ misc/cgo/testso/testdata/cgoso_unix.go |  2 +-
+ misc/cgo/testsovar/so_test.go          | 15 ++++++++++++---
+ misc/cgo/testsovar/testdata/cgoso.go   |  1 +
+ 7 files changed, 37 insertions(+), 8 deletions(-)

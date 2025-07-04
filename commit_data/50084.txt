@@ -1,64 +1,19 @@
-commit cf26fbb1f6d9644f447342f42d2dddcbe9ceda61
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Aug 26 12:02:47 2021 -0700
+commit 96d3ba868aae7aa043147f18e0ca299ada4e34b7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Sep 30 11:46:00 2021 -0400
 
-    strconv: optimize Parse for []byte arguments
+    cmd/link: reduce alignment for some funcdata symbols
     
-    When one has a []byte on hand, but desires to call the Parse functions,
-    the conversion from []byte to string would allocate.
+    Funcdata like opendefer info and traceback arginfo are varints or
+    bytes. There is no need to align them.
     
-        var b []byte = ...
-        v, err := strconv.ParseXXX(string(b), ...)
+    GC liveness map and inline tree have 32-bit fields, so continue
+    align them to 4 bytes.
     
-    This changes it such that the input string never escapes from
-    any of the Parse functions. Together with the compiler optimization
-    where the compiler stack allocates any string smaller than 32B
-    this makes most valid inputs for strconv.ParseXXX(string(b), ...)
-    not require an allocation for the input string.
-    For example, the longest int64 or uint64 encoded in decimal is 20B.
-    Also, the longest decimal formatting of a float64 in appendix B
-    of RFC 8785 is 25B.
-    
-    Previously, this was not possible since the input leaked to the error,
-    which causes the prover to give up and instead heap copy the []byte.
-    We fix this by copying the input string in the error case.
-    The advantage of this change is that you can now call strconv.ParseXXX
-    with a []byte without allocations (most times) in the non-error case.
-    The detriment is that the error-case now has an extra allocation.
-    We should optimize for the non-error path, rather than the error path.
-    
-    The effects of this change is transitively seen through packages
-    that must use strconv.ParseXXX on a []byte such as "encoding/json":
-    
-        name              old time/op    new time/op    delta
-        UnmarshalFloat64  186ns          157ns          -15.89%  (p=0.000 n=10+10)
-    
-        name              old alloc/op   new alloc/op   delta
-        UnmarshalFloat64  148B           144B            -2.70%  (p=0.000 n=10+10)
-    
-        name              old allocs/op  new allocs/op  delta
-        UnmarshalFloat64  2.00           1.00           -50.00%  (p=0.000 n=10+10)
-    
-    In order for "encoding/json" to benefit, there needs to be a
-    small change made to how "encoding/json" calls strconv.ParseXXX.
-    That will be a future change.
-    
-    Credit goes to Jeff Wendling for a similar patch.
-    
-    Fixes #42429
-    
-    Change-Id: I512d6927f965f82e95bd7ec14a28a587f23b7203
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345488
-    Reviewed-by: Martin Möhrmann <martin@golang.org>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I9d5dd750a926c65a910efe5817f9f5c473019bc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353469
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/strconv/atoc.go         |  2 +-
- src/strconv/atoi.go         | 30 +++++++++++++++++-----
- src/strconv/strconv_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 86 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/symtab.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

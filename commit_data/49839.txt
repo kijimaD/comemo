@@ -1,29 +1,22 @@
-commit 0337fc7e0e084adeea58f333a8aa7dbc43363baf
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Wed Aug 3 15:46:34 2022 +0800
+commit 4304cf62e9ba6a85e37d5fec33cfa580ce7ac6d1
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Sep 14 15:09:06 2021 -0700
 
-    debug/elf: add new-style LoongArch reloc types
+    [dev.fuzz] testing: fix internal error exit condition for fuzz workers
     
-    LoongArch ELF psABI spec update:
-    https://github.com/loongson/LoongArch-Documentation/pull/57
+    A fuzz worker process should exit with fuzzWorkerExitCode (70) if it
+    encounters an internal error.
     
-    Corresponding binutils implementation:
-    https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=6d13722a97cee3fd397e116bde3bcedbb1e220be
-    https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=9801120721c3a702ce3bd50433ef920f92a83502
+    This should generally only happen due to an I/O error on the worker
+    side. I can't think of a way to write a realistic test case for
+    this. test_fuzz_io_error.txt triggers an I/O error on the coordinator
+    side, which is similar.
     
-    For #54222
-    
-    Change-Id: I51e72294205847a69c01d741a3126248f7a7e41c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420982
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Change-Id: I40d2e9aaf422e5ed925debcf7a152c252c3a6984
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349993
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- api/next/54222.txt   | 78 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/debug/elf/elf.go | 80 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 157 insertions(+), 1 deletion(-)
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

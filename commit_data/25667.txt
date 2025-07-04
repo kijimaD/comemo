@@ -1,25 +1,44 @@
-commit 843745240430e6b6c0a94b31ca3ddc2cd77b3b06
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Jan 10 18:30:27 2016 -0800
+commit b569b87ca1f6905ed38cafc2bae6e26f4ec416b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 09:21:49 2015 -0800
 
-    crypto/rsa: expand on documentation and add some examples.
+    cmd/compile/internal/gc: recursive-descent parser
     
-    In some cases the documentation for functions in this package was
-    lacking from the beginning and, in order cases, the documentation didn't
-    keep pace as the package grew.
+    This is a translation of the yacc-based parser with adjustements
+    to make the grammar work for a recursive-descent parser followed
+    by cleanups and simplifications.
     
-    This change somewhat addresses that.
+    The yacc actions were mostly literally copied for correctness
+    with better temporary names.
     
-    Updates #13711.
+    A few of the syntax tests were adjusted for slightly different
+    error messages (it is very difficult to match the yacc-based
+    error messages in all cases, and sometimes the new parser could
+    produce better errors).
     
-    Change-Id: I25b2bb1fcd4658c5417671e23cf8e644d08cb9ab
-    Reviewed-on: https://go-review.googlesource.com/18486
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    The new parser is enabled by default.
+    To switch back to the yacc-based parser, set -oldparser.
+    To hardwire the switch back, uncomment "oldparser = 1" in lex.go.
+    
+    - passes all.bash
+    - ~18% reduced parse time per file on average for make.bash
+    - ~3% reduced compile time for building cmd/compile
+    
+    Change-Id: Icb5651bb9d8b9f66261762d2c94a03793050d4ce
+    Reviewed-on: https://go-review.googlesource.com/16665
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/rsa/example_test.go | 169 +++++++++++++++++++++++++++++++++++++++++
- src/crypto/rsa/pkcs1v15.go     |  23 ++++++
- src/crypto/rsa/rsa.go          |  41 +++++++++-
- 3 files changed, 232 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/go.go     |    2 +-
+ src/cmd/compile/internal/gc/lex.go    |   48 +-
+ src/cmd/compile/internal/gc/parser.go | 3438 +++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/subr.go   |    2 +-
+ test/fixedbugs/bug358.go              |    7 +-
+ test/syntax/chan.go                   |    6 +-
+ test/syntax/forvar.go                 |    1 +
+ test/syntax/semi4.go                  |    2 +-
+ test/syntax/semi6.go                  |    6 +-
+ test/syntax/semi7.go                  |    2 +-
+ test/syntax/vareq1.go                 |    2 +-
+ 11 files changed, 3494 insertions(+), 22 deletions(-)

@@ -1,21 +1,18 @@
-commit f0b8f84d3735f94724e4255dd074db18b807f897
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Jan 22 13:55:53 2011 +1100
+commit 7f6ffade325818730357eed4e0b7d3bf3adc31b7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 21 16:10:39 2011 -0800
 
-    runtime: implementation of callback functions for windows
+    gob: fix the grammar comments to match the encoder
+    (or at least a correct encoder, still to come).
+    Change the debug structure slightly to better represent
+    the grammar.
+    Minor tweaks for consistency in type.go.
     
-    R=rsc, lxn, alex.brainman, dho
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/1696051
+    https://golang.org/cl/4007044
 
- src/pkg/exp/wingui/Makefile         |  26 +++++
- src/pkg/exp/wingui/gui.go           | 157 ++++++++++++++++++++++++++
- src/pkg/exp/wingui/winapi.go        | 148 +++++++++++++++++++++++++
- src/pkg/exp/wingui/zwinapi.go       | 214 ++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/386/asm.s           |   2 +-
- src/pkg/runtime/windows/386/sys.s   |  41 ++++++-
- src/pkg/runtime/windows/os.h        |   4 +
- src/pkg/runtime/windows/syscall.goc |   4 +
- src/pkg/runtime/windows/thread.c    |  84 ++++++++++++++
- src/pkg/syscall/syscall_windows.go  |  20 ++++
- 10 files changed, 698 insertions(+), 2 deletions(-)
+ src/pkg/gob/debug.go | 33 ++++++++++++---------------------
+ src/pkg/gob/doc.go   | 12 ++++++------
+ src/pkg/gob/type.go  |  4 ++--
+ 3 files changed, 20 insertions(+), 29 deletions(-)

@@ -1,24 +1,20 @@
-commit 2b664d586c217b8111bfeeb26c82244199ebc150
-Author: apocelipes <seve3r@outlook.com>
-Date:   Wed Oct 16 21:00:17 2024 +0000
+commit 52ebd1624d1a70d84deef4aa442b549267665480
+Author: mstmdev <mstmdev@gmail.com>
+Date:   Tue Aug 22 16:34:22 2023 +0000
 
-    time: correct time.AppendText's error message
+    cmd/asm: add more flags to the documentation
     
-    "time.AppendText" returns error messages that start with the prefix
-    "time.MarshalText: " which seems confusion.
+    Add the flags -e and -v.
     
-    Now correct the message prefix to "time.AppendText: " and add a test
-    to prevent regression.
-    
-    Change-Id: I5742c9c3ed802eb79c65d459910deae4f3652ffd
-    GitHub-Last-Rev: ce965595c1dafab4a3db3d3f9f9edc9e43c5dea2
-    GitHub-Pull-Request: golang/go#69914
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620597
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I48c22141ea0bc634f30625214b1a277e686bb98e
+    GitHub-Last-Rev: 4a12fe4f4448804f9d8a9635a6c869556891225f
+    GitHub-Pull-Request: golang/go#62208
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521679
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/time/time.go      | 16 ++++++++++------
- src/time/time_test.go | 10 ++++++++++
- 2 files changed, 20 insertions(+), 6 deletions(-)
+ src/cmd/asm/doc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

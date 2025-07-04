@@ -1,15 +1,29 @@
-commit 9afe071c605c65302066fa8ece7bdecd00730f8b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jun 7 17:11:32 2021 -0400
+commit 97700baf8bd5c0fdbfe38eedc80d3c612805cbda
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Nov 10 15:48:37 2020 -0500
 
-    doc/go1.17: remove TODO for Tools section
+    cmd/go: in 'go get', only load retractions for resolved versions
     
-    Change-Id: I6cd7376bd051222a830cbf18cf7e887072b61f3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325911
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Previously, 'go get' loaded retractions for every module in the build
+    list, which took a long time and usually wasn't helpful.
+    
+    Fixes #42185
+    
+    Change-Id: I64294585db141106b63ec74aafa0d266b7536ef2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269019
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- doc/go1.17.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/go/internal/modget/get.go                  | 149 ++++++++++++---------
+ src/cmd/go/internal/modload/build.go               |   8 +-
+ src/cmd/go/internal/modload/modfile.go             |  20 +--
+ ...ple.com_retract_ambiguous_nested_v1.9.0-bad.txt |  10 ++
+ .../example.com_retract_ambiguous_other_v1.0.0.txt |  12 ++
+ .../mod/example.com_retract_ambiguous_v1.0.0.txt   |   9 ++
+ src/cmd/go/testdata/script/mod_get_retract.txt     |  19 ++-
+ .../testdata/script/mod_get_retract_ambiguous.txt  |  10 ++
+ .../go/testdata/script/mod_retract_rationale.txt   |  14 +-
+ src/cmd/go/testdata/script/mod_retract_rename.txt  |   2 +-
+ 10 files changed, 161 insertions(+), 92 deletions(-)

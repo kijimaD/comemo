@@ -1,40 +1,12 @@
-commit 8dd3de4d4b304989019dac9be49e53a0f280908b
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Feb 1 16:08:31 2012 +0100
+commit 702151a2001763aa0b535304377b4b2415141c92
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Wed Feb 1 09:43:22 2012 -0500
 
-    pkg/math: undo manual inlining of IsInf and IsNaN
+    godoc: fix redirect loop for URL "/".
     
-    R=rsc
+    R=golang-dev, bradfitz, rsc, adg
     CC=golang-dev
-    https://golang.org/cl/5484076
+    https://golang.org/cl/5606045
 
- src/pkg/math/acosh.go     |  4 +---
- src/pkg/math/asinh.go     |  4 +---
- src/pkg/math/atan2.go     | 14 ++++++--------
- src/pkg/math/atanh.go     |  4 +---
- src/pkg/math/cbrt.go      |  4 +---
- src/pkg/math/dim.go       | 12 ++++--------
- src/pkg/math/erf.go       | 16 ++++++----------
- src/pkg/math/exp.go       | 12 ++++--------
- src/pkg/math/expm1.go     |  6 ++----
- src/pkg/math/floor.go     |  8 ++------
- src/pkg/math/frexp.go     |  4 +---
- src/pkg/math/gamma.go     |  2 +-
- src/pkg/math/hypot.go     |  6 ++----
- src/pkg/math/j0.go        | 12 ++++--------
- src/pkg/math/j1.go        | 12 ++++--------
- src/pkg/math/jn.go        | 14 +++++---------
- src/pkg/math/ldexp.go     |  4 +---
- src/pkg/math/lgamma.go    |  6 ++----
- src/pkg/math/log.go       |  4 +---
- src/pkg/math/log1p.go     |  6 ++----
- src/pkg/math/logb.go      | 12 ++++--------
- src/pkg/math/mod.go       |  4 +---
- src/pkg/math/nextafter.go |  4 +---
- src/pkg/math/pow.go       |  8 +++-----
- src/pkg/math/remainder.go |  6 ++----
- src/pkg/math/sin.go       | 10 +++-------
- src/pkg/math/sincos.go    |  4 +---
- src/pkg/math/sqrt.go      |  4 +---
- src/pkg/math/tan.go       |  6 ++----
- 29 files changed, 69 insertions(+), 143 deletions(-)
+ src/cmd/godoc/godoc.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

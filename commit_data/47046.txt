@@ -1,19 +1,17 @@
-commit 80be4a4f90836a33ab5b3d09c6f529de8ee628ea
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Oct 26 14:47:07 2021 -0700
+commit 5a0e4fc4e7188fb36e64a7d7d25bab943f081811
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 20:00:33 2021 -0800
 
-    crypto/x509: generate new-style build tags for iOS
+    cmd/compile/internal/types2: review of conversions.go
     
-    Make the input match gofmt's output,
-    to make our lives easier as we phase out
-    old style build tags.
+    The changes between (equivalent, and reviewed) go/types/conversions.go
+    and conversions.go can be seen by comparing patchset 1 and 2. The actual
+    change is just removing the "// UNREVIEWED" marker.
     
-    Change-Id: I95dc5a77058bf17cb02e289703f60784616db006
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358934
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I86d20d8100ec29fe3be996b975c9b4aff01be85e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294509
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/x509/root_ios_gen.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/conversions.go | 1 -
+ 1 file changed, 1 deletion(-)

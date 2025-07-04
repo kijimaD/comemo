@@ -1,22 +1,20 @@
-commit b4117995e3e01a669be737c36033c2393858d555
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 23 17:10:18 2016 -0700
+commit 7d80291c4c8bce8754b6e1aeb962aed1ceef64dc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 11:58:41 2015 -0800
 
-    cmd/pprof: use DWARF info to lookup unknown PC addresses
+    cmd/compile: eliminate Io.importsafe
     
-    Test to follow in a separate CL that arranges for the runtime package to
-    store non-Go addresses in a CPU profile.
+    It was only really necessary for ensuring that package runtime should
+    be treated as safe even without a "safe" marker, but mkbuiltin.go now
+    compiles it with -u.
     
-    Change-Id: I33ce1d66b77340b1e62b54505fc9b1abcec108a9
-    Reviewed-on: https://go-review.googlesource.com/21055
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifbcc62436ce40ab732ece667141afd82c1d3b64b
+    Reviewed-on: https://go-review.googlesource.com/19625
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/objfile/elf.go      |  5 ++
- src/cmd/internal/objfile/goobj.go    |  6 +++
- src/cmd/internal/objfile/macho.go    |  5 ++
- src/cmd/internal/objfile/objfile.go  |  8 +++
- src/cmd/internal/objfile/pe.go       |  5 ++
- src/cmd/internal/objfile/plan9obj.go |  6 +++
- src/cmd/pprof/pprof.go               | 95 +++++++++++++++++++++++++++++++++---
- 7 files changed, 123 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/go.go     | 17 ++++++++---------
+ src/cmd/compile/internal/gc/lex.go    |  1 -
+ src/cmd/compile/internal/gc/parser.go |  8 ++++----
+ 3 files changed, 12 insertions(+), 14 deletions(-)

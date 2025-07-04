@@ -1,14 +1,15 @@
-commit 1d61c9bb3e41947ab66732d0346b821d5062554c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 30 10:51:29 2012 +0100
+commit 9c775353b9f3fe2938afdc50ecd16277619f1119
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Oct 29 20:58:24 2012 +0100
 
-    io: add ByteWriter interface
+    encoding/json: tweak docs
     
-    API change.
+    "JSON object" means something specific, which
+    isn't the case here.
     
-    R=golang-dev, dsymonds, nigeltao, rsc, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6760045
+    https://golang.org/cl/6789044
 
- src/pkg/io/io.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/encoding/json/decode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

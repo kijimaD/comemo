@@ -1,23 +1,16 @@
-commit 1d1ff469660437e4d4992b421beb6e31b19e1970
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 10 11:10:50 2019 -0400
+commit 0175064e697d3e072573b32173299b7edbda7360
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 2 19:57:11 2019 -0800
 
-    cmd/go/testdata/script: remove skips and clarify comments in mod_*_upgrade_pseudo tests
+    net: skip TestUDPZeroBytePayload on Darwin
     
-    These tests were added in CL 174206.
+    Updates #29225
     
-    They required a 'git' binary and network access in an earlier draft,
-    but now use the test-local module proxy instead, so no longer need to
-    be skipped when those resources are not present.
-    
-    Updates #30634
-    
-    Change-Id: I5f36c6c776209a89bc45d133847df5052b55da59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176537
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I4c9b7a108861ce5c9ab84f7324ced3da51e7bf2a
+    Reviewed-on: https://go-review.googlesource.com/c/156119
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../go/testdata/script/mod_get_upgrade_pseudo.txt   | 21 ++++++++-------------
- .../go/testdata/script/mod_list_upgrade_pseudo.txt  | 21 ++++++++-------------
- 2 files changed, 16 insertions(+), 26 deletions(-)
+ src/net/udpsock_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

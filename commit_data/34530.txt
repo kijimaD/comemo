@@ -1,18 +1,20 @@
-commit 44e20b64ef7fd27d8ff0950e92b6a9ce4b881482
+commit 52cf91a5d5d074d8857f1b7be0fe1bc380ed4869
 Author: Austin Clements <austin@google.com>
-Date:   Tue Jan 9 14:45:30 2018 -0500
+Date:   Mon Oct 30 16:06:19 2017 -0400
 
-    cmd/compile: more String methods for prove types
+    cmd/compile,runtime: update instrumentation comments
     
-    These aid in debugging.
+    The compiler's instrumentation pass has some out-of-date comments
+    about the write barrier and some confusing comments about
+    typedslicecopy. Update these comments and add a comment to
+    typedslicecopy explaining why it's manually instrumented while none of
+    the other operations are.
     
-    Change-Id: Ieb38c996765f780f6103f8c3292639d408c25123
-    Reviewed-on: https://go-review.googlesource.com/87476
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I024e5361d53f1c3c122db0c85155368a30cabd6b
+    Reviewed-on: https://go-review.googlesource.com/74430
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/fmt_test.go           |  1 +
- src/cmd/compile/internal/ssa/prove.go | 36 +++++++++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ src/cmd/compile/internal/gc/racewalk.go | 10 +++++++---
+ src/runtime/mbarrier.go                 |  4 ++++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

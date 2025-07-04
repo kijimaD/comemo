@@ -1,13 +1,25 @@
-commit 24db235deb09423c3dc8274bab5c19d93f242a85
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jun 18 09:38:04 2015 +0900
+commit 350fd548b3313cfe47cf3c02cd01cfccb931211d
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 11 18:53:49 2015 -0400
 
-    net: fix build on android
+    runtime: don't run runq tests on the system stack
     
-    Change-Id: Ib6d0b2947748dec98cad2e6abb6812cac46a9897
-    Reviewed-on: https://go-review.googlesource.com/11220
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Running these tests on the system stack is problematic because they
+    allocate Ps, which are large enough to overflow the system stack if
+    they are stack-allocated. It used to be necessary to run these tests
+    on the system stack because they were written in C, but since this is
+    no longer the case, we can fix this problem by simply not running the
+    tests on the system stack.
+    
+    This also means we no longer need the hack in one of these tests that
+    forces the allocated Ps to escape to the heap, so eliminate that as
+    well.
+    
+    Change-Id: I9064f5f8fd7f7b446ff39a22a70b172cfcb2dc57
+    Reviewed-on: https://go-review.googlesource.com/9923
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/net/cgo_resnew.go | 2 +-
- src/net/cgo_resold.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/export_test.go | 4 ++--
+ src/runtime/proc1.go       | 4 ----
+ 2 files changed, 2 insertions(+), 6 deletions(-)

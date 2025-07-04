@@ -1,17 +1,22 @@
-commit e12abe4bd63883b16a76f650222dd4617504e43f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sun Apr 11 14:33:16 2021 +0200
+commit 66770f4b1de37d9c5c962edb2980a70102e09ec3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Sep 28 13:10:30 2020 -0400
 
-    net: fix (*ipStackCapabilities).probe godoc
+    cmd/compile: mark type namedata symbols content-addressable
     
-    Change-Id: I2e5db6e7e9a7b3c84449d16b6bc32afe1d0ffee9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308991
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Type namedata symbols are for type/field/method names and package
+    paths. We can use content-addressable symbol mechanism for them.
+    
+    Change-Id: I923fda17b7094c7a0e46aad7c450622eb3826294
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257960
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/net/ipsock_plan9.go | 2 +-
- src/net/ipsock_posix.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 2 ++
+ src/cmd/internal/obj/objfile.go        | 7 +++++++
+ src/cmd/internal/obj/sym.go            | 5 ++++-
+ src/cmd/link/internal/loader/loader.go | 4 ++--
+ 4 files changed, 15 insertions(+), 3 deletions(-)

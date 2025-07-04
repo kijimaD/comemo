@@ -1,15 +1,21 @@
-commit af403c08fcb848205466d1e4589f98df1984d0dd
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 7 15:42:06 2014 +1000
+commit e359bea8ad0b381c1b28dd7c74ca17e17a7f3324
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 6 14:33:57 2014 -0700
 
-    doc: document new ParseMultipartForm behavior
+    runtime: clean up naming of mcallable functions.
     
-    Fixes #8403.
+    Introduce the mFunction type to represent an mcall/onM-able function.
+    Name such functions using _m.
     
     LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/123860043
+    https://golang.org/cl/121320043
 
- doc/go1.3.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/pkg/runtime/malloc.c  |  6 +++---
+ src/pkg/runtime/malloc.go | 12 ++++++------
+ src/pkg/runtime/mgc0.c    |  2 +-
+ src/pkg/runtime/mprof.goc |  2 +-
+ src/pkg/runtime/print.go  | 10 ++++++----
+ src/pkg/runtime/stubs.go  | 28 ++++++++++++++++++----------
+ 6 files changed, 35 insertions(+), 25 deletions(-)

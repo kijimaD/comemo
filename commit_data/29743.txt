@@ -1,12 +1,24 @@
-commit 8016808562c514dbb1146739b56ca67be9028d91
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Mon Dec 5 17:28:51 2016 -0800
+commit 5fd6bb4c14b395bc413f281987225b57ae5fe67c
+Author: Larz Conwell <larzconwell@gmail.com>
+Date:   Sat Mar 12 02:57:24 2016 -0500
 
-    net/http: fix typo in Request.GetBody's doc string
+    go/doc: hide methods on locally-declared predeclared types
     
-    Change-Id: I84043b6fe4b20a2514d47217e07e44f26bec52ab
-    Reviewed-on: https://go-review.googlesource.com/33973
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Currently if you declare a type overwriting a predeclared type
+    and export methods on it they will be exposed in godoc, even
+    though the type itself is not exported. This corrects that
+    by making all methods on these types hidden, since that's
+    the expected output.
+    
+    Fixes #9860
+    
+    Change-Id: I14037bdcef1b4bbefcf299a143bac8bf363718e0
+    Reviewed-on: https://go-review.googlesource.com/20610
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/request.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/doc/reader.go                     | 14 +++++++++-----
+ src/go/doc/testdata/predeclared.0.golden |  8 ++++++++
+ src/go/doc/testdata/predeclared.1.golden | 22 ++++++++++++++++++++++
+ src/go/doc/testdata/predeclared.2.golden |  8 ++++++++
+ src/go/doc/testdata/predeclared.go       | 22 ++++++++++++++++++++++
+ 5 files changed, 69 insertions(+), 5 deletions(-)

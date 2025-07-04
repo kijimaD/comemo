@@ -1,28 +1,23 @@
-commit 3876bd67ef4a1972f54d926f7d8a5c7324861f51
-Author: diaxu01 <dianhong.xu@arm.com>
-Date:   Tue Sep 3 02:46:38 2019 +0000
+commit 3259bc441957bf74f069cf7df961367a3472afb2
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Oct 13 22:40:23 2018 +0200
 
-    cmd/internal/obj/arm64: add support of NOOP instruction
+    strings, bytes: add ToValidUTF8
     
-    This patch uses symbol NOOP to support arm64 instruction NOP. In
-    arm64, NOP stands for that No Operation does nothing, other than
-    advance the value of the program counter by 4. This instruction
-    can be used for instruction alignment purposes. This patch uses
-    NOOP to support arm64 instruction NOP, because we have a generic
-    "NOP" instruction, which is a zero-width pseudo-instruction.
+    The newly added functions create a copy of their input with all bytes in
+    invalid UTF-8 byte sequences mapped to the UTF-8 byte sequence
+    given as replacement parameter.
     
-    In arm64, instruction NOP is an alias of HINT #0. This patch adds
-    test cases for instruction HINT #0.
+    Fixes #25805
     
-    Change-Id: I54e6854c46516eb652b412ef9e0f73ab7f171f8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200578
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iaf65f65b40c0581c6bb000f1590408d6628321d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/142003
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s    | 2 ++
- src/cmd/asm/internal/asm/testdata/arm64enc.s | 3 ++-
- src/cmd/internal/obj/arm64/a.out.go          | 1 +
- src/cmd/internal/obj/arm64/anames.go         | 1 +
- src/cmd/internal/obj/arm64/asm7.go           | 5 +++--
- 5 files changed, 9 insertions(+), 3 deletions(-)
+ src/bytes/bytes.go          | 29 ++++++++++++++++++++++++++
+ src/bytes/bytes_test.go     | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings.go      | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings_test.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 179 insertions(+)

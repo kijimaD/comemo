@@ -1,14 +1,14 @@
-commit 1bca6a5ebcc4c624b8f3ef0b7c0df2f6db0507d3
-Author: Evan Hicks <evan.hicks2@gmail.com>
-Date:   Sat Jul 15 12:07:04 2017 -0600
+commit f7027b4b2dc9c822efd94f1d84189a60291ae152
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 30 14:04:54 2017 -0700
 
-    strings: add example for LastIndexAny
+    cmd/compile: remove lookupBytes
     
-    Change-Id: I69d1359d8868d4c5b173e4d831e38cea7dfeb713
-    Reviewed-on: https://go-review.googlesource.com/48859
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I08c264f5f3744d835e407534c492ef8c43e1a700
+    Reviewed-on: https://go-review.googlesource.com/38991
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strings/example_test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/compile/internal/gc/subr.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

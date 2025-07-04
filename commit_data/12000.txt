@@ -1,8 +1,8 @@
-commit 57eb06fe93db49501ab61340a1bf41b95a3474b3
+commit d2cc9884296e84f18ff23550a4561e7b0109efd5
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 16 23:51:04 2012 -0500
+Date:   Thu Feb 16 23:50:37 2012 -0500
 
-    test: use testlib (final 61)
+    test: use testlib (fourth 100)
     
     X ,s;^// \$G (\$D/)?\$F\.go *$;// compile;g
     X ,s;^// \$G (\$D/)?\$F\.go && \$L \$F\.\$A *$;// build;g
@@ -11,67 +11,105 @@ Date:   Thu Feb 16 23:51:04 2012 -0500
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5671080
+    https://golang.org/cl/5673079
 
- test/mallocrep1.go       | 2 +-
- test/map.go              | 2 +-
- test/map1.go             | 2 +-
- test/method.go           | 2 +-
- test/method1.go          | 2 +-
- test/method2.go          | 2 +-
- test/named.go            | 2 +-
- test/named1.go           | 2 +-
- test/nil.go              | 2 +-
- test/nilptr.go           | 2 +-
- test/parentype.go        | 2 +-
- test/peano.go            | 2 +-
- test/range.go            | 2 +-
- test/recover.go          | 2 +-
- test/recover1.go         | 2 +-
- test/recover2.go         | 2 +-
- test/recover3.go         | 2 +-
- test/rename.go           | 2 +-
- test/rename1.go          | 2 +-
- test/reorder.go          | 2 +-
- test/reorder2.go         | 2 +-
- test/rune.go             | 2 +-
- test/runtime.go          | 2 +-
- test/shift1.go           | 2 +-
- test/simassign.go        | 2 +-
- test/sizeof.go           | 2 +-
- test/stack.go            | 2 +-
- test/string_lit.go       | 2 +-
- test/stringrange.go      | 2 +-
- test/struct0.go          | 2 +-
- test/switch.go           | 2 +-
- test/switch1.go          | 2 +-
- test/switch3.go          | 2 +-
- test/syntax/chan.go      | 2 +-
- test/syntax/chan1.go     | 2 +-
- test/syntax/else.go      | 2 +-
- test/syntax/forvar.go    | 2 +-
- test/syntax/if.go        | 2 +-
- test/syntax/import.go    | 2 +-
- test/syntax/interface.go | 2 +-
- test/syntax/semi1.go     | 2 +-
- test/syntax/semi2.go     | 2 +-
- test/syntax/semi3.go     | 2 +-
- test/syntax/semi4.go     | 2 +-
- test/syntax/semi5.go     | 2 +-
- test/syntax/semi6.go     | 2 +-
- test/syntax/semi7.go     | 2 +-
- test/syntax/topexpr.go   | 2 +-
- test/syntax/typesw.go    | 2 +-
- test/syntax/vareq.go     | 2 +-
- test/syntax/vareq1.go    | 2 +-
- test/test0.go            | 2 +-
- test/turing.go           | 2 +-
- test/typeswitch.go       | 2 +-
- test/typeswitch1.go      | 2 +-
- test/typeswitch2.go      | 2 +-
- test/typeswitch3.go      | 2 +-
- test/undef.go            | 2 +-
- test/utf.go              | 2 +-
- test/varerr.go           | 2 +-
- test/zerodivide.go       | 2 +-
- 61 files changed, 61 insertions(+), 61 deletions(-)
+ test/fixedbugs/bug397.go     | 2 +-
+ test/fixedbugs/bug398.go     | 2 +-
+ test/fixedbugs/bug402.go     | 2 +-
+ test/fixedbugs/bug403.go     | 2 +-
+ test/fixedbugs/bug405.go     | 2 +-
+ test/fixedbugs/bug410.go     | 2 +-
+ test/fixedbugs/bug411.go     | 2 +-
+ test/fixedbugs/bug412.go     | 2 +-
+ test/fixedbugs/bug413.go     | 2 +-
+ test/fixedbugs/bug416.go     | 2 +-
+ test/fixedbugs/bug418.go     | 2 +-
+ test/float_lit.go            | 2 +-
+ test/floatcmp.go             | 2 +-
+ test/for.go                  | 2 +-
+ test/func.go                 | 2 +-
+ test/func1.go                | 2 +-
+ test/func3.go                | 2 +-
+ test/func4.go                | 2 +-
+ test/func5.go                | 2 +-
+ test/func6.go                | 2 +-
+ test/func7.go                | 2 +-
+ test/func8.go                | 2 +-
+ test/gc.go                   | 2 +-
+ test/gc1.go                  | 2 +-
+ test/gc2.go                  | 2 +-
+ test/goto.go                 | 2 +-
+ test/hashmap.go              | 2 +-
+ test/if.go                   | 2 +-
+ test/import.go               | 2 +-
+ test/import1.go              | 2 +-
+ test/import5.go              | 2 +-
+ test/indirect1.go            | 2 +-
+ test/init.go                 | 2 +-
+ test/init1.go                | 2 +-
+ test/initcomma.go            | 2 +-
+ test/initialize.go           | 2 +-
+ test/initializerr.go         | 2 +-
+ test/initsyscall.go          | 2 +-
+ test/int_lit.go              | 2 +-
+ test/intcvt.go               | 2 +-
+ test/interface/bigdata.go    | 2 +-
+ test/interface/convert.go    | 2 +-
+ test/interface/convert1.go   | 2 +-
+ test/interface/convert2.go   | 2 +-
+ test/interface/embed.go      | 2 +-
+ test/interface/embed2.go     | 2 +-
+ test/interface/explicit.go   | 2 +-
+ test/interface/fail.go       | 2 +-
+ test/interface/fake.go       | 2 +-
+ test/interface/pointer.go    | 2 +-
+ test/interface/receiver.go   | 2 +-
+ test/interface/receiver1.go  | 2 +-
+ test/interface/returntype.go | 2 +-
+ test/iota.go                 | 2 +-
+ test/ken/array.go            | 2 +-
+ test/ken/chan.go             | 2 +-
+ test/ken/chan1.go            | 2 +-
+ test/ken/complit.go          | 2 +-
+ test/ken/convert.go          | 2 +-
+ test/ken/cplx1.go            | 2 +-
+ test/ken/cplx2.go            | 2 +-
+ test/ken/cplx3.go            | 2 +-
+ test/ken/cplx4.go            | 2 +-
+ test/ken/cplx5.go            | 2 +-
+ test/ken/divconst.go         | 2 +-
+ test/ken/divmod.go           | 2 +-
+ test/ken/embed.go            | 2 +-
+ test/ken/for.go              | 2 +-
+ test/ken/interbasic.go       | 2 +-
+ test/ken/interfun.go         | 2 +-
+ test/ken/intervar.go         | 2 +-
+ test/ken/label.go            | 2 +-
+ test/ken/litfun.go           | 2 +-
+ test/ken/mfunc.go            | 2 +-
+ test/ken/modconst.go         | 2 +-
+ test/ken/ptrfun.go           | 2 +-
+ test/ken/ptrvar.go           | 2 +-
+ test/ken/range.go            | 2 +-
+ test/ken/rob1.go             | 2 +-
+ test/ken/rob2.go             | 2 +-
+ test/ken/robfor.go           | 2 +-
+ test/ken/robfunc.go          | 2 +-
+ test/ken/shift.go            | 2 +-
+ test/ken/simparray.go        | 2 +-
+ test/ken/simpbool.go         | 2 +-
+ test/ken/simpconv.go         | 2 +-
+ test/ken/simpfun.go          | 2 +-
+ test/ken/simpswitch.go       | 2 +-
+ test/ken/simpvar.go          | 2 +-
+ test/ken/slicearray.go       | 2 +-
+ test/ken/sliceslice.go       | 2 +-
+ test/ken/strvar.go           | 2 +-
+ test/label.go                | 2 +-
+ test/label1.go               | 2 +-
+ test/literal.go              | 2 +-
+ test/malloc1.go              | 2 +-
+ test/mallocfin.go            | 2 +-
+ test/mallocrand.go           | 2 +-
+ test/mallocrep.go            | 2 +-
+ 99 files changed, 99 insertions(+), 99 deletions(-)

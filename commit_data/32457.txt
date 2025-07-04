@@ -1,42 +1,16 @@
-commit 46aa9f5437b000fad3696b0cd9fd97995da16411
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Fri Jun 2 19:16:19 2017 +0300
+commit 804784c8ba34d3951ae9993ba569aaa518902f60
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 17:20:04 2017 -0700
 
-    strconv: optimize Atoi for common case
+    cmd/compile: delete bitset16
     
-    Benchmark results on GOOS=linux:
+    It is no longer used.
     
-    GOARCH=amd64
-    
-    name              old time/op  new time/op  delta
-    Atoi/Pos/7bit-4   20.1ns ± 2%   8.6ns ± 1%  -57.34%  (p=0.000 n=10+10)
-    Atoi/Pos/26bit-4  25.8ns ± 7%  11.9ns ± 0%  -53.91%  (p=0.000 n=10+8)
-    Atoi/Pos/31bit-4  27.3ns ± 2%  13.2ns ± 1%  -51.56%  (p=0.000 n=10+10)
-    Atoi/Pos/56bit-4  37.2ns ± 5%  18.2ns ± 1%  -51.26%  (p=0.000 n=10+10)
-    Atoi/Pos/63bit-4  38.7ns ± 1%  38.6ns ± 1%     ~     (p=0.297 n=9+10)
-    Atoi/Neg/7bit-4   17.6ns ± 1%   7.2ns ± 0%  -59.22%  (p=0.000 n=10+10)
-    Atoi/Neg/26bit-4  24.4ns ± 1%  12.4ns ± 1%  -49.28%  (p=0.000 n=10+10)
-    Atoi/Neg/31bit-4  26.9ns ± 0%  14.0ns ± 1%  -47.88%  (p=0.000 n=7+10)
-    Atoi/Neg/56bit-4  36.2ns ± 1%  19.5ns ± 0%  -46.24%  (p=0.000 n=10+9)
-    Atoi/Neg/63bit-4  38.9ns ± 1%  38.8ns ± 1%     ~     (p=0.385 n=9+10)
-    
-    GOARCH=386
-    
-    name              old time/op  new time/op  delta
-    Atoi/Pos/7bit-4   89.6ns ± 1%   8.2ns ± 1%  -90.84%  (p=0.000 n=9+10)
-    Atoi/Pos/26bit-4   187ns ± 2%    12ns ± 1%  -93.71%  (p=0.000 n=10+9)
-    Atoi/Pos/31bit-4   225ns ± 1%   225ns ± 1%     ~     (p=0.995 n=10+10)
-    Atoi/Neg/7bit-4   86.2ns ± 1%   8.5ns ± 1%  -90.14%  (p=0.000 n=10+10)
-    Atoi/Neg/26bit-4   183ns ± 1%    13ns ± 1%  -92.77%  (p=0.000 n=9+10)
-    Atoi/Neg/31bit-4   223ns ± 0%   223ns ± 0%     ~     (p=0.247 n=8+9)
-    
-    Fixes #20557
-    
-    Change-Id: Ib6245d88cffd4b037419e2bf8e4a71b86c6d773f
-    Reviewed-on: https://go-review.googlesource.com/44692
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Id64f387867a0503d13eaecda12e6606682c24595
+    Reviewed-on: https://go-review.googlesource.com/41790
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strconv/atoi.go      |  28 +++++++++++++
- src/strconv/atoi_test.go | 101 ++++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 115 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/bitset.go | 10 ----------
+ 1 file changed, 10 deletions(-)

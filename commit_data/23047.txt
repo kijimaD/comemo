@@ -1,15 +1,33 @@
-commit 40fad6c286ca57317e94aeca50b75fa3444ca1fa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 14 16:47:53 2015 -0700
+commit 170fb100891fff56529b6816ab581af19a717fa9
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 17 16:26:55 2015 -0400
 
-    go/parser: better error message for missing ',' in lists
+    runtime: assist harder if GC exceeds the estimated marked heap
     
-    Fixes #8940.
+    Currently, the GC controller computes the mutator assist ratio at the
+    beginning of the cycle by estimating that the marked heap size this
+    cycle will be the same as it was the previous cycle. It then uses that
+    assist ratio for the rest of the cycle. However, this means that if
+    the mutator is quickly growing its reachable heap, the heap size is
+    likely to exceed the heap goal and currently there's no additional
+    pressure on mutator assists when this happens. For example, 6g (with
+    GOMAXPROCS=1) frequently exceeds the goal heap size by ~25% because of
+    this.
     
-    Change-Id: Ie9e5149983518ba8d56ddd82ac8f4cde6b644167
-    Reviewed-on: https://go-review.googlesource.com/10089
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    This change makes GC revise its work estimate and the resulting assist
+    ratio every 10ms during the concurrent mark. Instead of
+    unconditionally using the marked heap size from the last cycle as an
+    estimate for this cycle, it takes the minimum of the previously marked
+    heap and the currently marked heap. As a result, as the cycle
+    approaches or exceeds its heap goal, this will increase the assist
+    ratio to put more pressure on the mutator assist to bring the cycle to
+    an end. For 6g, this causes the GC to always finish within 5% and
+    often within 1% of its heap goal.
+    
+    Change-Id: I4333b92ad0878c704964be42c655c38a862b4224
+    Reviewed-on: https://go-review.googlesource.com/9070
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/go/parser/parser.go     | 21 ++++++++++++---------
- src/go/parser/short_test.go |  5 +++--
- 2 files changed, 15 insertions(+), 11 deletions(-)
+ src/runtime/mgc.go | 73 ++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 54 insertions(+), 19 deletions(-)

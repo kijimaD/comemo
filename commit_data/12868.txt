@@ -1,33 +1,14 @@
-commit e530d6a1e00fbc0149b71bca9f940058838c1c44
+commit b72c7e943cfbb7296bb182717642072c0e8efd5c
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 10 12:51:59 2012 -0400
+Date:   Tue Apr 10 12:51:36 2012 -0400
 
-    6c, 6g, 6l: add MOVQL to make truncation explicit
+    cmd/6c: fix probable code gen bug
     
-    Without an explicit signal for a truncation, copy propagation
-    will sometimes propagate a 32-bit truncation and end up
-    overwriting uses of the original 64-bit value.
-    
-    The case that arose in practice is in C but I believe
-    that the same could plausibly happen in Go.
-    The main reason we didn't run into the same in Go
-    is that I (perhaps incorrectly?) drop MOVL AX, AX
-    during gins, so the truncation was never generated, so
-    it didn't confuse the optimizer.
-    
-    Fixes #1315.
-    Fixes #3488.
+    This is a pointer being copied; MOVL can't possibly be right.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/6002043
+    https://golang.org/cl/5999043
 
- src/cmd/6c/peep.c  |  2 ++
- src/cmd/6c/reg.c   |  1 +
- src/cmd/6c/txt.c   | 68 ++++++++++++++++++++++++++++++++----------------------
- src/cmd/6g/gsubr.c |  5 +++-
- src/cmd/6g/peep.c  |  2 ++
- src/cmd/6g/reg.c   |  1 +
- src/cmd/6l/6.out.h |  2 ++
- src/cmd/6l/optab.c |  2 ++
- 8 files changed, 54 insertions(+), 29 deletions(-)
+ src/cmd/6c/cgen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

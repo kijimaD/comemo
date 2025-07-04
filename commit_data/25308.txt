@@ -1,28 +1,24 @@
-commit 8350e065568c9b9885c136bbda0b38f1f9acbb38
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 14 11:04:03 2015 -0500
+commit a3156aaa121446c4136927f8c2139fefe05ba82c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 29 14:26:48 2015 -0700
 
-    cmd/go: add -args to 'go test' to resolve -v ambiguity
+    net/http/httptest: change Server to use http.Server.ConnState for accounting
     
-    The new flag -args stops flag processing, leaving the rest of the command line
-    to be passed to the underlying test binary verbatim. Thus, both of these pass
-    a literal -v -n on the test binary command line, without putting the go command
-    into verbose mode or disabling execution of commands:
+    With this CL, httptest.Server now uses connection-level accounting of
+    outstanding requests instead of ServeHTTP-level accounting. This is
+    more robust and results in a non-racy shutdown.
     
-            go test . -args -v -n
-            go test -args -v -n
+    This is much easier now that net/http.Server has the ConnState hook.
     
-    Also try to make the documentation a bit clearer.
+    Fixes #12789
+    Fixes #12781
     
-    Fixes #7221.
-    Fixes #12177.
-    
-    Change-Id: Ief9e830a6fbb9475d96011716a86e2524a35eceb
-    Reviewed-on: https://go-review.googlesource.com/17775
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I098cf334a6494316acb66cd07df90766df41764b
+    Reviewed-on: https://go-review.googlesource.com/15151
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go  | 76 ++++++++++++++++++++++++++++++++++++--------------
- src/cmd/go/go_test.go  |  7 +++++
- src/cmd/go/test.go     | 76 ++++++++++++++++++++++++++++++++++++--------------
- src/cmd/go/testflag.go |  9 ++++++
- 4 files changed, 126 insertions(+), 42 deletions(-)
+ src/net/http/httptest/server.go      | 190 ++++++++++++++++++++++++-----------
+ src/net/http/httptest/server_test.go |  27 +++++
+ 2 files changed, 158 insertions(+), 59 deletions(-)

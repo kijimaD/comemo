@@ -1,0 +1,21 @@
+commit e6ffe764cf1f35e96a116ca144733a5fba02578e
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Mar 14 21:29:08 2025 +0100
+
+    strings: add FuzzReplace test
+    
+    While reviewing CL 657935 I've notied there a
+    couple tricky reslices that depends on multiple
+    things being correct.
+    
+    Might as well fuzz it.
+    
+    Change-Id: Id78921bcb252e73a8a06e6deb4c920445a87d525
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658075
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/strings/strings_test.go | 46 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

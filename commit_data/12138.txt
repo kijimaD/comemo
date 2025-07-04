@@ -1,15 +1,12 @@
-commit 215777b332b9ccf167ef90e2bdd3d241021eb791
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 22 19:08:19 2012 +0900
+commit d74680ea1cf3f1f52098eb293bd7198750f2193f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 21 22:50:00 2012 -0800
 
-    net: replace error variable name oserr with err
+    godoc: fix potential index out-of-bounds error
     
-    This CL replaces the last two in source tree.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5685080
+    https://golang.org/cl/5683072
 
- src/pkg/net/ipsock_posix.go   | 11 +++++------
- src/pkg/net/unixsock_posix.go |  6 +++---
- 2 files changed, 8 insertions(+), 9 deletions(-)
+ src/cmd/godoc/mapping.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

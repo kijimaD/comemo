@@ -1,17 +1,24 @@
-commit a50c5fe6c368296d8d3857b32876017294f20162
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Feb 16 20:46:03 2014 +1100
+commit 1a3ee6794c007c0a6c9481cdb26ed50e93f2697d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 15 20:01:15 2014 -0500
 
-    go/build: temporarily disable cgo for freebsd/arm
+    cmd/gc: record &x[0] as taking address of x, if x is an array
     
-    Update #7331
+    Not recording the address being taken was causing
+    the liveness analysis not to preserve x in the absence
+    of direct references to x, which in turn was making the
+    net test fail with GOGC=0.
     
-    cgo is currently broken on freebsd/arm.
+    In addition to the test, this fixes a bug wherein
+            GOGC=0 go test -short net
+    crashed if liveness analysis was in use (like at tip, not like Go 1.2).
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    TBR=ken2
     CC=golang-codereviews
-    https://golang.org/cl/63900043
+    https://golang.org/cl/64470043
 
- src/pkg/go/build/build.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/typecheck.c   |  3 ++-
+ src/cmd/gc/walk.c        |  2 +-
+ test/fixedbugs/bug483.go | 36 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 40 insertions(+), 2 deletions(-)

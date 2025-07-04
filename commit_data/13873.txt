@@ -1,22 +1,15 @@
-commit 674bbafce6a52ef843eb130200d2946c92d9934d
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Sep 20 00:27:23 2012 +0800
+commit 28cb9fd5096b3714351cb0312dda37816b1d7d8d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 19 16:55:21 2012 +1000
 
-    misc/cgo/stdio: make it work on Windows and also test it
-    use a function to get stdout and stderr, instead of depending
-    on a specific libc implementation.
-    also make test/run.go replace \r\n by \n before comparing
-    output.
+    os: use small writes during console io
     
-            Fixes #2121.
-            Part of issue 1741.
+    Fixes #3767
     
-    R=alex.brainman, rsc, r, remyoudompheng
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5847068
+    https://golang.org/cl/6523043
 
- misc/cgo/stdio/stdio.go        | 15 +++++++++++----
- misc/cgo/stdio/stdio_netbsd.go | 16 ----------------
- src/run.bat                    |  9 ++++-----
- test/run.go                    |  2 +-
- 4 files changed, 16 insertions(+), 26 deletions(-)
+ src/pkg/os/file_windows.go | 14 ++++++++++++--
+ src/pkg/os/os_test.go      | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 2 deletions(-)

@@ -1,16 +1,14 @@
-commit 5cf120827c39046c46bb2df32df2ec5d55ab59a2
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Fri Jan 21 17:59:35 2011 +0100
+commit 68683a6a61d7647a7c1fde201fb8286c89f7a9a7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 21 08:37:58 2011 -0800
 
-    cc: remove pickle generation code.
+    test: s/float/float64/
     
-    R=rsc
+    Otherwise gccgo gives an extra error message not matched by errchk.
+    
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/4083043
+    https://golang.org/cl/4053042
 
- src/cmd/cc/Makefile |   1 -
- src/cmd/cc/cc.h     |   5 -
- src/cmd/cc/dcl.c    |   2 -
- src/cmd/cc/lex.c    |   8 +-
- src/cmd/cc/pickle.c | 298 ----------------------------------------------------
- 5 files changed, 3 insertions(+), 311 deletions(-)
+ test/method1.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

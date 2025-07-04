@@ -1,25 +1,16 @@
-commit fd4b587da3f9a2bde193a5b9fd2ba96667e08f2d
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Jun 29 10:11:31 2021 +0700
+commit 9dc2350d8cb10f8af5f3551aeb5e3e8bf820c071
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 25 12:57:38 2020 +0100
 
-    cmd/compile: suppress details error for invalid variadic argument type
+    doc/go1.16: add time/tzdata release note for CL 261877
     
-    CL 255241 made error message involving variadic calls clearer. To do it,
-    we added a check that the type of variadic argument must be a slice.
-    That's why the compiler crashes for invalid variadic argument type.
+    For #40700
     
-    Instead, we can just omit the details error message, and report not
-    enough arguments error, which matches the behavior of go/types and types2.
-    
-    Fixes #46957
-    
-    Change-Id: I638d7e8f031f0ee344d5d802104fd93a60aae00a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331569
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I056cef20a5f071977d0ae589c7a50d5f69af3283
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273166
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 17 ++++++++++++-----
- test/fixedbugs/issue46957.go                    | 13 +++++++++++++
- 2 files changed, 25 insertions(+), 5 deletions(-)
+ doc/go1.16.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

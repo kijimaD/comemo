@@ -1,15 +1,23 @@
-commit 835a94613703bb856ea4d16f05c116399c4b2fc9
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jun 6 15:07:16 2022 -0400
+commit b7b790a71a86678f036b7d30a892c5f792c5092f
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Aug 12 17:08:49 2021 -0700
 
-    doc/go1.19: minor edits
+    cmd/compile: fix CONVIFACE case converting interface to empty interface
     
-    For #51400
+    We need an extra case in convertToDictionary. In the case of an operand
+    which is an interface and converting to an empty interface, we don't
+    want to get the run-time type from the dictionary (which would be the
+    run-time type of the interface). We want to do a type-assert to the
+    empty interface.
     
-    Change-Id: I57565c1d79e0c5487d39d46f556b247d35f05d3c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410674
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I414247210168153151272fab198bfe82ad7b1567
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342009
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- doc/go1.19.html | 24 ++++++++----------------
- 1 file changed, 8 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  5 +++
+ test/typeparam/issue47272.go              | 55 +++++++++++++++++++++++++++++++
+ test/typeparam/issue47272.out             |  2 ++
+ 3 files changed, 62 insertions(+)

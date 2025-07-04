@@ -1,37 +1,23 @@
-commit 41fd4c88ad900765716d17c14eb1b48b553589e2
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Nov 24 18:02:29 2018 +1100
+commit 870e12d7bfaea70fb0d743842f5864eb059cb939
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue Jul 31 01:11:32 2018 +0700
 
-    cmd/link: do not use _GLOBAL_OFFSET_TABLE_ on windows/386
+    cmd/go: fix go get fail when GIT_TRACE set
     
-    When building windows/386 executable that imports "plugin" package,
-    cmd/link adds reference to DLL with blank name. Running
+    GIT_TRACE write message to stderr, while run1 merge both stdout and
+    stderr. So function which call run1 and rely on its output will failed
+    to parse the result when run1 success.
     
-    objdump -x a.exe
+    By using cmd.Output(), we ensure only cmd standard out is returned.
     
-    reports
+    Fixes #19682
     
-    ...
-    The Import Tables (interpreted .idata section contents)
-    ...
-    DLL Name:
-    vma:  Hint/Ord Member-Name Bound-To
-    25308a     0  _GLOBAL_OFFSET_TABLE_
-    ...
-    
-    So, obviously, executable cannot run, because Windows complains
-    that it cannot find DLL when trying to run it.
-    
-    Stop using _GLOBAL_OFFSET_TABLE_ on windows/386.
-    
-    Fixes #28789
-    
-    Change-Id: Idd489eafd998f6e329f40c5d90a2a8965ab1d873
-    Reviewed-on: https://go-review.googlesource.com/c/151139
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I7002df17fe68aea1860ddc7382c68cc23548bd90
+    Reviewed-on: https://go-review.googlesource.com/126735
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go |  4 ++--
- src/plugin/plugin_test.go       | 17 +++++++++++++++++
- 2 files changed, 19 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/get/vcs.go                    | 16 +++++++---------
+ src/cmd/go/testdata/script/get_with_git_trace.txt |  7 +++++++
+ 2 files changed, 14 insertions(+), 9 deletions(-)

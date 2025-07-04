@@ -1,14 +1,17 @@
-commit 7acb642e4f0b77763a13c99c756aa846b01a428c
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 20 10:29:43 2016 -0400
+commit 4c8589c328ea68ddb551abb4696c20016ed57d99
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 8 13:26:44 2016 -0500
 
-    test: print output on link -X failure
+    cmd/compile: attach correct line number for fallthru-return
     
-    (Split out from CL 22205.)
+    Fixes #14646.
     
-    Change-Id: Iab66ac2a1cd3716966d8e59c570931bce95aba9b
-    Reviewed-on: https://go-review.googlesource.com/22297
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0bb82ed6d3533633cd8369ba37aa467948bbe155
+    Reviewed-on: https://go-review.googlesource.com/20381
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- test/linkx_run.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go |  1 +
+ test/fixedbugs/issue14646.go       | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

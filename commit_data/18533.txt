@@ -1,18 +1,23 @@
-commit 881e23d36f0f814b1d5e5421987ccdf3d3a0b0cd
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri Feb 14 15:56:58 2014 -0800
+commit 56872f02f0f69f32d4d919e4cacee9672e7a5a97
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Feb 14 22:27:47 2014 +0100
 
-    codereview: fix for Mercurial 2.9
+    runtime: fix "invalid address in sys call" on Plan 9
     
-    The branchtags method was removed but we should've
-    been using branchmap all along.
+    Rfork is not splitting the stack when creating a new thread,
+    so the parent and child are executing on the same stack.
+    However, if the parent returns and keeps executing before
+    the child can read the arguments from the parent stack,
+    the child will not see the right arguments. The solution
+    is to load the needed pieces from the parent stack into
+    register before INT $64.
     
-    http://selenic.com/hg/rev/4274eda143cb
+    Thanks to Russ Cox for the explanation.
     
-    LGTM=franciscossouza, r
-    R=golang-codereviews, franciscossouza, r
-    CC=golang-codereviews
-    https://golang.org/cl/57500045
+    LGTM=rsc
+    R=rsc
+    CC=ality, golang-codereviews
+    https://golang.org/cl/64140043
 
- lib/codereview/codereview.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/sys_plan9_386.s | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

@@ -1,12 +1,17 @@
-commit 46ecd6f14102678a34359346825797eaef104090
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 7 07:00:48 2011 +1000
+commit 1aa571d38b88142ec604ba20c2f9de611ff6413d
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jul 6 16:25:44 2011 -0400
 
-    exp/template: index: forgot the always last-to-arrive uintptr.
+    asn1: support T61 and UTF8 string.
+    
+    There is no end to the kitchen sink of string types in ASN.1.
+    
+    Fixes #1953.
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4636087
+    https://golang.org/cl/4672045
 
- src/pkg/exp/template/funcs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/asn1/asn1.go   | 45 +++++++++++++++++++++++++++------------------
+ src/pkg/asn1/common.go |  1 +
+ 2 files changed, 28 insertions(+), 18 deletions(-)

@@ -1,12 +1,12 @@
-commit c40314821bb0d99c24c516543bcdf01eea231c48
-Author: Olivier Duperray <duperray.olivier@gmail.com>
-Date:   Fri Jan 13 18:05:47 2012 -0800
+commit 439d863e7c4e246f06e42e7ebdf562c4f7582e08
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Fri Jan 13 16:49:30 2012 -0800
 
-    cmd/gofmt: fix simplify.go by running gofmt on cmd/gofmt
+    go/doc: remove duplicate package comment
     
-    R=golang-dev
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5539061
+    https://golang.org/cl/5528101
 
- src/cmd/gofmt/simplify.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/go/doc/reader.go | 1 -
+ 1 file changed, 1 deletion(-)

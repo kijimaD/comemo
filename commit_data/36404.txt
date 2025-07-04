@@ -1,39 +1,27 @@
-commit 8148726676d63c2aebc561717a949135389868b8
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Jul 22 12:26:38 2018 +0100
+commit 296e676575af1967e681b85a5f14b56ddd4a6e29
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 18 14:42:47 2018 -0400
 
-    encoding/json: simplify the structEncoder type
+    cmd/go: add go list -test to describe test binaries
     
-    structEncoder had two slices - the list of fields, and a list containing
-    the encoder for each field. structEncoder.encode then looped over the
-    fields, and indexed into the second slice to grab the field encoder.
+    Tools should be able to ask cmd/go about the dependency
+    graph for test binaries instead of reinventing it themselves.
+    Allow them to do so, with the new list -test flag.
     
-    However, this makes it very hard for the compiler to be able to prove
-    that the two slices always have the same length, and that the index
-    expression doesn't need a bounds check.
+    This also fixes and tests for a bug introduced in CL 104315
+    that was not properly splitting dependencies on the path
+    between package main and the package being tested.
     
-    Merge the two slices into one to completely remove the need for bounds
-    checks in the hot loop.
-    
-    While at it, don't copy the field elements when ranging, which greatly
-    speeds up the hot loop in structEncoder.
-    
-    name           old time/op    new time/op    delta
-    CodeEncoder-4    6.18ms ± 0%    5.56ms ± 0%  -10.08%  (p=0.002 n=6+6)
-    
-    name           old speed      new speed      delta
-    CodeEncoder-4   314MB/s ± 0%   349MB/s ± 0%  +11.21%  (p=0.002 n=6+6)
-    
-    name           old alloc/op   new alloc/op   delta
-    CodeEncoder-4    93.2kB ± 0%    62.1kB ± 0%  -33.33%  (p=0.002 n=6+6)
-    
-    Updates #5683.
-    
-    Change-Id: I0dd47783530f439b125e084aede09dda172eb1e8
-    Reviewed-on: https://go-review.googlesource.com/125416
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I29eb454c82893f5ee70252aaaecd9fa376eaf3c8
+    Reviewed-on: https://go-review.googlesource.com/107916
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/encoding/json/encode.go | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+ src/cmd/go/alldocs.go            |  12 +
+ src/cmd/go/go_test.go            |  29 +++
+ src/cmd/go/internal/list/list.go | 113 +++++++++-
+ src/cmd/go/internal/load/pkg.go  |   3 +
+ src/cmd/go/internal/load/test.go | 469 +++++++++++++++++++++++++++++++++++++--
+ src/cmd/go/internal/test/test.go | 429 ++---------------------------------
+ src/cmd/go/internal/vet/vet.go   |   2 +-
+ 7 files changed, 618 insertions(+), 439 deletions(-)

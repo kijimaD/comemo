@@ -1,0 +1,26 @@
+commit dd2019528b669908f8ccc0c327a64d0e07fc2a1b
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Mon Jun 10 15:34:12 2024 -0700
+
+    go/parser: track depth in nested element lists
+    
+    Prevents stack exhaustion with extremely deeply nested literal values,
+    i.e. field values in structs.
+    
+    Fixes #69138
+    Fixes CVE-2024-34155
+    
+    Change-Id: I2e8e33b44105cc169d7ed1ae83fb56df0c10f1ee
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1520
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611238
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go/parser/parser.go      | 2 ++
+ src/go/parser/parser_test.go | 9 +++++----
+ 2 files changed, 7 insertions(+), 4 deletions(-)

@@ -1,22 +1,12 @@
-commit 67805eaa950c5318bfe02943cc175da6729919a9
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Apr 13 21:50:47 2015 +1000
+commit 4eb93029725f3adbd9632a1b58644920f077f100
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Tue Mar 17 13:00:31 2015 +0900
 
-    cmd/dist: use gccgo as bootstrap compiler
+    cmd/yacc: fix path in documentation
     
-    Fixes #10092
-    
-    This change makes it possible to use gccgo 5 as the GOROOT_BOOTSTRAP
-    compiler.
-    
-    Change-Id: Ie3a312781ac1a09ea77f95b5a78c9488d437e0aa
-    Reviewed-on: https://go-review.googlesource.com/8809
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I367b5a837844e3bee1576c59497d37f5e67c761d
+    Reviewed-on: https://go-review.googlesource.com/7674
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/dist/cpuid_amd64.s   |  2 ++
- src/cmd/dist/cpuid_default.s |  2 +-
- src/cmd/dist/util.go         | 12 ------------
- src/cmd/dist/util_gc.go      | 19 +++++++++++++++++++
- src/cmd/dist/util_gccgo.go   |  9 +++++++++
- 5 files changed, 31 insertions(+), 13 deletions(-)
+ src/cmd/yacc/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,25 +1,18 @@
-commit 25ea4e579f44fa28189422b9951c375a5ff36a4e
-Author: Keith Randall <khr@google.com>
-Date:   Tue Jul 31 15:26:58 2018 -0700
+commit 16d1a8e6e3701a8ed2e9b16f7c9b8e70a7b1fc8d
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 30 19:55:41 2018 -0700
 
-    cmd/compile: move more compiler tests to new test infrastructure
+    runtime: move open/close/read/write from syscall to libc on Darwin
     
-    Update #26469
+    Update #17490
     
-    Change-Id: I1188e49cde1bda11506afef6b6e3f34c6ff45ea5
-    Reviewed-on: https://go-review.googlesource.com/127115
+    Change-Id: Ia0bb0ba10dc0bbb299290a60b8228275d55125d7
+    Reviewed-on: https://go-review.googlesource.com/110438
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa_test.go            |  20 ----
- .../internal/gc/testdata/{chan.go => chan_test.go} |  40 +++-----
- .../gc/testdata/{compound.go => compound_test.go}  |  63 +++++--------
- .../internal/gc/testdata/{ctl.go => ctl_test.go}   |  47 ++++------
- .../{deferNoReturn.go => deferNoReturn_test.go}    |  10 +-
- .../testdata/{loadstore.go => loadstore_test.go}   |  63 +++++--------
- .../internal/gc/testdata/{map.go => map_test.go}   |  26 ++----
- src/cmd/compile/internal/gc/testdata/novet.go      |   9 ++
- .../gc/testdata/{regalloc.go => regalloc_test.go}  |  25 ++---
- .../gc/testdata/{string.go => string_test.go}      | 101 +++++++++------------
- 10 files changed, 155 insertions(+), 249 deletions(-)
+ src/runtime/sys_darwin.go      |  5 +++
+ src/runtime/sys_darwin_386.s   | 72 ++++++++++++++++++++++++++++++------------
+ src/runtime/sys_darwin_amd64.s | 48 ++++++++++++++++------------
+ 3 files changed, 85 insertions(+), 40 deletions(-)

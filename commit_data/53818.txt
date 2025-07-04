@@ -1,26 +1,40 @@
-commit 6eaad824e56aec91266854bf7890a94c3f08b614
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Apr 29 20:29:41 2023 +1000
+commit a73506cff560c4d95ac604f4f76d58386ca29ed9
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 18 13:43:47 2022 -0700
 
-    cmd/internal/obj/arm64: improve splitting of 24 bit unsigned scaled immediates
+    internal/syscall/unix: consolidate kernelVersion implementations
     
-    The previous implementation would limit itself to 0xfff000 | 0xfff << shift,
-    while the maximum possible value is 0xfff000 + 0xfff << shift. In practical
-    terms, this means that an additional ((1 << shift) - 1) * 0x1000 of offset
-    is reachable for operations that use this splitting format. In the case of
-    an 8 byte load/store, this is an additional 0x7000 that can be reached
-    without needing to use the literal pool.
+    Currently, there are 3 functions returning Linux kernel version numbers.
     
-    Updates #59615
+    Two of them are identical:
+     - in net, initially added by commit 0a9dd47dd817904e;
+     - in internal/poll, initially added by commit 1c7650aa93bd53;
     
-    Change-Id: Ice7023104042d31c115eafb9398c2b999bdd6583
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512540
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    (both were later fixed by commit 66c02645062561a).
+    
+    The third one is a more complex, regexp-based implementation in
+    runtime/pprof, which is only used for a test.
+    
+    Instead of adding one more, let's consolidate existing ones.
+    
+    Remove the complex implementation, and move the simple one into
+    internal/syscall/unix. Use it from all the three places mentioned above.
+    
+    Change-Id: I4a34d9ca47257743c16def30e4dd634e36056091
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424896
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/cmd/asm/internal/asm/testdata/arm64.s    | 30 +++++++++++++-------------
- src/cmd/internal/obj/arm64/asm7.go           | 19 +++++++++++------
- src/cmd/internal/obj/arm64/asm_arm64_test.go | 32 +++++++++++-----------------
- 3 files changed, 41 insertions(+), 40 deletions(-)
+ src/internal/poll/copy_file_range_linux.go        | 37 +-------------
+ src/internal/syscall/unix/kernel_version_linux.go | 49 ++++++++++++++++++
+ src/internal/syscall/unix/kernel_version_other.go | 11 ++++
+ src/net/sock_linux.go                             | 42 ++--------------
+ src/net/sock_linux_test.go                        |  3 +-
+ src/runtime/pprof/pprof_test.go                   |  8 ++-
+ src/runtime/pprof/uname_linux_test.go             | 61 -----------------------
+ src/runtime/pprof/uname_other_test.go             | 15 ------
+ 8 files changed, 71 insertions(+), 155 deletions(-)

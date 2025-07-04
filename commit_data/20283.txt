@@ -1,12 +1,26 @@
-commit a915cb47eef8acc8998414cd5f88c13614821e92
+commit 597b266eafe7d63e9be8da1c1b4813bd2998a11c
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 4 01:05:32 2014 -0400
+Date:   Thu Aug 28 23:26:40 2014 -0400
 
-    runtime: fix onM test for curg on arm
+    runtime: convert print.c to Go
     
-    TBR=iant
-    CC=golang-codereviews
-    https://golang.org/cl/137130043
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=dvyukov, golang-codereviews, khr, r
+    https://golang.org/cl/135930043
 
- src/pkg/runtime/asm_arm.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/alg.goc         |   8 +-
+ src/pkg/runtime/mprof.go        |   6 +-
+ src/pkg/runtime/os_darwin.c     |  18 +-
+ src/pkg/runtime/os_dragonfly.c  |   6 +-
+ src/pkg/runtime/os_freebsd.c    |   6 +-
+ src/pkg/runtime/panic.c         |   7 +-
+ src/pkg/runtime/print.c         | 443 ----------------------------------------
+ src/pkg/runtime/print.go        | 111 ----------
+ src/pkg/runtime/print1.go       | 338 ++++++++++++++++++++++++++++++
+ src/pkg/runtime/proc.c          |   5 +-
+ src/pkg/runtime/runtime.h       |  30 +--
+ src/pkg/runtime/stubs.go        |   4 +-
+ src/pkg/runtime/traceback_arm.c |   2 +-
+ src/pkg/runtime/traceback_x86.c |   2 +-
+ 14 files changed, 387 insertions(+), 599 deletions(-)

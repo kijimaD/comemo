@@ -1,18 +1,14 @@
-commit ab096d587f9bb5dcdf895511ee6d213aade7e30f
-Author: Tamir Duberstein <tamird@gmail.com>
-Date:   Wed Dec 30 11:15:38 2015 -0500
+commit fc1514c1db35ed39636bd47b34f49e9330de9dc8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 30 02:20:29 2015 +0000
 
-    cmd/dist: improve isGitRepo to handle git "worktree"s
+    doc: some go1.6.txt additions
     
-    Simply checking the exit code of `git rev-parse --git-dir` should
-    suffice here, but that requires deviating from the infrastructure
-    provided by `run`, so I've left that for a future change.
+    Many remain.
     
-    Fixes #11211.
-    
-    Change-Id: I7cbad86a8a06578f52f66f734f5447b597ddc962
-    Reviewed-on: https://go-review.googlesource.com/18213
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Icfe190c145a34f8aaa4d78e853dbc708962ba5ce
+    Reviewed-on: https://go-review.googlesource.com/16447
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/build.go | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+ doc/go1.6.txt | 3 +++
+ 1 file changed, 3 insertions(+)

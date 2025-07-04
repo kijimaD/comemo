@@ -1,27 +1,26 @@
-commit a566deace1d96cd517e79227937e3036baca7ee2
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Fri Mar 8 00:54:44 2013 +0100
+commit 297bb12809c81810f3c7fbb7794be124b76d291a
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 7 12:54:00 2013 -0800
 
-    syscall: Plan 9: use lightweight errstr in entersyscall mode
+    cmd/6a, cmd/8a, cmd/6l, cmd/8l: add AES instructions
     
-    Change 231af8ac63aa (CL 7314062) made runtime.enteryscall()
-    set m->mcache = nil, which means that we can no longer use
-    syscall.errstr in syscall.Syscall and syscall.Syscall6, since it
-    requires a new buffer to be allocated for holding the error string.
-    Instead, we use pre-allocated per-M storage to hold error strings
-    from syscalls made while in entersyscall mode, and call
-    runtime.findnull to calculate the lengths.
+    Instructions for use in AES hashing.  See CL#7543043
     
-    Fixes #4994.
-    
-    R=rsc, rminnich, ality, dvyukov, rminnich, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7567043
+    https://golang.org/cl/7548043
 
- src/pkg/runtime/runtime.h         |  1 +
- src/pkg/runtime/sys_plan9_386.s   | 20 ++++++++++++++++++++
- src/pkg/runtime/sys_plan9_amd64.s | 21 +++++++++++++++++++++
- src/pkg/runtime/thread_plan9.c    |  4 ++++
- src/pkg/syscall/asm_plan9_386.s   |  4 ++--
- src/pkg/syscall/asm_plan9_amd64.s |  4 ++--
- 6 files changed, 50 insertions(+), 4 deletions(-)
+ src/cmd/6a/lex.c   |    3 +
+ src/cmd/6l/6.out.h |    3 +
+ src/cmd/6l/l.h     |    8 +-
+ src/cmd/6l/optab.c |   13 +
+ src/cmd/6l/span.c  |   10 +
+ src/cmd/8a/a.y     |   15 +-
+ src/cmd/8a/lex.c   |    6 +
+ src/cmd/8a/y.tab.c | 1572 ++++++++++++++++++++++++++++------------------------
+ src/cmd/8a/y.tab.h |   98 ++--
+ src/cmd/8l/8.out.h |   10 +-
+ src/cmd/8l/l.h     |    5 +-
+ src/cmd/8l/optab.c |   31 +-
+ src/cmd/8l/span.c  |   19 +
+ 13 files changed, 1018 insertions(+), 775 deletions(-)

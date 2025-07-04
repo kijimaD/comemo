@@ -1,21 +1,18 @@
-commit b846edfd5979d1cf53d55ea8fd6e4bbcfefb2e75
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Mon Apr 2 01:45:53 2018 +0200
+commit 366f46fe0084db6740b9db87dd36a52caf289025
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 15 14:26:33 2017 -0800
 
-    cmd/compile: in prove, make addRestrictions more generic
+    runtime: remove TODO
     
-    addRestrictions was taking a branch parameter, binding its logic
-    to that of addBranchRestrictions. Since we will need to use it
-    for updating the facts table for induction variables, refactor it
-    to remove the branch parameter.
+    I experimented with changing the write barrier to take the value in SI
+    rather than AX to improve register allocation. It had no effect on
+    performance and only made the "hello world" text 0.07% smaller, so
+    let's just remove the comment.
     
-    Passes toolstash -cmp.
-    
-    Change-Id: Iaaec350a8becd1919d03d8574ffd1bbbd906d068
-    Reviewed-on: https://go-review.googlesource.com/104036
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I6a261d14139b7a02a8467b31e74951dfb927ffb4
+    Reviewed-on: https://go-review.googlesource.com/78033
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
+ src/runtime/asm_amd64.s | 2 --
+ 1 file changed, 2 deletions(-)

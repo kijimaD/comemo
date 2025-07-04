@@ -1,20 +1,23 @@
-commit de65aa41d865bad0b3eba573742834b9b29237b9
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Feb 20 20:39:53 2024 +0000
+commit 21036ed0ff69b4b46e37809c416cfa60c5eee6d6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 28 15:16:30 2023 +0000
 
-    Revert "hash/maphash: parallel run test"
+    cmd/go: skip TestDocsUpToDate if 'go build' is not supported
     
-    This reverts CL 564576.
+    testGo is currently only configured if testenv.HasGoBuild returns
+    true, which implies that a complete toolchain is present.
+    Since setting up testGo now only uses the test binary itself, it does
+    not actually require 'go build', but fixing that will be a bit more
+    involved. For now, just skip the test when it isn't set up.
     
-    Reason for revert: flaky on linux-386-longtest
+    Fixes #58775.
     
-    Fixes #65823.
-    
-    Change-Id: I20e11f15af050eae9a6c15e756a52ffad327c458
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565536
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I6487b47b44c87aa139ae11cfa44ce6f0f5f84bd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472095
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/hash/maphash/smhasher_test.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/cmd/go/help_test.go | 1 +
+ 1 file changed, 1 insertion(+)

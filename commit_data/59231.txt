@@ -1,21 +1,17 @@
-commit 5fc596ebe7c34b9f68c33da5ffc4f3645c38ef72
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Feb 11 18:58:13 2025 -0800
+commit f7777688ca19584ed7c278431560f6a545822370
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Feb 18 20:18:08 2024 +0100
 
-    cmd/compile: aggregate scalar allocations for heap escapes
+    doc: document os.ModeSocket support on Windows
     
-    If multiple small scalars escape to the heap, allocate them together
-    with a single allocation. They are going to be aggregated together
-    in the tiny allocator anyway, might as well do just one runtime call.
+    Updates #33357.
     
-    Change-Id: I4317e29235af63de378a26436a18d7fb0c39e41f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648536
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I66866475447e03f604202f34ddfbafdc0512cb72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565135
     Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/ir/symtab.go        |  1 +
- src/cmd/compile/internal/ssa/value.go        |  7 ++
- src/cmd/compile/internal/ssagen/ssa.go       | 99 +++++++++++++++++++++++++++-
- src/cmd/compile/internal/test/locals_test.go | 76 +++++++++++++++++++++
- 4 files changed, 182 insertions(+), 1 deletion(-)
+ doc/next/6-stdlib/99-minor/os/33357.md | 3 +++
+ 1 file changed, 3 insertions(+)

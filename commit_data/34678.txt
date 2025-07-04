@@ -1,40 +1,46 @@
-commit 41402b59bd7401bf0b4ff3043dfe3d3fa712e05c
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Fri Mar 23 13:00:47 2018 +0000
+commit 13cfb15cb18a8c0c31212c302175a4cb4c050155
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Sep 28 15:07:48 2017 +0530
 
-    crypto/rc4: optimize generic implementation slightly
+    strings: optimize ToUpper
     
-    The compiler can't currently figure out that it can eliminate both c.s
-    loads (using store to load forwarding) in the second line of the
-    following code:
+    Handling the ASCII case inline and call unicode.ToUpper only
+    for non-ascii cases.
     
-            ...
-            c.s[i], c.s[j] = c.s[j], c.s[i]
-            x := c.s[j] + c.s[i]
-            ...
+    Gives good improvements for the ascii case and minor perf
+    degrade for non-ascii case
     
-    The compiler eliminates the second load of c.s[j] (using the original
-    value of c.s[i]), however the load of c.s[i] remains because the compiler
-    doesn't know that c.s[i] and c.s[j] either overlap completely or not at
-    all.
+    name                                     old time/op    new time/op    delta
+    ToUpper/#00                                11.7ns ± 8%     8.0ns ± 1%  -31.95%  (p=0.008 n=5+5)
+    ToUpper/ONLYUPPER                          45.6ns ± 5%    19.9ns ± 1%  -56.40%  (p=0.008 n=5+5)
+    ToUpper/abc                                77.4ns ± 1%    57.0ns ± 1%  -26.32%  (p=0.008 n=5+5)
+    ToUpper/AbC123                             92.1ns ± 4%    67.7ns ± 2%  -26.57%  (p=0.008 n=5+5)
+    ToUpper/azAZ09_                             105ns ± 6%      67ns ± 2%  -36.26%  (p=0.000 n=5+4)
+    ToUpper/longStrinGwitHmixofsmaLLandcAps     255ns ± 1%     140ns ± 1%  -45.01%  (p=0.029 n=4+4)
+    ToUpper/longɐstringɐwithɐnonasciiⱯchars     440ns ± 1%     447ns ± 0%   +1.49%  (p=0.016 n=5+4)
+    ToUpper/ɐɐɐɐɐ                               370ns ± 4%     366ns ± 1%     ~     (p=0.667 n=5+5)
     
-    Introducing temporaries to make this explicit improves the performance
-    of the generic code slightly, the goal being to remove the assembly in
-    this package in the future. This change also hoists a bounds check out
-    of the main loop which gives a slight performance boost and also makes
-    the behaviour identical to the assembly implementation when len(dst) <
-    len(src).
+    name                                     old alloc/op   new alloc/op   delta
+    ToUpper/#00                                 0.00B          0.00B          ~     (all equal)
+    ToUpper/ONLYUPPER                           0.00B          0.00B          ~     (all equal)
+    ToUpper/abc                                 16.0B ± 0%      6.0B ± 0%  -62.50%  (p=0.008 n=5+5)
+    ToUpper/AbC123                              16.0B ± 0%     16.0B ± 0%     ~     (all equal)
+    ToUpper/azAZ09_                             24.0B ± 0%     16.0B ± 0%  -33.33%  (p=0.008 n=5+5)
+    ToUpper/longStrinGwitHmixofsmaLLandcAps     80.0B ± 0%     64.0B ± 0%  -20.00%  (p=0.008 n=5+5)
+    ToUpper/longɐstringɐwithɐnonasciiⱯchars     96.0B ± 0%     96.0B ± 0%     ~     (all equal)
+    ToUpper/ɐɐɐɐɐ                               64.0B ± 0%     64.0B ± 0%     ~     (all equal)
     
-    name       old speed     new speed     delta
-    RC4_128-4  491MB/s ± 3%  596MB/s ± 5%  +21.51%  (p=0.000 n=9+9)
-    RC4_1K-4   504MB/s ± 2%  616MB/s ± 1%  +22.33%  (p=0.000 n=10+10)
-    RC4_8K-4   509MB/s ± 1%  630MB/s ± 2%  +23.85%  (p=0.000 n=8+9)
+    Ran on a machine with Intel(R) Core(TM) i5-5200U CPU @ 2.20GHz
     
-    Change-Id: I27adc775713b2e74a1a94e0c1de0909fb4379463
-    Reviewed-on: https://go-review.googlesource.com/102335
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #17859
+    
+    Change-Id: I0735ac4a4a36e8a8f6cc06f2c16b871f12b4abf9
+    Reviewed-on: https://go-review.googlesource.com/68370
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/rc4/rc4.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/strings/strings.go      | 28 +++++++++++++++++++++++++++-
+ src/strings/strings_test.go | 16 ++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

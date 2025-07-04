@@ -1,16 +1,17 @@
-commit e17281b39779c18fc73779c81a3741b05ea85485
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu May 30 17:09:58 2013 +0400
+commit 2c4b029b752a5aa8315e56b9563b2052fe8dd3fe
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu May 30 08:32:00 2013 +0200
 
-    runtime: rename mheap.maps to mheap.spans
-    as was dicussed in cl/9791044
+    cmd/gc: use escape analysis result for make([]T, constant
     
-    R=golang-dev, r
+    Escape analysis already gives that the underlying array
+    does not escape but the result was ignored.
+    
+    Fixes #5484.
+    
+    R=golang-dev, dave, daniel.morsing
     CC=golang-dev
-    https://golang.org/cl/9853046
+    https://golang.org/cl/9662046
 
- src/pkg/runtime/malloc.goc | 10 +++++-----
- src/pkg/runtime/malloc.h   |  2 +-
- src/pkg/runtime/mgc0.c     |  8 ++++----
- src/pkg/runtime/mheap.c    | 28 ++++++++++++++--------------
- 4 files changed, 24 insertions(+), 24 deletions(-)
+ src/cmd/gc/walk.c | 31 ++++++++++++++++++++++++-------
+ 1 file changed, 24 insertions(+), 7 deletions(-)

@@ -1,13 +1,44 @@
-commit 0a8720580983c3a39c6c46fe08a2136a04bc118f
-Author: Iskander Sharipov <quasilyte@gmail.com>
-Date:   Tue Sep 18 01:13:04 2018 +0300
+commit e86c26789dbc11c50c4c49bee55ea015847a97b7
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 3 10:30:31 2018 -0700
 
-    cmd/compile/internal/gc: simplify bool expression
+    runtime: fix darwin 386/amd64 stack switches
     
-    Change-Id: Idcd79788e64947a927af662b6394ac7218e62ba8
-    Reviewed-on: https://go-review.googlesource.com/135836
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    A few libc_ calls were missing stack switches.
+    
+    Unfortunately, adding the stack switches revealed a deeper problem.
+    systemstack() is fundamentally flawed because when you do
+    
+        systemstack(func() { ... })
+    
+    There's no way to mark the anonymous function as nosplit.  At first I
+    thought it didn't matter, as that function runs on the g0 stack.  But
+    nosplit is still required, because some syscalls are done when stack
+    bounds are not set up correctly (e.g. in a signal handler, which runs
+    on the g0 stack, but g is still pointing at the g stack).  Instead use
+    asmcgocall and funcPC, so we can be nosplit all the way down.
+    
+    Mid-stack inlining now pushes darwin over the nosplit limit also.
+    Leaving that as a TODO.
+    Update #23168
+    
+    This might fix the cause of occasional darwin hangs.
+    Update #25181
+    
+    Update #17490
+    
+    Change-Id: If9c3ef052822c7679f5a1dd192443f714483327e
+    Reviewed-on: https://go-review.googlesource.com/111258
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf_test.go |  14 +-
+ src/runtime/asm_386.s                  |  14 ++
+ src/runtime/mmap.go                    |   2 +
+ src/runtime/os_darwin.go               |  11 +-
+ src/runtime/stubs2.go                  |   2 +
+ src/runtime/sys_darwin.go              | 147 +++++++++++++-------
+ src/runtime/sys_darwin_386.s           | 244 +++++++++++++--------------------
+ src/runtime/sys_darwin_amd64.s         | 166 +++++++++-------------
+ 8 files changed, 293 insertions(+), 307 deletions(-)

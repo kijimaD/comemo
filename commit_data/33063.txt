@@ -1,26 +1,20 @@
-commit cf3f771203c46d73a84d86e5ef7865d19e983150
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 9 11:31:20 2017 -0700
+commit 7e99ccb52b9c921f2e088cd1b9634ed15ce3d4ea
+Author: smasher164 <contact@akhilindurti.com>
+Date:   Wed Jun 28 04:22:25 2017 -0400
 
-    runtime: unify amd64 -buildmode=exe entry point code
+    io: clarify documentation for io.ByteReader on error values
     
-    All of the amd64 entry point code is the same except for Plan 9.
-    Unify it all into asm_amd64.s.
+    Document that the byte value returned by ReadByte() is meaningless
+    if its error != nil. Because io.Reader and io.ByteReader are similar in
+    name, this CL aims to clear up any ambiguity surrounding the returned
+    values, particularly where io.Reader is allowed to return both a
+    non-zero number of valid bytes and err == EOF.
     
-    Change-Id: Id47ce3a7bb2bb0fd48f326a2d88ed18b17dee456
-    Reviewed-on: https://go-review.googlesource.com/69292
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #20825
+    
+    Change-Id: I3a23c18c80c471c0caae3b4d2f6f8e547da0bed9
+    Reviewed-on: https://go-review.googlesource.com/46950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_amd64.s           | 15 +++++++++++++++
- src/runtime/rt0_android_amd64.s   |  5 +----
- src/runtime/rt0_darwin_amd64.s    |  9 +--------
- src/runtime/rt0_dragonfly_amd64.s |  9 +--------
- src/runtime/rt0_freebsd_amd64.s   |  8 ++------
- src/runtime/rt0_linux_amd64.s     |  9 +--------
- src/runtime/rt0_netbsd_amd64.s    |  9 +--------
- src/runtime/rt0_openbsd_amd64.s   |  9 +--------
- src/runtime/rt0_solaris_amd64.s   |  9 +--------
- src/runtime/rt0_windows_amd64.s   |  9 +--------
- 10 files changed, 25 insertions(+), 66 deletions(-)
+ src/io/io.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

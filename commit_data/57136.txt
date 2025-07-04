@@ -1,18 +1,37 @@
-commit 820d4458768ccc886b09fa258d7faae4260a0772
-Author: cuishuang <imcusg@gmail.com>
-Date:   Thu Aug 8 11:05:23 2024 +0800
+commit d49017a7c347e57830b87ebbbdbec087bfc1ca92
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 22 16:40:46 2023 -0700
 
-    runtime: make function comments match function names
+    go/types, types2: fix interface unification
     
-    Change-Id: I5dc9864fbb6f1745be0f7076ac72debd039c8f3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604178
-    Reviewed-by: shuang cui <imcusg@gmail.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    When unification of two types succeeds and at least one of them
+    is an interface, we must be more cautious about when to accept
+    the unification, to avoid order dependencies and unexpected
+    inference results.
+    
+    The changes are localized and only affect matching against
+    interfaces; they further restrict what are valid unifications
+    (rather than allowing more code to pass). We may be able to
+    remove some of the restriotions in a future release.
+    
+    See comments in code for a detailed description of the changes.
+    
+    Also, factored out "asInterface" functionality into a function
+    to avoid needless repetition in the code.
+    
+    Fixes #60933.
+    Fixes #60946.
+    
+    Change-Id: I923f7a7c1a22e0f4fd29e441e016e7154429fc5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505396
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/traceruntime.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/unify.go           | 60 +++++++++++++++----
+ src/go/types/unify.go                              | 60 +++++++++++++++----
+ .../types/testdata/fixedbugs/issue60933.go         | 67 ++++++++++++++++++++++
+ .../types/testdata/fixedbugs/issue60946.go         | 38 ++++++++++++
+ 4 files changed, 203 insertions(+), 22 deletions(-)

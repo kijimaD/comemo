@@ -1,12 +1,21 @@
-commit 1ebfb082a7a5cc31efd572fd88549048a82a5c1c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jan 4 11:36:54 2015 -0800
+commit 0da27cb8b0e82d429a9c3ee591208327e3e7a8c9
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 18 15:19:37 2014 -0500
 
-    runtime: remove unnecessary GOOS switch
+    [dev.cc] runtime: convert power64-specific .c and .h files to Go
     
-    Change-Id: I8f518e273c02110042b08f7c50c3d38a648c8b6e
-    Reviewed-on: https://go-review.googlesource.com/2281
-    Reviewed-by: Minux Ma <minux@golang.org>
+    The power64 equivalent of CL 174860043
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/179890043
 
- src/runtime/sigqueue.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/runtime/arch1_power64.go   | 15 +++++++++
+ src/runtime/arch1_power64le.go | 15 +++++++++
+ src/runtime/arch_power64.h     | 14 ---------
+ src/runtime/arch_power64le.h   | 14 ---------
+ src/runtime/atomic_power64x.go | 69 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_power64x.c     | 38 -----------------------
+ src/runtime/sys_power64x.go    | 37 ++++++++++++++++++++++
+ 7 files changed, 136 insertions(+), 66 deletions(-)

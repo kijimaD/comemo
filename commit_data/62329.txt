@@ -1,0 +1,24 @@
+commit e1e65ae3ee5f977c31f3651233cc7ff2a0b579ca
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 21 10:29:09 2025 -0500
+
+    runtime: use WCLONE when waiting on pidfd test child
+    
+    As of CL 650835, the pidfd test child no longer sends SIGCHLD on exit.
+    Per clone(2), "If [the child termination] signal is specified as
+    anything other than SIGCHLD, then the parent process must specify the
+    __WALL or __WCLONE options when waiting for the child with wait(2)."
+    
+    Align with this requirement.
+    
+    For #71828.
+    
+    Change-Id: I6a6a636c739e4a59abe1533fe429a433e8588939
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651415
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/exec_linux.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

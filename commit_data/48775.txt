@@ -1,26 +1,18 @@
-commit a78db879b31b072c37c6d46cc404d8e131d54349
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Apr 12 21:22:22 2022 -0700
+commit cf1ae5fc364eb7f2ee5203e4c5e30411c3cfe01f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 11 03:54:25 2021 -0700
 
-    crypto/x509: omit empty extensions SEQUENCE
+    [dev.typeparams] cmd/compile: add -d=unified flag to enable unified IR
     
-    In CreateCertificate, if there are no extensions, don't include the
-    extensions SEQUENCE in the encoded certificate.
+    This CL adds a new -d=unified debug flag, which controls whether
+    unified IR mode is used.
     
-    Why, you might ask, does the encoding/asn1 tag 'optional' not do
-    the same thing as 'omitempty'? Good question, no clue, fixing that
-    would probably break things in horrific ways.
-    
-    Fixes #52319
-    
-    Change-Id: I84fdd5ff3e4e0b0a59e3bf86e7439753b1e1477b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399827
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: Iaa5f3cc0a24b9881aeec5317cd6b462b4a7b6fc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327054
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/x509.go      |  2 +-
- src/crypto/x509/x509_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/base/debug.go          | 1 +
+ src/cmd/compile/internal/noder/noder.go         | 5 +++++
+ src/cmd/compile/internal/reflectdata/reflect.go | 4 ++++
+ 3 files changed, 10 insertions(+)

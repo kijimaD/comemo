@@ -1,22 +1,26 @@
-commit f93a63addbbca69d7817c8993a88511ec31424cd
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Sep 13 12:49:08 2021 -0700
+commit a5ec920160da51166ee22ac0e5335f51a5d36d8e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 28 21:01:34 2020 -0800
 
-    reflect: add a floating point section to DeepEqual tests
+    [dev.regabi] cmd/compile: more Linksym cleanup
     
-    The floating point tests were all added into the Inequalities section,
-    instead of separated into Equalities vs Inequalities.
+    This largely gets rid of the remaining direct Linksym calls, hopefully
+    enough to discourage people from following bad existing practice until
+    Sym.Linksym can be removed entirely.
     
-    Rather than separate them, add a new floating point section.
+    Passes toolstash -cmp.
     
-    Change-Id: I3713a5aff5850dcc0caf68a754633d695a03ded9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349612
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Joe Tsai <joetsai@digital-static.net>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
-    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Change-Id: I5d8f8f703ace7256538fc79648891ede0d879dc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280641
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/reflect/all_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/obj.go              |  4 +-
+ src/cmd/compile/internal/pkginit/init.go        |  4 +-
+ src/cmd/compile/internal/reflectdata/alg.go     |  4 +-
+ src/cmd/compile/internal/reflectdata/reflect.go | 96 ++++++++++---------------
+ src/cmd/compile/internal/ssagen/ssa.go          |  2 +-
+ src/cmd/compile/internal/staticdata/data.go     |  2 +-
+ 6 files changed, 46 insertions(+), 66 deletions(-)

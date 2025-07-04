@@ -1,20 +1,19 @@
-commit 6c0135d3772e710328c751fbc704927931f129ca
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Oct 11 16:27:25 2020 -0400
+commit d44c9a046b3c9cf13c8fb561fede2cdbdcc8d75e
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Mar 19 12:55:43 2020 -0400
 
-    cmd/go: don't always link in cgo for PIE
+    [dev.link] cmd/link: set "local" attribute on symbols during preload
     
-    Internal linking for PIE is now supported and enabled by default
-    on some platforms, for which cgo is not needed. Don't always
-    bring in cgo.
+    Set the "local" attribute on object file loader symbols during preload,
+    as opposed to the current strategy of only propagating the local attr
+    when we convert to sym.Symbols.
     
-    Change-Id: I043ed436f0e6a3acbcc53ec543f06e193d614b36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261498
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I18965e2fdaa9a0b9315d95466d17d9f41aa40a45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224379
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/load/pkg.go   |  3 ++-
- src/cmd/internal/sys/supported.go | 10 ++++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

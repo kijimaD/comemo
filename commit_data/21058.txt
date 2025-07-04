@@ -1,14 +1,48 @@
-commit 6c78443b3e13c43ea887f6b73099e0c1297327c5
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 22 16:46:25 2014 -0500
+commit 1e2d2f09470a2be58a98420b4cecae731b156ee8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:05:02 2014 -0500
 
-    liblink: code for debugging bad returns
+    [dev.cc] runtime: convert memory allocator and garbage collector to Go
     
-    Disabled by default, but invaluable when you need it.
+    The conversion was done with an automated tool and then
+    modified only as necessary to make it compile and run.
     
-    Change-Id: If4a75d11d14f70b6840d339aaec4b940dc406493
-    Reviewed-on: https://go-review.googlesource.com/2012
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
+    
+    LGTM=r
+    R=r
+    CC=austin, dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/167540043
 
- src/liblink/obj9.c | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/runtime/chan.go             |    2 +-
+ src/runtime/heapdump.c          |  864 -----------------
+ src/runtime/heapdump.go         |  733 ++++++++++++++
+ src/runtime/malloc.c            |  396 --------
+ src/runtime/malloc.go           |   54 +-
+ src/runtime/malloc.h            |  621 ------------
+ src/runtime/malloc1.go          |  318 +++++++
+ src/runtime/malloc2.go          |  475 +++++++++
+ src/runtime/mcache.c            |  115 ---
+ src/runtime/mcache.go           |   86 ++
+ src/runtime/mcentral.c          |  214 -----
+ src/runtime/mcentral.go         |  199 ++++
+ src/runtime/mem.go              |    6 +-
+ src/runtime/mem_darwin.c        |   82 --
+ src/runtime/mem_darwin.go       |   58 ++
+ src/runtime/mem_linux.c         |  162 ----
+ src/runtime/mem_linux.go        |  135 +++
+ src/runtime/mfixalloc.c         |   64 --
+ src/runtime/mfixalloc.go        |   59 ++
+ src/runtime/mgc.go              | 1827 +++++++++++++++++++++++++++++++++++
+ src/runtime/mgc0.c              | 2010 ---------------------------------------
+ src/runtime/mgc0.go             |    4 +-
+ src/runtime/{mgc0.h => mgc1.go} |   57 +-
+ src/runtime/mheap.c             |  889 -----------------
+ src/runtime/mheap.go            |  785 +++++++++++++++
+ src/runtime/mprof.go            |   17 +-
+ src/runtime/msize.c             |  184 ----
+ src/runtime/msize.go            |  174 ++++
+ src/runtime/slice.go            |    8 +-
+ src/runtime/string.go           |   14 +-
+ 30 files changed, 4922 insertions(+), 5690 deletions(-)

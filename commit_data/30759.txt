@@ -1,23 +1,18 @@
-commit 67a46cc1636362bea54ab68b521f77a778968ea2
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 20 20:24:26 2017 -0700
+commit 3c2e4ed8d31e65556e936bf394a47e644605d23d
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Dec 1 10:10:17 2016 -0800
 
-    encoding/gob: document the extra byte after a singleton
+    cmd/objdump: copy gosym.PCValue into internal package
     
-    This paragraph has been added, as the notion was missing from the
-    documentation.
+    ... so we don't have to export gosym.PCValue.
     
-    If a value is passed to Encode and the type is not a struct (or pointer to struct,
-    etc.), for simplicity of processing it is represented as a struct of one field.
-    The only visible effect of this is to encode a zero byte after the value, just as
-    after the last field of an encoded struct, so that the decode algorithm knows when
-    the top-level value is complete.
-    
-    Fixes #16978
-    
-    Change-Id: I5f008e792d1b6fe80d2e026a7ff716608889db32
-    Reviewed-on: https://go-review.googlesource.com/38414
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie8f196d5e5ab63e3e69d1d7b4bfbbf32b7b5e4f5
+    Reviewed-on: https://go-review.googlesource.com/33791
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/gob/doc.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ api/go1.8.txt                     |  1 -
+ src/cmd/internal/objfile/goobj.go | 51 +++++++++++++++++++++++++++++++++++++--
+ src/debug/gosym/pclntab.go        |  7 ------
+ 3 files changed, 49 insertions(+), 10 deletions(-)

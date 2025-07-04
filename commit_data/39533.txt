@@ -1,40 +1,27 @@
-commit 5b15510d96b00662327fbd3eb860d767834dfadc
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jul 18 12:30:37 2019 -0400
+commit ebdc24c3d334132542daa7c57246389e0b259227
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Feb 2 11:40:55 2019 +0000
 
-    runtime: align allocations harder in GODEBUG=sbrk=1 mode
+    os: add UserConfigDir
     
-    Currently, GODEBUG=sbrk=1 mode aligns allocations by their type's
-    alignment. You would think this would be the right thing to do, but
-    because 64-bit fields are only 4-byte aligned right now (see #599),
-    this can cause a 64-bit field of an allocated object to be 4-byte
-    aligned, but not 8-byte aligned. If there is an atomic access to that
-    unaligned 64-bit field, it will crash.
+    After UserCacheDir and UserHomeDir, the only remaining piece which is
+    commonly needed and portable is a per-user directory to store persistent
+    files.
     
-    This doesn't happen in normal allocation mode because the
-    size-segregated allocation and the current size classes will cause any
-    types larger than 8 bytes to be 8 byte aligned.
+    For that purpose, UserCacheDir is wrong, as it's meant only for
+    temporary files. UserHomeDir is also far from ideal, as that clutters
+    the user's home directory.
     
-    We fix this by making sbrk=1 mode use alignment based on the type's
-    size rather than its declared alignment. This matches how the tiny
-    allocator aligns allocations.
+    Add UserConfigDir, which is implemented in a similar manner to
+    UserConfigDir.
     
-    This was tested with
+    Fixes #29960.
     
-      GOARCH=386 GODEBUG=sbrk=1 go test sync/atomic
-    
-    This crashes with an unaligned access before this change, and passes
-    with this change.
-    
-    This should be reverted when/if we fix #599.
-    
-    Fixes #33159.
-    
-    Change-Id: Ifc52c72c6b99c5d370476685271baa43ad907565
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186919
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I7d7a56615103cf76e2b5e2bab2029a6b09d19f0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160877
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc.go | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/os/file.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

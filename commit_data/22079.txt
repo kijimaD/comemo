@@ -1,16 +1,20 @@
-commit e14339d34cab4ae7abd7d0f83aacff9eed516ea2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 17 12:58:10 2015 -0700
+commit 53d4123fbcacea94090eebae1e3883d692796b05
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 10:22:26 2015 -0500
 
-    cmd/go: don't crash on unknown GOARCH unless we actually care
+    [dev.cc] cmd/new6g, etc: reconvert to add profiling
     
-    For example, "GOARCH=sparc go build -compiler=gccgo" should not crash
-    merely because the architecture character for sparc is not known.
+    Converted from rsc.io/c2go rev a9bc7f2.
+    Adds profiling support.
     
-    Change-Id: I18912c7f5d90ef8f586592235ec9d6e5053e4bef
-    Reviewed-on: https://go-review.googlesource.com/7695
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie04f86b71e0713c7294416c77d349e0d93798403
+    Reviewed-on: https://go-review.googlesource.com/5574
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/build.go | 56 ++++++++++++++++++++++++++++++-----------------------
- src/cmd/go/env.go   |  5 ++++-
- 2 files changed, 36 insertions(+), 25 deletions(-)
+ src/cmd/internal/gc/lex.go  |  6 +++++-
+ src/cmd/internal/gc/util.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/new5g/galign.go     |  1 +
+ src/cmd/new6g/galign.go     |  1 +
+ src/cmd/new8g/galign.go     |  1 +
+ src/cmd/new9g/galign.go     |  1 +
+ 6 files changed, 53 insertions(+), 1 deletion(-)

@@ -1,17 +1,17 @@
-commit 5a0e4fc4e7188fb36e64a7d7d25bab943f081811
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 19 20:00:33 2021 -0800
+commit 8a33a8c6524b4f2175a9ff263db23eed825ea833
+Author: nikita <nikita@n0.is>
+Date:   Sun Jun 14 16:20:13 2020 +0000
 
-    cmd/compile/internal/types2: review of conversions.go
+    A+C: add Nikita Gillmann (individual CLA)
     
-    The changes between (equivalent, and reviewed) go/types/conversions.go
-    and conversions.go can be seen by comparing patchset 1 and 2. The actual
-    change is just removing the "// UNREVIEWED" marker.
+    previous contribution: https://go-review.googlesource.com/c/go/+/178397/
     
-    Change-Id: I86d20d8100ec29fe3be996b975c9b4aff01be85e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294509
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ia4038153d0083c1004d0e48c0c6c1eec0774ddc4
+    GitHub-Last-Rev: de08e864492bd1f9cfaa10205b205d484db79204
+    GitHub-Pull-Request: golang/go#39584
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237821
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/conversions.go | 1 -
- 1 file changed, 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

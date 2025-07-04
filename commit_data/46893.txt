@@ -1,27 +1,17 @@
-commit 0fd0639e4c429e147d33bfc42654fcd651f4449f
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Oct 12 15:08:54 2021 -0700
+commit 20746b2f3775631f1fcf041dde9cd11af6b79120
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 10 17:28:44 2021 -0800
 
-    cmd/go: stamp tags and flags in build info
+    [dev.typeparams] cmd/compile/internal/types: review of labels.go
     
-    Toolchain flags (like -gcflags), build tags (including race and msan),
-    and cgo variables (including CGO_ENABLED, CGO_CPPFLAGS and others) are
-    now stamped into binaries.
+    The changes between (equivalent, and reviewed) go/types/labels.go
+    and labels.go can be seen by comparing patchset 1 and 2. The actual
+    change is just removing the "// UNREVIEWED" marker.
     
-    For #37475
-    
-    Change-Id: I9023e682c0618f91805434946c6bc937536b69bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355493
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I8f1a9927beadff7ac851681739902c13300b6c39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291172
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/alldocs.go                              |  7 ++-
- src/cmd/go/go_test.go                              |  2 +-
- src/cmd/go/internal/cfg/cfg.go                     |  1 +
- src/cmd/go/internal/load/flag.go                   |  6 +-
- src/cmd/go/internal/load/pkg.go                    | 33 ++++++++++-
- src/cmd/go/internal/work/build.go                  |  8 ++-
- .../go/testdata/script/version_build_settings.txt  | 66 ++++++++++++++++++++++
- 7 files changed, 115 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/labels.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,24 +1,24 @@
-commit 1ef685fb7ba413c6f5943cc1aa61de911a7ef29a
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Sep 28 14:52:33 2022 -0700
+commit d15610128e63e299e39af02ea0e6be1afd38b1ff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 13 16:16:53 2021 -0800
 
-    debug: add top level security docs for dwarf, elf, macho, pe, and plan9obj
+    cmd/compile/internal/types2: add test for imported constraints pre-1.18
     
-    Adds a package level doc comment to the debug/dwarf, debug/elf,
-    debug/macho, debug/pe, and debug/plan9obj noting that these packages
-    are not designed to be hardened against adversarial inputs.
+    But exclude the test when running unified build for now
+    (the unified builder's importers are not yet updated to
+    handle extended interfaces).
+    Also, fix respective error position.
     
-    Change-Id: I678d01bcdc8ad01c23805f09cc59e64cec6c3f76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435417
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #47967.
+    
+    Change-Id: I4e3d829b5c12001c024b9eefcc27f97b10c1d1e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363834
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/debug/dwarf/open.go    | 16 +++++++++++++---
- src/debug/elf/file.go      | 12 +++++++++++-
- src/debug/macho/file.go    | 12 +++++++++++-
- src/debug/pe/file.go       | 12 +++++++++++-
- src/debug/plan9obj/file.go | 12 +++++++++++-
- 5 files changed, 57 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go           | 17 +++++++++++++++++
+ src/cmd/compile/internal/types2/decl.go                 |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue47818.go2   |  4 +++-
+ 3 files changed, 21 insertions(+), 2 deletions(-)

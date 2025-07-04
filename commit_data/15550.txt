@@ -1,16 +1,16 @@
-commit fd9049f40417781f2dca9435b03d86b1f2b96a0d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Mar 2 10:56:51 2013 +0900
+commit 7c793826d44a6abb76f7846c51503f574eafe9e4
+Author: Carlos Castillo <cookieo9@gmail.com>
+Date:   Fri Mar 1 16:48:21 2013 -0800
 
-    net: skip interface tests when required external command not found
+    cmd/go: pass -intgosize to SWIG
     
-    Fixes #4952.
+    swig >= 2.0.9 requires the size of int values to be passed via a command line flag. Should swig complain about the -intgosize not being supported, then alert the user to their outdated version of swig.
     
-    R=alex.brainman
+    Fixes #4756.
+    
+    R=golang-dev, minux.ma, iant
     CC=golang-dev
-    https://golang.org/cl/7445046
+    https://golang.org/cl/7331048
 
- src/pkg/net/interface_bsd_test.go   | 10 ++++++----
- src/pkg/net/interface_linux_test.go | 12 +++++++-----
- src/pkg/net/interface_unix_test.go  |  8 ++++++--
- 3 files changed, 19 insertions(+), 11 deletions(-)
+ src/cmd/go/build.go | 104 +++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 78 insertions(+), 26 deletions(-)

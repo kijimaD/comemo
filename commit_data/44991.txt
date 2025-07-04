@@ -1,17 +1,30 @@
-commit 5d5f779db40528faa82e16c361691864dc80975b
-Author: ianwoolf <btw515wolf2@gmail.com>
-Date:   Wed Apr 7 13:42:22 2021 +0800
+commit 3aa09489ab3aa13a3ac78b1ff012b148ffffe367
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 18 10:23:58 2020 -0400
 
-    net/http: replace os.MkdirTemp with T.TempDir
+    cmd/go: add a '-e' flag to 'mod tidy' and 'mod vendor'
     
-    Updates: #45402
-    Change-Id: Ia61f422d058bf57fc3688abc25597d6cc1692c51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307653
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    This flag, like the -e flag to 'go list', instructs the command to
+    make a best effort to continue in spite of errors for specific packages.
+    
+    Fixes #26603
+    
+    Change-Id: I5ee2f50c71870ae8ef3f9b3e5b045474adcca525
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255960
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/http/filetransport_test.go | 6 ++----
- src/net/http/fs_test.go            | 6 +-----
- 2 files changed, 3 insertions(+), 9 deletions(-)
+ doc/go1.16.html                      |  7 +++
+ src/cmd/go/alldocs.go                | 10 +++-
+ src/cmd/go/internal/load/pkg.go      |  2 +-
+ src/cmd/go/internal/modcmd/tidy.go   | 13 ++++--
+ src/cmd/go/internal/modcmd/vendor.go |  9 +++-
+ src/cmd/go/internal/modcmd/why.go    |  8 ++--
+ src/cmd/go/internal/modget/get.go    |  2 +-
+ src/cmd/go/internal/modload/load.go  | 31 +++++++++----
+ src/cmd/go/testdata/script/mod_e.txt | 89 ++++++++++++++++++++++++++++++++++++
+ 9 files changed, 150 insertions(+), 21 deletions(-)

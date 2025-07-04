@@ -1,32 +1,28 @@
-commit 4efe9250e5e182c8269a2b98497a9bdea4875c8f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 18 12:56:37 2017 -0500
+commit 1fcad29341ba4daa8762f2ead932fd001a9d2476
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 24 14:33:22 2016 -0700
 
-    cmd/go: split out cmd/go/internal/test
+    cmd/compile: remove OREGISTER, Node.Reg
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
+    OREGISTER is unused.
     
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
+    All remaining uses of Node.Reg use REGSP.
     
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
-    
-    For #18653.
-    
-    Change-Id: I2d0ccdb84814537ab8b8842aa1b5f5bc0a88a0fc
-    Reviewed-on: https://go-review.googlesource.com/36198
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I51cf06826867e576baabd568e04f96d2634f5cad
+    Reviewed-on: https://go-review.googlesource.com/31856
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/bug.go                          |  5 ++--
- src/cmd/go/generate.go                     |  2 +-
- src/cmd/go/internal/base/env.go            |  2 +-
- src/cmd/go/{ => internal/test}/test.go     | 35 ++++++++++++++++---------
- src/cmd/go/{ => internal/test}/testflag.go |  6 ++---
- src/cmd/go/internal/work/build.go          | 25 ++++++++++++++++++
- src/cmd/go/main.go                         | 42 ++++--------------------------
- src/cmd/go/run.go                          | 23 ++--------------
- src/cmd/go/tool.go                         |  2 +-
- src/cmd/go/vcs.go                          |  6 +++--
- 10 files changed, 67 insertions(+), 81 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go  |  3 ---
+ src/cmd/compile/internal/gc/bimport.go  |  3 ---
+ src/cmd/compile/internal/gc/fmt.go      |  8 ++------
+ src/cmd/compile/internal/gc/gsubr.go    |  3 +--
+ src/cmd/compile/internal/gc/opnames.go  |  3 +--
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/ssa.go      | 16 ++++------------
+ src/cmd/compile/internal/gc/subr.go     |  2 +-
+ src/cmd/compile/internal/gc/syntax.go   | 10 ++--------
+ src/cmd/compile/internal/gc/walk.go     | 12 ++++++------
+ 10 files changed, 18 insertions(+), 44 deletions(-)

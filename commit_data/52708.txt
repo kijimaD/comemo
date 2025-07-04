@@ -1,25 +1,32 @@
-commit a41a29ad19c25c3475a65b7265fcad870d954c2a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Jul 6 16:03:33 2020 -0400
+commit c8de7628cbbf5c3d35158cf92ae4314898930c47
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
 
-    runtime: adjust frame pointer on stack copy on ARM64
+    runtime: implement syscalls for runtime bootstrap on linux/loong64
     
-    Frame pointer is enabled on ARM64. When copying stacks, the
-    saved frame pointers need to be adjusted.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Updates #39524, #40044.
-    Fixes #58432.
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
     
-    Change-Id: I73651fdfd1a6cccae26a5ce02e7e86f6c2fb9bf7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241158
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Updates #46229
+    
+    Change-Id: I848608267932717895d5cff9e33040029c3f3c4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368080
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/stack.go                               | 26 +++++++++++--
- src/runtime/stack_test.go                          | 12 ++++++
- src/runtime/testdata/testprog/framepointer.go      | 44 ++++++++++++++++++++++
- src/runtime/testdata/testprog/framepointer_amd64.s |  9 +++++
- src/runtime/testdata/testprog/framepointer_arm64.s |  9 +++++
- 5 files changed, 96 insertions(+), 4 deletions(-)
+ src/runtime/internal/syscall/asm_linux_loong64.s |  29 ++
+ src/runtime/sys_linux_loong64.s                  | 631 +++++++++++++++++++++++
+ 2 files changed, 660 insertions(+)

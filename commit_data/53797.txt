@@ -1,28 +1,61 @@
-commit 93ec88160ecd6da1d2bf5b9c029abf0e256484e9
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Wed Jul 26 05:59:50 2023 +0000
+commit 8be94b82ab1832ec8a07bcb16a0cb3872915dbb7
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 15 10:41:03 2022 -0400
 
-    reflect: deprecate PtrTo
+    runtime: drop function context from traceback
     
-    Replace reflect.PtrTo with reflect.PointerTo.
+    Currently, gentraceback tracks the closure context of the outermost
+    frame. This used to be important for "unstarted" calls to reflect
+    function stubs, where "unstarted" calls are either deferred functions
+    or the entry-point of a goroutine that hasn't run. Because reflect
+    function stubs have a dynamic argument map, we have to reach into
+    their closure context to fetch to map, and how to do this differs
+    depending on whether the function has started. This was discovered in
+    issue #25897.
     
-    Fixes #59599
+    However, as part of the register ABI, "go" and "defer" were made much
+    simpler, and any "go" or "defer" of a function that takes arguments or
+    returns results gets wrapped in a closure that provides those
+    arguments (and/or discards the results). Hence, we'll see that closure
+    instead of a direct call to a reflect stub, and can get its static
+    argument map without any trouble.
     
-    Change-Id: I49407193e2050543ef983cd637703acc682d9f51
+    The one case where we may still see an unstarted reflect stub is if
+    the function takes no arguments and has no results, in which case the
+    compiler can optimize away the wrapper closure. But in this case we
+    know the argument map is empty: the compiler can apply this
+    optimization precisely because the target function has no argument
+    frame.
     
-    Change-Id: I49407193e2050543ef983cd637703acc682d9f51
-    GitHub-Last-Rev: 7bc9ccf1dcb4b444406430b451ad4c47c6ec1be2
-    GitHub-Pull-Request: golang/go#61440
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511035
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    As a result, we no longer need to track the closure context during
+    traceback, so this CL drops all of that mechanism.
+    
+    We still have to be careful about the unstarted case because we can't
+    reach into the function's locals frame to pull out its context
+    (because it has no locals frame). We double-check that in this case
+    we're at the function entry.
+    
+    I would prefer to do this with some in-code PCDATA annotations of
+    where to find the dynamic argument map, but that's a lot of mechanism
+    to introduce for just this. It might make sense to consider this along
+    with #53609.
+    
+    Finally, we beef up the test for this so it more reliably forces the
+    runtime down this path. It's fundamentally probabilistic, but this
+    tweak makes it better. Scheduler testing hooks (#54475) would make it
+    possible to write a reliable test for this.
+    
+    For #54466, but it's a nice clean-up all on its own.
+    
+    Change-Id: I16e4f2364ba2ea4b1fec1e27f971b06756e7b09f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424254
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- api/next/59599.txt                              | 1 +
- src/cmd/compile/internal/reflectdata/reflect.go | 2 +-
- src/encoding/gob/decode.go                      | 2 +-
- src/reflect/type.go                             | 2 ++
- 4 files changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/escape/call.go |  4 ++
+ src/runtime/traceback.go                | 66 +++++++++++++++++----------------
+ test/fixedbugs/issue25897a.go           | 21 ++++++++++-
+ 3 files changed, 57 insertions(+), 34 deletions(-)

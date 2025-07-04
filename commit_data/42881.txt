@@ -1,15 +1,21 @@
-commit 4d89b3231d590284e35bff647e597e93fdf41dae
-Author: Heisenberg <lziqiang1@gmail.com>
-Date:   Mon Aug 31 19:22:36 2020 +0800
+commit bc98e35b536785a2931f805458a0ff763c4b4b5e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 23 18:16:22 2019 -0800
 
-    runtime: remove remnants of signal stack workaround
+    cmd/compile: avoid memmove -> SSA move rewrite when size is negative
     
-    Updates #35979
+    We should panic in this situation. Rewriting to a SSA op just leads
+    to a compiler panic.
     
-    Change-Id: Ic3a6e1b5e9d544979a3c8d909a36a55efa3b9c9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251757
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #36259
+    
+    Change-Id: I6e0bccbed7dd0fdac7ebae76b98a211947947386
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212405
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/os_linux.go | 15 ---------------
- 1 file changed, 15 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  8 ++++----
+ test/fixedbugs/issue36259.go                   | 28 ++++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 4 deletions(-)

@@ -1,20 +1,21 @@
-commit 673fdea5e798baa98c418cba86cf50c8d80cbc36
-Author: Julio Montes <julio.montes@intel.com>
-Date:   Mon May 22 10:33:31 2017 -0500
+commit 752d7bad4fc6cb4c70edbe0b735ca89d7da16732
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 7 14:53:56 2017 -0800
 
-    syscall: allow processes steal a controlling terminal on Linux
+    cmd/internal/src: fix Pos.String() for positions after line directives
     
-    The current implementation of forkAndExecInChild for Linux does not allow
-    spawned processes steal the controlling terminal from a different session
-    group. This patch passes 1 as the argument to TIOCSCTTY in order to allow
-    spawned processes steal controlling terminals.
+    The old code simply printed the position of the line directive in
+    square brackets for a position modified by a line directive. Now
+    we print the corresponding actual source file position instead.
     
-    Fixes #20454
+    Fixes #19392.
     
-    Change-Id: I171b8981509d648b07f89bddc1e9d45cb70e00e6
-    Reviewed-on: https://go-review.googlesource.com/44343
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I933f3e435d03a6ee8269df36ae35f9202b7b2e76
+    Reviewed-on: https://go-review.googlesource.com/37932
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/exec_linux.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/src/pos.go      |  9 ++++-----
+ src/cmd/internal/src/pos_test.go | 19 ++++++++++++++++---
+ 2 files changed, 20 insertions(+), 8 deletions(-)

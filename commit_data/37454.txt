@@ -1,20 +1,18 @@
-commit 50c3465fad946caa545c4835ffccc6f89c762905
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 20 10:15:14 2018 -0800
+commit 6b9c782f9fe7c2f241776f39527714bcfcc24910
+Author: Daniela Petruzalek <daniela.petruzalek@gmail.com>
+Date:   Wed Aug 1 00:19:55 2018 +0000
 
-    os: permit RemoveAll with paths that end in ".."
+    strconv: clarify "g" and "G" precision in the docs
     
-    Prohibiting RemoveAll with paths that end in ".." was added with
-    CL 137442 in this release cycle, but it worked before and it should
-    continue to work.
+    Fix the wording in "strconv" and "fmt" to make explicit
+    that the "g" and "G" formats remove trailing zeroes.
     
-    Also run TestRemoveAllDot on all systems; the test is not specific to
-    the use of unlinkat and friends.
+    Fixes #25082
     
-    Change-Id: I277784c8915cd748fec318d2936062440d5d1fde
-    Reviewed-on: https://go-review.googlesource.com/c/150497
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I2e2ad0a98d2ea27a3a8a006a0563b366f7a3b71b
+    Reviewed-on: https://go-review.googlesource.com/127135
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/removeall_at.go   | 12 +++++-------
- src/os/removeall_test.go | 36 ++++++++++++++++++++++++------------
- 2 files changed, 29 insertions(+), 19 deletions(-)
+ src/fmt/doc.go      | 9 +++++----
+ src/strconv/ftoa.go | 7 ++++---
+ 2 files changed, 9 insertions(+), 7 deletions(-)

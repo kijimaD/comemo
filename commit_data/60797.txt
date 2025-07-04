@@ -1,0 +1,46 @@
+commit d0baac37e61648c2a9e9299553c863cf7b7eed61
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 28 16:20:44 2024 -0700
+
+    syscall: always use prlimit for getrlimit/setrlimit on Linux
+    
+    Linux added the prlimit system call in version 2.6.36.
+    As our minimum Linux kernel version is now 3.2,
+    simplify the various getrlimit/setlrimit implementations
+    to just always use prlimit.
+    
+    For #67001
+    
+    Change-Id: I2512c21c947d0bc83f8f9077c143163fd8d83be3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609178
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/exec_linux.go              |  2 +-
+ src/syscall/syscall_linux.go           | 11 +++++
+ src/syscall/syscall_linux_386.go       | 90 ----------------------------------
+ src/syscall/syscall_linux_amd64.go     | 12 -----
+ src/syscall/syscall_linux_arm.go       | 90 ----------------------------------
+ src/syscall/syscall_linux_arm64.go     | 30 ------------
+ src/syscall/syscall_linux_loong64.go   | 16 ------
+ src/syscall/syscall_linux_mips64x.go   | 12 -----
+ src/syscall/syscall_linux_mipsx.go     | 90 ----------------------------------
+ src/syscall/syscall_linux_ppc64x.go    | 12 -----
+ src/syscall/syscall_linux_riscv64.go   |  8 ---
+ src/syscall/syscall_linux_s390x.go     |  8 ---
+ src/syscall/zsyscall_linux_386.go      | 20 --------
+ src/syscall/zsyscall_linux_amd64.go    | 20 --------
+ src/syscall/zsyscall_linux_arm.go      | 20 --------
+ src/syscall/zsyscall_linux_arm64.go    | 20 --------
+ src/syscall/zsyscall_linux_mips.go     | 20 --------
+ src/syscall/zsyscall_linux_mips64.go   | 20 --------
+ src/syscall/zsyscall_linux_mips64le.go | 20 --------
+ src/syscall/zsyscall_linux_mipsle.go   | 20 --------
+ src/syscall/zsyscall_linux_ppc64.go    | 20 --------
+ src/syscall/zsyscall_linux_ppc64le.go  | 20 --------
+ src/syscall/zsyscall_linux_riscv64.go  | 20 --------
+ src/syscall/zsyscall_linux_s390x.go    | 20 --------
+ 24 files changed, 12 insertions(+), 609 deletions(-)

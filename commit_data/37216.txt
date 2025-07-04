@@ -1,30 +1,14 @@
-commit fc3f8d43f1b7da3ee3fb9a5181f2a86841620273
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Oct 31 17:36:51 2018 +0100
+commit 9776d025b3375f35920707757d9f5a450195c69f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 9 22:05:34 2018 +0000
 
-    time: speed up Since and Until
+    net/http: clarify when it's allowed to reuse a Request
     
-    time.now is somewhat expensive (much more expensive than nanotime),
-    in the common case when Time has monotonic time we don't actually
-    need to call time.now in Since/Until as we can do calculation
-    based purely on monotonic times.
+    Fixes #21780
     
-    name                  old time/op  new time/op  delta
-    TCP4OneShotTimeout-6  17.0µs ± 0%  17.1µs ± 1%     ~     (p=0.151 n=5+5)
-    SetReadDeadline-6      261ns ± 0%   234ns ± 1%  -10.35%  (p=0.008 n=5+5)
-    
-    Benchmark that only calls Until:
-    
-    benchmark            old ns/op     new ns/op     delta
-    BenchmarkUntil       54.0          29.5          -45.37%
-    
-    Update #25729
-    
-    Change-Id: I5ac5af3eb1fe9f583cf79299f10b84501b1a0d7d
-    Reviewed-on: https://go-review.googlesource.com/c/146341
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic6fb6a536fff800a05be2d25309f72092604a785
+    Reviewed-on: https://go-review.googlesource.com/122817
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/time/time.go | 18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ src/net/http/client.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

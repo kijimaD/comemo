@@ -1,27 +1,19 @@
-commit 956c81bfe60306e49e26f7edd4f48cbc24c8fe28
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jun 16 15:10:57 2021 -0700
+commit 1d3baf20dcac2d9ad88634ac3fe75e9f6d966971
+Author: Tom Payne <twpayne@gmail.com>
+Date:   Fri Oct 23 23:40:00 2020 +0100
 
-    cmd/go: add GOEXPERIMENT to `go env` output
+    regexp/syntax: add note about Unicode character classes
     
-    This CL adds GOEXPERIMENT to `go env` output, and also makes it
-    configurable via `GOENV`. Thanks to Baokun Lee's CL 304350 for the
-    test and initial work on this.
+    As proposed on golang-nuts:
+    https://groups.google.com/g/golang-nuts/c/M3lmSUptExQ/m/hRySV9GsCAAJ
     
-    Fixes #45226.
+    Includes the latest updates from re2's mksyntaxgo:
+    https://code.googlesource.com/re2/+/refs/heads/master/doc/mksyntaxgo
     
-    Change-Id: Ie7f92a8a503b6a2a4df3f6598f0b2bf2915e2e7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/328751
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ib7b79aa6531f473feabd0a7f1d263cd65c4388e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264678
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/go/alldocs.go                    |  6 ++++++
- src/cmd/go/internal/envcmd/env.go        |  8 ++++++++
- src/cmd/go/internal/help/helpdoc.go      |  6 ++++++
- src/cmd/go/testdata/script/env_exp.txt   | 17 +++++++++++++++++
- src/cmd/go/testdata/script/env_unset.txt |  7 +++++++
- src/cmd/go/testdata/script/env_write.txt |  6 ++++++
- 6 files changed, 50 insertions(+)
+ src/regexp/syntax/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

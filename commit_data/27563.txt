@@ -1,24 +1,27 @@
-commit 42da35c699853002b7695052a8eeb3f10019cfd5
-Author: Keith Randall <khr@golang.org>
-Date:   Fri May 27 14:07:37 2016 -0700
+commit 0d40dfa745b176a83d91cf0981bdbd3a92e2e547
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Apr 1 18:11:26 2016 -0700
 
-    cmd/compile: SSA, don't let write barrier clobber return values
+    compress/gzip: cleanup gzip package
     
-    When we do *p = f(), we might need to copy the return value from
-    f to p with a write barrier.  The write barrier itself is a call,
-    so we need to copy the return value of f to a temporary location
-    before we call the write barrier function.  Otherwise, the call
-    itself (specifically, marshalling the args to typedmemmove) will
-    clobber the value we're trying to write.
+    Changes made:
+    * Reader.flg is not used anywhere else other than readHeader and
+    does not need to be stored.
+    * Store Reader.digest and Writer.digest as uint32s rather than as
+    a hash.Hash32 and use the crc32.Update function instead. This simplifies
+    initialization logic since the zero value of uint32 is the initial
+    CRC-32 value. There are no performance detriments to doing this since
+    the hash.Hash32 returned by crc32 simply calls crc32.Update as well.
+    * s/[0:/[:/            Consistently use shorter notation for slicing.
+    * s/RFC1952/RFC 1952/  Consistently use RFC notation.
     
-    Fixes #15854
-    
-    Change-Id: I5703da87634d91a9884e3ec098d7b3af713462e7
-    Reviewed-on: https://go-review.googlesource.com/23522
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I55416a19f4836cbed943adaa3f672538ea5d166d
+    Reviewed-on: https://go-review.googlesource.com/21429
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/fixedbugs_test.go |  50 ++++++++++
- src/cmd/compile/internal/gc/ssa.go            | 131 ++++++++++++++++----------
- 2 files changed, 130 insertions(+), 51 deletions(-)
+ src/compress/gzip/gunzip.go      | 54 ++++++++++++++++------------------------
+ src/compress/gzip/gunzip_test.go |  2 +-
+ src/compress/gzip/gzip.go        | 26 +++++++------------
+ 3 files changed, 32 insertions(+), 50 deletions(-)

@@ -1,21 +1,16 @@
-commit e7d08b6fe68be30a4239a1f930f96974db35473a
-Author: Keith Randall <khr@google.com>
-Date:   Tue Apr 30 14:03:07 2019 -0700
+commit 35edc960c42e570fd196292148c985ffc3a17692
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 13 14:30:57 2018 -0500
 
-    cmd/compile: fix line numbers for index panics
+    cmd/go/internal/work: skip TestRespectSetgidDir on js.
     
-    In the statement x = a[i], the index panic should appear to come from
-    the line number of the '['. Previous to this CL we sometimes used the
-    line number of the '=' instead.
+    chown is not implemented on js: see https://build.golang.org/log/43d7b12602660b786a6e080e685165193df0de00.
     
-    Fixes #29504
-    
-    Change-Id: Ie718fd303c1ac2aee33e88d52c9ba9bcf220dea1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174617
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3f461338825bb670d682c3f47b17ee1638343fc8
+    Reviewed-on: https://go-review.googlesource.com/c/154097
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go |   7 ++
- test/fixedbugs/issue29504.go       | 147 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 154 insertions(+)
+ src/cmd/go/internal/work/build_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

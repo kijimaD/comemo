@@ -1,18 +1,20 @@
-commit b57a544f99e5c4166468737942b7af5acb5936b3
-Author: apocelipes <seve3r@outlook.com>
-Date:   Thu Mar 7 12:35:33 2024 +0000
+commit 6a914ee26f5954a4c561c853cc7d3f24e545477a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 20 14:39:05 2023 -0700
 
-    archive/tar: use built-in clear to simplify code
+    cmd/go: use platform.MustLinkExternal in externalLinkingForced
     
-    Change-Id: I0e55dd68d92c39aba511b55368bf50d929d75f86
-    GitHub-Last-Rev: 17430140783db8bf3354304c8f28d6826186c6cb
-    GitHub-Pull-Request: golang/go#66158
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569696
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This is a roll-forward of CL 477395 which was rolled back in CL 477736.
+    The earlier CL failed because we didn't account for the fact that
+    on some targets PIE is the default. That is now fixed.
+    
+    Change-Id: I3e93faa9506033d27040cc9920836f010e05cd26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477919
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/archive/tar/reader.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

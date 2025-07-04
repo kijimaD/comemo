@@ -1,37 +1,15 @@
-commit bd70bd9cb2f458b23222083a3a11190f080af7fd
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Feb 22 13:20:38 2016 -0800
+commit 97c859f8da0c85c33d0f29ba5e11094d8e691e87
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Wed Sep 2 19:05:22 2015 +0200
 
-    runtime: unify memeq and memequal
+    encoding/xml: reject invalid comments
     
-    They do the same thing, except memequal also has the short-circuit
-    check if the two pointers are equal.
+    Fixes #11112.
     
-    A) We might as well always do the short-circuit check, it is only 2 instructions.
-    B) The extra function call (memequal->memeq) is expensive.
-    
-    benchmark                 old ns/op     new ns/op     delta
-    BenchmarkArrayEqual-8     8.56          5.31          -37.97%
-    
-    No noticeable affect on the former memeq user (maps).
-    
-    Fixes #14302
-    
-    Change-Id: I85d1ada59ed11e64dd6c54667f79d32cc5f81948
-    Reviewed-on: https://go-review.googlesource.com/19843
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I16e7363549a0dec8c61addfa14af0866c1fd7c40
+    Reviewed-on: https://go-review.googlesource.com/14173
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/alg.go          |  7 -------
- src/runtime/asm_386.s       |  8 +++++++-
- src/runtime/asm_amd64.s     |  8 +++++++-
- src/runtime/asm_amd64p32.s  |  8 +++++++-
- src/runtime/asm_arm.s       |  9 ++++++---
- src/runtime/asm_arm64.s     |  9 ++++++---
- src/runtime/asm_mips64x.s   | 12 +++++++++---
- src/runtime/asm_ppc64x.s    | 13 ++++++++++---
- src/runtime/hashmap_fast.go | 12 ++++++------
- src/runtime/string_test.go  | 11 +++++++++++
- src/runtime/stubs.go        |  2 +-
- 11 files changed, 70 insertions(+), 29 deletions(-)
+ src/encoding/xml/read_test.go | 21 +++++++++++++++++++++
+ src/encoding/xml/xml.go       |  7 ++++++-
+ 2 files changed, 27 insertions(+), 1 deletion(-)

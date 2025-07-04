@@ -1,24 +1,78 @@
-commit e6637f32930c934ad3836805288aa473717ee083
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Aug 9 16:51:10 2023 +0200
+commit bca17d16ca0dabbe1b533bb78f367d64e076fe73
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Jul 14 21:18:15 2022 -0700
 
-    os: test that copying to append-only files doesn't fail on Linux
+    syscall: add CgroupFD support for ForkExec on Linux
     
-    Before CL 494915, this test would fail on Linux in io.Copy with error
-    "write /dev/stdout: copy_file_range: bad file descriptor" because the
-    copy_file_range syscall doesn't support destination files opened with
-    O_APPEND, see
-    https://man7.org/linux/man-pages/man2/copy_file_range.2.html#ERRORS
+    Implement CLONE_INTO_CGROUP feature, allowing to put a child in a
+    specified cgroup in a clean and simple way. Note that the feature only
+    works for cgroup v2, and requires Linux kernel 5.7 or newer.
     
-    For #60181
+    Using the feature requires a new syscall, clone3. Currently this is the
+    only reason to use clone3, but the code is structured in a way so that
+    other cases may be easily added in the future.
     
-    Change-Id: I2eb4bcac71175121821e0033eb2297a2bc4ec759
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517755
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Add a test case.
+    
+    While at it, try to simplify the syscall calling code in
+    forkAndExecInChild1, which became complicated over time because:
+    
+    1. It was using either rawVforkSyscall or RawSyscall6 depending on
+       whether CLONE_NEWUSER was set.
+    
+    2. On Linux/s390, the first two arguments to clone(2) system call are
+       swapped (which deserved a mention in Linux ABI hall of shame). It
+       was worked around in rawVforkSyscall on s390, but had to be
+       implemented via a switch/case when using RawSyscall6, making the code
+       less clear.
+    
+    Let's
+    
+     - modify rawVforkSyscall to have two arguments (which is also required
+       for clone3);
+    
+     - remove the arguments workaround from s390 asm, instead implementing
+       arguments swap in the caller (which still looks ugly but at least
+       it's done once and is clearly documented now);
+    
+     - use rawVforkSyscall for all cases (since it is essentially similar to
+       RawSyscall6, except for having less parameters, not returning r2, and
+       saving/restoring the return address before/after syscall on 386 and
+       amd64).
+    
+    Updates #51246.
+    
+    Change-Id: Ifcd418ebead9257177338ffbcccd0bdecb94474e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417695
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/os_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 56 insertions(+)
+ api/next/51246.txt                   | 12 +++++
+ src/syscall/asm_linux_386.s          | 14 +++---
+ src/syscall/asm_linux_amd64.s        | 14 +++---
+ src/syscall/asm_linux_arm.s          | 14 +++---
+ src/syscall/asm_linux_arm64.s        | 14 +++---
+ src/syscall/asm_linux_loong64.s      | 14 +++---
+ src/syscall/asm_linux_mips64x.s      | 14 +++---
+ src/syscall/asm_linux_mipsx.s        | 14 +++---
+ src/syscall/asm_linux_ppc64x.s       | 14 +++---
+ src/syscall/asm_linux_riscv64.s      | 14 +++---
+ src/syscall/asm_linux_s390x.s        | 16 +++----
+ src/syscall/exec_linux.go            | 50 ++++++++++++++++----
+ src/syscall/exec_linux_test.go       | 92 ++++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_linux.go         |  1 +
+ src/syscall/syscall_linux_386.go     |  3 +-
+ src/syscall/syscall_linux_amd64.go   |  3 +-
+ src/syscall/syscall_linux_arm.go     |  3 +-
+ src/syscall/syscall_linux_arm64.go   |  3 +-
+ src/syscall/syscall_linux_loong64.go |  3 +-
+ src/syscall/syscall_linux_mips64x.go |  3 +-
+ src/syscall/syscall_linux_mipsx.go   |  3 +-
+ src/syscall/syscall_linux_ppc64x.go  |  3 +-
+ src/syscall/syscall_linux_riscv64.go |  3 +-
+ src/syscall/syscall_linux_s390x.go   |  3 +-
+ 24 files changed, 228 insertions(+), 99 deletions(-)

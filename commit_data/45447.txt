@@ -1,17 +1,18 @@
-commit 303b194c6daf319f88e56d8ece56d924044f65a8
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Apr 29 12:32:44 2021 -0400
+commit a8e2966eb01f175c330f6669f838e83af2cb73e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 22 20:55:38 2020 -0400
 
-    api: update next.txt
+    cmd/go/internal/fsys: rewrite non-idiomatic if statements
     
-    There's no reason not to, and it'll help me test an upcoming fix
-    for #43956. The API additions look reasonable to me, and they'll
-    go through a more comprehensive API audit during the freeze.
+    https://golang.org/doc/effective_go.html#if
     
-    Change-Id: I0daa6e978b199d69568f5100fdfc1b4bcfaeaef2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315349
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4d868e05c7827638f45b3b06d8762f5a298d56f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264537
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- api/next.txt | 99 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 99 insertions(+)
+ src/cmd/go/internal/fsys/fsys.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

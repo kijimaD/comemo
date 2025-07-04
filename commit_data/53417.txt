@@ -1,18 +1,25 @@
-commit 65dcddeb4e80b9a23ec6fc0157ecab388ba2f34f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu May 25 13:57:25 2023 -0400
+commit 7b45edb45016307151266731ccd158e14504598f
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Sun Oct 31 10:04:03 2021 +0100
 
-    doc/go1.21: document PGO GA and devirtualization
+    bytes: add Clone function
     
-    For #59959.
-    For #58645.
+    The new Clone function returns a copy of b[:len(b)]
+    for the input byte slice b.
+    The result may have additional unused capacity.
+    Clone(nil) returns nil.
     
-    Change-Id: I574153ef2fd61a5e90ec281fca065c42fce22cc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498263
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #45038
+    
+    Change-Id: I0469a202d77a7b491f1341c08915d07ddd1f0300
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359675
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/go1.21.html | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ api/next/45038.txt      |  1 +
+ src/bytes/bytes.go      | 10 ++++++++++
+ src/bytes/bytes_test.go | 33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+)

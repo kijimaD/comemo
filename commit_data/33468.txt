@@ -1,15 +1,25 @@
-commit a4aa5c31811b13b5d16b6fbbb2c72ed53eca0efb
-Author: Stanislav Afanasev <php.progger@gmail.com>
-Date:   Tue Nov 7 22:43:44 2017 +0300
+commit bf4d8d3d055c47c03d8e0e05e8d07fd94f793e53
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 17 12:23:34 2017 -0700
 
-    archive/tar: a cosmetic fix after checking by golint
+    cmd/compile: rename SSA Register.Name to Register.String
     
-    Existing methods regFileReader.LogicalRemaining and regFileReader.PhysicalRemaining have inconsistent reciever names with the previous name
+    Just to get rid of lots of .Name() stutter in printf calls.
     
-    Change-Id: Ief2024716737eaf482c4311f3fdf77d92801c36e
-    Reviewed-on: https://go-review.googlesource.com/76430
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I86cf00b3f7b2172387a1c6a7f189c1897fab6300
+    Reviewed-on: https://go-review.googlesource.com/56630
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/archive/tar/reader.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/fmt_test.go                |  6 ++---
+ src/cmd/compile/internal/gc/ssa.go         |  2 +-
+ src/cmd/compile/internal/ssa/debug.go      | 16 ++++++------
+ src/cmd/compile/internal/ssa/decompose.go  |  2 +-
+ src/cmd/compile/internal/ssa/html.go       |  6 ++---
+ src/cmd/compile/internal/ssa/location.go   | 16 ++++++------
+ src/cmd/compile/internal/ssa/print.go      |  2 +-
+ src/cmd/compile/internal/ssa/regalloc.go   | 40 +++++++++++++++---------------
+ src/cmd/compile/internal/ssa/stackalloc.go |  6 ++---
+ src/cmd/compile/internal/ssa/value.go      |  4 +--
+ 10 files changed, 50 insertions(+), 50 deletions(-)

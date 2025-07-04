@@ -1,59 +1,25 @@
-commit f9eb06c3022b20ae0b7944717d58d582eb5677ea
-Author: Garrett Bodley <garrett.bodley@gmail.com>
-Date:   Tue Jul 16 22:44:17 2024 -0400
+commit d4b46b0956a6581b62a0534d4eb1d5b5342c3b6f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 31 10:30:27 2023 -0700
 
-    crypto/sha1: Avo port of sha1block_amd64.s
+    encoding/gob: use reflect.TypeFor for known types
     
-    This implementation utilizes the same registers found in the reference
-    implementation, aiming to produce a minimal semantic diff between the
-    Avo-generated output and the original hand-written assembly.
+    This avoids several mildly confusing Elem calls.
     
-    To verify the Avo implementation, the reference and Avo-generated
-    assembly files are fed to `go tool asm`, capturing the debug output into
-    corresponding temp files. The debug output contains supplementary
-    metadata (line numbers, instruction offsets, and source file references)
-    that must be removed in order to obtain a semantic diff of the two
-    files. This is accomplished via a small utility script written in awk.
+    For #60088
     
-    Commands used to verify Avo output:
-    
-    GOROOT=$(go env GOROOT)
-    ASM_PATH="src/crypto/sha1/sha1block_amd64.s"
-    REFERENCE="54fe0fd43fcf8609666c16ae6d15ed92873b1564"
-    
-    go tool asm -o /dev/null -I "$GOROOT"/src/runtime -debug \
-      <(git cat-file -p "$REFERENCE:$ASM_PATH") \
-      > /tmp/reference.s
-    
-    go tool asm -o /dev/null -I "$GOROOT"/src/runtime -debug \
-      "$ASM_PATH" \
-      > /tmp/avo.s
-    
-    normalize(){
-      awk '{
-        $1=$2=$3="";
-        print substr($0,4)
-      }'
-    }
-    
-    diff <(normalize < /tmp/reference.s) <(normalize < /tmp/avo.s)
-    
-    1273c1273
-    < MOVQ $K_XMM_AR<>(SB), R8
-    ---
-    > LEAQ K_XMM_AR<>(SB), R8
-    
-    Change-Id: I39168fadb01baa9a96bc2b432fc94b492d036ce4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598795
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: If7b83d2ab10537c7e886a035b43cb272130c1669
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514455
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/stdlib_test.go |    1 +
- src/crypto/sha1/_asm/go.mod                    |   11 +
- src/crypto/sha1/_asm/go.sum                    |    8 +
- src/crypto/sha1/_asm/sha1block_amd64_asm.go    | 1741 +++++++++
- src/crypto/sha1/sha1block_amd64.s              | 4526 ++++++++++++++++--------
- src/go/types/stdlib_test.go                    |    1 +
- 6 files changed, 4800 insertions(+), 1488 deletions(-)
+ src/encoding/gob/decode.go         |  2 +-
+ src/encoding/gob/gobencdec_test.go |  2 +-
+ src/encoding/gob/type.go           | 28 ++++++++++++++--------------
+ src/encoding/gob/type_test.go      |  8 ++++----
+ 4 files changed, 20 insertions(+), 20 deletions(-)

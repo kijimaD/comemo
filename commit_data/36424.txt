@@ -1,25 +1,13 @@
-commit b0dc54697ba34494a4d77e8d3e446070fc7b223b
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Jun 1 19:25:57 2018 +0200
+commit 9eb64bdd71c76151bc101a603636d99f1af25956
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Apr 26 16:13:37 2018 -0400
 
-    runtime: replace calls to hasprefix with hasPrefix
+    misc/trace:  update trace_viewer_full.html
     
-    The hasprefix function is redundant and can be removed since it has
-    the same implementation as hasPrefix modulo variable names.
-    
-    Fixes #25688
-    
-    Change-Id: I499cc24a2b5c38d1301718a4e66f555fd138386f
-    Reviewed-on: https://go-review.googlesource.com/115835
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I919444886a264bc11026faa8ccda193bf09a8d8d
+    Reviewed-on: https://go-review.googlesource.com/109675
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/runtime/export_debug_test.go |  2 +-
- src/runtime/os3_plan9.go         |  2 +-
- src/runtime/os_plan9.go          | 10 +++++-----
- src/runtime/proc.go              |  4 ++--
- src/runtime/string.go            |  6 +++---
- src/runtime/traceback.go         |  4 ++--
- src/runtime/type.go              |  4 ----
- 7 files changed, 14 insertions(+), 18 deletions(-)
+ misc/trace/README.md              |    4 +-
+ misc/trace/trace_viewer_full.html | 1594 +++++++++++++++++++------------------
+ 2 files changed, 833 insertions(+), 765 deletions(-)

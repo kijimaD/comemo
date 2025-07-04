@@ -1,22 +1,21 @@
-commit db4ef216cc8d9c17f6d10d8682a46d8077b203d0
-Author: Ralph Corderoy <ralph@inputplus.co.uk>
-Date:   Sat Nov 7 12:18:36 2015 +0000
+commit bca70a66a7ebd7c8e18aaaac912673f65253373a
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Tue Sep 15 00:16:35 2015 +0200
 
-    crypto/tls: Server can specify an unadvertised cipher suite
+    cmd/compile/internal/gc: use sort.Interface for reflect methods
     
-    During the TLS handshake, check the cipher suite the server selects is
-    one of those offered in the ClientHello.  The code was checking it was
-    in the larger list that was sometimes whittled down for the ClientHello.
+    Generate slices of method *Sig(nature)s instead of linked lists.
+    Remove custom lsort function in favor of sort.Interface.
     
-    Fixes #13174
+    Eliminates another use of stringsCompare.
     
-    Change-Id: Iad8eebbcfa5027f30403b9700c43cfa949e135bb
-    Reviewed-on: https://go-review.googlesource.com/16698
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
+    
+    Change-Id: I9ed1664b7f55be9e967dd7196e396a76f6ea3422
+    Reviewed-on: https://go-review.googlesource.com/14559
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/crypto/tls/handshake_client.go      |  4 +--
- src/crypto/tls/handshake_client_test.go | 51 +++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/go.go           |   1 -
+ src/cmd/compile/internal/gc/reflect.go      | 216 +++++++++-------------------
+ src/cmd/compile/internal/gc/reflect_test.go |  47 ++++++
+ 3 files changed, 116 insertions(+), 148 deletions(-)

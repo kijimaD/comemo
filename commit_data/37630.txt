@@ -1,20 +1,17 @@
-commit ba69df63ebbf9101a35fb11a0df1e1912d285da4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Dec 10 17:06:40 2018 -0500
+commit dc272a4393dc2ba5f54f9cc37670d5581b6e774f
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Jun 19 12:34:17 2018 -0300
 
-    cmd/go/internal/modfetch: update TestCodeRepo for gopkg.in/yaml.v2 v2.2.2
+    encoding/json: call reflect.TypeOf with nil pointers rather than allocating
     
-    I think we ought to make these tests hermetic, but in the meantime we
-    should at least make them pass.
+    Updates #26775
     
-    Fixes #27692
-    Updates #28856
-    
-    Change-Id: Ia78fa60e998dea3c871f640ffa2ece67b054f866
-    Reviewed-on: https://go-review.googlesource.com/c/153460
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I83c9eeda59769d2f35e0cc98f3a8579861d5978b
+    Reviewed-on: https://go-review.googlesource.com/119715
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/encoding/json/decode.go | 2 +-
+ src/encoding/json/encode.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

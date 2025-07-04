@@ -1,21 +1,26 @@
-commit 8e199294361de59b637f25a7d5eebdee1b131415
-Author: fangguizhen <1297394526@qq.com>
-Date:   Tue Jan 17 16:37:42 2023 +0000
+commit 57dda9795da20fc12c7cfb03438959302200dbc7
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Feb 23 17:57:09 2022 -0800
 
-    strings: remove redundant symbols
+    test: add new test case for 51219 that triggers the types2 issue
     
-    Change-Id: Ie3fe0274288d6cb6303acdcec1340c480e5c0b20
-    GitHub-Last-Rev: ce9d44619e970b1319fbccf3aace1ddf719bcec1
-    GitHub-Pull-Request: golang/go#57848
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462277
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The existing test for 51219 didn't actually trigger the types2 issue - I
+    hadn't been able to minimize the test case yet properly. This new test
+    case issue51219b.go now does trigger the types2 issue (it's only
+    slightly different).
+    
+    Updates #51219
+    
+    Change-Id: Iaba8144b4702ff4fefec86c899b8acef127b10dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387814
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/strings/clone_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/typeparam/issue51219.dir/a.go                 | 39 ----------------------
+ test/typeparam/issue51219.dir/main.go              |  4 +--
+ test/typeparam/issue51219.out                      |  2 +-
+ test/typeparam/issue51219b.dir/a.go                | 37 ++++++++++++++++++++
+ .../{issue51219.dir => issue51219b.dir}/b.go       |  5 ++-
+ test/typeparam/issue51219b.dir/p.go                | 14 ++++++++
+ test/typeparam/issue51219b.go                      |  7 ++++
+ 7 files changed, 64 insertions(+), 44 deletions(-)

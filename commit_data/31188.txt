@@ -1,22 +1,18 @@
-commit 0ea120a70c03c3c57778d6863188fdfee87cb0f9
-Author: David Lazar <lazard@golang.org>
-Date:   Mon Apr 10 14:33:07 2017 -0400
+commit 5c90e1cf8ab39625b1f73c499cf47c06a60e9c08
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 3 14:28:32 2017 -0800
 
-    runtime: skip logical frames in runtime.Caller
+    cmd/compile/internal/ssa: remove Func.StaticData field
     
-    This rewrites runtime.Caller in terms of stackExpander, which already
-    handles inlined frames and partially skipped frames. This also has the
-    effect of making runtime.Caller understand cgo frames if there is a cgo
-    symbolizer.
+    Rather than collecting static data nodes to be written out later, just
+    write them out immediately.
     
-    Updates #19348.
-    
-    Change-Id: Icdf4df921aab5aa394d4d92e3becc4dd169c9a6e
-    Reviewed-on: https://go-review.googlesource.com/40270
-    Run-TryBot: David Lazar <lazard@golang.org>
+    Change-Id: I51708b690e94bc3e288b4d6ba3307bf738a80f64
+    Reviewed-on: https://go-review.googlesource.com/36352
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/extern.go | 37 ++++++++++---------------
- test/inline_caller.go | 77 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 92 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go   | 19 +++----------------
+ src/cmd/compile/internal/ssa/func.go | 17 ++++++++---------
+ 2 files changed, 11 insertions(+), 25 deletions(-)

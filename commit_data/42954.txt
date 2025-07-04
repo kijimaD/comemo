@@ -1,16 +1,20 @@
-commit a531bd5a59177dfef354df8b5b5b529a2a55d015
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Sep 8 20:41:51 2020 -0400
+commit 98858c438016bbafd161b502a148558987aa44d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 25 20:23:15 2020 -0800
 
-    cmd/internal/objfile: recognize Mach-O __DATA_CONST segment as read-only data
+    runtime: don't panic on racy use of timers
     
-    Updates #38830.
+    If we see a racy use of timers, as in concurrent calls to Timer.Reset,
+    do the operations in an unpredictable order, rather than crashing.
     
-    Change-Id: I826c6b0a42bc8e48fcda556250ca4a95c73987eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253918
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Fixes #37400
+    
+    Change-Id: Idbac295df2dfd551b6d762909d5040fc532c1b34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/internal/objfile/macho.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/time.go   | 216 ++++++++++++++++----------------------------------
+ src/time/time_test.go |  40 ++++++----
+ 2 files changed, 92 insertions(+), 164 deletions(-)

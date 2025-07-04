@@ -1,39 +1,29 @@
-commit fa3fe2e3c6b90c66d60fadce59169f7a6360f001
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Aug 29 11:49:08 2017 -0400
+commit 7555a45dc2ef22f2afe7f1cc78fc313fd0365735
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue May 16 21:52:41 2017 +0900
 
-    cmd/compile, math/bits: add rotate rules to PPC64.rules
+    cmd/cgo: support large unsigned macros
     
-    This adds rules to match the code in math/bits RotateLeft,
-    RotateLeft32, and RotateLef64 to allow them to be inlined.
+    Currently, cgo converts integer macros into int64 if it's possible.
+    As a result, some macros which satisfy
     
-    The rules are complicated because the code in these function
-    use different types, and the non-const version of these
-    shifts generate Mask and Carry instructions that become
-    subexpressions during the match process.
+    math.MaxInt64 < x <= math.MaxUint64
     
-    Also adds a testcase to asm_test.go.
+    will lose their original values.
     
-    Improvement in math/bits:
+    This CL introduces the new probe to check signs,
+    so we can handle signed ints and unsigned ints separately.
     
-    BenchmarkRotateLeft-16       1.57     1.32      -15.92%
-    BenchmarkRotateLeft32-16     1.60     1.37      -14.37%
-    BenchmarkRotateLeft64-16     1.57     1.32      -15.92%
+    Fixes #20369
     
-    Updates #21390
-    
-    Change-Id: Ib6f17669ecc9cab54f18d690be27e2225ca654a4
-    Reviewed-on: https://go-review.googlesource.com/59932
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I002ba452a82514b3a87440960473676f842cc9ee
+    Reviewed-on: https://go-review.googlesource.com/43476
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go      |   19 +-
- src/cmd/compile/internal/gc/ssa.go           |    1 +
- src/cmd/compile/internal/ppc64/ssa.go        |    1 +
- src/cmd/compile/internal/ssa/config.go       |    1 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules |   41 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |    3 +
- src/cmd/compile/internal/ssa/opGen.go        |   30 +
- src/cmd/compile/internal/ssa/rewritePPC64.go | 2360 +++++++++++++++++++++++---
- 8 files changed, 2187 insertions(+), 269 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue20369.go | 20 ++++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 36 ++++++++++++++++++++++++++++++------
+ src/cmd/cgo/main.go         |  6 +++---
+ 4 files changed, 54 insertions(+), 9 deletions(-)

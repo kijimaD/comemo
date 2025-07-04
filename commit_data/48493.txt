@@ -1,20 +1,60 @@
-commit ac3efc83e6747c3e7e56250774332cec5d2862f4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Mar 22 16:38:13 2022 -0400
+commit 5770d7a63743ddfd0e78877f162cbbf18ffb9c1d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 20 15:13:04 2021 -0700
 
-    cmd/link: write output in temp dir in TestUnlinkableObj
+    [dev.typeparams] cmd/compile/internal/types2: accept embedded interface elements
     
-    For unlinkable object the link will fail, but it opens the output
-    file in writable mode first then delete it on failure. This fails
-    if the current directory is not writable. Write to the temporary
-    directory instead.
+    Accept embedded interface elements of the form ~T or A|B and
+    treat them like type lists: for now the elements of a union
+    cannot be interfaces. Also, translate existing style "type"-
+    lists in interfaces into interface elements: "type a, b, c"
+    becomes a union element "~a|~b|~c" which in turn is handled
+    internally like a type list.
     
-    Change-Id: Iefd73b5cc8efdc0f11b12edc0920169a8ad3f37c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394755
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For now, "~" is still ignored and type lists are mapped to
+    Sum types as before, thus ensuring that all existing tests
+    work as before (with some minor adjustments).
+    
+    Introduced a new Union type to represent union elements.
+    For now they don't make it past interface completion where
+    they are represented as a Sum type. Thus, except for printing
+    (and the respective tests) and substitution for interfaces,
+    the various type switches ignore Union types. In a next step,
+    we'll replace Sum types with union types and then consider
+    the ~ functionality as well.
+    
+    Because union elements are no different from embedded interfaces
+    we don't need a separate Interface.types field anymore. Removed.
+    
+    For #45346.
+    
+    Change-Id: I98ac3286aea9d706e98aee80241d4712ed99af08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321689
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/link/link_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/types.go            |  18 +-
+ src/cmd/compile/internal/types2/builtins.go        |   2 +-
+ src/cmd/compile/internal/types2/index.go           |   2 +-
+ src/cmd/compile/internal/types2/infer.go           |   5 +-
+ src/cmd/compile/internal/types2/interface.go       | 211 ++++++++++-----------
+ src/cmd/compile/internal/types2/predicates.go      |   3 +
+ src/cmd/compile/internal/types2/sanitize.go        |   8 +-
+ src/cmd/compile/internal/types2/sizeof_test.go     |   3 +-
+ src/cmd/compile/internal/types2/sizes.go           |   2 +
+ src/cmd/compile/internal/types2/subst.go           |  16 +-
+ .../internal/types2/testdata/check/decls0.src      |   2 +-
+ .../internal/types2/testdata/check/issues.src      |   2 +-
+ .../internal/types2/testdata/check/typeinst2.go2   |   6 +-
+ .../types2/testdata/examples/constraints.go2       |  25 +++
+ .../types2/testdata/fixedbugs/issue39634.go2       |   2 +-
+ .../types2/testdata/fixedbugs/issue39693.go2       |  17 +-
+ .../types2/testdata/fixedbugs/issue39711.go2       |   4 +-
+ .../types2/testdata/fixedbugs/issue39723.go2       |   2 +-
+ .../types2/testdata/fixedbugs/issue39948.go2       |   8 +-
+ src/cmd/compile/internal/types2/type.go            |   1 -
+ src/cmd/compile/internal/types2/typestring.go      |  21 +-
+ src/cmd/compile/internal/types2/typestring_test.go |   4 +-
+ src/cmd/compile/internal/types2/unify.go           |   3 +
+ src/cmd/compile/internal/types2/union.go           | 105 ++++++++++
+ 24 files changed, 319 insertions(+), 153 deletions(-)

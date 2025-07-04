@@ -1,20 +1,15 @@
-commit 357a013060686aa90432dba93faa01196452eabe
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 20 10:32:39 2015 -0700
+commit 8537ccdd7ff42aac384f278d55f975ba447f16fd
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 20 14:01:51 2015 -0700
 
-    runtime: save registers in linux/{386,amd64} lib entry point
+    time: add a thorough example for time.Format
     
-    The callee-saved registers must be saved because for the c-shared case
-    this code is invoked from C code in the system library, and that code
-    expects the registers to be saved.  The tests were passing because in
-    the normal case the code calls a cgo function that naturally saves
-    callee-saved registers anyhow.  However, it fails when the code takes
-    the non-cgo path.
+    People will still not look at it, but at least we will have a stronger defense.
     
-    Change-Id: I9c1f5e884f5a72db9614478049b1863641c8b2b9
-    Reviewed-on: https://go-review.googlesource.com/9114
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ieea6a3d42d06e1067e424e35b87dbcb01c9523cb
+    Reviewed-on: https://go-review.googlesource.com/7859
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/rt0_linux_386.s   | 23 +++++++++++++++++++----
- src/runtime/rt0_linux_amd64.s | 22 +++++++++++++++++++---
- 2 files changed, 38 insertions(+), 7 deletions(-)
+ src/time/example_test.go | 124 ++++++++++++++++++++++++++++++++++++++++++++---
+ src/time/format.go       |   3 ++
+ 2 files changed, 120 insertions(+), 7 deletions(-)

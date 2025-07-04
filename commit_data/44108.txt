@@ -1,35 +1,15 @@
-commit 6598c65646dbb740a6668ffdaffec5627efc95e4
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 7 11:24:26 2021 -0500
+commit c9442dc8506e52c2846e436adb6be3831c37beb6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat May 9 17:10:32 2020 +0200
 
-    cmd/compile: fix exponential-time init-cycle reporting
+    runtime: fix dead link in gcc_androd.c file
     
-    I have a real 7,000-line Go program (not so big)
-    that took over two minutes to report a trivial init cycle.
-    I thought the compiler was in an infinite loop but
-    it was actually just very slow.
+    Old url 404s because the file no longer exists on master; change it to
+    point to the android 10 release branch.
     
-    CL 170062 rewrote init cycle reporting but replaced
-    a linear-time algorithm with an exponential one:
-    it explores all paths through the call graph of functions
-    involved in the cycle.
-    
-    The net effect was that  Go 1.12 took 0.25 seconds to load,
-    typecheck, and then diagnose the cycle in my program,
-    while Go 1.13 takes 600X longer.
-    
-    This CL makes the new reporting code run in linear time,
-    restoring the speed of Go 1.12 but preserving the semantic
-    fixes from CL 170062.
-    
-    Change-Id: I7d6dc95676d577d9b96f5953b516a64db93249bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282314
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: If0f8b645f2c746f9fc8bbd68f4d1fe41868493ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232809
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/initorder.go | 19 ++++++++++-------
- test/initexp.go                          | 36 ++++++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+), 8 deletions(-)
+ src/runtime/cgo/gcc_android.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

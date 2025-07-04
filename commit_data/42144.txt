@@ -1,20 +1,32 @@
-commit daae72e88e39cbc34659457b4a91b483f88ae19b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 24 09:43:49 2020 -0700
+commit 70be4819a47263055040d6beb5c0b1b31487f52c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Nov 8 13:05:56 2019 -0500
 
-    cmd/compile: refactor out eqstring
+    cmd/go: fix windows test failures
     
-    Refactor out creating the two Nodes needed to check string equality.
-    Preliminary work to other optimizations.
+    search.CleanPatterns now preserves backslash separators in absolute
+    paths in Windows. These had resulted in inconsistent error messages.
     
-    Passes toolstash-check.
+    search.MatchPackagesInFS is now more accepting of patterns with
+    backslashes. It was inconsistent before.
     
-    Change-Id: I72e824dac904e579b8ba9a3669a94fa1471112d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230204
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Several tests are fixed to work with Windows (mostly to match slashes
+    or backslashes).
+    
+    Fixes #25300
+    
+    Change-Id: Ibbf9ccd145353f7e3d345205c6fcc01d7066d1c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206144
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/alg.go  | 26 ++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/walk.go | 19 ++++---------------
- 2 files changed, 30 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git_test.go  |  11 ++-
+ src/cmd/go/internal/search/search.go               |  64 ++++++++-----
+ src/cmd/go/testdata/script/build_trimpath.txt      | 102 ++++++++++++++-------
+ src/cmd/go/testdata/script/mod_getx.txt            |   1 +
+ src/cmd/go/testdata/script/mod_list_dir.txt        |   4 +-
+ .../go/testdata/script/mod_prefer_compatible.txt   |   1 +
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt |   2 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt     |   6 +-
+ src/cmd/go/testdata/script/version.txt             |   5 +
+ 9 files changed, 130 insertions(+), 66 deletions(-)

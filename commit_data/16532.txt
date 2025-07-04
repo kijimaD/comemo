@@ -1,16 +1,13 @@
-commit 5b15b4443491d2405c494857819341186bb760ba
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 10 16:13:25 2013 -0400
+commit fd41926347c6f1cf1cc06079050912b9c48a1f09
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 10 22:59:39 2013 +0400
 
-    cmd/cc: fix lexbody for negative chars
+    runtime: fix one-time memory leak on linux
+    Update #5641.
     
-    The new code matches the code in cc/lex.c and the #define GETC.
-    This was causing problems scanning runtime·foo if the leading
-    · byte was returned by the buffer fill.
-    
-    R=ken2
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10167043
+    https://golang.org/cl/10144043
 
- src/cmd/cc/lexbody | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/mem_linux.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

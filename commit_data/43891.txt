@@ -1,21 +1,20 @@
-commit 848dff6dda4d38d3d2e9ab128954f50d085d9313
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Nov 28 19:10:57 2020 -0800
+commit 0612e78f0f9b5381b8690891a91fd05b450a0a91
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 28 13:45:35 2020 -0400
 
-    test: update gofrontend expected errors
+    [dev.link] cmd/link: tweak genasmsym to eliminate Gotype ref
     
-    This matches the error messages after CL 273890.
+    None of the users of genasmsym are doing anything with the Gotype
+    field of sym.Symbol, so remove that param from the callback function.
     
-    syntax/semi4.go:11:9: error: unexpected semicolon or newline, expecting ‘{’ after for clause
-    syntax/semi4.go:10:13: error: reference to undefined name ‘x’
-    syntax/semi4.go:12:17: error: reference to undefined name ‘z’
-    
-    Change-Id: Ic88ff6e27d50bf70f5b2114383b84c42c0682f39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273891
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ie902c4cdbcc6b68d353daf5ce21a99012161a946
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230545
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/syntax/semi4.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go    | 22 +++++++++++-----------
+ src/cmd/link/internal/ld/pe.go     |  2 +-
+ src/cmd/link/internal/ld/symtab.go |  4 ++--
+ src/cmd/link/internal/ld/xcoff.go  |  2 +-
+ 4 files changed, 15 insertions(+), 15 deletions(-)

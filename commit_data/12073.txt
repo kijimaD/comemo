@@ -1,14 +1,12 @@
-commit d6f8c751deaeab8ce173a230aa5160b52407560f
+commit 5cff1903ea07f0f7087be72379dded4a987ca589
 Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 20 13:42:37 2012 +1100
+Date:   Mon Feb 20 12:42:50 2012 +1100
 
-    all: rewrite references to old tool names
+    FAQ: many small fixes and adjustments
     
-    R=golang-dev, nigeltao
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5683045
+    https://golang.org/cl/5685048
 
- src/cmd/cov/doc.go                   |  5 ++---
- src/pkg/go/doc/testdata/benchmark.go |  6 +++---
- src/pkg/go/doc/testdata/testing.go   | 10 +++++-----
- 3 files changed, 10 insertions(+), 11 deletions(-)
+ doc/go_faq.html | 46 ++++++++++++++++++++++++++++------------------
+ 1 file changed, 28 insertions(+), 18 deletions(-)

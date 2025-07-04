@@ -1,0 +1,30 @@
+commit 7e81bcf39fe40e975e2c72375ab28ae9bf272d62
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 3 12:26:51 2025 -0800
+
+    go/types, types2: remove remaining mentions of core type in error messages
+    
+    The implementatiom still calls coreType in places and refers to
+    "core types" in comments, but user-visible error messages don't
+    know about core types anymore.
+    
+    This brings the user-visible part of the implementation in sync with
+    the spec which doesn't have the notion of core types anymore.
+    
+    For #70128.
+    
+    Change-Id: I14bc6767a83e8f54b10ebe99a7df0b98cd9fca87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654395
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/index.go        | 2 +-
+ src/cmd/compile/internal/types2/infer.go        | 2 +-
+ src/cmd/compile/internal/types2/signature.go    | 2 +-
+ src/go/types/index.go                           | 2 +-
+ src/go/types/infer.go                           | 2 +-
+ src/go/types/signature.go                       | 2 +-
+ src/internal/types/testdata/check/typeparams.go | 4 ++--
+ 7 files changed, 8 insertions(+), 8 deletions(-)

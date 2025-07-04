@@ -1,23 +1,87 @@
-commit cfa233d76bcff00f46f5e5acdb17cb819a309d2b
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Sep 12 12:21:48 2021 -0700
+commit 0f1d2129c4c294a895480b79eeab8d22c07ac573
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 31 21:48:27 2020 -0800
 
-    cmd/compile: remove unneeded early transforms, with dictionary change
+    [dev.regabi] cmd/compile: reshuffle type-checking code [generated]
     
-    Now that we are computing the dictionary format on the instantiated
-    functions, we can remove the early transformation code that was needed
-    to create the implicit CONVIFACE nodes in the generic function.
+    This commit splits up typecheck.Package and moves the code
+    elsewhere. The type-checking code is moved into noder, so that it can
+    eventually be interleaved with the noding process. The
+    non-type-checking code is moved back into package gc, so that it can
+    be incorporated into appropriate compiler backend phases.
     
-    Change-Id: I1695484e7d59bccbfb757994f3e40e84288759a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349614
-    Run-TryBot: Dan Scales <danscales@google.com>
+    While here, deadcode removal is moved into its own package.
+    
+    Passes toolstash -cmp.
+    
+    [git-generate]
+    cd src/cmd/compile/internal/typecheck
+    
+    : Split into two functions.
+    sed -i -e '/Phase 6/i}\n\nfunc postTypecheck() {' typecheck.go
+    
+    rf '
+            # Export needed identifiers.
+            mv deadcode Deadcode
+            mv loadsys InitRuntime
+            mv declareUniverse DeclareUniverse
+            mv dirtyAddrtaken DirtyAddrtaken
+            mv computeAddrtaken ComputeAddrtaken
+            mv incrementalAddrtaken IncrementalAddrtaken
+    
+            # Move into new package.
+            mv Deadcode deadcodeslice deadcodeexpr deadcode.go
+            mv deadcode.go cmd/compile/internal/deadcode
+    
+            # Move top-level type-checking code into noder.
+            # Move DeclVars there too, now that nothing else uses it.
+            mv DeclVars Package noder.go
+            mv noder.go cmd/compile/internal/noder
+    
+            # Move non-type-checking code back into gc.
+            mv postTypecheck main.go
+            mv main.go cmd/compile/internal/gc
+    '
+    
+    cd ../deadcode
+    rf '
+            # Destutter names.
+            mv Deadcode Func
+            mv deadcodeslice stmts
+            mv deadcodeexpr expr
+    '
+    
+    cd ../noder
+    rf '
+            # Move functions up, next to their related code.
+            mv noder.go:/func Package/-1,$ \
+                    noder.go:/makeSrcPosBase translates/-1
+            mv noder.go:/func DeclVars/-3,$ \
+                    noder.go:/constState tracks/-1
+    '
+    
+    cd ../gc
+    rf '
+            # Inline postTypecheck code back into gc.Main.
+            mv main.go:/func postTypecheck/+0,/AllImportedBodies/+1 \
+                    main.go:/Build init task/-1
+            rm postTypecheck
+    '
+    
+    Change-Id: Ie5e992ece4a42204cce6aa98dd6eb52112d098c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280974
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/noder/expr.go      | 38 -------------
- src/cmd/compile/internal/noder/helpers.go   | 11 ----
- src/cmd/compile/internal/noder/stmt.go      |  9 ----
- src/cmd/compile/internal/noder/transform.go | 84 ++++++++---------------------
- src/cmd/compile/internal/typecheck/subr.go  |  3 ++
- 5 files changed, 26 insertions(+), 119 deletions(-)
+ src/cmd/compile/internal/deadcode/deadcode.go   | 150 +++++++++++++++
+ src/cmd/compile/internal/gc/main.go             |  42 +++-
+ src/cmd/compile/internal/noder/noder.go         | 119 +++++++++++-
+ src/cmd/compile/internal/typecheck/dcl.go       |  54 ------
+ src/cmd/compile/internal/typecheck/func.go      |  10 +-
+ src/cmd/compile/internal/typecheck/subr.go      |  16 +-
+ src/cmd/compile/internal/typecheck/syms.go      |   4 +-
+ src/cmd/compile/internal/typecheck/typecheck.go | 243 +-----------------------
+ src/cmd/compile/internal/typecheck/universe.go  |   4 +-
+ 9 files changed, 327 insertions(+), 315 deletions(-)

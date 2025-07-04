@@ -1,13 +1,17 @@
-commit 9ee83f546fb1febfb580030c8c6e5d2eebe721d2
+commit 922ceaddd21289e90b35924b74cc6163a34ab40a
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 20 14:36:03 2011 -0700
+Date:   Mon Jun 20 13:39:03 2011 -0700
 
-    http: write Header keys with empty values
+    http: permit handlers to explicitly remove the Date header
     
-    R=golang-dev, rsc, r
+    We'll do the right thing by default, but people wanting minimal
+    response sizes can explicitly remove the Date header.
+    (empty fields aren't written out)
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4630052
+    https://golang.org/cl/4634048
 
- src/pkg/http/header.go      |  3 ---
- src/pkg/http/header_test.go | 10 ++++++++++
- 2 files changed, 10 insertions(+), 3 deletions(-)
+ src/pkg/http/serve_test.go | 15 +++++++++++++++
+ src/pkg/http/server.go     |  2 +-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

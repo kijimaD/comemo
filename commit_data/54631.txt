@@ -1,39 +1,20 @@
-commit 28f4ea16a240af6c5a417e20be77745329f817f1
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 1 20:32:07 2023 -0700
+commit f187c6b08eac9dddd161bb2e7537def3bbf8ec9a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 3 21:22:44 2022 -0400
 
-    cmd/compile: improve interface type switches
+    cmd/compile/internal/pgo: check repeated edge only when node is seen
     
-    For type switches where the targets are interface types,
-    call into the runtime once instead of doing a sequence
-    of assert* calls.
+    When adding weights for a call stack, for recursive calls, to
+    avoid double counting we check if we already saw the node and the
+    edge. We check the node first. An edge can be repeated if the node
+    is repeated. Most stacks are not recursive, so check repeated edge
+    only conditionally.
     
-    name                                 old time/op  new time/op  delta
-    SwitchInterfaceTypePredictable-24    26.6ns ± 1%  25.8ns ± 2%  -2.86%  (p=0.000 n=10+10)
-    SwitchInterfaceTypeUnpredictable-24  39.3ns ± 1%  37.5ns ± 2%  -4.57%  (p=0.000 n=10+10)
-    
-    Not super helpful by itself, but this code organization allows
-    followon CLs that add caching to the lookups.
-    
-    Change-Id: I7967f85a99171faa6c2550690e311bea8b54b01c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526657
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I4b8f039289dcd3383ca89593d6d16d903b94c3dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447804
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/ir/node.go                |  23 +-
- src/cmd/compile/internal/ir/node_gen.go            |  46 +++
- src/cmd/compile/internal/ir/op_string.go           |  21 +-
- src/cmd/compile/internal/ir/stmt.go                |  37 ++
- src/cmd/compile/internal/ir/symtab.go              |   1 +
- src/cmd/compile/internal/ssagen/ssa.go             |  10 +
- src/cmd/compile/internal/test/switch_test.go       | 117 ++++++
- .../compile/internal/typecheck/_builtin/runtime.go |   3 +
- src/cmd/compile/internal/typecheck/builtin.go      | 398 +++++++++++----------
- src/cmd/compile/internal/walk/stmt.go              |   1 +
- src/cmd/compile/internal/walk/switch.go            | 390 +++++++++++++-------
- src/internal/abi/switch.go                         |  13 +
- src/runtime/iface.go                               |  16 +
- test/codegen/switch.go                             |  21 ++
- 14 files changed, 742 insertions(+), 355 deletions(-)
+ src/cmd/compile/internal/pgo/graph.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

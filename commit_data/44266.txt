@@ -1,25 +1,16 @@
-commit a78879ac67d62c4919492fcb5e05c8b21058217d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 10:47:38 2021 -0500
+commit 23dcee64643fef66663272cd123dc7b42dfa67c9
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Jun 1 16:20:32 2020 -0400
 
-    runtime: move sys.DefaultGoroot to runtime.defaultGOROOT
+    crypto/tls: test that Clone copies session ticket key fields
     
-    The default GOROOT has nothing to do with system details.
-    Move it next to its one use in package runtime.
+    Updates #25256
     
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
-    
-    Change-Id: I1a601fad6335336b4616b834bb21bd8437ee1313
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288796
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: If16c42581f1cf3500fd7fd01c915e487f8025e55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235922
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/link/internal/ld/main.go | 2 +-
- src/runtime/extern.go            | 4 +++-
- src/runtime/internal/sys/arch.go | 4 ----
- 3 files changed, 4 insertions(+), 6 deletions(-)
+ src/crypto/tls/tls_test.go | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)

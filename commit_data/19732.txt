@@ -1,21 +1,14 @@
-commit c0a824aad69f8eeb15868675c47d3ceb16277576
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Mon Jul 14 19:49:26 2014 -0700
+commit 79b106ec62542d589fcbc9a079e1bada7e7db46c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 15 01:38:05 2014 +0000
 
-    strconv: fix CanBackquote for invalid UTF-8
+    cmd/ld: generate correct upper bound value for array types.
     
-    Make CanBackquote(invalid UTF-8) return false.
-    
-    Also add two test which show that CanBackquote reports
-    true for strings containing a BOM.
-    
-    Fixes #7572.
-    
-    LGTM=r
-    R=golang-codereviews, bradfitz, r
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/111780045
+    https://golang.org/cl/115820043
 
- src/pkg/strconv/quote.go      | 13 ++++++++++---
- src/pkg/strconv/quote_test.go |  4 ++++
- 2 files changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/ld/decodesym.c | 3 ++-
+ src/cmd/ld/dwarf.c     | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

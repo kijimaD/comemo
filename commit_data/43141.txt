@@ -1,33 +1,17 @@
-commit 3caaaddffd605c0ec1787d68295b732fff73026b
-Author: Andrei Vagin <avagin@google.com>
-Date:   Tue Sep 29 04:45:55 2020 +0000
+commit 65bd07611c95d66c60eca57932714e6bd0059c54
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 12 11:25:39 2020 +1100
 
-    runtime: don't crash if vsyscall and vdso are disabled on x86_64
+    io: add a comment about how to turn a Reader into ByteReader
     
-    If vdso is disabled, the goruntime calls gettimeofday from vsyscall,
-    but if vsyscall is disabled too, all golang binaries crash:
+    Offered as an alternative to CL 221380, which was more
+    tutorial than necessary.
     
-    SIGSEGV {si_signo=SIGSEGV, si_code=SEGV_MAPERR, si_addr=0xffffffffff600000} ---
-    killed by SIGSEGV (core dumped) ++
+    Update #37344
     
-    vsyscall doesn't work as it was designed for a long time due to security
-    reasons and now vsyscall is a little more expensive than real syscalls:
-    https://github.com/torvalds/linux/commit/5cec93c216db
-    
-    This patch reworks the code to call syscalls if the vdso library isn't
-    available.
-    
-    Change-Id: I16cbf3f49871bea91e26af1f49aa0ae2fbd3a01d
-    GitHub-Last-Rev: 1d133cd30a5dee1fea9aee0fb4ea0b07e0e87f2a
-    GitHub-Pull-Request: golang/go#41681
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257982
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ide673b0b97983c2c2319a9311dc3d0a10567e6c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223097
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
 
- src/runtime/sys_linux_amd64.s   | 31 +++++++++++--------------------
- src/runtime/vdso_linux_amd64.go |  5 ++---
- src/syscall/asm_linux_amd64.s   | 10 +++++++++-
- 3 files changed, 22 insertions(+), 24 deletions(-)
+ src/io/io.go | 4 ++++
+ 1 file changed, 4 insertions(+)

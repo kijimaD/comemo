@@ -1,23 +1,19 @@
-commit fb726698b7c0255fa5ef62c042c1387c5ff05049
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 17 20:50:30 2023 +0700
+commit 3fc8ed2543091693eca514b363fcdbbe5c7f2916
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 9 11:09:42 2022 +0100
 
-    cmd/cgo/internal/testfortran: relax test output
+    internal/reflectlite: use unsafe.String in name.name and name.tag
     
-    Some new linker may emit warning message to standard error, causing
-    false positive in test result.
+    Same as CL 448675 did in package reflect.
     
-    Fixing this by testing only stdout output.
-    
-    Fixes #63588
-    
-    Change-Id: I272048c41dc1c316f44af2dfc903bb03383baea3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535975
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I26277d8dcf2d2e204724d6fa5cc6e1ad391633f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448936
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/cgo/internal/testfortran/fortran_test.go         | 16 +++++++++++-----
- .../internal/testfortran/testdata/testprog/fortran.go    |  9 ++++++---
- 2 files changed, 17 insertions(+), 8 deletions(-)
+ src/internal/reflectlite/type.go | 21 ++++++---------------
+ 1 file changed, 6 insertions(+), 15 deletions(-)

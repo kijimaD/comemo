@@ -1,0 +1,22 @@
+commit e66229a22af8b4895193aacaf95828de63575957
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 9 11:09:19 2024 +0100
+
+    crypto/internal/fips/aes: add service indicators
+    
+    For #69536
+    
+    Change-Id: I485c165b1d9fcd7b09ff151bbeebc57d8908bcb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626835
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ src/crypto/cipher/gcm_test.go                  | 72 +++++++++++++++++++++++++
+ src/crypto/internal/fips/aes/aes.go            |  3 ++
+ src/crypto/internal/fips/aes/gcm/gcm.go        |  7 +++
+ src/crypto/internal/fips/aes/gcm/gcm_nonces.go | 75 ++++++++++++++++++++++++--
+ src/crypto/internal/fips/aes/gcm/ghash.go      |  3 +-
+ 5 files changed, 155 insertions(+), 5 deletions(-)

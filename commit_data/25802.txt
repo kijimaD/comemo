@@ -1,19 +1,16 @@
-commit 9194421eedfd64d2d71e66cbf060d19502610c30
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 19 17:41:44 2016 +0900
+commit 656a732a217ee3ac4e6a6442072994e4dccb4094
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 20 17:31:33 2015 -0800
 
-    net: deflake TestDialerDualStackFDLeak
+    cmd/compile: simplify parsing of possibly absent type
     
-    We need to stop the mock listener certainly for preventing it from
-    pulling up pending connections during measurement.
+    Introduce a try_ntype function which doesn't return an error upon
+    not finding a type. Use it instead of having separate repeated
+    token checks. Simpler, less code, and more efficient.
     
-    Fixes #14223.
-    
-    Change-Id: Ia40db01d1262963697b83ca867563dec77d772e3
-    Reviewed-on: https://go-review.googlesource.com/19246
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I81e482158b71901eb179470269349688636aa0ba
+    Reviewed-on: https://go-review.googlesource.com/17157
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/net/dial_test.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/parser.go | 67 ++++++++++++++++++-----------------
+ 1 file changed, 34 insertions(+), 33 deletions(-)

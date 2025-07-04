@@ -1,24 +1,56 @@
-commit bf2a6d1957915530c73bbc8c863bb29da6c2714e
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 9 15:49:48 2023 -0700
+commit 7ffbcd19876b9fbf117b09475411b8de9fa2c9dd
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 7 13:23:10 2022 +0700
 
-    cmd/compile: ensure write barrier branches get marked uninterruptible
+    runtime: replace stringStruct with unsafe.String where appropriate
     
-    The branch itself can't be marked, so we ensure we mark the last
-    ssa.Value in the block as uninterruptible, because that's where the
-    branch ends up getting its uninterruptibility from.
+    Simplify the code a bit, no significant performance changes.
     
-    This is somewhat conservative, as we're marking an instruction as
-    uninterruptible that doesn't need to be. But it is an easy fix.
+    name                             old time/op    new time/op    delta
+    HashStringSpeed-8                  9.64ns ±11%    8.91ns ± 9%   -7.60%  (p=0.007 n=10+10)
+    HashStringArraySpeed-8             19.8ns ± 3%    19.5ns ± 2%     ~     (p=0.085 n=10+10)
+    MapStringKeysEight_16-8            10.7ns ± 3%    10.2ns ± 2%   -4.48%  (p=0.000 n=10+10)
+    MapStringKeysEight_32-8            8.89ns ± 3%    8.71ns ± 3%     ~     (p=0.082 n=9+10)
+    MapStringKeysEight_64-8            8.84ns ± 2%    8.60ns ± 3%   -2.73%  (p=0.004 n=9+10)
+    MapStringKeysEight_1M-8            8.90ns ± 3%    8.62ns ± 3%   -3.15%  (p=0.000 n=10+10)
+    MapStringConversion/32/simple-8    8.62ns ± 3%    8.61ns ± 2%     ~     (p=0.895 n=10+10)
+    MapStringConversion/32/struct-8    8.53ns ± 2%    8.63ns ± 2%     ~     (p=0.123 n=10+10)
+    MapStringConversion/32/array-8     8.54ns ± 2%    8.50ns ± 1%     ~     (p=0.590 n=9+9)
+    MapStringConversion/64/simple-8    8.44ns ± 2%    8.38ns ± 2%     ~     (p=0.353 n=10+10)
+    MapStringConversion/64/struct-8    8.41ns ± 2%    8.48ns ± 2%     ~     (p=0.143 n=10+10)
+    MapStringConversion/64/array-8     8.42ns ± 2%    8.44ns ± 2%     ~     (p=0.739 n=10+10)
+    MapInterfaceString-8               13.6ns ±26%    13.6ns ±20%     ~     (p=0.736 n=10+9)
+    AppendGrowString-8                 38.9ms ± 9%    40.2ms ±13%     ~     (p=0.481 n=10+10)
+    CompareStringEqual-8               3.03ns ± 2%    2.86ns ± 3%   -5.58%  (p=0.000 n=10+10)
+    CompareStringIdentical-8           1.20ns ± 3%    1.01ns ± 4%  -16.16%  (p=0.000 n=10+10)
+    CompareStringSameLength-8          2.11ns ± 3%    1.85ns ± 3%  -12.33%  (p=0.000 n=10+10)
+    CompareStringDifferentLength-8     0.30ns ± 0%    0.30ns ± 0%     ~     (p=0.508 n=10+9)
+    CompareStringBigUnaligned-8        43.0µs ± 1%    42.8µs ± 2%     ~     (p=0.165 n=10+10)
+    CompareStringBig-8                 43.2µs ± 2%    43.4µs ± 2%     ~     (p=0.661 n=9+10)
+    ConcatStringAndBytes-8             15.1ns ± 1%    14.9ns ± 1%   -1.57%  (p=0.001 n=8+10)
+    SliceByteToString/1-8              2.45ns ± 2%    2.39ns ± 2%   -2.64%  (p=0.000 n=10+10)
+    SliceByteToString/2-8              10.9ns ± 2%    10.8ns ± 4%     ~     (p=0.060 n=10+10)
+    SliceByteToString/4-8              11.9ns ± 0%    11.8ns ± 1%   -0.97%  (p=0.000 n=8+8)
+    SliceByteToString/8-8              13.9ns ± 1%    13.9ns ± 1%   +0.57%  (p=0.009 n=9+9)
+    SliceByteToString/16-8             18.0ns ± 3%    18.6ns ± 5%   +2.78%  (p=0.001 n=9+10)
+    SliceByteToString/32-8             20.1ns ± 3%    20.5ns ± 5%   +2.10%  (p=0.034 n=10+10)
+    SliceByteToString/64-8             24.3ns ± 3%    24.9ns ± 3%   +2.28%  (p=0.001 n=9+10)
+    SliceByteToString/128-8            33.8ns ± 1%    34.5ns ± 4%     ~     (p=0.264 n=8+10)
     
-    TODO: figure out a test
+    Updates #54854
     
-    Change-Id: Icd314f0bbdce8f80019bafb9e861baca4e7ecbb1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518055
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I7ce57a92c5f590fa8cb31a48969d281147eb05f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428759
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/liveness/plive.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/runtime/debuglog.go | 14 ++++++--------
+ src/runtime/heapdump.go | 15 ++++++---------
+ src/runtime/string.go   | 26 +++++++-------------------
+ src/runtime/type.go     | 14 ++++----------
+ 4 files changed, 23 insertions(+), 46 deletions(-)

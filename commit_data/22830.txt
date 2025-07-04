@@ -1,20 +1,18 @@
-commit c723230e4a1ddb30b4822de8f795c16fd9aa90ff
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 30 15:00:51 2015 -0700
+commit 6afb5fa48fc3d33f7973fbdfeb96fdfaad51fb5f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 9 10:17:06 2015 -0400
 
-    net/http: fix scheduling race resulting in flaky test
+    runtime: remove GoSched/GoStart trace events around GC
     
-    The test was measuring something, assuming other goroutines had
-    already scheduled.
+    These were appropriate for STW GC, since it interrupted the allocating
+    Goroutine, but don't apply to concurrent GC, which runs on its own
+    Goroutine. Forced GC is still STW, but it makes sense to attribute the
+    GC to the goroutine that called runtime.GC().
     
-    Fixes #10427
-    
-    Change-Id: I2a4d3906f9d4b5ea44b57d972e303bbe2b0b1cde
-    Reviewed-on: https://go-review.googlesource.com/9561
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If12418ca66dc7e53b8b16025af4e03adb5d9577e
+    Reviewed-on: https://go-review.googlesource.com/8715
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/export_test.go    | 14 ++++++++++++++
- src/net/http/transport.go      | 19 +++++++++++++++++++
- src/net/http/transport_test.go | 23 ++++++++++++++++++++++-
- 3 files changed, 55 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go | 2 --
+ 1 file changed, 2 deletions(-)

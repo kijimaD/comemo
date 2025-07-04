@@ -1,22 +1,30 @@
-commit d94e350f480fe72692148f07f959286435790704
-Author: Michael T. Jones <mtj@google.com>
-Date:   Fri Jun 24 17:26:45 2011 -0700
+commit 5d4eea6a2f50e0a07a4878f97146e1e3355523e3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 24 16:46:14 2011 -0700
 
-    fmt: Added SkipSpace() function to fmt's ScanState interface.
+    http: better handling of 0-length Request.Body
     
-    Users of the Scan() infrastructure that employ ReadRune() rather than
-    Token() need a way to skip leading spaces and newlines as set by the
-    the parent, Fscan(), Fscanln, or Fscanf(). As the internal methods and
-    boolean flags are not exported, this new function was added here and
-    in the Int and Nat Scan() functions of the big package. (fmt.Rat did
-    not need change since it uses Token()) Also added Printf style format
-    code support to int types and tests for same to int_test.go
+    As rsc suggested after change 58a6bdac3d12 was committed, we
+    now read the first byte of Request.Body when the
+    Request.ContentLength is 0 to disambiguate between a truly
+    zero-length body and a body of unknown length where the user
+    didn't set the ContentLength field.
     
-    R=r, r, gri, mtj
+    This was also causing the reverse proxy problem where incoming
+    requests (which always have a body, of private type http.body,
+    even for 0-lengthed requests) were being relayed to the http
+    Transport for fetching, which was serializing the request as a
+    chunked request (since ContentLength was 0 and Body was
+    non-nil)
+    
+    Fixes #1999
+    
+    R=golang-dev, kevlar
     CC=golang-dev
-    https://golang.org/cl/4634074
+    https://golang.org/cl/4628063
 
- src/pkg/big/int.go      | 58 +++++++++++++++++++++++++++++++++++++++++++++----
- src/pkg/big/int_test.go | 31 +++++++++++++++++++++++++-
- src/pkg/fmt/scan.go     | 12 ++++++++++
- 3 files changed, 96 insertions(+), 5 deletions(-)
+ src/pkg/http/request.go           |   7 ---
+ src/pkg/http/requestwrite_test.go | 119 +++++++++++++++++++++++++++-----------
+ src/pkg/http/reverseproxy_test.go |   3 +
+ src/pkg/http/transfer.go          |  31 ++++++++--
+ 4 files changed, 114 insertions(+), 46 deletions(-)

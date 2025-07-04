@@ -1,31 +1,34 @@
-commit 82ee946d7acd93cad27f748efb9c3131ae69668e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jul 20 11:41:04 2023 -0700
+commit 5f5c018ca46b6634da9372f5af759cb36fcaed5f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 19 11:09:01 2022 -0700
 
-    all: update build tags to require/assume Go 1.20
+    cmd/compile: redo mknode.go
     
-    Updates #54265.
+    The current mknode has a few problems:
+    1) It tends not to run successfully if the tree is in a broken state.
+    2) It requires that it be run by the go tool in the tree (somewhat related to 1)
+    3) It requires setting GOROOT
+    4) It imports code outside the tree (x/packages)
     
-    Change-Id: Ia1c9486484c73c565bb4f78234dedff6d929ed42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511656
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    This makes mknode.go very fragile. In particular, I've spent lots of
+    time fighting mknode when adding or removing code, related to 1.
+    
+    Rewrite to just use go/ast and friends. No typechecking, no importing,
+    etc. It can run with any go version, it doesn't need to be the one
+    corresponding to the code in which it is run. (e.g. you can use go
+    1.16 to run mknode). It will work as long as the ir package is parseable.
+    
+    When run, it generates identical output to the old mknode.
+    
+    Fixes #53959
+    
+    Change-Id: I5ce0b55572ebcd2fcd11af57a5f29bbf9fa4ed33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418375
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/compile/internal/base/mapfile_mmap.go    |  2 +-
- src/cmd/compile/internal/base/mapfile_read.go    |  2 +-
- src/cmd/dist/{exec_119.go => exec.go}            |  3 --
- src/cmd/dist/exec_118.go                         | 47 ------------------------
- src/cmd/dist/{notgo117.go => notgo120.go}        | 10 ++---
- src/cmd/internal/bio/buf_mmap.go                 |  2 +-
- src/cmd/internal/bio/buf_nommap.go               |  2 +-
- src/cmd/link/internal/ld/msync_darwin_libc.go    |  2 +-
- src/cmd/link/internal/ld/msync_darwin_syscall.go | 24 ------------
- src/cmd/link/internal/ld/outbuf_mmap.go          |  2 +-
- src/cmd/link/internal/ld/outbuf_nommap.go        |  2 +-
- src/internal/abi/type.go                         |  6 +--
- src/internal/abi/unsafestring_go119.go           | 32 ----------------
- src/internal/abi/unsafestring_go120.go           | 18 ---------
- 14 files changed, 15 insertions(+), 139 deletions(-)
+ src/cmd/compile/internal/ir/mini.go   |   3 +-
+ src/cmd/compile/internal/ir/mknode.go | 442 +++++++++++++++++++++-------------
+ 2 files changed, 277 insertions(+), 168 deletions(-)

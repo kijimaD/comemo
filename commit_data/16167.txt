@@ -1,18 +1,12 @@
-commit ce64f7365ff814087fc843bcaa8267e236692939
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Fri Apr 12 14:04:00 2013 -0700
+commit 813590b145448decb4de52e12ce522fe9c16f9a7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 12 07:58:50 2013 -0700
 
-    cmd/go: quote command line arguments in debug output
+    cmd/ld: if we fail from an unexpected PE flags value, print it
     
-    Debug output from go test -x may contain empty arguments.
-    This CL quotes arguments if needed. E.g. the output of
-    go test -x is now
-      .../6g -o ./_go_.6 -p testmain -complete -D "" -I . -I $WORK ./_testmain.go
-    which is easier to grasp.
-    
-    R=golang-dev, bradfitz, minux.ma, r
+    R=golang-dev, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/8633043
+    https://golang.org/cl/8709043
 
- src/cmd/go/build.go | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/ld/ldpe.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

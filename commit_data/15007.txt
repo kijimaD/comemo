@@ -1,21 +1,12 @@
-commit 91e99c13457109e3571767cae3fc56c472bdd7dc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 28 16:31:46 2013 -0800
+commit e38339e3d8e89b7dcffef41a2c373f3c48f032ad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 28 16:17:06 2013 -0800
 
-    encoding/json: add Decoder.Buffered accessor to get overread data
+    test: add test case miscompiled by gccgo
     
-    Otherwise it's impossible to know how much data from the
-    json.Decoder's underlying Reader was actually consumed.
-    
-    The old fix from golang.org/issue/1955 just added docs. This
-    provides an actual mechanism.
-    
-    Update #1955
-    
-    R=golang-dev, adg, rsc
+    R=golang-dev, bradfitz, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/7181053
+    https://golang.org/cl/7240043
 
- src/pkg/encoding/json/stream.go      |  7 +++++++
- src/pkg/encoding/json/stream_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ test/fixedbugs/bug473.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)

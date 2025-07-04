@@ -1,18 +1,29 @@
-commit 497fd2c09ca4ed1d9f9d397aed71fce741e3588a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 4 17:30:42 2018 -0700
+commit 2ce295e9542c104110a050bf809dd0a37e191eb7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 5 21:06:17 2018 +0000
 
-    go/types: remove a TODO, enable a test
+    net/http: remove an allocation in ServeMux
     
-    1) Scopes do have a comment field for documentation (debugging output).
-       No need to do anything extra.
+    Also, add a benchmark variant ("SkipServe") that only benchmarks the
+    ServeMux handler selection path.
     
-    2) The testcase in expr3.src has ok error messages. Enabled.
+    name                  old time/op    new time/op    delta
+    ServeMux_SkipServe-4    74.2µs ± 2%    60.6µs ± 1%   -18.31%   (p=0.000 n=10+9)
     
-    Change-Id: Ic1a03bfec0a6a70d876aa6cfb936973abe58fe6c
-    Reviewed-on: https://go-review.googlesource.com/c/139902
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    name                  old alloc/op   new alloc/op   delta
+    ServeMux_SkipServe-4    2.62kB ± 0%   0.00kB ±NaN%  -100.00%  (p=0.000 n=10+10)
+    
+    name                  old allocs/op  new allocs/op  delta
+    ServeMux_SkipServe-4       180 ± 0%        0 ±NaN%  -100.00%  (p=0.000 n=10+10)
+    
+    Updates #25383
+    
+    Change-Id: Icfbb3b977e309093d032e922d1b4f254df6f5955
+    Reviewed-on: https://go-review.googlesource.com/116378
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/go/types/scope.go           | 3 ---
- src/go/types/testdata/expr3.src | 2 +-
- 2 files changed, 1 insertion(+), 4 deletions(-)
+ src/net/http/serve_test.go | 13 ++++++++-----
+ src/net/http/server.go     |  7 ++++++-
+ 2 files changed, 14 insertions(+), 6 deletions(-)

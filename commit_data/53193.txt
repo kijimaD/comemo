@@ -1,34 +1,19 @@
-commit 2ed6a54a39339ca37e9da4530b3f37a9d29b7c84
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 19 22:35:33 2023 -0400
+commit dee3efd9f879335cfb583752b0729cc57f61897e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 26 19:28:00 2022 -0700
 
-    cmd/go: retain extra roots to disambiguate imports in 'go mod tidy'
+    doc/go1.19: fix a few links that were missing trailing slashes
     
-    We don't normally keep explicit requirements for test dependencies of
-    packages loaded from other modules when the required version is
-    already the selected version in the module graph. However, in some
-    cases we may need to keep an explicit requirement in order to make use
-    of lazy module loading to disambiguate an otherwise-ambiguous import.
+    They were part of a chain of three redirects. Now it's only two,
+    but that's #54081.
     
-    Note that there is no Go version guard for this change: in the cases
-    where the behavior of 'go mod tidy' has changed, previous versions of
-    Go would produce go.mod files that break successive calls to
-    'go mod tidy'. Given that, I suspect that any existing user in the
-    wild affected by this bug either already has a workaround in place
-    using redundant import statements (in which case the change does not
-    affect them) or is running 'go mod tidy -e' to force past the error
-    (in which case a change in behavior to a non-error should not be
-    surprising).
-    
-    Fixes #60313.
-    
-    Change-Id: Idf294f72cbe3904b871290d79e4493595a0c7bfc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496635
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ibfe6a17a372df61df40124892951b48577e4ced9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419634
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/modload/buildlist.go           | 66 ++++++++++++++++++++--
- src/cmd/go/testdata/script/mod_tidy_issue60313.txt |  7 +--
- 2 files changed, 62 insertions(+), 11 deletions(-)
+ doc/go1.19.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

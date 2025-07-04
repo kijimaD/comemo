@@ -1,23 +1,17 @@
-commit 0def9d5c02166b50a011b4cc8d4c1d891a04f89d
-Author: Sebastian Nickolls <sebastian.nickolls@arm.com>
-Date:   Thu Apr 25 17:19:20 2024 +0100
+commit fc5c590d8dac4edb7b87b6c943948033a3920266
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Tue May 23 16:51:04 2023 +0200
 
-    cmd/internal/obj/arm64: Enable arm64 assembler tests for cross-compiler builds
+    errors: add godoc links
     
-    Some of the tests for the arm64 assembler are not running for
-    cross-compiled arm64 builds with GOARCH=arm64. This patch allows the
-    tests to run for all architectures and moves the test that can only run on
-    arm64 into its own conditionally compiled file.
-    
-    Updates #44734
-    
-    Change-Id: I045870d47cdc1280bfacc1ef275f34504278ed89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587315
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Sebastian Nickolls <sebastian.nickolls@arm.com>
+    Change-Id: I766e656e6b967290d692313ea1391878fc21c92d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497375
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/internal/obj/arm64/asm_arm64_test.go | 297 +--------------------------
- src/cmd/internal/obj/arm64/asm_test.go       | 258 +++++++++++++++++++++++
- 2 files changed, 259 insertions(+), 296 deletions(-)
+ src/errors/errors.go | 12 ++++++------
+ src/errors/wrap.go   |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)

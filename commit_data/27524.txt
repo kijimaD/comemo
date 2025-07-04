@@ -1,31 +1,29 @@
-commit b9ec0024fbc18dd94eff7240afd82fac6b4d8fdc
-Author: Seth Vargo <sethvargo@gmail.com>
-Date:   Thu May 12 16:26:27 2016 -0400
+commit e775b8df7a073824e445b64742f3bc4dc4fa6f3d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 31 09:29:39 2016 -0700
 
-    net/http: add missing HTTP status codes
+    cmd/compile: add sliceBound
     
-    This commit adds missing status codes:
+    Add a constant for the magic -1 for slice bounds.
+    Use it.
+    Enforce more aggressively that bounds must be
+    slice, ddd, or non-negative.
+    Remove ad hoc check in plive.go.
+    Check bounds before constructing an array type
+    when typechecking.
     
-    * 102 - Processing
-    * 207 - Multi-Status
-    * 208 - Already Reported
-    * 226 - IM Used
-    * 308 - Permanent Redirect
-    * 422 - Unprocessable Entity
-    * 423 - Locked
-    * 424 - Failed Dependency
-    * 426 - Upgrade Required
-    * 506 - Variant Also Negotiates
-    * 507 - Insufficient Storage
-    * 508 - Loop Detected
-    * 510 - Not Extended
-    * 511 - Network Authentication Required
+    All changes are manual.
     
-    Change-Id: Ife0e5b064f4b1e3542d2fd41abc9e7b1e410b644
-    Reviewed-on: https://go-review.googlesource.com/23090
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I9fd9cc789d7d4b4eea3b30b24037a254d3788add
+    Reviewed-on: https://go-review.googlesource.com/21348
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/status.go | 122 ++++++++++++++++++++++++++++++-------------------
- 1 file changed, 75 insertions(+), 47 deletions(-)
+ src/cmd/compile/internal/gc/align.go     |  2 +-
+ src/cmd/compile/internal/gc/bimport.go   |  4 ++--
+ src/cmd/compile/internal/gc/plive.go     |  5 -----
+ src/cmd/compile/internal/gc/type.go      | 21 +++++++++++++++++----
+ src/cmd/compile/internal/gc/typecheck.go | 10 ++++++----
+ 5 files changed, 26 insertions(+), 16 deletions(-)

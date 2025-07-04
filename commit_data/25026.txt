@@ -1,31 +1,25 @@
-commit ecf388f3a4dda0ffb1b11f65d2f5d703e7e4133f
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 23 15:03:38 2015 -0500
+commit 001a75a74c4a27901b0b536efe1be581612c52a9
+Author: Shawn Walker-Salas <shawn.walker@oracle.com>
+Date:   Tue Aug 18 14:13:38 2015 -0700
 
-    runtime: take stack barrier lock during copystack
+    runtime/trace: fix tracing of blocking system calls
     
-    Commit bbd1a1c prevented SIGPROF from scanning stacks that were being
-    copied, but it didn't prevent a stack copy (specifically a stack
-    shrink) from happening while SIGPROF is scanning the stack. As a
-    result, a stack copy may adjust stack barriers while SIGPROF is in the
-    middle of scanning a stack, causing SIGPROF to panic when it detects
-    an inconsistent stack barrier.
+    The placement and invocation of traceGoSysCall when using
+    entersyscallblock() instead of entersyscall() differs enough that the
+    TestTraceSymbolize test can fail on some platforms.
     
-    Fix this by taking the stack barrier lock while adjusting the stack.
-    In addition to preventing SIGPROF from scanning this stack, this will
-    block until any in-progress SIGPROF is done scanning the stack.
+    This change moves the invocation of traceGoSysCall for entersyscall() so
+    that the same number of "frames to skip" are present in the trace as when
+    entersyscallblock() is used ensuring system call traces remain identical
+    regardless of internal implementation choices.
     
-    For 1.5.2.
+    Fixes golang/go#12056
     
-    Fixes #13362.
-    Updates #12932.
-    
-    Change-Id: I422219c363054410dfa56381f7b917e04690e5dd
-    Reviewed-on: https://go-review.googlesource.com/17191
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8361e91aa3708f5053f98263dfe9feb8c5d1d969
+    Reviewed-on: https://go-review.googlesource.com/13861
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/stack.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/proc1.go | 12 ++++++++----
+ src/runtime/trace.go |  2 +-
+ 2 files changed, 9 insertions(+), 5 deletions(-)

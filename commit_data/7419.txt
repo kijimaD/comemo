@@ -1,12 +1,15 @@
-commit 4438f502936b23078e904e0f5cdbb32c2daf10e8
+commit 334f52ac496fca26cdfd73b8bba35d41263783a8
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 9 15:09:08 2011 -0800
+Date:   Wed Feb 9 15:06:05 2011 -0800
 
-    buffer.go: minor optimization, expanded comment
+    godoc: optimizations: don't call Write for 0-length data
+    
+    - guard some calls to Write that frequently may have 0-length data
+    - fix an invariant
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4169043
+    https://golang.org/cl/4179041
 
- src/pkg/bytes/buffer.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/godoc/godoc.go | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

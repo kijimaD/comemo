@@ -1,16 +1,42 @@
-commit 2b7cfc515bae4c1d84265bef1feaea2f2f6896eb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 11 14:32:29 2018 -0700
+commit 4435fcfd6c3e9751b470809307b4afc7c1769098
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 6 11:32:28 2017 -0400
 
-    go/types: update internal (now incorrect) comment on deps field
+    compiler,linker: support for DWARF inlined instances
     
-    The file ordering.go referred to in the comment was removed
-    with commit dd44895. There's no duplicate use of the deps
-    field anymore.
+    Compiler and linker changes to support DWARF inlined instances,
+    see https://go.googlesource.com/proposal/+/HEAD/design/22080-dwarf-inlining.md
+    for design details.
     
-    Change-Id: Ia6490e9f0839d4f755e8063758819e29b3d3b248
-    Reviewed-on: https://go-review.googlesource.com/106459
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This functionality is gated via the cmd/compile option -gendwarfinl=N,
+    where N={0,1,2}, where a value of 0 disables dwarf inline generation,
+    a value of 1 turns on dwarf generation without tracking of formal/local
+    vars from inlined routines, and a value of 2 enables inlines with
+    variable tracking.
+    
+    Updates #22080
+    
+    Change-Id: I69309b3b815d9fed04aebddc0b8d33d0dbbfad6e
+    Reviewed-on: https://go-review.googlesource.com/75550
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/types/resolver.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go |   4 +-
+ src/cmd/asm/main.go                       |   2 +-
+ src/cmd/compile/internal/gc/dwinl.go      | 317 ++++++++++++++
+ src/cmd/compile/internal/gc/go.go         |   5 +
+ src/cmd/compile/internal/gc/gsubr.go      |   2 +-
+ src/cmd/compile/internal/gc/inl.go        |  68 +++
+ src/cmd/compile/internal/gc/main.go       |  20 +
+ src/cmd/compile/internal/gc/pgen.go       | 168 ++++++--
+ src/cmd/compile/internal/gc/syntax.go     |  30 +-
+ src/cmd/internal/dwarf/dwarf.go           | 671 ++++++++++++++++++++++++++++--
+ src/cmd/internal/obj/inl.go               |  14 +-
+ src/cmd/internal/obj/link.go              |  12 +-
+ src/cmd/internal/obj/objfile.go           | 359 +++++++++++++++-
+ src/cmd/internal/obj/plist.go             |   6 +-
+ src/cmd/link/internal/ld/dwarf.go         | 117 +++++-
+ src/cmd/link/internal/ld/dwarf_test.go    | 295 +++++++++++--
+ src/runtime/runtime-gdb_test.go           |   2 +-
+ 17 files changed, 1945 insertions(+), 147 deletions(-)

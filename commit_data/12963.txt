@@ -1,15 +1,20 @@
-commit 7f7a70f225b5f08b601ce3bef091887d79a34f06
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 25 12:01:01 2012 -0700
+commit 689d5b91631ccfaee9b85aa25a06df55769e299e
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Apr 26 00:08:02 2012 +1000
 
-    mime: make ParseMediaType return zero results on error
+    runtime: use __tfork() syscall on openbsd
     
-    Fixes #3562
+    Switch from using the rfork() syscall on OpenBSD, to the __tfork()
+    syscall.  The __tfork() syscall is the preferred way of creating
+    system threads and the rfork() syscall has recently been removed.
     
-    R=golang-dev, adg, rsc
+    Note: this will break compatibility with OpenBSD releases prior to 5.1.
+    
+    R=golang-dev, bradfitz, devon.odell, rsc
     CC=golang-dev
-    https://golang.org/cl/6119051
+    https://golang.org/cl/6037048
 
- src/pkg/mime/mediatype.go      |  2 +-
- src/pkg/mime/mediatype_test.go | 32 ++++++++++++++++++++++++++------
- 2 files changed, 27 insertions(+), 7 deletions(-)
+ src/pkg/runtime/sys_openbsd_386.s   | 47 +++++++++++++++++--------------------
+ src/pkg/runtime/sys_openbsd_amd64.s | 29 ++++++++++-------------
+ src/pkg/runtime/thread_openbsd.c    | 20 +++++++---------
+ 3 files changed, 42 insertions(+), 54 deletions(-)

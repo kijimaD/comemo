@@ -1,16 +1,19 @@
-commit 3de87bc4d92d58446d5072d416a29366b83135c1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 24 13:31:55 2016 -0700
+commit c7917de0bb9c280ffb4d80c8551f8b790c30259e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 19:05:45 2016 -0800
 
-    test: add test that required algs get generated
+    cmd/compile: simplify transformclosure
     
-    This is a follow-up to CLs 19769 and 19770.
+    Use idiomatic slicing operations instead of incrementally building a
+    linked list.
     
-    Change-Id: Ia9b71055613b80df4ce62b34fcc4f479f04f72fd
-    Reviewed-on: https://go-review.googlesource.com/22399
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: Idb0e40c7b4d7d1110d23828afa8ae1d157ba905f
+    Reviewed-on: https://go-review.googlesource.com/20556
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- test/alg.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 46 insertions(+)
+ src/cmd/compile/internal/gc/closure.go | 27 +++++++++++----------------
+ 1 file changed, 11 insertions(+), 16 deletions(-)

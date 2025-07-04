@@ -1,18 +1,20 @@
-commit e9081b3c76f21efb0538cce54f04cf1a9a8cdb31
-Author: sergey.arseev <sergey.arseev@intel.com>
-Date:   Mon Nov 2 14:53:31 2015 +0300
+commit 3a70bf9c0c7d6035788df0801129f44ea410aff5
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 17 16:54:15 2015 -0700
 
-    cmd/internal/obj/x86: add support for TSX instructions
+    [dev.ssa] cmd/compile: use function calls instead of special ops for panics
     
-    Transactional memory, will later be used for semaphore implementation.
-    Nacl not supported yet.
+    There's no need for special ops for panicindex and panicslice.
+    Just use regular runtime calls.
     
-    Change-Id: Ic18453dcaa08d07bb217c0b95461584f007d518b
-    Reviewed-on: https://go-review.googlesource.com/16479
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I71b9b73f4f1ebce1220fdc1e7b7f65cfcf4b7bae
+    Reviewed-on: https://go-review.googlesource.com/14726
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/asm/internal/arch/arch.go  |  2 +-
- src/cmd/internal/obj/x86/a.out.go  |  8 ++++++++
- src/cmd/internal/obj/x86/anames.go |  6 ++++++
- src/cmd/internal/obj/x86/asm6.go   | 31 ++++++++++++++++++++++++++++---
- 4 files changed, 43 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 26 ++++++---------------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 --
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 --
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  6 ++---
+ src/cmd/compile/internal/ssa/opGen.go          | 20 ----------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 32 --------------------------
+ 6 files changed, 9 insertions(+), 79 deletions(-)

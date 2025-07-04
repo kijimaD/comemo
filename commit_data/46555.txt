@@ -1,24 +1,22 @@
-commit 7a03ca65b303474c2ea610178105304eae1180df
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Sep 16 11:33:17 2021 -0700
+commit 1ce08541574f749947400a051bb40c8352743887
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jan 7 11:13:56 2021 -0500
 
-    internal/fuzz,cmd/compile: don't add race instrumentation to counters
+    [dev.typeparams] import stmt changes from dev.go2go
     
-    Don't add race detector instrumentation to the fuzzing counters,
-    allowing usage of -race without immediately triggering the
-    detector. Also fixes a minor race in contextReader.Read.
+    Import logic for typechecking statements involving generics from the
+    dev.go2go branch.  Notably, range type checking was simplified in
+    dev.go2go, resulting in the removal of the _InvalidChanRange error code.
     
-    Fixes #48307
-    
-    Change-Id: Idb2cfeaa4283f8a74473b4bac6cd68eed577e943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351453
-    Trust: Roland Shoemaker <roland@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: I84c2665226c2b9b74e85f7fb6df257b0a292e5d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282120
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
- src/cmd/compile/internal/walk/order.go       | 8 ++++++++
- src/internal/fuzz/worker.go                  | 8 +++++---
- 3 files changed, 14 insertions(+), 4 deletions(-)
+ src/go/types/errorcodes.go      |  12 ----
+ src/go/types/stmt.go            | 141 ++++++++++++++++++++++++++++------------
+ src/go/types/testdata/stmt0.src |   2 +-
+ 3 files changed, 100 insertions(+), 55 deletions(-)

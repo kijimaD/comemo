@@ -1,18 +1,13 @@
-commit 2e47b28ea165eb3aeb2db0eee173e930fb7f7bca
-Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
-Date:   Wed Oct 21 13:50:06 2015 -0400
+commit 0d91018082bb078f6c84388327375f40f231a8d4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 7 10:24:57 2015 -0700
 
-    androidtest.bash: correct the location of compiled packages
+    [dev.ssa] cmd/compile: add simplifying block rewrite rules
     
-    For android, gc builds with buildmode=pie by default, and
-    as a result, the compiled packages are not installed in
-    the usual pkg/$GOOS_$GOARCH pack. Copy the compiled packages
-    in pkg/android_$GOARCH_shared into the pkg/android_$GOARCH
-    in the test device.
-    
-    Change-Id: I909e4cc7095ac95ef63bdf6ddc4cb2c698f3459e
-    Reviewed-on: https://go-review.googlesource.com/16151
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ia946c259628f84dc7031171456563975d2ad5ea9
+    Reviewed-on: https://go-review.googlesource.com/13381
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/androidtest.bash | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  28 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 298 ++++++++++++++++++++++++---
+ 2 files changed, 284 insertions(+), 42 deletions(-)

@@ -1,17 +1,29 @@
-commit b8ca6e59eda969c1d3aed9b0c5bd9e99cf0e7dfe
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jul 30 11:04:36 2021 -0700
+commit ecff7628ead3b0191f5fe191864ee47fcc90bb92
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 21:20:45 2020 -0500
 
-    all: gofmt
+    [dev.regabi] cmd/compile: unexport Node.RawCopy
     
-    Change-Id: Icfafcfb62a389d9fd2e7a4d17809486ed91f15c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338629
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    RawCopy breaks the invariant that ir.Orig depends on for
+    allowing nodes to omit keeping their own orig fields.
+    Avoid surprises by unexporting it.
+    
+    The only use in package gc was removed in the previous CL.
+    This one is a straight global search and replace RawCopy -> rawCopy.
+    
+    Change-Id: Ia99c0f4665bf7ed4f878cc44456d5fbdf33bab8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274293
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/ed25519/internal/edwards25519/field/fe_amd64.go | 1 +
- src/runtime/export_debug_regabiargs_off_test.go            | 3 +--
- src/runtime/export_debug_regabiargs_on_test.go             | 3 +--
- 3 files changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ir/copy.go |  4 ++--
+ src/cmd/compile/internal/ir/expr.go | 46 ++++++++++++++++++-------------------
+ src/cmd/compile/internal/ir/func.go |  2 +-
+ src/cmd/compile/internal/ir/mini.go |  2 +-
+ src/cmd/compile/internal/ir/name.go |  4 ++--
+ src/cmd/compile/internal/ir/node.go |  2 +-
+ src/cmd/compile/internal/ir/stmt.go | 40 ++++++++++++++++----------------
+ src/cmd/compile/internal/ir/type.go | 16 ++++++-------
+ 8 files changed, 58 insertions(+), 58 deletions(-)

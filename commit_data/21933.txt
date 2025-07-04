@@ -1,12 +1,16 @@
-commit d07e3380b0f8a7c65eca9037d913b71301c517fb
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Mar 6 10:34:59 2015 +1100
+commit f59f9b85276b6f80b6e55ea747a5df64bb83ecce
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Feb 13 17:14:48 2015 +0300
 
-    os: do not leave /go_os_test/dir after test
+    runtime: fix stack corruption in race mode
     
-    Change-Id: Idb8e211bf33d2713735f9cdc868a3458ce799c97
-    Reviewed-on: https://go-review.googlesource.com/6913
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    MOVQ RARG0, 0(SP) smashes exactly what was saved by PUSHQ R15.
+    This code managed to work somehow with the current race runtime,
+    but corrupts caller arguments with new race runtime that I am testing.
+    
+    Change-Id: I9ffe8b5eee86451db36e99dbf4d11f320192e576
+    Reviewed-on: https://go-review.googlesource.com/4810
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/path_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/race_amd64.s | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,22 +1,20 @@
-commit 38a61ff41ff4b5a802d134ed9c35fc2459735504
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Mar 5 07:11:40 2015 +1100
+commit ed8cc5cf9bfa9ba6b3ec84ba10028aa0366e0c0c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 10 15:26:07 2015 +0300
 
-    cmd/internal/gc: make Node.Needzero a bool
+    runtime: fix race instrumentation of append
     
-    Node.Needzero only has two values and acts as a bool, so make it a bool.
+    typedslicecopy is another write barrier that is not
+    understood by racewalk. It seems quite complex to handle it
+    in the compiler, so instead just instrument it in runtime.
     
-    Change-Id: Ica46e5ebafbe478017ea52ce6bb335f404059677
-    Reviewed-on: https://go-review.googlesource.com/6800
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Update #9796
+    
+    Change-Id: I0eb6abf3a2cd2491a338fab5f7da22f01bf7e89b
+    Reviewed-on: https://go-review.googlesource.com/4370
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/5g/ggen.go           | 2 +-
- src/cmd/6g/ggen.go           | 2 +-
- src/cmd/8g/ggen.go           | 2 +-
- src/cmd/9g/ggen.go           | 2 +-
- src/cmd/internal/gc/go.go    | 2 +-
- src/cmd/internal/gc/pgen.go  | 4 ++--
- src/cmd/internal/gc/plive.go | 4 ++--
- 7 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/gc/racewalk.c                   |  1 +
+ src/runtime/mbarrier.go                 |  7 +++
+ src/runtime/race/testdata/slice_test.go | 95 +++++++++++++++++++++++++++++++++
+ 3 files changed, 103 insertions(+)

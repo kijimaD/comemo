@@ -1,18 +1,20 @@
-commit 6afdf01e5385183bea4ba2661bb4088b32626b3d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Oct 29 12:07:55 2021 -0400
+commit d822ffebc59d27190ac145a71c726dad35769225
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Wed Feb 24 21:08:52 2021 +0200
 
-    cmd/go: make assertions more precise in TestScript/gcflags_patterns
+    test: fix inline.go test for linux-amd64-noopt
     
-    This fixes a rare test flake observed in
-    https://build.golang.org/log/18e531785e7f8b3e6a6d5231787a9d8bdd4a60ea.
+    math.Float32bits was not being inlined across package boundaries.
+    Create a private func that can be inlined with -l.
     
-    Change-Id: I0986752f5c1abc626070b9f8ecf34c629a15cd2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359735
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic50bf4727dd8ade09d011eb204006b7ee88db34a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295989
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/gcflags_patterns.txt | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ test/inline.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

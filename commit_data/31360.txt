@@ -1,16 +1,18 @@
-commit af7da9a53bcc33d521c374ff32a260e92c42a569
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 25 17:44:40 2017 -0700
+commit 7aeb915d6b1f90657e67e4722d13624b7109b8d5
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 9 11:36:25 2017 -0500
 
-    cmd/compile: convert Node.Embedded into a flag
+    runtime: remove unused debug.wbshadow
     
-    Change-Id: I30c59ba84dcacc3de39c42f94484b47bb7c36eba
-    Reviewed-on: https://go-review.googlesource.com/41792
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    The wbshadow implementation was removed a year and a half ago in
+    1635ab7dfe, but the GODEBUG setting remained. Remove the GODEBUG
+    setting since it doesn't do anything.
+    
+    Change-Id: I19cde324a79472aff60acb5cc9f7d4aa86c0c0ed
+    Reviewed-on: https://go-review.googlesource.com/36618
+    Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go    | 10 +++++++---
- src/cmd/compile/internal/gc/fmt.go    |  4 ++--
- src/cmd/compile/internal/gc/syntax.go |  4 +++-
- 3 files changed, 12 insertions(+), 6 deletions(-)
+ src/runtime/runtime1.go | 2 --
+ 1 file changed, 2 deletions(-)

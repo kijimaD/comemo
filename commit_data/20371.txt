@@ -1,22 +1,34 @@
-commit 8ac35be145c407896a3c799dddb155c2a22c88ef
+commit cb767247caeaedd0ed438adba8e27c3334be783e
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 9 14:02:37 2014 -0400
+Date:   Thu Sep 4 00:01:55 2014 -0400
 
-    runtime: fix build failures after CL 137410043
+    runtime: refactor/fix asmcgocall/asmcgocall_errno
     
-    No promise about correctness, but they do build.
+    Instead of making asmcgocall call asmcgocall_errno,
+    make both load args into registers and call a shared
+    assembly function.
     
-    TBR=khr
+    On amd64, this costs 1 word in the asmcgocall_errno path
+    but saves 3 words in the asmcgocall path, and the latter
+    is what happens on critical nosplit paths on Windows.
+    
+    On arm, this fixes build failures: asmcgocall was writing
+    the arguments for asmcgocall_errno into the wrong
+    place on the stack. Passing them in registers avoids the
+    decision entirely.
+    
+    On 386, this isn't really needed, since the nosplit paths
+    have twice as many words to work with, but do it for consistency.
+    
+    Update #8635
+    Fixes arm build (except GOARM=5).
+    
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/143720043
+    https://golang.org/cl/134390043
 
- src/runtime/asm_386.s           |  2 +-
- src/runtime/asm_amd64p32.s      |  2 +-
- src/runtime/os_freebsd.c        |  4 ++--
- src/runtime/os_solaris.c        |  5 ++++-
- src/runtime/sys_plan9_386.s     |  2 +-
- src/runtime/sys_plan9_amd64.s   |  2 +-
- src/runtime/sys_solaris_amd64.s |  6 ++++--
- src/runtime/sys_windows_386.s   | 16 +++++++++++-----
- src/runtime/sys_windows_amd64.s | 16 +++++++++++-----
- 9 files changed, 36 insertions(+), 19 deletions(-)
+ misc/cgo/test/callback.go   |  9 +++++++--
+ src/pkg/runtime/asm_386.s   | 13 ++++++++-----
+ src/pkg/runtime/asm_amd64.s | 13 ++++++++-----
+ src/pkg/runtime/asm_arm.s   | 15 +++++++++------
+ 4 files changed, 32 insertions(+), 18 deletions(-)

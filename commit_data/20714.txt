@@ -1,15 +1,17 @@
-commit 05c4b69f848a2de7acc604285d18e995f646adfc
+commit fdb0cc6e7b68f6bf7726a69caa0e3947c0af141d
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 15 13:09:59 2014 -0400
+Date:   Thu Oct 2 14:26:04 2014 -0400
 
-    os/exec: document that Stdin goroutine must finish in Wait
+    [dev.garbage] runtime: remove another BitsMultiWord
     
-    Fixes #7990.
+    Not found because it was not used by name.
+    Add name in comments for what's left behind.
     
-    LGTM=iant, bradfitz
-    R=bradfitz, iant, robryk
+    LGTM=rlh
+    R=rlh
     CC=golang-codereviews
-    https://golang.org/cl/156220043
+    https://golang.org/cl/148430043
 
- src/os/exec/exec.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/gc/plive.c         | 19 ++++++-------------
+ src/runtime/gcinfo_test.go |  4 ++--
+ 2 files changed, 8 insertions(+), 15 deletions(-)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 48046: 9152e211328f735e7dadaf69780920d64af09a2a
+# Index 48046: 691e1b84c11d038060807f9c79107996ca2f19ae
 
 echo "🚀 Generating explanation for commit 48046..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 48046
-- **コミットハッシュ**: 9152e211328f735e7dadaf69780920d64af09a2a
-- **GitHub URL**: https://github.com/golang/go/commit/9152e211328f735e7dadaf69780920d64af09a2a
+- **コミットハッシュ**: 691e1b84c11d038060807f9c79107996ca2f19ae
+- **GitHub URL**: https://github.com/golang/go/commit/691e1b84c11d038060807f9c79107996ca2f19ae
 
 ### 章構成
 

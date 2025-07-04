@@ -1,26 +1,12 @@
-commit 09f1f5d76d648f9dcdc86ff814b7e463ecca93df
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 30 10:13:54 2012 -0400
+commit 67d8a2d4c14fe98cb4035869ce5e6daf883dfb14
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 30 15:36:56 2012 +1000
 
-    misc/dashboard/codereview: add LastUpdate field to CL
+    doc: remove mention of weekly tag from source install doc
     
-    To be filled in by a later CL. I deployed a test version to
-    App Engine to work on setting the values, so there are
-    a few records that have this field set already.
-    
-    That field is breaking the live version, so I have pushed
-    a new copy with this 1-line change to the live version
-    
-    I assumed that appengine/datastore was like every other
-    marshaling and unmarshaling package we have in Go
-    (for example, encoding/gob, encoding/json, encoding/xml,
-    and protobuf) and that if it loaded an unknown field it would
-    just ignore it. Apparently not. Sorry.
-    
-    R=dsymonds
-    TBR=dsymonds
+    R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6454064
+    https://golang.org/cl/6442062
 
- misc/dashboard/codereview/dashboard/cl.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/install-source.html | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

@@ -1,12 +1,21 @@
-commit 0ca5f269d4cb04cccd0012cc6fc0cb52b0002728
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 16:28:18 2016 -0700
+commit 9af83462c6f432b77a846a24b4d8efae9bdf0567
+Author: Tilman Dilo <tilman.dilo@gmail.com>
+Date:   Mon May 9 23:37:07 2016 +0200
 
-    cmd/compile: remove fmt.go printer again, now that it's unused
+    crypto/cipher: execute AES-GCM decryption example
     
-    Change-Id: I9a6e5b9cbcfc264c61fd39ed65330ca737707e1f
-    Reviewed-on: https://go-review.googlesource.com/28340
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    The decryption example for AES-GCM was not executed, hiding the fact
+    that the provided ciphertext could not be authenticated.
+    
+    This commit adds the required output comment, replaces the ciphertext
+    with a working example, and removes an unnecessary string conversion
+    along the way.
+    
+    Change-Id: Ie6729ca76cf4a56c48b33fb3b39872105faa604b
+    Reviewed-on: https://go-review.googlesource.com/22953
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 58 ++------------------------------------
- 1 file changed, 2 insertions(+), 56 deletions(-)
+ src/crypto/cipher/example_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

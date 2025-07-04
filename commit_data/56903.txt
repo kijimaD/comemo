@@ -1,17 +1,43 @@
-commit 9915b8705948f9118d7f4865d433d05a31ce0433
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Jul 11 11:31:46 2024 -0700
+commit 97a2ed74adbb389ce2e8da790dc3567e89e2af71
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 25 23:28:39 2023 -0400
 
-    bytes: more cross-references in docstrings
+    cmd/go: add detection of toolchain switch loops
     
-    Change-Id: Iea0243edcf8bf73ce325695178a3ea5cfe420d31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597775
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This happens mainly during testing because the virtual
+    toolchain switch is not terribly robust, and if you accidentally
+    try to exec "1.23" instead of "go1.23" it will let you, but it
+    won't work right.
+    
+    Of course, although we feel pretty good about the non-test
+    implementation, perhaps it has a toolchain switch loop lurking too,
+    or perhaps one will be introduced in the future.
+    
+    To handle the test bug, and just in case we have a real bug later,
+    add detection of toolchain switch loops with clear messages.
+    
+    Also fixes a bug in setting the -lang flag properly when invoking
+    the Go compiler: this is the first test using 'go 1.21.x' lines
+    during a build.
+    
+    For #57001.
+    
+    Change-Id: I0ece3dd718596689a23b677cf08ddf32ea97bc57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498436
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/bytes/buffer.go | 16 ++++++++--------
- src/bytes/bytes.go  |  8 ++++----
- src/bytes/reader.go |  4 ++--
- 3 files changed, 14 insertions(+), 14 deletions(-)
+ src/cmd/go/go_test.go                              |   7 +-
+ src/cmd/go/internal/gover/{latest.go => local.go}  |  26 +++-
+ src/cmd/go/internal/toolchain/exec.go              |   2 +-
+ src/cmd/go/internal/toolchain/toolchain.go         | 148 ++++++++++++++++-----
+ src/cmd/go/internal/work/exec.go                   |  13 +-
+ src/cmd/go/internal/work/gc.go                     |   3 +-
+ src/cmd/go/main.go                                 |   2 +-
+ src/cmd/go/testdata/script/gotoolchain_local.txt   |   2 +-
+ src/cmd/go/testdata/script/gotoolchain_loop.txt    |  65 +++++++++
+ .../go/testdata/script/mod_get_exec_toolchain.txt  |   2 +-
+ src/cmd/go/testdata/script/mod_toolchain.txt       |   2 +-
+ 11 files changed, 211 insertions(+), 61 deletions(-)

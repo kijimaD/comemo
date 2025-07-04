@@ -1,14 +1,17 @@
-commit b56e24782f81002fabe06bdf65a735ac7e2b6e1f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jul 8 17:02:48 2018 -0700
+commit 5a4e09837ca9bcd7ff4b3a772984cb5bbfb6ff3b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Mar 19 12:50:58 2018 +0100
 
-    runtime: scale timeout in TestStackGrowth
+    test/codegen: port maps test to codegen
     
-    Updates #19381
+    And delete them from asm_test.
     
-    Change-Id: I62b8b0cd7170941af77281eb3aada3802623ec27
-    Reviewed-on: https://go-review.googlesource.com/122587
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3cf0934706a640136cb0f646509174f8c1bf3363
+    Reviewed-on: https://go-review.googlesource.com/101395
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/runtime/stack_test.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go | 35 ------------------------------
+ test/codegen/maps.go                    | 38 +++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 35 deletions(-)

@@ -1,18 +1,29 @@
-commit b34b0aaf69349f060d3b03a06f520848964cb7eb
-Author: xiaodong liu <teaofmoli@gmail.com>
-Date:   Thu Nov 12 08:12:08 2020 +0000
+commit 027055240f55b5664b760c13ddcc938e023e2dfe
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 22 22:20:44 2020 -0400
 
-    cmd/go: skip TestScript/build_plugin_non_main on platforms that do not support -buildmode=plugin
+    [dev.link] cmd/link: check fingerprint for index consistency
     
-    Fixes #42474
+    Previous CL introduced index fingerprint in the object files.
+    This CL implements the second part: checking fingerprint
+    consistency in the linker when packages are loaded.
     
-    Change-Id: I1550b44b92cd272854e2f17493245a14e3d39f41
-    GitHub-Last-Rev: 948d01716eff41c25515dfb6135769862977aba1
-    GitHub-Pull-Request: golang/go#42475
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268737
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Change-Id: I05dd4c4045a65adfd95e77b625d6c75a7a70e4f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229618
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/testdata/script/build_plugin_non_main.txt | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/internal/goobj2/objfile.go              |  2 +
+ src/cmd/link/internal/ld/ld.go                  | 15 ++++---
+ src/cmd/link/internal/ld/lib.go                 | 30 ++++++++++---
+ src/cmd/link/internal/ld/link.go                |  6 +--
+ src/cmd/link/internal/ld/main.go                |  8 ++--
+ src/cmd/link/internal/loader/loader.go          | 11 +++--
+ src/cmd/link/internal/sym/library.go            | 25 ++++++-----
+ src/cmd/link/link_test.go                       | 58 +++++++++++++++++++++++++
+ src/cmd/link/testdata/testIndexMismatch/a.go    |  8 ++++
+ src/cmd/link/testdata/testIndexMismatch/b.go    |  8 ++++
+ src/cmd/link/testdata/testIndexMismatch/main.go |  9 ++++
+ 11 files changed, 147 insertions(+), 33 deletions(-)

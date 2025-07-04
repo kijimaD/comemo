@@ -1,26 +1,28 @@
-commit 64eed8ef1d7e9ce832f2d207c6c37484c36d80a6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 21 15:53:05 2024 -0800
+commit f43581131e96f0a4a7745250218ace6c4ea2e557
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Aug 17 03:58:10 2023 +0800
 
-    go/parser: refactor parameter parsing (cleanup)
+    cmd/compile, cmd/internal, runtime: change the registers used by the duff device for loong64
     
-    Refactor parser.parseParameters to only parse
-    ordinary parameters. Introduce a variant to
-    parse type parameters.
+    Add R21 to the allocatable registers, use R20 and R21 in duff
+    device. This CL is in preparation for subsequent regABI support.
     
-    In the two places where we need ordinary and type
-    parameters, call the function twice.
+    Updates #40724
     
-    Also, use a range loop in two places which is a
-    bit easier to read.
-    
-    Change-Id: I0a62e1c508d6ccd16b7cb6e1b852ab1d32224ec2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630816
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Commit-Queue: Robert Griesemer <gri@google.com>
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: If1661adc0f766925fbe74827a369797f95fa28a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521775
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go/parser/parser.go | 86 +++++++++++++++++++++++++++----------------------
- 1 file changed, 47 insertions(+), 39 deletions(-)
+ src/cmd/compile/internal/loong64/ssa.go         |    2 +-
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   44 +-
+ src/cmd/compile/internal/ssa/opGen.go           |  426 ++++----
+ src/cmd/internal/obj/loong64/a.out.go           |    8 +-
+ src/runtime/duff_loong64.s                      | 1280 +++++++++++------------
+ src/runtime/mkduff.go                           |   10 +-
+ 6 files changed, 885 insertions(+), 885 deletions(-)

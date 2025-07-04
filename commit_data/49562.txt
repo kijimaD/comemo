@@ -1,28 +1,30 @@
-commit 20760cff001e9acc05627dfeab42ea50b57920e6
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Jun 28 16:32:50 2022 -0400
+commit c81fa001a7b01be5ce9d2990e706f0ed2c1299e8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 27 17:14:00 2021 -0700
 
-    runtime: add race annotations to cbs.lock
+    cmd/compile/internal/types: simplify and optimize PtrDataSize
     
-    cbs.lock protects a map. The map implementation is race instrumented
-    regardless of which package is it called from.
+    The current implementation of PtrDataSize checks HasPointers each
+    call, which could lead to exponential blow-up in handling (admittedly
+    contrived) deeply nested structs.
     
-    lock/unlock are not automatically race instrumented, so we can trigger
-    race false positives without manually annotating our lock acquire and
-    release.
+    To avoid the duplicate recursion, this CL incorporates the HasPointers
+    logic directly int PtrDataSize, and then re-defines HasPointers as
+    simply "PtrDataSize(t) > 0".
     
-    compileCallback is used during initialization before the P is available,
-    at which point raceacquire will crash during a racecallback to get the
-    race proc. Thus we skip instrumentation until scheduler initialization
-    is complete.
+    This CL also tightens up HasPointers/PtrDataSize to only be valid on
+    actual Go types. Fortunately, there was only one instance where this
+    wasn't already the case (escape analysis), and that's easily fixed
+    with an extra check for untyped types.
     
-    Fixes #50249.
-    
-    Change-Id: Ie49227c9e9210ffbf0aee65f86f2b7b6a2f64638
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414518
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I0044bf9b558a88333aee2ccb137afb6cb4fea1db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345809
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/syscall_windows.go | 28 +++++++++++++++++++++++-----
- 1 file changed, 23 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/escape/expr.go |  2 +-
+ src/cmd/compile/internal/types/size.go  | 46 +++++++++++++++++++++------------
+ src/cmd/compile/internal/types/type.go  | 38 +--------------------------
+ 3 files changed, 32 insertions(+), 54 deletions(-)

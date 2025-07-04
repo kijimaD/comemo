@@ -1,16 +1,12 @@
-commit 0c2b980c49649635d502d9dd98f277f8480fbada
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Apr 20 02:44:16 2013 +0800
+commit 1f4055a0ec47c86ebc35bf6f937797b2f2f1c32e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 18 17:37:09 2013 -0700
 
-    cmd/ld: don't show cursym in gcc invocation failure message
-    before:
-    fmt.statictmp_0731:/usr/local/go/pkg/tool/linux_amd64/6l: running gcc failed: unsuccessful exit status 0x100
-    now:
-    /usr/local/go/pkg/tool/linux_amd64/6l: running gcc failed: unsuccessful exit status 0x100
+    doc/go1.1.html: document io.ErrNoProgress
     
-    R=golang-dev, iant, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8827045
+    https://golang.org/cl/8833050
 
- src/cmd/ld/lib.c | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go1.1.html | 2 ++
+ 1 file changed, 2 insertions(+)

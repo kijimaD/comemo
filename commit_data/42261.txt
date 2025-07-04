@@ -1,37 +1,33 @@
-commit 2d323f900df420a29de29cbab949eea08e3d1a61
-Author: Daniel Kumor <rdkumor@gmail.com>
-Date:   Tue Jan 7 02:16:40 2020 +0000
+commit 66dd20845675a70e75e8ef04ea14e85a6870b228
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 19 13:48:35 2019 -0500
 
-    net/http/httputil: handle escaped paths in SingleHostReverseProxy
+    cmd/go: consolidate TestInstalls into gopath_install script test
     
-    When forwarding a request, a SingleHostReverseProxy appends the
-    request's path to the target URL's path. However, if certain path
-    elements are encoded, (such as %2F for slash in either the request or
-    target path), simply joining the URL.Path elements is not sufficient,
-    since the field holds the decoded path.
+    TestInstalls was already mostly redundant with
+    TestInstallInto{GOPATH,GOBIN}, except for one additional check for the
+    install location of cmd/fix.
     
-    Since 87a605, the RawPath field was added which holds a decoding
-    hint for the URL. When joining URL paths, this decoding hint needs
-    to be taken into consideration.
+    We can't assume that GOROOT is writable in general, so we also can't
+    assume that the test will be able to reinstall cmd/fix at run time.
+    Moreover, other processes running in parallel may expect to invoke
+    cmd/fix themselves, so this test temporarily removing it could induce
+    systemwide flakes.
     
-    As an example, if the target URL.Path is /a/b, and URL.RawPath
-    is /a%2Fb, joining the path with /c should result in /a/b/c
-    in URL.Path, and /a%2Fb/c in RawPath.
+    We could carefully construct a parallel GOROOT and install cmd/fix
+    into it, but we can get *almost* as much coverage — at a much lower
+    cost — by checking the output of 'go list' instead of actually
+    rebuilding and reinstalling the binary.
     
-    The added joinURLPath function combines the two URL's Paths,
-    while taking into account escaping, and replaces the previously used
-    singleJoiningSlash in NewSingleHostReverseProxy.
+    Updates #28387
+    Updates #30316
     
-    Fixes #35908
-    
-    Change-Id: I45886aee548431fe4031883ab1629a41e35f1727
-    GitHub-Last-Rev: 7be6b8d421c63928639f499b984a821585992c2b
-    GitHub-Pull-Request: golang/go#36378
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213257
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id49f44a68b0c52dfabb84c665f63c4e7db58dd49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207965
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/http/httputil/reverseproxy.go      | 23 ++++++++++++++++++++++-
- src/net/http/httputil/reverseproxy_test.go | 29 ++++++++++++++++++++++++++++-
- 2 files changed, 50 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go                         | 42 ---------------------------
+ src/cmd/go/testdata/script/gopath_install.txt | 11 +++++++
+ 2 files changed, 11 insertions(+), 42 deletions(-)

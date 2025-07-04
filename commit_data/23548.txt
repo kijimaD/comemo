@@ -1,44 +1,14 @@
-commit 840965f8d7ccad5ac1782e208865e8120f5c080a
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 24 17:13:24 2015 -0400
+commit 22e4b8167f14bdd33738cfdc21c3396b2341f8fd
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat May 23 00:46:10 2015 +0200
 
-    runtime: always clear stack barriers on G exit
+    misc/cgo/test: fix build for CC=clang
     
-    Currently the runtime fails to clear a G's stack barriers in gfput if
-    the G's stack allocation is _FixedStack bytes. This causes the runtime
-    to panic if the following sequence of events happens:
+    Fix build error when CL=clang introduced by CL 10173.
     
-    1) The runtime installs stack barriers on a G.
-    
-    2) The G exits by calling runtime.Goexit. Since this does not
-       necessarily return through the stack barriers installed on the G,
-       there may still be untriggered stack barriers left on the G's stack
-       in recorded in g.stkbar.
-    
-    3) The runtime calls gfput to add the exiting G to the free pool. If
-       the G's stack allocation is _FixedStack bytes, we fail to clear
-       g.stkbar.
-    
-    4) A new G starts and allocates the G that was just added to the free
-       pool.
-    
-    5) The new G begins to execute and overwrites the stack slots that had
-       stack barriers in them.
-    
-    6) The garbage collector enters mark termination, attempts to remove
-       stack barriers from the new G, and finds that they've been
-       overwritten.
-    
-    Fix this by clearing the stack barriers in gfput in the case where it
-    reuses the stack.
-    
-    Fixes #11256.
-    
-    Change-Id: I377c44258900e6bcc2d4b3451845814a8eeb2bcf
-    Reviewed-on: https://go-review.googlesource.com/11461
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I8edf210787a9803280c0779ff710c7e634a820d6
+    Reviewed-on: https://go-review.googlesource.com/10341
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc1.go         |  4 ++++
- test/fixedbugs/issue11256.go | 53 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+)
+ misc/cgo/test/sigprocmask_linux.c | 1 +
+ 1 file changed, 1 insertion(+)

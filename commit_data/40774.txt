@@ -1,16 +1,16 @@
-commit 00e14afa0d7afdd710ef16080f0fdcbc4abd951a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Nov 12 11:24:17 2019 -0800
+commit 67f181bfd84dfd5942fe9a29d8a20c9ce5eb2fea
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Thu Jun 27 22:19:15 2019 +0100
 
-    test: add another test case for #35518
+    doc: fix spec links in Go 1.13 release notes
     
-    Updates #35518.
+    When reading tip.golang.org/doc/go1.13.html, the spec links in
+    the "Changes to the language" section should point to the updated
+    spec, not the old one.
     
-    Change-Id: Icd052c8c68aae32696b5831a29e04cc4cb224b06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206820
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6b13ca0b4c722ed52b84a12a680bece876a4e478
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184118
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/issue35518.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ doc/go1.13.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

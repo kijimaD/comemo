@@ -1,16 +1,17 @@
-commit 496cf215cf7f36c2b1b14c00aadccf3e16f67eae
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 27 14:25:16 2016 -0400
+commit 6a0bb87bd0bf0fdf8ddbd35f77a75ebd412f61b0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 2 00:20:13 2016 +0000
 
-    crypto/tls: gofmt
+    syscall: point to x/sys in DLL loading docs, update syscall generator
     
-    Commit fa3543e introduced formatting errors.
+    Updates the syscall generator for patchset 4 of https://golang.org/cl/21388.
     
-    Change-Id: I4b921f391a9b463cefca4318ad63b70ae6ce6865
-    Reviewed-on: https://go-review.googlesource.com/23514
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Updates #14959
+    
+    Change-Id: Icbd6df489887d3dcc076dfc73d4feb1376abaf8b
+    Reviewed-on: https://go-review.googlesource.com/21428
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/crypto/tls/conn.go     | 10 +++++-----
- src/crypto/tls/tls_test.go |  7 +++----
- 2 files changed, 8 insertions(+), 9 deletions(-)
+ src/syscall/dll_windows.go       | 13 +++++++++++++
+ src/syscall/mksyscall_windows.go |  4 ++--
+ 2 files changed, 15 insertions(+), 2 deletions(-)

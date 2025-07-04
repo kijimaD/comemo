@@ -1,19 +1,25 @@
-commit 63e29ad1f7b9b5a7f5d10b3c1beaf39a2e09e195
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 11 11:28:50 2017 -0800
+commit a696277243fdb8049de8e1b10ce6144a69b12c61
+Author: Tyler Bui-Palsulich <tpalsulich@google.com>
+Date:   Wed Sep 13 08:09:21 2017 -0700
 
-    cmd/go: don't pass -test.testlogfile on NaCl
+    container/heap: call t.Helper() in verify()
     
-    It causes every test to fail as the log file is on the local file system,
-    not the NaCl file system.
+    I modified verify() to fail every time to test the change. Before adding
+    t.Helper() (line 37 is in verify()):
+    /.../go/src/container/heap/heap_test.go:37: forced failure
+    FAIL
     
-    Updates #22593
+    Afer adding t.Helper() (line 67 is where verify() is called):
+    /.../go/src/container/heap/heap_test.go:67: forced failure
+    FAIL
     
-    Change-Id: Iee3d8307317bd792c9c701baa962ebbbfa34c147
-    Reviewed-on: https://go-review.googlesource.com/83256
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #21863
+    
+    Change-Id: I46f0c8ec413cc664358c568fc53e48bb4a1d03d0
+    Reviewed-on: https://go-review.googlesource.com/63570
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/test/test.go            | 2 +-
- src/cmd/go/testdata/src/testcache/script.sh | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/container/heap/heap_test.go | 1 +
+ 1 file changed, 1 insertion(+)

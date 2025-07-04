@@ -1,19 +1,16 @@
-commit cd03fd05b55b3b22d31a56a9df388c72a96e62c2
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Aug 29 15:11:55 2019 -0400
+commit 991c85a750574a608daf70330e26070f8cd97bb4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Dec 16 03:14:40 2018 +1100
 
-    runtime: remove unnecessary variable decls in asm.s
+    cmd/dist: sort gohostos switch entries
     
-    runtime/asm.s contains two variable declarations that don't seem
-    needed. The variables are defined in Go and not referenced in
-    assembly. They were added in 2014 during the C to Go transition.
-    Maybe they were useful at that time, but not now. Remove them.
+    Sort gohostos switch entries for readability/maintainability.
     
-    Change-Id: Id00d724813d18db47126c2f2b8cacfc9d77ffd4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192378
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I565b0aee33e8463502faa68eaceea6f7dccca66b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/154379
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/runtime/asm.s | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/dist/main.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

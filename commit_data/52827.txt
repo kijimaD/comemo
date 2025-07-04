@@ -1,15 +1,19 @@
-commit 8f763b55a58855b88f0afe28f21e3870fff42ee8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Apr 25 11:31:49 2023 -0400
+commit 6c33f1d52efd4f70fb8cdb1c3b4ea1c8c579af2a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 3 12:38:39 2022 -0700
 
-    misc/android: copy entire modules in module mode
+    [dev.unified] cmd/compile/internal/noder: rename exprName to exprGlobal
     
-    Change-Id: I8a8aea4d4b9824b53f17bff160055c0d9d2960ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/488655
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    More descriptive.
+    
+    Change-Id: I70a07adbe1d395da797fe15b54d2a1106f5f36a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410098
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- misc/go_android_exec/main.go | 81 +++++++++++++++++++++++++++++---------------
- 1 file changed, 53 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/noder/codes.go  | 6 +++---
+ src/cmd/compile/internal/noder/reader.go | 2 +-
+ src/cmd/compile/internal/noder/writer.go | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

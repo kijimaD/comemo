@@ -1,16 +1,13 @@
-commit c8871933829653ede561841f3ed44c9cd2643eed
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Mar 5 14:57:17 2014 -0500
+commit 58980821c7f8f5412da418365b717eeef4078846
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Wed Mar 5 14:49:33 2014 -0500
 
-    cmd/dist: support building pkg/runtime/*.
-    Essentialy for running tests without a working cmd/go.
-    While we're at it, also fix a typo.
+    encoding/xml: add test for EncodeToken
     
     LGTM=rsc
-    R=golang-codereviews, rsc
+    R=golang-codereviews, josharian, dave, iant, bradfitz, rsc
     CC=golang-codereviews
-    https://golang.org/cl/70640043
+    https://golang.org/cl/47870043
 
- src/cmd/dist/build.c        | 3 ++-
- src/cmd/dist/buildruntime.c | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/encoding/xml/marshal_test.go | 40 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

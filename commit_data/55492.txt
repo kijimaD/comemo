@@ -1,26 +1,17 @@
-commit a5fb65601e7e51f702fc1b3ea9e956f217449b55
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 30 17:16:12 2024 -0800
+commit 117d5588bde2d1f1f830c3d763bf4f8e999a12c1
+Author: David Chase <drchase@google.com>
+Date:   Fri Feb 10 15:01:40 2023 -0500
 
-    go/token: correct out-of-bounds token offsets and positions
+    vendor: add new vendored files from update
     
-    Per the discussion on the issue, make methods that depend on
-    incoming offsets or positions tolerant in the presence of
-    out-of-bounds values by adjusting the values as needed.
+    fixes failing cmd/internal/moddeps TestAllDependencies
     
-    Add an internal flag debug that can be set to enable the old
-    (not fault-tolerant) behavior.
-    
-    Fixes #57490.
-    
-    Change-Id: I8a7d422b9fd1d6f0980fd4e64da2f0489056d71e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559436
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I70e081469f1aa3b795a5bd28adeb61b31d7f34fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/go/parser/parser_test.go  | 21 ++++++++++++++
- src/go/token/position.go      | 67 ++++++++++++++++++++++++++++++++-----------
- src/go/token/position_test.go | 59 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 130 insertions(+), 17 deletions(-)
+ src/vendor/golang.org/x/sys/cpu/endian_big.go    | 11 +++++++++++
+ src/vendor/golang.org/x/sys/cpu/endian_little.go | 11 +++++++++++
+ 2 files changed, 22 insertions(+)

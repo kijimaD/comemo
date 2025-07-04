@@ -1,16 +1,25 @@
-commit bff4b0edcbb6dee476f6f80b3c2e8b634a6aca4d
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Jun 8 09:35:19 2023 -0400
+commit 17211c355f015862b635f8cbd48ffc65a1081b92
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 18:23:04 2022 -0700
 
-    doc/go1.21: more crypto release notes
+    go/types, types2: consolidate testdata/spec test files
     
-    Change-Id: I06981e13b89b3bde8f0d2fc9993240a372fb0457
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501815
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Besides applying gofmt (which doesn't damage the tests in this case),
+    this removes a TODO for a set of nil-related tests.
+    
+    The test files are now identical.
+    
+    For #54511.
+    
+    Change-Id: I0a286ad607f317f43972c1f5ee741b4f5bc9576d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424675
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- doc/go1.21.html | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ .../internal/types2/testdata/spec/assignability.go |  14 +-
+ .../internal/types2/testdata/spec/conversions.go   | 144 +++++++++++++--------
+ src/go/types/testdata/spec/assignability.go        |  16 +--
+ src/go/types/testdata/spec/conversions.go          | 144 +++++++++++++--------
+ 4 files changed, 190 insertions(+), 128 deletions(-)

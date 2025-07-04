@@ -1,34 +1,13 @@
-commit 55bd193575152ea09db3a0bd33f9dda49725d8f4
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jan 26 15:12:00 2023 -0500
+commit b2643c673970676065e4683bbbaa087db694bbc9
+Author: Romanos Skiadas <rom.skiad@gmail.com>
+Date:   Wed Mar 23 13:47:08 2022 +0200
 
-    cmd/internal/obj: flag init functions in object file
+    runtime: update framepointer_enabled doc
     
-    Introduce a flag in the object file indicating whether a given
-    function corresponds to a compiler-generated (not user-written) init
-    function, such as "os.init" or "syscall.init". Add code to the
-    compiler to fill in the correct value for the flag, and add support to
-    the loader package in the linker for testing the flag. The new loader
-    API is currently unused, but will be needed in the next CL in this
-    stack.
-    
-    Updates #2559.
-    Updates #36021.
-    Updates #14840.
-    
-    Change-Id: Iea7ad2adda487e4af7a44f062f9817977c53b394
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463855
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I69e64ebf8c11145ce32aa4c11178e3a47d22fb84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394915
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ir/abi.go       | 3 +++
- src/cmd/compile/internal/ir/func.go      | 3 +++
- src/cmd/compile/internal/pkginit/init.go | 1 +
- src/cmd/internal/goobj/objfile.go        | 2 ++
- src/cmd/internal/obj/link.go             | 5 +++++
- src/cmd/internal/obj/objfile.go          | 3 +++
- src/cmd/internal/obj/plist.go            | 1 +
- src/cmd/internal/obj/textflag.go         | 3 +++
- src/cmd/link/internal/loader/loader.go   | 9 +++++++++
- 9 files changed, 30 insertions(+)
+ src/runtime/runtime2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

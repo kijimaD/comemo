@@ -1,30 +1,20 @@
-commit a106defddac515db4d70e1cad162b88dd026deee
-Author: Benjamin Prosnitz <bprosnitz@gmail.com>
-Date:   Fri Jan 13 11:54:35 2023 -0500
+commit 6e49c592de91fd7ea7d47aa50360a1c4f49172f8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 14 17:20:48 2022 -0800
 
-    hex: fix panic in Decode when len(src) > 2*len(dst)
+    go/types: return Universe for (*Package)(nil).Scope()
     
-    hex.Decode never checks the length of dst and triggers a panic
-    if there are insufficient bytes in the slice.
+    Port of go.dev/cl/325469.
     
-    There isn't document on what the behavior *should* be in this case.
-    Two possibilities:
-    1. Error dst has insufficient space (as done in this change)
-    2. Reduce the length of the decode to min(dst, src)
+    Fixes #46594.
     
-    Option 1 was chosen because it seems the least surprising or
-    subtle.
-    
-    Change-Id: I3bf029e3d928202de716830434285e3c165f26dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461958
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I4bcdafecaa86885360599c204678871646bb221b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385997
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Benjamin Prosnitz <bprosnitz@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/encoding/hex/hex.go      | 3 +++
- src/encoding/hex/hex_test.go | 9 +++++++++
- 2 files changed, 12 insertions(+)
+ src/go/types/package.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,32 +1,19 @@
-commit 7f32d41e5dc3885f440244e0e181832879426b45
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 12 09:43:28 2017 -0400
+commit 457ac38e7a4066d27a64845c2569fad2b4d7bc8a
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Feb 1 14:40:58 2017 -0500
 
-    runtime: expand inlining iteratively in CallersFrames
+    cmd/compile: fix generic.rules
     
-    Currently CallersFrames expands each PC to a slice of Frames and then
-    iteratively returns those Frames. However, this makes it very
-    difficult to avoid heap allocation: either the Frames slice will be
-    heap allocated, or, if it uses internal scratch space for small slices
-    (as it currently does), the Frames object itself has to be heap
-    allocated.
+    generic.rules wasn't updated when rewritegeneric.go was. This commit
+    updates it so that the rewritegeneric.go file can be regenerated.
     
-    Fix this, at least in the common case, by expanding each PC
-    iteratively. We introduce a new pcExpander type that's responsible for
-    expanding a single PC. This maintains state from one Frame to the next
-    in the same PC. Frames then becomes a wrapper around this responsible
-    for feeding it the next PC when the pcExpander runs out of frames for
-    the current PC.
+    Fixes #18885.
     
-    This makes it possible to stack-allocate a Frames object, which will
-    make it possible to use this API for PC expansion from within the
-    runtime itself.
-    
-    Change-Id: I993463945ab574557cf1d6bedbe79ce7e9cbbdcd
-    Reviewed-on: https://go-review.googlesource.com/40434
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ie7dab653ca0a9ea1c255fd12e311a0d9e66afdd2
+    Reviewed-on: https://go-review.googlesource.com/36032
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Lazar <lazard@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/symtab.go | 241 +++++++++++++++++++++++++++++++-------------------
- 1 file changed, 149 insertions(+), 92 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

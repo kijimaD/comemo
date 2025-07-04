@@ -1,18 +1,17 @@
-commit a3374fa0f8ffe27d3a1e118b75b484ce56c7af2e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 26 13:02:32 2020 -0700
+commit b1159bad99db43e3f1b114e16c913d0e28387160
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 11 11:08:20 2019 -0500
 
-    cmd/compile: convert more generic rules to typed aux
+    cmd/dist: write binaries to to GOTMPDIR instead of GOROOT in runHostTest
     
-    Passes toolstash-check.
+    Updates #32407
+    Updates #28387
     
-    Change-Id: I07d79d809babfeda883a49f0b21ab27ede5381cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230211
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I2ab933896940787b67ab5464c8213670e6e108c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206459
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  64 +++---
- src/cmd/compile/internal/ssa/magic.go          |   7 +
- src/cmd/compile/internal/ssa/rewritegeneric.go | 274 ++++++++++++-------------
- 3 files changed, 176 insertions(+), 169 deletions(-)
+ src/cmd/dist/test.go | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)

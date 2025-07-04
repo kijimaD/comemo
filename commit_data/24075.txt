@@ -1,27 +1,19 @@
-commit 686d44d9e0c4e43716f8dd51ffaf81b8754f3620
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Aug 25 13:12:32 2015 +1000
+commit d465f049cd364c3e445fe189ae0fac0dffda2a67
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jul 4 13:01:04 2015 -0700
 
-    runtime: check pointer equality in arm64 cmpbody
+    [dev.ssa] cmd/compile/ssa: stop compilation immediately on leading goto
     
-    Updates #11336
+    There is clearly work to do to fix labels and gotos.
+    The compiler currently hangs on ken/label.go.
     
-    Follow the lead of amd64 by doing a pointer equality check
-    before comparing string/byte contents on arm64.
+    For the moment, stop the bleeding.
     
-    BenchmarkCompareBytesEqual-8               25.8           26.3           +1.94%
-    BenchmarkCompareBytesToNil-8               9.59           9.59           +0.00%
-    BenchmarkCompareBytesEmpty-8               9.59           9.17           -4.38%
-    BenchmarkCompareBytesIdentical-8           26.3           9.17           -65.13%
-    BenchmarkCompareBytesSameLength-8          16.3           16.3           +0.00%
-    BenchmarkCompareBytesDifferentLength-8     16.3           16.3           +0.00%
-    BenchmarkCompareBytesBigUnaligned-8        1132038        1131409        -0.06%
-    BenchmarkCompareBytesBig-8                 1126758        1128470        +0.15%
-    BenchmarkCompareBytesBigIdentical-8        1084366        9.17           -100.00%
+    Fixes the build.
     
-    Change-Id: Id7125c31957eff1ddb78897d4511bd50e79af3f7
-    Reviewed-on: https://go-review.googlesource.com/13885
+    Change-Id: Ib68360d583cf53e1a8ca4acff50644b570382728
+    Reviewed-on: https://go-review.googlesource.com/11877
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/asm_arm64.s | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 1 +
+ 1 file changed, 1 insertion(+)

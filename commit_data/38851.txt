@@ -1,17 +1,24 @@
-commit 415da714fa2b7e96743e14fe0a33f02ae8c8dd5b
-Author: Benoit Sigoure <tsunanet@gmail.com>
-Date:   Mon Apr 22 14:35:01 2019 -0700
+commit 1adbb2bb9b256907eaf3f012d7f818765e6e2a2b
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Mon Dec 3 04:44:48 2018 +0000
 
-    net/http: document that Basic Auth may require URL encoding
+    net/http: add StatusTooEarly (425)
     
-    Explicitly warn callers that no URL encoding is performed and
-    that they might need to do it.
+    StatusTooEarly can be returned to indicate that a server is unwilling
+    to accept early data as introduced in TLS 1.3.
+    The status code was specified in RFC 8470, section 5.2.
     
-    Fixes #31577
+    Major supported browsers are:
+    - Firefox as of version 58
+      https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/425#Browser_compatibility
+    - Chromium as of version 73.0.3628.1
+      https://chromium.googlesource.com/chromium/src/+/58097ec3823e0f340ab5abfcaec1306e1d954c5a
     
-    Change-Id: I52dc3fd2798ba8c3652d4a967b1c5c48eb69f43b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173319
+    Change-Id: I3f62f4193bae198994d08fde7e92e0ccd080e59a
+    GitHub-Last-Rev: fa885040eaf80e0e33b571567108d8a9ded67801
+    GitHub-Pull-Request: golang/go#29073
+    Reviewed-on: https://go-review.googlesource.com/c/152118
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/request.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/net/http/status.go | 2 ++
+ 1 file changed, 2 insertions(+)

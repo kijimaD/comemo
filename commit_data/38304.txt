@@ -1,16 +1,21 @@
-commit 6c6a0a1f2a30b78f8584e4aeff48b7c1bcc6dc6b
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 8 13:48:00 2019 +1100
+commit 8ccafb1ac732ab7994acb3c40786a0b943974554
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 11 12:03:44 2017 -0800
 
-    encoding/gob: update documentation in doc.go for wireType
+    test: add fixedbugs/bug506 for gccgo
     
-    It was just out of date.
+    Building with gccgo failed with an undefined symbol error from an
+    unnecessary hash function.
     
-    Fixes #30656
+    Updates #19773
     
-    Change-Id: I1fab7dd93091865a8240769eca5dd19cdbc78b81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166177
+    Change-Id: Ic78bf1b086ff5ee26d464089c0e14987d3fe8b02
+    Reviewed-on: https://go-review.googlesource.com/c/130956
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/gob/doc.go | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ test/fixedbugs/bug506.dir/a.go    | 16 ++++++++++++++++
+ test/fixedbugs/bug506.dir/main.go | 20 ++++++++++++++++++++
+ test/fixedbugs/bug506.go          | 10 ++++++++++
+ 3 files changed, 46 insertions(+)

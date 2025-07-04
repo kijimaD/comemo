@@ -1,35 +1,29 @@
-commit 548d0805f738c5f4d5bb7e72334b80c2acff059d
+commit fe91006a02b4892d95d1625889632aa4e0fe2b58
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 1 18:51:12 2014 -0400
+Date:   Wed Aug 27 14:08:26 2014 -0400
 
-    runtime: convert mprof.goc to mprof.go
+    runtime: give nosplit functions 32 more bytes of headroom
     
-    The exported Go definitions appearing in mprof.go are
-    copied verbatim from debug.go.
+    The Go calling convention uses more stack space than C.
+    On 64-bit systems we've been right up against the limit
+    (128 bytes, so only 16 words) and doing awful things to
+    our source code to work around it. Instead of continuing
+    to do awful things, raise the limit to 160 bytes.
+    I am prepared to raise the limit to 192 bytes if necessary,
+    but I think this will be enough.
     
-    The unexported Go funcs and types are new.
-    The C Bucket type used a union and was not a line-for-line translation.
+    Should fix current link-time stack overflow errors on
+            - nacl/arm
+            - netbsd/amd64
+            - openbsd/amd64
+            - solaris/amd64
+            - windows/amd64
     
-    LGTM=remyoudompheng
-    R=golang-codereviews, remyoudompheng
-    CC=dvyukov, golang-codereviews, iant, khr, r
-    https://golang.org/cl/137040043
+    TBR=r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/131450043
 
- src/cmd/api/goapi.go        |   2 +-
- src/cmd/dist/buildruntime.c |   3 +-
- src/pkg/runtime/chan.goc    |   1 +
- src/pkg/runtime/debug.go    |  83 ------
- src/pkg/runtime/defs.c      |   1 -
- src/pkg/runtime/extern.go   |   6 +
- src/pkg/runtime/heapdump.c  |   6 +-
- src/pkg/runtime/malloc.go   |   5 +-
- src/pkg/runtime/malloc.h    |   8 +-
- src/pkg/runtime/mgc0.c      |   2 +-
- src/pkg/runtime/mheap.c     |   2 +-
- src/pkg/runtime/mprof.go    | 666 +++++++++++++++++++++++++-------------------
- src/pkg/runtime/mprof.goc   | 347 -----------------------
- src/pkg/runtime/mprof.h     |  56 ----
- src/pkg/runtime/proc.c      |   4 +
- src/pkg/runtime/runtime.h   |   2 +-
- src/pkg/runtime/stubs.go    |   4 -
- 17 files changed, 412 insertions(+), 786 deletions(-)
+ src/pkg/runtime/stack.h       |  2 +-
+ src/pkg/runtime/stack_test.go |  3 ++-
+ test/nosplit.go               | 10 +++++++++-
+ 3 files changed, 12 insertions(+), 3 deletions(-)

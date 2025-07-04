@@ -1,24 +1,18 @@
-commit 76b8e80fab89e11c61e86a49ec65589b3cd06c91
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Wed Aug 2 13:47:16 2023 +0000
+commit 1207ee896c193fbd629f9d9bf746f69a60e15b96
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:07:22 2022 +0800
 
-    cmd/go: missing name in failed command error
+    cmd/doc: use strings.Builder
     
-    Fixed the error reporting for an unknown command to
-    preserve the name when displaying the error message.
-    
-    Fixes #61604
-    
-    Change-Id: I13defb84e61265ab48ab514e9d4f1626a4a3f758
-    GitHub-Last-Rev: 5d2889c60ceb3f43bb63b6641ecbcca08b7cd365
-    GitHub-Pull-Request: golang/go#61607
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513555
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ib33d1f1c2e9aed0cb9e00bd699c4ae4a2df5dfca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428288
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Rob Pike <r@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/main.go                       | 6 +++++-
- src/cmd/go/testdata/script/go_badcmd.txt | 2 ++
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/doc/doc_test.go | 4 ++--
+ src/cmd/doc/pkg.go      | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

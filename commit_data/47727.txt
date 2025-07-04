@@ -1,46 +1,20 @@
-commit 2ebe081288377fa4e9f71b1dab8557a042a9a670
-Author: Katie Hockman <katie@golang.org>
-Date:   Wed Dec 1 11:25:16 2021 -0500
+commit 2123dfba651e3522ed039d1b38fde91ededf47a3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 8 05:48:34 2021 +0000
 
-    internal/fuzz: handle unrecoverable errors during minimization
+    Revert "cmd/compile/internal/noder: limit the number of goroutine"
     
-    Previously, if an unrecoverable error occurred during
-    minimization, then the input that caused the failure
-    could not be retrieved by the coordinator. This was fine
-    if minimizing a crash, since the coordinator could simply
-    report the original error, and ignore the new one.
-    However, if an error occurred while minimizing an
-    interesting input, then we may lose an important error
-    that would be better to report.
+    This reverts commit c274a7c03be7b69d54d3307b954f6a0eb298c860.
     
-    This changes is a pretty major refactor of the minimization
-    logic in order to support this. It removes minimization
-    support of all types except []byte and string. There isn't
-    compelling evidence that minimizing types like int or float64
-    are actually beneficial, so removing this seems fine.
+    Reason for revert: this can cause a compiler deadlock, and there's
+    no demonstrable benefit to making the change.
     
-    With this change, the coordinator requests that the worker
-    minimize a single value at a time. The worker updates shared
-    memory directly during minimzation, writing the *unmarshaled*
-    bytes to the shared memory region. If a nonrecoverable error occurs
-    during minimization, then the coordinator can get the
-    unmarshaled value out of shared memory for that type being
-    minimized.
-    
-    Fixes #48731
-    
-    Change-Id: I4d1d449c411129b3c83b148e666bc70f09e95828
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367848
-    Trust: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I42325ddea68d37db16fd0061c5baaee112b755b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308369
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- .../script/test_fuzz_minimize_interesting.txt      |  40 +++-
- src/internal/fuzz/mem.go                           |   8 +-
- src/internal/fuzz/minimize.go                      |  44 +---
- src/internal/fuzz/minimize_test.go                 | 156 +------------
- src/internal/fuzz/worker.go                        | 252 ++++++++++-----------
- src/internal/fuzz/worker_test.go                   |  48 ++++
- 6 files changed, 215 insertions(+), 333 deletions(-)
+ src/cmd/compile/internal/noder/noder.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

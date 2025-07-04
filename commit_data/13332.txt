@@ -1,12 +1,15 @@
-commit 008c62b2cd728db744dcef53f1226cb1e43ba617
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 12 09:36:35 2012 -0700
+commit 2a0fdf6ea05dc31526e95990aadc2b327933cce1
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 11 17:52:09 2012 -0400
 
-    math/big: optimize common case of Int.Bit(0)
+    fmt.Fscanf: don't read past newline
+    Makes interactive uses work line-by-line.
+    Fixes #3481.
     
-    R=golang-dev, dsymonds, rsc
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/6306069
+    https://golang.org/cl/6297075
 
- src/pkg/math/big/int.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/pkg/fmt/scan.go      |  3 ++-
+ src/pkg/fmt/scan_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

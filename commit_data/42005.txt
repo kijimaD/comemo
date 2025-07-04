@@ -1,20 +1,18 @@
-commit 7711bad100df2cbf744b14dfb587d605738e3de4
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Apr 20 10:55:02 2020 +0700
+commit 9cf6c65ca302ef5300ec970640dfa446d45ac0b8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 31 16:11:20 2019 -0400
 
-    cmd/compile: remove nil check for p in isReflectPkg
+    [dev.link] cmd: default to old object file format
     
-    CL 228859 refactored detecting reflect package logic in to isReflectPkg
-    function. The function has un-necessary nil check for p, so remove that
-    check.
+    Flip back to the old object files for Go 1.14.
     
-    Passes toolstash-check.
-    
-    Change-Id: I2f3f1ac967fe8d176dda3f3b4698ded08602e2fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228861
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I4ad499460fb7156b63fc63e9c6ea4f7099e20af2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204098
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/go.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/asm/internal/flags/flags.go | 2 +-
+ src/cmd/compile/internal/gc/main.go | 2 +-
+ src/cmd/link/internal/ld/main.go    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

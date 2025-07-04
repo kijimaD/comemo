@@ -1,20 +1,14 @@
-commit a16e631e7434b620cf74835625265ab07e973630
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Feb 7 18:32:27 2017 -0500
+commit 587b80322c6ce34ab115d7a837a56d7450aa913d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 26 18:58:01 2016 +0000
 
-    cmd/compile: remove unnecessary type conversions on s390x
+    api: update next.txt
     
-    Some rules insert MOVDreg ops to ensure that type changes are kept.
-    If there is no type change (or the input is constant) then the MOVDreg
-    can be omitted, allowing further optimization.
-    
-    Reduces the size of the .text section in the asm tool by ~33KB.
-    
-    Change-Id: I386883bb35b843c7b99a269cd6840dca77cf4371
-    Reviewed-on: https://go-review.googlesource.com/36547
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I5ad338c90c311bd4cfdcd3d221a1f3e506a97d53
+    Reviewed-on: https://go-review.googlesource.com/32118
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules | 10 ++++-
- src/cmd/compile/internal/ssa/rewriteS390X.go | 61 ++++++++++++++++++++++++++++
- 2 files changed, 70 insertions(+), 1 deletion(-)
+ api/next.txt | 193 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 193 insertions(+)

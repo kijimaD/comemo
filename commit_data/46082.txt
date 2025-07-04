@@ -1,28 +1,35 @@
-commit 740f7d73707fab5000791b71c2ab046e3e5544c7
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Wed Aug 11 12:50:34 2021 +0100
+commit 1b5eed89828f41e290ae212c596ff301c5db7204
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Dec 6 12:29:42 2020 -0800
 
-    archive/tar: unexport internal methods
+    [dev.regabi] cmd/compile: replace NodeQueue with NameQueue
     
-    Many of the methods inside the archive/tar package don't need to be
-    exported. Doing so sets a bad precedent that it's OK to export methods
-    to indicate an internal public API.  That's not a good idea in general,
-    because exported methods increase cognitive load when reading code:
-    the reader needs to consider whether the exported method might be used
-    via some external interface or reflection.
+    Similar to the previous CL, the only two users of NodeQueue only
+    needed it for tracking objects, not arbitrary AST nodes. So change
+    it's signature to use *Name instead of Node.
     
-    This CL should have no externally visible behaviour changes at all.
+    This does require a tweak to the nowritebarrierrec checker, because
+    previously it was pushing the ODCLFUNC *Func pointers into the queue,
+    whereas now we push the ONAME/PFUNC *Name pointers instead. However,
+    it's trivial and safe to flip between them.
     
-    Change-Id: I94a63de5e6a28e9ac8a283325217349ebce4f308
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341410
-    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
-    Trust: Joe Tsai <joetsai@digital-static.net>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Also, this changes a handful of export-related code from Node to
+    *Name, to avoid introducing type assertions within iexport.go.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Updates #42982.
+    
+    Change-Id: I867f9752121509fc3da753978c6a41d5015bc0ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275753
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/archive/tar/common.go      |  38 ++++++------
- src/archive/tar/format.go      | 138 ++++++++++++++++++++---------------------
- src/archive/tar/reader.go      | 102 +++++++++++++++---------------
- src/archive/tar/reader_test.go |  26 ++++----
- src/archive/tar/writer.go      |  89 +++++++++++++-------------
- src/archive/tar/writer_test.go |  14 ++---
- 6 files changed, 206 insertions(+), 201 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go     |  8 ++++----
+ src/cmd/compile/internal/gc/export.go  |  4 ++--
+ src/cmd/compile/internal/gc/go.go      |  2 +-
+ src/cmd/compile/internal/gc/iexport.go |  6 +++---
+ src/cmd/compile/internal/ir/node.go    | 22 +++++++++++-----------
+ 5 files changed, 21 insertions(+), 21 deletions(-)

@@ -1,27 +1,13 @@
-commit ff6d0a4df44b24b71df1cfbd29534f54a4b2de17
+commit 7cae2a50043b14ecdd4e0d1353dd77678b53233d
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 14 23:24:32 2014 -0400
+Date:   Wed Oct 1 17:38:09 2014 -0400
 
-    cmd/gc, runtime: fix race, nacl for writebarrier changes
+    [dev.garbage] cmd/gc: never generate BitsMultiWord
     
-    The racewalk code was not updated for the new write barriers.
-    Make it more future-proof.
-    
-    The new write barrier code assumed that +1 pointer would
-    be aligned properly for any type that might follow, but that's
-    not true on 32-bit systems where some types are 64-bit aligned.
-    The only system like that today is nacl/amd64p32.
-    Insert a dummy pointer so that the ambiguously typed
-    value is at +2 pointers, which is always max-aligned.
-    
-    LGTM=r
-    R=r
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/158890046
+    LGTM=rlh
+    R=rlh, minux
+    CC=golang-codereviews
+    https://golang.org/cl/151940043
 
- src/cmd/gc/builtin.c  |  6 +++---
- src/cmd/gc/racewalk.c |  7 +------
- src/cmd/gc/runtime.go | 10 +++++++---
- src/cmd/gc/walk.c     |  6 +++---
- src/runtime/mgc0.go   |  6 +++---
- 5 files changed, 17 insertions(+), 18 deletions(-)
+ src/cmd/gc/reflect.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

@@ -1,12 +1,13 @@
-commit 3e9c7a8a1d8de6384777eb8a27aa07c4dd34482e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 18 22:12:51 2014 -0400
+commit b1c9a8bce3a0556f4661e535cff75e96d4dbd323
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 19:51:01 2014 -0400
 
-    runtime: fix windows/amd64 build after pc-relative 6l change
+    [dev.power64] cmd/9g: implement zerorange
     
-    TBR=iant
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/131900043
+    https://golang.org/cl/121540043
 
- src/pkg/runtime/sys_windows_amd64.s | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/9g/ggen.c | 69 +++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 47 insertions(+), 22 deletions(-)

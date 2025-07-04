@@ -1,12 +1,14 @@
-commit 259e8cec7ad3d7c0031c53d70442fafdbdabe528
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 22 16:41:27 2013 -0700
+commit 8b6d50170463e402e94eab9f260c5e09fa8b0146
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 23 07:39:43 2013 +0900
 
-    doc/go1.1.html: fix broken links
+    net: fix documentation for UnixAddr
     
-    R=golang-dev, r
+    Also simplifies ResolveUnixAddr.
+    
+    R=golang-dev, dave, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7834049
+    https://golang.org/cl/7510047
 
- doc/go1.1.html | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/net/unixsock.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

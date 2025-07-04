@@ -1,12 +1,17 @@
-commit c1e88920606e78b06e936c9c249bd55f06dd8c51
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 11 13:04:22 2016 +0900
+commit 1374515a1cf2279c2e47a4ee03a3616781814ad0
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Fri Mar 18 11:25:04 2016 +0200
 
-    net: fix nits found by vet
+    cmd/vet: check lock copy in function calls and return statements
     
-    Change-Id: I323231f31c4e1e7415661ebd943a90b2f1e9da1c
-    Reviewed-on: https://go-review.googlesource.com/23020
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #14529
+    
+    Change-Id: I6ed059d279ba0fe12d76416859659f28d61781d2
+    Reviewed-on: https://go-review.googlesource.com/20832
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/dnsclient_unix_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/vet/copylock.go               | 30 ++++++++++++++++++++++++++----
+ src/cmd/vet/main.go                   |  3 +++
+ src/cmd/vet/testdata/copylock_func.go | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 58 insertions(+), 4 deletions(-)

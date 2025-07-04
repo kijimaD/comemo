@@ -1,23 +1,36 @@
-commit 429edcff1049899cef4e3c5cb4b473e13a31d85c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 4 16:27:31 2016 -0700
+commit 6ec993adc3373d31392b301ebe0c376b02d68051
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Sep 12 14:50:10 2016 -0400
 
-    Revert "cmd/compile/internal/syntax: support for alias declarations"
+    cmd/compile: add SSA backend for s390x and enable by default
     
-    This reverts commit 32db3f2756324616b7c856ac9501deccc2491239.
+    The new SSA backend modifies the ABI slightly: R0 is now a usable
+    general purpose register.
     
-    Reason: Decision to back out current alias implementation.
+    Fixes #16677.
     
-    For #16339.
-    
-    Change-Id: Ib05e3d96041d8347e49cae292f66bec791a1fdc8
-    Reviewed-on: https://go-review.googlesource.com/32825
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I367435ce921e0c7e79e021c80cf8ef5d1d1466cf
+    Reviewed-on: https://go-review.googlesource.com/28978
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/syntax/nodes.go        | 31 --------
- src/cmd/compile/internal/syntax/parser.go       | 98 ++++++++-----------------
- src/cmd/compile/internal/syntax/printer.go      | 14 +---
- src/cmd/compile/internal/syntax/scanner.go      |  9 +--
- src/cmd/compile/internal/syntax/scanner_test.go |  3 +-
- src/cmd/compile/internal/syntax/tokens.go       | 12 +--
- 6 files changed, 38 insertions(+), 129 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |     2 +-
+ src/cmd/compile/internal/s390x/galign.go     |     5 +
+ src/cmd/compile/internal/s390x/ggen.go       |     8 +-
+ src/cmd/compile/internal/s390x/prog.go       |    50 +-
+ src/cmd/compile/internal/s390x/ssa.go        |   885 ++
+ src/cmd/compile/internal/ssa/config.go       |    11 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  1455 +++
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |   527 +
+ src/cmd/compile/internal/ssa/opGen.go        |  2640 ++++-
+ src/cmd/compile/internal/ssa/regalloc.go     |     2 +
+ src/cmd/compile/internal/ssa/rewrite.go      |     5 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 15822 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/schedule.go     |     5 +-
+ test/live.go                                 |     2 +-
+ test/live_ssa.go                             |     2 +-
+ test/nilptr3_ssa.go                          |     2 +-
+ test/phiopt.go                               |     2 +-
+ test/sliceopt.go                             |     2 +-
+ 18 files changed, 21338 insertions(+), 89 deletions(-)

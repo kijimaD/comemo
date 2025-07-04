@@ -1,17 +1,13 @@
-commit 00d8d0052a9be4979bbfa929bc343530a980cd76
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Feb 18 03:34:22 2011 +1100
+commit 6095ff3864d73e69c11196c0ea1bb5973bcd24bd
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 16 22:35:31 2011 -0800
 
-    misc/dashboard: notify golang-dev on build failure
+    Effective Go: stress that comments are uninterpreted text
+    that should look in godoc.
     
-    Fixes #1229.
-    
-    R=rsc
+    R=rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4178048
+    https://golang.org/cl/4192041
 
- misc/dashboard/godashboard/const.py        | 12 ++++++
- misc/dashboard/godashboard/fail-notify.txt |  6 +++
- misc/dashboard/godashboard/gobuild.py      | 62 ++++++++++++++++++++++++------
- misc/dashboard/godashboard/package.py      |  9 ++---
- 4 files changed, 72 insertions(+), 17 deletions(-)
+ doc/effective_go.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

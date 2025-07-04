@@ -1,23 +1,16 @@
-commit 5b17b6575036e1e4f4c6a2cf75e34f7ada806624
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Nov 3 21:04:48 2019 -0500
+commit b21c837008a398fe23f06741946cf39e52dfdfa7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 26 13:16:50 2019 -0400
 
-    crypto/tls: implement Certificate.SupportedSignatureAlgorithms
+    doc/go1.13: describe the change in behavior of GO111MODULE=auto
     
-    This will let applications stop crypto/tls from using a certificate key
-    with an algorithm that is not supported by its crypto.Signer, like
-    hardware backed keys that can't do RSA-PSS.
+    Updates #31857
     
-    Fixes #28660
-    
-    Change-Id: I294cc06bddf813fff35c5107540c4a1788e1dace
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205062
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: Id0dc66246f768a2c730c67cd7a4a7830547f22a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183922
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/crypto/tls/auth.go      | 37 ++++++++++++++++++++++++++++---------
- src/crypto/tls/auth_test.go | 15 +++++++++++++++
- src/crypto/tls/common.go    |  3 +++
- src/crypto/tls/tls_test.go  | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 91 insertions(+), 9 deletions(-)
+ doc/go1.13.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

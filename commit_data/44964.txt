@@ -1,17 +1,21 @@
-commit 84162b88324aa7993fe4a8580a2b65c6a7055f88
-Author: cui <cuiweixie@gmail.com>
-Date:   Tue Apr 6 03:26:35 2021 +0000
+commit 44c0586931344c2c218b8074972b18fd5ff440bc
+Author: David Chase <drchase@google.com>
+Date:   Thu Jul 9 15:47:26 2020 -0400
 
-    cmd/compile/internal/typecheck: call tcConv directly
+    cmd/compile: add code to expand calls just before late opt
     
-    Change-Id: I9f71acfa93c47cff620b006918872ecd90bbebe9
-    GitHub-Last-Rev: 2fed2e23054d75f7a743f9c5a6e5574a545e3080
-    GitHub-Pull-Request: golang/go#45366
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307109
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Still needs to generate the calls that will need lowering.
+    
+    Change-Id: Ifd4e510193441a5e27c462c1f1d704f07bf6dec3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242359
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/typecheck/func.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/compile.go      |   1 +
+ src/cmd/compile/internal/ssa/expand_calls.go | 101 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/func.go         |  22 ++++++
+ src/cmd/compile/internal/ssa/op.go           |  35 ++++++++++
+ src/cmd/compile/internal/ssa/writebarrier.go |  18 +----
+ 5 files changed, 160 insertions(+), 17 deletions(-)

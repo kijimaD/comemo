@@ -1,14 +1,22 @@
-commit b4c9829c2299772eb0aaffcd437085f9f43e7166
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Sep 19 14:08:21 2016 -0400
+commit 8e6e9e83818596048cfca1e121ad39b9b007ba28
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Sat May 28 10:06:37 2016 +0100
 
-    runtime: check plugin-loaded moduledata addresses
+    syscall: plan9 - mark gbit16 as go:nosplit
     
-    Inspired by difficulties with plugin support on darwin.
+    This is a correction to CL 22610.  The gbit16 function is called in
+    StartProcess between fork and exec, and therefore must not split the
+    stack.  Normally it's inlined so this is not an issue, but on one
+    occasion I've observed it to be compiled without inlining, and the
+    result was a panic.  Mark it go:nosplit to be safe.
     
-    Change-Id: I2cef8410837946454e75d00e94e46791f03f2267
-    Reviewed-on: https://go-review.googlesource.com/29391
+    Change-Id: I0381754397b766431bf406d9767c73598d23b901
+    Reviewed-on: https://go-review.googlesource.com/23560
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/plugin.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/syscall/dir_plan9.go | 1 +
+ 1 file changed, 1 insertion(+)

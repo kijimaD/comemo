@@ -1,19 +1,16 @@
-commit b65c9a633ef594b171cb11b823f3d96f47d9f4e3
+commit b39bbf1e5b908070ee348c1ba6006da8ff1374c8
 Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Apr 18 22:45:36 2012 +1000
+Date:   Wed Apr 18 13:26:35 2012 +1000
 
-    exp/html: improve beforeHeadIM
+    exp/html: adjust beforeHTMLIM to match spec
     
-    Add a case to ignore doctype tokens.
+    Add case for doctype tokens (which are ignored).
     
-    Clean up the flow of control to more clearly match the spec.
+    This CL does not change the status of any tests.
     
-    Pass one more test.
-    
-    R=nigeltao
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6062047
+    https://golang.org/cl/6061047
 
- src/pkg/exp/html/parse.go                 | 31 +++++++++++++------------------
- src/pkg/exp/html/testlogs/tests19.dat.log |  2 +-
- 2 files changed, 14 insertions(+), 19 deletions(-)
+ src/pkg/exp/html/parse.go | 3 +++
+ 1 file changed, 3 insertions(+)

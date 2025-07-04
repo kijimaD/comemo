@@ -1,18 +1,13 @@
-commit 260b7daf0a3fa1548d976f2484325240d4bdb73a
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 12 16:25:48 2016 -0700
+commit 37c2972772e3e62c9822afb34c80ff2bc2c29c22
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 1 16:37:20 2016 -0800
 
-    cmd/compile: fix arg to getcallerpc
+    cmd/compile: give SymFlags type to Sym flags
     
-    getcallerpc's arg needs to point to the first argument slot.
-    I believe this bug was introduced by Michel's itab changes
-    (specifically https://go-review.googlesource.com/c/20902).
-    
-    Fixes #15145
-    
-    Change-Id: Ifb2e17f3658e2136c7950dfc789b4d5706320683
-    Reviewed-on: https://go-review.googlesource.com/21931
-    Reviewed-by: Michel Lespinasse <walken@google.com>
+    Change-Id: Ifa65a35418c2b5a2c517c0d9bbe37f472091e759
+    Reviewed-on: https://go-review.googlesource.com/20115
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/iface.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/go.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

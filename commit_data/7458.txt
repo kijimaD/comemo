@@ -1,13 +1,14 @@
-commit 29ae8e9a986f9597c922ceae8266b49bf47dc2b7
+commit 7115eef6beb4f359245d2770bc6b4c6aa0ae25e1
 Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 14 11:47:19 2011 -0800
+Date:   Mon Feb 14 11:25:00 2011 -0800
 
-    makehtml: use append
-    The program is old and missed its opportunity.
+    tutorial: rework the introduction to give "Effective Go"
+    prominence and downplay the course notes.
     
-    R=gri, adg
+    R=golang-dev, gri, rsc
     CC=golang-dev
-    https://golang.org/cl/4178050
+    https://golang.org/cl/4190041
 
- doc/htmlgen.go | 24 +++++-------------------
- 1 file changed, 5 insertions(+), 19 deletions(-)
+ doc/go_tutorial.html | 19 +++++++++++--------
+ doc/go_tutorial.txt  |  9 ++++++---
+ 2 files changed, 17 insertions(+), 11 deletions(-)

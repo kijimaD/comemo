@@ -1,23 +1,12 @@
-commit 3a582a768be7c95cbaf1a450140f367d9b7221d0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 14 13:57:21 2012 -0800
+commit 95902d10d2de03b1c22c626462627fb2251cf55b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Feb 15 08:42:16 2012 +1100
 
-    godoc: make godoc go work
+    build: fix sudo.bash.
     
-    - if a package path leads to subdirectories only,
-      show command instead, if any
-    - to force documentation for a command, use the
-      cmd/ prefix, as in: godoc cmd/go
-      (note that for the go command, the prefix is
-      not required since there is no actual go library
-      package at the moment)
-    
-    Fixes #3012.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5665049
+    https://golang.org/cl/5647063
 
- src/cmd/godoc/doc.go  |  9 ++++++---
- src/cmd/godoc/main.go | 41 +++++++++++++++++++++++++++++++----------
- 2 files changed, 37 insertions(+), 13 deletions(-)
+ src/sudo.bash | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

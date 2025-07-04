@@ -1,13 +1,16 @@
-commit 3c466dfea4db91202ec397502f50d119e0d72d47
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Mon Aug 25 20:01:43 2014 -0700
+commit 266d350f5e0a47dd831684eb60b69a6409ca0085
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 11:53:20 2014 +0400
 
-    cmd/go: add missing doc for GOOS and GOARCH
+    runtime: fix MemStats on 32-bits
+    Int64's do not fit into uintptr's.
     
-    LGTM=r
-    R=golang-codereviews, r
-    CC=golang-codereviews
-    https://golang.org/cl/133900043
+    LGTM=khr
+    R=golang-codereviews, khr, rsc
+    CC=golang-codereviews, rlh
+    https://golang.org/cl/128380043
 
- src/cmd/go/doc.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/gc_test.go | 4 ++++
+ src/pkg/runtime/malloc.go  | 7 ++++---
+ src/pkg/runtime/mgc0.c     | 4 ++--
+ 3 files changed, 10 insertions(+), 5 deletions(-)

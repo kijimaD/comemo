@@ -1,24 +1,14 @@
-commit 691ac806d20616fab66bb50752edfa9e4e9f8151
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Feb 22 15:05:20 2021 -0500
+commit d7e3a161f50a45c0c86e2621f99074c38572df82
+Author: Kerollos Magdy <kerolloz@yahoo.com>
+Date:   Tue Jun 23 10:45:36 2020 +0000
 
-    cmd/go: fix version validation in 'go mod edit -exclude'
+    doc/faq: fix a grammar mistake
     
-    The fix is to pull in CL 295089 from the x/mod repo.
-    
-    Fixes #44497
-    
-    Change-Id: I008b58d0f4bb48c09d4f1e6ed31d11a714f87dc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295150
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ifa060f5f91d7b964eb180465245104411310d423
+    GitHub-Last-Rev: cd1862f2ca721a4f3d4ede7bcb3e7759ce96c6d5
+    GitHub-Pull-Request: golang/go#39780
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239388
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go.mod                                  |  2 +-
- src/cmd/go.sum                                  |  3 +-
- src/cmd/go/testdata/script/mod_edit.txt         | 27 ++++------
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 65 +++++++++++++++++--------
- src/cmd/vendor/modules.txt                      |  2 +-
- 5 files changed, 60 insertions(+), 39 deletions(-)
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

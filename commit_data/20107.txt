@@ -1,21 +1,13 @@
-commit 38ce599494be0274f3b9dd3391a60c548420f562
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 25 15:59:13 2014 +1000
+commit 41d75933d79bc094a5e522bf67e6e182cbd65450
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Aug 16 14:04:15 2014 +1000
 
-    runtime: convert NewCallback and NewCallbackCDecl to Go
+    cmd/ld: fix operator precedence
     
-    LGTM=khr
-    R=khr, remyoudompheng
-    CC=golang-codereviews
-    https://golang.org/cl/132820043
+    LGTM=rsc
+    R=gobot, dave
+    CC=golang-codereviews, iant, rsc
+    https://golang.org/cl/114420043
 
- src/cmd/api/goapi.go                |  5 +-
- src/cmd/dist/buildruntime.c         |  5 ++
- src/pkg/runtime/callback_windows.c  | 77 -------------------------------
- src/pkg/runtime/syscall_windows.go  | 92 +++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/syscall_windows.goc |  8 ----
- src/pkg/syscall/asm_windows.s       | 13 ++++++
- src/pkg/syscall/asm_windows_386.s   |  7 ---
- src/pkg/syscall/asm_windows_amd64.s |  7 ---
- src/pkg/syscall/syscall_windows.go  | 18 ++++++--
- 9 files changed, 127 insertions(+), 105 deletions(-)
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

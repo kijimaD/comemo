@@ -1,12 +1,19 @@
-commit 49fe632c7d93dcf83d16cf7ee7fd09b165ce4b94
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Feb 5 05:45:35 2013 +0800
+commit 399dcc75a882fcb3a7edbcb0b272ad4d12ee2555
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 4 00:21:44 2013 -0500
 
-    cmd/go: update doc.go
+    cmd/gc: fix &^ code generation bug
     
-    R=golang-dev, adg
+    Was not re-walking the new AND node, so that its ullman
+    count was wrong, so that the code generator attempted to
+    store values in registers across the call.
+    
+    Fixes #4752.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7279047
+    https://golang.org/cl/7288054
 
- src/cmd/go/doc.go | 87 ++++++++++++++++++++++++++++++-------------------------
- 1 file changed, 47 insertions(+), 40 deletions(-)
+ src/cmd/gc/walk.c           |  2 +-
+ test/fixedbugs/issue4752.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

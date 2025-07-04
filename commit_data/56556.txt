@@ -1,19 +1,21 @@
-commit f6653e6b0b420ff60c52fe633968ce45cd63cec1
-Author: Zxilly <zhouxinyu1001@gmail.com>
-Date:   Tue Mar 19 00:12:05 2024 +0000
+commit 5f345e8eb995409fec5e1abf231031613885f2ae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 15 13:53:21 2023 -0700
 
-    cmd/go/internal/modget: warn -d is a no-op
+    os, syscall: permit setting mtime to Unix 0 on Windows
     
-    Updates #43684
+    This edge case was accidentally broken by CL 219638.
     
-    Change-Id: I4aa340b1b819374159b5b6b99c14e3f70bfa1bb0
-    GitHub-Last-Rev: c380648b9aeeb6c9fd4f0a42ada7921ba99f45bb
-    GitHub-Pull-Request: golang/go#66362
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572176
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: I673b3b580fbe379a04f8650cf5969fe9bce83691
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495036
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/modget/get.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/os/file_windows.go         |  3 ++-
+ src/os/os_test.go              | 26 ++++++++++++++++++++++++++
+ src/syscall/syscall_windows.go |  7 +++++--
+ 3 files changed, 33 insertions(+), 3 deletions(-)

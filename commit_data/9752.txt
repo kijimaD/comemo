@@ -1,17 +1,15 @@
-commit 3a013f117566fa58300a6f1c8f6e5d0b481315ec
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Mon Sep 19 20:52:14 2011 -0700
+commit 3c3a86ccc72853a3e7bb1783922d5303e54adcd7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 19 19:56:51 2011 -0700
 
-    exp/template/html: change transition functions to return indices
+    http: fix TLS handshake blocking server accept loop
     
-    Formulaic changes to transition functions in preparation for CL 5074041.
-    This should be completely semantics preserving.
+    Fixes #2263
     
-    R=nigeltao
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5091041
+    https://golang.org/cl/5076042
 
- src/pkg/exp/template/html/escape.go     |  29 ++--
- src/pkg/exp/template/html/html.go       |  29 ++--
- src/pkg/exp/template/html/transition.go | 232 ++++++++++++++++----------------
- 3 files changed, 147 insertions(+), 143 deletions(-)
+ src/pkg/http/serve_test.go | 13 +++++++++++++
+ src/pkg/http/server.go     | 13 ++++++-------
+ 2 files changed, 19 insertions(+), 7 deletions(-)

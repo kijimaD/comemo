@@ -1,34 +1,27 @@
-commit ce25ad60bb6b77552393de8e197e08ff06dcba6e
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 12 10:54:40 2023 -0400
+commit 1e11eaa902083e2b39234d264c046f1e31a3ec03
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 10 12:30:05 2022 -0500
 
-    cmd/go: move fmtcmd's side effect to Showcmd
+    cmd/go/internal/load: remove a special case for "unsafe"
     
-    Currently, fmtcmd may have the side effect of updating
-    Builder.scriptDir, the logical working directory of the printed
-    script. If it does so, it also returns a two line command consisting
-    of both a "cd" into the new scriptDir and the original command.
+    We had a special case to zero out the Target field for package
+    "unsafe", which is not imported from a normal object file.
     
-    When fmtcmd is used as part of Showcmd, that's fine, but fmtcmd is
-    also used in a handful of places to construct command descriptions
-    that are ultimately passed to Builder.reportCmd. In these cases, it's
-    surprising that fmtcmd has any side effects, but the bigger problem is
-    that reportCmd isn't expecting a two-line description and will print
-    it wrong in the output.
+    As of CL 449376 that special case has been folded into go/build's
+    logic for setting the PkgObj field, so the special case in
+    cmd/go/internal/load has become redundant.
     
-    One option is to fix printing multi-line descriptions in reportCmd,
-    but we can fix the surprise side effect too by instead moving the
-    working directory update to Showcmd. With this CL, fmtcmd merely
-    consults the working directory to shorten it in the output and does
-    not update it.
+    (Noticed while investigating CL 449376.)
     
-    For #62067.
+    Updates #47257.
+    Updates #56687.
     
-    Change-Id: I7808b279a430551f4ba51545417adf0bb132f931
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534857
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: I1668123aa6230097aa75e55380d3e2c7937c4b64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449515
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/work/exec.go | 24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

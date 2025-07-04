@@ -1,24 +1,28 @@
-commit a42573c2f1d6a806439ec0cf65ace0508a37747f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jun 27 13:58:55 2022 -0400
+commit e7eee5e265440b0ed3b76093ccdfd776facc767a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 15:30:40 2021 -0700
 
-    net: avoid darwin/arm64 platform bug in TestCloseWrite
+    cmd/compile: remove ssagen/pgen_test.go
     
-    On darwin_arm64, reading from a socket at the same time as the other
-    end is closing it will occasionally hang for 60 seconds before
-    returning ECONNRESET. (This is a macOS issue, not a Go issue.)
+    This test was written in 2015, and hasn't had any meaningful changes
+    to it since. However, it's very ad hoc and pokes into internals that
+    it shouldn't, and it keeps getting in the way of more meaningful
+    refactorings. It doesn't even catch bugs; e.g., it didn't catch that
+    cmpstackvarlt wasn't asymmetric (CL 19778), and a bunch of its test
+    cases are bogus because we never actually use it to sort ir.PFUNC
+    nodes (assert added in this CL).
     
-    Work around this condition by adding a brief sleep before the read.
+    The compiler is woefully lacking in unit tests like these, but I
+    strongly feel this test is more of a hinderance than a help at the
+    moment.
     
-    Fixes #49352 (we hope).
-    Updates #37795.
-    
-    Change-Id: I4052aec21d311d7370550aea9dd7941f39141133
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414534
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I3ac7a3e533947aa95f325626c6eec13a43789f9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345478
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/net_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/ssagen/pgen.go      |  17 ++-
+ src/cmd/compile/internal/ssagen/pgen_test.go | 209 ---------------------------
+ 2 files changed, 16 insertions(+), 210 deletions(-)

@@ -1,16 +1,15 @@
-commit 9b8ad3fde27c56f825f15aebad2174860adbf6a4
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Mar 7 12:05:03 2015 -0500
+commit 2e3c738649832d13ecaddc0c72f64d0354a89dae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 16:30:21 2015 -0800
 
-    sync/atomic: skip test on darwin/arm
+    math/big: remove Float.Round (not needed anymore), fix a bug in SetInt64
     
-    Updates #7338.
+    TBR adonovan
     
-    Change-Id: I859a73543352dbdd13ec05efb23a95aecbcc628a
-    Reviewed-on: https://go-review.googlesource.com/7164
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I30020f39be9183b37275e10a4fd1e1a3b4c48c89
+    Reviewed-on: https://go-review.googlesource.com/4880
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/sync/atomic/atomic_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/math/big/float.go      | 40 ++++++++++++++++++++--------------------
+ src/math/big/float_test.go | 37 ++++++++++++++++++++++++++++++++-----
+ 2 files changed, 52 insertions(+), 25 deletions(-)

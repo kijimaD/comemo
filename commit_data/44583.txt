@@ -1,23 +1,25 @@
-commit 30c28bbf0507cba9219633192e02b68719ab8280
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 9 23:31:41 2021 -0500
+commit a20cb4ca5c14ff27bdf16989d450c83b22f156d8
+Author: Tim Möhlmann <muhlemmer@gmail.com>
+Date:   Thu Aug 13 11:56:31 2020 +0300
 
-    cmd/go: avoid password prompts in TestScript/mod_get_private_vcs
+    database/sql: make Rows.Scan properly wrap underlying errors
     
-    In some cases, this test would prompt for interactive SSH passwords in
-    order to authenticate to github.com over SSH. Setting GIT_SSH_COMMAND
-    to /bin/false prevents that, while still provoking the desired Git
-    failure mode.
+    The prior implementation used the format verb %v which unfortunately
+    improperly wrapped any underlying scanner errors, and we couldn't use
+    errors.Is nor errors.As. This change fixes that by using the %w verb.
     
-    Updates #44904.
+    Added a unit to ensure that both error sub string matching works, but
+    also that errors.Is works as expected.
     
-    Change-Id: Idc9fe9f47d2ccb6c8a4ea988b73d9c8c774e4079
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300156
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Kevin Burke <kev@inburke.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Kevin Burke <kev@inburke.com>
+    Fixes #38099
+    
+    Change-Id: Iea667041dd8081d961246f77f2542330417292dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248337
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/testdata/script/mod_get_private_vcs.txt | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/database/sql/sql.go      |  5 ++++-
+ src/database/sql/sql_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

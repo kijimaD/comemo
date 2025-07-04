@@ -1,18 +1,32 @@
-commit 4a4c39e7d4f95ffcaa6971c35c4adeb740dcc515
+commit 3a2dec0246fe66af7871edd4b84840371988aeb2
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Dec 19 15:32:06 2011 -0500
+Date:   Mon Dec 19 15:03:53 2011 -0500
 
-    encoding/json: cleanup leftover variables in array decoding.
+    strconv: reduce buffer size for multi-precision decimals.
     
-    An old update for API changes in reflect package left several
-    helper variables that do not have a meaning anymore, and
-    the type checking of arrays vs slices was broken.
-    Fixes #2513.
+    The longest numbers we have to represent are the smallest denormals.
+    Their decimal mantissa is not longer than 5^1100. Taking into
+    account some extra size for in-place operations, 800 digits are
+    enough. This saves time used for zero intiialization of extra
+    bytes.
     
-    R=ultrotter, rsc
+                                            old ns/op  new ns/op    delta
+    strconv_test.BenchmarkAtof64Decimal           521        334   -35.9%
+    strconv_test.BenchmarkAtof64Float             572        391   -31.6%
+    strconv_test.BenchmarkAtof64FloatExp        10242      10036    -2.0%
+    strconv_test.BenchmarkAtof64Big              4229       4029    -4.7%
+    strconv_test.BenchmarkFormatFloatDecimal     1396        934   -33.1%
+    strconv_test.BenchmarkFormatFloat            4295       3341   -22.2%
+    strconv_test.BenchmarkFormatFloatExp        12035      11181    -7.1%
+    strconv_test.BenchmarkFormatFloatBig         4213       3229   -23.4%
+    strconv_test.BenchmarkAppendFloatDecimal     1031        600   -41.8%
+    strconv_test.BenchmarkAppendFloat            3971       3044   -23.3%
+    strconv_test.BenchmarkAppendFloatExp        11699      11003    -5.9%
+    strconv_test.BenchmarkAppendFloatBig         3836       2915   -24.0%
+    
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev, remy
-    https://golang.org/cl/5488094
+    https://golang.org/cl/5491064
 
- src/pkg/encoding/json/decode.go      | 71 ++++++++++++++++++------------------
- src/pkg/encoding/json/decode_test.go |  6 +++
- 2 files changed, 42 insertions(+), 35 deletions(-)
+ src/pkg/strconv/decimal.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

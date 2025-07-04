@@ -1,17 +1,23 @@
-commit ac875bc923db2b7350f244f06a06557e6fd97e05
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Aug 15 00:44:58 2020 +0700
+commit b865bd1fb1ee46158247b7c0e6d9e434502f9beb
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 8 14:01:27 2020 -0500
 
-    cmd/compile: don't bother to declare closure inside redeclared func
+    cmd/go: delete testdata/testonly dir: it isn't being used anywhere
     
-    Fixes #17758
+    The TestGoBuildTestOnly test seems to be using files in testonly,
+    but it's actually creating different files in a tempdir GOPATH
+    that are completely unrelated.
     
-    Change-Id: I75f5dc5be85fd8a6791ac89dfc0681be759cca36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248517
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ie2c6d477bbb2eac7c013ee8dea9330a367b4f663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213821
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/closure.go | 12 +++++++++++-
- test/fixedbugs/issue17758.go           | 17 +++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/testonly/p_test.go | 1 -
+ src/cmd/go/testdata/testonly2/t.go     | 6 ------
+ 2 files changed, 7 deletions(-)

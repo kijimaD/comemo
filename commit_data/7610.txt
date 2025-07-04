@@ -1,23 +1,12 @@
-commit daffc2d2ef1b68eae0a7e79d015fe33339f19534
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Mar 2 16:18:17 2011 -0500
+commit ff1d89d6003272585093cfbab630c534fbba69bd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 2 15:29:13 2011 -0500
 
-    gc: fix init of packages named main
-    
-    This change removes the special case which existed
-    for handling the initalization of the main package,
-    so that other modules named 'main' get properly
-    initialized when imported.
-    
-    Note that gotest of main packages will break in most
-    cases without this.
+    runtime: fix unused variable warning
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4190050
+    https://golang.org/cl/4188043
 
- src/cmd/gc/export.c | 12 +++++++++---
- src/cmd/gc/init.c   | 27 +++++++++++----------------
- src/cmd/gc/subr.c   |  2 +-
- test/init.go        | 18 ++++++++++++++++++
- 4 files changed, 39 insertions(+), 20 deletions(-)
+ src/pkg/runtime/mfinal.c | 1 -
+ 1 file changed, 1 deletion(-)

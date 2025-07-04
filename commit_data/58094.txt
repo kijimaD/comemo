@@ -1,23 +1,26 @@
-commit 405a0c4ae86fe2761118ee6d1d59e59daf9b50cd
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Nov 18 09:31:59 2024 +0100
+commit 1e690409206ff97330b5a91517d453fc5129bab2
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Sep 29 14:19:17 2023 -0400
 
-    os/user: fix race detector failure
+    cmd/link: split text sections for arm 32-bit
     
-    The race detector doesn't like that windows.GetSid* functions return
-    pointers to the SID structure. This change makes these functions return
-    values instead and mark them with nocheckptr.
+    This CL is a roll-forward (tweaked slightly) of CL 467715, which
+    turned on text section splitting for GOARCH=arm. The intent is to
+    avoid recurrent problems with external linking where there is a
+    disagreement between the Go linker and the external linker over
+    whether a given branch will reach. In the past our approach has been
+    to tweak the reachability calculations slightly to try to work around
+    potential linker problems, but this hasn't proven to be very robust;
+    section splitting seems to offer a better long term fix.
     
-    Fixes #70378
+    Fixes #58425.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race
-    Change-Id: Iba39d75bb31679d25a5ee43b51e4abb0c435dbac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628995
+    Change-Id: I7372d41abce84097906a3d0805b6b9c486f345d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531795
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/syscall/windows/security_windows.go | 34 +++++++++++++++++++++---
- src/internal/syscall/windows/zsyscall_windows.go | 12 ++++-----
- src/os/user/lookup_windows.go                    |  6 ++---
- 3 files changed, 40 insertions(+), 12 deletions(-)
+ src/cmd/link/internal/ld/data.go    | 19 +++++++++++++------
+ src/cmd/link/internal/ld/ld_test.go |  2 +-
+ 2 files changed, 14 insertions(+), 7 deletions(-)

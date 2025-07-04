@@ -1,20 +1,27 @@
-commit 38d1a6665f20cb588810355ed4ea061c3b6a19ae
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Feb 1 14:33:31 2023 +0100
+commit b9d6cea5016835ca5521469631e55f5c489aa0e7
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Mar 18 17:36:52 2022 +0800
 
-    syscall: regenerate zsyscall_windows.go
+    cmd/link: set alignment of compressed section based on arch
     
-    This CL regenerates zsyscall_windows.go, which was incorrectly
-    hand-edited in CL 463842.
+    The ELF compression header(Chdr) has Addralign field that is set to the
+    alignment of the uncompressed section which makes section able to have
+    a different alignment than the decompressed section. However `file` and
+    other tools require both Chdr.Addralign and Addralign to be equal.
     
-    Change-Id: Id556e69a282b2291a0b293b276ed4b9e0aeec105
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463848
+    Ref https://sourceware.org/bugzilla/show_bug.cgi?id=23919
+    Related #42136
+    
+    Fixes #51769
+    
+    Change-Id: I3cf99dbd2359932576420a3c0d342c7e91b99227
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393916
+    Trust: mzh <mzh@golangcn.org>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Fangrui Song <maskray@google.com>
 
- src/syscall/zsyscall_windows.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

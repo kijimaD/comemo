@@ -1,30 +1,12 @@
-commit e393a8292ead03c78b570cf1f30ca1d54caf5445
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 14 18:16:47 2012 -0700
+commit a90cbd741a794b67a1c7b4932f40f7d40bd25702
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue May 15 08:38:05 2012 +1000
 
-    mime/multipart: fix handling of empty parts without CRLF before next part
+    misc/dashboard/codereview: add sameer.
     
-    Empty parts can be either of the form:
-    
-    a) "--separator\r\n", header (w/ trailing 2xCRLF), \r\n "--separator"...
-    or
-    b) "--separator\r\n", header (w/ trailing 2xCRLF), "--separator"...
-    
-    We never handled case b).  In fact the RFC seems kinda vague about
-    it, but browsers seem to do a), and App Engine's synthetic POST
-    bodies after blob uploads is of form b).
-    
-    So handle them both, and add a bunch of tests.
-    
-    (I can't promise these are the last fixes to multipart, especially
-    considering its history, but I'm growing increasingly confident at
-    least, and I've never submitted a multipart CL with known bugs
-    outstanding, including this time.)
-    
-    R=golang-dev, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6212046
+    https://golang.org/cl/6203076
 
- src/pkg/mime/multipart/multipart.go      | 115 ++++++++++-----
- src/pkg/mime/multipart/multipart_test.go | 245 +++++++++++++++++++++++++++----
- 2 files changed, 292 insertions(+), 68 deletions(-)
+ misc/dashboard/codereview/dashboard/people.go | 1 +
+ 1 file changed, 1 insertion(+)

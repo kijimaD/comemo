@@ -1,17 +1,15 @@
-commit 9784ef8ab139491773684386c1cefa0b75fdb89e
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Feb 1 12:30:36 2022 -0500
+commit a0248a99a8567fcd8188e08977ec5eafd553bc18
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 14 12:55:43 2021 -0400
 
-    internal/fuzz: small cleanups
+    cmd/link: fix PE emitRelocations for >4GB base address
     
-    Change-Id: I9fc12f352d57db776d176990277e104f64f9908d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382238
-    Reviewed-by: Julie Qiu <julie@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1dda31bb1efa177159e4e7b4c9c9cc615e2fdc0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312037
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/internal/fuzz/fuzz.go   | 10 +++++-----
- src/internal/fuzz/worker.go |  4 ++--
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

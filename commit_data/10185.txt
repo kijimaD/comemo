@@ -1,14 +1,41 @@
-commit c8ad1a4dc4d0384d963df749cfc3c373e27d6a17
+commit 08a073a180aacd3b17a999687ced6b54a313d842
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 1 21:49:22 2011 -0400
+Date:   Tue Nov 1 21:49:08 2011 -0400
 
-    cgo, gotest: use error instead of os.Error in generated code
+    os: use error, io.EOF
     
-    R=golang-dev, iant
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5319057
+    https://golang.org/cl/5298073
 
- src/cmd/cgo/doc.go       | 2 +-
- src/cmd/cgo/out.go       | 8 ++++----
- src/cmd/gotest/gotest.go | 3 +--
- 3 files changed, 6 insertions(+), 7 deletions(-)
+ src/pkg/os/dir_plan9.go    | 19 +++++-----
+ src/pkg/os/dir_unix.go     |  5 +--
+ src/pkg/os/dir_windows.go  |  2 +-
+ src/pkg/os/env_plan9.go    |  8 ++---
+ src/pkg/os/env_unix.go     | 11 +++---
+ src/pkg/os/env_windows.go  |  8 ++---
+ src/pkg/os/error.go        | 25 +++----------
+ src/pkg/os/error_plan9.go  |  6 ++--
+ src/pkg/os/error_posix.go  | 88 +++++++++++++++++++++++-----------------------
+ src/pkg/os/exec_plan9.go   | 22 ++++++------
+ src/pkg/os/exec_posix.go   | 12 +++----
+ src/pkg/os/exec_unix.go    | 13 +++----
+ src/pkg/os/exec_windows.go |  8 ++---
+ src/pkg/os/file.go         | 62 ++++++++++++++------------------
+ src/pkg/os/file_plan9.go   | 42 +++++++++++-----------
+ src/pkg/os/file_posix.go   | 40 ++++++++++-----------
+ src/pkg/os/file_unix.go    | 24 ++++++-------
+ src/pkg/os/file_windows.go | 25 ++++++-------
+ src/pkg/os/getwd.go        |  2 +-
+ src/pkg/os/os_test.go      | 26 +++++++-------
+ src/pkg/os/path.go         | 10 +++---
+ src/pkg/os/path_test.go    |  2 +-
+ src/pkg/os/proc.go         |  2 +-
+ src/pkg/os/stat_plan9.go   |  6 ++--
+ src/pkg/os/stat_windows.go |  6 ++--
+ src/pkg/os/sys_bsd.go      |  2 +-
+ src/pkg/os/sys_linux.go    |  2 +-
+ src/pkg/os/sys_plan9.go    |  2 +-
+ src/pkg/os/sys_windows.go  |  2 +-
+ src/pkg/os/time.go         |  4 +--
+ 30 files changed, 233 insertions(+), 253 deletions(-)

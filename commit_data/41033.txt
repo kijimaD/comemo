@@ -1,30 +1,20 @@
-commit a4c579e8f7c8129b2c27779f206ebd2c9b393633
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Tue Dec 17 16:40:46 2019 -0800
+commit 647dc1afc5932b0dbbc409727cc81def8e90a0c4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 29 15:19:44 2019 +0000
 
-    runtime: emit trace event in direct semaphore handoff
+    Revert "runtime: don't forward SIGPIPE on macOS"
     
-    When a goroutine yields the remainder of its time to another goroutine
-    during direct semaphore handoff (as in an Unlock of a sync.Mutex in
-    starvation mode), it needs to signal that change to the execution
-    tracer. The discussion in CL 200577 didn't reach consensus on how best
-    to describe that, but pointed out that "traceEvGoSched / goroutine calls
-    Gosched" could be confusing.
+    This reverts CL 188297.
     
-    Emit a "traceEvGoPreempt / goroutine is preempted" event in this case,
-    to allow the execution tracer to find a consistent event ordering
-    without being both specific and inaccurate about why the active
-    goroutine has changed.
+    Reason for revert: broke multiple of the darwin builders.
     
-    Fixes #36186
+    Fixes #33943.
     
-    Change-Id: Ic4ade19325126db2599aff6aba7cba028bb0bee9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211797
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Iacff98d1450edc70402dc7a220d16fcd73337c9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191784
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/trace/trace_test.go | 33 +++++++++++++++++++++++++++++++++
- src/runtime/proc.go         |  5 ++++-
- src/runtime/sema.go         |  6 +++---
- 3 files changed, 40 insertions(+), 4 deletions(-)
+ misc/cgo/testcarchive/testdata/main3.c | 21 ---------------------
+ src/runtime/signal_unix.go             |  7 -------
+ 2 files changed, 28 deletions(-)

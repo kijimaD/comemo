@@ -1,23 +1,16 @@
-commit 6a1c2a59898ada6403cc1f4937c0fe9c271cb363
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Dec 7 17:45:19 2015 +0900
+commit ee07504d26a4d61ca0bc0728fea58f7b2fd52cc2
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Tue Oct 13 13:58:11 2015 -0400
 
-    net: add missing File{Conn,Listener,PacketConn} read/write tests
+    misc/cgo/testcshared: use -pie for android-L.
     
-    At present, the series of File{Conn,Listener,PacketConn} APIs are the
-    only way to configure platform-specific socket options such as
-    SO_REUSE{ADDR,PORT}, TCP_FASTOPEN. This change adds missing test cases
-    that test read and write operations on connections created by File APIs
-    and removes redundant parameter tests which are already tested in
-    server_test.go.
+    Also, handle the case where 'read' returns EINVAL instead of EBADF
+    when the descriptor is not ready. (android 4.4.4/cyanogenmod, nexus7)
     
-    Also adds comment on full stack test cases for IPConn.
-    
-    Fixes #10730.
-    
-    Change-Id: I67abb083781b602e876f72a6775a593c0f363c38
-    Reviewed-on: https://go-review.googlesource.com/17476
+    Change-Id: I56c5949d27303d44a4fd0de38951b85e20cef167
+    Reviewed-on: https://go-review.googlesource.com/15810
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/file_test.go | 366 ++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 233 insertions(+), 133 deletions(-)
+ misc/cgo/testcshared/main2.c   |  2 +-
+ misc/cgo/testcshared/test.bash | 15 ++++++++++-----
+ 2 files changed, 11 insertions(+), 6 deletions(-)

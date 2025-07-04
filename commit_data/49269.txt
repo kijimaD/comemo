@@ -1,26 +1,26 @@
-commit 9bc544a1580a67166060aabc5af91227092f6a39
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu May 19 10:26:53 2022 -0400
+commit c5b6c36ddd0ecdee401c4e78da1addf64bdc6376
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 4 12:27:26 2021 -0700
 
-    misc/cgo: invoke "go" from $GOROOT/bin instead of $PATH
+    [dev.typeparams] cmd/compile/internal/types2: remove TestIncompleteInterfaces (cleanup)
     
-    If PATH doesn't contain GOROOT/bin as the first element, this could
-    otherwise end up running entirely the wrong command (and from the
-    wrong GOROOT, even).
+    TestIncompleteInterfaces is not useful anymore because interface
+    printing always shows the syntactic type structure of an interface.
     
-    I pre-tested this change on release-branch.go1.17 using a gomote.
-    I believe that it will fix the test failure on that branch,
-    but will need to be backported.
+    Also remove the respective support code in interface printing and
+    simplify that code.
     
-    For #52995.
+    Move the newDefined and nopos support declarations unchanged into
+    api_test.go where they are used.
     
-    Change-Id: Ib0c43289a1e0ccf9409f0f0ef8046501a955ce65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407294
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #46167.
+    
+    Change-Id: I23e303bc4ae4271912ba75f201bd2b7cd4a17b3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339832
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- misc/cgo/testplugin/plugin_test.go |  9 ++++++++-
- misc/cgo/testshared/shared_test.go | 14 ++++++++------
- 2 files changed, 16 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go        |  8 +++
+ src/cmd/compile/internal/types2/typestring.go      | 25 +++-------
+ src/cmd/compile/internal/types2/typestring_test.go | 58 ----------------------
+ 3 files changed, 15 insertions(+), 76 deletions(-)

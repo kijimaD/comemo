@@ -1,17 +1,21 @@
-commit 5acba80aa2f1444066a9c28440229baa0f2e008d
-Author: Michael Gehring <mg@ebfe.org>
-Date:   Fri Jun 12 22:49:42 2015 +0200
+commit f963cb707ec375f36851f0a2c00a0f85474c03b6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 7 08:20:42 2015 +0900
 
-    archive/tar: fix slice bounds out of range
+    net: don't run IP stack required tests on IP stack disabled kernels
     
-    Sanity check the pax-header size field before using it.
+    This change doesn't work perfectly on IPv6-only kernels including CLAT
+    enabled kernels, but works enough on IPv4-only kernels.
     
-    Fixes #11167.
+    Fixes #10721.
+    Updates #10729.
     
-    Change-Id: I9d5d0210c3990e6fb9434c3fe333be0d507d5962
-    Reviewed-on: https://go-review.googlesource.com/10954
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Change-Id: I7db0e572e252aa0a9f9f54c8e557955077b72e44
+    Reviewed-on: https://go-review.googlesource.com/9777
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/reader.go      |  2 +-
- src/archive/tar/reader_test.go | 11 ++++++++---
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ src/net/dial_test.go     |  4 ++--
+ src/net/ipsock_test.go   |  2 +-
+ src/net/listen_test.go   |  8 ++++++++
+ src/net/platform_test.go | 17 ++++++++++++++---
+ 4 files changed, 25 insertions(+), 6 deletions(-)

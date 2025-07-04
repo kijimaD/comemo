@@ -1,27 +1,16 @@
-commit 7feb68728dda2f9d86c0a1158307212f5a4297ce
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 12 14:57:47 2022 -0400
+commit 6b3f4d388fe5602172f45361f438edf54699b953
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 15 15:28:12 2021 -0800
 
-    os: split wait6 syscall wrapper into per-platform files
+    cmd/compile/internal/types2: re-use type hashing logic in Context.typeHash
     
-    There are getting to be enough special cases in this wrapper that
-    the increase in clarity from having a single file is starting to be
-    outweighed by the complexity from chained conditionals.
+    This CL is clean port of CL 362800 from go/types to types2.
     
-    Updates #50138.
-    Updates #13987.
-    
-    Change-Id: If4f1be19c0344e249aa6092507c28363ca6c8438
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442575
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I66443b5a82b3a9c2f608a0fe012fbb099db996f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364155
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/os/wait6_dragonfly.go   | 18 ++++++++++++++++++
- src/os/wait6_freebsd64.go   | 20 ++++++++++++++++++++
- src/os/wait6_freebsd_386.go | 18 ++++++++++++++++++
- src/os/wait6_freebsd_arm.go | 18 ++++++++++++++++++
- src/os/wait6_netbsd.go      | 18 ++++++++++++++++++
- src/os/wait_wait6.go        | 18 +-----------------
- 6 files changed, 93 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/types2/context.go     | 26 ++++++++++----------------
+ src/cmd/compile/internal/types2/instantiate.go |  4 ++--
+ 2 files changed, 12 insertions(+), 18 deletions(-)

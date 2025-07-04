@@ -1,22 +1,30 @@
-commit eaa97fbf20baffac713ed1b780f864a6fee54ab6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 1 17:01:00 2020 -0700
+commit e9056a6a7388a0124209fe2a69a083b8a34d416c
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Feb 24 20:59:02 2020 -0500
 
-    cmd/cgo: don't translate bitfields into Go fields
+    [dev.link] cmd/link: create Target in order to make relocsym threadsafe
     
-    The cgo tool would sometimes emit a bitfield at an offset that did not
-    correspond to the C offset, such as for the example in the new test.
+    In its current form, relocsym requires the Link context -- largely in a
+    readonly state. Rather than passing around such heavy-weight object to
+    the function, this CL separates out the link target. From here, the
+    number of touchpoints (and thread unsafe portions) of relocing symbols
+    can be mentally reasoned about.
     
-    Change-Id: I61b2ca10ee44a42f81c13ed12865f2060168fed5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252378
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    (NB: My personal intent is to make this more universal -- passing only
+    the necessary variables/state to reloc functions. This is a taste to see
+    if we like this form.)
+    
+    Change-Id: Id9177d03267fedf0bb572a9d61bc07b64309c3b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220837
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.16.html                           | 10 ++++++++++
- misc/cgo/testgodefs/testdata/bitfields.go | 31 +++++++++++++++++++++++++++++++
- misc/cgo/testgodefs/testdata/main.go      | 28 ++++++++++++++++++++++++++++
- misc/cgo/testgodefs/testgodefs_test.go    |  1 +
- src/cmd/cgo/gcc.go                        | 20 +++++---------------
- 5 files changed, 75 insertions(+), 15 deletions(-)
+ src/cmd/link/internal/ld/data.go   | 122 +++++++++++++++++++------------------
+ src/cmd/link/internal/ld/dwarf2.go |   1 -
+ src/cmd/link/internal/ld/link.go   |  11 +---
+ src/cmd/link/internal/ld/sym.go    |   2 +-
+ src/cmd/link/internal/ld/target.go | 104 +++++++++++++++++++++++++++++++
+ 5 files changed, 168 insertions(+), 72 deletions(-)

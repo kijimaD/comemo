@@ -1,24 +1,18 @@
-commit 4faf8a8dc44555c4fdbe4fb108f42144e58ae6b1
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Thu Sep 26 13:17:49 2019 -0700
+commit 2c802e9980427a1d47384b222dcbf4c9b4e84944
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 15 14:58:55 2019 +0000
 
-    net/http, doc/go1.13.html: revert TimeoutHandler.Flush
+    net/http: add Server BaseContext & ConnContext fields to control early context
     
-    Also added a test to ensure that any interactions
-    between TimeoutHandler and Flusher result in the
-    correct status code and body, but also that we don't
-    get superfluous logs from stray writes as was seen
-    in the bug report.
+    Fixes golang/go#30694
     
-    Fixes #34439.
-    
-    Change-Id: I4af62db256742326f9353f98a2fcb5f71d2a5fd9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197659
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I12a0a870e4aee6576e879d88a4868666ef448298
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167681
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: JP Sugarbroad <jpsugar@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.13.html            |  2 +-
- src/net/http/serve_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     |  9 ---------
- 3 files changed, 49 insertions(+), 10 deletions(-)
+ src/net/http/serve_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 33 +++++++++++++++++++++++++++++++--
+ 2 files changed, 68 insertions(+), 2 deletions(-)

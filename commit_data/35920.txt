@@ -1,20 +1,21 @@
-commit e97ef4127f153a2eb8b26685943310d4d19d5b60
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Jul 5 19:30:00 2018 +0200
+commit ae10914e67e6e99fec94b3d190558131a24ecd8e
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Mar 19 13:11:16 2018 -0400
 
-    syscall/js: add Value.Type
+    cmd/compile: mark LAA and LAAG as clobbering flags on s390x
     
-    This commits adds Value.Type(), which returns the JavaScript type of
-    a Value.
+    The atomic add instructions modify the condition code and so need to
+    be marked as clobbering flags.
     
-    The implementation uses two previously unused bits of the NaN payload
-    to encode type information.
+    Fixes #24449.
     
-    Change-Id: I568609569983791d50d35b8d80c44f3472203511
-    Reviewed-on: https://go-review.googlesource.com/122375
+    Change-Id: Ic69c8d775fbdbfb2a56c5e0cfca7a49c0d7f6897
+    Reviewed-on: https://go-review.googlesource.com/101455
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/wasm/wasm_exec.js    | 23 +++++++++++++--
- src/syscall/js/js.go      | 72 ++++++++++++++++++++++++++++++++++++++++++++---
- src/syscall/js/js_test.go | 27 ++++++++++++++++++
- 3 files changed, 115 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  4 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  2 +
+ test/fixedbugs/issue24449.go                 | 62 ++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 2 deletions(-)

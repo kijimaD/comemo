@@ -1,21 +1,22 @@
-commit e49f94560346696fe326f307ba24f1be951d2a6d
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Feb 14 23:37:14 2013 -0500
+commit d0f3475fda0a2ed3583a3b993be4cd526a0712a8
+Author: Cosmos Nicolaou <cnicolaou@google.com>
+Date:   Thu Feb 14 20:20:32 2013 -0800
 
-    runtime: expand error for signal received on non-Go thread.
+    go/doc: add support for arbitrary notes
     
-    We call runtime.findnull dynamically to avoid exceeding the
-    static nosplit stack limit check.  (Thanks minux!)
+    Add support for arbitrary notes of the form // MARKER(userid): comment
+    in the same vein as BUG(userid): A marker must be two or more upper case [A-Z] letters.
     
-    Fixes #4048.
-    
-    R=rsc, minux.ma, ality
+    R=gri, rsc, bradfitz, jscrockett01
     CC=golang-dev
-    https://golang.org/cl/7232066
+    https://golang.org/cl/7322061
 
- src/pkg/runtime/thread_darwin.c  | 8 +++++++-
- src/pkg/runtime/thread_freebsd.c | 8 +++++++-
- src/pkg/runtime/thread_linux.c   | 8 +++++++-
- src/pkg/runtime/thread_netbsd.c  | 8 +++++++-
- src/pkg/runtime/thread_openbsd.c | 8 +++++++-
- 5 files changed, 35 insertions(+), 5 deletions(-)
+ src/pkg/go/doc/doc.go                |  7 +++++++
+ src/pkg/go/doc/reader.go             | 37 +++++++++++++++++++++++++-----------
+ src/pkg/go/doc/testdata/a.0.golden   |  7 +++++++
+ src/pkg/go/doc/testdata/a.1.golden   |  7 +++++++
+ src/pkg/go/doc/testdata/a.2.golden   |  7 +++++++
+ src/pkg/go/doc/testdata/a0.go        |  5 +++++
+ src/pkg/go/doc/testdata/a1.go        |  4 ++++
+ src/pkg/go/doc/testdata/template.txt |  5 ++++-
+ 8 files changed, 67 insertions(+), 12 deletions(-)

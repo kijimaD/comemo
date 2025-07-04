@@ -1,14 +1,25 @@
-commit ffedff7e506cdf298f06ad36f3264ca197aa7d25
-Author: Austin Clements <austin@google.com>
-Date:   Sat Dec 24 17:03:10 2016 -0800
+commit 67d8226b4862f0f8deb4dc6fa8617017ecb0f32b
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 12 10:46:43 2016 -0700
 
-    runtime: add table of size classes in a comment
+    crypto/tls: support ChaCha20-Poly1305.
     
-    Change-Id: I52fae67c9aeceaa23e70f2ef0468745b354f8c75
-    Reviewed-on: https://go-review.googlesource.com/34932
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This change adds support for the ChaCha20-Poly1305 AEAD to crypto/tls,
+    as specified in https://tools.ietf.org/html/rfc7905.
+    
+    Fixes #15499.
+    
+    Change-Id: Iaa689be90e03f208c40b574eca399e56f3c7ecf1
+    Reviewed-on: https://go-review.googlesource.com/30957
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mksizeclasses.go | 16 +++++++++++
- src/runtime/sizeclasses.go   | 68 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 84 insertions(+)
+ src/crypto/tls/cipher_suites.go                    | 68 +++++++++++++++++-
+ src/crypto/tls/conn.go                             | 24 ++++---
+ src/crypto/tls/handshake_client_test.go            | 28 ++++++++
+ src/crypto/tls/handshake_server_test.go            |  6 ++
+ .../Client-TLSv12-ECDHE-ECDSA-CHACHA20-POLY1305    | 77 ++++++++++++++++++++
+ .../Client-TLSv12-ECDHE-RSA-CHACHA20-POLY1305      | 81 ++++++++++++++++++++++
+ src/go/build/deps_test.go                          |  2 +
+ 7 files changed, 275 insertions(+), 11 deletions(-)

@@ -1,22 +1,19 @@
-commit f61353f2d9fda9b5d8ae3026f815986d749d530e
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Apr 26 16:40:01 2019 +0200
+commit d20b6d8849ca3c7c1461b28418afb15ed7652712
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 7 12:08:12 2018 -0500
 
-    runtime: enable runtime_mmap_test.go on AIX
+    cmd/go/internal/modload: add missing build constraint in testgo.go
     
-    AIX doesn't allow to mmap an address range which is already mmap.
-    Therefore, once the region has been allocated, it must munmap before
-    being able to play with it.
+    That file is supposed to make unexpected dependencies on the main
+    module easier to diagnose in 'go test cmd/go', but I accidentally left
+    off the build constraint, so it was triggering outside of the test.
     
-    Change-Id: I1547782f0379024f57869f1dda8c1c9bb12d831f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174059
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #29097
+    
+    Change-Id: I1cde3fe6c1d80add37c98a8c95ce48524ea05024
+    Reviewed-on: https://go-review.googlesource.com/c/153159
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/defs_aix.go          | 2 +-
- src/runtime/defs_aix_ppc64.go    | 2 +-
- src/runtime/export_mmap_test.go  | 2 +-
- src/runtime/mem_aix.go           | 8 ++++----
- src/runtime/runtime_mmap_test.go | 7 ++++++-
- 5 files changed, 13 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/modload/testgo.go | 2 ++
+ 1 file changed, 2 insertions(+)

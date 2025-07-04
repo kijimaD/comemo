@@ -1,0 +1,16 @@
+commit f0f4e2d0af78618b89fdb13d557faee193cbaa4c
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 19 17:13:00 2024 -0700
+
+    syscall: add O_DIRECTORY for js
+    
+    Change-Id: I2022fa27b072f9b34413a04a794aeb6d3c02166c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606658
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/fs_js.go      | 16 ++++++++++------
+ src/syscall/syscall_js.go | 13 +++++++------
+ 2 files changed, 17 insertions(+), 12 deletions(-)

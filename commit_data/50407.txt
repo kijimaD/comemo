@@ -1,19 +1,23 @@
-commit 29604312784cfbf530fcf54837b7cf42c0500d0b
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 19:19:27 2022 +0800
+commit 70ffd852cc85f1c782f4f2e70518d4861939cd1b
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Oct 21 18:36:14 2021 -0400
 
-    text/template: use strings.Builder
+    go/types: remove subscripts from type parameter names
     
-    Change-Id: I559986b5408d3967c58c9abc6e8f4b04b25496a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428280
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Now that we've removed the necessity for subscripts in importers, we can
+    effectively eliminate them from the the type parameter API by removing
+    them from the type string.
+    
+    Change-Id: Ic4491b0dea27b0e0ce2d0636dccfaf05168ef9e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357814
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/text/template/exec_test.go  | 18 +++++++++---------
- src/text/template/funcs.go      |  5 ++---
- src/text/template/multi_test.go | 10 +++++-----
- 3 files changed, 16 insertions(+), 17 deletions(-)
+ src/go/types/api_test.go      | 12 ++++++------
+ src/go/types/builtins_test.go |  6 +++---
+ src/go/types/errors.go        | 10 +++++-----
+ src/go/types/instantiate.go   |  2 +-
+ src/go/types/typestring.go    | 26 ++++++++++++++++++--------
+ 5 files changed, 33 insertions(+), 23 deletions(-)

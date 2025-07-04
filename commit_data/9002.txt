@@ -1,15 +1,15 @@
-commit 96bbcc4256b345ed7d30b1b5bac79dc31178950c
+commit 0027dc91b05286d4fc3fc50a4802131881efd6e2
 Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 11 14:43:21 2011 +1000
+Date:   Mon Jul 11 12:36:10 2011 +1000
 
-    exp/template: documentation glitches and typos.
-    Also explain that len(v)==0 makes v a 'zero value'
-    in template execution.
+    exp/template: simpler parse of char constants.
+    We can avoid the check against empty constants (''),
+    which UnquoteChar doesn't handle well, by leaving on
+    the trailing quote and seeing that's all we have left at the end.
     
-    R=golang-dev, dsymonds, adg, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4691041
+    https://golang.org/cl/4657090
 
- src/pkg/exp/template/doc.go    | 24 ++++++++++++++++++------
- src/pkg/exp/template/helper.go |  8 ++++----
- 2 files changed, 22 insertions(+), 10 deletions(-)
+ src/pkg/exp/template/parse.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

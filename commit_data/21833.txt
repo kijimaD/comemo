@@ -1,18 +1,16 @@
-commit 86a7c85f83895d54a00d79e3cd0356c11de3a589
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 1 19:42:03 2015 -0500
+commit f961a99a35c180e90cf4cd9ae29947ccc1e0dfae
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 01:24:42 2014 -0500
 
-    cmd/dist: fix default GOOS/GOARCH for cross-compile
+    misc/ios: add README and wrapper script to ease cross-compiling for darwin/arm
     
-    Before this CL, if you are on a darwin/amd64 machine and
-    cross-compile 9g for a linux/ppc64 machine, when you copy
-    9g over to that kind of machine and run it, you'll find it thinks
-    the default object target is darwin/amd64. Not useful.
-    Make the default target linux/ppc64 in this case. More useful.
+    Fixes #837.
     
-    Change-Id: I62f2e9cb5f60b3077a922b31cd023a9cb7a6cfda
-    Reviewed-on: https://go-review.googlesource.com/6407
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I2d601504addbd220b304d32d587144d2a702f753
+    Reviewed-on: https://go-review.googlesource.com/2127
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/buildruntime.go | 21 ++++++++++++++++-----
- 1 file changed, 16 insertions(+), 5 deletions(-)
+ misc/ios/README       | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ misc/ios/clangwrap.sh | 10 ++++++++++
+ 2 files changed, 54 insertions(+)

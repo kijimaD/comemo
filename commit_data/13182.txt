@@ -1,13 +1,29 @@
-commit b9918dbf065e91938b60b1776546e246708ef427
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Tue May 29 11:12:31 2012 -0400
+commit 9c14184e25ea92354b0e6f4962ad0411b1356b67
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue May 29 13:39:54 2012 +1000
 
-    A+C: Peter Kleiweg (individual CLA)
+    exp/html: implement Noah's Ark clause
     
-    R=golang-dev, bradfitz
+    Implement the (3-per-family) Noah's Ark clause (i.e. don't put
+    more than three identical elements on the list of active formatting
+    elements.
+    
+    Also, when running tests, sort attributes by name before dumping
+    them.
+    
+    Pass 4 additional tests with Noah's Ark clause (including one
+    that needs attributes to be sorted).
+    
+    Pass 5 additional, unrelated tests because of sorting attributes.
+    
+    R=nigeltao, rsc
     CC=golang-dev
-    https://golang.org/cl/6260049
+    https://golang.org/cl/6247056
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/exp/html/parse.go                  | 41 +++++++++++++++++++++++++++++-
+ src/pkg/exp/html/parse_test.go             | 27 +++++++++++++++-----
+ src/pkg/exp/html/testlogs/isindex.dat.log  |  2 +-
+ src/pkg/exp/html/testlogs/tests19.dat.log  |  6 ++---
+ src/pkg/exp/html/testlogs/tests23.dat.log  |  8 +++---
+ src/pkg/exp/html/testlogs/webkit01.dat.log |  2 +-
+ 6 files changed, 69 insertions(+), 17 deletions(-)

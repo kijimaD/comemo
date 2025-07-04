@@ -1,16 +1,17 @@
-commit 01b8f5e8821eac0e3456d6200b351629fd3752f4
-Author: zhangyunhao <zhangyunhao@bytedance.com>
-Date:   Tue Apr 19 16:38:04 2022 +0800
+commit 3f7f72a258394e19610c14772b07ba6f13e8bae6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jun 20 14:33:51 2021 +0700
 
-    runtime: use fastrand64 in mapiterinit
+    [dev.typeparams] cmd/compile: fold reader checking type params logic to separate method
     
-    Change-Id: I5698c7576a0f39ae62de7bea64286ac8e578d421
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400916
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    So making it less verbose and clearer to the reader what that check means.
+    
+    Change-Id: I41587aab399e63600356c5cecec64978048bed36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329571
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/map.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

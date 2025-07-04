@@ -1,14 +1,37 @@
-commit 0357af80b461e8dea71602ee3d4bcb7d733c7613
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 10 14:21:36 2012 +1100
+commit 4152b4345724dae4b058d48a23d29ac8f8bda453
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 10 14:16:15 2012 +1100
 
-    template: refer HTML users to html/template
+    os: delete Exec, NewFile takes uintptr, rename ShellExpand, doc fixes
     
-    Fixes #2963.
+    Delete O_NDELAY, O_NONBLOCK, O_NOCTTY, O_ASYNC.
     
-    R=golang-dev, rsc
+    Clean up some docs.
+    
+    Rename ShellExpand -> ExpandEnv.
+    
+    Make NewFile take a uintptr; change File.Fd to return one.
+    (for API compatibility between Unix and Windows)
+    
+    Fixes #2947
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5650051
+    https://golang.org/cl/5655045
 
- src/pkg/text/template/doc.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ doc/go1.html                  | 17 +++++++++++++----
+ doc/go1.tmpl                  | 17 +++++++++++++----
+ src/pkg/net/fd.go             | 10 +++++-----
+ src/pkg/net/file.go           |  2 +-
+ src/pkg/net/newpollserver.go  |  6 +++---
+ src/pkg/net/sendfile_linux.go |  2 +-
+ src/pkg/os/env.go             |  8 ++++----
+ src/pkg/os/error_posix.go     |  1 -
+ src/pkg/os/exec/exec_test.go  |  2 +-
+ src/pkg/os/exec_plan9.go      | 14 --------------
+ src/pkg/os/exec_posix.go      | 21 +--------------------
+ src/pkg/os/file.go            | 26 +++++++++++---------------
+ src/pkg/os/file_unix.go       | 21 +++++++++------------
+ src/pkg/os/file_windows.go    | 13 +++++++------
+ src/pkg/os/stat_windows.go    |  4 ----
+ 15 files changed, 69 insertions(+), 95 deletions(-)

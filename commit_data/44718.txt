@@ -1,16 +1,41 @@
-commit 42c25e65f321a75b9be1725d77ea3e7175dc34ad
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Mar 17 01:39:11 2021 +1100
+commit d556c251a1f1506f68e1e4064c3537948ff667a3
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu May 28 18:11:52 2020 +0800
 
-    cmd/compile: actually intrinsify runtime/internal/atomic.{And,Or}{8,} on RISCV64
+    cmd/compile: add more generic rewrite rules to reassociate (op (op y C) x|C)
     
-    Actually enable intrinsics for runtime/internal/atomic.{And,Or}{8,} on RISCV64.
-    This seems to have been lost when CL 268098 was rebased.
+    With this patch, opt pass can expose more obvious constant-folding
+    opportunites.
     
-    Change-Id: If072daa79c8964b186c127d5e065a7cc9e23ba27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302229
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Example:
+    func test(i int) int {return (i+8)-(i+4)}
+    
+    The previous version:
+      MOVD  "".i(FP), R0
+      ADD   $8, R0, R1
+      ADD   $4, R0, R0
+      SUB   R0, R1, R0
+      MOVD  R0, "".~r1+8(FP)
+      RET   (R30)
+    
+    The optimized version:
+      MOVD  $4, R0
+      MOVD  R0, "".~r1+8(FP)
+      RET   (R30)
+    
+    This patch removes some existing reassociation rules, such as "x+(z-C)",
+    because the current generic rewrite rules will canonicalize "x-const"
+    to "x+(-const)", making "x+(z-C)" equal to "x+(z+(-C))".
+    
+    This patch also adds test cases.
+    
+    Change-Id: I857108ba0b5fcc18a879eeab38e2551bc4277797
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237137
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  54 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 816 +++++++++++++++----------
+ test/codegen/arithmetic.go                     |  31 +-
+ 3 files changed, 545 insertions(+), 356 deletions(-)

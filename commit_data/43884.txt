@@ -1,17 +1,19 @@
-commit 358d35455d06b1ebee948efff123842490dcb797
-Author: smasher164 <aindurti@gmail.com>
-Date:   Thu Nov 26 14:16:33 2020 -0500
+commit dc83274c95c882f16d944aaf68d8314c12a1e2ae
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Apr 23 14:28:20 2020 -0400
 
-    bufio: make string(int) conversion safer
+    [dev.link] cmd/link: move wavefront past address
     
-    Updates #42792.
+    This change is just the mechanical work of moving the wavefront past
+    address.
     
-    Change-Id: I7e53426c41e5609d9dadceb300f7983ba7ad6577
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273526
-    Run-TryBot: Akhil Indurti <aindurti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I519ec49fa8ba50760c7d23fc084fcd3bb0544546
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229700
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bufio/bufio_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go       | 136 +++++++++++++++++----------------
+ src/cmd/link/internal/ld/main.go       |   4 +-
+ src/cmd/link/internal/loader/loader.go |  13 ++++
+ 3 files changed, 85 insertions(+), 68 deletions(-)

@@ -1,15 +1,24 @@
-commit 9d56c1813e66538cf709d6939440cafa13c275db
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 22 18:04:33 2015 -0700
+commit a5c3b6642bb01a96b59db1e55a3479549fbcca08
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jun 16 16:16:23 2015 -0700
 
-    net/http: make Transport return proper error on cancel before response headers
+    [dev.ssa] cmd/compile/ssa: fix string compilation
     
-    Fixes #11020
+    Compilation of f_ssa was broken by CL 10929.
     
-    Change-Id: I52760a01420a11f3c979f678812b3775a3af61e4
-    Reviewed-on: https://go-review.googlesource.com/12545
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This CL does not include tests because
+    I have a work in progress CL that will catch
+    this and much more.
+    
+    package p
+    
+    func f_ssa() string {
+            return "ABC"
+    }
+    
+    Change-Id: I0ce0e905e4d30ec206cce808da406b9b7f0f38e9
+    Reviewed-on: https://go-review.googlesource.com/11136
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/transport.go      |  3 +++
- src/net/http/transport_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

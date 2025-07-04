@@ -1,13 +1,22 @@
-commit 2d0258d49568d4b34f5c4dec53985bb80bf370cc
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Wed Nov 25 02:40:32 2020 +0100
+commit 202c43b2ad3fca2cdcaff0d0720de5c99030b638
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Apr 24 11:55:21 2020 -0400
 
-    crypto/ed25519/internal/edwards25519: fix typo in comments
+    crypto/x509/pkix: improve docs and Name.String()
     
-    Change-Id: I8133762d53d9e5d3cc13e0f97b9679a3248a7f0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273087
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Previously, non-standard attributes in Name.Names were being
+    omitted when printed using Name.String(). Now, any non-standard
+    attributes that would not already be printed in Name.String()
+    are being added temporarily to Name.ExtraNames to be printed.
+    
+    Fixes #33094
+    Fixes #23069
+    
+    Change-Id: Id9829c20968e16db7194549f69c0eb5985044944
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229864
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/ed25519/internal/edwards25519/edwards25519.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/pkix/pkix.go | 44 ++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 40 insertions(+), 4 deletions(-)

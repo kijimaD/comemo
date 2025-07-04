@@ -1,20 +1,22 @@
-commit c55d5c887e8644df1e024573dbcf4e6e819371c2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 30 09:43:39 2021 -0700
+commit cca3d1e5533cb40beb9ef55bbc332b733adcc6ba
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 22:16:46 2020 +0000
 
-    cmd/compile/internal/types2: simplify use of TestManual
+    runtime: don't flush local_tinyallocs
     
-    Running the TestManual test (for manual debugging) requires
-    user-provided files as input. Rather than using another flag
-    (-files) to provide these files, just use the (remaining)
-    command line arguments.
+    This change makes local_tinyallocs work like the rest of the malloc
+    stats and doesn't flush local_tinyallocs, instead making that the
+    source-of-truth.
     
-    Change-Id: I9b20d9f1a6a7ce839bbd690c311ce3f0d0a10496
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315689
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I3e6cb5f1b3d086e432ce7d456895511a48e3617a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246967
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types2/check_test.go | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ src/runtime/export_test.go | 7 +++++--
+ src/runtime/mcache.go      | 8 +++++---
+ src/runtime/mheap.go       | 4 ----
+ src/runtime/mstats.go      | 6 ++++--
+ 4 files changed, 14 insertions(+), 11 deletions(-)

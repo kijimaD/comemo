@@ -1,31 +1,18 @@
-commit 4f19cb7011ade4a647b6429ecc33f96ec4603e61
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 08:48:19 2015 -0400
+commit 499c827516b3877497b1533f44912f037b388a90
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 27 15:40:46 2015 +1000
 
-    syscall: added support for linux/mips64{,le}
+    doc: add Go Security Policy document
     
-    Syscall getdents64 is relatively new in linux/mips64, only since kernel
-    version 3.10. To support older kernel, syscall getdents is used for
-    mips64.
+    Bring in the text from the proposal (with minor edits):
+    https://github.com/golang/proposal/blob/master/design/11502-securitypolicy.md
     
-    Change-Id: I892b05dff7d93e7ddb0d700abd6a5e6d4084ab4c
-    Reviewed-on: https://go-review.googlesource.com/14449
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #11502
+    
+    Change-Id: I92a987be66a0df60c1fad6c6c79f89bd8e9c12a8
+    Reviewed-on: https://go-review.googlesource.com/13955
+    Reviewed-by: Jason Buberel <jbuberel@google.com>
 
- src/syscall/asm_linux_mips64x.s       | 104 +++++++++++++++++
- src/syscall/syscall_linux.go          |   2 +-
- src/syscall/syscall_linux_386.go      |   5 +-
- src/syscall/syscall_linux_amd64.go    |   5 +-
- src/syscall/syscall_linux_arm.go      |   5 +-
- src/syscall/syscall_linux_arm64.go    |   5 +-
- src/syscall/syscall_linux_mips64x.go  | 210 ++++++++++++++++++++++++++++++++++
- src/syscall/syscall_linux_ppc64x.go   |   5 +-
- src/syscall/types_linux.go            |   2 +
- src/syscall/zsyscall_linux_386.go     |   2 +-
- src/syscall/zsyscall_linux_amd64.go   |   2 +-
- src/syscall/zsyscall_linux_arm.go     |   2 +-
- src/syscall/zsyscall_linux_arm64.go   |   2 +-
- src/syscall/zsyscall_linux_ppc64.go   |   2 +-
- src/syscall/zsyscall_linux_ppc64le.go |   2 +-
- 15 files changed, 343 insertions(+), 12 deletions(-)
+ doc/contrib.html  |   4 +-
+ doc/security.html | 174 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 177 insertions(+), 1 deletion(-)

@@ -1,78 +1,25 @@
-commit c39bc22c141bc6990e4e2abf604dcf56669ff779
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri May 3 13:03:04 2024 -0400
+commit 88a6df72c9c056559bda14d88252ba350949bf50
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 30 17:11:31 2023 -0400
 
-    all: wire up swisstable maps
+    cmd/internal/objabi: generalize "is runtime package" check
     
-    Use the new SwissTable-based map in internal/runtime/maps as the basis
-    for the runtime map when GOEXPERIMENT=swissmap.
+    There are several implementations of "is this package path a runtime
+    package". They all have slightly different lists because they all care
+    about slightly different properties of building the runtime.
     
-    Integration is complete enough to pass all.bash. Notable missing
-    features:
+    To start converging these, we replace objabi.IsRuntimePackagePath with
+    objabi.LookupPkgSpecial, which returns a struct we can extend with
+    various special build properties. We'll extend this with several other
+    flags in the following CLs.
     
-    * Race integration / concurrent write detection
-    * Stack-allocated maps
-    * Specialized "fast" map variants
-    * Indirect key / elem
-    
-    For #54766.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-amd64-longtest-swissmap
-    Change-Id: Ie97b656b6d8e05c0403311ae08fef9f51756a639
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594596
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I21959cb8c3d18a350d6060467681c72ea49af712
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521698
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/main.go                |    7 +
- src/cmd/compile/internal/ir/symtab.go              |    9 +-
- src/cmd/compile/internal/reflectdata/map_swiss.go  |  307 ++--
- src/cmd/compile/internal/ssagen/ssa.go             |   11 +-
- src/cmd/compile/internal/test/inl_test.go          |   15 +-
- src/cmd/compile/internal/types/fmt.go              |    4 +-
- src/cmd/compile/internal/types/type.go             |   12 +-
- src/cmd/compile/internal/walk/builtin.go           |   60 +-
- src/cmd/compile/internal/walk/range.go             |   11 +-
- src/cmd/go/internal/test/test.go                   |   19 +-
- src/cmd/internal/objabi/path_test.go               |    1 +
- src/cmd/internal/objabi/pkgspecial.go              |    1 +
- src/cmd/link/internal/ld/deadcode.go               |    5 +-
- src/cmd/link/internal/ld/dwarf.go                  |  133 +-
- src/go/build/deps_test.go                          |    1 -
- src/internal/abi/map_noswiss.go                    |    1 -
- src/internal/abi/map_swiss.go                      |   48 +-
- src/internal/coverage/pkid.go                      |    1 +
- src/internal/runtime/maps/export_noswiss_test.go   |   50 +
- src/internal/runtime/maps/export_swiss_test.go     |   19 +
- src/internal/runtime/maps/export_test.go           |   42 +-
- src/internal/runtime/maps/group.go                 |    2 +-
- .../runtime/maps/internal/abi/map_swiss.go         |   44 -
- src/internal/runtime/maps/map_test.go              |    9 +-
- src/internal/runtime/maps/table.go                 |    2 +-
- src/internal/runtime/maps/table_debug.go           |    8 +-
- src/reflect/all_test.go                            |  199 +--
- src/reflect/export_noswiss_test.go                 |   25 +
- src/reflect/export_swiss_test.go                   |   12 +
- src/reflect/export_test.go                         |   13 -
- src/reflect/map_noswiss_test.go                    |   60 +
- src/reflect/map_swiss.go                           |  191 +--
- src/reflect/map_swiss_test.go                      |   30 +
- src/runtime/export_map_noswiss_test.go             |    6 +
- src/runtime/export_map_swiss_test.go               |   49 +-
- src/runtime/export_test.go                         |    6 -
- src/runtime/map_fast32_swiss.go                    |   12 +-
- src/runtime/map_fast64_swiss.go                    |   12 +-
- src/runtime/map_faststr_swiss.go                   |   10 +-
- src/runtime/map_noswiss_test.go                    |   26 +
- src/runtime/map_swiss.go                           | 1642 ++------------------
- src/runtime/map_swiss_test.go                      |  169 +-
- src/runtime/map_test.go                            |   52 +-
- src/runtime/runtime-gdb_test.go                    |    8 +
- test/fixedbugs/issue69110.go                       |    2 +
- test/live.go                                       |    4 +-
- test/live2.go                                      |    4 +-
- test/live_regabi.go                                |   12 +-
- test/live_regabi_noswiss.go                        |   19 +
- test/live_regabi_swiss.go                          |   19 +
- 50 files changed, 925 insertions(+), 2479 deletions(-)
+ src/cmd/asm/main.go                   |  2 +-
+ src/cmd/internal/objabi/path.go       | 24 -----------------
+ src/cmd/internal/objabi/pkgspecial.go | 50 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 25 deletions(-)

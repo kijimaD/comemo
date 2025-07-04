@@ -1,15 +1,14 @@
-commit 610757b1552d35d3e960b053ad2a5aedea85b8da
+commit 524fb81c41ea559306a5ee3dbaf60fa6cda2479f
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 11 18:45:32 2012 -0800
+Date:   Wed Jan 11 20:32:02 2012 -0500
 
-    runtime: delete duplicate implementation of pcln walker
+    gc: inlining bug
     
-    It's hard enough to get right once.
-    
-    R=golang-dev, r
+    R=lvd
     CC=golang-dev
-    https://golang.org/cl/5533073
+    https://golang.org/cl/5533078
 
- src/pkg/runtime/extern.go | 47 ++++-------------------------------------------
- src/pkg/runtime/symtab.c  |  9 +++++++++
- 2 files changed, 13 insertions(+), 43 deletions(-)
+ src/cmd/gc/fmt.c                 | 6 ++++--
+ test/fixedbugs/bug392.dir/one.go | 3 +++
+ test/fixedbugs/bug392.dir/two.go | 2 +-
+ 3 files changed, 8 insertions(+), 3 deletions(-)

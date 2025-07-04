@@ -1,31 +1,12 @@
-commit a544df33fd24dc3c093594aafab917621f2c317d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 13:59:51 2017 -0700
+commit 6a29806e018acc3bf0c17c9d6b946b9ba8edeb4d
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 8 09:41:39 2017 -0800
 
-    cmd/compile: rename dxxx -> dxxxLSym
+    crypto/x509: sort the list of fields used by CreateCertificateRequest.
     
-    Follow-up to previous CL.
-    
-    gorename -from '"cmd/compile/internal/gc".duintxxLSym' -to duintxx
-    gorename -from '"cmd/compile/internal/gc".duint8LSym' -to duint8
-    gorename -from '"cmd/compile/internal/gc".duint16LSym' -to duint16
-    gorename -from '"cmd/compile/internal/gc".duint32LSym' -to duint32
-    gorename -from '"cmd/compile/internal/gc".duintptrLSym' -to duintptr
-    gorename -from '"cmd/compile/internal/gc".dbvecLSym' -to dbvec
-    gorename -from '"cmd/compile/internal/gc".dsnameLSym' -to dsname
-    gorename -from '"cmd/compile/internal/gc".dsymptrLSym' -to dsymptr
-    gorename -from '"cmd/compile/internal/gc".dsymptrOffLSym' -to dsymptrOff
-    gorename -from '"cmd/compile/internal/gc".dsymptrWeakOffLSym' -to dsymptrWeakOff
-    
-    Passes toolstash-check.
-    
-    Change-Id: I007f57340f9e8b1468553242556ae25a71167e8c
-    Reviewed-on: https://go-review.googlesource.com/41397
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I67589cb9e728e6c7df5ef6e981189193154338d3
+    Reviewed-on: https://go-review.googlesource.com/36559
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/obj.go     |  42 ++++----
- src/cmd/compile/internal/gc/pgen.go    |   8 +-
- src/cmd/compile/internal/gc/plive.go   |  12 +--
- src/cmd/compile/internal/gc/reflect.go | 170 ++++++++++++++++-----------------
- 4 files changed, 116 insertions(+), 116 deletions(-)
+ src/crypto/x509/x509.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

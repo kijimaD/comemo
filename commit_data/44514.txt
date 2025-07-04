@@ -1,26 +1,37 @@
-commit 5c5552c5bab55c7233cc0cc105876a982ec25b74
-Author: David Chase <drchase@google.com>
-Date:   Wed Feb 24 12:58:01 2021 -0500
+commit 317c1ca9f2bc8b52807171020eb47e988699cf6a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jul 28 21:35:53 2020 -0400
 
-    cmd/compile: add register abi tests
+    [dev.link] cmd/link: refactor ExtReloc data structures
     
-    Change-Id: I4b2b62a8eb1c4bf47f552214127d4ed5710af196
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297030
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    We used to generate all external relocations in memory, then emit
+    the relocation records at a later pass. The data structures were
+    chosen so that it takes as little memory as possible. Now we just
+    stream out external relocations, and ExtReloc is just a local
+    variable. Change the data structure to avoid repeated read of
+    some fields. Also get rid of ExtRelocView, as it is no longer
+    necessary.
+    
+    Change-Id: I40209bbe4387af231b29788125c3b4ebb0ff4a33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245479
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- test/abi/f_ret_z_not.go            |  6 +++
- test/abi/many_int_input.go         |  3 ++
- test/abi/many_intstar_input.go     | 45 ++++++++++++++++++
- test/abi/many_intstar_input.out    |  3 ++
- test/abi/more_intstar_input.go     | 44 ++++++++++++++++++
- test/abi/more_intstar_input.out    |  2 +
- test/abi/named_return_stuff.go     | 94 ++++++++++++++++++++++++++++++++++++++
- test/abi/named_return_stuff.out    | 13 ++++++
- test/abi/return_stuff.go           | 38 +++++++++++++++
- test/abi/return_stuff.out          |  3 ++
- test/abi/struct_3_string_input.go  | 40 ++++++++++++++++
- test/abi/struct_3_string_input.out |  0
- test/abi/uglyfib.go                |  3 ++
- 13 files changed, 294 insertions(+)
+ src/cmd/link/internal/amd64/asm.go     | 18 +++++++++---------
+ src/cmd/link/internal/arm/asm.go       | 18 +++++++++++-------
+ src/cmd/link/internal/arm64/asm.go     | 12 ++++++------
+ src/cmd/link/internal/ld/data.go       | 13 +++++++++----
+ src/cmd/link/internal/ld/elf.go        |  5 ++---
+ src/cmd/link/internal/ld/lib.go        |  8 ++++----
+ src/cmd/link/internal/ld/macho.go      |  5 ++---
+ src/cmd/link/internal/ld/pe.go         |  5 ++---
+ src/cmd/link/internal/ld/xcoff.go      |  5 ++---
+ src/cmd/link/internal/loader/loader.go | 11 ++---------
+ src/cmd/link/internal/mips/asm.go      |  8 ++++----
+ src/cmd/link/internal/mips64/asm.go    |  8 ++++----
+ src/cmd/link/internal/ppc64/asm.go     | 18 +++++++++---------
+ src/cmd/link/internal/riscv64/asm.go   |  4 ++--
+ src/cmd/link/internal/s390x/asm.go     | 14 +++++++-------
+ src/cmd/link/internal/x86/asm.go       | 12 ++++++------
+ 16 files changed, 81 insertions(+), 83 deletions(-)

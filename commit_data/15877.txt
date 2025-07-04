@@ -1,29 +1,20 @@
-commit d7c1f67cb92d29622de35b86288b2c6032285965
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 21 14:07:24 2013 -0700
+commit 3be703665eab5cd2bac22e3c928820f58b590c57
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 21 16:59:16 2013 -0400
 
-    net/http/fcgi: fix a shutdown race
+    reflect: implement method values
     
-    If a handler didn't consume all its Request.Body, child.go was
-    closing the socket while the host was still writing to it,
-    causing the child to send a RST and the host (at least nginx)
-    to send an empty response body.
+    Fixes #1517.
     
-    Now, we tell the host we're done with the request/response
-    first, and then close our input pipe after consuming a bit of
-    it. Consuming the body fixes the problem, and flushing to the
-    host first to tell it that we're done increases the chance
-    that the host cuts off further data to us, meaning we won't
-    have much to consume.
-    
-    No new tests, because this package is lacking in tests.
-    Tested by hand with nginx.  See issue for testing details.
-    
-    Fixes #4183
-    
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7939045
+    https://golang.org/cl/7906043
 
- src/pkg/net/http/fcgi/child.go | 32 +++++++++++++++++++++++++-------
- 1 file changed, 25 insertions(+), 7 deletions(-)
+ src/pkg/reflect/all_test.go  | 302 +++++++++++++++++++++++++++++++++++++++----
+ src/pkg/reflect/asm_386.s    |  12 +-
+ src/pkg/reflect/asm_amd64.s  |  12 +-
+ src/pkg/reflect/asm_arm.s    |  12 +-
+ src/pkg/reflect/deepequal.go |   2 -
+ src/pkg/reflect/makefunc.go  |  57 +++++++-
+ src/pkg/reflect/value.go     | 232 +++++++++++++++++++++------------
+ 7 files changed, 512 insertions(+), 117 deletions(-)

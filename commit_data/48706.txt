@@ -1,19 +1,32 @@
-commit 870256ec891421d9d68365f65e48d270e16958bb
-Author: j178 <sherlockjoe8@gmail.com>
-Date:   Thu Apr 7 02:44:08 2022 +0000
+commit 8e5304f7298a0eef48e4796017c51b4d9aeb52b5
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 4 18:11:59 2021 -0400
 
-    hash/maphash: use correct method name in comment
+    [dev.typeparams] cmd/compile, runtime: remove the siz argument of newproc/deferproc
     
-    Change-Id: I01a3a5232525683c987b52ab8ece3fc18b6f431b
-    GitHub-Last-Rev: d2ec8fe536c7a1cdbd23017185447a86bee5a82a
-    GitHub-Pull-Request: golang/go#52194
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398714
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    newproc/deferproc takes a siz argument for the go'd/deferred
+    function's argument size. Now it is always zero. Remove the
+    argument.
+    
+    Change-Id: If1bb8d427e34015ccec0ba10dbccaae96757fa8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325917
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/hash/maphash/maphash.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 11 ++++-------
+ src/runtime/asm_386.s                  |  2 --
+ src/runtime/asm_amd64.s                |  2 --
+ src/runtime/asm_arm.s                  |  7 +++----
+ src/runtime/asm_arm64.s                | 11 ++++-------
+ src/runtime/asm_mips64x.s              |  7 +++----
+ src/runtime/asm_mipsx.s                |  7 +++----
+ src/runtime/asm_ppc64x.s               |  3 +--
+ src/runtime/asm_riscv64.s              |  7 +++----
+ src/runtime/asm_s390x.s                |  7 +++----
+ src/runtime/asm_wasm.s                 |  3 +--
+ src/runtime/debugcall.go               |  2 +-
+ src/runtime/panic.go                   |  9 ++-------
+ src/runtime/proc.go                    | 27 +++++++++++----------------
+ 14 files changed, 39 insertions(+), 66 deletions(-)

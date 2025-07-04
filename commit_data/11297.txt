@@ -1,12 +1,12 @@
-commit 6923f6d12aad4fb196bff109f091b042a2d17f39
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 20 12:57:43 2012 -0800
+commit c088ebef16c3510677153581a53a262b7c9200ea
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jan 20 15:48:01 2012 -0500
 
-    doc/go1.html: fix broken links
+    go run: correctly handle -n and -x flags
     
-    R=r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5555060
+    https://golang.org/cl/5557069
 
- doc/go1.html | 40 +++++++++++++++++++++-------------------
- 1 file changed, 21 insertions(+), 19 deletions(-)
+ src/cmd/go/run.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

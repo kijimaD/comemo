@@ -1,20 +1,24 @@
-commit 7f59bea53c888605faaa46cd95aaa3ddf29219bf
-Author: Anuraag Agrawal <anuraaga@gmail.com>
-Date:   Mon Feb 20 00:38:44 2023 +0000
+commit 3334afd7609185574ad179cb030064f0825c2101
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Feb 14 22:36:25 2022 +0000
 
-    strconv: add Atoi test cases with characters less than '0'
+    runtime: remove old pacer and the PacerRedesign goexperiment
     
-    Change-Id: I35c0fe4e7e11b694ef07687d5e0532a2ab9ba213
-    GitHub-Last-Rev: e0a28f42367c2685d80bcc5c45294c0d2eae77fe
-    GitHub-Pull-Request: golang/go#58575
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/469035
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Now that Go 1.18 has been released, remove the old pacer.
+    
+    Change-Id: Ie7a7596d67f3fc25d3f375a08fc75eafac2eb834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393396
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/strconv/atoi_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/internal/buildcfg/exp.go                       |   1 -
+ src/internal/goexperiment/exp_pacerredesign_off.go |   9 -
+ src/internal/goexperiment/exp_pacerredesign_on.go  |   9 -
+ src/internal/goexperiment/flags.go                 |   6 -
+ src/runtime/export_test.go                         |   4 +-
+ src/runtime/mgc.go                                 |   8 +-
+ src/runtime/mgcmark.go                             |  30 +-
+ src/runtime/mgcpacer.go                            | 577 ++++++---------------
+ src/runtime/mgcpacer_test.go                       |  52 +-
+ 9 files changed, 192 insertions(+), 504 deletions(-)

@@ -1,46 +1,18 @@
-commit 58d7231b2f503f70955fb050f02ea8a0277db0fa
-Author: Jed Denlea <jed@fastly.com>
-Date:   Wed Oct 4 17:32:44 2017 -0700
+commit dc7fa5f6dbf1bc638d3c2b48ae394c6a2517d0ba
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Thu Jul 20 12:29:15 2017 -0400
 
-    image/gif: make blockReader a ByteReader, harden tests
+    cmd/go: fix test when go source tree has POSIX ACL
     
-    golang.org/cl/37258 was committed to fix issue #16146.
+    Fixes TestGoBuildUmask when the user has a POSIX ACL on the Go source tree.
     
-    This patch seemed intent to allow at most one dangling byte.  But, as
-    implemented, many more bytes may actually slip through.  This is because
-    the LZW layer creates a bufio.Reader which will itself consume data
-    beyond the end of the LZW stream, and this isn't accounted for anywhere.
+    Fixes #17909.
     
-    This change means to avoid the allocation of the bufio.Reader by making
-    blockReader implement io.ByteReader.  Further, it adds a close() method
-    which detects extra data in the block sequence.  To avoid any
-    regressions with poorly encoded GIFs which may have worked accidentally,
-    there are no restrictions on how many extra bytes may exist in the final
-    full sub-block that contained LZW data.  If the end of the LZW stream
-    happened to align with the end of a sub-block, at most one more
-    sub-block with a length of 1 byte may exist before the block terminator.
-    
-    This change aims to be at least as performant as the prior
-    implementation.  But the primary gain is avoiding the allocation of a
-    bufio.Reader per frame:
-    
-    name      old time/op    new time/op    delta
-    Decode-8     276µs ± 0%     275µs ± 2%    ~     (p=0.690 n=5+5)
-    
-    name      old speed      new speed      delta
-    Decode-8  55.9MB/s ± 0%  56.3MB/s ± 2%    ~     (p=0.690 n=5+5)
-    
-    name      old alloc/op   new alloc/op   delta
-    Decode-8    49.2kB ± 0%    44.8kB ± 0%  -9.10%  (p=0.008 n=5+5)
-    
-    name      old allocs/op  new allocs/op  delta
-    Decode-8       269 ± 0%       267 ± 0%  -0.74%  (p=0.008 n=5+5)
-    
-    Change-Id: Iec4f9b895561ad52266313fbc73ec82c070c3349
-    Reviewed-on: https://go-review.googlesource.com/68350
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: I5bc19099af8353afd41071258f4f317612b4c8c1
+    Reviewed-on: https://go-review.googlesource.com/50370
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/image/gif/reader.go      | 136 ++++++++++++++++++++++++++++++-------------
- src/image/gif/reader_test.go |   7 +++
- 2 files changed, 104 insertions(+), 39 deletions(-)
+ src/cmd/go/go_unix_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

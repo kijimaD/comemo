@@ -1,12 +1,13 @@
-commit c123c6c3f628b64c227d2de6d45e780716682e27
-Author: David Symonds <dsymonds@golang.org>
-Date:   Sun Jun 24 12:23:51 2012 -0700
+commit a033e367661d2c76f8949822673ffc36a560852a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 24 01:41:17 2012 +0800
 
-    flag: fix indexing doc.
+    runtime: fix struct Sigaction for Linux/386
+            We need to use kernel headers to generate defs_linux_$GOARCH.h
     
-    R=golang-dev, r
+    R=golang-dev, dave, alex.brainman, iant
     CC=golang-dev
-    https://golang.org/cl/6341046
+    https://golang.org/cl/6296091
 
- src/pkg/flag/flag.go | 2 +-
+ src/pkg/runtime/defs_linux_386.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

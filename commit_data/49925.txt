@@ -1,31 +1,26 @@
-commit 7adfa82726280371bb4dfc710dc4168dfd9de703
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 23 15:57:10 2022 -0700
+commit 5efa8ff340d9fcc2dfc7a5136f1ed4067eb5e91e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 21 10:54:08 2021 -0700
 
-    debug/macho, internal/saferio: limit slice allocation
+    cmd/compile/internal/types2: make ptrRecv a method hasPtrRecv of Func
     
-    Don't allocate slices that are too large; choose a smaller capacity
-    and build the slice using append. Use this in debug/macho to avoid
-    over-allocating if a fat header is incorrect.
+    Reading the Func.hasPtrRecv field directly (without consulting a
+    possibly existing signature) caused some issues in an earlier CL.
+    The function ptrRecv (in lookup.go) does the right thing but is
+    not easily discoverable.
     
-    No debug/macho test case because the problem can only happen for
-    invalid data. Let the fuzzer find cases like this.
+    Rename ptrRecv to hasPtrRecv and make it a method of Func; rename
+    Func.hasPtrRecv field to Func.hasPtrRecv_ to avoid name collisions.
+    Make it clear in field comment that it must not be read through the
+    hasPtrRecv method.
     
-    For #47653
-    Fixes #52523
-    
-    Change-Id: I372c9cdbdda8626a3225e79d713650beb350ebc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413874
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ida9856c4789e499538eb34377be781655958fd5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351310
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/debug/macho/fat.go          | 11 +++++++++--
- src/go/build/deps_test.go       |  6 +++---
- src/internal/saferio/io.go      | 29 ++++++++++++++++++++++++++++-
- src/internal/saferio/io_test.go | 25 +++++++++++++++++++++++++
- 4 files changed, 65 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go   | 21 +--------------------
+ src/cmd/compile/internal/types2/named.go    |  4 ++--
+ src/cmd/compile/internal/types2/object.go   | 23 +++++++++++++++++++++--
+ src/cmd/compile/internal/types2/resolver.go |  2 +-
+ 4 files changed, 25 insertions(+), 25 deletions(-)

@@ -1,46 +1,31 @@
-commit 8623503fe54642a21854c551129d550139f3bbac
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 24 16:18:07 2018 -0700
+commit 7f88d3c121a5a41f5fc286128d13f6b098dec6c1
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 22 17:18:51 2017 +0100
 
-    cmd/compile/internal/gc: speed up arith const tests
+    cmd/compile: remove some more gotos in gc
     
-    This change reduces the time to run this test on my machine from
+    Split typecheckrange into two, separating the bigger chunk of code that
+    takes care of the range expression. It had to sometimes exit early,
+    which was done via a goto in the larger func. This lets us simplify many
+    declarations and the flow of the code. While at it, also replace the
+    toomany int with a bool.
     
-    real    0m2.491s
-    user    0m3.020s
-    sys     0m0.331s
+    In the case of walkselect, split it into two funcs too since using a
+    defer for all the trailing work would be a bit much. It also lets us
+    simplify the declarations and the flow of the code, since now
+    walkselectcases has a narrower scope and straightforward signature.
     
-    to
+    Also replace the gotos in typecheckaste with a lineno defer.
     
-    real    0m0.237s
-    user    0m0.180s
-    sys     0m0.173s
+    Passes toolstash -cmp on std cmd.
     
-    This will make it reasonable to add more constants to the test.
-    I am also hopeful that it might help a bit with intermittent
-    cmd/compile/internal/gc test timeouts on the build dashboard
-    on the slower builders.
-    
-    The time savings are entirely in compilation time,
-    by avoiding generating one giant func main.
-    Instead, generate tables of tests to be run,
-    which are translated into static data,
-    and then loop over those tests.
-    
-    While we're here, do some minor cleanup:
-    
-    * Remove the _ssa suffix on function names,
-      as that was only needed during ssa bootstrapping.
-    * Clean up error handling during test generation.
-    * Make functions single-line, to reduce future diff sizes.
-      Diffing giant files is slow.
-    
-    Change-Id: Ic5fccdb71679169bea756c7d33c07d05e4801860
-    Reviewed-on: https://go-review.googlesource.com/102956
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iacfaa0a34c987c44f180a792c473558785cf6823
+    Reviewed-on: https://go-review.googlesource.com/72374
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/testdata/arithConst.go | 28886 ++++---------------
- .../internal/gc/testdata/gen/arithConstGen.go      |    99 +-
- 2 files changed, 5216 insertions(+), 23769 deletions(-)
+ src/cmd/compile/internal/gc/range.go     | 53 +++++++++----------
+ src/cmd/compile/internal/gc/select.go    | 88 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/typecheck.go | 22 +++-----
+ 3 files changed, 75 insertions(+), 88 deletions(-)

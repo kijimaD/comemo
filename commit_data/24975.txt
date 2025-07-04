@@ -1,23 +1,14 @@
-commit 8b1b81f463b949c81f42be528c88fd86d79d1b6f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 18 14:37:12 2015 -0500
+commit fda72e03751ab876ced9351611e42ad019090ec8
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 12 14:45:58 2015 -0700
 
-    cmd/compile: fix crash with -race on large expr containing string->[]byte conversion
+    [dev.ssa] cmd/compile/internal/ssa: don't treat vardef/varkill as reads
     
-    The assumption is that there are no nested function calls in complex expressions.
-    For the most part that assumption is true. It wasn't for these calls inserted during walk.
-    Fix that.
+    This makes deadstore elimination work reasonably again.
     
-    I looked through all the calls to mkcall in walk and these were the only cases
-    that emitted calls, that could be part of larger expressions (like not delete),
-    and that were not already handled.
-    
-    Fixes #12225.
-    
-    Change-Id: Iad380683fe2e054d480e7ae4e8faf1078cdd744c
-    Reviewed-on: https://go-review.googlesource.com/17034
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3a8caced71f12dfb6c1d0c68b7a7d8d7a736ea23
+    Reviewed-on: https://go-review.googlesource.com/14536
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/order.go         |  5 ++++-
- src/runtime/race/testdata/issue12225_test.go | 13 +++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/deadstore.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

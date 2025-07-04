@@ -1,26 +1,25 @@
-commit 68c0ad3a689833344fada8acc1f36a06c343caa4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Apr 18 13:52:44 2024 -0400
+commit 22a840aa9bfbabd7b4daf5c5f9852e1c68908d03
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 19 16:41:37 2023 -0700
 
-    cmd/go: only attempt to match subset of $GOCACHE in test
+    runtime: mix a bit more in arm64 hash function
     
-    This test attempted to be clever by looking for the entirety of $GOCACHE
-    in the compile command line to ensure that the profile was coming from
-    cache.
+    We really need 3 mix steps between the data being hashed and the output.
+    One mix can only spread a 1 bit change to 32 bits. The second mix
+    can spread to all 128 bits, but the spread is not complete. A third mix
+    spreads out ~evenly to all 128 bits.
     
-    Unfortunately, on Windows $GOCACHE contains \, which needs extra
-    escaping in a regexp. As an approximate alternative, just look for the
-    "gocache" component specified when defining GOCACHE.
+    The amd64 version has 3 mix steps.
     
-    This fixes the Windows longtest builders.
+    Fixes #59643
     
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
-    Change-Id: If6c77cf066d8612431e0720405254e1fdf528e9b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580137
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I54ad8686ca42bcffb6d0ec3779d27af682cc96e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486616
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Bypass: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/testdata/script/build_cache_pgo.txt | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/runtime/asm_arm64.s  | 1 +
+ src/runtime/hash_test.go | 7 +++++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

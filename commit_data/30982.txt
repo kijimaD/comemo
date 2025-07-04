@@ -1,22 +1,17 @@
-commit 7439ba32ffe5461372a5b51cc315d8c0e8dae03e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 3 10:00:02 2017 -0700
+commit 618c291544d4e1152e7ba5ce5b1b2988d1a7b50f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 22 17:30:23 2016 -0700
 
-    cmd/compile: respect Node.Bounded when inserting OpArraySelect
+    runtime: update big mgc.go comment
     
-    This triggers 119 times during make.bash.
+    The comment describing the overall GC algorithm at the top of mgc.go
+    has gotten woefully out-of-date (and was possibly never
+    correct/complete). Update it to reflect the current workings of the
+    GC and the set of phases that we now divide it into.
     
-    This CL reduces the time it takes for the
-    compiler to panic while compiling the code in #19751
-    from 22 minutes to 15 minutes. Yay, I guess.
-    
-    Updates #19751
-    
-    Change-Id: I8ca7f1ae75f89d1eb2a361d67b3055a975221734
-    Reviewed-on: https://go-review.googlesource.com/39294
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I02143c0ebefe9d4cd7753349dab8045f0973bf95
+    Reviewed-on: https://go-review.googlesource.com/34711
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go | 129 +++++++++++++++++++++++++++--------------------------
+ 1 file changed, 66 insertions(+), 63 deletions(-)

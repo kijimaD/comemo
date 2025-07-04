@@ -1,27 +1,16 @@
-commit 64fae252868fe6ab97f743cfadcb54cee8ccca02
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 10 16:28:48 2018 -0400
+commit 224f807e268e97aa7ddd17bb1f91705a00041511
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 16 04:49:10 2018 +0900
 
-    cmd/go: do not turn list ./nonexist into a network lookup
+    net: add missing deadline test for RawConn
     
-    If you're in a directory corresponding to x/y
-    and you run go list ./z, we do at some point
-    want to turn that into x/y/z. But if ./z does
-    not exist that will make the go command
-    check the network to see if it can find x/y/z.
-    That's clearly wrong: ./z means that directory,
-    nothing else. And it turns a typo into a long delay,
-    which is even worse.
+    Updates #19435.
     
-    Fixes #26874.
-    
-    Change-Id: Iec15fa7b359af11b6a4fc6cb082e593658fb6e41
-    Reviewed-on: https://go-review.googlesource.com/129061
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ife4a31972b05094a86c60a48fcacdfe52d133ee4
+    Reviewed-on: https://go-review.googlesource.com/107395
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/load.go            | 14 ++++++++++++++
- src/cmd/go/testdata/script/mod_fs_patterns.txt | 12 ++++++++++++
- src/cmd/go/testdata/script/mod_list_dir.txt    |  5 ++++-
- 3 files changed, 30 insertions(+), 1 deletion(-)
+ src/net/rawconn_test.go | 76 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 76 insertions(+)

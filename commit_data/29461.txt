@@ -1,17 +1,19 @@
-commit d54463f4fc9e6137b31f660afa5a785ba65e1879
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 10 18:00:10 2016 +0000
+commit bb12894d2b51f8a50c0783db6043247758706466
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 15 19:52:40 2016 -0400
 
-    lib/time: update tzdata to 2016i
+    cmd/link: fix number-of-files entry in gopclntab
     
-    Fixes #17678
+    According to golang.org/s/go12symtab, for N files, it should put N+1
+    there.
     
-    Change-Id: I01d12a827e6106efed1ec024f736c640b86906b4
-    Reviewed-on: https://go-review.googlesource.com/33029
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #17132.
+    
+    Change-Id: I0c84136855c6436be72b9d3c407bf10d4c81a099
+    Reviewed-on: https://go-review.googlesource.com/29275
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 363948 -> 364943 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

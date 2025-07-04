@@ -1,19 +1,46 @@
-commit 55c55dda1fa8f9351d992e4a05e94f8cb38f59a0
-Author: Vladimir Kovpak <cn007b@gmail.com>
-Date:   Tue Nov 20 09:08:11 2018 +0000
+commit 53859e575ba0f0b84914e7dc5c2a09b6b0c5d96f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 29 09:26:24 2018 -0400
 
-    regexp: use backquotes for all regular expression examples
+    cmd/go: change list -compiled to populate new CompiledGoFiles list
     
-    This commit performs replace double quote to backquote,
-    so now all examples looks consistent.
+    CL 108156 added -cgo during the Go 1.11 cycle.
+    To avoid adding a new field to Package, it redefined the
+    meaning of the CgoFiles list to be the cgo output instead
+    of the cgo input.
     
-    Change-Id: I8cf760ce1bdeff9619a88e531161b9516385241b
-    GitHub-Last-Rev: e3e636cebbf41528b8a73f9a3fe5afa10876f964
-    GitHub-Pull-Request: golang/go#28879
-    Reviewed-on: https://go-review.googlesource.com/c/150397
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This was awkward in the go command itself, since the meaning
+    of the list changed midway through the build.
+    
+    But, worse, it is awkward to users of go list.
+    When gathering information about a tree of packages,
+    we may want the names of both the cgo inputs and the cgo outputs
+    (golang.org/x/tools/go/packages does, it turns out),
+    or when combined with -deps (CL 107776),
+    we may only care about one list or the other depending
+    on whether the package was requested explicitly or is
+    being returned as a dependency.
+    
+    Also, it's not general enough. SWIGFiles turn into cgo files
+    and then end up in the list too. And maybe there will be others
+    in the future. What clients really want is the list of files that
+    are presented to the go compiler, so that they can parse
+    and type-check them as if they were the compiler instead.
+    
+    Eliminate all this awkwardness by dropping -cgo and adding
+    a new -compiled that populates a new CompiledGoFiles list.
+    
+    Change-Id: I5f152da17cfb2692eedde61721d01ec13067c57d
+    Reviewed-on: https://go-review.googlesource.com/126695
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/regexp/example_test.go | 42 +++++++++++++++++++++---------------------
- 1 file changed, 21 insertions(+), 21 deletions(-)
+ src/cmd/cgo/ast.go                 |  2 +-
+ src/cmd/cgo/util.go                |  2 ++
+ src/cmd/go/go_test.go              | 18 +++++++++----
+ src/cmd/go/internal/list/list.go   | 54 ++++++++++++++++++++------------------
+ src/cmd/go/internal/load/pkg.go    | 26 +++++++++---------
+ src/cmd/go/internal/work/action.go |  8 +++---
+ src/cmd/go/internal/work/exec.go   | 35 ++++++++++++------------
+ 7 files changed, 79 insertions(+), 66 deletions(-)

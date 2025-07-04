@@ -1,15 +1,12 @@
-commit 4f2cfdc7f44f26548be4a84414a8e21985b3e441
+commit 46d1461ab75d67844ed4292cb7324a23f3a8496a
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Dec 9 23:25:49 2013 -0500
+Date:   Mon Dec 9 23:24:58 2013 -0500
 
-    crypto/rand: support generation of 2-5 bit primes, also document the error return for Prime
-    Fixes #6849.
-    Fixes #6867.
+    strconv: add example for Unquote.
     
-    R=golang-dev, agl
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/35870043
+    https://golang.org/cl/38920043
 
- src/pkg/crypto/rand/util.go      |  8 +++++---
- src/pkg/crypto/rand/util_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 3 deletions(-)
+ src/pkg/strconv/quote_example_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

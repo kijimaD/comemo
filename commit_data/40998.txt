@@ -1,18 +1,19 @@
-commit ba4593ac47f4eaa22bd61f5e44e80eea6f965768
-Author: Oliver Powell <oliverpowell84@gmail.com>
-Date:   Sat Oct 5 13:05:56 2019 +0200
+commit be452cea422114160e192625ac11e83c0fd2b9e3
+Author: Illya Yalovyy <yalovoy@gmail.com>
+Date:   Sat May 25 20:44:13 2019 -0700
 
-    text/template: remove an incorrect comment and clarify docs for AddParseTree
+    math/big: fast path for Cmp if same
     
-    The comment "If the name is the name of this template, overwrite this template."
-    is incorrect and should be "is not" instead. This comment is no longer
-    required once the docs are updated to mention this behaviour instead.
+    math/big.Int Cmp method does not have a fast path for the case if x and y are the same.
     
-    Fixes #34695
+    Fixes #30856
     
-    Change-Id: I773495b2194d7bb7619b13c1a28cbc76e8f69aac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199139
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia9a5b5f72db9d73af1b13ed6ac39ecff87d10393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178957
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/text/template/template.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/math/big/int.go      |  2 ++
+ src/math/big/int_test.go | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+)

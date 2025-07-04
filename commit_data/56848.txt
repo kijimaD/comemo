@@ -1,47 +1,23 @@
-commit a2e90be996fb0e75966b1e1097dd20aa07eebc37
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Sun Jun 9 12:47:23 2024 -0700
+commit 789701e93a6f0063b6ef2c52c0557c672553d0e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 25 12:47:06 2023 -0400
 
-    os: rewrite TestChtimesWithZeroTimes
+    runtime: change heapObjectsCanMove to a func
     
-    First, this enables checks on DragonFly BSD, which partially works since
-    CL 589496 (except two things: atime is not supported on hammer2 fs, and
-    when both times are omitted, it doesn't work due to a kernel bug).
+    A var is problematic because the zero value is already false,
+    so if it goes away, it will appear to be false.
+    I'm also not sure about go:linkname on vars,
+    so switch to func for both reasons.
     
-    Second, there are a few problems with TestChtimesWithZeroTimes:
+    Also add a test.
     
-     - test cases are interdependent (former cases influence the latter ones),
-       making the test using too many different times and also hard to read;
-    
-     - time is changed forward not backward which could be racy;
-    
-     - if the test has failed, it hard to see which exact case is failing.
-    
-    Plus, there are issues with the error exclusion code in
-    TestChtimesWithZeroTimes:
-    
-     - the atime comparison is done twice for the default ("unix") case;
-    
-     - the atime exclusion caused by noatime mount flag applies to all
-       unixes rather than netbsd only as it should;
-    
-     - the atime exclusion tries to read wrong files (/bin/mounts and
-       /etc/mtab instead of /proc/mounts);
-    
-     - the exclusion for netbsd is only applied for 64-bit arches, which
-       seems wrong (and I've reproduced noatime issue on NetBSD 9.4/i386).
-    
-    Let's rewrite it, fixing all these issues, and rename to
-    TestChtimesOmit.
-    
-    NB: TestChtimes can now be removed.
-    
-    Change-Id: If9020256ca920b4db836a1f0b2e055b5fce4a552
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591535
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joedian Reid <joedian@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I2318a5390d98577aec025152e65543491489defb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498261
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/os_test.go | 173 +++++++++++++++++++++++++-----------------------------
- 1 file changed, 79 insertions(+), 94 deletions(-)
+ src/runtime/heap_test.go | 21 +++++++++++++++++++++
+ src/runtime/mgc.go       |  8 ++++++--
+ 2 files changed, 27 insertions(+), 2 deletions(-)

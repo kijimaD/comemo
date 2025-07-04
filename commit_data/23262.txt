@@ -1,35 +1,19 @@
-commit fddc3ca11c38b063cb24e14d99cc023e746d0e20
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 3 22:21:07 2015 -0400
+commit b86e71f5aae4bd2cd2b1010e1c57909c068178cc
+Author: Rick Hudson <rlh@golang.org>
+Date:   Tue Apr 28 09:07:51 2015 -0400
 
-    testing: add -test.count flag to run tests and benchmarks multiple times
+    runtime: Reduce calls to shouldtriggergc
     
-    The flag is available from the go test command as -count:
+    shouldtriggergc is slightly expensive due to the call overhead
+    and the use of an atomic. This CL reduces the number of time
+    one checks if a GC should be done from one at each allocation
+    to once when a span is allocated. Since shouldtriggergc is an
+    important abstraction simply hand inlining it, along with its
+    atomic instruction would lose the abstraction.
     
-    % go test -run XXX -bench . -count 3
-    PASS
-    BenchmarkSprintfEmpty           30000000                54.0 ns/op
-    BenchmarkSprintfEmpty           30000000                51.9 ns/op
-    BenchmarkSprintfEmpty           30000000                53.8 ns/op
-    BenchmarkSprintfString          10000000               238 ns/op
-    BenchmarkSprintfString          10000000               239 ns/op
-    BenchmarkSprintfString          10000000               234 ns/op
-    BenchmarkSprintfInt             10000000               232 ns/op
-    BenchmarkSprintfInt             10000000               226 ns/op
-    BenchmarkSprintfInt             10000000               225 ns/op
-    ...
-    
-    If -cpu is set, each test is run n times for each cpu value.
-    
-    Original by r (CL 10663).
-    
-    Change-Id: If3dfbdf21698952daac9249b5dbca66f5301e91b
-    Reviewed-on: https://go-review.googlesource.com/10669
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ia3210655b4b3d433f77064a21ecb54e4d9d435f7
+    Reviewed-on: https://go-review.googlesource.com/9403
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/alldocs.go  | 5 +++++
- src/cmd/go/test.go     | 5 +++++
- src/cmd/go/testflag.go | 1 +
- src/testing/testing.go | 9 +++++++--
- 4 files changed, 18 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

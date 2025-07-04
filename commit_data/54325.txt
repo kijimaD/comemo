@@ -1,26 +1,28 @@
-commit 3f0f76734e981bf62322f9ecd738839c0f7c54b3
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Jun 30 13:41:59 2023 -0400
+commit 9dfadf911d2dcb093c3a37c79869bead0f9f6349
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Tue Sep 13 18:05:53 2022 +0000
 
-    cmd/compile/internal/inline: analyze function result properties
+    debug/buildinfo: correct a typo in calculating next align index
     
-    Add code to analyze properties of function result values, specifically
-    heuristics for cases where we always return allocated memory, always
-    return the same constant, or always return the same function.
+    When it calculates the smallest n such that:
+      n >= i && n % buildInfoAlign == 0
+    the expression should be
+      (i+buildInfoAlign-1)&^(buildInfoAlign-1)
+    instead of
+      (i+buildInfoAlign-1)&^buildInfoAlign
     
-    Updates #61502.
+    Fixes #54968.
     
-    Change-Id: I8b0a3295b5be7f7ad4c2d5b9803925aea0639376
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511559
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ibb7bdf568a521545b2609acc85e2ab4e05da5dae
+    GitHub-Last-Rev: 479ebc140af9809f0bea039e643cb95b4f857614
+    GitHub-Pull-Request: golang/go#54971
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429815
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/inline/inl.go             |   7 +-
- src/cmd/compile/internal/inline/inlheur/analyze.go |  20 +-
- .../inline/inlheur/analyze_func_returns.go         | 260 ++++++++++++++++
- .../internal/inline/inlheur/funcprops_test.go      |   2 +-
- .../inline/inlheur/testdata/props/funcflags.go     |  42 +--
- .../inline/inlheur/testdata/props/returns.go       | 332 +++++++++++++++++++++
- .../compile/internal/inline/inlheur/trace_off.go   |   3 +
- .../compile/internal/inline/inlheur/trace_on.go    |  23 ++
- 8 files changed, 659 insertions(+), 30 deletions(-)
+ src/debug/buildinfo/buildinfo.go      |  2 +-
+ src/debug/buildinfo/buildinfo_test.go | 70 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 1 deletion(-)

@@ -1,44 +1,20 @@
-commit cc2a5cf4b8b0aeaccd3dd439f8d3d68f25eef358
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Sep 28 18:20:12 2020 -0400
+commit e5f7a8334a6ff96a64ec6042223c48bd03bae948
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 12 23:35:46 2020 -0400
 
-    cmd/compile,cmd/internal/obj/ppc64: fix some shift rules due to a regression
+    [dev.link] cmd/link: convert dope to new style
     
-    A recent change to improve shifts was generating some
-    invalid cases when the rule was based on an AND. The
-    extended mnemonics CLRLSLDI and CLRLSLWI only allow
-    certain values for the operands and in the mask case
-    those values were not being checked properly. This
-    adds a check to those rules to verify that the
-    'b' and 'n' values used when an AND was part of the rule
-    have correct values.
+    Also convert a manually managed array to slice.
     
-    There was a bug in some diag messages in asm9. The
-    message expected 3 values but only provided 2. Those are
-    corrected here also.
-    
-    The test/codegen/shift.go was updated to add a few more
-    cases to check for the case mentioned here.
-    
-    Some of the comments that mention the order of operands
-    in these extended mnemonics were wrong and those have been
-    corrected.
-    
-    Fixes #41683.
-    
-    Change-Id: If5bb860acaa5051b9e0cd80784b2868b85898c31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258138
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Carlos Eduardo Seo <carlos.seo@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I7d0dd3d5f569ab237893f589b6022f0f351bca16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223337
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64enc.s |  4 ++--
- src/cmd/compile/internal/ppc64/ssa.go        | 12 +++++-----
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  9 ++++---
- src/cmd/compile/internal/ssa/rewrite.go      |  4 ++--
- src/cmd/compile/internal/ssa/rewritePPC64.go | 34 +++++++--------------------
- src/cmd/internal/obj/ppc64/asm9.go           | 35 ++++++++++++++--------------
- test/codegen/shift.go                        | 17 ++++++++------
- 7 files changed, 50 insertions(+), 65 deletions(-)
+ src/cmd/link/internal/ld/main.go       |  17 ++----
+ src/cmd/link/internal/ld/pe.go         | 107 ++++++++++++++++-----------------
+ src/cmd/link/internal/ld/target.go     |   4 ++
+ src/cmd/link/internal/loader/loader.go |   5 +-
+ 4 files changed, 65 insertions(+), 68 deletions(-)

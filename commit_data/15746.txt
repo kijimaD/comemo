@@ -1,17 +1,15 @@
-commit 8c2b6226f7ab867f9b55a655cd32018cec997df0
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Wed Mar 13 09:40:38 2013 -0700
+commit 1fdb3e2ed66dda36f98937f9570d007dbc7300bc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 13 07:42:55 2013 -0700
 
-    misc/pprof: fix address lookup regression on Linux
+    net: fix windows and plan9 build
     
-    Just use "go tool addr2line" no matter what, since we know
-    it works for all OSs.
+    Don't call unix-only function in test init.
     
-    Fixes #4818.
-    
-    R=rsc, r
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/7526047
+    https://golang.org/cl/7778043
 
- misc/pprof | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/pkg/net/conn_test.go       | 13 +++++++------
+ src/pkg/net/packetconn_test.go | 30 +++++++++++++++++++-----------
+ 2 files changed, 26 insertions(+), 17 deletions(-)

@@ -1,13 +1,25 @@
-commit d080a1cf147b9377edc25b108d28fad4ced46e31
-Author: Adam Langley <agl@golang.org>
-Date:   Wed May 11 17:00:19 2011 -0400
+commit 158970ea66bf062010878f8bc4aa4867bb9349b8
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Wed May 11 13:33:27 2011 -0700
 
-    compress/zlib: actually use provided dictionary.
+    http: write cookies according to RFC 6265
     
-    R=rsc, bradfitz, bradfitzgoog
+    RFC 6265 requires that user agents MUST NOT send more than
+    one Cookie header in a request.
+    
+    Note, this change also fixes an issue when sending requests
+    with more than one cookie header line to a php script served
+    by an apache web server.  Apache concatenates the cookies
+    with ", ", but php tries to split them only at ";".  E.g.
+    two cookies: "a=b, c=d" are seen by php as one cookie "a"
+    with the value "b, c=d".
+    
+    Fixes #1801
+    
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4518056
+    https://golang.org/cl/4535048
 
- src/pkg/compress/zlib/writer.go      |  2 +-
- src/pkg/compress/zlib/writer_test.go | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/pkg/http/cookie.go      | 28 ++++++++++++++++------------
+ src/pkg/http/cookie_test.go | 12 ++++++++++++
+ 2 files changed, 28 insertions(+), 12 deletions(-)

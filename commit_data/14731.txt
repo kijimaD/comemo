@@ -1,17 +1,29 @@
-commit b3bb4bd2925bc6715e5c91175021a2386f4017bb
+commit 295a4d8e6433e8a8b6df25375fb780b0f75ff4e6
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 22 16:45:35 2012 -0500
+Date:   Sat Dec 22 15:06:28 2012 -0500
 
-    cmd/yacc: fix debug print of token name
+    runtime: ignore failure from madvise
     
-    The array skips the first TOKSTART entries.
+    When we release memory to the OS, if the OS doesn't want us
+    to release it (for example, because the program executed
+    mlockall(MCL_FUTURE)), madvise will fail. Ignore the failure
+    instead of crashing.
     
-    Fixes #4410.
+    Fixes #3435.
     
-    R=golang-dev, ken2, ken
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6999054
+    https://golang.org/cl/6998052
 
- src/cmd/yacc/units.y | 5 +++++
- src/cmd/yacc/yacc.go | 7 ++++---
- 2 files changed, 9 insertions(+), 3 deletions(-)
+ src/pkg/runtime/sys_darwin_386.s    | 3 +--
+ src/pkg/runtime/sys_darwin_amd64.s  | 3 +--
+ src/pkg/runtime/sys_freebsd_386.s   | 3 +--
+ src/pkg/runtime/sys_freebsd_amd64.s | 3 +--
+ src/pkg/runtime/sys_freebsd_arm.s   | 3 +--
+ src/pkg/runtime/sys_linux_386.s     | 4 +---
+ src/pkg/runtime/sys_linux_amd64.s   | 4 +---
+ src/pkg/runtime/sys_linux_arm.s     | 5 +----
+ src/pkg/runtime/sys_netbsd_386.s    | 3 +--
+ src/pkg/runtime/sys_netbsd_amd64.s  | 3 +--
+ src/pkg/runtime/sys_openbsd_amd64.s | 3 +--
+ 11 files changed, 11 insertions(+), 26 deletions(-)

@@ -1,12 +1,13 @@
-commit f8067ad67ac24c88c949771644b5d2db69441459
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Jun 2 11:36:09 2013 +0200
+commit 83d4cd758c20bdfa1acb13a14425db692bc445e2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Jun 2 01:45:26 2013 +0400
 
-    hgignore: cleanup obsolete entries.
+    runtime: minor code style improvements (followup to change 9778049)
     
-    R=golang-dev, dave, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9935043
+    https://golang.org/cl/9693044
 
- .hgignore | 5 -----
- 1 file changed, 5 deletions(-)
+ src/pkg/runtime/malloc.goc | 2 +-
+ src/pkg/runtime/symtab.c   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

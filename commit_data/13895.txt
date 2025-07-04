@@ -1,31 +1,17 @@
-commit 439183eb0a57b815497d6d37f66fc99c4160c349
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Sep 21 14:38:22 2012 -0500
+commit 57ad05db1540fd949917708a7551866a2c9e2a47
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 21 13:39:09 2012 -0400
 
-    doc/talks: remove talks, refer to talks.golang.org instead
+    cmd/6g: use all 16 float registers, optimize float moves
     
-    These talks have been moved to the go.talks sub-repository:
-            https://code.google.com/p/go.talks
+    Fixes #2446.
     
-    R=rsc, r
-    CC=gobot, golang-dev
-    https://golang.org/cl/6529052
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6557044
 
- doc/docs.html                               |    2 +-
- doc/talks/go_talk-20091030.pdf              |  Bin 247502 -> 0 bytes
- doc/talks/go_talk-20100112.html             |  411 ----
- doc/talks/go_talk-20100121.html             |  453 -----
- doc/talks/go_talk-20100323.html             |  395 ----
- doc/talks/gofrontend-gcc-summit-2010.pdf    |  Bin 125185 -> 0 bytes
- doc/talks/io2010/balance.go                 |  168 --
- doc/talks/io2010/decrypt.go                 |   85 -
- doc/talks/io2010/encrypt.go                 |   52 -
- doc/talks/io2010/eval1.go                   |  227 ---
- doc/talks/io2010/eval2.go                   |  259 ---
- doc/talks/io2010/talk.pdf                   |  Bin 1094941 -> 0 bytes
- doc/talks/io2011/Real_World_Go.pdf          |  Bin 609477 -> 0 bytes
- doc/talks/io2011/Writing_Web_Apps_in_Go.pdf |  Bin 729499 -> 0 bytes
- doc/talks/java-typing.png                   |  Bin 19328 -> 0 bytes
- doc/talks/slidy.css                         |  277 ---
- doc/talks/slidy.js                          | 2772 ---------------------------
- 17 files changed, 1 insertion(+), 5100 deletions(-)
+ src/cmd/6g/gsubr.c |  8 ++++----
+ src/cmd/6g/peep.c  | 54 ++++++++++++++++++++++++++++++++++++++++++++++--------
+ src/cmd/6g/reg.c   |  2 +-
+ src/cmd/6l/6.out.h |  8 ++++++++
+ 4 files changed, 59 insertions(+), 13 deletions(-)

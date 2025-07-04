@@ -1,26 +1,27 @@
-commit a9ba3e30acf004a57fbc1288d5cea6bae74d06e8
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Fri Mar 9 00:06:33 2018 +0100
+commit 2a166c93a3d2a7ba73e129649b7b41b6c696e74a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 13 21:30:22 2017 -0500
 
-    cmd/compile: add SSA config options useAvg and useHmul
+    bytes, strings: restore O(1) behavior of IndexAny(s, "") and LastIndexAny(s, "")
     
-    This commit allows architectures to disable optimizations that need the
-    Avg* and Hmul* operations.
+    CL 65851 (bytes) and CL 65910 (strings) “improve[d] readability”
+    by removing the special case that bypassed the whole function body
+    when chars == "". In doing so, yes, the function was unindented a
+    level, which is nice, but the runtime of that case went from O(1) to O(n)
+    where n = len(s).
     
-    WebAssembly has no such operations, so using them as an optimization
-    but then having to emulate them with multiple instructions makes no
-    sense, especially since the WebAssembly compiler may do the same
-    optimizations internally.
+    I don't know if anyone's code depends on the O(1) behavior in this case,
+    but quite possibly someone's does.
     
-    Updates #18892
+    This CL adds the special case back, with a comment to prevent future
+    deletions, and without reindenting each function body in full.
     
-    Change-Id: If57b59e3235482a9e0ec334a7312b3e3b5fc2b61
-    Reviewed-on: https://go-review.googlesource.com/103256
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5aba33922b304dd1b8657e6d51d6c937a7f95c81
+    Reviewed-on: https://go-review.googlesource.com/78112
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/config.go         |  4 +++
- src/cmd/compile/internal/ssa/gen/generic.rules | 24 ++++++-------
- src/cmd/compile/internal/ssa/rewritegeneric.go | 50 +++++++++++++-------------
- 3 files changed, 42 insertions(+), 36 deletions(-)
+ src/bytes/bytes.go        | 8 ++++++++
+ src/bytes/example_test.go | 2 +-
+ src/strings/strings.go    | 8 ++++++++
+ 3 files changed, 17 insertions(+), 1 deletion(-)

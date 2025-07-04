@@ -1,33 +1,12 @@
-commit 040fe32119580cbb480d38dec8cfffd06d2dbf3a
+commit 10f1b6a0744bac6af16c72a48448027e7041ea25
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 3 11:43:24 2012 -0800
+Date:   Fri Feb 3 11:17:55 2012 -0800
 
-    test: don't use package main for files without a main function
+    strings: add Fields example
     
-    Part of issue 2833, but works fine with current test runner.
-    
-    R=golang-dev, rsc
+    R=golang-dev, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5606056
+    https://golang.org/cl/5629043
 
- test/eof1.go                | 2 +-
- test/fixedbugs/bug063.go    | 2 +-
- test/fixedbugs/bug066.go    | 2 +-
- test/fixedbugs/bug071.go    | 2 +-
- test/fixedbugs/bug109.go    | 2 +-
- test/fixedbugs/bug118.go    | 2 +-
- test/fixedbugs/bug150.go    | 2 +-
- test/fixedbugs/bug151.go    | 2 +-
- test/fixedbugs/bug219.go    | 2 +-
- test/fixedbugs/bug232.go    | 2 +-
- test/fixedbugs/bug233.go    | 2 +-
- test/fixedbugs/bug235.go    | 2 +-
- test/fixedbugs/bug250.go    | 2 +-
- test/fixedbugs/bug267.go    | 2 +-
- test/fixedbugs/bug283.go    | 2 +-
- test/fixedbugs/bug309.go    | 2 +-
- test/fixedbugs/bug354.go    | 2 +-
- test/fixedbugs/bug393.go    | 2 +-
- test/interface/recursive.go | 2 +-
- test/rune.go                | 2 +-
- 20 files changed, 20 insertions(+), 20 deletions(-)
+ src/pkg/strings/example_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

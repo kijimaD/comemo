@@ -1,13 +1,15 @@
-commit 1beb791934e6092ae2d16aa3e01eb09f031ae12c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu May 23 04:41:22 2013 +0800
+commit 75b62e367bfe0b4935fb08f5941f3a9a99932dae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 22 13:36:43 2013 -0700
 
-    test/errchk: use "#!/usr/bin/env perl" shebang line
-    fix test failure of go.tools sub-repo on NetBSD.
+    go/ast: fix FuncType.Pos() impl. and FuncType.Params documentation
     
-    R=golang-dev, bradfitz
+    As pointed out by adonovan.
+    
+    R=golang-dev, adonovan
     CC=golang-dev
-    https://golang.org/cl/9662044
+    https://golang.org/cl/9662045
 
- test/errchk | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/ast/ast.go    | 23 +++++++++++++----------
+ src/pkg/go/ast/filter.go |  2 +-
+ 2 files changed, 14 insertions(+), 11 deletions(-)

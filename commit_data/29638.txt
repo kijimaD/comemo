@@ -1,26 +1,28 @@
-commit 06fcc32d1460dce6436e675a978eb269d4a5db26
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Wed Nov 23 14:54:12 2016 -0500
+commit ffd1c781b77aab542713b66ef387fa9307e4060b
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Sat Sep 5 06:38:13 2015 -0700
 
-    runtime/cgo: save correct floating point registers on s390x
+    html/template: check "type" attribute in <script>
     
-    When transitioning from C code to Go code we must respect the C
-    calling convention. On s390x this means that r6-r13, r15 and f8-f15
-    must be saved and restored by functions that use them.
+    Currently any script tag is treated as a javascript container, although
+    <script type="text/template"> must not be. Check "type" attribute of
+    "script" tag. If it is present and it is not a JS MIME type, do not
+    transition to elementScript state.
     
-    On s390x we were saving the wrong set of floating point registers
-    (f0, f2, f4 and f6) rather than f8-f15 which means that Go code
-    could clobber registers that C code expects to be restored. This
-    CL modifies the crosscall functions on s390x to save/restore the
-    correct floating point registers.
+    Fixes #12149, where // inside text template was treated as regexp.
+    Fixes #6701
     
-    Fixes #18035.
-    
-    Change-Id: I5cc6f552c893a4e677669c8891521bf735492e97
-    Reviewed-on: https://go-review.googlesource.com/33571
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8fc9e504f7280bdd800f40383c061853665ac8a2
+    Reviewed-on: https://go-review.googlesource.com/14336
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/asm_s390x.s     | 14 +++--------
- src/runtime/cgo/asm_s390x.s | 46 +++++++++++++++++++++--------------
- src/runtime/cgo/gcc_s390x.S | 58 ++++++++++++++++++++++++++-------------------
- 3 files changed, 65 insertions(+), 53 deletions(-)
+ src/html/template/content_test.go | 41 +++++++++++++++++++++++++++++++++++++++
+ src/html/template/context.go      | 14 ++++++++-----
+ src/html/template/escape.go       | 12 +++++++++++-
+ src/html/template/escape_test.go  | 12 ++++++++++++
+ src/html/template/js.go           | 38 ++++++++++++++++++++++++++++++++++++
+ src/html/template/js_test.go      | 18 +++++++++++++++++
+ src/html/template/transition.go   | 30 +++++++++++++++++-----------
+ 7 files changed, 148 insertions(+), 17 deletions(-)

@@ -1,22 +1,36 @@
-commit 9d1efba28db4c045356c92c20f98cf12b5f31d72
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Oct 27 14:33:58 2016 -0400
+commit ee161e859166b8b8b077998c0101f56c18b18329
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 30 16:31:53 2016 -0700
 
-    cmd/link: put text at address 0x1000000 on darwin/amd64
+    cmd/compile: handle pragmas immediately with -newparser=1
     
-    Apparently on macOS Sierra LLDB thinks /usr/lib/dyld is mapped
-    at address 0, even if Go code starts at 0x1000, and it looks up
-    addresses from dyld which shadows Go symbols. Move Go binary at
-    a higher address to avoid clash.
+    Instead of saving all pragmas and processing them after parsing is
+    finished, process them immediately during scanning like the current
+    lexer does.
     
-    Fixes #17463. Re-enable TestLldbPython.
+    This is a bit unfortunate because it means we can't use
+    syntax.ParseFile to concurrently parse files yet, but it fixes how we
+    report syntax errors in the presence of //line pragmas.
     
-    Change-Id: I89ca6f3ee48aa6da9862bfa0c2da91477cc93255
-    Reviewed-on: https://go-review.googlesource.com/32185
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    While here, add a bunch more gcCompat entries to syntax/parser.go to
+    get "go build -toolexec='toolstash -cmp' std cmd" passing. There are
+    still a few remaining cases only triggered building unit tests, but
+    this seems like a nice checkpoint.
+    
+    Change-Id: Iaf3bbcf2849857a460496f31eea228e0c585ce13
+    Reviewed-on: https://go-review.googlesource.com/28226
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/amd64/obj.go | 2 +-
- src/runtime/runtime-lldb_test.go   | 1 -
- 2 files changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/lex.go              |   3 +-
+ src/cmd/compile/internal/gc/noder.go            | 177 +++++++++++-------------
+ src/cmd/compile/internal/syntax/dumper_test.go  |   2 +-
+ src/cmd/compile/internal/syntax/nodes.go        |  11 +-
+ src/cmd/compile/internal/syntax/parser.go       |  52 ++++++-
+ src/cmd/compile/internal/syntax/parser_test.go  |   6 +-
+ src/cmd/compile/internal/syntax/printer_test.go |   2 +-
+ src/cmd/compile/internal/syntax/scanner.go      |  15 +-
+ src/cmd/compile/internal/syntax/scanner_test.go |   6 +-
+ src/cmd/compile/internal/syntax/syntax.go       |  22 ++-
+ 10 files changed, 168 insertions(+), 128 deletions(-)

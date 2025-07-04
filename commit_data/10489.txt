@@ -1,12 +1,12 @@
-commit f2c858749a7d5c50c85fad64e7bba2c34ecae3e9
+commit d5514120b15bb51699633cc2e96dd2846f53c09c
 Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Nov 23 09:38:11 2011 -0500
+Date:   Wed Nov 23 09:35:01 2011 -0500
 
-    exp/ssh: add simple tcpip.go functional tests
+    exp/ssh: remove unused forwarding methods in Server Listener
     
-    R=rsc, agl, n13m3y3r, bradfitz
+    R=agl, rsc
     CC=golang-dev
-    https://golang.org/cl/5385041
+    https://golang.org/cl/5436056
 
- src/pkg/exp/ssh/tcpip_func_test.go | 59 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 59 insertions(+)
+ src/pkg/exp/ssh/server.go | 16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)

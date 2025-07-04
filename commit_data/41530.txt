@@ -1,17 +1,15 @@
-commit acac535c3ca571beeb168c953d6d672f61387ef1
-Author: Changkun Ou <hi@changkun.us>
-Date:   Sun Feb 16 01:11:53 2020 +0100
+commit 19a7490e568824302b271f6e27dde3f1cd92ffc7
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Wed Oct 9 23:48:31 2019 +0300
 
-    doc: race condition in unsynchronized send/close
+    dog/go1.14: properly close code tags
     
-    This CL documents that unsynchronized send and close operations
-    on a channel are detected as a race condition.
+    Some code tags in the HTML were not properly closed. Close them so that
+    the text is rendered correctly.
     
-    Fixes #27769
-    
-    Change-Id: I7495a2d0dd834c3f3b6339f8ca18ea21ae979aa8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219637
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I5c2170ffced313417f65004d53518128c34f7979
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200117
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/articles/race_detector.html | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ doc/go1.14.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

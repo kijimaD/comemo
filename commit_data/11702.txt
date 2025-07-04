@@ -1,12 +1,14 @@
-commit 1460cce0813e1336102e73e8403ed5845744eac1
+commit 5957f914e21d52f540116153bf72d3ec263ab825
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 8 10:25:03 2012 -0500
+Date:   Wed Feb 8 08:59:59 2012 -0500
 
-    CONTRIBUTORS: code review email for Jamie Gennis
+    regexp: fix typo
     
-    R=golang-dev, iant
+    Fixes #2918.
+    
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5646051
+    https://golang.org/cl/5639062
 
- CONTRIBUTORS | 2 +-
+ src/pkg/regexp/regexp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

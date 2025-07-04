@@ -1,18 +1,32 @@
-commit cba880e04a074806f0e948fbdee8e2fe31705f14
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 1 00:16:31 2013 -0400
+commit acd1b6317d5495024a21233384037a965934046b
+Author: Chris Manghane <cmang@golang.org>
+Date:   Thu Aug 1 13:27:27 2013 +1000
 
-    runtime: fix arm preemption
+    misc/dashboard/app, misc/dashboard/builder: delete from main repo; part of move to go.tools
+    See also https://golang.org/cl/12180043/
     
-    Preemption during the software floating point code
-    could cause m (R9) to change, so that when the
-    original registers were restored at the end of the
-    floating point handler, the changed and correct m
-    would be replaced by the old and incorrect m.
-    
-    TBR=dvyukov
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/11883045
+    https://golang.org/cl/12213043
 
- src/pkg/runtime/vlop_arm.s | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ misc/dashboard/README                      |  26 --
+ misc/dashboard/app/app.yaml                |  20 -
+ misc/dashboard/app/build/build.go          | 330 ---------------
+ misc/dashboard/app/build/handler.go        | 447 --------------------
+ misc/dashboard/app/build/init.go           |  66 ---
+ misc/dashboard/app/build/key.go            |  62 ---
+ misc/dashboard/app/build/notify.go         | 166 --------
+ misc/dashboard/app/build/notify.txt        |   9 -
+ misc/dashboard/app/build/test.go           | 256 -----------
+ misc/dashboard/app/build/ui.go             | 319 --------------
+ misc/dashboard/app/build/ui.html           | 209 ---------
+ misc/dashboard/app/cache/cache.go          |  82 ----
+ misc/dashboard/app/static/status_alert.gif | Bin 570 -> 0 bytes
+ misc/dashboard/app/static/status_good.gif  | Bin 328 -> 0 bytes
+ misc/dashboard/builder/Makefile            |   9 -
+ misc/dashboard/builder/doc.go              |  58 ---
+ misc/dashboard/builder/exec.go             |  79 ----
+ misc/dashboard/builder/http.go             | 167 --------
+ misc/dashboard/builder/main.go             | 653 -----------------------------
+ misc/dashboard/builder/vcs.go              | 148 -------
+ 20 files changed, 3106 deletions(-)

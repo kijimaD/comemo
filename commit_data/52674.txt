@@ -1,21 +1,65 @@
-commit 750e91152bbd1cb2869660ddb80f2b3adcfd1f9b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 14 16:48:26 2023 +0000
+commit c25c37137db98323510752f53e93128809a8767c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 17 08:13:47 2022 +0200
 
-    cmd/compile/internal/importer,go/internal/gcimporter: use the 'go' command from build.Default.GOROOT in lookupGorootExport
+    compress/flate: remove var newH
     
-    Also set GOROOT explicitly in case it is set to something else in the
-    caller's environment.
+    After CL 404696 hewH is no longer used outide the loop and val can be
+    used inside the loop instead. This leads to another slight improvement
+    in some benchmarks (only non-zero results reported):
     
-    Fixes #59598.
+    name                             old time/op    new time/op     delta
+    Decode/Digits/Huffman/1e4-4         125µs ±40%       96µs ± 7%  -22.72%  (p=0.000 n=10+10)
+    Decode/Digits/Huffman/1e5-4        1.02ms ± 4%     0.97ms ± 3%   -4.29%  (p=0.000 n=10+10)
+    Decode/Digits/Huffman/1e6-4        10.5ms ± 3%     10.1ms ± 2%   -3.34%  (p=0.000 n=10+9)
+    Decode/Digits/Speed/1e4-4           130µs ± 5%      119µs ± 3%   -8.33%  (p=0.000 n=10+10)
+    Decode/Digits/Speed/1e5-4          1.32ms ± 3%     1.26ms ± 4%   -4.14%  (p=0.001 n=10+10)
+    Decode/Digits/Speed/1e6-4          13.4ms ± 3%     12.8ms ± 3%   -4.64%  (p=0.000 n=10+10)
+    Decode/Digits/Default/1e4-4         142µs ±19%      124µs ± 3%  -12.75%  (p=0.000 n=10+9)
+    Decode/Digits/Default/1e5-4        1.33ms ± 4%     1.27ms ± 2%   -4.45%  (p=0.000 n=10+10)
+    Decode/Digits/Compression/1e4-4     132µs ± 4%      126µs ± 3%   -4.59%  (p=0.000 n=10+10)
+    Decode/Digits/Compression/1e5-4    1.31ms ± 4%     1.28ms ± 3%   -2.12%  (p=0.015 n=10+10)
+    Decode/Digits/Compression/1e6-4    13.2ms ± 3%     12.8ms ± 4%   -3.36%  (p=0.000 n=10+10)
+    Decode/Newton/Huffman/1e4-4         138µs ± 5%      128µs ± 3%   -7.55%  (p=0.000 n=10+9)
+    Decode/Newton/Huffman/1e5-4        1.25ms ± 1%     1.23ms ± 3%   -2.21%  (p=0.027 n=8+10)
+    Decode/Newton/Huffman/1e6-4        13.0ms ± 5%     12.2ms ± 5%   -6.54%  (p=0.000 n=10+10)
+    Decode/Newton/Speed/1e4-4           128µs ± 3%      118µs ± 4%   -7.34%  (p=0.000 n=9+10)
+    Decode/Newton/Speed/1e5-4          1.06ms ± 3%     1.02ms ± 3%   -3.58%  (p=0.001 n=9+10)
+    Decode/Newton/Speed/1e6-4          10.4ms ± 4%     10.1ms ± 3%   -3.15%  (p=0.003 n=10+10)
+    Decode/Newton/Compression/1e4-4     105µs ± 2%      108µs ± 5%   +2.82%  (p=0.043 n=9+10)
+    Encode/Digits/Speed/1e5-4          1.65ms ± 2%     1.70ms ± 4%   +2.77%  (p=0.003 n=8+10)
+    Encode/Newton/Default/1e6-4        58.0ms ± 2%     57.0ms ± 1%   -1.59%  (p=0.001 n=9+9)
     
-    Change-Id: I5599ed1183b23187fc3b976786f3c320d42ef4f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484756
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    name                             old speed      new speed       delta
+    Decode/Digits/Huffman/1e4-4      82.2MB/s ±30%  103.9MB/s ± 8%  +26.38%  (p=0.000 n=10+10)
+    Decode/Digits/Huffman/1e5-4      98.5MB/s ± 4%  102.9MB/s ± 3%   +4.46%  (p=0.000 n=10+10)
+    Decode/Digits/Huffman/1e6-4      95.6MB/s ± 3%   98.9MB/s ± 2%   +3.44%  (p=0.000 n=10+9)
+    Decode/Digits/Speed/1e4-4        76.9MB/s ± 5%   83.8MB/s ± 3%   +9.06%  (p=0.000 n=10+10)
+    Decode/Digits/Speed/1e5-4        75.8MB/s ± 3%   79.1MB/s ± 4%   +4.34%  (p=0.001 n=10+10)
+    Decode/Digits/Speed/1e6-4        74.4MB/s ± 3%   78.0MB/s ± 3%   +4.86%  (p=0.000 n=10+10)
+    Decode/Digits/Default/1e4-4      70.7MB/s ±17%   80.6MB/s ± 2%  +13.93%  (p=0.000 n=10+9)
+    Decode/Digits/Default/1e5-4      75.4MB/s ± 4%   78.9MB/s ± 3%   +4.60%  (p=0.000 n=10+10)
+    Decode/Digits/Compression/1e4-4  75.8MB/s ± 3%   79.4MB/s ± 3%   +4.79%  (p=0.000 n=10+10)
+    Decode/Digits/Compression/1e5-4  76.5MB/s ± 4%   78.1MB/s ± 3%   +2.15%  (p=0.015 n=10+10)
+    Decode/Digits/Compression/1e6-4  75.7MB/s ± 3%   78.3MB/s ± 4%   +3.49%  (p=0.000 n=10+10)
+    Decode/Newton/Huffman/1e4-4      72.4MB/s ± 5%   78.3MB/s ± 3%   +8.13%  (p=0.000 n=10+9)
+    Decode/Newton/Huffman/1e5-4      79.8MB/s ± 1%   81.6MB/s ± 3%   +2.29%  (p=0.026 n=8+10)
+    Decode/Newton/Huffman/1e6-4      76.9MB/s ± 5%   82.2MB/s ± 5%   +6.96%  (p=0.000 n=10+10)
+    Decode/Newton/Speed/1e4-4        78.4MB/s ± 3%   84.6MB/s ± 4%   +7.92%  (p=0.000 n=9+10)
+    Decode/Newton/Speed/1e5-4        94.2MB/s ± 3%   97.7MB/s ± 3%   +3.72%  (p=0.001 n=9+10)
+    Decode/Newton/Speed/1e6-4        96.0MB/s ± 4%   99.1MB/s ± 3%   +3.24%  (p=0.003 n=10+10)
+    Decode/Newton/Compression/1e4-4  95.2MB/s ± 2%   92.6MB/s ± 5%   -2.67%  (p=0.043 n=9+10)
+    Encode/Digits/Speed/1e5-4        60.6MB/s ± 2%   59.0MB/s ± 4%   -2.66%  (p=0.002 n=8+10)
+    Encode/Newton/Default/1e6-4      17.3MB/s ± 2%   17.5MB/s ± 1%   +1.60%  (p=0.001 n=9+9)
+    
+    Change-Id: I833b008fe5b67cd17ffdfbec22a3e4b10fcddece
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406754
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/importer/gcimporter.go | 3 ++-
- src/go/internal/gcimporter/gcimporter.go        | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/compress/flate/deflate.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,36 +1,30 @@
-commit cfe6763783615233ec7ae863784b898718d14c40
-Author: Katie Hockman <katie@golang.org>
-Date:   Wed Oct 13 16:49:27 2021 -0400
+commit 30641e36aa5b547eee48565caa3078b0a2e7c185
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 14 17:14:41 2021 -0800
 
-    internal/fuzz: fix bugs with minimization
+    internal/poll: if copy_file_range returns 0, assume it failed
     
-    This pulls in some code and tests from CL 353355.
+    On current Linux kernels copy_file_range does not correctly handle
+    files in certain special file systems, such as /proc. For those file
+    systems it fails to copy any data and returns zero. This breaks Go's
+    io.Copy for those files.
     
-    This change makes some refactors for when we read
-    to and write from memory during minimization.
-    That fixes a bug when minimizing interesting inputs.
-    Now, if an error occurs while minimizing an interesting
-    input, that value will continue to be minimized as a
-    crash, and returned to the user.
+    Fix the problem by assuming that if copy_file_range returns 0 the
+    first time it is called on a file, that that file is not supported.
+    In that case fall back to just using read. This will force an extra
+    system call when using io.Copy to copy a zero-sized normal file,
+    but at least it will work correctly.
     
-    This change also allows minimization of a crash that
-    occurred during the warmup phase. We don't want to
-    minimize failures in the seed corpus, but if an entry
-    in the cache causes a new failure, then there's no
-    compelling reason why we shouldn't try to minimize it.
+    For #36817
+    Fixes #44272
     
-    Fixes #48731
-    
-    Change-Id: I7262cecd8ea7ae6fdf932f3a36db55fb062a1f2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355691
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: I02e81872cb70fda0ce5485e2ea712f219132e614
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291989
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/testdata/script/test_fuzz_minimize.txt  | 112 +++++++++++++--------
- .../go/testdata/script/test_fuzz_seed_corpus.txt   |  38 ++++++-
- src/internal/fuzz/fuzz.go                          |   6 +-
- src/internal/fuzz/minimize_test.go                 |  13 ++-
- src/internal/fuzz/worker.go                        |  71 +++++++------
- 5 files changed, 151 insertions(+), 89 deletions(-)
+ src/internal/poll/copy_file_range_linux.go | 10 +++++++++-
+ src/os/readfrom_linux_test.go              | 32 ++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 1 deletion(-)

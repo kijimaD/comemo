@@ -1,19 +1,19 @@
-commit f5c3eda4c9519641265279bcb8a484f846750258
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Thu Sep 24 19:32:11 2020 +0200
+commit 29c5291f03c64d54c1ed643f1273acc507ddd6cc
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Mar 10 10:27:13 2020 -0400
 
-    cmd/compile: enforce strongly typed rules for ARM (mergesym)
+    [dev.link] cmd/link: fix buglet in compilationUnitByStartPC
     
-    Replace mergeSym by mergeSymTyped.
-    L435-L459
+    The methods of compilationUnitByStartPC (used in DWARF generation)
+    were looking at comp unit sym.Symbols instead of loader.Sym's, which
+    will not be viable once the wavefront reaches DWARF gen phase two.
+    Rewrite the methods to use only loader.Sym.
     
-    toolstash-check successful.
-    
-    Change-Id: Icbefe5c3589ed4ecdbca3dff9b3a758bdba3b34b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257642
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I0f520399d5458079c48cff1d882ef879934f8e92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222759
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules |  50 ++++-----
- src/cmd/compile/internal/ssa/rewriteARM.go | 168 ++++++++++++++---------------
- 2 files changed, 109 insertions(+), 109 deletions(-)
+ src/cmd/link/internal/ld/dwarf2.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

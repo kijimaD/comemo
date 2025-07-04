@@ -1,15 +1,13 @@
-commit 708013064f65f4fd0285534235657db2076dfbe2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 21 14:43:38 2011 -0700
+commit 45aeca47278d6188e72d8d633b27865108c27c4e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 21 13:48:31 2011 -0700
 
-    cgi: extra failure debugging in host_test
+    time: give a helpful message when we can't set the time zone for testing.
+    Fixes #1625.
     
-    Trying to track down why this fails on some
-    people's machines.
-    
-    R=rsc, adg, dsymonds
+    R=bradfitzgo, bradfitzwork, r2
     CC=golang-dev
-    https://golang.org/cl/4304041
+    https://golang.org/cl/4295060
 
- src/pkg/http/cgi/host_test.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/time/time_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,21 +1,30 @@
-commit 47f8db368cbb1971f386717ae7c76a1891a6130c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Aug 27 22:08:09 2022 +0700
+commit f3758443424dd6e411e2ac0108efdefd2ad7b294
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Oct 4 17:54:51 2021 -0700
 
-    reflect: clarify Value.Equal behavior for non-comparable values
+    cmd/compile: fix -W=3 output after the # line
     
-    The current implementation always returns false for non-comparable
-    values, update the doc to reflect that.
+    I've noticed for a while that there is some duplicated and some useful
+    information being put out in -W=3 mode after the comment marker (besides
+    the position).
     
-    Change-Id: I87f2da408874b0a209c8f51949e3310da15c5904
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426195
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: xie cui <523516579@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: hopehook <hopehook@golangcn.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    dumpNodeHeader puts out a comment marker '#' before putting out the
+    position of a node (which is for almost all nodes). Therefore, we shouldn't
+    print out anything on the same line after calling dumpNodeHeader().
+    
+    But we happen to be putting out a duplicate type of the node in some
+    cases. Also, we put out the Sym() associate with the node after
+    dumpNodeHeader(). So, I got rid of the duplicate type print-out, and moved
+    the print-out of n.Sym() to be inside dumpNodeHeader() before the
+    position information. Also, moved the tc flag to be right after the type
+    information, which seems like it makes more sense.
+    
+    Change-Id: I05210fbf9f3b2d8e3b73fc0ceab26a7bce5dc104
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354355
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/value.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ir/fmt.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

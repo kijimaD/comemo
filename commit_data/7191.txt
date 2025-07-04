@@ -1,12 +1,13 @@
-commit de2184f3a8e7a7a55beb9293125a24a8de6933f1
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jan 20 19:18:04 2011 +1100
+commit b7bf2a3a0be2d3f9e2cf238a9800ce3ec161f55b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 20 00:16:16 2011 -0500
 
-    net: get tests working to fix windows build
+    net: fix windows build (?)
     
-    R=golang-dev
+    TBR=adg
     CC=golang-dev
-    https://golang.org/cl/4089041
+    https://golang.org/cl/4083042
 
- src/pkg/net/resolv_windows.go | 27 ++++++++++++++++++++++++++-
- 1 file changed, 26 insertions(+), 1 deletion(-)
+ src/pkg/net/net_test.go       | 4 ++++
+ src/pkg/net/resolv_windows.go | 4 ++++
+ 2 files changed, 8 insertions(+)

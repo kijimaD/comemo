@@ -1,42 +1,27 @@
-commit 21015cf6baed45a1e7c3d1a0dfe34c778140344f
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Nov 11 12:31:44 2022 -0800
+commit 1a2435c95f8c68c7d21d172c8a80c6cc96aa9cf5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 26 13:46:45 2022 -0800
 
-    all: enable disabled HTTP/2 tests
+    go/types, cmd/compile: fix composite literal structural typing
     
-    Update net/http to enable tests that pass with the latest update
-    to the vendored x/net.
+    For a composite literal expression like []T{{f: 1}}, we allow T to be
+    a pointer to struct type, so it's consistent to allow T to also be a
+    type parameter whose structural type is a pointer to struct type.
     
-    Update a few tests:
+    Fixes #50833.
     
-    Windows apparently doesn't guarantee that time.Since(time.Now())
-    is >=0, so to set a definitely-expired write deadline, use a time
-    firmly in the past rather than now.
-    
-    Put a backoff loop on TestServerReadTimeout to avoid failures
-    when the timeout expires mid-TLS-handshake. (The TLS handshake
-    timeout is set to min(ReadTimeout, WriteTimeout, ReadHeaderTimeout);
-    there's no way to set a long TLS handshake timeout and a short
-    read timeout.)
-    
-    Don't close the http.Server in TestServerWriteTimeout while the
-    handler may still be executing, since this can result in us
-    getting the wrong error.
-    
-    Change the GOOS=js fake net implementation to properly return
-    ErrDeadlineExceeded when a read/write deadline is exceeded,
-    rather than EAGAIN.
-    
-    For #49837
-    For #54136
-    
-    Change-Id: Id8a4ff6ac58336ff212dda3c8799b320cd6b9c19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449935
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: Ib0781ec4a4f327c875ea25b97740ff2c0c86b916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381075
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/responsecontroller_test.go | 23 +--------------
- src/net/http/serve_test.go              | 50 ++++++++++++++++-----------------
- src/net/net_fake.go                     |  4 +--
- 3 files changed, 28 insertions(+), 49 deletions(-)
+ src/cmd/compile/internal/noder/expr.go             |  2 +-
+ src/cmd/compile/internal/noder/writer.go           |  3 +--
+ src/cmd/compile/internal/types2/expr.go            |  6 +-----
+ .../types2/testdata/fixedbugs/issue50833.go2       | 16 +++++++++++++++
+ src/go/types/expr.go                               |  6 +-----
+ src/go/types/testdata/fixedbugs/issue50833.go2     | 16 +++++++++++++++
+ test/typeparam/issue50833.go                       | 23 ++++++++++++++++++++++
+ 7 files changed, 59 insertions(+), 13 deletions(-)

@@ -1,17 +1,23 @@
-commit 8e987fadb57fa1fc98975ca2fcb3a4751f7f55ff
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Mon Apr 15 02:11:58 2024 +0000
+commit 97e5ca6d4eed7b14a4dbdd52aa4e934028284993
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Apr 17 14:12:25 2023 -0400
 
-    cmd/pprof: close resp body after the profile.Parse is called
+    Revert "runtime: correct GoCheckBindM's C declaration in EnsureBindM test"
     
-    Change-Id: I5bccef3c46072e388bfe9985e70745853f673a42
-    GitHub-Last-Rev: adee7b9f7fa21c3ee5561b8233bbfe94168e45ed
-    GitHub-Pull-Request: golang/go#66829
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578875
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This reverts CL 482975.
+    
+    Reason for revert: CL 481061 causes C TSAN failures and must be
+    reverted. See CL 485275. This CL depends on CL 481061.
+    
+    For #59678.
+    
+    Change-Id: I4599e93d536149bcec94a5a1542533107699514f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485317
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/pprof/pprof.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/testdata/testprogcgo/bindm.c  | 34 -------------------------------
+ src/runtime/testdata/testprogcgo/bindm.go | 30 ++++++++++++++++++++++++++-
+ 2 files changed, 29 insertions(+), 35 deletions(-)

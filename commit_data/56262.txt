@@ -1,20 +1,32 @@
-commit 69aa1974f3c525b024ac1b13324d809909622246
-Author: jeffery <superajun@gmail.com>
-Date:   Mon Apr 22 08:02:22 2024 +0000
+commit 9754521157caffde83f630410781abd9e35f18d5
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 17 15:43:29 2023 -0400
 
-    cmd/compile: combine phielim and copyelim into a single pass
+    internal/abi, runtime, cmd: merge funcID_* consts into internal/abi
     
-    Change-Id: Id21145b14169d28bac2144a31f6d3d9729f4be1e
-    GitHub-Last-Rev: 5413f4753e5acb60db6a93cb3409047bddc8df6d
-    GitHub-Pull-Request: golang/go#63818
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538535
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    For #59670.
+    
+    Change-Id: I517e97ea74cf232e5cfbb77b127fa8804f74d84b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485495
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/compile.go  |   7 +--
- src/cmd/compile/internal/ssa/copyelim.go | 102 +++++++++++++++++++++++++------
- src/cmd/compile/internal/ssa/phielim.go  |  75 -----------------------
- 3 files changed, 86 insertions(+), 98 deletions(-)
+ src/cmd/internal/goobj/funcinfo.go     |  5 +-
+ src/cmd/internal/obj/link.go           |  3 +-
+ src/cmd/internal/objabi/funcid.go      | 91 ++++++++++++----------------------
+ src/cmd/link/internal/ld/pcln.go       |  5 +-
+ src/cmd/link/internal/loader/loader.go |  3 +-
+ src/internal/abi/symtab.go             | 39 +++++++++++++++
+ src/runtime/mgcmark.go                 |  5 +-
+ src/runtime/panic.go                   |  3 +-
+ src/runtime/race.go                    |  2 +-
+ src/runtime/runtime2.go                |  7 +--
+ src/runtime/stack.go                   |  4 +-
+ src/runtime/symtab.go                  | 39 ++-------------
+ src/runtime/symtabinl.go               |  4 +-
+ src/runtime/symtabinl_test.go          |  2 +-
+ src/runtime/trace.go                   |  5 +-
+ src/runtime/traceback.go               | 41 +++++++--------
+ 16 files changed, 124 insertions(+), 134 deletions(-)

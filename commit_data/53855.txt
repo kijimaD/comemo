@@ -1,22 +1,19 @@
-commit fb6f38dda15d4155b500f6b3e1a311a951a22b69
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Aug 1 13:43:08 2023 -0400
+commit dc629ec939c006aca7a8d60a176253057b28e10c
+Author: Damien Neil <dneil@google.com>
+Date:   Sat Sep 3 19:51:48 2022 -0700
 
-    cmd/distpack: test for .DS_Store files in all directories
+    net/http: make triv.go example less insecure
     
-    macOS may write a .DS_Store file to any directory at any time in
-    the general case, unfortunately. Expand test rules to catch them
-    no matter where they may appear.
+    The triv.go example serves the entire contents of $HOME by default.
+    That seems bad, let's not do that.
     
-    For #24904.
+    Also change it to listen on localhost only.
     
-    Change-Id: I98a2bb5d0ae2ab3a191ff87b33d6f8048ca39aa8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514898
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I8f1b7bd6b7d737852273e2ba82deabc4a2d11f6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428237
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/distpack/test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/triv.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

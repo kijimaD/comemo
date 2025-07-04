@@ -1,13 +1,21 @@
-commit 0cab7d52d5ffaa23f31dfcabf61662a6581d1edb
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 7 09:11:39 2012 -0700
+commit 212ce41d004cc9e33d35b64cc13c2c9baf843452
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Sep 7 14:26:42 2012 +1000
 
-    faq: another way to solve the closure/variable/range complaint
-    It's easier just to declare a new variable.
+    runtime: arm: abort if hardware floating point missing
     
-    R=golang-dev, bradfitz
+    Fixes #3911.
+    
+    Requires CL 6449127.
+    
+    dfc@qnap:~$ ./runtime.test
+    runtime: this CPU has no floating point hardware, so it cannot run
+    this GOARM=7 binary. Recompile using GOARM=5.
+    
+    R=rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6501103
+    https://golang.org/cl/6442109
 
- doc/go_faq.html | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ src/pkg/runtime/asm_arm.s          |  1 +
+ src/pkg/runtime/signal_linux_arm.c | 16 ++++++++++++++--
+ 2 files changed, 15 insertions(+), 2 deletions(-)

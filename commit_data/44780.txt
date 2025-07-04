@@ -1,22 +1,24 @@
-commit dc289d3dcb59f80b9e23c7e8f237628359d21d92
-Author: Simão Gomes Viana <simaogmv@gmail.com>
-Date:   Tue Mar 23 21:50:41 2021 +0000
+commit cdc635547fc436dc49c91ddb172b0e101febd3d7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 30 15:59:40 2020 -0700
 
-    io: fix spelling in documentation for io.Discard
+    cmd/compile: invalidate zero-use values during rewrite
     
-    In the process of refactoring ioutil.Discard to io.Discard in
-    CL 263141 "an" should have been changed to "a" but was likely
-    missed in the process.
+    This helps remove uses that aren't needed any more.
+    That in turn helps other rules with Uses==1 conditions fire.
     
-    This commit corrects the spelling of the documentation.
+    Update #39918
     
-    Change-Id: I0609c45878291f8f01560efc3f3e6fba191e095b
-    GitHub-Last-Rev: e3257ca272dff42ed7d07b6e6a5fc49493772653
-    GitHub-Pull-Request: golang/go#45190
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304209
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: I68635b675472f1d59e59604e4d34b949a0016533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249463
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/io/io.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/decompose.go |  8 +++++---
+ src/cmd/compile/internal/ssa/lower.go     |  2 +-
+ src/cmd/compile/internal/ssa/opt.go       |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go   | 22 +++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/softfloat.go |  2 +-
+ src/cmd/compile/internal/ssa/value.go     | 20 ++++++++++++++++++++
+ 6 files changed, 49 insertions(+), 7 deletions(-)

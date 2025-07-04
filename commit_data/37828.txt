@@ -1,27 +1,34 @@
-commit 95a6f112c6db064d3394f9f66aa569e9bbeb3617
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 3 14:48:30 2019 -0500
+commit 770e37d24915f481a8ee79d24121eae170a2214d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 21 16:02:51 2018 -0700
 
-    runtime: work around "P has cached GC work" failures
+    go/types: better names for internal helper functions (cleanup)
     
-    We still don't understand what's causing there to be remaining GC work
-    when we enter mark termination, but in order to move forward on this
-    issue, this CL implements a work-around for the problem.
+    Internal helper functions for type-checking type expressions were
+    renamed to make it clearer when they should be used:
     
-    If debugCachedWork is false, this CL does a second check for remaining
-    GC work as soon as it stops the world for mark termination. If it
-    finds any work, it starts the world again and re-enters concurrent
-    mark. This will increase STW time by a small amount proportional to
-    GOMAXPROCS, but fixes a serious correctness issue.
+            typExpr (w/o def) -> typ
+            typExpr (w/  def) -> definedType
+            typ               -> indirectType
+            typExprInternal   -> typInternal
     
-    This works-around #27993.
+    The rename emphasizes that in most cases Checker.typ should be used
+    to compute the types.Type from an ast.Type. If the type is defined,
+    definedType should be used. For composite type elements which are
+    not "inlined" in memory, indirectType should be used.
     
-    Change-Id: Ia23b85dd6c792ee8d623428bd1a3115631e387b8
-    Reviewed-on: https://go-review.googlesource.com/c/156140
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    In the process, implicitly changed several uses of indirectType
+    (old: typ) to typ (old: typExpr) by not changing the respective
+    function call source. These implicit changes are ok in those
+    places because either call is fine where we are not concerned
+    about composite type elements. But using typ (old: typExpr) is
+    more efficient than using indirectType (old: typ).
+    
+    Change-Id: I4ad14d5357c5f94b6f1c33173de575c4cd05c703
+    Reviewed-on: https://go-review.googlesource.com/130595
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgc.go | 29 ++++++++++++++++++++++++++++-
- 1 file changed, 28 insertions(+), 1 deletion(-)
+ src/go/types/decl.go    |  8 +++----
+ src/go/types/expr.go    |  4 ++--
+ src/go/types/typexpr.go | 55 ++++++++++++++++++++++++++-----------------------
+ 3 files changed, 35 insertions(+), 32 deletions(-)

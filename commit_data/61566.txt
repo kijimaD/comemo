@@ -1,0 +1,37 @@
+commit aecb8faa91e2b40e3651ee93c8e70635ed367677
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 26 14:18:26 2024 +0000
+
+    sync: make HashTrieMap[any, any] the default implementation of Map
+    
+    This change adds a GOEXPERIMENT, synchashtriemap, which replaces the
+    internals of a sync.Map with internal/sync.HashTrieMap[any, any]. The
+    main purpose behind this change is improved performance. Across almost
+    every benchmark, HashTrieMap[any, any] performs better than Map.
+    
+    Also, relax TestMapClearNoAllocations to allow for one allocation.
+    Currently, the HashTrieMap allocates a new empty root node and stores
+    it: that's the whole clear operation. At the cost of some complexity, we
+    could allow Clear to have zero allocations by clearing the root node.
+    The complexity comes down to allowing threads to race to install a new
+    root node *or* creating a top-level mutex for installing a root node.
+    
+    But I'm not sure this is worth it. Whether Clear or some other operation
+    takes the hit for allocating a single node almost certainly doesn't
+    matter. And Clear is still much, much faster in the new implementation
+    than the old, so I don't consider this a regression.
+    
+    Change-Id: I939aa70a0edf2e850cedbea239aaf29a11a77b79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608335
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/buildcfg/exp.go                       |   1 +
+ .../goexperiment/exp_synchashtriemap_off.go        |   8 ++
+ .../goexperiment/exp_synchashtriemap_on.go         |   8 ++
+ src/internal/goexperiment/flags.go                 |   3 +
+ src/sync/hashtriemap.go                            | 116 +++++++++++++++++++++
+ src/sync/map.go                                    |   2 +
+ src/sync/map_test.go                               |   6 +-
+ 7 files changed, 141 insertions(+), 3 deletions(-)

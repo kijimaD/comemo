@@ -1,14 +1,12 @@
-commit 3a3c5aad4e6ccef38a1e6d56652523c3258da6a8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 21 10:38:58 2012 -0700
+commit 0532f4d382ad4f9813dcebcf4cfb1a086c8588bf
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 21 09:33:55 2012 -0700
 
-    cmd/cgo: fix handling of errno for gccgo
+    doc/effective_go: minor corrections
     
-    Fixes #3332.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5868047
+    https://golang.org/cl/5848063
 
- src/cmd/cgo/out.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ doc/effective_go.html | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

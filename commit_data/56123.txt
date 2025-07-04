@@ -1,19 +1,16 @@
-commit 968e1ce1e4343235de0f753d42130f3d64034a88
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 3 13:33:18 2024 -0700
+commit eb57c09054e7a0910202db0000b48419bc96d0ea
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Apr 10 16:13:14 2023 -0400
 
-    os: convert poll.ErrFileClosed to ErrClosed for Stat
+    cmd/go: rewrite collectDeps to only depend on imports' deps
     
-    Fixes #66665
-    
-    Change-Id: I3e3b7433d245daa997d7d502c2ef8978af6664fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576119
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I0cac9f32855e49e9899709a2f4421083aa0e75cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483515
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/os/stat_test.go | 24 ++++++++++++++++++++++++
- src/os/stat_unix.go |  2 +-
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/list/list.go                   | 86 +++++++++++++---------
+ .../script/list_import_cycle_deps_errors.txt       | 75 +++++++++++++++++++
+ 2 files changed, 126 insertions(+), 35 deletions(-)

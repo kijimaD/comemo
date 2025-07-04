@@ -1,24 +1,20 @@
-commit 87a51a0787df797660b6462f2debb7188f50f249
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 7 14:59:35 2017 -0400
+commit 94c95d3e52ed55ef57e60ace559b684e4d5ebcbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 29 10:16:50 2017 -0400
 
-    runtime: save r11 in ARM addmoduledata
+    cmd/go: build test binaries with -s in addition to -w
     
-    R11 is callee-save in the C ABI, but the temporary register in the Go
-    ABI. Currently it's being clobbered by runtime.addmoduledata, which
-    has to follow the C ABI. The observed effect of this was that
-    dl_open_worker was returning to a bad PC because after it failed to
-    restore its SP because it was using R11 as a frame pointer.
+    Fixes #19753.
     
-    Fix this by saving R11 around addmoduledata.
-    
-    Fixes #19674.
-    
-    Change-Id: Iaacbcc76809a3aa536e9897770831dcbcb6c8245
-    Reviewed-on: https://go-review.googlesource.com/47831
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ib20a69b1d0bcc42aa9e924918bcb578d6a560a31
+    Reviewed-on: https://go-review.googlesource.com/38742
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_arm.s | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/addr2line/addr2line_test.go | 17 +++++++++++++----
+ src/cmd/go/internal/load/pkg.go     |  2 +-
+ src/cmd/go/internal/run/run.go      |  2 +-
+ src/cmd/go/internal/test/test.go    |  2 +-
+ src/cmd/go/internal/work/build.go   |  4 ++--
+ 5 files changed, 18 insertions(+), 9 deletions(-)

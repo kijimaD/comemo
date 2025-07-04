@@ -1,16 +1,74 @@
-commit 403ae5081a03bcbbc4304b2a5f76d11a3ddb6e4b
-Author: Jelte Fennema <github-tech@jeltef.nl>
-Date:   Mon Jul 31 13:07:35 2017 +0200
+commit f68f292820a3dc545aba0ee64a372635a64d5040
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 4 17:54:02 2017 -0700
 
-    math: change oeis.org urls to https
+    cmd/compile: factor out Pkg, Sym, and Type into package types
     
-    Regular HTTP is insecure, oeis.org supports HTTPS and it is actually
-    used in some other places in the codebase. This changes these final urls
-    to use HTTPS.
+    - created new package cmd/compile/internal/types
+    - moved Pkg, Sym, Type to new package
+    - to break cycles, for now we need the (ugly) types/utils.go
+      file which contains a handful of functions that must be installed
+      early by the gc frontend
+    - to break cycles, for now we need two functions to convert between
+      *gc.Node and *types.Node (the latter is a dummy type)
+    - adjusted the gc's code to use the new package and the conversion
+      functions as needed
+    - made several Pkg, Sym, and Type methods functions as needed
+    - renamed constructors typ, typPtr, typArray, etc. to types.New,
+      types.NewPtr, types.NewArray, etc.
     
-    Change-Id: Ia46410a9c7ce67238a10cb6bfffaceca46112f58
-    Reviewed-on: https://go-review.googlesource.com/52072
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Passes toolstash-check -all.
+    
+    Change-Id: I8adfa5e85c731645d0a7fd2030375ed6ebf54b72
+    Reviewed-on: https://go-review.googlesource.com/39855
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/math/const.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/compile/fmt_test.go                    |  38 +-
+ src/cmd/compile/internal/gc/alg.go             |  67 +--
+ src/cmd/compile/internal/gc/align.go           |  45 +-
+ src/cmd/compile/internal/gc/bexport.go         | 155 +++----
+ src/cmd/compile/internal/gc/bimport.go         | 115 ++---
+ src/cmd/compile/internal/gc/builtin.go         |  76 ++--
+ src/cmd/compile/internal/gc/checkcfg.go        |   9 +-
+ src/cmd/compile/internal/gc/closure.go         |  45 +-
+ src/cmd/compile/internal/gc/const.go           |  93 ++--
+ src/cmd/compile/internal/gc/dcl.go             | 191 ++++----
+ src/cmd/compile/internal/gc/esc.go             |  55 +--
+ src/cmd/compile/internal/gc/export.go          |  51 +--
+ src/cmd/compile/internal/gc/fmt.go             | 289 +++++-------
+ src/cmd/compile/internal/gc/gen.go             |  20 +-
+ src/cmd/compile/internal/gc/go.go              |  99 +----
+ src/cmd/compile/internal/gc/gsubr.go           |  25 +-
+ src/cmd/compile/internal/gc/init.go            |  14 +-
+ src/cmd/compile/internal/gc/inl.go             |  47 +-
+ src/cmd/compile/internal/gc/lex.go             |  11 -
+ src/cmd/compile/internal/gc/main.go            |  52 ++-
+ src/cmd/compile/internal/gc/mkbuiltin.go       |  32 +-
+ src/cmd/compile/internal/gc/noder.go           |  33 +-
+ src/cmd/compile/internal/gc/obj.go             |  29 +-
+ src/cmd/compile/internal/gc/order.go           |  33 +-
+ src/cmd/compile/internal/gc/pgen.go            |  17 +-
+ src/cmd/compile/internal/gc/pgen_test.go       | 101 ++---
+ src/cmd/compile/internal/gc/plive.go           |  11 +-
+ src/cmd/compile/internal/gc/racewalk.go        |  11 +-
+ src/cmd/compile/internal/gc/range.go           |  45 +-
+ src/cmd/compile/internal/gc/reflect.go         | 273 ++++++------
+ src/cmd/compile/internal/gc/reflect_test.go    |  17 +-
+ src/cmd/compile/internal/gc/select.go          |  42 +-
+ src/cmd/compile/internal/gc/sinit.go           |  27 +-
+ src/cmd/compile/internal/gc/sizeof_test.go     |  30 +-
+ src/cmd/compile/internal/gc/ssa.go             | 581 +++++++++++++------------
+ src/cmd/compile/internal/gc/subr.go            | 214 ++++-----
+ src/cmd/compile/internal/gc/swt.go             |  19 +-
+ src/cmd/compile/internal/gc/syntax.go          |  35 +-
+ src/cmd/compile/internal/gc/typecheck.go       | 227 +++++-----
+ src/cmd/compile/internal/gc/types.go           | 249 +++++++++++
+ src/cmd/compile/internal/gc/types_acc.go       |  16 +
+ src/cmd/compile/internal/gc/universe.go        | 182 ++++----
+ src/cmd/compile/internal/gc/walk.go            | 231 +++++-----
+ src/cmd/compile/internal/types/pkg.go          |  70 +++
+ src/cmd/compile/internal/types/sym.go          |  62 +++
+ src/cmd/compile/internal/{gc => types}/type.go | 229 +++++-----
+ src/cmd/compile/internal/types/utils.go        | 126 ++++++
+ src/cmd/dist/buildtool.go                      |   1 +
+ 48 files changed, 2434 insertions(+), 2006 deletions(-)

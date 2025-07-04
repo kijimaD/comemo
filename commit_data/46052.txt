@@ -1,25 +1,29 @@
-commit 1951afc9193f8e197cb7dfaf6afed70ea02404cb
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sat Jul 31 10:20:10 2021 +0000
+commit 9ab3d854ad95d06f5dd0874050ee57dd63c5a746
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 23:56:16 2020 -0500
 
-    cmd/compile: lowered MulUintptr on riscv64
+    [dev.regabi] cmd/compile: avoid general traversal in deadcode
     
-    According to RISCV instruction set manual v2.2 Sec 6.1
-    MULHU followed by MUL will be fused into one multiply by microarchitecture
+    deadcode is trying to walk the statements it can find,
+    but it can sweep in other nodes too. Stop doing that:
+    only walk known statements containing statements.
     
-    name              old time/op  new time/op  delta
-    MulUintptr/small  11.2ns ±24%   9.2ns ± 0%  -17.54%  (p=0.000 n=10+9)
-    MulUintptr/large  15.9ns ± 0%  10.9ns ± 0%  -31.55%  (p=0.000 n=8+8)
+    Otherwise, if we put panics in expression accessors that
+    shouldn't be used anymore, deadcode can trip them.
     
-    Change-Id: I3d152218f83948cbc5c576bda29dc86e9b4206ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338753
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    deadcode would be a good candidate to rewrite using
+    EditChildren, but that would certainly cause toolstash
+    changes, since deadcode is so ad-hoc about exactly
+    which parts of the function it looks at. For now just
+    remove the general traversal and leave as is.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I06481eb87350905597600203c4fa724d55645b46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275377
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/riscv64/ssa.go        | 21 +++++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  1 +
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  1 +
- src/cmd/compile/internal/ssa/opGen.go          | 16 ++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go |  3 +++
- src/cmd/compile/internal/ssagen/ssa.go         |  2 +-
- 6 files changed, 43 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/typecheck.go | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)

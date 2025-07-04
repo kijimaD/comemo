@@ -1,22 +1,28 @@
-commit 68d89bb8e05afc2aa050b4c5ad0df4b3af03c45d
+commit a3c70e28edf7f0202ab35b64c9d83644761cf033
 Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 3 14:47:55 2019 -0400
+Date:   Tue Nov 13 18:32:55 2018 -0500
 
-    runtime: separate stack freeing from stack shrinking
+    test: fix ABI mismatch in fixedbugs/issue19507
     
-    Currently, shrinkstack will free the stack if the goroutine is dead.
-    There are only two places that call shrinkstack: scanstack, which will
-    never call it if the goroutine is dead; and markrootFreeGStacks, which
-    only calls it on dead goroutines.
+    Because run.go doesn't pass the package being compiled to the compiler
+    via the -p flag, it can't match up the main·f symbol from the
+    assembler with the "func f" stub in Go, so it doesn't produce the
+    correct assembly stub.
     
-    Clean this up by separating stack freeing out of shrinkstack.
+    Fix this by removing the package prefix from the assembly definition.
     
-    Change-Id: I7d7891e620550c32a2220833923a025704986681
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170890
+    Alternatively, we could make run.go pass -p to the compiler, but it's
+    nicer to remove these package prefixes anyway.
+    
+    Should fix the linux-arm builder, which was broken by the introduction
+    of function ABIs in CL 147160.
+    
+    Updates #27539.
+    
+    Change-Id: Id62b7701e1108a21a5ad48ffdb5dad4356c273a6
+    Reviewed-on: https://go-review.googlesource.com/c/149483
     Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgcmark.go |  4 +++-
- src/runtime/stack.go   | 10 ----------
- 2 files changed, 3 insertions(+), 11 deletions(-)
+ test/fixedbugs/issue19507.dir/div_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

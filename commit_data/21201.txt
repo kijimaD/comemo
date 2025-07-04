@@ -1,17 +1,32 @@
-commit 8c69ce0b90d15e35d6f03f6af530fd6af47e276c
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Jan 7 23:32:34 2015 +0100
+commit dcb2ec3b654eb42d8e6bb6e66801ddf2f7f21c7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 5 16:24:20 2014 -0500
 
-    build: increase timeout in run.rc
+    runtime: generate windows callback list with go generate
     
-    Increasing the timeout prevents the runtime test
-    to time out on the Plan 9 instances running on GCE.
+    This is the last system-dependent file written by cmd/dist.
+    They are all now written by go generate.
     
-    Update golang/go#9491
+    cmd/dist is not needed to start building package runtime
+    for a different system anymore.
     
-    Change-Id: Id9c2b0c4e59b103608565168655799b353afcd77
-    Reviewed-on: https://go-review.googlesource.com/2462
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Now all the generated files can be assumed generated, so
+    delete the clumsy hacks in cmd/api.
+    
+    Re-enable api check in run.bash.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/185040044
 
- src/run.rc | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/api/goapi.go            |  152 +--
+ src/cmd/dist/build.c            |   19 +-
+ src/cmd/dist/buildruntime.c     |   41 -
+ src/cmd/go/build.go             |    3 +-
+ src/run.bash                    |    3 +-
+ src/run.bat                     |    6 +-
+ src/runtime/runtime.go          |    2 +
+ src/runtime/wincallback.go      |   43 +
+ src/runtime/zcallback_windows.s | 2010 +++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 2073 insertions(+), 206 deletions(-)

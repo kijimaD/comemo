@@ -1,17 +1,22 @@
-commit d4a5797b8863185230d0e89da9a00fd17f04152a
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 9 12:44:07 2020 -0400
+commit d965bb613086cd780cf73418bcdeaef50a9afc55
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 20 11:37:54 2020 -0400
 
-    cmd/compile: drop SSA atomics TODO
+    runtime: use divRoundUp
     
-    These ops have been used for sync/atomic since golang.org/cl/28076.
+    There are a handful of places where the runtime wants to round up the
+    result of a division. We just introduced a helper to do this. This CL
+    replaces all of the hand-coded round-ups (that I could find) with this
+    helper.
     
-    Change-Id: Ic1445c073273f6b191b97018e8eb6f7ad9c48922
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261077
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I465d152157ff0f3cad40c0aa57491e4f2de510ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224385
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/genericOps.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/malloc.go      | 4 ++--
+ src/runtime/mgcmark.go     | 2 +-
+ src/runtime/mgcsweepbuf.go | 2 +-
+ src/runtime/msize.go       | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

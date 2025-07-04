@@ -1,16 +1,13 @@
-commit 6e71e1ca76616bcda23860233c957705bf7685ed
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 27 14:23:25 2011 -0700
+commit 6850dba0ca135a92252c5702e718361a9863341e
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Apr 27 18:22:53 2011 -0300
 
-    http: keep gzip reader inside eofsignaler
+    reflect: Fix Copy of arrays
     
-    Fixes #1725
-    
-    R=rsc
+    R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4442086
+    https://golang.org/cl/4438077
 
- src/pkg/http/response_test.go  | 102 ++++++++++++++++++++++++++++-------------
- src/pkg/http/transport.go      |   6 ++-
- src/pkg/http/transport_test.go |  89 +++++++++++++++++++++++++++--------
- 3 files changed, 144 insertions(+), 53 deletions(-)
+ src/pkg/reflect/all_test.go | 27 +++++++++++++++++++++++++++
+ src/pkg/reflect/value.go    |  2 +-
+ 2 files changed, 28 insertions(+), 1 deletion(-)

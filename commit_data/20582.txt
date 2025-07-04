@@ -1,22 +1,23 @@
-commit 5368e63b57f742495fcbbb82bb15772b761004bf
-Author: Tom Linford <tomlinford@gmail.com>
-Date:   Tue Sep 30 09:51:49 2014 +1000
+commit c7f6bd795acf002d60f712f0f4e2701051e74e4a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 23:51:22 2014 -0400
 
-    x509: add root certs for android.
+    runtime: rename SchedType to SchedT
     
-    On android, root certificates appear to be stored in the folder
-    /system/etc/security/cacerts, which has many certs in several
-    different files. This change adds a new array of directories in
-    which certs can be found.
+    CL 144940043 renamed it from Sched to SchedType
+    to avoid a lowercasing conflict in the Go code with
+    the variable named sched.
+    We've been using just T resolve those conflicts, not Type.
     
-    To test this, I simply tried making a request with the http
-    library to an HTTPS URL on an android emulator and manually
-    verified that it worked.
+    The FooType pattern is already taken for the kind-specific
+    variants of the runtime Type structure: ChanType, MapType,
+    and so on. SchedType isn't a Type.
     
-    LGTM=crawshaw
-    R=golang-codereviews, gobot, crawshaw
+    LGTM=bradfitz, khr
+    R=khr, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/151800043
+    https://golang.org/cl/145180043
 
- src/crypto/x509/root_unix.go | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ src/runtime/proc.c    | 2 +-
+ src/runtime/runtime.h | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

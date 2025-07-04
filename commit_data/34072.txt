@@ -1,41 +1,20 @@
-commit dfbf568c9f71d5fadfebaa206ab8341168f582d9
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 25 12:15:23 2018 -0500
+commit 9735fcfce78360eeaaa62fb44bd597f7b85ff429
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun Oct 1 12:51:54 2017 +0200
 
-    runtime: use NOFRAME on mips and mips64
+    sync/atomic: add memory barriers to Load/StoreInt32 on darwin/arm
     
-    This replaces frame size -4/-8 with the NOFRAME flag in mips and
-    mips64 assembly.
+    After switching to an iPhone 5 for the darwin/arm builds,
+    TestStoreLoadRelAcq32 started to timeout on every builder run.
+    Adding the same memory barriers as armLoadUint64 and armStoreUint64
+    makes the test complete successfully.
     
-    This was automated with:
+    Fixes sync/atomic tests on the darwin/arm builder.
     
-    sed -i -e 's/\(^TEXT.*[A-Z]\),\( *\)\$-[84]/\1|NOFRAME,\2$0/' $(find -name '*_mips*.s')
-    
-    Plus a manual fix to mkduff.go.
-    
-    The go binary is identical on both architectures before and after this
-    change.
-    
-    Change-Id: I0310384d1a584118c41d1cd3a042bb8ea7227efb
-    Reviewed-on: https://go-review.googlesource.com/92044
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Id73de31679304e259bdbd7f2f94383ae7fd70ee4
+    Reviewed-on: https://go-review.googlesource.com/67390
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- misc/cgo/test/issue9400/asm_mipsx.s          |  2 +-
- src/runtime/asm_mips64x.s                    | 34 +++++++++---------
- src/runtime/asm_mipsx.s                      | 16 ++++-----
- src/runtime/atomic_mips64x.s                 |  2 +-
- src/runtime/cgo/asm_mips64x.s                |  2 +-
- src/runtime/cgo/asm_mipsx.s                  |  2 +-
- src/runtime/duff_mips64x.s                   |  2 +-
- src/runtime/internal/atomic/atomic_mips64x.s |  6 ++--
- src/runtime/memmove_mips64x.s                |  2 +-
- src/runtime/mkduff.go                        |  2 +-
- src/runtime/rt0_linux_mips64x.s              |  4 +--
- src/runtime/rt0_linux_mipsx.s                |  4 +--
- src/runtime/sys_linux_mips64x.s              | 54 ++++++++++++++--------------
- src/runtime/sys_linux_mipsx.s                |  2 +-
- src/runtime/tls_mips64x.s                    |  4 +--
- src/runtime/tls_mipsx.s                      |  4 +--
- 16 files changed, 71 insertions(+), 71 deletions(-)
+ src/sync/atomic/asm_darwin_arm.s | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

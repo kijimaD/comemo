@@ -1,54 +1,81 @@
-commit 476f55fd8aec65cb1bd3417dd1c8c583c9e385d8
-Author: Lorenzo Masini <rugginoso@develer.com>
-Date:   Wed Mar 8 16:45:23 2017 +0100
+commit 4808fc444307fa683bf3df6d55f9ad1828891a36
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 9 17:15:05 2016 -0800
 
-    cmd/objdump: print Go code alongside assembly
+    [dev.inline] cmd/internal/src: replace src.Pos with syntax.Pos
     
-    Added -S flag to print go source file line above corresponding disassembly:
+    This replaces the src.Pos LineHist-based position tracking with
+    the syntax.Pos implementation and updates all uses.
     
-    $ go tool objdump -S -s main.main fmthello
-    TEXT main.main(SB) /home/rugginoso/Documents/src/go/src/cmd/objdump/testdata/fmthello.go
-    func main() {
-      0x47d450              64488b0c25f8ffffff      FS MOVQ FS:0xfffffff8, CX
-      0x47d459              483b6110                CMPQ 0x10(CX), SP
-      0x47d45d              7631                    JBE 0x47d490
-      0x47d45f              4883ec18                SUBQ $0x18, SP
-      0x47d463              48896c2410              MOVQ BP, 0x10(SP)
-      0x47d468              488d6c2410              LEAQ 0x10(SP), BP
-            Println("hello, world")
-      0x47d46d              488d0563b00200          LEAQ 0x2b063(IP), AX
-      0x47d474              48890424                MOVQ AX, 0(SP)
-      0x47d478              48c74424080c000000      MOVQ $0xc, 0x8(SP)
-      0x47d481              e81a000000              CALL main.Println(SB)
-    }
-      0x47d486              488b6c2410              MOVQ 0x10(SP), BP
-      0x47d48b              4883c418                ADDQ $0x18, SP
-      0x47d48f              c3                      RET
-    func main() {
-      0x47d490              e8ebf1fcff              CALL runtime.morestack_noctxt(SB)
-      0x47d495              ebb9                    JMP main.main(SB)
+    The LineHist table is not used anymore - the respective code is still
+    there but should be removed eventually. CL forthcoming.
     
-    Execution time:
+    Passes toolstash -cmp when comparing to the master repo (with the
+    exception of a couple of swapped assembly instructions, likely due
+    to different instruction scheduling because the line-based sorting
+    has changed; though this is won't affect correctness).
     
-    $ time go tool objdump testdata/fmthello > /dev/null
-    real    0m0.430s
-    user    0m0.440s
-    sys     0m0.000s
+    The sizes of various important compiler data structures have increased
+    significantly (see the various sizes_test.go files); this is probably
+    the reason for an increase of compilation times (to be addressed). Here
+    are the results of compilebench -count 5, run on a "quiet" machine (no
+    apps running besides a terminal):
     
-    $ time go tool objdump -S testdata/fmthello > /dev/null
-    real    0m0.471s
-    user    0m0.476s
-    sys     0m0.012s
+    name       old time/op     new time/op     delta
+    Template       256ms ± 1%      280ms ±15%  +9.54%          (p=0.008 n=5+5)
+    Unicode        132ms ± 1%      132ms ± 1%    ~             (p=0.690 n=5+5)
+    GoTypes        891ms ± 1%      917ms ± 2%  +2.88%          (p=0.008 n=5+5)
+    Compiler       3.84s ± 2%      3.99s ± 2%  +3.95%          (p=0.016 n=5+5)
+    MakeBash       47.1s ± 1%      47.2s ± 2%    ~             (p=0.841 n=5+5)
     
-    Fixes #18245
+    name       old user-ns/op  new user-ns/op  delta
+    Template        309M ± 1%       326M ± 2%  +5.18%          (p=0.008 n=5+5)
+    Unicode         165M ± 1%       168M ± 4%    ~             (p=0.421 n=5+5)
+    GoTypes        1.14G ± 2%      1.18G ± 1%  +3.47%          (p=0.008 n=5+5)
+    Compiler       5.00G ± 1%      5.16G ± 1%  +3.12%          (p=0.008 n=5+5)
     
-    Change-Id: I9b2f8338f9ee443c1352efd270d3ba85e3dd9b78
-    Reviewed-on: https://go-review.googlesource.com/37953
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I241c4246cdff627d7ecb95cac23060b38f9775ec
+    Reviewed-on: https://go-review.googlesource.com/34273
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/objfile/disasm.go | 108 +++++++++++++++++++++++++++++++++++--
- src/cmd/objdump/main.go            |   7 +--
- src/cmd/objdump/objdump_test.go    |  43 +++++++++++----
- 3 files changed, 141 insertions(+), 17 deletions(-)
+ src/cmd/asm/internal/asm/asm.go                    | 13 ++-
+ src/cmd/asm/internal/asm/endtoend_test.go          |  6 +-
+ src/cmd/asm/internal/asm/parse.go                  | 15 ++--
+ src/cmd/asm/internal/asm/pseudo_test.go            |  1 -
+ src/cmd/asm/internal/lex/input.go                  | 11 +--
+ src/cmd/asm/internal/lex/lex.go                    | 32 ++------
+ src/cmd/asm/internal/lex/slice.go                  | 43 +++++-----
+ src/cmd/asm/internal/lex/stack.go                  | 20 +++--
+ src/cmd/asm/internal/lex/tokenizer.go              | 46 ++++++-----
+ src/cmd/asm/main.go                                |  3 +-
+ src/cmd/compile/fmt_test.go                        |  2 +-
+ src/cmd/compile/internal/gc/alg.go                 |  4 +-
+ src/cmd/compile/internal/gc/bexport.go             |  3 +-
+ src/cmd/compile/internal/gc/init.go                |  3 +
+ src/cmd/compile/internal/gc/lex.go                 |  7 +-
+ src/cmd/compile/internal/gc/main.go                | 16 +---
+ src/cmd/compile/internal/gc/noder.go               | 92 ++++++++++------------
+ src/cmd/compile/internal/gc/sizeof_test.go         | 10 +--
+ src/cmd/compile/internal/gc/ssa.go                 | 25 +++---
+ src/cmd/compile/internal/gc/subr.go                | 90 ++++++++-------------
+ src/cmd/compile/internal/gc/util.go                |  2 +-
+ src/cmd/compile/internal/ssa/sizeof_test.go        |  4 +-
+ src/cmd/compile/internal/syntax/dumper_test.go     |  2 +-
+ src/cmd/compile/internal/syntax/nodes.go           |  8 +-
+ src/cmd/compile/internal/syntax/parser.go          | 24 +++---
+ src/cmd/compile/internal/syntax/parser_test.go     | 11 +--
+ src/cmd/compile/internal/syntax/printer_test.go    |  2 +-
+ src/cmd/compile/internal/syntax/syntax.go          | 21 ++---
+ src/cmd/internal/obj/line.go                       | 70 +++++++++++-----
+ src/cmd/internal/obj/line_test.go                  | 48 +++++------
+ src/cmd/internal/obj/link.go                       |  1 -
+ src/cmd/internal/obj/pcln.go                       |  2 +-
+ src/cmd/internal/obj/sizeof_test.go                |  2 +-
+ src/cmd/internal/obj/sym.go                        | 26 +++---
+ src/cmd/internal/obj/util.go                       |  6 +-
+ .../internal/syntax => internal/src}/pos.go        | 41 +++++++---
+ .../internal/syntax => internal/src}/pos_test.go   | 18 +++--
+ src/cmd/internal/src/src.go                        | 32 --------
+ 38 files changed, 372 insertions(+), 390 deletions(-)

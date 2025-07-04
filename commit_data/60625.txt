@@ -1,0 +1,30 @@
+commit b696250e5f0dcc4cfa863309538c65d30d2ad480
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Aug 6 21:58:38 2024 +0000
+
+    hash: implement the encoding.BinaryAppender interface
+    
+    For #62384
+    
+    Change-Id: Ia6de028741e43449bcf54ba73ec9b0cad4d4e88a
+    GitHub-Last-Rev: 192f389d463d372a338dca82827a871888a53bb0
+    GitHub-Pull-Request: golang/go#68738
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603255
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ doc/next/6-stdlib/99-minor/hash/adler32/62384.md |  1 +
+ doc/next/6-stdlib/99-minor/hash/crc32/62384.md   |  1 +
+ doc/next/6-stdlib/99-minor/hash/crc64/62384.md   |  1 +
+ doc/next/6-stdlib/99-minor/hash/fnv/62384.md     |  1 +
+ src/hash/adler32/adler32.go                      |  7 ++--
+ src/hash/adler32/adler32_test.go                 | 12 +++++++
+ src/hash/crc32/crc32.go                          |  8 +++--
+ src/hash/crc32/crc32_test.go                     | 24 ++++++++++++++
+ src/hash/crc64/crc64.go                          |  7 ++--
+ src/hash/crc64/crc64_test.go                     | 24 ++++++++++++++
+ src/hash/fnv/fnv.go                              | 42 +++++++++++++++++-------
+ src/hash/fnv/fnv_test.go                         | 12 +++++++
+ 12 files changed, 122 insertions(+), 18 deletions(-)

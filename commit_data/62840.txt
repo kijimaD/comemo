@@ -1,0 +1,19 @@
+commit b44b360dd40a537e953225d70ca96361e2c57600
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 30 16:56:29 2025 -0400
+
+    math/big: add more complete tests and benchmarks of assembly
+    
+    Also fix a few real but currently harmless bugs from CL 664895.
+    There were a few places that were still wrong if z != x or if a != 0.
+    
+    Change-Id: Id8971e2505523bc4708780c82bf998a546f4f081
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664897
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/arith_amd64.s       |   7 +-
+ src/math/big/arith_s390x_test.go |  27 +-
+ src/math/big/arith_test.go       | 934 +++++++++++++++++++++++++--------------
+ src/math/big/nat_test.go         |   8 +-
+ 4 files changed, 609 insertions(+), 367 deletions(-)

@@ -1,24 +1,18 @@
-commit 933721b8c7f981229974e2603850c2e9a7ffc5a1
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Oct 22 13:11:16 2020 -0700
+commit 2820bcede0ec2f1ec1957e40dab183a18196559b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 10 18:28:26 2020 -0400
 
-    cmd/compile: fix storeType to handle pointers to go:notinheap types
+    [dev.link] cmd/link: stop loading FuncInfo in LoadFull
     
-    storeType splits compound stores up into a scalar parts and a pointer parts.
-    The scalar part happens unconditionally, and the pointer part happens
-    under the guard of a write barrier check.
+    As we have converted the pclntab generation, FuncInfo is not
+    needed after. No need to load it.
     
-    Types which are declared as pointers, but are represented as scalars because
-    they might have "bad" values, were not handled correctly here. They ended
-    up not getting stored in either set.
-    
-    Fixes #42032
-    
-    Change-Id: I46f6600075c0c370e640b807066247237f93c7ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264300
-    Trust: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idcfe4da44dfc94d8d44509d12179b354a2e295e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228139
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/ssa.go |  8 +++++++-
- test/fixedbugs/issue42032.go       | 27 +++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/xcoff.go      |   2 +-
+ src/cmd/link/internal/loader/loader.go | 138 +--------------------------------
+ 2 files changed, 3 insertions(+), 137 deletions(-)

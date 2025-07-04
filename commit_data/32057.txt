@@ -1,20 +1,31 @@
-commit 73d02735734e1ed1e4d1f5a7c534206596f3903a
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 18 11:21:15 2017 -0400
+commit 9e28ea0c08d00fda167f47669711cefd83aa942a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 31 10:26:30 2017 -0700
 
-    runtime: move tSweepTerm capture closer to STW
+    cmd/compile: use std "DO NOT EDIT" comment for generated files
     
-    tSweepTerm and pauseStart are supposed to be when STW was triggered,
-    but right now they're captured a bit before STW. Move these down to
-    immediately before we trigger STW.
+    Also: Fix (testdata/gen/) copyGen.go, zeroGen.go, and arithConstGen.go
+    to actually match (testdata/) copy.go, zero.go, and arithConst.go, all
+    of which were manually edited in https://go-review.googlesource.com/20823
+    and https://go-review.googlesource.com/22748 despite the 'do not edit'
+    (or perhaps because it was missing in the case of arithConst.go).
     
-    Fixes #19590.
+    For #13560.
     
-    Change-Id: Icd48a5c4d45c9b36187ff986e4f178b5064556c1
-    Reviewed-on: https://go-review.googlesource.com/49612
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I366e1b521e51885e0d318ae848760e5e14ccd488
+    Reviewed-on: https://go-review.googlesource.com/39172
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go             |  2 +-
+ src/cmd/compile/internal/gc/constFold_test.go      |  3 ++
+ src/cmd/compile/internal/gc/mkbuiltin.go           |  2 +-
+ .../compile/internal/gc/testdata/arithBoundary.go  |  3 ++
+ src/cmd/compile/internal/gc/testdata/arithConst.go |  3 ++
+ src/cmd/compile/internal/gc/testdata/copy.go       |  3 +-
+ .../internal/gc/testdata/gen/arithBoundaryGen.go   |  3 +-
+ .../internal/gc/testdata/gen/arithConstGen.go      | 40 +++++++++++++++-------
+ .../internal/gc/testdata/gen/constFoldGen.go       |  4 +--
+ .../compile/internal/gc/testdata/gen/copyGen.go    |  4 +--
+ .../compile/internal/gc/testdata/gen/zeroGen.go    |  4 +--
+ src/cmd/compile/internal/gc/testdata/zero.go       |  3 +-
+ 12 files changed, 50 insertions(+), 24 deletions(-)

@@ -1,19 +1,30 @@
-commit 044550ab0ee28fe85b98600503c9f33642697d76
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Aug 28 10:08:32 2021 +0700
+commit fea898a4b0f02cee08ea978eb5ce541a85783690
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 28 15:53:32 2020 -0800
 
-    runtime: add test case for checkptr alignment with nested expression
+    [dev.regabi] cmd/compile: intercept the making of OADDR nodes
     
-    Discover while working on moving checkptr instrumentation from walk to
-    SSA generation.
+    This is a mechanical change to intercept the construction of
+    all OADDR nodes. We will use the new nodAddr and nodAddrAt
+    functions to compute the Addrtaken bit.
     
-    Change-Id: I3f4a41fe4ad308b86c7c57d14b6ccc7c613e7f98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345432
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I90ee3acb8e32540a198a9999284573418729f422
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275694
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/runtime/checkptr_test.go              | 37 +++++++++++++++++++++++++++++++
- src/runtime/testdata/testprog/checkptr.go |  8 +++++++
- 2 files changed, 45 insertions(+)
+ src/cmd/compile/internal/gc/alg.go       | 10 +++----
+ src/cmd/compile/internal/gc/closure.go   | 10 +++----
+ src/cmd/compile/internal/gc/iimport.go   |  4 ++-
+ src/cmd/compile/internal/gc/inl.go       |  2 +-
+ src/cmd/compile/internal/gc/range.go     |  8 +++---
+ src/cmd/compile/internal/gc/reflect.go   |  6 ++---
+ src/cmd/compile/internal/gc/select.go    | 14 +++++-----
+ src/cmd/compile/internal/gc/sinit.go     |  6 ++---
+ src/cmd/compile/internal/gc/subr.go      | 10 ++++++-
+ src/cmd/compile/internal/gc/typecheck.go |  6 ++---
+ src/cmd/compile/internal/gc/walk.go      | 46 ++++++++++++++++----------------
+ 11 files changed, 66 insertions(+), 56 deletions(-)

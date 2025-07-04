@@ -1,13 +1,42 @@
-commit 6bf220803255f6193366bb5c3e7eba48affa610b
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Jul 11 17:31:29 2017 +0900
+commit 69261ecad6dd2f3efd5e4a249325ea27311526b6
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Feb 27 07:56:57 2017 +0000
 
-    runtime/cgo: update comments
+    runtime: use hardware divider to improve performance
     
-    Change-Id: Ib5356181c3204c8f9922eeb4da1c06bfdb18f443
-    Reviewed-on: https://go-review.googlesource.com/54812
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The hardware divider is an optional component of ARMv7. This patch
+    detects whether it is available in runtime and use it or not.
+    
+    1. The hardware divider is detected at startup and a flag is set/clear
+       according to a perticular bit of runtime.hwcap.
+    2. Each call of runtime.udiv will check this flag and decide if
+       use the hardware division instruction.
+    
+    A rough test shows the performance improves 40-50% for ARMv7. And
+    the compatibility of ARMv5/v6 is not broken.
+    
+    fixes #19118
+    
+    Change-Id: Ic586bc9659ebc169553ca2004d2bdb721df823ac
+    Reviewed-on: https://go-review.googlesource.com/37496
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/cgo/gcc_darwin_386.c   | 4 ++--
- src/runtime/cgo/gcc_darwin_amd64.c | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ misc/cgo/testcshared/main0.c                 |  6 ++++++
+ misc/cgo/testcshared/src/p/p.go              |  2 ++
+ misc/cgo/testshared/shared_test.go           |  6 ++++++
+ misc/cgo/testshared/src/division/division.go | 17 +++++++++++++++++
+ src/cmd/asm/internal/asm/testdata/arm.s      |  7 +++++++
+ src/cmd/internal/obj/arm/a.out.go            |  2 ++
+ src/cmd/internal/obj/arm/anames.go           |  2 ++
+ src/cmd/internal/obj/arm/asm5.go             | 19 +++++++++++++++++++
+ src/runtime/os_darwin_arm.go                 |  2 ++
+ src/runtime/os_freebsd_arm.go                |  2 ++
+ src/runtime/os_linux_arm.go                  |  3 +++
+ src/runtime/os_nacl_arm.go                   |  2 ++
+ src/runtime/os_netbsd_arm.go                 |  2 ++
+ src/runtime/os_openbsd_arm.go                |  2 ++
+ src/runtime/os_plan9_arm.go                  |  2 ++
+ src/runtime/vlop_arm.s                       | 12 ++++++++++++
+ 16 files changed, 88 insertions(+)

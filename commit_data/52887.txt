@@ -1,20 +1,20 @@
-commit ae59562c71efa4bb5a537d7ee0f64417a8a7272d
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Sun Apr 23 11:06:34 2023 -0400
+commit b51d44c6dd9d6f3ac3e1d275bc118aae23a5a482
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 8 19:14:11 2022 -0400
 
-    log/slog: rearrange package doc
+    cmd/go/testdata/script: fix skip on list_replace_absolute_windows
     
-    Move the "Attrs and Values" section lower. It describes an optimization;
-    the API it covers is not essential.
+    The test should skip if it's not on windows *or* it's a short test, but
+    instead is now skipping if it's not on windows *and* it's a short test,
+    causing it to be run on non-windows longtest builders.
     
-    Also, move the brief section on Logger.With up to the first section.
-    It was in the "Groups" section but didn't belong there.
-    
-    Change-Id: I0e36ef654e95f918d5b480566ec58d9990d26b40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487856
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ica011bab632b713b0564fefabd5b42878d401844
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411122
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
 
- src/log/slog/doc.go | 66 ++++++++++++++++++++++++++---------------------------
- 1 file changed, 33 insertions(+), 33 deletions(-)
+ src/cmd/go/testdata/script/list_replace_absolute_windows.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

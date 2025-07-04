@@ -1,23 +1,19 @@
-commit 8b20fd000d7e894865442134f9d6d197ac5dabed
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Tue Apr 12 18:24:34 2016 +0200
+commit 481fe5901232583340159415f3f5c83af28c1fa4
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Mar 7 18:43:05 2016 -0600
 
-    cmd/compile: transform some Phis into Or8.
+    cmd/compile: fix load combining from a non-zero pointer offset
     
-    func f(a, b bool) bool {
-              return a || b
-    }
+    When the pointer offset is non-zero in the small loads, we need to add the offset
+    when converting to the larger load.
     
-    is now a single instructions (excluding loading and unloading the arguments):
-          v10 = ORB <bool> v11 v12 : AX
+    Fixes #14694
     
-    Change-Id: Iff63399410cb46909f4318ea1c3f45a029f4aa5e
-    Reviewed-on: https://go-review.googlesource.com/21872
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5ba8bcb3b9ce26c7fae0c4951500b9ef0fed54cd
+    Reviewed-on: https://go-review.googlesource.com/20333
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go |  3 +-
- src/cmd/compile/internal/ssa/phiopt.go  | 57 ++++++++++++++++++---------------
- test/phiopt.go                          | 40 ++++++++++++++++++++---
- test/prove.go                           |  4 +++
- 4 files changed, 74 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 35 +++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |  6 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 21 ++++++++++----
+ 3 files changed, 53 insertions(+), 9 deletions(-)

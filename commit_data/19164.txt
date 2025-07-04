@@ -1,13 +1,14 @@
-commit a4ff90df286b0accd22b77a8093feac45167f9a4
+commit 6037841dbdf69cf02ae2db8c01e53c6a840598a2
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Apr 16 01:41:47 2014 -0400
+Date:   Wed Apr 16 00:00:25 2014 -0400
 
-    cmd/ld: correct comment.
+    doc: remove outdated Makefile
+    Fixes #7773.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/88360044
+    https://golang.org/cl/87400043
 
- src/cmd/ld/dwarf.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/Makefile | 32 --------------------------------
+ 1 file changed, 32 deletions(-)

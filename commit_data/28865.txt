@@ -1,15 +1,17 @@
-commit 81c431a53780d90ebe8a81205db9b3bee7824ffd
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 6 15:12:12 2016 -0400
+commit e0d8064ed4b53436f678960022c7092b2078094d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 7 09:11:00 2016 -0700
 
-    runtime: abstract out assist queue management
+    go/types: fix multiword data structure alignment on nacl
     
-    This puts all of the assist queue-related code together and makes it
-    easier to modify how the assist queue works.
+    Fixes #16464
     
-    Change-Id: Id54e06702bdd5a5dd3fef2ce2c14cd7ca215303c
-    Reviewed-on: https://go-review.googlesource.com/30700
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ibf5625c1b5fa3abd18623023f18664e8f81fa45a
+    Reviewed-on: https://go-review.googlesource.com/26996
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mgcmark.go | 77 +++++++++++++++++++++++++++++---------------------
- 1 file changed, 45 insertions(+), 32 deletions(-)
+ src/go/types/sizes.go      |  9 +++++++++
+ src/go/types/sizes_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

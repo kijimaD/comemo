@@ -1,17 +1,27 @@
-commit ab5c22e7ed6bda79f07410c0041e020e52dc9b35
-Author: 封幼林 <fengyoulin@live.com>
-Date:   Mon Sep 23 22:55:13 2024 +0800
+commit 98bacdeafe089f917d98d2151694568e4a25a4c3
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Aug 9 08:50:41 2023 -0400
 
-    cmd/compile: remove obj.LSym(s) for assertI2I and assertI2I2
+    internal/coverage: separate out cmd defs to separate package
     
-    Change-Id: I85993a34b115a700ccdfea29df4e78c360e68b03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615075
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Relocate the definitions in cmddefs.go (used by the compiler and
+    the cover tool) to a separate package "covcmd". No change
+    in functionality, this is a pure refactoring, in preparation
+    for a subsequent change that will require updating the
+    imports for the package.
+    
+    Change-Id: Ic1d277c94d9a574de0a11ec5ed77e892302b9a47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517696
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ir/symtab.go  | 2 --
- src/cmd/compile/internal/ssagen/ssa.go | 2 --
- 2 files changed, 4 deletions(-)
+ src/cmd/compile/internal/base/flag.go         | 14 +++++++-------
+ src/cmd/cover/cfg_test.go                     |  4 ++--
+ src/cmd/cover/cover.go                        |  7 ++++---
+ src/cmd/dist/buildtool.go                     |  1 +
+ src/cmd/go/internal/work/exec.go              |  4 ++--
+ src/internal/coverage/{ => covcmd}/cmddefs.go | 16 +---------------
+ src/internal/coverage/defs.go                 | 14 ++++++++++++++
+ 7 files changed, 31 insertions(+), 29 deletions(-)

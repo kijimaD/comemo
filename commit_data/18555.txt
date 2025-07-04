@@ -1,15 +1,27 @@
-commit ac40fb44701c7a920310e18d22777196bdf8e581
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 18 13:38:47 2014 -0800
+commit 746d636859262d53d465f61675484250a3947acc
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Feb 18 20:12:59 2014 +0100
 
-    api: whitelist change to unicode.Version
+    unicode: upgrade to Unicode 6.3.0
     
-    Unbreaks the build.
+    This is a relatively minor change.
+    
+    This does not result in changes to go.text/unicode/norm. The go.text
+    packages will therefore be relatively unaffected. It does make the
+    way for an upgrade to CLDR 24, though.
+    
+    The tests of all.bash pass, as well as the tests in go.text after
+    this update.
     
     LGTM=r
     R=r
     CC=golang-codereviews
-    https://golang.org/cl/65650043
+    https://golang.org/cl/65400044
 
- api/except.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/bufio/scan.go               |  2 +-
+ src/pkg/fmt/scan.go                 |  1 -
+ src/pkg/regexp/syntax/parse_test.go |  4 +--
+ src/pkg/unicode/maketables.go       |  2 +-
+ src/pkg/unicode/script_test.go      |  2 +-
+ src/pkg/unicode/tables.go           | 61 +++++++++++++++++++++----------------
+ 6 files changed, 40 insertions(+), 32 deletions(-)

@@ -1,26 +1,14 @@
-commit f4fe688b0983077cffe5baf8f4f62dfe196bffe9
-Author: Rob Pike <r@golang.org>
-Date:   Sun May 22 09:22:00 2011 +1000
+commit 648f25b237b47cc41ef64e9f8cee1c2afe894188
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat May 21 08:00:53 2011 -0700
 
-    flags: allow distinct sets of flags.
+    5l: fix set but not used warnings
     
-    A FlagSet is an independent set of flags that may be used,
-    for example, to provide flag processing for subcommands
-    in a CLI.  The standard, os.Args-derived set of flags is a
-    global but non-exported FlagSet and the standard functions
-    are wrappers for methods of that FlagSet.
-    
-    Allow the programmer to control whether the program
-    exits if there is a parse error.  For the default set, the behavior
-    remains to exit on error.
-    
-    The handling of Usage is odd due to backward compatibility.
-    
-    R=golang-dev, bradfitz, r, bradfitz
+    R=rsc, iant
     CC=golang-dev
-    https://golang.org/cl/4517092
+    https://golang.org/cl/4538083
 
- src/pkg/flag/export_test.go |  22 +--
- src/pkg/flag/flag.go        | 392 ++++++++++++++++++++++++++++++++------------
- src/pkg/flag/flag_test.go   |  59 ++++---
- 3 files changed, 332 insertions(+), 141 deletions(-)
+ src/cmd/5l/asm.c  | 7 +------
+ src/cmd/5l/obj.c  | 3 +--
+ src/cmd/5l/span.c | 2 --
+ 3 files changed, 2 insertions(+), 10 deletions(-)

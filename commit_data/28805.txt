@@ -1,47 +1,17 @@
-commit 1af769da8260b277bd5aa92b5074b3400b1f8d9d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Sep 21 11:19:36 2016 +1000
+commit c80e0d374ba3caf8ee32c6fe4a5474fa33928086
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 26 23:44:00 2016 +0200
 
-    os: make readConsole handle its input and output correctly
+    net/http: fix data race with concurrent use of Server.Serve
     
-    This CL introduces first test for readConsole. And new test
-    discovered couple of problems with readConsole.
+    Fixes #16505
     
-    Console characters consist of multiple bytes each, but byte blocks
-    returned by syscall.ReadFile have no character boundaries. Some
-    multi-byte characters might start at the end of one block, and end
-    at the start of next block. readConsole feeds these blocks to
-    syscall.MultiByteToWideChar to convert them into utf16, but if some
-    multi-byte characters have no ending or starting bytes, the
-    syscall.MultiByteToWideChar might get confused. Current version of
-    syscall.MultiByteToWideChar call will make
-    syscall.MultiByteToWideChar ignore all these not complete
-    multi-byte characters.
-    
-    The CL solves this issue by changing processing from "randomly
-    sized block of bytes at a time" to "one multi-byte character at a
-    time". New readConsole code calls syscall.ReadFile to get 1 byte
-    first. Then it feeds this byte to syscall.MultiByteToWideChar.
-    The new syscall.MultiByteToWideChar call uses MB_ERR_INVALID_CHARS
-    flag to make syscall.MultiByteToWideChar return error if input is
-    not complete character. If syscall.MultiByteToWideChar returns
-    correspondent error, we read another byte and pass 2 byte buffer
-    into syscall.MultiByteToWideChar, and so on until success.
-    
-    Old readConsole code would also sometimes return no data if user
-    buffer was smaller then uint16 size, which would confuse callers
-    that supply 1 byte buffer. This CL fixes that problem too.
-    
-    Fixes #17097
-    
-    Change-Id: I88136cdf6a7bf3aed5fbb9ad2c759b6c0304ce30
-    Reviewed-on: https://go-review.googlesource.com/29493
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I0afabcc8b1be3a5dbee59946b0c44d4c00a28d71
+    Reviewed-on: https://go-review.googlesource.com/25280
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/internal/syscall/windows/syscall_windows.go |   6 +
- src/os/export_windows_test.go                   |  14 +++
- src/os/file_windows.go                          | 145 ++++++++++++++++--------
- src/os/os_windows_test.go                       |  85 ++++++++++++++
- 4 files changed, 203 insertions(+), 47 deletions(-)
+ src/net/http/serve_test.go | 11 +++++++++++
+ src/net/http/server.go     | 38 +++++++++++++++++++++++++++++---------
+ 2 files changed, 40 insertions(+), 9 deletions(-)

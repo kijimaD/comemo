@@ -1,17 +1,30 @@
-commit 5a2da5624a9403a61cdd8df529e2b71129ef7898
-Author: JT Olio <hello@jtolio.com>
-Date:   Mon May 6 17:38:23 2019 -0600
+commit c5414457c62fc11f299946a46f6c868c4f0bf2ab
+Author: Keith Randall <khr@google.com>
+Date:   Fri Dec 21 16:36:45 2018 -0800
 
-    math/big: stack allocate scaleDenom return value
+    cmd/compile: pad zero-sized stack variables
     
-    benchmark             old ns/op     new ns/op     delta
-    BenchmarkRatCmp-4     154           77.9          -49.42%
+    If someone takes a pointer to a zero-sized stack variable, it can
+    be incorrectly interpreted as a pointer to the next object in the
+    stack frame. To avoid this, add some padding after zero-sized variables.
     
-    Change-Id: I932710ad8b6905879e232168b1777927f86ba22a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175460
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    We only need to pad if the next variable in memory (which is the
+    previous variable in the order in which we allocate variables to the
+    stack frame) has pointers. If the next variable has no pointers, it
+    won't hurt to have a pointer to it.
+    
+    Because we allocate all pointer-containing variables before all
+    non-pointer-containing variables, we should only have to pad once per
+    frame.
+    
+    Fixes #24993
+    
+    Change-Id: Ife561cdfdf964fdbf69af03ae6ba97d004e6193c
+    Reviewed-on: https://go-review.googlesource.com/c/155698
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/rat.go      | 35 ++++++++++++++++++++---------------
- src/math/big/rat_test.go |  7 +++++++
- 2 files changed, 27 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 11 +++++++++++
+ test/codegen/zerosize.go            | 25 +++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

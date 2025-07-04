@@ -1,16 +1,15 @@
-commit ad73dc349bcb796ec99e1adb25973671d2204fba
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Feb 13 22:24:41 2015 +0100
+commit 44529d939192c3034a04e2eff865d04ee51ae532
+Author: Rick Hudson <rlh@golang.org>
+Date:   Tue Jan 13 15:36:42 2015 -0500
 
-    cmd/gc: replace NULL by nil
+    runtime: fix trigger for concurrent GC
     
-    In CL 4050, NULL was used instead of nil.
-    However, Plan 9 doesn't declare NULL.
+    Adujst triggergc so that we trigger when we have used 7/8
+    of the available memory.
     
-    Change-Id: I8295a3102509a1ce417278f23a37cbf65938cce1
-    Reviewed-on: https://go-review.googlesource.com/4814
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I7ca02546d3084e6a04d60b09479e04a9a9837ae2
+    Reviewed-on: https://go-review.googlesource.com/3061
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/gc/walk.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/malloc.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

@@ -1,23 +1,32 @@
-commit ab058b35402aded8579e3e9653c0d78c5c4e9e5e
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Aug 5 14:35:35 2012 -0400
+commit ff03482fd6c38ac41835bef2dfd75f5ecc41eb1d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Aug 5 20:30:13 2012 +0200
 
-    misc/dashboard/codereview: show first line of last message in thread
+    strconv: speedup AppendFloat/FormatFloat.
     
-    This line helps me to tell whether the CL is waiting for me or I'm waiting for the author.
+    The improvement is obtained by eliminating the zero
+    initialization of a large structure that is only
+    needed when the fast path fails.
     
-    Also:
-     - vertical-align table cells so buttons are always aligned with CL headers.
-     - add email= to show front page for someone else.
+    Also add a missing roundtrip test for float32s.
     
-     Demo at http://rsc.gocodereview.appspot.com/.
-     Until this is deployed for real, some recently changed CLs may be
-     missing the 'first line of last message' part.
+    benchmark                              old ns/op    new ns/op    delta
+    BenchmarkAppendFloatDecimal                  301          180  -40.20%
+    BenchmarkAppendFloat                         486          388  -20.16%
+    BenchmarkAppendFloatExp                      492          383  -22.15%
+    BenchmarkAppendFloatNegExp                   478          370  -22.59%
+    BenchmarkAppendFloatBig                      650          541  -16.77%
+    BenchmarkAppendFloat32Integer                308          180  -41.56%
+    BenchmarkAppendFloat32ExactFraction          449          333  -25.84%
+    BenchmarkAppendFloat32Point                  494          390  -21.05%
+    BenchmarkAppendFloat32Exp                    488          387  -20.70%
+    BenchmarkAppendFloat32NegExp                 488          378  -22.54%
     
-    R=dsymonds
-    CC=golang-dev
-    https://golang.org/cl/6446065
+    R=r, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6346081
 
- misc/dashboard/codereview/dashboard/cl.go    | 129 ++++++++++++++++++++++-----
- misc/dashboard/codereview/dashboard/front.go |  47 +++++++---
- 2 files changed, 142 insertions(+), 34 deletions(-)
+ src/pkg/strconv/atof_test.go |  8 ++++++++
+ src/pkg/strconv/extfloat.go  | 25 ++++++++++++++++++++---
+ src/pkg/strconv/ftoa.go      | 48 +++++++++++++++++++++++++++-----------------
+ 3 files changed, 60 insertions(+), 21 deletions(-)

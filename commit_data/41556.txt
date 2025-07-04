@@ -1,41 +1,22 @@
-commit ea1437a8cdf6bb3c2d2447833a5d06dbd75f7ae4
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 25 13:01:59 2020 -0500
+commit a08cb9f473405769f292bd2ff455764a690fe3e7
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Wed Sep 5 06:35:33 2018 +0200
 
-    net/http: fix handling of HTTP/2 upgrade failures
+    net/mail: added support to trailing CFWS in date
     
-    If an error occurs during the HTTP/2 upgrade phase, originally this
-    resulted in a pconn with pconn.alt set to an http2erringRoundTripper,
-    which always fails. This is not wanted - we want to retry in this case.
+    RFC 5322 date format allows CFWS after the timezone.
+    If CFWS is valid, it is discarded and parsing is done as before
+    using time.Parse().
+    Existing test is extended with limit cases and invalid strings.
     
-    CL 202078 added a check for the http2erringRoundTripper to treat it
-    as a failed pconn, but the handling of the failure was wrong in the case
-    where the pconn is not in the idle list at all (common in HTTP/2).
-    This made the added test TestDontCacheBrokenHTTP2Conn flaky.
+    Fixes #22661
     
-    CL 218097 (unsubmitted) proposed to expand the handling of the
-    http2erringRoundTripper after the new check, to dispose of the pconn
-    more thoroughly. Bryan Mills pointed out in that review that we probably
-    shouldn't make the never-going-to-work pconn in the first place.
-    
-    This CL changes the upgrade phase look for the http2erringRoundTripper
-    and return the underlying error instead of claiming to have a working
-    connection. Having done that, the CL undoes the change in CL 202078
-    and with it the need for CL 218097, but it keeps the new test added
-    by CL 202078.
-    
-    On my laptop, before this commit, TestDontCacheBrokenHTTP2Conn
-    failed 66 times out of 20,000. With this commit, I see 0 out of 20,000.
-    
-    Fixes #34978.
-    Fixes #35113.
-    
-    Change-Id: Ibd908b63c2ae96e159e8e604213d8373afb350e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220905
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I54b96d7bc384b751962a76690e7e4786217a7941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/117596
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/omithttp2.go |  2 +-
- src/net/http/transport.go | 14 ++++++++------
- 2 files changed, 9 insertions(+), 7 deletions(-)
+ src/net/mail/message.go      |  25 +++++++-
+ src/net/mail/message_test.go | 145 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 169 insertions(+), 1 deletion(-)

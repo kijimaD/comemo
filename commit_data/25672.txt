@@ -1,23 +1,16 @@
-commit 08594ac7c7e123d4aa46f60690da0a7e4034f4e9
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jan 26 17:26:55 2016 -0500
+commit 18160e074003fb477501760fe3a4a458afdf4a90
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 13 14:31:31 2015 -0800
 
-    runtime: acquire stack lock in traceEvent
+    cmd/compile: cleanup in parser.go
     
-    traceEvent records system call events after a G has already entered
-    _Gsyscall, which means the garbage collector could be installing stack
-    barriers in the G's stack during the traceEvent. If traceEvent
-    attempts to capture the user stack during this, it may observe a
-    inconsistent stack barriers and panic. Fix this by acquiring the stack
-    lock around the stack walk in traceEvent.
+    Inlined non_dcl_stmt in stmt since it was called only from there.
     
-    Fixes #14101.
-    
-    Change-Id: I15f0ab0c70c04c6e182221f65a6f761c5a896459
-    Reviewed-on: https://go-review.googlesource.com/18973
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I616c41332cfd86bbf3493d0ce7b1256384215220
+    Reviewed-on: https://go-review.googlesource.com/16893
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/runtime/trace.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/parser.go | 77 ++++++++++-------------------------
+ 1 file changed, 21 insertions(+), 56 deletions(-)

@@ -1,33 +1,18 @@
-commit a2ef8b9c6c9ca9a84586017514e23ce6b58086bf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 1 19:48:58 2018 +0000
+commit efa0d1f214c007a611a57133842e37162054b2be
+Author: Hana Kim <hakim@google.com>
+Date:   Mon Apr 9 10:31:10 2018 -0400
 
-    vendor: update golang.org/x/net/http2/hpack
+    cmd/trace: skip GoroutineInSyscall in case time order err
     
-    Updates bundled golang.org/x/net/http2/hpack to x/net git rev 22bb95c5e for:
+    All tests involving trace collection and parsing
+    still need handling of failures caused by #16755
+    (Timestamp issue)
     
-       http2/hpack: lazily build huffman table on first use
-       https://golang.org/cl/127275
+    Fixes #24738
     
-       http2/hpack: reduce memory for huffman decoding table
-       https://golang.org/cl/127235
-    
-       http2/hpack: dynamic table updates must occur first
-       https://golang.org/cl/111681
-    
-    And a typo & gofmt CL.
-    
-    Updates #25023
-    
-    Change-Id: I7027fdb4982305aa671d811fe87f61e5df0f8e0e
-    Reviewed-on: https://go-review.googlesource.com/127355
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6cd0f9c6f49854a22fad6fce1a00964c168aa614
+    Reviewed-on: https://go-review.googlesource.com/105821
+    Reviewed-by: Peter Weinberger <pjw@google.com>
 
- src/vendor/golang_org/x/net/http2/hpack/encode.go  |   2 +-
- src/vendor/golang_org/x/net/http2/hpack/hpack.go   |   6 +
- .../golang_org/x/net/http2/hpack/hpack_test.go     |  40 +++++++
- src/vendor/golang_org/x/net/http2/hpack/huffman.go |  20 +++-
- src/vendor/golang_org/x/net/http2/hpack/tables.go  | 122 ++++++++++-----------
- 5 files changed, 123 insertions(+), 67 deletions(-)
+ src/cmd/trace/trace_unix_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

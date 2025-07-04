@@ -1,35 +1,15 @@
-commit 04edf418d285df410745118aae756f9e0a9a00f5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Nov 18 12:50:29 2020 -0800
+commit 66cb673de6068a42ce67b538ae561ac23aca13f1
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 24 14:27:32 2020 -0400
 
-    encoding/json: reduce allocated space in Unmarshal
+    crypto/tls: expand the ConnectionState docs
     
-    The decodeState type is a large part of the allocated space during Unmarshal.
-    The errorContext field is infrequently used, and only on error.
-    Extract it into a pointer and allocate it separate when necessary.
+    Fixes #37572
     
-    name                old time/op    new time/op    delta
-    UnmarshalString-8      115ns ± 5%     114ns ± 3%     ~     (p=0.170 n=15+15)
-    UnmarshalFloat64-8     113ns ± 2%     106ns ± 1%   -6.42%  (p=0.000 n=15+14)
-    UnmarshalInt64-8      93.3ns ± 1%    86.9ns ± 4%   -6.89%  (p=0.000 n=14+15)
-    
-    name                old alloc/op   new alloc/op   delta
-    UnmarshalString-8       192B ± 0%      160B ± 0%  -16.67%  (p=0.000 n=15+15)
-    UnmarshalFloat64-8      180B ± 0%      148B ± 0%  -17.78%  (p=0.000 n=15+15)
-    UnmarshalInt64-8        176B ± 0%      144B ± 0%  -18.18%  (p=0.000 n=15+15)
-    
-    name                old allocs/op  new allocs/op  delta
-    UnmarshalString-8       2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    UnmarshalFloat64-8      2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    UnmarshalInt64-8        1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    
-    Change-Id: I53f3f468e6c65f77a12e5138a2626455b197012d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271338
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I493392f535a979ee16609861041da2ecfe21cf77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239744
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/encoding/json/decode.go | 51 +++++++++++++++++++++++++++------------------
- 1 file changed, 31 insertions(+), 20 deletions(-)
+ src/crypto/tls/common.go | 82 +++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 63 insertions(+), 19 deletions(-)

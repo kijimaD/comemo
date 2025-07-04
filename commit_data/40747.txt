@@ -1,22 +1,14 @@
-commit 0c703b37dffe74d3fffc04347884bb0ee2fba5b3
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 4 05:12:11 2019 +1100
+commit fa0537b8af25530506c9b57348a032607c29c5b7
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jun 25 14:57:50 2019 -0400
 
-    internal/cpu,internal/bytealg: add support for riscv64
+    doc/go1.13: close <em> and <code> tags
     
-    Based on riscv-go port.
+    Fixup for two typos from CL 183630.
     
-    Updates #27532
-    
-    Change-Id: Ia3aed521d4109e7b73f762c5a3cdacc7cdac430d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204635
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7968a736680e8a6bbd1f4691d443b217702bc190
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183843
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/bytealg/equal_riscv64.s      | 49 +++++++++++++++++++++++++++++
- src/internal/bytealg/indexbyte_generic.go |  2 +-
- src/internal/bytealg/indexbyte_native.go  |  2 +-
- src/internal/bytealg/indexbyte_riscv64.s  | 52 +++++++++++++++++++++++++++++++
- src/internal/cpu/cpu_riscv64.go           |  7 +++++
- 5 files changed, 110 insertions(+), 2 deletions(-)
+ doc/go1.13.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

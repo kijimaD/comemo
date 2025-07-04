@@ -1,0 +1,27 @@
+commit 2b0f2f8169bed01e3bf72d49863cd2852bdf7c7e
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Mon May 20 09:04:15 2024 +0000
+
+    maps: add All, Keys, Values, Insert, Collect
+    
+    Fixed #61900.
+    
+    Change-Id: Ic5962dc92b3102e7448635bef541414a2eaf415e
+    GitHub-Last-Rev: 3c6f74d6173c519ce090e22e724da04efff79022
+    GitHub-Pull-Request: golang/go#67521
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586716
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/61900.txt                       |   5 ++
+ doc/next/6-stdlib/3-iter.md              |   8 +++
+ doc/next/6-stdlib/99-minor/maps/61900.md |   1 +
+ src/cmd/dist/test.go                     |   2 +-
+ src/go/build/deps_test.go                |   5 +-
+ src/maps/iter.go                         |  55 ++++++++++++++
+ src/maps/iter_test.go                    | 120 +++++++++++++++++++++++++++++++
+ 7 files changed, 194 insertions(+), 2 deletions(-)

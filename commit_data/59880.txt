@@ -1,0 +1,23 @@
+commit 5a181c504263b6cc2879d0a4fa19b2c993c59704
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 23 12:01:53 2024 -0500
+
+    iter: expose fundamental types to Go 1.23
+    
+    These were previously only available with GOEXPERIMENT=rangefunc.
+    
+    For #61897.
+    
+    Change-Id: I86aea5ae8be1f7a2975b623325811221ed40d384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557836
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ api/next/61897.txt                       | 4 ++++
+ doc/next/6-stdlib/3-iter.md              | 4 ++++
+ doc/next/6-stdlib/99-minor/iter/61897.md | 1 +
+ src/go/build/deps_test.go                | 5 +----
+ src/go/doc/comment/std.go                | 1 +
+ src/iter/iter.go                         | 5 -----
+ src/iter/pull_test.go                    | 6 ++----
+ 7 files changed, 13 insertions(+), 13 deletions(-)

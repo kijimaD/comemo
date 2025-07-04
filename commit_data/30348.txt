@@ -1,16 +1,15 @@
-commit 689fa9cc2842141ad663845af2b6188cc1c12b5d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 20 22:58:36 2017 -0800
+commit 84803f3da1b3921a6eacec435d97d5b9e40fe947
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 1 10:24:06 2016 -0700
 
-    syscall: fix linux/mipsx ret value FP offsets for Syscall9
+    runtime: treat SIGSTOP on Solaris as we do on other systems
     
-    Found by vet.
+    This makes no practical difference, as SIGSTOP can not be caught, but
+    may as well be consistent.
     
-    Change-Id: Idf910405566816ddce6781c8e99f90b59f33d63c
-    Reviewed-on: https://go-review.googlesource.com/37308
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I3efbbf092388bb3f6dccc94cf703c5d94d35f6a1
+    Reviewed-on: https://go-review.googlesource.com/32533
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/asm_linux_mipsx.s | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/signal_solaris.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

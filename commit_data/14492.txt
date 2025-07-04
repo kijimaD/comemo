@@ -1,22 +1,15 @@
-commit 9a61c0412c119f5df05a7c3877985cd1dbc83931
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 26 13:20:30 2012 -0800
+commit a5e10edc34ecfc8173509fabda0998b0cd518da7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 26 13:05:18 2012 -0800
 
-    go/printer: some internal cleanups
+    doc/play: don't use println in examples
     
-    Cleanups introduced originally by now abandoned
-    https://golang.org/cl/6846078/ .
-    
-    Includes additional test cases for 'if' and 'for'
-    statements.
-    
-    No formatting changes.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6855096
+    https://golang.org/cl/6849105
 
- src/pkg/go/printer/nodes.go                   | 59 ++++++++++---------
- src/pkg/go/printer/testdata/statements.golden | 82 ++++++++++++++++++++++++++-
- src/pkg/go/printer/testdata/statements.input  | 62 +++++++++++++++++++-
- 3 files changed, 173 insertions(+), 30 deletions(-)
+ doc/play/fib.go       |  4 +++-
+ doc/play/sieve.go     |  4 +++-
+ doc/play/solitaire.go | 14 +++++++-------
+ doc/play/tree.go      |  4 ++--
+ 4 files changed, 15 insertions(+), 11 deletions(-)

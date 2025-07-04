@@ -1,25 +1,20 @@
-commit 962d5c997af450af1de9a38eb6510cdfc86ea689
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jun 2 12:22:50 2021 -0700
+commit 4bc5f6f45f6e887f74b22dfdfffd6df2a2f97094
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 11 19:43:26 2020 -0500
 
-    cmd/compile,go/types: restrict use of unsafe.{Add,Slice} to go1.17 or newer
+    cmd/link: put DYLD_INFO at beginning of LINKEDIT segment on darwin
     
-    This CL updates cmd/compile (including types2) and go/types to report
-    errors about using unsafe.Add and unsafe.Slice when language
-    compatibility is set to Go 1.16 or older.
+    Apparently, code signing requires DYLD_INFO tables are at the
+    beginning of the LINKEDIT segment. Put it there.
     
-    Fixes #46525.
+    May fix #42507.
     
-    Change-Id: I1bfe025a672d9f4b929f443064ad1effd38d0363
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324369
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I1836e0f495719cf75f66d0831fe1544bbe3ff1a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269377
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/typecheck/func.go  | 12 ++++++++++++
- src/cmd/compile/internal/types2/builtins.go | 10 ++++++++++
- src/go/types/builtins.go                    | 10 ++++++++++
- test/fixedbugs/issue46525.go                | 14 ++++++++++++++
- 4 files changed, 46 insertions(+)
+ src/cmd/link/internal/ld/macho.go | 72 +++++++++++++++++++--------------------
+ 1 file changed, 36 insertions(+), 36 deletions(-)

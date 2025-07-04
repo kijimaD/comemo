@@ -1,14 +1,17 @@
-commit e7a0df35b3b9d3fe2a84ef0ea186fdc6c203e318
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Dec 2 16:34:03 2016 -0800
+commit 56b746974cb8dcd44b09c3db384e8aeaae8a9d3e
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Oct 6 02:19:01 2016 +0900
 
-    cmd/go: add missing newline at end of error message
+    cmd/asm: close file before remove
     
-    Change-Id: I9277e869e171d9e051ff9a70ac578b8127fa74f8
-    Reviewed-on: https://go-review.googlesource.com/33897
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Windows doesn't remove an open file.
+    
+    Fixes #17345
+    
+    Change-Id: I283930c7d6eb3bc09ad208191afefe989804ce32
+    Reviewed-on: https://go-review.googlesource.com/30430
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/main.go | 1 +
+ 1 file changed, 1 insertion(+)

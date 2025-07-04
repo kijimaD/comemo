@@ -1,14 +1,14 @@
-commit 3b4da67ee3ed0ed370c92768d4052da553b9bbc2
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Aug 14 16:28:40 2013 -0400
+commit 2eb7c6ec8a34c23466e40946d0e9ea1574b0006a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 15 05:08:08 2013 +0900
 
-    cmd/ld: Remove superfluous redundant iself check
+    net: simplify non-cgo DNS exchange
     
-            CL 12741044 added an extra iself condition to an if statement that already contained it. Remove it.
+    Also does less buffer allocation in case of TCP fallback.
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12949043
+    https://golang.org/cl/12925043
 
- src/cmd/ld/data.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/dnsclient_unix.go | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)

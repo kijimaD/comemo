@@ -1,12 +1,16 @@
-commit 04774336b15c2eeda76080d60c57844a22b77c99
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Feb 16 14:22:22 2015 -0500
+commit ad54a16b1583bf3102c5d087de587e7144a0bf11
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 22 10:43:16 2015 -0800
 
-    cmd/go: skip stat check when using -toolexec
+    go/printer, cmd/gofmt: print import paths in double quotes
     
-    Change-Id: Idc88b1ee950e33cfe757a27e9a3383d879793af7
-    Reviewed-on: https://go-review.googlesource.com/4934
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #9644.
+    
+    Change-Id: Ia2e42befa20233107ac5409e79f9dce794983a3f
+    Reviewed-on: https://go-review.googlesource.com/3200
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/tool.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/go/printer/nodes.go                     | 48 ++++++++++++++++++++++++++++-
+ src/go/printer/testdata/declarations.golden |  6 ++++
+ src/go/printer/testdata/declarations.input  |  9 ++++++
+ 3 files changed, 62 insertions(+), 1 deletion(-)

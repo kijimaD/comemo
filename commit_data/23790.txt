@@ -1,14 +1,14 @@
-commit 3b26e8b29a488d96ea921839ed22e70d894ebe38
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 22 13:22:42 2015 -0400
+commit 47791c1a1826aeada54987d7259de536f211fb22
+Author: Michael Matloob <matloob@google.com>
+Date:   Sat Jun 13 10:22:21 2015 -0700
 
-    runtime/pprof: ignore too few samples on Windows test
+    [dev.ssa] cmd/compile/internal/gc: generate TESTQ instruction
     
-    Fixes #10842.
+    TESTQ is produced by the IsNonNil lowering.
     
-    Change-Id: I7de98f3073a47911863a252b7a74d8fdaa48c86f
-    Reviewed-on: https://go-review.googlesource.com/12529
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9df8f17e6def7e34d07e3ddf2dd5dd8f0406aa04
+    Reviewed-on: https://go-review.googlesource.com/11053
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/pprof/pprof_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

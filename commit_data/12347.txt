@@ -1,12 +1,14 @@
-commit 4314087b625b52f907424d54461b464bc45d23ec
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sun Mar 4 09:57:09 2012 +1100
+commit 227a04d771c98f858663b56bd1bc10640097751d
+Author: Rob Pike <r@golang.org>
+Date:   Sun Mar 4 08:06:26 2012 +1100
 
-    godoc: hide "Subdirectories" subheading if it is the only section
+    text/template: one more test case
+    Missed a case for variadic functions with too few arguments.
+    The code passes, and with the right error, but might as well record the test case.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5731056
+    https://golang.org/cl/5732050
 
- lib/godoc/package.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/text/template/exec_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,23 +1,29 @@
-commit c123a800633532a4051eebf8ab9ba695ae46013b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Feb 25 12:56:44 2015 +1100
+commit a5b1baeed7d26a3d8aea86bbabe81f59c3d4e9d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 15:15:43 2015 -0500
 
-    syscall: generate AT_* constants and regenerate ztypes_linux_*.go
+    cmd/8a, cmd/8g, cmd/8l, liblink: update for portable Prog, Addr
     
-    Updates #9974
-    
-    The *at family of syscalls requires some constants to be defined in the
-    syscall package for linux. Add the necessary constants and regenerate
-    the ztypes_linux_*.go files.
-    
-    Change-Id: I6df343fef7bcacad30d36c7900dbfb621465a4fe
-    Reviewed-on: https://go-review.googlesource.com/5836
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I19ed283962aa0221cf806307bde9ea0773a1bfd4
+    Reviewed-on: https://go-review.googlesource.com/3518
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/syscall/types_linux.go          | 4 +++-
- src/syscall/ztypes_linux_386.go     | 4 +++-
- src/syscall/ztypes_linux_amd64.go   | 4 +++-
- src/syscall/ztypes_linux_arm.go     | 4 +++-
- src/syscall/ztypes_linux_ppc64.go   | 4 +++-
- src/syscall/ztypes_linux_ppc64le.go | 4 +++-
- 6 files changed, 18 insertions(+), 6 deletions(-)
+ src/cmd/8a/a.y      |  99 ++++---
+ src/cmd/8a/lex.c    | 167 ++++++------
+ src/cmd/8a/y.tab.c  | 257 +++++++++--------
+ src/cmd/8g/cgen.c   |  33 +--
+ src/cmd/8g/cgen64.c |  18 +-
+ src/cmd/8g/galign.c |   8 +-
+ src/cmd/8g/gg.h     |   2 +-
+ src/cmd/8g/ggen.c   | 111 ++++----
+ src/cmd/8g/gobj.c   |  44 +--
+ src/cmd/8g/gsubr.c  | 203 +++++++-------
+ src/cmd/8g/opt.h    |   5 -
+ src/cmd/8g/peep.c   |  92 +++----
+ src/cmd/8g/prog.c   |  30 +-
+ src/cmd/8g/reg.c    |  96 ++++---
+ src/cmd/8l/8.out.h  | 124 ++++-----
+ src/liblink/asm8.c  | 774 +++++++++++++++++++++++++++-------------------------
+ src/liblink/list8.c | 178 ++++++------
+ src/liblink/obj8.c  | 248 +++++++++--------
+ 18 files changed, 1275 insertions(+), 1214 deletions(-)

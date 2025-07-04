@@ -1,33 +1,17 @@
-commit b8fa61885ad076081a42231ae50fe374dceff500
-Author: Petar Maymounkov <petarm@gmail.com>
-Date:   Wed Feb 23 00:39:25 2011 -0500
+commit 07cc8b9ad21a164a64139de169e8eceb1f90c61a
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Tue Feb 22 20:23:21 2011 -0800
 
-    http: introduce Header type, implement with net/textproto
-    textproto: introduce Header type
-    websocket: use new interface to access Header
+    Make.pkg, doc: Replace references to "-benchmarks" and "-match" with "-test.bench" and "-test.run".
     
-    R=rsc, mattn
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4185053
+    https://golang.org/cl/4197041
 
- src/pkg/http/Makefile                |   1 +
- src/pkg/http/client.go               |  18 ++--
- src/pkg/http/fs.go                   |   4 +-
- src/pkg/http/fs_test.go              |  11 ++-
- src/pkg/http/header.go               |  43 +++++++++
- src/pkg/http/readrequest_test.go     |  18 ++--
- src/pkg/http/request.go              | 178 +++++------------------------------
- src/pkg/http/request_test.go         |  20 ++--
- src/pkg/http/requestwrite_test.go    |  20 ++--
- src/pkg/http/response.go             |  76 +++++----------
- src/pkg/http/response_test.go        |  18 ++--
- src/pkg/http/responsewrite_test.go   |   6 +-
- src/pkg/http/serve_test.go           |   2 +-
- src/pkg/http/transfer.go             |  63 ++++++-------
- src/pkg/net/textproto/Makefile       |   1 +
- src/pkg/net/textproto/header.go      |  43 +++++++++
- src/pkg/net/textproto/reader.go      |  16 ++--
- src/pkg/net/textproto/reader_test.go |   8 +-
- src/pkg/websocket/client.go          |  20 ++--
- src/pkg/websocket/server.go          |  32 +++----
- 20 files changed, 263 insertions(+), 335 deletions(-)
+ doc/code.html                               | 2 +-
+ src/Make.pkg                                | 2 +-
+ src/cmd/gotest/doc.go                       | 2 +-
+ src/pkg/crypto/tls/handshake_client_test.go | 2 +-
+ src/pkg/crypto/tls/handshake_server_test.go | 2 +-
+ src/pkg/testing/testing.go                  | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

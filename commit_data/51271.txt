@@ -1,17 +1,31 @@
-commit 56d18207823d6e1c18ca46409180c40ae800230c
-Author: Rob Stradling <rob@sectigo.com>
-Date:   Tue Sep 6 17:30:31 2022 +0100
+commit e39ab9b01cbbdac0750fc13fa8fb1de4f07aa79a
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Dec 15 18:42:00 2021 -0800
 
-    crypto/x509: Reallow duplicate attributes in CSRs.
+    cmd/compile: pop instantiations of local types when leaving scope
     
-    Change-Id: I3fb4331c2b1b6adafbac3e76eaf66c79cd5ef56f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428636
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Since we use existing instantiations from the symbol table when possible
+    (to make sure each instantiation is unique), we need to pop
+    instantiations of local types when leaving the containing scope.
+    g.stmts() now pushes and pops scope, and we do a Pushdcl() in g.typ0()
+    when creating an instantiation of a local type.
+    
+    Non-instantiated local types (generic or not) are translated directly
+    from types2, so they don't need to be pushed/popped. We don't export
+    function bodies with local types, so there is no issue during import.
+    
+    We still don't support local types in generic functions/methods.
+    
+    Fixes #50177
+    
+    Change-Id: If2d2fe71aec003d13f0338565c7a0da2c9580a14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372654
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/crypto/x509/x509.go      |  8 +-------
- src/crypto/x509/x509_test.go | 26 ++++++++++++++++++++++++--
- 2 files changed, 25 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/noder/stmt.go  |   3 +
+ src/cmd/compile/internal/noder/types.go |   9 ++-
+ test/typeparam/issue50177.go            | 101 ++++++++++++++++++++++++++++++++
+ 3 files changed, 112 insertions(+), 1 deletion(-)

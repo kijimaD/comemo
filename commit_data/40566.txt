@@ -1,54 +1,46 @@
-commit 5a7c571ea19a0d859222d6c92d108fdc68da9f13
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 4 13:29:29 2019 -0500
+commit e883d000f4ce0c47711c3a7c59df8bb2f0ec557f
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun May 26 15:28:05 2019 +0200
 
-    hash/maphash: revise API to be more idiomatic
+    cmd/link: do not generate NT 4 compatibility binaries
     
-    This CL makes these changes to the hash/maphash API to make it fit a bit
-    more into the standard library:
+    Incredibly, the subsystem version numbers in the PE header influence how
+    win32k handles various syscalls. The first time a win32k syscall is
+    invoked and the kernel upgrades the thread object to a tagTHREADINFO
+    with all of the lovely undocumented UI members and such, it sets the
+    dwExpWinVer member (offset 624 in Windows 10 build 1809) to the result
+    of RtlGetExpWinVer(PsGetProcessSectionBaseAddress(proc)).
+    RtlGetExpWinVer, also undocumented, then calls into the undocumented
+    RtlImageNtHeader function, which returns a fortunately documented
+    IMAGE_NT_HEADERS structure. It uses the subsystem members in there to
+    set the dwExpWinVer member of our newly minted tagTHREADINFO object.
+    Later, functions like SendInput consult this to vary their behaviors and
+    return values. In fact, littered through out win32k are checks like `if
+    (gsti->dwExpWinVer >= 0x501) { ... }`.
     
-     - Move some of the package doc onto type Hash, so that `go doc maphash.Hash` shows it.
+    I don't think Go ever supported NT 4.0. These days the minimum version
+    is Windows 7, which is 6.1. So, let's set the version numbers in the PE
+    header at that, which should give us the behavior that MSDN advertises
+    for various functions, as opposed to bizarre archeological remnants.
     
-     - Instead of having identical AddBytes and Write methods,
-       standardize on Write, the usual name for this function.
-       Similarly, AddString -> WriteString, AddByte -> WriteByte.
+    Interestingly, I suspect that most people never noticed the brokenness,
+    because most people trying to do serious Win32 UI stuff wind up linking
+    in cgo, if not for actually using C, then just to have a larger system
+    stack so that the stack doesn't get corrupted by various UI functions.
+    When MingW is used, the PE header gets a later version. But recently
+    there's been a bug report of some people trying to do more modest UI
+    manipulation using SendInput in a setting where this cgo hack probably
+    isn't required, so they ran into the weird historical compatibility
+    stuff.
     
-     - Instead of having identical Hash and Sum64 methods,
-       standardize on Sum64 (for hash.Hash64). Dropping the "Hash" method
-       also helps because Hash is usually reserved to mean the state of a
-       hash function (hash.Hash etc), not the hash value itself.
+    Fixes #31685
     
-     - Make an uninitialized hash.Hash auto-seed with a random seed.
-       It is critical that users not use the same seed for all hash functions
-       in their program, at least not accidentally. So the Hash implementation
-       must either panic if uninitialized or initialize itself.
-       Initializing itself is less work for users and can be done lazily.
-    
-     - Now that the zero hash.Hash is useful, drop maphash.New in favor of
-       new(maphash.Hash) or simply declaring a maphash.Hash.
-    
-     - Add a [0]func()-typed field to the Hash so that Hashes cannot be compared.
-       (I considered doing the same for Seed but comparing seeds seems OK.)
-    
-     - Drop the integer argument from MakeSeed, to match the original design
-       in golang.org/issue/28322. There is no point to giving users control
-       over the specific seed bits, since we want the interpretation of those
-       bits to be different in every different process. The only thing users
-       need is to be able to create a new random seed at each call.
-       (Fixes a TODO in MakeSeed's public doc comment.)
-    
-    This API is new in Go 1.14, so these changes do not violate the compatibility promise.
-    
-    Fixes #35060.
-    Fixes #35348.
-    
-    Change-Id: Ie6fecc441f3f5ef66388c6ead92e875c0871f805
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205069
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I54461ce820f6e9df349e37be5ecc5a44c04a3e26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178977
+    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/hash/maphash/maphash.go       | 195 ++++++++++++++++++++++----------------
- src/hash/maphash/maphash_test.go  |  54 ++++++-----
- src/hash/maphash/smhasher_test.go |  44 +++++----
- 3 files changed, 168 insertions(+), 125 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

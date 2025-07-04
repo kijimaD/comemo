@@ -1,28 +1,15 @@
-commit 414c1d454e6d388443239209220fe0783d4dac71
+commit 2ce643d3b674c886d60c72246ec7cdd966f2e6cb
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Sun Nov 3 22:08:35 2019 -0500
+Date:   Mon Jun 3 12:13:54 2019 -0400
 
-    cmd/go: derive TestExecutableGOROOT environment from tg.env instead of os.Environ()
+    cmd/go: document GO111MODULE=auto behavior for Go 1.13
     
-    TestExecutableGOROOT, unlike most other tests in go_test.go, was
-    running subcommands in a process with an environment derived directly
-    from os.Environ(), rather than using tg.env on its testgoData object.
+    Fixes #31857
     
-    Since tg.env is what sets GO111MODULE=off for GOPATH-mode tests, that
-    caused TestExecutableGOROOT to unexpectedly run in module mode instead
-    of GOPATH mode. If the user's environment included 'GOFLAGS=-mod=mod',
-    that would cause the test to spuriously fail due to the inability to
-    download modules to $HOME (which in this test binary is hard-coded to
-    "/test-go-home-does-not-exist").
-    
-    Updates #33848
-    
-    Change-Id: I2f343008dd9e38cd76b9919eafd5a3181d0cbd6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205064
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic4afe1262d863112db97794edc1ade20f6926d64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180197
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/go_test.go               | 27 ++++++++++-----------------
- src/cmd/go/testdata/print_goroot.go |  7 +++++--
- 2 files changed, 15 insertions(+), 19 deletions(-)
+ src/cmd/go/alldocs.go               | 23 +++++++++++++----------
+ src/cmd/go/internal/modload/help.go | 23 +++++++++++++----------
+ 2 files changed, 26 insertions(+), 20 deletions(-)

@@ -1,14 +1,26 @@
-commit fc8bef06c4097ca80efa47aacb55201580015015
-Author: Serhat Giydiren <serhatgiydiren@gmail.com>
-Date:   Sat Oct 5 16:12:13 2019 +0300
+commit fac3b5d05ecf31a2491949cc905312a34e272ae8
+Author: Shubham Sharma <shubham.sha12@gmail.com>
+Date:   Thu Mar 21 21:10:12 2019 +0530
 
-    unicode/utf8: add link to formal UTF-8 description.
+    net: add IsNotFound field to DNSError
     
-    Fixes #31590
+    This adds the ability to determine if a lookup error was
+    due to a non-existent hostname. Previously users needed
+    to do string matching on the DNSError.Err value.
     
-    Change-Id: I7fd6dcc5c34496776439ff0295f18b5fb5cb538a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199141
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Fixes #28635
+    
+    Change-Id: If4bd3ad32cbc2db5614f2c6b72e0a9161d813efa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168597
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/unicode/utf8/utf8.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/cgo_unix.go            |  5 ++++-
+ src/net/dnsclient_unix.go      | 15 ++++++---------
+ src/net/dnsclient_unix_test.go | 38 ++++++++++++++++++++++++++++++++++----
+ src/net/lookup.go              |  4 ++--
+ src/net/lookup_test.go         |  3 +++
+ src/net/lookup_windows.go      | 21 ++++++++++++++++++---
+ src/net/net.go                 |  1 +
+ 7 files changed, 68 insertions(+), 19 deletions(-)

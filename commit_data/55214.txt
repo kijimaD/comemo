@@ -1,20 +1,21 @@
-commit c002a5d8abef3037dd5f13e0c60cf42b86b4d885
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Dec 5 15:15:06 2023 -0500
+commit 8b79c41dd581cebc645c4c330cb325f7f74d9929
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 19 19:18:20 2023 -0800
 
-    doc: add release note on coverage testing of no-test packages
+    cmd/go: update test for change in panic(nil) behavior
     
-    Add a small release note blurb to describe the changes in CL 495447
-    relating to "go test -cover" runs on packages with functions but no
-    tests.
+    panic(nil) now panics with runtime.PanicNilError.
     
-    For #61422.
+    For #25448
     
-    Change-Id: Ib8163ac70b902f0d7f9f470b944e7f70711e3cf3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547635
+    Change-Id: I58994aa80d4d11f0c5fcd988714f7b4b45c6b5ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462293
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- doc/go1.22.html | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

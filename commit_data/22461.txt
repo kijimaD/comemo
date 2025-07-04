@@ -1,15 +1,32 @@
-commit 439318dd50415e8d6883a9c90663757910a11e33
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:30:37 2015 -0400
+commit ebe3d693d472f69cb68d945466eac0f770abf29b
+Author: Joël Stemmer <stemmertech@gmail.com>
+Date:   Fri Mar 6 14:08:55 2015 +0100
 
-    crypto/x509: skip arm64 tests limited by iOS
+    crypto/tls: return correct hash function when using client certificates in handshake
     
-    Just like darwin/arm.
+    Commit f1d669aee994b28e1afcfe974680565932d25b70 added support for
+    AES_256_GCM_SHA384 cipher suites as specified in RFC5289. However, it
+    did not take the arbitrary hash function into account in the TLS client
+    handshake when using client certificates.
     
-    Change-Id: Ib0438021bfe9eb105222b93e5bb375c282cc7b8c
-    Reviewed-on: https://go-review.googlesource.com/8822
-    Reviewed-by: Minux Ma <minux@golang.org>
+    The hashForClientCertificate method always returned SHA256 as its
+    hashing function, even if it actually used a different one to calculate
+    its digest. Setting up the connection would eventually fail with the
+    error "tls: failed to sign handshake with client certificate:
+    crypto/rsa: input must be hashed message".
+    
+    Included is an additional test for this specific situation that uses the
+    SHA384 hash.
+    
+    Fixes #9808
+    
+    Change-Id: Iccbf4ab225633471ef897907c208ad31f92855a3
+    Reviewed-on: https://go-review.googlesource.com/7040
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/crypto/x509/root_darwin_test.go | 5 +++--
- src/crypto/x509/x509_test.go        | 5 +++--
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/crypto/tls/common.go                           |   1 +
+ src/crypto/tls/handshake_client_test.go            |  10 ++
+ src/crypto/tls/prf.go                              |  22 +++-
+ .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 | 138 +++++++++++++++++++++
+ 4 files changed, 167 insertions(+), 4 deletions(-)

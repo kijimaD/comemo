@@ -1,24 +1,16 @@
-commit 9182c364aa3ab443716508077cb915ce88ae31cc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 1 12:56:18 2013 -0700
+commit d76f28fc39400b918f7951b7e7f12b0dc4a98b0a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 1 11:49:24 2013 -0700
 
-    cmd/ld: add -extld and -extldflags options
+    runtime: add concurrent map read test
     
-    Permits specifying the linker to use, and trailing flags to
-    pass to that linker, when linking in external mode.  External
-    mode linking is used when building a package that uses cgo, as
-    described in the cgo docs.
+    Currently crashes, so disabled.
     
-    Also document -linkmode and -tmpdir.
+    Update #5179
     
-    R=golang-dev, r
+    R=golang-dev, khr
     CC=golang-dev
-    https://golang.org/cl/8225043
+    https://golang.org/cl/8222044
 
- src/cmd/5l/obj.c  |  2 ++
- src/cmd/6l/obj.c  |  2 ++
- src/cmd/8l/obj.c  |  2 ++
- src/cmd/ld/doc.go | 17 +++++++++++++++++
- src/cmd/ld/lib.c  | 32 +++++++++++++++++++++++++++-----
- src/cmd/ld/lib.h  |  2 ++
- 6 files changed, 52 insertions(+), 5 deletions(-)
+ src/pkg/runtime/map_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

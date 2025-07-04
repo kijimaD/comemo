@@ -1,16 +1,37 @@
-commit fc0049fb20fe5998232a365b5ee08d6730693f1b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Feb 6 11:34:20 2025 +0100
+commit c915215af65897cc9cffed75630cbfbc6b2462cc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Dec 5 17:31:34 2023 +0000
 
-    crypto/tls: document FIPS 140-3 mode behavior
+    runtime: add the disablethp GODEBUG setting
     
-    Change-Id: I6a6a465612cf76d148b9758ee3fcdc8606497830
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648835
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Go 1.21.1 and Go 1.22 have ceased working around an issue with Linux
+    kernel defaults for transparent huge pages that can result in excessive
+    memory overheads. (https://bugzilla.kernel.org/show_bug.cgi?id=93111)
+    
+    Many Linux distributions disable huge pages altogether these days, so
+    this problem isn't quite as far-reaching as it used to be. Also, the
+    problem only affects Go programs with very particular memory usage
+    patterns.
+    
+    That being said, because the runtime used to actively deal with this
+    problem (but with some unpredictable behavior), it's preventing users
+    that don't have a lot of control over their execution environment from
+    upgrading to Go beyond Go 1.20.
+    
+    This change adds a GODEBUG to smooth over the transition. The GODEBUG
+    setting disables transparent huge pages for all heap memory on Linux,
+    which is much more predictable than restoring the old behavior.
+    
+    Fixes #64332.
+    
+    Change-Id: I73b1894337f0f0b1a5a17b90da1221e118e0b145
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547475
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/crypto/tls/tls.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ doc/godebug.md           | 13 +++++++++++++
+ src/runtime/extern.go    |  7 +++++++
+ src/runtime/mem_linux.go |  8 ++++++++
+ src/runtime/runtime1.go  |  2 ++
+ 4 files changed, 30 insertions(+)

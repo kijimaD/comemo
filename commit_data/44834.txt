@@ -1,18 +1,15 @@
-commit 23ffb5b9ae9e6e313df648d8bf6ab7b8f5ff0cf1
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Mar 26 23:29:25 2021 +0700
+commit c489330987eca992cee0bb018a6fdb7ff5401704
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Wed Aug 26 23:55:09 2020 +0300
 
-    runtime: overwrite existing keys for mapassign_faststr variant
+    doc/go1.16: reformat the minor changes section as a definition list
     
-    Fixes #45045
+    Change the section to use <dl>, <dt>, and <dd> tags to match
+    previous documents.
     
-    Change-Id: Ifcc7bd31591870446ce3e5127489a0b887d413f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305089
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ide0bea698a84ed6b61b364ef9e2f3801ebb8d4d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250897
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/map_faststr.go   |  3 +++
- test/fixedbugs/issue45045.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+)
+ doc/go1.16.html | 42 +++++++++++++++++++++++-------------------
+ 1 file changed, 23 insertions(+), 19 deletions(-)

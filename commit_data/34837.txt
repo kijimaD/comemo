@@ -1,21 +1,19 @@
-commit e6ab614fda5ce7533bda81f2b0de0f9fe18139bf
-Author: Hana Kim <hakim@google.com>
-Date:   Wed Apr 4 13:47:53 2018 -0400
+commit aad928957184e0d632ef6f7b83d69d3e3c2e0868
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Nov 18 11:43:43 2017 +0100
 
-    cmd/trace: avoid emitting traceview slice with 0 duration
+    cmd/dist: skip SWIG tests on Android
     
-    The trace viewer interprets the slice as a non-terminating
-    time interval which is quite opposit to what trace records indicate
-    (i.e., almostly immediately terminating time interval).
-    As observed in the issue #24663 this can result in quite misleading
-    visualization of the trace.
+    They were added in CL 78175 but doesn't run on Android (yet). Skip
+    them for now.
     
-    Work around the trace viewer's issue by setting a small value
-    (0.0001usec) as the duration if the time interval is not positive.
+    For the Android builders.
     
-    Change-Id: I1c2aac135c194d0717f5c01a98ca60ffb14ef45c
-    Reviewed-on: https://go-review.googlesource.com/104716
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I3b4bfe1f0d820ab98cf50aaab1ee2fad1a44a851
+    Reviewed-on: https://go-review.googlesource.com/78615
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/trace/trace.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,29 +1,18 @@
-commit b47ebb229fba8748366d52b6894a572da7c3ccfd
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Feb 24 10:21:01 2025 +0100
+commit 881869dde0ddddf37151137421cd53d0c537671e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jan 2 22:28:49 2024 +0700
 
-    all: use testenv.GoToolPath instead of hardcoding go
+    cmd/compile: handle defined iter func type correctly
     
-    Change-Id: I84ec73d3ddef913a87cb9b48147c44ac3e7c8a8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651957
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Fixed #64930
+    
+    Change-Id: I916de7f97116fb20cb2f3f0b425ac34409afd494
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553436
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/cgo/internal/swig/swig_test.go             |  5 ++--
- src/cmd/cgo/internal/testcarchive/carchive_test.go | 28 +++++++++++-----------
- src/cmd/cgo/internal/testcshared/cshared_test.go   |  2 +-
- .../cgo/internal/testerrors/argposition_test.go    |  2 +-
- src/cmd/cgo/internal/testerrors/badsym_test.go     |  2 +-
- src/cmd/cgo/internal/testerrors/errors_test.go     |  8 +++----
- src/cmd/cgo/internal/testerrors/ptr_test.go        |  2 +-
- src/cmd/cgo/internal/testfortran/fortran_test.go   |  2 +-
- src/cmd/cgo/internal/testgodefs/testgodefs_test.go |  4 ++--
- src/cmd/cgo/internal/testlife/life_test.go         |  2 +-
- src/cmd/cgo/internal/testso/so_test.go             |  2 +-
- src/cmd/cgo/internal/teststdio/stdio_test.go       |  2 +-
- .../compile/internal/importer/gcimporter_test.go   |  2 +-
- src/internal/godebug/godebug_test.go               |  4 ++--
- src/runtime/internal/wasitest/nonblock_test.go     |  5 +++-
- src/runtime/internal/wasitest/tcpecho_test.go      |  5 +++-
- 16 files changed, 42 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/rangefunc/rewrite.go |  2 +-
+ test/range4.go                                | 25 +++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

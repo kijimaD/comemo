@@ -1,27 +1,15 @@
-commit e9ecd4aec51f06cb0834fe3bbd8c4b88d5fd94b5
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Oct 15 11:11:11 2014 +1100
+commit 5edff3270479962ca67769947eb66adbe75e7fb4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 1 13:19:40 2014 -0700
 
-    runtime: handle all windows exception (second attempt)
+    testing: clearer comment
     
-    includes undo of 22318cd31d7d and also:
-    - always use SetUnhandledExceptionFilter on windows-386;
-    - crash when receive EXCEPTION_BREAKPOINT in exception handler.
+    Fixes #8797.
     
-    Fixes #8006.
-    
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/155360043
+    https://golang.org/cl/146680043
 
- src/runtime/defs_windows.go         |  4 ++
- src/runtime/defs_windows_386.h      |  4 ++
- src/runtime/defs_windows_amd64.h    |  4 ++
- src/runtime/os_windows.c            | 38 ++++++++++++---
- src/runtime/os_windows_386.c        | 84 +++++++++++++++++++-------------
- src/runtime/os_windows_amd64.c      | 97 ++++++++++++++++++++++++-------------
- src/runtime/sys_windows_386.s       | 18 ++++++-
- src/runtime/sys_windows_amd64.s     | 18 ++++++-
- src/runtime/syscall_windows_test.go | 39 +++++++++++++++
- 9 files changed, 230 insertions(+), 76 deletions(-)
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

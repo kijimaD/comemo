@@ -1,21 +1,22 @@
-commit 10a273196b5aed2d72d50573bfc5c0bdb2e631a2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 10 22:25:31 2014 -0700
+commit 7b6bc3ebb3a4088506d3d9c324d85aa49c035074
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 10 21:46:00 2014 -0700
 
-    net/http: don't reject 0-lengthed bodies with Expect 100-continue
+    bufio: fix potential endless loop in ReadByte
     
-    I was implementing rules from RFC 2616. The rules are apparently useless,
-    ambiguous, and too strict for common software on the Internet. (e.g. curl)
+    Also: Simplify ReadSlice implementation and
+    ensure that it doesn't call fill() with a full
+    buffer (this caused a failure in net/textproto
+    TestLargeReadMIMEHeader because fill() wasn't able
+    to read more data).
     
-    Add more tests, including a test of a chunked request.
+    Fixes #7745.
     
-    Fixes #7625
-    
-    LGTM=dsymonds
-    R=golang-codereviews, dsymonds
-    CC=adg, golang-codereviews, rsc
-    https://golang.org/cl/84480045
+    LGTM=bradfitz
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/86590043
 
- src/pkg/net/http/serve_test.go | 62 +++++++++++++++++++++++++++++++++---------
- src/pkg/net/http/server.go     |  8 +-----
- 2 files changed, 50 insertions(+), 20 deletions(-)
+ src/pkg/bufio/bufio.go      | 84 +++++++++++++++++++++++++++------------------
+ src/pkg/bufio/bufio_test.go | 29 ++++++++++++++++
+ 2 files changed, 79 insertions(+), 34 deletions(-)

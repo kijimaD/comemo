@@ -1,17 +1,44 @@
-commit 2bb0a5e085bda1812b7be711335fc43baf1af52e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 15 16:40:43 2014 -0700
+commit b4bfa6c96415f4a578c1e100a515c2c62981b546
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 7 19:47:40 2014 -0400
 
-    cmd/api: internal debugging supprt
+    runtime: save g to TLS more aggressively
     
-    Document that the package cache has
-    an issue (8425) to speed up future
-    debugging.
+    This is one of those "how did this ever work?" bugs.
+    The current build failures are happening because
+    a fault comes up while executing on m->curg on a
+    system-created thread using an m obtained from needm,
+    but TLS is set to m->g0, not m->curg. On fault,
+    sigtramp starts executing, assumes r10 (g) might be
+    incorrect, reloads it from TLS, and gets m->g0, not
+    m->curg. Then sighandler dutifully pushes a call to
+    sigpanic onto the stack and returns to it.
+    We're now executing on the m->curg stack but with
+    g=m->g0. Sigpanic does a stack split check, sees that
+    the SP is not in range (50% chance depending on relative
+    ordering of m->g0's and m->curg's stacks), and then
+    calls morestack. Morestack sees that g=m->g0 and
+    crashes the program.
     
-    LGTM=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/143980043
+    The fix is to replace every change of g in asm_arm.s
+    with a call to a function that both updates g and
+    saves the updated g to TLS.
+    
+    Why did it start happening? That's unclear.
+    Unfortunately there were other bugs in the initial
+    checkin that mask exactly which of a sequence of
+    CLs started the behavior where sigpanic would end
+    up tripping the stack split.
+    
+    Fixes arm build.
+    Fixes #8675.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=dave, golang-codereviews, khr, minux, r
+    https://golang.org/cl/135570043
 
- src/cmd/api/goapi.go | 29 ++++++++++++++++++++---------
- 1 file changed, 20 insertions(+), 9 deletions(-)
+ src/pkg/runtime/arch_arm.h |  2 +-
+ src/pkg/runtime/asm_arm.s  | 73 ++++++++++++++++++++++++++++++++--------------
+ src/pkg/runtime/tls_arm.s  |  7 +++--
+ 3 files changed, 57 insertions(+), 25 deletions(-)

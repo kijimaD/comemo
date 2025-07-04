@@ -1,12 +1,16 @@
-commit a3c59779ffdc3d8280f7c32a6aa421ba56bad90d
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Feb 26 17:55:11 2015 -0500
+commit 027e47b7b105a71eb6fe375166ee807d5d06e40d
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Feb 3 12:13:31 2015 -0600
 
-    syscall: exclude Go tool test on darwin/arm
+    runtime:  Change memprofrate to memprofilerate
     
-    Change-Id: I44c1911beceaedaa35dad71d8be8a814528dce67
-    Reviewed-on: https://go-review.googlesource.com/6192
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Use memprofilerate in GODEBUG instead of memprofrate to be
+    consistent with other uses.
+    
+    Change-Id: Iaf6bd3b378b1fc45d36ecde32f3ad4e63ca1e86b
+    Reviewed-on: https://go-review.googlesource.com/3800
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/syscall_unix_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/extern.go   | 2 +-
+ src/runtime/runtime1.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

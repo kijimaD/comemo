@@ -1,15 +1,36 @@
-commit ed1a5e5da6fc904a612dac710f546bce779186fd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 24 12:53:28 2016 -0800
+commit 70da2d0a2a4292cf210f8f8d48129d35ad8c54fb
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Oct 4 20:33:02 2015 +0000
 
-    cmd/compile: cleanup number lexing
+    cmd/compile/internal/gc: fix internal compiler error on invalid declaration
     
-    Change-Id: Ib0dd458d4ab1c58a2baf36491e288ac32e2ff99e
-    Reviewed-on: https://go-review.googlesource.com/19962
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Following an empty import, a declaration involving a ? symbol
+    generates an internal compiler error when the name of the
+    symbol (in newname function).
+    
+    package a
+    import""
+    var?
+    
+    go.go:2: import path is empty
+    go.go:3: internal compiler error: newname nil
+    
+    Make sure dclname is not called when the symbol is nil.
+    The error message is now:
+    
+    go.go:2: import path is empty
+    go.go:3: invalid declaration
+    go.go:4: syntax error: unexpected EOF
+    
+    This CL was initially meant to be applied to the old parser,
+    and has been updated to apply to the new parser.
+    
+    Fixes #11610
+    
+    Change-Id: I75e07622fb3af1d104e3a38c89d9e128e3b94522
+    Reviewed-on: https://go-review.googlesource.com/15268
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 235 ++++++++++++++++---------------------
- test/fixedbugs/issue9036.go        |  16 ++-
- 2 files changed, 116 insertions(+), 135 deletions(-)
+ src/cmd/compile/internal/gc/parser.go | 16 ++++++++++++++--
+ test/fixedbugs/issue11610.go          | 17 +++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

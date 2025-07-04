@@ -1,0 +1,24 @@
+commit f73dd8173a2d459113254dbd71d47856b5be0441
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 16 14:32:54 2024 -0700
+
+    go/types: re-enable suppressed gcimporter tests
+    
+    Port CL 577616 from types2 to go/types allows us
+    to re-enable these tests.
+    
+    Fixes #66859.
+    Fixes #67436.
+    Updates #50259.
+    Updates #65294.
+    
+    Change-Id: I573e51cf16546ac1c115beac5322b51dd998c881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586236
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/internal/gcimporter/gcimporter_test.go | 11 -----------
+ src/go/types/resolver.go                      | 17 ++++++++++++++++-
+ 2 files changed, 16 insertions(+), 12 deletions(-)

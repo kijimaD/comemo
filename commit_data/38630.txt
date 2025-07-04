@@ -1,19 +1,44 @@
-commit 2da9659158f87c1d3c0ccb7ff8aec7c1bafe570b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 2 15:05:33 2019 -0700
+commit db27e782780fcfe5da39671007374b06a4d8f2d4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 3 18:29:09 2018 -0400
 
-    misc/cgo/testcarchive: skip TestSignalForwardingExternal on darwin/amd64
+    crypto/tls: implement TLS 1.3 KeyUpdate messages
     
-    On darwin/amd64 the runtime method sigctxt.fixsigcode changes SIGSEGV
-    signals so that they are never marked SI_USER. CL 169120 changed the
-    signal handler to call fixsigcode even when the signal is delivered to
-    a non-Go thread. This breaks TestSignalForwardingExternal, so skip it.
+    Since TLS 1.3 delivers handshake messages (including KeyUpdate) after
+    the handshake, the want argument to readRecord had became almost
+    pointless: it only meant something when set to recordTypeChangeCipherSpec.
+    Replaced it with a bool to reflect that, and added two shorthands to
+    avoid anonymous bools in calls.
     
-    Change-Id: I6740fb5a8f4f854ca69793537a983a696da3b495
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170446
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Took the occasion to simplify and formalize the invariants of readRecord.
+    
+    The maxConsecutiveEmptyRecords loop became useless when readRecord
+    started retrying on any non-advancing record in CL 145297.
+    
+    Replaced panics with errors, because failure is better than undefined
+    behavior, but contained failure is better than a DoS vulnerability. For
+    example, I suspect the panic at the top of readRecord was reachable from
+    handleRenegotiation, which calls readHandshake with handshakeComplete
+    false. Thankfully it was not a panic in 1.11, and it's allowed now.
+    
+    Removed Client-TLSv13-RenegotiationRejected because OpenSSL isn't
+    actually willing to ask for renegotiation over TLS 1.3, the expected
+    error was due to NewSessionTicket messages, which didn't break the rest
+    of the tests because they stop too soon.
+    
+    Updates #9671
+    
+    Change-Id: I297a81bde5c8020a962a92891b70d6d70b90f5e3
+    Reviewed-on: https://go-review.googlesource.com/c/147418
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/crypto/tls/common.go                           |   2 +-
+ src/crypto/tls/conn.go                             | 247 ++++++++++++---------
+ src/crypto/tls/handshake_client.go                 |   5 +-
+ src/crypto/tls/handshake_client_test.go            |  94 +++++++-
+ src/crypto/tls/handshake_server.go                 |   5 +-
+ src/crypto/tls/testdata/Client-TLSv13-KeyUpdate    | 130 +++++++++++
+ .../testdata/Client-TLSv13-RenegotiationRejected   | 107 ---------
+ 7 files changed, 363 insertions(+), 227 deletions(-)

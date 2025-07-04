@@ -1,91 +1,45 @@
-commit a81507868344dccebef13c6d8d890633e59a93e3
+commit 71048daa2f4e0c23b651d56fa157e1a75e098a82
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 30 10:06:18 2023 -0400
+Date:   Wed Aug 17 12:38:27 2022 -0400
 
-    net: enable most tests on wasip1 and js
+    cmd/go: reroute vcs-test.golang.org HTTPS requests to the test-local server
     
-    To get them to pass, implement more fake syscalls.
-    To make those syscalls easier to reason about, replace
-    the use of sync.Cond with selectable channels.
+    After this CL, the only test requests that should still reach
+    vcs-test.golang.org are for Subversion repos, which are not yet handled.
     
-    Fixes #59718.
-    Fixes #50216.
+    The interceptor implementation should also allow us to redirect other
+    servers (such as gopkg.in) fairly easily in a followup change if
+    desired.
     
-    Change-Id: I135a6656f5c48f0e5c43dc4d4bcbdb48ee5535d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526117
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    For #27494.
+    
+    Change-Id: I8cb85f3a7edbbf0492662ff5cfa779fb9b407136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427254
     Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/cgo_stub.go                          |    2 +-
- src/net/conf.go                              |    2 -
- src/net/conn_test.go                         |   78 +-
- src/net/dial_test.go                         |   49 +-
- src/net/dnsclient_unix.go                    |    2 -
- src/net/dnsconfig_unix.go                    |    2 +-
- src/net/dnsname_test.go                      |    2 -
- src/net/error_posix.go                       |    2 +-
- src/net/error_test.go                        |  272 +++---
- src/net/external_test.go                     |    2 -
- src/net/fd_fake.go                           |  169 ++++
- src/net/fd_js.go                             |   28 +
- src/net/fd_wasip1.go                         |  159 ----
- src/net/file_stub.go                         |    2 +-
- src/net/file_test.go                         |   10 +-
- src/net/hook_unix.go                         |    2 +-
- src/net/interface_stub.go                    |    2 +-
- src/net/interface_test.go                    |    2 -
- src/net/ip_test.go                           |    2 -
- src/net/iprawsock_posix.go                   |    2 +-
- src/net/iprawsock_test.go                    |    2 -
- src/net/ipsock_posix.go                      |   18 +-
- src/net/listen_test.go                       |    2 +-
- src/net/lookup_fake.go                       |   58 --
- src/net/lookup_test.go                       |    2 -
- src/net/lookup_unix.go                       |   27 +-
- src/net/main_conf_test.go                    |    2 +-
- src/net/main_noconf_test.go                  |    2 +-
- src/net/main_posix_test.go                   |    2 +-
- src/net/main_test.go                         |   17 +-
- src/net/main_wasm_test.go                    |   13 +
- src/net/mockserver_test.go                   |    4 +-
- src/net/net_fake.go                          | 1261 ++++++++++++++++++++------
- src/net/net_fake_js.go                       |   36 -
- src/net/net_fake_test.go                     |  246 ++---
- src/net/net_test.go                          |   12 +-
- src/net/packetconn_test.go                   |    6 +-
- src/net/platform_test.go                     |    2 +-
- src/net/port_unix.go                         |    2 +-
- src/net/protoconn_test.go                    |   14 +-
- src/net/rawconn_stub_test.go                 |    2 +-
- src/net/rawconn_test.go                      |    6 +-
- src/net/resolverdialfunc_test.go             |    2 -
- src/net/rlimit_js.go                         |   13 +
- src/net/rlimit_unix.go                       |   33 +
- src/net/sendfile_stub.go                     |    2 +-
- src/net/sendfile_test.go                     |    4 +-
- src/net/server_test.go                       |  207 +++--
- src/net/sock_posix.go                        |   24 -
- src/net/sock_stub.go                         |    2 +-
- src/net/sockaddr_posix.go                    |   26 +-
- src/net/{sockopt_stub.go => sockopt_fake.go} |   11 +-
- src/net/sockoptip_stub.go                    |    2 +-
- src/net/tcpsock.go                           |    5 +-
- src/net/tcpsock_posix.go                     |    2 +-
- src/net/tcpsock_test.go                      |   54 +-
- src/net/tcpsock_unix_test.go                 |    2 +-
- src/net/tcpsockopt_stub.go                   |    2 +-
- src/net/timeout_test.go                      |    4 +-
- src/net/udpsock_posix.go                     |    2 +-
- src/net/udpsock_test.go                      |   67 +-
- src/net/unixsock.go                          |    5 +-
- src/net/unixsock_posix.go                    |    2 +-
- src/net/unixsock_readmsg_other.go            |    2 +-
- src/net/unixsock_test.go                     |   11 +-
- src/net/writev_test.go                       |   10 +-
- src/syscall/net_fake.go                      |    8 +-
- 67 files changed, 1906 insertions(+), 1123 deletions(-)
+ src/cmd/go/go_test.go                              |  17 ++-
+ src/cmd/go/internal/auth/auth.go                   |   5 +-
+ src/cmd/go/internal/vcs/vcs.go                     |   4 +-
+ src/cmd/go/internal/vcweb/auth.go                  | 108 ++++++++++++++
+ src/cmd/go/internal/vcweb/insecure.go              |  42 ++++++
+ src/cmd/go/internal/vcweb/script.go                |  38 +++++
+ src/cmd/go/internal/vcweb/vcstest/vcstest.go       |  75 ++++++++++
+ src/cmd/go/internal/vcweb/vcweb.go                 |  12 +-
+ src/cmd/go/internal/web/http.go                    | 160 ++++++++++++++++-----
+ src/cmd/go/script_test.go                          |  22 ++-
+ src/cmd/go/testdata/vcstest/auth/or401.txt         |  29 ++++
+ src/cmd/go/testdata/vcstest/auth/or404.txt         |  30 ++++
+ src/cmd/go/testdata/vcstest/auth/ormanylines.txt   |   9 ++
+ src/cmd/go/testdata/vcstest/auth/oronelongline.txt |   9 ++
+ src/cmd/go/testdata/vcstest/go/custom-hg-hello.txt |   4 +
+ src/cmd/go/testdata/vcstest/go/insecure.txt        |   6 +
+ src/cmd/go/testdata/vcstest/go/missingrepo.txt     |  18 +++
+ src/cmd/go/testdata/vcstest/go/mod/gitrepo1.txt    |   6 +
+ src/cmd/go/testdata/vcstest/go/modauth404.txt      |   6 +
+ src/cmd/go/testdata/vcstest/go/test1-svn-git.txt   |  30 ++++
+ src/cmd/go/testdata/vcstest/go/test2-svn-git.txt   |  26 ++++
+ src/cmd/go/testdata/vcstest/go/v2module.txt        |   6 +
+ src/cmd/go/testdata/vcstest/insecure.txt           |   1 +
+ 23 files changed, 613 insertions(+), 50 deletions(-)

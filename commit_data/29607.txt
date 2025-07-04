@@ -1,20 +1,22 @@
-commit 8d226da29d95d31b6016a669b6da8f1dd52027c2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 15 16:15:05 2016 -0800
+commit a30b5a3d1916deb6e366aa4557d6c21eb835d737
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Sep 27 10:45:05 2016 -0400
 
-    cmd/go: don't check standard packages when using gccgo
+    cmd/asm: add s390x instructions BLTU and BLEU
     
-    The gccgo compiler does not have the standard packages available, so it
-    can not check for violations of internal references.
+    These instructions are the same as BLT and BLE except that they
+    also branch if the 'unordered' bit is set in the condition code.
     
-    Also, the gccgo compiler can not read runtime/internal/sys/zversion.go;
-    in fact, the file does not even exist for gccgo.
+    They are already used by the SSA backend. This change allows them
+    to be used in hand-written assembly code.
     
-    Change-Id: Ibadf16b371621ad1b87b6e858c5eb233913e179d
-    Reviewed-on: https://go-review.googlesource.com/33295
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie9b5985a5e87ea22e8043567a286e09dce16a2db
+    Reviewed-on: https://go-review.googlesource.com/29930
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/pkg.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/s390x.go        | 2 ++
+ src/cmd/asm/internal/asm/testdata/s390x.s | 2 ++
+ 2 files changed, 4 insertions(+)

@@ -1,29 +1,32 @@
-commit 1064335047776c371599c2d7ba716ffadd26d28b
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Apr 17 14:41:10 2023 -0400
+commit 96a10b9c8469110a0aa30ea2185ca55f4aefef99
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
 
-    runtime: consolidate function descriptor definitions on PPC64
+    runtime: implement duffzero/duffcopy for linux/loong64
     
-    This reapplies CL 481075, which was a reappliation of CL 478917.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    This CL has been reverted twice now due to conflicts with CL 392854 /
-    CL 481061, which had bugs and had to be reverted.
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
     
-    Now this CL skips the conflicting changes to runtime/cgo/asm_ppc64x.s,
-    which will be merged directly into a new version of CL 392854 /
-    CL 481061. That way, if there are _more_ issues, this CL need not be
-    involved in any more reverts.
+    Updates #46229
     
-    Change-Id: I2801b918faf9418dd0edff19f2a63f4d9e08896c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485335
+    Change-Id: Ida040e76dc8172f60e6aee1ea2b5bce13ab3581e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368077
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_ppc64x.h       | 20 ++++++++++++++++++--
- src/runtime/asm_ppc64x.s       | 21 +++------------------
- src/runtime/rt0_aix_ppc64.s    | 17 ++++-------------
- src/runtime/rt0_linux_ppc64.s  | 13 +++----------
- src/runtime/sys_linux_ppc64x.s | 23 ++++++-----------------
- 5 files changed, 34 insertions(+), 60 deletions(-)
+ src/runtime/duff_loong64.s | 907 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mkduff.go      |  25 ++
+ 2 files changed, 932 insertions(+)

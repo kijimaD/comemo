@@ -1,24 +1,18 @@
-commit f3862742b67a84edf939f41276360ada4e7197a6
-Author: Dan Harrington <harringtond@google.com>
-Date:   Tue Oct 25 12:51:39 2016 -0700
+commit d9d1399eeac037f4e2057d32831e574c0f1e6fc8
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 08:02:30 2016 -0400
 
-    net/http: support If-Match in ServeContent
+    cmd/link: mark rel.ro segment as PT_GNU_RELRO
     
-    - Added support for If-Match and If-Unmodified-Since.
-    - Precondition checks now more strictly follow RFC 7232 section 6, which
-    affects precedence when multiple condition headers are present.
-    - When serving a 304, Last-Modified header is now removed when no ETag is
-    present (as suggested by RFC 7232 section 4.1).
-    - If-None-Match supports multiple ETags.
-    - ETag comparison now correctly handles weak ETags.
+    Details: http://www.airs.com/blog/archives/189
     
-    Fixes #17572
+    Part of adding PIE internal linking on linux/amd64.
     
-    Change-Id: I35039dea6811480ccf2889f8ed9c6a39ce34bfff
-    Reviewed-on: https://go-review.googlesource.com/32014
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8843a97f22f6f120346cccd694c7fff32f09f60b
+    Reviewed-on: https://go-review.googlesource.com/28541
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/export_test.go |   1 +
- src/net/http/fs.go          | 308 +++++++++++++++++++++++++++++++++-----------
- src/net/http/fs_test.go     | 119 ++++++++++++++++-
- 3 files changed, 348 insertions(+), 80 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

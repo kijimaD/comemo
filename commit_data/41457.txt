@@ -1,19 +1,25 @@
-commit 8992f7c4597dcc60b91e8b088fb31b49b9b55496
-Author: GrigoriyMikhalkin <grigoriymikhalkin@gmail.com>
-Date:   Wed Feb 26 15:02:36 2020 +0000
+commit 0fb95e788e8639712b7200a5c08ec023fb3588cb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 29 22:04:09 2019 +0000
 
-    cmd/go: escape $WORK in ccompile when -n is set
+    crypto/tls: remove NPN support
     
-    Fixes #37012
+    RELNOTE=yes
     
-    Change-Id: I169807788c022042a2b5cf04f67ae41a7325fbcf
-    GitHub-Last-Rev: 9e77301c7ab3125a6f21f2c9cd998503976a5d5d
-    GitHub-Pull-Request: golang/go#37289
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219919
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #28362
+    
+    Change-Id: I43813c0c17bbe6c4cbb4d1f121518c434b3f5aa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174329
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/go/internal/work/exec.go           |  5 ++---
- src/cmd/go/testdata/script/build_n_cgo.txt | 13 +++++++++++++
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ doc/go1.14.html                            |   8 ++
+ src/crypto/tls/conn.go                     |   2 -
+ src/crypto/tls/handshake_client.go         |  25 -----
+ src/crypto/tls/handshake_client_tls13.go   |   4 +-
+ src/crypto/tls/handshake_messages.go       |  94 +----------------
+ src/crypto/tls/handshake_messages_test.go  |  17 ---
+ src/crypto/tls/handshake_server.go         |  23 ----
+ src/crypto/tls/handshake_server_tls13.go   |   1 -
+ src/crypto/tls/testdata/Client-TLSv12-ALPN |  74 ++++++-------
+ src/crypto/tls/testdata/Client-TLSv13-ALPN | 162 ++++++++++++++---------------
+ 10 files changed, 129 insertions(+), 281 deletions(-)

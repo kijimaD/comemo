@@ -1,22 +1,18 @@
-commit 9b3d9230aac0e8433add721a67f22ad6c27267ed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 28 15:25:06 2015 -0700
+commit baf3814b293e183b2498fe984cdb431285efb3e2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Apr 28 15:33:03 2015 +1000
 
-    math/big: rename (*Float).Format to (*Float).Text
+    image/gif: encode disposal, bg index and Config.
     
-    This paves the way for a fmt-compatible (*Float).Format method.
-    A better name then Text is still desirable (suggestions welcome).
+    The previous CL implemented decoding, but not encoding.
     
-    This is partly fixing issue #10938.
+    Also return the global color map (if present) for DecodeConfig.
     
-    Change-Id: I59c20a8cee11f5dba059fe0f38b414fe75f2ab13
-    Reviewed-on: https://go-review.googlesource.com/10493
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I3b99c93720246010c9fe0924dc40a67875dfc852
+    Reviewed-on: https://go-review.googlesource.com/9389
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/bits_test.go         |  2 +-
- src/math/big/float.go             |  2 +-
- src/math/big/float_test.go        | 50 +++++++++++++++++++--------------------
- src/math/big/floatconv_test.go    |  8 +++----
- src/math/big/floatexample_test.go |  6 ++---
- src/math/big/ftoa.go              | 14 +++++------
- 6 files changed, 40 insertions(+), 42 deletions(-)
+ src/image/gif/reader.go      |  87 ++++++++++++--------------
+ src/image/gif/writer.go      |  65 +++++++++++++++-----
+ src/image/gif/writer_test.go | 143 ++++++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 222 insertions(+), 73 deletions(-)

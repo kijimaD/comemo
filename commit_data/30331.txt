@@ -1,19 +1,40 @@
-commit a37f9d8a17cffc6fb79120fad667b0684fd03bc7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 20 19:48:28 2017 +0000
+commit 11ff4b21f253f1c8a5a63608b0108a1438378c20
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Oct 27 19:47:47 2016 +0100
 
-    runtime/pprof: mark TestMutexProfile as flaky for now
+    testing: don't warn if -bench was passed
     
-    Flaky tests hurt productivity. Disable for now.
+    In a previous change, cmd/go was taught to show a "no tests ran" warning
+    if test did nothing. But it missed a case - if no tests nor examples ran
+    but any benchmarks were meant to be run, it would still produce the
+    warning. This meant that running only benchmarks, which is common, would
+    be confusing:
     
-    Updates #19139
+             $ go test -run='^$' -bench=.
+            testing: warning: no tests to run
+            BenchmarkFoo-4            300000              5056 ns/op
+            [...]
     
-    Change-Id: I2e3040bdf0e53597a1c4f925b788e3268ea284c1
-    Reviewed-on: https://go-review.googlesource.com/37291
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    I believe this was because of a copy-paste error in the tests. This was
+    being tested, but on the wrong file which does contain a test that was
+    being run. Fix the path and fix the now failing test by never showing
+    the warning if -bench was given a non-empty string.
+    
+    The rationale is that if -bench was given but there was no output, it's
+    obvious that nothing happened as benchmarks always produce output even
+    without -v. So showing a warning in those cases is redundant.
+    
+    To make future typos less likely, make sure that no tests are being run
+    in the cases where we only want to run benchmarks.
+    
+    Fixes #17603.
+    
+    Change-Id: I4c626caf39f72260c6a9761c06446663f465f947
+    Reviewed-on: https://go-review.googlesource.com/32157
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/pprof/pprof_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/go_test.go  | 11 ++++++-----
+ src/testing/testing.go |  2 +-
+ 2 files changed, 7 insertions(+), 6 deletions(-)

@@ -1,22 +1,26 @@
-commit c23948a2b83bfbe21d2d721f38a7f18f737ba7bb
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 22 20:08:00 2017 -0400
+commit d0ff9ece2b36bd4470b4388602a757d50c4c3607
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Mar 2 05:24:53 2017 +0000
 
-    cmd/go: fix TestExecutableGOROOT when GOROOT_FINAL is set
+    cmd/internal/obj/arm: Fix wrong assembly in the arm assembler
     
-    If GOROOT_FINAL was set during the build, the default GOROOT
-    will not be testGOROOT. Determine the default GOROOT by reading
-    the right source file instead of guessing. (GOROOT_FINAL may no
-    longer be set when the test is actually run.)
+    As #19357 reported,
     
-    Also refactor a bit.
+    TST has 3 different sub forms
+    TST $imme, Rx
+    TST Ry << imme, Rx
+    TST Ry << Rz, Rx
     
-    Fixes #20284.
+    just like CMP/CMN/TEQ has. But current arm assembler assembles all TST
+    instructions wrongly. This patch fixes it and adds more tests.
     
-    Change-Id: I2274595a235bee10c3f3a5ffecf4bb976f4d9982
-    Reviewed-on: https://go-review.googlesource.com/46428
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #19357
+    
+    Change-Id: Iafedccfaab2cbb2631e7acf259837a782e2e8e2f
+    Reviewed-on: https://go-review.googlesource.com/37662
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 122 +++++++++++++++++++++++++-------------------------
- 1 file changed, 62 insertions(+), 60 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm.s | 664 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm/asm5.go        |   7 +-
+ 2 files changed, 665 insertions(+), 6 deletions(-)

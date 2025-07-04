@@ -1,44 +1,15 @@
-commit 7ad60b72831e10373e765775b213c11a46af16bc
+commit 208a1ea564e8b1ce8d6d85a315a410f29d5e952e
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 15 16:47:53 2014 -0400
+Date:   Thu May 15 16:16:26 2014 -0400
 
-    syscall: fix stack frame sizes in assembly
+    doc/go1.3.html: add note about unsafe.Pointer strictness
     
-    for GOOS in darwin freebsd linux nacl netbsd openbsd plan9 solaris windows
-    do
-            for GOARCH in 386 amd64 amd64p32 arm
-            do
-                    go vet
-            done
-    done
+    The vet check is in CL 10470044.
     
-    These are all real mistakes being corrected, but none
-    of them should be able to cause problems today
-    due to the NOSPLIT on the functions.
-    
-    However, vet has also identified a few important problems.
-    I'm sending this CL to get rid of the trivial 'go vet' results
-    before attacking the real ones.
-    
-    LGTM=r
-    R=golang-codereviews, r, bradfitz
+    LGTM=bradfitz, r
+    R=r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/95460046
+    https://golang.org/cl/91480044
 
- src/pkg/syscall/asm_darwin_386.s     | 13 ++++++++-----
- src/pkg/syscall/asm_darwin_amd64.s   | 11 +++++++----
- src/pkg/syscall/asm_freebsd_386.s    | 13 ++++++++-----
- src/pkg/syscall/asm_freebsd_amd64.s  | 13 ++++++++-----
- src/pkg/syscall/asm_linux_386.s      | 15 +++++++++------
- src/pkg/syscall/asm_linux_amd64.s    | 11 +++++++----
- src/pkg/syscall/asm_nacl_386.s       |  6 +++---
- src/pkg/syscall/asm_nacl_amd64p32.s  |  6 +++---
- src/pkg/syscall/asm_netbsd_386.s     | 13 ++++++++-----
- src/pkg/syscall/asm_netbsd_amd64.s   | 13 ++++++++-----
- src/pkg/syscall/asm_openbsd_386.s    | 13 ++++++++-----
- src/pkg/syscall/asm_openbsd_amd64.s  | 13 ++++++++-----
- src/pkg/syscall/asm_plan9_386.s      |  9 ++++++---
- src/pkg/syscall/asm_plan9_amd64.s    | 11 +++++++----
- src/pkg/syscall/syscall_linux_386.go |  3 +++
- src/pkg/syscall/syscall_plan9.go     |  2 +-
- 16 files changed, 102 insertions(+), 63 deletions(-)
+ doc/go1.3.html | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

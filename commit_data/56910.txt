@@ -1,21 +1,17 @@
-commit 420037b16de64f1117bd47a4f3448990fb137fd0
+commit 30f8d5b69d5bca46f5348ea29dc898ed472bd204
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 17 09:23:09 2024 -0700
+Date:   Tue May 30 15:31:39 2023 -0700
 
-    os: don't try to signal PID -1 on Unix
+    doc/go1.21: mention that embedded files implement ReadAt
     
-    This restores behavior that we lost in CL 588675.
+    For #57803
     
-    Fixes #68496
-    
-    Change-Id: I1740986bed647835986d54109071b7a6b37413d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599015
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I8e33f4dd3fc3071bfbf4d2848faefbe8488f5742
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499418
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
 
- src/os/exec_unix.go      |  3 +++
- src/os/exec_unix_test.go | 13 ++++++++++++-
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ doc/go1.21.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

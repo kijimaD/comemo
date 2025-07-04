@@ -1,14 +1,20 @@
-commit 32b879c674b46249dc3e1db48c0076f5c11aa7a4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 17 15:09:34 2018 -0800
+commit c9986d1452f3ef226bfd044fb0f128175a7dff03
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Aug 17 16:32:02 2018 -0400
 
-    doc: explain how to use "go vet -shadow"
+    runtime: fix use of wrong g in gentraceback
     
-    Fixes #29260
+    gentraceback gets the currently running g to do some sanity checks, but
+    should use gp everywhere to do its actual work. Some noncritical checks
+    later accidentally used g instead of gp. This seems like it could be a
+    problem in many different contexts, but I noticed in Windows profiling,
+    where profilem calls gentraceback on a goroutine from a different
+    thread.
     
-    Change-Id: I419b74d06380113f4bd32b9aeb053c3be36208d5
-    Reviewed-on: https://go-review.googlesource.com/c/154584
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I3da27a43e833b257f6411ee6893bdece45a9323f
+    Reviewed-on: https://go-review.googlesource.com/128895
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.12.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/runtime/traceback.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,19 +1,17 @@
-commit 302dd7b71eb565c5460966292e434fc903362cb6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Jul 9 14:51:00 2016 -0700
+commit d093a6269160cf94b7add76dc3e60e94d8afc44e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 14 12:12:11 2016 +1000
 
-    crypto/cipher, math/big: fix example names
+    doc: add classes to version tags in source install instructions
     
-    Fixes (legit) vet warnings.
-    Fix some verb tenses while we're here.
+    This will allow us to mechanically substitute these strings
+    using javascript (in a forthcoming change to x/tools/godoc).
     
-    Updates #11041
+    Updates #14371
     
-    Change-Id: I27e995f55b38f4cf584e97a67b8545e8247e83d6
-    Reviewed-on: https://go-review.googlesource.com/27122
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I96e876283060ffbc9f3eabaf55d6b880685453e1
+    Reviewed-on: https://go-review.googlesource.com/22055
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/cipher/example_test.go | 4 ++--
- src/math/big/floatexample_test.go | 6 +++---
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ doc/install-source.html | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

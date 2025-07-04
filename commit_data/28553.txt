@@ -1,29 +1,17 @@
-commit 3436f0776f4f373b5ba1aacf9f66689c833168b0
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Aug 30 15:25:28 2016 -0400
+commit 905ced0e6ae33dca7ae6aa984d50cb02287952b1
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Thu Jun 2 09:25:30 2016 +0200
 
-    reflect, runtime: optimize Value.Call on s390x and add benchmark
+    reflect: document StructOf embedded fields limitation
     
-    Use an MVC loop to copy arguments in runtime.call* rather than copying
-    bytes individually.
+    This CL documents that StructOf currently does not generate wrapper
+    methods for embedded fields.
     
-    I've added the benchmark CallArgCopy to test the speed of Value.Call
-    for various argument sizes.
+    Updates #15924
     
-    name                    old speed      new speed       delta
-    CallArgCopy/size=128     439MB/s ± 1%    582MB/s ± 1%   +32.41%  (p=0.000 n=10+10)
-    CallArgCopy/size=256     695MB/s ± 1%   1172MB/s ± 1%   +68.67%  (p=0.000 n=10+10)
-    CallArgCopy/size=1024    573MB/s ± 8%   4175MB/s ± 2%  +628.11%  (p=0.000 n=10+10)
-    CallArgCopy/size=4096   1.46GB/s ± 2%  10.19GB/s ± 1%  +600.52%  (p=0.000 n=10+10)
-    CallArgCopy/size=65536  1.51GB/s ± 0%  12.30GB/s ± 1%  +716.30%   (p=0.000 n=9+10)
-    
-    Change-Id: I87dae4809330e7964f6cb4a9e40e5b3254dd519d
-    Reviewed-on: https://go-review.googlesource.com/28096
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I932011b1491d68767709559f515f699c04ce70d4
+    Reviewed-on: https://go-review.googlesource.com/23681
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/reflect/all_test.go | 28 ++++++++++++++++
- src/runtime/asm_s390x.s | 88 ++++++++++++++++++++++++++-----------------------
- 2 files changed, 75 insertions(+), 41 deletions(-)
+ src/reflect/type.go | 3 +++
+ 1 file changed, 3 insertions(+)

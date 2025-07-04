@@ -1,17 +1,19 @@
-commit 10560afb540b783da568aebe83d0f782e46bb673
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Oct 20 11:24:51 2016 +0200
+commit fd8028dec92166545d080de99021c9c51f05c670
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 15:35:15 2016 -0700
 
-    runtime/debug: avoid overflow in SetMaxThreads
+    go/types: fix scope extents for range and type switch variables
     
-    Fixes #16076
+    The changes match the existing compilers, and assume an adjusted
+    spec (per issue #16794).
     
-    Change-Id: I91fa87b642592ee4604537dd8c3197cd61ec8b31
-    Reviewed-on: https://go-review.googlesource.com/31516
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #15686.
+    
+    Change-Id: I72677ce75888c41a8f3c2963117a2f2d5501c42b
+    Reviewed-on: https://go-review.googlesource.com/27290
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/debug/garbage_test.go | 13 +++++++++++++
- src/runtime/proc.go               |  6 +++++-
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ doc/go_spec.html         |  2 +-
+ src/go/types/api_test.go | 47 +++++++++++++++++++++++++++++++++++++++--------
+ src/go/types/stmt.go     |  8 ++++----
+ 3 files changed, 44 insertions(+), 13 deletions(-)

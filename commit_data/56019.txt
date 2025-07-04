@@ -1,16 +1,49 @@
-commit b4f37e18b6fa53e63ee0da8ba72cb51d95bb58ae
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sun Nov 5 18:48:27 2023 +0800
+commit f62c9701b4bc61da6a5f4db8ef81d816f112430e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Apr 1 18:55:06 2023 +0100
 
-    unsafe: add available godoc link
+    encoding/gob: use reflect.Value.Grow
     
-    Change-Id: I1391ec36063dc609a61cc3b37827a56c7cf97c03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539839
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Growing by one is a simpler, and often cheaper,
+    operation compared to appending one (newly created) zero value.
+    The method was introduced in Go 1.20.
+    
+    growSlice in dec_helpers.go is left alone,
+    as it grows using the builtin append instead of reflect.Append.
+    
+    No noticeable performance difference on any of our benchmarks,
+    as this code only runs for slices large enough to not fit in
+    saferio.SliceCap, and none of our benchmarks use data that large.
+    
+            goos: linux
+            goarch: amd64
+            pkg: encoding/gob
+            cpu: AMD Ryzen 7 PRO 5850U with Radeon Graphics
+                                                       │     old     │                new                 │
+                                                       │   sec/op    │   sec/op     vs base               │
+            DecodeBytesSlice-8       11.37µ ± 1%   11.46µ ± 4%       ~ (p=0.315 n=10)
+            DecodeInterfaceSlice-8   96.49µ ± 1%   95.75µ ± 1%       ~ (p=0.436 n=10)
+            geomean                  33.12µ        33.12µ       +0.01%
+    
+                                                       │     old      │                 new                 │
+                                                       │     B/op     │     B/op      vs base               │
+            DecodeBytesSlice-8       22.39Ki ± 0%   22.39Ki ± 0%       ~ (p=1.000 n=10)
+            DecodeInterfaceSlice-8   80.25Ki ± 0%   80.25Ki ± 0%       ~ (p=0.650 n=10)
+            geomean                  42.39Ki        42.39Ki       +0.00%
+    
+                                                       │     old     │                 new                  │
+                                                       │  allocs/op  │  allocs/op   vs base                 │
+            DecodeBytesSlice-8        169.0 ± 0%    169.0 ± 0%       ~ (p=1.000 n=10) ¹
+            DecodeInterfaceSlice-8   3.178k ± 0%   3.178k ± 0%       ~ (p=1.000 n=10) ¹
+            geomean                   732.9         732.9       +0.00%
+    
+    Change-Id: I468aebf4ae6f197a1fd35f6fee809ca591c1788f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481376
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/unsafe/unsafe.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/encoding/gob/decode.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

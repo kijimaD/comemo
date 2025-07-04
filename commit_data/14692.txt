@@ -1,13 +1,17 @@
-commit d0283ab62ab692ee4c28e31d85740a5804b5540a
-Author: Joakim Sernbrant <serbaut@gmail.com>
-Date:   Wed Dec 19 16:24:38 2012 -0800
+commit 91934ff5d83807228d021925ed9d9d78d2b777e6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 19 15:39:19 2012 -0800
 
-    net/http: only call client SetCookie when needed
+    net/http: fix server connection leak on Handler's panic(nil)
     
-    R=golang-dev, bradfitz
+    If a handler did a panic(nil), the connection was never closed.
+    
+    Fixes #4050
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6968049
+    https://golang.org/cl/6971049
 
- src/pkg/net/http/client.go      | 4 +++-
- src/pkg/net/http/client_test.go | 8 ++++++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/pkg/net/http/serve_test.go | 18 +++++++++++++-----
+ src/pkg/net/http/server.go     |  2 +-
+ 2 files changed, 14 insertions(+), 6 deletions(-)

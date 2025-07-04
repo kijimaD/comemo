@@ -1,22 +1,24 @@
-commit 9d5987d79f42b018ce8c57ac2d90ce0d81f0d646
-Author: David Chase <drchase@google.com>
-Date:   Mon Apr 3 11:50:54 2017 -0400
+commit cb91dccd86ec07ecdc6cd227f0789372e3c75153
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 6 01:17:24 2017 -0500
 
-    cmd/compile: rewrite upper-bit-clear idiom to use shift-rotate
+    net/http: better failure in TestTransportPersistConnLeak
     
-    Old buggy hardware incorrectly executes the shift-left-K
-    then shift-right-K idiom for clearing K leftmost bits.
-    Use a right rotate instead of shift to avoid triggering the
-    bug.
+    If one of the c.Get(ts.URL) results in an error, the child goroutine
+    calls t.Errorf, but the test goroutine gets stuck waiting for <-gotReqCh,
+    so the test hangs and the program is eventually killed (after 10 minutes!).
+    Whatever might have been printed to t.Errorf is never seen.
+    Adjust test so that the test fails cleanly in this case.
     
-    Fixes #19809.
+    Still trying to debug why c.Get might fail.
+    It seems to have something to do with occasional connection
+    failures on macOS Sierra.
     
-    Change-Id: I6dc646b183c29e9d01aef944729f34388dcc687d
-    Reviewed-on: https://go-review.googlesource.com/39310
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ia797787bd51ea7cd6deb1192aec89c331c4f2c48
+    Reviewed-on: https://go-review.googlesource.com/34836
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 20 ++++++++++++++++++++
- 2 files changed, 23 insertions(+)
+ src/net/http/transport_test.go | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)

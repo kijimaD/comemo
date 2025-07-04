@@ -1,27 +1,15 @@
-commit d27ebc7b8630993269c36e7728a7f30543ffa048
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 13 16:32:37 2020 -0400
+commit d0e9a4ebfd0be15bceeeae31f56658785e66f4d4
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Feb 24 17:23:19 2020 -0500
 
-    cmd/go/internal/modload: implement the "all" pattern for lazy loading
+    crypto/tls: use new ecdsa.VerifyASN1 API
     
-    The new semantics of the "all" package pattern can be implemented
-    without actually changing module loading per se. This change
-    implements those semantics, so that the change can be decoupled from
-    the changes to the module requirement graph.
-    
-    For #36460
-    
-    Change-Id: I0ee8b17afa8b728dc470a42a540fcc01764a4442
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240623
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2a233190bda78ca022ff4074b4553788847d7583
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220720
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- doc/go1.16.html                        |  14 ++++-
- src/cmd/go/internal/modcmd/tidy.go     |  12 ++++
- src/cmd/go/internal/modcmd/why.go      |   2 +
- src/cmd/go/internal/modload/load.go    |  16 ++++--
- src/cmd/go/internal/modload/modfile.go |  22 ++++++++
- src/cmd/go/testdata/script/mod_all.txt | 100 +++++++++++++++++++++++++++++++--
- 6 files changed, 154 insertions(+), 12 deletions(-)
+ src/crypto/tls/auth.go   | 10 +---------
+ src/crypto/tls/common.go |  8 --------
+ 2 files changed, 1 insertion(+), 17 deletions(-)

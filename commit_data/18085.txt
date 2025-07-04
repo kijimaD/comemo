@@ -1,15 +1,18 @@
-commit e6b023473e03762056c406a655c9fb30141752e9
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Dec 19 21:37:44 2013 +0100
+commit 6f6ff951830a8246ce83b09b480685c0333e8f6b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 19 11:43:34 2013 -0800
 
-    runtime: reduce delays in finalizer test.
+    go/build: mention 'tag' as an alias for 'build constraint'
+    The code is all about tags, and the cmd/go documentation
+    said to look in the go/build documentation for information
+    about tags, but the documentation said nothing about tags,
+    only build constraints. Make things clearer.
     
-    The runtime tests are executed 4 times in all.bash
-    and there is currently a 5-second delay each time.
-    
-    R=golang-dev, minux.ma, khr, bradfitz
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/42450043
+    https://golang.org/cl/44100043
 
- src/pkg/runtime/mfinal_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go     | 4 ++--
+ src/cmd/go/doc.go       | 4 ++--
+ src/pkg/go/build/doc.go | 8 ++++++--
+ 3 files changed, 10 insertions(+), 6 deletions(-)

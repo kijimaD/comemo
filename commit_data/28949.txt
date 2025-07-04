@@ -1,15 +1,22 @@
-commit 9cefbe9d03918c07451e5512cc4c227fb0d6885a
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Oct 20 08:59:07 2016 +0200
+commit 0ece9c4b592502647699c2b15d9f0b7332b26de6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 17 14:57:07 2016 +1000
 
-    lib/time: update to IANA release 2016g (September 2016)
+    debug/pe: revert CL 22720
     
-    Change-Id: Ie6258602554c5bb6685c9de42ccda84d297af1e2
-    Reviewed-on: https://go-review.googlesource.com/31515
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    CL 22720 hid all recently added functionality for go1.7.
+    Make everything exported again, so we could use it now.
+    
+    Updates #15345
+    
+    Change-Id: Id8ccba7199422b554407ec14c343d2c28fbb8f72
+    Reviewed-on: https://go-review.googlesource.com/27212
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 364741 -> 363948 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/debug/pe/file.go    | 14 +++++++-------
+ src/debug/pe/section.go | 12 ++++++------
+ src/debug/pe/string.go  | 10 +++++-----
+ src/debug/pe/symbol.go  |  8 ++++----
+ 4 files changed, 22 insertions(+), 22 deletions(-)

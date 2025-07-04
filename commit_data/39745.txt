@@ -1,19 +1,21 @@
-commit 8d5197d818b21290cfbf0ded381309ac1456cf60
-Author: Ben Shi <powerman1st@163.com>
-Date:   Fri Aug 30 06:24:58 2019 +0000
+commit b48bda9c6f57ca9a940eac95700485b9640a62e9
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Mar 14 23:42:57 2019 -0700
 
-    cmd/compile: optimize 386's math.bits.TrailingZeros16
+    cmd/go: allow -o to point to a folder that writes multiple execs
     
-    This CL reverts CL 192097 and fixes the issue in CL 189277.
+    If -o points to a directory that exists then allow multiple
+    executables to be written to that directory.
     
-    Change-Id: Icd271262e1f5019a8e01c91f91c12c1261eeb02b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192519
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Fixes #14295
+    
+    Change-Id: Ic951e637c70a2ada5e7534bae9a43901a39fe2c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167679
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/ssa.go         |  2 +-
- src/cmd/compile/internal/ssa/gen/386.rules |  3 +++
- src/cmd/compile/internal/ssa/rewrite386.go | 31 ++++++++++++++++++++++++++++++
- test/codegen/mathbits.go                   |  1 +
- 4 files changed, 36 insertions(+), 1 deletion(-)
+ src/cmd/go/alldocs.go                           |  8 +++---
+ src/cmd/go/internal/work/build.go               | 33 ++++++++++++++++++++-----
+ src/cmd/go/testdata/script/build_multi_main.txt | 27 ++++++++++++++++++++
+ 3 files changed, 58 insertions(+), 10 deletions(-)

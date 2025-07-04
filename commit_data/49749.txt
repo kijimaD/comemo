@@ -1,21 +1,28 @@
-commit e76155614af824f9e8be88292884799c8d4b1f3d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Jul 14 17:15:44 2022 -0400
+commit 4c52eac49b7e3f2a107419583012e5251ccbfde9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 7 13:23:08 2021 -0700
 
-    runtime: convert gcController.dedicatedMarkWorkersNeeded to atomic type
+    cmd/compile: simplify value coding for unified IR
     
-    In gcController.startCycle we just compute the initial value in a
-    local variable before assigning to the atomic field to avoid noisy
-    churn.
+    In indexed export, values are always exported along with their type
+    and are encoded in a type-sensitive manner, because this matches how
+    cmd/compile handled constants internally.
     
-    For #53821.
+    However, go/types intentionally differs from this, decoupling type
+    from value representation. As unified IR strives to be more
+    go/types-centric, it makes sense to embrace this and make values a
+    more first-class encoding.
     
-    Change-Id: Ibde0ac8fd49aa6bbee3bd02fe3ffb17429abd5a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417784
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If21d849c4f610358bd776d5665469d180bcd5f6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348014
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/align_runtime_test.go |  1 -
- src/runtime/mgcpacer.go           | 44 ++++++++++++++++++---------------------
- 2 files changed, 20 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/noder/decoder.go |  3 ++-
+ src/cmd/compile/internal/noder/encoder.go |  3 ++-
+ src/cmd/compile/internal/noder/reader.go  | 12 ++++--------
+ src/cmd/compile/internal/noder/reader2.go | 10 ++--------
+ src/cmd/compile/internal/noder/writer.go  | 12 ++++--------
+ 5 files changed, 14 insertions(+), 26 deletions(-)

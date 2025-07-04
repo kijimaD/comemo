@@ -1,21 +1,17 @@
-commit b820fb8df11e5ab4068b4ed9522a96bf52cf8b4d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 10 09:44:39 2022 -0500
+commit 1540239f48f6beaa1cae6b34d00d74860366da7d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 14 13:27:57 2021 -0800
 
-    go/build: in TestImportDirTarget, only expect an install target when cgo is enabled
+    doc/go1.18: add caution about use of generics in production
     
-    As of CL 448803, packages in GOROOT only have install targets when
-    they have cgo source files. When cgo is not enabled, that condition
-    is necessarily false, and no install target will exist.
+    Per https://groups.google.com/g/golang-dev/c/iuB22_G9Kbo/m/7B1jd1I3BQAJ.
     
-    For #47257.
+    For #47694
     
-    Change-Id: I653a9c5f89d18a5841810f3de8d490bd7cb7e922
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449375
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I033cdadb2067e432f7c307d1546b4c5d0cfd5d8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371954
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/build/build_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ doc/go1.18.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

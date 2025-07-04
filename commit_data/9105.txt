@@ -1,14 +1,18 @@
-commit ab55133ca937c0085de5594773e2b55a0bb20e3b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jul 18 17:30:00 2011 +1000
+commit 3c4ca95da9faf2cfce93140ad88d7c65026c6ca3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 18 17:08:12 2011 +1000
 
-    doc: fix padding on h1 tags
+    path/filepath: fixes for windows paths
     
-    See /doc/codewalk/sharemem/ for an example of how it's broken.
+    - Clean and IsAbs to handle paths with drive letter properly.
+    - Clean to replace / with \.
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/4742044
+    R=golang-dev, adg
+    CC=golang-dev, mattn.jp
+    https://golang.org/cl/4758051
 
- doc/all.css | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/go/scanner/scanner_test.go    | 15 +++++++++---
+ src/pkg/path/filepath/path.go         | 10 ++++----
+ src/pkg/path/filepath/path_test.go    | 46 +++++++++++++++++++++++++++++------
+ src/pkg/path/filepath/path_windows.go | 22 +++++++++++------
+ 4 files changed, 69 insertions(+), 24 deletions(-)

@@ -1,21 +1,16 @@
-commit 101fbc2c829beadacefdad1c852e0888e2f16d4d
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Sep 20 13:09:08 2017 -0500
+commit d10549fb5763d33667ab02c0713c22c14f90078c
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue May 30 12:11:04 2017 +0200
 
-    runtime: make nextFreeFast inlinable
+    testing: clarify that subtests are run as goroutines
     
-    https://golang.org/cl/22598 made nextFreeFast inlinable.
-    But during https://golang.org/cl/63611 it was discovered, that it is no longer inlinable.
-    Reduce number of statements below inlining threshold to make it inlinable again.
-    Also update tests, to prevent regressions.
-    Doesn't reduce readability.
+    Fixes #20394
     
-    Change-Id: Ia672784dd48ed3b1ab46e390132f1094fe453de5
-    Reviewed-on: https://go-review.googlesource.com/65030
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: Iabb2a53fd1ddb783e7fb5b60ced8482c2e2569c4
+    Reviewed-on: https://go-review.googlesource.com/44377
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go | 12 ++++++++----
- src/runtime/malloc.go                   |  3 +--
- 2 files changed, 9 insertions(+), 6 deletions(-)
+ src/testing/testing.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,43 +1,30 @@
-commit dac9b9ddbd5160c5f4552410f5f8281bd5eed38c
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Sep 1 01:54:25 2023 -0700
+commit e9fd40a866e9e47ba65976d4cfeaeef7eaf76266
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 10 13:13:14 2022 -0700
 
-    encoding: modernize Go documentation
+    go/types: add errorcalls_test, apply it, and fix errorf call sites
     
-    Across all encoding packages, linkify declarations if possible.
-    In some cases, we convert a code block into a bulleted list,
-    which then further allows for more linkification.
+    The errorcalls_test makes sure that we use error instead of errorf
+    where possible. Copied from types2 and adjusted for go/types.
     
-    Change-Id: I68fedf362615b34228bab5d4859b7d87d831c570
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524977
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ib0572308c87e4415bf89aec8d64e662abe94754b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441958
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/encoding/ascii85/ascii85.go             |  8 +++---
- src/encoding/asn1/asn1.go                   | 39 ++++++++++++++---------------
- src/encoding/asn1/marshal.go                |  2 +-
- src/encoding/base32/base32.go               | 14 +++++------
- src/encoding/base64/base64.go               | 18 ++++++-------
- src/encoding/binary/binary.go               | 20 +++++++++------
- src/encoding/binary/native_endian_big.go    |  2 +-
- src/encoding/binary/native_endian_little.go |  2 +-
- src/encoding/binary/varint.go               | 16 ++++++------
- src/encoding/csv/reader.go                  | 18 ++++++-------
- src/encoding/csv/writer.go                  | 31 ++++++++++++-----------
- src/encoding/gob/decoder.go                 | 10 ++++----
- src/encoding/gob/doc.go                     | 30 +++++++++++-----------
- src/encoding/gob/encoder.go                 |  2 +-
- src/encoding/gob/type.go                    |  2 +-
- src/encoding/hex/hex.go                     | 16 ++++++------
- src/encoding/json/decode.go                 | 28 ++++++++++-----------
- src/encoding/json/encode.go                 | 29 ++++++++++-----------
- src/encoding/json/scanner.go                |  2 +-
- src/encoding/json/stream.go                 | 26 +++++++++----------
- src/encoding/pem/pem.go                     |  4 +--
- src/encoding/xml/marshal.go                 | 38 ++++++++++++++--------------
- src/encoding/xml/read.go                    | 14 +++++------
- src/encoding/xml/xml.go                     | 30 +++++++++++-----------
- 24 files changed, 204 insertions(+), 197 deletions(-)
+ src/go/types/builtins.go        | 12 +++++-----
+ src/go/types/check.go           |  2 +-
+ src/go/types/decl.go            |  2 +-
+ src/go/types/errorcalls_test.go | 53 +++++++++++++++++++++++++++++++++++++++++
+ src/go/types/expr.go            |  8 +++----
+ src/go/types/index.go           |  6 ++---
+ src/go/types/interface.go       |  4 ++--
+ src/go/types/mono.go            |  2 +-
+ src/go/types/resolver.go        | 12 +++++-----
+ src/go/types/signature.go       |  6 ++---
+ src/go/types/stmt.go            | 20 ++++++++--------
+ src/go/types/typexpr.go         |  2 +-
+ src/go/types/version.go         |  8 +++----
+ 13 files changed, 95 insertions(+), 42 deletions(-)

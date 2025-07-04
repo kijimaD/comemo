@@ -1,51 +1,21 @@
-commit 30a84b389daf8f6c358f92da056ac19280e3640d
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 29 01:38:25 2018 -0400
+commit 76e92d1c9e2943de7093af14d58663fa2993e608
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 9 16:00:54 2018 -0700
 
-    cmd/go: replace -getmode with -mod, $GOPROXY
+    runtime: use fixed TLS offsets on darwin/amd64 and darwin/386
     
-    The old -getmode flag had two settings:
-    -getmode=local meant don't download from the network.
-    -getmode=vendor meant only use the vendor directory.
+    Fixes #23617
     
-    The new -mod flag has two settings:
-    -mod=readonly means refuse to automatically update go.mod (mainly for CI testing).
-    -mod=vendor means only use the vendor directory.
+    Note that this CL does not affect darwin/arm and darwin/arm64,
+    still TBD what, if anything, needs to be done for those.
     
-    The old GOPROXY variable had two settings:
-    a proxy URL or else the empty string (direct connect).
-    
-    The new GOPROXY variable has three settings:
-    a proxy URL, the string "off" (no network use allowed),
-    or else the empty string or the explicit string "direct" (direct connection).
-    We anticipate allow a comma-separated sequence in a future release,
-    so commas are disallowed entirely right now.
-    
-    Fixes #24666.
-    Fixes #26586.
-    Fixes #26370.
-    Fixes #26361.
-    
-    Change-Id: If2601a16b09f04800f666938c071fc053b4c3f9c
-    Reviewed-on: https://go-review.googlesource.com/126696
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie1ee02a9f4d4d1fb9cd5dc432d900f926cc157db
+    Reviewed-on: https://go-review.googlesource.com/105975
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go                    |  2 +-
- src/cmd/go/internal/modfetch/proxy.go             | 13 +++--
- src/cmd/go/internal/modfetch/repo.go              | 13 +++--
- src/cmd/go/internal/modget/get.go                 | 11 +++-
- src/cmd/go/internal/modload/build.go              |  4 +-
- src/cmd/go/internal/modload/help.go               | 21 +++++--
- src/cmd/go/internal/modload/import.go             |  8 +--
- src/cmd/go/internal/modload/init.go               | 15 ++---
- src/cmd/go/internal/modload/load.go               |  3 +-
- src/cmd/go/internal/vet/vetflag.go                | 68 +++++++++++++----------
- src/cmd/go/internal/work/build.go                 |  7 ++-
- src/cmd/go/internal/work/init.go                  | 28 ++++++++--
- src/cmd/go/testdata/script/mod_file_proxy.txt     | 11 ++--
- src/cmd/go/testdata/script/mod_getmode_vendor.txt | 12 ++--
- src/cmd/go/testdata/script/mod_readonly.txt       | 39 +++++++++++++
- src/cmd/go/testdata/script/mod_vendor.txt         | 14 ++---
- 16 files changed, 178 insertions(+), 91 deletions(-)
+ src/cmd/link/internal/ld/sym.go    | 20 ++++++---
+ src/runtime/cgo/gcc_darwin_386.c   | 92 ++------------------------------------
+ src/runtime/cgo/gcc_darwin_amd64.c | 63 ++------------------------
+ src/runtime/sys_darwin_386.s       | 11 +++--
+ src/runtime/sys_darwin_amd64.s     |  9 ++--
+ 5 files changed, 28 insertions(+), 167 deletions(-)

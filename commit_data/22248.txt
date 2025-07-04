@@ -1,53 +1,21 @@
-commit 9c0375277ca88df0065fe442242a110201029793
-Author: Evan Phoenix <evan@phx.io>
-Date:   Sat Mar 21 23:42:47 2015 -0700
+commit 8974fb9ba5a5338e20b8c8ccb8d1779ba4841762
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 2 11:04:06 2015 -0800
 
-    text/scanner: Fix EOF reporting on strange Readers
+    cmd/internal/obj: move the "unary destination" tables from asm to obj/*
     
-    Currently, scanner uses -1 to represent 2 different states:
+    Have the implementations of each architecture declare the one-operand,
+    destination-writing instructions instead of splitting the information between
+    there and asm.
     
-    1. I haven't yet scanned anything, call it "Beginning of File"
-    2. I've reached the end of the input, ie EOF
-    
-    The result of this behavior is that calling Peek() when next()
-    has detected the end of the input and set s.ch to scanner.EOF,
-    is that Peek() things "oh, s.ch is < 0, which to me means that
-    I haven't scanned any next yet, let me try and clear the BOM
-    marker."
-    
-    When this behavior is run on a typical IO, next() will issue
-    a Read and get (0, io.EOF) back for the second time without
-    blocking and Peek() will return scanner.EOF.
-    
-    The bug comes into play when, inside a terminal, hitting Control-D.
-    This causes the terminal to return a EOF condition to the reader
-    but it does not actually close the fd.
-    
-    So, combining these 2 situations, we arrive at the bug:
-    
-    What is expected: hitting Control-D in a terminal will make Peek()
-    return scanner.EOF instantly.
-    
-    What actually happens:
-    
-    0. Code waiting in Next()
-    1. User hits Control-D
-    2. fd returns EOF condition
-    3. EOF bubbles it's way out to line 249 in scanner.go
-    4. next() returns scanner.EOF
-    5. Next() saves the scanner.EOF to s.ch and returns the previous value
-    6. Peek() runs, sees s.ch < 0, mistakenly thinks it hasn't run yet and
-       tries to read the BOM marker.
-    7. next() sees the buffer is empty and tries to fill it again, blocking
-       on line 249.
-    
-    The fix is simple: use a different code to indicate that no data
-    has been scanned.
-    
-    Change-Id: Iee8f4da5881682c4d4c36b93b9bf397ac5798179
-    Reviewed-on: https://go-review.googlesource.com/7913
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I44899435011a4a7a398ed03c0801e9f81cc8c905
+    Reviewed-on: https://go-review.googlesource.com/6490
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/text/scanner/scanner.go      |  4 ++--
- src/text/scanner/scanner_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/arch/arch.go | 160 +++++++-------------------------------
+ src/cmd/asm/internal/asm/asm.go   |   2 +-
+ src/cmd/internal/obj/arm/obj5.go  |   6 ++
+ src/cmd/internal/obj/i386/obj8.go |  42 ++++++++++
+ src/cmd/internal/obj/link.go      |   1 +
+ src/cmd/internal/obj/x86/obj6.go  |  52 +++++++++++++
+ 6 files changed, 130 insertions(+), 133 deletions(-)

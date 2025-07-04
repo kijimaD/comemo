@@ -1,17 +1,13 @@
-commit cf74533b6be733e71eb499cfbb85a31de8949c55
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Apr 27 18:57:10 2017 +0900
+commit 045ad5bab812657a85707e480c29de9144881be1
+Author: Koki Ide <niconegoto@yahoo.co.jp>
+Date:   Fri Feb 17 00:50:41 2017 +0900
 
-    syscall: stylistic cleanup and typo fixes in syscall_dragonfly.go
+    all: fix a few typos in comments
     
-    Now it's not very different from syscall_dragonfly.go in
-    golang.org/x/sys/unix repository.
-    
-    Change-Id: I8dfd22e1ebce9dc2cc71ab9ab7f0c92d93b2b762
-    Reviewed-on: https://go-review.googlesource.com/41835
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0455ffaa51c661803d8013c7961910f920d3c3cc
+    Reviewed-on: https://go-review.googlesource.com/37043
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/syscall_dragonfly.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/server.go | 2 +-
+ src/reflect/type.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,25 +1,23 @@
-commit 200b2809f6fb292b32ddfa2e6776b45f120edd74
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jun 3 17:41:06 2024 -0400
+commit b03d12176d22f49f557fc174645ded22d91e6f28
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon May 22 19:23:21 2023 +0000
 
-    cmd/vendor: pull in golang.org/x/telemetry@4691165
+    doc: write various runtime-related release notes
     
-    Commands run:
-        go get golang.org/x/telemetry@4691165
-        go mod vendor
-        go mod tidy
+    This includes release notes for several small runtime changes, including
+    runtime/trace and runtime package changes.
     
-    Change-Id: Icc72e77bab5e9687fbef74ada812708180725869
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590076
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    For #58645.
+    
+    Change-Id: I3e9c804da1bb6b385088e16a20d9576c11098021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497095
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ansiwen <ansiwen@gmail.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../x/telemetry/internal/configstore/download.go   |   5 +
- .../internal/configstore/download_windows.go       |  33 +++++++
- .../x/telemetry/internal/upload/reports.go         |  29 +++++-
- .../x/telemetry/internal/upload/upload.go          |  25 ++++-
- src/cmd/vendor/golang.org/x/telemetry/start.go     | 110 ++++++++++-----------
- src/cmd/vendor/modules.txt                         |   2 +-
- 8 files changed, 144 insertions(+), 66 deletions(-)
+ doc/go1.21.html | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 56 insertions(+)

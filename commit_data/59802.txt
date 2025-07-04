@@ -1,39 +1,25 @@
-commit 4c7567290ced9c4dc629f2386f2eebfebba95ce6
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Jun 18 17:42:16 2025 +0000
+commit 9b9de261bd66333885adb7b36f1dd133d00cfe13
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Apr 24 16:51:20 2024 -0400
 
-    runtime: set mspan limit field early and eagerly
+    go/types: add Alias.Rhs
     
-    Currently the mspan limit field is set after allocSpan returns, *after*
-    the span has already been published to the GC (including the
-    conservative scanner). But the limit field is load-bearing, because it's
-    checked to filter out invalid pointers. A stale limit value could cause
-    a crash by having the conservative scanner access allocBits out of
-    bounds.
+    This method returns the type on the right-hand side of an
+    alias declaration such as type L = R.
     
-    Fix this by setting the mspan limit field before publishing the span.
-    For large objects and arena chunks, we adjust the limit down after
-    allocSpan because we don't have access to the true object's size from
-    allocSpan. However this is safe, since we first initialize the limit to
-    something definitely safe (the actual span bounds) and only adjust it
-    down after. Adjusting it down has the benefit of more precise debug
-    output, but the window in which it's imprecise is also fine because a
-    single object (logically, with arena chunks) occupies the whole span, so
-    the 'invalid' part of the memory will just safely point back to that
-    object. We can't do this for smaller objects because the limit will
-    include space that does *not* contain any valid objects.
+    Fixes #66559
     
-    Fixes #74288.
-    
-    Change-Id: I0a22e5b9bccc1bfdf51d2b73ea7130f1b99c0c7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/682655
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I396f2d999680ad251f47cdde20856ae20fc1c40a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581615
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/runtime/arena.go    | 10 +++++++++-
- src/runtime/mcache.go   |  8 ++++++++
- src/runtime/mcentral.go |  3 ---
- src/runtime/mheap.go    |  5 ++++-
- 4 files changed, 21 insertions(+), 5 deletions(-)
+ api/next/66559.txt                           |  1 +
+ doc/next/6-stdlib/99-minor/go/types/66559.md |  3 +++
+ src/cmd/compile/internal/types2/alias.go     |  8 +++-----
+ src/cmd/compile/internal/types2/api.go       |  7 -------
+ src/cmd/compile/internal/types2/api_test.go  | 17 +++++++++++++++++
+ src/go/types/alias.go                        |  8 +++-----
+ src/go/types/api_test.go                     | 18 ++++++++++++++++++
+ 7 files changed, 45 insertions(+), 17 deletions(-)

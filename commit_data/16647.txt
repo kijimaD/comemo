@@ -1,16 +1,14 @@
-commit 4850f5d5ea5913af57c9ae37121ad88aba2d612c
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jun 26 11:29:30 2013 -0700
+commit 15790204768b9cbea056150e530d4c39d2e62b47
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jun 26 21:20:53 2013 +0400
 
-    crypto/md5: provide a top-level Sum function
-    Makes it easy to ask the simple question, what is the hash of this data?
-    Also mark block as non-escaping.
+    misc/dashboard: show all race builders as "race"
+    race is more important than arch (moreover race implies x64)
+    don't know how to test it
     
-    R=golang-dev, agl
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/10624044
+    https://golang.org/cl/10484046
 
- src/pkg/crypto/md5/md5.go           | 14 +++++++++++++-
- src/pkg/crypto/md5/md5_test.go      |  4 ++++
- src/pkg/crypto/md5/md5block_decl.go |  2 ++
- 3 files changed, 19 insertions(+), 1 deletion(-)
+ misc/dashboard/app/build/ui.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

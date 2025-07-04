@@ -1,22 +1,14 @@
-commit 58c6afe075d74261dd67750e0aab5a1b8460839f
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Sep 12 13:58:18 2018 -0400
+commit a0b70517729f6860ee1d6ef484575f8f298c4487
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 16 14:10:02 2018 +0200
 
-    doc/go1.11, cmd/go: elaborate on new GOFLAGS environment variable
+    doc/contribute.html: remove superfluous article
     
-    In Go 1.11, cmd/go gained support for the GOFLAGS environment variable.
-    It was added and described in detail in CL 126656.
-    Mention it in the Go 1.11 release notes, link to the cmd/go documentation,
-    and add more details there.
+    After CL 113016 the "a" article is no longer necessary.
     
-    Fixes #27282.
-    
-    Change-Id: Ifc35bfe3e0886a145478d36dde8e80aedd8ec68e
-    Reviewed-on: https://go-review.googlesource.com/135035
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I5a80a210bd2b9eedd73d5f9f3f338d7f22c29ea6
+    Reviewed-on: https://go-review.googlesource.com/113355
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.11.html                     | 14 ++++++++++++++
- src/cmd/go/alldocs.go               |  6 ++++++
- src/cmd/go/internal/help/helpdoc.go |  6 ++++++
- 3 files changed, 26 insertions(+)
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

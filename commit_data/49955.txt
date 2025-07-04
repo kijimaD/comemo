@@ -1,30 +1,30 @@
-commit 876d477b0e3b27ae136a7e8dfceaf0ec72bddea6
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Nov 4 17:21:13 2021 -0400
+commit 93453233bd00cc641d2f959f1faf236e0094c2bf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 22 15:56:58 2021 -0700
 
-    runtime: refactor ARM VDSO call setup to helper
+    cmd/compile: fix unsafe.Add with small-size offsets operands
     
-    We have a very complex process to make VDSO calls on ARM. Create a
-    wrapper helper function which reduces duplication and allows for
-    additional calls from other packages.
+    Like other builtin functions, unsafe.Add's len operand is allowed to
+    be variable sized. However, unlike other builtins, it doesn't get
+    lowered to a runtime function call, so we never end up coercing it to
+    a specific type. As a result, we could end up constructing an OpAddPtr
+    value but with a less-than-ptr-sized addend operand.
     
-    vdsoCall has a few differences from the original code in
-    walltime/nanotime:
+    This CL fixes this by always coercing the second operand to uintptr
+    during SSA construction.
     
-    * It does not use R0-R3, as they are passed through as arguments to fn.
-    * It does not save g if g.m.gsignal.stack.lo is zero. This may occur if
-    it called at startup on g0 between assigning g0.m.gsignal and setting
-    its stack.
+    Theoretically, we could do this during walk instead, but the frontend
+    doesn't allow converting negative constants to uintptr.
     
-    For #49182
+    Fixes #48536.
     
-    Change-Id: I51aca514b4835b71142011341d2f09125334d30f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362795
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib0619ea79df58b256b250fec967a6d3c8afea631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351592
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/os_linux_arm.go |   2 +
- src/runtime/sys_linux_arm.s | 205 +++++++++++++++++---------------------------
- 2 files changed, 82 insertions(+), 125 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go |  5 +++++
+ test/fixedbugs/issue48536.go           | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

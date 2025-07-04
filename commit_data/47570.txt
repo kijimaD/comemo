@@ -1,20 +1,20 @@
-commit 6275b54a2a58a1a1bed7f2cc3bc92eca5affb8ff
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 22 14:37:19 2021 +0000
+commit 1ef114d12c39e8467d3e905d0a050bd7ce03123a
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 22 15:00:22 2021 -0400
 
-    Revert "cmd/go: temporarily skip TestScript/test_fuzz_minimize"
+    runtime: abstract specials list iteration
     
-    This reverts CL 365315.
+    The specials processing loop in mspan.sweep is about to get more
+    complicated and I'm too allergic to list manipulation to open code
+    more of it there.
     
-    Reason for revert: test may have been fixed by intervening changes.
-    
-    Change-Id: I110948d53a789527edf471f1637eadbd98a1fc5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366074
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I767a0889739da85fb2878fc06a5c55b73bf2ba7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305551
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_minimize.txt | 2 --
- 1 file changed, 2 deletions(-)
+ src/runtime/mgcsweep.go | 25 ++++++++++---------------
+ src/runtime/mheap.go    | 34 +++++++++++++++++++++++++++++++---
+ 2 files changed, 41 insertions(+), 18 deletions(-)

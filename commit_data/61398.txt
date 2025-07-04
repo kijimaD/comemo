@@ -1,0 +1,16 @@
+commit 3b94c357f8c050edd8cbbf2438873fb5ea7636b1
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Tue Nov 5 13:09:37 2024 +0200
+
+    io: simplify tests by removing redundant statements
+    
+    Change-Id: I4bcaa6b42571626c88e3374c328bbfe993476242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625295
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/io/io_test.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

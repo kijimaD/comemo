@@ -1,14 +1,24 @@
-commit 55e23cb1fe18c6784b573a44bce4c798a1983c2f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 2 13:17:59 2019 -0700
+commit a30421a39480efd766eb07518fb2edc4c9e0a8b8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 6 11:06:14 2019 -0500
 
-    doc/go1.13: mention confusion between keep-alive timeout and deadline
+    cmd/vet/all: build the vet tool within the golang.org/x/tools repository
     
-    Updates #31449
+    When running cmd/vet/all on multiple builders, the coordinator places
+    a copy of golang.org/x/tools at a consistent revision in the builders'
+    GOPATHs. Keep using the consistent revision in module mode by
+    executing the build from a working directory within that repository.
     
-    Change-Id: I4d7075b20cd8171bc792e40b388f4215264a3317
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188819
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    When not running on a builder, use 'go vet' directly instead of
+    building an arbitrarily stale vet tool from the user's GOPATH.
+    
+    Updates #30228
+    
+    Change-Id: I19bc809247378da98f3e6ac8572f61bda4518143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165740
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.13.html | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/vet/all/main.go | 90 +++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 65 insertions(+), 25 deletions(-)

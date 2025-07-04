@@ -1,35 +1,45 @@
-commit a96884cf6c76a5d409ec4b193b6cc52534b80bad
+commit 9ee72f424c83c07e53fde15e5eba9e4b6b02dee4
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 16 18:26:43 2016 +0000
+Date:   Sat Jan 9 15:34:56 2016 -0800
 
-    net/http: use dynamic type assertion to remove HTTP server code from cmd/go
+    net/http: update bundled http2
     
-    I was wondering why cmd/go includes the HTTP server implementations.
+    Updates http2 to x/net git rev 0e6d34ef942 for https://golang.org/cl/18472
+    which means we'll get to delete a ton of grpc-go code and just use the
+    standard library's HTTP client instead.
     
-    Dumping the linker's deadcode dependency graph into a file and doing
-    some graph analysis, I found that the only reason cmd/go included an
-    HTTP server was because the maxBytesReader type (used by both the HTTP
-    transport & HTTP server) did a static type assertion to an HTTP server
-    type.
+    Also, the comments in this CL aren't entirely accurate it turns out.
+    RFC 2616 says:
     
-    Changing it to a interface type assertion reduces the size of cmd/go
-    by 533KB (5.2%)
+    "The Trailer header field can be used to indicate which header fields
+    are included in a trailer (see section 14.40)."
     
-    On linux/amd64, cmd/go goes from 10549200 to 10002624 bytes.
+    And 14.40:
     
-    Add a test too so this doesn't regress. The test uses cmd/go as the
-    binary to test (a binary which needs the HTTP client but not the HTTP
-    server), but this change and test are equally applicable to any such
-    program.
+    "  An HTTP/1.1 message SHOULD include a Trailer header field in a
+       message using chunked transfer-coding with a non-empty trailer. Doing
+       so allows the recipient to know which header fields to expect in the
+       trailer.
     
-    Change-Id: I93865f43ec03b06d09241fbd9ea381817c2909c5
-    Reviewed-on: https://go-review.googlesource.com/20763
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+       If no Trailer header field is present, the trailer SHOULD NOT include
+       any header fields. See section 3.6.1 for restrictions on the use of
+       trailer fields in a "chunked" transfer-coding."
+    
+    So it's really a SHOULD more than a MUST.
+    
+    And gRPC (at least Google's server) doesn't predeclare "grpc-status"
+    ahead of time in a Trailer Header, so we'll be lenient. We were too
+    strict anyway. It's also not a concern for the Go client we have a
+    different place to populate the Trailers, and it won't confuse clients
+    which aren't looking for them. The ResponseWriter server side is more
+    complicated (and strict), though, since we don't want to widen the
+    ResponseWriter interface. So the Go server still requires that you
+    predeclare Trailers.
+    
+    Change-Id: Ia2defc11a2469fb8570ecfabb8453537121084eb
+    Reviewed-on: https://go-review.googlesource.com/18473
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/http_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++-
- src/net/http/request.go   | 13 ++++++++++++-
- 2 files changed, 54 insertions(+), 2 deletions(-)
+ src/net/http/h2_bundle.go | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

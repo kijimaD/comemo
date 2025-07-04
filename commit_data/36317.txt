@@ -1,17 +1,19 @@
-commit 18034e6b9f0f623335e6358e0a4634a4eec04dd1
-Author: Jordan Rhee <jordanrh@microsoft.com>
-Date:   Tue Jul 24 15:17:54 2018 -0700
+commit c23afa9ddb1180b929ba09a7d96710677a2a4b45
+Author: Felix Kollmann <fk@konsorten.de>
+Date:   Wed Apr 18 21:04:49 2018 +0000
 
-    debug/pe: support windows/arm
+    os: enable symlink creation on Windows 10
     
-    Enable 'go tool objdump' to disassemble windows/arm images.
+    Fixes #22874
     
-    Updates #26148
-    
-    Change-Id: I7d11226f01d92288061f8e25980334b9bd82c41f
-    Reviewed-on: https://go-review.googlesource.com/125649
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia30fc8df39e88fbc2939a4490c34da8dd5815a94
+    GitHub-Last-Rev: 3ba7abcc96ee02837fbfd65c044326c2f1923020
+    GitHub-Pull-Request: golang/go#24307
+    Reviewed-on: https://go-review.googlesource.com/99337
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/debug/pe/file.go | 2 +-
- src/debug/pe/pe.go   | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/internal/syscall/windows/symlink_windows.go | 14 ++++++++
+ src/os/file_windows.go                          | 11 ++++++-
+ src/os/os_windows_test.go                       | 44 +++++++++++++++++++++++++
+ 3 files changed, 68 insertions(+), 1 deletion(-)

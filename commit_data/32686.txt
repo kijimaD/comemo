@@ -1,30 +1,22 @@
-commit b74b43de6830f3024862e1ab1d7c94fa0824a415
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Sep 11 10:39:24 2017 -0400
+commit 13cdd814ea0e8ef165ab54802f9f102b8b690df7
+Author: Sean Chittenden <seanc@joyent.com>
+Date:   Sun May 14 09:42:35 2017 -0700
 
-    cmd/compile: request r12 for indirect calls on ppc64le
+    runtime: mmap(2) on Solaris & Illumos can return EAGAIN.
     
-    On ppc64le, functions compiled with -shared expect r12 to
-    hold the function's address for indirect calls. Previously
-    this was enforced by generating a move instruction if the
-    address wasn't already in r12. This change avoids that extra
-    move by requesting r12 in the CALL ops that do indirect calls.
+    In low memory situations mmap(2) on Illumos[2] can return EAGAIN when it
+    is unable to reserve the necessary space for the requested mapping.  Go
+    was not previously handling this correctly for Illumos and would fail to
+    recognize it was in a low-memory situation, the result being the program
+    would terminate with a panic instead of running the GC.
     
-    As a result of adding support for plugins on ppc64le, it was
-    discovered that there would be more cases where this extra
-    move was needed, so this seemed like a better solution.
+    Fixes: #14930
     
-    Updates #20756
+    [1]: https://www.illumos.org/man/2/mmap
     
-    Change-Id: I6770885a46990f78c6d2902a715dcdaa822192a1
-    Reviewed-on: https://go-review.googlesource.com/62890
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I889cc0547e23f9d6c56e4fdd7bcbd0e15403873a
+    Reviewed-on: https://go-review.googlesource.com/43461
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go        | 13 ++-----------
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  9 +++++----
- src/cmd/compile/internal/ssa/opGen.go        |  6 +++---
- src/cmd/compile/internal/ssa/regalloc.go     |  8 +-------
- 4 files changed, 11 insertions(+), 25 deletions(-)
+ src/runtime/mem_bsd.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

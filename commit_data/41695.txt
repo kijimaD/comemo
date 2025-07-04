@@ -1,19 +1,21 @@
-commit 9d468f482f20f886d3c7d66c60e1ce0acbaaad44
-Author: HowJMay <vulxj0j8j8@gmail.com>
-Date:   Fri Mar 20 08:40:38 2020 +0000
+commit ff4e0e42d8f662529c3e6ac5af6591d31805ae2f
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Oct 10 19:11:54 2019 -0400
 
-    doc/articles/wiki: use correct variable name in closures guide
+    net/http: make TimeoutHandler log spurious WriteHeader calls
     
-    Fixes non-existent variable TitleValidator to be validPath in
-    the closures, functions literal section.
+    Makes TimeoutHandler consistent with other handlers, by
+    logging any spurious WriteHeader calls.
     
-    Fixes #36779
+    Fixes #30803
     
-    Change-Id: I59762c358c3e00d1cc03d9d1e2aace03f145321d
-    GitHub-Last-Rev: a5e9b17a3707fc48c6d87bab3a4968f2ef63ab65
-    GitHub-Pull-Request: golang/go#36783
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216479
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I693fbdf8378f31bca13d579eece8e8e00eb175bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200518
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/articles/wiki/index.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/clientserver_test.go |  6 +++
+ src/net/http/serve_test.go        | 93 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go            | 32 +++++++++-----
+ 3 files changed, 120 insertions(+), 11 deletions(-)

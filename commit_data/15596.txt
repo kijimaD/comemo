@@ -1,15 +1,18 @@
-commit 0d9bf2757e71e64938b02c397d1d6e5666c5a213
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Mar 6 10:08:46 2013 +1100
+commit 8cf6e75e2ad03396e1cc05088b73dfe7753c8696
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 5 14:31:17 2013 -0800
 
-    image/jpeg: for progressive JPEGs, the first SOS segment doesn't
-    necessarily contain all components.
+    cmd/vet: change some warnings to errors for consistency.
+    Fixes #4980.
     
-    Fixes #4975.
-    
-    R=r, minux.ma, bradfitz
+    R=golang-dev, rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/7469043
+    https://golang.org/cl/7479044
 
- src/pkg/image/jpeg/scan.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/vet/doc.go       |  6 ++++++
+ src/cmd/vet/main.go      | 15 ++++++++++-----
+ src/cmd/vet/method.go    |  2 +-
+ src/cmd/vet/print.go     |  2 +-
+ src/cmd/vet/structtag.go |  4 ++--
+ src/cmd/vet/taglit.go    |  2 +-
+ 6 files changed, 21 insertions(+), 10 deletions(-)

@@ -1,34 +1,27 @@
-commit 7240d7e9e47af734f1b3d3b11769c2bfaa079c1c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue May 16 12:46:33 2023 -0700
+commit aad9382e590265efb5e5fa3591c30486dcf215e0
+Author: Ben Sarah Golightly <golightly.ben@googlemail.com>
+Date:   Wed Jun 29 19:42:46 2022 +0100
 
-    cmd/compile/internal/noder: suppress unionType consistency check
+    go/doc/comment: support links in lists in comments
     
-    In the types1 universe, we only need to represent value types. For
-    interfaces, this means we only need to worry about pure interfaces. A
-    pure interface can embed a union type, but the overall union must be
-    equivalent to "any".
+    The proposed (#51082) new go doc comment additions supports lists,
+    links, and doc links, but does not support links and doc links inside
+    lists, so implemnent this.
     
-    In go.dev/cl/458619, we changed the types1 reader to return "any", but
-    to incorporate a consistency check to make sure this is valid.
-    Unfortunately, a pure interface can actually still reference impure
-    interfaces, and in general this is hard to check precisely without
-    reimplementing a lot of types2 data structures and logic into types1.
+    Fixes #53610
     
-    We haven't had any other reports of this check failing since 1.20, so
-    it seems simplest to just suppress for now.
-    
-    Fixes #60117.
-    
-    Change-Id: I5053faafe2d1068c6d438b2193347546bf5330cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495455
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4fa17d204fc9efa8f3633133e4a49e56cf1aa9bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415174
+    Reviewed-by: Ben Golightly <golightly.ben@googlemail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/noder/reader.go | 29 +++++++++++++++++------------
- test/typeparam/issue52124.go             |  6 +++++-
- 2 files changed, 22 insertions(+), 13 deletions(-)
+ src/go/doc/comment/parse.go               |  7 ++++++
+ src/go/doc/comment/testdata/linklist.txt  | 18 ++++++++++++++
+ src/go/doc/comment/testdata/linklist2.txt | 39 +++++++++++++++++++++++++++++++
+ src/go/doc/comment/testdata/linklist3.txt | 31 ++++++++++++++++++++++++
+ src/go/doc/comment/testdata/linklist4.txt | 36 ++++++++++++++++++++++++++++
+ 5 files changed, 131 insertions(+)

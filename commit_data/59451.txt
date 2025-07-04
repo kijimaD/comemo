@@ -1,52 +1,18 @@
-commit 8d7c43b51722f5841f8c0907797f24d4d71dae19
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Tue Apr 29 17:15:45 2025 +0800
+commit 1d96895ccbea79daa9d6538bf9da6a4dd197336b
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Mar 14 10:41:08 2024 +0000
 
-    crypto/sha256: improve performance of loong64
+    net/netip: use built-in clear to simplify code
     
-    1. Replaced WORD with instruction REVB2W.
-    2. Simplified the implementation of Ch and Maj by reducing instructions, refer to the implementation of riscv64.
-    
-    goos: linux
-    goarch: loong64
-    pkg: crypto/sha256
-    cpu: Loongson-3A6000-HV @ 2500.00MHz
-                      |  bench.old  |             bench.new              |
-                      |   sec/op    |   sec/op     vs base               |
-    Hash8Bytes/New      313.9n ± 0%   293.4n ± 0%  -6.53% (p=0.000 n=10)
-    Hash8Bytes/Sum224   324.0n ± 0%   304.2n ± 0%  -6.11% (p=0.000 n=10)
-    Hash8Bytes/Sum256   322.8n ± 0%   301.8n ± 0%  -6.51% (p=0.000 n=10)
-    Hash1K/New          4.513µ ± 0%   4.183µ ± 0%  -7.31% (p=0.000 n=10)
-    Hash1K/Sum224       4.522µ ± 0%   4.189µ ± 0%  -7.36% (p=0.000 n=10)
-    Hash1K/Sum256       4.522µ ± 0%   4.190µ ± 0%  -7.34% (p=0.000 n=10)
-    Hash8K/New          33.92µ ± 0%   31.42µ ± 0%  -7.38% (p=0.000 n=10)
-    Hash8K/Sum224       33.94µ ± 0%   31.42µ ± 0%  -7.40% (p=0.000 n=10)
-    Hash8K/Sum256       33.94µ ± 0%   31.42µ ± 0%  -7.41% (p=0.000 n=10)
-    geomean             3.662µ        3.404µ       -7.04%
-    
-    goos: linux
-    goarch: loong64
-    pkg: crypto/sha256
-    cpu: Loongson-3A5000 @ 2500.00MHz
-                      |  bench.old  |             bench.new              |
-                      |   sec/op    |   sec/op     vs base               |
-    Hash8Bytes/New      382.2n ± 0%   357.3n ± 0%  -6.51% (p=0.000 n=10)
-    Hash8Bytes/Sum224   392.3n ± 0%   367.0n ± 0%  -6.45% (p=0.000 n=10)
-    Hash8Bytes/Sum256   393.9n ± 0%   368.8n ± 0%  -6.37% (p=0.000 n=10)
-    Hash1K/New          5.173µ ± 0%   4.725µ ± 0%  -8.66% (p=0.000 n=10)
-    Hash1K/Sum224       5.189µ ± 0%   4.742µ ± 0%  -8.62% (p=0.000 n=10)
-    Hash1K/Sum256       5.188µ ± 0%   4.742µ ± 0%  -8.60% (p=0.000 n=10)
-    Hash8K/New          38.75µ ± 0%   35.34µ ± 0%  -8.78% (p=0.000 n=10)
-    Hash8K/Sum224       38.77µ ± 0%   35.35µ ± 0%  -8.80% (p=0.000 n=10)
-    Hash8K/Sum256       38.76µ ± 0%   35.35µ ± 0%  -8.80% (p=0.000 n=10)
-    geomean             4.277µ        3.936µ       -7.96%
-    
-    Change-Id: I561f6db118d05fe44485af8ea25df85afa6905a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668775
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ic7b390935df107c5b7f53f9347a52031eac8a897
+    GitHub-Last-Rev: a7194571e1c2f90537f1caa8a3b5bcd60cea60be
+    GitHub-Pull-Request: golang/go#66310
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571635
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- .../internal/fips140/sha256/sha256block_loong64.s  | 31 +++++++++++-----------
- 1 file changed, 15 insertions(+), 16 deletions(-)
+ src/net/netip/netip.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

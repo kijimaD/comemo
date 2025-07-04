@@ -1,16 +1,12 @@
-commit 1df62ca638107df5a51f969fc411a6bd091518fd
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 14 15:21:08 2011 -0500
+commit ba98a7ee5eab17423674e8c85c5e694700dda61c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Nov 14 22:31:39 2011 +0300
 
-    crypto/tls: fix handshake message test
+    time: fix test hang
     
-    This test breaks when I make reflect.DeepEqual
-    distinguish empty slices from nil slices.
-    
-    R=agl
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5369110
+    https://golang.org/cl/5374083
 
- src/pkg/crypto/tls/handshake_messages.go      | 161 ++++++++++++++++++++++++++
- src/pkg/crypto/tls/handshake_messages_test.go |   4 +-
- 2 files changed, 164 insertions(+), 1 deletion(-)
+ src/pkg/time/sleep_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

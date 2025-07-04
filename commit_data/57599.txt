@@ -1,36 +1,41 @@
-commit 5b0f8596b766afae9dd1f117a4a5dcfbbf1b80f1
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Tue Oct 1 13:51:09 2024 -0400
+commit e8a767b609a32972aca848b806700b3f7ddd34d3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Aug 17 18:36:00 2023 +0000
 
-    runtime/pprof: make TestBlockMutexProfileInlineExpansion stricter
+    runtime/pprof: increase contention upper bound in TestMutexProfile
     
-    While working on CL 611241 and CL 616375, I introduced a bug that wasn't
-    caught by any test. CL 611241 added more inline expansion at sample time
-    for block/mutex profile stacks collected via frame pointer unwinding.
-    CL 616375 then changed how inline expansion for those stacks is done at
-    reporting time. So some frames passed through multiple rounds of inline
-    expansion, and this lead to duplicate stack frames in some cases. The
-    stacks from TestBlockMutexProfileInlineExpansion looked like
+    Currently TestMutexProfile expects contention to reported as somewhere
+    between 0.9x and 2.0x the expected amount introduced. While bounding
+    from below is fine (especially since the goroutine holding the mutex
+    doesn't even start to sleep until the required number of goroutines are
+    blocked on a mutex), bounding from above can easily lead to flakiness.
+    Delays and non-determinism can come from anywhere in the system,
+    and nevertheless clocks keep ticking. The result is that goroutines
+    could easily appear to be blocked on a mutex much longer than just the
+    sleep time.
     
-            sync.(*Mutex).Unlock
-            runtime/pprof.inlineF
-            runtime/pprof.inlineE
-            runtime/pprof.inlineD
-            runtime/pprof.inlineD
-            runtime.goexit
+    However, the contention upper bound is still useful, especially for
+    identifying wildly incorrect values. Set the contention total to be
+    proportional to the total wall-time spent in the actual sampling mutex
+    block sampling portion of the code. This should be a generous
+    upper-bound on how much contention there could be, because it should in
+    theory capture any delays from the environment in it as well.
     
-    after those two CLs, and in particular after CL 616375. Note the extra
-    inlineD frame. The test didn't catch that since it was only looking for
-    a few frames in the stacks rather than checking the entire stacks.
+    Still, rounding errors could be an issue, and on Windows the time
+    granularity is quite low (~15ms, or 15% of what each goroutine is
+    supposed to add to the mutex profile), so getting unlucky with where
+    time measurements fall within each tick could also be a problem. Add an
+    extra 10%, which seems to make it much less likely to fail in a Windows
+    gomote.
     
-    This CL makes that test stricter by checking the entire expected stacks
-    rather than just a portion of the stacks.
+    Fixes #62094.
     
-    Change-Id: I0acc739d826586e9a63a081bb98ef512d72cdc9a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617235
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I59a10a73affd077185dada8474b91d0bc43b4a43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520635
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/pprof/pprof_test.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/runtime/pprof/pprof_test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

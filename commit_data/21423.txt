@@ -1,16 +1,16 @@
-commit 2ffe3255a1ba3e09105eb1c86ef221a8ccc5c515
-Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
-Date:   Fri Jan 30 15:07:11 2015 -0800
+commit 0b52392ef788bb4914f3fde99fe213ea06527ec4
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Jan 5 13:50:09 2015 +1100
 
-    os: allow EROFS in TestMkdirAllAtSlash
+    image: use three-index slice for NewYCbCr.
     
-    On some systems (e.g. ChromeOS), / is mounted read-only.
-    This results in error code syscall.EROFS, which I guess
-    is just as valid as syscall.EACCES for this test.
+    This ensures that changing an image.YCbCr's Y values can't change its
+    chroma values, even after re-slicing up to capacity.
     
-    Change-Id: I9188d5437a1b5ac1daa9c68b95b8dcb447666ca3
-    Reviewed-on: https://go-review.googlesource.com/3676
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icb626561522e336a3220e10f456c95330ae7db9e
+    Reviewed-on: https://go-review.googlesource.com/2209
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/path_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/image/ycbcr.go      | 11 +++++++----
+ src/image/ycbcr_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 4 deletions(-)

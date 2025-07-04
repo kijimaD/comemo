@@ -1,17 +1,18 @@
-commit 15648d2e77fa8116edd51a13fb5233e8ce0e98b3
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Apr 21 22:10:09 2015 +0900
+commit 6ca91d264f521a132e5b4c3232bb3850f017d021
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 30 15:06:33 2015 -0700
 
-    net: replace server tests
+    cmd/internal/obj/arm64: delete needless closure in for claus
     
-    This change replaces server tests with new ones that require features
-    introduced after go1 release, such as runtime-integrated network poller,
-    Dialer, etc.
+    A residue of the automatic translation, this closure is easily rewritten
+    to a simpler, smaller, and faster construct.
     
-    Change-Id: Icf1f94f08f33caacd499cfccbe74cda8d05eed30
-    Reviewed-on: https://go-review.googlesource.com/9195
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Discovered while analyzing #10269, which I still plan to fix.
+    
+    Change-Id: I76b12290280d81880c446b4cf75da633a94482d4
+    Reviewed-on: https://go-review.googlesource.com/8270
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/server_test.go  | 577 +++++++++++++++++++++++++-----------------------
- src/net/timeout_test.go |  42 ++--
- 2 files changed, 327 insertions(+), 292 deletions(-)
+ src/cmd/internal/obj/arm64/obj7.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

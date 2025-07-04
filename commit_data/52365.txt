@@ -1,20 +1,60 @@
-commit acce3abb7e1c39bc867d6e6dd2277451bd41d53a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 20 14:29:05 2023 -0700
+commit f4c0f42f99476ed1621527f04364610ed2acf6bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 09:02:52 2022 -0400
 
-    cmd/compile/internal/types2: avoid unpacking single-value LHS
+    [dev.boringcrypto] all: add boringcrypto build tags
     
-    For ++/-- statements, we know that syntax.AssignStmt.Lhs is a
-    single expression. Avoid unpacking (and allocating a slice) in
-    that case. Minor optimization.
+    A plain make.bash in this tree will produce a working,
+    standard Go toolchain, not a BoringCrypto-enabled one.
     
-    Change-Id: I6615fd12277b1cd7d4f8b86e0b9d39f27708c13e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477915
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    The BoringCrypto-enabled one will be created with:
+    
+            GOEXPERIMENT=boringcrypto ./make.bash
+    
+    For #51940.
+    
+    Change-Id: Ia9102ed993242eb1cb7f9b93eca97e81986a27b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395881
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/stmt.go | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ api/go1.16.txt                                     |   1 -
+ misc/boring/release.sh                             |   2 +-
+ misc/cgo/testshared/shared_test.go                 |   2 +-
+ src/cmd/api/goapi_boring_test.go                   |  17 +++++++++++++++
+ src/cmd/go/go_boring_test.go                       |   2 ++
+ src/cmd/link/internal/ld/lib.go                    |   1 +
+ src/crypto/boring/boring.go                        |   2 ++
+ src/crypto/boring/boring_test.go                   |   2 ++
+ src/crypto/boring/notboring_test.go                |   6 +++---
+ src/crypto/ecdsa/boring.go                         |   2 ++
+ src/crypto/ecdsa/notboring.go                      |  16 ++++++++++++++
+ src/crypto/internal/boring/Dockerfile              |   4 ++--
+ src/crypto/internal/boring/LICENSE                 |  16 +++++++-------
+ src/crypto/internal/boring/aes.go                  |   4 ++--
+ src/crypto/internal/boring/boring.go               |   5 +++--
+ src/crypto/internal/boring/ecdsa.go                |   4 ++--
+ .../internal/boring/fipstls/{dummy.s => stub.s}    |   2 ++
+ src/crypto/internal/boring/fipstls/tls.go          |   5 ++++-
+ src/crypto/internal/boring/hmac.go                 |   4 ++--
+ src/crypto/internal/boring/notboring.go            |   4 ++--
+ src/crypto/internal/boring/rand.go                 |   4 ++--
+ src/crypto/internal/boring/rsa.go                  |   4 ++--
+ src/crypto/internal/boring/sha.go                  |   4 ++--
+ .../{ => syso}/goboringcrypto_linux_amd64.syso     | Bin
+ src/crypto/internal/boring/syso/syso.go            |   9 ++++++++
+ src/crypto/rsa/boring.go                           |   2 ++
+ src/crypto/rsa/boring_test.go                      |   2 ++
+ src/crypto/rsa/notboring.go                        |  16 ++++++++++++++
+ src/crypto/tls/boring.go                           |   4 ++--
+ src/crypto/tls/boring_test.go                      |   2 ++
+ src/crypto/tls/fipsonly/fipsonly.go                |   4 +++-
+ src/crypto/tls/fipsonly/fipsonly_test.go           |   2 ++
+ src/crypto/tls/handshake_client.go                 |   7 +++++--
+ src/crypto/tls/handshake_server.go                 |   5 +++--
+ src/crypto/tls/notboring.go                        |  23 +++++++++++++++++++++
+ src/go/build/build.go                              |   3 +--
+ src/go/build/deps_test.go                          |   4 ++--
+ 37 files changed, 153 insertions(+), 43 deletions(-)

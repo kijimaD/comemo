@@ -1,24 +1,41 @@
-commit 9eb2c434747cc83aa1e356b9ba7c2a58e8cb6926
-Author: Hana Kim <hakim@google.com>
-Date:   Thu May 24 15:15:45 2018 -0400
+commit 51ae88ee2f9a1063c272a497527751d786291c89
+Author: Austin Clements <austin@google.com>
+Date:   Sat Dec 30 19:35:46 2017 -0500
 
-    runtime/pprof: allow tests to run multiple times
+    runtime: remove non-reserved heap logic
     
-    TestMutexProfile and TestEmptyCallStack couldn't run multiple times
-    because they mutate state in runtime (mutex profile counters and
-    a user-defined profile type) and test whether the state
-    matches what it is supposed to be after the very first run.
+    Currently large sysReserve calls on some OSes don't actually reserve
+    the memory, but just check that it can be reserved. This was important
+    when we called sysReserve to "reserve" many gigabytes for the heap up
+    front, but now that we map memory in small increments as we need it,
+    this complication is no longer necessary.
     
-    We fix TestMutexProfile by relaxing the expected state condition.
-    We fix TestEmptyCallStack by creating a new profile with a different
-    name every time the test runs.
+    This has one curious side benefit: currently, on Linux, allocations
+    that are large enough to be rejected by mmap wind up freezing the
+    application for a long time before it panics. This happens because
+    sysReserve doesn't reserve the memory, so sysMap calls mmap_fixed,
+    which calls mmap, which fails because the mapping is too large.
+    However, mmap_fixed doesn't inspect *why* mmap fails, so it falls back
+    to probing every page in the desired region individually with mincore
+    before performing an (otherwise dangerous) MAP_FIXED mapping, which
+    will also fail. This takes a long time for a large region. Now this
+    logic is gone, so the mmap failure leads to an immediate panic.
     
-    For #25520
+    Updates #10460.
     
-    Change-Id: I8e50cd9526eb650c8989457495ff90a24ce07863
-    Reviewed-on: https://go-review.googlesource.com/114495
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8efe88c611871cdb14f99fadd09db83e0161ca2e
+    Reviewed-on: https://go-review.googlesource.com/85888
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/pprof/pprof_test.go | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/runtime/export_test.go |  3 +-
+ src/runtime/malloc.go      | 27 +++++++----------
+ src/runtime/mem_bsd.go     | 36 ++--------------------
+ src/runtime/mem_darwin.go  |  5 ++--
+ src/runtime/mem_linux.go   | 75 ++--------------------------------------------
+ src/runtime/mem_plan9.go   |  5 ++--
+ src/runtime/mem_windows.go |  5 ++--
+ src/runtime/mheap.go       | 11 +------
+ src/runtime/os_linux.go    |  2 ++
+ 9 files changed, 24 insertions(+), 145 deletions(-)

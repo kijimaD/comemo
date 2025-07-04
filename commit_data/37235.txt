@@ -1,18 +1,15 @@
-commit 7aee7990ab82371af2558dd2a94ca9ed95227592
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Oct 25 15:11:13 2018 -0400
+commit d87f6356263ca8541f5bf097ad68ac479b8ed3e9
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 12 11:37:17 2018 +1000
 
-    crypto/tls: implement TLS 1.3 extensions for ClientHello and ServerHello
+    doc: clarify a sentence about *_js.go
     
-    Updates #9671
+    Change "have to" to "need to" for clarity and to avoid a
+    peculiar English idiom.
     
-    Change-Id: Ia68224aca866dc3c98af1fccbe56bfb3f22da9f6
-    Reviewed-on: https://go-review.googlesource.com/c/144578
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: Iec2b1f841d0353dd7925f8f934fe82d4ed059d7d
+    Reviewed-on: https://go-review.googlesource.com/123495
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/common.go                  |  50 ++++--
- src/crypto/tls/handshake_messages.go      | 278 +++++++++++++++++++++++++++---
- src/crypto/tls/handshake_messages_test.go |  51 +++++-
- 3 files changed, 344 insertions(+), 35 deletions(-)
+ doc/go1.11.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

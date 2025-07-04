@@ -1,17 +1,14 @@
-commit 99957b6930c76b683dbca1ff4bcdd56e59b1e035
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 7 21:08:48 2019 -0800
+commit 9acd2d60e76649663a1e64b1ad00d2173c68c5fe
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 26 15:25:16 2019 -0400
 
-    runtime: use pipe rather than note in TestSignalM
+    misc/cgo/errors: fix TestPointerChecks when GO111MODULE=on
     
-    At least on Darwin notewakeup is not async-signal-safe.
-    
-    Fixes #35276
-    
-    Change-Id: I1d7523715e8e77dbd7f21d9b1ed131e52d46cc41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206078
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I4e9e46f03c9c43df1d0c6995f3baedd2e1a04c6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183985
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/crash_unix_test.go  | 30 ++++++++++++++++++++++++++++--
- src/runtime/export_unix_test.go | 35 +++++++++++++++++++++++++----------
- 2 files changed, 53 insertions(+), 12 deletions(-)
+ misc/cgo/errors/ptr_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

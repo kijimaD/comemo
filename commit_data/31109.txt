@@ -1,22 +1,24 @@
-commit 4eb48a336e5a7ac519611cf8360909e0ac37f018
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Apr 12 11:24:03 2017 -0700
+commit 1ef3a77e182b322eaaaf767eb176a093f5f68282
+Author: Patrick Pelletier <pp.pelletier@gmail.com>
+Date:   Wed Jan 25 22:09:26 2017 -0800
 
-    cmd/compile/internal/ssa: refactor ARM64 address folding
+    mime/multipart: allow boundary len <= 70
     
-    These patterns are the only uses of isArg and isAuto, and they all
-    follow a common pattern too. Extract out so that we can more easily
-    tweak the interface for isArg/isAuto.
+    As per RFC 2046, the boundary for multipart MIME is allowed up to 70
+    characters. The old SetBoundary implementation only allowed up to 69 so
+    this bumps it to the correct value of 70.
     
-    Passes toolstash -cmp for linux/arm64.
+    The relevant RFC is at https://www.ietf.org/rfc/rfc2046.txt and section
+    5.1.1 defines the boundary specification.
     
-    Change-Id: I9c509dabdc123c93cb1ad2f34fe8c12a9f313f6d
-    Reviewed-on: https://go-review.googlesource.com/40490
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #18793
+    
+    Change-Id: I91d2ed4549c3d27d6049cb473bac680a750fb520
+    Reviewed-on: https://go-review.googlesource.com/35830
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 165 ++++++++++-----------------
- src/cmd/compile/internal/ssa/rewrite.go      |  14 +++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 156 ++++++++++++-------------
- 3 files changed, 150 insertions(+), 185 deletions(-)
+ src/mime/multipart/writer.go      | 4 ++--
+ src/mime/multipart/writer_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

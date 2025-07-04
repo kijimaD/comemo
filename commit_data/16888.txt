@@ -1,12 +1,14 @@
-commit 7da7d71cf42f203aefe2c8f2bc0e934b095e5491
+commit 91d35ad1b86bd9835596704e8ecf1856d3851390
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Jul 27 13:54:34 2013 +0400
+Date:   Sat Jul 27 13:46:40 2013 +0400
 
-    misc/dashboard: fix typo in comment
+    runtime: fix potential deadlock in netpoll on windows
+    If netpoll has been told to block, it must not return with nil,
+    otherwise scheduler assumes that netpoll is disabled.
     
-    R=golang-dev, r
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/11936045
+    https://golang.org/cl/11920044
 
- misc/dashboard/app/build/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/netpoll_windows.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,19 +1,12 @@
-commit 88e18032bd76656afcf246c1a252e04cf462b41e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 1 15:17:34 2016 -0800
+commit d86088037762bac6ca95c5e590529a29b5996469
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Dec 9 14:20:36 2015 +1100
 
-    cmd/compile: s/flag_race/instrumenting/ in OCONVNOP check
+    doc: update go1.6.txt
     
-    This check seems to apply to all code instrumentation, not just -race.
-    
-    Fixes #14589.
-    
-    Change-Id: I16ae07749ede7c1e6ed06f472711638d195034ac
-    Reviewed-on: https://go-review.googlesource.com/20113
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Change-Id: I1164c7a76cf6e6c48ca5153d4c163f5962c4f0cd
+    Reviewed-on: https://go-review.googlesource.com/17622
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/gc/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

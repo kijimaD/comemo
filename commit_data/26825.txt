@@ -1,16 +1,15 @@
-commit e6a8daceb0b0df77f5d2ca34a73561375bb89c63
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Apr 11 10:26:38 2016 +1000
+commit 71cc445cf92dd3014e8b382809ed1b9c077e7973
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 23 16:11:46 2016 -0800
 
-    cmd/vet: refresh command for updating whitelist data.
+    cmd/cgo: recognize known C typedefs as types
     
-    This excludes internal and testdata packages, as well as func types.
+    Fixes #14483.
     
-    No new whitelist entries were found.
-    
-    Change-Id: Ie7d42ce0a235394e4bcabf09e155726a35cd2d3d
-    Reviewed-on: https://go-review.googlesource.com/21822
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I0cddfe27fd8d00ba85659d0b618410e39ebf45cb
+    Reviewed-on: https://go-review.googlesource.com/19860
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/internal/whitelist/whitelist.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ misc/cgo/errors/ptr.go | 10 ++++++++++
+ src/cmd/cgo/gcc.go     | 11 +++++++----
+ 2 files changed, 17 insertions(+), 4 deletions(-)

@@ -1,0 +1,24 @@
+commit ce7ea0a6a529ce91327900e29afc3abd620030b4
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Jan 28 16:13:52 2025 +0000
+
+    cmd/go: refine GOAUTH user parsing to be more strict
+    
+    This CL enhances the parsing of GOAUTH user based authentication for
+    improved security.
+    
+    Updates: #26232
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Ica57952924020b7bd2670610af8de8ce52dbe92f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644995
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go                     |   3 +-
+ src/cmd/go/internal/auth/httputils.go     | 173 ++++++++++++++++++++++++++++++
+ src/cmd/go/internal/auth/userauth.go      |  91 +++++++---------
+ src/cmd/go/internal/auth/userauth_test.go |  56 ++++++++--
+ src/cmd/go/internal/help/helpdoc.go       |   3 +-
+ 5 files changed, 266 insertions(+), 60 deletions(-)

@@ -1,18 +1,13 @@
-commit e49775e0579891479888a514c82cf6eea123763f
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 16 16:01:42 2021 -0400
+commit dcc640e8391d6d022b595a3b53124bbcbd985c76
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 12:40:39 2020 -0500
 
-    go/types: consolidate verification logic
+    [dev.regabi] test: add exhaustive test of evaluated but not used
     
-    This is a straightforward port of CL 342149 to go/types.
-    
-    Change-Id: I468c5154b7545b7816bb3f240b8db91e7a1fd3f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342488
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I49db03c88b7595f1ea593df568244ad6aad3b024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275443
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/instantiate.go | 49 +++++++++++++++++++++++----------------------
- src/go/types/typexpr.go     |  2 +-
- 2 files changed, 26 insertions(+), 25 deletions(-)
+ test/used.go | 142 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 142 insertions(+)

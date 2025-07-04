@@ -1,14 +1,44 @@
-commit 83ae9b07b8a99e21a1a2d7a19b253ae01cb84f06
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Aug 23 07:48:04 2017 -0700
+commit 9459c03b29937d236a8b61e452cb02d01c7b8559
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Tue Apr 18 18:20:56 2017 -0300
 
-    runtime: convert more unsafe.Pointer arithmetic to add
+    math/big: improve performance for addVV/subVV for ppc64x
     
-    Change-Id: Icfe24d5660666093f3e645f82d30b7687c8077be
-    Reviewed-on: https://go-review.googlesource.com/58370
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    This change adds a better asm implementation of addVV for ppc64x, with speedups
+    up to nearly 3x in the best cases.
+    
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkAddVV/1-8          7.33          5.81          -20.74%
+    BenchmarkAddVV/2-8          8.72          6.49          -25.57%
+    BenchmarkAddVV/3-8          10.5          7.08          -32.57%
+    BenchmarkAddVV/4-8          12.7          7.57          -40.39%
+    BenchmarkAddVV/5-8          14.3          8.06          -43.64%
+    BenchmarkAddVV/10-8         27.6          11.1          -59.78%
+    BenchmarkAddVV/100-8        218           82.4          -62.20%
+    BenchmarkAddVV/1000-8       2064          718           -65.21%
+    BenchmarkAddVV/10000-8      20536         7153          -65.17%
+    BenchmarkAddVV/100000-8     211004        72403         -65.69%
+    
+    benchmark                   old MB/s     new MB/s     speedup
+    BenchmarkAddVV/1-8          8729.74      11006.26     1.26x
+    BenchmarkAddVV/2-8          14683.65     19707.55     1.34x
+    BenchmarkAddVV/3-8          18226.96     27103.63     1.49x
+    BenchmarkAddVV/4-8          20204.50     33805.81     1.67x
+    BenchmarkAddVV/5-8          22348.64     39694.06     1.78x
+    BenchmarkAddVV/10-8         23212.74     57631.08     2.48x
+    BenchmarkAddVV/100-8        29300.07     77629.53     2.65x
+    BenchmarkAddVV/1000-8       31000.56     89094.54     2.87x
+    BenchmarkAddVV/10000-8      31163.61     89469.16     2.87x
+    BenchmarkAddVV/100000-8     30331.16     88393.73     2.91x
+    
+    It also adds the use of CTR for the loop counter in subVV, instead of
+    manually updating the loop counter. This is slightly faster.
+    
+    Change-Id: Ic4b05cad384fd057972d46a5618ed5c3039d7460
+    Reviewed-on: https://go-review.googlesource.com/41010
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/runtime/hashmap_fast.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/math/big/arith_ppc64x.s | 49 ++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 37 insertions(+), 12 deletions(-)

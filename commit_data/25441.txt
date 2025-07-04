@@ -1,17 +1,25 @@
-commit e24b2445b4d3fc77034b6ad42c8258d41a4133d1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 4 16:19:38 2016 -0800
+commit c9b8cab16c457fec7cf897c2d37a266e60f99a25
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 30 10:13:13 2015 +1300
 
-    os/signal: Stop restores original signal handling
+    cmd/internal/obj, cmd/link, runtime: handle TLS more like a platform linker on ppc64
     
-    Since Stop was introduced, it would revert to the system default for the
-    signal, rather than to the default Go behavior.  Change it to revert to
-    the default Go behavior.
+    On ppc64x, the thread pointer, held in R13, points 0x7000 bytes past where
+    thread-local storage begins (presumably to maximize the amount of storage that
+    can be accessed with a 16-bit signed displacement). The relocations used to
+    indicate thread-local storage to the platform linker account for this, so to be
+    able to support external linking we need to change things so the linker applies
+    this offset instead of the runtime assembly.
     
-    Change-Id: I345467ece0e49e31b2806d6fce2f1937b17905a6
-    Reviewed-on: https://go-review.googlesource.com/18229
+    Change-Id: I2556c249ab2d802cae62c44b2b4c5b44787d7059
+    Reviewed-on: https://go-review.googlesource.com/14233
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/signal/signal_test.go |  3 ++-
- src/runtime/signal1_unix.go  | 55 ++++++++++++++++++++++++++++----------------
- 2 files changed, 37 insertions(+), 21 deletions(-)
+ src/cmd/internal/obj/link.go          |  8 ++++++++
+ src/cmd/internal/obj/ppc64/a.out.go   |  1 +
+ src/cmd/internal/obj/ppc64/anames9.go |  1 +
+ src/cmd/internal/obj/ppc64/asm9.go    | 16 ++++++++++++++++
+ src/cmd/link/internal/ppc64/asm.go    | 12 ++++++++++++
+ src/runtime/tls_ppc64x.s              | 15 ++-------------
+ 6 files changed, 40 insertions(+), 13 deletions(-)

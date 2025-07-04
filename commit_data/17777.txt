@@ -1,12 +1,12 @@
-commit b6c0c4228d62406fbe24c4357410813715fdb75d
-Author: Francesc Campoy <campoy@golang.org>
-Date:   Thu Oct 10 17:16:17 2013 -0700
+commit 950c284b110edf7ccd53d6254c9b1640e325a6f8
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Thu Oct 10 16:49:19 2013 -0400
 
-    lib/codereview: return an empty list when CONTRIBUTORS is not found instead of None.
+    misc/emacs: send correct content-length to the playground
     
-    R=adg, campoy, r
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/14419059
+    https://golang.org/cl/14548049
 
- lib/codereview/codereview.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/emacs/go-mode.el | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

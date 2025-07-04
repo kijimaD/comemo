@@ -1,17 +1,48 @@
-commit 836356bdaad92d525d65ce01e08305dfbeb7c1e6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 5 16:06:18 2021 -0700
+commit fd75989f46c80d2446dd9dcefaffbebdb7f7ea87
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 17 16:24:29 2020 -0400
 
-    cmd/compile/internal/types2: process errors in src order during testing
+    cmd/go/internal/modget: consolidate Load entrypoints
     
-    Follow-up on https://golang.org/cl/305573.
-    As a consequence, re-enable test case that caused problems with that CL.
+    This change replaces ImportPaths, ImportPathsQuiet, LoadALL, and
+    LoadVendor with a single LoadPackages function, with a LoadOpts struct
+    that more clearly documents the variations in behavior.
     
-    Change-Id: Ibffee3f016f4885a55b8e527a5680dd437322209
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307216
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    It also eliminates the cmd/go/internal/load.ImportPaths function,
+    which was undocumented and had only one call site (within its own
+    package).
+    
+    The modload.LoadTests global variable is subsumed by a field in the
+    new LoadOpts struct, and is no longer needed for callers that invoke
+    LoadPackages directly. It has been (temporarily) replaced with a
+    similar global variable, load.ModResolveTests, which can itself be
+    converted to an explicit, local argument.
+    
+    For #37438
+    For #36460
+    Updates #40775
+    Fixes #26977
+    
+    Change-Id: I4fb6086c01b04de829d98875db19cf0118d40f8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255938
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/types2/check_test.go            | 14 ++++++++++----
- src/cmd/compile/internal/types2/fixedbugs/issue39634.go2 |  3 +--
- 2 files changed, 11 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/list/list.go         |   2 +-
+ src/cmd/go/internal/load/pkg.go          |  36 ++++--
+ src/cmd/go/internal/modcmd/tidy.go       |   9 +-
+ src/cmd/go/internal/modcmd/vendor.go     |   8 +-
+ src/cmd/go/internal/modcmd/why.go        |  23 ++--
+ src/cmd/go/internal/modget/get.go        |  15 ++-
+ src/cmd/go/internal/modload/build.go     |  10 +-
+ src/cmd/go/internal/modload/buildlist.go |  14 +--
+ src/cmd/go/internal/modload/init.go      |  13 +--
+ src/cmd/go/internal/modload/load.go      | 191 ++++++++++++++++---------------
+ src/cmd/go/internal/test/test.go         |   3 +-
+ src/cmd/go/internal/vet/vet.go           |   3 +-
+ src/cmd/go/testdata/script/mod_why.txt   |  14 ++-
+ 13 files changed, 199 insertions(+), 142 deletions(-)

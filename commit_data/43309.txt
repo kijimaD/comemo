@@ -1,32 +1,34 @@
-commit cced777026e1fc094ed21d99ae1efa4cf19146d2
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 21 21:24:00 2020 -0700
+commit 16cfab8d89ec26a71356c73378ab92eafa6a7356
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Tue Nov 26 15:33:37 2019 -0500
 
-    cmd/compile: set n.Name.Defn for inlined parameters
+    cmd/compile: use load and test instructions on s390x
     
-    Normally, when variables are declared and initialized using ":=", we
-    set the variable's n.Name.Defn to point to the initialization
-    assignment node (i.e., OAS or OAS2). Further, some frontend
-    optimizations look for variables that are initialized but never
-    reassigned.
+    The load and test instructions compare the given value
+    against zero and will produce a condition code indicating
+    one of the following scenarios:
     
-    However, when inl.go inlines calls, it was declaring the inlined
-    variables, and then separately assigning to them. This CL changes
-    inl.go tweaks the AST to fit the combined declaration+initialization
-    pattern.
+    0: Result is zero
+    1: Result is less than zero
+    2: Result is greater than zero
+    3: Result is not a number (NaN)
     
-    This isn't terribly useful by itself, but it allows further followup
-    optimizations.
+    The instruction can be used to simplify floating point comparisons
+    against zero, which can enable further optimizations.
     
-    Updates #41474.
+    This CL also reduces the size of .text section of math.test binary by around
+    0.7 KB (in hexadecimal, from 1358f0 to 135620).
     
-    Change-Id: I62a9752c60414305679e0ed15a6563baa0224efa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256457
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I33cb714f0c6feebac7a1c46dfcc735e7daceff9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209159
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/inl.go             | 74 +++++++++++---------------
- src/cmd/compile/internal/logopt/logopt_test.go |  2 +-
- 2 files changed, 33 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/s390x/ssa.go        |  2 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  6 ++
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  7 ++-
+ src/cmd/compile/internal/ssa/opGen.go        | 22 ++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 84 ++++++++++++++++++++++++++++
+ test/codegen/floats.go                       | 10 ++++
+ 6 files changed, 129 insertions(+), 2 deletions(-)

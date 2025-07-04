@@ -1,22 +1,17 @@
-commit 2f588ff08f0330864b2e8d16e850c51642d9c5ca
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Nov 29 11:58:03 2017 -0800
+commit a9216a0ade61ae3c3a45f9cd358a8a38c5d241a5
+Author: Johnny Luo <johnnyluo1980@gmail.com>
+Date:   Sun Jul 16 10:39:11 2017 +1000
 
-    cmd/compile: make -asmhdr work with type aliases
+    net/url: make Parse+String round trip magnet URLs
     
-    For "type T = U" we were accidentally emitting a #define for "U__size"
-    instead of "T__size".
+    Fixes #20054
     
-    Fixes #22877.
-    
-    Change-Id: I5ed6757d697753ed6d944077c16150759f6e1285
-    Reviewed-on: https://go-review.googlesource.com/80759
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3c660ca0c56cdde2c2ac2f6a666d8531ab5588c5
+    Reviewed-on: https://go-review.googlesource.com/49050
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/gc/export.go |  8 ++++----
- test/fixedbugs/issue22877.dir/p.go    | 14 ++++++++++++++
- test/fixedbugs/issue22877.dir/p.s     |  8 ++++++++
- test/fixedbugs/issue22877.go          |  7 +++++++
- test/run.go                           |  3 +++
- 5 files changed, 36 insertions(+), 4 deletions(-)
+ src/net/url/url.go      |  4 +++-
+ src/net/url/url_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

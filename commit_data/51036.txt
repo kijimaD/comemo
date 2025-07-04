@@ -1,32 +1,37 @@
-commit e943dc5a8ccab90286d3882e5d13e9fa9516f243
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Mon Oct 31 17:18:32 2022 +0000
+commit 2f6d3820501b34ce530be8193789659c18db0867
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 24 16:48:00 2021 -0800
 
-    net/http: deflake TestCancelRequestWhenSharingConnection
+    go/types: report types for mismatched call and return statements
     
-    The test sleeps for 1 millisecond to give the cancellation a moment
-    to take effect. This is flaky because the request can finish before
-    the cancellation of the context is seen. It's easy to verify by adding
+    This is a port of CL 364874 from types2 to go/types with various
+    adjustments:
     
-        time.Sleep(2*time.Millisecond)
+    - the error position for "not enough arguments" in calls is the
+      closing ) rather than the position of the last provided argument
     
-    after https://github.com/golang/go/blob/0a6c4c87404ecb018faf002919e5d5db04c69ee2/src/net/http/transport.go#L2619.
-    With this modification, the test fails about 5 times out of 10 runs.
+    - the ERROR comments in tests are positioned accordingly
     
-    The fix is easy. We just need to block the handler of the second
-    request until this request is cancelled. I have verify that the
-    updated test can uncover the issue fixed by CL 257818.
+    - the reg. expression for matching error strings accepts newlines
+      for the . pattern (added s flag)
     
-    Fixes #55226.
+    For #48834.
+    For #48835.
     
-    Change-Id: I81575beef1a920a2ffaa5c6a5ca70a4008bd5f94
-    GitHub-Last-Rev: 99cb1c2eaed7839394adbb6bbcd4950cd4bfb6f3
-    GitHub-Pull-Request: golang/go#56500
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446676
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I64362ecf605bcf9d89b8dc121432e0131bd5da1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367196
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/http/transport_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/go/types/assignments.go             | 82 +++++++++++++++++++++++++++++----
+ src/go/types/call.go                    | 25 +++++++---
+ src/go/types/check_test.go              |  2 +-
+ src/go/types/decl.go                    |  2 +-
+ src/go/types/stmt.go                    |  2 +-
+ src/go/types/testdata/check/errors.src  | 28 ++++++-----
+ src/go/types/testdata/check/expr3.src   | 12 ++---
+ src/go/types/testdata/check/stmt0.src   | 14 +++---
+ src/go/types/testdata/check/vardecl.src |  2 +-
+ 9 files changed, 126 insertions(+), 43 deletions(-)

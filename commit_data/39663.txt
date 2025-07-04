@@ -1,26 +1,45 @@
-commit 0a778cf57d4b95a532a9f32e8b409ece051ca3cb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 27 14:18:48 2019 -0400
+commit 4b4f222a0dd8765e5b493d458fa352ea22045575
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Thu Dec 6 08:53:29 2018 -0500
 
-    cmd/go/internal/get: remove '--' separator from 'git ls-remote' command
+    bytes, strings: speed up TrimSpace 4-5x for common ASCII cases
     
-    'git ls-remote' started recognizing the '--' separator at some point
-    after 2.7.4, but git defaults to version 2.7.4 on Ubuntu 16.04 LTS,
-    which remains supported by Ubuntu until April 2021.
+    This change adds a fast path for ASCII strings to both
+    strings.TrimSpace and bytes.TrimSpace. It doesn't slow down the
+    non-ASCII path much, if at all.
     
-    We added '--' tokens to most VCS commands as a defensive measure in
-    CL 181237, but it isn't strictly necessary here because the 'scheme'
-    argument to our template is chosen from a predefined list: we can
-    safely drop it to retain compatibility.
+    I added benchmarks for strings.TrimSpace as it didn't have any, and
+    I fleshed out the benchmarks for bytes.TrimSpace as it just had one
+    case (for ASCII). The benchmarks (and the code!) are now the same
+    between the two versions. Below are the benchmark results:
     
-    Fixes #33836
-    Updates #26746
+    strings.TrimSpace:
     
-    Change-Id: Ibb53366b95f8029b587e0b7646a439330d759ac7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191978
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    name                      old time/op  new time/op  delta
+    TrimSpace/NoTrim-8        18.6ns ± 0%   3.8ns ± 0%  -79.53%  (p=0.000 n=5+4)
+    TrimSpace/ASCII-8         33.5ns ± 2%   6.0ns ± 3%  -82.05%  (p=0.008 n=5+5)
+    TrimSpace/SomeNonASCII-8  97.1ns ± 1%  88.6ns ± 1%   -8.68%  (p=0.008 n=5+5)
+    TrimSpace/JustNonASCII-8   144ns ± 0%   143ns ± 0%     ~     (p=0.079 n=4+5)
+    
+    bytes.TrimSpace:
+    
+    name                      old time/op  new time/op  delta
+    TrimSpace/NoTrim-8        18.9ns ± 1%   4.1ns ± 1%  -78.34%  (p=0.008 n=5+5)
+    TrimSpace/ASCII-8         29.9ns ± 0%   6.3ns ± 1%  -79.06%  (p=0.008 n=5+5)
+    TrimSpace/SomeNonASCII-8  91.5ns ± 0%  82.3ns ± 0%  -10.03%  (p=0.008 n=5+5)
+    TrimSpace/JustNonASCII-8   150ns ± 0%   150ns ± 0%     ~     (all equal)
+    
+    Fixes #29122
+    
+    Change-Id: Ica45cd86a219cadf60173ec9db260133cd1d7951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/152917
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/get/vcs.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/bytes/bytes.go          | 31 ++++++++++++++++++++++++++++++-
+ src/bytes/bytes_test.go     | 18 +++++++++++++++---
+ src/strings/strings.go      | 31 ++++++++++++++++++++++++++++++-
+ src/strings/strings_test.go | 16 ++++++++++++++++
+ 4 files changed, 91 insertions(+), 5 deletions(-)

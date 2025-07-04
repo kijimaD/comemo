@@ -1,23 +1,14 @@
-commit be10c515003c22b8b4f0d98d1085687efbcf6955
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Mar 24 08:39:54 2016 +0100
+commit 1023d63f7f0ee31f5810e3e5598227c85442a1e2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 27 09:23:48 2016 -0800
 
-    runtime/cgo: block signals to the iOS mach exception handler
+    unsafe: clarify wording in recent Alignof changes
     
-    For darwin/arm{,64} a non-Go thread is created to convert
-    EXC_BAD_ACCESS to panics. However, the Go signal handler refuse to
-    handle signals that would otherwise be ignored if they arrive at
-    non-Go threads.
-    
-    Block all (posix) signals to that thread, making sure that
-    no unexpected signals arrive to it. At least one test, TestStop in
-    os/signal, depends on signals not arriving on any non-Go threads.
-    
-    For #14318
-    
-    Change-Id: I901467fb53bdadb0d03b0f1a537116c7f4754423
-    Reviewed-on: https://go-review.googlesource.com/21047
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I595379d2f02b0a43735f0375758e4997ce3b64a7
+    Reviewed-on: https://go-review.googlesource.com/18986
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgo/gcc_signal_darwin_armx.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/unsafe/unsafe.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

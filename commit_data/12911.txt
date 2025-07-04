@@ -1,14 +1,23 @@
-commit e03dd509d48f854b90d3e0537d672f6786490195
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Thu Apr 19 11:04:42 2012 +1000
+commit 5694ebf057889444e8bbe97741004c4ecdcb7785
+Author: Colby Ranger <cranger@google.com>
+Date:   Wed Apr 18 11:33:02 2012 -0700
 
-    doc/articles/image_draw.html: Change ColorImage to Uniform
+    net/http/httputil: Clean up ReverseProxy maxLatencyWriter goroutines.
     
-    Fixes #3474.
+    When FlushInterval is specified on ReverseProxy, the ResponseWriter is
+    wrapped with a maxLatencyWriter that periodically flushes in a
+    goroutine. That goroutine was not being cleaned up at the end of the
+    request. This resulted in a panic when Flush() was being called on a
+    ResponseWriter that was closed.
     
-    R=nigeltao
+    The code was updated to always send the done message to the flushLoop()
+    goroutine after copying the body. Futhermore, the code was refactored to
+    allow the test to verify the maxLatencyWriter behavior.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6048050
+    https://golang.org/cl/6033043
 
- doc/articles/image_draw.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/httputil/reverseproxy.go      | 48 ++++++++++++---------
+ src/pkg/net/http/httputil/reverseproxy_test.go | 58 ++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 19 deletions(-)

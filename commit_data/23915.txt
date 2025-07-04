@@ -1,19 +1,34 @@
-commit 80e6d638bf309181eadcb3fecbe99d2d8518e364
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 30 14:05:04 2015 +0000
+commit 9a3112bcaeaa4ff81803c1e5dd9ca6932c14f2c1
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 22 11:18:23 2015 -0400
 
-    encoding/json: revert "fix decoding of JSON null values"
+    runtime: one more Map{Bits,Spans} before arena_used update
     
-    Fixes #11912.
-    Fixes #11937.
+    In order to avoid a race with a concurrent write barrier or garbage
+    collector thread, any update to arena_used must be preceded by mapping
+    the corresponding heap bitmap and spans array memory. Otherwise, the
+    concurrent access may observe that a pointer falls within the heap
+    arena, but then attempt to access unmapped memory to look up its span
+    or heap bits.
     
-    This reverts commit 1a99ba55df902a2657d1ccfc52a60024c22dba98.
+    Commit d57c889 fixed all of the places where we updated arena_used
+    immediately before mapping the heap bitmap and spans, but it missed
+    the one place where we update arena_used and depend on later code to
+    update it again and map the bitmap and spans. This creates a window
+    where the original race can still happen. This commit fixes this by
+    mapping the heap bitmap and spans before this arena_used update as
+    well. This code path is only taken when expanding the heap reservation
+    on 32-bit over a hole in the address space, so these extra mmap calls
+    should have negligible impact.
     
-    Change-Id: I32b76053fdabc59f28ca5bedf1b15c0baa8afae1
-    Reviewed-on: https://go-review.googlesource.com/12893
-    Reviewed-by: Didier Spezia <didier.06@gmail.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #10212, #11324.
+    
+    Change-Id: Id67795e6c7563eb551873bc401e5cc997aaa2bd8
+    Reviewed-on: https://go-review.googlesource.com/11340
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/encoding/json/decode.go      |  2 +-
- src/encoding/json/decode_test.go | 76 +---------------------------------------
- 2 files changed, 2 insertions(+), 76 deletions(-)
+ src/runtime/malloc.go | 5 ++++-
+ src/runtime/mheap.go  | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

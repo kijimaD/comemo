@@ -1,21 +1,27 @@
-commit 5ec2427357f4917d0aad40cffddeea73e580129e
-Author: Michael Knyszek <mknyszek@google.com>
-Date:   Fri Oct 1 15:07:45 2021 -0400
+commit ff614b13d90961f55b1058bd798c6d4e92d3939c
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Feb 25 01:29:58 2021 +0100
 
-    runtime: pass nanotime and gomaxprocs into startCycle and endCycle explicitly
+    runtime: subtract one from ip when determining abort
     
-    This is to facilitate testing of the pacer, since otherwise this is
-    accessing global state, which is impossible to stub out properly.
+    On windows/arm, the abort is given from one byte off of the function
+    address, perhaps because Windows wants to simulate x86/amd64 modes, or
+    because it's jumping from thumb mode. This is not the case with
+    windows/arm64, though.
     
-    For #44167.
+    This prevents a failure in the builders with the TestAbort test:
     
-    Change-Id: I52c3b51fc0ffff38e3bbe534bd66e5761c0003a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353353
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+        crash_test.go:727: output contains BAD:
+            panic: runtime error: invalid memory address or nil pointer dereference [recovered]
+                    panic: BAD: recovered from abort
+            [signal 0xc0000005 code=0x0 addr=0x0 pc=0x6a5721]
+    
+    Change-Id: I8939c60611863cc0c325e179a772601acea9fd4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296153
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/mgc.go      |  4 ++--
- src/runtime/mgcpacer.go | 14 +++++++-------
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ src/runtime/signal_windows.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

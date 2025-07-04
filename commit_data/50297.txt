@@ -1,13 +1,16 @@
-commit 9154d4a2a4952e35cb091fc254c9f5f1d3f0d409
-Author: Julie Qiu <julie@golang.org>
-Date:   Fri Sep 2 15:38:45 2022 -0400
+commit 81484cf6263461057251bbda825f2c3dc4cdcd09
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 14 21:08:11 2021 -0700
 
-    .github: add quotations around label
+    doc: document new reflect.SetIter{Key,Value} functions
     
-    Change-Id: I69eaf470ba2c241a99e3693a0a93d9b24c78a2af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427959
-    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Update #48294
+    Update #47694
+    
+    Change-Id: I4d4c01be74a9736d89a4ec92318ce29ff7289a0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356050
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
 
- .github/ISSUE_TEMPLATE/04-vuln.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.18.html | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

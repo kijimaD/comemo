@@ -1,21 +1,36 @@
-commit ce536837d8e53f1bf0c7ef450d4580d19f7d6f52
-Author: Johan Brandhorst <johan.brandhorst@gmail.com>
-Date:   Fri Aug 24 12:10:01 2018 +0100
+commit c5ed10f3bed104448b8c8f924e63a6d818c1ecb2
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 26 21:43:19 2018 -0400
 
-    net/http: ensure null body in Fetch response is not read
+    runtime: support for debugger function calls
     
-    The Fetch API returns a null body if there is no response body,
-    on browsers that support streaming the response body. This
-    change ensures we check for both undefined and null bodies
-    before attempting to read the body.
+    This adds a mechanism for debuggers to safely inject calls to Go
+    functions on amd64. Debuggers must participate in a protocol with the
+    runtime, and need to know how to lay out a call frame, but the runtime
+    support takes care of the details of handling live pointers in
+    registers, stack growth, and detecting the trickier conditions when it
+    is unsafe to inject a user function call.
     
-    Fixes #27196
+    Fixes #21678.
+    Updates derekparker/delve#119.
     
-    Change-Id: I0da86b61284fe394418b4b431495e715a037f335
-    Reviewed-on: https://go-review.googlesource.com/131236
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Change-Id: I56d8ca67700f1f77e19d89e7fc92ab337b228834
+    Reviewed-on: https://go-review.googlesource.com/109699
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/roundtrip_js.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/internal/objabi/funcid.go |   1 +
+ src/cmd/link/internal/ld/pcln.go  |   2 +
+ src/runtime/asm_amd64.s           | 197 +++++++++++++++++++++++++++++++++++++
+ src/runtime/debug_test.go         | 200 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/debugcall.go          |  94 ++++++++++++++++++
+ src/runtime/defs_nacl_386.go      |   1 +
+ src/runtime/defs_nacl_amd64p32.go |   1 +
+ src/runtime/defs_nacl_arm.go      |   1 +
+ src/runtime/export_debug_test.go  | 166 +++++++++++++++++++++++++++++++
+ src/runtime/export_test.go        |   4 +
+ src/runtime/signal_sighandler.go  |   9 ++
+ src/runtime/stack.go              |  36 +++++--
+ src/runtime/symtab.go             |   1 +
+ 13 files changed, 706 insertions(+), 7 deletions(-)

@@ -1,34 +1,24 @@
-commit b4712ab055a582186c40afb4ffe8c9854b9e6032
-Author: Vasily Leonenko <vasiliy.leonenko@gmail.com>
-Date:   Wed Sep 25 23:01:21 2024 +0300
+commit 09b03117b056c9d84c018f55910ffccc29976e4b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 23:23:40 2023 -0700
 
-    runtime: memclrNoHeapPointers optimization for block alignment
+    cmd/compile/internal/ir: remove Ntype
     
-    goos: linux
-    goarch: arm64
-    pkg: runtime
-                   │  base.log   │               opt.log               │
-                   │   sec/op    │   sec/op     vs base                │
-    Memclr/5-4       3.378n ± 2%   3.376n ± 2%        ~ (p=0.128 n=10)
-    Memclr/16-4      2.749n ± 1%   2.776n ± 2%   +1.00% (p=0.001 n=10)
-    Memclr/64-4      4.588n ± 2%   4.184n ± 2%   -8.78% (p=0.000 n=10)
-    Memclr/256-4     8.758n ± 0%   7.103n ± 0%  -18.90% (p=0.000 n=10)
-    Memclr/4096-4    58.80n ± 0%   57.43n ± 0%   -2.33% (p=0.000 n=10)
-    Memclr/65536-4   868.7n ± 1%   861.7n ± 1%   -0.80% (p=0.004 n=10)
-    Memclr/1M-4      23.08µ ± 6%   23.55µ ± 6%        ~ (p=0.739 n=10)
-    Memclr/4M-4      219.6µ ± 3%   216.1µ ± 2%        ~ (p=0.123 n=10)
-    Memclr/8M-4      586.1µ ± 1%   586.4µ ± 2%        ~ (p=0.853 n=10)
-    Memclr/16M-4     1.312m ± 0%   1.311m ± 1%        ~ (p=0.481 n=10)
-    Memclr/64M-4     5.332m ± 1%   5.681m ± 0%   +6.55% (p=0.000 n=10)
-    geomean          1.723µ        1.683µ        -2.31%
+    This type used to provide extra type safety around which syntactic
+    nodes could also represent types, but now the only remaining use is
+    ir.TypeNode, and it always ends up as an ir.Node anyway. So we might
+    as well use Node instead.
     
-    Change-Id: Icad625065fb1f30b2a4094f3f1e58b4e9b3d841e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616137
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ia0842864794365b0e155dc5af154c673ffa2967b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520609
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/memclr_arm64.s | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/ir/mknode.go    |  4 ++--
+ src/cmd/compile/internal/ir/node_gen.go  | 24 ------------------------
+ src/cmd/compile/internal/ir/type.go      | 19 +++----------------
+ src/cmd/compile/internal/noder/reader.go |  5 +----
+ 4 files changed, 6 insertions(+), 46 deletions(-)

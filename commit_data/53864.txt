@@ -1,34 +1,17 @@
-commit ed8cbaf6ac58120c7171dadaaa091f031712c6d2
-Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
-Date:   Wed Jul 12 14:47:31 2023 +0200
+commit a8237ba61a6014060c5b28b19f7d084000f06fb2
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 07:06:19 2022 +0800
 
-    cmd/asm: add s390x crypto related instructions
+    go/ast: using strings.Builder
     
-    This CL add's the following instructions,useful for cipher and
-    message digest operations:
-    
-     * KM   - cipher message
-     * KMC  - cipher message with chaining
-     * KLMD - compute last message digest
-     * KIMD - compute intermediate message digest
-    
-    Fixes #61163
-    
-    Change-Id: Ib0636430c3e4888ed61b86c5acae45ee596463ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/509075
+    Change-Id: I05ebaf4e11b5b6ca7d9bbb0b2241def7773b11cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428138
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
 
- src/cmd/asm/internal/asm/testdata/s390x.s |  5 ++++
- src/cmd/internal/obj/s390x/a.out.go       |  6 +++++
- src/cmd/internal/obj/s390x/anames.go      |  4 +++
- src/cmd/internal/obj/s390x/asmz.go        | 45 +++++++++++++++++++++++++++++++
- src/crypto/aes/asm_s390x.s                |  6 ++---
- src/crypto/sha1/sha1block_s390x.s         |  2 +-
- src/crypto/sha256/sha256block_s390x.s     |  2 +-
- src/crypto/sha512/sha512block_s390x.s     |  2 +-
- src/internal/cpu/cpu_s390x.s              |  8 +++---
- 9 files changed, 70 insertions(+), 10 deletions(-)
+ src/go/ast/commentmap.go | 3 ++-
+ src/go/ast/scope.go      | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

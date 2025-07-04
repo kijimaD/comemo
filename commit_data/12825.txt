@@ -1,20 +1,13 @@
-commit 7a33265ccdf37b7f15125f7e561e4da3a0e0ad9d
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 4 06:54:39 2012 +1000
+commit 49397fe14557af2fc9e5becf03b543009a5b73a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 3 13:38:57 2012 -0700
 
-    time.RFC822: make the string standard-compliant
-    For mysterious reasons, the existing string was just wrong: it was missing a colon.
-    There is no apparent reason for this discrepancy.
+    A+C: add Michael Lewis (Individual CLA)
     
-    This should be safe to fix because existing uses would not be RFC822-compliant;
-    people cannot be depending on it to generate correct mail headers.
-    
-    Fixes #3444.
-    
-    R=golang-dev, dsymonds, iant, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5969072
+    https://golang.org/cl/5970077
 
- src/pkg/time/format.go    | 4 ++--
- src/pkg/time/time_test.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

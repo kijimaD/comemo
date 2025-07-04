@@ -1,22 +1,19 @@
-commit 7f9e443d9c663d41b193fa9e1f3368335b999eff
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Aug 19 13:34:33 2015 +1200
+commit 173fa1d8093409eb6a409f4e3196c7d334c10c48
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jul 5 10:43:34 2015 +1000
 
-    cmd/link: call moduledata symbols "local.moduledata" if they are created by the linker
+    cmd/go: delete references to old tools (5a etc.) from cmd/go docs
     
-    This was always a bit confusing, but it also fixes a problem: runtime.firstmoduledata
-    was always overridden in the linker to be a local symbol but cmd/internal/obj had
-    already rewritten code accessing it to access it via the GOT. This works on amd64, but
-    causes link failures on other platforms (e.g. arm64).
+    Don't talk about commands that no longer exist.
     
-    Change-Id: I9b8153af74b4d0f092211d63a000d15818f39773
-    Reviewed-on: https://go-review.googlesource.com/13786
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    There are still references throughout the tree, mostly in comments,
+    but they provide a charming historical backdrop for the idle tourist.
+    
+    Change-Id: I637ebdce05bbc7df5addcc46cb772d2bb9f3e073
+    Reviewed-on: https://go-review.googlesource.com/11885
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/amd64/asm.go |  2 +-
- src/cmd/link/internal/ld/lib.go    | 18 ++++++++++++++
- src/cmd/link/internal/ld/link.go   | 51 +++++++++++++++++++-------------------
- src/cmd/link/internal/ld/symtab.go |  6 +----
- 4 files changed, 46 insertions(+), 31 deletions(-)
+ src/cmd/go/alldocs.go | 18 ++++++++----------
+ src/cmd/go/build.go   |  6 +++---
+ src/cmd/go/help.go    | 12 +++++-------
+ 3 files changed, 16 insertions(+), 20 deletions(-)

@@ -1,13 +1,17 @@
-commit 0cfa0fe2421accf8887a444fd76a6a1d0393796f
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Aug 31 06:44:55 2011 -0300
+commit 95429d82f1f54c5e33d91fe57a6c9dd8faebb89e
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Wed Aug 31 15:39:50 2011 +1000
 
-    cgo: note that CString result must be freed
+    exp/wingui: made compatible with windows/amd64
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/4968054
+    R=golang-dev, alex.brainman
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/4974041
 
- src/cmd/cgo/doc.go         | 2 +-
- src/pkg/runtime/cgo/util.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/wingui/gui.go                 | 11 ++++----
+ src/pkg/exp/wingui/winapi.go              | 45 ++++++++++++++++---------------
+ src/pkg/exp/wingui/zwinapi.go             | 38 +++++++++++++-------------
+ src/pkg/syscall/syscall_windows.go        |  2 +-
+ src/pkg/syscall/zsyscall_windows_386.go   |  5 ++--
+ src/pkg/syscall/zsyscall_windows_amd64.go |  5 ++--
+ 6 files changed, 52 insertions(+), 54 deletions(-)

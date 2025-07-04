@@ -1,31 +1,34 @@
-commit eed309f5fb223a879630e9dced8c44c2b049cf71
-Author: Austin Clements <austin@google.com>
-Date:   Thu Sep 29 11:53:42 2016 -0400
+commit f55317828b65dc35bec511e9225d9a5761a12cac
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jun 27 16:54:57 2016 -0400
 
-    cmd/trace: move process-wide GC events to their own row
+    [dev.ssa] cmd/compile: ensure alignment for Zero and Move in SSA for ARM
     
-    Currently, the process-wide GC state is attributed to the P that
-    happened to perform the allocation that exceeded the GC trigger. This
-    is pretty arbitrary and makes it hard to see when GC is running since
-    the GC spans are intermingled with a lot of other trace noise.
+    Encode the size and the alignment into AuxInt of Zero and Move ops.
+    On AMD64, we simply don't look at the alignment. On ARM and PPC64, we
+    only generate aligned stores.
     
-    The current display is particularly confusing because it creates three
-    sub-rows in the P row that can overlap each other. Usually a P has
-    just two sub-rows: one showing the current G and another showing that
-    G's activity. However, because GC is attributed to a proc, it winds up
-    as a third row that neither subsumes nor is subsumed by any other row.
-    This in turn screws up the trace's layout and results in overlapping
-    events.
+    Updates #15365.
     
-    Fix these problems by creating a new dedicated row like the existing
-    "Network" and "Timer" rows and displaying process-wide GC events in
-    this row. Mark termination and sweep events still appear in their
-    respective P rows because these are meaningfully attributed.
-    
-    Change-Id: Ie1a1c6cf8c446e4b043f10f3968f91ff1b546d15
-    Reviewed-on: https://go-review.googlesource.com/30017
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ifdcc205c364f67c4516b9adebfe7d50d223b6863
+    Reviewed-on: https://go-review.googlesource.com/24511
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/trace/trace.go       | 3 +++
- src/internal/trace/parser.go | 3 +++
- 2 files changed, 6 insertions(+)
+ src/cmd/compile/internal/arm/ssa.go            |  32 +-
+ src/cmd/compile/internal/gc/ssa.go             |  15 +-
+ src/cmd/compile/internal/ssa/deadstore.go      |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  95 +++---
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |  96 ++++--
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |  45 ++-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  53 ++--
+ src/cmd/compile/internal/ssa/gen/generic.rules |   6 +-
+ src/cmd/compile/internal/ssa/op.go             |  28 ++
+ src/cmd/compile/internal/ssa/opGen.go          |  26 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 360 +++++++++++----------
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 424 +++++++++++++++++++------
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 223 +++++++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go |   8 +-
+ 14 files changed, 957 insertions(+), 456 deletions(-)

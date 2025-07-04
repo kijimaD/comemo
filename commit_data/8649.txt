@@ -1,12 +1,14 @@
-commit 29e4775cd5093fd34e0cb8080dfdcd129d3d0d9d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 7 13:17:34 2011 -0700
+commit a8fd3741874bb3c4a2bda6760d95239e63af8b94
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 7 16:06:36 2011 -0400
 
-    exec: export the underlying *os.Process in Cmd
+    net: fix bug in net.Interfaces: handle elastic sdl_data size correctly
     
-    R=rsc
+    Fixes #1921.
+    
+    R=golang-dev, jeff
     CC=golang-dev
-    https://golang.org/cl/4579044
+    https://golang.org/cl/4535120
 
- src/pkg/exec/exec.go | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+ src/pkg/net/interface_bsd.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

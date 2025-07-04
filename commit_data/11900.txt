@@ -1,18 +1,15 @@
-commit 9f8c2c8bbfacf6eb320361ba93aef2f70c7b1f4f
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Feb 14 14:22:34 2012 -0500
+commit 33f7596f8d13a8114275b2ec3aa31791857f7554
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 13:07:14 2012 -0500
 
-    os: rename SyscallError.Errno to SyscallError.Err
+    syscall: linux Tgkill takes a Signal too
     
-    This lets us get rid of the OS-dependent implementations
-    of SyscallError.  The name "Err" was chosen to match the
-    PathError type.
-    
-    R=golang-dev, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5651084
+    https://golang.org/cl/5649089
 
- src/pkg/os/error.go       | 18 ++++++++++++++++++
- src/pkg/os/error_plan9.go | 18 ------------------
- src/pkg/os/error_posix.go | 20 +-------------------
- 3 files changed, 19 insertions(+), 37 deletions(-)
+ src/pkg/syscall/syscall_linux.go        | 2 +-
+ src/pkg/syscall/zsyscall_linux_386.go   | 2 +-
+ src/pkg/syscall/zsyscall_linux_amd64.go | 2 +-
+ src/pkg/syscall/zsyscall_linux_arm.go   | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

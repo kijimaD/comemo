@@ -1,34 +1,21 @@
-commit 4e7067cde4a602e3a301500baac6cfbdebcffd97
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 6 18:37:59 2017 -0400
+commit dd0e1acfeb50f33f79738b2ef7e21a61ecec9d22
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 13 14:30:44 2017 +1100
 
-    runtime: mark extra M's G as dead when not in use
+    cmd/compile/internal/gc: remove unused exportsize variable
     
-    Currently the extra Ms created for cgo callbacks have a corresponding
-    G that's kept in syscall state with only a call to goexit on its
-    stack. This leads to confusing output from runtime.NumGoroutines and
-    in tracebacks:
+    In Go 1.7 and earlier, gc.exportsize tracked the number of bytes
+    written through exportf. With the removal of the old exporter in Go 1.8
+    exportf is only used for printing the build id, and the header and
+    trailer of the binary export format. The size of the export data is
+    now returned directly from the exporter and exportsize is never
+    referenced. Remove it.
     
-    goroutine 17 [syscall, locked to thread]:
-    runtime.goexit()
-            .../src/runtime/asm_amd64.s:2197 +0x1
-    
-    Fix this by putting this goroutine into state _Gdead when it's not in
-    use instead of _Gsyscall. To keep the goroutine counts correct, we
-    also add one to sched.ngsys while the goroutine is in _Gdead. The
-    effect of this is as if the goroutine simply doesn't exist when it's
-    not in use.
-    
-    Fixes #16631.
-    Fixes #16714.
-    
-    Change-Id: Ieae08a2febd4b3d00bef5c23fd6ca88fb2bb0087
-    Reviewed-on: https://go-review.googlesource.com/45030
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Id301144b3c26c9004c722d0c55c45b0e0801a88c
+    Reviewed-on: https://go-review.googlesource.com/38116
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/crash_cgo_test.go                    |  9 +++
- src/runtime/proc.go                              | 22 +++++-
- src/runtime/testdata/testprogcgo/numgoroutine.go | 97 ++++++++++++++++++++++++
- 3 files changed, 125 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/export.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

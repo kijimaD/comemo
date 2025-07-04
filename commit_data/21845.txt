@@ -1,25 +1,20 @@
-commit 612dd6c26274d7183b21d38120bc98c45dcf2736
-Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
-Date:   Fri Feb 27 10:46:42 2015 -0800
+commit ac90d9ab473adcb2dc209d168c5b038583bed566
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 6 17:52:24 2015 -0800
 
-    build: run cgo tests with -pie if the external linker supports it.
+    build: fix race.bat flags
     
-    PIE binaries can be built by the Go compiler in external link mode with
-    extldflags="-pie". These binaries support ASLR (address space layout
-    randomization) when executed on systems with appropriate kernel/dynamic
-    linker support.
+    The old C-based dist accepted merged flags (-wp) but the Go-based dist
+    requires -w -p
     
-    This CL enables some cgo tests to run with -pie as a sanity check (in
-    addition to the other linker flag combinations they already test).
+    This should get the Windows race builder running properly, along with
+    https://go-review.googlesource.com/#/c/4132/
     
-    I have tested this functionality more thoroughly by building the full
-    compiler testsuite (test/...) and standard library tests with -pie
-    and executing them remotely on ChromeOS devices for all three linux
-    architectures (linux_amd64, linux_386, and linux_arm).
+    Update #8640
     
-    Change-Id: I3f644a72e94c3341f3360dfee58db5ec3a591e26
-    Reviewed-on: https://go-review.googlesource.com/6280
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic17bbe9ea6c8b3d3e9b29f94e234d014f2926439
+    Reviewed-on: https://go-review.googlesource.com/4133
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/run.bash | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/race.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

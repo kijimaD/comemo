@@ -1,17 +1,28 @@
-commit 86ea7d5171a5b9a3c2d606444ef9985214fcec71
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Oct 4 13:27:49 2019 -0400
+commit 68d4b1265ec7915dccfccf6c0e32f9ab2d9c3a86
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 20 11:09:34 2019 -0700
 
-    cmd/go/internal/modfile: report error for extra text around version
+    cmd/compile: reduce bits.Div64(0, lo, y) to 64 bit division
     
-    Fixes #34697
+    With this change, these two functions generate identical code:
     
-    Change-Id: Iedfa3d46d558510f3bd1fdf9466cd974793d9ecd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199017
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    func f(x uint64) (uint64, uint64) {
+            return bits.Div64(0, x, 5)
+    }
+    
+    func g(x uint64) (uint64, uint64) {
+            return x / 5, x % 5
+    }
+    
+    Updates #31582
+    
+    Change-Id: Ia96c2e67f8af5dd985823afee5f155608c04a4b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173197
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modfile/read_test.go | 23 +++++++++++++++++++++++
- src/cmd/go/internal/modfile/rule.go      |  2 +-
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 54 ++++++++++++++++++++++++++
+ test/codegen/mathbits.go                       |  5 +++
+ 3 files changed, 61 insertions(+)

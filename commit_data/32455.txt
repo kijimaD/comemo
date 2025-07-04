@@ -1,20 +1,17 @@
-commit a9f832a6aedbce206d44d099c67448e8aa747690
-Author: griesemer <gri@golang.org>
-Date:   Thu Aug 24 15:20:18 2017 +0200
+commit 2fb2ebc32ee37a66e3d6a77ff9450665153a604c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 08:51:52 2017 -0700
 
-    spec: clarify zero value for complex types
+    cmd/compile: make node.hasVal into two bools
     
-    The enumeration of numeric types missed the complex types.
-    Clarify by removing the explicit enumeration and referring
-    to numeric types instead.
+    In addition to being more compact,
+    this makes the code a lot clearer.
     
-    Fixes #21579.
-    
-    Change-Id: If36c2421f8501eeec82a07f442ac2e16a35927ba
-    Reviewed-on: https://go-review.googlesource.com/58491
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ibcb70526c2e5913dcf34904fda194e3585228c3f
+    Reviewed-on: https://go-review.googlesource.com/41761
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/syntax.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

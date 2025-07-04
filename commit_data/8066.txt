@@ -1,13 +1,19 @@
-commit da8c5e7239d7c1e7238605c2b7f9a954dd8a2997
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 13 16:17:49 2011 -0400
+commit 6392fc75cf5d51f69f9e353da81c84e488dbf629
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Apr 13 15:12:28 2011 -0400
 
-    os/inotify: use _test for test files, not _obj
+    bufio: add ReadLine
     
-    R=golang-dev, r, iant2
+    It matches encoding/line exactly and the tests are copied from there.
+    If we land this, then encoding/line will get marked as deprecated then
+    deleted in time.
+    
+    R=rsc, rog, peterGo
     CC=golang-dev
-    https://golang.org/cl/4408043
+    https://golang.org/cl/4389046
 
- src/pkg/os/inotify/inotify_linux.go      | 2 +-
- src/pkg/os/inotify/inotify_linux_test.go | 8 ++++----
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/pkg/bufio/bufio.go                |  27 ++++++++
+ src/pkg/bufio/bufio_test.go           | 126 ++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/openpgp/armor/armor.go |   6 +-
+ src/pkg/http/cgi/host.go              |   4 +-
+ 4 files changed, 158 insertions(+), 5 deletions(-)

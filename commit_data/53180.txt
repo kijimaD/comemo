@@ -1,26 +1,22 @@
-commit 1cfacfbe8ae7ed12eb798c84b53e1ebd0e3ed0b0
-Author: Garet Halliday <me@garet.holiday>
-Date:   Thu Oct 13 19:35:18 2022 -0500
+commit 92798176e76f4ab69d4f18adf40b1a2aab4e3ea1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jul 23 00:46:10 2022 -0700
 
-    wasm: remove redundant calls to setTimeout and clearTimeout
+    [dev.unified] cmd/compile: write iface conversion RTTI into unified IR
     
-    The existing implementation clears and recreates Javascript
-    timeouts when Go is called from js, leading to excessive
-    load on the js scheduler. Instead, we should remove redundant
-    calls to clearTimeout and refrain from creating new timeouts
-    if the previous event's timestamp is within 1 millisecond of
-    our target (the js scheduler's max precision)
+    This CL changes convRTTI into a serialization method too, like the
+    previous CL's rtype method. And again, currently this just builds on
+    the existing type serialization logic, but will eventually be changed
+    to use dictionary lookups where appropriate.
     
-    Fixes #56100
-    
-    Change-Id: I42bbed4c2f1fa6579c1f3aa519b6ed8fc003a20c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442995
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I551aef8ade24b08dc6206f06ace86d91e665f5c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419457
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- misc/wasm/wasm_exec.js |  2 +-
- src/runtime/lock_js.go | 78 ++++++++++++++++++++++++++++++++++----------------
- src/syscall/js/func.go | 17 ++++++++---
- 3 files changed, 68 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 100 +++++++++++++------------------
+ src/cmd/compile/internal/noder/writer.go |  78 +++++++++++++++++++++++-
+ src/internal/pkgbits/sync.go             |   1 +
+ 3 files changed, 116 insertions(+), 63 deletions(-)

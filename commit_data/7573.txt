@@ -1,14 +1,16 @@
-commit 895631770a761f94bf22c879e7d1a1eaa6a64a55
+commit 96c785de3990248068e4793571d9b3ba1b6cebe8
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 25 01:04:29 2011 -0500
+Date:   Fri Feb 25 01:03:54 2011 -0500
 
-    8a, 8l: add CMPXCHG8B, XADDB, XADDL, XADDW
+    5a, 5l: add LDREXD, STREXD
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4240041
+    https://golang.org/cl/4239041
 
- src/cmd/8a/lex.c   | 4 ++++
- src/cmd/8l/8.out.h | 5 +++++
- src/cmd/8l/optab.c | 5 +++++
- 3 files changed, 14 insertions(+)
+ src/cmd/5a/lex.c   |  2 ++
+ src/cmd/5l/5.out.h |  3 +++
+ src/cmd/5l/asm.c   | 21 ++++++++++++++++++++-
+ src/cmd/5l/optab.c |  3 +++
+ src/cmd/5l/span.c  |  2 ++
+ 5 files changed, 30 insertions(+), 1 deletion(-)

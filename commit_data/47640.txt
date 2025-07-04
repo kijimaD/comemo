@@ -1,20 +1,28 @@
-commit c402d64f37f819b0f2d9949c6895e342191d11d6
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Nov 29 12:21:46 2021 -0500
+commit fe587ce856d1dee97829fe0ed090ba7e068335cb
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Oct 26 09:42:54 2020 +0000
 
-    go/types: consider structural restrictions in Implements
+    cmd/dist: include "go1.x-" in devel go version strings
     
-    Fixes #49786
+    This way, "go version" will report the "base version" or major version
+    that the tool corresponds to. This is the same version number that is
+    matched against build tags such as "go1.14" or "!go1.16".
     
-    Change-Id: I4559d013399deda48bcb97aef3427ecf87a3ef26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367515
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Obtaining this version being built is non-trivial, since we can't just
+    import a package or query git. The added comments document the chosen
+    mechanism, based on a regular expression. It was chosen over AST parsing
+    as it would add a significant amount of code without much gain, given
+    how simple the goversion.go file is.
+    
+    For #41116.
+    
+    Change-Id: I653ae935e27c13267f23898f89c84020dcd6e194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264938
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/api.go      |  12 +++-
- src/cmd/compile/internal/types2/api_test.go | 103 +++++++++++++++++++++++++++
- src/go/types/api.go                         |  12 +++-
- src/go/types/api_test.go                    | 104 ++++++++++++++++++++++++++++
- 4 files changed, 227 insertions(+), 4 deletions(-)
+ src/cmd/dist/build.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

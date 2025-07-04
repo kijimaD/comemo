@@ -1,49 +1,17 @@
-commit c1a4fc3b36ccfe0022392224c2630f7971c156fe
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 29 01:10:02 2018 -0400
+commit d01322826e38fb42d4cf14188164fc46d90e25ae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 10 07:08:45 2018 -0700
 
-    cmd/go: add $GOFLAGS environment variable
+    text/template: copy Decl field when copying PipeNode
     
-    People sometimes want to turn on a particular go command flag by default.
-    In Go 1.11 we have at least two different cases where users may need this.
+    Fixes #24791
     
-    1. Linking can be noticeably slower on underpowered systems
-    due to DWARF, and users may want to set -ldflags=-w by default.
-    
-    2. For modules, some users or CI systems will want vendoring always,
-    so they want -getmode=vendor (soon to be -mod=vendor) by default.
-    
-    This CL generalizes the problem to “set default flags for the go command.”
-    
-    $GOFLAGS can be a space-separated list of flag settings, but each
-    space-separated entry in the list must be a standalone flag.
-    That is, you must do 'GOFLAGS=-ldflags=-w' not 'GOFLAGS=-ldflags -w'.
-    The latter would mean to pass -w to go commands that understand it
-    (if any do; if not, it's an error to mention it).
-    
-    For #26074.
-    For #26318.
-    Fixes #26585.
-    
-    Change-Id: I428f79c1fbfb9e41e54d199c68746405aed2319c
-    Reviewed-on: https://go-review.googlesource.com/126656
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I62ac17313e6e09796586911d88191a36d67f9aa1
+    Reviewed-on: https://go-review.googlesource.com/106115
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/alldocs.go                  |   4 +
- src/cmd/go/internal/base/goflags.go    | 152 +++++++++++++++++++++++++++++++++
- src/cmd/go/internal/cmdflag/flag.go    |  36 ++++++++
- src/cmd/go/internal/envcmd/env.go      |   1 +
- src/cmd/go/internal/help/helpdoc.go    |   5 ++
- src/cmd/go/internal/test/testflag.go   |   2 +
- src/cmd/go/internal/vet/vetflag.go     |   3 +
- src/cmd/go/main.go                     |   1 +
- src/cmd/go/testdata/script/goflags.txt |  49 +++++++++++
- src/make.bash                          |   1 +
- src/make.bat                           |   1 +
- src/make.rc                            |   2 +-
- src/run.bash                           |   1 +
- src/run.bat                            |   1 +
- src/run.rc                             |   1 +
- 15 files changed, 259 insertions(+), 1 deletion(-)
+ src/html/template/clone_test.go | 15 +++++++++++++++
+ src/text/template/parse/node.go |  1 +
+ 2 files changed, 16 insertions(+)

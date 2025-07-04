@@ -1,29 +1,12 @@
-commit 8ffbc4016a061015afe74fb5386c1938338dac03
-Author: Julian Phillips <julian@quantumfyre.co.uk>
-Date:   Thu Jun 30 18:54:53 2011 +1000
+commit 369418d29c00e96af3033afba6c3a49eb5d06175
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jun 30 17:07:44 2011 +1000
 
-    goinstall: Add support for generic hosts using special import form
+    misc/vim:  allow only utf-8 for fileencoding (fix CL4625078).
     
-    This change extends goinstall to support "magic" package names of the
-    form:
-            <host>/<repo>.<vcs>/<path>
-    
-    Where <host> is the hostname, <repo> the path to the repository, <vcs>
-    the type of vcs (git, hg, bzr or svn), and <path> is the path inside the
-    repository that contains the source code for the package.
-    
-    For example: "example.com/pub/foo.hg/src" means download the Mercurial
-    repository at either pub/foo.hg or pub/foo from example.com and then
-    build and install the source files from src inside the repository
-    checkout.
-    
-    Repositories on the built-in hostings sites (github, bitbucket,
-    launchpad and googlecode) must still use the old form (i.e.
-    github.com/xxx/yyy.git/src will be rejected).
-    
-    R=adg, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4626064
+    https://golang.org/cl/4650062
 
- src/cmd/goinstall/download.go | 54 ++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 46 insertions(+), 8 deletions(-)
+ misc/vim/ftdetect/gofiletype.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

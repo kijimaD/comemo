@@ -1,23 +1,20 @@
-commit 7d8da7dc4d6f7800aababcc054b71a1cda47cc93
+commit e3e48cd075091d8f0e1265ae6a18e69ac83d2af4
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jun 24 07:03:44 2014 +0900
+Date:   Mon Jun 23 18:46:01 2014 +0900
 
-    syscall: add source-specific multicast socket options for FreeBSD
+    syscall: consolidate, simplify socket options for Unix-like systems
     
-    Update #8266
+    Also exposes common socket option functions on Solaris.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    Update #7174
+    Update #7175
+    
+    LGTM=aram
+    R=golang-codereviews, aram
     CC=golang-codereviews
-    https://golang.org/cl/104290043
+    https://golang.org/cl/107280044
 
- src/pkg/syscall/mkerrors.sh              |  2 +-
- src/pkg/syscall/syscall_freebsd.go       | 34 ++++++++++++++++++++++++++------
- src/pkg/syscall/types_freebsd.go         |  9 +++++++++
- src/pkg/syscall/zerrors_freebsd_386.go   |  9 +++++++++
- src/pkg/syscall/zerrors_freebsd_amd64.go |  9 +++++++++
- src/pkg/syscall/zerrors_freebsd_arm.go   |  9 +++++++++
- src/pkg/syscall/ztypes_freebsd_386.go    | 22 +++++++++++++++++++++
- src/pkg/syscall/ztypes_freebsd_amd64.go  | 24 ++++++++++++++++++++++
- src/pkg/syscall/ztypes_freebsd_arm.go    | 24 ++++++++++++++++++++++
- 9 files changed, 135 insertions(+), 7 deletions(-)
+ src/pkg/syscall/syscall_bsd.go   | 42 -----------------------
+ src/pkg/syscall/syscall_linux.go | 34 ------------------
+ src/pkg/syscall/syscall_unix.go  | 74 +++++++++++++++++++++++++++++++---------
+ 3 files changed, 58 insertions(+), 92 deletions(-)

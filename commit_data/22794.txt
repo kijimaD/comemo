@@ -1,20 +1,25 @@
-commit 1ddb8c20c6f686170c506c6440e194a58c040bec
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Apr 29 10:36:38 2015 -0700
+commit 6f6512bd6002fa9a20b46c4d6a3def03d4f0b2fa
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Mar 8 22:25:21 2015 +1300
 
-    crypto/x509: be strict about trailing data.
+    cmd/internal/gc, etc: remove dead code
     
-    The X.509 parser was allowing trailing data after a number of structures
-    in certificates and public keys. There's no obvious security issue here,
-    esp in certificates which are signed anyway, but this change makes
-    trailing data an error just in case.
+    Found with https://github.com/opennota/check.
     
-    Fixes #10583
-    
-    Change-Id: Idc289914899600697fc6d30482227ff4bf479241
-    Reviewed-on: https://go-review.googlesource.com/9473
+    Change-Id: I50c173382782fb16b15100e02c1c85610bc233a0
+    Reviewed-on: https://go-review.googlesource.com/7130
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/crypto/x509/x509.go | 104 +++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 77 insertions(+), 27 deletions(-)
+ src/cmd/5g/gsubr.go         |  5 -----
+ src/cmd/6g/gsubr.go         |  5 -----
+ src/cmd/7g/gsubr.go         |  5 -----
+ src/cmd/9g/gsubr.go         |  5 -----
+ src/cmd/internal/gc/go.go   |  9 ---------
+ src/cmd/internal/gc/lex.go  |  2 --
+ src/cmd/internal/gc/popt.go | 17 ++++++++---------
+ src/cmd/internal/gc/subr.go |  4 ----
+ 8 files changed, 8 insertions(+), 44 deletions(-)

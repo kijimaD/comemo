@@ -1,17 +1,26 @@
-commit c20b71eb37889e7257453be152a994319c76d451
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 15 17:08:23 2019 -0800
+commit 4b3658880752ca30a2ad5f2dc33a9bee9ff91de4
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue May 28 23:07:56 2019 +0700
 
-    net: add more timing slop for TestDialParallel on Windows
+    cmd/go: add go command known variables to test cache hash
     
-    Fixes #35616
+    The go test result must not be cached when each of known variables to go
+    command change.
     
-    Change-Id: I51b2490100cfe0e902da09eee8d027e0ec86ed53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207466
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    To do this, add all known variables to test metadata.
+    
+    Fixes #32285
+    
+    Change-Id: I90be6a72f46c42d965aec4fed534c0623244cd3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179040
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/dial_test.go | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/cfg/cfg.go                     | 55 +------------------
+ .../go/testdata/script/test_go111module_cache.txt  | 15 ++++++
+ src/go/build/deps_test.go                          |  3 +-
+ src/internal/cfg/cfg.go                            | 62 ++++++++++++++++++++++
+ src/internal/testenv/testenv.go                    |  7 +++
+ 5 files changed, 88 insertions(+), 54 deletions(-)

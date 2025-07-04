@@ -1,60 +1,18 @@
-commit 450ecbe90508f56684b69e39823d4da155846932
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Tue Nov 21 16:03:54 2023 +0000
+commit 4e7c83848332861859d414c833e0b4bd6f375d0b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 4 10:09:30 2023 -0500
 
-    runtime: profile contended lock calls
+    crypto/internal/boring: add dev.boringcrypto README.md text
     
-    Add runtime-internal locks to the mutex contention profile.
+    Add the text from dev.boringcrypto's README making clear what
+    this code is and that it is unsupported.
     
-    Store up to one call stack responsible for lock contention on the M,
-    until it's safe to contribute its value to the mprof table. Try to use
-    that limited local storage space for a relatively large source of
-    contention, and attribute any contention in stacks we're not able to
-    store to a sentinel _LostContendedLock function.
-    
-    Avoid ballooning lock contention while manipulating the mprof table by
-    attributing to that sentinel function any lock contention experienced
-    while reporting lock contention.
-    
-    Guard collecting real call stacks with GODEBUG=profileruntimelocks=1,
-    since the available data has mixed semantics; we can easily capture an
-    M's own wait time, but we'd prefer for the profile entry of each
-    critical section to describe how long it made the other Ms wait. It's
-    too late in the Go 1.22 cycle to make the required changes to
-    futex-based locks. When not enabled, attribute the time to the sentinel
-    function instead.
-    
-    Fixes #57071
-    
-    This is a roll-forward of https://go.dev/cl/528657, which was reverted
-    in https://go.dev/cl/543660
-    
-    Reason for revert: de-flakes tests (reduces dependence on fine-grained
-    timers, correctly identifies contention on big-endian futex locks,
-    attempts to measure contention in the semaphore implementation but only
-    uses that secondary measurement to finish the test early, skips tests on
-    single-processor systems)
-    
-    Change-Id: I31389f24283d85e46ad9ba8d4f514cb9add8dfb0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544195
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie49e8ccff10436f5d27ed422f159b4899193c9a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460515
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Rhys Hiltner <rhys@justin.tv>
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/debug.go        |  11 ++
- src/runtime/export_test.go  |  12 ++
- src/runtime/extern.go       |   8 ++
- src/runtime/lock_futex.go   |  10 ++
- src/runtime/lock_js.go      |   4 +
- src/runtime/lock_sema.go    |   8 ++
- src/runtime/lock_wasip1.go  |   4 +
- src/runtime/metrics.go      |   2 +-
- src/runtime/metrics_test.go | 322 ++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/mprof.go        | 236 +++++++++++++++++++++++++++++++-
- src/runtime/proc.go         |   4 +-
- src/runtime/runtime1.go     |  42 +++---
- src/runtime/runtime2.go     |   8 ++
- 13 files changed, 648 insertions(+), 23 deletions(-)
+ src/crypto/internal/boring/README.md | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

@@ -1,16 +1,13 @@
-commit 558bd8e1d90e474c97115dd9d9cd089d19a3650f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 28 11:07:29 2014 -0700
+commit 71ecd16bf5c7a43849b5a3ad874ca8bd0accd302
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Aug 23 21:11:57 2014 +0400
 
-    database/sql: use a value type instead of a pointer
+    runtime: remove unused var
     
-    Follow-up to https://golang.org/cl/107020044/
-    Also add a little comment.
-    
-    LGTM=ruiu, josharian
-    R=josharian, ruiu
+    LGTM=bradfitz
+    R=daniel.morsing, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/139760043
+    https://golang.org/cl/130500044
 
- src/pkg/database/sql/sql.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/runtime/proc.c | 1 -
+ 1 file changed, 1 deletion(-)

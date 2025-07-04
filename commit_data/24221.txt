@@ -1,17 +1,14 @@
-commit cf3134a0178c1c5a2c1b523dbdfa953dbf60481b
+commit b0834b5ea2cc17468c928c2e611dc2b9c0a4595e
 Author: Rob Pike <r@golang.org>
-Date:   Wed Sep 9 11:01:01 2015 -0700
+Date:   Thu Jul 16 14:30:15 2015 +1000
 
-    cmd/doc: the builtin package should always show unexported symbols
+    flag: add comment stating that Set is called in sequence across the command line
     
-    Trivial fix: set unexported=true for builtin.
-    Godoc itself has a similar hack.
+    No code changes.
     
-    Fixes #12541
-    
-    Change-Id: Ib701f867d117931eb6ec6de223941b52eb6cd4a7
-    Reviewed-on: https://go-review.googlesource.com/14441
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3b78b1048318a4b80747fde8cab919282fc444a8
+    Reviewed-on: https://go-review.googlesource.com/12285
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/doc/main.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/flag/flag.go | 2 ++
+ 1 file changed, 2 insertions(+)

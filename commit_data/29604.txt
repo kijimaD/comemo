@@ -1,18 +1,12 @@
-commit 01b4ddb37724b0cd0a1f0a62956f9e0e706bb10c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Nov 14 10:17:23 2016 -0500
+commit 6c43c0c2fdc866bf6d85a4689ad42c42b9c527dd
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Sep 27 17:23:08 2016 +0200
 
-    runtime/internal/atomic: crash on unaligned 64-bit ops on 386 and ARM
+    cmd/compile: remove commented-out old c code
     
-    Updates #17786. Will fix mips(32) when the port is fully landed.
-    
-    Change-Id: I00d4ff666ec14a38cadbcd52569b347bb5bc8b75
-    Reviewed-on: https://go-review.googlesource.com/33236
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9b2e6c45f7e83543a06d0aafd08a911f7b6485fd
+    Reviewed-on: https://go-review.googlesource.com/29874
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/internal/atomic/asm_386.s      |  3 +++
- src/runtime/internal/atomic/atomic_arm.go  | 15 +++++++++++++++
- src/runtime/internal/atomic/atomic_test.go |  5 +++--
- 3 files changed, 21 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/init.go | 13 -------------
+ 1 file changed, 13 deletions(-)

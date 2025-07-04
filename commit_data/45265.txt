@@ -1,22 +1,29 @@
-commit f9e2dbbfc92fdc19c4e9412b318beb5294d91bff
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Apr 21 12:24:27 2021 +0200
+commit dfee3332e66bd3f3afd76615767d2cd9b1905b26
+Author: Ross Light <ross@zombiezen.com>
+Date:   Thu Aug 27 13:08:29 2020 -0700
 
-    syscall: use libc in Exec on openbsd/arm64
+    net/http: document concurrency expectations for Request.Body
     
-    Like on openbsd/amd64, use libc instead of direct syscalls on
-    openbsd/arm64.
+    This is primarily aimed at client requests where the user can supply
+    their own io.ReadCloser, but also clarifies server request behavior.
+    A server request body can be one of:
     
-    This was likely missed in CL 286815. A similar change was done for
-    openbsd/amd64 in CL 270380.
+    - *body
+    - *http2RequestBody
+    - *expectContinueReader
+    - *maxBytesReader
     
-    Updates #36435
+    Of those, *expectContinueReader did not meet these expectations, so this
+    change also removes the data race.
     
-    Change-Id: Ie496a6130f1a43d30974502777db12217e65c551
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312229
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Change-Id: Id4f1ae573d938347b1123a7b612b271aabb045a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251087
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/syscall/exec_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/request.go | 4 ++++
+ src/net/http/server.go  | 6 +++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)

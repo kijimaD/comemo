@@ -1,15 +1,14 @@
-commit 72b14cbb75b3b0d8899d24174a94ece100d073b7
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Tue May 14 20:23:35 2013 -0700
+commit 0e6007e4f91f6c1527c8420ba50056092b58c217
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue May 14 16:38:12 2013 -0700
 
-    misc/emacs: Add support for methods with unnamed receiver
+    runtime: enable stack scanning by frames
     
-    This fixes fontification, navigation and indentation for methods
-    of the form `func (Foo) Bar...`
+    Update #5134
     
-    R=adonovan
-    CC=gobot, golang-dev
-    https://golang.org/cl/8951043
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9406046
 
- misc/emacs/go-mode.el | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

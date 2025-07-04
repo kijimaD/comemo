@@ -1,16 +1,18 @@
-commit 96c91fa9dbc9327b5a9526c9c3ccc1a5c5694cb6
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 17 11:56:29 2015 -0400
+commit 75447d0623e3e7614a9cf9cdd5ece23d18028cab
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 24 02:56:07 2015 -0400
 
-    cmd/internal/gc: add String methods to *Mpint, *Mpflt, *Node, *NodeList, *Sym, *Type
+    cmd/7g: fix linux/arm64 build
     
-    The next CL will remove unnecessary conv calls.
+    REGRT1 and REGRT2 are also reserved on arm64 for runtime (duffzero
+    and duffcopy).
     
-    Change-Id: I0e8dbd1756cdec1ef6095ae67629cd3fae0fb4a4
-    Reviewed-on: https://go-review.googlesource.com/9031
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: If098527a7f29d16f94bdcec05fd55950b9076e35
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7977
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/fmt.go      | 16 ++++++++++++++++
- src/cmd/internal/gc/mparith2.go |  4 ++++
- src/cmd/internal/gc/mparith3.go |  4 ++++
- 3 files changed, 24 insertions(+)
+ src/cmd/7g/gsubr.go | 2 ++
+ 1 file changed, 2 insertions(+)

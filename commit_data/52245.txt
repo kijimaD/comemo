@@ -1,16 +1,27 @@
-commit c9b2da3f28195fab2dd8fc4133efd22409e9e29b
-Author: Austin Clements <austin@google.com>
-Date:   Mon Feb 13 17:57:26 2023 -0500
+commit 17f8d98a4adf8386e63a0d2902ff42ca5e80996e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 18 13:12:43 2022 -0400
 
-    runtime: simplify traceback PC back-up logic
+    go/internal/srcimporter: add context to cgo errors
     
-    Updates #54466.
+    An error message like "could not import os/user (exit status 1)"
+    (observed in https://go.dev/issue/52407) is fairly inscrutable.
     
-    Change-Id: If070cf3f484e3e02b8e586bff466e0018b1a1845
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468298
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    On the other hand, srcimporter doesn't report errors with quite enough
+    structure to dump the entire stderr output from 'go tool cgo' without
+    potentially overwhelming the caller. Here, we split the difference by
+    describing which command failed but not printing the output of that
+    command.
+    
+    For #52407, that would at least provide a stronger clue connecting
+    to #52408.
+    
+    Change-Id: Iabdc95b17ba20a0f6ff38e5c7084e5081e1ef5e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400817
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/traceback.go | 49 ++++++++++++++++++++++++++++++------------------
- 1 file changed, 31 insertions(+), 18 deletions(-)
+ src/go/internal/srcimporter/srcimporter.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

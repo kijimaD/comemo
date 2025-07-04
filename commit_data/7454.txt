@@ -1,17 +1,13 @@
-commit 1723fbe13e9288f1dff1da90df6fd6922f941975
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Mon Feb 14 12:15:13 2011 -0500
+commit b9f94768f90dfc7f5d4bf7cf9ccf64b9190d0e93
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 14 09:27:02 2011 -0500
 
-    windows: runtime: implemented console ctrl handler (SIGINT).
+    build: run test/ directory first
     
-    R=rsc, brainman, iant2
+    R=adg, r
     CC=golang-dev
-    https://golang.org/cl/4129049
+    https://golang.org/cl/4183047
 
- src/pkg/runtime/windows/386/defs.h   |  3 +++
- src/pkg/runtime/windows/386/signal.c |  7 +------
- src/pkg/runtime/windows/386/sys.s    | 39 ++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/windows/defs.c       |  6 ++++++
- src/pkg/runtime/windows/os.h         |  1 +
- src/pkg/runtime/windows/thread.c     | 39 ++++++++++++++++++++++++++++++++++++
- 6 files changed, 89 insertions(+), 6 deletions(-)
+ doc/install.html |  3 +--
+ src/run.bash     | 31 ++++++++++++-------------------
+ 2 files changed, 13 insertions(+), 21 deletions(-)

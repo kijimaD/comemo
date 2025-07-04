@@ -1,22 +1,18 @@
-commit fa563ae82e2d1038656be21c52831e7ad42108a8
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Oct 10 00:55:48 2012 +0800
+commit f76f120324f449cff3fdaeb05effbe18162e0cf1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 9 12:50:06 2012 -0400
 
-    cmd/ld, cmd/6l, cmd/8l: sort exported dynamic symbols for Darwin
-    Also corrected cmd/8l's .dynsym handling (differentiate between exported symbols and imported symbols)
+    cmd/ld: use 64-bit alignment for large data and bss objects
     
-            Fixes #4029.
+    Check for specific, important misalignment in garbage collector.
+    Not a complete fix for issue 599 but an important workaround.
     
-    R=golang-dev, rsc
+    Update #599.
+    
+    R=golang-dev, iant, dvyukov
     CC=golang-dev
-    https://golang.org/cl/6620075
+    https://golang.org/cl/6641049
 
- misc/cgo/test/cgo_test.go  |  1 +
- misc/cgo/test/issue4029.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/6l/asm.c           | 39 ++++++++++++++++++++++---------
- src/cmd/8l/asm.c           | 48 +++++++++++++++++++++++++++++++++-----
- src/cmd/ld/data.c          | 27 ++++++++++++++++++++++
- src/cmd/ld/go.c            | 25 ++++++++++++++++++++
- src/cmd/ld/lib.c           |  1 +
- src/cmd/ld/lib.h           |  4 ++++
- 8 files changed, 185 insertions(+), 17 deletions(-)
+ src/cmd/ld/data.c      | 5 ++++-
+ src/pkg/runtime/mgc0.c | 6 ++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

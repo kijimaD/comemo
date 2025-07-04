@@ -1,14 +1,20 @@
-commit 5cd6ab5b6d8232d5443f474c378f1307ce502613
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Thu Nov 17 20:06:27 2016 +0100
+commit 7f1bc53379f548845a23275c2f83d75071cf8e13
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Sep 10 13:24:35 2016 +0200
 
-    runtime/pprof/internal/protopprof: fix TestTranslateCPUProfileWithSamples test for mips
+    cmd/compile: only allow integer expressions as keys in array literals
     
-    Change-Id: I01168a7530e18dd1098d467d0c8a330f727ba91f
-    Reviewed-on: https://go-review.googlesource.com/33281
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #16439
+    Updates #16679
+    
+    Change-Id: Idff4b313f29351866b1a649786501adee85fd580
+    Reviewed-on: https://go-review.googlesource.com/29011
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/pprof/internal/protopprof/protopprof_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/const.go     | 40 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/sinit.go     |  5 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 40 ++++++++++++++------------------
+ test/fixedbugs/issue16439.go             | 18 ++++++++++++++
+ 4 files changed, 56 insertions(+), 47 deletions(-)

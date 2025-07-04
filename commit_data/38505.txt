@@ -1,24 +1,21 @@
-commit f23c601bf9f66ef4a0d9d2dcd003b95e78fb28f8
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Mar 21 13:40:28 2019 -0400
+commit bd4b6ca781e7e82580620011f8af2a7f11c5c239
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 2 10:55:12 2018 +0100
 
-    cmd/compile: copy volatile values before emitting write barrier call
+    all: fix tests for older versions of AIX 7.2
     
-    It is possible that a "volatile" value (one that can be clobbered
-    by preparing args of a call) to be used in multiple write barrier
-    calls. We used to copy the volatile value right before each call.
-    But this doesn't work if the value is used the second time, after
-    the first call where it is already clobbered. Copy it before
-    emitting any call.
+    This commit fixes tests which fail on some versions of AIX 7.2 due
+    to internal bugs.
     
-    Fixes #30977.
+    getsockname isn't working properly with unix networks.
     
-    Change-Id: Iedcc91ad848d5ded547bf37a8359c125d32e994c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168677
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Timezone files aren't returning a correct output.
+    
+    Change-Id: I4ff15683912be62ab86dfbeeb63b73513404d086
+    Reviewed-on: https://go-review.googlesource.com/c/146940
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/writebarrier.go | 78 +++++++++++++++++++---------
- test/fixedbugs/issue30977.go                 | 52 +++++++++++++++++++
- 2 files changed, 106 insertions(+), 24 deletions(-)
+ src/net/platform_test.go  | 12 ++++++++++++
+ src/time/zoneinfo_read.go |  9 +++++++++
+ 2 files changed, 21 insertions(+)

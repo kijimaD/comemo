@@ -1,102 +1,25 @@
-commit c47df7ae171b1470f8304c6759caf68f3f37ea90
-Merge: 7d8bfdde45 f8b4123613
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 31 12:57:12 2017 -0500
+commit 9429aab9999e00958abd8b21d06fa4a2253437c2
+Author: Austin Clements <austin@google.com>
+Date:   Sun Sep 11 16:55:34 2016 -0400
 
-    all: merge dev.typealias into master
+    runtime: remove gcWork flushes in mark termination
     
-    For #18130.
+    The only reason these flushes are still necessary at all is that
+    gcmarknewobject doesn't flush its gcWork stats like it's supposed to.
+    By changing gcmarknewobject to follow the standard protocol, the
+    flushes become completely unnecessary because mark 2 ensures caches
+    are flushed (and stay flushed) before we ever enter mark termination.
     
-    f8b4123613 [dev.typealias] spec: use term 'embedded field' rather than 'anonymous field'
-    9ecc3ee252 [dev.typealias] cmd/compile: avoid false positive cycles from type aliases
-    49b7af8a30 [dev.typealias] reflect: add test for type aliases
-    9bbb07ddec [dev.typealias] cmd/compile, reflect: fix struct field names for embedded byte, rune
-    43c7094386 [dev.typealias] reflect: fix StructOf use of StructField to match StructField docs
-    9657e0b077 [dev.typealias] cmd/doc: update for type alias
-    de2e5459ae [dev.typealias] cmd/compile: declare methods after resolving receiver type
-    9259f3073a [dev.typealias] test: match gccgo error messages on alias2.go
-    5d92916770 [dev.typealias] cmd/compile: change Func.Shortname to *Sym
-    a7c884efc1 [dev.typealias] go/internal/gccgoimporter: support for type aliases
-    5802cfd900 [dev.typealias] cmd/compile: export/import test cases for type aliases
-    d7cabd40dd [dev.typealias] go/types: clarified doc string
-    cc2dcce3d7 [dev.typealias] cmd/compile: a few better comments related to alias types
-    5c160b28ba [dev.typealias] cmd/compile: improved error message for cyles involving type aliases
-    b2386dffa1 [dev.typealias] cmd/compile: type-check type alias declarations
-    ac8421f9a5 [dev.typealias] cmd/compile: various minor cleanups
-    f011e0c6c3 [dev.typealias] cmd/compile, go/types, go/importer: various alias related fixes
-    49de5f0351 [dev.typealias] cmd/compile, go/importer: define export format and implement importing of type aliases
-    5ceec42dc0 [dev.typealias] go/types: export TypeName.IsAlias so clients can use it
-    aa1f0681bc [dev.typealias] go/types: improved Object printing
-    c80748e389 [dev.typealias] go/types: remove some more vestiges of prior alias implementation
-    80d8b69e95 [dev.typealias] go/types: implement type aliases
-    a917097b5e [dev.typealias] go/build: add go1.9 build tag
-    3e11940437 [dev.typealias] cmd/compile: recognize type aliases but complain for now (not yet supported)
-    e0a05c274a [dev.typealias] cmd/gofmt: added test cases for alias type declarations
-    2e5116bd99 [dev.typealias] go/ast, go/parser, go/printer, go/types: initial type alias support
+    In the garbage benchmark, this takes roughly 50 µs, which is
+    surprisingly long for doing nothing. We still double-check after
+    draining that they are in fact empty.
     
-    Change-Id: Ia65f2e011fd7195f18e1dce67d4d49b80a261203
+    Change-Id: Ia1c7cf98a53f72baa513792eb33eca6a0b4a7128
+    Reviewed-on: https://go-review.googlesource.com/31134
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go_spec.html                                 |  50 +++---
- src/cmd/compile/internal/gc/align.go             |   8 +-
- src/cmd/compile/internal/gc/bexport.go           |  82 +++++-----
- src/cmd/compile/internal/gc/bimport.go           |  77 +++++----
- src/cmd/compile/internal/gc/dcl.go               |  48 +++---
- src/cmd/compile/internal/gc/export.go            |  27 +++-
- src/cmd/compile/internal/gc/fmt.go               |   4 +-
- src/cmd/compile/internal/gc/go.go                |   9 +-
- src/cmd/compile/internal/gc/main.go              |  24 +--
- src/cmd/compile/internal/gc/noder.go             |  42 +++--
- src/cmd/compile/internal/gc/obj.go               |   2 +-
- src/cmd/compile/internal/gc/reflect.go           |  11 +-
- src/cmd/compile/internal/gc/syntax.go            |  17 +-
- src/cmd/compile/internal/gc/typecheck.go         |  58 +++++--
- src/cmd/compile/internal/gc/universe.go          |   8 +
- src/cmd/compile/internal/syntax/nodes.go         |   1 +
- src/cmd/compile/internal/syntax/parser.go        |   3 +-
- src/cmd/compile/internal/syntax/printer.go       |   6 +-
- src/cmd/compile/internal/syntax/printer_test.go  |  17 ++
- src/cmd/doc/doc_test.go                          |  14 ++
- src/cmd/doc/pkg.go                               |   6 +-
- src/cmd/doc/testdata/pkg.go                      |   4 +
- src/cmd/gofmt/testdata/typealias.golden          |  24 +++
- src/cmd/gofmt/testdata/typealias.input           |  24 +++
- src/cmd/link/internal/ld/decodesym.go            |   2 +-
- src/go/ast/ast.go                                |   1 +
- src/go/build/build.go                            |   3 +-
- src/go/build/doc.go                              |   1 +
- src/go/internal/gccgoimporter/importer_test.go   |   1 +
- src/go/internal/gccgoimporter/parser.go          |  48 ++++--
- src/go/internal/gccgoimporter/testdata/alias.gox |   4 +
- src/go/internal/gcimporter/bimport.go            |  88 +++++-----
- src/go/parser/parser.go                          |   5 +-
- src/go/parser/short_test.go                      |   2 +
- src/go/printer/nodes.go                          |   3 +
- src/go/printer/testdata/declarations.golden      |  15 ++
- src/go/printer/testdata/declarations.input       |  15 ++
- src/go/types/api_test.go                         | 152 ------------------
- src/go/types/call.go                             |   8 -
- src/go/types/check_test.go                       |   2 +-
- src/go/types/decl.go                             | 194 ++++++-----------------
- src/go/types/example_test.go                     |   4 +-
- src/go/types/lookup.go                           |  83 ++++++----
- src/go/types/methodset.go                        |  52 +++---
- src/go/types/object.go                           | 105 ++++++------
- src/go/types/object_test.go                      |  43 +++++
- src/go/types/predicates.go                       |   2 +-
- src/go/types/resolver.go                         |  12 +-
- src/go/types/testdata/decls4.src                 | 150 ++++++++++++++++++
- src/go/types/typestring.go                       |   1 +
- src/go/types/typexpr.go                          |  62 +++-----
- src/reflect/all_test.go                          | 165 ++++++++++++-------
- src/reflect/type.go                              | 116 +++++++-------
- src/reflect/value.go                             |   4 +-
- src/runtime/cgocall.go                           |   2 +-
- src/runtime/type.go                              |  12 +-
- test/alias2.go                                   | 104 ++++++++++++
- test/alias3.dir/a.go                             |  42 +++++
- test/alias3.dir/b.go                             |  26 +++
- test/alias3.dir/c.go                             |  25 +++
- test/alias3.go                                   |   7 +
- test/fixedbugs/issue18640.go                     |  26 +++
- test/fixedbugs/issue18655.go                     |  22 +++
- 63 files changed, 1335 insertions(+), 840 deletions(-)
+ src/runtime/mgc.go     | 26 +++++---------------------
+ src/runtime/mgcmark.go |  5 +++++
+ 2 files changed, 10 insertions(+), 21 deletions(-)

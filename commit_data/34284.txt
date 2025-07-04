@@ -1,16 +1,17 @@
-commit 9c854d65a340c6c0bd5957b0ea6880dc954fbaf9
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Jan 31 16:30:16 2018 -0500
+commit b783930e63f4922e8465e2cd61c3d9a131b95f2d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 5 12:22:09 2017 -0400
 
-    cmd/compile/internal/ssa: only store relevant slots in pendingEntries
+    runtime: simplify fractional mark worker scheduler
     
-    For functions with many local variables, keeping track of every
-    LocalSlot for every variable is very expensive. Only track the slots
-    that are actually used by a given variable.
+    We haven't used non-zero gcForcePreemptNS for ages. Remove it and
+    declutter the code.
     
-    Change-Id: Iaafbce030a782b8b8c4a0eb7cf025e59af899ea4
-    Reviewed-on: https://go-review.googlesource.com/92400
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Id5cc62f526d21ca394d2b6ca17d34a72959535da
+    Reviewed-on: https://go-review.googlesource.com/68572
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/ssa/debug.go | 37 +++++++++++++++++++++--------------
- 1 file changed, 22 insertions(+), 15 deletions(-)
+ src/runtime/mgc.go | 22 ++--------------------
+ 1 file changed, 2 insertions(+), 20 deletions(-)

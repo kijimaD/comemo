@@ -1,20 +1,14 @@
-commit 34f2f68354ee074744abb3313c506fd87dc93240
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 3 14:41:09 2011 +1100
+commit 68add46af776369dbaade9eb1eb9de9bb0c7fec8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 2 19:39:08 2011 -0800
 
-    gobuilder: add -package flag to build external packages
+    unsafe: fix the documentation
+    Reflection is about Pointer, not uintptr.
+    Also clarify that Reflect and Unreflect are indirect.
     
-    Also add -v for verbose logging.
-    
-    R=rsc, gri, r, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4172056
+    https://golang.org/cl/4254052
 
- misc/dashboard/builder/Makefile   |   1 +
- misc/dashboard/builder/doc.go     |   9 +++
- misc/dashboard/builder/exec.go    |  11 ++++
- misc/dashboard/builder/hg.go      |  27 +++++++++
- misc/dashboard/builder/http.go    |  46 ++++++++++++++++
- misc/dashboard/builder/main.go    | 113 ++++++++++++++++++++++++++++++++------
- misc/dashboard/builder/package.go |  66 ++++++++++++++++++++++
- 7 files changed, 257 insertions(+), 16 deletions(-)
+ src/pkg/unsafe/unsafe.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

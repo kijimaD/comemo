@@ -1,22 +1,30 @@
-commit 08e2e880e72a173e6c1d3ff708fac2d3661ced89
-Author: Johan Brandhorst <johan.brandhorst@gmail.com>
-Date:   Thu May 31 10:12:32 2018 +0000
+commit 6ded116ab18c98cf572089c627f80fc1bb18cd0c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Jan 25 10:32:23 2018 +0700
 
-    net/http: use fake Transport network when running in Node
+    cmd/vet: warn on unkeyed struct pointer literals
     
-    Replaces the existing local loopback check with a check to see
-    whether the program is being interpreted by Node. This means
-    tests that are run with Node will use the fake network while still
-    allowing users who are using js/wasm to talk to local networks.
+    We did warn on them in some cases, but not others. In particular, if one
+    used a slice composite literal with struct pointer elements, and omitted
+    the type of an element's composite literal, it would not get any warning
+    even if it should get one.
     
-    Updates #25506
+    The issue is that typ.Underlying() can be of type *types.Pointer. Skip
+    those levels of indirection before checking for a *types.Struct
+    underlying type.
     
-    Change-Id: I8bc3c6808fa29293b7ac5f77b186140c4ed90b51
-    GitHub-Last-Rev: 43d26af7bc716b7a01dd8f47d7a2c2a2df549489
-    GitHub-Pull-Request: golang/go#25663
-    Reviewed-on: https://go-review.googlesource.com/115495
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    isLocalType also needed a bit of tweaking to ignore dereferences.
+    Perhaps that can be rewritten now that we have type info, but let's
+    leave it for another time.
+    
+    Fixes #23539.
+    
+    Change-Id: I727a497284df1325b70d47a756519f5db1add25d
+    Reviewed-on: https://go-review.googlesource.com/89715
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/roundtrip_js.go | 16 +++++-----------
- 1 file changed, 5 insertions(+), 11 deletions(-)
+ src/cmd/vet/composite.go          | 14 +++++++++++++-
+ src/cmd/vet/testdata/composite.go | 17 +++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

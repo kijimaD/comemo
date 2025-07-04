@@ -1,17 +1,20 @@
-commit 97f56645e23953318de69e3f619df61e052d46c4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 24 18:41:32 2023 +0000
+commit 228f891c905af8c01743085a74b2189f58eecba1
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu May 26 22:36:15 2022 +0800
 
-    doc: add release note for runtime/metrics additions
+    internal/cpu: add sha512 for arm64
     
-    For #56857.
+    The new M1 cpu (Apple) comes with sha512 hardware
+    acceleration feature.
     
-    Change-Id: I03bdba906d271d97ce29874c50d5aba55dc285b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498075
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I823d1e9b09b472bd21571eee75cc5314cd66b1ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408836
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.21.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/internal/cpu/cpu.go              | 1 +
+ src/internal/cpu/cpu_arm64.go        | 1 +
+ src/internal/cpu/cpu_arm64_darwin.go | 1 +
+ 3 files changed, 3 insertions(+)

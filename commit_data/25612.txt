@@ -1,26 +1,13 @@
-commit cd9fc3ebfbdb129570317b3a2537975851370c7a
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Jan 20 15:31:26 2016 +1300
+commit fa61945cf21cce6d435ec69e8167400aa55bc108
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:33:48 2015 -0400
 
-    cmd/link: allow symbols from .a files to override those from .so files
+    runtime/debug: skip TestFreeOSMemory for mips64{,le}
     
-    https://golang.org/s/execmodes defines rules for how multiple codes of a go
-    package work when they end up in the address space of a single process, but
-    currently the linker blows up in this situation. Fix that by loading all .a
-    files before any .so files and ignoring duplicate symbols found when loading
-    shared libraries.
-    
-    I know this is very very late for 1.6 but at least it should clearly not have
-    any effect when shared libraries are not in use.
-    
-    Change-Id: I512ac912937e7502ff58eb5628b658ecce3c38e5
-    Reviewed-on: https://go-review.googlesource.com/18714
+    Change-Id: I419f3b8bf1bddffd4a775b0cd7b98f0239fe19cb
+    Reviewed-on: https://go-review.googlesource.com/14458
+    Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testshared/shared_test.go                 | 12 ++++++++
- misc/cgo/testshared/src/explicit/explicit.go       |  9 ++++++
- misc/cgo/testshared/src/implicit/implicit.go       |  5 ++++
- misc/cgo/testshared/src/implicitcmd/implicitcmd.go | 10 +++++++
- src/cmd/link/internal/ld/lib.go                    | 34 +++++++++++-----------
- 5 files changed, 53 insertions(+), 17 deletions(-)
+ src/runtime/debug/garbage_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,14 @@
-commit fb3b27329ef584d51f9cdb9a500cc45037439e3d
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri Jan 20 20:01:29 2012 -0800
+commit 35ba05ee288c8760ab116a773b1055a93a419bc5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 20 15:39:14 2012 -0800
 
-    os: fix Plan 9 build after more FileMode changes
+    bytes: simplified logic
     
-    This should go in after Brad's CL 5553064.
+    Also: Avoid potential crash due to reslicing of nil buffer.
     
-    R=bradfitz, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5555056
+    https://golang.org/cl/5556075
 
- src/pkg/os/file_plan9.go | 39 ++++++++++++++++++++++++++-------------
- 1 file changed, 26 insertions(+), 13 deletions(-)
+ src/pkg/bytes/buffer.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

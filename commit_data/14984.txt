@@ -1,19 +1,13 @@
-commit df21f06fdfa393747634d378a5a4344d0a7b54c3
+commit 7a389b61d4f678fbe527a3b6e90432cb5844ffd8
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 25 10:06:18 2013 +1100
+Date:   Fri Jan 25 08:27:34 2013 +1100
 
-    misc/dashboard/builder: synchronize accesses to goroot, always -commit
+    doc: add mention of the Go+ community
     
-    This prevents the occasional issue when Mercurial screws up the locking
-    itself, and by moving the locking into this process we can use the
-    goroot for other things (such as automatically updating the builder
-    binary).
-    
-    It also asks all builders to poll for new commits.
-    
-    R=bradfitz, dave, minux.ma, rsc
+    R=golang-dev, iant, kamil.kisiel, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7178046
+    https://golang.org/cl/7203049
 
- misc/dashboard/builder/main.go | 90 ++++++++++++++++++++++++++++++------------
- 1 file changed, 65 insertions(+), 25 deletions(-)
+ doc/contrib.html |  3 +++
+ doc/help.html    | 12 +++++++++---
+ 2 files changed, 12 insertions(+), 3 deletions(-)

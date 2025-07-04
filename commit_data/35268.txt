@@ -1,15 +1,15 @@
-commit 17fbb83693d5d4b880bb128d7afdb137840f76ec
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 30 19:01:57 2018 +0000
+commit 3ee8c3cc0b1053f4122f0e20d657b8255ad6a102
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 26 13:44:28 2018 -0500
 
-    cmd/go, cmd/compile: use Windows response files to avoid arg length limits
+    os: document inheritance of thread state over exec
     
-    Fixes #18468
+    Fixes #23570.
     
-    Change-Id: Ic88a8daf67db949e5b59f9aa466b37e7f7890713
-    Reviewed-on: https://go-review.googlesource.com/110395
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I462ada2960d710c2c94dc22a59d292703d83f612
+    Reviewed-on: https://go-review.googlesource.com/90255
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/work/exec.go | 78 ++++++++++++++++++++++++++++++++++++++++
- src/cmd/internal/objabi/flag.go  | 39 ++++++++++++++++++++
- 2 files changed, 117 insertions(+)
+ src/os/exec.go      | 5 +++++
+ src/os/exec/exec.go | 5 +++++
+ 2 files changed, 10 insertions(+)

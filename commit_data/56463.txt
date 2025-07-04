@@ -1,24 +1,30 @@
-commit 3454ac0d63fc18b61839192333cd03a84ad17130
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue May 14 14:59:03 2024 +0000
+commit f30cd520516037b2fdb367ddd8e0851019bf3440
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 9 15:40:36 2023 -0700
 
-    cmd/link/internal/ld: clean tmpdir obj timestamps
+    go/types, types2: control type inference in Checker.funcInst via infer argument
     
-    This patch changes the Go linker to "clean" (reset to Unix epoch) the
-    timestamps on object files copied to the tmpdir that is presented to
-    the external linker or archive tool. The intent is to improve build
-    reproducibility on Darwin, where later versions of xcode seem to want
-    to incorporate object file timestamps into the hash used for the final
-    build ID (which precludes the possibility of having reproducible Go
-    builds). Credit for this idea goes to Cherry (see
-    https://github.com/golang/go/issues/64947#issuecomment-1887667189).
+    If the infer argument is true, funcInst behaves as before.
+    If infer is false and there are not enough type arguments,
+    rather then inferring the missing arguments and instantiating
+    the function, funcInst returns the found type arguments.
     
-    Updates #64947.
+    This permits the use of funcInst (and all the checks it does)
+    to collect the type arguments for partially instantiated
+    generic functions used as arguments to other functions.
     
-    Change-Id: I2eb7dddff538e247122b04fdcf8a57c923f61201
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585355
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #59338.
+    
+    Change-Id: I049034dfde52bd7ff4ae72964ff1708e154e5042
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494118
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/link/internal/ld/lib.go | 35 +++++++++++++++++++++++++++++++----
- 1 file changed, 31 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/call.go | 38 ++++++++++++++++++++++++---------
+ src/cmd/compile/internal/types2/expr.go |  4 ++--
+ src/go/types/call.go                    | 38 ++++++++++++++++++++++++---------
+ src/go/types/expr.go                    |  4 ++--
+ 4 files changed, 60 insertions(+), 24 deletions(-)

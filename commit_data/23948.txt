@@ -1,57 +1,14 @@
-commit 961f456a1dbf6c86c033f8c9205766d3bbf228a1
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 31 13:07:41 2015 -0400
+commit d6ef6eb65c6d93c5f4c94af4fc7e26f2ab63eafd
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 25 14:36:49 2015 +1000
 
-    cmd/go: document and fix 'go build -o' semantics
+    doc: move go1.5.txt to go1.5.html
     
-    Quoting the new docs:
+    Just a copy, other than adding a header, preparatory to preparing the release notes.
     
-    «
-    If the arguments to build are a list of .go files, build treats
-    them as a list of source files specifying a single package.
-    
-    When compiling a single main package, build writes
-    the resulting executable to an output file named after
-    the first source file ('go build ed.go rx.go' writes 'ed' or 'ed.exe')
-    or the source code directory ('go build unix/sam' writes 'sam' or 'sam.exe').
-    The '.exe' suffix is added when writing a Windows executable.
-    
-    When compiling multiple packages or a single non-main package,
-    build compiles the packages but discards the resulting object,
-    serving only as a check that the packages can be built.
-    
-    The -o flag, only allowed when compiling a single package,
-    forces build to write the resulting executable or object
-    to the named output file, instead of the default behavior described
-    in the last two paragraphs.
-    »
-    
-    There is a change in behavior here, namely that 'go build -o x.a x.go'
-    where x.go is not a command (not package main) did not write any
-    output files (back to at least Go 1.2) but now writes x.a.
-    This seems more reasonable than trying to explain that -o is
-    sometimes silently ignored.
-    
-    Otherwise the behavior is unchanged.
-    
-    The lines being deleted in goFilesPackage look like they are
-    setting up 'go build x.o' to write 'x.a', but they were overridden
-    by the p.target = "" in runBuild. Again back to at least Go 1.2,
-    'go build x.go' for a non-main package has never produced
-    output. It seems better to keep it that way than to change it,
-    both for historical consistency and for consistency with
-    'go build strings' and 'go build std'.
-    
-    All of this behavior is now tested.
-    
-    Fixes #10865.
-    
-    Change-Id: Iccdf21f366fbc8b5ae600a1e50dfe7fc3bff8b1c
-    Reviewed-on: https://go-review.googlesource.com/13024
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dave Day <djd@golang.org>
+    Change-Id: Ia4dc27777b96b1e898d9873e7d38e6e795057698
+    Reviewed-on: https://go-review.googlesource.com/11474
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go | 22 +++++++-------
- src/cmd/go/build.go   | 58 ++++++++++++++++++++++--------------
- src/cmd/go/go_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 129 insertions(+), 32 deletions(-)
+ doc/{go1.5.txt => go1.5.html} | 8 ++++++++
+ 1 file changed, 8 insertions(+)

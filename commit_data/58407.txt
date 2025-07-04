@@ -1,20 +1,45 @@
-commit b47ce8b0e997f09abd6e1e5c23eb59d6e9d5be2c
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Dec 16 19:30:58 2024 +0100
+commit fd59c87ec1d5e65f697925a0d40e3f6d6254457e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Nov 5 02:19:46 2023 +1100
 
-    crypto/cipher: block non-AES CTR and CBC in fips140=only mode
+    syscall: provide and use fcntlPtr for all BSD platforms
     
-    Somehow I had missed these.
+    Provide fcntlPtr for all BSD platforms, then use this for FcntlFlock.
+    This reduces darwin and openbsd specific code, as well as avoiding
+    the use of an indirect system call on OpenBSD.
     
-    For #69536
+    Updates #63900
     
-    Change-Id: I5e60b6f052bbfb707742ad15f663517c6c5f68d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636795
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I5c701f0d8413fab5477b9e21381395621d1fb6d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540018
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Josh Rickmar <jrick@zettaport.com>
 
- src/crypto/cipher/cbc.go | 7 +++++++
- src/crypto/cipher/ctr.go | 4 ++++
- 2 files changed, 11 insertions(+)
+ src/syscall/{flock_darwin.go => flock_bsd.go} |  2 ++
+ src/syscall/{flock.go => flock_linux.go}      |  2 --
+ src/syscall/mksyscall.pl                      |  1 +
+ src/syscall/syscall_bsd.go                    |  1 +
+ src/syscall/syscall_darwin.go                 |  1 -
+ src/syscall/syscall_openbsd_libc.go           |  1 -
+ src/syscall/zsyscall_darwin_amd64.go          | 22 +++++++++++-----------
+ src/syscall/zsyscall_darwin_arm64.go          | 22 +++++++++++-----------
+ src/syscall/zsyscall_dragonfly_amd64.go       | 11 +++++++++++
+ src/syscall/zsyscall_freebsd_386.go           | 11 +++++++++++
+ src/syscall/zsyscall_freebsd_amd64.go         | 11 +++++++++++
+ src/syscall/zsyscall_freebsd_arm.go           | 11 +++++++++++
+ src/syscall/zsyscall_freebsd_arm64.go         | 11 +++++++++++
+ src/syscall/zsyscall_freebsd_riscv64.go       | 11 +++++++++++
+ src/syscall/zsyscall_netbsd_386.go            | 11 +++++++++++
+ src/syscall/zsyscall_netbsd_amd64.go          | 11 +++++++++++
+ src/syscall/zsyscall_netbsd_arm.go            | 11 +++++++++++
+ src/syscall/zsyscall_netbsd_arm64.go          | 11 +++++++++++
+ src/syscall/zsyscall_openbsd_386.go           | 22 +++++++++++-----------
+ src/syscall/zsyscall_openbsd_amd64.go         | 22 +++++++++++-----------
+ src/syscall/zsyscall_openbsd_arm.go           | 22 +++++++++++-----------
+ src/syscall/zsyscall_openbsd_arm64.go         | 22 +++++++++++-----------
+ src/syscall/zsyscall_openbsd_ppc64.go         | 22 +++++++++++-----------
+ src/syscall/zsyscall_openbsd_riscv64.go       | 22 +++++++++++-----------
+ 24 files changed, 202 insertions(+), 92 deletions(-)

@@ -1,14 +1,19 @@
-commit 4da157a7235c790c197912bd1c830d9731c77638
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 20 13:39:44 2015 -0700
+commit 0153137a3b40e58572ae9678e4733bb54827950a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 21:25:33 2015 -0500
 
-    cmd/dist, cmd/internal/gc: switch gc from math/big to vendored math/big
+    cmd/internal/gc: clean up liveness code
     
-    Change-Id: Iab9a1f814acd53d5707bfcd6c3f9616c79fa7789
-    Reviewed-on: https://go-review.googlesource.com/7858
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    - use Bvec, not *Bvec, and bulk allocate backing store
+    - use range loops
+    - put Bvecs in BasicBlock struct instead of indexing into parallel slices
+    
+    Change-Id: I5cb30f50dccb4d38cc18fae422f7f132c52876be
+    Reviewed-on: https://go-review.googlesource.com/6602
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/buildtool.go       | 1 +
- src/cmd/internal/gc/go.go       | 2 +-
- src/cmd/internal/gc/mparith1.go | 2 +-
- 3 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/internal/gc/bv.go    |  63 +++++---
+ src/cmd/internal/gc/go.go    |   5 -
+ src/cmd/internal/gc/plive.go | 365 ++++++++++++++++---------------------------
+ src/cmd/internal/gc/walk.go  |   4 +-
+ 4 files changed, 183 insertions(+), 254 deletions(-)

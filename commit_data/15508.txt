@@ -1,23 +1,18 @@
-commit 38d4d3c66a2aaaa7e4a73d197bbe425116b8ef49
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Mar 1 01:10:34 2013 +0200
+commit bd889907228024c1c682e86859611002e894abf8
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Thu Feb 28 14:20:42 2013 -0800
 
-    runtime: refactor Syscall benchmark
-    And add a benchmark where #goroutines>GOMAXPROCS,
-    because it's the most interesting case.
-    Current results on darwin/amd64, Intel Core 2 Duo 2.13 GHz, 2 cores:
-    BenchmarkSyscall        100000000               56.0 ns/op
-    BenchmarkSyscall-2      50000000                57.2 ns/op
-    BenchmarkSyscallWork    10000000               635 ns/op
-    BenchmarkSyscallWork-2  10000000               315 ns/op
-    BenchmarkSyscallExcess   1000000              2698 ns/op
-    BenchmarkSyscallExcess-2         5000000              1192 ns/op
-    BenchmarkSyscallExcessWork       1000000              2832 ns/op
-    BenchmarkSyscallExcessWork-2     2000000              1966 ns/op
+    os: Plan 9: allocate space for a string in Rename
     
-    R=golang-dev, r
+    The Name field of the stat structure is variable length
+    and the marshalling code in package syscall requires
+    a buf long enough to contain the Name as well as the
+    static data. This change makes sure that the buffer in
+    os.Rename is allocated with the appropriate length.
+    
+    R=rsc, rminnich, ality, r
     CC=golang-dev
-    https://golang.org/cl/7415044
+    https://golang.org/cl/7453044
 
- src/pkg/runtime/proc_test.go | 37 +++++++++++++++----------------------
- 1 file changed, 15 insertions(+), 22 deletions(-)
+ src/pkg/os/file_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

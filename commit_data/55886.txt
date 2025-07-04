@@ -1,17 +1,21 @@
-commit 07b4fee5810005357ba64d2934de90dee244f51d
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Fri Mar 8 02:59:26 2024 +0000
+commit 07559ceb721f4d1fff3186b9a481e2c0da1e0d4a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 22 17:45:07 2023 +0700
 
-    cmd/link: fix typo in comment
+    cmd/compile: mark negative size memclr non-inlineable
     
-    Change-Id: Ib24841f4823c357ddeefa28435c2b80867d752d2
-    GitHub-Last-Rev: b0c6c58b24af43b0a0e759b152eb245b3bf1ce4e
-    GitHub-Pull-Request: golang/go#66182
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570015
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #59174
+    
+    Change-Id: I72b2b068830b90d42a0186addd004fb3175b9126
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478375
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/link_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go |  3 +++
+ test/fixedbugs/issue59174.go            | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

@@ -1,16 +1,22 @@
-commit dc870d5f4b77c0a2a276f8fd12510a53969c56b5
+commit 253ad67b3458ca640bc3d56a278b94b0823fec59
 Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 6 14:30:03 2015 -0400
+Date:   Fri Mar 6 15:04:17 2015 -0500
 
-    runtime: detailed debug output of controller state
+    debug/dwarf: document DWARF class -> Go type mapping
     
-    This adds a detailed debug dump of the state of the GC controller and
-    a GODEBUG flag to enable it.
+    Currently, the only way to know the Go type of an attribute of some
+    DWARF attribute class was to read the dwarf package code (or
+    experiment).  This makes it hard to go from the DWARF specification to
+    writing code that uses the dwarf package.
     
-    Change-Id: I562fed7981691a84ddf0f9e6fcd9f089f497ac13
-    Reviewed-on: https://go-review.googlesource.com/9640
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fix this by adding a table to the documentation comment of the Field
+    type that gives the correspondence between DWARF attribute classes and
+    Go types.
+    
+    Change-Id: I57c678a551fa1eb46f8207085d5a53d44985e3e7
+    Reviewed-on: https://go-review.googlesource.com/7280
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/runtime/mgc.go      | 28 ++++++++++++++++++++++++++++
- src/runtime/runtime1.go |  2 ++
- 2 files changed, 30 insertions(+)
+ src/debug/dwarf/entry.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

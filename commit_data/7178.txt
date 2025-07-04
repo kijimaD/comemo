@@ -1,15 +1,13 @@
-commit 4a7fed4d909ec71f03057692918ac3eb70511190
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Jan 19 19:41:27 2011 -0500
+commit 7963b04a181b9cab7bf9a0d7414a206402a98a96
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jan 19 16:30:13 2011 -0800
 
-            crypto/twofish: update with rsc's comments
+    arm bug with stack adjust
     
-            TBR=rsc
-    
-    R=rsc
-    CC=berengar.lehr, golang-dev
-    https://golang.org/cl/4050042
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3980043
 
- src/pkg/crypto/twofish/twofish.go      | 136 ++++++++++++++++-----------------
- src/pkg/crypto/twofish/twofish_test.go |   4 +-
- 2 files changed, 70 insertions(+), 70 deletions(-)
+ src/cmd/5g/opt.h |  1 -
+ src/cmd/5g/reg.c | 68 ++++++++++++++++++++++++++++++++++++++------------------
+ 2 files changed, 46 insertions(+), 23 deletions(-)

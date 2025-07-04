@@ -1,15 +1,19 @@
-commit 741eab4eb65799383022f3678af627f1751bb718
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Feb 25 09:20:04 2011 +1100
+commit 8d36a78440f4a489d961ecb034dfc2b0fdb6ab51
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 24 17:11:20 2011 -0500
 
-    compress/lzw: implement an encoder.
+    reflect: add pointer word to CommonType
     
-    R=rsc, nigeltao_gnome
+    The pointer will eventually let us find *T given T.
+    This CL just makes room for it, always storing a zero.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4209043
+    https://golang.org/cl/4221046
 
- src/pkg/compress/lzw/Makefile       |   1 +
- src/pkg/compress/lzw/reader.go      |  23 ++--
- src/pkg/compress/lzw/writer.go      | 259 ++++++++++++++++++++++++++++++++++++
- src/pkg/compress/lzw/writer_test.go | 100 ++++++++++++++
- 4 files changed, 370 insertions(+), 13 deletions(-)
+ src/cmd/gc/reflect.c    |  5 +++--
+ src/cmd/ld/dwarf.c      | 40 +++++++++++++++++++++++-----------------
+ src/pkg/reflect/type.go |  1 +
+ src/pkg/runtime/type.go |  3 ++-
+ src/pkg/runtime/type.h  |  1 +
+ 5 files changed, 30 insertions(+), 20 deletions(-)

@@ -1,17 +1,21 @@
-commit bcd4b84bc56889b5a9a8a5d457f35fc0188e8315
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed May 4 22:07:50 2016 -0700
+commit 15ea61146e49b91b84b7b3a3096b13ddfb4cc01f
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 17 13:28:04 2016 -0700
 
-    runtime: skip TestCgoCallbackGC on linux/mips64x
+    runtime: use unaligned loads on ppc64
     
-    Builder is too slow. This test passed on builder machines but took
-    15+ min.
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkAlignedLoad-160       8.67          7.42          -14.42%
+    BenchmarkUnalignedLoad-160     8.63          7.37          -14.60%
     
-    Change-Id: Ief9d67ea47671a57e954e402751043bc1ce09451
-    Reviewed-on: https://go-review.googlesource.com/22798
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Change-Id: Id4609d7b4038c4d2ec332efc4fe6f1adfb61b82b
+    Reviewed-on: https://go-review.googlesource.com/20812
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/crash_cgo_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/export_test.go |  3 +++
+ src/runtime/hash_test.go   | 22 ++++++++++++++++++++++
+ src/runtime/unaligned1.go  |  2 +-
+ src/runtime/unaligned2.go  |  2 +-
+ 4 files changed, 27 insertions(+), 2 deletions(-)

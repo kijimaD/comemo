@@ -1,17 +1,32 @@
-commit f18715c18fb4e0e71f46dc8fc47262ebfbcbe514
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Wed Apr 14 15:01:56 2021 +0200
+commit 5c1567cdc064b68210aeeddc6bf76bf0a146a626
+Author: Ayan George <ayan@ayan.net>
+Date:   Tue Oct 6 18:40:40 2020 +0000
 
-    time: replace os.Setenv with T.Setenv
+    net/http/pprof: use Request.Context, not the deprecated CloseNotifier
     
-    Updates #45448
+    Prior to this commit, the profiling code had a sleep() function that
+    waits and unblocks on either time.After() or a channel provided by an
+    http.CloseNotifier derived from a supplied http.ResponseWriter.
     
-    Change-Id: Ic096fe1c58c124fb8d84ee15c9446e7ed060b24f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310032
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    According to the documentation, http.CloseNotifier is deprecated:
+    
+      Deprecated: the CloseNotifier interface predates Go's context package.
+      New code should use Request.Context instead.
+    
+    This patch does just that -- sleep() now takes an *http.Request and uses
+    http.Request.Context() to signal when a request has been cancelled.
+    
+    Change-Id: I98702314addf494f5743a4f99172dc607389dbb8
+    GitHub-Last-Rev: c1e37a03ca28417ed5833618d3eeddb2eecccd09
+    GitHub-Pull-Request: golang/go#41756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259157
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/time/zoneinfo_test.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/net/http/pprof/pprof.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

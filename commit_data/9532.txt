@@ -1,17 +1,12 @@
-commit 8aa2591b130520e9f30d83e672f976e9c7590d7e
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Aug 29 09:35:13 2011 -0400
+commit 45bd7b07e5e4a6524a6fe243a40a5918850168bf
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Aug 29 09:35:08 2011 -0400
 
-    runtime: openbsd thread tweaks
+    time: fix Plan 9 build
     
-    - Rename sys_sched_yield() to osyield() as this is now defined in asm.h.
-    - Only print kern.rtheads message if rfork_thread() failed with ENOTSUP.
-    - Remove unused variables.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4973043
+    https://golang.org/cl/4966045
 
- src/pkg/runtime/openbsd/amd64/sys.s | 10 +++++-----
- src/pkg/runtime/openbsd/thread.c    | 16 ++++++++--------
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ src/pkg/time/zoneinfo_plan9.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

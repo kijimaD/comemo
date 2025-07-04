@@ -1,20 +1,22 @@
-commit 5374c1aaf53a2212ca6a27eedc936fa917c5d077
+commit 4d6ca68a85e42c75683bc96aa540207566f54e26
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 24 13:16:48 2023 -0400
+Date:   Wed Sep 28 13:29:12 2022 -0400
 
-    cmd/internal/testdir: parse past gofmt'd //go:build lines
+    os/exec: do not close pipes on a double-Start error
     
-    Also gofmt a test file to make sure the parser works.
+    This fixes a bug introduced in CL 401834 in which calling Start twice
+    with pipes attached to a command would spuriously close those pipes
+    when returning the error from the second Start call.
     
-    Fixes #62267.
+    For #50436.
     
-    Change-Id: I9b9f12b06bae7df626231000879b5ed7df3cd9ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522635
+    Change-Id: I3563cc99c0a0987752190fef95da3e9927a76fda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436095
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/internal/testdir/testdir_test.go | 20 ++++++++++++--------
- test/fixedbugs/issue10607.go             |  2 ++
- 2 files changed, 14 insertions(+), 8 deletions(-)
+ src/os/exec/exec.go      |  9 ++++++---
+ src/os/exec/exec_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 3 deletions(-)

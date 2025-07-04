@@ -1,16 +1,23 @@
-commit d52413d62dbfc6c6ee33a8a12b9b0cf27e6828a1
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 9 12:29:43 2017 -0400
+commit 318812e7c1b6b9ca890e62263a4cab1cb78ea6ed
+Author: David Lazar <lazard@golang.org>
+Date:   Thu Apr 20 16:19:55 2017 -0400
 
-    cmd/go: document that BinaryOnly packages must have accurate import info
+    testing: use function names to identify helpers
     
-    Update BinaryOnly test by adding import _ "fmt".
+    Previously, helpers were identified by entry PC, but this breaks if the
+    helper is inlined (as in notHelperCallingHelper). Instead, identify
+    helpers by function name (with package path). Now TestTBHelper and
+    TestTBHelperParallel pass with -l=4.
     
-    Change-Id: I3a1dcfb83a27d8ff50a658060a46e1a3f481f6c7
-    Reviewed-on: https://go-review.googlesource.com/56276
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    To keep the code unified, this change makes it so that the runner
+    is also identified by function name instead of entry PC.
+    
+    Change-Id: I1b1987fc49d114e69d075fab56aeeacd5294982b
+    Reviewed-on: https://go-review.googlesource.com/41257
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/alldocs.go               | 6 ++++--
- src/cmd/go/go_test.go               | 1 +
- src/cmd/go/internal/help/helpdoc.go | 6 ++++--
- 3 files changed, 9 insertions(+), 4 deletions(-)
+ src/testing/testing.go | 53 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 26 deletions(-)

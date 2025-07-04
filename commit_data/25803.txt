@@ -1,14 +1,20 @@
-commit 6716a54e368be250b3840fcdef3c2437886e02e6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 19 17:37:04 2016 +0900
+commit 009517e0b7fb085c87b474a32fc7701613d0c0d3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 23 12:43:17 2015 -0800
 
-    net: make newLocalListener handle network argument correcly
+    html/template: add DefinedTemplates to html/template
     
-    Change-Id: I8987e705af069846e6668e2f2104e0254e695139
-    Reviewed-on: https://go-review.googlesource.com/19706
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    It is not important to add, since it's only used for creating an error message,
+    but for consistency in the API between text/template and html/template
+    it should be provided here.
+    
+    The implementation just calls the one in text/template.
+    
+    Fixes #13349.
+    
+    Change-Id: I0882849e06a58f1e38b00eb89d79ac39777309b2
+    Reviewed-on: https://go-review.googlesource.com/17172
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/mockserver_test.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/html/template/template.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,23 +1,20 @@
-commit b46bf0240c0663222f837c78644fe90da932d852
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Oct 2 21:39:20 2018 +0000
+commit b0155e34241ccd437ba39cc5bdf8c887b5107772
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Jul 6 10:46:37 2018 +0200
 
-    runtime: separate scavenged spans
+    cmd/go: skip gitrepo tests on Plan 9
     
-    This change adds a new treap to mheap which contains scavenged (i.e.
-    its physical pages were returned to the OS) spans.
+    CL 118095 added gitrepo tests. These tests are failing on Plan 9
+    since they expect a full-featured git command, while the git tool
+    has been emulated as a simple rc script on Plan 9.
     
-    As of this change, spans may no longer be partially scavenged.
+    Fixes #25938.
     
-    For #14045.
-    
-    Change-Id: I0d428a255c6d3f710b9214b378f841b997df0993
-    Reviewed-on: https://go-review.googlesource.com/c/139298
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I262a89d0ce83168c550d9af3e832ed3a1e3c43f6
+    Reviewed-on: https://go-review.googlesource.com/122455
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgclarge.go |  12 -----
- src/runtime/mheap.go    | 131 +++++++++++++++++++++++++++++++++++++-----------
- src/runtime/mstats.go   |  14 ------
- 3 files changed, 103 insertions(+), 54 deletions(-)
+ src/cmd/go/internal/modfetch/gitrepo/fetch_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

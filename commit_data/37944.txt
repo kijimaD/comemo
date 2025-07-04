@@ -1,15 +1,17 @@
-commit 10faf001077ea6b3907864f16a9f9099a7ba939b
-Author: alkesh26 <alkesh26@gmail.com>
-Date:   Tue Feb 5 10:05:10 2019 +0000
+commit 0e21cc2ba0823f2130d950eccf7c023b161d1331
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 14 10:04:12 2018 -0700
 
-    doc: fix a typo
+    runtime: use CleanCmdEnv in TestRuntimePanic
     
-    Change-Id: Ia830f59d6f6ca1bc506ec298ccfc154d9f94f01d
-    GitHub-Last-Rev: 3ab18d4fd1a8d4295713cbb7ff74f30b3838b6d3
-    GitHub-Pull-Request: golang/go#30067
-    Reviewed-on: https://go-review.googlesource.com/c/160829
+    This makes TestRuntimePanic keep most of the existing environment,
+    just as the other runtime tests do.
+    
+    Change-Id: I7944abfeee292d41716dca14483134a50d75f081
+    Reviewed-on: https://go-review.googlesource.com/135376
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/codewalk/codewalk.js | 2 +-
+ src/runtime/crash_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

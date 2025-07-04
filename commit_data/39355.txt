@@ -1,14 +1,32 @@
-commit 34a43d7c1de171691546e95aca503ece4602d82b
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Sat Jun 8 07:32:13 2019 -0400
+commit e90e7a59dc1aa9cd488400d58405064943b4d3c0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Dec 16 19:11:28 2018 +0100
 
-    errors: improve As tests
+    encoding/base32: simplify and speed up decoder
     
-    Check the value of target after As returns true.
+    First, we can lift the enc.decodeMap nil check out of the loop.
     
-    Change-Id: I76a2b25fe825ee1dbb5f39f8f0b211c55bd25a4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181299
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Second, we can make it clear to the compiler that 'in := src[0]' doesn't
+    need a bounds check, by making len(src)==0 a single if check that always
+    stops the loop. This is by far the largest speed-up.
+    
+    Third, we can use a dst slice index instead of reslicing dst, which
+    removes work from the loop body.
+    
+    While at it, we can merge the two 'switch dlen' pieces of code, which
+    simplifies the code and doesn't affect performance.
+    
+    name            old time/op    new time/op    delta
+    DecodeString-8    80.2µs ± 0%    67.5µs ± 0%  -15.81%  (p=0.002 n=6+6)
+    
+    name            old speed      new speed      delta
+    DecodeString-8   163MB/s ± 0%   194MB/s ± 0%  +18.78%  (p=0.002 n=6+6)
+    
+    Change-Id: Iefeaae94c03453f8760452b1da706a77b3522718
+    Reviewed-on: https://go-review.googlesource.com/c/154422
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/errors/wrap_test.go | 35 +++++++++++++++++++++++++++--------
- 1 file changed, 27 insertions(+), 8 deletions(-)
+ src/encoding/base32/base32.go | 52 ++++++++++++++++++-------------------------
+ 1 file changed, 22 insertions(+), 30 deletions(-)

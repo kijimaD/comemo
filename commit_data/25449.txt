@@ -1,15 +1,16 @@
-commit 39c3e0f64285b9e3c0c0f750af5ae1aa52be79f6
+commit 845878a213e1db930e17a5c3108b215be5edbb20
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 11:23:03 2016 -0500
+Date:   Fri Oct 30 13:50:19 2015 -0400
 
-    time: document that RFC1123 is wrong for times in UTC
+    net/http: do not listen on public network during HTTP/2 test
     
-    Fixes #13781.
+    Avoids Mac firewall box.
     
-    Change-Id: Icfac8f2bfc3a4106f646409cfdc053df1e0cd76a
-    Reviewed-on: https://go-review.googlesource.com/18314
+    Change-Id: I000e421fa9639612d636b6fa4baf905459c5aeb2
+    Reviewed-on: https://go-review.googlesource.com/16514
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/format.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/net/http/serve_test.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

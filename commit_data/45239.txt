@@ -1,23 +1,25 @@
-commit 77860ad2809d88566d28783e0382073fb9836d9b
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Apr 20 13:09:54 2021 -0400
+commit 73f529845c91818c58f26994099db17c8ee2b2f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 13 22:33:17 2020 -0700
 
-    cmd/compile: guard partially live arg spilling with number of registers
+    [dev.typeparams] cmd/compile/internal/syntax: always use IndexExpr node for type instantiation
     
-    The code that does partially live in-register arg spilling is
-    currently guarded with GOEXPERIMENT=regabiargs. But on platforms
-    where GOEXPERIMENT=regabiargs is not enabled there are still tests
-    that use register args. Guard it with actual number of registers
-    used, so it covers both.
+    Per @mdempsky's suggestion: Instead of representing a type instantiation T[P]
+    by an IndexExpr node, and a type instantiation with multiple type arguments
+    T[P1, P2] by a CallExpr node with special Brackets flag, always use an IndexExpr.
+    Use a ListExpr as index in the (less common) case of multiple type arguments.
     
-    Should fix the freeBSD builder.
+    This removes the need for the CallExpr.Brackets field and cleans up the parser
+    code around type instantiations.
     
-    Change-Id: I0d3c49d7a2389096cb6b17ca35b9b4ce567bc91e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311830
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Backport of syntax package changes from https://golang.org/cl/262020.
+    
+    Change-Id: I32e8bc4eafac5b3ef2e7eb40fa8c790a5a905b69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262137
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/nodes.go       |   8 +-
+ src/cmd/compile/internal/syntax/parser.go      | 216 +++++++++++++++----------
+ src/cmd/compile/internal/syntax/parser_test.go |   2 +-
+ 3 files changed, 138 insertions(+), 88 deletions(-)

@@ -1,28 +1,20 @@
-commit 8f4c020660d4c8a7bab9a7363551d07176e638eb
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Aug 29 06:49:28 2021 -0700
+commit 412dc2f4d330a519fb7c26e6ecb0f2bbcb876bbb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 14 21:56:25 2020 -0800
 
-    cmd/compile: fix bug with Inferred targs
+    test: adjust issue11371 to fit in required precision
     
-    We were using the type from the wrong Node (the partially filled-in
-    FUNCINST) rather than the original function node - which is pointed to
-    by the OFUNCINST)) to set the final fully-substituted type of the
-    OFUNCINST. So fixed the node reference. Also, added check so we don't do
-    any work at all if the OFUNCINST already has all type args filled in.
+    The language spec only requires that floating point values be
+    represented with 256 bits, which is about 1e75. The issue11371 test
+    was assuming that the compiler could represent 1e100. Adjusting the
+    test so that it only assumes 256 bits of precision still keeps the
+    test valid, and permits it to pass when using the gofrontend.
     
-    Added few extra cases to the test file issue48030.go, to cover
-    fully-specified type args, partially inferred type args, and fully
-    inferred type args.
-    
-    Fixes #48030
-    
-    Change-Id: If9e4f2e0514d68b9d241f30c423259133932b25b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346229
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9d1006e9adc9438277f4b8002488c912e5d61cc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278116
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/expr.go | 16 +++++++++-------
- test/typeparam/issue48030.go           | 26 ++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 7 deletions(-)
+ test/fixedbugs/issue11371.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

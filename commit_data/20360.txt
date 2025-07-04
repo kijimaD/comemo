@@ -1,15 +1,25 @@
-commit 1fadd9e1aed80d27799cecace3f3764048d8ddd3
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Sep 9 07:22:11 2014 +0900
+commit 56bd176e1d5f0145936128c0dc1f931cc5a84c0b
+Author: Rick Hudson <rlh@golang.org>
+Date:   Wed Sep 3 12:06:36 2014 -0400
 
-    net: don't set wrong option for controlling tcp keepalive on openbsd
+    runtime: Start and stop individual goroutines at gc safepoints
     
-    Fixes #8679.
+    Code to bring goroutines to a gc safepoint one at a time,
+    do some work such as scanning, and restart the
+    goroutine, and then move on to the next goroutine.
+    Currently this code does not do much useful work
+    but this infrastructure will be critical to future
+    concurrent GC work.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    Fixed comments reviewers.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/141730043
+    https://golang.org/cl/131580043
 
- src/net/tcpsockopt_openbsd.go | 17 +++--------------
- 1 file changed, 3 insertions(+), 14 deletions(-)
+ src/pkg/runtime/mgc0.c    |  39 ++++++++-
+ src/pkg/runtime/proc.c    | 206 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/runtime.h |  19 ++++-
+ src/pkg/runtime/stack.c   |   8 ++
+ 4 files changed, 262 insertions(+), 10 deletions(-)

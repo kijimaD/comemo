@@ -1,0 +1,18 @@
+commit 008cc58a11cac815c79db0ac5439d17cee5c80bd
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Tue May 7 09:56:09 2024 +0000
+
+    flag: replace sort.Slice with slices.SortFunc
+    
+    Change-Id: I874f0c0399cb09de4fe4dd2097602c5fa0512b12
+    GitHub-Last-Rev: 73be01ae2a27adf0b7629a198057674018b5d392
+    GitHub-Pull-Request: golang/go#67223
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583735
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/flag/flag.go      | 6 +++---
+ src/flag/flag_test.go | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,34 +1,15 @@
-commit d08c3d1329994ddba2e0a2dd13b950f9f178ab02
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Apr 29 16:23:55 2016 +1000
+commit 2629446df0cb906986f377d45cde307ffdae9675
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 2 00:41:12 2016 +0000
 
-    cmd/link/internal/ld: use debug/pe package to rewrite ldpe.go
+    doc/go1.7.html: mention Server.Serve HTTP/2 behavior change
     
-    This CL also includes vendored copy of debug/pe,
-    otherwise bootstrapping fails.
+    Fixes #16550
+    Updates #15908
     
-    Updates #15345
-    
-    Change-Id: I3a8ac990e3cb12cb4d24ec11b618b68190397fd1
-    Reviewed-on: https://go-review.googlesource.com/22603
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic951080dbc88f96e4c00cdb3ffe24a5c03079efd
+    Reviewed-on: https://go-review.googlesource.com/25389
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- misc/nacl/testzip.proto                            |   5 +
- src/cmd/dist/buildtool.go                          |   1 +
- src/cmd/link/internal/ld/ldpe.go                   | 356 +++++++-----------
- src/cmd/link/internal/pe/file.go                   | 343 +++++++++++++++++
- src/cmd/link/internal/pe/file_test.go              | 417 +++++++++++++++++++++
- src/cmd/link/internal/pe/pe.go                     | 110 ++++++
- src/cmd/link/internal/pe/section.go                | 112 ++++++
- src/cmd/link/internal/pe/string.go                 |  67 ++++
- src/cmd/link/internal/pe/symbol.go                 |  96 +++++
- .../link/internal/pe/testdata/gcc-386-mingw-exec   | Bin 0 -> 29941 bytes
- .../pe/testdata/gcc-386-mingw-no-symbols-exec      | Bin 0 -> 8704 bytes
- .../link/internal/pe/testdata/gcc-386-mingw-obj    | Bin 0 -> 2372 bytes
- .../link/internal/pe/testdata/gcc-amd64-mingw-exec | Bin 0 -> 273083 bytes
- .../link/internal/pe/testdata/gcc-amd64-mingw-obj  | Bin 0 -> 736 bytes
- src/cmd/link/internal/pe/testdata/hello.c          |   8 +
- src/cmd/link/internal/pe/vendor.bash               |  31 ++
- 16 files changed, 1325 insertions(+), 221 deletions(-)
+ doc/go1.7.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

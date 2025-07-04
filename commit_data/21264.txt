@@ -1,22 +1,14 @@
-commit 6482fe6c65f105d2177b6278c97d464bc0976ca3
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 14 16:41:39 2015 -0500
+commit 324f38a222cc48439a11a5545c85cb8614385987
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Dec 14 09:43:40 2014 -0500
 
-    runtime: delete dead code called from C.
+    runtime: shrink initial arena if reservation fails
     
-    printf, vprintf, snprintf, gc_m_ptr, gc_g_ptr, gc_itab_ptr, gc_unixnanotime.
+    Fixes #9311
     
-    These were called from C.
-    There is no more C.
-    
-    Now that vprintf is gone, delete roundup, which is unsafe (see CL 2814).
-    
-    Change-Id: If8a7b727d497ffa13165c0d3a1ed62abc18f008c
-    Reviewed-on: https://go-review.googlesource.com/2824
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I2f142e65a54c0391084316d79a42714ba42dd8b9
+    Reviewed-on: https://go-review.googlesource.com/1514
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go    |   5 +--
- src/runtime/mgc0.go   |  20 ---------
- src/runtime/print1.go | 118 --------------------------------------------------
- src/runtime/stubs.go  |   6 ---
- 4 files changed, 2 insertions(+), 147 deletions(-)
+ src/runtime/malloc1.go | 81 +++++++++++++++++++++++++++++---------------------
+ 1 file changed, 47 insertions(+), 34 deletions(-)

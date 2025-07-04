@@ -1,12 +1,15 @@
-commit 7a8e897979c7436f0baa0f7996542dc3c39023f4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 19 13:47:12 2014 +1100
+commit 1340c6d59303e0acaab6a50cb39a7c978e25f11b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 7 08:19:19 2014 -0800
 
-    doc: start go1.5.txt
+    cmd/go: disable warnings from cmd/cc when building for SWIG
     
-    Change-Id: I0f9cf081cb280f0a805ee7f5178a5cbed0d4ad88
-    Reviewed-on: https://go-review.googlesource.com/1842
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #9065.
+    
+    LGTM=rsc
+    R=rsc, misch
+    CC=golang-codereviews
+    https://golang.org/cl/171270043
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/build.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

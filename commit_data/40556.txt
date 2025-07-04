@@ -1,16 +1,27 @@
-commit 1b2ff1013678bca2181d046a91857e78f3981f9c
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Wed Oct 16 20:50:17 2019 +0100
+commit f736de04aa52d4889760ecfe4380da01aaf4758f
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 17 13:43:51 2019 +1000
 
-    testing: implement Cleanup method
+    cmd/doc: always print package clause except for commands
     
-    Fixes #32111
+    There was an implicit heuristic before about when to print the
+    package clause or omit it, but it was undocumented and confusing.
+    Get rid of it and print it always unless asking for the package
+    docs for a command, which are more of a usage message than a
+    programming question. This simplifies the processing.
     
-    Change-Id: I7078947889d1e126d9679fb28f27b3fa6ce133ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201359
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    There are several paths to the output, so to put the fix in one
+    place we place a wrapper before the output buffer than adds the
+    clause when Write is first called.
+    
+    The tests don't verify this behavior, but they didn't before either.
+    Unsure what the right approach is but this will do for now.
+    
+    Fixes #31457
+    
+    Change-Id: Ia6a9e740d556f45265c55f06b5306621c7a40ea9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177797
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.14.html         | 10 ++++++++
- src/testing/sub_test.go | 65 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/testing/testing.go  | 31 ++++++++++++++++++++++-
- 3 files changed, 105 insertions(+), 1 deletion(-)
+ src/cmd/doc/pkg.go | 81 +++++++++++++++++++++++-------------------------------
+ 1 file changed, 35 insertions(+), 46 deletions(-)

@@ -1,0 +1,16 @@
+commit 252fbaf30fab5542f959d3ead59258440a0e0903
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon Oct 21 17:19:48 2024 +0800
+
+    cmd/compile: fold MOV*nop and MOV*const on loong64
+    
+    Change-Id: I4bb1082518fc08fc0a1cb66970746d5b4f13c934
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621356
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  4 ++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 17 +++++++++++++++++
+ 2 files changed, 21 insertions(+)

@@ -1,21 +1,18 @@
-commit a972e8ccb9824d97f029bde5409527fb27e85989
-Author: subham sarkar <sarkar.subhams2@gmail.com>
-Date:   Thu Oct 15 00:24:14 2020 +0530
+commit 7a35d39b56dacf9ef248d3e77bc2f9e8147d6b75
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 7 12:03:31 2020 -0700
 
-    all: fix quoting for compress/bzip2 and time's godoc
+    runtime/race: update ppc64 .syso file
     
-    The existing usage of grave accent (`) and apostrophe (')
-    at some places made godoc to ignore them and show it as it is.
-    So, use both of the characters twice (consecutively) so that
-    godoc can convert it to {left,right} double quotation mark.
+    Update #14881
+    Update #37355
     
-    Fixes #41958
-    
-    Change-Id: I64fd9b5fa34f416ad595009d09f5482e10bd8b4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262397
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I5edd53b7532836cfe6037fb668b1b8fe8f7a32f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227443
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/compress/bzip2/bzip2.go | 8 ++++----
- src/time/tick.go            | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/race/README                  |   2 +-
+ src/runtime/race/race_linux_ppc64le.syso | Bin 570032 -> 618664 bytes
+ 2 files changed, 1 insertion(+), 1 deletion(-)

@@ -1,25 +1,20 @@
-commit 498ee73a4b9f48c0916bb5a2bdd22ddf6aca79c6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 12 15:11:16 2022 -0400
+commit febbef593e8d77500d0e330db91a7be1a71d05e9
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 15 14:42:42 2021 -0800
 
-    os/exec: reduce arbitrary sleeps in TestWaitid
+    doc: mention generics in release notes
     
-    If we use the "pipetest" helper command instead of "sleep",
-    we can use its stdout pipe to determine when the process
-    is ready to handle a SIGSTOP, and we can additionally check
-    that sending a SIGCONT actually causes the process to continue.
+    Also mention local types restriction.
     
-    This also allows us to remove the "sleep" helper command,
-    making the test file somewhat more concise.
+    We probably want to say more at some point, this is just a
+    placeholder to start.
     
-    Noticed while looking into #50138.
+    Update #47631
     
-    Change-Id: If4fdee4b1ddf28c6ed07ec3268c81b73c2600238
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442576
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I828e451e1e8504d21cb55c7132e9cb330b160a54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364134
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/exec/exec_posix_test.go | 57 ++++++++++++++++++++++++++++--------------
- 1 file changed, 38 insertions(+), 19 deletions(-)
+ doc/go1.18.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

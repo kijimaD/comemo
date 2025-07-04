@@ -1,16 +1,16 @@
-commit 2dbee8919c5c0e19e26e9d80d9135c367d2bf4cf
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Feb 28 17:06:06 2015 -0500
+commit 878d00b65c829c45ef5aebc84e506265f53a0265
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 29 13:45:56 2015 +0100
 
-    runtime/cgo: no-op getwd call as test breakpoint
+    cmd/pack: make a test less disk-intensive in short mode
     
-    This is to be used by an lldb script inside go_darwin_arm_exec to pause
-    the execution of tests on iOS so the working directory can be adjusted
-    into something resembling a GOROOT.
+    Fixes #9656
     
-    Change-Id: I69ea2d4d871800ae56634b23ffa48583559ddbc6
-    Reviewed-on: https://go-review.googlesource.com/6363
+    Change-Id: I1158636683492ef12eeafb12e257d205026adc3f
+    Reviewed-on: https://go-review.googlesource.com/3175
     Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/3910
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/runtime/cgo/gcc_darwin_arm.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/pack/pack_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

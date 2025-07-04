@@ -1,19 +1,45 @@
-commit 6c25ba624fd032a20dcfa94f9f9f0ae32c57c54b
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Jun 1 12:54:00 2022 -0400
+commit 8157960d7f4a89807c71b3427a0363a23fd43ca9
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Mon Aug 23 11:34:51 2021 +0200
 
-    go/token: delete unused File.set field
+    all: replace runtime SSE2 detection with GO386 setting
     
-    This field is only used for a sanity check in a test.
+    When GO386=sse2 we can assume sse2 to be present without
+    a runtime check. If GO386=softfloat is set we can avoid
+    the usage of SSE2 even if detected.
     
-    Change-Id: I868ed10131ec33994ebb1b1d88f6740956824bd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409834
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    This might cause a memcpy, memclr and bytealg slowdown of Go
+    binaries compiled with softfloat on machines that support
+    SSE2. Such setups are rare and should use GO386=sse2 instead
+    if performance matters.
+    
+    On targets that support SSE2 we avoid the runtime overhead of
+    dynamic cpu feature dispatch.
+    
+    The removal of runtime sse2 checks also allows to simplify
+    internal/cpu further by removing handling of the required
+    feature option as a followup after this CL.
+    
+    Change-Id: I90a853a8853a405cb665497c6d1a86556947ba17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344350
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/token/position.go       | 3 +--
- src/go/token/serialize.go      | 1 -
- src/go/token/serialize_test.go | 6 ------
- 3 files changed, 1 insertion(+), 9 deletions(-)
+ src/cmd/go/internal/work/gc.go     |  5 +++++
+ src/internal/bytealg/bytealg.go    |  1 -
+ src/internal/bytealg/compare_386.s |  5 +++--
+ src/internal/bytealg/equal_386.s   |  5 +++--
+ src/internal/cpu/cpu.go            |  1 -
+ src/internal/cpu/cpu_386.go        |  7 -------
+ src/internal/cpu/cpu_amd64.go      |  7 -------
+ src/internal/cpu/cpu_x86.go        |  6 +-----
+ src/internal/cpu/cpu_x86_test.go   | 18 ------------------
+ src/runtime/asm_386.s              |  5 +++--
+ src/runtime/cpuflags.go            |  1 -
+ src/runtime/memclr_386.s           |  5 +++--
+ src/runtime/memmove_386.s          |  5 +++--
+ src/runtime/mkpreempt.go           | 10 ++++++----
+ src/runtime/preempt_386.s          | 10 ++++------
+ 15 files changed, 31 insertions(+), 60 deletions(-)

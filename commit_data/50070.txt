@@ -1,41 +1,18 @@
-commit 6985ab27dfd10de6d9e119a51c541a2bc1cbcdf7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 18 20:59:26 2022 -0700
+commit bd8009d4392fae3ad148a0fe9adb4ea4ac5ab8d3
+Author: 180909 <734461790@qq.com>
+Date:   Tue Aug 31 17:57:33 2021 +0000
 
-    cmd/compile: fix unified IR's pointer-shaping
+    README.md: update contribute URL
     
-    In CL 424734, I implemented pointer shaping for unified IR. Evidently
-    though, we didn't have any test cases that check that uses of
-    pointer-shaped expressions were handled correctly.
+    /doc/contribute.html now redirects to /doc/contribute.
     
-    In the reported test case, the struct field "children items[*node[T]]"
-    gets shaped to "children items[go.shape.*uint8]" (underlying type
-    "[]go.shape.*uint8"); and so the expression "n.children[i]" has type
-    "go.shape.*uint8" and the ".items" field selection expression fails.
-    
-    The fix implemented in this CL is that any expression of derived type
-    now gets an explicit "reshape" operation applied to it, to ensure it
-    has the appropriate type for its context. E.g., the "n.children[i]"
-    OINDEX expression above gets "reshaped" from "go.shape.*uint8" to
-    "*node[go.shape.int]", allowing the field selection to succeed.
-    
-    This CL also adds a "-d=reshape" compiler debugging flag, because I
-    anticipate debugging reshaping operations will be something to come up
-    again in the future.
-    
-    Fixes #54535.
-    
-    Change-Id: Id847bd8f51300d2491d679505ee4d2e974ca972a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424936
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: hopehook <hopehook@qq.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib342d515bf6e74bb5807ce21f8df3d985bc7e490
+    GitHub-Last-Rev: c491a060da22d1bb456283f5ed0ae2894f0365ca
+    GitHub-Pull-Request: golang/go#48005
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345590
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/base/debug.go   |  1 +
- src/cmd/compile/internal/noder/codes.go  |  1 +
- src/cmd/compile/internal/noder/reader.go | 37 +++++++++++++++++++++++++++++++-
- src/cmd/compile/internal/noder/writer.go | 15 +++++++++++++
- test/typeparam/issue54535.go             | 37 ++++++++++++++++++++++++++++++++
- 5 files changed, 90 insertions(+), 1 deletion(-)
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

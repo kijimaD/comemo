@@ -1,19 +1,38 @@
-commit ca4708fa792ca14a97399933214cd0fefc547cd7
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Nov 12 00:22:22 2011 +0900
+commit 0a61c846ef36dc43437e37c6494a40b47824124f
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Nov 11 21:44:01 2011 +1100
 
-    syscall: regenerate z-files for freebsd, openbsd
+    html: ignore <col> tag outside tables
     
-    R=golang-dev, rsc
+    Pass tests1.dat, test 109:
+    <table><col><tbody><col><tr><col><td><col></table><col>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <table>
+    |       <colgroup>
+    |         <col>
+    |       <tbody>
+    |       <colgroup>
+    |         <col>
+    |       <tbody>
+    |         <tr>
+    |       <colgroup>
+    |         <col>
+    |       <tbody>
+    |         <tr>
+    |           <td>
+    |       <colgroup>
+    |         <col>
+    
+    Also pass test 110:
+    <table><colgroup><tbody><colgroup><tr><colgroup><td><colgroup></table><colgroup>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5375057
+    https://golang.org/cl/5369069
 
- src/pkg/syscall/zerrors_freebsd_386.go   |  52 +++--
- src/pkg/syscall/zerrors_freebsd_amd64.go |  52 +++--
- src/pkg/syscall/zerrors_openbsd_386.go   | 356 +++++++++++++++----------------
- src/pkg/syscall/zerrors_openbsd_amd64.go |  53 +++--
- src/pkg/syscall/ztypes_freebsd_386.go    | 226 +++++++++++---------
- src/pkg/syscall/ztypes_freebsd_amd64.go  | 263 ++++++++++++-----------
- src/pkg/syscall/ztypes_openbsd_386.go    | 191 +++++++++--------
- src/pkg/syscall/ztypes_openbsd_amd64.go  | 226 +++++++++++---------
- 8 files changed, 739 insertions(+), 680 deletions(-)
+ src/pkg/html/parse.go      | 2 ++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

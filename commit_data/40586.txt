@@ -1,17 +1,23 @@
-commit 11db7e44692a2389b7e9bc2e157b363cf7be5ed8
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Oct 20 17:24:14 2019 -0400
+commit 4c05525f0e44cf83d6e712086e9e60ffe45e6c27
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 31 12:05:07 2019 -0400
 
-    runtime: test a frameless function for async preemption
+    cmd/link: revise test case to work on pre-10.14 macos
     
-    Frameless function is an interesting case for call injection
-    espcially for LR architectures. Extend the test for this case.
+    Rework this recently introduced test case to insure that it works with
+    older versions of the OS. It was using a new framework library not
+    available on pre-10.14 to trigger the weak symbol reference; switch to
+    using a new symbol from an existing library. Tested on MacOS 10.14 and
+    10.11.
     
-    Change-Id: I074090d09eeaf642e71e3f44fea216f66d39b817
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202339
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Updates #32233.
+    
+    Change-Id: I1fe2a9255fca46cb7cdf33ff7fed67bba86fdc22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179837
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/testdata/testprog/preempt.go | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/testdata/issue32233/lib/ObjC.m | 8 +++++---
+ src/cmd/link/internal/ld/testdata/issue32233/lib/lib.go | 4 ++--
+ 2 files changed, 7 insertions(+), 5 deletions(-)

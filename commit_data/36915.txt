@@ -1,16 +1,31 @@
-commit dc2ae2886fbcd2297d2a0ea67a5d220ae2c74152
-Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
-Date:   Tue Oct 9 22:12:40 2018 +0530
+commit b3562658fddef6e9008379cac16c04c26784b7ed
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed May 16 19:29:41 2018 +0530
 
-    runtime/cgo: annotate unused variable with __attribute__((unused))
+    net/http: add application/wasm mime type
     
-    Fixes #28095
+    Although not part of http://mimesniff.spec.whatwg.org,
+    for WASM streaming compilation to happen, the response
+    needs to have the application/wasm MIME type
+    as mentioned here:
+    https://webassembly.github.io/spec/web-api/index.html#streaming-modules.
     
-    Change-Id: Id8668d52986c9805213e8847f49fe42dfde2e01a
-    Reviewed-on: https://go-review.googlesource.com/c/140797
+    And all current browsers prevent streaming compilation
+    from happening if this MIME type is not present in the response.
+    
+    The magic number is mentioned here:
+    https://webassembly.org/docs/binary-encoding
+    
+    Since we are already adding WASM support, it makes sense
+    to support this MIME type.
+    
+    Change-Id: I8dd7b413a8c438a5c23c29d843b42f6da2a20ba4
+    Reviewed-on: https://go-review.googlesource.com/113396
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cgo/gcc_libinit.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/sniff.go      | 2 ++
+ src/net/http/sniff_test.go | 1 +
+ 2 files changed, 3 insertions(+)

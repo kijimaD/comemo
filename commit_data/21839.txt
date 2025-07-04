@@ -1,98 +1,17 @@
-commit 79f727a70e66fd0beabad36a9b1c7d0e0897a6a4
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 2 12:35:15 2015 -0500
+commit 82a761b656704c07a94c12b10141a0cdba1a4534
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 5 08:23:14 2015 -0800
 
-    cmd/5g etc: mechanical cleanup
+    runtime: speed up eqstring
     
-    Run rsc.io/grind rev a26569f on C->Go conversions.
+    eqstring does not need to check the length of the strings.
+    Other architectures were done in a separate commit.
     
-    The new change in grind is the inlining of goto targets.
-    If code says 'goto x' and the block starting at label x is unreachable
-    except through that goto and the code can be moved to where
-    the goto is without changing the meaning of its variable names,
-    grind does that move. Simlarly, a goto to a plain return statement
-    turns into that return statement (even if there are other paths to
-    the return statement).
+    While we're here, add a pointer equality check.
     
-    Combined, these remove many long-distance gotos, which in turn
-    makes it possible to reduce the scope of more variable declarations.
-    (Because gotos can't jump across declarations, the gotos were
-    keeping the declarations from moving.)
-    
-    Checked bit-for-bit compatibility with toolstash + buildall.
-    
-    Reduces compiler runtime in html/template by about 12%.
-    
-    Change-Id: Id727c0bd7763a61aa22f3daa00aeb8fccbc057a3
-    Reviewed-on: https://go-review.googlesource.com/6472
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Id2c8616a03a7da7037c1e9ccd56a549fc952bd98
+    Reviewed-on: https://go-review.googlesource.com/3956
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/5g/cgen.go                  |  142 ++--
- src/cmd/5g/ggen.go                  |    6 +-
- src/cmd/5g/gsubr.go                 |  160 ++--
- src/cmd/5g/peep.go                  |   58 +-
- src/cmd/5l/asm.go                   |   90 +--
- src/cmd/5l/obj.go                   |    4 +-
- src/cmd/6g/cgen.go                  |  121 ++-
- src/cmd/6g/ggen.go                  |   24 +-
- src/cmd/6g/gsubr.go                 |  190 +++--
- src/cmd/6g/peep.go                  |   56 +-
- src/cmd/6l/asm.go                   |   91 +--
- src/cmd/8g/cgen.go                  |   35 +-
- src/cmd/8g/cgen64.go                |   12 +-
- src/cmd/8g/ggen.go                  |  127 ++-
- src/cmd/8g/gsubr.go                 |   95 ++-
- src/cmd/8g/peep.go                  |   56 +-
- src/cmd/8l/asm.go                   |   88 +--
- src/cmd/9g/cgen.go                  |  112 ++-
- src/cmd/9g/ggen.go                  |   26 +-
- src/cmd/9g/peep.go                  |   58 +-
- src/cmd/9l/asm.go                   |   92 +--
- src/cmd/internal/asm/asm.go         |    7 +-
- src/cmd/internal/asm/lexbody.go     |  134 ++--
- src/cmd/internal/asm/macbody.go     |  141 ++--
- src/cmd/internal/gc/const.go        |  182 +++--
- src/cmd/internal/gc/cplx.go         |   17 +-
- src/cmd/internal/gc/lex.go          |  393 +++++-----
- src/cmd/internal/gc/mparith1.go     |   78 +-
- src/cmd/internal/gc/mparith2.go     |   70 +-
- src/cmd/internal/gc/plive.go        |    4 +-
- src/cmd/internal/gc/reg.go          |   47 +-
- src/cmd/internal/gc/sinit.go        |  100 ++-
- src/cmd/internal/gc/subr.go         |  129 ++--
- src/cmd/internal/gc/typecheck.go    |   41 +-
- src/cmd/internal/gc/unsafe.go       |   18 +-
- src/cmd/internal/gc/util.go         |    7 +-
- src/cmd/internal/gc/walk.go         |  279 ++++---
- src/cmd/internal/ld/data.go         |  279 +++----
- src/cmd/internal/ld/decodesym.go    |   26 +-
- src/cmd/internal/ld/dwarf.go        |  419 ++++------
- src/cmd/internal/ld/elf.go          |  309 +++-----
- src/cmd/internal/ld/go.go           |  110 +--
- src/cmd/internal/ld/ld.go           |    7 +-
- src/cmd/internal/ld/ldelf.go        |   77 +-
- src/cmd/internal/ld/ldmacho.go      |  171 ++--
- src/cmd/internal/ld/ldpe.go         |   64 +-
- src/cmd/internal/ld/lib.go          |  252 +++---
- src/cmd/internal/ld/macho.go        |  178 ++---
- src/cmd/internal/ld/objfile.go      |  101 +--
- src/cmd/internal/ld/pcln.go         |  134 ++--
- src/cmd/internal/ld/pe.go           |  149 ++--
- src/cmd/internal/ld/sym.go          |   23 +-
- src/cmd/internal/ld/symtab.go       |   55 +-
- src/cmd/internal/ld/util.go         |    7 +-
- src/cmd/internal/obj/arm/asm5.go    |  302 +++-----
- src/cmd/internal/obj/arm/list5.go   |   40 +-
- src/cmd/internal/obj/arm/obj5.go    |   77 +-
- src/cmd/internal/obj/i386/asm8.go   | 1227 ++++++++++++++---------------
- src/cmd/internal/obj/i386/list8.go  |    2 +-
- src/cmd/internal/obj/i386/obj8.go   |   64 +-
- src/cmd/internal/obj/ppc64/asm9.go  |  303 ++++----
- src/cmd/internal/obj/ppc64/list9.go |   23 +-
- src/cmd/internal/obj/ppc64/obj9.go  |   67 +-
- src/cmd/internal/obj/sym.go         |    3 +-
- src/cmd/internal/obj/x86/asm6.go    | 1455 +++++++++++++++++------------------
- src/cmd/internal/obj/x86/list6.go   |    2 +-
- src/cmd/internal/obj/x86/obj6.go    |   83 +-
- 67 files changed, 3986 insertions(+), 5313 deletions(-)
+ src/runtime/asm_ppc64x.s | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

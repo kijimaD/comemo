@@ -1,32 +1,37 @@
-commit 49add6ad90c3c6e150266b35ae98067d7b52c021
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 19 05:22:35 2021 -0500
+commit cacac8bdc5c93e7bc71df71981fdf32dded017bf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 5 16:08:08 2020 -0400
 
-    runtime: fix spurious stack overflow detection
+    cmd/dist: do not unset GOROOT_FINAL prior to running tests
     
-    The regabi builders are unhappy about badctxt calling throw
-    calling systemstack calling gosave_systemstack_switch calling
-    badctxt, all nosplit, repeating. This wouldn't actually happen
-    since after one systemstack we'd end up on the system stack
-    and the next one wouldn't call gosave_systemstack_switch at all.
+    Also do not unset it by default in the tests for cmd/go.
     
-    The badctxt call itself is in a very unlikely assertion failure
-    inside gosave_systemstack_switch.
-    Keep the assertion check but call runtime.abort instead on failure,
-    breaking the detected (but not real) cycle.
+    GOROOT_FINAL affects the GOROOT value embedded in binaries,
+    such as 'cmd/cgo'. If its value changes and a build command
+    is performed that depends on one of those binaries, the binary
+    would be spuriously rebuilt.
     
-    Change-Id: Iaf5c0fc065783b8c1c6d0f62d848f023a0714b96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294069
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Instead, only unset it in the specific tests that make assumptions
+    about the GOROOT paths embedded in specific compiled binaries.
+    That may cause those tests to do a little extra rebuilding when
+    GOROOT_FINAL is set, but that little bit of extra rebuilding
+    seems preferable to spuriously-stale binaries.
+    
+    Fixes #39385
+    
+    Change-Id: I7c87b1519bb5bcff64babf1505fd1033ffa4f4fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236819
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/asm_386.s     | 2 +-
- src/runtime/asm_amd64.s   | 2 +-
- src/runtime/asm_arm.s     | 2 +-
- src/runtime/asm_arm64.s   | 2 +-
- src/runtime/asm_mips64x.s | 2 +-
- src/runtime/asm_mipsx.s   | 2 +-
- src/runtime/asm_ppc64x.s  | 2 +-
- src/runtime/asm_riscv64.s | 2 +-
- src/runtime/asm_s390x.s   | 2 +-
- 9 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/addr2line/addr2line_test.go              | 14 +++++++++++---
+ src/cmd/dist/test.go                             |  9 ---------
+ src/cmd/go/go_test.go                            | 12 +++++++++---
+ src/cmd/go/script_test.go                        |  1 +
+ src/cmd/go/testdata/script/README                |  1 +
+ src/cmd/go/testdata/script/build_trimpath.txt    |  4 ++++
+ src/cmd/go/testdata/script/goroot_executable.txt |  7 +++++++
+ src/cmd/link/dwarf_test.go                       |  4 ++--
+ src/cmd/objdump/objdump_test.go                  |  6 +++++-
+ 9 files changed, 40 insertions(+), 18 deletions(-)

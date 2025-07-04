@@ -1,33 +1,21 @@
-commit c4817f5d4f64f65d65fbd78145fb2bf8e80b6e5f
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Oct 15 17:51:32 2019 -0400
+commit 0c9e0c257b121acae72b9419be64ce45196ef825
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Apr 29 16:34:34 2019 +0200
 
-    cmd/compile: on Wasm and AIX, let deferred nil function panic at invocation
+    cmd/link: add .go.buildinfo in XCOFF symbol table
     
-    The Go spec requires
+    .go.buildinfo must be added to the symbol table on AIX. Otherwise, ld
+    won't be able to handle its relocations.
     
-            If a deferred function value evaluates to nil, execution
-            panics when the function is invoked, not when the "defer"
-            statement is executed.
+    This patch also make ".data" the default section for all symbols inside
+    the data segment.
     
-    On Wasm and AIX, currently we actually emit a nil check at the
-    point of defer statement, which will make it panic too early.
-    This CL fixes this.
-    
-    Also, on Wasm, now the nil function will be passed through
-    deferreturn to jmpdefer, which does an explicit nil check and
-    calls sigpanic if it is nil. This sigpanic, being called from
-    assembly, is ABI0. So change the assembler backend to also
-    handle sigpanic in ABI0.
-    
-    Fixes #34926.
-    Updates #8047.
-    
-    Change-Id: I28489a571cee36d2aef041f917b8cfdc31d557d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201297
+    Change-Id: I83ac2bf1050e0ef6ef9c96ff793efd4ddc8e98d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174298
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go   |  3 ++-
- src/cmd/internal/obj/wasm/wasmobj.go |  4 +++-
- test/defernil.go                     | 33 +++++++++++++++++++++++++++++++++
- 3 files changed, 38 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go   | 16 ++++++++++++++--
+ src/cmd/link/internal/ld/xcoff.go |  5 +----
+ 2 files changed, 15 insertions(+), 6 deletions(-)

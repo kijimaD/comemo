@@ -1,21 +1,29 @@
-commit 8f2a9267c814538485dd3459910bc8e6de2ef2bb
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Dec 4 11:16:51 2017 -0800
+commit fe2f5090841a03abcac3ec87abd0a60d83023e14
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Sun Sep 3 20:01:00 2017 +0200
 
-    net: return io.ErrClosedPipe when possible from net.Pipe
+    cmd/dist: unleash bootstrap optimization for windows
     
-    The previous implementation of net.Pipe was just a thin wrapper around
-    io.Pipe and did not wrap any of the io.Pipe errors as net.Errors.
-    As a result of Hyrum's law, users have come to depend on the fact that
-    net.Pipe returns io.ErrClosedPipe when the pipe is closed.
-    Thus, we preserve this behavior to avoid regressing such use cases.
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (3).
     
-    Change-Id: I06b387877b944c1c08527601f58983872b7557b4
-    Reviewed-on: https://go-review.googlesource.com/81777
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
+    (10) remove doc.go
+    
+    Change-Id: I7612bbc3939e6fca3bee4b8e92c528178dd46cd7
+    Reviewed-on: https://go-review.googlesource.com/61023
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/pipe.go      | 46 +++++++++++++++++++---------------------------
- src/net/pipe_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 27 deletions(-)
+ src/cmd/dist/buildtool.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

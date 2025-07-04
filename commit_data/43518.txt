@@ -1,21 +1,14 @@
-commit f77a9025f1e4bf4bb3e2b582d13cce5f19c1ca51
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Aug 3 20:35:40 2020 +0000
+commit 37cc5cd76941f2b42f8b1403dde362439c8a9e69
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 8 21:28:17 2020 -0400
 
-    runtime: replace some memstats with consistent stats
+    [dev.link] cmd/link: use new-style Reloc accessors in loadmacho
     
-    This change replaces stacks_inuse, gcWorkBufInUse and
-    gcProgPtrScalarBitsInUse with their corresponding consistent stats. It
-    also adds checks to make sure the rest of the sharded stats line up with
-    existing stats in updatememstats.
-    
-    Change-Id: I17d0bd181aedb5c55e09c8dff18cef5b2a3a14e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247038
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I890bd8b297fc5612000131fac7c45f5c623ab908
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227764
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mheap.go  | 18 ++-----------
- src/runtime/mstats.go | 73 ++++++++++++++++++++++++++++++++++++++++++---------
- 2 files changed, 62 insertions(+), 29 deletions(-)
+ src/cmd/link/internal/loadmacho/ldmacho.go | 43 +++++++++++++++++-------------
+ 1 file changed, 25 insertions(+), 18 deletions(-)

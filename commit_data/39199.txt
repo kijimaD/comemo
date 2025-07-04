@@ -1,12 +1,14 @@
-commit be9f10b2b8a25095014b864512d1b6a70df2b61c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun May 19 17:02:01 2019 +0000
+commit cad6d1fef5147d31e94ee83934c8609d3ad150b7
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon Jan 21 16:12:46 2019 +0100
 
-    cmd/go/internal/work: fix a couple typos
+    doc/go1.12.html: document rejection of mangled C names
     
-    Change-Id: I357669d8c9bc004031b17f057803c9b152edefee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178057
+    Change-Id: I27ef49815f55a36379b730b77f7e9a4dd5341507
+    Reviewed-on: https://go-review.googlesource.com/c/158777
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/buildid.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.12.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

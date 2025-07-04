@@ -1,44 +1,68 @@
-commit 5bba5b256ce287736da60372c5cf634395d7b1a3
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Mar 15 22:18:06 2024 +0000
+commit 804d786a30c664df63ef1e0c95d44772063afae1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 13 21:06:49 2023 -0400
 
-    runtime: rewrite traceMap to scale better
+    go/types, cmd/compile/internal/types2: use per-file Go version
     
-    The existing implementation of traceMap is a hash map with a fixed
-    bucket table size which scales poorly with the number of elements added
-    to the map. After a few thousands elements are in the map, it tends to
-    fall over.
+    For #57001, compilers and others tools will need to understand that
+    a different Go version can be used in different files in a program,
+    according to the //go:build lines in those files.
     
-    Furthermore, cleaning up the trace map is currently non-preemptible,
-    without very good reason.
+    Update go/types and cmd/compile/internal/types2 to track and
+    use per-file Go versions. The two must be updated together because
+    of the files in go/types that are generated from files in types2.
     
-    This change replaces the traceMap implementation with a simple
-    append-only concurrent hash-trie. The data structure is incredibly
-    simple and does not suffer at all from the same scaling issues.
+    The effect of the //go:build go1.N line depends on the Go version
+    declared in the 'go 1.M' line in go.mod. If N > M, the file gets go1.N
+    semantics when built with a Go 1.N or later toolchain
+    (when built with an earlier toolchain the //go:build line will keep
+    the file from being built at all).
+    If N < M, then in general we want the file to get go1.N semantics
+    as well, meaning later features are disabled. However, older Go 1.M
+    did not apply this kind of downgrade, so for compatibility, N < M
+    only has an effect when M >= 21, meaning when using semantics
+    from Go 1.21 or later.
     
-    Because the traceMap no longer has a lock, and the traceRegionAlloc it
-    embeds is not thread-safe, we have to push that lock down. While we're
-    here, this change also makes the fast path for the traceRegionAlloc
-    lock-free. This may not be inherently faster due to contention on the
-    atomic add, but it creates an easy path to sharding the main allocation
-    buffer to reduce contention in the future. (We might want to also
-    consider a fully thread-local allocator that covers both string and
-    stack tables. The only reason a thread-local allocator isn't feasible
-    right now is because each of these has their own region, but we could
-    certainly group all them together.)
+    For #59033.
     
-    Change-Id: I8c06d42825c326061a1b8569e322afc4bc2a513a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570035
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I93cf07e6c687d37bd37a9461dc60cc032bafd01d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476278
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/export_test.go    |  12 ++++
- src/runtime/trace2map.go      | 153 ++++++++++++++++++++----------------------
- src/runtime/trace2map_test.go |  89 ++++++++++++++++++++++++
- src/runtime/trace2region.go   |  96 +++++++++++++++++++-------
- src/runtime/trace2runtime.go  |   8 +--
- src/runtime/trace2stack.go    |  91 ++++++++++++-------------
- src/runtime/trace2string.go   |   6 +-
- 7 files changed, 293 insertions(+), 162 deletions(-)
+ src/cmd/compile/internal/types2/api.go         |  6 +-
+ src/cmd/compile/internal/types2/builtins.go    | 12 ++--
+ src/cmd/compile/internal/types2/call.go        |  6 +-
+ src/cmd/compile/internal/types2/check.go       | 27 ++++++++
+ src/cmd/compile/internal/types2/conversions.go |  4 +-
+ src/cmd/compile/internal/types2/decl.go        |  4 +-
+ src/cmd/compile/internal/types2/expr.go        |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go |  6 +-
+ src/cmd/compile/internal/types2/lookup.go      |  5 +-
+ src/cmd/compile/internal/types2/operand.go     |  4 +-
+ src/cmd/compile/internal/types2/resolver.go    |  4 +-
+ src/cmd/compile/internal/types2/typeset.go     |  8 +--
+ src/cmd/compile/internal/types2/typexpr.go     |  4 +-
+ src/cmd/compile/internal/types2/version.go     | 85 +++++++++++++++++++++-----
+ src/go/build/deps_test.go                      | 13 ++--
+ src/go/types/api.go                            |  6 +-
+ src/go/types/builtins.go                       | 12 ++--
+ src/go/types/call.go                           |  6 +-
+ src/go/types/check.go                          | 33 ++++++++++
+ src/go/types/conversions.go                    |  4 +-
+ src/go/types/decl.go                           |  4 +-
+ src/go/types/expr.go                           |  2 +-
+ src/go/types/generate_test.go                  |  2 +-
+ src/go/types/instantiate.go                    |  6 +-
+ src/go/types/lookup.go                         |  5 +-
+ src/go/types/operand.go                        |  4 +-
+ src/go/types/resolver.go                       |  4 +-
+ src/go/types/typeset.go                        |  8 +--
+ src/go/types/typexpr.go                        |  4 +-
+ src/go/types/version.go                        | 71 ++++++++++++++++-----
+ src/internal/types/testdata/check/go1_19_20.go | 17 ++++++
+ src/internal/types/testdata/check/go1_20_19.go | 17 ++++++
+ src/internal/types/testdata/check/go1_21_19.go | 17 ++++++
+ 33 files changed, 315 insertions(+), 97 deletions(-)

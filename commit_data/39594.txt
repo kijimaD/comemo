@@ -1,17 +1,28 @@
-commit 8b058cfbcec5dc3002ddd6cedc7070ff946b2257
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 9 13:48:34 2019 -0700
+commit 6efd51c6b768ecb55cd39b0dcb8a43d9a6c8e1b2
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Feb 20 11:38:16 2019 +0000
 
-    net: document that a keep-alive failure also returns a timeout
+    cmd/compile: change the condition flags of floating-point comparisons in arm64 backend
     
-    Updates #31449
+    Current compiler reverses operands to work around NaN in
+    "less than" and "less equal than" comparisons. But if we
+    want to use "FCMPD/FCMPS $(0.0), Fn" to do some optimization,
+    the workaround way does not work. Because assembler does
+    not support instruction "FCMPD/FCMPS Fn, $(0.0)".
     
-    Change-Id: I76490c5e83eb2f7ba529b387a57ba088428aece5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189757
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This CL sets condition flags for floating-point comparisons
+    to resolve this problem.
+    
+    Change-Id: Ia48076a1da95da64596d6e68304018cb301ebe33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164718
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/net.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/arm64/ssa.go        |  18 ++-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  36 ++++-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   9 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  48 ++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 212 ++++++++++++++++++++++++---
+ test/codegen/condmove.go                     |   2 +-
+ 6 files changed, 293 insertions(+), 32 deletions(-)

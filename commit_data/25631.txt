@@ -1,18 +1,19 @@
-commit 36edf48a1078f1a39f1299276354ecd3190f6837
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 21 22:48:29 2016 -0500
+commit d3498c5abdea7bd8c74f349abb5c2bf110229e75
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Nov 12 13:43:27 2015 -0500
 
-    cmd/asm: report more than one instruction encoding error
+    runtime: move arch_mips64(le)?.go into runtime/internal/sys
     
-    Also, remove output file if there are encoding errors.
-    The extra reports are convenient.
-    Removing the output file is very important.
-    Noticed while testing.
+    Somehow these were left out of the orignial CL.
     
-    Change-Id: I0fab17d4078f93c5a0d6d1217d8d9a63ac789696
-    Reviewed-on: https://go-review.googlesource.com/18845
-    Reviewed-by: Rob Pike <r@golang.org>
+    Updates #11647
+    
+    Change-Id: I058a30eaa25fbb72d60e7fb6bc9ff0a3b54fdb2a
+    Reviewed-on: https://go-review.googlesource.com/16870
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/asm/main.go              | 13 ++++++++++---
- src/cmd/internal/obj/x86/asm6.go |  3 ++-
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/runtime/arch_mips64.go                | 19 -------------------
+ src/runtime/arch_mips64le.go              | 19 -------------------
+ src/runtime/internal/sys/arch_mips64.go   | 19 +++++++++++++++++++
+ src/runtime/internal/sys/arch_mips64le.go | 19 +++++++++++++++++++
+ 4 files changed, 38 insertions(+), 38 deletions(-)

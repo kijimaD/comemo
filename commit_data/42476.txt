@@ -1,14 +1,28 @@
-commit 813c9523a92fbc8e6c3cf1e17de78f2d7ab905a5
-Author: shaquilleq <shaqqywyan@gmail.com>
-Date:   Wed Jun 3 18:25:46 2020 -0700
+commit 9c3869d25933f4e885e0174fde666dba3faca764
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 19:45:29 2019 -0500
 
-    doc/go1.15: add release notes for fmt
+    cmd/go: convert TestGoTestImportErrorStack to the script framework
     
-    Updates #37419
+    The literal string match had to be turned into a regexp, otherwise
+    pretty straightforward.
     
-    Change-Id: I344dd93ed7a75f88e7f937c80f5a6ad6c0327a07
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236417
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I46f62312f02dc9adf83ed91c6f807420d29fbb12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212939
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.15.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go                                  | 14 --------------
+ src/cmd/go/testdata/script/test_import_error_stack.txt | 17 +++++++++++++++++
+ src/cmd/go/testdata/src/testdep/p1/p1.go               |  1 -
+ src/cmd/go/testdata/src/testdep/p1/p1_test.go          |  3 ---
+ src/cmd/go/testdata/src/testdep/p2/p2.go               |  3 ---
+ src/cmd/go/testdata/src/testdep/p3/p3.go               |  3 ---
+ 6 files changed, 17 insertions(+), 24 deletions(-)

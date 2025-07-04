@@ -1,44 +1,13 @@
-commit 78219ab3fe7618ba2079f5f72ac228452c44aff8
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sun Apr 15 18:39:14 2018 +0200
+commit 23aefcd9aee4ad7fe3d4139c60fc773b0ae23953
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 16:45:27 2018 -0500
 
-    misc/ios: script lldb directly with Python
+    doc/go1.10: fix more TODOs
     
-    The iOS exec wrapper uses ios-deploy to set up a device, install
-    the wrapped app, and start a lldb session to run it. ios-deploy is
-    not built to be scripted, as can be seen from the brittle way it is
-    driven by the Go wrapper. There are many timeouts and comments such
-    as
-    
-    "
-    // lldb tries to be clever with terminals.
-    // So we wrap it in script(1) and be clever
-    // right back at it.
-    "
-    
-    This CL replaces the use of ios-deploy with a lldb driver script in
-    Python. lldb is designed to be scripted, so apart from getting rid
-    of the ios-deploy dependency, we gain:
-    
-    - No timouts and scripting ios-deploy through stdin and parsing
-    stdout for responses.
-    - Accurate exit codes.
-    - Prompt exits when the wrapped binary fails for some reason. Before,
-    the go test timeout would kick in to fail the test.
-    - Support for environment variables.
-    - No noise in the test output. Only the test binary output is output
-    from the wrapper.
-    
-    We have to do more work with the lldb driver: mounting the developer
-    image on the device, running idevicedebugserverproxy and installing
-    the app. Even so, the CL removes almost as many lines as it adds.
-    Furthermore, having the steps split up helps to tell setup errors
-    from runtime errors.
-    
-    Change-Id: I48cccc32f475d17987283b2c93aacc3da18fe339
-    Reviewed-on: https://go-review.googlesource.com/107337
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7be69a543841343a6ccbb335c7277009528fa0da
+    Reviewed-on: https://go-review.googlesource.com/87024
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 543 +++++++++++++++++++++--------------------
- 1 file changed, 278 insertions(+), 265 deletions(-)
+ doc/go1.10.html | 47 +++++++++++++++++++++++++++--------------------
+ 1 file changed, 27 insertions(+), 20 deletions(-)

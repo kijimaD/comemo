@@ -1,29 +1,23 @@
-commit 420fe2292139123a31dbd90420417f63d4191c76
+commit 728c16cf13ade25787c5c8f6bf89a2839411ec42
 Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
-Date:   Mon Dec 12 15:42:11 2011 -0500
+Date:   Mon Dec 12 15:42:06 2011 -0500
 
-    ld/6l/8l: First pass at changes to the linker to support NetBSD binaries.
+    build: Changes to the build infrastructure for NetBSD.
     
-    This will not currently create valid NetBSD binaries because NetBSD requires
-    an ELF note section to run, otherwise the kernel will throw ENOEXEC. I was
-    unable to determine an elegant way to add the section, so I am submitting
-    what I have.
-    
-    References:
-    http://www.netbsd.org/docs/kernel/elf-notes.html
-    http://mail-index.netbsd.org/netbsd-bugs/2001/08/03/0012.html
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5472049
+    https://golang.org/cl/5476048
 
- src/cmd/6l/asm.c    | 14 +++++++++++++-
- src/cmd/6l/doc.go   |  2 ++
- src/cmd/6l/obj.c    | 23 +++++++++++++----------
- src/cmd/6l/pass.c   |  4 ++--
- src/cmd/8l/asm.c    |  7 +++++++
- src/cmd/8l/doc.go   |  2 ++
- src/cmd/8l/obj.c    | 27 +++++++++++++++------------
- src/cmd/cc/godefs.c |  6 +++---
- src/cmd/ld/lib.c    |  2 +-
- 9 files changed, 58 insertions(+), 29 deletions(-)
+ src/Make.inc                   |  4 ++++
+ src/cmd/cov/Makefile           |  1 +
+ src/cmd/prof/Makefile          |  1 +
+ src/pkg/crypto/tls/Makefile    |  1 +
+ src/pkg/mime/Makefile          |  3 +++
+ src/pkg/net/Makefile           | 21 +++++++++++++++++++++
+ src/pkg/os/Makefile            | 11 +++++++++++
+ src/pkg/os/exec/Makefile       |  3 +++
+ src/pkg/path/filepath/Makefile |  3 +++
+ src/pkg/runtime/Makefile       |  3 +++
+ src/pkg/syscall/Makefile       | 11 +++++++++++
+ src/pkg/time/Makefile          |  4 ++++
+ 12 files changed, 66 insertions(+)

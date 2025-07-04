@@ -1,18 +1,15 @@
-commit 5583e8a4213467d3401710873f67403cb2de22f7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 23 10:42:06 2016 -0800
+commit 21efa7b2bc872958bcb252f5ab4dc52b2b0abeae
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Nov 26 11:47:32 2015 +1300
 
-    spec: fix EBNF for slice syntax
+    syscall: skip tests that create a user namespace when chrooted
     
-    The () parentheses grouped wrongly. Removed them completely in
-    favor of separate 2- and 3-index slice alternatives which is
-    clearer.
+    The kernel rejects attempts to create user namespaces when in a chroot.
     
-    Fixes #14477.
-    
-    Change-Id: I0b7521ac912130d9ea8740b8793b3b88e2609418
-    Reviewed-on: https://go-review.googlesource.com/19853
+    Change-Id: I6548302732c8f5be52f4167cd7233aea16839ad8
+    Reviewed-on: https://go-review.googlesource.com/17214
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/syscall/exec_linux_test.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

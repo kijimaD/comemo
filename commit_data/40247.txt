@@ -1,17 +1,20 @@
-commit 9f95a3097710fa4aa01910218454d23fa880f736
-Author: Anmol Sethi <hi@nhooyr.io>
-Date:   Wed Oct 18 21:27:48 2017 -0400
+commit 6ee832438830678ed14d535f47bcef0403a35fb4
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Apr 28 09:05:16 2019 +0200
 
-    net/http: clean up checkIfModifiedSince and checkIfUnmodifiedSince
+    runtime/cgo: ignore missing Info.plist files on iOS
     
-    The comment in both functions referred to the wrong header and I made
-    the checks easier to read.
+    When running Go programs on Corellium virtual iPhones, the Info.plist
+    files might not exist. Ignore the error.
     
-    Change-Id: Ifb46729cee631a3305f557863818e3487b8eed71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/71753
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #31722
+    
+    Change-Id: Id2e315c09346b69dda9e10cf29fb5dba6743aac4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174202
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/fs.go | 26 +++++++++++++++-----------
- 1 file changed, 15 insertions(+), 11 deletions(-)
+ src/runtime/cgo/gcc_darwin_arm.c   | 2 +-
+ src/runtime/cgo/gcc_darwin_arm64.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

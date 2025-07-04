@@ -1,12 +1,18 @@
-commit f8e9bbe475f014aab614000bde498961149539c5
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Tue Jan 31 10:32:24 2012 -0500
+commit 1677f1a1632ac2204ad6ed3e892b5beed8e1b654
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jan 31 22:09:06 2012 +1100
 
-    cmd/ld: fix gdbscript
+    os/exec: TestExtraFiles - close any leaked file descriptors
     
-    R=golang-dev, lvd
+    Ensure that file descriptors have not already been leaked into our
+    environment - close any that are open at the start of the
+    TestExtraFiles test.
+    
+    Also use the appropriate command for listing open files.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5601058
+    https://golang.org/cl/5574062
 
- src/cmd/ld/dwarf.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/os/exec/exec_test.go | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

@@ -1,17 +1,25 @@
-commit e6143e17d3e0c3ab8a7bd8357001217eb01dc6c6
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sun Sep 25 18:31:05 2016 -0700
+commit e29e0ba19af26c30c95b59aeda482e60ae594113
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jun 1 15:13:55 2016 +0200
 
-    net/http: add Client tests for various 3xx redirect codes
+    cmd/compile: fix TestAssembly on Plan 9
     
-    Updates #13994
-    Updates #16840
+    Since CL 23620, TestAssembly is failing on Plan 9.
     
-    Change-Id: Ia3cad5c211e0c688a945ed6b6277c2552592774c
-    Reviewed-on: https://go-review.googlesource.com/29760
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    In CL 23620, the process environment is passed to 'go tool compile'
+    after setting GOARCH. On Plan 9, if GOARCH is already set in the
+    process environment, it would take precedence. On Unix, it works
+    as expected because the first GOARCH found takes precedence.
+    
+    This change uses the mergeEnvLists function from cmd/go/main.go
+    to merge the two environment lists such that variables with the
+    same name in "in" replace those in "out".
+    
+    Change-Id: Idee22058343932ee18666dda331c562c89c33507
+    Reviewed-on: https://go-review.googlesource.com/23593
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/client_test.go | 68 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 68 insertions(+)
+ src/cmd/compile/internal/gc/asm_test.go | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)

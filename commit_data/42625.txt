@@ -1,16 +1,23 @@
-commit 074f2d800f2c7b741a080081cfcc5295b375b23d
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jul 17 03:52:23 2020 -0400
+commit 76d097774541795877bc8a42d8679437ba5cf364
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Jan 23 10:39:13 2020 -0500
 
-    doc/go1.15: surface the crypto/x509 CommonName deprecation note
+    [dev.link] cmd/link: remove flag FlagNewLdElf
     
-    Updates #39568
-    Updates #37419
-    Updates #24151
+    No real reason to keep the old code around as the new stuff is working
+    just fine.
     
-    Change-Id: I44c940e09e26a039076396bbfecb2b1574197cf7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243221
-    Reviewed-by: Kevin Burke <kev@inburke.com>
+    Change-Id: I5e886f8274344738663a0ead181c5d58d9f5a45f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215997
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.15.html | 26 +++++++++++++++++---------
- 1 file changed, 17 insertions(+), 9 deletions(-)
+ src/cmd/dist/buildtool.go                 |    1 -
+ src/cmd/link/internal/ld/ar.go            |    2 +-
+ src/cmd/link/internal/ld/decodesym.go     |    5 -
+ src/cmd/link/internal/ld/lib.go           |  188 ++---
+ src/cmd/link/internal/ld/link.go          |   10 +-
+ src/cmd/link/internal/ld/main.go          |    9 +-
+ src/cmd/link/internal/loadelfold/ldelf.go | 1243 -----------------------------
+ 7 files changed, 70 insertions(+), 1388 deletions(-)

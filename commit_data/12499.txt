@@ -1,12 +1,12 @@
-commit cfe007e1b67f869ed6d9ef8f188c2627b2ca4e25
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 8 13:36:38 2012 +1100
+commit 686d699ec689ccfbea7bda2aabb0af2618810eb7
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Thu Mar 8 12:49:13 2012 +1100
 
-    doc: link to sub-repositories from reference page
+    io: minor change in io.WriteAt docs.
     
-    R=golang-dev, r
+    R=adg, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5752049
+    https://golang.org/cl/5787048
 
- doc/reference.html | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/pkg/io/io.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

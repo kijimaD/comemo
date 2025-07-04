@@ -1,19 +1,16 @@
-commit 23ae7a70f9f28fe34547d2857e5efa789625052a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 6 17:56:21 2017 +0000
+commit 54af18708b4459beec6b54fcd9bb51848d3fbe6c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 27 15:27:44 2017 +1100
 
-    os/exec: clarify Cmd.Wait documentation a bit more explicitly
+    cmd/internal/obj/x86: clean up byteswapreg
     
-    It already implied that Cmd.Wait is more than os.Process.Wait, but say
-    so explicitly.
+    Make byteswapreg more Go like.
     
-    See https://github.com/golang/go/issues/18874#issuecomment-309921486
-    
-    Updates #18874
-    
-    Change-Id: Iaa46defd776ae0be817d9f4466a99ac78cfd672b
-    Reviewed-on: https://go-review.googlesource.com/47650
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ibdf3603cae9cad2b3465b4c224a28a4c4c745c2e
+    Reviewed-on: https://go-review.googlesource.com/38615
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec/exec.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go | 55 +++++++++++++++-------------------------
+ 1 file changed, 20 insertions(+), 35 deletions(-)

@@ -1,17 +1,25 @@
-commit 492faaeda8d1d673c4b5d7f3983f3fcd072608de
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Wed Apr 14 12:57:21 2021 +0200
+commit db428ad7b61ed757671162054252b4326045e96c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 17 15:02:26 2020 -0400
 
-    os/exec: replace os.Setenv with T.Setenv
+    all: enable more tests on macOS/ARM64
     
-    Updates #45448
+    Updates #38485.
     
-    Change-Id: I570e9894c4976d0a875388ef9ea4a2aa31b78013
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310031
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Iac96f5ffe88521fcb11eab306d0df6463bdce046
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256920
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec/lp_unix_test.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go | 2 +-
+ src/cmd/doc/doc_test.go                | 2 +-
+ src/cmd/go/internal/work/build_test.go | 6 ++----
+ src/go/build/build_test.go             | 4 ++--
+ src/log/syslog/syslog_test.go          | 7 +------
+ src/net/dial_test.go                   | 2 +-
+ src/net/platform_test.go               | 2 +-
+ src/path/filepath/path_test.go         | 4 ++--
+ src/runtime/debug/panic_test.go        | 4 ++--
+ src/syscall/syscall_unix_test.go       | 2 +-
+ 10 files changed, 14 insertions(+), 21 deletions(-)

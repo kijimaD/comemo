@@ -1,12 +1,28 @@
-commit 956535f5cbc0808a69e19c1e6953fde2bf012881
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jan 2 19:39:37 2016 -0800
+commit 10462eb30f60c140bd3ab524272488f9e349335d
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 21 17:18:07 2015 -0700
 
-    runtime: implement setsigstack for Solaris
+    [dev.ssa] cmd/compile: better copying
     
-    Change-Id: I0280d478b7d0a59d8e2082aa87fab6d7d9f36a18
-    Reviewed-on: https://go-review.googlesource.com/18158
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Replace REP MOVSB with all the copying techniques used by the
+    old compiler.  Copy in chunks, DUFFCOPY, etc.
+    
+    Introduces MOVO opcodes and an Int128 type to move around
+    16 bytes at a time.
+    
+    Change-Id: I1e73e68ca1d8b3dd58bb4af2f4c9e5d9bf13a502
+    Reviewed-on: https://go-review.googlesource.com/16174
+    Reviewed-by: Todd Neal <todd@tneal.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/runtime/os3_solaris.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go                 |  13 +-
+ src/cmd/compile/internal/gc/ssa_test.go            |   2 +
+ src/cmd/compile/internal/gc/testdata/copy_ssa.go   | 726 +++++++++++++++++++++
+ .../compile/internal/gc/testdata/gen/copyGen.go    |  93 +++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |  51 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |  55 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |   2 +-
+ src/cmd/compile/internal/ssa/opGen.go              |  39 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 574 +++++++++++++++-
+ src/cmd/compile/internal/ssa/type.go               |   2 +
+ 10 files changed, 1527 insertions(+), 30 deletions(-)

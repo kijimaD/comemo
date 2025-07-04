@@ -1,20 +1,27 @@
-commit e2e910ef30f5b54018131cd24b198ced6e8215f8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Oct 31 12:08:32 2021 -0700
+commit 2d760816ff30bea82f54682f3049cfb6c6027da7
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Jan 31 17:54:27 2021 +0100
 
-    cmd/compile/internal/types2: remove subscripts from type parameter names
+    syscall: restrict inherited handles on Windows
     
-    This is a port of CL 357814 from go/types to types2 with minor
-    adjustments due to small differences in error handling code.
+    Windows does not have CLOEXEC, but rather handles are marked explicitly
+    for being inherited by new processes. This can cause problems when
+    different Windows functions create new processes from different threads.
+    syscall.StartProcess has traditionally used a mutex to prevent races
+    with itself, but this doesn't handle races with other win32 functions.
     
-    Change-Id: I72ecc4532e8349f569cabb38006f3d8ff517bf30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360276
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Fortunately there's a solution: PROC_THREAD_ATTRIBUTE_HANDLE_LIST allows
+    us to pass the entire list of handles that we want to be inherited. This
+    lets us get rid of the mutex and also makes process creation safe across
+    the Go runtime, no matter the context.
+    
+    Updates #44011.
+    
+    Change-Id: Ia3424cd2ec64868849cbd6cbb5b0d765224bf4ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288297
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/types2/api_test.go      | 14 ++++++-------
- src/cmd/compile/internal/types2/builtins_test.go |  6 +++---
- src/cmd/compile/internal/types2/errors.go        | 12 +++++------
- src/cmd/compile/internal/types2/instantiate.go   |  2 +-
- src/cmd/compile/internal/types2/typestring.go    | 26 ++++++++++++++++--------
- 5 files changed, 35 insertions(+), 25 deletions(-)
+ src/syscall/exec_windows.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

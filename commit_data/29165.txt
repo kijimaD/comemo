@@ -1,17 +1,22 @@
-commit 4f1ca8b6f92d69a889a6884d3b8393fdcf530e2b
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Oct 27 17:52:53 2016 -0400
+commit 67ea710792eabdae1182e2bf4845f512136cccce
+Author: Sam Whited <sam@samwhited.com>
+Date:   Wed Mar 2 00:00:23 2016 -0600
 
-    cmd/internal/obj/mips: materialize float constant 0 from zero register
+    time: Add Until helper function
     
-    Materialize float constant 0 from integer zero register, instead
-    of loading from constant pool.
+    Adds an Until() function that returns the duration until the given time.
+    This compliments the existing Since() function and makes writing
+    expressions that have expiration times more readable; for example:
     
-    Change-Id: Ie4728895b9d617bec2a29d15729c0efaa10eedbb
-    Reviewed-on: https://go-review.googlesource.com/32109
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+        <-After(time.Until(connExpires)):
+    
+    Fixes #14595
+    
+    Change-Id: I87998a924b11d4dad5512e010b29d2da6b123456
+    Reviewed-on: https://go-review.googlesource.com/20118
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/internal/obj/mips/obj0.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/time/time.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

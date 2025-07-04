@@ -1,40 +1,14 @@
-commit e0c3ded337e95ded40eb401e7d9e74716e3a445f
-Author: Liam 'Auzzie' Haworth <liam@haworth.id.au>
-Date:   Tue Feb 25 00:11:28 2020 +0000
+commit 0ba0ea172d12901cba79314e26d5713b857c29c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 2 16:34:03 2019 +0000
 
-    os/exec: use environment variables for user token when present
+    net/http: document that Request.Host includes HTTP/2 :authority
     
-    Builds upon the changes from #32000 which supported sourcing environment
-    variables for a new process from the environment of a Windows user token
-    when supplied.
+    Fixes #34640
     
-    But due to the logic of os/exec, the Env field of a process was
-    always non-nil when it reached that change.
-    
-    This change moves the logic up to os/exec, specifically when
-    os.ProcAttr is being built for the os.StartProcess call, this
-    ensures that if a user token has been supplied and no Env slice has
-    been provided on the command it will be sourced from the user's
-    environment.
-    
-    If no token is provided, or the program is compiled for any other
-    platform than Windows, the default environment will be sourced from
-    syscall.Environ().
-    
-    Fixes #35314
-    
-    Change-Id: I4c1722e90b91945eb6980d5c5928183269b50487
-    GitHub-Last-Rev: 32216b7291418f9285147a93ed6d0ba028f94ef2
-    GitHub-Pull-Request: golang/go#37402
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220587
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4a6c9414fe369cd5e9915472331c4bd8a21d8b0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198457
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/go/build/deps_test.go                             |  5 +++--
- src/internal/syscall/execenv/execenv_default.go       | 19 +++++++++++++++++++
- .../syscall/execenv/execenv_windows.go}               | 18 ++++++++++++++----
- src/os/env_default.go                                 | 13 -------------
- src/os/exec/exec.go                                   | 15 ++++++++++-----
- src/os/exec_posix.go                                  |  3 ++-
- 6 files changed, 48 insertions(+), 25 deletions(-)
+ src/net/http/request.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

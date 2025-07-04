@@ -1,18 +1,25 @@
-commit 6c36c332fefdd433cfe6e6468a2542fc310e9f8a
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Mon Nov 15 10:14:04 2021 +0100
+commit 14ef2d8c0155b725226516bd2eeb804a70a95462
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 23 19:55:17 2021 -0400
 
-    debug/pe,debug/macho: add support for DWARF5 sections
+    cmd/compile: fix array case in types-for-register parameter
     
-    Adds the same logic used in debug/elf to load DWARF5 sections.
+    Corrected typo/thinko.
     
-    Fixes #49590
+    We should keep the test for this, but it doesn't run yet because of reflection
+    as far as I know (but I am not testing w/ GOEXPERIMENT).
     
-    Change-Id: Iee05b9927a6f521842b330eab8942ade3fc2bd86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363895
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
+    See https://github.com/golang/go/issues/44816#issuecomment-805297295
+    
+    Updates #40724
+    Updates #44816
+    
+    Change-Id: Ia12d0d4db00a8ec7174e72de460173876bd17874
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304233
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/debug/macho/file.go | 14 +++++++++++---
- src/debug/pe/file.go    | 14 +++++++++++---
- 2 files changed, 22 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,13 +1,15 @@
-commit d04ac4b0b74ff7fdb42d9578ddb3f25d15f5b477
+commit f74b4d3de3e39fe066c9bc0109122156b273d5f8
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Mar 22 04:00:54 2013 +0800
+Date:   Fri Mar 22 03:54:14 2013 +0800
 
-    cmd/ld: portability fixes
-    fix code that implicitly assumes little-endian machines.
+    cmd/ld: fix bad merge
+    CL 7504044 accidentally reverted part of CL 7891044 and 7552045, this CL
+    bring those part back.
     
-    R=golang-dev, bradfitz, rsc, alex.brainman
+    R=golang-dev
+    TBR=rsc
     CC=golang-dev
-    https://golang.org/cl/6792043
+    https://golang.org/cl/7950045
 
- src/cmd/ld/ldpe.c | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/ld/dwarf.c | 186 ++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 150 insertions(+), 36 deletions(-)

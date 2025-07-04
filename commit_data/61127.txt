@@ -1,0 +1,15 @@
+commit d39bfafee7e6a5211af4bd1d21cfc953b14ca734
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 4 14:30:06 2024 +0200
+
+    runtime: use stringslite.CutPrefix in isExportedRuntime
+    
+    Change-Id: I7cbbe3b9a9f08ac98e3e76be7bda2f7df9c61fb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617915
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/traceback.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

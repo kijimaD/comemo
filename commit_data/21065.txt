@@ -1,38 +1,68 @@
-commit 53c5226f9fec0113c182c203b2b6c225938aeced
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 8 14:18:58 2014 -0800
+commit 580ef3e4afe6e31f21e21d3d0919d8a033071320
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:07:37 2014 -0500
 
-    runtime: make stack frames fixed size by modifying goproc/deferproc.
+    [dev.cc] runtime: convert defs_$GOOS_$GOARCH.h to Go
     
-    Calls to goproc/deferproc used to push & pop two extra arguments,
-    the argument size and the function to call.  Now, we allocate space
-    for those arguments in the outargs section so we don't have to
-    modify the SP.
+    The conversion was done with an automated tool and then
+    modified only as necessary to make it compile and run.
     
-    Defers now use the stack pointer (instead of the argument pointer)
-    to identify which frame they are associated with.
+    In a few cases, defs_$GOOS_$GOARCH.go already existed,
+    so the target here is defs1_$GOOS_$GOARCH.go.
     
-    A followon CL might simplify funcspdelta and some of the stack
-    walking code.
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
     
-    Fixes issue #8641
-    
-    Change-Id: I835ec2f42f0392c5dec7cb0fe6bba6f2aed1dad8
-    Reviewed-on: https://go-review.googlesource.com/1601
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=r
+    R=r
+    CC=austin, dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/171490043
 
- src/cmd/5g/ggen.c        | 39 ++++++++++++--------------------
- src/cmd/6g/ggen.c        | 58 ++++++++++++++++++++++++++++++------------------
- src/cmd/8g/ggen.c        | 37 +++++++++++++++++++++---------
- src/cmd/9g/ggen.c        | 25 +++++++++------------
- src/cmd/gc/go.h          |  2 +-
- src/cmd/gc/subr.c        |  7 ++++--
- src/cmd/gc/walk.c        | 33 +++++++++++++++++++++++++++
- src/runtime/heapdump.go  |  2 +-
- src/runtime/panic.go     | 25 +++++++++------------
- src/runtime/panic1.go    | 22 +++++-------------
- src/runtime/proc1.go     |  4 ----
- src/runtime/runtime2.go  |  2 +-
- src/runtime/stack1.go    |  2 +-
- src/runtime/traceback.go | 42 +++++------------------------------
- 14 files changed, 149 insertions(+), 151 deletions(-)
+ src/runtime/defs1_netbsd_386.go     | 171 ++++++++++++++++
+ src/runtime/defs1_netbsd_amd64.go   | 183 +++++++++++++++++
+ src/runtime/defs1_netbsd_arm.go     | 170 ++++++++++++++++
+ src/runtime/defs1_solaris_amd64.go  | 240 ++++++++++++++++++++++
+ src/runtime/defs_android_arm.h      |   3 -
+ src/runtime/defs_darwin_386.go      | 382 ++++++++++++++++++++++++++++++++++
+ src/runtime/defs_darwin_386.h       | 392 -----------------------------------
+ src/runtime/defs_darwin_amd64.go    | 385 +++++++++++++++++++++++++++++++++++
+ src/runtime/defs_darwin_amd64.h     | 395 ------------------------------------
+ src/runtime/defs_dragonfly_386.go   | 190 +++++++++++++++++
+ src/runtime/defs_dragonfly_386.h    | 198 ------------------
+ src/runtime/defs_dragonfly_amd64.go | 200 ++++++++++++++++++
+ src/runtime/defs_dragonfly_amd64.h  | 208 -------------------
+ src/runtime/defs_freebsd_386.go     | 205 +++++++++++++++++++
+ src/runtime/defs_freebsd_386.h      | 213 -------------------
+ src/runtime/defs_freebsd_amd64.go   | 216 ++++++++++++++++++++
+ src/runtime/defs_freebsd_amd64.h    | 224 --------------------
+ src/runtime/defs_freebsd_arm.go     | 178 ++++++++++++++++
+ src/runtime/defs_freebsd_arm.h      | 186 -----------------
+ src/runtime/defs_linux_386.go       | 213 +++++++++++++++++++
+ src/runtime/defs_linux_386.h        | 211 -------------------
+ src/runtime/defs_linux_amd64.go     | 249 +++++++++++++++++++++++
+ src/runtime/defs_linux_amd64.h      | 254 -----------------------
+ src/runtime/defs_linux_arm.go       | 163 +++++++++++++++
+ src/runtime/defs_linux_arm.h        | 168 ---------------
+ src/runtime/defs_nacl_386.go        |  42 ++++
+ src/runtime/defs_nacl_386.h         |  63 ------
+ src/runtime/defs_nacl_amd64p32.go   |  63 ++++++
+ src/runtime/defs_nacl_amd64p32.h    |  90 --------
+ src/runtime/defs_nacl_arm.go        |  49 +++++
+ src/runtime/defs_nacl_arm.h         |  70 -------
+ src/runtime/defs_netbsd_386.h       | 182 -----------------
+ src/runtime/defs_netbsd_amd64.h     | 194 ------------------
+ src/runtime/defs_netbsd_arm.h       | 184 -----------------
+ src/runtime/defs_openbsd_386.go     | 158 +++++++++++++++
+ src/runtime/defs_openbsd_386.h      | 168 ---------------
+ src/runtime/defs_openbsd_amd64.go   | 169 +++++++++++++++
+ src/runtime/defs_openbsd_amd64.h    | 179 ----------------
+ src/runtime/defs_plan9_386.go       |  23 +++
+ src/runtime/defs_plan9_386.h        |  26 ---
+ src/runtime/defs_plan9_amd64.go     |  32 +++
+ src/runtime/defs_plan9_amd64.h      |  34 ----
+ src/runtime/defs_solaris_amd64.h    | 254 -----------------------
+ src/runtime/defs_windows_386.go     | 109 ++++++++++
+ src/runtime/defs_windows_386.h      | 116 -----------
+ src/runtime/defs_windows_amd64.go   | 124 +++++++++++
+ src/runtime/defs_windows_amd64.h    | 131 ------------
+ 47 files changed, 3914 insertions(+), 4143 deletions(-)

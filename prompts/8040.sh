@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8040: 1b7142d15729861669a1ed5491263a693707e141
+# Index 8040: 1bc84b7e18ae704483ab028bb2030970bbc0b2f3
 
 echo "🚀 Generating explanation for commit 8040..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 8040
-- **コミットハッシュ**: 1b7142d15729861669a1ed5491263a693707e141
-- **GitHub URL**: https://github.com/golang/go/commit/1b7142d15729861669a1ed5491263a693707e141
+- **コミットハッシュ**: 1bc84b7e18ae704483ab028bb2030970bbc0b2f3
+- **GitHub URL**: https://github.com/golang/go/commit/1bc84b7e18ae704483ab028bb2030970bbc0b2f3
 
 ### 章構成
 

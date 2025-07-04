@@ -1,30 +1,18 @@
-commit 489620d8787a988aea4a083803608b55703f78a6
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jun 23 17:54:39 2017 -0400
+commit e95989c1c1251d479e92a84180dd50384afdec8b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 22 11:21:35 2017 -0700
 
-    runtime: drain local runq when dedicated mark worker runs
+    cmd/compile/internal/gc: remove unnecessary bitvector in plive
     
-    When the dedicated mark worker runs, the scheduler won't run on that P
-    again until GC runs out of mark work. As a result, any goroutines in
-    that P's local run queue are stranded until another P steals them. In
-    a normally operating system this may take a long time, and in a 100%
-    busy system, the scheduler never attempts to steal from another P.
+    In livenessepilogue, if we save liveness information for instructions
+    before updating liveout, we can avoid an extra bitvector temporary and
+    some extra copying around.
     
-    Fix this by draining the local run queue into the global run queue if
-    the dedicated mark worker has run for long enough. We don't do this
-    immediately upon scheduling the dedicated mark worker in order to
-    avoid destroying locality if the mark worker runs for a short time.
-    Instead, the scheduler delays draining the run queue until the mark
-    worker gets its first preemption request (and otherwise ignores the
-    preemption request).
+    Passes toolstash-check -all.
     
-    Fixes #20011.
-    
-    Change-Id: I13067194b2f062b8bdef25cb75e4143b7fb6bb73
-    Reviewed-on: https://go-review.googlesource.com/46610
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I10d5803167ef3eba2e9e95094adc7e3d33929cc7
+    Reviewed-on: https://go-review.googlesource.com/38408
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mgc.go | 22 +++++++++++++++++++---
- 1 file changed, 19 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 54 +++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 32 deletions(-)

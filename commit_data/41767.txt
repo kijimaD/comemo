@@ -1,16 +1,37 @@
-commit 3840aced142aeeca6ddf54cb90c07b54e4cf814b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 27 11:26:37 2020 -0400
+commit a52c0a199271fa0096cd3bfc7901531294d98989
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 23 16:44:51 2019 -0700
 
-    cmd/go/internal/modfetch/codehost: remove unused GitRepo function
+    math/big: make Rat.Denom side-effect free
     
-    For #37943
+    A Rat is represented via a quotient a/b where a and b are Int values.
+    To make it possible to use an uninitialized Rat value (with a and b
+    uninitialized and thus == 0), the implementation treats a 0 denominator
+    as 1.
     
-    Change-Id: Ib8ba5d846f41afc0047c33b8145918d93326cdd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225937
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Rat.Num and Rat.Denom return pointers to these values a and b. Because
+    b may be 0, Rat.Denom used to first initialize it to 1 and thus produce
+    an undesirable side-effect (by changing the Rat's denominator).
+    
+    This CL changes Denom to return a new (not shared) *Int with value 1
+    in the rare case where the Rat was not initialized. This eliminates
+    the side effect and returns the correct denominator value.
+    
+    While this is changing behavior of the API, the impact should now be
+    minor because together with (prior) CL https://golang.org/cl/202997,
+    which initializes Rats ASAP, Denom is unlikely used to access the
+    denominator of an uninitialized (and thus 0) Rat. Any operation that
+    will somehow set a Rat value will ensure that the denominator is not 0.
+    
+    Fixes #33792.
+    Updates #3521.
+    
+    Change-Id: I0bf15ac60513cf52162bfb62440817ba36f0c3fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203059
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/git.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/math/big/rat.go      | 13 +++++++++----
+ src/math/big/rat_test.go | 30 ++++++++++++++++++++++++++----
+ 2 files changed, 35 insertions(+), 8 deletions(-)

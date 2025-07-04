@@ -1,18 +1,18 @@
-commit 9e094ea01e586a44c6fff43c9dd241cc582d930a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 29 17:34:52 2019 -0700
+commit 5eeb372418466920cad237a89846556453bd91ca
+Author: taoyuanyuan <linuxty@gmail.com>
+Date:   Sun May 19 23:23:04 2019 +0000
 
-    runtime: record stub netpoll initialization, add lock around note
+    internal/poll: avoid memory leak in Writev
     
-    This fixes the Plan 9 support for the new timer code.
+    The chunks that were referenced by fd.iovecs would not be GC.
     
-    Updates #6239
-    Updates #27707
-    
-    Change-Id: Ia498c399b8924910b97fcde07545fae3588aad47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204045
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I7bfcb91a3fef57a4a1861168e9cd3ab55ce1334e
+    GitHub-Last-Rev: e0b7f68447441fd89ed1a6e8aa37e2084fd863b2
+    GitHub-Pull-Request: golang/go#32138
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178037
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/netpoll_stub.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/internal/poll/writev.go | 3 +++
+ 1 file changed, 3 insertions(+)

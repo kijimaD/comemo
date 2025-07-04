@@ -1,37 +1,18 @@
-commit c485e8b55918b3b37e6eab47036ab6f16fec226d
+commit 1cd6d8b974517e6c0506d3959a9ad08f98e89902
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 28 11:20:15 2019 -0700
+Date:   Fri Mar 1 13:08:30 2019 -0800
 
-    runtime: use a pipe to wake up signal_recv on Darwin
+    cmd/vet: let TestMain run deferred functions
     
-    The implementation of semaphores, and therefore notes, used on Darwin
-    is not async-signal-safe. The runtime has one case where a note needs
-    to be woken up from a signal handler: the call to notewakeup in sigsend.
-    That notewakeup call is only called on a single note, and it doesn't
-    need the full functionality of notes: nothing ever does a timed wait on it.
-    So change that one note to use a different implementation on Darwin,
-    based on a pipe. This lets the wakeup code use the write call, which is
-    async-signal-safe.
+    Split TestMain into two functions so that we can defer cleanups.
     
-    Fixes #31264
+    Updates #30500
     
-    Change-Id: If705072d7a961dd908ea9d639c8d12b222c64806
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184169
+    Change-Id: I1fa7957be0779c079ec4d221a8321b45ddb973e2
+    Reviewed-on: https://go-review.googlesource.com/c/164860
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/runtime/defs_darwin.go       |  4 ++++
- src/runtime/defs_darwin_386.go   |  4 ++++
- src/runtime/defs_darwin_amd64.go |  4 ++++
- src/runtime/defs_darwin_arm.go   |  4 ++++
- src/runtime/defs_darwin_arm64.go |  4 ++++
- src/runtime/os_darwin.go         | 46 ++++++++++++++++++++++++++++++++++++++++
- src/runtime/sigqueue.go          | 12 +++++++++++
- src/runtime/sigqueue_note.go     | 25 ++++++++++++++++++++++
- src/runtime/sys_darwin.go        | 14 ++++++++++++
- src/runtime/sys_darwin_386.s     | 15 +++++++++++++
- src/runtime/sys_darwin_amd64.s   | 11 ++++++++++
- src/runtime/sys_darwin_arm.s     |  8 +++++++
- src/runtime/sys_darwin_arm64.s   |  8 +++++++
- 13 files changed, 159 insertions(+)
+ src/cmd/vet/vet_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

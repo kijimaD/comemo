@@ -1,19 +1,21 @@
-commit be26ae18caf7ddffca4073333f80d0d9e76483c3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 2 15:06:35 2023 -0400
+commit 6fc1f4f906d6d886f324250eebcb44fb4cc39f6c
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Nov 18 10:57:46 2022 -0800
 
-    cmd/go/internal/vcs: error out if the requested repo does not support a secure protocol
+    doc/go1.20: add release notes for net package
     
-    Fixes #63845.
+    For #50101
+    For #51152
+    For #53482
+    For #55301
+    For #56515
     
-    Change-Id: If86d6b13d3b55877b35c087112bd76388c9404b8
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539321
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I11edeb4be0a7f80fb72fd7680a3407d081f83b8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451420
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/vcs/vcs.go                     | 25 ++++++++++++++-----
- .../go/testdata/script/mod_insecure_issue63845.txt | 28 ++++++++++++++++++++++
- 2 files changed, 47 insertions(+), 6 deletions(-)
+ doc/go1.20.html | 41 ++++++++++++++++++++++++-----------------
+ 1 file changed, 24 insertions(+), 17 deletions(-)

@@ -1,24 +1,16 @@
-commit 1c6144d0699c88e7da2746391836f97fd12642ae
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Mar 8 18:47:07 2018 +0000
+commit 6eb8076961310649ce02604edaec6d161d25c88f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 31 15:15:22 2017 -0400
 
-    encoding/gob: work around TestFuzzOneByte panic
+    cmd/dist: reach fixed point in rebuild during run.bash
     
-    The index 248 results in the decoder calling reflect.MakeMapWithSize
-    with a size of 14754407682 - just under 15GB - which ends up in a
-    runtime out of memory panic after some recent runtime changes on
-    machines with 8GB of memory.
+    This is basically a mini-bootstrap, to reach a fixed point.
     
-    Until that is fixed in either runtime or gob, skip the troublesome
-    index.
-    
-    Updates #24308.
-    
-    Change-Id: Ia450217271c983e7386ba2f3f88c9ba50aa346f4
-    Reviewed-on: https://go-review.googlesource.com/99655
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I88abad3d3ac961c3d11a48cb64d625d458684ef7
+    Reviewed-on: https://go-review.googlesource.com/74792
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/encoding/gob/codec_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/dist/build.go | 15 ++++++++-------
+ src/cmd/dist/test.go  | 12 ++++++------
+ 2 files changed, 14 insertions(+), 13 deletions(-)

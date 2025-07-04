@@ -1,18 +1,25 @@
-commit 92e68c89f686d451df2d72e6b3f279dbd2b82442
-Author: Austin Clements <austin@google.com>
-Date:   Fri Aug 28 23:15:41 2015 -0400
+commit 2e4b6599541a92b76857ca546679a8d304730b10
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 14 22:17:41 2015 -0700
 
-    runtime: move stack barrier code to its own file
+    cmd/compile: recognize embedded field in inlined function
     
-    Currently the stack barrier code is mixed in with the mark and scan
-    code. Move all of the stack barrier related functions and variables to
-    a new dedicated source file. There are no code modifications.
+    There was already special code to recognize "?" in hidden_structdcl,
+    which is used for inlined types and variables.  This recognizes "?" in
+    structdcl as well, a case that arises when a struct type appears
+    within an inlined function body.
     
-    Change-Id: I604603045465ef8573b9f88915d28ab6b5910903
-    Reviewed-on: https://go-review.googlesource.com/14050
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Fixes #10219.
+    
+    Change-Id: Ic5257ae54f817e0d4a189c2294dcd633c9f2101a
+    Reviewed-on: https://go-review.googlesource.com/12241
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go     |  14 ----
- src/runtime/mgcmark.go | 161 -------------------------------------------
- src/runtime/mstkbar.go | 184 +++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 184 insertions(+), 175 deletions(-)
+ src/cmd/compile/internal/gc/go.y   |  2 +-
+ src/cmd/compile/internal/gc/y.go   |  2 +-
+ test/fixedbugs/issue10219.dir/a.go | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue10219.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue10219.dir/c.go | 12 ++++++++++++
+ test/fixedbugs/issue10219.go       | 10 ++++++++++
+ 6 files changed, 59 insertions(+), 2 deletions(-)

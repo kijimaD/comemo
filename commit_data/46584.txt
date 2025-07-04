@@ -1,18 +1,35 @@
-commit d4139083204ab83778ad4ea575fb8370a14d7b7b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Sep 22 02:46:00 2021 +1000
+commit 861707a8c84f0b1ddbcaea0e9f439398ee2175fb
+Author: David Chase <drchase@google.com>
+Date:   Mon Jan 4 13:32:10 2021 -0500
 
-    test/codegen: add shift tests for RISCV64
+    [dev.regabi] cmd/compile: added limited //go:registerparams pragma for new ABI dev
     
-    Add tests for shift by constant, masked shifts and bounded shifts. While here,
-    sort tests by architecture and keep order of tests consistent (lsh, rshU, rsh).
+    This only works for functions; if you try it with a method, it will
+    fail.  It does work for both local package and imports.  For now,
+    it tells you when it thinks it sees either a declaration or a call of
+    such a function (this will normally be silent since no existing
+    code uses this pragma).
     
-    Change-Id: I512d64196f34df9cb2884e8c0f6adcf9dd88b0fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351289
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Note: it appears to be really darn hard to figure out if this
+    pragma was set for a method, and the method's call site.  Better
+    ir.Node wranglers than I might be able to make headway, but it
+    seemed unnecessary for this experiment.
+    
+    Change-Id: I601c2ddd124457bf6d62f714d7ac871705743c0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279521
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- test/codegen/shift.go | 120 ++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 92 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/ir/node.go           |  3 +++
+ src/cmd/compile/internal/noder/lex.go         |  3 +++
+ src/cmd/compile/internal/ssagen/ssa.go        | 15 +++++++++++
+ src/cmd/compile/internal/typecheck/iexport.go |  3 +++
+ src/cmd/compile/internal/typecheck/iimport.go |  3 +++
+ test/abi/regabipragma.dir/main.go             | 36 +++++++++++++++++++++++++++
+ test/abi/regabipragma.dir/tmp/foo.go          | 19 ++++++++++++++
+ test/abi/regabipragma.go                      |  9 +++++++
+ test/abi/regabipragma.out                     |  6 +++++
+ test/run.go                                   |  2 +-
+ 10 files changed, 98 insertions(+), 1 deletion(-)

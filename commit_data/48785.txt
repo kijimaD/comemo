@@ -1,30 +1,15 @@
-commit 3d8cb26504f9e3f5b45b4ea97b55714a25e016c1
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Mar 6 12:07:54 2022 -0800
+commit 6ea2af0890260fec6cc951b5f426c0464e43266d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 11 16:39:54 2021 -0400
 
-    cmd/compile: modify switches of strings to use jump table for lengths
+    cmd/go: add a regression test for #45979
     
-    Reorganize the way we rewrite expression switches on strings, so that
-    jump tables are naturally used for the outer switch on the string length.
-    
-    The changes to the prove pass in this CL are required so as to not repeat
-    the test for string length in each case.
-    
-    name                         old time/op  new time/op  delta
-    SwitchStringPredictable    2.28ns ± 9%  2.08ns ± 5%   -9.04%  (p=0.000 n=10+10)
-    SwitchStringUnpredictable  10.5ns ± 1%   9.5ns ± 1%   -9.08%  (p=0.000 n=9+10)
-    
-    Update #5496
-    Update #34381
-    
-    Change-Id: Ie6846b1dd27f3e472f7c30dfcc598c68d440b997
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395714
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Id7f83b2e6a99af798e55b272b04880ebb588351f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328230
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go        | 82 +++++++++++++++++++++-------
- src/cmd/compile/internal/test/switch_test.go | 43 +++++++++++++++
- src/cmd/compile/internal/walk/switch.go      | 68 +++++++++++++++++++----
- 3 files changed, 162 insertions(+), 31 deletions(-)
+ .../go/testdata/script/mod_get_lazy_indirect.txt   | 38 ++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

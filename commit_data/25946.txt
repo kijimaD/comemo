@@ -1,19 +1,19 @@
-commit f3f920ff8d69a639de05ce5af52ba1916878055a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 19 16:25:52 2016 +0900
+commit b5e2ec8bbe11929a32f621b2bd711a1bea508b8b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 15:46:22 2015 -0500
 
-    crypto/tls: don't send IPv6 literals and absolute FQDNs as SNI values
+    misc/cgo/testcshared: use fd 100 instead of fd 10 for back-channel communication
     
-    This is a followup change to #13111 for filtering out IPv6 literals and
-    absolute FQDNs from being as the SNI values.
+    There is a report that fd 10 is already in use when run on some OS X machines.
+    I don't see how, and I can't reproduce the problem on my own OS X machine,
+    but it's easy enough to fix.
     
-    Updates #13111.
-    Fixes #14404.
+    Fixes #12161.
     
-    Change-Id: I09ab8d2a9153d9a92147e57ca141f2e97ddcef6e
-    Reviewed-on: https://go-review.googlesource.com/19704
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I73511bdd91258ecda181d60d2829add746d1198b
+    Reviewed-on: https://go-review.googlesource.com/17451
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/handshake_client.go      | 30 +++++++++++++++------
- src/crypto/tls/handshake_client_test.go | 47 +++++++++++++++++++++++++++------
- 2 files changed, 61 insertions(+), 16 deletions(-)
+ misc/cgo/testcshared/main2.c              | 2 +-
+ misc/cgo/testcshared/src/libgo2/libgo2.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

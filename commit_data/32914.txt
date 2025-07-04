@@ -1,19 +1,29 @@
-commit 70258cc59f587749ec02d3645687efe2ee85f53f
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 2 17:31:43 2017 -0400
+commit 882a640421c5ac480d40ae02736c95046fec11aa
+Author: Samuel Tan <samueltan@google.com>
+Date:   Thu May 11 16:56:14 2017 -0700
 
-    cmd/compile: rename (*Type).HasPointer to (*Type).HasHeapPointer
+    html/template: only search identifier nodes for predefined escapers
     
-    This method indicates whether a type contains any *heap* pointers, not
-    just whether it contains any pointers. Rename the method to make this
-    clear.
+    Predefined escapers (i.e. "html" and "urlquery") should only occur in
+    Identifier nodes, and never in Field or Chain nodes, since these are
+    global functions that return string values (see inline comments for more
+    details). Therefore, skip Chain and Field nodes when searching for
+    predefined escapers in template pipelines.
     
-    Change-Id: Ifff143e2f02a820444ac26b84250495c0098cb33
-    Reviewed-on: https://go-review.googlesource.com/67690
-    Run-TryBot: Austin Clements <austin@google.com>
+    Also, make a non-functional change two existing test cases to avoid
+    giving the impression that it is valid to reference a field of a
+    predefined escaper.
+    
+    Fixes #20323
+    
+    Change-Id: I34f722f443c778699fcdd575dc3e0fd1fd6f2eb3
+    Reviewed-on: https://go-review.googlesource.com/43296
+    Reviewed-by: Samuel Tan <samueltan@google.com>
+    Reviewed-by: Mike Samuel <mikesamuel@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
- src/cmd/compile/internal/types/type.go       | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/html/template/escape.go      | 40 +++++++++++++++++---------------------
+ src/html/template/escape_test.go | 42 ++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 56 insertions(+), 26 deletions(-)

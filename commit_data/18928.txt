@@ -1,20 +1,20 @@
-commit 132e816734de8cb7d5c52ca3a5a707135fc81075
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 24 19:11:21 2014 -0400
+commit 4ffc799295fbe564edf1880a5f4317330c59bcb1
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Mar 24 11:48:34 2014 -0700
 
-    doc: allow buffered channel as semaphore without initialization
+    bufio: fix bug that ReadFrom stops before EOF or error
     
-    This rule not existing has been the source of many discussions
-    on golang-dev and on issues. We have stated publicly that it is
-    true, but we have never written it down. Write it down.
+    ReadFrom should not return until it receives a non-nil error
+    or too many contiguous (0, nil)s from a given reader.
+    Currently it immediately returns if it receives one (0, nil).
+    Fixes #7611.
     
-    Fixes #6242.
-    
-    LGTM=r, dan.kortschak, iant, dvyukov
-    R=golang-codereviews, r, dominik.honnef, dvyukov, dan.kortschak, iant, 0xjnml
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/75130045
+    https://golang.org/cl/76400048
 
- doc/effective_go.html | 40 ++++++++++++++++------------------------
- doc/go_mem.html       | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 24 deletions(-)
+ src/pkg/bufio/bufio.go      | 14 +++++++++---
+ src/pkg/bufio/bufio_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/bufio/scan.go       |  2 +-
+ 3 files changed, 66 insertions(+), 4 deletions(-)

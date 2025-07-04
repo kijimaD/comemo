@@ -1,17 +1,15 @@
-commit 86fdcbedbcb868f7f2e8274d2b50f0ea34043c47
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 12 14:30:10 2015 +1100
+commit 495e02db8c6e080504f03525daffa4c8f19a7b03
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 10 16:06:47 2014 +1100
 
-    log: add global Output function
+    doc: convert README to markdown and update CONTRIBUTING.md
     
-    It was just an oversight that this one method of Logger was not
-    made available for the standard (std) Logger.
+    Fixes #9233
     
-    Fixes #9183
-    
-    Change-Id: I2f251becdb0bae459212d09ea0e5e88774d16dea
-    Reviewed-on: https://go-review.googlesource.com/2686
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: If64480cbfaafe44025fcdcc0f20d76c995ffb3a1
+    Reviewed-on: https://go-review.googlesource.com/1296
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/log/log.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ CONTRIBUTING.md     | 32 +++++++++++++++++++++++---------
+ README => README.md | 25 +++++++++++++++++--------
+ 2 files changed, 40 insertions(+), 17 deletions(-)

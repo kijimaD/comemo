@@ -1,16 +1,20 @@
-commit 07b023560983db0ea0d82265be68fe5f89d545fe
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 20 18:01:56 2021 -0800
+commit cf3bf9959ccec7bc2ccf1b685c006298234ef37c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 18 18:47:17 2020 -0400
 
-    doc/go1.16: add notes about package-specific fs.FS changes
+    [dev.link] cmd/internal/obj: remove asm parameter of NumberSyms
     
-    For #40700
-    For #41190
+    Now we have ctxt.IsAsm, use that, instead of passing in a
+    parameter.
     
-    Change-Id: I964d6856d5cad62c859d0f3a7afdd349a8ad87cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285093
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I81dedbe6459424fa9a4c2bfbd9abd83d83f3a107
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234492
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.16.html | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ src/cmd/asm/main.go                 |  2 +-
+ src/cmd/compile/internal/gc/main.go |  2 +-
+ src/cmd/internal/obj/sym.go         | 10 +++++-----
+ 3 files changed, 7 insertions(+), 7 deletions(-)

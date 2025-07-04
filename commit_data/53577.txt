@@ -1,31 +1,24 @@
-commit 3c8b7a95513c088f02483aa876e16263cbc7ee52
-Author: Al Cutter <al@google.com>
-Date:   Thu Jun 15 15:23:12 2023 +0000
+commit f9cdc09497af299ef6a4d4d745aa0df4ebfdce52
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun Aug 21 02:21:49 2022 -0700
 
-    net/http: check RemoteAddr isn't nil before dereferencing
+    time: fix Parse for empty seconds
     
-    RemoteAddr can return nil in some cases, this fix prevents a panic.
+    The error return value of the seconds field is overwritten
+    and not checked in the presence of a fractional second.
+    Perform an explicit check for errors.
     
-    I chatted with @neild about this beforehand, but what's happening in our
-    case is that a connection comes in to the HTTP server which is then
-    immediately closed (we discovered this issue by accident using nmap).
-    The network implementation that we're using (it happens to be gVisor
-    via its gonet adaptor) is returning nil from RemoteAddr(), presumably
-    as there is no remote at that point.
+    Fixes #54569
     
-    But, ultimately, since RemoteAddr returns an interface it is always
-    possible for it to return nil, and indeed conn.RemoteAddr in this file
-    does exactly that if the conn is not ok.
-    
-    Change-Id: Ibe67ae6e30b68e2776df5ee2911bf5f1dc539641
-    GitHub-Last-Rev: ff3505d1d0b00ca16c68ec2a05f542978b79b170
-    GitHub-Pull-Request: golang/go#60823
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503656
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I1204c8bdcd5a5a09b773d9e44748141ed1e5cb20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425036
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/server.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/time/format.go      | 3 +++
+ src/time/format_test.go | 2 ++
+ 2 files changed, 5 insertions(+)

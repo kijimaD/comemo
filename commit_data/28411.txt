@@ -1,20 +1,20 @@
-commit 1bd91d4ccc57d3dbb2e5452c16ff6281d53e9763
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 15 19:00:05 2016 -0700
+commit 65adb6ab9a91c2f4336e1e48f9e7c325dafa0213
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sat May 21 16:57:37 2016 +0100
 
-    cmd/internal/obj: remove Addr.Etype and Addr.Width
+    time: run genzabbrs.go with new source data
     
-    Since the legacy backends were removed, these fields are write-only.
+    The source xml data has changed, so running genzabbrs.go
+    regenerates a new time zone file in zoneinfo_abbrs_windows.go
+    which adds some zones and adjusts others.
     
-    Change-Id: I4816c39267b7c10a4da2a6d22cd367dc475e564d
-    Reviewed-on: https://go-review.googlesource.com/29246
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Now set export ZONEINFO=$GOROOT/lib/time/zoneinfo.zip to use zoneinfo.zip in go tip.
+    
+    Change-Id: I19f72359cc808094e5dcb420e480a00c6b2205d7
+    Reviewed-on: https://go-review.googlesource.com/23321
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/gc/gsubr.go | 39 ------------------------------------
- src/cmd/compile/internal/gc/obj.go   |  1 -
- src/cmd/internal/obj/link.go         |  2 --
- src/cmd/internal/obj/sizeof_test.go  |  4 ++--
- 4 files changed, 2 insertions(+), 44 deletions(-)
+ src/time/zoneinfo_abbrs_windows.go | 40 ++++++++++++++++++++++++--------------
+ 1 file changed, 25 insertions(+), 15 deletions(-)

@@ -1,19 +1,28 @@
-commit d24e62f2fbeded2b27684d508236be7e3e931355
-Author: Sebastien Binet <seb.binet@gmail.com>
-Date:   Fri Feb 27 20:42:18 2015 +0100
+commit 71be0138421012d04e06991d37d19c9f5b1fa02b
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 3 20:50:58 2015 +0300
 
-    cmd/internal/gc: add missing verb to Yyerror
+    cmd/gc: don't copy string in range []byte(str)
     
-    When a function had no body, Yyerror was called with an extra
-    argument, leading to extraneous printouts.
-    Add the missing verb to the Yyerror call and display the name of the
-    bodiless function.
+    Using benchmark from the issue:
     
-    Fixes #10030
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkRangeStringCast     2162          1152          -46.72%
     
-    Change-Id: I76d76c4547fb9cad1782cb11f7a5c63065a6e0c5
-    Reviewed-on: https://go-review.googlesource.com/6263
-    Reviewed-by: Rob Pike <r@golang.org>
+    benchmark                    old allocs     new allocs     delta
+    BenchmarkRangeStringCast     1              0              -100.00%
+    
+    Fixes #2204
+    
+    Change-Id: I92c5edd2adca4a7b6fba00713a581bf49dc59afe
+    Reviewed-on: https://go-review.googlesource.com/3790
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/gc/pgen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/builtin.c       |  1 +
+ src/cmd/gc/go.h            |  1 +
+ src/cmd/gc/order.c         |  4 ++++
+ src/cmd/gc/runtime.go      |  1 +
+ src/cmd/gc/walk.c          |  5 +++++
+ src/runtime/string.go      | 12 ++++++++++++
+ src/runtime/string_test.go | 14 ++++++++++++++
+ 7 files changed, 38 insertions(+)

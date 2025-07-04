@@ -1,22 +1,41 @@
-commit ba1deb1ceef956bdb3ca5a9570f132cf19ccc9f6
-Author: willboland <hwilliam.boland@gmail.com>
-Date:   Sun Dec 29 02:37:06 2024 +0000
+commit 3128aeec87af4bf63f3df5971127f96685fb4363
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Oct 12 09:25:30 2023 -0500
 
-    cmd/link: document that -s implies -w
+    cmd/internal/obj/ppc64: remove C_UCON optab matching class
     
-    Existing documentation does not reference implicit behavior.
-    Updates the documentation to reflect that -s implies -w.
+    This optab matching rule was used to match signed 16 bit values shifted
+    left by 16 bits. Unsigned 16 bit values greater than 0x7FFF<<16 were
+    classified as C_U32CON which led to larger than necessary codegen.
     
-    Fixes #71051
+    Instead, rewrite logical/arithmetic operations in the preprocessor pass
+    to use the 16 bit shifted immediate operation (e.g ADDIS vs ADD). This
+    simplifies the optab matching rules, while also minimizing codegen size
+    for large unsigned values.
     
-    Change-Id: I5c139c37f5f78596365e38479be4c865a4d4dd62
-    GitHub-Last-Rev: a3e462c4168284529ea1b0d03bc25fb1c12f1da5
-    GitHub-Pull-Request: golang/go#71053
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638976
+    Note, ADDIS sign-extends the constant argument, all others do not.
+    
+    For matching opcodes, this means:
+            MOVD $is<<16,Rx becomes ADDIS $is,Rx or ORIS $is,Rx
+            MOVW $is<<16,Rx becomes ADDIS $is,Rx
+            ADD $is<<16,[Rx,]Ry becomes ADDIS $is[Rx,]Ry
+            OR $is<<16,[Rx,]Ry becomes ORIS $is[Rx,]Ry
+            XOR $is<<16,[Rx,]Ry becomes XORIS $is[Rx,]Ry
+    
+    Change-Id: I1a988d9f52517a04bb8dc2e41d7caf3d5fff867c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536735
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/link/doc.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 19 ++++++---
+ src/cmd/internal/obj/ppc64/a.out.go       |  8 +---
+ src/cmd/internal/obj/ppc64/anames9.go     |  1 -
+ src/cmd/internal/obj/ppc64/asm9.go        | 71 +++----------------------------
+ src/cmd/internal/obj/ppc64/asm_test.go    |  2 -
+ src/cmd/internal/obj/ppc64/obj9.go        | 62 +++++++++++++++++++++++++--
+ test/codegen/mathbits.go                  |  4 +-
+ 7 files changed, 84 insertions(+), 83 deletions(-)

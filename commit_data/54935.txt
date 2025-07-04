@@ -1,41 +1,27 @@
-commit 3128aeec87af4bf63f3df5971127f96685fb4363
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Oct 12 09:25:30 2023 -0500
+commit 5c9a506de17bdeb692e6e12d5ab56a06c11b042c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 21 22:12:15 2022 -0500
 
-    cmd/internal/obj/ppc64: remove C_UCON optab matching class
+    cmd/go: remove special case for prebuilt cgo library cache keys
     
-    This optab matching rule was used to match signed 16 bit values shifted
-    left by 16 bits. Unsigned 16 bit values greater than 0x7FFF<<16 were
-    classified as C_U32CON which led to larger than necessary codegen.
+    This was an oversight from CL 452457 that I noticed while
+    investigating #56889.
     
-    Instead, rewrite logical/arithmetic operations in the preprocessor pass
-    to use the 16 bit shifted immediate operation (e.g ADDIS vs ADD). This
-    simplifies the optab matching rules, while also minimizing codegen size
-    for large unsigned values.
+    This change essentially undoes CL 335409, which is no longer needed
+    after CL 450739 because we no longer attempt to use cgo by default
+    when no C compiler is present.
     
-    Note, ADDIS sign-extends the constant argument, all others do not.
+    Updates #47257.
+    Updates #40042.
+    Updates #47215.
     
-    For matching opcodes, this means:
-            MOVD $is<<16,Rx becomes ADDIS $is,Rx or ORIS $is,Rx
-            MOVW $is<<16,Rx becomes ADDIS $is,Rx
-            ADD $is<<16,[Rx,]Ry becomes ADDIS $is[Rx,]Ry
-            OR $is<<16,[Rx,]Ry becomes ORIS $is[Rx,]Ry
-            XOR $is<<16,[Rx,]Ry becomes XORIS $is[Rx,]Ry
-    
-    Change-Id: I1a988d9f52517a04bb8dc2e41d7caf3d5fff867c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536735
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I29c7ce777a9ec7ba5820dc1d836b12a61b86bc37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452677
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s | 19 ++++++---
- src/cmd/internal/obj/ppc64/a.out.go       |  8 +---
- src/cmd/internal/obj/ppc64/anames9.go     |  1 -
- src/cmd/internal/obj/ppc64/asm9.go        | 71 +++----------------------------
- src/cmd/internal/obj/ppc64/asm_test.go    |  2 -
- src/cmd/internal/obj/ppc64/obj9.go        | 62 +++++++++++++++++++++++++--
- test/codegen/mathbits.go                  |  4 +-
- 7 files changed, 84 insertions(+), 83 deletions(-)
+ src/cmd/go/internal/work/exec.go                     |  9 ++-------
+ src/cmd/go/testdata/script/cgo_stale_precompiled.txt | 20 ++++++++++++++------
+ 2 files changed, 16 insertions(+), 13 deletions(-)

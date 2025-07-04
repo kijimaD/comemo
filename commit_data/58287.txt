@@ -1,17 +1,20 @@
-commit cff2503b5ac32d3889eec8f131c43e98e4cc3485
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Nov 26 10:18:50 2024 -0800
+commit f9c54f9cd441110af2146d9c21eeaee9df178204
+Author: Keiichi Hirobe <chalenge.akane@gmail.com>
+Date:   Sun Oct 22 17:30:37 2023 +0900
 
-    doc: add note about x509sha1 removal
+    net/http: remove outdated comment about a support of CONNECT method
     
-    Fixes #41682
+    The net/http.Transport already supports CONNECT after
+    https://go-review.googlesource.com/c/go/+/123156 was merged, which
+    deleted comments in transport.go.
     
-    Change-Id: I73aa4991a6df8dfb90720bd66f2a8a53c3ca3504
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631677
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: I784fdb9b044bc8a4a29bf252328c80a11aaf6901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536057
+    Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- doc/next/6-stdlib/99-minor/crypto/x509/41682.md | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/http/request.go | 4 ----
+ 1 file changed, 4 deletions(-)

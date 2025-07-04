@@ -1,22 +1,18 @@
-commit 543e601c118c4bffbeee65e7e9baf79a17ffdfaf
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Tue May 16 09:19:58 2023 +0200
+commit 662a729ded9cd9ae70c079a0b1c3ca0a81f94c32
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Aug 9 09:03:50 2022 -0400
 
-    net/http: second do not force the Content-Length header if nilled
+    runtime: disable gdb testpoints on alpine pending builder fix
     
-    This is a second round of CL 469095 which has been fixed after
-    the issue discovered in the revert CL 495017.
+    Disable the TestGdb* testpoints until we can figure out why they are
+    failing and reconfigure the machine properly.
     
-    The issue was a missing res.Body.Close() in the newly added test.
+    Updates #54352.
     
-    Change-Id: Ifd9d8458022e59f4486397443a2862d06383e990
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495115
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Id9c76a0ba6e23b5deff24f521a1c8e0aafb6481a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422294
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/net/http/serve_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     |  2 +-
- 2 files changed, 41 insertions(+), 1 deletion(-)
+ src/runtime/runtime-gdb_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,14 +1,24 @@
-commit c02db82b83da2f820531bebeba5604ac7aa4846a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 7 19:15:25 2012 -0800
+commit 52ebadd3569b31ce423d4868ac9aa54a373aa1ad
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 8 14:09:20 2012 +1100
 
-    net/http: don't ignore some errors in tests
+    encoding/binary: hide TotalSize
     
-    to help debug Issue 2651
+    The function has a bizarre signature: it was the only public function there
+    that exposed the reflect package. Also, its definition is peculiar and hard to
+    explain. It doesn't merit being exported.
     
-    R=golang-dev, dsymonds
+    This is an API change but really, it should never have been exported and
+    it's certain very few programs will depend on it: it's too weird.
+    
+    Fixes #2846.
+    
+    R=golang-dev, gri, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5644049
+    https://golang.org/cl/5639054
 
- src/pkg/net/http/transport_test.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ doc/go1.html                           | 99 +++++++++++++++++++---------------
+ doc/go1.tmpl                           | 99 +++++++++++++++++++---------------
+ src/pkg/encoding/binary/binary.go      | 10 ++--
+ src/pkg/encoding/binary/binary_test.go |  2 +-
+ 4 files changed, 118 insertions(+), 92 deletions(-)

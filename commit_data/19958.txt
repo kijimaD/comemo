@@ -1,16 +1,13 @@
-commit 40b94405463415f6ba5d2decc0cd51eb61c67b65
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Aug 8 16:19:45 2014 +1000
+commit fcb842c6452516fd186cb54cc545c8922f7ff9c8
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Aug 7 14:37:00 2014 -0400
 
-    debug/pe/testdata: make sure gcc-amd64-mingw-exec has symbols
+    [dev.power64] .hgignore: update for the 9 toolchain
     
-    as per rsc request
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=dave, rsc
+    R=rsc, iant, dave
     CC=golang-codereviews
-    https://golang.org/cl/123970043
+    https://golang.org/cl/124840043
 
- src/pkg/debug/pe/file_test.go                  |  31 +++++++++++++++----------
- src/pkg/debug/pe/testdata/gcc-amd64-mingw-exec | Bin 37376 -> 273083 bytes
- 2 files changed, 19 insertions(+), 12 deletions(-)
+ .hgignore | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

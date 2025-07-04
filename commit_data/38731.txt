@@ -1,22 +1,20 @@
-commit 77fa11dffb59334eb32502c53faf9946a7caa1fc
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Thu Apr 11 16:26:38 2019 +0200
+commit 3c92bdc7db3ebf062adc9287743d74e60ba5bb03
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Nov 19 14:18:04 2018 +0000
 
-    net: retrieve if unix network is available only once for AIX
+    cmd/vendor: update to golang.org/x/tools@139d099f
     
-    The previous version was executing "oslevel -s" everytime testableNetwork
-    was called with unix/unixgram network. The current version retrieves if
-    the network is possible only once at the beginning of the tests.
+    Mainly to pull the fix for the regression in #28792.
     
-    This is clearly faster:
-    ok      net     74.045s
-    ok      net     5.098s
-    
-    Change-Id: I12549da27721f85c007cf17cab5cfdbfeb839cf6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171717
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: If71ae783fd9a9e3935186b49fdf501ba098235a2
+    Reviewed-on: https://go-review.googlesource.com/c/150161
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/platform_test.go | 27 ++++++++++++++++++---------
- 1 file changed, 18 insertions(+), 9 deletions(-)
+ .../go/analysis/passes/composite/composite.go      |   2 +-
+ .../go/analysis/passes/lostcancel/lostcancel.go    | 109 +++++++++++----------
+ .../go/analysis/passes/stdmethods/stdmethods.go    |   8 +-
+ .../go/analysis/passes/unsafeptr/unsafeptr.go      |  44 ++++-----
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |   2 +-
+ 5 files changed, 87 insertions(+), 78 deletions(-)

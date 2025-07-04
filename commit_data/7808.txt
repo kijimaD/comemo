@@ -1,13 +1,13 @@
-commit b22e29d9bf28a7c4b67d7eb2c6ff5759a7769467
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Mar 17 22:27:30 2011 -0700
+commit 61c83b6407547f189cfb21fb0b088a351e150130
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Mar 17 16:47:00 2011 -0700
 
-    godoc: fix path problem for windows.
+    sinit.c: recursion in sinit
+    fixes #1617
     
-    R=golang-dev, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4299044
+    https://golang.org/cl/4277059
 
- src/cmd/godoc/dirtrees.go | 8 ++++----
- src/cmd/godoc/main.go     | 3 +++
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/gc/range.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

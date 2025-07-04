@@ -1,20 +1,24 @@
-commit 6a5cfa8b63fcea71da941a60036ce3c6f22d8764
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 8 02:22:26 2018 -0800
+commit 2e2047a07fea81f65170eca9562a649ba2f5b11d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 27 13:45:50 2017 -0400
 
-    cmd/compile: remove two out-of-phase calls to walk
+    runtime/race: install alternate packages to temp dir
     
-    All calls to walkstmt/walkexpr/etc should be rooted from funccompile,
-    whereas transformclosure and fninit are called by main.
+    The content-based staleness code means that
     
-    Passes toolstash-check.
+            go run -gcflags=-l helloworld.go
     
-    Change-Id: Ic880e2d2d83af09618ce4daa8e7716f6b389e53e
-    Reviewed-on: https://go-review.googlesource.com/99418
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    recompiles all of helloworld.go's dependencies with -gcflags=-l,
+    whereas before it would have assumed installed packages were
+    up-to-date. In this test, that means every race iteration rebuilds
+    the runtime and maybe a few other packages. Instead, install them
+    to a temporary location for reuse.
+    
+    This speeds the test from 17s to 9s on my MacBook Pro.
+    
+    Change-Id: Ied136ce72650261083bb19cc7dee38dac0ad05ca
+    Reviewed-on: https://go-review.googlesource.com/73992
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 1 -
- src/cmd/compile/internal/gc/init.go    | 1 -
- 2 files changed, 2 deletions(-)
+ src/runtime/race/output_test.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

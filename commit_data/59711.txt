@@ -1,15 +1,29 @@
-commit de05282a2c3bba1d869f8686e7b38d582af17a0a
-Author: David Chase <drchase@google.com>
-Date:   Tue May 27 14:21:11 2025 -0400
+commit 7b10c49e0563e43292a72ee1a576fa2345164670
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Apr 3 11:36:12 2024 -0400
 
-    doc/next: add small header to TODO
+    runtime: rename v2 execution tracer files
     
-    Change-Id: I91c03f455fff8e4078f3297ea357cd1e1dd09f66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/676536
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
+    This change renames the v2 execution tracer files created as part of
+    
+    Updates #66703
+    For #60773
+    
+    Change-Id: I91bfdc08fec4ec68ff3a6e8b5c86f6f8bcae6e6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576257
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/next/9-todo.md | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/{trace2.go => trace.go}               | 0
+ src/runtime/{trace2buf.go => tracebuf.go}         | 0
+ src/runtime/{trace2cpu.go => tracecpu.go}         | 0
+ src/runtime/{trace2event.go => traceevent.go}     | 0
+ src/runtime/{trace2map.go => tracemap.go}         | 0
+ src/runtime/{trace2region.go => traceregion.go}   | 0
+ src/runtime/{trace2runtime.go => traceruntime.go} | 0
+ src/runtime/{trace2stack.go => tracestack.go}     | 0
+ src/runtime/{trace2status.go => tracestatus.go}   | 0
+ src/runtime/{trace2string.go => tracestring.go}   | 0
+ src/runtime/{trace2time.go => tracetime.go}       | 0
+ 11 files changed, 0 insertions(+), 0 deletions(-)

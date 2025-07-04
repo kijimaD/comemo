@@ -1,28 +1,26 @@
-commit 40a6e2dae5a9c75f1ddc6f97b48b9442c118653f
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Mar 10 16:28:57 2023 -0500
+commit 15602e88658a9dd43cec4220e01ef408d273f028
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 24 16:35:06 2022 -0500
 
-    cmd/compile: tighten for huge functions in -N mode
+    runtime/internal/syscall, syscall: replace RawSyscall6 with runtime implementation on linux
     
-    Currently, in -N mode we skip the tighten pass. However, for very
-    large functions, many values live across blocks can cause
-    pathological behavior in the register allocator, which could use
-    a huge amount of memory or cause the program to hang. For
-    functions that large, debugging using a debugger is unlikely to be
-    very useful (the function is probably generated anyway). So we do
-    a little optimization to make fewer values live across blocks and
-    make it easier for the compiler.
+    For #51087
     
-    Fixes #52180.
-    
-    Change-Id: I355fe31bb87ea5d0870bb52dd06405dd5d791dab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475339
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I75a1bdeb5089454595f5ca04765a9c6e45cf9bd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388475
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go | 2 +-
- src/cmd/compile/internal/ssa/tighten.go | 9 +++++++++
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/runtime/internal/syscall/syscall_linux.go | 27 ++++++++++++++++++++++++++
+ src/syscall/asm_linux_386.s                   | 23 ----------------------
+ src/syscall/asm_linux_amd64.s                 | 23 ----------------------
+ src/syscall/asm_linux_arm.s                   | 28 ---------------------------
+ src/syscall/asm_linux_arm64.s                 | 23 ----------------------
+ src/syscall/asm_linux_mips64x.s               | 21 --------------------
+ src/syscall/asm_linux_mipsx.s                 | 23 ----------------------
+ src/syscall/asm_linux_ppc64x.s                | 21 --------------------
+ src/syscall/asm_linux_riscv64.s               | 24 -----------------------
+ src/syscall/asm_linux_s390x.s                 | 23 ----------------------
+ src/syscall/syscall_linux.go                  |  6 ++++++
+ 11 files changed, 33 insertions(+), 209 deletions(-)

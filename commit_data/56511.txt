@@ -1,22 +1,150 @@
-commit 6a05055780e1beef8231ab1e05ffaf5754b1e5b6
-Author: Rob Findley <rfindley@google.com>
-Date:   Thu May 16 14:08:12 2024 +0000
+commit a3f69c778fa6c082d38f9cdfacab27714f08a343
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 4 14:25:24 2023 -0400
 
-    go/ast: fix bug handling the result of yield in Preorder
+    misc/cgo: move registerCgoTests tests to cmd/cgo/internal
     
-    Once yield returns false, ast.Preorder must not call yield on any more
-    nodes. Even after the function passed to ast.Inspect returns false, it
-    may be invoked again with a non-nil node. Therefore, we must explicitly
-    truncate the inspection.
+    This moves the remaining cgo tests.
     
-    For #66339
+    For #37486.
     
-    Change-Id: I2b01e4e96a2d7aca785467c15ab59da13208c161
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585520
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I99dea5a312a1974de338461a8b02242e5c1bae62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492721
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/go/ast/walk.go      |  5 +++--
- src/go/ast/walk_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 2 deletions(-)
+ .../cgo => src/cmd/cgo/internal}/test/backdoor.go  |  0
+ .../cmd/cgo/internal}/test/buildid_linux.go        |  0
+ .../cgo => src/cmd/cgo/internal}/test/callback.go  |  2 +-
+ .../cgo => src/cmd/cgo/internal}/test/callback_c.c |  0
+ .../cmd/cgo/internal}/test/callback_c_gc.c         |  0
+ .../cmd/cgo/internal}/test/callback_c_gccgo.c      |  0
+ .../cmd/cgo/internal}/test/cgo_linux_test.go       |  0
+ .../cgo/internal}/test/cgo_stubs_android_test.go   |  0
+ .../cgo => src/cmd/cgo/internal}/test/cgo_test.go  |  0
+ .../cmd/cgo/internal}/test/cgo_thread_lock.go      |  0
+ .../cmd/cgo/internal}/test/cgo_unix_test.go        |  0
+ .../cmd/cgo/internal}/test/cthread_unix.c          |  0
+ .../cmd/cgo/internal}/test/cthread_windows.c       |  0
+ .../cgo => src/cmd/cgo/internal}/test/gcc68255.go  |  2 +-
+ .../cmd/cgo/internal}/test/gcc68255/a.go           |  0
+ .../cgo => src/cmd/cgo/internal}/test/gcc68255/c.c |  0
+ .../cgo => src/cmd/cgo/internal}/test/gcc68255/c.h |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue1435.go |  0
+ .../cmd/cgo/internal}/test/issue18146.go           |  0
+ .../cmd/cgo/internal}/test/issue20266.go           |  0
+ .../cmd/cgo/internal}/test/issue20266/issue20266.h |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue20910.c |  0
+ .../cmd/cgo/internal}/test/issue21897.go           |  0
+ .../cmd/cgo/internal}/test/issue21897b.go          |  0
+ .../cmd/cgo/internal}/test/issue23555.go           |  4 ++--
+ .../cmd/cgo/internal}/test/issue23555a/a.go        |  0
+ .../cmd/cgo/internal}/test/issue23555b/a.go        |  0
+ .../cgo/internal}/test/issue24161_darwin_test.go   | 10 +++++-----
+ .../cmd/cgo/internal}/test/issue24161arg/def.go    |  0
+ .../cmd/cgo/internal}/test/issue24161arg/use.go    |  0
+ .../cmd/cgo/internal}/test/issue24161e0/main.go    |  0
+ .../cmd/cgo/internal}/test/issue24161e1/main.go    |  0
+ .../cmd/cgo/internal}/test/issue24161e2/main.go    |  0
+ .../cgo/internal}/test/issue24161res/restype.go    |  0
+ .../cmd/cgo/internal}/test/issue26213/jni.h        |  0
+ .../cmd/cgo/internal}/test/issue26213/test26213.go |  0
+ .../cmd/cgo/internal}/test/issue26430.go           |  2 +-
+ .../cmd/cgo/internal}/test/issue26430/a.go         |  0
+ .../cmd/cgo/internal}/test/issue26430/b.go         |  0
+ .../cmd/cgo/internal}/test/issue26743.go           |  2 +-
+ .../cmd/cgo/internal}/test/issue26743/a.go         |  0
+ .../cmd/cgo/internal}/test/issue26743/b.go         |  0
+ .../cmd/cgo/internal}/test/issue27054/egl.h        |  0
+ .../cmd/cgo/internal}/test/issue27054/test27054.go |  0
+ .../cmd/cgo/internal}/test/issue27340.go           |  2 +-
+ .../cmd/cgo/internal}/test/issue27340/a.go         |  0
+ .../cmd/cgo/internal}/test/issue29563.go           |  2 +-
+ .../cmd/cgo/internal}/test/issue29563/weak.go      |  0
+ .../cmd/cgo/internal}/test/issue29563/weak1.c      |  0
+ .../cmd/cgo/internal}/test/issue29563/weak2.c      |  0
+ .../cmd/cgo/internal}/test/issue30527.go           |  2 +-
+ .../cmd/cgo/internal}/test/issue30527/a.go         |  0
+ .../cmd/cgo/internal}/test/issue30527/b.go         |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue31891.c |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue4029.c  |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue4029.go |  0
+ .../cmd/cgo/internal}/test/issue4029w.go           |  0
+ .../cmd/cgo/internal}/test/issue41761.go           |  2 +-
+ .../cmd/cgo/internal}/test/issue41761a/a.go        |  0
+ .../cmd/cgo/internal}/test/issue42018.go           |  0
+ .../cmd/cgo/internal}/test/issue42018_windows.go   |  0
+ .../cmd/cgo/internal}/test/issue42495.go           |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue4273.c  |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue4273b.c |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue4339.c  |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue4339.h  |  0
+ .../cmd/cgo/internal}/test/issue43639.go           |  4 ++--
+ .../cmd/cgo/internal}/test/issue43639/a.go         |  0
+ .../cmd/cgo/internal}/test/issue52611.go           |  4 ++--
+ .../cmd/cgo/internal}/test/issue52611a/a.go        |  0
+ .../cmd/cgo/internal}/test/issue52611a/b.go        |  0
+ .../cmd/cgo/internal}/test/issue52611b/a.go        |  0
+ .../cmd/cgo/internal}/test/issue52611b/b.go        |  0
+ .../cmd/cgo/internal}/test/issue5548_c.c           |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue5740a.c |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue5740b.c |  0
+ .../cmd/cgo/internal}/test/issue6833_c.c           |  0
+ .../cmd/cgo/internal}/test/issue6907export_c.c     |  0
+ .../cmd/cgo/internal}/test/issue6997_linux.c       |  0
+ .../cmd/cgo/internal}/test/issue6997_linux.go      |  0
+ .../cmd/cgo/internal}/test/issue7234_test.go       |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue8148.c  |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue8148.go |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue8331.h  |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue8517.go |  0
+ .../cmd/cgo/internal}/test/issue8517_windows.c     |  0
+ .../cmd/cgo/internal}/test/issue8517_windows.go    |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue8694.go |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue8756.go |  2 +-
+ .../cmd/cgo/internal}/test/issue8756/issue8756.go  |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue8811.c  |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue8828.go |  2 +-
+ .../cmd/cgo/internal}/test/issue8828/issue8828.c   |  0
+ .../cmd/cgo/internal}/test/issue8828/trivial.go    |  0
+ .../cgo => src/cmd/cgo/internal}/test/issue9026.go |  2 +-
+ .../cmd/cgo/internal}/test/issue9026/issue9026.go  |  0
+ .../cmd/cgo/internal}/test/issue9400/asm_386.s     |  0
+ .../cmd/cgo/internal}/test/issue9400/asm_amd64x.s  |  0
+ .../cmd/cgo/internal}/test/issue9400/asm_arm.s     |  0
+ .../cmd/cgo/internal}/test/issue9400/asm_arm64.s   |  0
+ .../cmd/cgo/internal}/test/issue9400/asm_loong64.s |  0
+ .../cmd/cgo/internal}/test/issue9400/asm_mips64x.s |  0
+ .../cmd/cgo/internal}/test/issue9400/asm_mipsx.s   |  0
+ .../cmd/cgo/internal}/test/issue9400/asm_ppc64x.s  |  0
+ .../cmd/cgo/internal}/test/issue9400/asm_riscv64.s |  0
+ .../cmd/cgo/internal}/test/issue9400/asm_s390x.s   |  0
+ .../cmd/cgo/internal}/test/issue9400/gccgo.go      |  0
+ .../cmd/cgo/internal}/test/issue9400/stubs.go      |  0
+ .../cmd/cgo/internal}/test/issue9400_linux.go      |  2 +-
+ .../cgo => src/cmd/cgo/internal}/test/issue9510.go |  4 ++--
+ .../cmd/cgo/internal}/test/issue9510a/a.go         |  0
+ .../cmd/cgo/internal}/test/issue9510b/b.go         |  0
+ .../cmd/cgo/internal}/test/setgid2_linux.go        |  0
+ .../cmd/cgo/internal}/test/setgid_linux.go         |  0
+ .../cmd/cgo/internal}/test/sigaltstack.go          |  0
+ .../cmd/cgo/internal}/test/sigprocmask.c           |  0
+ .../cmd/cgo/internal}/test/sigprocmask.go          |  0
+ {misc/cgo => src/cmd/cgo/internal}/test/test.go    |  0
+ .../cgo => src/cmd/cgo/internal}/test/test26213.go |  2 +-
+ .../cgo => src/cmd/cgo/internal}/test/test_unix.go |  0
+ .../cmd/cgo/internal}/test/test_windows.go         |  0
+ {misc/cgo => src/cmd/cgo/internal}/test/testx.c    |  0
+ {misc/cgo => src/cmd/cgo/internal}/test/testx.go   |  0
+ .../cgo => src/cmd/cgo/internal}/test/typeparam.go |  0
+ .../cmd/cgo/internal/testnocgo}/nocgo.go           |  0
+ .../cmd/cgo/internal/testnocgo}/nocgo_test.go      |  0
+ {misc/cgo => src/cmd/cgo/internal}/testtls/tls.go  |  2 ++
+ .../cmd/cgo/internal}/testtls/tls_test.go          |  2 +-
+ .../cmd/cgo/internal}/testtls/tls_unix.c           |  0
+ src/cmd/dist/test.go                               | 23 ++++++++++++----------
+ src/go/internal/srcimporter/srcimporter_test.go    |  3 +--
+ 131 files changed, 43 insertions(+), 39 deletions(-)

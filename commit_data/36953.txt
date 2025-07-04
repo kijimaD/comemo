@@ -1,17 +1,20 @@
-commit d82e51a11973714708ddc7f9f055ae8ea3d509f1
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 12 10:54:06 2018 +0200
+commit b768d82d8e19493e287b9f6c3219cd253d3ccb42
+Author: Niek Sanders <niek.sanders@gmail.com>
+Date:   Thu Jun 15 09:38:57 2017 -0700
 
-    internal/poll: add FD.Fsync on aix
+    encoding/base32: eliminate alphabet bounds check
     
-    Follow-up for CL 138717. This fixes the build of the os package on
-    aix.
+    name              old time/op   new time/op   delta
+    EncodeToString-4   35.5µs ± 7%   33.3µs ± 6%  -6.27%   (p=0.008 n=10+9)
+    DecodeString-4      120µs ± 7%    113µs ± 8%  -5.88%  (p=0.011 n=10+10)
     
-    Change-Id: I879b9360e71837ab622ae3a7b6144782cf5a9ce7
-    Reviewed-on: https://go-review.googlesource.com/c/141797
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    name              old speed     new speed     delta
+    EncodeToString-4  231MB/s ± 8%  247MB/s ± 5%  +6.55%   (p=0.008 n=10+9)
+    DecodeString-4    109MB/s ± 7%  116MB/s ± 8%  +6.27%  (p=0.011 n=10+10)
+    
+    Change-Id: I60bf962464179e35b1711617adbc45a822eaece5
+    Reviewed-on: https://go-review.googlesource.com/45876
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/poll/fd_fsync_posix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/base32/base32.go | 26 +++++++++++++++-----------
+ 1 file changed, 15 insertions(+), 11 deletions(-)

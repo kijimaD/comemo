@@ -1,26 +1,16 @@
-commit 1e4e09612c9b48abc32bd4b75700440a7eeaa318
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Feb 23 15:29:19 2016 -0800
+commit adf4c38b6ec08bcdeed09cdc733fa6014f0500c9
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Mon Nov 9 10:34:02 2015 -0500
 
-    cmd/compile: remove parser lineno hack for issue #13267
+    cmd/yacc: memory allocation improvements
     
-    After golang.org/cl/19652 removed the bizarre lexlineno{++,--}
-    statements for parsing canned imports, this hack for #13267 is no
-    longer necessary:
+    Places a fixed size initial stack and the lval inside the parser
+    struct so that they are allocated together. Places $$char inside the
+    parser struct to avoid allocating the closure used in Lookahead().
     
-        $ echo -n 0 > /tmp/0.go
-        $ go tool compile /tmp/0.go
-        /tmp/0.go:1: syntax error: package statement must be first
-    
-    Apparently setting lexlineno to 2 while parsing the canned imports
-    caused prevlineno and lineno to also be set to 2.  After we finished
-    parsing imports and restored lexlineno to 1, since "package" is the
-    first token in a source file, we'll have fixed lineno = 1, but
-    prevlineno was still set to 2.
-    
-    Change-Id: Ibcc49fe3402264819b9abb53505631f7a0ad4a36
-    Reviewed-on: https://go-review.googlesource.com/19859
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I0de664a6d612279fdc3255633e2dff904030bc36
+    Reviewed-on: https://go-review.googlesource.com/16705
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/yacc/yacc.go | 41 +++++++++++++++++++----------------------
+ 1 file changed, 19 insertions(+), 22 deletions(-)

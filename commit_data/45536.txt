@@ -1,22 +1,24 @@
-commit 10a082aa70fb58d92fc85769983d42110d61fad1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 4 15:57:45 2021 -0400
+commit a0a44397e91055cb92d5a69e3851d628a7227971
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 24 16:29:26 2020 -0400
 
-    cmd/go: update x/mod to fix "//indirect" comment editing
+    runtime: save/restore g unconditionally on darwin/arm64
     
-    Fixes #45932
+    Now that we always have TLS set up, we can always save the G
+    register, regardless of whether cgo is used. This makes pure Go
+    programs signal-safe.
     
-    Change-Id: I043aecb6224348faf54c1d41fdbc00aa566089c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316751
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #38485.
+    
+    Change-Id: Icbc69acf0e2a5652fbcbbd074258a1a5efe87f1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265119
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  2 ++
- .../go/testdata/script/mod_indirect_nospace.txt    | 32 ++++++++++++++++++++++
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go    |  4 +--
- src/cmd/vendor/golang.org/x/mod/module/module.go   |  2 +-
- src/cmd/vendor/modules.txt                         |  2 +-
- 6 files changed, 39 insertions(+), 5 deletions(-)
+ src/runtime/asm_arm64.s        | 3 ---
+ src/runtime/sys_darwin_arm64.s | 6 ++----
+ src/runtime/tls_arm64.s        | 4 ++++
+ 3 files changed, 6 insertions(+), 7 deletions(-)

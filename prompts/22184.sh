@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 22184: f338d942857333917af7220cd53910e3a2ad16b9
+# Index 22184: daddeb26865e55432be7d82641e835911828feca
 
 echo "🚀 Generating explanation for commit 22184..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 22184
-- **コミットハッシュ**: f338d942857333917af7220cd53910e3a2ad16b9
-- **GitHub URL**: https://github.com/golang/go/commit/f338d942857333917af7220cd53910e3a2ad16b9
+- **コミットハッシュ**: daddeb26865e55432be7d82641e835911828feca
+- **GitHub URL**: https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca
 
 ### 章構成
 

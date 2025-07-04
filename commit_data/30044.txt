@@ -1,45 +1,17 @@
-commit 01c8719f8b6cc689c6b446ed01ce570bce7d6287
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Dec 8 16:17:20 2016 -0800
+commit 9ac60181e2e54b6404e67852d6e1e65a8cbd3616
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Oct 24 12:04:12 2016 +1100
 
-    cmd/compile: move rotate instruction generation to SSA
+    runtime/cgo: do not link math lib by default on windows
     
-    Remove rotate generation from walk.  Remove OLROT and ssa.Lrot* opcodes.
-    Generate rotates during SSA lowering for architectures that have them.
+    Makes windows same as others.
     
-    This CL will allow rotates to be generated in more situations,
-    like when the shift values are determined to be constant
-    only after some analysis.
-    
-    Fixes #18254
-    
-    Change-Id: I8d6d684ff5ce2511aceaddfda98b908007851079
-    Reviewed-on: https://go-review.googlesource.com/34232
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib4651e06d0bd37473ac345d36c91f39aa8f5e662
+    Reviewed-on: https://go-review.googlesource.com/31791
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go        |  206 +++++
- src/cmd/compile/internal/gc/opnames.go         |    1 -
- src/cmd/compile/internal/gc/racewalk.go        |    1 -
- src/cmd/compile/internal/gc/ssa.go             |   12 -
- src/cmd/compile/internal/gc/syntax.go          |    1 -
- src/cmd/compile/internal/gc/walk.go            |   67 +-
- src/cmd/compile/internal/ssa/gen/386.rules     |   61 +-
- src/cmd/compile/internal/ssa/gen/386Ops.go     |    8 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   81 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |    8 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules     |   12 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |   20 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules   |   18 +-
- src/cmd/compile/internal/ssa/gen/dec64.rules   |   10 -
- src/cmd/compile/internal/ssa/gen/genericOps.go |   25 -
- src/cmd/compile/internal/ssa/opGen.go          |   28 -
- src/cmd/compile/internal/ssa/rewrite.go        |    7 +
- src/cmd/compile/internal/ssa/rewrite386.go     |  891 ++++++++++++++-----
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 1114 ++++++++++++++++++++----
- src/cmd/compile/internal/ssa/rewriteARM.go     |  191 ++--
- src/cmd/compile/internal/ssa/rewriteARM64.go   |  386 ++++++--
- src/cmd/compile/internal/ssa/rewriteS390X.go   |  338 ++++++-
- src/cmd/compile/internal/ssa/rewritedec64.go   |   74 --
- 23 files changed, 2752 insertions(+), 808 deletions(-)
+ src/runtime/cgo/cgo.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

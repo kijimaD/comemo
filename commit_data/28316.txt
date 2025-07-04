@@ -1,18 +1,17 @@
-commit 9e876861017991fe1478421b85a83964ea7abc6d
-Author: Dave Day <djd@golang.org>
-Date:   Fri Sep 9 17:59:43 2016 +1000
+commit 6181db53dbfec513300a236debbdc01735f00c07
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 12 18:10:03 2016 -0400
 
-    net/url: modernise parse and unit tests
+    runtime: improve heapBitsSetType documentation
     
-    Remove the naked returns and goto statements from parse.
+    Currently the heapBitsSetType documentation says that there are no
+    races on the heap bitmap, but that isn't exactly true. There are no
+    *write-write* races, but there are read-write races. Expand the
+    documentation to explain this and why it's okay.
     
-    Make tests more consistent in the got/want ordering, and clean up some
-    unnecessary helper functions.
-    
-    Change-Id: Iaa244cb8c00dd6b42836d95448bf02caa72bfabd
-    Reviewed-on: https://go-review.googlesource.com/28890
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibd92b69bcd6524a40a9dd4ec82422b50831071ed
+    Reviewed-on: https://go-review.googlesource.com/23092
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/url/url.go      | 30 +++++++++----------
- src/net/url/url_test.go | 79 +++++++++++++++++++++----------------------------
- 2 files changed, 48 insertions(+), 61 deletions(-)
+ src/runtime/mbitmap.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

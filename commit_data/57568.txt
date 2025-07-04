@@ -1,26 +1,22 @@
-commit 86781963cc2bf0d3dbd1eccebd8a2f080846f3ee
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Sep 29 04:24:00 2024 +0200
+commit 7af3107632bbc761aef3ae453f174341f7a9184b
+Author: ch3nnn <chenyinren@vip.qq.com>
+Date:   Wed Aug 16 12:28:11 2023 +0000
 
-    runtime: align vgetrandom states to cache line
+    fmt: fix receiver names are different
     
-    This prevents false sharing, which makes a large difference on machines
-    with several NUMA nodes, such as this dual socket server:
+    "buffer" call the receiver "b" in other method, don't call it "bp" in
+    another. Keep the same receiver names, as prescribed in Go Code Review
+    Comments (https://go.dev/s/style#receiver-names).
     
-    cpu: Intel(R) Xeon(R) Gold 6338 CPU @ 2.00GHz
-                          │    sec/op    │    sec/op     vs base                │
-    ParallelGetRandom-128   0.7944n ± 5%   0.4503n ± 0%  -43.31% (p=0.000 n=10)
-    
-                          │     B/s      │     B/s       vs base                │
-    ParallelGetRandom-128   4.690Gi ± 5%   8.272Gi ± 0%  +76.38% (p=0.000 n=10)
-    
-    Change-Id: Id4421e9a4c190b38aff0be4c59e9067b0a38ccd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616535
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I9fafc799a9e4102419ed743b941bca74e908f5c0
+    GitHub-Last-Rev: c8b851d372f3966e3c5eec7c331ad05aacb1ebda
+    GitHub-Pull-Request: golang/go#62066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520016
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/syscall/unix/getrandom_linux_test.go | 22 ++++++++++++++++++++++
- src/runtime/vgetrandom_linux.go                   | 12 ++++++++----
- 2 files changed, 30 insertions(+), 4 deletions(-)
+ src/fmt/print.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

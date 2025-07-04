@@ -1,36 +1,36 @@
-commit 73ee0fcf375c12e52997870125dbbac7aad96284
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 3 11:42:07 2023 -0800
+commit e23cc0844d542688c0956900206fca7c602593c5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 19 10:41:32 2022 -0400
 
-    internal/zstd: new internal package for zstd decompression
+    misc/cgo/testplugin: set the package name in TestIssue19534
     
-    This package only does zstd decompression, which is starting to
-    be used for ELF debug sections. If we need zstd compression we
-    should use github.com/klauspost/compress/zstd. But for now that
-    is a very large package to vendor into the standard library.
+    The fix for #19534 (in CL 40994) adjusted escaping in the
+    dynamically-linked name lookup logic for the plugin package. However,
+    the regression test added for it incorrectly included quotes within
+    the -ldflags flag, causing the flag to inadvertently be ignored.
     
-    For #55107
+    Possibly in that same CL or possibly at some other point, the
+    condition that the test thought it was checking stopped working: the
+    dynamic lookup used the path passed to ldflags, but the object file
+    actually contained the symbol indexed by the original package name.
     
-    Change-Id: I60ede735357d491be653477ed419cf5f2f0d3f71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473356
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Ideally we should stop mucking around with ldflags in this test and
+    run 'go build' from a suitably-named directory instead, to mimic the
+    actual conditions in which the original bug was reported. For now, as
+    a more targeted fix, we can pass the '-p' flag to the compiler to
+    adjust the package path used at compile time to match the one that
+    will be set at link time.
+    
+    For #43177.
+    Updates #19534.
+    
+    Change-Id: I9763961feb37cfb05dee543f273492e91a350663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407314
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/build/deps_test.go        |   2 +-
- src/internal/zstd/bits.go        | 130 ++++++++++
- src/internal/zstd/block.go       | 436 +++++++++++++++++++++++++++++++++
- src/internal/zstd/fse.go         | 437 +++++++++++++++++++++++++++++++++
- src/internal/zstd/fse_test.go    |  89 +++++++
- src/internal/zstd/fuzz_test.go   | 140 +++++++++++
- src/internal/zstd/huff.go        | 204 ++++++++++++++++
- src/internal/zstd/literals.go    | 330 +++++++++++++++++++++++++
- src/internal/zstd/xxhash.go      | 148 ++++++++++++
- src/internal/zstd/xxhash_test.go | 105 ++++++++
- src/internal/zstd/zstd.go        | 508 +++++++++++++++++++++++++++++++++++++++
- src/internal/zstd/zstd_test.go   | 249 +++++++++++++++++++
- 12 files changed, 2777 insertions(+), 1 deletion(-)
+ misc/cgo/testplugin/plugin_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

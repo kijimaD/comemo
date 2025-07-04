@@ -1,69 +1,25 @@
-commit f7e6ab44b410ef56bb89da182948a451d3cca34c
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 3 12:22:27 2020 -0400
+commit 15ea61c50ca25295497e78354f7f8397e73e3590
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 29 17:07:21 2019 -0400
 
-    all: remove scattered remnants of darwin/arm
+    runtime: clear m.gsignal when the M exits
     
-    This removes all conditions and conditional code (that I could find)
-    that depended on darwin/arm.
+    On some platforms (currently ARM and ARM64), when calling into
+    VDSO we store the G to the gsignal stack, if there is one, so if
+    we receive a signal during VDSO we can find the G.
     
-    Fixes #35439 (since that only happened on darwin/arm)
-    Fixes #37611.
+    When an M exits, it frees the gsignal stack. But m.gsignal.stack
+    still points to that stack. When we call nanotime on this M, we
+    will write to the already freed gsignal stack, which is bad.
+    Prevent this by unlinking the freed stack from the M.
     
-    Change-Id: Ia4c32a5a4368ed75231075832b0b5bfb1ad11986
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227198
-    Run-TryBot: Austin Clements <austin@google.com>
+    Should fix #35235.
+    
+    Change-Id: I338b1fc8ec62aae036f38afaca3484687e11a40d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204158
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/pkg_test.go                     |  2 +-
- misc/cgo/test/sigaltstack.go                  |  2 +-
- misc/cgo/test/testx.go                        |  2 +-
- misc/cgo/testcarchive/carchive_test.go        |  8 ++++----
- misc/cgo/testcshared/cshared_test.go          |  2 +-
- misc/cgo/testso/so_test.go                    |  2 +-
- misc/cgo/testsovar/so_test.go                 |  2 +-
- misc/ios/clangwrap.sh                         |  4 +---
- src/buildall.bash                             |  2 +-
- src/cmd/dist/build.go                         |  4 ++--
- src/cmd/dist/test.go                          |  8 ++++----
- src/cmd/dist/util.go                          |  4 ++--
- src/cmd/doc/doc_test.go                       |  4 ++--
- src/cmd/go/go_test.go                         |  2 +-
- src/cmd/go/internal/load/pkg.go               |  3 +--
- src/cmd/go/internal/work/build_test.go        |  2 +-
- src/cmd/go/internal/work/init.go              |  4 ++--
- src/cmd/internal/sys/supported.go             |  2 +-
- src/cmd/link/internal/arm/asm.go              | 16 ----------------
- src/cmd/link/internal/arm/obj.go              |  9 ---------
- src/cmd/link/internal/ld/sym.go               |  3 ---
- src/cmd/oldlink/internal/arm/asm.go           | 25 -------------------------
- src/cmd/oldlink/internal/arm/obj.go           |  9 ---------
- src/cmd/oldlink/internal/ld/sym.go            |  3 ---
- src/crypto/x509/root_darwin_test.go           |  2 +-
- src/go/build/build_test.go                    | 14 ++++----------
- src/go/build/deps_test.go                     |  2 +-
- src/go/internal/gcimporter/gcimporter_test.go |  3 +--
- src/internal/testenv/testenv.go               |  6 +++---
- src/iostest.bash                              |  9 +++------
- src/log/syslog/syslog_test.go                 |  2 +-
- src/net/dial_test.go                          |  2 +-
- src/net/lookup_test.go                        | 10 +++++-----
- src/net/platform_test.go                      |  6 +++++-
- src/net/timeout_test.go                       |  2 +-
- src/os/file.go                                |  2 +-
- src/os/os_test.go                             |  8 ++++----
- src/os/path_test.go                           |  4 ++--
- src/os/wait_waitid.go                         |  2 +-
- src/path/filepath/path_test.go                | 16 +++++-----------
- src/runtime/cgo/cgo.go                        |  3 +--
- src/runtime/cgo/gcc_darwin_arm64.c            |  2 +-
- src/runtime/os_darwin.go                      |  8 ++++----
- src/runtime/pprof/pprof_test.go               |  2 +-
- src/runtime/signal_arm.go                     |  4 +---
- src/runtime/signal_unix.go                    |  6 +++---
- src/runtime/tls_arm.s                         |  5 +----
- src/runtime/vlrt.go                           |  2 +-
- src/syscall/mkall.sh                          |  7 -------
- src/syscall/syscall_unix_test.go              |  2 +-
- 50 files changed, 81 insertions(+), 174 deletions(-)
+ src/runtime/proc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

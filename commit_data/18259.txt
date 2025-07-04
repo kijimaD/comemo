@@ -1,15 +1,14 @@
-commit fc80ce81946b009dd826e260fe4fc1fbcc19f133
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 15 09:50:55 2014 -0800
+commit b3a3afc9b788597ead21ea4770c9679f31475f40
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jan 15 19:38:08 2014 +0400
 
-    go/scanner: report too short escape sequences
+    runtime: fix data race in GC
+    Fixes #5139.
+    Update #7065.
     
-    Generally improve error messages for escape sequences.
-    
-    R=adonovan
+    R=golang-codereviews, bradfitz, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/49430046
+    https://golang.org/cl/52090045
 
- src/pkg/go/scanner/scanner.go      | 62 +++++++++++++++++++++++++-------------
- src/pkg/go/scanner/scanner_test.go | 30 ++++++++++++++----
- 2 files changed, 65 insertions(+), 27 deletions(-)
+ src/pkg/runtime/mgc0.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

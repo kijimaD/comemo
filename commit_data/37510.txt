@@ -1,19 +1,19 @@
-commit 2d4bd3db7f0eb3d833453ae39079a5f2e5db2737
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Nov 28 16:50:57 2018 +0100
+commit 28cee7075e3a2eda9504c73ad4649ffcc01b52a4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 6 18:06:06 2018 -0400
 
-    plugin: fix build constraint to disable test on linux/arm64
+    cmd/go: test that 'go get pkg@version' installs pkg
     
-    CL 151478 was suppose to fix the build failure on linux/arm64 but the
-    build constraint didn't exclude linux/arm64 properly.
+    This test passes, but it encodes several behaviors that I think are bugs.
+    I suggest that we check it in as-is, and we can update it as the bugs are fixed.
     
-    Fixes #28982
-    
-    Change-Id: Ia80265b0adba0384cd28bc2deb1726418664975a
-    Reviewed-on: https://go-review.googlesource.com/c/151303
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Icb073de9cb13036dbccadb4ff2cb3169ffb56236
+    Reviewed-on: https://go-review.googlesource.com/128137
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/plugin/plugin_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ .../mod/research.swtch.com_vgo-tour_v1.0.0.txt     | 23 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_get_commit.txt      |  9 +++++++++
+ src/cmd/go/testdata/script/mod_install.txt         | 16 +++++++++++++++
+ 3 files changed, 48 insertions(+)

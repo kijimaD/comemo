@@ -1,23 +1,15 @@
-commit e75c899a10c9321d1b4935c34401f66b2abad83a
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Jun 23 13:32:50 2016 -0400
+commit 5b3e5766bcc5e1090d0512a5916886ffc24ab246
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Apr 8 14:43:35 2016 +1000
 
-    reflect: optimize (reflect.Type).Name
+    cmd/go: remove special case that puts godoc in $GOROOT/bin
     
-    Improves JSON decoding on linux/amd64.
+    Updates golang/go#15106
     
-    name                   old time/op    new time/op    delta
-    CodeUnmarshal-40         89.3ms ± 2%    86.3ms ± 2%  -3.31%  (p=0.000 n=22+22)
-    
-    name                   old speed      new speed      delta
-    CodeUnmarshal-40       21.7MB/s ± 2%  22.5MB/s ± 2%  +3.44%  (p=0.000 n=22+22)
-    
-    Updates #16117
-    
-    Change-Id: I52acf31d7729400cfe6693e46292d41e1addba3d
-    Reviewed-on: https://go-review.googlesource.com/24410
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4214b841d63bb7e9c3c5ede2abe21a8a68f06c41
+    Reviewed-on: https://go-review.googlesource.com/21701
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/reflect/type.go | 41 +++++++++++++++++++++++------------------
- 1 file changed, 23 insertions(+), 18 deletions(-)
+ src/cmd/go/go_test.go | 22 ----------------------
+ src/cmd/go/pkg.go     |  9 +--------
+ 2 files changed, 1 insertion(+), 30 deletions(-)

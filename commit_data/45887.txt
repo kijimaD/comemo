@@ -1,19 +1,23 @@
-commit 0fa3265fe14c775668fc8272f47adf4fbaa60bac
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Tue Jun 29 16:31:18 2021 -0700
+commit 2c25cd5ba7772a97ee63787e3986b6ec231e8c3d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 22:07:04 2020 -0800
 
-    os: change example to avoid deprecated function
+    [dev.typeparams] cmd/compile/internal/types2: a type parameter is a valid type case in a type switch
     
-    The IsNotExist function is deprecated; change package example to avoid
-    it and use the recommended way instead.
+    Likewise for type assertions.
     
-    Fixes #46976
+    This is a port of https://golang.org/cl/273127 to dev.typeparams.
     
-    Change-Id: I3c301d0a89b6bda42184df314ba8418062ca39ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331692
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #42758.
+    
+    Change-Id: If93246371c3555e067b0043f0caefaac99101ebc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273128
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/os/example_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/expr.go            | 20 ++++---------
+ .../internal/types2/fixedbugs/issue42758.go2       | 33 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/stmt.go            | 17 ++++-------
+ 3 files changed, 43 insertions(+), 27 deletions(-)

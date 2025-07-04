@@ -1,22 +1,16 @@
-commit aa0ae7554c460947ff40ae43eb10a098dc4e3f6d
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Dec 9 23:25:13 2013 -0500
+commit f574726f16887112e9165f9fd0b8832eada76c2f
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Dec 9 17:51:30 2013 -0800
 
-    os: clarify docs for Rename.
+    runtime: check for signed zero in printfloat
     
-    Three changes:
-    1. mention "move" to clarify things up.
-    2. use {old,new}path instead of {old,new}name, which makes it clear what
-       relative path would do here.
-    3. mention "OS-specific restrictions might apply".
+    Fixes #6899
     
-    Fixes #6887.
-    
-    R=golang-dev, alex.brainman, iant, r
+    R=golang-dev, r, cshapiro, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/36930044
+    https://golang.org/cl/38120043
 
- src/pkg/os/file.go       | 3 +++
- src/pkg/os/file_plan9.go | 3 +--
- src/pkg/os/file_posix.go | 3 +--
- 3 files changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/runtime/print.c      |  5 ++++-
+ test/fixedbugs/issue6899.go  | 13 +++++++++++++
+ test/fixedbugs/issue6899.out |  1 +
+ 3 files changed, 18 insertions(+), 1 deletion(-)

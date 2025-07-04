@@ -1,26 +1,14 @@
-commit c8691f3ac1bb7c175aa066b78d3c895afe1981f9
-Author: Kevin Burke <kev@inburke.com>
-Date:   Fri Jul 14 16:20:27 2017 -0600
+commit d77dfba96bf305504ed57f557bb4d1f3bd19a2ba
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Aug 24 11:52:35 2017 -0700
 
-    crypto/cipher: use raw bytes for keys in docs
+    doc: document go1.9
     
-    Using ASCII values for keys is a bad idea since it makes them vastly
-    easier to guess. Instead, use the same method as the examples in the
-    golang.org/x/crypto/nacl package to load keys from a hex value.
-    
-    Changing the key required updating the ciphertext in many of the
-    examples.
-    
-    I am still worried about the fact the examples ask the user to
-    authenticate messages; authentication isn't trivial, and to be honest
-    it may be better to steer people to a higher level primitive like
-    secretbox, unless people really need AES.
-    
-    Fixes #21012.
-    
-    Change-Id: I8d918cf194694cd380b06c2d561178167ca61adb
-    Reviewed-on: https://go-review.googlesource.com/48596
+    Change-Id: I97075f24319a4b96cbeb9e3ff2e7b2056ff59e32
+    Reviewed-on: https://go-review.googlesource.com/58651
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/cipher/example_test.go | 76 +++++++++++++++++++++++++++++----------
- 1 file changed, 57 insertions(+), 19 deletions(-)
+ doc/devel/release.html  | 9 ++++++++-
+ doc/go1.9.html          | 7 +------
+ doc/install-source.html | 4 ++--
+ 3 files changed, 11 insertions(+), 9 deletions(-)

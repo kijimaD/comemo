@@ -1,19 +1,19 @@
-commit 2a5745d81e9a5b3af1f0b42f5cbc0d6ba4ba6ec2
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Wed Jun 17 14:07:13 2015 +0200
+commit 5c7f94421ef5eca55b37f778b427abd5ea174c26
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 13 15:28:11 2015 -0700
 
-    compress/lzw: mention relation between litWidth and input bytes
+    cmd/internal/obj: validate GOARM environment variable's value before use
     
-    Add sentences to the docs explaining the limit on input
-    bytes implicit in the choice of litWidth, and the fact that
-    compress and decompress litWidth must match.
+    I was previously setting GOARM=arm5 (due to confusion with previously
+    seeing buildall.sh's temporary of "arm5" as a GOARCH and
+    misremembernig), but GOARM=arm5 was acting like GOARM=5 only on
+    accident. See https://go-review.googlesource.com/#/c/10023/
     
-    Fixes #11142.
+    Instead, fail if GOARM is not a known value.
     
-    Change-Id: I20cfb4df35739f7bfeb50b92c78249df3d47942c
-    Reviewed-on: https://go-review.googlesource.com/11063
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: I9ba4fd7268df233d40b09f0431f37cd85a049847
+    Reviewed-on: https://go-review.googlesource.com/10024
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/compress/lzw/reader.go | 3 ++-
- src/compress/lzw/writer.go | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/util.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

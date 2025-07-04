@@ -1,46 +1,28 @@
-commit 6362d01c152071751bd594bdf10c301514fc2d4e
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 7 17:15:06 2020 -0500
+commit 666c9aedd40853e2fc84bbd743b13cb267007ac2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Apr 30 11:04:02 2020 +0200
 
-    doc/go1.16: update linker stats
+    cmd/compile: switch to typed auxint for arm64 TBZ/TBNZ block
     
-    benchstat v2 comparison vs HEAD:
+    This CL changes the arm64 TBZ/TBNZ block from using Aux to using
+    a (typed) AuxInt. The corresponding rules have also been changed
+    to be typed.
     
-                        1.15.6                    1.16
-                        sec/op       sec/op           vs base
-    LinkIstio-48        4.44 ± 1%   3.43 ± 1%  -22.79% (p=0.000 n=20)
-    LinkKubelet-48     10.89 ± 1%   8.42 ± 1%  -22.63% (p=0.000 n=20)
-    LinkDiscovery-48    1.43 ± 1%   1.06 ± 1%  -25.68% (p=0.000 n=20)
-    LinkIstio-4         4.50 ± 1%   3.52 ± 1%  -21.84% (p=0.000 n=20)
-    LinkKubelet-4      10.84 ± 2%   8.55 ± 1%  -21.09% (p=0.000 n=20)
-    LinkDiscovery-4     1.45 ± 2%   1.11 ± 2%  -23.81% (p=0.000 n=20)
+    Passes
     
-                         1.15.6                      1.16
-                      max-RSS-bytes  max-RSS-bytes         vs base
-    LinkIstio-48       1085Mi ± 1%    1006Mi ± 0%    -7.32% (p=0.000 n=20)
-    LinkKubelet-48     1.60Gi ± 5%    1.46Gi ± 1%    -8.57% (p=0.000 n=20)
-    LinkDiscovery-48    392Mi ± 1%     362Mi ± 2%    -7.71% (p=0.000 n=20)
-    LinkIstio-4        1022Mi ± 6%     958Mi ± 1%    -6.26% (p=0.000 n=20)
-    LinkKubelet-4      1.63Gi ± 2%    1.44Gi ± 0%   -11.44% (p=0.000 n=20)
-    LinkDiscovery-4     400Mi ± 0%     353Mi ± 1%   -11.83% (p=0.000 n=20)
+      GOARCH=arm64 gotip build -toolexec 'toolstash -cmp' -a std
     
-                         1.15.6                    1.16
-                       exe-bytes     exe-bytes           vs base
-    LinkIstio-48       97.7Mi ± 0%   93.4Mi ± 0%  -4.38% (p=0.000 n=20)
-    LinkKubelet-48      129Mi ± 0%    127Mi ± 0%  -1.17% (p=0.000 n=20)
-    LinkDiscovery-48   31.9Mi ± 0%   29.1Mi ± 0%  -8.67% (p=0.000 n=20)
-    LinkIstio-4        97.7Mi ± 0%   93.4Mi ± 0%  -4.38% (p=0.000 n=20)
-    LinkKubelet-4       129Mi ± 0%    127Mi ± 0%  -1.17% (p=0.000 n=20)
-    LinkDiscovery-4    31.9Mi ± 0%   29.1Mi ± 0%  -8.67% (p=0.000 n=20)
-    
-    https://perf.golang.org/search?q=upload:20201207.6
-    
-    For #40700.
-    
-    Change-Id: I3f7b3e08db4fb7980d2472f15e5fc04503e95ea0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275912
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I98d0cd2a791948f1db13259c17fb1b9b2807a043
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230839
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.16.html | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 24 +++++-----
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 12 ++---
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |  2 +
+ src/cmd/compile/internal/ssa/opGen.go        |  4 ++
+ src/cmd/compile/internal/ssa/rewrite.go      |  1 -
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 72 ++++++++++++++--------------
+ 7 files changed, 61 insertions(+), 56 deletions(-)

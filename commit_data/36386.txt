@@ -1,33 +1,15 @@
-commit 3649fe299d452b11a8a458096deda38ed9df5947
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Aug 21 14:02:56 2018 +0200
+commit eca7a1343c6d4ac9417784cf5f37419ea05f34d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 20 11:37:34 2018 -0400
 
-    cmd/gofmt: skip gofmt idempotency check on known issue
+    sync: hide test of misuse of Cond from vet
     
-    gofmt's TestAll runs gofmt on all the go files in the tree and checks,
-    among other things, that gofmt is idempotent (i.e. that a second
-    invocation does not change the input again).
+    The test wants to check that copies of Cond are detected at runtime.
+    Make a copy that isn't detected by vet at compile time.
     
-    There's a known bug of gofmt not being idempotent (Issue #24472), and
-    unfortunately the fixedbugs/issue22662.go file triggers it. We can't
-    just gofmt the file, because it tests the effect of various line
-    directives inside weirdly-placed comments, and gofmt moves those
-    comments, making the test useless.
-    
-    Instead, just skip the idempotency check when gofmt-ing the
-    problematic file.
-    
-    This fixes go test on the cmd/gofmt package, and a failure seen on the
-    longtest builder.
-    
-    Updates #24472
-    
-    Change-Id: Ib06300977cd8fce6c609e688b222e9b2186f5aa7
-    Reviewed-on: https://go-review.googlesource.com/130377
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I933ab1003585f75ba96723563107f1ba8126cb72
+    Reviewed-on: https://go-review.googlesource.com/108557
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/gofmt/long_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/sync/cond_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,16 +1,21 @@
-commit 0849dfd4a3f72182af0702bec22ffa8c772c3695
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 1 21:38:49 2018 -0800
+commit 0174858c71789365dc3550916916d43490a900fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 9 14:37:11 2017 -0400
 
-    test: add new test that gccgo failed to compile
+    cmd/go: add undocumented -debug-actiongraph flag to dump action graph
     
-    Updates #22305
+    This will be useful for debugging but is intentionally
+    undocumented and not guaranteed to persist in any
+    particular form.
     
-    Change-Id: I0e6bbd880599fc1b70d0378b746d162d4a846c65
-    Reviewed-on: https://go-review.googlesource.com/91556
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I60710a1e94cfc2ce31fe91fc268c51985060f8df
+    Reviewed-on: https://go-review.googlesource.com/69330
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue22305.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/go/internal/cfg/cfg.go    |  2 +
+ src/cmd/go/internal/run/run.go    |  2 +-
+ src/cmd/go/internal/test/test.go  | 14 ++++--
+ src/cmd/go/internal/work/build.go | 97 ++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 102 insertions(+), 13 deletions(-)

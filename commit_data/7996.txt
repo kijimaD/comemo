@@ -1,16 +1,14 @@
-commit 057bdfe39db97a09b5c2e45fdd21452748eb017f
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Apr 6 10:22:04 2011 -0400
+commit 7f7371e95b181dd412182fd6dfc01a44749a2d21
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 6 16:45:20 2011 +1000
 
-    crypto/rsa: flip the CRT code over so that it matches PKCS#1
+    pkg/path: enable tests on Windows
     
-    The CRT is symmetrical in the case of two variables and I picked a
-    different form from PKCS#1.
+    Fixes #1107.
     
-    R=golang-dev, rsc1
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4381041
+    https://golang.org/cl/4374041
 
- src/pkg/crypto/rsa/rsa.go      | 16 ++++++++--------
- src/pkg/crypto/rsa/rsa_test.go | 10 ++++------
- 2 files changed, 12 insertions(+), 14 deletions(-)
+ src/pkg/Makefile | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,35 +1,18 @@
-commit b182ba7fabcd233a03bb8169634605a7fac6a856
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Wed May 20 08:49:59 2020 +0000
+commit 73a5c372410adb272b6a63484c9a9de5e93e986c
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Aug 24 10:43:43 2020 -0400
 
-    cmd/compile: optimize codes with arm64 REV16 instruction
+    go/types: add untyped test cases for AssignableTo API
     
-    Optimize some patterns into rev16/rev16w instruction.
+    The AssignableTo API is specifically for non-constant values, but is
+    currently called by gopls for constant completions. Add a test to ensure
+    that we handle this edge case correctly.
     
-    Pattern1:
-        (c & 0xff00ff00)>>8 | (c & 0x00ff00ff)<<8
-    To:
-        rev16w c
-    
-    Pattern2:
-        (c & 0xff00ff00ff00ff00)>>8 | (c & 0x00ff00ff00ff00ff)<<8
-    To:
-        rev16 c
-    
-    This patch is a copy of CL 239637, contributed by Alice Xu(dianhong.xu@arm.com).
-    
-    Change-Id: I96936c1db87618bc1903c04221c7e9b2779455b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268377
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I83115cbca2443a783df1c3090b5741260dffb78e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250258
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/arm64/ssa.go              |   1 +
- src/cmd/compile/internal/ssa/gen/ARM64.rules       |  16 ++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go       |   1 +
- src/cmd/compile/internal/ssa/opGen.go              |  14 ++
- src/cmd/compile/internal/ssa/rewriteARM64.go       | 225 +++++++++++++++++++++
- .../compile/internal/test/testdata/arith_test.go   |  43 ++++
- test/codegen/bitfield.go                           |  20 ++
- 7 files changed, 320 insertions(+)
+ src/go/types/api_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

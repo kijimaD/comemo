@@ -1,14 +1,29 @@
-commit fbfb9430dc687d399ded22a38abab035e3fa462b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 16 10:11:06 2014 -0500
+commit 4722b1cbd3c734b67c0e3c1cd4458cdbd51e5844
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jan 16 12:17:00 2014 +0400
 
-    cmd/gc: fix race build
+    runtime: use lock-free ring for work queues
+    Use lock-free fixed-size ring for work queues
+    instead of an unbounded mutex-protected array.
+    The ring has single producer and multiple consumers.
+    If the ring overflows, work is put onto global queue.
     
-    Missed this case in CL 51010045.
+    benchmark              old ns/op    new ns/op    delta
+    BenchmarkMatmult               7            5  -18.12%
+    BenchmarkMatmult-4             2            2  -18.98%
+    BenchmarkMatmult-16            1            0  -12.84%
     
-    TBR=khr
-    CC=golang-codereviews
-    https://golang.org/cl/53200043
+    BenchmarkCreateGoroutines                     105           88  -16.10%
+    BenchmarkCreateGoroutines-4                   376          219  -41.76%
+    BenchmarkCreateGoroutines-16                  241          174  -27.80%
+    BenchmarkCreateGoroutinesParallel             103           87  -14.66%
+    BenchmarkCreateGoroutinesParallel-4           169          143  -15.38%
+    BenchmarkCreateGoroutinesParallel-16          158          151   -4.43%
+    
+    R=golang-codereviews, rsc
+    CC=ddetlefs, devon.odell, golang-codereviews
+    https://golang.org/cl/46170044
 
- src/cmd/gc/sinit.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/proc.c    | 250 ++++++++++++++++++++++------------------------
+ src/pkg/runtime/runtime.h |   7 +-
+ 2 files changed, 121 insertions(+), 136 deletions(-)

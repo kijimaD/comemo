@@ -1,37 +1,14 @@
-commit fd263ccefe4f1280b357cb1cb481a6599efd5f6b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 6 01:29:47 2018 -0400
+commit 65727ab59d20663a76692fea7b8444dbb349080b
+Author: Ross Light <light@google.com>
+Date:   Wed Mar 21 09:54:22 2018 -0700
 
-    cmd/cover: invoke go command to find packages
+    net/url: fix contradiction in PathUnescape docs
     
-    cmd/cover has always assumed that package x/y/z can be
-    found in $GOPATH/src/x/y/z (roughly; by using go/build).
-    That won't be true for too much longer. Instead, run the
-    go command to find out where packages are.
-    
-    This will make 'go tool cover' safe for use with Go modules
-    when they are in use in Go 1.11, and it continues to work
-    with the existing Go toolchains too.
-    
-    An alternative would be to modify the cover profile format
-    to record file names directly, but that would require also
-    updating golang.org/x/tools/cover/profile and any tools
-    that use it, which seems not worth the trouble.
-    (That fork of the code does not contain any code to resolve
-    package names to directory locations, so it's unaffected.)
-    
-    No new test here: cmd/go's TestCoverageFunc tests this code.
-    
-    Fixes #25318 (when people use Go 1.11 instead of vgo).
-    
-    Change-Id: I8769b15107aecf25f7aaf8692b724cf7d0f073d0
-    Reviewed-on: https://go-review.googlesource.com/122478
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: If35e3faa738c5d7d72cf77d14b276690579180a1
+    Reviewed-on: https://go-review.googlesource.com/101921
+    Run-TryBot: Ross Light <light@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cover/func.go            | 86 ++++++++++++++++++++++++++++++++++++----
- src/cmd/cover/html.go            |  7 +++-
- src/cmd/go/internal/load/test.go |  4 +-
- src/cmd/go/internal/test/test.go | 19 +++++++--
- 4 files changed, 101 insertions(+), 15 deletions(-)
+ src/net/url/url.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

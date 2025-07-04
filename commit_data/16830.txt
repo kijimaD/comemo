@@ -1,13 +1,20 @@
-commit cae5213b913b2237d79fe19fa6e2b8974f335e1a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Jul 20 16:09:30 2013 +1000
+commit c485b5891273c62af8e2342c72edf717966d97b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 19 19:36:15 2013 -0400
 
-    libmach,lib9: override unused parameter warnings (fixes netbsd and openbsd builds)
+    cmd/dist, cmd/go: enable more warnings, make clang errors legible
     
-    R=golang-dev, bradfitz
+    This does not change the default compiler on OS X to clang.
+    It appears that for now we can keep using gcc as long as we
+    enable a few more warning settings that are on-by-default
+    elsewhere.
+    
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/11623043
+    https://golang.org/cl/11610044
 
- src/libmach/netbsd.c  | 10 ++++++++++
- src/libmach/openbsd.c | 10 ++++++++++
- 2 files changed, 20 insertions(+)
+ src/cmd/dist/build.c | 6 ++++++
+ src/cmd/dist/unix.c  | 2 ++
+ src/cmd/go/build.go  | 4 +++-
+ src/cmd/go/env.go    | 3 +++
+ 4 files changed, 14 insertions(+), 1 deletion(-)

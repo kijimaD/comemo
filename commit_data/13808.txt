@@ -1,14 +1,20 @@
-commit 66331532cd512ae2d506c7a120796c203c78099c
+commit 792518c65618599853e1f9da3c23d4ba7d2cce9f
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 12 17:37:39 2012 -0400
+Date:   Wed Sep 12 12:05:34 2012 -0400
 
-    net/rpc/jsonrpc: fix test error message
+    cmd/dist: emit \r in env -w output
     
-    Fixes #4041.
+    go tool dist env -w is supposed to print a Windows batch file.
+    Normally Windows will execute batch files without \r before \n,
+    but issue 3060 reports that if the file ends up containing paths
+    written in Chinese, Windows 7 cannot execute it without the \r.
+    So add the \r.
+    
+    Fixes #3060.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6495121
+    https://golang.org/cl/6498120
 
- src/pkg/net/rpc/jsonrpc/all_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

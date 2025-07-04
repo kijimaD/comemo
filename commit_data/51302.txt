@@ -1,22 +1,29 @@
-commit 5947a07d72076f96eb6fb8e54b7979748962713b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 16 00:02:14 2022 -0500
+commit c74be77e63c0281abb45dbf9de31fa05a6824934
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 6 18:02:30 2022 -0800
 
-    test: fix noinit on noopt builder
+    cmd/compile: accept string|[]byte-constrained 2nd argument in append
     
-    Fix noopt build break from CL 450136 by not running test.
+    Similarly to what we do for the built-in function `copy`,
+    where we allow a string as 2nd argument to append, also
+    permit a type parameter constrained by string|[]byte.
     
-    I can't reproduce the failure locally, but it's entirely reasonable
-    for this test to fail when optimizations are disabled, so just don't
-    run it when optimizations are disabled.
+    While at it, change date in the manual.go2 test files so
+    that we don't need to constantly correct it when copying
+    a test case from that file into a proper test file.
     
-    Change-Id: I882760fc7373ba0449379f81d295312a6be49be1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450740
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Stapelberg <stapelberg@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #50281.
+    
+    Change-Id: I23fed66736aa07bb3c481fe97313e828425ac448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376214
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- test/noinit.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/types2/builtins.go        |  2 +-
+ .../types2/testdata/fixedbugs/issue50281.go2       | 26 ++++++++++++++++++++++
+ .../compile/internal/types2/testdata/manual.go2    |  2 +-
+ src/go/types/builtins.go                           |  2 +-
+ src/go/types/testdata/fixedbugs/issue50281.go2     | 26 ++++++++++++++++++++++
+ src/go/types/testdata/manual.go2                   |  2 +-
+ test/typeparam/issue376214.go                      | 20 +++++++++++++++++
+ 7 files changed, 76 insertions(+), 4 deletions(-)

@@ -1,23 +1,24 @@
-commit 79b2e14b1a08d5c5a6a6153c5fa85b6cab0fcbf4
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Mar 24 14:41:25 2021 +0100
+commit 4ffc2bc533ed39b3cbb343ad5873105bfd58ff10
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 17 07:46:01 2020 +0700
 
-    crypto/ed25519: add comprehensive edge-case test vectors
+    cmd/compile: rename retsigerr to sigerr
     
-    This will allow us to make changes to the internals confidently, without
-    risking causing issues in consensus applications. It will also prevent
-    architecture-specific divergence, like #40475.
+    retsigerr was used to create error message for both wrong function
+    arguments and return arguments, so change its name to sigerr to reflect
+    that.
     
-    Fixes #40478
+    While at it, also add documentation for the wrong function arguments
+    case.
     
-    Change-Id: I8c2b31406ca88add6941f14d8df8cecb96379cde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304349
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I740c717ad38d4afab9e8c20f2e94579c8bca67ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255240
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/ed25519/ed25519vectors_test.go | 109 ++++++++++++++++++++++++++++++
- 1 file changed, 109 insertions(+)
+ src/cmd/compile/internal/gc/typecheck.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

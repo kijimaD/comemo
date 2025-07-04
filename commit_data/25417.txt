@@ -1,20 +1,18 @@
-commit 906f97911951c5e33b8290a88a3badc1b328dae8
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 4 15:03:45 2016 -0500
+commit 18559e2da7a2698ad9e35072cbcba1a05ed73836
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 28 13:55:46 2015 -0400
 
-    cmd/dist: wait for pending tests before exiting
+    [dev.ssa] cmd/compile: make zero-divide panic from div/mod explicit
     
-    When 'go tool dist test' stops, it was intended that it first wait for
-    pending background tests, like a failed compilation waits for pending
-    background compiles. But these three lines prevented that.
-    Fix by deleting them. (The actual loop already contains the correct
-    logic to avoid running the others and to wait for what's left.)
+    Added an explicit compare-zero and branch-to-panic for
+    integer division and mod so that other optimizations will
+    not be fooled by their implicit panics.
     
-    Change-Id: I4e945495ada903fb0af567910626241bc1c52ba6
-    Reviewed-on: https://go-review.googlesource.com/18232
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibf96f636b541c0088861907c537a6beb4b99fa4c
+    Reviewed-on: https://go-review.googlesource.com/16450
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/test.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/compile/internal/gc/go.go   |  2 ++
+ src/cmd/compile/internal/gc/pgen.go |  1 +
+ src/cmd/compile/internal/gc/ssa.go  | 17 +++++++++++++++--
+ 3 files changed, 18 insertions(+), 2 deletions(-)

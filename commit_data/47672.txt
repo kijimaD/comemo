@@ -1,17 +1,22 @@
-commit 25f06cb71f06406bd38de0a37967edc6ec8ca120
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Dec 1 13:56:53 2021 -0500
+commit d5b9dc1317e3d898650fcb6e417f03b00e69270b
+Author: wolf1996 <ksgiv37@gmail.com>
+Date:   Fri Nov 13 14:30:15 2020 +0300
 
-    doc/go1.18: add deprecation note for net.Error.Temporary
+    cmd/cgo: pass end position info for C function arguments.
     
-    Updates #47694
+    Pass information about original end position for c function arguments
+    processed in pointer checking generated code.
     
-    Change-Id: Ia25ad49f688efa3d60d83290095648711704b478
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368316
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #42580
+    
+    Change-Id: Ic8a578168362f0ca6055064dbbea092ad37477a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269760
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/go1.18.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/errors/argposition_test.go    | 134 +++++++++++++++++++++++++++++++++
+ misc/cgo/errors/testdata/issue42580.go |  44 +++++++++++
+ src/cmd/cgo/gcc.go                     |  34 ++++++---
+ 3 files changed, 203 insertions(+), 9 deletions(-)

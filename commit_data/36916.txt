@@ -1,27 +1,19 @@
-commit 49be65eeba37a3d29a8a33379794e7a84df6cca1
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 15:24:32 2018 +0200
+commit b74f7321e594e2c4bcdf1b048e755ddc90c4134d
+Author: Thanabodee Charoenpiriyakij <wingyminus@gmail.com>
+Date:   Sun Jun 10 01:01:27 2018 +0700
 
-    syscall: change solaris files to libc files
+    syscall: update TOKEN_ALL_ACCESS according to WinNT.h
     
-    AIX and Solaris both requires libc to make any syscalls and their
-    implementation is really similar.
-    Therefore, Solaris files reused by AIX have their name changed to *_libc.
+    TOKEN_ALL_ACCESS was changed at some stage by Microsoft.
     
-    exec_libc.go is also adapted to AIX.
+    Updates #25775
     
-    Updates: #25893
-    
-    Change-Id: I50d1d7b964831637013d5e64799187cd9565c42b
-    Reviewed-on: https://go-review.googlesource.com/c/138719
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3e18914207a0020b2ebfb99f4e57aa55f9de813b
+    Reviewed-on: https://go-review.googlesource.com/117635
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/syscall_solaris.go                     |  7 +++
- src/syscall/asm_solaris_amd64.s                    |  4 ++
- src/syscall/{exec_solaris.go => exec_libc.go}      | 23 +++++++---
- src/syscall/exec_unix.go                           | 12 +++---
- src/syscall/mkall.sh                               | 13 +++++-
- .../{mksyscall_solaris.pl => mksyscall_libc.pl}    | 50 +++++++++++++++++++---
- 6 files changed, 89 insertions(+), 20 deletions(-)
+ api/except.txt                      | 2 ++
+ src/syscall/security_windows.go     | 4 +++-
+ src/syscall/syscall_windows_test.go | 6 ++++++
+ 3 files changed, 11 insertions(+), 1 deletion(-)

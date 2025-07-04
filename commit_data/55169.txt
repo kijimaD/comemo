@@ -1,87 +1,22 @@
-commit 83da21f0526ccebf0bcd83434e56b82c8a75f269
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Nov 29 15:42:53 2023 -0500
+commit 7e740f91c52c6b56d5e2af9c5295e5397565556c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 13 15:23:05 2023 -0500
 
-    all: update vendored dependencies
+    src: update go.mod files to go 1.21
     
-    The Go 1.22 code freeze has recently started. This is a time to update
-    all golang.org/x/... module versions that contribute packages to the
-    std and cmd modules in the standard library to latest master versions.
-    
-    Generated with:
-    
-    go install golang.org/x/build/cmd/updatestd@latest
-    go install golang.org/x/tools/cmd/bundle@latest
-    updatestd -goroot=$(pwd) -branch=master
+    Go 1.21 is now in progress here.
     
     For #36905.
     
-    Change-Id: I76525261b9a954ed21a3bd3cb6c4a12e6c031d80
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-linux-amd64-longtest,gotip-linux-386-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546055
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ib4d2271b3b8b5fe29e8358614a3d6d20a035e1a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462199
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go.mod                                     |   8 +-
- src/cmd/go.sum                                     |  16 +-
- src/cmd/vendor/golang.org/x/sys/unix/fcntl.go      |   2 +-
- .../vendor/golang.org/x/sys/unix/ioctl_linux.go    |   5 +
- src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   3 +-
- .../vendor/golang.org/x/sys/unix/pledge_openbsd.go |  92 ++-----
- .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   3 +-
- .../vendor/golang.org/x/sys/unix/syscall_bsd.go    |   2 +-
- .../vendor/golang.org/x/sys/unix/syscall_linux.go  |  31 ++-
- .../golang.org/x/sys/unix/syscall_openbsd.go       |  28 ++-
- .../golang.org/x/sys/unix/syscall_solaris.go       |   5 +-
- .../golang.org/x/sys/unix/syscall_zos_s390x.go     |   2 +-
- .../vendor/golang.org/x/sys/unix/unveil_openbsd.go |  41 +--
- .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  13 +-
- .../golang.org/x/sys/unix/zerrors_linux_loong64.go |   1 +
- .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |   3 +
- .../vendor/golang.org/x/sys/unix/zsyscall_linux.go |  15 ++
- .../golang.org/x/sys/unix/zsyscall_openbsd_386.go  |  71 ++++++
- .../golang.org/x/sys/unix/zsyscall_openbsd_386.s   |  20 ++
- .../x/sys/unix/zsyscall_openbsd_amd64.go           |  71 ++++++
- .../golang.org/x/sys/unix/zsyscall_openbsd_amd64.s |  20 ++
- .../golang.org/x/sys/unix/zsyscall_openbsd_arm.go  |  71 ++++++
- .../golang.org/x/sys/unix/zsyscall_openbsd_arm.s   |  20 ++
- .../x/sys/unix/zsyscall_openbsd_arm64.go           |  71 ++++++
- .../golang.org/x/sys/unix/zsyscall_openbsd_arm64.s |  20 ++
- .../x/sys/unix/zsyscall_openbsd_mips64.go          |  71 ++++++
- .../x/sys/unix/zsyscall_openbsd_mips64.s           |  20 ++
- .../x/sys/unix/zsyscall_openbsd_ppc64.go           |  71 ++++++
- .../golang.org/x/sys/unix/zsyscall_openbsd_ppc64.s |  24 ++
- .../x/sys/unix/zsyscall_openbsd_riscv64.go         |  71 ++++++
- .../x/sys/unix/zsyscall_openbsd_riscv64.s          |  20 ++
- .../golang.org/x/sys/unix/zsysnum_linux_386.go     |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_arm.go     |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_loong64.go |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_mips.go    |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_mips64.go  |   1 +
- .../x/sys/unix/zsysnum_linux_mips64le.go           |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_mipsle.go  |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_ppc.go     |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_ppc64.go   |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_ppc64le.go |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_s390x.go   |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |   1 +
- .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |  32 +++
- .../golang.org/x/sys/windows/syscall_windows.go    |   5 +-
- .../golang.org/x/sys/windows/zsyscall_windows.go   |  19 ++
- .../go/analysis/passes/testinggoroutine/doc.go     |   2 +-
- .../passes/testinggoroutine/testinggoroutine.go    | 277 ++++++++++++++-------
- .../go/analysis/passes/testinggoroutine/util.go    |  96 +++++++
- src/cmd/vendor/modules.txt                         |   8 +-
- src/go.mod                                         |   8 +-
- src/go.sum                                         |  16 +-
- src/net/http/h2_bundle.go                          | 150 +++++------
- .../chacha20poly1305/chacha20poly1305_amd64.s      |  24 +-
- src/vendor/golang.org/x/crypto/cryptobyte/asn1.go  |  13 +-
- src/vendor/golang.org/x/crypto/hkdf/hkdf.go        |   4 +-
- src/vendor/modules.txt                             |   8 +-
- 60 files changed, 1256 insertions(+), 333 deletions(-)
+ src/cmd/go.mod | 2 +-
+ src/go.mod     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

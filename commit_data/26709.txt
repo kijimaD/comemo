@@ -1,21 +1,29 @@
-commit 7208a2cd785fee77d951ad575adc705a3a012486
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Apr 5 15:11:08 2016 +1000
+commit 9877900c8c9c21704c0052c65e39216c6f400706
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 23 07:46:01 2016 +0000
 
-    cmd/compile/internal/ssa: hide gen packge from ./make.bash
+    Revert "cmd/compile: move hiter, hmap, and scase definitions into builtin.go"
     
-    Fixes #15122
+    This reverts commit f28bbb776a050cc3edca2bbe1241d81217a7a251.
     
-    Change-Id: Ie2c802d78aea731e25bf4b193b3c2e4c884e0573
-    Reviewed-on: https://go-review.googlesource.com/21524
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I82fb81dcff3ddcaefef72949f1ef3a41bcd22301
+    Reviewed-on: https://go-review.googlesource.com/19849
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   | 2 ++
- src/cmd/compile/internal/ssa/gen/ARMOps.go     | 2 ++
- src/cmd/compile/internal/ssa/gen/decOps.go     | 2 ++
- src/cmd/compile/internal/ssa/gen/genericOps.go | 2 ++
- src/cmd/compile/internal/ssa/gen/main.go       | 3 ++-
- src/cmd/compile/internal/ssa/gen/rulegen.go    | 2 ++
- 6 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/builtin.go         | 10 +--
+ src/cmd/compile/internal/gc/builtin/runtime.go | 49 +-------------
+ src/cmd/compile/internal/gc/fmt.go             |  8 +++
+ src/cmd/compile/internal/gc/go.go              |  4 +-
+ src/cmd/compile/internal/gc/range.go           | 22 +++---
+ src/cmd/compile/internal/gc/reflect.go         | 94 ++++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/select.go          | 30 +++++++-
+ src/cmd/compile/internal/gc/subr.go            | 13 ++--
+ src/cmd/compile/internal/gc/walk.go            |  4 +-
+ src/reflect/type.go                            |  1 +
+ src/runtime/hashmap.go                         | 15 ++--
+ src/runtime/runtime2.go                        |  2 +
+ src/runtime/select.go                          |  4 +-
+ src/runtime/type.go                            |  1 +
+ 14 files changed, 163 insertions(+), 94 deletions(-)

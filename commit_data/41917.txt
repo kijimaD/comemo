@@ -1,18 +1,33 @@
-commit 3afa74115b1c458319e5a07fba5bdacc39ef7f88
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Apr 11 08:51:21 2020 -0700
+commit 5aea597905f914bb0c8d0d986e17c5022cf9aed1
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Oct 24 11:27:47 2019 -0400
 
-    runtime/race: rebuild netbsd .syso
+    [dev.link] cmd/link/internal/loader: do more bulk allocation
     
-    Fixes #14481
-    Fixes #37355
+    Change the loader to do more bulk allocation when making slices of
+    small objects (sym.Reloc, etc) as part of creating and populating
+    sym.Symbols in loader.LoadFull(). This replaces a large number of
+    small allocations with a smaller number of large allocations,
+    improving performace. Compilebench numbers (linker portion) for this
+    change:
     
-    Change-Id: Idfceaf0e64d340b7304ce9562549a82ebfc27e3c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227867
-    Run-TryBot: Keith Randall <khr@golang.org>
+    name                      old time/op       new time/op       delta
+    LinkCompiler                    1.71s ±11%        1.57s ± 9%   -8.35%  (p=0.000 n=19+20)
+    LinkWithoutDebugCompiler        1.19s ±14%        1.10s ±13%   -7.93%  (p=0.000 n=20+19)
+    
+    name                      old user-time/op  new user-time/op  delta
+    LinkCompiler                    1.86s ±15%        1.34s ±10%  -28.02%  (p=0.000 n=20+20)
+    LinkWithoutDebugCompiler        1.05s ±14%        0.95s ± 9%   -9.17%  (p=0.000 n=19+20)
+    
+    Hyperkube from kubernetes doesn't show any significant benefit (which
+    seems a little surprising).
+    
+    Change-Id: Ide97f78532fb60b08bb6e4cfa097e9058f7ea8ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203457
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/race/README                 |   2 +-
- src/runtime/race/race_netbsd_amd64.syso | Bin 574896 -> 602384 bytes
- 2 files changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go | 124 +++++++++++++++++++++++++++------
+ 1 file changed, 104 insertions(+), 20 deletions(-)

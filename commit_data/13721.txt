@@ -1,15 +1,18 @@
-commit 5287175ad9c6d8108f025ae754d220eb390f6d96
-Author: Ivan Krasin <krasin@golang.org>
-Date:   Fri Aug 31 18:07:04 2012 -0400
+commit 3efc482190c9c2fa80cb0fc80d160624514652db
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Fri Aug 31 15:52:27 2012 -0400
 
-    runtime: add vdso support for linux/amd64. Fixes issue 1933.
+    net/rpc/jsonrpc: handles missing "params" in jsonrpc.
     
-    R=iant, imkrasin, krasin, iant, minux.ma, rsc, nigeltao, r, fullung
+    A crash happens in the first request in a connection
+    if "params" field is missing because c.req.Params is Nil.
+    
+    Fixes #3848.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6454046
+    https://golang.org/cl/6446051
 
- src/pkg/runtime/runtime.c          |   4 +
- src/pkg/runtime/runtime.h          |   1 +
- src/pkg/runtime/vdso_linux_amd64.c | 323 +++++++++++++++++++++++++++++++++++++
- src/pkg/syscall/asm_linux_amd64.s  |   4 +-
- 4 files changed, 330 insertions(+), 2 deletions(-)
+ src/pkg/net/rpc/jsonrpc/all_test.go | 53 ++++++++++++++++++++++++++-----------
+ src/pkg/net/rpc/jsonrpc/server.go   | 13 ++++-----
+ 2 files changed, 45 insertions(+), 21 deletions(-)

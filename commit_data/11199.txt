@@ -1,47 +1,14 @@
-commit 994e0646d8f0d79fcf579357c1cf8027fe64a876
+commit f320eb94f9ec057639b61bd03fc655838d85f6e3
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jan 17 16:51:54 2012 +1100
+Date:   Tue Jan 17 16:51:02 2012 +1100
 
-    pkg: add missing godoc comments to windows versions
+    go/build: no back slash in FindTree returned pkg name
     
-    Mostly copied comments from unix files.
+    Fixes #2652.
     
-    R=rsc
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/5533057
+    https://golang.org/cl/5516045
 
- src/buildscript_darwin_386.sh    |  2 +-
- src/buildscript_darwin_amd64.sh  |  2 +-
- src/buildscript_freebsd_386.sh   |  2 +-
- src/buildscript_freebsd_amd64.sh |  2 +-
- src/buildscript_linux_386.sh     |  2 +-
- src/buildscript_linux_amd64.sh   |  2 +-
- src/buildscript_linux_arm.sh     |  2 +-
- src/buildscript_netbsd_386.sh    |  2 +-
- src/buildscript_netbsd_amd64.sh  |  2 +-
- src/buildscript_openbsd_386.sh   |  2 +-
- src/buildscript_openbsd_amd64.sh |  2 +-
- src/buildscript_plan9_386.sh     |  2 +-
- src/buildscript_windows_386.sh   |  2 +-
- src/buildscript_windows_amd64.sh |  2 +-
- src/pkg/net/Makefile             |  1 +
- src/pkg/net/doc.go               | 59 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/lookup_plan9.go      | 38 ++++++--------------------
- src/pkg/net/lookup_unix.go       | 38 ++++++--------------------
- src/pkg/net/lookup_windows.go    | 25 ++++++-----------
- src/pkg/os/Makefile              |  1 +
- src/pkg/os/dir_plan9.go          | 31 ++-------------------
- src/pkg/os/dir_unix.go           | 14 +---------
- src/pkg/os/dir_windows.go        |  2 +-
- src/pkg/os/doc.go                | 52 +++++++++++++++++++++++++++++++++++
- src/pkg/os/exec/lp_windows.go    |  5 ++++
- src/pkg/os/exec_plan9.go         |  5 +---
- src/pkg/os/exec_unix.go          |  5 +---
- src/pkg/os/exec_windows.go       |  5 +++-
- src/pkg/os/file_unix.go          | 17 +-----------
- src/pkg/os/file_windows.go       | 17 +-----------
- src/pkg/os/sys_bsd.go            |  2 +-
- src/pkg/os/sys_linux.go          |  3 +-
- src/pkg/os/sys_plan9.go          |  2 +-
- src/pkg/os/sys_windows.go        |  2 +-
- 34 files changed, 172 insertions(+), 180 deletions(-)
+ src/pkg/go/build/path.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

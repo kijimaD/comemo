@@ -1,37 +1,42 @@
-commit ccc713c7caa8900facc99bffaad4ee4a22013b01
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 27 16:31:15 2014 -0700
+commit d0ee959ab74f39734ae99fdd3e50bea08b52625d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Oct 11 21:34:10 2014 +1100
 
-    spec: permit parentheses around builtin function names
+    cmd/ld: correct pe section names if longer then 8 chars
     
-    Not a language change.
+    gcc 4.9.1 generates pe sections with names longer then 8 charters.
     
-    This is simply documenting the status quo which permits
-    builtin function names to be parenthesized in calls; e.g.,
-    both
+    From IMAGE_SECTION_HEADER definition:
     
-            len(s)
-    and
-            (((len)))(s)
+    Name
+    An 8-byte, null-padded UTF-8 string. There is no terminating null character
+    if the string is exactly eight characters long. For longer names, this
+    member contains a forward slash (/) followed by an ASCII representation
+    of a decimal number that is an offset into the string table.
     
-    are accepted by all compilers and go/types.
+    Our current pe object file reader does not read string table when section
+    names starts with /. Do that, so (issue 8811 example)
     
-    Changed the grammar by merging the details of BuiltinCall
-    with ordinary Calls. Also renamed the Call production to
-    Arguments which more clearly identifies that part of the
-    grammar and also matches better with its counterpart on
-    the declaration side (Parameters).
+    c:\go\path\src\isssue8811>go build
+    # isssue8811
+    isssue8811/glfw(.text): isssue8811/glfw(/76): not defined
+    isssue8811/glfw(.text): undefined: isssue8811/glfw(/76)
     
-    The fact that the first argument can be a type (for builtins)
-    or cannot be a type (for regular function calls) is expressed
-    in the prose, no need to make the grammar more complicated.
+    becomes
     
-    Fixes #9001.
+    c:\go\path\src\isssue8811>go build
+    # isssue8811
+    isssue8811/glfw(.text): isssue8811/glfw(.rdata$.refptr._glfwInitialized): not defined
+    isssue8811/glfw(.text): undefined: isssue8811/glfw(.rdata$.refptr._glfwInitialized)
     
-    LGTM=iant, r, rsc
-    R=r, rsc, iant, ken, dave
+    Small progress to
+    
+    Update #8811
+    
+    LGTM=iant, jfrederich
+    R=golang-codereviews, iant, jfrederich
     CC=golang-codereviews
-    https://golang.org/cl/160570043
+    https://golang.org/cl/154210044
 
- doc/go_spec.html | 15 ++++-----------
- 1 file changed, 4 insertions(+), 11 deletions(-)
+ src/cmd/ld/ldpe.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)

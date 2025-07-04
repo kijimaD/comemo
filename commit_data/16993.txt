@@ -1,12 +1,38 @@
-commit 97863bb8afb025b06cea1032f605207b899764f3
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Aug 2 13:29:45 2013 +1000
+commit e03dd0798163b267d8db6b4d2c95dc281be5a064
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 1 20:07:01 2013 -0400
 
-    image/draw: fix typos found by "go vet".
+    runtime: disable preemption during software fp routines
     
-    R=r, adg, bradfitz
+    It's okay to preempt at ordinary function calls because
+    compilers arrange that there are no live registers to save
+    on entry to the function call.
+    
+    The software floating point routines are function calls
+    masquerading as individual machine instructions. They are
+    expected to keep all the registers intact. In particular,
+    they are expected not to clobber all the floating point
+    registers.
+    
+    The floating point registers are kept per-M, because they
+    are not live at non-preemptive goroutine scheduling events,
+    and so keeping them per-M reduces the number of 132-byte
+    register blocks we are keeping in memory.
+    
+    Because they are per-M, allowing the goroutine to be
+    rescheduled during software floating point simulation
+    would mean some other goroutine could overwrite the registers
+    or perhaps the goroutine would continue running on a different
+    M entirely.
+    
+    Disallow preemption during the software floating point
+    routines to make sure that a function full of floating point
+    instructions has the same floating point registers throughout
+    its execution.
+    
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/12312043
+    https://golang.org/cl/12298043
 
- src/pkg/image/draw/draw_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/vlop_arm.s | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

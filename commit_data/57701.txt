@@ -1,29 +1,42 @@
-commit f2d9f5ffcaf3aabaa8c8bd128a22fc07355f267e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Oct 7 11:20:15 2024 -0400
+commit d5c5808534f0ad97333b1fd5fff81998f44986fe
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 23 13:52:25 2023 -0700
 
-    cmd/internal/macho: new package for handling mach-o files in toolchain
+    cmd/compile/internal/syntax: add Unparen and UnpackListExpr helpers
     
-    Currently the linker has some code handling and manipulating
-    Mach-O files. Specifically, it augments the debug/macho package
-    with file offset and length, so the content can be handled or
-    updated easily with the file.
+    We've added Unparen to go/ast, so add syntax.Unparen to be
+    consistent (and because it's similarly useful).
     
-    Move this code to an internal package, so it can be used by other
-    part of the toolchain, e.g. buildid computation.
+    Also, types2 and noder both have similar functions for unpacking
+    ListExprs, so might as well add a common implementation in package
+    syntax too.
     
-    For #68678.
+    Finally, addressing the TODO: UnpackListExpr is small enough to be
+    inlined (when default optimizations are enabled), and for typical uses
+    of UnpackListExpr (e.g., "range UnpackListExpr(x)") the single-element
+    slice result is stack allocated in the caller. This CL adds a test
+    using testing.AllocsPerRun to ensure this remains so in the future.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-darwin-arm64_13
-    Change-Id: I2311af0a06441b7fd887ca5c6ed9e6fc44670a16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618596
-    Reviewed-by: Than McIntosh <thanm@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I96a5591d202193ed5bf1ce6f290919107e3dc01b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522336
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/buildtool.go                       |   1 +
- src/cmd/internal/macho/macho.go                 | 134 ++++++++++++++++++++++++
- src/cmd/link/internal/ld/macho.go               |  93 ++++------------
- src/cmd/link/internal/ld/macho_combine_dwarf.go |  81 ++++----------
- src/cmd/link/internal/ld/macho_update_uuid.go   |  16 ++-
- 5 files changed, 180 insertions(+), 145 deletions(-)
+ src/cmd/compile/internal/noder/expr.go         | 21 ---------------
+ src/cmd/compile/internal/noder/quirks.go       |  2 +-
+ src/cmd/compile/internal/noder/writer.go       | 36 +++++++++++++-------------
+ src/cmd/compile/internal/syntax/parser.go      | 22 ++++++++++++----
+ src/cmd/compile/internal/syntax/parser_test.go | 19 ++++++++++++++
+ src/cmd/compile/internal/syntax/printer.go     |  2 +-
+ src/cmd/compile/internal/types2/assignments.go | 23 +++-------------
+ src/cmd/compile/internal/types2/builtins.go    |  2 +-
+ src/cmd/compile/internal/types2/call.go        |  6 ++---
+ src/cmd/compile/internal/types2/decl.go        |  4 +--
+ src/cmd/compile/internal/types2/expr.go        |  2 +-
+ src/cmd/compile/internal/types2/resolver.go    |  8 +++---
+ src/cmd/compile/internal/types2/return.go      |  2 +-
+ src/cmd/compile/internal/types2/stmt.go        | 14 +++++-----
+ src/cmd/compile/internal/types2/typexpr.go     |  2 +-
+ 15 files changed, 80 insertions(+), 85 deletions(-)

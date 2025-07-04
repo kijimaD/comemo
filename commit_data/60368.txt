@@ -1,0 +1,58 @@
+commit c33144c47cbee5506df404553c3769867972f889
+Author: Tom Levy <tomlevy93@gmail.com>
+Date:   Mon May 13 04:10:34 2024 +0000
+
+    runtime: fix nil pointer in TestGoroutineParallelism2 when offline
+    
+    Previously, the test would crash when running on a computer without an
+    internet connection, e.g. in airplane mode (stack trace below).
+    
+    The bug was that the condition was inverted. The code tried to close
+    the listener if `err != nil` (that is, if net.Listen() failed). But if
+    Listen() failed then there is no listener to close! The listener
+    should only be closed if Listen() succeeded.
+    
+    Here is the stack trace from `go test runtime` when offline:
+    
+    ```
+    --- FAIL: TestGoroutineParallelism2 (0.16s)
+    panic: runtime error: invalid memory address or nil pointer dereference [recovered]
+            panic: runtime error: invalid memory address or nil pointer dereference
+    [signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x7bdaa1]
+    
+    goroutine 3858 gp=0xc000185180 m=5 mp=0xc000100008 [running]:
+    panic({0x854960?, 0xbf70b0?})
+            <go>/src/runtime/panic.go:778 +0x168 fp=0xc0000afad8 sp=0xc0000afa28 pc=0x441bc8
+    testing.tRunner.func1.2({0x854960, 0xbf70b0})
+            <go>/src/testing/testing.go:1632 +0x230 fp=0xc0000afb88 sp=0xc0000afad8 pc=0x524090
+    testing.tRunner.func1()
+            <go>/src/testing/testing.go:1635 +0x35e fp=0xc0000afd18 sp=0xc0000afb88 pc=0x523a7e
+    panic({0x854960?, 0xbf70b0?})
+            <go>/src/runtime/panic.go:759 +0x132 fp=0xc0000afdc8 sp=0xc0000afd18 pc=0x441b92
+    runtime.panicmem(...)
+            <go>/src/runtime/panic.go:261
+    runtime.sigpanic()
+            <go>/src/runtime/signal_unix.go:900 +0x359 fp=0xc0000afe28 sp=0xc0000afdc8 pc=0x483c79
+    runtime_test.testGoroutineParallelism2(0x522e13?, 0x0, 0x1)
+            <go>/src/runtime/proc_test.go:204 +0x221 fp=0xc0000aff50 sp=0xc0000afe28 pc=0x7bdaa1
+    runtime_test.TestGoroutineParallelism2(0xc000221520)
+            <go>/src/runtime/proc_test.go:151 +0x30 fp=0xc0000aff70 sp=0xc0000aff50 pc=0x7bd850
+    testing.tRunner(0xc000221520, 0x8fed88)
+            <go>/src/testing/testing.go:1690 +0xf4 fp=0xc0000affc0 sp=0xc0000aff70 pc=0x523674
+    testing.(*T).Run.gowrap1()
+            <go>/src/testing/testing.go:1743 +0x25 fp=0xc0000affe0 sp=0xc0000affc0 pc=0x524665
+    runtime.goexit({})
+            <go>/src/runtime/asm_amd64.s:1700 +0x1 fp=0xc0000affe8 sp=0xc0000affe0 pc=0x487a41
+    created by testing.(*T).Run in goroutine 1
+            <go>/src/testing/testing.go:1743 +0x390
+    ```
+    
+    Change-Id: I48983fe21b3360ea9d0182c4a3b509801257027b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584436
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/proc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

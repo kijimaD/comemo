@@ -1,21 +1,12 @@
-commit 4a8ea4ae94c5db39f38cd1c8b7d0c8df6dc82f7b
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Fri Dec 23 11:07:11 2011 +1100
+commit f927d9c1bb71e759ce035d1d6fd497a7ccfbd308
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 22 15:52:56 2011 -0800
 
-    html: Don't ignore whitespace in "after after frameset" mode.
+    partial build fix: add missing argument to NewPackageDoc
     
-    Pass tests6.dat, test 46:
-    <html><frameset></frameset></html>
-    
-    | <html>
-    |   <head>
-    |   <frameset>
-    |   " "
-    
-    R=nigeltao
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5505065
+    https://golang.org/cl/5489112
 
- src/pkg/html/parse.go      | 13 +++++++++++++
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ misc/dashboard/builder/package.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

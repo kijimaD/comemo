@@ -1,34 +1,18 @@
-commit 4f86f2267167a63b673c4a2a2994e008b32c90ea
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Jun 5 13:47:06 2025 -0700
+commit 674657e1304b0ea1815257623150a2e06d8ddac2
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Apr 20 16:27:17 2024 +0800
 
-    testing/synctest, runtime: avoid panic when using linker-alloc WG from bubble
+    net/http: correct error messages for TestParseSetCookie
     
-    We associate WaitGroups with synctest bubbles by attaching a
-    special to the WaitGroup. It is not possible to attach a special
-    to a linker-allocated value, such as:
+    This change fixes typos in error messages, while here, also improves
+    'line' strings to indicate the errEqualNotFoundInCookie error.
     
-        var wg sync.WaitGroup
-    
-    Avoid panicking when accessing a linker-allocated WaitGroup
-    from a bubble. We have no way to associate these WaitGroups
-    with a bubble, so just treat them as always unbubbled.
-    This is probably fine, since the WaitGroup was always
-    created outside the bubble in this case.
-    
-    Fixes #74005
-    
-    Change-Id: Ic71514b0b8d0cecd62e45cc929ffcbeb16f54a55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/679695
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I0ce6115c605844d2d86f337f208fd3b2d3774674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579799
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/internal/synctest/synctest.go      | 22 +++++++++++++++++-----
- src/internal/synctest/synctest_test.go | 28 ++++++++++++++++++++++++++++
- src/runtime/export_test.go             |  6 ++++++
- src/runtime/synctest.go                | 29 +++++++++++++++++++++--------
- src/runtime/synctest_test.go           | 12 ++++++++++++
- src/sync/waitgroup.go                  | 12 ++++++++----
- src/testing/synctest/synctest.go       |  5 +++++
- 7 files changed, 97 insertions(+), 17 deletions(-)
+ src/net/http/cookie_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

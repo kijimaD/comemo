@@ -1,17 +1,75 @@
-commit fd6afa352d0dfc86a158a6ef011454891593d065
-Author: Mark Freeman <mark@golang.org>
-Date:   Mon May 19 15:45:41 2025 -0400
+commit 2c150f401bae604c203f733b3a1efcb9393fdb60
+Author: Marten Seemann <martenseemann@gmail.com>
+Date:   Sun Feb 4 12:59:59 2024 +0700
 
-    cmd/compile/internal/noder: mark Sync as a primitive
+    crypto/aes: speed up AES by reducing allocations
     
-    Sync is used in the definition of primitives and documented by pkgbits.
-    It's not much help to also document it here.
+    By embedding the arrays into aesCipher directly, we can save a few allocations
+    when creating a new AES cipher. This also avoids a lot of pointer chasing when
+    encrypting and decrypting, leading to 3-4% faster performance.
     
-    Change-Id: I18bd0c7816f8249483550a1f0af7c76b9cfe09fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674156
-    Auto-Submit: Mark Freeman <mark@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Fixes #65507.
+    
+    name                     old time/op    new time/op    delta
+    Encrypt/AES-128-16         4.70ns ± 3%    4.46ns ± 2%   -5.08%  (p=0.000 n=10+10)
+    Encrypt/AES-192-16         4.90ns ± 3%    4.71ns ± 2%   -3.98%  (p=0.000 n=10+10)
+    Encrypt/AES-256-16         5.18ns ± 3%    4.91ns ± 1%   -5.15%  (p=0.000 n=10+10)
+    Decrypt/AES-128-16         4.51ns ± 2%    4.37ns ± 1%   -3.01%  (p=0.000 n=10+10)
+    Decrypt/AES-192-16         4.77ns ± 2%    4.63ns ± 2%   -3.05%  (p=0.000 n=10+10)
+    Decrypt/AES-256-16         5.10ns ± 2%    4.93ns ± 3%   -3.27%  (p=0.000 n=10+10)
+    Expand/AES-128-16          52.5ns ± 4%    55.9ns ± 3%   +6.58%  (p=0.000 n=10+10)
+    Expand/AES-192-16          45.6ns ± 5%    48.1ns ± 2%   +5.56%  (p=0.000 n=10+10)
+    Expand/AES-256-16          69.2ns ± 5%    71.7ns ± 3%   +3.61%  (p=0.006 n=9+10)
+    CreateCipher/AES-128-16     130ns ± 3%      84ns ± 3%  -35.13%  (p=0.000 n=10+10)
+    CreateCipher/AES-192-16     128ns ± 2%      78ns ± 3%  -38.82%  (p=0.000 n=10+10)
+    CreateCipher/AES-256-16     156ns ± 3%     105ns ± 4%  -32.33%  (p=0.000 n=10+10)
+    
+    name                     old speed      new speed      delta
+    Encrypt/AES-128-16       3.40GB/s ± 2%  3.59GB/s ± 2%   +5.35%  (p=0.000 n=10+10)
+    Encrypt/AES-192-16       3.27GB/s ± 3%  3.40GB/s ± 2%   +4.13%  (p=0.000 n=10+10)
+    Encrypt/AES-256-16       3.09GB/s ± 2%  3.26GB/s ± 1%   +5.42%  (p=0.000 n=10+10)
+    Decrypt/AES-128-16       3.55GB/s ± 2%  3.66GB/s ± 1%   +3.09%  (p=0.000 n=10+10)
+    Decrypt/AES-192-16       3.35GB/s ± 2%  3.46GB/s ± 2%   +3.14%  (p=0.000 n=10+10)
+    Decrypt/AES-256-16       3.14GB/s ± 2%  3.24GB/s ± 3%   +3.39%  (p=0.000 n=10+10)
+    
+    name                     old alloc/op   new alloc/op   delta
+    Encrypt/AES-128-16          0.00B          0.00B          ~     (all equal)
+    Encrypt/AES-192-16          0.00B          0.00B          ~     (all equal)
+    Encrypt/AES-256-16          0.00B          0.00B          ~     (all equal)
+    Decrypt/AES-128-16          0.00B          0.00B          ~     (all equal)
+    Decrypt/AES-192-16          0.00B          0.00B          ~     (all equal)
+    Decrypt/AES-256-16          0.00B          0.00B          ~     (all equal)
+    Expand/AES-128-16           0.00B          0.00B          ~     (all equal)
+    Expand/AES-192-16           0.00B          0.00B          ~     (all equal)
+    Expand/AES-256-16           0.00B          0.00B          ~     (all equal)
+    CreateCipher/AES-128-16      448B ± 0%      512B ± 0%  +14.29%  (p=0.000 n=10+10)
+    CreateCipher/AES-192-16      512B ± 0%      512B ± 0%     ~     (all equal)
+    CreateCipher/AES-256-16      576B ± 0%      512B ± 0%  -11.11%  (p=0.000 n=10+10)
+    
+    name                     old allocs/op  new allocs/op  delta
+    Encrypt/AES-128-16           0.00           0.00          ~     (all equal)
+    Encrypt/AES-192-16           0.00           0.00          ~     (all equal)
+    Encrypt/AES-256-16           0.00           0.00          ~     (all equal)
+    Decrypt/AES-128-16           0.00           0.00          ~     (all equal)
+    Decrypt/AES-192-16           0.00           0.00          ~     (all equal)
+    Decrypt/AES-256-16           0.00           0.00          ~     (all equal)
+    Expand/AES-128-16            0.00           0.00          ~     (all equal)
+    Expand/AES-192-16            0.00           0.00          ~     (all equal)
+    Expand/AES-256-16            0.00           0.00          ~     (all equal)
+    CreateCipher/AES-128-16      4.00 ± 0%      1.00 ± 0%  -75.00%  (p=0.000 n=10+10)
+    CreateCipher/AES-192-16      4.00 ± 0%      1.00 ± 0%  -75.00%  (p=0.000 n=10+10)
+    CreateCipher/AES-256-16      4.00 ± 0%      1.00 ± 0%  -75.00%  (p=0.000 n=10+10)
+    
+    Change-Id: I0ea0b21cf84b11b6a5fc7c6ace144390eb55438b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561080
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/compile/internal/noder/doc.go | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/crypto/aes/aes_gcm.go    |  2 +-
+ src/crypto/aes/aes_test.go   | 41 +++++++++++++++++++++++++++++++++++------
+ src/crypto/aes/cipher.go     | 14 +++++++-------
+ src/crypto/aes/cipher_asm.go | 13 +++++++------
+ src/crypto/aes/gcm_ppc64x.go |  2 +-
+ 5 files changed, 51 insertions(+), 21 deletions(-)

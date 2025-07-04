@@ -1,20 +1,19 @@
-commit a90f9a00ca34251dcee80eacff241871c43ac18f
+commit 12ec54724bcb016a70bcafa1bfc1d8f411fbfe74
 Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 4 10:58:15 2017 -0500
+Date:   Thu Jun 15 12:23:09 2017 -0400
 
-    runtime: consolidate mheap.lookup* and spanOf*
+    runtime: make m.nextwaitm an muintptr
     
-    I think we'd forgotten about the mheap.lookup APIs when we introduced
-    spanOf*, but, at any rate, the spanOf* functions are used far more
-    widely at this point, so this CL eliminates the mheap.lookup*
-    functions in favor of spanOf*.
+    This field is really a *m (modulo its bottom bit). Change it from
+    uintptr to muintptr to document this fact.
     
-    Change-Id: I15facd0856e238bb75d990e838a092b5bef5bdfc
-    Reviewed-on: https://go-review.googlesource.com/85879
+    Change-Id: I2d181a955ef1d2c1a268edf20091b440d85726c9
+    Reviewed-on: https://go-review.googlesource.com/46034
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mheap.go | 52 +++++++++++++++++++++-------------------------------
- src/runtime/stack.go |  4 ++--
- 2 files changed, 23 insertions(+), 33 deletions(-)
+ src/runtime/lock_sema.go | 6 +++---
+ src/runtime/runtime2.go  | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

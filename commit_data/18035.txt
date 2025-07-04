@@ -1,17 +1,20 @@
-commit 8ce584c2aaf3cb3afbb6bf4b8fde340dbe38532a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Dec 17 22:40:13 2013 -0500
+commit c86fc68ac6f95b2a50abe419dce6d1649adf4cd9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 17 21:44:36 2013 -0500
 
-    liblink: rewrite '\\' in paths to '/' on windows
-    At least three Go tests rely on that (log, runtime/{pprof,debug}).
+    cmd/go: avoid use of 'go tool pack'
     
-    Fixes #6972.
-    Fixes #6974.
-    Fixes #6975.
+    All packages now use the -pack option to the compiler.
+    For a pure Go package, that's enough.
+    For a package with additional C and assembly files, the extra
+    archive entries can be added directly (by concatenation)
+    instead of by invoking go tool pack.
     
-    R=alex.brainman, mattn.jp, rsc
+    These changes make it possible to rewrite cmd/pack in Go.
+    
+    R=iant, r
     CC=golang-dev
-    https://golang.org/cl/43150043
+    https://golang.org/cl/42910043
 
- src/liblink/objfile.c | 35 +++++++++++++++++++++++++++++++++--
- 1 file changed, 33 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go | 142 ++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 128 insertions(+), 14 deletions(-)

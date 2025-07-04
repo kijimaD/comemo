@@ -1,17 +1,19 @@
-commit 1a4fdb9529f4759aaad9fedbcdb549a636441081
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat Feb 24 08:01:51 2024 +0800
+commit 142d30b2cb036289b27726cee726129087728a66
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 6 12:36:31 2023 +0100
 
-    doc/next: add the missing slashes ahead of net#Dialer and net#ListenConfig
+    cmd/go: trim spaces in pkg-config ldflags output
     
-    Change-Id: I216189f181ee73d16602c5cc86eb4d6b439a142b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566595
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #58889
+    Updates #35262
+    
+    Change-Id: I1d51aa03f445faaf4f4e9cc412d5499cad526663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473616
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
 
- doc/next/6-stdlib/99-minor/net/62254.md | 2 +-
+ src/cmd/go/internal/work/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,16 @@
-commit e9e0d1ef704c4bba3927522be86937164a61100c
-Author: eric fang <eric.fang@arm.com>
-Date:   Mon Aug 16 06:41:15 2021 +0000
+commit 7f9a2bc2bc6201d7ffb3b5066b88a19d2da96592
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Dec 7 18:10:56 2020 +0100
 
-    cmd/asm/internal/arch: adds the missing type check for arm64 SXTB extension
+    doc/go1.16: fix typo
     
-    Operands of memory type do not support SXTB extension. This CL adds this
-    missing check.
+    For #40700
     
-    Change-Id: I1fa438dd314fc8aeb889637079cc67b538e83a89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342769
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Idea442d45d18ca8cedc0b160df23eac6b86755ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275677
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/asm/internal/arch/arm64.go | 31 +++++--------------------------
- 1 file changed, 5 insertions(+), 26 deletions(-)
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

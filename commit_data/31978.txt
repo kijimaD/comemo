@@ -1,15 +1,28 @@
-commit 4e2eff4c9b7a4c67c7c0af5f226f3292065c9dca
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 6 03:39:58 2017 +0000
+commit 8ee2d5bc00c5cc2313d87e001961294907cee133
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 23 11:40:47 2017 -0700
 
-    time: document the Time.String is meant for debugging
+    cmd/compile: strengthen SetFields/Width safety guarantee
     
-    Fixes #20876
+    It is currently possible in the compiler to create a struct type,
+    calculate the widths of types that depend on it,
+    and then alter the struct type.
     
-    Change-Id: Ic62c4f59e3ddcae891aa9526f9693d233dd524fc
-    Reviewed-on: https://go-review.googlesource.com/47552
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    transformclosure has local protection against this.
+    Protect against it at a deeper level.
+    
+    This is preparation to call dowidth automatically,
+    rather than explicitly.
+    
+    This is a re-roll of CL 38469.
+    
+    Change-Id: Ic5b4baa250618504611fc57cbf51ab01d1eddf80
+    Reviewed-on: https://go-review.googlesource.com/38534
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/format.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/closure.go | 4 ----
+ src/cmd/compile/internal/gc/type.go    | 9 +++++++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

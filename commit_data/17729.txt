@@ -1,19 +1,17 @@
-commit 4216203bcf8b46ee874d4f5a637891c34ae9d7ca
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 2 21:39:45 2013 -0400
+commit 0857045818d7cd31edfa54dec2c2b88af665c87c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Oct 3 08:52:18 2013 +1000
 
-    runtime: remove syscall.NewCallbackCDecl on Windows
+    encoding/json: add an example for RawMessage
     
-    It is not possible to use (there is no declaration in package syscall),
-    and no one seems to care.
+    RawMessage is useful and mildly non-obvious.
+    Given the frequency with which RawMessage questions
+    show up on golang-nuts, and get answered with an example,
+    I suspect adding an example to the docs might help.
     
-    Alex Brainman may bring this back properly for Go 1.3.
-    
-    Fixes #6338.
-    
-    R=golang-dev, r, alex.brainman
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/14287043
+    https://golang.org/cl/14190044
 
- src/pkg/runtime/syscall_windows.goc | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/encoding/json/example_test.go | 46 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

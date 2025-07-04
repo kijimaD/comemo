@@ -1,60 +1,55 @@
-commit 4fde3ef2acef11738c83f6ad9147eba03b5da6d1
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Jan 23 12:46:05 2024 -0600
+commit b46e44a399045d0177dd063dc192168f0b5b3f55
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jan 10 10:21:16 2023 -0500
 
-    math/big,crypto/internal/bigmod: unroll loop in addMulVVW for ppc64x
+    cmd/compile: enable deadcode of unreferenced large global maps
     
-    This updates the assembly implementation of AddMulVVW to
-    unroll the main loop to do 64 bytes at a time.
+    This patch changes the compiler's pkg init machinery to pick out large
+    initialization assignments to global maps (e.g.
     
-    The code for addMulVVWx is based on the same code and has
-    also been updated to improve performance.
+       var mymap = map[string]int{"foo":1, "bar":2, ... }
     
-    goos: linux
-    goarch: ppc64le
-    pkg: crypto/internal/bigmod
-    cpu: POWER10
-                   │ bg.orig.out │               bg.out               │
-                   │   sec/op    │   sec/op     vs base               │
-    ModAdd           116.3n ± 0%   116.9n ± 0%   +0.52% (p=0.002 n=6)
-    ModSub           111.5n ± 0%   111.5n ± 0%    0.00% (p=0.273 n=6)
-    MontgomeryRepr   2.195µ ± 0%   1.944µ ± 0%  -11.44% (p=0.002 n=6)
-    MontgomeryMul    2.195µ ± 0%   1.943µ ± 0%  -11.48% (p=0.002 n=6)
-    ModMul           4.418µ ± 0%   3.900µ ± 0%  -11.72% (p=0.002 n=6)
-    ExpBig           5.736m ± 0%   5.117m ± 0%  -10.78% (p=0.002 n=6)
-    Exp              5.891m ± 0%   5.237m ± 0%  -11.11% (p=0.002 n=6)
-    geomean          9.901µ        9.094µ        -8.15%
+    and extract the map init code into a separate outlined function, which is
+    then called from the main init function with a weak relocation:
     
+       var mymap map[string]int   // KEEP reloc -> map.init.0
     
-    goos: linux
-    goarch: ppc64le
-    pkg: math/big
-    cpu: POWER10
-                     │ am.orig.out  │               am.out               │
-                     │    sec/op    │   sec/op     vs base               │
-    AddMulVVW/1         4.456n ± 1%   3.565n ± 0%  -20.00% (p=0.002 n=6)
-    AddMulVVW/2         4.875n ± 1%   5.938n ± 1%  +21.79% (p=0.002 n=6)
-    AddMulVVW/3         5.484n ± 0%   5.693n ± 0%   +3.80% (p=0.002 n=6)
-    AddMulVVW/4         6.370n ± 0%   6.065n ± 0%   -4.79% (p=0.002 n=6)
-    AddMulVVW/5         7.321n ± 0%   7.188n ± 0%   -1.82% (p=0.002 n=6)
-    AddMulVVW/10        12.26n ± 8%   11.41n ± 0%   -6.97% (p=0.002 n=6)
-    AddMulVVW/100      100.70n ± 0%   93.58n ± 0%   -7.08% (p=0.002 n=6)
-    AddMulVVW/1000      938.6n ± 0%   845.5n ± 0%   -9.92% (p=0.002 n=6)
-    AddMulVVW/10000     9.459µ ± 0%   8.415µ ± 0%  -11.04% (p=0.002 n=6)
-    AddMulVVW/100000    94.57µ ± 0%   84.01µ ± 0%  -11.16% (p=0.002 n=6)
-    geomean             75.17n        71.21n        -5.27%
+       func init() {
+          map.init.0() // weak relocation
+       }
     
+       func map.init.0() {
+         mymap = map[string]int{"foo":1, "bar":2}
+       }
     
-    Change-Id: Idd79f5f02387564f4c2cc28d50b1c12bcd9a400f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557915
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The map init outlining is done selectively (only in the case where the
+    RHS code exceeds a size limit of 20 IR nodes).
+    
+    In order to ensure that a given map.init.NNN function is included when
+    its corresponding map is live, we add dummy R_KEEP relocation from the
+    map variable to the map init function.
+    
+    This first patch includes the main compiler compiler changes, and with
+    the weak relocation addition disabled. Subsequent patch includes the
+    requred linker changes along with switching to the call to the
+    outlined routine to a weak relocation. See the later linker change for
+    associated compile time performance numbers.
+    
+    Updates #2559.
+    Updates #36021.
+    Updates #14840.
+    
+    Change-Id: I1fd6fd6397772be1ebd3eb397caf68ae9a3147e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461315
+    Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/bigmod/nat_ppc64x.s | 87 ++++++++++++++++++++----------
- src/math/big/arith_ppc64x.s             | 95 ++++++++++++++++++++++++---------
- 2 files changed, 130 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/base/debug.go       |   2 +
+ src/cmd/compile/internal/base/flag.go        |   2 +
+ src/cmd/compile/internal/gc/compile.go       |   9 ++
+ src/cmd/compile/internal/gc/main.go          |   6 +
+ src/cmd/compile/internal/pkginit/init.go     |  21 ++-
+ src/cmd/compile/internal/ssagen/pgen.go      |  52 ++++++++
+ src/cmd/compile/internal/staticinit/sched.go | 183 +++++++++++++++++++++++++++
+ 7 files changed, 274 insertions(+), 1 deletion(-)

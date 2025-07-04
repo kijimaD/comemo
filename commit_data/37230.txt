@@ -1,17 +1,26 @@
-commit 4d567310d24032e887576c798b65ffcb4d6d8498
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 2 06:55:48 2018 -0700
+commit 4b74506da1ccf8c2f57f11991b432a6d5ac86e4f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 11 21:14:42 2018 +0000
 
-    cmd/cgo: accept expressions as untyped constants
+    doc: update the minimum support Windows version
     
-    Fixes #28545
+    Also, remove some test code that was trying to work on XP and fix up
+    some comments referencing XP.
     
-    Change-Id: I31c57ce11aca651cacc72235c7753e0c0fd170ef
-    Reviewed-on: https://go-review.googlesource.com/c/146900
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #26191
+    Updates #23380
+    
+    Change-Id: I0b7319fe1954afddb22d396e5ec91d8c960268d8
+    Reviewed-on: https://go-review.googlesource.com/123415
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- misc/cgo/test/issue28545.go | 20 ++++++++++++++++++++
- src/cmd/cgo/gcc.go          | 19 ++++++++++++++++++-
- 2 files changed, 38 insertions(+), 1 deletion(-)
+ doc/install.html                     |  2 +-
+ src/crypto/x509/sha2_windows_test.go | 19 -------------------
+ src/crypto/x509/verify_test.go       |  5 -----
+ src/internal/poll/fd_windows.go      | 11 +++++------
+ src/net/interface_windows.go         |  5 ++---
+ src/runtime/syscall_windows.go       | 11 ++++++-----
+ 6 files changed, 14 insertions(+), 39 deletions(-)

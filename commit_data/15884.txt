@@ -1,23 +1,17 @@
-commit 985b0992cd78d277c9295234d0aa802109d39fd0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 21 20:02:01 2013 -0700
+commit 5060dded0f9e4994b168123eeebb03f85e6deb20
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 22 01:27:55 2013 +0100
 
-    net/http: reuse bufio.Reader and bufio.Writer between conns
+    debug/elf: repair GNU version symbols.
     
-    Saves over 8KB of allocations per new connection.
+    After the revert of revision 9ea9e7e6e0c8
+    the related revision 76ff7da868c6 must be reverted too.
     
-    benchmark                             old ns/op    new ns/op    delta
-    BenchmarkServerFakeConnNoKeepAlive        28777        24927  -13.38%
+    Fixes #5102.
     
-    benchmark                            old allocs   new allocs    delta
-    BenchmarkServerFakeConnNoKeepAlive           52           46  -11.54%
-    
-    benchmark                             old bytes    new bytes    delta
-    BenchmarkServerFakeConnNoKeepAlive        13716         5286  -61.46%
-    
-    R=golang-dev, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7799047
+    https://golang.org/cl/7961044
 
- src/pkg/net/http/server.go | 108 ++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 103 insertions(+), 5 deletions(-)
+ src/pkg/debug/elf/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

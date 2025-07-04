@@ -1,21 +1,33 @@
-commit ec96795ba20209263a0bbb17a073a9c028e74437
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 8 14:54:00 2014 -0700
+commit 012ceed914a24470207d602deeda3d6642787b4c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 3 11:35:22 2014 -0400
 
-    go/parser: fix (pathological) corner case
+    runtime: make onM and mcall take Go func values
     
-    Inside a control clause (if ... {}), composite
-    literals starting with a type name must be parenthesized.
-    A composite literal used in the array length expression
-    of an array composite literal is already parenthesized.
-    Not a valid program, but syntactically is should
-    be accepted.
+    This gives them correct types in Go and also makes it
+    possible to use them to run Go code on an m stack.
     
-    LGTM=adonovan
-    R=adonovan
-    CC=golang-codereviews
-    https://golang.org/cl/142760043
+    LGTM=iant
+    R=golang-codereviews, dave, iant
+    CC=dvyukov, golang-codereviews, khr, r
+    https://golang.org/cl/137970044
 
- src/go/parser/parser.go     | 2 ++
- src/go/parser/short_test.go | 1 +
- 2 files changed, 3 insertions(+)
+ src/pkg/runtime/asm_386.s      | 10 ++++++--
+ src/pkg/runtime/asm_amd64.s    | 10 ++++++--
+ src/pkg/runtime/asm_amd64p32.s | 10 ++++++--
+ src/pkg/runtime/asm_arm.s      | 10 ++++++--
+ src/pkg/runtime/export_test.go | 28 +++++++++------------
+ src/pkg/runtime/heapdump.c     |  5 +++-
+ src/pkg/runtime/malloc.go      | 16 ++++++------
+ src/pkg/runtime/mcache.c       |  5 +++-
+ src/pkg/runtime/mgc0.c         |  7 ++++--
+ src/pkg/runtime/mgc0.go        |  2 +-
+ src/pkg/runtime/mheap.c        |  9 +++++--
+ src/pkg/runtime/panic.c        |  4 ++-
+ src/pkg/runtime/proc.c         | 32 ++++++++++++++++++------
+ src/pkg/runtime/proc.go        |  6 ++---
+ src/pkg/runtime/rdebug.go      |  4 +--
+ src/pkg/runtime/runtime.h      |  4 +--
+ src/pkg/runtime/sigqueue.go    | 14 +++++------
+ src/pkg/runtime/stubs.go       | 57 ++++++++++++++++++++----------------------
+ 18 files changed, 141 insertions(+), 92 deletions(-)

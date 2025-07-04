@@ -1,21 +1,13 @@
-commit da8f677815d09e2c3fc2175d128087ae5cc65dae
-Author: Bobby Powers <bobbypowers@gmail.com>
-Date:   Fri Jul 25 08:54:09 2014 -0700
+commit 5e805aff4a8074ee932b4d40bdaf2dd258a03440
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jul 25 15:13:59 2014 +1000
 
-    include/u.h: define _DEFAULT_SOURCE for new glibc
+    syscall: fix handling of bool return values in mksyscall_windows.go
     
-    glibc devs have apparently decided _BSD_SOURCE will be
-    deprecated on Linux, and issue a preprocessor warning if
-    declaring _BSD_SOURCE without _DEFAULT_SOURCE.
-    
-    https://sourceware.org/glibc/wiki/Release/2.20
-    
-    Fixes #8397.
-    
-    LGTM=iant
-    R=dave, gobot, iant
+    LGTM=chines
+    R=chines
     CC=golang-codereviews
-    https://golang.org/cl/112530043
+    https://golang.org/cl/118160044
 
- include/u.h | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/syscall/mksyscall_windows.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

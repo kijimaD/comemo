@@ -1,55 +1,21 @@
-commit 79648bde2d8c7bb70f4cd4f0dbe5c37450d2d603
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 24 09:49:35 2020 -0700
+commit 275a7be3da9fded6ec71c92633bca30caf6dd93b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 8 16:11:44 2019 -0500
 
-    cmd/compile: make runtime calls last in eq algs
+    cmd/go: remove -w workaround for -buildmode=plugin on Darwin
     
-    type T struct {
-        f float64
-        a [64]uint64
-        g float64
-    }
+    The problem causing the assert in #21647 are fixed at this point,
+    along with various other linker issues with plugin + Darwin. With
+    this in mind, remove the "-ldflags=-w" workaround for plugin mode on
+    Darwin and re-enable the appropriate tests misc/cgo/testplugin
     
-    Prior to this change, the generated equality algorithm for T was:
+    Fixes #21647.
+    Fixes #27502.
     
-    func eqT(p, q *T) bool {
-        return p.f == q.f && runtime.memequal(p.a, q.a, 512) && p.g == q.g
-    }
-    
-    In handwritten code, we would normally put the cheapest checks first.
-    This change takes a step in that direction. We now generate:
-    
-    func eqT(p, q *T) bool {
-        return p.f == q.f && p.g == q.g && runtime.memequal(p.a, q.a, 512)
-    }
-    
-    For most types, this also generates considerably shorter code. Examples:
-    
-    runtime
-    .eq."".mstats 406 -> 391  (-3.69%)
-    .eq.""._func 114 -> 101  (-11.40%)
-    .eq."".itab 115 -> 102  (-11.30%)
-    .eq."".scase 125 -> 116  (-7.20%)
-    .eq."".traceStack 119 -> 102  (-14.29%)
-    .eq."".gcControllerState 169 -> 161  (-4.73%)
-    .eq."".sweepdata 121 -> 112  (-7.44%)
-    
-    However, for types in which we make unwise choices about inlining
-    memory-only comparisons (#38494), this generates longer code.
-    
-    Example:
-    
-    cmd/internal/obj
-    .eq."".objWriter 211 -> 214  (+1.42%)
-    .eq."".Addr 185 -> 187  (+1.08%)
-    
-    Fortunately, such cases are not common.
-    
-    Change-Id: I47a27da93c1f88ec71fa350c192f36b29548a217
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230203
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5b662987b138b06cfc9e1f9f6d804cf682bd501a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206198
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/gc/alg.go | 33 ++++++++++++++++++++++++++-------
- 1 file changed, 26 insertions(+), 7 deletions(-)
+ misc/cgo/testplugin/plugin_test.go | 7 +------
+ src/cmd/go/internal/work/init.go   | 2 --
+ 2 files changed, 1 insertion(+), 8 deletions(-)

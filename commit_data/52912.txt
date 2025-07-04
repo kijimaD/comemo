@@ -1,23 +1,23 @@
-commit 05ca41d3efdd1fc676bf3ff10afa95f91607eb0a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 4 14:09:27 2023 -0700
+commit 56bc3098f4ed42b272a45c246dcd42d28d89a69a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 10 18:47:37 2022 +0000
 
-    go/types, types2: factor out maximum type computation
+    sync: improve linearity test robustness
     
-    For untyped constant binary operations we need to determine the
-    "maximum" (untyped) type which includes both constant types.
-    Factor out this functionality.
+    This change improves the robustness of the locklinear test in the
+    following ways:
     
-    Change-Id: If42bd793d38423322885a3063a4321bd56443b36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492619
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    * It removes allocations from the timing, which may be very variable if
+      we're unlucky.
+    * It ensures that goroutines are properly cleaned up before the test
+      function returns, reducing the chance that they bleed into repeat
+      attempts. It also stops timing before this cleanup.
+    
+    Fixes #32986.
+    
+    Change-Id: I3a8096e6922f23d899ad602e2845bdfc639ed742
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409894
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types2/expr.go       | 13 ++++---------
- src/cmd/compile/internal/types2/predicates.go | 20 ++++++++++++++++++++
- src/go/types/expr.go                          | 13 ++++---------
- src/go/types/predicates.go                    | 20 ++++++++++++++++++++
- 4 files changed, 48 insertions(+), 18 deletions(-)
+ src/sync/mutex_test.go | 36 +++++++++++++++++++++++++++++-------
+ 1 file changed, 29 insertions(+), 7 deletions(-)

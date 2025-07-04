@@ -1,44 +1,33 @@
-commit d881ed6384ae58154d99682f1e20160c64e7c3c2
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Mon May 13 13:00:52 2024 -0700
+commit 522be4e01000abe771362984f8d351c8452cceef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 16 11:34:14 2023 -0700
 
-    runtime: double-link list of waiting Ms
+    go/types, types2: remove superfluous argument test in Checker.arguments
     
-    When an M unlocks a contended mutex, it needs to consult a list of the
-    Ms that had to wait during its critical section. This allows the M to
-    attribute the appropriate amount of blame to the unlocking call stack.
+    There's only two places which call Checker.arguments: Checker.callExpr
+    and Checker.builtin. Both ensure that the passed argument list doesn't
+    contain type expressions, so we don't need that extra check at the start
+    of Checker.arguments.
     
-    Mirroring the implementation for users' sync.Mutex contention (via
-    sudog), we can (in a future commit) use the time that the head and tail
-    of the wait list started waiting, and the number of waiters, to estimate
-    the sum of the Ms' delays.
+    The remaining check causes Checker.arguments to exit early if any of
+    the passed arguments is invalid. This reduces the number of reported
+    errors in rare cases but is executed all the time.
+    If the extra errors are a problem, it would be better to not call
+    Checker.arguments in the first place, or only do the extra check
+    before Checker.arguments reports an error.
     
-    When an M acquires the mutex, it needs to remove itself from the list of
-    waiters. Since the futex-based lock implementation leaves the OS in
-    control of the order of M wakeups, we need to be prepared for quickly
-    (constant time) removing any M from the list.
+    Removing this code for now. Removes a long-standing TODO.
     
-    First, have each M add itself to a singly-linked wait list when it finds
-    that its lock call will need to sleep. This case is safe against
-    live-lock, since any delay to one M adding itself to the list would be
-    due to another M making durable progress.
-    
-    Second, have the M that holds the lock (either right before releasing,
-    or right after acquiring) update metadata on the list of waiting Ms to
-    double-link the list and maintain a tail pointer and waiter count. That
-    work is amortized-constant: we'll avoid contended locks becoming
-    proportionally more contended and undergoing performance collapse.
-    
-    For #66999
-    
-    Change-Id: If75cdea915afb59ccec47294e0b52c466aac8736
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585637
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Change-Id: Ief654b680eb6b6a768bb1b4c621d3c8169953f17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495395
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/lock_futex.go |  63 +++++++++++--
- src/runtime/lock_sema.go  |  56 +++++++++--
- src/runtime/mprof.go      | 230 ++++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 324 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/types2/call.go             | 11 -----------
+ src/go/types/call.go                                | 11 -----------
+ src/internal/types/testdata/check/expr3.go          |  2 +-
+ src/internal/types/testdata/fixedbugs/issue39634.go |  2 +-
+ 4 files changed, 2 insertions(+), 24 deletions(-)

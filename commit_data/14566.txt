@@ -1,14 +1,15 @@
-commit 5416e6e916b56160b9b3b4f4d25118cd739dc0dc
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Wed Dec 5 23:31:35 2012 -0500
+commit 4fb78c3a16580329c1c465fbc67c12456b8297dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 5 19:25:43 2012 -0800
 
-    net: document that File reverts connection to blocking mode.
+    net/http: implement CloseNotifier
     
-    Fixes #2458.
+    Fixes #2510
     
-    R=mikioh.mikioh, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6869054
+    https://golang.org/cl/6867050
 
- src/pkg/net/net.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/net/http/serve_test.go |  36 ++++++++++
+ src/pkg/net/http/server.go     | 155 ++++++++++++++++++++++++++++++++---------
+ 2 files changed, 158 insertions(+), 33 deletions(-)

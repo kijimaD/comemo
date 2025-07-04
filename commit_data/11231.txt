@@ -1,23 +1,12 @@
-commit 6b3462820f5a1c97adfa148df0e1e37c37a3716c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 18 13:20:55 2012 -0800
+commit 20812c490736e18c454c807ed1c65304bd8b7e5d
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Wed Jan 18 15:25:00 2012 -0500
 
-    test: gofmt a few tests
+    time: add Since, which returns the time elapsed since some past time t.
     
-    I'm planning to change these tests, but the gofmt changes are
-    fairly extensive, so I'm separating the gofmt changes from the
-    substantive changes.
-    
-    R=golang-dev, rsc, r
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5557052
+    https://golang.org/cl/5532088
 
- test/fixedbugs/bug027.go |  58 ++++++-----
- test/fixedbugs/bug070.go |  26 ++---
- test/ken/label.go        |  28 +++---
- test/ken/rob1.go         |  49 +++++----
- test/ken/rob2.go         | 251 +++++++++++++++++++++++------------------------
- test/ken/simpswitch.go   |  21 ++--
- test/peano.go            |  12 ---
- test/turing.go           |  49 ++++-----
- 8 files changed, 244 insertions(+), 250 deletions(-)
+ src/pkg/time/time.go | 32 +++++++++++++++++++-------------
+ 1 file changed, 19 insertions(+), 13 deletions(-)

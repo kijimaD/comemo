@@ -1,16 +1,15 @@
-commit 08318f5942f361ea6d017ece52c177c4c475cd6c
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Tue Apr 30 22:15:46 2019 +0200
+commit 02ad841dd82bd644b12efa168ad9fc4c623d6b37
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Dec 13 09:19:11 2018 -0700
 
-    os: fix tests on self-hosted Go builds
+    math: correct mPi4 comment
     
-    Updates #31722
+    The previous comment mis-stated the number of bits in mPi4.
+    The correct value is 19*64 + 1 == 1217 bits.
     
-    Change-Id: I467bb2539f993fad642abf96388a58a263fbe007
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174311
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ife971ff6936ce2d5b81ce663ce48044749d592a0
+    Reviewed-on: https://go-review.googlesource.com/c/154017
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/os_test.go | 34 +++++++++++++++++++++++++---------
- 1 file changed, 25 insertions(+), 9 deletions(-)
+ src/math/trig_reduce.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

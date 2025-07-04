@@ -1,18 +1,17 @@
-commit c06f02752022c1421d4310f8c13deaa28cca17fb
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Sat May 12 15:53:46 2018 +0300
+commit 701fa1c5ed8df2cde01487729c0e29c924e08050
+Author: Johnny Luo <johnnyluo1980@gmail.com>
+Date:   Fri Nov 24 21:21:44 2017 +1100
 
-    cmd/go: fix TestBuildIDContainsArchModeEnv
+    net/smtp: return error from SendMail when required AUTH not available
     
-    Changing GOARCH, GOARM, GO386 leads to a stale dependency.
+    Return an error if an Auth is passed to SendMail but the server does not support authentication.
     
-    Updates #24436.
+    Fixes #22145
     
-    Change-Id: I5b5b3fca6401be50fa81fb040bc56356de7555de
-    Reviewed-on: https://go-review.googlesource.com/112975
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I49a37259c47bbe5145e30fa8a2d05444e60cb378
+    Reviewed-on: https://go-review.googlesource.com/79776
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/smtp/smtp.go      |  9 ++++----
+ src/net/smtp/smtp_test.go | 52 +++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 51 insertions(+), 10 deletions(-)

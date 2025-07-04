@@ -1,20 +1,46 @@
-commit a53b46557267492c8f5e6e285c8d4c415183cacf
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon May 13 15:11:31 2019 -0400
+commit 65c2069a9f30cb6fa2c512d17dc0ad654d621da9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 13 17:37:50 2019 -0500
 
-    cmd/go: clarify documentation for 'go get -u'
+    cmd/go: only generate a go.mod file during 'go mod init'
     
-    Also: add a comment in internal/get.newUpgrader as a follow-up to
-    CL 177677.
+    In the general case, we do not know the correct module path for a new
+    module unless we have checked its VCS tags for a major version. If we
+    do not know the correct path, then we should not synthesize a go.mod
+    file automatically from it.
     
-    Updates #26902
+    On the other hand, we don't want to run VCS commands in the working
+    directory without an explicit request by the user to do so: 'go mod
+    init' can reasonably invoke a VCS command, but 'go build' should not.
     
-    Change-Id: Ibce2807ecb44fa21697ca04a51c44ddca0f661d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176902
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Therefore, we should only create a go.mod file during 'go mod init'.
+    
+    This change removes the previous behavior of synthesizing a file
+    automatically, and instead suggests a command that the user can opt to
+    run explicitly.
+    
+    Updates #29433
+    Updates #27009
+    Updates #30228
+    
+    Change-Id: I8c4554969db17156e97428df220b129a4d361040
+    Reviewed-on: https://go-review.googlesource.com/c/162699
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/alldocs.go             |  9 ++++++---
- src/cmd/go/internal/modget/get.go | 12 +++++++++---
- 2 files changed, 15 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/modload/init.go                | 77 ++++++++++++----------
+ src/cmd/go/internal/modload/init_test.go           | 42 ------------
+ src/cmd/go/internal/modload/load.go                |  2 +-
+ src/cmd/go/testdata/script/mod_convert_dep.txt     | 22 +++++++
+ src/cmd/go/testdata/script/mod_convert_git.txt     | 15 ++++-
+ src/cmd/go/testdata/script/mod_convert_glide.txt   |  9 +++
+ .../go/testdata/script/mod_convert_glockfile.txt   |  9 +++
+ src/cmd/go/testdata/script/mod_convert_godeps.txt  |  9 +++
+ src/cmd/go/testdata/script/mod_convert_tsv.txt     |  9 +++
+ .../go/testdata/script/mod_convert_vendor_conf.txt |  9 +++
+ .../go/testdata/script/mod_convert_vendor_json.txt |  9 +++
+ .../script/mod_convert_vendor_manifest.txt         |  9 +++
+ .../go/testdata/script/mod_convert_vendor_yml.txt  |  9 +++
+ src/cmd/go/testdata/script/mod_find.txt            | 12 ++++
+ 14 files changed, 162 insertions(+), 80 deletions(-)

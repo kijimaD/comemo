@@ -1,22 +1,25 @@
-commit c2633dfe7749fbb6ff82cccd3bc719b973d8d8ec
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 25 13:58:41 2023 -0700
+commit 72a857a2802a60ae99000efa2cf6e629d75deb4c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 11 10:20:09 2022 -0700
 
-    doc/go1.21: mention syscall package changes
+    test: relax fixedbugs/issue20250.go expectations
     
-    One of the changes also affects the os package, so mention it
-    there too.
+    With GOEXPERIMENT=unified, the order variables are printed in "live at
+    entry to f.func1" is sensitive to whether regabi is enabled for some
+    reason. The order shouldn't matter to correctness, but it is odd.
     
-    For #46259
+    For now, this CL just relaxes the test expectation order to unblock
+    enabling GOEXPERIMENT=unified by default. I've filed #54402 to
+    investigate further to confirm this a concern.
     
-    Change-Id: I8041a5ce009725ab210118ee668fc94196d9ff82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498376
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #54402.
+    
+    Change-Id: Iddfbb12c6cf7cc17b2aec8102b33761abd5f93ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422975
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- doc/go1.21.html | 25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ test/fixedbugs/issue20250.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

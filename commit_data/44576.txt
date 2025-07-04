@@ -1,21 +1,19 @@
-commit 142a76530cf610fe02d151727fa0d8038c552127
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Mar 9 14:22:38 2021 -0500
+commit 933ca0cfdc5b16a28661707b95485ce6d739bb97
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Aug 12 12:59:55 2020 -0400
 
-    go/types: improve the positioning of broken import errors
+    doc: add a release notes blurb on 1.16 linker improvements
     
-    The heuristic gopls uses to guess error spans can get tripped-up on
-    certain valid characters in an import path (for example '-').
+    Add a draft version of a blurb on improvements to the linker. This
+    will need to be finalized later in the release since there are still
+    some additional changes to be made to the linker in 1.16.
     
-    Update the error for broken imports to capture the full import path
-    span, so that gopls doesn't need to rely on heuristics.
+    Updates #40703.
     
-    Change-Id: Ieb8e0dce11933643f701b32271ff5f3477fecaaa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300169
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Id85c7e129071cc2faacb09c53a2968bd52b0a7b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248238
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/types/resolver.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ doc/go1.16.html | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)

@@ -1,23 +1,25 @@
-commit 65c17a05e98866d1e29a5d53fc21b0221760698d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 31 16:15:51 2017 -0400
+commit b03dce927b30db5dc36747d009ffeb435eea9c20
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Wed Jan 4 19:21:13 2017 -0700
 
-    encoding/pem: do not try to round trip value with leading/trailing space
+    cmd/compile: avoid n.Right nil dereference on non-existent interface methods
     
-    The header is literally
+    Fixes #18392.
     
-            Key: Value
+    Avoid nil dereferencing n.Right when dealing with non-existent
+    self referenced interface methods e.g.
+    type A interface{
+      Fn(A.Fn)
+    }
     
-    If the value or the key has leading or trailing spaces, those will
-    be lost by the round trip.
+    Instead, infer the symbol name from n.Sym itself.
     
-    Found because testing/quick returns different values now.
-    
-    Change-Id: I0f574bdbb5990689509c24309854d8f814b5efa0
-    Reviewed-on: https://go-review.googlesource.com/39211
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I60d5f8988e7318693e5c8da031285d8d7347b771
+    Reviewed-on: https://go-review.googlesource.com/34817
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/pem/pem_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue18392.go             | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

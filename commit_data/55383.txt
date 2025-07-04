@@ -1,19 +1,19 @@
-commit 165383381199de6632665f43561e8e0dfc96f067
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Fri Jan 19 13:51:50 2024 -0500
+commit 23c0121e4eb259cc1087d0f79a0803cbc71f500b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 31 17:21:14 2023 -0500
 
-    internal/goversion: update Version to 1.23
+    cmd/go/internal/script: retry ETXTBSY errors in scripts
     
-    (The corresponding update for the last release cycle was CL 510735.)
+    Fixes #58019.
     
-    For #40705
-    For #64340
-    
-    Change-Id: I123ce68131a6c7b0344cab54cd29402cabb57225
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557155
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ib25d668bfede6e87a3786f44bdc0db1027e3ebec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463748
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/goversion/goversion.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/script/cmds.go       | 46 +++++++++++++++++++++-----------
+ src/cmd/go/internal/script/cmds_other.go | 11 ++++++++
+ src/cmd/go/internal/script/cmds_posix.go | 16 +++++++++++
+ 3 files changed, 58 insertions(+), 15 deletions(-)

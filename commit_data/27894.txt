@@ -1,21 +1,20 @@
-commit 57370a87d80be0ab588eb8bb9a5e2a31f4613355
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Aug 17 20:34:09 2016 +0200
+commit 4331ab97802c39052f063d7597187563882353aa
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Apr 19 03:19:12 2016 +0200
 
-    encoding/hex: change lookup table from string to array
+    net: enable TestDialParallel, TestDialerFallbackDelay and TestDialCancel on Plan 9
     
-    name            old time/op  new time/op  delta
-    Encode/256-4     431ns ± 2%   391ns ± 2%   -9.36%  (p=0.000 n=8+8)
-    Encode/1024-4   1.68µs ± 0%  1.51µs ± 0%   -9.91%  (p=0.001 n=7+7)
-    Encode/4096-4   6.68µs ± 0%  6.03µs ± 1%   -9.69%  (p=0.000 n=8+8)
-    Encode/16384-4  27.0µs ± 1%  24.0µs ± 0%  -11.03%  (p=0.000 n=8+7)
+    TestDialParallel, TestDialerFallbackDelay and TestDialCancel
+    require dialTCP to support cancellation, which has been
+    implemented for Plan 9 in CL 22144.
     
-    Change-Id: I6994e02f77797349c4e188377d84f97dffe98399
-    Reviewed-on: https://go-review.googlesource.com/27254
+    Updates #11225.
+    Updates #11932.
+    
+    Change-Id: I3b30a645ef79227dfa519cde8d46c67b72f2485c
+    Reviewed-on: https://go-review.googlesource.com/22203
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/hex/hex.go      |  5 ++++-
- src/encoding/hex/hex_test.go | 16 ++++++++++++++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/net/dial_test.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

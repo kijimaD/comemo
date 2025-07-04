@@ -1,21 +1,21 @@
-commit 102406edbfff616ad5a56df5e7347ae97804ea58
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Wed Jan 22 14:49:46 2025 -0500
+commit de5b418bea70aaf27de1f47e9b5813940d1e15a4
+Author: zzkcode <zzk819166453@gmail.com>
+Date:   Thu Nov 30 11:39:29 2023 +0000
 
-    crypto/internal/fips140test: add KTS-IFC ACVP tests
+    runtime: let the fault thread to crash the process
     
-    Adds ACVP test coverage for the SP 800-56Brev2 KTS-OAEP-basic algorithm
-    based on the NIST spec:
+    Let the fault thread to crash the program to make sure while gdb coredump file could see the correct backtrace in the number one thread in gdb.
     
-       https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-ifc.html
+    Fixes #63277.
     
-    Change-Id: I31240af30a73ee9f0ef00f47129738860378ea8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648436
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ie4473f76f0feba596091433918bcd35a4ff7e11b
+    GitHub-Last-Rev: f4615c23f663a2f0794ca9e5c86fc2f0cc8552d7
+    GitHub-Pull-Request: golang/go#63666
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536895
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- .../internal/fips140test/acvp_capabilities.json    |  4 +-
- src/crypto/internal/fips140test/acvp_test.go       | 96 ++++++++++++++++++++++
- 2 files changed, 99 insertions(+), 1 deletion(-)
+ src/runtime/runtime-gdb_unix_test.go | 216 +++++++++++++++++++++++++++++------
+ src/runtime/signal_unix.go           |  37 ++++--
+ 2 files changed, 206 insertions(+), 47 deletions(-)

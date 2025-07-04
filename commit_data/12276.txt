@@ -1,12 +1,14 @@
-commit df3a841021ed2a983f87fec477017e85268f2ac2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Mar 1 02:22:35 2012 +0800
+commit 3684ae9da0ad00db01596393f2ac992fa3b0b05f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 29 09:53:20 2012 -0800
 
-    doc: elaborate available checks for cmd/vet
+    net/http: make a test more paranoid & reliable on Windows, maybe.
     
-    R=golang-dev, r, ality, r
+    Part of diagnosing issue 3050.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5709053
+    https://golang.org/cl/5707056
 
- src/cmd/vet/doc.go | 28 ++++++++++++++++++++++++++--
- 1 file changed, 26 insertions(+), 2 deletions(-)
+ src/pkg/net/http/fs_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

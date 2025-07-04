@@ -1,24 +1,77 @@
-commit 2a2f99eefb70a66ecb9560a61b5cf23a5ca02ecb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 26 17:40:18 2021 -0500
+commit 86f53c2a3c08c416fe62e83db1d1a666b3da5f21
+Merge: 076dc2111b 3a4322627e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jul 10 14:54:13 2020 -0400
 
-    cmd/go/internal/modload: do not resolve an arbitrary version for 'go list --versions'
+    [dev.link] all: merge branch 'master' into dev.link
     
-    If we don't actually require the listed module, we previously
-    implicitly resolved "latest", but also (erroneously) forgot to apply
-    exclusions and retractions for it. But there is really no need to
-    resolve "latest" in this case at all — now we omit the version from
-    the reported module info entirely.
-    
-    Fixes #44296
-    
-    Change-Id: Id595f52f597c7213bd65b73bf066a678d9e1d694
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297150
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I644cfc9dfd6e024a0d62bbd226db8639e4a87dc7
 
- src/cmd/go/internal/modload/build.go                |  6 +++++-
- src/cmd/go/internal/modload/list.go                 | 14 +++-----------
- src/cmd/go/testdata/script/mod_proxy_https.txt      |  1 +
- src/cmd/go/testdata/script/mod_retract_versions.txt |  3 +--
- 4 files changed, 10 insertions(+), 14 deletions(-)
+ AUTHORS                                            |    1 +
+ CONTRIBUTORS                                       |    1 +
+ doc/contribute.html                                |    4 +-
+ doc/editors.html                                   |    2 +-
+ doc/effective_go.html                              |   12 +-
+ doc/go1.15.html                                    |   96 +-
+ doc/help.html                                      |    2 +-
+ doc/install-source.html                            |   16 +-
+ misc/cgo/test/test.go                              |    4 +
+ misc/cgo/testshared/shared_test.go                 |   16 +
+ misc/cgo/testshared/testdata/gcdata/main/main.go   |   37 +
+ misc/cgo/testshared/testdata/gcdata/p/p.go         |    7 +
+ src/cmd/cgo/out.go                                 |    5 +
+ src/cmd/go.mod                                     |    2 +-
+ src/cmd/go.sum                                     |    4 +-
+ src/cmd/go/internal/test/test.go                   |    4 +-
+ src/cmd/go/internal/test/testflag.go               |   17 +
+ src/cmd/go/testdata/script/test_flags.txt          |    6 +
+ src/cmd/link/internal/ld/decodesym.go              |   27 +-
+ src/cmd/link/internal/ld/fallocate_test.go         |   15 +
+ src/cmd/link/internal/ld/lib.go                    |    6 +-
+ src/cmd/link/internal/ld/outbuf_darwin.go          |    7 +-
+ src/cmd/vendor/modules.txt                         |    2 +-
+ src/crypto/crypto.go                               |    2 +-
+ src/crypto/rsa/example_test.go                     |    2 +-
+ src/crypto/rsa/pkcs1v15.go                         |   14 +-
+ src/crypto/rsa/rsa.go                              |   14 +-
+ src/crypto/tls/auth.go                             |    4 +-
+ src/crypto/tls/common.go                           |   12 +-
+ src/crypto/tls/generate_cert.go                    |   12 +-
+ src/crypto/tls/key_agreement.go                    |    2 +-
+ src/crypto/tls/tls.go                              |    2 +-
+ src/crypto/tls/tls_test.go                         |    4 +-
+ .../internal/{macOS => macos}/corefoundation.go    |    0
+ .../internal/{macOS => macos}/corefoundation.s     |    0
+ .../x509/internal/{macOS => macos}/security.go     |    0
+ .../x509/internal/{macOS => macos}/security.s      |    0
+ src/crypto/x509/pkcs1.go                           |   12 +-
+ src/crypto/x509/pkcs8.go                           |    6 +-
+ src/crypto/x509/pkix/pkix.go                       |   14 +-
+ src/crypto/x509/root_darwin_amd64.go               |    2 +-
+ src/crypto/x509/x509.go                            |    2 +-
+ src/crypto/x509/x509_test.go                       |   39 +
+ src/encoding/json/decode.go                        |   40 +-
+ src/encoding/json/decode_test.go                   |   15 +-
+ src/encoding/xml/marshal.go                        |    7 +-
+ src/encoding/xml/marshal_test.go                   |   24 -
+ src/go.mod                                         |    4 +-
+ src/go.sum                                         |    8 +-
+ src/go/build/build.go                              |    3 +-
+ src/go/build/deps_test.go                          | 1154 ++++++++++++--------
+ src/net/http/fs.go                                 |    1 +
+ src/net/http/fs_test.go                            |    9 +
+ src/net/interface_plan9.go                         |    4 +-
+ src/net/ipsock_plan9.go                            |   76 +-
+ src/net/ipsock_plan9_test.go                       |   29 +
+ src/net/textproto/reader.go                        |    2 +-
+ src/os/pipe_test.go                                |   19 +
+ src/os/readfrom_linux.go                           |    5 +
+ src/os/readfrom_linux_test.go                      |   30 +
+ src/path/filepath/match.go                         |    6 +-
+ src/runtime/malloc.go                              |    2 +
+ src/runtime/os_openbsd.go                          |    1 +
+ src/runtime/sys_darwin.go                          |    2 +-
+ src/vendor/golang.org/x/crypto/cryptobyte/asn1.go  |    4 +-
+ .../golang.org/x/net/dns/dnsmessage/message.go     |    3 +-
+ src/vendor/modules.txt                             |    4 +-
+ 67 files changed, 1209 insertions(+), 679 deletions(-)

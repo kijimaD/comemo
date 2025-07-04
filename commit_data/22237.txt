@@ -1,15 +1,22 @@
-commit 6262192cd0fb98d6bb80752de70ae33fc10dc33e
-Author: John Potocny <johnp@vividcortex.com>
-Date:   Wed Mar 25 21:08:04 2015 -0400
+commit 5324cf2d45387b534068cf651e2d18e5df25d0b9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 1 19:13:50 2015 -0800
 
-    strings: Add benchmark test for trim function
+    runtime: change sigset_all and sigset_none into constants on OpenBSD
     
-    The strings.Trim function and variants allocate memory on the heap when creating a function to pass into TrimFunc.
-    Add a benchmark to document the behavior; an issue will be submitted to address this behavior in the compiler if possible.
+    OpenBSD's sigprocmask system call passes the signal mask by value
+    rather than reference, so vars are unnecessary.  Additionally,
+    declaring "var sigset_all = ^sigset_none" means sigset_all won't be
+    initialized until runtime_init is called, but the first call to
+    newosproc happens before then.
     
-    Change-Id: I8b66721f077951f7e7b8cf3cf346fac27a9b68c0
-    Reviewed-on: https://go-review.googlesource.com/8200
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    I've witnessed Go processes on OpenBSD crash from receiving SIGWINCH
+    on the newly created OS thread before it finished initializing.
+    
+    Change-Id: I16995e7e466d5e7e50bcaa7d9490173789a0b4cc
+    Reviewed-on: https://go-review.googlesource.com/6440
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strings/strings_test.go | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/runtime/os1_openbsd.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

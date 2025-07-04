@@ -1,20 +1,14 @@
-commit 76f272d71746fec4cc91f6772e81d8745aa65384
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 24 11:14:46 2016 -0500
+commit ec3daf0c626a79cab3b3b4cf13d0a912619d4303
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Thu Nov 19 18:36:41 2015 -0500
 
-    cmd/asm: remove support for amd64 3DNow! instructions
+    cmd/dist: run testcshared test on linux/386
     
-    3DNotAnymore!
-    
-    These only ever existed on AMD (not Intel) processors,
-    and AMD cancelled support for them in August 2010.
-    
-    Change-Id: Ia362259add9d4f5788fd151fb373f91288677407
-    Reviewed-on: https://go-review.googlesource.com/19611
+    Change-Id: Iaa0fb133e5fc2078bfaf59ed721fd07a1a713ab3
+    Reviewed-on: https://go-review.googlesource.com/17075
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/arch/arch.go  |  2 --
- src/cmd/internal/obj/x86/a.out.go  | 24 ------------------------
- src/cmd/internal/obj/x86/anames.go | 23 -----------------------
- src/cmd/internal/obj/x86/asm6.go   | 37 -------------------------------------
- 4 files changed, 86 deletions(-)
+ src/cmd/dist/test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

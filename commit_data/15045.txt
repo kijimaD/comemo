@@ -1,12 +1,15 @@
-commit 6d2d2ae4d9af028ff13819497baeecfd984dc3e6
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Jan 30 15:09:34 2013 -0800
+commit fa2acad60379f59712cc15ea1c4192b982e69a35
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 30 12:45:13 2013 -0800
 
-    cmd/go: fix build -n for cgo enabled packages
+    crypto/cipher: avoid out of bounds error in CryptBlocks
     
-    R=golang-dev, minux.ma, rsc
+    Fixes #4699.
+    
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/7095067
+    https://golang.org/cl/7231065
 
- src/cmd/go/build.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/pkg/crypto/cipher/cbc.go         | 12 ++++++++++++
+ src/pkg/crypto/cipher/cipher_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

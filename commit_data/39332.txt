@@ -1,19 +1,27 @@
-commit 7647fcd39292b5d36eb0f0be9750eecb03b1874c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 6 17:19:11 2019 -0700
+commit b5a68a9e414dc1d412d623f80c54aafe3ada0f14
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 25 22:09:46 2019 -0500
 
-    go/internal/gccgoimporter: update for gofrontend export data changes
+    misc/cgo: skip cgotest.TestCrossPackageTests on iOS and set PWD
     
-    This recognizes new features that the gofrontend has started emitting
-    in the export data to support cross-package inlinable functions.
+    I hope that this will fix the tests on iOS, but 'gomote create' isn't
+    giving me an instance I can test with. (Please patch and test before
+    approving.)
     
-    This is a port of CL 180677 and 180758 from the gofrontend repo.
+    Updates #15919
+    Updates #30228
     
-    Change-Id: I48af6e71f9d8b04ba874ea0c204d39d1d461f8ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181118
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1b7cd30d5b127a1ad3243b329fa005d229f69a24
+    Reviewed-on: https://go-review.googlesource.com/c/163726
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
 
- src/go/internal/gccgoimporter/parser.go | 69 ++++++++++++++++++++-------------
- 1 file changed, 42 insertions(+), 27 deletions(-)
+ misc/cgo/life/life_test.go             | 1 +
+ misc/cgo/stdio/stdio_test.go           | 1 +
+ misc/cgo/test/pkg_test.go              | 8 ++++++++
+ misc/cgo/testcarchive/carchive_test.go | 1 +
+ misc/cgo/testcshared/cshared_test.go   | 1 +
+ misc/cgo/testplugin/plugin_test.go     | 2 ++
+ misc/cgo/testshared/shared_test.go     | 1 +
+ 7 files changed, 15 insertions(+)

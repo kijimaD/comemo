@@ -1,16 +1,21 @@
-commit 05d53165cebf7c31c4b4c2c818650b2efceefbeb
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Apr 27 12:53:34 2015 -0400
+commit f8bcebe47cfbb2fc442fee7d2aafe9cd5ffebd11
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 7 11:42:45 2015 +0000
 
-    cmd/internal/ld: remove Biobuf unget
+    Revert "misc/cgo/testso: add test for fixed issue 4339"
     
-    The underlying *bufio.Reader does everything that's needed here.
+    This reverts commit 9fa9f966e99eb514f9b6f61821f83d5f9178a4a2.
     
-    Change-Id: If0712a5b4d3142ae4bceaa2efe287eaf2b91e54e
-    Reviewed-on: https://go-review.googlesource.com/9365
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The change has broken darwin and netbsd builders. It needs to be tested properly.
+    
+    Change-Id: Id9e2d30caa8764c362c9f33890015dfc1aae0dab
+    Reviewed-on: https://go-review.googlesource.com/8527
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/internal/ld/objfile.go |  8 +++++---
- src/cmd/internal/ld/util.go    | 45 ++++++------------------------------------
- 2 files changed, 11 insertions(+), 42 deletions(-)
+ misc/cgo/testso/cgoso.c   |  5 -----
+ misc/cgo/testso/cgoso.go  | 19 -------------------
+ misc/cgo/testso/cgoso_c.c |  4 ----
+ misc/cgo/testso/cgoso_c.h | 17 -----------------
+ misc/cgo/testso/test.bat  |  2 +-
+ 5 files changed, 1 insertion(+), 46 deletions(-)

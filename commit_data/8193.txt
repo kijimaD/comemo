@@ -1,16 +1,16 @@
-commit d5864454dc3761efd31f745f81c7b3927df4abae
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Apr 22 14:44:18 2011 -0400
+commit c94db30ec917ff3db4e21be23e20a5ce030dc462
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 22 11:02:33 2011 -0700
 
-    syscall: fix Ftruncate under linux/arm5
+    http/cgi: pass some default environment variables
     
-    Fixes #1714.
+    This isn't really part of RFC 3875 but matches
+    the behavior of Apache, et al.
     
-    R=rsc, bradfitzgo
+    R=iant, iant2
     CC=golang-dev
-    https://golang.org/cl/4441056
+    https://golang.org/cl/4435065
 
- src/pkg/os/os_test.go                 | 22 ++++++++++++++++++++--
- src/pkg/syscall/syscall_linux_arm.go  | 17 ++++++++++++++---
- src/pkg/syscall/zsyscall_linux_arm.go | 16 ----------------
- 3 files changed, 34 insertions(+), 21 deletions(-)
+ src/pkg/http/cgi/host.go            | 21 +++++++++++++++++++++
+ src/pkg/http/cgi/matryoshka_test.go |  8 --------
+ 2 files changed, 21 insertions(+), 8 deletions(-)

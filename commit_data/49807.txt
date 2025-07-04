@@ -1,17 +1,19 @@
-commit beebd537ca1ae8ff29576477a88be7d8dff7d638
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Aug 4 11:55:33 2022 +0100
+commit 42057e9848d40fc6181cd7a68fd788c652772b8d
+Author: korzhao <korzhao95@gmail.com>
+Date:   Sat Sep 11 01:14:54 2021 +0800
 
-    encoding/xml: use bytes.Buffer.WriteString
+    cmd/compile: save the note of fields when translating struct
     
-    Change-Id: Icb0b917c48252ed8831e6c07109c1bc2d2438a42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421234
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: hopehook <hopehook@qq.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Dan Kortschak <dan@kortschak.io>
+    Fixes #48317
+    
+    Change-Id: I756ae6253022870071004332dd8f49169307f7e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349013
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/encoding/xml/xml.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/subr.go |  1 +
+ test/typeparam/issue48317.go               | 38 ++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

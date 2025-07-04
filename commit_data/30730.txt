@@ -1,13 +1,16 @@
-commit d80166ebbef1e57457dc383959af83ea2286726e
-Author: Martin Lindhe <martin.j.lindhe@gmail.com>
-Date:   Mon Mar 20 12:14:47 2017 +0100
+commit 1aa191b468f0dde2546c8430dbfffb8b94e7568b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 30 03:24:40 2016 +0000
 
-    crypto/*: fix spelling of 'below'
+    doc: remove some TODOs from go1.8.html
     
-    Change-Id: Ic9d65206ec27f6d54bb71395802929e9c769e80a
-    Reviewed-on: https://go-review.googlesource.com/38355
+    TBR=See https://golang.org/cl/33244
+    
+    Updates #17929
+    
+    Change-Id: I5d92bd62b6560d245f77fa042c7e35d9eddc4994
+    Reviewed-on: https://go-review.googlesource.com/33683
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/aes/asm_ppc64le.s          | 2 +-
- src/crypto/sha512/sha512block_amd64.s | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.8.html | 66 ++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 32 insertions(+), 34 deletions(-)

@@ -1,22 +1,22 @@
-commit 91962dfde1a754a0ccdc514c9a2acfae25fc1f5e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Nov 2 12:25:23 2021 -0700
+commit 96a96a9058004af531db56dee26d82af08321cdb
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Mar 4 12:09:04 2021 -0800
 
-    syscall: unify unix Recvmsg epilogues
+    cmd/compile: remove types2.(*Selection).TArgs(), now that instance bug seems fixed
     
-    These were identical. This is a preliminary step
-    towards remove allocs per UDP receive.
+    Previously, we would sometimes see an internal (*instance) type for a
+    receiver of a types2 method, which was a bug. To deal with that, we put
+    in an extra (*Selection).TArgs() method. However, that (*instance) type
+    is no longer showing up for receivers, so we can remove the types2
+    method we added and do the work with existing types2 API methods.
     
-    Change-Id: I83106cd3f1fe4bc5bae2d1b0ebd23eedd820abed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361258
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I03e68f5bbaaf82fe706b6efecbb02e951bbd3cd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298869
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/syscall/syscall_aix.go     |  9 ++-------
- src/syscall/syscall_bsd.go     |  9 ++-------
- src/syscall/syscall_linux.go   |  9 ++-------
- src/syscall/syscall_solaris.go |  9 ++-------
- src/syscall/syscall_unix.go    | 10 ++++++++++
- 5 files changed, 18 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/noder/expr.go       | 15 ++++++++++++++-
+ src/cmd/compile/internal/types2/selection.go | 16 ----------------
+ 2 files changed, 14 insertions(+), 17 deletions(-)

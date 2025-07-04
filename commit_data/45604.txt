@@ -1,20 +1,23 @@
-commit e18a8b4fb27df3ee04f7eb00c4f1ed77e5486ce8
+commit 6d087c807e558a7e4f7da29fd44998e6f605c27d
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed May 5 17:05:51 2021 -0400
+Date:   Thu Oct 29 16:36:50 2020 -0400
 
-    go/build: avoid duplicates in InvalidGoFiles
+    cmd/go/internal/modload: handle NotExist errors in (*mvsReqs).Previous
     
-    For #45827
-    For #39986
-    Updates #45999
+    Previous is used during downgrading. If the module proxy does not
+    advertise any versions (for example, because it contains only
+    pseudo-versions), then Previous should return "none" instead of a
+    non-nil error.
     
-    Change-Id: I0c919b6a2e56e7003b90425487eafe0f0eadc609
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317299
+    For #37438
+    
+    Change-Id: I4edfec19cfeb3ffe50df4979f99a01321c442509
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266370
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/build/build.go      | 36 +++++++++++++++++++++---------------
- src/go/build/build_test.go | 18 ++++++++++++++++--
- 2 files changed, 37 insertions(+), 17 deletions(-)
+ src/cmd/go/internal/modload/mvs.go | 4 ++++
+ 1 file changed, 4 insertions(+)

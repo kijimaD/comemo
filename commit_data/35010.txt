@@ -1,17 +1,21 @@
-commit 89d576c933442ce0e3e78686db17a05de0a3dc8c
-Author: Felix Kollmann <fk@konsorten.de>
-Date:   Sat Apr 14 23:01:10 2018 +0000
+commit 8f2a9267c814538485dd3459910bc8e6de2ef2bb
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Dec 4 11:16:51 2017 -0800
 
-    doc: clarify package uninstall/clean command
+    net: return io.ErrClosedPipe when possible from net.Pipe
     
-    Fixes #24864
+    The previous implementation of net.Pipe was just a thin wrapper around
+    io.Pipe and did not wrap any of the io.Pipe errors as net.Errors.
+    As a result of Hyrum's law, users have come to depend on the fact that
+    net.Pipe returns io.ErrClosedPipe when the pipe is closed.
+    Thus, we preserve this behavior to avoid regressing such use cases.
     
-    Change-Id: Iaffd23b368aff663bfc09a4e6277c01e7b5ea48d
-    GitHub-Last-Rev: 98e39b7bff6e646d48c0bf961aee0075a9034ab2
-    GitHub-Pull-Request: golang/go#24865
-    Reviewed-on: https://go-review.googlesource.com/106986
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I06b387877b944c1c08527601f58983872b7557b4
+    Reviewed-on: https://go-review.googlesource.com/81777
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/pipe.go      | 46 +++++++++++++++++++---------------------------
+ src/net/pipe_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 27 deletions(-)

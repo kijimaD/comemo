@@ -1,0 +1,26 @@
+commit 2ce1fb4220e1978d8ea7c615f8ae2d9170985640
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon Dec 30 10:08:58 2024 +0800
+
+    cmd/internal/obj/loong64: add F{MAXA/MINA}.{S/D} instructions
+    
+    Go asm syntax:
+            F{MAXA/MINA}{F/D}       FK, FJ, FD
+    
+    Equivalent platform assembler syntax:
+            f{maxa/mina}.{s/d}      fd, fj, fk
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: I6790657d2f36bdf5e6818b6c0aaa48117e782b8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653915
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  9 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  6 ++++++
+ src/cmd/internal/obj/loong64/anames.go          |  4 ++++
+ src/cmd/internal/obj/loong64/asm.go             | 12 ++++++++++++
+ 4 files changed, 31 insertions(+)

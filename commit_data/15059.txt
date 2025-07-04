@@ -1,14 +1,14 @@
-commit 87c3c1b0020280fe216933501c96a913eaaafb2b
+commit 592b480746bd2ac2140980d298a50563d484733d
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 31 07:53:38 2013 -0800
+Date:   Thu Jan 31 07:49:33 2013 -0800
 
-    cmd/vet: handle added string constants in printf format check
+    cmd/ld: retry short writes, to get error detail
     
-    Fixes #4599.
+    Fixes #3802.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7226067
+    https://golang.org/cl/7228066
 
- src/cmd/vet/print.go | 24 +++++++++++++++++++++++-
- 1 file changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/ld/lib.c | 31 ++++++++++++++++++++-----------
+ 1 file changed, 20 insertions(+), 11 deletions(-)

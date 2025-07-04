@@ -1,16 +1,17 @@
-commit 79ccbe1b67b9c481c73bd6b310849bbcf13954a5
-Author: bxq2011hust <bxq2011hust@qq.com>
-Date:   Fri Jan 10 07:03:21 2020 +0000
+commit aee084b3caf47f87b74e8bad2e3b7265271e377c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 3 10:30:24 2019 -0700
 
-    crypto/x509: this change modifies C.CopyPEMRoots to static function
+    cmd/compile/internal/gc: use GoToolPath in TestDeps
     
-    Change-Id: Ic7997d1f747152afec78e8e439770166029f34ec
-    GitHub-Last-Rev: 6a07f25056c960dc8684cd6eac22cd3405a936c8
-    GitHub-Pull-Request: golang/go#36491
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214298
+    Updates #31563
+    Fixes #34041
+    
+    Change-Id: Ib9fdcd2f83d867fd31b42eab3a813f5cef88860e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193077
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/crypto/x509/root_cgo_darwin.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dep_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

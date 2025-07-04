@@ -1,18 +1,54 @@
-commit 3507805bcdcd6674c842e25fdb5f07f5ce47ba87
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 7 13:39:56 2022 -0700
+commit aef24d8f7db4fb895055e4543af958d7dc2eb8cc
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Jun 21 03:04:42 2021 +0000
 
-    go/types, types2: better error message for invalid use of constraint type
+    cmd/internal/obj/arm64: fix the encoding error when operating with ZR
     
-    Fixes #42881.
+    Some arm64 instructions accept ZR as its destination register, such as MOVD,
+    AND, ADD etc. although it doesn't seem to make much sense, but we should
+    make sure the encoding is correct. However there exists some encoding mistakes
+    in the current assembler, they are:
+    1, 'MOVD $1, ZR' is incorrectly encoded as 'MOVD $1, ZR' + '0x00000000'.
+    2, 'AND $1, R2, ZR' is incorrectly encoded as 'MOVD $1, R27' + 'AND R27, R2, ZR' +
+       '0x00000000'.
+    3, 'AND $1, ZR' is incorrectly encoded as 'AND $1, ZR, RSP'.
     
-    Change-Id: If800c5f90c0034d192bf8b6649e5cfda96df48cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410954
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Obviously the first two encoding errors can cause SIGILL, and the third one will
+    rewrite RSP.
+    
+    At the same time, I found some weird encodings but they don't cause errors.
+    4, 'MOVD $0x0001000100010001, ZR' is encoded as 'MOVW $1, ZR' + 'MOVKW $(1<<16), ZR'.
+    5, 'AND $0x0001000100010001, R2, ZR' is encoded as 'MOVD $1, R27' + 'MOVK $(1<<16), R27' +
+       'MOVK $(1<<32), R27'.
+    
+    Some of these issues also apply to 32-bit versions of these instructions.
+    
+    These problems are not very complicated, and are basically caused by the improper
+    adaptation of the class of the constant to the entry in the optab. But the relationship
+    between these constant classes is a bit complicated, so I don't know how to deal with
+    issue 4 and 5, because they won't cause errors, so this CL didn't deal with them.
+    
+    This CL fixed the first three issues.
+    Issue 1:
+      before: 'MOVD $1, ZR' => 'MOVD $1, ZR' + '0x00000000'.
+      after:  'MOVD $1, ZR' => 'MOVD $1, ZR'.
+    Issue 2:
+      before: 'AND $1, R2, ZR' => 'MOVD $1, R27' + 'AND R27, R2, ZR' + '0x00000000'.
+      after:  'AND $1, R2, ZR' => 'ORR $1, ZR, R27' + 'AND R27, R2, ZR'.
+    Issue 3:
+      before: 'AND $1, ZR' => 'AND $1, ZR, RSP'.
+      after:  'AND $1, ZR' => 'ORR $1, ZR, R27' + 'AND R27, ZR, ZR'.
+    
+    Change-Id: I3c889079229f847b863ad56c88966be12d947202
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329750
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- .../internal/types2/testdata/fixedbugs/issue42881.go     | 16 ++++++++++++++++
- src/cmd/compile/internal/types2/typexpr.go               |  4 ++--
- src/go/types/testdata/fixedbugs/issue42881.go            | 16 ++++++++++++++++
- src/go/types/typexpr.go                                  |  4 ++--
- 4 files changed, 36 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  6 ++++--
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  2 +-
+ src/cmd/internal/obj/arm64/asm7.go             | 21 ++++++++++++++++-----
+ src/cmd/internal/obj/arm64/obj7.go             |  4 +++-
+ 4 files changed, 24 insertions(+), 9 deletions(-)

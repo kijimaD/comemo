@@ -1,74 +1,47 @@
-commit f68f292820a3dc545aba0ee64a372635a64d5040
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 4 17:54:02 2017 -0700
+commit 9c3630f578db1d4331b367c3c7d284db299be3a6
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jan 11 23:03:15 2017 -0800
 
-    cmd/compile: factor out Pkg, Sym, and Type into package types
+    compress/flate: avoid large stack growth in fillDeflate
     
-    - created new package cmd/compile/internal/types
-    - moved Pkg, Sym, Type to new package
-    - to break cycles, for now we need the (ugly) types/utils.go
-      file which contains a handful of functions that must be installed
-      early by the gc frontend
-    - to break cycles, for now we need two functions to convert between
-      *gc.Node and *types.Node (the latter is a dummy type)
-    - adjusted the gc's code to use the new package and the conversion
-      functions as needed
-    - made several Pkg, Sym, and Type methods functions as needed
-    - renamed constructors typ, typPtr, typArray, etc. to types.New,
-      types.NewPtr, types.NewArray, etc.
+    Ranging over an array causes the array to be copied over to the
+    stack, which cause large re-growths. Instead, we should iterate
+    over slices of the array.
     
-    Passes toolstash-check -all.
+    Also, assigning a large struct literal uses the stack even
+    though the actual fields being populated are small in comparison
+    to the entirety of the struct (see #18636).
     
-    Change-Id: I8adfa5e85c731645d0a7fd2030375ed6ebf54b72
-    Reviewed-on: https://go-review.googlesource.com/39855
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixing the stack growth does not alter CPU-time performance much
+    since the stack-growth and copying was such a tiny portion of the
+    compression work:
+    
+    name                         old time/op    new time/op    delta
+    Encode/Digits/Default/1e4-8     332µs ± 1%     332µs ± 1%   ~     (p=0.796 n=10+10)
+    Encode/Digits/Default/1e5-8    5.07ms ± 2%    5.05ms ± 1%   ~       (p=0.815 n=9+8)
+    Encode/Digits/Default/1e6-8    53.7ms ± 1%    53.9ms ± 1%   ~     (p=0.075 n=10+10)
+    Encode/Twain/Default/1e4-8      380µs ± 1%     380µs ± 1%   ~     (p=0.684 n=10+10)
+    Encode/Twain/Default/1e5-8     5.79ms ± 2%    5.79ms ± 1%   ~      (p=0.497 n=9+10)
+    Encode/Twain/Default/1e6-8     61.5ms ± 1%    61.8ms ± 1%   ~     (p=0.247 n=10+10)
+    
+    name                         old speed      new speed      delta
+    Encode/Digits/Default/1e4-8  30.1MB/s ± 1%  30.1MB/s ± 1%   ~     (p=0.753 n=10+10)
+    Encode/Digits/Default/1e5-8  19.7MB/s ± 2%  19.8MB/s ± 1%   ~       (p=0.795 n=9+8)
+    Encode/Digits/Default/1e6-8  18.6MB/s ± 1%  18.5MB/s ± 1%   ~     (p=0.072 n=10+10)
+    Encode/Twain/Default/1e4-8   26.3MB/s ± 1%  26.3MB/s ± 1%   ~     (p=0.616 n=10+10)
+    Encode/Twain/Default/1e5-8   17.3MB/s ± 2%  17.3MB/s ± 1%   ~      (p=0.484 n=9+10)
+    Encode/Twain/Default/1e6-8   16.3MB/s ± 1%  16.2MB/s ± 1%   ~     (p=0.238 n=10+10)
+    
+    Updates #18636
+    Fixes #18625
+    
+    Change-Id: I471b20339bf675f63dc56d38b3acdd824fe23328
+    Reviewed-on: https://go-review.googlesource.com/35122
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/fmt_test.go                    |  38 +-
- src/cmd/compile/internal/gc/alg.go             |  67 +--
- src/cmd/compile/internal/gc/align.go           |  45 +-
- src/cmd/compile/internal/gc/bexport.go         | 155 +++----
- src/cmd/compile/internal/gc/bimport.go         | 115 ++---
- src/cmd/compile/internal/gc/builtin.go         |  76 ++--
- src/cmd/compile/internal/gc/checkcfg.go        |   9 +-
- src/cmd/compile/internal/gc/closure.go         |  45 +-
- src/cmd/compile/internal/gc/const.go           |  93 ++--
- src/cmd/compile/internal/gc/dcl.go             | 191 ++++----
- src/cmd/compile/internal/gc/esc.go             |  55 +--
- src/cmd/compile/internal/gc/export.go          |  51 +--
- src/cmd/compile/internal/gc/fmt.go             | 289 +++++-------
- src/cmd/compile/internal/gc/gen.go             |  20 +-
- src/cmd/compile/internal/gc/go.go              |  99 +----
- src/cmd/compile/internal/gc/gsubr.go           |  25 +-
- src/cmd/compile/internal/gc/init.go            |  14 +-
- src/cmd/compile/internal/gc/inl.go             |  47 +-
- src/cmd/compile/internal/gc/lex.go             |  11 -
- src/cmd/compile/internal/gc/main.go            |  52 ++-
- src/cmd/compile/internal/gc/mkbuiltin.go       |  32 +-
- src/cmd/compile/internal/gc/noder.go           |  33 +-
- src/cmd/compile/internal/gc/obj.go             |  29 +-
- src/cmd/compile/internal/gc/order.go           |  33 +-
- src/cmd/compile/internal/gc/pgen.go            |  17 +-
- src/cmd/compile/internal/gc/pgen_test.go       | 101 ++---
- src/cmd/compile/internal/gc/plive.go           |  11 +-
- src/cmd/compile/internal/gc/racewalk.go        |  11 +-
- src/cmd/compile/internal/gc/range.go           |  45 +-
- src/cmd/compile/internal/gc/reflect.go         | 273 ++++++------
- src/cmd/compile/internal/gc/reflect_test.go    |  17 +-
- src/cmd/compile/internal/gc/select.go          |  42 +-
- src/cmd/compile/internal/gc/sinit.go           |  27 +-
- src/cmd/compile/internal/gc/sizeof_test.go     |  30 +-
- src/cmd/compile/internal/gc/ssa.go             | 581 +++++++++++++------------
- src/cmd/compile/internal/gc/subr.go            | 214 ++++-----
- src/cmd/compile/internal/gc/swt.go             |  19 +-
- src/cmd/compile/internal/gc/syntax.go          |  35 +-
- src/cmd/compile/internal/gc/typecheck.go       | 227 +++++-----
- src/cmd/compile/internal/gc/types.go           | 249 +++++++++++
- src/cmd/compile/internal/gc/types_acc.go       |  16 +
- src/cmd/compile/internal/gc/universe.go        | 182 ++++----
- src/cmd/compile/internal/gc/walk.go            | 231 +++++-----
- src/cmd/compile/internal/types/pkg.go          |  70 +++
- src/cmd/compile/internal/types/sym.go          |  62 +++
- src/cmd/compile/internal/{gc => types}/type.go | 229 +++++-----
- src/cmd/compile/internal/types/utils.go        | 126 ++++++
- src/cmd/dist/buildtool.go                      |   1 +
- 48 files changed, 2434 insertions(+), 2006 deletions(-)
+ src/compress/flate/deflate.go      |  7 +++++--
+ src/compress/flate/deflate_test.go | 31 +++++++++++++++++++++++++++++++
+ src/compress/flate/deflatefast.go  | 19 +++++++++++++++++--
+ 3 files changed, 53 insertions(+), 4 deletions(-)

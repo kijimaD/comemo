@@ -1,14 +1,13 @@
-commit 5b1658232e7a379cc7c354de625fbf497147bc6f
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 5 16:02:34 2011 +1000
+commit bedee318d5e9fcde9d55bff24bc8090cef1e57dc
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Tue Jul 5 16:01:29 2011 +1000
 
-    exp/template: statically check that functions names have been defined.
+    os: fix build for Plan 9
     
-    R=golang-dev, adg
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/4675046
+    https://golang.org/cl/4657074
 
- src/pkg/exp/template/parse.go      | 28 ++++++++++++++++++++++++----
- src/pkg/exp/template/parse_test.go | 21 +++++++++------------
- src/pkg/exp/template/set.go        |  2 +-
- 3 files changed, 34 insertions(+), 17 deletions(-)
+ src/pkg/os/file_plan9.go | 26 ++++++++++++++++++++++++++
+ src/pkg/os/file_unix.go  |  6 ++----
+ 2 files changed, 28 insertions(+), 4 deletions(-)

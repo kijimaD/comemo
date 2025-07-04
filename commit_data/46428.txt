@@ -1,18 +1,34 @@
-commit 4a4221e8187189adcc6463d2d96fe2e8da290132
-Author: Alexander Melentyev <alexander@melentyev.org>
-Date:   Sat Sep 11 06:59:17 2021 +0000
+commit 9ea272e5ec5dd5eadd59d54c08377d5d9527a51b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 29 03:08:23 2020 -0800
 
-    all: remove some unused code
+    [dev.regabi] cmd/compile: simplify ir.Func somewhat
     
-    Change-Id: I519b8021fa79dccc5c0ee79134547491116fc4cc
-    GitHub-Last-Rev: 48869f5434c1255d33c3a14714747509235c94df
-    GitHub-Pull-Request: golang/go#48071
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346231
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Two simplifications:
+    
+    1. Statements (including ODCLFUNC) don't have types, and the
+    Func.Nname already has a type. There's no need for a second one.
+    However, there is a lot of code that expects to be able to call
+    Func.Type, so leave a forwarding method, like with Sym and Linksym.
+    
+    2. Inline and remove ir.NewFuncNameAt. It doesn't really save any
+    code, and it's only used a handful of places.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I51acaa341897dae0fcdf2fa576a10174a2ae4d1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280648
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/database/sql/convert_test.go | 3 ---
- src/time/time.go                 | 1 -
- 2 files changed, 4 deletions(-)
+ src/cmd/compile/internal/ir/func.go           | 16 +---------------
+ src/cmd/compile/internal/ir/sizeof_test.go    |  2 +-
+ src/cmd/compile/internal/noder/noder.go       |  7 +++++--
+ src/cmd/compile/internal/typecheck/dcl.go     |  3 ++-
+ src/cmd/compile/internal/typecheck/export.go  |  8 ++------
+ src/cmd/compile/internal/typecheck/func.go    |  1 -
+ src/cmd/compile/internal/typecheck/iimport.go | 11 ++++++-----
+ src/cmd/compile/internal/walk/closure.go      |  2 +-
+ 8 files changed, 18 insertions(+), 32 deletions(-)

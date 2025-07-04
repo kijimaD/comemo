@@ -1,12 +1,16 @@
-commit 50181df8ff680ed8a31290b71b7e8541123660f1
-Author: Ross Chater <rdchater@gmail.com>
-Date:   Sun Nov 19 02:45:08 2017 +0000
+commit b046878018d188bca83579a5562c8c33a3339a5b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 2 11:02:53 2017 -0700
 
-    time: fix typo in doc
+    cmd/compile: don't generate race calls for zero-sized values
     
-    Change-Id: I44bd5fa14ac6c4367927ae312e03ede06fcc7bb9
-    Reviewed-on: https://go-review.googlesource.com/78675
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    One example of a heavily-used zero-size value is encoding/binary.BigEndian.
+    
+    Change-Id: I8e873c447e154ab2ca61b7315df774693891270c
+    Reviewed-on: https://go-review.googlesource.com/59330
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/time/time.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/racewalk.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

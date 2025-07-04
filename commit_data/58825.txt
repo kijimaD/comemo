@@ -1,21 +1,53 @@
-commit bdb46760430006c2bcea4a9702d0a5b413d66413
-Author: Than McIntosh <thanm@golang.org>
-Date:   Fri Oct 18 12:10:44 2024 -0400
+commit 7058f09a8b2570d4a7bfdd64017300206c22ebfe
+Author: Tim King <taking@google.com>
+Date:   Mon Dec 18 12:01:43 2023 -0800
 
-    internal/goexperiment: add a new experiment to gate DWARF version 5
+    cmd: go get golang.org/x/tools@83bceaf2 and revendor
     
-    Add new experiment to enable generation of DWARF version 5 in
-    the compiler and linker.
+    go get golang.org/x/tools@83bceaf2 # CL 550395
+    go mod tidy
+    go mod vendor
     
-    Updates #26379.
+    Fixes #64786
     
-    Change-Id: I5e686a5e66d13b01e8cc8cd7c04f6fffd90d597b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633877
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ia9879975eb3e8e4130ded7b2d8ba1277b5811eec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tim King <taking@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/goexperiment/exp_dwarf5_off.go | 8 ++++++++
- src/internal/goexperiment/exp_dwarf5_on.go  | 8 ++++++++
- src/internal/goexperiment/flags.go          | 3 +++
- 3 files changed, 19 insertions(+)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../go/analysis/passes/composite/composite.go      |   4 +-
+ .../tools/go/analysis/passes/copylock/copylock.go  |   2 +-
+ .../analysis/passes/ifaceassert/parameterized.go   |   4 +-
+ .../analysis/passes/internal/analysisutil/util.go  |   4 +
+ .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |   2 +-
+ .../x/tools/go/analysis/passes/printf/types.go     |   2 +-
+ .../x/tools/go/analysis/passes/shift/shift.go      |   2 +-
+ .../go/analysis/passes/stringintconv/string.go     |   2 +-
+ .../go/analysis/passes/testinggoroutine/util.go    |   2 +-
+ .../x/tools/go/analysis/passes/tests/tests.go      |   5 +-
+ .../go/analysis/passes/unmarshal/unmarshal.go      |   3 +-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |   3 +-
+ .../golang.org/x/tools/go/ast/astutil/enclosing.go |   8 +-
+ .../golang.org/x/tools/go/ast/astutil/rewrite.go   |   8 +-
+ .../golang.org/x/tools/go/ast/inspector/typeof.go  |   4 +-
+ .../x/tools/go/types/objectpath/objectpath.go      |  14 +-
+ .../golang.org/x/tools/go/types/typeutil/callee.go |   2 +-
+ .../golang.org/x/tools/go/types/typeutil/map.go    |  20 +-
+ .../x/tools/internal/analysisinternal/analysis.go  | 386 +++++++++++++++++++++
+ .../analysisinternal}/extractdoc.go                |   2 +-
+ .../golang.org/x/tools/internal/facts/imports.go   |  14 +-
+ .../x/tools/internal/typeparams/common.go          |  24 +-
+ .../x/tools/internal/typeparams/coretype.go        |   8 +-
+ .../x/tools/internal/typeparams/enabled_go117.go   |  12 -
+ .../x/tools/internal/typeparams/enabled_go118.go   |  15 -
+ .../x/tools/internal/typeparams/normalize.go       |  20 +-
+ .../tools/internal/typeparams/typeparams_go117.go  | 197 -----------
+ .../tools/internal/typeparams/typeparams_go118.go  | 151 --------
+ .../versions/{versions_go121.go => versions.go}    |   9 +-
+ .../x/tools/internal/versions/versions_go122.go    |  38 --
+ src/cmd/vendor/modules.txt                         |   3 +-
+ 33 files changed, 473 insertions(+), 503 deletions(-)

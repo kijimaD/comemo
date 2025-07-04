@@ -1,15 +1,15 @@
-commit 761f946617eb12630095954b436ab11e2cd1f05f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Feb 26 14:46:22 2012 -0800
+commit 68c7e8a2f431577e77273f1860f3f88dc06627ea
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 27 07:31:34 2012 +1100
 
-    net/http/cgi: add an empty response test
+    doc/go1: add justification discussions to major changes
     
-    New test for http://code.google.com/p/go/source/detail?r=a73ba18
+    Fixes #3086.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, gri, r, kevlar
     CC=golang-dev
-    https://golang.org/cl/5701046
+    https://golang.org/cl/5700067
 
- src/pkg/net/http/cgi/host_test.go       |  1 +
- src/pkg/net/http/cgi/matryoshka_test.go | 21 ++++++++++++++++++++-
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ doc/go1.html | 204 +++++++++++++++++++++++++++++++++++++++++++++--------------
+ doc/go1.tmpl | 204 +++++++++++++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 314 insertions(+), 94 deletions(-)

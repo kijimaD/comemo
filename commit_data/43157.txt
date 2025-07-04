@@ -1,27 +1,23 @@
-commit 89f687d6dbc11613f715d1644b4983905293dd33
-Merge: 2ca2e94731 97b46b4ade
-Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
-Date:   Thu Oct 1 15:16:43 2020 +0000
+commit c951514da987b0e4ed629962ed773c6cb47d96f9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 5 11:29:24 2020 -0500
 
-    Merge "cmd/link: merge branch 'dev.link' into master"
+    [dev.link] cmd/internal/goobj2, cmd/link: experiment another way of accessing relocations
+    
+    Use a different mechanism to access relocations from the object
+    files, and use it in the stack bounds check pass. This shows some
+    speedup.
+    
+    (linking cmd/compile)
+    Dostkcheck     76.9ms ± 1%    55.1ms ± 1%  -28.36%  (p=0.008 n=5+5)
+    
+    Change-Id: I2ac42da515dccd64719fb557ffff6cdc69e4319b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222240
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/internal/goobj/funcinfo.go            |  82 +--
- src/cmd/internal/goobj/objfile.go             |  12 +-
- src/cmd/internal/obj/link.go                  |  15 +-
- src/cmd/internal/obj/objfile.go               |  85 ++-
- src/cmd/internal/obj/pcln.go                  |  55 +-
- src/cmd/internal/objfile/goobj.go             |  16 +-
- src/cmd/link/internal/ld/data.go              |  10 +-
- src/cmd/link/internal/ld/dwarf.go             |   2 +-
- src/cmd/link/internal/ld/lib.go               |   4 +-
- src/cmd/link/internal/ld/link.go              |   1 -
- src/cmd/link/internal/ld/main.go              |  10 +-
- src/cmd/link/internal/ld/pcln.go              | 932 +++++++++++++++-----------
- src/cmd/link/internal/ld/symtab.go            |  16 +-
- src/cmd/link/internal/loader/loader.go        |  82 +--
- src/cmd/link/internal/loader/symbolbuilder.go |   9 +
- src/cmd/link/internal/sym/symbol.go           |   4 -
- src/debug/gosym/pclntab.go                    |  95 ++-
- src/runtime/runtime2.go                       |  15 +-
- src/runtime/symtab.go                         |  47 +-
- 19 files changed, 907 insertions(+), 585 deletions(-)
+ src/cmd/internal/goobj2/objfile.go      | 20 ++++++++++++++++++++
+ src/cmd/internal/goobj2/objfile_test.go | 29 +++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go         | 11 ++++++-----
+ src/cmd/link/internal/loader/loader.go  | 21 +++++++++++++++++++++
+ 4 files changed, 76 insertions(+), 5 deletions(-)

@@ -1,35 +1,23 @@
-commit 68a508cdaf3caf98b0ed3ca1bcc3046a77df1722
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Mar 8 15:40:34 2024 +0100
+commit 33d8cdeedc4e69cd2d4eae10f024af826a73ce47
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 10:24:11 2022 -0500
 
-    net,internal/syscall/windows: prove that keep alive options exists
+    reflect: deprecate SliceHeader and StringHeader
     
-    The net package currently uses windows.SupportFullTCPKeepAlive to
-    know if TCP_KEEPIDLE, TCP_KEEPINTVL, and TCP_KEEPCNT are available.
-    This function is a wrapper over the undocumented RtlGetNtVersionNumbers
-    API, which tests if the Windows version is at least 10.0.16299. This
-    approach artificially limits the use of TCP_KEEPCNT, which is
-    available since Windows 10.0.15063. It also uses an undocumented API,
-    which is not something we want to rely on.
+    These are replaced by unsafe.String etc, which were added in Go 1.20.
+    Per https://go.dev/wiki/Deprecated, we must wait until Go 1.21
+    to mark them deprecated.
     
-    This CL removes windows.SupportFullTCPKeepAlive in favor of dedicated
-    proves for each option which are not based on the Windows version.
+    Fixes #56906.
     
-    While here, remove some assertions in setKeepAliveCount. It is better
-    to let the system decide if the value is valid or not.
-    
-    Updates #65817.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64
-    Change-Id: I0fe70d46c8675eab06c0e4628cf68571b6e50b80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570077
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I4198c3f3456e9e2031f6c7232842e187e6448892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452762
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/internal/syscall/windows/version_windows.go | 53 ++++++++++++++++++++++---
- src/net/tcpconn_keepalive_conf_windows_test.go  |  2 +-
- src/net/tcpsock_windows.go                      |  2 +-
- src/net/tcpsockopt_windows.go                   | 13 +-----
- 4 files changed, 51 insertions(+), 19 deletions(-)
+ api/next/56906.txt   | 2 ++
+ src/reflect/value.go | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

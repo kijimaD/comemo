@@ -1,17 +1,21 @@
-commit e7bdc8819a19f06321d300719224abb2d8567b4a
+commit 84eaceaba706f55ed750149fcfbd6e59c78d60d8
 Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Mar 25 17:00:55 2024 +0000
+Date:   Wed Nov 2 16:47:09 2022 +0000
 
-    internal/trace/v2: fix reader version for dumping text output
+    runtime: add sysNoHugePage
     
-    There was recently a failure that we don't have a trace dump for because
-    the reader was passed Go122 but traces have moved onto version Go123.
-    Use version.Current to prevent this from happening again in the future.
-    
-    Change-Id: I4f8b3c3ea5bad61a07839a697cd5d7793d62ea52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574216
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Icccafb896de838256a2ec7c3f385e6cbb2b415fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447360
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/trace/v2/reader_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mem.go         | 7 +++++++
+ src/runtime/mem_aix.go     | 3 +++
+ src/runtime/mem_bsd.go     | 3 +++
+ src/runtime/mem_darwin.go  | 3 +++
+ src/runtime/mem_linux.go   | 4 ++++
+ src/runtime/mem_sbrk.go    | 3 +++
+ src/runtime/mem_windows.go | 3 +++
+ 7 files changed, 26 insertions(+)

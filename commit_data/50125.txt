@@ -1,23 +1,17 @@
-commit 73a55c17049a2c12e5368790e178c32363743dd8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 25 13:48:42 2022 -0700
+commit 7983830423ca0017dc5d990532e28df13862dc2d
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 4 16:27:56 2021 -0500
 
-    go/types: remove support for "ERROR HERE" error markers in tests
+    runtime: add ABIInternal to strhash and memhash on ppc64x
     
-    There are only two tests that rely on the "ERROR HERE" markers;
-    yet those tests are trivialy adjustable (by adding an explicit
-    semicolon) such that they can just use the "ERROR" markers.
+    In testing the register ABI changes I found that the benchmarks
+    for strhash and memhash degraded unless I marked them as
+    ABIInternal. This fixes that.
     
-    For #54511.
-    
-    Change-Id: Idbb96ca8d35ae2584d195a4ac7c92640b8b492c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425674
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I9c7a04eaa6a66b888877f43454c51277c07e638a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353832
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/go/types/check_test.go           | 24 +++++-------------------
- src/go/types/testdata/check/stmt0.go |  4 ++--
- 2 files changed, 7 insertions(+), 21 deletions(-)
+ src/runtime/asm_ppc64x.s | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

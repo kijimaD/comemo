@@ -1,98 +1,14 @@
-commit 386765afdf6afd320ae949d5721d6776f6047d35
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 25 18:14:12 2017 -0700
+commit 6910756f9b8c7a97b1435ec40b8ebff9655611d7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Feb 14 15:52:44 2017 +0000
 
-    cmd/compile: move Node.Class to flags
+    math/big: simplify bool expression
     
-    Put it at position zero, since it is fairly hot.
-    
-    This shrinks gc.Node into a smaller size class on 64 bit systems.
-    
-    name        old time/op       new time/op       delta
-    Template          193ms ± 5%        192ms ± 3%    ~     (p=0.353 n=94+93)
-    Unicode          86.1ms ± 5%       85.0ms ± 4%  -1.23%  (p=0.000 n=95+98)
-    GoTypes           546ms ± 3%        544ms ± 4%  -0.40%  (p=0.007 n=94+97)
-    Compiler          2.56s ± 3%        2.54s ± 3%  -0.67%  (p=0.000 n=99+97)
-    SSA               5.13s ± 2%        5.10s ± 3%  -0.55%  (p=0.000 n=94+98)
-    Flate             122ms ± 6%        121ms ± 4%  -0.75%  (p=0.002 n=97+95)
-    GoParser          144ms ± 5%        144ms ± 4%    ~     (p=0.298 n=98+97)
-    Reflect           348ms ± 4%        349ms ± 4%    ~     (p=0.350 n=98+97)
-    Tar               105ms ± 5%        104ms ± 5%    ~     (p=0.154 n=96+98)
-    XML               200ms ± 5%        198ms ± 4%  -0.71%  (p=0.015 n=97+98)
-    [Geo mean]        330ms             328ms       -0.52%
-    
-    name        old user-time/op  new user-time/op  delta
-    Template          229ms ±11%        224ms ± 7%  -2.16%  (p=0.001 n=100+87)
-    Unicode           109ms ± 5%        109ms ± 6%    ~     (p=0.897 n=96+91)
-    GoTypes           712ms ± 4%        709ms ± 4%    ~     (p=0.085 n=96+98)
-    Compiler          3.41s ± 3%        3.36s ± 3%  -1.43%  (p=0.000 n=98+98)
-    SSA               7.46s ± 3%        7.31s ± 3%  -2.02%  (p=0.000 n=100+99)
-    Flate             145ms ± 6%        143ms ± 6%  -1.11%  (p=0.001 n=99+97)
-    GoParser          177ms ± 5%        176ms ± 5%  -0.78%  (p=0.018 n=95+95)
-    Reflect           432ms ± 7%        435ms ± 9%    ~     (p=0.296 n=100+100)
-    Tar               121ms ± 7%        121ms ± 5%    ~     (p=0.072 n=100+95)
-    XML               241ms ± 4%        239ms ± 5%    ~     (p=0.085 n=97+99)
-    [Geo mean]        413ms             410ms       -0.73%
-    
-    name        old alloc/op      new alloc/op      delta
-    Template         38.4MB ± 0%       37.7MB ± 0%  -1.85%  (p=0.008 n=5+5)
-    Unicode          30.1MB ± 0%       28.8MB ± 0%  -4.09%  (p=0.008 n=5+5)
-    GoTypes           112MB ± 0%        110MB ± 0%  -1.69%  (p=0.008 n=5+5)
-    Compiler          470MB ± 0%        461MB ± 0%  -1.91%  (p=0.008 n=5+5)
-    SSA              1.13GB ± 0%       1.11GB ± 0%  -1.70%  (p=0.008 n=5+5)
-    Flate            25.0MB ± 0%       24.6MB ± 0%  -1.67%  (p=0.008 n=5+5)
-    GoParser         31.6MB ± 0%       31.1MB ± 0%  -1.66%  (p=0.008 n=5+5)
-    Reflect          77.1MB ± 0%       75.8MB ± 0%  -1.69%  (p=0.008 n=5+5)
-    Tar              26.3MB ± 0%       25.7MB ± 0%  -2.06%  (p=0.008 n=5+5)
-    XML              41.9MB ± 0%       41.1MB ± 0%  -1.93%  (p=0.008 n=5+5)
-    [Geo mean]       73.5MB            72.0MB       -2.03%
-    
-    name        old allocs/op     new allocs/op     delta
-    Template           383k ± 0%         383k ± 0%    ~     (p=0.690 n=5+5)
-    Unicode            343k ± 0%         343k ± 0%    ~     (p=0.841 n=5+5)
-    GoTypes           1.16M ± 0%        1.16M ± 0%    ~     (p=0.310 n=5+5)
-    Compiler          4.43M ± 0%        4.42M ± 0%  -0.17%  (p=0.008 n=5+5)
-    SSA               9.85M ± 0%        9.85M ± 0%    ~     (p=0.310 n=5+5)
-    Flate              236k ± 0%         236k ± 1%    ~     (p=0.841 n=5+5)
-    GoParser           320k ± 0%         320k ± 0%    ~     (p=0.421 n=5+5)
-    Reflect            988k ± 0%         987k ± 0%    ~     (p=0.690 n=5+5)
-    Tar                252k ± 0%         251k ± 0%    ~     (p=0.095 n=5+5)
-    XML                399k ± 0%         399k ± 0%    ~     (p=1.000 n=5+5)
-    [Geo mean]         741k              740k       -0.07%
-    
-    Change-Id: I9e952b58a98e30a12494304db9ce50d0a85e459c
-    Reviewed-on: https://go-review.googlesource.com/41797
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I280c53be455f2fe0474ad577c0f7b7908a4eccb2
+    Reviewed-on: https://go-review.googlesource.com/36993
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
 
- src/cmd/compile/fmt_test.go                |   1 -
- src/cmd/compile/internal/gc/alg.go         |   2 +-
- src/cmd/compile/internal/gc/bexport.go     |   2 +-
- src/cmd/compile/internal/gc/bitset.go      |  11 +++
- src/cmd/compile/internal/gc/closure.go     |  18 ++--
- src/cmd/compile/internal/gc/dcl.go         |  10 +--
- src/cmd/compile/internal/gc/esc.go         |  30 +++----
- src/cmd/compile/internal/gc/export.go      |   2 +-
- src/cmd/compile/internal/gc/fmt.go         |   8 +-
- src/cmd/compile/internal/gc/gen.go         |  22 ++---
- src/cmd/compile/internal/gc/gsubr.go       |   6 +-
- src/cmd/compile/internal/gc/inl.go         |  12 +--
- src/cmd/compile/internal/gc/noder.go       |   4 +-
- src/cmd/compile/internal/gc/obj.go         |   8 +-
- src/cmd/compile/internal/gc/order.go       |   2 +-
- src/cmd/compile/internal/gc/pgen.go        |  12 +--
- src/cmd/compile/internal/gc/pgen_test.go   | 135 +++++++++++++++--------------
- src/cmd/compile/internal/gc/plive.go       |  12 +--
- src/cmd/compile/internal/gc/racewalk.go    |   2 +-
- src/cmd/compile/internal/gc/reflect.go     |   6 +-
- src/cmd/compile/internal/gc/sinit.go       |  22 ++---
- src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
- src/cmd/compile/internal/gc/ssa.go         |  74 ++++++++--------
- src/cmd/compile/internal/gc/subr.go        |   2 +-
- src/cmd/compile/internal/gc/syntax.go      |   8 +-
- src/cmd/compile/internal/gc/typecheck.go   |   6 +-
- src/cmd/compile/internal/gc/universe.go    |   2 +-
- src/cmd/compile/internal/gc/walk.go        |  34 ++++----
- 28 files changed, 237 insertions(+), 218 deletions(-)
+ src/math/big/int.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,24 @@
-commit 3396878af43752a7c25406dabd525754f80a1c40
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Dec 4 06:34:08 2021 -0800
+commit b084073b53bfc4236d95819a3cc34dcbb4f15392
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 6 21:55:19 2021 +0000
 
-    doc/go1.18: use correct link for reflect.PointerTo
+    reflect: refactor funcLayout tests
     
-    For #47694
+    This change refactors the existing funcLayout tests and sets them up to
+    support the new register ABI by explicitly setting the register counts
+    to zero. This allows the test to pass if GOEXPERIMENT=regabiargs is set.
     
-    Change-Id: Iee4fda069a56ea4436b8aa32e2605f3349d7c154
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369334
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    A follow-up change will add tests for a non-zero register count.
+    
+    For #40724.
+    
+    Change-Id: Ibbe061b4ed4fd70566eb38b9e6182dca32b81127
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307869
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/abi_test.go    |  54 +----------
+ src/reflect/all_test.go    | 235 ++++++++++++++++++++++-----------------------
+ src/reflect/export_test.go |  57 ++++++++---
+ 3 files changed, 158 insertions(+), 188 deletions(-)

@@ -1,26 +1,20 @@
-commit d7b0271065b043487c98e42617ff2ab53cfbdbed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 26 12:49:04 2012 -0800
+commit 54023a94a6d7a282571ab18da7862a909d36d894
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Nov 26 21:31:42 2012 +0100
 
-    exp/types: fixed field/method lookup
+    cmd/8l: fix data corruption for MULB SI,
     
-    also:
+    The 8l linker automatically inserts XCHG instructions
+    to support otherwise impossible byte registers
+    (only available on AX, BX, CX, DX).
     
-    - composite literal checking close to complete
-    - cleaned up parameter, method, field checking
-    - don't let panics escape type checker
-    - more TODOs eliminated
+    Sometimes AX or DX is needed (for MUL and DIV) so
+    we need to avoid clobbering them.
     
-    R=rsc
+    R=golang-dev, dave, iant, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/6816083
+    https://golang.org/cl/6846057
 
- src/pkg/exp/types/check.go            |  23 +--
- src/pkg/exp/types/check_test.go       |   1 +
- src/pkg/exp/types/expr.go             | 310 +++++++++++++++++++++++++---------
- src/pkg/exp/types/operand.go          | 136 +++++++++++----
- src/pkg/exp/types/testdata/decls0.src |   4 +-
- src/pkg/exp/types/testdata/decls3.src | 231 +++++++++++++++++++++++++
- src/pkg/exp/types/testdata/expr3.src  |  52 +++++-
- src/pkg/exp/types/types.go            |   9 +
- 8 files changed, 644 insertions(+), 122 deletions(-)
+ src/cmd/6l/span.c | 4 +++-
+ src/cmd/8l/span.c | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

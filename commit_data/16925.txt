@@ -1,15 +1,14 @@
-commit 5c8ad2e13dc4fd69d116562876d67b87896e963c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 30 22:13:51 2013 +0400
+commit cd2eb4872223073ad00c6b06371c1ffcbad8fb63
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 30 10:27:26 2013 -0400
 
-    runtime: fix race builders
-    Do not run Syscall benchmarks under race detector,
-    they split stack in syscall status.
+    cmd/gc: don't report mark if other things are broken
     
-    R=golang-dev, rsc
+    Fixes #5598.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/12093045
+    https://golang.org/cl/12104043
 
- src/pkg/runtime/norace_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/proc_test.go   | 43 -------------------------------
- 2 files changed, 58 insertions(+), 43 deletions(-)
+ src/cmd/gc/dcl.c | 2 ++
+ 1 file changed, 2 insertions(+)

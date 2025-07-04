@@ -1,16 +1,14 @@
-commit f3eaaa62a1969161a4d580db0532cb8a771259f0
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 27 16:29:12 2013 -0700
+commit b735eeb323ecae3769e094045e7a908390e1f32f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 27 16:00:58 2013 -0700
 
-    cmd/vet: fix assembly test files
-    They should be build-tagged for vet_test not ignore,
-    and not have a Go package clause.
+    cmd/ld: fix OpenBSD (third try)
     
-    R=golang-dev, bradfitz
+    On OpenBSD don't mark runtime.{g,m} as STT_TLS symbols.
+    
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/8016047
+    https://golang.org/cl/7867046
 
- src/cmd/vet/test_asm1.s | 4 +---
- src/cmd/vet/test_asm2.s | 4 +---
- src/cmd/vet/test_asm3.s | 4 +---
- 3 files changed, 3 insertions(+), 9 deletions(-)
+ src/cmd/ld/symtab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

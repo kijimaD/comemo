@@ -1,31 +1,23 @@
-commit 85a4f44745859ecdd71c034171d40263651f8594
-Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
-Date:   Mon Jun 27 17:13:15 2016 +0800
+commit e569b10ebaed8fbf27d0b55886b6a81d635ddbc7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 12 00:09:05 2016 +0000
 
-    cmd/vet: make checking example names in _test packages more robust
+    src: split nacltest.bash into naclmake.bash and keep nacltest.bash
     
-    Prior to this change package "foo" had to be installed in order to check
-    example names in "foo_test" package.
+    Needed by the build system to shard tests. nacl was the last unsharded
+    builder.
     
-    However by the time "foo_test" package is checked a parsed "foo" package
-    has been already constructed. Use it to check example names.
+    (I considered also adding a -make-only flag to nacltest.bash, but that
+    wouldn't fail fast when the file didn't exist.)
     
-    Also change TestDivergentPackagesExamples test to pass directory of the
-    package to the vet tool as it is the most common way to invoke it. This
-    requires changes to errchk to add support for grabbing source files from
-    a directory.
+    Updates #15242
     
-    Fixes #16189
-    
-    Change-Id: Ief103d07b024822282b86c24250835cc591793e8
-    Reviewed-on: https://go-review.googlesource.com/24488
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6afc1c1fe4268ab98c0724b5764c67d3784caebe
+    Reviewed-on: https://go-review.googlesource.com/21851
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/main.go                        | 22 ++++++++++++---------
- src/cmd/vet/testdata/divergent/buf_test.go | 12 ++++++------
- src/cmd/vet/tests.go                       | 31 +++++++++++++++++-------------
- src/cmd/vet/vet_test.go                    |  2 +-
- test/errchk                                | 11 +++++++++++
- 5 files changed, 49 insertions(+), 29 deletions(-)
+ src/naclmake.bash | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/nacltest.bash | 38 ++++----------------------------------
+ 2 files changed, 52 insertions(+), 34 deletions(-)

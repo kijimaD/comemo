@@ -1,14 +1,12 @@
-commit 8b8b54ad5c3735706babf695fa7b99a9e7ea61e0
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Apr 11 10:39:21 2011 +1000
+commit dd4423292ea7a475ef9db9fac8221e3c06bdc90f
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 11 08:48:19 2011 +1000
 
-    net: disable multicast tests by default.
+    misc/vim: update type highlighting for new reflect package
     
-    Fixes #1649.
-    
-    R=rsc, adg
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4343056
+    https://golang.org/cl/4385051
 
- src/pkg/net/multicast_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ misc/vim/syntax/go.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

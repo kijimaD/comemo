@@ -1,18 +1,22 @@
-commit 56fad21c22ece03a3f1f059fa67d7593278eb5f4
-Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
-Date:   Fri Apr 11 20:14:04 2025 +0000
+commit ec8833ecc1d77cb8faa0d1b4b120f7efb713d67e
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Feb 23 15:04:22 2024 +0100
 
-    cmd/compile/internal/ssa: small cleanups
+    os: factor out newFileStatFromWin32FileAttributeData
     
-    Change-Id: I0420fb3956577c56fa24a31929331d526d480556
-    GitHub-Last-Rev: d74b0d4d75d4e432aaf84d02964da4a2e12d0e1b
-    GitHub-Pull-Request: golang/go#73339
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664975
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    The stat function is quite long on Windows. Simplify it a bit by
+    factoring out the creation of a fileStat from a Win32FileAttributeData.
+    
+    This also makes it more consistent with the creation of fileStats
+    from other sources, which all have their own dedicated functions.
+    
+    Change-Id: I0443f96d892b70ce7f3b5e92c5049e4e4a240c6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566435
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/os/stat_windows.go  | 26 +++++++++-----------------
+ src/os/types_windows.go | 13 +++++++++++++
+ 2 files changed, 22 insertions(+), 17 deletions(-)

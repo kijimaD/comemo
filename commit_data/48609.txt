@@ -1,19 +1,19 @@
-commit 913ecf492d99801eefdebd7eb6773a5ea98107f8
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Thu Mar 10 15:35:17 2022 +0100
+commit 9c054f413751fdec62aa33df19ec1249426767ee
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 1 19:16:33 2021 -0400
 
-    cmd/compile: fix clobberFlags for BSWAP
+    [dev.typeparams] cmd/link: take function address in assembly in TestFuncAlign
     
-    BSWAP does not affect EFLAGS on neither 386 nor x64. Set the clobberFlags value accordingly.
+    In TestFuncAlign we want to get the address of an assembly
+    function. Take the address in assembly, so we get the actual
+    function's address, not the wrapper's.
     
-    Change-Id: Ib9e88400607fea44bb51fe95dc4d77e7cb54bfec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391494
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idc1fe2c8426562c70f8f7d6e489584ef059bc556
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324249
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/gen/386Ops.go   | 2 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 4 ++--
- src/cmd/compile/internal/ssa/opGen.go        | 3 ---
- 3 files changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/link/link_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

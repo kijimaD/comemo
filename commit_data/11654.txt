@@ -1,16 +1,16 @@
-commit 9c060b8d60f14d930e5eadd7c9968ee2ba4f4131
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 6 10:06:22 2012 -0800
+commit 6392b43a1583f5ccf5a3f7c38f096e8dd5403b0d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Feb 6 12:49:28 2012 -0500
 
-    database/sql: permit scanning into interface{}
-    
-    See thread http://goo.gl/7zzzU for background.
+    8a, 8l: implement support for RDTSC instruction.
+            Also modify runtime/asm_386.s to use it.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5624051
+    https://golang.org/cl/5634043
 
- src/pkg/database/sql/convert.go      |  8 ++++++++
- src/pkg/database/sql/convert_test.go | 38 ++++++++++++++++++++++++++++--------
- src/pkg/database/sql/sql.go          |  4 ++++
- 3 files changed, 42 insertions(+), 8 deletions(-)
+ src/cmd/8a/lex.c          | 1 +
+ src/cmd/8l/8.out.h        | 4 +++-
+ src/cmd/8l/optab.c        | 2 ++
+ src/pkg/runtime/asm_386.s | 2 +-
+ 4 files changed, 7 insertions(+), 2 deletions(-)

@@ -1,20 +1,18 @@
-commit 152a08c531a3219489136df71a8d75ff9ba3bf06
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Mar 29 23:37:59 2016 -0700
+commit 095c0e5c000a18f63c47009fd0684669cc602584
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 11 13:33:33 2016 -0500
 
-    compress/gzip: fix error handling in Read
+    doc: fix remaining TODOs in Go 1.6 release notes
     
-    The Read logic should not assume that only (0, io.EOF) is returned
-    instead of (n, io.EOF) where n is positive.
+    Fixes #14300.
     
-    The fix done here is very similar to the fix to compress/zlib
-    in CL/20292.
-    
-    Change-Id: Icb76258cdcf8cfa386a60bab330fefde46fc071d
-    Reviewed-on: https://go-review.googlesource.com/21308
+    Change-Id: Idb6a300fe0e06fb8966cf06b55f9b252752a69a6
+    Reviewed-on: https://go-review.googlesource.com/19459
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/compress/gzip/gunzip.go | 34 +++++++++++++++++-----------------
- 1 file changed, 17 insertions(+), 17 deletions(-)
+ doc/asm.html   |  9 +++++++++
+ doc/go1.6.html | 14 +++++++-------
+ 2 files changed, 16 insertions(+), 7 deletions(-)

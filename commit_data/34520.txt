@@ -1,19 +1,20 @@
-commit 9f2c611fa7cccfacd317b88eff14d3ba64e855ff
-Author: Michael Kasch <michael.kasch@gmail.com>
-Date:   Fri Mar 2 19:03:21 2018 +0100
+commit 4b5018ce57095e3074c5cb88f9f15092e729ded1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 30 19:53:58 2017 -0400
 
-    time: add support for parsing timezones denoted by sign and offset
+    cmd/compile: change ssa test to avoid go run -gcflags=-d=ssa/check/on
     
-    IANA Zoneinfo does not provide names for all timezones. Some are denoted
-    by a sign and an offset only. E.g: Europe/Turkey is currently +03 or
-    America/La_Paz which is -04 (https://data.iana.org/time-zones/releases/tzdata2018c.tar.gz)
+    In the new content-based staleness world, setting -gcflags like this
+    recompiles all the packages involved in running the program, not just
+    the "stale" ones. So go run -gcflags=-d=ssa/check/on recompiles
+    runtime with those flags too, which is not what the test is trying
+    to check.
     
-    Fixes #24071
-    
-    Change-Id: I9c230a719945e1263c5b52bab82084d22861be3e
-    Reviewed-on: https://go-review.googlesource.com/98157
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4dbd5bf2970c3a622c01de84bd8aa9d5e9ec5239
+    Reviewed-on: https://go-review.googlesource.com/74570
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/time/format.go      | 21 +++++++++++++++++----
- src/time/format_test.go |  2 ++
- 2 files changed, 19 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go | 25 ++++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)

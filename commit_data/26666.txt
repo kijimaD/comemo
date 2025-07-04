@@ -1,17 +1,19 @@
-commit 6a0bb87bd0bf0fdf8ddbd35f77a75ebd412f61b0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 2 00:20:13 2016 +0000
+commit 5dc053b9dec4dc25fac195065ad32462ac28a543
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Feb 21 10:46:59 2016 +0100
 
-    syscall: point to x/sys in DLL loading docs, update syscall generator
+    fmt: fix zero padding for NaN
     
-    Updates the syscall generator for patchset 4 of https://golang.org/cl/21388.
+    Makes zero padding of NaN and infinities consistent
+    by using spaces instead of zeroes to pad NaN.
+    Adds more tests for NaN formatting.
     
-    Updates #14959
+    Fixes #14421
     
-    Change-Id: Icbd6df489887d3dcc076dfc73d4feb1376abaf8b
-    Reviewed-on: https://go-review.googlesource.com/21428
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ia20f8e878cc81ac72a744ec10d65e84b94e09c6a
+    Reviewed-on: https://go-review.googlesource.com/19723
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/dll_windows.go       | 13 +++++++++++++
- src/syscall/mksyscall_windows.go |  4 ++--
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ src/fmt/fmt_test.go | 11 ++++++++++-
+ src/fmt/format.go   |  8 ++++++--
+ 2 files changed, 16 insertions(+), 3 deletions(-)

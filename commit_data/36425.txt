@@ -1,17 +1,20 @@
-commit 3879ea54ed1f5c266657ffe593e2a8e1b63401ec
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Mon Aug 6 14:16:43 2018 +0300
+commit e357ece0afe7253624761b061976c8d8e9496b2e
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Apr 25 11:35:51 2018 -0400
 
-    runtime: fix Go prototypes in amd64 asm code
+    cmd/trace: have tasks in a separate section (process group)
     
-    Also adds some missing asmdecl comments for funcs with Go proto.
+    Also change tasks to be represented as "slices" instead of
+    asynchronous events which are more efficiently represented in trace
+    viewer data model. This change allows to utilize the flow events
+    (arrows) to represent task hierarchies.
     
-    Change-Id: Iabc68e8c0ad936e06ed719e0f030bfc5f6f6e168
-    Reviewed-on: https://go-review.googlesource.com/127760
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Introduced RegionArgs and TaskArgs where the task id infomation and
+    goroutine id informations are stored for information-purpose.
+    
+    Change-Id: I11bec7dd716fdfc5f94ea39661b2e51344367a6f
+    Reviewed-on: https://go-review.googlesource.com/109337
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/runtime/asm_amd64.s | 22 +++++++++++++++-------
- src/runtime/stubs.go    |  2 +-
- 2 files changed, 16 insertions(+), 8 deletions(-)
+ src/cmd/trace/trace.go | 142 +++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 108 insertions(+), 34 deletions(-)

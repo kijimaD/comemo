@@ -1,17 +1,19 @@
-commit 7b5303d08a1b589708d6bad3d7015d9856273aac
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Sun Apr 12 10:00:27 2020 -0400
+commit 35cfe059a1c1bbad29e2209bc432a3b01369b25d
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sat Nov 2 10:22:18 2019 -0700
 
-    errors: add example for Is
+    hash/maphash: move bytes/hash to hash/maphash
     
-    Add ExampleIs to illustrate how errors.Is works.
+    Fixes #34778
     
-    Updates #31716.
-    Updates #38369.
-    
-    Change-Id: I1b9a6667614635aa3a5ed8b2c108d8eb6f35748b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228038
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: If8225a7c41cb2af3f67157fb9670eef86272e85e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204997
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/errors/wrap_test.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/go/build/deps_test.go                          | 103 ++++++++++-----------
+ .../hash/hash.go => hash/maphash/maphash.go}       |   6 +-
+ .../hash_test.go => hash/maphash/maphash_test.go}  |  26 +++---
+ src/{bytes/hash => hash/maphash}/smhasher_test.go  |  12 +--
+ 4 files changed, 73 insertions(+), 74 deletions(-)

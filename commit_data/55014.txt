@@ -1,21 +1,17 @@
-commit 3a9254636c35b8d99826b203e73f335fbcd07fa9
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Nov 13 12:31:31 2023 -0500
+commit 7ab361531514764fdccb23283a2e7f1916b74b87
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Dec 2 17:06:15 2022 -0500
 
-    runtime: print g pointer in crash stack dump
+    doc/go1.20: preannounce dropping macOS 10.13 and 10.14 support
     
-    When debugging a runtime crash with a stack trace, sometimes we
-    have the g pointer in some places (e.g. as an argument of a
-    traceback function), but the g's goid in some other places (the
-    stack trace of that goroutine), which are usually not easy to
-    match up. This CL makes it print the g pointer. This is only
-    printed in crash mode, so it doesn't change the usual user stack
-    trace.
+    For #23011.
     
-    Change-Id: I19140855bf020a327ab0619b665ec1d1c70cca8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541996
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I386920928a98403180098f1da5ea7696a239210e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454957
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
 
- src/runtime/traceback.go | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ doc/go1.20.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

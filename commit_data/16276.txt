@@ -1,13 +1,16 @@
-commit 2f326da27e61194320cf925b1e2362603d9306b3
-Author: Rob Pike <r@golang.org>
-Date:   Tue May 7 11:41:36 2013 -0700
+commit 9e93d5014e6a2e0ef9daf89489c7b12531fc95f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 6 17:25:09 2013 -0700
 
-    effective_go.html: be more accepting in the guidelines for interface names
-    Fixes #5421.
+    api: add go1.1.txt; update cmd/api to use it
     
-    R=golang-dev, bradfitz, adg
+    R=golang-dev, adg, r
     CC=golang-dev
-    https://golang.org/cl/9274043
+    https://golang.org/cl/9250043
 
- doc/effective_go.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ api/go1.1.txt        | 1773 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt         | 1767 -------------------------------------------------
+ src/cmd/api/goapi.go |    9 +-
+ src/run.bash         |    2 +-
+ src/run.bat          |    2 +-
+ 5 files changed, 1780 insertions(+), 1773 deletions(-)

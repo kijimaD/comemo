@@ -1,12 +1,24 @@
-commit 16134060dea378618b7fa4f2accd6cd4831541f0
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Mon Jan 6 10:32:07 2014 -0800
+commit 939b3fa39eafff3f10c092ef882c935c0bce9c06
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Jan 6 10:00:58 2014 -0800
 
-    time: add tests for Tick, NewTicker with negative duration
+    net/http: remove todos from cookie code
     
-    R=golang-codereviews, gobot, r, bradfitz
+    The Domain and Path field of a parsed cookie have been
+    the unprocessed wire data since Go 1.0; this seems to
+    be okay for most applications so let's keep it.
+    
+    Returning the unprocessed wire data makes it easy to
+    handle nonstandard or even broken clients without
+    consulting Raw or Unparsed of a cookie.
+    
+    The RFC 6265 parsing rules for domain and path are
+    currently buried in net/http/cookiejar but could be
+    exposed in net/http if necessary.
+    
+    R=bradfitz, nigeltao
     CC=golang-codereviews
-    https://golang.org/cl/37660044
+    https://golang.org/cl/48060043
 
- src/pkg/time/tick_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/pkg/net/http/cookie.go | 2 --
+ 1 file changed, 2 deletions(-)

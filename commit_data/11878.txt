@@ -1,23 +1,12 @@
-commit 55a54691f931db749e8ddb399b4a55880fa8c642
+commit 0995aba983f1c1793c2039d259a8605285d32be6
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 13 23:06:21 2012 -0500
+Date:   Mon Feb 13 23:05:19 2012 -0500
 
-    runtime: use startpanic so that only one thread handles an incoming SIGQUIT
+    runtime/debug: fix build
     
-    Typing ^\ delivers the SIGQUIT to all threads, it appears.
-    
-    R=golang-dev, r, iant
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/5657044
+    https://golang.org/cl/5661053
 
- src/pkg/runtime/signal_darwin_386.c    | 4 +---
- src/pkg/runtime/signal_darwin_amd64.c  | 4 +---
- src/pkg/runtime/signal_freebsd_386.c   | 4 +---
- src/pkg/runtime/signal_freebsd_amd64.c | 4 +---
- src/pkg/runtime/signal_linux_386.c     | 4 +---
- src/pkg/runtime/signal_linux_amd64.c   | 4 +---
- src/pkg/runtime/signal_netbsd_386.c    | 4 +---
- src/pkg/runtime/signal_netbsd_amd64.c  | 4 +---
- src/pkg/runtime/signal_openbsd_386.c   | 4 +---
- src/pkg/runtime/signal_openbsd_amd64.c | 4 +---
- 10 files changed, 10 insertions(+), 30 deletions(-)
+ src/pkg/runtime/debug/stack_test.go | 1 -
+ 1 file changed, 1 deletion(-)

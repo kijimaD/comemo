@@ -1,16 +1,23 @@
-commit b8d56fdd9379bd5bb89454f3679f01acecd9df4d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Nov 17 12:18:39 2016 +0900
+commit 38765eba739461e5c5dc463860c62daee2eef4ee
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Sep 24 17:07:35 2016 +0200
 
-    net: tweak comment on ExampleCIDRMask
+    runtime/race: don't crash on invalid PCs
     
-    CIDRMask just returns a mask which corresponds to an address
-    prefix in CIDR nonation. A subnet for an IPv6 mask sounds a bit
-    confusing.
+    Currently raceSymbolizeCode uses funcline, which is internal runtime
+    function which crashes on incorrect PCs. Use FileLine instead,
+    it is public and does not crash on invalid data.
     
-    Change-Id: Ic7859ce992bc2de4043d3b25caf9a1051d118b0e
-    Reviewed-on: https://go-review.googlesource.com/33262
+    Note: FileLine returns "?" file on failure. That string is not NUL-terminated,
+    so we need to additionally check what FileLine returns.
+    
+    Fixes #17190
+    
+    Change-Id: Ic6fbd4f0e68ddd52e9b2dd25e625b50adcb69a98
+    Reviewed-on: https://go-review.googlesource.com/29714
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/example_test.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/runtime/race.go             | 30 ++++++++---------
+ src/runtime/race/output_test.go | 71 +++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 80 insertions(+), 21 deletions(-)

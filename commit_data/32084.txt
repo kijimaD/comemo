@@ -1,25 +1,29 @@
-commit 835dfef939879b284d4c0f4e1726491f27e4f1ee
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Thu May 4 16:45:29 2017 +0200
+commit 69fe9ea43e66552c11f2b87cdf63a39448b46287
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 3 17:50:34 2017 +0000
 
-    runtime/pprof: prevent a deadlock that SIGPROF might create on mips{,le}
+    cmd/compile/internal/ssa: use recently agreed upon generated code header
     
-    64bit atomics on mips/mipsle are implemented using spinlocks. If SIGPROF
-    is received while the program is in the critical section, it will try to
-    write the sample using the same spinlock, creating a deadloop.
-    Prevent it by creating a counter of SIGPROFs during atomic64 and
-    postpone writing the sample(s) until called from elsewhere, with
-    pc set to _LostSIGPROFDuringAtomic64.
+    Updates #13560
     
-    Added a test case, per Cherry's suggestion. Works around #20146.
-    
-    Change-Id: Icff504180bae4ee83d78b19c0d9d6a80097087f9
-    Reviewed-on: https://go-review.googlesource.com/42652
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I9bc08ca5cf0627e653d55f748ebb83be8b69ea3b
+    Reviewed-on: https://go-review.googlesource.com/39296
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/cpuprof.go          |  9 +++++++++
- src/runtime/pprof/pprof_test.go | 31 +++++++++++++++++++++++++++++++
- src/runtime/proc.go             | 31 +++++++++++++++++++++++++++----
- 3 files changed, 67 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/main.go       | 3 +--
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 2 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 3 +--
+ src/cmd/compile/internal/ssa/rewrite386.go     | 2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 2 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 2 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 2 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    | 2 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 2 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 2 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 2 +-
+ src/cmd/compile/internal/ssa/rewritedec.go     | 2 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go   | 2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 2 +-
+ 14 files changed, 14 insertions(+), 16 deletions(-)

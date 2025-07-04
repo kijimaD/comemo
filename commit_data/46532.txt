@@ -1,29 +1,29 @@
-commit 2fc7df93fe8e540ca101da33fe9157dfa7bdf6aa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 21 10:20:02 2021 -0700
+commit e65c543f3c34f4a505c37ebc3c2b608bc8ae83ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 22 13:06:40 2020 -0400
 
-    cmd/compile/internal/importer: remove // UNREVIEWED comments from tests
+    go/build/constraint: add parser for build tag constraint expressions
     
-    The importer tests are exact copies of the corresponding test files in
-    $GOROOT/src/go/internal/gcimporter/testdata/. With these changes, diff
-    applied recursively doesn't show any differences anymore among the
-    existing files between the directories
+    This package implements a parser for the new //go:build constraint lines.
+    The parser also handles // +build lines, to be able to process legacy files.
     
-            src/cmd/compile/internal/importer/testdata
-            src/go/internal/gcimporter/testdata
+    This will not be used in the standard library until Go 1.17,
+    but it seems worth publishing in Go 1.16 so that code that
+    needs to process both kinds of lines once Go 1.17 comes out
+    will be able to build using Go 1.16 as well.
     
-    Change-Id: I1fdd70a3d4d5e55f1fc580892d1d38cabbdab81b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351309
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    For #41184. Design in https://golang.org/design/draft-gobuild.
+    
+    Change-Id: I756c0de4081c5039e8b7397200e5274f223ab111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240604
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/importer/testdata/a.go             | 1 -
- src/cmd/compile/internal/importer/testdata/b.go             | 1 -
- src/cmd/compile/internal/importer/testdata/exports.go       | 1 -
- src/cmd/compile/internal/importer/testdata/issue15920.go    | 1 -
- src/cmd/compile/internal/importer/testdata/issue20046.go    | 1 -
- src/cmd/compile/internal/importer/testdata/issue25301.go    | 1 -
- src/cmd/compile/internal/importer/testdata/issue25596.go    | 1 -
- src/cmd/compile/internal/importer/testdata/p.go             | 1 -
- src/cmd/compile/internal/importer/testdata/versions/test.go | 1 -
- 9 files changed, 9 deletions(-)
+ src/go/build/build_test.go           |   3 +-
+ src/go/build/constraint/expr.go      | 574 +++++++++++++++++++++++++++++++++++
+ src/go/build/constraint/expr_test.go | 317 +++++++++++++++++++
+ src/go/build/deps_test.go            |   3 +
+ 4 files changed, 896 insertions(+), 1 deletion(-)

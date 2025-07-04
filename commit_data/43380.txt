@@ -1,22 +1,18 @@
-commit 310984bf54a52b15085e195a402873ab558d34d4
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Oct 19 12:01:23 2020 +0200
+commit d98023ebb5c2db9a445699b690f2cf6fd77f4b7e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 30 18:25:47 2020 -0700
 
-    syscall, cmd/go/internal/modload: add and use Access on aix
+    runtime, internal/poll: name error codes
     
-    Implement Access using Faccessat on aix following golang.org/x/sys/unix
-    CL 262897 and switch cmd/go/internal/modload to use it to implement
-    hasWritePerm.
+    Use explicit names for the error code returned by pollReset
+    and pollWait, rather than just 0, 1, 2, 3.
     
-    Change-Id: I682e44737ac2bac5a203ac1c9ddd277810454426
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263540
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I0ab12cae57693deab7cca9cdd2fadd597e23a956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226537
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/go/internal/modload/stat_openfile.go | 2 +-
- src/cmd/go/internal/modload/stat_unix.go     | 2 +-
- src/syscall/syscall_aix.go                   | 4 ++++
- 3 files changed, 6 insertions(+), 2 deletions(-)
+ src/internal/poll/fd_poll_runtime.go | 17 +++++++++----
+ src/runtime/netpoll.go               | 46 ++++++++++++++++++++++++------------
+ 2 files changed, 44 insertions(+), 19 deletions(-)

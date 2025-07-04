@@ -1,24 +1,24 @@
-commit be857a63658653828248cd080bc8a33d3893135a
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Apr 25 09:01:11 2019 +0200
+commit dc7808d4f2989fa0514fc0e4014616fdb8c4a764
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 5 14:42:47 2018 -0800
 
-    net: fix lookupHost to return DNSError on Plan 9
+    cmd/compile/internal/syntax: remove unused field in (scanner) source
     
-    CL 168597 added IsNotFound field to DNSError.
-    However, this change broke TestLookupNonLDH on Plan 9
-    because LookupHost is expected to return a DNSError,
-    while on Plan 9, it returned an error string.
+    The source.offs field was intended for computing line offsets which
+    may allow a tiny optimization (see TODO in source.go). We haven't
+    done the optimization, so for now just remove the field to avoid
+    confusion. It's trivially added if needed.
     
-    This change fixes the implementation of lookupHost on
-    Plan 9 to return a DNSError instead of an error string.
+    While at it, also:
     
-    Fixes #31672.
+    - Fix comment for ungetr2.
+    - Make sure sentinel is present even if reading from the io.Reader failed.
     
-    Change-Id: Ia805c8965af63ddee7ccfdebb9462a5502b0269d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173857
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: Ib056c6478030b3fe5fec29045362c8161ff3d19e
+    Reviewed-on: https://go-review.googlesource.com/c/152763
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/lookup_plan9.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/syntax/source.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

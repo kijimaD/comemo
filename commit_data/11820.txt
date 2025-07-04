@@ -1,17 +1,14 @@
-commit 8040f9bb86d013c8d21a5e8d05cd2657fe2b16de
+commit 80e2472f87a00c0278da3a94c610ed284a16f7bb
 Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 13 14:38:31 2012 +1100
+Date:   Mon Feb 13 14:34:30 2012 +1100
 
-    spec: typographical adjustment for ellipsis
-    The paragraph describing the ellipses presents the horizontal ellipsis
-    in two different fonts and at least on my screen they look too different.
-    Switch to a consistent rendering.
+    godoc: static ids should be #lowercase
+    so they don't collide with names like #Index.
+    Fixes #2970.
     
-    Of small steps are great journeys undertaken.
-    
-    R=golang-dev, rsc, dsymonds, gri
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5650055
+    https://golang.org/cl/5655066
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ lib/godoc/package.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

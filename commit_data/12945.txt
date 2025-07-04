@@ -1,13 +1,27 @@
-commit dee62a440c928dd93ba96b273c30e1399fb16994
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Apr 24 23:17:16 2012 +0800
+commit b885633d62e5001b11e65f92db85ee9ed74b383c
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Apr 24 15:27:48 2012 +1000
 
-    cmd/5g: fix URL typo
+    exp/html: make inBodyIM match spec
     
-    R=golang-dev, rsc, bradfitz
+    This CL corrects the remaining differences that I could find between the
+    implementation of inBodyIM and the spec:
+    
+    Handle <rp> and <rt>.
+    
+    Adjust SVG and MathML attributes.
+    
+    Reconstruct active formatting elements in the "any other start tag" case.
+    
+    Pass 7 additional tests.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5919054
+    https://golang.org/cl/6101055
 
- src/cmd/5g/peep.c | 2 +-
- src/cmd/5g/reg.c  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/html/foreign.go               | 78 ++++++++++++++++++++++++++++++-
+ src/pkg/exp/html/parse.go                 | 39 +++++++++-------
+ src/pkg/exp/html/testlogs/tests11.dat.log |  6 +--
+ src/pkg/exp/html/testlogs/tests16.dat.log |  2 +-
+ src/pkg/exp/html/testlogs/tests19.dat.log |  6 +--
+ 5 files changed, 106 insertions(+), 25 deletions(-)

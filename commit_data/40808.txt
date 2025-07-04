@@ -1,18 +1,18 @@
-commit e1fa96049358737b138425918ce8d4a1f25ffd70
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 15 12:29:04 2019 -0500
+commit a1bcee4f1c196681397f1140e4338d056a188a3e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jul 10 10:58:59 2019 -0400
 
-    cmd/dist: when -compile-only is set, write binaries to os.DevNull
+    test: add a test for gccgo bug in handling break statement in a select
     
-    Previously, we were writing binaries to GOROOT without ever reading them.
+    Gccgo CL 184998 added optimizations for one- and two-case select
+    statements. But it didn't handle break statement in the select
+    case correctly. The fix is CL 185519. This CL adds a test.
     
-    Updates #28387
-    
-    Change-Id: Ic84999f46a367fcbf2ae1eac8bfdcbceb24dc748
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207342
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ide1b199f106172b41dd77c1f6e0d662fccdd8cc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185520
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/chan/select8.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)

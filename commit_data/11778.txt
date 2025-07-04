@@ -1,35 +1,15 @@
-commit cc9ed447d0afd1f5ff32bf30e094624cb704549b
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Feb 10 18:49:19 2012 +1100
+commit 0bc6836e81223a82653c44a4a6023e762a1e51cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 10 01:27:59 2012 -0500
 
-    compress: make flate, gzip and zlib's NewWriterXxx functions all return
-    (*Writer, error) if they take a compression level, and *Writer otherwise.
-    Rename gzip's Compressor and Decompressor to Writer and Reader, similar to
-    flate and zlib.
+    builder: set $GOBUILDEXIT for Windows
     
-    Clarify commentary when writing gzip metadata that is not representable
-    as Latin-1, and fix io.EOF comment bug.
+    Actually %GOBUILDEXIT% I suppose.
     
-    Also refactor gzip_test to be more straightforward.
-    
-    Fixes #2839.
-    
-    R=rsc, r, rsc, bradfitz
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5639057
+    https://golang.org/cl/5651058
 
- doc/go1.html                           |  14 +++
- doc/go1.tmpl                           |  14 +++
- src/pkg/archive/zip/writer.go          |   6 +-
- src/pkg/compress/flate/deflate.go      |  32 ++++--
- src/pkg/compress/flate/deflate_test.go |  55 +++++----
- src/pkg/compress/gzip/gunzip.go        |  39 +++----
- src/pkg/compress/gzip/gzip.go          |  72 +++++++-----
- src/pkg/compress/gzip/gzip_test.go     | 199 ++++++++++++++++++++-------------
- src/pkg/compress/zlib/writer.go        |  98 ++++++++++------
- src/pkg/compress/zlib/writer_test.go   |   6 +-
- src/pkg/crypto/rand/rand_test.go       |   2 +-
- src/pkg/image/png/writer.go            |   8 +-
- src/pkg/net/http/response_test.go      |   6 +-
- src/pkg/net/http/transport_test.go     |   8 +-
- 14 files changed, 347 insertions(+), 212 deletions(-)
+ misc/dashboard/builder/main.go | 1 +
+ src/all.bat                    | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

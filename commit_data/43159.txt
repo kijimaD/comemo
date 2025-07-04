@@ -1,16 +1,42 @@
-commit 75ea9953a812dcb2f64ea949054e529d9748d553
-Author: David Chase <drchase@google.com>
-Date:   Wed Aug 5 11:42:44 2020 -0400
+commit 9d67a94217c0a46a2b02a1fc67bb3e436dac0c97
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Mar 10 10:08:02 2020 -0400
 
-    cmd/compile: enable late expansion for address-of static calls
+    cmd/internal/obj/ppc64: clean up some opcodes
     
-    passes run.bash and race.bash (on Darwin-amd64)
+    This does some clean up of the ppc64 opcodes to remove names
+    from the opcode list that don't actually assemble. At one time
+    names were added to this list to represent opcode "classes" to
+    organize other opcodes that have the same set of operand
+    combinations. Since this is not documented, it is confusing as
+    to which opcodes can be used in an asm file and which can't, and
+    which opcodes should be supported in the disassembler. It is
+    clearer for the user if the list of Go opcodes are all opcodes
+    that can be assembled with names that match the ppc64 opcode
+    where possible.
     
-    Change-Id: I2abda9636b681d050e85e88fc357ebe5220d2ba2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246938
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    I found this when trying to use Go opcode XXLAND in an asm file
+    which seems like it should map to ppc64 xxland but when used it
+    gets this error:
+    
+    go tool asm test_xxland.s
+    asm: bad r/r, r/r/r or r/r/r/r opcode XXLAND
+    asm: assembly failed
+    
+    This change removes the opcodes that are only used for opcode
+    "classes" and fixes the case statement where they are referenced.
+    This also fixes XXLAND and XXPERM which are opcodes that should
+    assemble to their corresponding ppc64 opcode but do not.
+    
+    Change-Id: I52300db6b22f7f8b3dd3491c3f35a384b943352c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223138
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s |   7 +-
+ src/cmd/internal/obj/ppc64/a.out.go       |  15 -----
+ src/cmd/internal/obj/ppc64/anames.go      |  15 -----
+ src/cmd/internal/obj/ppc64/asm9.go        | 103 ++++++++++++++----------------
+ 4 files changed, 53 insertions(+), 87 deletions(-)

@@ -1,76 +1,33 @@
-commit ddb5d0db37b885ba327180816253714625fd3c38
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue May 14 10:11:23 2019 -0700
+commit 33ac854481c49632a4b924b184f83e068014b486
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 11 14:27:43 2019 -0800
 
-    cmd/compile: process blocks containing only dead values in fuseIf
+    cmd/compile: do not export float or complex constants with -asmhdr
     
-    The code in #29218 resulted in an If block containing only its control.
-    That block was then converted by fuseIf into a plain block;
-    as a result, that control value was dead.
-    However, the control value was still present in b.Values.
-    This prevented further fusing of that block.
+    The -asmhdr flag is used to generate header files for assembly code
+    such that that code has access to compile-time constants. During
+    the build these constants end up in the (ephemeral) file go_asm.h.
     
-    This change beefs up the check in fuseIf to allow fusing
-    blocks that contain only dead values (if any).
-    In the case of #29218, this enables enough extra
-    fusing that the control value could be eliminated,
-    allowing all values in turn to be eliminated.
+    For historical reasons, floating-point and complex constants are
+    printed with a 'p' exponent but with decimal mantissa; also, because
+    of the compiler-internal precision of 512 bits, the mantissae are quite
+    large (and conversions are comparatively slow).
     
-    This change also fuses 34 new blocks during make.bash.
+    With the changes to the new Go 2 number literals, the respective
+    upcoming changes to text/scanner (which in turn is used by the assembler)
+    will make text/scanner newly accept hexadecimal floats; but also decimal
+    floats using the incorrect 'p' exponent and report an error in that case.
     
-    It is not clear that this fixes every variant of #29218,
-    but it is a reasonable standalone change.
-    And code like #29218 is rare and fundamentally buggy,
-    so we can handle new instances if/when they actually occur.
+    As a consequence, the assembler will report an error when trying to parse
+    the before-mentioned decimal floating-point values which are using 'p'
+    exponents. Since these constants are never needed in the assembly code,
+    do not emit them in the first place.
     
-    Fixes #29218
-    
-    Negligible toolspeed impact.
-    
-    name        old time/op       new time/op       delta
-    Template          213ms ± 3%        213ms ± 2%    ~     (p=0.914 n=97+88)
-    Unicode          89.8ms ± 2%       89.6ms ± 2%  -0.22%  (p=0.045 n=93+95)
-    GoTypes           712ms ± 3%        709ms ± 2%  -0.35%  (p=0.023 n=95+95)
-    Compiler          3.24s ± 2%        3.23s ± 2%  -0.30%  (p=0.020 n=98+97)
-    SSA               10.0s ± 1%        10.0s ± 1%    ~     (p=0.382 n=98+99)
-    Flate             135ms ± 3%        135ms ± 2%    ~     (p=0.983 n=98+98)
-    GoParser          158ms ± 2%        158ms ± 2%    ~     (p=0.170 n=99+99)
-    Reflect           447ms ± 3%        447ms ± 2%    ~     (p=0.538 n=98+89)
-    Tar               189ms ± 2%        189ms ± 3%    ~     (p=0.874 n=95+96)
-    XML               251ms ± 2%        251ms ± 2%    ~     (p=0.434 n=94+96)
-    [Geo mean]        427ms             426ms       -0.15%
-    
-    name        old user-time/op  new user-time/op  delta
-    Template          264ms ± 2%        265ms ± 2%    ~     (p=0.075 n=96+90)
-    Unicode           119ms ± 6%        119ms ± 7%    ~     (p=0.864 n=99+98)
-    GoTypes           926ms ± 2%        924ms ± 2%    ~     (p=0.071 n=94+94)
-    Compiler          4.38s ± 2%        4.37s ± 2%  -0.34%  (p=0.001 n=98+97)
-    SSA               13.4s ± 1%        13.4s ± 1%    ~     (p=0.693 n=90+93)
-    Flate             162ms ± 3%        161ms ± 2%    ~     (p=0.163 n=99+99)
-    GoParser          186ms ± 2%        186ms ± 3%    ~     (p=0.130 n=96+100)
-    Reflect           572ms ± 3%        572ms ± 2%    ~     (p=0.608 n=97+97)
-    Tar               239ms ± 2%        239ms ± 3%    ~     (p=0.999 n=93+91)
-    XML               302ms ± 2%        302ms ± 2%    ~     (p=0.627 n=91+97)
-    [Geo mean]        540ms             540ms       -0.08%
-    
-    file    before    after     Δ       %
-    asm     4862704   4858608   -4096   -0.084%
-    compile 24001568  24001680  +112    +0.000%
-    total   132520780 132516796 -3984   -0.003%
-    
-    file                       before    after     Δ       %
-    cmd/compile/internal/gc.a  8887638   8887596   -42     -0.000%
-    cmd/compile/internal/ssa.a 29995056  29998986  +3930   +0.013%
-    cmd/internal/obj/wasm.a    209444    203652    -5792   -2.765%
-    total                      129471798 129469894 -1904   -0.001%
-    
-    Change-Id: I2d18f9278e68b9766058ae8ca621e844f9d89dd8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177140
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I06c7c96b04e8d062441120107992472f87a651b2
+    Reviewed-on: https://go-review.googlesource.com/c/161904
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/fuse.go | 44 ++++++++++++++++++++++++------------
- test/fixedbugs/issue29218.go         | 24 ++++++++++++++++++++
- 2 files changed, 54 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/export.go | 4 ++++
+ 1 file changed, 4 insertions(+)

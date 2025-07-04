@@ -1,18 +1,22 @@
-commit ff9269ee11d9ac3069572e40d641eb5884ae6abd
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Dec 4 16:45:33 2023 -0500
+commit e587a7691b8603a89f55a57f78dae5e20fdbf5d1
+Author: Kevin Parsons <kevpar@microsoft.com>
+Date:   Tue Jan 17 08:02:17 2023 +0000
 
-    doc: add release notes for runtime-internal contention
+    cmd/link: fix incorrect DOS header on Windows binaries
     
-    For #57071.
-    For #61422.
+    The previous DOS header placed on Windows binaries was incorrect, as it had e_crlc (number of relocations) set to 4, instead of e_cparhdr (size of header in 16-bit words) set to 4. This resulted in execution starting at the beginning of the file, instead of where the DOS stub code actually exists.
     
-    Change-Id: I5d546d8828be897cb087e85a1251213c582b3894
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547059
-    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #57834
+    
+    Change-Id: I8c5966b65c72b2474b771b85aaadb61cad9f5be6
+    GitHub-Last-Rev: c715ad290a01218a1320834e519125e7a5f94384
+    GitHub-Pull-Request: golang/go#57835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462054
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
 
- doc/go1.22.html | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/link/internal/ld/pe.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

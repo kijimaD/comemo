@@ -1,36 +1,18 @@
-commit c0eb7ab3062fae802639545770f6a897d75b0085
-Author: Julien Cretel <jub0bsinthecloud@gmail.com>
-Date:   Mon May 12 12:40:36 2025 +0000
+commit 6f1216234003a549e71103ab9794c4630f52aafd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 16:40:34 2024 -0400
 
-    bytes, strings: micro-optimize EqualFold
+    runtime: fixes to traceback_system_test.go
     
-    The first loop leaves the lengths of the two arguments unchanged.
+    Minor cleanups to CL 561635's test for better debuggability
+    when it crashes. In a separate CL so that it's clear this CL is
+    not changing the code under test.
     
-    Take advantage of this invariant in the loop's condition. Here are some
-    benchmark results (no change to allocations):
-    
-    goos: darwin
-    goarch: amd64
-    pkg: strings
-    cpu: Intel(R) Core(TM) i7-6700HQ CPU @ 2.60GHz
-                              │     old     │                new                 │
-                              │   sec/op    │   sec/op     vs base               │
-    EqualFold/Tests-8           240.0n ± 4%   245.1n ± 5%       ~ (p=0.516 n=20)
-    EqualFold/ASCII-8           11.50n ± 1%   11.04n ± 0%  -3.96% (p=0.000 n=20)
-    EqualFold/UnicodePrefix-8   102.1n ± 0%   102.2n ± 0%       ~ (p=0.455 n=20)
-    EqualFold/UnicodeSuffix-8   90.14n ± 0%   89.80n ± 1%       ~ (p=0.113 n=20)
-    geomean                     71.00n        70.60n       -0.56%
-    
-    Change-Id: I1f6d1df8a0398f9493692f59d7369c3f0fbba436
-    GitHub-Last-Rev: 9508ee26ad3cadcbb5e532a731b2553ba900f2b1
-    GitHub-Pull-Request: golang/go#73672
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671756
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: I12b72ae538f8454b5c382127eafd766c22c69b67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571799
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/bytes/bytes.go     | 2 +-
- src/strings/strings.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/traceback_system_test.go | 64 +++++++++++++++++++++++++++++-------
+ 1 file changed, 53 insertions(+), 11 deletions(-)

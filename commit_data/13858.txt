@@ -1,12 +1,15 @@
-commit 384af66984c55cf82eaf3f15ca47fb84a31d764d
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Tue Sep 18 14:23:11 2012 -0400
+commit 370ae055451e0550e6aa8930a12351ea26e96a70
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 18 14:22:41 2012 -0400
 
-    reflect: use []unsafe.Pointer instead of []*int
+    reflect: add Select
     
-    R=rsc
+    R=r, iant, rogpeppe, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6527043
+    https://golang.org/cl/6498078
 
- src/pkg/reflect/value.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/reflect/all_test.go | 424 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/reflect/type.go     |  11 +-
+ src/pkg/reflect/value.go    | 134 ++++++++++++++
+ src/pkg/runtime/chan.c      |  93 +++++++++-
+ 4 files changed, 654 insertions(+), 8 deletions(-)

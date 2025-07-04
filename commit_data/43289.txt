@@ -1,29 +1,16 @@
-commit f46a5b1e4559191363dbd4f510105dd31ae97aaa
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Oct 11 15:48:22 2020 -0400
+commit 9dcd6b32c80bd481602a959995af7c898ed62503
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Mar 23 10:11:43 2020 -0400
 
-    cmd/link: support PIE internal linking on darwin/amd64
+    crypto: implement Hash.String
     
-    This CL adds support of PIE internal linking on darwin/amd64.
+    Fixes #33430
     
-    This is also preparation for supporting internal linking on
-    darwin/arm64 (macOS), which requires PIE for everything.
-    
-    Updates #38485.
-    
-    Change-Id: I2ed58583dcc102f5e0521982491fc7ba6f2754ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261642
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I323323b3136dd7b408005c3bb5ea05e3b566bd38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224937
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- misc/cgo/test/issue4029.c                     |   1 +
- misc/cgo/test/issue4029.go                    |   4 +
- misc/cgo/test/issue4029w.go                   |   2 +-
- src/cmd/dist/test.go                          |  17 +-
- src/cmd/internal/sys/supported.go             |   3 +-
- src/cmd/link/internal/amd64/asm.go            |  65 +++-----
- src/cmd/link/internal/ld/config.go            |   1 +
- src/cmd/link/internal/ld/lib.go               |   6 +
- src/cmd/link/internal/ld/macho.go             | 226 +++++++++++++++++++++++++-
- src/cmd/link/internal/loader/symbolbuilder.go |  18 ++
- 10 files changed, 289 insertions(+), 54 deletions(-)
+ src/crypto/crypto.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

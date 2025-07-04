@@ -1,21 +1,23 @@
-commit c52beb108779b8d983136fa5200ab91005c6de49
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Dec 17 01:18:51 2018 +1100
+commit 6e76aeba0bda33f6bd45ac9c8e5c026c1688e846
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Aug 23 15:05:19 2018 -0400
 
-    runtime,cmd/dist,cmd/link: add cgo support on openbsd/arm
+    doc/go1.11: add link to new WebAssembly wiki page
     
-    Add support for cgo on openbsd/arm.The gcc shipped with base OpenBSD armv7
-    is old/inadequate, so use clang by default.
+    The wiki page has recently been created, and at this time it's
+    just a stub. It's expected that support for WebAssembly will be
+    evolving over time, and the wiki page can be kept updated with
+    helpful information, how to get started, tips and tricks, etc.
     
-    Change-Id: I945a26d369378952d357727718e69249411e1127
-    Reviewed-on: https://go-review.googlesource.com/c/154381
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Use present tense because it's expected that there will be more
+    general information added by the time Go 1.11 release happens.
+    
+    Also add link to https://webassembly.org/ in first paragraph.
+    
+    Change-Id: I139c2dcec8f0d7fd89401df38a3e12960946693f
+    Reviewed-on: https://go-review.googlesource.com/131078
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go             |  2 +-
- src/cmd/dist/main.go              |  7 ++++
- src/cmd/link/internal/ld/lib.go   |  6 ++++
- src/runtime/cgo/gcc_openbsd_arm.c | 67 +++++++++++++++++++++++++++++++++++++++
- src/runtime/sys_openbsd_arm.s     |  7 ++--
- 5 files changed, 85 insertions(+), 4 deletions(-)
+ doc/go1.11.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

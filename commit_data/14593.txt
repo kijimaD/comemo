@@ -1,18 +1,13 @@
-commit 9c9e811bb34dc48abf256aae91af9199fb9f0f71
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 10 11:55:57 2012 -0800
+commit bef036e3d16695d51dd338f329e1a8afba667bbb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 10 11:32:07 2012 -0500
 
-    spec: consistently use "indices" (rather than "indexes")
+    syscall: add type for struct tcp_info
     
-    We have been using all three terms "indices", "indexes",
-    and "index expressions" indiscriminatly for index values.
-    With this change, "index" refers to an index value,
-    "indices" is the plural of "index", and "index expression"
-    refers to an array, slice, or map indexed by an index: a[x].
-    
-    R=r, rsc, iant, ken, mtj
+    R=mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/6912056
+    https://golang.org/cl/6900050
 
- doc/go_spec.html | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/pkg/syscall/types_linux.go        |  3 +++
+ src/pkg/syscall/ztypes_linux_amd64.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

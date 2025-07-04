@@ -1,37 +1,17 @@
-commit 8bc5ef6cd7627eb6fe41e4f60cb33221d681927d
+commit 533b372280a2124f39a1093e7211f5b677b619d9
 Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Mon Sep 19 19:52:31 2011 -0700
+Date:   Mon Sep 19 17:27:49 2011 -0700
 
-    exp/template/html: allow commenting out of actions
+    exp/template/html: define isComment helper
     
-    Instead of erroring on actions inside comments, use existing escaping
-    pipeline to quash the output of actions inside comments.
-    
-    If a template maintainer uses a comment to disable template code:
-    
-      {{if .}}Hello, {{.}}!{{end}}
-    
-    ->
-    
-      <!--{{if true}}Hello, {{.}}!{{end}}-->
-    
-    will result in
-    
-      <!--Hello, !-->
-    
-    regardless of the value of {{.}}.
-    
-    In a later CL, comment elision will result in the entire commented-out
-    section being dropped from the template output.
-    
-    Any side-effects in pipelines, such as panics, will still be realized.
+    Non semantics-changing refactoring in preparation for comment elision.
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5078041
+    https://golang.org/cl/5071043
 
- src/pkg/exp/template/html/error.go       |  13 ----
- src/pkg/exp/template/html/escape.go      |   9 ++-
- src/pkg/exp/template/html/escape_test.go | 105 ++++++++++++++++++++++++-------
- src/pkg/exp/template/html/html.go        |  10 +++
- 4 files changed, 98 insertions(+), 39 deletions(-)
+ src/pkg/exp/template/html/context.go     | 16 +++++++++++++---
+ src/pkg/exp/template/html/escape.go      | 11 ++++++-----
+ src/pkg/exp/template/html/escape_test.go |  8 ++++----
+ src/pkg/exp/template/html/transition.go  |  8 ++++----
+ 4 files changed, 27 insertions(+), 16 deletions(-)

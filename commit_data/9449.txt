@@ -1,12 +1,18 @@
-commit a9fe3a0ce3ab60f35ee6c558c455df05e4696a04
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Aug 22 23:24:16 2011 -0400
+commit 3554325937de6c725ebb6227eed0c36bd4f909c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 22 23:23:57 2011 -0400
 
-    os: disable Hostname test on OpenBSD
+    ld: remove duplicate bss definitions
     
-    R=golang-dev, rsc
+    The EXTERN lines in elf.h already define these.
+    That's not a problem for most C compilers, but
+    apparently it is for some copies of the OS X linker.
+    
+    Fixes #2167.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/4901054
+    https://golang.org/cl/4936044
 
- src/pkg/os/os_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/ld/symtab.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

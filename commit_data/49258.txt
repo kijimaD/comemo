@@ -1,28 +1,25 @@
-commit bc2e961cf4cda945dc6d607a5076b4e376553e9f
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Thu Apr 21 17:49:12 2022 +0900
+commit 6e738868a7a943d7d4fd6bb1963e7f6d78111726
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Aug 3 19:38:37 2021 -0700
 
-    reflect: deprecate (Slice|String)Header
+    net/http: speed up and deflake TestCancelRequestWhenSharingConnection
     
-    As discussed in CL 401434 there are substantial misuses of these in the
-    wild, and they are a potential source of unsafety even for code that
-    does not use them directly.
+    This test made many requests over the same connection for 10
+    seconds, trusting that this will exercise the request cancelation
+    race from #41600.
     
-    We should either keep them as-is and document when/how they can be used
-    safely, or deprecate them so that uses will eventually die out.
+    Change the test to exhibit the specific race in a targeted fashion
+    with only two requests.
     
-    After some discussion, it was decided to deprecate them outright.
-    Since the docs already mentioned that they may be unstable across
-    releases, it should be possible to get rid of them completely later on.
+    Updates #41600.
+    Updates #47016.
     
-    Change-Id: I3b75819409177b5a286c1e9861a2edb6fd1301b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401434
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: If99c9b9331ff645f6bb67fe9fb79b8aab8784710
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339594
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- doc/go1.19.html      | 10 ++++++++++
- src/reflect/value.go |  6 ++++++
- 2 files changed, 16 insertions(+)
+ src/net/http/transport_test.go | 77 ++++++++++++++++++++++++++++--------------
+ 1 file changed, 51 insertions(+), 26 deletions(-)

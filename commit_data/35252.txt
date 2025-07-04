@@ -1,18 +1,30 @@
-commit 4704149e04b89a2c3f3d361facdab55b659fb527
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu May 3 11:43:25 2018 +0200
+commit 9b49ac0366d3e3948adf5a30bfcff52049e1799a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 22 16:20:01 2018 -0800
 
-    misc/ios: retry lldb launch if the iOS app is busy
+    spec: consistently use "defined type" and "type name" (cleanup)
     
-    Sometimes, a newly installed the test app is not ready to launch
-    or the reported app path is stale. Pause and retry the launch if
-    the lldb script did not run the program.
+    When we introduced the notion of alias type declarations, we renamed
+    "named type" to "defined type" to avoid confusion with types denoted
+    by aliases and thus are also types with names, or "named types".
     
-    Change-Id: Ic7745d4b5a02f2e3cb8134341859039812f65a65
-    Reviewed-on: https://go-review.googlesource.com/111216
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Some of the old uses of "named types" remained; this change removes
+    them.
+    
+    Now the spec consistently uses the terms:
+    
+    - "defined type"  for a type declared via a type definition
+    - "type name"     for any name denoting an (alias or defined) type
+    - "alias"         for a type name declared in an alias declaration
+    
+    New prose is encouraged to avoid the term "named type" to counter-
+    act further confusion.
+    
+    Fixes #23474.
+    
+    Change-Id: I5fb59f1208baf958da79cf51ed3eb1411cd18e03
+    Reviewed-on: https://go-review.googlesource.com/89115
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 81 ++++++++++++++++++++++++++----------------
- 1 file changed, 51 insertions(+), 30 deletions(-)
+ doc/go_spec.html | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

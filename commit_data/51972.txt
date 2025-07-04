@@ -1,14 +1,15 @@
-commit 2b807e1d7b00a26aa6a26fa47129bac3f711e5f5
-Author: Valentin Deleplace <deleplace@google.com>
-Date:   Fri Feb 10 15:51:11 2023 +0100
+commit 1724077b789ad92972ab1ac03788389645306cbb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 28 15:28:41 2022 -0700
 
-    math/rand: fix typo in Seed deprecation comment
+    doc/go1.19: mention new unix build constraint
     
-    Change-Id: I37a9e4362953a711840087e1b7b8d7a25f1a83b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467275
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    For #51572
+    
+    Change-Id: Ib27be79379c8b3f72e29365b58067d7ee1919e52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396295
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/math/rand/rand.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.19.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

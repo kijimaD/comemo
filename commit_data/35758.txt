@@ -1,22 +1,56 @@
-commit 65d55a13a92a3bbc2a3750fd3318d63bd3e664c9
-Author: David Carlier <devnexen@gmail.com>
-Date:   Sun Jun 17 17:27:13 2018 +0000
+commit 2c0c68d621415f0c2dffb71b20fdc0fdbbcfb5fe
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 6 14:36:49 2018 -0800
 
-    runtime: fix FreeBSDNumCPU test
+    cmd/compile: fix miscompilation of "defer delete(m, k)"
     
-    num cpu unit test fixes for FreeBSD.
-    cpuset -g can possibly output more
-    data than expected.
+    Previously, for slow map key types (i.e., any type other than a 32-bit
+    or 64-bit plain memory type), we would rewrite
     
-    Fixes #25924
+        defer delete(m, k)
     
-    Change-Id: Iec45a919df68648759331da7cd1fa3b9f3ca4241
-    GitHub-Last-Rev: 4cc275b519cda13189ec48b581ab9ce00cacd7f6
-    GitHub-Pull-Request: golang/go#25931
-    Reviewed-on: https://go-review.googlesource.com/119376
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    into
+    
+        ktmp := k
+        defer delete(m, &ktmp)
+    
+    However, if the defer statement was inside a loop, we would end up
+    reusing the same ktmp value for all of the deferred deletes.
+    
+    We already rewrite
+    
+        defer print(x, y, z)
+    
+    into
+    
+        defer func(a1, a2, a3) {
+            print(a1, a2, a3)
+        }(x, y, z)
+    
+    This CL generalizes this rewrite to also apply for slow map deletes.
+    
+    This could be extended to apply even more generally to other builtins,
+    but as discussed on #24259, there are cases where we must *not* do
+    this (e.g., "defer recover()"). However, if we elect to do this more
+    generally, this CL should still make that easier.
+    
+    Lastly, while here, fix a few isues in wrapCall (nee walkprintfunc):
+    
+    1) lookupN appends the generation number to the symbol anyway, so "%d"
+    was being literally included in the generated function names.
+    
+    2) walkstmt will be called when the function is compiled later anyway,
+    so no need to do it now.
+    
+    Fixes #24259.
+    
+    Change-Id: I70286867c64c69c18e9552f69e3f4154a0fc8b04
+    Reviewed-on: https://go-review.googlesource.com/99017
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/testdata/testprog/numcpu_freebsd.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 20 +-----------
+ src/cmd/compile/internal/gc/walk.go  | 60 ++++++++++++++++--------------------
+ src/runtime/map_test.go              | 21 +++++++++++++
+ 3 files changed, 48 insertions(+), 53 deletions(-)

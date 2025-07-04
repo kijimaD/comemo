@@ -1,28 +1,25 @@
-commit 746f405f98ab8ad6e2e6a1ce162c831527aafd57
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sun Mar 17 16:07:25 2019 +0100
+commit 2e9f0817f070a3979afc580c740670690acab672
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 24 15:49:32 2018 -0700
 
-    cmd/go,misc/ios: fix tests on iOS
+    cmd/compile: add -lang flag to specify language version
     
-    Now that modules are always on, cmd/go tests require a valid
-    GOCACHE. However, on iOS where the go tool is not available, the
-    cmd/go test driver ends up setting GOCACHE to the empty string.
-    Fix it by falling back to the builtin default cache directory.
+    The default language version is the current one.
     
-    The iOS exec wrapper passes the environment variables to the app
-    on the device, including $HOME used for the default cache directory.
-    Skip $HOME to let the device specific and writable $HOME be used
-    instead.
+    For testing purposes, added a check that type aliases require version
+    go1.9. There is no consistent support for changes made before 1.12.
     
-    Should fix cmd/go on the iOS builders that broke when GO111MODULE
-    defaulted to on.
+    Updates #28221
     
-    Change-Id: I0939f5b8aaa1d2db95e64c99f4130eee2d0b4d4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167938
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Change-Id: Ia1ef63fff911d5fd29ef79d5fa4e20cfd945feb7
+    Reviewed-on: https://go-review.googlesource.com/c/144340
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 4 ++--
- src/cmd/go/go_test.go          | 2 ++
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/doc.go                   |  3 ++
+ src/cmd/compile/internal/gc/lang_test.go | 59 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go      | 68 ++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/noder.go     |  7 +++-
+ src/go/build/build.go                    |  2 +
+ 5 files changed, 137 insertions(+), 2 deletions(-)

@@ -1,19 +1,27 @@
-commit 016e6ebb4264f4b46e505bb404953cdb410f63f2
-Author: Hana <hyangah@gmail.com>
-Date:   Tue Dec 7 17:50:50 2021 -0500
+commit 23e1d36a87f55b7e37d969ba3de3a8e1b8147f49
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Apr 1 11:01:19 2021 -0400
 
-    cmd/go: fix references to old `go mod editwork`
+    cmd/go: in 'go list -m', ignore "not found" errors loading updates
     
-    That is replaced by `go work edit`.
+    "Not found" and "no matching version" errors usually indicate the user
+    is offline or the proxy doesn't have a version of go.mod that could
+    provide retractions. 'go list -m -u' should still succeed.
     
-    Change-Id: I39996c7bea0182a18edf6a1f70b6616c74099a1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370139
+    We should still report unclassified errors though. Previously, we
+    reported most errors loading retractions but did not report errors
+    loading updates. This change makes those operations more consistent.
+    
+    Fixes #45305
+    
+    Change-Id: I2f23a566c9481bc7ff229a177f39d78f6a8aae77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306572
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-    Trust: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/go/alldocs.go                                | 10 +++++-----
- src/cmd/go/internal/modload/init.go                  |  2 +-
- src/cmd/go/internal/workcmd/edit.go                  | 10 +++++-----
- src/cmd/go/internal/workcmd/init.go                  |  6 +++---
- src/cmd/go/testdata/script/work_replace_conflict.txt |  2 +-
- 5 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/modload/build.go               | 44 ++++++++++++++---
+ src/cmd/go/testdata/script/mod_list_retract.txt    | 12 ++---
+ .../testdata/script/mod_list_update_nolatest.txt   | 55 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_retract_replace.txt |  6 ++-
+ 4 files changed, 103 insertions(+), 14 deletions(-)

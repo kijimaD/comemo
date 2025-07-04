@@ -1,19 +1,26 @@
-commit 57aaa19aae32a6c75a07ea8e3006fdcda7583385
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 17 17:34:18 2021 -0700
+commit d5928847debd0b16f89a5fd018646b2e3e9a8cb9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Nov 22 10:45:44 2020 -0800
 
-    runtime: disable CPU profiling before removing the SIGPROF handler
+    [dev.regabi] cmd/compile/internal/gc: prep for Func.Nname removal refactoring
     
-    Otherwise, in c-archive or c-shared mode, there is the chance of
-    getting a SIGPROF just after the signal handler is removed but before
-    profiling is disabled, in which case the program will die.
+    There are three bits of method-handling code where we separately go
+    from Field->Type and then Type->Node. By shuffling the code around a
+    little to go Field->Type->Node in a single statement, we're able to
+    more easily remove Type from the operation.
     
-    Fixes #46498
+    Passes toolstash-check.
     
-    Change-Id: I5492beef45fec9fb9a7f58724356d6aedaf799ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329290
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ife98216d70d3b867fa153449abef0e56a4fb242a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272388
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/signal_unix.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go   | 16 ++++++++++------
+ src/cmd/compile/internal/gc/dcl.go       |  3 ++-
+ src/cmd/compile/internal/gc/iexport.go   |  5 ++---
+ src/cmd/compile/internal/gc/iimport.go   | 11 +++--------
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ 5 files changed, 18 insertions(+), 19 deletions(-)

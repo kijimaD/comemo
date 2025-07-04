@@ -1,15 +1,17 @@
-commit 719e9894f9a471cd74b8469d9231cd2798b33999
+commit 48b368b01fa1f4f9a4380722f03b35d449a09871
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 25 19:12:35 2022 -0800
+Date:   Tue Apr 20 10:55:59 2021 -0700
 
-    spec: document the underlying type of comparable
+    cmd/compile/internal/types2: avoid follow-on errors for invalid [...] array
     
-    For #50791.
+    Fixes #42987.
     
-    Change-Id: I7f135bb6626128a3cee9fd71c57535c1fc83ac7f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380854
+    Change-Id: Iaaa46e1f79525cd1e418c1a81a6414d11f8120b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311889
     Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go_spec.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/api_test.go              | 2 +-
+ src/cmd/compile/internal/types2/fixedbugs/issue42987.src | 8 ++++++++
+ src/cmd/compile/internal/types2/typexpr.go               | 5 ++++-
+ 3 files changed, 13 insertions(+), 2 deletions(-)

@@ -1,22 +1,28 @@
-commit ed2010e676042b387d72daaa4c39b54c4c57c031
-Author: Keyuan <keyuanli123@gmail.com>
-Date:   Tue Oct 20 19:47:29 2020 -0700
+commit 886303004f06cfb3bcd0c1da92fe51f5eb1e3023
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Mar 28 23:10:20 2020 -0400
 
-    imports: make ScanDir ignore go files start with dot
+    net/http: release callbacks after fetch promise completes
     
-    Adding "." Prefix Check for go files.
+    When the request context was canceled, the Transport.RoundTrip method
+    could return before the fetch promise resolved. This would cause the
+    success and failure callback functions to get called after they've
+    been released, which in turn prints a "call to released function"
+    error to the console.
     
-    Fixes #42047
-    Change-Id: Ifc42bf562f52fdd304f9828b06fc57888fcd8049
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264078
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Avoid that problem by releasing the callbacks after the fetch promise
+    completes, by moving the release calls into the callbacks themselves.
+    This way we can still return from the Transport.RoundTrip method as
+    soon as the context is canceled, without waiting on the promise to
+    resolve. If the AbortController is unavailable and it's not possible to
+    abort the fetch operation, the promise may take a long time to resolve.
+    
+    For #38003.
+    
+    Change-Id: Ied1475e31dcba101b3326521b0cd653dbb345e1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226204
+    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/cmd/go/internal/imports/scan.go                |  2 +-
- src/cmd/go/internal/imports/testdata/android/.h.go |  3 +++
- src/cmd/go/internal/imports/testdata/illumos/.h.go |  3 +++
- src/cmd/go/testdata/script/import_ignore.txt       | 11 +++++++++++
- 4 files changed, 18 insertions(+), 1 deletion(-)
+ src/net/http/roundtrip_js.go | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)

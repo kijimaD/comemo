@@ -1,29 +1,107 @@
-commit a32232cb18ed07496ec77c1cf2dcefa1cb0ac057
-Author: Roland Shoemaker <bracewell@google.com>
-Date:   Tue Apr 11 16:27:43 2023 +0100
+commit 3651a6117e9a88576615c29c4faf7eeec55d7691
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 3 12:44:58 2022 -0400
 
-    html/template: handle all JS whitespace characters
+    go/doc/comment: add heuristics for common badly formatted comments
     
-    Rather than just a small set. Character class as defined by \s [0].
+    In a set of 55M Go doc comments drawn from the latest version of
+    all public Go modules known to the module proxy in spring 2020,
+    the current Go 1.19 gofmt reformats about 1.57M of them.
+    Out of those 1.57M comments, inspection of random samples
+    shows that around 5% of the changed comments contain
+    unindented code snippets, multiline shell commands, or lists.
+    For example:
     
-    Thanks to Juho Nurminen of Mattermost for reporting this.
+            // Here is a greeting:
+            //
+            // func main() {
+            //      fmt.Println("hello, world")
+            // }
     
-    Fixes #59721
-    Fixes CVE-2023-24540
+            // Run this command:
+            //
+            // path/to/your/program -flag1=longargument1 \
+            //      -flag2=longargument2 \
+            //      -flag3
     
-    [0] https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions/Character_Classes
+            // There are three possibilities:
+            //
+            // - Unindented code snippets (or JSON objects)
+            //    in which the first and last line are unindented
+            //    but end in { and start with }, respectively.
+            // - Unindented multiline shell commands
+            //    in which the lines end in \
+            // - Unindented lists, in which wrapped lines are indented.
     
-    Change-Id: I56d4fa1ef08125b417106ee7dbfb5b0923b901ba
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1821459
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    Run-TryBot: Roland Shoemaker <bracewell@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491616
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    All three of these cases involve unindented lines next to indented
+    lines that would according to the usual rules begin a pre block.
+    Before this CL, they'd be reformatted to:
+    
+            // Here is a greeting:
+            //
+            // func main() {
+            //
+            //      fmt.Println("hello, world")
+            //
+            // }
+    
+            // Run this command:
+            //
+            // path/to/your/program -flag1=longargument1 \
+            //
+            //      -flag2=longargument2 \
+            //      -flag3
+    
+            // There are three possibilities:
+            //
+            // - Unindented code snippets (or JSON objects)
+            //
+            //      in which the first and last line are unindented
+            //      but end in { and start with }, respectively.
+            //
+            // - Unindented multiline shell commands
+            //
+            //      in which the lines end in \
+            //
+            // - Unindented lists, in which wrapped lines are indented.
+    
+    The fact that they are not already in canonical format gives us
+    a signal that they might not mean what the usual rules would say.
+    
+    This CL takes advantage of that opening to apply a few heuristics
+    to better handle these cases:
+    
+     1. If an indented code block immediately follows (without a blank line)
+        an unindented line ending in { or \, include the unindented line
+        in the code block.
+    
+     2. If an indented code block immediately precedes (without a blank line)
+        an unindented line beginning with }, include the unindented line
+        in the code block.
+    
+     3. If an indented line immediately follows (without a blank line)
+        an unindented line that starts with a list marker, assume this is
+        an unindented list with a wrapped indented line, and treat all
+        adjacent unindented lines starting with list markers as part of
+        the list, stopping at any surrounding blank lines.
+    
+    This raises the fraction of “correctly” reformatted doc comments
+    in the corpus from approximately 87% to approximately 93%.
+    
+    Change-Id: I7ac542eb085032d607a7caf3ba9020787b2978b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410360
+    Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/html/template/js.go      |  8 +++++++-
- src/html/template/js_test.go | 11 +++++++----
- 2 files changed, 14 insertions(+), 5 deletions(-)
+ src/go/doc/comment/parse.go            | 294 ++++++++++++++++++++++-----------
+ src/go/doc/comment/testdata/code4.txt  |  38 +++++
+ src/go/doc/comment/testdata/code5.txt  |  21 +++
+ src/go/doc/comment/testdata/code6.txt  |  24 +++
+ src/go/doc/comment/testdata/list10.txt |  13 ++
+ src/go/doc/comment/testdata/list9.txt  |  30 ++++
+ src/go/doc/comment/text.go             |   1 -
+ 7 files changed, 322 insertions(+), 99 deletions(-)

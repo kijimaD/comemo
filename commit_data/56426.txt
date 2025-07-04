@@ -1,29 +1,27 @@
-commit a548dee75cc2fd578acc303f58887a50e64e29bc
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu May 9 17:48:33 2024 +0000
+commit 9fa81a88279f2e4be11992a0bc313210b62ae08f
+Author: Emily Shaffer <nasamuffin@google.com>
+Date:   Wed Apr 26 14:51:31 2023 -0700
 
-    cmd/link/internal/ld: fix overlapping sections in ELF relro links
+    cmd/go/internal/modfetch/codehost: explicitly specify GIT_DIR
     
-    This patch fixes a problem with how the .dynamic and .got sections are
-    handled during PIE linking on ELF targets. These sections were being
-    given addresses that overlapped with the .data.rel.ro section, which
-    resulted in binaries that worked correctly but confused the binutils
-    "strip" tool (which, confusingly, produced non-working stripped output
-    when used on Go PIE binaries without returning a non-zero exit
-    status). The new RELRO PIE code path preserves .dynamic and .got as
-    their own independent sections, while ensuring that they make it into
-    the RELRO segment. A new test verifies that we can successfully strip
-    and run Go PIE binaries, and also that we don't wind up with any
-    sections whose address ranges overlap.
+    When Git has safe.bareRepository=explicit set, operations on bare Git
+    repositories will fail unless --git-dir or GIT_DIR is set. The rest of
+    the time, specifying the gitdir makes repository discovery at the
+    beginning of a Git command ever-so-slightly faster. So, there is no
+    downside to ensuring that users with this stricter security config set
+    can still use 'go mod' commands easily.
     
-    Fixes #67261.
-    Updates #45681.
+    See
+    https://lore.kernel.org/git/pull.1261.v8.git.git.1657834081.gitgitgadget@gmail.com/
+    for a more detailed description of security concerns around embedded
+    bare repositories without an explicitly specified GIT_DIR.
     
-    Change-Id: If874be05285252a9b074d4a1fc6a4023b9a28b5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584595
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I01c1d97a79fdab12c2b5532caf84eb7760f96b18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489915
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/data.go     |   4 +-
- src/cmd/link/internal/ld/elf_test.go | 197 +++++++++++++++++++++++++++++++++++
- 2 files changed, 199 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,21 +1,16 @@
-commit d0a05f51f9d50622868df5e6032f40896b448426
-Author: John Dethridge <jcd@golang.org>
-Date:   Sat May 2 16:40:21 2015 +1000
+commit fd0419b34425c2743b24c8d7c2cfe28f8df9cc26
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Apr 12 02:31:28 2015 +0200
 
-    debug/dwarf: compute ByteSize for more DWARF types
+    cmd/internal/ld: allow -r to override rpath when -linkshared
     
-    When AttrByteSize is not present for a type, we can still determine the
-    size in two more cases: when the type is a Typedef referring to another
-    type, and when the type is a pointer and we know the default address
-    size.
+    Including having -r "" preventing rpath from being set at all.
     
-    entry.go: return after setting an error if the offset is out of range.
-    
-    Change-Id: I63a922ca4e4ad2fc9e9be3e5b47f59fae7d0eb5c
-    Reviewed-on: https://go-review.googlesource.com/9663
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ib40d7bf93a6e9ef21985c4a05b5703e4fbd1cd1b
+    Reviewed-on: https://go-review.googlesource.com/8806
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/dwarf/entry.go    |  7 +++++++
- src/debug/dwarf/type.go     | 10 ++++++++++
- src/debug/dwarf/typeunit.go |  5 +++++
- 3 files changed, 22 insertions(+)
+ src/cmd/internal/ld/elf.go  |  4 ++--
+ src/cmd/internal/ld/lib.go  | 25 +++++++++++++++++++++----
+ src/cmd/internal/ld/pobj.go |  2 +-
+ 3 files changed, 24 insertions(+), 7 deletions(-)

@@ -1,0 +1,22 @@
+commit b89988c5ca47a6a2022db689fa882134397d0f32
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Apr 14 11:22:04 2025 +0200
+
+    internal/poll: remove outdated tests
+    
+    TestFileFdsAreInitialised and TestSerialFdsAreInitialised were added
+    to ensure handles passed to os.NewFile were not added to the runtime
+    poller. This used to be problematic because the poller could crash
+    if an external I/O event was received (see #21172).
+    
+    This is not an issue anymore since CL 482495 and #19098.
+    
+    Change-Id: I292ceae27724fefe6f438a398ebfe351dd5231d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/internal/poll/fd_windows_test.go | 71 ------------------------------------
+ 1 file changed, 71 deletions(-)

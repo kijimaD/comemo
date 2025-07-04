@@ -1,17 +1,18 @@
-commit 22a00f2b5c56211427530da4bfe0bac1a06fdf7c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Apr 25 10:23:45 2022 -0400
+commit cce621431a9bce86527b25898a01a7a693cc56a8
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jun 25 01:45:32 2021 +0700
 
-    os/exec: in TestImplicitPWD, explicitly request the logical path
+    cmd/compile: fix wrong type in SSA generation for OSLICE2ARRPTR
     
-    Fixes #52537
+    Fixes #46907
     
-    Change-Id: I70959881a31f425e940e7adf86b36be2596aafb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402158
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I6a2728d2f2159df583b32f40f6100d3e90c34dd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330672
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/os/exec/exec_posix_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssagen/ssa.go |  2 +-
+ test/fixedbugs/issue46907.go           | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

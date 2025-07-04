@@ -1,19 +1,12 @@
-commit 881b0e78806e50125b81158b482e35057d57f522
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Thu Oct 15 23:34:56 2015 -0700
+commit faee392814f118d0d1c8103bb46965267e8619f7
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Aug 3 19:28:48 2015 -0500
 
-    runtime: merge string1.go into string.go
+    [dev.ssa] cmd/compile/ssa : fix typo in error message
     
-    string1.go contents are appended to string.go as is
-    
-    Updates #12952
-    
-    Change-Id: I30083ba7fdd362d4421e964a494c76ca865bedc2
-    Reviewed-on: https://go-review.googlesource.com/15951
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibb5169aade15190773ff7dd11b303c1f1345a0c2
+    Reviewed-on: https://go-review.googlesource.com/13100
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/string.go  | 60 ++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/string1.go | 67 --------------------------------------------------
- 2 files changed, 60 insertions(+), 67 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,18 @@
-commit 2ac8555d57f7317590e0b0ff709c2be2674e70cc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 11 11:58:06 2016 -0800
+commit 934e055f414839a9af59601aebacfeeef2b52740
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 5 14:06:58 2016 -0800
 
-    cmd/link: tidy up rdsym
+    runtime: call msanwrite on object passed to runtime/cgo
     
-    Use an early return. Check errors. Deduplicate.
+    Avoids an msan error when runtime/cgo is explicitly rebuilt with
+    -fsanitize=memory.
     
-    Change-Id: Iabefd563b5ef82a16fab4791277630804fd09003
-    Reviewed-on: https://go-review.googlesource.com/20597
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #13815.
+    
+    Change-Id: I70308034011fb308b63585bcd40b0d1e62ec93ef
+    Reviewed-on: https://go-review.googlesource.com/18263
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/objfile.go | 38 +++++++++++++++++++++----------------
- 1 file changed, 22 insertions(+), 16 deletions(-)
+ misc/cgo/testsanitizers/test.bash | 7 ++++++-
+ src/runtime/proc.go               | 3 +++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

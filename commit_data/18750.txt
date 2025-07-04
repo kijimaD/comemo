@@ -1,75 +1,16 @@
-commit 1249d3a518169213535f92a0ab23b494013a55a8
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 5 11:10:40 2014 -0500
+commit b586f56e76f67bd482b51186bf45d6ada47421ad
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Mar 6 00:08:34 2014 +1100
 
-    runtime: handle Go calls C calls Go panic correctly on windows/386
+    syscall: fix mksysnum_dragonfly.pl
     
-    32-bit Windows uses "structured exception handling" (SEH) to
-    handle hardware faults: that there is a per-thread linked list
-    of fault handlers maintained in user space instead of
-    something like Unix's signal handlers. The structures in the
-    linked list are required to live on the OS stack, and the
-    usual discipline is that the function that pushes a record
-    (allocated from the current stack frame) onto the list pops
-    that record before returning. Not to pop the entry before
-    returning creates a dangling pointer error: the list head
-    points to a stack frame that no longer exists.
+    The format of the DragonFly BSD syscalls.master file has changed
+    slightly - update mksysnum_dragonfly.pl to match.
     
-    Go pushes an SEH record in the top frame of every OS thread,
-    and that record suffices for all Go execution on that thread,
-    at least until cgo gets involved.
-    
-    If we call into C using cgo, that called C code may push its
-    own SEH records, but by the convention it must pop them before
-    returning back to the Go code. We assume it does, and that's
-    fine.
-    
-    If the C code calls back into Go, we want the Go SEH handler
-    to become active again, not whatever C has set up. So
-    runtime.callbackasm1, which handles a call from C back into
-    Go, pushes a new SEH record before calling the Go code and
-    pops it when the Go code returns. That's also fine.
-    
-    It can happen that when Go calls C calls Go like this, the
-    inner Go code panics. We allow a defer in the outer Go to
-    recover the panic, effectively wiping not only the inner Go
-    frames but also the C calls. This sequence was not popping the
-    SEH stack up to what it was before the cgo calls, so it was
-    creating the dangling pointer warned about above. When
-    eventually the m stack was used enough to overwrite the
-    dangling SEH records, the SEH chain was lost, and any future
-    panic would not end up in Go's handler.
-    
-    The bug in TestCallbackPanic and friends was thus creating a
-    situation where TestSetPanicOnFault - which causes a hardware
-    fault - would not find the Go fault handler and instead crash
-    the binary.
-    
-    Add checks to TestCallbackPanicLocked to diagnose the mistake
-    in that test instead of leaving a bad state for another test
-    case to stumble over.
-    
-    Fix bug by restoring SEH chain during deferred "endcgo"
-    cleanup.
-    
-    This bug is likely present in Go 1.2.1, but since it depends
-    on Go calling C calling Go, with the inner Go panicking and
-    the outer Go recovering the panic, it seems not important
-    enough to bother fixing before Go 1.3. Certainly no one has
-    complained.
-    
-    Fixes #7470.
-    
-    LGTM=alex.brainman
-    R=golang-codereviews, alex.brainman
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/71440043
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/71460044
 
- src/pkg/runtime/cgocall.c               | 12 +++++++
- src/pkg/runtime/export_test.go          |  4 +++
- src/pkg/runtime/proc.c                  | 16 +++------
- src/pkg/runtime/runtime.h               | 30 +++++++++++++++++
- src/pkg/runtime/runtime1.goc            |  4 +++
- src/pkg/runtime/sys_windows_386.s       | 10 ++++++
- src/pkg/runtime/syscall_windows_test.go | 57 +++++++++++++++++++++------------
- 7 files changed, 100 insertions(+), 33 deletions(-)
+ src/pkg/syscall/mksysnum_dragonfly.pl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

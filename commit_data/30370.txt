@@ -1,33 +1,24 @@
-commit 731fd009f0acef70d939f3cb62f81a83e3e9e2bb
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Feb 22 12:47:52 2017 -0800
+commit bcc0247331a77015053d3fa28f458d0c639d6730
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 2 09:47:43 2016 -0700
 
-    cmd/vet/all: use -dolinkobj=false to speed up runs
+    cmd/compile: avoid double export of aliased objects
     
-    When running on the host platform,
-    the standard library has almost certainly already been built.
-    However, all other platforms will probably need building.
-    Use the new -dolinkobj=false flag to cmd/compile
-    to only build the export data instead of doing a full compile.
+    Instead of writing out the original object for each alias, ensure we
+    export the original object before any aliases. This allows the aliases
+    to simply refer back to the original object by qualified name.
     
-    Having partial object files could be confusing for people
-    doing subsequent cross-compiles, depending on what happens with #18369.
-    However, cmd/vet/all will mainly be run by builders
-    and core developers, who are probably fairly well-placed
-    to handle any such confusion.
+    Fixes #17636.
     
-    This reduces the time on my machine for a cold run of
-    'go run main.go -all' by almost half:
-    
-    benchmark           old ns/op        new ns/op        delta
-    BenchmarkVetAll     240670814551     130784517074     -45.66%
-    
-    Change-Id: Ieb866ffb2cb714b361b0a6104077652f8eacd166
-    Reviewed-on: https://go-review.googlesource.com/37385
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: If80fa8c66b8fee8344a00b55d25a8aef22abd859
+    Reviewed-on: https://go-review.googlesource.com/32575
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/vet/all/main.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go | 15 ++++------
+ src/cmd/compile/internal/gc/bimport.go | 33 ++++++++++------------
+ src/cmd/compile/internal/gc/export.go  |  7 ++++-
+ src/go/internal/gcimporter/bimport.go  | 51 +++++++++++++---------------------
+ 4 files changed, 47 insertions(+), 59 deletions(-)

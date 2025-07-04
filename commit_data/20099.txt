@@ -1,21 +1,15 @@
-commit 7dc25960b470fa34845d2c1257a9113a9133d7a4
+commit 4edcbe0d40ec54e92cf7e8d662e11635e173b933
 Author: Rob Pike <r@golang.org>
-Date:   Sun Aug 24 11:34:45 2014 -0700
+Date:   Fri Aug 15 11:41:12 2014 -0700
 
-    cmd/yacc: remove Makefile and build expr using go generate
-    It now serves as an example for go generate as well as for yacc.
+    fmt: fix size returned on fast path of ReadRune
+    Fixes #8512.
     
-    NOTE: Depends on go generate, which is not yet checked in.
-    This is a proof of concept of the approach.
-    That is https://golang.org/cl/125580044.
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/125620044
+    https://golang.org/cl/130090043
 
- src/cmd/yacc/Makefile          | 12 ------------
- src/cmd/yacc/expr/README       | 20 ++++++++++++++++++++
- src/cmd/yacc/{ => expr}/expr.y |  5 -----
- src/cmd/yacc/expr/main.go      | 15 +++++++++++++++
- 4 files changed, 35 insertions(+), 17 deletions(-)
+ src/pkg/fmt/scan.go      |  1 +
+ src/pkg/fmt/scan_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

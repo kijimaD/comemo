@@ -1,20 +1,16 @@
-commit c2917af6280ea1bcc5ebf85224055ae1a1882af3
-Author: Quentin Smith <quentin@golang.org>
-Date:   Thu Nov 3 18:45:01 2016 -0400
+commit 83676b93fb9591fb452612b55237ffdeb2a59119
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 14 11:35:29 2016 -0700
 
-    cmd/go: handle escapes in pkg-config output
+    cmd/compile, cmd/link: fix printf verbs
     
-    This commit also adds a test for pkg-config usage in cgo.
+    Found by vet.
     
-    Fixes #16455.
-    
-    Change-Id: I95fb6a288a4d19093c4613c93878017d95cbe4a2
-    Reviewed-on: https://go-review.googlesource.com/32735
-    Run-TryBot: Quentin Smith <quentin@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I9dbc6208ddbb5b407f4ddd20efbc166aac852cf7
+    Reviewed-on: https://go-review.googlesource.com/29162
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/build.go      | 35 ++++++++++++++++++++++++++++++++++-
- src/cmd/go/build_test.go | 19 +++++++++++++++++++
- src/cmd/go/go_test.go    | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 98 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/decompose.go | 2 +-
+ src/cmd/link/internal/ld/data.go          | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit d681270714bc91b28a2cd97c3eae138b3112ff1d
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 14 16:00:25 2025 -0700
+
+    cmd/compile: allow load-op merging in additional situations
+    
+    x += *p
+    
+    We want to do this with a single load+add operation on amd64.
+    The tricky part is that we don't want to combine if there are
+    other uses of x after this instruction.
+    
+    Implement a simple detector that seems to capture a common situation -
+    x += *p is in a loop, and the other use of x is after loop exit.
+    In that case, it does not hurt to do the load+add combo.
+    
+    Change-Id: I466174cce212e78bde83f908cc1f2752b560c49c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672957
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 13 ++++++++++++-
+ test/codegen/memcombine.go              |  9 +++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

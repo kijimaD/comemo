@@ -1,12 +1,26 @@
-commit d5994f4f5e3288593de54198b3c61c9eb608e087
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sat Jul 4 18:33:21 2015 +0200
+commit c04813e130eea824428deba5242e4fba26538078
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 29 10:37:11 2015 -0700
 
-    doc/go1.5.html: fix typo
+    cmd/internal/obj: combine Pcrel and Comefrom
     
-    Change-Id: If33ffe1da23a8463fc5479f453422d280b736372
-    Reviewed-on: https://go-review.googlesource.com/11865
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    They're each architecture-specific.
+    Let them share.
+    
+    Reduces Prog size to 288, which is the
+    next smaller malloc class.
+    
+    Reduces inuse_space while compiling the
+    rotate tests by ~3.2%.
+    
+    Change-Id: Ica8ec90e466c97b569745fffff0e5acd364e55fa
+    Reviewed-on: https://go-review.googlesource.com/10514
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.5.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/arm/asm5.go | 12 +++++-----
+ src/cmd/internal/obj/arm/obj5.go |  2 +-
+ src/cmd/internal/obj/link.go     | 47 ++++++++++++++++++++--------------------
+ src/cmd/internal/obj/x86/asm6.go |  8 +++----
+ 4 files changed, 34 insertions(+), 35 deletions(-)

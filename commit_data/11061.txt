@@ -1,18 +1,16 @@
-commit f9427364951a1e4b2ef6ad7d0ec9a6dfbb2dee54
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Jan 9 16:57:51 2012 -0500
+commit f5d024a74695510fcb0890807849ec95253a56cd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Jan 9 12:54:31 2012 -0800
 
-    crypto/openpgp: truncate hashes before checking DSA signatures.
+    text/template: handle panic values that are not errors.
     
-    I didn't believe that OpenPGP allowed > SHA-1 with DSA, but it does and
-    so we need to perform hash truncation.
+    The recover code assumes that the panic() argument was
+    an error, but it is usually a simple string.
+    Fixes #2663.
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/5510044
+    R=golang-dev, r, r, gri
+    CC=golang-dev, remy
+    https://golang.org/cl/5527046
 
- src/pkg/crypto/openpgp/packet/public_key.go |  5 +++++
- src/pkg/crypto/openpgp/packet/signature.go  |  9 ++++++++-
- src/pkg/crypto/openpgp/read_test.go         | 12 ++++++++++++
- src/pkg/crypto/openpgp/write_test.go        |  2 +-
- 4 files changed, 26 insertions(+), 2 deletions(-)
+ src/pkg/text/template/exec.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

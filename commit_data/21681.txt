@@ -1,34 +1,19 @@
-commit edadffa2f3464c48a234f3cf2fc092a03f91824f
+commit 6488b217c2cdda50beea73ce3312da9e853160f8
 Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Jan 30 13:31:43 2015 +0300
+Date:   Fri Dec 12 19:41:18 2014 +0100
 
-    cmd/trace: add new command
+    cmd/go: add tracing support
     
-    Trace command allows to visualize and analyze traces.
-    Run as:
-    $ go tool trace binary trace.file
-    The commands opens web browser with the main page,
-    which contains links for trace visualization,
-    blocking profiler, network IO profiler and per-goroutine
-    traces.
+    cmd/go part of tracing functionality:
+    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
+    Full change:
+    https://codereview.appspot.com/146920043
     
-    Also move trace parser from runtime/pprof/trace_parser_test.go
-    to internal/trace/parser.go, so that it can be shared between
-    tests and the command.
-    
-    Change-Id: Ic97ed59ad6e4c7e1dc9eca5e979701a2b4aed7cf
-    Reviewed-on: https://go-review.googlesource.com/3601
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: If346e11b8029c475b01fbf7172ce1c88171fb1b2
+    Reviewed-on: https://go-review.googlesource.com/1460
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/trace/README.md                   |    6 +
- misc/trace/trace_viewer_lean.html      | 2868 ++++++++++++++++++++++++++++++++
- src/cmd/go/pkg.go                      |    1 +
- src/cmd/trace/goroutines.go            |  328 ++++
- src/cmd/trace/main.go                  |  156 ++
- src/cmd/trace/pprof.go                 |  162 ++
- src/cmd/trace/trace.go                 |  434 +++++
- src/internal/trace/parser.go           |  662 ++++++++
- src/runtime/pprof/trace_parser_test.go |  656 --------
- src/runtime/pprof/trace_test.go        |  160 +-
- src/runtime/trace.go                   |    1 -
- 11 files changed, 4768 insertions(+), 666 deletions(-)
+ src/cmd/go/doc.go      | 4 ++++
+ src/cmd/go/test.go     | 4 ++++
+ src/cmd/go/testflag.go | 4 +++-
+ 3 files changed, 11 insertions(+), 1 deletion(-)

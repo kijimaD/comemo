@@ -1,27 +1,14 @@
-commit 3726d91d680b20d147f5b0b6222232d10930d121
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 21 12:00:12 2019 -0500
+commit 5b2e2b6cf4762792a4d53d55203aebb383e79dde
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Sep 25 19:54:23 2018 +0200
 
-    cmd/go/internal/imports: use the full path to resolve symlinks
+    doc/faq: fix link to 2018 ISMM keynote
     
-    info.Name returns a name relative to the directory, so we need to
-    prefix that directory in the Stat call.
+    Fixes #27860
     
-    (This was missed in CL 141097 due to the fact that the test only
-    happened to check symlinks in the current directory.)
-    
-    This allows the misc/ tests to work in module mode on platforms that
-    support symlinks.
-    
-    Updates #30228
-    Updates #28107
-    
-    Change-Id: Ie31836382df0cbd7d203b7a8b637c4743d68b6f3
-    Reviewed-on: https://go-review.googlesource.com/c/163517
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I5d7a858a8d2c97dd4deb9f98c35e71fc75fca997
+    Reviewed-on: https://go-review.googlesource.com/137356
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/imports/scan.go        |  2 +-
- src/cmd/go/testdata/script/mod_symlink.txt | 29 ++++++++++++++++++++++++-----
- 2 files changed, 25 insertions(+), 6 deletions(-)
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

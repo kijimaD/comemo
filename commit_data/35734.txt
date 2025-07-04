@@ -1,18 +1,22 @@
-commit 3b0b3a02231083d8946b5afa5be6dd16dae5c6bf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 15 19:13:51 2018 +0000
+commit 43b64762628a79eb38c2e907f7c3e2afbff77a03
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Mon Mar 5 20:04:25 2018 +0000
 
-    cmd/link: add buildid to wasm modules
+    os/signal: disable loading of history during test
     
-    Add Go buildids into a custom wasm section ("go.buildid", arbitrarily)
-    early in the wasm module, right after the magic & version.
+    This change modifies Go to disable loading of users' shell history for
+    TestTerminalSignal tests. TestTerminalSignal, as part of its workload,
+    will execute a new interactive bash shell. Bash will attempt to load the
+    user's history from the file pointed to by the HISTFILE environment
+    variable. For users with large histories that may take up to several
+    seconds, pushing the whole test past the 5 second timeout and causing
+    it to fail.
     
-    Fixes #25910
-    
-    Change-Id: If3f7cb267bf8c7beb6fa8d8b7a4829419720bbd8
-    Reviewed-on: https://go-review.googlesource.com/119175
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I11b2f83ee91f51fa1e9774a39181ab365f9a6b3a
+    GitHub-Last-Rev: 7efdf616a2fcecdf479420fc0004057cee2ea6b2
+    GitHub-Pull-Request: golang/go#24255
+    Reviewed-on: https://go-review.googlesource.com/98616
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/wasm/asm.go | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/os/signal/signal_cgo_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

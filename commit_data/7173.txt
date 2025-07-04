@@ -1,29 +1,13 @@
-commit c52ad23461953a8017199fe0a6fa78ba486ec2ef
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Jan 19 15:43:58 2011 -0500
+commit b99a6d465a5a08ea5217d72e8e7a6202b80320d2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 19 12:36:52 2011 -0800
 
-    xml: handle tag paths through the same element
-    
-    With the current implementation, xml unmarshalling
-    will silently fail to unmarshal any paths passing
-    through the same element, such as:
-    
-    type T struct {
-            A string "dummy>a"
-            B string "dummy>b"
-    }
-    
-    This change tweaks the algorithm so that this works
-    correctly.
-    
-    Also, using paths that would cause the same element to
-    unmarshal twice will error out ahead of time explaining
-    the problem, rather than silently misbehaving.
+    runtime/debug: fix build (missing Makefile)
+    Why does this happen so often?
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4082041
+    https://golang.org/cl/4067042
 
- src/pkg/xml/read.go      | 93 ++++++++++++++++++++++++++++++++++++------------
- src/pkg/xml/read_test.go | 53 ++++++++++++++++++++-------
- 2 files changed, 111 insertions(+), 35 deletions(-)
+ src/pkg/runtime/debug/Makefile | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,20 +1,16 @@
-commit 40657c282d49d807d2bd76165fe013317855a653
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 9 18:34:29 2019 -0400
+commit 57879fea4605b616aeeea144cfd7d2d09c14226a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jan 2 16:16:49 2019 -0500
 
-    runtime: fix s390x build
+    cmd/compile: fix format test
     
-    The new prototypes of duffzero and duffcopy must be
-    accompanied by functions. Otherwise buildmode=shared
-    (in particular, misc/cgo/testshared) has missing symbols.
+    CL 156019 adds some debug output, including printing ssa.relation
+    as string. Update the map.
     
-    The right fix, of course, is to implement these on s390x.
-    
-    For #31916.
-    
-    Change-Id: I3efff5e3011956341e1b26223a4847a8a91a0453
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176397
+    Change-Id: I0299d2008d199da10d86e5b47a50385b3a314c68
+    Reviewed-on: https://go-review.googlesource.com/c/156020
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/duff_s390x.s | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/cmd/compile/fmtmap_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,16 +1,17 @@
-commit 2bf7034d87c051ff3d3fcce9f62d7ef2d2f4108d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 25 10:48:45 2016 -0400
+commit 3621600c9207adc9d493e4f60ff74069d58518ca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 11 00:23:37 2016 -0800
 
-    cmd/go: disable failing TestGoGetInsecure
+    cmd/compile: give "magic" code its own source file
     
-    Update #15410
+    This code is an eye sore to keep scrolling past in subr.go, so move it
+    out of the way.
     
-    Change-Id: Iad3f2639aa7a67b11efc35a629e1893f7d87b957
-    Reviewed-on: https://go-review.googlesource.com/22430
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8eafc1725d868a4924ee7ca9b7738cce309f9eff
+    Reviewed-on: https://go-review.googlesource.com/20592
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/go/go_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/go.go    |  17 ---
+ src/cmd/compile/internal/gc/magic.go | 220 +++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/subr.go  | 196 -------------------------------
+ 3 files changed, 220 insertions(+), 213 deletions(-)

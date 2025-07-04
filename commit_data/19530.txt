@@ -1,16 +1,23 @@
-commit ce39b34f36c5cd2655a4b1eba80c7e3b2610f021
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 12 17:01:13 2014 -0700
+commit 597f87c997dcaa86227725e227f5eb59721a0129
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 12 16:34:54 2014 -0400
 
-    time: change formatting of microseconds duration to SI modifier
-    'u' is not micro, µ (U+00B5) is.
+    runtime: do not trace past jmpdefer during pprof traceback on arm
     
-    LGTM=gri, bradfitz
-    R=golang-codereviews, bradfitz, gri
-    CC=golang-codereviews
-    https://golang.org/cl/105030046
+    jmpdefer modifies PC, SP, and LR, and not atomically,
+    so walking past jmpdefer will often end up in a state
+    where the three are not a consistent execution snapshot.
+    This was causing warning messages a few frames later
+    when the traceback realized it was confused, but given
+    the right memory it could easily crash instead.
+    
+    Update #8153
+    
+    LGTM=minux, iant
+    R=golang-codereviews, minux, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/107970043
 
- src/pkg/time/example_test.go |  4 ++--
- src/pkg/time/time.go         | 19 +++++++++----------
- src/pkg/time/time_test.go    |  2 +-
- 3 files changed, 12 insertions(+), 13 deletions(-)
+ src/pkg/runtime/asm_arm.s       |  4 ++++
+ src/pkg/runtime/traceback_arm.c | 13 +++++++++++++
+ 2 files changed, 17 insertions(+)

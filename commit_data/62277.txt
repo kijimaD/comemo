@@ -1,0 +1,21 @@
+commit beac2f7d3b72ecaff146b98afb690489f0192422
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 14 16:13:44 2025 -0800
+
+    cmd/compile: fix sign extension of paired 32-bit loads on arm64
+    
+    Fixes #71759
+    
+    Change-Id: Iab05294ac933cc9972949158d3fe2bdc3073df5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/arm64/ssa.go         |  2 +-
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go |  3 ++-
+ src/cmd/compile/internal/ssa/opGen.go         | 18 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/pair.go          |  5 ++++-
+ test/codegen/memcombine.go                    |  4 ++++
+ test/fixedbugs/issue71759.go                  | 20 ++++++++++++++++++++
+ 6 files changed, 49 insertions(+), 3 deletions(-)

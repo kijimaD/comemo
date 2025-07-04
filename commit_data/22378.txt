@@ -1,29 +1,14 @@
-commit 2a5f88d85072b30549c348a04e710fa26629e44b
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Mar 27 02:48:27 2015 +0000
+commit d7e043eaf5740cf409883e75b32fc1e076a57d2f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 10 09:39:04 2015 -0700
 
-    cmd/internal/ld: add -buildmode=c-shared as an alternative to -shared
+    go/ast: fixed minor typo in comment
     
-    The linker currently (on some platforms) takes a -shared flag, which means
-    approximately what -buildmode=c-shared means in the in the proposed "Go
-    Execution Modes" document. As part of implementing other modes, the term
-    "shared" becomes horribly overloaded, so this replaces -shared with a
-    -buildmode argument instead (which currently only handles -buildmode=c-shared
-    and the default -buildmode=exe -- no new behaviour here).
+    Fixes #10125.
     
-    As the linker support for -shared was in 1.4 this retains it as an alias.
-    
-    Change-Id: Id2ebb8e05ee07f46208a554bc2622d0e67b47082
-    Reviewed-on: https://go-review.googlesource.com/8304
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I99032912650cef8e5bf124bda0a60d5899760103
+    Reviewed-on: https://go-review.googlesource.com/7320
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/5l/asm.go           |  2 +-
- src/cmd/6l/asm.go           |  2 +-
- src/cmd/6l/obj.go           |  2 +-
- src/cmd/internal/ld/data.go |  4 ++--
- src/cmd/internal/ld/elf.go  |  2 +-
- src/cmd/internal/ld/go.go   |  2 +-
- src/cmd/internal/ld/lib.go  | 56 +++++++++++++++++++++++++++++++++++++++------
- src/cmd/internal/ld/pobj.go | 12 +++++++++-
- 8 files changed, 67 insertions(+), 15 deletions(-)
+ src/go/ast/scope.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

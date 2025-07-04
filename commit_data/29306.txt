@@ -1,27 +1,13 @@
-commit 689947d5652e51980fbfc7b350871fe2baa06a74
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 1 14:13:34 2016 -0700
+commit adcd34c732d01d60ca336627fc0fd7647d46a0c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 30 14:13:41 2016 -0700
 
-    cmd/cgo: only record typedef name for pointer to struct
+    cmd/compile: implement fmt.Formatter for *Node formats %s, %v, %j
     
-    In a function argument, we handle a typedef for a pointer specially,
-    using the pointer type rather than the typedef, to permit the Go calls
-    to match the laxer type conversions permitted in C. We record the
-    typedef so that we use that type in the C code, in case it has a special
-    attribute. However, using the typedef is wrong when using a pointer to a
-    basic type, because the C code may sometimes use the typedef and
-    sometimes not, and using the typedef in all cases will cause incorrect
-    type errors on the Go side. Fortunately we only really need to use the
-    typedef when pointing to a struct/union/class, and in such a case
-    confusion is unlikely.
-    
-    Fixes #17723.
-    
-    Change-Id: Id2eaeb156faeaf2e8eb9cf0b8f95b44caf8cfbd2
-    Reviewed-on: https://go-review.googlesource.com/32536
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I44ee5843bb9dfd65b9a18091f365355e84888f21
+    Reviewed-on: https://go-review.googlesource.com/28330
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/test/api.go | 6 ++++++
- src/cmd/cgo/gcc.go   | 9 ++++++---
- 2 files changed, 12 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  10 +--
+ src/cmd/compile/internal/gc/fmt.go | 136 ++++++++++++++++++++++++-------------
+ 2 files changed, 93 insertions(+), 53 deletions(-)

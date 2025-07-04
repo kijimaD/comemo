@@ -1,22 +1,18 @@
-commit 9fffcde118ee3d2522744661b1af1eafb1008667
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Oct 24 19:50:48 2022 -0400
+commit 7fbe2f4cc877a02465f36e10e7547e03bcb6e1af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 22 12:21:12 2021 -0800
 
-    cmd/go: fix script conditions that require cgo
+    doc/go1.18: document compiler change for "declared but not used" errors
     
-    This fixes a regression introduced in CL 419875
-    that causes features that require cgo to be tested
-    on the nocgo builders.
+    Fixes #49214.
+    For #47694.
     
-    For #27494.
-    
-    Change-Id: Iee61225c98c1275810256ab002a698fc4b42c053
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445235
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Iba68ed17bfd81890309b6a6732087f87a03e1350
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366274
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/scriptconds_test.go | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ doc/go1.18.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

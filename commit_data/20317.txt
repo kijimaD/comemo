@@ -1,22 +1,15 @@
-commit dbed4e9b4f60b25dd472da0dd46b398114acf2fe
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Sep 6 10:07:23 2014 -0700
+commit 7006aafdcd3be55d13e987dc9008425111bc7850
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 30 14:18:41 2014 -0400
 
-    runtime: get rid of other Go->C calls in test exports.
+    runtime: preallocate panic errors for index and slice
     
-    testSchedLocal* tests need to malloc now because their
-    stack frames are too big to fit on the G0 stack.
+    This avoids allocating at the panic sites.
     
-    LGTM=iant
-    R=golang-codereviews, iant, khr
-    CC=golang-codereviews
-    https://golang.org/cl/133660043
+    LGTM=r, khr
+    R=golang-codereviews, r, khr
+    CC=dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/136020043
 
- misc/cgo/test/backdoor/runtime.c | 14 --------------
- misc/cgo/test/backdoor/thunk.s   | 16 +++++++++++++++
- src/pkg/runtime/export_test.go   | 11 +++++++----
- src/pkg/runtime/proc.c           | 42 ++++++++++++++++++----------------------
- src/pkg/runtime/proc.go          |  5 +++++
- src/pkg/runtime/proc_test.go     |  4 ++--
- src/pkg/runtime/runtime.h        |  1 -
- 7 files changed, 49 insertions(+), 44 deletions(-)
+ src/pkg/runtime/panic.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

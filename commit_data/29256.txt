@@ -1,33 +1,20 @@
-commit 854ae03db4c6c398149dc1e46fbec49479d8cb1f
-Author: Mike Strosaker <strosake@us.ibm.com>
-Date:   Sat Oct 29 02:36:41 2016 -0400
+commit 29272b1e611bf20b706e26757e5d0d872e61adff
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Mon Sep 5 15:14:55 2016 -0300
 
-    crypto/sha512: improve performance for sha512.block on ppc64le
+    cmd/go: use httpGET helper in bug command
     
-    Adds an assembly implementation of sha512.block for ppc64le to improve its
-    performance.  This implementation is largely based on the original amd64
-    implementation, unrolling the 80 iterations of the inner loop.
+    Use existing helper function instead of importing "net/http". This
+    allows the go_bootstrap build to not depend on "net/http" package.
+    See cmd/go/http.go for details.
     
-    Fixes #17660
+    Fixes build bootstrap build with all.bash.
     
-    benchmark               old ns/op     new ns/op     delta
-    BenchmarkHash8Bytes     1715          1133          -33.94%
-    BenchmarkHash1K         10098         5513          -45.41%
-    BenchmarkHash8K         68004         35278         -48.12%
-    
-    benchmark               old MB/s     new MB/s     speedup
-    BenchmarkHash8Bytes     4.66         7.06         1.52x
-    BenchmarkHash1K         101.40       185.72       1.83x
-    BenchmarkHash8K         120.46       232.21       1.93x
-    
-    Change-Id: Ifd55a49a24cb159b3a09a8e928c3f37727aca103
-    Reviewed-on: https://go-review.googlesource.com/32320
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I2fd0fb01af7774f1690a353af22137680ec78170
+    Reviewed-on: https://go-review.googlesource.com/28531
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/sha512/sha512block_decl.go    |   2 +-
- src/crypto/sha512/sha512block_generic.go |   2 +-
- src/crypto/sha512/sha512block_ppc64le.s  | 293 +++++++++++++++++++++++++++++++
- 3 files changed, 295 insertions(+), 2 deletions(-)
+ src/cmd/go/bug.go | 13 ++-----------
+ 1 file changed, 2 insertions(+), 11 deletions(-)

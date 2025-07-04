@@ -1,23 +1,21 @@
-commit 31e692be43eea8b6bdaae6d0557f829fe56187be
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jul 31 09:40:33 2024 -0700
+commit d22b08bd6449806a300f3e4c5514cdbcbc97c57f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jun 12 15:31:59 2023 -0400
 
-    go/types, types2: move type recording functionality in its own files
+    doc/go1.21: clean up remaining TODOs
     
-    This CL simply moves recording functions into recording.go and
-    adjust the imports as needed. There are no other code changes.
-    Preparation for generating go/types/recording.go from types2
-    sources.
+    These sections are now complete, remove remaining TODOs. Several entries
+    were missing CL numbers.
     
-    Change-Id: Idc5850462a78afb1bfce78ba216722d07c8bca1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602116
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Tim King <taking@google.com>
+    For #58645
+    
+    Change-Id: I67489356016013be876c4bd522afb977becf54ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502696
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/types2/check.go     | 225 -------------------------
- src/cmd/compile/internal/types2/recording.go | 238 +++++++++++++++++++++++++++
- src/go/types/check.go                        | 185 ---------------------
- src/go/types/recording.go                    | 199 ++++++++++++++++++++++
- 4 files changed, 437 insertions(+), 410 deletions(-)
+ doc/go1.21.html | 34 +++++++++-------------------------
+ 1 file changed, 9 insertions(+), 25 deletions(-)

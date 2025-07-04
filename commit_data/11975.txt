@@ -1,14 +1,15 @@
-commit 014568bee123278ae51b0e6f53c909607806568e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 16 15:23:50 2012 -0500
+commit e574480ed14c1ec6e976f8df18bd63d51801f8b7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 17 07:07:53 2012 +1100
 
-    syscall: fix bounds check in Error
+    encoding/gob: catch internal error when it happens
+    It was being skipped due to an oversight.
+    Also adjust naming parameters for map type construction - makes debugging easier.
+    Prelude to issue 3026.
     
-    Fixes #3042.
-    
-    R=golang-dev, iant
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5675067
+    https://golang.org/cl/5674071
 
- src/pkg/syscall/syscall_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/gob/decode.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

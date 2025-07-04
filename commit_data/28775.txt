@@ -1,16 +1,15 @@
-commit b65cdc28882bfd7c4be46e811a6a7841d9fb7d53
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Thu Aug 18 18:40:02 2016 +0900
+commit 3ad586155bb8cd41fa0c0650a6b5feca871dfeed
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 18 11:33:43 2016 -0400
 
-    path/filepath: add a test case for EvalSymlinks error
+    doc/go1.7.html: avoid term of art
     
-    EvalSymlinks returns error if given path or its target path don't exist.
-    Add a test for future improvement.
+    Rather than saying "stop-the-world", say "garbage collection pauses".
     
-    Change-Id: Ic9a4aa5eaee0fe7ac523d54d8eb3132a11b380b3
-    Reviewed-on: https://go-review.googlesource.com/27330
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ifb2931781ab3094e04bea93f01f18f1acb889bdc
+    Reviewed-on: https://go-review.googlesource.com/25018
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/path/filepath/path_test.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ doc/go1.7.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

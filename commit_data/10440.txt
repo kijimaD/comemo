@@ -1,15 +1,12 @@
-commit 4a2d30e13bf6f52e51c347d562871648bf5ef3bb
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Thu Nov 17 22:09:28 2011 -0500
+commit f6279b46f8220a90fb5bcadcfc8cdbe3eedd7cf2
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Nov 18 01:06:59 2011 -0200
 
-    runtime: add nanotime for Plan 9
+    html: fix doc after Err method name change
     
-    R=paulzhol, rsc, dave, rminnich
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5327063
+    https://golang.org/cl/5411045
 
- src/pkg/runtime/plan9/386/signal.c |  6 ------
- src/pkg/runtime/plan9/386/sys.s    | 18 ++++++++---------
- src/pkg/runtime/plan9/os.h         | 13 ++++++++++---
- src/pkg/runtime/plan9/thread.c     | 40 ++++++++++++++++++++++++++++++++++++++
- 4 files changed, 58 insertions(+), 19 deletions(-)
+ src/pkg/html/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

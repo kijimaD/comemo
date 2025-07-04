@@ -1,0 +1,21 @@
+commit 18ad74dd36a9bbdc6a95a9de398b3cd8917898ae
+Author: Mark Freeman <mark@golang.org>
+Date:   Wed May 28 11:10:53 2025 -0400
+
+    go/types, types2: dump position stack for non-bailout panics
+    
+    We make sure to dump to stderr since that's where the panic information
+    ends up. Long traces get truncated with a "..." in the middle. We pick
+    an arbitrary limit of 10 positions, but this could be changed.
+    
+    For #51603
+    
+    Change-Id: I02326a93181e94e1c48afc05684240540c2c90ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676815
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/check.go | 20 +++++++++++++++++++-
+ src/go/types/check.go                    | 20 +++++++++++++++++++-
+ 2 files changed, 38 insertions(+), 2 deletions(-)

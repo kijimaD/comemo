@@ -1,23 +1,16 @@
-commit f00bbd5f818f0a6b5b2fcf15422ad7fc4594225f
-Author: Michel Lespinasse <walken@google.com>
-Date:   Thu Mar 17 06:18:13 2016 -0700
+commit faf1bdb42b81f75b49307667e170754621b6653f
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Feb 6 22:35:34 2016 -0800
 
-    cmd/compile: emit itabs and itablinks
+    [dev.ssa] cmd/compile: panic doesn't return
     
-    See #14874
+    Panic doesn't return, so record that we immediately exit after a panic
+    call.  This will help code analysis.
     
-    This change tells the compiler to emit itab and itablink symbols in
-    situations where they could be useful; however the compiled code does
-    not actually make use of the new symbols yet.
-    
-    Change-Id: I0db3e6ec0cb1f3b7cebd4c60229e4a48372fe586
-    Reviewed-on: https://go-review.googlesource.com/20888
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Michel Lespinasse <walken@google.com>
+    Change-Id: I4d1f67494f97b6aee130c43ff4e44307b2b0f149
+    Reviewed-on: https://go-review.googlesource.com/19303
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/go.go      |  4 +++
- src/cmd/compile/internal/gc/main.go    |  9 +++++-
- src/cmd/compile/internal/gc/reflect.go | 53 ++++++++++++++++++++++++++++++----
- src/cmd/compile/internal/gc/walk.go    |  4 +++
- src/runtime/runtime2.go                |  2 ++
- 5 files changed, 66 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

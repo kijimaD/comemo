@@ -1,31 +1,47 @@
-commit 77b6a08e0d3061cbf505394f1d0c5bc9d16fa6cb
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Oct 12 10:18:37 2016 -0700
+commit 664c4a1f87fb48d7af6880fd9e4b504049c37b9b
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Aug 15 01:39:00 2016 +0900
 
-    vendor: add golang.org/x/crypto/{chacha20poly1305,poly1305}
+    os: consolidate files
     
-    This change imports the chacha20poly1305 and poly1305 packages from
-    x/crypto at 5f4e837b98443e9e7a65072235205993af565d85. These packages
-    will be used to support the ChaCha20-Poly1305 AEAD in crypto/tls.
+    Code movement only.
     
-    Change-Id: I1a38d671ef9aeff3bc41e3924655883d465a5617
-    Reviewed-on: https://go-review.googlesource.com/30956
+    If someone finds function 'foo' in "foo_linux.go",
+    they will expect that the Window version of 'foo' exists in "foo_windows.go".
+    
+    Current code doesn't follow this manner.
+    
+    For example, 'sameFile' exists in "file_unix.go",
+    "stat_plan9.go" and "types_windows.go".
+    
+    The CL address that problem by following rules:
+    
+    * readdir family => dir.go, dir_$GOOS.go
+    * stat family => stat.go, stat_$GOOS.go
+    * path-functions => path_$GOOS.go
+    * sameFile => types.go, types_$GOOS.go
+    * process-functions => exec.go, exec_$GOOS.go
+    * hostname => sys.go, sys_$GOOS.go
+    
+    Change-Id: Ic3c64663ce0b2a364d7a414351cd3c772e70187b
+    Reviewed-on: https://go-review.googlesource.com/27035
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../x/crypto/chacha20poly1305/chacha20poly1305.go  |   83 +
- .../chacha20poly1305/chacha20poly1305_amd64.go     |   80 +
- .../chacha20poly1305/chacha20poly1305_amd64.s      | 2707 ++++++++++++++++++++
- .../chacha20poly1305/chacha20poly1305_generic.go   |   70 +
- .../chacha20poly1305/chacha20poly1305_noasm.go     |   15 +
- .../chacha20poly1305/chacha20poly1305_test.go      |  182 ++
- .../chacha20poly1305_test_vectors.go               |  332 +++
- .../internal/chacha20/chacha_generic.go            |  199 ++
- .../internal/chacha20/chacha_test.go               |   29 +
- .../golang_org/x/crypto/poly1305/poly1305.go       |   32 +
- .../golang_org/x/crypto/poly1305/poly1305_test.go  |   92 +
- .../golang_org/x/crypto/poly1305/sum_amd64.go      |   22 +
- .../golang_org/x/crypto/poly1305/sum_amd64.s       |  125 +
- src/vendor/golang_org/x/crypto/poly1305/sum_arm.go |   22 +
- src/vendor/golang_org/x/crypto/poly1305/sum_arm.s  |  394 +++
- src/vendor/golang_org/x/crypto/poly1305/sum_ref.go | 1531 +++++++++++
- 16 files changed, 5915 insertions(+)
+ src/os/dir.go          |  46 ++++++++++++++++
+ src/os/dir_unix.go     |  22 ++++++++
+ src/os/dir_windows.go  |  64 +++++++++++++++++++++++
+ src/os/doc.go          | 139 -------------------------------------------------
+ src/os/exec.go         |  87 +++++++++++++++++++++++++++++++
+ src/os/file_unix.go    |  85 ------------------------------
+ src/os/file_windows.go |  98 ----------------------------------
+ src/os/path_unix.go    |  18 +++++++
+ src/os/path_windows.go | 113 ++++++++++++++++++++++++++++++++++++++++
+ src/os/stat_plan9.go   |   6 ---
+ src/os/stat_unix.go    |  52 ++++++++++++++++++
+ src/os/stat_windows.go |  74 --------------------------
+ src/os/sys.go          |  10 ++++
+ src/os/types_plan9.go  |  11 +++-
+ src/os/types_unix.go   |   4 ++
+ 15 files changed, 426 insertions(+), 403 deletions(-)

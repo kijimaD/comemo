@@ -1,16 +1,45 @@
-commit f87e28d1b9ab33491b32255f333f1f1d83eeb6fc
-Author: zhangyunhao <zhangyunhao@bytedance.com>
-Date:   Wed May 4 06:13:09 2022 +0000
+commit 334f2fc045b7d9d846cccba01b3a0dbf70ddb0db
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jun 11 10:58:43 2021 -0400
 
-    A: add ByteDance Ltd. (Corporate CLA)
+    [dev.typeparams] go/*: switch from ListExpr to MultiIndexExpr
     
-    Change-Id: Ia670d96ce4926c88d5d955d31dd89837b236a806
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403994
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: mzh <mzh@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    When instantiating a generic type or function with multiple type
+    arguments, we need to represent an index expression with multiple
+    indexes in the AST. Previous to this CL this was done with a new
+    ast.ListExpr node, which allowed packing multiple expressions into a
+    single ast.Expr. This compositional pattern can be both inefficient and
+    cumbersome to work with, and introduces a new node type that only exists
+    to augment the meaning of an existing node type.
+    
+    By comparison, other specializations of syntax are given distinct nodes
+    in go/ast, for example variations of switch or for statements, so the
+    use of ListExpr was also (arguably) inconsistent.
+    
+    This CL removes ListExpr, and instead adds a MultiIndexExpr node, which
+    is exactly like IndexExpr but allows for multiple index arguments. This
+    requires special handling for this new node type, but a new wrapper in
+    the typeparams helper package largely mitigates this special handling.
+    
+    Change-Id: I65eb29c025c599bae37501716284dc7eb953b2ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327149
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- AUTHORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/go/ast/ast.go                              | 56 +++++++++++--------------
+ src/go/ast/walk.go                             | 11 ++---
+ src/go/internal/typeparams/typeparams.go       | 58 ++++++++++++++++----------
+ src/go/parser/parser.go                        | 22 +++++++---
+ src/go/printer/nodes.go                        | 20 ++++-----
+ src/go/types/call.go                           | 46 ++++++++++----------
+ src/go/types/expr.go                           | 14 +++----
+ src/go/types/exprstring.go                     |  8 ++--
+ src/go/types/index.go                          | 37 +++++++---------
+ src/go/types/resolver.go                       | 10 +++--
+ src/go/types/signature.go                      | 27 ++++++------
+ src/go/types/testdata/check/typeinst.go2       |  6 +--
+ src/go/types/testdata/fixedbugs/issue45635.go2 |  2 +-
+ src/go/types/typexpr.go                        | 20 ++++-----
+ 14 files changed, 170 insertions(+), 167 deletions(-)

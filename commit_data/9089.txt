@@ -1,65 +1,20 @@
-commit 5ea4d73b175cf49196061ff89e07d37b66b3a111
+commit 0490eb60bbe27e74e4a884867335128690ff8eb3
 Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Fri Jul 15 11:58:28 2011 -0400
+Date:   Fri Jul 15 11:51:59 2011 -0400
 
-    5a, 5c, 5l: fix for Plan 9 build
+    8l: nits
     
-    5a/a.h:
-    . Removed <u.h> and <lib.h>.
-    . Made definition of EOF conditional.
+    8l/Makefile:
+    . Dropped unnecessary prefix from "../8l/8.out.h"
     
-    5a/a.y:
-    . Added <u.h> and <lib.h>.
-    
-    5a/lex.c:
-    . Added <u.h> and <lib.h>.
-    . Dropped <ctype.h> (now in <u.h>).
-    
-    5c/peep.c:
-    . Removed unnecessary "return 0" statement.
-    
-    5c/reg.c:
-    . Added compilation condition around unused code.
-    
-    5c/swt.c:
-    . Removed unused "thestring" argument from Bprint() calls.
-    
-    5l/asm.c:
-    . Added USED() statements as required.
-    . Adjusted a few format specifications.
-    . Added compilation condition around unused code.
-    
-    5l/l.h:
-    . Dropped directory prefix from <../5l/5.out.h>.
-    . Added varargck pragma for "I" and "i".
-    
-    5l/obj.c:
-    . Cascaded consecutive "if" statements.
-    . Dropped unnecessary incrementation and assignments.
-    
-    5l/pass.c:
-    . Dropped unnecessary assignment.
-    
-    5l/prof.c:
-    . #if 0 converted to #ifdef NOTDEF.
-    
-    5l/span.c:
-    . Dropped unnecessary incrementation and assignments.
+    8l/l.h:
+    . Dropped unnecessary prefix from "../8l/8.out.h"
+    . Dropped unused and inconsistent "I" vararg pragma.
     
     R=golang-dev
     CC=golang-dev, rsc
-    https://golang.org/cl/4752041
+    https://golang.org/cl/4754041
 
- src/cmd/5a/a.h    |  4 ++--
- src/cmd/5a/a.y    |  2 ++
- src/cmd/5a/lex.c  |  3 ++-
- src/cmd/5c/peep.c |  1 -
- src/cmd/5c/reg.c  |  2 ++
- src/cmd/5c/swt.c  |  4 ++--
- src/cmd/5l/asm.c  | 16 ++++++++++++----
- src/cmd/5l/l.h    |  4 +++-
- src/cmd/5l/obj.c  | 10 ++++------
- src/cmd/5l/pass.c |  1 -
- src/cmd/5l/prof.c |  2 +-
- src/cmd/5l/span.c | 10 +---------
- 12 files changed, 31 insertions(+), 28 deletions(-)
+ src/cmd/8l/Makefile | 2 +-
+ src/cmd/8l/l.h      | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

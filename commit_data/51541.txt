@@ -1,30 +1,17 @@
-commit 80f7484af76773b7591d57f8f5e4479603089b90
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 8 10:47:03 2022 -0500
+commit 3b8c716e0fb897f867cabd2aeeb77b2b8ccd2241
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 15:40:20 2022 -0800
 
-    os/user: zero-initialize C structs returned to Go
+    spec: document numeric operations behavior for generic types
     
-    In the wrappers for getgrnam_r and similar, the structs to be returned
-    are allocated on the C stack and may be uninitialized. If the call to
-    the wrapped C function returns an error (such as ERANGE), it may leave
-    the struct uninitialized, expecting that the caller will not read it.
+    Includes a few minor cosmetic changes.
     
-    However, when that struct is returned to Go, it may be read by the Go
-    garbage collector. If the uninitialized struct fields happen to
-    contain wild pointers, the Go garbage collector will throw an error.
-    (Prior to CL 449335, the Go runtime would not scan the struct fields
-    because they did not reside in Go memory.)
-    
-    Fix this by always zeroing the struct before the C call.
-    
-    Fixes #57170.
-    
-    Change-Id: I241ae8e4added6f9a406dac37a7f6452341aa0cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456121
+    Change-Id: I6c307d958b47d83671142688630ea7835168439f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384622
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/user/cgo_lookup_cgo.go | 37 +++++++++++++++++++++----------------
- 1 file changed, 21 insertions(+), 16 deletions(-)
+ doc/go_spec.html | 43 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 36 insertions(+), 7 deletions(-)

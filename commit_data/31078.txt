@@ -1,30 +1,25 @@
-commit c4135d61bbf5b1b0f8bd88cf5f9dc6d3a13f8830
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 10 14:15:57 2017 -0700
+commit 9bbb07ddec63e5e747f1cd9dbf82b7504b29dd09
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 25 10:19:33 2017 -0500
 
-    cmd/internal/obj/mips: make assembler almost concurrency-safe
+    [dev.typealias] cmd/compile, reflect: fix struct field names for embedded byte, rune
     
-    CL 39922 made the arm assembler concurrency-safe.
-    This CL does the same, but for mips.
-    The approach is similar: introduce ctxt0 to hold
-    function-local state and thread it through
-    the assembler as necessary.
+    Will also fix type aliases.
     
-    One race remains after this CL, similar to CL 40252.
+    Fixes #17766.
+    For #18130.
     
-    That race is conceptually unrelated to this refactoring,
-    and will be addressed in a separate CL.
-    
-    Passes toolstash-check -all.
-    
-    Updates #15756
-    
-    Change-Id: I2c54a889aa448a4476c9a75da4dd94ef69657b16
-    Reviewed-on: https://go-review.googlesource.com/40370
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I9e1584d47128782152e06abd0a30ef423d5c30d2
+    Reviewed-on: https://go-review.googlesource.com/35732
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/obj/mips/asm0.go | 372 ++++++++++++++++++++------------------
- src/cmd/internal/obj/mips/obj0.go | 172 +++++++++---------
- 2 files changed, 279 insertions(+), 265 deletions(-)
+ src/cmd/compile/internal/gc/align.go   |  8 ++-
+ src/cmd/compile/internal/gc/reflect.go | 11 ++++-
+ src/cmd/link/internal/ld/decodesym.go  |  2 +-
+ src/reflect/all_test.go                | 19 +++++++-
+ src/reflect/type.go                    | 89 +++++++++++++++-------------------
+ src/reflect/value.go                   |  4 +-
+ src/runtime/cgocall.go                 |  2 +-
+ src/runtime/type.go                    | 12 +++--
+ 8 files changed, 85 insertions(+), 62 deletions(-)

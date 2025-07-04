@@ -1,17 +1,18 @@
-commit 863ca99415915b19218a36e7c4bf836c135ca00c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jul 21 11:59:40 2016 -0700
+commit 7085fb31dfb1a6b447a139064a4a692677284132
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 11 11:14:53 2016 +1000
 
-    cmd/vet: fix mips64le arch name in asmdecl check
+    html/template, text/template: clarify Parse{Files,Glob} semantics
     
-    Updates #11041
+    Document the subtle property that files with equivalent base names
+    will overwrite extant templates with those same names.
     
-    Change-Id: Ic6df8ef25b7cf280db523950cd3640b060ad1a9b
-    Reviewed-on: https://go-review.googlesource.com/27157
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes golang/go#14320
+    
+    Change-Id: Ie9ace1b08e6896ea599836e31582123169aa7a25
+    Reviewed-on: https://go-review.googlesource.com/21824
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/asmdecl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/html/template/template.go | 14 ++++++++++++++
+ src/text/template/helper.go   | 14 ++++++++++++++
+ 2 files changed, 28 insertions(+)

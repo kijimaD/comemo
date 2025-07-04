@@ -1,23 +1,22 @@
-commit 6eede325ab9e444c19c8dc4fd5cc6c3603abb93c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 21 14:43:59 2016 -0700
+commit 8ad70a549364c216c386afcead4dccfdcd39748b
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Aug 18 16:44:08 2016 -0700
 
-    cmd/compile: fix detection of duplicate cases for integer ranges
+    crypto/x509: allow a leaf certificate to be specified directly as root.
     
-    Previously, the check to make sure we only considered constant cases
-    for duplicates was skipping past integer ranges, because those use
-    n.List instead of n.Left. Thanks to Emmanuel Odeke for investigating
-    and helping to identify the root cause.
+    In other systems, putting a leaf certificate in the root store works to
+    express that exactly that certificate is acceptable. This change makes
+    that work in Go too.
     
-    Fixes #17517.
+    Fixes #16763.
     
-    Change-Id: I46fcda8ed9c346ff3a9647d50b83f1555587b740
-    Reviewed-on: https://go-review.googlesource.com/31716
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5c0a8dbc47aa631b23dd49061fb217ed8b0c719c
+    Reviewed-on: https://go-review.googlesource.com/27393
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/swt.go | 39 ++++++++++++++++++++------------------
- test/switch5.go                    |  9 +++++++++
- 2 files changed, 30 insertions(+), 18 deletions(-)
+ src/crypto/x509/cert_pool.go   | 16 ++++++++++++++++
+ src/crypto/x509/verify.go      | 10 +++++++---
+ src/crypto/x509/verify_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 3 deletions(-)

@@ -1,17 +1,18 @@
-commit abf8bbb709137c7212704dd0fb777b9c549a5fe1
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Feb 23 15:32:08 2015 -0800
+commit 6b7b0f9a0cc3d647af3494bfc716bb878211e97e
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 28 14:51:49 2015 -0500
 
-    crypto/x509: make behaviour of absolute DNS names match Chromium.
+    runtime: move all parfor-related code to parfor.go
     
-    Previously, we didn't handle absolute DNS names in certificates the same
-    way as Chromium, and we probably shouldn't diverge from major browsers.
+    This cleanup was slated for after the conversion of the runtime to Go.
+    Also improve type and function documentation.
     
-    Change-Id: I56a3962ad1002f68b5dbd65ae90991b82c2f5629
-    Reviewed-on: https://go-review.googlesource.com/5692
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I55a16b09e00cf701f246deb69e7ce7e3e04b26e7
+    Reviewed-on: https://go-review.googlesource.com/3393
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/crypto/x509/verify.go    | 1 +
- src/crypto/x509/x509_test.go | 8 +++++++-
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/runtime/parfor.go   | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/runtime.go  |  8 --------
+ src/runtime/runtime2.go | 30 ------------------------------
+ 3 files changed, 41 insertions(+), 38 deletions(-)

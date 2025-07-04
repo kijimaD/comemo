@@ -1,13 +1,16 @@
-commit 11820899a58094be1afa22987ce080cb2fb66b86
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 24 13:11:59 2012 +1000
+commit cc5cbee1b6a942d2f55c01697f464be9d2a56818
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Apr 23 22:00:16 2012 -0300
 
-    text/template: improve the error reporting for unexported fields.
-    Changes suggested by rsc after last CL.
+    net/http: allow clients to disable keep-alive
     
-    R=golang-dev, rsc
+    Fixes #3540.
+    
+    R=golang-dev, bradfitz, gustavo
     CC=golang-dev
-    https://golang.org/cl/6117044
+    https://golang.org/cl/5996044
 
- src/pkg/text/template/exec.go | 25 ++++++++-----------------
- 1 file changed, 8 insertions(+), 17 deletions(-)
+ src/pkg/net/http/request.go    | 16 ++++++++++++++--
+ src/pkg/net/http/serve_test.go | 15 +++++++++++----
+ src/pkg/net/http/server.go     |  3 +--
+ 3 files changed, 26 insertions(+), 8 deletions(-)

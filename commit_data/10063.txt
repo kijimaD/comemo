@@ -1,20 +1,12 @@
-commit 64306c9fd076c78b4e443f641561124f103854d5
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Oct 20 11:45:30 2011 +1100
+commit 57d07e32d82e1ea0f8edd7fba95bd192cb5f539e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Oct 19 18:30:06 2011 -0200
 
-    html: parse and render comment nodes.
+    misc/vim: add highlighting for delete
     
-    The first additional test case in parse_test.go is:
-    <!--><div>--<!-->
-    
-    The second one is unrelated to the comment change, but also passes:
-    <p><hr></p>
-    
-    R=andybalholm
+    R=golang-dev, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5299047
+    https://golang.org/cl/5303050
 
- src/pkg/html/parse.go      | 84 ++++++++++++++++++++++++++++++++++++++++++++--
- src/pkg/html/parse_test.go |  4 +--
- src/pkg/html/render.go     | 12 +++++--
- 3 files changed, 92 insertions(+), 8 deletions(-)
+ misc/vim/syntax/go.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

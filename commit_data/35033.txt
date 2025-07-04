@@ -1,19 +1,19 @@
-commit 94197135287ae2e1b886c4de9eaf4e1d8b1488ba
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 17 14:59:13 2018 -0700
+commit 0e76143ef1208db7eeb06e939401666065d41337
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Oct 28 20:07:51 2017 +0200
 
-    cmd/compile: cleanup import logic slightly
+    lib/time: update tzdata to 2017c
     
-    Use bio.Reader. Include newline character in the expected string value
-    instead of truncating it. Get rid of weird "empty archive" check.
+    Update the tzdata database to version 2017c (released 2017-10-20).
     
-    Passes toolstash-check.
+    Updates #22487
     
-    Change-Id: I16e42542db4827e6ee3644b9a5540a4a30b9bc41
-    Reviewed-on: https://go-review.googlesource.com/107620
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If58ff89173ef1f1044075505f42ff132b57795f0
+    Reviewed-on: https://go-review.googlesource.com/74230
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 37 ++++++++++++++-----------------------
- 1 file changed, 14 insertions(+), 23 deletions(-)
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 366776 -> 364985 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

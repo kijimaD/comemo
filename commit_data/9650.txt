@@ -1,14 +1,14 @@
-commit 3e42de29c98016ce277f7382cc3434f5e4a8f57f
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Sep 12 10:21:35 2011 +0200
+commit b2b3187f5edd3f73ba3a7899a264f9151ebb0d4f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Sep 12 11:57:34 2011 +1000
 
-    exp/norm: fixed typo. Bug exposed by gomake testtables. Changes did not affect other tests
-    as this part of Hangul is handled algorithmically.
+    exp/template/html: fix JS regexp escape of an empty string.
     
-    R=r
-    CC=golang-dev
-    https://golang.org/cl/4951074
+    R=dsymonds
+    CC=golang-dev, mikesamuel
+    https://golang.org/cl/4972063
 
- src/pkg/exp/norm/maketables.go |  2 +-
- src/pkg/exp/norm/tables.go     | 20 ++++++--------------
- 2 files changed, 7 insertions(+), 15 deletions(-)
+ src/pkg/exp/template/html/escape_test.go | 9 +++++++--
+ src/pkg/exp/template/html/js.go          | 7 ++++++-
+ src/pkg/exp/template/html/js_test.go     | 2 +-
+ 3 files changed, 14 insertions(+), 4 deletions(-)

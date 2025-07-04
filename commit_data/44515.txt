@@ -1,21 +1,25 @@
-commit d6504b80973a22edbb5045e98c53901776101d18
-Author: David Chase <drchase@google.com>
-Date:   Sat Feb 27 17:11:36 2021 -0500
+commit 80b287fd282b03135f14591691abd2c0bccafa97
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jul 29 13:20:56 2020 -0400
 
-    cmd/compile: tweak offset-generator to elide more +0 offsets
+    [dev.link] cmd/link: remove loader.Reloc
     
-    this caused a problem in write barrier code when a spurious
-    zero-offset prevented a write barrier elision.
+    We have Reloc and Reloc2. Reloc2 is the better approach and most
+    code uses Reloc2. There are still uses of Reloc. This CL migrates
+    them to Reloc2, and removes Reloc.
     
-    removed cache after instrumenting it and discovering
-    zero safe hits (one value must dominate the other, else
-    unsafe).
-    
-    Change-Id: I42dfdb4d38ebfe158b13e766a7fabfc514d773f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297349
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Id5f6a6019e1e044add682d05e70ebb1548ec58d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245577
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 42 +++++++++++-----------------
- 1 file changed, 17 insertions(+), 25 deletions(-)
+ src/cmd/link/internal/arm/asm.go              | 69 ++++++++-----------
+ src/cmd/link/internal/arm64/asm.go            | 22 +++---
+ src/cmd/link/internal/ld/data.go              |  2 +-
+ src/cmd/link/internal/ld/lib.go               |  3 +-
+ src/cmd/link/internal/ld/pe.go                |  4 +-
+ src/cmd/link/internal/ld/xcoff.go             |  4 +-
+ src/cmd/link/internal/loader/loader.go        | 19 ------
+ src/cmd/link/internal/loader/loader_test.go   | 49 +++++++++-----
+ src/cmd/link/internal/loader/symbolbuilder.go | 64 +++++------------
+ src/cmd/link/internal/ppc64/asm.go            | 98 ++++++++++-----------------
+ 10 files changed, 129 insertions(+), 205 deletions(-)

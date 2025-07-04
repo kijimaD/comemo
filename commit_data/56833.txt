@@ -1,94 +1,71 @@
-commit cb3b34349b4608a8eb5107159db74cbe472744b2
-Author: Gopher Robot <gobot@golang.org>
-Date:   Fri Jun 21 19:19:05 2024 +0000
+commit d4bd855cfb5319bfa560251d60a93369c0ce0763
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 24 15:49:56 2023 +0200
 
-    doc/next: delete
+    crypto/tls: don't reverify but check certificate expiration on resumption
     
-    The release note fragments have been merged and added
-    as _content/doc/go1.23.md in x/website in CL 594035.
+    We used to inconsistently run certificate verification on the server on
+    resumption, but not on the client. This made TLS 1.3 resumption pretty
+    much useless, as it didn't save bytes, CPU, or round-trips.
     
-    For #65614.
+    This requires serializing the verified chains into the session ticket,
+    so it's a tradeoff making the ticket bigger to save computation (and for
+    consistency).
     
-    Change-Id: I7c8c718bc065024b6bdca93ce9bcc3c5d8b2dbc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594036
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    The previous behavior also had a "stickyness" issue: if a ticket
+    contained invalid certificates, they would be used even if the client
+    had in the meantime configured valid certificates for a full handshake.
+    
+    We also didn't check expiration on the client side on resumption if
+    InsecureSkipVerify was set. Again for consistency, we do that now.
+    
+    Also, we used to run VerifyPeerCertificates on resumption even if
+    NoClientCerts was set.
+    
+    Fixes #31641
+    
+    Change-Id: Icc88269ea4adb544fa81158114aae76f3c91a15f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497895
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- doc/next/1-intro.md                                | 14 ----
- doc/next/2-language.md                             | 18 -----
- doc/next/3-tools.md                                | 84 ----------------------
- doc/next/4-runtime.md                              |  7 --
- doc/next/5-toolchain.md                            | 38 ----------
- doc/next/6-stdlib/0-heading.md                     |  2 -
- doc/next/6-stdlib/1-time.md                        | 32 ---------
- doc/next/6-stdlib/2-unique.md                      | 13 ----
- doc/next/6-stdlib/3-iter.md                        | 29 --------
- doc/next/6-stdlib/4-structs.md                     | 11 ---
- doc/next/6-stdlib/99-minor/0-heading.md            |  3 -
- doc/next/6-stdlib/99-minor/README                  |  1 -
- doc/next/6-stdlib/99-minor/archive/tar/50102.md    |  4 --
- doc/next/6-stdlib/99-minor/crypto/tls/63369.md     |  3 -
- doc/next/6-stdlib/99-minor/crypto/tls/63691.md     |  3 -
- doc/next/6-stdlib/99-minor/crypto/tls/66214.md     |  3 -
- doc/next/6-stdlib/99-minor/crypto/tls/67061.md     |  3 -
- doc/next/6-stdlib/99-minor/crypto/tls/67065.md     |  3 -
- doc/next/6-stdlib/99-minor/crypto/x509/45990.md    |  3 -
- doc/next/6-stdlib/99-minor/crypto/x509/62048.md    |  4 --
- doc/next/6-stdlib/99-minor/crypto/x509/66249.md    |  3 -
- doc/next/6-stdlib/99-minor/database/sql/64707.md   |  3 -
- doc/next/6-stdlib/99-minor/debug/elf/66054.md      |  3 -
- doc/next/6-stdlib/99-minor/debug/elf/66836.md      |  2 -
- .../6-stdlib/99-minor/encoding/binary/60023.md     |  3 -
- doc/next/6-stdlib/99-minor/go/ast/66339.md         |  2 -
- doc/next/6-stdlib/99-minor/go/types/46477.md       |  1 -
- doc/next/6-stdlib/99-minor/go/types/65772.md       |  3 -
- doc/next/6-stdlib/99-minor/go/types/66559.md       |  3 -
- doc/next/6-stdlib/99-minor/go/types/67143.md       |  2 -
- doc/next/6-stdlib/99-minor/go/types/cl-577715.md   |  4 --
- doc/next/6-stdlib/99-minor/iter/61897.md           |  1 -
- doc/next/6-stdlib/99-minor/maps/61900.md           |  1 -
- doc/next/6-stdlib/99-minor/math/rand/v2/61716.md   |  2 -
- doc/next/6-stdlib/99-minor/math/rand/v2/67059.md   |  1 -
- doc/next/6-stdlib/99-minor/net/62254.md            |  3 -
- doc/next/6-stdlib/99-minor/net/63116.md            |  3 -
- doc/next/6-stdlib/99-minor/net/67925.md            |  3 -
- doc/next/6-stdlib/99-minor/net/http/46443.md       |  3 -
- doc/next/6-stdlib/99-minor/net/http/61472.md       |  1 -
- doc/next/6-stdlib/99-minor/net/http/62490.md       |  1 -
- doc/next/6-stdlib/99-minor/net/http/64910.md       |  2 -
- doc/next/6-stdlib/99-minor/net/http/66008.md       |  7 --
- doc/next/6-stdlib/99-minor/net/http/66343.md       | 16 -----
- doc/next/6-stdlib/99-minor/net/http/66405.md       |  3 -
- .../6-stdlib/99-minor/net/http/httptest/59473.md   |  2 -
- doc/next/6-stdlib/99-minor/os/33357.md             |  3 -
- doc/next/6-stdlib/99-minor/os/61893.md             |  7 --
- doc/next/6-stdlib/99-minor/os/62484.md             |  1 -
- doc/next/6-stdlib/99-minor/os/63703.md             |  5 --
- doc/next/6-stdlib/99-minor/path/filepath/57151.md  |  2 -
- doc/next/6-stdlib/99-minor/path/filepath/63703.md  | 11 ---
- doc/next/6-stdlib/99-minor/reflect/60427.md        |  6 --
- doc/next/6-stdlib/99-minor/reflect/61308.md        |  3 -
- doc/next/6-stdlib/99-minor/reflect/66056.md        |  4 --
- doc/next/6-stdlib/99-minor/runtime/debug/42888.md  |  5 --
- doc/next/6-stdlib/99-minor/runtime/debug/67182.md  |  1 -
- doc/next/6-stdlib/99-minor/runtime/pprof/43669.md  |  2 -
- doc/next/6-stdlib/99-minor/runtime/trace/65319.md  |  4 --
- doc/next/6-stdlib/99-minor/slices/53987.md         |  1 -
- doc/next/6-stdlib/99-minor/slices/61899.md         |  1 -
- doc/next/6-stdlib/99-minor/slices/65238.md         |  2 -
- doc/next/6-stdlib/99-minor/structs/66408.md        |  1 -
- doc/next/6-stdlib/99-minor/sync/61696.md           |  2 -
- doc/next/6-stdlib/99-minor/sync/atomic/61395.md    |  3 -
- doc/next/6-stdlib/99-minor/syscall/62254.md        |  1 -
- doc/next/6-stdlib/99-minor/syscall/65817.md        |  1 -
- doc/next/6-stdlib/99-minor/testing/fstest/63675.md |  3 -
- doc/next/6-stdlib/99-minor/text/template/57646.md  |  1 -
- doc/next/6-stdlib/99-minor/time/67470.md           |  2 -
- doc/next/6-stdlib/99-minor/unicode/utf16/44940.md  |  3 -
- doc/next/6-stdlib/99-minor/unique/62483.md         |  1 -
- doc/next/7-ports.md                                | 38 ----------
- doc/next/9-todo.md                                 | 51 -------------
- 74 files changed, 521 deletions(-)
+ src/crypto/tls/common.go                           |  19 +-
+ src/crypto/tls/handshake_client.go                 |  13 +-
+ src/crypto/tls/handshake_messages_test.go          |  10 +-
+ src/crypto/tls/handshake_server.go                 |  18 +-
+ src/crypto/tls/handshake_server_tls13.go           |  14 +-
+ .../testdata/Server-TLSv10-ExportKeyingMaterial    |  77 ++---
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  62 ++--
+ .../tls/testdata/Server-TLSv12-ALPN-Fallback       |  64 ++--
+ .../tls/testdata/Server-TLSv12-ALPN-NotConfigured  |  64 ++--
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    |  80 ++---
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  |  74 ++---
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   |  74 ++---
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  87 +++---
+ .../tls/testdata/Server-TLSv13-AES128-SHA256       | 166 +++++------
+ .../tls/testdata/Server-TLSv13-AES256-SHA384       | 172 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-ALPN         | 168 +++++------
+ .../tls/testdata/Server-TLSv13-ALPN-Fallback       | 164 +++++-----
+ .../tls/testdata/Server-TLSv13-ALPN-NotConfigured  | 166 +++++------
+ .../tls/testdata/Server-TLSv13-CHACHA20-SHA256     | 166 +++++------
+ .../Server-TLSv13-ClientAuthRequestedAndECDSAGiven | 332 ++++++++++-----------
+ ...erver-TLSv13-ClientAuthRequestedAndEd25519Given | 269 ++++++++---------
+ .../Server-TLSv13-ClientAuthRequestedAndGiven      | 325 ++++++++++----------
+ .../Server-TLSv13-ClientAuthRequestedNotGiven      | 178 +++++------
+ .../tls/testdata/Server-TLSv13-ECDHE-ECDSA-AES     | 158 +++++-----
+ src/crypto/tls/testdata/Server-TLSv13-Ed25519      | 122 ++++----
+ .../testdata/Server-TLSv13-ExportKeyingMaterial    | 166 +++++------
+ .../tls/testdata/Server-TLSv13-HelloRetryRequest   | 190 ++++++------
+ src/crypto/tls/testdata/Server-TLSv13-IssueTicket  | 166 +++++------
+ .../testdata/Server-TLSv13-IssueTicketPreDisable   | 166 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-P256         | 170 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 166 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-Resume       |  85 +++---
+ .../Server-TLSv13-Resume-HelloRetryRequest         | 132 ++++----
+ src/crypto/tls/testdata/Server-TLSv13-X25519       | 166 +++++------
+ src/crypto/tls/ticket.go                           | 102 +++----
+ src/crypto/tls/tls_test.go                         | 144 +++++++++
+ 36 files changed, 2428 insertions(+), 2267 deletions(-)

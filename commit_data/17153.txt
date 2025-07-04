@@ -1,14 +1,40 @@
-commit 6b706cf50d128cd49192d4815bc25fec06514fe8
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 12 12:55:33 2013 +1000
+commit 24c8035fbe113dfe644f4419eadcb826e08788ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 11 21:46:38 2013 -0400
 
-    bufio: make it clear that the client must call Writer.Flush
+    cmd/6g: move opt instruction decode into common function
     
-    Fixes #5530.
+    Add new proginfo function that returns information about a
+    Prog*. The information includes various instruction
+    description bits as well as a list of required registers set
+    and used and indexing registers used.
     
-    R=golang-dev, iant, com.liigo
+    Convert the large instruction switches to use proginfo.
+    
+    This information was formerly duplicated in multiple
+    optimization passes, inconsistently. For example, the
+    information about which registers an instruction requires
+    appeared three times for most instructions.
+    
+    Most of the switches were incomplete or incorrect in some way.
+    For example, the switch in copyu did not list cases for INCB,
+    JPS, MOVAPD, MOVBWSX, MOVBWZX, PCDATA, POPQ, PUSHQ, STD,
+    TESTB, TESTQ, and XCHGL. Those were all falling into the
+    "unknown instruction" default case and stopping the rewrite,
+    perhaps unnecessarily. Similarly, the switch in needc only
+    listed a handful of the instructions that use or set the carry bit.
+    
+    We still need to decide whether to use proginfo to generalize
+    a few of the remaining smaller switches in peep.c.
+    
+    If this goes well, we'll make similar changes in 8g and 5g.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/12688044
+    https://golang.org/cl/12637051
 
- src/pkg/bufio/bufio.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/6g/opt.h  |  61 ++++++++
+ src/cmd/6g/peep.c | 459 +++++++++---------------------------------------------
+ src/cmd/6g/prog.c | 309 ++++++++++++++++++++++++++++++++++++
+ src/cmd/6g/reg.c  | 361 +++---------------------------------------
+ 4 files changed, 466 insertions(+), 724 deletions(-)

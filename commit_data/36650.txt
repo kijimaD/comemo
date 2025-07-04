@@ -1,30 +1,18 @@
-commit 8149db4f64aa72407d8be2184d0b414b535cd124
-Author: erifan01 <eric.fang@arm.com>
-Date:   Tue May 22 06:58:32 2018 +0000
+commit c06f02752022c1421d4310f8c13deaa28cca17fb
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sat May 12 15:53:46 2018 +0300
 
-    cmd/compile: intrinsify math.RoundToEven and math.Abs on arm64
+    cmd/go: fix TestBuildIDContainsArchModeEnv
     
-    math.RoundToEven can be done by one arm64 instruction FRINTND, intrinsify it to improve performance.
-    The current pure Go implementation of the function Abs is translated into five instructions on arm64:
-    str, ldr, and, str, ldr. The intrinsic implementation requires only one instruction, so in terms of
-    performance, intrinsify it is worthwhile.
+    Changing GOARCH, GOARM, GO386 leads to a stale dependency.
     
-    Benchmarks:
-    name           old time/op  new time/op  delta
-    Abs-8          3.50ns ± 0%  1.50ns ± 0%  -57.14%  (p=0.000 n=10+10)
-    RoundToEven-8  9.26ns ± 0%  1.50ns ± 0%  -83.80%  (p=0.000 n=10+10)
+    Updates #24436.
     
-    Change-Id: I9456b26ab282b544dfac0154fc86f17aed96ac3d
-    Reviewed-on: https://go-review.googlesource.com/116535
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I5b5b3fca6401be50fa81fb040bc56356de7555de
+    Reviewed-on: https://go-review.googlesource.com/112975
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/arm64/ssa.go        |  2 ++
- src/cmd/compile/internal/gc/ssa.go           |  4 ++--
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  2 ++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  2 ++
- src/cmd/compile/internal/ssa/opGen.go        | 28 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 26 ++++++++++++++++++++++++++
- test/codegen/math.go                         |  2 ++
- 7 files changed, 64 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

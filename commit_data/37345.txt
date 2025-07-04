@@ -1,23 +1,16 @@
-commit ec4ae29f52cee3f6e448d8279708ea47d553f35f
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 22 16:36:24 2018 -0400
+commit d278f09333edec3db982d1e4b4dfad0e1e8cce49
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 19 01:37:21 2018 -0400
 
-    cmd/link: abstract DWARF metadata symbol lookup
+    cmd/go: skip TestScript/mod_* on Windows
     
-    The compiler passes a lot of DWARF metadata about functions to the
-    linker via symbols whose names are derived from the function's own
-    symbol name. We look up these symbols in several places. This is about
-    to get slightly more complex as we introduce ABIs as symbol versions,
-    so abstract this lookup pattern into a helper function.
+    I don't know why it's failing.
+    Filed #26457.
     
-    For #27539.
-    
-    Change-Id: Ic71f6b5dc6608a5a5f5f515808981e6d6f5d728e
-    Reviewed-on: https://go-review.googlesource.com/c/146858
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I84833293a572c5a1a25135bd01cb88518fc7441e
+    Reviewed-on: https://go-review.googlesource.com/124857
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/go/script_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,30 +1,13 @@
-commit 5e70140521ac2e5c004de8cd61321d3a51619ae6
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Aug 21 10:35:43 2014 -0700
+commit f3f332851f9b9b7bc35a6a189c4a0e95c79a7956
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 13 15:49:07 2014 -0400
 
-    time: removed from tests now obsolete assumption about Australian tz abbreviations
+    [dev.power64] cmd/9g: add missing break
     
-    Australian timezones abbreviation for standard and daylight saving time were recently
-    changed from EST for both to AEST and AEDT in the icann tz database (see changelog
-    on www.iana.org/time-zones).
-    
-    A test in the time package was written to check that the ParseInLocation function
-    understand that Feb EST and Aug EST are different time zones, even though they are
-    both called EST. This is no longer the case, and the Date function now returns
-    AEST or AEDT for australian tz on every Linux system with an up to date tz database
-    (and this makes the test fail).
-    
-    Since I wasn't able to find another country that 1) uses daylight saving and 2) has
-    the same abbreviation for both on tzdata, I changed the test to make sure that
-    ParseInLocation does not get confused when it parses, in different locations, two
-    dates with the same abbreviation (this was suggested in the mailing list).
-    
-    Fixes #8547.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/130920043
+    https://golang.org/cl/125260043
 
- src/pkg/time/format_test.go | 36 +++++++++++++++++++++---------------
- 1 file changed, 21 insertions(+), 15 deletions(-)
+ src/cmd/9g/gsubr.c | 1 +
+ 1 file changed, 1 insertion(+)

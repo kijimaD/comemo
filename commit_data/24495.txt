@@ -1,25 +1,14 @@
-commit 8dd52cf03a37a8fe0d0db20000036db8ee8cd3d2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Oct 12 20:41:40 2015 +0000
+commit 108ec5f75a45f3e8f12698f5476b51723feda838
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 22:52:45 2015 -0400
 
-    net/http: export the "new" error codes from RFC 6585
+    runtime: fix systemstack tracebacks on nacl/arm
     
-    These were proposed in the RFC over three years ago, then proposed to
-    be added to Go in https://codereview.appspot.com/7678043/ 2 years and
-    7 months ago, and the spec hasn't been updated or retracted the whole
-    time.
+    For #11956.
     
-    Time to export them.
-    
-    Of note, HTTP/2 uses code 431 (Request Header Fields Too Large).
-    
-    Updates #12843
-    
-    Change-Id: I78c2fed5fab9540a98e845ace73f21c430a48809
-    Reviewed-on: https://go-review.googlesource.com/15732
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic9b57cafa197953cc7f435941e44d42b60b3ddf0
+    Reviewed-on: https://go-review.googlesource.com/13011
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/net/http/status.go | 44 ++++++++++++++++++++------------------------
- 1 file changed, 20 insertions(+), 24 deletions(-)
+ src/runtime/asm_arm.s | 3 +++
+ 1 file changed, 3 insertions(+)

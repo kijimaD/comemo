@@ -1,23 +1,31 @@
-commit b3e8a00060030a8c60db3dbc0d2cf389c65c8a56
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 13:11:00 2020 -0700
+commit 7148478f1b433caa11c8827657ee1bc61f0b1c5d
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Nov 8 10:30:24 2019 -0800
 
-    cmd/compile: move duffcopy auxint calculation out of rewrite rules
+    sync: yield to the waiter when unlocking a starving mutex
     
-    Package amd64 is a more natural home for it.
-    It also makes it easier to see how many bytes
-    are being copied in ssa.html.
+    When we have already assigned the semaphore ticket to a specific
+    waiter, we want to get the waiter running as fast as possible since
+    no other G waiting on the semaphore can acquire it optimistically.
     
-    Passes toolstash-check.
+    The net effect is that, when a sync.Mutex is contended, the code in
+    the critical section guarded by the Mutex gets a priority boost.
     
-    Change-Id: I5ecf0f0f18e8db2faa2caf7a05028c310952bd94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229703
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #33747
+    
+    The original work was done in CL 200577 by Carlo Alberto Ferraris. The
+    change was reverted in CL 205817 because it broke the linux-arm64-packet
+    and solaris-amd64-oraclerel builders.
+    
+    Change-Id: I76d79b1d63fd206ed1c57fe6900cb7ae9e4d46cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206180
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        | 11 ++++++++++-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  8 +-------
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go |  4 ++--
- 4 files changed, 14 insertions(+), 11 deletions(-)
+ src/runtime/export_test.go |  8 ++++
+ src/runtime/proc.go        | 15 +++++++
+ src/runtime/sema.go        | 21 +++++++++-
+ src/runtime/sema_test.go   | 97 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/sync/mutex.go          |  3 +-
+ 5 files changed, 142 insertions(+), 2 deletions(-)

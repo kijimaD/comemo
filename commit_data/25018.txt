@@ -1,21 +1,15 @@
-commit b89033399894776d677a4cecc82e2ac888fd7906
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 23 11:37:12 2015 -0500
+commit b0507f15798af22f2c23042ec6308702380112c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 14 16:59:15 2015 -0700
 
-    runtime: clean up gcMarkDone
+    go/parser: better error message for incorrect type switch header
     
-    This improves the documentation comment on gcMarkDone, replaces a
-    recursive call with a simple goto, and disables preemption before
-    stopping the world in accordance with the documentation comment on
-    stopTheWorldWithSema.
+    Fixes 11829.
     
-    Updates #13363, but, sadly, doesn't fix it.
-    
-    Change-Id: I6cb2a5836b35685bf82f7b1ce7e48a7625906656
-    Reviewed-on: https://go-review.googlesource.com/17149
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2e39f61e12953147b0cd6a11d29179c500c94964
+    Reviewed-on: https://go-review.googlesource.com/14566
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/runtime/mgc.go | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/go/parser/parser.go     | 19 ++++++++++++++-----
+ src/go/parser/short_test.go |  2 +-
+ 2 files changed, 15 insertions(+), 6 deletions(-)

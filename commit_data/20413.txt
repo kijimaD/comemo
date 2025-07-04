@@ -1,24 +1,17 @@
-commit d889f5f01efc9f8da8865f5987f6a8f3029928c0
+commit e8d65b92d7129edf4ca495206467f600960e803e
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 14 20:39:08 2014 +0000
+Date:   Sat Sep 6 14:53:44 2014 -0400
 
-    runtime: fix traceback of trap on ARM
+    liblink: fix arm build errors
     
-    The merged traceback was wrong for LR machines,
-    because traceback didn't pass lr to gentraceback.
-    Now that we have a test looking at traceback output
-    for a trap (the test of runtime.Breakpoint),
-    we caught this.
+    This was supposed to be in CL 135490044
+    but got lost in a transfer from machine to machine.
     
-    While we're here, fix a 'set and not used' warning.
-    
-    Fixes arm build.
-    
-    TBR=r
-    R=r
+    TBR=khr
+    R=khr
     CC=golang-codereviews
-    https://golang.org/cl/143040043
+    https://golang.org/cl/135560043
 
- src/runtime/mgc0.c       | 3 ++-
- src/runtime/traceback.go | 4 ++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/liblink/asm5.c |  6 ++++--
+ src/liblink/obj5.c | 12 ++++--------
+ 2 files changed, 8 insertions(+), 10 deletions(-)

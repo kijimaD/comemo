@@ -1,13 +1,24 @@
-commit cdd35983341cf64cb5c68ea71f15a14988d753d8
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Jul 26 00:21:37 2013 +0900
+commit d9d3debee5fef63e2cec74937c452001c9e1bbcc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 25 09:53:57 2013 -0400
 
-    net: give more detail when test panics
+    cmd/cgo: gccgo fixes
     
-    R=golang-dev, dave
+    Don't require a full-scale callback for calls to the special
+    prologue functions.
+    
+    Always use a simple wrapper function for C functions, so that
+    we can handle static functions defined in the import "C"
+    comment.
+    
+    Disable a test that relies on gc-specific function names.
+    
+    Fixes #5905.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/11811043
+    https://golang.org/cl/11406047
 
- src/pkg/net/interface_linux_test.go | 2 +-
- src/pkg/net/unicast_posix_test.go   | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ misc/cgo/test/callback.go |  4 +++
+ src/cmd/cgo/out.go        | 68 ++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 66 insertions(+), 6 deletions(-)

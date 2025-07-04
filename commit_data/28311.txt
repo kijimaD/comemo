@@ -1,14 +1,28 @@
-commit 675ba53c7671d5506887eec2a65fabb4cbda0d59
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Sep 6 09:14:26 2016 -0400
+commit 2cc0f2209653f9f6931e0c3a1fb63e581a0fe87f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 13 11:10:29 2016 +0900
 
-    cmd/go: internal PIE does not need runtime/cgo
+    Revert "cmd/build: reject non-existant directories in ImportDir"
     
-    Part of adding PIE internal linking on linux/amd64.
+    This reverts commit 7af2ce3f159760033c903b3730bfb5995b4edd40.
     
-    Change-Id: I57f0596cb254cbe6569e4d4e39fe4f48437733f2
-    Reviewed-on: https://go-review.googlesource.com/28544
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The commit had a wrong prefix in the description line, probably
+    misreconginized something. As a result it broke golang.org/x/tools/godoc
+    and golang.org/x/tools/cmd/godoc like the following:
+    
+    --- FAIL: TestCLI (10.90s)
+    --- FAIL: TestWeb (13.74s)
+    FAIL
+    FAIL        golang.org/x/tools/cmd/godoc    36.428s
+    --- FAIL: TestCommandLine (0.00s)
+    FAIL
+    FAIL        golang.org/x/tools/godoc        0.068s
+    
+    Change-Id: I362a862a4ded8592dec7488a28e7a256adee148f
+    Reviewed-on: https://go-review.googlesource.com/23076
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/pkg.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/go/build/build.go      |  6 +-----
+ src/go/build/build_test.go | 11 -----------
+ 2 files changed, 1 insertion(+), 16 deletions(-)

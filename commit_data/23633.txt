@@ -1,125 +1,32 @@
-commit 2ae77376f7ab6f4161944570cb1b3a38ff47c5cd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 10 17:17:11 2015 -0600
+commit ffef180f822fc46f37ec7325c490e44deffc747a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 01:16:52 2015 -0400
 
-    all: link to https instead of http
+    cmd/compile: remove Node.Nincr, Node.Nelse, Node.Initplan
     
-    The one in misc/makerelease/makerelease.go is particularly bad and
-    probably warrants rotating our keys.
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 288
+    $
     
-    I didn't update old weekly notes, and reverted some changes involving
-    test code for now, since we're late in the Go 1.5 freeze. Otherwise,
-    the rest are all auto-generated changes, and all manually reviewed.
-    
-    Change-Id: Ia2753576ab5d64826a167d259f48a2f50508792d
-    Reviewed-on: https://go-review.googlesource.com/12048
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I4e316efa246132b3faa3a892e4fe9c9039250665
+    Reviewed-on: https://go-review.googlesource.com/10520
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/gccgo_install.html                     |   2 +-
- doc/go1.5.html                             |   2 +-
- misc/cgo/test/cflags.go                    |   2 +-
- misc/cgo/test/issue3945.go                 |   2 +-
- misc/cgo/test/issue6997_linux.go           |   2 +-
- misc/cgo/test/issue7234_test.go            |   2 +-
- misc/cgo/test/setgid_linux.go              |   2 +-
- misc/chrome/gophertool/gopher.js           |   4 ++--
- misc/makerelease/makerelease.go            |   2 +-
- misc/makerelease/windows/installer.wxs     |   2 +-
- misc/nacl/README                           |   2 +-
- src/archive/zip/testdata/readme.notzip     | Bin 1905 -> 1906 bytes
- src/archive/zip/testdata/readme.zip        | Bin 1885 -> 1886 bytes
- src/cmd/api/goapi_test.go                  |   2 +-
- src/cmd/cgo/doc.go                         |   4 ++--
- src/cmd/cgo/gcc.go                         |   2 +-
- src/cmd/cgo/out.go                         |   2 +-
- src/cmd/compile/internal/big/int_test.go   |   2 +-
- src/cmd/dist/build.go                      |   2 +-
- src/cmd/go/build.go                        |   8 ++++----
- src/cmd/go/vcs.go                          |   2 +-
- src/cmd/link/internal/ld/data.go           |   2 +-
- src/cmd/link/internal/ld/elf.go            |   2 +-
- src/cmd/link/internal/ld/macho.go          |   2 +-
- src/cmd/newlink/pclntab.go                 |   2 +-
- src/cmd/vet/rangeloop.go                   |   2 +-
- src/compress/flate/deflate_test.go         |   2 +-
- src/crypto/rand/util_test.go               |   2 +-
- src/crypto/tls/conn.go                     |   2 +-
- src/crypto/tls/tls_test.go                 |   2 +-
- src/database/sql/sql.go                    |   6 +++---
- src/database/sql/sql_test.go               |   2 +-
- src/encoding/json/encode.go                |   2 +-
- src/encoding/json/tagkey_test.go           |   4 ++--
- src/go/types/api.go                        |   2 +-
- src/html/template/clone_test.go            |   2 +-
- src/image/draw/draw.go                     |   2 +-
- src/image/gif/reader.go                    |   2 +-
- src/image/image.go                         |   2 +-
- src/math/all_test.go                       |   2 +-
- src/math/big/int_test.go                   |   2 +-
- src/mime/multipart/multipart_test.go       |   2 +-
- src/net/fd_unix.go                         |   2 +-
- src/net/http/client.go                     |   2 +-
- src/net/http/client_test.go                |   4 ++--
- src/net/http/cookie.go                     |   2 +-
- src/net/http/httputil/reverseproxy_test.go |   2 +-
- src/net/http/serve_test.go                 |  14 +++++++-------
- src/net/http/server.go                     |   2 +-
- src/net/http/transport.go                  |   4 ++--
- src/net/http/transport_test.go             |  18 +++++++++---------
- src/net/rpc/client_test.go                 |   2 +-
- src/net/tcpsock_posix.go                   |   2 +-
- src/os/exec/exec.go                        |   2 +-
- src/os/exec/exec_test.go                   |  14 +++++++-------
- src/os/os_test.go                          |   2 +-
- src/path/filepath/path_test.go             |   2 +-
- src/race.bash                              |   2 +-
- src/race.bat                               |   2 +-
- src/reflect/makefunc.go                    |   4 ++--
- src/reflect/type.go                        |   8 ++++----
- src/runtime/crash_cgo_test.go              |   2 +-
- src/runtime/debug/garbage.go               |   2 +-
- src/runtime/extern.go                      |   4 ++--
- src/runtime/heapdump.go                    |   2 +-
- src/runtime/malloc.go                      |   2 +-
- src/runtime/mgc.go                         |   2 +-
- src/runtime/pprof/pprof.go                 |   2 +-
- src/runtime/pprof/trace_test.go            |   4 ++--
- src/runtime/proc1.go                       |   2 +-
- src/runtime/race/doc.go                    |   2 +-
- src/runtime/runtime2.go                    |   2 +-
- src/runtime/stack_test.go                  |   2 +-
- src/runtime/sys_x86.go                     |   2 +-
- src/runtime/trace.go                       |   2 +-
- src/syscall/syscall_unix_test.go           |   2 +-
- src/testing/testing.go                     |   2 +-
- src/time/time_test.go                      |   2 +-
- test/const4.go                             |   2 +-
- test/const5.go                             |   2 +-
- test/fixedbugs/bug214.go                   |   2 +-
- test/fixedbugs/bug215.go                   |   2 +-
- test/fixedbugs/bug216.go                   |   2 +-
- test/fixedbugs/bug217.go                   |   2 +-
- test/fixedbugs/bug218.go                   |   2 +-
- test/fixedbugs/bug221.go                   |   2 +-
- test/fixedbugs/bug264.go                   |   2 +-
- test/fixedbugs/bug265.go                   |   2 +-
- test/fixedbugs/bug269.go                   |   2 +-
- test/fixedbugs/bug271.go                   |   2 +-
- test/fixedbugs/bug272.go                   |   2 +-
- test/fixedbugs/bug273.go                   |   2 +-
- test/fixedbugs/bug274.go                   |   2 +-
- test/fixedbugs/bug279.go                   |   2 +-
- test/fixedbugs/bug280.go                   |   2 +-
- test/fixedbugs/bug281.go                   |   2 +-
- test/fixedbugs/bug283.go                   |   2 +-
- test/fixedbugs/bug285.go                   |   2 +-
- test/fixedbugs/bug290.go                   |   2 +-
- test/fixedbugs/bug291.go                   |   2 +-
- test/fixedbugs/bug292.go                   |   2 +-
- test/fixedbugs/bug293.go                   |   2 +-
- test/fixedbugs/bug294.go                   |   2 +-
- test/fixedbugs/bug301.go                   |   2 +-
- test/fixedbugs/bug425.go                   |   2 +-
- test/fixedbugs/bug427.go                   |   2 +-
- test/fixedbugs/issue4365.go                |   2 +-
- 107 files changed, 141 insertions(+), 141 deletions(-)
+ src/cmd/compile/internal/gc/esc.go       |  6 ------
+ src/cmd/compile/internal/gc/export.go    |  2 --
+ src/cmd/compile/internal/gc/fmt.go       | 20 +++++---------------
+ src/cmd/compile/internal/gc/gen.go       |  4 ++--
+ src/cmd/compile/internal/gc/go.y         |  4 ++--
+ src/cmd/compile/internal/gc/inl.go       | 32 +++++++++++---------------------
+ src/cmd/compile/internal/gc/order.go     |  6 +++---
+ src/cmd/compile/internal/gc/racewalk.go  | 15 +++++++--------
+ src/cmd/compile/internal/gc/range.go     | 10 +++++-----
+ src/cmd/compile/internal/gc/select.go    |  2 +-
+ src/cmd/compile/internal/gc/sinit.go     | 14 +++++++-------
+ src/cmd/compile/internal/gc/swt.go       |  4 ++--
+ src/cmd/compile/internal/gc/syntax.go    |  3 ---
+ src/cmd/compile/internal/gc/typecheck.go | 10 ++++------
+ src/cmd/compile/internal/gc/walk.go      |  6 +++---
+ src/cmd/compile/internal/gc/y.go         |  4 ++--
+ 16 files changed, 54 insertions(+), 88 deletions(-)

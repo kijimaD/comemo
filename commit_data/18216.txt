@@ -1,24 +1,16 @@
-commit 258ed3f2265a41a46e936e884d8afd6e6f646973
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 10 12:19:36 2014 -0800
+commit 7f62d087771d44b9670e2f34a0d3cef73c01a020
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jan 10 13:51:11 2014 +0400
 
-    database/sql: avoiding fmt.Sprintf while scanning, avoid allocs with RawBytes
+    fmt: make benchmarks parallel
+    This seems to be the best target to benchmark sync.Pool changes.
     
-    A user reported heavy contention on fmt's printer cache. Avoid
-    fmt.Sprint. We have to do reflection anyway, and there was
-    already an asString function to use strconv, so use it.
+    This is resend of cl/49910043 which was LGTMed by
+    TBR=bradfitz
     
-    This CL also eliminates a redundant allocation + copy when
-    scanning into *[]byte (avoiding the intermediate string)
-    and avoids an extra alloc when assigning to a caller's RawBytes
-    (trying to reuse the caller's memory).
-    
-    Fixes #7086
-    
-    R=golang-codereviews, nightlyone
+    R=golang-codereviews
     CC=golang-codereviews
-    https://golang.org/cl/50240044
+    https://golang.org/cl/50140045
 
- src/pkg/database/sql/convert.go      | 50 ++++++++++++++++++++++++++----------
- src/pkg/database/sql/convert_test.go | 48 ++++++++++++++++++++++++++++++++++
- 2 files changed, 85 insertions(+), 13 deletions(-)
+ src/pkg/fmt/fmt_test.go | 51 ++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 36 insertions(+), 15 deletions(-)

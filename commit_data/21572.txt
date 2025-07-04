@@ -1,14 +1,16 @@
-commit 4a2233cea14adba7905cd02061b62e7e3a986f68
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 12 14:25:59 2015 +1100
+commit c2c0bf77efef5fd0e1cdecb330a9d30de1509ff8
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Jan 17 13:37:04 2015 +0100
 
-    runtime: move all stdFunctions into os1_windows.go (no code changes)
+    net/http/cgi: correctly handle pathnames for cygwin perl on windows
     
-    Change-Id: I40291561a18bed3ca6be9dca12a664bdf28cb2f1
-    Reviewed-on: https://go-review.googlesource.com/4660
+    Cygwin perl uses unix pathnames in windows. Include cygwin perl in the
+    list of special cases for unix pathname handling in test.cgi.
+    
+    Change-Id: I30445a9cc79d62d022ecc232c35aa5015b7418dc
+    Reviewed-on: https://go-review.googlesource.com/2973
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/mem_windows.go     | 10 ----------
- src/runtime/netpoll_windows.go | 10 ----------
- src/runtime/os1_windows.go     | 12 ++++++++++++
- 3 files changed, 12 insertions(+), 20 deletions(-)
+ src/net/http/cgi/testdata/test.cgi | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

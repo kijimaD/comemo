@@ -1,13 +1,13 @@
-commit a6a30fefd9b798597f95ff1024f263c64f3a39a9
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Jan 5 20:16:10 2015 -0500
+commit cabc55532624706eb6ee0b92347e7461e146e244
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 21 15:58:29 2014 -0500
 
-    runtime: fix build for ARM
+    [dev.cc] liblink: more docs on Prog and Addr fields
     
-    Change-Id: Ia18b8411bebc47ea71ac1acd9ff9dc570ec15dea
-    Reviewed-on: https://go-review.googlesource.com/2341
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/174530043
 
- src/runtime/asm_arm.s     | 2 +-
- src/runtime/atomic_arm.go | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ include/link.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

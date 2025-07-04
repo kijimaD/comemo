@@ -1,24 +1,20 @@
-commit 5c0d314adcc605e0198b2bb45a34db701c9e072c
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Sun Oct 2 13:24:34 2022 +0200
+commit 9ae0b35fad5d4bb95cdcf4a05fcf4b077a798572
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 3 13:57:25 2021 -0800
 
-    runtime: support control flow guard on windows/amd64
+    test: add test of select inside generic function
     
-    The stack pointer must lie within system stack limits
-    when Control Flow Guard (CFG) is enabled on Windows.
+    Make sure that we can import/export selects for generics.
     
-    This CL updates runtime.sigtramp to honor this restriction by
-    porting some code from the windows/arm64 version, which
-    already supports CFG.
-    
-    Fixes #53560
-    
-    Change-Id: I7f88f9ae788b2bac38aac898b2567f1bea62f8f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/437559
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibf36e98fc574ce9275820aa426b3e6703b0aae6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369101
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/runtime/sys_windows_amd64.s | 49 +++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 47 insertions(+), 2 deletions(-)
+ test/typeparam/select.dir/a.go    | 15 +++++++++++++++
+ test/typeparam/select.dir/main.go | 28 ++++++++++++++++++++++++++++
+ test/typeparam/select.go          |  7 +++++++
+ 3 files changed, 50 insertions(+)

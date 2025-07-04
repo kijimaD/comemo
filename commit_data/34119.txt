@@ -1,31 +1,37 @@
-commit ebd04885c8684f170cc86ad42d4d7cb05a28c63b
-Author: Hana Kim <hakim@google.com>
-Date:   Thu Feb 8 13:23:48 2018 -0500
+commit ec3b6131de8f9c9c25283260c95c616c74f6d790
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 4 13:24:49 2017 -0400
 
-    runtime/trace: add stack tests for GOMAXPROCS
+    net/smtp: fix PlainAuth to refuse to send passwords to non-TLS servers
     
-    and reorganize test log messages for stack dumps
-    for easier debugging.
+    PlainAuth originally refused to send passwords to non-TLS servers
+    and was documented as such.
     
-    The error log will be formatted like the following:
+    In 2013, issue #5184 was filed objecting to the TLS requirement,
+    despite the fact that it is spelled out clearly in RFC 4954.
+    The only possibly legitimate use case raised was using PLAIN auth
+    for connections to localhost, and the suggested fix was to let the
+    server decide: if it advertises that PLAIN auth is OK, believe it.
+    That approach was adopted in CL 8279043 and released in Go 1.1.
     
-            trace_stack_test.go:282: Did not match event GoCreate with stack
-                     runtime/trace_test.TestTraceSymbolize   :39
-                     testing.tRunner                         :0
+    Unfortunately, this is exactly wrong. The whole point of the TLS
+    requirement is to make sure not to send the password to the wrong
+    server or to a man-in-the-middle. Instead of implementing this rule,
+    CL 8279043 blindly trusts the server, so that if a man-in-the-middle
+    says "it's OK, you can send me your password," PlainAuth does.
+    And the documentation was not updated to reflect any of this.
     
-                    Seen 30 events of the type
-                    Offset 1890
-                     runtime/trace_test.TestTraceSymbolize  /go/src/runtime/trace/trace_stack_test.go:30
-                     testing.tRunner                        /go/src/testing/testing.go:777
-                    Offset 1899
-                     runtime/trace_test.TestTraceSymbolize  /go/src/runtime/trace/trace_stack_test.go:30
-                     testing.tRunner                        /go/src/testing/testing.go:777
-                     ...
+    This CL restores the original TLS check, as required by RFC 4954
+    and as promised in the documentation for PlainAuth.
+    It then carves out a documented exception for connections made
+    to localhost (defined as "localhost", "127.0.0.1", or "::1").
     
-    Change-Id: I0468de04507d6ae38ba84d99d13f7bf592e8d115
-    Reviewed-on: https://go-review.googlesource.com/92916
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I1d3729bbd33aa2f11a03f4c000e6bb473164957b
+    Reviewed-on: https://go-review.googlesource.com/68170
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/trace/trace_stack_test.go | 138 ++++++++++++++++++++++------------
- 1 file changed, 88 insertions(+), 50 deletions(-)
+ src/net/smtp/auth.go      | 33 ++++++++++++++++++---------------
+ src/net/smtp/smtp_test.go | 32 ++++++++++++++++++++++----------
+ 2 files changed, 40 insertions(+), 25 deletions(-)

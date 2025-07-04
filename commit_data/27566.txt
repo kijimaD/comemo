@@ -1,14 +1,21 @@
-commit 24996832c68b9d0aa4cd0e51189d148aae7a2772
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sat May 28 02:33:23 2016 -0600
+commit 4ae4e81c2c14d4b36768d8d44b440c95f76411db
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Apr 2 15:24:32 2016 -0700
 
-    net/http/httputil: fix typos in deprecation comments
+    compress/gzip: fix Reader.Reset
     
-    Fixes #15868
+    Rather than specifying every field that should be cleared in Reset,
+    it is better to just zero the entire struct and only preserve or set the
+    fields that we actually care about. This ensures that the Header field
+    is reset for the next use.
     
-    Change-Id: I4e4471e77091309c4ea1d546b2c4f20dfbb4314e
-    Reviewed-on: https://go-review.googlesource.com/23550
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #15077
+    
+    Change-Id: I41832e506d2d64c62b700aa1986e7de24a577511
+    Reviewed-on: https://go-review.googlesource.com/21465
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httputil/persist.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/compress/gzip/gunzip.go      | 25 +++++++---------
+ src/compress/gzip/gunzip_test.go | 63 +++++++++++++++++++++-------------------
+ 2 files changed, 43 insertions(+), 45 deletions(-)

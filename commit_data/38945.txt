@@ -1,20 +1,19 @@
-commit 08b956f37846bd317aace534aa98dcd9353d868b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Apr 28 17:59:05 2019 +1000
+commit ba1de79a3a542b5bf25c4cc3be1c91d1ede47c55
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 11 16:55:16 2018 -0800
 
-    runtime: initialise cpu.HWCap on openbsd/arm64
+    os: in RemoveAll, try Remove first
     
-    OpenBSD does not provide auxv, however we still need to initialise cpu.HWCap.
-    For now initialise it to the bare minimum, until some form of CPU capability
-    detection is implemented or becomes available - see issue #31746.
+    Otherwise we can fail to remove a unreadable empty directory.
     
-    Updates #31656
+    Fixes #29178
     
-    Change-Id: I68c3c069319fe60dc873f46def2a67c9f3d937d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174129
+    Change-Id: I43d5c89fce57a86626abe2a1c2bbf145716e087b
+    Reviewed-on: https://go-review.googlesource.com/c/153720
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/auxv_none.go        |  1 +
- src/runtime/os_openbsd_arm64.go | 11 +++++++++++
- 2 files changed, 12 insertions(+)
+ src/os/removeall_at.go   |  6 ++++++
+ src/os/removeall_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

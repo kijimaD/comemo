@@ -1,20 +1,14 @@
-commit 7ec3b5e81f6549213df3ed2113a3e057ae9c5157
-Author: Ian Gudger <igudger@google.com>
-Date:   Fri Oct 26 16:43:13 2018 -0700
+commit 5110d19fc2986b702ba0cfcbeacfe692154c77b1
+Author: cch123 <buaa.cch@gmail.com>
+Date:   Mon Jul 2 04:32:48 2018 +0000
 
-    net: remove TODO for DNS cache
+    runtime: fix typo in mapextra comment
     
-    The proposal to add a DNS cache was rejected, so there is no longer a
-    need for the associated TODO.
-    
-    Updates #24796
-    
-    Change-Id: Ifcedcff72c75a70b2143de0bd3f7bf85ac3528f6
-    Reviewed-on: https://go-review.googlesource.com/c/145197
-    Run-TryBot: Ian Gudger <igudger@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idbd8a1b5bfeb1c23c86cef0697cf0380900e95f3
+    GitHub-Last-Rev: a8c2b27046582c4eef932a8502826a3b23b8dab3
+    GitHub-Pull-Request: golang/go#26175
+    Reviewed-on: https://go-review.googlesource.com/121821
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/dnsclient_unix.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/map.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

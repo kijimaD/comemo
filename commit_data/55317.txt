@@ -1,18 +1,22 @@
-commit 5b84d50038ae852e638631b0a7e71c719e41d240
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Dec 18 16:00:06 2023 -0500
+commit 4b3726e99bec62e4a8b8e9cecc478b51ce0d4636
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Jan 25 11:22:29 2023 +0800
 
-    test: skip rangegen.go on 32-bit platforms
+    encoding/binary: add var NativeEndian
     
-    Add a skip for this test that effectively disables it for 32-bit platforms,
-    so as to not run into timeouts or OOMs on smaller machines.
+    Updates #57237
     
-    Fixes #64789.
-    
-    Change-Id: I2d428e1dccae62b8bb1a69c5f95699692a282bbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/550975
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I149c8b7eeac91b87b5810250f96d48ca87135807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463218
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- test/rangegen.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ api/next/57237.txt                          |  1 +
+ src/encoding/binary/binary_test.go          | 10 ++++++++++
+ src/encoding/binary/native_endian_big.go    | 14 ++++++++++++++
+ src/encoding/binary/native_endian_little.go | 14 ++++++++++++++
+ 4 files changed, 39 insertions(+)

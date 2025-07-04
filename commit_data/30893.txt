@@ -1,18 +1,21 @@
-commit f3f5b10e06f6bb29731e9213dd8745a9b1857568
-Author: David Lazar <lazard@golang.org>
-Date:   Tue Mar 14 00:47:03 2017 -0400
+commit 6f5a77bf5f909e19fbc19f2c75ec1e160ec0aaa5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 15 06:26:58 2016 +0900
 
-    test: allow flags in run action
+    net: fix ParseCIDR docs
     
-    Previously, we could not run tests with -l=4 on NaCl since the buildrun
-    action is not supported on NaCl. This lets us run tests with build flags
-    on NaCl.
+    This change replaces the remaining use of "mask" with "prefix length"
+    and uses IPv4 reserved address blocks for documentation.
     
-    Change-Id: I103370c7b823b4ff46f47df97e802da0dc2bc7c3
-    Reviewed-on: https://go-review.googlesource.com/38170
-    Run-TryBot: David Lazar <lazard@golang.org>
+    UPdates #15228.
+    Updates #18175.
+    
+    Change-Id: I56c4f1205821c64f3195b023ad515b9d54e33f64
+    Reviewed-on: https://go-review.googlesource.com/34431
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/run.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/ip.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,29 +1,36 @@
-commit cf12fef5c6fabaa2c5089ba31b4354514c67d8e5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 13 21:37:13 2017 -0800
+commit 0be2d52ebaa85c4d055bde4239a6698d7135ca3e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 9 11:15:53 2017 -0400
 
-    go/types: don't associate methods with alias type names
+    cmd/go: use -importcfg to invoke compiler, linker
     
-    R=go1.11
+    This is a step toward using cached build artifacts: the importcfg
+    will direct the compiler and linker to read them right from the cache
+    if necessary. However, this CL does not have a cache yet, so it still
+    reads them from the usual install location or build location.
+    Even so, this fixes a long-standing issue that -I and -L (no longer used)
+    are not expressive enough to describe complex GOPATH setups.
     
-    The existing code associated methods with receiver base type
-    names before knowing if a type name denoted a locally defined
-    type. Sometimes, methods would be incorrectly associated with
-    alias type names and consequently were lost down the road.
+    Shared libraries are handled enough that all.bash passes, but
+    there may still be more work to do here. If so, tests and fixes
+    can be added in follow-up CLs.
     
-    This change first collects all methods with non-blank names
-    and in a follow-up pass resolves receiver base type names to
-    valid non-alias type names with which the methods are then
-    associated.
+    Gccgo will need updating to support -importcfg as well.
     
-    Fixes #23042.
+    Fixes #14271.
     
-    Change-Id: I7699e577b70aadef6a2997e882beb0644da89fa3
-    Reviewed-on: https://go-review.googlesource.com/83996
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I5c52a0a5df0ffbf7436e1130c74e9e24fceff80f
+    Reviewed-on: https://go-review.googlesource.com/56279
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/check.go            | 11 +----
- src/go/types/decl.go             | 44 +++++++++---------
- src/go/types/resolver.go         | 97 ++++++++++++++++++++++++++++++++++------
- src/go/types/testdata/decls4.src | 49 ++++++++++++++++++++
- 4 files changed, 157 insertions(+), 44 deletions(-)
+ misc/cgo/testshared/shared_test.go |   3 +-
+ src/cmd/go/internal/cfg/cfg.go     |  25 +++++
+ src/cmd/go/internal/load/pkg.go    |  23 +---
+ src/cmd/go/internal/test/test.go   |   6 +-
+ src/cmd/go/internal/work/build.go  | 217 ++++++++++++++++++++-----------------
+ src/cmd/link/internal/ld/ld.go     |  28 +++--
+ src/cmd/link/internal/ld/lib.go    |  73 ++++++++-----
+ 7 files changed, 220 insertions(+), 155 deletions(-)

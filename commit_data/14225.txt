@@ -1,18 +1,12 @@
-commit ee3e2ac1a691f5e3d9a8fbbc9f6d79c606b81868
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Oct 28 20:11:21 2012 +0100
+commit 3c808164ad94884915f0ae4512eefadd944114e9
+Author: Patrick Smith <pat42smith@gmail.com>
+Date:   Sun Oct 28 10:07:59 2012 +1100
 
-    cmd/5g: introduce componentgen for better registerization.
+    sort: Fixed a typo in the documentation for SearchStrings.
     
-    It is essentially identical to the version in 6g.
-    
-    R=dave, minux.ma, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6710043
+    https://golang.org/cl/6777066
 
- src/cmd/5g/cgen.c  | 254 ++++++++++++++++++++++++++++++++++++++---------------
- src/cmd/5g/gg.h    |   1 +
- src/cmd/5g/ggen.c  |   5 ++
- src/cmd/5g/gsubr.c |  11 ++-
- src/cmd/5g/reg.c   |   4 +-
- 5 files changed, 198 insertions(+), 77 deletions(-)
+ src/pkg/sort/search.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

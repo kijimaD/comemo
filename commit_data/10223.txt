@@ -1,13 +1,14 @@
-commit 80bce97e45d99e7784bfa1d7d3563126d8c233e8
+commit d6ff3c11774bf36c797dcc6cd946819959766dc1
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 3 12:44:51 2011 -0400
+Date:   Thu Nov 3 12:07:47 2011 -0400
 
-    gc, ld: sync pathtoprefix + add comments
+    gopack: do not look for Go metadata in non-Go objects
     
-    R=lvd, lvd
+    Fixes #2333.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5332051
+    https://golang.org/cl/5316075
 
- src/cmd/gc/subr.c |  2 ++
- src/cmd/ld/lib.c  | 14 +++++++++++---
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/gopack/ar.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 86101b083ad14bb0c6ca9c55d2869cba57760046
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Feb 21 10:55:32 2025 -0800
+
+    runtime: print stack traces for bubbled goroutines on synctest deadlock
+    
+    When synctest.Run panics due to every goroutine in the bubble being
+    blocked, print a stack trace for every goroutine in the bubble.
+    
+    For #67434
+    
+    Change-Id: Ie751c2ee6fa136930b18f4bee0277ff30da46905
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645719
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/panic.go     | 29 +++++++++++++++++++++++------
+ src/runtime/synctest.go  | 10 +++++++++-
+ src/runtime/traceback.go |  6 +++++-
+ 3 files changed, 37 insertions(+), 8 deletions(-)

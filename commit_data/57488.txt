@@ -1,18 +1,22 @@
-commit e190638f204366bb509b77931aa58543b6300910
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 17 10:42:08 2024 +0200
+commit 8870b8d2817dc90da96ce6cfb767034d12965252
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Aug 10 02:00:54 2023 +0000
 
-    net/netip: cover more AddrPort.String cases in tests
+    strconv: use the built-in min/max function
     
-    TestInvalidAddrPortString currently only tests for invalid AddrPorts.
-    Add some valid cases as well to improve test coverage.
+    Change-Id: Iab170943e6e80ffe08bb061e563c106b53740372
     
-    Change-Id: Iaa9192e48a61daed6f7ce7d680d602a021570bdc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613795
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iab170943e6e80ffe08bb061e563c106b53740372
+    GitHub-Last-Rev: 2964e03f1fbc499247bb6c3365475a91ef64547a
+    GitHub-Pull-Request: golang/go#61828
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/net/netip/netip_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/strconv/ftoa.go | 14 --------------
+ 1 file changed, 14 deletions(-)

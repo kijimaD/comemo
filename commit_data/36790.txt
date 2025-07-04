@@ -1,12 +1,25 @@
-commit f99fc3a119dbb98fa9dddcb2e31a6c51925fde77
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Oct 1 16:08:49 2018 -0400
+commit ab922e1012f75bdb7cff041b0da4bb16a40c64c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 29 06:40:56 2018 -0700
 
-    doc: document Go 1.11.1
+    cmd/cgo: use standard generated code comment
     
-    Change-Id: I2f1a55e15dc5737a5a06bd894c46b2c4705f338c
-    Reviewed-on: https://go-review.googlesource.com/138858
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change cgo to follow https://golang.org/s/generatedcode.
+    
+    For the C code we continue to use /* */ comments, so they don't follow
+    the format exactly. It doesn't really matter since the format is only
+    for Go code anyhow. This CL changes the C code to be similar for
+    consistency.
+    
+    Fixes #25623
+    
+    Change-Id: Idcfee53ec4069924d173ab8cedeb7bcfb7312863
+    Reviewed-on: https://go-review.googlesource.com/115035
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- doc/devel/release.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/cgo/godefs.go |  2 +-
+ src/cmd/cgo/out.go    | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

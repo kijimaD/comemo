@@ -1,29 +1,24 @@
-commit 3c7884a21b2929b5a42d6a1f237f5fee2ae72ba8
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jan 5 13:02:44 2023 -0800
+commit 5003ed884a67ee26b4cedbe6f5b1c02bd5eb6630
+Author: Steven Johnstone <steven.james.johnstone@gmail.com>
+Date:   Thu Mar 10 13:38:00 2022 +0000
 
-    cmd/compile: improve register overwrite decision for resultInArg0 ops
+    internal/fuzz: minimization should not reduce coverage
     
-    When we're compiling a resultInArg0 op, we need to clobber the
-    register containing the input value. So we first make a register copy
-    of the input value. We can then clobber either of the two registers
-    the value is in and still have the original input value in a register
-    for future uses.
+    Minimization should result in a fuzz input which
+    includes the same coverage bits as the original
+    input.
     
-    Before this CL, we always clobbered the original, not the copy.
-    But that's not always the right decision - if the original is already
-    in a specific register that it needs to be in later (typically, a
-    return value register), clobber the copy instead.
+    Updates #48326
     
-    This optimization can remove a mov instruction. It saves 1376 bytes
-    of instructions in cmd/go.
-    
-    Change-Id: I162870c84b9a180da6715bb24c296a902974fed3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460656
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6c5f30058b57ccd1a096ad0e9452a4dfbb7d9aab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391454
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt | 11 -----------
+ src/internal/fuzz/coverage.go                                 | 11 +++++++++++
+ src/internal/fuzz/worker.go                                   |  3 ++-
+ 3 files changed, 13 insertions(+), 12 deletions(-)

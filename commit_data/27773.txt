@@ -1,17 +1,44 @@
-commit 820e30f5b0289d5df22ab604f2d831470f748dca
-Author: Sam Whited <sam@samwhited.com>
-Date:   Tue Jul 5 20:06:00 2016 -0500
+commit f028b9f9e2433662502283850d06e9e07e72a6bb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Mar 27 10:21:48 2016 -0400
 
-    encoding/xml: update docs to follow convention
+    cmd/link, etc: store typelinks as offsets
     
-    Fixes #8833
+    This is the first in a series of CLs to replace the use of pointers
+    in binary read-only data with offsets.
     
-    Change-Id: I4523a1de112ed02371504e27882659bce8028a45
-    Reviewed-on: https://go-review.googlesource.com/24745
+    In standard Go binaries these CLs have a small effect, shrinking
+    8-byte pointers to 4-bytes. In position-independent code, it also
+    saves the dynamic relocation for the pointer. This has a significant
+    effect on the binary size when building as PIE, c-archive, or
+    c-shared.
+    
+    darwin/amd64:
+            cmd/go: -12KB (0.1%)
+            jujud:  -82KB (0.1%)
+    
+    linux/amd64 PIE:
+            cmd/go:  -86KB (0.7%)
+            jujud:  -569KB (0.7%)
+    
+    For #6853.
+    
+    Change-Id: Iad5625bbeba58dabfd4d334dbee3fcbfe04b2dcf
+    Reviewed-on: https://go-review.googlesource.com/21284
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/xml/marshal.go |  2 +-
- src/encoding/xml/read.go    | 10 +++++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/go.go      |  2 --
+ src/cmd/compile/internal/gc/main.go    |  4 ---
+ src/cmd/compile/internal/gc/obj.go     |  6 +++++
+ src/cmd/compile/internal/gc/reflect.go | 17 +++++-------
+ src/cmd/internal/obj/data.go           | 21 ++++++++++++++-
+ src/cmd/internal/obj/link.go           |  3 +++
+ src/cmd/link/internal/ld/data.go       | 18 +++++++++++++
+ src/cmd/link/internal/ld/symtab.go     |  4 +++
+ src/reflect/export_test.go             |  8 +++---
+ src/reflect/type.go                    | 47 ++++++++++++++++++++++------------
+ src/runtime/runtime1.go                |  8 +++---
+ src/runtime/symtab.go                  |  3 ++-
+ 12 files changed, 99 insertions(+), 42 deletions(-)

@@ -1,27 +1,13 @@
-commit 49abdbccde5de042997d6aabe7819212b88f2ef5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 25 17:05:46 2022 -0400
+commit 939480033aa2c09f1b511a1928c0b465f41a45da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 18 16:11:10 2021 -0800
 
-    cmd/go/internal/script: use the Cancel and WaitDelay fields for subprocesses
+    spec: adjust assignability rules for type parameters
     
-    The Cancel and WaitDelay fields recently added to exec.Cmd are
-    intended to support exactly the sort of cancellation behavior that we
-    need for script tests. Use them, and simplify the cmd/go tests
-    accordingly.
-    
-    The more robust implementation may also help to diagose recurring test
-    hangs (#50187).
-    
-    For #50187.
-    Updates #27494.
-    
-    Change-Id: I7817fca0dd9a18e18984a252d3116f6a5275a401
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445357
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I3c4d8bdb5e92ee7fdca9593fb043f94f467755e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365434
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/script/cmds.go  | 93 ++++++-------------------------------
- src/cmd/go/internal/vcweb/script.go |  3 +-
- src/cmd/go/scriptcmds_test.go       | 18 +++++--
- 3 files changed, 30 insertions(+), 84 deletions(-)
+ doc/go_spec.html | 40 ++++++++++++++++++++++++++++++++--------
+ 1 file changed, 32 insertions(+), 8 deletions(-)

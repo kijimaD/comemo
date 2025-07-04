@@ -1,13 +1,14 @@
-commit 684e065d05f0cd6f1dc2b141e6fa519a01056ece
+commit 37dca9d41774a996f390af3e200f0384b7b3f53a
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed May 4 13:08:36 2011 +1000
+Date:   Wed May 4 11:16:55 2011 +1000
 
-    net: disable dnsmsg_test on windows
+    make.bash: remove old bash version of gotest on Windows
     
-    R=golang-dev, bradfitzwork
+    The file is called gotest.exe now.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4466041
+    https://golang.org/cl/4444090
 
- src/pkg/net/dnsmsg_test.go    | 7 +++++++
- src/pkg/net/resolv_windows.go | 4 ++++
- 2 files changed, 11 insertions(+)
+ src/make.bash | 3 +++
+ 1 file changed, 3 insertions(+)

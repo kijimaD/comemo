@@ -1,20 +1,21 @@
-commit 1a49dcb82f1ef0d028f74f4fd955ee01b09b466d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Sep 17 14:23:04 2021 +0200
+commit f2e6dab04859a3211ce9f5bf5bac9edde0831ce1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 3 00:03:28 2021 -0800
 
-    syscall: remove //sysnb comment generating Setreuid for linux/arm64
+    [dev.regabi] cmd/compile: remove walkReturn "common case" path
     
-    CL 210639 moved the //sysnb for Setreuid from syscall_linux_$GOARCH.go
-    to syscall_linux.go but forgot to remove the comment from
-    syscall_linux_arm64.go which leads to Setreuid being generated twice for
-    linux/arm64. Remove that //sysnb comment to avoid this.
+    After the previous two optimization CLs, this code path now generates
+    the same code as ascompatee does anyway. So just use that and remove
+    some redundant code.
     
-    Change-Id: I2c8ad95f786530ca964685b0a4fe463c64764307
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350531
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: I5e2e5c6dbea64d8e91abe0f2cf51aa5bb86576d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281154
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/syscall/syscall_linux_arm64.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/walk/assign.go | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)

@@ -1,20 +1,15 @@
-commit 516d9ef53b656aa5e6eebdc2c09e8d257b13e033
-Author: Austin Clements <austin@google.com>
-Date:   Tue Nov 4 09:43:37 2014 -0500
+commit 3c5fd98918e0c1c22566b19769a0a370b1321737
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Oct 19 10:28:27 2014 -0700
 
-    gc: abort if given an unknown debug (-d) flag
+    regexp: correct doc comment for ReplaceAllLiteralString
     
-    The check for unknown command line debug flags in gc was
-    incorrect: the loop over debugtab terminates when it reaches a
-    nil entry, but it was only reporting an error if the parser
-    had passed the last entry of debugtab (which it never did).
-    Fix this by reporting the usage error if the loop reaches a
-    nil entry.
+    Fixes #8959.
     
-    LGTM=rsc
-    R=rsc
+    LGTM=adg
+    R=golang-codereviews, adg
     CC=golang-codereviews
-    https://golang.org/cl/166110043
+    https://golang.org/cl/161790043
 
- src/cmd/gc/lex.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

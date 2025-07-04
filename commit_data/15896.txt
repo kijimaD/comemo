@@ -1,16 +1,12 @@
-commit d02089101c9d8375d991b679c9a1c8432e415cd8
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 22 10:03:55 2013 -0700
+commit dabe51065c6d77bb975b5aff639bfb4598d6401a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 22 12:57:34 2013 -0400
 
-    spec: add example showing missing return statement
-    Will help people find the rules by searching the spec by
-    having a comment saying "missing return";
-    "terminating statement" does not evoke the rule to the
-    uninitiated.
+    crypto/cipher: fix vet warning
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7838044
+    https://golang.org/cl/7973043
 
- doc/go_spec.html | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/pkg/crypto/cipher/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

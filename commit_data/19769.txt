@@ -1,13 +1,17 @@
-commit 6089fc767cb2c5892fd077349e5c03cf818b1639
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jul 18 09:58:54 2014 -0700
+commit 964b98e8c3e3f042fac80daa12715ffc3f7b9aa9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 18 12:04:39 2014 -0400
 
-    go/ast: fix typo in comment
+    A+C: add Xia Bin (individual CLA)
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    This CLA replaces the one for 'snyh'.
+    Verified by hand.
+    
+    LGTM=minux
+    R=iant, minux
     CC=golang-codereviews
-    https://golang.org/cl/111330043
+    https://golang.org/cl/112420043
 
- src/pkg/go/ast/scope.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

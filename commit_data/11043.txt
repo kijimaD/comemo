@@ -1,15 +1,12 @@
-commit a15448d65ed02435a79e79dafaa6634715d03504
-Author: Ryan Hitchman <hitchmanr@gmail.com>
-Date:   Fri Jan 6 14:34:16 2012 -0800
+commit 518872bf8fde6172b39fb9e7452cf2dc55cf432f
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Fri Jan 6 14:11:51 2012 -0800
 
-    gc: improve unsafe.Pointer type-check error messages
+    A+C: add sameer@golang.org to CONTRIBUTORS.
     
-    Fixes #2627.
-    
-    R=golang-dev, iant
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5498088
+    https://golang.org/cl/5515052
 
- src/cmd/gc/typecheck.c   |  1 +
- test/fixedbugs/bug390.go | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

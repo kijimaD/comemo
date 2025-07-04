@@ -1,14 +1,17 @@
-commit d1e1367cadc92ed6773374ef8379ee222bf554ce
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 22 00:06:50 2012 -0500
+commit 6d3530270454316f64dc71e6b6c2231dba56d69f
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Feb 22 15:46:31 2012 +1100
 
-    cmd/go: add tool -n flag
+    cmd/fix: remove os.Wait gofix.
     
-    As in gdb $(go tool -n 6g).
+    The os.Wait function has been removed entirely, so there's no point in fixing code that called it.
     
-    R=golang-dev, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5689066
+    https://golang.org/cl/5685078
 
- src/cmd/go/tool.go | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ doc/go1.html               |  4 +---
+ doc/go1.tmpl               |  4 +---
+ src/cmd/fix/oswait.go      | 56 ----------------------------------------------
+ src/cmd/fix/oswait_test.go | 41 ---------------------------------
+ 4 files changed, 2 insertions(+), 103 deletions(-)

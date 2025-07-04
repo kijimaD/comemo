@@ -1,37 +1,18 @@
-commit d5e1b7ca68e2cc484d9a1517bdc0a9862936a1eb
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 6 16:16:48 2020 -0400
+commit 9e094ea01e586a44c6fff43c9dd241cc582d930a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 29 17:34:52 2019 -0700
 
-    all: remove scattered remnants of darwin/386
+    runtime: record stub netpoll initialization, add lock around note
     
-    This removes all conditions and conditional code (that I could find)
-    that depended on darwin/386.
+    This fixes the Plan 9 support for the new timer code.
     
-    Fixes #37610.
+    Updates #6239
+    Updates #27707
     
-    Change-Id: I630d9ea13613fb7c0bcdb981e8367facff250ba0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227582
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia498c399b8924910b97fcde07545fae3588aad47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204045
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- api/except.txt                                      |  4 ----
- misc/cgo/test/sigaltstack.go                        |  2 --
- src/cmd/dist/test.go                                |  8 ++++----
- src/cmd/go/testdata/script/link_syso_issue33139.txt |  4 ----
- src/cmd/internal/sys/supported.go                   |  2 +-
- src/cmd/link/internal/ld/lib.go                     |  2 +-
- src/cmd/link/internal/ld/sym.go                     |  9 +++------
- src/cmd/oldlink/internal/ld/lib.go                  |  2 +-
- src/cmd/oldlink/internal/ld/sym.go                  |  5 +----
- src/go/build/doc.go                                 |  4 ++--
- src/os/wait_waitid.go                               |  3 +--
- src/runtime/asm_386.s                               |  4 ----
- src/runtime/defs_darwin.go                          |  1 -
- src/runtime/signal_386.go                           | 16 ----------------
- src/runtime/sys_darwin.go                           | 11 +++++++++++
- src/runtime/sys_darwin_64.go                        | 21 ---------------------
- src/runtime/vlrt.go                                 |  3 ---
- src/syscall/mkall.sh                                |  7 -------
- 18 files changed, 25 insertions(+), 83 deletions(-)
+ src/runtime/netpoll_stub.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

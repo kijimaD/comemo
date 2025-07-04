@@ -1,16 +1,12 @@
-commit 0b1bcf8f94620b34396b3549ea959646e830c7c8
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Nov 17 11:42:25 2011 +1100
+commit 3ec82f6e0960ffd082a6b63b3c784e8901bd3c4d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Nov 17 11:20:42 2011 +1100
 
-    http: fix serving from CWD with http.ServeFile
-    http: make Dir("") equivalent to Dir(".")
+    exp/ssh: change test listen address, also exit test if fails
     
-    Fixes #2471.
-    
-    R=golang-dev, bradfitz, rsc
-    CC=golang-dev
-    https://golang.org/cl/5370061
+    R=golang-dev, rsc
+    CC=dave, golang-dev
+    https://golang.org/cl/5364061
 
- src/pkg/net/http/fs.go      |  8 +++++++-
- src/pkg/net/http/fs_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 1 deletion(-)
+ src/pkg/exp/ssh/client_auth_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

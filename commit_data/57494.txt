@@ -1,18 +1,18 @@
-commit 402dc98759b4708beebcd0729f308bb0c03d3ed6
-Author: sunnymilk <shaojunyang@google.com>
-Date:   Thu Sep 12 12:23:37 2024 -0700
+commit 3378adc517f362793acec5adc6cc17f9a1841a4c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 9 09:21:56 2023 -0700
 
-    testing: enable better loop time measurement for benchmarking.
+    cmd/compile/internal/coverage: merge Fixup{Vars,Init} into Fixup
     
-    With b.Loop() in place, the time measurement of loop scaling could be improved to be tighter. By identifying the first call to b.Loop(), we can avoid measuring the expensive ramp-up time by reset the timer tightly before the loop starts. The remaining loop scaling logic of b.N style loop is largely reused.
+    There's no need for separate fixups phases anymore.
     
-    For #61515.
-    
-    Change-Id: Ia7b8f0a8838f57c00ac6c5ef779d86f8d713c9b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612835
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie30a75bda4d326aa9811db3b3bd1dade0b242706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517858
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/testing/benchmark.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/coverage/cover.go | 31 +++++++++++++++---------------
+ src/cmd/compile/internal/gc/main.go        | 13 ++-----------
+ 2 files changed, 17 insertions(+), 27 deletions(-)

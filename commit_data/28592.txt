@@ -1,17 +1,28 @@
-commit 214bf6809791170b88b41249850f2f01534725c4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Sep 29 19:35:43 2016 -0700
+commit fa54bf16e0080296487407c8cc883a1e039c31c8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 3 18:03:29 2016 -0400
 
-    net/http: remove TODO about the Server's base context
+    [dev.ssa] cmd/compile: fix a few bugs for SSA for ARM
     
-    I decided not to expand the API for this per discusion on #16220.
+    - 64x signed right shift was wrong for shift larger than 0x80000000.
+    - for Lsh-followed-by-Rsh, the intermediate value should be full int
+      width, so when it is spilled MOVW should be used.
+    - use RET for RetJmp, so the assembler can take case of restoring LR
+      for non-leaf case.
+    - reserve R9 in dynlink mode. R9 is used for GOT by the assembler.
     
-    Fixes #16220
+    Progress on SSA backend for ARM. Still not complete.
     
-    Change-Id: I65cb2eacd4ec28c79438a8f7c30024524a484ce6
-    Reviewed-on: https://go-review.googlesource.com/30082
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #15365.
+    
+    Change-Id: I3caca256b92ff7cf96469da2feaf4868a592efc5
+    Reviewed-on: https://go-review.googlesource.com/23793
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/server.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go          |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules   | 12 ++++----
+ src/cmd/compile/internal/ssa/gen/dec64.rules | 21 ++++++-------
+ src/cmd/compile/internal/ssa/regalloc.go     | 11 +++++--
+ src/cmd/compile/internal/ssa/rewriteARM.go   | 42 +++++++++++--------------
+ src/cmd/compile/internal/ssa/rewritedec64.go | 46 ++++++++++++----------------
+ 6 files changed, 63 insertions(+), 71 deletions(-)

@@ -1,25 +1,47 @@
-commit 39fa301bdc5cd99e4f71d7da5f6f38a6f313d611
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Oct 15 12:53:07 2018 -0400
+commit e083dc6307b6593bdd44b219ffd21699d6f17fd7
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun May 20 00:56:36 2018 +0200
 
-    test/codegen: enable more tests for ppc64/ppc64le
+    runtime, sycall/js: add support for callbacks from JavaScript
     
-    Adding cases for ppc64,ppc64le to the codegen tests
-    where appropriate.
+    This commit adds support for JavaScript callbacks back into
+    WebAssembly. This is experimental API, just like the rest of the
+    syscall/js package. The time package now also uses this mechanism
+    to properly support timers without resorting to a busy loop.
     
-    Change-Id: Idf8cbe88a4ab4406a4ef1ea777bd15a58b68f3ed
-    Reviewed-on: https://go-review.googlesource.com/c/142557
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    JavaScript code can call into the same entry point multiple times.
+    The new RUN register is used to keep track of the program's
+    run state. Possible values are: starting, running, paused and exited.
+    If no goroutine is ready any more, the scheduler can put the
+    program into the "paused" state and the WebAssembly code will
+    stop running. When a callback occurs, the JavaScript code puts
+    the callback data into a queue and then calls into WebAssembly
+    to allow the Go code to continue running.
+    
+    Updates #18892
+    Updates #25506
+    
+    Change-Id: Ib8701cfa0536d10d69bd541c85b0e2a754eb54fb
+    Reviewed-on: https://go-review.googlesource.com/114197
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/codegen/arithmetic.go  | 22 ++++++++++++++++++++++
- test/codegen/comparisons.go |  1 +
- test/codegen/copy.go        |  7 +++++++
- test/codegen/floats.go      | 12 ++++++++++++
- test/codegen/math.go        | 15 +++++++++++++++
- test/codegen/mathbits.go    | 20 ++++++++++++++++++--
- test/codegen/noextend.go    | 42 ++++++++++++++++++++++++++++++++++++++++++
- test/codegen/rotate.go      |  8 ++++++++
- test/codegen/stack.go       |  5 +++++
- 9 files changed, 130 insertions(+), 2 deletions(-)
+ misc/wasm/wasm_exec.js               |  53 ++++++++++++-
+ src/cmd/internal/obj/wasm/a.out.go   |   3 +
+ src/cmd/internal/obj/wasm/anames.go  |   1 +
+ src/cmd/internal/obj/wasm/wasmobj.go |  16 +++-
+ src/cmd/link/internal/wasm/asm.go    |   1 +
+ src/cmd/trace/annotations.go         |   4 +
+ src/cmd/trace/annotations_test.go    |   6 ++
+ src/cmd/trace/trace_test.go          |   2 +
+ src/go/build/deps_test.go            |   2 +-
+ src/runtime/lock_futex.go            |   6 ++
+ src/runtime/lock_js.go               | 125 ++++++++++++++++++++++++++----
+ src/runtime/lock_sema.go             |   6 ++
+ src/runtime/proc.go                  |  12 +++
+ src/runtime/rt0_js_wasm.s            |  78 ++++++++++++++-----
+ src/runtime/sys_wasm.s               |  15 ++--
+ src/syscall/js/callback.go           | 145 +++++++++++++++++++++++++++++++++++
+ src/syscall/js/js.go                 |   6 ++
+ src/syscall/js/js_test.go            |  50 ++++++++++++
+ 18 files changed, 482 insertions(+), 49 deletions(-)

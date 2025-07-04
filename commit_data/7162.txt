@@ -1,15 +1,15 @@
-commit 48d2de7eb9a4ed30faf29abebbbbb205b308cb33
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Jan 19 15:10:01 2011 -0500
+commit ff25900bb660722d3496e7afafbdb9e3454271b6
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Wed Jan 19 14:49:25 2011 -0500
 
-    8l: pe changes
+    net: implement windows timeout
     
-    Dll names and function names padded to even size.
-    Refactoring of imports writing code.
-    
-    R=rsc
+    R=brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/3804042
+    https://golang.org/cl/1731047
 
- src/cmd/ld/pe.c | 151 ++++++++++++++++++++++++++------------------------------
- 1 file changed, 70 insertions(+), 81 deletions(-)
+ src/pkg/net/fd_windows.go               | 138 ++++++++++++++++++++++++++++----
+ src/pkg/net/timeout_test.go             |   5 --
+ src/pkg/syscall/syscall_windows.go      |   1 +
+ src/pkg/syscall/zsyscall_windows_386.go |  16 ++++
+ 4 files changed, 141 insertions(+), 19 deletions(-)

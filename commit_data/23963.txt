@@ -1,16 +1,12 @@
-commit f9dc3382ad8b3ec330b41297053e14dd199d3b5f
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 3 17:45:44 2015 -0400
+commit 31aa6f2bd5e392e12ce697d15b4149817471e423
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Fri Jun 26 00:23:50 2015 -0400
 
-    runtime: when gcpacertrace > 0, print information about assist ratio
+    doc/go1.5.html: fix typo
     
-    This was useful in debugging the mutator assist behavior for #11911,
-    and it fits with the other gcpacertrace output.
-    
-    Change-Id: I1e25590bb4098223a160de796578bd11086309c7
-    Reviewed-on: https://go-review.googlesource.com/13046
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I193b416ac91b4fa9234d30a1c1c58b3f0a71f398
+    Reviewed-on: https://go-review.googlesource.com/11543
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mgc.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

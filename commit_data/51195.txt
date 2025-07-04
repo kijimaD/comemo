@@ -1,26 +1,17 @@
-commit a11cd6f69aec5c783656601fbc7b493e0d63f605
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Nov 9 15:29:09 2022 -0800
+commit 265fbaa94b8614cbd861711d7f7c6d278dc1ddba
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 13 13:49:30 2021 -0500
 
-    go/doc: recognize methods on generic types as Funcs
+    doc: update go1.18 release notes with a blurb about workspace mode
     
-    When writing markdown for godoc, we can reference a method M of
-    a type T as [T.M]. This doesn't currently work for methods on generic
-    types because the declaration of the type parameter gets in the way.
-    (You'd have to write [T[P].M] and that doesn't parse, and even if it
-    did you'd have to spell "P" correctly.)
+    For #47694
     
-    Get rid of the type parameter when building the list of Funcs so
-    [T.M] works in godoc if T is generic.
-    
-    Change-Id: I8ef5264124a944967df3ce20ddd40a2447ff4187
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449236
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I79cdbdc66ea9942b597f29c9a4f428075f053466
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371295
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/go/doc/comment_test.go        | 12 ++++++------
- src/go/doc/doc.go                 |  8 ++++++--
- src/go/doc/testdata/pkgdoc/doc.go |  5 +++++
- 3 files changed, 17 insertions(+), 8 deletions(-)
+ doc/go1.18.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

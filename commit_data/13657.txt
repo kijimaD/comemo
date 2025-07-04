@@ -1,33 +1,14 @@
-commit 922056d410bd8b1f75a7f6ea2b8664f98e574c2f
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 20 21:27:52 2012 +0400
+commit 27010467984dcef481e5b05113a6fbcf74b4df45
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Aug 20 21:21:09 2012 +0800
 
-    net: add TCP benchmarks
-    Current results on linux_amd64, 8 HT cores @2.4GHz:
-    BenchmarkTCPOneShot        10000            194037 ns/op
-    BenchmarkTCPOneShot-2      20000             93641 ns/op
-    BenchmarkTCPOneShot-4      20000             94039 ns/op
-    BenchmarkTCPOneShot-8      20000             94667 ns/op
-    BenchmarkTCPOneShot-16     10000            301924 ns/op
-    BenchmarkTCPOneShotTimeout         10000            193264 ns/op
-    BenchmarkTCPOneShotTimeout-2       20000             98247 ns/op
-    BenchmarkTCPOneShotTimeout-4       20000             94442 ns/op
-    BenchmarkTCPOneShotTimeout-8       20000             95297 ns/op
-    BenchmarkTCPOneShotTimeout-16      10000            307970 ns/op
-    BenchmarkTCPPersistent     50000             52050 ns/op
-    BenchmarkTCPPersistent-2          100000             29452 ns/op
-    BenchmarkTCPPersistent-4          100000             28823 ns/op
-    BenchmarkTCPPersistent-8           50000             30473 ns/op
-    BenchmarkTCPPersistent-16          10000            311777 ns/op
-    BenchmarkTCPPersistentTimeout      50000             32574 ns/op
-    BenchmarkTCPPersistentTimeout-2    50000             29723 ns/op
-    BenchmarkTCPPersistentTimeout-4   100000             28592 ns/op
-    BenchmarkTCPPersistentTimeout-8   100000             28997 ns/op
-    BenchmarkTCPPersistentTimeout-16           10000            314354 ns/op
+    doc/install: we only need command line tools for Xcode on OS X
+         Fixes #3973.
     
-    R=golang-dev, alex.brainman, dave, mikioh.mikioh, r, iant, bradfitz, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6458128
+    https://golang.org/cl/6464078
 
- src/pkg/net/tcp_test.go | 118 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 118 insertions(+)
+ doc/install-source.html | 10 ++++++++--
+ doc/install.html        |  9 +++++++--
+ 2 files changed, 15 insertions(+), 4 deletions(-)

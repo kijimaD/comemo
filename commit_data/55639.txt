@@ -1,20 +1,24 @@
-commit 4ce008d7d35237a40619e24d0d045bdcb3752cd3
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Feb 17 02:21:11 2024 +1100
+commit e8fbad5de87f34d2e7632f94cac418c7436174ce
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 27 15:52:52 2023 -0800
 
-    log/slog: correct formatting
+    debug/macho: use saferio to read dynamic indirect symbols
     
-    Code added in CL #558755 and CL #561315 (both via github) were not
-    appropriately formatted. Run gofmt to address this.
+    No test case because the problem can only happen for invalid data. Let
+    the fuzzer find cases like this.
     
-    Change-Id: Iaf7abca9c2ad4e0fabecc417234b743b6b15e9c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564719
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    For #47653
+    Fixes #58755
+    
+    Change-Id: I5b95a21f47ec306ad90cd6221f0566c6f8b6c3ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471835
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/log/slog/level_test.go | 8 ++++----
- src/log/slog/value_test.go | 6 +++---
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/debug/macho/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

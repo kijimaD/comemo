@@ -1,15 +1,16 @@
-commit 7739b8a97fb767ceb141af05a1213b538c32e8da
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Aug 17 20:05:15 2017 +1000
+commit 84530b4fe262757cb6f788626d3e44fc1016b5e1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 6 00:04:12 2017 +0000
 
-    path/filepath: simplify TestEvalSymlinks
+    doc: start of go1.9.html release notes
     
-    Change-Id: I4a747fca0db3cbd4972feaddcb625041b648620b
-    Reviewed-on: https://go-review.googlesource.com/56710
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Many TODOs remain.
+    
+    Updates #20587
+    
+    Change-Id: If49854ae4d36346d9e072a386f413cc85c66b62a
+    Reviewed-on: https://go-review.googlesource.com/45012
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/path/filepath/path_test.go         | 204 ++++++++++-----------------------
- src/path/filepath/path_windows_test.go |  58 ++++++++++
- 2 files changed, 117 insertions(+), 145 deletions(-)
+ doc/go1.9.html | 571 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 571 insertions(+)

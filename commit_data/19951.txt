@@ -1,30 +1,40 @@
-commit 7aa4e5ac5fb3894e0eaf99fbc3704c32d934b199
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 7 14:52:55 2014 -0700
+commit e03bce158fba5f13dd7f2f0a86a40eb14958300b
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Thu Aug 7 09:00:02 2014 -0400
 
-    runtime: convert equality functions to Go
+    cmd/cc, runtime: eliminate use of the unnamed substructure C extension
     
-    LGTM=rsc
-    R=rsc, khr
-    CC=golang-codereviews
-    https://golang.org/cl/121330043
+    Eliminating use of this extension makes it easier to port the Go runtime
+    to other compilers. This CL also disables the extension in cc to prevent
+    accidental use.
+    
+    LGTM=rsc, khr
+    R=rsc, aram, khr, dvyukov
+    CC=axwalk, golang-codereviews
+    https://golang.org/cl/106790044
 
- src/cmd/gc/builtin.c            |  13 ++-
- src/cmd/gc/order.c              |  13 +++
- src/cmd/gc/reflect.c            |   9 +-
- src/cmd/gc/runtime.go           |  14 ++-
- src/cmd/gc/subr.c               |  66 +++++++------
- src/cmd/gc/walk.c               |  59 ++---------
- src/pkg/runtime/alg.go          | 100 +++++++++++++++++++
- src/pkg/runtime/alg.goc         | 210 ++++++++--------------------------------
- src/pkg/runtime/asm_386.s       |  43 +-------
- src/pkg/runtime/asm_amd64.s     |  43 +-------
- src/pkg/runtime/asm_amd64p32.s  |  43 +-------
- src/pkg/runtime/asm_arm.s       |  54 +----------
- src/pkg/runtime/hashmap.go      |  37 ++++---
- src/pkg/runtime/hashmap_fast.go |  12 +--
- src/pkg/runtime/iface.go        |  42 --------
- src/pkg/runtime/iface.goc       |  46 ---------
- src/pkg/runtime/runtime.h       |  26 +++--
- src/pkg/runtime/stubs.go        |  13 +--
- 18 files changed, 265 insertions(+), 578 deletions(-)
+ src/cmd/cc/dcl.c                   |   9 +-
+ src/pkg/runtime/callback_windows.c |   8 +-
+ src/pkg/runtime/chan.goc           |  54 ++---
+ src/pkg/runtime/chan.h             |   2 +-
+ src/pkg/runtime/defs_plan9_386.h   |   5 +-
+ src/pkg/runtime/heapdump.c         |   4 +-
+ src/pkg/runtime/iface.goc          |  14 +-
+ src/pkg/runtime/malloc.c           |  12 +-
+ src/pkg/runtime/malloc.h           |  10 +-
+ src/pkg/runtime/mcache.c           |  12 +-
+ src/pkg/runtime/mcentral.c         |  30 +--
+ src/pkg/runtime/mgc0.c             |  20 +-
+ src/pkg/runtime/mheap.c            |  38 ++--
+ src/pkg/runtime/mprof.goc          |  70 +++----
+ src/pkg/runtime/mprof.h            |   6 +-
+ src/pkg/runtime/netpoll.goc        |  36 ++--
+ src/pkg/runtime/proc.c             | 144 ++++++-------
+ src/pkg/runtime/runtime.h          |   4 +-
+ src/pkg/runtime/sema.goc           |  32 +--
+ src/pkg/runtime/sigqueue.goc       |  10 +-
+ src/pkg/runtime/time.goc           |  24 +--
+ src/pkg/runtime/type.h             |  12 +-
+ src/pkg/runtime/vlrt_386.c         | 412 ++++++++++++++++++-------------------
+ src/pkg/runtime/vlrt_arm.c         |  27 +--
+ 24 files changed, 483 insertions(+), 512 deletions(-)

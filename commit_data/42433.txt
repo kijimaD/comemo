@@ -1,21 +1,17 @@
-commit e05695ed4d898e3c21906b608a0f259110a78ec8
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Jun 2 08:50:54 2020 -0700
+commit 82575285913b8b3d7257b21fd33b3226e78e5320
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 20 09:34:30 2019 -0500
 
-    runtime: add three new partial orders for lock ranking
+    cmd/go: diagnose missing replacement directories
     
-    Two are associated with the new sysmon rank:  lockRankSysmon -> lockRankFin
-    (https://build.golang.org/log/07b0b8ee6ec9421d83699a1d850d9938390fb996)
-    and one I encountered during testing, lockRankSysmon -> lockRankWbufSpans
+    I noticed the missing diagnostic when writing a regression test for #33795.
     
-    And another just seems not to have occurred before:  lockRankScavenge -> lockRankFin
-    (https://build.golang.org/log/07ba499b861fc93f527ef8514f5ba4c77086f4c4)
-    
-    Change-Id: I070b5ed8e742857e815c6a56f8439d17a0ba36f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236137
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: Ic3249436a6109d71f9ff720b7096f9b872f6a94b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212201
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/lockrank.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modload/load.go               | 15 +++++++++++++++
+ src/cmd/go/testdata/script/mod_replace_import.txt |  9 +++++++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

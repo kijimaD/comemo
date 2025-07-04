@@ -1,25 +1,22 @@
-commit baa934d26dd6e201dcda0962dd51b0e5f6f69c1b
-Author: Tim King <taking@google.com>
-Date:   Wed May 19 18:45:53 2021 -0700
+commit 3510a1e32cbc86b73db143aefcc00aadc44c27bd
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu Nov 5 05:59:34 2020 +0100
 
-    cmd: go get golang.org/x/tools/analysis@49064d23 && go mod vendor
+    internal/cpu: fix and cleanup ARM64 cpu feature fields and options
     
-    This brings in CLs 312829, 317431, 319211.
+    Remove all cpu features from the ARM64 struct that are not initialized
+    to reduce cache lines used and to avoid those features being
+    accidentially used without actual detection if they are present.
     
-    Fixes #40356.
-    Fixes #46129.
+    Add missing option to mask the CPUID feature.
     
-    Change-Id: I2ee1f858b2a41ffa60d88b0c17511ccad57f1816
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321389
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Tim King <taking@google.com>
-    Run-TryBot: Tim King <taking@google.com>
+    Change-Id: I94bf90c0655de1af2218ac72117ac6c52adfc289
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267658
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/go.mod                                          |  2 +-
- src/cmd/go.sum                                          |  4 ++--
- .../x/tools/go/analysis/passes/printf/printf.go         |  2 +-
- .../tools/go/analysis/passes/sigchanyzer/sigchanyzer.go | 11 +++++++++--
- .../x/tools/go/analysis/passes/stdmethods/stdmethods.go | 17 +++++++++++++++++
- src/cmd/vendor/modules.txt                              |  2 +-
- 6 files changed, 31 insertions(+), 7 deletions(-)
+ src/internal/cpu/cpu.go       | 17 -----------------
+ src/internal/cpu/cpu_arm64.go |  1 +
+ 2 files changed, 1 insertion(+), 17 deletions(-)

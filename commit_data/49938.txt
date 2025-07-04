@@ -1,19 +1,27 @@
-commit b11b4b4de3e54372dfdf867003b544cadd189931
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 17 17:33:39 2022 +0700
+commit 91c2318e67da2e5948cd8ed0420863af69142c3d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 22 10:16:06 2021 -0400
 
-    runtime: convert m.signalPending to atomic type
+    runtime: call cgocallbackg indirectly on PPC64
     
-    Updates #53821
+    This is CL 312669, for PPC64.
     
-    Change-Id: Ib455be9ca7120ded7c77d34556eff977aa61faa3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423886
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    cgocallback calls cgocallbackg after switching the stack. Call it
+    indirectly to bypass the linker's nosplit check. The nosplit check
+    fails after CL 351271, which removes ABI aliases. It would have
+    been failing before but the linker's nosplit check didn't resolve
+    ABI alias (it should) so it didn't catch that. Removing the ABI
+    aliases exposes it. For this partuclar case it is benign as there
+    is actually a stack switch in between.
+    
+    Should fix PPC64 build.
+    
+    Change-Id: I49617aea55270663a9ee4692c54c070c5ab85470
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351469
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/proc.go        | 2 +-
- src/runtime/runtime2.go    | 3 +--
- src/runtime/signal_unix.go | 4 ++--
- 3 files changed, 4 insertions(+), 5 deletions(-)
+ src/runtime/asm_ppc64x.s | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

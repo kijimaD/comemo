@@ -1,31 +1,18 @@
-commit 59a684703913e383c482c1383b2d4958c674248c
-Author: John Papandriopoulos <jpap.code@gmail.com>
-Date:   Sun Sep 29 16:59:56 2019 -0700
+commit 0c47e24df8c7066bf92a4acf96ec90f89825f2de
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 14 13:38:15 2019 -0400
 
-    cmd/link: pass-through undefined call targets in external link mode
+    cmd/go: rename renamed testing import
     
-    Allows Go asm calls referencing a function in a .syso file to be
-    passed through to the external linker, that would have otherwise
-    raised a "relocation target X not defined" error in cmd/link.
+    _go_testing is equally unlikely and much less concerning
+    than testing_xxxxxxxxxxxx if it appears in an error message
+    (as it does, for example, in https://storage.googleapis.com/go-build-log/0d543f89/linux-amd64_3467a10e.log).
     
-    Fixes #33139
-    
-    Change-Id: I2a8eb6063ebcd05fac96f141acf7652cf9189766
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198798
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I45dc3ebe2d3b6c9e53273cd21782ee11a53f5edb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177197
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../go/testdata/script/link_syso_issue33139.txt    | 43 ++++++++++++++++++++++
- src/cmd/link/internal/arm/asm.go                   |  2 +-
- src/cmd/link/internal/ld/data.go                   | 15 +++++++-
- src/cmd/link/internal/ld/go.go                     | 18 +++++++++
- src/cmd/link/internal/ld/lib.go                    |  5 +++
- src/cmd/link/internal/ld/macho.go                  |  4 +-
- src/cmd/link/internal/ld/pe.go                     |  2 +-
- src/cmd/link/internal/ld/symtab.go                 |  2 +-
- src/cmd/link/internal/ld/xcoff.go                  |  2 +-
- src/cmd/link/internal/ppc64/asm.go                 |  2 +-
- src/cmd/link/internal/sym/symkind.go               |  1 +
- src/cmd/link/internal/sym/symkind_string.go        | 19 +++++-----
- 12 files changed, 97 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/load/test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

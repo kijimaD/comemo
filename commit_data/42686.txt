@@ -1,17 +1,36 @@
-commit cf9b4f63a57b4360be700831781885fc6cf5a0b1
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue May 5 03:15:58 2020 +1000
+commit 702226f93321a6cc9c90c657c589c869c70872fc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 5 10:22:07 2020 -0500
 
-    runtime: use riscv64 RDTIME instruction
+    doc/install.html: streamline the “Test your installation” step and make it module-agnostic
     
-    Use the actual RDTIME instruction, rather than a WORD.
-    Generated code is the same.
+    In CL 199417, we updated “How to Write Go Code” to give a basic
+    introduction to modules and to include module-mode commands.
+    However, most new users will end up reading “Getting Started”
+    (doc/install.html) before “How to Write Go Code”, and we forgot to
+    update the handful of commands there for module mode.
     
-    Change-Id: I6f6f5a1836eae2d05af34d4a22db2ede4fdcb458
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231997
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Before this change, the “Test your installation” section also covered
+    quite a few operations beoyond merely testing the installation: it
+    included setting up a GOPATH, building a binary, and installing and
+    cleaning binaries. Those are valuable operations to learn, but they
+    arguably belong in “How to Write Go Code”, not “Test your
+    installation” — and having all that extra detail in the install
+    instructions may well discourage folks from further essential reading.
+    
+    Rather than updating all of those operations here, I've removed them.
+    A companion CL will update “How to Write Go Code” to ensure that it
+    mentions GOPATH (as the location of the module cache and the default
+    install location for binaries) and 'go clean -i'.
+    
+    Updates #37042
+    
+    Change-Id: I157f21ccbe3896575fa1115dc821abf6c71ed15e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217840
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
 
- src/runtime/asm_riscv64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/install.html | 27 +++++----------------------
+ 1 file changed, 5 insertions(+), 22 deletions(-)

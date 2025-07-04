@@ -1,22 +1,22 @@
-commit 983906fa6db6df56e3912ba5c6be8fada00b232b
+commit 5517053d178d1259f6f1a9c2d65efbf335002cea
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue May 3 16:12:01 2022 -0700
+Date:   Tue Jul 13 09:09:32 2021 -0700
 
-    cmd/compile/internal/ir: remove FuncType and OTFUNC
+    [dev.typeparams] cmd/compile: record more typ/fun info for dictionaries in unified IR
     
-    No longer needed. We now always directly construct TFUNC types when
-    needed.
+    Records whether a derived type is needed at run-time as well as
+    instantiated functions that rely on derived types (and thus need
+    sub-dictionaries).
     
-    Change-Id: I1bb286c08539cbf97e331824f0f5464b5fd9c873
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403936
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I2f2036976bfce5b3b4372fba88b4116dafa7e6b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334349
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ir/fmt.go       |   4 --
- src/cmd/compile/internal/ir/node.go      |   6 --
- src/cmd/compile/internal/ir/node_gen.go  |  26 -------
- src/cmd/compile/internal/ir/op_string.go |  49 +++++++------
- src/cmd/compile/internal/ir/type.go      | 116 ++-----------------------------
- 5 files changed, 29 insertions(+), 172 deletions(-)
+ src/cmd/compile/internal/noder/reader.go  |  57 +++++++++---
+ src/cmd/compile/internal/noder/reader2.go |  50 +++++------
+ src/cmd/compile/internal/noder/unified.go |   3 +
+ src/cmd/compile/internal/noder/writer.go  | 139 +++++++++++++++++++++++++-----
+ 4 files changed, 188 insertions(+), 61 deletions(-)

@@ -1,28 +1,15 @@
-commit 32944049007e1ddaac2138a9e6a018ee412c84be
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Jul 30 08:48:51 2012 +1000
+commit eff32f573b19b83283785c1df4539232c39fdba0
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Jul 29 16:29:49 2012 +1000
 
-    misc/vim: fix :Import insertion heuristic.
+    exp/html: replace NUL with U+FFFD in text in foreign content
     
-    If a factored import group has a blank line, assume it is dividing
-    separate groups of imports (e.g. standard library vs. site-specific).
-            import (
-                    "bytes"
-                    "io"
+    Pass 5 additional tests.
     
-                    "mycorp/package"
-            )
-    
-    The most common case is inserting new standard library imports,
-    which are usually (stylistically) the first group, so we should drop
-    "net" in the above example immediately after "io".
-    
-    Since this logic is getting non-trivial, add a test.
-    
-    R=golang-dev, minux.ma, franciscossouza
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6445043
+    https://golang.org/cl/6452055
 
- misc/vim/ftplugin/go/import.vim | 34 +++++++++++++++++++++--
- misc/vim/ftplugin/go/test.sh    | 61 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 93 insertions(+), 2 deletions(-)
+ src/pkg/exp/html/parse.go                           |  6 ++++--
+ src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log | 10 +++++-----
+ 2 files changed, 9 insertions(+), 7 deletions(-)

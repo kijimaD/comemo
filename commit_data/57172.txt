@@ -1,26 +1,21 @@
-commit 2693f77b3583585172810427e12a634b28d34493
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Aug 14 20:04:08 2024 +0000
+commit 158d11196f732e4c80b03240548bdd373e6a9eff
+Author: Michael Munday <mike.munday@lowrisc.org>
+Date:   Wed Jun 28 23:12:33 2023 +0100
 
-    Revert "go/types, types2: only use fileVersion if 1.21 or greater"
+    math: add test that covers riscv64 fnm{add,sub} codegen
     
-    This reverts CL 603895
+    Adds a test that triggers the RISC-V fused multiply-add code
+    generation bug fixed by CL 506575.
     
-    Reason for revert: We've decided to change the logic for how upgrades are done and want to submit the new logic in a self contained CL that can be cherry-picked onto release-branch.go1.23
-    
-    Change-Id: I366af8e95ce1de7311b0385a23f9dd3df175745a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605675
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ia3a55a68b48c5cc6beac4e5235975dea31f3faf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507035
+    Auto-Submit: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go         |  8 ++------
- src/cmd/compile/internal/types2/check.go            | 15 +--------------
- src/go/types/api_test.go                            |  8 ++------
- src/go/types/check.go                               | 15 +--------------
- src/internal/types/testdata/check/go1_20_19.go      |  2 +-
- src/internal/types/testdata/check/go1_21_19.go      |  2 +-
- src/internal/types/testdata/check/go1_21_22.go      | 16 ----------------
- src/internal/types/testdata/check/go1_22_21.go      | 16 ----------------
- src/internal/types/testdata/fixedbugs/issue66285.go |  7 ++++++-
- test/fixedbugs/issue63489a.go                       | 20 ++++++++------------
- 10 files changed, 22 insertions(+), 87 deletions(-)
+ src/math/all_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

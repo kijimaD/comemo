@@ -1,12 +1,15 @@
-commit 807eb29f9fbfeb4eb6e0f4da4b56eea9b029aed4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Sep 29 14:50:55 2011 -0700
+commit 8a4ef5d1eb1d7fb46042026824fe50751179dde6
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Sep 29 12:07:38 2011 -0700
 
-    go spec: remove notes about gccgo limitations, now fixed
+    runtime: gdb support, fix pretty printing of channels.
     
-    R=gri
+    The type to cast the elements to was stolen from a field
+    that's no longer there.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5164041
+    https://golang.org/cl/5143050
 
- doc/go_spec.html | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/runtime/runtime-gdb.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

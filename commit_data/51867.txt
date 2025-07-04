@@ -1,22 +1,19 @@
-commit 34d026862df50e36bdb74f010f746f91b7d6a052
-Author: Bryan Mills <bcmills@google.com>
-Date:   Tue Jan 31 20:55:23 2023 +0000
+commit 6673d5d701d224919d910e88a73b6f69472c9ed1
+Author: Jero Bado <programmer@jerobado.com>
+Date:   Tue Feb 1 23:22:31 2022 +0000
 
-    Revert "net: move context cancellation logic of blocking calls to a common function."
+    README.md: update links to go.dev
     
-    This reverts CL 463231.
+    Fixes #50916.
     
-    Reason for revert: introduced a data race on darwin.
-    
-    Fixes #58169.
-    
-    Change-Id: I35f02273db38c257369c166547bb4945f92fdc3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464375
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I51f3269b7a0793a3002eef83de1d871111fc3cdc
+    GitHub-Last-Rev: fc8c183ac7fa84d6caefdf49ed1d8cac19d7744f
+    GitHub-Pull-Request: golang/go#50919
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381962
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/net/cgo_unix.go | 128 +++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 87 insertions(+), 41 deletions(-)
+ README.md | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

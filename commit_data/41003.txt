@@ -1,13 +1,74 @@
-commit 87a546776b7f5a0a19abc1d439c73b19a974fc28
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 17 17:39:50 2019 -0500
+commit 307544f427754010d82755a06f8a680da93e5261
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Mon Jul 8 23:45:44 2019 +0800
 
-    doc/go1.14: release notes for runtime and compiler
+    runtime, cmd/compile: implement and use DUFFCOPY on MIPS64
     
-    Change-Id: I9519659983de23f43ff0e05cffd336d8bc351400
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211758
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    OS: Linux loongson 3.10.84 mips64el
+    CPU: Loongson 3A3000 quad core
+    
+    name                   old time/op    new time/op    delta
+    BinaryTree17              23.5s ± 1%     23.2s ± 0%  -1.12%  (p=0.008 n=5+5)
+    Fannkuch11                10.2s ± 0%     10.1s ± 0%  -0.19%  (p=0.008 n=5+5)
+    FmtFprintfEmpty           450ns ± 0%     446ns ± 1%  -0.89%  (p=0.024 n=5+5)
+    FmtFprintfString          722ns ± 1%     721ns ± 1%    ~     (p=0.762 n=5+5)
+    FmtFprintfInt             693ns ± 2%     691ns ± 2%    ~     (p=0.889 n=5+5)
+    FmtFprintfIntInt          912ns ± 1%     911ns ± 0%    ~     (p=0.722 n=5+5)
+    FmtFprintfPrefixedInt    1.35µs ± 2%    1.35µs ± 2%    ~     (p=1.000 n=5+5)
+    FmtFprintfFloat          1.79µs ± 0%    1.78µs ± 0%    ~     (p=0.683 n=5+5)
+    FmtManyArgs              3.46µs ± 1%    3.48µs ± 1%    ~     (p=0.246 n=5+5)
+    GobDecode                48.8ms ± 1%    48.6ms ± 0%    ~     (p=0.222 n=5+5)
+    GobEncode                37.7ms ± 1%    37.4ms ± 1%    ~     (p=0.095 n=5+5)
+    Gzip                      1.72s ± 1%     1.72s ± 0%    ~     (p=0.905 n=5+4)
+    Gunzip                    342ms ± 0%     342ms ± 0%    ~     (p=0.421 n=5+5)
+    HTTPClientServer          219µs ± 1%     219µs ± 1%    ~     (p=1.000 n=5+5)
+    JSONEncode               89.1ms ± 1%    89.4ms ± 1%    ~     (p=0.222 n=5+5)
+    JSONDecode                292ms ± 1%     291ms ± 0%    ~     (p=0.421 n=5+5)
+    Mandelbrot200            15.7ms ± 0%    15.6ms ± 0%    ~     (p=0.690 n=5+5)
+    GoParse                  19.5ms ± 1%    19.6ms ± 1%    ~     (p=0.310 n=5+5)
+    RegexpMatchEasy0_32       534ns ± 1%     529ns ± 1%    ~     (p=0.056 n=5+5)
+    RegexpMatchEasy0_1K      2.75µs ± 0%    2.74µs ± 0%  -0.46%  (p=0.008 n=5+5)
+    RegexpMatchEasy1_32       572ns ± 2%     565ns ± 3%    ~     (p=0.310 n=5+5)
+    RegexpMatchEasy1_1K      4.15µs ± 0%    4.15µs ± 1%    ~     (p=0.548 n=5+5)
+    RegexpMatchMedium_32     31.2ns ± 0%    31.1ns ± 0%  -0.45%  (p=0.016 n=5+4)
+    RegexpMatchMedium_1K      235µs ± 1%     235µs ± 0%    ~     (p=1.000 n=5+5)
+    RegexpMatchHard_32       13.9µs ± 1%    13.5µs ± 1%  -2.74%  (p=0.008 n=5+5)
+    RegexpMatchHard_1K        416µs ± 2%     410µs ± 2%    ~     (p=0.056 n=5+5)
+    Revcomp                   6.36s ± 0%     6.34s ± 0%  -0.31%  (p=0.008 n=5+5)
+    Template                  352ms ± 1%     353ms ± 0%  +0.45%  (p=0.032 n=5+5)
+    TimeParse                2.04µs ± 4%    2.01µs ± 0%    ~     (p=0.056 n=5+5)
+    TimeFormat               2.97µs ± 0%    2.97µs ± 0%    ~     (p=1.000 n=5+5)
+    
+    name                   old speed      new speed      delta
+    GobDecode              15.7MB/s ± 1%  15.8MB/s ± 0%    ~     (p=0.206 n=5+5)
+    GobEncode              20.4MB/s ± 1%  20.5MB/s ± 1%    ~     (p=0.056 n=5+5)
+    Gzip                   11.3MB/s ± 1%  11.3MB/s ± 0%    ~     (p=0.841 n=5+4)
+    Gunzip                 56.7MB/s ± 0%  56.8MB/s ± 0%    ~     (p=0.389 n=5+5)
+    JSONEncode             21.8MB/s ± 1%  21.7MB/s ± 1%    ~     (p=0.246 n=5+5)
+    JSONDecode             6.66MB/s ± 0%  6.67MB/s ± 0%    ~     (p=0.857 n=4+5)
+    GoParse                2.97MB/s ± 1%  2.96MB/s ± 1%    ~     (p=0.238 n=5+5)
+    RegexpMatchEasy0_32    59.9MB/s ± 1%  60.5MB/s ± 1%  +0.92%  (p=0.032 n=5+5)
+    RegexpMatchEasy0_1K     372MB/s ± 0%   374MB/s ± 0%  +0.46%  (p=0.008 n=5+5)
+    RegexpMatchEasy1_32    56.0MB/s ± 2%  56.7MB/s ± 3%    ~     (p=0.310 n=5+5)
+    RegexpMatchEasy1_1K     247MB/s ± 0%   247MB/s ± 1%    ~     (p=0.548 n=5+5)
+    RegexpMatchMedium_32   32.0MB/s ± 0%  32.1MB/s ± 0%    ~     (p=0.135 n=5+5)
+    RegexpMatchMedium_1K   4.35MB/s ± 1%  4.35MB/s ± 1%    ~     (p=0.825 n=5+5)
+    RegexpMatchHard_32     2.30MB/s ± 1%  2.37MB/s ± 1%  +2.78%  (p=0.008 n=5+5)
+    RegexpMatchHard_1K     2.47MB/s ± 1%  2.50MB/s ± 2%    ~     (p=0.095 n=5+5)
+    Revcomp                40.0MB/s ± 0%  40.1MB/s ± 0%  +0.31%  (p=0.016 n=5+5)
+    Template               5.51MB/s ± 1%  5.49MB/s ± 0%    ~     (p=0.190 n=5+5)
+    
+    Change-Id: I540a2e4e7992376ce04f93b332f64fc3b6071237
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185078
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.14.html | 92 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 92 insertions(+)
+ src/cmd/compile/internal/mips64/ssa.go        |   6 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  12 +
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  18 +
+ src/cmd/compile/internal/ssa/opGen.go         |  15 +
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go |  19 +
+ src/runtime/duff_mips64x.s                    | 644 +++++++++++++++++++++++++-
+ src/runtime/mkduff.go                         |  10 +-
+ 7 files changed, 720 insertions(+), 4 deletions(-)

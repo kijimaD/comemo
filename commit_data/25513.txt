@@ -1,22 +1,20 @@
-commit 84a95be922f09ea6b2235da0f67bf7ba490d092a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 7 20:28:04 2016 -0800
+commit d986bf27414161f4a4fc41c4c564bad26ebc57e7
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 26 16:48:36 2015 -0400
 
-    runtime: add nowritebarrierrec to funcs called at signal time
+    runtime: account mark worker time before gcMarkDone
     
-    Also nosplit where needed.
+    Currently gcMarkDone takes basically no time, so it's okay to account
+    the worker time after calling it. However, gcMarkDone is about to take
+    potentially *much* longer because it may perform all of mark
+    termination. Prepare for this by swapping the order so we account the
+    time before calling gcMarkDone.
     
-    Change-Id: I1e3f6f8f76df9ee7e87ed1b8560cef145928314c
-    Reviewed-on: https://go-review.googlesource.com/18395
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I90c7df68192acfc4fd02a7254dae739dda4e2fcb
+    Reviewed-on: https://go-review.googlesource.com/16390
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/os3_solaris.go     | 2 ++
- src/runtime/signal2_unix.go    | 2 ++
- src/runtime/signal_darwin.go   | 1 +
- src/runtime/signal_freebsd.go  | 1 +
- src/runtime/signal_openbsd.go  | 1 +
- src/runtime/signal_sigtramp.go | 2 ++
- src/runtime/sigqueue.go        | 1 +
- 7 files changed, 10 insertions(+)
+ src/runtime/mgc.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

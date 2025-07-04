@@ -1,41 +1,29 @@
-commit a6a5c30d2b1338a8445de2499fbe7e9dda103efb
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jan 22 17:50:44 2024 -0500
+commit fc45eb388d3693e35b1aa97cb553d2a5083c8b2f
+Author: miller <millerresearch@gmail.com>
+Date:   Tue Mar 7 15:15:10 2023 +0000
 
-    runtime: disable use of runnext on wasm
+    syscall: avoid race in plan9 while syncing Chdir across goroutines
     
-    When readying a goroutine, the scheduler typically places the readied
-    goroutine in pp.runnext, which will typically be the next goroutine to
-    run in the schedule.
+    Because each M in Plan 9 runs in a separate OS process with its
+    own current working directory, a Chdir call in one goroutine needs
+    to be propagated to other goroutines before a subsequent syscall
+    with a local pathname (see #9428). This is done by function
+    syscall.Fixwd, but there is still a race if a goroutine is
+    preempted and rescheduled on a different M between calling Fixwd
+    and executing the syscall which it protects. By locking the
+    goroutine to its OS thread from the start of Fixwd to the end of
+    the protected syscall, this race can be prevented.
     
-    In order to prevent a set of ping-pong goroutines from simply switching
-    back and forth via runnext and starving the rest of the run queue, a
-    goroutine scheduled via runnext shares a time slice (pp.schedtick) with
-    the previous goroutine.
+    Fixes #58802.
     
-    sysmon detects "long-running goroutines", which really means Ps using
-    the same pp.schedtick for too long, and preempts them to allow the rest
-    of the run queue to run. Thus this avoids starvation via runnext.
-    
-    However, wasm has no threads, and thus no sysmon. Without sysmon to
-    preempt, the possibility for starvation returns. Avoid this by disabling
-    runnext entirely on wasm. This means that readied goroutines always go
-    on the end of the run queue and thus cannot starve via runnext.
-    
-    Note that this CL doesn't do anything about single long-running
-    goroutines. Without sysmon to preempt them, a single goroutine that
-    fails to yield will starve the run queue indefinitely.
-    
-    For #65178.
-    
-    Change-Id: I10859d088776125a2af8c9cd862b6e071da628b5
-    Cq-Include-Trybots: luci.golang.try:gotip-js-wasm,gotip-wasip1-wasm_wasmtime,gotip-wasip1-wasm_wazero
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559798
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I89c0e43ef4544b5bfb5db7d2158f13f24b42e1f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474055
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/net_fake.go    | 17 -----------------
- src/runtime/proc.go    | 23 +++++++++++++++++++++--
- src/time/sleep_test.go |  5 -----
- 3 files changed, 21 insertions(+), 24 deletions(-)
+ src/syscall/pwd_plan9.go     | 26 ++++++++++++++++++++++----
+ src/syscall/syscall_plan9.go | 33 +++++++++++++++++++++++++--------
+ 2 files changed, 47 insertions(+), 12 deletions(-)

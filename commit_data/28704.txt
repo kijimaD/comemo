@@ -1,18 +1,12 @@
-commit 122abe6b122a885c52a53044eedbd3b6905b6124
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Oct 6 13:49:57 2016 -0400
+commit cc6f5f6ce1daca51f475764a3e4fa9420cafcefa
+Author: Nick Harper <nharper@google.com>
+Date:   Wed Jun 29 11:18:01 2016 -0700
 
-    cmd/compile: fold extensions into constants on s390x
+    crypto/ecdsa: Update documentation for Sign
     
-    We insert extensions when lowering comparisons and they were
-    blocking constant folding.
-    
-    Change-Id: I804bbf91c7606612ffe921a90853844a57e55955
-    Reviewed-on: https://go-review.googlesource.com/30541
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2b7a81cb809d109f10d5f0db957c614f466d6bfd
+    Reviewed-on: https://go-review.googlesource.com/24582
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  8 +++
- src/cmd/compile/internal/ssa/rewriteS390X.go | 78 ++++++++++++++++++++++++++++
- 2 files changed, 86 insertions(+)
+ src/crypto/ecdsa/ecdsa.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,16 +1,23 @@
-commit c875503cf79f82b7d2dbec85667f330f72ec4557
-Author: Jie Ma <jienius@outlook.com>
-Date:   Sat Jun 27 23:15:53 2020 +0000
+commit c112289ee4141ebc31db50328c355b01278b987b
+Author: David Chase <drchase@google.com>
+Date:   Fri Jan 17 12:03:55 2020 -0500
 
-    doc: fix typos and grammatical errors in contribute.html
+    cmd/compile: change the "bogus line" to be 1
     
-    Fixed some typos and grammatical errors in contribute.html
+    The previous value was "too bogus" and caused objdump to crash.
+    Updated infinite loop test results (only run if -args -f) in ssa/debug_test.go
+    Probably also fixes #36621 but that bug needs more info to tell for certain.
     
-    Change-Id: Ifb31f22d876b7bea84b5e130870c26813b2fa139
-    GitHub-Last-Rev: 43519198859ca8f5e1c870b8f3eeb1b465aa6bc5
-    GitHub-Pull-Request: golang/go#39892
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240277
+    Fixes #36570
+    
+    Change-Id: I51144641d25d559308a98d726d87806bd340cc5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215297
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/contribute.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/testdata/infloop.dlv-opt.nexts | 8 ++++----
+ src/cmd/internal/src/pos.go                                 | 2 +-
+ src/cmd/objdump/testdata/fmthello.go                        | 6 ++++++
+ 3 files changed, 11 insertions(+), 5 deletions(-)

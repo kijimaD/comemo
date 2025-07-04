@@ -1,29 +1,22 @@
-commit 237715cf7c4c2aabf6d3c04473488c1b2477f8ea
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Sat Nov 18 17:52:22 2023 +0000
+commit f368abb46e15419c95d3f5933e9344476e1efc2a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Dec 8 12:53:26 2022 -0500
 
-    runtime/internal/atomic: add generic implementation for And/Or
+    doc/go1.20: correct test binary -v flag value for test2json
     
-    Without having all the architectures implementing the And/Or operators
-    merged I can't proceed with the public sync/atomic apis. This CL adds a
-    generic implementation that should work for all the remaining arches,
-    while waiting for the native assembly implementations in CL 531835,
-    CL 531678, CL 531895.
+    The -v flag value is "test2json", not "json", since it emits output
+    in a custom format that the cmd/test2json tool interprets.
+    The cmd/test2json documentation and implementation have this right.
     
-    I regret the oversight of not pushing this earlier.
+    For #54202.
     
-    For #61395
-    
-    Change-Id: Ib2d67f359fe324b4743eb79e9c8e52e8f6f5476c
-    GitHub-Last-Rev: d350927ba1c51d1f708be2f2904f826fdb79b8cd
-    GitHub-Pull-Request: golang/go#64214
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543175
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I2b52861d926e14488aa9fc89fff8c26da32ca710
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456124
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- .../internal/atomic/atomic_andor_generic.go        | 67 ++++++++++++++++++++++
- src/runtime/internal/atomic/atomic_andor_test.go   |  3 -
- 2 files changed, 67 insertions(+), 3 deletions(-)
+ doc/go1.20.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

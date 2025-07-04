@@ -1,16 +1,15 @@
-commit 1561230ca02e6e71afbf5f524fa89a4a5e3fab9a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Dec 17 12:17:56 2013 +1100
+commit f85ba7d50a7df5a978a259a3e06bc30af1bbd5df
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 16 16:54:10 2013 -0500
 
-    cmd/go: set GOROOT when testing "go install cmd/fix"
+    cmd/gc: fix comparison order of parameters in mpcmpfltc(a, b)
+    It should compare a - b to 0, not b - a to 0.
+    Fixes #6964.
     
-    This particular test would never pass unless you had GOROOT set in your
-    environment. This changes makes the test use the baked-in GOROOT, as it
-    does with GOOS and GOARCH.
-    
-    R=golang-dev, dave, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/43080043
+    https://golang.org/cl/39020044
 
- src/cmd/go/test.bash | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/gc/mparith1.c       |  2 +-
+ test/fixedbugs/issue6964.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

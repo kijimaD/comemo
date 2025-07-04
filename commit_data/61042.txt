@@ -1,0 +1,23 @@
+commit 3d6173aa120e64a31438f9fb717afb1b9f6708dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 24 20:41:28 2024 -0700
+
+    all: fix typos of possessive its
+    
+    (I noticed the one mistake in hashtriemap.go and figured I'd clean up
+    others.)
+    
+    Change-Id: I4ade424b400056f161bc6c9c2838ba1f96b1f6bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615675
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/escape/escape.go | 2 +-
+ src/cmd/compile/internal/types2/infer.go  | 2 +-
+ src/go/types/expr.go                      | 2 +-
+ src/go/types/infer.go                     | 2 +-
+ src/internal/concurrent/hashtriemap.go    | 2 +-
+ src/internal/fuzz/worker.go               | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

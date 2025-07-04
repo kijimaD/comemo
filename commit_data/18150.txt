@@ -1,12 +1,12 @@
-commit eaff83b98e27890723b175f242735a75f9616d7d
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Thu Jan 2 10:34:21 2014 -0800
+commit 66730120fa2ff7d58d22a7e1cf9a1a299572a907
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jan 2 09:49:55 2014 +1100
 
-    encoding/hex: add Decode error test case
+    encoding/json: add tests for InvalidUnmarshalError
     
-    R=golang-codereviews, bradfitz
+    R=golang-codereviews, shawn.p.smith
     CC=golang-codereviews
-    https://golang.org/cl/46880043
+    https://golang.org/cl/41960047
 
- src/pkg/encoding/hex/hex_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/encoding/json/decode_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

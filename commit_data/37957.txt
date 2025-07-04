@@ -1,43 +1,20 @@
-commit ceb849dd97aebf08eee5f3683619494c56190f81
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Jan 12 20:33:58 2019 -0800
+commit 623c772814cdae562afb4c63c62d51a228bc672e
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 15 15:30:13 2018 -0700
 
-    cmd/compile: accept new Go2 number literals
+    cmd/compile: fix CMPconstload rule
     
-    This CL introduces compiler support for the new binary and octal integer
-    literals, hexadecimal floats, and digit separators for all number literals.
+    The CMPconstload opcodes take a ValAndOff as their AuxInt, not just
+    an offset.
     
-    The new Go 2 number literal scanner accepts the following liberal format:
+    Originally introduced in CL 135379.
     
-    number   = [ prefix ] digits [ "." digits ] [ exponent ] [ "i" ] .
-    prefix   = "0" [ "b" |"B" | "o" | "O" | "x" | "X" ] .
-    digits   = { digit | "_" } .
-    exponent = ( "e" | "E" | "p" | "P" ) [ "+" | "-" ] digits .
-    
-    If the number starts with "0x" or "0X", digit is any hexadecimal digit;
-    otherwise, digit is any decimal digit. If the accepted number is not valid,
-    errors are reported accordingly.
-    
-    See the new test cases in scanner_test.go for a selection of valid and
-    invalid numbers and the respective error messages.
-    
-    R=Go1.13
-    
-    Updates #12711.
-    Updates #19308.
-    Updates #28493.
-    Updates #29008.
-    
-    Change-Id: Ic8febc7bd4dc5186b16a8c8897691e81125cf0ca
-    Reviewed-on: https://go-review.googlesource.com/c/157677
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I244b2d56ef2e99d2975faa2e97f4291ec97c64b7
+    Reviewed-on: https://go-review.googlesource.com/135418
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/cmd/compile/internal/gc/mpfloat.go          |   6 +-
- src/cmd/compile/internal/gc/mpint.go            |   7 +
- src/cmd/compile/internal/syntax/scanner.go      | 233 +++++++++++++++++-------
- src/cmd/compile/internal/syntax/scanner_test.go | 224 ++++++++++++++++++++++-
- src/go/types/stdlib_test.go                     |   1 +
- test/fixedbugs/issue9036.go                     |  16 +-
- test/literal2.go                                |  88 +++++++++
- 7 files changed, 487 insertions(+), 88 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 10 +--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 96 ++++++++++++++--------------
+ 2 files changed, 53 insertions(+), 53 deletions(-)

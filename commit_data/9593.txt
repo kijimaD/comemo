@@ -1,14 +1,12 @@
-commit 740805fdb17aa53fb3cf936e706eacf7f1607545
+commit 4e7250db129b8f6a54b3e1a69ca1b0711bd9219f
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 5 15:03:41 2011 +1000
+Date:   Mon Sep 5 14:48:27 2011 +1000
 
-    misc/goplay: another template fix
+    gobuilder: ignore _test.go files when looking for docs, more logging
     
-    Fixes #2219.
-    
-    R=golang-dev, dsymonds
+    R=n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/4950063
+    https://golang.org/cl/4918050
 
- misc/goplay/goplay.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dashboard/builder/package.go | 36 +++++++++++++++++++++++++++++++-----
+ 1 file changed, 31 insertions(+), 5 deletions(-)

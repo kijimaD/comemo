@@ -1,22 +1,12 @@
-commit b6e322dcf50675ad9ae3f9e587ca9b738004d035
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Mon Feb 25 22:40:14 2013 +0100
+commit 052d845c5c79d716148fe88265bde33b3be9ebd3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 26 08:31:47 2013 +1100
 
-    syscall: Plan9, amd64: fix syscall error handling in assembly
+    doc: fix wiki codelab description of template parsing
     
-    Syscalls return `-1' on error and the representation is always
-    32-bits. The `$-1' literal in 64-bit assembly is always the
-    64-bit representation. So this change makes sure that we
-    always do a 32-bit comparison when checking for error.
-    Also makes sure that in the error case, we return a 64-bit
-    `-1' from runtime.seek.
-    
-    Fixes the arithmetic for handling the error-string in
-    runtime.Syscall6.
-    
-    R=golang-dev, rminnich, rsc, ality, minux.ma
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7399052
+    https://golang.org/cl/7372048
 
- src/pkg/syscall/asm_plan9_amd64.s | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ doc/articles/wiki/index.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

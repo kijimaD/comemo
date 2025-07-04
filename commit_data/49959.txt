@@ -1,24 +1,22 @@
-commit b30ba3df9ff8969f934bec5016cfce4b91f6ea5b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 16 10:37:48 2022 -0400
+commit 335e72bcb6a5f670e2b3c65170c4287ca7265934
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Sep 23 11:46:28 2021 +0100
 
-    crypto/internal/boring/bcache: make Cache type-safe using generics
+    cmd/go: fix indentation of -workfile help text
     
-    Generics lets us write Cache[K, V] instead of using unsafe.Pointer,
-    which lets us remove all the uses of package unsafe around the
-    uses of the cache.
+    While reading the help text for #48576,
+    I noticed that the output was misaligned.
     
-    I tried to do Cache[*K, *V] instead of Cache[K, V] but that was not possible.
+    Turns out it's because two lines have space indentation,
+    while the rest use tab indentation. Fix that.
     
-    Change-Id: If3b54cf4c8d2a44879a5f343fd91ecff096537e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423357
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ie7c473d892ca13852fa2134f3cdef21e9210e02e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351750
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/crypto/ecdsa/boring.go                      | 13 +++---
- src/crypto/internal/boring/bcache/cache.go      | 57 ++++++++++++-------------
- src/crypto/internal/boring/bcache/cache_test.go | 46 ++++++++++----------
- src/crypto/rsa/boring.go                        | 13 +++---
- 4 files changed, 64 insertions(+), 65 deletions(-)
+ src/cmd/go/alldocs.go             | 4 ++--
+ src/cmd/go/internal/work/build.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,29 +1,25 @@
-commit 4e8d27068df52eb372dc2ba7e929e47850934805
-Author: go101 <tapir.liu@gmail.com>
-Date:   Fri Nov 15 00:38:04 2019 +0000
+commit 06ef108cec98b3dfc0fba3f49e733a18eb9badd5
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun Jul 7 23:08:20 2019 +0700
 
-    reflect: factor out special channel assignability rule from haveIdenticalUnderlyingType
+    cmd/compile: fix unsafeValue handles OLSH/ORSH wrong
     
-    Go specification says: A value x is assignable to a variable of type T if x
-    is a bidirectional channel value, T is a channel type, x's type V and T have
-    identical element types, and at least one of V or T is not a defined type.
-    However, the current reflection implementation is incorrect which makes
-    "x is assignable to T" even if type V and T are both defined type.
+    For OLSH/ORSH, the right node is not a uintptr-typed. However,
+    unsafeValue still be called recursively for it, causing the
+    compiler crashes.
     
-    The current reflection implementation also mistakes the base types of two
-    non-defined pointer types share the same underlying type when the two
-    base types satisfy the above mentioned special channel assignability rule.
+    To fixing, the right node only needs to be evaluated
+    for side-effects, so just discard its value.
     
-    Fixes #29469
+    Fixes #32959
     
-    Change-Id: Ia4b9c4ac47dc8e76a11faef422b2e5c5726b78b3
-    GitHub-Last-Rev: 487c20a564091a1d2ba5feb95ab5196331c699c2
-    GitHub-Pull-Request: golang/go#29739
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/157822
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I34d5aa0823a0545f6dad1ec34774235ecf11addc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185039
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/all_test.go | 45 +++++++++++++++++++++++++++++++++++++++++----
- src/reflect/type.go     | 26 +++++++++++++++++---------
- src/reflect/value.go    |  5 +++++
- 3 files changed, 63 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/escape.go |  7 ++++++-
+ test/fixedbugs/issue32959.go          | 17 +++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

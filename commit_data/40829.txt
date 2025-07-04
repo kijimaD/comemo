@@ -1,25 +1,24 @@
-commit 4e39dd2ec331054a4bb8ae6056238fb806c4946f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 18 11:32:51 2019 -0500
+commit f93234ad620cc34573bca56be9fcf55c975e0821
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Jul 16 17:40:20 2019 -0700
 
-    cmd/go: convert TestInstallIntoGOPATH to a script test
+    net/http/httputil: fix regression in ReverseProxy.ServeHTTP
     
-    Also convert associated tests of GOPATH and 'go install' so that we
-    can remove the corresponding source file from testdata/src.
+    In Go1.12 and below, the logic in ReverseProxy.ServeHTTP would always
+    allocate request.Header even if it were not present in the incoming request.
+    CL 174324 added http.Request.Clone and re-factors ReverseProxy.ServeHTTP
+    to use the new Clone method. However, the new Clone logic is not equivalent
+    to the former logic. We preserve former semantics by explicitly allocating
+    the Header map if nil.
     
-    Updates #28387
-    Updates #30316
+    Fixes #33142
     
-    Change-Id: Id8c2fde4dc88954b29aefe71c9fa7e974a2ca932
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207605
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I356f94a915dd9779584ce3fe31e56e5474b9ad37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186437
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/go_test.go                             | 102 ----------------------
- src/cmd/go/script_test.go                         |  29 +++---
- src/cmd/go/testdata/script/README                 |   6 +-
- src/cmd/go/testdata/script/gopath_install.txt     |  42 +++++++++
- src/cmd/go/testdata/script/gopath_paths.txt       |  43 +++++++++
- src/cmd/go/testdata/src/go-cmd-test/helloworld.go |   5 --
- 6 files changed, 106 insertions(+), 121 deletions(-)
+ src/net/http/httputil/reverseproxy.go      |  3 +++
+ src/net/http/httputil/reverseproxy_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

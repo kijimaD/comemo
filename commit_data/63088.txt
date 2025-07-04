@@ -1,0 +1,27 @@
+commit c58f58b9f8df0bde53bb5bc20b5ea97d34b1531d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 9 18:53:06 2025 +0000
+
+    runtime: mark and identify tiny blocks in checkfinalizers mode
+    
+    This change adds support for identifying cleanups and finalizers
+    attached to tiny blocks to checkfinalizers mode. It also notes a subtle
+    pitfall, which is that the cleanup arg, if tiny-allocated, could end up
+    co-located with the object with the cleanup attached! Oops...
+    
+    For #72949.
+    
+    Change-Id: Icbe0112f7dcfc63f35c66cf713216796a70121ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662037
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/gc_test.go                           | 16 ++++--
+ src/runtime/malloc.go                            |  6 ++
+ src/runtime/mcheckmark.go                        | 73 ++++++++++++++++++------
+ src/runtime/mheap.go                             | 65 ++++++++++++++++++---
+ src/runtime/runtime1.go                          | 10 ++--
+ src/runtime/testdata/testprog/checkfinalizers.go | 19 ++++--
+ 6 files changed, 151 insertions(+), 38 deletions(-)

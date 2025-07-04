@@ -1,16 +1,16 @@
-commit 8d3f29577d95aa06b2653d20e331aa47f759db06
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Mar 6 19:43:21 2017 -0500
+commit 4966150af0139b5f26a943eb4c33fe5cb6758043
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Nov 12 17:01:08 2016 +0100
 
-    cmd/compile: regenerate knownFormats
+    net: enable TestReadTimeoutUnblocksRead on Plan 9
     
-    Should fix the build dashboard.
+    Deadlines have been implemented on Plan 9 in CL 31521.
     
-    Change-Id: Id4c8a996d9f689e1fa865a9cff9a7f52c700c691
-    Reviewed-on: https://go-review.googlesource.com/37877
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #17477.
+    
+    Change-Id: Icb742ac30933b6d2f9350fc4e6acbcd433c66c21
+    Reviewed-on: https://go-review.googlesource.com/33190
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/fmt_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/net_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

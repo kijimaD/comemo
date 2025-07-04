@@ -1,14 +1,12 @@
-commit 96333a7e4841c37d4c70cdab8748f9e69012cf29
+commit 8332f807853d9aa47c7aa04bf3501eae88180170
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 23 10:20:20 2015 -0800
+Date:   Wed Jan 28 11:40:32 2015 -0800
 
-    go/token: document that column positions and file offsets are in bytes
+    unsafe: minor doc string improvements
     
-    Fixes #9948.
-    
-    Change-Id: I7b354fccd5e933eeeb2253a66acec050ebff6e41
-    Reviewed-on: https://go-review.googlesource.com/5611
+    Change-Id: I369723c7a65f9a72c60b55704cebf40d78cf4f75
+    Reviewed-on: https://go-review.googlesource.com/3444
     Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/go/token/position.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/unsafe/unsafe.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,12 +1,16 @@
-commit 74c6325142c4377527e1b9ee1ae06e489646e7ad
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 24 13:50:09 2012 -0700
+commit 8b2306623992b584cc18ec4c5287a94349eb5fb3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 24 13:00:24 2012 -0700
 
-    math/big: fix broken comment
+    text/template: catch (A).X as a parse error
+    This shouldn't be an error (see issue 3999), but until it's handled
+    correctly, treat it as one to avoid confusion. Without this CL,
+    (A).X parses as two arguments.
     
-    R=iant, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6485064
+    https://golang.org/cl/6473059
 
- src/pkg/math/big/arith_amd64.s | 18 +++++-------------
- 1 file changed, 5 insertions(+), 13 deletions(-)
+ src/pkg/text/template/parse/lex.go        | 6 ++++++
+ src/pkg/text/template/parse/parse_test.go | 3 +++
+ 2 files changed, 9 insertions(+)

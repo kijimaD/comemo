@@ -1,17 +1,14 @@
-commit b3ee6f0c2e8be8701ec15f3fb91397e086f106ae
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 14 18:27:15 2017 +0000
+commit ff38035a62a9cf9e8222016ae15ee52a7ce260dc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Aug 20 21:29:18 2017 -0700
 
-    internal/cpu: fix arm64 build
+    [release-branch.go1.9] doc/go1.9: fix typo in crypto/x509 of "Minor changes to the library".
     
-    I submitted two CLs which broke the build. Add temporary placeholder
-    with false bools to fix the build and restore old behavior.
+    Backport of https://golang.org/cl/57390 to 1.9 release branch.
     
-    Updates golang/go#22718 (details of why it broke)
-    
-    Change-Id: I1f30624e14f631a95f4eff5aae462f1091f723a2
-    Reviewed-on: https://go-review.googlesource.com/77590
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ieea5a048732db7ee5dc5cf13f06e11ca4f5313cc
+    Reviewed-on: https://go-review.googlesource.com/57450
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/cpu/cpu_arm64.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

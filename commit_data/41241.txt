@@ -1,19 +1,21 @@
-commit 9ee51745f767a8a95dfe7be095e19c9f79da4036
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 5 14:12:04 2020 -0800
+commit 575386d6324308d83f6f0782e61620ffe9f5dba3
+Author: Pantelis Sampaziotis <psampaz@gmail.com>
+Date:   Tue Sep 17 19:01:36 2019 +0000
 
-    doc/go1.14: mention better error checking in text/template
+    time: add examples for microseconds and milliseconds methods
     
-    This caused 35 test failures in Google internal code,
-    so it's worth mentioning in the release notes.
+    This change adds testable examples for the new Microseconds and Milliseconds methods that were introduced in Go 1.13.
     
-    Updates #31810
-    Updates #36878
-    Fixes #37066
+    Fixes #34354
     
-    Change-Id: I2faa6bce4c7d735107eceaef7d95223844846454
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217978
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ibdbfd770ca2192f9086f756918325f7327ce0482
+    GitHub-Last-Rev: 4575f48f5feb8e49742304d17776e28302647931
+    GitHub-Pull-Request: golang/go#34355
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195979
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.14.html | 14 ++++++++++++++
+ src/time/example_test.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)

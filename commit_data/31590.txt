@@ -1,19 +1,20 @@
-commit ff262913fee4d9d8cc5ce86790d80c070a4b5f89
+commit ddbee9abd45bbb955fec973fc0e395276127d431
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed May 17 08:29:18 2017 -0700
+Date:   Thu Mar 2 09:04:03 2017 -0800
 
-    cmd/compile: seed rand with time when race enabled
+    cmd/vet: support importing from source
     
-    When the race detector is enabled,
-    the compiler randomizes the order in which functions are compiled,
-    in an attempt to shake out bugs.
-    But we never re-seed the rand source, so every execution is identical.
-    Fix that to get more coverage.
+    Add a -source flag to cmd/vet that instructs
+    it to typecheck purely from source code.
     
-    Change-Id: If5cdde03ef4f1bab5f45e07f03fb6614945481d7
-    Reviewed-on: https://go-review.googlesource.com/43572
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #16086
+    Fixes #19332
+    
+    Change-Id: Ic83d0f14d5bb837a329d539b2873aeccdf7bf669
+    Reviewed-on: https://go-review.googlesource.com/37690
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/vet/doc.go   | 3 +++
+ src/cmd/vet/main.go  | 1 +
+ src/cmd/vet/types.go | 6 +++++-
+ 3 files changed, 9 insertions(+), 1 deletion(-)

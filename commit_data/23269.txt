@@ -1,13 +1,14 @@
-commit cd9f417dbb5780d131d72f020160918befd2ccf3
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 3 23:57:59 2015 -0400
+commit 135389d0ff6d06646170ca10b432cddaac22a121
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 30 10:41:57 2015 -0700
 
-    cmd/compile: document Node fields used by each Op
+    cmd/internal/gc: Use shifts for powers-of-two indexing
     
-    Change-Id: If969d7a06c83447ee38da30f1477a6cf4bfa1a03
-    Reviewed-on: https://go-review.googlesource.com/10691
+    Fixes #10638
+    
+    Change-Id: I7bbaad7e5a599aa94d1d158e903596231c7e9897
+    Reviewed-on: https://go-review.googlesource.com/9535
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/syntax.go | 241 +++++++++++++++++-----------------
- 1 file changed, 122 insertions(+), 119 deletions(-)
+ src/cmd/internal/gc/cgen.go | 42 ++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 34 insertions(+), 8 deletions(-)

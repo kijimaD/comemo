@@ -1,17 +1,27 @@
-commit 4f33436004605a086a2c981ac2fad93a3dbe90db
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sun Aug 23 13:18:14 2015 +0000
+commit 90c668d1afcb9a17ab9810bce9578eebade4db56
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 17 08:26:29 2015 -0700
 
-    runtime,internal/trace: map/slice literals janitoring
+    os: remove stuttering return value names
     
-    Simplify slice/map literal expressions.
-    Caught with gofmt -d -s, fixed with gofmt -w -s
-    Checked that the result can still be compiled with Go 1.4.
+    Old style. Make it compliant with our code review comments document.
     
-    Change-Id: I06bce110bb5f46ee2f45113681294475aa6968bc
-    Reviewed-on: https://go-review.googlesource.com/13839
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Also, make WriteString's return parameter named 'n', not 'ret', for
+    consistency.
+    
+    Noticed during another documentation review.
+    
+    Change-Id: Ie88910c5841f8353bc5c0152e2168b497578e15e
+    Reviewed-on: https://go-review.googlesource.com/12324
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/trace/parser.go          |   2 +-
- src/runtime/trace/trace_stack_test.go | 154 +++++++++++++++++-----------------
- 2 files changed, 78 insertions(+), 78 deletions(-)
+ src/os/file.go         | 10 +++++-----
+ src/os/file_plan9.go   |  6 +++---
+ src/os/file_posix.go   |  2 +-
+ src/os/file_unix.go    | 14 +++++++-------
+ src/os/file_windows.go |  2 +-
+ src/os/stat_plan9.go   |  4 ++--
+ src/os/stat_windows.go | 15 ++++++++-------
+ 7 files changed, 27 insertions(+), 26 deletions(-)

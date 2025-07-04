@@ -1,18 +1,21 @@
-commit b417f62b00276a2ccca3fa7e490f3673a1df8a4c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Nov 7 17:43:24 2022 +0100
+commit 3042ba34db86853c7035046716c4a00b2dbef2ed
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 7 17:32:55 2021 -0500
 
-    net/netip: remove unused unexported functions and methods
+    net/smtp: skip TestTLSSClient on all freebsd platforms
     
-    Change-Id: I71774ad0197ce654dc56c2fa2fa12f1e6696382e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448395
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    This test seems like it needs attention from a TLS and/or FreeBSD
+    expert. In the meantime, it needs to stop causing noise on the build
+    dashboard.
+    
+    For #19229
+    
+    Change-Id: If7e9e3533ae7cb29006a670c3e9df90512dcf9f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370137
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/netip/inlining_test.go |  3 ---
- src/net/netip/netip.go         |  5 -----
- src/net/netip/uint128.go       | 11 -----------
- 3 files changed, 19 deletions(-)
+ src/net/smtp/smtp_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

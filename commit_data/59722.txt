@@ -1,21 +1,21 @@
-commit 18ad74dd36a9bbdc6a95a9de398b3cd8917898ae
-Author: Mark Freeman <mark@golang.org>
-Date:   Wed May 28 11:10:53 2025 -0400
+commit 315b6ae682a2a4e7718924a45b8b311a0fe10043
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 15 10:14:57 2024 -0700
 
-    go/types, types2: dump position stack for non-bailout panics
+    debug/elf: define non-standard but well-known symbol types
     
-    We make sure to dump to stderr since that's where the panic information
-    ends up. Long traces get truncated with a "..." in the middle. We pick
-    an arbitrary limit of 10 positions, but this could be changed.
+    Fixes #66836
     
-    For #51603
-    
-    Change-Id: I02326a93181e94e1c48afc05684240540c2c90ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/676815
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Mark Freeman <mark@golang.org>
+    Change-Id: I603faca2acd2bcffabbcaca8b8670d46387d2a5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578995
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/check.go | 20 +++++++++++++++++++-
- src/go/types/check.go                    | 20 +++++++++++++++++++-
- 2 files changed, 38 insertions(+), 2 deletions(-)
+ api/next/66836.txt                            | 6 ++++++
+ doc/next/6-stdlib/99-minor/debug/elf/66836.md | 2 ++
+ src/debug/elf/elf.go                          | 7 +++++++
+ 3 files changed, 15 insertions(+)

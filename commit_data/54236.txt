@@ -1,21 +1,18 @@
-commit c5569f09f22a6c002f1f6dc694272c3a84d4b16c
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Aug 28 05:24:44 2023 +0000
+commit 0582b7958e2acd9e47495f0f2ad9bef02afe50fe
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:29:41 2022 +0800
 
-    cmd/compile/internal/types2: use ReplaceAll in *Context.instanceHash
+    cmd/cover: remove unnecessary fmt.Sprintf
     
-    strings.ReplaceAll is currently available.
-    
-    Change-Id: I5e03ed43be123f9091a4e3b6bf05ffae8fb0d59b
-    GitHub-Last-Rev: 2cccdd0305fc709c8acfbb00eab744b28ca0c8fc
-    GitHub-Pull-Request: golang/go#62307
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523298
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I892f17a8a6464d53dbf330a41439a81cb8873262
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436654
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/context.go | 2 +-
- src/go/types/context.go                    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/cover/cover.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

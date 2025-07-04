@@ -1,16 +1,12 @@
-commit c6c439d7a0be6bfb91348d8a76b09ffd173688fa
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 20 19:26:26 2013 -0700
+commit 4b0eb19a05133d4cc117fefe1e37ea1e35a64c73
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon May 20 23:19:41 2013 +0200
 
-    net/http: use WriteString directly when possible
+    cmd/gc: eliminate a useless bounds check in inlined append().
     
-    Several places used io.WriteString unnecessarily when the
-    static type already implemented WriteString. No need to
-    check for it at runtime.
-    
-    R=golang-dev, r
+    R=golang-dev, daniel.morsing, r
     CC=golang-dev
-    https://golang.org/cl/9608043
+    https://golang.org/cl/9358043
 
- src/pkg/net/http/server.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

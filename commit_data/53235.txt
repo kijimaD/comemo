@@ -1,30 +1,148 @@
-commit 3651d8e516950c46035cdc04ec3db1146f0590d2
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu May 18 16:35:11 2023 +0000
+commit 85d87b9c7507628144db51bd1e7e80cc3afed128
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Aug 4 12:18:52 2022 -0400
 
-    runtime/metrics: refactor CPU stats accumulation
+    all: update vendored golang.org/x dependencies for Go 1.20 development
     
-    Currently the CPU stats are only updated once every mark termination,
-    but for writing robust tests, it's often useful to force this update.
-    Refactor the CPU stats accumulation out of gcMarkTermination and into
-    its own function. This is also a step toward real-time CPU stats.
+    Go 1.20 development is just beginning. This is a time to update all
+    golang.org/x/... module versions that contribute packages to the std
+    and cmd modules in the standard library to latest master versions.
     
-    While we're here, fix some incorrect documentation about dedicated GC
-    CPU time.
+    This CL holds back some of the available updates to the x/net module
+    due to go.dev/issue/54259. It'll be updated in a later separate pass.
+    x/tools is also held back a bit to avoid pulling in too new of x/net.
     
-    For #59749.
-    For #60276.
+    For #36905.
+    For #53812.
+    Updates #54259.
     
-    Change-Id: I8c1a9aca45fcce6ce7999702ae4e082853a69711
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487215
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Iaefe6a343a02cc5ceb85c15125882d64dd372627
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421334
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/metrics.go             |  5 ++++
- src/runtime/metrics/description.go |  1 -
- src/runtime/metrics/doc.go         |  8 +++---
- src/runtime/mgc.go                 | 47 ++++++++------------------------
- src/runtime/mstats.go              | 55 ++++++++++++++++++++++++++++++++++++++
- 5 files changed, 74 insertions(+), 42 deletions(-)
+ src/cmd/go.mod                                     |   14 +-
+ src/cmd/go.sum                                     |   24 +-
+ src/cmd/vendor/golang.org/x/arch/AUTHORS           |    3 -
+ src/cmd/vendor/golang.org/x/arch/CONTRIBUTORS      |    3 -
+ src/cmd/vendor/golang.org/x/crypto/AUTHORS         |    3 -
+ src/cmd/vendor/golang.org/x/crypto/CONTRIBUTORS    |    3 -
+ src/cmd/vendor/golang.org/x/sync/AUTHORS           |    3 -
+ src/cmd/vendor/golang.org/x/sync/CONTRIBUTORS      |    3 -
+ src/cmd/vendor/golang.org/x/sys/AUTHORS            |    3 -
+ src/cmd/vendor/golang.org/x/sys/CONTRIBUTORS       |    3 -
+ .../vendor/golang.org/x/sys/unix/asm_bsd_riscv64.s |   29 +
+ .../golang.org/x/sys/unix/errors_freebsd_386.go    |  233 ---
+ .../golang.org/x/sys/unix/errors_freebsd_amd64.go  |  233 ---
+ .../golang.org/x/sys/unix/errors_freebsd_arm.go    |  226 --
+ .../golang.org/x/sys/unix/errors_freebsd_arm64.go  |   17 -
+ src/cmd/vendor/golang.org/x/sys/unix/mkall.sh      |   13 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   10 +-
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   61 +-
+ .../vendor/golang.org/x/sys/unix/syscall_bsd.go    |   46 +-
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |    7 +
+ .../golang.org/x/sys/unix/syscall_freebsd.go       |  327 +--
+ .../golang.org/x/sys/unix/syscall_freebsd_386.go   |    4 +-
+ .../golang.org/x/sys/unix/syscall_freebsd_amd64.go |    4 +-
+ .../golang.org/x/sys/unix/syscall_freebsd_arm.go   |    2 +-
+ .../golang.org/x/sys/unix/syscall_freebsd_arm64.go |    2 +-
+ .../x/sys/unix/syscall_freebsd_riscv64.go          |   63 +
+ .../golang.org/x/sys/unix/syscall_illumos.go       |    5 +-
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |   45 +-
+ .../golang.org/x/sys/unix/syscall_linux_loong64.go |   39 +-
+ .../golang.org/x/sys/unix/syscall_linux_riscv64.go |    1 +
+ .../x/sys/unix/syscall_openbsd_mips64.go           |    4 +
+ .../golang.org/x/sys/unix/syscall_solaris.go       |   50 +-
+ .../vendor/golang.org/x/sys/unix/syscall_unix.go   |   74 +-
+ .../golang.org/x/sys/unix/zerrors_freebsd_386.go   |  109 +-
+ .../golang.org/x/sys/unix/zerrors_freebsd_amd64.go |  107 +-
+ .../golang.org/x/sys/unix/zerrors_freebsd_arm.go   |  220 +-
+ .../golang.org/x/sys/unix/zerrors_freebsd_arm64.go |  100 +-
+ .../x/sys/unix/zerrors_freebsd_riscv64.go          | 2148 ++++++++++++++++++++
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  389 +++-
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_loong64.go |    4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |    2 +
+ .../x/sys/unix/zerrors_linux_mips64le.go           |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |    2 +
+ .../golang.org/x/sys/unix/zsyscall_freebsd_386.go  |  141 +-
+ .../x/sys/unix/zsyscall_freebsd_amd64.go           |  139 +-
+ .../golang.org/x/sys/unix/zsyscall_freebsd_arm.go  |  173 +-
+ .../x/sys/unix/zsyscall_freebsd_arm64.go           |  139 +-
+ .../x/sys/unix/zsyscall_freebsd_riscv64.go         | 1889 +++++++++++++++++
+ .../x/sys/unix/zsyscall_linux_loong64.go           |   25 -
+ .../x/sys/unix/zsyscall_linux_riscv64.go           |   11 +
+ .../golang.org/x/sys/unix/zsysnum_freebsd_386.go   |  107 +-
+ .../golang.org/x/sys/unix/zsysnum_freebsd_amd64.go |  107 +-
+ .../golang.org/x/sys/unix/zsysnum_freebsd_arm.go   |  107 +-
+ .../golang.org/x/sys/unix/zsysnum_freebsd_arm64.go |  107 +-
+ .../x/sys/unix/zsysnum_freebsd_riscv64.go          |  394 ++++
+ .../golang.org/x/sys/unix/zsysnum_linux_loong64.go |    2 -
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |    1 +
+ .../golang.org/x/sys/unix/ztypes_darwin_amd64.go   |   73 +-
+ .../golang.org/x/sys/unix/ztypes_darwin_arm64.go   |   73 +-
+ .../golang.org/x/sys/unix/ztypes_freebsd_386.go    |   97 +-
+ .../golang.org/x/sys/unix/ztypes_freebsd_amd64.go  |   94 +-
+ .../golang.org/x/sys/unix/ztypes_freebsd_arm.go    |  145 +-
+ .../golang.org/x/sys/unix/ztypes_freebsd_arm64.go  |   92 +-
+ .../x/sys/unix/ztypes_freebsd_riscv64.go           |  626 ++++++
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |   30 +-
+ .../golang.org/x/sys/unix/ztypes_linux_386.go      |    7 +
+ .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_arm.go      |    7 +
+ .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_loong64.go  |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_mips.go     |    7 +
+ .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |    7 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc.go      |    7 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |    6 +
+ .../golang.org/x/sys/unix/ztypes_solaris_amd64.go  |    2 +-
+ .../golang.org/x/sys/windows/syscall_windows.go    |  104 +
+ .../golang.org/x/sys/windows/types_windows.go      |   81 +-
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |   18 +
+ src/cmd/vendor/golang.org/x/term/AUTHORS           |    3 -
+ src/cmd/vendor/golang.org/x/term/CONTRIBUTORS      |    3 -
+ src/cmd/vendor/golang.org/x/term/terminal.go       |    2 +-
+ src/cmd/vendor/golang.org/x/tools/AUTHORS          |    3 -
+ src/cmd/vendor/golang.org/x/tools/CONTRIBUTORS     |    3 -
+ .../vendor/golang.org/x/tools/go/analysis/doc.go   |    3 +
+ .../go/analysis/passes/composite/composite.go      |   41 +-
+ .../x/tools/go/analysis/passes/tests/tests.go      |    2 +
+ .../golang.org/x/tools/go/ast/astutil/enclosing.go |   11 +-
+ .../x/tools/internal/analysisinternal/analysis.go  |   65 +-
+ .../golang.org/x/tools/internal/lsp/fuzzy/input.go |  183 --
+ .../x/tools/internal/lsp/fuzzy/matcher.go          |  407 ----
+ .../x/tools/internal/lsp/fuzzy/symbol.go           |  237 ---
+ .../x/tools/internal/typeparams/coretype.go        |  122 ++
+ src/cmd/vendor/modules.txt                         |   15 +-
+ src/go.mod                                         |    8 +-
+ src/go.sum                                         |   12 +-
+ src/vendor/golang.org/x/crypto/AUTHORS             |    3 -
+ src/vendor/golang.org/x/crypto/CONTRIBUTORS        |    3 -
+ .../golang.org/x/crypto/curve25519/curve25519.go   |    9 +-
+ src/vendor/golang.org/x/sys/AUTHORS                |    3 -
+ src/vendor/golang.org/x/sys/CONTRIBUTORS           |    3 -
+ .../golang.org/x/sys/cpu/cpu_other_riscv64.go      |   12 +
+ src/vendor/golang.org/x/text/AUTHORS               |    3 -
+ src/vendor/golang.org/x/text/CONTRIBUTORS          |    3 -
+ src/vendor/modules.txt                             |    6 +-
+ 121 files changed, 7324 insertions(+), 3376 deletions(-)

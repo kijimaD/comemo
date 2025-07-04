@@ -1,18 +1,15 @@
-commit 8c3fc088fbe1a25be73430a20a0c76af3c68d2f5
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 2 19:53:02 2015 -0400
+commit 383e6b2ce2833e93fcf80de2f6d9afc450acd864
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 22:24:13 2015 -0500
 
-    runtime: report marked heap size in gctrace
+    cmd/internal/obj/x86: prep for next CL
     
-    When the gctrace GODEBUG option is enabled, it will now report three
-    heap sizes: the heap size at the beginning of the GC cycle, the heap
-    size at the end of the GC cycle before sweeping, and marked heap size,
-    which is the amount of heap that will be retained until the next GC
-    cycle.
+    Add unused (but initialized) from3 field to ytab, f3t to movtab.
+    Remove level of indentation in movtab processing.
     
-    Change-Id: Ie13f8a6d5c609bc9cc47c7555960ab55b37b5f1c
-    Reviewed-on: https://go-review.googlesource.com/8430
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I8475988f46b541ecaccf8d34608da8bef7d12e24
+    Reviewed-on: https://go-review.googlesource.com/6892
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgc.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go | 894 +++++++++++++++++++--------------------
+ 1 file changed, 447 insertions(+), 447 deletions(-)

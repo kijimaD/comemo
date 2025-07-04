@@ -1,26 +1,21 @@
-commit e0e1ce9888f5483f834e435d53f5c6c42b9b12a1
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Sat Jun 18 22:02:14 2022 +0300
+commit 2c7cdec2a762108ae9231b7861c3689f4d23b58c
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Oct 28 10:04:36 2021 +0800
 
-    runtime: switch FreeBSD to use the non-COMPAT_FREEBSD11 version of the kevent syscall
+    io: remove UTF8 specified document for RuneReader
     
-    Update #53280
+    RuneReader is fine with UTF16 or any other character encoding
     
-    Change-Id: I1c8d4510fbe8bdfe9a41575bde54ea2fbf6b67e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413174
-    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Yuval Pavel Zholkover <paulzhol@gmail.com>
+    Fixes #49178
+    
+    Change-Id: I08a5ac205e095349d451d3b60411eaeebc3aa563
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359334
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/defs_freebsd.go       | 12 +++++++-----
- src/runtime/defs_freebsd_386.go   |  8 +++++---
- src/runtime/defs_freebsd_amd64.go |  6 ++++--
- src/runtime/defs_freebsd_arm.go   | 20 ++++++++++++--------
- src/runtime/defs_freebsd_arm64.go |  6 ++++--
- src/runtime/sys_freebsd_386.s     |  2 +-
- src/runtime/sys_freebsd_amd64.s   |  2 +-
- src/runtime/sys_freebsd_arm.s     |  2 +-
- src/runtime/sys_freebsd_arm64.s   |  2 +-
- 9 files changed, 36 insertions(+), 24 deletions(-)
+ src/io/io.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

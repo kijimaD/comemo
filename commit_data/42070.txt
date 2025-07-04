@@ -1,20 +1,25 @@
-commit ed7888aea6021e25b0ea58bcad3f26da2b139432
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Wed Apr 22 12:45:44 2020 -0700
+commit 4cde749f633753cf59d0cfc912351e1b1def2b4f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Nov 7 12:32:30 2019 -0800
 
-    database/sql: de-flake TestTxCannotCommitAfterRollback
+    cmd/compile: restore more missing -m=2 escape analysis details
     
-    Do not cancel rows during test. Only cancel the Tx.
-    Correct the referenced issue number on the test.
+    This CL also restores analysis details for (1) expressions that are
+    directly heap allocated because of being too large for the stack or
+    non-constant in size, and (2) for assignments that we short circuit
+    because we flow their address to another escaping object.
     
-    Fixes #38597
+    No change to normal compilation behavior. Only adds additional Printfs
+    guarded by -m=2.
     
-    Change-Id: I0e8ba1bf2a8ba638d121c9c6938501fec1d5e961
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229478
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Updates #31489.
+    
+    Change-Id: I43682195d389398d75ced2054e29d9907bb966e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205917
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go      | 7 +++++++
- src/database/sql/sql_test.go | 6 +++++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/esc.go    | 27 ++++++++++++++++++++-----
+ src/cmd/compile/internal/gc/escape.go | 37 +++++++++++++++++++++++------------
+ 2 files changed, 46 insertions(+), 18 deletions(-)

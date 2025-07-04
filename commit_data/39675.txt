@@ -1,23 +1,19 @@
-commit e7a4ab427d0df0f1b18c5899552bed6e3bc75266
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Thu Jun 13 10:29:39 2019 +0530
+commit fbc5acbd704ff2640d0aed19f116b862f858a549
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 8 17:30:55 2019 -0800
 
-    net/http/httputil: fix goroutine leak for DumpRequestOut
+    cmd/compile: remove work-arounds for handling underscores in numbers
     
-    When an invalid URL was passed to DumpRequestOut, it would directly return
-    without gracefully shutting down the reader goroutine.
+    With math/big supporting underscores directly, there is no need to
+    manually remove them before calling the math/big conversion routines.
     
-    So we create a channel and signal the reader goroutine to exit
-    if an error occurs during roundtrip.
+    Updates #28493.
     
-    Fixes #32571
-    
-    Change-Id: I8c2970f1601e599f3d1ebfed298faf5f5716fc2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182037
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6f865c8f87c3469ffd6c33f960ed540135055226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166417
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httputil/dump.go      | 11 ++++++++++-
- src/net/http/httputil/dump_test.go | 20 ++++++++++++++++++++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/mpfloat.go | 4 ----
+ src/cmd/compile/internal/gc/mpint.go   | 4 ----
+ 2 files changed, 8 deletions(-)

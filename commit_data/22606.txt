@@ -1,22 +1,12 @@
-commit e7ffafdb6e76f62382d47c1bd21626ec7dae4594
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Apr 19 20:57:41 2015 -0700
+commit c754be8979a6f3dab7b9e595077745a2087b7c02
+Author: Damian Gryski <dgryski@gmail.com>
+Date:   Fri Mar 27 10:12:00 2015 +0100
 
-    cmd/internal/obj: remove useless Trimpath field and fix users
+    doc/go1.5.txt: fix URL for a CL
     
-    http://golang.org/cl/7623 refactored how line history works and
-    introduced a new TrimPathPrefix field to replace the existing Trimpath
-    field, but never removed the latter or updated its users.
-    
-    Fixes #10503.
-    
-    Change-Id: Ief90a55b6cef2e8062b59856a4c7dcc0df01d3f2
-    Reviewed-on: https://go-review.googlesource.com/9113
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6a91d255b9e9f66b0288b82af4303f9a9b4b373c
+    Reviewed-on: https://go-review.googlesource.com/8191
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/main.go          | 2 +-
- src/cmd/internal/asm/asm.go  | 2 +-
- src/cmd/internal/gc/lex.go   | 2 +-
- src/cmd/internal/obj/link.go | 1 -
- 4 files changed, 3 insertions(+), 4 deletions(-)
+ doc/go1.5.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

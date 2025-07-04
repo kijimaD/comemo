@@ -1,21 +1,46 @@
-commit a37f2b4f60aef93fec1911eeac43c33dc5ff1857
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Sep 19 03:53:50 2019 +1000
+commit 60a8dbf3b4e10627b9f5c3a0a0bf4462247270c8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 23 16:20:35 2019 +0000
 
-    cmd/internal/obj/riscv: implement control transfer instructions
+    go/token: add IsIdentifier, IsKeyword, and IsExported
     
-    Add support for assembling control transfer instructions.
+    Telling whether a string is a valid Go identifier can seem like an easy
+    task, but it's easy to forget about the edge cases. For example, some
+    implementations out there forget that an empty string or keywords like
+    "func" aren't valid identifiers.
     
-    Based on the riscv-go port.
+    Add a simple implementation with proper Unicode support, and start using
+    it in cmd/cover and cmd/doc. Other pieces of the standard library
+    reimplement part of this logic, but don't use a "func(string) bool"
+    signature, so we're leaving them untouched for now.
     
-    Updates #27532
+    Add some tests too, to ensure that we actually got these edge cases
+    correctly.
     
-    Change-Id: I205d3ccd0a48deeaace0f20fca8516f382a83fae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196841
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Since telling whether a string is a valid identifier requires knowing
+    that it's not a valid keyword, add IsKeyword too. The internal map was
+    already accessible via Lookup, but "Lookup(str) != IDENT" isn't as easy
+    to understand as IsKeyword(str). And, as per Josh's suggestion, we could
+    have IsKeyword (and probably Lookup too) use a perfect hash function
+    instead of a global map.
+    
+    Finally, for consistency with these new functions, add IsExported. That
+    makes go/ast.IsExported a bit redundant, so perhaps it can be deprecated
+    in favor of go/token.IsExported in the future. Clarify that
+    token.IsExported doesn't imply token.IsIdentifier, to avoid ambiguity.
+    
+    Fixes #30064.
+    
+    Change-Id: I0e0e49215fd7e47b603ebc2b5a44086c51ba57f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169018
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscvenc.s | 18 +++++-
- src/cmd/internal/obj/riscv/obj.go            | 96 +++++++++++++++++++++++++++-
- 2 files changed, 111 insertions(+), 3 deletions(-)
+ src/cmd/cover/cover.go     | 19 +------------------
+ src/cmd/doc/main.go        | 23 +++++++----------------
+ src/go/ast/ast.go          | 15 ++++-----------
+ src/go/token/token.go      | 34 +++++++++++++++++++++++++++++++++-
+ src/go/token/token_test.go | 33 +++++++++++++++++++++++++++++++++
+ 5 files changed, 78 insertions(+), 46 deletions(-)

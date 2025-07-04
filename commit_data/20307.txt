@@ -1,29 +1,28 @@
-commit e0f08b938a37490cd6e4f6bb33360678ac5f42b0
+commit 1a976f1576f2220ca78cb7094b2fea3e88a8b4ad
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 4 23:14:21 2014 -0400
+Date:   Sat Aug 30 00:16:07 2014 -0400
 
-    runtime: use cas loop to coordinate with sigprof
+    undo CL 135230043 / 60812bad3769
     
-    sigprof and setcpuprofilerate coordinate the enabling/disabling
-    of the handler using a Mutex. This has always been a bit dodgy:
-    setcpuprofilerate must be careful to turn off signals before acquiring
-    the lock to avoid a deadlock.
+    broke api check everywhere
     
-    Now the lock implementations use onM, and onM isn't okay on the
-    signal stack. We know how to make it okay, but it's more work than
-    is probably worth doing.
+    ««« original CL description
+    runtime: fix openbsd build
     
-    Since this is super-dodgy anyway, replace the lock with a simple
-    cas loop. It is only contended if setcpuprofilerate is being called,
-    and that doesn't happen frequently enough to care about the
-    raw speed or about using futexes/semaphores.
+    LGTM=iant
+    R=iant, minux
+    CC=golang-codereviews, jsing
+    https://golang.org/cl/135230043
     
-    TBR to fix freebsd/amd64 and dragonfly/amd64 builds.
-    Happy to make changes in a follow-up CL.
+    »»»
     
-    TBR=dvyukov
+    TBR=mdempsky
     CC=golang-codereviews
-    https://golang.org/cl/141080044
+    https://golang.org/cl/137010043
 
- src/pkg/runtime/proc.c | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ src/pkg/runtime/defs_openbsd.go      | 4 ++--
+ src/pkg/runtime/defs_openbsd_386.h   | 4 ++--
+ src/pkg/runtime/defs_openbsd_amd64.h | 4 ++--
+ src/pkg/runtime/os_openbsd.c         | 6 +++---
+ src/pkg/runtime/os_openbsd.go        | 2 +-
+ 5 files changed, 10 insertions(+), 10 deletions(-)

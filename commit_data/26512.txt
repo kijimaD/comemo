@@ -1,65 +1,26 @@
-commit ea0386f85f19601ed7befb44299eb8e576a482fd
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Mar 18 12:52:52 2016 +0100
+commit 5ba31940dc2934dc76a47f0e614d441225ea3a95
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 25 17:06:54 2016 -0800
 
-    runtime: improve randomized stealing logic
+    [dev.ssa] cmd/compile: fix write barriers for SSA
     
-    During random stealing we steal 4*GOMAXPROCS times from random procs.
-    One would expect that most of the time we check all procs this way,
-    but due to low quality PRNG we actually miss procs with frightening
-    probability. Below are modelling experiment results for 1e6 tries:
+    The old write barriers used _nostore versions, which
+    don't work for Ian's cgo checker.  Instead, we adopt the
+    same write barrier pattern as the default compiler.
     
-    GOMAXPROCS = 2 : missed 1 procs 7944 times
+    It's a bit trickier to code up but should be more efficient.
     
-    GOMAXPROCS = 3 : missed 1 procs 101620 times
-    GOMAXPROCS = 3 : missed 2 procs 3571 times
-    
-    GOMAXPROCS = 4 : missed 1 procs 63916 times
-    GOMAXPROCS = 4 : missed 2 procs 61 times
-    GOMAXPROCS = 4 : missed 3 procs 16 times
-    
-    GOMAXPROCS = 5 : missed 1 procs 133136 times
-    GOMAXPROCS = 5 : missed 2 procs 1025 times
-    GOMAXPROCS = 5 : missed 3 procs 101 times
-    GOMAXPROCS = 5 : missed 4 procs 15 times
-    
-    GOMAXPROCS = 8 : missed 1 procs 151765 times
-    GOMAXPROCS = 8 : missed 2 procs 5057 times
-    GOMAXPROCS = 8 : missed 3 procs 1726 times
-    GOMAXPROCS = 8 : missed 4 procs 68 times
-    
-    GOMAXPROCS = 12 : missed 1 procs 199081 times
-    GOMAXPROCS = 12 : missed 2 procs 27489 times
-    GOMAXPROCS = 12 : missed 3 procs 3113 times
-    GOMAXPROCS = 12 : missed 4 procs 233 times
-    GOMAXPROCS = 12 : missed 5 procs 9 times
-    
-    GOMAXPROCS = 16 : missed 1 procs 237477 times
-    GOMAXPROCS = 16 : missed 2 procs 30037 times
-    GOMAXPROCS = 16 : missed 3 procs 9466 times
-    GOMAXPROCS = 16 : missed 4 procs 1334 times
-    GOMAXPROCS = 16 : missed 5 procs 192 times
-    GOMAXPROCS = 16 : missed 6 procs 5 times
-    GOMAXPROCS = 16 : missed 7 procs 1 times
-    GOMAXPROCS = 16 : missed 8 procs 1 times
-    
-    A missed proc won't lead to underutilization because we check all procs
-    again after dropping P. But it can lead to an unpleasant situation
-    when we miss a proc, drop P, check all procs, discover work, acquire P,
-    miss the proc again, repeat.
-    
-    Improve stealing logic to cover all procs.
-    Also don't enter spinning mode and try to steal when there is nobody around.
-    
-    Change-Id: Ibb6b122cc7fb836991bad7d0639b77c807aab4c2
-    Reviewed-on: https://go-review.googlesource.com/20836
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I6696c3656cf179e28f800b0e096b7259bd5f3bb7
+    Reviewed-on: https://go-review.googlesource.com/18941
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/proc.go              | 108 ++++++++++++++++++++++++++++++---------
- src/runtime/proc_runtime_test.go |  33 ++++++++++++
- src/runtime/proc_test.go         |   4 ++
- 3 files changed, 122 insertions(+), 23 deletions(-)
+ misc/cgo/errors/ptr.go                         | 208 ++++++++++---------
+ src/cmd/compile/internal/gc/builtin.go         |   1 -
+ src/cmd/compile/internal/gc/builtin/runtime.go |   1 -
+ src/cmd/compile/internal/gc/go.go              |   3 +-
+ src/cmd/compile/internal/gc/pgen.go            |   3 +-
+ src/cmd/compile/internal/gc/ssa.go             | 268 +++++++++++++++++++------
+ src/runtime/mbarrier.go                        |   8 -
+ 7 files changed, 318 insertions(+), 174 deletions(-)

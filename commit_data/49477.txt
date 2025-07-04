@@ -1,20 +1,29 @@
-commit 97bfc77f3897d6268cf4f9bb6756b97ff5e7cc03
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Jun 10 19:08:14 2022 +0800
+commit c7e354d9d1975a3e55c8eb9e79c22106c4b770c4
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 16:40:57 2021 -0400
 
-    syscall, runtime/internal/syscall: always zero the higher bits of return value on linux/loong64
+    go/types: return an error from Instantiate
     
-    All loong64 syscalls return values only via R4/A0, and R5/A1 may contain unrelated
-    content. Always zero the second return value.
+    This is a port of CL 342152 to go/types. Additionally, a panic was
+    removed from interface substitution, which is a fix from CL 333155 that
+    was previously missed.
     
-    Change-Id: I62af59369bece5bd8028b937c74f4694150f7a55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411615
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    A check for a nil Checker was also removed from types2.instantiate,
+    since check must not be nil in that method.
+    
+    Change-Id: I4ea6bdccbd50ea2008ee6d870f702bee5cdd5a8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342671
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/internal/syscall/asm_linux_loong64.s | 2 +-
- src/syscall/asm_linux_loong64.s                  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/instantiate.go |   4 +-
+ src/go/types/api.go                            |  12 ++
+ src/go/types/api_test.go                       |  39 ++++-
+ src/go/types/call.go                           |   4 +-
+ src/go/types/instantiate.go                    | 229 ++++++++++++++-----------
+ src/go/types/named.go                          |  32 ++--
+ src/go/types/subst.go                          |  14 +-
+ src/go/types/typexpr.go                        |   2 +-
+ 8 files changed, 203 insertions(+), 133 deletions(-)

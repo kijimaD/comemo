@@ -1,23 +1,39 @@
-commit a3a630b0d2829ab74ac623fc2ae92864bd61d391
-Author: Clément Chigot <chigot.c@gmail.com>
-Date:   Thu Nov 14 15:43:55 2019 +0100
+commit c302785df941f10a4350f895e0c48886b582e609
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 5 13:12:01 2019 -0700
 
-    runtime: use mprotect in sysMap for aix/ppc64
+    cmd/compile: fix "previous" position info for duplicate switch cases
     
-    AIX doesn't allow to mmap an already mmap address. The previous way to
-    deal with this behavior was to munmap before calling mmap again.
-    However, mprotect syscall is able to change protections on a memory
-    range. Thus, memory mapped by sysReserve can be remap using it. Note
-    that sysMap is always called with a non-nil pointer so mprotect is
-    always possible.
+    Because the Node AST represents references to declared objects (e.g.,
+    variables, packages, types, constants) by directly pointing to the
+    referred object, we don't have use-position info for these objects.
     
-    Updates: #35451
+    For switch statements with duplicate cases, we report back where the
+    first duplicate value appeared. However, due to the AST
+    representation, if the value was a declared constant, we mistakenly
+    reported the constant declaration position as the previous case
+    position.
     
-    Change-Id: I1fd1e1363d9ed9eb5a8aa7c8242549bd6dad8cd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207237
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    This CL reports back against the 'case' keyword's position instead, if
+    there's no more precise information available to us.
+    
+    It also refactors code to emit the same "previous at" error message
+    for duplicate values in map literals.
+    
+    Thanks to Emmanuel Odeke for the test case.
+    
+    Fixes #33460.
+    
+    Change-Id: Iec69542ccd4aad594dde8df02d1b880a422c5622
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188901
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mem_aix.go | 11 ++++++-----
- src/runtime/os2_aix.go | 12 ++++++++++++
- 2 files changed, 18 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/const.go     | 48 ++++++++++++++++++++++++--------
+ src/cmd/compile/internal/gc/subr.go      | 47 ++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/swt.go       | 15 +---------
+ src/cmd/compile/internal/gc/typecheck.go |  4 +--
+ test/fixedbugs/issue33460.go             | 37 ++++++++++++++++++++++++
+ 5 files changed, 102 insertions(+), 49 deletions(-)

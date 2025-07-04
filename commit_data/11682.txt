@@ -1,24 +1,15 @@
-commit bb7b1a11d57066078fe841d1b324770faaf1ad45
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 8 13:07:13 2012 +1100
+commit 518ee115b75c72c68364e1f376d9d9d3f808ffda
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 7 18:00:30 2012 -0800
 
-    bufio: drop error return for NewReaderSize and NewWriterSize
-    It complicates the interface unnecessarily.
-    Document this in go1.html.
-    Also update the go/doc Makefile.
+    net/http/httputil: preserve query params in reverse proxy
     
-    Fixes #2836.
+    Fixes #2853
     
-    R=golang-dev, gri, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5642054
+    https://golang.org/cl/5642056
 
- doc/Makefile                  | 11 ++-----
- doc/go1.html                  | 16 ++++++++++
- doc/go1.tmpl                  | 16 ++++++++++
- src/pkg/bufio/bufio.go        | 70 ++++++++++++++++---------------------------
- src/pkg/bufio/bufio_test.go   | 67 +++++++++++------------------------------
- src/pkg/image/png/writer.go   |  5 +---
- src/pkg/net/http/cgi/host.go  |  2 +-
- src/pkg/net/http/fcgi/fcgi.go |  2 +-
- 8 files changed, 81 insertions(+), 108 deletions(-)
+ src/pkg/net/http/httputil/reverseproxy.go      |  7 ++++-
+ src/pkg/net/http/httputil/reverseproxy_test.go | 38 ++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 1 deletion(-)

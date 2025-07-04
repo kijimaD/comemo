@@ -1,21 +1,35 @@
-commit 19ed442807499080cf9c31ac883d4195db5415c9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Jun 21 07:15:33 2022 -0700
+commit b1cdf860dd5f517a2835c6bd48d12dad29ade1da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 23 20:43:57 2021 -0700
 
-    test: add regress test for #53477
+    cmd/compile/internal/types2: use a TypeList type to hold type arguments
     
-    This test already passes for GOEXPERIMENT=unified; add regress test to
-    ensure it stays that way.
+    This is a port of CL 343933 from go/types with the necessary
+    adjustments in the compiler.
     
-    Updates #53477.
+    With this CL type parameters and type lists are now held in
+    TParamList and TypeList data types which don't expose the
+    internal representation.
     
-    Change-Id: Ib7aa7428260595077052207899edcc044a6ab1c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413394
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I6d60881b5db995dbc04ed3f4a96e8b5d41f83969
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344615
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/go/internal/gcimporter/gcimporter_test.go |  1 +
- test/run.go                                   |  1 +
- test/typeparam/issue53477.go                  | 34 +++++++++++++++++++++++++++
- 3 files changed, 36 insertions(+)
+ src/cmd/compile/internal/importer/iimport.go   |  8 +--
+ src/cmd/compile/internal/noder/expr.go         |  8 +--
+ src/cmd/compile/internal/noder/types.go        | 20 +++++---
+ src/cmd/compile/internal/noder/writer.go       | 16 +++---
+ src/cmd/compile/internal/types2/infer.go       |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go | 12 ++---
+ src/cmd/compile/internal/types2/lookup.go      |  4 +-
+ src/cmd/compile/internal/types2/named.go       | 14 +++---
+ src/cmd/compile/internal/types2/predicates.go  |  4 +-
+ src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types2/subst.go       |  8 +--
+ src/cmd/compile/internal/types2/typelists.go   | 69 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typeparam.go   | 34 -------------
+ src/cmd/compile/internal/types2/typestring.go  |  2 +-
+ src/cmd/compile/internal/types2/unify.go       | 10 ++--
+ 15 files changed, 128 insertions(+), 85 deletions(-)

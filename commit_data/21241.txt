@@ -1,18 +1,14 @@
-commit 3ab4b68bc18927607d893bf747f8381c5902eb4a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 12 17:23:18 2015 -0800
+commit 3fa5d3a6dc96bf42a68afe69a65c05012b893284
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 9 15:36:10 2014 -0500
 
-    net/http: deflake TestResponseWriterWriteStringAllocs, test interface instead
+    cmd/pprof: remove -show_bytes from command line help
     
-    Skip the allocation testing (which was only used as a signal for
-    whether the interface was implemented by ResponseWriter), and just
-    test for it directly.
+    This flag no longer exists.  It has been replaced with -unit=byte.
     
-    Fixes #9575
-    
-    Change-Id: Ie230f1d21b104537d5647e9c900a81509d692469
-    Reviewed-on: https://go-review.googlesource.com/2720
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Iff9fc501f2c666067c9b1948c4623c8e3adddb8d
+    Reviewed-on: https://go-review.googlesource.com/1287
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/serve_test.go | 24 +++++++++++++++---------
- 1 file changed, 15 insertions(+), 9 deletions(-)
+ src/cmd/pprof/internal/driver/driver.go | 1 -
+ 1 file changed, 1 deletion(-)

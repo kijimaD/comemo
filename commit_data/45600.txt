@@ -1,22 +1,43 @@
-commit 603f43cbae1f29c9c167b2b331dc31c8486c888b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Feb 3 18:17:35 2021 +1100
+commit fb184a383e756cb57267590ac290be0d3bb64874
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 16 09:22:31 2020 -0400
 
-    runtime: switch runtime to libc for openbsd/arm
+    cmd/link: emit include directories in DWARF line table prologue
     
-    Use libc rather than performing direct system calls for the runtime on
-    openbsd/arm.
+    This patch changes the way the linker emits the DWARF line table
+    prologue, specifically the file table. Previously files were left
+    unmodified, and the directory table was empty. For each compilation
+    unit we now scan the unit file table and build up a common set of
+    directories, emit them into the directory table, and then emit file
+    entries that refer to the dirs. This provides a modest binary size
+    savings.
     
-    Updates #36435
+    For kubernetes kubelet:
     
-    Change-Id: If64a96a61c80b9748792f8a85a8f16ed6ebca91f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315792
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    $ objdump -h /tmp/kubelet.old | fgrep debug_line
+     36 .zdebug_line  019a55f5  0000000000000000  0000000000000000  084a5123  2**0
+    $ objdump -h /tmp/kubelet.new | fgrep debug_line
+     36 .zdebug_line  01146fd2  0000000000000000  0000000000000000  084a510a  2**0
+    
+    [where the value following the section name above is the section size
+    in hex, so roughly a 30% decrease in this case.]
+    
+    The actual savings will depend on the length of the pathnames
+    involved, so it's hard to really pin down how much savings we'll see
+    here. In addition, emitting the files this way reduces the
+    "compressibility" of the line table, so there could even be cases
+    where we don't win at all.
+    
+    Updates #6853, #19784, #36495.
+    
+    Change-Id: I298d8561da5ed3ebc9d38aa772874851baa2f4f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263017
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/runtime/defs_openbsd_arm.go    |   5 +
- src/runtime/os_openbsd_syscall2.go |   4 +-
- src/runtime/proc.go                |   2 +-
- src/runtime/sys_openbsd2.go        |   4 +-
- src/runtime/sys_openbsd_arm.s      | 508 ++++++++++++++++++-------------------
- 5 files changed, 260 insertions(+), 263 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 109 ++++++++++++++++++++++++++------------
+ src/debug/dwarf/line.go           |   6 ++-
+ src/debug/dwarf/line_test.go      |   8 +++
+ 3 files changed, 88 insertions(+), 35 deletions(-)

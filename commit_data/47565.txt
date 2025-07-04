@@ -1,19 +1,24 @@
-commit a287c4aa38c9c71f823a0c366871f7f4452a602c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 18 15:33:19 2021 -0800
+commit feb844f1ead183b911ede1224638fbf55bcde7b8
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 24 13:55:31 2021 -0400
 
-    spec: add type parameter types
+    cmd/compile: eliminate -abiwraplimit
     
-    - add section on type parameters
-    - added two sections on the scope of type parameters
-    - expanded general section on types accordingly
-    - introduced the notion of a named type which will
-      help in simplifying various rules (subsequent CLs)
+    We haven't needed this debugging flag in a while and it's going to
+    complicate a change to how to generate wrappers. Eliminate it in favor
+    of just using the objabi.Experiment.RegabiWrappers global toggle.
     
-    Change-Id: I49c1ed7d6d4f951d751f0a3ca5dfb637e49829f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365414
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #40724.
+    
+    Change-Id: Ieda660ea7a0167ae4e881b396ef556d7c962fe4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305273
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go_spec.html | 62 ++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 53 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/base/flag.go  |  1 -
+ src/cmd/compile/internal/ssagen/abi.go | 25 +------------------------
+ 2 files changed, 1 insertion(+), 25 deletions(-)

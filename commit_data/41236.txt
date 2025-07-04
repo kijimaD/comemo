@@ -1,20 +1,20 @@
-commit 60f11c44c02ff815e02d1e59839c6c0bf3f6605e
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Wed Feb 5 11:09:34 2020 -0800
+commit 07ad84009865b15d68cba036610d04c66bd3f5e8
+Author: Keith Randall <khr@google.com>
+Date:   Mon Sep 16 16:53:23 2019 -0700
 
-    doc/go1.14: document http.ServeFile large file fix for Windows
+    runtime: remove unneeded noinline directives
     
-    Document that for Windows, net/http.ServeFile can now
-    correctly serve files >2GB after we fixed internal/poll.SendFile
-    to transmit files larger than the default Windows limit of 2GB.
+    Now that mid-stack inlining reports backtraces correctly, we no
+    longer need to protect against inlining in a few critical areas.
     
-    References: CL 192518, CL 194218
+    Update #19348
+    Update #28640
+    Update #34276
     
-    Updates #36878
-    
-    Change-Id: Ibefc8b2841bc0cee3a89884a680085f99d2b6928
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217779
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie68487e6482c3a9509ecf7ecbbd40fe43cee8381
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195818
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.14.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/extern.go     | 1 -
+ src/runtime/stack_test.go | 3 ---
+ 2 files changed, 4 deletions(-)

@@ -1,18 +1,14 @@
-commit 50fed64dd90ca6a58cfe8fa7c1061aa8666cc76f
-Author: Keegan Carruthers-Smith <keegan.csmith@gmail.com>
-Date:   Fri Nov 4 09:31:35 2016 +0200
+commit f7e49f6644bde3f17b4a795218a35876347455a1
+Author: Suyash <dextrous93@gmail.com>
+Date:   Fri Sep 16 19:54:44 2016 +0530
 
-    go/doc: don't panic if method is missing recv type
+    sort: fix search descending order example
     
-    Fixes #17788
-    
-    Change-Id: I2f8a11321dc8f10bebbc8df90ba00ec65b9ee0fa
-    Reviewed-on: https://go-review.googlesource.com/32790
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I27b82d8c63a06ddf7e148b15853aba24a22a6282
+    Reviewed-on: https://go-review.googlesource.com/29336
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/doc/reader.go                    | 5 +++++
- src/go/doc/testdata/issue17788.0.golden | 8 ++++++++
- src/go/doc/testdata/issue17788.1.golden | 8 ++++++++
- src/go/doc/testdata/issue17788.2.golden | 8 ++++++++
- src/go/doc/testdata/issue17788.go       | 8 ++++++++
- 5 files changed, 37 insertions(+)
+ src/sort/example_search_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

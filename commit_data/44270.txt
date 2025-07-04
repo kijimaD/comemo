@@ -1,15 +1,22 @@
-commit 6fe8981620aa61cb43476538f8230231623f9e13
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 15 13:58:45 2021 -0500
+commit f72d7cfc8fb5326c37e47414f388562460abae56
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 3 20:38:20 2020 -0700
 
-    cmd/internal/obj/riscv: fix JMP name<>(SB)
+    cmd/compile: add interface equality tests
     
-    It was being rejected. Now it isn't and can be used in the runtime.
+    Add interfaces which differ in type. Those used so far only
+    differ in value, not type.
     
-    Change-Id: I4626bf9fc2e0bc26fffb87d11bede459964324b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292129
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    These additional tests are needed to generate a failure
+    before CL 236278 went in.
+    
+    Update #8606
+    
+    Change-Id: Icdb7647b1973c2fff7e5afe2bd8b8c1b384f583e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236418
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ test/fixedbugs/issue8606.go | 4 ++++
+ 1 file changed, 4 insertions(+)

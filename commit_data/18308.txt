@@ -1,12 +1,15 @@
-commit bec1a3e258e193cb093c815fac99660466f6b3a9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 21 11:54:21 2014 -0800
+commit 0dd26f276d3091eb78d2e0be1780656c85af7501
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 21 13:46:14 2014 -0500
 
-    cmd/gc: document -pack flag
+    cmd/gc: fix build
     
-    R=golang-codereviews, r
+    The AKILL stuff is not ready yet and
+    was not meant to be in the last CL.
+    
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/55140044
+    https://golang.org/cl/55170043
 
- src/cmd/gc/doc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/gc/plive.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

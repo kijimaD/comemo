@@ -1,25 +1,28 @@
-commit 361b334cbd68e23427d68580c09e7ff80cd3c82e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 28 14:31:57 2016 -0700
+commit a3055af45e655cce1070f6f346a3ed76e01039e2
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 5 20:26:18 2016 -0800
 
-    cmd/compile: encapsulate Type.Argwid
+    [dev.ssa] cmd/compile: strength-reduce 64-bit constant divides
     
-    Passes toolstash -cmp.
+    The frontend does this for 32 bits and below, but SSA needs
+    to do it for 64 bits.  The algorithms are all copied from
+    cgen.go:cgen_div.
     
-    Change-Id: I72fb271052e449a83adfa9bd3b923d40781d6341
-    Reviewed-on: https://go-review.googlesource.com/21243
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Speeds up TimeFormat substantially: ~40% slower to ~10% slower.
+    
+    Change-Id: I023ea2eb6040df98ccd9105e15ca6ea695610a7a
+    Reviewed-on: https://go-review.googlesource.com/19302
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/cmd/compile/internal/amd64/ggen.go  | 2 +-
- src/cmd/compile/internal/arm/ggen.go    | 2 +-
- src/cmd/compile/internal/arm64/ggen.go  | 2 +-
- src/cmd/compile/internal/gc/pgen.go     | 2 +-
- src/cmd/compile/internal/gc/plive.go    | 2 +-
- src/cmd/compile/internal/gc/ssa.go      | 2 +-
- src/cmd/compile/internal/gc/subr.go     | 2 +-
- src/cmd/compile/internal/gc/type.go     | 7 +++++++
- src/cmd/compile/internal/mips64/ggen.go | 2 +-
- src/cmd/compile/internal/ppc64/ggen.go  | 2 +-
- src/cmd/compile/internal/x86/ggen.go    | 2 +-
- 11 files changed, 17 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             |  31 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   4 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   4 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |  97 +++++++++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   6 +-
+ src/cmd/compile/internal/ssa/magic.go          | 260 +++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/opGen.go          |  59 ++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  54 +++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 283 +++++++++++++++++++++++++
+ 9 files changed, 795 insertions(+), 3 deletions(-)

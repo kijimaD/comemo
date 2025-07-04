@@ -1,18 +1,14 @@
-commit 80b2ae5878c7b08b605128cc885305bf86bc5475
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Sep 6 14:33:36 2017 -0500
+commit 79eb88285b3aeb890d7ff2845fa1ac85fa841b28
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 18 13:53:43 2017 -0700
 
-    crypto: simplify amd64 asm for sha{1,256,512} a bit
+    test: add test for issue 18636
     
-    Use constants directly, instead of loading address to e. g. AX
-    and using (AX). Shouldn't affect performance, but makes code a bit
-    nicer.
+    Updates #18636
     
-    Change-Id: Ifa138e54d3d2b2f4ad71e4ef4b9368ea79eb30f4
-    Reviewed-on: https://go-review.googlesource.com/62010
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I143c670c3940231e29f1814e0a03165682f53243
+    Reviewed-on: https://go-review.googlesource.com/43621
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/crypto/sha1/sha1block_amd64.s     |  4 +---
- src/crypto/sha256/sha256block_amd64.s | 20 +++++---------------
- src/crypto/sha512/sha512block_amd64.s | 16 +++++-----------
- 3 files changed, 11 insertions(+), 29 deletions(-)
+ test/fixedbugs/issue18636.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

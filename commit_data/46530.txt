@@ -1,17 +1,24 @@
-commit 7dfe686a91a60a135deb2b64d28bcc010ba90b15
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 20 20:34:17 2021 -0700
+commit 32afcc94363e15ee2ef0cffec962191a15e73094
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 7 17:24:39 2021 +0000
 
-    cmd/compile/internal/types2: export Named.Orig as Named.Origin
+    runtime/metrics: change unit on *-by-size metrics to match bucket unit
     
-    This is a slightly adjusted port of CL 350996 from go/types to types2.
+    This change modifies the *-by-size metrics' units to be based off the
+    bucket's unit (bytes) as opposed to the unit of the counts (objects).
+    This convention is more in-line with distributions in other metrics
+    systems.
     
-    Change-Id: I8f5902ecb20a4b4d2a5ef0d3641d857bc3a618e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351170
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Id3b68a09f52f0e1ff9f4346f613ae1cbd9f52f73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282352
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/noder/types.go  |  2 +-
- src/cmd/compile/internal/noder/writer.go |  2 +-
- src/cmd/compile/internal/types2/named.go | 10 ++++------
- 3 files changed, 6 insertions(+), 8 deletions(-)
+ src/runtime/metrics.go             | 4 ++--
+ src/runtime/metrics/description.go | 9 +++++++--
+ src/runtime/metrics/doc.go         | 4 ++--
+ src/runtime/metrics_test.go        | 8 ++++----
+ 4 files changed, 15 insertions(+), 10 deletions(-)

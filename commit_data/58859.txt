@@ -1,25 +1,24 @@
-commit 61641c11455af9571e6e01449c7ea774b0069594
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Jan 24 12:23:42 2025 +0100
+commit c0693f648a2fd98aae126ef4f68cd7b6ebff40cd
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Dec 21 08:21:59 2023 -0500
 
-    cmd/link: put .got section in __DATA_CONST segment
+    cmd/go: run cover tool before swig
     
-    On Darwin, the .got section can be placed in a read-only segment. Only the dynamic linker should modify it at start-up time.
+    When building a package, run the cover tool on the collected go/cgo
+    source files before invoking swig (if swig files are present), as
+    opposed to running swig and then cover. Running swig adds new Go files
+    to the "cgo" list, and we want to avoid running those newly generated
+    files through the cover tool.
     
-    Other read-only sections, like .typelink and .itablink, are already placed in the __DATA_CONST segment. Do the same for the .got section.
+    Fixes #64661.
     
-    Fixes #71416.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64-longtest
-    Change-Id: I9cd9c20da63b655fabb61d742feb086c3ef3bea7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644055
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I32b6dad5c39fcf5e656c40fb3b44220c69320889
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552095
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/link/internal/ld/data.go            |   5 +-
- src/cmd/link/internal/ld/macho.go           |   6 +-
- src/cmd/link/internal/ld/macho_test.go      | 156 ++++++++++++++++++++++++++++
- src/cmd/link/internal/sym/symkind.go        |   1 +
- src/cmd/link/internal/sym/symkind_string.go | 109 +++++++++----------
- 5 files changed, 221 insertions(+), 56 deletions(-)
+ src/cmd/go/internal/work/exec.go          | 29 +++++++------
+ src/cmd/go/testdata/script/cover_swig.txt | 72 +++++++++++++++++++++++++++++++
+ 2 files changed, 88 insertions(+), 13 deletions(-)

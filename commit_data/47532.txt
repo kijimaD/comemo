@@ -1,23 +1,24 @@
-commit 9115a7ba4a7e198befe26d69b740a34b495e1db5
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 19:04:17 2021 -0500
+commit 82a1e0f9d3e47ae7792cb857e950abc7103e9f39
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 23 15:40:54 2021 -0500
 
-    go/types: remove asNamed
+    cmd/link: make symbol data writable before toc fixup
     
-    This is a port of CL 363441 from types2 to go/types, with an additional
-    adjustment in methodset.go.
+    On ppc64le, we need to insert a load to restore the toc
+    pointer in R2 after calling into plt stubs. Sometimes the
+    symbol data is loaded into readonly memory. This is the
+    case when linking with the race detector code.
     
-    Change-Id: Ia04dcfb70bb9f6af6f45175dee3334dba7b2768e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364895
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Likewise, add extra checks to ensure we can, and are
+    replacing a nop.
+    
+    Change-Id: Iea9d9ee7a5ba0f4ce285f4d0422823de1c037cb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304430
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/go/types/decl.go      |  2 +-
- src/go/types/lookup.go    |  7 ++++---
- src/go/types/methodset.go |  2 +-
- src/go/types/type.go      |  9 ---------
- src/go/types/unify.go     | 14 ++++++--------
- src/go/types/universe.go  |  2 +-
- 6 files changed, 13 insertions(+), 23 deletions(-)
+ src/cmd/link/internal/ppc64/asm.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

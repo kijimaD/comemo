@@ -1,17 +1,30 @@
-commit 1374515a1cf2279c2e47a4ee03a3616781814ad0
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Fri Mar 18 11:25:04 2016 +0200
+commit 7037c15e19582cb192cb1edfa7e2c1bf46746ee5
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 15 14:23:43 2016 -0500
 
-    cmd/vet: check lock copy in function calls and return statements
+    runtime/pprof: retry failed tests with longer duration
     
-    Fixes #14529
+    Currently we run profiling tests for around 200ms in short mode.
+    However, even on platforms with good profiling, these tests are
+    inherently flaky, especially on loaded systems like the builders.
     
-    Change-Id: I6ed059d279ba0fe12d76416859659f28d61781d2
-    Reviewed-on: https://go-review.googlesource.com/20832
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    To mitigate this, modify the profiling test harness so that if a test
+    fails in a way that could indicate there just weren't enough samples,
+    it retries with a longer duration.
+    
+    This requires some adjustment to the profile checker to distinguish
+    "fatal" and "retryable" errors. In particular, we no longer consider
+    it a fatal error to get a profile with zero samples (which we
+    previously treated as a parse error). We replace this with a retryable
+    check that the total number of samples is reasonable.
+    
+    Fixes #13943. Fixes #13871. Fixes #13223.
+    
+    Change-Id: I9a08664a7e1734c5334b1f3792a56184fe314c4d
+    Reviewed-on: https://go-review.googlesource.com/18683
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/copylock.go               | 30 ++++++++++++++++++++++++++----
- src/cmd/vet/main.go                   |  3 +++
- src/cmd/vet/testdata/copylock_func.go | 29 +++++++++++++++++++++++++++++
- 3 files changed, 58 insertions(+), 4 deletions(-)
+ src/runtime/pprof/pprof_test.go | 124 ++++++++++++++++++++++++----------------
+ 1 file changed, 75 insertions(+), 49 deletions(-)

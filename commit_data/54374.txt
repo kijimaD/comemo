@@ -1,23 +1,17 @@
-commit 5d9e0be159f46e6e98313eb66eb3355116c8bb26
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 6 22:42:11 2023 -0700
+commit 0394cbed2e169ab71975109bd6a2309cc8c91b7e
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 10 15:21:32 2022 -0400
 
-    cmd/compile/internal/ssa: replace Frontend.Auto with Func.NewLocal
+    cmd/{cover,covdata}: minor code cleanups
     
-    Change-Id: I0858568d225daba1c318842dc0c9b5e652dff612
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526519
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Delete some unused code, and fix a few warnings from staticcheck.
+    
+    Change-Id: I3d3a6f13dccffda060449948769c305d93a0389c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441936
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/config.go        |  4 ----
- src/cmd/compile/internal/ssa/cse_test.go      |  5 ++---
- src/cmd/compile/internal/ssa/export_test.go   | 11 ++++++-----
- src/cmd/compile/internal/ssa/func.go          |  7 +++++++
- src/cmd/compile/internal/ssa/regalloc.go      |  2 +-
- src/cmd/compile/internal/ssa/regalloc_test.go | 15 +++++++--------
- src/cmd/compile/internal/ssa/stackalloc.go    |  2 +-
- src/cmd/compile/internal/ssa/writebarrier.go  |  2 +-
- src/cmd/compile/internal/ssagen/ssa.go        |  4 ----
- 9 files changed, 25 insertions(+), 27 deletions(-)
+ src/cmd/covdata/subtractintersect.go |  1 -
+ src/cmd/covdata/tool_test.go         | 12 +++++-------
+ src/cmd/cover/cfg_test.go            |  4 ++--
+ src/cmd/cover/cover.go               | 34 ++--------------------------------
+ 4 files changed, 9 insertions(+), 42 deletions(-)

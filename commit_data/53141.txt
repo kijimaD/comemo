@@ -1,17 +1,18 @@
-commit 24617a068c55d0ee7ef56d1b9fb951ee1e75f67d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu May 18 17:19:37 2023 +0000
+commit 76a82f09d6da7e6fe18b703e5497795a19a780df
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 18 12:15:09 2022 -0700
 
-    runtime: flush idle time to sched.idleTime on limiter event consumption
+    [dev.unified] cmd/compile/internal/noder: prefer *At functions
     
-    This was an oversight, which might cause accounted-for idle time to be
-    lost. Noticed this while working on #60276.
+    Unified IR tries to avoid depending on base.Pos, so we should prefer
+    explicit position arguments wherever possible.
     
-    Change-Id: Ic743785d6dc82555e660f2c9b6aaa9dedef56ed8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496117
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I7163b1b8c5244fe7c2a7989e6a3f459a21a23e81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418096
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/mgclimit.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/noder/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

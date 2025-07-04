@@ -1,29 +1,29 @@
-commit 9f1c78781b320b6d7cf83378b857c1168cb7fd0f
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sat Sep 24 17:03:30 2016 +0200
+commit 3d81d4adc9419e2fcba5888ab074d3f17eb5eb03
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 31 13:32:34 2016 -0700
 
-    cmd/cgo: fix line info in _cgo_gotypes.go
+    spec: document that duplicate types are invalid in type switches
     
-    Don't write line info for types, we don't have it.
-    Otherwise types look like:
+    Both compilers and also go/types don't permit duplicate types in
+    type switches; i.e., this spec change is documenting a status quo
+    that has existed for some time.
     
-    type _Ctype_struct_cb struct {
-    //line :1
-          on_test *[0]byte
-    //line :1
-    }
+    Furthermore, duplicate nils are not accepted by gccgo or go/types;
+    and more recently started causing a compiler error in gc. Permitting
+    them is inconsistent with the existing status quo.
     
-    Which is not useful. Moreover we never override source info,
-    so subsequent source code uses the same source info.
-    Moreover, empty file name makes compile emit no source debug info at all.
+    Rather than making it an implementation restriction (as we have for
+    expression switches), this is a hard requirement since it was enforced
+    from the beginning (except for duplicate nils); it is also a well
+    specified requirement that does not pose a significant burden for
+    an implementation.
     
-    Update #17190
+    Fixes #15896.
     
-    Change-Id: I7ae6fa4964520d7665743d340419b787df0b51e8
-    Reviewed-on: https://go-review.googlesource.com/29713
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If12db5bafa87598b323ea84418cb05421e657dd8
+    Reviewed-on: https://go-review.googlesource.com/23584
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cgo/out.go | 19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

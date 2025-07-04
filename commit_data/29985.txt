@@ -1,19 +1,26 @@
-commit 78860b2ad2261b6e3dc29006d2ffbdc4da14cb2e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 25 06:25:17 2017 -0800
+commit d2aa8601b5aafa9736f8e49ca713ecc31f9a011f
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Oct 18 17:51:04 2016 -0700
 
-    cmd/go: don't reject ./... matching top-level file outside GOPATH
+    archive/tar: make Reader handle GNU format properly
     
-    This unwinds a small part of CL 31668: we now accept "./." in cleanImport.
+    The GNU format does not have a prefix field, so we should make
+    no attempt to read it. It does however have atime and ctime fields.
+    Since Go previously placed incorrect values here, we liberally
+    read the atime and ctime fields and ignore errors so that old tar
+    files written by Go can at least be partially read.
     
-    Fixes #18778.
+    This fixes half of #12594. The Writer is much harder to fix.
     
-    Change-Id: Ia7f1fde1cafcea3cc9e0b597a95a0e0bb410a3ed
-    Reviewed-on: https://go-review.googlesource.com/35646
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #12594
+    
+    Change-Id: Ia32845e2f262ee53366cf41dfa935f4d770c7a30
+    Reviewed-on: https://go-review.googlesource.com/31444
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 23 +++++++++++++++++++++++
- src/cmd/go/pkg.go     |  2 +-
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/archive/tar/reader.go                    |  28 ++++++++++++++--
+ src/archive/tar/reader_test.go               |  47 +++++++++++++++++++++++++++
+ src/archive/tar/testdata/gnu-incremental.tar | Bin 0 -> 2560 bytes
+ 3 files changed, 72 insertions(+), 3 deletions(-)

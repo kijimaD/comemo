@@ -1,19 +1,21 @@
-commit c84ae1c49970453158b511c54d5df63e438d2ce9
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 18 10:28:59 2015 -0500
+commit 5505e8ccc74e8e4cbacace0143730a309b1a7655
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 12 23:27:26 2015 -0700
 
-    runtime: eliminate write barriers from mem_plan9.go
+    [dev.ssa] cmd/compile/internal/ssa: implement slice opcodes
     
-    This replaces *memHdr with memHdrPtr.
+    Implement OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR.
     
-    Updates #10600.
+    reviewer: Ignore the code in OINDEX, that's from CL 14466.
     
-    Change-Id: I673aa2cd20f29abec8ab91ed7e783718c8479ce1
-    Reviewed-on: https://go-review.googlesource.com/17009
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Change-Id: I00cc8aecd4c6f40ea5517cd660bb0ce759d91171
+    Reviewed-on: https://go-review.googlesource.com/14538
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/runtime/mem_plan9.go | 33 +++++++++++++++++++--------------
- 1 file changed, 19 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                | 210 +++++++++++++++-------
+ src/cmd/compile/internal/gc/ssa_test.go           |   2 +
+ src/cmd/compile/internal/gc/testdata/array_ssa.go | 147 +++++++++++++++
+ src/cmd/compile/internal/gc/type.go               |   4 +
+ src/cmd/compile/internal/ssa/type.go              |   2 +
+ src/cmd/compile/internal/ssa/type_test.go         |   2 +
+ 6 files changed, 307 insertions(+), 60 deletions(-)

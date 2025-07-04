@@ -1,28 +1,35 @@
-commit deb3403ff52b8833df6c4e2f82cbdddeb13573dd
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jul 8 16:20:51 2020 -0400
+commit 6abbfc17c255c07134a69c3ca305231db80530ec
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Oct 28 18:06:05 2020 -0400
 
-    go/build: include files with parse errors in GoFiles and other lists
+    runtime: add world-stopped assertions
     
-    go/build.ImportDir returns a *build.Package with various lists of
-    files. If a file is invalid for some reason, for example, because it
-    has a different package name than other files, it's added to
-    InvalidGoFiles in addition to GoFiles, TestGoFiles, or other lists.
+    Stopping the world is an implicit lock for many operations, so we should
+    assert the world is stopped in functions that require it.
     
-    Previously, files with parse errors or build constraint errors were
-    not included in these lists, which causes problems for tools that use
-    'go list' since InvalidGoFiles is not printed. With this change, files
-    with any kind of error are added to one of the GoFiles lists.
+    This is enabled along with the rest of lock ranking, though it is a bit
+    orthogonal and likely cheap enough to enable all the time should we
+    choose.
     
-    Fixes #39986
+    Requiring a lock _or_ world stop is common, so that can be expressed as
+    well.
     
-    Change-Id: Iee007b5092293eb4420c8a39ce731805fe32135f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241577
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Updates #40677
+    
+    Change-Id: If0a58544f4251d367f73c4120c9d39974c6cd091
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248577
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/testdata/script/list_load_err.txt | 26 +++++++++++++++++++++-----
- src/go/build/build.go                        | 19 +++++++++++--------
- 2 files changed, 32 insertions(+), 13 deletions(-)
+ src/runtime/heapdump.go     | 15 +++++++++
+ src/runtime/lockrank_off.go | 16 +++++++++
+ src/runtime/lockrank_on.go  | 79 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mcheckmark.go   |  2 ++
+ src/runtime/mgc.go          |  2 ++
+ src/runtime/mgcmark.go      |  4 +++
+ src/runtime/mgcsweep.go     |  2 ++
+ src/runtime/mstats.go       | 14 ++++++--
+ src/runtime/proc.go         | 14 ++++++++
+ 9 files changed, 145 insertions(+), 3 deletions(-)

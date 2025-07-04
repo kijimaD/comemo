@@ -1,23 +1,15 @@
-commit 1ba04c171a3c3a1ea0e5157e8340b606ec9d8949
+commit d5a36cd6bb14a3bf00c58779848beeaeb87ade7d
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jan 21 11:20:23 2014 +0400
+Date:   Tue Jan 21 10:53:51 2014 +0400
 
-    runtime: per-P defer pool
-    Instead of a per-goroutine stack of defers for all sizes,
-    introduce per-P defer pool for argument sizes 8, 24, 40, 56, 72 bytes.
+    runtime: zero 2-word memory blocks in-place
+    Currently for 2-word blocks we set the flag to clear the flag. Makes no sense.
+    In particular on 32-bits we call memclr always.
     
-    For a program that starts 1e6 goroutines and then joins then:
-    old: rss=6.6g virtmem=10.2g time=4.85s
-    new: rss=4.5g virtmem= 8.2g time=3.48s
-    
-    R=golang-codereviews, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/42750044
+    R=golang-codereviews, dave, iant
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/41170044
 
- src/pkg/runtime/cgocall.c |   2 -
- src/pkg/runtime/mgc0.c    |  23 +++++--
- src/pkg/runtime/msize.c   |  10 ++-
- src/pkg/runtime/panic.c   | 160 +++++++++++++++++++++-------------------------
- src/pkg/runtime/proc.c    |   1 -
- src/pkg/runtime/runtime.h |  11 +---
- 6 files changed, 97 insertions(+), 110 deletions(-)
+ src/pkg/runtime/malloc.goc | 6 ++++--
+ src/pkg/runtime/mgc0.c     | 6 ++++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)

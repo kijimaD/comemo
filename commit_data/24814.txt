@@ -1,15 +1,15 @@
-commit b4501ac4a59d78f59b92f00cc4ba1e364298a44d
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 11:33:17 2015 -0400
+commit 4219aba5dbbc94d82a4b80c1f6ecc97d7eb3a62d
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Sep 1 17:56:37 2015 -0500
 
-    cmd/cgo: added support for GOARCH=mips64{,le}
+    [dev.ssa] cmd/compile: make REPSTOSQ clobber flags
     
-    The actual cgo is not supported for now. This is just the cgo command.
+    It does a XOR internally and clobbers flags.
     
-    Change-Id: I25625100ee552971f47e681b7d613cba16a2132f
-    Reviewed-on: https://go-review.googlesource.com/14446
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Id6ef9219c4e6c3a2b5fc79c8d52bcfa30c148617
+    Reviewed-on: https://go-review.googlesource.com/14165
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/cgo/main.go | 36 ++++++++++++++++++++----------------
- 1 file changed, 20 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 4 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

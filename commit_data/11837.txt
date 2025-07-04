@@ -1,19 +1,21 @@
-commit 65ba8ee07e69d52a4452f3d3d7e2ffdb1ab79802
+commit 878153682ecac3fb00bdad50ff8dcc296e30a701
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 13 00:11:36 2012 -0500
+Date:   Sun Feb 12 23:55:33 2012 -0500
 
-    syscall: make linux Dup2 match other systems
+    cmd/fix: warn about exp, old, deleted packages
     
-    You could argue for changing all the others, but
-    Linux is outvoted, and the only time it matters
-    is when newfd==-1, in which case you can call Dup.
+    Fixes #2776.
+    
+    There was a previous attempt at CL 5592043 but that
+    seems to have stalled.  This one is simpler, and more up to date
+    (correct handling of spdy, for example).
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5650073
+    https://golang.org/cl/5645091
 
- src/pkg/syscall/syscall_linux.go        | 2 +-
- src/pkg/syscall/zsyscall_linux_386.go   | 5 ++---
- src/pkg/syscall/zsyscall_linux_amd64.go | 5 ++---
- src/pkg/syscall/zsyscall_linux_arm.go   | 5 ++---
- 4 files changed, 7 insertions(+), 10 deletions(-)
+ doc/go1.html                     |  8 --------
+ doc/go1.tmpl                     |  8 --------
+ src/cmd/fix/go1pkgrename.go      | 25 ++++++++++++++++++++++++-
+ src/cmd/fix/go1pkgrename_test.go | 10 ++++++++++
+ 4 files changed, 34 insertions(+), 17 deletions(-)

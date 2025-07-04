@@ -1,17 +1,12 @@
-commit 485bf1ed1530d0fb8ee23418ae1e3434909e5942
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 2 14:15:44 2012 -0800
+commit a142ed99d525d93b91f9f3ea6ef9b7e03a1a88ae
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 3 04:47:42 2012 +0800
 
-    Xcode: move Xcode3 specific files into sub directory
+    fix build for FreeBSD/amd64
     
-    - makes space for Xcode4 files
-    - added README
-    
-    R=golang-dev, r
+    R=rsc, golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5720059
+    https://golang.org/cl/5732043
 
- misc/xcode/3/README              | 3 +++
- misc/xcode/{ => 3}/go.pbfilespec | 0
- misc/xcode/{ => 3}/go.xclangspec | 0
- 3 files changed, 3 insertions(+)
+ src/cmd/ld/lib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

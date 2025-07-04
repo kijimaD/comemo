@@ -1,23 +1,31 @@
-commit 8cb74e1d1812caee1705eef94272c959911ee9b3
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Mar 25 11:03:47 2016 -0400
+commit 1cc5789df9eb8c88e0d7248a9a16b3d4ca854962
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jan 30 11:25:38 2016 -0800
 
-    reflect: name interface type that pins method info
+    [dev.ssa] cmd/compile: lots of small rewrite optimizations
     
-    I recently added TestUnexportedMethods which uses an interface type
-    to pin type information for an unexported method. But as written,
-    the interface type is not accessible to the reflect package.
+    Small optimizations I noticed while looking at Giovanni's test cases.
     
-    You can imagine a future compiler optimization realizing that and
-    removing the type information for f. In fact, cl/20901 happens to
-    do that.
+    More shifts by constants.
+    Indexed stores for smaller types.
+    Fold LEA into loads/stores.
+    More extending loads.
+    CMP $0 of AND -> TEST
     
-    Change-Id: I1ddb67f50cb9b5737253b58f10545f3de652c29d
-    Reviewed-on: https://go-review.googlesource.com/21112
-    Reviewed-by: Michel Lespinasse <walken@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fix order of TEST ops.
+    
+    Giovanni's test cases at https://gist.github.com/rasky/62fba94e3a20d1b05b2a
+    
+    Change-Id: I7077bc0b5319bf05767eeb39f401f4bb4b39f635
+    Reviewed-on: https://go-review.googlesource.com/19086
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/reflect/all_test.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |   35 +-
+ src/cmd/compile/internal/ssa/TODO            |    2 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  120 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   10 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   88 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1953 ++++++++++++++++++++++++--
+ 6 files changed, 2082 insertions(+), 126 deletions(-)

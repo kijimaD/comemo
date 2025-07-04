@@ -1,17 +1,14 @@
-commit c4fa25f4fc8f4419d0b0707bcdae9199a745face
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 24 17:18:56 2015 +0200
+commit 8ce80ce87ded2c02a3b7c2f15cbd19e8c2cc062d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 11 10:59:24 2015 -0400
 
-    os/exec: make Cmd.Output include stderr in ExitError
+    cmd/link: make -a output not crash
     
-    Change-Id: I3c6649d2f2521ab0843b13308569867d2e5f02da
-    Reviewed-on: https://go-review.googlesource.com/11415
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #12107.
+    
+    Change-Id: I62f1b6ac9fb6f2cfa3472253dc1c6f7b7d2a6faf
+    Reviewed-on: https://go-review.googlesource.com/13448
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/os/exec/exec.go          | 110 +++++++++++++++++++++++++++++++++++++++++--
- src/os/exec/exec_test.go     |  19 ++++++++
- src/os/exec/internal_test.go |  61 ++++++++++++++++++++++++
- 3 files changed, 186 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/data.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

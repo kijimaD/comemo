@@ -1,40 +1,44 @@
-commit 5351bcf8225747f0ef39afc44c0499822992ed11
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Sep 27 11:53:30 2023 +0200
+commit d73885588ac0a7520ac3e848112e44f5dbe97006
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 31 12:20:09 2022 -0400
 
-    syscall: simplify and optimize environment block creation on Windows
+    cmd/compile/internal/pgo: remove ListOfHotCallSites
     
-    createEnvBlock currently allocates multiple times: at least one to
-    convert the slice of strings into a NULL separated slice of bytes, and
-    then again to encode it as UTF-16. The logic to do so is also quite
-    complex.
+    The global ListOfHotCallSites set is used to communicate between
+    CanInline and InlineCalls the set of call sites that InlineCalls may
+    increase the budget for.
     
-    This CL simplifies the logic by allocating only once by encoding the
-    slice of strings into UTF-16 directly using utf16.AppendRune.
+    CanInline clears this map on each call, thus assuming that
+    InlineCalls(x) is called immediately after CanInline(x). This assumption
+    is false, as CanInline (among other cases) is recursive (CanInline ->
+    hairyVisitor.doNode -> inlCallee -> CanInline).
     
-    goos: windows
-    goarch: amd64
-    pkg: syscall
-    cpu: Intel(R) Core(TM) i7-10850H CPU @ 2.70GHz
-                      │   old.txt    │               new.txt               │
-                      │    sec/op    │   sec/op     vs base                │
-    CreateEnvBlock-12   37.92µ ± 24%   21.36µ ± 8%  -43.66% (p=0.000 n=10)
+    When this assumption proves false, we will lose the opportunity to
+    inline hot calls.
     
-                      │    old.txt    │               new.txt                │
-                      │     B/op      │     B/op      vs base                │
-    CreateEnvBlock-12   109.12Ki ± 0%   26.62Ki ± 0%  -75.60% (p=0.000 n=10)
+    This CL is the least invasive fix for this. ListOfHotCallSites is
+    actually just a subset of the candHotEdgeMap, with CallSiteInfo.Callee
+    cleared. candHotEdgeMap doesn't actually need to distinguish based on
+    Callee, so we can drop callee from candHotEdgeMap as well and just use
+    that directly [1].
     
-                      │  old.txt   │              new.txt               │
-                      │ allocs/op  │ allocs/op   vs base                │
-    CreateEnvBlock-12   4.000 ± 0%   1.000 ± 0%  -75.00% (p=0.000 n=10)
+    Later CLs should do more work to remove the globals entirely.
     
-    Change-Id: If35f62c3926b486d5253a9ae23a33b979b2f02c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531355
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    For cmd/compile, this inceases the number of PGO inlined functions by
+    ~50% for one set of PGO parameters. I have no evaluated performance
+    impact.
+    
+    [1] This is something that we likely want to change in the future.
+    
+    For #55022.
+    
+    Change-Id: I57735958d651f6dfa9bd296499841213d20e1706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446755
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/syscall/exec_windows.go | 26 ++++++++++++--------------
- 1 file changed, 12 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/inline/inl.go  | 21 ++++++++++-----------
+ src/cmd/compile/internal/pgo/irgraph.go | 15 ++++-----------
+ 2 files changed, 14 insertions(+), 22 deletions(-)

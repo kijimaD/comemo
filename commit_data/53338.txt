@@ -1,18 +1,26 @@
-commit 01b5cce626c44f7fd1ca7e2c076d63c175193ccf
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Wed May 24 17:35:56 2023 -0700
+commit 29b07037b1066cae8ec9e35f87d461700b6de600
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 6 15:27:30 2022 -0700
 
-    doc: add release notes for additions to the slices package
+    cmd/compile/internal/noder: prune unified IR's dictionary logic
     
-    Updates #60091
+    Unified IR uses static dictionaries for some itabs and function/method
+    expressions, and they're roughly the right idea. But at the same time,
+    they're actually somewhat brittle and I need to reorganize some ideas
+    anyway to get shaped-based stenciling working. So this CL just rips
+    them out entirely.
     
-    Change-Id: I7438811f4e41a2977acbb5ac74c22a02c28c6597
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498175
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Note: the code for emitting runtime dictionaries with *runtime._type
+    symbols is still present, and continues to demonstrate that basic
+    runtime dictionary handling is working.
+    
+    Change-Id: I44eb1c7974fb397909ad5db12987659e7505c2ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421819
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Eli Bendersky‎ <eliben@golang.org>
-    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/go1.21.html | 38 ++++++++------------------------------
- 1 file changed, 8 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 102 +++++---------------------
+ src/cmd/compile/internal/noder/writer.go | 122 ++-----------------------------
+ 2 files changed, 24 insertions(+), 200 deletions(-)

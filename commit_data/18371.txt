@@ -1,19 +1,21 @@
-commit 90c066da52f1f8f74e2f5cb2a9b65415140c5b57
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jan 28 14:12:25 2014 -0500
+commit d176e3d7c5bb50685c95aaf1e0e3133bea0ea57f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 28 22:38:39 2014 +0400
 
-    encoding/asn1: support set tag when unmarshaling.
+    runtime: prefetch next block in mallocgc
     
-    This change also addresses some places where the comments were lacking.
+    json-1
+    cputime                  99600000     98600000      -1.00%
+    time                    100005493     98859693      -1.15%
     
-    Fixes #7087.
+    garbage-1
+    cputime                  15760000     15440000      -2.03%
+    time                     15791759     15471701      -2.03%
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/56700043
+    LGTM=khr
+    R=golang-codereviews, gobot, khr, dave
+    CC=bradfitz, golang-codereviews, iant
+    https://golang.org/cl/57310043
 
- src/pkg/encoding/asn1/asn1.go      | 17 ++++++++++++++---
- src/pkg/encoding/asn1/asn1_test.go |  5 +++++
- src/pkg/encoding/asn1/marshal.go   |  8 ++++++++
- 3 files changed, 27 insertions(+), 3 deletions(-)
+ src/pkg/runtime/malloc.goc | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

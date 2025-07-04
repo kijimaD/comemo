@@ -1,28 +1,24 @@
-commit a1337ef40cfa71625595b5b7f10b15341c1240f2
-Author: Ludi Rehak <ludi317@gmail.com>
-Date:   Tue Aug 9 09:36:17 2022 -0700
+commit 9fc28892cb88dd4c7b0552137b97c1692c23e46b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 14 13:09:19 2021 -0700
 
-    crypto/tls: change Conn.handshakeStatus type to atomic.Bool
+    cmd/compile/internal/types2: export TypeHash, return value without blanks
     
-    Change the type of Conn.handshakeStatus from an atomically
-    accessed uint32 to an atomic.Bool. Change its name to
-    Conn.isHandshakeComplete to indicate it is a boolean value.
-    Eliminate the handshakeComplete() helper function, which checks
-    for equality with 1, in favor of the simpler
-    c.isHandshakeComplete.Load().
+    Change the typeWriter to produce blank-free hashes where easily possible
+    if used as a type hasher, and replace remaining blanks with '#' is needed.
     
-    Change-Id: I084c83956fff266e2145847e8645372bef6ae9df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422296
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Exported Environment.TypeHash for use by the compiler.
+    
+    Change-Id: Icbd364c207f9c139a7a1844bb695512a0c56a4e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349990
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/tls/conn.go                   | 33 ++++++++++++++------------------
- src/crypto/tls/handshake_client.go       |  3 +--
- src/crypto/tls/handshake_client_tls13.go |  3 +--
- src/crypto/tls/handshake_server.go       |  3 +--
- src/crypto/tls/handshake_server_tls13.go |  3 +--
- 5 files changed, 18 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/types2/environment.go |  9 ++---
+ src/cmd/compile/internal/types2/instantiate.go |  2 +-
+ src/cmd/compile/internal/types2/named.go       |  2 +-
+ src/cmd/compile/internal/types2/subst.go       |  2 +-
+ src/cmd/compile/internal/types2/typestring.go  | 46 ++++++++++++++++++--------
+ 5 files changed, 41 insertions(+), 20 deletions(-)

@@ -1,19 +1,24 @@
-commit 5e20f2e4dfdfea7deb9ad9e2a9909a32588334a0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 17 17:25:33 2022 +0700
+commit 7a03ca65b303474c2ea610178105304eae1180df
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Sep 16 11:33:17 2021 -0700
 
-    runtime/trace: convert tracing.enabled to atomic type
+    internal/fuzz,cmd/compile: don't add race instrumentation to counters
     
-    Updates #53821
+    Don't add race detector instrumentation to the fuzzing counters,
+    allowing usage of -race without immediately triggering the
+    detector. Also fixes a minor race in contextReader.Read.
     
-    Change-Id: I8a063ae94568cd2ea65c2e891618069a96139891
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423884
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #48307
+    
+    Change-Id: Idb2cfeaa4283f8a74473b4bac6cd68eed577e943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351453
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/trace/annotation.go | 3 +--
- src/runtime/trace/trace.go      | 8 ++++----
- 2 files changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
+ src/cmd/compile/internal/walk/order.go       | 8 ++++++++
+ src/internal/fuzz/worker.go                  | 8 +++++---
+ 3 files changed, 14 insertions(+), 4 deletions(-)

@@ -1,143 +1,17 @@
-commit 4406ed6d4ea90fe9489bd68c61d330a6d2378498
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed May 24 01:55:45 2023 +0200
+commit beebd537ca1ae8ff29576477a88be7d8dff7d638
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 4 11:55:33 2022 +0100
 
-    crypto/tls: implement Extended Master Secret
+    encoding/xml: use bytes.Buffer.WriteString
     
-    All OpenSSL tests now test operation with EMS. To test a handshake
-    *without* EMS we need to pass -Options=-ExtendedMasterSecret which is
-    only available in OpenSSL 3.1, which breaks a number of other tests.
-    
-    Updates #43922
-    
-    Change-Id: Ib9ac79a1d03fab6bfba5fe9cd66689cff661cda7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497376
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Icb0b917c48252ed8831e6c07109c1bc2d2438a42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421234
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: hopehook <hopehook@qq.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dan Kortschak <dan@kortschak.io>
 
- api/except.txt                                     |   1 +
- src/crypto/tls/common.go                           |  13 +-
- src/crypto/tls/conn.go                             |   3 +-
- src/crypto/tls/handshake_client.go                 |  27 +-
- src/crypto/tls/handshake_client_tls13.go           |   1 +
- src/crypto/tls/handshake_messages.go               |  16 +
- src/crypto/tls/handshake_messages_test.go          |   9 +
- src/crypto/tls/handshake_server.go                 |  21 +-
- src/crypto/tls/prf.go                              |   9 +
- .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  | 167 +++---
- .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    | 175 +++---
- .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    | 167 +++---
- .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  | 175 +++---
- .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     | 147 ++---
- .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       | 155 ++---
- .../testdata/Client-TLSv10-ExportKeyingMaterial    | 155 ++---
- src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      | 122 ++--
- .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     | 147 ++---
- .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       | 155 ++---
- src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      | 122 ++--
- .../tls/testdata/Client-TLSv12-AES128-GCM-SHA256   | 126 ++--
- .../tls/testdata/Client-TLSv12-AES128-SHA256       | 140 ++---
- .../tls/testdata/Client-TLSv12-AES256-GCM-SHA384   | 126 ++--
- src/crypto/tls/testdata/Client-TLSv12-ALPN         | 150 ++---
- .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 177 +++---
- .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    | 177 +++---
- .../tls/testdata/Client-TLSv12-ClientCert-Ed25519  | 163 +++---
- .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 | 175 +++---
- .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 173 +++---
- .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  | 175 +++---
- .../Client-TLSv12-ClientCert-RSA-RSAPKCS1v15       | 169 +++---
- .../testdata/Client-TLSv12-ClientCert-RSA-RSAPSS   | 171 +++---
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     | 147 ++---
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM | 141 ++---
- .../Client-TLSv12-ECDHE-ECDSA-AES128-SHA256        | 155 ++---
- .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    | 141 ++---
- .../Client-TLSv12-ECDHE-ECDSA-CHACHA20-POLY1305    | 138 ++---
- .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       | 155 ++---
- .../testdata/Client-TLSv12-ECDHE-RSA-AES128-SHA256 | 163 +++---
- .../Client-TLSv12-ECDHE-RSA-CHACHA20-POLY1305      | 146 ++---
- src/crypto/tls/testdata/Client-TLSv12-Ed25519      | 101 ++--
- .../testdata/Client-TLSv12-ExportKeyingMaterial    | 145 ++---
- src/crypto/tls/testdata/Client-TLSv12-P256-ECDHE   | 158 ++---
- src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      | 122 ++--
- .../tls/testdata/Client-TLSv12-RenegotiateOnce     | 442 +++++++-------
- .../tls/testdata/Client-TLSv12-RenegotiateTwice    | 633 +++++++++++----------
- .../Client-TLSv12-RenegotiateTwiceRejected         | 448 +++++++--------
- .../testdata/Client-TLSv12-RenegotiationRejected   | 151 ++---
- src/crypto/tls/testdata/Client-TLSv12-SCT          | 147 ++---
- src/crypto/tls/testdata/Client-TLSv12-X25519-ECDHE | 150 ++---
- .../tls/testdata/Client-TLSv13-AES128-SHA256       | 151 ++---
- .../tls/testdata/Client-TLSv13-AES256-SHA384       | 155 ++---
- src/crypto/tls/testdata/Client-TLSv13-ALPN         | 156 ++---
- .../tls/testdata/Client-TLSv13-CHACHA20-SHA256     | 151 ++---
- .../testdata/Client-TLSv13-ClientCert-ECDSA-RSA    | 249 ++++----
- .../tls/testdata/Client-TLSv13-ClientCert-Ed25519  | 215 +++----
- .../testdata/Client-TLSv13-ClientCert-RSA-ECDSA    | 239 ++++----
- .../testdata/Client-TLSv13-ClientCert-RSA-RSAPSS   | 257 ++++-----
- src/crypto/tls/testdata/Client-TLSv13-ECDSA        | 143 ++---
- src/crypto/tls/testdata/Client-TLSv13-Ed25519      | 107 ++--
- .../testdata/Client-TLSv13-ExportKeyingMaterial    | 151 ++---
- .../tls/testdata/Client-TLSv13-HelloRetryRequest   | 168 +++---
- src/crypto/tls/testdata/Client-TLSv13-KeyUpdate    | 167 +++---
- src/crypto/tls/testdata/Client-TLSv13-P256-ECDHE   | 158 ++---
- src/crypto/tls/testdata/Client-TLSv13-X25519-ECDHE | 152 ++---
- .../tls/testdata/Server-TLSv10-ECDHE-ECDSA-AES     | 140 ++---
- .../testdata/Server-TLSv10-ExportKeyingMaterial    | 162 +++---
- src/crypto/tls/testdata/Server-TLSv10-RSA-3DES     | 137 +++--
- src/crypto/tls/testdata/Server-TLSv10-RSA-AES      | 143 +++--
- src/crypto/tls/testdata/Server-TLSv10-RSA-RC4      | 131 +++--
- src/crypto/tls/testdata/Server-TLSv11-RSA-RC4      | 131 +++--
- src/crypto/tls/testdata/Server-TLSv12-ALPN         | 152 ++---
- .../tls/testdata/Server-TLSv12-ALPN-Fallback       | 150 ++---
- .../tls/testdata/Server-TLSv12-ALPN-NotConfigured  | 150 ++---
- .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven | 158 ++---
- ...erver-TLSv12-ClientAuthRequestedAndEd25519Given | 150 ++---
- .../Server-TLSv12-ClientAuthRequestedAndGiven      | 158 ++---
- ...rver-TLSv12-ClientAuthRequestedAndPKCS1v15Given | 158 ++---
- .../Server-TLSv12-ClientAuthRequestedNotGiven      | 140 ++---
- .../tls/testdata/Server-TLSv12-ECDHE-ECDSA-AES     | 138 ++---
- src/crypto/tls/testdata/Server-TLSv12-Ed25519      |  92 +--
- .../testdata/Server-TLSv12-ExportKeyingMaterial    | 166 +++---
- src/crypto/tls/testdata/Server-TLSv12-IssueTicket  | 156 ++---
- .../testdata/Server-TLSv12-IssueTicketPreDisable   | 156 ++---
- src/crypto/tls/testdata/Server-TLSv12-P256         | 160 +++---
- src/crypto/tls/testdata/Server-TLSv12-RSA-3DES     | 144 +++--
- src/crypto/tls/testdata/Server-TLSv12-RSA-AES      | 148 +++--
- src/crypto/tls/testdata/Server-TLSv12-RSA-AES-GCM  | 149 +++--
- .../testdata/Server-TLSv12-RSA-AES256-GCM-SHA384   | 149 +++--
- src/crypto/tls/testdata/Server-TLSv12-RSA-RC4      | 138 +++--
- .../tls/testdata/Server-TLSv12-RSA-RSAPKCS1v15     | 136 ++---
- src/crypto/tls/testdata/Server-TLSv12-RSA-RSAPSS   | 136 ++---
- src/crypto/tls/testdata/Server-TLSv12-Resume       |  92 +--
- .../tls/testdata/Server-TLSv12-ResumeDisabled      | 164 +++---
- src/crypto/tls/testdata/Server-TLSv12-SNI          | 149 +++--
- .../tls/testdata/Server-TLSv12-SNI-GetCertificate  | 149 +++--
- .../Server-TLSv12-SNI-GetCertificateNotFound       | 149 +++--
- src/crypto/tls/testdata/Server-TLSv12-X25519       | 152 +++--
- .../tls/testdata/Server-TLSv13-AES128-SHA256       | 166 +++---
- .../tls/testdata/Server-TLSv13-AES256-SHA384       | 172 +++---
- src/crypto/tls/testdata/Server-TLSv13-ALPN         | 168 +++---
- .../tls/testdata/Server-TLSv13-ALPN-Fallback       | 164 +++---
- .../tls/testdata/Server-TLSv13-ALPN-NotConfigured  | 166 +++---
- .../tls/testdata/Server-TLSv13-CHACHA20-SHA256     | 166 +++---
- .../Server-TLSv13-ClientAuthRequestedAndECDSAGiven | 332 +++++------
- ...erver-TLSv13-ClientAuthRequestedAndEd25519Given | 268 ++++-----
- .../Server-TLSv13-ClientAuthRequestedAndGiven      | 325 ++++++-----
- .../Server-TLSv13-ClientAuthRequestedNotGiven      | 178 +++---
- .../tls/testdata/Server-TLSv13-ECDHE-ECDSA-AES     | 158 ++---
- src/crypto/tls/testdata/Server-TLSv13-Ed25519      | 122 ++--
- .../testdata/Server-TLSv13-ExportKeyingMaterial    | 166 +++---
- .../tls/testdata/Server-TLSv13-HelloRetryRequest   | 190 +++----
- src/crypto/tls/testdata/Server-TLSv13-IssueTicket  | 166 +++---
- .../testdata/Server-TLSv13-IssueTicketPreDisable   | 166 +++---
- src/crypto/tls/testdata/Server-TLSv13-P256         | 170 +++---
- src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 166 +++---
- src/crypto/tls/testdata/Server-TLSv13-Resume       |  84 +--
- .../Server-TLSv13-Resume-HelloRetryRequest         | 132 ++---
- src/crypto/tls/testdata/Server-TLSv13-X25519       | 166 +++---
- src/crypto/tls/ticket.go                           |  19 +-
- src/crypto/tls/tls_test.go                         |   6 +
- 121 files changed, 9367 insertions(+), 9243 deletions(-)
+ src/encoding/xml/xml.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

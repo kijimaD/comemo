@@ -1,20 +1,22 @@
-commit 30d0452b24f7418e616ba5c74d248473a84d5bca
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 3 15:19:00 2012 -0500
+commit 005686ff9711287ac97c294cb55a014bce6fbac0
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Feb 3 15:08:53 2012 -0500
 
-    lib9/utf: make safe for automatic build
+    crypto/...: changes to address some of bug 2841.
     
-    Add // +build ignore to mkrunetype.c,
-    rename runetypebody to be .h since it is #included,
-    delete old runetypebody tables.
+    This change addresses a subset of the issues raised in bug 2841.
     
-    R=golang-dev, bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5627043
+    https://golang.org/cl/5629044
 
- src/lib9/utf/mkrunetype.c                          |    2 +
- src/lib9/utf/runetype.c                            |    2 +-
- src/lib9/utf/runetypebody-5.0.0.c                  | 1361 -----------------
- src/lib9/utf/runetypebody-5.2.0.c                  | 1541 --------------------
- .../{runetypebody-6.0.0.c => runetypebody-6.0.0.h} |    0
- 5 files changed, 3 insertions(+), 2903 deletions(-)
+ src/pkg/crypto/cipher/cbc.go       |   2 +-
+ src/pkg/crypto/cipher/ocfb.go      | 138 -------------------------------------
+ src/pkg/crypto/cipher/ocfb_test.go |  44 ------------
+ src/pkg/crypto/crypto.go           |  27 +++++---
+ src/pkg/crypto/des/cipher.go       |   4 +-
+ src/pkg/crypto/rsa/pkcs1v15.go     |   2 +-
+ src/pkg/crypto/rsa/rsa.go          |   2 +-
+ src/pkg/crypto/tls/tls.go          |  28 +++-----
+ src/pkg/crypto/x509/pkix/pkix.go   |   2 +
+ 9 files changed, 34 insertions(+), 215 deletions(-)

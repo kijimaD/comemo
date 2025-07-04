@@ -1,14 +1,19 @@
-commit 162f1bf7c21116d218c41b085f844dcd75ef6544
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 9 17:34:07 2020 -0700
+commit efd395f9fb429ea3e677d9e378b858cd083eec11
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 1 04:07:23 2019 +0700
 
-    test: add test case that gccgo failed to compile
+    cmd/compile: make duplicate index error distinguish arrays and slices
     
-    Change-Id: I08ca5f77b7352fe3ced1fbe3d027d6f5b4828e35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227783
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #35291
+    
+    Change-Id: I11ae367b6e972cd9e7a22bbc2cb23d32f4d72b98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204617
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/fixedbugs/bug508.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/compile/internal/gc/typecheck.go | 13 +++++++------
+ test/fixedbugs/issue13365.go             |  6 +++---
+ test/fixedbugs/issue35291.go             | 14 ++++++++++++++
+ test/fixedbugs/issue7153.go              |  2 +-
+ 4 files changed, 25 insertions(+), 10 deletions(-)

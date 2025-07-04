@@ -1,14 +1,17 @@
-commit 191a6bfc5e99911f905cb582b676b5502c7b5aad
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 2 11:07:41 2011 -0700
+commit 4d15577783aaf5d6c3b53850d44b38b1bef305bc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 2 10:26:09 2011 -0700
 
-    big: do not modify divisor
+    exec: add Cmd methods StdinPipe, StdoutPipe, StderrPipe
     
-    Fixes #1907.
+    It gets annoying to do this in caller code otherwise,
+    especially having to remember to Close one side.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4527096
+    https://golang.org/cl/4517134
 
- src/pkg/big/nat.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/exec/exec.go      | 61 +++++++++++++++++++++++++++++++++++++--
+ src/pkg/exec/exec_test.go | 72 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/cgi/host.go  | 13 ++++-----
+ 3 files changed, 136 insertions(+), 10 deletions(-)

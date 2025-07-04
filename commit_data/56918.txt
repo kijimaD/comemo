@@ -1,36 +1,20 @@
-commit e8c5bed7ea43e1a533c322e6b928ed06327721db
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Jul 22 12:44:49 2024 -0400
+commit e946f0e1ff09a8a31465b4e2f5add29baa4a1352
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon May 22 11:20:35 2023 -0500
 
-    doc: initialize next directory for Go 1.24
+    cmd/link: support R_PPC64_REL24_P9NOTOC
     
-    Following the "For the release team" steps in README:
+    This can be treated identically to R_PPC64_REL24_NOTOC as stubs
+    are generated based on GOPPC64 and -buildmode.
     
-            cd doc
-            cp -R initial/ next
-            $EDITOR next/1-intro.md
-    
-    Dropped '*' from the cp -R command to avoid needing to
-    create an empty next directory with a separate command.
-    
-    For #68545.
-    For #67586.
-    
-    Change-Id: I25215bc35a043e0f26d4a86ffe66eb3c26348fef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600177
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I3c42a9bf3c08d107fb656e6bf59b2307783bd9af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497915
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
 
- doc/README.md                           |  2 +-
- doc/next/1-intro.md                     | 14 ++++++++++++++
- doc/next/2-language.md                  |  3 +++
- doc/next/3-tools.md                     |  6 ++++++
- doc/next/4-runtime.md                   |  1 +
- doc/next/5-toolchain.md                 |  7 +++++++
- doc/next/6-stdlib/0-heading.md          |  2 ++
- doc/next/6-stdlib/99-minor/0-heading.md |  3 +++
- doc/next/6-stdlib/99-minor/README       |  1 +
- doc/next/7-ports.md                     |  2 ++
- 10 files changed, 40 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 1 +
+ src/cmd/link/internal/ppc64/asm.go     | 9 +++++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

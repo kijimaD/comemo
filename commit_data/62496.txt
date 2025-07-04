@@ -1,0 +1,49 @@
+commit c40a3731f45047c3b903cafae287ea8e5762e062
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Mar 7 13:53:34 2025 -0500
+
+    internal/godebugs: add decoratemappings as an opaque godebug setting
+    
+    This adds a new godebug to control whether the runtime applies the
+    anonymous memory mapping annotations added in https://go.dev/cl/646095.
+    It is enabled by default.
+    
+    This has several effects:
+    
+    * The feature is only enabled by default when the main go.mod has go >=
+      1.25.
+    * This feature can be disabled with GODEBUG=decoratemappings=0, or the
+      equivalents in go.mod or package main. See https://go.dev/doc/godebug.
+    * As an opaque setting, this option will not appear in runtime/metrics.
+    * This setting is non-atomic, so it cannot be changed after startup.
+    
+    I am not 100% sure about my decision for the last two points.
+    
+    I've made this an opaque setting because it affects every memory mapping
+    the runtime performs. Thus every mapping would report "non-default
+    behavior", which doesn't seem useful.
+    
+    This setting could trivially be atomic and allow changes at run time,
+    but those changes would only affect future mappings. That seems
+    confusing and not helpful. On the other hand, going back to annotate or
+    unannotate every previous mapping when the setting changes is
+    unwarranted complexity.
+    
+    For #71546.
+    
+    Change-Id: I6a6a636c5ad551d76691cba2a6f668d5cff0e352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655895
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ doc/godebug.md                                     | 11 +++++++
+ doc/next/4-runtime.md                              |  8 +++++
+ .../testdata/script/godebug_decoratemappings.txt   | 37 ++++++++++++++++++++++
+ src/internal/godebugs/table.go                     |  1 +
+ src/runtime/extern.go                              |  7 ++++
+ src/runtime/runtime1.go                            |  2 ++
+ src/runtime/set_vma_name_linux.go                  |  2 +-
+ test/decoratemappingszero.go                       | 30 ++++++++++++++++++
+ 8 files changed, 97 insertions(+), 1 deletion(-)

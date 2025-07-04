@@ -1,27 +1,32 @@
-commit 1cf6b502630034980ba7de8156e4d7c1da7a7845
-Author: David Chase <drchase@google.com>
-Date:   Wed Mar 5 14:27:15 2025 -0500
+commit 5dceddfe7cc53f70cdadcd2fab312fa94c4d04f5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jan 23 13:29:23 2024 -0500
 
-    cmd/compile: remove no-longer-necessary recursive inlining checks
+    runtime: use channels in gcBgMarkStartWorkers
     
-    this does result in a little bit more inlining,
-    cmd/compile text is 0.5% larger,
-    bent-benchmark text geomeans grow by only 0.02%.
-    some of our tests make assumptions about inlining.
+    gcBgMarkStartWorkers currently starts workers one at a time, using a
+    note to communicate readiness back from the worker.
     
-    Change-Id: I999d1798aca5dc64a1928bd434258a61e702951a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655157
+    However, this is a pretty standard goroutine, so we can just use a
+    channel to communicate between the goroutines.
+    
+    In addition to being conceptually simpler, using channels has the
+    additional advantage of coordinating with the scheduler. Notes use OS
+    locks and sleep the entire thread, requiring other threads to run the
+    other goroutines. Waiting on a channel allows the scheduler to directly
+    run another goroutine. When the worker sends to the channel, the
+    scheduler can use runnext to run gcBgMarkStartWorker immediately,
+    reducing latency.
+    
+    We could additionally batch start all workers and then wait only once,
+    however this would defeate runnext switching between the workers and
+    gcBgMarkStartWorkers, so in a heavily loaded system, we expect the
+    direct switches to reduce latency.
+    
+    Change-Id: Iedf0d2ad8ad796b43fd8d32ccb1e815cfe010cb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558535
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/cgo/internal/test/issue42018_windows.go |  2 +
- src/cmd/compile/internal/inline/inl.go          | 68 +------------------------
- src/runtime/pprof/proto_test.go                 |  3 ++
- test/fixedbugs/issue40954.go                    |  2 +
- test/fixedbugs/issue52193.go                    |  4 +-
- test/fixedbugs/issue54159.go                    |  3 +-
- test/inline.go                                  | 10 ++--
- test/loopbce.go                                 |  1 +
- test/newinline.go                               |  6 +--
- 9 files changed, 21 insertions(+), 78 deletions(-)
+ src/runtime/mgc.go | 43 +++++++++++++++++++++++++++++++++----------
+ 1 file changed, 33 insertions(+), 10 deletions(-)

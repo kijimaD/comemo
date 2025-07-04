@@ -1,18 +1,14 @@
-commit 99d29d5a43da0efde2ed9a137627d0d310e3baad
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu May 19 15:58:40 2016 +1000
+commit f76b793784cc8c89ca1b28002846a8cd76a90fb5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 00:41:54 2016 -0700
 
-    path/filepath: fix globbing of c:\*dir\... pattern
+    net/http/httputil: deprecate Client+ServerConn harder, use Deprecated syntax
     
-    The problem was introduced by the recent filepath.Join change.
+    Also cleans up return parameter stutter and missing periods.
     
-    Fixes #14949
-    
-    Change-Id: I7ee52f210e12bbb1369e308e584ddb2c7766e095
-    Reviewed-on: https://go-review.googlesource.com/23240
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I47f5c230227ddfd1b105d5e06842f89ffea50760
+    Reviewed-on: https://go-review.googlesource.com/21362
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/path/filepath/match.go      |  40 ++++++++--
- src/path/filepath/match_test.go | 163 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 196 insertions(+), 7 deletions(-)
+ src/net/http/httputil/persist.go | 71 +++++++++++++++++++---------------------
+ 1 file changed, 34 insertions(+), 37 deletions(-)

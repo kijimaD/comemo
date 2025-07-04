@@ -1,16 +1,25 @@
-commit 68b55ab51319ec71fe3f00266f9c467f34c824b1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 30 11:34:24 2020 -0800
+commit 396d62533013a39b527db4b02195e816e36dbf9a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 23 16:28:23 2019 +1000
 
-    doc/go1.14: fix minor typo (update release notes)
+    compress/lzw: fix comment re high-code invariant
     
-    Follow-up on https://golang.org/cl/216200/2/doc/go1.14.html#423 .
+    The listed invariant, while technically true, was misleading, and the
+    invariant can be tightened. We never actually get to (d.hi ==
+    d.overflow), due to the "d.hi--" line in the decoder.decode method.
     
-    Updates #36878.
+    This is a comment-only commit, changing the comment to match the code.
     
-    Change-Id: I693a9eb05c6f1f42721a92fda46a4f3449defa24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217100
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    A follow-up commit could restore the comment, changing the code to match
+    the original intented invariant. But the first step is to have the
+    comment and the code say the same thing.
+    
+    Change-Id: Ifc9f78d5060454fc107af9be298026bf3043d400
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191358
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.14.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/lzw/reader.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,15 +1,27 @@
-commit 255acb0c059268c99e45b693645a256719f3abb2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 7 20:59:59 2022 -0800
+commit c9f43507c6d8106646b1262052cc9a2c5dbb6e4c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 27 23:01:16 2021 +0700
 
-    doc/go1.18: document behavior of go/types predicates for extended interfaces
+    cmd/compile: fix typechecking logical operators panic with non-boolean operand
     
-    For #47694.
+    In CL 255899, we added code to make clearer error when non-bool used
+    as operand to logical operators. The code is safe, because node type
+    is guaranteed to be non-nil.
     
-    Change-Id: Ic27193b65ef4b3c0c932107b8731b5f8d3190ad5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383918
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    In CL 279442, we refactored typechecking arith, including moving
+    typechecking logical operators to separate case. Now we have to
+    explicitly check if operand type is not nil, because calling Expr can
+    set operand type nil for non-bool operands.
+    
+    Fixes #45804
+    
+    Change-Id: Ie2b6e18f65c0614a803b343f60e78ee1d660bbeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314209
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.18.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/compile/internal/typecheck/typecheck.go |  4 ++++
+ test/fixedbugs/issue45804.go                    | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+)

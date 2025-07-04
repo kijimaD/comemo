@@ -1,28 +1,22 @@
-commit d5cd55a289144c25aff4ae8d293bb31f9bdba3a3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Aug 19 23:04:46 2023 -0700
+commit c929a5b855e5d1680a70c5e1ab11a4933655d66c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 26 18:24:03 2022 -0700
 
-    cmd/compile/internal/abi: stop using types.Func
+    debug/dwarf: don't crash on invalid range/rnglist offset
     
-    This is supposed to be an internal type within package types. At least
-    for now, users of the types package should stick to the types.Type
-    APIs as much as possible.
+    No test case because the problem can only happen for invalid data. Let
+    the fuzzer find cases like this.
     
-    This CL also unexports FuncType and a few others to prevent
-    backsliding.
+    Fixes #53529
     
-    Change-Id: I053fc115a5e6a57c148c8149851a45114756072f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521255
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I318c87795e545fe5a006d16b4d361cd4bf5d502d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434936
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/abi/abiutils.go        | 20 ++++++-------
- src/cmd/compile/internal/gc/compile.go          |  2 +-
- src/cmd/compile/internal/reflectdata/reflect.go |  9 +++---
- src/cmd/compile/internal/ssa/debug.go           |  4 +--
- src/cmd/compile/internal/ssagen/abi.go          |  2 +-
- src/cmd/compile/internal/types/type.go          | 38 ++++++++++++-------------
- 6 files changed, 36 insertions(+), 39 deletions(-)
+ src/debug/dwarf/entry.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

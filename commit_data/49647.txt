@@ -1,23 +1,22 @@
-commit 967a3d985d9252368b236411d2f0658fd636b1d4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Jul 18 17:03:30 2022 +0000
+commit 6705191e02d7e5e849a7877928003b797e0bc4f6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 1 15:50:27 2021 +0200
 
-    cmd/compile: revert "remove -installsuffix flag"
+    syscall: drop fallback to accept in Accept on Linux
     
-    This reverts CL 415236 (commit 558785a0a9df5fbb7e9617c05059cf2892884620).
+    The minimum required Linux kernel version for Go 1.18 will be changed to
+    2.6.32, see #45964. The current minimum required version is 2.6.23 and
+    accept4 was added in 2.6.28, so the fallback to accept in Accept on
+    Linux can be removed.
     
-    Reason for revert: Google's internal build system uses -installsuffix.
-    Restoring -installsuffix for Go 1.19, and will try again for Go 1.20.
+    For #45964
     
-    Change-Id: Id6571f34f99f01bcf55e8e949e6fe7b6c1896134
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418036
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I78fc4e5b58417bbc540912c9dbf1b1b3db888fea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346849
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/doc.go                   | 3 +++
- src/cmd/compile/internal/base/flag.go    | 1 +
- src/cmd/compile/internal/noder/import.go | 4 +++-
- src/cmd/go/internal/work/gc.go           | 3 +++
- 4 files changed, 10 insertions(+), 1 deletion(-)
+ src/syscall/syscall_linux.go | 4 ----
+ 1 file changed, 4 deletions(-)

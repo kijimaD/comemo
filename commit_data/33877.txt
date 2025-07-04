@@ -1,15 +1,60 @@
-commit c6ea277ac1bb81b6773d100819fcec57c8e2c95e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 13 14:38:58 2017 -0500
+commit 40e25895e3ab998033cc9f7086332d046c7f608a
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Sep 12 12:33:21 2017 -0400
 
-    test: skip "# package/path" output from cmd/go in errchk
+    cmd/compile,math: improve int<->float conversions on ppc64x
     
-    This allows errchk to be used with "go vet" output (as opposed to "go tool vet").
+    The functions Float64bits and Float64frombits perform
+    poorly on ppc64x because the int<->float conversions
+    often result in load and store sequences to handle the
+    type change. This patch adds more rules to recognize
+    those sequences and use register to register moves
+    and avoid unnecessary loads and stores where possible.
     
-    Change-Id: I0009a53c9cb74accd5bd3923c137d6dbf9e46326
-    Reviewed-on: https://go-review.googlesource.com/83836
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    There were some existing rules to improve these conversions,
+    but this provides additional improvements. Included here:
+    
+    - New instruction FCFIDS to improve on conversion to 32 bit
+    - Rename Xf2i64 and Xi2f64 as MTVSRD, MFVSRD, to match the asm
+    - Add rules to lower some of the load/store sequences for
+    - Added new go asm to ppc64.s testcase.
+    conversions
+    
+    Improvements:
+    
+    BenchmarkAbs-16                2.16          0.93          -56.94%
+    BenchmarkCopysign-16           2.66          1.18          -55.64%
+    BenchmarkRound-16              4.82          2.69          -44.19%
+    BenchmarkSignbit-16            1.71          1.14          -33.33%
+    BenchmarkFrexp-16              11.4          7.94          -30.35%
+    BenchmarkLogb-16               10.4          7.34          -29.42%
+    BenchmarkLdexp-16              15.7          11.2          -28.66%
+    BenchmarkIlogb-16              10.2          7.32          -28.24%
+    BenchmarkPowInt-16             69.6          55.9          -19.68%
+    BenchmarkModf-16               10.1          8.19          -18.91%
+    BenchmarkLog2-16               17.4          14.3          -17.82%
+    BenchmarkCbrt-16               45.0          37.3          -17.11%
+    BenchmarkAtanh-16              57.6          48.3          -16.15%
+    BenchmarkRemainder-16          76.6          65.4          -14.62%
+    BenchmarkGamma-16              26.0          22.5          -13.46%
+    BenchmarkPowFrac-16            197           174           -11.68%
+    BenchmarkMod-16                112           99.8          -10.89%
+    BenchmarkAsinh-16              59.9          53.7          -10.35%
+    BenchmarkAcosh-16              44.8          40.3          -10.04%
+    
+    Updates #21390
+    
+    Change-Id: I56cc991fc2e55249d69518d4e1ba76cc23904e35
+    Reviewed-on: https://go-review.googlesource.com/63290
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- test/errchk | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/asm/internal/asm/testdata/ppc64.s    |   8 ++
+ src/cmd/compile/internal/ppc64/ssa.go        |  25 +----
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  22 ++--
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   5 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  24 ++++-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 144 ++++++++++++++++++++++-----
+ src/cmd/internal/obj/ppc64/a.out.go          |   2 +
+ src/cmd/internal/obj/ppc64/anames.go         |   2 +
+ src/cmd/internal/obj/ppc64/asm9.go           |   6 ++
+ 9 files changed, 175 insertions(+), 63 deletions(-)

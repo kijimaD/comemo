@@ -1,22 +1,19 @@
-commit 6e3a2a3f9fcd476a50ec75f7dd2db7adfe12ab57
+commit 3b00197017ad8ec903448fe203202602b0a466df
 Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Apr 3 04:37:18 2015 -0400
+Date:   Sat Mar 7 00:18:16 2015 -0500
 
-    cmd/internal/obj/arm64, cmd/internal/ld, cmd/7l: remove absolute addressing in .text
+    runtime: add argument sizes for asm functions for bytes, strings
     
-    This CL introduces R_ADDRARM64, which is similar to R_ADDRPOWER.
+    Also fixed a stack corruption bug for nacl/amd64p32.
     
-    Fixes #10112.
-    
-    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f1
-    Reviewed-on: https://go-review.googlesource.com/8438
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I64b821b16999c296a159137d971af3870053c621
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7073
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/7l/asm.go                  |  60 ++++
- src/cmd/7l/obj.go                  |   3 +-
- src/cmd/internal/ld/elf.go         | 556 +++++++++++++++++++------------------
- src/cmd/internal/ld/link.go        |   1 +
- src/cmd/internal/obj/arm64/asm7.go |  84 +++---
- src/cmd/internal/obj/link.go       |   1 +
- 6 files changed, 392 insertions(+), 313 deletions(-)
+ src/runtime/asm_386.s      |  4 ++--
+ src/runtime/asm_amd64.s    |  4 ++--
+ src/runtime/asm_amd64p32.s |  6 +++---
+ src/runtime/asm_arm.s      | 14 +++++++-------
+ src/runtime/asm_ppc64x.s   |  2 +-
+ 5 files changed, 15 insertions(+), 15 deletions(-)

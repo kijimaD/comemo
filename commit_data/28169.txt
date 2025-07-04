@@ -1,17 +1,53 @@
-commit c53879512f38982b1e773fd2aeecee4ebf382006
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 31 13:36:10 2016 -0700
+commit caa21475328999c1cd108b71ceb6efb7f4cf8fc4
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Feb 26 21:57:16 2016 +0100
 
-    cmd/compile: missing float indexed loads/stores on amd64
+    runtime: per-P contexts for race detector
     
-    Update #16141
+    Race runtime also needs local malloc caches and currently uses
+    a mix of per-OS-thread and per-goroutine caches. This leads to
+    increased memory consumption. But more importantly cache of
+    synchronization objects is per-goroutine and we don't always
+    have goroutine context when feeing memory in GC. As the result
+    synchronization object descriptors leak (more precisely, they
+    can be reused if another synchronization object is recreated
+    at the same address, but it does not always help). For example,
+    the added BenchmarkSyncLeak has effectively runaway memory
+    consumption (based on a real long running server).
     
-    Change-Id: I7d32c5cdc197d86491a67ea579fa16cb3d675b51
-    Reviewed-on: https://go-review.googlesource.com/28273
-    Run-TryBot: Keith Randall <khr@golang.org>
+    This change updates race runtime with support for per-P contexts.
+    BenchmarkSyncLeak now stabilizes at ~1GB memory consumption.
+    
+    Long term, this will allow us to remove race runtime dependency
+    on glibc (as malloc is the main cornerstone).
+    
+    I've also implemented a different scheme to pass P context to
+    race runtime: scheduler notified race runtime about association
+    between G and P by calling procwire(g, p)/procunwire(g, p).
+    But it turned out to be very messy as we have lots of places
+    where the association changes (e.g. syscalls). So I dropped it
+    in favor of the current scheme: race runtime asks scheduler
+    about the current P.
+    
+    Fixes #14533
+    
+    Change-Id: Iad10d2f816a44affae1b9fed446b3580eafd8c69
+    Reviewed-on: https://go-review.googlesource.com/19970
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |   4 ++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 100 +++++++++++++++++++++++++++
- 2 files changed, 104 insertions(+)
+ src/runtime/mgcsweep.go                  |  12 ++++-
+ src/runtime/proc.go                      |  19 +++++--
+ src/runtime/race.go                      |  89 ++++++++++++++++++++++++++-----
+ src/runtime/race/README                  |   2 +-
+ src/runtime/race/output_test.go          |   4 +-
+ src/runtime/race/race_darwin_amd64.syso  | Bin 300192 -> 341304 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 368688 -> 399904 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 352664 -> 371032 bytes
+ src/runtime/race/race_test.go            |  26 +++++++++
+ src/runtime/race/race_windows_amd64.syso | Bin 349411 -> 363595 bytes
+ src/runtime/race0.go                     |   5 +-
+ src/runtime/race_amd64.s                 |  23 +++++++-
+ src/runtime/runtime2.go                  |   1 +
+ 13 files changed, 157 insertions(+), 24 deletions(-)

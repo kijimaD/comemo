@@ -1,18 +1,17 @@
-commit 62891fb811980cce1f859254306265f2d4922da2
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jun 4 08:18:36 2013 +0200
+commit 9bc0eaf60e7d04d5c3fd24ad7e89fdae6615be82
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 4 12:50:40 2013 +1000
 
-    cmd/gc: fix missing slice/array types in export data.
+    runtime: update defs_windows_*.h files
     
-    Fixes #5614.
+    New version of cmd/cgo from
+    https://golang.org/cl/9574043/
+    is used to regenerate these.
     
-    R=golang-dev
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/9953044
+    https://golang.org/cl/9679046
 
- src/cmd/gc/export.c                       |  1 +
- test/fixedbugs/issue5614.dir/rethinkgo.go | 16 ++++++++++++++++
- test/fixedbugs/issue5614.dir/x.go         |  7 +++++++
- test/fixedbugs/issue5614.dir/y.go         |  5 +++++
- test/fixedbugs/issue5614.go               | 11 +++++++++++
- 5 files changed, 40 insertions(+)
+ src/pkg/runtime/defs_windows_386.h   | 170 ++++++++++++++---------------
+ src/pkg/runtime/defs_windows_amd64.h | 200 ++++++++++++++++++-----------------
+ 2 files changed, 189 insertions(+), 181 deletions(-)

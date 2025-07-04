@@ -1,40 +1,25 @@
-commit c2023a07915cccff1ffba9b96e160f444f77aeae
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Jul 15 14:55:02 2015 +1000
+commit 12795c02f3d6fc54ece09a86e70aaa40a94d5131
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 14:35:02 2015 -0400
 
-    image/color: tweak the YCbCr to RGBA conversion formula.
+    cmd/link: deprecate -X name value in favor of -X name=value
     
-    Before, calling the RGBA method of YCbCr color would return red values
-    in the range [0x0080, 0xff80]. After, the range is [0x0000, 0xffff] and
-    is consistent with what Gray colors' RGBA method returns. In particular,
-    pure black, pure white and every Gray color in between are now exactly
-    representable as a YCbCr color.
+    People invoking the linker directly already have to change their scripts
+    to use the new "go tool link", so this is a good time to make the -X flag
+    behave like all other Go flags and take just a single argument.
     
-    This fixes a regression from Go 1.4 (where YCbCr{0x00, 0x80, 0x80} was
-    no longer equivalent to pure black), introduced by golang.org/cl/8073 in
-    the Go 1.5 development cycle. In Go 1.4, the +0x80 rounding was not
-    noticable when Cb == 0x80 && Cr == 0x80, because the YCbCr to RGBA
-    conversion truncated to 8 bits before multiplying by 0x101, so the
-    output range was [0x0000, 0xffff].
+    The old syntax will continue to be accepted (it is rewritten into the new
+    syntax before flag parsing). Maybe some day we will be able to retire it.
     
-    The TestYCbCrRoundtrip fuzzy-match tolerance grows from 1 to 2 because
-    the YCbCr to RGB conversion now maps to an ever-so-slightly larger
-    range, along with the usual imprecision of accumulating rounding errors.
+    Even if we never retire the old syntax, having the new syntax at least
+    makes the rewriting much less of a kludge.
     
-    Also s/int/int32/ in ycbcr.go. The conversion shouldn't overflow either
-    way, as int is always at least 32 bits, but it does make it clearer that
-    the computation doesn't depend on sizeof(int).
-    
-    Fixes #11691
-    
-    Change-Id: I538ca0adf7e040fa96c5bc8b3aef4454535126b9
-    Reviewed-on: https://go-review.googlesource.com/12220
+    Change-Id: I91e8df94f4c22b2186e81d7f1016b8767d777eac
+    Reviewed-on: https://go-review.googlesource.com/10310
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/image/color/ycbcr.go             | 22 +++++++++++---------
- src/image/color/ycbcr_test.go        | 39 ++++++++++++++++++++++++++++++++----
- src/image/decode_example_test.go     | 32 ++++++++++++++---------------
- src/image/draw/draw_test.go          |  4 ++--
- src/image/internal/imageutil/gen.go  |  6 +++---
- src/image/internal/imageutil/impl.go | 24 +++++++++++-----------
- 6 files changed, 80 insertions(+), 47 deletions(-)
+ src/cmd/link/internal/ld/data.go | 10 ++++------
+ src/cmd/link/internal/ld/pobj.go | 36 +++++++++++++++++++++++++++---------
+ test/linkx.go                    |  6 ++++--
+ test/linkx_run.go                | 18 ++++++++++++++----
+ 4 files changed, 49 insertions(+), 21 deletions(-)

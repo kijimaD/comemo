@@ -1,21 +1,16 @@
-commit 69e666e4f758cb5431e94aa90dc01a72ab806080
-Author: Austin Clements <austin@google.com>
-Date:   Wed Sep 26 16:32:52 2018 -0400
+commit 902fc114272978a40d2e65c2510a18e870077559
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 25 18:19:51 2018 +0000
 
-    runtime: record in-use spans in a page-indexed bitmap
+    net/http: try to document ServeFile security more
     
-    This adds a bitmap indexed by page number that marks the starts of
-    in-use spans. This will be used to quickly find in-use spans with no
-    marked objects for sweeping.
+    We've expanded this several times. Try more.
     
-    For #18155.
+    Fixes #18837
     
-    Change-Id: Icee56f029cde502447193e136fa54a74c74326dd
-    Reviewed-on: https://go-review.googlesource.com/c/138957
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I03b699391351a30ee60a15d7aa712c6c66444cf9
+    Reviewed-on: https://go-review.googlesource.com/125875
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mheap.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/net/http/fs.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

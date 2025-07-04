@@ -1,67 +1,15 @@
-commit 1b8b2c1551a1f375e5141eec1645e69906d337b3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 4 12:54:58 2015 -0700
+commit d5ff441d9a27ea9173c0334f74591f2184931eee
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 1 16:14:50 2015 -0700
 
-    cmd/vet: move cmd/vet into std repo
+    cmd/internal/gc,ld: use new flag syntax
     
-    cp -r x/tools/cmd/vet cmd/vet without any changes.
-    The next change will adjust the source to use std
-    repo go/types and friends.
+    Followup to CL 9505
     
-    This may (temporarily) break the build; the next
-    commit (immediately following) will fix it. We do
-    it in two commits so that we can see the manual
-    changes.
-    
-    Change-Id: Ic45dab7066f13923e21f8c61200c8c3fd447b171
-    Reviewed-on: https://go-review.googlesource.com/10694
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I1817b672723bd3d853283f388bc7cbaae2765acc
+    Reviewed-on: https://go-review.googlesource.com/9652
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/asmdecl.go                 |  662 ++++++++++
- src/cmd/vet/assign.go                  |   49 +
- src/cmd/vet/atomic.go                  |   66 +
- src/cmd/vet/bool.go                    |  186 +++
- src/cmd/vet/buildtag.go                |   91 ++
- src/cmd/vet/composite.go               |  125 ++
- src/cmd/vet/copylock.go                |  155 +++
- src/cmd/vet/deadcode.go                |  296 +++++
- src/cmd/vet/doc.go                     |  190 +++
- src/cmd/vet/main.go                    |  488 ++++++++
- src/cmd/vet/method.go                  |  182 +++
- src/cmd/vet/nilfunc.go                 |   68 +
- src/cmd/vet/print.go                   |  587 +++++++++
- src/cmd/vet/rangeloop.go               |   70 ++
- src/cmd/vet/shadow.go                  |  245 ++++
- src/cmd/vet/shift.go                   |   83 ++
- src/cmd/vet/structtag.go               |  122 ++
- src/cmd/vet/testdata/asm.go            |   33 +
- src/cmd/vet/testdata/asm1.s            |  254 ++++
- src/cmd/vet/testdata/asm2.s            |  257 ++++
- src/cmd/vet/testdata/asm3.s            |  178 +++
- src/cmd/vet/testdata/asm4.s            |   26 +
- src/cmd/vet/testdata/assign.go         |   18 +
- src/cmd/vet/testdata/atomic.go         |   43 +
- src/cmd/vet/testdata/bool.go           |  113 ++
- src/cmd/vet/testdata/buildtag.go       |   14 +
- src/cmd/vet/testdata/buildtag_bad.go   |   15 +
- src/cmd/vet/testdata/composite.go      |   63 +
- src/cmd/vet/testdata/copylock_func.go  |   90 ++
- src/cmd/vet/testdata/copylock_range.go |   67 +
- src/cmd/vet/testdata/deadcode.go       | 2125 ++++++++++++++++++++++++++++++++
- src/cmd/vet/testdata/method.go         |   22 +
- src/cmd/vet/testdata/nilfunc.go        |   35 +
- src/cmd/vet/testdata/print.go          |  342 +++++
- src/cmd/vet/testdata/rangeloop.go      |   59 +
- src/cmd/vet/testdata/shadow.go         |   54 +
- src/cmd/vet/testdata/shift.go          |   78 ++
- src/cmd/vet/testdata/structtag.go      |   36 +
- src/cmd/vet/testdata/tagtest/file1.go  |   10 +
- src/cmd/vet/testdata/tagtest/file2.go  |   10 +
- src/cmd/vet/testdata/unsafeptr.go      |   61 +
- src/cmd/vet/testdata/unused.go         |   29 +
- src/cmd/vet/types.go                   |  366 ++++++
- src/cmd/vet/unsafeptr.go               |   98 ++
- src/cmd/vet/unused.go                  |   94 ++
- src/cmd/vet/vet_test.go                |  102 ++
- src/cmd/vet/whitelist/whitelist.go     |   53 +
- 47 files changed, 8410 insertions(+)
+ src/cmd/internal/gc/lex.go  | 22 +++++++++++-----------
+ src/cmd/internal/ld/pobj.go | 40 ++++++++++++++++++++--------------------
+ 2 files changed, 31 insertions(+), 31 deletions(-)

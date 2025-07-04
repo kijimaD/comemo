@@ -1,22 +1,15 @@
-commit f33f20ef1f50e769e71ba6252e6f9fcafabee449
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Oct 5 16:14:14 2017 -0400
+commit b1fab099011b2ec9499e99a32ed8de515e576b86
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 14 13:47:13 2017 +1000
 
-    test: fix and re-enable nosplit.go
+    cmd/vet: fix a couple of minor word choices in README
     
-    The test was skipped because it did not work on AMD64 with
-    frame pointer enabled, and accidentally skipped on other
-    architectures. Now frame pointer is the default on AMD64.
-    Update the test to work with frame pointer. Now the test
-    is skipped only when frame pointer is NOT enabled on AMD64.
+    No semantic change, just clarifying a bit by choosing better words
+    in a couple of places.
     
-    Fixes #18317.
-    
-    Change-Id: I724cb6874e562f16e67ce5f389a1d032a2003115
-    Reviewed-on: https://go-review.googlesource.com/68610
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I4496062ee7909baf83d4d22d25e13ef93b358b4b
+    Reviewed-on: https://go-review.googlesource.com/55255
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/nosplit.go | 43 ++++++++++++++++++++-----------------------
- 1 file changed, 20 insertions(+), 23 deletions(-)
+ src/cmd/vet/README | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

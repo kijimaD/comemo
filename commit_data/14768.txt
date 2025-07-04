@@ -1,12 +1,14 @@
-commit d5d046e3067594e234288f0e30b8825534d60675
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 2 16:26:25 2013 +1100
+commit 267a55397b4343fe37ea89319b9007e649eb101f
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Wed Jan 2 16:00:41 2013 +1100
 
-    doc: update standard copyright header
+    cmd/godoc: ignore misnamed examples and print a warning
     
-    R=golang-dev, dsymonds
+    Fixes #4211.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7034044
+    https://golang.org/cl/6970051
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/godoc/godoc.go | 115 ++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 91 insertions(+), 24 deletions(-)

@@ -1,42 +1,28 @@
-commit 802cb5927f1e163749331c9f6cfb414cb0c753b9
+commit f962e6e0e21b9e73981e6cf2407ea01fce04b989
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 13 18:51:16 2016 +0000
+Date:   Wed May 18 00:35:43 2016 +0000
 
-    net/http: update bundled x/net/http2
+    net/http: add test confirming a connection reuse case
     
-    Updates x/net/http2 (and x/net/lex/httplex) to git rev 749a502 for:
+    Verify that for a server doing chunked encoding, with the final data
+    and EOF arriving together, the client will reuse the connection even
+    if it closes the body without seeing an EOF. The server sends at least
+    one non-zero chunk and one zero chunk. This verifies that the client's
+    bufio reading reads ahead and notes the EOF, so even if the JSON
+    decoder doesn't read the EOF itself, as long as somebody sees it, a
+    close won't forcible tear down the connection. This was true at least
+    of https://golang.org/cl/21291
     
-       http2: don't sniff first Request.Body byte in Transport until we have a conn
-       https://golang.org/cl/29074
-       Fixes #17071
+    No code change. Test already passed (even with lots of runs, including
+    in race mode with randomized goroutine scheduling).
     
-       http2: add Transport support for unicode domain names
-       https://golang.org/cl/29071
-       Updates #13835
+    Updates #15703
     
-       http2: don't send bogus :path pseudo headers if Request.URL.Opaque is set
-       https://golang.org/cl/27632
-         +
-       http2: fix bug where '*' as a valid :path value in Transport
-       https://golang.org/cl/29070
-       Updates #16847
-    
-       http2: fix all vet warnings
-       https://golang.org/cl/28344
-       Updates #16228
-       Updates #11041
-    
-    Also uses the new -underscore flag to x/tools/cmd/bundle from
-    https://golang.org/cl/29086
-    
-    Change-Id: Ica0f6bf6e33266237e37527a166a783d78c059c4
-    Reviewed-on: https://go-review.googlesource.com/29110
+    Change-Id: I2140b3eec6b099b6b6e54f153fe271becac5d949
+    Reviewed-on: https://go-review.googlesource.com/23200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/go/build/deps_test.go                          |  1 +
- src/net/http/h2_bundle.go                          | 64 ++++++++++++++++++----
- src/vendor/golang_org/x/net/lex/httplex/httplex.go | 39 +++++++++++++
- .../golang_org/x/net/lex/httplex/httplex_test.go   | 18 ++++++
- 4 files changed, 110 insertions(+), 12 deletions(-)
+ src/net/http/serve_test.go | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

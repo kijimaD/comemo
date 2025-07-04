@@ -1,20 +1,64 @@
-commit 46121306d3ceb97a8bb2acb328d68426ad3aa805
-Author: Martin Möhrmann <martin@golang.org>
-Date:   Tue Aug 31 19:41:33 2021 +0200
+commit f38da2cbb66cadebd3b6887c48919269f37ca69d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 15 12:17:01 2020 -0800
 
-    cmd/compile: remove folding of 32 bit pointer offsets on amd64
+    [dev.typeparams] cmd/compile/internal/types2: review of unify.go
     
-    These rules were likely only used in the removed amd64p32 port.
+    Make unify.go match the corresponding and reviewed go/types version.
+    The remaining differences are due to other differences in the packages.
+    Also, this version of unify opted to preserve the longer comment around
+    case tj > 0.
     
-    Passes toolstash -cmp.
+    $ diff $GOROOT/src/cmd/compile/internal/types2/unify.go $GOROOT/src/go/types/unify.go
+    7c7
+    < package types2
+    ---
+    > package types
+    9c9,12
+    < import "sort"
+    ---
+    > import (
+    >       "go/token"
+    >       "sort"
+    > )
+    120,123d122
+    <       // This case is handled like the default case.
+    <       // case tj > 0:
+    <       //      // Only the type parameter for y has an inferred type. Use y slot for x.
+    <       //      u.x.setIndex(i, tj)
+    125,126c124,125
+    <               // Neither type parameter has an inferred type. Use y slot for x
+    <               // (or x slot for y, it doesn't matter).
+    ---
+    >               // Either the type parameter for y has an inferred type, or neither type
+    >               // parameter has an inferred type. In either case, use y slot for x.
+    216c215
+    <               // basic types and type parameters. We use Named() because we only
+    ---
+    >               // basic types and type parameters. We use asNamed() because we only
+    219,222c218,221
+    <               case !isNamed(x) && y != nil && y.Named() != nil:
+    <                       return u.nify(x, y.Under(), p)
+    <               case x != nil && x.Named() != nil && !isNamed(y):
+    <                       return u.nify(x.Under(), y, p)
+    ---
+    >               case !isNamed(x) && y != nil && asNamed(y) != nil:
+    >                       return u.nify(x, under(y), p)
+    >               case x != nil && asNamed(x) != nil && !isNamed(y):
+    >                       return u.nify(under(x), y, p)
+    353,354c352,353
+    <                               u.check.completeInterface(nopos, x)
+    <                               u.check.completeInterface(nopos, y)
+    ---
+    >                               u.check.completeInterface(token.NoPos, x)
+    >                               u.check.completeInterface(token.NoPos, y)
     
-    Change-Id: Ie626d1021bade7f7571d1bd5271fbe8676bb295e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346509
-    Trust: Martin Möhrmann <martin@golang.org>
-    Run-TryBot: Martin Möhrmann <martin@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Icb246d4befedfa82cc3dcfdb7dd162cd4127fbe9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278572
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  48 ---
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 567 ---------------------------
- 2 files changed, 615 deletions(-)
+ src/cmd/compile/internal/types2/unify.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

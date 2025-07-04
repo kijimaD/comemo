@@ -1,23 +1,18 @@
-commit 18b49db18e02c1590119eeda58673bf93c2e41c9
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Sep 21 12:33:11 2017 +1000
+commit a838191406e80b3b0d665e7b1ba38197eacc7b72
+Author: gulyasm <mgulyas86@gmail.com>
+Date:   Sat Jan 7 23:30:47 2017 +0100
 
-    cmd/go: ignore empty path elements in GOPATH
+    math: add doc note about floating point operation
     
-    go command refuses to use GOPATH with empty path elements
-    (like %GOPATH%=C:\go;). But environment variable change dialog
-    on Windows 10 produces strings ending with ; (see issue #21928
-    for a picture). Just accept GOPATH with empty path elements,
-    and ignore all empty path elements.
+    Go doesn't guarantee that the result of floating point operations will
+    be the same on different architectures. It was not stated in the
+    documentation, that can lead to confusion.
     
-    Fixes #21928
+    Fixes #18354
     
-    Change-Id: I1d3c3a19274ed69204d29ae06c3e8ff8c57c1ca0
-    Reviewed-on: https://go-review.googlesource.com/65151
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idb1b4c256fb9a7158a74256136eca3b8ce44476f
+    Reviewed-on: https://go-review.googlesource.com/34938
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go | 21 +++++++++++++++++++++
- src/cmd/go/main.go    |  5 +++++
- 2 files changed, 26 insertions(+)
+ src/math/const.go | 3 +++
+ 1 file changed, 3 insertions(+)

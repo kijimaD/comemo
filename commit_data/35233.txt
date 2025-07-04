@@ -1,22 +1,21 @@
-commit 31cfa7f2f2ec40715376aebfdddb8183f5a260dc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 1 12:21:57 2018 -0700
+commit 67fdf587dc5c3ac9f6891c9502d5cfdd1234a37e
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Jan 17 12:13:45 2018 -0800
 
-    runtime: allow inlining of stackmapdata
+    cmd/compile: don't combine 64-bit loads/stores on amd64
     
-    Also do very minor code cleanup.
+    This causes a performance regression for some calls.
     
-    name                old time/op  new time/op  delta
-    StackCopyPtr-8      84.8ms ± 6%  82.9ms ± 5%  -2.19%  (p=0.000 n=95+94)
-    StackCopy-8         68.4ms ± 5%  65.3ms ± 4%  -4.54%  (p=0.000 n=99+99)
-    StackCopyNoCache-8   107ms ± 2%   105ms ± 2%  -2.13%  (p=0.000 n=91+95)
+    Fixes #23424.
+    Updates #6853.
     
-    Change-Id: I2d85ede48bffada9584d437a08a82212c0da6d00
-    Reviewed-on: https://go-review.googlesource.com/109001
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Id1db652d5aca0ce631a3417c0c056d6637fefa9e
+    Reviewed-on: https://go-review.googlesource.com/88135
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go | 1 +
- src/runtime/symtab.go                   | 7 +++++--
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go      |  8 ---
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 16 ------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 76 +---------------------------
+ 3 files changed, 1 insertion(+), 99 deletions(-)

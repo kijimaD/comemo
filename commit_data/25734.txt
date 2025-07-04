@@ -1,53 +1,31 @@
-commit 558a213d55beb23846e45a4500f3388f91dadb75
+commit f8e6418637c8163d9046ccf700d3486000fddb26
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 8 22:51:34 2016 -0500
+Date:   Fri Nov 13 16:21:01 2015 -0500
 
-    build: mv cmd/vendor cmd/internal/unvendor
+    runtime: fix bad signal stack when using cgo-created threads and async signals
     
-    And update two imports in cmd/internal/objfile/disasm.go.
-    This makes GO15VENDOREXPERIMENT=0 ./make.bash work.
-    For Go 1.7 we will move it back.
+    Cgo-created threads transition between having associated Go g's and m's and not.
+    A signal arriving during the transition could think it was safe and appropriate to
+    run Go signal handlers when it was in fact not.
+    Avoid the race by masking all signals during the transition.
     
-    Fixes #14236.
+    Fixes #12277.
     
-    Change-Id: I429c9af4baff8496f83d113b1b03b90e309f4f48
-    Reviewed-on: https://go-review.googlesource.com/19384
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie9711bc1d098391d58362492197a7e0f5b497d14
+    Reviewed-on: https://go-review.googlesource.com/16915
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/nacl/testzip.proto                            | 24 +++++++++++-----------
- src/cmd/internal/objfile/disasm.go                 |  4 ++--
- .../golang.org/x/arch/arm/armasm/Makefile          |  0
- .../golang.org/x/arch/arm/armasm/decode.go         |  0
- .../golang.org/x/arch/arm/armasm/decode_test.go    |  0
- .../golang.org/x/arch/arm/armasm/ext_test.go       |  0
- .../unvendor}/golang.org/x/arch/arm/armasm/gnu.go  |  0
- .../unvendor}/golang.org/x/arch/arm/armasm/inst.go |  0
- .../golang.org/x/arch/arm/armasm/objdump_test.go   |  0
- .../x/arch/arm/armasm/objdumpext_test.go           |  0
- .../golang.org/x/arch/arm/armasm/plan9x.go         |  0
- .../golang.org/x/arch/arm/armasm/tables.go         |  0
- .../golang.org/x/arch/arm/armasm/testdata/Makefile |  0
- .../x/arch/arm/armasm/testdata/decode.txt          |  0
- .../golang.org/x/arch/x86/x86asm/Makefile          |  0
- .../golang.org/x/arch/x86/x86asm/decode.go         |  0
- .../golang.org/x/arch/x86/x86asm/decode_test.go    |  0
- .../golang.org/x/arch/x86/x86asm/ext_test.go       |  0
- .../unvendor}/golang.org/x/arch/x86/x86asm/gnu.go  |  0
- .../unvendor}/golang.org/x/arch/x86/x86asm/inst.go |  0
- .../golang.org/x/arch/x86/x86asm/inst_test.go      |  0
- .../golang.org/x/arch/x86/x86asm/intel.go          |  0
- .../golang.org/x/arch/x86/x86asm/objdump_test.go   |  0
- .../x/arch/x86/x86asm/objdumpext_test.go           |  0
- .../golang.org/x/arch/x86/x86asm/plan9ext_test.go  |  0
- .../golang.org/x/arch/x86/x86asm/plan9x.go         |  0
- .../golang.org/x/arch/x86/x86asm/plan9x_test.go    |  0
- .../golang.org/x/arch/x86/x86asm/tables.go         |  0
- .../golang.org/x/arch/x86/x86asm/testdata/Makefile |  0
- .../x/arch/x86/x86asm/testdata/decode.txt          |  0
- .../x/arch/x86/x86asm/testdata/libmach8db.c        |  0
- .../golang.org/x/arch/x86/x86asm/xed_test.go       |  0
- .../golang.org/x/arch/x86/x86asm/xedext_test.go    |  0
- src/cmd/{vendor => internal/unvendor}/vendor.json  |  0
- 34 files changed, 14 insertions(+), 14 deletions(-)
+ src/runtime/os1_darwin.go    | 17 ++++++++++++++---
+ src/runtime/os1_dragonfly.go | 16 +++++++++++++---
+ src/runtime/os1_freebsd.go   | 17 ++++++++++++++---
+ src/runtime/os1_linux.go     | 17 ++++++++++++++---
+ src/runtime/os1_nacl.go      |  9 +++++++++
+ src/runtime/os1_netbsd.go    | 18 ++++++++++++++----
+ src/runtime/os1_openbsd.go   | 17 ++++++++++++++---
+ src/runtime/os1_plan9.go     |  6 ++++++
+ src/runtime/os1_windows.go   | 10 ++++++++++
+ src/runtime/os3_solaris.go   | 18 ++++++++++++++----
+ src/runtime/proc.go          | 22 ++++++++++++++++++----
+ 11 files changed, 140 insertions(+), 27 deletions(-)

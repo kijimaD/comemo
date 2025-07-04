@@ -1,68 +1,22 @@
-commit 0da4dbe2322eb3b6224df35ce3e9fc83f104762b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 14 19:09:36 2016 -0700
+commit 1716162a9a17873448427b7aca28efd151b5af07
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 4 11:29:55 2016 -0800
 
-    all: remove unnecessary type conversions
+    runtime: fix off-by-one error finding module for PC
     
-    cmd and runtime were handled separately, and I'm intentionally skipped
-    syscall. This is the rest of the standard library.
+    Also fix compiler-invoked panics to avoid a confusing "malloc deadlock"
+    crash if they are invoked while executing the runtime.
     
-    CL generated mechanically with github.com/mdempsky/unconvert.
+    Fixes #14599.
     
-    Change-Id: I9e0eff886974dedc37adb93f602064b83e469122
-    Reviewed-on: https://go-review.googlesource.com/22104
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I89436abcbf3587901909abbdca1973301654a76e
+    Reviewed-on: https://go-review.googlesource.com/20219
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/archive/tar/reader.go                |  8 ++++----
- src/archive/tar/writer.go                |  2 +-
- src/bytes/reader.go                      |  2 +-
- src/compress/bzip2/bzip2.go              |  8 ++++----
- src/compress/flate/huffman_bit_writer.go |  2 +-
- src/compress/flate/reverse_bits.go       |  2 +-
- src/compress/lzw/writer.go               |  2 +-
- src/crypto/des/block.go                  |  2 +-
- src/crypto/tls/handshake_messages.go     |  4 ++--
- src/debug/dwarf/buf.go                   |  2 +-
- src/debug/dwarf/line.go                  |  2 +-
- src/debug/dwarf/typeunit.go              |  4 ++--
- src/debug/elf/elf.go                     |  4 ++--
- src/debug/elf/file.go                    | 32 ++++++++++++++++----------------
- src/debug/gosym/pclntab.go               |  4 ++--
- src/debug/gosym/symtab.go                |  4 ++--
- src/encoding/asn1/marshal.go             |  6 +++---
- src/encoding/binary/binary.go            |  2 +-
- src/encoding/gob/encode.go               |  2 +-
- src/go/ast/ast.go                        |  2 +-
- src/image/color/ycbcr.go                 | 18 +++++++++---------
- src/image/draw/draw.go                   |  8 ++++----
- src/math/big/float.go                    |  4 ++--
- src/math/big/natconv.go                  |  2 +-
- src/math/big/ratconv.go                  |  2 +-
- src/net/interface_bsd.go                 |  4 ++--
- src/net/mail/message.go                  |  2 +-
- src/net/parse.go                         |  4 ++--
- src/os/exec_windows.go                   |  2 +-
- src/os/file_windows.go                   | 14 +++++++-------
- src/os/stat_darwin.go                    |  2 +-
- src/os/stat_dragonfly.go                 |  4 ++--
- src/os/stat_freebsd.go                   |  2 +-
- src/os/stat_linux.go                     |  2 +-
- src/os/stat_nacl.go                      |  2 +-
- src/os/stat_netbsd.go                    |  4 ++--
- src/os/stat_openbsd.go                   |  4 ++--
- src/os/stat_plan9.go                     |  2 +-
- src/os/stat_solaris.go                   |  4 ++--
- src/os/stat_windows.go                   |  2 +-
- src/os/types_windows.go                  |  2 +-
- src/reflect/type.go                      |  4 ++--
- src/reflect/value.go                     | 26 +++++++++++++-------------
- src/regexp/onepass.go                    |  2 +-
- src/strconv/extfloat.go                  |  4 ++--
- src/strings/reader.go                    |  2 +-
- src/sync/pool.go                         |  4 ++--
- src/time/time.go                         |  8 ++++----
- src/time/zoneinfo_windows.go             |  2 +-
- src/unicode/letter.go                    |  2 +-
- 50 files changed, 120 insertions(+), 120 deletions(-)
+ src/runtime/crash_cgo_test.go             |  8 ++++++
+ src/runtime/panic.go                      | 17 +++++++++++
+ src/runtime/symtab.go                     |  2 +-
+ src/runtime/testdata/testprogcgo/aprof.go | 48 +++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 1 deletion(-)

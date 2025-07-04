@@ -1,14 +1,24 @@
-commit 83c7b60f2745e7b0e35e762e3fc2702f59169a7b
-Author: Rob Pike <r@golang.org>
-Date:   Thu May 14 15:45:10 2015 -0700
+commit 0088ddc3a00cc75c3eb9ce999ebf62f1415c1195
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Apr 20 11:09:14 2015 +1200
 
-    cmd/doc: trim unexported methods from interfaces
+    cmd/6l, cmd/internal/ld, cmd/internal/obj: remove Xsym/Xadd from compiler's Reloc
     
-    Fixes #10856.
+    They don't really make any sense on this side of the compiler/linker divide.
     
-    Change-Id: I5de65b8dd94eec3451ee0ba9c75698cdd88f5fea
-    Reviewed-on: https://go-review.googlesource.com/10088
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Some of the code touching these fields was the support for R_TLS when
+    thechar=='6' which turns out to be dead and so I just removed all of that.
+    
+    Change-Id: I4e265613c4e7fcc30a965fffb7fd5f45017f06f3
+    Reviewed-on: https://go-review.googlesource.com/9107
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/doc/pkg.go | 56 +++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 32 insertions(+), 24 deletions(-)
+ src/cmd/6l/asm.go                | 11 -----------
+ src/cmd/internal/ld/objfile.go   |  4 ++--
+ src/cmd/internal/obj/arm/asm5.go |  2 --
+ src/cmd/internal/obj/link.go     |  2 --
+ src/cmd/internal/obj/objfile.go  |  4 ++--
+ src/cmd/internal/obj/x86/asm6.go |  5 -----
+ 6 files changed, 4 insertions(+), 24 deletions(-)

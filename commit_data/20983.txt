@@ -1,12 +1,19 @@
-commit c8bfcf5c557ea70f44cabe5a58d0909cf8ae4fb0
-Author: Kang Hu <hukangustc@gmail.com>
-Date:   Sun Dec 14 16:17:48 2014 +0800
+commit e1db508ffdcfbb78a73c6df7e3d0a6b0cb6f001a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 31 16:58:12 2014 -0400
 
-    doc: replace hg commands with git commands in release.html
+    [dev.power64] runtime: fix gcinfo_test on power64x
     
-    Change-Id: I5cc4740a858c40d820eeb7c00cf0508b20807c90
-    Reviewed-on: https://go-review.googlesource.com/1533
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    The GC info masks for slices and strings were changed in
+    commit caab29a25f68, but the reference masks used by
+    gcinfo_test for power64x hadn't caught up.  Now they're
+    identical to amd64, so this CL fixes this test by combining
+    the reference masks for these platforms.
+    
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/162620044
 
- doc/devel/release.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/gcinfo_test.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

@@ -1,25 +1,31 @@
-commit 7b1ba972dc5687f6746b2299b047f44e38bc6686
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Oct 25 16:51:55 2021 -0500
+commit 3b321a9d122f0dbf8b333cc79bbf61218e3d05ba
+Author: Ruslan Andreev <ruslan.andreev@huawei.com>
+Date:   Tue Jan 19 22:30:10 2021 +0800
 
-    cmd/asm: add support for bdnz/bdz extended mnemonics on PPC64
+    cmd/compile: add arch-specific inlining for runtime.memmove
     
-    Support BDNZ and BDZ mnemonics, they are commonly used
-    POWER instructions. The raw BC mnemonic is not easy
-    to read.
+    This CL add runtime.memmove inlining for AMD64 and ARM64.
+    According to ssa dump from testcases generic rules can't inline
+    memmomve properly due to one of the arguments is Phi operation. But this
+    Phi op will be optimized out by later optimization stages. As a result
+    memmove can be inlined during arch-specific rules.
+    The commit add new optimization rules to arch-specific rules that can
+    inline runtime.memmove if it possible during lowering stage.
+    Optimization fires 5 times in Go source-code using regabi.
     
-    Likewise, cleanup code surrounding these changes.
+    Fixes #41662
     
-    Change-Id: I72f1dad5013f7856bd0dd320bfb17b5a9f3c69ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390696
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Trust: Paul Murphy <murp@ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iaffaf4c482d068b5f0683d141863892202cc8824
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289151
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: David Chase <drchase@google.com>
 
- src/cmd/asm/internal/arch/ppc64.go        |  2 +-
- src/cmd/asm/internal/asm/testdata/ppc64.s | 30 ++++++++++++++++++------------
- src/cmd/internal/obj/ppc64/a.out.go       | 11 +++++++----
- src/cmd/internal/obj/ppc64/anames.go      |  2 ++
- src/cmd/internal/obj/ppc64/asm9.go        | 24 ++++++++++++++++--------
- 5 files changed, 44 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   | 19 +++++++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  9 ++++
+ src/cmd/compile/internal/ssa/gen/generic.rules |  6 +--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 74 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 50 +++++++++++++++++
+ test/codegen/copy.go                           | 36 +++++++++++++
+ 6 files changed, 191 insertions(+), 3 deletions(-)

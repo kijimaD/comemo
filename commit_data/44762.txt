@@ -1,24 +1,27 @@
-commit 196c33e92d86eb21fe1cb7d244ea61209b4a554e
-Author: David Chase <drchase@google.com>
-Date:   Fri Mar 12 13:37:24 2021 -0500
+commit 694fc8e76bec99b67bbd0302852f6a1c1dafe7ca
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 16 17:18:06 2019 -0500
 
-    cmd/compile: fix WriteFuncMap for new ABI.
+    cmd/go/internal/modload: reject some bad module paths
     
-    replaced old type-based logic with new abi-based logic;
-    earlier versions of this CL compared them for equality.
-    For not-in-a-register, they match everywhere tested.
+    This change rejects module paths that don't conform to
+    the new checkModulePathLax function, when loading a go.mod
+    file. The change uses the checkModulePathLax function instead of
+    CheckPath because there are still many users who are using
+    unpublished modules with unpublishable paths, and we don't
+    want to break them all.
     
-    also modified GetFrameOffset to make it more like the one it replaces;
-    the LocalsOffset is subtracted.
+    Next, before this change, when go mod init is run in GOPATH,
+    it would try to use the location of the directory within GOPATH
+    to infer the module path. After this change, it will only use
+    that inferred module path if it conforms to module.CheckPath.
     
-    Change-Id: I65ce7f0646c493c277df6b6f46e4839a0d886ac9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302072
-    Trust: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Idb36d1655cc76aae82671e87ba634609503ad1a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211597
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/abi/abiutils.go   | 24 +++++++++++++++---------
- src/cmd/compile/internal/gc/compile.go     |  4 ++--
- src/cmd/compile/internal/liveness/plive.go | 29 +++++++++++++++++------------
- src/cmd/compile/internal/objw/objw.go      |  6 ++++++
- src/cmd/compile/internal/ssagen/ssa.go     |  2 +-
- 5 files changed, 41 insertions(+), 24 deletions(-)
+ src/cmd/go/internal/modload/init.go             | 72 +++++++++++++++++++++++--
+ src/cmd/go/testdata/script/mod_invalid_path.txt | 30 ++++++++++-
+ 2 files changed, 98 insertions(+), 4 deletions(-)

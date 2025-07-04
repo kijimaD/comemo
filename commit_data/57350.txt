@@ -1,20 +1,22 @@
-commit e7047bd14d78022d514566d15aed56fc5056d3e2
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 4 23:57:41 2024 +0700
+commit a2905e95a04858c8702a29c96b891344d3652e41
+Author: Eduard Bondarenko <eduardbcom@gmail.com>
+Date:   Wed Jul 26 16:28:28 2023 +0000
 
-    cmd/compile/internal/liveness: use slices.Reverse
+    net/http: fix doc comment on FormValue function
     
-    Now that we're bootstrapping from a toolchain that has the slices
-    package.
+    This function checks Request.Form, which now includes values parsed from a PATCH request.
     
-    Updates #64751
+    Fixes #60585
     
-    Change-Id: Id50d76de05e353ef06d64b47ad6400b2b7572205
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610775
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Icb095d9ac2f8b0c5dbf313e507ed838cb941517f
+    GitHub-Last-Rev: 3a477ea97e27f5b31d28085df75163fc13541c13
+    GitHub-Pull-Request: golang/go#61591
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513435
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/liveness/intervals.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/net/http/request.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

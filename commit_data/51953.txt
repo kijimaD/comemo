@@ -1,24 +1,25 @@
-commit fd208c8850cdfe84469d3e4ef9bd55e2e0cece70
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Feb 4 12:00:20 2023 +0700
+commit 0eea25159fe58ab956198f3009e6ded875d2796e
+Author: Patrick Gundlach <gundlach@speedata.de>
+Date:   Mon Apr 19 12:51:04 2021 +0200
 
-    cmd/compile: remove constant arithmetic overflows during typecheck
+    encoding/xml: expose decoder line and column
     
-    Since go1.19, these errors are already reported by types2 for any user's
-    Go code. Compiler generated code, which looks like constant expression
-    should be evaluated as non-constant semantic, which allows overflows.
+    The existing implementation of the xml decoder uses the line number
+    only for reporting syntax errors. The line number of the last read
+    token and the column within the line is useful for the users even
+    in non-error conditions.
     
-    Fixes #58293
+    Fixes #45628
     
-    Change-Id: I6f0049a69bdb0a8d0d7a0db49c7badaa92598ea2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465096
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I37b5033ff5ff8411793d8f5180f96aa4537e83f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311270
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/typecheck/const.go | 36 ++---------------------------
- test/fixedbugs/issue58293.go                | 13 +++++++++++
- 2 files changed, 15 insertions(+), 34 deletions(-)
+ api/next/45628.txt           |  1 +
+ src/encoding/xml/xml.go      |  9 +++++++++
+ src/encoding/xml/xml_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 49 insertions(+)

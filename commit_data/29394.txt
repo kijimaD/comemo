@@ -1,33 +1,19 @@
-commit dd1e7b3be0f64438e58f956bfb989608c7fa61bc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 2 14:45:27 2016 -0700
+commit 8f9671d11a219d8fc9a6176ddf9939e743982ffc
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Sep 13 13:29:13 2016 +1200
 
-    crypto/x509: update __MAC_OS_X_VERSION_MAX_ALLOWED on Mac
+    cmd/link: fix -buildmode=pie / -linkshared combination
     
-    Reportedly, -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1060
-    is problematic.
+    main.main and main.init were not being marked as reachable.
     
-    It means min 10.6 and max 10.6, thus exactly 10.6. But we only support
-    10.8+.
+    Fixes #17076
     
-    It never caused us problems, because we build on Macs, but apparently
-    if you cross-compile from Linux with some Mac compiler SDK thing, then
-    things break?
-    
-    This was added in https://golang.org/cl/5700083 for #3131, and the
-    intent at the time was to pin to exactly 10.6. So it wasn't a mistake,
-    but it is definitely outdated.
-    
-    Given that we now support 10.8 as the min, update it to 1080.
-    
-    Fixes #17732
-    
-    Change-Id: I6cc8ab6ac62b8638a5025952b830f23e8822b2a6
-    Reviewed-on: https://go-review.googlesource.com/32580
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib3e29bd35ba6252962e6ba89173ca321ed6849b9
+    Reviewed-on: https://go-review.googlesource.com/28996
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/root_cgo_darwin.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testshared/shared_test.go   | 8 ++++++++
+ src/cmd/link/internal/ld/deadcode.go | 2 +-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

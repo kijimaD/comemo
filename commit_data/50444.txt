@@ -1,24 +1,37 @@
-commit 4f3246c6e97225d43775090f272a4d5c34ffb5a8
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Tue Sep 6 20:08:05 2022 +0800
+commit ca5f65d771bc24b9717dca615fa4ad25dcd94fad
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 25 14:16:53 2021 +0700
 
-    internal/poll: drop redundant ENOSYS in CopyFileRange
+    cmd/compile: fix generic type handling when crawling inline body
     
-    Update CL 425881 and CL 428396
+    For base generic type that is written to export file, we need to mark
+    all of its methods, include exported+unexported methods, as reachable,
+    so they can be available for instantiation if necessary. But markType
+    only looks for exported methods, thus causing the crash in #49143.
     
-    I browsed the source code related to copy_file_range in the kernel and found that the latest kernel may still return EXDEV errors in copy_file_range(2) due to certain cases, for details see: https://elixir.bootlin.com/linux/v5.19.7/source/fs/read_write.c#L1559, https://elixir.bootlin.com/linux/v5.19.7/source/fs/read_write.c#L1479, and
-    https://elixir.bootlin.com/linux/v5.19.7/source/fs/read_write.c#L1439.
+    To fix this, we introduce new method p.markGeneric, to mark all methods
+    of the base generic type.
     
-    Therefore, the EXDEV still needs to be kept, but the ENOSYS error can be safely removed.
+    This issue has happend for a while (maybe since we add generic
+    import/export during go1.18 cycle), and was un-intentionally "fixed" in
+    CL 356254, when we agresssively call p.markEmbed(t). CL 357232 fixed
+    that wrong agressive behavior, thus reproduce the bug on tip.
     
-    Change-Id: I47026b8dd33f7ffc4de1306af6b67c7b4d2062d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428555
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Fixes #49143
+    
+    Change-Id: Ie64574a05fffb282e9dcc8739df4378c5b6b0468
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358814
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/internal/poll/copy_file_range_linux.go | 24 ++++++++++--------------
- 1 file changed, 10 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/typecheck/crawler.go | 33 ++++++++++++++++++++++-----
+ test/fixedbugs/issue49143.dir/a.go            | 24 +++++++++++++++++++
+ test/fixedbugs/issue49143.dir/b.go            | 16 +++++++++++++
+ test/fixedbugs/issue49143.dir/c.go            | 15 ++++++++++++
+ test/fixedbugs/issue49143.dir/p.go            | 11 +++++++++
+ test/fixedbugs/issue49143.go                  |  7 ++++++
+ 6 files changed, 100 insertions(+), 6 deletions(-)

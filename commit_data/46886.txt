@@ -1,21 +1,18 @@
-commit fbdf83072c413943ccbd3b556654276126117463
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 13 21:36:03 2021 -0700
+commit 0f43973b4bffcc6593bb0b847cf583f697000134
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 11 11:50:31 2021 -0500
 
-    go/types: avoid infinite expansion for invalid recursive generic types
+    [dev.typeparams] go/types: make predeclared "any" alias for interface{}
     
-    This is a clean port of CL 355732 from types2 to go/types.
+    This is a direct port of CL 285132 to go/types.
     
-    Fixes #48951.
-    
-    Change-Id: I9f8cc0655166835d9450608f6e50b726659a73f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355733
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I35486d8ea1fa6c0c6a32ece199a6ccfd55d44d29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291322
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/decl.go                           | 14 ++++++++++++--
- src/go/types/testdata/check/issues.go2         |  4 ++--
- src/go/types/testdata/fixedbugs/issue39634.go2 |  4 ++--
- src/go/types/testdata/fixedbugs/issue39938.go2 | 12 +++++++-----
- src/go/types/testdata/fixedbugs/issue48951.go2 | 21 +++++++++++++++++++++
- 5 files changed, 44 insertions(+), 11 deletions(-)
+ src/go/types/api_test.go | 6 +++---
+ src/go/types/universe.go | 9 +++------
+ 2 files changed, 6 insertions(+), 9 deletions(-)

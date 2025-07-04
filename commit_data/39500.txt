@@ -1,15 +1,31 @@
-commit 726b1bf9871f4905d85a53051301f636e8273328
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 11 13:29:53 2019 -0400
+commit 06c86e0fc3eec6635fce31b8cd6b988087a8f872
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 2 11:14:46 2019 -0800
 
-    runtime: expand comments on runtime panic checks
+    syscall: optimize SlicePtrFromStrings
     
-    This adds comments explaining why it's important that some panics are
-    allowed in the runtime (even though this isn't ideal).
+    Instead of allocating a byte slice for every string,
+    calculated the required size and create
+    a single slice big enough to hold all of them.
+    As an added benefit, any error encountered
+    will now be returned before allocations occur.
     
-    Change-Id: I04c6fc4f792f3793f951619ccaea6bfef2f1763c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181737
-    Reviewed-by: Keith Randall <khr@golang.org>
+    os/exec package benchmarks:
+    
+    name        old time/op    new time/op    delta
+    ExecEcho-8    2.14ms ± 1%    2.14ms ± 3%     ~     (p=0.842 n=10+9)
+    
+    name        old alloc/op   new alloc/op   delta
+    ExecEcho-8    6.35kB ± 0%    6.18kB ± 0%   -2.65%  (p=0.000 n=10+10)
+    
+    name        old allocs/op  new allocs/op  delta
+    ExecEcho-8      69.0 ± 0%      36.0 ± 0%  -47.83%  (p=0.000 n=10+10)
+    
+    Change-Id: I84118d8473037d873f73903d4e4f6ed14f531ce7
+    Reviewed-on: https://go-review.googlesource.com/c/164961
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/panic.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/syscall/exec_unix.go | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

@@ -1,24 +1,21 @@
-commit c45c32b1cd6ba635fda3add12f48766fd6aef5d8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Nov 2 11:23:34 2021 -0700
+commit 12bb256cb30a76b540dbbc1cac38d7044facfa29
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Mar 3 13:33:24 2021 -0500
 
-    go/types: avoid closure allocations in mono check
+    go/types: use correct recv for parameterized embedded methods
     
-    This CL replaces monoEdge's "report" field with fields "pos" and
-    "typ", and pushes the logic for formatting them into the report
-    loop. This avoids needing to allocate a function closure for each
-    edge.
+    This is a direct port of CL 298129 to go/types.
     
-    Also tweak a test case so the two type parameters involved in the
-    cycle aren't both "T" so they're easier to understand.
+    Fixes #44688
     
-    Change-Id: I9d392ad1d99a4c5e89da4613084e885149ebad07
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360815
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I950992ea7beea5b9c8bea0c296b5ce03b2aa9b12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298349
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/mono.go      | 42 +++++++++++++++++++++++-------------------
- src/go/types/mono_test.go |  2 +-
- 2 files changed, 24 insertions(+), 20 deletions(-)
+ src/go/types/call.go                  | 33 +++++++++-----
+ src/go/types/fixedbugs/issue44688.go2 | 83 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 105 insertions(+), 11 deletions(-)

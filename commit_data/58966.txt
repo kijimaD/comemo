@@ -1,24 +1,18 @@
-commit 24d22352d308dc4f2283ed83f4794c5b4da661ee
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jan 16 17:05:02 2025 -0500
+commit b1a12dd2ed4f6d7cdde913cddf77871f1c701bdc
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Dec 17 09:47:10 2023 +0000
 
-    cmd/go: add 'work' package pattern
+    cmd/link: use MapMaxKeyBytes,MapMaxElemBytes,MapBucketCount of internal/abi
     
-    The 'work' package pattern will resolve to the set of packages in the
-    work (formerly called main) modules. It's essentially 'all', but without
-    the dependencies. And the implementation is similar to that of 'all',
-    except that we don't expand to the dependencies.
+    For #59670
     
-    Fixes #71294
-    
-    Change-Id: I3d02beb74fa4e5c6de2290e24eedc51745d13080
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643235
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I248bad2d2f9d05903b80022e52a795ff7a4fae93
+    GitHub-Last-Rev: df6a7bf29a2012eb681ce391dc9cf295370b5b2e
+    GitHub-Pull-Request: golang/go#64775
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550596
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/load/search.go               | 13 ++++
- src/cmd/go/internal/modload/load.go              |  7 +++
- src/cmd/go/internal/search/search.go             |  4 +-
- src/cmd/go/testdata/script/build_perpkgflag.txt  | 35 +++++++++++
- src/cmd/go/testdata/script/list_pattern_work.txt | 79 ++++++++++++++++++++++++
- 5 files changed, 136 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 29 +++++++++++------------------
+ 1 file changed, 11 insertions(+), 18 deletions(-)

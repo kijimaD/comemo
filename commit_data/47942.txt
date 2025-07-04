@@ -1,59 +1,18 @@
-commit e550c3054586a224d949cc8fa030bac0887bee51
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jan 12 16:11:35 2022 -0800
+commit fd3612e4339d10a0e02571a8e43868d569b11a9f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 12:37:04 2021 -0400
 
-    cmd/compile: stop interface conversions for generic method calls from allocating
+    internal/buildcfg: enable regabiwrappers by default
     
-    Let T be a type parameter, and say we instantiate it with S, a type
-    that isn't pointer-like (e.g. a pair of ints, or as in 50182, a
-    slice). Then to call a method m on a variable of type T, the compiler
-    does essentially:
+    For #40724.
     
-    var v T = ...
-    i := (interface{m()})(v)
-    i.m()
-    
-    The conversion at that second line allocates, as we need to make the
-    data word for an interface. And in the general case, that interface
-    may live an arbitrarily long time. But in this case, we know it
-    doesn't.
-    
-    The data word of i has type *S.  When we call i.m, we can't call S.m
-    directly. It is expecting an S, not a *S. We call through a wrapper
-    defined on *S, which looks like:
-    
-    func (p *S) m() {
-       var s S = *p
-       s.m()
-    }
-    
-    The value passed in for p is exactly the data word mentioned above. It
-    never escapes anywhere - the wrapper copies a type S variable out of
-    *p and p is dead after that. That means that in the situation where we
-    build an interface for the explicit purpose of calling a method on it,
-    and use that built interface nowhere else, the allocation of the data
-    word for that interface is known to die before the call returns and
-    thus can be stack allocated.
-    
-    One tricky case is that although the allocation of the backing store
-    of the interface conversion doesn't escape, pointers we store *inside*
-    that allocation might escape (in fact they definitely will, unless we
-    can devirtualize the receiver).
-    
-    Fixes #50182
-    
-    Change-Id: I40e893955c2e6871c54ccecf1b9f0cae17871b0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378178
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I75d6ba2d3e4e2d858eea8053efd0f3fd4439dab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310172
+    Trust: Austin Clements <austin@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/escape/escape.go        |  8 +++
- src/cmd/compile/internal/ir/expr.go              |  3 +-
- src/cmd/compile/internal/noder/stencil.go        | 15 ++++--
- src/cmd/compile/internal/test/issue50182_test.go | 62 ++++++++++++++++++++++++
- 4 files changed, 83 insertions(+), 5 deletions(-)
+ src/internal/buildcfg/exp.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

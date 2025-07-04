@@ -1,18 +1,51 @@
-commit a5386f3c7dc7735aa4695647896ba94bab0341e0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 18 13:55:40 2016 -0700
+commit a03bdc3e6bea34abd5077205371e6fb9ef354481
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 29 15:01:00 2016 -0800
 
-    cmd/compile: fix internal consistency check with binary exporter
+    runtime: eliminate unnecessary type conversions
     
-    Per feedback from mdempsky from https://go-review.googlesource.com/22096.
+    Automated refactoring produced using github.com/mdempsky/unconvert.
     
-    Also fix emitted position info.
-    
-    Change-Id: I7ff1967430867d922be8784832042c75d81df28b
-    Reviewed-on: https://go-review.googlesource.com/22198
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iacf871a4f221ef17f48999a464ab2858b2bbaa90
+    Reviewed-on: https://go-review.googlesource.com/20071
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ src/runtime/cgocall.go                |  2 +-
+ src/runtime/chan.go                   |  6 +++---
+ src/runtime/env_posix.go              |  4 ++--
+ src/runtime/hashmap.go                |  6 +++---
+ src/runtime/heapdump.go               |  2 +-
+ src/runtime/iface.go                  |  4 ++--
+ src/runtime/malloc.go                 | 22 +++++++++++-----------
+ src/runtime/mbarrier.go               |  6 +++---
+ src/runtime/mem_bsd.go                |  4 ++--
+ src/runtime/mem_darwin.go             |  6 +++---
+ src/runtime/mfinal.go                 |  6 +++---
+ src/runtime/mgcmark.go                |  2 +-
+ src/runtime/mheap.go                  |  4 ++--
+ src/runtime/mprof.go                  |  6 +++---
+ src/runtime/mstats.go                 |  4 ++--
+ src/runtime/netpoll.go                |  2 +-
+ src/runtime/netpoll_windows.go        |  2 +-
+ src/runtime/os3_plan9.go              |  4 ++--
+ src/runtime/print.go                  |  2 +-
+ src/runtime/runtime1.go               |  2 +-
+ src/runtime/sema.go                   |  4 ++--
+ src/runtime/signal_arm.go             |  2 +-
+ src/runtime/signal_arm64.go           |  2 +-
+ src/runtime/signal_dragonfly_amd64.go |  8 ++++----
+ src/runtime/signal_freebsd_386.go     |  6 +++---
+ src/runtime/signal_freebsd_amd64.go   |  4 ++--
+ src/runtime/signal_mips64x.go         |  2 +-
+ src/runtime/signal_netbsd_386.go      |  8 ++++----
+ src/runtime/signal_netbsd_amd64.go    |  2 +-
+ src/runtime/signal_ppc64x.go          |  2 +-
+ src/runtime/signal_windows.go         |  4 ++--
+ src/runtime/slice.go                  | 18 +++++++++---------
+ src/runtime/softfloat_arm.go          |  2 +-
+ src/runtime/stack.go                  |  4 ++--
+ src/runtime/string.go                 |  4 ++--
+ src/runtime/traceback.go              |  6 +++---
+ 36 files changed, 87 insertions(+), 87 deletions(-)

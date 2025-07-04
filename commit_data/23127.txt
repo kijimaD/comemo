@@ -1,14 +1,18 @@
-commit 22e4b8167f14bdd33738cfdc21c3396b2341f8fd
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sat May 23 00:46:10 2015 +0200
+commit 4a3e000a48fdfe4cbcfe8970db9c1ebec9c4b89d
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Apr 24 17:20:21 2015 +0100
 
-    misc/cgo/test: fix build for CC=clang
+    encoding/xml: do not escape newlines
     
-    Fix build error when CL=clang introduced by CL 10173.
+    There is no need to escape newlines in char data -
+    it makes the XML larger and harder to read.
     
-    Change-Id: I8edf210787a9803280c0779ff710c7e634a820d6
-    Reviewed-on: https://go-review.googlesource.com/10341
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1c1fcee1bdffc705c7428f89ca90af8085d6fb73
+    Reviewed-on: https://go-review.googlesource.com/9310
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/test/sigprocmask_linux.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/encoding/xml/marshal.go      |  2 +-
+ src/encoding/xml/marshal_test.go |  2 +-
+ src/encoding/xml/xml.go          | 10 ++++++++++
+ 3 files changed, 12 insertions(+), 2 deletions(-)

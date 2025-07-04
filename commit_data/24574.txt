@@ -1,18 +1,12 @@
-commit ef986fa3fc9b8035151e10658de66873bb25bba5
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Wed Oct 21 09:38:27 2015 +1100
+commit e13954981e6f6575f6813f00a2119550c682d1b5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 5 16:06:39 2015 -0700
 
-    runtime: change odd 'print1_write' file names
+    [dev.ssa] cmd/compile: provide better errors for regnum and localOffset failures
     
-    The '1' part is left over from the C conversion, but no longer makes
-    sense given that print1.go no longer exists.
-    
-    Change-Id: Iec171251370d740f234afdbd6fb1a4009fde6696
-    Reviewed-on: https://go-review.googlesource.com/16036
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2667b0923e17df7cbf08e34ebec1b69a0f2f02b2
+    Reviewed-on: https://go-review.googlesource.com/13265
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/{print1_write.go => write_err.go}                 | 0
- src/runtime/{print1_write_android.go => write_err_android.go} | 0
- 2 files changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

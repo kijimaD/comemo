@@ -1,16 +1,17 @@
-commit cf69867af44152f06b9a47a1c3129e4a314a00e7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Aug 19 07:30:12 2017 -0700
+commit cf74533b6be733e71eb499cfbb85a31de8949c55
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 27 18:57:10 2017 +0900
 
-    runtime: speed up key copying in specialized evacuate routines
+    syscall: stylistic cleanup and typo fixes in syscall_dragonfly.go
     
-    Similar to CL 59110.
+    Now it's not very different from syscall_dragonfly.go in
+    golang.org/x/sys/unix repository.
     
-    Change-Id: Ia2858541c86a44b105eacbca9a46b1044632c5ca
-    Reviewed-on: https://go-review.googlesource.com/59134
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I8dfd22e1ebce9dc2cc71ab9ab7f0c92d93b2b762
+    Reviewed-on: https://go-review.googlesource.com/41835
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/hashmap_fast.go | 29 ++++++++++++++++++++++++++---
- 1 file changed, 26 insertions(+), 3 deletions(-)
+ src/syscall/syscall_dragonfly.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

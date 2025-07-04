@@ -1,19 +1,12 @@
-commit ba576b2b4821df758a39202120f9473153c3b3a6
-Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 13 20:40:55 2011 -0800
+commit 1c50c32af07047e2df0cac7fa1e56fed33649e31
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Dec 14 13:17:48 2011 +1100
 
-    encoding/gob: better error messages when types mismatch
-    The transmitter must encode an interface value if it is to be decoded
-    into an interface value, but it's a common and confusing error to
-    encode a concrete value and attempt to decode it into an interface,
-    particularly *interface{}. This CL attempts to explain things better.
+    exp/winfsnotify: fix build.
     
-    Fixes #2367.
-    
-    R=golang-dev, rsc
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5485072
+    https://golang.org/cl/5483057
 
- src/pkg/encoding/gob/decode.go       | 7 ++++++-
- src/pkg/encoding/gob/encoder_test.go | 2 +-
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/pkg/exp/winfsnotify/winfsnotify.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

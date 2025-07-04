@@ -1,23 +1,23 @@
-commit d1f2cd8a4968d618caf6757ac648d80f2733e5cb
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 11 21:27:08 2024 +0000
+commit dd53a439206e9b4bf194eb00fb28577a03d86df5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Apr 14 05:47:36 2023 +1000
 
-    cmd/trace/v2: make the -pprof actually useful
+    cmd/link/internal/ld: disable execute-only for external linking on openbsd/arm64
     
-    In both the v1 and v2 cmd/trace, pprofMatchingGoroutines will generate
-    no output at all if the filter name passed to it is the empty string.
+    The Go arm64 assembler places constants into the text section of a binary.
+    OpenBSD 7.3 enabled xonly by default on OpenBSD/arm64. This means that any
+    externally linked Go binary now segfaults. Disable execute-only when invoking
+    the external linker on openbsd/arm64, in order to work around this issue.
     
-    This is rather pointless because there are at least two places where we
-    don't pass a name to filter. Modify pprofMatchingGoroutines to include
-    *all* goroutines in the trace if the name to filter by is not specified.
+    Updates #59615
     
-    For #66782.
-    
-    Change-Id: I6b72298d676bc93892b075a7426e6e56bc6656c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578356
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I1a291293da3c6e4409b21873d066ea15e9bfe280
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Aaron Bieber <deftly@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/trace/v2/pprof.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

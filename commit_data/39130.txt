@@ -1,16 +1,23 @@
-commit 8d212c3ac3bacdf8d135e94d1e0a0c3cfba6e13a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 10 15:34:17 2019 -0400
+commit 303a596d8cf2e96d27d60288fca690e1703c0dd9
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 4 19:09:01 2019 -0500
 
-    cmd/go/internal/modfetch/codehost: ignore incomplete semver tags in RecentTag
+    crypto/x509: ignore 5 phantom 1024-bit roots in TestSystemRoots
     
-    Fixes #31965
+    On macOS 10.11, but not 10.10 and 10.12, the C API returns 5 old root
+    CAs which are not in SystemRootCertificates.keychain (but seem to be in
+    X509Anchors and maybe SystemCACertificates.keychain, along with many
+    others that the C API does not return). They all are moribund 1024-bit
+    roots which are now gone from the Apple store.
     
-    Change-Id: I2126903196b630c0bee2c022be1a818e0856ce3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176539
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Since we can't seem to find a way to make the no-cgo code see them,
+    ignore them rather than skipping the test.
+    
+    Fixes #21416
+    
+    Change-Id: I24ff0461f71cec953b888a60b05b99bc37dad2ed
+    Reviewed-on: https://go-review.googlesource.com/c/156329
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/git.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/crypto/x509/root_darwin_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

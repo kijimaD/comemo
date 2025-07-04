@@ -1,24 +1,20 @@
-commit 56dcf976561ff6c666d9d1fe6231557ac2072883
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 22 09:49:15 2021 -0700
+commit e5159b2a2f0fdd47c644d1655f5a7b57ec7dd509
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jan 6 13:27:17 2021 -0500
 
-    cmd/compile/internal/types2: generalize assignability to generic types
+    cmd/internal/dwarf: minor cleanups
     
-    Similar to conversions, handle ordinary cases first, followed by
-    type-by-type assignability tests in case of type parameters with
-    specific types in their type sets.
+    Remove a stale comment, demote PutInlinedFunc from public to private,
+    and remove an unused interface originally used for sorting vars.
+    No change in functionality.
     
-    Add a new class of type checker tests, in testdata/spec, which
-    I hope we can populate over time with tests following the spec
-    organization. Moved the conversions.go2 tests in the same dir.
-    
-    Change-Id: Iac253ae375c08022bdc39e92e3951ec3f509e432
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357917
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I5ee1ad2b10b78b158e2223c6979bab830202db95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295009
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/check_test.go      |   1 +
- src/cmd/compile/internal/types2/operand.go         | 107 +++++++---
- .../types2/testdata/spec/assignability.go2         | 234 +++++++++++++++++++++
- .../testdata/{examples => spec}/conversions.go2    |   0
- 4 files changed, 316 insertions(+), 26 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go | 20 +++++---------------
+ 1 file changed, 5 insertions(+), 15 deletions(-)

@@ -1,12 +1,14 @@
-commit 3baa98f26d94c2c8a890a1f1f1595c249932e609
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Jan 18 08:34:31 2014 +0900
+commit 98178b345ac7c4fb711e3327b16b1230cdab9d25
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 17 17:42:24 2014 -0500
 
-    syscall: make getrlimit, setrlimit tests work on unix variants
+    runtime: fix TestLFStackStress
     
-    R=golang-codereviews, iant
-    CC=golang-codereviews
-    https://golang.org/cl/53690043
+    Fixes #7138.
+    
+    R=r, bradfitz, dave
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/53910043
 
- src/pkg/syscall/{rlimit_linux_test.go => rlimit_unix_test.go} | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/runtime/lfstack_test.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

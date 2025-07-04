@@ -1,25 +1,20 @@
-commit bf14663943b7c6b9968e3bf7ec6836bf9f75411a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 30 15:19:44 2023 -0700
+commit 1f833e4a1bfd77c2dfa91305f90ade9f9ceb66de
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Aug 15 13:05:01 2022 -0400
 
-    Revert "math: add Compare and Compare32"
+    go/constant: share the empty string
     
-    This reverts CL 467515. Now that we have cmp.Compare,
-    we don't need math.Compare or math.Compare32 after all.
+    This saves 11,000 allocations when loading the standard library
+    in golang.org/x/tools/go/ssa form.
     
-    For #56491
-    Fixes #60519
-    
-    Change-Id: I8ed33464adfc6d69bd6b328edb26aa2ee3d234d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499416
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I8aa32b0641c1a3dde29e6ee76c760006035dd56d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423934
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
 
- api/next/56491.txt   |  2 --
- src/math/all_test.go | 94 ----------------------------------------------------
- src/math/compare.go  | 53 -----------------------------
- 3 files changed, 149 deletions(-)
+ src/go/constant/value.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

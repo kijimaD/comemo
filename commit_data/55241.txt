@@ -1,59 +1,48 @@
-commit 788a22775931ed6ca26426c5bf78ce3716b304ba
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Dec 7 11:09:29 2023 -0800
+commit 28f8dbd7b941648aea311bb0cf331f88c02441b6
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Dec 2 09:25:26 2022 +0100
 
-    cmd/compile: fix SCCP propagation into jump tables
+    runtime,cmd/internal/obj/x86: use TEB TLS slots on windows/i386
     
-    We can't delete all the outgoing edges and then add one back in, because
-    then we've lost the argument of any phi at the target. Instead, move
-    the important target to the front of the list and delete the rest.
+    This CL redesign how we get the TLS pointer on windows/i386.
+    It applies the same changes as done in CL 431775 for windows/amd64.
     
-    This normally isn't a problem, because there is never normally a phi
-    at the target of a jump table. But this isn't quite true when in race
-    build mode, because there is a phi of the result of a bunch of raceread
-    calls.
+    We were previously reading it from the [TEB] arbitrary data slot,
+    located at 0x14(FS), which can only hold 1 TLS pointer.
     
-    The reason this happens is that each case is written like this (where e
-    is the runtime.eface we're switching on):
+    With this CL, we will read the TLS pointer from the TEB TLS slot array,
+    located at 0xE10(GS). The TLS slot array can hold multiple
+    TLS pointers, up to 64, so multiple Go runtimes running on the
+    same thread can coexists with different TLS.
     
-    if e.type == $type.int32 {
-       m = raceread(e.data, m1)
-    }
-    m2 = phi(m1, m)
-    if e.type == $type.int32 {
-       .. do case ..
-       goto blah
-    }
+    Each new TLS slot has to be allocated via [TlsAlloc],
+    which returns the slot index. This index can then be used to get the
+    slot offset from GS with the following formula: 0xE10 + index*4.
     
-    so that if e.type is not $type.int32, it falls through to the default
-    case. This default case will have a memory phi for all the (jumped around
-    and not actually called) raceread calls.
+    The slot index is fixed per Go runtime, so we can store it
+    in runtime.tls_g and use it latter on to read/update the TLS pointer.
     
-    If we instead did it like
+    Loading the TLS pointer requires the following asm instructions:
     
-    if e.type == $type.int32 {
-      raceread(e.data)
-      .. do case ..
-      goto blah
-    }
+      MOVQ runtime.tls_g, AX
+      MOVQ AX(FS), AX
     
-    That would paper over this bug, as it is the only way to construct
-    a jump table whose target is a block with a phi in it. (Yet.)
+    Notice that this approach will now be implemented in all the supported
+    windows arches.
     
-    But we'll fix the underlying bug in this CL. Maybe we can do the
-    rewrite mentioned above later.  (It is an optimization for -race mode,
-    which isn't particularly important.)
+    [TEB]: https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
+    [TlsAlloc]: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-tlsalloc
     
-    Fixes #64606
-    
-    Change-Id: I6f6e3c90eb1e2638112920ee2e5b6581cef04ea4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548356
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If4550b0d44694ee6480d4093b851f4991a088b32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454675
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/block.go    | 17 ++++++++++++++++-
- src/cmd/compile/internal/ssa/deadcode.go |  2 ++
- src/cmd/compile/internal/ssa/sccp.go     |  8 ++++----
- test/fixedbugs/issue64606.go             | 32 ++++++++++++++++++++++++++++++++
- 4 files changed, 54 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go  | 46 ++++++++++-----------------------------
+ src/cmd/internal/obj/x86/obj6.go  | 18 ++++++++++-----
+ src/runtime/asm_386.s             | 19 ++++++++++++----
+ src/runtime/cgo/gcc_windows_386.c | 12 +++++-----
+ src/runtime/sys_windows_386.s     | 46 ++++++++++++++++++++++++++++++++-------
+ 5 files changed, 84 insertions(+), 57 deletions(-)

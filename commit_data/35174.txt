@@ -1,22 +1,26 @@
-commit 3c65bb5b90e0ea367775d4c51966260b1e7c4d25
-Author: bill_ofarrell <billo@ca.ibm.com>
-Date:   Thu Apr 26 16:30:30 2018 -0400
+commit 65fa53183b3978085e20e3f5794e88ae8c2671c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 5 16:06:47 2018 -0500
 
-    cmd/asm: add s390x VMSLG instruction
+    cmd/test2json: fix processing of --- BENCH: output
     
-    This instruction was introduced on the z14 to accelerate "limbified"
-    multiplications for certain cryptographic algorithms. This change allows
-    it to be used in Go assembly.
+    If a benchmark calls b.Log without failing (without b.Error/b.Fatal/b.FailNow)
+    then that turns into output very much like a test passing,
+    except it says BENCH instead of PASS.
+    Benchmarks failing say FAIL just like tests failing.
     
-    Change-Id: Ic93dae7fec1756f662874c08a5abc435bce9dd9e
-    Reviewed-on: https://go-review.googlesource.com/109695
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Fixes #23346.
+    
+    Change-Id: Ib188e695952da78057ab4a13f90d49937aa3c232
+    Reviewed-on: https://go-review.googlesource.com/86396
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 1 +
- src/cmd/internal/obj/s390x/a.out.go       | 1 +
- src/cmd/internal/obj/s390x/anames.go      | 1 +
- src/cmd/internal/obj/s390x/asmz.go        | 2 ++
- src/cmd/internal/obj/s390x/vector.go      | 2 ++
- 5 files changed, 7 insertions(+)
+ src/cmd/internal/test2json/test2json.go            | 10 ++++++++--
+ src/cmd/internal/test2json/testdata/bench.json     | 14 ++++++++++++++
+ src/cmd/internal/test2json/testdata/bench.test     | 12 ++++++++++++
+ src/cmd/internal/test2json/testdata/benchfail.json |  6 ++++++
+ src/cmd/internal/test2json/testdata/benchfail.test |  4 ++++
+ src/cmd/test2json/main.go                          | 13 +++++++++++--
+ 6 files changed, 55 insertions(+), 4 deletions(-)

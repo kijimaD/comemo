@@ -1,20 +1,19 @@
-commit 6e8d7a113cc0f2cf59e0f67f86476cb003881a68
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jan 22 13:42:33 2025 +0100
+commit d3f713bbd11ce9da507b21968179012b62d1a52c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 19 17:10:21 2024 -0500
 
-    crypto/x509: avoid crypto/rand.Int to generate serial number
+    time: add a regression test for time.AfterFunc goroutine starvation
     
-    It's probabyl safe enough, but just reading bytes from rand and then
-    using SetBytes is simpler, and doesn't require allowing calls from
-    crypto into math/big's Lsh, Sub, and Cmp.
+    The test is skipped on wasm platforms for now, because it
+    successfully detects a starvation bug on those platforms.
     
-    Change-Id: I6a6a4656761f7073f9e149f288c48e97048ab13c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643278
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    For #65178.
+    
+    Change-Id: I05d28f1c7be99fcab67ec4dfaa38f412e11fd3cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557038
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/crypto/x509/x509.go | 31 ++++++++++++-------------------
- 1 file changed, 12 insertions(+), 19 deletions(-)
+ src/time/sleep_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

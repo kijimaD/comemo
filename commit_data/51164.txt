@@ -1,29 +1,16 @@
-commit 896faf306c8ff8b1ae9f5200fa9b7927432b632b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 8 16:16:44 2022 -0500
+commit 13d15d147dd09b9209f5bc3778905684379129d8
+Author: Hossein Zolfi <hossein.zolfi@gmail.com>
+Date:   Fri Dec 10 12:39:57 2021 +0330
 
-    net: allocate res_state entirely in C memory
+    go/types: remove TODO that is no longer relevant
     
-    The linux-amd64-wsl builder was failing because the res_nsearch
-    implementation was storing pointer to the res_state's own fields
-    in other fields in the res_state. If the res_state is Go memory, this
-    looks like pointers to Go pointers. Moving the res_state to C memory
-    avoids the problem.
-    
-    The linux-amd64-wsl builder has been fixed a different way by
-    replacing res_nsearch with res_search on Linux, where it is thread-safe.
-    But other systems that still need to use res_nsearch (such as macOS)
-    may run into the same kind of problem, so it is probably still worth
-    arranging for the res_state to live entirely in C memory.
-    
-    Fixes #56658 (again).
-    
-    Change-Id: I58a14e72c866eaceb02ad828854a1f626b9b8e73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448798
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ie897b7b9c0a61c837245642c608129108e28423e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370582
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Trust: Nooras Saba‎ <saba@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/cgo_unix.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/go/types/testdata/check/issues.go2 | 1 -
+ 1 file changed, 1 deletion(-)

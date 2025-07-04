@@ -1,12 +1,38 @@
-commit 94df2050dd6085c7afcd8bcee8ff0cd111444b47
-Author: Michael Käufl <golang@c.michael-kaeufl.de>
-Date:   Sun May 31 20:22:11 2015 +0200
+commit c526f3ac1099fef117a385d0336860cacde6b257
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 21 14:22:41 2015 -0700
 
-    path: fix a typo in documentation of Split
+    runtime: tail call into memeq/cmp body implementations
     
-    Change-Id: Ic00882735d95d61f7c9d9f28d34cb4acce6a5546
-    Reviewed-on: https://go-review.googlesource.com/10556
-    Reviewed-by: Minux Ma <minux@golang.org>
+    There's no need to call/ret to the body implementation.
+    It can write the result to the right place.  Just jump to
+    it and have it return to our caller.
+    
+    Old:
+      call body implementation
+      compute result
+      put result in a register
+      return
+      write register to result location
+      return
+    
+    New:
+      load address of result location into a register
+      jump to body implementation
+      compute result
+      write result to passed-in address
+      return
+    
+    It's a bit tricky on 386 because there is no free register
+    with which to pass the result location.  Free up a register
+    by keeping around blen-alen instead of both alen and blen.
+    
+    Change-Id: If2cf0682a5bf1cc592bdda7c126ed4eee8944fba
+    Reviewed-on: https://go-review.googlesource.com/9202
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/path/path.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_386.s   | 93 ++++++++++++++++++++++++-------------------------
+ src/runtime/asm_amd64.s | 68 +++++++++++++++++-------------------
+ src/runtime/asm_arm.s   | 30 ++++++++--------
+ src/runtime/asm_arm64.s | 30 ++++++++--------
+ 4 files changed, 108 insertions(+), 113 deletions(-)

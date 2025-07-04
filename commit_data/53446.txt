@@ -1,21 +1,32 @@
-commit 2e4fe8bbf0b7ca8fa523c3219dbaa64cec22b5dc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 1 16:31:15 2023 -0700
+commit bd1bff4e7aa1e417aaa617a7f10b1cff88a6e243
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 28 15:54:49 2022 -0500
 
-    go/types, types2: remove version check for more lenient constant handling in inference
+    internal/testenv: add a test for the GoTool function
     
-    For #58671.
-    Fixes #60566.
+    GoTool was added in CL 20967, and revised in CL 21292, for #14901.
     
-    Change-Id: I746f99cdfd44b204dc90350fcfb3867e9b8b1da8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499997
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    I don't fully understand what problem the GoTool function was added to
+    solve: the discussion on that issue was pretty sparse, but it seems
+    like when we run tests of GOROOT packages they always know their own
+    location relative to GOROOT (and thus always know where to find the
+    'go' tool).
+    
+    Lacking that understanding, I don't want to change its behavior, but I
+    do at least want to verify that it resolves to the real 'go' tool in
+    the common case (running 'go test' on a package in GOROOT/src).
+    
+    For #50892
+    For #50893
+    Updates #14901
+    
+    Change-Id: I06d831e6765be631dfc4854d7fddc3d27fc1de34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381834
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/infer.go          | 97 +++++++----------------
- src/go/types/infer.go                             | 97 +++++++----------------
- src/internal/types/testdata/examples/inference.go |  4 +-
- 3 files changed, 58 insertions(+), 140 deletions(-)
+ src/internal/testenv/testenv_test.go | 53 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)

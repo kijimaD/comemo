@@ -1,32 +1,19 @@
-commit 078cc6a04f1dc0ef46f1bd5c27dc20a6fcfbabcf
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 29 18:25:41 2022 -0500
+commit 2fe324858b31a672070f8529191d0769013b8488
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 9 13:51:59 2021 -0400
 
-    go/printer: format doc comments
+    [dev.typeparams] internal/buildcfg: always enable regabiwrappers on AMD64
     
-    [This CL is part of a sequence implementing the proposal #51082.
-    The design doc is at https://go.dev/s/godocfmt-design.]
+    Always enable regabiwrappers on AMD64. GOEXPERIMENT=none will not
+    turn it off.
     
-    Use go/doc/comment to reformat doc comments into a
-    standard form, enabling future expansion later and generally
-    making it easier to edit and read doc comments.
-    
-    For #51082.
-    
-    Change-Id: I6ab3b80846f03d781951111e4c36f86f47d21bb2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384264
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0aa208c02157661ac3676b753bcfbfa050b99e41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327271
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/ast/ast.go                        |   1 +
- src/go/printer/comment.go                | 152 +++++++++++++++++++++++++++++++
- src/go/printer/printer.go                |  19 +++-
- src/go/printer/printer_test.go           |   4 +-
- src/go/printer/testdata/comments.golden  |  11 ++-
- src/go/printer/testdata/comments.input   |  18 ++--
- src/go/printer/testdata/comments.x       |   1 -
- src/go/printer/testdata/comments2.golden |   1 -
- src/go/printer/testdata/doc.golden       |  21 +++++
- src/go/printer/testdata/doc.input        |  20 ++++
- 10 files changed, 234 insertions(+), 14 deletions(-)
+ src/internal/buildcfg/exp.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,14 +1,14 @@
-commit 88a9e76e28d037d77aa1faef813c40189892e358
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 9 15:26:08 2012 -0800
+commit 9cd4a0467ae2494b0734693b90d47c604610a9ac
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 10 10:22:01 2012 +1100
 
-    text/scanner: update comments
+    regexp: name result parameters referenced from docs
     
-    Fixes #2962.
+    Fixes #2953
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5652048
+    https://golang.org/cl/5653051
 
- src/pkg/text/scanner/scanner.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/regexp/regexp.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

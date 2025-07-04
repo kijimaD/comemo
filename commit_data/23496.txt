@@ -1,14 +1,13 @@
-commit 895df143a2d76cc5bb5f49f8e6c1675fc95cd183
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 25 22:38:19 2015 +1000
+commit ddc93398b955a4d71683c8019d87d2ff9c739070
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 14 19:50:41 2015 -0700
 
-    math: explain OEIS link
+    cmd/6g, cmd/internal/gc: use Etype instead of Ostk
     
-    Fixes #10236
-    
-    Change-Id: Ife85513efda48af81c267b753da2ac7317cdfe75
-    Reviewed-on: https://go-review.googlesource.com/11479
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ifda5d84b28717986c93b63767298180a6d6236c0
+    Reviewed-on: https://go-review.googlesource.com/10140
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/const.go | 19 +++++++++----------
- 1 file changed, 9 insertions(+), 10 deletions(-)
+ src/cmd/6g/ggen.go            | 6 +++---
+ src/cmd/internal/gc/syntax.go | 3 +--
+ 2 files changed, 4 insertions(+), 5 deletions(-)

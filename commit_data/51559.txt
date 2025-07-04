@@ -1,18 +1,25 @@
-commit 0b8add46ce9e763ce8c60c71b3d647f6af02e07a
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Dec 14 14:55:30 2022 -0500
+commit f14ad78e844d7dff286421754c462886336b1eb6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 10 20:09:07 2022 -0800
 
-    doc/go1.20.html: pre-announce dropping Windows 7, 8, and friends
+    net: send EDNS(0) packet length in DNS query
     
-    For #57003, #57004.
+    We used to only accept up to 512 bytes in a DNS packet, per RFC 1035.
+    Increase the size we accept to 1232 bytes, per https://dnsflagday.net/2020/,
+    and advertise that larger limit in a EDNS(0) OPT record.
     
-    Change-Id: Ic1386a0ce83897411fbc68c83a9125af1cc11b54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/457695
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Fixes #6464
+    Fixes #21160
+    Fixes #44135
+    Fixes #51127
+    
+    Change-Id: I496a294e9a8015de4161cbc1825b0dc5b4e9f5d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385035
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.20.html | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/net/dnsclient_unix.go      | 19 +++++++++++++-
+ src/net/dnsclient_unix_test.go | 57 +++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 74 insertions(+), 2 deletions(-)

@@ -1,18 +1,28 @@
-commit 45711645378b7566b4d423b407f7c5c26028819e
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Nov 14 18:43:43 2022 +0100
+commit 5b3ebc8b72f496a5c6892d76fdeee3d9029b55cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 16 12:58:45 2022 -0500
 
-    crypto/ecdsa: improve benchmarks
+    cmd/dist: avoid lapsing into x86 builds on ARM64 Macs
     
-    While at it, drop P-224 benchmarks. Nobody cares about P-224.
+    We use uname -m to decide the GOHOSTARCH default,
+    and on my ARM64 Mac laptop, uname -m prints x86_64.
     
-    Change-Id: I31db6fedde6026deff36de963690275dacf5fda1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451196
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    uname -a prints:
+    
+    Darwin p1.local 21.1.0 Darwin Kernel Version 21.1.0: Wed Oct 13 17:33:01 PDT 2021; root:xnu-8019.41.5~1/RELEASE_ARM64_T6000 x86_64
+    
+    (Note the x86_64 at the end, consistent with uname -m.)
+    
+    The effect of this is that make.bash builds an x86 toolchain
+    even when I start with an ARM64 bootstrap toolchain!
+    Avoid being tricked by looking for RELEASE_ARM64 instead.
+    
+    Fixes #50643.
+    
+    Change-Id: I76eded84bde8009d29419d5982bf964a0bf1c8fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378894
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/ecdsa/ecdsa_test.go | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ src/cmd/dist/main.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

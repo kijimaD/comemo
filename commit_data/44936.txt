@@ -1,17 +1,18 @@
-commit 4702dd67a7dcf1eac2309218807287bcd48d4e09
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 2 17:20:15 2021 -0400
+commit 0dde60a5fefcb1447c97efa5c7bb4dbcf3575736
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Aug 19 03:07:26 2020 +1000
 
-    cmd/internal/obj/arm64: simplify huge frame prologue
+    cmd/internal/obj/riscv: clean up lowerJALR
     
-    CL 307010 for arm64.
+    This cleans up the last of the direct obj.Prog rewriting, removing lowerJALR
+    and replacing it with correct handling for AJALR during instruction encoding.
     
-    Change-Id: I6c6e1bd6065df059e50c3632a9eb669b64fce899
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307050
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ieea125bde30d4c0edd2d9ed1e50160543aa8f330
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249077
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Joel Sing <joel@sing.id.au>
 
- src/cmd/internal/obj/arm64/obj7.go | 54 ++++++++++++--------------------------
- 1 file changed, 17 insertions(+), 37 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 43 ++++++++-------------------------------
+ 1 file changed, 9 insertions(+), 34 deletions(-)

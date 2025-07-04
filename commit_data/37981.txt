@@ -1,46 +1,25 @@
-commit 65c2069a9f30cb6fa2c512d17dc0ad654d621da9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 13 17:37:50 2019 -0500
+commit c03d0e4fec6b02c09d286dae5df2f63164d74ea1
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Mon Sep 17 21:37:30 2018 +0300
 
-    cmd/go: only generate a go.mod file during 'go mod init'
+    cmd/compile/internal/gc: handle arith ops in samesafeexpr
     
-    In the general case, we do not know the correct module path for a new
-    module unless we have checked its VCS tags for a major version. If we
-    do not know the correct path, then we should not synthesize a go.mod
-    file automatically from it.
+    Teach samesafeexpr to handle arithmetic unary and binary ops.
     
-    On the other hand, we don't want to run VCS commands in the working
-    directory without an explicit request by the user to do so: 'go mod
-    init' can reasonably invoke a VCS command, but 'go build' should not.
+    It makes map lookup optimization possible in
     
-    Therefore, we should only create a go.mod file during 'go mod init'.
+            m[k+1] = append(m[k+1], ...)
+            m[-k] = append(m[-k], ...)
+            ... etc
     
-    This change removes the previous behavior of synthesizing a file
-    automatically, and instead suggests a command that the user can opt to
-    run explicitly.
+    Does not cover "+" for strings (concatenation).
     
-    Updates #29433
-    Updates #27009
-    Updates #30228
-    
-    Change-Id: I8c4554969db17156e97428df220b129a4d361040
-    Reviewed-on: https://go-review.googlesource.com/c/162699
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ibbb16ac3faf176958da344be1471b06d7cf33a6c
+    Reviewed-on: https://go-review.googlesource.com/135795
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modload/init.go                | 77 ++++++++++++----------
- src/cmd/go/internal/modload/init_test.go           | 42 ------------
- src/cmd/go/internal/modload/load.go                |  2 +-
- src/cmd/go/testdata/script/mod_convert_dep.txt     | 22 +++++++
- src/cmd/go/testdata/script/mod_convert_git.txt     | 15 ++++-
- src/cmd/go/testdata/script/mod_convert_glide.txt   |  9 +++
- .../go/testdata/script/mod_convert_glockfile.txt   |  9 +++
- src/cmd/go/testdata/script/mod_convert_godeps.txt  |  9 +++
- src/cmd/go/testdata/script/mod_convert_tsv.txt     |  9 +++
- .../go/testdata/script/mod_convert_vendor_conf.txt |  9 +++
- .../go/testdata/script/mod_convert_vendor_json.txt |  9 +++
- .../script/mod_convert_vendor_manifest.txt         |  9 +++
- .../go/testdata/script/mod_convert_vendor_yml.txt  |  9 +++
- src/cmd/go/testdata/script/mod_find.txt            | 12 ++++
- 14 files changed, 162 insertions(+), 80 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  6 ++++--
+ test/codegen/mapaccess.go                | 24 ++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)

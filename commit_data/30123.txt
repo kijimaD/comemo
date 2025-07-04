@@ -1,14 +1,20 @@
-commit 3e366ec6a7066567b4f747984389ab10cb6f1a46
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Feb 3 10:18:04 2017 +0000
+commit 66e849b168eef36a4159a4b038fe89eecd2f22e3
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 4 15:56:19 2016 -0400
 
-    testing: clarify T.Parallel() godoc wording
+    runtime: eliminate mheap.nspan and use range loops
     
-    Fixes #18914.
+    This was necessary in the C days when allspans was an mspan**, but now
+    that allspans is a Go slice, this is redundant with len(allspans) and
+    we can use range loops over allspans.
     
-    Change-Id: Iec90d6aaa62595983db28b17794429f3c9a3dc36
-    Reviewed-on: https://go-review.googlesource.com/36272
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie1dc39611e574e29a896e01690582933f4c5be7e
+    Reviewed-on: https://go-review.googlesource.com/30531
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/testing/testing.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/heapdump.go | 14 ++++----------
+ src/runtime/mheap.go    |  4 ----
+ src/runtime/mstats.go   |  3 +--
+ 3 files changed, 5 insertions(+), 16 deletions(-)

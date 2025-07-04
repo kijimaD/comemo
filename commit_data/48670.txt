@@ -1,32 +1,22 @@
-commit c58f1bb65f2187d79a5842bb19f4db4cafd22794
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 14 13:21:06 2022 +1100
+commit 139595207570ae380e3947fa39e43205477b7bba
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 3 11:37:26 2021 -0400
 
-    text/template: permit eq and ne funcs to check against nil
+    [dev.typeparams] go/types: add Named.SetTParams and Named.Orig methods
     
-    The existing code errors out immediately if the argument is not
-    "comparable", making it impossible to test a slice, map, and so
-    on from being compared to nil.
+    This is a port of CL 309832 to go/types, adjusted to not export the new
+    API and to amend TestSizeof.
     
-    Fix by delaying the "comparable" error check until we encounter
-    an actual check between two non-comparable, non-nil values.
-    
-    Note for the future: reflect makes it unnecessarily clumsy
-    to deal with nil values in cases like this. For instance, it
-    should be possible to check if a value is nil without stepping
-    around a panic. See the new functions isNil and canCompare
-    for my (too expensive) workaround.
-    
-    Fixes #51642
-    
-    Change-Id: Ic4072698c4910130ea7e3d76e7a148d8a8b88162
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392274
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Change-Id: I67efd3ba9b921c8431528eba1cd88ec1f41898bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324755
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/html/template/exec_test.go | 34 ++++++++++++++++++++--------------
- src/text/template/exec_test.go | 34 ++++++++++++++++++++--------------
- src/text/template/funcs.go     | 40 +++++++++++++++++++++++++++++++---------
- 3 files changed, 71 insertions(+), 37 deletions(-)
+ src/go/types/decl.go        |  9 ++++-----
+ src/go/types/sanitize.go    |  4 ++--
+ src/go/types/sizeof_test.go |  2 +-
+ src/go/types/subst.go       |  5 ++---
+ src/go/types/type.go        | 27 ++++++++++++++++++++-------
+ 5 files changed, 29 insertions(+), 18 deletions(-)

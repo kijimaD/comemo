@@ -1,17 +1,12 @@
-commit 762a9d934eab267418595df7a220eec50919b77d
-Author: Julien Schmidt <google@julienschmidt.com>
-Date:   Tue Dec 17 11:57:30 2013 -0800
+commit 2784a3ea8527083a3d819272f879fa508dcca3b5
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Dec 17 08:46:07 2013 -0800
 
-    database/sql: fix auto-reconnect in prepared statements
+    ld: fix Plan 9 build
     
-    This also fixes several connection leaks.
-    Fixes #5718
-    
-    R=bradfitz, adg
-    CC=alberto.garcia.hierro, golang-dev
-    https://golang.org/cl/14920046
+    R=golang-dev, jas, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/43420043
 
- src/pkg/database/sql/fakedb_test.go |  24 ++++++++
- src/pkg/database/sql/sql.go         | 120 +++++++++++++++++++++---------------
- src/pkg/database/sql/sql_test.go    | 106 ++++++++++++++++++++++++++++++-
- 3 files changed, 198 insertions(+), 52 deletions(-)
+ src/cmd/ld/pobj.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

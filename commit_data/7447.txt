@@ -1,12 +1,12 @@
-commit a67292f20f5248f6a189622c9d0e858942659789
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 11 16:06:04 2011 -0800
+commit a93c994bcf4c3ca75a25f2703ab7a66d9a84c4e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 11 18:00:58 2011 -0500
 
-    strconv/ftoa: avoid a double shift. (shifts by variables are expensive.)
+    testing: include elapsed time in output
     
-    R=rsc, gri, r2
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4169048
+    https://golang.org/cl/4180045
 
- src/pkg/strconv/ftoa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/testing/testing.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

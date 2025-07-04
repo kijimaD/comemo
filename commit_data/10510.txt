@@ -1,19 +1,20 @@
-commit 4c113ffe162236d44106a1c44ab8bfb623c1c795
-Author: Michael T. Jones <mtj@google.com>
-Date:   Sun Nov 27 11:10:59 2011 -0800
+commit d859d7deee0845433b9e9770a99c6bcdbed3c920
+Author: Gustav Paul <gustav.paul@gmail.com>
+Date:   Sun Nov 27 09:59:20 2011 -0500
 
-    math/big: use recursive subdivision for significant speedup
+    exp/ssh: messages now contain remote channel's id instead of local id
     
-    This change adds the second aspect to the conversion code, the
-    use of large divisiors (powers of big base) to greatly speed up
-    the divsion of large numbers. Speedups of 30x are common in the
-    large cases. Also includes new tests and tuning code for the
-    key internal parameters.
+    According to http://www.ietf.org/rfc/rfc4254.txt most channel messages contain the channel id of the recipient channel, not the sender id. This allows the recipient connection multiplexer to route the message to the correct channel.
     
-    R=gri
+    This changeset fixes several messages that incorrectly send the local channel id instead of the remote channel's id.
+    
+    While sessions were being created and closed in sequence channels in the channel pool were freed and reused on the server side of the connection at the same rate as was done on the client, so the channel local and remote channel ids always corresponded. As soon as I had concurrent sessions on the same clientConn the server started to complain of 'uknown channel id N' where N is the local channel id, which is actually paired with server channel id K.
+    
+    R=golang-dev, dave, rsc, agl
     CC=golang-dev
-    https://golang.org/cl/5438058
+    https://golang.org/cl/5433063
 
- src/pkg/math/big/nat.go      | 223 +++++++++++++++++++++++++++++++++-------
- src/pkg/math/big/nat_test.go | 240 +++++++++++++++++++++----------------------
- 2 files changed, 303 insertions(+), 160 deletions(-)
+ src/pkg/exp/ssh/client.go  | 18 +++++++-----------
+ src/pkg/exp/ssh/session.go | 14 +++++++-------
+ src/pkg/exp/ssh/tcpip.go   |  4 ++--
+ 3 files changed, 16 insertions(+), 20 deletions(-)

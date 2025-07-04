@@ -1,27 +1,21 @@
-commit 3445ece2128b0721cae4f6e84b159539acd314ef
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 22 19:02:35 2017 -0400
+commit c46226a6222eb8bc8b30b40e8ce09ebe00f5dade
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 23 03:56:23 2017 +0000
 
-    cmd/go: be more precise when a directory cannot be built
+    net: mark TestDialerDualStack as flaky
     
-    Maybe there are no Go files at all.
-    Maybe they are all excluded by build constraints.
-    Maybe there are only test Go files.
-    Be specific.
+    It was already marked flaky for everything but the dashboard.
+    Remove that restriction. It's just flaky overall.
     
-    Fixes #17008.
-    Fixes parts of #20760.
+    It's doing more harm than good.
     
-    Change-Id: If6ac82ba0ed437772e76e06763263747d3bc4f65
-    Reviewed-on: https://go-review.googlesource.com/46427
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #13324
+    
+    Change-Id: I36feff32a1b8681e77700f74b9c70cb4073268eb
+    Reviewed-on: https://go-review.googlesource.com/38459
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/go_test.go                        | 38 ++++++++++++++++++++++------
- src/cmd/go/internal/load/pkg.go              | 29 +++++++++++++++++++++
- src/cmd/go/internal/work/build.go            | 15 +++++------
- src/cmd/go/testdata/src/exclude/empty/x.txt  |  0
- src/cmd/go/testdata/src/exclude/ignore/_x.go |  1 +
- src/cmd/go/testdata/src/exclude/x.go         |  3 +++
- src/cmd/go/testdata/src/exclude/x_linux.go   |  4 +++
- 7 files changed, 74 insertions(+), 16 deletions(-)
+ src/net/dial_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

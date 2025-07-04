@@ -1,18 +1,21 @@
-commit 7e41abbc6b9f00f84374c69f3acb63b56fcf4728
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Apr 29 12:37:16 2014 +0900
+commit 6be21b9f020e2fd899712db068f49e9a7326f15d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 28 14:24:14 2014 -0400
 
-    net: make WriteTo, WriteToIP and WriteMsgIP fail when IPConn is already connected
+    misc/vim/readme.txt: workaround weird OS X vim bug.
+    The vi bundled with OS X has a weird bug in that if you turn off
+    filetype in .vimrc when it's not turned on, even a clean exit of
+    vi will return 1 which breaks almost everything.
     
-    This CL tries to fill the gap between Linux and other Unix-like systems
-    in the same way UDPConn and UnixConn already did.
+    While we're at it, add hint to change $GOROOT to its actual value
+    in .vimrc.
     
-    Fixes #7887.
+    Fixes #7865.
     
-    LGTM=iant
-    R=iant
+    LGTM=robert.hencke, dsymonds
+    R=golang-codereviews, robert.hencke, gobot, dsymonds
     CC=golang-codereviews
-    https://golang.org/cl/97810043
+    https://golang.org/cl/96800046
 
- src/pkg/net/iprawsock_posix.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ misc/vim/readme.txt | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

@@ -1,14 +1,15 @@
-commit d7634ad7d9a3b914245fba89cb9737f12c07dfe6
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Dec 12 16:08:32 2011 -0500
+commit d0cf3fa21ed7017eafa05f2e612c0b8f5cdcd20d
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Dec 12 16:08:29 2011 -0500
 
-    gc: fix wrong arguments to error message for switches.
+    time: gob marshaler for Time
     
-    Fixes #2502.
+    Addresses issue 2526
     
-    R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5472062
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5448114
 
- src/cmd/gc/swt.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/time/time.go      | 80 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/time/time_test.go | 70 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 150 insertions(+)

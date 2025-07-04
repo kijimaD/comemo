@@ -1,18 +1,23 @@
-commit 39ce6eb9ec53e53e361824feb96cbbc6d236df5a
-Author: Austin Clements <austin@google.com>
-Date:   Thu Aug 25 11:52:24 2016 -0400
+commit d108bc0e73046826b27a3a3f6cfc1b33b40ae11d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun May 15 00:12:56 2016 -0400
 
-    runtime: report GCSys and OtherSys in heap profile
+    [dev.ssa] cmd/compile: implement Defer, RetJmp on SSA for ARM
     
-    The comment block at the end of the heap profile includes *almost*
-    everything from MemStats. Add the missing fields. These are useful for
-    debugging RSS that has gone to GC-internal data structures.
+    Also fix argument offset for runtime calls.
     
-    Change-Id: I0ee8a918d49629e28fd8fd2bf6861c4529461c24
-    Reviewed-on: https://go-review.googlesource.com/29276
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Also fix LoadReg/StoreReg by generating instructions by type.
+    
+    Progress on SSA backend for ARM. Still not complete.
+    Tests append_ssa.go, assert_ssa.go, loadstore_ssa.go, short_ssa.go, and
+    deferNoReturn.go in cmd/compile/internal/gc/testdata passed.
+    
+    Updates #15365.
+    
+    Change-Id: I0f0a2398cab8bbb461772a55241a16a7da2ecedf
+    Reviewed-on: https://go-review.googlesource.com/23212
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/pprof/pprof.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/arm/ssa.go | 91 +++++++++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/ssa.go  |  8 ++--
+ 2 files changed, 91 insertions(+), 8 deletions(-)

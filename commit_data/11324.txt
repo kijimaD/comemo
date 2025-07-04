@@ -1,13 +1,13 @@
-commit fd9c99511e9ed3b86c7df4d4dfe95e31db6f52e0
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Jan 23 01:32:07 2012 -0200
+commit abd5bd7d54b1b5e1631dacb3733a44d2cf39d37d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Jan 22 18:53:18 2012 -0800
 
-    encoding/xml: minor doc fixup
+    go/doc: add more test cases
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5564046
+    https://golang.org/cl/5571043
 
- src/pkg/encoding/xml/marshal.go | 9 ++++-----
- src/pkg/encoding/xml/read.go    | 5 +++--
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/go/doc/testdata/c.go  | 62 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/c.out | 48 +++++++++++++++++++++++++++++++++
+ 2 files changed, 110 insertions(+)

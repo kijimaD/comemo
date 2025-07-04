@@ -1,37 +1,23 @@
-commit 0e1b14bc2e13aed697854e3859f73ba4dba9fb22
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri May 23 13:19:44 2025 -0400
+commit beea7c1ba6a93c2a2991e79936ac4050bae851c4
+Author: Chemaclass <chemaclass@outlook.es>
+Date:   Sat Apr 13 14:24:11 2024 +0000
 
-    cmd/go: fix get with the new 'work' pattern
+    io: fix typo inside copyBuffer
     
-    Before this change, go get didn't have support for the work pattern. The
-    work pattern is new in Go 1.25 and evaluates to the packages in the work
-    (also called main) modules. 'go get work' would cause a panic because
-    'work' would be incorrectly considered a path pattern and then queryPath
-    would would try to query a metapackage pattern (resulting in the
-    internal error panic). This change properly supports the work pattern in
-    go get.
+    The "rt" seems to be caused after copy-pasting the previous "wt" block
+    which make sense as WriterTo, but for ReaderFrom it makes more sense
+    thinking of rf instead of rt.
     
-    It's pretty simple: First, we need to seprate the work pattern from the
-    other patterns. Then in performWorkQueries, which maps queries to the
-    modules that satisfy them, we return the single main module because by
-    definition the work pattern is the set of packages in the work modules,
-    and go get always runs in single module mode. (The exception is when the
-    work module contains no packages, in which case we report a warning, and
-    return no candidates because nothing is needed to resolve nothing).
-    
-    The rest of the work is already done by loading the packages matching
-    the query and finding missing imports in the call to
-    findAndUpgradeImports in runGet.
-    
-    Change-Id: I3c4610878b3d930a1d106cc59d9a0be194d966cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675895
-    Reviewed-by: Michael Matloob <matloob@google.com>
+    Change-Id: I873699c27211bea6cdba3e199f36eb3c38188d70
+    GitHub-Last-Rev: 1795600a9b29946d824ba645c137da216bdf6302
+    GitHub-Pull-Request: golang/go#66811
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578635
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/go/internal/modget/get.go                  | 35 ++++++++++++++++
- src/cmd/go/testdata/script/mod_get_nopkgs.txt      |  8 ++++
- src/cmd/go/testdata/script/mod_get_work.txt        | 46 ++++++++++++++++++++++
- ...mplete.txt => mod_get_workspace_incomplete.txt} |  7 ++++
- 4 files changed, 96 insertions(+)
+ src/io/io.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

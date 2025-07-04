@@ -1,23 +1,70 @@
-commit 0aba8f24cb1f38beb01491bc91697617ea0ce55b
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Dec 9 18:25:05 2020 -0500
+commit 45d288718d2b94b83cc546c1a2cd8fb6fe503138
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 30 09:17:39 2020 -0700
 
-    cmd/link: truncate file after code signature
+    bytes: simpler and faster FieldsFunc (apply same changes as for strings)
     
-    When external linking, in case that the external linker generates
-    a code signature with a different size (e.g. as it uses a
-    different identifier), truncate the file after rewriting the code
-    signature, to make sure that no bytes after the signature (which
-    will invalidate the signature).
+    This change applies the recent changes to the strings package
+    (https://golang.org/cl/229765) to this package, with relevant
+    local adjustments.
     
-    Fixes #43105.
+    In contrast to the changes in strings, for the bytes package
+    this change leads to a nice performance improvement of >10%.
     
-    Change-Id: I732f949fedd6de42d9f3cf6d017f7ba3f4e59e7a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276693
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Benchmarks run on a "quiet" MacBook Pro, 3.3GHz Dual-Core Intel Core i7,
+    with 16GB 2133MHz LPDDR3 RAM running macOS 10.15.4.
+    
+    name                        old time/op    new time/op     delta
+    FieldsFunc/ASCII/16-4          191ns ± 9%      163ns ± 2%  -14.66%  (p=0.008 n=5+5)
+    FieldsFunc/ASCII/256-4        2.08µs ± 5%     1.80µs ± 8%  -13.51%  (p=0.008 n=5+5)
+    FieldsFunc/ASCII/4096-4       36.1µs ± 2%     31.7µs ± 7%  -12.34%  (p=0.008 n=5+5)
+    FieldsFunc/ASCII/65536-4       584µs ± 3%      517µs ± 3%  -11.52%  (p=0.008 n=5+5)
+    FieldsFunc/ASCII/1048576-4    9.45ms ± 3%     8.11ms ± 8%  -14.19%  (p=0.008 n=5+5)
+    FieldsFunc/Mixed/16-4          202ns ± 2%      181ns ± 2%  -10.02%  (p=0.008 n=5+5)
+    FieldsFunc/Mixed/256-4        2.12µs ± 6%     1.78µs ± 3%  -16.16%  (p=0.008 n=5+5)
+    FieldsFunc/Mixed/4096-4       40.4µs ± 2%     36.1µs ± 1%  -10.66%  (p=0.008 n=5+5)
+    FieldsFunc/Mixed/65536-4       700µs ± 5%      612µs ± 1%  -12.59%  (p=0.008 n=5+5)
+    FieldsFunc/Mixed/1048576-4    11.2ms ± 8%     10.3ms ± 4%   -8.15%  (p=0.008 n=5+5)
+    
+    name                        old speed      new speed       delta
+    FieldsFunc/ASCII/16-4       84.0MB/s ± 9%   98.3MB/s ± 2%  +17.04%  (p=0.008 n=5+5)
+    FieldsFunc/ASCII/256-4       123MB/s ± 5%    143MB/s ± 8%  +15.74%  (p=0.008 n=5+5)
+    FieldsFunc/ASCII/4096-4      113MB/s ± 2%    130MB/s ± 6%  +14.20%  (p=0.008 n=5+5)
+    FieldsFunc/ASCII/65536-4     112MB/s ± 2%    127MB/s ± 3%  +13.05%  (p=0.008 n=5+5)
+    FieldsFunc/ASCII/1048576-4   111MB/s ± 3%    130MB/s ± 8%  +16.66%  (p=0.008 n=5+5)
+    FieldsFunc/Mixed/16-4       79.3MB/s ± 2%   88.2MB/s ± 2%  +11.15%  (p=0.008 n=5+5)
+    FieldsFunc/Mixed/256-4       121MB/s ± 5%    144MB/s ± 3%  +19.19%  (p=0.008 n=5+5)
+    FieldsFunc/Mixed/4096-4      101MB/s ± 2%    113MB/s ± 1%  +11.92%  (p=0.008 n=5+5)
+    FieldsFunc/Mixed/65536-4    93.7MB/s ± 5%  107.1MB/s ± 1%  +14.31%  (p=0.008 n=5+5)
+    FieldsFunc/Mixed/1048576-4  93.6MB/s ± 8%  101.8MB/s ± 4%   +8.77%  (p=0.008 n=5+5)
+    
+    name                        old alloc/op   new alloc/op    delta
+    FieldsFunc/ASCII/16-4          80.0B ± 0%      80.0B ± 0%     ~     (all equal)
+    FieldsFunc/ASCII/256-4          768B ± 0%       768B ± 0%     ~     (all equal)
+    FieldsFunc/ASCII/4096-4       24.8kB ± 0%     24.8kB ± 0%     ~     (all equal)
+    FieldsFunc/ASCII/65536-4       497kB ± 0%      497kB ± 0%     ~     (p=0.444 n=5+5)
+    FieldsFunc/ASCII/1048576-4    9.61MB ± 0%     9.61MB ± 0%     ~     (p=0.500 n=5+5)
+    FieldsFunc/Mixed/16-4          96.0B ± 0%      96.0B ± 0%     ~     (all equal)
+    FieldsFunc/Mixed/256-4          768B ± 0%       768B ± 0%     ~     (all equal)
+    FieldsFunc/Mixed/4096-4       24.8kB ± 0%     24.8kB ± 0%     ~     (all equal)
+    FieldsFunc/Mixed/65536-4       497kB ± 0%      497kB ± 0%     ~     (all equal)
+    FieldsFunc/Mixed/1048576-4    9.61MB ± 0%     9.61MB ± 0%     ~     (p=0.881 n=5+5)
+    
+    name                        old allocs/op  new allocs/op   delta
+    FieldsFunc/ASCII/16-4           1.00 ± 0%       1.00 ± 0%     ~     (all equal)
+    FieldsFunc/ASCII/256-4          1.00 ± 0%       1.00 ± 0%     ~     (all equal)
+    FieldsFunc/ASCII/4096-4         5.00 ± 0%       5.00 ± 0%     ~     (all equal)
+    FieldsFunc/ASCII/65536-4        12.0 ± 0%       12.0 ± 0%     ~     (all equal)
+    FieldsFunc/ASCII/1048576-4      24.0 ± 0%       24.0 ± 0%     ~     (all equal)
+    FieldsFunc/Mixed/16-4           1.00 ± 0%       1.00 ± 0%     ~     (all equal)
+    FieldsFunc/Mixed/256-4          1.00 ± 0%       1.00 ± 0%     ~     (all equal)
+    FieldsFunc/Mixed/4096-4         5.00 ± 0%       5.00 ± 0%     ~     (all equal)
+    FieldsFunc/Mixed/65536-4        12.0 ± 0%       12.0 ± 0%     ~     (all equal)
+    FieldsFunc/Mixed/1048576-4      24.0 ± 0%       24.0 ± 0%     ~     (all equal)
+    
+    Change-Id: I59a2ed52563851c693b2c8dfce7e3cde640f62a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231120
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/macho.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/bytes/bytes.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

@@ -1,43 +1,24 @@
-commit 3bbc82371eb801ce489f77359f0badc8e469c26d
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Aug 26 01:33:29 2021 +1000
+commit a1b53d85dad7648d545ee5e0d7e768f300bfcd84
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 15 19:41:26 2021 -0500
 
-    cmd/internal/obj/riscv,cmd/link/internal/riscv64: add call trampolines for riscv64
+    cmd/go: add documentation for test and xtest fields output by go list
     
-    CALL and JMP on riscv64 are currently implemented as an AUIPC+JALR pair. This means
-    that every call requires two instructions and makes use of the REG_TMP register,
-    even when the symbol would be directly reachable via a single JAL instruction.
+    The TestEmbedPatterns, TestEmbedFiles, XTestEmbedPatterns, and
+    XTestEmbedFiles fields were left out of golang.org/cl/282195 which was
+    supposed to document the embed fields available in the go list
+    output. Add documentation for them in this CL.
     
-    Add support for call trampolines - CALL and JMP are now implemented as a single JAL
-    instruction, with the linker generating trampolines in the case where the symbol is
-    not reachable (more than +/-1MiB from the JAL instruction), is an unknown symbol or
-    does not yet have an address assigned. Each trampoline contains an AUIPC+JALR pair,
-    which the relocation is applied to.
+    Fixes #43081
     
-    Due to the limited reachability of the JAL instruction, combined with the way that
-    the Go linker currently assigns symbol addresses, there are cases where a call is to
-    a symbol that has no address currently assigned. In this situation we have to assume
-    that a trampoline will be required, however we can patch this up during relocation,
-    potentially calling directly instead. This means that we will end up with trampolines
-    that are unused. In the case of the Go binary, there are around 3,500 trampolines of
-    which approximately 2,300 are unused (around 9200 bytes of machine instructions).
-    
-    Overall, this removes over 72,000 AUIPC instructions from the Go binary.
-    
-    Change-Id: I2d9ecfb85dfc285c7729a3cd0b3a77b6f6c98be0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345051
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ifc256c476daec7c0f0e2c41f86b82f958b3e2b1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284258
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s |  13 ++-
- src/cmd/internal/obj/riscv/cpu.go           |  12 ++-
- src/cmd/internal/obj/riscv/obj.go           |  88 ++++++++---------
- src/cmd/internal/objabi/reloctype.go        |  13 ++-
- src/cmd/internal/objabi/reloctype_string.go | 101 ++++++++++----------
- src/cmd/link/internal/ld/data.go            |  15 +--
- src/cmd/link/internal/ld/pcln.go            |   7 +-
- src/cmd/link/internal/riscv64/asm.go        | 141 +++++++++++++++++++++++++---
- src/cmd/link/internal/riscv64/obj.go        |  14 ++-
- 9 files changed, 269 insertions(+), 135 deletions(-)
+ src/cmd/go/alldocs.go            | 8 ++++++--
+ src/cmd/go/internal/list/list.go | 8 ++++++--
+ src/cmd/go/internal/load/pkg.go  | 6 +++---
+ 3 files changed, 15 insertions(+), 7 deletions(-)

@@ -1,14 +1,28 @@
-commit e7c51cad71126c40bf130db30c35953321f32c9d
-Author: Darren McCleary <darren.rmc@gmail.com>
-Date:   Thu Aug 1 20:34:29 2019 +0000
+commit a60b56adbeb80bb8b05b88ae89ac832c69ec5995
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Wed Mar 6 08:43:27 2019 +0000
 
-    net/http: fix a typo in spelling of MultiPartForm
+    internal/poll: make FD.isFile mean whether it isn't socket on Windows
     
-    Change-Id: I33a5313ef10e8c88d9c12507573b385fa0843afe
-    GitHub-Last-Rev: 844d4351583e3f2e94d6420dcd50d50845d1b4cb
-    GitHub-Pull-Request: golang/go#33412
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188498
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Before this change, if a directory was closed twice on Windows,
+    the returning error would be "use of closed network connection".
+    
+    Some code assumes FD.isFile means whether the fd isn't a network
+    socket, which is true on Unix. But isFile reports whether
+    the fd is a normal file rather than directory or console on Windows.
+    
+    With this change, isFile will have the same meaning on different
+    platforms. And the change adds a new field kind to replace isConsole
+    and isDir.
+    
+    Change-Id: Ib12265f1e12fa3d0239ae925291128a84be59cc2
+    GitHub-Last-Rev: 3f031756de6ce0b96c1f102ad280950f4adbf6c2
+    GitHub-Pull-Request: golang/go#30589
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/request.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/poll/fd_windows.go | 58 +++++++++++++++++++++++++----------------
+ src/os/os_test.go               |  8 ++++--
+ 2 files changed, 42 insertions(+), 24 deletions(-)

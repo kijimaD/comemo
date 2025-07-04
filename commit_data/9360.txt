@@ -1,15 +1,19 @@
-commit 175849295ce632c2ddeca7024f7c783327b5e571
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Aug 15 03:51:51 2011 -0300
+commit d7440ce21a8a4937e1dd3e7d153eef298fe8dadc
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 15 15:16:57 2011 +1000
 
-    runtime: fix pseudo-randomness on some selects
+    old/template: copy code from template
+    First step of moving exp/template into template: save the old code.
+    Code is unedited except for target name in Makefile.
     
-    Fixes #2152.
-    
-    R=golang-dev, dvyukov
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4888044
+    https://golang.org/cl/4893042
 
- src/pkg/runtime/chan.c       |  3 ++-
- src/pkg/runtime/chan_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 1 deletion(-)
+ src/pkg/old/template/Makefile         |  14 +
+ src/pkg/old/template/doc.go           |  91 ++++
+ src/pkg/old/template/execute.go       | 346 +++++++++++++++
+ src/pkg/old/template/format.go        |  77 ++++
+ src/pkg/old/template/parse.go         | 743 +++++++++++++++++++++++++++++++
+ src/pkg/old/template/template_test.go | 804 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 2075 insertions(+)

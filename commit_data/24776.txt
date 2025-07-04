@@ -1,16 +1,16 @@
-commit 8e848ba65310eb0417a01907a3ac39fdc84782ab
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Tue Nov 10 01:52:52 2015 +0530
+commit bfa016150b886b76cc1a4050ee8b6e98d0e0e9ba
+Author: aubble <anmol@aubble.com>
+Date:   Thu Aug 20 14:31:15 2015 -0400
 
-    misc/cgo/testsanitizers: fix check for existence of clang
+    crypto/tls: allow tls.Listen when only GetCertificate is provided.
     
-    The current mechanism fails if clang cannot be executed by the current
-    user.  Using the `-x` operator for `test` return TRUE if the file is
-    executable by the user.
+    Go 1.5 allowed TLS connections where Config.Certificates was nil as long
+    as the GetCertificate callback was given. However, tls.Listen wasn't
+    updated accordingly until this change.
     
-    Change-Id: I0f3c8dc3880c1ce5a8a833ff3109eb96853184af
-    Reviewed-on: https://go-review.googlesource.com/16752
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5f67f323f63c988ff79642f3daf8a6b2a153e6b2
+    Reviewed-on: https://go-review.googlesource.com/13801
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- misc/cgo/testsanitizers/test.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/tls.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

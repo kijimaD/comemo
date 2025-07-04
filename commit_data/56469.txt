@@ -1,15 +1,19 @@
-commit 7008859ae15f112c2c69eaefab083b268d373d84
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue May 14 13:22:07 2024 +0200
+commit 623ebad6850578a8a51d4d73f6ceab2d7de75fd1
+Author: David Chase <drchase@google.com>
+Date:   Tue May 9 17:23:39 2023 -0400
 
-    os: use internal/byteorder
+    internal/godebug: make test godebug calls not vary
     
-    Change-Id: Ic88535f05a55966e35e5da7abb499aa5fadb5cc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585116
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    I think there may be an issue in bisect search with
+    change set elements not actually being independent,
+    to be explored later.  For now, modify the test to
+    remove that property.
+    
+    Change-Id: I4b171bc024795d950cf4663374ad1dfc4e2952fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494036
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/dir_unix.go | 21 +++++++--------------
- 1 file changed, 7 insertions(+), 14 deletions(-)
+ src/internal/godebug/godebug_test.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

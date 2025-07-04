@@ -1,20 +1,15 @@
-commit 34c58fe184fa73ecff0e7142fcf567b1a9abc01b
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Mon May 28 13:20:45 2018 +0300
+commit adb52cff581b13f06282bd8940a6ab8ee333cb4c
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Apr 7 23:59:58 2018 +0200
 
-    cmd/compile: use embedlineno instead of lineno in copytype
+    misc/wasm: wasm_exec: non-zero exit code on compile error
     
-    Also remove lineno from typecheckdeftype since copytype was
-    the only user of it and typecheck uses lineno independently.
+    Return a non-zero exit code if the WebAssembly host fails to compile
+    the WebAssmbly bytecode to machine code.
     
-    toolstach-check passed.
-    
-    Updates #19683.
-    
-    Change-Id: I1663fdb8cf519d505cc087c8657dcbff3c8b1a0a
-    Reviewed-on: https://go-review.googlesource.com/114875
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I774309db2872b6a2de77a1b0392608058414160d
+    Reviewed-on: https://go-review.googlesource.com/110097
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 11 +----------
- 1 file changed, 1 insertion(+), 10 deletions(-)
+ misc/wasm/wasm_exec.js | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,20 +1,18 @@
-commit 1bcfdc777ad38bbb4faec8e1db2eaa92873f4e10
-Author: David Chase <drchase@google.com>
-Date:   Fri Nov 4 11:23:12 2022 -0400
+commit 1c4cf50e113f402eb6986a2007cd9c820b1bb69f
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Dec 2 13:41:37 2021 -0500
 
-    cmd/compile: change the multiple (gossa)hash separator from ; to /
+    doc/go1.18: add docs for js.Wrapper's removal
     
-    Semicolon has bad copy-paste ergonomics; it requires quoting.
-    Slash is okay, and won't be a separator ever in debug strings
-    because it is already used in e.g. ssa/phase/debug=etc.
+    CL 356430
     
-    Change-Id: I493360e9282666eea1a342971a77df2ebd6c92ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447975
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #47694
+    
+    Change-Id: I802cd50f2827caa0549c25685c0b1bb8dfc40968
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368799
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/base/hashdebug.go      | 2 +-
- src/cmd/compile/internal/base/hashdebug_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

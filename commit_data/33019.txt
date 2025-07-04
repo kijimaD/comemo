@@ -1,54 +1,20 @@
-commit 6f3e5e637c6c26d1d24e20e96b86ecd27a7ecabc
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Oct 9 15:33:29 2017 -0400
+commit bd4fcd001c54014209e817c0dd8c8802ccce7607
+Author: Matt Harden <matt.harden@gmail.com>
+Date:   Mon Feb 20 20:07:44 2017 -0800
 
-    cmd/compile: intrinsify runtime.getcallersp
+    net/http: fix double-close of req.Body
     
-    Add a compiler intrinsic for getcallersp. So we are able to get
-    rid of the argument (not done in this CL).
+    Add a test and fix for the request body being closed twice.
     
-    Change-Id: Ic38fda1c694f918328659ab44654198fb116668d
-    Reviewed-on: https://go-review.googlesource.com/69350
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Fixes #19186
+    
+    Change-Id: I1e35ad4aebfef68e6099c1dba7986883afdef4d7
+    Reviewed-on: https://go-review.googlesource.com/37298
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go          | 13 ++++
- src/cmd/compile/internal/arm/ssa.go            |  8 +++
- src/cmd/compile/internal/arm64/ssa.go          |  8 +++
- src/cmd/compile/internal/gc/dcl.go             |  7 +-
- src/cmd/compile/internal/gc/ssa.go             |  6 ++
- src/cmd/compile/internal/mips/ssa.go           |  8 +++
- src/cmd/compile/internal/mips64/ssa.go         |  8 +++
- src/cmd/compile/internal/ppc64/ssa.go          |  9 +++
- src/cmd/compile/internal/s390x/ssa.go          |  8 +++
- src/cmd/compile/internal/ssa/gen/386.rules     |  1 +
- src/cmd/compile/internal/ssa/gen/386Ops.go     |  2 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  1 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 +
- src/cmd/compile/internal/ssa/gen/ARM.rules     |  1 +
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  1 +
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  3 +
- src/cmd/compile/internal/ssa/gen/ARMOps.go     |  3 +
- src/cmd/compile/internal/ssa/gen/MIPS.rules    |  1 +
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  1 +
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |  3 +
- src/cmd/compile/internal/ssa/gen/MIPSOps.go    |  3 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |  1 +
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  3 +
- src/cmd/compile/internal/ssa/gen/S390X.rules   |  1 +
- src/cmd/compile/internal/ssa/gen/S390XOps.go   |  2 +
- src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
- src/cmd/compile/internal/ssa/opGen.go          | 94 ++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewrite386.go     | 11 +++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 11 +++
- src/cmd/compile/internal/ssa/rewriteARM.go     | 11 +++
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 11 +++
- src/cmd/compile/internal/ssa/rewriteMIPS.go    | 11 +++
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 11 +++
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 11 +++
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 11 +++
- src/cmd/compile/internal/x86/ssa.go            |  9 +++
- src/runtime/stubs.go                           | 11 +--
- 37 files changed, 296 insertions(+), 11 deletions(-)
+ src/net/http/client.go            | 16 +++++++++++-----
+ src/net/http/clientserver_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 5 deletions(-)

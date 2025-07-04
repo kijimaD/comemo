@@ -1,24 +1,90 @@
-commit ba42b3ffd3220516911705fd2d060ea02e5502bb
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 3 15:21:55 2017 -0400
+commit be9d7f6d874469fb66578537c05d180b4fab21d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 15 23:18:14 2017 +0000
 
-    cmd/link: sniff runtime-gdb.py path from runtime/proc.go
+    A+C: automated update
     
-    Currently the linker figures out where runtime-gdb.py should be by
-    looking for the path to runtime/debug.go. However, debug.go contains
-    only a few symbols and can easily get dead-code eliminated entirely,
-    especially from simple binaries. When this happens, the resulting
-    binary lacks a reference to runtime-gdb.py, so the GDB helpers don't
-    get loaded.
+    Add Adam Eijdenberg (individual CLA)
+    Add Agis Anastasopoulos (individual CLA)
+    Add Alexander Guz (individual CLA)
+    Add Alexander Kucherenko (individual CLA)
+    Add Alexander Polcyn (corporate CLA for Google Inc.)
+    Add Alexis Hildebrandt (individual CLA)
+    Add Alexis Hunt (corporate CLA for Google Inc.)
+    Add Andrew Jackura (corporate CLA for Google Inc.)
+    Add Anthony Voutas (individual CLA)
+    Add Antoine Martin (individual CLA)
+    Add Antonio Troina (individual CLA)
+    Add Bill Prin (corporate CLA for Google Inc.)
+    Add Brad Jones (corporate CLA for Google Inc.)
+    Add Chris Raynor (corporate CLA for Google Inc.)
+    Add Chris Roche (individual CLA)
+    Add Daker Fernandes Pinheiro (corporate CLA for Intel Corporation)
+    Add Dave MacFarlane (individual CLA)
+    Add Derek McGowan (individual CLA)
+    Add Di Xiao (corporate CLA for Google Inc.)
+    Add Doug Fawley (corporate CLA for Google Inc.)
+    Add Eric Chiang (individual CLA)
+    Add Eyal Posener (individual CLA)
+    Add Fabian Zaremba (individual CLA)
+    Add Fredrik Forsmo (individual CLA)
+    Add Hang Qian (individual CLA)
+    Add Hsin Tsao (corporate CLA for Google Inc.)
+    Add James Cowgill (individual CLA)
+    Add James Hartig (individual CLA)
+    Add James Myers (individual CLA)
+    Add Jason Chu (individual CLA)
+    Add Jay Conrod (corporate CLA for Google Inc.)
+    Add Jeff (Zhefu) Jiang (corporate CLA for Google Inc.)
+    Add Jeffrey H (individual CLA)
+    Add Jianing Yu (corporate CLA for Google Inc.)
+    Add Josh Deprez (individual CLA)
+    Add Julian Pastarmov (corporate CLA for Google Inc.)
+    Add Kai Trukenmüller (individual CLA)
+    Add Kim Yongbin (individual CLA)
+    Add Kodie Goodwin (individual CLA)
+    Add Lev Shamardin (individual CLA)
+    Add Lucas Bremgartner (individual CLA)
+    Add Ludi Rehak (individual CLA)
+    Add Lukasz Milewski (individual CLA)
+    Add Magnus Hiie (corporate CLA for Teleport Inc.)
+    Add Marko Mudrinic (individual CLA)
+    Add Martin Habbecke (corporate CLA for Google Inc.)
+    Add Martin Hoefling (individual CLA)
+    Add Martin Probst (individual CLA)
+    Add Masahiro Furudate (individual CLA)
+    Add Masahiro Wakame (individual CLA)
+    Add Masaki Yoshida (individual CLA)
+    Add Mathias Hall-Andersen (individual CLA)
+    Add Maxime de Roucy (individual CLA)
+    Add Nathan Humphreys (individual CLA)
+    Add Neuman Vong (individual CLA)
+    Add Pablo Lalloni (individual CLA)
+    Add Pavlo Sumkin (individual CLA)
+    Add Peter Morjan (individual CLA)
+    Add Piers (individual CLA)
+    Add Qiuxuan Zhu (individual CLA)
+    Add Richard Dingwall (individual CLA)
+    Add Rick Sayre (individual CLA)
+    Add Sascha Brawer (individual CLA)
+    Add Sergey Mishin (individual CLA)
+    Add Spencer Tung (corporate CLA for Google Inc.)
+    Add Steven Erenst (individual CLA)
+    Add Thomas Bouldin (corporate CLA for Google Inc.)
+    Add Tobias Klauser (individual CLA)
+    Add Tonis Tiigi (individual CLA)
+    Add Trung Nguyen (individual CLA)
+    Add Vikas Kedia (corporate CLA for Google Inc.)
+    Add Vladimir Varankin (individual CLA)
+    Add Yestin Sun (individual CLA)
+    Add acoshift (individual CLA)
     
-    Fix this by instead sniffing for runtime/proc.go. This contains
-    runtime.main and the scheduler, so it's not going anywhere.
+    Updates #12042
     
-    Change-Id: Ie3380c77c840d28614fada68b8c5861625f2aff5
-    Reviewed-on: https://go-review.googlesource.com/68019
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I5e3ba25f310fc89ae391e5abb308e137d56c9148
+    Reviewed-on: https://go-review.googlesource.com/45990
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ AUTHORS      | 55 ++++++++++++++++++++++++++++++++++++++++++++
+ CONTRIBUTORS | 74 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 129 insertions(+)

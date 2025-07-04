@@ -1,17 +1,21 @@
-commit a52821569310ca3807f74993af4019dfcaa74cfe
-Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-Date:   Wed Feb 5 11:25:01 2020 +0000
+commit 1aa64b55f1edc68b2e8f4b301e33f4a9588f7c1f
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Sep 18 13:59:52 2019 -0400
 
-    doc/go1.14: fix inconsistent markup
+    cmd/link: prefix Go syms with _ on darwin
     
-    Unlike the others, the dt tag of reflect is not next to the dl tag.
-    The dd's closing tags may or may not have been omitted. They were unified without omission.
+    RELNOTE=This change adds an underscore to all Go symbols in darwin, and
+    the behavior might be confusing to users of tools like "nm", etc.
     
-    Updates #36878
+    Fixes #33808
     
-    Change-Id: I4e24f93fe8763ae8a1e4392db72e0b4818884f44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217701
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I1849e6618c81215cb9bfa62b678f6f389cd009d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196217
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.14.html | 30 +++++++++++++++---------------
- 1 file changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/link/internal/ld/issue33808_test.go | 54 +++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/macho.go           |  5 +--
+ src/debug/macho/file.go                     |  7 +++-
+ 3 files changed, 63 insertions(+), 3 deletions(-)

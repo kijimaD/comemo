@@ -1,21 +1,21 @@
-commit 6e5c26084f9f3bc910181854a4ff20851188e222
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Tue Dec 6 14:45:04 2022 +0900
+commit 9a9bd102904f0ac57a427634cd9f2e6302d60624
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 28 20:42:40 2022 -0800
 
-    context: reduce init-time allocations
+    cmd/compile/internal/importer: support final unified IR export format
     
-    Small cleanup to remove a couple of needless global variables.
-    Instead of relying on two instances of emptyCtx having different
-    addresses, we use different types.
+    This updates the cmd/compile/internal/importer to natively support the
+    "final" unified IR export format. This is really just for unit tests
+    and symmetry with go/internal/gcimporter though, since
+    cmd/compile/internal/noder has its own types2.Importer.
     
-    For #26775
-    
-    Change-Id: I0bc4813e94226f7b3f52bf4b1b3c3a3bbbebcc9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455455
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I52fbb6134dbc0a903d62c1b04f95d33bd29e0414
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388617
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/context/context.go | 41 +++++++++++++++++++----------------------
- 1 file changed, 19 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/importer/exportdata.go |  8 +++++--
+ src/cmd/compile/internal/importer/gcimporter.go | 29 ++++++++++++++++++++-----
+ 2 files changed, 29 insertions(+), 8 deletions(-)

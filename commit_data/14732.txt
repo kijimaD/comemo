@@ -1,21 +1,14 @@
-commit 1b3244e0dbbe547a0703d0380708f480a8f3c228
+commit ec59b840f93fff4631b60323e28a44967c704e7d
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 22 16:46:01 2012 -0500
+Date:   Sat Dec 22 16:42:22 2012 -0500
 
-    cmd/gc: fix eval order in select
+    runtime: coalesce 0-size allocations
     
-    Ordinary variable load was assumed to be not worth saving,
-    but not if one of the function calls later might change
-    its value.
-    
-    Fixes #4313.
+    Fixes #3996.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/6997047
+    https://golang.org/cl/7001052
 
- src/cmd/gc/order.c          |  6 +++---
- src/cmd/gc/select.c         | 14 +++++++-------
- src/cmd/gc/subr.c           |  4 +++-
- test/fixedbugs/issue4313.go | 28 ++++++++++++++++++++++++++++
- 4 files changed, 41 insertions(+), 11 deletions(-)
+ src/pkg/runtime/malloc.goc | 41 +++++++++++++++++++++++++++++------------
+ 1 file changed, 29 insertions(+), 12 deletions(-)

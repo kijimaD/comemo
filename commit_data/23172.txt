@@ -1,16 +1,18 @@
-commit 511faf696ab683aa58a15347b8fdd03beb8ae539
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 29 13:35:31 2015 -0400
+commit 2b7505e28a50f49e85c3e0812a4c4f287b8dfa30
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Apr 28 19:44:00 2015 -0400
 
-    cmd/old5a, cmd/old8a, cmd/old9a: rebuild y.go
+    cmd/internal/gc: fix write barrier fast path on RISC architectures
     
-    Missed in previous CL, causing build failures.
+    They have to read the boolean into a register first and then do
+    the comparison.
     
-    Change-Id: I60aae5a3139aa009cb643d871d91b9d4c47dcbb8
-    Reviewed-on: https://go-review.googlesource.com/10538
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #10598.
+    
+    Change-Id: I2b808837a8c6393e1e0778296b6592aaab2b04bf
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/9453
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/old5a/y.go | 166 +++++++++++++++++++++++++++--------------------------
- src/cmd/old8a/y.go | 150 ++++++++++++++++++++++++-----------------------
- src/cmd/old9a/y.go | 120 ++++++++++++++++++++------------------
- 3 files changed, 227 insertions(+), 209 deletions(-)
+ src/cmd/internal/gc/cgen.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

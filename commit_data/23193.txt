@@ -1,28 +1,13 @@
-commit 9378493d1641fd56d5935cb2f6d4f4b2a864894c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 20 23:20:43 2015 +0900
+commit 35748919429c23b9ea91099b8d3b481dff5bbae5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 29 15:08:49 2015 -0700
 
-    net: fix parsing literal IP addresses in local database
+    src: update buildall.bash comment with renamed trybot builder
     
-    This change fixes incorrect parsing of literal IP addresses in local
-    database when the addresses contain IPv6 zone identifiers, are in
-    dotted-decimal notation or in colon-hexadecimal notation with leading
-    zeros.
-    
-    https://golang.org/cl/5851 already fixed the code path using getaddrinfo
-    via cgo. This change fixes the remaining non-cgo code path.
-    
-    Fixes #8243.
-    Fixes #8996.
-    
-    Change-Id: I48443611cbabed0d69667cc73911ba3de396fd44
-    Reviewed-on: https://go-review.googlesource.com/10306
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I77887d247d3e5d60305fc76f962652268827b955
+    Reviewed-on: https://go-review.googlesource.com/9516
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/hook.go                                    |   1 +
- src/net/hosts.go                                   |  35 ++++--
- src/net/hosts_test.go                              | 138 +++++++++++++++------
- src/net/testdata/ipv4-hosts                        |  12 ++
- src/net/testdata/ipv6-hosts                        |  11 ++
- .../{hosts_singleline => singleline-hosts}         |   0
- 6 files changed, 148 insertions(+), 49 deletions(-)
+ src/buildall.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

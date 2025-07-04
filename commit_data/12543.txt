@@ -1,13 +1,18 @@
-commit 29199aa4e49a49c19b1169f60c62a7944baa8706
+commit 6d4da06d3647607081819e444be60259225d0efe
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Mar 10 05:11:51 2012 +0800
+Date:   Sat Mar 10 03:42:23 2012 +0800
 
-    cmd/gc: import path cannot start with slash on Windows
-            For CL 5756065.
+    cmd/dist, cmd/go: move CGO_ENABLED from 'go tool dist env' to 'go env'
+            So that we don't duplicate knowledge about which OS/ARCH combination
+            supports cgo.
+            Also updated src/run.bash and src/sudo.bash to use 'go env'.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5784065
+    https://golang.org/cl/5792055
 
- src/cmd/gc/lex.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/build.c | 18 ------------------
+ src/cmd/go/env.go    |  6 ++++++
+ src/run.bash         |  2 +-
+ src/sudo.bash        |  2 +-
+ 4 files changed, 8 insertions(+), 20 deletions(-)

@@ -1,67 +1,29 @@
-commit 7be3f09deb2dc1d57cfc18b18e12192be3544794
-Author: Andrei Tudor Călin <mail@acln.ro>
-Date:   Wed Apr 22 02:08:33 2020 +0300
+commit 72e043e48bf47ce03229b011d2468f46081055ad
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Tue Nov 12 00:52:57 2019 +0530
 
-    os, internal/poll, internal/syscall/unix: use copy_file_range on Linux
+    cmd/doc: show variables of unexported types for -all
     
-    Linux 4.5 introduced (and Linux 5.3 refined) the copy_file_range
-    system call, which allows file systems the opportunity to implement
-    copy acceleration techniques. This commit adds support for
-    copy_file_range(2) to the os package.
+    We use the typedValue map to prevent showing typed variables
+    and constants from appearing in the VARIABLES/CONSTANTS section
+    because they will be anyways shown in the TYPES section
+    for that type.
     
-    Introduce a new ReadFrom method on *os.File, which makes *os.File
-    implement the io.ReaderFrom interface. If dst and src are both files,
-    this enables io.Copy(dst, src) to call dst.ReadFrom(src), which, in
-    turn, will call copy_file_range(2) if possible. If copy_file_range(2)
-    is not supported by the host kernel, or if either of dst or src
-    refers to a non-regular file, ReadFrom falls back to the regular
-    io.Copy code path.
+    However, when a type is unexported, but the variable is exported,
+    then unconditionally setting it to true in the map suppresses it
+    from being shown in the VARIABLES section. Thus, we set the
+    variable or constant in the typedValue map only when
+    the type name is exported.
     
-    Add internal/poll.CopyFileRange, which acquires locks on the
-    appropriate poll.FDs and performs the actual work, as well as
-    internal/syscall/unix.CopyFileRange, which wraps the copy_file_range
-    system call itself at the lowest level.
+    Fixes #31067
     
-    Rework file layout in internal/syscall/unix to accomodate the
-    additional system call numbers needed for copy_file_range.
-    Merge these definitions with the ones used by getrandom(2) into
-    sysnum_linux_$GOARCH.go files.
-    
-    A note on additional optimizations: if dst and src both refer to pipes
-    in the invocation dst.ReadFrom(src), we could, in theory, use the
-    existing splice(2) code in package internal/poll to splice directly
-    from src to dst. Attempting this runs into trouble with the poller,
-    however. If we call splice(src, dst) and see EAGAIN, we cannot know
-    if it came from src not being ready for reading or dst not being
-    ready for writing. The write end of src and the read end of dst are
-    not under our control, so we cannot reliably use the poller to wait
-    for readiness. Therefore, it seems infeasible to use the new ReadFrom
-    method to splice between pipes directly. In conclusion, for now, the
-    only optimization enabled by the new ReadFrom method on *os.File is
-    the copy_file_range optimization.
-    
-    Fixes #36817.
-    
-    Change-Id: I696372639fa0cdf704e3f65414f7321fc7d30adb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229101
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id3ec4b313c9ea7e3ce6fe279680d56f65451719f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206129
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/copy_file_range_linux.go         |  93 ++++++
- src/internal/syscall/unix/copy_file_range_linux.go |  26 ++
- src/internal/syscall/unix/getrandom_linux.go       |   2 +-
- ...{getrandom_linux_386.go => sysnum_linux_386.go} |   7 +-
- ...random_linux_amd64.go => sysnum_linux_amd64.go} |   7 +-
- ...{getrandom_linux_arm.go => sysnum_linux_arm.go} |   7 +-
- ...om_linux_generic.go => sysnum_linux_generic.go} |  13 +-
- ...om_linux_mips64x.go => sysnum_linux_mips64x.go} |   7 +-
- ...random_linux_mipsx.go => sysnum_linux_mipsx.go} |   7 +-
- ...ndom_linux_ppc64x.go => sysnum_linux_ppc64x.go} |   7 +-
- ...random_linux_s390x.go => sysnum_linux_s390x.go} |   7 +-
- src/os/export_linux_test.go                        |   7 +
- src/os/file.go                                     |  20 ++
- src/os/readfrom_linux.go                           |  41 +++
- src/os/readfrom_linux_test.go                      | 332 +++++++++++++++++++++
- src/os/readfrom_stub.go                            |  13 +
- 16 files changed, 568 insertions(+), 28 deletions(-)
+ src/cmd/doc/doc_test.go     |  1 +
+ src/cmd/doc/pkg.go          | 20 ++++++++++----------
+ src/cmd/doc/testdata/pkg.go |  2 ++
+ 3 files changed, 13 insertions(+), 10 deletions(-)

@@ -1,30 +1,19 @@
-commit 41893389a6fb6d4d8b181cd90ca58d9d65326f76
-Author: Chris O'Hara <cohara87@gmail.com>
-Date:   Mon May 8 17:06:08 2023 +1000
+commit a3fea7796aed2437b222708e73299dc57bd409df
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 21 12:51:01 2022 -0700
 
-    syscall: implement wasip1 SetNonblock and IsNonblock
+    [dev.unified] cmd/compile/internal/noder: implicit conversions for writer.assignStmt
     
-    Allows for the NONBLOCK file descriptor flag to be set and queried
-    on wasip1.
+    This CL inserts implicit conversions for simple N:N assignment
+    statements within Unified IR. A subsequent CL will handle N:1
+    assignments.
     
-    syscall.SetNonblock uses the fd_fdstat_set_flags WASI system call
-    and unix.IsNonblock uses the fd_fdstat_get system call.
-    
-    This is a prerequisite for non-blocking I/O support.
-    
-    Change-Id: I2bf79fd57142b2ec53eed3977d9aac8c6337eb80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493356
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Julien Fabre <ju.pryz@gmail.com>
+    Change-Id: I7e204c6ee9ffdb9fa2bc9146315fd79735c04628
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413516
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
 
- src/internal/syscall/unix/nonblocking_wasip1.go | 18 +++++++++++++++++-
- src/syscall/fs_wasip1.go                        | 24 ++++++++++++++++++++++++
- src/syscall/net_wasip1.go                       |  4 ----
- src/syscall/syscall_wasip1.go                   | 14 ++++++++++++++
- 4 files changed, 55 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 48 ++++++++++++++++++++++++++++++--
+ 1 file changed, 45 insertions(+), 3 deletions(-)

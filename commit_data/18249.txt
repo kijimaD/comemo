@@ -1,33 +1,12 @@
-commit 3be4d95731a17073afb1f69bde264eecbdfa32bb
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jan 14 12:54:05 2014 -0800
+commit 6430a6d90e0be5703c5b5263a55ca831bd2ab8a0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 14 12:53:06 2014 -0800
 
-    runtime: change map iteration randomization to use intra-bucket offset
+    C: add Michael Kelly (Google CLA)
     
-    Map iteration previously started from a random bucket, but walked each
-    bucket from the beginning. Now, iteration always starts from the first
-    bucket and walks each bucket starting at a random offset. For
-    performance, the random offset is selected at the start of iteration
-    and reused for each bucket.
-    
-    Iteration over a map with 8 or fewer elements--a single bucket--will
-    now be non-deterministic. There will now be only 8 different possible
-    map iterations.
-    
-    Significant benchmark changes, on my OS X laptop (rough but consistent):
-    
-    benchmark                              old ns/op     new ns/op     delta
-    BenchmarkMapIter                       128           121           -5.47%
-    BenchmarkMapIterEmpty                  4.26          4.45          +4.46%
-    BenchmarkNewEmptyMap                   114           111           -2.63%
-    
-    Fixes #6719.
-    
-    R=khr, bradfitz
+    R=golang-codereviews, iant, mjk
     CC=golang-codereviews
-    https://golang.org/cl/47370043
+    https://golang.org/cl/52220043
 
- src/cmd/gc/reflect.c        | 10 +++++-----
- src/pkg/runtime/hashmap.c   | 37 +++++++++++++++++++------------------
- src/pkg/runtime/map_test.go |  3 +--
- 3 files changed, 25 insertions(+), 25 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

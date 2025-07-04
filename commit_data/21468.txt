@@ -1,14 +1,22 @@
-commit d2abbf3ccfeeaffddd421f82d37fb414c6821235
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Feb 3 11:20:58 2015 +0300
+commit bbd2127909c6040cd8bb75108a5ecc82eddfb405
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 16 13:52:09 2014 -0500
 
-    runtime: cleanup some left-overs of the C past
+    cmd/9g: don't use R13
     
-    Change-Id: I3e280ca7d922f6ab14b2477361327ed076a95779
-    Reviewed-on: https://go-review.googlesource.com/3743
-    Reviewed-by: Keith Randall <khr@golang.org>
+    R13 is the C TLS pointer.  Once we're calling to and from C code, if
+    we clobber R13 in our code, sigtramp won't know whether to get the
+    current g from REGG or from C TLS.  The simplest solution is for Go
+    code to preserve the C TLS pointer.  This is equivalent to what other
+    platforms do, except that on other platforms the TLS pointer is in a
+    special register.
+    
+    Change-Id: I076e9cb83fd78843eb68cb07c748c4705c9a4c82
+    Reviewed-on: https://go-review.googlesource.com/2007
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/malloc2.go |   5 ---
- src/runtime/proc.go    |  12 ------
- src/runtime/proc1.go   | 112 ++++++++++---------------------------------------
- 3 files changed, 21 insertions(+), 108 deletions(-)
+ src/cmd/9g/gsubr.c | 11 +++++++++--
+ src/cmd/9g/reg.c   |  2 +-
+ src/cmd/9l/9.out.h |  1 +
+ 3 files changed, 11 insertions(+), 3 deletions(-)

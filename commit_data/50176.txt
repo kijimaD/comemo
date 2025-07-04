@@ -1,23 +1,18 @@
-commit 36d1f236610a436bcbceca11e040a65593f1f253
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Sat Aug 27 12:42:26 2022 +0930
+commit 4a37a1d49fd472665b59b581fe6563a9e578fd71
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Oct 6 12:24:59 2021 -0700
 
-    debug/macho: use saferio to allocate Load and Symbol slices
+    cmd/compile: add runtime.funcspdelta to intended inlining test
     
-    Avoid allocating large amounts of memory for corrupt input.
+    Follow-up to CL 354133.
     
-    No test case because the problem can only happen for invalid data.
-    Let the fuzzer find cases like this.
-    
-    Change-Id: I2d1745200611f0af06ca58adcc3e2309ad6742d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425882
-    Run-TryBot: Dan Kortschak <dan@kortschak.io>
-    Auto-Submit: Dan Kortschak <dan@kortschak.io>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Suggested-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I0d0895dfa8c2deae0dbda6e683fbe41469849145
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354392
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/debug/macho/file.go | 57 +++++++++++++++++++++++++++++++------------------
- 1 file changed, 36 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/test/inl_test.go | 1 +
+ 1 file changed, 1 insertion(+)

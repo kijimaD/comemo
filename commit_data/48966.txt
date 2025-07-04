@@ -1,18 +1,19 @@
-commit 0668e3cb1a8407547f1b4e316748d3b898564f8e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon May 2 00:25:16 2022 +0700
+commit 706c580ee1db800353752629882209ef6509a0b4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 1 00:28:05 2021 -0700
 
-    cmd/compile: support pointers to arrays in arrayClear
+    [dev.typeparams] cmd/compile: simplify autotmpname
     
-    Fixes #52635
+    Rather than manually formatting a byte-string and then using a map
+    lookup to convert it to string, we can just use a slice. This avoids
+    both the overhead of formatting the byte slice and the map lookup.
     
-    Change-Id: I85f182931e30292983ef86c55a0ab6e01282395c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403337
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia7b883632ea990ce9ee848dd4b4e4cdfbd611212
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332191
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/walk/range.go |  8 +++++++-
- test/codegen/issue52635.go             | 36 ++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/dcl.go | 31 +++++++++++++++++++++++--------
+ 1 file changed, 23 insertions(+), 8 deletions(-)

@@ -1,24 +1,42 @@
-commit 91cfbf39e45b130562bbc5b353aa041cfe315faa
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Feb 14 19:01:39 2021 +0100
+commit 0fb1517b3f0b643570d554ea66d5e6884fb0343e
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jun 12 09:35:42 2020 -0400
 
-    cmd/link: set .ctors COFF section to writable and aligned
+    [dev.link] cmd/link: remove implicit reachability setting from SymbolBuilder
     
-    Without setting these flags, LLVM's LLD ignores the .ctors section when
-    merging objects.
+    The loader's SymbolBuilder Add*/Set* methods include a call to mark
+    the underlying symbol as reachable (as a convenience, so that callers
+    would not have to set it explicitly). This code was carried over from
+    the corresponding sym.Symbol methods; back in the sym.Symbol world
+    unreachable symbols were never removed from the AllSyms slice, hence
+    setting and checking reachability was a good deal more important.
     
-    Updates #44250.
-    Updates #39326.
-    Updates #38755.
-    Updates #36439.
-    Updates #43800.
+    With the advent of the loader and the new deadcode implementation,
+    there is less of a need for this sort of fallback, and in addition the
+    implicit attr setting introduces data races in the the loader if there
+    are SymbolBuilder Add*/Set* method calls in parallel threads, as well
+    as adding overhead to the methods.
     
-    Change-Id: I8766104508f7acd832088a590ee7d68afa0d6065
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291633
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    This patch gets rid of the implicit reachability setting, and instead
+    marks reachability in CreateSymForUpdate, as well as adding a few
+    explicit SetAttrReachable calls where needed.
+    
+    Change-Id: I029a0c5a4a24237826a7831f9cbe5180d44cbc40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237678
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/arm/asm.go              |  1 +
+ src/cmd/link/internal/ld/data.go              | 22 ++++--------
+ src/cmd/link/internal/ld/dwarf.go             | 52 ++++++++++++---------------
+ src/cmd/link/internal/ld/elf.go               | 15 --------
+ src/cmd/link/internal/ld/lib.go               |  1 -
+ src/cmd/link/internal/ld/pcln.go              |  6 ++--
+ src/cmd/link/internal/ld/pe.go                | 10 ++----
+ src/cmd/link/internal/ld/symtab.go            | 13 -------
+ src/cmd/link/internal/ld/typelink.go          |  1 -
+ src/cmd/link/internal/ld/xcoff.go             |  4 +--
+ src/cmd/link/internal/loader/loader_test.go   |  8 -----
+ src/cmd/link/internal/loader/symbolbuilder.go | 19 ++--------
+ src/cmd/link/internal/ppc64/asm.go            |  4 +--
+ 13 files changed, 41 insertions(+), 115 deletions(-)

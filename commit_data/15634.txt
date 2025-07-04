@@ -1,17 +1,12 @@
-commit 4c203172a2e70bf19b96ca603767378545172b6d
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Mar 7 21:47:45 2013 +0100
+commit 5641a09171ce220b6eb28631dce6a1243dc78e12
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 7 14:38:49 2013 -0500
 
-    cmd/8g: fix code generation of int64(0) == int64(0).
+    lib9: fix windows build (don't use runesmprint)
     
-    The code would violate the contract of cmp64.
-    
-    Fixes #5002.
-    
-    R=rsc, golang-dev
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7593043
+    https://golang.org/cl/7575046
 
- src/cmd/8g/cgen.c           |  2 +-
- test/fixedbugs/issue5002.go | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/lib9/tempdir_windows.c | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

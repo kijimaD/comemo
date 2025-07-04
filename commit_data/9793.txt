@@ -1,34 +1,22 @@
-commit 10bf744772c0cfae8ea0e9f34adb7afec3d03a72
+commit 377141510005e1b6d67044f557f7367cccc7e659
 Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Mon Sep 26 02:10:43 2011 -0700
+Date:   Mon Sep 26 00:56:49 2011 -0700
 
-    exp/template/html: make sure marshalled JSON can be parsed as JS.
+    exp/template/html: fix infinite loop in escapeText on bad input
     
-    This makes sure that all JS newlines are encoded in JSON.
+    The template
+        "<a="
+    caused an infinite loop in escape text.
     
-    It also moots a TODO about possibly escaping supplemental codepoints.
-    I served:
-    
-    Content-Type: text/javascript;charset=UTF-8
-    
-    var s = "%s";
-    document.write("<p>", s, "</p><ol>");
-    for (var i = 0; i < s.length; i++) {
-      document.write("<li>", s.charCodeAt(i).toString(16), "</li>");
-    }
-    document.write("</l>");
-    
-    where %s was replaced with bytes "\xf0\x9d\x84\x9e" to test
-    straight UTF-8 instead of encoding surrogates separately.
-    
-    Recent Firefox, Chrome, and Safari all decoded it properly.
-    I have yet to try it on IE or older versions.
+    The change to tTag fixes that and the change to escape.go causes
+    escapeText to panic on any infinite loop that does not involve
+    a state cycle.
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5129042
+    https://golang.org/cl/5115041
 
- src/pkg/exp/template/html/escape_test.go | 29 +++++++++++++--
- src/pkg/exp/template/html/js.go          | 61 ++++++++++++++++++++++----------
- src/pkg/exp/template/html/js_test.go     | 47 +++++++++++++++++++++++-
- 3 files changed, 116 insertions(+), 21 deletions(-)
+ src/pkg/exp/template/html/escape.go      |  3 +++
+ src/pkg/exp/template/html/escape_test.go |  4 ++++
+ src/pkg/exp/template/html/transition.go  | 38 ++++++++++++++++++--------------
+ 3 files changed, 28 insertions(+), 17 deletions(-)

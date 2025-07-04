@@ -1,33 +1,37 @@
-commit d4d298040d072ddacea0e0d6b55fb148fff18070
-Author: empijei <robclap8@gmail.com>
-Date:   Fri Mar 27 19:27:55 2020 +0100
+commit e341e93c519ef22ed4759fd0b4643a30321b9222
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 18 17:39:39 2019 -0700
 
-    html/template,text/template: switch to Unicode escapes for JSON compatibility
+    cmd/compile, cmd/link: add coverage instrumentation for libfuzzer
     
-    The existing implementation is not compatible with JSON
-    escape as it uses hex escaping.
-    Unicode escape, instead, is valid for both JSON and JS.
-    This fix avoids creating a separate escaping context for
-    scripts of type "application/ld+json" and it is more
-    future-proof in case more JSON+JS contexts get added
-    to the platform (e.g. import maps).
+    This CL adds experimental coverage instrumentation similar to what
+    github.com/dvyukov/go-fuzz produces in its -libfuzzer mode. The
+    coverage can be enabled by compiling with -d=libfuzzer. It's intended
+    to be used in conjunction with -buildmode=c-archive to produce an ELF
+    archive (.a) file that can be linked with libFuzzer. See #14565 for
+    example usage.
     
-    Fixes #33671
-    Fixes #37634
+    The coverage generates a unique 8-bit counter for each basic block in
+    the original source code, and emits an increment operation. These
+    counters are then collected into the __libfuzzer_extra_counters ELF
+    section for use by libFuzzer.
     
-    Change-Id: Id6f6524b4abc52e81d9d744d46bbe5bf2e081543
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226097
-    Reviewed-by: Carl Johnson <me@carlmjohnson.net>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Updates #14565.
+    
+    Change-Id: I239758cc0ceb9ca1220f2d9d3d23b9e761db9bf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202117
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/html/template/content_test.go  | 70 +++++++++++++++++++-------------------
- src/html/template/escape_test.go   |  6 ++--
- src/html/template/example_test.go  |  6 ++--
- src/html/template/js.go            | 70 +++++++++++++++++++++++---------------
- src/html/template/js_test.go       | 68 ++++++++++++++++++------------------
- src/html/template/template_test.go | 39 +++++++++++++++++++++
- src/text/template/exec_test.go     |  6 ++--
- src/text/template/funcs.go         |  8 ++---
- 8 files changed, 163 insertions(+), 110 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go        |  3 +++
+ src/cmd/compile/internal/gc/main.go         |  7 +++++-
+ src/cmd/compile/internal/gc/order.go        | 38 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/syntax.go       |  7 ++++--
+ src/cmd/internal/objabi/symkind.go          |  2 ++
+ src/cmd/link/internal/ld/data.go            | 17 ++++++++++++-
+ src/cmd/link/internal/ld/elf.go             |  1 +
+ src/cmd/link/internal/ld/lib.go             |  2 +-
+ src/cmd/link/internal/sym/symkind.go        |  2 ++
+ src/cmd/link/internal/sym/symkind_string.go | 39 +++++++++++++++--------------
+ 10 files changed, 94 insertions(+), 24 deletions(-)

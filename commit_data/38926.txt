@@ -1,15 +1,28 @@
-commit 4abf3598a458d27f834863884033fd232d79a3a1
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Apr 28 03:32:08 2019 +1000
+commit f64385b720e59d0cddfe5e05e830665f6ade8083
+Author: Keith Randall <khr@google.com>
+Date:   Mon Dec 10 14:19:33 2018 -0800
 
-    runtime, syscall: address vet errors in openbsd/arm64 assembly
+    cmd/compile: set correct line number for method wrappers
     
-    Updates #31656
+    When converting a method to a function, like this:
     
-    Change-Id: Ie28734298bf1a2d5243f1ac15569311c1887176e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174126
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    type T ...
+    func (t T) foo() {
+    }
+    var t T
+    f := t.foo
+    
+    We need to build a wrapper function for the partially evaluated
+    method. Currently that wrapper function gets the line number of
+    the first place where t.foo appears. Instead it should have the
+    line number of where foo is declared.
+    
+    Fixes #26839
+    
+    Change-Id: I7dbe2094e53d5d336f329273f10f8430e0af544e
+    Reviewed-on: https://go-review.googlesource.com/c/153498
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/sys_openbsd_arm64.s | 2 +-
- src/syscall/asm_openbsd_arm64.s | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/closure.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,23 +1,21 @@
-commit b3defa2e8e66f5a03ce4ac344b9e5bcf3b4321d3
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jul 24 15:04:10 2013 -0700
+commit 0738c7e977b3ac190d6176555b69c8e9d2fb4de6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 24 10:28:57 2013 -0700
 
-    undo CL 11683043 / bb75d03e6ccb
+    log/syslog: restore use of serverConn interface
     
-    Broke arm build.
-    R=dave
+    Revision 15629 (8d71734a0cb0) removed the serverConn interface
+    that was introduce in revision 7718 (ee5e80c62862).  The
+    serverConn interface was there for use by gccgo on Solaris,
+    and it is still needed there.  Solaris does not support
+    connecting to the syslog daemon over TCP, and gccgo simply
+    calls the C library function.  This CL restores the
+    interface.
     
-    ««« original CL description
-    cc: generate argument pointer maps for C functions.
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/11683043
-    »»»
-    
-    R=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/11788043
+    https://golang.org/cl/11737043
 
- src/cmd/cc/pgen.c | 135 ++++++------------------------------------------------
- 1 file changed, 14 insertions(+), 121 deletions(-)
+ src/pkg/log/syslog/syslog.go      | 38 +++++++++++++++++++++++++++++++-------
+ src/pkg/log/syslog/syslog_unix.go |  4 ++--
+ 2 files changed, 33 insertions(+), 9 deletions(-)

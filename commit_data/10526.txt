@@ -1,18 +1,16 @@
-commit 1eb7ca924b184d06706cee78cf56d022ebb1fe5a
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Nov 28 15:34:16 2011 -0500
+commit 5f6027e9ad9a6f115399a93c5d330cbf2d66e85f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 28 10:42:57 2011 -0800
 
-    crypto/tls: don't rely on map iteration order.
+    text/template: address a couple of issues for html/template
+    - allow Lookup to work on uninitialized templates
+    - fix bug in add: can't error after parser is stopped
+    - add Add method for html/template
     
-    Previously we were using the map iteration order to set the order of
-    the cipher suites in the ClientHello.
-    
-    R=bradfitz
+    R=adg, rogpeppe, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5440048
+    https://golang.org/cl/5436080
 
- src/pkg/crypto/tls/cipher_suites.go    | 28 +++++++++++++++++-----------
- src/pkg/crypto/tls/common.go           |  6 ++----
- src/pkg/crypto/tls/handshake_client.go |  4 ++--
- src/pkg/crypto/tls/handshake_server.go | 17 ++++++++++++-----
- 4 files changed, 33 insertions(+), 22 deletions(-)
+ src/pkg/text/template/parse/parse.go |  2 +-
+ src/pkg/text/template/template.go    | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

@@ -1,18 +1,13 @@
-commit ab8ed7f8ddc3e333b348d58fac62c6ca0753859c
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Fri Jun 3 17:44:02 2011 +0200
+commit f4f5836840c8d4654957ad66f519cdf130f1ebf0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 3 15:27:28 2011 +1000
 
-    gc: renamed walkdef to typecheckdef and moved from walk to typedef.
+    dashboard: add favicon.ico
     
-    also inlined a typechecking function in dcl away.
-    
-    R=rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4550115
+    https://golang.org/cl/4547082
 
- src/cmd/gc/dcl.c       |  14 ---
- src/cmd/gc/go.h        |  11 +-
- src/cmd/gc/lex.c       |   4 +-
- src/cmd/gc/typecheck.c | 296 ++++++++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/gc/walk.c      | 292 ------------------------------------------------
- 5 files changed, 302 insertions(+), 315 deletions(-)
+ misc/dashboard/godashboard/app.yaml           |   4 ++++
+ misc/dashboard/godashboard/static/favicon.ico | Bin 0 -> 785 bytes
+ 2 files changed, 4 insertions(+)

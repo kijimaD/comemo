@@ -1,24 +1,13 @@
-commit 132900982c2b28470559afcdc43f517cdf285e9c
-Author: Austin Clements <austin@google.com>
-Date:   Tue May 22 17:27:54 2018 -0400
+commit 8e0b814a3a2bfe3017efb8c8c1b412bfe4c36df1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Nov 12 22:11:11 2017 -0800
 
-    cmd/compile: ignore g register in liveness analysis
+    runtime: fix minor doc typos in amd64 memmove
     
-    In rare circumstances that we don't yet fully understand, the g
-    register can be spilled to the stack and then reloaded. If this
-    happens, liveness analysis sees a pointer load into a
-    non-general-purpose register and panics.
-    
-    We should fix the root cause of this, but fix the build for now by
-    ignoring pointer loads into the g register.
-    
-    For #25504.
-    
-    Change-Id: I0dfee1af9750c8e9157c7637280cdf07118ef2ca
-    Reviewed-on: https://go-review.googlesource.com/114081
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic1ce2f93d6a225699e9ce5307d62cdda8f97630d
+    Reviewed-on: https://go-review.googlesource.com/94024
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/runtime/memmove_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

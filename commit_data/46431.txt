@@ -1,25 +1,20 @@
-commit ee91bb83198f61aa8f26c3100ca7558d302c0a98
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 10 08:34:03 2021 +0700
+commit b3e1ec97fd57d66eb1a1307b8c96141d0014ec51
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 28 12:55:01 2020 -0800
 
-    cmd/compile: prevent typecheck importer reading type parameter twice
+    [dev.regabi] cmd/compile: move new addrtaken bit back to the old name
     
-    This is a port of CL 349009 to typecheck importer.
-    
-    Fixes #48306
-    
-    Change-Id: Iec3f078089346bd85f0ab739896e079940325011
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349011
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I2732aefe95a21c23d73a907d5596fcb1626d6dd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275697
+    Trust: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/typecheck/iimport.go |  6 +-----
- src/go/internal/gcimporter/gcimporter_test.go |  2 --
- test/run.go                                   |  2 --
- test/typeparam/issue48306.dir/a.go            |  9 +++++++++
- test/typeparam/issue48306.dir/main.go         | 15 +++++++++++++++
- test/typeparam/issue48306.go                  |  7 +++++++
- 6 files changed, 32 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/inline/inl.go     | 2 +-
+ src/cmd/compile/internal/ir/name.go        | 7 +++----
+ src/cmd/compile/internal/typecheck/func.go | 2 +-
+ src/cmd/compile/internal/typecheck/subr.go | 6 +++---
+ src/cmd/compile/internal/walk/order.go     | 2 +-
+ 5 files changed, 9 insertions(+), 10 deletions(-)

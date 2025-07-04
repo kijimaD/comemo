@@ -1,14 +1,19 @@
-commit 929597b9e956b0231140db741dc437feee95a65a
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 19 16:21:00 2015 -0500
+commit f30a2b9ca7ccfd325a5ebcc8eb57e39d8e9c7af3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Dec 12 18:11:27 2014 +0100
 
-    runtime: unroll gc_m loop
+    runtime: add execution tracing functionality
     
-    The loop made more sense when gc_m was not its own function.
+    This is first patch of series of patches that implement tracing functionality.
+    Design doc:
+    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
+    Full change:
+    https://codereview.appspot.com/146920043
     
-    Change-Id: I71a7f21d777e69c1924e3b534c507476daa4dfdd
-    Reviewed-on: https://go-review.googlesource.com/5332
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I84588348bb05a6f6a102c230f3bca6380a3419fe
+    Reviewed-on: https://go-review.googlesource.com/1450
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go | 24 ++++++++++--------------
- 1 file changed, 10 insertions(+), 14 deletions(-)
+ src/runtime/runtime2.go |   3 +
+ src/runtime/trace.go    | 790 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 793 insertions(+)

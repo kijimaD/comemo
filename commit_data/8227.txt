@@ -1,15 +1,22 @@
-commit 1038e7c853502d29e6bafd5003bec6ba26e00da5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 25 22:41:50 2011 -0700
+commit bac8f180352213e7fcbe92cc97c96f625e23d2ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 26 00:57:03 2011 -0400
 
-    http: make Client redirect policy configurable
+    gc: fix order of operations for f() < g().
     
-    Work on issue 155
+    Also, 6g was passing uninitialized
+    Node &n2 to regalloc, causing non-deterministic
+    register collisions (but only when both left and
+    right hand side of comparison had function calls).
     
-    R=rsc, bradfitzwork
+    Fixes #1728.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4435071
+    https://golang.org/cl/4425070
 
- src/pkg/http/client.go      | 59 +++++++++++++++++++++++++++++++++------------
- src/pkg/http/client_test.go | 49 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 93 insertions(+), 15 deletions(-)
+ src/cmd/5g/cgen.c | 16 ++++++++--------
+ src/cmd/6g/cgen.c | 16 ++++++++--------
+ src/cmd/8g/cgen.c |  4 ++--
+ test/func7.go     | 29 +++++++++++++++++++++++++++++
+ 4 files changed, 47 insertions(+), 18 deletions(-)

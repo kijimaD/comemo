@@ -1,12 +1,14 @@
-commit 03769efe414863be778b80eac7425d5f382d87cf
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 1 11:46:13 2012 -0500
+commit b14a6643dc47104689facd938a0fb254996ddf85
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 1 08:24:03 2012 -0800
 
-    cmd/dist: recognize CC="ccache clang" as clang
+    test: add test of calling recover in a varargs function
     
-    R=golang-dev, gri
+    gccgo did not handle this correctly.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5711052
+    https://golang.org/cl/5714050
 
- src/cmd/dist/build.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/recover.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

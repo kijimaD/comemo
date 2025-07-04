@@ -1,13 +1,20 @@
-commit f4f6b647500438eaff21e36f48ea4399727c41bd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 2 20:34:29 2016 -0700
+commit c564aebce99fb92b8dc26b203f4f32e4977c0aed
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Sep 8 18:50:59 2016 -0700
 
-    cmd/compile: update/remove outdated comments
+    internal/testenv: add GoTool
     
-    Change-Id: I5a74be1593dca8ba5e0829f0bae35dc9ce702671
-    Reviewed-on: https://go-review.googlesource.com/32672
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    GoToolPath requires a *testing.T to handle errors.
+    GoTool provides a variant that returns errors
+    for clients without a *testing.T,
+    such as that found in CL 27811.
+    
+    Change-Id: I7ac8b7ec9d472894c37223c5f7b121ec823e7f61
+    Reviewed-on: https://go-review.googlesource.com/28787
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |  6 +++---
- src/cmd/compile/internal/gc/bimport.go | 12 ------------
- 2 files changed, 3 insertions(+), 15 deletions(-)
+ src/internal/testenv/testenv.go | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

@@ -1,17 +1,21 @@
-commit ed890e7414c1aa7040a5ff6bef6dffa2767b6df5
+commit 6f8b120869d5ee86adb163f317b14b1f1ee6d596
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 15 15:52:23 2014 -0400
+Date:   Tue Apr 15 12:13:52 2014 -0700
 
-    cmd/ld: attempt at fixing openbsd build
+    cmd/ld: use TLS relocations on ELF systems in external linking mode
     
-    OpenBSD is excluded from all the usual thread-local storage
-    code, not just emitting the tbss section in the external link .o
-    but emitting a PT_TLS section in an internally-linked executable.
-    I assume it just has no proper TLS support. Exclude it here too.
+    Fixes #7719.
     
-    TBR=iant
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/87900045
+    https://golang.org/cl/87760050
 
- src/cmd/ld/data.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/6l/asm.c   |  7 +++++++
+ src/cmd/8l/asm.c   |  3 ++-
+ src/cmd/ld/data.c  | 21 +++++++++++++++++++++
+ src/cmd/ld/lib.c   |  1 +
+ src/liblink/asm6.c | 33 ++++++++++-----------------------
+ src/liblink/asm8.c | 38 ++++++++++----------------------------
+ src/run.bash       |  1 +
+ 7 files changed, 52 insertions(+), 52 deletions(-)

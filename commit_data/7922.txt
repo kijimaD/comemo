@@ -1,12 +1,12 @@
-commit 9225bbfc0c6559aa4002ea8f35696cd74475429d
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Mar 29 15:47:35 2011 -0400
+commit d41d6fec10d8168363c38aeb94547cdf89c844a6
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue Mar 29 14:29:22 2011 -0400
 
-    crypto/cipher: bad CTR IV length now triggers panic
+    syscall: StartProcess Chroot and Credential.
     
-    R=rsc
+    R=rsc, iant, agl1
     CC=golang-dev
-    https://golang.org/cl/4326042
+    https://golang.org/cl/4280065
 
- src/pkg/crypto/cipher/ctr.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/syscall/exec_unix.go | 54 ++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 47 insertions(+), 7 deletions(-)

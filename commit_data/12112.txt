@@ -1,23 +1,19 @@
-commit d36426995a3919cb8d6ebd8fac502e764f6e28ed
-Author: Bobby Powers <bobbypowers@gmail.com>
-Date:   Tue Feb 21 16:49:30 2012 -0500
+commit 2110fadd12a37d0ff4e899c8d3211dacc6332c5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 21 16:39:02 2012 -0500
 
-    cmd/dist: fix pprof permissions
+    net/smtp: use EHLO then HELO
     
-    When installing pprof into the tools directory, it needs to
-    have execute permissions on unix-like systems.
+    Before we were using "ESMTP" in the banner as a clue,
+    but that is not required by the RFC and breaks mailing
+    to smtp.yandex.ru.
     
-    Fixes issues 3077.
+    Fixes #3045.
     
-    R=golang-dev, rsc, minux.ma
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5675095
+    https://golang.org/cl/5687066
 
- src/cmd/dist/a.h            |  2 +-
- src/cmd/dist/build.c        | 24 ++++++++++++------------
- src/cmd/dist/buildgc.c      |  4 ++--
- src/cmd/dist/buildruntime.c | 12 ++++++------
- src/cmd/dist/goc2c.c        |  2 +-
- src/cmd/dist/unix.c         |  9 ++++++---
- src/cmd/dist/windows.c      |  4 +++-
- 7 files changed, 31 insertions(+), 26 deletions(-)
+ src/pkg/net/smtp/smtp.go      |  7 ++--
+ src/pkg/net/smtp/smtp_test.go | 95 +++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 95 insertions(+), 7 deletions(-)

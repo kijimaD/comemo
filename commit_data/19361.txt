@@ -1,23 +1,15 @@
-commit fbd091500818c095c34f7a221aa298efeb13fb9c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 15 15:34:25 2014 -0400
+commit fcfc17f1b8b0d14f1ce350ed6001e82565aadd88
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 15 15:54:42 2014 +1000
 
-    crypto/sha256, crypto/sha512: fix argument size in assembly
+    misc/pprof: always use go tool objdump on windows
     
-    The function takes 32 bytes of arguments: 8 for the *block
-    and then 3*8 for the slice.
+    Fixes #7406.
     
-    The 24 is not causing a bug (today at least) because the
-    final word is the cap of the slice, which the assembly
-    does not use.
-    
-    Identified by 'go vet std'.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/96360043
+    https://golang.org/cl/97440043
 
- src/pkg/crypto/sha256/sha256block_amd64.s | 2 +-
- src/pkg/crypto/sha512/sha512block_amd64.s | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ misc/pprof | 1 +
+ 1 file changed, 1 insertion(+)

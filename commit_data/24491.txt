@@ -1,12 +1,26 @@
-commit 26074a642f44b1faedcd7c50672fbfb311c6f58d
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Oct 10 22:35:13 2015 +1100
+commit 3548a1e7b8691be21d57bec32b875130543d0ea7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 30 15:20:12 2015 -0700
 
-    doc: go1.6.txt: *url.Error implements net.Error
+    cmd/go: permit installing into a subdirectory of $GOPATH/bin
     
-    Change-Id: I34c8ada1f3c5d401944483df424011fa2ae9fc3d
-    Reviewed-on: https://go-review.googlesource.com/15673
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    In https://golang.org/cl/12080 we forbade installing cross-compiled
+    binaries into a subdirectory of $GOBIN, in order to fix
+    https://golang.org/issue/9769.  However, that fix was too aggressive,
+    in that it also forbade installing into a subdirectory of $GOPATH/bin.
+    
+    This patch permits installing cross-compiled binaries into a
+    subdirectory $GOPATH/bin while continuing to forbid installing into a
+    subdirectory of $GOBIN.
+    
+    Fixes #11778.
+    
+    Change-Id: Ibc9919554e8c275beff54ec8bf919cfaa03b11ba
+    Reviewed-on: https://go-review.googlesource.com/12938
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.6.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/go_test.go | 2 +-
+ src/cmd/go/pkg.go     | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,18 +1,33 @@
-commit eb3dd019ed6a1f15585852274ccfd4d021d35957
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Nov 17 18:23:21 2023 +0700
+commit 6dd3bfbed6f17e7789f092e96408c00c227a8b68
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 2 17:54:57 2023 -0400
 
-    cmd/compile: cleanup test code pre Unified IR
+    runtime: move Segv and TgkillSegv to testprog
     
-    Change-Id: Ibb9a7ce37ac28873aa720a64d1f89cb87fc5fa27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543315
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    The non-cgo test points Segv and TgkillSegv are currently in
+    testprogcgo. Although the test points don't explicitly use cgo,
+    being a cgo program, there is still some C code that runs when
+    the test point is invoked, such as thread creation code.
+    
+    For the cgo test points, sometimes we fail to unwind the stack if
+    C code is involved. For the non-cgo ones, we want to always be
+    able to unwind the stack, so we check for stack unwinding failures.
+    But if a signal is landed in the small piece of C code mentioned
+    above, we may still fail to unwind. Move the non-cgo test points
+    to a pure-Go program to avoid this problem.
+    
+    May fix #52963.
+    Updates #59029, #59443, #59492.
+    
+    Change-Id: I35d99a0dd4c7cdb627e2083d2414887a24a2822d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500535
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/importer/gcimporter_test.go | 17 ++---------------
- src/cmd/compile/internal/ssa/debug_lines_test.go     | 12 ++----------
- 2 files changed, 4 insertions(+), 25 deletions(-)
+ src/runtime/crash_cgo_test.go                  |  6 ++++-
+ src/runtime/testdata/testprog/segv.go          | 32 ++++++++++++++++++++++++++
+ src/runtime/testdata/testprog/segv_linux.go    | 29 +++++++++++++++++++++++
+ src/runtime/testdata/testprogcgo/segv.go       | 21 -----------------
+ src/runtime/testdata/testprogcgo/segv_linux.go | 19 ---------------
+ 5 files changed, 66 insertions(+), 41 deletions(-)

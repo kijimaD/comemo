@@ -1,21 +1,20 @@
-commit 17ad60b8a4b92ee36f5b14c609ad1d0b5805b886
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 21 10:45:47 2016 -0400
+commit 85072d5f752903298fa52b8d92a6d052061ee5b8
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 22 10:31:14 2016 +1200
 
-    cmd/go: fix test for moved package in go get -u
+    cmd/link: remove Symbol.Next
     
-    What matters during go get -u is not whether there is an import comment
-    but whether we resolved the path by an HTML <meta> tag.
+    Bye bye one more class of linked list manipulation!
     
-    Fixes #16471.
-    
-    Change-Id: I6b194a3f73a7962a0170b4d5cf51cfed74e02c00
-    Reviewed-on: https://go-review.googlesource.com/31658
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I2412b224c847dd640f9253125d30cd5f911ce00c
+    Reviewed-on: https://go-review.googlesource.com/27414
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/get.go     |  2 +-
- src/cmd/go/go_test.go | 17 +++++++++++++++++
- src/cmd/go/vcs.go     | 10 +++++++---
- 3 files changed, 25 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/data.go  | 85 ++++++++-------------------------------
+ src/cmd/link/internal/ld/dwarf.go |  8 +---
+ src/cmd/link/internal/ld/elf.go   |  4 +-
+ src/cmd/link/internal/ld/link.go  |  1 -
+ src/cmd/link/internal/ld/macho.go |  2 +-
+ 5 files changed, 21 insertions(+), 79 deletions(-)

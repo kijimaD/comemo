@@ -1,18 +1,35 @@
-commit 50f2b7b76481f045649d12d2a26dd36b7cc248a3
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Aug 17 10:26:36 2023 +0200
+commit cf83a490e495e5bfa7065cd97811e689101a687e
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 19 18:45:06 2022 -0400
 
-    os: avoid allocating a string for ReadDir skipped entries on Windows
+    runtime: add hook to register coverage-instrumented packages
     
-    Shave off a few allocations while reading a directory by checking
-    if the entry name is "." or ".." before allocating a string for it.
+    Add support to the runtime for registering coverage-instrumented
+    packages, using a new hook that can be called from the init function
+    of an instrumented package. The hook records the meta-data symbol for
+    the package (chaining it onto a list), and returns a package ID to be
+    used to identify functions in the package. This new hook is not yet
+    called; that will be added in a subsequent patch. The list of
+    registered meta-data objects will be used (again in a future patch) as
+    part of coverage data file writing.
     
-    Change-Id: I05a87d7572bd4fc191db70aaa9e22a6102f68b4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520415
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Special handling is required for packages such as "runtime" or
+    "internal/cpu", where functions in the package execute before the
+    package "init" func runs. For these packages hard-code the package ID,
+    then record the position of the package in the overall list so that we
+    can fix things up later on.
+    
+    Updates #51430.
+    
+    Change-Id: I6ca3ddf535197442a2603c6d7a0a9798b8496f40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401234
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/os/dir_windows.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go                |  1 +
+ src/go/build/deps_test.go            |  4 +-
+ src/internal/coverage/pkid.go        | 80 +++++++++++++++++++++++++++++++++++
+ src/internal/coverage/rtcov/rtcov.go | 25 +++++++++++
+ src/runtime/covermeta.go             | 82 ++++++++++++++++++++++++++++++++++++
+ 5 files changed, 190 insertions(+), 2 deletions(-)

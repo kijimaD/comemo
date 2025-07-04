@@ -1,12 +1,18 @@
-commit 63f0aac58681efdb864a7bc6988cfb835734a278
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Dec 17 16:37:30 2015 -0500
+commit 029c760c7be0d11563ac69fbc0ca5fd98a5cbc2b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 21 15:18:52 2015 -0700
 
-    test: fix linkmain test
+    cmd/go: if -msan, pass -fsanitize=memory to cgo builds
     
-    Change-Id: Ie8ec4cfc68abef51e52090a75245f96af874c74a
-    Reviewed-on: https://go-review.googlesource.com/18000
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Also fix the msan_fail test.  It was bogus, since it always aborted one
+    way or another.
+    
+    Change-Id: Ic693327d1bddb7bc5c7d859ac047fc93cb9b5b1c
+    Reviewed-on: https://go-review.googlesource.com/16172
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/linkmain_run.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ misc/cgo/testsanitizers/msan_fail.go | 3 ++-
+ src/cmd/go/build.go                  | 5 +++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

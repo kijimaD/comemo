@@ -1,17 +1,18 @@
-commit 3001b0abf00d94c3d6b3a6fa343ef89bc060c4bb
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Jun 15 13:47:03 2021 -0400
+commit 4fb2f3ca22de92e7ad6137fb988dcc1cd4449ceb
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Oct 5 14:24:21 2020 -0400
 
-    cmd/link: remove elfwritedynentsym
+    [dev.fuzz] testing: panic if certain testing.F functions are called in Fuzz func
     
-    elfwritedynentsym and elfWriteDynEntSym are identical.
-    
-    Change-Id: I893a9a65fdc496f98ba6e66c2bf1ed8dd52f52fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342709
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I8ee513b2b157e6033d4bc9607d0e65f42bd6801f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259657
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/link/internal/ld/elf.go | 18 +++++++-----------
- 1 file changed, 7 insertions(+), 11 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt | 57 ++++++++++++++++++++++++++++++++
+ src/testing/fuzz.go                      |  7 +++-
+ src/testing/testing.go                   | 37 +++++++++++++++++++++
+ 3 files changed, 100 insertions(+), 1 deletion(-)

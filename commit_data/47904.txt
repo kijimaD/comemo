@@ -1,29 +1,21 @@
-commit a40c7b1c77bb8eaaf42e15703a57b9379efc710c
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Dec 16 15:30:47 2021 -0500
+commit f08c552dabf4a75739e0f198804ae14368d31105
+Author: Joshua Harshman <joshgreyhat@gmail.com>
+Date:   Wed May 27 09:54:41 2020 -0600
 
-    runtime/pprof: run TestCPUProfileMultithreadMagnitude subtests separately
+    net/http: add to deadlines only when positive
     
-    Currently TestCPUProfileMultithreadMagnitude runs two CPU consumption
-    functions in a single profile and then analyzes the results as separate
-    subtests.
+    The existing implementation allows read / write deadlines to exist
+    in the past. This updates conditionals to only add to the deadline
+    when the value is positive.
     
-    This works fine, but when debugging failures it makes manual analysis of
-    the profile dump a bit annoying.
-    
-    Refactor the test to collect separate profiles for each subtest for
-    easier future analysis.
-    
-    For #50097.
-    For #50232.
-    
-    Change-Id: Ia1c8bb86aaaf652e64c5e660dcc2da47d2194c2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372800
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes: #39177
+    Change-Id: I841c30ba2849a337e7bc98c8aa136c4527c314ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235437
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Damien Neil <dneil@google.com>
 
- src/runtime/pprof/pprof_test.go | 117 ++++++++++++++++++++--------------------
- 1 file changed, 60 insertions(+), 57 deletions(-)
+ src/net/http/server.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

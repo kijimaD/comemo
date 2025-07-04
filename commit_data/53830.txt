@@ -1,39 +1,21 @@
-commit 734de5e526dbe288b6589ef8316b7296cdcfe127
-Author: Tolya Korniltsev <korniltsev.anatoly@gmail.com>
-Date:   Mon Jul 24 13:11:48 2023 +0700
+commit 67e6542467321099c0ffcf77ee660e28ec211588
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 15:21:29 2022 +0800
 
-    debug/elf: don't use reflection in File.Symbols
+    go/ast: add Range token.Pos to RangeStmt
     
-    cpu: AMD Ryzen 9 5950X 16-Core Processor
-                 |   old.txt    |               new.txt                |
-                 |    sec/op    |    sec/op     vs base                |
-    Symbols64-32   18.486µ ± 2%   4.509µ ± 24%  -75.61% (p=0.000 n=10)
-    Symbols32-32   17.823µ ± 3%   4.798µ ±  2%  -73.08% (p=0.000 n=10)
-    geomean         18.15µ        4.651µ        -74.38%
+    For #50429
     
-                 |    old.txt    |               new.txt                |
-                 |     B/op      |     B/op      vs base                |
-    Symbols64-32   10.680Ki ± 0%   8.922Ki ± 0%  -16.46% (p=0.000 n=10)
-    Symbols32-32    9.773Ki ± 0%   8.570Ki ± 0%  -12.31% (p=0.000 n=10)
-    geomean         10.22Ki        8.744Ki       -14.41%
-    
-                 |   old.txt   |              new.txt               |
-                 |  allocs/op  | allocs/op   vs base                |
-    Symbols64-32   119.00 ± 0%   45.00 ± 0%  -62.18% (p=0.000 n=10)
-    Symbols32-32   125.00 ± 0%   50.00 ± 0%  -60.00% (p=0.000 n=10)
-    geomean         122.0        47.43       -61.11%
-    
-    Fixes #61534
-    
-    Change-Id: I13a96467108771df31f018853df754e42100e773
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512395
+    Change-Id: Idb027244f901d9f482c894b5b979a054d0f07de5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426091
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
 
- src/debug/elf/file.go      |  36 +++---
- src/debug/elf/file_test.go | 289 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 311 insertions(+), 14 deletions(-)
+ api/next/50429.txt           |  1 +
+ src/go/ast/ast.go            |  1 +
+ src/go/parser/parser.go      |  1 +
+ src/go/parser/parser_test.go | 30 ++++++++++++++++++++++++++++++
+ 4 files changed, 33 insertions(+)

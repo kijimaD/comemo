@@ -1,13 +1,12 @@
-commit 45f956ab8290d572d2570bd53e565b9c09419a0e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 29 11:46:06 2011 -0700
+commit b2127a6c9980d322ee67147c1c71f3d17e6cbd2f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 29 10:26:16 2011 -0400
 
-    C+A: add Andy Balholm
+    testing: make ResetTimer not start/stop the timer
     
-    R=golang-dev, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4630080
+    https://golang.org/cl/4626085
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/testing/benchmark.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

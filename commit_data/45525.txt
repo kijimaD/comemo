@@ -1,23 +1,22 @@
-commit 8e38b80b64e53b08fcde3f8596941237488e3158
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 3 16:00:40 2021 -0400
+commit 49b017fe59bf628795f2c4fdbcb5db942e865fa9
+Author: George Tsilias <tsiliasg@gmail.com>
+Date:   Thu Jun 4 23:11:56 2020 +0300
 
-    cmd: update x/text to pull in CL 315571
+    runtime: handle signal 34 for musl setgid
     
-    Because x/text is now lazy, the go.sum file no longer needs a checksum
-    for the go.mod file for the outdated x/tools required by x/text.
+    It has been observed that setgid hangs when using cgo with musl.
+    This fix ensures that signal 34 gets handled in an appropriate way,
+    like signal 33 when using glibc.
     
-    For #36460
-    Updates #36905
+    Fixes #39343
     
-    Change-Id: Id7395e61909af3889c1615dc33139e5bb45504c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316490
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I89565663e2c361f62cbccfe80aaedf290bd58d57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236518
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go.mod             | 2 +-
- src/go.sum             | 5 ++---
- src/vendor/modules.txt | 4 ++--
- 3 files changed, 5 insertions(+), 6 deletions(-)
+ src/runtime/sigtab_linux_generic.go | 2 +-
+ src/runtime/sigtab_linux_mipsx.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

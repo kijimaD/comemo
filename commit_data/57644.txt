@@ -1,17 +1,28 @@
-commit 3352db152b8347650e1fd3c9f26c335586577b21
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Oct 9 12:03:33 2024 -0400
+commit d5cd55a289144c25aff4ae8d293bb31f9bdba3a3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 19 23:04:46 2023 -0700
 
-    internal/runtime/maps: support big endian architectures
+    cmd/compile/internal/abi: stop using types.Func
     
-    For #54766.
+    This is supposed to be an internal type within package types. At least
+    for now, users of the types package should stick to the types.Type
+    APIs as much as possible.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10
-    Change-Id: I0a928c4b1e90056c50d2abca8982bdb540c33a34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/619035
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    This CL also unexports FuncType and a few others to prevent
+    backsliding.
+    
+    Change-Id: I053fc115a5e6a57c148c8149851a45114756072f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521255
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/runtime/maps/group.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/abi/abiutils.go        | 20 ++++++-------
+ src/cmd/compile/internal/gc/compile.go          |  2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  9 +++---
+ src/cmd/compile/internal/ssa/debug.go           |  4 +--
+ src/cmd/compile/internal/ssagen/abi.go          |  2 +-
+ src/cmd/compile/internal/types/type.go          | 38 ++++++++++++-------------
+ 6 files changed, 36 insertions(+), 39 deletions(-)

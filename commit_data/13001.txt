@@ -1,12 +1,15 @@
-commit 83aa040c450a6f1af22a61c2691e42e481b87beb
+commit c3c8e35af25d99f5cfab70157e26a13b93a77e7f
 Author: David Symonds <dsymonds@golang.org>
-Date:   Tue May 1 11:41:32 2012 +1000
+Date:   Tue May 1 11:37:44 2012 +1000
 
-    misc/dashboard/codereview: de-dup LGTMs.
+    encoding/json: don't match field name if a JSON struct tag is present.
     
-    R=golang-dev, r
+    Fixes #3566.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6127066
+    https://golang.org/cl/6139048
 
- misc/dashboard/codereview/dashboard/cl.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/pkg/encoding/json/decode.go      | 13 +++++++++----
+ src/pkg/encoding/json/decode_test.go |  8 ++++++++
+ 2 files changed, 17 insertions(+), 4 deletions(-)

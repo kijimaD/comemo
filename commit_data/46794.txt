@@ -1,24 +1,32 @@
-commit 6f74ed06c5b0e1d69fb70e89f31f002f18554c79
+commit a59cb5109d49ac0dc09337449b9c7760ecc66c0e
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 6 19:38:15 2021 -0700
+Date:   Thu Jan 28 14:29:25 2021 -0800
 
-    go/types: implement copy for generic argument types
+    [dev.typeparams] cmd/compile/internal/types2: handle untyped constant arithmetic overflow
     
-    This is a port of CL 354432 from types2 to go/types
-    with minor adjustments:
-    - an error message has a different position
-    - the constraint literals are wrapped in interfaces
-      because the interface-free notation has not been
-      ported yet
+    Factor out the existing "constant representation" check after
+    untyped constant arithmetic and combine with an overflow check.
     
-    Change-Id: I167094b57b39027566f2b7ce3aa97a071bae4da5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354489
+    Use a better heuristic for determining the error position if we
+    know the error is for a constant operand that is the result of an
+    arithmetic expression.
+    
+    Related cleanups.
+    
+    With this change, untyped constant arithmetic reports an error
+    when (integer) constants become too large (> 2048 bits). Before,
+    such arithmetic was only limited by space and time.
+    
+    Change-Id: Id3cea66c8ba697ff4c7fd1e848f350d9713e3c75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287832
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/builtins.go                 |  4 +---
- src/go/types/testdata/check/builtins.go2 | 37 ++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/expr.go            | 145 +++++++++++++--------
+ .../internal/types2/fixedbugs/issue20583.src       |   2 +-
+ src/cmd/compile/internal/types2/stdlib_test.go     |   1 -
+ src/cmd/compile/internal/types2/stmt.go            |   2 +-
+ .../compile/internal/types2/testdata/const0.src    |   8 ++
+ test/run.go                                        |   2 +-
+ 6 files changed, 99 insertions(+), 61 deletions(-)

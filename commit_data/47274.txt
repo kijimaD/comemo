@@ -1,15 +1,19 @@
-commit 3b5add5d683572a81ed57007612bc2c712aa7789
-Author: lgbgbl <lgbgbl@qq.com>
-Date:   Fri Nov 5 04:57:59 2021 +0000
+commit b60a3a8cfbc6096babe72ebcee0733bba496cf9a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 5 09:49:28 2021 -0800
 
-    bufio: fix typo in comment
+    cmd/compile: add debugging mode for import/export
     
-    Change-Id: I6074334bc73ee1773fc83d049142ad764e39e5a9
-    GitHub-Last-Rev: 6a8789318ab132a169a89be807394af55c855ce9
-    GitHub-Pull-Request: golang/go#49373
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361413
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Just add a simple magic number with each op, to detect when
+    the reader gets desynchronized from the writer.
+    
+    Change-Id: Iac7dab7f465b0021b1d7ae31c8f8a353ac3663a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299769
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/bufio/bufio_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 8 ++++++++
+ src/cmd/compile/internal/typecheck/iimport.go | 3 +++
+ 2 files changed, 11 insertions(+)

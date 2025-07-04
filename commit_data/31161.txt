@@ -1,16 +1,43 @@
-commit 58908114a860908bdff775d7d4a0223554896dcb
+commit 61fb2f6d634aeaf46d3e546267639ad832058d81
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 16 18:18:24 2017 -0700
+Date:   Thu Jan 19 14:22:26 2017 -0800
 
-    cmd/go: don't generate DWARF in the compiler for plan9
+    cmd/compile: speed up hot phi insertion code
     
-    Follow-up to CL 40859.
+    This speeds up compilation of the code in #8225 by 25%-30%.
+    The complexity of the algorithm is unchanged,
+    but this shrinks the constant factor so much that it doesn't matter,
+    even the size of the giant type switch gets scaled up dramatically.
     
-    Change-Id: I785b8b28f179a8f2fcd42b0a97ffcd41de4b21bc
-    Reviewed-on: https://go-review.googlesource.com/40865
+    name       old time/op      new time/op      delta
+    Template        218ms ± 5%       217ms ±10%    ~           (p=0.163 n=27+30)
+    Unicode        98.2ms ± 6%      97.7ms ±10%    ~           (p=0.150 n=27+29)
+    GoTypes         654ms ± 5%       650ms ± 5%    ~           (p=0.350 n=30+30)
+    Compiler        2.70s ± 4%       2.68s ± 3%    ~           (p=0.128 n=30+29)
+    
+    name       old user-ns/op   new user-ns/op   delta
+    Template   276user-ms ± 6%  271user-ms ± 7%  -1.83%        (p=0.003 n=29+28)
+    Unicode    138user-ms ± 5%  137user-ms ± 4%    ~           (p=0.071 n=27+27)
+    GoTypes    881user-ms ± 4%  877user-ms ± 4%    ~           (p=0.423 n=30+30)
+    Compiler   3.76user-s ± 4%  3.72user-s ± 2%  -0.84%        (p=0.028 n=30+29)
+    
+    name       old alloc/op     new alloc/op     delta
+    Template       40.7MB ± 0%      40.7MB ± 0%    ~           (p=0.936 n=30+30)
+    Unicode        30.8MB ± 0%      30.8MB ± 0%    ~           (p=0.859 n=28+30)
+    GoTypes         123MB ± 0%       123MB ± 0%    ~           (p=0.273 n=30+30)
+    Compiler        472MB ± 0%       472MB ± 0%    ~           (p=0.432 n=30+30)
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         401k ± 1%        401k ± 1%    ~           (p=0.859 n=30+30)
+    Unicode          331k ± 0%        331k ± 1%    ~           (p=0.823 n=28+30)
+    GoTypes         1.24M ± 0%       1.24M ± 0%    ~           (p=0.286 n=30+30)
+    Compiler        4.26M ± 0%       4.26M ± 0%    ~           (p=0.359 n=30+30)
+    
+    Change-Id: Ia850065a9a84c07a5b0b4e23c1758b5679498da7
+    Reviewed-on: https://go-review.googlesource.com/36112
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/phi.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

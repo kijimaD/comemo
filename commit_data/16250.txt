@@ -1,12 +1,30 @@
-commit 2a1ca145cf0489160ca284e08eeca4673563c007
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 30 14:22:28 2013 -0700
+commit 825b1e15916833ff6b2affdb5b0bb7c5c908ac52
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 30 14:01:05 2013 -0700
 
-    cmd/ld: when linking externally, only generate dwarf info for ELF
+    cmd/ld: emit relocs for DWARF info when doing an external link
     
-    R=golang-dev, iant
+    I would like opinions on whether this is a good idea for 1.1.
+    On the one hand it's a moderately important issue.  On the
+    other hand this introduces at least the possibility of
+    external linker errors due to the additional relocations and
+    it may be better to wait.
+    
+    I'm fairly confident that the behaviour is unchanged when not
+    using an external linker.
+    
+    Update #5221
+    
+    This CL is tested lightly on 386 and amd64 and fixes the cases
+    I tested.  I have not tested it on Darwin or Windows.
+    
+    R=golang-dev, dave, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/9025047
+    https://golang.org/cl/8858047
 
- src/cmd/ld/dwarf.c | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/ld/dwarf.c  | 227 +++++++++++++++++++++++++++++++++++++++++++++-------
+ src/cmd/ld/elf.c    |   4 +-
+ src/cmd/ld/elf.h    |   5 +-
+ src/cmd/ld/lib.h    |   2 +
+ src/cmd/ld/symtab.c |  27 +++++++
+ 5 files changed, 230 insertions(+), 35 deletions(-)

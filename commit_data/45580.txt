@@ -1,21 +1,25 @@
-commit bdb804466568c79e488a7b16f6ffd045f2dc6dfa
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 6 16:16:19 2021 -0400
+commit 38d1ec8c9d09c680065404fe77168fe992e09e82
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 29 13:57:12 2020 -0400
 
-    cmd/link: don't include arginfo symbols in symbol table
+    cmd/internal/obj: use panic instead of log.Fatalf for two messages
     
-    We recently add arginfo symbols for traceback argument metadata.
-    Like other metadata symbols (GC bitmaps, opendefer info, etc.),
-    skip arginfo symbols for symbol table as well.
+    These messages can happen if there are
+    duplicate body-less function declarations.
+    Using panic gives the panic handler
+    a chance to handle the panic by printing the
+    queued error messages instead of an internal error.
     
-    Fixes #45971.
+    And if there are no queued error messages,
+    using panic pinpoints the stack trace leading
+    to the incorrect use of NewFuncInfo/NewFileInfo.
     
-    Change-Id: I7a126b75f70ec88e2170e9a274d968762c7bce56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317769
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I7e7ea9822ff9a1e7140f5e5b7cfd6437ff9318a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266338
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/internal/ld/symtab.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/link.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

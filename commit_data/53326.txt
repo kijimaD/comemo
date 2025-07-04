@@ -1,31 +1,35 @@
-commit 055c186f53493da473c888869ad468861ba25f1a
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 25 00:21:13 2023 -0400
+commit efe5929dbd23054395ea128325edba8d23b6d5fc
+Author: eric fang <eric.fang@arm.com>
+Date:   Fri Jul 29 04:05:03 2022 +0000
 
-    runtime: add heapObjectsCanMove
+    cmd/compile/internal/ssa: optimize ARM64 code with TST
     
-    heapObjectsCanMove is always false in the current garbage collector.
-    It exists for go4.org/unsafe/assume-no-moving-gc, which is an
-    unfortunate idea that had an even more unfortunate implementation.
-    Every time a new Go release happened, the package stopped building,
-    and the authors had to add a new file with a new //go:build line, and
-    then the entire ecosystem of packages with that as a dependency had to
-    explicitly update to the new version. Many packages depend on
-    assume-no-moving-gc transitively, through paths like
-    inet.af/netaddr -> go4.org/intern -> assume-no-moving-gc.
-    This was causing a significant amount of friction around each new
-    release, so we added this bool for the package to //go:linkname
-    instead. The bool is still unfortunate, but it's not as bad as
-    breaking the ecosystem on every new release.
+    For signed comparisons, the following four optimization rules hold:
     
-    If the Go garbage collector ever does move heap objects, we can set
-    this to true to break all the programs using assume-no-moving-gc.
+    (CMPconst [0] z:(AND x y)) && z.Uses == 1 => (TST x y)
+    (CMPWconst [0] z:(AND x y)) && z.Uses == 1 => (TSTW x y)
+    (CMPconst [0] x:(ANDconst [c] y)) && x.Uses == 1 => (TSTconst [c] y)
+    (CMPWconst [0] x:(ANDconst [c] y)) && x.Uses == 1 => (TSTWconst [int32(c)] y)
     
-    Change-Id: I06c32bf6ccc4601c8eef741d7382b678aada3508
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498121
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    But currently they only apply to jump instructions, not to conditional
+    instructions within a block, such as cset, csel, etc. This CL extends
+    the above rules into blocks so that conditional instructions can also be
+    optimized.
+    
+    name                       old time/op  new time/op  delta
+    DivisiblePow2constI64-160  1.04ns ± 0%  0.86ns ± 0%  -17.30%  (p=0.008 n=5+5)
+    DivisiblePow2constI32-160  1.04ns ± 0%  0.87ns ± 0%  -16.16%  (p=0.016 n=4+5)
+    DivisiblePow2constI16-160  1.04ns ± 0%  0.87ns ± 0%  -16.03%  (p=0.008 n=5+5)
+    DivisiblePow2constI8-160   1.04ns ± 0%  0.86ns ± 0%  -17.15%  (p=0.008 n=5+5)
+    
+    Change-Id: I6bc34bff30862210e8dd001e0340b8fe502fe3de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420434
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
 
- src/runtime/mgc.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  55 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 896 +++++++++++++++++++++------
+ test/codegen/arithmetic.go                   |  22 +-
+ 3 files changed, 774 insertions(+), 199 deletions(-)

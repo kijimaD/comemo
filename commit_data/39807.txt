@@ -1,20 +1,22 @@
-commit 1406ece4461cc042c9340efbe331e2d7f6db2f8e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 5 11:15:59 2019 +0700
+commit 4906a00cdd0e71915d691acad3f852d498ee1a6f
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Thu Mar 21 16:04:25 2019 +0100
 
-    cmd/compile: preserve loop depth when evaluating block
+    image/png: add Fuzz function
     
-    Add block method to preserve loop depth when evaluating statements in a
-    block, so escape analysis can handle looping label more precisely.
+    Add a Fuzz function to package png, under the gofuzz build
+    tag. This function is based on the png/png.go code, from
+    github.com/dvyukov/go-fuzz-corpus, modified to use direct
+    comparison of image bounds rather than reflect.DeepEqual.
     
-    Updates #22438
+    Updates #30979
+    Updates #19109
     
-    Change-Id: I39b306544a6c0ee3fcbebbe0d0ee735cb71773e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193517
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idb86e7ded0c2d78e6cadbeda84c7b1f35b8c579c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168558
+    Reviewed-by: thepudds <thepudds1460@gmail.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/compile/internal/gc/escape.go | 22 +++++++++++-------
- test/escape_goto.go                   | 44 +++++++++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+), 8 deletions(-)
+ src/image/png/fuzz.go | 52 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)

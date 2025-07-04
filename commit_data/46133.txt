@@ -1,27 +1,20 @@
-commit fa34678c67275a765a9b78443806c8144d88fe3d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 23 11:40:56 2021 -0700
+commit e2d278bfeb2f0f117efc50b3f0f9dcb086a45ed2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 15:26:24 2020 -0500
 
-    internal/buildcfg: change GOEXPERIMENT to always return non-empty string
+    [dev.regabi] cmd/compile: two small fixes
     
-    Rather than returning "", we now return "," (which is a no-op). This
-    ensures that the returned string always overrides DefaultGOEXPERIMENT.
+    Addressing comments from CL 275434 and CL 275444.
+    I forgot to run "git rw" to rebase the fixup CLs down before
+    running "git submit".
     
-    This fixes a bootstrapping issue where GOROOT_BOOTSTRAP was built with
-    "GOEXPERIMENT=fieldtrack ./make.bash". cmd/dist sets GOEXPERIMENT=none
-    during bootstrapping, which was causing cmd/go to set GOEXPERIMENT=""
-    when executing cmd/compile; but then cmd/compile ignores the
-    environment variable (because it's empty) and instead uses
-    DefaultGOEXPERIMENT.
-    
-    Fixes #47921.
-    
-    Change-Id: I657ff6cdfb294a94f6a2f58c306ceed7f104416b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344511
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ideaa2340a81511491c096555c6834cd9bdb267d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275881
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/buildcfg/exp.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/mknode.go | 2 +-
+ src/cmd/compile/internal/ir/stmt.go   | 7 ++++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

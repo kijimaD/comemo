@@ -1,12 +1,22 @@
-commit ac74f14b6b94d05e9db6a535b7e7b57fdbf09007
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Tue Mar 29 01:12:39 2011 -0400
+commit 2f45f72dce309e4afb8d1279a157ae1ad865ec8f
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Mon Mar 28 23:40:01 2011 -0400
 
-    kate: reorganize, remove closed()
+    net: implement non-blocking connect
     
-    R=rsc
+    Refactored bind/connect from sock.go into netFD.connect(), as
+    a consequence newFD() doesn't accept laddr/raddr anymore, and
+    expects an (optional) call to netFD.connect() followed by a
+    call to netFD.setAddr().
+    Windows code is updated, but still uses blocking connect,
+    since otherwise it needs support for ConnectEx syscall.
+    
+    R=brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/4325041
+    https://golang.org/cl/4303060
 
- misc/kate/go.xml | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ src/pkg/net/fd.go         | 46 +++++++++++++++++++++++++++++++++++++---------
+ src/pkg/net/fd_windows.go | 35 ++++++++++++++++++++++++++++-------
+ src/pkg/net/file.go       |  8 ++++++--
+ src/pkg/net/sock.go       | 29 +++++++++--------------------
+ 4 files changed, 80 insertions(+), 38 deletions(-)

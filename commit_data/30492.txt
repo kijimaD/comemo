@@ -1,16 +1,36 @@
-commit 2f5aea7c1305158a6d87ea356f0ed2a8186bc73d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 2 18:46:00 2017 +0000
+commit f72a629dbd6d4ed65cb295b896de214b0f7790d5
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Nov 4 11:27:54 2016 -0400
 
-    Revert "Revert "cmd/vet/all: remove pprof from the whitelist""
+    runtime/pprof/internal: add package protopprof
     
-    This reverts commit 9bd1cc3fa1145182e9ce041d0e96bd2051cd7fcf.
+    This change adds code, originally written by Russ Cox <rsc@golang.org>
+    and open-sourced by Google, that converts from the "legacy"
+    binary pprof profile format to a struct representation of the
+    new protocol buffer pprof profile format.
     
-    Reason for revert: New fixes in from upstream. Try this again.
+    This code reads the entire binary format for conversion to the
+    protobuf format. In a future change, we will update the code
+    to incrementally read and convert segments of the binary format,
+    so that the entire profile does not need to be stored in memory.
     
-    Change-Id: Iea46f32857e8467f8d5a49b31e20a52fda8bce60
-    Reviewed-on: https://go-review.googlesource.com/37693
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This change also contains contributions by Daria Kolistratova
+    <daria.kolistratova@intel.com> from the rolled-back change
+    golang.org/cl/30556 adapting the code to be used by the package
+    runtime/pprof.
+    
+    This code also appeared in the change golang.org/cl/32257, which was based
+    on Daria Kolistratova's change, but was also rolled back.
+    
+    Updates #16093
+    
+    Change-Id: I5c768b1134bc15408d80a3ccc7ed867db9a1c63d
+    Reviewed-on: https://go-review.googlesource.com/32811
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/all/main.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/go/build/deps_test.go                          |  17 +-
+ .../pprof/internal/protopprof/protopprof.go        | 106 +++++++++++
+ .../pprof/internal/protopprof/protopprof_test.go   | 207 +++++++++++++++++++++
+ 3 files changed, 322 insertions(+), 8 deletions(-)

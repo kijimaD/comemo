@@ -1,34 +1,17 @@
-commit 4295ed9bef1f2b15837bdeb52766952c464f225d
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Nov 23 14:20:19 2018 +0100
+commit a685a8d11484b87f61f9317fd92151b7cc46d124
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 1 13:22:02 2018 -0400
 
-    cmd: fix symbols addressing for aix/ppc64
+    cmd/go: make 'go get <module>@none' idempotent
     
-    This commit changes the code generated for addressing symbols on AIX
-    operating system.
+    Before this change, 'go get <module>@none' for a module not in the build list
+    would add the module to go.mod (with the explicit version string "none").
+    Subsequent go commands would fail with 'invalid module version "none"'.
     
-    On AIX, every symbol accesses must be done via another symbol near the TOC,
-    named TOC anchor or TOC entry. This TOC anchor is a pointer to the symbol
-    address.
-    During Progedit function, when a symbol access is detected, its instructions
-    are modified to create a load on its TOC anchor and retrieve the symbol.
-    
-    Change-Id: I00cf8f49c13004bc99fa8af13d549a709320f797
-    Reviewed-on: https://go-review.googlesource.com/c/151039
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iebcaeab89eb19959f0a9aeda836f179962953313
+    Reviewed-on: https://go-review.googlesource.com/127215
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/link.go                |   2 +
- src/cmd/internal/obj/objfile.go             |  11 +++
- src/cmd/internal/obj/ppc64/a.out.go         |   1 +
- src/cmd/internal/obj/ppc64/anames9.go       |   2 +
- src/cmd/internal/obj/ppc64/asm9.go          |  28 ++++++-
- src/cmd/internal/obj/ppc64/obj9.go          | 113 ++++++++++++++++++++++++++++
- src/cmd/internal/obj/util.go                |  11 +++
- src/cmd/link/internal/ld/data.go            |  16 ++--
- src/cmd/link/internal/ld/xcoff.go           |  29 +++++--
- src/cmd/link/internal/ppc64/asm.go          |  37 ++++++++-
- src/cmd/link/internal/sym/symkind.go        |   2 +-
- src/cmd/link/internal/sym/symkind_string.go |   4 +-
- 12 files changed, 240 insertions(+), 16 deletions(-)
+ src/cmd/go/internal/modget/get.go           |  6 ++++--
+ src/cmd/go/testdata/script/mod_get_none.txt | 12 ++++++++++++
+ 2 files changed, 16 insertions(+), 2 deletions(-)

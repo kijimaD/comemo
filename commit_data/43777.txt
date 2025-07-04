@@ -1,16 +1,16 @@
-commit 8f2db14cd35bbd674cb2988a508306de6655e425
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Nov 10 11:32:04 2020 -0500
+commit adea6a90e361629d20a68400c0c5cdcdfcdf087e
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 23 08:43:29 2020 -0400
 
-    cmd/go: release note for -mod=readonly by default
+    [dev.link] cmd/link/internal/loader: fix buglet in section handling
     
-    For #40728
-    Fixes #42466
+    Allow for the possibility that a client could call newExtSym(), then
+    ask for the section of the new sym before SetSectSym is called on it
+    (check in SymSect for this case).
     
-    Change-Id: If2b21b37a590c243828c4fd278ab10b2705450f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268859
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I7bd78e7b3b7618943705b616f62ea78c4a1b68d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229603
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.16.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/link/internal/loader/loader.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

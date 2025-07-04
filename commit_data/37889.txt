@@ -1,18 +1,27 @@
-commit 79ac638e41abed1d8f46762ecd6d63a93d9bb382
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jan 14 21:27:29 2019 +0000
+commit 73b8e5f81b992597462d39978bad09c0f88a530e
+Author: Marko Kevac <marko@kevac.org>
+Date:   Tue Jun 5 22:41:18 2018 +0300
 
-    runtime: refactor coalescing into its own method
+    runtime/pprof: remove "deleted" suffix while parsing maps file
     
-    The coalescing process is complex and in a follow-up change we'll need
-    to do it in more than one place, so this change factors out the
-    coalescing code in freeSpanLocked into a method on mheap.
+    If binary file of a running program was deleted or moved, maps
+    file (/proc/pid/maps) will contain lines that have this binary
+    filename suffixed with "(deleted)" string. This suffix stayed
+    as a part of the filename and made remote profiling slightly more
+    difficult by requiring from a user to rename binary file to
+    include this suffix.
     
-    Change-Id: Ia266b6cb1157c1b8d3d8a4287b42fbcc032bbf3a
-    Reviewed-on: https://go-review.googlesource.com/c/157838
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    This change cleans up the filename and removes this suffix and
+    thus simplify debugging.
+    
+    Fixes #25740
+    
+    Change-Id: Ib3c8c3b9ef536c2ac037fcc14e8037fa5c960036
+    Reviewed-on: https://go-review.googlesource.com/116395
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/runtime/mheap.go | 117 +++++++++++++++++++++++++++------------------------
- 1 file changed, 61 insertions(+), 56 deletions(-)
+ src/runtime/pprof/proto.go      |  8 ++++
+ src/runtime/pprof/proto_test.go | 95 ++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 88 insertions(+), 15 deletions(-)

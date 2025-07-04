@@ -1,15 +1,35 @@
-commit 3d68dc332517d7f6ef38d42e9a3211655958b20b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 11 14:24:16 2014 -0700
+commit f20e4d5ecb87cae4846be07a68cb0e9132e6a8c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 11 14:21:06 2014 -0400
 
-    math: remove Nextafter64 alias in favor of existing Nextafter
+    cmd/gc: fix &result escaping into result
     
-    LGTM=adonovan
-    R=rsc, adonovan
+    There is a hierarchy of location defined by loop depth:
+    
+            -1 = the heap
+            0 = function results
+            1 = local variables (and parameters)
+            2 = local variable declared inside a loop
+            3 = local variable declared inside a loop inside a loop
+            etc
+    
+    In general if an address from loopdepth n is assigned to
+    something in loop depth m < n, that indicates an extended
+    lifetime of some form that requires a heap allocation.
+    
+    Function results can be local variables too, though, and so
+    they don't actually fit into the hierarchy very well.
+    Treat the address of a function result as level 1 so that
+    if it is written back into a result, the address is treated
+    as escaping.
+    
+    Fixes #8185.
+    
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/104050045
+    https://golang.org/cl/108870044
 
- src/pkg/math/all_test.go     |  6 +++---
- src/pkg/math/big/rat_test.go |  6 +++---
- src/pkg/math/nextafter.go    | 10 ++--------
- 3 files changed, 8 insertions(+), 14 deletions(-)
+ src/cmd/gc/esc.c | 13 +++++++++++--
+ test/escape2.go  | 12 ++++++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)

@@ -1,22 +1,21 @@
-commit b9a764ffdfa0fd41be6b0cfcd889f2349b14e2b5
-Author: Frank Schroeder <frank.schroeder@gmail.com>
-Date:   Sat Jul 14 21:58:07 2018 +0000
+commit 04e993f953060851adb604c6ccc7c96ef89b8c8d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 29 14:35:57 2018 +0200
 
-    cmd/go: run git log with --no-show-signature
+    test: update list of escape reasons
     
-    Git timestamp parsing is broken when fetching modules if the
-    local git configuration has 'log.showsignature=true'.
+    The escape_because.go test file (which tests the "because" escape
+    explainations printed by `-m -m`) cointains a machine-generated list
+    of all the escape reasons seen in the escape tests.
     
-    Fixes #26388
+    The list appears to be outdated; moreove a new escape reason was added
+    in CL 102895. This change re-generates the list.
     
-    Change-Id: I47f92381784072335a2a465de56092106c616108
-    GitHub-Last-Rev: 96f988c0a2dd39a5747ec4a7bad05e7e8ee0d384
-    GitHub-Pull-Request: golang/go#26389
-    Reviewed-on: https://go-review.googlesource.com/123958
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Idc721c6bbfe9516895b5cf1e6d09b77deda5a3dd
+    Reviewed-on: https://go-review.googlesource.com/103375
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/git.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/escape_because.go | 28 ++++++++--------------------
+ 1 file changed, 8 insertions(+), 20 deletions(-)

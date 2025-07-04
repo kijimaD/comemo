@@ -1,20 +1,25 @@
-commit 0884bca05a278e7f8783be3545a88a26b14dd4e4
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jun 19 17:07:26 2019 -0400
+commit a1925076fe5436bf7316fd2ab30d5e716df46f28
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Dec 30 18:43:13 2018 +0100
 
-    crypto/tls: move shared code and resources to handshake_test.go
+    cmd/go: add benchmark that execs 'go env GOARCH'
     
-    Removed cross-dependencies between handshake_server_test.go and
-    handshake_client_test.go; moved all initialization to TestMain; replaced
-    SSLKEYLOGFILE environment variable with -keylog flag.
+    'go env' is used for many quick operations, such as in go/packages to
+    query GOARCH and GOMOD. It often is a bottleneck; for example,
+    go/packages doesn't know whether or not to use Go modules until it has
+    queried GOMOD.
     
-    Change-Id: Ida6712daa44e01a2c00658e8a1896087ee88bcb0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183057
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    As such, this go command should be fast. Right now it's slower than it
+    should be. This commit adds a simple benchmark with os/exec, since we're
+    particularly interested in the cost of cmd/go's large init function.
+    
+    Updates #29382.
+    
+    Change-Id: Ifee6fb9997b9b89565fbfc2739a00c86117b1d37
+    Reviewed-on: https://go-review.googlesource.com/c/155961
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/crypto/tls/handshake_client_test.go |  14 --
- src/crypto/tls/handshake_server_test.go | 223 ----------------------------
- src/crypto/tls/handshake_test.go        | 252 +++++++++++++++++++++++++++++---
- 3 files changed, 228 insertions(+), 261 deletions(-)
+ src/cmd/go/init_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

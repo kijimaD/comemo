@@ -1,12 +1,12 @@
-commit e44c0573696371af6971d69dc6c7c6391d4e2456
+commit ad8fc8891e7050fe916fe00a308f845fb6cf082e
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 16 16:36:18 2011 +1100
+Date:   Wed Mar 16 16:26:46 2011 +1100
 
-    doc: fix line wrapping for release.html
+    tag weekly.2011-03-15
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4281052
+    https://golang.org/cl/4289048
 
- doc/devel/release.html | 65 ++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 45 insertions(+), 20 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

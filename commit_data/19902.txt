@@ -1,24 +1,20 @@
-commit 6503d400519c7c03cc2f65d68bf72c83ac69dae2
+commit d69d0fe92b547d85e16485c68a0b5bf463d6ae91
 Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Aug 6 02:07:31 2014 -0400
+Date:   Wed Aug 6 00:31:22 2014 -0400
 
-    undo CL 114420043 / b613f2acdf69
+    liblink, cmd/dist, cmd/5l: introduce %^ and move C_* constants.
     
-    Broke freebsd/amd64 due to exposure of a latent bug.
+    The helps certain diagnostics and also removed duplicated enums as a side effect.
     
-    ««« original CL description
-    cmd/ld: fix operator precedence
-    
-    LGTM=rsc
-    R=rsc, iant
+    LGTM=dave, rsc
+    R=rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/114420043
-    »»»
-    
-    TBR=dfc
-    R=dave
-    CC=golang-codereviews
-    https://golang.org/cl/120630043
+    https://golang.org/cl/115060044
 
- src/cmd/ld/data.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/link.h         |  7 +++++--
+ src/cmd/5l/5.out.h     | 51 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5l/l.h         | 46 ---------------------------------------------
+ src/cmd/dist/buildgc.c | 22 +++++++++++++++++++++-
+ src/liblink/asm5.c     | 50 ++-----------------------------------------------
+ src/liblink/list5.c    | 17 +++++++++++++++++
+ 6 files changed, 96 insertions(+), 97 deletions(-)

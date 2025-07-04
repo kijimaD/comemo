@@ -1,17 +1,21 @@
-commit a1bf5207af2270fe91934bda2f7b068634e9f1c2
-Author: Joel Sing <jsing@google.com>
-Date:   Fri May 11 03:47:27 2012 +1000
+commit 0355a717517f7e1435e6f9eeb94e2b77d33eb43b
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 9 12:03:55 2012 +0200
 
-    syscall: repair netbsd z* files
+    exp/locale/collate: Add maketables tool and generated tables.
+    Also set maxContractLen automatically.
+    Note that the table size is much bigger than it needs to be.
+    Optimization is best done, though, when the language specific
+    tables are added.
     
-    Manually repair/update z* files for netbsd - this allows Go to
-    compile again on 386.
-    
-    R=golang-dev, rsc, minux.ma
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6194064
+    https://golang.org/cl/6167044
 
- src/pkg/syscall/zerrors_netbsd_386.go   | 106 ++++++++++++++++++++++----------
- src/pkg/syscall/zerrors_netbsd_amd64.go |  70 +++++++++++----------
- src/pkg/syscall/zsyscall_netbsd_386.go  |   2 +-
- 3 files changed, 111 insertions(+), 67 deletions(-)
+ src/pkg/exp/locale/collate/Makefile         |   16 +
+ src/pkg/exp/locale/collate/build/builder.go |    3 +
+ src/pkg/exp/locale/collate/build/table.go   |    1 +
+ src/pkg/exp/locale/collate/collate.go       |    4 -
+ src/pkg/exp/locale/collate/maketables.go    |  185 +
+ src/pkg/exp/locale/collate/tables.go        | 7272 +++++++++++++++++++++++++++
+ 6 files changed, 7477 insertions(+), 4 deletions(-)

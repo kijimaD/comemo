@@ -1,17 +1,12 @@
-commit 924ea515cf1d1a6f5e447c212e00e3e88c785c41
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Nov 9 18:30:54 2011 +0100
+commit 21f5057639a1ca81b705307c1ed8c0af1249a308
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 9 08:12:26 2011 -0800
 
-    gc: better error for non-calling use of unsafe builtins.
+    http: add a disabled failing test for Issue 2357
     
-    Fixes #1951
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5372041
+    https://golang.org/cl/5372044
 
- src/cmd/gc/go.h          |  1 +
- src/cmd/gc/typecheck.c   |  4 ++++
- src/cmd/gc/unsafe.c      | 19 +++++++++++++++++--
- test/fixedbugs/bug376.go | 11 +++++++++++
- 4 files changed, 33 insertions(+), 2 deletions(-)
+ src/pkg/net/http/serve_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

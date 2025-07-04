@@ -1,14 +1,14 @@
-commit 79b106ec62542d589fcbc9a079e1bada7e7db46c
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 15 01:38:05 2014 +0000
+commit a44cf8d18e9af4cae0d93f6a4f6c33f3cfbe7f18
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 15 11:25:39 2014 +1000
 
-    cmd/ld: generate correct upper bound value for array types.
+    A+C: add Chris McGee (individual CLA)
     
-    LGTM=rsc
-    R=rsc
+    TBR=dsymonds
+    R=golang-codereviews
     CC=golang-codereviews
-    https://golang.org/cl/115820043
+    https://golang.org/cl/112300043
 
- src/cmd/ld/decodesym.c | 3 ++-
- src/cmd/ld/dwarf.c     | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

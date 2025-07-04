@@ -1,15 +1,14 @@
-commit 0f8678a74730c69ca19f2589ae45d9d2eb3d302e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jul 12 17:27:07 2011 +1000
+commit 851ded9660d0fbf688a9db2472e82c6fea72bb2f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jul 12 17:02:55 2011 +1000
 
-    go/build: include processing of .c files for cgo packages
+    image: remove superfluous if condition.
     
-    R=golang-dev, adg
+    DrawMask already returns early if r.Empty().
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4696041
+    https://golang.org/cl/4703041
 
- src/pkg/go/build/build.go           | 12 ++++++++++--
- src/pkg/go/build/cgotest/cgotest.c  |  9 +++++++++
- src/pkg/go/build/cgotest/cgotest.go |  7 +++++++
- src/pkg/go/build/cgotest/cgotest.h  |  5 +++++
- 4 files changed, 31 insertions(+), 2 deletions(-)
+ src/pkg/image/draw/draw.go | 3 ---
+ 1 file changed, 3 deletions(-)

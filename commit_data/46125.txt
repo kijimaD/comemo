@@ -1,20 +1,22 @@
-commit 4fbb5c8666eef0267704dd074763442efb2f7c4a
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Aug 20 10:19:12 2021 -0400
+commit 6015c4e543bcf07c01a4221ecf7692162653fa24
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Dec 8 15:01:32 2020 -0500
 
-    go/types: use TypeList in the Inferred struct
+    [dev.typeparams] go/*: add TODOs from CLs importing dev.go2go changes
     
-    This is for consistency with how we report TArgs elsewhere, and in case
-    we ever want to share an internal slice with inference reporting.
+    With the plurality of CLs importing dev.go2go changes it's getting hard
+    to track all of the code review comments that were deferred for later
+    consideration. Add some TODOs to capture these comments in the source,
+    so that they may be more easily located.
     
-    Change-Id: Ia8b705a155f4f82bd8da8dc2457289810f875f5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343934
+    Change-Id: I5caf085fec11ca8992b7affe6feb0a7aa202f21f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276254
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/api.go      | 2 +-
- src/go/types/api_test.go | 9 +++++----
- src/go/types/check.go    | 4 ++--
- 3 files changed, 8 insertions(+), 7 deletions(-)
+ src/go/ast/ast.go          | 6 +++++-
+ src/go/parser/parser.go    | 3 ++-
+ src/go/types/typestring.go | 1 +
+ 3 files changed, 8 insertions(+), 2 deletions(-)

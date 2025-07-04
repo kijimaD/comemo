@@ -1,14 +1,15 @@
-commit 6cbe5c8ac342ad3d8f907caf105feaa55cb0404b
-Author: Michael Brandenburg <mbrandenburg@bolste.com>
-Date:   Wed Jul 26 20:25:37 2017 -0700
+commit 42c5f3993b0c2e45b6665ee6011b8a0e347aa0c3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 24 18:37:17 2017 +0900
 
-    bytes: add examples for TrimLeft and TrimRight
+    runtime: gofmt -w -s
     
-    Change-Id: Ib6d94f185dd43568cf97ef267dd51a09f43a402f
-    Reviewed-on: https://go-review.googlesource.com/51391
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I954b0300554786b7026996a21acfec3b6f205e75
+    Reviewed-on: https://go-review.googlesource.com/41512
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bytes/example_test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/runtime/os_linux_arm64.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

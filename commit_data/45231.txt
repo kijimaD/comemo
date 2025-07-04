@@ -1,19 +1,17 @@
-commit fe26dfadc3630617d133b8c94bcb2ccb2e85dc1b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 19 18:39:52 2021 -0700
+commit a3bc52b7862621ea2ca246d6637d0490cae91988
+Author: ZhangYunHao <zyunhjob@163.com>
+Date:   Wed Oct 14 03:34:57 2020 +0000
 
-    net: use syscall.fcntl on libc systems
+    sync: fix typo in pooldequeue
     
-    Should fix the AIX builder.
+    .
     
-    Change-Id: I3498805fb2eee2f0ad50268b5afbbf091c5f6e63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311650
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I26fa26d67d01bcd583a1efaaf9a38398cbf793f7
+    GitHub-Last-Rev: ded020d02ca2e429f7c31065e5a27dae6eb7a611
+    GitHub-Pull-Request: golang/go#41932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261477
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/fcntl_libc_test.go       | 14 ++++++++++++++
- src/net/fcntl_syscall_test.go    | 21 +++++++++++++++++++++
- src/net/unixsock_readmsg_test.go | 16 ++++++++--------
- 3 files changed, 43 insertions(+), 8 deletions(-)
+ src/sync/poolqueue.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

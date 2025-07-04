@@ -1,42 +1,21 @@
-commit 585c9e8412540b10be5154d019828a1a27f7b4c4
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Sun Jan 20 10:52:11 2019 -0800
+commit 620bd5a3bc640f60a00d8b49c27c51e8ce67e67b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 18 14:00:25 2018 -0400
 
-    cmd/compile: implement shifts by signed amounts
+    cmd/go: write an hgrc file in TestMoveHG
     
-    Allow shifts by signed amounts. Panic if the shift amount is negative.
+    Some variants of Mercurial respond differently to “permission denied” errors
+    than to “file not found”, and we set HOME to point to an absolute path that may
+    produce the former instead of the latter.
     
-    TODO: We end up doing two compares per shift, see Ian's comment
-    https://github.com/golang/go/issues/19113#issuecomment-443241799 that
-    we could do it with a single comparison in the normal case.
+    To discourage Mercurial from trying HOME, give it an explicit (empty)
+    configuration in the working directory instead.
     
-    The prove pass mostly handles this code well. For instance, it removes the
-    <0 check for cases like this:
-        if s >= 0 { _ = x << s }
-        _ = x << len(a)
-    
-    This case isn't handled well yet:
-        _ = x << (y & 0xf)
-    I'll do followon CLs for unhandled cases as needed.
-    
-    Update #19113
-    
-    R=go1.13
-    
-    Change-Id: I839a5933d94b54ab04deb9dd5149f32c51c90fa1
-    Reviewed-on: https://go-review.googlesource.com/c/158719
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I82ae99a6892bba7fc3d41b77209ca181d24315e2
+    Reviewed-on: https://go-review.googlesource.com/136135
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/builtin.go         |   1 +
- src/cmd/compile/internal/gc/builtin/runtime.go |   1 +
- src/cmd/compile/internal/gc/go.go              |   1 +
- src/cmd/compile/internal/gc/ssa.go             |   9 ++-
- src/cmd/compile/internal/gc/typecheck.go       |   4 +-
- src/cmd/compile/internal/ssa/rewrite.go        |   3 +-
- src/cmd/internal/obj/x86/obj6.go               |   2 +-
- src/runtime/panic.go                           |  20 +++--
- test/fixedbugs/bug073.go                       |  10 +--
- test/fixedbugs/issue19113.go                   | 108 +++++++++++++++++++++++++
- 10 files changed, 144 insertions(+), 15 deletions(-)
+ src/cmd/go/go_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

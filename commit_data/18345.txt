@@ -1,29 +1,15 @@
-commit a81692e2650fce39bebd77224f4153a326460286
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 23 23:11:04 2014 -0500
+commit 592415d682232e96dda7c903d67dd24672649b76
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 23 16:26:42 2014 -0800
 
-    cmd/gc: add zeroing to enable precise stack accounting
+    effective_go: move 'Type switch' section into 'Control structures' section.
+    Needs to be an h3, not an h2.
+    Thanks to Mingjie Xing for pointing it out.
     
-    There is more zeroing than I would like right now -
-    temporaries used for the new map and channel runtime
-    calls need to be eliminated - but it will do for now.
-    
-    This CL only has an effect if you are building with
-    
-            GOEXPERIMENT=precisestack ./all.bash
-    
-    (or make.bash). It costs about 5% in the overall time
-    spent in all.bash. That number will come down before
-    we make it on by default, but this should be enough for
-    Keith to try using the precise maps for copying stacks.
-    
-    amd64 only (and it's not really great generated code).
-    
-    TBR=khr, iant
+    LGTM=dsymonds
+    R=golang-codereviews, dsymonds
     CC=golang-codereviews
-    https://golang.org/cl/56430043
+    https://golang.org/cl/55980046
 
- src/cmd/6g/ggen.c      | 35 +++++++++++++++++++++++++++++++++--
- src/cmd/gc/plive.c     | 26 +++++++++++++++-----------
- src/pkg/runtime/mgc0.c |  2 +-
- 3 files changed, 49 insertions(+), 14 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

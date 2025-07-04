@@ -1,20 +1,137 @@
-commit 669fa8f36a298cc0e2d1f817ca30c8d613ce7483
-Author: Alexey Naidonov <alexey.naidyonov@gmail.com>
-Date:   Tue Aug 28 00:39:34 2018 +0300
+commit f31a18ded405bdbc7b44a011d1434c83e7c39347
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Apr 11 22:47:24 2018 +0100
 
-    cmd/compile: remove unnecessary nil-check
+    cmd/compile: add some generic composite type optimizations
     
-    Removes unnecessary nil-check when referencing offset from an
-    address. Suggested by Keith Randall in golang/go#27180.
+    Propagate values through some wide Zero/Move operations. Among
+    other things this allows us to optimize some kinds of array
+    initialization. For example, the following code no longer
+    requires a temporary be allocated on the stack. Instead it
+    writes the values directly into the return value.
     
-    Updates golang/go#27180
+    func f(i uint32) [4]uint32 {
+        return [4]uint32{i, i+1, i+2, i+3}
+    }
     
-    Change-Id: I326ed7fda7cfa98b7e4354c811900707fee26021
-    Reviewed-on: https://go-review.googlesource.com/131735
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    The return value is unnecessarily cleared but removing that is
+    probably a task for dead store analysis (I think it needs to
+    be able to match multiple Store ops to wide Zero ops).
+    
+    In order to reliably remove stack variables that are rendered
+    unnecessary by these new rules I've added a new generic version
+    of the unread autos elimination pass.
+    
+    These rules are triggered more than 5000 times when building and
+    testing the standard library.
+    
+    Updates #15925 (fixes for arrays of up to 4 elements).
+    Updates #24386 (fixes for up to 4 kept elements).
+    Updates #24416.
+    
+    compilebench results:
+    
+    name       old time/op       new time/op       delta
+    Template         353ms ± 5%        359ms ± 3%    ~     (p=0.143 n=10+10)
+    Unicode          219ms ± 1%        217ms ± 4%    ~     (p=0.740 n=7+10)
+    GoTypes          1.26s ± 1%        1.26s ± 2%    ~     (p=0.549 n=9+10)
+    Compiler         6.00s ± 1%        6.08s ± 1%  +1.42%  (p=0.000 n=9+8)
+    SSA              15.3s ± 2%        15.6s ± 1%  +2.43%  (p=0.000 n=10+10)
+    Flate            237ms ± 2%        240ms ± 2%  +1.31%  (p=0.015 n=10+10)
+    GoParser         285ms ± 1%        285ms ± 1%    ~     (p=0.878 n=8+8)
+    Reflect          797ms ± 3%        807ms ± 2%    ~     (p=0.065 n=9+10)
+    Tar              334ms ± 0%        335ms ± 4%    ~     (p=0.460 n=8+10)
+    XML              419ms ± 0%        423ms ± 1%  +0.91%  (p=0.001 n=7+9)
+    StdCmd           46.0s ± 0%        46.4s ± 0%  +0.85%  (p=0.000 n=9+9)
+    
+    name       old user-time/op  new user-time/op  delta
+    Template         337ms ± 3%        346ms ± 5%    ~     (p=0.053 n=9+10)
+    Unicode          205ms ±10%        205ms ± 8%    ~     (p=1.000 n=10+10)
+    GoTypes          1.22s ± 2%        1.21s ± 3%    ~     (p=0.436 n=10+10)
+    Compiler         5.85s ± 1%        5.93s ± 0%  +1.46%  (p=0.000 n=10+8)
+    SSA              14.9s ± 1%        15.3s ± 1%  +2.62%  (p=0.000 n=10+10)
+    Flate            229ms ± 4%        228ms ± 6%    ~     (p=0.796 n=10+10)
+    GoParser         271ms ± 3%        275ms ± 4%    ~     (p=0.165 n=10+10)
+    Reflect          779ms ± 5%        775ms ± 2%    ~     (p=0.971 n=10+10)
+    Tar              317ms ± 4%        319ms ± 5%    ~     (p=0.853 n=10+10)
+    XML              404ms ± 4%        409ms ± 5%    ~     (p=0.436 n=10+10)
+    
+    name       old alloc/op      new alloc/op      delta
+    Template        34.9MB ± 0%       35.0MB ± 0%  +0.26%  (p=0.000 n=10+10)
+    Unicode         29.3MB ± 0%       29.3MB ± 0%  +0.02%  (p=0.000 n=10+10)
+    GoTypes          115MB ± 0%        115MB ± 0%  +0.30%  (p=0.000 n=10+10)
+    Compiler         519MB ± 0%        521MB ± 0%  +0.30%  (p=0.000 n=10+10)
+    SSA             1.55GB ± 0%       1.57GB ± 0%  +1.34%  (p=0.000 n=10+9)
+    Flate           24.1MB ± 0%       24.2MB ± 0%  +0.10%  (p=0.000 n=10+10)
+    GoParser        28.1MB ± 0%       28.1MB ± 0%  +0.07%  (p=0.000 n=10+10)
+    Reflect         78.7MB ± 0%       78.7MB ± 0%  +0.03%  (p=0.000 n=8+10)
+    Tar             34.4MB ± 0%       34.5MB ± 0%  +0.12%  (p=0.000 n=10+10)
+    XML             43.2MB ± 0%       43.2MB ± 0%  +0.13%  (p=0.000 n=10+10)
+    
+    name       old allocs/op     new allocs/op     delta
+    Template          330k ± 0%         330k ± 0%  -0.01%  (p=0.017 n=10+10)
+    Unicode           337k ± 0%         337k ± 0%  +0.01%  (p=0.000 n=9+10)
+    GoTypes          1.15M ± 0%        1.15M ± 0%  +0.03%  (p=0.000 n=10+10)
+    Compiler         4.77M ± 0%        4.77M ± 0%  +0.03%  (p=0.000 n=9+10)
+    SSA              12.5M ± 0%        12.6M ± 0%  +1.16%  (p=0.000 n=10+10)
+    Flate             221k ± 0%         221k ± 0%  +0.05%  (p=0.000 n=9+10)
+    GoParser          275k ± 0%         275k ± 0%  +0.01%  (p=0.014 n=10+9)
+    Reflect           944k ± 0%         944k ± 0%  -0.02%  (p=0.000 n=10+10)
+    Tar               324k ± 0%         323k ± 0%  -0.12%  (p=0.000 n=10+10)
+    XML               384k ± 0%         384k ± 0%  -0.01%  (p=0.001 n=10+10)
+    
+    name       old object-bytes  new object-bytes  delta
+    Template         476kB ± 0%        476kB ± 0%  -0.04%  (p=0.000 n=10+10)
+    Unicode          218kB ± 0%        218kB ± 0%    ~     (all equal)
+    GoTypes         1.58MB ± 0%       1.58MB ± 0%  -0.04%  (p=0.000 n=10+10)
+    Compiler        6.25MB ± 0%       6.24MB ± 0%  -0.09%  (p=0.000 n=10+10)
+    SSA             15.9MB ± 0%       16.1MB ± 0%  +1.22%  (p=0.000 n=10+10)
+    Flate            304kB ± 0%        304kB ± 0%  -0.13%  (p=0.000 n=10+10)
+    GoParser         370kB ± 0%        370kB ± 0%  -0.00%  (p=0.000 n=10+10)
+    Reflect         1.27MB ± 0%       1.27MB ± 0%  -0.12%  (p=0.000 n=10+10)
+    Tar              421kB ± 0%        419kB ± 0%  -0.64%  (p=0.000 n=10+10)
+    XML              518kB ± 0%        517kB ± 0%  -0.12%  (p=0.000 n=10+10)
+    
+    name       old export-bytes  new export-bytes  delta
+    Template        16.7kB ± 0%       16.7kB ± 0%    ~     (all equal)
+    Unicode         6.52kB ± 0%       6.52kB ± 0%    ~     (all equal)
+    GoTypes         29.2kB ± 0%       29.2kB ± 0%    ~     (all equal)
+    Compiler        88.0kB ± 0%       88.0kB ± 0%    ~     (all equal)
+    SSA              109kB ± 0%        109kB ± 0%    ~     (all equal)
+    Flate           4.49kB ± 0%       4.49kB ± 0%    ~     (all equal)
+    GoParser        8.10kB ± 0%       8.10kB ± 0%    ~     (all equal)
+    Reflect         7.71kB ± 0%       7.71kB ± 0%    ~     (all equal)
+    Tar             9.15kB ± 0%       9.15kB ± 0%    ~     (all equal)
+    XML             12.3kB ± 0%       12.3kB ± 0%    ~     (all equal)
+    
+    name       old text-bytes    new text-bytes    delta
+    HelloSize        676kB ± 0%        672kB ± 0%  -0.59%  (p=0.000 n=10+10)
+    CmdGoSize       7.26MB ± 0%       7.24MB ± 0%  -0.18%  (p=0.000 n=10+10)
+    
+    name       old data-bytes    new data-bytes    delta
+    HelloSize       10.2kB ± 0%       10.2kB ± 0%    ~     (all equal)
+    CmdGoSize        248kB ± 0%        248kB ± 0%    ~     (all equal)
+    
+    name       old bss-bytes     new bss-bytes     delta
+    HelloSize        125kB ± 0%        125kB ± 0%    ~     (all equal)
+    CmdGoSize        145kB ± 0%        145kB ± 0%    ~     (all equal)
+    
+    name       old exe-bytes     new exe-bytes     delta
+    HelloSize       1.46MB ± 0%       1.45MB ± 0%  -0.31%  (p=0.000 n=10+10)
+    CmdGoSize       14.7MB ± 0%       14.7MB ± 0%  -0.17%  (p=0.000 n=10+10)
+    
+    Change-Id: Ic72b0c189dd542f391e1c9ab88a76e9148dc4285
+    Reviewed-on: https://go-review.googlesource.com/106495
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/nilcheck.go | 2 +-
- test/nilptr3.go                          | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go        |    1 +
+ src/cmd/compile/internal/ssa/deadstore.go      |  147 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |  565 ++-
+ src/cmd/compile/internal/ssa/rewrite.go        |   71 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 4470 +++++++++++++++++++-----
+ src/runtime/internal/atomic/atomic_test.go     |    6 +-
+ test/codegen/stack.go                          |   79 +-
+ test/fixedbugs/issue20529.go                   |    5 +-
+ 8 files changed, 4330 insertions(+), 1014 deletions(-)

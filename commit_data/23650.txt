@@ -1,27 +1,20 @@
-commit 1bd1880906e6394e88ff07552a1f1e871325d2e7
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 13 13:44:01 2015 +1000
+commit da094f19f1aea32d0469d01a4c5a53fc9379569f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 10:43:53 2015 -0400
 
-    cmd/internal/obj: rename *.out.go to a.out.go
+    cmd/compile: move OCASE/OXCASE Node.Nname into Node.Rlist (type switch variable)
     
-    The old numerical names like 6.out.go are a relic from the old tools.
-    Easier to rename than explain.
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 168
+    $
     
-    The anames.go files were modified by go generate; no changes
-    beyond the explanatory comment at the top.
-    
-    Change-Id: I84742c75c60e47724baa9d49a91fef1f8581f021
-    Reviewed-on: https://go-review.googlesource.com/12069
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I22bcea8099f308298c9db75c937f35e7fca906f1
+    Reviewed-on: https://go-review.googlesource.com/10535
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/arm/{5.out.go => a.out.go}   | 0
- src/cmd/internal/obj/arm/anames.go                | 2 +-
- src/cmd/internal/obj/arm64/{7.out.go => a.out.go} | 0
- src/cmd/internal/obj/arm64/anames.go              | 2 +-
- src/cmd/internal/obj/ppc64/{9.out.go => a.out.go} | 0
- src/cmd/internal/obj/ppc64/anames.go              | 2 +-
- src/cmd/internal/obj/x86/{6.out.go => a.out.go}   | 0
- src/cmd/internal/obj/x86/anames.go                | 2 +-
- 8 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 14 ++++++++------
+ src/cmd/compile/internal/gc/go.y   |  4 ++--
+ src/cmd/compile/internal/gc/swt.go | 19 ++++++++++---------
+ src/cmd/compile/internal/gc/y.go   |  4 ++--
+ 4 files changed, 22 insertions(+), 19 deletions(-)

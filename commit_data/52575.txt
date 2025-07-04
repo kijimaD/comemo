@@ -1,60 +1,34 @@
-commit 66cac9e1e4877ac7e66f888b0599a7a4a5787b76
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Sat Mar 25 10:18:26 2023 -0700
+commit 636c5f02082e4be5ef2d9a66c99c9e31b72246a3
+Author: Axel Busch <94176305+abuschIBM@users.noreply.github.com>
+Date:   Tue May 10 13:48:19 2022 +0000
 
-    os: add wasip1 support
+    runtime: enable vDSO support for s390x architecture
     
-    For #58141
+    This change adds support for vDSO for s390x architecture. This avoids the use of system calls in nanotime and walltime and accelerates them by factor 4-5.
     
-    Co-authored-by: Richard Musiol <neelance@gmail.com>
-    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
-    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
-    Co-authored-by: Evan Phoenix <evan@phx.io>
-    Change-Id: I52e3e161f81dcbe8605570e47d732992979c4d34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479623
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Benchmarks:
+    100,000,000 x time.Now():
+    syscall fallback        13923ms         139.23 ns/op
+    vDSO enabled            2640ms          26.40 ns/op
+    
+    Change-Id: Ic679fe31048379e59ccf83b400140f13c9d49696
+    GitHub-Last-Rev: 8f6e918a45cf8c5aadc5c203949a8ce4e372086f
+    GitHub-Pull-Request: golang/go#49717
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365995
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jonathan Albrecht <jonathan.albrecht@ibm.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
 
- src/os/dir_unix.go                         |  2 +-
- src/os/dirent_wasip1.go                    | 52 ++++++++++++++++++++++++++++++
- src/os/error_posix.go                      |  2 +-
- src/os/error_unix_test.go                  |  2 +-
- src/os/exec/internal/fdtest/exists_js.go   | 18 -----------
- src/os/exec/internal/fdtest/exists_unix.go |  2 +-
- src/os/exec/{lp_js.go => lp_wasm.go}       |  2 +-
- src/os/exec_posix.go                       |  2 +-
- src/os/exec_unix.go                        |  2 +-
- src/os/executable_procfs.go                |  2 +-
- src/os/executable_wasm.go                  | 16 +++++++++
- src/os/export_unix_test.go                 |  2 +-
- src/os/file_open_unix.go                   | 17 ++++++++++
- src/os/file_open_wasip1.go                 | 31 ++++++++++++++++++
- src/os/file_posix.go                       |  2 +-
- src/os/file_unix.go                        | 11 ++++---
- src/os/os_test.go                          | 39 +++++++++++++++++-----
- src/os/os_unix_test.go                     | 15 +++++++--
- src/os/path_unix.go                        |  2 +-
- src/os/pipe_test.go                        |  2 +-
- src/os/pipe_unix.go                        |  2 +-
- src/os/pipe_wasm.go                        | 16 +++++++++
- src/os/rawconn_test.go                     |  2 +-
- src/os/read_test.go                        |  4 +++
- src/os/removeall_test.go                   | 11 ++++---
- src/os/signal/signal_unix.go               |  2 +-
- src/os/stat_unix.go                        |  2 +-
- src/os/stat_wasip1.go                      | 40 +++++++++++++++++++++++
- src/os/sticky_bsd.go                       |  2 +-
- src/os/sticky_notbsd.go                    |  2 +-
- src/os/sys_bsd.go                          |  2 +-
- src/os/sys_wasip1.go                       | 11 +++++++
- src/os/timeout_test.go                     |  2 +-
- src/os/user/listgroups_stub.go             |  2 +-
- src/os/user/listgroups_unix.go             |  2 +-
- src/os/user/listgroups_unix_test.go        |  2 +-
- src/os/user/lookup_unix.go                 |  2 +-
- src/os/wait_unimp.go                       |  4 +--
- 38 files changed, 271 insertions(+), 62 deletions(-)
+ src/runtime/os_linux_novdso.go  |   2 +-
+ src/runtime/signal_unix.go      |   2 +-
+ src/runtime/sys_linux_s390x.s   | 174 +++++++++++++++++++++++++++++++++++++---
+ src/runtime/vdso_elf64.go       |   2 +-
+ src/runtime/vdso_in_none.go     |   2 +-
+ src/runtime/vdso_linux.go       |  10 ++-
+ src/runtime/vdso_linux_s390x.go |  26 ++++++
+ 7 files changed, 197 insertions(+), 21 deletions(-)

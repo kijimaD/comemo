@@ -1,17 +1,15 @@
-commit 14948481f60accb7d7062f2f1d4f4cc50fb4e140
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Wed Dec 3 10:28:54 2014 +1100
+commit cb4f5e19704fe2c6eb2505d23d3150476a5ae8aa
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Oct 28 11:15:48 2014 +1100
 
-    cmd/go: regenerate doc.go
+    [dev.power64] runtime: fix cas64 on power64x
     
-    Move change from CL 170770043 to correct file and regenerate docs
-    for changes from CL 164120043.
+    cas64 was jumping to the wrong offset.
     
-    LGTM=adg
-    R=golang-codereviews, adg, bradfitz
+    LGTM=minux, rsc
+    R=rsc, austin, minux
     CC=golang-codereviews
-    https://golang.org/cl/183000043
+    https://golang.org/cl/158710043
 
- src/cmd/go/doc.go      | 7 ++++++-
- src/cmd/go/generate.go | 2 +-
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/runtime/asm_power64x.s | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

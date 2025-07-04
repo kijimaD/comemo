@@ -1,17 +1,27 @@
-commit 9e5fe6baf1dfd8ea7ba1456845a7e1f7256eeeaa
-Author: John Leidegren <john.leidegren@gmail.com>
-Date:   Tue Jul 3 12:08:37 2018 +0200
+commit 423111081b87c6c4e61c4d94c94bfdf1853fa01f
+Author: James Cowgill <james.cowgill@mips.com>
+Date:   Wed Feb 28 16:10:14 2018 +0000
 
-    misc/wasm: use "self" instead of "window" in web worker contexts
+    cmd/internal/obj/mips: load/store even float registers first
     
-    There is no "window" global in a web worker context. Use "self" instead.
+    There is a bug in Octeon III processors where storing an odd floating
+    point register after it has recently been written to by a double
+    floating point operation will store the old value from before the double
+    operation (there are some extra details - the operation and store
+    must be a certain number of cycles apart). However, this bug does not
+    occur if the even register is stored first. Currently the bug only
+    happens on big endian because go always loads the even register first on
+    little endian.
     
-    Fixes #26192
+    Workaround the bug by always loading / storing the even floating point
+    register first. Since this is just an instruction reordering, it should
+    have no performance penalty. This follows other compilers like GCC which
+    will always store the even register first (although you do have to set
+    the ISA level to MIPS I to prevent it from using SDC1).
     
-    Change-Id: I6c6f3db6c3d3d9ca00a473f8c18b849bc07a0017
-    Reviewed-on: https://go-review.googlesource.com/122055
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Change-Id: I5e73daa4d724ca1df7bf5228aab19f53f26a4976
+    Reviewed-on: https://go-review.googlesource.com/97735
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/wasm/wasm_exec.js | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/mips/obj0.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

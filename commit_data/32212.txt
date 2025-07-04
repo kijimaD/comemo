@@ -1,15 +1,20 @@
-commit b1fab099011b2ec9499e99a32ed8de515e576b86
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 14 13:47:13 2017 +1000
+commit 7faf30246a67746d0bbd0d762e5cd7309fadfc6f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 12 21:42:01 2017 +0000
 
-    cmd/vet: fix a couple of minor word choices in README
+    net: delete TestDialTimeoutFDLeak
     
-    No semantic change, just clarifying a bit by choosing better words
-    in a couple of places.
+    It's flaky and distracting.
     
-    Change-Id: I4496062ee7909baf83d4d22d25e13ef93b358b4b
-    Reviewed-on: https://go-review.googlesource.com/55255
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    I'm not sure what it's testing, either. It hasn't saved us before.
+    
+    Somebody can resurrect it if they have time.
+    
+    Updates #15157
+    
+    Change-Id: I27bbfe51e09b6259bba0f73d60d03a4d38711951
+    Reviewed-on: https://go-review.googlesource.com/40498
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/vet/README | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/dial_test.go | 65 ----------------------------------------------------
+ 1 file changed, 65 deletions(-)

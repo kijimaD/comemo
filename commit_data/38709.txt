@@ -1,17 +1,16 @@
-commit fda5e6d6fa7abfe974a58dfeeceb95a8165d1b63
-Author: Ahsun Ahmed <ahmed.ahsun@gmail.com>
-Date:   Thu Mar 21 22:45:49 2019 +0600
+commit b1e8846dfb619dedbb90ef0b8edbbde2f5e766ea
+Author: mbj36 <mohitbajo36@gmail.com>
+Date:   Fri Nov 16 16:38:39 2018 +0000
 
-    errors: return false if nil error is passed to As
+    net/http: fix typo in the SameSite docs
     
-    Fixes #30970
+    Fixes #28244
     
-    Change-Id: I333676b55a2364e329fffeafca8fc57d45a0b84b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168598
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3ca36fd513f5543af0c8af254d267254c7d5e803
+    GitHub-Last-Rev: 83b16fac4e221a249ed036c034367d6f680ae578
+    GitHub-Pull-Request: golang/go#28302
+    Reviewed-on: https://go-review.googlesource.com/c/143480
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/errors/wrap.go      | 9 ++++-----
- src/errors/wrap_test.go | 4 ++++
- 2 files changed, 8 insertions(+), 5 deletions(-)
+ src/net/http/cookie.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

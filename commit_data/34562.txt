@@ -1,17 +1,36 @@
-commit 32409a2dfca955b9a28bb7f581512da8a5beaedc
-Author: Adam Woodbeck <adam@woodbeck.net>
-Date:   Mon Feb 12 11:46:56 2018 -0500
+commit 018642d6cf2321f9209dfa59332daacc721d03b0
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sat Oct 21 12:45:23 2017 +0200
 
-    text/scanner: add examples
+    compile, link: remove base address selector from DWARF range lists
     
-    Added examples for use of Mode, Whitespace, and IsIdentRune properties.
+    Dsymutil, an utility used on macOS when externally linking executables,
+    does not support base address selector entries in debug_ranges.
     
-    Fixes #23768
+    To work around this deficiency this commit removes base address
+    selectors from debug_ranges and emits instead a list composed only of
+    compile unit relative addresses.
     
-    Change-Id: I2528e14fde63a4476f3c25510bf0c5b73f38ba5d
-    Reviewed-on: https://go-review.googlesource.com/93199
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    A new type of relocation is introduced, R_ADDRCUOFF, similar to
+    R_ADDROFF, that relocates an address to its offset from the low_pc of
+    the symbol's compile unit.
+    
+    Fixes #21945
+    
+    Change-Id: Ie991f9bc1afda2b49ac5d734eb41c37d3a37e554
+    Reviewed-on: https://go-review.googlesource.com/72371
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/text/scanner/example_test.go | 106 ++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 105 insertions(+), 1 deletion(-)
+ src/cmd/internal/dwarf/dwarf.go             | 18 +++++++++++-------
+ src/cmd/internal/obj/data.go                | 20 ++++++++++++++++----
+ src/cmd/internal/obj/objfile.go             |  5 +++++
+ src/cmd/internal/objabi/reloctype.go        |  3 +++
+ src/cmd/internal/objabi/reloctype_string.go |  4 ++--
+ src/cmd/link/internal/ld/data.go            |  5 +++++
+ src/cmd/link/internal/ld/deadcode.go        |  7 +++++++
+ src/cmd/link/internal/ld/dwarf.go           | 17 +++++++++++------
+ src/cmd/link/internal/sym/symbol.go         | 12 ++++++++++--
+ 9 files changed, 70 insertions(+), 21 deletions(-)

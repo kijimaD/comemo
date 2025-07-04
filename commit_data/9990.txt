@@ -1,14 +1,12 @@
-commit c5b3a4fb074e7a476a2841ba7ca5161636b7d9e9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 14 16:06:39 2011 -0700
+commit 92b7b4821359e1e43a630cc6471a94600b6ab386
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Oct 15 08:42:31 2011 +1100
 
-    godoc: updates for latest Go app-engine release.
+    doc: add go-tour-kr, a Korean translation of A Tour of Go
     
-    R=adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5273044
+    https://golang.org/cl/5273043
 
- src/cmd/godoc/README.godoc-app     | 42 +++++++++++++++++---------------------
- src/cmd/godoc/appinit.go           | 38 +++-------------------------------
- src/cmd/godoc/setup-godoc-app.bash |  2 +-
- 3 files changed, 23 insertions(+), 59 deletions(-)
+ doc/docs.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,15 +1,17 @@
-commit 89fde30fbda9a86a7b53db7b7cee1cfd8e1a36ff
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 14 14:21:09 2013 -0500
+commit 8e7d156237cc1409aa6b955cf4307d2c4992ab29
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Feb 14 19:41:58 2013 +1100
 
-    os: cache Getwd result as hint for next time
+    exp/cookiejar: implement Cookies and provided tests
     
-    Avoids the dot-dot-based algorithm on repeated calls
-    when the directory hasn't changed.
+    This CL provides the implementation of Cookies and
+    the complete test suite. Several tests have been ported
+    from the Chromium project as a cross check.
     
-    R=golang-dev, iant, bradfitz
+    R=nigeltao, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7340043
+    https://golang.org/cl/7311073
 
- src/pkg/os/getwd.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/pkg/exp/cookiejar/jar.go      |  76 ++++-
+ src/pkg/exp/cookiejar/jar_test.go | 566 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 613 insertions(+), 29 deletions(-)

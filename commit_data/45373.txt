@@ -1,27 +1,28 @@
-commit 291eb0178f143b373a9bc4fbc4edaf3420175660
-Author: kumakichi <xyesan@gmail.com>
-Date:   Tue Apr 27 18:38:55 2021 +0000
+commit 4c7a18d74ae4d574313c01e95de66be06e3a3e82
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 19 07:46:09 2020 -0400
 
-    go: various minor cleanups with the help of Goland
+    go/build: recognize and report //go:embed lines
     
-        • fix some typos
-        • remove superfluous conversions/parentheses
-        • remove superfluous nil checks
+    The code in this CL does the work of looking for the "embed" import
+    and then finding and recording the arguments to //go:embed lines
+    in Go source files. The go command will use this information to prepare
+    information about embedded files to pass to the compiler.
     
-    Change-Id: I428bf6a7be551b79270567047878c3076dd6f2ff
-    GitHub-Last-Rev: 3b1c7573cfdf89ac184fd6ae44bca4be78b0cd64
-    GitHub-Pull-Request: golang/go#45799
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314069
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    The tests of the Package fields end up being end-to-end via the
+    go command (added in the CL with the go command changes),
+    like all the other Package fields.
+    
+    For #41191.
+    
+    Change-Id: I0c87b71ca809c0031603cc403c030d3088299e6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243941
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/internal/srcimporter/srcimporter.go | 2 +-
- src/go/parser/error_test.go                | 2 +-
- src/go/parser/parser.go                    | 2 +-
- src/go/printer/printer.go                  | 2 +-
- src/go/scanner/errors.go                   | 2 +-
- src/go/scanner/scanner.go                  | 2 +-
- src/go/types/infer.go                      | 2 +-
- 7 files changed, 7 insertions(+), 7 deletions(-)
+ src/go/build/build.go     |  53 +++++++++++--
+ src/go/build/read.go      | 189 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/go/build/read_test.go |  56 ++++++++++++++
+ 3 files changed, 290 insertions(+), 8 deletions(-)

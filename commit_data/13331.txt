@@ -1,18 +1,15 @@
-commit ea3c3bb3a8b8c83d1d74e728ed51282ef87881ac
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 12 00:36:39 2012 -0400
+commit 49d6e490876a9bbfa5dfa27a4377b822edbf656c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 11 11:06:27 2012 -0700
 
-    encoding/gob: better handling of nil pointers
-    - better message for top-level nil
-    - nil inside interface yields error, not panic
+    exp/types: testing resolution of qualified identifiers
     
-    Fixes #3704.
+    Also: fix a bug with exp/types/GcImport.
     
-    R=golang-dev, dsymonds
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/6304064
+    https://golang.org/cl/6302060
 
- src/pkg/encoding/gob/encode.go       |  8 ++++++-
- src/pkg/encoding/gob/encoder.go      |  6 +++++
- src/pkg/encoding/gob/encoder_test.go | 44 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 57 insertions(+), 1 deletion(-)
+ src/pkg/exp/types/gcimporter.go    |  26 ++++----
+ src/pkg/exp/types/resolver_test.go | 130 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 143 insertions(+), 13 deletions(-)

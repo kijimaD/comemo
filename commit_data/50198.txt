@@ -1,19 +1,46 @@
-commit 3680b5e9c4f42fcf9155aa42b3b344d1fbe19571
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Sun Jun 5 13:22:29 2022 +0800
+commit ef2ebbebf976fba17bb97ed285e9c3d10b192d74
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Oct 6 14:13:23 2021 -0400
 
-    cmd/compile: teach prove about bitwise OR operation
+    internal/fuzz: log that minimization is occurring
     
-    Fixes #45928.
+    Previously, when fuzzing for a period of time, the
+    command line output would look something like this:
     
-    Change-Id: Ifbb0effbca4ab7c0eb56069fee40edb564553c35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410336
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+       fuzz: minimizing 34995-byte crash input...
+       fuzz: elapsed: 3s, execs: 13821 (4604/sec), new interesting: 0 (total: 1)
+       fuzz: elapsed: 6s, execs: 13821 (2303/sec), new interesting: 0 (total: 1)
+       fuzz: elapsed: 9s, execs: 13821 (1535/sec), new interesting: 0 (total: 1)
+       --- FAIL: FuzzFoo (9.05s)
+    
+    This is the same output it has while fuzzing, so if
+    minimization runs for a long time (default allows 1
+    minute), then it looks like minimization is hanging.
+    It's also confusing that the execs/sec would continually
+    decrease.
+    
+    Now, when minimization is running, the command line
+    output will look something like this:
+    
+       fuzz: minimizing 34995-byte crash input...
+       fuzz: elapsed: 3s, minimizing
+       fuzz: elapsed: 6s, minimizing
+       fuzz: elapsed: 9s, minimizing
+       fuzz: elapsed: 9s, minimizing
+       --- FAIL: FuzzFoo (9.05s)
+    
+    The final "fuzz: elapsed: 6s, minimizing" could be
+    printed twice because we always print one final log
+    to the command line before we exit.
+    
+    Updates #48820
+    
+    Change-Id: Ie5b9fde48b8d4e36e13a81ae50a6d69bf4d0dbe3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354371
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 3 +++
- test/prove.go                         | 5 +++++
- 2 files changed, 8 insertions(+)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt | 17 +++++++++++++++++
+ src/internal/fuzz/fuzz.go                         | 20 ++++++++++++--------
+ 2 files changed, 29 insertions(+), 8 deletions(-)

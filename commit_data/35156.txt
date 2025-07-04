@@ -1,18 +1,15 @@
-commit 8bf4b7e6730c33f3f5f3be0cf0b0ea132e241412
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 25 14:40:17 2018 -0700
+commit 1f84cd9771c6aab344dc6f46b50838ff7d239e87
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Jan 4 15:07:03 2018 +0530
 
-    cmd/compile: convert amd64 BSFL and BSRL from tuple to result only
+    cmd/go: add -v option in the usage section for get
     
-    Change-Id: I220a459f67ecb310b6e9a526a1ff55527d421e70
-    Reviewed-on: https://go-review.googlesource.com/109416
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #23332
+    
+    Change-Id: I964d36ed751ef1844ab6c40f61047297ff1443a3
+    Reviewed-on: https://go-review.googlesource.com/85797
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |  8 ++-
- src/cmd/compile/internal/ssa/gen/AMD64.rules | 14 ++--
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  7 +-
- src/cmd/compile/internal/ssa/opGen.go        |  2 -
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 96 ++++++++++------------------
- 5 files changed, 53 insertions(+), 74 deletions(-)
+ src/cmd/go/alldocs.go          | 2 +-
+ src/cmd/go/internal/get/get.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

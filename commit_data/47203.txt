@@ -1,17 +1,19 @@
-commit a0f373ca08b05eb97e4bff7e8710c023d94231c3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 2 13:56:22 2021 -0700
+commit 8c22874e4e804e29ca040599ec63bb9e35233acd
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 19 13:47:14 2021 +0700
 
-    runtime/asan: declare asan reporting functions in C
+    cmd/compile: skip diag error in checkassign if one was emitted
     
-    Fixes #49287
+    While at it, also remove checkassignlist, which is not used.
     
-    Change-Id: I3f970d6db0b1dee886df2f7bb6cbeb56a37c42c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360860
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    For #43311
+    
+    Change-Id: Ie7ed81f68080d8881fca6035da64a9755f2cb555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294032
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/asan/asan.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/compile/internal/typecheck/typecheck.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

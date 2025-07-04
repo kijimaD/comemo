@@ -1,17 +1,21 @@
-commit 105a6e9518a5195950a2798769af6e86b6d87417
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Fri Apr 23 08:41:07 2021 +0300
+commit c216ae80c965acb9641d94d5f58c206bd0cf7d66
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 19 14:14:40 2020 -0700
 
-    os: skip TestExecutableDeleted on aix
+    cmd/compile: fix ICE in reporting of invalid recursive types
     
-    aix does not support reading deleted executable name.
+    asNode(t.Nod).Name.Param will be nil for builtin types (i.e., the
+    universal predeclared types and unsafe.Pointer). These types can't be
+    part of a cycle anyway, so we can just skip them.
     
-    Change-Id: I955ed2c22bd0693440e2c889a4d3132d0a375c48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312392
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #42075.
+    
+    Change-Id: Ic7a44de65c6bfd16936545dee25e36de8850acf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263717
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/os/executable_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/align.go |  2 +-
+ test/fixedbugs/issue42075.go         | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

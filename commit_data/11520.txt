@@ -1,28 +1,16 @@
-commit 6aa6fdcf71c9efa4c61e2db1eaf6a84cc720a855
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 31 16:53:43 2012 -0500
+commit 549ca930a068ebdf05133656ecde085368e18faa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 31 13:01:34 2012 -0800
 
-    build: remove ./ from buildscripts
+    net: move DNSConfigError to a portable file
     
-    Fixes #2753.
+    The type being unavailable on Windows was the only API
+    signature difference in the net package.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5609043
+    https://golang.org/cl/5608043
 
- src/buildscript.sh               |   1 +
- src/buildscript/darwin_386.sh    | 212 ++++++++++++++++++-------------------
- src/buildscript/darwin_amd64.sh  | 210 ++++++++++++++++++-------------------
- src/buildscript/freebsd_386.sh   | 212 ++++++++++++++++++-------------------
- src/buildscript/freebsd_amd64.sh | 210 ++++++++++++++++++-------------------
- src/buildscript/linux_386.sh     | 212 ++++++++++++++++++-------------------
- src/buildscript/linux_amd64.sh   | 210 ++++++++++++++++++-------------------
- src/buildscript/linux_arm.sh     | 218 +++++++++++++++++++--------------------
- src/buildscript/netbsd_386.sh    | 212 ++++++++++++++++++-------------------
- src/buildscript/netbsd_amd64.sh  | 210 ++++++++++++++++++-------------------
- src/buildscript/openbsd_386.sh   | 212 ++++++++++++++++++-------------------
- src/buildscript/openbsd_amd64.sh | 210 ++++++++++++++++++-------------------
- src/buildscript/plan9_386.sh     | 212 ++++++++++++++++++-------------------
- src/buildscript/windows_386.sh   | 216 +++++++++++++++++++-------------------
- src/buildscript/windows_amd64.sh | 214 +++++++++++++++++++-------------------
- 15 files changed, 1486 insertions(+), 1485 deletions(-)
+ src/pkg/net/dnsconfig.go | 13 -------------
+ src/pkg/net/net.go       | 12 ++++++++++++
+ 2 files changed, 12 insertions(+), 13 deletions(-)

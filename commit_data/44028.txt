@@ -1,15 +1,22 @@
-commit 75e16f5127eb6affb4b473c93565a8d29a802e51
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Dec 15 17:48:38 2020 +0100
+commit b4ecafc986268d171776603537d40c8dff3fae61
+Author: Keith Randall <khr@golang.org>
+Date:   Mon May 4 09:50:20 2020 -0700
 
-    doc/go1.16: add link to reflect.StructTag
+    cmd/compile: restrict bit test rewrite rules
     
-    For #40700.
+    The {AND,OR,XOR}const ops can only take an int32 as an argument.
+    Make sure that when rewriting a BTx op to one of these, the result
+    has no high-order bits.
     
-    Change-Id: I67dd55b435304e428929c9a54b8881f9b78efdfb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278392
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #38746
+    
+    Change-Id: Ia7c5f76952329f60974bc033c29a5433610f3b28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231977
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/go1.16.html | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  39 ++++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 186 ++++++++++++++++-----------
+ test/fixedbugs/issue38746.go                 |  17 +++
+ 3 files changed, 155 insertions(+), 87 deletions(-)

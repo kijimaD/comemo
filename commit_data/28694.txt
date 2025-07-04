@@ -1,35 +1,25 @@
-commit dd1dcf949676a5f091d8f17ad9a64f6336aa371b
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Oct 4 15:35:28 2016 -0400
+commit b5f0aff49503e31002b33198e06708e263c445a7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 27 16:39:40 2016 -0700
 
-    cmd/{asm,compile}: add ANDW, ORW and XORW instructions to s390x
+    net/http: conditionally configure HTTP/2 in Server.Serve(Listener)
     
-    Adds the following instructions and uses them in the SSA backend:
+    Don't configure HTTP/2 in http.Server.Serve(net.Listener) if the
+    Server's TLSConfig is set and doesn't include the "h2" NextProto
+    value. This avoids mutating a *tls.Config already in use if
+    previously passed to tls.NewListener.
     
-     - ANDW
-     - ORW
-     - XORW
+    Also document this. (it's come up a few times now)
     
-    The instruction encodings for 32-bit operations are typically shorter,
-    particularly when an immediate is used. For example, XORW $-1, R1
-    only requires one instruction, whereas XOR requires two.
+    Fixes #15908
     
-    Also removes some unused instructions (that were emulated):
-    
-     - ANDN
-     - NAND
-     - ORN
-     - NOR
-    
-    Change-Id: Iff2a16f52004ba498720034e354be9771b10cac4
-    Reviewed-on: https://go-review.googlesource.com/30291
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I283eed82fdb29a791f80d801aadd9f75db244de0
+    Reviewed-on: https://go-review.googlesource.com/24508
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s    |  36 +++++++
- src/cmd/compile/internal/s390x/prog.go       |   3 +
- src/cmd/compile/internal/ssa/gen/S390XOps.go |  28 +++---
- src/cmd/compile/internal/ssa/opGen.go        |  12 +--
- src/cmd/internal/obj/s390x/a.out.go          |   7 +-
- src/cmd/internal/obj/s390x/anames.go         |   7 +-
- src/cmd/internal/obj/s390x/asmz.go           | 137 ++++++++++++---------------
- 7 files changed, 125 insertions(+), 105 deletions(-)
+ src/net/http/serve_test.go | 35 ++++++++++++++++++++++++++++++++++-
+ src/net/http/server.go     | 36 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 68 insertions(+), 3 deletions(-)

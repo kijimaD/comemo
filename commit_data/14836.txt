@@ -1,19 +1,15 @@
-commit 4ba27df69c4bf9ce00eb34bb69860a248319be11
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Jan 10 08:00:03 2013 +1100
+commit 82accf44bffcb4834c6ec794596fc8b335f99c2b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 9 11:31:57 2013 -0800
 
-    cmd/dist: drop unneeded clang flags
+    go/parser: better error message for declaration error
     
-    Our source no longer needs these flags set to build cleanly using clang.
+    Fixes #4616.
     
-    Tested with
-    
-    * Ubuntu clang version 3.0-6ubuntu3 (tags/RELEASE_30/final) (based on LLVM 3.0) on i386
-    * clang version 3.2 (tags/RELEASE_32/final) on amd64 cross compiling all platforms
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7058053
+    https://golang.org/cl/7069049
 
- src/cmd/dist/build.c | 4 ----
- 1 file changed, 4 deletions(-)
+ src/pkg/go/parser/parser.go     | 2 +-
+ src/pkg/go/parser/short_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

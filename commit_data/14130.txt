@@ -1,59 +1,14 @@
-commit 4bee88d45f8cb6957efa50ea5f6fcfdb3f338837
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 11 16:04:03 2012 -0700
+commit a14f87ca81682ffd0134bf25e32b874dbd1d0757
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Oct 12 09:17:56 2012 +1100
 
-    math/big: more conservative use of lock for divisor table
+    net/http: fix data race on countReader.n
     
-    Minor performance impact running sequentially:
+    Fixes #4220.
     
-    benchmark                      old ns/op    new ns/op    delta
-    BenchmarkString10Base2               389          391   +0.51%
-    BenchmarkString100Base2             1530         1534   +0.26%
-    BenchmarkString1000Base2           11789        11787   -0.02%
-    BenchmarkString10000Base2         111443       112030   +0.53%
-    BenchmarkString100000Base2       1017483      1015347   -0.21%
-    BenchmarkString10Base8               339          344   +1.47%
-    BenchmarkString100Base8              753          756   +0.40%
-    BenchmarkString1000Base8            4618         4641   +0.50%
-    BenchmarkString10000Base8          43217        43534   +0.73%
-    BenchmarkString100000Base8        397518       400602   +0.78%
-    BenchmarkString10Base10              630          630   +0.00%
-    BenchmarkString100Base10            1975         1960   -0.76%
-    BenchmarkString1000Base10          10179        10174   -0.05%
-    BenchmarkString10000Base10         44527        44416   -0.25%
-    BenchmarkString100000Base10     14404694     14425308   +0.14%
-    BenchmarkString10Base16              283          288   +1.77%
-    BenchmarkString100Base16             597          598   +0.17%
-    BenchmarkString1000Base16           3189         3186   -0.09%
-    BenchmarkString10000Base16         29403        29364   -0.13%
-    BenchmarkString100000Base16       265657       265587   -0.03%
-    
-    Note that due to other improvements (faster assembly routines,
-    better code generation by compiler), these benchmarks now run
-    up to 37% faster than they used to at the last time measured (1/9/2012).
-    
-    Minor performance impact for StringPiParallel running in parallel:
-    
-    Current CL but with Lock/Unlock commented out (removed):
-    
-    BenchmarkStringPiParallel           5000            343581 ns/op
-    BenchmarkStringPiParallel-2        10000            184511 ns/op
-    BenchmarkStringPiParallel-3        10000            129768 ns/op
-    BenchmarkStringPiParallel-4        10000            102326 ns/op
-    
-    Current CL:
-    
-    BenchmarkStringPiParallel           5000            345169 ns/op
-    BenchmarkStringPiParallel-2        10000            185827 ns/op
-    BenchmarkStringPiParallel-3        10000            131168 ns/op
-    BenchmarkStringPiParallel-4        10000            102353 ns/op
-    
-    Fixes #4218.
-    
-    R=dvyukov, michael.jones, dave
+    R=dvyukov, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6643053
+    https://golang.org/cl/6638053
 
- src/pkg/math/big/nat.go      | 38 +++++++++++++++++---------------------
- src/pkg/math/big/nat_test.go | 40 ++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 55 insertions(+), 23 deletions(-)
+ src/pkg/net/http/serve_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

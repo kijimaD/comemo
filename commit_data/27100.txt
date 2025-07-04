@@ -1,52 +1,18 @@
-commit 934c3599648ae841668ec753881134347fc28c29
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Apr 23 22:59:01 2016 -0700
+commit 88a21ebb210a282626b6fccf562957db9bcd9bf4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 15:50:49 2016 -0800
 
-    cmd/compile: reorder how slicelit initializes a slice
+    cmd/compile: rework checkdupfields
     
-      func f(x, y, z *int) {
-        a := []*int{x,y,z}
-        ...
-      }
+    Use a map to detect duplicate symbols. Allows eliminating an otherwise
+    unneeded field from Sym and gets rid of a global variable.
     
-    We used to use:
-      var tmp [3]*int
-      a := tmp[:]
-      a[0] = x
-      a[1] = y
-      a[2] = z
-    
-    Now we do:
-      var tmp [3]*int
-      tmp[0] = x
-      tmp[1] = y
-      tmp[2] = z
-      a := tmp[:]
-    
-    Doesn't sound like a big deal, but the compiler has trouble
-    eliminating write barriers when using the former method because it
-    doesn't know that the slice points to the stack.  In the latter
-    method, the compiler knows the array is on the stack and as a result
-    doesn't emit any write barriers.
-    
-    This turns out to be extremely common when building ... args, like
-    for calls fmt.Printf.
-    
-    Makes go binaries ~1% smaller.
-    
-    Doesn't have a measurable effect on the go1 fmt benchmarks,
-    unfortunately.
-    
-    Fixes #14263
-    Update #6853
-    
-    Change-Id: I9074a2788ec9e561a75f3b71c119b69f304d6ba2
-    Reviewed-on: https://go-review.googlesource.com/22395
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ic004bca7e9130a1261a1cddbc17244529a2a1df4
+    Reviewed-on: https://go-review.googlesource.com/20552
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/sinit.go | 33 +++++++++++++++++----------------
- src/cmd/compile/internal/gc/walk.go  |  3 +--
- test/writebarrier.go                 | 14 ++++++++++++++
- 3 files changed, 32 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go         | 35 +++++++++++++++---------------
+ src/cmd/compile/internal/gc/go.go          |  1 -
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ 3 files changed, 18 insertions(+), 20 deletions(-)

@@ -1,19 +1,16 @@
-commit f1e3c8f14232cde8da8666ad68df493563287634
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 14 19:26:20 2020 -0400
+commit 3840aced142aeeca6ddf54cb90c07b54e4cf814b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 27 11:26:37 2020 -0400
 
-    runtime/cgo: build iOS-specific code only on iOS
+    cmd/go/internal/modfetch/codehost: remove unused GitRepo function
     
-    Don't build them on macOS/ARM64.
+    For #37943
     
-    Updates #38485.
-    
-    Change-Id: I9fbea838fdce52db22742487926879761dea0d6a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262559
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib8ba5d846f41afc0047c33b8145918d93326cdd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225937
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/runtime/cgo/gcc_darwin_arm64.c                  | 21 ++++++++++++++++-----
- ...gnal_darwin_nolldb.c => gcc_signal_ios_nolldb.c} |  4 ++--
- 2 files changed, 18 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git.go | 5 -----
+ 1 file changed, 5 deletions(-)

@@ -1,26 +1,21 @@
-commit 81a61a96c9c9c67ac1256b443bd5a55ad8fafa0e
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jan 11 15:14:06 2017 -0800
+commit 97b04152bc3d9df1155bc97d9e6095f69b6882c7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 18 21:42:09 2016 +0000
 
-    runtime: for plugins, don't add duplicate itabs
+    net/http: update test to check Content-Length 0 Body more reliably
     
-    We already do this for shared libraries. Do it for plugins also.
-    Suggestions on how to test this would be welcome.
+    The way to send an explicitly-zero Content-Length is to set a nil Body.
     
-    I'd like to get this in for 1.8.  It could lead to mysterious
-    hangs when using plugins.
+    Fix this test to do that, rather than relying on type sniffing.
     
-    Fixes #18676
+    Updates #17480
+    Updates #17071
     
-    Change-Id: I03209b096149090b9ba171c834c5e59087ed0f92
-    Reviewed-on: https://go-review.googlesource.com/35117
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I6a38e20f17013c88ec4ea69d73c507e4ed886947
+    Reviewed-on: https://go-review.googlesource.com/31434
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- .../issue18676/dynamodbstreamsevt/definition.go    | 13 +++++++++
- misc/cgo/testplugin/src/issue18676/main.go         | 31 ++++++++++++++++++++++
- misc/cgo/testplugin/src/issue18676/plugin.go       | 11 ++++++++
- misc/cgo/testplugin/test.bash                      |  8 +++++-
- src/runtime/plugin.go                              |  4 ++-
- 5 files changed, 65 insertions(+), 2 deletions(-)
+ src/net/http/clientserver_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

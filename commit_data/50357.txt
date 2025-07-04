@@ -1,17 +1,21 @@
-commit 812fd2fe70112209557c4f6392ab8eaee6f68dda
-Author: zhangyunhao <zhangyunhao@bytedance.com>
-Date:   Tue Sep 6 18:39:52 2022 +0800
+commit d9421cec00a5e171699b00966bebc85a36593bf2
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Sat Oct 16 02:19:20 2021 +0000
 
-    cmd/compile: gofmt comments
+    net/http/internal: return unexpected EOF on incomplete chunk read
     
-    Change-Id: I79634efbd8d0189afdfe22e147d63c889e8047ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427964
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #48861
+    
+    Change-Id: I3f55bfbdc4f2cf5b33d1ab2d76e01335bb497c6f
+    GitHub-Last-Rev: 0ecd790b87ddd31d0cf08e8f2726f918a2edd1fb
+    GitHub-Pull-Request: golang/go#48903
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355029
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/walk/builtin.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/net/http/internal/chunked.go      |  7 +++++++
+ src/net/http/internal/chunked_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

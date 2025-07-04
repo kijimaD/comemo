@@ -1,55 +1,23 @@
-commit 031401a7905a38498fc399fc10cd0c1e885f7fc9
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Feb 15 16:47:40 2023 -0800
+commit 5138401209a70475451561b18d2c6d92bda93810
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Feb 7 16:32:01 2022 -0500
 
-    syscall: Faccessat: check for CAP_DAC_OVERRIDE on Linux
+    runtime: remove use of -mnop-fun-dllimport from cgotest win.go
     
-    CL 416115 added using faccessat2(2) from syscall.Faccessat on Linux
-    (which is the only true way to implement AT_EACCESS flag handing),
-    if available. If not available, it uses some heuristics to mimic the
-    kernel behavior, mostly taken from glibc (see CL 126415).
+    This flag is not supported by clang, so remove it from the cgo cflags
+    when building for windows. It is clear that it was needed at some
+    point in the past, but it doesn't appear to be needed at the moment,
+    since all.bash passes on windows without it now.
     
-    Next, CL 414824 added using the above call (via unix.Eaccess) to
-    exec.LookPath in order to check if the binary can really be executed.
+    Updates #35006.
     
-    As a result, in a very specific scenario, described below,
-    syscall.Faccessat (and thus exec.LookPath) mistakenly tells that the
-    binary can not be executed, while in reality it can be. This makes
-    this bug a regression in Go 1.20.
-    
-    This scenario involves all these conditions:
-     - no faccessat2 support available (i.e. either Linux kernel < 5.8,
-       or a seccomp set up to disable faccessat2);
-     - the current user is not root (i.e. geteuid() != 0);
-     - CAP_DAC_OVERRIDE capability is set for the current process;
-     - the file to be executed does not have executable permission
-       bit set for either the current EUID or EGID;
-     - the file to be executed have at least one executable bit set.
-    
-    Unfortunately, this set of conditions was observed in the wild -- a
-    container run as a non-root user with the binary file owned by root with
-    executable permission set for a user only [1]. Essentially it means it
-    is not as rare as it may seem.
-    
-    Now, CAP_DAC_OVERRIDE essentially makes the kernel bypass most of the
-    checks, so execve(2) and friends work the same was as for root user,
-    i.e. if at least one executable bit it set, the permission to execute
-    is granted (see generic_permission() function in the Linux kernel).
-    
-    Modify the code to check for CAP_DAC_OVERRIDE and mimic the kernel
-    behavior for permission checks.
-    
-    [1] https://github.com/opencontainers/runc/issues/3715
-    
-    Fixes #58552.
-    
-    Change-Id: I82a7e757ab3fd3d0193690a65c3b48fee46ff067
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468735
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ib06c891f516654138e3363e06645cd187e46ce4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383838
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/syscall/syscall_linux.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/runtime/testdata/testprogcgo/windows/win.go | 2 --
+ 1 file changed, 2 deletions(-)

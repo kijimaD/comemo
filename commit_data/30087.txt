@@ -1,18 +1,16 @@
-commit 5c90e1cf8ab39625b1f73c499cf47c06a60e9c08
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Feb 3 14:28:32 2017 -0800
+commit 02c1d8a1589b47f12deaaa63d4a6a084640f4389
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Oct 24 15:06:20 2016 +1100
 
-    cmd/compile/internal/ssa: remove Func.StaticData field
+    cmd/link/internal/ld: remove goto from ldpe.go
     
-    Rather than collecting static data nodes to be written out later, just
-    write them out immediately.
+    Updates #15345
     
-    Change-Id: I51708b690e94bc3e288b4d6ba3307bf738a80f64
-    Reviewed-on: https://go-review.googlesource.com/36352
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I447d133512e99a9900928a910e161a85db6e8b75
+    Reviewed-on: https://go-review.googlesource.com/31792
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/ssa.go   | 19 +++----------------
- src/cmd/compile/internal/ssa/func.go | 17 ++++++++---------
- 2 files changed, 11 insertions(+), 25 deletions(-)
+ src/cmd/link/internal/ld/ldpe.go | 61 ++++++++++++++++++----------------------
+ 1 file changed, 27 insertions(+), 34 deletions(-)

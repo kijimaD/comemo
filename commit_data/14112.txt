@@ -1,16 +1,12 @@
-commit df7b720708e9da9e1bd00fe2424d765095427831
-Author: Uriel Mangado <uriel@berlinblue.org>
-Date:   Thu Oct 11 00:23:53 2012 +0800
+commit 27e93fbd00de218ba53a5b22333246abde88028c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Oct 10 18:06:29 2012 +0400
 
-    codereview.py: Fix crash on auth error handling.
+    runtime: fix race detector handling of stackalloc()
     
-    In recent Python versions .reason is a read-only property that simply gives you the msg value.
-    
-    Fixes #4024
-    
-    R=golang-dev, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6545052
+    https://golang.org/cl/6632051
 
- lib/codereview/codereview.py | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+ src/pkg/runtime/race.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

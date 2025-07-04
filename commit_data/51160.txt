@@ -1,29 +1,26 @@
-commit a7538d78214920b798a1914a2a789ae833d6f1e1
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 8 14:21:27 2022 -0500
+commit 78b4518e31b39aac4fbad1679db95b3f526229a7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 8 16:47:56 2021 -0500
 
-    net: fix res_search uses on alpine, android, dragonfly
+    crypto/x509: skip known TestSystemVerify flakes on windows-*-2008 builders
     
-    On Android and Dragonfly, don't use -lresolv. It doesn't exist there.
+    The "-2008" builders are the only ones on which the failure has
+    been observed, so I suspect that it is due to a platform bug fixed in a
+    subsequent release.
     
-    On Linux, use res_search instead of res_nsearch.
-    glibc makes res_search thread-safe by having a per-thread __res.
-    It still also provides res_nsearch.
-    musl makes res_search thread-safe by ignoring __res completely.
-    It does not provide res_nsearch at all.
-    Changing to res_search on Linux will fix builds on musl-based systems
-    while keeping glibc-based systems working.
+    Since no one has added a workaround since #19564 was filed over four
+    years ago, I'm assuming that no workaround is planned for this issue.
+    Let's add a skip for the known failure mode and call it at that.
     
-    Fixes #56657.
-    Fixes #56660.
+    Fixes #19564
     
-    Change-Id: Id87dde6c8bbf6c0d34543c09782f3871489c8712
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448797
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Iefc22d1cc78bfdc79c845eb60cac22e26caf388c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370377
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/net/cgo_unix_cgo_res.go  | 4 ++--
- src/net/cgo_unix_cgo_resn.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/crypto/x509/verify_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

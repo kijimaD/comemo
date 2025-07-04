@@ -1,17 +1,17 @@
-commit 66ea0ee409df5a025296d7dac8bb3dc1ec0d2b90
-Author: Mark Freeman <mark@golang.org>
-Date:   Mon May 5 16:39:11 2025 -0400
+commit 80157f4cff014abb418004c0892f4fe48ee8db2e
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Mon Mar 11 11:09:50 2024 +0000
 
-    spec: avoid use of "raise" in conjunction with panics
+    io: close PipeReader in test
     
-    For #73526
-    
-    Change-Id: I06d8ae9080695745db68a51635faa0b244c1760e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670155
+    Change-Id: I33858efc00dff02432f28f1e5a94aeea261a5bad
+    GitHub-Last-Rev: 98861f8d6e187a03330a0947ff651826024fcad2
+    GitHub-Pull-Request: golang/go#66230
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570357
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mark Freeman <mark@golang.org>
-    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/go_spec.html | 2 +-
+ src/io/pipe_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,39 +1,29 @@
-commit 5824a4ce1a0e47f3093128371c7156b35fe9d806
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Jun 12 15:14:42 2020 +0100
+commit d49fecc474d04a04d1d22851c06099338abd4391
+Author: smasher164 <aindurti@gmail.com>
+Date:   Thu Feb 27 02:42:28 2020 -0500
 
-    cmd/go: error when -c or -i are used with unknown flags
+    std,cmd: update x/net and github.com/google/pprof
     
-    Other test flags passed to the test binary, such as -run or -count, are
-    equally pointless when -c or -i are used, since the test binary is never
-    run. However, custom flags in that scenario are far more likely to be
-    due to human error, such as:
+    Re-vendor x/net/dns/dnsmessage, x/net/route, and github.com/google/pprof
+    (commit 1ebb73c). The updated dependencies fix the string(int)
+    conversions, in preparation for the vet warning.
     
-            # note the "ldflags" typo, which silently did nothing
-            go test -c -lflags=-w
+    Updates #32479.
     
-    Instead, make this scenario error. It seems unlikely that anyone is
-    using -c along with intended custom-defined test flags, and if they are,
-    removing those extra flags that do nothing is probably a good idea
-    anyway.
-    
-    We don't add this restriction for the flags defined in 'go help
-    testflag', since they are far less likely to be typos or unintended
-    mistakes. Another reason not to do that change is that other commands
-    similarly silently ignore no-op flags, such as:
-    
-            # -d disables the build, so -ldflags is never used
-            go get -d -ldflags=-w
-    
-    Fixes #39484.
-    
-    Change-Id: I6ba2f6866562fe8f8fceaf4cd862d874bf5cd978
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237697
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I023a4e30415d060f8b403b9943fe911f6d19f2e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221337
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/test/testflag.go     | 16 ++++++++++++++++
- src/cmd/go/testdata/script/test_flag.txt | 18 ++++++++++++++++++
- 2 files changed, 34 insertions(+)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  5 ++--
+ .../google/pprof/internal/report/report.go         | 28 ++++++++++++++++------
+ .../github.com/google/pprof/profile/proto.go       |  7 ++++--
+ src/cmd/vendor/modules.txt                         |  2 +-
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 ++--
+ .../golang.org/x/net/dns/dnsmessage/message.go     | 22 ++---------------
+ src/vendor/golang.org/x/net/route/address.go       |  4 ++--
+ src/vendor/modules.txt                             |  2 +-
+ 10 files changed, 39 insertions(+), 39 deletions(-)

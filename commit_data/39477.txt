@@ -1,16 +1,18 @@
-commit d410642f498cb96734c55a4c0d91256671a03bae
+commit 7dc3d9f85f424445a49577aad33e576992c1f67d
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jun 30 16:19:58 2019 -0700
+Date:   Fri Mar 1 13:05:33 2019 -0800
 
-    runtime: use correct register in darwin/386 pipe_trampoline
+    misc/cgo/testplugin: let TestMain run deferred functions
     
-    Updates #31264
+    Split TestMain into two functions so that we can defer cleanups.
     
-    Change-Id: I745744dd3fdaa432d70e8dc9336547017bac89ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184377
+    Updates #30500
+    
+    Change-Id: I4a5c7ddb8218a8bd056c8733c3cb9feb895e77a0
+    Reviewed-on: https://go-review.googlesource.com/c/164859
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/runtime/sys_darwin_386.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testplugin/plugin_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

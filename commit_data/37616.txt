@@ -1,24 +1,17 @@
-commit 578667f4b534974f28909dbc34bce7fe1686c5d3
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Dec 6 21:51:51 2018 +0000
+commit 477b7e5f4d143c2e8d68e9ef9d4db8ebe84a8489
+Author: Xia Bin <snyh@snyh.org>
+Date:   Thu Jul 12 18:00:39 2018 +0800
 
-    runtime: enable preemption of mark termination goroutine
+    cmd/internal/obj: remove pointless validation
     
-    A mark worker goroutine may attempt to preempt the mark termination
-    goroutine to scan its stack while the mark termination goroutine is
-    trying to preempt that worker to flush its work buffer, in rare
-    cases.
+    s.Func.Text only can be nil at the moment, otherwise there has
+    some bugs in compiler's Go rumtime.
     
-    This change makes it so that, like a worker goroutine, the mark
-    termination goroutine stack is preemptible while it is on the
-    system stack, attempting to preempt others.
-    
-    Fixes #28695.
-    
-    Change-Id: I23bbb191f4fdad293e8a70befd51c9175f8a1171
-    Reviewed-on: https://go-review.googlesource.com/c/153077
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ib2ff9bb977352838e67f2b98a69468f6f350c1f3
+    Reviewed-on: https://go-review.googlesource.com/123535
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgc.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/internal/obj/plist.go | 3 ---
+ 1 file changed, 3 deletions(-)

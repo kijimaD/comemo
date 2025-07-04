@@ -1,14 +1,12 @@
-commit 8729d158caa847d1e90a65dca36009972faf2cb5
+commit dc19b94b21710a38858e32548cac74e0d406549d
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 21 11:11:18 2012 +1100
+Date:   Tue Feb 21 10:24:15 2012 +1100
 
-    net: more docs on deadlines
+    net/http: add optional Server.TLSConfig field
     
-    Fixes #2777
-    
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5685060
+    https://golang.org/cl/5688047
 
- src/pkg/net/net.go | 29 +++++++++++++++++++----------
- 1 file changed, 19 insertions(+), 10 deletions(-)
+ src/pkg/net/http/server.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

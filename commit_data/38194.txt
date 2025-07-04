@@ -1,18 +1,20 @@
-commit d346a9b7725b5313ddda3913cbcd5ff5fba0c909
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Wed Jan 30 17:34:43 2019 +0000
+commit 45e668879d763dd6b312034c98f8c5ffa7228ce6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 9 10:21:53 2018 -0400
 
-    cmd/go/internal/modfetch: add missing error checks
+    cmd/go: remove extraneous 'file' from usage message in script_test
     
-    Change-Id: I51a9c06384875fbb12db0e05128f23bd23a163a1
-    GitHub-Last-Rev: 126452f15cbb8e06ff683dcd60e63f1925dcf8f1
-    GitHub-Pull-Request: golang/go#30000
-    Reviewed-on: https://go-review.googlesource.com/c/160424
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Previously, erroneous usage would produce error messages like:
+    
+            FAIL: testdata/script/mod_tidy_replace.txt:4: usage: stdout [-count=N] 'pattern' file
+    
+    where the “file” argument is not actually valid for the stdout command.
+    
+    Change-Id: I74100960f4d25da122faa6c82620995a3fbfc75f
+    Reviewed-on: https://go-review.googlesource.com/c/140858
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo.go    | 3 +++
- src/cmd/go/internal/modfetch/pseudo.go      | 3 +++
- src/cmd/go/internal/modfetch/pseudo_test.go | 7 +++++++
- 3 files changed, 13 insertions(+)
+ src/cmd/go/script_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

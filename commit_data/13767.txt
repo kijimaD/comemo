@@ -1,14 +1,13 @@
-commit 412c60f1fa97ae15b625f84ec467227d71ac08ac
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Fri Sep 7 10:31:17 2012 -0700
+commit 7e414a5b017decee07f3ffa17943adcbb08aa83e
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Sep 7 10:24:55 2012 -0700
 
-    syscall: Test SCM credentials on Linux.
+    net,mime: Minor corrections to documentation comments.
     
-    This test was previously removed in 087c6e15702e.
-    
-    R=bradfitz, rsc, mikioh.mikioh
-    CC=golang-dev
-    https://golang.org/cl/6506061
+    R=r
+    CC=dsymonds, gobot, golang-dev
+    https://golang.org/cl/6495085
 
- src/pkg/syscall/creds_test.go | 109 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 109 insertions(+)
+ src/pkg/mime/multipart/multipart.go | 2 +-
+ src/pkg/net/mail/message.go         | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

@@ -1,20 +1,20 @@
-commit 196916299da7568a2a2165246e5164637df03fb9
-Author: Philipp Wollermann <philwo@google.com>
-Date:   Tue Apr 23 17:18:20 2024 +0900
+commit b4eed1c3414b6def26820a9189cb65cb070540be
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Apr 6 17:08:49 2023 +0800
 
-    net: fix sendfile regression with io.Copy on macOS
+    crypto: use t.Parallel() to increase speed
     
-    Since CL 472475, io.Copy can no longer use sendfile on macOS for copying
-    files to a socket due to a too strict type assertion. This CL fixes the
-    issue by checking for the necessary interfaces instead of the concrete
-    os.File type in sendfile_unix_alt.go.
+    It is necessary to invoke the t.Parallel() method in both the top-level test function and its subtest function to maximize parallelism. In doing so, all subtest functions calling the t.Parallel() method in the package will work in parallel.
     
-    Fixes #66988
+    On my machine, the execution time of this test file was cut in half.
     
-    Change-Id: Ia0dd190f6575016a191c34a935132907147c8e10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581035
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: If09147a2a9969bb044932d71e6bfea29492866d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482755
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/net/sendfile_unix_alt.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/crypto/elliptic/elliptic_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

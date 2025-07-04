@@ -1,14 +1,15 @@
-commit e4492ce3c38c33ca2e8828e07a6e11286319dcf2
-Author: Dmitry Chestnykh <dchest@gmail.com>
-Date:   Thu May 26 21:43:27 2011 -0700
+commit bddb75127f0d549e08e8a8774bf92740a13b0810
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu May 26 22:19:23 2011 -0300
 
-    runtime: fix mmap error return on linux.
+    cgo: support pkg-config for flags and libs
     
-    Fixes #1511 again.
+    Fixes issue #1853.
     
-    R=golang-dev, iant
+    R=golang-dev, mattn.jp, adg
     CC=golang-dev
-    https://golang.org/cl/4527070
+    https://golang.org/cl/4550084
 
- src/pkg/runtime/linux/mem.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/cgo/doc.go | 14 +++++++--
+ src/cmd/cgo/gcc.go | 91 +++++++++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 88 insertions(+), 17 deletions(-)

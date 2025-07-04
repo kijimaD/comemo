@@ -1,41 +1,33 @@
-commit 61120c634cde434b78d9fcfe53a53aade58ef6be
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Aug 27 15:07:15 2021 -0400
+commit 1306435103558c4718e0ff3cba5ab2b8e2e34ec5
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Dec 15 09:49:10 2020 -0500
 
-    cmd/go/internal/modload: use "pruned" instead of "lazy" to describe pruned module graphs
+    [dev.typeparams] go/types: import changes to types.Info from dev.go2go
     
-    The level of support for pruning — not the lazy/eager loading behavior
-    — is the more fundamental property, and what matters in terms of what
-    invariants we need to maintain.
+    Import changes related to tracking type inferences and sanitizing
+    types.Info from the dev.go2go branch. Notably, the following were all
+    intentionally omitted from this import:
+     + types.Error.Full is not imported, due to it being a public API that
+       requires some further thought.
+     + The Config.AcceptMethodTypeParams, InferFromConstraints, and Trace
+       flag are not imported. The expectation is that we will not accept
+       method type parameters for now, will always infer from constraints,
+       and will continue to use the trace constant to guard tracing.
+     + Some trace annotations are not imported to from the checking pass. We
+       can add them back later, but for now they seemed verbose.
+     + Checker.useBrackets is removed. This is no longer configurable.
     
-    If the main module supports pruned module graphs we load its
-    dependencies lazily, and if it does not support pruned module graphs
-    we load its dependencies eagerly. However, in principle we could also
-    load the module graph lazily even in modules that do not support graph
-    pruning — we would just be more likely to overlook inconsistent
-    requirements introduced by hand-edits or bad VCS merges to the go.mod
-    file.
-    
-    (After this change, a “lazy” module is just one in which we happen not
-    to have loaded the module graph, and an “eager” one is one in which we
-    happen to load the module graph more aggressively.)
-    
-    Updates #36460
-    For #47397
-    
-    Change-Id: I0d2ffd21acc913f72ff56b59a6bdc539ebc3d377
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345393
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7f6315d66b200c92ffd1e55c9fd425a5d99149ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278312
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modload/build.go       |   2 +-
- src/cmd/go/internal/modload/buildlist.go   | 217 +++++++++++++++--------------
- src/cmd/go/internal/modload/edit.go        | 114 +++++++--------
- src/cmd/go/internal/modload/import_test.go |   2 +-
- src/cmd/go/internal/modload/init.go        |  26 ++--
- src/cmd/go/internal/modload/list.go        |   4 +-
- src/cmd/go/internal/modload/load.go        |  83 ++++++-----
- src/cmd/go/internal/modload/modfile.go     |  39 +++---
- 8 files changed, 257 insertions(+), 230 deletions(-)
+ src/go/types/api.go      |  13 ++++
+ src/go/types/check.go    |  21 +++++--
+ src/go/types/lookup.go   |   2 +-
+ src/go/types/object.go   |   8 ++-
+ src/go/types/sanitize.go | 150 +++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 187 insertions(+), 7 deletions(-)

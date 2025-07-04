@@ -1,21 +1,21 @@
-commit f5cd3868d52babd106e0509a67295690246a5252
-Author: Ben Schwartz <bemasc@google.com>
-Date:   Thu Oct 5 14:07:55 2017 -0400
+commit 0b9e362b475fb6e8f947fda09da866d8ee7adefd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 10 17:56:29 2017 +0000
 
-    net/http: HTTPS proxies support
+    doc: soften the NetBSD warning now that a unverified fix is being released
     
-    net/http already supports http proxies. This CL allows it to establish
-    a connection to the http proxy over https. See more at:
-    https://www.chromium.org/developers/design-documents/secure-web-proxy
+    To-be-released NetBSD 7.1.1 reportedly fixes the kernel panic that was
+    affecting our builders and is being released because of Go's warning.
     
-    Fixes golang/go#11332
+    So, soften our warning.
     
-    Change-Id: If0e017df0e8f8c2c499a2ddcbbeb625c8fa2bb6b
-    Reviewed-on: https://go-review.googlesource.com/68550
-    Run-TryBot: Tom Bergan <tombergan@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    7.1.1 might work, but I can't get a builder up and running to verify
+    yet as it appears that Anita either doesn't support it yet, or the
+    NetBSD CDN doesn't have the files yet.
+    
+    Change-Id: Ifaafc566879a6afdf1174e545ad10e240da427e8
+    Reviewed-on: https://go-review.googlesource.com/47970
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/transport.go      | 160 +++++++++++++++++----------
- src/net/http/transport_test.go | 243 +++++++++++++++++++++++++++++++----------
- 2 files changed, 283 insertions(+), 120 deletions(-)
+ doc/go1.9.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

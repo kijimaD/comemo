@@ -1,28 +1,16 @@
-commit c17f8057b09b26b32f0a2aaa1efc9dd89921d431
-Author: rohnnyjoy <johnnyroy2718@gmail.com>
-Date:   Sat Feb 18 04:37:17 2023 +0000
+commit fb2a9d27e395af5bb0c88d0fa453bba868275800
+Author: Wayne Zuo <wdvxdr1123@gmail.com>
+Date:   Sun Mar 20 22:04:43 2022 +0800
 
-    cmd/go: return an early error from queryImport when in vendor mode
+    mime/multipart: unified Part and Reader receiver name
     
-    The current behavior for -mod=vendor is to let QueryPackages run and
-    fail from queryImport: "cannot query module due to -mod=vendor".
-    This has the side effect of allowing "go: finding module for package"
-    to be printed to stderr. Instead of this, return an error before
-    running QueryPackages.
-    
-    Fixes #58417
-    
-    Change-Id: Idc0ed33d1dd1bd185348da3a18ba8eb2dd225909
-    GitHub-Last-Rev: dd09deec0afecabd1bffc34cfe66db0a8c124fd9
-    GitHub-Pull-Request: golang/go#58471
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467517
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Ic36dd232f3ea049403715fadec00a74efbf7dc9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394075
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
 
- src/cmd/go/internal/modload/import.go                 | 4 +++-
- src/cmd/go/testdata/script/mod_go_version_missing.txt | 3 +--
- src/cmd/go/testdata/script/mod_std_vendor.txt         | 4 +---
- 3 files changed, 5 insertions(+), 6 deletions(-)
+ src/mime/multipart/multipart.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

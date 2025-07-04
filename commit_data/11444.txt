@@ -1,12 +1,47 @@
-commit a417e6f470f4cf19292a2bb5638b773bd1883e13
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Sat Jan 28 12:02:22 2012 +0000
+commit a3fdd6e64970b87768f3aed733c6fe72c983bb3e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 27 14:47:02 2012 -0800
 
-    cmd/go: make vcs command actually gather output
+    os: remove SIGXXX signals variables.
     
-    R=rsc, bradfitz
+    They're not portable, and pkg os is supposed to be portable.
+    
+    Fixes #2562
+    
+    R=golang-dev, mikioh.mikioh, r, n13m3y3r, rsc
     CC=golang-dev
-    https://golang.org/cl/5577062
+    https://golang.org/cl/5574078
 
- src/cmd/go/vcs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/buildscript/darwin_386.sh       |  2 +-
+ src/buildscript/darwin_amd64.sh     |  2 +-
+ src/buildscript/freebsd_386.sh      |  2 +-
+ src/buildscript/freebsd_amd64.sh    |  2 +-
+ src/buildscript/linux_386.sh        |  2 +-
+ src/buildscript/linux_amd64.sh      |  2 +-
+ src/buildscript/linux_arm.sh        |  2 +-
+ src/buildscript/netbsd_386.sh       |  2 +-
+ src/buildscript/netbsd_amd64.sh     |  2 +-
+ src/buildscript/openbsd_386.sh      |  2 +-
+ src/buildscript/openbsd_amd64.sh    |  2 +-
+ src/buildscript/windows_386.sh      |  2 +-
+ src/buildscript/windows_amd64.sh    |  2 +-
+ src/pkg/os/Makefile                 |  6 -----
+ src/pkg/os/exec_posix.go            |  2 +-
+ src/pkg/os/exec_windows.go          |  3 +--
+ src/pkg/os/mksignals.sh             | 24 -----------------
+ src/pkg/os/mkunixsignals.sh         | 27 --------------------
+ src/pkg/os/signal/signal_test.go    |  6 +++--
+ src/pkg/os/zsignal_darwin_386.go    | 48 ----------------------------------
+ src/pkg/os/zsignal_darwin_amd64.go  | 48 ----------------------------------
+ src/pkg/os/zsignal_freebsd_386.go   | 50 ------------------------------------
+ src/pkg/os/zsignal_freebsd_amd64.go | 50 ------------------------------------
+ src/pkg/os/zsignal_linux_386.go     | 51 -------------------------------------
+ src/pkg/os/zsignal_linux_amd64.go   | 51 -------------------------------------
+ src/pkg/os/zsignal_linux_arm.go     | 51 -------------------------------------
+ src/pkg/os/zsignal_netbsd_386.go    | 49 -----------------------------------
+ src/pkg/os/zsignal_netbsd_amd64.go  | 49 -----------------------------------
+ src/pkg/os/zsignal_openbsd_386.go   | 49 -----------------------------------
+ src/pkg/os/zsignal_openbsd_amd64.go | 49 -----------------------------------
+ src/pkg/os/zsignal_windows_386.go   | 29 ---------------------
+ src/pkg/os/zsignal_windows_amd64.go | 29 ---------------------
+ 32 files changed, 19 insertions(+), 678 deletions(-)

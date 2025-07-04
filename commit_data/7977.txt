@@ -1,24 +1,29 @@
-commit 6e4966eb7fd8892265ce14817ed75db86180bf24
+commit 243266f62e2af7167236f99bb0aa376d3c21246b
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 4 19:43:36 2011 -0700
+Date:   Mon Apr 4 19:22:47 2011 -0700
 
-    http: ignore Transfer-Encoding on HEAD responses
+    http: fix Transport connection re-use race
     
-    Amazon S3 sends Transfer-Encoding "chunked"
-    on its 404 responses to HEAD requests for
-    missing objects.
+    A connection shouldn't be made available
+    for re-use until its body has been consumed.
     
-    We weren't ignoring the Transfer-Encoding
-    and were thus interpretting the subsequent
-    response headers as a chunk header from the
-    previous responses body (but a HEAD response
-    can't have a body)
+    (except in the case of pipelining, which isn't
+    implemented yet)
+    
+    This CL fixes some issues seen with heavy load
+    against Amazon S3.
+    
+    Subtle implementation detail: to prevent a race
+    with the client requesting a new connection
+    before previous one is returned, we actually
+    have to call putIdleConnection _before_ we
+    return from the final Read/Close call on the
+    http.Response.Body.
     
     R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/4346050
+    https://golang.org/cl/4351048
 
- src/pkg/http/response_test.go  | 22 ++++++++++++++++++++++
- src/pkg/http/transfer.go       | 11 +++++++++--
- src/pkg/http/transport_test.go | 29 +++++++++++++++++++++++++++++
- 3 files changed, 60 insertions(+), 2 deletions(-)
+ src/pkg/http/transport.go      | 46 ++++++++++++++++++++++++++----------------
+ src/pkg/http/transport_test.go | 11 ++++++++--
+ 2 files changed, 38 insertions(+), 19 deletions(-)

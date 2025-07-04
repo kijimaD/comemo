@@ -1,12 +1,21 @@
-commit 985893acffc811034b24c0462a8766fbf06b1d3d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Jan 18 11:22:32 2014 +0900
+commit 6f6a9445c93bfbfd05ea9b7880137c02618bedbd
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 17 14:48:45 2014 -0800
 
-    syscall: fix build
+    runtime, cmd/gc: Get rid of vararg channel calls.
     
-    R=golang-codereviews, iant
+    Vararg C calls present a problem for the GC because the
+    argument types are not derivable from the signature.  Remove
+    them by passing pointers to channel elements instead of the
+    channel elements directly.
+    
+    R=golang-codereviews, gobot, rsc, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/54000043
+    https://golang.org/cl/53430043
 
- src/pkg/syscall/rlimit_unix_test.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/gc/builtin.c   |  8 ++++----
+ src/cmd/gc/runtime.go  |  8 ++++----
+ src/cmd/gc/select.c    | 14 +++++++++++++-
+ src/cmd/gc/walk.c      | 50 +++++++++++++++++++++++++++++++++++++++---------
+ src/pkg/runtime/chan.c | 52 +++++++++++++++++++-------------------------------
+ 5 files changed, 82 insertions(+), 50 deletions(-)

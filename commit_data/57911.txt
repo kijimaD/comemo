@@ -1,16 +1,18 @@
-commit acad0c2e9a78ebe266269a80e23bd0aeade9e99b
-Author: changwang ma <machangwang.cn@gmail.com>
-Date:   Fri Oct 25 23:16:12 2024 +0800
+commit a86ef0409b76f430912f9ebbe1c0d2e5e834fd6d
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Sep 11 12:27:17 2023 -0400
 
-    cmd/go/internal/lockedfile: fix function name in error message for test
+    cmd/compile/internal/inline/inlheur: fixup tests for NewBasicLit change
     
-    Change-Id: I1477c6249196dba58908ff8cc881914bf602ddd8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622615
+    Fix a regression test to use the correct new signature for
+    ir.NewBasicLit.
+    
+    Change-Id: I06c849e83a5edfce784c780b5490f461f6c3b129
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527318
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
 
- src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go | 4 ++--
+ src/cmd/compile/internal/inline/inlheur/texpr_classify_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

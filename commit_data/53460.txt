@@ -1,16 +1,18 @@
-commit 587c1c191adb8a069beed925b9c402a7e8e4d871
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jun 5 10:33:50 2023 +0200
+commit 7e7ecf5cbbd5c0b61e693a65c865bf372fc2ea80
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 17:28:58 2022 +0700
 
-    doc/go1.21: fix link in debug/elf section
+    runtime: convert freezing to atomic type
     
-    Change-Id: Ief3e263e6c11069abbbf4dd8ce10c317e3a1cab2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500815
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Updates #53821
+    
+    Change-Id: I77fcdb972b8920e1fb42248ce5bd2c3d2d0bd27e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423885
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- doc/go1.21.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,20 +1,21 @@
-commit 23f13255f0a5a3dd34ee31b64e45fa87efadcb43
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Tue May 3 13:55:40 2022 -0700
+commit 4676c3675e85a8a82a1513ef1f5e38aebc80ddc8
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jul 4 12:06:39 2021 +0700
 
-    runtime: re-add import in trace.go
+    [dev.typeparams] cmd/compile: rename PartialCallType -> MethodValueType
     
-    CL 400795, which uses the runtime/internal/atomic package in trace.go,
-    raced against CL 397014 removing that import. Re-add the import.
+    CL 330837 rename OCALLPART to OMETHVALUE, so do the same thing for
+    PartialCallType for consistency.
     
-    Change-Id: If847ec23f9a0fdff91dab07e93d9fb1b2efed85b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403845
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id40eb35bbcee7719acfb41fce0e2b968879f9fef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332769
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/trace.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/escape/utils.go   | 2 +-
+ src/cmd/compile/internal/typecheck/func.go | 8 ++++----
+ src/cmd/compile/internal/walk/closure.go   | 2 +-
+ src/cmd/compile/internal/walk/order.go     | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

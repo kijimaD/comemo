@@ -1,18 +1,18 @@
-commit acae4d212c6af5f96677ea7d2ed827389bd7b819
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 17 07:11:40 2013 -0700
+commit 8d5ec52e6cf3a259b9054ee3c3621834f2491860
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Sep 17 13:43:27 2013 +1000
 
-    cmd/cgo: rearrange and update documentation
+    cmd/6c, cmd/6g, cmd/cc: fix undefined behavior warnings
     
-    In particular document that the Go tool will look for certain
-    file extensions and compile with them with either the C or the
-    C++ compiler.
+    Update #5764
     
-    Fixes #6393.
+    Like Tribbles, the more you kill, the more spring up in their place.
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/13733043
+    https://golang.org/cl/13324049
 
- src/cmd/cgo/doc.go | 78 ++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 49 insertions(+), 29 deletions(-)
+ src/cmd/6c/sgen.c | 2 +-
+ src/cmd/6g/ggen.c | 2 +-
+ src/cmd/cc/scon.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

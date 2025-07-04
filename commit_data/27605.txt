@@ -1,26 +1,24 @@
-commit 6de014b9e2a655e093c2e3b5617a90b97d66c152
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Jun 1 20:58:02 2016 +0200
+commit 3bbede0c512ca645fa19522480c0200ee4711bf3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 29 18:26:06 2016 +0000
 
-    misc/cgo/test,cmd/dist: enable (most) Cgo tests on Android
+    net/http: zero pad Response status codes to three digits
     
-    Some tests cannot build for Android; use build tags and stubs to
-    skip them.
+    Go 1.6's HTTP/1.x Transport started enforcing that responses have 3
+    status digits, per the spec, but we could still write out invalid
+    status codes ourselves if the called
+    ResponseWriter.WriteHeader(0). That is bogus anyway, since the minimum
+    status code is 1xx, but be a little bit less bogus (and consistent)
+    and zero pad our responses.
     
-    For #15919
-    
-    Change-Id: Ieedcb73d4cabe23c3775cfb1d44c1276982dccd9
-    Reviewed-on: https://go-review.googlesource.com/23634
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: I6883901fd95073cb72f6b74035cabf1a79c35e1c
+    Reviewed-on: https://go-review.googlesource.com/19130
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- misc/cgo/test/cgo_stubs_android_test.go | 13 +++++++++++++
- misc/cgo/test/issue3775.go              |  2 ++
- misc/cgo/test/issue6997_linux.c         |  2 ++
- misc/cgo/test/issue6997_linux.go        |  2 ++
- misc/cgo/test/issue7978.go              |  3 +++
- misc/cgo/test/issue8694.go              |  2 ++
- misc/cgo/test/sigaltstack.go            |  2 +-
- src/cmd/dist/test.go                    | 26 +++++++++++++++-----------
- 8 files changed, 40 insertions(+), 12 deletions(-)
+ src/net/http/clientserver_test.go  | 21 +++++++++++++++++++++
+ src/net/http/response.go           | 11 +++++++----
+ src/net/http/responsewrite_test.go | 33 +++++++++++++++++++++++++++++++++
+ src/net/http/server.go             |  2 +-
+ 4 files changed, 62 insertions(+), 5 deletions(-)

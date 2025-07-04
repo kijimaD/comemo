@@ -1,16 +1,17 @@
-commit 8659ad904966dfe809925c980ac11e7f98ac61aa
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Feb 6 11:34:48 2025 +0100
+commit ba519019d2f39df29060eec104b47c7c9ea720b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 4 11:38:50 2023 -0800
 
-    crypto/internal/fips140test: require FIPS 140 mode for the ACVP wrapper
+    doc: add release note for changes to go/types/SizesFor
     
-    Change-Id: I6a6a46565c14cf1d924a8fcfbf6752e9646ec63d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648818
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #61035.
+    
+    Change-Id: I27e2c44f9275b508d9dccc50da80896384a4c8fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546837
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/crypto/internal/fips140test/acvp_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/go1.22.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

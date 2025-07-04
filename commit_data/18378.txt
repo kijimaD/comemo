@@ -1,13 +1,14 @@
-commit 1e89eb2c317b20dbe1bb8650b9c5eeae37b26e72
-Author: Jeff Sickel <jas@corpus-callosum.com>
-Date:   Thu Jan 30 09:49:32 2014 +0900
+commit 327e431057f0e367e7287c3cc4326196f53218cb
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jan 29 18:18:46 2014 +0400
 
-    net: net: better IPv4 stack probe on Plan 9
+    runtime: prepare for 8K pages
+    Ensure than heap is PageSize aligned.
     
-    LGTM=mischief, mikioh.mikioh
-    R=golang-codereviews, 0intro, mischief, mikioh.mikioh
+    LGTM=iant
+    R=iant, dave, gobot
     CC=golang-codereviews
-    https://golang.org/cl/53960044
+    https://golang.org/cl/56630043
 
- src/pkg/net/ipsock_plan9.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/runtime/malloc.goc | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

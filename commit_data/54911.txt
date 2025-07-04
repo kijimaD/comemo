@@ -1,33 +1,21 @@
-commit 04d64a3b36f872e97d965197337d001d5361d71c
+commit f0331c524e0d8d32c3918d3515ab8413f38dbd56
 Author: Than McIntosh <thanm@google.com>
-Date:   Fri Sep 15 15:48:49 2023 -0400
+Date:   Mon Nov 21 11:01:53 2022 -0500
 
-    cmd/compile/inline/inleur: use "largest possible score" to revise inlinability
+    testing: skip flaky TestRaiseException on windows-amd64-2012-*
     
-    The current GOEXPERIMENT=newinliner strategy us to run "CanInline" for
-    a given function F with an expanded/relaxed budget of 160 (instead of
-    the default 80), and then only inline a call to F if the adjustments
-    we made to F's original score are below 80.
+    Modify skip rule for TestRaiseException to trigger on both the base
+    builder (windows-amd64-2012) and the newcc canary builder
+    (windows-amd64-2012-newcc).
     
-    This way of doing things winds up writing out many more functions to
-    export data that have size between 80 and 160, on the theory that they
-    might be inlinable somewhere given the right context, which is
-    expensive from a compile time perspective.
+    Updates #49681.
     
-    This patch changes things to add a pass that revises the inlinability
-    of a function after its properties are computed by looking at its
-    properties and estimating the largest possible negative score
-    adjustment that could happen given the various return and param props.
-    If the computed score for the function minus the max adjust is not
-    less than 80, then we demote it from inlinable to non-inlinable to
-    save compile time.
-    
-    Change-Id: Iedaac520d47f632be4fff3bd15d30112b46ec573
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529118
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I132f9ddd102666b68ad04cc661fdcc2cd841051a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451294
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/inline/inl.go             |  4 ++
- src/cmd/compile/internal/inline/inlheur/analyze.go | 22 +++++++
- src/cmd/compile/internal/inline/inlheur/scoring.go | 69 ++++++++++++++++++++--
- 3 files changed, 91 insertions(+), 4 deletions(-)
+ src/runtime/syscall_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

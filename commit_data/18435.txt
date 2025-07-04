@@ -1,19 +1,13 @@
-commit ff5f9bbf6a5d5281a2bf5326ce43df65deef4ac1
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Feb 10 13:35:39 2014 +1100
+commit 730f51ab58cebb05eb06eea5113e4c2bcb1aff65
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 9 13:56:47 2014 -0800
 
-    cmd/go: skip $ORIGIN test on darwin systems
+    archive/zip: add flate writing benchmark
     
-    Fixes #7293.
-    
-    Update #7261
-    
-    The bsd ld(1) does not understand $ORIGIN and has restrictions on using -rpath when using clang(1), the default compiler on darwin.
-    
-    LGTM=iant
-    R=iant
+    LGTM=adg
+    R=adg
     CC=golang-codereviews
-    https://golang.org/cl/58480045
+    https://golang.org/cl/60530049
 
- src/cmd/go/test.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/archive/zip/writer_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

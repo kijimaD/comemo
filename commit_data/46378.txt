@@ -1,22 +1,27 @@
-commit d62866ef793872779c9011161e51b9c805fcb73d
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Aug 27 20:07:00 2021 +0700
+commit 40818038bf513405bc988678a297a5a6d24f6513
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 23 06:59:16 2020 -0800
 
-    cmd/compile: move checkptr alignment to SSA generation
+    [dev.regabi] cmd/compile: change CaseStmt.Vars to Var
     
-    This is followup of CL 343972, moving the checkptr alignment
-    instrumentation during SSA generation instead of walk.
+    There's only ever one variable implicitly declared by a CaseStmt. It's
+    only a slice because we previous used Rlist for this.
     
-    Change-Id: I29b2953e4eb8631277fe2e0f44b9d987dd7a69f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345430
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: Idf747f3ec6dfbbe4e94d60546ba04a81754df3fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280012
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ir/expr.go      |  9 +++---
- src/cmd/compile/internal/ir/symtab.go    | 55 ++++++++++++++++----------------
- src/cmd/compile/internal/ssagen/ssa.go   | 51 +++++++++++++++++++++++++----
- src/cmd/compile/internal/walk/convert.go | 38 ----------------------
- src/cmd/compile/internal/walk/expr.go    | 13 +-------
- 5 files changed, 77 insertions(+), 89 deletions(-)
+ src/cmd/compile/internal/escape/escape.go     | 2 +-
+ src/cmd/compile/internal/ir/node_gen.go       | 5 ++---
+ src/cmd/compile/internal/ir/stmt.go           | 2 +-
+ src/cmd/compile/internal/noder/noder.go       | 2 +-
+ src/cmd/compile/internal/typecheck/iexport.go | 2 +-
+ src/cmd/compile/internal/typecheck/iimport.go | 2 +-
+ src/cmd/compile/internal/typecheck/stmt.go    | 6 +++---
+ src/cmd/compile/internal/walk/switch.go       | 5 +----
+ 8 files changed, 11 insertions(+), 15 deletions(-)

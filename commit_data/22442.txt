@@ -1,14 +1,26 @@
-commit 2f14b161493057e00a58fbe102c8a782e1410de0
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:40:16 2015 -0400
+commit 02c1a9d87d22a50aed71c57368bfbdd2d7260196
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:16:29 2015 +0100
 
-    cmd/internal/obj/x86: skip test on darwin/arm64
+    cmd/7g: add ARM64 Go compiler, based on 9g
     
-    Just like darwin/arm, cannot fork..
+    No peep optimizer yet.
     
-    Change-Id: If565afbceb79013b9e3103e1e28d93691e9fc0a5
-    Reviewed-on: https://go-review.googlesource.com/8826
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ifa5f993cd6ac5e34783c0df41faf772fbce96ae2
+    Reviewed-on: https://go-review.googlesource.com/7049
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/x86/obj6_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/7g/cgen.go           | 103 ++---
+ src/cmd/7g/galign.go         |  21 +-
+ src/cmd/7g/gg.go             |   4 +-
+ src/cmd/7g/ggen.go           | 185 ++++----
+ src/cmd/7g/gsubr.go          | 601 ++++++++++++--------------
+ src/cmd/7g/opt.go            |  12 -
+ src/cmd/7g/peep.go           | 980 +------------------------------------------
+ src/cmd/7g/prog.go           | 315 ++++----------
+ src/cmd/7g/reg.go            |  22 +-
+ src/cmd/internal/gc/gsubr.go |  10 +-
+ src/cmd/internal/gc/pgen.go  |   4 +-
+ src/cmd/internal/gc/reg.go   |   4 +-
+ src/cmd/internal/gc/walk.go  |   4 +-
+ 13 files changed, 515 insertions(+), 1750 deletions(-)

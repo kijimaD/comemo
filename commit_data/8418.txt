@@ -1,17 +1,18 @@
-commit 4fb585759645178ab69f6b9590c395fc4eb7fc5a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue May 17 13:46:54 2011 +1000
+commit db36e03692006c53492353e0187240ef45be97f9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon May 16 23:21:13 2011 -0400
 
-    doc: add I/O 2011 talks to talks/, docs.html, and front page.
+    net, http: add and make use of IP address scope identification API
     
-    R=rsc
+    Add seven methods to IP struct: IsUnspecified, IsLoopback,
+    IsMulticast, IsInterfaceLocalMulticast, IsLinkLocalMulticast,
+    IsLinkLocalUnicast and IsGlobalUnicast.
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4516057
+    https://golang.org/cl/4515083
 
- doc/docs.html                               |  16 ++++++++++++++++
- doc/frontpage.css                           |   3 +++
- doc/root.html                               |   4 ++--
- doc/talks/io2011/Real_World_Go.pdf          | Bin 0 -> 609477 bytes
- doc/talks/io2011/Writing_Web_Apps_in_Go.pdf | Bin 0 -> 729499 bytes
- doc/video-005.jpg                           | Bin 0 -> 6783 bytes
- 6 files changed, 21 insertions(+), 2 deletions(-)
+ src/pkg/http/transport.go |  7 +----
+ src/pkg/net/ip.go         | 57 ++++++++++++++++++++++++++++++++++
+ src/pkg/net/ip_test.go    | 79 ++++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 116 insertions(+), 27 deletions(-)

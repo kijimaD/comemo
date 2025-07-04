@@ -1,12 +1,12 @@
-commit dc9ee812ba831c19e0e2ac9f6dc42f3a19c9d27a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 8 18:27:26 2011 -0700
+commit 75dd952d1617b658b62dc5cf8f4445cbd2942ef1
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Fri Sep 9 09:39:23 2011 +1000
 
-    godoc: fine tuning of template file
+    os: forgotten file of submitted CL 4984051
     
-    R=r, adg
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/4995041
+    https://golang.org/cl/4983053
 
- lib/godoc/search.txt | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/syscall/ztypes_windows.go | 1 -
+ 1 file changed, 1 deletion(-)

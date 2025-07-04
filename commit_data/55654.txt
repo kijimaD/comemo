@@ -1,18 +1,18 @@
-commit cd17032721425f1e131f3c19801c6e66972d4b6c
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Wed Feb 21 09:29:17 2024 +0000
+commit 4a9c84d0b7f169eb7c7bd58a334544919a022f46
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Feb 28 19:31:23 2023 +0800
 
-    cmd/go: remove unused var BuildToolchainLinker and BuildToolchainCompiler
+    net: use /dev/null for TestSplice of big file to fix the test flakes on linux-riscv64-jsing
     
-    Change-Id: I4bb855f6ada5c550a46f69313a2f47631bf657ca
-    GitHub-Last-Rev: 2af07f9d7bda0de31b61d434635cd1c2c568af06
-    GitHub-Pull-Request: golang/go#65838
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565517
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes #58787
+    
+    Change-Id: Ia6e9ee0d8dd505f64bfe9ffd23a868b8165f550f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471995
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/cfg/cfg.go    | 54 ++++++++++++++++++---------------------
- src/cmd/go/internal/work/build.go |  2 --
- 2 files changed, 25 insertions(+), 31 deletions(-)
+ src/net/splice_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

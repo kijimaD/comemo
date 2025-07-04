@@ -1,25 +1,20 @@
-commit 033299fab66b08d434be30e05d11f7db63efa71c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 4 11:40:03 2019 +0200
+commit eb00167e27ba3525d26bbe9286c82090da782587
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu Mar 21 13:42:53 2019 +0100
 
-    all: add a space before +build in build tag comments
+    cmd/link: skip TestBuildFortvOS if the SDK is missing
     
-    Add a space before build tag comments so it corresponds to the format
-    documented at https://golang.org/pkg/go/build/.
+    While we're here, move the test from dwarf_test.go to link_test.go;
+    it doesn't have anything to do with DWARF.
     
-    Change-Id: I8349d0343597e304b97fb5479847231ed8945b1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193237
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Should fix the macOS builders with only the Xcode command line tools
+    installed.
+    
+    Change-Id: Iaaba1b589f4d778705f7b627f78c2b12388e2b3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168462
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/go/internal/modload/testgo.go              | 2 +-
- src/cmd/go/internal/renameio/renameio_test.go      | 2 +-
- src/cmd/go/internal/renameio/umask_test.go         | 2 +-
- src/cmd/go/internal/robustio/robustio_other.go     | 2 +-
- src/cmd/go/internal/web/url_other.go               | 2 +-
- src/cmd/go/internal/web/url_other_test.go          | 2 +-
- src/cmd/go/testdata/script/test_compile_binary.txt | 2 +-
- src/runtime/semasleep_test.go                      | 2 +-
- 8 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/link/dwarf_test.go | 51 ---------------------------------------------
+ src/cmd/link/link_test.go  | 52 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 51 deletions(-)

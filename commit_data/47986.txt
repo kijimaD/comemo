@@ -1,17 +1,39 @@
-commit b7fa0f941f05fdf8420f15cd5ebe2f209da172e0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 21 14:30:39 2022 -0800
+commit 81fcb18df5557943a80d27f248de43968e048aae
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 14 17:12:27 2021 -0400
 
-    spec: minor formatting and link cleanups
+    cmd/go: make Tidy an option in PackageOpts rather than a separate call
     
-    Mostly from CL 367954.
+    This eliminates some awkwardly-stateful outside calls to
+    modload.{Disallow,Allow,}WriteGoMod.
     
-    Change-Id: Id003b0f785a286a1a649e4d6e8c87d0418a36545
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379920
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Perhaps more importantly, it gives the loader the opportunity to
+    reload packages and revise dependencies after the tidied requirements
+    are computed. With lazy loading, dropping an irrelevant requirement
+    from the main module's go.mod file may (rarely) cause other test
+    dependencies for packages outside the main module to become
+    unresolved, which may require the loader to re-resolve those
+    dependencies, which may in turn add new roots and increase the
+    selected versions of modules providing other packages.
+    
+    This refactoring allows the loader to iterate between tidying the
+    build list and reloading packages as needed, making the exact
+    sequencing of loading and tidying an implementation detail of the
+    modload package.
+    
+    For #36460
+    For #40775
+    
+    Change-Id: Ib6da3672f32153d5bd7d653d85e3672ab96cbe36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310181
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go_spec.html | 19 ++++++++-----------
- 1 file changed, 8 insertions(+), 11 deletions(-)
+ src/cmd/go/internal/modcmd/tidy.go       | 14 +------------
+ src/cmd/go/internal/modload/buildlist.go | 21 +++++++------------
+ src/cmd/go/internal/modload/init.go      | 36 +++++++++++++++++++-------------
+ src/cmd/go/internal/modload/load.go      | 30 +++++++++++++++++---------
+ 4 files changed, 51 insertions(+), 50 deletions(-)

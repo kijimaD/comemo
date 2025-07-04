@@ -1,58 +1,17 @@
-commit e48751e217d3f97c92ec210f605454aa97202c3b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jan 30 13:28:19 2014 +0400
+commit 7a73f32725ff8b13a4cca703972fa76e598f4436
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jan 30 07:54:57 2014 +0100
 
-    runtime: increase page size to 8K
-    Tcmalloc uses 8K, 32K and 64K pages, and in custom setups 256K pages.
-    Only Chromium uses 4K pages today (in "slow but small" configuration).
-    The general tendency is to increase page size, because it reduces
-    metadata size and DTLB pressure.
-    This change reduces GC pause by ~10% and slightly improves other metrics.
+    encoding/gob: fix two crashes on corrupted data.
     
-    json-1
-    allocated                 8037492      8038689      +0.01%
-    allocs                     105762       105573      -0.18%
-    cputime                 158400000    155800000      -1.64%
-    gc-pause-one              4412234      4135702      -6.27%
-    gc-pause-total            2647340      2398707      -9.39%
-    rss                      54923264     54525952      -0.72%
-    sys-gc                    3952624      3928048      -0.62%
-    sys-heap                 46399488     46006272      -0.85%
-    sys-other                 5597504      5290304      -5.49%
-    sys-stack                  393216       393216      +0.00%
-    sys-total                56342832     55617840      -1.29%
-    time                    158478890    156046916      -1.53%
-    virtual-mem             256548864    256593920      +0.02%
+    Fixes #6323.
     
-    garbage-1
-    allocated                 2991113      2986259      -0.16%
-    allocs                      62844        62652      -0.31%
-    cputime                  16330000     15860000      -2.88%
-    gc-pause-one            789108229    725555211      -8.05%
-    gc-pause-total            3945541      3627776      -8.05%
-    rss                    1143660544   1132253184      -1.00%
-    sys-gc                   65609600     65806208      +0.30%
-    sys-heap               1032388608   1035599872      +0.31%
-    sys-other                37501632     22777664     -39.26%
-    sys-stack                 8650752      8781824      +1.52%
-    sys-total              1144150592   1132965568      -0.98%
-    time                     16364602     15891994      -2.89%
-    virtual-mem            1327296512   1313746944      -1.02%
-    
-    This is the exact reincarnation of already LGTMed:
-    https://golang.org/cl/45770044
-    which must not break darwin/freebsd after:
-    https://golang.org/cl/56630043
-    TBR=iant
-    
-    LGTM=khr, iant
-    R=iant, khr
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/58230043
+    https://golang.org/cl/56870043
 
- src/pkg/runtime/malloc.goc  |  6 +++++-
- src/pkg/runtime/malloc.h    |  6 +++---
- src/pkg/runtime/mem.go      |  3 +--
- src/pkg/runtime/mgc0.c      | 19 +++++++++++++------
- src/pkg/runtime/netpoll.goc |  7 ++++++-
- 5 files changed, 28 insertions(+), 13 deletions(-)
+ src/pkg/encoding/gob/codec_test.go   | 56 ++++++++++++++++++++++++++++++++----
+ src/pkg/encoding/gob/decode.go       |  6 +++-
+ src/pkg/encoding/gob/encoder_test.go |  2 ++
+ 3 files changed, 58 insertions(+), 6 deletions(-)

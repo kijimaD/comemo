@@ -1,24 +1,22 @@
-commit 6120688146c11506e7a1e836ec8a2492eceb211c
-Author: codesoap <codesoap@mailbox.org>
-Date:   Wed Jan 31 18:31:56 2024 +0000
+commit f0cb44a7736df649cdb5c7b3dfe8e270ae691626
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Fri Feb 10 14:08:27 2023 -0500
 
-    container/heap: remove confusing claim of memory leak
+    cmd/trace: fix error message for bad goroutine state transition
     
-    The term "memory leak" was misused here, as the memory is still referenced
-    by the slice.
+    The error message when an invalid goroutine state transition is found in
+    a trace should show the current state, not the next state, when
+    comparing against the expected current state.
     
-    Fixes #65403
+    This CL also picks up a gofmt change to the file.
     
-    Change-Id: Id102419d4c798fb2a4ec8be86be9ec9b5cdd98e6
-    GitHub-Last-Rev: 3febcd0ba4ab5897bef8f2d7ded594ef09932771
-    GitHub-Pull-Request: golang/go#65404
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559775
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ic0ce6c9ce79d8a784b73b115b5db76c311b8593d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467416
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/container/heap/example_pq_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/trace/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

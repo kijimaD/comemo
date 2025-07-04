@@ -1,21 +1,38 @@
-commit 4c58d6bf52b87628d0a73041af61e58eed84a310
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jul 10 18:40:47 2023 -0400
+commit a2d2e6e7cb12c57cd8f5af64909882bab1dbca19
+Author: Jianwei Mao <maojianwei2012@126.com>
+Date:   Fri Aug 26 08:45:23 2022 +0000
 
-    time: increase arbitrary upper bound in TestReset to 10s
+    net: add FlagRunning to exactly reflect the states of an interface.
     
-    The previous upper bound was around 0.375 s, which is empirically
-    too short on a slow, heavily-loaded builder. Since the test doesn't
-    seem to depend on the actual duration in any meaningful way, let's
-    make it several orders of magnitude larger.
+    Correctly set this flag while parsing the syscall result.
     
-    Fixes #61266.
+    The FlagUp flag can not distinguish the following situations:
+    1. interface is plugged, automatically up, and in running(UP) state
+    2. interface is not plugged, administratively or manually set to up,
+    but in DOWN state
     
-    Change-Id: I6dde5e174966ee385db67e3cb87334f463c7e597
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508695
+    So, We can't distinguish the state of a NIC by the FlagUp flag alone.
+    
+    Fixes #53482
+    
+    Change-Id: I43796bea1a7f72d1fddfef914efe603c81995e1b
+    GitHub-Last-Rev: 686b5d888e97e9b90cf36ac0c15943eb97e125d4
+    GitHub-Pull-Request: golang/go#53484
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413454
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ryan Schuster <shuey19831@gmail.com>
+    Reviewed-by: Jianwei Mao <maojianwei2020@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/time/sleep_test.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ api/next/53482.txt           | 2 ++
+ src/net/interface.go         | 4 +++-
+ src/net/interface_aix.go     | 3 +++
+ src/net/interface_bsd.go     | 3 +++
+ src/net/interface_linux.go   | 3 +++
+ src/net/interface_plan9.go   | 4 ++--
+ src/net/interface_solaris.go | 3 +++
+ src/net/interface_windows.go | 1 +
+ 8 files changed, 20 insertions(+), 3 deletions(-)

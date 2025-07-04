@@ -1,12 +1,15 @@
-commit ffe70eaa3cc9913d4d3e462ecaa41522330da85e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 15:16:51 2011 -0700
+commit 7c203b8bc1e4958a7e17d0149f7a86f112d123d6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 31 17:59:35 2011 -0400
 
-    go spec: update section on Implementation Differences
+    unsafe: update doc
     
-    R=rsc, r
+    changeset: 8812:3fb3e88d5aa8
+    gc: unsafe.Alignof, unsafe.Offsetof, unsafe.Sizeof now return uintptr
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4977046
+    https://golang.org/cl/4951051
 
- doc/go_spec.html | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/unsafe/unsafe.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

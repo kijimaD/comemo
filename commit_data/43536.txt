@@ -1,20 +1,22 @@
-commit 4f2d2134764b0b7654105ac2d6f75a75cdc1de56
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Jun 2 23:34:06 2020 +1000
+commit 83e288f3dbfdc83e4a016c60d54f928f69608d9a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 10 09:43:22 2020 -0700
 
-    cmd/compile,cmd/internal/sys: enable additional build modes on linux/riscv64
+    cmd/compile: prevent constant folding of +/- when result is NaN
     
-    Enable c-archive, c-shared, shared and pie build modes for linux/riscv64.
+    Missed as part of CL 221790. It isn't just * and / that can make NaNs.
     
-    Change-Id: I15a8a51b84dbbb82a5b6592aec84a7f09f0cc37f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263457
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Update #36400
+    Fixes #38359
+    
+    Change-Id: I3fa562f772fe03b510793a6dc0cf6189c0c3e652
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227860
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/gc/main.go | 2 +-
- src/cmd/dist/test.go                | 8 ++++----
- src/cmd/go/go_test.go               | 2 +-
- src/cmd/internal/sys/supported.go   | 6 +++---
- 4 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  8 ++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 16 ++++++++++++++++
+ test/fixedbugs/issue38359.go                   | 19 +++++++++++++++++++
+ 3 files changed, 39 insertions(+), 4 deletions(-)

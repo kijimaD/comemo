@@ -1,36 +1,18 @@
-commit 3aa53b31350dff905deefb97e6670a14f166d2a9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 7 13:44:53 2017 -0800
+commit 40a17eed9392cea198726d7a5a507b3596417fc9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 10 15:45:18 2018 -0800
 
-    runtime: eliminate runtime.hselect
+    crypto: clarify that some files come from CRYPTOGAMS
     
-    Now the registration phase looks like:
+    and that they are covered by the CRYPTOGAMS license.
     
-        var cases [4]runtime.scases
-        var order [8]uint16
-        selectsend(&cases[0], c1, &v1)
-        selectrecv(&cases[1], c2, &v2, nil)
-        selectrecv(&cases[2], c3, &v3, &ok)
-        selectdefault(&cases[3])
-        chosen := selectgo(&cases[0], &order[0], 4)
+    Fixes #22637
     
-    Primarily, this is just preparation for having the compiler open-code
-    selectsend, selectrecv, and selectdefault.
-    
-    As a minor benefit, order can now be layed out separately on the stack
-    in the pointer-free segment, so it won't take up space in the
-    function's stack pointer maps.
-    
-    Change-Id: I5552ba594201efd31fcb40084da20b42ea569a45
-    Reviewed-on: https://go-review.googlesource.com/37933
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I75b8e08d3a8b569edf383c078bb11c796b766c81
+    Reviewed-on: https://go-review.googlesource.com/87315
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         | 114 ++++++++++-----------
- src/cmd/compile/internal/gc/builtin/runtime.go |   9 +-
- src/cmd/compile/internal/gc/inl_test.go        |   1 -
- src/cmd/compile/internal/gc/select.go          |  81 +++++++--------
- src/runtime/select.go                          | 135 +++++++------------------
- test/live.go                                   |   8 +-
- 6 files changed, 144 insertions(+), 204 deletions(-)
+ src/crypto/aes/asm_ppc64le.s            | 28 +++++++++++++++-------------
+ src/crypto/sha256/sha256block_ppc64le.s | 11 +++++++----
+ src/crypto/sha512/sha512block_ppc64le.s | 11 +++++++----
+ 3 files changed, 29 insertions(+), 21 deletions(-)

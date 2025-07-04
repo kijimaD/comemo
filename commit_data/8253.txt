@@ -1,21 +1,59 @@
-commit b6f0632e93d183bc39031c475eb79ef1986bd226
-Author: Lorenzo Stoakes <lstoakes@gmail.com>
-Date:   Thu Apr 28 00:13:49 2011 -0400
+commit 370276a3e58c4794e1d604961274859fc6fc2501
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 23:21:12 2011 -0400
 
-    gc: correctly handle fields of pointer type to recursive forward references
+    runtime: stack split + garbage collection bug
     
-    Previously, whether declaring a type which copied the structure of a type it was referenced in via a pointer field would work depended on whether you declared it before or after the type it copied, e.g. type T2 T1; type T1 struct { F *T2 } would work, however type T1 struct { F *T2 }; type T2 T1 wouldn't.
+    The g->sched.sp saved stack pointer and the
+    g->stackbase and g->stackguard stack bounds
+    can change even while "the world is stopped",
+    because a goroutine has to call functions (and
+    therefore might split its stack) when exiting a
+    system call to check whether the world is stopped
+    (and if so, wait until the world continues).
     
-    Fixes #667.
+    That means the garbage collector cannot access
+    those values safely (without a race) for goroutines
+    executing system calls.  Instead, save a consistent
+    triple in g->gcsp, g->gcstack, g->gcguard during
+    entersyscall and have the garbage collector refer
+    to those.
     
-    R=rsc
+    The old code was occasionally seeing (because of
+    the race) an sp and stk that did not correspond to
+    each other, so that stk - sp was not the number of
+    stack bytes following sp.  In that case, if sp < stk
+    then the call scanblock(sp, stk - sp) scanned too
+    many bytes (anything between the two pointers,
+    which pointed into different allocation blocks).
+    If sp > stk then stk - sp wrapped around.
+    On 32-bit, stk - sp is a uintptr (uint32) converted
+    to int64 in the call to scanblock, so a large (~4G)
+    but positive number.  Scanblock would try to scan
+    that many bytes and eventually fault accessing
+    unmapped memory.  On 64-bit, stk - sp is a uintptr (uint64)
+    promoted to int64 in the call to scanblock, so a negative
+    number.  Scanblock would not scan anything, possibly
+    causing in-use blocks to be freed.
+    
+    In short, 32-bit platforms would have seen either
+    ineffective garbage collection or crashes during garbage
+    collection, while 64-bit platforms would have seen
+    either ineffective or incorrect garbage collection.
+    You can see the invalid arguments to scanblock in the
+    stack traces in issue 1620.
+    
+    Fixes #1620.
+    Fixes #1746.
+    
+    R=iant, r
     CC=golang-dev
-    https://golang.org/cl/4313064
+    https://golang.org/cl/4437075
 
- src/cmd/gc/dcl.c         | 10 ++----
- src/cmd/gc/go.h          |  3 ++
- src/cmd/gc/lex.c         |  1 +
- src/cmd/gc/typecheck.c   | 29 +++++++++++++++-
- src/cmd/gc/walk.c        | 72 +++++++++++++++++++++++++++++++++-------
- test/fixedbugs/bug336.go | 86 ++++++++++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 181 insertions(+), 20 deletions(-)
+ src/pkg/runtime/386/asm.s   |  2 +-
+ src/pkg/runtime/amd64/asm.s |  2 +-
+ src/pkg/runtime/arm/asm.s   |  2 +-
+ src/pkg/runtime/mgc0.c      | 41 +++++++++++++++++++++++++++++++++++++----
+ src/pkg/runtime/proc.c      | 38 ++++++++++++++++++++++++++++++++------
+ src/pkg/runtime/runtime.h   |  4 ++++
+ 6 files changed, 76 insertions(+), 13 deletions(-)

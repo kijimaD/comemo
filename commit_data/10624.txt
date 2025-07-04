@@ -1,30 +1,16 @@
-commit e0c006a9b0224ba6a346663724f9f8660321d5f3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 6 08:15:45 2011 -0800
+commit 46deaa297bcf76438ae17b070ef351d5b91d3d59
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 6 10:48:17 2011 -0500
 
-    strconv: 34% to 63% faster conversions
+    gc: disallow map/func equality via interface comparison
     
-    (Note that the Int and Uint benchmarks use different test sets
-    and thus cannot be compared against each other. Int and Uint
-    conversions are approximately the same speed).
+    Missed when I removed direct map/func equality.
     
-    Before (best of 3 runs):
-    strconv_test.BenchmarkFormatInt    100000    15636 ns/op
-    strconv_test.BenchmarkAppendInt    100000    18930 ns/op
-    strconv_test.BenchmarkFormatUint   500000     4392 ns/op
-    strconv_test.BenchmarkAppendUint   500000     5152 ns/op
-    
-    After (best of 3 runs):
-    
-    strconv_test.BenchmarkFormatInt    200000    10070 ns/op (-36%)
-    strconv_test.BenchmarkAppendInt    200000     7097 ns/op (-63%)
-    strconv_test.BenchmarkFormatUint  1000000     2893 ns/op (-34%)
-    strconv_test.BenchmarkAppendUint   500000     2462 ns/op (-52%)
-    
-    R=r, rsc, r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5449093
+    https://golang.org/cl/5452052
 
- src/pkg/strconv/itoa.go      | 119 ++++++++++++++++++++++++++++++++-----------
- src/pkg/strconv/itoa_test.go |  38 +++++++++++++-
- 2 files changed, 126 insertions(+), 31 deletions(-)
+ src/cmd/gc/subr.c           |  3 +--
+ src/pkg/reflect/all_test.go |  4 ++--
+ test/interface/noeq.go      | 39 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 42 insertions(+), 4 deletions(-)

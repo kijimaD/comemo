@@ -1,15 +1,25 @@
-commit 7e11ff38160da714b3528d58021aefa42c7ed7e3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 11 15:08:38 2022 -0700
+commit 6992dcdad9b94a2b33b957474ef0eb210d563a40
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 23 15:23:57 2021 -0700
 
-    spec: correct assignment rules with respect to type parameters
+    [dev.typeparams] cmd/compile: fix some issues with cons.go
     
-    Fixes #52628.
+    Add a test to make sure there's no invalid OCONVIFACEs when stenciling is done.
     
-    Change-Id: If4261abc25868d62f7689253d40f872692c23a4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405755
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Use concrete types for the type of DOTTYPE and DOTTYPE2.
+    
+    MarkTypeUsedInInterface - should we allow types with shape types
+    underneath? I think the itab CL will help with this (at least, for
+    a remaining cons.go issue).
+    
+    Change-Id: I2c96d74e8daaca26cadc84ea94abb9a27c0bb240
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337069
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- doc/go_spec.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/stencil.go       | 24 +++++++++++++++++++++++-
+ src/cmd/compile/internal/reflectdata/reflect.go |  6 ++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

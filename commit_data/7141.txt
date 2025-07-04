@@ -1,17 +1,42 @@
-commit 3426b80dd9483a25d8d12fa0f39be7686f26c97b
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Jan 18 15:39:38 2011 -0500
+commit 12307008e93ca5ef9dca20f0c4e78d6b9b492b6a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 18 14:15:11 2011 -0500
 
-    xml: support for > in tags
+    runtime: print signal information during panic
     
-    This introduces support for selecting which subelement
-    to unmarshal into a given struct field by providing a
-    nesting path separated by the > character.
+    $ 6.out
+    panic: runtime error: invalid memory address or nil pointer dereference
     
-    R=rsc
+    [signal 11 code=0x1 addr=0x0 pc=0x1c16]
+    
+    runtime.panic+0xa7 /Users/rsc/g/go/src/pkg/runtime/proc.c:1089
+            runtime.panic(0xf6c8, 0x25c010)
+    runtime.panicstring+0x69 /Users/rsc/g/go/src/pkg/runtime/runtime.c:88
+            runtime.panicstring(0x24814, 0x0)
+    runtime.sigpanic+0x144 /Users/rsc/g/go/src/pkg/runtime/darwin/thread.c:465
+            runtime.sigpanic()
+    main.f+0x16 /Users/rsc/x.go:5
+            main.f()
+    main.main+0x1c /Users/rsc/x.go:9
+            main.main()
+    runtime.mainstart+0xf /Users/rsc/g/go/src/pkg/runtime/amd64/asm.s:77
+            runtime.mainstart()
+    runtime.goexit /Users/rsc/g/go/src/pkg/runtime/proc.c:149
+            runtime.goexit()
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4066041
+    https://golang.org/cl/4036042
 
- src/pkg/xml/read.go      | 88 +++++++++++++++++++++++++++++++++++++++++++++---
- src/pkg/xml/read_test.go | 68 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 152 insertions(+), 4 deletions(-)
+ src/pkg/runtime/darwin/386/signal.c    | 1 +
+ src/pkg/runtime/darwin/amd64/signal.c  | 1 +
+ src/pkg/runtime/freebsd/386/signal.c   | 1 +
+ src/pkg/runtime/freebsd/amd64/signal.c | 1 +
+ src/pkg/runtime/linux/386/signal.c     | 1 +
+ src/pkg/runtime/linux/amd64/signal.c   | 1 +
+ src/pkg/runtime/linux/arm/signal.c     | 1 +
+ src/pkg/runtime/proc.c                 | 2 ++
+ src/pkg/runtime/runtime.c              | 7 ++++++-
+ src/pkg/runtime/runtime.h              | 1 +
+ test/golden.out                        | 8 --------
+ 11 files changed, 16 insertions(+), 9 deletions(-)

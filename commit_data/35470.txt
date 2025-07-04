@@ -1,16 +1,25 @@
-commit ef880a2f61c200540dd630bd0c45067088164b2c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed May 23 20:03:27 2018 +1000
+commit 33eb0633e160460aaf0707b20b12f296159b77a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 14 20:54:28 2018 -0800
 
-    cmd/go: skip TestLinkerTmpDirIsDeleted if cgo is not enabled
+    cmd/compile/internal/syntax: don't assume (operator) ~ means operator ^
     
-    Fixes builders that do not have cgo installed.
+    The scanner assumed that ~ really meant ^, which may be helpful when
+    coming from C. But ~ is not a valid Go token, and pretending that it
+    should be ^ can lead to confusing error messages. Better to be upfront
+    about it and complain about the invalid character in the first place.
     
-    Change-Id: I719b7959226b0e67c3ffc11e071784787cabc5ab
-    Reviewed-on: https://go-review.googlesource.com/114235
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This was code "inherited" from the original yacc parser which was
+    derived from a C compiler. It's 10 years later and we can probably
+    assume that people are less confused about C and Go.
+    
+    Fixes #23587.
+    
+    Change-Id: I8d8f9b55b0dff009b75c1530d729bf9092c5aea6
+    Reviewed-on: https://go-review.googlesource.com/94160
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/syntax/scanner.go      |  4 ----
+ src/cmd/compile/internal/syntax/scanner_test.go |  2 +-
+ test/fixedbugs/issue23587.go                    | 12 ++++++++++++
+ 3 files changed, 13 insertions(+), 5 deletions(-)

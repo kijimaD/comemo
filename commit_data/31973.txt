@@ -1,20 +1,25 @@
-commit a89e6be5e409960da744626c27e24c130aa6e076
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jun 30 16:51:07 2017 -0400
+commit a0d6d3855f103db492afb43b243d2ed52959f575
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 27 14:48:24 2017 -0700
 
-    runtime: clean up mheap.allocLarge
+    cmd/compile: construct typename in walk instead of SSA conversion
     
-    mheap.allocLarge just calls bestFitTreap and is the only caller of
-    bestFitTreap. Flatten these into a single function. Also fix their
-    comments: allocLarge claims to return exactly npages but can in fact
-    return a larger span, and h.freelarge is not in fact indexed by span
-    start address.
+    This eliminates references to lineno and
+    other globals from ssa conversion.
     
-    Change-Id: Ia20112bdc46643a501ea82ea77c58596bc96f125
-    Reviewed-on: https://go-review.googlesource.com/47315
-    Run-TryBot: Austin Clements <austin@google.com>
+    Passes toolstash-check.
+    
+    Updates #15756
+    
+    Change-Id: I9792074fab0036b42f454b79139d0b27db913fb5
+    Reviewed-on: https://go-review.googlesource.com/38721
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mheap.go | 13 ++++---------
- 1 file changed, 4 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go    | 12 ++++--------
+ src/cmd/compile/internal/gc/subr.go   |  9 +++++++++
+ src/cmd/compile/internal/gc/swt.go    | 16 ++++++++++------
+ src/cmd/compile/internal/gc/syntax.go |  6 +++---
+ src/cmd/compile/internal/gc/walk.go   | 15 ++++++++++++---
+ 5 files changed, 38 insertions(+), 20 deletions(-)

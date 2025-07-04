@@ -1,0 +1,25 @@
+commit 7e2487cf65f749528c17adf95ad2a82196f48de2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 1 02:30:39 2024 +0700
+
+    cmd/compile: avoid dynamic type when possible
+    
+    If the expression type is a single compile-time known type, use that
+    type instead of the dynamic one, so the later passes of the compiler
+    could skip un-necessary runtime calls.
+    
+    Thanks Youlin Feng for writing the original test case.
+    
+    Change-Id: I3f65ab90f041474a9731338a82136c1d394c1773
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616975
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ir/type.go      | 20 ++++++++++++++
+ src/cmd/compile/internal/noder/reader.go |  6 +++-
+ src/cmd/compile/internal/walk/switch.go  | 17 ------------
+ test/codegen/typeswitch.go               | 47 ++++++++++++++++++++++++++++++++
+ 4 files changed, 72 insertions(+), 18 deletions(-)

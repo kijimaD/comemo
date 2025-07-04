@@ -1,22 +1,21 @@
-commit d4bcfe4e834da1d31b7071e83eb045e089271175
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Apr 13 13:17:26 2023 +0100
+commit a900a176bf946ac220336c7c5dad107745fc9c41
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 17 19:50:47 2022 -0700
 
-    regexp: fix copy-paste typo on Regexp.UnmarshalText doc
+    cmd/compile/internal/types: use Type.LinkString in TypeHash
     
-    I noticed that https://go.dev/cl/479401 called both methods MarshalText
-    in the godoc, so fix that.
+    Now that Type.LinkString always returns a fully unique string ID, we
+    can use it in TypeHash to avoid collisions between instantiations of
+    the same generic type.
     
-    While here, add more godoc links for better usability.
+    Updates #51734.
     
-    Change-Id: I8f10bafeca6a1ca1c1ed9be7a7dd9fdecfe991a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484335
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I38cb396c88259be7afa44bd4333124ca98666c3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393716
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/regexp/regexp.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types/fmt.go | 27 +++++++--------------------
+ 1 file changed, 7 insertions(+), 20 deletions(-)

@@ -1,20 +1,15 @@
-commit ae162554f9e0078b325fb32e2e10ddda15b2acdc
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 16 13:39:50 2020 -0400
+commit c5f692021279ee4c6426130f4525d8053fffcbcf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 26 12:54:21 2020 -0400
 
-    net/http: try to deflake TestTransportDiscardsUnneededConns
+    [dev.link] cmd/link: convert textbuildid pass to new style
     
-    Fixes #33585.
-    Fixes #36797.
-    
-    Change-Id: I9202b624642368089a9ce827e3e7a7427100bf4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263144
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ic3a7bfc8b0290bd7bdc71e64cab74788328c41d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225657
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/net/http/clientserver_test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/data.go | 17 +++++++++--------
+ src/cmd/link/internal/ld/main.go |  6 ++++--
+ 2 files changed, 13 insertions(+), 10 deletions(-)

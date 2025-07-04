@@ -1,0 +1,25 @@
+commit 5165f54167a404985428cfd87aecc80595af491a
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Thu Jul 18 21:50:15 2024 -0600
+
+    cmd/go: add support for mod tools
+    
+    Running `go tool` with no arguments will now list built in tools
+    followed by module defined tools.
+    
+    Running `go tool X` where X matches either the full package path,
+    or the last segment of the package path, of a defined tool will
+    build the tool to a known location and immediately execute it.
+    
+    For golang/go#48429
+    
+    Change-Id: I02249df8dad12fb74aa244002f82a81af20e732f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534817
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go            |   6 +-
+ src/cmd/go/internal/base/tool.go |  16 ++++-
+ src/cmd/go/internal/tool/tool.go | 131 +++++++++++++++++++++++++++++++++++----
+ 3 files changed, 138 insertions(+), 15 deletions(-)

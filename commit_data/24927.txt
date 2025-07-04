@@ -1,15 +1,23 @@
-commit a20556bf565f2b98e9f54f287b5f3e0a929dacf9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 16 11:24:43 2015 -0800
+commit 00c638d243056b24f1deeb2d1d954e62baedd468
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 8 08:42:28 2015 -0700
 
-    cmd/compile/internal/gc: correctly use internal call to error reporting
+    runtime: on map update, don't overwrite key if we don't need to.
     
-    Fixes #13266.
+    Keep track of which types of keys need an update and which don't.
     
-    Change-Id: I31da922e0599989e52acf346374c2077b157ebb7
-    Reviewed-on: https://go-review.googlesource.com/16971
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Strings need an update because the new key might pin a smaller backing store.
+    Floats need an update because it might be +0/-0.
+    Interfaces need an update because they may contain strings or floats.
+    
+    Fixes #11088
+    
+    Change-Id: I9ade53c1dfb3c1a2870d68d07201bc8128e9f217
+    Reviewed-on: https://go-review.googlesource.com/10843
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/parser.go |  6 +++---
- test/fixedbugs/issue13266.go          | 10 ++++++++++
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 58 +++++++++++++++++++++++++++++++---
+ src/reflect/type.go                    | 29 +++++++++++++++++
+ src/runtime/hashmap.go                 |  4 ++-
+ src/runtime/type.go                    |  1 +
+ 4 files changed, 86 insertions(+), 6 deletions(-)

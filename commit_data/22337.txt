@@ -1,14 +1,18 @@
-commit d6b40698528c94f3d0d3e263d5713994cebfb3a6
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Apr 8 01:24:17 2015 +1000
+commit ed263f4dd2b8d9b0681d4e3b7ce79471fb800fc4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 14:04:12 2015 -0500
 
-    cmd/internal/gc: fix race build
+    cmd/internal/obj: remove use of "iota - X"
     
-    Add special case for OGETG which should never be instrumented.
+    This was inserted by c2go to turn each enum { ... } into one const ( ... ) block,
+    but it is fragile and was never intended as a long-term thing.
     
-    Change-Id: I7d082abb8608537f82b03362b687baf2a1d809dc
-    Reviewed-on: https://go-review.googlesource.com/8551
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I8de8e0984b130456da70e4d59891276dfef7ac27
+    Reviewed-on: https://go-review.googlesource.com/6932
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/racewalk.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/internal/obj/link.go        |  7 +++-
+ src/cmd/internal/obj/mgc0.go        |  5 ++-
+ src/cmd/internal/obj/ppc64/9.out.go | 10 ++---
+ src/cmd/internal/obj/x86/6.out.go   | 80 ++++++++++++++++++++++++++++++-------
+ 4 files changed, 80 insertions(+), 22 deletions(-)

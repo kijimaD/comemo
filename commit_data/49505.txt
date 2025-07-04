@@ -1,20 +1,48 @@
-commit 66685fb7dd72531aed6f1b3f4de43799bb26c052
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jun 19 22:57:10 2022 -0700
+commit 5b64381155a779d5392f015e08111906c6e35738
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Aug 22 08:58:24 2021 -0700
 
-    doc/go1.19: use correct link to sync/atomic docs
+    cmd/compile: fix naming of types inside instantiations
     
-    For #51400
-    Fixes #53453
+    Issues 47713 and 47877 were both due to problems with the names used for
+    instantiated functions/methods, which must be in sync with the names
+    used by types2.
     
-    Change-Id: Ie11182a16299cf26d03970d6aa9bfe03caa56ea4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413235
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+     - Switched to using NameString() for writing out type arguments in
+       instantiation names. This ensures that we are always adding the
+       package to type names even for the local package. Previously, we were
+       explicitly adding the package name for local packages, but that
+       doesn't handle the case when the local type is embedded inside a
+       pointer or slice type. By switching to NameString(), we fix #47713.
+    
+     - types1 and types2 write out 'interface {' differently (vs.
+       'interface{') and we were already handling that. But we needed to add
+       similar code to handle 'struct {' vs 'struct{'. This fixes issue
+       #47877.
+    
+    While fixing these bugs, I also moved some duplicated code (which
+    include some of the changes above) into a common function addTargs(). I
+    also moved InstType() name to subr.go, and renamed: MakeInstName ->
+    MakeFuncInstSym and MakeDictName -> MakeDictSym.
+    
+    Also removed a couple of ".inst..inst." prefix checks which are
+    irrelvant now, since we don't add ".inst." anymore to function
+    instantiations.
+    
+    Fixes #47713
+    Fixes #47877
+    Fixes #47922
+    
+    Change-Id: I19e9a073451f3ababd8ec31b6608cd79ba8cba36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344613
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.19.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/stencil.go       |  4 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  8 +---
+ src/cmd/compile/internal/typecheck/iimport.go   | 29 +-----------
+ src/cmd/compile/internal/typecheck/subr.go      | 59 ++++++++++++++-----------
+ test/typeparam/issue47713.go                    | 52 ++++++++++++++++++++++
+ test/typeparam/issue47713.out                   |  1 +
+ test/typeparam/issue47877.go                    | 23 ++++++++++
+ 7 files changed, 115 insertions(+), 61 deletions(-)

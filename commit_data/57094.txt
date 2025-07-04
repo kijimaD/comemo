@@ -1,19 +1,18 @@
-commit 0ea534b89949e2c7de1b9c2703b454e67102598c
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Aug 3 07:51:45 2024 +0000
+commit 60876717b402f0dd6b4f585827779a9e435400c8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 15 17:41:37 2023 -0400
 
-    crypto/internal/boring: use internal/byteorder
+    cmd/go/internal/test: don't wait for previous test actions when interrupted
     
-    Change-Id: I882dd4160fb24b1d605af28bca01227716dac717
-    GitHub-Last-Rev: c631b19068aa95dcebed29a9a68cda5644a973b8
-    GitHub-Pull-Request: golang/go#68697
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602179
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Zxilly Chou <zxilly@outlook.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #60203.
+    
+    Change-Id: I59a3320ede1eb3cf4443d7ea37b8cb39d01f222a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503936
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/crypto/internal/boring/sha.go | 126 ++++++++++++++------------------------
- 1 file changed, 45 insertions(+), 81 deletions(-)
+ src/cmd/go/go_unix_test.go       | 86 +++++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/test/test.go | 10 ++++-
+ 2 files changed, 94 insertions(+), 2 deletions(-)

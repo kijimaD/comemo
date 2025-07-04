@@ -1,17 +1,18 @@
-commit 4de4480dc34fbe4f7b0ed97eada26aef7a7e2337
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Fri Dec 4 01:46:59 2020 +0100
+commit 5c9a8c0761ae643828a4526db764ac7a50a1a24d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 28 08:58:55 2020 +0200
 
-    doc/go1.16: cleanup crypto release notes
+    lib/time, time/tzdata: update tz data to 2020a
     
-    For #40700
-    Fixes #42897
+    Updates #22487
     
-    Change-Id: Id3b87841a899818d6939dcc3edbaaa0bc183e913
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275313
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I691b4c8ced7bfb368f46ade0be46b2ab3f1820dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230360
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.16.html | 108 +++++++++++++++++++++++++++-----------------------------
- 1 file changed, 53 insertions(+), 55 deletions(-)
+ lib/time/update.bash       |     4 +-
+ lib/time/zoneinfo.zip      |   Bin 781791 -> 782509 bytes
+ src/time/tzdata/zipdata.go | 25148 ++++++++++++++++++++++---------------------
+ 3 files changed, 12582 insertions(+), 12570 deletions(-)

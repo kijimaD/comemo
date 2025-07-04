@@ -1,22 +1,15 @@
-commit f8b5838123585fc74d8463ff3b99a9780b0517b9
+commit c7cc894ef5978746dce145227808287fee627dc0
 Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Oct 9 08:57:29 2012 +1100
+Date:   Tue Oct 9 08:10:32 2012 +1100
 
-    testing: change -test.benchtime to a flag.Duration.
+    net/url: report first error from ParseQuery.
     
-    Fixes #3902.
+    Fixes #4175.
     
-    R=golang-dev, minux.ma, rsc, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6611059
+    https://golang.org/cl/6610068
 
- misc/zsh/go                              | 2 +-
- src/cmd/go/doc.go                        | 4 ++--
- src/cmd/go/test.go                       | 4 ++--
- src/cmd/go/testflag.go                   | 2 +-
- src/pkg/go/doc/testdata/benchmark.go     | 4 ++--
- src/pkg/go/doc/testdata/testing.1.golden | 2 +-
- src/pkg/net/http/serve_test.go           | 2 +-
- src/pkg/testing/benchmark.go             | 4 ++--
- test/fixedbugs/bug369.go                 | 4 ++--
- 9 files changed, 14 insertions(+), 14 deletions(-)
+ src/pkg/net/url/url.go      |  8 ++++++--
+ src/pkg/net/url/url_test.go | 11 +++++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

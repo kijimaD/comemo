@@ -1,18 +1,21 @@
-commit d16a57542a83adfb8182508291ddcfe99c406818
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Thu Dec 2 13:33:18 2021 -0500
+commit b55d90052918024caf331b35b209e434e3b7d176
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 7 00:06:06 2021 -0400
 
-    doc/go1.18: add new sync.[RW]Mutex methods
+    cmd/compile: correct argument area size for typedmemmove/typedmemclr
     
-    CL 319769
+    When the write barrier pass emits typedmemmove/typedmemclr calls,
+    even the arguments are in registers, we still need to leave space
+    for the spill slots. Count that space. Otherwise when the callee
+    spills arguments it may clobber locals on the caller's frame.
     
-    Updates #47694
-    
-    Change-Id: I9655af0d249926617645c33617d53b73f985aa19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368797
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5326943427feaf66cab7658a5bef55b3baf5d345
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307824
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.18.html | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/writebarrier.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

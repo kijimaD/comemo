@@ -1,14 +1,15 @@
-commit c6f280584c61835c0cc9f15222e842d68f500d8d
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Sep 3 12:33:06 2015 +1200
+commit b733234856879fa2df787649fce6e46adf7a6663
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 20 11:56:24 2015 +0000
 
-    cmd/go: implicitly include math in a shared library on arm
+    net/http: document that [ListenAnd]Serve always returns a non-nil error
     
-    In the same manner in which runtime/cgo is included on other architectures.
+    Fixes #12229
     
-    Change-Id: I90a5ad8585248b2566d763d33994a600508d89cb
-    Reviewed-on: https://go-review.googlesource.com/14221
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I243e39f67748e6754fb7726b21b3afc1ff436771
+    Reviewed-on: https://go-review.googlesource.com/13780
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/build.go | 41 +++++++++++++++++++++++++++++++++--------
- 1 file changed, 33 insertions(+), 8 deletions(-)
+ src/net/http/server.go | 23 +++++++++++++----------
+ src/net/http/triv.go   |  5 +----
+ 2 files changed, 14 insertions(+), 14 deletions(-)

@@ -1,19 +1,15 @@
-commit d098bffd8488df939221bc487cf6f2f124b66e1e
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Tue Nov 6 20:40:40 2012 +0100
+commit 2355409988305be158a55bfa5817ab2351fce825
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 6 11:36:59 2012 -0800
 
-    cmd/gc, runtime: avoid unnecessary copy on type assertion.
+    cmd/gc: don't require that slice index constants be small ints
     
-    When the first result of a type assertion is blank, the compiler would still copy out a potentially large non-interface type.
+    The test for this is test/index.go, which is not run by
+    default.
     
-    Fixes #1021.
-    
-    R=golang-dev, bradfitz, rsc
+    R=remyoudompheng, rsc
     CC=golang-dev
-    https://golang.org/cl/6812079
+    https://golang.org/cl/6812089
 
- src/cmd/gc/builtin.c    |  2 ++
- src/cmd/gc/runtime.go   |  2 ++
- src/cmd/gc/walk.c       | 25 +++++++++++++++++++++++++
- src/pkg/runtime/iface.c | 14 ++++++++++++++
- 4 files changed, 43 insertions(+)
+ src/cmd/gc/walk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

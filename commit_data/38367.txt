@@ -1,37 +1,41 @@
-commit a083648165a7facfeca6f37c023b4b069585acb0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 4 15:33:19 2019 -0800
+commit 202e9031444cef93c16a97cf076e5f8a9d9c3a75
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Oct 18 10:53:44 2018 +0100
 
-    spec: document new Go2 number literals
+    text/template: recover panics during function calls
     
-    This CL documents the new binary and octal integer literals,
-    hexadecimal floats, generalized imaginary literals and digit
-    separators for all number literals in the spec.
+    There's precedent in handling panics that happen in functions called
+    from the standard library. For example, if a fmt.Formatter
+    implementation fails, fmt will absorb the panic into the output text.
     
-    Added empty lines between abutting paragraphs in some places
-    (a more thorough cleanup can be done in a separate CL).
+    Recovering panics is useful, because otherwise one would have to wrap
+    some Template.Execute calls with a recover. For example, if there's a
+    chance that the callbacks may panic, or if part of the input data is nil
+    when it shouldn't be.
     
-    A minor detail: A single 0 was considered an octal zero per the
-    syntax (decimal integer literals always started with a non-zero
-    digit). The new octal literal syntax allows 0o and 0O prefixes
-    and when keeping the respective octal_lit syntax symmetric with
-    all the others (binary_lit, hex_lit), a single 0 is not automatically
-    part of it anymore. Rather than complicating the new octal_lit syntax
-    to include 0 as before, it is simpler (and more natural) to accept
-    a single 0 as part of a decimal_lit. This is purely a notational
-    change.
+    In particular, it's a common confusion amongst new Go developers that
+    one can call a method on a nil receiver. Expecting text/template to
+    error on such a call, they encounter a long and confusing panic if the
+    method expects the receiver to be non-nil.
     
-    R=Go1.13
+    To achieve this, introduce safeCall, which takes care of handling error
+    returns as well as recovering panics. Handling panics in the "call"
+    function isn't strictly necessary, as that func itself is run via
+    evalCall. However, this makes the code more consistent, and can allow
+    for better context in panics via the "call" function.
     
-    Updates #12711.
-    Updates #19308.
-    Updates #28493.
-    Updates #29008.
+    Finally, add some test cases with a mix of funcs, methods, and func
+    fields that panic.
     
-    Change-Id: Ib9fdc6e781f6031cceeed37aaed9d05c7141adec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/161098
+    Fixes #28242.
+    
+    Change-Id: Id67be22cc9ebaedeb4b17fa84e677b4b6e09ec67
+    Reviewed-on: https://go-review.googlesource.com/c/143097
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 154 +++++++++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 126 insertions(+), 28 deletions(-)
+ src/text/template/exec.go      | 10 +++----
+ src/text/template/exec_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++
+ src/text/template/funcs.go     | 23 +++++++++++++---
+ 3 files changed, 83 insertions(+), 9 deletions(-)

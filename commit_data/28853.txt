@@ -1,52 +1,12 @@
-commit 0ce1d79a6a771f7449ec493b993ed2a720917870
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 11 08:34:58 2016 -0700
+commit d47bcd157cdf0e937dbca01939d0c287e7c49acd
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Aug 15 12:57:13 2016 -0700
 
-    database/sql: accept nil pointers to Valuers implemented on value receivers
+    doc: document go1.7
     
-    The driver.Valuer interface lets types map their Go representation to
-    a suitable database/sql/driver.Value.
-    
-    If a user defines the Value method with a value receiver, such as:
-    
-        type MyStr string
-    
-        func (s MyStr) Value() (driver.Value, error) {
-            return strings.ToUpper(string(s)), nil
-        }
-    
-    Then they can't use (*MyStr)(nil) as an argument to an SQL call via
-    database/sql, because *MyStr also implements driver.Value, but via a
-    compiler-generated wrapper which checks whether the pointer is nil and
-    panics if so.
-    
-    We now accept (*MyStr)(nil) and map it to "nil" (an SQL "NULL")
-    if the Valuer method is implemented on MyStr instead of *MyStr.
-    
-    If a user implements the driver.Value interface with a pointer
-    receiver, they retain full control of what nil means:
-    
-        type MyStr string
-    
-        func (s *MyStr) Value() (driver.Value, error) {
-            if s == nil {
-                return "missing MyStr", nil
-            }
-            return strings.ToUpper(string(*s)), nil
-        }
-    
-    Adds tests for both cases.
-    
-    Fixes #8415
-    
-    Change-Id: I897d609d80d46e2354d2669a8a3e090688eee3ad
-    Reviewed-on: https://go-review.googlesource.com/31259
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: Ieae5831b35768a625bf735a38f3d938f23f0b77b
+    Reviewed-on: https://go-review.googlesource.com/27057
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/convert.go      | 26 ++++++++++++-
- src/database/sql/convert_test.go | 83 ++++++++++++++++++++++++++++++++++++++++
- src/database/sql/driver/types.go | 26 ++++++++++++-
- 3 files changed, 131 insertions(+), 4 deletions(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,16 +1,13 @@
-commit 5374ded1f3c35a9c98f4a80e35b4b11fa3caa1c7
+commit 38445ca08915c0fb755f9f15f99a3226ed7f45f4
 Author: Joel Sing <jsing@google.com>
-Date:   Fri May 11 03:48:43 2012 +1000
+Date:   Fri May 11 03:48:16 2012 +1000
 
-    runtime: fix syscalls for netbsd
-    
-    Use correct syscall numbers and arguments for NetBSD.
-    Provide a trampoline for signal returns (using signal API 3).
+    runtime: fix netbsd sigaction struct
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6209048
+    https://golang.org/cl/6198063
 
- src/pkg/runtime/sys_netbsd_386.s   | 27 +++++++++++++++++++++++----
- src/pkg/runtime/sys_netbsd_amd64.s | 18 +++++++++++++++---
- 2 files changed, 38 insertions(+), 7 deletions(-)
+ src/pkg/runtime/signal_netbsd_386.c   | 15 +++++++++------
+ src/pkg/runtime/signal_netbsd_amd64.c | 15 +++++++++------
+ 2 files changed, 18 insertions(+), 12 deletions(-)

@@ -1,12 +1,13 @@
-commit c4845c1c49093e129f04c4892d636b5d3572dee8
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Nov 2 16:25:24 2011 +1100
+commit e223eedc8b83bf6199a82b621db80ec3620b48db
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 1 20:57:17 2011 -0700
 
-    gc: fix spelling of "GOEXPERIMENT" in a comment.
+    spec: delete spurious article
+    A profound change to christen the new tag.
     
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5323070
+    https://golang.org/cl/5327062
 
- src/cmd/gc/lex.c | 2 +-
+ doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

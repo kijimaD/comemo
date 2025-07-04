@@ -1,17 +1,24 @@
-commit 69107e73cedb600187c5924247cdd0cf8f74070a
-Author: Xargin <buaa.cch@gmail.com>
-Date:   Wed Jul 28 20:40:07 2021 +0000
+commit 626cc7c02dd3a1a85d95f83e2d7e988e483e3cac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 18 13:54:27 2020 -0800
 
-    runtime: change 0 to pollNoError in netpollblock
+    test: permit "exponent too large" error
     
-    Change-Id: I95e91ff21420e396aef876e77bc4ccdc45ab40ca
-    GitHub-Last-Rev: 8e6bd3f002b1c29fed8ce1bd344f7727e8580555
-    GitHub-Pull-Request: golang/go#47372
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337249
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    The language spec only requires a signed binary exponent of 16 bits
+    for floating point constants. Permit a "exponent too large" error for
+    larger exponents.
+    
+    Don't run test 11326b with gccgo, as it requires successful compilation
+    of floating point constants with exponents that don't fit in 16 bits.
+    
+    Change-Id: I98688160c76864aba525a151a14aaaf86bc36a6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279252
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/netpoll.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/issue11326.go  | 10 +++++-----
+ test/fixedbugs/issue11326b.go |  4 ++++
+ test/fixedbugs/issue13471.go  | 22 +++++++++++-----------
+ 3 files changed, 20 insertions(+), 16 deletions(-)

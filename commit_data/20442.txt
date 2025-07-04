@@ -1,47 +1,14 @@
-commit 653fb6d872e31b05441f313911684d5cd351597e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 16 17:39:55 2014 -0400
+commit 3a3d47db370805205181da8f96ebf79c3507e953
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 8 12:33:08 2014 -0700
 
-    liblink: make GO_ARGS the default for functions beginning with ·
+    runtime: merge panic1.go back into panic.go
     
-    If there is a leading ·, assume there is a Go prototype and
-    attach the Go prototype information to the function.
-    If the function is not called from Go and does not need a
-    Go prototype, it can be made file-local instead (using name<>(SB)).
-    
-    This fixes the current BSD build failures, by giving functions like
-    sync/atomic.StoreUint32 argument stack map information.
-    
-    Fixes #8753.
-    
-    LGTM=khr, iant
-    R=golang-codereviews, iant, khr, bradfitz
-    CC=golang-codereviews, r, rlh
-    https://golang.org/cl/142150043
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/139370043
 
- src/liblink/objfile.c             | 23 ++++++++++++++++++++++-
- src/runtime/asm_386.s             |  9 +++------
- src/runtime/asm_amd64.s           |  9 +++------
- src/runtime/asm_arm.s             |  9 +++------
- src/syscall/asm_darwin_386.s      |  5 -----
- src/syscall/asm_darwin_amd64.s    |  4 ----
- src/syscall/asm_dragonfly_386.s   |  5 -----
- src/syscall/asm_dragonfly_amd64.s |  5 -----
- src/syscall/asm_freebsd_386.s     |  5 -----
- src/syscall/asm_freebsd_amd64.s   |  5 -----
- src/syscall/asm_freebsd_arm.s     |  5 -----
- src/syscall/asm_linux_386.s       |  7 -------
- src/syscall/asm_linux_amd64.s     |  5 -----
- src/syscall/asm_linux_arm.s       |  5 -----
- src/syscall/asm_nacl_386.s        |  1 -
- src/syscall/asm_nacl_amd64p32.s   |  1 -
- src/syscall/asm_nacl_arm.s        |  1 -
- src/syscall/asm_netbsd_386.s      |  5 -----
- src/syscall/asm_netbsd_amd64.s    |  5 -----
- src/syscall/asm_netbsd_arm.s      |  5 -----
- src/syscall/asm_openbsd_386.s     |  5 -----
- src/syscall/asm_openbsd_amd64.s   |  5 -----
- src/syscall/asm_plan9_386.s       |  6 ------
- src/syscall/asm_plan9_amd64.s     |  6 ------
- test/nosplit.go                   | 13 +++++++++++--
- 25 files changed, 42 insertions(+), 112 deletions(-)
+ src/runtime/panic.go  | 202 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/panic1.go | 209 --------------------------------------------------
+ 2 files changed, 202 insertions(+), 209 deletions(-)

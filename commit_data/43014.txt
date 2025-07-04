@@ -1,26 +1,29 @@
-commit 0f7ac9b4f5f6bc20344feb8a2c32b8126df80baa
-Author: Alex Opie <amtopie@gmail.com>
-Date:   Thu Sep 17 04:31:50 2020 +0000
+commit 529988d62c1ffc3e5332231fc3e977858e5a2351
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 11 17:49:52 2020 -0800
 
-    cmd/go: use the correct linker config in the buildID hash
+    os: seek should invalidate any cached directory reads
     
-    The linker config is hashed into the buildID; however,
-    the GOROOT_FINAL environment variable that is
-    actually used when -trimpath is specified was not
-    reflected in that hash. This change fixes that.
+    When we seek on the underlying FD, discard any directory entries
+    we've already read and cached. This makes sure we won't return
+    the same entry twice.
     
-    Fixes #38989
+    We already fixed this for Darwin in CL 209961.
     
-    Change-Id: I418a21a9f6293ca63c101d22b501dfdba8e91ac6
-    GitHub-Last-Rev: 4cf82920e4a76173c5cb5359b059e87ee7fc7f51
-    GitHub-Pull-Request: golang/go#40296
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243557
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Fixes #37161
+    
+    Change-Id: I20e1ac8d751443135e67fb4c43c18d69befb643b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219143
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/exec.go                   |  9 +++--
- src/cmd/go/internal/work/gc.go                     |  5 ++-
- .../go/testdata/script/link_matching_actionid.txt  | 38 ++++++++++++++++++++++
- 3 files changed, 49 insertions(+), 3 deletions(-)
+ src/os/dir_darwin.go         | 10 ----------
+ src/os/dir_unix.go           |  2 --
+ src/os/file_unix.go          |  7 ++++++-
+ src/os/os_test.go            | 31 +++++++++++++++++++++++++++++++
+ src/os/testdata/issue37161/a |  1 +
+ src/os/testdata/issue37161/b |  1 +
+ src/os/testdata/issue37161/c |  1 +
+ 7 files changed, 40 insertions(+), 13 deletions(-)

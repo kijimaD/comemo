@@ -1,25 +1,27 @@
-commit 289c930750fccac6aca578c675694b612532fd24
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Nov 15 22:42:41 2021 -0500
+commit c59b17e5a2244f7a99c440a07a1c174344da0ad8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jan 30 11:41:29 2021 +0000
 
-    go/types: slightly relax notion of structural type
+    cmd/go: make -coverpkg=all skip test-only packages
     
-    This is a port of CL 363075 from types2 to go/types, adjusted for the
-    different error reporting API, and to adjust positions of error messages
-    in tests.
+    Otherwise, the added test would fail in an unnecessary way:
     
-    Change-Id: Ic6bfedf1152eff94bad20725b56e6ba804b2e3e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363991
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+            go build example.com/cov/onlytest: no non-test Go files ...
+    
+    The test script is mimicking other cover_pkgall_*.txt scripts, so it
+    similarly tests both GOPATH and module modes.
+    
+    Fixes #27333.
+    
+    Change-Id: Ie60be569b31d49b173a78556c0669a87ada6799e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288292
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/types/expr.go                           | 35 ++++++++--------
- src/go/types/stmt.go                           | 32 ++++++---------
- src/go/types/testdata/check/typeparams.go2     |  2 +-
- src/go/types/testdata/fixedbugs/issue43671.go2 |  6 +--
- src/go/types/testdata/fixedbugs/issue45920.go2 | 17 ++++++++
- src/go/types/testdata/fixedbugs/issue47115.go2 |  4 +-
- src/go/types/type.go                           | 55 +++++++++++++++++++++-----
- 7 files changed, 98 insertions(+), 53 deletions(-)
+ src/cmd/go/internal/load/test.go                   |  8 ++--
+ src/cmd/go/internal/test/test.go                   |  6 +++
+ .../go/testdata/script/cover_pkgall_imports.txt    | 48 ++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 3 deletions(-)

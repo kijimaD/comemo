@@ -1,43 +1,22 @@
-commit d089a6c7187f1ff85277515405ec6c641588a7ff
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 9 14:03:49 2017 -0500
+commit 9d1efba28db4c045356c92c20f98cf12b5f31d72
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 27 14:33:58 2016 -0400
 
-    runtime: remove stack barriers
+    cmd/link: put text at address 0x1000000 on darwin/amd64
     
-    Now that we don't rescan stacks, stack barriers are unnecessary. This
-    removes all of the code and structures supporting them as well as
-    tests that were specifically for stack barriers.
+    Apparently on macOS Sierra LLDB thinks /usr/lib/dyld is mapped
+    at address 0, even if Go code starts at 0x1000, and it looks up
+    addresses from dyld which shadows Go symbols. Move Go binary at
+    a higher address to avoid clash.
     
-    Updates #17503.
+    Fixes #17463. Re-enable TestLldbPython.
     
-    Change-Id: Ia29221730e0f2bbe7beab4fa757f31a032d9690c
-    Reviewed-on: https://go-review.googlesource.com/36620
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I89ca6f3ee48aa6da9862bfa0c2da91477cc93255
+    Reviewed-on: https://go-review.googlesource.com/32185
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/runtime/asm_386.s           |  30 ---
- src/runtime/asm_amd64.s         |  36 ----
- src/runtime/asm_amd64p32.s      |  31 ----
- src/runtime/asm_arm.s           |  33 ----
- src/runtime/asm_arm64.s         |  33 ----
- src/runtime/asm_mips64x.s       |  32 ----
- src/runtime/asm_mipsx.s         |  28 ---
- src/runtime/asm_ppc64x.s        |  34 ----
- src/runtime/asm_s390x.s         |  31 ----
- src/runtime/extern.go           |   7 -
- src/runtime/mbitmap.go          |  22 +--
- src/runtime/mgc.go              |  20 +-
- src/runtime/mgcmark.go          |  76 --------
- src/runtime/mstkbar.go          | 393 ----------------------------------------
- src/runtime/panic.go            |   1 -
- src/runtime/pprof/pprof_test.go | 115 +-----------
- src/runtime/proc.go             |  39 +---
- src/runtime/runtime1.go         |  43 ++---
- src/runtime/runtime2.go         |   8 -
- src/runtime/stack.go            |  41 +----
- src/runtime/stack_test.go       |   8 +-
- src/runtime/stubs.go            |   9 +-
- src/runtime/trace.go            |   7 +-
- src/runtime/traceback.go        |  55 ------
- 24 files changed, 32 insertions(+), 1100 deletions(-)
+ src/cmd/link/internal/amd64/obj.go | 2 +-
+ src/runtime/runtime-lldb_test.go   | 1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)

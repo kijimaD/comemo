@@ -1,15 +1,21 @@
-commit f961d8e5b10c317b86efca18e19ef0f238032c0a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Sep 21 14:31:09 2021 -0700
+commit c9b1445ac830891e2ebb7a4c3ce278309bdcc764
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jan 15 22:21:33 2021 +0700
 
-    runtime: add Func method benchmarks
+    [dev.regabi] cmd/compile: remove TypeAssertExpr {Src,Dst}Type fields
     
-    Change-Id: Ib76872c22b1be9e611199b84fd96b59beedf786c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351457
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    CL 283233 added reflectType method to ssagen.state, which we can use to
+    setup type address in the SSA backend in favor of the frontend. However,
+    this will change the order of symbols generation, so not safe for toolstash.
+    
+    Change-Id: Ib6932ec42a9d28c3fd7a1c055596e75494c29843
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284115
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/symtab_test.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/cmd/compile/internal/ir/expr.go    | 8 +++-----
+ src/cmd/compile/internal/ssagen/ssa.go | 6 +++---
+ src/cmd/compile/internal/walk/expr.go  | 5 -----
+ 3 files changed, 6 insertions(+), 13 deletions(-)

@@ -1,41 +1,29 @@
-commit 6520da6ed5241b0383d50a286b4be0da70dc352b
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Wed Feb 24 23:22:40 2016 +0100
+commit 5ebb374f96da366d2c44b2fae7d9b3d0af7825dd
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Dec 2 15:41:44 2015 -0800
 
-    fmt: use public io.RuneScanner interface for ScanState reader
+    archive/tar: properly parse GNU base-256 encoding
     
-    All io.Reader that are passed to newScanState in all the standard
-    library tests that implement io.RuneReader also implement io.RuneScanner.
+    Motivation:
+    * Previous implementation did not detect integer overflow when
+    parsing a base-256 encoded field.
+    * Previous implementation did not treat the integer as a two's
+    complement value as specified by GNU.
     
-    Do not check on each call ScanState's UnreadRune that the used RuneReader
-    also implements the UnreadRune method by using a private interface.
-    Instead require the used Reader to implement the public RuneScanner
-    interface.
+    The relevant GNU specification says:
+    <<<
+    GNU format uses two's-complement base-256 notation to store values
+    that do not fit into standard ustar range.
+    >>>
     
-    The extra implementation logic for UnreadRune is removed from ScanState.
-    Instead the readRune wrapper is extended to implement UnreadRune for the
-    RuneScanner interface. If the Reader passed to newScanstate does not
-    implement RuneScanner the readRune wrapper is used to implement the
-    missing functionality.
+    Fixes #12435
     
-    Note that a RuneReader that does not implement RuneScanner will also
-    be wrapped by runeRead which was not the case before.
-    Performance with the readRune wrapper is better than without before.
-    
-    Add benchmark to compare performance with and without using the
-    readRune wrapper.
-    
-    name                             old time/op  new time/op  delta
-    ScanInts-2                        704µs ± 0%   615µs ± 1%  -12.73%  (p=0.000 n=20+20)
-    ScanRecursiveInt-2               82.6ms ± 0%  51.4ms ± 0%  -37.71%  (p=0.000 n=20+20)
-    ScanRecursiveIntReaderWrapper-2  85.1ms ± 0%  52.4ms ± 0%  -38.36%  (p=0.000 n=20+20)
-    
-    Change-Id: I8c6e85db9b87a8171caab12f020b6e256b498e81
-    Reviewed-on: https://go-review.googlesource.com/19895
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I4639bcffac8d12e1cb040b76bd05c9d7bc6c23a8
+    Reviewed-on: https://go-review.googlesource.com/17424
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/fmt/scan.go      | 109 ++++++++++++++++++++++++---------------------------
- src/fmt/scan_test.go |  12 ++++++
- 2 files changed, 63 insertions(+), 58 deletions(-)
+ src/archive/tar/reader.go      | 38 ++++++++++++++++++++----
+ src/archive/tar/reader_test.go | 67 +++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 96 insertions(+), 9 deletions(-)

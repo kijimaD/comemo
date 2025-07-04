@@ -1,22 +1,14 @@
-commit 6252b41981a5e5566b727de14cda5aece4bee98f
+commit 0218dfe7eb4afded4614a51d03bfedfec995378d
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 9 15:06:05 2013 -0400
+Date:   Mon Sep 9 13:11:41 2013 -0400
 
-    runtime: remove OABI check from ARM startup
+    cmd/gc: allow inlined struct == to mention unsafe.Pointer even in safe mode
     
-    The code in question is trying to print a nice error message
-    when a Go EABI binary runs on an OABI machine.
-    Unfortunately, the only way to do that is to use
-    ARM Thumb instructions, which we otherwise don't use.
+    Fixes #5578.
     
-    There exist ARM EABI machines that do not support Thumb.
-    We could run on them if not for this OABI check, so disable it.
-    
-    Fixes #5685.
-    
-    R=golang-dev, minux.ma
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/13234050
+    https://golang.org/cl/13417044
 
- src/pkg/runtime/rt0_linux_arm.s | 45 +++++++++++++++++++++++------------------
- 1 file changed, 25 insertions(+), 20 deletions(-)
+ src/cmd/gc/walk.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,12 +1,16 @@
-commit 0a6f8b042d168986cc2c07a62c05c769310a6c3e
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Oct 4 12:02:04 2014 +0400
+commit 870f4e190ccbc70900bd0ba724d4f4c1e14e3070
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 25 13:24:43 2014 -0400
 
-    doc/go1.4: document memory consumption reduction
+    cmd/gc: emit error for out-of-bounds slice of constant string
     
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/149370043
+    Fixes #7200.
+    
+    LGTM=gri, iant
+    R=golang-codereviews, gri, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/150020044
 
- doc/go1.4.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/typecheck.c      | 25 +++++++++++++++----------
+ test/fixedbugs/issue4232.go | 29 ++++++++++++++++++++++++++---
+ 2 files changed, 41 insertions(+), 13 deletions(-)

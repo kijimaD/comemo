@@ -1,40 +1,22 @@
-commit 31658ace9d277b7322413e9c3a21528bdc6db884
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Mar 7 01:04:13 2025 +0000
+commit e069587c8d530ec912614d138bbf59a1d1788fb9
+Author: Jin Lin <jinl@uber.com>
+Date:   Tue Jan 23 19:40:38 2024 -0800
 
-    runtime/internal: clean up completely
+    cmd/preprofile: Implement a tool to preprocess the PGO profile.
     
-    We've been slowly moving packages from runtime/internal to
-    internal/runtime. For now, runtime/internal only has test packages.
+    It fixes the issue https://github.com/golang/go/issues/65220.
+    It also includes  https://go.dev/cl/557458 from Michael.
     
-    It's a good chance to clean up the references to runtime/internal
-    in the toolchain.
-    
-    For #65355.
-    
-    Change-Id: Ie6f9091a44511d0db9946ea6de7a78d3afe9f063
-    GitHub-Last-Rev: fad32e2e81d11508e734c3c3d3b0c1da583f89f5
-    GitHub-Pull-Request: golang/go#72137
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655515
+    Change-Id: Ic6109e1b6a9045459ff4a54dea11cbfe732b01e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557918
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/dist/test.go                                                  | 2 +-
- src/cmd/go/internal/load/pkg.go                                       | 2 +-
- src/cmd/internal/objabi/pkgspecial.go                                 | 2 +-
- src/cmd/link/internal/ld/data.go                                      | 3 +--
- .../internal => internal/runtime}/startlinetest/func_amd64.go         | 0
- src/{runtime/internal => internal/runtime}/startlinetest/func_amd64.s | 0
- src/{runtime/internal => internal/runtime}/wasitest/host_test.go      | 0
- src/{runtime/internal => internal/runtime}/wasitest/nonblock_test.go  | 0
- src/{runtime/internal => internal/runtime}/wasitest/tcpecho_test.go   | 0
- .../internal => internal/runtime}/wasitest/testdata/nonblock.go       | 0
- .../internal => internal/runtime}/wasitest/testdata/tcpecho.go        | 0
- src/net/file_wasip1_test.go                                           | 2 +-
- src/runtime/atomic_pointer.go                                         | 4 ++--
- src/runtime/panic.go                                                  | 2 +-
- src/runtime/pprof/protomem_test.go                                    | 3 ---
- src/runtime/preempt.go                                                | 1 -
- src/runtime/start_line_amd64_test.go                                  | 2 +-
- 17 files changed, 9 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/base/flag.go              |   2 +-
+ src/cmd/compile/internal/pgo/irgraph.go            | 205 +++++++++++++++----
+ src/cmd/compile/internal/test/pgo_inl_test.go      |  35 +++-
+ .../testdata/pgo/inline/inline_hot.pprof.node_map  |  13 ++
+ src/cmd/preprofile/main.go                         | 224 +++++++++++++++++++++
+ .../internal/graph => internal/profile}/graph.go   |  13 +-
+ 6 files changed, 448 insertions(+), 44 deletions(-)

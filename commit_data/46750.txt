@@ -1,26 +1,18 @@
-commit 990c9c6cabad6a083ac67c591a38f73d00850da8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Oct 5 11:31:57 2021 -0700
+commit 7eaaf28caee0442f2376735ac28de252c7f4baae
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 25 14:14:10 2021 -0800
 
-    Revert "runtime: use unsafe.Slice in getStackMap"
+    [dev.regabi] cmd/compile: disallow taking address of SSA'd values
     
-    This reverts commit golang.org/cl/352953.
+    Adds some extra validation that the frontend is setting flags like
+    Addrtaken correctly.
     
-    Reason for revert: unsafe.Slice is considerably slower.
-    Part of this is extra safety checks (good), but most of it
-    is the function call overhead. We should consider open-coding it (#48798).
-    
-    Impact of this change:
-    
-    name                   old time/op  new time/op  delta
-    StackCopyWithStkobj-8  12.1ms ± 5%  11.6ms ± 3%  -4.03%  (p=0.009 n=10+8)
-    
-    Change-Id: Ib2448e3edac25afd8fb55ffbea073b8b11521bde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354090
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iffde83e32ba1c4c917ab8cb3fe410a4f623cf635
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286434
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/stack.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 5 +++++
+ 1 file changed, 5 insertions(+)

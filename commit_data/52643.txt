@@ -1,31 +1,24 @@
-commit c38d122fd4df8481a5b57a696945d65b7d4fc28e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Apr 13 03:19:20 2023 +0000
+commit cb458c05a82aefb253034558b34f16dee8713274
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Mar 25 23:29:44 2022 +0700
 
-    cmd/internal/moddeps: preserve PWD more carefully in commands
+    cmd/compile: don't inline fn with shape params, but passed no shape arg
     
-    On macOS, TMPDIR is typically a symlink, and the GOROOT for the
-    buildlet is in TMPDIR as well. PWD must be preserved in order for
-    os.Getwd (and functions based on it) to report paths that remain
-    relative to GOROOT, and paths relative to GOROOT are necessary in
-    order for filepath.Rel to report subdirectories as subdirectories
-    (rather than paths with long "../../…" prefixes).
+    This is the same fix as CL 36126, but for the reverse case, function
+    with shape params but passed no shape arg. The same conversion problem
+    may occur in this case, see details explanation there.
     
-    Fortunately, the (*Cmd).Environ method added for #50599 makes
-    preserving PWD somewhat easier.
+    Fixes #51909
+    Fixes #51925
     
-    This fixes 'go test cmd/internal/moddeps' on the new
-    darwin-amd64-longtest builder.
-    
-    For #35678.
-    
-    Change-Id: Ibaa458bc9a94b44ba455519bb8da445af07fe0d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484295
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ib0c1973c7511d85b4918a252c80060f1864180cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395854
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/internal/moddeps/moddeps_test.go | 25 +++++++++++++++++++------
- 1 file changed, 19 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 19 ++++++++++++-
+ test/typeparam/issue51909.go           | 30 ++++++++++++++++++++
+ test/typeparam/issue51925.go           | 52 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 100 insertions(+), 1 deletion(-)

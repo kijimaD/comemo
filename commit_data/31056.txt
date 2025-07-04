@@ -1,20 +1,20 @@
-commit 5de5dd8d25d17fa8893ee7244c1cb02e87d5ccfd
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Wed Mar 8 08:11:33 2017 +0900
+commit 6593d8650da5d19787bea9383dabe94f36fa04be
+Author: Hironao OTSUBO <motemen@gmail.com>
+Date:   Thu Jan 12 23:21:53 2017 +0900
 
-    mime: fix panic parsing 'encoded-word'
+    go/ast: fix Object's doc comment about Data
     
-    https://go-review.googlesource.com/37812 says fix panic parsing.
-    Actually, it doesn't. so fix it.
+    The doc comment about the Data field of go/ast.Object reflects its old
+    behavior, from when the go/types typechecker depended on ast.Objects.
     
-    Fixes #19416
+    Since when the doc was written, the behavior has changed in
+    https://golang.org/cl/7058060 and https://golang.org/cl/7096048 .
     
-    Change-Id: Ie0c4241f10e5ebcbac20e184c2a7b13b22632eab
-    Reviewed-on: https://go-review.googlesource.com/37912
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #18631
+    
+    Change-Id: I10fc3e31cfbf7b303eec44150df917f6eb285f90
+    Reviewed-on: https://go-review.googlesource.com/35075
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/mime/encodedword.go      | 6 +++---
- src/mime/encodedword_test.go | 1 +
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/go/ast/scope.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

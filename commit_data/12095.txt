@@ -1,16 +1,15 @@
-commit ce837b308f1f05ff002fb3d2d869d7bf6a778799
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 21 14:28:49 2012 +1100
+commit 01156f05de8b3a54b37458dfa4b71dacc43d0c72
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 21 14:12:07 2012 +1100
 
-    test: rewrite test/run shell script + errchk (perl) in Go
+    doc: fix links in installation instructions
     
-    This doesn't run all ~750 of the tests, but most.
+    Fixes #3051.
     
-    Progress on issue 2833
-    
-    R=golang-dev, ality, rsc, r, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5625044
+    https://golang.org/cl/5683056
 
- test/run.go | 454 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 454 insertions(+)
+ doc/install-source.html | 10 +++++-----
+ doc/install.html        |  6 +++---
+ 2 files changed, 8 insertions(+), 8 deletions(-)

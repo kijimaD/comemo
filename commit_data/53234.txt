@@ -1,30 +1,33 @@
-commit 6f13d0bfe42115d1d5452bee0bb7648d968beeb4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu May 18 15:51:57 2023 +0000
+commit fb1bfd4d37d40cd5e4969ac631cf979d7b08f1a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 3 23:01:08 2022 -0400
 
-    runtime: fix usage of stale "now" value for netpolling Ms
+    all: remove pre-Go 1.17 workarounds
     
-    Currently pidleget gets passed "now" from before the M goes into
-    netpoll, resulting in incorrect accounting of idle CPU time.
-    lastpoll is also stored with a stale "now": the mistake was added in the
-    same CL it was added for pidleget.
+    The Go bootstrap toolchain requirement is now Go 1.17.
+    We can finally delete all these pre-Go 1.17 workarounds.
     
-    Recompute "now" after returning from netpoll.
+    For #44505.
     
-    Also, start tracking idle time on js/wasm at all.
-    
-    Credit to Rhys Hiltner for the test case.
-    
-    Fixes #60276.
-    
-    Change-Id: I5dd677471f74c915dfcf3d01621430876c3ff307
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496183
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I59d4dff1cde23da022892b5b6a116eb3dbad9ce4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420903
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/lock_js.go      |  6 +++++
- src/runtime/metrics_test.go | 59 +++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/proc.go         |  7 ++++--
- 3 files changed, 70 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bootstrap.go           | 17 ------------
+ src/cmd/compile/internal/gc/pprof.go               | 14 ----------
+ src/cmd/compile/internal/gc/trace.go               | 30 ----------------------
+ src/cmd/compile/internal/gc/util.go                | 16 ++++++++----
+ src/cmd/compile/internal/logopt/escape.go          | 14 ----------
+ .../compile/internal/logopt/escape_bootstrap.go    | 13 ----------
+ src/cmd/compile/internal/logopt/log_opts.go        |  4 +--
+ src/internal/pkgbits/frames_go1.go                 | 21 ---------------
+ src/internal/pkgbits/frames_go17.go                | 28 --------------------
+ src/internal/pkgbits/sync.go                       | 19 ++++++++++++++
+ src/sort/slice.go                                  | 15 ++++++-----
+ src/sort/slice_go113.go                            | 13 ----------
+ src/sort/slice_go14.go                             | 23 -----------------
+ src/sort/slice_go18.go                             | 13 ----------
+ 14 files changed, 41 insertions(+), 199 deletions(-)

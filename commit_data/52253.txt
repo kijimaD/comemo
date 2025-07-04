@@ -1,20 +1,29 @@
-commit 70f98a251efdbfd619c4ff466a43da299ad04752
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu Mar 2 11:57:24 2023 +0800
+commit ebe1435fbb50bb82bfca53063e8daba4f870ec8d
+Author: zhangyunhao <zhangyunhao@bytedance.com>
+Date:   Mon Apr 18 15:23:20 2022 +0800
 
-    errors: add ErrUnsupported
+    runtime: add fastrand64
     
-    Fixes #41198
+    Support fastrand64 in the runtime, although fastrand uses wyrand to generate 64-bit random number, it still returns uint32. In some cases, we need to generate a 64-bit random number, the new API would be faster and easier to use, and at least we can use the new function in these places:
     
-    Change-Id: Ib33a11d0eb311f8e2b81de24d11df49e00b2fc81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473935
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    src/net/dnsclient.go:randInt()
+    src/hash/maphash/maphash.go:MakeSeed()
+    src/runtime/map.go:mapiterinit()
+    
+    name                 time/op
+    Fastrand-16          0.09ns ± 5%
+    Fastrand64-16        0.09ns ± 6%
+    
+    Change-Id: Ibb97378c7ca59bc7dc15535d4872fa58ea112e6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400734
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- api/next/41198.txt   |  1 +
- src/errors/errors.go | 15 +++++++++++++++
- 2 files changed, 16 insertions(+)
+ src/runtime/export_test.go |  1 +
+ src/runtime/rand_test.go   |  8 ++++++++
+ src/runtime/stubs.go       | 39 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 48 insertions(+)

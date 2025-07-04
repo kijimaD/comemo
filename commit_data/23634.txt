@@ -1,19 +1,36 @@
-commit 4735002f58af2cf7f8ffbbea1830fe0401579102
-Author: Hariharan Srinath <srinathh@gmail.com>
-Date:   Sat Jul 11 14:20:14 2015 +0530
+commit 66be1481df8c653537b2c6c76f79bc1272d1fa8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 21:30:20 2015 -0400
 
-    flag: Clarifies docs for Arg(int) and FlagSet.Arg(int)
+    cmd/compile: remove Node.Ntest, Node.Stkdelta
     
-    Adds the clarification that these functions return empty
-    string if the requested element is not available
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 272
+    $
     
-    Added fullstops
-    
-    Fixes #11664
-    
-    Change-Id: I84173862bc785240f7d3ee75a5023673264d172b
-    Reviewed-on: https://go-review.googlesource.com/12061
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I3d9b67eebfc0be0a4b9768d3de3dc76300abd89c
+    Reviewed-on: https://go-review.googlesource.com/10521
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/flag/flag.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/esc.go       |  13 ++--
+ src/cmd/compile/internal/gc/export.go    |   1 -
+ src/cmd/compile/internal/gc/fmt.go       |  19 ++---
+ src/cmd/compile/internal/gc/gen.go       |  26 +++----
+ src/cmd/compile/internal/gc/go.y         |  14 ++--
+ src/cmd/compile/internal/gc/gsubr.go     |   4 +-
+ src/cmd/compile/internal/gc/init.go      |   4 +-
+ src/cmd/compile/internal/gc/inl.go       |  10 +--
+ src/cmd/compile/internal/gc/order.go     |  20 +++---
+ src/cmd/compile/internal/gc/pgen.go      |  11 ++-
+ src/cmd/compile/internal/gc/racewalk.go  |  19 ++---
+ src/cmd/compile/internal/gc/range.go     |  22 +++---
+ src/cmd/compile/internal/gc/select.go    |  32 ++++-----
+ src/cmd/compile/internal/gc/sinit.go     |   4 +-
+ src/cmd/compile/internal/gc/subr.go      |   8 +--
+ src/cmd/compile/internal/gc/swt.go       | 115 ++++++++++++++++---------------
+ src/cmd/compile/internal/gc/syntax.go    |   4 +-
+ src/cmd/compile/internal/gc/typecheck.go | 112 ++++++++----------------------
+ src/cmd/compile/internal/gc/walk.go      |  24 +++----
+ src/cmd/compile/internal/gc/y.go         |  14 ++--
+ 20 files changed, 207 insertions(+), 269 deletions(-)

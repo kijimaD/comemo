@@ -1,14 +1,31 @@
-commit 71f72e9d4f1cd3fd7e27515d1a5c5159fca99f0e
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Oct 26 00:06:45 2016 +0200
+commit 8e24a98abe464161bc8937a84f78189684aa738d
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sat Aug 20 22:05:47 2016 -0700
 
-    syscall: use name+(NN)FP on plan9/386
+    cmd/compile: precompute constant square roots
     
-    Generated from go vet.
+    If a program wants to evaluate math.Sqrt for any constant value
+    (for example, math.Sqrt(3)), we can replace that expression with
+    its evaluation (1.7320508075688772) at compile time, instead of
+    generating a SQRT assembly command or equivalent.
     
-    Change-Id: I2620e5544be46485a876c7dce26b0592bf5a4101
-    Reviewed-on: https://go-review.googlesource.com/32070
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Adds tests that math.Sqrt generates the correct values. I also
+    compiled a short program and verified that the Sqrt expression was
+    replaced by a constant value in the "after opt" step.
+    
+    Adds a short doc to the top of generic.rules explaining what the file
+    does and how other files interact with it.
+    
+    Fixes #15543.
+    
+    Change-Id: I6b6e63ac61cec50763a09ba581024adeee03d4fa
+    Reviewed-on: https://go-review.googlesource.com/27457
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/asm_plan9_386.s | 19 ++++++++-----------
- 1 file changed, 8 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go            |  2 +
+ src/cmd/compile/internal/gc/testdata/sqrt_const.go | 59 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/generic.rules     | 21 ++++++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go     | 20 ++++++++
+ src/cmd/compile/internal/ssa/value.go              |  1 +
+ 5 files changed, 100 insertions(+), 3 deletions(-)

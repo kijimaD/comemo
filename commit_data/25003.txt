@@ -1,14 +1,14 @@
-commit de2bc5722dc82455c47a267c8d44dc5b6bf97eed
+commit dace9397b10e85db15c4760eb283ca43855d87d2
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 19 13:54:40 2015 -0800
+Date:   Tue Sep 15 11:16:58 2015 -0700
 
-    cmd/compile: no need to keep ()'s for all pseudocalls
+    src/cmd/compile/internal/gc: fix type assertion in overflow check
     
-    Minor internal optimization.
+    Fixes #11600.
     
-    Change-Id: I229d4a9df3da542b77f830c2830f63ec23ec1d61
-    Reviewed-on: https://go-review.googlesource.com/17065
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: I8871d4e525168fed35115855483a237bbd6e5445
+    Reviewed-on: https://go-review.googlesource.com/14596
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/parser.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/const.go | 15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)

@@ -1,17 +1,19 @@
-commit 24f08103d2dad591a77c2b716f9a13fc7bb234fc
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 4 04:08:26 2019 +1100
+commit aced50af3b4d9e7ee7f34452a227780dce7ea511
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 28 13:15:09 2019 -0700
 
-    cmd/internal/obj/riscv: handle FEQ/FNEG/SEQZ/SNEZ
+    cmd/compile: update fmt_test.go for esc.go code cleanup
     
-    Based on riscv-go port.
+    CL 187598 removed a bunch of esc.go's debug messages, so some format
+    strings are no longer needed.
     
-    Updates #27532
+    Fixes #33915.
     
-    Change-Id: I5e7f45955e1dfdb9d09cc6a4e6f3ce81216d411d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204628
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iaadf12b5d68358e1abb00210f5aa8be01b36ce82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192142
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscvenc.s | 22 ++++++++++++
- src/cmd/internal/obj/riscv/obj.go            | 52 ++++++++++++++++++++++++++++
- 2 files changed, 74 insertions(+)
+ src/cmd/compile/fmtmap_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

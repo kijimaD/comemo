@@ -1,25 +1,12 @@
-commit 3297fc63d6226f6ed47a4fdb5962c78c55c5339c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Mar 10 10:00:02 2012 -0800
+commit 81a38fbb771d1282e5092dfc831ff225b60e2f13
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Mar 10 19:02:52 2012 +1100
 
-    database/sql: fix double connection free on Stmt.Query error
+    net/mail: close minor TODO that was waiting on a 6g bug fix.
     
-    In a transaction, on a Stmt.Query error, it was possible for a
-    connection to be added to a db's freelist twice. Should use
-    the local releaseConn function instead.
-    
-    Thanks to Gwenael Treguier for the failing test.
-    
-    Also in this CL: propagate driver errors through releaseConn
-    into *DB.putConn, which conditionally ignores the freelist
-    addition if the driver signaled ErrBadConn, introduced in a
-    previous CL.
-    
-    R=golang-dev, gary.burd
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/5798049
+    https://golang.org/cl/5796050
 
- src/pkg/database/sql/fakedb_test.go |  4 ++--
- src/pkg/database/sql/sql.go         | 20 +++++++++++------
- src/pkg/database/sql/sql_test.go    | 43 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 58 insertions(+), 9 deletions(-)
+ src/pkg/net/mail/message.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

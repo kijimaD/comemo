@@ -1,28 +1,31 @@
-commit fe2feb978e0c4324047f749c3fcfb9cecaafcfdc
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 17 13:45:14 2018 -0500
+commit be10ad762289943638efb279fc7e04c73b8d7cee
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Aug 21 22:58:08 2018 -0700
 
-    runtime: poison the write barrier buffer during flushing
+    internal/poll: use F_FULLFSYNC fcntl for FD.Fsync on OS X
     
-    Currently we reset the write barrier buffer before processing the
-    pointers in it. As a result, if there were any write barriers in the
-    code that processes the buffer, it would corrupt the write barrier
-    buffer and cause us to mark objects without later scanning them.
+    As reported in #26650 and also cautioned on the man page
+    for fsync on OS X, fsync doesn't properly flush content
+    to permanent storage, and might cause corruption of data if
+    the OS crashes or if the drive loses power. Thus it is recommended
+    to use the F_FULLFSYNC fcntl, which flushes all buffered data to
+    permanent storage and is important for applications such as
+    databases that require a strict ordering of writes.
     
-    As far as I can tell, this shouldn't be happening, but rather than
-    relying on hope (and incomplete static analysis), this CL changes
-    wbBufFlush1 to poison the write barrier buffer while processing it,
-    and only reset it once it's done.
+    Also added a note in syscall_darwin.go that syscall.Fsync is
+    not invoked for os.File.Sync.
     
-    Updates #27993. (Unlike many of the other changes for this issue,
-    there's no need to roll back this CL. It's a good change in its own
-    right.)
+    Fixes #26650.
     
-    Change-Id: I6d2d9f1b69b89438438b9ee624f3fff9f009e29d
-    Reviewed-on: https://go-review.googlesource.com/c/154537
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Idecd9adbbdd640b9c5b02e73b60ed254c98b48b6
+    Reviewed-on: https://go-review.googlesource.com/130676
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mwbbuf.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/internal/poll/fd_fsync_darwin.go | 23 +++++++++++++++++++++++
+ src/internal/poll/fd_fsync_posix.go  | 18 ++++++++++++++++++
+ src/internal/poll/fd_posix.go        |  9 ---------
+ src/syscall/syscall_darwin.go        |  1 +
+ 4 files changed, 42 insertions(+), 9 deletions(-)

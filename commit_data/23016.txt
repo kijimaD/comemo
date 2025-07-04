@@ -1,54 +1,53 @@
-commit ecfe42cab0c22da35aed6752cafaf0d3c7bb44d4
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun May 10 13:43:51 2015 -0400
+commit c776592a4ff17b2153492bf5b17ae3151a42abf0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Apr 19 19:33:58 2015 -0700
 
-    runtime: keep pointer bits set always in 1-word spans
+    cmd/internal/ld: prefer constants from cmd/internal/obj
     
-    It's dumb to clear them in initSpan, set them in heapBitsSetType,
-    clear them in heapBitsSweepSpan, set them again in heapBitsSetType,
-    clear them again in heapBitsSweepSpan, and so on.
+    The majority of this CL was prepared via scripted invocations of
+    `gofmt -w -r "$SYM -> obj.$SYM" cmd/internal/ld/*.go` and `gofmt -w -r
+    "ld.$SYM -> obj.$SYM" cmd/?l/*.go`.
     
-    Set them in initSpan and be done with it (until the span is reused
-    for objects of a different size).
+    Because of issue #7417, that was followed by repeatedly running an AWK
+    script to identify lines that differed other than whitespace changes
+    or "ld." or "obj." prefixes and manually restoring comments.
     
-    This avoids an atomic operation in a common case (one-word allocation).
-    Suggested by rlh.
+    Finally, the redundant constants from cmd/internal/ld/link.go were
+    removed, and "goimports -w" was used to cleanup import lines.
     
-    name                   old mean              new mean              delta
-    BinaryTree17            5.87s × (0.97,1.03)   5.93s × (0.98,1.04)              ~    (p=0.056)
-    Fannkuch11              4.34s × (1.00,1.01)   4.41s × (1.00,1.00)            +1.42% (p=0.000)
-    FmtFprintfEmpty        86.1ns × (0.98,1.03)  88.9ns × (0.95,1.14)              ~    (p=0.066)
-    FmtFprintfString        292ns × (0.97,1.04)   284ns × (0.98,1.03)            -2.64% (p=0.000)
-    FmtFprintfInt           271ns × (0.98,1.06)   274ns × (0.98,1.05)              ~    (p=0.148)
-    FmtFprintfIntInt        478ns × (0.98,1.05)   487ns × (0.98,1.03)            +1.85% (p=0.004)
-    FmtFprintfPrefixedInt   397ns × (0.98,1.05)   394ns × (0.98,1.02)              ~    (p=0.184)
-    FmtFprintfFloat         553ns × (0.99,1.02)   543ns × (0.99,1.01)            -1.71% (p=0.000)
-    FmtManyArgs            1.90µs × (0.98,1.05)  1.88µs × (0.99,1.01)            -0.97% (p=0.037)
-    GobDecode              15.1ms × (0.99,1.01)  15.3ms × (0.99,1.01)            +0.78% (p=0.001)
-    GobEncode              11.7ms × (0.98,1.05)  11.6ms × (0.99,1.02)            -1.39% (p=0.009)
-    Gzip                    646ms × (1.00,1.01)   647ms × (1.00,1.01)              ~    (p=0.120)
-    Gunzip                  142ms × (1.00,1.00)   142ms × (1.00,1.00)              ~    (p=0.068)
-    HTTPClientServer       89.7µs × (0.99,1.01)  90.1µs × (0.98,1.03)              ~    (p=0.224)
-    JSONEncode             31.3ms × (0.99,1.01)  31.2ms × (0.99,1.02)              ~    (p=0.149)
-    JSONDecode              113ms × (0.99,1.01)   111ms × (0.99,1.01)            -1.25% (p=0.000)
-    Mandelbrot200          6.01ms × (1.00,1.00)  6.01ms × (1.00,1.00)            +0.09% (p=0.015)
-    GoParse                6.63ms × (0.98,1.03)  6.55ms × (0.99,1.02)            -1.10% (p=0.006)
-    RegexpMatchEasy0_32     161ns × (1.00,1.00)   161ns × (1.00,1.00)  (sample has zero variance)
-    RegexpMatchEasy0_1K     539ns × (0.99,1.01)   563ns × (0.99,1.01)            +4.51% (p=0.000)
-    RegexpMatchEasy1_32     140ns × (0.99,1.01)   141ns × (0.99,1.01)            +1.34% (p=0.000)
-    RegexpMatchEasy1_1K     886ns × (1.00,1.01)   888ns × (1.00,1.00)            +0.20% (p=0.003)
-    RegexpMatchMedium_32    252ns × (1.00,1.02)   255ns × (0.99,1.01)            +1.32% (p=0.000)
-    RegexpMatchMedium_1K   72.7µs × (1.00,1.00)  72.6µs × (1.00,1.00)              ~    (p=0.296)
-    RegexpMatchHard_32     3.84µs × (1.00,1.01)  3.84µs × (1.00,1.00)              ~    (p=0.339)
-    RegexpMatchHard_1K      117µs × (1.00,1.01)   117µs × (1.00,1.00)            -0.28% (p=0.022)
-    Revcomp                 914ms × (0.99,1.01)   909ms × (0.99,1.01)            -0.49% (p=0.031)
-    Template                128ms × (0.99,1.01)   127ms × (0.99,1.01)            -1.10% (p=0.000)
-    TimeParse               628ns × (0.99,1.01)   639ns × (0.99,1.01)            +1.69% (p=0.000)
-    TimeFormat              660ns × (0.99,1.01)   662ns × (0.99,1.02)              ~    (p=0.287)
+    Passes rsc.io/toolstash/buildall, even when modified to also build cmd.
     
-    Change-Id: I3127b0ab89708267c74aa7d0eae1db1a1bcdfda5
-    Reviewed-on: https://go-review.googlesource.com/9884
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #10055.
+    
+    Change-Id: Icd5dbe819a3b6520ce883748e60017dc8e9a2e85
+    Reviewed-on: https://go-review.googlesource.com/9112
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mbitmap.go | 49 +++++++++++++++++++++++++++++--------------------
- 1 file changed, 29 insertions(+), 20 deletions(-)
+ src/cmd/5l/asm.go              | 110 +++++++++----------
+ src/cmd/5l/obj.go              |  24 ++--
+ src/cmd/6l/asm.go              | 186 +++++++++++++++----------------
+ src/cmd/6l/obj.go              |  40 +++----
+ src/cmd/7l/asm.go              |  56 +++++-----
+ src/cmd/7l/obj.go              |  12 +-
+ src/cmd/8l/asm.go              | 136 +++++++++++------------
+ src/cmd/8l/obj.go              |  28 ++---
+ src/cmd/9l/asm.go              |  72 ++++++------
+ src/cmd/9l/obj.go              |   6 +-
+ src/cmd/internal/ld/data.go    | 244 ++++++++++++++++++++---------------------
+ src/cmd/internal/ld/dwarf.go   |  10 +-
+ src/cmd/internal/ld/elf.go     |  77 ++++++-------
+ src/cmd/internal/ld/go.go      |  16 +--
+ src/cmd/internal/ld/ldelf.go   |  30 ++---
+ src/cmd/internal/ld/ldmacho.go |  17 +--
+ src/cmd/internal/ld/ldpe.go    |  28 ++---
+ src/cmd/internal/ld/lib.go     |  96 ++++++++--------
+ src/cmd/internal/ld/link.go    |  95 ----------------
+ src/cmd/internal/ld/macho.go   |  19 ++--
+ src/cmd/internal/ld/objfile.go |  21 ++--
+ src/cmd/internal/ld/pcln.go    |   8 +-
+ src/cmd/internal/ld/pe.go      |  23 ++--
+ src/cmd/internal/ld/pobj.go    |   6 +-
+ src/cmd/internal/ld/sym.go     |  46 ++++----
+ src/cmd/internal/ld/symtab.go  |  83 +++++++-------
+ 26 files changed, 701 insertions(+), 788 deletions(-)

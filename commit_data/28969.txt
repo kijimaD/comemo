@@ -1,19 +1,15 @@
-commit f0e347b1a8161c41be9dbcfe5db5e4e4dae57cfd
-Author: Joe Tsai <joetsai@google.com>
-Date:   Fri Oct 21 19:43:33 2016 +0000
+commit 55ea153b785249cfa9b15550d78eeb3df7d825d8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 18 05:26:51 2016 +0000
 
-    Revert "cmd/compile: cleanup toolstash hacks from previous CL"
+    os: reference LookupEnv from the Getenv docs
     
-    This partially reverts commit 01bf5cc21912ff8642171d8255a7fff87f1da00b.
+    Fixes #16782
     
-    For unknown reasons, this CL was causing an internal test to allocate
-    1.2GB when it used to allocate less than 300MB.
-    
-    Change-Id: I41d767781e0ae9e43bf670e2a186ee074821eca4
-    Reviewed-on: https://go-review.googlesource.com/31674
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If54917bf5ca1588d8a6d443c3aa6e1d4ada6b620
+    Reviewed-on: https://go-review.googlesource.com/27322
+    Reviewed-by: anatoly techtonik <techtonik@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/os/env.go | 1 +
+ 1 file changed, 1 insertion(+)

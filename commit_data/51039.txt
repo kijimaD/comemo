@@ -1,36 +1,21 @@
-commit 84cd7ab3c388fb3280cf426a35045d85cda99ff8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 26 12:18:13 2022 -0400
+commit ebd0b778c92c4dfc71195ef83d71116957e173ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 26 13:27:12 2021 -0800
 
-    internal/testenv: add CommandContext and Command
+    go/types: better error message for missing ~ in constraint
     
-    This adds a testenv.CommandContext function, with timeout behavior
-    based on the existing logic in cmd/go.TestScript: namely, the command
-    is terminated with SIGQUIT (if supported) with an arbitrary grace
-    period remaining until the test's deadline.
+    This is a port of CL 366758 from types2 to go/types.
     
-    If the test environment does not support executing subprocesses,
-    CommandContext skips the test.
+    For #49179.
     
-    If the command is terminated due to the timout expiring or the test
-    fails to wait for the command after starting it, CommandContext marks
-    the test as failing.
-    
-    For tests where a shorter timeout is desired (such as for fail-fast
-    behavior), one may be supplied using context.WithTimeout.
-    
-    The more concise Command helper is like CommandContext but without
-    the need to supply an explicit Context.
-    
-    Updates #50436.
-    
-    Change-Id: Ifd81fb86c402f034063c9e9c03045b4106eab81a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445596
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I7e1c6ffb392d5c535cf901004b7acbe8c3be9b0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367199
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/testenv/testenv.go | 98 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 98 insertions(+)
+ src/go/types/instantiate.go                    | 25 ++++++++++++++++++++++---
+ src/go/types/testdata/fixedbugs/issue49179.go2 | 20 +++++++++++++++++++-
+ src/go/types/typeset.go                        |  2 ++
+ 3 files changed, 43 insertions(+), 4 deletions(-)

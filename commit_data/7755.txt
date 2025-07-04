@@ -1,12 +1,14 @@
-commit 67077cc1ca18c10a36a744d5d3516cb06034ced9
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Mon Mar 14 12:33:44 2011 -0400
+commit 43ae7da1901ae93a23efcb10aa2b2986e269115b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Mar 12 19:35:41 2011 -0800
 
-    build: remove duplicate dependency in Make.cmd
+    crypto/tls: fix compile error
     
-    R=golang-dev, dfc, rsc1, rsc
+    Fixes #1555.
+    
+    R=rsc, bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4274048
+    https://golang.org/cl/4284047
 
- src/Make.cmd | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/crypto/tls/generate_cert.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,39 +1,19 @@
-commit 15131caeaa83e57fd8bdf87dde2801443f5602db
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Fri May 8 10:51:29 2020 +0800
+commit 5a447c0ae9f43b608314d0fd2f3141fa9c5146ff
+Author: Hanjun Kim <hallazzang@gmail.com>
+Date:   Sun Apr 12 13:41:46 2020 +0000
 
-    cmd/internal/obj/arm64: add CASx/CASPx instructions
+    math/big: fix typo in documentation for Int.Exp
     
-    This patch adds support for CASx and CASPx atomic instructions.
+    Fixes #38304
     
-      go syntax                 gnu syntax
-    CASD Rs, (Rn|RSP), Rt => cas Xs, Xt, (Xn|SP)
-    CASALW Rs, (Rn|RSP), Rt => casal Ws, Wt, (Xn|SP)
-    CASPD (Rs, Rs+1), (Rn|RSP), (Rt, Rt+1) => casp Xs, Xs+1, Xt, Xt+1, (Xn|SP)
-    CASPW (Rs, Rs+1), (Rn|RSP), (Rt, Rt+1) => casp Ws, Ws+1, Wt, Wt+1, (Xn|SP)
+    Also change `If m > 0, y < 0, ...` to `If m != 0, y < 0, ...` since `Exp` will return `nil`
+    whatever `m`'s sign is.
     
-    This patch changes the type of prog.RestArgs from "[]Addr" to
-    "[]struct{Addr, Pos}", Pos is a enum, indicating the position of
-    the operand.
-    
-    This patch also adds test cases.
-    
-    Change-Id: Ib971cfda7890b7aa895d17bab22dea326c7fcaa4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233277
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I17d7337ccd1404318cea5d42a8de904ad185fd00
+    GitHub-Last-Rev: 23995103000505dbf35aa29a717470c4da638fda
+    GitHub-Pull-Request: golang/go#38390
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228000
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/arch/arm64.go             |  13 ++-
- src/cmd/asm/internal/asm/asm.go                |  18 +++-
- src/cmd/asm/internal/asm/testdata/arm64.s      |  18 ++++
- src/cmd/asm/internal/asm/testdata/arm64error.s |   4 +
- src/cmd/compile/internal/s390x/ssa.go          |  12 +--
- src/cmd/internal/obj/arm64/a.out.go            |  14 +++
- src/cmd/internal/obj/arm64/anames.go           |  14 +++
- src/cmd/internal/obj/arm64/asm7.go             | 132 +++++++++++++++++++------
- src/cmd/internal/obj/link.go                   |  84 +++++++++++-----
- src/cmd/internal/obj/riscv/obj.go              |   8 +-
- src/cmd/internal/obj/s390x/asmz.go             |   2 +-
- src/cmd/internal/obj/util.go                   |  15 ++-
- src/cmd/internal/obj/x86/asm6.go               |   6 +-
- 13 files changed, 266 insertions(+), 74 deletions(-)
+ src/math/big/int.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,22 +1,18 @@
-commit 7c94355b738170cf06484d502af7f2d935831c2b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 16 16:28:38 2021 -0800
+commit 069983e5db99fa6b94401f971e9c19440615d233
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Tue Apr 13 12:35:28 2021 +0200
 
-    go/types: better error message when using comparable in union
+    archive/tar: replace os.MkdirTemp with T.TempDir
     
-    This is a port of CL 372674 from types2 to go/types with
-    minor adjustments for error handling.
+    Updates #45402
     
-    For #49602.
-    
-    Change-Id: I726081325a2ff2d5690d11ddc8a830bbcbd8ab33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372954
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I296f8c676c68ed1e10b6ad1a17b5b23d2c395252
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309355
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/types/testdata/fixedbugs/issue49602.go2 | 19 +++++++++++++++++++
- src/go/types/union.go                          | 11 ++++++++++-
- 2 files changed, 29 insertions(+), 1 deletion(-)
+ src/archive/tar/tar_test.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

@@ -1,28 +1,17 @@
-commit a4a57bb4f9a7d4d2d7f4cbe373ab446d73c25966
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 17 15:35:49 2015 -0800
+commit 29330c118d33c8d7c8b1e7f1caf51b421bd4ee04
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 21 17:19:49 2015 -0700
 
-    runtime: prevent race between setNextBarrierPC and sigprof
+    runtime: change fixalloc's chunk field to unsafe.Pointer
     
-    Currently, setNextBarrierPC manipulates the stack barriers without
-    acquiring the stack barrier lock. This is mostly okay because
-    setNextBarrierPC also runs synchronously on the G and prevents safe
-    points, but this doesn't prevent a sigprof from occurring during a
-    setNextBarrierPC and performing a traceback.
+    It's never used as a *byte anyway, so might as well just make it an
+    unsafe.Pointer instead.
     
-    Given that setNextBarrierPC simply sets one entry in the stack barrier
-    array, this is almost certainly safe in reality. However, given that
-    this depends on a subtle argument, which may not hold in the future,
-    and that setNextBarrierPC almost never happens, making it nowhere near
-    performance-critical, we can simply acquire the stack barrier lock and
-    be sure that the synchronization will work.
-    
-    Updates #12528. For 1.5.3.
-    
-    Change-Id: Ife696e10d969f190157eb1cbe762a2de2ebce079
-    Reviewed-on: https://go-review.googlesource.com/18022
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I68ee418781ab2fc574eeac0498f2515b5561b7a8
+    Reviewed-on: https://go-review.googlesource.com/16175
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mstkbar.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/mfixalloc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,67 +1,15 @@
-commit daddeb26865e55432be7d82641e835911828feca
-Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 26 17:09:16 2015 -0800
+commit 3066d05498fc2dfa20db896b52278dfb4f6e57d4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jan 30 15:48:58 2015 +1100
 
-    cmd/internal/obj: make Rconv a global function
+    [dev.cc] lib9: add more error reporting to windows runcmd
     
-    Clean up the obj API by making Rconv (register pretty printer) a top-level
-    function. This means that Dconv (operand pretty printer) doesn't need
-    an Rconv argument.
+    %r format prints nothing useful on windows (see issue 9722).
+    Hopefully this will provide more clues about what happened.
     
-    To do this, we make the register numbers, which are arbitrary inside an
-    operand (obj.Addr), disjoint sets for each architecture. Each architecture
-    registers (ha) a piece of the space and then the global Rconv knows which
-    architecture-specific printer to use.
-    
-    Clean up all the code that uses Dconv.
-    
-    Now register numbers are large, so a couple of fields in Addr need to go
-    from int8 to int16 because they sometimes hold register numbers. Clean
-    up their uses, which meant regenerating the yacc grammars for the
-    assemblers. There are changes in this CL triggered by earlier changes
-    to yacc, which had not been run in this directory.
-    
-    There is still cleanup to do in Addr, but we're getting closer to that being
-    easy to do.
-    
-    Change-Id: I9290ebee013b62f7d24e886743ea5a6b232990ab
-    Reviewed-on: https://go-review.googlesource.com/6220
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic553bbdcde0c3cbfffa3a28f2168d6e75694e2ac
+    Reviewed-on: https://go-review.googlesource.com/3568
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/5a/y.go                          | 462 ++++++++++++++++++----------
- src/cmd/5g/gsubr.go                      |   4 +-
- src/cmd/6a/a.y                           |  12 +-
- src/cmd/6a/lex.go                        |   2 +-
- src/cmd/6a/y.go                          | 499 ++++++++++++++++++++-----------
- src/cmd/6g/cgen.go                       |   2 +-
- src/cmd/6g/gsubr.go                      |   4 +-
- src/cmd/8a/a.y                           |  12 +-
- src/cmd/8a/lex.go                        |   2 +-
- src/cmd/8a/y.go                          | 490 +++++++++++++++++++-----------
- src/cmd/8g/cgen.go                       |   2 +-
- src/cmd/8g/gsubr.go                      |  12 +-
- src/cmd/9a/a.y                           |   2 +-
- src/cmd/9a/y.go                          |   2 +-
- src/cmd/9g/ggen.go                       |   8 +-
- src/cmd/9g/gsubr.go                      |   8 +-
- src/cmd/asm/internal/arch/arch.go        |  14 +-
- src/cmd/asm/internal/asm/asm.go          |  18 +-
- src/cmd/asm/internal/asm/operand_test.go |  12 +-
- src/cmd/asm/internal/asm/parse.go        |  22 +-
- src/cmd/internal/gc/fmt.go               |   4 +-
- src/cmd/internal/gc/reg.go               |   2 +-
- src/cmd/internal/obj/arm/5.out.go        |   3 +-
- src/cmd/internal/obj/arm/asm5.go         |   2 +-
- src/cmd/internal/obj/arm/list5.go        |  44 ++-
- src/cmd/internal/obj/i386/8.out.go       |  24 +-
- src/cmd/internal/obj/i386/asm8.go        |  12 +-
- src/cmd/internal/obj/i386/list8.go       |  27 +-
- src/cmd/internal/obj/link.go             |   3 +-
- src/cmd/internal/obj/ppc64/9.out.go      |  14 +-
- src/cmd/internal/obj/ppc64/asm9.go       |   2 +-
- src/cmd/internal/obj/ppc64/list9.go      |  63 ++--
- src/cmd/internal/obj/util.go             |  70 ++++-
- src/cmd/internal/obj/x86/6.out.go        |  22 +-
- src/cmd/internal/obj/x86/asm6.go         |  12 +-
- src/cmd/internal/obj/x86/list6.go        |  28 +-
- 36 files changed, 1171 insertions(+), 750 deletions(-)
+ src/lib9/run_windows.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

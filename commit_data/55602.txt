@@ -1,64 +1,75 @@
-commit 63dd79c07b0026b58f421a5273c41e705ccb73d1
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Feb 15 23:59:52 2024 -0500
+commit ac27b4dd1d72bd6467bf7bfa8bc77a1522efd4cc
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Feb 23 13:32:10 2023 -0800
 
-    cmd/pprof: update vendored github.com/google/pprof
+    encoding/json: rely on reflect.Value.Grow
     
-    Pull in the latest published version of github.com/google/pprof
-    as part of the continuous process of keeping Go's dependencies
-    up to date. Done with:
+    The Grow method is generally a more efficient way to grow a slice.
+    The older approach of using reflect.MakeSlice has to
+    waste effort zeroing the elements overwritten by the older slice
+    and has to allocate the slice header on the heap.
     
-    go get github.com/google/pprof
-    go mod tidy
-    go mod vendor
+    Performance:
     
-    For #36905.
-    Fixes #65741.
+            name                old time/op    new time/op    delta
+            CodeDecoder         2.41ms ± 2%    2.42ms ± 2%    ~
+            CodeUnmarshal       3.12ms ± 3%    3.13ms ± 3%    ~
+            CodeUnmarshalReuse  2.49ms ± 3%    2.52ms ± 3%    ~
     
-    Change-Id: Ice7b085c03ff69be97929cbe47bfd91954907529
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564636
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+            name                 old alloc/op  new alloc/op   delta
+            CodeDecoder         2.00MB ± 1%    1.99MB ± 1%    ~
+            CodeUnmarshal       3.05MB ± 0%    2.92MB ± 0%    -4.23%
+            CodeUnmarshalReuse  1.68MB ± 0%    1.68MB ± 0%    -0.32%
+    
+            name                old allocs/op  new allocs/op  delta
+            CodeDecoder         77.1k ± 0%     77.0k ± 0%     -0.09%
+            CodeUnmarshal       92.7k ± 0%     91.3k ± 0%     -1.47%
+            CodeUnmarshalReuse  77.1k ± 0%     77.0k ± 0%     -0.07%
+    
+    The Code benchmarks (which are the only ones that uses slices)
+    are largely unaffected. There is a slight reduction in allocations.
+    
+    A histogram of slice lengths from the Code testdata is as follows:
+    
+               ≤1: 392
+               ≤2: 256
+               ≤4: 252
+               ≤8: 152
+              ≤16: 126
+              ≤32: 78
+              ≤64: 62
+             ≤128: 46
+             ≤256: 18
+             ≤512: 10
+            ≤1024: 8
+    
+    A bulk majority of slice lengths are 8 elements or under.
+    Use of reflect.Value.Grow performs better for larger slices since
+    it can avoid the zeroing of memory and has a faster growth rate.
+    However, Grow grows starting from 1 element,
+    with a 2x growth rate until some threshold (currently 512),
+    Starting from 1 ensures better utilization of the heap,
+    but at the cost of more frequent regrowth early on.
+    
+    In comparison, the previous logic always started
+    with a minimum of 4 elements, which leads to a wasted capacity
+    of 75% for the highly frequent case of a single element slice.
+    The older code always had a growth rate of 1.5x,
+    and so wastes less memory for number of elements below 512.
+    
+    All in all, there are too many factors that hurt or help performance.
+    Rergardless, the simplicity of favoring reflect.Value.Grow
+    over manually managing growth rates is a welcome simplification.
+    
+    Change-Id: I62868a7f112ece3c2da3b4f6bdf74d397110243c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471175
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
 
- src/cmd/go.mod                                     |    2 +-
- src/cmd/go.sum                                     |   20 +-
- .../github.com/google/pprof/driver/driver.go       |    7 +-
- .../pprof/internal/binutils/addr2liner_llvm.go     |   22 +-
- .../google/pprof/internal/driver/commands.go       |    2 +
- .../google/pprof/internal/driver/config.go         |    2 +
- .../google/pprof/internal/driver/driver.go         |    2 +-
- .../google/pprof/internal/driver/fetch.go          |   24 +-
- .../google/pprof/internal/driver/flamegraph.go     |  106 --
- .../google/pprof/internal/driver/html/common.js    |   14 +-
- .../pprof/internal/driver/html/flamegraph.html     |  103 --
- .../google/pprof/internal/driver/html/header.html  |    1 -
- .../google/pprof/internal/driver/html/stacks.js    |   18 +-
- .../google/pprof/internal/driver/stacks.go         |    2 +-
- .../github.com/google/pprof/internal/driver/svg.go |    2 +-
- .../google/pprof/internal/driver/webhtml.go        |   10 +-
- .../google/pprof/internal/driver/webui.go          |   16 +-
- .../google/pprof/internal/graph/graph.go           |   15 +-
- .../google/pprof/internal/plugin/plugin.go         |    9 +-
- .../google/pprof/internal/report/report.go         |    3 +-
- .../google/pprof/internal/report/stacks.go         |    5 -
- .../google/pprof/internal/symbolizer/symbolizer.go |    1 +
- .../github.com/google/pprof/profile/encode.go      |    3 +
- .../google/pprof/profile/legacy_java_profile.go    |    4 +-
- .../github.com/google/pprof/profile/merge.go       |    4 +-
- .../github.com/google/pprof/profile/profile.go     |   14 +-
- .../d3flamegraph/D3_FLAME_GRAPH_LICENSE            |  201 ----
- .../pprof/third_party/d3flamegraph/D3_LICENSE      |   13 -
- .../pprof/third_party/d3flamegraph/README.md       |   33 -
- .../third_party/d3flamegraph/d3_flame_graph.go     |   65 --
- .../google/pprof/third_party/d3flamegraph/index.js |   13 -
- .../third_party/d3flamegraph/package-lock.json     | 1106 --------------------
- .../pprof/third_party/d3flamegraph/package.json    |   17 -
- .../pprof/third_party/d3flamegraph/update.sh       |   62 --
- .../third_party/d3flamegraph/webpack.config.js     |   13 -
- .../google/pprof/third_party/svgpan/svgpan.go      |  294 +-----
- .../google/pprof/third_party/svgpan/svgpan.js      |  261 +++++
- src/cmd/vendor/modules.txt                         |    3 +-
- 38 files changed, 395 insertions(+), 2097 deletions(-)
+ src/encoding/json/decode.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

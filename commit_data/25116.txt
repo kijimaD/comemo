@@ -1,19 +1,18 @@
-commit 8a34cf7ee09596235efa6d01e8f6114c585a3c97
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Sun Nov 15 23:32:30 2015 +0100
+commit c4689579c0bcd0ea028e3847e7d407141faa26e2
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Sep 27 02:33:00 2015 +1000
 
-    cmd/compile: don't allow blank method declarations on builtins
+    cmd/go: Skip note reading test with linkmode external on openbsd/arm
     
-    Move test for isblank into addmethod so that most of the type checking
-    for methods is also performed for blank methods.
+    openbsd/arm does not support external linking - skip the note reading test that
+    uses linkmode external on this platform. While here, cleanup the code and
+    consistently use t.Skipf for all platforms that cannot run this test.
     
-    Fixes #11366.
-    
-    Change-Id: I13d554723bf96d906d0b3ff390d7b7c87c1a5020
-    Reviewed-on: https://go-review.googlesource.com/16866
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I64f0d9e038bc4c993c3d843fc069a0b723a924d6
+    Reviewed-on: https://go-review.googlesource.com/15054
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go       | 16 +++++++++-------
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- test/blank1.go                           |  4 ++++
- 3 files changed, 14 insertions(+), 8 deletions(-)
+ src/cmd/go/note_test.go | 34 +++++++++++++++-------------------
+ 1 file changed, 15 insertions(+), 19 deletions(-)

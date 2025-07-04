@@ -1,19 +1,12 @@
-commit 46c5856f6dfcc76e00f753387ea3dc276de2b28e
-Author: Jeff Johnson <jrjohnson@google.com>
-Date:   Fri Dec 22 08:30:39 2017 -0800
+commit 3066dbad52b0b0201f183db723044e68f3e4988d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 1 14:58:32 2017 -0700
 
-    net: revert CL 82975
+    cmd/compile: cleanup toolstash pacifier from OXFALL removal
     
-    this solution as it stands doesn't work with
-    non-english device names (golang/go#23191 (which has a fix))
-    and names some devices differently (golang/go#23153) probably due to the
-    fact that this test previously only ran on Server 2008.
-    
-    Re-opens golang/go#20073
-    
-    Change-Id: I5c36774ddd85ac07620b4015372d564acbb169ad
-    Reviewed-on: https://go-review.googlesource.com/85315
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ide7fe6b09247b7a6befbdfc2d6ce5988aa1df323
+    Reviewed-on: https://go-review.googlesource.com/61131
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/net_windows_test.go | 143 ++++++++++++++++++++++++++++++++------------
- 1 file changed, 105 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/gc/syntax.go | 1 -
+ 1 file changed, 1 deletion(-)

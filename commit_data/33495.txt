@@ -1,22 +1,26 @@
-commit 821e3f7d85e4f05d83f5f93e99bf299a6bfc9034
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Nov 10 10:26:05 2017 +1100
+commit 99fe3f8c63c20d675b0237665a535a8ad9783de4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Aug 18 08:37:58 2017 -0400
 
-    cmd/go: close unintentionally left open file
+    cmd/compile: add rules handling unsigned div/mod by constant 1<<63
     
-    cmd/go/internal/work.Builder.updateBuildID left a file opened.
-    But opened files cannot be deleted on Windows, so cmd/go just
-    leaves these files in %TMP% directory.
+    Normally 64-bit div/mod is turned into runtime calls on 32-bit
+    arch, but the front end leaves power-of-two constant division
+    and hopes the SSA backend turns into a shift or AND. The SSA rule is
     
-    Close the file so deletion can succeed.
+    (Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
     
-    Fixes #22650
+    But isPowerOfTwo returns true only for positive int64, which leaves
+    out 1<<63 unhandled. Add a special case for 1<<63.
     
-    Change-Id: Ia3ea62f6ec7208d73972eae2e17fb4a766407914
-    Reviewed-on: https://go-review.googlesource.com/76810
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #21517.
+    
+    Change-Id: I02d27dc7177d4af0ee8d7f5533714edecddf8c95
+    Reviewed-on: https://go-review.googlesource.com/56890
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/buildid.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/testdata/arithConst.go | 680 +++++++++++++++++++++
+ .../internal/gc/testdata/gen/arithConstGen.go      |   2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   2 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  41 ++
+ 4 files changed, 724 insertions(+), 1 deletion(-)

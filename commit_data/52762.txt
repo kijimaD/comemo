@@ -1,38 +1,25 @@
-commit 00401835c1d5122a84f0500e48655cd787402f3f
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 29 09:12:20 2023 -0700
+commit 78b722d8c2f764c3048c6f0344e9ebcd2687813d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 4 15:44:44 2022 -0400
 
-    flag: panic if a flag is defined after being set
+    cmd/go: place GOROOT/bin at the beginning of PATH in 'go generate' and 'go test'
     
-    As part of developing #57411, we ran into cases where a flag was
-    defined in one package init and Set in another package init, and there
-    was no init ordering implied by the spec between those two
-    packages. Changes in initialization ordering as part of #57411 caused
-    a Set to happen before the definition, which makes the Set silently
-    fail.
+    This causes tests and generators that execute 'go' as a subprocess to
+    use the same go command as the parent 'go test' or 'go generate'
+    command.
     
-    This CL makes the Set fail loudly in that situation.
+    For #51473.
     
-    Currently Set *does* fail kinda quietly in that situation, in that it
-    returns an error. (It seems that no one checks the error from Set,
-    at least for string flags.) Ian suggsted that instead we panic at
-    the definition site if there was previously a Set called on that
-    (at the time undefined) flag.
-    
-    So Set on an undefined flag is ok and returns an error (as before),
-    but defining a flag which has already been Set causes a panic.  (The
-    API for flag definition has no way to return an error, and does
-    already panic in some situations like a duplicate definition.)
-    
-    Update #57411
-    
-    Change-Id: I39b5a49006f9469de0b7f3fe092afe3a352e4fcb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480215
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I003cf1d05d1c93a26c6a7fdfad25e86c11765f59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404134
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/flag/flag.go      | 30 ++++++++++++++++++++++++++++--
- src/flag/flag_test.go | 14 +++++++++++++-
- 2 files changed, 41 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/base/env.go                    | 25 ++++++++++++-
+ src/cmd/go/internal/generate/generate.go           | 21 +++++++++--
+ src/cmd/go/internal/test/test.go                   |  7 +++-
+ .../go/testdata/script/generate_goroot_PATH.txt    | 38 ++++++++++++++++++++
+ src/cmd/go/testdata/script/test_goroot_PATH.txt    | 41 ++++++++++++++++++++++
+ 5 files changed, 127 insertions(+), 5 deletions(-)

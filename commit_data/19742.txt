@@ -1,14 +1,16 @@
-commit 59af2c647bc728270604e8db649d23367060f15d
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Jul 16 20:48:57 2014 +1000
+commit c12c5dba9c9d81242569f4108b707c6c16dfa066
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jul 15 18:44:33 2014 -0700
 
-    cmd/go/doc: Fix example domain
-    code.org exists
+    compress/bzip2: fix panics on malformed input.
+    
+    Fixes 8363.
     
     LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/95500043
+    https://golang.org/cl/114810043
 
- src/cmd/go/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/compress/bzip2/bzip2.go      | 21 +++++++++++++++++++--
+ src/pkg/compress/bzip2/bzip2_test.go | 18 ++++++++++++++++++
+ 2 files changed, 37 insertions(+), 2 deletions(-)

@@ -1,15 +1,24 @@
-commit 9c945809219d88148a2c83f04f69b88dc86ebc0d
+commit 3ac5d54cf91d70571cc68be1361103e11c5d3285
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed May 15 04:40:42 2013 +0800
+Date:   Wed May 15 04:19:19 2013 +0800
 
-    archive/tar: skip NUL-filled unused octal fields
-    Fixes #5290.
+    cmd/gc: improve syntax error for "import testing"
+    for this program:
+    package A
+    import testing
     
-    R=golang-dev, dave, bradfitz, r
+    old diagnostics:
+    pkg.go:2: syntax error: unexpected semicolon or newline, expecting string literal
+    
+    now:
+    pkg.go:2: syntax error: missing import path; require quoted string
+    
+    Fixes #5332.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8763044
+    https://golang.org/cl/9393043
 
- src/pkg/archive/tar/reader.go            |  16 +++++++++-------
- src/pkg/archive/tar/reader_test.go       |  19 +++++++++++++++++++
- src/pkg/archive/tar/testdata/nil-uid.tar | Bin 0 -> 1024 bytes
- 3 files changed, 28 insertions(+), 7 deletions(-)
+ src/cmd/gc/go.errors | 3 +++
+ src/cmd/gc/yerr.h    | 3 +++
+ 2 files changed, 6 insertions(+)

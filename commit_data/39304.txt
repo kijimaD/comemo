@@ -1,16 +1,21 @@
-commit 5f509148b13f196b12109d03809691cd1ed40284
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 3 19:35:40 2019 -0700
+commit 2ef8abb41f2565e38e520c18773308b3cf005af6
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu Feb 21 07:53:15 2019 +0000
 
-    misc/cgo/test: add test for issue 31093
+    cmd/internal/obj/arm64: fix the bug assembling TSTW
     
-    Updates #31093
+    Current assembler reports error when it assembles
+    "TSTW $1689262177517664, R3", but go1.11 was building
+    fine.
     
-    Change-Id: I7962aaca0b012de01768b7b42dc2283d5845eeea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180377
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #30334
+    
+    Change-Id: I9c16d36717cd05df2134e8eb5b17edc385aff0a9
+    Reviewed-on: https://go-review.googlesource.com/c/163259
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ben Shi <powerman1st@163.com>
 
- misc/cgo/test/test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/asm/internal/asm/testdata/arm64.s | 12 ++++++++++++
+ src/cmd/internal/obj/arm64/asm7.go        |  4 ++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)

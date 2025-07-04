@@ -1,17 +1,21 @@
-commit f493e557232e223e313b4641d12e502c69bfe632
-Author: Keith Randall <khr@google.com>
-Date:   Mon Sep 24 12:26:58 2018 -0700
+commit 402dd10a99b0d5a5f83e83ca0bdd073848cc4da3
+Author: David Chase <drchase@google.com>
+Date:   Mon May 21 13:11:50 2018 -0400
 
-    cmd/compile: document regalloc fields
+    cmd/link: revert DWARF version to 2 for .debug_lines
     
-    Document what the fields of regalloc mean.
-    Hopefully will help people understand how the register allocator works.
+    On OSX 10.12 and earlier, paired with XCode 9.0,
+    specifying DWARF version 3 causes dsymutil to misbehave.
+    Version 2 appears to be good enough to allow processing
+    of the prologue_end opcode on (at least one version of)
+    Linux and OSX 10.13.
     
-    Change-Id: Ic322ed2019cc839b812740afe8cd2cf0b61da046
-    Reviewed-on: https://go-review.googlesource.com/137016
+    Fixes #25451.
+    
+    Change-Id: Ic760e34248393a5386be96351c8e492da1d3413b
+    Reviewed-on: https://go-review.googlesource.com/114015
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/main.go |  9 +++++++--
- src/cmd/compile/internal/ssa/op.go       | 12 ++++++++++--
- src/cmd/compile/internal/ssa/regalloc.go |  2 ++
- 3 files changed, 19 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

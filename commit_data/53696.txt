@@ -1,26 +1,20 @@
-commit eaa8419a72215b53576ab5d2def399f9503d1f58
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 15 17:41:19 2023 -0700
+commit 7d574466a9bd001feea4717933adb6ab78acd05f
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Tue Aug 9 23:08:57 2022 +0800
 
-    runtime: decrement netpollWaiters in netpollunblock
+    cmd/internal/obj/loong64: add ROTR, ROTRV instructions support
     
-    We used to decrement it in netpollgoready, but that missed
-    the common case of a descriptor becoming ready due to I/O.
-    All calls to netpollgoready go through netpollunblock,
-    so this shouldn't miss any decrements we missed before.
+    Reference: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
     
-    Fixes #60782
-    
-    Change-Id: Ideefefa1ac96ca38e09fe2dd5d595c5dd7883237
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503923
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I29adb84eb70bffd963c79ed6957a5197896fb2bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422316
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/crash_test.go                   |  9 ++++
- src/runtime/netpoll.go                      |  5 ++-
- src/runtime/testdata/testprognet/waiters.go | 68 +++++++++++++++++++++++++++++
- 3 files changed, 80 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  8 ++++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  2 ++
+ src/cmd/internal/obj/loong64/anames.go          |  2 ++
+ src/cmd/internal/obj/loong64/asm.go             | 14 +++++++++++++-
+ 4 files changed, 25 insertions(+), 1 deletion(-)

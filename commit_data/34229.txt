@@ -1,22 +1,47 @@
-commit 90666b8a3d5545f4295d9c2517ad607ce5d45e52
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jan 1 17:53:59 2018 -0500
+commit 9ad2319bbca45b0750366e99b79db8889f0dfc5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 6 14:03:55 2017 -0400
 
-    runtime: move comment about address space sizes to malloc.go
+    cmd/buildid: add new tool factoring out code needed by go command
     
-    Currently there's a detailed comment in lfstack_64bit.go about address
-    space limitations on various architectures. Since that's now relevant
-    to malloc, move it to a more prominent place in the documentation for
-    memLimitBits.
+    This CL does a few things.
     
-    Updates #10460.
+    1. It moves the existing "read a build ID" code out of the go command
+    and into cmd/internal/buildid.
     
-    Change-Id: If9708291cf3a288057b8b3ba0ba6a59e3602bbd6
-    Reviewed-on: https://go-review.googlesource.com/85889
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    2. It adds new code there to "write a build ID".
+    
+    3. It adds better tests.
+    
+    4. It encapsulates cmd/internal/buildid into a new standalone program
+    "go tool buildid".
+    
+    The go command is going to use the new "write a build ID" functionality
+    in a future CL. Adding the separate "go tool buildid" gives "go build -x"
+    a printable command to explain what it is doing in that new step.
+    (This is similar to the go command printing "go tool pack" commands
+    equivalent to the actions it is taking, even though it's not invoking pack
+    directly.) Keeping go build -x honest means that other build systems can
+    potentially keep up with the go command.
+    
+    Change-Id: I01c0a66e30a80fa7254e3f2879283d3cd7aa03b4
+    Reviewed-on: https://go-review.googlesource.com/69053
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/lfstack_64bit.go | 25 ++++++-------------------
- src/runtime/malloc.go        | 19 ++++++++++++++++++-
- 2 files changed, 24 insertions(+), 20 deletions(-)
+ misc/nacl/testzip.proto                      |   3 +
+ src/cmd/buildid/buildid.go                   |  73 ++++++++++++++
+ src/cmd/buildid/doc.go                       |  18 ++++
+ src/cmd/dist/deps.go                         | 123 ++++++++++++------------
+ src/cmd/dist/mkdeps.go                       |   6 +-
+ src/cmd/go/internal/load/pkg.go              |   6 +-
+ src/cmd/go/internal/work/build.go            |   2 +-
+ src/cmd/go/note_test.go                      |  32 ++-----
+ src/cmd/{go => }/internal/buildid/buildid.go |  68 +++++--------
+ src/cmd/internal/buildid/buildid_test.go     | 137 +++++++++++++++++++++++++++
+ src/cmd/{go => }/internal/buildid/note.go    |  18 ++--
+ src/cmd/internal/buildid/rewrite.go          |  91 ++++++++++++++++++
+ src/cmd/internal/buildid/testdata/a.elf      | Bin 0 -> 12768 bytes
+ src/cmd/internal/buildid/testdata/a.macho    | Bin 0 -> 13472 bytes
+ src/cmd/internal/buildid/testdata/a.pe       | Bin 0 -> 3584 bytes
+ src/cmd/internal/buildid/testdata/p.a        | Bin 0 -> 682 bytes
+ 16 files changed, 436 insertions(+), 141 deletions(-)

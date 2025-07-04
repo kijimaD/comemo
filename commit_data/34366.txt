@@ -1,46 +1,42 @@
-commit 0c471dfae29b0759c6f12e32d2d5ca69ea79d5d8
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Sun Feb 25 20:08:22 2018 +0900
+commit 38cfeb9cb5925466c93b191c03f647566bddced4
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Oct 7 13:49:44 2017 -0400
 
-    cmd: avoid unnecessary type conversions
+    cmd/link: move Headtype global to ctxt
     
-    CL generated mechanically with github.com/mdempsky/unconvert.
+    For #22095
     
-    Also updated cmd/compile/internal/ssa/gen/*.rules manually.
-    
-    Change-Id: If721ef73cf0771ae83ce7e2d11623fc8d9155768
-    Reviewed-on: https://go-review.googlesource.com/97075
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idcfdfe8a94db8626392658bb93429454238f648a
+    Reviewed-on: https://go-review.googlesource.com/70835
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/arch/arm64.go            | 16 +++----
- src/cmd/asm/internal/asm/parse.go             |  2 +-
- src/cmd/cgo/gcc.go                            |  2 +-
- src/cmd/compile/internal/gc/dwinl.go          |  4 +-
- src/cmd/compile/internal/gc/plive.go          |  2 +-
- src/cmd/compile/internal/gc/ssa.go            |  6 +--
- src/cmd/compile/internal/gc/walk.go           | 16 +++----
- src/cmd/compile/internal/ssa/debug.go         |  4 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules    |  4 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules  | 34 +++++++-------
- src/cmd/compile/internal/ssa/gen/MIPS64.rules | 32 ++++++-------
- src/cmd/compile/internal/ssa/gen/PPC64.rules  |  8 ++--
- src/cmd/compile/internal/ssa/rewriteARM.go    |  8 ++--
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 68 +++++++++++++--------------
- src/cmd/compile/internal/ssa/rewriteMIPS64.go | 64 ++++++++++++-------------
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 16 +++----
- src/cmd/doc/pkg.go                            |  2 +-
- src/cmd/internal/buildid/note.go              |  2 +-
- src/cmd/internal/dwarf/dwarf.go               |  4 +-
- src/cmd/internal/goobj/read.go                |  2 +-
- src/cmd/internal/obj/arm/obj5.go              |  2 +-
- src/cmd/internal/obj/arm64/asm7.go            | 14 +++---
- src/cmd/internal/obj/ppc64/obj9.go            |  2 +-
- src/cmd/internal/obj/x86/asm6.go              |  2 +-
- src/cmd/internal/objfile/goobj.go             |  2 +-
- src/cmd/link/internal/arm/asm.go              |  6 +--
- src/cmd/link/internal/ld/data.go              |  4 +-
- src/cmd/link/internal/ld/dwarf.go             |  2 +-
- src/cmd/link/internal/ppc64/asm.go            |  2 +-
- 29 files changed, 166 insertions(+), 166 deletions(-)
+ src/cmd/link/internal/amd64/asm.go   | 20 +++++++-------
+ src/cmd/link/internal/amd64/obj.go   |  4 +--
+ src/cmd/link/internal/arm/asm.go     | 10 +++----
+ src/cmd/link/internal/arm/obj.go     |  4 +--
+ src/cmd/link/internal/arm64/asm.go   | 14 +++++-----
+ src/cmd/link/internal/arm64/obj.go   |  4 +--
+ src/cmd/link/internal/ld/data.go     | 50 +++++++++++++++++-----------------
+ src/cmd/link/internal/ld/deadcode.go |  2 +-
+ src/cmd/link/internal/ld/dwarf.go    | 10 +++----
+ src/cmd/link/internal/ld/elf.go      | 30 ++++++++++----------
+ src/cmd/link/internal/ld/go.go       |  8 +++---
+ src/cmd/link/internal/ld/lib.go      | 53 ++++++++++++++++++------------------
+ src/cmd/link/internal/ld/link.go     |  3 +-
+ src/cmd/link/internal/ld/main.go     | 20 +++++++-------
+ src/cmd/link/internal/ld/pcln.go     |  2 +-
+ src/cmd/link/internal/ld/sym.go      |  4 +--
+ src/cmd/link/internal/ld/symtab.go   |  2 +-
+ src/cmd/link/internal/mips/asm.go    |  2 +-
+ src/cmd/link/internal/mips/obj.go    |  4 +--
+ src/cmd/link/internal/mips64/asm.go  |  6 ++--
+ src/cmd/link/internal/mips64/obj.go  |  4 +--
+ src/cmd/link/internal/ppc64/asm.go   |  6 ++--
+ src/cmd/link/internal/ppc64/obj.go   |  4 +--
+ src/cmd/link/internal/s390x/asm.go   |  2 +-
+ src/cmd/link/internal/s390x/obj.go   |  4 +--
+ src/cmd/link/internal/x86/asm.go     | 14 +++++-----
+ src/cmd/link/internal/x86/obj.go     |  4 +--
+ 27 files changed, 145 insertions(+), 145 deletions(-)

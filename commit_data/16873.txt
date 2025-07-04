@@ -1,18 +1,19 @@
-commit 5852760088f15c68b98f18620e4fa720e1f167da
-Author: Peter Mundy <go.peter.90@gmail.com>
-Date:   Thu Jul 25 09:56:06 2013 -0400
+commit d7c99cdf9fa5548db179758ac9dd267f5f1c9e88
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jul 25 09:42:05 2013 -0400
 
-    syscall: prlimit argument error for Getrlimit and Setrlimit on Linux 32-bit
+    cmd/gc: avoid passing unevaluated constant expressions to backends.
     
-    The rlimit arguments for prlimit are reversed for linux 32-bit (386 and arm).
-    Getrlimit becomes Setrlimit and vice versa.
-    Fixes #5949.
+    Backends do not exactly expect receiving binary operators with
+    constant operands or use workarounds to move them to
+    register/stack in order to handle them.
     
-    R=iant, mikioh.mikioh, rsc
+    Fixes #5841.
+    
+    R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/11803043
+    https://golang.org/cl/11107044
 
- src/pkg/syscall/rlimit_linux_test.go | 41 ++++++++++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_linux_386.go |  4 ++--
- src/pkg/syscall/syscall_linux_arm.go |  4 ++--
- 3 files changed, 45 insertions(+), 4 deletions(-)
+ src/cmd/gc/walk.c           |  7 +++++++
+ test/fixedbugs/issue5841.go | 16 ++++++++++++++++
+ 2 files changed, 23 insertions(+)

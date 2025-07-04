@@ -1,32 +1,13 @@
-commit b44e73eacbce790a1dfcad293604a4b9f5f6976f
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Mon Apr 2 22:50:20 2018 +0300
+commit a8474c799f82c543379ef4a355dc7b5be785d8d8
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Wed Nov 15 10:24:21 2017 +0000
 
-    test/fixedbugs: fix bug248 and bug345
+    archive/zip: add documentation about compression methods
     
-    When test/run script was removed, these two tests
-    were changed to be executed by test/run.go.
-    Because errchk does not exit with non-zero status on
-    errors, they were silently failing for a while.
-    
-    This change makes 2 things:
-    
-    1. Compile tested packages in GOROOT/test to match older runner script
-       behavior (strictly required only in bug345, optional in bug248)
-    
-    2. Check command output with "(?m)^BUG" regexp.
-       It approximates older `grep -q '^BUG' that was used before.
-    
-    See referenced issue for detailed explanation.
-    
-    Fixes #24629
-    
-    Change-Id: Ie888dcdb4e25cdbb19d434bbc5cb03eb633e9ee8
-    Reviewed-on: https://go-review.googlesource.com/104095
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I491c5ddd1a5d8e55f8e6bb9377bc3811e42773f8
+    Reviewed-on: https://go-review.googlesource.com/77870
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/bug248.go | 17 +++++++++--------
- test/fixedbugs/bug345.go | 12 +++++++-----
- 2 files changed, 16 insertions(+), 13 deletions(-)
+ src/archive/zip/struct.go | 10 +++++++---
+ src/archive/zip/writer.go |  1 +
+ 2 files changed, 8 insertions(+), 3 deletions(-)

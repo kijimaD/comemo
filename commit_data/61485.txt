@@ -1,0 +1,15 @@
+commit c9ac5898534732f9a79da6042e3da3c64c7a6da7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 14 12:19:32 2024 -0800
+
+    cmd/compile/internal/types2: enable disabled part of an example test (cleanup)
+    
+    Change-Id: I8ffb198d64ec1b89e6d13bfa299bf699f1ca3830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628156
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/example_test.go | 92 ++++++++++++-------------
+ 1 file changed, 45 insertions(+), 47 deletions(-)

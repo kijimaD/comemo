@@ -1,23 +1,25 @@
-commit d6ccb4ead9c995ee2bff10079118bf91d1b646e9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Aug 4 12:05:15 2022 -0700
+commit e1c3f2158fe3129fb44cc92423cfa41e7b6d472c
+Author: korzhao <korzhao95@gmail.com>
+Date:   Sun Aug 29 05:21:17 2021 +0800
 
-    debug/pe: use correct pe64 test in ImportedSymbols
+    time: propagate "," separator for fractional seconds into Format
     
-    64-bit PE is set by the optional header magic number,
-    not by the machine field.
+    In CL 300996 that fixed issue #6189, we made Parse recognize
+    "," as a separator for fractional seconds.
+    However, we didn't modify Format to propagate the separator
+    verbatim from Parse. Without this change, we break prior
+    functionality that relied on a comma being used in Format.
     
-    Fixes #54250
+    Fixes #48037
     
-    Change-Id: I4d01bc08553780d5470e63f0b17bbd968323e5d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421394
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I6565a25e8657ca3747a58b25acba58f27cdcddc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345438
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/debug/pe/file.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/time/format.go      | 50 ++++++++++++++++++++++++++++++++++++++-----------
+ src/time/format_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 11 deletions(-)

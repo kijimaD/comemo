@@ -1,16 +1,25 @@
-commit 8b3dc5399d507f168128f7102ddb300f9b14895d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 13 13:14:35 2023 -0400
+commit f7b12ff6fbad25ea30ae9f16dd1443eb9b76766d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 24 16:46:54 2022 -0500
 
-    cmd/dist: add needCC comment, fix needCC
+    syscall: define RawSyscall in terms of RawSyscall6 on linux
     
-    This was missed in CL 475377.
+    For #51087
     
-    Change-Id: I4e8c4c0459a92029a3f448c1e4172d3343280c57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475958
+    Change-Id: I63e07638507328efe33dbf7dd5f8a8b78890e037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388476
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/dist/build.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/syscall/asm_linux_386.s     | 22 ----------------------
+ src/syscall/asm_linux_amd64.s   | 20 --------------------
+ src/syscall/asm_linux_arm.s     | 24 ------------------------
+ src/syscall/asm_linux_arm64.s   | 23 -----------------------
+ src/syscall/asm_linux_mips64x.s | 21 ---------------------
+ src/syscall/asm_linux_mipsx.s   | 18 ------------------
+ src/syscall/asm_linux_ppc64x.s  | 21 ---------------------
+ src/syscall/asm_linux_riscv64.s | 21 ---------------------
+ src/syscall/asm_linux_s390x.s   | 23 -----------------------
+ src/syscall/syscall_linux.go    | 22 +++++++++++++++++++++-
+ 10 files changed, 21 insertions(+), 194 deletions(-)

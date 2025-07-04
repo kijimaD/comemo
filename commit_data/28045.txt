@@ -1,46 +1,21 @@
-commit d61c07ffd81b804cbd746ed1dc1e0d9c8b7fca49
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Aug 25 12:32:42 2016 +1000
+commit 6dfba5c7ce867583cbcea9da09dceacd2633bacc
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Feb 26 13:02:42 2016 +0100
 
-    cmd/link/internal, cmd/internal/obj: introduce ctxt.Logf
+    runtime/race: improve TestNoRaceIOHttp test
     
-    Replace the various calls to Fprintf(ctxt.Bso, ...) with a helper,
-    ctxt.Logf. This also addresses the various inconsistent flushing of
-    ctxt.Bso.
+    TestNoRaceIOHttp does all kinds of bad things:
+    1. Binds to a fixed port, so concurrent tests fail.
+    2. Registers HTTP handler multiple times, so repeated tests fail.
+    3. Relies on sleep to wait for listen.
     
-    Because we have two Link structures, add Link.Logf in both places.
+    Fix all of that.
     
-    Change-Id: I23093f9b9b3bf33089a0ffd7f815f92dcd1a1fa1
-    Reviewed-on: https://go-review.googlesource.com/27730
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I1210b7797ef5e92465b37dc407246d92a2a24fe8
+    Reviewed-on: https://go-review.googlesource.com/19953
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm/asm5.go     |  2 +-
- src/cmd/internal/obj/arm/obj5.go     |  3 +--
- src/cmd/internal/obj/arm64/asm7.go   |  4 +--
- src/cmd/internal/obj/arm64/obj7.go   |  4 +--
- src/cmd/internal/obj/link.go         |  6 +++++
- src/cmd/internal/obj/mips/asm0.go    |  2 +-
- src/cmd/internal/obj/mips/obj0.go    |  6 ++---
- src/cmd/internal/obj/pcln.go         | 23 ++++++++---------
- src/cmd/internal/obj/ppc64/asm9.go   |  2 +-
- src/cmd/internal/obj/ppc64/obj9.go   |  3 +--
- src/cmd/internal/obj/s390x/objz.go   |  3 +--
- src/cmd/link/internal/amd64/asm.go   | 23 ++++++-----------
- src/cmd/link/internal/arm/asm.go     | 17 +++++-------
- src/cmd/link/internal/arm64/asm.go   | 17 +++++-------
- src/cmd/link/internal/ld/ar.go       |  2 +-
- src/cmd/link/internal/ld/data.go     | 50 +++++++++++++++++-------------------
- src/cmd/link/internal/ld/deadcode.go |  8 +++---
- src/cmd/link/internal/ld/dwarf.go    |  2 +-
- src/cmd/link/internal/ld/ld.go       |  9 +++----
- src/cmd/link/internal/ld/ldelf.go    | 11 +++++---
- src/cmd/link/internal/ld/ldpe.go     |  2 +-
- src/cmd/link/internal/ld/lib.go      | 41 ++++++++++++-----------------
- src/cmd/link/internal/ld/link.go     |  5 ++++
- src/cmd/link/internal/ld/main.go     | 10 +++-----
- src/cmd/link/internal/ld/pcln.go     |  3 +--
- src/cmd/link/internal/mips64/asm.go  | 17 +++++-------
- src/cmd/link/internal/ppc64/asm.go   | 17 +++++-------
- src/cmd/link/internal/s390x/asm.go   | 19 +++++---------
- src/cmd/link/internal/x86/asm.go     | 20 +++++----------
- 29 files changed, 141 insertions(+), 190 deletions(-)
+ src/runtime/race/testdata/io_test.go | 37 +++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)

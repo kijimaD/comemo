@@ -1,20 +1,26 @@
-commit 86a32d6d9c4b2da88cb97da91a15e1af9efc87f7
-Author: Ezzno J <ezzno@ezzno.com>
-Date:   Thu Jan 4 09:49:56 2024 +0000
+commit 9a199d42dab00636f503c47ac4e02595765373f2
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 13 22:20:06 2022 -0700
 
-    cmd/compile: remove unused code in walk.Walk
+    compress/zlib: use binary.BigEndian consistently
     
-    no errors'll be added during ir.DumpList, no need to be check again
+    One major reason to avoid binary.BigEndian is because
+    the binary package includes a transitive dependency on reflect.
+    See #54097.
     
-    Change-Id: I85ae2edd4377851277e9bb2a8baa28825ac3fd90
-    GitHub-Last-Rev: b35ca85e57d81002adad4b1ffc9506f359201b71
-    GitHub-Pull-Request: golang/go#64955
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/553895
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Given that writer.go already depends on the binary package,
+    embrace use of it consistently where sensible.
+    We should either embrace use of binary or fully avoid it.
+    
+    Change-Id: I5f2d27d0ed8cab5ac54be02362c7d33276dd4b9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452176
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/walk/walk.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/compress/zlib/reader.go | 7 ++++---
+ src/compress/zlib/writer.go | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

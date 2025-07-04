@@ -1,19 +1,14 @@
-commit ba43be30c4786c52c12a290fe397b83bdc558cfc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 27 21:36:11 2011 -0700
+commit 37b3494026882711eb2f8b817e1dbda612700fe6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 28 00:20:37 2011 -0400
 
-    adler32: speed up ~40% by avoiding bounds checks
+    runtime: fix typo in gc bug fix
     
-    before & after:
-    adler32.BenchmarkGolden   100000             14747 ns/op
-    adler32.BenchmarkGolden   200000              8761 ns/op
+    This time for sure.
     
-    Found by profiling PNG encoding.
-    
-    R=rsc, bradfitzwork, eds
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4441073
+    https://golang.org/cl/4437078
 
- src/pkg/hash/adler32/adler32.go      |  4 ++--
- src/pkg/hash/adler32/adler32_test.go | 14 ++++++++++++++
- 2 files changed, 16 insertions(+), 2 deletions(-)
+ src/pkg/runtime/mgc0.c | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

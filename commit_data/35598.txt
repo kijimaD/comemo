@@ -1,19 +1,19 @@
-commit 9be4f312bf921f9c48c33269bb6d80ab20fb8b92
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 5 12:48:51 2018 -0700
+commit 7263540146c75de8037501b3d6fb64f59a0d1956
+Author: Oleg Bulatov <oleg@bulatov.me>
+Date:   Fri Feb 23 16:55:19 2018 +0100
 
-    cmd/compile: revert internal parameter rename (from ".anonX" to "") before export
+    regexp: Regexp shouldn't keep references to inputs
     
-    In the old binary export format, parameter names for parameter lists
-    which contained only types where never written, so this problem didn't
-    come up.
+    If you try to find something in a slice of bytes using a Regexp object,
+    the byte array will not be released by GC until you use the Regexp object
+    on another slice of bytes. It happens because the Regexp object keep
+    references to the input data in its cache.
     
-    Fixes #25101.
-    
-    Change-Id: Ia8b817f7f467570b05f88d584e86b6ef4acdccc6
-    Reviewed-on: https://go-review.googlesource.com/116376
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I873107f15c1900aa53ccae5d29dbc885b9562808
+    Reviewed-on: https://go-review.googlesource.com/96715
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go | 17 ++++++++++++++---
- test/fixedbugs/issue25101.go       | 16 ++++++++++++++++
- 2 files changed, 30 insertions(+), 3 deletions(-)
+ src/regexp/regexp.go | 5 +++++
+ 1 file changed, 5 insertions(+)

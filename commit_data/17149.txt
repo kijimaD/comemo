@@ -1,13 +1,15 @@
-commit 2758101b9d336a892538da38a11fe66ede2aa0cb
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Aug 11 13:05:51 2013 +0400
+commit ede9aa9e028e9bded416309981d8944d88366ffe
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Aug 10 19:22:19 2013 -0700
 
-    runtime/pprof: add block profile test
-    Fixes #5993.
+    bufio: drop buffer recycling, add Reader.Reset and Writer.Reset
     
-    R=golang-dev, bradfitz
+    Fixes #6086
+    
+    R=golang-dev, pieter, r, rsc
     CC=golang-dev
-    https://golang.org/cl/12665046
+    https://golang.org/cl/12603049
 
- src/pkg/runtime/pprof/pprof_test.go | 55 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 55 insertions(+)
+ src/pkg/bufio/bufio.go      | 145 ++++++++++++--------------------------------
+ src/pkg/bufio/bufio_test.go |  32 ++++++++++
+ 2 files changed, 71 insertions(+), 106 deletions(-)

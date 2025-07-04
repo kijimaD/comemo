@@ -1,73 +1,81 @@
-commit 2f32138aba23467201c6106ce5e4d63d530d972b
+commit 1af960802ad7032b668140e846dbc4e902fffa9c
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 21 11:32:02 2013 -0400
+Date:   Thu Mar 21 11:25:09 2013 -0400
 
-    crypto/sha1: faster amd64, 386 implementations
+    crypto/rc4: faster amd64, 386 implementations
     
     -- amd64 --
     
     On a MacBookPro10,2 (Core i5):
     
-    benchmark              old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes          785          592  -24.59%
-    BenchmarkHash1K             8727         3014  -65.46%
-    BenchmarkHash8K            64926        20723  -68.08%
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkRC4_128          470          421  -10.43%
+    BenchmarkRC4_1K          3123         3275   +4.87%
+    BenchmarkRC4_8K         26351        25866   -1.84%
     
-    benchmark               old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes        10.19        13.50    1.32x
-    BenchmarkHash1K           117.34       339.71    2.90x
-    BenchmarkHash8K           126.17       395.31    3.13x
+    benchmark            old MB/s     new MB/s  speedup
+    BenchmarkRC4_128       272.22       303.40    1.11x
+    BenchmarkRC4_1K        327.80       312.58    0.95x
+    BenchmarkRC4_8K        307.24       313.00    1.02x
     
     For comparison, on the same machine, openssl 0.9.8r reports
-    its sha1 speed as 341 MB/s for 1K and 404 MB/s for 8K.
+    its rc4 speed as somewhat under 350 MB/s for both 1K and 8K.
+    The Core i5 performance can be boosted another 20%, but only
+    by making the Xeon performance significantly slower.
     
     On an Intel Xeon E5520:
     
-    benchmark              old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes          984          707  -28.15%
-    BenchmarkHash1K            11141         3466  -68.89%
-    BenchmarkHash8K            82435        23411  -71.60%
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkRC4_128          774          417  -46.12%
+    BenchmarkRC4_1K          6121         3200  -47.72%
+    BenchmarkRC4_8K         48394        25151  -48.03%
     
-    benchmark               old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes         8.13        11.31    1.39x
-    BenchmarkHash1K            91.91       295.36    3.21x
-    BenchmarkHash8K            99.37       349.91    3.52x
+    benchmark            old MB/s     new MB/s  speedup
+    BenchmarkRC4_128       165.18       306.84    1.86x
+    BenchmarkRC4_1K        167.28       319.92    1.91x
+    BenchmarkRC4_8K        167.29       321.89    1.92x
     
-    For comparison, on the same machine, openssl 1.0.1 reports
-    its sha1 speed as 286 MB/s for 1K and 394 MB/s for 8K.
+    For comparison, on the same machine, openssl 1.0.1
+    (which uses a different implementation than 0.9.8r)
+    reports its rc4 speed as 587 MB/s for 1K and 601 MB/s for 8K.
+    It is using SIMD instructions to do more in parallel.
+    
+    So there's still some improvement to be had, but even so,
+    this is almost 2x faster than what it replaced.
     
     -- 386 --
     
     On a MacBookPro10,2 (Core i5):
     
-    benchmark              old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes         1041          713  -31.51%
-    BenchmarkHash1K            15612         3382  -78.34%
-    BenchmarkHash8K           110152        22733  -79.36%
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkRC4_128         3491          421  -87.94%
+    BenchmarkRC4_1K         28063         3205  -88.58%
+    BenchmarkRC4_8K        220392        25228  -88.55%
     
-    benchmark               old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes         7.68        11.21    1.46x
-    BenchmarkHash1K            65.59       302.76    4.62x
-    BenchmarkHash8K            74.37       360.36    4.85x
+    benchmark            old MB/s     new MB/s  speedup
+    BenchmarkRC4_128        36.66       303.81    8.29x
+    BenchmarkRC4_1K         36.49       319.42    8.75x
+    BenchmarkRC4_8K         36.73       320.90    8.74x
     
     On an Intel Xeon E5520:
     
-    benchmark              old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes         1221          842  -31.04%
-    BenchmarkHash1K            14643         4137  -71.75%
-    BenchmarkHash8K           108722        27394  -74.80%
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkRC4_128         2268          524  -76.90%
+    BenchmarkRC4_1K         18161         4137  -77.22%
+    BenchmarkRC4_8K        142396        32350  -77.28%
     
-    benchmark               old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes         6.55         9.49    1.45x
-    BenchmarkHash1K            69.93       247.51    3.54x
-    BenchmarkHash8K            75.35       299.04    3.97x
+    benchmark            old MB/s     new MB/s  speedup
+    BenchmarkRC4_128        56.42       244.13    4.33x
+    BenchmarkRC4_1K         56.38       247.46    4.39x
+    BenchmarkRC4_8K         56.86       250.26    4.40x
     
-    R=agl, dave
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/7763049
+    https://golang.org/cl/7547050
 
- src/pkg/crypto/sha1/sha1block.go      |   2 +
- src/pkg/crypto/sha1/sha1block_386.s   | 233 ++++++++++++++++++++++++++++++++++
- src/pkg/crypto/sha1/sha1block_amd64.s | 216 +++++++++++++++++++++++++++++++
- src/pkg/crypto/sha1/sha1block_decl.go |   9 ++
- 4 files changed, 460 insertions(+)
+ src/pkg/crypto/rc4/rc4_386.s   |  51 +++++++++++++++
+ src/pkg/crypto/rc4/rc4_amd64.s | 137 ++++++++++++++++++++++++++++-------------
+ src/pkg/crypto/rc4/rc4_asm.go  |   2 +-
+ src/pkg/crypto/rc4/rc4_ref.go  |   2 +-
+ src/pkg/crypto/rc4/rc4_test.go |  48 +++++++++++----
+ 5 files changed, 184 insertions(+), 56 deletions(-)

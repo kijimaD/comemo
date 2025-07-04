@@ -1,21 +1,20 @@
-commit 8c62fc0ca3c96ecbd3a6e81546aa8c53e32ff500
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri May 4 06:54:18 2018 +0200
+commit 5af1e7d78e7678db93f12fecc9f0454f7fa2eba9
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Jan 28 19:58:25 2018 +0100
 
-    strings: fix encoding of \u0080 in map
+    cmd/go: skip external tests on plan9/arm
     
-    Fix encoding of PAD (U+0080) which has the same value as utf8.RuneSelf
-    being incorrectly encoded as \x80 in strings.Map due to using <= instead
-    of a < comparison operator to check one byte encodings for utf8.
+    CL 13166, CL 13342 and CL 33425 skipped external tests
+    on freebsd/arm, linux/arm and linux/mips.
     
-    Fixes #25242
+    This CL does the same for plan9/arm to reduce test time
+    on plan9/arm and prevent the Go builder to time out.
     
-    Change-Id: Ib6c7d1f425a7ba81e431b6d64009e713d94ea3bc
-    Reviewed-on: https://go-review.googlesource.com/111286
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I16fcc5d8010a354f480673b8c4a8a11dbc833557
+    Reviewed-on: https://go-review.googlesource.com/90416
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strings/strings.go      |  4 ++--
- src/strings/strings_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 25 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

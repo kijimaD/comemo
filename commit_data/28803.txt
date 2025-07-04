@@ -1,24 +1,27 @@
-commit 4940a8379096a48af682c266a0e104f249a80816
-Author: Alex Browne <stephenalexbrowne@gmail.com>
-Date:   Sat Nov 7 23:54:41 2015 -0500
+commit 66b47431cba75ce23630e17c1a3aa000e7b33d06
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 27 00:17:38 2016 +0200
 
-    cmd/vet: check for duplicate json, xml struct field tags
+    net/http: update bundled http2
     
-    It is easy to make the mistake of duplicating json struct field
-    tags especially when copy/pasting. This commit causes go vet to
-    report the mistake. Only field tags in the same struct type are
-    considered, because that is the only case which is undoubtedly an
-    error.
+    Updates x/net/http2 to git rev 6a513af for:
     
-    Fixes #12791.
+      http2: return flow control for closed streams
+      https://golang.org/cl/25231
     
-    Change-Id: I4130e4c04b177694cc0daf8f1acaf0751d4f062b
-    Reviewed-on: https://go-review.googlesource.com/16704
-    Run-TryBot: Russ Cox <rsc@golang.org>
+      http2: make Transport prefer HTTP response header recv before body write error
+      https://golang.org/cl/24984
+    
+      http2: make Transport treat "Connection: close" the same as Request.Close
+      https://golang.org/cl/24982
+    
+    Fixes golang/go#16481
+    
+    Change-Id: Iaddb166387ca2df1cfbbf09a166f8605578bec49
+    Reviewed-on: https://go-review.googlesource.com/25282
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/vet/main.go               |  6 +++---
- src/cmd/vet/structtag.go          | 42 ++++++++++++++++++++++++++++++++-------
- src/cmd/vet/testdata/structtag.go | 28 ++++++++++++++++++++++++++
- 3 files changed, 66 insertions(+), 10 deletions(-)
+ src/net/http/h2_bundle.go | 121 ++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 95 insertions(+), 26 deletions(-)

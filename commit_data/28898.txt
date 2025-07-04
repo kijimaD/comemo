@@ -1,29 +1,30 @@
-commit 3d1ae4b75c77a88ba3b20ada874f1027365a8060
-Author: David du Colombier <0intro@gmail.com>
-Date:   Mon Oct 17 19:15:37 2016 +0200
+commit 562d06fc23261b21d12fbcbd407aadee9cb428cb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jun 6 08:29:52 2016 -0700
 
-    net: close the connection gracefully on Plan 9
+    cmd/compile: inline _, ok = i.(T)
     
-    Previously, we used to write the "hangup" message to
-    the TCP connection control file to be able to close
-    a connection, while waking up the readers.
+    We already inlined
     
-    The "hangup" message closes the TCP connection with a
-    RST message. This is a problem when closing a connection
-    consecutively to a write, because the reader may not have
-    time to acknowledge the message before the connection is
-    closed, resulting in loss of data.
+    _, ok = e.(T)
+    _, ok = i.(E)
+    _, ok = e.(E)
     
-    We use a "close" message, newly implemented in the Plan 9
-    kernel to be able to close a TCP connection gracefully with a FIN.
+    The only ok-only variants not inlined are now
     
-    Updates #15464.
+    _, ok = i.(I)
+    _, ok = e.(I)
     
-    Change-Id: I2050cc72fdf7a350bc6c9128bae7d14af11e599c
-    Reviewed-on: https://go-review.googlesource.com/31271
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    These call getitab, so are non-trivial.
+    
+    Change-Id: Ie45fd8933ee179a679b92ce925079b94cff0ee12
+    Reviewed-on: https://go-review.googlesource.com/26658
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/fd_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/subr.go | 10 ++++++++++
+ src/cmd/compile/internal/gc/swt.go  |  6 +-----
+ src/cmd/compile/internal/gc/walk.go | 30 +++++++++++++++++++-----------
+ src/runtime/iface.go                | 15 ++++++---------
+ 4 files changed, 36 insertions(+), 25 deletions(-)

@@ -1,14 +1,32 @@
-commit 9e173f9db97b98b25efd708b72108012a8b5d7f6
-Author: Burcu Dogan <jbd@google.com>
-Date:   Wed Feb 24 15:06:03 2016 -0800
+commit 7823197e5d6a024a4fe2f4f9ca414cb5244eb10f
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 1 01:35:15 2015 -0700
 
-    doc: add android/arm as a valid GOOS/GOARCH combination
+    archive/tar: fix issues with readGNUSparseMap1x0
     
-    Fixes #14497.
+    Motivations:
+    * Use of strconv.ParseInt does not properly treat integers as 64bit,
+    preventing this function from working properly on 32bit machines.
+    * Use of io.ReadFull does not properly detect truncated streams
+    when the file suddenly ends on a block boundary.
+    * The function blindly trusts user input for numEntries and allocates
+    memory accordingly.
+    * The function does not validate that numEntries is not negative,
+    allowing a malicious sparse file to cause a panic during make.
     
-    Change-Id: Ibdd55acf9e416873c64f8751c2f65f7ccdb1d500
-    Reviewed-on: https://go-review.googlesource.com/19914
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    In general, this function was overly complicated for what it was
+    accomplishing and it was hard to reason that it was free from
+    bounds errors. Instead, it has been rewritten and relies on
+    bytes.Buffer.ReadString to do the main work. So long as invariants
+    about the number of '\n' in the buffer are maintained, it is much
+    easier to see why this approach is correct.
+    
+    Change-Id: Ibb12c4126c26e0ea460ea063cd17af68e3cf609e
+    Reviewed-on: https://go-review.googlesource.com/15174
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/install-source.html | 3 +++
- 1 file changed, 3 insertions(+)
+ src/archive/tar/reader.go      | 110 +++++++++++++++++++----------------------
+ src/archive/tar/reader_test.go |  99 +++++++++++++++++++++++++++----------
+ 2 files changed, 124 insertions(+), 85 deletions(-)

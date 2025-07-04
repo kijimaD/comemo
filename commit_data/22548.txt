@@ -1,12 +1,18 @@
-commit e8b7133e9bb210c8f8901421db0bb9c30e934a16
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Apr 16 13:49:36 2015 -0400
+commit 21e47d831bafb59f22b1ea8098f709677ec8ce33
+Author: Joe Harrison <joehazzers@gmail.com>
+Date:   Mon Mar 23 14:21:20 2015 +0000
 
-    runtime: darwin/arm64 c-archive entry point
+    mime: add "image/svg+xml" type for extension ".svg"
     
-    Change-Id: Ib227aa3e14d01a0ab1ad9e53d107858e045d1c42
-    Reviewed-on: https://go-review.googlesource.com/8984
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Since there is internal usage of svg files in cmd/trace served via
+    HTTP, add it to the (small) map of mime types.
+    
+    MIME type as documented at http://www.w3.org/TR/SVG11/mimereg.html
+    
+    Change-Id: If14f07cbe2e55d8d68af663f30920a530e2e7974
+    Reviewed-on: https://go-review.googlesource.com/7942
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/rt0_darwin_arm64.s | 34 ++++++++++++++++++++++++++++++++++
- 1 file changed, 34 insertions(+)
+ src/mime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

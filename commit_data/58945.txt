@@ -1,63 +1,16 @@
-commit 932a4a4befc804fc5f94c12e1e430442557875fe
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Jan 28 13:44:41 2025 -0500
+commit 6674f2225e3a409f3f03b8b6ba31c1f3ddb0b35b
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Dec 22 21:49:46 2023 +0800
 
-    go/types: add Var.Kind() VarKind method
+    net: verify if internal/poll.Splice has been called during io.Copy
     
-    This CL adds an enum type, VarKind, that discriminates among
-    the various kinds of Var, and adds setter/getter methods
-    for Var's kind field.
-    
-    Beware: NewVar has a weaker postcondition: the Var objects it
-    returns are not completely initialized and require a call to
-    Var.SetKind. This should only affect importers.
-    
-    No changes are needed to the export data, since the kind can
-    always be deduced from the context when decoding.
-    
-    See CL 645656 for the corresponding x/tools changes.
-    
-    + test, relnote, API
-    
-    Updates golang/go#70250
-    
-    Change-Id: Icde86ad22a880cde6f50bc12bf38004a5c6a1025
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/645115
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I29ef35b034cd4ec401ac502bf95dbd8c3ef2a2d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552535
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- api/go1.25.txt                                  | 16 ++++++
- doc/initial/6-stdlib/99-minor/0-heading.md      |  7 +++
- src/cmd/compile/internal/types2/api_test.go     | 46 +++++++++++++++++
- src/cmd/compile/internal/types2/assignments.go  |  4 +-
- src/cmd/compile/internal/types2/builtins.go     |  4 +-
- src/cmd/compile/internal/types2/call.go         |  4 +-
- src/cmd/compile/internal/types2/check.go        |  4 +-
- src/cmd/compile/internal/types2/context_test.go |  2 +-
- src/cmd/compile/internal/types2/decl.go         |  2 +-
- src/cmd/compile/internal/types2/interface.go    |  4 +-
- src/cmd/compile/internal/types2/issues_test.go  |  2 +-
- src/cmd/compile/internal/types2/object.go       | 65 ++++++++++++++++++++++---
- src/cmd/compile/internal/types2/recording.go    |  4 +-
- src/cmd/compile/internal/types2/resolver.go     |  2 +-
- src/cmd/compile/internal/types2/signature.go    | 23 ++++-----
- src/cmd/compile/internal/types2/stmt.go         |  6 +--
- src/cmd/compile/internal/types2/universe.go     |  4 +-
- src/go/internal/gccgoimporter/parser.go         | 21 ++++----
- src/go/internal/gcimporter/ureader.go           | 17 ++++---
- src/go/types/api_test.go                        | 47 ++++++++++++++++++
- src/go/types/assignments.go                     |  4 +-
- src/go/types/builtins.go                        |  4 +-
- src/go/types/call.go                            |  4 +-
- src/go/types/context_test.go                    |  2 +-
- src/go/types/decl.go                            |  2 +-
- src/go/types/interface.go                       |  4 +-
- src/go/types/issues_test.go                     |  2 +-
- src/go/types/object.go                          | 65 ++++++++++++++++++++++---
- src/go/types/recording.go                       |  4 +-
- src/go/types/resolver.go                        |  2 +-
- src/go/types/signature.go                       | 23 ++++-----
- src/go/types/stmt.go                            |  6 +--
- src/go/types/universe.go                        |  4 +-
- 33 files changed, 320 insertions(+), 90 deletions(-)
+ src/net/splice_linux.go                          |   6 +-
+ src/net/{splice_test.go => splice_linux_test.go} | 128 ++++++++++++++++++++++-
+ 2 files changed, 128 insertions(+), 6 deletions(-)

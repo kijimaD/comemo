@@ -1,13 +1,17 @@
-commit 6f6db49de6dbc842ff4114939e6200af7213872d
+commit 56e261ef2f34e8ee3909e87cf4212eac2b399f61
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Mar 6 01:44:04 2014 -0500
+Date:   Thu Mar 6 00:57:23 2014 -0500
 
-    api: update next.txt
+    cmd/dist: enable GOARM>5 on NetBSD/ARM.
+    Tested GOARM=6 on Raspberry Pi, and I found only a few tests that
+    use sub-normal numbers fails. I have a patch to NetBSD kernel pending
+    that fixes this issue (NetBSD kernel doesn't allow us to disable the
+    Flush-to-Zero feature).
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=jsing
+    R=golang-codereviews, jsing
     CC=golang-codereviews
-    https://golang.org/cl/71950043
+    https://golang.org/cl/70730043
 
- api/next.txt | 618 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 618 insertions(+)
+ src/cmd/dist/arm.c | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

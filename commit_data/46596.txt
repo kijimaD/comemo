@@ -1,32 +1,18 @@
-commit d60ad1e068263832c711aaf17b6ccb1b7f71b000
+commit c73232d08f84e110707627a23ceae14d2b534889
 Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Sep 21 16:30:06 2021 -0700
+Date:   Wed Jan 13 16:21:16 2021 -0500
 
-    testing: address feedback for dev.fuzz merge
+    cmd/go/internal/load: refactor setErrorPos to PackageError.setPos
     
-    Based on comments in CL 348469.
+    Renamed setErrorPos to setPos, made it a method of PackageError,
+    and removed its Package parameter and return value. This makes it
+    more clear that setPos modifies PackageError and does not create a new
+    Package.
     
-    Note that with this change, F.Fuzz no longer calls
-    runtime.Goexit. This simplifies our logic and makes F.Fuzz more
-    predictable.
-    
-    Change-Id: I6c3c65b0e8e8f261621cbe2f17375e8164ef60a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351316
+    Change-Id: I26c58d3d456c7c18a5c2598e1e8e158b1e6b4b36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283637
     Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go                              | 14 +++-
- src/cmd/go/internal/cache/cache.go                 |  2 +
- src/cmd/go/internal/clean/clean.go                 |  9 ++-
- src/cmd/go/internal/help/helpdoc.go                |  7 ++
- src/cmd/go/internal/load/flag.go                   |  5 +-
- src/cmd/go/internal/load/pkg.go                    | 18 +----
- src/cmd/go/internal/test/test.go                   |  2 +-
- src/cmd/go/internal/work/init.go                   |  7 +-
- src/cmd/go/testdata/script/test_fuzz.txt           | 25 ++++++-
- .../go/testdata/script/test_fuzz_mutate_crash.txt  | 17 ++++-
- src/testing/fuzz.go                                | 85 ++++++++++------------
- src/testing/testing.go                             | 57 +++++++--------
- 12 files changed, 142 insertions(+), 106 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 36 ++++++++++++++++++++----------------
+ 1 file changed, 20 insertions(+), 16 deletions(-)

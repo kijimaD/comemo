@@ -1,14 +1,17 @@
-commit 1537f14db558ced001ba6e5d75dadcca173b0189
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Wed Sep 22 15:54:35 2021 +0800
+commit 759309029fc1087a2f68f0f30f4cf77d3eb8c7b9
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Mon Jan 11 14:21:40 2021 -0500
 
-    io: fix spelling in documentation
+    doc: update editors.html for Go 1.16
     
-    Change-Id: Ie23a9f1300a803d9c713e82b0d892dd90333ca7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351371
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Rerank editor plugins based on popularity (Go 2019 survey), and remove
+    Atom, as it is no longer popular.
+    
+    Change-Id: I06d39b67eec24a920439b9ea1198b6e2a939874e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283073
+    Trust: Rebecca Stambler <rstambler@golang.org>
+    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/io/io.go         | 2 +-
- src/io/multi_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/editors.html | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

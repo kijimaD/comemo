@@ -1,21 +1,22 @@
-commit 24ca86f3083e8dd4ad5ea61e26acf02440d0ad35
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Sep 23 23:04:31 2017 +0100
+commit a836254d08181418757b0d5c159acd3f9488fb91
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 6 13:23:59 2017 -0700
 
-    cmd/compile: fix invalid switch case value panic
+    cmd/compile: reject unknown //go: comments in std library
     
-    This is a regression introduced by myself in golang.org/cl/41852,
-    confirmed by the program that reproduces the crash that can be seen in
-    the added test.
+    Fixes #18331
     
-    Fixes #21988.
-    
-    Change-Id: I18d5b2b3de63ced84db705b18490b00b16b59e02
-    Reviewed-on: https://go-review.googlesource.com/65655
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ie5c6685be3002533b84604ff1f13f2f0850f29e2
+    Reviewed-on: https://go-review.googlesource.com/45010
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/swt.go |  5 +++++
- test/fixedbugs/issue21988.go       | 17 +++++++++++++++++
- 2 files changed, 22 insertions(+)
+ src/cmd/compile/internal/gc/go.go    |  3 +++
+ src/cmd/compile/internal/gc/main.go  |  1 +
+ src/cmd/compile/internal/gc/noder.go | 15 +++++++++++++++
+ src/cmd/go/internal/work/build.go    |  3 +++
+ src/go/types/stdlib_test.go          |  6 +++---
+ test/fixedbugs/issue18331.go         | 20 ++++++++++++++++++++
+ 6 files changed, 45 insertions(+), 3 deletions(-)

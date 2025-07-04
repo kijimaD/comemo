@@ -1,32 +1,85 @@
-commit caa46312eeca1275ce22ecf8985ca31ef8de7883
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon May 3 11:00:54 2021 -0500
+commit 6d85891b291db01532375a7f69c24cb68b76bf11
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 23:05:44 2021 +0000
 
-    cmd/link: use TOC-relative trampolines on PPC64 when needed
+    [dev.typeparams] runtime: replace uses of runtime/internal/sys.PtrSize with internal/goarch.PtrSize [generated]
     
-    When linking a PIE binary with the internal linker, TOC relative
-    relocations need to be generated. Update trampolines to indirect
-    call using R12 to more closely match the AIX/ELFv2 regardless of
-    buildmode, and work with position-indepdent code.
+    [git-generate]
+    cd src/runtime/internal/math
+    gofmt -w -r "sys.PtrSize -> goarch.PtrSize" .
+    goimports -w *.go
+    cd ../..
+    gofmt -w -r "sys.PtrSize -> goarch.PtrSize" .
+    goimports -w *.go
     
-    Likewise, update the check for offseting R_CALLPOWER relocs to
-    make a local call. It should be checking ldr.AttrExternal, not
-    ldr.IsExternal. This offset should not be adjusted for external
-    (non-go) object files, it is handled when ELF reloc are translated
-    into go relocs.
-    
-    And, update trampoline tests to verify these are generated correctly
-    and produce a working binary using -buildmode=pie on ppc64le.
-    
-    Fixes #52337
-    
-    Change-Id: I8a2dea06c3237bdf0e87888b56a17b6c4c99a7de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400234
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I43491cdd54d2e06d4d04152b3d213851b7d6d423
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328337
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ppc64/asm.go | 51 +++++++++-----------
- src/cmd/link/link_test.go          | 98 +++++++++++++++++++++-----------------
- 2 files changed, 78 insertions(+), 71 deletions(-)
+ src/runtime/alg.go                              |   9 +-
+ src/runtime/cgocall.go                          |   5 +-
+ src/runtime/cgocheck.go                         |  14 +--
+ src/runtime/export_debug_regabiargs_off_test.go |   3 +-
+ src/runtime/export_debug_regabiargs_on_test.go  |   3 +-
+ src/runtime/export_debug_test.go                |   8 +-
+ src/runtime/export_test.go                      |   3 +-
+ src/runtime/heapdump.go                         |  15 +--
+ src/runtime/iface.go                            |  11 +-
+ src/runtime/internal/math/math.go               |   4 +-
+ src/runtime/malloc.go                           |  23 ++--
+ src/runtime/map.go                              |  18 +--
+ src/runtime/map_fast32.go                       |   6 +-
+ src/runtime/map_fast64.go                       |   6 +-
+ src/runtime/map_faststr.go                      |  56 +++++-----
+ src/runtime/map_test.go                         |   4 +-
+ src/runtime/mbarrier.go                         |  10 +-
+ src/runtime/mbitmap.go                          | 139 ++++++++++++------------
+ src/runtime/mcheckmark.go                       |   4 +-
+ src/runtime/mfinal.go                           |  18 +--
+ src/runtime/mgcmark.go                          |  46 ++++----
+ src/runtime/mgcstack.go                         |   4 +-
+ src/runtime/mgcwork.go                          |   4 +-
+ src/runtime/mheap.go                            |   8 +-
+ src/runtime/mranges.go                          |   8 +-
+ src/runtime/mspanset.go                         |  14 +--
+ src/runtime/mstats.go                           |   4 +-
+ src/runtime/mwbbuf.go                           |   4 +-
+ src/runtime/os3_plan9.go                        |   4 +-
+ src/runtime/os3_solaris.go                      |   4 +-
+ src/runtime/os_dragonfly.go                     |   4 +-
+ src/runtime/os_freebsd.go                       |   8 +-
+ src/runtime/os_linux.go                         |   4 +-
+ src/runtime/os_netbsd.go                        |   4 +-
+ src/runtime/os_openbsd_syscall.go               |   4 +-
+ src/runtime/os_windows.go                       |   4 +-
+ src/runtime/preempt.go                          |   4 +-
+ src/runtime/print.go                            |   4 +-
+ src/runtime/proc.go                             |  15 +--
+ src/runtime/runtime1.go                         |   8 +-
+ src/runtime/runtime2.go                         |   6 +-
+ src/runtime/signal_386.go                       |   4 +-
+ src/runtime/signal_aix_ppc64.go                 |   4 +-
+ src/runtime/signal_amd64.go                     |   4 +-
+ src/runtime/signal_linux_386.go                 |   4 +-
+ src/runtime/signal_linux_amd64.go               |   4 +-
+ src/runtime/signal_linux_arm.go                 |   4 +-
+ src/runtime/signal_linux_arm64.go               |   4 +-
+ src/runtime/signal_linux_mips64x.go             |   4 +-
+ src/runtime/signal_linux_ppc64x.go              |   4 +-
+ src/runtime/signal_linux_riscv64.go             |   4 +-
+ src/runtime/signal_linux_s390x.go               |   3 +-
+ src/runtime/signal_mips64x.go                   |   4 +-
+ src/runtime/signal_riscv64.go                   |   6 +-
+ src/runtime/slice.go                            |  15 +--
+ src/runtime/stack.go                            |  23 ++--
+ src/runtime/symtab.go                           |  11 +-
+ src/runtime/sys_darwin_arm64.go                 |   4 +-
+ src/runtime/sys_wasm.go                         |   3 +-
+ src/runtime/sys_x86.go                          |   4 +-
+ src/runtime/syscall_windows.go                  |  20 ++--
+ src/runtime/trace.go                            |   7 +-
+ src/runtime/traceback.go                        |  21 ++--
+ 63 files changed, 349 insertions(+), 336 deletions(-)

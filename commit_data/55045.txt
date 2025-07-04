@@ -1,29 +1,22 @@
-commit 1c15291fa0efaeb14a76d0b0bcd8390665c9b97d
-Author: apocelipes <seve3r@outlook.com>
-Date:   Thu Oct 26 02:28:28 2023 +0000
+commit b9747e0e6b82c6de1ebe020841087e8fb1eabccc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 7 13:27:22 2022 -0800
 
-    hash: simplify binary operations
+    os/user: on AIX getpwuid_r seems to return -1 on overflow
     
-    We can not use encoding/binary in hash packages because of import cycles.
+    The getpwuid_r function is expected to return ERANGE on overflow.
+    Accept -1 on AIX as we see that in practice.
     
-    So just keep the appendUint and readUint helper functions same as that
-    in the encoding/binary standard package.
+    This problem was uncovered by, but not caused by, CL 455815,
+    which introduced a test that forced a buffer overflow.
     
-    There is no notable performance impacts.
-    
-    Updates #63719
-    
-    Change-Id: If47a7faaf9d422d772f32bbe1fa2f2c8a16485f4
-    GitHub-Last-Rev: f334fee408eff6869a7cc5f306df525d4d55d2cf
-    GitHub-Pull-Request: golang/go#63746
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/537796
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I3ae94faf1257d2c73299b1478e49769bb807fc4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456075
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/hash/adler32/adler32.go | 15 +++++++++------
- src/hash/crc32/crc32.go     | 15 +++++++++------
- src/hash/crc64/crc64.go     | 23 +++++++++++++----------
- src/hash/fnv/fnv.go         | 38 ++++++++++++++++++++++----------------
- 4 files changed, 53 insertions(+), 38 deletions(-)
+ src/os/user/cgo_lookup_unix.go | 4 ++++
+ 1 file changed, 4 insertions(+)

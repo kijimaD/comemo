@@ -1,13 +1,12 @@
-commit 1eac128d648da34431850e9393c2404921105073
+commit 295e73e13fa36c4f52fc88aec46bfb0ab72f63ba
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 9 09:58:35 2013 -0800
+Date:   Mon Dec 9 12:55:25 2013 -0500
 
-    cmd/6l: fix linux/amd64
+    cmd/gc: print more information for windows failure
     
     TBR=iant
     CC=golang-dev
-    https://golang.org/cl/39530043
+    https://golang.org/cl/39510043
 
- src/cmd/ld/pobj.c  |  2 +-
- src/liblink/obj6.c | 16 +++++++---------
- 2 files changed, 8 insertions(+), 10 deletions(-)
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

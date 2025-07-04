@@ -1,0 +1,19 @@
+commit 79c0041daf1649a1b5374e7f59689558b67a969d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 8 19:56:50 2024 +0100
+
+    crypto/internal/fips/aes/gcm: add GCMForTLS12 and GCMForTLS13
+    
+    For #69536
+    
+    Change-Id: I2d7b6e7b9932d0f0f582a5ab0bb871395dc2a1e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/fips/aes/gcm/gcm_nonces.go | 98 ++++++++++++++++++++++++++
+ src/crypto/tls/cipher_suites.go                |  6 +-
+ 2 files changed, 102 insertions(+), 2 deletions(-)

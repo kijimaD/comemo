@@ -1,22 +1,19 @@
-commit 54d05e4e252298724c5615ea2a4e36f2151b22ce
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jun 2 09:31:30 2022 -0700
+commit df2421de60215cfc314fe6772ff6c2c6201f7abb
+Author: Ville Skyttä <ville.skytta@iki.fi>
+Date:   Wed Feb 16 21:00:04 2022 +0000
 
-    test: test for issue 53087
+    mime: ignore non-extension globs2 entries
     
-    This issue has been fixed with unified IR, so just add a test.
-    
-    Update #53087
-    
-    Change-Id: I965d9f27529fa6b7c89e2921c65e5a100daeb9fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410197
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ic2315b593dca5648c02f793b7650b5936a997bff
+    GitHub-Last-Rev: ee55edcf087416c6f0d50d5dd51cbddfd1d77620
+    GitHub-Pull-Request: golang/go#51226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386334
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- test/typeparam/issue53087.go | 56 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 56 insertions(+)
+ src/mime/testdata/test.types.globs2 | 2 ++
+ src/mime/type_unix.go               | 6 +++---
+ src/mime/type_unix_test.go          | 2 ++
+ 3 files changed, 7 insertions(+), 3 deletions(-)

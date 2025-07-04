@@ -1,20 +1,34 @@
-commit 5f23bc8903c9b7930398c154b884979a1a43946f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 13 21:02:12 2016 -0500
+commit f5c42cf88e8c9d75d1738bc2eae81b717071b9d0
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 10 14:58:51 2015 -0500
 
-    cmd/compile: add AVARLIVE to peep for arm, arm64, mips64, ppc64
+    runtime: replace traceBuf slice with index
     
-    Fixes build on those systems.
+    Currently traceBuf keeps track of where it is in the trace buffer by
+    also maintaining a slice that points in to this buffer with an initial
+    length of 0 and a cap of the length of the array. All writes to this
+    buffer are done by appending to the slice (as long as the bounds
+    checks are right, it will never overflow and the append won't allocate
+    a new slice).
     
-    Also fix printing of AVARLIVE.
+    Each of these appends generates a write barrier. As long as we never
+    overflow the buffer, this write barrier won't fire, but this wreaks
+    havoc with eliminating write barriers from the tracing code. If we
+    were to overflow the buffer, this would both allocate and invoke a
+    write barrier, both things that are dicey at best to do in many of the
+    contexts tracing happens. It also wastes space in the traceBuf and
+    leads to more complex code and more complex generated code.
     
-    Change-Id: I1b38cca0125689bc08e4e1bdd0d0c140b1ea079a
-    Reviewed-on: https://go-review.googlesource.com/18641
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Replace this slice trick with keeping track of a simple array
+    position.
+    
+    Updates #10600.
+    
+    Change-Id: I0a63eecec1992e195449f414ed47653f66318d0e
+    Reviewed-on: https://go-review.googlesource.com/16814
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/compile/internal/arm/peep.go    | 1 +
- src/cmd/compile/internal/arm64/peep.go  | 1 +
- src/cmd/compile/internal/mips64/peep.go | 1 +
- src/cmd/compile/internal/ppc64/peep.go  | 1 +
- src/cmd/internal/obj/util.go            | 2 +-
- 5 files changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/trace.go | 74 +++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 42 insertions(+), 32 deletions(-)

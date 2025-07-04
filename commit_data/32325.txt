@@ -1,22 +1,16 @@
-commit 78984d3954a60f446d04c796f9c22e073f07cbd3
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Wed Aug 16 20:50:26 2017 +0900
+commit 33fd319cbcf9f4809c6bc9a9d21a05b516824f0a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 19 14:20:52 2017 -0700
 
-    debug/macho: rearrange code
+    cmd/compile: call fieldtrack after flushing Progs
     
-    * group load command structs.
-    * use hex literal for LoadCommand.
-      Decimal number is not a proper representation for some commands.
-      (e.g. LC_RPATH = 0x8000001c)
-    * move Symbol struct from macho.go to file.go.
-      Symbol is a high level representation, not in Mach-O.
+    Fixes #20014
     
-    Change-Id: I3c69923cb464fb1211f2e766c02e1b537e0b5de2
-    Reviewed-on: https://go-review.googlesource.com/56130
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie58d3e989f2d7388b3d8849fbcfbceed3c6aa084
+    Reviewed-on: https://go-review.googlesource.com/41132
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/debug/macho/file.go  |   9 +++
- src/debug/macho/macho.go | 191 +++++++++++++++++++++++------------------------
- 2 files changed, 101 insertions(+), 99 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

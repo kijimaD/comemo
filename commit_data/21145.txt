@@ -1,14 +1,53 @@
-commit 43ce5c0306c952f69fd54273fd136f838ecb83cc
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Dec 30 12:37:54 2014 +1100
+commit 2d53d6b5d5b5f10c072549607a221c13e5cdb7e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 14:16:12 2014 -0500
 
-    log: update doc comment
+    undo CL 131750044 / 2d6d44ceb80e
     
-    Fixes #9448.
+    Breaks reading from stdin in parent after exec with SysProcAttr{Setpgid: true}.
     
-    Change-Id: I8e1d676688d9e9b2fa3519ebc530905f574a1b3e
-    Reviewed-on: https://go-review.googlesource.com/2088
-    Reviewed-by: Rob Pike <r@golang.org>
+    package main
+    
+    import (
+            "fmt"
+            "os"
+            "os/exec"
+            "syscall"
+    )
+    
+    func main() {
+            cmd := exec.Command("true")
+            cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+            cmd.Run()
+    
+            fmt.Printf("Hit enter:")
+            os.Stdin.Read(make([]byte, 100))
+            fmt.Printf("Bye\n")
+    }
+    
+    In go1.3, I type enter at the prompt and the program exits.
+    With the CL being rolled back, the program wedges at the
+    prompt.
+    
+    ««« original CL description
+    syscall: SysProcAttr job control changes
+    
+    Making the child's process group the foreground process group and
+    placing the child in a specific process group involves co-ordination
+    between the parent and child that must be done post-fork but pre-exec.
+    
+    LGTM=iant
+    R=golang-codereviews, gobot, iant, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/131750044
+    
+    »»»
+    
+    LGTM=minux, dneil
+    R=dneil, minux
+    CC=golang-codereviews, iant, michael.p.macinnis
+    https://golang.org/cl/174450043
 
- src/log/log.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/syscall/exec_bsd.go   | 40 ++--------------------------------------
+ src/syscall/exec_linux.go | 36 +-----------------------------------
+ 2 files changed, 3 insertions(+), 73 deletions(-)

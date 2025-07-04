@@ -1,19 +1,21 @@
-commit 60abc07113e66873d468f54bb5be09fbdd20ca07
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Thu Feb 28 08:40:55 2019 +0100
+commit 430b9cb92f1291f2bef3c99d21925b3204cead90
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Oct 5 18:22:06 2018 +0000
 
-    misc/android: adb push --sync testdata
+    runtime: revert "skip TestLldbPython when lldb is too old"
     
-    (A stripped down version of) $GOROOT is uploaded to the device
-    before running standar library tests, including many (all?)
-    testdata directories.
+    This reverts commit d2170040617231a26ab0722d093ecb19e2ba8302.
     
-    Use the --sync flag when pushing testdata directories to the device
-    in case it is already present.
+    Reason for revert: It broke all the darwin builders; it's also not
+    obvious how the weird darwin versions (900, 1000) relate to the > 3.9
+    requisite, so I'm not sure how to decide about skipping in a robust
+    way. It's better to revert the check for now.
     
-    Change-Id: If8104f9d15838c1be3623adcf831a7188303c376
-    Reviewed-on: https://go-review.googlesource.com/c/164338
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #28028
+    
+    Change-Id: Ibbcb7bf7cd2136e0851ebd097a2bc4dec9f0ee18
+    Reviewed-on: https://go-review.googlesource.com/c/140217
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/android/go_android_exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/runtime-lldb_test.go | 23 -----------------------
+ 1 file changed, 23 deletions(-)

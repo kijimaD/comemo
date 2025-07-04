@@ -1,31 +1,41 @@
-commit c5ddc558baa9884050ddf26dd93c91e9297509b8
-Author: Ben Shi <powerman1st@163.com>
-Date:   Mon Jan 23 09:14:35 2017 +0000
+commit 5df59a4fc98991fc16872c384bd1e9f830a369c5
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Dec 19 17:18:45 2016 -0800
 
-    cmd/internal/obj/arm: support more ARMv5/ARMv6/ARMv7 instructions
+    Revert: "archive/zip: handle mtime in NTFS/UNIX/ExtendedTS extra fields"
     
-    REV/REV16/REVSH were introduced in ARMv6, they offered more efficient
-    byte reverse operatons.
+    This change reverts the following CLs:
+            CL/18274: handle mtime in NTFS/UNIX/ExtendedTS extra fields
+            CL/30811: only use Extended Timestamp on non-zero MS-DOS timestamps
     
-    MMUL/MMULA/MMULS were introduced in ARMv6, they simplified
-    a serial of mul->shift->add/sub operations into a single instruction.
+    We are reverting support for extended timestamps since the support was not
+    not complete. CL/18274 added full support for reading extended timestamp fields
+    and minimal support for writing them. CL/18274 is incomplete because it made
+    no changes to the FileHeader struct, so timezone information was lost when
+    reading and/or writing.
     
-    RBIT was introduced in ARMv7, it inversed a 32-bit word's bit order.
+    While CL/18274 was a step in the right direction, we should provide full
+    support for high precision timestamps in both the reader and writer.
+    This will probably require that we add a new field of type time.Time.
+    The complete fix is too involved to add in the time remaining for Go 1.8
+    and will be completed in Go 1.9.
     
-    MULS was introduced in ARMv7, it corresponded to MULA.
+    Updates #10242
+    Updates #17403
+    Updates #18359
+    Fixes #18378
     
-    MULBB/MULABB were introduced in ARMv5TE, they performed 16-bit
-    multiplication (and accumulation).
-    
-    Change-Id: I6365b17b3c4eaf382a657c210bb0094b423b11b8
-    Reviewed-on: https://go-review.googlesource.com/35565
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Icf6d028047f69379f7979a29bfcb319a02f4783e
+    Reviewed-on: https://go-review.googlesource.com/34651
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/arch/arm.go        |  4 ++--
- src/cmd/asm/internal/asm/testdata/arm.s | 20 +++++++++++++++++
- src/cmd/internal/obj/arm/a.out.go       | 10 +++++++++
- src/cmd/internal/obj/arm/anames.go      | 10 +++++++++
- src/cmd/internal/obj/arm/asm5.go        | 39 ++++++++++++++++++++++++++++++++-
- 5 files changed, 80 insertions(+), 3 deletions(-)
+ src/archive/zip/reader.go                    |  49 ++-------------------------
+ src/archive/zip/reader_test.go               |  31 ++++++-----------
+ src/archive/zip/struct.go                    |   3 --
+ src/archive/zip/testdata/extra-timestamp.zip | Bin 152 -> 0 bytes
+ src/archive/zip/writer.go                    |  17 ----------
+ src/archive/zip/writer_test.go               |  27 ---------------
+ src/archive/zip/zip_test.go                  |  39 ---------------------
+ 7 files changed, 12 insertions(+), 154 deletions(-)

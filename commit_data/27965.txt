@@ -1,19 +1,28 @@
-commit ef6fde26e5cac06c0dbd4ffe628a3ecd2ef7c450
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jul 21 11:40:01 2016 -0700
+commit 63ceeafa308b99e6b7d5480521b83360b4f6b2fd
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Apr 18 17:41:50 2016 -0400
 
-    cmd/vet: handle multiple arches in asm build directives
+    crypto/sha1: add s390x assembly implementation
     
-    If a build directive contains multiple arches,
-    try to match the build context.
+    Use the compute intermediate message digest (KIMD) instruction
+    when possible. Adds test to check fallback code path in case
+    KIMD is not available.
     
-    Updates #11041
+    Benchmark changes:
+    Hash8Bytes  3.4x
+    Hash1K      9.3x
+    Hash8K      10.9x
     
-    Change-Id: I03b5d7bfb29d1ff6c7d36a9d7c7fabfcc1d871c1
-    Reviewed-on: https://go-review.googlesource.com/27158
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ibcd71a886dfd7b3822042235b4f4eaa7a148036b
+    Reviewed-on: https://go-review.googlesource.com/22350
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/asmdecl.go | 21 +++++++++++++++++----
- 1 file changed, 17 insertions(+), 4 deletions(-)
+ src/crypto/sha1/fallback_test.go     | 34 ++++++++++++++++++++++++++++++++++
+ src/crypto/sha1/sha1_test.go         |  2 +-
+ src/crypto/sha1/sha1block_decl.go    |  2 +-
+ src/crypto/sha1/sha1block_generic.go |  2 +-
+ src/crypto/sha1/sha1block_s390x.go   | 12 ++++++++++++
+ src/crypto/sha1/sha1block_s390x.s    | 34 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 83 insertions(+), 3 deletions(-)

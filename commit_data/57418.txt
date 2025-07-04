@@ -1,25 +1,19 @@
-commit d288776d9143370567fa56b44fa875d0e8fb02b6
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Sep 9 22:03:54 2024 +0700
+commit dfde9e8361264e9f551fc3836050e05de141b697
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Aug 4 04:58:40 2023 +0000
 
-    cmd/compile: remove trivial closure reference
+    os: replace "used to used" with "used to use" in description text
     
-    Trivial closures will be converted to global functions, thus they are
-    not closures anymore. Using fn.IsClosure function is enough, allow
-    removing the trivial/non-trivial closures in the code.
-    
-    Change-Id: Iceb186dd92c1732b101e221ebc13406db35c69ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611995
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Tim King <taking@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I5445f3393373423592dfdd88b91d267c2c98d113
+    GitHub-Last-Rev: f554da58f49deb38101fd9ffba744bf4bf35ab55
+    GitHub-Pull-Request: golang/go#61749
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515798
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/deadlocals/deadlocals.go |  2 +-
- src/cmd/compile/internal/inline/inl.go            |  6 +++---
- src/cmd/compile/internal/ir/func.go               | 10 ++--------
- src/cmd/compile/internal/ir/scc.go                |  2 +-
- src/cmd/compile/internal/staticinit/sched.go      | 10 +++++-----
- src/cmd/compile/internal/walk/closure.go          |  9 ++++-----
- 6 files changed, 16 insertions(+), 23 deletions(-)
+ src/os/wait_waitid.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

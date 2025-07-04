@@ -1,33 +1,18 @@
-commit 6c3bcda866582b51842d71576a11c0fe1b647a22
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 17 17:49:40 2021 -0800
+commit 84152d57692fc21ad5ee4bcf8eb0a5ec2a958790
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 29 14:32:22 2020 +0200
 
-    cmd/compile: declare inlined result params early for empty returns
+    doc: add riscv64 to ports list
     
-    The code for delayed declaration of inlined result parameters only
-    handles non-empty return statements. This is generally okay, because
-    we already early declare if there are any (non-blank) named result
-    parameters.
+    Mention support for the 64-bit RISC-V instruction set (GOARCH=riscv64)
+    in the "Installing Go from source" document. Also sort the list of
+    supported instruction sets alphabetically.
     
-    But if a user writes a function with only blank result parameters and
-    with exactly one return statement, which is empty, then they could end
-    up hitting the dreaded "Value live at entry" ICE.
+    Updates #27532
     
-    This CL fixes the issue by ensuring we always early declare inlined
-    result parameters if there are any empty return statements.
-    
-    Fixes #44355.
-    
-    Change-Id: I315f3853be436452883b1ce31da1bdffdf24d506
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293293
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I07a443044a41a803853978dd7f7446de89ecceb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240377
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/compile/internal/inline/inl.go | 20 ++++++++++++++------
- test/fixedbugs/issue44355.dir/a.go     |  7 +++++++
- test/fixedbugs/issue44355.dir/b.go     |  9 +++++++++
- test/fixedbugs/issue44355.go           |  7 +++++++
- 4 files changed, 37 insertions(+), 6 deletions(-)
+ doc/install-source.html | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

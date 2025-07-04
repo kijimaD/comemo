@@ -1,24 +1,21 @@
-commit 3aa7ada60791f8c6c3cb6abd04d446bbc90efdab
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Mar 21 16:27:14 2023 -0400
+commit e7b0559448dc81ddfcee965152d0794f25b95da0
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Wed Mar 16 10:22:11 2022 -0700
 
-    cmd/go: extend the linker -o workaround for plugins to all platforms
+    regexp/syntax: fix typo in comment
     
-    On Linux, for a shared object, at least with the Gold linker, the
-    output file path is recorded in the .gnu.version_d section. When
-    the output file path is in a temporary directory, it causes
-    nondeterministic build.
+    Fix typo in comment describing IsWordChar.
     
-    This is similar to #58557, but for Linux with the Gold linker.
-    Apply the same workaround as in CL 477296.
-    
-    Should fix the linux-arm64-longtest builder.
-    
-    Change-Id: Ic703bff32c1bcc40054b89be696e04280855e876
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478196
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia283813cf5662e218ee6d0411fb0c1b1ad1021f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393435
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/work/gc.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/regexp/syntax/prog.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

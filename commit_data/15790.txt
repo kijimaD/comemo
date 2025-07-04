@@ -1,12 +1,19 @@
-commit ee3c88482ba232a34e4b20c8474fdee64a37ca36
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Mar 15 12:37:40 2013 -0400
+commit e67f19851624aef42749f188462ded2776ce2d57
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Mar 15 11:43:43 2013 -0400
 
-    runtime: remove struct BitTarget
+    runtime: unbreak netbsd builds
     
-    R=golang-dev
-    CC=dvyukov, golang-dev, rsc
-    https://golang.org/cl/7845043
+    Fix signal handling so that Go builds on NetBSD.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7759048
 
- src/pkg/runtime/mgc0.c | 38 ++++++++++++--------------------------
- 1 file changed, 12 insertions(+), 26 deletions(-)
+ src/pkg/runtime/signal_386.c          | 4 ++--
+ src/pkg/runtime/signal_amd64.c        | 4 ++--
+ src/pkg/runtime/signal_arm.c          | 4 ++--
+ src/pkg/runtime/signal_netbsd_386.h   | 6 +++---
+ src/pkg/runtime/signal_netbsd_amd64.h | 2 +-
+ src/pkg/runtime/signal_netbsd_arm.h   | 2 +-
+ 6 files changed, 11 insertions(+), 11 deletions(-)

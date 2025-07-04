@@ -1,17 +1,17 @@
-commit 3587085fb75c5d10d73b0508071ba19402dc6bfc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 16 10:27:49 2011 -0700
+commit 0d111a62e14ebdd5c3e2482620a3e9542d97d3c0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon May 16 10:13:17 2011 -0700
 
-    os: fix Windows build from earlier readdir change
+    image/jpeg: decode grayscale images, not just color images.
     
-    It worked originally, until I renamed a variable. :/
+    Also add an image package test that DecodeConfig returns the same
+    ColorModel as what Decode would.
     
-    dir_windows.go:11: undefined: e
-    http://godashboard.appspot.com/log/092397f2ac7a1e6e812dc6bebc65b40b02368700a119343d5cee5e2e89e0fde5
-    
-    R=golang-dev, r
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/4535072
+    https://golang.org/cl/4529065
 
- src/pkg/os/dir_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/image/decode_test.go |  22 ++++-
+ src/pkg/image/jpeg/reader.go | 212 ++++++++++++++++++++++++++-----------------
+ src/pkg/image/jpeg/writer.go |   8 +-
+ 3 files changed, 156 insertions(+), 86 deletions(-)

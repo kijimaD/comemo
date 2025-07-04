@@ -1,0 +1,19 @@
+commit f77bba43aa223fc86fd223f3ea4ef60db8e0c583
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 20 12:12:35 2025 -0800
+
+    net: accept a valid IP address in LookupMX
+    
+    Fixes #56025
+    
+    Change-Id: I202fdd0e11afeb22c5bc22d91fe4bfea8987e727
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651056
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/99-minor/net/56025.md |  5 +++
+ src/net/dnsclient_unix_test.go          | 72 +++++++++++++++++++++++++++++----
+ src/net/lookup.go                       | 20 +++++----
+ 3 files changed, 82 insertions(+), 15 deletions(-)

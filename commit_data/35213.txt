@@ -1,17 +1,14 @@
-commit 6658219b7e042df017f19ae8bfbc79eb7c4537b6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 7 15:12:11 2017 -0800
+commit 6631f22776ab56f306bd00d44bc2e3b8d0b90585
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Thu Jan 11 09:58:16 2018 +0900
 
-    runtime: eliminate scase.receivedp
+    net/http: avoid for-loop if possible
     
-    Make selectgo return recvOK as a result parameter instead.
-    
-    Change-Id: Iffd436371d360bf666b76d4d7503e7c3037a9f1d
-    Reviewed-on: https://go-review.googlesource.com/37935
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I01900c3a2ebdda8c90d0585f179a39ee890c417f
+    Reviewed-on: https://go-review.googlesource.com/87336
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         |  2 +-
- src/cmd/compile/internal/gc/builtin/runtime.go |  2 +-
- src/cmd/compile/internal/gc/select.go          | 40 ++++++++++++--------------
- src/runtime/select.go                          | 33 +++++++++------------
- 4 files changed, 34 insertions(+), 43 deletions(-)
+ src/net/http/server.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

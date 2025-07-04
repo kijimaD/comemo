@@ -1,12 +1,15 @@
-commit d5c89972d809184f453d7a70901033a3ab8f0c9e
+commit d0607221faec743a726cb38e1dd12b337c33a775
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 3 10:17:37 2012 -0800
+Date:   Fri Feb 3 10:17:19 2012 -0800
 
-    godoc: provide link to subdirectories, if any
+    math/big: more accurate package comment
     
-    R=rsc
+    Fix some receiver names for consistency.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5626043
+    https://golang.org/cl/5624043
 
- lib/godoc/package.html | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/math/big/nat.go | 12 +++++++++---
+ src/pkg/math/big/rat.go | 42 +++++++++++++++++++++---------------------
+ 2 files changed, 30 insertions(+), 24 deletions(-)

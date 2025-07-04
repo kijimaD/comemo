@@ -1,16 +1,16 @@
-commit c86d4647348b420f55d4ce7572c4cd93b20a1d4a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 29 10:24:05 2018 -0700
+commit 5d4f0474ecb322135612813eadf22db78309b33f
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Jun 23 11:25:31 2018 +0530
 
-    math/big: shallow copies of Int/Rat/Float are not supported (documentation)
+    cmd/dist: skip building tools for js/wasm
     
-    Fixes #28423.
+    Fixes #25911
     
-    Change-Id: Ie57ade565d0407a4bffaa86fb4475ff083168e79
-    Reviewed-on: https://go-review.googlesource.com/c/145537
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id3b5ea5494544e9e7f889831cefaf080cae8865d
+    Reviewed-on: https://go-review.googlesource.com/120655
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/float.go | 8 +++++++-
- src/math/big/int.go   | 7 +++++++
- src/math/big/rat.go   | 7 +++++++
- 3 files changed, 21 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

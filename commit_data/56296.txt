@@ -1,20 +1,30 @@
-commit 8c0da423f77fff5e206ad777cfc496e935cb3af6
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Tue Apr 23 17:52:55 2024 +0000
+commit ce0b9143123abe8005a059c92dbd763f7ab46214
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 24 14:26:39 2023 -0400
 
-    cmd/go: go env GOMOD should not download newer toolchain
+    cmd/dist: actually only compile tests with -compile-only
     
-    It is not neccessary to download a newer toolchain to display the path
-    to GOMOD or GOWORK.
+    Currently, "dist test -compile-only" still runs the test binaries,
+    just with -run=^$ so no tests are run. It does this because, until
+    recently, "go test -c" would fail if passed multiple test packages.
+    But this has some unexpected consequences: init code still runs,
+    TestMain still runs, and we generally can't test cross-compiling of
+    tests.
     
-    Fixes: #61455
+    Now that #15513 is fixed, we can pass multiple packages to "go test
+    -c". Hence, this CL make dist just use "go test -c" as one would
+    expect.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I0b031651ad9bfeb5565361ecaff6908640ccf9c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581275
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Found in the course of working on #37486, though it doesn't really
+    affect that.
+    
+    Change-Id: If7d3c72c9e0f74d4ea0dd422411e5ee93b314be4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/toolchain/select.go            |  8 ++++++++
- .../go/testdata/script/env_gomod_issue61455.txt    | 24 ++++++++++++++++++++++
- 2 files changed, 32 insertions(+)
+ src/cmd/dist/test.go   | 4 +---
+ src/testing/testing.go | 1 -
+ 2 files changed, 1 insertion(+), 4 deletions(-)

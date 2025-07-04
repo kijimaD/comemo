@@ -1,17 +1,41 @@
-commit 1be957d703832aa10952c4dc799dcc3a39f48aff
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 19 22:07:20 2017 -0800
+commit ead08e91f6468ab1c35c250ec487935103c580f6
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Wed Apr 20 14:29:30 2016 -0300
 
-    misc/cgo/test: pass current environment to syscall.Exec
+    cmd/go, testing: indicate when no tests are run
     
-    This is needed for typical tests with gccgo, as it passes the
-    LD_LIBRARY_PATH environment variable to the new program.
+    For example, testing the current directory:
     
-    Change-Id: I9bf4b0dbdff63f5449c7fcb8124eaeab10ed7f34
-    Reviewed-on: https://go-review.googlesource.com/35481
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+            $ go test -run XXX
+            testing: warning: no tests to run
+            PASS
+            ok      testing 0.013s
+            $
+    
+    And in a summary:
+    
+            $ go test -run XXX testing
+            ok      testing 0.013s [no tests to run]
+            $
+    
+    These make it easy to spot when the -run regexp hasn't matched anything
+    or there are no tests. Previously the message was printed in the "current directory"
+    case when there were no tests at all, but not for no matches, and either way
+    was not surfaced in the directory list summary form.
+    
+    Fixes #15211.
+    
+    Change-Id: I1c82a423d6bd429fb991c9ca964c9d26c96fd3c5
+    Reviewed-on: https://go-review.googlesource.com/22341
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- misc/cgo/test/issue18146.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go                              | 97 ++++++++++++++++++++++
+ src/cmd/go/test.go                                 | 23 +++--
+ src/cmd/go/testdata/standalone_benchmark_test.go   |  6 ++
+ src/cmd/go/testdata/standalone_fail_sub_test.go    |  8 ++
+ .../go/testdata/standalone_parallel_sub_test.go    | 14 ++++
+ src/cmd/go/testdata/standalone_sub_test.go         |  7 ++
+ src/testing/benchmark.go                           |  5 +-
+ src/testing/example.go                             | 10 ++-
+ src/testing/testing.go                             | 41 +++++++--
+ 9 files changed, 194 insertions(+), 17 deletions(-)

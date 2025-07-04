@@ -1,0 +1,16 @@
+commit 3acd4402195aadc581aa68977154ac3b3403f8af
+Author: cuishuang <imcusg@gmail.com>
+Date:   Tue Apr 1 11:46:17 2025 +0800
+
+    time: add examples for AppendBinary and AppendText
+    
+    Change-Id: I61529b5162f8a77d3bbffcbbac98c834a7626e3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661935
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/time/example_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

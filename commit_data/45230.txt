@@ -1,23 +1,30 @@
-commit 0ccdcb21024271211a64a5bb7e9c3c64d72f2699
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Apr 14 23:38:10 2021 -0400
+commit d83168eb385f7ae38710028fff5c84252267adbc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 13 17:07:34 2020 +0200
 
-    runtime: crash the GC when clobberdead pointer is seen
+    lib/time, time, time/tzdata: use slim tz data format
     
-    When -clobberdead compiler flag is set, the compiler inserts
-    instructions that set dead slots a specific value. If the GC sees
-    this value as a live pointer, something is probably wrong. Crash.
+    Follow-up for CL 261363 which had to retain the fat tz data format due
+    to failing test.
     
-    Only do this on AMD64 for now, as it is the only platform where
-    compiler's clobberdead mode is implemented. And on AMD64 the
-    clobberdead address can never be a valid address.
+    The reason for the failed tests was that when caching location data, the
+    extended time format past the end of zone transitions was not
+    considered. The respective change was introduced in (*Location).lookup
+    by CL 215539.
     
-    Change-Id: Ica687b132b5d3ba2a062500d13264fa730405d11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310330
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    This slims down zoneinfo.zip (and thus also the embedded copy in
+    time/tzdata) by ~350KB.
+    
+    Change-Id: I412f79de98ba45358b8696aca784999b3479135e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261877
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mbitmap.go | 25 +++++++++++++++++++------
- 1 file changed, 19 insertions(+), 6 deletions(-)
+ lib/time/update.bash       |     2 +-
+ lib/time/zoneinfo.zip      |   Bin 783364 -> 422355 bytes
+ src/time/tzdata/tzdata.go  |     2 +-
+ src/time/tzdata/zipdata.go | 19763 +++++++++++++++----------------------------
+ src/time/zoneinfo_read.go  |     8 +
+ 5 files changed, 6883 insertions(+), 12892 deletions(-)

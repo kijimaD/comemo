@@ -1,13 +1,13 @@
-commit 13d85668ac42525564f04e85f9529d993812f345
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 18 15:53:22 2014 +1100
+commit d2f61cc6603b701a09ca2d57963caafd996a7ed5
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 18 13:04:59 2014 +1100
 
-    go/doc: document the conditions where examples are "playable"
+    cmd/link: fix comment typo.
     
-    LGTM=r
-    R=r
+    LGTM=dsymonds
+    R=dsymonds
     CC=golang-codereviews
-    https://golang.org/cl/64910043
+    https://golang.org/cl/64100045
 
- src/pkg/go/doc/example.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/link/pclntab.go | 1 -
+ 1 file changed, 1 deletion(-)

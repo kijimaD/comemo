@@ -1,15 +1,35 @@
-commit 71916437fb2bd788a9ce491830f4233aee4a9149
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Mar 24 19:12:44 2016 -0400
+commit 16b1fce9217886797940247f6ffce57e119c3e47
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Jan 31 11:39:39 2016 -0800
 
-    runtime/cgo: save callee-saved xmm registers on windows/amd64
+    [dev.ssa] cmd/compile: add aux typing, flags to ops
     
-    For #14876.
+    Add the aux type to opcodes.
+    Add rematerializeable as a flag.
     
-    Change-Id: I33947f74e8058437a784862f1f064974afc99250
-    Reviewed-on: https://go-review.googlesource.com/21084
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I906e19281498f3ee51bb136299bf26e13a54b2ec
+    Reviewed-on: https://go-review.googlesource.com/19088
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/runtime/cgo/asm_amd64.s | 30 +++++++++++++++++++++++++++++-
- 1 file changed, 29 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go                |   8 +-
+ src/cmd/compile/internal/ssa/check.go             |  24 +-
+ src/cmd/compile/internal/ssa/deadcode_test.go     |   8 +-
+ src/cmd/compile/internal/ssa/deadstore_test.go    |   6 +-
+ src/cmd/compile/internal/ssa/dom_test.go          |  26 +-
+ src/cmd/compile/internal/ssa/func_test.go         |  34 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go      | 308 ++++++-------
+ src/cmd/compile/internal/ssa/gen/genericOps.go    |  80 ++--
+ src/cmd/compile/internal/ssa/gen/main.go          |  21 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go     |  20 +-
+ src/cmd/compile/internal/ssa/op.go                |  26 +-
+ src/cmd/compile/internal/ssa/opGen.go             | 509 ++++++++++++++--------
+ src/cmd/compile/internal/ssa/passbm_test.go       |   2 +-
+ src/cmd/compile/internal/ssa/regalloc.go          |  27 +-
+ src/cmd/compile/internal/ssa/regalloc_test.go     |   6 +-
+ src/cmd/compile/internal/ssa/schedule_test.go     |   2 +-
+ src/cmd/compile/internal/ssa/shift_test.go        |   2 +-
+ src/cmd/compile/internal/ssa/shortcircuit_test.go |   2 +-
+ src/cmd/compile/internal/ssa/value.go             |  72 ++-
+ 19 files changed, 696 insertions(+), 487 deletions(-)

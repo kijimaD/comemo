@@ -1,20 +1,14 @@
-commit b098c0f467e5ce70b936381c439a0cbafc3316d3
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed May 1 10:55:27 2019 -0400
+commit c8029041277c52f6a8c97dffa0a799ffbe217336
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Dec 12 13:35:19 2018 -0500
 
-    cmd/compile/internal/ppc64: improve naming for ginsnop2
+    doc: document Go 1.11.3 and Go 1.10.6
     
-    This is a follow up from a review comment at the end of the last
-    Go release, to provide a more meaningful name for ginsnop2.
-    
-    Updates #30475
-    
-    Change-Id: Ice9efd763bf2204a9e8c55ae230d3e8a80210108
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174757
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3fe44887a84586d73be01df78a9cbb002c1fc9c5
+    Reviewed-on: https://team-review.git.corp.google.com/c/376465
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/154106
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ppc64/galign.go | 2 +-
- src/cmd/compile/internal/ppc64/ggen.go   | 5 +++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ doc/devel/release.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

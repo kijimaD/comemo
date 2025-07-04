@@ -1,16 +1,26 @@
-commit bc588d4d921ba85affbdab5eafddd840d2ea84b5
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Wed May 8 09:21:06 2019 +0200
+commit 429bae715876c69853bb63db1733f580e293c916
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Dec 20 20:21:45 2018 +0000
 
-    cmd/link/internal/ld: add missing Close
+    runtime: skip TestLockOSThreadAvoidsStatePropagation if one can't unshare
     
-    Noticed while working on issue 30488.
+    This change splits a testprog out of TestLockOSThreadExit and makes it
+    its own test. Then, this change makes the testprog exit prematurely with
+    a special message if unshare fails with EPERM because not all of the
+    builders allow the user to call the unshare syscall.
     
-    Change-Id: Ia3655e07c939d03925b3560eeba24c60e24c136c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175917
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Also, do some minor cleanup on the TestLockOSThread* tests.
+    
+    Fixes #29366.
+    
+    Change-Id: Id8a9f6c4b16e26af92ed2916b90b0249ba226dbe
+    Reviewed-on: https://go-review.googlesource.com/c/155437
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/macho_combine_dwarf.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/proc_test.go                        | 21 +++++----
+ src/runtime/testdata/testprog/lockosthread.go   |  4 ++
+ src/runtime/testdata/testprog/syscalls.go       | 47 +-------------------
+ src/runtime/testdata/testprog/syscalls_linux.go | 59 +++++++++++++++++++++++++
+ 4 files changed, 78 insertions(+), 53 deletions(-)

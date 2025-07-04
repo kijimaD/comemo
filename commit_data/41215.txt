@@ -1,14 +1,22 @@
-commit 53558cb721ec7a2a6f87ff87a4095e956c587e3d
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jan 31 14:54:21 2020 -0800
+commit d12c62d12dc87a086815ca9d8beaa8f0c8e26b00
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Sep 11 07:22:35 2019 +0000
 
-    doc/go1.14: fix math/big.(*Int).GCD notes
+    go/parser: fix ignored errors in ParseExprFrom
     
-    GCD is a method, not a function, so the link was broken.
+    This CL fixes a bug in ParseExprFrom which makes
+    error messages ignored when there are 10+ errors
+    in a single expression.
     
-    Change-Id: Icbb09d39959e7c71a48987b15bb82febe12c3a19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217303
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    fixes #34241
+    fixes #34274
+    
+    Change-Id: I29a82d3e3e726279005eb6fbcd7ee3aebffaa679
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194638
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.14.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/parser/interface.go   |  2 +-
+ src/go/parser/parser_test.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

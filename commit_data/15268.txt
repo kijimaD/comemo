@@ -1,47 +1,12 @@
-commit f3407f445d51dac3b9415cb5025ac98ccbbc80eb
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 15 11:18:55 2013 -0500
+commit a9824f178da9c636a7c4110c74cdcf0a297173ac
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Feb 15 17:04:02 2013 +0400
 
-    runtime: fix running under nohup
+    runtime: fix debug output
     
-    There are two ways nohup(1) might be implemented:
-    it might mask away the signal, or it might set the handler
-    to SIG_IGN, both of which are inherited across fork+exec.
-    So two fixes:
-    
-    * Make sure to preserve the inherited signal mask at
-    minit instead of clearing it.
-    
-    * If the SIGHUP handler is SIG_IGN, leave it that way.
-    
-    Fixes #4491.
-    
-    R=golang-dev, mikioh.mikioh, iant
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7308102
+    https://golang.org/cl/7312101
 
- src/pkg/runtime/os_darwin.h            |  1 +
- src/pkg/runtime/os_freebsd.h           |  1 +
- src/pkg/runtime/os_linux.h             |  1 +
- src/pkg/runtime/os_netbsd.h            |  1 +
- src/pkg/runtime/os_openbsd.h           |  1 +
- src/pkg/runtime/runtime.h              |  1 +
- src/pkg/runtime/signal_darwin_386.c    |  9 +++++++++
- src/pkg/runtime/signal_darwin_amd64.c  |  9 +++++++++
- src/pkg/runtime/signal_freebsd_386.c   |  9 +++++++++
- src/pkg/runtime/signal_freebsd_amd64.c |  9 +++++++++
- src/pkg/runtime/signal_freebsd_arm.c   |  9 +++++++++
- src/pkg/runtime/signal_linux_386.c     |  9 +++++++++
- src/pkg/runtime/signal_linux_amd64.c   |  9 +++++++++
- src/pkg/runtime/signal_linux_arm.c     |  9 +++++++++
- src/pkg/runtime/signal_netbsd_386.c    |  9 +++++++++
- src/pkg/runtime/signal_netbsd_amd64.c  |  9 +++++++++
- src/pkg/runtime/signal_netbsd_arm.c    |  9 +++++++++
- src/pkg/runtime/signal_openbsd_386.c   |  9 +++++++++
- src/pkg/runtime/signal_openbsd_amd64.c |  9 +++++++++
- src/pkg/runtime/thread_darwin.c        | 10 +++++-----
- src/pkg/runtime/thread_freebsd.c       |  6 ++++--
- src/pkg/runtime/thread_linux.c         |  6 ++++--
- src/pkg/runtime/thread_netbsd.c        |  7 +++++--
- src/pkg/runtime/thread_openbsd.c       |  6 ++++--
- 24 files changed, 145 insertions(+), 13 deletions(-)
+ src/pkg/runtime/stack.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

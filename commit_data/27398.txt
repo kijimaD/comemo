@@ -1,27 +1,19 @@
-commit b4bf0663fa3334d053981f222eed5015a0a1b8df
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Apr 23 22:36:41 2016 +0900
+commit 139fad21b937dc0b405d243e3abe33429890947f
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Mar 23 17:33:32 2016 -0700
 
-    net: golang.org/x/net/route plumbing
+    all: zero mtimes in testdata gz files
     
-    This change makes use of new routing message APIs for BSD variants to
-    support FreeBSD 11 and newer versions of other BSDs.
+    Fixes #14937.
     
-    Fixes #7849.
-    Fixes #14724.
-    
-    Change-Id: I56c7886d6622cdeddd7cc29c8a8062dcc06216d5
-    Reviewed-on: https://go-review.googlesource.com/22451
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: Iea11a32230d44d5a43f8aec812d25f13bce85895
+    Reviewed-on: https://go-review.googlesource.com/21038
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go                          |   7 +-
- src/net/interface_bsd.go                           | 167 +++++++--------------
- ...{interface_dragonfly.go => interface_bsdvar.go} |  16 ++
- src/net/interface_darwin.go                        |  67 ++++-----
- src/net/interface_freebsd.go                       |  72 +++++----
- src/net/interface_netbsd.go                        |  12 --
- src/net/interface_openbsd.go                       |  12 --
- src/net/interface_test.go                          |  21 ---
- 8 files changed, 141 insertions(+), 233 deletions(-)
+ src/compress/gzip/issue14937_test.go       |  52 +++++++++++++++++++++++++++++
+ src/compress/gzip/testdata/issue6550.gz    | Bin 65536 -> 65536 bytes
+ src/debug/elf/testdata/hello-world-core.gz | Bin 12678 -> 12678 bytes
+ src/encoding/json/testdata/code.json.gz    | Bin 120432 -> 120432 bytes
+ 4 files changed, 52 insertions(+)

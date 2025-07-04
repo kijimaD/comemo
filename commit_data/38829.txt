@@ -1,35 +1,25 @@
-commit 248444d5eb91a26fa0b050172b22fc2cf7c72936
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Apr 10 10:18:52 2019 -0400
+commit 81a5c9c306a35a297c86d72c9729a16f69acec21
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Tue Nov 20 11:13:03 2018 +0530
 
-    cmd/link: apply DWARF relocations while doing compression
+    go/doc: convert to unicode quotes for ToText and Synopsis
     
-    We are preparing for applying relocations to the output buffer.
-    However, for DWARF compression, relocations need to be applied
-    before compression, but we don't have an output buffer at that
-    time. We also cannot delay DWARF compression to when we mmap the
-    output file, because we need the size of the DWARF sections to
-    compute the file size.
+    We refactor the conversion of quotes to their unicode equivalent
+    to a separate function so that it can be called from ToText and Synopsis.
     
-    Instead of applying all the relocations together, we apply
-    relocations in DWARF sections one symbol at a time, right before
-    it is writing out for compression. As the symbol content may be
-    in read-only memory (in the future), we use a temporary buffer
-    for applying the relocations, and immediately write it out.
+    And we introduce a temp buffer to write the escaped HTML and convert
+    the unicode quotes back to html escaped entities. This simplifies the logic
+    and gets rid of the need to track the index of the escaped text.
     
-    If compression is not used, relocations are still applied all
-    together.
+    Fixes #27759
     
-    This is in preparation for mmap'ing input files read-only.
-    
-    Change-Id: Iae6d2dd71313897d5054bcc458d3bb78075b30c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171397
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I71cf47ddcd4c6794ccdf2898ac25539388b393c1
+    Reviewed-on: https://go-review.googlesource.com/c/150377
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/data.go  | 14 ++++++++++++++
- src/cmd/link/internal/ld/dwarf.go |  7 ++++---
- src/cmd/link/internal/ld/link.go  |  2 ++
- src/cmd/link/internal/ld/main.go  |  2 +-
- 4 files changed, 21 insertions(+), 4 deletions(-)
+ src/go/doc/comment.go       | 48 +++++++++++++++++++++++++++------------------
+ src/go/doc/comment_test.go  | 18 +++++++++++++++++
+ src/go/doc/synopsis.go      |  1 +
+ src/go/doc/synopsis_test.go |  1 +
+ 4 files changed, 49 insertions(+), 19 deletions(-)

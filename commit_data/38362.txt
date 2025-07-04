@@ -1,19 +1,21 @@
-commit 6c527aa58355b936fa173828139a3e245a3ddba6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Mar 11 23:23:08 2019 -0400
+commit e41fbc79ccfedc5bf4d07356c20de0731bd9cfd9
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 22 16:02:43 2018 -0400
 
-    cmd/dist: revert mod=vendor change accidentally included in CL 164623
+    runtime: use unsigned load for iscgo variable in ppc64x runtime asm
     
-    I thought I had removed all of the 'mod=vendor' hacks I had inserted
-    previously, but apparently missed this one in a bad merge or rebase.
+    This changes the runtime asm code that loads iscgo to use MOVBZ
+    instead of MOVB, avoiding an unnecessary sign extension. This is most
+    significant in runtime.save_g, reducing the size from 8 to 7
+    instructions.
     
-    Updates #30228
-    
-    Change-Id: Ia5aea754bf986458373fefd08fa9dd3941e31e43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167077
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iaa2121464b5309e1f27fd91b19b5603c7aaf619d
+    Reviewed-on: https://go-review.googlesource.com/c/144217
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/dist/build.go | 15 ---------------
- 1 file changed, 15 deletions(-)
+ src/runtime/asm_ppc64x.s       | 2 +-
+ src/runtime/sys_linux_ppc64x.s | 2 +-
+ src/runtime/tls_ppc64x.s       | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

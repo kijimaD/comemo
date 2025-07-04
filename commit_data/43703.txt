@@ -1,24 +1,27 @@
-commit fd841f65368906923e287afab91857043036459d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 29 12:20:53 2020 -0400
+commit af55060b39d2f6f39711abc95a23bd8f47968e8e
+Author: Rohith Ravi <entombedvirus@gmail.com>
+Date:   Sun Apr 19 02:21:15 2020 +0000
 
-    path/filepath: add WalkDir
+    cmd/trace: fix the broken link in region pages and improve UX
     
-    WalkDir is like Walk but can use ReadDir to read directories,
-    instead of Readdirnames + Lstat on every entry,
-    which is usually a significant performance improvement.
-    (The Lstat can still happen if the walk function calls d.Info.)
+    The trace tool had a broken link due to a parameter encoding error,
+    which has been corrected.
     
-    Fixes #42027.
+    In addition:
     
-    Change-Id: Ie11024b23be2656e320d41fd81ff0d8810aa729e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266240
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    - the user regions page has been enhanced to include links to
+    pprof style profiles for region specific io, block, syscall and
+    schedwait profiles.
+    
+    - sortable table headers have a pointer cursor to indicate they're
+    clickable.
+    
+    Fixes #38518
+    
+    Change-Id: I26cd5157bd9753750f5f53ea03aac5d2d41b021c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228899
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/path/filepath/export_test.go |   2 +
- src/path/filepath/path.go        | 213 ++++++++++++++++++++++++++++++++++-----
- src/path/filepath/path_test.go   |  89 ++++++++++------
- 3 files changed, 250 insertions(+), 54 deletions(-)
+ src/cmd/trace/annotations.go | 55 ++++++++++++++++++++++++++++++++++++--------
+ src/cmd/trace/goroutines.go  | 16 ++++++++++---
+ 2 files changed, 59 insertions(+), 12 deletions(-)

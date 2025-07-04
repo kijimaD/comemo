@@ -1,18 +1,25 @@
-commit 161f2e85ee4959afff3e117d9488eddc49e975cd
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Jan 7 07:45:59 2016 +0100
+commit b16c699195a33c4451ed9f1bae50a51fa0290ba1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 4 14:51:51 2015 -0800
 
-    os: fix rename on Plan 9
+    internal/syscall/unix: eliminate non-trivial randomTrap initializer
     
-    Rename should remove newname if the file already exists
-    and is not a directory.
+    While here, enable getrandom on arm64 too (using the value found in
+    include/uapi/asm-generic/unistd.h, which seems to match up with other
+    GOARCH=arm64 syscall numbers).
     
-    Fixes #13844.
+    Updates #10848.
     
-    Change-Id: I85a5cc28e8d161637a8bc1de33f4a637d9154cd1
-    Reviewed-on: https://go-review.googlesource.com/18291
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5ab36ccf6ee8d5cc6f0e1a61d09f0da7410288b9
+    Reviewed-on: https://go-review.googlesource.com/16662
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/file_plan9.go | 11 ++++++++++-
- src/os/os_test.go    |  3 ---
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ src/internal/syscall/unix/getrandom_linux.go         | 9 ---------
+ src/internal/syscall/unix/getrandom_linux_386.go     | 7 +++++++
+ src/internal/syscall/unix/getrandom_linux_amd64.go   | 7 +++++++
+ src/internal/syscall/unix/getrandom_linux_arm.go     | 7 +++++++
+ src/internal/syscall/unix/getrandom_linux_generic.go | 9 +++++++++
+ src/internal/syscall/unix/getrandom_linux_ppc64x.go  | 9 +++++++++
+ 6 files changed, 39 insertions(+), 9 deletions(-)

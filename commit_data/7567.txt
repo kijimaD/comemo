@@ -1,18 +1,12 @@
-commit 27ccb41c4a12e10055e6654a4b26c35040bef98c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 24 16:24:51 2011 -0800
+commit 176eb49d9cd8f1c27cc08d7203529114b1888022
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 25 11:16:39 2011 +1100
 
-    godoc: accept symbolic links as path names provided to -path
+    runtime: add empty windows/signals.h file to fix build
     
-    When providing addition file systems to godoc via -path, the
-    path names may be symbolic links. Follow them.
-    
-    Also: better logging of error and special conditions.
-    
-    R=r, dsymonds, r2
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4217045
+    https://golang.org/cl/4223049
 
- src/cmd/godoc/dirtrees.go | 21 ++++++++++++++++++---
- src/cmd/godoc/godoc.go    |  7 ++++---
- 2 files changed, 22 insertions(+), 6 deletions(-)
+ src/pkg/runtime/windows/signals.h | 3 +++
+ 1 file changed, 3 insertions(+)

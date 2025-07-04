@@ -1,16 +1,29 @@
-commit 329fff0db01dd1252444cf106dffe72ba20ddbc8
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Nov 26 15:27:29 2016 +0000
+commit b992c391d4aae64e147fc64c77ad41d61be8e2e7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Oct 22 09:47:05 2016 -0700
 
-    misc/cgo/testshared: remove unused flag.Parse()
+    net/http: add NoBody, don't return nil from NewRequest on zero bodies
     
-    TestMain doesn't make use of any flags.
+    This is an alternate solution to https://golang.org/cl/31445
     
-    Change-Id: I98ec582fb004045a5067618f605ccfeb1f9f4bbb
-    Reviewed-on: https://go-review.googlesource.com/33613
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Instead of making NewRequest return a request with Request.Body == nil
+    to signal a zero byte body, add a well-known variable that means
+    explicitly zero.
+    
+    Too many tests inside Google (and presumably the outside world)
+    broke.
+    
+    Change-Id: I78f6ecca8e8aa1e12179c234ccfb6bcf0ee29ba8
+    Reviewed-on: https://go-review.googlesource.com/31726
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- misc/cgo/testshared/shared_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/net/http/http.go             | 19 +++++++++++++++++++
+ src/net/http/readrequest_test.go | 26 +++++++++++++-------------
+ src/net/http/request.go          | 12 ++++++++----
+ src/net/http/request_test.go     |  2 +-
+ src/net/http/response.go         |  2 +-
+ src/net/http/server.go           | 22 ++--------------------
+ src/net/http/transfer.go         |  6 +++---
+ 7 files changed, 47 insertions(+), 42 deletions(-)

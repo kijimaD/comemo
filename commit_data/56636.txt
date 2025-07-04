@@ -1,21 +1,19 @@
-commit 27c302d5d55212eb3cf3797216b3cd4fe020e11c
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue May 14 11:16:56 2024 -0700
+commit cbd3305f8c7452963b7a1b4db001776b76370ae4
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 17 15:59:47 2023 -0400
 
-    crypto/internal/hpke: add basic implementation
+    cmd/cgo/internal/testnocgo: always run in default configuration
     
-    Only implements the sender role, since that's all we need for
-    client-side ECH for now.
+    This test is actually intended to test that we can build in -static
+    mode even without any cgo. That means it's quite harmless to run in
+    the default build configuration (in addition to running with various
+    other build configurations).
     
-    Change-Id: Ia7cba1bc3bad8e8dc801d98d5ea859738b1f2790
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585436
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ic6cb5c0eaab83f9bd5718aae57d0fdc69afcb8b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496178
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/hpke/hpke.go                   | 259 +++++++++++++++++++++
- src/crypto/internal/hpke/hpke_test.go              | 168 +++++++++++++
- .../internal/hpke/testdata/rfc9180-vectors.json    |   1 +
- src/go/build/deps_test.go                          |   1 +
- 4 files changed, 429 insertions(+)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

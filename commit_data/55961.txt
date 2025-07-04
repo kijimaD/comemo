@@ -1,18 +1,23 @@
-commit 159144f28b7aa4edb45ce9fb23b22623b3ac047b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 14 16:57:22 2024 -0400
+commit 93b3035dbbcd21c1d0538142cba4e7f79631e7a2
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Mar 29 09:57:33 2023 -0400
 
-    cmd/go/internal/modload: follow dependencies of unpruned roots in dqTracker.path
+    src/log/slog: JSONHandler checks if error implements json.Marshaler
     
-    For #65363.
+    json.Marshal doesn't do what one might hope on many Go error values.
+    Errors created with errors.New marshal as "{}". So JSONHandler treats
+    errors specially, calling the Error method instead of json.Marshal.
     
-    Change-Id: I82ae1098b00c8772ef8d3aa92197e7d8c66d1b37
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571800
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    However, if the error happens to implement json.Marshaler, then
+    JSONHandler should call json.Marshal after all. This CL makes
+    that change.
+    
+    Change-Id: I2154246b2ca8fa13d4f6f1256f7a16aa98a8c24a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480155
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/internal/modload/edit.go               |  6 ++
- src/cmd/go/testdata/script/mod_get_issue65363.txt | 77 +++++++++++++++++++++++
- 2 files changed, 83 insertions(+)
+ src/log/slog/json_handler.go      | 3 ++-
+ src/log/slog/json_handler_test.go | 7 +++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

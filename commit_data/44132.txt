@@ -1,23 +1,16 @@
-commit b386c735e7582d08a938ce2bc582f931946854b4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 13 14:40:07 2021 -0500
+commit a88c26eb286098b4c8f322f5076e933556fce5ac
+Author: David Chase <drchase@google.com>
+Date:   Thu Mar 12 21:30:30 2020 -0400
 
-    cmd/go: fix go generate docs
+    cmd/internal/obj: add stmt prologueEnd to DWARF for arm64
     
-    The docs were never updated for the change to the placement
-    of the DO NOT EDIT line.
-    
-    Also, the description of the DO NOT EDIT line interrupted the
-    description of the //go:generate line, which made for some
-    confusing references in the text that followed. Move it lower.
-    
-    Fixes #41196.
-    
-    Change-Id: I6af2a199fa98d45f5ccac7cdf7e9e54257699e61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/283633
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7e9ec2835f1a7d9821dff3e868aebf07fece8137
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223297
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go                    | 18 +++++++++---------
- src/cmd/go/internal/generate/generate.go | 18 +++++++++---------
- 2 files changed, 18 insertions(+), 18 deletions(-)
+ src/cmd/internal/obj/arm64/obj7.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

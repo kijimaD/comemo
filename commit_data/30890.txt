@@ -1,89 +1,18 @@
-commit 041ecb697f0e867a2bb0bf219cc2fd5f77057c2e
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Mar 25 15:05:42 2017 -0700
+commit 3444e5b3551060ab8cc0d4c70a9dce823d8f569a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 14 21:35:30 2016 -0500
 
-    cmd/compile: automatically handle commuting ops in rewrite rules
+    runtime: fix mips assembly
     
-    We have lots of rewrite rules that vary only in the fact that
-    we have 2 versions for the 2 different orderings of various
-    commuting ops. For example:
+    I meant to say ~7, instead of ^7, in the review.
     
-    (ADDL x (MOVLconst [c])) -> (ADDLconst [c] x)
-    (ADDL (MOVLconst [c]) x) -> (ADDLconst [c] x)
+    Fix build.
     
-    It can get unwieldly quickly, especially when there is more than
-    one commuting op in a rule.
-    
-    Our existing "fix" for this problem is to have rules that
-    canonicalize the operations first. For example:
-    
-    (Eq64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Eq64 (Const64 <t> [c]) x)
-    
-    Subsequent rules can then assume if there is a constant arg to Eq64,
-    it will be the first one. This fix kinda works, but it is fragile and
-    only works when we remember to include the required extra rules.
-    
-    The fundamental problem is that the rule matcher doesn't
-    know anything about commuting ops. This CL fixes that fact.
-    
-    We already have information about which ops commute. (The register
-    allocator takes advantage of commutivity.)  The rule generator now
-    automatically generates multiple rules for a single source rule when
-    there are commutative ops in the rule. We can now drop all of our
-    almost-duplicate source-level rules and the canonicalization rules.
-    
-    I have some CLs in progress that will be a lot less verbose when
-    the rule generator handles commutivity for me.
-    
-    I had to reorganize the load-combining rules a bit. The 8-way OR rules
-    generated 128 different reorderings, which was causing the generator
-    to put too much code in the rewrite*.go files (the big ones were going
-    from 25K lines to 132K lines). Instead I reorganized the rules to
-    combine pairs of loads at a time. The generated rule files are now
-    actually a bit (5%) smaller.
-    [Note to reviewers: check these carefully. Most of the other rule
-    changes are trivial.]
-    
-    Make.bash times are ~unchanged.
-    
-    Compiler benchmarks are not observably different. Probably because
-    we don't spend much compiler time in rule matching anyway.
-    
-    I've also done a pass over all of our ops adding commutative markings
-    for ops which hadn't had them previously.
-    
-    Fixes #18292
-    
-    Change-Id: I999b1307272e91965b66754576019dedcbe7527a
-    Reviewed-on: https://go-review.googlesource.com/38666
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I5060bbcd98b4ab6f00251fdb68b6b35767e5acf1
+    Reviewed-on: https://go-review.googlesource.com/34411
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules     |    90 +-
- src/cmd/compile/internal/ssa/gen/386Ops.go     |    34 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   816 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   102 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules     |    56 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |   188 +-
- src/cmd/compile/internal/ssa/gen/MIPS.rules    |    12 +-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |     6 -
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |     8 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |     2 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules   |   744 +-
- src/cmd/compile/internal/ssa/gen/S390XOps.go   |    60 +-
- src/cmd/compile/internal/ssa/gen/generic.rules |   109 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go |    29 +-
- src/cmd/compile/internal/ssa/gen/rulegen.go    |   190 +-
- src/cmd/compile/internal/ssa/opGen.go          |   388 +-
- src/cmd/compile/internal/ssa/rewrite386.go     | 10523 ++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 81436 +++++++++++++++++++++--
- src/cmd/compile/internal/ssa/rewriteARM.go     |   800 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go   |  2529 +-
- src/cmd/compile/internal/ssa/rewriteMIPS.go    |   579 +-
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  |   358 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go   |   396 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 26052 ++++++--
- src/cmd/compile/internal/ssa/rewritedec.go     |     6 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go |  9200 ++-
- 26 files changed, 115834 insertions(+), 18879 deletions(-)
+ src/runtime/asm_mipsx.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,35 +1,19 @@
-commit fa16efb8358e0cb23e285803075764abbdcffe5e
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Jul 14 14:09:27 2021 -0500
+commit 41245ab28390fed22ba03ee87c0e3db97b16c73b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 9 17:14:15 2021 -0800
 
-    cmd/link: enable internal linking of PIE binaries on ppc64le
+    cmd/compile/internal/types2: remove concept of finals
     
-    The amd64/arm64 relocation processing is used as a template
-    and updated for ppc64le.
+    This is a 1:1 port of the respective change in go/types
+    in https://golang.org/cl/299590.
     
-    This requires updating the TOC relocation handling code to
-    support linux type TOC relocations too (note, AIX uses
-    TOC-indirect accesses).
-    
-    Noteably, the shared flag of go functions is used as a proxy
-    for the local entry point offset encoded in elf objects. Functions
-    in go ppc64le shared objects always[1] insert 2 instructions to
-    regenerate the TOC pointer.
-    
-    [1] excepting a couple special runtime functions, see preprocess
-        in obj9.go for specific details of this behavior.
-    
-    Change-Id: I3646e6dc8a0a0ffe712771a976983315eae5c418
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352829
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I65ad723f2e21e3d95fc0b94665e0121e31871a48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300250
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/dist/test.go               |   2 +-
- src/cmd/internal/sys/supported.go  |   2 +-
- src/cmd/link/internal/ld/config.go |   3 +-
- src/cmd/link/internal/ld/data.go   |   2 +
- src/cmd/link/internal/ppc64/asm.go | 221 ++++++++++++++++++++++++++++++++-----
- src/debug/elf/elf.go               |   2 +
- 6 files changed, 201 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/types2/check.go   | 21 ---------------------
+ src/cmd/compile/internal/types2/typexpr.go | 12 ++++++------
+ 2 files changed, 6 insertions(+), 27 deletions(-)

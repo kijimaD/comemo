@@ -1,15 +1,12 @@
-commit f41ffc2bf4a5a29bdff0b11a787e2536859ea61d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Feb 4 15:28:55 2013 +1100
+commit 873c7d39aa70b1c9174ae18ee97e33891b45e7fa
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 22:41:24 2013 -0500
 
-    regexp: add (*Regexp).Longest
+    C: add Alex Bramley (Google CLA)
     
-    Fixes #3696.
-    
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7133051
+    https://golang.org/cl/7284047
 
- src/pkg/regexp/exec_test.go | 14 ++++++++++++++
- src/pkg/regexp/regexp.go    |  8 ++++++++
- 2 files changed, 22 insertions(+)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

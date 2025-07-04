@@ -1,25 +1,30 @@
-commit 9fa34d9fa25078423cdb484d39cdd62f067098ac
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue May 14 08:56:12 2024 +0200
+commit 46847c639b3e5b3df0c4b06fd19d1cc90bc0306e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 5 16:50:56 2023 -0400
 
-    net/netip: fix TestInlining after CL 585057
+    cmd/go/internal/modload: skip reading go.mod files for imports in 'go mod tidy' of modules before 'go 1.21'
     
-    Addr.AsSlice is not inlinable on all architectures.
+    This eliminate a network access in 'go mod tidy' of an already-tidy
+    module, which would otherwise be needed to fetch go.mod checksums for
+    the test dependencies whose go.mod checksums were omitted in Go
+    releases between Go 1.17 and 1.20 due to bug #56222.
     
-    Fixes #67354
+    For modules between 'go 1.17' and 'go 1.20' we intentionally preserve
+    the old 'go mod tidy' output (omitting go.sum entries for the go.mod
+    files of test dependencies of external packages). We should also avoid
+    performing extra sumdb lookups for checksums that would be discarded
+    anyway.
     
-    Change-Id: Ibaf7daa2e1188a05952f8df3c84255436b29478d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585058
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Updates #56222.
+    
+    Change-Id: I7f0f1c8e902db0e3414c819621c4b99052f503f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492741
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/net/netip/inlining_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modload/import.go             | 10 ++++++++--
+ src/cmd/go/internal/modload/load.go               | 16 ++++++++++++----
+ src/cmd/go/testdata/script/mod_sum_issue56222.txt | 15 ++++++++++++++-
+ 3 files changed, 34 insertions(+), 7 deletions(-)

@@ -1,16 +1,22 @@
-commit ad95b7d23cf776022b0fafebb707d2948cdb80f4
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Mar 30 19:05:00 2013 +0800
+commit 4b7bf73c4b4f46603d4d89a103d1f797f90bc09e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 30 15:21:22 2013 +0900
 
-    include/plan9/libc.h: fix Plan 9 build
+    net: avoid use of listener socket options on active open sockets
     
-    Add missing getgoextlinkenabled(void) declaration
-    in Plan 9 libc.h. This function was added as part
-    of CL #8183043.
+    This CL ensures we use the correct socket options for
+    passive and active open sockets.
     
-    R=golang-dev, minux.ma
+    For the passive open sockets created by Listen functions,
+    additional SO_REUSEADDR, SO_REUSEPORT options are required
+    for the quick service restart and/or multicasting.
+    
+    For the active open sockets created by Dial functions, no
+    additional options are required.
+    
+    R=golang-dev, dave, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/8191043
+    https://golang.org/cl/7795050
 
- include/plan9/libc.h | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/sock_posix.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

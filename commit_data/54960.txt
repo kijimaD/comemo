@@ -1,23 +1,25 @@
-commit 8da6405e0db80fa0a4136fb816c7ca2db716c2b2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 10 10:52:12 2023 -0800
+commit d5de62df152baf4de6e9fe81933319b86fd95ae4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 23 14:07:19 2022 +0100
 
-    go/types, types2: implement Info.PkgNameOf
+    lib/time, time/tzdata: update to 2022f
     
-    For #62037.
+    Version 2022f was released on 2022-10-29,  see
+    https://mm.icann.org/pipermail/tz-announce/2022-October/000075.html for
+    the release announcement.
     
-    Change-Id: I354f6417232708278d3f2b2d5ea41ff48e08d6b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541575
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    For #22487
+    
+    Change-Id: I6130def7fcd389b30ffed0eb9003d0fcf5eabb82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453055
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- api/next/62037.txt                          |  2 +
- src/cmd/compile/internal/types2/api.go      | 17 +++++++
- src/cmd/compile/internal/types2/api_test.go | 74 ++++++++++++++++++++++++++++
- src/go/types/api.go                         | 17 +++++++
- src/go/types/api_test.go                    | 75 +++++++++++++++++++++++++++++
- 5 files changed, 185 insertions(+)
+ lib/time/update.bash       |     4 +-
+ lib/time/zoneinfo.zip      |   Bin 423559 -> 428823 bytes
+ src/time/tzdata/zipdata.go | 13816 ++++++++++++++++++++++---------------------
+ 3 files changed, 6954 insertions(+), 6866 deletions(-)

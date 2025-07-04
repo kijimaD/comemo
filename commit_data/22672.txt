@@ -1,15 +1,16 @@
-commit 1f65c9c1411220ad6abd200703906dfa27695b16
-Author: Srdjan Petrovic <spetrovic@google.com>
-Date:   Wed Apr 22 11:44:46 2015 -0700
+commit 9b696be08bd252c29de61740951dc8f0b115bfc4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Apr 1 14:24:35 2015 -0700
 
-    runtime: deflake TestNewOSProc0, fix _rt0_amd64_linux_lib stack alignment
+    go/scanner: Simplify ErrorList.Sort implementation.
     
-    This addresses iant's comments from CL 9164.
+    It functions exactly the same, but this is the more common
+    style for these kinds of multi-key comparison functions,
+    and is more regular.
     
-    Change-Id: I7b5b282f61b11aab587402c2d302697e76666376
-    Reviewed-on: https://go-review.googlesource.com/9222
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I46630948f893bcc96c05eb3d36eb82e1d97a6fa0
+    Reviewed-on: https://go-review.googlesource.com/8358
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/norace_linux_test.go | 8 ++++++--
- src/runtime/rt0_linux_amd64.s    | 2 +-
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/go/scanner/errors.go | 25 ++++++++-----------------
+ 1 file changed, 8 insertions(+), 17 deletions(-)

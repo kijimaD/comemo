@@ -1,21 +1,30 @@
-commit 731531980a36f1fa6434c947c54daf8ba530a65f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Apr 20 13:02:41 2016 +1000
+commit f3a29f1f81e14682f5415ddb517eefbd610dea1a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 6 21:22:11 2016 -0800
 
-    debug/pe: move some code into section.go and symbol.go
+    cmd/compile: preallocate storage for three Value args
     
-    Just moving code. No code changes.
+    benchstat master2 arg3b
+    name      old time/op    new time/op    delta
+    Template     441ms ± 4%     444ms ± 6%    ~     (p=0.335 n=22+25)
+    GoTypes      1.51s ± 2%     1.51s ± 2%    ~     (p=0.129 n=25+21)
+    Compiler     5.59s ± 1%     5.56s ± 2%  -0.65%  (p=0.001 n=24+21)
     
-    Updates #15345
+    name      old alloc/op   new alloc/op   delta
+    Template    85.6MB ± 0%    85.3MB ± 0%  -0.40%  (p=0.000 n=25+24)
+    GoTypes      307MB ± 0%     305MB ± 0%  -0.38%  (p=0.000 n=25+25)
+    Compiler    1.06GB ± 0%    1.05GB ± 0%  -0.43%  (p=0.000 n=25+25)
     
-    Change-Id: I89c257b7aae4fbd78ce59a42909ecb3ff493659d
-    Reviewed-on: https://go-review.googlesource.com/22300
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    name      old allocs/op  new allocs/op  delta
+    Template     1.10M ± 0%     1.09M ± 0%  -1.04%  (p=0.000 n=25+25)
+    GoTypes      3.36M ± 0%     3.32M ± 0%  -1.13%  (p=0.000 n=25+24)
+    Compiler     13.0M ± 0%     12.9M ± 0%  -1.12%  (p=0.000 n=25+25)
+    
+    Change-Id: I1280b846e895c00b95bb6664958a7765bd819610
+    Reviewed-on: https://go-review.googlesource.com/20296
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/debug/pe/file.go    | 47 -------------------------------------
- src/debug/pe/pe.go      | 24 -------------------
- src/debug/pe/section.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/debug/pe/symbol.go  | 24 +++++++++++++++++++
- 4 files changed, 85 insertions(+), 71 deletions(-)
+ src/cmd/compile/internal/ssa/TODO           | 1 -
+ src/cmd/compile/internal/ssa/sizeof_test.go | 2 +-
+ src/cmd/compile/internal/ssa/value.go       | 4 ++--
+ 3 files changed, 3 insertions(+), 4 deletions(-)

@@ -1,26 +1,17 @@
-commit 0476c7a7b50614f98f37a51ee2100af922288b68
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sat Mar 25 12:55:40 2017 +0100
+commit c06b10ae9df81ea3ffdfe118a92410da4e153fea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 12 16:53:12 2016 -0800
 
-    runtime/cgo: raise the thread-local storage slot search limit on Android
+    os/exec: fix race in TestStdinCloseRace
     
-    On Android, the thread local offset is found by looping through memory
-    starting at the TLS base address. The search is limited to
-    PTHREAD_KEYS_MAX, but issue 19472 made it clear that in some cases, the
-    slot is located further from the TLS base.
+    The test for the race detector itself had a race of a sort not
+    detected by the race detector.
     
-    The limit is merely a sanity check in case our assumptions about the
-    thread-local storage layout are wrong, so this CL raises it to 384, which
-    is enough for the test case in issue 19472.
+    Fixes #18286.
     
-    Fixes #19472
-    
-    Change-Id: I89d1db3e9739d3a7fff5548ae487a7483c0a278a
-    Reviewed-on: https://go-review.googlesource.com/38636
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3265eae275aaa2869a6b6d3e8675b0d88b25831b
+    Reviewed-on: https://go-review.googlesource.com/34287
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/cgo/gcc_android_arm.c   | 13 +++++--------
- src/runtime/cgo/gcc_android_arm64.c |  6 +++++-
- 2 files changed, 10 insertions(+), 9 deletions(-)
+ src/os/exec/exec_test.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

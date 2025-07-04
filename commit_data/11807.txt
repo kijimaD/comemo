@@ -1,15 +1,12 @@
-commit 7dd90621f8f8ed25708daf279067e8c0024af20b
+commit 2aafad25b4fe6c8e0d7f75b71b4b6d6e238483d6
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 11 01:21:12 2012 -0500
+Date:   Sat Feb 11 01:04:33 2012 -0500
 
-    gc: diagnose field+method of same name
-    
-    Fixes #2828.
+    gc: print detail for typechecking loop error
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/5653065
+    https://golang.org/cl/5654060
 
- src/cmd/gc/dcl.c         |  8 ++++++++
- test/fixedbugs/bug416.go | 13 +++++++++++++
- 2 files changed, 21 insertions(+)
+ src/cmd/gc/typecheck.c | 59 ++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 48 insertions(+), 11 deletions(-)

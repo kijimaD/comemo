@@ -1,32 +1,21 @@
-commit 67fee6005d48f8e4554c3e933763aec7cd503f8f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jan 29 09:14:50 2020 -0500
+commit e7e2b1c2b91320ef0ddf025d330061d56115dd53
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 10 10:36:47 2019 -0700
 
-    go/build: update TestImportDirNotExist to accept more detailed error strings
+    cmd/compile: separate type and expression switch typechecking
     
-    In CL 203820, we switched go/build to use the caller's working
-    directory for the main module (rather than srcDir), so that go/build
-    resolution now respects the requirements and replacements of the main
-    module. When the passed-in srcDir is empty, as of that CL we use "go
-    list" instead of falling back to in-process (GOPATH-mode) path lookup.
+    While superficially type and expression switch handling seem similar
+    and that it would be worthwhile to unify typechecking them, it turns
+    out they're actually different enough that separately handling them is
+    fewer lines of code and easier to understand as well.
     
-    Unfortunately, that broke go/build.TestImportDirNotExist when
-    GO111MODULE=on: the test was looking for the specific error message
-    produced by the in-process lookup.
+    Passes toolstash-check.
     
-    This change relaxes the test to accept the error message produced by
-    "go list" when srcDir is empty.
-    
-    Updates #34769
-    Updates #34860
-    Updates #35734
-    Fixes #36867
-    
-    Change-Id: Id0f7814a4b7dabe8917216eb013bb4eaee283648
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216817
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I357d6912dd580639b6001bccdb2e227ed83c6fe9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194566
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/build/build_test.go | 46 ++++++++++++++++++++++++++++++++--------------
- 1 file changed, 32 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/swt.go | 305 ++++++++++++++++++-------------------
+ 1 file changed, 147 insertions(+), 158 deletions(-)

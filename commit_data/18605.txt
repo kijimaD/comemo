@@ -1,13 +1,16 @@
-commit dd449a1cfa02c908393c927920474c1fe017558f
-Author: Patrick Mézard <patrick@mezard.eu>
-Date:   Mon Feb 24 10:11:37 2014 -0500
+commit f6d18c5ee93c6711b12e932c79a7e1a8374c7d45
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 18:12:46 2014 +0400
 
-    codereview: remove unused upload_options.revision
+    runtime/race: fix finalizer tests
+    After "runtime: combine small NoScan allocations" finalizers
+    for small objects run more non deterministically.
+    TestRaceFin episodically fails on my darwin/amd64.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    LGTM=khr
+    R=golang-codereviews, khr, dave
     CC=golang-codereviews
-    https://golang.org/cl/60640052
+    https://golang.org/cl/56970043
 
- lib/codereview/codereview.py | 21 +++++++++------------
- 1 file changed, 9 insertions(+), 12 deletions(-)
+ src/pkg/runtime/race/testdata/finalizer_test.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

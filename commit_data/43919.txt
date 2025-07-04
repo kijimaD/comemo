@@ -1,34 +1,17 @@
-commit 3d913a926675d8d6fcdc3cfaefd3136dfeba06e1
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 29 13:51:20 2020 -0400
+commit f512041ecae35b5be441456adc89148d6921318f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Apr 28 08:03:47 2020 -0400
 
-    os: add ReadFile, WriteFile, CreateTemp (was TempFile), MkdirTemp (was TempDir) from io/ioutil
+    cmd/asm: update ppc64enc.s testcase
     
-    io/ioutil was a poorly defined collection of helpers.
-    Proposal #40025 moved out the generic I/O helpers to io.
-    This CL for proposal #42026 moves the OS-specific helpers to os,
-    making the entire io/ioutil package deprecated.
+    Adds a few instructions to ppc64enc.s that were missing from the
+    previous update.
     
-    For #42026.
-    
-    Change-Id: I018bcb2115ef2ff1bc7ca36a9247eda429af21ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266364
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: Ieafce39e905cdf4da3bfb00fdd5a39ab28089cb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230437
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/ioutil/ioutil.go  |  70 +++++------------
- src/os/dir.go            |  22 +++++-
- src/os/example_test.go   |  96 +++++++++++++++++++++++
- src/os/export_test.go    |   1 +
- src/os/file.go           |  60 +++++++++++++++
- src/os/os_test.go        |  26 ++++++-
- src/os/read_test.go      | 127 +++++++++++++++++++++++++++++++
- src/os/removeall_test.go |   7 +-
- src/os/tempfile.go       | 118 +++++++++++++++++++++++++++++
- src/os/tempfile_test.go  | 193 +++++++++++++++++++++++++++++++++++++++++++++++
- src/os/testdata/hello    |   1 +
- src/runtime/stubs.go     |   3 +
- 12 files changed, 666 insertions(+), 58 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

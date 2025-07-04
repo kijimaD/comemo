@@ -1,13 +1,12 @@
-commit 7664ec39b83f8b97b6ea31cebbe93004dff7611c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 11 14:33:31 2011 -0800
+commit ec713d68b8d63bd9318ee581ed0fb5942858d62d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 11 15:09:32 2011 -0500
 
-    go/parser: first constant in a constant declaration must have a value
+    build: run gotest in misc/cgo/test
     
-    R=r, rsc1
+    R=golang-dev, iant, r
     CC=golang-dev
-    https://golang.org/cl/4291042
+    https://golang.org/cl/4239079
 
- src/pkg/go/parser/parser.go      | 18 +++++++++---------
- src/pkg/go/parser/parser_test.go |  1 +
- 2 files changed, 10 insertions(+), 9 deletions(-)
+ src/run.bash | 7 +++++++
+ 1 file changed, 7 insertions(+)

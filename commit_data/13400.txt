@@ -1,41 +1,19 @@
-commit d1537809ba93f30fb538ed121e4dbdc662292b2a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Jun 26 08:58:00 2012 +1000
+commit b7bb1e32d84f45794b2106daa5c908bcb390461e
+Author: Jonathan Gold <jgold.bg@gmail.com>
+Date:   Mon Jun 25 17:36:09 2012 -0400
 
-    runtime: add arm soft division and modulo benchmarks
+    encoding/json: add Number type
     
-    arm soft div and mod performance plays an important part
-    in runtime performance.
+    Number represents the actual JSON text,
+    preserving the precision and
+    formatting of the original input.
     
-    The currently implementation is very stable, but we believe
-    we can best it. This benchmark provides a reference point.
-    
-    linux/arm omap4 pandaboard
-    
-    BenchmarkUint32Div7     10000000               298 ns/op
-    BenchmarkUint32Div37    10000000               298 ns/op
-    BenchmarkUint32Div123   10000000               298 ns/op
-    BenchmarkUint32Div763   10000000               298 ns/op
-    BenchmarkUint32Div1247  10000000               299 ns/op
-    BenchmarkUint32Div9305  10000000               298 ns/op
-    BenchmarkUint32Div13307 10000000               298 ns/op
-    BenchmarkUint32Div52513 10000000               298 ns/op
-    BenchmarkUint32Div60978747      10000000               298 ns/op
-    BenchmarkUint32Div106956295     10000000               297 ns/op
-    BenchmarkUint32Mod7     10000000               280 ns/op
-    BenchmarkUint32Mod37    10000000               280 ns/op
-    BenchmarkUint32Mod123   10000000               280 ns/op
-    BenchmarkUint32Mod763   10000000               280 ns/op
-    BenchmarkUint32Mod1247  10000000               280 ns/op
-    BenchmarkUint32Mod9305  10000000               280 ns/op
-    BenchmarkUint32Mod13307 10000000               280 ns/op
-    BenchmarkUint32Mod52513 10000000               280 ns/op
-    BenchmarkUint32Mod60978747      10000000               280 ns/op
-    BenchmarkUint32Mod106956295     10000000               280 ns/op
-    
-    R=minux.ma, rsc
+    R=rsc, iant
     CC=golang-dev
-    https://golang.org/cl/6258067
+    https://golang.org/cl/6202068
 
- src/pkg/runtime/vlop_arm_test.go | 70 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 70 insertions(+)
+ src/pkg/encoding/json/decode.go      | 44 +++++++++++++++--
+ src/pkg/encoding/json/decode_test.go | 96 +++++++++++++++++++++++++++++++++---
+ src/pkg/encoding/json/encode.go      | 10 +++-
+ src/pkg/encoding/json/stream.go      |  4 ++
+ 4 files changed, 143 insertions(+), 11 deletions(-)

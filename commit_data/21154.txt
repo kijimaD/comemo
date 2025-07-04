@@ -1,15 +1,20 @@
-commit b70ddc0b51bb49ed223858a8aabb028a065b4596
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 5 13:14:08 2015 -0800
+commit 8cfb084534c764f02c8a3b5c72d2b164d22591fd
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu Nov 20 12:08:13 2014 -0500
 
-    runtime: only check whether the runtime is stale once during tests
+    [dev.garbage] runtime: Turn concurrent GC on by default. Avoid write barriers for GC internal structures such as free lists.
     
-    Noticed while investigating the speed of the runtime tests, as part
-    of debugging while Plan 9's runtime tests are timing out on GCE.
-    
-    Change-Id: I95f5a3d967a0b45ec1ebf10067e193f51db84e26
-    Reviewed-on: https://go-review.googlesource.com/2283
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/179000043
 
- src/runtime/crash_test.go | 27 ++++++++++++++++++++-------
- 1 file changed, 20 insertions(+), 7 deletions(-)
+ src/runtime/heapdump.go |  4 ++--
+ src/runtime/malloc.go   | 14 +++++++-------
+ src/runtime/malloc2.go  | 39 ++++++++++++++++++++++++++++++++-------
+ src/runtime/mcache.go   |  4 ++--
+ src/runtime/mcentral.go | 30 +++++++++++++++++-------------
+ src/runtime/mgc.go      | 20 +++++++++++++-------
+ src/runtime/mheap.go    |  6 +++---
+ src/runtime/stack1.go   | 44 ++++++++++++++++++++++----------------------
+ 8 files changed, 98 insertions(+), 63 deletions(-)

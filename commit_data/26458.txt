@@ -1,27 +1,16 @@
-commit c12e1b0b2ede57de8fcff94bea8333e055245e5e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 18 13:38:52 2016 -0700
+commit 733bf6ef67013b8410c51a72697c6fbff53ad30d
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 25 20:26:06 2016 -0800
 
-    cmd/compile: update vendored math/big to latest version
+    [dev.ssa] cmd/compile: get rid of +0.0 hack
     
-    This makes the rounding bug fix in math/big for issue 14651 available
-    to the compiler.
+    The conversion from -0.0 to +0.0 happens inside mpgetflt now.
+    The SSA code doesn't need this fix any more.
     
-    - changes to cmd/compile/internal/big fully automatic via script
-    - added test case for issue
-    - updated old test case with correct test data
-    
-    Fixes #14651.
-    
-    Change-Id: Iea37a2cd8d3a75f8c96193748b66156a987bbe40
-    Reviewed-on: https://go-review.googlesource.com/20818
+    Change-Id: I6cd4f4a4e75b13cf284ebbb95b08af050ed9891c
+    Reviewed-on: https://go-review.googlesource.com/18942
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/big/arith_test.go |  15 --
- src/cmd/compile/internal/big/float.go      | 268 ++++++++++++++---------------
- src/cmd/compile/internal/big/float_test.go |  61 +++++--
- src/cmd/compile/internal/big/ftoa.go       |  15 +-
- src/cmd/compile/internal/big/intconv.go    |  18 +-
- test/fixedbugs/issue14553.go               |   5 +-
- test/fixedbugs/issue14651.go               |  71 ++++++++
- 7 files changed, 260 insertions(+), 193 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

@@ -1,18 +1,20 @@
-commit 7a64b0f07bf3576524fae2d395a31787386f2e40
-Author: guoguangwu <guoguangwu@magic-shield.com>
-Date:   Fri Feb 23 08:57:43 2024 +0000
+commit a57e4063ace88511d8db361fd94c2b712b85c807
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 2 12:19:53 2023 -0800
 
-    runtime/coverage: remove refs to deprecated io/ioutil
+    go/types, types2: simplify missingMethod some more (cleanup)
     
-    Change-Id: I66965e6a61cf1726db06670978a4654b84f3fd72
-    GitHub-Last-Rev: 90023e48435029c94a316413b30e46c9ce0019d5
-    GitHub-Pull-Request: golang/go#65900
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566356
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Remove unnecessary assignments by using the same two variables
+    for methods consistently throughout.
+    
+    Change-Id: I8b9bc8dbc8022b2472724d2a170f2635de3306e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472915
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/runtime/coverage/testdata/harness.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go | 49 +++++++++++++++----------------
+ src/go/types/lookup.go                    | 49 +++++++++++++++----------------
+ 2 files changed, 46 insertions(+), 52 deletions(-)

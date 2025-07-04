@@ -1,19 +1,18 @@
-commit da3957ad0d16ca9d8d0c6bbe19694edc733b2827
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Nov 10 17:54:01 2020 +0000
+commit e47a17aeee8bea72b82eeceb5380805b2ba758b3
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Apr 23 11:12:04 2020 +0200
 
-    Revert "cmd/go: don't copy cgo files to objdir when overlay is present"
+    cmd/compile: convert remaining mips rules to typed aux
     
-    This reverts CL 265758.
+    Passes
     
-    Reason for revert: longtest builders were failing
+      GOARCH=mips gotip build -toolexec 'toolstash -cmp' -a std
+      GOARCH=mipsle gotip build -toolexec 'toolstash -cmp' -a std
     
-    Change-Id: Ic6c3f3759399e45c1625c7c57f7aa67a1d90c601
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268900
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Change-Id: I35df0522e299aa755491cd25f47f1f1bf447848c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229637
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/exec.go             | 14 -----------
- src/cmd/go/testdata/script/build_overlay.txt | 36 ----------------------------
- 2 files changed, 50 deletions(-)
+ src/cmd/compile/internal/ssa/gen/MIPS.rules |  510 +++++-----
+ src/cmd/compile/internal/ssa/rewriteMIPS.go | 1364 +++++++++++++--------------
+ 2 files changed, 921 insertions(+), 953 deletions(-)

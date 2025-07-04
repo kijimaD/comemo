@@ -1,17 +1,19 @@
-commit de7a87ef066d726eddcc47a018a2bc8fbd3793af
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Tue Apr 13 12:52:35 2021 +0200
+commit f8e554021b7de4bf1150f64d047091b429c92b39
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 3 23:58:29 2020 -0400
 
-    go/internal/gccgoimporter: replace os.MkdirTemp with T.TempDir
+    cmd/link: support C-shared buildmode on macOS/ARM64
     
-    Updates #45402
+    It just works, after the plugin work.
     
-    Change-Id: Ie84795ed456883c0558fa9b5e3f2186f5f2c0fd9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309356
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Updates #38485.
+    
+    Change-Id: I55aa11b380a33a729fccb731b77f48bc7d0dea2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259443
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/internal/gccgoimporter/importer_test.go | 14 ++------------
- 1 file changed, 2 insertions(+), 12 deletions(-)
+ src/cmd/dist/test.go              | 2 +-
+ src/cmd/internal/sys/supported.go | 2 +-
+ src/cmd/link/internal/ld/lib.go   | 3 ---
+ 3 files changed, 2 insertions(+), 5 deletions(-)

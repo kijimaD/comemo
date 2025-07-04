@@ -1,51 +1,16 @@
-commit a3426f2571bc6f6e55f70ad7a0e7198ecdeb10e4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Sep 24 10:46:08 2019 -0400
+commit 78175474c4a93c2b18516d2127a160b83926c143
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 9 08:35:36 2019 +0200
 
-    cmd/go: suppress errors in package-to-module queries if the package is already found
+    strings: use Go style character range comparison in ToUpper/ToLower
     
-    In CL 173017, I changed the package-to-module query logic to query all
-    possible module paths in parallel in order to reduce latency. (For
-    long package paths, most such paths will not exist and will fail with
-    little overhead.)
+    As noted by Brad in CL 170954 for package bytes.
     
-    The module resolution algorithm treats various kinds of non-existence
-    as “soft errors”, to be reported only if package resolution fails, but
-    treats any remaining errors as hard errors that should fail the query.
-    
-    Unfortunately, that interacted badly with the +incompatible version
-    validation added in CL 181881, causing a regression in the 'direct'
-    fetch path for modules using the “major branch” layout¹ with a post-v1
-    version on the repository's default branch. Because we did not
-    interpret a mismatched module path as “no such module”, a go.mod file
-    specifying the path 'example.com/foo/v2' would cause the search for
-    module 'example.com/foo' to error out. (That regression was not caught
-    ahead of time due to a lack of test coverage for 'go get' on a package
-    within a /vN module.)
-    
-    The promotion of hard errors during parallel search also made the 'go'
-    command less tolerant of servers that advertise 'go-import' tags for
-    nonexistent repositories. CL 194561 mitigated that problem for HTTP
-    servers that return code 404 or 410 for a nonexistent repository, but
-    unfortunately a few servers in common use (notably GitLab and
-    pre-1.9.3 releases of Gitea) do not.
-    
-    This change mitigates both of those failure modes by ignoring
-    “miscellaneous” errors from shorter module paths if the requested
-    package pattern was successfully matched against a module with a
-    longer path.
-    
-    ¹https://research.swtch.com/vgo-module#from_repository_to_modules
-    
-    Updates #34383
-    Updates #34094
-    
-    Change-Id: If37dc422e973eba13f3a3aeb68bc7b96e2d7f73d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197059
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2772a356299e54ba5b7884d537e6649039adb9be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171198
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/query.go         | 12 +++++++++++-
- src/cmd/go/testdata/script/mod_get_major.txt | 18 ++++++++++++++++++
- 2 files changed, 29 insertions(+), 1 deletion(-)
+ src/strings/strings.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

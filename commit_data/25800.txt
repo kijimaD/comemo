@@ -1,14 +1,27 @@
-commit 41eb5ca089be5495ab2299e2b6778fb8ceb8010a
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Feb 17 09:41:12 2016 -0500
+commit 8331f19d9700457d74bf377755ca270a32d2faa3
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Wed Oct 21 11:09:00 2015 -0700
 
-    cmd/link: typo in error message
+    fmt: check newline in the end of input
     
-    Change-Id: Ideeef320d6a01a10c89524b6d895a64210a60f64
-    Reviewed-on: https://go-review.googlesource.com/19693
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Sscanf doc says:
+    Newlines in the input must match newlines in the format.
+    
+    However Sscanf didn't check newline in the end of input (EOF).
+    A test for the case is broken.
+    
+    * check newline in EOF
+    * fix the test
+    * slightly simplify ss.doScanf
+    
+    Fixes #12788
+    
+    Change-Id: Iaf6b7d81324a72e557543ac22ecea5cecb72e0d6
+    Reviewed-on: https://go-review.googlesource.com/16165
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/fmt/scan.go      | 19 ++++++++++++-------
+ src/fmt/scan_test.go | 10 +++++++++-
+ 2 files changed, 21 insertions(+), 8 deletions(-)

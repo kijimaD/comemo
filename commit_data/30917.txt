@@ -1,14 +1,14 @@
-commit 371aa23d104237fe72d84618210c5d61da8019aa
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 29 21:00:55 2017 -0700
+commit a0667be8ef56c405d093cc0f5817b9932b4ca76c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Dec 19 09:48:07 2016 -0500
 
-    cmd/compile: convert Type.Trecur to a boolean flag
+    runtime: use mincore to detect physical page size as last resort on Android
     
-    Change-Id: I162e86e5f92c8b827a74ee860d16abadf83bc43e
-    Reviewed-on: https://go-review.googlesource.com/38910
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #18041.
+    
+    Change-Id: Iad1439b2dd56b113c8829699eda467d1367b0e15
+    Reviewed-on: https://go-review.googlesource.com/34610
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/subr.go | 12 ++++++------
- src/cmd/compile/internal/gc/type.go |  8 +++++---
- 2 files changed, 11 insertions(+), 9 deletions(-)
+ src/runtime/os_linux.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

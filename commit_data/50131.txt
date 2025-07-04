@@ -1,19 +1,20 @@
-commit 2883af63c28d1a4398cd60745d3c0cb7f7fbdacf
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Thu Aug 25 10:13:03 2022 +0800
+commit 5140ad104b03f6c119beb7e74546fb53bf40b66d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 4 17:44:56 2021 -0700
 
-    runtime: convert p.statsSeq to internal atomic type
+    cmd/compile/internal/types2: update the recorded function type after inference
     
-    For #53821.
+    This is a clean port of CL 353831 from go/types to types2.
     
-    Change-Id: I1cab3671a29c218b8a927aba9064e63b65900173
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425416
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: hopehook <hopehook@qq.com>
+    For #47916.
+    
+    Change-Id: I2c2b9c7bbcd416fb21f3032c55a06406bad9334a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353934
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/mstats.go   | 6 +++---
- src/runtime/runtime2.go | 2 +-
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 6 ++++--
+ src/cmd/compile/internal/types2/call.go     | 6 ++++++
+ 2 files changed, 10 insertions(+), 2 deletions(-)

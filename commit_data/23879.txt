@@ -1,15 +1,41 @@
-commit 7a63ab1a653d957bcf4e690ea70d6838382015e0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 28 13:41:16 2015 -0400
+commit 90a19961f2b885ee253b2d51820977dc9c635f0c
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon Jun 1 18:16:03 2015 -0400
 
-    runtime: use 64k page rounding on arm64
+    runtime: reduce latency by aggressively ending mark phase
     
-    Fixes #11886.
+    Some latency regressions have crept into our system over the past few
+    weeks. This CL fixes those by having the mark phase more aggressively
+    blacken objects so that the mark termination phase, a STW phase, has less
+    work to do. Three approaches were taken when the mark phase believes
+    it has no more work to do, ie all the work buffers are empty.
+    If things have gone well the mark phase is correct and there is
+    in fact little or no work. In that case the following items will
+    take very little time. If the mark phase is wrong this CL will
+    ferret that work out and give the mark phase a chance to deal with
+    it concurrently before mark termination begins.
     
-    Change-Id: I9392fd2ef5951173ae275b3ab42db4f8bd2e1d7a
-    Reviewed-on: https://go-review.googlesource.com/12747
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    When the mark phase first appears to be out of work, it does three things:
+    1) It switches from allocating white to allocating black to reduce the
+    number of unmarked objects reachable only from stacks.
+    2) It flushes and disables per-P GC work caches so all work must be in
+    globally visible work buffers.
+    3) It rescans the global roots---the BSS and data segments---so there
+    are fewer objects to blacken during mark termination. We do not rescan
+    stacks at this point, though that could be done in a later CL.
+    After these steps, it again drains the global work buffers.
+    
+    On a lightly loaded machine the garbage benchmark has reduced the
+    number of GC cycles with latency > 10 ms from 83 out of 4083 cycles
+    down to 2 out of 3995 cycles. Maximum latency was reduced from
+    60+ msecs down to 20 ms.
+    
+    Change-Id: I152285b48a7e56c5083a02e8e4485dd39c990492
+    Reviewed-on: https://go-review.googlesource.com/10590
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/arch1_arm64.go        | 2 +-
- src/runtime/debug/garbage_test.go | 3 ++-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go  |   2 +-
+ src/runtime/mgc.go     | 163 ++++++++++++++++++++++++++++++++++++-------------
+ src/runtime/mgcmark.go |  56 ++++++++++++-----
+ src/runtime/mgcwork.go |  20 ++++--
+ 4 files changed, 177 insertions(+), 64 deletions(-)

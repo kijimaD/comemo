@@ -1,12 +1,18 @@
-commit 3c7d2e6af9aced200842b2afa2e9413e5a33e43a
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Wed Jan 1 16:40:52 2014 +1100
+commit 592416a3878d88684ff3817cfb9292c96ee14baa
+Author: Michael Stapelberg <michael@stapelberg.de>
+Date:   Tue Dec 31 14:36:13 2013 -0800
 
-    os: improve Readdir and Readdirnames test coverage
+    debug/elf: add C source for testdata executables
     
-    R=golang-codereviews, dave
+    This source file, when compiled with gcc 4.4.3 on Ubuntu lucid,
+    corresponds instruction for instruction to the binaries in the same
+    directory.
+    
+    Shipping this source code file resolves http://bugs.debian.org/716853
+    
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/46450043
+    https://golang.org/cl/46780043
 
- src/pkg/os/os_test.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/pkg/debug/elf/testdata/hello.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

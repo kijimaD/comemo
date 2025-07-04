@@ -1,63 +1,30 @@
-commit 2ba98f1ae9381d78aea68cce63878df484b42812
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Mar 24 19:03:54 2018 +0100
+commit 48f2a55aa1e8e13b220419142cadf1347daac5e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 8 11:54:34 2017 -0500
 
-    cmd/compile: avoid some allocations in regalloc
+    cmd/go: treat cached test results as satisfying any timeout
     
-    Compilebench:
-    name      old time/op       new time/op       delta
-    Template        283ms ± 3%        281ms ± 4%    ~     (p=0.242 n=20+20)
-    Unicode         137ms ± 6%        135ms ± 6%    ~     (p=0.194 n=20+19)
-    GoTypes         890ms ± 2%        883ms ± 1%  -0.74%  (p=0.001 n=19+19)
-    Compiler        4.21s ± 2%        4.20s ± 2%  -0.40%  (p=0.033 n=20+19)
-    SSA             9.86s ± 2%        9.68s ± 1%  -1.80%  (p=0.000 n=20+19)
-    Flate           185ms ± 5%        185ms ± 7%    ~     (p=0.429 n=20+20)
-    GoParser        222ms ± 3%        222ms ± 4%    ~     (p=0.588 n=19+20)
-    Reflect         572ms ± 2%        570ms ± 3%    ~     (p=0.113 n=19+20)
-    Tar             263ms ± 4%        259ms ± 2%  -1.41%  (p=0.013 n=20+20)
-    XML             321ms ± 2%        321ms ± 4%    ~     (p=0.835 n=20+19)
+    We want test caching to work even for people with scripts
+    that set a non-default test timeout. But then that raises the
+    question of what to do about runs with different timeouts:
+    is a cached success with one timeout available for use when
+    asked to run the test with a different timeout?
     
-    name      old user-time/op  new user-time/op  delta
-    Template        400ms ± 5%        405ms ± 5%    ~     (p=0.096 n=20+20)
-    Unicode         217ms ± 8%        213ms ± 8%    ~     (p=0.242 n=20+20)
-    GoTypes         1.23s ± 3%        1.22s ± 3%    ~     (p=0.923 n=19+20)
-    Compiler        5.76s ± 6%        5.81s ± 2%    ~     (p=0.687 n=20+19)
-    SSA             14.2s ± 4%        14.0s ± 4%    ~     (p=0.121 n=20+20)
-    Flate           248ms ± 7%        251ms ±10%    ~     (p=0.369 n=20+20)
-    GoParser        308ms ± 5%        305ms ± 6%    ~     (p=0.336 n=19+20)
-    Reflect         771ms ± 2%        766ms ± 2%    ~     (p=0.113 n=20+19)
-    Tar             370ms ± 5%        362ms ± 7%  -2.06%  (p=0.036 n=19+20)
-    XML             435ms ± 4%        432ms ± 5%    ~     (p=0.369 n=20+20)
+    This CL answers that question by saying that the timeout applies
+    to the overall execution of either running the test or displaying
+    the cached result, and displaying a cached result takes no time.
+    So it's always OK to record a cached result, regardless of timeout,
+    and it's always OK to display a cached result, again regardless of timeout.
     
-    name      old alloc/op      new alloc/op      delta
-    Template       39.5MB ± 0%       39.4MB ± 0%  -0.20%  (p=0.000 n=20+20)
-    Unicode        29.1MB ± 0%       29.1MB ± 0%    ~     (p=0.064 n=20+20)
-    GoTypes         117MB ± 0%        117MB ± 0%  -0.17%  (p=0.000 n=20+20)
-    Compiler        503MB ± 0%        502MB ± 0%  -0.15%  (p=0.000 n=19+19)
-    SSA            1.42GB ± 0%       1.42GB ± 0%  -0.16%  (p=0.000 n=20+20)
-    Flate          25.3MB ± 0%       25.3MB ± 0%  -0.19%  (p=0.000 n=20+20)
-    GoParser       31.4MB ± 0%       31.3MB ± 0%  -0.14%  (p=0.000 n=20+18)
-    Reflect        78.1MB ± 0%       77.9MB ± 0%  -0.34%  (p=0.000 n=20+19)
-    Tar            40.1MB ± 0%       40.0MB ± 0%  -0.17%  (p=0.000 n=20+20)
-    XML            45.3MB ± 0%       45.2MB ± 0%  -0.13%  (p=0.000 n=20+20)
+    Fixes #22633.
     
-    name      old allocs/op     new allocs/op     delta
-    Template         393k ± 0%         392k ± 0%  -0.21%  (p=0.000 n=20+19)
-    Unicode          337k ± 0%         337k ± 0%  -0.02%  (p=0.000 n=20+20)
-    GoTypes         1.22M ± 0%        1.22M ± 0%  -0.21%  (p=0.000 n=20+20)
-    Compiler        4.77M ± 0%        4.76M ± 0%  -0.16%  (p=0.000 n=20+20)
-    SSA             11.8M ± 0%        11.8M ± 0%  -0.12%  (p=0.000 n=20+20)
-    Flate            242k ± 0%         241k ± 0%  -0.20%  (p=0.000 n=20+20)
-    GoParser         324k ± 0%         324k ± 0%  -0.14%  (p=0.000 n=20+20)
-    Reflect          985k ± 0%         981k ± 0%  -0.38%  (p=0.000 n=20+20)
-    Tar              403k ± 0%         402k ± 0%  -0.19%  (p=0.000 n=20+20)
-    XML              424k ± 0%         424k ± 0%  -0.16%  (p=0.000 n=19+20)
-    
-    Change-Id: I131e382b64cd6db11a9263a477d45d80c180c499
-    Reviewed-on: https://go-review.googlesource.com/102421
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Iaef3602710e3be107602267bbc6dba9a2250796c
+    Reviewed-on: https://go-review.googlesource.com/76552
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go            |  8 +++++++-
+ src/cmd/go/internal/test/test.go | 13 +++++++++++--
+ 2 files changed, 18 insertions(+), 3 deletions(-)

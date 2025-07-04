@@ -1,17 +1,27 @@
-commit ae73b903696981ae3c4da203a3ea4e083e401b46
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon May 27 20:46:53 2013 +0800
+commit e017e0cb24f9c5ea4c0e2b7479e4b411e4882dcf
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon May 27 08:11:59 2013 +0200
 
-    runtime: make arm signal handler call runtime.badsignal
-    In preparation for CL 9249043 (already submitted).
+    runtime: flag static variables as no-pointers
     
-    Fixes #5553.
+    Variables in data sections of 32-bit executables interfere with
+    garbage collector's ability to free objects and/or unnecessarily
+    slow down the garbage collector.
     
-    R=golang-dev, iant, capnm9, dave
+    This changeset moves some static variables to .noptr sections.
+    'files' in symtab.c is now allocated dynamically.
+    
+    R=golang-dev, dvyukov, minux.ma
     CC=golang-dev
-    https://golang.org/cl/9251043
+    https://golang.org/cl/9786044
 
- src/pkg/runtime/sys_freebsd_arm.s | 7 ++++++-
- src/pkg/runtime/sys_linux_arm.s   | 7 ++++++-
- src/pkg/runtime/sys_netbsd_arm.s  | 7 ++++++-
- 3 files changed, 18 insertions(+), 3 deletions(-)
+ src/pkg/runtime/hashmap.c    |  1 +
+ src/pkg/runtime/os_darwin.c  |  2 ++
+ src/pkg/runtime/os_freebsd.c |  2 ++
+ src/pkg/runtime/os_linux.c   |  3 +++
+ src/pkg/runtime/os_netbsd.c  |  2 ++
+ src/pkg/runtime/os_openbsd.c |  2 ++
+ src/pkg/runtime/os_plan9.c   |  2 ++
+ src/pkg/runtime/os_windows.c |  2 ++
+ src/pkg/runtime/symtab.c     | 21 ++++++++++++++-------
+ 9 files changed, 30 insertions(+), 7 deletions(-)

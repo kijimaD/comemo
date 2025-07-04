@@ -1,35 +1,20 @@
-commit 404127c30f3f66eb234da2dc1a78e6eea0ef4ee0
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Jul 14 18:52:44 2021 -0400
+commit ae1a3378092e25c7a7aa0100c2e29397f7bc2798
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 29 08:58:39 2020 -0500
 
-    cmd/compile: fix off-by-one error in traceback argument counting
+    [dev.regabi] cmd/compile: remove ODCLFIELD and ODDD ops
     
-    For traceback argument printing, we want to print at most 10
-    words, then print "..." if there are still more args and/or
-    fields. The current code has off-by-one error that for 11
-    non-aggregate typed args, it prints the first 10 but without the
-    "...". Also, for aggregate-typed args, in some cases it may print
-    an extra "..." when there is actually no more fields.
+    These are plain data now, not nodes (see previous CL).
+    The opcode deletions are not safe for toolstash -cmp,
+    so they are split into a separate CL.
     
-    The problem for this is that visitType return false (meaning not
-    to continue visiting) if it reaches the limit anywhere during the
-    recursive visit. It doesn't distinguish whether it has printed
-    anything for the current arg. If it reaches the limit before it
-    prints anything, it means that we're visiting the extra arg/field,
-    so the caller should print "..." and stop. If it prints
-    something then reaches the limit, however, the caller should keep
-    going, and only print "..." at the next iteration when there is
-    actually an extra arg/field. This CL does so.
-    
-    Fixes #47159.
-    
-    Change-Id: I93fc25b73ada2b5a98df780c45e5b0c9565dc2fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334710
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Icef8a01e190195a7539a35b92f42835d823e314a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274104
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go |  43 +++-----
- src/runtime/traceback_test.go          | 179 ++++++++++++++++++++++++++++++++-
- 2 files changed, 190 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/ir/node.go      |   2 -
+ src/cmd/compile/internal/ir/op_string.go | 218 +++++++++++++++----------------
+ 2 files changed, 108 insertions(+), 112 deletions(-)

@@ -1,24 +1,20 @@
-commit 0a18cbc2e61a124b8fa142c4be288ec0c45ccb5d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 8 13:51:25 2020 -0700
+commit 0e76e2f4e5353fb935181fed353ed8667476c4ad
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Oct 17 11:06:11 2019 -0400
 
-    cmd/compile: remove gdata layer in slicesym
+    [dev.link] cmd/link: elf host obj support w/ new obj files
     
-    The previous change moved code around to create slicesym.
-    This change simplifies slicesym and its callsites
-    by accepting an int64 for lencap instead of a node,
-    and by removing all the calls to gdata.
-    It also stops modifying n,
-    which avoids the need to make a copy of it.
+    Add support for elf host objects with new object file format.
     
-    Passes toolstash-check.
-    
-    Change-Id: I4d25454d11b4bb8941000244443e3c99eef4bdd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227550
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic5be1953359b9b6b78d9a0b715af69763aefd227
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201728
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/obj.go   | 15 +++++++++------
- src/cmd/compile/internal/gc/sinit.go | 14 +++-----------
- 2 files changed, 12 insertions(+), 17 deletions(-)
+ src/cmd/link/internal/ld/config.go     |   9 ++-
+ src/cmd/link/internal/ld/deadcode2.go  |   8 +++
+ src/cmd/link/internal/ld/lib.go        |  52 +++++++++-----
+ src/cmd/link/internal/loadelf/ldelf.go |  52 +++++++++++---
+ src/cmd/link/internal/loader/loader.go | 126 ++++++++++++++++++++++++++-------
+ src/cmd/link/internal/sym/symkind.go   |   5 ++
+ 6 files changed, 195 insertions(+), 57 deletions(-)

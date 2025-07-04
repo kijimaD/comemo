@@ -1,26 +1,18 @@
-commit 4751db93ef23c87c0fa2f06433555b7084f339bd
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Oct 29 20:40:26 2019 -0400
+commit 0c2953e4cb7536a07436688d0baaa3c59d00b521
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat Jun 1 17:43:09 2019 -0400
 
-    cmd/internal/obj/s390x: mark unsafe points
+    cmd/go: include -errorsas in go test vet checks
     
-    For async preemption, we will be using REGTMP as a temporary
-    register in injected call on S390X, which will clobber it. So any
-    code that uses REGTMP is not safe for async preemption.
+    Make "go test" run the new errorsas vet check by default.
     
-    In the assembler backend, we expand a Prog to multiple machine
-    instructions and use REGTMP as a temporary register if necessary.
-    These need to be marked unsafe. Unlike ARM64 and MIPS,
-    instructions on S390X are variable length so we don't use the
-    length as a condition. Instead, we set a bit on the Prog whenever
-    REGTMP is used.
+    Fixes #31213.
     
-    Change-Id: Ie5d14068a950f4c7cea51dff2c4a8bdc19ec9348
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204105
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I5c93c000874ffe1c0b6d647bf10de803f414c5c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179977
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/internal/obj/s390x/a.out.go |   1 +
- src/cmd/internal/obj/s390x/asmz.go  | 177 +++++++++++++++++++++---------------
- src/cmd/internal/obj/s390x/objz.go  |   8 +-
- 3 files changed, 110 insertions(+), 76 deletions(-)
+ src/cmd/go/internal/test/test.go | 1 +
+ 1 file changed, 1 insertion(+)

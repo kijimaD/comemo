@@ -1,14 +1,13 @@
-commit 4304de6e0c64653ddf5d57c7724b28b859ce28af
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 31 07:02:46 2011 -0400
+commit 0cfa0fe2421accf8887a444fd76a6a1d0393796f
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Aug 31 06:44:55 2011 -0300
 
-    runtime: make arm work on Ubuntu Natty qemu
+    cgo: note that CString result must be freed
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4963050
+    https://golang.org/cl/4968054
 
- src/cmd/ld/elf.c            | 13 +++++++++++++
- src/pkg/runtime/linux/mem.c | 17 ++++++++++-------
- src/pkg/runtime/malloc.goc  | 11 ++++++++---
- 3 files changed, 31 insertions(+), 10 deletions(-)
+ src/cmd/cgo/doc.go         | 2 +-
+ src/pkg/runtime/cgo/util.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

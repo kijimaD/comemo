@@ -1,20 +1,24 @@
-commit 1dbe4c50f2e722765240c8f2fc261eab83802f99
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Feb 21 22:27:12 2018 +0100
+commit d155b32f8de6a2a30c0567ec44f90ffab80ed6dc
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Oct 12 22:59:16 2017 +0200
 
-    reflect: avoid calling common if type is known to be *rtype
+    runtime: disable use of template thread on Plan 9
     
-    If the type of Type is known to be *rtype than the common
-    function is a no-op and does not need to be called.
+    CL 46033 added a "template thread" mechanism to
+    allow creation of thread with a known-good state
+    from a thread of unknown state.
     
-    name  old time/op  new time/op  delta
-    New   31.0ns ± 5%  30.2ns ± 4%  -2.74%  (p=0.008 n=20+20)
+    However, we are experiencing issues on Plan 9
+    with programs using the os/exec and net package.
+    These package are relying on runtime.LockOSThread.
     
-    Change-Id: I5d00346dbc782e34c530166d1ee0499b24068b51
-    Reviewed-on: https://go-review.googlesource.com/96115
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #22227.
+    
+    Change-Id: I85b71580a41df9fe8b24bd8623c064b6773288b0
+    Reviewed-on: https://go-review.googlesource.com/70231
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/reflect/value.go | 24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+ src/runtime/proc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

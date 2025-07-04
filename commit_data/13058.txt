@@ -1,15 +1,12 @@
-commit 8c4c6c413facabf44b3ecd1fc44bd887fc710271
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon May 14 19:27:29 2012 +0400
+commit 58bcec62c0f375f10e3bb32efc402e9c245c734b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon May 14 10:05:39 2012 +1000
 
-    sync: use atomic.Store in Once.Do
-    No perf/semantic changes, merely improves code health.
-    There were several questions as to why Once.Do uses
-    atomic.CompareAndSwap to do a store.
+    misc/dashboard/codereview: set In-Reply-To header to properly thread mail.
     
-    R=golang-dev, r
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/6208057
+    https://golang.org/cl/6208051
 
- src/pkg/sync/once.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dashboard/codereview/dashboard/cl.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,27 +1,18 @@
-commit 943f6cc837f4513a8cae7df199d14c5a38cf7677
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 20 14:25:28 2012 +1100
+commit 0ce6c87004245fcbfe0747fa42b2a23d52890154
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 20 14:23:45 2012 +1100
 
-    database/sql/driver: API cleanups
+    html/template: don't indirect past a Stringer
     
-    -- add driver.Value type and documentation,
-       convert from interface{} to Value where
-       appropriate.
-    -- don't say "subset" anywhere,
-    -- SubsetValuer -> Valuer
-    -- SubsetValue -> Value
-    -- IsParameterSubsetType -> IsValue
-    -- IsScanSubsetType -> IsScanValue
+    While we're here, get rid of the old names for the escaping functions.
     
-    Fixes #2842
+    Fixes #3073.
     
-    R=golang-dev, r, rsc
+    R=golang-dev, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/5674084
+    https://golang.org/cl/5685049
 
- src/pkg/database/sql/convert.go       |  4 +-
- src/pkg/database/sql/driver/driver.go | 51 +++++++++++-----------
- src/pkg/database/sql/driver/types.go  | 80 +++++++++++++----------------------
- src/pkg/database/sql/fakedb_test.go   | 16 +++----
- src/pkg/database/sql/sql.go           | 54 +++++++++++------------
- 5 files changed, 92 insertions(+), 113 deletions(-)
+ src/pkg/html/template/content.go      | 18 ++++++-
+ src/pkg/html/template/content_test.go | 40 +++++++++++++++
+ src/pkg/html/template/escape.go       | 92 +++++++++++++++++------------------
+ 3 files changed, 103 insertions(+), 47 deletions(-)

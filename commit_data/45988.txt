@@ -1,21 +1,28 @@
-commit 2d250043b4c5095f326ab72741d557fe74e4e3a6
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Aug 11 13:36:26 2021 -0400
+commit c769d393de3d735d32aa9c8917afcd0394e5ac57
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 23:55:03 2020 -0800
 
-    cmd/compile/internal/types2: simplify Named.under
+    [dev.regabi] cmd/compile: add ir.NewDeclNameAt
     
-    Remove some unnecessary logic from Named.under:
-     - no need to have special handling for Typ[Invalid]: this is the same
-       as other cases where the underlying type is resolved.
-     - use Underlying() to get the loaded and expanded underlying
-     - no need for special handling of the first iteration
+    This allows directly creating an ONONAME, which is a primordial Name
+    before having its Op initialized. Then after an Op is assigned, we
+    never allow it to be reassigned.
     
-    Change-Id: I2029711f51fa9eaaee11debadd55974a1376a980
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341857
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Ibc2f413dc68c0af6a96abfe653c25ce31b184287
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274620
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/types2/named.go | 52 ++++++++++++--------------------
- 1 file changed, 19 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go      | 30 +-----------------------------
+ src/cmd/compile/internal/gc/export.go   |  2 +-
+ src/cmd/compile/internal/gc/iimport.go  |  6 +++---
+ src/cmd/compile/internal/gc/noder.go    |  4 +---
+ src/cmd/compile/internal/gc/sinit.go    |  3 ++-
+ src/cmd/compile/internal/gc/universe.go |  4 ++--
+ src/cmd/compile/internal/ir/name.go     | 22 +++++++++++++++++-----
+ src/cmd/compile/internal/ir/node.go     |  4 +---
+ 8 files changed, 28 insertions(+), 47 deletions(-)

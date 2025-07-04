@@ -1,20 +1,16 @@
-commit 786899a72afe02836c003c1414ca279090e7d637
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Mar 21 19:42:24 2018 +0100
+commit 7d33667218ab010022a73b41ea9780474128a35f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 7 15:03:53 2017 -0800
 
-    runtime: adjust GOARM floating point compatibility error message
+    cmd/go: don't run TestUserOverrideFlags in parallel
     
-    As pointed out by Josh Bleecher Snyder in CL 99780.
+    It creates files in the cmd/go directory, which can confuse other tests.
     
-    The check is for GOARM > 6, so suggest to recompile with either GOARM=5
-    or GOARM=6.
+    Fixes #22584.
     
-    Change-Id: I6a97e87bdc17aa3932f5c8cb598bba85c3cf4be9
-    Reviewed-on: https://go-review.googlesource.com/101936
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iad5a25c62e7d413af1648dbc5359ed78bfd61d2a
+    Reviewed-on: https://go-review.googlesource.com/76398
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os_freebsd_arm.go | 2 +-
- src/runtime/os_linux_arm.go   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

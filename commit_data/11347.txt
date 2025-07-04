@@ -1,15 +1,13 @@
-commit 4417bc3742a11b48a0ae07b883c9a0ed5d064e4b
+commit 1cfae8bcbf283b3c6837ca5b8db9ddae05f311c0
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 23 16:35:25 2012 -0500
+Date:   Mon Jan 23 15:24:20 2012 -0500
 
-    exp/ebnflint: test spec during 'go test'
+    cmd/go: add missing files (fix build)
     
-    This avoids the need for a custom Makefile.
-    
-    R=gri
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/5575045
+    https://golang.org/cl/5571050
 
- src/pkg/exp/ebnflint/ebnflint.go      | 41 +++++++++++++++++++++++------------
- src/pkg/exp/ebnflint/ebnflint_test.go | 16 ++++++++++++++
- 2 files changed, 43 insertions(+), 14 deletions(-)
+ src/cmd/go/bootstrap.go | 17 +++++++++++++++++
+ src/cmd/go/http.go      | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)

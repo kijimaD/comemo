@@ -1,18 +1,60 @@
-commit b9c8e870d14775a02c6e87ca0344f623f7cab5f0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 10 11:20:35 2018 -0700
+commit acd17e9b2b9740ea374ec18bcc7a4cd488eb534c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Dec 14 11:59:33 2017 +0100
 
-    cmd/compile: use 'not defined' rather than 'unnamed' in error message
+    syscall: support Getwd on all BSDs
     
-    A receiver type may have an (alias type) name and thus be 'named'
-    even though the name doesn't refer to a defined type. Adjust the
-    error message to make this clearer.
+    All supported BSDs provide the SYS___GETCWD syscall which can be used to
+    implement syscall.Getwd. With this change os.Getwd can use a single
+    syscall instead of falling back to the current kludge solution on the
+    BSDs.
     
-    Change-Id: I969bf8d1ba3db8820f67f6ecd6d5cfe564c5b80d
-    Reviewed-on: https://go-review.googlesource.com/112638
+    This doesn't add any new exported functions to the frozen syscall
+    package, only ImplementsGetwd changes to true for dragonfly, freebsd,
+    netbsd and openbsd.
+    
+    As suggested by Ian, this follows CL 83755 which did the same for
+    golang.org/x/sys/unix.
+    
+    Also, an entry for netbsd/arm is added to mkall.sh which was used to
+    generate the syscall wrappers there.
+    
+    Change-Id: I84da1ec61a6b8625443699a63cde556b6442ad41
+    Reviewed-on: https://go-review.googlesource.com/84484
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/except.txt                          | 16 ++++++++++++++++
+ src/syscall/mkall.sh                    |  6 ++++++
+ src/syscall/syscall_dragonfly.go        |  1 +
+ src/syscall/syscall_freebsd.go          |  1 +
+ src/syscall/syscall_getwd_bsd.go        | 22 ++++++++++++++++++++++
+ src/syscall/syscall_netbsd.go           |  1 +
+ src/syscall/syscall_no_getwd.go         | 11 -----------
+ src/syscall/syscall_openbsd.go          |  1 +
+ src/syscall/syscall_solaris.go          |  9 ---------
+ src/syscall/syscall_unix.go             | 10 ++++++++++
+ src/syscall/types_dragonfly.go          |  6 ++++++
+ src/syscall/types_freebsd.go            |  6 ++++++
+ src/syscall/types_netbsd.go             |  6 ++++++
+ src/syscall/types_openbsd.go            |  6 ++++++
+ src/syscall/zsyscall_dragonfly_amd64.go | 17 +++++++++++++++++
+ src/syscall/zsyscall_freebsd_386.go     | 17 +++++++++++++++++
+ src/syscall/zsyscall_freebsd_amd64.go   | 17 +++++++++++++++++
+ src/syscall/zsyscall_freebsd_arm.go     | 17 +++++++++++++++++
+ src/syscall/zsyscall_netbsd_386.go      | 17 +++++++++++++++++
+ src/syscall/zsyscall_netbsd_amd64.go    | 17 +++++++++++++++++
+ src/syscall/zsyscall_netbsd_arm.go      | 17 +++++++++++++++++
+ src/syscall/zsyscall_openbsd_386.go     | 17 +++++++++++++++++
+ src/syscall/zsyscall_openbsd_amd64.go   | 17 +++++++++++++++++
+ src/syscall/zsyscall_openbsd_arm.go     | 17 +++++++++++++++++
+ src/syscall/ztypes_dragonfly_amd64.go   |  4 ++++
+ src/syscall/ztypes_freebsd_386.go       |  4 ++++
+ src/syscall/ztypes_freebsd_amd64.go     |  4 ++++
+ src/syscall/ztypes_freebsd_arm.go       |  4 ++++
+ src/syscall/ztypes_netbsd_386.go        |  4 ++++
+ src/syscall/ztypes_netbsd_amd64.go      |  4 ++++
+ src/syscall/ztypes_netbsd_arm.go        |  4 ++++
+ src/syscall/ztypes_openbsd_386.go       |  4 ++++
+ src/syscall/ztypes_openbsd_amd64.go     |  4 ++++
+ src/syscall/ztypes_openbsd_arm.go       |  4 ++++
+ 34 files changed, 292 insertions(+), 20 deletions(-)

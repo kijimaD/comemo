@@ -1,26 +1,49 @@
-commit d5b5d6702ad7d64f189c915225b945a2aa471a38
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Fri Feb 13 15:59:54 2015 +0100
+commit c4ee44b7b979f7c985fdc09e4a88c6d37957297c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Feb 6 15:09:46 2015 +0300
 
-    strconv: simplify code for binary exponent float format
+    cmd/gc: transform closure calls to function calls
     
-    Use optimized formatBits function to format mantissa and exponent.
-    Add benchmark for binary exponent float format.
+    Currently we always create context objects for closures that capture variables.
+    However, it is completely unnecessary for direct calls of closures
+    (whether it is func()(), defer func()() or go func()()).
+    This change transforms any OCALLFUNC(OCLOSURE) to normal function call.
+    Closed variables become function arguments.
+    This transformation is especially beneficial for go func(),
+    because we do not need to allocate context object on heap.
+    But it makes direct closure calls a bit faster as well (see BenchmarkClosureCall).
     
-    on darwin/386
+    On implementation level it required to introduce yet another compiler pass.
+    However, the pass iterates only over xtop, so it should not be an issue.
+    Transformation consists of two parts: closure transformation and call site
+    transformation. We can't run these parts on different sides of escape analysis,
+    because tree state is inconsistent. We can do both parts during typecheck,
+    we don't know how to capture variables and don't have call site.
+    We can't do both parts during walk of OCALLFUNC, because we can walk
+    OCLOSURE body earlier.
+    So now capturevars pass only decides how to capture variables
+    (this info is required for escape analysis). New transformclosure
+    pass, that runs just before order/walk, does all transformations
+    of a closure. And later walk of OCALLFUNC(OCLOSURE) transforms call site.
     
-    benchmark                         old ns/op     new ns/op     delta
-    BenchmarkAppendFloatBinaryExp     520           122           -76.54%
+    benchmark                            old ns/op     new ns/op     delta
+    BenchmarkClosureCall                 4.89          3.09          -36.81%
+    BenchmarkCreateGoroutinesCapture     1634          1294          -20.81%
     
-    on darwin/amd64
+    benchmark                            old allocs     new allocs     delta
+    BenchmarkCreateGoroutinesCapture     6              2              -66.67%
     
-    benchmark                         old ns/op     new ns/op     delta
-    BenchmarkAppendFloatBinaryExp     76.9          84.3          +9.62%
+    benchmark                            old bytes     new bytes     delta
+    BenchmarkCreateGoroutinesCapture     176           48            -72.73%
     
-    Change-Id: If543552f1960e1655bed3a4130914e5eaa3aac69
-    Reviewed-on: https://go-review.googlesource.com/5600
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic85e1706e18c3235cc45b3c0c031a9c1cdb7a40e
+    Reviewed-on: https://go-review.googlesource.com/4050
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/strconv/ftoa.go      | 50 ++++++++++++++++++------------------------------
- src/strconv/ftoa_test.go |  1 +
- 2 files changed, 20 insertions(+), 31 deletions(-)
+ src/cmd/gc/closure.c     | 174 ++++++++++++++++++++++++++++++++++-------------
+ src/cmd/gc/go.h          |   2 +
+ src/cmd/gc/lex.c         |  20 ++++--
+ src/cmd/gc/walk.c        |  20 ++++++
+ src/runtime/proc_test.go |  12 ++++
+ test/fixedbugs/bug346.go |  27 ++++++--
+ 6 files changed, 199 insertions(+), 56 deletions(-)

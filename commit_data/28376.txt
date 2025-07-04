@@ -1,21 +1,32 @@
-commit b78108d5dc198a1bb8ed294b8b974f0c0d51b55c
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Sep 3 18:16:52 2016 -0700
+commit ccaed50c7bf6381275d49adcf54974441752fd11
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 13 11:25:07 2016 -0400
 
-    time: document in UnixNano when the value is valid
+    [dev.ssa] cmd/compile: handle boolean values for SSA on ARM
     
-    It is unlikely that the value of UnixNano overflow in most
-    use cases. However, the max date of 2262 is also within the range
-    where it may be of concern to some users. Rather than have each
-    person recompute when this overflows to validate if its okay for
-    their use case, we just document it as within the years 1678 and
-    2262, for user's convenience.
+    Fix hardcoded flag register mask in ssa/flagalloc.go by auto-generating
+    the mask.
     
-    Fixes #16977
+    Also fix a mistake (in previous CL) about conditional branches.
     
-    Change-Id: I4988738c147f4a6d30f8b8735c3941b75113bb16
-    Reviewed-on: https://go-review.googlesource.com/28478
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Progress on SSA backend for ARM. Still not complete. Now "container/ring"
+    package compiles and tests passed.
+    
+    Updates #15365.
+    
+    Change-Id: Id7c8805c30dbb8107baedb485ed0f71f59ed6ea8
+    Reviewed-on: https://go-review.googlesource.com/23093
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/time/time.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go          |  34 +-
+ src/cmd/compile/internal/gc/ssa.go           |   2 +
+ src/cmd/compile/internal/ssa/config.go       |   3 +
+ src/cmd/compile/internal/ssa/flagalloc.go    |   6 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   1 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |  39 ++-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go   |  46 +--
+ src/cmd/compile/internal/ssa/gen/main.go     |   2 +
+ src/cmd/compile/internal/ssa/opGen.go        |  52 ++-
+ src/cmd/compile/internal/ssa/regalloc.go     |   2 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go   | 478 +++++++++++++++++++++++++++
+ 11 files changed, 616 insertions(+), 49 deletions(-)

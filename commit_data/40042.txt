@@ -1,14 +1,18 @@
-commit 05c8d8d3655b92ea6608f8f9ff47d85b74b67e94
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Sep 25 11:18:50 2019 -0400
+commit a6e892d26d6ee59799f55bc50521605ebf75ea67
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Apr 13 14:35:23 2019 +0300
 
-    doc: document Go 1.13.1 and Go 1.12.10
+    cmd/dist: enable VFPv3 on freebsd/arm
     
-    Change-Id: If694ce529393b8ae9c6c55270665efc3a108a3b2
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/558778
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197504
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Since CL 165799 was merged, VFP detection should work properly on FreeBSD.
+    
+    Updates #27619
+    
+    Change-Id: I386e856ceb54f0bf6e6bf83bf2d1e19154ba53f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171728
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- doc/devel/release.html | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/cmd/dist/util.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,31 @@
+commit b631b8e674195f6cdeca363ccb01279f14b10f13
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 20 13:57:23 2024 -0800
+
+    go/types, types: better error message position for invalid receiver errors
+    
+    Errors related to invalid receivers are based on the receiver base type.
+    Position the error message at the receiver base type, not the receiver
+    variable.
+    
+    Add an additional example with an (invalid) generic receiver type.
+    
+    Also, fix a panic when the code is run w/o Alias types enabled.
+    
+    Change-Id: I610df171e4c447bbe03b904937c12e4170508b3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630376
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/issues_test.go     |  2 +-
+ src/cmd/compile/internal/types2/signature.go       | 22 ++++++++++++----------
+ src/cmd/compile/internal/types2/typexpr.go         |  4 ++++
+ src/go/types/issues_test.go                        |  2 +-
+ src/go/types/signature.go                          | 22 ++++++++++++----------
+ src/go/types/typexpr.go                            |  4 ++++
+ .../types/testdata/check/decls2/decls2a.go         |  8 ++++----
+ src/internal/types/testdata/spec/receivers.go      | 14 ++++++++++++++
+ 8 files changed, 52 insertions(+), 26 deletions(-)

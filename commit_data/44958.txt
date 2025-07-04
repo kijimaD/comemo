@@ -1,34 +1,19 @@
-commit 0723f062ff906902c44086476f95016e50164c53
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Apr 4 12:59:49 2021 -0400
+commit df73945fd2fa0b7c168a042e87e648fdfdfc2c70
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 17 07:54:01 2020 +0700
 
-    cmd/compile: enable panic+recover adjustment for some ABI wrappers
+    cmd/compile: make error message involving variadic calls clearer
     
-    For most ABI wrappers we don't need it because we're never going
-    to defer an ABI wrapper for a function that then recovers, so
-    that's would just be unnecessary code in the ABI wrapper.
+    Fixes #41440
     
-    However, for functions that could be on the path of invoking a
-    deferred function that can recover (runtime.reflectcall,
-    reflect.callReflect, and reflect.callMethod), we do want the
-    panic+recover adjustment. Set the Wrapper flag for them.
-    
-    Currently, those functions are defined as ABIInternal to avoid
-    the ABI wrappers. But the assembly code still follows ABI0
-    calling convention, which would not work with the register-based
-    calling convention. In particlar, it is not possible to make
-    runtime.reflectcall ABIInternal, because it tail calls
-    runtime.callNN functions, which are splittable. Later CLs will
-    make them ABI0 and use the wrappers.
-    
-    Updates #40724.
-    
-    Change-Id: Ic7a45bbc6f726d29b5cb4932951a9d71578dcaf6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307236
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I2fbac72ae3b76bca32cdeaee678a19af3595d116
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255241
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssagen/abi.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 20 ++++++++++++--------
+ test/fixedbugs/issue41440.go             | 14 ++++++++++++++
+ test/fixedbugs/issue6750.go              |  2 +-
+ 3 files changed, 27 insertions(+), 9 deletions(-)

@@ -1,26 +1,18 @@
-commit 277e7e57cadc08a2e82885b423308627e9e5c786
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 25 11:27:54 2012 -0700
+commit 5e75337c4e6c67090c0e516408077a284861323b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 25 08:54:36 2012 -0700
 
-    go/ast: minor comment maps API change
+    net/http: speed up Header.WriteSubset
     
-    This is a new, not yet committed API.
-    
-    - Changed NewCommentMap to be independent of
-      *File nodes and more symmetric with the
-      Filter and Comments methods.
-    
-    - Implemented Update method for use in
-      AST modifications.
-    
-    - Implemented String method for debugging
+    A few performance improvements, but without the stack sorting
+    change to avoid allocating, which is instead waiting on better
+    escape analysis.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/6303086
+    https://golang.org/cl/6265047
 
- src/cmd/godoc/godoc.go            |   2 +-
- src/cmd/godoc/main.go             |   2 +-
- src/pkg/go/ast/commentmap.go      | 102 +++++++++++++++++++++++++++++++-------
- src/pkg/go/ast/commentmap_test.go |   2 +-
- 4 files changed, 86 insertions(+), 22 deletions(-)
+ src/pkg/net/http/header.go         | 54 ++++++++++++++++++++++++++++++--------
+ src/pkg/net/http/header_test.go    | 42 ++++++++++++++++++++++++++++-
+ src/pkg/net/textproto/textproto.go | 26 ++++++++++++++++++
+ 3 files changed, 110 insertions(+), 12 deletions(-)

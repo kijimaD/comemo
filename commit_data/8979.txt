@@ -1,15 +1,13 @@
-commit ad58dc9d26655800694960e71a3458b1a7b665e8
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jul 8 16:01:32 2011 +1000
+commit a852981d17cd4c46fbaf3da39b6bfc84134074d0
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 8 15:22:05 2011 +1000
 
-    exp/template: the must-have MustParse functions
+    exp/template: allow fields and methods to be found in parent structs.
     
-    R=r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4641096
+    https://golang.org/cl/4657085
 
- src/pkg/exp/template/Makefile  |   1 +
- src/pkg/exp/template/helper.go | 100 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/exp/template/parse.go  |  12 ++---
- src/pkg/exp/template/set.go    |   2 +-
- 4 files changed, 109 insertions(+), 6 deletions(-)
+ src/pkg/exp/template/exec.go      | 123 +++++++++++++++++++++++---------------
+ src/pkg/exp/template/exec_test.go |  24 +++++---
+ 2 files changed, 89 insertions(+), 58 deletions(-)

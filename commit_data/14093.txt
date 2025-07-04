@@ -1,12 +1,13 @@
-commit 3aae5a0e7ec1f6802844e35ed72aaa929145b2e5
+commit aa97c88ecb8463f9c7675cc812d7e52a381a9913
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Oct 9 20:21:39 2012 +0400
+Date:   Tue Oct 9 09:55:57 2012 +0400
 
-    cmd/fix: disable reflect test under race detector (very slow)
+    encoding/gob: add test case for issue 4214.
+    See http://code.google.com/p/go/issues/detail?id=4214
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6642045
+    https://golang.org/cl/6619068
 
- src/cmd/fix/reflect_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/encoding/gob/type_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

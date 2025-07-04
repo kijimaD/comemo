@@ -1,20 +1,16 @@
-commit c83c8065355c7ccef33eb0ebc870bf648d3d89cb
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Oct 30 12:36:08 2015 +1300
+commit 928fe05a4fc0f0e92d81f7b0f320014dad69105d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 31 23:41:27 2015 -0400
 
-    cmd/internal/obj, cmd/link, runtime: use a larger stack frame on ppc64
+    reflect: record unsafe.Pointer, not uintptr, during DeepEqual
     
-    The larger stack frames causes the nosplit stack to overflow so the next change
-    increases the stackguard.
+    This is more correct with respect to garbage collection.
+    I don't know of any specific failures it could cause today.
     
-    Change-Id: Ib2b4f24f0649eb1d13e3a58d265f13d1b6cc9bf9
-    Reviewed-on: https://go-review.googlesource.com/15964
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I7eed6a06d2f281051199e79e4a9913aa8360ded7
+    Reviewed-on: https://go-review.googlesource.com/14137
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/link.go             |  4 ++++
- src/cmd/link/internal/ld/link.go         |  4 ++++
- src/runtime/asm_ppc64x.h                 | 14 ++++----------
- src/runtime/asm_ppc64x.s                 |  8 +++++++-
- src/runtime/internal/sys/arch_ppc64.go   |  2 +-
- src/runtime/internal/sys/arch_ppc64le.go |  2 +-
- 6 files changed, 21 insertions(+), 13 deletions(-)
+ src/reflect/deepequal.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

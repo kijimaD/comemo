@@ -1,18 +1,14 @@
-commit 12991a75e0d93443642137d63719d63c286729be
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Feb 8 23:11:15 2017 +0100
+commit 8e4ea2f5e8ee2b9c455adb329d96fb13cd3c64da
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 26 22:34:40 2016 +0000
 
-    cmd/gofmt: fix diff on Plan 9
+    net/http/httptest: add more docs on ResponseRecord fields
     
-    On Plan 9, GNU diff is called ape/diff.
+    Fixes #16717
     
-    Fixes #18999.
-    
-    Change-Id: I7cf6c23c97bcc47172bbf838fd9dd72aefa4c18b
-    Reviewed-on: https://go-review.googlesource.com/36650
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7b6518609796a537437539c35461a18e9e6f207f
+    Reviewed-on: https://go-review.googlesource.com/32190
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
 
- src/cmd/gofmt/gofmt.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/net/http/httptest/recorder.go | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)

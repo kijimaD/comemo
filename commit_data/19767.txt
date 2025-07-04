@@ -1,17 +1,14 @@
-commit 964b98e8c3e3f042fac80daa12715ffc3f7b9aa9
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 18 12:04:39 2014 -0400
+commit 5d580336821b05684c00ebaf9fb4a8318a40788e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 18 12:44:24 2014 +0400
 
-    A+C: add Xia Bin (individual CLA)
+    go/printer: simplify test
+    Pre Go1?
     
-    This CLA replaces the one for 'snyh'.
-    Verified by hand.
-    
-    LGTM=minux
-    R=iant, minux
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/112420043
+    https://golang.org/cl/115870043
 
- AUTHORS      | 2 +-
- CONTRIBUTORS | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/go/printer/printer_test.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

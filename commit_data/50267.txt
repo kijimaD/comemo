@@ -1,37 +1,18 @@
-commit ec2ea40b315e8b1a3d1dc8f7987584c4e2a00ef4
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Aug 8 01:10:18 2022 +0700
+commit 69041c79dc2767c220519cbcb9538c39fadec59c
+Author: Amelia Downs <adowns@vmware.com>
+Date:   Mon Aug 30 17:05:36 2021 -0400
 
-    cmd/compile: restrict //go:notinheap to runtime/internal/sys
+    net: add examples for remaining IP functions
     
-    So it won't be visible outside of runtime package. There are changes to
-    make tests happy:
+    Fixes #48848
     
-     - For test/directive*.go files, using "go:noinline" for testing misplaced
-     directives instead.
-     - Restrict test/fixedbugs/bug515.go for gccgo only.
-     - For test/notinheap{2,3}.go, using runtime/cgo.Incomplete for marking
-     the type as not-in-heap. Though it's somewhat clumsy, it's the easiest
-     way to keep the test errors for not-in-heap types until we can cleanup
-     further.
-     - test/typeparam/mdempsky/11.go is about defined type in user code marked
-     as go:notinheap, which can't happen after this CL, though.
-    
-    Fixes #46731
-    
-    Change-Id: I869f5b2230c8a2a363feeec042e7723bbc416e8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421882
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If85fc16ed10a26eca840ed128ab47c5f00776ddd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346289
+    Reviewed-by: Amelia Downs <adowns@vmware.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
 
- src/cmd/compile/internal/noder/noder.go |  3 +++
- test/directive.go                       | 16 +---------------
- test/directive2.go                      | 13 ++++---------
- test/fixedbugs/bug515.go                |  8 +++++---
- test/notinheap2.go                      |  8 ++++++--
- test/notinheap3.go                      |  6 +++++-
- test/typeparam/mdempsky/11.go           | 16 ----------------
- 7 files changed, 24 insertions(+), 46 deletions(-)
+ src/net/example_test.go | 206 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 206 insertions(+)

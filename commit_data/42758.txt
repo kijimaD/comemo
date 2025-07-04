@@ -1,27 +1,26 @@
-commit 98a0071a5363e307c2e284034f810378de3883dd
-Author: Andrew Ekstedt <andrew.ekstedt@gmail.com>
-Date:   Fri Jul 24 12:48:30 2020 -0700
+commit 8f41b1ff968387fd897748578d7b0fa7546226b2
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 8 13:49:25 2020 -0500
 
-    path,path/filepath: add Join examples with ".." components
+    cmd/go: convert tests using testdata/testinternal* to script framework
     
-    People sometimes expect Join to trim .. components from its arguments
-    before joining, and are surprised that it doesn't. This is bad if they
-    were relying on that assumed behaviour to prevent directory traversal
-    attacks.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    While a careful reading of the documentation for Join and Clean
-    might dispel this notion, it is not obvious at first glance.
+    Updates #36320
+    Updates #17751
     
-    Add a case to the examples to nudge people in the right direction.
-    
-    Updates #40373
-    
-    Change-Id: Ib5792c12ba1000811a0c0eb77048196d0b26da60
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249177
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I94a99c339f527da8ffacc73f1b36a7ac860522ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213819
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/path/example_test.go               | 5 +++++
- src/path/filepath/example_unix_test.go | 4 ++++
- 2 files changed, 9 insertions(+)
+ src/cmd/go/go_test.go                              | 29 --------------
+ src/cmd/go/testdata/script/build_internal.txt      | 44 ++++++++++++++++++++++
+ src/cmd/go/testdata/testinternal/p.go              |  3 --
+ src/cmd/go/testdata/testinternal2/p.go             |  3 --
+ .../testdata/testinternal2/x/y/z/internal/w/w.go   |  1 -
+ src/cmd/go/testdata/testinternal3/t.go             |  3 --
+ src/cmd/go/testdata/testinternal4/src/p/p.go       |  6 ---
+ .../testdata/testinternal4/src/q/internal/x/x.go   |  1 -
+ src/cmd/go/testdata/testinternal4/src/q/j/j.go     |  3 --
+ 9 files changed, 44 insertions(+), 49 deletions(-)

@@ -1,18 +1,23 @@
-commit 75692424d2b8e01d24bca015c480af7874373b5e
+commit e7f89fcb1cdd5fc41377108fcaad2363d4456b24
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Mon Oct 22 10:18:17 2012 +0200
+Date:   Mon Oct 22 10:01:14 2012 +0200
 
-    cmd/gc: escape analysis to track flow of in to out parameters.
+    cmd/gc: fix strict tree property for AST for OAS2RECV nodes.
     
-    includes step 0: synthesize outparams, from 6600044
-    step 1: give outparams loopdepth 0 and verify unchanged results
-    step 2: generate esc:$mask tags, but still tie to sink if a param has mask != 0
-    next step: use in esccall (and ORETURN with implicit OAS2FUNC) to avoid tying to sink
+    in typecheck and walk, conversion from OAS2RECV to OAS2
+    and to OSELRECV2 duplicated the ->rlist->n to ->right
+    thereby destroying the strict tree-ness of the AST (up to
+    ONAMES) of course.  Several recursions in esc.c and inl.c
+    and probably elsewhere assume nodes of the tree aren't duplicated.
+    rather than defensively code around this, i'd rather assert
+    these cases away and fix their cause.
+    
+    (this was tripped in 6741044)
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/6610054
+    https://golang.org/cl/6750043
 
- src/cmd/gc/esc.c | 97 ++++++++++++++++++++++++++++++++++++++++++++++----------
- src/cmd/gc/go.h  |  3 ++
- 2 files changed, 84 insertions(+), 16 deletions(-)
+ src/cmd/gc/select.c    | 5 +++--
+ src/cmd/gc/typecheck.c | 1 -
+ 2 files changed, 3 insertions(+), 3 deletions(-)

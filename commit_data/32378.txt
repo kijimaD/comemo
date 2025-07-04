@@ -1,64 +1,19 @@
-commit 3bece2fa0e10c2dec37b3f57925def40c8191e37
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Aug 14 22:03:25 2017 -0700
+commit 7b0b52ef2b2b86eef3b73859ceaa986c8c0e47f7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 21 06:50:02 2017 -0400
 
-    archive/tar: refactor Reader support for sparse files
+    cmd/compile: mark ARM's CALLudiv not safepoint
     
-    This CL is the first step (of two) for adding sparse file support
-    to the Writer. This CL only refactors the logic of sparse-file handling
-    in the Reader so that common logic can be easily shared by the Writer.
+    ARM's udiv function is nosplit and it shouldn't be preemptied
+    (passing args in registers). It is in some sense like DUFFCOPY,
+    which we don't mark as safepoint.
     
-    As a result of this CL, there are some new publicly visible API changes:
-            type SparseEntry struct { Offset, Length int64 }
-            type Header struct { ...; SparseHoles []SparseEntry }
-    
-    A new type is defined to represent a sparse fragment and a new field
-    Header.SparseHoles is added to represent the sparse holes in a file.
-    The API intentionally represent sparse files using hole fragments,
-    rather than data fragments so that the zero value of SparseHoles
-    naturally represents a normal file (i.e., a file without any holes).
-    The Reader now populates SparseHoles for sparse files.
-    
-    It is necessary to export the sparse hole information, otherwise it would
-    be impossible for the Writer to specify that it is trying to encode
-    a sparse file, and what it looks like.
-    
-    Some unexported helper functions were added to common.go:
-            func validateSparseEntries(sp []SparseEntry, size int64) bool
-            func alignSparseEntries(src []SparseEntry, size int64) []SparseEntry
-            func invertSparseEntries(src []SparseEntry, size int64) []SparseEntry
-    
-    The validation logic that used to be in newSparseFileReader is now moved
-    to validateSparseEntries so that the Writer can use it in the future.
-    alignSparseEntries is currently unused by the Reader, but will be used
-    by the Writer in the future. Since TAR represents sparse files by
-    only recording the data fragments, we add the invertSparseEntries
-    function to convert a list of data fragments to a normalized list
-    of hole fragments (and vice-versa).
-    
-    Some other high-level changes:
-    * skipUnread is deleted, where most of it's logic is moved to the
-    Discard methods on regFileReader and sparseFileReader.
-    * readGNUSparsePAXHeaders was rewritten to be simpler.
-    * regFileReader and sparseFileReader were completely rewritten
-    in simpler and easier to understand logic.
-    * A bug was fixed in sparseFileReader.Read where it failed to
-    report an error if the logical size of the file ends before
-    consuming all of the underlying data.
-    * The tests for sparse-file support was completely rewritten.
-    
-    Updates #13548
-    
-    Change-Id: Ic1233ae5daf3b3f4278fe1115d34a90c4aeaf0c2
-    Reviewed-on: https://go-review.googlesource.com/56771
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I49f7c4e69e787ac364d0b0def0661e79a0ea9e69
+    Reviewed-on: https://go-review.googlesource.com/41370
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/archive/tar/common.go      | 149 ++++++
- src/archive/tar/format.go      |  14 +-
- src/archive/tar/reader.go      | 599 ++++++++++++-------------
- src/archive/tar/reader_test.go | 997 +++++++++++++++++++++++++----------------
- src/archive/tar/tar_test.go    | 110 +++++
- src/archive/tar/writer.go      |   2 +-
- 6 files changed, 1175 insertions(+), 696 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go  | 6 ++++--
+ src/cmd/compile/internal/gc/plive.go | 2 +-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

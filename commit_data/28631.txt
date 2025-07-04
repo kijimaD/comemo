@@ -1,19 +1,17 @@
-commit 7e0218cdb204cec082601988324d54ef484a8f5f
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Sep 30 12:04:46 2016 -0400
+commit d0fa6c2f9ed213db9010d9b188fabdd14f342d6a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 15 15:17:45 2016 -0700
 
-    cmd/compile: remove unnecessary OpSB checks in S390X.rules
+    [dev.ssa] cmd/compile: add and use SSAReg
     
-    Reversed, indexed and multi-register stores/loads cannot accept SB
-    inputs. Therefore if one of these Ops is an input to a rule any
-    pointer that is an argument to that Op cannot be OpSB.
+    This will be needed by other architectures as well.
+    Put a cleaner encapsulation around it.
     
-    Change-Id: Ib8048362d1c6277122afec0d13a1c905290d69cb
-    Reviewed-on: https://go-review.googlesource.com/30131
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0ac25d600378042b2233301678e9d037e20701d8
+    Reviewed-on: https://go-review.googlesource.com/24154
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  38 -------
- src/cmd/compile/internal/ssa/rewriteS390X.go | 152 +++++++++++++--------------
- 2 files changed, 76 insertions(+), 114 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go | 12 ++++--------
+ src/cmd/compile/internal/gc/ssa.go  | 17 +++++++++--------
+ 2 files changed, 13 insertions(+), 16 deletions(-)

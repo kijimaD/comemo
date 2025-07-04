@@ -1,0 +1,26 @@
+commit 86781963cc2bf0d3dbd1eccebd8a2f080846f3ee
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Sep 29 04:24:00 2024 +0200
+
+    runtime: align vgetrandom states to cache line
+    
+    This prevents false sharing, which makes a large difference on machines
+    with several NUMA nodes, such as this dual socket server:
+    
+    cpu: Intel(R) Xeon(R) Gold 6338 CPU @ 2.00GHz
+                          │    sec/op    │    sec/op     vs base                │
+    ParallelGetRandom-128   0.7944n ± 5%   0.4503n ± 0%  -43.31% (p=0.000 n=10)
+    
+                          │     B/s      │     B/s       vs base                │
+    ParallelGetRandom-128   4.690Gi ± 5%   8.272Gi ± 0%  +76.38% (p=0.000 n=10)
+    
+    Change-Id: Id4421e9a4c190b38aff0be4c59e9067b0a38ccd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/syscall/unix/getrandom_linux_test.go | 22 ++++++++++++++++++++++
+ src/runtime/vgetrandom_linux.go                   | 12 ++++++++----
+ 2 files changed, 30 insertions(+), 4 deletions(-)

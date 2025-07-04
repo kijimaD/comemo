@@ -1,12 +1,12 @@
-commit 08d66439b4f0c4e5f73f48dca658c94e344c43ea
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Oct 15 20:30:41 2012 -0700
+commit 6273c7324fa671f8e8e43c0113e842d2ab5fe8b9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Oct 15 13:54:31 2012 +0400
 
-    builder: label the race builder as "race"
+    runtime: add missing if(raceenabled)
     
-    R=golang-dev, adg, dave, rsc, minux.ma, dvyukov
+    R=0xe2.0x9a.0x9b, minux.ma, iant, dave
     CC=golang-dev
-    https://golang.org/cl/6648043
+    https://golang.org/cl/6654052
 
- misc/dashboard/app/build/ui.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/runtime/malloc.goc | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

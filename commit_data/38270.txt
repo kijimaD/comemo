@@ -1,51 +1,35 @@
-commit 4a9064ef41ccc65454564536f40cf7d5a00db8ad
-Author: Keith Randall <khr@google.com>
-Date:   Tue Mar 5 17:42:48 2019 -0800
+commit 3e0227f6a055fff2ceab18ed1ac6bd583a7f94a5
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Oct 12 19:17:21 2018 +0200
 
-    cmd/compile: fix ordering for short-circuiting ops
+    internal/cpu: add invalid option warnings and support to enable cpu features
     
-    Make sure the side effects inside short-circuited operations (&& and ||)
-    happen correctly.
+    This CL adds the ability to enable the cpu feature FEATURE by specifying
+    FEATURE=on in GODEBUGCPU. Syntax support to enable cpu features is useful
+    in combination with a preceeding all=off to disable all but some specific
+    cpu features. Example:
     
-    Before this CL, we attached the side effects to the node itself using
-    exprInPlace. That caused other side effects in sibling expressions
-    to get reordered with respect to the short circuit side effect.
+    GODEBUGCPU=all=off,sse3=on
     
-    Instead, rewrite a && b like:
+    This CL implements printing of warnings for invalid GODEBUGCPU settings:
+    - requests enabling features that are not supported with the current CPU
+    - specifying values different than 'on' or 'off' for a feature
+    - settings for unkown cpu feature names
     
-    r := a
-    if r {
-      r = b
-    }
+    Updates #27218
     
-    That code we can keep correctly ordered with respect to other
-    side-effects extracted from part of a big expression.
-    
-    exprInPlace seems generally unsafe. But this was the only case where
-    exprInPlace is called not at the top level of an expression, so I
-    don't think the other uses can actually trigger an issue (there can't
-    be a sibling expression). TODO: maybe those cases don't need "in
-    place", and we can retire that function generally.
-    
-    This CL needed a small tweak to the SSA generation of OIF so that the
-    short circuit optimization still triggers. The short circuit optimization
-    looks for triangle but not diamonds, so don't bother allocating a block
-    if it will be empty.
-    
-    Go 1 benchmarks are in the noise.
-    
-    Fixes #30566
-    
-    Change-Id: I19c04296bea63cbd6ad05f87a63b005029123610
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165617
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ic13e5c4c35426a390c50eaa4bd2a408ef2ee21be
+    Reviewed-on: https://go-review.googlesource.com/c/141800
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 40 +++++++++++++++++++++++++++++-------
- src/cmd/compile/internal/gc/ssa.go   | 24 ++++++++++++++--------
- test/checkbce.go                     |  4 +---
- test/fixedbugs/issue30566a.go        | 23 +++++++++++++++++++++
- test/fixedbugs/issue30566b.go        | 27 ++++++++++++++++++++++++
- test/live.go                         |  9 ++++----
- 6 files changed, 104 insertions(+), 23 deletions(-)
+ src/internal/cpu/cpu.go          | 70 ++++++++++++++++++++++++++++------------
+ src/internal/cpu/cpu_arm.go      |  4 +--
+ src/internal/cpu/cpu_arm64.go    | 48 +++++++++++++--------------
+ src/internal/cpu/cpu_ppc64x.go   | 18 +++++------
+ src/internal/cpu/cpu_s390x.go    | 16 ++++-----
+ src/internal/cpu/cpu_test.go     |  5 ++-
+ src/internal/cpu/cpu_x86.go      | 30 ++++++++---------
+ src/internal/cpu/cpu_x86_test.go | 17 ++++++++++
+ 8 files changed, 128 insertions(+), 80 deletions(-)

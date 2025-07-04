@@ -1,12 +1,13 @@
-commit 913abfee3bd25af5d80b3b9079d22f8e296d94c8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 14 15:04:29 2012 +1100
+commit 11f6f7afd63ec33ef473dc17129ccc59ddd1b0f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 22:56:42 2012 -0500
 
-    net/http: don't spin on temporary accept failure
+    build: fix windows build
     
-    R=golang-dev, rsc
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5658049
+    https://golang.org/cl/5656051
 
- src/pkg/net/http/server.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/all.bat | 5 ++++-
+ src/run.bat | 7 -------
+ 2 files changed, 4 insertions(+), 8 deletions(-)

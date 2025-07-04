@@ -1,32 +1,18 @@
-commit e1b305af028544e00a22c905e68049c98c10a1cc
-Author: Ben Hoyt <benhoyt@gmail.com>
-Date:   Wed Nov 4 10:13:42 2020 +1300
+commit 0f14c2a0423ed2416db38ca24edfcb47f46c4e4c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Apr 20 03:26:53 2020 +0700
 
-    strconv: revert ParseFloat/ParseComplex error on incorrect bitSize
+    cmd/compile: rewrite shift rules to use typed aux fields
     
-    This is a partial revert of https://go-review.googlesource.com/c/go/+/248219
-    because we found that a non-trivial amount of code erroneously calls
-    ParseFloat(s, 10) or even ParseFloat(s, 0) and expects it to work --
-    before that change was merged, ParseFloat accepted a bitSize of
-    anything other than 32 or 64 to mean 64 (and ParseComplex was similar).
+    Passes toolstash-check.
     
-    So revert that behavior to avoid breaking people's code, and add tests
-    for this.
-    
-    I may add a vet check to flag ParseFloat(s, not_32_or_64) in a later
-    change.
-    
-    See #42297 for more details.
-    
-    Change-Id: I4bc0156bd74f67a39d5561b6e5fde3f2d20bd622
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267319
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I02e78591fe46e19a43dc36913baef0338a014a3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228860
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/strconv/atoc.go      |  6 +++---
- src/strconv/atoc_test.go | 21 +++++++++++++--------
- src/strconv/atof.go      |  3 ---
- src/strconv/atof_test.go | 22 ++++++++++++++--------
- 4 files changed, 30 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 200 ++++----
+ src/cmd/compile/internal/ssa/rewrite.go        |   8 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 656 ++++++++++++-------------
+ 3 files changed, 433 insertions(+), 431 deletions(-)

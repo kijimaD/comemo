@@ -1,21 +1,51 @@
-commit a289e9ce7514a34cd930469322395bf0e89b59ea
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Tue Feb 15 10:19:16 2022 -0600
+commit 02ab8d1a1dc82ce019969221313bfa28911f54a1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 24 12:41:17 2021 -0400
 
-    database/sql: make WAIT tests more robust, rely on waiter trigger
+    cmd/compile, runtime: emit only GC data for stack objects
     
-    Replace the WAIT query prefix with a function callback.
-    This fixes timing issues when the testing on loaded servers.
+    Currently, for stack objects, the compiler emits metadata that
+    includes the offset and type descriptor for each object. The type
+    descriptor symbol has many fields, and it references many other
+    symbols, e.g. field/element types, equality functions, names.
     
-    Fixes #51208
+    Observe that what we actually need at runtime is only the GC
+    metadata that are needed to scan the object, and the GC metadata
+    are "leaf" symbols (which doesn't reference other symbols). Emit
+    only the GC data instead. This avoids bringing live the type
+    descriptor as well as things referenced by it (if it is not
+    otherwise live).
     
-    Change-Id: I5151b397b7066c27ce6bc02c160dde0b584934bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385934
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Daniel Theophanes <kardianos@gmail.com>
+    This reduces binary sizes:
+    
+                         old          new
+    hello (println)    1187776      1133856 (-4.5%)
+    hello (fmt)        1902448      1844416 (-3.1%)
+    cmd/compile       22670432     22438576 (-1.0%)
+    cmd/link           6346272      6225408 (-1.9%)
+    
+    No significant change in compiler speed.
+    
+    name        old time/op       new time/op       delta
+    Template          184ms ± 2%        186ms ± 5%    ~     (p=0.905 n=9+10)
+    Unicode          78.4ms ± 5%       76.3ms ± 3%  -2.60%  (p=0.009 n=10+10)
+    GoTypes           1.09s ± 1%        1.08s ± 1%  -0.73%  (p=0.027 n=10+8)
+    Compiler         85.6ms ± 3%       84.6ms ± 4%    ~     (p=0.143 n=10+10)
+    SSA               7.23s ± 1%        7.25s ± 1%    ~     (p=0.780 n=10+9)
+    Flate             116ms ± 5%        115ms ± 6%    ~     (p=0.912 n=10+10)
+    GoParser          201ms ± 4%        195ms ± 1%    ~     (p=0.089 n=10+10)
+    Reflect           455ms ± 1%        458ms ± 2%    ~     (p=0.050 n=9+9)
+    Tar               155ms ± 2%        155ms ± 3%    ~     (p=0.436 n=10+10)
+    XML               202ms ± 2%        200ms ± 2%    ~     (p=0.053 n=10+9)
+    
+    Change-Id: I33a7f383d79afba1a482cac6da0cf5b7de9c0ec4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313514
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/database/sql/fakedb_test.go |  3 +++
- src/database/sql/sql_test.go    | 31 ++++++++++++++++++-------------
- 2 files changed, 21 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/liveness/plive.go      | 22 ++++++++-
+ src/cmd/compile/internal/reflectdata/reflect.go | 64 ++++++++++++++++++++-----
+ src/runtime/mgcmark.go                          | 28 +++++------
+ src/runtime/mgcstack.go                         | 22 ++++-----
+ src/runtime/stack.go                            | 40 ++++++++++++----
+ 5 files changed, 128 insertions(+), 48 deletions(-)

@@ -1,30 +1,20 @@
-commit 9efb6493f498f8fdcc5d34d4df4d5e9c620f861b
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Nov 15 21:12:33 2021 -0500
+commit cd26192abab742cb2df24827226eab0e9f3683a9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 18 17:29:02 2021 -0700
 
-    all: update vendored golang.org/x/tools
+    go/types: remove superfluous code for shift checking
     
-    Update the vendored x/tools to pick up the fix for #49597, using the
-    following commands:
+    Negative constant shift counts are already handled
+    earlier in the code. No need anymore for this extra
+    section.
     
-      go get -d golang.org/x/tools@4adea5033c5c6f39a900d4b963c4b496448b1655
-      go mod tidy
-      go mod vendor
+    With this change, the shift code matches types2
+    with respect to the function logic.
     
-    Fixes #49597
-    
-    Change-Id: Ib1bc43aacbdc707b605194012134f048a336e176
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363986
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ic8b7f382271c79ab66021e30955cd9bac092332b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303093
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../go/analysis/passes/composite/composite.go      |  21 +++-
- .../x/tools/go/analysis/passes/shift/shift.go      |  20 +++-
- .../go/analysis/passes/stringintconv/string.go     |  37 ++++--
- .../x/tools/internal/typeparams/normalize.go       | 132 +++++++++------------
- src/cmd/vendor/modules.txt                         |   2 +-
- 7 files changed, 117 insertions(+), 101 deletions(-)
+ src/go/types/expr.go | 16 +---------------
+ 1 file changed, 1 insertion(+), 15 deletions(-)

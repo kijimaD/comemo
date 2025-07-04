@@ -1,15 +1,12 @@
-commit ee5f59ab4feafd987972a096d5a5c315e753f358
+commit 8022a1a58836c5d5eb3ef4f78bdb701bac56fe93
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 7 01:54:07 2012 -0400
+Date:   Thu Jun 7 00:51:11 2012 -0400
 
-    cmd/gc: preserve side effects during inlining of function with _ argument
-    
-    Fixes #3593.
+    cmd/gc: mark output of typename as type-checked
     
     R=ken2
-    CC=golang-dev, lvd
-    https://golang.org/cl/6305061
+    CC=golang-dev
+    https://golang.org/cl/6302051
 
- src/cmd/gc/inl.c         | 43 +++++++++++++++++++++----------------------
- test/fixedbugs/bug441.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 22 deletions(-)
+ src/cmd/gc/reflect.c | 2 ++
+ 1 file changed, 2 insertions(+)

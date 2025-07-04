@@ -1,37 +1,15 @@
-commit f28bbb776a050cc3edca2bbe1241d81217a7a251
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Nov 2 10:46:58 2015 -0800
+commit d0351e96669be3629e9a0ad4c841af42eeb624e5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 24 10:17:59 2015 -0800
 
-    cmd/compile: move hiter, hmap, and scase definitions into builtin.go
+    text/template,html/template: correct comment in DefinedTemplates
     
-    Also eliminates per-maptype hiter and hmap types, since they're not
-    really needed anyway.  Update packages reflect and runtime
-    accordingly.
+    The prefix includes a semicolon.
     
-    Reduces golang.org/x/tools/cmd/godoc's text segment by ~170kB:
-    
-       text    data     bss     dec     hex filename
-    13085702         140640  151520 13377862         cc2146 godoc.before
-    12915382         140640  151520 13207542         c987f6 godoc.after
-    
-    Updates #6853.
-    
-    Change-Id: I948b2bc1f22d477c1756204996b4e3e1fb568d81
-    Reviewed-on: https://go-review.googlesource.com/16610
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4bdb79aa9931e835e297f3ea2c46a001cd123d56
+    Reviewed-on: https://go-review.googlesource.com/17200
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         | 10 ++-
- src/cmd/compile/internal/gc/builtin/runtime.go | 49 +++++++++++++-
- src/cmd/compile/internal/gc/fmt.go             |  8 ---
- src/cmd/compile/internal/gc/go.go              |  4 +-
- src/cmd/compile/internal/gc/range.go           | 22 +++---
- src/cmd/compile/internal/gc/reflect.go         | 94 ++------------------------
- src/cmd/compile/internal/gc/select.go          | 30 +-------
- src/cmd/compile/internal/gc/subr.go            | 13 ++--
- src/cmd/compile/internal/gc/walk.go            |  4 +-
- src/reflect/type.go                            |  1 -
- src/runtime/hashmap.go                         | 15 ++--
- src/runtime/runtime2.go                        |  2 -
- src/runtime/select.go                          |  4 +-
- src/runtime/type.go                            |  1 -
- 14 files changed, 94 insertions(+), 163 deletions(-)
+ src/html/template/template.go | 2 +-
+ src/text/template/exec.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

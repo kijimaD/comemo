@@ -1,26 +1,19 @@
-commit 027855e8d86f461b50946b006ea032d4b4a7d817
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 27 14:36:05 2022 -0400
+commit 4957976b1a1f67ba872cc281b9ae25d59f6e003d
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Thu Jul 1 00:22:51 2021 +0000
 
-    os/exec: add GODEBUG setting to opt out of ErrDot changes
+    cmd/link: make npkgsyms meaningful
     
-    The changes are likely to break users, and we need
-    to make it easy to unbreak without code changes.
+    npkgsyms always equals 1 currently.
     
-    For #43724.
-    Fixes #53962.
-    
-    Change-Id: I105c5d6c801d354467e0cefd268189c18846858e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419794
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ie88bc273beaace12ec7432054ca7c151396e8e35
+    GitHub-Last-Rev: c5d3b12b88ddcdc6011f97787fd7c0e94c7df20e
+    GitHub-Pull-Request: golang/go#46988
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331929
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go/build/deps_test.go |  8 +++--
- src/os/exec/dot_test.go   | 86 ++++++++++++++++++++++++++++-------------------
- src/os/exec/exec.go       |  5 +++
- src/os/exec/lp_plan9.go   |  3 +-
- src/os/exec/lp_unix.go    |  3 +-
- src/os/exec/lp_windows.go |  6 +++-
- 6 files changed, 71 insertions(+), 40 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

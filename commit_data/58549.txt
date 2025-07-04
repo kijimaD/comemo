@@ -1,21 +1,40 @@
-commit 7764c502e28e42279d033719b058690ca8fbaa44
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jan 10 00:06:43 2025 +0100
+commit 0ef169abb1db6bd4e184ee87204dd883fb20cf1c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 16 17:42:25 2023 +0000
 
-    crypto/internal/sysrand: skip TestNoGetrandom without cgo
+    runtime: put allocation headers back at the start the object
     
-    crypto/internal/sysrand/internal/seccomp needs cgo to disable getrandom.
-    Before this change, "CGO_ENABLED=0 go test crypto/internal/sysrand"
-    would fail on Linux.
+    A persistent performance regression was discovered on
+    perf.golang.org/dashboard and this was narrowed down to the switch to
+    footers. Using allocation headers instead resolves the issue.
     
-    Change-Id: I6a6a465685b480c846e5479da0659e90ab7f3a65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642737
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    The benchmark results for allocation footers weren't realistic, because
+    they were performed on a machine with enough L3 cache that it completely
+    hid the additional cache miss introduced by allocation footers.
+    
+    This means that in some corner cases the Go runtime may no longer
+    allocate 16-byte aligned memory. Note however that this property was
+    *mostly* incidental and never guaranteed in any documentation.
+    
+    Allocation headers were tested widely within Google and no issues were
+    found, so we're fairly confident that this will not affect very many
+    users.
+    
+    Nonetheless, by Hyrum's Law some code might depend on it. A follow-up
+    change will add a GODEBUG flag that ensures 16 byte alignment at the
+    potential cost of some additional memory use. Users experiencing both a
+    performance regression and an alignment issue can also disable the
+    GOEXPERIMENT at build time.
+    
+    This reverts commit 1e250a219900651dad27f29eab0877eee4afd5b9.
+    
+    Change-Id: Ia7d62a9c60d1773c8b6d33322ee33a80ef814943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543255
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/internal/sysrand/rand_linux_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/malloc.go               |  3 ++-
+ src/runtime/mbitmap_allocheaders.go | 14 ++++++++------
+ src/runtime/mfinal.go               |  8 +++++++-
+ 3 files changed, 17 insertions(+), 8 deletions(-)

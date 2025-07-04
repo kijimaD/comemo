@@ -1,15 +1,12 @@
-commit f566fca2b3fb4d1c3e7a11084486d9067814910d
+commit 39b6fb7a19ff6384a55fdec25e1a816817b8b7ed
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 7 12:45:19 2011 -0700
+Date:   Fri Oct 7 08:54:02 2011 -0700
 
-    godoc: show "unexported" declarations when executing "godoc builtin"
-    
-    Was never working correctly when executing from the command-line.
+    go/token: remove obsolete comment (cleanup)
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/5236042
+    https://golang.org/cl/5235042
 
- src/cmd/godoc/godoc.go | 6 +++---
- src/cmd/godoc/main.go  | 3 +++
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/go/token/position.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

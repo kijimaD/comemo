@@ -1,57 +1,34 @@
-commit dd150176c3cc49da68c8179f740eadc79404d351
-Author: Daniel <cpu@letsencrypt.org>
-Date:   Fri Jul 3 03:07:02 2020 +0000
+commit f9fe783c6c71d236a94ca674a8be61c7b5198fdb
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 22 01:06:37 2020 +0000
 
-    crypto/tls: create certs w/o KeyEncipherment KU for non-RSA keys in generate_cert.go
+    Revert "net/http: support gzip, x-gzip Transfer-Encodings"
     
-    Summary
+    This reverts commit e6c12c3d0296251f1d5a96ebde811dbfd4a914fe.
     
-    The crypto/tls/generate_cert.go utility should only set the template
-    x509.Certificate's KeyUsage field to a value with the
-    x509.KeyUsageKeyEncipherment bits set when the certificate subject
-    public key is an RSA public key, not an ECDSA or ED25519 public key.
+    Reason for revert: the assumption that a T-E of "gzip" implies
+    "chunked" seems incorrect. The RFC does state that one "MUST apply
+    chunked as the final transfer coding" but that should be interpreted to
+    mean that a "chunked" encoding must be listed as the last one, not that
+    one should be assumed to be there if not. This is confirmed by the
+    alternative option to chunking on the server side being to "terminate
+    the message by closing the connection".
     
-    Background
+    The issue seems confirmed by the fact that the code in the body of
+    #29162 fails with the following error:
     
-    RFC 5480 describes the usage of ECDSA elliptic curve subject keys with
-    X.509. Unfortunately while Section 3 "Key Usages Bits" indicates which
-    key usage bits MAY be used with a certificate that indicates
-    id-ecPublicKey in the SubjectPublicKeyInfo field it doesn't provide
-    guidance on which usages should *not* be included (e.g. the
-    keyEncipherment bit, which is particular to RSA key exchange). The same
-    problem is present in RFC 8410 Section 5 describing Key Usage Bits for
-    ED25519 elliptic curve subject keys.
+        net/http: HTTP/1.x transport connection broken: http: failed to gunzip body: unexpected EOF
     
-    There's an update to RFC 5480 in last call stage within the IETF LAMPS
-    WG, draft-ietf-lamps-5480-ku-clarifications-00. This update is meant
-    to clarify the allowed Key Usages extension values for certificates with
-    ECDSA subject public keys by adding:
+    This late in the cycle, revert rather than fix, also because we don't
+    apparently have tests for the correct behavior.
     
-    > If the keyUsage extension is present in a certificate that indicates
-    > id-ecPublicKey as algorithm of AlgorithmIdentifier [RFC2986] in
-    > SubjectPublicKeyInfo, then following values MUST NOT be present:
-    >
-    > keyEncipherment; and
-    > dataEncipherment.
-    
-    I don't believe there is an update for RFC 8410 in the works but I
-    suspect it will be clarified similarly in the future.
-    
-    This commit updates generate_cert.go to ensure when the certificate
-    public key is ECDSA or ED25519 the generated certificate has the
-    x509.Certificate.KeyUsage field set to a value that doesn't include KUs
-    specific to RSA. For ECDSA keys this will adhere to the updated RFC 5480
-    language.
-    
-    Fixes #36499
-    
-    Change-Id: Ib1b0757c039b7fe97fc6d1e826fe6b88856c1964
-    GitHub-Last-Rev: a8f34fb33dde90e09b6f9a27b2598a82b3023abb
-    GitHub-Pull-Request: golang/go#36500
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214337
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I920ec928754cd8e96a06fb7ff8a53316c0f959e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215757
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/crypto/tls/generate_cert.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/net/http/transfer.go      | 125 ++-----------------
+ src/net/http/transfer_test.go | 284 +-----------------------------------------
+ 2 files changed, 15 insertions(+), 394 deletions(-)

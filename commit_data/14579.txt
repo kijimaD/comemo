@@ -1,12 +1,18 @@
-commit 9088d17afb9fffd292cc94a40b78d8fa14eefabd
+commit e93bdd998c1c4e46dac4b21d2dca251e6016d3f2
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 6 09:47:12 2012 -0800
+Date:   Thu Dec 6 09:23:13 2012 -0800
 
-    fix build: remove a flaky test for now
+    exp/gotype: added many more tests
+    
+    gotype can now handle much of the standard library.
+    
+    - marked packages which have type checker issues
+    - this CL depends on CL 6846131
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/6889052
+    https://golang.org/cl/6850130
 
- src/pkg/exp/gotype/gotype_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/gotype/gotype_test.go    | 197 +++++++++++++++++++++++++++++++----
+ src/pkg/exp/gotype/testdata/test1.go |   2 +-
+ 2 files changed, 179 insertions(+), 20 deletions(-)

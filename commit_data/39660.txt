@@ -1,14 +1,16 @@
-commit 2b598944257fade6af18216acc94940a706d66da
-Author: Anderson Queiroz <contato@andersonq.eti.br>
-Date:   Fri Aug 23 15:02:40 2019 +0100
+commit 781da440912c095e61b9e5a95e5b068062b150a9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 12 00:26:24 2019 -0400
 
-    net/http: enhance documentation for Server.Addr
+    cmd/dist: write and use a go.mod file in the bootstrap directory
     
-    Fixes golang/go#31249
+    Updates #30228
     
-    Change-Id: I3280f8ab170ed31d4efb71106533e016d430d44c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191557
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ica28525b31a8a787875c147e16274eba8f4dbffc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167078
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/http/server.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/dist/buildtool.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

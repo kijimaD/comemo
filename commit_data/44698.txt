@@ -1,23 +1,17 @@
-commit 68f8e1af29ab12cfa97eb119a7d12a7ea2295e4d
+commit cbc0a7906cfb4c82f850d35ffdb7eb0d674cc9b1
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 11 18:23:30 2021 -0800
+Date:   Thu Aug 20 16:48:21 2020 -0700
 
-    cmd/compile/internal/types2: review of call.go
+    go/types: update flag documentation for gotype command
     
-    The changes between (equivalent, and reviewed) go/types/call.go
-    and call.go can be seen by comparing patchset 1 and 2. The actual
-    changes are removing the "// UNREVIEWED" marker, renaming of
-    sig_params to sigParams, and a couple of comment adjustments.
-    These additional changes reduce the difference between this
-    file and the go/types version.
+    The documentation refers to a non longer existing flag (-seq).
+    Remove those references.
     
-    Note that the verification pass using a MethodSet doesn't
-    exist because there's no MethodSet in types2.
-    
-    Change-Id: I4d49460e0457401ed705dff5cfd17c9ff259d89f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300998
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I480b6259f9199b47761dc655a90911eabfe07427
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249738
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/call.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/go/types/gotype.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

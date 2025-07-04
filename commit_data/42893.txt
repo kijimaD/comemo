@@ -1,19 +1,21 @@
-commit 7432bee7b372efbbd09b16c4e3176b69fbb6878a
-Author: Tzu-Chiao Yeh <su3g4284zo6y7@gmail.com>
-Date:   Wed Sep 2 10:53:39 2020 +0800
+commit 3abec31097a2b7e7bff74050eb14751ebd45ce5e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 13:33:11 2020 -0800
 
-    net/http/fcgi: fix race in child.serve connection read
+    cmd/compile: use ellipses in PPC64 rules
     
-    Guards the connection read with a mutex, because typeStdin
-    asynchronously and concurrently writes to the underlying conn.
+    Also, explicitly zero AuxInt in some ops (like Div),
+    to make it clear why they do not use an ellipsis.
     
-    Fixes #41167
+    Passes toolstash-check -all.
     
-    Change-Id: Ia2610f4fde0bd4b108c54164095ea293980b0301
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252417
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I2e234e7b779422f7577037813f277e7586061880
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217012
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/fcgi/child.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  126 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 1677 ++++----------------------
+ 2 files changed, 309 insertions(+), 1494 deletions(-)

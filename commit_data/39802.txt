@@ -1,21 +1,24 @@
-commit d21953df047868ed3bcfd0172a6c1672642f5b4a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 4 12:59:41 2019 -0400
+commit f23c601bf9f66ef4a0d9d2dcd003b95e78fb28f8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 21 13:40:28 2019 -0400
 
-    cmd/go/internal/test: prepend -test.timeout rather than appending
+    cmd/compile: copy volatile values before emitting write barrier call
     
-    Tests may accept positional arguments, in which case the -test.timeout
-    flag must be passed before those arguments.
+    It is possible that a "volatile" value (one that can be clobbered
+    by preparing args of a call) to be used in multiple write barrier
+    calls. We used to copy the volatile value right before each call.
+    But this doesn't work if the value is used the second time, after
+    the first call where it is already clobbered. Copy it before
+    emitting any call.
     
-    Fixes #34072
+    Fixes #30977.
     
-    Change-Id: I5b92d7c0edc4f9e1efb63b0733937b76236c0eff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193297
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iedcc91ad848d5ded547bf37a8359c125d32e994c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168677
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/test/test.go            |  3 ++-
- src/cmd/go/testdata/script/test_timeout.txt | 11 ++++++-----
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/writebarrier.go | 78 +++++++++++++++++++---------
+ test/fixedbugs/issue30977.go                 | 52 +++++++++++++++++++
+ 2 files changed, 106 insertions(+), 24 deletions(-)

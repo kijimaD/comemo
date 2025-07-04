@@ -1,23 +1,23 @@
-commit d241ea8d5cc5dce6c32c69d1a6303622874d5fd3
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Wed Dec 4 04:50:29 2024 +0100
+commit 214ce28503c891e2c5c63150f240424f994d4e76
+Author: Quan Tong <quantonganh@gmail.com>
+Date:   Mon Oct 16 15:39:48 2023 +0700
 
-    sync/atomic: add missing leak tests for And & Or
+    cmd/go/internal/help: update the documentation to match the design and implementation
     
-    Theses tests were forgot because when CL 462298 was originally written
-    And & Or atomics were not available in go.
-    Git were smart enough to rebase over And's & Or's addition.
-    After most reviews and before merging it were pointed I should
-    make theses new intrinsics noescape.
-    When doing this last minute addition I forgot to add tests.
+    The existing documentation imply that the build constraints
+    should be ignored after a block comments, but actually it's not.
     
-    Change-Id: I457f98315c0aee91d5743058ab76f256856cb782
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633416
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #63502
+    
+    Change-Id: I0597934b7a7eeab8908bf06e1312169b3702bf05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535635
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Mark Pictor <mark.pictor@contrastsecurity.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- test/fixedbugs/issue16241.go    | 20 ++++++++++++++++++++
- test/fixedbugs/issue16241_64.go | 14 ++++++++++++++
- 2 files changed, 34 insertions(+)
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/help/helpdoc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

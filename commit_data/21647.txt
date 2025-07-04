@@ -1,19 +1,15 @@
-commit 1ab55a3f047502d8d59616c823facb7cd3ded487
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 17 15:01:43 2015 -0500
+commit 3acb9fd98e41014b3958cd11ba599385c4eab9cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 23 21:40:35 2015 -0800
 
-    runtime: fix runtime-gdb_test on arm
+    math/big: disable some tests on 32bit platforms (fix build)
     
-    Apparently when ARM stops at a GDB breakpoint, it appears to be in
-    syscall.Syscall.  The "info goroutines" test expected it to be in a
-    runtime function.  Since this isn't fundamental to the test, simply
-    tweak the test's regexp to make sure "info goroutines" prints some
-    running goroutine with an active M, but don't require it to be in any
-    particular function.
+    TBR: adonovan
     
-    Change-Id: Iba2618b46d3dc49cef62ffb72484b83ea7b0317d
-    Reviewed-on: https://go-review.googlesource.com/5060
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I59757b5b46a2c533fc5f888423c99d550d3c7648
+    Reviewed-on: https://go-review.googlesource.com/3264
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/runtime-gdb_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/big/float.go      | 14 ++++++++++----
+ src/math/big/float_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 4 deletions(-)

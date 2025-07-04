@@ -1,21 +1,17 @@
-commit e3127f023f6a591699bcaa5b6fb2844ecee794ea
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 7 15:11:54 2018 -0800
+commit 6c8418f560f076da570b70ac645df7cdb01db188
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 27 13:07:38 2017 -0400
 
-    cmd/compile: fuse escape analysis parameter tagging loops
+    cmd/dist: log timing to $GOBUILDTIMELOGFILE
     
-    Simplifies the code somewhat and allows removing Param.Field.
+    We can't make all.bash faster if we can't measure it.
+    Measure it.
     
-    Passes toolstash-check.
-    
-    Change-Id: Id854416aea8afd27ce4830ff0f5ff940f7353792
-    Reviewed-on: https://go-review.googlesource.com/99336
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia5da791d4cfbfa1fd9a8e905b3188f63819ade73
+    Reviewed-on: https://go-review.googlesource.com/73990
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go         | 10 ----------
- src/cmd/compile/internal/gc/esc.go         | 32 ++++++++++--------------------
- src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
- src/cmd/compile/internal/gc/syntax.go      |  3 ---
- 4 files changed, 12 insertions(+), 35 deletions(-)
+ src/cmd/dist/build.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/test.go  | 21 +++++++++++++++++++++
+ src/make.bash         |  8 ++++++++
+ 3 files changed, 80 insertions(+)

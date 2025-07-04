@@ -1,25 +1,22 @@
-commit 47d240ccbb40425b49f14e21145d01dda542a21c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 26 12:23:01 2024 -0500
+commit 8ffcd3da93c9f408afaebd06ae8a21f8f770a037
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 8 16:06:50 2023 +0700
 
-    net: in the fake implementation, allow writes to buffer on closed connections
+    cmd/compile: remove reflectdata.AfterGlobalEscapeAnalysis
     
-    This mimics the apparent behavior of writes on linux/amd64, in which a
-    write on an already-closed connection silently succeeds — even if the
-    connection has already been closed by the remote end — provided that
-    the packet fits in the kernel's send buffer.
+    This global variable was used by the old frontend to decide whether to
+    perform escape analysis during method wrapper generation.
     
-    I tested this by patching in CL 557437 and running the test on js/wasm
-    and wasip1/wasm locally.
+    The old frontend is gone now, the variable is not used anywhere else.
     
-    Fixes #64317.
-    
-    Change-Id: I43f6a89e5059115cb61e4ffc33a8371057cb67a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558915
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I448f2761ea608a9a2ec39a9920fcf7aa12d98799
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466278
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/net_fake.go | 18 +++++-------------
- 1 file changed, 5 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/main.go             | 5 -----
+ src/cmd/compile/internal/reflectdata/reflect.go | 6 ------
+ 2 files changed, 11 deletions(-)

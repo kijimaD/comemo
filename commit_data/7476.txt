@@ -1,16 +1,19 @@
-commit 65ece708120b9a4a95c236cc69f061c7bf5c51b4
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 16 10:46:29 2011 -0800
+commit 250977690bbd86b7af22b4feb69c409996d3d3f5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 16 13:21:20 2011 -0500
 
-    test/bench: update timings for new GC
-    Some significant improvements; e.g. pidigits goes from 8.33 to 6.37
+    runtime: fix memory allocator for GOMAXPROCS > 1
     
-    Also add gccgo for regex-dna.
+    Bitmaps were not being updated safely.
+    Depends on 4188053.
     
-    R=rsc
+    Fixes #1504.
+    May fix issue 1479.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4160056
+    https://golang.org/cl/4184048
 
- test/bench/timing.log | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++
- test/bench/timing.sh  |  3 +-
- 2 files changed, 84 insertions(+), 1 deletion(-)
+ src/pkg/runtime/malloc.goc |  8 ++++++-
+ src/pkg/runtime/mgc0.c     | 58 +++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 56 insertions(+), 10 deletions(-)

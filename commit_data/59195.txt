@@ -1,27 +1,18 @@
-commit 535e0daefd5ae1364df148c69fc893a068267605
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Jun 18 23:36:43 2024 +1000
+commit ef84d62cfc358ff62c60da9ceec754e7a389b5d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 23 12:18:20 2024 -0800
 
-    cmd/internal/obj/riscv: add support for vector integer arithmetic instructions
+    net: skip TestReadLine if /etc/services does not exist
     
-    Add support for vector integer arithmetic instructions to the RISC-V
-    assembler. This includes vector addition, subtraction, integer
-    extension, add-with-carry, subtract-with-borrow, bitwise logical
-    operations, comparison, min/max, integer division and multiplication
-    instructions.
+    Fixes #65905
     
-    Change-Id: I8c191ef8e31291e13743732903e4f12356133a46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646775
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Change-Id: I42326d3b743e80d5226ea374eca5c9edaef4dd4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566535
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s        | 317 +++++++++++++++++
- src/cmd/asm/internal/asm/testdata/riscv64error.s   | 165 +++++++++
- .../asm/internal/asm/testdata/riscv64validation.s  | 225 +++++++++++-
- src/cmd/internal/obj/riscv/anames.go               |  13 +
- src/cmd/internal/obj/riscv/cpu.go                  |  13 +
- src/cmd/internal/obj/riscv/obj.go                  | 393 ++++++++++++++++++++-
- 6 files changed, 1101 insertions(+), 25 deletions(-)
+ src/net/parse_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

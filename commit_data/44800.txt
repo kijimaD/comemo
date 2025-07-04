@@ -1,52 +1,26 @@
-commit e7e0995cba1f57622f593ebd27d4d1a651666c4b
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Mar 23 10:19:11 2021 -0700
+commit f0c7e3e9463069f60b3d31696860f6fb75aa3e87
+Author: David Finkel <david.finkel@gmail.com>
+Date:   Sat Apr 25 13:32:06 2020 -0400
 
-    cmd/compile:  create/use noder2 transform functions for more node types
+    cmd/compile: adjust some AMD64 rewrite rules to use typed aux fields
     
-    Pull out the transformation part of the typechecking functions for:
-     - assignment statements
-     - return statements
-     - send statements
-     - select statements
-     - type conversions
-     - normal function/method calls
-     - index operations
+    Remove an extra int32-representable check when deciding to use an int32
+    constant as an immediate value.
     
-    The transform functions are like the original typechecking functions,
-    but with all code removed related to:
-      - Detecting compile-time errors (already done by types2)
-      - Setting the actual type of existing nodes (already done based on
-        info from types2)
-      - Dealing with untyped constants
+    Comment out a broken optimization that relies on MaxUint32 being
+    representable by a signed int32. It never triggers and when fixed, the
+    signedness of the auxint prevents other optimization passes from
+    handling it properly, thus causing segfaults in the runtime.
     
-    Moved all the transformation functions to a separate file, transform.go.
+    Remove a couple offset representable in 32-bits checks on 32-bit aux
+    vals.
     
-    Continuing with the same pattern, we delay transforming a node if it has
-    any type params in its args, marking it with a typecheck flag of 3, and
-    do the actual transformation during stenciling.
+    toolstash-check clean
     
-    Assignment statements are tricky, since their transformation must be
-    delayed if any of the left or right-hands-sides are delayed.
-    
-    Still to do are:
-     - selector expressions (OXDOT)
-     - composite literal expressions (OCOMPLIT)
-     - builtin function calls
-    
-    Change-Id: Ie608cadbbc69b40db0067a5536cf707dd974aacc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304049
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I148b53403fde523c90d692cb90e412460664b439
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230458
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/noder/helpers.go   | 129 ++-----
- src/cmd/compile/internal/noder/stencil.go   |  62 ++--
- src/cmd/compile/internal/noder/stmt.go      |  77 ++--
- src/cmd/compile/internal/noder/transform.go | 523 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/noder/validate.go  |  12 +-
- src/cmd/compile/internal/typecheck/expr.go  |   2 +-
- src/cmd/compile/internal/typecheck/subr.go  |   2 +-
- 7 files changed, 650 insertions(+), 157 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  835 ++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 4227 +++++++++++++-------------
+ 2 files changed, 2515 insertions(+), 2547 deletions(-)

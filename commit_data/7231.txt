@@ -1,17 +1,29 @@
-commit 90294a08c830b22acb8ab58113d02ae816b82274
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Tue Jan 25 17:56:33 2011 +1100
+commit 4e5e0b1d20f8636be3e576302a4e3a6f59caab3e
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 25 11:36:13 2011 +1000
 
-    runtime: make Walk webbrowser example work
+    misc: Import/Drop commands for Vim
     
-    R=rsc, brainman, lxn
+    New ftplugin adds Import and Drop commands for Go buffers
+    in Vim.  These commands ensure that the provided package is
+    imported (or not imported) in the current Go buffer, using
+    proper style and ordering, without moving the cursor.
+    
+    E.g.
+    
+        :Import strings
+        :ImportAs . strings
+        :Drop strings
+    
+    Two mappings are also introduced to help with the fmt package:
+    
+        \f => :Import fmt
+        \F => :Drop fmt
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4005045
+    https://golang.org/cl/4009043
 
- src/pkg/exp/wingui/gui.go          |  2 +-
- src/pkg/exp/wingui/winapi.go       |  2 +-
- src/pkg/runtime/386/asm.s          |  2 +-
- src/pkg/runtime/windows/386/sys.s  | 32 +++++++++++++++++---------------
- src/pkg/runtime/windows/thread.c   | 12 ++++++------
- src/pkg/syscall/syscall_windows.go |  5 +++--
- 6 files changed, 29 insertions(+), 26 deletions(-)
+ misc/vim/ftplugin/go/import.vim | 203 ++++++++++++++++++++++++++++++++++++++++
+ misc/vim/readme.txt             |  14 +++
+ 2 files changed, 217 insertions(+)

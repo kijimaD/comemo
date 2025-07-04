@@ -1,23 +1,29 @@
-commit 9172a1b5738bf55b4d2b6f045cf40cae24c081f1
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Sep 18 11:40:36 2015 +0200
+commit ca1d6c4b449caaada97a8024430ec572724b3ae9
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Wed Jul 15 20:09:24 2015 +0000
 
-    runtime: race instrument read of convT2E/I arg
+    encoding/xml: EncodeToken silently eats tokens with invalid type
     
-    Sometimes this read is instrumented by compiler when it creates
-    a temp to take address, but sometimes it is not (e.g. for global vars
-    compiler takes address of the global directly).
+    EncodeToken takes a Token (i.e. an interface{}) as a parameter,
+    and expects a value of type StartElement, EndElement, CharData,
+    Comment, ProcInst, or Directive.
     
-    Instrument convT2E/I similarly to chansend and mapaccess.
+    If a pointer is passed instead, or any type which does not match
+    this list, the token is silently ignored.
     
-    Fixes #12664
+    Added a default case in the type switch to issue a proper error
+    when the type is invalid.
     
-    Change-Id: Ia7807f15d735483996426c5f3aed60a33b279579
-    Reviewed-on: https://go-review.googlesource.com/14752
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The behavior could be later improved by allowing pointers to
+    token to be accepted as well, but not for go1.5.
+    
+    Fixes #11719
+    
+    Change-Id: Ifd13c1563450b474acf66d57669fdccba76c1949
+    Reviewed-on: https://go-review.googlesource.com/12252
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/iface.go                         |  6 +++
- src/runtime/race/testdata/issue12664_test.go | 76 ++++++++++++++++++++++++++++
- 2 files changed, 82 insertions(+)
+ src/encoding/xml/marshal.go      |  4 ++++
+ src/encoding/xml/marshal_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

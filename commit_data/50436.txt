@@ -1,25 +1,33 @@
-commit d734203e393745626d2c705aaf433b210d86c241
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Fri Sep 9 08:43:10 2022 +0800
+commit b54bdd281e62a4658ea4edb5e0a6139006938c9a
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Oct 18 18:11:48 2021 -0700
 
-    reflect: deprecate SliceHeader and StringHeader
+    cmd/compile: clean up the switch statements in (*genInst).node()
     
-    As discussed in CL 401434 there are substantial misuses of these in the
-    wild, and they are a potential source of unsafety even for code that
-    does not use them directly.
+    There were two main outer switch statements in node() that can just be
+    combined. Also, for simplicity, changed an IsCmp() conditional into just
+    another case in the switch statement.
     
-    Since proposal #53003 has already been implemented, now is the right
-    time to deprecate reflect.{SliceHeader, StringHeader}.
+    Also, the inner OCALL switch statement had a bunch of fairly duplicate
+    cases. Combined the cases that all had no special semantics, into a
+    single default case calling transformCall().
     
-    For #53003.
+    In the OCALL case in dictPass(), got rid of a check for OFUNCINST (which
+    will always have been removed by this point). Also, eliminated an assert
+    that could cause unneded failures. transformCall() should always be
+    called if the node op is still OCALL, so no need to assert on the ops of
+    call.X.
     
-    Change-Id: I724cf46d4b22d2ed3cbf2b948e6aac5ee4bf0f6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428757
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Added an extra test in issue47078.go, to explicitly check for case where
+    the X argument of a call is a DOTTYPE.
+    
+    Change-Id: Ifb3f812ce12820a4ce08afe2887f00f7fc00cd2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358596
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/reflect/value.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/noder/stencil.go | 161 ++++++++++++++----------------
+ test/typeparam/issue47878.go              |  10 ++
+ 2 files changed, 85 insertions(+), 86 deletions(-)

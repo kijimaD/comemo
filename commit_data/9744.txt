@@ -1,14 +1,16 @@
-commit 6f18233373454eae26386f0ca11cefe41106e7a0
-Author: Eric Eisner <eric.d.eisner@gmail.com>
-Date:   Mon Sep 19 11:03:43 2011 -0700
+commit 6b6cb725e99da3bf74be53489521636ee8ee4798
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 19 10:22:53 2011 -0700
 
-    suffixarray: generate less garbage during construction
+    http: prevent DumpRequest from adding implicit headers
     
-    Minorly improves runtime by about 2-3%
+    Fixes #2272
     
-    R=gri, jeff
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5052045
+    https://golang.org/cl/5043051
 
- src/pkg/index/suffixarray/qsufsort.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/http/dump.go              |   2 +-
+ src/pkg/http/request.go           |  56 +++++++++-
+ src/pkg/http/requestwrite_test.go | 208 +++++++++++++++++++-------------------
+ 3 files changed, 162 insertions(+), 104 deletions(-)

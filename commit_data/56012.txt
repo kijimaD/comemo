@@ -1,22 +1,19 @@
-commit d9f97467946556e94817acbb35fef7f536afed5f
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Nov 3 17:04:15 2023 +0800
+commit f46320849da89bea3e23bae985ad753d30bbc5da
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 3 14:09:03 2023 -0400
 
-    mime: add available godoc link
+    cmd/compile/internal/test: skip testpoint due to revert of CL 479095
     
-    Change-Id: I66ec9edc71f4c1207135e4248003a7457e456931
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539576
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Skip one of the testpoints that verifies inlining, since it
+    no longer passes as a result of reverting CL 479095. Once we
+    roll forward with a new version of CL 479095 we can re-enable
+    this testpoint.
+    
+    Change-Id: I41f6fb3fce78f31e60c5f0ed2856be0e66865149
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481755
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/mime/encodedword.go              |  2 +-
- src/mime/mediatype.go                |  4 ++--
- src/mime/multipart/formdata.go       |  8 ++++----
- src/mime/multipart/multipart.go      | 16 ++++++++--------
- src/mime/multipart/readmimeheader.go |  3 ++-
- src/mime/multipart/writer.go         | 16 ++++++++--------
- src/mime/quotedprintable/writer.go   | 12 ++++++------
- 7 files changed, 31 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/test/inl_test.go | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

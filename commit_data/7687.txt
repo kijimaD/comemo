@@ -1,12 +1,12 @@
-commit 800217f8c55750a9e8fc4bb9d3b1ba5655b538c5
+commit 89930bda9dcda11d1c4a09f18894efc7cc071a8d
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 7 15:31:41 2011 -0800
+Date:   Mon Mar 7 15:30:51 2011 -0800
 
-    net: fix test for Solaris: gopher and http are not in /etc/services.
+    os: adjust test: /bin is a symlink, not a directory, on Solaris.
     
-    R=rsc, dsymonds
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4250063
+    https://golang.org/cl/4239066
 
- src/pkg/net/port_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/os/os_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

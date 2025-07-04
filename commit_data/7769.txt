@@ -1,18 +1,15 @@
-commit f11f032486ada2ee8e3ae9ee8860acdeb2e8db00
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 15 13:09:11 2011 -0700
+commit c3254bbef92b0070f4bfd1d481bea112305e6b9e
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Mar 15 14:42:18 2011 -0400
 
-    rpc: add benchmarks
+    lib9, libmach: Change GOOS references to GOHOSTOS
     
-    On my mac:
-    mallocs per rpc round trip: 144
-    rpc.BenchmarkEndToEnd      10000            228244 ns/op
+    This makes it possible to build Windows binaries on non-Windows OSes.
     
-    Room for improvement.
-    
-    R=rsc
+    R=golang-dev, rsc1, rsc
     CC=golang-dev
-    https://golang.org/cl/4274058
+    https://golang.org/cl/4271046
 
- src/pkg/rpc/server_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 50 insertions(+)
+ src/lib9/Makefile    | 2 +-
+ src/libmach/Makefile | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,29 +1,14 @@
-commit 7eed848a178cbecae7131434eed1eaab81709a85
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Tue Oct 18 14:00:30 2016 +0530
+commit 496174e32e8983f46c6178cab250ea08f4d89dd2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 16 07:36:13 2016 -0700
 
-    math: speed up Gamma(+Inf)
+    doc/go1.7.html: fix name of tls.Config.NextProtos
     
-    Add special case for Gamma(+∞) which speeds it up:
+    Updates #16737
     
-    benchmark            old ns/op     new ns/op     delta
-    BenchmarkGamma-4     14.5          7.44          -48.69%
-    
-    The documentation for math.Gamma already specifies it as a special
-    case:
-    
-            Gamma(+Inf) = +Inf
-    
-    The original C code that has been used as the reference implementation
-    (as mentioned in the comments in gamma.go) also treats Gamma(+∞) as a
-    special case:
-    
-    if( x == INFINITY )
-            return(x);
-    
-    Change-Id: Idac36e19192b440475aec0796faa2d2c7f8abe0b
-    Reviewed-on: https://go-review.googlesource.com/31370
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ia51fc9b06df43b7c6f7136e90b40362263c20081
+    Reviewed-on: https://go-review.googlesource.com/27126
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/math/gamma.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go1.7.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

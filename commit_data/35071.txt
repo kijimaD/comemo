@@ -1,18 +1,29 @@
-commit 568d6f983172706d2f5f7f66024b7b7a544ada53
+commit 043f112e521dc48ec8ccffa58ceb7e5403c73fb0
 Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 2 17:37:19 2017 -0400
+Date:   Fri Dec 8 17:32:23 2017 -0500
 
-    cmd/compile: teach Haspointer about TSSA and TTUPLE
+    runtime: reset write barrier buffer on all flush paths
     
-    These will appear when tracking live pointers in registers, so we need
-    to know whether they have pointers.
+    Currently, wbBufFlush does nothing if the goroutine is dying on the
+    assumption that the system is crashing anyway and running the write
+    barrier may crash it even more. However, it fails to reset the
+    buffer's "next" pointer. As a result, if there are later write
+    barriers on the same P, the write barrier will overflow the write
+    barrier buffer and start corrupting other fields in the P or other
+    heap objects. Often, this corrupts fields in the next allocated P
+    since they tend to be together in the heap.
     
-    For #24543.
+    Fix this by always resetting the buffer's "next" pointer, even if
+    we're not doing anything with the pointers in the buffer.
     
-    Change-Id: I2edccee39ca989473db4b3e7875ff166808ac141
-    Reviewed-on: https://go-review.googlesource.com/108497
+    Updates #22987 and #22988. (May fix; it's hard to say.)
+    
+    Change-Id: I82c11ea2d399e1658531c3e8065445a66b7282b2
+    Reviewed-on: https://go-review.googlesource.com/83016
     Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types/type.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/runtime/mwbbuf.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

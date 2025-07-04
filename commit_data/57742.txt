@@ -1,33 +1,25 @@
-commit cb69354de3d3d2a4e9ba1afa481a3174039bbe96
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Sep 30 17:08:12 2024 +0200
+commit faf564644d9948e001db7c4f61a0ac9a61283003
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Jul 25 12:47:05 2023 +0100
 
-    crypto/internal/fips/subtle: provide XORBytes
+    go/scanner: give specific error for curvy “abc” quotes
     
-    This is needed from inside the module, and we generally don't want to
-    import the crypto tree from it.
+    Code examples sometimes mistakenly use curvy quotes,
+    leading to hard-to-spot invalid token errors.
+    This change makes the error message explicit.
     
-    For #69536
+    (An alternative change would be to accept them in place
+    of "abc" and emit an error, but the extra check would
+    likely add an unacceptable dynamic cost to string scanning.)
     
-    Change-Id: I69e91e4df89ecac0016c671ccd28e733a7131533
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616716
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Fixes #61450
+    
+    Change-Id: Ie2b18c958c6f8f71a56ac193a94a8d16eea839db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512855
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/fips/subtle/xor.go              | 21 +++++++++++++++++++++
- src/crypto/{ => internal/fips}/subtle/xor_amd64.go  |  0
- src/crypto/{ => internal/fips}/subtle/xor_amd64.s   |  0
- src/crypto/{ => internal/fips}/subtle/xor_arm64.go  |  0
- src/crypto/{ => internal/fips}/subtle/xor_arm64.s   |  0
- .../{ => internal/fips}/subtle/xor_generic.go       |  0
- .../{ => internal/fips}/subtle/xor_loong64.go       |  0
- src/crypto/{ => internal/fips}/subtle/xor_loong64.s |  0
- src/crypto/{ => internal/fips}/subtle/xor_ppc64x.go |  0
- src/crypto/{ => internal/fips}/subtle/xor_ppc64x.s  |  0
- src/crypto/{ => internal/fips}/subtle/xor_test.go   |  2 +-
- src/crypto/subtle/xor.go                            | 12 +++---------
- src/go/build/deps_test.go                           |  1 +
- 13 files changed, 26 insertions(+), 10 deletions(-)
+ src/go/scanner/scanner.go      | 8 +++++++-
+ src/go/scanner/scanner_test.go | 1 +
+ 2 files changed, 8 insertions(+), 1 deletion(-)

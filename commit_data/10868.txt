@@ -1,12 +1,12 @@
-commit 10e43384f30115a7e58a5fd20d887d90cc061ebf
+commit c4227f5bb0089bf506c6dcab40376be9f88c40e4
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Dec 19 17:31:20 2011 +1100
+Date:   Mon Dec 19 17:30:14 2011 +1100
 
-    net/http: test both texta and textb values, not texta twice
+    io/ioutil: close file in TestWriteFile before deleting it
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5489082
+    https://golang.org/cl/5495086
 
- src/pkg/net/http/request_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/io/ioutil/ioutil_test.go | 1 +
+ 1 file changed, 1 insertion(+)

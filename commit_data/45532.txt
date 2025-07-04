@@ -1,25 +1,21 @@
-commit da7496d84128be85a4db5b6fdf9029c48c867211
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Apr 28 16:47:41 2021 -0500
+commit c95bd2e6a99ab06efadb265bf42bbaf8d964904f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 16 10:13:37 2020 -0700
 
-    os/signal: increase test timeouts on ppc64*/linux
+    cmd/compile: optimize generated struct/array equality code
     
-    TestSignalTrace can take a bit longer to run on some
-    ppc64{,le} machines. I was only able to reproduce the
-    timeout reliably on a POWER8/ppc64le ubuntu 16.04 host.
+    Use a standard "not-equal" label that we can jump to when we
+    detect that the arguments are not equal. This prevents the
+    recombination that was noticed in #39428.
     
-    Bump the timeout to 5 seconds.  This should be more than
-    sufficient for a test which occasionally takes a bit
-    longer to run on these builders.
+    Fixes #39428
     
-    Fixes #45773
-    
-    Change-Id: I4177bb986561f714aabfa5b0ca44b1c90b1cd94f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315049
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Change-Id: Ib7c6b3539f4f6046043fd7148f940fcdcab70427
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255317
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/os/signal/signal_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/gc/alg.go | 144 +++++++++++++++++++++++++------------
+ 1 file changed, 99 insertions(+), 45 deletions(-)

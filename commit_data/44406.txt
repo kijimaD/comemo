@@ -1,30 +1,12 @@
-commit 80ddc17ae1b3ffacc42c19b999956f9ccef3ddd1
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 23 20:48:22 2021 -0500
+commit c143a5f2a692c2da6a5d29ca9a9462df3a17e0dc
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jun 26 18:24:15 2020 +0200
 
-    cmd/compile/internal-abi: fix ABI0-equivalence for zero-sized values
+    doc/go1.15: fix bad link to crypto/tls
     
-    This fixes a bug in the internal ABI specification that made it not
-    equivalent to ABI0 even with zero architectural argument registers in
-    the case of a zero-sized argument with alignment > 1.
-    
-    In ABI0, even zero-sized arguments cause alignment padding in the
-    stack frame.
-    
-    Currently, in the internal ABI, zero-sized arguments get
-    register-assigned even if there are no registers because they don't
-    consume any registers. Hence, they don't create alignment padding in
-    the stack frame.
-    
-    Fix this by stack-assigning zero-sized arguments.
-    
-    For #40724.
-    
-    Change-Id: I1f5a95a94fed8b5313a360e5e76875701ba5f562
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295791
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ie81579cbb1873349a91280f5aebe59624fcb1ef8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240157
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal-abi.md | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ doc/go1.15.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

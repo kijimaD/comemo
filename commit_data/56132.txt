@@ -1,21 +1,25 @@
-commit 7dd8f39ebac6d8b27c0ad7cf421aa5d71f155220
-Author: cui fliter <imcusg@gmail.com>
-Date:   Tue Jan 2 14:25:45 2024 +0800
+commit f7f0d395695933bfe4397e1faf70000454f1193c
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Apr 7 18:26:50 2023 -0700
 
-    all: fix some comments
+    time: add wasip1 support
     
-    Change-Id: I0ee85161846c13d938213ef04d3a34f690a93e48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/553435
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #58141
+    
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: I51dabbf17b8f5540c964f90223d18457f6f9fbef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483236
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/unified.go  | 2 +-
- src/cmd/compile/internal/ssagen/abi.go     | 2 +-
- src/cmd/compile/internal/typecheck/expr.go | 2 +-
- src/cmd/compile/internal/types/type.go     | 4 ++--
- src/net/conf.go                            | 2 +-
- src/runtime/pinner.go                      | 2 +-
- test/makechan.go                           | 2 +-
- 7 files changed, 8 insertions(+), 8 deletions(-)
+ src/time/sys_unix.go        | 12 ++++++++++--
+ src/time/zoneinfo_wasip1.go | 12 ++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

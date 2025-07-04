@@ -1,16 +1,20 @@
-commit de5b386157c7f86df3f0a93cd01172ff84781459
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 30 14:50:21 2015 -0500
+commit c73df92be6dd24603fe51f90db668980a7a9ef19
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Wed Sep 23 23:31:17 2015 +0200
 
-    misc/cgo/testsanitizers: do not run with clang < 3.8 and Linux ≥ 4.1
+    cmd/compile/internal/gc: remove stringsCompare
     
-    These are simply incompatible. Clang fixed the bug but not in older versions.
+    Inlined the last occurrence of stringsCompare into exprcmp.
     
-    Fixes #12898.
+    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
     
-    Change-Id: I74a3fd9134dadab6d0f074f8fd09e00d64558d7a
-    Reviewed-on: https://go-review.googlesource.com/17254
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8fd99e3fbffc84283cc269368595cba950533066
+    Reviewed-on: https://go-review.googlesource.com/14872
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testsanitizers/test.bash | 18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/swt.go      |   8 +-
+ src/cmd/compile/internal/gc/swt_test.go | 144 ++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/util.go     |  11 ---
+ 3 files changed, 151 insertions(+), 12 deletions(-)

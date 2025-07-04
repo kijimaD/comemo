@@ -1,22 +1,28 @@
-commit e0ca2e04b852e4c887be38f3ad7205a863b6c6a7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 18 10:34:11 2024 -0700
+commit fd03e6ebc91fb0b6f4dc721a323dc0b408e3b30b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 5 22:28:48 2023 -0400
 
-    go/types, types2: slightly reorganize method receiver checking
+    cmd/compile: check method name in PGO devirtualization
     
-    - move receiver checks up, closer to where the receiver is collected
-    - adjust some comments after verifying against some test cases
-    - removed some minor discrepancies between the two type checkers
+    Currently, we devirtualize an interface call if the profile
+    indicates a concrete callee is hot on the same line, and the
+    concrete receiver implements the interface. But it is possible
+    that (likely due to another call on the same line, or possibly a
+    stale profile) the concrete call is to a different method.
     
-    For #51343.
+    With the current AST construction we generate correct code, as we
+    extract the method name from the interface call and use that to
+    create the concrete call. But the devirtualization decision is
+    based on an unrelated call in the profile.
     
-    Change-Id: I75b58efbed1e408df89b8d6536e6c6da45740f93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/593336
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Check the method name when finding the hottest callee, so we won't
+    use unrelated calls to different methods.
+    
+    Change-Id: I75c026997926f21bd6cc5266d3ffe99649a9b2d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500961
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types2/signature.go | 38 ++++++++++++++--------------
- src/go/types/signature.go                    | 31 +++++++++++++----------
- 2 files changed, 36 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/devirtualize/pgo.go | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

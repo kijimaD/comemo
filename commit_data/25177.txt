@@ -1,17 +1,31 @@
-commit 025e9b0ca32dd8a2ed5792eeecd8b8aa2ea068a8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 4 22:50:23 2015 -0500
+commit 27ee719fb32b47b9bc59921e457f4b1e7f767968
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Mon Sep 14 14:03:45 2015 -0700
 
-    mime: fix parsing of empty string attribute value
+    pprof: improve sampling for heap profiling
     
-    Fixes #11290.
+    The current heap sampling introduces some bias that interferes
+    with unsampling, producing unexpected heap profiles.
+    The solution is to use a Poisson process to generate the
+    sampling points, using the formulas described at
+    https://en.wikipedia.org/wiki/Poisson_process
     
-    Change-Id: I312f0731077b78a4bed47062eb7fd1ab52bc3dd1
-    Reviewed-on: https://go-review.googlesource.com/17453
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This fixes #12620
+    
+    Change-Id: If2400809ed3c41de504dd6cff06be14e476ff96c
+    Reviewed-on: https://go-review.googlesource.com/14590
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/mime/mediatype.go      | 5 +++--
- src/mime/mediatype_test.go | 4 ++++
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/runtime/export_test.go     |   2 +
+ src/runtime/fastlog2.go        |  33 ++++++++
+ src/runtime/fastlog2_test.go   |  28 +++++++
+ src/runtime/fastlog2table.go   |  43 +++++++++++
+ src/runtime/malloc.go          |  55 +++++++++-----
+ src/runtime/mcache.go          |  11 +--
+ src/runtime/mkfastlog2table.go |  52 +++++++++++++
+ src/runtime/runtime.go         |   1 +
+ test/heapsampling.go           | 166 +++++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 362 insertions(+), 29 deletions(-)

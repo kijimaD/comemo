@@ -1,20 +1,27 @@
-commit 69d34e2c6965f70fe1ead3e7e8ab45ada3267ebc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 14 21:30:04 2020 -0700
+commit f770366f6d910e4bf92a6f885908afe134d65b23
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 3 15:53:53 2020 -0800
 
-    test: bump array size in fixedbugs/issue39292.go
+    runtime: don't treat SIGURG as a bad signal
     
-    The previous array length was large enough to exceed
-    maxImplicitStackSize on 64-bit architectures, but not on 32-bit
-    architectures.
+    It's possible for the scheduler to try to preempt a goroutine running
+    on a thread created by C code just as the goroutine returns from Go code
+    to C code. If that happens, the goroutine will have a nil g,
+    which would normally cause us to enter the badsignal code.
+    The badsignal code will allocate an M, reset the signal handler,
+    and raise the signal. This is all wasted work for SIGURG,
+    as the default behavior is for the kernel to ignore the signal.
+    It also means that there is a period of time when preemption requests
+    are ignored, because the signal handler is reset to the default.
+    And, finally, it triggers a bug on 386 OpenBSD 6.2. So stop doing it.
+    No test because there is no real change in behavior (other than on OpenBSD),
+    the new code is just more efficient
     
-    Fixes #40808.
+    Fixes #36996
     
-    Change-Id: I69e9abb447454b2e7875ba503a0cb772e965ae31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248680
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8c1cb9bc09f5ef890cab567924417e2423fc71f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217617
+    Reviewed-by: Austin Clements <austin@google.com>
 
- test/fixedbugs/issue39292.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/signal_unix.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

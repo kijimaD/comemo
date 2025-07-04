@@ -1,20 +1,16 @@
-commit 95322a3ac68b206c3394329cb00a0d511e77e0f9
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Nov 9 15:41:45 2017 -0500
+commit e9983165dd9882e0156b1678f688f37d7f9836c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 18 12:11:11 2017 -0400
 
-    cmd/go: avoid crashing on 'go test -n'
+    cmd/vendor/golang.org/x/arch: import latest (Aug 18 2017 ffd22fb365cd)
     
-    Fix a buglet in the go command support for 'go test -n': check for
-    nil output buffer in action routine.
+    Fixes #21486.
     
-    Fixes #22644
-    
-    Change-Id: I2566e3bb3d53d0324c4ddd6fec5d30224bf290df
-    Reviewed-on: https://go-review.googlesource.com/76710
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I01794f008404f0e2d8a1408309ae6055513c5b49
+    Reviewed-on: https://go-review.googlesource.com/57030
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/go_test.go            | 9 +++++++++
- src/cmd/go/internal/test/test.go | 6 ++++--
- 2 files changed, 13 insertions(+), 2 deletions(-)
+ .../golang.org/x/arch/arm64/arm64asm/ext_test.go       |  4 ++--
+ .../x/arch/arm64/arm64asm/objdumpext_test.go           | 18 +++++-------------
+ 2 files changed, 7 insertions(+), 15 deletions(-)

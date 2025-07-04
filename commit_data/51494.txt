@@ -1,22 +1,37 @@
-commit db4be8f510f0c4cddd45f51bcb24168414d9e2b2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 28 11:02:52 2022 -0500
+commit f1903fd4ecbf7a1e524bf71ddecb8650b9d2ea9f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 3 15:03:02 2022 -0800
 
-    encoding/csv: use proper doc comment for Deprecated notes
+    go/types, types2: simplify Checker.typeAssertion, use same code in both type checkers
     
-    End-of-line comments are not doc comments,
-    so Deprecated notes in them are not recognized
-    as deprecation notices. Rewrite the comments.
+    - Remove the xtyp argument from the Checker.typeAssertion parameter
+      list; it was confusing and not needed. Adjusted call sites.
     
-    Change-Id: I275fa9aec403132fda45853e52daa22bc06fcd36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453617
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    - Simplify logic in Checker.typeAssertion.
+    
+    - Use the same code in both types2 and go/types, specifically
+      use the same error positions.
+    
+    - Adjust error messages as needed.
+    
+    This removes another subtle discrepancy between types2 and go/types.
+    The go/types error messages don't have the have/want appendix for
+    the affected error messages yet because we don't use case folding
+    in lookups yet.
+    
+    Change-Id: Id39f5c473da36c9baad60082f85cf1f34dc26c50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383014
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- api/go1.16.txt             |  2 ++
- src/encoding/csv/reader.go | 13 ++++++++-----
- 2 files changed, 10 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/expr.go            | 32 ++++++++--------------
+ src/cmd/compile/internal/types2/stmt.go            | 16 ++++++-----
+ .../internal/types2/testdata/check/issues.src      |  4 +--
+ .../types2/testdata/fixedbugs/issue49005.go        |  5 +---
+ .../types2/testdata/fixedbugs/issue50816.go2       |  4 +--
+ src/go/types/expr.go                               | 31 ++++++++++-----------
+ src/go/types/stmt.go                               | 16 ++++++-----
+ src/go/types/testdata/check/issues.src             |  4 +--
+ src/go/types/testdata/fixedbugs/issue49005.go      | 31 +++++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue50816.go2     |  4 +--
+ 10 files changed, 84 insertions(+), 63 deletions(-)

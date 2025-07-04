@@ -1,26 +1,17 @@
-commit 911c78fe54fe9fc0655c013d2aa303e147d63529
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Feb 1 17:13:53 2022 -0500
+commit 074a49bfe82cd4722c05c48568a43434eab639fa
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Tue Apr 27 08:31:49 2021 +0200
 
-    go/parser: fix incorrect resolution of receiver type parameters
+    strconv: remove unused extfloat (Grisu3) ftoa code
     
-    Declare receiver type parameters in the function scope, but don't
-    resolve them (for now), as ast.Object.Decl is not documented to hold
-    *ast.Idents. This avoids incorrect resolution of identifiers to names
-    outside the function scope.
-    
-    Also make tracing and error reporting more consistent.
-    
-    For golang/go#50956
-    
-    Change-Id: I8cd61dd25f4c0f6b974221599b00e23d8da206a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382247
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Ie8995362f9e8072b173d08820330d2d1e512aa71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314029
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/go/parser/resolver.go                        | 93 ++++++++++++++++++++----
- src/go/parser/short_test.go                      |  4 +
- src/go/parser/testdata/resolution/typeparams.go2 | 10 ++-
- 3 files changed, 91 insertions(+), 16 deletions(-)
+ src/strconv/extfloat.go | 517 ------------------------------------------------
+ src/strconv/ftoaryu.go  |   5 +
+ 2 files changed, 5 insertions(+), 517 deletions(-)

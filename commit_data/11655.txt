@@ -1,40 +1,16 @@
-commit 842c906e2e9560187d4877d9f52e8f9ceb63d84c
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Feb 6 19:16:26 2012 +0100
+commit 9c060b8d60f14d930e5eadd7c9968ee2ba4f4131
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 6 10:06:22 2012 -0800
 
-    runtime: delete UpdateMemStats, replace with ReadMemStats(&stats).
+    database/sql: permit scanning into interface{}
     
-    Unexports runtime.MemStats and rename MemStatsType to MemStats.
-    The new accessor requires passing a pointer to a user-allocated
-    MemStats structure.
+    See thread http://goo.gl/7zzzU for background.
     
-    Fixes #2572.
-    
-    R=bradfitz, rsc, bradfitz, gustavo
-    CC=golang-dev, remy
-    https://golang.org/cl/5616072
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5624051
 
- src/cmd/godoc/godoc.go              |  7 +++++--
- src/pkg/encoding/gob/timing_test.go | 18 ++++++++++--------
- src/pkg/expvar/expvar.go            |  4 +++-
- src/pkg/fmt/fmt_test.go             |  9 +++++----
- src/pkg/net/rpc/server_test.go      |  9 +++++----
- src/pkg/reflect/all_test.go         | 10 +++++++---
- src/pkg/runtime/gc_test.go          | 11 ++++++-----
- src/pkg/runtime/malloc.h            |  2 +-
- src/pkg/runtime/mem.go              | 21 ++++++++-------------
- src/pkg/runtime/mgc0.c              |  3 ++-
- src/pkg/runtime/pprof/pprof.go      |  3 ++-
- src/pkg/strconv/itoa_test.go        |  9 +++++----
- test/bench/garbage/parser.go        | 20 ++++++++++----------
- test/bench/garbage/stats.go         |  3 ++-
- test/bench/garbage/tree2.go         | 15 ++++++++-------
- test/chan/select2.go                |  9 ++++++---
- test/closure.go                     | 11 ++++++-----
- test/gc2.go                         |  8 +++++---
- test/init1.go                       | 14 +++++++-------
- test/malloc1.go                     |  5 +++--
- test/mallocrand.go                  |  5 +++--
- test/mallocrep.go                   | 24 +++++++++++++-----------
- test/mallocrep1.go                  | 14 +++++++-------
- 23 files changed, 129 insertions(+), 105 deletions(-)
+ src/pkg/database/sql/convert.go      |  8 ++++++++
+ src/pkg/database/sql/convert_test.go | 38 ++++++++++++++++++++++++++++--------
+ src/pkg/database/sql/sql.go          |  4 ++++
+ 3 files changed, 42 insertions(+), 8 deletions(-)

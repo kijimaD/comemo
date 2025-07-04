@@ -1,13 +1,29 @@
-commit 642a1cc7563953bf2be39eca461325bfa9735cde
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Apr 28 11:07:16 2017 +1000
+commit ddb15cea4a02c403160c2d9772f85c122cbc8248
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 17 11:32:08 2017 -0800
 
-    compress/lzw: fix hi code overflow.
+    math/bits: much faster ReverseBytes, added respective benchmarks
     
-    Change-Id: I2d3c3c715d857305944cd96c45554a16cb7967e9
-    Reviewed-on: https://go-review.googlesource.com/42032
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Measured on 2.3 GHz Intel Core i7, running maxOS 10.12.3.
+    
+    benchmark                     old ns/op     new ns/op     delta
+    BenchmarkReverseBytes-8       11.4          3.51          -69.21%
+    BenchmarkReverseBytes16-8     6.87          0.64          -90.68%
+    BenchmarkReverseBytes32-8     7.79          0.65          -91.66%
+    BenchmarkReverseBytes64-8     11.6          0.64          -94.48%
+    
+    name              old time/op  new time/op  delta
+    ReverseBytes-8    11.4ns ± 0%   3.5ns ± 0%   ~     (p=1.000 n=1+1)
+    ReverseBytes16-8  6.87ns ± 0%  0.64ns ± 0%   ~     (p=1.000 n=1+1)
+    ReverseBytes32-8  7.79ns ± 0%  0.65ns ± 0%   ~     (p=1.000 n=1+1)
+    ReverseBytes64-8  11.6ns ± 0%   0.6ns ± 0%   ~     (p=1.000 n=1+1)
+    
+    Change-Id: I67b529652b3b613c61687e9e185e8d4ee40c51a2
+    Reviewed-on: https://go-review.googlesource.com/37211
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/compress/lzw/reader.go      | 12 +++++++++++-
- src/compress/lzw/reader_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 1 deletion(-)
+ src/math/bits/bits.go      | 36 ++++++++++++++++++++++++++++--------
+ src/math/bits/bits_impl.go |  8 --------
+ src/math/bits/bits_test.go | 24 ++++++++++++++++++++++++
+ 3 files changed, 52 insertions(+), 16 deletions(-)

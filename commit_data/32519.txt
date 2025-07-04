@@ -1,12 +1,16 @@
-commit 04d410d6cda732a4ff9c31551a6a700c0e42137c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 28 13:04:27 2017 +1000
+commit 50f67add81eb9fa032f2e87c639fc42f0cc9de72
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 27 17:54:49 2017 -0700
 
-    cmd/link: introduce and use peSection.emitRelocations
+    spec: clarify admissible argument types for print, println
     
-    Change-Id: I2bebee5566ee07786695f147c27661e69337a0f7
-    Reviewed-on: https://go-review.googlesource.com/59418
+    Fixes #19885.
+    
+    Change-Id: I55420aace1b0f714df2d6460d2d1595f6863dd06
+    Reviewed-on: https://go-review.googlesource.com/42023
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 62 +++++++++++++++++++++---------------------
- 1 file changed, 31 insertions(+), 31 deletions(-)
+ doc/go_spec.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

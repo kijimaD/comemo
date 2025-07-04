@@ -1,16 +1,18 @@
-commit 991c85a750574a608daf70330e26070f8cd97bb4
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Dec 16 03:14:40 2018 +1100
+commit 61d40c8abc82fd845b5e4340bdf0495de0de7ecd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 15 23:00:58 2018 +0000
 
-    cmd/dist: sort gohostos switch entries
+    runtime: extend ReadMemStatsSlow to re-compute HeapReleased
     
-    Sort gohostos switch entries for readability/maintainability.
+    This change extends the test function ReadMemStatsSlow to re-compute
+    the HeapReleased statistic such that it is checked in testing to be
+    consistent with the bookkeeping done in the runtime.
     
-    Change-Id: I565b0aee33e8463502faa68eaceea6f7dccca66b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/154379
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I49f5c2620f5731edea8e9f768744cf997dcd7c22
+    Reviewed-on: https://go-review.googlesource.com/c/142397
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/main.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/runtime/export_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,25 +1,15 @@
-commit d93ff73ae207763871bee38590242be968b2e743
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Jan 18 18:36:00 2022 -0500
+commit 24875e3880c1ef7aca6c844c5b28cf32aea5c418
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Apr 19 17:49:30 2021 -0400
 
-    cmd/compile: don't elide extension for LoadReg to FP register on MIPS64
+    cmd/compile/internal/types2: fix some typos in rawLookupFieldOrMethod
     
-    For an extension operation like MOWWreg, if the operand is already
-    extended, we optimize the second extension out. Usually a LoadReg
-    of a proper type would come already extended, as a MOVW/MOVWU etc.
-    instruction does. But for a LoadReg to a floating point register,
-    the instruction does not do the extension. So we cannot elide the
-    extension.
-    
-    Fixes #50671.
-    
-    Change-Id: Id8991df78d5acdecd3fd6138c558428cbd5f6ba3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379236
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ibc04a82b1d618deeb9bc168ba518dbf1d752fba7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311456
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/mips64/ssa.go |  5 ++++-
- test/fixedbugs/issue50671.go           | 35 ++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/lookup.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

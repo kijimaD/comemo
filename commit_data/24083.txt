@@ -1,20 +1,32 @@
-commit a94e906c41e83b663cd51751cbb74e801a54aba8
+commit 41dafe6ecc358f294e0e91b739b352858d0c01b4
 Author: Todd Neal <todd@tneal.org>
-Date:   Tue Aug 25 18:25:42 2015 -0500
+Date:   Thu Jun 25 23:13:57 2015 -0500
 
-    runtime: remove always false comparison in sigsend
+    [dev.ssa] cmd/compile/ssa: dominator tests and benchmarks
     
-    s is a uint32 and can never be zero. It's max value is already tested
-    against sig.wanted, whose size is derived from _NSIG.  This also
-    matches the test in signal_enable.
+    This change has some tests verifying functionality and an assortment of
+    benchmarks of various block lists. It modifies NewBlock to allocate in
+    contiguous blocks improving the performance of intersect() for extremely
+    large graphs by 30-40%.
     
-    Fixes #11282
+    benchmark                           old ns/op      new ns/op     delta
+    BenchmarkDominatorsLinear-8         1185619        901154        -23.99%
+    BenchmarkDominatorsFwdBack-8        1302138        863537        -33.68%
+    BenchmarkDominatorsManyPred-8       404670521      247450911     -38.85%
+    BenchmarkDominatorsMaxPred-8        455809002      471675119     +3.48%
+    BenchmarkDominatorsMaxPredVal-8     819315864      468257300     -42.85%
     
-    Change-Id: I8eec9c7df8eb8682433616462fe51b264c092475
-    Reviewed-on: https://go-review.googlesource.com/13940
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    BenchmarkNilCheckDeep1-8            766            706           -7.83%
+    BenchmarkNilCheckDeep10-8           2553           2209          -13.47%
+    BenchmarkNilCheckDeep100-8          58606          57545         -1.81%
+    BenchmarkNilCheckDeep1000-8         7753012        8025750       +3.52%
+    BenchmarkNilCheckDeep10000-8        1224165946     789995184     -35.47%
+    
+    Change-Id: Id3d6bc9cb1138e8177934441073ac7873ddf7ade
+    Reviewed-on: https://go-review.googlesource.com/11716
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/sigqueue.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/dom.go      |   1 -
+ src/cmd/compile/internal/ssa/dom_test.go | 321 +++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/func.go     |  37 +++-
+ 3 files changed, 353 insertions(+), 6 deletions(-)

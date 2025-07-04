@@ -1,41 +1,23 @@
-commit dab9c502c4192d90b6cef6c9e54dc98f2aee932f
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Jul 24 10:58:26 2023 -0400
+commit 5b606a9d2b7649532fe25794fa6b99bd24e7697c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Oct 21 11:25:53 2022 -0400
 
-    cmd/compile/internal/inline: add callsite trace output debugging flag
+    cmd/go: correct staleness for packages in modules
     
-    Add a new debug flag "-d=dumpinlcallsitescores" that dumps out a
-    summary of all callsites in the package being compiled with info on
-    inlining heuristics, for human consumption. Sample output lines:
+    Packages in modules don't have a Target set for them, so the current
+    logic for determining staleness always reports them as stale. Instead it
+    should be reporting whether "go install" would do anything, and sholud
+    be false after a go install. If a package does not have a Target,
+    instead check to see whether we've cached its build artifact.
     
-      Score  Adjustment  Status  Callee  CallerPos ScoreFlags
-      ...
-      115    40          DEMOTED  cmd/compile/internal/abi.(*ABIParamAssignment).Offset     expand_calls.go:1679:14|6       panicPathAdj
-      ...
-      76     -5          PROMOTED runtime.persistentalloc   mcheckmark.go:48:45|3   inLoopAdj
-      ...
-      201    0           --- PGO  unicode.DecodeRuneInString        utf8.go:312:30|1
-      ...
-      7      -5          --- PGO  internal/abi.Name.DataChecked     type.go:625:22|0        inLoopAdj
-    
-    Here "Score" is the final score calculated for the callsite,
-    "Adjustment" is the amount added to or subtracted from the original
-    hairyness estimate to form the score. "Status" shows whether anything
-    changed with the site -- did the adjustment bump it down just below
-    the threshold ("PROMOTED") or instead bump it above the threshold
-    ("DEMOTED") or did nothing happen as a result of the heuristics
-    ("---"); "Status" also shows whether PGO was involved. "Callee" is the
-    name of the function called, "CallerPos" is the position of the
-    callsite, and "ScoreFlags" is a digest of the specific properties we
-    used to make adjustments to callsite score via heuristics.
-    
-    Change-Id: Iea4b1cbfee038bc68df6ab81e9973f145636300b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513455
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie7bdb234944353f6c2727bd8bf939cc27ddf3f18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444619
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/base/debug.go             |   1 +
- src/cmd/compile/internal/inline/inl.go             |  18 +++-
- .../compile/internal/inline/inlheur/callsite.go    |   8 +-
- src/cmd/compile/internal/inline/inlheur/scoring.go | 115 +++++++++++++++++++++
- 4 files changed, 138 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/work/buildid.go           | 117 ++++++++++++--------------
+ src/cmd/go/testdata/script/mod_get_commit.txt |   4 +-
+ src/cmd/go/testdata/script/mod_stale.txt      |  15 ++++
+ 3 files changed, 70 insertions(+), 66 deletions(-)

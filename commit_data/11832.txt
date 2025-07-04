@@ -1,16 +1,27 @@
-commit f735d2d9d3d9665d0e5058615ac6f62e2ba79887
+commit 6a75ece01c99164d04752f26d58fdfec268d9139
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 12 23:39:40 2012 -0500
+Date:   Sun Feb 12 23:26:20 2012 -0500
 
-    testing: use runtime/debug to format panics
+    runtime: delete Type and implementations (use reflect instead)
+    unsafe: delete Typeof, Reflect, Unreflect, New, NewArray
     
-    Among other things, this avoids putting a testing.go:nnn:
-    prefix on every line of the stack trace.
+    Part of issue 2955 and issue 2968.
     
-    R=golang-dev, r, dsymonds, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5651081
+    https://golang.org/cl/5650069
 
- src/pkg/runtime/debug/stack_test.go |  3 ++-
- src/pkg/testing/testing.go          | 25 +++++++------------------
- 2 files changed, 9 insertions(+), 19 deletions(-)
+ src/cmd/gc/go.h                |   1 +
+ src/cmd/gc/lex.c               |   4 +
+ src/cmd/gc/reflect.c           |  66 +++----------
+ src/cmd/ld/dwarf.c             |   2 +-
+ src/pkg/encoding/gob/decode.go |  12 +--
+ src/pkg/encoding/gob/encode.go |   8 +-
+ src/pkg/reflect/type.go        | 154 ++++++++++++++---------------
+ src/pkg/reflect/value.go       |  41 +++++---
+ src/pkg/runtime/error.go       |  39 +-------
+ src/pkg/runtime/iface.c        | 120 +++-------------------
+ src/pkg/runtime/runtime.h      |   2 +-
+ src/pkg/runtime/type.go        | 219 ++++++-----------------------------------
+ src/pkg/unsafe/unsafe.go       |  24 -----
+ 13 files changed, 176 insertions(+), 516 deletions(-)

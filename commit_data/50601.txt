@@ -1,31 +1,18 @@
-commit 84f95aa811ed4fdb316f787fe2af80b30d531abf
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Sep 29 16:42:55 2021 -0400
+commit d6f7203a3c63276680457b9794191a366a1a4401
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 2 18:29:27 2021 -0400
 
-    internal/coverage: add coverage meta-data decoder
+    go/types: adjust printing of type parameter in error
     
-    Add a coverage meta-data decoder, which provides APIs for reading
-    encoded coverage meta-data and expanding it usable form. This package
-    is intended to be used in the coverage tooling that reads data files
-    emitted from coverage runs. Along with the new decoding package is a
-    unit test that runs the encode/decode paths together to check to make
-    sure that "decode(encode(X)) == X".
+    This is a clean port of CL 360514 to go/types.
     
-    Updates #51430.
-    
-    Change-Id: I81d27d8da0b2fcfa5039114a6e35a4b463d19b3c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353454
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia13638b3758b3b8017867934d09136ac5f9a62ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360935
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/build/deps_test.go                        |  12 +-
- src/internal/coverage/decodemeta/decode.go       | 130 +++++++++++
- src/internal/coverage/decodemeta/decodefile.go   | 223 ++++++++++++++++++
- src/internal/coverage/slicereader/slicereader.go | 105 +++++++++
- src/internal/coverage/slicereader/slr_test.go    |  92 ++++++++
- src/internal/coverage/slicewriter/slicewriter.go |  80 +++++++
- src/internal/coverage/slicewriter/slw_test.go    | 131 +++++++++++
- src/internal/coverage/stringtab/stringtab.go     |  37 ++-
- src/internal/coverage/test/roundtrip_test.go     | 275 +++++++++++++++++++++++
- 9 files changed, 1082 insertions(+), 3 deletions(-)
+ src/go/types/infer.go                          | 7 ++++---
+ src/go/types/testdata/fixedbugs/issue45985.go2 | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

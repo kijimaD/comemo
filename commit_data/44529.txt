@@ -1,19 +1,16 @@
-commit 280c735b07af9ea313d73049b0031f466e8d1000
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 4 23:12:22 2021 -0500
+commit 10523c0efb908ab0ff4872a2e9e91b314d3d46ed
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Fri Jul 31 03:02:55 2020 +0000
 
-    cmd/go: require a module root in 'go list -m' with an unversioned path
+    doc/go1.15: fix a few trivial inconsistencies
     
-    Fixes #44803
+    For #37419
     
-    Change-Id: Ie6ee2e3bca1809c91ecedec75d2c6620da914b29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298752
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I8ede539df5d5344aeb44ba1a7e2383363d92157f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245977
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modload/list.go                 | 9 +++++++--
- src/cmd/go/testdata/script/mod_outside.txt          | 5 +++++
- src/cmd/go/testdata/script/mod_retract_versions.txt | 5 +++++
- 3 files changed, 17 insertions(+), 2 deletions(-)
+ doc/go1.15.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

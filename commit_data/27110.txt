@@ -1,41 +1,16 @@
-commit f12bd8a5a8f8485f13793f03d4803a924923badb
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 21 11:55:33 2016 -0700
+commit f973e79d096be18ad4272ad97803b7c08fca4dd0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 11 00:44:39 2016 -0800
 
-    cmd/compile: encapsulate OSLICE* representation
+    cmd/compile: move InitPlan and InitEntry into sinit.go
     
-    As a nice side-effect, this allows us to
-    unify several code paths.
+    I don't know what they're used for, but that's the only file they're
+    referenced in.
     
-    The terminology (low, high, max, simple slice expr,
-    full slice expr) is taken from the spec and
-    the examples in the spec.
-    
-    This is a trial run. The plan, probably for Go 1.8,
-    is to change slice expressions to use Node.List
-    instead of OKEY, and to do some similar
-    tree structure changes for other ops.
-    
-    Passes toolstash -cmp. No performance change.
-    all.bash passes with GO_GCFLAGS=-newexport.
-    
-    Updates #15350
-    
-    Change-Id: Ic1efdc36e79cdb95ae1636e9817a3ac8f83ab1ac
-    Reviewed-on: https://go-review.googlesource.com/22425
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie39d7d4621e2d5224408243b5789597ca0dc14be
+    Reviewed-on: https://go-review.googlesource.com/20593
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/gc/bexport.go   |   7 ++-
- src/cmd/compile/internal/gc/bimport.go   |  12 +++-
- src/cmd/compile/internal/gc/cgen.go      |  10 +---
- src/cmd/compile/internal/gc/fmt.go       |  34 +++++++----
- src/cmd/compile/internal/gc/inl.go       |   2 +-
- src/cmd/compile/internal/gc/order.go     |  26 +++-----
- src/cmd/compile/internal/gc/parser.go    |  15 ++---
- src/cmd/compile/internal/gc/racewalk.go  |   6 +-
- src/cmd/compile/internal/gc/sinit.go     |   7 ++-
- src/cmd/compile/internal/gc/ssa.go       |  47 ++++++---------
- src/cmd/compile/internal/gc/subr.go      |  62 +++++++++++++++++++
- src/cmd/compile/internal/gc/typecheck.go | 100 +++++++------------------------
- src/cmd/compile/internal/gc/walk.go      |  76 ++++++++++++-----------
- 13 files changed, 205 insertions(+), 199 deletions(-)
+ src/cmd/compile/internal/gc/go.go    | 12 ------------
+ src/cmd/compile/internal/gc/sinit.go | 12 ++++++++++++
+ 2 files changed, 12 insertions(+), 12 deletions(-)

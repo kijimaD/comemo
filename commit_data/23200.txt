@@ -1,24 +1,21 @@
-commit 724f8298a80e151088cd5f9342632b6b407fed08
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 28 12:37:12 2015 -0400
+commit 98e0556231b43d26e8b22936299c49c4b794ced0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 28 21:17:46 2015 +0900
 
-    runtime: avoid double-scanning of stacks
+    net: deflake timeout, deadline tests
     
-    Currently there's a race between stopg scanning another G's stack and
-    the G reaching a preemption point and scanning its own stack. When
-    this race occurs, the G's stack is scanned twice. Currently this is
-    okay, so this race is benign.
+    This change deflakes timeout, deadline tests, especially fixes socket
+    and goroutine leaks. Also adds a few missing tests that use features
+    introduced after go1 release.
     
-    However, we will shortly be adding stack barriers during the first
-    stack scan, so scanning will no longer be idempotent. To prepare for
-    this, this change ensures that each stack is scanned only once during
-    each GC phase by checking the flag that indicates that the stack has
-    been scanned in this phase before scanning the stack.
-    
-    Change-Id: Id9f4d5e2e5b839bc3f200ec1723a4a12dd677ab4
-    Reviewed-on: https://go-review.googlesource.com/10458
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ibf73a4859f8d4a0ee494ca2fd180cbce72a7a2c7
+    Reviewed-on: https://go-review.googlesource.com/9464
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgcmark.go | 3 +++
- src/runtime/stack1.go  | 7 +++++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/net/error_plan9_test.go |    5 +-
+ src/net/error_posix_test.go |    5 +-
+ src/net/error_test.go       |   16 +-
+ src/net/mockserver_test.go  |   71 +++
+ src/net/timeout_test.go     | 1107 +++++++++++++++++++++----------------------
+ src/net/udp_test.go         |    3 +-
+ 6 files changed, 638 insertions(+), 569 deletions(-)

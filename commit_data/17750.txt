@@ -1,20 +1,16 @@
-commit 869368a528cf4a8b154176b34182dbfa4a42f21a
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Oct 4 13:54:03 2013 -0700
+commit ef4e12a4ba5377c8462b73af73043e0f78411e47
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 4 13:12:50 2013 -0700
 
-    runtime: fix bug in maps at the intersection of iterators, growing, and NaN keys
+    reflect: test using a MakeFunc value in a couple of different ways
     
-    If an iterator is started while a map is in the middle of a grow,
-    and the map has NaN keys, then those keys might get returned by
-    the iterator more than once.  This fix makes the evacuation decision
-    deterministic and repeatable for NaN keys so each one gets returned
-    only once.
+    The gccgo implementation mishandled calling Interface on a
+    value created by MakeFunc.
     
-    R=golang-dev, r, khr, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14367043
+    https://golang.org/cl/14401043
 
- src/pkg/runtime/export_test.go |  3 ++
- src/pkg/runtime/hashmap.c      | 65 ++++++++++++++++++++++++++++++++----------
- src/pkg/runtime/map_test.go    | 38 ++++++++++++++++++++++++
- 3 files changed, 91 insertions(+), 15 deletions(-)
+ src/pkg/reflect/all_test.go | 18 ++++++++++++++++++
+ src/pkg/reflect/makefunc.go |  2 +-
+ 2 files changed, 19 insertions(+), 1 deletion(-)

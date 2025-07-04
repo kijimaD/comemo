@@ -1,18 +1,49 @@
-commit 6afb5fa48fc3d33f7973fbdfeb96fdfaad51fb5f
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 9 10:17:06 2015 -0400
+commit f52b234579abb8045da366c8fd5f24e0cf2c7ed2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 3 13:38:14 2015 -0800
 
-    runtime: remove GoSched/GoStart trace events around GC
+    [dev.ssa] cmd/internal/ssa: SSA backend compiler skeleton
     
-    These were appropriate for STW GC, since it interrupted the allocating
-    Goroutine, but don't apply to concurrent GC, which runs on its own
-    Goroutine. Forced GC is still STW, but it makes sense to attribute the
-    GC to the goroutine that called runtime.GC().
+    First pass adding code for SSA backend.  It is standalone for now.
+    I've included just a few passes to make the review size manageable -
+    I have more passes coming.
     
-    Change-Id: If12418ca66dc7e53b8b16025af4e03adb5d9577e
-    Reviewed-on: https://go-review.googlesource.com/8715
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    cmd/internal/ssa is the library containing the ssa compiler proper.
+    
+    cmd/internal/ssa/ssac is a driver that loads an sexpr-based IR,
+    converts it to SSA form, and calls the above library.  It is essentially
+    throwaway code - it will disappear once the Go compiler calls
+    cmd/internal/ssa itself.  The .goir files in ssac/ are dumps of fibonacci
+    programs I made from a hacked-up compiler.  They are just for testing.
+    
+    Change-Id: I5ee89356ec12c87cd916681097cd3c2cd591040c
+    Reviewed-on: https://go-review.googlesource.com/6681
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgc.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/internal/ssa/block.go            |  92 +++++++
+ src/cmd/internal/ssa/blockkind_string.go |  16 ++
+ src/cmd/internal/ssa/check.go            | 125 +++++++++
+ src/cmd/internal/ssa/compile.go          |  65 +++++
+ src/cmd/internal/ssa/copyelim.go         |  29 ++
+ src/cmd/internal/ssa/deadcode.go         | 153 +++++++++++
+ src/cmd/internal/ssa/deadcode_test.go    | 112 ++++++++
+ src/cmd/internal/ssa/export_test.go      |   9 +
+ src/cmd/internal/ssa/func.go             |  61 +++++
+ src/cmd/internal/ssa/id.go               |  41 +++
+ src/cmd/internal/ssa/location.go         |  42 +++
+ src/cmd/internal/ssa/op.go               | 345 ++++++++++++++++++++++++
+ src/cmd/internal/ssa/op_string.go        |  16 ++
+ src/cmd/internal/ssa/phielim.go          |  44 ++++
+ src/cmd/internal/ssa/print.go            |  63 +++++
+ src/cmd/internal/ssa/sparseset.go        |  60 +++++
+ src/cmd/internal/ssa/ssac/.gitignore     |   1 +
+ src/cmd/internal/ssa/ssac/fib.goir       |  46 ++++
+ src/cmd/internal/ssa/ssac/fibiter.goir   |  62 +++++
+ src/cmd/internal/ssa/ssac/main.go        | 436 +++++++++++++++++++++++++++++++
+ src/cmd/internal/ssa/ssac/sexpr.go       |  82 ++++++
+ src/cmd/internal/ssa/ssac/sparsemap.go   |  69 +++++
+ src/cmd/internal/ssa/type.go             |  84 ++++++
+ src/cmd/internal/ssa/types/object.go     |  39 +++
+ src/cmd/internal/ssa/types/type.go       | 229 ++++++++++++++++
+ src/cmd/internal/ssa/value.go            | 117 +++++++++
+ 26 files changed, 2438 insertions(+)

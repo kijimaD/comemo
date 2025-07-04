@@ -1,12 +1,14 @@
-commit 4984e6e9fdde23a75b0a8c52d56c7a4b5f5d5736
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 12 22:04:24 2013 -0400
+commit 954d14741d56c271a95d7b4dee1e8da35d7347af
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 13 11:32:32 2013 +1000
 
-    cmd/6l: fix printing of frame size in TEXT instruction
+    go/build: change the wording of NoGoError and comment it better
+    Out of context, it can be very confusing because there can be lots of Go
+    files in the directory, but the error message says there aren't.
     
-    R=ken2
+    R=golang-dev, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/12827043
+    https://golang.org/cl/12823043
 
- src/cmd/6l/list.c | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/go/build/build.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

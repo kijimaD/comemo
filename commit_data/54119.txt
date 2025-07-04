@@ -1,16 +1,34 @@
-commit a7c3de705287d56e3bea8a84ed9a56e4102d3f39
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu Aug 10 14:02:03 2023 +0800
+commit 07bdf1dc545c6f6e59f5780a9024e6f230d9b434
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 8 11:51:40 2021 -0400
 
-    runtime: document maxStack and m.createstack in more details
+    runtime: add an exit hook facility
     
-    Change-Id: If93b6cfa5a598a5f4101c879a0cd88a194e4a6aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518116
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Add a new API (not public/exported) for registering a function with
+    the runtime that should be called when program execution terminates,
+    to be used in the new code coverage re-implementation. The API looks
+    like
+    
+      func addExitHook(f func(), runOnNonZeroExit bool)
+    
+    The first argument is the function to be run, second argument controls
+    whether the function is invoked even if there is a call to os.Exit
+    with a non-zero status. Exit hooks are run in reverse order of
+    registration, e.g. the first hook to be registered will be the last to
+    run. Exit hook functions are not allowed to panic or to make calls to
+    os.Exit.
+    
+    Updates #51430.
+    
+    Change-Id: I906f8c5184b7c1666f05a62cfc7833bf1a4300c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354790
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/mprof.go    | 5 ++++-
- src/runtime/runtime2.go | 2 +-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/os/proc.go                                     | 26 ++++---
+ src/runtime/ehooks_test.go                         | 88 ++++++++++++++++++++++
+ src/runtime/exithook.go                            | 68 +++++++++++++++++
+ src/runtime/proc.go                                |  7 +-
+ .../testdata/testexithooks/testexithooks.go        | 87 +++++++++++++++++++++
+ 5 files changed, 262 insertions(+), 14 deletions(-)

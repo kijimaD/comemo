@@ -1,13 +1,13 @@
-commit da7e1ba00b7c223b24a175b0bbefb7b1f26ec1af
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Aug 10 16:00:22 2011 +1000
+commit ae03a192e0fa02145bbace8b094e1f9d5fc9f301
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 10 15:45:37 2011 +1000
 
-    weekly.2011-08-10
+    timing.log: significant improvements after custom algorithms
+    See https://golang.org/cl/4815087
     
-    R=r
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/4830069
+    https://golang.org/cl/4849050
 
- .hgtags               |  1 -
- doc/devel/weekly.html | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 1 deletion(-)
+ test/bench/timing.log | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

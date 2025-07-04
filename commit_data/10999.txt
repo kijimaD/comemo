@@ -1,13 +1,12 @@
-commit f298d0ce29cdd6a3521cb6a062a9fc4a104392fc
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Dec 23 16:28:56 2011 +1100
+commit e6a322b0b9a018ff3b63905ec0b5aca7ab836370
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 23 16:04:01 2011 +1100
 
-    time: add ParseDuration.
+    dashboard: fix todo caching nil
     
-    R=rsc, r, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5489111
+    https://golang.org/cl/5504082
 
- src/pkg/time/format.go    | 146 +++++++++++++++++++++++++++++++++++++++++-----
- src/pkg/time/time_test.go |  77 ++++++++++++++++++++++++
- 2 files changed, 207 insertions(+), 16 deletions(-)
+ misc/dashboard/app/build/handler.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

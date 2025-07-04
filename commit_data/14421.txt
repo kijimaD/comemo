@@ -1,25 +1,17 @@
-commit de58eb9091d24abd9d837b8a787ba90eadd1ab0a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 16 13:17:12 2012 -0800
+commit 8f82bff545ed7d1f432038b7ad97e46c4bb5cf77
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Nov 16 20:06:11 2012 +0400
 
-    go/printer: leave indentation alone when printing nodes from different files
+    runtime: hide mheap from race detector
+    This significantly decreases amount of shadow memory
+    mapped by race detector.
+    I haven't tested on Windows, but on Linux it reduces
+    virtual memory size from 1351m to 330m for fmt.test.
+    Fixes #4379.
     
-    ASTs may be created by various tools and built from nodes of
-    different files. An incorrectly constructed AST will likely
-    not print at all, but a (structurally) correct AST with bad
-    position information should still print structurally correct.
-    
-    One heuristic used was to reset indentation when the filename
-    in the position information of nodes changed. However, this
-    can lead to wrong indentation for structurally correct ASTs.
-    
-    Fix: Don't change the indentation in this case.
-    
-    Related to issue 4300.
-    
-    R=r
+    R=golang-dev, alex.brainman, iant
     CC=golang-dev
-    https://golang.org/cl/6849066
+    https://golang.org/cl/6849057
 
- src/pkg/go/printer/printer.go | 9 ++++++++-
+ src/pkg/runtime/race.c | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)

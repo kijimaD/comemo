@@ -1,29 +1,24 @@
-commit 36e1c7ab73591388ba1a7246ada21e0baefd2ce1
-Author: Albert Nigmatzianov <albertnigma@gmail.com>
-Date:   Wed Sep 20 19:23:11 2017 +0500
+commit 0a3f3e166d702f477863a5260779fa0357c72302
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Apr 5 17:32:09 2017 +0900
 
-    io: Add benchmarks for CopyN
+    archive/zip: set utf-8 flag
     
-    Copied from CL 60630
+    See: https://pkware.cachefly.net/webdocs/APPNOTE/APPNOTE-6.3.0.TXT
     
-    Current results:
-    name          time/op
-    CopyNSmall-4  2.20µs ±90%
-    CopyNLarge-4   136µs ±56%
+    Document says:
+    > If general purpose bit 11 is set, the filename and comment must support The
+    > Unicode Standard, Version 4.1.0 or greater using the character encoding form
+    > defined by the UTF-8 storage specification.
     
-    name          alloc/op
-    CopyNSmall-4  1.84kB ±21%
-    CopyNLarge-4   128kB ±10%
+    Since Go encode the filename to UTF-8, general purpose bit 11 should be set.
     
-    name          allocs/op
-    CopyNSmall-4    1.00 ± 0%
-    CopyNLarge-4    1.00 ± 0%
-    
-    Change-Id: If08c0132a773e936c9f61bff96e0aabf58006d31
-    Reviewed-on: https://go-review.googlesource.com/64932
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ica4af02b4dc695e9a5c015ae360e70171efb6ee3
+    Reviewed-on: https://go-review.googlesource.com/39570
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/io/io_test.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/archive/zip/writer.go      | 19 +++++++++++++
+ src/archive/zip/writer_test.go | 63 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+)

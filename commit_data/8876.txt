@@ -1,17 +1,15 @@
-commit 6282292f8da9dc8254bcbef51318504a17cb18b0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 27 21:59:51 2011 -0700
+commit 52cd055f9156c5d09468e427521eaceb63f9b50a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 23:23:51 2011 -0400
 
-    mime/multipart: parse LF-delimited messages, not just CRLF
+    exp/regexp/syntax: case-folding in character classes
     
-    Against the spec, but appear in the wild.
+    Also fix \x{123} parsing.
     
-    Fixes #1966
-    
-    R=golang-dev, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4662059
+    https://golang.org/cl/4632052
 
- src/pkg/mime/multipart/multipart.go      | 32 +++++++++++++++++++++-----------
- src/pkg/mime/multipart/multipart_test.go | 32 ++++++++++++++++++++++----------
- 2 files changed, 43 insertions(+), 21 deletions(-)
+ src/pkg/exp/regexp/syntax/parse.go      | 157 +++++++++++++++++++++++++-------
+ src/pkg/exp/regexp/syntax/parse_test.go |  85 +++++++++++++++--
+ 2 files changed, 205 insertions(+), 37 deletions(-)

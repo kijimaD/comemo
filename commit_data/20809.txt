@@ -1,13 +1,18 @@
-commit 982dcb249d107c1cab844912583c5eca0a07a00f
+commit ae250ab227311aab7fd8dff22ae05592abd13bde
 Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 28 13:49:41 2014 -0700
+Date:   Tue Oct 14 20:03:35 2014 -0700
 
-    doc/go1.4.html: breaking compiler change, no plugins in misc
+    encoding/gob: make encoding structs a little faster
+    FieldByIndex never returns an invalid Value, so the validity
+    test can be avoided if the field is not indirect.
+    
+    BenchmarkGobEncode     12768642      12424022      -2.70%
+    BenchmarkGobEncode     60.11        61.78        1.03x
     
     LGTM=rsc
-    R=golang-codereviews, rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/166850043
+    https://golang.org/cl/158890045
 
- doc/go1.4.html | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 50 insertions(+), 6 deletions(-)
+ src/encoding/gob/encode.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

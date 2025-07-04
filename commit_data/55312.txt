@@ -1,20 +1,53 @@
-commit 761e10be8805bf0b3afd015cf9f09856a6066ad2
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Sun Dec 17 17:51:25 2023 +0100
+commit 21b4e0146a40a95687c4d3e36939eef991f03c1e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 26 13:20:34 2023 -0800
 
-    cmd/link/internal/loadpe: update comment about @feat.00 symbol handling
+    go/types, types2: simplify unifier
     
-    The @feat.00 comment is outdated, as Go does support SEH on
-    windows/amd64. While here, simplify it and add a link to the
-    relevant documentation.
+    The unifier was written such that it was possible to specify
+    a different set of type parameters (declared by different
+    generic declarations) for each type x, y being unified,
+    to allow for what is called "bidirectional unification"
+    in the documentation (comments).
     
-    Change-Id: I6e3c786ca4f4809baf46015edf569d06b12f1239
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/550635
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    However, in the current implementation, this mechanism is
+    not used:
+    
+    - For function type inference, we only consider the
+    type parameter list of the generic function (type parameters
+    that appear in the arguments are considered stand-alone types).
+    We use type parameter renaming to avoid any problems in case
+    of recursive generic calls that rely on type inference.
+    
+    - For constraint type inference, the type parameters for the
+    types x and y (i.e., the type parameter and its constraint)
+    are the same and had to be explicitly set to be identical.
+    
+    This CL removes the ability to set separate type parameter
+    lists. Instead a single type parameter list is used during
+    unification and is provided when we initialize a unifier.
+    
+    As a consequence, we don't need to maintain the separate
+    tparamsList data structure: since we have a single list
+    of type parameters we can keep it directly in the unifier.
+    
+    Adjust all the unifier code accordingly and update comments.
+    
+    As an aside, remove the `exact` flag from the unifier as it
+    was never set. However, keep the functionality for now and
+    use a constant (exactUnification) instead. This makes it
+    easy to find the respectice code without incurring any cost.
+    
+    Change-Id: I969ba6dbbed2d65d06ba4e20b97bdc362c806772
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463223
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/link/internal/loadpe/ldpe.go | 15 ++++-----------
- 1 file changed, 4 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/types2/infer.go |  32 +++--
+ src/cmd/compile/internal/types2/unify.go | 207 +++++++++++++------------------
+ src/go/types/infer.go                    |  32 +++--
+ src/go/types/unify.go                    | 207 +++++++++++++------------------
+ 4 files changed, 206 insertions(+), 272 deletions(-)

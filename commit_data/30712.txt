@@ -1,16 +1,19 @@
-commit d83af90a894cc6edaed97cea0edac62dfe8ba69a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 17 23:53:19 2017 +0000
+commit 3825656e285155d40f286ff9e1e5deb60cf99094
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Sat Nov 26 11:21:01 2016 -0800
 
-    Revert "go/types: enforce Check path restrictions via panics"
+    cmd/go: report position info in package errors
     
-    This reverts commit b744a11a966ad3999c190fea9909ec8df0570b87.
+    Also refactor common position filling code into a function.
     
-    Reason for revert: Broke trybots. (misc-vetall builder is busted)
+    Fixes #18011
     
-    Change-Id: I651d1c18db2fb3cb6ec12c2ae62024627baf8d77
-    Reviewed-on: https://go-review.googlesource.com/38332
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I76528626da67a7309193fa92af1e361c8e2fcf84
+    Reviewed-on: https://go-review.googlesource.com/33631
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/api.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/go/go_test.go |  6 +++---
+ src/cmd/go/pkg.go     | 33 +++++++++++++++------------------
+ 2 files changed, 18 insertions(+), 21 deletions(-)

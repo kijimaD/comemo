@@ -1,14 +1,35 @@
-commit 855145d5c03c4b4faf60736c38d7a299c682af4a
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Feb 7 14:06:02 2015 -0500
+commit be818361b9a5e73ade75fa1999ed0dec81de7cb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 19 13:24:43 2015 -0500
 
-    cmd/ld: set alignment for the .rel.plt section on 32-bit architectures
+    [dev.cc] liblink: invoke 'go tool objwriter' to implement writeobj, if directed
     
-    Fixes #9802.
+    This CL enables moving the bulk of the object writing code
+    out of liblink and into translated Go libraries in cmd/internal/obj,
+    but it does not do the move.
     
-    Change-Id: I22c52a37bdb23a14cc4615c9519431bb14ca81ca
-    Reviewed-on: https://go-review.googlesource.com/4170
+    This CL introduces two new environment variables,
+    $GOOBJ and $GOOBJWRITER, but both will be deleted along with
+    the rest of the liblink C code.
+    
+    The default behavior of a build is unchanged by this CL:
+    the C version of liblink uses the C object layout and writing code.
+    
+    If $GOOBJ=1, liblink invokes go tool objwriter instead.
+    
+    If $GOOBJ=2, liblink does its own layout and then invokes
+    go tool objwriter, which checks that it gets the same answer.
+    
+    That is, in $GOOBJ=2 mode, both the C and the Go version of
+    the code run, and the operation fails if the two produce different
+    answers. This provides a very strong check that the translation
+    is working correctly.
+    
+    Change-Id: I56ab49b07ccb2c7b81085f1d6950131047c6aa3c
+    Reviewed-on: https://go-review.googlesource.com/3048
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/ld/elf.c | 1 +
- 1 file changed, 1 insertion(+)
+ include/link.h          |   3 +
+ src/liblink/objfile.c   |  52 +++++---
+ src/liblink/objfilego.c | 337 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 374 insertions(+), 18 deletions(-)

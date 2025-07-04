@@ -1,20 +1,20 @@
-commit d0cda4d95f4c889fdb4988750f704604553c35a4
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Thu Apr 28 23:20:53 2022 +0800
+commit 1eb756689c413c84bb2bf91396b54028671bc541
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 30 11:21:32 2021 -0700
 
-    internal/bytealg: mask high bit for riscv64 regabi
+    [dev.typeparams] cmd/compile/internal/types2: make Interface.obj a *TypeName
     
-    This CL masks byte params which high bits(~0xff) is unused for riscv64
-    regabi.
-    Currently the compiler only guarantees the low bits contains value.
+    We know the exact type, so make it that. This saves some code
+    and a word of space with each Interface.
     
-    Change-Id: I6dd6c867e60d2143fefde92c866f78c4b007a2f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402894
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: mzh <mzh@golangcn.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Follow-up on a comment in https://golang.org/cl/329309.
+    
+    Change-Id: I827e39d17aae159a52ac563544c5e6d017bc05ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332011
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/bytealg/count_riscv64.s     | 3 ++-
- src/internal/bytealg/indexbyte_riscv64.s | 2 ++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/call.go        | 7 +++----
+ src/cmd/compile/internal/types2/sizeof_test.go | 2 +-
+ src/cmd/compile/internal/types2/type.go        | 2 +-
+ 3 files changed, 5 insertions(+), 6 deletions(-)

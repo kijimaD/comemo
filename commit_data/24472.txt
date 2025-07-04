@@ -1,14 +1,28 @@
-commit ae315999c2d5514cec17adbd37cf2438e20cbd12
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 8 13:37:39 2015 -0700
+commit 4b803151ce02aa8372488dd6e50f26f5bc0b2120
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 29 17:07:09 2015 -0700
 
-    net/http/httputil: clarify NewSingleHostReverseProxy's Host header behavior
+    [dev.ssa] cmd/compile/internal/ssa: fix shift operations
     
-    Fixes #10342
+    Convert shift ops to also encode the size of the shift amount.
     
-    Change-Id: I69c69352016a8fd0b62541128c2e86b242ebbe26
-    Reviewed-on: https://go-review.googlesource.com/15630
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change signed right shift from using CMOV to using bit twiddles.
+    It is a little bit better (5 instructions instead of 4, but fewer
+    bytes and slightly faster code).  It's also a bit faster than
+    the 4-instruction branch version, even with a very predictable
+    branch.  As tested on my machine, YMMV.
+    
+    Implement OCOM while we are here.
+    
+    Change-Id: I8ca12dd62fae5d626dc0e6da5d4bbd34fd9640d2
+    Reviewed-on: https://go-review.googlesource.com/12867
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/http/httputil/reverseproxy.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             |  153 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  179 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   10 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   71 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  327 +++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 2451 +++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/shift_test.go     |   12 +-
+ 7 files changed, 2751 insertions(+), 452 deletions(-)
